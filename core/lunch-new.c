@@ -1,3 +1,4 @@
+#include <X11/Xlib.h>
 #include "lunch-new.h"
 #include "parserslow.h"
 #include "edit_rhs.h"
@@ -14,7 +15,6 @@
 #include <string.h>
 #include <math.h>
 #include "arrayplot.h"
-#include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <time.h>
 #include "xpplim.h"

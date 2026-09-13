@@ -37,18 +37,24 @@ typedef struct {
 
 int new_vcr(void);
 int create_vcr(char *name);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 int ani_border(Window w, int i);
 int do_ani_events(XEvent ev);
 int ani_button(Window w);
+#endif /* Xlib.h */
 int ani_create_mpeg(void);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 int ani_expose(Window w);
+#endif /* Xlib.h */
 int ani_resize(int x, int y);
 int ani_newskip(void);
 int ani_flip1(int n);
 int ani_flip(void);
 int ani_disk_warn(void);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 int getppmbits(Window window, int *wid, int *hgt, unsigned char *out);
 int writeframe(char *filename, Window window, int wid, int hgt);
+#endif /* Xlib.h */
 int ani_zero(void);
 int get_ani_file(void);
 int ani_new_file(char *filename);

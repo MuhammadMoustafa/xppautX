@@ -1,3 +1,4 @@
+#include <X11/Xlib.h>
 #include "kinescope.h"
 
 
@@ -10,7 +11,6 @@
 #include "ggets.h"
 #include <stdlib.h> 
 /*    Kinescope for X  windows       */
-#include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xos.h>
 #include <X11/Xatom.h>

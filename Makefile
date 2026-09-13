@@ -29,17 +29,23 @@ BUILDDIR = build/obj
 SOURCES := $(filter-out $(SRCDIR)/sbml2xpp.c,$(wildcard $(SRCDIR)/*.c))
 OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SOURCES))
 
-.PHONY: all clean
+.PHONY: all clean x11free
 all: xppaut
 
 xppaut: $(OBJECTS)
 	$(CC) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c | $(BUILDDIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
 $(BUILDDIR):
 	mkdir -p $@
 
+-include $(OBJECTS:.o=.d)
+
 clean:
 	rm -rf $(BUILDDIR) xppaut
+
+.PHONY: x11free
+x11free:
+	tools/x11free.sh -v

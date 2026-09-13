@@ -6,9 +6,6 @@
 #include "phsplan.h"
 #include <stdlib.h> 
 #include <string.h>
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/cursorfont.h>
 #include <stdio.h>
 #include "xpplim.h"
 #include "math.h"
@@ -46,13 +43,19 @@
 	
 
 
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 extern Display *display;
+#endif /* Xlib.h */
 extern int DisplayWidth,DisplayHeight;
 extern int screen;
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 extern Atom deleteWindowAtom;
 extern Window main_win,info_pop,draw_win;
+#endif /* Xlib.h */
 extern int DCURY,DCURX,CURY_OFF,DCURXs,DCURYs,CURY_OFFs,xor_flag;
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 extern GC gc,small_gc;
+#endif /* Xlib.h */
 extern unsigned int MyBackColor,MyForeColor;
 
 extern int TipsFlag;
@@ -62,13 +65,16 @@ extern char UserWhite[8];
 extern int UserGradients;
 
 
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 Window make_window();
 Window make_plain_window();
 
+#endif /* Xlib.h */
 /*  This is a string box widget which handles a list of 
 	editable strings  
  */
 
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 typedef struct {
 		Window base,ok,cancel;
 		Window win[MAX_N_SBOX];
@@ -80,6 +86,7 @@ typedef struct {
 		} STRING_BOX;
 
 
+#endif /* Xlib.h */
 typedef struct {
                char **list;
                int n;
@@ -92,6 +99,7 @@ extern SCRBOX_LIST scrbox_list[10];
 
 
 /*  This is a new improved pop_up widget */
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 typedef struct {
 		Window base,tit;
 		Window *w;
@@ -120,6 +128,7 @@ typedef struct {
               } SCROLLBOX;
 
 extern TEXTWIN mytext;
+#endif /* Xlib.h */
 #define SB_PLOTTABLE 0
 #define SB_VARIABLE 1
 #define SB_PARAMETER 2
@@ -132,8 +141,11 @@ extern TEXTWIN mytext;
 
 
 
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void set_window_title(Window win, char *string);
+#endif /* Xlib.h */
 void make_scrbox_lists(void);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 int get_x_coord_win(Window win);
 void destroy_scroll_box(SCROLLBOX *sb);
 void create_scroll_box(Window root, int x0, int y0, int nent, int nw, char **list, SCROLLBOX *sb);
@@ -143,7 +155,9 @@ void crossing_scroll_box(Window w, int c, SCROLLBOX sb);
 int scroll_box_motion(XEvent ev, SCROLLBOX *sb);
 int select_scroll_item(Window w, SCROLLBOX sb);
 void scroll_popup(STRING_BOX *sb, SCROLLBOX *scrb);
+#endif /* Xlib.h */
 int do_string_box(int n, int row, int col, char *title, char **names, char values[][25], int maxchar);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void expose_sbox(STRING_BOX sb, Window w, int pos, int col);
 void do_hilite_text(char *name, char *value, int flag, Window w, int pos, int col);
 void reset_hot(int inew, STRING_BOX *sb);
@@ -157,14 +171,19 @@ Window make_plain_unmapped_window(Window root, int x, int y, int width, int heig
 Window make_window(Window root, int x, int y, int width, int height, int bw);
 Window make_plain_window(Window root, int x, int y, int width, int height, int bw);
 void expose_resp_box(char *button, char *message, Window wb, Window wm, Window w);
+#endif /* Xlib.h */
 void respond_box(char *button, char *message);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void message_box(Window *w, int x, int y, char *message);
 void expose_choice(char *choice1, char *choice2, char *msg, Window c1, Window c2, Window wm, Window w);
 int two_choice(char *choice1, char *choice2, char *string, char *key, int x, int y, Window w,char *title);
+#endif /* Xlib.h */
 int yes_no_box(void);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 int pop_up_list(Window *root, char *title, char **list, char *key, int n, int max, int def, int x, int y, char **hints, Window hwin, char *httxt);
 void draw_pop_up(POP_UP p, Window w);
 Window make_unmapped_icon_window(Window root,int x,int y,int width,int height,int bw,int icx,int icy,unsigned char* icdata);
 Window make_icon_window(Window root,int x,int y,int width,int height,int bw,int icx,int icy,unsigned char* icdata);
 
+#endif /* Xlib.h */
 #endif

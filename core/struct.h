@@ -23,6 +23,7 @@ typedef struct {
   		int nstep, ic,stor;
 		} RANGE_INFO; 
 		
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 typedef struct {
 		Window base,ok,cancel,old,last,more,range;
 		Window wrlo,wrhi,wstep,wreset,woldic;
@@ -162,6 +163,7 @@ typedef struct {
 
   
 
+#endif /* Xlib.h */
 #endif
 
 

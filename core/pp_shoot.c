@@ -1,3 +1,4 @@
+#include <X11/Xlib.h>
 #include "pp_shoot.h"
 
 #include "my_rhs.h"
@@ -25,7 +26,6 @@
 #include <string.h>
 #include "shoot.h"
 #include "kinescope.h"
-/*#include <X11/Xlib.h>
   #include <X11/Xutil.h> */
 #include <math.h>
 #include "xpplim.h"

@@ -21,5 +21,7 @@ The Windows-side gcc at C:\Strawberry\c\bin is Perl's MinGW without X11 headers 
 
 - Keep upstream function and file names so upstream patches stay mergeable.
 - `core/fftn.c` does `#include __FILE__`; the Makefile's `-I.` is required for it.
+- `make x11free` counts sources that compile without X11 headers (progress metric for the split; 60/99 as of 2026-09-12).
+- Clean-build warning baseline with gcc 13 is ~510.
 - `core/sbml2xpp.c` needs libsbml and is not built, same as upstream.
 - Commit messages: imperative subject, body explains why.

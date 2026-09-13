@@ -16,8 +16,6 @@
 #include <string.h>
 #include <math.h>
 #include <stdio.h>
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
 #include "xpplim.h"
 #include "struct.h"
 #include "graphics.h"

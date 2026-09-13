@@ -1,3 +1,4 @@
+#include <X11/Xlib.h>
 #include "aniparse.h"
 #include "color.h"
 #include "parserslow.h"
@@ -60,7 +61,6 @@ want to alter the ordering below
 
 /**************************************************************/
 
-#include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xproto.h>
 #include <stdio.h>

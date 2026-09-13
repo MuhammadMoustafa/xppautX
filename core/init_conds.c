@@ -1,3 +1,4 @@
+#include <X11/Xlib.h>
 #include "init_conds.h"
 #include "parserslow.h"
 #include "tabular.h"
@@ -30,7 +31,6 @@ This also has the clone gadget
 */
 
 #include <dirent.h>
-#include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <stdio.h>
 #include <math.h>

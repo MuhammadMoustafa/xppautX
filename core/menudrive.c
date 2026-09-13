@@ -1,3 +1,4 @@
+#include <X11/Xlib.h>
 #include <stdlib.h>  
 
 #include <sys/wait.h>
@@ -36,7 +37,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <X11/Xlib.h>
 #include "menudrive.h"
 #include "tutor.h"
 #include "load_eqn.h"

@@ -1,3 +1,4 @@
+#include <X11/Xlib.h>
 #include "menus.h"
 #include "menu.h"
 #include "main.h"
@@ -5,7 +6,6 @@
 #include <stdlib.h> 
 #include <stdio.h>
 #include <string.h>
-#include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xos.h>
 #include <X11/Xatom.h>

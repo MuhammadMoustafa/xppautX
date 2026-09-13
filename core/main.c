@@ -1,3 +1,4 @@
+#include <X11/Xlib.h>
 #include "main.h"
 
 #include "aniparse.h"
@@ -66,7 +67,6 @@
 
 
 
-#include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xos.h>
 #include <X11/Xproto.h>

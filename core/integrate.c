@@ -1,3 +1,4 @@
+#include <X11/Xlib.h>
 #include "integrate.h"
 
 #include "load_eqn.h"
@@ -69,7 +70,6 @@ NOTE: except for the structure MyGraph, it is "x-free" so it
 */ 
 
 #include <stdio.h>
-#include <X11/Xlib.h>
 #include <math.h>
 #include <string.h>
 #include "xpplim.h"

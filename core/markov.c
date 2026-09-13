@@ -17,7 +17,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-/* #include <X11/Xlib.h> */
 #include "xpplim.h"
 #include "parserslow.h"
 /* #include "browse.h" */

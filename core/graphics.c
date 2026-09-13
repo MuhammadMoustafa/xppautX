@@ -1,3 +1,4 @@
+#include <X11/Xlib.h>
 #include "graphics.h"
 #include "my_ps.h"
 #include "my_svg.h"
@@ -6,7 +7,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include "struct.h"
 #include "color.h"

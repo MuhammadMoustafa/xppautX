@@ -12,3 +12,4 @@
 *.bak
 *conflicted copy*
 /build/obj/
+/build/nox11/

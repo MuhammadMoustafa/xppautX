@@ -1,9 +1,9 @@
+#include <X11/Xlib.h>
 #include "color.h"
 #include <stdio.h>
 #include <stdlib.h> 
 
 
-#include <X11/Xlib.h>
 #include "ggets.h"
 #include <math.h>
 #define COLOR_SCALE 0

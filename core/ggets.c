@@ -1,9 +1,9 @@
+#include <X11/Xlib.h>
 #include "ggets.h"
 
 #include <stdlib.h> 
 #include <stdio.h>
 #include <string.h>
-#include <X11/Xlib.h>
 #include <X11/XKBlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>

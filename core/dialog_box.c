@@ -1,10 +1,10 @@
+#include <X11/Xlib.h>
 #include "dialog_box.h"
 
 #include "many_pops.h"
 #include "ggets.h"
 #include <stdlib.h> 
 #include <string.h>
-#include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 #include <X11/keysymdef.h>

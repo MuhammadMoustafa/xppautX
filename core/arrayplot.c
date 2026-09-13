@@ -1,3 +1,4 @@
+#include <X11/Xlib.h>
 #include "arrayplot.h"
 #include "array_print.h"
 
@@ -45,7 +46,6 @@
 #include "init_conds.h"
 #include "load_eqn.h"
 
-#include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <stdio.h>
 #include <math.h>

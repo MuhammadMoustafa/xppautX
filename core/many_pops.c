@@ -1,3 +1,4 @@
+#include <X11/Xlib.h>
 #include "xpplim.h"
 #include "many_pops.h"
 
@@ -6,7 +7,6 @@
 #include "graphics.h"
 #include <stdlib.h> 
 #include <string.h>
-#include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <stdio.h>
 #include <math.h>

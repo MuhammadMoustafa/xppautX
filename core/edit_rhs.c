@@ -1,3 +1,4 @@
+#include <X11/Xlib.h>
 
 #include "edit_rhs.h"
 #include "init_conds.h"
@@ -11,7 +12,6 @@
 
 #include <stdlib.h> 
 #include <string.h>
-#include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <stdio.h>
 #include <X11/cursorfont.h>

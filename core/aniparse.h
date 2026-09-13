@@ -2,7 +2,6 @@
 #define _aniparse_h_
 
 
-#include <X11/Xlib.h>
 #include <stdio.h>
 
 /**************  New stuff for the Grabber ***************************/
@@ -55,16 +54,24 @@ typedef struct {
 
 void new_vcr(void);
 void create_vcr(char *name);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void ani_border(Window w, int i);
+#endif /* Xlib.h */
 void destroy_vcr(void);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void do_ani_events(XEvent ev);
 void ani_motion_stuff(Window w, int x, int y);
+#endif /* Xlib.h */
 double get_current_time(void);
 void update_ani_motion_stuff(int x, int y);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void ani_buttonx(XEvent ev, int flag);
 void ani_button(Window w);
+#endif /* Xlib.h */
 void ani_create_mpeg(void);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void ani_expose(Window w);
+#endif /* Xlib.h */
 void ani_resize(int x, int y);
 void ani_newskip(void);
 void check_on_the_fly(void);
@@ -75,8 +82,10 @@ void set_from_init_data(void);
 void ani_flip1(int n);
 void ani_flip(void);
 void ani_disk_warn(void);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 int getppmbits(Window window, int *wid, int *hgt, unsigned char *out);
 int writeframe(char *filename, Window window, int wid, int hgt);
+#endif /* Xlib.h */
 void ani_zero(void);
 void get_ani_file(char *fname);
 int ani_new_file(char *filename);
@@ -139,8 +148,10 @@ void do_grab_tasks(int which);
 int add_grab_task(char *lhs, char *rhs, int igrab, int which);
 void draw_grab_points(void);
 void free_grabber(void);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 int check_ani_pause(XEvent ev);
 void do_ani_slider_motion(Window w,int x);
 void draw_ani_slider(Window w,int x);
+#endif /* Xlib.h */
 void redraw_ani_slider(void);
 #endif

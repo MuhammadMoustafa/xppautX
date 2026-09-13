@@ -2,7 +2,6 @@
 #define _edit_rhs_h_
 
 
-#include <X11/Xlib.h>
 #include "xpplim.h"
 #include <stdio.h>
 
@@ -32,6 +31,7 @@
 	editable strings  
  */
 
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 typedef struct {
 		Window base,ok,cancel,reset;
 		Window win[MAX_N_EBOX];
@@ -43,12 +43,15 @@ typedef struct {
 
 
 void reset_ebox(EDIT_BOX *sb, int *pos, int *col);
+#endif /* Xlib.h */
 int do_edit_box(int n, char *title, char **names, char **values);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void expose_ebox(EDIT_BOX *sb, Window w, int pos, int col);
 void ereset_hot(int inew, EDIT_BOX *sb);
 void enew_editable(EDIT_BOX *sb, int inew, int *pos, int *col, int *done, Window *w);
 int e_box_event_loop(EDIT_BOX *sb, int *pos, int *col);
 void make_ebox_windows(EDIT_BOX *sb, char *title);
+#endif /* Xlib.h */
 void edit_menu(void);
 void edit_rhs(void);
 void user_fun_info(FILE *fp);

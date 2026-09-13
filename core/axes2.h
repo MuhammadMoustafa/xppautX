@@ -2,7 +2,6 @@
 #ifndef _axes2_h_
 #define _axes2_h_
 
-#include <X11/Xlib.h>
 
 void re_title(void);
 void get_title_str(char *s1, char *s2, char *s3);

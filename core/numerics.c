@@ -1,3 +1,4 @@
+#include <X11/Xlib.h>
 
 #include "numerics.h"
 #include <strings.h>
@@ -5,7 +6,6 @@
 #include "menudrive.h"
 #include <stdlib.h> 
 #include <stdio.h>
-#include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <math.h>
 #include "browse.h"
