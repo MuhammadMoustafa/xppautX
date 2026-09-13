@@ -20,7 +20,7 @@ extern int DCURY,DCURX,CURY_OFF;
 
 
 
-int get_command_width()
+int x11_get_command_width()
 {
   int x,y;
   unsigned int w,h,bw,de;
@@ -31,7 +31,7 @@ int get_command_width()
  return(w);
 }
 
-void plot_command(nit,icount,cwidth)
+void x11_plot_command(nit,icount,cwidth)
  int nit,icount,cwidth;
 {
  int i;
@@ -45,7 +45,7 @@ void plot_command(nit,icount,cwidth)
 }
 
 
-int my_abort()
+int x11_my_abort()
 {
   int ch;
   XEvent event;

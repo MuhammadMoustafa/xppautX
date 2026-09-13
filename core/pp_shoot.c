@@ -26,7 +26,6 @@
 #include <string.h>
 #include "shoot.h"
 #include "kinescope.h"
-  #include <X11/Xutil.h> */
 #include <math.h>
 #include "xpplim.h"
 #include "getvar.h"

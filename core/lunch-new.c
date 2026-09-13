@@ -15,7 +15,6 @@
 #include <string.h>
 #include <math.h>
 #include "arrayplot.h"
-#include <X11/Xutil.h>
 #include <time.h>
 #include "xpplim.h"
 #include "struct.h"

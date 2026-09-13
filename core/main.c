@@ -1,5 +1,6 @@
 #include <X11/Xlib.h>
 #include "main.h"
+#include "xpp_globals.h"
 
 #include "aniparse.h"
 #include "adj2.h"
@@ -102,14 +103,9 @@
 int errno;
 #endif
 
-int allwinvis=0;
-int use_intern_sets=1;
-int use_ani_file=0;
 /*char anifile[256]; */
-char anifile[XPP_MAX_NAME];
 extern int ani_grab_flag;
 
-float xppvermaj,xppvermin;
 
 extern int manual_expose;
 extern int NCBatch,DFBatch;
@@ -121,21 +117,14 @@ extern int SuppressOut;
 extern XFontStruct *symfonts[5],*romfonts[5];
 extern int avsymfonts[5],avromfonts[5];
 extern int RunImmediately;
-int Xup,TipsFlag=1;
 Atom deleteWindowAtom=0;
-int XPPBatch=0,batch_range=0,BatchEquil=-1;
-char batchout[256];
-char UserOUTFILE[256];
 XKeyEvent createKeyEvent(Window w,Window wr,int p,int kc,int m);
 void scripty();
 int my_rhs(); 
 extern int xorfix;
  int DisplayHeight,DisplayWidth;
 int TrueColorFlag;
-char big_font_name[100],small_font_name[100];
-char PlotFormat[100];
 
-int PaperWhite=-1;
 extern int DF_FLAG;
 char mycommand[100];
 
@@ -150,15 +139,8 @@ Window command_pop,info_pop;
 GC gc, gc_graph,small_gc, font_gc,mygc;
 extern int help_menu,current_pop;
 unsigned int Black,White;
-char UserBlack[8];
-char UserWhite[8];
-char UserMainWinColor[8];
-char UserDrawWinColor[8];
 /*char UserBGBitmap[100];*/
-char UserBGBitmap[XPP_MAX_NAME];
 
-int UserGradients=-1;
-int UserMinWidth=0,UserMinHeight=0;
 unsigned int MyBackColor,MyForeColor,MyMainWinColor,MyDrawWinColor;
 unsigned int GrFore,GrBack;
 int SCALEX,SCALEY;
@@ -169,37 +151,15 @@ extern int periodic;
 int DCURYb,DCURXb,CURY_OFFb;
 int DCURYs,DCURXs,CURY_OFFs;
 int DCURY,DCURX,CURY_OFF;
-FILE *logfile;
-int XPPVERBOSE=1;
-int OVERRIDE_QUIET=0;
-int OVERRIDE_LOGFILE=0;
 extern BROWSER my_browser;
-int tfBell;
 
-int SLIDER1=-1;
-int SLIDER2=-1;
-int SLIDER3=-1;
-char SLIDER1VAR[20];
-char SLIDER2VAR[20];
-char SLIDER3VAR[20];
-double SLIDER1LO=0.0;
-double SLIDER2LO=0.0;
-double SLIDER3LO=0.0;
-double SLIDER1HI=1.0;
-double SLIDER2HI=1.0;
-double SLIDER3HI=1.0;
-double SLIDER1INIT=0.5;
-double SLIDER2INIT=0.5;
-double SLIDER3INIT=0.5;
 
 int ALREADY_SWAPPED=0;
 
 /*Set this to 1 if you want the tutorial to come up at start-up
 as default behavior
 */
-int DoTutorial=0;
 
-OptionsSet notAlreadySet;
 
 XFontStruct *big_font,*small_font;
 void draw_many_lines();
@@ -1123,7 +1083,7 @@ while(1)
 }
 
 
-void bye_bye()
+void x11_bye_bye()
 {
    int i;
    yes_reset_auto();
@@ -1138,13 +1098,6 @@ void bye_bye()
    exit(1);
 }
 
-
-void clr_scrn()
-{
-	  blank_screen(draw_win);
-			 restore_off();
-			 do_axes();
-}
 
 void x11_redraw_all()
 {

@@ -69,7 +69,7 @@ void do_movie_com(int c)
 
 
 
-void reset_film()
+void x11_reset_film()
 {
  int i;
  if(mov_ind==0)return;

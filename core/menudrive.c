@@ -169,7 +169,7 @@ void xpp_hlp()
 }
 
 
-void MessageBox(char *m)
+void x11_MessageBox(char *m)
 {
  int wid=strlen(m)*DCURX+20;
  int hgt=4*DCURY;
@@ -191,34 +191,34 @@ void RedrawMessageBox(Window w)
   }
 
 }
-void KillMessageBox()
+void x11_KillMessageBox()
 {
   if(MsgBox.here==0)return;
   MsgBox.here=0;
   waitasec(ClickTime);
   XDestroyWindow(display,MsgBox.w);
 }
-int TwoChoice(char *c1,char *c2, char *q,char *key)
+int x11_TwoChoice(char *c1,char *c2, char *q,char *key)
 {
  return two_choice(c1,c2,q,key,DisplayWidth/2,DisplayHeight/2,
 		   RootWindow(display,screen),NULL); 
 }
-int GetMouseXY(int *x,int *y)
+int x11_GetMouseXY(int *x,int *y)
 {
  return get_mouse_xy(x,y,draw_win);
 }
 
-void FlushDisplay()
+void x11_FlushDisplay()
 {
  XFlush(display);
 }
-void clear_draw_window()
+void x11_clear_draw_window()
 {
   clr_scrn();
   hi_lite(draw_win);
 }
 
-void drw_all_scrns(){
+void x11_drw_all_scrns(){
   int i;
   int me=manual_expose;
  int ic=current_pop;
@@ -239,7 +239,7 @@ void drw_all_scrns(){
      manual_expose=me;
 }
  
-void clr_all_scrns()
+void x11_clr_all_scrns()
 {
  int i;
  int ic=current_pop;

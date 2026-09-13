@@ -1,5 +1,6 @@
-#include <X11/Xlib.h>
 #include "graphics.h"
+#include "xpp_ui.h"
+#include "xpp_globals.h"
 #include "my_ps.h"
 #include "my_svg.h"
 
@@ -7,7 +8,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include <X11/Xutil.h>
 #include "struct.h"
 #include "color.h"
 #include "graf_par.h"
@@ -39,29 +39,15 @@ extern int DCURXs,DCURYs;
 extern int PltFmtFlag;
 extern unsigned int GrFore,GrBack;
 extern int SCALEX,SCALEY,DCURX,DCURY,xor_flag;
-extern GRAPH graph[MAXPOP];
-extern GRAPH *MyGraph;
-extern GC gc_graph;
 
 int PS_Port=0;
 int DX_0,DY_0,D_WID,D_HGT;
 int D_FLAG;
 int PointRadius=0;
-extern Display *display;
-extern Window win;
-extern Window draw_win;
-extern GC small_gc;
 extern float **storage;
 extern int storind;
 
-char dashes[10][5] = { {0}, {1,6,0}, 
-   {0}, {4,2,0}, {1,3,0}, {4,4,0}, {1,5,0}, {4,4,4,1,0}, {4,2,0}, {1,3,0}
-   };
 
-extern XFontStruct *small_font;
-XFontStruct *symfonts[5],*romfonts[5];
-int avsymfonts[5],avromfonts[5];
-extern GC font_gc;
 
 extern int IX_PLT[10],IY_PLT[10],IZ_PLT[10],NPltV;
 extern double X_LO[10],Y_LO[10],X_HI[10],Y_HI[10];
@@ -127,10 +113,9 @@ void get_draw_area_flag(int flag)
 {
   int x,y;
   unsigned int w,h,bw,de;
-  Window root;
   if(flag==1)
     {
-      XGetGeometry(display,draw_win,&root,&x,&y,&w,&h,&bw,&de);
+      xpp_ui.get_draw_size(&w,&h);
       MyGraph->x11Wid=w;
       MyGraph->x11Hgt=h;
     }
@@ -185,7 +170,7 @@ void point(x,y)
 {
   if(PltFmtFlag==PSFMT)ps_point(x,y);
   else if(PltFmtFlag==SVGFMT)svg_point(x,y);
-  else point_x11(x,y);
+  else xpp_ui.draw_point(x,y);
 }
 
 void line(x1,y1,x2,y2)
@@ -194,7 +179,7 @@ void line(x1,y1,x2,y2)
   /* plintf("l %d %d %d %d \n",x1,y1,x2,y2); */
   if(PltFmtFlag==PSFMT)ps_line(x1,y1,x2,y2);
   else if(PltFmtFlag==SVGFMT)svg_line(x1,y1,x2,y2);
-  else line_x11(x1,y1,x2,y2);
+  else xpp_ui.draw_line(x1,y1,x2,y2);
 }
 /* draw a little filled circle */
 
@@ -203,7 +188,7 @@ void bead(x1,y1)
 {
  if(PltFmtFlag==PSFMT)ps_bead(x1,y1);
  else if(PltFmtFlag==SVGFMT)svg_bead(x1,y1);
- else bead_x11(x1,y1);
+ else xpp_ui.draw_bead(x1,y1);
 }
 
 void frect(x1,y1,w,h)
@@ -211,7 +196,7 @@ void frect(x1,y1,w,h)
 {
   if(PltFmtFlag==PSFMT)ps_frect(x1,y1,w,h);
   else if(PltFmtFlag==SVGFMT)svg_frect(x1,y1,w,h);
-  else rect_x11(x1,y1,w,h);
+  else xpp_ui.draw_frect(x1,y1,w,h);
 }
 
 void put_text(x,y,str)
@@ -220,7 +205,7 @@ void put_text(x,y,str)
 {
   if(PltFmtFlag==PSFMT)ps_text(x,y,str);
   else if(PltFmtFlag==SVGFMT)svg_text(x,y,str);
-  else put_text_x11(x,y,str);
+  else xpp_ui.draw_text(x,y,str);
 }
 
 
@@ -275,230 +260,18 @@ void init_svg()
   DTop=VChar*5/2+1;
 }
 
-void point_x11(xp,yp)
-     int xp,yp;
-{
-  int r=PointRadius;
-  int  r2 = (int) (r / 1.41421356 + 0.5);
-  int wh = 2 * r2;
-  if(PointRadius==0)
-    XDrawPoint(display,draw_win,gc_graph,xp,yp);
-  else
-    XFillArc(display,draw_win,gc_graph,xp-r2,yp-r2,wh, wh, 0, 360*64);
-    
-}
-
 void set_linestyle(ls)
      int ls;
 {
   if(PltFmtFlag==PSFMT)ps_linetype(ls);
   else if(PltFmtFlag==SVGFMT)svg_linetype(ls);
-  else set_line_style_x11(ls);
-}
-
-void set_line_style_x11(ls)
-     int ls;
-{
-  /*int width=0;*/
-  int type=0;
-  if(ls==-2){  /*  Border  */
-    set_color(0);
-    XSetLineAttributes(display,gc_graph,2,LineSolid,CapButt,JoinBevel);
-    return;
-  }
- /*width=0;
- */
- if(ls==-1){
-   set_color(0);
-   XSetDashes(display,gc_graph,0,dashes[1],strlen(dashes[1]));
-   XSetLineAttributes(display,gc_graph,0,LineOnOffDash,CapButt,JoinBevel);
-   return;
- }
- if(!COLOR){  /* Mono  */
-   ls=(ls%8)+2;
-   if(ls==2)
-     type=LineSolid;
-   else{
-     type=LineOnOffDash;
-     XSetDashes(display,gc_graph,0,dashes[ls],strlen(dashes[ls]));
-   }
-   set_color(0);
-   XSetLineAttributes(display,gc_graph,0,type,CapButt,JoinBevel);
-   return;
- }
- /* color system  */
-  ls=ls%11;
-  XSetLineAttributes(display,gc_graph,0,LineSolid,CapButt,JoinBevel);
-  set_color(colorline[ls]);
-}
-    
-void bead_x11(x,y)
-     int x,y;
-{
- XFillArc(display,draw_win,gc_graph,x-2,y-2,4,4,0,360*64);
-}
-
-void rect_x11(x,y,w,h)
-     int x,y,w,h;
-{
- XFillRectangle(display,draw_win,gc_graph,x,y,w,h);
-}
-
-void draw_many_lines()
-{
-  int NLINE=500000;
-  int i;
-  for(i=0;i<NLINE;i++)
-    XDrawLine(display,draw_win,gc_graph,rand()%200,rand()%200,rand()%200,rand()%200);
-  printf("Done\n");
-}
-  
-void line_x11(xp1,yp1,xp2,yp2)
-     int xp1,yp1,xp2,yp2;
-{
-  XDrawLine(display,draw_win,gc_graph,xp1,yp1,xp2,yp2);  
-}
-
-void put_text_x11(x,y,str)
-     int x,y;
-     char *str;
-{
-  int sw=strlen(str)*DCURXs;
-  switch(TextJustify){
-  case 0: sw=0; break;
-  case 1: sw=-sw/2; break;
-  case 2: sw=-sw; break;
-  }
-  XSetForeground(display,small_gc,GrFore);
-  XDrawString(display,draw_win,small_gc,x+sw,y+DCURYs/3,str,strlen(str));
-  XSetForeground(display,small_gc,GrBack);
+  else xpp_ui.draw_linestyle(ls);
 }
 
   
-void special_put_text_x11(x,y,str,size)
-     int x,y,size;
-     char *str;
-{
-  int i=0,j=0;
-  int cx=x,cy=y;
-  int cf=0,cs;
-  int n=strlen(str),dx=0;
-  char tmp[256],c;
-  int sub,sup;
-  cs=size;
-  if(avromfonts[size]==1){
-    sup=romfonts[size]->ascent;
-    sub=sup/2;
-
-
-  }
-  else {
-    sup=small_font->ascent;
-    sub=sup/2;
-  }
-  while(i<n){
-    c=str[i];
-    if(c=='\\'){      
-      i++;
-      c=str[i];
-      tmp[j]=0; /* end the current buffer */
-      
-      fancy_put_text_x11(cx,cy,tmp,cs,cf); /* render the current buffer */
-      if(cf==0){
-	if(avromfonts[cs]==1)
-	  dx=XTextWidth(romfonts[cs],tmp,strlen(tmp));
-	else
-	  dx=XTextWidth(small_font,tmp,strlen(tmp));
-      }
-      if(cf==1){
-	if(avsymfonts[cs]==1)
-	  dx=XTextWidth(symfonts[cs],tmp,strlen(tmp));
-	else
-	  dx=XTextWidth(small_font,tmp,strlen(tmp));
-      }
-      cx+=dx;
-      j=0;
-      if(c=='0'){
-
-	cf=0;
-      }
-      if(c=='n'){
-
-	cy=y;
-	cs=size;
-      }
-      if(c=='s'){
-
-	cy=cy+sub;
-	if(size>0)
-	  cs=size-1;
-      }
-      if(c=='S'){
-
-	if(size>0)
-	  cs=size-1;
-	cy=cy-sup;
-      }
-      if(c=='1'){
-
-	cf=1;
-      }
-    
-      i++;
-    }
-    else {
-      tmp[j]=c;
-      j++;
-      i++;
-    }
-  }
-  tmp[j]=0;
-      fancy_put_text_x11(cx,cy,tmp,cs,cf);
-}
-    
       
       
     
-void fancy_put_text_x11(x,y,str,size,font)
-     int x,y,size,font;
-     char *str;
-{
-  /*int yoff;
-  */
-  if(strlen(str)==0)return;
-  switch(font){
-  
-  case 1: 
-    if(avsymfonts[size]==1){
-      XSetFont(display,font_gc,symfonts[size]->fid);
-      /*yoff=symfonts[size]->ascent;*/
-    }
-    else {
-      XSetFont(display,font_gc,small_font->fid);
-      /*yoff=small_font->ascent;*/
-      
-    }
-    XSetForeground(display,font_gc,GrFore);
-    XDrawString(display,draw_win,font_gc,x,y,str,strlen(str));
-   XSetForeground(display,font_gc,GrBack);  
-    break;
-  default: 
-    if(avromfonts[size]==1){
-      XSetFont(display,font_gc,romfonts[size]->fid);
-      /*yoff=romfonts[size]->ascent;*/
-    
-    }
-    else {
-      XSetFont(display,font_gc,small_font->fid);
-      /*yoff=small_font->ascent;*/
-    }
-    XSetForeground(display,font_gc,GrFore);
-    XDrawString(display,draw_win,font_gc,x,y,str,strlen(str));
-    XSetForeground(display,font_gc,GrBack);  
-    break;
-  }
-}
-
 void scale_dxdy(x,y,i,j)
      float x,y;
      double *i,*j;
@@ -1200,7 +973,7 @@ void fancy_text_abs(x,y,old,size,font)
   fillintext(old,text);
   if(PltFmtFlag==PSFMT)special_put_text_ps(xp,yp,text,size); 
   else if(PltFmtFlag==SVGFMT)special_put_text_svg(xp,yp,text,size);
-  else special_put_text_x11(xp,yp,text,size);
+  else xpp_ui.draw_special_text(xp,yp,text,size);
 /* fancy_put_text_x11(xp,yp,text,size,font); */
     
 }

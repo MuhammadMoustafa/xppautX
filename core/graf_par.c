@@ -1,6 +1,7 @@
 #include <X11/Xlib.h>
 
 #include "graf_par.h"
+#include "xpp_globals.h"
 
 #include "integrate.h"
 
@@ -51,7 +52,6 @@ extern double PS_LW;
 extern BROWSER my_browser;
 extern double x_3d[2],y_3d[2],z_3d[2];
 /*Default is now color*/
-int PS_Color=1;
 
 extern char PlotFormat[100];
 
@@ -118,14 +118,6 @@ void change_view_com(int com)
 } 
 
  
-
-void ind_to_sym(ind,str)
- char *str;
- int ind;
-{
- if(ind==0)strcpy(str,"T");
- else strcpy(str,uvar_names[ind-1]);
-} 
 
 void check_flags()
 {
@@ -312,31 +304,6 @@ void check_val(x1,x2,xb,xd)
 }
 
 
-void  get_max(index, vmin,vmax)
-  double *vmax,*vmin;
-  int index;
-  {
-   float x0,x1,z;
-   double temp;
-   int i;
-   x0=my_browser.data[index][0];
-   x1=x0;
-   for(i=0;i<my_browser.maxrow;i++)
-   {
-    z=my_browser.data[index][i];
-    if(z<x0)x0=z;
-    if(z>x1)x1=z;
-   }
-   *vmin=(double)x0;
-   *vmax=(double)x1;
-    if(fabs(*vmin-*vmax)<REAL_SMALL){
-      temp=.05*lmax(fabs(*vmin),1.0);
-     *vmin=*vmin-temp;
-     *vmax=*vmax+temp;
-    }
- 
- }
- 
 void pretty(x1,x2)   /* this was always pretty ugly */
  double *x1,*x2;
 {

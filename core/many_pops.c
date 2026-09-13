@@ -1,6 +1,7 @@
 #include <X11/Xlib.h>
 #include "xpplim.h"
 #include "many_pops.h"
+#include "xpp_globals.h"
 
 #include "menudrive.h"
 #include "pop_list.h"
@@ -70,13 +71,10 @@ extern BROWSER my_browser;
 extern Atom deleteWindowAtom;
 LABEL lb[MAXLAB];
 GROB grob[MAXGROB];
-GRAPH graph[MAXPOP];
 CURVE frz[MAXFRZ];
 extern NCLINE nclines[MAXNCLINE];
-GRAPH *MyGraph;
 extern int help_menu,screen;
 extern int SCALEY,CURY_OFF,CURY_OFFs,DCURYs,DCURXs,DCURYb;
-int SimulPlotFlag=0;
 extern int storind;
 extern int PltFmtFlag;
 extern char *text_hint[];
@@ -84,17 +82,14 @@ extern char *edit_hint[];
 extern char *no_hint[];
 extern Display *display;
 extern Window main_win,draw_win,command_pop,info_pop;
-int current_pop;
 extern unsigned int MyBackColor,MyForeColor,MyMainWinColor,MyDrawWinColor,GrFore,GrBack;
 extern GC gc, gc_graph,small_gc;
 extern int COLOR,color_min;
 extern int xor_flag,DCURX,DCURY;
-int num_pops;
 int MINI_H=300;
 int MINI_W=450;
 
 extern int Xup;
-int ActiveWinList[MAXPOP];
 double signum();
 
 Window make_window();
@@ -202,7 +197,7 @@ XSetWMProperties(display,w,NULL,NULL,NULL,0,NULL,&wm_hints,&class_hints);
 
 }
 
-void title_text(string)
+void x11_title_text(string)
  char *string;
 {
    gtitle_text(string,draw_win);
@@ -240,19 +235,6 @@ BaseCol();
 
 
 
-void restore_off()
-{
- MyGraph->Restore=0;
- /* MyGraph->Nullrestore=0; */
- }
-
-void restore_on()
-{
-  MyGraph->Restore=1;
-/*  MyGraph->Nullrestore=1; */
-
-}
- 
   
 void add_label(s,x,y,size,font)
 char *s;
@@ -1226,13 +1208,13 @@ void BaseCol()
  XSetBackground(display,gc,MyBackColor);
 }
 
-void SmallGr()
+void x11_SmallGr()
 {
  XSetForeground(display,small_gc,GrFore);
  XSetBackground(display,small_gc,GrBack);
 }
 
-void SmallBase()
+void x11_SmallBase()
 {
  XSetForeground(display,small_gc,MyForeColor);
  XSetBackground(display,small_gc,MyBackColor);
@@ -1277,14 +1259,6 @@ int graph_used(int i)
 {
  return graph[i].Use;
 } 
-
-void make_active(int i,int flag)
-{
- current_pop=i;
- MyGraph=&graph[current_pop];
-  draw_win=MyGraph->w;
-  get_draw_area_flag(flag);
-}
 
 void select_window(w)
 Window w;
@@ -1339,7 +1313,7 @@ Window w;
  bar(0,0,5,5,w);
 }
  
-void canvas_xy(buf)
+void x11_canvas_xy(buf)
 char *buf;
 {
   XClearWindow(display,MyGraph->w_info);

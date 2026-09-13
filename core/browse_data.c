@@ -139,3 +139,28 @@ void init_browser()
  strcpy(my_browser.hinttxt,"hint");
 
 }
+
+void open_write_file(fp,fil,ok)
+ FILE **fp;
+  char *fil;
+  int *ok;
+{
+ char ans;
+ *ok=0;
+ *fp=fopen(fil,"r");
+	if(*fp!=NULL){
+		fclose(*fp); 
+		ans=(char)TwoChoice("Yes","No",
+		"File Exists! Overwrite?","yn");
+		if(ans!='y')return;
+		}	 
+
+			*fp=fopen(fil,"w");
+			if(*fp==NULL){
+				      err_msg("Cannot open file");
+				      *ok=0;
+				     }
+		         else *ok=1;
+			 return;
+		    
+  }

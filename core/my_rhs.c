@@ -27,15 +27,6 @@ double evaluate(/* int *ar */);
 }
 */
 
-int main(argc,argv)
-     char **argv;
-     int argc;
-{
-  do_main(argc,argv);
-  
-  exit(0);
-}
-
 void extra(y__y, t,nod,neq)
  double *y__y,t;
  int nod,neq;

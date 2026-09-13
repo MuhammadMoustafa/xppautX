@@ -147,7 +147,7 @@ void draw_info_pop(win)
     }
 }
 
-void bottom_msg(line,msg)
+void x11_bottom_msg(line,msg)
 int line;
 char *msg;
 {

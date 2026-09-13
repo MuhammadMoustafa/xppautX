@@ -1,5 +1,6 @@
 #include <X11/Xlib.h>
 #include "color.h"
+#include "xpp_globals.h"
 #include <stdio.h>
 #include <stdlib.h> 
 
@@ -35,7 +36,6 @@ extern GC gc_graph,small_gc;
 extern Display *display;
 extern int screen;
 extern Window main_win;
- int color_mode=1,color_min,color_total,COLOR,color_max;
 extern int DCURX,DCURY,CURY_OFF,CURS_X,CURS_Y,DCURXs,DCURYs;
 extern unsigned int Black,White;
 extern unsigned int MyBackColor,MyForeColor,GrFore,GrBack;
@@ -76,7 +76,7 @@ int col;
 
 }
 
-void set_color(col)
+void x11_set_color(col)
 int col;
 {
  if(col<0)XSetForeground(display,gc_graph,GrBack);

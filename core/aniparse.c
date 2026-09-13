@@ -1,5 +1,6 @@
 #include <X11/Xlib.h>
 #include "aniparse.h"
+#include "xpp_globals.h"
 #include "color.h"
 #include "parserslow.h"
 #include "form_ode.h"
@@ -131,7 +132,6 @@ extern double last_ic[MAXODE],T0;
 
 #define FIRSTCOLOR 30
 int on_the_fly_speed=10;
-int animation_on_the_fly=0;
 extern int TrueColorFlag;
 extern char *color_names[11];
 extern int colorline[];
@@ -216,7 +216,6 @@ int ani_text_font;
 GC ani_gc;
 
 extern int use_ani_file;
-extern char anifile[256]; 
 
 
 
@@ -740,7 +739,7 @@ void check_on_the_fly()
     	XDrawString(display,vcr.wfly,small_gc,5,1.5*CURY_OFFs,"*",1); 
   }
 }
-void on_the_fly(int task)
+void x11_on_the_fly(int task)
 {
   if(vcr.iexist==0||n_anicom==0)return;
   ani_frame(task);
@@ -2525,22 +2524,6 @@ void read_ani_line(fp,s)
 }
   
 
-
-void de_space(s)
-     char *s;
-{
-  int n=strlen(s);
-  int i,j=0;
-  char ch;
-  for(i=0;i<n;i++){
-    ch=s[i];
-    if(!isspace(ch)){
-      s[j]=ch;
-      j++;
-    }
-  }
-  s[j]=0;
-}
 
 
 /*************************  GRABBER CODE *****************************/

@@ -347,27 +347,6 @@ void clone_ode()
     
 
     
-int find_user_name(type,oname)
-int type;
-char *oname;
-{
- char name[25];
- int j=0,k=0,i=-1;
- for(j=0;j<strlen(oname);j++){
- if(!isspace(oname[j])){name[k]=oname[j];k++;}
-}
- name[k]=0;
-  
- 
- for(i=0;i<NUPAR;i++)
-         if((type==PARAMBOX)&&(strcasecmp(upar_names[i],name)==0))break;
- if(i<NUPAR)return(i);
- for(i=0;i<NEQ;i++)
-	 if((type==ICBOX)&&(strcasecmp(uvar_names[i],name)==0))break;	
-   if(i<NEQ)return(i);
-	return(-1);
- }
-
 void create_par_sliders(base,x0,h0)
      Window base;
      int x0,h0;
