@@ -1,0 +1,40 @@
+name: build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: sudo apt-get update && sudo apt-get install -y libx11-dev
+      - name: Build
+        run: make -j"$(nproc)" 2>&1 | tee build.log
+      - name: Warning count
+        run: echo "warnings: $(grep -c 'warning:' build.log || true)"
+      - name: Smoke test (headless)
+        run: |
+          ./xppaut -version
+          cd /tmp && "$GITHUB_WORKSPACE/xppaut" "$GITHUB_WORKSPACE/examples/ode/lecar.ode" -silent
+          test "$(wc -l < output.dat)" -eq 601
+          head -3 output.dat
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: brew install libx11
+      - name: Build
+        run: make -j"$(sysctl -n hw.ncpu)" X11_INC="-I$(brew --prefix)/include" X11_LIB="-L$(brew --prefix)/lib" 2>&1 | tee build.log
+      - name: Warning count
+        run: echo "warnings: $(grep -c 'warning:' build.log || true)"
+      - name: Smoke test (headless)
+        run: |
+          ./xppaut -version
+          cd /tmp && "$GITHUB_WORKSPACE/xppaut" "$GITHUB_WORKSPACE/examples/ode/lecar.ode" -silent
+          test "$(wc -l < output.dat)" -eq 601
