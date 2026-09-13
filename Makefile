@@ -12,7 +12,8 @@ WARN    ?= -Wall
 OPT     ?= -g -O2
 DEFS     = -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES -DHAVEDLL \
            -DMYSTR1=$(MAJORVER) -DMYSTR2=$(MINORVER)
-INCS     = -Icore -Icore/bitmaps $(X11_INC)
+# -I. is needed because fftn.c does "#include __FILE__"
+INCS     = -I. -Icore -Icore/bitmaps $(X11_INC)
 CFLAGS  ?= $(CSTD) $(WARN) $(OPT) $(DEFS) $(INCS) -fcommon
 LDFLAGS ?= $(X11_LIB) -fcommon
 LIBS     = -lX11 -lm -ldl
