@@ -2,6 +2,7 @@
 
 
 #include "auto_x11.h"
+#include "xpp_globals.h"
 #include "auto_nox.h"
 #include "init_conds.h"
 #include "derived.h"
@@ -64,7 +65,6 @@ void redo_all_fun_tables();
 extern Display *display;
 extern int TrueColorFlag;
 extern unsigned int MyBackColor,MyForeColor,MyMainWinColor,MyDrawWinColor;
-int AutoRedrawFlag=1;
 
 extern int screen,storind,NODE;
 extern GC gc, small_gc;
@@ -75,10 +75,6 @@ int Auto_extra_wid,Auto_extra_hgt;
 int Auto_x0,Auto_y0;
 extern int load_all_labeled_orbits;
 /* stuff for marking a branch  */
-int mark_flag=0;
-int mark_ibrs,mark_ibre;
-int mark_ipts,mark_ipte;
-int mark_ixs,mark_ixe,mark_iys,mark_iye;
 extern Window command_pop;
 
 extern double TEND;
@@ -120,21 +116,15 @@ extern int NBifs;
    Code here 
 *****************************************************/
 
-void ALINE(a,b,c,d)
+void x11_ALINE(a,b,c,d)
      int a,b,c,d;
 {
   XDrawLine(display,AutoW.canvas,small_gc,(a),(b),(c),(d));
 }
 
 
-void DLINE(a,b,c,d)
-     double a,b,c,d; 
-{
-  ALINE(IXVal(a),IYVal(b),IXVal(c),IYVal(d));
-}
 
-
-void ATEXT(a,b,c) 
+void x11_ATEXT(a,b,c) 
      int a,b;
      char *c;
 {
@@ -143,7 +133,7 @@ void ATEXT(a,b,c)
 
 
 
-void clr_stab()
+void x11_clr_stab()
 {
   int r=Auto.st_wid/4;
   XClearWindow(display,AutoW.stab);
@@ -152,19 +142,19 @@ void clr_stab()
 
 
 
-void auto_stab_line(int x,int y,int xp, int yp)
+void x11_auto_stab_line(int x,int y,int xp, int yp)
 {
    XDrawLine(display,AutoW.stab,small_gc,x,y,xp,yp);
 }
 
-void clear_auto_plot()
+void x11_clear_auto_plot()
 {
   XClearWindow(display,AutoW.canvas);
   redraw_auto_menus();
 }
 
 
-void redraw_auto_menus()
+void x11_redraw_auto_menus()
 {
   display_auto(AutoW.axes);
   display_auto(AutoW.numerics);
@@ -221,92 +211,8 @@ int query_special(char* title,char *nsymb)
 }
 
 
-void do_auto_range()
-{
-  double t=TEND;
-  
-  if(mark_flag==2)
-    do_auto_range_go();
-  TEND=t;
-}
 
-void  auto_get_info( int *n, char *pname )
-{
-  int i1,i2,ibr;
-  DIAGRAM *d,*dnew;
-
-
-  if(mark_flag==2){
-    i1=abs(mark_ipts);
-    ibr=mark_ibrs;
-    i2=abs(mark_ipte);
-    *n=abs(i2-i1);
-    d=bifd;
-    while(1){
-      if(d->ibr==ibr && ((d->ntot==i1)||(d->ntot==(-i1))))
-	{
-	  strcpy(pname,upar_names[AutoPar[d->icp1]]);
-	  break;
-	}
-       dnew=d->next;
-       if(dnew==NULL){
-	 
-	 break;
-       }
-       d=dnew;
-    }
-  }
-  
-}
-  
-void auto_set_mark(int i)
-{
-  int pt,ibr;
-  if(mark_flag==2){
-    ibr=mark_ibrs;
-    if(abs(mark_ipts)<abs(mark_ipte))
-      pt=abs(mark_ipts)+i;
-    else
-      pt=abs(mark_ipte)+i;
-    find_point(ibr,pt);
-  }
-}
-
-void find_point(int ibr, int pt)
-{
-  int i;
-  DIAGRAM *d,*dnew;
-   if(NBifs<2)return;
-   d=bifd;
-   while(1)
-     {
-       if(d->ibr==ibr && ((d->ntot==pt)||(d->ntot==(-pt))))
-	 {  /* need to look at both signs to ignore stability */
-	   /* now we use this info to set parameters and init data */
-	   for(i=0;i<NODE;i++)
-	     set_ivar(i+1,d->u0[i]);
-	   get_ic(0,d->u0);
-	   for(i=0;i<NAutoPar;i++)
-	     constants[Auto_index_to_array[i]]=d->par[i];
-	   evaluate_derived();
-	   redo_all_fun_tables();
-	   redraw_params();
-	   redraw_ics();
-           if((d->per)>0)
-	     set_total(d->per);		       
-	   break;
-	 }
-       dnew=d->next;
-       if(dnew==NULL){
-	 
-	 break;
-       }
-       d=dnew;
-     }
-}
-        
-
-void traverse_diagram()
+void x11_traverse_diagram()
 {
   DIAGRAM *d,*dnew,*dold;
   int done=0;
@@ -624,22 +530,22 @@ void traverse_diagram()
 
 
 
-void clear_auto_info()
+void x11_clear_auto_info()
 {
  XClearWindow(display,AutoW.info);
 }
 
-void draw_auto_info(char *bob,int x,int y)
+void x11_draw_auto_info(char *bob,int x,int y)
 {
    XDrawString(display,AutoW.info,small_gc,x,y,bob,strlen(bob));
 }
 
-void refreshdisplay()
+void x11_refreshdisplay()
 {
   XFlush(display);
 }
 
-int byeauto_(iflag)
+int x11_byeauto_(iflag)
      int *iflag;
 {
   XEvent event;
@@ -672,34 +578,34 @@ int byeauto_(iflag)
 
 
 
-void Circle(x,y,r)
+void x11_Circle(x,y,r)
      int x,y,r;
 {
   XDrawArc(display,AutoW.canvas,small_gc,x-r,y-r,r<<1,r<<1,0,360*64);
 }
 
 
-void autocol(int col)
+void x11_autocol(int col)
 {
   set_scolor(col);
 
 }
 
 
-void autobw()
+void x11_autobw()
 {
 XSetBackground(display,small_gc,MyBackColor);
 XSetForeground(display,small_gc,MyForeColor);
 }
 
 
-int auto_rubber(i1,j1,i2,j2,flag)
+int x11_auto_rubber(i1,j1,i2,j2,flag)
      int *i1,*i2,*j1,*j2,flag;
 {
   return(rubber(i1,j1,i2,j2,AutoW.canvas,flag));
 }
 
-int auto_pop_up_list(title,list,key,n,max,def,x,y,hints,httxt)
+int x11_auto_pop_up_list(title,list,key,n,max,def,x,y,hints,httxt)
 int def,n,max,x,y;
 char *title,**list,*key,**hints,*httxt;
 {
@@ -726,7 +632,7 @@ void MarkAuto(x,y)
 
 
 }
-void XORCross(x,y)
+void x11_XORCross(x,y)
      int x,y;
 {
 
@@ -757,7 +663,7 @@ void XORCross(x,y)
 }
 
 
-void FillCircle(x,y,r)
+void x11_FillCircle(x,y,r)
      int x,y;
      int r;
 {
@@ -779,7 +685,7 @@ void auto_update_view(float xlo,float xhi, float ylo, float yhi)
 	      redraw_diagram();
 
 }
-void auto_scroll_window()
+void x11_auto_scroll_window()
 {
   XEvent ev;
   int i=0,j=0;
@@ -860,7 +766,7 @@ void auto_scroll_window()
 
   
 
-void LineWidth(wid)
+void x11_LineWidth(wid)
      int wid;
 {
  int ls=LineSolid;
@@ -946,7 +852,7 @@ void aw()
 }
   
 
-void make_auto(wname,iname)  /* this makes the auto window  */
+void x11_make_auto(wname,iname)  /* this makes the auto window  */
      char *wname,*iname;
 
 {

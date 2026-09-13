@@ -1,6 +1,7 @@
 #include "xpp_ui.h"
 #include <X11/Xlib.h>
 #include "ggets.h"
+#include "xpp_globals.h"
 
 #include <stdlib.h> 
 #include <stdio.h>
@@ -31,7 +32,6 @@ extern int XPPBatch;
 */
 double atof();
 extern int SCALEX,SCALEY;
-int MSStyle=0;
 extern int Xup;
 
 extern int tfBell;
@@ -64,7 +64,7 @@ void x11_ping()
   XBell(display,100);
 */
 }
-void reset_graphics()
+void x11_reset_graphics()
 {
    blank_screen(draw_win);
    do_axes();

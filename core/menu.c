@@ -24,7 +24,7 @@ extern int tfBell,TipsFlag;
 extern int DCURY,DCURX,CURY_OFF,DCURYs,DCURYb;
 extern GC gc;
 Window make_unmapped_window(); 
-void flash(num)
+void x11_flash(num)
 int num;
 {
 }
@@ -96,7 +96,7 @@ void unshow_menu(j)
 }  
 
 
-void help()
+void x11_help()
 {
   unshow_menu(help_menu);
   show_menu(MAIN_MENU);

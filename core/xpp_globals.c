@@ -60,3 +60,16 @@ int num_pops;
 int ActiveWinList[MAXPOP];
 
 int animation_on_the_fly = 0;
+
+int DCURYb, DCURXb, CURY_OFFb;
+int DCURYs, DCURXs, CURY_OFFs;
+int DCURY, DCURX, CURY_OFF;
+int MSStyle = 0;
+
+int AutoRedrawFlag = 1;
+int mark_flag = 0;
+int mark_ibrs, mark_ibre;
+int mark_ipts, mark_ipte;
+int mark_ixs, mark_ixe, mark_iys, mark_iye;
+
+int aplot_range;

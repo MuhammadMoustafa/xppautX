@@ -278,31 +278,6 @@ int ind;
 }
 	      
 
-void check_val(x1,x2,xb,xd)
- double *x1,*x2,*xb,*xd;
-{
- double temp;
-
-/* 
-  see get_max for details
-*/   
-      
- if(*x1==*x2){
-   temp=.05*lmax(fabs(*x1),1.0);
-   *x1=*x1-temp;
-   *x2=*x2+temp;
- }
- if(*x1>*x2){
-	     temp=*x2;
-             *x2=*x1;
-             *x1=temp;
-	     
-            }
-	    *xb=.5*(*x1+*x2);
-	    *xd=2.0/(*x2-*x1);
-
-}
-
 
 void pretty(x1,x2)   /* this was always pretty ugly */
  double *x1,*x2;
@@ -477,16 +452,6 @@ void fit_window()
 
 
 
-void check_windows()
-{
- double zip,zap;
- check_val(&MyGraph->xmin,&MyGraph->xmax,&MyGraph->xbar,&MyGraph->dx);
- check_val(&MyGraph->ymin,&MyGraph->ymax,&MyGraph->ybar,&MyGraph->dy);
- check_val(&MyGraph->zmin,&MyGraph->zmax,&MyGraph->zbar,&MyGraph->dz);
- check_val(&MyGraph->xlo,&MyGraph->xhi,&zip,&zap);
- check_val(&MyGraph->ylo,&MyGraph->yhi,&zip,&zap);
-} 
-	
 void user_window()
 {
  static char *n[]={"X Lo","X Hi","Y Lo","Y Hi"};
@@ -1113,35 +1078,6 @@ void padnum(char *s,int i,int m)
   }
   s[m]=0;
 }
-void dump_ps(int i)
-{  
-  char filename[XPP_MAX_NAME];
-   if(i<0)
-     {
-       sprintf(filename,"%s%s.%s",this_file,this_internset,PlotFormat);
-     }
-   else 
-     {
-       /*   padnum(s,i,4); */
-       sprintf(filename,"%s%s_%04d.%s",this_file,this_internset,i,PlotFormat);
-     }   
-      
-   if (strcmp(PlotFormat,"ps")==0)
-   {
-     if(ps_init(filename,PS_Color))
-     {
-       ps_restore();
-     }
-   }
-   else if (strcmp(PlotFormat,"svg")==0)
-   {
-     if(svg_init(filename,PS_Color))
-     {
-       svg_restore();
-     }
-   }
-}
-
 
 void create_svg()
 {
@@ -1310,7 +1246,7 @@ int freeze_crv(ind)
  return(1);
 }
 
-void auto_freeze_it()
+void x11_auto_freeze_it()
 {
   if(AutoFreezeFlag==0)return;
   create_crv(0);

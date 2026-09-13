@@ -1,6 +1,8 @@
 /* The data side of the browser: the one BROWSER instance, its storage
    pointer, row/column bookkeeping and the file writer. No X11 here; the
    widget code that displays it stays in browse.c. */
+#include <stdlib.h>
+#include "parserslow.h"
 #include "browse.h"
 #include "xpp_ui.h"
 #include "xpplim.h"
@@ -17,6 +19,11 @@ int find_user_name(int type, char *oname); /* init_conds.c (pure) */
 
 /*  The one and only primitive data browser   */
 BROWSER my_browser;
+float *old_rep;
+int REPLACE=0,R_COL=0;
+extern int NODE,NMarkov,FIX_VAR;
+extern char uvar_names[MAXODE][12];
+extern double last_ic[MAXODE];
 
 float **get_browser_data()
 {
@@ -164,3 +171,37 @@ void open_write_file(fp,fil,ok)
 			 return;
 		    
   }
+
+void  wipe_rep()
+ {
+    if(!REPLACE)return;
+    free(old_rep);
+    REPLACE=0;
+  }
+
+void data_get(b)
+BROWSER *b;
+{
+ int i,in=b->row0;
+ set_ivar(0,(double)storage[0][in]);
+ for(i=0;i<NODE;i++)
+ {
+  last_ic[i]=(double)storage[i+1][in];
+  set_ivar(i+1,last_ic[i]);
+ } 
+ for(i=0;i<NMarkov;i++){
+   last_ic[i+NODE]=(double)storage[i+NODE+1][in];
+   set_ivar(i+1+NODE+FIX_VAR,last_ic[i+NODE]);
+ }
+ for(i=NODE+NMarkov;i<NEQ;i++)
+   set_val(uvar_names[i],storage[i+1][in]);
+ 
+
+ redraw_ics();
+}
+
+void data_get_mybrowser(int row)
+{
+  my_browser.row0=row;
+  data_get(&my_browser);
+}

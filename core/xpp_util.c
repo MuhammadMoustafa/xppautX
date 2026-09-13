@@ -6,6 +6,16 @@
 #include "xpp_globals.h"
 #include "parserslow.h"
 #include "browse.h"
+#include "graf_par.h"
+#include "integrate.h"
+#include "nullcline.h"
+#include "many_pops.h"
+#include "my_ps.h"
+#include "my_svg.h"
+#include "tabular.h"
+#include "volterra2.h"
+#include "derived.h"
+#include "xpplim.h"
 #include <ctype.h>
 #include <math.h>
 #include <stdio.h>
@@ -25,6 +35,13 @@ extern char upar_names[MAXPAR][11], uvar_names[MAXODE][12];
 extern double last_ic[MAXODE];
 extern int NCON, NSYM, NCON_START, NSYM_START;
 extern BROWSER my_browser;
+extern char this_file[XPP_MAX_NAME];
+extern char this_internset[XPP_MAX_NAME];
+extern char *ufun_def[MAXUFUN];
+extern char ufun_names[MAXUFUN][12];
+extern int narg_fun[MAXUFUN];
+extern UFUN_ARG ufun_arg[MAXUFUN];
+extern int NFUN;
 void do_axes(void);
 
 /* ---- graph bookkeeping (was many_pops.c / main.c) ----------------------- */
@@ -198,3 +215,152 @@ bye:
   NSYM=NSYM_START;
   return(z);
  }
+
+void set_active_windows()
+{
+  int i,np=0;
+   for(i=0;i<MAXPOP;i++){
+   if(graph[i].Use==1){
+     ActiveWinList[np]=i;
+     np++;
+   }
+ }
+ num_pops=np;
+}  
+
+void check_windows()
+{
+ double zip,zap;
+ check_val(&MyGraph->xmin,&MyGraph->xmax,&MyGraph->xbar,&MyGraph->dx);
+ check_val(&MyGraph->ymin,&MyGraph->ymax,&MyGraph->ybar,&MyGraph->dy);
+ check_val(&MyGraph->zmin,&MyGraph->zmax,&MyGraph->zbar,&MyGraph->dz);
+ check_val(&MyGraph->xlo,&MyGraph->xhi,&zip,&zap);
+ check_val(&MyGraph->ylo,&MyGraph->yhi,&zip,&zap);
+} 
+
+void check_val(x1,x2,xb,xd)
+ double *x1,*x2,*xb,*xd;
+{
+ double temp;
+
+/* 
+  see get_max for details
+*/   
+      
+ if(*x1==*x2){
+   temp=.05*lmax(fabs(*x1),1.0);
+   *x1=*x1-temp;
+   *x2=*x2+temp;
+ }
+ if(*x1>*x2){
+	     temp=*x2;
+             *x2=*x1;
+             *x1=temp;
+	     
+            }
+	    *xb=.5*(*x1+*x2);
+	    *xd=2.0/(*x2-*x1);
+
+}
+
+void dump_ps(int i)
+{  
+  char filename[XPP_MAX_NAME];
+   if(i<0)
+     {
+       sprintf(filename,"%s%s.%s",this_file,this_internset,PlotFormat);
+     }
+   else 
+     {
+       /*   padnum(s,i,4); */
+       sprintf(filename,"%s%s_%04d.%s",this_file,this_internset,i,PlotFormat);
+     }   
+      
+   if (strcmp(PlotFormat,"ps")==0)
+   {
+     if(ps_init(filename,PS_Color))
+     {
+       ps_restore();
+     }
+   }
+   else if (strcmp(PlotFormat,"svg")==0)
+   {
+     if(svg_init(filename,PS_Color))
+     {
+       svg_restore();
+     }
+   }
+}
+
+void   redo_stuff()
+    {
+      evaluate_derived();
+   re_evaluate_kernels();
+	  redo_all_fun_tables();
+        evaluate_derived();
+}
+
+void user_fun_info(fp)
+     FILE *fp;
+{
+  char fundef[256];
+  int i,j;
+  for(j=0;j<NFUN;j++){
+    sprintf(fundef,"%s(",ufun_names[j]);
+    for(i=0;i<narg_fun[j];i++){
+      strcat(fundef,ufun_arg[j].args[i]);
+      if(i<narg_fun[j]-1)
+	strcat(fundef,",");
+    }
+    strcat(fundef,") = ");
+    strcat(fundef,ufun_def[j]);
+    fprintf(fp,"%s\n",fundef);
+  }
+}
+
+void ps_restore()
+{
+  if(Xup){
+ redraw_dfield();
+ ps_do_color(0);
+ if(MyGraph->Nullrestore){restore_nullclines();ps_stroke();}
+  }
+ ps_last_pt_off(); 
+
+  restore(0,my_browser.maxrow);  
+ 
+  do_batch_nclines();
+  do_batch_dfield(); 
+ do_axes(); 
+  
+ ps_do_color(0); 
+ if(Xup){
+ xpp_ui.draw_label();
+ xpp_ui.draw_freeze();
+ }
+ ps_end();
+}
+
+void svg_restore()
+{
+ 
+/* restore(0,my_browser.maxrow);
+*/
+ /*ps_do_color(0);
+ if(MyGraph->Nullrestore){restore_nullclines();ps_stroke();}
+  */
+  
+  redraw_dfield();
+ if(MyGraph->Nullrestore){restore_nullclines();}
+  svg_last_pt_off();
+ /*ps_do_color(0);*/ 
+ restore(0,my_browser.maxrow);
+ do_axes();
+ if(Xup){
+ xpp_ui.draw_label();
+ xpp_ui.draw_freeze();
+ }
+  do_batch_nclines();
+  do_batch_dfield(); 
+ svg_end();
+}

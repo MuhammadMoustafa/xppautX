@@ -12,16 +12,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install deps
         run: sudo apt-get update && sudo apt-get install -y libx11-dev
-      - name: Build
-        run: make -j"$(nproc)" 2>&1 | tee build.log
-      - name: Warning count
-        run: echo "warnings: $(grep -c 'warning:' build.log || true)"
-      - name: Smoke test (headless)
-        run: |
-          ./xppaut -version
-          cd /tmp && "$GITHUB_WORKSPACE/xppaut" "$GITHUB_WORKSPACE/examples/ode/lecar.ode" -silent
-          test "$(wc -l < output.dat)" -eq 601
-          head -3 output.dat
+      - name: Build, smoke test, metrics
+        run: tools/verify.sh
+      - name: Coupling metric
+        run: tools/coredeps.sh -v && test "$(tools/coredeps.sh | grep -oE 'imports: [0-9]+' | grep -oE '[0-9]+')" -eq 0
 
   macos:
     runs-on: macos-latest
@@ -30,11 +24,12 @@ jobs:
       - name: Install deps
         run: brew install libx11
       - name: Build
-        run: make -j"$(sysctl -n hw.ncpu)" X11_INC="-I$(brew --prefix)/include" X11_LIB="-L$(brew --prefix)/lib" 2>&1 | tee build.log
-      - name: Warning count
-        run: echo "warnings: $(grep -c 'warning:' build.log || true)"
-      - name: Smoke test (headless)
+        run: make -j"$(sysctl -n hw.ncpu)" xppaut xppcore-cli X11_INC="-I$(brew --prefix)/include" X11_LIB="-L$(brew --prefix)/lib" 2>&1 | tee build.log
+      - name: Smoke test (headless, both binaries must agree)
         run: |
           ./xppaut -version
           cd /tmp && "$GITHUB_WORKSPACE/xppaut" "$GITHUB_WORKSPACE/examples/ode/lecar.ode" -silent
           test "$(wc -l < output.dat)" -eq 601
+          mv output.dat x11.dat && "$GITHUB_WORKSPACE/xppcore-cli" "$GITHUB_WORKSPACE/examples/ode/lecar.ode"
+          cmp x11.dat output.dat
+          echo "md5 on this platform: $(md5 -q output.dat) (linux baseline c281851de59ffd03b2a46428619a0c8f)"

@@ -128,7 +128,7 @@ int find_kbs(char *sc)
   }
 }
 
-void add_user_button(char *s)
+void x11_add_user_button(char *s)
 {
   char bname[10],sc[10];
   int z;

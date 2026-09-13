@@ -398,7 +398,7 @@ void reset_graph()
     MyGraph->grtype=AXES;
     check_windows();
     set_normal_scale();
-    redraw_the_graph();
+    xpp_ui.redraw_graph();
 }
 
 

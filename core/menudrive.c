@@ -387,7 +387,7 @@ void run_the_commands(int com)
   if(com>=M_UT && com<=M_UC)quick_num(com-M_UT);
 }
 
-void do_stochast()
+void x11_do_stochast()
 {
 static char *n[]={"New seed","Compute","Data","Mean","Variance","Histogram",
 		  "Old hist","Fourier","Power","fIt data","Stat","Liapunov",
@@ -404,7 +404,7 @@ static char *n[]={"New seed","Compute","Data","Mean","Variance","Histogram",
  if(i>=0&&i<16)run_the_commands(M_UHN+i);
 }
 
-void get_pmap_pars()
+void x11_get_pmap_pars()
 {
   static char *map[]={"(N)one","(S)ection","(M)ax/min","(P)eriod"};
   static char mkey[]="nsmp";
@@ -422,7 +422,7 @@ void get_pmap_pars()
 
 }
 
-void set_col_par()
+void x11_set_col_par()
 {
   char ch;
   Window tempw=main_win;
@@ -437,7 +437,7 @@ void set_col_par()
   if(i>=0&&i<3)run_the_commands(i+M_UCN);
 }
   
-void make_adj()
+void x11_make_adj()
 {
  Window temp=main_win;
  static char *n[]={"(N)ew adj","(M)ake H","(A)djoint","(O)rbit","(H)fun","(P)arameters","(R)ange"};
@@ -556,7 +556,7 @@ void do_gr_objs()
 
 
 
-void new_lookup()
+void x11_new_lookup()
 {
   static char *n[]={"(E)dit","(V)iew"};
   static char key[]="ev";
@@ -782,7 +782,7 @@ void new_clines()
     run_the_commands(M_NN+i);
 }
 
-void froz_cline_stuff()
+void x11_froz_cline_stuff()
 {
  Window temp=main_win;
   static char *n[]={"(F)reeze","(D)elete all","(R)ange","(A)nimate"};

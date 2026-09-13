@@ -2364,7 +2364,7 @@ void do_box_key(b,ev,used)
 
 
 
-void man_ic()
+void x11_man_ic()
 {
   int done,index=0;
   double z;
@@ -2431,14 +2431,6 @@ void new_parameter()
 }
 
 
-void   redo_stuff()
-    {
-      evaluate_derived();
-   re_evaluate_kernels();
-	  redo_all_fun_tables();
-        evaluate_derived();
-}
-	
 
 void   set_default_ics()
 {

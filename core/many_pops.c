@@ -123,29 +123,6 @@ extern int NTable;
 
 extern INTERN_SET intern_set[MAX_INTERN_SET];
 extern int Nintern_set;
-int select_table()
-{
- int i,j;
- Window temp=main_win;
- char *n[MAX_TAB],key[MAX_TAB],ch;
- for(i=0;i<NTable;i++){
-   n[i]=(char *)malloc(25);
-   key[i]='a'+i;
-   sprintf(n[i],"%c: %s",key[i],my_table[i].name);
- }
- key[NTable]=0;  
- ch=(char)pop_up_list(&temp,"Table",n,key,NTable,12,0,10,0,
-		       no_hint,info_pop,info_message);
-   for(i=0;i<NTable;i++)free(n[i]);
-  j=(int)(ch-'a');
-  if(j<0||j>=NTable){
-    err_msg("Not a valid table");
-    return -1;
-  }
-  return j;
-
-}
-
 void get_intern_set()
 {
   char *n[MAX_INTERN_SET],key[MAX_INTERN_SET],ch;
@@ -797,17 +774,6 @@ void do_gr_objs_com(int com)
   }
 }
 
-void set_active_windows()
-{
-  int i,np=0;
-   for(i=0;i<MAXPOP;i++){
-   if(graph[i].Use==1){
-     ActiveWinList[np]=i;
-     np++;
-   }
- }
- num_pops=np;
-}  
 void do_windows_com(int c)
 {
  switch(c){
@@ -949,53 +915,6 @@ int x,y,w,h;
 }
 }
 */
-
-void ps_restore()
-{
-  if(Xup){
- redraw_dfield();
- ps_do_color(0);
- if(MyGraph->Nullrestore){restore_nullclines();ps_stroke();}
-  }
- ps_last_pt_off(); 
-
-  restore(0,my_browser.maxrow);  
- 
-  do_batch_nclines();
-  do_batch_dfield(); 
- do_axes(); 
-  
- ps_do_color(0); 
- if(Xup){
- draw_label(draw_win);
- draw_freeze(draw_win);
- }
- ps_end();
-}
-
-void svg_restore()
-{
- 
-/* restore(0,my_browser.maxrow);
-*/
- /*ps_do_color(0);
- if(MyGraph->Nullrestore){restore_nullclines();ps_stroke();}
-  */
-  
-  redraw_dfield();
- if(MyGraph->Nullrestore){restore_nullclines();}
-  svg_last_pt_off();
- /*ps_do_color(0);*/ 
- restore(0,my_browser.maxrow);
- do_axes();
- if(Xup){
- draw_label(draw_win);
- draw_freeze(draw_win);
- }
-  do_batch_nclines();
-  do_batch_dfield(); 
- svg_end();
-}
 
 
 
@@ -1157,7 +1076,7 @@ void kill_all_pops()
 
 
 
-void create_a_pop()
+void x11_create_a_pop()
  {
   int i,index;
 

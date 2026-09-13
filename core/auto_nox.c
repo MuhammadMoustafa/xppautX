@@ -1,3 +1,7 @@
+#include "integrate.h"
+#include "numerics.h"
+#include "xpp_globals.h"
+#include "xpp_ui.h"
 #include <string.h>
 #include "parserslow.h"
 #include "autevd.h"
@@ -2237,7 +2241,7 @@ void auto_extend_ss()
   
   if (isinf(grabpt.per))
   {
-  	respond_box("Okay","Can't continue infinite period Hopf!");
+  	err_msg("Can't continue infinite period Hopf!");
   	return;
   } 
   
@@ -2412,7 +2416,7 @@ void auto_new_per() /* same for extending periodic  */
   
   if (isinf(grabpt.per))
   {
-  	respond_box("Okay","Can't continue infinite period Hopf.");
+  	err_msg("Can't continue infinite period Hopf.");
   	return;
   } 	
       TypeOfCalc=PE1;
@@ -2625,7 +2629,7 @@ void auto_2p_hopf()
   
   if (isinf(grabpt.per))
   {
-  	respond_box("Okay","Can't continue infinite period Hopf.");
+  	err_msg("Can't continue infinite period Hopf.");
   	return;
   } 
   
@@ -2668,7 +2672,7 @@ void auto_period_double()
 void auto_err(s)
      char *s;
 {
-  respond_box("OK",s);
+  err_msg(s);
 }
 
 void load_auto_orbit()
@@ -3044,3 +3048,92 @@ void auto_file()
 
 
 
+
+void  auto_get_info( int *n, char *pname )
+{
+  int i1,i2,ibr;
+  DIAGRAM *d,*dnew;
+
+
+  if(mark_flag==2){
+    i1=abs(mark_ipts);
+    ibr=mark_ibrs;
+    i2=abs(mark_ipte);
+    *n=abs(i2-i1);
+    d=bifd;
+    while(1){
+      if(d->ibr==ibr && ((d->ntot==i1)||(d->ntot==(-i1))))
+	{
+	  strcpy(pname,upar_names[AutoPar[d->icp1]]);
+	  break;
+	}
+       dnew=d->next;
+       if(dnew==NULL){
+	 
+	 break;
+       }
+       d=dnew;
+    }
+  }
+  
+}
+
+void auto_set_mark(int i)
+{
+  int pt,ibr;
+  if(mark_flag==2){
+    ibr=mark_ibrs;
+    if(abs(mark_ipts)<abs(mark_ipte))
+      pt=abs(mark_ipts)+i;
+    else
+      pt=abs(mark_ipte)+i;
+    find_point(ibr,pt);
+  }
+}
+
+void find_point(int ibr, int pt)
+{
+  int i;
+  DIAGRAM *d,*dnew;
+   if(NBifs<2)return;
+   d=bifd;
+   while(1)
+     {
+       if(d->ibr==ibr && ((d->ntot==pt)||(d->ntot==(-pt))))
+	 {  /* need to look at both signs to ignore stability */
+	   /* now we use this info to set parameters and init data */
+	   for(i=0;i<NODE;i++)
+	     set_ivar(i+1,d->u0[i]);
+	   get_ic(0,d->u0);
+	   for(i=0;i<NAutoPar;i++)
+	     constants[Auto_index_to_array[i]]=d->par[i];
+	   evaluate_derived();
+	   redo_all_fun_tables();
+	   redraw_params();
+	   redraw_ics();
+           if((d->per)>0)
+	     set_total(d->per);		       
+	   break;
+	 }
+       dnew=d->next;
+       if(dnew==NULL){
+	 
+	 break;
+       }
+       d=dnew;
+     }
+}
+
+void do_auto_range()
+{
+  double t=TEND;
+  
+  if(mark_flag==2)
+    do_auto_range_go();
+  TEND=t;
+}
+
+void DLINE(double a,double b,double c,double d)
+{
+  ALINE(IXVal(a),IYVal(b),IXVal(c),IYVal(d));
+}

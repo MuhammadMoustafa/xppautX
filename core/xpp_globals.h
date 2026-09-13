@@ -64,4 +64,20 @@ extern int ActiveWinList[MAXPOP];
 /* animation */
 extern int animation_on_the_fly;
 
+/* font metrics of the front end (0 when headless) */
+extern int DCURYb, DCURXb, CURY_OFFb;
+extern int DCURYs, DCURXs, CURY_OFFs;
+extern int DCURY, DCURX, CURY_OFF;
+extern int MSStyle;
+
+/* AUTO diagram window state read by auto_nox.c */
+extern int AutoRedrawFlag;
+extern int mark_flag;
+extern int mark_ibrs, mark_ibre;
+extern int mark_ipts, mark_ipte;
+extern int mark_ixs, mark_ixe, mark_iys, mark_iye;
+
+/* array plot */
+extern int aplot_range;
+
 #endif

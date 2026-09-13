@@ -8,23 +8,39 @@ Linux without an X server, keeps every feature and every single-letter menu
 hotkey of the original, and exposes the numerics as a library that other
 tools (for example a VS Code extension) can drive directly.
 
-Current status: **phase 0**. This is the upstream XPPAUT 8.x source, relocated
-into a cleaner tree and building with a plain Makefile. It is still the X11
-program. Nothing user-facing has changed yet.
+Current status: **phase 2 done**. The numerics no longer depend on X11.
+`make lib` builds `libxppcore.a` from the 83 UI-free sources; `make cli`
+builds `xppcore-cli`, a headless runner that links only the library and
+produces byte-identical `output.dat` to `xppaut -silent`. The X11 program
+still builds and behaves as before.
 
 ## Plan
 
 1. **Modern build.** One Makefile (later CMake), warning-clean C99, CI on
-   Linux and macOS. *(in progress)*
-2. **Split numerics from UI.** Replace the direct calls from the integrators,
-   parser and AUTO driver into X11 dialogs with a callback interface, and
-   build the numerics as `libxppcore`.
+   Linux and macOS. *(Makefile and CI done; warnings pending)*
+2. **Split numerics from UI.** *(done)* Every call from the numerics into the
+   front end goes through the `XppUi` callback table in `core/xpp_ui.h`.
+   The historical function names (`err_msg`, `new_int`, `redraw_params`,
+   `ALINE`, ...) still exist as dispatchers, so upstream diffs stay
+   mergeable; the X11 implementations carry an `x11_` prefix and are wired
+   in by `core/ui_x11.c`. The headless defaults log messages, decline
+   prompts and draw nothing.
 3. **New front end.** Menus and hotkeys are generated from the existing
-   `MENUDEF` tables in `core/menu.c` and dispatched through the same `M_*`
+   `MENUDEF` tables in `core/menus.c` and dispatched through the same `M_*`
    switch in `core/menudrive.c`, so behaviour stays identical. Targets: a
    webview inside the
    [XPP-ODE VS Code extension](https://github.com/MuhammadMoustafa/XPP-ODE-Extension)
    and, optionally, a standalone desktop shell.
+
+### Metrics
+
+Two scripts track the split; both must stay green (`tools/verify.sh` runs
+them after a build and checks the output checksums):
+
+| Script | Measures | Now |
+|---|---|---|
+| `tools/x11free.sh` | sources that compile with X11 headers stubbed out | 83 / 110 |
+| `tools/coredeps.sh` | symbols those objects import from X11 objects | 0 |
 
 ## Layout
 
@@ -90,6 +106,14 @@ current directory:
 ```bash
 ./xppaut examples/ode/lecar.ode -silent
 head output.dat
+```
+
+### Library and headless runner
+
+```bash
+make lib          # libxppcore.a: the numerics, no X11
+make cli          # xppcore-cli: batch runner linked against the library only
+./xppcore-cli examples/ode/lecar.ode   # writes output.dat, same as xppaut -silent
 ```
 
 ### Makefile knobs

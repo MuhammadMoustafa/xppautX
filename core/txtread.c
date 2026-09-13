@@ -278,7 +278,7 @@ void redraw_txtview_text()
  }
 }
 
-void init_txtview()
+void x11_init_txtview()
 {
   txtview.here=0;
   txtview.dh=DCURY;

@@ -520,8 +520,24 @@ for npts lines
 
 */  
 
-
-
-
-
-
+#include "xpp_ui.h"
+extern char *no_hint[];
+int select_table(void)
+{
+ int i,j;
+ char *n[MAX_TAB],key[MAX_TAB],ch;
+ for(i=0;i<NTable;i++){
+   n[i]=(char *)malloc(25);
+   key[i]='a'+i;
+   sprintf(n[i],"%c: %s",key[i],my_table[i].name);
+ }
+ key[NTable]=0;
+ ch=(char)xpp_ui.choose_key("Table",n,key,NTable,0,no_hint);
+ for(i=0;i<NTable;i++)free(n[i]);
+ j=(int)(ch-'a');
+ if(j<0||j>=NTable){
+   err_msg("Not a valid table");
+   return -1;
+ }
+ return j;
+}

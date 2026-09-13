@@ -14,6 +14,7 @@ int do_calc(char *temp, double *z); /* xpp_util.c */
 static void hl_err_msg(char *msg) { plintf("%s\n", msg); }
 static void hl_void(void) {}
 static void hl_str(char *s) { (void)s; }
+static void hl_int(int v) { (void)v; }
 static void hl_bottom_msg(int line, char *msg) { (void)line; (void)msg; }
 static int hl_new_string(char *name, char *value) { (void)name; (void)value; return 0; }
 static int hl_no(void) { return 0; }
@@ -43,7 +44,6 @@ static int hl_choose_key(char *title, char **items, char *keys, int n, int def,
 static int hl_get_mouse_xy(int *x, int *y) { (void)x; (void)y; return 0; }
 static int hl_check_abort(void) { return 64; }
 static void hl_progress(int nit, int icount, int cwidth) { (void)nit; (void)icount; (void)cwidth; }
-static void hl_data_changed(int length) { (void)length; }
 static void hl_activate_graph(int i, int flag) { (void)i; (void)flag; }
 static void hl_get_draw_size(unsigned int *w, unsigned int *h)
 {
@@ -53,12 +53,27 @@ static void hl_get_draw_size(unsigned int *w, unsigned int *h)
 }
 static void hl_put_text(int x, int y, char *s) { (void)x; (void)y; (void)s; }
 static int hl_film_clip(void) { return 1; }
-static void hl_task(int task) { (void)task; }
 static void hl_draw_point(int x, int y) { (void)x; (void)y; }
 static void hl_draw_line(int x1, int y1, int x2, int y2) { (void)x1; (void)y1; (void)x2; (void)y2; }
 static void hl_draw_frect(int x, int y, int w, int h) { (void)x; (void)y; (void)w; (void)h; }
 static void hl_draw_special_text(int x, int y, char *s, int size) { (void)x; (void)y; (void)s; (void)size; }
-static void hl_int(int v) { (void)v; }
+static void hl_aplot_io(FILE *fp, int f) { (void)fp; (void)f; }
+static void hl_auto_make_window(char *w, char *i) { (void)w; (void)i; }
+static void hl_auto_circle(int x, int y, int r) { (void)x; (void)y; (void)r; }
+static void hl_auto_draw_info(char *s, int x, int y) { (void)s; (void)x; (void)y; }
+static int hl_auto_check_abort(int *iflag) { *iflag = 0; return 0; }
+static int hl_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag)
+{
+    (void)i1; (void)j1; (void)i2; (void)j2; (void)flag;
+    return 0;
+}
+static int hl_auto_choose_key(char *title, char **list, char *key, int n, int max,
+                              int def, int x, int y, char **hints, char *httxt)
+{
+    (void)title; (void)list; (void)max; (void)x; (void)y; (void)hints; (void)httxt;
+    if (def >= 0 && def < n) return key[def];
+    return 0;
+}
 static void hl_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                            double *ev, int n)
 {
@@ -70,47 +85,102 @@ static void hl_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
 static void hl_exit_program(void) { exit(1); }
 
 XppUi xpp_ui = {
-    /* messages */
-    hl_err_msg, hl_void, hl_bottom_msg, hl_str, hl_void, hl_str, hl_str,
-    /* prompts */
-    hl_new_string, hl_no, hl_two_choice, hl_string_box, hl_file_selector,
-    hl_choose_key, hl_get_mouse_xy,
-    /* polling */
-    hl_check_abort, hl_no, hl_progress, hl_void,
-    /* redraw */
-    hl_void, hl_void, hl_void, hl_void, hl_void, hl_void, hl_void, hl_void,
-    hl_void, hl_data_changed,
-    /* plot windows */
-    hl_activate_graph, hl_get_draw_size, hl_void, hl_void, hl_put_text,
-    hl_void, hl_void, hl_film_clip, hl_void, hl_task,
-    /* drawing */
-    hl_draw_point, hl_draw_line, hl_draw_point, hl_draw_frect, hl_put_text,
-    hl_draw_special_text, hl_int, hl_int,
-    /* misc */
-    hl_show_eq_box,
-    hl_exit_program,
+    .err_msg = hl_err_msg,
+    .ping = hl_void,
+    .bottom_msg = hl_bottom_msg,
+    .message_box = hl_str,
+    .kill_message_box = hl_void,
+    .title_text = hl_str,
+    .canvas_xy = hl_str,
+    .new_string = hl_new_string,
+    .yes_no_box = hl_no,
+    .two_choice = hl_two_choice,
+    .string_box = hl_string_box,
+    .file_selector = hl_file_selector,
+    .choose_key = hl_choose_key,
+    .get_mouse_xy = hl_get_mouse_xy,
+    .edit_ics = hl_void,
+    .menu_flash = hl_int,
+    .menu_help = hl_void,
+    .submenu = hl_int,
+    .check_abort = hl_check_abort,
+    .progress_begin = hl_no,
+    .progress = hl_progress,
+    .flush = hl_void,
+    .redraw_params = hl_void,
+    .redraw_ics = hl_void,
+    .redraw_all = hl_void,
+    .redraw_bcs = hl_void,
+    .redraw_delays = hl_void,
+    .redraw_graph = hl_void,
+    .redraw_screens = hl_void,
+    .clear_screens = hl_void,
+    .clear_draw_window = hl_void,
+    .reset_graphics = hl_void,
+    .data_changed = hl_int,
+    .activate_graph = hl_activate_graph,
+    .create_plot_window = hl_void,
+    .get_draw_size = hl_get_draw_size,
+    .draw_label = hl_void,
+    .draw_freeze = hl_void,
+    .blank_draw_window = hl_void,
+    .put_text = hl_put_text,
+    .small_base = hl_void,
+    .small_gr = hl_void,
+    .film_clip = hl_film_clip,
+    .reset_film = hl_void,
+    .on_the_fly = hl_int,
+    .freeze_curve = hl_void,
+    .draw_point = hl_draw_point,
+    .draw_line = hl_draw_line,
+    .draw_bead = hl_draw_point,
+    .draw_frect = hl_draw_frect,
+    .draw_text = hl_put_text,
+    .draw_special_text = hl_draw_special_text,
+    .draw_linestyle = hl_int,
+    .set_color = hl_int,
+    .aplot_init = hl_void,
+    .aplot_close_files = hl_void,
+    .aplot_draw_one = hl_str,
+    .aplot_io = hl_aplot_io,
+    .auto_make_window = hl_auto_make_window,
+    .auto_line = hl_draw_line,
+    .auto_text = hl_put_text,
+    .auto_circle = hl_auto_circle,
+    .auto_fill_circle = hl_auto_circle,
+    .auto_xor_cross = hl_draw_point,
+    .auto_line_width = hl_int,
+    .auto_col = hl_int,
+    .auto_bw = hl_void,
+    .auto_clr_stab = hl_void,
+    .auto_stab_line = hl_draw_line,
+    .auto_clear_plot = hl_void,
+    .auto_redraw_menus = hl_void,
+    .auto_clear_info = hl_void,
+    .auto_draw_info = hl_auto_draw_info,
+    .auto_refresh = hl_void,
+    .auto_check_abort = hl_auto_check_abort,
+    .auto_rubber = hl_auto_rubber,
+    .auto_choose_key = hl_auto_choose_key,
+    .auto_scroll_window = hl_void,
+    .auto_traverse_diagram = hl_void,
+    .init_txtview = hl_void,
+    .add_user_button = hl_str,
+    .show_eq_box = hl_show_eq_box,
+    .exit_program = hl_exit_program,
 };
 
 void xpp_set_ui(const XppUi *ui)
 {
+    /* every non-NULL entry of *ui replaces the current one; NULL keeps the
+       default. Done field by field via the pointer table trick below. */
     XppUi d = xpp_ui;
-#define TAKE(f) if (ui->f) d.f = ui->f
-    TAKE(err_msg); TAKE(ping); TAKE(bottom_msg); TAKE(message_box);
-    TAKE(kill_message_box); TAKE(title_text); TAKE(canvas_xy);
-    TAKE(new_string); TAKE(yes_no_box); TAKE(two_choice); TAKE(string_box);
-    TAKE(file_selector); TAKE(choose_key); TAKE(get_mouse_xy);
-    TAKE(check_abort); TAKE(progress_begin); TAKE(progress); TAKE(flush);
-    TAKE(redraw_params); TAKE(redraw_ics); TAKE(redraw_all); TAKE(redraw_bcs);
-    TAKE(redraw_delays); TAKE(redraw_graph); TAKE(redraw_screens);
-    TAKE(clear_screens); TAKE(clear_draw_window); TAKE(data_changed);
-    TAKE(activate_graph); TAKE(get_draw_size); TAKE(draw_label);
-    TAKE(blank_draw_window); TAKE(put_text); TAKE(small_base); TAKE(small_gr);
-    TAKE(film_clip); TAKE(reset_film); TAKE(on_the_fly);
-    TAKE(draw_point); TAKE(draw_line); TAKE(draw_bead); TAKE(draw_frect);
-    TAKE(draw_text); TAKE(draw_special_text); TAKE(draw_linestyle);
-    TAKE(set_color);
-    TAKE(show_eq_box); TAKE(exit_program);
-#undef TAKE
+    const void *const *src = (const void *const *)ui;
+    const void **dst = (const void **)&d;
+    size_t n = sizeof(XppUi) / sizeof(void *);
+    size_t i;
+    for (i = 0; i < n; i++)
+        if (src[i]) dst[i] = src[i];
     xpp_ui = d;
 }
 
@@ -139,6 +209,15 @@ int file_selector(char *title, char *file, char *wild)
     return xpp_ui.file_selector(title, file, wild);
 }
 int GetMouseXY(int *x, int *y) { return xpp_ui.get_mouse_xy(x, y); }
+void man_ic(void) { xpp_ui.edit_ics(); }
+void flash(int num) { xpp_ui.menu_flash(num); }
+void help(void) { xpp_ui.menu_help(); }
+void set_col_par(void) { xpp_ui.submenu(XPP_SUBMENU_COLOR); }
+void new_lookup(void) { xpp_ui.submenu(XPP_SUBMENU_LOOKUP); }
+void make_adj(void) { xpp_ui.submenu(XPP_SUBMENU_ADJOINT); }
+void get_pmap_pars(void) { xpp_ui.submenu(XPP_SUBMENU_POINCARE); }
+void froz_cline_stuff(void) { xpp_ui.submenu(XPP_SUBMENU_FROZEN_CLINE); }
+void do_stochast(void) { xpp_ui.submenu(XPP_SUBMENU_STOCHASTIC); }
 int my_abort(void) { return xpp_ui.check_abort(); }
 int get_command_width(void) { return xpp_ui.progress_begin(); }
 void plot_command(int nit, int icount, int cwidth) { xpp_ui.progress(nit, icount, cwidth); }
@@ -151,11 +230,48 @@ void redraw_delays(void) { xpp_ui.redraw_delays(); }
 void drw_all_scrns(void) { xpp_ui.redraw_screens(); }
 void clr_all_scrns(void) { xpp_ui.clear_screens(); }
 void clear_draw_window(void) { xpp_ui.clear_draw_window(); }
+void reset_graphics(void) { xpp_ui.reset_graphics(); }
+void create_a_pop(void) { xpp_ui.create_plot_window(); }
 void SmallBase(void) { xpp_ui.small_base(); }
 void SmallGr(void) { xpp_ui.small_gr(); }
 void reset_film(void) { xpp_ui.reset_film(); }
 void on_the_fly(int task) { xpp_ui.on_the_fly(task); }
+void auto_freeze_it(void) { xpp_ui.freeze_curve(); }
 void set_color(int col) { xpp_ui.set_color(col); }
+void init_my_aplot(void) { xpp_ui.aplot_init(); }
+void close_aplot_files(void) { xpp_ui.aplot_close_files(); }
+void draw_one_array_plot(char *bob) { xpp_ui.aplot_draw_one(bob); }
+void dump_aplot(FILE *fp, int f) { xpp_ui.aplot_io(fp, f); }
+void make_auto(char *wname, char *iname) { xpp_ui.auto_make_window(wname, iname); }
+void ALINE(int a, int b, int c, int d) { xpp_ui.auto_line(a, b, c, d); }
+void ATEXT(int a, int b, char *c) { xpp_ui.auto_text(a, b, c); }
+void Circle(int x, int y, int r) { xpp_ui.auto_circle(x, y, r); }
+void FillCircle(int x, int y, int r) { xpp_ui.auto_fill_circle(x, y, r); }
+void XORCross(int x, int y) { xpp_ui.auto_xor_cross(x, y); }
+void LineWidth(int wid) { xpp_ui.auto_line_width(wid); }
+void autocol(int col) { xpp_ui.auto_col(col); }
+void autobw(void) { xpp_ui.auto_bw(); }
+void clr_stab(void) { xpp_ui.auto_clr_stab(); }
+void auto_stab_line(int x, int y, int xp, int yp) { xpp_ui.auto_stab_line(x, y, xp, yp); }
+void clear_auto_plot(void) { xpp_ui.auto_clear_plot(); }
+void redraw_auto_menus(void) { xpp_ui.auto_redraw_menus(); }
+void clear_auto_info(void) { xpp_ui.auto_clear_info(); }
+void draw_auto_info(char *bob, int x, int y) { xpp_ui.auto_draw_info(bob, x, y); }
+void refreshdisplay(void) { xpp_ui.auto_refresh(); }
+int byeauto_(int *iflag) { return xpp_ui.auto_check_abort(iflag); }
+int auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag)
+{
+    return xpp_ui.auto_rubber(i1, j1, i2, j2, flag);
+}
+int auto_pop_up_list(char *title, char **list, char *key, int n, int max,
+                     int def, int x, int y, char **hints, char *httxt)
+{
+    return xpp_ui.auto_choose_key(title, list, key, n, max, def, x, y, hints, httxt);
+}
+void auto_scroll_window(void) { xpp_ui.auto_scroll_window(); }
+void traverse_diagram(void) { xpp_ui.auto_traverse_diagram(); }
+void init_txtview(void) { xpp_ui.init_txtview(); }
+void add_user_button(char *s) { xpp_ui.add_user_button(s); }
 void create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                    double *ev, int n)
 {

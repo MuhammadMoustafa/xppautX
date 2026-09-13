@@ -103,14 +103,14 @@ extern Window command_pop;
                 } BROWSER;
 */
 extern BROWSER my_browser;
+extern float *old_rep;
+extern int REPLACE,R_COL;
 
 
 
 
 extern int noicon;
 extern char uvar_names[MAXODE][12];
-float *old_rep;
-int REPLACE=0,R_COL=0;
 
 extern float **storage;
 
@@ -409,13 +409,6 @@ if(dif_var<0)
 
 
 
-
-void  wipe_rep()
- {
-    if(!REPLACE)return;
-    free(old_rep);
-    REPLACE=0;
-  }
 
 
 void unreplace_column()
@@ -1127,33 +1120,6 @@ void get_data_xyz(x,y,z,i1,i2,i3,off)
   
 
   
-void data_get_mybrowser(int row)
-{
-  my_browser.row0=row;
-  data_get(&my_browser);
-}
-
-
-void data_get(b)
-BROWSER *b;
-{
- int i,in=b->row0;
- set_ivar(0,(double)storage[0][in]);
- for(i=0;i<NODE;i++)
- {
-  last_ic[i]=(double)storage[i+1][in];
-  set_ivar(i+1,last_ic[i]);
- } 
- for(i=0;i<NMarkov;i++){
-   last_ic[i+NODE]=(double)storage[i+NODE+1][in];
-   set_ivar(i+1+NODE+FIX_VAR,last_ic[i+NODE]);
- }
- for(i=NODE+NMarkov;i<NEQ;i++)
-   set_val(uvar_names[i],storage[i+1][in]);
- 
-
- redraw_ics();
-}
 
 
 void data_replace(b)

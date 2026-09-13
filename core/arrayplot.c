@@ -1,5 +1,6 @@
 #include <X11/Xlib.h>
 #include "arrayplot.h"
+#include "xpp_globals.h"
 #include "array_print.h"
 
 #include <stdlib.h> 
@@ -72,7 +73,6 @@ extern GC gc, small_gc,gc_graph;
 double atof();
 extern char uvar_names[MAXODE][12];
 extern BROWSER my_browser;
-int aplot_range;
 int aplot_range_count=0;
 char aplot_range_stem[256]="rangearray";
 int aplot_still=1,aplot_tag=0;
@@ -95,7 +95,7 @@ extern double MyData[MAXODE];
 
 
 
-void draw_one_array_plot(char *bob)
+void x11_draw_one_array_plot(char *bob)
 {
   char filename[300];
  
@@ -299,7 +299,7 @@ void destroy_aplot()
     XDestroyWindow(display,aplot.base);
 }
 
-void init_my_aplot()
+void x11_init_my_aplot()
 {
  init_arrayplot(&aplot);
 }
@@ -496,7 +496,7 @@ void reset_aplot_axes(ap)
   gtitle_text(bob,ap.base);
 }
 
-void dump_aplot(fp,f)
+void x11_dump_aplot(fp,f)
      FILE *fp;
      int f;
 {
@@ -564,7 +564,7 @@ sprintf(values[8],"%d",ap->ncskip);
  }
    return 1;
 }
-void close_aplot_files()
+void x11_close_aplot_files()
 {
   if(aplot_still==0)
     fclose(ap_fp);

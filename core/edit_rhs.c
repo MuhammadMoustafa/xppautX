@@ -398,24 +398,6 @@ void edit_rhs()
  free(command);
 }
 
-void user_fun_info(fp)
-     FILE *fp;
-{
-  char fundef[256];
-  int i,j;
-  for(j=0;j<NFUN;j++){
-    sprintf(fundef,"%s(",ufun_names[j]);
-    for(i=0;i<narg_fun[j];i++){
-      strcat(fundef,ufun_arg[j].args[i]);
-      if(i<narg_fun[j]-1)
-	strcat(fundef,",");
-    }
-    strcat(fundef,") = ");
-    strcat(fundef,ufun_def[j]);
-    fprintf(fp,"%s\n",fundef);
-  }
-}
-    
 void edit_functions()
 {
  char **names,**values;
