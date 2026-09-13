@@ -1,14 +1,15 @@
 #ifndef _auto_x11_h_
 #define _auto_x11_h_
 
-#include <X11/Xlib.h>
 
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 typedef struct  {
   Window canvas, axes,numerics,grab,next,run,clear,redraw,base,per;
   Window info,param,file,abort,stab,hint,kill;
 } AUTOWIN;
 
 
+#endif /* Xlib.h */
 void ALINE(int a, int b, int c, int d);
 void DLINE(double a, double b, double c, double d);
 void ATEXT(int a, int b, char *c);
@@ -30,16 +31,24 @@ void MarkAuto(int x,int y);
 void XORCross(int x, int y);
 void FillCircle(int x, int y, int r);
 void LineWidth(int wid);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void auto_motion(XEvent ev);
 void display_auto(Window w);
 Window lil_button(Window root, int x, int y, char *name);
+#endif /* Xlib.h */
 void make_auto(char *wname, char *iname);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void resize_auto_window(XEvent ev);
+#endif /* Xlib.h */
 void a_msg(int i, int v);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void auto_enter(Window w, int v);
 void auto_button(XEvent ev);
+#endif /* Xlib.h */
 void auto_kill(void);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void auto_keypress(XEvent ev, int *used);
+#endif /* Xlib.h */
 int query_special(char* title,char *nsymb);
 void clear_msg();
 void find_point(int ibr,int pt);

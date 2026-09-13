@@ -2,7 +2,6 @@
 #define _auto_h_
 
 
-#include <X11/Xlib.h>
 #include <stdio.h>
 
 
@@ -48,9 +47,11 @@ int keep_last_plot(int flag);
 int init_auto_win(void);
 int plot_stab(double *evr, double *evi, int n);
 int clr_stab(void);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 int auto_motion(XEvent ev);
 int display_auto(Window w);
 Window lil_button(Window root, int x, int y, char *name);
+#endif /* Xlib.h */
 int make_auto(char *wname, char *iname);
 int yes_reset_auto(void);
 int reset_auto(void);
@@ -97,9 +98,13 @@ int move_to_label(int mylab, int *nrow, int *ndim, FILE *fp);
 int get_a_row(double *u, double *t, int n, FILE *fp);
 int auto_file(void);
 int a_msg(int i, int v);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 int auto_enter(Window w, int v);
 int auto_button(XEvent ev);
+#endif /* Xlib.h */
 int auto_kill(void);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 int auto_keypress(XEvent ev, int *used);
 
+#endif /* Xlib.h */
 #endif

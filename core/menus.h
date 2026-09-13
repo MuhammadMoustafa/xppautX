@@ -1,7 +1,6 @@
 #ifndef _menus_h_
 #define _menus_h_
 
-#include <X11/Xlib.h>
 
 
 #define MAIN_MENU 0
@@ -13,7 +12,9 @@
 #define NUM_ENTRIES 18
 char *main_menu[]={
  "XPP","Initialconds","Continue","Nullcline",
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
  "Dir.field/flow","Window/zoom","phAsespace",
+#endif /* Xlib.h */
  "Kinescope","Graphic stuff","nUmerics","File",
  "Parameters","Erase","Makewindow","Text,etc",
  "Sing pts","Viewaxes","Xi vs t","Restore","3d-params",
@@ -36,6 +37,7 @@ char *fileoff_menu[]={
 "Bell on","Help","Quit","Transpose","tIps","Get par set","cLone",".Xpprc","tUtorial"}; 
 
 /* end CLONE change */
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 typedef struct {
   Window base,title;
   Window w[25];
@@ -49,6 +51,7 @@ typedef struct {
 
 
 
+#endif /* Xlib.h */
 /* hints for the main menus */
 char *main_hint[]=
 { "Integrate the equations",
@@ -74,7 +77,9 @@ char *main_hint[]=
 
 
 char *file_hint[]={
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 "Display source and active comments",
+#endif /* Xlib.h */
 "Save information for restart",
 "Read information for restart",
 "Run AUTO, the bifurcation package",

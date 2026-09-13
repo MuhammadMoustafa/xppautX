@@ -2,12 +2,13 @@
 #ifndef _dialog_box_h
 #define _dialog_box_h
 
-#include <X11/Xlib.h>
 #include "struct.h"
 
 int get_dialog(char *wname, char *name, char *value, char *ok, char *cancel, int max);
 int dialog_event_loop(DIALOG *d, int max, int *pos, int *col);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void display_dialog(Window w, DIALOG d, int pos, int col);
 
 
+#endif /* Xlib.h */
 #endif

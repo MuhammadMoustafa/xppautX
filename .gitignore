@@ -13,3 +13,6 @@
 *conflicted copy*
 /build/obj/
 /build/nox11/
+/build/scratch/
+/build/*.log
+/build/*.txt

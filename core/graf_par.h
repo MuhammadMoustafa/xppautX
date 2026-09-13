@@ -15,7 +15,6 @@
 #define MAXBIFCRV 100
 #define lmax(a,b) ((a>b) ? a : b)
 
-#include <X11/Xlib.h>
 #include <stdio.h>
 
 typedef struct {
@@ -26,6 +25,7 @@ typedef struct {
   int nclip;
 } MOV3D;
 
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 typedef struct {
   float *x[MAXBIFCRV],*y[MAXBIFCRV];
   int color[MAXBIFCRV],npts[MAXBIFCRV],nbifcrv;
@@ -34,6 +34,7 @@ typedef struct {
 
 
 
+#endif /* Xlib.h */
 void change_view_com(int com);
 void ind_to_sym(int ind, char *str);
 void check_flags(void);
@@ -75,15 +76,21 @@ int freeze_crv(int ind);
 void auto_freeze_it(void);
 int create_crv(int ind);
 void edit_frz_crv(int i);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void draw_frozen_cline(int index, Window w);
 void draw_freeze(Window w);
+#endif /* Xlib.h */
 void init_bd(void);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void draw_bd(Window w);
+#endif /* Xlib.h */
 void free_bd(void);
 void add_bd_crv(float *x, float *y, int len, int type, int ncrv);
 void frz_bd(void);
 void read_bd(FILE *fp);
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 int get_frz_index(Window w);
+#endif /* Xlib.h */
 void export_graf_data(void);
 void add_a_curve_com(int c);
 void default_window();
