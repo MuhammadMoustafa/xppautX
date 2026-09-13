@@ -1233,7 +1233,7 @@ void destroy_selector()
 }
 
  
-int file_selector(title,file,wild)
+int x11_file_selector(title,file,wild)
  char *title;
  char *wild,*file;
 {
@@ -1961,7 +1961,7 @@ BoxList b;
 
 
 
-void redraw_params()
+void x11_redraw_params()
 {
  int i;
  double z;
@@ -1975,13 +1975,13 @@ void redraw_params()
 }
 
 
-void redraw_delays()
+void x11_redraw_delays()
 {
  int i;
  if(DelayBox.use)for(i=0;i<NODE;i++)draw_one_box(DelayBox,i);
 }
 
-void redraw_ics()
+void x11_redraw_ics()
 {
  int i,in;
  for(i=0;i<NODE+NMarkov;i++){
@@ -2000,7 +2000,7 @@ void redraw_ics()
 
 }
 
-void redraw_bcs()
+void x11_redraw_bcs()
 {
  int i;
  for(i=0;i<NODE;i++)draw_one_box(BCBox,i);

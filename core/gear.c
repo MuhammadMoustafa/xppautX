@@ -1,3 +1,4 @@
+#include "xpp_ui.h"
 #include "gear.h"
 #include "ggets.h"
 #include "menudrive.h"

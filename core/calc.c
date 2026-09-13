@@ -1,3 +1,4 @@
+#include "xpp_ui.h"
 #include <X11/Xlib.h>
 #include "calc.h"
 

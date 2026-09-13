@@ -2,6 +2,7 @@
 #define _struct_h_
 
 #include "xpplim.h"
+#include "xpp_types.h"
 #define MAXCHAR 60
 #define MAXENTRY 20
 #define RADIO 0
@@ -23,17 +24,16 @@ typedef struct {
   		int nstep, ic,stor;
 		} RANGE_INFO; 
 		
-#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 typedef struct {
-		Window base,ok,cancel,old,last,more,range;
-		Window wrlo,wrhi,wstep,wreset,woldic;
+		XppWinId base,ok,cancel,old,last,more,range;
+		XppWinId wrlo,wrhi,wstep,wreset,woldic;
 		RANGE_INFO *rinf;
 		double *yold,*y,*ylast;
     		int n;
                 int node;
 		char **name;
 		char ascval[MAXODE][ICLENGTH];
-		Window wname[ICMAX],wval[ICMAX];
+		XppWinId wname[ICMAX],wval[ICMAX];
 		} IC_BOX;
 			       
 		
@@ -42,7 +42,7 @@ typedef struct {
 
 
 typedef struct {
-	       Window w,w_info;
+	       XppWinId w,w_info;
 
 	       int Use;
                 int state;
@@ -72,14 +72,16 @@ typedef struct {
                 char gr_info[256];
 		} GRAPH;
 
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 typedef struct {
 		GC gc;
 		int dx,dy,yoff;
  		unsigned int fcol,bcol;
 		} TEXTGC;
 
+#endif /* Xlib.h */
 typedef struct {
-		Window w;
+		XppWinId w;
 		float x;
 		float y;
 		char s[MAXCHAR];
@@ -89,7 +91,7 @@ typedef struct {
 
 
 typedef struct {
-                Window w;
+                XppWinId w;
 		char key[20],name[10];
 		short use,type;
 		float *xv,*yv,*zv;
@@ -98,7 +100,7 @@ typedef struct {
 
 
 typedef struct {
-                Window w;
+                XppWinId w;
 	        char name[10];
                 short use;
 		float *x_n,*y_n;
@@ -106,11 +108,11 @@ typedef struct {
 	      } NCLINE;
 		
 typedef struct {
- 		Window mes;
-		Window ok;
-		Window cancel;
- 		Window input;
-		Window base;
+ 		XppWinId mes;
+		XppWinId ok;
+		XppWinId cancel;
+ 		XppWinId input;
+		XppWinId base;
 		char mes_s[MAXCHAR];
 		char input_s[MAXCHAR];
 		char ok_s[MAXCHAR];
@@ -121,29 +123,29 @@ typedef struct {
 typedef struct {
 		char title[MAXCHAR];
                 int n;
-		Window base;
-		Window ok;
-		Window cancel;
+		XppWinId base;
+		XppWinId ok;
+		XppWinId cancel;
 		short type;
                 int mc;
-		 Window cw[MAXENTRY];
+		 XppWinId cw[MAXENTRY];
                  char **name;
                  int *flag;
 		} CHOICE_BOX;
 
 typedef struct {
-		Window w;
+		XppWinId w;
 		char name[MAXCHAR];
 		char value[MAXCHAR];
 		} PARAM;
 
 typedef struct {
-		Window base;
+		XppWinId base;
 		char title[MAXCHAR];
 		PARAM *p;
 		int n;
-		Window ok;
-		Window cancel;
+		XppWinId ok;
+		XppWinId cancel;
 		} PARAM_BOX;
 		
 		
@@ -151,19 +153,18 @@ typedef struct {
 typedef struct {
 		char name[10];
  		char value[80];
-		Window w;
+		XppWinId w;
 		} TCHOICE;
 
 typedef struct {
 		char title[100];
-		Window who,what,cancel,ok;
+		XppWinId who,what,cancel,ok;
 		TCHOICE tc[100];
 		} TXTCHOICE;
 
 
   
 
-#endif /* Xlib.h */
 #endif
 
 

@@ -1,4 +1,4 @@
-#include <X11/Xlib.h>
+#include "xpp_ui.h"
 #include "integrate.h"
 
 #include "load_eqn.h"
@@ -116,7 +116,6 @@ extern int aplot_range;
 extern int Nintern_2_use;
 extern int AdjRange;
 extern int BatchEquil;
-extern Window draw_win;
 extern char this_internset[XPP_MAX_NAME];
 
 int MakePlotFlag=0;
@@ -737,9 +736,9 @@ double *x;
 		   NODE,&ierr,&stabinfo);
       }
       if(eq_range.movie){
-	draw_label(draw_win);
-        put_text_x11(5,10,bob);
-	if(film_clip()==0)err_msg("Out of film");
+	xpp_ui.draw_label();
+        xpp_ui.put_text(5,10,bob);
+	if(xpp_ui.film_clip()==0)err_msg("Out of film");
       }
       if(mc==0){
       storage[0][storind]=temp;
@@ -919,11 +918,11 @@ if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
 
 
  if(range.movie){
-   put_text_x11(5,10,bob);
+   xpp_ui.put_text(5,10,bob);
    redraw_dfield();
 	create_new_cline();
-   draw_label(draw_win);
-   if(film_clip()==0){err_msg("Out of film");break;}
+   xpp_ui.draw_label();
+   if(xpp_ui.film_clip()==0){err_msg("Out of film");break;}
  }
  refresh_browser(storind);
  if(AdjRange==1){

@@ -1,3 +1,4 @@
+#include "xpp_ui.h"
 #include <stdlib.h>
 
 #include "eig_list.h" 

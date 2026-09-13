@@ -1,12 +1,11 @@
-#include <X11/Xlib.h>
 
+#include "xpp_ui.h"
 #include "numerics.h"
 #include <strings.h>
 
 #include "menudrive.h"
 #include <stdlib.h> 
 #include <stdio.h>
-#include <X11/Xutil.h>
 #include <math.h>
 #include "browse.h"
 #include "pop_list.h"
@@ -21,8 +20,6 @@ void data_back();
 void usual_integrate_stuff();
 void new_adjoint();
 void new_h_fun();
-extern Window main_win,info_pop;
-extern Display *display;
 extern int DCURY,NDELAYS;
 extern int RandSeed;
 #include "struct.h"
@@ -99,7 +96,6 @@ int  gear();
 
 int cv_bandflag=0,cv_bandupper=1,cv_bandlower=1;
 extern int COLOR,color_total,color_min;
-extern Window command_pop;
 
 /*   This is the input for the various functions */
 
@@ -534,7 +530,6 @@ void get_method()
  int i;
  int nmeth;
 
- Window temp=main_win;
  static char *n[]={"(D)iscrete","(E)uler","(M)od. Euler",
 	"(R)unge-Kutta","(A)dams","(G)ear","(V)olterra","(B)ackEul",
 		 "(Q)ualst.RK4","(S)tiff","(C)Vode","DoPri(5)","DoPri(8)3",
@@ -546,8 +541,7 @@ void get_method()
 #else
  nmeth=15;
 #endif 
- ch = (char)pop_up_list(&temp,"Method",n,key,nmeth,15,METHOD,10,DCURY+8,
-			meth_hint,info_pop,info_message);
+ ch = (char)xpp_ui.choose_key("Method",n,key,nmeth,METHOD,meth_hint);
  for(i=0;i<nmeth;i++)
  if(ch==key[i])METHOD=i;
  if(i>(nmeth-1))i=nmeth-1;

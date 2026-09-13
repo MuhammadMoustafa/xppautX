@@ -1,3 +1,4 @@
+#include "xpp_ui.h"
 #include <X11/Xlib.h>
 #include "ggets.h"
 
@@ -27,8 +28,6 @@
 char *info_message;
 extern int XPPBatch;
 /* do_calc();
-new_float();
-new_int();
 */
 double atof();
 extern int SCALEX,SCALEY;
@@ -48,7 +47,7 @@ int xor_flag;
 extern FILE *logfile;
 extern int XPPVERBOSE;
  
-void ping() 
+void x11_ping()
 {
   	if(tfBell&&!XPPBatch)
   	{
@@ -173,7 +172,7 @@ int xloc=CURS_X*DCURX,yloc=CURS_Y*DCURY;
 
 }
 
-void err_msg(string)
+void x11_err_msg(string)
 char *string;
 {
  if(Xup) respond_box("OK",string);
@@ -181,30 +180,6 @@ char *string;
  
 }
 
-int plintf(char *fmt,...)
-{
-	int nchar=0;
-	va_list arglist;
-	
-	if (!XPPVERBOSE) return(nchar);/*Don't print at all!*/
-	
-	if (logfile == NULL)
-	{
-		printf("The log file is NULL!\n");
-		logfile = stdout;	
-	}
-	
-	va_start(arglist,fmt);
-	nchar=vfprintf(logfile,fmt,arglist);
-	va_end(arglist);
-	/*Makes sense to flush to the output file to 
-	prevent loss of log info if program crashes.
-	Then maybe user can figure out what happened and when.*/
-	fflush(logfile);
-	
-	return(nchar);
-}
- 
 int show_position(ev,com)
 XEvent ev;
 int *com;
@@ -437,31 +412,6 @@ Window w;
   XDrawLine(display,w,gc_graph, x0,y0,x1,y1);
 }
 
-int new_float(name,value)
-char *name;
-double *value;
- {  int done;
-    int flag;
-    double newz;
-   char tvalue[200];
-   sprintf(tvalue,"%.16g",*value);
-   done=new_string(name,tvalue);
-   if(done==0||strlen(tvalue)==0)return -1;
-
-
-    
-    if(tvalue[0]=='%')
-    {
-     flag=do_calc(&tvalue[1],&newz);
-     if(flag!=-1)*value=newz;
-     return(0);
-    }
-     *value=atof(tvalue);
- 
-   return(0);
-
- }
- 
 /*
 do_calc(s,v)
 char *s;
@@ -472,17 +422,6 @@ double *v;
  
  */
 
- int new_int(name,value)
- char *name;
- int *value;
- {
-   char svalue[200];
-   sprintf(svalue,"%d",*value);
-   if(new_string(name,svalue)==0||strlen(svalue)==0)return(-1);
-   *value=atoi(svalue);
-   return(0);
- }
-  
    
 
 
@@ -680,7 +619,7 @@ void edit_command_string(ev,name,value,done,pos,col)
   }
 
 
-int new_string(name,value)
+int x11_new_string(name,value)
 char *name;
 char *value;
 {

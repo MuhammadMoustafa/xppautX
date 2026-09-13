@@ -1,3 +1,4 @@
+#include "xpp_ui.h"
 #include <X11/Xlib.h>
 #include "browse.h"
 #include <string.h>
@@ -101,7 +102,7 @@ extern Window command_pop;
 		int istart,iend;
                 } BROWSER;
 */
-BROWSER my_browser;
+extern BROWSER my_browser;
 
 
 
@@ -113,22 +114,6 @@ int REPLACE=0,R_COL=0;
 
 extern float **storage;
 
-float **get_browser_data()
-{
-  return my_browser.data;
-}
-
-void set_browser_data(float **data,int col0)
-{
-  my_browser.data=data;
-  my_browser.col0=col0;
-}
-
-float *get_data_col(int c)
-{
-  return my_browser.data[c];
-}
-
 
 /*Excerpt from the man (Section 2) for  gettimeofday:
 "The use of the timezone structure is obsolete; the tz argument should normally be spec-
@@ -137,72 +122,9 @@ and will not be supported by libc or glibc.  Each and every occurrence of this f
 the kernel source (other than the declaration) is a bug."
 */
 
-int gettimenow()
-{
-  struct timeval now;
-  /*struct timezone tz;
-  gettimeofday(&now,&tz);
-  */
-  gettimeofday(&now,NULL);
-  return now.tv_usec;
-} 
 
 
-void waitasec(msec)
-     int msec;
-{
-  struct timeval tim;
-  /*struct timezone tz;*/
-  double sec=(double)msec/1000;
-  double t1,t2;
-  gettimeofday(&tim,NULL);
-  t1=tim.tv_sec+(tim.tv_usec/1000000.0);
 
-   while(1)
-    {
-       gettimeofday(&tim,NULL);
-       t2=tim.tv_sec+(tim.tv_usec/1000000.0);
-
-
-       if((t2-t1)>sec)
-	
-       return;
-    }
-}
-
-
-int get_maxrow_browser()
-{
-  return my_browser.maxrow;
-}
-
-
-void write_mybrowser_data(FILE *fp)
-{
-  write_browser_data(fp,&my_browser);
-}
-
-
-void write_browser_data(fp,b)
-     FILE *fp;
-     BROWSER *b;
-{
-  int i,j,l;
-  
-  for(i=b->istart;i<b->iend;i++){
-    if(N_plist>0){
-      for(l=0;l<N_plist;l++){
-	j=plotlist[l];
-	fprintf(fp,"%.8g ",b->data[j][i]);
-      }
-    }
-    else {
-	for(j=0;j<b->maxcol;j++)fprintf(fp,"%.8g ",b->data[j][i]);
-    }
-    fprintf(fp,"\n");
-  }
- 
-}
 
 int check_for_stor(data)
      float **data;
@@ -552,19 +474,6 @@ BROWSER b;
  *row=ihot;
 }
 
-void find_variable(s,col)
-char *s;
-int *col;
-{
- *col=-1;
-  if(strcasecmp("T",s)==0){
-   *col=0;
-    return;
-   }
-  *col=find_user_name(2,s);
-  if(*col>-1)*col=*col+1; 
- } 
-   
  
  
 
@@ -693,21 +602,6 @@ void  new_browse_dat(new_dat,dat_len)
 }
 
 
-void  refresh_browser(length)
- int length;
-{
- my_browser.dataflag=1;
- my_browser.maxrow=length;
- my_browser.iend=length;
- if(Xup&&my_browser.xflag==1) draw_data(my_browser);
-}
-
-void reset_browser()
-{
-  my_browser.maxrow=0;
-  my_browser.dataflag=0;
-}
- 
 
 void draw_data(b)
  BROWSER b;
@@ -751,21 +645,6 @@ void draw_data(b)
 }
 }
 
-
-void init_browser()
-{
- 
- my_browser.dataflag=0;
- my_browser.data=storage;
- my_browser.maxcol=NEQ+1;
- my_browser.maxrow=0;
- my_browser.col0=1;
- my_browser.row0=0;
- my_browser.istart=0;
- my_browser.iend=0;
- strcpy(my_browser.hinttxt,"hint");
-
-}
 
 void kill_browser(BROWSER *b)
 {

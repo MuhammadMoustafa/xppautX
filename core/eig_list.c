@@ -307,7 +307,7 @@ void eq_box_button(Window w)
  }
 }
 
-void create_eq_box(cp,cm,rp,rm,im,y,ev,n)
+void x11_create_eq_box(cp,cm,rp,rm,im,y,ev,n)
 int n,cp,rp,cm,rm,im;
 double *y,*ev;
 {

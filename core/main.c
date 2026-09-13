@@ -628,8 +628,10 @@ void do_vis_env()
 }
 
 
+void xpp_install_x11_ui(void);
 void init_X ()
 {
+  xpp_install_x11_ui();
   char *icon_name = "xpp";
   char *win_name = "XPPAUT";
   unsigned int x = 0, y = 0;
@@ -1144,7 +1146,7 @@ void clr_scrn()
 			 do_axes();
 }
 
-void redraw_all()
+void x11_redraw_all()
 {
   if(manual_expose==0){
     redraw_dfield();

@@ -242,7 +242,7 @@ void scroll_popup(STRING_BOX *sb,SCROLLBOX *scrb)
 
 }
 
-int do_string_box(n,row,col,title,names,values,maxchar)
+int x11_do_string_box(n,row,col,title,names,values,maxchar)
      int n,row,col,maxchar;
      char **names,values[][MAX_LEN_SBOX],*title;
 
@@ -1262,7 +1262,7 @@ int two_choice(choice1,choice2,string,key,x,y,w,title)
    }
 	
 
-int yes_no_box()
+int x11_yes_no_box()
   {
    char ans;
    ans=(char)TwoChoice("YES","NO","Are you sure?","yn");

@@ -1,4 +1,4 @@
-#include <X11/Xlib.h>
+#include "xpp_ui.h"
 #include "pp_shoot.h"
 
 #include "my_rhs.h"
@@ -261,7 +261,7 @@ double *ystart,*yend;
      set_cycle(cycle,&icol);
      get_ic(0,ystart);
      last_shot(0);
-     if(shoot_range.movie==1)film_clip();
+     if(shoot_range.movie==1)xpp_ui.film_clip();
      ping();
    }
   refresh_browser(storind);

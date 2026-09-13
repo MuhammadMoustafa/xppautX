@@ -1,4 +1,4 @@
-#include <X11/Xlib.h>
+#include "xpp_ui.h"
 #include  "axes2.h"
 
 #include <stdlib.h> 
@@ -8,7 +8,6 @@
 
 #include <math.h>
 #include <stdio.h>
-#include <X11/Xutil.h>
 #include "xpplim.h"
 #include "struct.h"
 #include "ggets.h"
@@ -33,10 +32,7 @@
 
 
 extern GRAPH *MyGraph;
-extern GC small_gc;
 extern int DCURXs,DCURYs;
-extern Display *display;
-extern Window draw_win;
 extern int DX_0,DY_0,D_WID,D_HGT;
 extern int PltFmtFlag;
 extern char uvar_names[MAXODE][12];
@@ -175,7 +171,7 @@ void redraw_cube(double theta,double phi)
   char bob[50];
   set_linestyle(0);
   make_rot(theta,phi); 
-  blank_screen(draw_win);
+  xpp_ui.blank_draw_window();
   draw_unit_cube();
   sprintf(bob,"theta=%g phi=%g",theta,phi);
   canvas_xy(bob);

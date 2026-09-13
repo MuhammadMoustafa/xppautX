@@ -1,4 +1,4 @@
-#include <X11/Xlib.h>
+#include "xpp_ui.h"
 #include "lunch-new.h"
 #include "parserslow.h"
 #include "edit_rhs.h"
@@ -30,11 +30,9 @@
 #define PARAMBOX 1
 
 extern int XPPBatch;
-extern BoxList ParamBox;
 double atof();
 
 extern int Xup;
- extern Window main_win;
 extern GRAPH *MyGraph;
 
  extern BC_STRUCT my_bc[MAXODE];
@@ -519,23 +517,9 @@ FILE *fp;
     io_double(&z,fp,f," ");
     set_val(upar_names[i],z);
     
-    if (!XPPBatch)
-    {
-	    index=find_user_name(PARAMBOX,upar_names[i]);
-	    if(index>=0){
-		  sprintf(junk,"%.16g",z);
-		  set_edit_params(&ParamBox,index,junk);
-		  draw_one_box(ParamBox,index);
-		}
-
-	      }
     }
   }
-  
-  if (!XPPBatch)
-  {
-  	reset_sliders();
-  }
+  if(f==READEM) redraw_params();
  }
 
 
@@ -583,9 +567,9 @@ if(f!=READEM)
   
    
  if(f==READEM&&Xup){
-   redraw_bcs();
+   xpp_ui.redraw_bcs();
    redraw_ics();
-   redraw_delays();
+   xpp_ui.redraw_delays();
    redraw_params();
  }
 }
@@ -651,7 +635,7 @@ if(f!=READEM)
     io_double(&(MyGraph->yhi),fp,f," yhi");
     io_double(&(MyGraph->oldxhi),fp,f," ");
     io_double(&(MyGraph->oldyhi),fp,f," ");
-    if(f==READEM&&Xup)redraw_the_graph();
+    if(f==READEM&&Xup)xpp_ui.redraw_graph();
 }
 
  
