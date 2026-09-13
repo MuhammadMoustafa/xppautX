@@ -57,6 +57,13 @@ extern int NEQ,NODE,NMarkov,FIX_VAR;
 
 extern char *no_hint[],*info_message;
 
+int twod_hist();
+void new_2dhist()
+{
+
+
+
+}  
 int two_d_hist(int col1,int col2,int ndat,int n1,int n2,double xlo,double xhi,double ylo,double yhi)
      /*
        col1,2 are the data you want to histogram
@@ -168,6 +175,10 @@ void post_process_stuff()
     N_plist=2;
     plotlist[0]=0;
     plotlist[1]=1;
+    if(post_process==7){ /* two-d histogram stuff */
+      twod_hist();
+      return;
+    }
     if(post_process==1){
       new_hist(hist_inf.nbins,hist_inf.xlo,hist_inf.xhi,hist_inf.col,0,"",0);
       return;
@@ -193,42 +204,11 @@ void post_process_stuff()
 }
 
 
-int new_2d_hist()
+int twod_hist()
+
 {
-  
-  int i,length;
-  if((NEQ<2)||(storind<3)){
-    err_msg("Need more data and at least 3 columns");
-    return 0;
-  }
-  if(get_col_info(&hist_inf.col,"Variable 1 ")==0)return(-1);  
-  new_int("Number of bins ",&hist_inf.nbins);
-  new_float("Low ",&hist_inf.xlo);
-  new_float("Hi ",&hist_inf.xhi);
-  if(hist_inf.nbins<2){
-    err_msg("At least 2 bins\n");
-    return(0);
-  }
-  if(hist_inf.xlo>=hist_inf.xhi){
-    err_msg("Low must be less than hi");
-    return(0);
-  }
-  
-  if(get_col_info(&hist_inf.col2,"Variable 2 ")==0)return(-1);  
-  new_int("Number of bins ",&hist_inf.nbins2);
-  new_float("Low ",&hist_inf.ylo);
-  new_float("Hi ",&hist_inf.yhi);
-
-if(hist_inf.nbins2<2){
-    err_msg("At least 2 bins\n");
-    return(0);
-  }
-  if(hist_inf.ylo>=hist_inf.yhi){
-    err_msg("Low must be less than hi");
-    return(0);
-  }
-
-  length=hist_inf.nbins*hist_inf.nbins2;
+  int length,i;
+ length=hist_inf.nbins*hist_inf.nbins2;
    if(length>=MAXSTOR)
     length=MAXSTOR-1;
 
@@ -264,6 +244,44 @@ if(hist_inf.nbins2<2){
       
   return(1);
  
+
+}  
+int new_2d_hist()
+{
+  
+  
+  if((NEQ<2)||(storind<3)){
+    err_msg("Need more data and at least 3 columns");
+    return 0;
+  }
+  if(get_col_info(&hist_inf.col,"Variable 1 ")==0)return(-1);  
+  new_int("Number of bins ",&hist_inf.nbins);
+  new_float("Low ",&hist_inf.xlo);
+  new_float("Hi ",&hist_inf.xhi);
+  if(hist_inf.nbins<2){
+    err_msg("At least 2 bins\n");
+    return(0);
+  }
+  if(hist_inf.xlo>=hist_inf.xhi){
+    err_msg("Low must be less than hi");
+    return(0);
+  }
+  
+  if(get_col_info(&hist_inf.col2,"Variable 2 ")==0)return(-1);  
+  new_int("Number of bins ",&hist_inf.nbins2);
+  new_float("Low ",&hist_inf.ylo);
+  new_float("Hi ",&hist_inf.yhi);
+
+if(hist_inf.nbins2<2){
+    err_msg("At least 2 bins\n");
+    return(0);
+  }
+  if(hist_inf.ylo>=hist_inf.yhi){
+    err_msg("Low must be less than hi");
+    return(0);
+  }
+
+  return(twod_hist());
 }
   
 void new_hist(nbins,zlo,zhi,col,col2,condition,which)
@@ -375,6 +393,9 @@ void new_hist(nbins,zlo,zhi,col,col2,condition,which)
 }
 
     
+
+
+
   
 
 void column_mean()

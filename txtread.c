@@ -67,6 +67,7 @@ void txt_view_events(XEvent ev)
 {
   int x,y;
  if(txtview.here==0)return;
+
  switch(ev.type){
  case Expose:
  case MapNotify:
@@ -228,6 +229,7 @@ void txtview_press(Window w,int x,int y)
 
 void redraw_txtview(Window w)
 {
+
   if(w==txtview.text)
     redraw_txtview_text();
   if(w==txtview.up)

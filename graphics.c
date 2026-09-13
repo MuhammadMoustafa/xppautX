@@ -33,7 +33,7 @@ extern int IXPLT,IYPLT,IZPLT;
 extern int AXES,TIMPLOT,PLOT_3D;
 extern int START_LINE_TYPE;
 extern double MY_XLO,MY_YLO,MY_XHI,MY_YHI;
-
+extern int Xup;
 extern int COLOR,colorline[]; 
 extern int DCURXs,DCURYs;
 extern int PltFmtFlag;
@@ -344,10 +344,19 @@ void rect_x11(x,y,w,h)
  XFillRectangle(display,draw_win,gc_graph,x,y,w,h);
 }
 
+void draw_many_lines()
+{
+  int NLINE=500000;
+  int i;
+  for(i=0;i<NLINE;i++)
+    XDrawLine(display,draw_win,gc_graph,rand()%200,rand()%200,rand()%200,rand()%200);
+  printf("Done\n");
+}
+  
 void line_x11(xp1,yp1,xp2,yp2)
      int xp1,yp1,xp2,yp2;
 {
-  XDrawLine(display,draw_win,gc_graph,xp1,yp1,xp2,yp2);
+  XDrawLine(display,draw_win,gc_graph,xp1,yp1,xp2,yp2);  
 }
 
 void put_text_x11(x,y,str)
@@ -1421,6 +1430,7 @@ double *x;
   float dx=6.0*(float)(MyGraph->xhi-MyGraph->xlo)*SYMSIZE;
   float dy=6.0*(float)(MyGraph->yhi-MyGraph->ylo)*SYMSIZE;
  int ix=MyGraph->xv[0]-1,iy=MyGraph->yv[0]-1,iz=MyGraph->zv[0]-1;
+ if(!Xup)return;
   if(MyGraph->TimeFlag)return;
   set_color(0); 
   if(MyGraph->ThreeDFlag)

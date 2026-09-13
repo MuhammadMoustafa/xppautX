@@ -34,7 +34,7 @@ double evaluate();
 double ndrand48();
 
 extern double MyData[MAXODE];
-int (*rhs)();
+extern int (*rhs)();
 extern float **storage;
 extern int storind,FOUR_HERE;
 extern int NODE,INFLAG,NEQ,NJMP,FIX_VAR,NMarkov,nvec;

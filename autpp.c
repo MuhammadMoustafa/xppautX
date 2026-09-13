@@ -6,6 +6,7 @@
 #include "pp_shoot.h"
 #include "xAuto.h"
 
+void redo_all_fun_tables();
 void getjactrans(double *x,double *y,double *yp,double *xp, double eps, double *d, int n);
 extern XAUTO xAuto;
 
@@ -36,6 +37,7 @@ double  *u,*par,*f,*dfdu,*dfdp;
      
    }
    evaluate_derived();
+   redo_all_fun_tables();
    rhs(0.0,u,f,ndim);
    if(ijac==1){
      getjactrans(u,y,yp,xp,NEWT_ERR,dfdu,ndim);
@@ -120,6 +122,7 @@ double *dbc;
 
  
  evaluate_derived();
+ redo_all_fun_tables();
  do_bc(u0,0.0,u1,1.0,fb,nbc);
 
     return 0;

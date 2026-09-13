@@ -13,7 +13,7 @@
 #include "autlim.h"
 #include "load_eqn.h"
 #define DALLOC(a) (double *)malloc((a)*sizeof(double))
-
+int refresh_browser();
 extern int TypeOfCalc;
 extern ROTCHK blrtn;
 extern int PS_Color;  
@@ -395,8 +395,9 @@ void write_init_data_file()
     else 
       par2=par1;
      
-    fprintf(fp,"%d %d %g %g %g ",
-	    type,d->ibr,par1,par2,per);
+    /* fprintf(fp,"%d %d %g %g %g ",
+       type,d->ibr,par1,par2,per); */
+    fprintf(fp,"%g ",par1);
     for(i=0;i<NODE;i++)
       fprintf(fp,"%g ",u0[i]);
     fprintf(fp,"\n");

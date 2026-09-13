@@ -1,4 +1,4 @@
-#include "parserslow.h"
+
 
 #include "auto_x11.h"
 #include "auto_nox.h"
@@ -57,9 +57,12 @@
 
 #define SIMPMASK (ButtonPressMask | KeyPressMask|ExposureMask    |StructureNotifyMask)
 
-
+void set_ivar();
+void sleep();
+void storeautopoint();
+void redo_all_fun_tables();
 extern Display *display;
-
+extern int TrueColorFlag;
 extern unsigned int MyBackColor,MyForeColor,MyMainWinColor,MyDrawWinColor;
 int AutoRedrawFlag=1;
 
@@ -286,6 +289,7 @@ void find_point(int ibr, int pt)
 	   for(i=0;i<NAutoPar;i++)
 	     constants[Auto_index_to_array[i]]=d->par[i];
 	   evaluate_derived();
+	   redo_all_fun_tables();
 	   redraw_params();
 	   redraw_ics();
            if((d->per)>0)
@@ -612,6 +616,7 @@ void traverse_diagram()
       constants[Auto_index_to_array[i]]=grabpt.par[i];
   }
   evaluate_derived();
+  redo_all_fun_tables();
   redraw_params();
   redraw_ics();
 }
@@ -934,14 +939,19 @@ Window lil_button(root,x,y,name)
   return(win);
 }
   
-
+void aw()
+{
+  XFlush(display);
+  sleep(5);
+}
+  
 
 void make_auto(wname,iname)  /* this makes the auto window  */
      char *wname,*iname;
 
 {
  int x,y,wid,hgt,addwid=16*DCURX,addhgt=3.0*DCURY,hinthgt=DCURY+6;
- Window base;
+ Window base=0;
  int dely=DCURY+5;
  STD_HGT_var =20*DCURY;
  /*STD_WID_var =1.62*STD_HGT_var;*/
@@ -958,11 +968,14 @@ void make_auto(wname,iname)  /* this makes the auto window  */
  Auto_x0=x;
  Auto_y0=y;
  base=make_plain_window(RootWindow(display,screen),0,0,wid,hgt,4);
- XSetWindowBackground(display,base,MyMainWinColor); 
+  XSetWindowBackground(display,base,MyMainWinColor);
  AutoW.base=base;
+
  strcpy(Auto.hinttxt,"hint");
+
  XSelectInput(display,base,ExposureMask|KeyPressMask|ButtonPressMask|
 		StructureNotifyMask);
+
  XStringListToTextProperty(&wname,1,&winname);
  XStringListToTextProperty(&iname,1,&iconname);
   
@@ -978,10 +991,14 @@ void make_auto(wname,iname)  /* this makes the auto window  */
  
  XSetWMProperties(display,base,&winname,&iconname,NULL,0,
 		  &size_hints,NULL,&class_hints);
+
  make_icon((char*)auto_bits,auto_width,auto_height,base);
+
  AutoW.canvas=make_plain_window(base,x,y,STD_WID_var+xmargin,STD_HGT_var+ymargin,1);
  XSetWindowBackground(display,AutoW.canvas,MyDrawWinColor);
    XSelectInput(display,AutoW.canvas,MYMASK);
+
+
  x=DCURX;
  y=DCURY+STD_HGT_var+ymargin-8*DCURX;
  AutoW.stab=make_plain_window(base,x,y,12*DCURX,12*DCURX,2);
@@ -1018,7 +1035,10 @@ void make_auto(wname,iname)  /* this makes the auto window  */
  x=addwid+5;
  AutoW.info=make_plain_window(base,x,y,STD_WID_var+xmargin,addhgt,2);
  AutoW.hint=make_plain_window(base,x,y+addhgt+6,STD_WID_var+xmargin,DCURY+2,2);
- draw_bif_axes();
+  
+ draw_bif_axes(); 
+
+
 }
  
 
@@ -1027,7 +1047,6 @@ void resize_auto_window(XEvent ev)
 {
 
     int wid,hgt,addhgt=3.5*DCURY;
-  
     STD_HGT_var =20*DCURY;
     /*STD_WID_var =1.62*STD_HGT_var;*/
     STD_WID_var = 50*DCURX;
@@ -1048,11 +1067,18 @@ void resize_auto_window(XEvent ev)
     unsigned int cdepth;
     
     XGetGeometry(display,AutoW.canvas,&root,&xloc,&yloc,&cwid,&chgt,&cbwid,&cdepth);
+
     Auto.hgt=chgt-ymargin;
     Auto.wid=cwid-xmargin;
+    /*  printf("%l %d %d %d %d\n", AutoW.info,xloc,yloc+chgt+4,wid,addhgt);
+	printf("%l %d %d %d %d\n", AutoW.hint,xloc,yloc+chgt+addhgt+10,wid,DCURY+2);  */
+    /* XMoveWindow(display,AutoW.info,xloc,yloc+chgt+4); */
+     if(TrueColorFlag>0){ 
+     XMoveResizeWindow(display,AutoW.info,xloc,yloc+chgt+4,wid,addhgt);
+         
+     XMoveResizeWindow(display,AutoW.hint,xloc,yloc+chgt+addhgt+10,wid,DCURY+2);
+      } 
     
-    XMoveResizeWindow(display,AutoW.info,xloc,yloc+chgt+4,wid,addhgt);
-    XMoveResizeWindow(display,AutoW.hint,xloc,yloc+chgt+addhgt+10,wid,DCURY+2);
     
     int ix,iy; 
     

@@ -1097,6 +1097,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 	   dfdp, &rev, thl, thu, iuz, vuz);
     istop = iap->istop;
     if (istop == 1) {
+
       goto L5;
     }
     itp = iap->itp;
@@ -1104,6 +1105,8 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       itp = itpst * 10 + 3;
       iap->itp = itp;
       rev = 0.;
+      /***  HERE IS WHERE Hopf IS FOUND */
+
     }
   }
 

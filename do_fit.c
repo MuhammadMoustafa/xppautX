@@ -43,7 +43,7 @@ char *get_first();
 char *get_next();
 
 
-int (*solver)();
+extern int (*solver)();
 
 void init_fit_info()
 {

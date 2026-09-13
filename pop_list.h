@@ -88,7 +88,7 @@ typedef struct {
 extern int NUPAR,NEQ,NODE,NMarkov;
 extern char  upar_names[MAXPAR][11],uvar_names[MAXODE][12];
 extern  char *color_names[];
-SCRBOX_LIST scrbox_list[10];
+extern SCRBOX_LIST scrbox_list[10];
 
 
 /*  This is a new improved pop_up widget */
@@ -119,7 +119,7 @@ typedef struct {
               char **list;
               } SCROLLBOX;
 
-TEXTWIN mytext;
+extern TEXTWIN mytext;
 #define SB_PLOTTABLE 0
 #define SB_VARIABLE 1
 #define SB_PARAMETER 2

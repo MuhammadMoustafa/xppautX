@@ -115,12 +115,13 @@ extern int queryics;
 extern int aplot_range;
 extern int Nintern_2_use;
 extern int AdjRange;
-
+extern int BatchEquil;
 extern Window draw_win;
 extern char this_internset[XPP_MAX_NAME];
 
 int MakePlotFlag=0;
 
+int OnTheFly=1;
 extern FILE *svgfile;
 
 extern OptionsSet notAlreadySet;
@@ -218,6 +219,10 @@ typedef struct {
 extern INTERN_SET intern_set[MAX_INTERN_SET];
 extern int Nintern_set;
 
+void redraw_dfield();
+void create_new_cline();
+void data_get_mybrowser();
+void save_batch_shoot();
 
 int (*solver)();
 
@@ -720,6 +725,7 @@ double *x;
       sprintf(bob,"%s=%.16g",eq_range.item,temp);
       bottom_msg(2,bob);
       evaluate_derived();
+      /*  I think  */ redo_all_fun_tables(); 
       if(mc) {
 	do_monte_carlo_search(0,0,1);
       }
@@ -967,6 +973,27 @@ MyGraph->color[0]=color;
 }
 
 
+void silent_equilibria()
+{
+  double x[MAXODE],er[MAXODE],em[MAXODE];
+  int ierr,i;
+  FILE *fp;
+  if(BatchEquil<0)return;
+  for(i=0;i<NODE;i++)
+    x[i]=last_ic[i];
+   
+  do_sing_info(x,NEWT_ERR,EVEC_ERR,BOUND,EVEC_ITER,NODE,er,em,&ierr);
+  if(ierr==0){
+    fp=fopen("equil.dat","w");
+    for(i=0;i<NODE;i++)
+      fprintf(fp,"%g %g %g\n",x[i],er[i],em[i]);
+    fclose(fp);
+    if(BatchEquil==1)
+      save_batch_shoot();
+  }
+      
+}
+  
 void find_equilib_com(int com)
 {
  int ierr;
@@ -1470,9 +1497,10 @@ void usual_integrate_stuff(x)
   ping();
   INFLAG=1;
   refresh_browser(storind);
-
+  if(Xup){
  auto_freeze_it();
   redraw_ics();
+  }
 }
 /*  form_ic  --  u_i(0) = F(i)  where  "i" is represented by "t"
     or  
@@ -2218,7 +2246,7 @@ if(Xup) cwidth=get_command_width();
            }
 	                
         /*   This is where the progresser goes   */
-	if(Xup){   plot_command(nit,icount,cwidth);
+	   if(Xup){ plot_command(nit,icount,cwidth); 
 	   esc=my_abort();
 	
        
@@ -2348,9 +2376,9 @@ poi:    for(i=0;i<NEQ;i++)oldx[i]=x[i];
    oldperiod=*t;
  }
      
-          if(!(fabs(*t)<TRANS)&&Xup)
+          if(!(fabs(*t)<TRANS)&&Xup&&OnTheFly)
 	  {
-	    plot_the_graphs(xv,xvold,NODE,NEQ,fabs(dt*NJMP),torcross,0);
+	     plot_the_graphs(xv,xvold,NODE,NEQ,fabs(dt*NJMP),torcross,0); 
 
 	  }
 
@@ -2374,7 +2402,7 @@ out:
 
 	   /* END POST INTEGRATE ANALYSIS  */
  }
-    
+ 
        LastTime=*t;
 #ifdef CVODE_YES
        if(METHOD==CVODE)
@@ -2662,6 +2690,7 @@ void shoot_easy(x)
   double t=0.0;
   int i;
   SuppressBounds=1;
+  /* printf(" %g %g \n",x[0],x[1]); */
   integrate(&t,x,TEND,DELTA_T,1,NJMP,&i);
   SuppressBounds=0;
 }

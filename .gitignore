@@ -1,0 +1,13 @@
+*.o
+*.a
+*.so
+*.dll
+*.exe
+/xppaut
+*~
+._*
+.DS_Store
+/v8/
+*.tgz
+*.bak
+*conflicted copy*

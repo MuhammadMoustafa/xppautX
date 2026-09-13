@@ -944,7 +944,6 @@ fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   }
 
   par[icp[0]] -= ep;
-
   return 0;
 } /* fnhb_ */
 
@@ -999,6 +998,7 @@ ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   for (i = 0; i < ndm; ++i) {
     f[-1 + ndim] = f[-1 + ndim] + uold[ndm2 + i] * (u[ndm + i] - uold[ndm + i]) - uold[ndm + i] * (u[ndm2 + i] - uold[ndm2 + i]);
   }
+
 
   return 0;
 } /* ffhb_ */
@@ -1079,7 +1079,6 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   u[ndim - 2] = rom;
   u[-1 + ndim] = par[icp[1]];
-
   free(smat);
   free(f);
   free(v);

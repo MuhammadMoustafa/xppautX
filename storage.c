@@ -6,7 +6,7 @@
 #include "xpplim.h"
 float **storage;
 double *WORK;
-int MAXSTOR,storind;
+extern int MAXSTOR,storind;
 int IWORK[10000];
 extern int NODE,NMarkov;
 extern int METHOD;

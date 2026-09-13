@@ -7,6 +7,8 @@
 #include "alert.bitmap"
 #include "browse.h"
 
+TEXTWIN mytext;
+SCRBOX_LIST scrbox_list[10];
 void set_window_title(Window win,char *string)
 {
   XTextProperty wname,iname;

@@ -10,7 +10,7 @@ MANDIR = /usr/local/man/man1
 #
 VERSION=8.0
 MAJORVER=8.0
-MINORVER=0
+MINORVER=1
 
 ODES=ode/*.ode ode/*.ani canonical/*.* tstauto/*.ode
 DOC=xpp_doc.pdf xpp_sum.pdf install.pdf tree.pdf 
@@ -20,6 +20,7 @@ HELP=help/*.html
 # Use Gnu compiler
 #CC= gcc
 # Use c99 to compile according to newer ISO C standards (IEEE Std 1003.1-2001)
+# may need to add -fcommon
 CC= gcc -std=c99 -pedantic -D_XOPEN_SOURCE=600 -Wall  
 #AUTLIBS=  -lsundials_cvode -lX11 -lm 
 #These are the 32bit compat libraries.
@@ -37,12 +38,14 @@ CC= gcc -std=c99 -pedantic -D_XOPEN_SOURCE=600 -Wall
 ##################################
 #CFLAGS=   -g -O -DAUTO -DCVODE_YES -DHAVEDLL -DMYSTR1=$(MAJORVER) -DMYSTR2=$(MINORVER)  -I/usr/X11R6/include
 #CFLAGS=   -g -O -m32 -DNON_UNIX_STDIO -DAUTO -DCVODE_YES  -DHAVEDLL -DMYSTR1=$(MAJORVER) -DMYSTR2=$(MINORVER)  -I/usr/X11R6/include
-#CFLAGS=   -g -O -m64 -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES  -DHAVEDLL -DMYSTR1=$(MAJORVER) -DMYSTR2=$(MINORVER)  -I/usr/include/X11
-
-CFLAGS= -g -pedantic -O2     -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES  -DHAVEDLL -DMYSTR1=$(MAJORVER) -DMYSTR2=$(MINORVER)  -I/opt/X11/include 
+#CFLAGS=   -g -O -m64 -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES  -DHAVEDLL DMYSTR1=$(MAJORVER) -DMYSTR2=$(MINORVER)  -I/usr/include/X11
+#  to create univeral mac app, lipo -create -output xppmac  xppx86 xpparm
+#  -target x86_64-apple-macos10.12  for I86
+CFLAGS= -g -pedantic -O2   -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES  -DHAVEDLL -DMYSTR1=$(MAJORVER) -DMYSTR2=$(MINORVER)  -I/opt/X11/include 
 #LDFLAGS=  -m64 -L/usr/lib -L/usr/lib64
-#LDFLAGS=  -m32 -L/usr/X11R6/lib 
-LDFLAGS=  -L/usr/X11/lib 
+#LDFLAGS=  -m32 -L/usr/X11R6/lib
+# -target x86_64-apple-macos10.12  for i86
+LDFLAGS=  -L/usr/X11/lib -fcommon   
 LIBS=  -lX11 -lm -ldl   
 # NOTE: Recent (RedHat 8) versions of GCC seem to no longer have
 # the integer errno, so compile with the -DNOERRNO option as well

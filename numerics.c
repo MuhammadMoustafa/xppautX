@@ -1,6 +1,6 @@
 
 #include "numerics.h"
-
+#include <strings.h>
 
 #include "menudrive.h"
 #include <stdlib.h> 
@@ -17,7 +17,10 @@
 #include "storage.h"
 #include "delay_handle.h"
 #include "graf_par.h"
-
+void data_back();
+void usual_integrate_stuff();
+void new_adjoint();
+void new_h_fun();
 extern Window main_win,info_pop;
 extern Display *display;
 extern int DCURY,NDELAYS;
@@ -62,7 +65,7 @@ typedef struct {
 POINCARE_MAP my_pmap;
 
 
-int (*solver)();
+extern int (*solver)();
 extern  double DELTA_T,TEND,T0,TRANS,
 	NULL_ERR,EVEC_ERR,NEWT_ERR;
 extern double BOUND,DELAY,TOLER,ATOLER,HMIN,HMAX;

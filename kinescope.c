@@ -29,7 +29,7 @@ int ks_ncycle=1;
 int ks_speed=50;
 extern char *info_message,*kin_hint[];
 extern int screen;
-int mov_ind;
+extern int mov_ind;
 typedef struct {
 		unsigned int h,w;
 		Pixmap xi;

@@ -72,7 +72,7 @@ MARKOV markov[MAXMARK];
 
 extern float **storage;
 
-int storind;
+extern int storind;
 float *my_mean[MAXODE],*my_variance[MAXODE];
 int stoch_len;
 

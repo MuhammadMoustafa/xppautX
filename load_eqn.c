@@ -151,7 +151,7 @@ extern char PS_FONT[100];
 extern double PS_LW;
 
 extern int SEc,UEc,SPc,UPc;
-int (*solver)();
+extern int (*solver)();
 
  int rung_kut();
  char delay_string[MAXODE][80];
@@ -605,6 +605,7 @@ void set_all_vals()
  if (notAlreadySet.T0){T0=0.0;notAlreadySet.T0=0;};
  if (notAlreadySet.TRANS){TRANS=0.0;notAlreadySet.TRANS=0;};
  if (notAlreadySet.DT){DELTA_T=.05;notAlreadySet.DT=0;};
+ /*  if (notAlreadySet.JAC_EPS){NEWT_ERR=.001;notAlreadySet.JAC_EPS=0;}; */
  
  if (notAlreadySet.XMIN){x_3d[0]=-12;notAlreadySet.XMIN=0;notAlreadySet.XLO=0;};
  if (notAlreadySet.XMAX){x_3d[1]=12;notAlreadySet.XMAX=0;notAlreadySet.XHI=0;};
@@ -614,7 +615,7 @@ void set_all_vals()
  if (notAlreadySet.ZMAX){z_3d[1]=12;notAlreadySet.ZMAX=0;};
  
  if (notAlreadySet.TEND){TEND=20.00;notAlreadySet.TEND=0;};
- TOR_PERIOD=6.2831853071795864770;
+ /* TOR_PERIOD=6.2831853071795864770; */
  if (notAlreadySet.IXPLT){IXPLT=0;notAlreadySet.IXPLT=0;}
  if (notAlreadySet.IYPLT){IYPLT=1;notAlreadySet.IYPLT=0;}
  if (notAlreadySet.IZPLT){IZPLT=1;notAlreadySet.IZPLT=0;}
@@ -778,7 +779,7 @@ FILE *fpt;
 void add_intern_set(name,does)
      char *name,*does;
 {
-  char bob[256],ch;
+  char bob[1024],ch;
   int i,n,j=Nintern_set,k=0;
   if(Nintern_set>=MAX_INTERN_SET){
    plintf(" %s not added -- too many must be less than %d \n",
@@ -2323,6 +2324,44 @@ if(msc("SLO2",s1)){
      }
     return;
   }
+
+ if(msc("HISTLO2",s1)){
+     if ((notAlreadySet.HISTLO2||force) || ((mask!=NULL)&&(mask->HISTLO2==1)))
+     {
+    	hist_inf.ylo=atof(s2);
+	notAlreadySet.HISTLO2=0;
+     }
+    return;
+  }
+
+ if(msc("HISTHI2",s1)){
+     if ((notAlreadySet.HISTHI2||force) || ((mask!=NULL)&&(mask->HISTHI2==1)))
+     {
+    	hist_inf.yhi=atof(s2);
+	notAlreadySet.HISTHI2=0;
+     }
+    return;
+  }
+
+ if(msc("HISTBINS2",s1)){
+     if ((notAlreadySet.HISTBINS2||force) || ((mask!=NULL)&&(mask->HISTBINS2==1)))
+     {
+    	hist_inf.nbins2=atoi(s2);
+	notAlreadySet.HISTBINS2=0;
+     }
+    return;
+  }
+
+ if(msc("HISTCOL2",s1)){
+     if ((notAlreadySet.HISTCOL2||force) || ((mask!=NULL)&&(mask->HISTCOL2==1)))
+     {
+       find_variable(s2,&i);
+       if(i>(-1)) hist_inf.col2=i;
+	notAlreadySet.HISTCOL2=0;
+     }
+    return;
+  }
+
 
  if(msc("SPECCOL",s1)){
      if ((notAlreadySet.SPECCOL||force) || ((mask!=NULL)&&(mask->SPECCOL==1)))

@@ -64,6 +64,7 @@ typedef struct {
 
 MARKINFO markinfo={2,0,1,0,1,1.0};
 
+int manual_expose=0;
 extern char *info_message;
 extern BROWSER my_browser;
 extern Atom deleteWindowAtom;
@@ -71,7 +72,7 @@ LABEL lb[MAXLAB];
 GROB grob[MAXGROB];
 GRAPH graph[MAXPOP];
 CURVE frz[MAXFRZ];
-NCLINE nclines[MAXNCLINE];
+extern NCLINE nclines[MAXNCLINE];
 GRAPH *MyGraph;
 extern int help_menu,screen;
 extern int SCALEY,CURY_OFF,CURY_OFFs,DCURYs,DCURXs,DCURYb;
@@ -1075,11 +1076,12 @@ void do_expose(ev)
   int i;
   int cp=current_pop;
   Window temp;
+  
   temp=draw_win;
   top_button_draw(ev.xany.window);
-  expose_aplot(ev.xany.window);
-  redraw_txtview(ev.xany.window);
-  ani_expose(ev.xany.window);
+  expose_aplot(ev.xany.window); 
+  /* redraw_txtview(ev.xany.window);  */
+  ani_expose(ev.xany.window); 
   expose_my_browser(ev);
   /* draw_info_pop(ev.xany.window); */
   RedrawMessageBox(ev.xany.window);
@@ -1097,6 +1099,7 @@ void do_expose(ev)
    return;
     }
     */
+  if(manual_expose==0){
   GrCol();
 
      for(i=0;i<MAXPOP;i++){
@@ -1128,7 +1131,8 @@ void do_expose(ev)
 		draw_freeze(graph[i].w);
 		if(graph[i].Nullrestore)restore_nullclines();
 	}
-   }
+     }
+  } /* namual expose */  
    draw_win=temp;
    MyGraph=&graph[cp];
    current_pop=cp;

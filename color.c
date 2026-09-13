@@ -42,7 +42,7 @@ extern unsigned int MyBackColor,MyForeColor,GrFore,GrBack;
 int periodic=0,spectral;
 int custom_color=0;
 #define MAX_COLORS 256
-#define COL_TOTAL 200
+#define COL_TOTAL 150
 /* int rfun(),gfun(),bfun();
 */
 
@@ -256,10 +256,10 @@ int per;
 void NewColormap(int type)
 {
   /*  printf(" My color map = %d\n",type); */
-  if(TrueColorFlag==0){
+   if(TrueColorFlag==0){
    err_msg("New colormaps not supported without TrueColor");
    return;
-  }
+   } 
  custom_color=type;
  MakeColormap();
 }

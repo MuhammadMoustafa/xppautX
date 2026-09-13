@@ -40,6 +40,7 @@
 #include "menudrive.h"
 #include "tutor.h"
 #include "load_eqn.h"
+extern int manual_expose;
 extern char this_file[XPP_MAX_NAME];
 extern char *info_message,*ic_hint[],*sing_hint[],
 *null_hint[],*flow_hint[],*null_freeze[], *bvp_hint[],*color_hint[],
@@ -58,7 +59,7 @@ extern int SimulPlotFlag,current_pop,num_pops,ActiveWinList[];
 extern int DisplayHeight,DisplayWidth;
 extern int AutoFreezeFlag,NTable;
 extern Display *display;
-int screen;
+extern int screen;
 int status; 
 
 extern int TORUS;
@@ -218,10 +219,13 @@ void clear_draw_window()
 }
 
 void drw_all_scrns(){
- int i;
+  int i;
+  int me=manual_expose;
  int ic=current_pop;
+ manual_expose=0;
  if(SimulPlotFlag==0){
     redraw_all();
+    manual_expose=me;
  return;
  }
  
@@ -232,6 +236,7 @@ void drw_all_scrns(){
  
  make_active(ic,1);
  hi_lite(draw_win);
+     manual_expose=me;
 }
  
 void clr_all_scrns()

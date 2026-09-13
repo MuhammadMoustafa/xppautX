@@ -111,7 +111,7 @@ extern char uvar_names[MAXODE][12];
 float *old_rep;
 int REPLACE=0,R_COL=0;
 
-float **storage;
+extern float **storage;
 
 float **get_browser_data()
 {
@@ -188,6 +188,7 @@ void write_browser_data(fp,b)
      BROWSER *b;
 {
   int i,j,l;
+  
   for(i=b->istart;i<b->iend;i++){
     if(N_plist>0){
       for(l=0;l<N_plist;l++){

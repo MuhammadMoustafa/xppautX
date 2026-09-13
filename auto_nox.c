@@ -170,11 +170,16 @@ int is_3_there=0;
 
 int load_all_labeled_orbits=0;
 
-
+int SuppressBP=0;
 ROTCHK blrtn;
   
 
 
+void evaluate_derived();
+void redo_all_fun_tables();
+void go_go_auto();
+void extra();
+void load_browser_with_branch();
 
 GRABPT grabpt;
 
@@ -339,6 +344,7 @@ void setautopoint()
       set_val(upar_names[AutoPar[Auto.icp1]],XfromAuto);
       set_val(upar_names[AutoPar[Auto.icp2]],YfromAuto);
       evaluate_derived();
+      redo_all_fun_tables();
       redraw_params();
     }
 }
@@ -579,12 +585,14 @@ void create_auto_file_name()
   dname = (char*)dirname(dirc);
   
   char* HOME = getenv("HOME");
+
   if (HOME == NULL)
   {
   	HOME = dname;
   }
  
   sprintf(this_auto_file,"%s/%s",HOME,bname);
+
 }
   
 void open_auto(flg) /* compatible with new auto */
@@ -762,9 +770,9 @@ void auto_num_par()
 {
   static char *n[]={"Ntst","Nmax","NPr","Ds","Dsmin","Ncol","EPSL",
 		    "Dsmax","Par Min","Par Max","Norm Min","Norm Max",
-                    "EPSU","EPSS","IAD","MXBF","IID","ITMX","ITNW","NWTN","IADS"};
+                    "EPSU","EPSS","IAD","MXBF","IID","ITMX","ITNW","NWTN","IADS","SuppBP"};
   int status;
-  char values[21][MAX_LEN_SBOX];
+  char values[22][MAX_LEN_SBOX];
   sprintf(values[0],"%d",Auto.ntst);
   sprintf(values[1],"%d",Auto.nmx);
   sprintf(values[2],"%d",Auto.npr);
@@ -785,10 +793,11 @@ void auto_num_par()
   sprintf(values[17],"%d",aauto.itmx);
   sprintf(values[18],"%d",aauto.itnw);
   sprintf(values[19],"%d",aauto.nwtn);
-  sprintf(values[20],"%d",aauto.iads); 
+  sprintf(values[20],"%d",aauto.iads);
+  sprintf(values[21],"%d",SuppressBP); 
 
   
-  status=do_string_box(21,7,3,"AutoNum",n,values,25);
+  status=do_string_box(22,7,4,"AutoNum",n,values,25);
   if(status!=0){
     Auto.ntst=atoi(values[0]);
     Auto.nmx=atoi(values[1]);
@@ -810,7 +819,8 @@ void auto_num_par()
     aauto.itmx=atoi(values[17]);
     aauto.itnw=atoi(values[18]);
     aauto.nwtn=atoi(values[19]);
-    aauto.iads=atoi(values[20]); 
+    aauto.iads=atoi(values[20]);
+    SuppressBP=atoi(values[21]);
 
     
   }
@@ -1464,6 +1474,7 @@ void do_auto_win()
     Auto.exist=1;
     
   }
+
 }
 
 void load_last_plot(flg)
@@ -1547,6 +1558,7 @@ void init_auto_win()
   Auto.irs=0;
   Auto.ips=1;
   Auto.isp=1;
+    if(SuppressBP==1) Auto.isp=0;
   Auto.ilp=1;
   Auto.isw=1;
   Auto.nbc=NODE;
@@ -2019,8 +2031,10 @@ void auto_branch_choice(ibr,ips)
   int ipsuse;
   ch=(char)auto_pop_up_list("Branch Pt",m,key,4,10,0,10,10,
 		       no_hint,Auto.hinttxt);
+
+
   if(ch=='s'){
-    if(ibr<0&&ips==2)
+       if(ibr<0&&ips==2)
       auto_switch_per();
     else 
       if(ips==4)
@@ -2097,6 +2111,7 @@ void auto_start_diff_ss()
   Auto.ilp=1;
   Auto.isw=1;
   Auto.isp=1;
+    if(SuppressBP==1) Auto.isp=0;
   Auto.nfpar=1;
   AutoTwoParam=0;
   do_auto(NO_OPEN_3,APPEND,Auto.itp);
@@ -2114,8 +2129,10 @@ void auto_start_at_bvp()
   Auto.itp=0;
   Auto.ilp=1;
   Auto.isw=1;
-  Auto.isp=2;
 
+  Auto.isp=2;
+  if(SuppressBP==1) Auto.isp=0;
+    
   Auto.nfpar=1;
   AutoTwoParam=0;
   NewPeriodFlag=2;
@@ -2135,6 +2152,7 @@ void auto_start_at_per()
   Auto.isw=1;
 
   Auto.isp=2;
+    if(SuppressBP==1) Auto.isp=0;
   Auto.nfpar=1;
   AutoTwoParam=0;
   NewPeriodFlag=1;
@@ -2167,6 +2185,7 @@ void auto_new_ss()
   Auto.ilp=1;
   Auto.isw=1;
   Auto.isp=1;
+      if(SuppressBP==1) Auto.isp=0;;
   Auto.nfpar=1;
    AutoTwoParam=0;
   do_auto(opn,cls,Auto.itp);
@@ -2196,6 +2215,7 @@ void auto_new_discrete()
   Auto.ilp=1;
   Auto.isw=1;
   Auto.isp=1;
+    if(SuppressBP==1) Auto.isp=0;
   Auto.nfpar=1;
    AutoTwoParam=0; 
   do_auto(opn,cls,Auto.itp);
@@ -2231,6 +2251,8 @@ void auto_extend_ss()
   if(METHOD==DISCRETE)
     Auto.ips=-1;
   Auto.isp=1;
+    if(SuppressBP==1) Auto.isp=0;
+    
   AutoTwoParam=0;
   do_auto(OPEN_3,APPEND,Auto.itp);
 }
@@ -2401,6 +2423,7 @@ void auto_new_per() /* same for extending periodic  */
   Auto.ilp=1;
   Auto.isw=1; /* -1 */
   Auto.isp=2;
+    if(SuppressBP==1) Auto.isp=0;
   Auto.ips=2;
     AutoTwoParam=0;
   do_auto(OPEN_3,APPEND,Auto.itp);
@@ -2415,6 +2438,7 @@ void auto_extend_bvp() /* extending bvp */
   Auto.ilp=1;
   Auto.isw=1;
   Auto.isp=2;
+    if(SuppressBP==1) Auto.isp=0;
   Auto.ips=4;
     AutoTwoParam=0;
   do_auto(OPEN_3,APPEND,Auto.itp);
@@ -2432,6 +2456,7 @@ void auto_switch_per()
   Auto.ilp=1;
   Auto.isw=-1;
   Auto.isp=2;
+    if(SuppressBP==1) Auto.isp=0;
   Auto.ips=2;
   AutoTwoParam=0;
   do_auto(OPEN_3,APPEND,Auto.itp);
@@ -2446,6 +2471,7 @@ void auto_switch_bvp()
   Auto.ilp=1;
   Auto.isw=-1;
   Auto.isp=2;
+    if(SuppressBP==1) Auto.isp=0;
   Auto.ips=4;
   AutoTwoParam=0;
   do_auto(OPEN_3,APPEND,Auto.itp);
@@ -2453,6 +2479,7 @@ void auto_switch_bvp()
 
 void auto_switch_ss()
 {
+
       TypeOfCalc=EQ1;
   Auto.irs=grabpt.lab;
   Auto.itp=grabpt.itp;
@@ -2460,6 +2487,7 @@ void auto_switch_ss()
   Auto.ilp=1;
   Auto.isw=-1;
   Auto.isp=1;
+    if(SuppressBP==1) Auto.isp=0;
   Auto.ips=1;
   if(METHOD==DISCRETE)
     Auto.ips=-1;
@@ -2628,6 +2656,7 @@ void auto_period_double()
   Auto.isw=-1;
   TypeOfCalc=PE1;
   Auto.isp=2;
+    if(SuppressBP==1) Auto.isp=0;
   Auto.ips=2;
   AutoTwoParam=0;
   do_auto(OPEN_3,APPEND,Auto.itp);

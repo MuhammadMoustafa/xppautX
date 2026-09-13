@@ -43,7 +43,7 @@
 
 
 /*
-    Copyright (C) 2002-2015  Bard Ermentrout & Daniel Dougherty
+    Copyright (C) 2002-2017  Bard Ermentrout & Daniel Dougherty
     
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -111,22 +111,25 @@ extern int ani_grab_flag;
 
 float xppvermaj,xppvermin;
 
+extern int manual_expose;
+extern int NCBatch,DFBatch;
 /*extern char this_file[100];*/
 extern char this_file[XPP_MAX_NAME];
 extern int METHOD,storind;
 extern int (*rhs)();
+extern int SuppressOut;
 extern XFontStruct *symfonts[5],*romfonts[5];
 extern int avsymfonts[5],avromfonts[5];
 extern int RunImmediately;
 int Xup,TipsFlag=1;
 Atom deleteWindowAtom=0;
-int XPPBatch=0,batch_range=0;
+int XPPBatch=0,batch_range=0,BatchEquil=-1;
 char batchout[256];
 char UserOUTFILE[256];
 XKeyEvent createKeyEvent(Window w,Window wr,int p,int kc,int m);
 void scripty();
 int my_rhs(); 
-
+extern int xorfix;
  int DisplayHeight,DisplayWidth;
 int TrueColorFlag;
 char big_font_name[100],small_font_name[100];
@@ -144,7 +147,7 @@ Window draw_win;
 Window make_input_strip();
 Window main_win;
 Window command_pop,info_pop;
-GC gc, gc_graph,small_gc, font_gc;
+GC gc, gc_graph,small_gc, font_gc,mygc;
 extern int help_menu,current_pop;
 unsigned int Black,White;
 char UserBlack[8];
@@ -199,6 +202,13 @@ int DoTutorial=0;
 OptionsSet notAlreadySet;
 
 XFontStruct *big_font,*small_font;
+void draw_many_lines();
+void set_colorization_stuff();
+void silent_equilibria();
+void silent_dfields();
+void silent_nullclines();
+
+
 
  int popped=0;
 
@@ -353,6 +363,10 @@ int argc;
   notAlreadySet.HISTLO=1;
   notAlreadySet.HISTHI=1;
   notAlreadySet.HISTBINS=1;
+   notAlreadySet.HISTCOL2=1;
+  notAlreadySet.HISTLO2=1;
+  notAlreadySet.HISTHI2=1;
+  notAlreadySet.HISTBINS2=1;
   notAlreadySet.SPECCOL=1;
   notAlreadySet.SPECCOL2=1;
   notAlreadySet.SPECWIDTH=1;
@@ -489,10 +503,11 @@ if(XPPBatch){
      if_needed_load_ext_options();
      set_extra_graphs();
      set_colorization_stuff();
-
-    batch_integrate();
-    silent_nullclines();
-    silent_dfields();
+     /* if(!SuppressOut) */
+       batch_integrate();
+       if(NCBatch>0)silent_nullclines();
+       if(DFBatch>0)silent_dfields();
+    silent_equilibria();
     exit(0);
   }
 
@@ -1011,7 +1026,6 @@ void xpp_events(XEvent report,int min_wid,int min_hgt)
   break;
  case Expose:
  case MapNotify:
-   /*  printf("E %ld \n",report.xany.window); */
 	if(report.xany.window==command_pop)put_command("Command:");
      do_expose(report);
 
@@ -1060,7 +1074,6 @@ void xpp_events(XEvent report,int min_wid,int min_hgt)
    do_motion_events(report);
    break;
  case ButtonRelease:
-
     slide_release(report.xbutton.window);
 
     break;
@@ -1133,11 +1146,13 @@ void clr_scrn()
 
 void redraw_all()
 {
+  if(manual_expose==0){
     redraw_dfield();
   restore(0,my_browser.maxrow);
   draw_label(draw_win);
   draw_freeze(draw_win);
   restore_on();
+  }
 }
 
 
@@ -1252,7 +1267,8 @@ void commander(ch)
 		case '3': get_3d_par();
 			 break;
 		case 'y':
-		  /* scripty();  */
+		  /* test_matrix_stuff(); */
+		     draw_many_lines();
 		  break;
 
 
@@ -1585,17 +1601,17 @@ GC *gc;
 {
  unsigned int valuemask=0;
  XGCValues values;
- /* unsigned int lw=6;
+ unsigned int lw=6;
   int ls=LineOnOffDash;
  int cs=CapRound;
  int js=JoinRound;
  int dash_off=0;
  static char dash[]={12,24};
- int ll=2; */
+ int ll=2; 
  *gc=XCreateGC(display,main_win,valuemask,&values);
  XSetForeground(display,*gc,MyForeColor);
-/* XSetLineAttributes(display,*gc,lw,ls,cs,js);
- XSetDashes(display,*gc,dash_off,dash,ll); */
+ /* XSetLineAttributes(display,*gc,lw,ls,cs,js);
+    XSetDashes(display,*gc,dash_off,dash,ll);  */
 }
 
 void load_fonts()
@@ -1743,7 +1759,7 @@ int getxcolors(win_info, colors)
  plintf("%d entries in colormap\n", ncolors);
 
   *colors = (XColor *) malloc (sizeof(XColor) * ncolors);
-
+  xorfix=0;
 
   if (win_info->visual->class == DirectColor) {
     int red, green, blue, red1, green1, blue1;
