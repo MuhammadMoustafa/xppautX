@@ -377,11 +377,20 @@
           row.appendChild(el('span', 'xpp-value-name', name));
           input = el('input', 'xpp-value-input');
           input.spellcheck = false;
+          /* an edit counts when the field loses focus too (clicking Integrate
+             right after typing), not only on Enter */
+          input.addEventListener('change', () => {
+            const v = Number(input.value);
+            if (input.value.trim() !== '' && Number.isFinite(v) && input.value !== input.dataset.value) {
+              input.dataset.value = input.value;
+              this.send({cmd: 'set', kind: t.kind, name, value: v});
+            } else if (!Number.isFinite(v) || input.value.trim() === '') {
+              input.value = input.dataset.value;
+            }
+          });
           input.addEventListener('keydown', e => {
             e.stopPropagation();
             if (e.key === 'Enter') {
-              const v = Number(input.value);
-              if (Number.isFinite(v)) this.send({cmd: 'set', kind: t.kind, name, value: v});
               input.blur();
             } else if (e.key === 'Escape') {
               input.value = input.dataset.value;
