@@ -15,6 +15,7 @@
 #include "aniparse.h"
 #include "comline.h"
 #include "load_eqn.h"
+#include "menudrive.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -22,6 +23,7 @@ void set_colorization_stuff(void);
 extern char this_file[XPP_MAX_NAME];
 extern int use_ani_file;
 extern char anifile[];
+extern int RunImmediately;
 int SCALEX, SCALEY;
 
 /* init_grafs() without the window: graph 0 is client window 1 */
@@ -93,6 +95,13 @@ int main(int argc, char **argv)
         get_ani_file(anifile);
     }
     json_ui_handle("{\"cmd\":\"redraw\"}");
+    /* -tutorial and -runnow, as main.c does after opening its window */
+    if (DoTutorial == 1 || RunImmediately == 1) {
+        if (DoTutorial == 1) do_tutorial();
+        if (RunImmediately == 1) run_the_commands(4);
+        RunImmediately = 0;
+        json_ui_handle("{\"cmd\":\"state\"}");
+    }
     json_ui_loop();
     return 0;
 }

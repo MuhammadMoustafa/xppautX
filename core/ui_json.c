@@ -39,6 +39,8 @@
 #include "load_eqn.h"
 #include "scrngif.h"
 #include "my_rhs.h"
+#include "arrayplot.h"
+#include "read_dir.h"
 #include <strings.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -74,6 +76,12 @@ extern int n_comments;
 extern MPEG_SAVE mpeg;
 extern int n_anicom, ani_speed, ani_speed_inc, ani_grab_flag, animation_on_the_fly;
 extern int ks_ncycle, ks_speed;
+extern int aplot_range_count, aplot_still, aplot_tag, plot3d_auto_redraw;
+extern char aplot_range_stem[256];
+extern FILE *ap_fp;
+extern int DLeft, DRight, DTop, DBottom;
+extern char *color_names[], *auto_hint[];
+extern int DoTutorial, RunImmediately;
 void commander(int ch); /* commands.c */
 
 #define MAX_LEN_EBOX 86 /* edit_rhs.h */
@@ -83,6 +91,7 @@ void commander(int ch); /* commands.c */
 #define WIN_AUTO_STAB 102
 #define WIN_AUTO_INFO 103
 #define WIN_ANI 104
+#define WIN_APLOT 105
 
 static FILE *proto;
 static int win_w[MAXPOP], win_h[MAXPOP];
@@ -668,21 +677,42 @@ static int j_edit_box(int n, char *title, char **names, char **values)
     return form(title, names, n, values, MAX_LEN_EBOX);
 }
 
+/* the file selector lists the directory like the X11 one; an answer with
+   "cd" changes directory (as X11 does, for good) and asks again */
 static int j_file_selector(char *title, char *file, char *wild)
 {
-    Buf b;
-    int id = ask_begin(&b, "file");
-    BUF_LIT(&b, ",\"title\":");
-    buf_str(&b, title);
-    BUF_LIT(&b, ",\"file\":");
-    buf_str(&b, file);
-    BUF_LIT(&b, ",\"wild\":");
-    buf_str(&b, wild);
-    BUF_LIT(&b, ",\"dir\":");
-    buf_str(&b, cur_dir);
-    if (!ask_wait(&b, id)) return 0;
-    get_str(answer, "file", file, 256);
-    return file[0] != 0;
+    char pattern[256], cd[1024];
+    snprintf(pattern, sizeof pattern, "%s", wild);
+    if (!cur_dir[0]) get_directory(cur_dir);
+    for (;;) {
+        Buf b;
+        FILEINFO ff;
+        int id = ask_begin(&b, "file");
+        BUF_LIT(&b, ",\"title\":");
+        buf_str(&b, title);
+        BUF_LIT(&b, ",\"file\":");
+        buf_str(&b, file);
+        BUF_LIT(&b, ",\"wild\":");
+        buf_str(&b, pattern);
+        BUF_LIT(&b, ",\"dir\":");
+        buf_str(&b, cur_dir);
+        if (get_fileinfo(pattern, cur_dir, &ff)) {
+            BUF_LIT(&b, ",\"dirs\":");
+            buf_str_array(&b, ff.dirnames, ff.ndirs);
+            BUF_LIT(&b, ",\"files\":");
+            buf_str_array(&b, ff.filenames, ff.nfiles);
+            free_finfo(&ff);
+        }
+        if (!ask_wait(&b, id)) return 0;
+        if (get_str(answer, "wild", cd, sizeof cd) && cd[0]) snprintf(pattern, sizeof pattern, "%.255s", cd);
+        if (get_str(answer, "cd", cd, sizeof cd) && cd[0]) {
+            change_directory(cd);
+            continue;
+        }
+        if (!js_find(answer, "file")) continue; /* a new pattern alone lists again */
+        get_str(answer, "file", file, 256);
+        return file[0] != 0;
+    }
 }
 
 static int mouse_ask(unsigned long win, const char *kind, int flag, int *v, int nv)
@@ -833,6 +863,17 @@ static void send_state(void)
         }
         BUF_LIT(&b, "]");
     }
+    /* pixel to plot coordinates of the active window and the AUTO diagram,
+       for the x,y readout under the mouse (scale_to_real, auto_motion_xy) */
+    get_draw_area();
+    buf_printf(&b, ",\"view\":{\"win\":%lu,\"left\":%d,\"right\":%d,\"top\":%d,\"bottom\":%d,"
+               "\"xlo\":%g,\"xhi\":%g,\"ylo\":%g,\"yhi\":%g,\"three\":%d}",
+               (unsigned long)draw_win, DLeft, DRight, DTop, DBottom, MyGraph->xlo, MyGraph->xhi,
+               MyGraph->ylo, MyGraph->yhi, MyGraph->ThreeDFlag);
+    if (Auto.exist)
+        buf_printf(&b, ",\"auto\":{\"x0\":%d,\"y0\":%d,\"wid\":%d,\"hgt\":%d,\"xmin\":%g,\"xmax\":%g,"
+                   "\"ymin\":%g,\"ymax\":%g}", Auto.x0, Auto.y0, Auto.wid, Auto.hgt, Auto.xmin, Auto.xmax,
+                   Auto.ymin, Auto.ymax);
     buf_printf(&b, ",\"rows\":%d,\"menu\":%d,\"win\":%lu}", my_browser.maxrow, help_menu,
                (unsigned long)draw_win);
     send_buf(&b);
@@ -847,6 +888,7 @@ static void j_state_dirty(void) { state_dirty = 1; }
    browser commands (Get, First, Last, Find) use. */
 static int br_from, br_count, br_col = 1, br_ncol = 1;
 static int browser_dirty;
+static int aplot_dirty; /* the data behind an array plot changed */
 
 static void buf_float(Buf *b, double z, int digits)
 {
@@ -905,6 +947,7 @@ static void j_browser_changed(int i)
     (void)i;
     state_dirty = 1;
     browser_dirty = 1;
+    aplot_dirty = 1; /* X11 redraws an auto-redrawn array plot on expose */
 }
 
 /* {"cmd":"browser","op":...,"row":selected row} */
@@ -942,6 +985,14 @@ static void plotvars_command(const char *line)
         if (!js_string(js_elem(arr, i), name, sizeof name)) continue;
         for (k = 0; k < n; k++)
             if (strcasecmp(uvar_names[k], name) == 0) isck[k] = 1;
+    }
+    if ((int)get_num(line, "how", 0) == 2) {
+        /* arry: the array of variables from the first to the second checked */
+        int list[2], k = 0;
+        for (i = 0; i < n && k < 2; i++)
+            if (isck[i]) list[k++] = i + 1;
+        if (k == 2) optimize_aplot(list);
+        return;
     }
     plot_checked_vars((int)get_num(line, "how", 0), isck, n);
 }
@@ -1150,13 +1201,6 @@ static void j_draw_freeze(void) { draw_freeze(draw_win); }
 static void j_draw_text(int x, int y, char *s);
 static void j_put_text(int x, int y, char *s) { j_draw_text(x, y, s); }
 
-static void j_unsupported(const char *what)
-{
-    char msg[128];
-    snprintf(msg, sizeof msg, "%s is not available in this front end yet", what);
-    j_err_msg(msg);
-}
-
 /* ---- pixels -------------------------------------------------------------------
    Only the client has the rendered picture. Frame and GIF writers ask for
    it: {"kind":"pixels","win":W} or {"film":i} (a kinescope frame), answered
@@ -1308,8 +1352,75 @@ static void j_movie_make_anigif(void)
     fclose(fp);
     set_global_map(0);
 }
-static void j_scroll_window(void) { j_unsupported("Scroll"); }
-static void j_auto_scroll_window(void) { j_unsupported("Scroll"); }
+/* one pointer event of a drag in window win: 1 down, 2 move, 3 up; 0 when
+   a key or Cancel ends the drag */
+static int ask_drag(unsigned long win, int *x, int *y)
+{
+    Buf b;
+    char what[8];
+    int id = ask_begin(&b, "drag");
+    buf_printf(&b, ",\"win\":%lu", win);
+    if (!ask_wait(&b, id) || !get_str(answer, "what", what, sizeof what)) return 0;
+    *x = (int)get_num(answer, "x", 0);
+    *y = (int)get_num(answer, "y", 0);
+    return strcmp(what, "down") == 0 ? 1 : strcmp(what, "move") == 0 ? 2 : strcmp(what, "up") == 0 ? 3 : 0;
+}
+
+/* Window/zoom Scroll: drag the plot (rubber.c x11_scroll_window) */
+static void j_scroll_window(void)
+{
+    int i, j, t, state = 0;
+    float x, y, x0 = 0, y0 = 0, dx = 0, dy = 0;
+    float xlo = MyGraph->xlo, ylo = MyGraph->ylo, xhi = MyGraph->xhi, yhi = MyGraph->yhi;
+    send_simple("message", "box", "Drag the plot to scroll it; any key ends");
+    while ((t = ask_drag((unsigned long)draw_win, &i, &j)) != 0) {
+        if (t == 1 && state == 0) {
+            scale_to_real(i, j, &x0, &y0);
+            state = 1;
+        } else if (t == 2 && state == 1) {
+            scale_to_real(i, j, &x, &y);
+            dx = -(x - x0) / 2;
+            dy = -(y - y0) / 2;
+            update_view(xlo + dx, xhi + dx, ylo + dy, yhi + dy);
+        } else if (t == 3) {
+            state = 0;
+            xlo += dx;
+            xhi += dx;
+            ylo += dy;
+            yhi += dy;
+            dx = dy = 0;
+        }
+        json_flush();
+    }
+    j_kill_message_box();
+}
+
+/* AUTO Axes/Scroll: drag the diagram (auto_x11.c x11_auto_scroll_window) */
+static void j_auto_scroll_window(void)
+{
+    int i, j, t, i0 = 0, j0 = 0, state = 0;
+    float xlo = Auto.xmin, ylo = Auto.ymin, xhi = Auto.xmax, yhi = Auto.ymax, dx = 0, dy = 0;
+    send_simple("message", "auto", "Drag the diagram to scroll it; any key ends");
+    while ((t = ask_drag(WIN_AUTO, &i, &j)) != 0) {
+        if (t == 1 && state == 0) {
+            i0 = i;
+            j0 = j;
+            state = 1;
+        } else if (t == 2 && state == 1) {
+            dx = (float)(i0 - i) * (xhi - xlo) / (float)Auto.wid;
+            dy = (float)(j - j0) * (yhi - ylo) / (float)Auto.hgt;
+            auto_update_view(xlo + dx, xhi + dx, ylo + dy, yhi + dy);
+        } else if (t == 3) {
+            state = 0;
+            xlo += dx;
+            xhi += dx;
+            ylo += dy;
+            yhi += dy;
+            dx = dy = 0;
+        }
+        json_flush();
+    }
+}
 
 static void send_palette(void)
 {
@@ -1367,8 +1478,153 @@ static void j_draw_linestyle(int ls)
 }
 static void j_set_color(int col) { op(draw_win, "[\"color\",%d]", col); }
 
-static void j_aplot_make(char *name) { (void)name; j_unsupported("Array plot"); }
-static void j_aplot_draw_one(char *tag) { (void)tag; }
+/* ---- array plot ------------------------------------------------------------------
+   The picture is a grid of colour indices (aplotwin.c redraw_aplot): the
+   client paints it at the size of its window. */
+#define FIRSTCOLOR 30 /* aplotwin.c */
+
+static void send_aplot(const char *tag)
+{
+    Buf b = {0};
+    char sroot[100];
+    int num, i, j, nx, ny, nrows = my_browser.maxrow;
+    double tlo = 0.0, thi = 20.0;
+    APLOT *ap = &aplot;
+    aplot_dirty = 0;
+    if (!ap->alive) return;
+    get_root(ap->name, sroot, &num);
+    buf_printf(&b, "{\"ev\":\"aplot\",\"title\":\"");
+    buf_printf(&b, "%.60s%d..%d\"", sroot, num, num + ap->nacross - 1);
+    nx = ap->ncskip > 0 ? ap->nacross / ap->ncskip : 0;
+    ny = ap->ndown;
+    if (nrows <= 2 || ap->plotdef == 0 || ap->nacross < 2 || ap->ndown < 2) nx = ny = 0;
+    if (nx) {
+        j = ap->nstart;
+        if (j > 0 && j < nrows) tlo = my_browser.data[0][j];
+        j = ap->nstart + ap->nskip * (ap->ndown - 1);
+        if (j >= nrows) j = nrows - 1;
+        if (j >= 0) thi = my_browser.data[0][j];
+    }
+    buf_printf(&b, ",\"tlo\":%g,\"thi\":%g,\"zmin\":%g,\"zmax\":%g,\"first\":%d,\"ncolors\":%d,\"nx\":%d,\"ny\":%d",
+               tlo, thi, ap->zmin, ap->zmax, FIRSTCOLOR, color_total, nx, ny);
+    if (tag) {
+        BUF_LIT(&b, ",\"tag\":");
+        buf_str(&b, tag);
+    }
+    /* -1: past the stored rows or columns (left blank) */
+    BUF_LIT(&b, ",\"cells\":[");
+    for (j = 0; j < ny; j++) {
+        int jb = ap->nstart + ap->nskip * j;
+        for (i = 0; i < nx; i++) {
+            int ib = ap->index0 + i * ap->ncskip, c = -1;
+            if (ib < my_browser.maxcol && jb < nrows && jb >= 0 && ap->zmax > ap->zmin) {
+                c = (int)(color_total * (my_browser.data[ib][jb] - ap->zmin) / (ap->zmax - ap->zmin));
+                if (c < 0) c = 0;
+                if (c > color_total) c = color_total;
+            }
+            if (i || j) BUF_LIT(&b, ",");
+            buf_printf(&b, "%d", c);
+        }
+    }
+    BUF_LIT(&b, "]}");
+    send_buf(&b);
+    free(b.s);
+}
+
+static void j_aplot_make(char *name)
+{
+    if (aplot.alive) return;
+    aplot.alive = 1;
+    aplot.plotw = aplot.width - 30 - 10 * DCURXs;
+    aplot.ploth = aplot.height - 55;
+    send_window("create", WIN_APLOT, aplot.plotw, aplot.ploth, name);
+}
+
+static void j_aplot_redraw(void) { send_aplot(NULL); }
+
+/* write the picture the client shows as a GIF: one file, or a frame of
+   the range movie (aplotwin.c gif_aplot_all) */
+static void aplot_gif(const char *file, int still)
+{
+    int w, h;
+    unsigned char *rgb;
+    if (still == 1 || aplot_range_count == 0) {
+        if ((ap_fp = fopen(file, "wb")) == NULL) {
+            j_err_msg("Cannot open file ");
+            return;
+        }
+    }
+    rgb = ask_pixels(WIN_APLOT, -1, &w, &h);
+    if (rgb) {
+        web_safe_colors(rgb, w, h);
+        if (still == 1) gif_stuff_ppm(rgb, w, h, ap_fp, MAKE_ONE_GIF);
+        else gif_stuff_ppm(rgb, w, h, ap_fp, aplot_range_count == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
+        free(rgb);
+    }
+    if (still == 1) fclose(ap_fp);
+}
+
+static void j_aplot_draw_one(char *tag)
+{
+    char file[300];
+    send_aplot(aplot_tag ? tag : NULL);
+    snprintf(file, sizeof file, "%s.%d.gif", aplot_range_stem, aplot_range_count);
+    aplot_gif(file, aplot_still);
+    aplot_range_count++;
+}
+
+/* dragging a 3D plot turns it (many_pops.c rotate3dcheck):
+   {"cmd":"rotate","what":"down|move|up","x","y"} */
+static void rotate_command(const char *line)
+{
+    static int x0, y0;
+    static double theta, phi;
+    char what[8];
+    int x = (int)get_num(line, "x", 0), y = (int)get_num(line, "y", 0);
+    if (!MyGraph->ThreeDFlag) return;
+    get_str(line, "what", what, sizeof what);
+    if (strcmp(what, "down") == 0) {
+        x0 = x;
+        y0 = y;
+        phi = MyGraph->Phi;
+        theta = MyGraph->Theta;
+    } else if (strcmp(what, "move") == 0) {
+        MyGraph->Phi = phi - (double)(y - y0);
+        MyGraph->Theta = theta - (double)(x - x0);
+        redraw_cube_pt(MyGraph->Theta, MyGraph->Phi);
+    } else if (strcmp(what, "up") == 0) {
+        do_axes();
+        j_redraw_all();
+    }
+}
+
+/* the array plot window's buttons */
+static void aplot_command(const char *line)
+{
+    char o[16];
+    get_str(line, "op", o, sizeof o);
+    if (!aplot.alive) return;
+    if (strcmp(o, "redraw") == 0) send_aplot(NULL);
+    else if (strcmp(o, "edit") == 0) {
+        editaplot(&aplot);
+        send_aplot(NULL);
+    } else if (strcmp(o, "fit") == 0) fit_aplot();
+    else if (strcmp(o, "range") == 0) set_up_aplot_range();
+    else if (strcmp(o, "print") == 0) print_aplot(&aplot);
+    else if (strcmp(o, "gif") == 0) {
+        char file[XPP_MAX_NAME];
+        snprintf(file, sizeof file, "%s.gif", this_file);
+        if (file_selector("GIF plot", file, "*.gif")) aplot_gif(file, 1);
+    } else if (strcmp(o, "scroll") == 0) {
+        /* dragging the plot by dy pixels moves the first row, as in X11 */
+        aplot.nstart -= (int)get_num(line, "dy", 0);
+        if (aplot.nstart < 0) aplot.nstart = 0;
+        send_aplot(NULL);
+    } else if (strcmp(o, "close") == 0) {
+        aplot.alive = 0;
+        send_window("destroy", WIN_APLOT, 0, 0, NULL);
+    }
+}
 
 /* ---- AUTO window --------------------------------------------------------------- */
 
@@ -1669,10 +1925,11 @@ static void j_q_calc(void)
 {
     char expr[256] = "";
     double z;
-    char result[300];
-    while (new_string("Formula:", expr)) {
+    char result[300] = "Formula:";
+    /* the X11 calculator shows the answer in its window: here in the prompt */
+    while (new_string(result, expr)) {
         if (do_calc(expr, &z) != -1) {
-            snprintf(result, sizeof result, "%s = %.16g", expr, z);
+            snprintf(result, sizeof result, "%.200s = %.16g   Formula:", expr, z);
             send_simple("message", "calc", result);
         }
     }
@@ -1761,8 +2018,8 @@ static const XppUi json_ui = {
     .draw_linestyle = j_draw_linestyle,
     .set_color = j_set_color,
     .aplot_make = j_aplot_make,
-    .aplot_redraw = j_void,
-    .aplot_reset_axes = j_void,
+    .aplot_redraw = j_aplot_redraw,
+    .aplot_reset_axes = j_aplot_redraw,
     .aplot_draw_one = j_aplot_draw_one,
     .auto_make_window = j_auto_make_window,
     .auto_line = j_auto_line,
@@ -1912,6 +2169,10 @@ void json_ui_handle(const char *line)
         if (i >= 0 && i < nuserbut) run_the_commands(userbut[i].com);
     } else if (is_cmd(line, "browser")) {
         browser_command(line);
+    } else if (is_cmd(line, "aplot")) {
+        aplot_command(line);
+    } else if (is_cmd(line, "rotate")) {
+        rotate_command(line);
     } else if (is_cmd(line, "plotvars")) {
         plotvars_command(line);
     } else if (is_cmd(line, "eqimport")) {
@@ -1941,9 +2202,17 @@ void json_ui_handle(const char *line)
         else if (strcmp(o, "clear") == 0) draw_bif_axes();
         else if (strcmp(o, "redraw") == 0) redraw_diagram();
         else if (strcmp(o, "file") == 0) auto_file();
+        else if (strcmp(o, "point") == 0 && Auto.exist)
+            auto_motion_xy((int)get_num(line, "x", 0), (int)get_num(line, "y", 0));
+        else if (strcmp(o, "close") == 0 && Auto.exist) {
+            Auto.exist = 0; /* auto_x11.c auto_kill; File/Auto opens it again */
+            send_window("destroy", WIN_AUTO, 0, 0, NULL);
+        }
     }
     apply_auto_size();
     apply_ani_size();
+    if (aplot_dirty && aplot.alive && plot3d_auto_redraw == 1) send_aplot(NULL);
+    aplot_dirty = 0;
     if (browser_dirty && br_count) send_browser();
     json_flush();
     /* the command is finished; the client may send the next one */
@@ -2014,6 +2283,40 @@ void json_ui_hello(char *title)
     BUF_LIT(&b, ",\"num_hints\":");
     buf_str_array(&b, num_hint, NUM_ENTRIES);
     BUF_LIT(&b, "}");
+    /* the lists a form field *n picks from (pop_list.c make_scrbox_lists) */
+    BUF_LIT(&b, ",\"lists\":[[\"T\"");
+    for (i = 0; i < NEQ; i++) {
+        BUF_LIT(&b, ",");
+        buf_str(&b, uvar_names[i]);
+    }
+    BUF_LIT(&b, "],[");
+    for (i = 0; i < NODE + NMarkov; i++) {
+        if (i) BUF_LIT(&b, ",");
+        buf_str(&b, uvar_names[i]);
+    }
+    BUF_LIT(&b, "],[");
+    for (i = 0; i < NUPAR; i++) {
+        if (i) BUF_LIT(&b, ",");
+        buf_str(&b, upar_names[i]);
+    }
+    BUF_LIT(&b, "],[");
+    for (i = 0; i < NODE + NMarkov + NUPAR; i++) {
+        if (i) BUF_LIT(&b, ",");
+        buf_str(&b, i < NODE + NMarkov ? uvar_names[i] : upar_names[i - NODE - NMarkov]);
+    }
+    BUF_LIT(&b, "],[");
+    for (i = 0; i < 11; i++) {
+        char item[40];
+        snprintf(item, sizeof item, "%d %s", i, color_names[i]);
+        if (i) BUF_LIT(&b, ",");
+        buf_str(&b, item);
+    }
+    BUF_LIT(&b, "],[\"2 Box\",\"3 Diamond\",\"4 Triangle\",\"5 Plus\",\"6 X\",\"7 Circle\"],"
+                "[\"0 Discrete\",\"1 Euler\",\"2 Mod. Euler\",\"3 Runge-Kutta\",\"4 Adams\",\"5 Gear\","
+                "\"6 Volterra\",\"7 BackEul\",\"8 QualRK\",\"9 Stiff\",\"10 CVode\",\"11 DoPri5\","
+                "\"12 DoPri8(3)\",\"13 Rosenbrock\",\"14 Symplectic\"]]");
+    BUF_LIT(&b, ",\"auto_hints\":");
+    buf_str_array(&b, auto_hint, 9);
     /* @ button name:keys lines of the ODE file ({"cmd":"userbut","index":i}) */
     BUF_LIT(&b, ",\"userbuttons\":[");
     for (i = 0; i < nuserbut; i++) {

@@ -159,6 +159,8 @@ send(cmd='key', key='f')
 send(cmd='key', key='s')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 check('File/Save info asks for a file name', ask is not None and ask['kind'] in ('file', 'string'), str(ask))
+check('the file ask lists its folder', ask is not None and ask.get('dir') and 'files' in ask
+      and 'lecar.ode' not in ask['files'], str(ask)[:200])
 if ask:
     if ask['kind'] == 'file':
         send(cmd='answer', id=ask['id'], ok=1, file='info.txt')
@@ -251,6 +253,32 @@ check('the animation window opens and resizes', any(e.get('ev') == 'window' and 
 send(cmd='ani', op='close')
 evs, _ = collect(is_idle)
 check('the animation window closes', any(e.get('ev') == 'window' and e.get('op') == 'destroy' for e in evs))
+
+send(cmd='plotvars', how=2, names=['V', 'W'])
+evs, _ = collect(is_idle)
+ap = [e for e in evs if e.get('ev') == 'aplot']
+check('the IC arry button opens an array plot', ap and ap[-1]['nx'] == 2 and len(ap[-1]['cells']) == 2 * ap[-1]['ny'],
+      str(ap[-1:])[:200])
+send(cmd='aplot', op='close')
+collect(is_idle)
+send(cmd='click', win=1)
+evs, _ = collect(is_idle)
+send(cmd='state')
+evs, st = collect(is_state)
+collect(is_idle)
+view = st and st.get('view')
+check('state has the view of the active window', view is not None and view['right'] > view['left'], str(view))
+send(cmd='key', key='w')
+evs, _ = answer_asks(lambda e: e.get('ev') == 'ask' and e['kind'] == 'drag', {'menu': menu('s')})
+drag = evs[-1] if evs else None
+for d in [{'what': 'down', 'x': 300, 'y': 200}, {'what': 'move', 'x': 360, 'y': 200}, {'what': 'up', 'x': 360, 'y': 200}]:
+    send(cmd='answer', id=drag['id'], **d)
+    evs, drag = collect(lambda e: e.get('ev') == 'ask')
+send(cmd='answer', id=drag['id'], ok=0)
+evs, _ = collect(is_idle)
+st = last_state(evs)
+check('Window/Scroll drags the view', st is not None and view is not None and st['view']['xlo'] < view['xlo'],
+      str(st and st['view']))
 
 send(cmd='key', key='f')
 send(cmd='key', key='a')

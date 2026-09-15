@@ -34,7 +34,7 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `default` | `kind` (`par` or `ic`) | The Default button: values from the ODE file. |
 | `slide` | `name`, `value`, `rerun` (default 1) | A parameter slider moved: set the parameter or variable, then clear and integrate again. |
 | `userbut` | `index` | An `@ button` of the ODE file (`hello.userbuttons`). |
-| `plotvars` | `how` (0 x vs t, 1 phase plane), `names` | The IC box's xvst/pp buttons for the checked variables. |
+| `plotvars` | `how` (0 x vs t, 1 phase plane, 2 array plot), `names` | The IC box's xvst/pp/arry buttons for the checked variables. |
 | `browser` | `from`, `count`, `col`, `ncol` | The data browser block the client shows (answered at once with `browser`, even during a prompt); `count` 0 stops the updates. |
 | `browser` | `op` (`find`, `get`, `replace`, `unreplace`, `table`, `load`, `write`, `first`, `last`, `restore`, `addcol`, `delcol`), `row` | A data browser button, with `row` the selected row (the X11 browser's top row). |
 | `eqimport` | | The equilibrium window's Import: the last equilibrium becomes the initial conditions. |
@@ -43,7 +43,9 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `click` | `win` | The user selected plot window `win`. |
 | `redraw` | | Redraw the active plot window, and the AUTO diagram when AUTO is open (for a client that reconnects). |
 | `state` | | Send `state` now. |
-| `auto` | `op`: `param`, `axes`, `numerics`, `run`, `grab`, `usr`, `clear`, `redraw`, `file` | The AUTO window buttons. |
+| `auto` | `op`: `param`, `axes`, `numerics`, `run`, `grab`, `usr`, `clear`, `redraw`, `file`, `close`, `point` (`x`, `y`) | The AUTO window buttons; `point` is a click on the diagram (shows and stores its coordinates); `close` destroys window 101, File/Auto opens it again. |
+| `aplot` | `op`: `redraw`, `edit`, `print`, `fit`, `range`, `gif`, `close`, `scroll` (`dy` pixels) | The array plot window buttons; dragging the plot scrolls through time. |
+| `rotate` | `what` (`down`, `move`, `up`), `x`, `y` | Dragging a 3D plot turns it (the active window, when `state.view.three`). |
 | `ani` | `op`: `go`, `pause`, `fast`, `slow`, `step` (`n`), `seek` (`pos`), `reset`, `skip`, `file`, `mpeg`, `grab`, `mouse` (`what` down/move/up, `x`, `y`), `fly`, `close` | The animation window buttons. `go` plays until the last frame; `pause`, `fast`, `slow` sent while it plays reach its loop. `mpeg` asks for frame saving (PPM files or `anim.gif`), done with `pixels` asks while playing. `mouse` drags a grab point after `grab`. `size` for win 104 resizes the picture when the command ends. |
 | `abort` | | Stop a running computation. |
 | `quit` | | Exit immediately. |
@@ -52,11 +54,11 @@ Send `size` for window 1 as soon as the canvas size is known.
 
 | ev | fields | meaning |
 |---|---|---|
-| `hello` | `protocol`, `title`, `file`, `char` {`w`,`h`,`bw`,`bh`}, `menus`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. Text is laid out on a `char.w` x `char.h` monospace cell. `sliders` are the ones the ODE file sets (`@ s1=...`). |
+| `hello` | `protocol`, `title`, `file`, `char` {`w`,`h`,`bw`,`bh`}, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. Text is laid out on a `char.w` x `char.h` monospace cell. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). |
 | `palette` | `colors` (256 `#rrggbb`) | Colour table; sent again after a colormap change. |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows 1..10, AUTO 101 (stability circle 102, info strip 103), animation 104. |
 | `draw` | `win`, `ops` | Drawing, see below. |
-| `state` | `pars` [[name,value]...], `ics` [[name,value]...], `bcs` [[name,text]...], `delays` [[name,text]...] (delay equations only), `rows`, `menu`, `win` | Current values; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics), `win` the active window. |
+| `state` | `pars` [[name,value]...], `ics` [[name,value]...], `bcs` [[name,text]...], `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `menu`, `win` | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics), `win` the active window. |
 | `idle` | | The command finished. |
 | `menu` | `which` | The main menu switched (0 main, 1 file, 2 numerics). |
 | `title` | `text` | Title of the selected plot window: what it plots (`W vs V`). The server also labels unlabelled 2D axes with the plotted variables. |
@@ -66,6 +68,7 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `source` | `lines`, `comments` [[text, has action]...] | File/Prt src. |
 | `equations` | `lines` | One `dX/dT=...` line per equation. |
 | `ani` | `pos`, `rows`, `fly`, `grab`, `skip`, `speed` | Animation state for its slider and toggles; sent with every frame. |
+| `aplot` | `title`, `nx`, `ny`, `cells` (ny rows of nx colour indices, -1 blank), `first`, `ncolors`, `zmin`, `zmax`, `tlo`, `thi`, `tag` | The array plot (window 105): cell index k is palette colour `first`+k. |
 | `film` | `op` (`capture`, `reset`, `play`, `autoplay`), `count`, `win`, `cycles`, `delay` | Kinescope. The client keeps the frames: on `capture` it copies window `win` as it is drawn now; `play` shows them, `autoplay` plays `cycles` times `delay` ms apart. |
 | `browser` | `rows`, `cols` (names, `T` first), `row0` (selected row), `start`, `end` (the First..Last range), `from`, `col`, `data` | Rows `from`.. as [T, column `col`, `col`+1, ...]; `null` for NaN. Sent for a `browser` block request and after any command that changed the data while the client shows the browser. |
 | `ping` | | Beep. |
@@ -110,15 +113,15 @@ Each op is an array; coordinates are pixels from the top-left of the window.
 | `string` | `title`, `name`, `value`, `ok`, `cancel`, `max` | `value` |
 | `form` | `title`, `names`, `values`, `max` | `values` (same length). A name starting with `*n` means the field names a variable (`*0`), colour (`*4`) or marker (`*5`). |
 | `checklist` | `title`, `names`, `flags` | `flags` |
-| `file` | `title`, `file`, `wild`, `dir` | `file` |
+| `file` | `title`, `file`, `wild`, `dir`, `dirs`, `files` | `file`; or `cd` (a folder name or `..`) or `wild` (a new pattern) to be asked again with that listing |
 | `alert` | `button`, `message` | nothing |
 | `mouse` | `win` | `x`, `y` |
 | `rubber` | `win`, `flag` (0 box, 1 line) | `x`, `y`, `x2`, `y2` |
 | `grab` | `win` | `key`, or `x`, `y` for a click on the diagram |
+| `drag` | `win` | `what` (`down`, `move`, `up`), `x`, `y` for each pointer event; cancel or a key ends. Window/Scroll and AUTO Axes/Scroll ask it again after every event. |
 | `pixels` | `win`, or `film` (a kinescope frame index) | `w`, `h`, `rgb` (base64 of w*h*3 bytes). Frame, GIF and kinescope writers use it: only the client has the picture. |
 
 ## Not yet implemented
 
-Array plots and window scrolling send a `message` `error` instead of
-working. docs/front-end-gaps.md lists what the X11 front end still
-does that this protocol does not.
+docs/front-end-gaps.md lists what the X11 front end still does that this
+protocol does not.

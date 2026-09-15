@@ -16,6 +16,8 @@
   const TEXT_SIZES = [8, 10, 12, 14, 18]; /* xppaut's five font sizes */
   const AUTO_BUTTONS = [['Parameter', 'param'], ['Axes', 'axes'], ['Numerics', 'numerics'], ['Run', 'run'],
     ['Grab', 'grab'], ['Usr period', 'usr'], ['Clear', 'clear'], ['reDraw', 'redraw'], ['File', 'file']];
+  /* keys typed while the AUTO tab is shown (auto_x11.c auto_keypress) */
+  const AUTO_KEYS = {a: 'axes', n: 'numerics', g: 'grab', r: 'run', d: 'redraw', c: 'clear', u: 'usr', p: 'param', f: 'file'};
 
   /* the data browser's buttons: label, op, hint */
   const BROWSER_BUTTONS = [
@@ -460,6 +462,7 @@
         button('Default', 'Initial conditions from the ODE file', () => this.command({cmd: 'default', kind: 'ic'})),
         button('x vs t', 'Plot the checked variables against time', () => this.plotChecked(0)),
         button('Phase', 'Phase plane of the first 2 or 3 checked variables', () => this.plotChecked(1)),
+        button('Array', 'Array plot of the variables from the first to the second checked', () => this.plotChecked(2)),
       ]);
       this.parTable = this.valueTable('Parameters', 'par', numberHint, [
         button('Default', 'Parameters from the ODE file', () => this.command({cmd: 'default', kind: 'par'})),
@@ -780,7 +783,28 @@
       const k = keyName(e);
       if (!k) return;
       e.preventDefault();
+      if (this.shownWin === 101 && !this.pendingAsk && AUTO_KEYS[k.toLowerCase()]) {
+        this.command({cmd: 'auto', op: AUTO_KEYS[k.toLowerCase()]});
+        return;
+      }
       this.key(k);
+    }
+
+    /* commands sent while dragging: only the latest of each kind, in order,
+       one at a time */
+    queue(key, cmd) {
+      this.queued = this.queued || new Map();
+      this.queued.delete(key);
+      this.queued.set(key, cmd);
+      if (!this.busy) this.flushQueue();
+    }
+
+    flushQueue() {
+      if (!this.queued || !this.queued.size) return false;
+      const [key, cmd] = this.queued.entries().next().value;
+      this.queued.delete(key);
+      this.command(cmd);
+      return true;
     }
 
     /* ---- events -------------------------------------------------------------------- */
@@ -790,6 +814,8 @@
         case 'hello':
           this.menus = ev.menus;
           this.userButtons = ev.userbuttons || [];
+          this.lists = ev.lists || [];
+          this.autoHints = ev.auto_hints || [];
           this.sliderDefs = ev.sliders || [];
           this.titleBar.textContent = ev.title;
           this.charCell = ev.char;
@@ -815,6 +841,7 @@
             this.flushSlide();
             break;
           }
+          if (this.flushQueue()) break;
           if (this.pendingAniUp || this.pendingAniMove || (this.pendingSeek !== undefined && this.pendingSeek !== null)) {
             this.flushAniInput();
             break;
@@ -827,6 +854,7 @@
         case 'equations': this.showEquations(ev); break;
         case 'browser': this.onBrowser(ev); break;
         case 'ani': this.onAni(ev); break;
+        case 'aplot': this.onArrayPlot(ev); break;
         case 'film': this.onFilm(ev); break;
         case 'ping': this.flash(); break;
         case 'bye': this.hint.textContent = 'XPP has exited.'; break;
@@ -893,6 +921,17 @@
 
     placeSurface(s, ev) {
       s.canvas.addEventListener('mousedown', e => this.onCanvasDown(s, e));
+      if (ev.win <= 10) {
+        /* x,y under the mouse in the active plot (many_pops.c do_motion_events) */
+        s.canvas.addEventListener('mousemove', e => {
+          const v = this.state && this.state.view;
+          if (!v || v.win !== s.id || v.three || this.pendingAsk || v.right === v.left || v.top === v.bottom) return;
+          const [i, j] = s.at(e);
+          const x = (v.xhi - v.xlo) * (i - v.left) / (v.right - v.left) + v.xlo;
+          const y = (v.yhi - v.ylo) * (j - v.bottom) / (v.top - v.bottom) + v.ylo;
+          this.hint.textContent = `x=${x.toFixed(6)} y=${y.toFixed(6)}`;
+        });
+      }
       if (ev.win === 1) {
         this.mainHost.appendChild(s.canvas);
         return;
@@ -907,11 +946,17 @@
         bar.textContent = ev.title || 'AUTO';
         const body = el('div', 'xpp-auto');
         const buttons = el('div', 'xpp-auto-buttons');
-        for (const [label, opName] of AUTO_BUTTONS) {
+        AUTO_BUTTONS.forEach(([label, opName], i) => {
           const b = el('button', '', label);
+          b.title = (this.autoHints || [])[i] || '';
           b.addEventListener('click', () => this.command({cmd: 'auto', op: opName}));
+          b.addEventListener('mouseenter', () => { if (this.autoHint && b.title) this.autoHint.textContent = b.title; });
           buttons.appendChild(b);
-        }
+        });
+        const closeAuto = el('button', '', 'Close');
+        closeAuto.title = 'Close the AUTO window (File/Auto opens it again with the diagram)';
+        closeAuto.addEventListener('click', () => this.command({cmd: 'auto', op: 'close'}));
+        buttons.appendChild(closeAuto);
         const abort = el('button', 'xpp-abort', 'ABORT');
         abort.addEventListener('click', () => this.send({cmd: 'abort'}));
         buttons.appendChild(abort);
@@ -930,7 +975,20 @@
         done.addEventListener('click', () => this.answer({key: 'Escape'}));
         this.autoGrab.appendChild(done);
         frame.appendChild(this.autoGrab);
-        s.canvas.addEventListener('mousemove', () => {});
+        /* x,y under the mouse (auto_motion_xy); a click also stores the point */
+        s.canvas.addEventListener('mousemove', e => {
+          const au = this.state && this.state.auto;
+          if (!au || !au.wid || !au.hgt || (this.pendingAsk && this.pendingAsk.kind === 'drag')) return;
+          const [i, j] = s.at(e);
+          const x = au.xmin + (i - au.x0) * (au.xmax - au.xmin) / au.wid;
+          const y = au.ymin + (au.y0 - j + au.hgt) * (au.ymax - au.ymin) / au.hgt;
+          if (!this.pendingAsk) this.autoHint.textContent = `x=${Number(x.toPrecision(6))},y=${Number(y.toPrecision(6))}`;
+        });
+        s.canvas.addEventListener('click', e => {
+          if (this.pendingAsk || this.busy || this.answeredByPress) return;
+          const [x, y] = s.at(e);
+          this.command({cmd: 'auto', op: 'point', x, y});
+        });
         right.append(s.canvas, info.canvas, this.autoHint);
         body.append(buttons, right);
         frame.appendChild(body);
@@ -951,16 +1009,131 @@
           }, 150);
         };
         new ResizeObserver(fit).observe(frame);
+      } else if (ev.win === 105) {
+        frame.append(this.buildArrayPlot(s, frame, bar));
       } else if (ev.win === 104) {
         bar.textContent = 'Animation';
         frame.append(this.buildAnimation(s, frame, bar));
       } else {
         frame.appendChild(s.canvas);
         s.canvas.addEventListener('focus', () => this.send({cmd: 'click', win: s.id}));
+        /* extra plot windows take the size of their tab, like the main one */
+        new ResizeObserver(() => {
+          if (!frame.clientWidth) return;
+          const w = Math.max(200, frame.clientWidth - 4);
+          const h = this.root.classList.contains('xpp-narrow') ? Math.round(w * 0.75)
+            : Math.max(150, frame.clientHeight - bar.offsetHeight - 4);
+          if (w === s.canvas.width && h === s.canvas.height) return;
+          clearTimeout(s.sizeTimer);
+          s.sizeTimer = setTimeout(() => {
+            s.resize(w, h);
+            this.send({cmd: 'size', win: s.id, w, h});
+          }, 150);
+        }).observe(frame);
       }
-      const label = ev.win === 101 ? 'AUTO' : ev.win === 104 ? 'Animation' : `Window ${ev.win}`;
+      const label = ev.win === 101 ? 'AUTO' : ev.win === 104 ? 'Animation' : ev.win === 105 ? 'Array' : `Window ${ev.win}`;
       this.addPage(ev.win, label, frame);
       this.showPage(ev.win);
+    }
+
+    /* ---- array plot (aplotwin.c): a grid of colour indices painted here ---- */
+
+    buildArrayPlot(s, frame, bar) {
+      const box = el('div', 'xpp-aplot');
+      const buttons = el('div', 'xpp-ani-buttons');
+      const hints = {redraw: 'Draw again from the data', edit: 'Columns, rows, skips and z range',
+        print: 'Write a PostScript file', fit: 'Fit the z range to the data', range: 'Save a GIF for each run of Integrate/Range',
+        gif: 'Save the picture as a GIF', close: 'Close the array plot'};
+      for (const [label, op] of [['Redraw', 'redraw'], ['Edit', 'edit'], ['Print', 'print'], ['Fit', 'fit'],
+        ['Range', 'range'], ['GIF', 'gif'], ['Close', 'close']]) {
+        const b = el('button', '', label);
+        b.title = hints[op];
+        b.addEventListener('click', () => this.command({cmd: 'aplot', op}));
+        buttons.appendChild(b);
+      }
+      this.aplotTime = el('div', 'xpp-ani-info');
+      const body = el('div', 'xpp-aplot-body');
+      const scale = el('div', 'xpp-aplot-scale');
+      this.aplotMax = el('div', 'xpp-ani-info');
+      this.aplotScale = el('canvas', 'xpp-aplot-bar');
+      this.aplotMin = el('div', 'xpp-ani-info');
+      scale.append(this.aplotMax, this.aplotScale, this.aplotMin);
+      body.append(scale, s.canvas);
+      box.append(buttons, this.aplotTime, body);
+      this.aplotSurface = s;
+      s.canvas.title = 'Drag up or down to scroll through time';
+      s.canvas.addEventListener('mousedown', e => {
+        let last = e.clientY;
+        const move = m => {
+          this.pendingAplotDy = (this.pendingAplotDy || 0) + (m.clientY - last);
+          last = m.clientY;
+          if (!this.busy && this.pendingAplotDy) {
+            const dy = this.pendingAplotDy;
+            this.pendingAplotDy = 0;
+            this.command({cmd: 'aplot', op: 'scroll', dy});
+          }
+        };
+        const up = () => {
+          window.removeEventListener('mousemove', move);
+          window.removeEventListener('mouseup', up);
+        };
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', up);
+      });
+      new ResizeObserver(() => {
+        if (!frame.clientWidth) return;
+        const w = Math.max(100, frame.clientWidth - scale.offsetWidth - 24);
+        const h = this.root.classList.contains('xpp-narrow') ? w
+          : Math.max(100, frame.clientHeight - bar.offsetHeight - buttons.offsetHeight - this.aplotTime.offsetHeight - 24);
+        if (w !== s.canvas.width || h !== s.canvas.height) {
+          s.canvas.width = w;
+          s.canvas.height = h;
+          this.paintArrayPlot();
+        }
+      }).observe(frame);
+      return box;
+    }
+
+    onArrayPlot(ev) {
+      this.aplot = ev;
+      if (this.pages.has(105)) {
+        this.pages.get(105).tab.firstChild.textContent = 'Array: ' + ev.title;
+        this.showPage(105);
+      }
+      this.paintArrayPlot();
+    }
+
+    paintArrayPlot() {
+      const ev = this.aplot, s = this.aplotSurface;
+      if (!ev || !s) return;
+      const c = s.ctx, W = s.canvas.width, H = s.canvas.height;
+      c.fillStyle = this.colorOf(-1);
+      c.fillRect(0, 0, W, H);
+      const dx = W / Math.max(1, ev.nx), dy = H / Math.max(1, ev.ny);
+      for (let j = 0; j < ev.ny; j++) {
+        for (let i = 0; i < ev.nx; i++) {
+          const k = ev.cells[j * ev.nx + i];
+          if (k < 0) continue;
+          c.fillStyle = this.colorOf(ev.first + k);
+          c.fillRect(Math.floor(i * dx), Math.floor(j * dy), Math.ceil(dx) + 1, Math.ceil(dy) + 1);
+        }
+      }
+      if (ev.tag) {
+        c.fillStyle = this.colorOf(0);
+        c.font = '12px monospace';
+        c.fillText(ev.tag, 2, 12);
+      }
+      this.aplotTime.textContent = ev.nx ? ` ${ev.tlo} < t < ${ev.thi}` : 'Nothing to show: use Edit, or integrate first';
+      this.aplotMax.textContent = ev.zmax;
+      this.aplotMin.textContent = ev.zmin;
+      const bar = this.aplotScale;
+      bar.width = 16;
+      bar.height = Math.max(40, Math.min(200, H - 40));
+      const bc = bar.getContext('2d');
+      for (let y = 0; y < bar.height; y++) {
+        bc.fillStyle = this.colorOf(ev.first + Math.round(ev.ncolors * (bar.height - 1 - y) / (bar.height - 1)));
+        bc.fillRect(0, y, 16, 1);
+      }
     }
 
     /* ---- animation window (aniwin.c's VCR) ---- */
@@ -1174,14 +1347,51 @@
 
     onCanvasDown(s, e) {
       const a = this.pendingAsk;
+      this.answeredByPress = !!a; /* the click that follows is not a new action */
+      const v = this.state && this.state.view;
+      if (!a && v && v.three && v.win === s.id && !this.busy) {
+        /* drag a 3D plot to turn it */
+        const [x, y] = s.at(e);
+        this.command({cmd: 'rotate', what: 'down', x, y});
+        this.trackMouse(s, (what, mx, my) => this.queue('rotate-' + what, {cmd: 'rotate', what, x: mx, y: my}));
+        return;
+      }
       if (!a || (a.win !== undefined && a.win !== s.id && !(a.win === 101 && s.id === 101))) {
         if (s.id >= 2 && s.id <= 10 && !this.busy) this.send({cmd: 'click', win: s.id});
         return;
       }
       const [x, y] = s.at(e);
+      if (a.kind === 'drag') {
+        /* Scroll: every pointer event answers one drag ask */
+        this.dragEvents = [];
+        this.answer({what: 'down', x, y});
+        this.trackMouse(s, (what, mx, my) => {
+          const last = this.dragEvents[this.dragEvents.length - 1];
+          if (what === 'move' && last && last.what === 'move') this.dragEvents.pop();
+          this.dragEvents.push({what, x: mx, y: my});
+          if (this.pendingAsk && this.pendingAsk.kind === 'drag') this.answer(this.dragEvents.shift());
+        });
+        return;
+      }
       if (a.kind === 'mouse') this.answer({x, y});
       else if (a.kind === 'grab') this.answer({x, y});
       else if (a.kind === 'rubber') this.rubber(s, a, x, y);
+    }
+
+    /* moves and the release of a button pressed on surface s */
+    trackMouse(s, report) {
+      const move = m => {
+        const [x, y] = s.at(m);
+        report('move', x, y);
+      };
+      const up = u => {
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', up);
+        const [x, y] = s.at(u);
+        report('up', x, y);
+      };
+      window.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
     }
 
     rubber(s, a, x0, y0) {
@@ -1249,6 +1459,10 @@
         this.answer({key: k});
         return true;
       }
+      if (a.kind === 'drag') {
+        this.cancel(); /* any key ends scrolling */
+        return true;
+      }
       return false; /* forms take their keys through their inputs */
     }
 
@@ -1262,7 +1476,7 @@
         case 'choice': this.askChoice(a); break;
         case 'string': this.askForm(a, [a.name], [a.value], a.title || a.name, a.ok, a.cancel); break;
         case 'form': this.askForm(a, a.names, a.values, a.title); break;
-        case 'file': this.askForm(a, ['File'], [a.file], `${a.title}  (${a.wild}, in ${a.dir})`); break;
+        case 'file': this.askFile(a); break;
         case 'checklist': this.askChecklist(a); break;
         case 'alert': this.askAlert(a); break;
         case 'pixels': this.answerPixels(a); return;
@@ -1271,6 +1485,10 @@
           this.root.classList.add('xpp-picking');
           this.hint.textContent = this.boxHint || (a.kind === 'mouse' ? 'Click in the plot (Esc cancels)'
             : a.flag === 1 ? 'Drag a line in the plot (Esc cancels)' : 'Drag a box in the plot (Esc cancels)');
+          break;
+        case 'drag':
+          this.root.classList.add('xpp-picking');
+          if (this.dragEvents && this.dragEvents.length) this.answer(this.dragEvents.shift());
           break;
         case 'grab':
           this.hint.textContent = 'Arrows/Tab move, Enter grabs, Esc quits, s/e mark a branch';
@@ -1338,13 +1556,15 @@
         input.value = values[i];
         input.spellcheck = false;
         if (a.max) input.maxLength = a.max;
-        if (/^\*0/.test(n) && this.state) {
+        const pick = /^\*(\d)/.exec(n);
+        if (pick && this.lists && this.lists[Number(pick[1])]) {
+          /* the X11 scroll list of variables, parameters, colours, markers or methods */
           const list = el('datalist');
-          list.id = `xpp-vars-${a.id}-${i}`;
-          ['T'].concat(this.state.ics.map(p => p[0])).forEach(v => list.appendChild(el('option', '', v)))
-            ;
+          list.id = `xpp-list-${a.id}-${i}`;
+          this.lists[Number(pick[1])].forEach(v => list.appendChild(el('option', '', v)).value = v);
           label.appendChild(list);
           input.setAttribute('list', list.id);
+          input.title = 'Pick from the list or type';
         }
         label.appendChild(input);
         form.appendChild(label);
@@ -1377,6 +1597,38 @@
       box.appendChild(form);
       inputs[0].focus();
       inputs[0].select();
+    }
+
+    /* the file selector: a name field and the folder's contents */
+    askFile(a) {
+      this.askForm(a, ['File'], [a.file], a.title);
+      const box = this.dialogLayer.lastChild;
+      const form = box.querySelector('form');
+      const input = form.querySelector('input');
+      const where = el('div', 'xpp-files-dir', a.dir);
+      const wild = el('input', 'xpp-files-wild');
+      wild.value = a.wild;
+      wild.title = 'Which files to list; Enter lists again';
+      wild.addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.answer({wild: wild.value});
+      });
+      const list = el('div', 'xpp-files');
+      const item = (text, cls, click, dbl) => {
+        const it = el('div', 'xpp-file ' + cls, text);
+        it.addEventListener('click', click);
+        if (dbl) it.addEventListener('dblclick', dbl);
+        list.appendChild(it);
+      };
+      item('..', 'xpp-dir', () => this.answer({cd: '..'}));
+      (a.dirs || []).filter(d => d !== '.' && d !== '..').forEach(d => item(d + '/', 'xpp-dir', () => this.answer({cd: d})));
+      (a.files || []).forEach(f => item(f, '', () => { input.value = f; }, () => this.answer({file: f})));
+      const head = el('div', 'xpp-files-head');
+      head.append(where, wild);
+      form.insertBefore(head, form.lastChild);
+      form.insertBefore(list, form.lastChild);
     }
 
     askChecklist(a) {
