@@ -219,10 +219,19 @@
       r.innerHTML = '';
       this.titleBar = el('div', 'xpp-title', 'XPP');
       this.menuPanel = el('div', 'xpp-menu');
+      /* the main plot, AUTO, animation and extra plot windows share this
+         area as tabs: stacked below each other they end up off screen */
       this.plotArea = el('div', 'xpp-plots');
+      this.tabBar = el('div', 'xpp-tabs');
+      this.tabBar.hidden = true;
+      const mainPage = el('div', 'xpp-page xpp-main-page');
       this.mainTitle = el('div', 'xpp-plot-title');
       this.mainHost = el('div', 'xpp-main-plot');
-      this.plotArea.append(this.mainTitle, this.mainHost);
+      mainPage.append(this.mainTitle, this.mainHost);
+      this.plotArea.append(this.tabBar, mainPage);
+      this.pages = new Map();
+      this.addPage(1, 'Plot', mainPage);
+      this.shownWin = 1;
       this.activeWin = 1;
       this.sidePanel = el('div', 'xpp-side');
       this.status = el('div', 'xpp-status');
@@ -316,9 +325,43 @@
       this.logBox.open = !this.menus || !!code;
     }
 
+    addPage(win, label, page) {
+      const tab = el('button', 'xpp-tab', label);
+      tab.addEventListener('click', () => {
+        this.showPage(win);
+        /* a plot window tab also makes it xppaut's current graph */
+        if (win <= 10 && !this.busy && this.activeWin !== win) this.send({cmd: 'click', win});
+      });
+      this.tabBar.appendChild(tab);
+      this.pages.set(win, {page, tab});
+      if (win !== 1) this.plotArea.appendChild(page);
+      this.tabBar.hidden = this.pages.size < 2;
+      this.showPage(this.shownWin || 1);
+    }
+
+    removePage(win) {
+      const p = this.pages.get(win);
+      if (!p) return;
+      p.page.remove();
+      p.tab.remove();
+      this.pages.delete(win);
+      this.tabBar.hidden = this.pages.size < 2;
+      if (this.shownWin === win) this.showPage(1);
+    }
+
+    showPage(win) {
+      if (!this.pages.has(win)) return;
+      this.shownWin = win;
+      for (const [w, p] of this.pages) {
+        p.page.hidden = w !== win;
+        p.tab.classList.toggle('xpp-tab-on', w === win);
+      }
+      if (win === 1) this.sendMainSize();
+    }
+
     sendMainSize() {
       const s = this.surfaces.get(1);
-      if (!s) return;
+      if (!s || !this.mainHost.clientWidth) return; /* hidden behind another tab */
       const w = Math.max(200, Math.floor(this.mainHost.clientWidth));
       const h = Math.max(150, Math.floor(this.mainHost.clientHeight));
       if (w === s.canvas.width && h === s.canvas.height) return;
@@ -515,8 +558,10 @@
           (s.frame || s.canvas).remove();
           this.surfaces.delete(ev.win);
         }
+        this.removePage(ev.win);
       } else if (ev.op === 'select') {
         this.activeWin = ev.win;
+        this.showPage(ev.win);
         for (const s of this.surfaces.values()) s.canvas.classList.toggle('xpp-active', s.id === ev.win);
       }
     }
@@ -537,7 +582,7 @@
         this.mainHost.appendChild(s.canvas);
         return;
       }
-      const frame = el('div', 'xpp-window');
+      const frame = el('div', 'xpp-page xpp-window');
       const bar = el('div', 'xpp-window-title', ev.title || (ev.win <= 10 ? `Window ${ev.win}` : ''));
       frame.append(bar);
       s.titleBar = bar;
@@ -562,10 +607,35 @@
         const info = new Surface(this, 103, ev.w, 45);
         this.surfaces.set(103, info);
         this.autoHint = el('div', 'xpp-auto-hint');
+        /* Grab waits for keys on the diagram: say so where the user looks */
+        this.autoGrab = el('div', 'xpp-auto-grab');
+        this.autoGrab.hidden = true;
+        this.autoGrab.append(el('span', '', 'Grab: ← → move along the branch, Tab jumps to the next labelled point, Enter grabs it. '));
+        const done = el('button', '', 'Stop grabbing (Esc)');
+        done.addEventListener('click', () => this.answer({key: 'Escape'}));
+        this.autoGrab.appendChild(done);
+        frame.appendChild(this.autoGrab);
         s.canvas.addEventListener('mousemove', () => {});
         right.append(s.canvas, info.canvas, this.autoHint);
         body.append(buttons, right);
         frame.appendChild(body);
+        /* the diagram takes the room its tab has */
+        const fit = () => {
+          if (!frame.clientWidth) return; /* another tab is shown */
+          /* the frame, not the body: the body grows with the canvas */
+          const w = Math.floor(frame.clientWidth - buttons.offsetWidth - 24);
+          /* stacked (narrow) layout: the height follows the content, so derive it */
+          const h = this.root.classList.contains('xpp-narrow') ? Math.round(w * 0.75)
+            : Math.floor(frame.clientHeight - bar.offsetHeight - this.autoGrab.offsetHeight
+              - info.canvas.offsetHeight - this.autoHint.offsetHeight - 30);
+          if (w < 200 || h < 150 || (w === s.canvas.width && h === s.canvas.height)) return;
+          clearTimeout(this.autoSizeTimer);
+          this.autoSizeTimer = setTimeout(() => {
+            info.resize(w, 45);
+            this.send({cmd: 'size', win: 101, w, h});
+          }, 150);
+        };
+        new ResizeObserver(fit).observe(frame);
       } else if (ev.win === 104) {
         bar.textContent = 'Animation';
         const buttons = el('div', 'xpp-ani-buttons');
@@ -584,7 +654,9 @@
         frame.appendChild(s.canvas);
         s.canvas.addEventListener('focus', () => this.send({cmd: 'click', win: s.id}));
       }
-      this.extraWindows.appendChild(frame);
+      const label = ev.win === 101 ? 'AUTO' : ev.win === 104 ? 'Animation' : `Window ${ev.win}`;
+      this.addPage(ev.win, label, frame);
+      this.showPage(ev.win);
     }
 
     command(cmd) {
@@ -641,6 +713,7 @@
       if (!a) return;
       this.pendingAsk = null;
       if (a.close) a.close();
+      if (this.autoGrab) this.autoGrab.hidden = true;
       this.root.classList.remove('xpp-picking');
       this.send(Object.assign({cmd: 'answer', id: a.id}, fields));
       this.root.focus();
@@ -676,6 +749,8 @@
     onAsk(a) {
       this.pendingAsk = a;
       this.busy = true;
+      /* a click or key is wanted in a window: bring its tab forward */
+      if (a.win !== undefined) this.showPage(a.win === 102 || a.win === 103 ? 101 : a.win);
       switch (a.kind) {
         case 'menu': this.askMenu(a); break;
         case 'choice': this.askChoice(a); break;
@@ -692,6 +767,7 @@
           break;
         case 'grab':
           this.hint.textContent = 'Arrows/Tab move, Enter grabs, Esc quits, s/e mark a branch';
+          if (this.autoGrab) this.autoGrab.hidden = false;
           break;
       }
       if (this.typeahead.length && (a.kind === 'menu' || a.kind === 'choice')) {

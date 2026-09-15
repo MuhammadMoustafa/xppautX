@@ -1029,11 +1029,15 @@ static void j_aplot_draw_one(char *tag) { (void)tag; }
 
 /* ---- AUTO window --------------------------------------------------------------- */
 
+/* a size the client asked for while a command ran, applied when it ends */
+static int auto_size_w, auto_size_h;
+
 static void j_auto_make_window(char *wname, char *iname)
 {
     (void)iname;
-    Auto.hgt = 20 * DCURY;
-    Auto.wid = 67 * DCURX;
+    Auto.hgt = auto_size_h ? auto_size_h - 4 * DCURYs : 20 * DCURY;
+    Auto.wid = auto_size_w ? auto_size_w - 12 * DCURXs : 67 * DCURX;
+    auto_size_w = auto_size_h = 0;
     Auto.x0 = 10 * DCURXs;
     Auto.y0 = 2 * DCURYs;
     Auto.st_wid = 12 * DCURX;
@@ -1306,11 +1310,33 @@ static const XppUi json_ui = {
 
 /* ---- commands from the client ------------------------------------------------------ */
 
+/* The AUTO diagram follows the size of the client's window. Resizing
+   redraws the diagram, so it waits until no command (a run, a grab) is
+   using it. */
+static void apply_auto_size(void)
+{
+    int w = auto_size_w, h = auto_size_h;
+    if (!w) return;
+    if (!Auto.exist) return; /* j_auto_make_window takes it */
+    auto_size_w = auto_size_h = 0;
+    if (w - 12 * DCURXs == Auto.wid && h - 4 * DCURYs == Auto.hgt) return;
+    Auto.wid = w - 12 * DCURXs;
+    Auto.hgt = h - 4 * DCURYs;
+    send_window("create", WIN_AUTO, w, h, "It's AUTO man!");
+    redraw_diagram();
+}
+
 static void apply_size(const char *line)
 {
     int win = (int)get_num(line, "win", 1);
     int w = (int)get_num(line, "w", 640), h = (int)get_num(line, "h", 480);
     int i = win - 1;
+    if (win == WIN_AUTO) {
+        /* room for the axis labels around the diagram */
+        auto_size_w = w < 20 * DCURXs + 12 * DCURXs ? 32 * DCURXs : w;
+        auto_size_h = h < 8 * DCURYs + 4 * DCURYs ? 12 * DCURYs : h;
+        return;
+    }
     if (i < 0 || i >= MAXPOP || w < 50 || h < 50) return;
     win_w[i] = w;
     win_h[i] = h;
@@ -1354,6 +1380,7 @@ void json_ui_handle(const char *line)
         if (win >= 0 && win < MAXPOP && graph[win].Use && current_pop != win) select_graph(win);
     } else if (is_cmd(line, "redraw")) {
         j_redraw_graph();
+        if (Auto.exist) redraw_diagram(); /* a reconnected client has a blank one */
     } else if (is_cmd(line, "ani")) {
         char o[16];
         get_str(line, "op", o, sizeof o);
@@ -1374,6 +1401,7 @@ void json_ui_handle(const char *line)
         else if (strcmp(o, "redraw") == 0) redraw_diagram();
         else if (strcmp(o, "file") == 0) auto_file();
     }
+    apply_auto_size();
     json_flush();
     /* the command is finished; the client may send the next one */
     send_state();

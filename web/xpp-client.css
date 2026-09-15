@@ -22,6 +22,8 @@
   outline: none;
 }
 .xpp * { box-sizing: border-box; }
+.xpp > * { flex-shrink: 0; }
+.xpp [hidden] { display: none !important; }
 .xpp button {
   font: inherit;
   color: var(--xpp-button-fg);
@@ -56,6 +58,21 @@
 .xpp-plots { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 6px; }
 .xpp-plot-title { text-align: center; font-weight: 600; padding: 0 0 4px; min-height: 1.2em; }
 .xpp-main-plot { flex: 1; min-width: 0; min-height: 0; position: relative; }
+.xpp-tabs { display: flex; flex-wrap: wrap; gap: 2px; margin-bottom: 4px; border-bottom: 1px solid var(--xpp-border); }
+.xpp .xpp-tab { border-radius: 3px 3px 0 0; border-bottom: none; padding: 3px 12px; }
+.xpp .xpp-tab-on { background: var(--xpp-accent); color: #fff; border-color: var(--xpp-accent); }
+.xpp-page { flex: 1; min-height: 0; min-width: 0; }
+.xpp-main-page { display: flex; flex-direction: column; }
+.xpp-auto-grab {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 6px 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--xpp-accent);
+  border-radius: 3px;
+}
 .xpp-main-plot canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .xpp-canvas { display: block; background: #fff; outline: none; image-rendering: pixelated; }
 .xpp-canvas.xpp-active { box-shadow: 0 0 0 2px var(--xpp-accent); }
@@ -98,6 +115,7 @@
   max-width: 100%;
   overflow: auto;
 }
+.xpp-plots > .xpp-window { margin: 0; }
 .xpp-window-title {
   display: flex;
   justify-content: space-between;

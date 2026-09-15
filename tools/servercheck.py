@@ -169,6 +169,18 @@ evs, ask = collect(lambda e: e.get('ev') == 'ask')
 send(cmd='answer', id=ask['id'], key='c')
 evs, _ = collect(lambda e: e.get('ev') == 'window' and e['op'] == 'create', timeout=5)
 check('Makewindow/Create opens window 2', any(e.get('ev') == 'window' and e.get('win') == 2 for e in evs))
+collect(is_idle)
+
+send(cmd='key', key='f')
+send(cmd='key', key='a')
+evs, _ = collect(lambda e: e.get('ev') == 'window' and e.get('win') == 101)
+check('File/Auto opens the AUTO window', any(e.get('ev') == 'window' and e.get('win') == 101 for e in evs))
+collect(is_idle)
+send(cmd='size', win=101, w=500, h=300)
+evs, _ = collect(is_idle)
+win = [e for e in evs if e.get('ev') == 'window' and e.get('win') == 101]
+check('size resizes the AUTO diagram', win and win[-1]['w'] == 500 and win[-1]['h'] == 300
+      and len(draw_ops(evs, 101)) > 5, str(win))
 
 send(cmd='key', key='f')
 send(cmd='key', key='q')

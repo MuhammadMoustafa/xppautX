@@ -29,10 +29,10 @@ Send `size` for window 1 as soon as the canvas size is known.
 |---|---|---|
 | `key` | `key` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. |
 | `answer` | `id`, `ok` (0/1), plus the kind's fields | Reply to an `ask`. Omitting `ok` means ok. |
-| `size` | `win`, `w`, `h` | Canvas size in pixels; the plot is redrawn. |
+| `size` | `win`, `w`, `h` | Canvas size in pixels; the plot is redrawn. For the AUTO diagram (`win` 101) the size includes the axis margins and applies when the current command ends; the server answers with `window` `create` for 101 and redraws the diagram. |
 | `set` | `kind` (`par` or `ic`), `name`, `value` | Change a parameter or initial condition (no redraw or rerun). |
 | `click` | `win` | The user selected plot window `win`. |
-| `redraw` | | Redraw the active plot window. |
+| `redraw` | | Redraw the active plot window, and the AUTO diagram when AUTO is open (for a client that reconnects). |
 | `state` | | Send `state` now. |
 | `auto` | `op`: `param`, `axes`, `numerics`, `run`, `grab`, `usr`, `clear`, `redraw`, `file` | The AUTO window buttons. |
 | `ani` | `op`: `step` (`n`), `reset`, `file`, `close` | The animation window buttons. |
