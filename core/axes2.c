@@ -15,6 +15,7 @@
 #include "main.h"
 #include "many_pops.h"
 #include "graf_par.h"
+#include "xpp_globals.h"
 
 
 #define NOAXES 0
@@ -158,7 +159,8 @@ void do_axes()
     switch(MyGraph->grtype)
     {
     case 0: Box_axis(MyGraph->xlo,MyGraph->xhi,MyGraph->ylo,MyGraph->yhi,
-		       MyGraph->xlabel,MyGraph->ylabel,1); break; 
+		       (MyGraph->xlabel[0]||!AxisVarLabels)?MyGraph->xlabel:s1,
+		       (MyGraph->ylabel[0]||!AxisVarLabels)?MyGraph->ylabel:s2,1); break; 
     case 5: Frame_3d(); break;
 
    }

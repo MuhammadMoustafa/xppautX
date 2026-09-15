@@ -53,7 +53,8 @@
   border-right: 1px solid var(--xpp-border);
 }
 .xpp-menu-item { text-align: left; white-space: nowrap; }
-.xpp-plots { flex: 1; min-width: 0; display: flex; padding: 6px; }
+.xpp-plots { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 6px; }
+.xpp-plot-title { text-align: center; font-weight: 600; padding: 0 0 4px; min-height: 1.2em; }
 .xpp-main-plot { flex: 1; min-width: 0; min-height: 0; position: relative; }
 .xpp-main-plot canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .xpp-canvas { display: block; background: #fff; outline: none; image-rendering: pixelated; }
@@ -67,7 +68,8 @@
   background: var(--xpp-panel);
   border-left: 1px solid var(--xpp-border);
 }
-.xpp-go { width: 100%; margin-bottom: 8px; }
+.xpp-go { display: flex; gap: 6px; margin-bottom: 8px; }
+.xpp-go button { flex: 1; }
 .xpp-values { margin-bottom: 10px; }
 .xpp-values-title { font-weight: 600; margin-bottom: 4px; }
 .xpp-value { display: flex; align-items: center; gap: 6px; margin: 2px 0; }

@@ -50,7 +50,7 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `state` | `pars` [[name,value]...], `ics` [[name,value]...], `rows`, `menu`, `win` | Current values; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics), `win` the active window. |
 | `idle` | | The command finished. |
 | `menu` | `which` | The main menu switched (0 main, 1 file, 2 numerics). |
-| `title` | `text` | Plot title bar. |
+| `title` | `text` | Title of the selected plot window: what it plots (`W vs V`). The server also labels unlabelled 2D axes with the plotted variables. |
 | `message` | one of `error`, `bottom`, `box`, `xy`, `auto`, `calc` | Status text. `box` with empty text removes a hint box. |
 | `progress` | `n`, `of` | Computation progress, at most 10 a second. |
 | `equilibrium` | `type`, `cplus`, `cminus`, `rplus`, `rminus`, `im`, `values` | Result of Sing pts. |

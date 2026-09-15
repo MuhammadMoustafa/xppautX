@@ -78,3 +78,5 @@ int mark_ipts, mark_ipte;
 int mark_ixs, mark_ixe, mark_iys, mark_iye;
 
 int aplot_range;
+
+int AxisVarLabels = 0;

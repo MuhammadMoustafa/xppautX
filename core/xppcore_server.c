@@ -74,6 +74,7 @@ int main(int argc, char **argv)
     Xup = 1;
     COLOR = 1;     /* init_X on a colour display */
     periodic = 1;
+    AxisVarLabels = 1; /* a plot without axis names is hard to read */
     xpp_build_colormap();
     init_main_graph();
     init_browser();

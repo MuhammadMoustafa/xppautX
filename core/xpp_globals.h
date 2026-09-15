@@ -85,4 +85,7 @@ extern int mark_ixs, mark_ixe, mark_iys, mark_iye;
 /* array plot */
 extern int aplot_range;
 
+/* label unlabelled 2D axes with the plotted variables (front ends that ask) */
+extern int AxisVarLabels;
+
 #endif

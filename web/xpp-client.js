@@ -220,8 +220,10 @@
       this.titleBar = el('div', 'xpp-title', 'XPP');
       this.menuPanel = el('div', 'xpp-menu');
       this.plotArea = el('div', 'xpp-plots');
+      this.mainTitle = el('div', 'xpp-plot-title');
       this.mainHost = el('div', 'xpp-main-plot');
-      this.plotArea.appendChild(this.mainHost);
+      this.plotArea.append(this.mainTitle, this.mainHost);
+      this.activeWin = 1;
       this.sidePanel = el('div', 'xpp-side');
       this.status = el('div', 'xpp-status');
       this.hint = el('span', 'xpp-hint');
@@ -350,10 +352,15 @@
         this.sidePanel.innerHTML = '';
         this.parTable = this.valueTable('Parameters', 'par');
         this.icTable = this.valueTable('Initial conditions', 'ic');
-        const go = el('button', 'xpp-go', 'Integrate');
-        go.title = 'Initialconds / Go (i g)';
+        const go = el('button', '', 'Integrate');
+        go.title = 'Initialconds / Go (i g): run from the initial conditions below';
         go.addEventListener('click', () => this.keys(['i', 'g']));
-        this.sidePanel.append(go, this.icTable.box, this.parTable.box);
+        const last = el('button', '', 'From end');
+        last.title = 'Initialconds / Last (i l): make the end of the last run the initial conditions and run from there';
+        last.addEventListener('click', () => this.keys(['i', 'l']));
+        const runs = el('div', 'xpp-go');
+        runs.append(go, last);
+        this.sidePanel.append(runs, this.icTable.box, this.parTable.box);
         this.sideBuilt = true;
       }
       this.fillTable(this.parTable, st.pars);
@@ -452,7 +459,7 @@
         }
         case 'state': this.state = ev; this.renderState(); this.renderMenu(); break;
         case 'menu': this.menuWhich = ev.which; this.renderMenu(); break;
-        case 'title': this.titleBar.textContent = ev.text; break;
+        case 'title': this.setPlotTitle(ev.text); break;
         case 'message': this.onMessage(ev); break;
         case 'progress': this.progress.textContent = ev.of ? `${ev.n}/${ev.of}` : ''; break;
         case 'idle':
@@ -509,8 +516,19 @@
           this.surfaces.delete(ev.win);
         }
       } else if (ev.op === 'select') {
+        this.activeWin = ev.win;
         for (const s of this.surfaces.values()) s.canvas.classList.toggle('xpp-active', s.id === ev.win);
       }
+    }
+
+    /* xppaut names the current graph window after what it plots ("W vs V") */
+    setPlotTitle(text) {
+      if (this.activeWin === 1) {
+        this.mainTitle.textContent = text;
+        return;
+      }
+      const s = this.surfaces.get(this.activeWin);
+      if (s && s.titleBar) s.titleBar.textContent = `Window ${this.activeWin}: ${text}`;
     }
 
     placeSurface(s, ev) {
@@ -522,6 +540,7 @@
       const frame = el('div', 'xpp-window');
       const bar = el('div', 'xpp-window-title', ev.title || (ev.win <= 10 ? `Window ${ev.win}` : ''));
       frame.append(bar);
+      s.titleBar = bar;
       s.frame = frame;
       if (ev.win === 101) {
         /* AUTO: buttons, the diagram, stability circle, info strip, hint */
