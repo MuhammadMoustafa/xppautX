@@ -810,8 +810,13 @@
         case 'idle':
           this.busy = false;
           this.progress.textContent = '';
+          this.aniPlaying = false;
           if (this.pendingSlide) {
             this.flushSlide();
+            break;
+          }
+          if (this.pendingAniUp || this.pendingAniMove || (this.pendingSeek !== undefined && this.pendingSeek !== null)) {
+            this.flushAniInput();
             break;
           }
           if (this.typeahead.length) this.key(this.typeahead.shift());
@@ -821,6 +826,8 @@
         case 'source': this.showSource(ev); break;
         case 'equations': this.showEquations(ev); break;
         case 'browser': this.onBrowser(ev); break;
+        case 'ani': this.onAni(ev); break;
+        case 'film': this.onFilm(ev); break;
         case 'ping': this.flash(); break;
         case 'bye': this.hint.textContent = 'XPP has exited.'; break;
         /* sent by the host, not the server */
@@ -946,18 +953,7 @@
         new ResizeObserver(fit).observe(frame);
       } else if (ev.win === 104) {
         bar.textContent = 'Animation';
-        const buttons = el('div', 'xpp-ani-buttons');
-        const add = (label, cmd) => {
-          const b = el('button', '', label);
-          b.addEventListener('click', () => this.command(cmd));
-          buttons.appendChild(b);
-        };
-        add('File', {cmd: 'ani', op: 'file'});
-        add('Reset', {cmd: 'ani', op: 'reset'});
-        add('<<<<', {cmd: 'ani', op: 'step', n: -1});
-        add('>>>>', {cmd: 'ani', op: 'step', n: 1});
-        add('>> x10', {cmd: 'ani', op: 'step', n: 10});
-        frame.append(buttons, s.canvas);
+        frame.append(this.buildAnimation(s, frame, bar));
       } else {
         frame.appendChild(s.canvas);
         s.canvas.addEventListener('focus', () => this.send({cmd: 'click', win: s.id}));
@@ -965,6 +961,208 @@
       const label = ev.win === 101 ? 'AUTO' : ev.win === 104 ? 'Animation' : `Window ${ev.win}`;
       this.addPage(ev.win, label, frame);
       this.showPage(ev.win);
+    }
+
+    /* ---- animation window (aniwin.c's VCR) ---- */
+
+    buildAnimation(s, frame, bar) {
+      const box = el('div', 'xpp-ani');
+      const buttons = el('div', 'xpp-ani-buttons');
+      const add = (label, hint, click) => {
+        const b = el('button', '', label);
+        b.title = hint;
+        b.addEventListener('click', click);
+        buttons.appendChild(b);
+        return b;
+      };
+      const ani = op => () => this.command({cmd: 'ani', op});
+      /* while Go plays these reach its loop; otherwise they are commands */
+      const live = op => () => (this.aniPlaying ? this.send({cmd: 'ani', op}) : this.command({cmd: 'ani', op}));
+      add('Go', 'Play the animation', () => {
+        if (this.busy) return;
+        this.aniPlaying = true;
+        this.command({cmd: 'ani', op: 'go'});
+      });
+      add('Pause', 'Stop playing', () => this.send({cmd: 'ani', op: 'pause'}));
+      add('Reset', 'Back to the first frame', ani('reset'));
+      add('\u25c0', 'One frame back', () => this.command({cmd: 'ani', op: 'step', n: -1}));
+      add('\u25b6', 'One frame forward', () => this.command({cmd: 'ani', op: 'step', n: 1}));
+      add('Fast', 'Less delay between frames', live('fast'));
+      add('Slow', 'More delay between frames', live('slow'));
+      add('Skip', 'Frames to advance per step', ani('skip'));
+      add('File', 'Load an animation (.ani) file', ani('file'));
+      add('Grab', 'Drag the grab points of the animation with the mouse', ani('grab'));
+      this.aniFly = add('Fly', 'Animate while integrating', ani('fly'));
+      add('Frames', 'Save frames while playing: PPM files or an animated GIF', ani('mpeg'));
+      add('Close', 'Close the animation window', ani('close'));
+      this.aniSlider = el('input', 'xpp-ani-slider');
+      this.aniSlider.type = 'range';
+      this.aniSlider.min = 0;
+      this.aniSlider.max = 0;
+      this.aniSlider.addEventListener('input', () => {
+        this.pendingSeek = Number(this.aniSlider.value);
+        if (!this.busy) this.flushAniInput();
+      });
+      this.aniInfo = el('div', 'xpp-ani-info');
+      /* grab: the mouse drags points; moves are coalesced like slider moves */
+      s.canvas.addEventListener('mousedown', e => {
+        if (!this.aniState || !this.aniState.grab || this.busy) return;
+        const [x, y] = s.at(e);
+        this.command({cmd: 'ani', op: 'mouse', what: 'down', x, y});
+        const move = m => {
+          const [mx, my] = s.at(m);
+          this.pendingAniMove = {mx, my};
+          if (!this.busy) this.flushAniInput();
+        };
+        const up = u => {
+          window.removeEventListener('mousemove', move);
+          window.removeEventListener('mouseup', up);
+          const [ux, uy] = s.at(u);
+          this.pendingAniMove = null;
+          this.pendingAniUp = {x: ux, y: uy};
+          if (!this.busy) this.flushAniInput();
+        };
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', up);
+      });
+      box.append(buttons, this.aniSlider, this.aniInfo, s.canvas);
+      const fit = () => {
+        if (!frame.clientWidth) return;
+        const w = Math.floor(frame.clientWidth - 16);
+        const h = this.root.classList.contains('xpp-narrow') ? Math.round(w * 1.2)
+          : Math.floor(frame.clientHeight - bar.offsetHeight - buttons.offsetHeight
+            - this.aniSlider.offsetHeight - this.aniInfo.offsetHeight - 24);
+        if (w < 80 || h < 80 || (Math.abs(w - s.canvas.width) < 4 && Math.abs(h - s.canvas.height) < 5)) return;
+        clearTimeout(this.aniSizeTimer);
+        this.aniSizeTimer = setTimeout(() => this.send({cmd: 'size', win: 104, w, h}), 150);
+      };
+      new ResizeObserver(fit).observe(frame);
+      return box;
+    }
+
+    /* the latest slider position or grab drag, one command at a time */
+    flushAniInput() {
+      if (this.pendingAniUp) {
+        const u = this.pendingAniUp;
+        this.pendingAniUp = null;
+        this.command({cmd: 'ani', op: 'mouse', what: 'up', x: u.x, y: u.y});
+      } else if (this.pendingAniMove) {
+        const m = this.pendingAniMove;
+        this.pendingAniMove = null;
+        this.command({cmd: 'ani', op: 'mouse', what: 'move', x: m.mx, y: m.my});
+      } else if (this.pendingSeek !== undefined && this.pendingSeek !== null) {
+        const pos = this.pendingSeek;
+        this.pendingSeek = null;
+        this.command({cmd: 'ani', op: 'seek', pos});
+      }
+    }
+
+    onAni(ev) {
+      this.aniState = ev;
+      if (!this.aniSlider) return;
+      this.aniSlider.max = Math.max(0, ev.rows - 1);
+      if (document.activeElement !== this.aniSlider) this.aniSlider.value = ev.pos;
+      this.aniFly.textContent = ev.fly ? 'Fly \u2713' : 'Fly';
+      this.aniInfo.textContent = (ev.grab ? 'Grab: drag a point with the mouse. ' : '')
+        + `Frame ${ev.pos} of ${ev.rows}, skip ${ev.skip}, delay ${ev.speed} ms`;
+    }
+
+    /* ---- kinescope: frames of a plot window kept here ---- */
+
+    onFilm(ev) {
+      this.film = this.film || [];
+      if (ev.op === 'capture') {
+        const src = this.surfaces.get(ev.win);
+        if (src) this.film.push(src.ctx.getImageData(0, 0, src.canvas.width, src.canvas.height));
+      } else if (ev.op === 'reset') {
+        this.film = [];
+        if (this.pages.has('film')) this.removePage('film');
+      } else if (ev.op === 'play' || ev.op === 'autoplay') {
+        this.openFilm();
+        this.showFilmFrame(0);
+        if (ev.op === 'autoplay') this.playFilm(ev.cycles, ev.delay);
+      }
+    }
+
+    openFilm() {
+      if (!this.pages.has('film')) {
+        const page = el('div', 'xpp-page xpp-window xpp-film');
+        const buttons = el('div', 'xpp-ani-buttons');
+        const add = (label, hint, click) => {
+          const b = el('button', '', label);
+          b.title = hint;
+          b.addEventListener('click', click);
+          buttons.appendChild(b);
+        };
+        add('\u23ee', 'First frame (Home)', () => this.showFilmFrame(0));
+        add('\u25c0', 'Previous frame (Left)', () => this.showFilmFrame(this.filmPos - 1));
+        add('\u25b6', 'Next frame (Right, or click the picture)', () => this.showFilmFrame(this.filmPos + 1));
+        add('\u23ed', 'Last frame (End)', () => this.showFilmFrame(this.film.length - 1));
+        add('Play', 'Play once', () => this.playFilm(1, 100));
+        add('Stop', 'Stop playing', () => clearTimeout(this.filmTimer));
+        this.filmInfo = el('span', 'xpp-ani-info');
+        buttons.appendChild(this.filmInfo);
+        this.filmCanvas = el('canvas', 'xpp-canvas');
+        this.filmCanvas.tabIndex = 0;
+        this.filmCanvas.addEventListener('click', () => this.showFilmFrame(this.filmPos + 1));
+        this.filmCanvas.addEventListener('keydown', e => {
+          const n = this.film.length;
+          const to = {ArrowRight: this.filmPos + 1, ArrowLeft: this.filmPos - 1, Home: 0, End: n - 1}[e.key];
+          if (to === undefined) return;
+          e.preventDefault();
+          e.stopPropagation();
+          this.showFilmFrame(to);
+        });
+        page.append(buttons, this.filmCanvas);
+        this.addPage('film', 'Kinescope', page, () => clearTimeout(this.filmTimer));
+      }
+      this.showPage('film');
+    }
+
+    showFilmFrame(i) {
+      const n = this.film ? this.film.length : 0;
+      if (!n || !this.filmCanvas) return;
+      this.filmPos = ((i % n) + n) % n; /* wraps around like X11 */
+      const f = this.film[this.filmPos];
+      this.filmCanvas.width = f.width;
+      this.filmCanvas.height = f.height;
+      this.filmCanvas.getContext('2d').putImageData(f, 0, 0);
+      this.filmInfo.textContent = `Frame ${this.filmPos + 1} of ${n}`;
+    }
+
+    playFilm(cycles, delay) {
+      clearTimeout(this.filmTimer);
+      let left = Math.max(1, cycles) * this.film.length - 1;
+      const tick = () => {
+        if (left-- <= 0) return;
+        this.showFilmFrame(this.filmPos + 1);
+        this.filmTimer = setTimeout(tick, Math.max(10, delay));
+      };
+      this.showFilmFrame(0);
+      this.filmTimer = setTimeout(tick, Math.max(10, delay));
+    }
+
+    /* the server writes frames and GIFs from what is drawn here */
+    answerPixels(a) {
+      let img = null;
+      if (a.film !== undefined) img = this.film && this.film[a.film];
+      else {
+        const src = this.surfaces.get(a.win);
+        if (src) img = src.ctx.getImageData(0, 0, src.canvas.width, src.canvas.height);
+      }
+      if (!img) {
+        this.cancel();
+        return;
+      }
+      const n = img.width * img.height, rgb = new Uint8Array(n * 3);
+      for (let i = 0, j = 0; i < n; i++, j += 4) {
+        rgb[i * 3] = img.data[j];
+        rgb[i * 3 + 1] = img.data[j + 1];
+        rgb[i * 3 + 2] = img.data[j + 2];
+      }
+      let bin = '';
+      for (let i = 0; i < rgb.length; i += 0x8000) bin += String.fromCharCode.apply(null, rgb.subarray(i, i + 0x8000));
+      this.answer({w: img.width, h: img.height, rgb: btoa(bin)});
     }
 
     command(cmd) {
@@ -1067,6 +1265,7 @@
         case 'file': this.askForm(a, ['File'], [a.file], `${a.title}  (${a.wild}, in ${a.dir})`); break;
         case 'checklist': this.askChecklist(a); break;
         case 'alert': this.askAlert(a); break;
+        case 'pixels': this.answerPixels(a); return;
         case 'mouse':
         case 'rubber':
           this.root.classList.add('xpp-picking');

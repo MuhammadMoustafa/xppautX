@@ -280,3 +280,8 @@
 .xpp-data-sel .xpp-data-t { background-color: var(--xpp-accent); }
 .xpp-actions { padding: 6px; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
 .xpp-action { text-align: left; }
+.xpp-ani { display: flex; flex-direction: column; gap: 4px; padding: 4px 6px 6px; }
+.xpp-ani-slider { width: 100%; }
+.xpp-ani-info { font-family: var(--vscode-editor-font-family, monospace); padding: 0 4px; }
+.xpp-film { display: flex; flex-direction: column; }
+.xpp-film .xpp-canvas { margin: 6px; align-self: flex-start; cursor: pointer; }

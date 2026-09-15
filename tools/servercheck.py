@@ -7,7 +7,7 @@ Plays a fixed session (integrate, change a parameter, answer a menu, a
 string prompt and a form, find an equilibrium, open a second plot window)
 and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
-import argparse, json, os, shutil, subprocess, sys, tempfile, threading, queue
+import argparse, base64, json, os, shutil, subprocess, sys, tempfile, threading, queue
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppcore-server')
@@ -218,6 +218,39 @@ send(cmd='answer', id=ask['id'], key='c')
 evs, _ = collect(lambda e: e.get('ev') == 'window' and e['op'] == 'create', timeout=5)
 check('Makewindow/Create opens window 2', any(e.get('ev') == 'window' and e.get('win') == 2 for e in evs))
 collect(is_idle)
+
+
+def answer_asks(until, replies, timeout=20):
+    """collect up to until(ev), answering asks whose kind is in replies"""
+    got = []
+    while True:
+        evs, e = collect(lambda e: e.get('ev') == 'ask' or until(e), timeout)
+        got += evs
+        if e is None or e.get('ev') != 'ask' or e['kind'] not in replies:
+            return got, e
+        send(cmd='answer', id=e['id'], **replies[e['kind']](e))
+
+
+pixels = lambda e: {'w': 2, 'h': 1, 'rgb': base64.b64encode(bytes([255, 0, 0, 0, 0, 255])).decode()}
+menu = lambda key: (lambda e: {'key': key})
+for _ in range(2):
+    send(cmd='key', key='k')
+    evs, _ = answer_asks(lambda e: e.get('ev') == 'film', {'menu': menu('c')})
+    collect(is_idle)
+check('Kinescope/Capture sends film captures', evs and evs[-1].get('count') == 2, str(evs[-1:]))
+send(cmd='key', key='k')
+evs, e = answer_asks(is_idle, {'menu': menu('s'), 'string': lambda e: {'value': 'kin'}, 'pixels': pixels})
+check('Kinescope/Save asks for the pixels and writes GIFs',
+      all(os.path.exists(os.path.join(run, 'kin_%d.gif' % i)) for i in range(2)), str(os.listdir(run)))
+send(cmd='key', key='v')
+evs, _ = answer_asks(is_idle, {'menu': menu('t')})
+send(cmd='size', win=104, w=300, h=200)
+evs, _ = collect(is_idle)
+check('the animation window opens and resizes', any(e.get('ev') == 'window' and e.get('win') == 104
+      and e['w'] == 300 and e['h'] == 200 for e in evs), str([e for e in evs if e.get('ev') == 'window']))
+send(cmd='ani', op='close')
+evs, _ = collect(is_idle)
+check('the animation window closes', any(e.get('ev') == 'window' and e.get('op') == 'destroy' for e in evs))
 
 send(cmd='key', key='f')
 send(cmd='key', key='a')

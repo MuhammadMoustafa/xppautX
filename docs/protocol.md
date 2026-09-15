@@ -44,7 +44,7 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `redraw` | | Redraw the active plot window, and the AUTO diagram when AUTO is open (for a client that reconnects). |
 | `state` | | Send `state` now. |
 | `auto` | `op`: `param`, `axes`, `numerics`, `run`, `grab`, `usr`, `clear`, `redraw`, `file` | The AUTO window buttons. |
-| `ani` | `op`: `step` (`n`), `reset`, `file`, `close` | The animation window buttons. |
+| `ani` | `op`: `go`, `pause`, `fast`, `slow`, `step` (`n`), `seek` (`pos`), `reset`, `skip`, `file`, `mpeg`, `grab`, `mouse` (`what` down/move/up, `x`, `y`), `fly`, `close` | The animation window buttons. `go` plays until the last frame; `pause`, `fast`, `slow` sent while it plays reach its loop. `mpeg` asks for frame saving (PPM files or `anim.gif`), done with `pixels` asks while playing. `mouse` drags a grab point after `grab`. `size` for win 104 resizes the picture when the command ends. |
 | `abort` | | Stop a running computation. |
 | `quit` | | Exit immediately. |
 
@@ -65,6 +65,8 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `equilibrium` | `type`, `cplus`, `cminus`, `rplus`, `rminus`, `im`, `values` | Result of Sing pts. |
 | `source` | `lines`, `comments` [[text, has action]...] | File/Prt src. |
 | `equations` | `lines` | One `dX/dT=...` line per equation. |
+| `ani` | `pos`, `rows`, `fly`, `grab`, `skip`, `speed` | Animation state for its slider and toggles; sent with every frame. |
+| `film` | `op` (`capture`, `reset`, `play`, `autoplay`), `count`, `win`, `cycles`, `delay` | Kinescope. The client keeps the frames: on `capture` it copies window `win` as it is drawn now; `play` shows them, `autoplay` plays `cycles` times `delay` ms apart. |
 | `browser` | `rows`, `cols` (names, `T` first), `row0` (selected row), `start`, `end` (the First..Last range), `from`, `col`, `data` | Rows `from`.. as [T, column `col`, `col`+1, ...]; `null` for NaN. Sent for a `browser` block request and after any command that changed the data while the client shows the browser. |
 | `ping` | | Beep. |
 | `bye` | | The program is exiting. |
@@ -113,10 +115,10 @@ Each op is an array; coordinates are pixels from the top-left of the window.
 | `mouse` | `win` | `x`, `y` |
 | `rubber` | `win`, `flag` (0 box, 1 line) | `x`, `y`, `x2`, `y2` |
 | `grab` | `win` | `key`, or `x`, `y` for a click on the diagram |
+| `pixels` | `win`, or `film` (a kinescope frame index) | `w`, `h`, `rgb` (base64 of w*h*3 bytes). Frame, GIF and kinescope writers use it: only the client has the picture. |
 
 ## Not yet implemented
 
-Kinescope playback and saving, array plots and window scrolling send a
-`message` `error` instead of working, and there is no animation playback
-loop (`Go`) yet. docs/front-end-gaps.md lists what the X11 front end still
+Array plots and window scrolling send a `message` `error` instead of
+working. docs/front-end-gaps.md lists what the X11 front end still
 does that this protocol does not.

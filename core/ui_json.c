@@ -37,6 +37,8 @@
 #include "txtread.h"
 #include "shoot.h"
 #include "load_eqn.h"
+#include "scrngif.h"
+#include "my_rhs.h"
 #include <strings.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -69,6 +71,9 @@ typedef struct {
 } ACTION; /* form_ode.c */
 extern ACTION comments[];
 extern int n_comments;
+extern MPEG_SAVE mpeg;
+extern int n_anicom, ani_speed, ani_speed_inc, ani_grab_flag, animation_on_the_fly;
+extern int ks_ncycle, ks_speed;
 void commander(int ch); /* commands.c */
 
 #define MAX_LEN_EBOX 86 /* edit_rhs.h */
@@ -222,8 +227,8 @@ static void json_flush(void)
 
 /* ---- input ------------------------------------------------------------- */
 
-static char inbuf[1 << 16];
-static int inlen;
+static char *inbuf, *linebuf;
+static size_t inlen, incap, linecap;
 
 /* up to n bytes of input into buf, waiting at most wait_ms (< 0: block).
    Returns the byte count, 0 on timeout; end of input quits the program. */
@@ -258,26 +263,36 @@ static int read_input(char *buf, int n, int wait_ms)
 }
 #endif
 
-/* next complete line into line (without newline). wait_ms < 0 blocks.
-   Returns 1 for a line, 0 on timeout. End of input quits the program. */
-static int read_line(char *line, int max, int wait_ms)
+/* the next complete line (without newline), in a buffer that stays valid
+   until the next call; NULL on timeout. wait_ms < 0 blocks. Lines can be
+   long (the pixels of a window in an answer). End of input quits. */
+static char *read_line(int wait_ms)
 {
     for (;;) {
-        char *nl = memchr(inbuf, '\n', inlen);
+        char *nl = inlen ? memchr(inbuf, '\n', inlen) : NULL;
         int r;
         if (nl) {
-            int n = nl - inbuf;
-            if (n >= max) n = max - 1;
-            memcpy(line, inbuf, n);
-            line[n] = 0;
-            if (n > 0 && line[n - 1] == '\r') line[n - 1] = 0;
-            memmove(inbuf, nl + 1, inlen - (nl + 1 - inbuf));
-            inlen -= nl + 1 - inbuf;
-            return 1;
+            size_t n = nl - inbuf;
+            if (n + 1 > linecap) {
+                linecap = n + 1 + 4096;
+                linebuf = realloc(linebuf, linecap);
+            }
+            memcpy(linebuf, inbuf, n);
+            linebuf[n] = 0;
+            if (n > 0 && linebuf[n - 1] == '\r') linebuf[n - 1] = 0;
+            memmove(inbuf, nl + 1, inlen - n - 1);
+            inlen -= n + 1;
+            return linebuf;
         }
-        if (inlen >= (int)sizeof inbuf - 1) inlen = 0; /* overlong line: drop */
-        r = read_input(inbuf + inlen, sizeof inbuf - 1 - inlen, wait_ms);
-        if (r == 0) return 0;
+        if (incap - inlen < 65536) {
+            if (incap > (256u << 20)) inlen = 0; /* overlong line: drop it */
+            else {
+                incap = incap * 2 + 65536;
+                inbuf = realloc(inbuf, incap);
+            }
+        }
+        r = read_input(inbuf + inlen, (int)(incap - inlen), wait_ms);
+        if (r == 0) return NULL;
         inlen += r;
     }
 }
@@ -436,6 +451,7 @@ static int key_code(const char *k)
 }
 
 static void apply_size(const char *line);
+static void apply_ani_size(void);
 static void apply_set(const char *line);
 static void browser_rows(const char *line);
 
@@ -461,7 +477,8 @@ static int handle_async(const char *line)
 /* ---- prompts ------------------------------------------------------------- */
 
 static int ask_id;
-static char answer[1 << 16];
+static char *answer;
+static size_t answer_cap;
 
 /* b holds {"ev":"ask","id":N,"kind":... without the closing brace; send
    it and wait for the answer, which is left in answer[]. Returns 1 when the
@@ -473,14 +490,21 @@ static int ask_wait(Buf *b, int id)
     send_buf(b);
     free(b->s);
     for (;;) {
-        read_line(answer, sizeof answer, -1);
-        if (handle_async(answer)) {
+        char *line = read_line(-1);
+        if (handle_async(line)) {
             flush_ops();
             fflush(proto);
             continue;
         }
-        if (is_cmd(answer, "answer") && (int)get_num(answer, "id", -1) == id) {
-            const char *ok = js_find(answer, "ok");
+        if (is_cmd(line, "answer") && (int)get_num(line, "id", -1) == id) {
+            size_t n = strlen(line) + 1;
+            const char *ok;
+            if (n > answer_cap) {
+                answer_cap = n;
+                answer = realloc(answer, n);
+            }
+            memcpy(answer, line, n);
+            ok = js_find(answer, "ok");
             return ok == NULL || js_num(ok, 0) != 0;
         }
         /* anything else (keys typed at the plot while a dialog is up) is
@@ -724,7 +748,7 @@ static void j_show_menu(int which)
 
 static int j_check_abort(void)
 {
-    char line[4096];
+    char *line;
     static struct timeval last;
     struct timeval now;
     /* let the client see the picture grow, a few frames a second */
@@ -734,7 +758,7 @@ static int j_check_abort(void)
         flush_ops();
         fflush(proto);
     }
-    while (read_line(line, sizeof line, 0)) {
+    while ((line = read_line(0)) != NULL) {
         if (handle_async(line)) continue;
         if (is_cmd(line, "key")) {
             char k[32];
@@ -1125,7 +1149,6 @@ static void j_cput_text(void)
 static void j_draw_freeze(void) { draw_freeze(draw_win); }
 static void j_draw_text(int x, int y, char *s);
 static void j_put_text(int x, int y, char *s) { j_draw_text(x, y, s); }
-static int j_film_clip(void) { return 1; }
 
 static void j_unsupported(const char *what)
 {
@@ -1134,10 +1157,157 @@ static void j_unsupported(const char *what)
     j_err_msg(msg);
 }
 
-static void j_movie_play_back(void) { j_unsupported("Kinescope playback"); }
-static void j_movie_auto_play(void) { j_unsupported("Kinescope playback"); }
-static void j_movie_save(char *basename, int fmat) { (void)basename; (void)fmat; j_unsupported("Kinescope save"); }
-static void j_movie_make_anigif(void) { j_unsupported("Animated GIF"); }
+/* ---- pixels -------------------------------------------------------------------
+   Only the client has the rendered picture. Frame and GIF writers ask for
+   it: {"kind":"pixels","win":W} or {"film":i} (a kinescope frame), answered
+   with w, h and base64 RGB. */
+static int b64_value(int c)
+{
+    if (c >= 'A' && c <= 'Z') return c - 'A';
+    if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+    if (c >= '0' && c <= '9') return c - '0' + 52;
+    if (c == '+') return 62;
+    if (c == '/') return 63;
+    return -1;
+}
+
+/* malloc'd w*h*3 RGB bytes, or NULL when cancelled */
+static unsigned char *ask_pixels(int win, int film, int *w, int *h)
+{
+    Buf b;
+    const char *v;
+    unsigned char *rgb;
+    size_t n, k = 0;
+    int q[4], nq = 0, id = ask_begin(&b, "pixels");
+    if (film >= 0) buf_printf(&b, ",\"film\":%d", film);
+    else buf_printf(&b, ",\"win\":%d", win);
+    if (!ask_wait(&b, id)) return NULL;
+    *w = (int)get_num(answer, "w", 0);
+    *h = (int)get_num(answer, "h", 0);
+    v = js_find(answer, "rgb");
+    if (!v || *v != '"' || *w <= 0 || *h <= 0 || *w > 8192 || *h > 8192) return NULL;
+    n = (size_t)*w * (size_t)*h * 3;
+    rgb = calloc(n, 1);
+    for (v++; *v && *v != '"' && k < n; v++) {
+        int d = b64_value((unsigned char)*v);
+        if (d < 0) continue;
+        q[nq++] = d;
+        if (nq == 4) {
+            rgb[k++] = (unsigned char)(q[0] << 2 | q[1] >> 4);
+            if (k < n) rgb[k++] = (unsigned char)(q[1] << 4 | q[2] >> 2);
+            if (k < n) rgb[k++] = (unsigned char)(q[2] << 6 | q[3]);
+            nq = 0;
+        }
+    }
+    if (nq >= 2 && k < n) rgb[k++] = (unsigned char)(q[0] << 2 | q[1] >> 4);
+    if (nq >= 3 && k < n) rgb[k++] = (unsigned char)(q[1] << 4 | q[2] >> 2);
+    return rgb;
+}
+
+static int write_ppm(const char *file, unsigned char *rgb, int w, int h)
+{
+    FILE *fp = fopen(file, "wb");
+    if (!fp) return 0;
+    fprintf(fp, "P6\n%d %d\n255\n", w, h);
+    fwrite(rgb, 3, (size_t)w * h, fp);
+    fclose(fp);
+    return 1;
+}
+
+/* the GIF writer takes at most 256 colours; a canvas smooths its lines */
+static void web_safe_colors(unsigned char *rgb, int w, int h)
+{
+    size_t i, n = (size_t)w * h * 3;
+    for (i = 0; i < n; i++) rgb[i] = (unsigned char)(((rgb[i] + 25) / 51) * 51);
+}
+
+static void write_gif(const char *file, unsigned char *rgb, int w, int h)
+{
+    FILE *fp = fopen(file, "wb");
+    if (!fp) return;
+    web_safe_colors(rgb, w, h);
+    gif_stuff_ppm(rgb, w, h, fp, MAKE_ONE_GIF);
+    fclose(fp);
+}
+
+/* ---- kinescope: the client keeps the frames ------------------------------------ */
+#define MAXFILM 250 /* kinescope.c */
+static int film_count;
+
+static void send_film(const char *what)
+{
+    Buf b = {0};
+    buf_printf(&b, "{\"ev\":\"film\",\"op\":\"%s\",\"count\":%d,\"win\":%lu,\"cycles\":%d,\"delay\":%d}",
+               what, film_count, (unsigned long)draw_win, ks_ncycle, ks_speed);
+    send_buf(&b);
+    free(b.s);
+}
+
+static int j_film_clip(void)
+{
+    if (film_count >= MAXFILM) return 0;
+    film_count++;
+    send_film("capture");
+    return 1;
+}
+
+static void j_reset_film(void)
+{
+    film_count = 0;
+    send_film("reset");
+}
+
+static void j_movie_play_back(void)
+{
+    if (film_count) send_film("play");
+}
+
+static void j_movie_auto_play(void)
+{
+    if (film_count) send_film("autoplay");
+}
+
+static void j_movie_save(char *basename, int fmat)
+{
+    char file[XPP_MAX_NAME + 32];
+    int i, w, h;
+    for (i = 0; i < film_count; i++) {
+        unsigned char *rgb = ask_pixels(0, i, &w, &h);
+        if (!rgb) return;
+        snprintf(file, sizeof file, "%s_%d.%s", basename, i, fmat == 1 ? "ppm" : "gif");
+        if (fmat == 1) write_ppm(file, rgb, w, h);
+        else write_gif(file, rgb, w, h);
+        free(rgb);
+    }
+}
+
+static void j_movie_make_anigif(void)
+{
+    FILE *fp;
+    int i, w, h, w0 = 0, h0 = 0;
+    if (film_count == 0) return;
+    fp = fopen("anim.gif", "wb");
+    if (!fp) return;
+    set_global_map(1);
+    for (i = 0; i < film_count; i++) {
+        unsigned char *rgb = ask_pixels(0, i, &w, &h);
+        if (!rgb) break;
+        if (i == 0) {
+            w0 = w;
+            h0 = h;
+        } else if (w != w0 || h != h0) {
+            free(rgb);
+            j_err_msg("All clips must be same size");
+            break;
+        }
+        web_safe_colors(rgb, w, h);
+        gif_stuff_ppm(rgb, w, h, fp, i == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
+        free(rgb);
+    }
+    end_ani_gif(fp);
+    fclose(fp);
+    set_global_map(0);
+}
 static void j_scroll_window(void) { j_unsupported("Scroll"); }
 static void j_auto_scroll_window(void) { j_unsupported("Scroll"); }
 
@@ -1289,6 +1459,144 @@ static void j_auto_show_hint(void) { send_simple("message", "auto", Auto.hinttxt
 
 /* ---- animation window ------------------------------------------------------------ */
 
+/* the animation window's state for its slider and toggles */
+static void j_ani_slider(void)
+{
+    Buf b = {0};
+    buf_printf(&b, "{\"ev\":\"ani\",\"pos\":%d,\"rows\":%d,\"fly\":%d,\"grab\":%d,\"skip\":%d,\"speed\":%d}",
+               vcr.pos, my_browser.maxrow, animation_on_the_fly, ani_grab_flag, vcr.inc, ani_speed);
+    send_buf(&b);
+    free(b.s);
+}
+
+/* between frames of Go: 1 when Pause, ABORT or Esc stops the playback */
+static int ani_wait(int ms)
+{
+    struct timeval start, now;
+    gettimeofday(&start, NULL);
+    flush_ops();
+    fflush(proto);
+    for (;;) {
+        char *line, o[16];
+        long left;
+        gettimeofday(&now, NULL);
+        left = ms - ((now.tv_sec - start.tv_sec) * 1000 + (now.tv_usec - start.tv_usec) / 1000);
+        line = read_line(left > 0 ? (int)left : 0);
+        if (!line) return 0;
+        if (handle_async(line)) continue;
+        if (is_cmd(line, "abort")) return 1;
+        if (is_cmd(line, "key")) {
+            get_str(line, "key", o, sizeof o);
+            if (key_code(o) == ESC) return 1;
+        }
+        if (!is_cmd(line, "ani")) continue;
+        get_str(line, "op", o, sizeof o);
+        if (strcmp(o, "pause") == 0) return 1;
+        if (strcmp(o, "fast") == 0 && (ani_speed -= ani_speed_inc) < 0) ani_speed = 0;
+        if (strcmp(o, "slow") == 0 && (ani_speed += ani_speed_inc) > 100) ani_speed = 100;
+    }
+}
+
+/* the Go button (aniwin.c ani_flip without the X pixmap) */
+static void ani_go(void)
+{
+    double y[MAXODE];
+    float **ss = my_browser.data;
+    char file[160];
+    FILE *gif = NULL;
+    int i, stop = 0, frame = 0, written = 0, w, h;
+    if (n_anicom == 0 || my_browser.maxrow < 2) return;
+    set_ani_perm();
+    if (mpeg.aviflag == 1) {
+        gif = fopen("anim.gif", "wb");
+        set_global_map(1);
+    }
+    while (!stop) {
+        int row = vcr.pos, ppm = mpeg.flag > 0 && frame % (mpeg.skip > 0 ? mpeg.skip : 1) == 0;
+        for (i = 0; i < NODE + NMarkov; i++) y[i] = ss[i + 1][row];
+        set_fix_rhs((double)ss[0][row], y);
+        xpp_ui.ani_clear();
+        render_ani();
+        xpp_ui.ani_show();
+        if (ppm || gif) {
+            unsigned char *rgb = ask_pixels(WIN_ANI, -1, &w, &h);
+            if (!rgb) break;
+            if (ppm) {
+                snprintf(file, sizeof file, "%s_%d.ppm", mpeg.root, written++);
+                write_ppm(file, rgb, w, h);
+            }
+            if (gif) {
+                web_safe_colors(rgb, w, h);
+                gif_stuff_ppm(rgb, w, h, gif, frame == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
+            }
+            free(rgb);
+        }
+        frame++;
+        stop = ani_wait(ani_speed * (mpeg.aviflag == 1 || mpeg.flag > 0 ? 6 : 1));
+        vcr.pos += vcr.inc;
+        if (vcr.pos >= my_browser.maxrow) {
+            stop = 1;
+            vcr.pos = 0;
+            reset_comets();
+        }
+    }
+    mpeg.flag = 0;
+    if (gif) {
+        end_ani_gif(gif);
+        fclose(gif);
+        set_global_map(0);
+    }
+    j_ani_slider();
+}
+
+/* a size the client asked for, applied when the running command ends */
+static int ani_size_w, ani_size_h;
+
+static void apply_ani_size(void)
+{
+    int w = 4 * (ani_size_w / 4), h = 5 * (ani_size_h / 5);
+    if (!ani_size_w || !vcr.iexist) return;
+    ani_size_w = ani_size_h = 0;
+    if (w < 40 || h < 40 || (w == vcr.wid && h == vcr.hgt)) return;
+    vcr.wid = w;
+    vcr.hgt = h;
+    send_window("create", WIN_ANI, w, h, "Animation");
+    if (n_anicom) ani_flip1(0);
+}
+
+static void ani_command(const char *line)
+{
+    char o[16], what[8];
+    int x = (int)get_num(line, "x", 0), yy = (int)get_num(line, "y", 0);
+    get_str(line, "op", o, sizeof o);
+    if (strcmp(o, "step") == 0) ani_flip1((int)get_num(line, "n", 1));
+    else if (strcmp(o, "reset") == 0) ani_reset();
+    else if (strcmp(o, "file") == 0) get_ani_file(NULL);
+    else if (strcmp(o, "go") == 0) ani_go();
+    else if (strcmp(o, "skip") == 0) ani_newskip();
+    else if (strcmp(o, "mpeg") == 0) ani_create_mpeg();
+    else if (strcmp(o, "fast") == 0 && (ani_speed -= ani_speed_inc) < 0) ani_speed = 0;
+    else if (strcmp(o, "slow") == 0 && (ani_speed += ani_speed_inc) > 100) ani_speed = 100;
+    else if (strcmp(o, "fly") == 0) animation_on_the_fly = 1 - animation_on_the_fly;
+    else if (strcmp(o, "grab") == 0) ani_grab_start();
+    else if (strcmp(o, "seek") == 0 && my_browser.maxrow >= 2) {
+        vcr.pos = 0;
+        ani_flip1(0);
+        ani_flip1((int)get_num(line, "pos", 0));
+    } else if (strcmp(o, "mouse") == 0 && ani_grab_flag) {
+        /* dragging a grab point: down, move..., up (which may integrate) */
+        get_str(line, "what", what, sizeof what);
+        if (strcmp(what, "down") == 0) ani_grab_mouse(1, x, yy);
+        else if (strcmp(what, "move") == 0) update_ani_motion_stuff(x, yy);
+        else if (strcmp(what, "up") == 0) ani_grab_mouse(0, x, yy);
+    } else if (strcmp(o, "close") == 0 && vcr.iexist) {
+        vcr.iexist = 0;
+        ani_grab_flag = 0;
+        send_window("destroy", WIN_ANI, 0, 0, NULL);
+    }
+    j_ani_slider();
+}
+
 static void j_new_vcr(void)
 {
     if (vcr.iexist == 1) return;
@@ -1436,7 +1744,7 @@ static const XppUi json_ui = {
     .small_base = j_void,
     .small_gr = j_void,
     .film_clip = j_film_clip,
-    .reset_film = j_void,
+    .reset_film = j_reset_film,
     .movie_play_back = j_movie_play_back,
     .movie_auto_play = j_movie_auto_play,
     .movie_save = j_movie_save,
@@ -1488,7 +1796,7 @@ static const XppUi json_ui = {
     .ani_rect = j_ani_rect,
     .ani_arc = j_ani_arc,
     .ani_text = j_ani_text,
-    .ani_slider = j_void,
+    .ani_slider = j_ani_slider,
     .init_txtview = j_void,
     .show_eq_box = j_show_eq_box,
     .make_txtview = j_make_txtview,
@@ -1519,6 +1827,11 @@ static void apply_size(const char *line)
     int win = (int)get_num(line, "win", 1);
     int w = (int)get_num(line, "w", 640), h = (int)get_num(line, "h", 480);
     int i = win - 1;
+    if (win == WIN_ANI) {
+        ani_size_w = w;
+        ani_size_h = h;
+        return;
+    }
     if (win == WIN_AUTO) {
         /* room for the axis labels around the diagram */
         auto_size_w = w < 20 * DCURXs + 12 * DCURXs ? 32 * DCURXs : w;
@@ -1615,12 +1928,7 @@ void json_ui_handle(const char *line)
         j_redraw_graph();
         if (Auto.exist) redraw_diagram(); /* a reconnected client has a blank one */
     } else if (is_cmd(line, "ani")) {
-        char o[16];
-        get_str(line, "op", o, sizeof o);
-        if (strcmp(o, "step") == 0) ani_flip1((int)get_num(line, "n", 1));
-        else if (strcmp(o, "reset") == 0) ani_reset();
-        else if (strcmp(o, "file") == 0) get_ani_file(NULL);
-        else if (strcmp(o, "close") == 0) vcr.iexist = 0;
+        ani_command(line);
     } else if (is_cmd(line, "auto")) {
         char o[16];
         get_str(line, "op", o, sizeof o);
@@ -1635,6 +1943,7 @@ void json_ui_handle(const char *line)
         else if (strcmp(o, "file") == 0) auto_file();
     }
     apply_auto_size();
+    apply_ani_size();
     if (browser_dirty && br_count) send_browser();
     json_flush();
     /* the command is finished; the client may send the next one */
@@ -1644,10 +1953,18 @@ void json_ui_handle(const char *line)
 
 void json_ui_loop(void)
 {
-    char line[1 << 16];
+    char *copy = NULL;
+    size_t cap = 0;
     for (;;) {
-        read_line(line, sizeof line, -1);
-        json_ui_handle(line);
+        /* a copy: the command's own prompts read further lines */
+        char *line = read_line(-1);
+        size_t n = strlen(line) + 1;
+        if (n > cap) {
+            cap = n;
+            copy = realloc(copy, cap);
+        }
+        memcpy(copy, line, n);
+        json_ui_handle(copy);
     }
 }
 
