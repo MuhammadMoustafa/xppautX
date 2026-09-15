@@ -11,6 +11,7 @@
    ran; stdout itself is pointed at stderr so the core's own printing never
    corrupts the stream. */
 #include "ui_json.h"
+#include "xpp_win32.h"
 #include "xpp_ui.h"
 #include "xpp_globals.h"
 #include "xpp_util.h"
@@ -38,8 +39,10 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-#include <sys/select.h>
 #include <sys/time.h>
+#ifndef _WIN32
+#include <sys/select.h>
+#endif
 
 extern int NUPAR, NODE, NMarkov, NEQ;
 extern char upar_names[MAXPAR][11], uvar_names[MAXODE][12];
@@ -206,40 +209,60 @@ static void json_flush(void)
 static char inbuf[1 << 16];
 static int inlen;
 
+/* up to n bytes of input into buf, waiting at most wait_ms (< 0: block).
+   Returns the byte count, 0 on timeout; end of input quits the program. */
+#ifdef _WIN32
+static int read_input(char *buf, int n, int wait_ms)
+{
+    int r = xpp_read_stdin(buf, n, wait_ms);
+    if (r < 0) exit(0);
+    return r;
+}
+#else
+static int read_input(char *buf, int n, int wait_ms)
+{
+    for (;;) {
+        fd_set fds;
+        struct timeval tv, *tvp = NULL;
+        int r;
+        FD_ZERO(&fds);
+        FD_SET(0, &fds);
+        if (wait_ms >= 0) {
+            tv.tv_sec = wait_ms / 1000;
+            tv.tv_usec = (wait_ms % 1000) * 1000;
+            tvp = &tv;
+        }
+        r = select(1, &fds, NULL, NULL, tvp);
+        if (r < 0 && errno == EINTR) continue;
+        if (r <= 0) return 0;
+        r = read(0, buf, n);
+        if (r <= 0) exit(0);
+        return r;
+    }
+}
+#endif
+
 /* next complete line into line (without newline). wait_ms < 0 blocks.
    Returns 1 for a line, 0 on timeout. End of input quits the program. */
 static int read_line(char *line, int max, int wait_ms)
 {
     for (;;) {
         char *nl = memchr(inbuf, '\n', inlen);
+        int r;
         if (nl) {
             int n = nl - inbuf;
             if (n >= max) n = max - 1;
             memcpy(line, inbuf, n);
             line[n] = 0;
+            if (n > 0 && line[n - 1] == '\r') line[n - 1] = 0;
             memmove(inbuf, nl + 1, inlen - (nl + 1 - inbuf));
             inlen -= nl + 1 - inbuf;
             return 1;
         }
-        {
-            fd_set fds;
-            struct timeval tv, *tvp = NULL;
-            int r;
-            FD_ZERO(&fds);
-            FD_SET(0, &fds);
-            if (wait_ms >= 0) {
-                tv.tv_sec = wait_ms / 1000;
-                tv.tv_usec = (wait_ms % 1000) * 1000;
-                tvp = &tv;
-            }
-            r = select(1, &fds, NULL, NULL, tvp);
-            if (r < 0 && errno == EINTR) continue;
-            if (r <= 0) return 0;
-            if (inlen >= (int)sizeof inbuf - 1) inlen = 0; /* overlong line: drop */
-            r = read(0, inbuf + inlen, sizeof inbuf - 1 - inlen);
-            if (r <= 0) exit(0);
-            inlen += r;
-        }
+        if (inlen >= (int)sizeof inbuf - 1) inlen = 0; /* overlong line: drop */
+        r = read_input(inbuf + inlen, sizeof inbuf - 1 - inlen, wait_ms);
+        if (r == 0) return 0;
+        inlen += r;
     }
 }
 
@@ -1370,6 +1393,10 @@ void json_ui_install(void)
 {
     int fd = dup(1);
     int i;
+#ifdef _WIN32
+    xpp_binary_mode(fd); /* "\n" line ends, not "\r\n" */
+    xpp_binary_mode(0);
+#endif
     proto = fdopen(fd, "w");
     dup2(2, 1);
     for (i = 0; i < MAXPOP; i++) {

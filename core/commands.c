@@ -32,7 +32,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#ifndef _WIN32
 #include <sys/wait.h>
+#endif
 #include <unistd.h>
 
 extern int DF_FLAG, NTable, POIMAP, TORUS;
@@ -97,6 +99,32 @@ void do_tutorial(void)
   }
 }
 
+#ifdef _WIN32
+/* no fork on Windows: start the editor/browser and let it run on its own */
+void edit_xpprc(void)
+{
+  char cmd[600];
+  char *ed = getenv("XPPEDITOR");
+  char *home = getenv("USERPROFILE");
+  if ((ed == NULL) || (strlen(ed) == 0)) {
+    err_msg("Environment variable XPPEDITOR needs to be set.");
+    return;
+  }
+  snprintf(cmd, sizeof(cmd), "start \"\" \"%s\" \"%s\.xpprc\"", ed, home ? home : ".");
+  if (system(cmd) != 0) err_msg("Unable to start the editor.");
+}
+
+void xpp_hlp(void)
+{
+  char cmd[600];
+  if (getenv("XPPHELP") == NULL) {
+    err_msg("Environment variable XPPHELP undefined.");
+    return;
+  }
+  snprintf(cmd, sizeof(cmd), "start \"\" \"%s\"", getenv("XPPHELP"));
+  if (system(cmd) != 0) err_msg("Unable to open the help.");
+}
+#else
 void edit_xpprc(void)
 {
   pid_t child_pid;
@@ -146,6 +174,8 @@ void xpp_hlp(void)
     wait(&status);
   }
 }
+
+#endif
 
 /* ---- commands that were in X11 files -------------------------------- */
 

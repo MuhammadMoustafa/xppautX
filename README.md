@@ -60,7 +60,12 @@ still builds and behaves as before.
       web/serve.js file.ode` runs it standalone at http://127.0.0.1:8765/;
       the XPP-ODE extension (branch `interactive-webview`) hosts the same
       script in a webview with **Open in XPP Interactive**.
-   5. Native Windows and macOS builds of the server (or a WebAssembly build).
+   5. *(done for Windows; macOS in CI)* Native builds of the X11-free
+      binaries: `make server cli` works with MinGW-w64 gcc on Windows
+      (`xppcore-server.exe` needs only the system C runtime, and dll_lib
+      models load `.dll`s) and on macOS without XQuartz. The Windows build
+      passes the same protocol checks and writes the same `output.dat` as
+      Linux apart from line endings. CI builds and checks both.
 
 ### Metrics
 
@@ -115,8 +120,17 @@ make -j8 X11_INC=-I$(brew --prefix)/include X11_LIB=-L$(brew --prefix)/lib
 
 ### Windows
 
-Phase 0 builds only under WSL. Windows 11 ships WSLg, so the X11 window opens
-on the Windows desktop with no extra X server.
+The X11-free binaries build natively with MinGW-w64 gcc (MSYS2 UCRT64, or
+the gcc that ships with Strawberry Perl) from a bash shell:
+
+```bash
+make -j8 server cli
+node web/serve.js examples/ode/lecar.ode
+```
+
+Then open http://127.0.0.1:8765/. The classic X11 `xppaut` builds only under
+WSL; Windows 11 ships WSLg, so its window opens on the Windows desktop with
+no extra X server.
 
 One-time setup inside WSL:
 

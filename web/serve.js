@@ -5,8 +5,9 @@
    node web/serve.js [--port 8765] [--server "command"] file.ode [xppaut options]
 
    --server is the command that starts xppcore-server; the ODE file name is
-   appended and it runs in the file's folder. Default: ./xppcore-server next
-   to this repository, through `wsl -e` on Windows. Events reach the page by
+   appended and it runs in the file's folder. Default: the xppcore-server
+   built in this repository; on Windows xppcore-server.exe (make server with
+   MinGW) or else the Linux build through `wsl -e`. Events reach the page by
    Server-Sent Events, commands come back by POST. */
 'use strict';
 const http = require('http');
@@ -43,6 +44,9 @@ if (serverCmd) {
   const parts = serverCmd.match(/"[^"]*"|\S+/g).map(s => s.replace(/^"|"$/g, ''));
   command = parts[0];
   commandArgs = parts.slice(1);
+} else if (process.platform === 'win32' && fs.existsSync(path.join(repo, 'xppcore-server.exe'))) {
+  command = path.join(repo, 'xppcore-server.exe');
+  commandArgs = [];
 } else if (process.platform === 'win32') {
   command = 'wsl';
   commandArgs = ['-e', wslPath(path.join(repo, 'xppcore-server'))];

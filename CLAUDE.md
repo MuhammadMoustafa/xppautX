@@ -36,7 +36,15 @@ Clean-build warning baseline with gcc 13 is ~520; verify.sh's count is for
 the incremental build only.
 
 `sudo` inside WSL needs the user's password; apt installs must be run by the user.
-The Windows-side gcc at C:\Strawberry\c\bin is Perl's MinGW without X11 headers — do not use it.
+The Windows-side gcc at C:\Strawberry\c\bin is MinGW-w64 without X11 headers: use it
+only for the native X11-free build, from Git Bash:
+
+    PATH=/c/Strawberry/c/bin:$PATH mingw32-make -j8 server cli BUILDDIR=build/win
+    python3 tools/servercheck.py --server ./xppcore-server.exe
+
+Windows API code lives only in `core/xpp_win32.c` (windows.h macros clash
+with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
+`strupr`/`strlwr` are renamed on Windows in parserslow.h/parser.h.
 
 ## Architecture of the split (phase 2)
 

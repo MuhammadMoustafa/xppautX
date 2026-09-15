@@ -7497,7 +7497,9 @@ setpbv(iap_type *iap, rap_type *rap, doublereal *dtm)
 /* ----------------------------------------------------------------------- */
 #include <unistd.h>
 #include <sys/time.h>
+#ifndef _WIN32
 #include <sys/resource.h>
+#endif
 
 double time_start(void) {
   struct timeval time;

@@ -376,6 +376,11 @@ double dlt(double x, double y);
 double evaluate(int *equat);
 int pass3(int *com1, int *com2, int *len);
 double feval_rpn(int *comz);
+#ifdef _WIN32
+#include <string.h>
+#define strupr xpp_strupr
+#define strlwr xpp_strlwr
+#endif
 int strupr(char *s);
 int strlwr(char *s);
 

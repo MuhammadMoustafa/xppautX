@@ -60,7 +60,7 @@ DLFUN dlf;
    users choice
 */
 
-#include <dlfcn.h>
+#include "xpp_dlfcn.h"
 
 void *dlhandle;
 double (*fun)();

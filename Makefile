@@ -18,6 +18,22 @@ CFLAGS  ?= $(CSTD) $(WARN) $(OPT) $(DEFS) $(INCS) -fcommon
 LDFLAGS ?= $(X11_LIB) -fcommon
 LIBS     = -lX11 -lm -ldl
 
+# Native Windows (MinGW-w64 gcc, from Git Bash or MSYS2): only the X11-free
+# targets build there: make server cli
+ifeq ($(OS),Windows_NT)
+ifeq ($(origin CC),default)
+CC       = gcc
+endif
+CSTD     = -std=gnu99
+EXE      = .exe
+DLLIB    =
+LDSTATIC = -static
+else
+EXE      =
+DLLIB    = -ldl
+LDSTATIC =
+endif
+
 # macOS/XQuartz users: make X11_INC=-I/opt/X11/include X11_LIB=-L/opt/X11/lib
 X11_INC ?=
 X11_LIB ?=
@@ -41,8 +57,8 @@ CORE_OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(CORE_SOURCES))
 .PHONY: all clean x11free lib cli server
 all: xppaut
 lib: libxppcore.a
-cli: xppcore-cli
-server: xppcore-server
+cli: xppcore-cli$(EXE)
+server: xppcore-server$(EXE)
 
 xppaut: $(OBJECTS)
 	$(CC) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
@@ -50,11 +66,11 @@ xppaut: $(OBJECTS)
 libxppcore.a: $(CORE_OBJECTS)
 	ar rcs $@ $(CORE_OBJECTS)
 
-xppcore-cli: $(BUILDDIR)/xppcore_cli.o libxppcore.a
-	$(CC) -o $@ $(BUILDDIR)/xppcore_cli.o libxppcore.a -lm -ldl
+xppcore-cli$(EXE): $(BUILDDIR)/xppcore_cli.o libxppcore.a
+	$(CC) $(LDSTATIC) -o $@ $(BUILDDIR)/xppcore_cli.o libxppcore.a -lm $(DLLIB)
 
-xppcore-server: $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SERVER_SOURCES)) libxppcore.a
-	$(CC) -o $@ $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SERVER_SOURCES)) libxppcore.a -lm -ldl
+xppcore-server$(EXE): $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SERVER_SOURCES)) libxppcore.a
+	$(CC) $(LDSTATIC) -o $@ $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SERVER_SOURCES)) libxppcore.a -lm $(DLLIB)
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c | $(BUILDDIR)
 	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
@@ -65,7 +81,7 @@ $(BUILDDIR):
 -include $(OBJECTS:.o=.d) $(BUILDDIR)/xppcore_cli.d $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.d,$(SERVER_SOURCES))
 
 clean:
-	rm -rf $(BUILDDIR) xppaut libxppcore.a xppcore-cli xppcore-server
+	rm -rf $(BUILDDIR) xppaut libxppcore.a xppcore-cli xppcore-server xppcore-cli.exe xppcore-server.exe
 
 .PHONY: x11free
 x11free:

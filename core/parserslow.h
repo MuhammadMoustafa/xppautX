@@ -184,6 +184,12 @@ double evaluate(int *equat);
 double eval_rpn(int *equat);
 
 /*  STRING STUFF  */
+#ifdef _WIN32
+/* the Windows C library has its own char *strupr/strlwr; use private names */
+#include <string.h>
+#define strupr xpp_strupr
+#define strlwr xpp_strlwr
+#endif
 #ifndef STRUPR
 void strupr(char *s);
 void strlwr(char *s);
