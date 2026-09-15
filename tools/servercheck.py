@@ -107,6 +107,54 @@ evs, st = collect(is_state)
 collect(is_idle)
 check('set parameter', st is not None and dict(st['pars'])['iapp'] == 0.1, str(st and st['pars']))
 
+collect(is_idle)  # the idle of the state command above
+send(cmd='set', kind='par', name='iapp', text='%0.1*2')
+evs, _ = collect(is_idle)
+st = last_state(evs)
+check('set parameter by %formula', st is not None and abs(dict(st['pars'])['iapp'] - 0.2) < 1e-12, str(st and st['pars']))
+send(cmd='default', kind='par')
+evs, _ = collect(is_idle)
+st = last_state(evs)
+check('default parameters', st is not None and dict(st['pars'])['iapp'] == 0.05, str(st and st['pars']))
+
+send(cmd='browser', **{'from': 10, 'count': 3, 'col': 2, 'ncol': 1})
+evs, br = collect(lambda e: e.get('ev') == 'browser')
+collect(is_idle)
+check('browser sends the rows asked for', br is not None and br['rows'] == 601 and br['from'] == 10
+      and len(br['data']) == 3 and len(br['data'][0]) == 2 and br['cols'][:3] == ['T', 'V', 'W'], str(br)[:200])
+send(cmd='browser', op='get', row=10)
+evs, _ = collect(is_idle)
+st = last_state(evs)
+check('browser Get sets the initial conditions from a row',
+      st is not None and abs(dict(st['ics'])['W'] - br['data'][0][1]) < 1e-6, str(st and st['ics']))
+send(cmd='browser', **{'from': 0, 'count': 0})
+collect(is_idle)
+
+send(cmd='slide', name='iapp', value=0.07, rerun=1)
+evs, _ = collect(is_idle, timeout=30)
+st = last_state(evs)
+check('slide sets the parameter and integrates again', st is not None and dict(st['pars'])['iapp'] == 0.07
+      and len([o for o in draw_ops(evs) if o[0] == 'line']) > 100, str(st and st['pars']))
+send(cmd='equations')
+evs, eqs = collect(lambda e: e.get('ev') == 'equations')
+collect(is_idle)
+check('equations', eqs is not None and eqs['lines'][0].startswith('dV/dT='), str(eqs))
+send(cmd='key', key='f')
+send(cmd='key', key='p')
+evs, src = collect(lambda e: e.get('ev') == 'source')
+collect(is_idle)
+acts = [i for i, c in enumerate(src['comments']) if c[1]] if src else []
+check('source lists the comments with actions', len(acts) >= 5, str(src and src['comments'][:3]))
+if acts:
+    send(cmd='action', index=acts[1])  # {gk=0}
+    evs, _ = collect(is_idle)
+    st = last_state(evs)
+    check('a comment action sets its parameters', st is not None and dict(st['pars'])['gk'] == 0, str(st and st['pars']))
+    send(cmd='set', kind='par', name='gk', value=2)
+    send(cmd='set', kind='par', name='iapp', value=0.1)
+    collect(is_idle)
+    collect(is_idle)
+
 send(cmd='key', key='f')
 send(cmd='key', key='s')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')

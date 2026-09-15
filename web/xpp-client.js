@@ -17,6 +17,23 @@
   const AUTO_BUTTONS = [['Parameter', 'param'], ['Axes', 'axes'], ['Numerics', 'numerics'], ['Run', 'run'],
     ['Grab', 'grab'], ['Usr period', 'usr'], ['Clear', 'clear'], ['reDraw', 'redraw'], ['File', 'file']];
 
+  /* the data browser's buttons: label, op, hint */
+  const BROWSER_BUTTONS = [
+    ['Find', 'find', 'Find the row where a column is closest to a value'],
+    ['Get', 'get', 'Make the selected row the initial conditions'],
+    ['Replace', 'replace', 'Replace a column by a formula'],
+    ['Unrepl', 'unreplace', 'Undo the last Replace'],
+    ['Table', 'table', 'Write a column as a function table file'],
+    ['Load', 'load', 'Load data from a file'],
+    ['Write', 'write', 'Write the rows from First to Last to a file'],
+    ['First', 'first', 'Start the range at the selected row'],
+    ['Last', 'last', 'End the range at the selected row'],
+    ['Restore', 'restore', 'Redraw the plot from the rows First to Last'],
+    ['Add col', 'addcol', 'Add a column computed from a formula'],
+    ['Del col', 'delcol', 'Delete a column'],
+  ];
+  const BR_ROW = 20, BR_HEAD = 22, BR_TCOL = 110, BR_COL = 100;
+
   function el(tag, cls, text) {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -325,8 +342,18 @@
       this.logBox.open = !this.menus || !!code;
     }
 
-    addPage(win, label, page) {
+    addPage(win, label, page, onClose) {
       const tab = el('button', 'xpp-tab', label);
+      if (onClose) {
+        const x = el('span', 'xpp-tab-close', '\u00d7');
+        x.title = 'Close';
+        x.addEventListener('click', e => {
+          e.stopPropagation();
+          this.removePage(win);
+          onClose();
+        });
+        tab.appendChild(x);
+      }
       tab.addEventListener('click', () => {
         this.showPage(win);
         /* a plot window tab also makes it xppaut's current graph */
@@ -391,52 +418,325 @@
     renderState() {
       const st = this.state;
       if (!st) return;
-      if (!this.sideBuilt) {
-        this.sidePanel.innerHTML = '';
-        this.parTable = this.valueTable('Parameters', 'par');
-        this.icTable = this.valueTable('Initial conditions', 'ic');
-        const go = el('button', '', 'Integrate');
-        go.title = 'Initialconds / Go (i g): run from the initial conditions below';
-        go.addEventListener('click', () => this.keys(['i', 'g']));
-        const last = el('button', '', 'From end');
-        last.title = 'Initialconds / Last (i l): make the end of the last run the initial conditions and run from there';
-        last.addEventListener('click', () => this.keys(['i', 'l']));
-        const runs = el('div', 'xpp-go');
-        runs.append(go, last);
-        this.sidePanel.append(runs, this.icTable.box, this.parTable.box);
-        this.sideBuilt = true;
-      }
+      if (!this.sideBuilt) this.buildSide();
       this.fillTable(this.parTable, st.pars);
       this.fillTable(this.icTable, st.ics);
+      this.fillTable(this.bcTable, st.bcs || []);
+      this.bcTable.box.hidden = !(st.bcs && st.bcs.length);
+      this.delayTable.box.hidden = !st.delays;
+      if (st.delays) this.fillTable(this.delayTable, st.delays);
       this.menuWhich = st.menu;
+      this.updateSliders();
     }
 
-    valueTable(title, kind) {
-      const box = el('div', 'xpp-values');
-      box.appendChild(el('div', 'xpp-values-title', title));
+    buildSide() {
+      this.sidePanel.innerHTML = '';
+      const button = (label, hint, click) => {
+        const b = el('button', '', label);
+        b.title = hint;
+        b.addEventListener('click', click);
+        return b;
+      };
+      const runs = el('div', 'xpp-go');
+      runs.append(
+        button('Integrate', 'Initialconds / Go (i g): run from the initial conditions below', () => this.keys(['i', 'g'])),
+        button('From end', 'Initialconds / Last (i l): make the end of the last run the initial conditions and run from there',
+          () => this.keys(['i', 'l'])));
+      const views = el('div', 'xpp-row');
+      views.append(
+        button('Data', 'Browse the numbers of the last run (the X11 Data window)', () => this.openData()),
+        button('Equations', 'List the equations', () => this.command({cmd: 'equations'})));
+      this.sidePanel.append(runs, views);
+      /* @ button lines of the ODE file */
+      if (this.userButtons && this.userButtons.length) {
+        const row = el('div', 'xpp-row xpp-userbuttons');
+        this.userButtons.forEach((name, index) =>
+          row.appendChild(button(name, 'Button defined in the ODE file', () => this.command({cmd: 'userbut', index}))));
+        this.sidePanel.appendChild(row);
+      }
+      this.sidePanel.appendChild(this.buildSliders());
+      const numberHint = 'A number, or %formula such as %2*pi';
+      this.icTable = this.valueTable('Initial conditions', 'ic', numberHint, [
+        button('Default', 'Initial conditions from the ODE file', () => this.command({cmd: 'default', kind: 'ic'})),
+        button('x vs t', 'Plot the checked variables against time', () => this.plotChecked(0)),
+        button('Phase', 'Phase plane of the first 2 or 3 checked variables', () => this.plotChecked(1)),
+      ]);
+      this.parTable = this.valueTable('Parameters', 'par', numberHint, [
+        button('Default', 'Parameters from the ODE file', () => this.command({cmd: 'default', kind: 'par'})),
+      ]);
+      this.bcTable = this.valueTable('Boundary conditions', 'bc', 'An expression that is zero at the boundary', [], true);
+      this.delayTable = this.valueTable('Delay initial data', 'delay', 'An expression in t for t < 0', [], true);
+      this.sidePanel.append(this.icTable.box, this.parTable.box, this.bcTable.box, this.delayTable.box);
+      this.sideBuilt = true;
+    }
+
+    valueTable(title, kind, hint, actions, collapsed) {
+      const box = el(collapsed ? 'details' : 'div', 'xpp-values');
+      const head = el(collapsed ? 'summary' : 'div', 'xpp-values-title', title);
+      box.appendChild(head);
+      if (actions && actions.length) {
+        const row = el('div', 'xpp-row');
+        row.append(...actions);
+        box.appendChild(row);
+      }
       const list = el('div', 'xpp-values-list');
       box.appendChild(list);
-      return {box, list, kind, inputs: new Map()};
+      return {box, list, kind, hint, inputs: new Map(), checks: new Map()};
+    }
+
+    plotChecked(how) {
+      const names = [...this.icTable.checks].filter(([, c]) => c.checked).map(([n]) => n);
+      if (!names.length) {
+        this.hint.textContent = 'Check variables in the Initial conditions list first';
+        return;
+      }
+      this.icTable.checks.forEach(c => { c.checked = false; });
+      this.command({cmd: 'plotvars', how, names});
+    }
+
+    /* ---- parameter sliders (the three at the bottom of the X11 main window) ---- */
+
+    buildSliders() {
+      const box = el('details', 'xpp-values xpp-sliders');
+      box.appendChild(el('summary', 'xpp-values-title', 'Sliders'));
+      this.sliders = [0, 1, 2].map(i => {
+        const def = (this.sliderDefs || [])[i] || {};
+        const row = el('div', 'xpp-slider');
+        const pick = el('select', 'xpp-slider-name');
+        const range = el('input', 'xpp-slider-range');
+        range.type = 'range';
+        range.min = 0;
+        range.max = 1000;
+        const lo = el('input', 'xpp-slider-lim');
+        const hi = el('input', 'xpp-slider-lim');
+        const val = el('span', 'xpp-slider-val');
+        lo.value = def.lo ?? 0;
+        hi.value = def.hi ?? 1;
+        lo.title = 'Low end';
+        hi.title = 'High end';
+        range.title = 'Drag to change the value and integrate again';
+        const sl = {pick, range, lo, hi, val, name: def.name || ''};
+        pick.addEventListener('change', () => { sl.name = pick.value; this.updateSliders(true); });
+        for (const f of [lo, hi]) {
+          f.addEventListener('keydown', e => e.stopPropagation());
+          f.addEventListener('change', () => this.updateSliders(true));
+        }
+        range.addEventListener('input', () => {
+          const a = Number(lo.value), b = Number(hi.value);
+          if (!sl.name || !Number.isFinite(a) || !Number.isFinite(b)) return;
+          const v = a + (b - a) * Number(range.value) / 1000;
+          val.textContent = Number(v.toPrecision(6));
+          this.slide(sl.name, v);
+        });
+        const limits = el('div', 'xpp-slider-limits');
+        limits.append(lo, val, hi);
+        row.append(pick, range, limits);
+        box.appendChild(row);
+        return sl;
+      });
+      if ((this.sliderDefs || []).length) box.open = true;
+      return box;
+    }
+
+    updateSliders(force) {
+      const st = this.state;
+      if (!this.sliders || !st) return;
+      const names = [...st.pars.map(p => p[0]), ...st.ics.map(p => p[0])];
+      const values = new Map([...st.pars, ...st.ics].map(([n, v]) => [n.toLowerCase(), v]));
+      for (const sl of this.sliders) {
+        if (sl.pick.options.length !== names.length + 1) {
+          sl.pick.innerHTML = '';
+          sl.pick.appendChild(el('option', '', 'Par/Var\u2026')).value = '';
+          for (const n of names) sl.pick.appendChild(el('option', '', n)).value = n;
+        }
+        const match = names.find(n => n.toLowerCase() === sl.name.toLowerCase()) || '';
+        sl.pick.value = match;
+        sl.name = match;
+        const v = values.get(sl.name.toLowerCase());
+        if (v === undefined) {
+          sl.val.textContent = '';
+          continue;
+        }
+        sl.val.textContent = Number(Number(v).toPrecision(6));
+        if (!force && document.activeElement === sl.range) continue; /* being dragged */
+        const a = Number(sl.lo.value), b = Number(sl.hi.value);
+        if (Number.isFinite(a) && Number.isFinite(b) && b !== a)
+          sl.range.value = Math.max(0, Math.min(1000, Math.round(1000 * (v - a) / (b - a))));
+      }
+    }
+
+    /* only the latest position matters: one slide at a time */
+    slide(name, value) {
+      this.pendingSlide = {name, value};
+      if (!this.busy) this.flushSlide();
+    }
+
+    flushSlide() {
+      const p = this.pendingSlide;
+      if (!p) return;
+      this.pendingSlide = null;
+      this.busy = true;
+      this.clearError();
+      this.send({cmd: 'slide', name: p.name, value: p.value, rerun: 1});
+    }
+
+    /* ---- data browser ---------------------------------------------------------- */
+
+    openData() {
+      if (!this.pages.has('data')) this.buildData();
+      this.showPage('data');
+      this.brRender();
+    }
+
+    buildData() {
+      const page = el('div', 'xpp-page xpp-window xpp-data');
+      const tools = el('div', 'xpp-data-tools');
+      for (const [label, op, hint] of BROWSER_BUTTONS) {
+        const b = el('button', '', label);
+        b.title = hint;
+        b.addEventListener('click', () => this.command({cmd: 'browser', op, row: this.brSel || 0}));
+        tools.appendChild(b);
+      }
+      this.brInfo = el('div', 'xpp-data-info');
+      const scroll = el('div', 'xpp-data-scroll');
+      scroll.tabIndex = 0;
+      this.brHead = el('div', 'xpp-data-head');
+      this.brSpace = el('div', 'xpp-data-space');
+      scroll.append(this.brHead, this.brSpace);
+      this.brScroll = scroll;
+      this.brSel = 0;
+      scroll.addEventListener('scroll', () => this.brRender());
+      new ResizeObserver(() => this.brRender()).observe(scroll);
+      this.brSpace.addEventListener('click', e => {
+        const r = e.target.closest('[data-row]');
+        if (!r) return;
+        this.brSel = Number(r.dataset.row);
+        this.brRender();
+      });
+      scroll.addEventListener('keydown', e => {
+        const rows = this.br ? this.br.rows : 0;
+        const page = Math.max(1, Math.floor((scroll.clientHeight - BR_HEAD) / BR_ROW) - 1);
+        const moves = {ArrowUp: -1, ArrowDown: 1, PageUp: -page, PageDown: page, Home: -rows, End: rows};
+        if (!(e.key in moves) || !rows) return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.brSel = Math.max(0, Math.min(rows - 1, this.brSel + moves[e.key]));
+        this.brScrollTo(this.brSel);
+        this.brRender();
+      });
+      page.append(tools, this.brInfo, scroll);
+      this.addPage('data', 'Data', page, () => {
+        this.br = null;
+        this.brAsked = '';
+        this.send({cmd: 'browser', from: 0, count: 0});
+      });
+    }
+
+    brScrollTo(row) {
+      const sc = this.brScroll;
+      const top = row * BR_ROW, visible = sc.clientHeight - BR_HEAD - BR_ROW;
+      if (top < sc.scrollTop) sc.scrollTop = top;
+      else if (top > sc.scrollTop + visible) sc.scrollTop = top - visible;
+    }
+
+    onBrowser(ev) {
+      const first = !this.br;
+      this.br = ev;
+      this.brAsked = '';
+      if (first || ev.row0 !== this.brRow0) {
+        /* the core moved the selection (Find) */
+        this.brSel = ev.row0;
+        if (this.brScroll) this.brScrollTo(ev.row0);
+      }
+      this.brRow0 = ev.row0;
+      this.brRender();
+    }
+
+    brRender() {
+      const sc = this.brScroll;
+      if (!sc || !sc.clientHeight) return;
+      const br = this.br;
+      const rows = br ? br.rows : 0, cols = br ? br.cols : ['T'];
+      const ndata = cols.length - 1;
+      this.brSpace.style.height = rows * BR_ROW + 'px';
+      const width = BR_TCOL + ndata * BR_COL;
+      this.brSpace.style.width = this.brHead.style.width = width + 'px';
+      const first = Math.floor(sc.scrollTop / BR_ROW);
+      const count = Math.ceil((sc.clientHeight - BR_HEAD) / BR_ROW) + 1;
+      const c0 = Math.floor(sc.scrollLeft / BR_COL);
+      const nc = Math.ceil((sc.clientWidth - BR_TCOL) / BR_COL) + 1;
+      /* ask for a larger block than visible so small scrolls need nothing */
+      const have = br && br.from <= first && br.from + br.data.length >= Math.min(rows, first + count)
+        && br.col <= c0 + 1 && br.col + (br.data[0] ? br.data[0].length - 1 : nc) >= Math.min(ndata, c0 + nc) + 1;
+      if (!have) {
+        const req = {cmd: 'browser', from: Math.max(0, first - count), count: count * 3,
+          col: Math.max(1, c0 + 1 - nc), ncol: nc * 3};
+        const key = JSON.stringify(req);
+        if (key !== this.brAsked) {
+          this.brAsked = key;
+          this.send(req);
+        }
+      }
+      const cell = (text, cls, left) => {
+        const c = el('div', 'xpp-data-cell' + (cls ? ' ' + cls : ''), text);
+        c.style.left = left + 'px';
+        return c;
+      };
+      this.brHead.innerHTML = '';
+      this.brHead.appendChild(cell('T', 'xpp-data-t', sc.scrollLeft));
+      for (let j = c0; j < Math.min(ndata, c0 + nc); j++)
+        this.brHead.appendChild(cell(cols[j + 1], '', BR_TCOL + j * BR_COL));
+      this.brSpace.innerHTML = '';
+      const fmt = v => (v === null ? 'nan' : v === undefined ? '' : String(v));
+      for (let i = first; i < Math.min(rows, first + count); i++) {
+        const row = el('div', 'xpp-data-row');
+        row.dataset.row = i;
+        row.style.top = i * BR_ROW + 'px';
+        if (i === this.brSel) row.classList.add('xpp-data-sel');
+        else if (br && i >= br.start && i < br.end && (br.start > 0 || br.end < rows)) row.classList.add('xpp-data-range');
+        const d = br && br.data[i - br.from];
+        row.appendChild(cell(d ? fmt(d[0]) : '', 'xpp-data-t', sc.scrollLeft));
+        for (let j = c0; j < Math.min(ndata, c0 + nc); j++) {
+          const k = j + 1 - (br ? br.col : 1) + 1;
+          row.appendChild(cell(d && k >= 1 ? fmt(d[k]) : '', '', BR_TCOL + j * BR_COL));
+        }
+        this.brSpace.appendChild(row);
+      }
+      this.brInfo.textContent = !rows ? 'No data yet: integrate first.'
+        : `${rows} rows. Selected row ${this.brSel}. First..Last: ${br.start}..${br.end - 1}. Click a row to select it.`;
     }
 
     fillTable(t, pairs) {
-      for (const [name, value] of pairs) {
-        let input = t.inputs.get(name);
+      /* boundary conditions all read "0=": they go by position */
+      const byIndex = t.kind === 'bc' || t.kind === 'delay';
+      for (const [index, [name, value]] of pairs.entries()) {
+        const key = byIndex ? index : name;
+        let input = t.inputs.get(key);
         if (!input) {
           const row = el('label', 'xpp-value');
+          if (t.kind === 'ic') {
+            const check = el('input', 'xpp-value-check');
+            check.type = 'checkbox';
+            check.title = 'Check to plot with x vs t or Phase';
+            row.appendChild(check);
+            t.checks.set(name, check);
+          }
           row.appendChild(el('span', 'xpp-value-name', name));
           input = el('input', 'xpp-value-input');
           input.spellcheck = false;
+          if (t.hint) input.title = t.hint;
           /* an edit counts when the field loses focus too (clicking Integrate
              right after typing), not only on Enter */
           input.addEventListener('change', () => {
-            const v = Number(input.value);
-            if (input.value.trim() !== '' && Number.isFinite(v) && input.value !== input.dataset.value) {
-              input.dataset.value = input.value;
-              this.send({cmd: 'set', kind: t.kind, name, value: v});
-            } else if (!Number.isFinite(v) || input.value.trim() === '') {
+            const text = input.value.trim();
+            const numeric = t.kind === 'ic' || t.kind === 'par';
+            if (text === input.dataset.value) return;
+            if (text === '' || (numeric && !text.startsWith('%') && !Number.isFinite(Number(text)))) {
               input.value = input.dataset.value;
+              return;
             }
+            input.dataset.value = text;
+            this.send(byIndex ? {cmd: 'set', kind: t.kind, index, text} : {cmd: 'set', kind: t.kind, name, text});
           });
           input.addEventListener('keydown', e => {
             e.stopPropagation();
@@ -449,7 +749,7 @@
           });
           row.appendChild(input);
           t.list.appendChild(row);
-          t.inputs.set(name, input);
+          t.inputs.set(key, input);
         }
         const s = String(value);
         input.dataset.value = s;
@@ -489,6 +789,8 @@
       switch (ev.ev) {
         case 'hello':
           this.menus = ev.menus;
+          this.userButtons = ev.userbuttons || [];
+          this.sliderDefs = ev.sliders || [];
           this.titleBar.textContent = ev.title;
           this.charCell = ev.char;
           this.renderMenu();
@@ -508,11 +810,17 @@
         case 'idle':
           this.busy = false;
           this.progress.textContent = '';
+          if (this.pendingSlide) {
+            this.flushSlide();
+            break;
+          }
           if (this.typeahead.length) this.key(this.typeahead.shift());
           break;
         case 'ask': this.onAsk(ev); break;
         case 'equilibrium': this.showEquilibrium(ev); break;
         case 'source': this.showSource(ev); break;
+        case 'equations': this.showEquations(ev); break;
+        case 'browser': this.onBrowser(ev); break;
         case 'ping': this.flash(); break;
         case 'bye': this.hint.textContent = 'XPP has exited.'; break;
         /* sent by the host, not the server */
@@ -895,8 +1203,9 @@
     showEquilibrium(ev) {
       let w = this.eqPanel;
       if (!w) {
+        /* top of the side panel, next to the values it can import into */
         w = this.eqPanel = el('div', 'xpp-window xpp-eq');
-        this.extraWindows.appendChild(w);
+        this.sidePanel.prepend(w);
       }
       w.innerHTML = '';
       const bar = el('div', 'xpp-window-title', `Equilibrium: ${ev.type}`);
@@ -907,17 +1216,44 @@
       w.appendChild(el('div', 'xpp-eq-counts',
         `c+ = ${ev.cplus}  c- = ${ev.cminus}  im = ${ev.im}  r+ = ${ev.rplus}  r- = ${ev.rminus}`));
       for (const [name, v] of ev.values) w.appendChild(el('div', 'xpp-eq-value', `${name} = ${Number(v).toPrecision(5)}`));
+      const imp = el('button', '', 'Import');
+      imp.title = 'Make this equilibrium the initial conditions';
+      imp.addEventListener('click', () => this.command({cmd: 'eqimport'}));
+      const row = el('div', 'xpp-row');
+      row.appendChild(imp);
+      w.appendChild(row);
+    }
+
+    /* a closable tab holding text (Source, Equations); shown again, it is replaced */
+    textPanel(kind, title) {
+      const key = 'panel_' + kind;
+      this.removePage(key);
+      const w = this[key] = el('div', 'xpp-page xpp-window xpp-source');
+      this.addPage(key, title, w, () => { this[key] = null; });
+      this.showPage(key);
+      return w;
+    }
+
+    showEquations(ev) {
+      const w = this.textPanel('equations', 'Equations');
+      w.appendChild(el('pre', '', ev.lines.join('\n')));
     }
 
     showSource(ev) {
-      const w = el('div', 'xpp-window xpp-source');
-      const bar = el('div', 'xpp-window-title', 'Source');
-      const close = el('button', 'xpp-close', '×');
-      close.addEventListener('click', () => w.remove());
-      bar.appendChild(close);
-      const pre = el('pre', '', ev.lines.join('\n'));
-      w.append(bar, pre);
-      this.extraWindows.appendChild(w);
+      const w = this.textPanel('source', 'Source');
+      const actions = (ev.comments || []).map((c, index) => [c, index]).filter(([c]) => c[1]);
+      if (actions.length) {
+        /* comments with {name=value,...} actions: X11's Action view */
+        const list = el('div', 'xpp-actions');
+        list.appendChild(el('div', 'xpp-values-title', 'Actions (click to apply)'));
+        for (const [c, index] of actions) {
+          const b = el('button', 'xpp-action', c[0]);
+          b.addEventListener('click', () => this.command({cmd: 'action', index}));
+          list.appendChild(b);
+        }
+        w.appendChild(list);
+      }
+      w.appendChild(el('pre', '', ev.lines.join('\n')));
     }
   }
 

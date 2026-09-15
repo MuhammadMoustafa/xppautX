@@ -21,6 +21,8 @@
 #include "shoot.h"
 #include "lunch-new.h"
 #include "delay_handle.h"
+#include "txtread.h"
+#include "numerics.h"
 #include <time.h>
 #include <ctype.h>
 #include <math.h>
@@ -694,4 +696,24 @@ char *eq_stability(int cp,int rp,int im)
  if(cp>0||rp>0)return "UNSTABLE";
  else if(im>0)return "NEUTRAL";
  else return "STABLE";
+}
+
+/* ---- a comment with an action in the ODE file was picked (logic from
+   txtread.c): run its "name=value ..." settings ---- */
+void extract_action(char *ptr); /* load_eqn.c */
+void get_graph(void);           /* graphics.c */
+void reset_graph(void);
+
+void do_txt_action(char *s)
+{
+  int tb=tfBell;
+  tfBell=1;
+ get_graph();
+ extract_action(s);
+ ping();
+ tfBell=tb;
+  chk_delay();
+  redraw_params();
+  redraw_ics();
+  reset_graph();
 }

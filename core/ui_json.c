@@ -32,6 +32,11 @@
 #include "volterra2.h"
 #include "tabular.h"
 #include "diagram.h"
+#include "userbut.h"
+#include "menudrive.h"
+#include "txtread.h"
+#include "shoot.h"
+#include "load_eqn.h"
 #include <strings.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -53,6 +58,17 @@ extern BROWSER my_browser;
 extern BIFUR Auto;
 extern int PointRadius, TextJustify, COLOR, colorline[];
 extern unsigned int DONT_XORCross;
+extern BC_STRUCT my_bc[MAXODE];
+extern char delay_string[MAXODE][80];
+extern int DelayFlag, METHOD, EqType[];
+extern char *ode_names[];
+extern OptionsSet notAlreadySet;
+typedef struct {
+    char *text, *action;
+    int aflag;
+} ACTION; /* form_ode.c */
+extern ACTION comments[];
+extern int n_comments;
 void commander(int ch); /* commands.c */
 
 #define MAX_LEN_EBOX 86 /* edit_rhs.h */
@@ -421,6 +437,7 @@ static int key_code(const char *k)
 
 static void apply_size(const char *line);
 static void apply_set(const char *line);
+static void browser_rows(const char *line);
 
 /* commands that make sense at any moment, even while a prompt is open */
 static int handle_async(const char *line)
@@ -432,6 +449,10 @@ static int handle_async(const char *line)
     if (is_cmd(line, "quit")) exit(0);
     if (is_cmd(line, "state")) {
         send_state();
+        return 1;
+    }
+    if (is_cmd(line, "browser") && js_find(line, "from")) {
+        browser_rows(line);
         return 1;
     }
     return 0;
@@ -766,13 +787,165 @@ static void send_state(void)
         buf_str(&b, uvar_names[i]);
         buf_printf(&b, ",%.16g]", last_ic[i]);
     }
-    buf_printf(&b, "],\"rows\":%d,\"menu\":%d,\"win\":%lu}", my_browser.maxrow, help_menu,
+    BUF_LIT(&b, "],\"bcs\":[");
+    for (i = 0; i < NODE; i++) {
+        if (i) BUF_LIT(&b, ",");
+        BUF_LIT(&b, "[");
+        buf_str(&b, my_bc[i].name);
+        BUF_LIT(&b, ",");
+        buf_str(&b, my_bc[i].string);
+        BUF_LIT(&b, "]");
+    }
+    BUF_LIT(&b, "]");
+    if (DelayFlag) {
+        BUF_LIT(&b, ",\"delays\":[");
+        for (i = 0; i < NODE; i++) {
+            if (i) BUF_LIT(&b, ",");
+            BUF_LIT(&b, "[");
+            buf_str(&b, uvar_names[i]);
+            BUF_LIT(&b, ",");
+            buf_str(&b, delay_string[i]);
+            BUF_LIT(&b, "]");
+        }
+        BUF_LIT(&b, "]");
+    }
+    buf_printf(&b, ",\"rows\":%d,\"menu\":%d,\"win\":%lu}", my_browser.maxrow, help_menu,
                (unsigned long)draw_win);
     send_buf(&b);
     free(b.s);
 }
 
 static void j_state_dirty(void) { state_dirty = 1; }
+
+/* ---- data browser ---------------------------------------------------------------
+   The client shows a scrolling table and asks for the block of rows and
+   columns it can see; my_browser.row0 is the selected row the core's
+   browser commands (Get, First, Last, Find) use. */
+static int br_from, br_count, br_col = 1, br_ncol = 1;
+static int browser_dirty;
+
+static void buf_float(Buf *b, double z, int digits)
+{
+    if (z != z || z > 1e300 || z < -1e300) BUF_LIT(b, "null"); /* not JSON numbers */
+    else buf_printf(b, "%.*g", digits, z);
+}
+
+static void send_browser(void)
+{
+    Buf b = {0};
+    int i, j, last, maxcol = my_browser.maxcol;
+    browser_dirty = 0;
+    if (br_from > my_browser.maxrow - 1) br_from = my_browser.maxrow > 0 ? my_browser.maxrow - 1 : 0;
+    if (br_from < 0) br_from = 0;
+    if (br_col > maxcol - 1) br_col = maxcol - 1;
+    if (br_col < 1) br_col = 1;
+    buf_printf(&b, "{\"ev\":\"browser\",\"rows\":%d,\"row0\":%d,\"start\":%d,\"end\":%d,\"cols\":[\"T\"",
+               my_browser.dataflag ? my_browser.maxrow : 0, my_browser.row0, my_browser.istart, my_browser.iend);
+    for (j = 1; j < maxcol; j++) {
+        BUF_LIT(&b, ",");
+        buf_str(&b, uvar_names[j - 1]);
+    }
+    buf_printf(&b, "],\"from\":%d,\"col\":%d,\"data\":[", br_from, br_col);
+    last = my_browser.dataflag ? br_from + br_count : br_from;
+    if (last > my_browser.maxrow) last = my_browser.maxrow;
+    for (i = br_from; i < last; i++) {
+        if (i > br_from) BUF_LIT(&b, ",");
+        BUF_LIT(&b, "[");
+        buf_float(&b, my_browser.data[0][i], 8); /* as the X11 browser shows them */
+        for (j = br_col; j < br_col + br_ncol && j < maxcol; j++) {
+            BUF_LIT(&b, ",");
+            buf_float(&b, my_browser.data[j][i], 7);
+        }
+        BUF_LIT(&b, "]");
+    }
+    BUF_LIT(&b, "]}");
+    send_buf(&b);
+    free(b.s);
+}
+
+/* {"cmd":"browser","from":row,"count":n,"col":first column,"ncol":n}: the
+   block the client can see; answered at once, even during a prompt */
+static void browser_rows(const char *line)
+{
+    br_from = (int)get_num(line, "from", 0);
+    br_count = (int)get_num(line, "count", 100);
+    br_col = (int)get_num(line, "col", 1);
+    br_ncol = (int)get_num(line, "ncol", 20);
+    if (br_count > 2000) br_count = 2000;
+    if (br_ncol > 500) br_ncol = 500;
+    send_browser();
+}
+
+static void j_browser_changed(int i)
+{
+    (void)i;
+    state_dirty = 1;
+    browser_dirty = 1;
+}
+
+/* {"cmd":"browser","op":...,"row":selected row} */
+static void browser_command(const char *line)
+{
+    char o[16];
+    int row = (int)get_num(line, "row", -1);
+    get_str(line, "op", o, sizeof o);
+    if (row >= 0 && row < my_browser.maxrow) my_browser.row0 = row;
+    if (strcmp(o, "find") == 0) data_find(&my_browser);
+    else if (strcmp(o, "get") == 0) data_get(&my_browser);
+    else if (strcmp(o, "replace") == 0) data_replace(&my_browser);
+    else if (strcmp(o, "unreplace") == 0) data_unreplace(&my_browser);
+    else if (strcmp(o, "table") == 0) data_table(&my_browser);
+    else if (strcmp(o, "load") == 0) data_read(&my_browser);
+    else if (strcmp(o, "write") == 0) data_write(&my_browser);
+    else if (strcmp(o, "first") == 0) data_first(&my_browser);
+    else if (strcmp(o, "last") == 0) data_last(&my_browser);
+    else if (strcmp(o, "restore") == 0) data_restore(&my_browser);
+    else if (strcmp(o, "addcol") == 0) data_add_col(&my_browser);
+    else if (strcmp(o, "delcol") == 0) data_del_col(&my_browser);
+    else if (strcmp(o, "close") == 0) br_count = 0;
+    browser_dirty = 1;
+}
+
+/* the ICs box's xvst (0) and pp (1) buttons: {"cmd":"plotvars","how":0,"names":[...]} */
+static void plotvars_command(const char *line)
+{
+    int isck[MAXODE], i, n = NODE + NMarkov;
+    const char *arr = js_find(line, "names");
+    char name[64];
+    memset(isck, 0, sizeof isck);
+    for (i = 0; arr && js_elem(arr, i); i++) {
+        int k;
+        if (!js_string(js_elem(arr, i), name, sizeof name)) continue;
+        for (k = 0; k < n; k++)
+            if (strcasecmp(uvar_names[k], name) == 0) isck[k] = 1;
+    }
+    plot_checked_vars((int)get_num(line, "how", 0), isck, n);
+}
+
+/* the equations window: one "dX/dT=..." line per equation (eig_list.c) */
+static void send_equations(void)
+{
+    Buf b = {0}, line = {0};
+    int i;
+    BUF_LIT(&b, "{\"ev\":\"equations\",\"lines\":[");
+    for (i = 0; i < NEQ; i++) {
+        const char *name = uvar_names[i], *rhs = ode_names[i] ? ode_names[i] : "";
+        line.len = 0;
+        if (i < NODE && EqType[i] != 1 && METHOD > 0) BUF_LIT(&line, "d");
+        buf_add(&line, name, strlen(name));
+        if (i < NODE && EqType[i] == 1) BUF_LIT(&line, "(t)");
+        else if (i < NODE && METHOD == 0) BUF_LIT(&line, "(n+1)");
+        else if (i < NODE) BUF_LIT(&line, "/dT");
+        BUF_LIT(&line, "=");
+        buf_add(&line, rhs, strlen(rhs));
+        if (i) BUF_LIT(&b, ",");
+        buf_str(&b, line.s);
+    }
+    BUF_LIT(&b, "]}");
+    send_buf(&b);
+    free(b.s);
+    free(line.s);
+}
 static void j_state_dirty_i(int i) { (void)i; state_dirty = 1; }
 static void j_state_dirty_is(int i, char *s) { (void)i; (void)s; state_dirty = 1; }
 
@@ -1137,12 +1310,18 @@ static void j_ani_text(int x, int y, char *s) { op_text(WIN_ANI, "rtext", x, y, 
 
 /* ---- misc ------------------------------------------------------------------------ */
 
+/* the last equilibrium shown, for its Import button */
+static double last_eq[MAXODE];
+static int last_eq_n;
+
 static void j_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n)
 {
     Buf b = {0};
     int i;
     (void)ev;
     redraw_ics();
+    for (i = 0; i < n && i < MAXODE; i++) last_eq[i] = y[i];
+    last_eq_n = n < MAXODE ? n : MAXODE;
     buf_printf(&b, "{\"ev\":\"equilibrium\",\"type\":\"%s\",\"cplus\":%d,\"cminus\":%d,"
                "\"im\":%d,\"rplus\":%d,\"rminus\":%d,\"values\":[",
                eq_stability(cp, rp, im), cp, cm, im, rp, rm);
@@ -1162,9 +1341,18 @@ static void j_make_txtview(void)
     extern char *save_eqn[];
     extern int NLINES;
     Buf b = {0};
+    int i;
     BUF_LIT(&b, "{\"ev\":\"source\",\"lines\":");
     buf_str_array(&b, save_eqn, NLINES);
-    BUF_LIT(&b, "}");
+    /* comments; one with an action runs it when picked ({"cmd":"action"}) */
+    BUF_LIT(&b, ",\"comments\":[");
+    for (i = 0; i < n_comments; i++) {
+        if (i) BUF_LIT(&b, ",");
+        BUF_LIT(&b, "[");
+        buf_str(&b, comments[i].text);
+        buf_printf(&b, ",%d]", comments[i].aflag > 0);
+    }
+    BUF_LIT(&b, "]}");
     send_buf(&b);
     free(b.s);
 }
@@ -1231,8 +1419,8 @@ static const XppUi json_ui = {
     .clear_screens = j_clear_screens,
     .clear_draw_window = clr_scrn,
     .reset_graphics = j_reset_graphics,
-    .data_changed = j_state_dirty_i,
-    .browser_redraw = j_state_dirty_i,
+    .data_changed = j_browser_changed,
+    .browser_redraw = j_browser_changed,
     .activate_graph = j_activate_graph,
     .create_plot_window = j_create_plot_window,
     .destroy_plot_window = j_destroy_plot_window,
@@ -1348,22 +1536,38 @@ static void apply_size(const char *line)
     }
 }
 
+/* {"cmd":"set","kind":"par|ic|bc|delay","name":...,"value":number or "text":...}
+   Text is what the user would type in the X11 box: a number or %formula for
+   parameters and ICs, an expression for BCs and delays. */
 static void apply_set(const char *line)
 {
-    char kind[16], name[64];
-    double v = get_num(line, "value", 0);
-    int i;
+    char kind[16], name[64], text[256];
+    double z;
+    int type, i, n, index = -1;
     get_str(line, "kind", kind, sizeof kind);
     get_str(line, "name", name, sizeof name);
-    if (strcmp(kind, "par") == 0) {
-        set_val(name, v);
-        re_evaluate_kernels();
-        redo_all_fun_tables();
-    } else if (strcmp(kind, "ic") == 0) {
-        for (i = 0; i < NODE + NMarkov; i++)
-            if (strcasecmp(uvar_names[i], name) == 0) last_ic[i] = v;
+    if (!get_str(line, "text", text, sizeof text))
+        snprintf(text, sizeof text, "%.16g", get_num(line, "value", 0));
+    if (strcmp(kind, "par") == 0) type = 1;       /* PARAMBOX */
+    else if (strcmp(kind, "ic") == 0) type = 2;   /* ICBOX */
+    else if (strcmp(kind, "delay") == 0) type = 3; /* DELAYBOX */
+    else if (strcmp(kind, "bc") == 0) type = 4;   /* BCBOX */
+    else return;
+    n = type == 1 ? NUPAR : type == 2 ? NODE + NMarkov : NODE;
+    /* BC names are not unique ("0="): those come by index */
+    index = (int)get_num(line, "index", -1);
+    if (index >= n) index = -1;
+    for (i = 0; index < 0 && i < n; i++) {
+        const char *s = type == 1 ? upar_names[i] : type == 4 ? my_bc[i].name : uvar_names[i];
+        if (s && strcasecmp(s, name) == 0) index = i;
     }
     state_dirty = 1;
+    if (index < 0) return;
+    if (box_set_value(type, index, text, &z) == -1) {
+        j_err_msg("Bad formula");
+        return;
+    }
+    box_values_loaded(type);
 }
 
 void json_ui_handle(const char *line)
@@ -1375,6 +1579,35 @@ void json_ui_handle(const char *line)
         commander(key_code(k));
     } else if (is_cmd(line, "set")) {
         apply_set(line);
+    } else if (is_cmd(line, "default")) {
+        char kind[16];
+        get_str(line, "kind", kind, sizeof kind);
+        if (strcmp(kind, "par") == 0) set_default_params();
+        else set_default_ics();
+    } else if (is_cmd(line, "slide")) {
+        /* a parameter slider moved: {"cmd":"slide","name":...,"value":v,"rerun":1} */
+        char name[64];
+        int type, index;
+        get_str(line, "name", name, sizeof name);
+        if (find_par_or_var(name, &type, &index)) {
+            set_par_or_var(name, type, index, get_num(line, "value", 0));
+            state_dirty = 1;
+            if (get_num(line, "rerun", 1)) slider_rerun();
+        }
+    } else if (is_cmd(line, "userbut")) {
+        int i = (int)get_num(line, "index", -1);
+        if (i >= 0 && i < nuserbut) run_the_commands(userbut[i].com);
+    } else if (is_cmd(line, "browser")) {
+        browser_command(line);
+    } else if (is_cmd(line, "plotvars")) {
+        plotvars_command(line);
+    } else if (is_cmd(line, "eqimport")) {
+        if (last_eq_n) eq_import(last_eq, last_eq_n);
+    } else if (is_cmd(line, "equations")) {
+        send_equations();
+    } else if (is_cmd(line, "action")) {
+        int i = (int)get_num(line, "index", -1);
+        if (i >= 0 && i < n_comments && comments[i].aflag > 0) do_txt_action(comments[i].action);
     } else if (is_cmd(line, "click")) {
         int win = (int)get_num(line, "win", 1) - 1;
         if (win >= 0 && win < MAXPOP && graph[win].Use && current_pop != win) select_graph(win);
@@ -1402,6 +1635,7 @@ void json_ui_handle(const char *line)
         else if (strcmp(o, "file") == 0) auto_file();
     }
     apply_auto_size();
+    if (browser_dirty && br_count) send_browser();
     json_flush();
     /* the command is finished; the client may send the next one */
     send_state();
@@ -1438,6 +1672,7 @@ void json_ui_install(void)
 void json_ui_hello(char *title)
 {
     Buf b = {0};
+    int i;
     BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":1,\"title\":");
     buf_str(&b, title);
     BUF_LIT(&b, ",\"file\":");
@@ -1461,7 +1696,29 @@ void json_ui_hello(char *title)
     buf_str(&b, num_menu_keys);
     BUF_LIT(&b, ",\"num_hints\":");
     buf_str_array(&b, num_hint, NUM_ENTRIES);
-    BUF_LIT(&b, "}}");
+    BUF_LIT(&b, "}");
+    /* @ button name:keys lines of the ODE file ({"cmd":"userbut","index":i}) */
+    BUF_LIT(&b, ",\"userbuttons\":[");
+    for (i = 0; i < nuserbut; i++) {
+        if (i) BUF_LIT(&b, ",");
+        buf_str(&b, userbut[i].bname);
+    }
+    /* @ slider1=name,slider1lo=...: the parameter sliders set in the file */
+    BUF_LIT(&b, "],\"sliders\":[");
+    {
+        int set[3] = {!notAlreadySet.SLIDER1, !notAlreadySet.SLIDER2, !notAlreadySet.SLIDER3};
+        char *var[3] = {SLIDER1VAR, SLIDER2VAR, SLIDER3VAR};
+        double lo[3] = {SLIDER1LO, SLIDER2LO, SLIDER3LO}, hi[3] = {SLIDER1HI, SLIDER2HI, SLIDER3HI};
+        int k = 0;
+        for (i = 0; i < 3; i++) {
+            if (!set[i]) continue;
+            if (k++) BUF_LIT(&b, ",");
+            BUF_LIT(&b, "{\"name\":");
+            buf_str(&b, var[i]);
+            buf_printf(&b, ",\"lo\":%.16g,\"hi\":%.16g}", lo[i], hi[i]);
+        }
+    }
+    BUF_LIT(&b, "]}");
     send_buf(&b);
     free(b.s);
     send_palette();

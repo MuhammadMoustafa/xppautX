@@ -30,7 +30,16 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `key` | `key` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. |
 | `answer` | `id`, `ok` (0/1), plus the kind's fields | Reply to an `ask`. Omitting `ok` means ok. |
 | `size` | `win`, `w`, `h` | Canvas size in pixels; the plot is redrawn. For the AUTO diagram (`win` 101) the size includes the axis margins and applies when the current command ends; the server answers with `window` `create` for 101 and redraws the diagram. |
-| `set` | `kind` (`par` or `ic`), `name`, `value` | Change a parameter or initial condition (no redraw or rerun). |
+| `set` | `kind` (`par`, `ic`, `bc`, `delay`), `name` or `index`, `value` or `text` | Change a value (no redraw or rerun). `text` is what the X11 box takes: a number or `%formula` for `par` and `ic`, an expression for `bc` and `delay`. BCs and delays go by `index` (BC names all read `0=`). A formula that does not evaluate gives `message` `error`. |
+| `default` | `kind` (`par` or `ic`) | The Default button: values from the ODE file. |
+| `slide` | `name`, `value`, `rerun` (default 1) | A parameter slider moved: set the parameter or variable, then clear and integrate again. |
+| `userbut` | `index` | An `@ button` of the ODE file (`hello.userbuttons`). |
+| `plotvars` | `how` (0 x vs t, 1 phase plane), `names` | The IC box's xvst/pp buttons for the checked variables. |
+| `browser` | `from`, `count`, `col`, `ncol` | The data browser block the client shows (answered at once with `browser`, even during a prompt); `count` 0 stops the updates. |
+| `browser` | `op` (`find`, `get`, `replace`, `unreplace`, `table`, `load`, `write`, `first`, `last`, `restore`, `addcol`, `delcol`), `row` | A data browser button, with `row` the selected row (the X11 browser's top row). |
+| `eqimport` | | The equilibrium window's Import: the last equilibrium becomes the initial conditions. |
+| `equations` | | Send `equations`. |
+| `action` | `index` | Run the action of comment `index` of `source.comments`. |
 | `click` | `win` | The user selected plot window `win`. |
 | `redraw` | | Redraw the active plot window, and the AUTO diagram when AUTO is open (for a client that reconnects). |
 | `state` | | Send `state` now. |
@@ -43,18 +52,20 @@ Send `size` for window 1 as soon as the canvas size is known.
 
 | ev | fields | meaning |
 |---|---|---|
-| `hello` | `protocol`, `title`, `file`, `char` {`w`,`h`,`bw`,`bh`}, `menus` | First event. Text is laid out on a `char.w` x `char.h` monospace cell. |
+| `hello` | `protocol`, `title`, `file`, `char` {`w`,`h`,`bw`,`bh`}, `menus`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. Text is laid out on a `char.w` x `char.h` monospace cell. `sliders` are the ones the ODE file sets (`@ s1=...`). |
 | `palette` | `colors` (256 `#rrggbb`) | Colour table; sent again after a colormap change. |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows 1..10, AUTO 101 (stability circle 102, info strip 103), animation 104. |
 | `draw` | `win`, `ops` | Drawing, see below. |
-| `state` | `pars` [[name,value]...], `ics` [[name,value]...], `rows`, `menu`, `win` | Current values; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics), `win` the active window. |
+| `state` | `pars` [[name,value]...], `ics` [[name,value]...], `bcs` [[name,text]...], `delays` [[name,text]...] (delay equations only), `rows`, `menu`, `win` | Current values; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics), `win` the active window. |
 | `idle` | | The command finished. |
 | `menu` | `which` | The main menu switched (0 main, 1 file, 2 numerics). |
 | `title` | `text` | Title of the selected plot window: what it plots (`W vs V`). The server also labels unlabelled 2D axes with the plotted variables. |
 | `message` | one of `error`, `bottom`, `box`, `xy`, `auto`, `calc` | Status text. `box` with empty text removes a hint box. |
 | `progress` | `n`, `of` | Computation progress, at most 10 a second. |
 | `equilibrium` | `type`, `cplus`, `cminus`, `rplus`, `rminus`, `im`, `values` | Result of Sing pts. |
-| `source` | `lines` | File/Prt src. |
+| `source` | `lines`, `comments` [[text, has action]...] | File/Prt src. |
+| `equations` | `lines` | One `dX/dT=...` line per equation. |
+| `browser` | `rows`, `cols` (names, `T` first), `row0` (selected row), `start`, `end` (the First..Last range), `from`, `col`, `data` | Rows `from`.. as [T, column `col`, `col`+1, ...]; `null` for NaN. Sent for a `browser` block request and after any command that changed the data while the client shows the browser. |
 | `ping` | | Beep. |
 | `bye` | | The program is exiting. |
 | `ask` | `id`, `kind`, ... | See below. |
@@ -106,6 +117,6 @@ Each op is an array; coordinates are pixels from the top-left of the window.
 ## Not yet implemented
 
 Kinescope playback and saving, array plots and window scrolling send a
-`message` `error` instead of working, and there is no data browser or
-animation playback loop (`Go`) yet; their logic is in core, only the
-protocol side is missing.
+`message` `error` instead of working, and there is no animation playback
+loop (`Go`) yet. docs/front-end-gaps.md lists what the X11 front end still
+does that this protocol does not.

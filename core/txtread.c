@@ -122,19 +122,6 @@ void enter_txtview(Window w,int val)
 }
  
 
-void do_txt_action(char *s)
-{
-  int tb=tfBell;
-  tfBell=1;
- get_graph();
- extract_action(s);
- ping();
- tfBell=tb;
-  chk_delay();
-  redraw_params();
-  redraw_ics();
-  reset_graph();
-}
 
 
 
