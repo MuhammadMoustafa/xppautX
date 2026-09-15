@@ -11,6 +11,7 @@
    ran; stdout itself is pointed at stderr so the core's own printing never
    corrupts the stream. */
 #include "ui_json.h"
+#include "xpp_http.h"
 #include "xpp_win32.h"
 #include "xpp_ui.h"
 #include "xpp_globals.h"
@@ -164,10 +165,37 @@ static void buf_str_array(Buf *b, char **v, int n)
     BUF_LIT(b, "]");
 }
 
+/* one event line to the client: stdout, or the page of xppaut-web */
+static void out_line(const char *s, size_t n)
+{
+    if (xpp_http_active()) {
+        xpp_http_emit(s, n);
+        return;
+    }
+    fwrite(s, 1, n, proto);
+    fputc('\n', proto);
+}
+
+static void out_flush(void)
+{
+    if (proto) fflush(proto);
+}
+
 static void flush_ops(void)
 {
+    char head[64];
+    size_t k;
     if (ops.len == 0) return;
-    fprintf(proto, "{\"ev\":\"draw\",\"win\":%lu,\"ops\":[%s]}\n", ops_win, ops.s);
+    k = (size_t)snprintf(head, sizeof head, "{\"ev\":\"draw\",\"win\":%lu,\"ops\":[", ops_win);
+    /* wrap the ops in place: {"ev":"draw",...,"ops":[ ... ]} */
+    if (ops.len + k + 3 > ops.cap) {
+        ops.cap = ops.len + k + 3 + 4096;
+        ops.s = realloc(ops.s, ops.cap);
+    }
+    memmove(ops.s + k, ops.s, ops.len);
+    memcpy(ops.s, head, k);
+    memcpy(ops.s + k + ops.len, "]}", 3);
+    out_line(ops.s, ops.len + k + 2);
     ops.len = 0;
     ops.s[0] = 0;
 }
@@ -178,9 +206,8 @@ static void send_state(void);
 static void send_buf(Buf *b)
 {
     flush_ops();
-    fputs(b->s, proto);
-    fputc('\n', proto);
-    fflush(proto);
+    out_line(b->s, b->len);
+    out_flush();
     b->len = 0;
 }
 
@@ -231,7 +258,7 @@ static void json_flush(void)
 {
     flush_ops();
     if (state_dirty) send_state();
-    fflush(proto);
+    out_flush();
 }
 
 /* ---- input ------------------------------------------------------------- */
@@ -244,13 +271,14 @@ static size_t inlen, incap, linecap;
 #ifdef _WIN32
 static int read_input(char *buf, int n, int wait_ms)
 {
-    int r = xpp_read_stdin(buf, n, wait_ms);
+    int r = xpp_http_active() ? xpp_http_read(buf, n, wait_ms) : xpp_read_stdin(buf, n, wait_ms);
     if (r < 0) exit(0);
     return r;
 }
 #else
 static int read_input(char *buf, int n, int wait_ms)
 {
+    if (xpp_http_active()) return xpp_http_read(buf, n, wait_ms);
     for (;;) {
         fd_set fds;
         struct timeval tv, *tvp = NULL;
@@ -502,7 +530,7 @@ static int ask_wait(Buf *b, int id)
         char *line = read_line(-1);
         if (handle_async(line)) {
             flush_ops();
-            fflush(proto);
+            out_flush();
             continue;
         }
         if (is_cmd(line, "answer") && (int)get_num(line, "id", -1) == id) {
@@ -786,7 +814,7 @@ static int j_check_abort(void)
     if ((now.tv_sec - last.tv_sec) * 1000000 + (now.tv_usec - last.tv_usec) > 50000) {
         last = now;
         flush_ops();
-        fflush(proto);
+        out_flush();
     }
     while ((line = read_line(0)) != NULL) {
         if (handle_async(line)) continue;
@@ -1731,7 +1759,7 @@ static int ani_wait(int ms)
     struct timeval start, now;
     gettimeofday(&start, NULL);
     flush_ops();
-    fflush(proto);
+    out_flush();
     for (;;) {
         char *line, o[16];
         long left;
@@ -1863,7 +1891,7 @@ static void j_new_vcr(void)
     ani_view_created();
 }
 static void j_ani_clear(void) { op(WIN_ANI, "[\"clear\"]"); }
-static void j_ani_show(void) { flush_ops(); fflush(proto); }
+static void j_ani_show(void) { flush_ops(); out_flush(); }
 static void j_ani_color(int icol) { op(WIN_ANI, "[\"color\",%d]", icol); }
 static void j_ani_thick(int t) { op(WIN_ANI, "[\"lw\",%d]", t); }
 static void j_ani_font(int size, int font, int color) { op(WIN_ANI, "[\"font\",%d,%d,%d]", size, font, color); }
@@ -2239,14 +2267,16 @@ void json_ui_loop(void)
 
 void json_ui_install(void)
 {
-    int fd = dup(1);
     int i;
+    if (!xpp_http_active()) { /* xppaut-web has taken stdout and stderr */
+        int fd = dup(1);
 #ifdef _WIN32
-    xpp_binary_mode(fd); /* "\n" line ends, not "\r\n" */
-    xpp_binary_mode(0);
+        xpp_binary_mode(fd); /* "\n" line ends, not "\r\n" */
+        xpp_binary_mode(0);
 #endif
-    proto = fdopen(fd, "w");
-    dup2(2, 1);
+        proto = fdopen(fd, "w");
+        dup2(2, 1);
+    }
     for (i = 0; i < MAXPOP; i++) {
         win_w[i] = 640;
         win_h[i] = 480;

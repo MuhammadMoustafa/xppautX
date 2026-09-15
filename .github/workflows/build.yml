@@ -24,7 +24,7 @@ jobs:
       - name: Install deps
         run: brew install libx11
       - name: Build
-        run: make -j"$(sysctl -n hw.ncpu)" xppaut xppcore-cli xppcore-server X11_INC="-I$(brew --prefix)/include" X11_LIB="-L$(brew --prefix)/lib" 2>&1 | tee build.log
+        run: make -j"$(sysctl -n hw.ncpu)" xppaut xppcore-cli xppcore-server xppaut-web X11_INC="-I$(brew --prefix)/include" X11_LIB="-L$(brew --prefix)/lib" 2>&1 | tee build.log
       - name: Smoke test (headless, both binaries must agree)
         run: |
           ./xppaut -version
@@ -33,12 +33,14 @@ jobs:
           mv output.dat x11.dat && "$GITHUB_WORKSPACE/xppcore-cli" "$GITHUB_WORKSPACE/examples/ode/lecar.ode"
           cmp x11.dat output.dat
           echo "md5 on this platform: $(md5 -q output.dat) (linux baseline c281851de59ffd03b2a46428619a0c8f)"
-      - name: Server protocol
-        run: python3 tools/servercheck.py
+      - name: Server protocol and web front end
+        run: python3 tools/servercheck.py && python3 tools/webcheck.py
       - uses: actions/upload-artifact@v4
         with:
-          name: xppcore-server-macos
-          path: xppcore-server
+          name: xppaut-macos
+          path: |
+            xppcore-server
+            xppaut-web
 
   windows:
     runs-on: windows-latest
@@ -52,14 +54,16 @@ jobs:
           msystem: UCRT64
           install: make mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-python
       - name: Build the X11-free binaries natively
-        run: make -j4 server cli
+        run: make -j4 server cli web
       - name: Headless run matches Linux (ignoring line ends)
         run: |
           cd /tmp && "$GITHUB_WORKSPACE/xppcore-cli.exe" "$GITHUB_WORKSPACE/examples/ode/lecar.ode"
           test "$(tr -d '' < output.dat | md5sum | cut -d' ' -f1)" = c281851de59ffd03b2a46428619a0c8f
-      - name: Server protocol
-        run: python tools/servercheck.py --server ./xppcore-server.exe
+      - name: Server protocol and web front end
+        run: python tools/servercheck.py --server ./xppcore-server.exe && python tools/webcheck.py --bin ./xppaut-web.exe
       - uses: actions/upload-artifact@v4
         with:
-          name: xppcore-server-windows
-          path: xppcore-server.exe
+          name: xppaut-windows
+          path: |
+            xppcore-server.exe
+            xppaut-web.exe

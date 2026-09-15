@@ -39,8 +39,9 @@ the incremental build only.
 The Windows-side gcc at C:\Strawberry\c\bin is MinGW-w64 without X11 headers: use it
 only for the native X11-free build, from Git Bash:
 
-    PATH=/c/Strawberry/c/bin:$PATH mingw32-make -j8 server cli BUILDDIR=build/win
+    PATH=/c/Strawberry/c/bin:$PATH mingw32-make -j8 server cli web BUILDDIR=build/win
     python3 tools/servercheck.py --server ./xppcore-server.exe
+    python3 tools/webcheck.py --bin ./xppaut-web.exe
 
 Windows API code lives only in `core/xpp_win32.c` (windows.h macros clash
 with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
@@ -87,6 +88,15 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   it a `j_` implementation too, and extend `tools/servercheck.py` for new
   protocol behaviour; `tools/verify.sh` runs it. Every command ends with
   `state` then `idle`; a client waits for `idle`.
+- `xppaut-web` (`make web`) is `xppcore_server.c` built with
+  `XPP_WEB_DEFAULT`, plus `core/xpp_http.c` (HTTP + Server-Sent Events on
+  127.0.0.1, threads, sockets; it includes no core header) and
+  `build/.../web_assets.c`, generated from `web/` by `tools/embed.c`. The
+  protocol lines go through `out_line()` in ui_json.c and input through
+  `read_input()`, which switch to xpp_http.c in web mode. Rebuild after
+  editing `web/` files; `node web/serve.js` still serves them from disk.
+- The X11 front end is frozen: new UI work goes into ui_json.c and
+  `web/`; docs/front-end-gaps.md tracks parity.
 - Pop-up menu arrays in menus.c (`main_menu` etc.) start with the title:
   item i is `main_menu[i+1]` with key `main_menu_keys[i]`.
 

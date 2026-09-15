@@ -18,6 +18,7 @@
 /build/*.txt
 /xppcore-cli
 /xppcore-server
+/xppaut-web
 /libxppcore.a
 /build/guicheck/
 /build/probe/

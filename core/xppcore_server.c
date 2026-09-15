@@ -2,7 +2,11 @@
    xppaut does, then speaks the line-delimited JSON protocol of ui_json.c on
    stdin/stdout, so any front end (the VS Code webview, a browser, a test
    script) can drive the same menus and hotkeys.
-   usage: xppcore-server file.ode [xppaut options] */
+   usage: xppcore-server [--web] [--port N] [--no-open] file.ode [xppaut options]
+
+   Compiled with XPP_WEB_DEFAULT this is xppaut-web, which starts with --web:
+   the protocol goes to the page it serves on 127.0.0.1 (xpp_http.c) and a
+   browser opens it. */
 #include "xpp_batch.h"
 #include "xpp_globals.h"
 #include "xpp_ui.h"
@@ -16,6 +20,8 @@
 #include "comline.h"
 #include "load_eqn.h"
 #include "menudrive.h"
+#include "xpp_http.h"
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -60,6 +66,22 @@ static void init_main_graph(void)
 int main(int argc, char **argv)
 {
     char title[128];
+#ifdef XPP_WEB_DEFAULT
+    int web = 1;
+#else
+    int web = 0;
+#endif
+    int port = 8765, open_browser = 1, i, k;
+    /* our options come first; the rest are xppaut's */
+    for (i = k = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--web") == 0) web = 1;
+        else if (strcmp(argv[i], "--no-open") == 0) open_browser = 0;
+        else if (strcmp(argv[i], "--port") == 0 && i + 1 < argc) port = atoi(argv[++i]);
+        else argv[k++] = argv[i];
+    }
+    argc = k;
+    argv[argc] = NULL;
+    if (web && !xpp_http_start(port, open_browser)) return 1;
     /* a monospace font the client can match: small 7x13, big 9x15 */
     DCURXs = 7; DCURYs = 13; CURY_OFFs = 10;
     DCURXb = 9; DCURYb = 15; CURY_OFFb = 12;

@@ -12,10 +12,18 @@ Current status: **phase 3 steps 1-5 done**. The numerics and every command
 are X11-free. `make lib` builds `build/obj/libxppcore.a`; `make cli` builds
 `xppcore-cli`, a headless runner with byte-identical `output.dat` to
 `xppaut -silent`; `make server` builds `xppcore-server`, which runs the full
-menu system over a JSON protocol, and `node web/serve.js file.ode` puts it in
-a browser. Both build natively on Windows. The X11 program still builds and
-behaves as before; it is kept as the reference until the new front end
-covers kinescope, array plots and the data browser.
+menu system over a JSON protocol, and `make web` builds `xppaut-web`, the
+same program with the browser front end compiled in:
+
+```bash
+./xppaut-web examples/ode/lecar.ode    # opens http://127.0.0.1:8765/?t=... in the browser
+```
+
+It needs nothing else (no X server, no Node), builds natively on Windows,
+and does what the X11 program does ([docs/front-end-gaps.md](docs/front-end-gaps.md)).
+The X11 program still builds and behaves as before; it is frozen (no new
+features) and kept as the reference until the web front end has its own
+screenshot regression test.
 
 ## Plan
 
@@ -61,8 +69,11 @@ covers kinescope, array plots and the data browser.
       browser page (canvas plots, menu column, parameter and IC panel,
       dialogs for every prompt, AUTO and animation windows). `node
       web/serve.js file.ode` runs it standalone at http://127.0.0.1:8765/;
-      the XPP-ODE extension (branch `interactive-webview`) hosts the same
-      script in a webview with **Open in XPP Interactive**.
+      the XPP-ODE extension hosts the same script in a webview with **Open in
+      XPP Interactive**. `make web` builds `xppaut-web`: `xppcore-server`
+      with the page compiled in and a small HTTP server (`core/xpp_http.c`,
+      127.0.0.1 only, a random token in the address) instead of Node;
+      options `--port N` and `--no-open`.
    5. *(done for Windows; macOS in CI)* Native builds of the X11-free
       binaries: `make server cli` works with MinGW-w64 gcc on Windows
       (`xppcore-server.exe` needs only the system C runtime, and dll_lib
@@ -79,7 +90,8 @@ them after a build and checks the output checksums):
 |---|---|---|
 | `tools/x11free.sh` | sources that compile with X11 headers stubbed out | 92 / 114 |
 | `tools/coredeps.sh` | symbols those objects import from X11 objects | 0 |
-| `tools/servercheck.py` | protocol session against `xppcore-server` (menus, prompts, integration, equilibria, windows) | 16 checks |
+| `tools/servercheck.py` | protocol session against `xppcore-server` (menus, prompts, integration, equilibria, windows, browser, animation, kinescope, array plot, scrolling) | 34 checks |
+| `tools/webcheck.py` | `xppaut-web` over HTTP: page, token, event stream, commands, exit | 11 checks |
 
 `tools/guicheck.sh [REF]` guards the X11 program itself: it builds `REF`
 (default `HEAD`), drives both GUIs through the keys in `tools/gui_keys.txt`
