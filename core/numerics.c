@@ -4,6 +4,7 @@
 #include <strings.h>
 
 #include "menudrive.h"
+#include "menus.h"
 #include <stdlib.h> 
 #include <stdio.h>
 #include <math.h>
@@ -528,24 +529,9 @@ void get_method()
 {
  char ch;
  int i;
- int nmeth;
-
- static char *n[]={"(D)iscrete","(E)uler","(M)od. Euler",
-	"(R)unge-Kutta","(A)dams","(G)ear","(V)olterra","(B)ackEul",
-		 "(Q)ualst.RK4","(S)tiff","(C)Vode","DoPri(5)","DoPri(8)3",
-                 "Rosen(2)3","sYmplectic"};
- static char key[]="demragvbqsc582y";
-
-#ifdef CVODE_YES
- nmeth=15;
-#else
- nmeth=15;
-#endif 
- ch = (char)xpp_ui.choose_key("Method",n,key,nmeth,METHOD,meth_hint);
- for(i=0;i<nmeth;i++)
- if(ch==key[i])METHOD=i;
- if(i>(nmeth-1))i=nmeth-1;
-	/* XDestroyWindow(display,temp); */
+ ch = (char)menu_choose(&menu_method,METHOD);
+ for(i=0;i<menu_method.n;i++)
+ if(ch==menu_method.keys[i])METHOD=i;
  }
 
 

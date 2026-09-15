@@ -98,7 +98,7 @@ void rect_x11(x,y,w,h)
  XFillRectangle(display,draw_win,gc_graph,x,y,w,h);
 }
 
-void draw_many_lines()
+void x11_draw_many_lines()
 {
   int NLINE=500000;
   int i;

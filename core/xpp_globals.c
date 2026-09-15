@@ -21,6 +21,8 @@ int XPPVERBOSE = 1;
 int OVERRIDE_QUIET = 0;
 int OVERRIDE_LOGFILE = 0;
 int tfBell;
+int AutoFreezeFlag = 0; /* freeze the curve after every integration */
+int help_menu; /* which main-window menu keys go to: MAIN_MENU, FILE_MENU, NUM_MENU */
 
 char big_font_name[100], small_font_name[100];
 char PlotFormat[100];

@@ -18,9 +18,9 @@ static void hl_int(int v) { (void)v; }
 static void hl_bottom_msg(int line, char *msg) { (void)line; (void)msg; }
 static int hl_new_string(char *name, char *value) { (void)name; (void)value; return 0; }
 static int hl_no(void) { return 0; }
-static int hl_two_choice(char *c1, char *c2, char *q, char *key)
+static int hl_two_choice(char *c1, char *c2, char *q, char *key, char *title)
 {
-    (void)c1; (void)c2; (void)q; (void)key;
+    (void)c1; (void)c2; (void)q; (void)key; (void)title;
     return 0;
 }
 static int hl_string_box(int n, int row, int col, char *title, char **names,
@@ -34,11 +34,9 @@ static int hl_file_selector(char *title, char *file, char *wild)
     (void)title; (void)file; (void)wild;
     return 0;
 }
-static int hl_choose_key(char *title, char **items, char *keys, int n, int def,
-                         char **hints)
+static int hl_menu_choose(const struct XppMenu *m, int def)
 {
-    (void)title; (void)items; (void)hints;
-    if (def >= 0 && def < n) return keys[def];
+    (void)m; (void)def;
     return 0;
 }
 static int hl_get_mouse_xy(int *x, int *y) { (void)x; (void)y; return 0; }
@@ -82,6 +80,7 @@ static void hl_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
     for (i = 0; i < n; i++)
         plintf("  y[%d]=%.8g  eig=%.8g%+.8gi\n", i, y[i], ev[2 * i], ev[2 * i + 1]);
 }
+static int hl_save_as(void) { return 0; }
 static void hl_exit_program(void) { exit(1); }
 
 XppUi xpp_ui = {
@@ -97,12 +96,11 @@ XppUi xpp_ui = {
     .two_choice = hl_two_choice,
     .string_box = hl_string_box,
     .file_selector = hl_file_selector,
-    .choose_key = hl_choose_key,
     .get_mouse_xy = hl_get_mouse_xy,
     .edit_ics = hl_void,
     .menu_flash = hl_int,
-    .menu_help = hl_void,
-    .submenu = hl_int,
+    .show_menu = hl_int,
+    .menu_choose = hl_menu_choose,
     .check_abort = hl_check_abort,
     .progress_begin = hl_no,
     .progress = hl_progress,
@@ -167,6 +165,28 @@ XppUi xpp_ui = {
     .init_txtview = hl_void,
     .add_user_button = hl_str,
     .show_eq_box = hl_show_eq_box,
+    .xi_vs_t = hl_void,
+    .get_3d_par_com = hl_void,
+    .new_parameter = hl_void,
+    .window_zoom_com = hl_int,
+    .change_view_com = hl_int,
+    .add_a_curve_com = hl_int,
+    .freeze_com = hl_int,
+    .change_cmap_com = hl_int,
+    .key_frz_com = hl_int,
+    .do_torus_com = hl_int,
+    .do_movie_com = hl_int,
+    .do_windows_com = hl_int,
+    .do_gr_objs_com = hl_int,
+    .edit_object_com = hl_int,
+    .get_intern_set = hl_void,
+    .clone_ode = hl_void,
+    .make_txtview = hl_void,
+    .q_calc = hl_void,
+    .edit_rhs = hl_void,
+    .edit_functions = hl_void,
+    .save_as = hl_save_as,
+    .draw_many_lines = hl_void,
     .exit_program = hl_exit_program,
 };
 
@@ -197,7 +217,7 @@ int new_string(char *name, char *value) { return xpp_ui.new_string(name, value);
 int yes_no_box(void) { return xpp_ui.yes_no_box(); }
 int TwoChoice(char *c1, char *c2, char *q, char *key)
 {
-    return xpp_ui.two_choice(c1, c2, q, key);
+    return xpp_ui.two_choice(c1, c2, q, key, NULL);
 }
 int do_string_box(int n, int row, int col, char *title, char **names,
                   char values[][25], int maxchar)
@@ -211,13 +231,7 @@ int file_selector(char *title, char *file, char *wild)
 int GetMouseXY(int *x, int *y) { return xpp_ui.get_mouse_xy(x, y); }
 void man_ic(void) { xpp_ui.edit_ics(); }
 void flash(int num) { xpp_ui.menu_flash(num); }
-void help(void) { xpp_ui.menu_help(); }
-void set_col_par(void) { xpp_ui.submenu(XPP_SUBMENU_COLOR); }
-void new_lookup(void) { xpp_ui.submenu(XPP_SUBMENU_LOOKUP); }
-void make_adj(void) { xpp_ui.submenu(XPP_SUBMENU_ADJOINT); }
-void get_pmap_pars(void) { xpp_ui.submenu(XPP_SUBMENU_POINCARE); }
-void froz_cline_stuff(void) { xpp_ui.submenu(XPP_SUBMENU_FROZEN_CLINE); }
-void do_stochast(void) { xpp_ui.submenu(XPP_SUBMENU_STOCHASTIC); }
+int menu_choose(const struct XppMenu *m, int def) { return xpp_ui.menu_choose(m, def); }
 int my_abort(void) { return xpp_ui.check_abort(); }
 int get_command_width(void) { return xpp_ui.progress_begin(); }
 void plot_command(int nit, int icount, int cwidth) { xpp_ui.progress(nit, icount, cwidth); }
@@ -278,6 +292,28 @@ void create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
     xpp_ui.show_eq_box(cp, cm, rp, rm, im, y, ev, n);
 }
 void bye_bye(void) { xpp_ui.exit_program(); }
+void xi_vs_t(void) { xpp_ui.xi_vs_t(); }
+void get_3d_par_com(void) { xpp_ui.get_3d_par_com(); }
+void new_parameter(void) { xpp_ui.new_parameter(); }
+void window_zoom_com(int c) { xpp_ui.window_zoom_com(c); }
+void change_view_com(int c) { xpp_ui.change_view_com(c); }
+void add_a_curve_com(int c) { xpp_ui.add_a_curve_com(c); }
+void freeze_com(int c) { xpp_ui.freeze_com(c); }
+void change_cmap_com(int c) { xpp_ui.change_cmap_com(c); }
+void key_frz_com(int c) { xpp_ui.key_frz_com(c); }
+void do_torus_com(int c) { xpp_ui.do_torus_com(c); }
+void do_movie_com(int c) { xpp_ui.do_movie_com(c); }
+void do_windows_com(int c) { xpp_ui.do_windows_com(c); }
+void do_gr_objs_com(int c) { xpp_ui.do_gr_objs_com(c); }
+void edit_object_com(int c) { xpp_ui.edit_object_com(c); }
+void get_intern_set(void) { xpp_ui.get_intern_set(); }
+void clone_ode(void) { xpp_ui.clone_ode(); }
+void make_txtview(void) { xpp_ui.make_txtview(); }
+void q_calc(void) { xpp_ui.q_calc(); }
+void edit_rhs(void) { xpp_ui.edit_rhs(); }
+void edit_functions(void) { xpp_ui.edit_functions(); }
+int save_as(void) { return xpp_ui.save_as(); }
+void draw_many_lines(void) { xpp_ui.draw_many_lines(); }
 
 /* plintf, new_int and new_float were in ggets.c; they never touched X. */
 

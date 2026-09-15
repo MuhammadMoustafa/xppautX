@@ -310,35 +310,7 @@ EDIT_BOX *sb;
  }
    
 
-void edit_menu()
-{
- Window temp=main_win;
- static char *n[]={"RHS's" ,"Functions","Save as","Load DLL"};
- static char key[]="rfsl"; 
- char ch;
- int edtype=0,i;
- ch=(char)pop_up_list(&temp,"Edit Stuff",n,key,4,11,edtype,10,13*DCURY+8,
-		      edrh_hint,info_pop,info_message);
- edtype=-1;
- for(i=0;i<4;i++)
- if(ch==key[i])edtype=i;
- switch(edtype){
- case 0: 
-   edit_rhs();
-   break;
- case 1:
-   edit_functions();
-   break;
- case 2:
-   save_as();
-   break;
- case 3:
-   load_new_dll();
-   break;
- }
-}
-
-void edit_rhs()
+void x11_edit_rhs()
 {
  char **names,**values;
  int **command;
@@ -398,7 +370,7 @@ void edit_rhs()
  free(command);
 }
 
-void edit_functions()
+void x11_edit_functions()
 {
  char **names,**values;
  int **command;
@@ -466,7 +438,7 @@ void edit_functions()
 
 }
 
-int save_as()
+int x11_save_as()
 {
   int i,ok;
   FILE *fp;

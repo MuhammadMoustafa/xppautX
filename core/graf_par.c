@@ -80,7 +80,7 @@ extern double T0,TEND;
 extern float **storage;
 
 double FreezeKeyX,FreezeKeyY;
-int FreezeKeyFlag,AutoFreezeFlag=0;
+int FreezeKeyFlag;
 int CurrentCurve=0;
 extern char this_file[XPP_MAX_NAME];
 extern char this_internset[XPP_MAX_NAME];
@@ -97,7 +97,7 @@ char *color_names[]={"WHITE","RED","REDORANGE","ORANGE","YELLOWORANGE",
 		      "BLUE","PURPLE","BLACK"};
 
 
-void change_view_com(int com)
+void x11_change_view_com(int com)
 {
  
  if(com==2){
@@ -479,7 +479,7 @@ void user_window()
  redraw_the_graph();
 }
 
-void xi_vs_t() /*  a short cut   */
+void x11_xi_vs_t() /*  a short cut   */
 {
  char name[20],value[20];
  int i=MyGraph->yv[0];
@@ -598,7 +598,7 @@ void test_rot()
    
 }
 
-void get_3d_par_com()
+void x11_get_3d_par_com()
 {
   
 
@@ -783,7 +783,7 @@ void scroll_window()
 }
 
     
-void window_zoom_com(int c)
+void x11_window_zoom_com(int c)
 {
  int i1,i2,j1,j2;
   switch(c){
@@ -1109,13 +1109,13 @@ ps_test()
 */
 
 
-void change_cmap_com(int i)
+void x11_change_cmap_com(int i)
 {
       NewColormap(i);
 
 }
 
-void freeze_com(int c)
+void x11_freeze_com(int c)
 {
 
  switch(c){
@@ -1179,7 +1179,7 @@ void draw_freeze_key()
   }
 }
 
-void key_frz_com(int c)
+void x11_key_frz_com(int c)
 {
   int x,y;
   switch(c){
@@ -1545,7 +1545,7 @@ if((fp=fopen(filename,"w"))==NULL){
  fclose(fp);
 }
 
-void add_a_curve_com(int c)
+void x11_add_a_curve_com(int c)
 {
 
  switch(c){

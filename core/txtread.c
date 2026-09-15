@@ -288,7 +288,7 @@ void x11_init_txtview()
 }
 
 
-void make_txtview()
+void x11_make_txtview()
 {
   int minwid=DCURXs*60,minlen=3*DCURYs+8+10*DCURY;
   Window base;

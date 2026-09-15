@@ -55,7 +55,7 @@ struct {
 
 
 
-void do_torus_com(int c)
+void x11_do_torus_com(int c)
 {
  int i;
  TORUS=0;

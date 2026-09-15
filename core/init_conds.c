@@ -274,7 +274,7 @@ void c_hints()
 
 }
 /* CLONE */
-void clone_ode()
+void x11_clone_ode()
 {
   int i,j,x,y;
   FILE *fp;
@@ -2385,7 +2385,7 @@ void x11_man_ic()
   }
 }
 
-void new_parameter()
+void x11_new_parameter()
 {
   int done,index;
   double z;

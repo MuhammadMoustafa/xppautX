@@ -45,6 +45,38 @@ extern char *aspecial_hint[];
 extern char *arun_hint[];
 extern char *browse_hint[];
 
+/* key strings for the three main-window menus, one key per entry */
+extern char main_menu_keys[];
+extern char num_menu_keys[];
+extern char file_menu_keys[];
+
+/* A pop-up menu as data. Core code asks the front end to show one with
+   menu_choose() and gets back the chosen key. Item i usually runs
+   run_the_commands(first_cmd + i); first_cmd is -1 when the caller handles
+   the choice itself. width and row are the X11 pop_up_list layout (maximum
+   label width, and the text row the list opens at). */
+typedef struct XppMenu {
+  const char *name;  /* stable identifier for front ends */
+  char *title;
+  int n;
+  char **items;
+  char *keys;
+  char **hints;
+  int first_cmd;
+  int width, row;
+} XppMenu;
+
+extern const XppMenu menu_integrate, menu_nullclines, menu_freeze_cline,
+  menu_dirfield, menu_window, menu_torus, menu_kinescope, menu_curves,
+  menu_freeze, menu_freeze_off, menu_freeze_key, menu_colormap,
+  menu_windows, menu_windows_simoff, menu_text, menu_text_edit,
+  menu_equilibria, menu_view, menu_bvp, menu_stochastic, menu_poincare,
+  menu_color_code, menu_adjoint, menu_lookup, menu_method, menu_edit_rhs;
+
+/* every menu above, for front ends that build their menus up front */
+extern const XppMenu *const xpp_menus[];
+extern const int xpp_menu_count;
+
 #if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 typedef struct {
   Window base,title;

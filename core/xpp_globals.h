@@ -29,6 +29,8 @@ extern int XPPVERBOSE;
 extern int OVERRIDE_QUIET;
 extern int OVERRIDE_LOGFILE;
 extern int tfBell;
+extern int help_menu;
+extern int AutoFreezeFlag;
 
 /* appearance options parsed from the ODE file / command line */
 extern char big_font_name[100], small_font_name[100];

@@ -17,7 +17,7 @@
 
 #include "menudrive.h"
 
-int help_menu;
+extern int help_menu;
 MENUDEF my_menus[3]; 
 extern Display *display;
 extern int tfBell,TipsFlag;
@@ -59,16 +59,10 @@ void add_menu(base,j,n,names,key,hint)
 void create_the_menus(base)
      Window base;
 {
-  char key[30];
-  strcpy(key,"icndwakgufpemtsvxr3b");
-  add_menu(base,MAIN_MENU,MAIN_ENTRIES,main_menu,key,main_hint);
-  strcpy(key,"tsrdniobmechpukva");
-  key[17]=27;
-  key[18]=0;
-  add_menu(base,NUM_MENU,NUM_ENTRIES,num_menu,key,num_hint);
+  add_menu(base,MAIN_MENU,MAIN_ENTRIES,main_menu,main_menu_keys,main_hint);
+  add_menu(base,NUM_MENU,NUM_ENTRIES,num_menu,num_menu_keys,num_hint);
   /* CLONE */
-  strcpy(key,"pwracesbhqtiglxu");
-  add_menu(base,FILE_MENU,FILE_ENTRIES,fileon_menu,key,file_hint);
+  add_menu(base,FILE_MENU,FILE_ENTRIES,fileon_menu,file_menu_keys,file_hint);
   help_menu=-1;
 }
 
@@ -96,26 +90,17 @@ void unshow_menu(j)
 }  
 
 
-void x11_help()
+/* help(), help_num() and help_file() in commands.c come here */
+void x11_show_menu(int j)
 {
+  if(j==FILE_MENU){
+    if(tfBell)
+      my_menus[FILE_MENU].names=fileon_menu;
+    else
+      my_menus[FILE_MENU].names=fileoff_menu;
+  }
   unshow_menu(help_menu);
-  show_menu(MAIN_MENU);
-}
-
-void help_num()
-{
- unshow_menu(help_menu);
-  show_menu(NUM_MENU);
-}
-
-void help_file()
-{
-  if(tfBell)
-   my_menus[FILE_MENU].names=fileon_menu;
-  else
-    my_menus[FILE_MENU].names=fileoff_menu;
-  unshow_menu(help_menu);
-  show_menu(FILE_MENU);
+  show_menu(j);
 }
 
 void menu_crossing(win,yn)

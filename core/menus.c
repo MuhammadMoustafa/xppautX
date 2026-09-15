@@ -1,6 +1,7 @@
 /* Menu labels and hint strings. Generated from upstream menus.h; the
    MENUDEF widget struct lives in menus.h. */
 #include "menus.h"
+#include "menudrive.h"
 
 
 
@@ -406,6 +407,96 @@ char *browse_hint[]={
  "Delete a column from BROWSER"
 };
 
+/* keys of the main-window menus; the numerics menu ends with Esc */
+char main_menu_keys[]="icndwakgufpemtsvxr3b";
+char num_menu_keys[]="tsrdniobmechpukva\033";
+char file_menu_keys[]="pwracesbhqtiglxu";
 
+/* pop-up menus, formerly static arrays inside the menudrive.c handlers */
+static char *ic_items[]={"(R)ange","(2)par range","(L)ast","(O)ld","(G)o",
+  "(M)ouse","(S)hift","(N)ew","s(H)oot","(F)ile","form(U)la","m(I)ce",
+  "DAE guess","(B)ackward"};
+static char *null_items[]={"(N)ew","(R)estore","(A)uto","(M)anual",
+  "(F)reeze","(S)ave"};
+static char *frzcline_items[]={"(F)reeze","(D)elete all","(R)ange","(A)nimate"};
+static char *dfield_items[]={"(D)irect Field","(F)low","(N)o dir. fld.",
+  "(C)olorize","(S)caled Dir.Fld"};
+static char *window_items[]={"(W)indow","(Z)oom In","Zoom (O)ut","(F)it",
+  "(D)efault","(S)croll"};
+static char *torus_items[]={"(A)ll","(N)one","(C)hoose"};
+/* (X)tra is defined but not shown: the menu has 6 entries */
+static char *kin_items[]={"(C)apture","(R)eset","(P)layback","(A)utoplay",
+  "(S)ave","(M)ake AniGif","(X)tra"};
+static char *curve_items[]={"(A)dd curve","(D)elete last","(R)emove all",
+  "(E)dit curve","(P)ostscript","S(V)G","(F)reeze","a(X)es opts",
+  "exp(O)rt data","(C)olormap"};
+static char *freeze_items[]={"(F)reeze","(D)elete","(E)dit","(R)emove all",
+  "(K)ey","(B)if.Diag","(C)lr. BD","(O)n freeze"};
+static char *freeze_off_items[]={"(F)reeze","(D)elete","(E)dit","(R)emove all",
+  "(K)ey","(B)if.Diag","(C)lr. BD","(O)ff freeze"};
+static char *key_items[]={"(N)o key","(K)ey"};
+static char *cmap_items[]={"(N)ormal","(P)eriodic","(H)ot","(C)ool",
+  "(B)lue-red","(G)ray","c(U)behelix"};
+static char *windows_items[]={"(C)reate","(K)ill all","(D)estroy","(B)ottom",
+  "(A)uto","(M)anual","(S)imPlot On"};
+static char *windows_simoff_items[]={"(C)reate","(K)ill all","(D)estroy",
+  "(B)ottom","(A)uto","(M)anual","(S)imPlot Off"};
+static char *text_items[]={"(T)ext","(A)rrow","(P)ointer","(M)arker",
+  "(E)dit","(D)elete all","marker(S)"};
+static char *text_edit_items[]={"(M)ove","(C)hange","(D)elete"};
+static char *sing_items[]={"(G)o","(M)ouse","(R)ange","monte(C)ar"};
+static char *view_items[]={"2D","3D","Array","Toon"};
+static char *bvp_items[]={"(R)ange","(N)o show","(S)how","(P)eriodic"};
+static char *stoch_items[]={"New seed","Compute","Data","Mean","Variance",
+  "Histogram","Old hist","Fourier","Power","fIt data","Stat","Liapunov",
+  "stAutocor","Xcorrel etc","spEc.dns","2D-hist"};
+static char *map_items[]={"(N)one","(S)ection","(M)ax/min","(P)eriod"};
+static char *color_items[]={"(N)o color","(V)elocity","(A)nother quantity"};
+static char *adj_items[]={"(N)ew adj","(M)ake H","(A)djoint","(O)rbit",
+  "(H)fun","(P)arameters","(R)ange"};
+static char *tab_items[]={"(E)dit","(V)iew"};
+static char *meth_items[]={"(D)iscrete","(E)uler","(M)od. Euler",
+  "(R)unge-Kutta","(A)dams","(G)ear","(V)olterra","(B)ackEul",
+  "(Q)ualst.RK4","(S)tiff","(C)Vode","DoPri(5)","DoPri(8)3",
+  "Rosen(2)3","sYmplectic"};
+static char *edrh_items[]={"RHS's","Functions","Save as","Load DLL"};
 
+/*                                 name  title  n  items  keys  hints  first_cmd  width  row */
+const XppMenu menu_integrate={"integrate","Integrate",14,ic_items,"r2logmsnhfuidb",ic_hint,M_IR,13,3};
+const XppMenu menu_nullclines={"nullclines","Nullclines",6,null_items,"nramfs",null_hint,M_NN,10,6};
+const XppMenu menu_freeze_cline={"freeze_cline","Freeze cline",4,frzcline_items,"fdra",null_freeze,M_NFF,10,6};
+const XppMenu menu_dirfield={"dirfield","Two-D Fun",5,dfield_items,"dfncs",flow_hint,M_DD,18,6};
+const XppMenu menu_window={"window","Window",6,window_items,"wzofds",wind_hint,M_WW,13,13};
+const XppMenu menu_torus={"torus","Torus",3,torus_items,"anc",phas_hint,M_AA,9,4};
+const XppMenu menu_kinescope={"kinescope","Kinescope",6,kin_items,"crpasmx",kin_hint,M_KC,11,8};
+/* (F)reeze and (C)olormap open the next two menus instead of a command */
+const XppMenu menu_curves={"curves","Curves",10,curve_items,"adrepvfxoc",graf_hint,M_GA,15,8};
+const XppMenu menu_freeze={"freeze","Freeze",8,freeze_items,"fderkbco",frz_hint,M_GFF,15,8};
+const XppMenu menu_freeze_off={"freeze_off","Freeze",8,freeze_off_items,"fderkbco",frz_hint,M_GFF,15,8};
+const XppMenu menu_freeze_key={"freeze_key","Key",2,key_items,"nk",no_hint,M_GFKN,9,8};
+const XppMenu menu_colormap={"colormap","Colormap",7,cmap_items,"nphcbgu",cmap_hint,M_GCN,15,8};
+const XppMenu menu_windows={"windows","Make window",7,windows_items,"ckdbams",half_hint,M_MC,11,14};
+const XppMenu menu_windows_simoff={"windows_simoff","Make window",7,windows_simoff_items,"ckdbams",half_hint,M_MC,11,14};
+/* (E)dit opens menu_text_edit */
+const XppMenu menu_text={"text","Text,etc",7,text_items,"tapmeds",text_hint,M_TT,10,10};
+const XppMenu menu_text_edit={"text_edit","Edit",3,text_edit_items,"mcd",edit_hint,M_TEM,9,10};
+const XppMenu menu_equilibria={"equilibria","Equilibria",4,sing_items,"gmrc",sing_hint,M_SG,12,6};
+const XppMenu menu_view={"view","Axes",4,view_items,"23at",view_hint,M_V2,5,13};
+const XppMenu menu_bvp={"bvp","Bndry Value Prob",4,bvp_items,"rnsp",bvp_hint,M_BR,16,6};
+const XppMenu menu_stochastic={"stochastic","Stochastic",16,stoch_items,"ncdmvhofpislaxe2",stoch_hint,M_UHN,10,2};
+const XppMenu menu_poincare={"poincare","Poincare map",4,map_items,"nsmp",map_hint,M_UPN,13,6};
+const XppMenu menu_color_code={"color_code","Color code",3,color_items,"nva",color_hint,M_UCN,11,12};
+const XppMenu menu_adjoint={"adjoint","Adjoint",7,adj_items,"nmaohpr",adj_hint,M_UAN,10,11};
+const XppMenu menu_lookup={"lookup","Tables",2,tab_items,"ev",tab_hint,M_UKE,12,11};
+/* sets METHOD directly */
+const XppMenu menu_method={"method","Method",15,meth_items,"demragvbqsc582y",meth_hint,-1,15,1};
+const XppMenu menu_edit_rhs={"edit_rhs","Edit Stuff",4,edrh_items,"rfsl",edrh_hint,M_FER,11,13};
 
+const XppMenu *const xpp_menus[]={
+  &menu_integrate,&menu_nullclines,&menu_freeze_cline,&menu_dirfield,
+  &menu_window,&menu_torus,&menu_kinescope,&menu_curves,&menu_freeze,
+  &menu_freeze_off,&menu_freeze_key,&menu_colormap,&menu_windows,
+  &menu_windows_simoff,&menu_text,&menu_text_edit,&menu_equilibria,
+  &menu_view,&menu_bvp,&menu_stochastic,&menu_poincare,&menu_color_code,
+  &menu_adjoint,&menu_lookup,&menu_method,&menu_edit_rhs};
+const int xpp_menu_count=sizeof(xpp_menus)/sizeof(xpp_menus[0]);

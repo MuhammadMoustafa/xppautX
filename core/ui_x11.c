@@ -14,6 +14,7 @@
 #include "auto_x11.h"
 #include "arrayplot.h"
 #include "menudrive.h"
+#include "menus.h"
 #include "graf_par.h"
 
 extern Window draw_win, main_win, info_pop;
@@ -30,20 +31,15 @@ void x11_title_text(char *s);
 void x11_canvas_xy(char *s);
 int x11_new_string(char *name, char *value);
 int x11_yes_no_box(void);
-int x11_TwoChoice(char *c1, char *c2, char *q, char *key);
+int x11_TwoChoice(char *c1, char *c2, char *q, char *key, char *title);
+int x11_menu_choose(const XppMenu *m, int def);
+void x11_show_menu(int j);
 int x11_do_string_box(int n, int row, int col, char *title, char **names,
                       char values[][25], int maxchar);
 int x11_file_selector(char *title, char *file, char *wild);
 int x11_GetMouseXY(int *x, int *y);
 void x11_man_ic(void);
 void x11_flash(int num);
-void x11_help(void);
-void x11_set_col_par(void);
-void x11_new_lookup(void);
-void x11_make_adj(void);
-void x11_get_pmap_pars(void);
-void x11_froz_cline_stuff(void);
-void x11_do_stochast(void);
 int x11_my_abort(void);
 int x11_get_command_width(void);
 void x11_plot_command(int nit, int icount, int cwidth);
@@ -97,26 +93,28 @@ void x11_add_user_button(char *s);
 void x11_create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                        double *ev, int n);
 void x11_bye_bye(void);
-
-static int x11_choose_key(char *title, char **items, char *keys, int n,
-                          int def, char **hints)
-{
-    Window temp = main_win;
-    return pop_up_list(&temp, title, items, keys, n, n, def, 10, DCURY + 8,
-                       hints, info_pop, info_message);
-}
-
-static void x11_submenu(int id)
-{
-    switch (id) {
-    case XPP_SUBMENU_COLOR: x11_set_col_par(); break;
-    case XPP_SUBMENU_LOOKUP: x11_new_lookup(); break;
-    case XPP_SUBMENU_ADJOINT: x11_make_adj(); break;
-    case XPP_SUBMENU_POINCARE: x11_get_pmap_pars(); break;
-    case XPP_SUBMENU_FROZEN_CLINE: x11_froz_cline_stuff(); break;
-    case XPP_SUBMENU_STOCHASTIC: x11_do_stochast(); break;
-    }
-}
+void x11_xi_vs_t(void);
+void x11_get_3d_par_com(void);
+void x11_new_parameter(void);
+void x11_window_zoom_com(int c);
+void x11_change_view_com(int c);
+void x11_add_a_curve_com(int c);
+void x11_freeze_com(int c);
+void x11_change_cmap_com(int c);
+void x11_key_frz_com(int c);
+void x11_do_torus_com(int c);
+void x11_do_movie_com(int c);
+void x11_do_windows_com(int c);
+void x11_do_gr_objs_com(int c);
+void x11_edit_object_com(int c);
+void x11_get_intern_set(void);
+void x11_clone_ode(void);
+void x11_make_txtview(void);
+void x11_q_calc(void);
+void x11_edit_rhs(void);
+void x11_edit_functions(void);
+int x11_save_as(void);
+void x11_draw_many_lines(void);
 
 static void x11_data_changed(int length)
 {
@@ -148,12 +146,11 @@ static const XppUi x11_ui = {
     .two_choice = x11_TwoChoice,
     .string_box = x11_do_string_box,
     .file_selector = x11_file_selector,
-    .choose_key = x11_choose_key,
     .get_mouse_xy = x11_GetMouseXY,
     .edit_ics = x11_man_ic,
     .menu_flash = x11_flash,
-    .menu_help = x11_help,
-    .submenu = x11_submenu,
+    .show_menu = x11_show_menu,
+    .menu_choose = x11_menu_choose,
     .check_abort = x11_my_abort,
     .progress_begin = x11_get_command_width,
     .progress = x11_plot_command,
@@ -218,6 +215,28 @@ static const XppUi x11_ui = {
     .init_txtview = x11_init_txtview,
     .add_user_button = x11_add_user_button,
     .show_eq_box = x11_create_eq_box,
+    .xi_vs_t = x11_xi_vs_t,
+    .get_3d_par_com = x11_get_3d_par_com,
+    .new_parameter = x11_new_parameter,
+    .window_zoom_com = x11_window_zoom_com,
+    .change_view_com = x11_change_view_com,
+    .add_a_curve_com = x11_add_a_curve_com,
+    .freeze_com = x11_freeze_com,
+    .change_cmap_com = x11_change_cmap_com,
+    .key_frz_com = x11_key_frz_com,
+    .do_torus_com = x11_do_torus_com,
+    .do_movie_com = x11_do_movie_com,
+    .do_windows_com = x11_do_windows_com,
+    .do_gr_objs_com = x11_do_gr_objs_com,
+    .edit_object_com = x11_edit_object_com,
+    .get_intern_set = x11_get_intern_set,
+    .clone_ode = x11_clone_ode,
+    .make_txtview = x11_make_txtview,
+    .q_calc = x11_q_calc,
+    .edit_rhs = x11_edit_rhs,
+    .edit_functions = x11_edit_functions,
+    .save_as = x11_save_as,
+    .draw_many_lines = x11_draw_many_lines,
     .exit_program = x11_bye_bye,
 };
 

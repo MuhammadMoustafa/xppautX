@@ -37,7 +37,7 @@ typedef struct {
 
 MOVIE movie[MAXFILM];
 
-void do_movie_com(int c)
+void x11_do_movie_com(int c)
 
 {
 

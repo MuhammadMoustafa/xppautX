@@ -15,21 +15,13 @@
  *   new_string / file_selector / string_box return 0 when the user cancels.
  *   yes_no_box returns 1 for yes, 0 for no.
  *   two_choice returns the chosen key character, 0 if none.
+ *   menu_choose returns the chosen key character, 0 or 27 if none.
  *   check_abort returns a key code, 27 for escape, 64 when nothing happened.
  */
 
 #include <stdio.h>
 
-/* ids for submenu(); these are menus that the nUmerics key handler in
-   numerics.c pops up */
-enum {
-    XPP_SUBMENU_COLOR = 0,
-    XPP_SUBMENU_LOOKUP,
-    XPP_SUBMENU_ADJOINT,
-    XPP_SUBMENU_POINCARE,
-    XPP_SUBMENU_FROZEN_CLINE,
-    XPP_SUBMENU_STOCHASTIC
-};
+struct XppMenu; /* menus.h */
 
 typedef struct XppUi {
     /* messages */
@@ -44,21 +36,20 @@ typedef struct XppUi {
     /* prompts */
     int (*new_string)(char *name, char *value);
     int (*yes_no_box)(void);
-    int (*two_choice)(char *c1, char *c2, char *q, char *key);
+    int (*two_choice)(char *c1, char *c2, char *q, char *key, char *title);
     int (*string_box)(int n, int row, int col, char *title, char **names,
                       char values[][25], int maxchar);
     int (*file_selector)(char *title, char *file, char *wild);
-    /* single-key chooser used for the integration method menu; returns the
-       chosen key character, or 0 */
-    int (*choose_key)(char *title, char **items, char *keys, int n, int def,
-                      char **hints);
     int (*get_mouse_xy)(int *x, int *y);
     void (*edit_ics)(void); /* walk the user through every initial condition */
 
-    /* menus driven from numerics.c */
+    /* menus. show_menu makes MAIN_MENU, FILE_MENU or NUM_MENU (menus.h) the
+       main-window menu; core sets help_menu and dispatches keys itself
+       (commander in commands.c). menu_choose pops up a menu, def is the
+       highlighted item. */
     void (*menu_flash)(int num);
-    void (*menu_help)(void);
-    void (*submenu)(int id);
+    void (*show_menu)(int which);
+    int (*menu_choose)(const struct XppMenu *m, int def);
 
     /* long-running loops poll these */
     int (*check_abort)(void);
@@ -143,6 +134,32 @@ typedef struct XppUi {
     void (*show_eq_box)(int cp, int cm, int rp, int rm, int im, double *y,
                         double *ev, int n);
 
+    /* Commands whose implementation still lives in the X11 front end.
+       run_the_commands() reaches them through here; later phase 3 steps move
+       their logic into core. Headless: they do nothing. */
+    void (*xi_vs_t)(void);
+    void (*get_3d_par_com)(void);
+    void (*new_parameter)(void);
+    void (*window_zoom_com)(int c);
+    void (*change_view_com)(int c);
+    void (*add_a_curve_com)(int c);
+    void (*freeze_com)(int c);
+    void (*change_cmap_com)(int c);
+    void (*key_frz_com)(int c);
+    void (*do_torus_com)(int c);
+    void (*do_movie_com)(int c);
+    void (*do_windows_com)(int c);
+    void (*do_gr_objs_com)(int c);
+    void (*edit_object_com)(int c);
+    void (*get_intern_set)(void);
+    void (*clone_ode)(void);
+    void (*make_txtview)(void);
+    void (*q_calc)(void);
+    void (*edit_rhs)(void);
+    void (*edit_functions)(void);
+    int (*save_as)(void);
+    void (*draw_many_lines)(void);
+
     /* program is quitting */
     void (*exit_program)(void);
 } XppUi;
@@ -173,13 +190,7 @@ int file_selector(char *title, char *file, char *wild);
 int GetMouseXY(int *x, int *y);
 void man_ic(void);
 void flash(int num);
-void help(void);
-void set_col_par(void);
-void new_lookup(void);
-void make_adj(void);
-void get_pmap_pars(void);
-void froz_cline_stuff(void);
-void do_stochast(void);
+int menu_choose(const struct XppMenu *m, int def);
 int my_abort(void);
 int get_command_width(void);
 void plot_command(int nit, int icount, int cwidth);
@@ -231,5 +242,27 @@ void add_user_button(char *s);
 void create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                    double *ev, int n);
 void bye_bye(void);
+void xi_vs_t(void);
+void get_3d_par_com(void);
+void new_parameter(void);
+void window_zoom_com(int c);
+void change_view_com(int c);
+void add_a_curve_com(int c);
+void freeze_com(int c);
+void change_cmap_com(int c);
+void key_frz_com(int c);
+void do_torus_com(int c);
+void do_movie_com(int c);
+void do_windows_com(int c);
+void do_gr_objs_com(int c);
+void edit_object_com(int c);
+void get_intern_set(void);
+void clone_ode(void);
+void make_txtview(void);
+void q_calc(void);
+void edit_rhs(void);
+void edit_functions(void);
+int save_as(void);
+void draw_many_lines(void);
 
 #endif

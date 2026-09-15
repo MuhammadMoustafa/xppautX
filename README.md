@@ -8,7 +8,7 @@ Linux without an X server, keeps every feature and every single-letter menu
 hotkey of the original, and exposes the numerics as a library that other
 tools (for example a VS Code extension) can drive directly.
 
-Current status: **phase 2 done**. The numerics no longer depend on X11.
+Current status: **phase 2 done, phase 3 started**. The numerics no longer depend on X11.
 `make lib` builds `libxppcore.a` from the 83 UI-free sources; `make cli`
 builds `xppcore-cli`, a headless runner that links only the library and
 produces byte-identical `output.dat` to `xppaut -silent`. The X11 program
@@ -25,12 +25,23 @@ still builds and behaves as before.
    mergeable; the X11 implementations carry an `x11_` prefix and are wired
    in by `core/ui_x11.c`. The headless defaults log messages, decline
    prompts and draw nothing.
-3. **New front end.** Menus and hotkeys are generated from the existing
-   `MENUDEF` tables in `core/menus.c` and dispatched through the same `M_*`
-   switch in `core/menudrive.c`, so behaviour stays identical. Targets: a
-   webview inside the
+3. **New front end.** Menus and hotkeys come from the menu tables in
+   `core/menus.c` and are dispatched through the same `M_*` switch, so
+   behaviour stays identical. Targets: a webview inside the
    [XPP-ODE VS Code extension](https://github.com/MuhammadMoustafa/XPP-ODE-Extension)
-   and, optionally, a standalone desktop shell.
+   and, optionally, a standalone desktop shell. Steps:
+   1. *(done)* Command layer in core: `commander`, `run_the_commands` and
+      every pop-up menu live in `core/commands.c`; the menus are `XppMenu`
+      data in `core/menus.c`, shown through `xpp_ui.menu_choose`.
+   2. Move the command handlers that still live in X11 files (the
+      "commands" group in `xpp_ui.h`: graphics parameters, freeze, windows,
+      text objects, torus, kinescope, ...) into core, with seams only for
+      the genuinely interactive parts (rubber band, 3D rotate, scroll).
+   3. A protocol front end: an `XppUi` table that speaks line-delimited
+      JSON (drawing, redraw notices and state out; keys, menu picks and
+      prompt answers in), and an `xppcore-server` binary around it.
+   4. The webview renderer in the VS Code extension.
+   5. Native Windows and macOS builds of the server (or a WebAssembly build).
 
 ### Metrics
 
@@ -39,8 +50,12 @@ them after a build and checks the output checksums):
 
 | Script | Measures | Now |
 |---|---|---|
-| `tools/x11free.sh` | sources that compile with X11 headers stubbed out | 83 / 110 |
+| `tools/x11free.sh` | sources that compile with X11 headers stubbed out | 84 / 111 |
 | `tools/coredeps.sh` | symbols those objects import from X11 objects | 0 |
+
+`tools/guicheck.sh [REF]` guards the X11 program itself: it builds `REF`
+(default `HEAD`), drives both GUIs through the keys in `tools/gui_keys.txt`
+with `tools/xdrive.c` and compares the screenshots (needs a display).
 
 ## Layout
 

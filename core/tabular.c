@@ -521,7 +521,7 @@ for npts lines
 */  
 
 #include "xpp_ui.h"
-extern char *no_hint[];
+#include "menus.h"
 int select_table(void)
 {
  int i,j;
@@ -532,7 +532,11 @@ int select_table(void)
    sprintf(n[i],"%c: %s",key[i],my_table[i].name);
  }
  key[NTable]=0;
- ch=(char)xpp_ui.choose_key("Table",n,key,NTable,0,no_hint);
+ {
+   XppMenu m={"table","Table",0,NULL,NULL,NULL,-1,0,1};
+   m.n=NTable; m.items=n; m.keys=key; m.hints=no_hint; m.width=NTable;
+   ch=(char)menu_choose(&m,0);
+ }
  for(i=0;i<NTable;i++)free(n[i]);
  j=(int)(ch-'a');
  if(j<0||j>=NTable){

@@ -133,7 +133,7 @@ char *name,*value;
  display_command(name,value,2,0);
 }
 
-void q_calc()
+void x11_q_calc()
 {
  char value[80],name[10];
  double z=0.0;

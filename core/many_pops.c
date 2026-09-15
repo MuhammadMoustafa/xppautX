@@ -123,7 +123,7 @@ extern int NTable;
 
 extern INTERN_SET intern_set[MAX_INTERN_SET];
 extern int Nintern_set;
-void get_intern_set()
+void x11_get_intern_set()
 {
   char *n[MAX_INTERN_SET],key[MAX_INTERN_SET],ch;
   int i,j;
@@ -604,7 +604,7 @@ void add_pntarr(type)
   }
 }
   
-void edit_object_com(int com)
+void x11_edit_object_com(int com)
 {
   char ans,str[80];
   int i,j,ilab=-1,flag,type;
@@ -744,7 +744,7 @@ void edit_object_com(int com)
 
   
 
-void do_gr_objs_com(int com)
+void x11_do_gr_objs_com(int com)
 {
   switch(com){
   case 0: 
@@ -774,7 +774,7 @@ void do_gr_objs_com(int com)
   }
 }
 
-void do_windows_com(int c)
+void x11_do_windows_com(int c)
 {
  switch(c){
 	

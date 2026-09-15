@@ -21,7 +21,13 @@ Run the GUI (WSLg shows the X11 window on the Windows desktop):
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && ./xppaut examples/ode/lecar.ode"
 
-Metrics: `make x11free` (sources compiling without X11 headers, 83/110) and
+GUI regression check (builds HEAD, drives both GUIs with the same keys via
+XSendEvent, compares screenshots; run it for any change that touches menus,
+dispatch or X11 files):
+
+    wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/guicheck.sh"
+
+Metrics: `make x11free` (sources compiling without X11 headers, 84/111) and
 `tools/coredeps.sh -v` (symbols core objects import from X11 objects, 0).
 Clean-build warning baseline with gcc 13 is ~520; verify.sh's count is for
 the incremental build only.
@@ -46,6 +52,13 @@ The Windows-side gcc at C:\Strawberry\c\bin is Perl's MinGW without X11 headers 
 - X-typed declarations in headers are wrapped in
   `#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)`. Every X11 .c file must
   therefore include `<X11/Xlib.h>` on its first line.
+- `core/commands.c` is the command layer (phase 3): `commander` (keys),
+  `run_the_commands` (`M_*` ids), and every pop-up menu. Menus are
+  `XppMenu` data in `core/menus.c`; front ends show them via
+  `xpp_ui.menu_choose` and switch the main menu via `xpp_ui.show_menu`.
+  A menu's layout numbers (width, row) are the X11 `pop_up_list` arguments.
+  The "commands" group at the end of `XppUi` lists handlers still living in
+  X11 files; moving them into core shrinks that group.
 - The Makefile's `UI_SOURCES` list is the X11 set; everything else goes
   into `libxppcore.a`. `core/xpp_batch.c` is the headless entry point.
 
