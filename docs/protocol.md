@@ -62,8 +62,9 @@ Send `size` for window 1 as soon as the canvas size is known.
 Two more events come from the host, not the server: `log` {`text`} carries what the
 server printed on stderr (xppaut reports model errors, such as a formula that does
 not parse, only there) and `exit` {`code`} says the process ended. `xpp-client.js`
-shows lines that look like errors, and the output of a server that exits, in a
-red box that stays until dismissed, and keeps all of it under "Messages".
+shows one error at a time in a red box (the newest replaces it and the next
+command clears it; a load failure or crash stays with the output that explains it)
+and keeps everything under "Messages".
 
 ### Drawing ops
 

@@ -247,8 +247,13 @@
       new ResizeObserver(() => r.classList.toggle('xpp-narrow', r.clientWidth < 760)).observe(r);
     }
 
-    /* an error the user must see: stays until closed */
-    showError(text, detail) {
+    /* The error the user must see. One at a time: a newer one replaces it,
+       and starting the next command clears it (the history stays under
+       Messages). A load failure or crash is sticky: nothing else will run. */
+    showError(text, detail, sticky) {
+      if (this.errorSticky && !sticky) return;
+      this.errorBar.innerHTML = '';
+      this.errorSticky = !!sticky;
       const item = el('div', 'xpp-error-item');
       const msg = el('div', 'xpp-error-text', text);
       const close = el('button', 'xpp-close', '\u00d7');
@@ -260,18 +265,22 @@
         item.appendChild(pre);
       }
       this.errorBar.appendChild(item);
-      while (this.errorBar.children.length > 5) this.errorBar.firstChild.remove();
+    }
+
+    clearError() {
+      if (!this.errorSticky) this.errorBar.innerHTML = '';
     }
 
     /* text the program printed (what xppaut writes to its terminal) */
-    log(text) {
+    log(text, scan = true) {
       const lines = String(text).replace(/\r/g, '').split('\n');
       if (lines[lines.length - 1] === '') lines.pop();
       for (const line of lines) {
         this.logText.textContent += line + '\n';
         this.logLines++;
         /* xppaut reports model and file problems only as printed text */
-        if (/error|illegal|not found|can't|cannot|unable|bad |undefined|failed/i.test(line)) {
+        const known = this.lastError && line.includes(this.lastError);
+        if (scan && !known && /error|illegal|not found|can't|cannot|unable|bad |undefined|failed/i.test(line)) {
           this.recentErrors = (this.recentErrors || []).concat(line.trim()).slice(-10);
           clearTimeout(this.errorTimer);
           this.errorTimer = setTimeout(() => {
@@ -296,9 +305,9 @@
       this.pendingAsk = null;
       const tail = this.logText.textContent.trimEnd().split('\n').slice(-25).join('\n');
       if (!this.menus) {
-        this.showError('XPP could not load this file. What it printed:', tail || '(nothing)');
+        this.showError('XPP could not load this file. What it printed:', tail || '(nothing)', true);
       } else if (code) {
-        this.showError(`XPP stopped unexpectedly (exit code ${code}). Last output:`, tail || '(nothing)');
+        this.showError(`XPP stopped unexpectedly (exit code ${code}). Last output:`, tail || '(nothing)', true);
       } else {
         this.hint.textContent = 'XPP has exited.';
       }
@@ -399,6 +408,7 @@
         return;
       }
       this.busy = true;
+      this.clearError();
       this.send({cmd: 'key', key: k});
     }
 
@@ -454,8 +464,11 @@
 
     onMessage(ev) {
       if (ev.error !== undefined) {
+        clearTimeout(this.errorTimer); /* the printed copy of this message */
+        this.recentErrors = [];
+        this.lastError = ev.error.trim();
         this.showError(ev.error);
-        this.log('error: ' + ev.error);
+        this.log('error: ' + ev.error, false);
       } else if (ev.box !== undefined) {
         this.boxHint = ev.box;
         this.hint.textContent = ev.box;
@@ -549,6 +562,7 @@
     command(cmd) {
       if (this.busy) return;
       this.busy = true;
+      this.clearError();
       this.send(cmd);
     }
 
