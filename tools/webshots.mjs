@@ -288,7 +288,7 @@ async function main() {
     const src = path.join(out, 'src');
     fs.mkdirSync(src, {recursive: true});
     fs.writeFileSync(path.join(out, 'src.tar'), run('git', ['archive', '--format=tar', opt.ref], top));
-    run('tar', ['-xf', path.join(out, 'src.tar'), '-C', src], top);
+    run('tar', ['-xf', 'src.tar', '-C', 'src'], out); /* relative: GNU tar reads C: as a host */
     const make = process.env.MAKE || (win ? 'mingw32-make' : 'make');
     run(make, ['-j8', `xppaut-web${exe}`], src);
     base = path.join(src, `xppaut-web${exe}`);
