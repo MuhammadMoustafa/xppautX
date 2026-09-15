@@ -72,7 +72,15 @@ The Windows-side gcc at C:\Strawberry\c\bin is Perl's MinGW without X11 headers 
 - Window code split off core files keeps a `*win.c` name (`aniwin.c`,
   `aplotwin.c`); the upstream file keeps the logic and becomes core.
 - The Makefile's `UI_SOURCES` list is the X11 set; everything else goes
-  into `libxppcore.a`. `core/xpp_batch.c` is the headless entry point.
+  into `libxppcore.a`. `core/xpp_batch.c` is the headless entry point;
+  `xpp_load_model()` there is the start shared with the server.
+- `core/ui_json.c` + `core/xppcore_server.c` (`SERVER_SOURCES`) are the JSON
+  protocol front end (docs/protocol.md). When adding an `XppUi` field, give
+  it a `j_` implementation too, and extend `tools/servercheck.py` for new
+  protocol behaviour; `tools/verify.sh` runs it. Every command ends with
+  `state` then `idle`; a client waits for `idle`.
+- Pop-up menu arrays in menus.c (`main_menu` etc.) start with the title:
+  item i is `main_menu[i+1]` with key `main_menu_keys[i]`.
 
 ## Conventions
 

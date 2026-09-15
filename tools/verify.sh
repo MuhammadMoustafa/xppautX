@@ -1,9 +1,10 @@
 #!/bin/sh
 # Build, run the headless smoke test, compare against the known-good checksum,
-# and print the X11-free metric. Run from repo root (WSL/Linux/macOS).
+# drive xppcore-server through its protocol (tools/servercheck.py), and print
+# the X11-free metric. Run from repo root (WSL/Linux/macOS).
 cd "$(dirname "$0")/.." || exit 1
 BASELINE=c281851de59ffd03b2a46428619a0c8f
-make -j8 xppaut xppcore-cli > build/last-build.log 2>&1
+make -j8 xppaut xppcore-cli xppcore-server > build/last-build.log 2>&1
 st=$?
 tr -d '\r' < build/last-build.log > build/last-build.tmp && mv build/last-build.tmp build/last-build.log
 if [ $st -ne 0 ] || grep -q ' error:' build/last-build.log; then
@@ -32,5 +33,14 @@ if [ "$sum" = "$BASELINE" ]; then
 else
   echo "HEADLESS CLI MISMATCH: sum=$sum"
   exit 1
+fi
+if command -v python3 >/dev/null; then
+  if python3 tools/servercheck.py > build/servercheck.log 2>&1; then
+    echo "server protocol ok: $(grep -c '^PASS' build/servercheck.log) checks"
+  else
+    grep -v '^PASS' build/servercheck.log
+    echo "SERVER CHECK FAILED"
+    exit 1
+  fi
 fi
 tools/x11free.sh

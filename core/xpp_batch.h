@@ -15,4 +15,8 @@ void do_vis_env(void);
    ODE file, integrate, write output.dat. Returns 0 on success. */
 int xpp_batch_main(int argc, char **argv);
 
+/* the shared start: options, the ODE file, numerics set-up; batch forces
+   batch mode */
+void xpp_load_model(int argc, char **argv, int batch);
+
 #endif

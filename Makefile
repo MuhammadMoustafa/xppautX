@@ -1,4 +1,4 @@
-# xppautX — build the classic X11 xppaut binary from core/
+# xppautX â€” build the classic X11 xppaut binary from core/
 # Phase 0: same code as upstream XPPAUT 8.0, just relocated.
 # Requires: gcc, make, X11 headers (Debian/Ubuntu: apt install libx11-dev)
 
@@ -32,15 +32,17 @@ UI_SOURCES := $(addprefix $(SRCDIR)/, abort.c aniwin.c aplotwin.c auto_x11.c \
   menu.c menudrive.c pop_list.c rubber.c txtread.c ui_x11.c \
   xppaut_main.c)
 # sbml2xpp.c needs libsbml and is not part of the upstream build.
-CORE_SOURCES := $(filter-out $(UI_SOURCES) $(SRCDIR)/sbml2xpp.c $(SRCDIR)/xppcore_cli.c,$(wildcard $(SRCDIR)/*.c))
+SERVER_SOURCES := $(addprefix $(SRCDIR)/, ui_json.c xppcore_server.c)
+CORE_SOURCES := $(filter-out $(UI_SOURCES) $(SERVER_SOURCES) $(SRCDIR)/sbml2xpp.c $(SRCDIR)/xppcore_cli.c,$(wildcard $(SRCDIR)/*.c))
 SOURCES := $(CORE_SOURCES) $(UI_SOURCES)
 OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SOURCES))
 CORE_OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(CORE_SOURCES))
 
-.PHONY: all clean x11free lib cli
+.PHONY: all clean x11free lib cli server
 all: xppaut
 lib: libxppcore.a
 cli: xppcore-cli
+server: xppcore-server
 
 xppaut: $(OBJECTS)
 	$(CC) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
@@ -51,16 +53,19 @@ libxppcore.a: $(CORE_OBJECTS)
 xppcore-cli: $(BUILDDIR)/xppcore_cli.o libxppcore.a
 	$(CC) -o $@ $(BUILDDIR)/xppcore_cli.o libxppcore.a -lm -ldl
 
+xppcore-server: $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SERVER_SOURCES)) libxppcore.a
+	$(CC) -o $@ $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SERVER_SOURCES)) libxppcore.a -lm -ldl
+
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c | $(BUILDDIR)
 	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
 $(BUILDDIR):
 	mkdir -p $@
 
--include $(OBJECTS:.o=.d) $(BUILDDIR)/xppcore_cli.d
+-include $(OBJECTS:.o=.d) $(BUILDDIR)/xppcore_cli.d $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.d,$(SERVER_SOURCES))
 
 clean:
-	rm -rf $(BUILDDIR) xppaut libxppcore.a xppcore-cli
+	rm -rf $(BUILDDIR) xppaut libxppcore.a xppcore-cli xppcore-server
 
 .PHONY: x11free
 x11free:

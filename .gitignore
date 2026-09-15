@@ -17,6 +17,7 @@
 /build/*.log
 /build/*.txt
 /xppcore-cli
+/xppcore-server
 /libxppcore.a
 /build/guicheck/
 /build/probe/
@@ -24,3 +25,4 @@
 /build/asan/
 /build/mingw/
 /build/webtest/
+/build/idx/

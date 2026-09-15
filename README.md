@@ -48,9 +48,12 @@ still builds and behaves as before.
       `aniwin.c`), array plot settings and printing (`arrayplot.c`; window
       `aplotwin.c`), AUTO diagram grabbing (`auto_nox.c`), the GIF encoder
       (`scrngif.c`), user buttons (`userbut.c`) and the equilibrium import.
-   3. A protocol front end: an `XppUi` table that speaks line-delimited
-      JSON (drawing, redraw notices and state out; keys, menu picks and
-      prompt answers in), and an `xppcore-server` binary around it.
+   3. *(done)* A protocol front end: `core/ui_json.c` is an `XppUi` table
+      that speaks line-delimited JSON (drawing, state and prompts out; keys,
+      answers, sizes and parameter edits in) and `make server` builds
+      `xppcore-server` around it. The protocol is in
+      [docs/protocol.md](docs/protocol.md); `tools/servercheck.py` drives a
+      session through it in a few seconds without a display.
    4. The webview renderer in the VS Code extension.
    5. Native Windows and macOS builds of the server (or a WebAssembly build).
 
@@ -63,6 +66,7 @@ them after a build and checks the output checksums):
 |---|---|---|
 | `tools/x11free.sh` | sources that compile with X11 headers stubbed out | 92 / 114 |
 | `tools/coredeps.sh` | symbols those objects import from X11 objects | 0 |
+| `tools/servercheck.py` | protocol session against `xppcore-server` (menus, prompts, integration, equilibria, windows) | 16 checks |
 
 `tools/guicheck.sh [REF]` guards the X11 program itself: it builds `REF`
 (default `HEAD`), drives both GUIs through the keys in `tools/gui_keys.txt`

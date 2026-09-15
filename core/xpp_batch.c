@@ -251,7 +251,9 @@ void xpp_reset_options(void)
   notAlreadySet.COLORLO=1;
 }
 
-int xpp_batch_main(int argc, char **argv)
+/* everything both the batch run and an interactive front end do: options,
+   the ODE file, numerics set-up. batch forces XPPBatch. */
+void xpp_load_model(int argc, char **argv, int batch)
 {
     char myfile[XPP_MAX_NAME];
     OptionsSet *tempNS;
@@ -264,7 +266,7 @@ int xpp_batch_main(int argc, char **argv)
     logfile = stdout;
     check_for_quiet(argc, argv);
     do_comline(argc, argv);
-    XPPBatch = 1; /* headless: always batch, even without -silent */
+    if (batch) XPPBatch = 1; /* headless: always batch, even without -silent */
 
     load_eqn();
 
@@ -292,6 +294,11 @@ int xpp_batch_main(int argc, char **argv)
     strip_saveqn();
     create_plot_list();
     auto_load_dll();
+}
+
+int xpp_batch_main(int argc, char **argv)
+{
+    xpp_load_model(argc, argv, 1);
 
     xpp_build_colormap();
     init_browser();
