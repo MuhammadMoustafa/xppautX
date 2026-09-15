@@ -9,7 +9,7 @@ hotkey of the original, and exposes the numerics as a library that other
 tools (for example a VS Code extension) can drive directly.
 
 Current status: **phase 3 steps 1-5 done**. The numerics and every command
-are X11-free. `make lib` builds `libxppcore.a`; `make cli` builds
+are X11-free. `make lib` builds `build/obj/libxppcore.a`; `make cli` builds
 `xppcore-cli`, a headless runner with byte-identical `output.dat` to
 `xppaut -silent`; `make server` builds `xppcore-server`, which runs the full
 menu system over a JSON protocol, and `node web/serve.js file.ode` puts it in
@@ -166,7 +166,7 @@ head output.dat
 ### Library and headless runner
 
 ```bash
-make lib          # libxppcore.a: the numerics, no X11
+make lib          # build/obj/libxppcore.a: the numerics, no X11
 make cli          # xppcore-cli: batch runner linked against the library only
 ./xppcore-cli examples/ode/lecar.ode   # writes output.dat, same as xppaut -silent
 ```

@@ -53,24 +53,26 @@ CORE_SOURCES := $(filter-out $(UI_SOURCES) $(SERVER_SOURCES) $(SRCDIR)/sbml2xpp.
 SOURCES := $(CORE_SOURCES) $(UI_SOURCES)
 OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SOURCES))
 CORE_OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(CORE_SOURCES))
+# per build directory, so a MinGW build does not replace the Linux library
+CORELIB := $(BUILDDIR)/libxppcore.a
 
 .PHONY: all clean x11free lib cli server
 all: xppaut
-lib: libxppcore.a
+lib: $(CORELIB)
 cli: xppcore-cli$(EXE)
 server: xppcore-server$(EXE)
 
 xppaut: $(OBJECTS)
 	$(CC) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
 
-libxppcore.a: $(CORE_OBJECTS)
+$(CORELIB): $(CORE_OBJECTS)
 	ar rcs $@ $(CORE_OBJECTS)
 
-xppcore-cli$(EXE): $(BUILDDIR)/xppcore_cli.o libxppcore.a
-	$(CC) $(LDSTATIC) -o $@ $(BUILDDIR)/xppcore_cli.o libxppcore.a -lm $(DLLIB)
+xppcore-cli$(EXE): $(BUILDDIR)/xppcore_cli.o $(CORELIB)
+	$(CC) $(LDSTATIC) -o $@ $(BUILDDIR)/xppcore_cli.o $(CORELIB) -lm $(DLLIB)
 
-xppcore-server$(EXE): $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SERVER_SOURCES)) libxppcore.a
-	$(CC) $(LDSTATIC) -o $@ $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SERVER_SOURCES)) libxppcore.a -lm $(DLLIB)
+xppcore-server$(EXE): $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SERVER_SOURCES)) $(CORELIB)
+	$(CC) $(LDSTATIC) -o $@ $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SERVER_SOURCES)) $(CORELIB) -lm $(DLLIB)
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c | $(BUILDDIR)
 	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
