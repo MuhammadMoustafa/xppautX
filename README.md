@@ -8,11 +8,14 @@ Linux without an X server, keeps every feature and every single-letter menu
 hotkey of the original, and exposes the numerics as a library that other
 tools (for example a VS Code extension) can drive directly.
 
-Current status: **phase 2 done, phase 3 started**. The numerics no longer depend on X11.
-`make lib` builds `libxppcore.a` from the 83 UI-free sources; `make cli`
-builds `xppcore-cli`, a headless runner that links only the library and
-produces byte-identical `output.dat` to `xppaut -silent`. The X11 program
-still builds and behaves as before.
+Current status: **phase 3 steps 1-5 done**. The numerics and every command
+are X11-free. `make lib` builds `libxppcore.a`; `make cli` builds
+`xppcore-cli`, a headless runner with byte-identical `output.dat` to
+`xppaut -silent`; `make server` builds `xppcore-server`, which runs the full
+menu system over a JSON protocol, and `node web/serve.js file.ode` puts it in
+a browser. Both build natively on Windows. The X11 program still builds and
+behaves as before; it is kept as the reference until the new front end
+covers kinescope, array plots and the data browser.
 
 ## Plan
 

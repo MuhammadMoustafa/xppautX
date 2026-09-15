@@ -26,3 +26,5 @@
 /build/mingw/
 /build/webtest/
 /build/idx/
+/build/win/
+/build/*.mk
