@@ -59,6 +59,12 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `bye` | | The program is exiting. |
 | `ask` | `id`, `kind`, ... | See below. |
 
+Two more events come from the host, not the server: `log` {`text`} carries what the
+server printed on stderr (xppaut reports model errors, such as a formula that does
+not parse, only there) and `exit` {`code`} says the process ended. `xpp-client.js`
+shows lines that look like errors, and the output of a server that exits, in a
+red box that stays until dismissed, and keeps all of it under "Messages".
+
 ### Drawing ops
 
 Each op is an array; coordinates are pixels from the top-left of the window.

@@ -228,15 +228,81 @@
       this.progress = el('span', 'xpp-progress');
       this.status.append(this.hint, this.progress);
       this.extraWindows = el('div', 'xpp-extra');
+      this.errorBar = el('div', 'xpp-errors');
+      this.logBox = el('details', 'xpp-log');
+      this.logSummary = el('summary', '', 'Messages');
+      this.logText = el('pre', 'xpp-log-text');
+      this.logBox.append(this.logSummary, this.logText);
+      this.logLines = 0;
       const middle = el('div', 'xpp-middle');
       middle.append(this.menuPanel, this.plotArea, this.sidePanel);
-      r.append(this.titleBar, middle, this.extraWindows, this.status);
+      r.append(this.titleBar, this.errorBar, middle, this.extraWindows, this.logBox, this.status);
       this.dialogLayer = el('div', 'xpp-dialogs');
       r.appendChild(this.dialogLayer);
 
       r.tabIndex = 0;
       r.addEventListener('keydown', e => this.onKey(e));
       new ResizeObserver(() => this.sendMainSize()).observe(this.mainHost);
+      /* side by side needs room; a narrow panel stacks menus, plot and values */
+      new ResizeObserver(() => r.classList.toggle('xpp-narrow', r.clientWidth < 760)).observe(r);
+    }
+
+    /* an error the user must see: stays until closed */
+    showError(text, detail) {
+      const item = el('div', 'xpp-error-item');
+      const msg = el('div', 'xpp-error-text', text);
+      const close = el('button', 'xpp-close', '\u00d7');
+      close.title = 'Dismiss';
+      close.addEventListener('click', () => item.remove());
+      item.append(msg, close);
+      if (detail) {
+        const pre = el('pre', 'xpp-error-detail', detail);
+        item.appendChild(pre);
+      }
+      this.errorBar.appendChild(item);
+      while (this.errorBar.children.length > 5) this.errorBar.firstChild.remove();
+    }
+
+    /* text the program printed (what xppaut writes to its terminal) */
+    log(text) {
+      const lines = String(text).replace(/\r/g, '').split('\n');
+      if (lines[lines.length - 1] === '') lines.pop();
+      for (const line of lines) {
+        this.logText.textContent += line + '\n';
+        this.logLines++;
+        /* xppaut reports model and file problems only as printed text */
+        if (/error|illegal|not found|can't|cannot|unable|bad |undefined|failed/i.test(line)) {
+          this.recentErrors = (this.recentErrors || []).concat(line.trim()).slice(-10);
+          clearTimeout(this.errorTimer);
+          this.errorTimer = setTimeout(() => {
+            if (this.recentErrors.length) this.showError('XPP reported a problem', this.recentErrors.join('\n'));
+            this.recentErrors = [];
+          }, 200);
+        }
+      }
+      const extra = this.logText.textContent.length - 200000;
+      if (extra > 0) this.logText.textContent = this.logText.textContent.slice(extra);
+      this.logSummary.textContent = `Messages (${this.logLines})`;
+      this.logText.scrollTop = this.logText.scrollHeight;
+    }
+
+    /* the server process ended */
+    exited(code) {
+      /* the summary below already shows what was printed */
+      clearTimeout(this.errorTimer);
+      this.recentErrors = [];
+      this.busy = true;
+      if (this.pendingAsk && this.pendingAsk.close) this.pendingAsk.close();
+      this.pendingAsk = null;
+      const tail = this.logText.textContent.trimEnd().split('\n').slice(-25).join('\n');
+      if (!this.menus) {
+        this.showError('XPP could not load this file. What it printed:', tail || '(nothing)');
+      } else if (code) {
+        this.showError(`XPP stopped unexpectedly (exit code ${code}). Last output:`, tail || '(nothing)');
+      } else {
+        this.hint.textContent = 'XPP has exited.';
+      }
+      this.logBox.open = !this.menus || !!code;
     }
 
     sendMainSize() {
@@ -380,14 +446,16 @@
         case 'source': this.showSource(ev); break;
         case 'ping': this.flash(); break;
         case 'bye': this.hint.textContent = 'XPP has exited.'; break;
+        /* sent by the host, not the server */
+        case 'log': this.log(ev.text); break;
+        case 'exit': this.exited(ev.code); break;
       }
     }
 
     onMessage(ev) {
       if (ev.error !== undefined) {
-        this.hint.textContent = ev.error;
-        this.hint.classList.add('xpp-error');
-        setTimeout(() => this.hint.classList.remove('xpp-error'), 3000);
+        this.showError(ev.error);
+        this.log('error: ' + ev.error);
       } else if (ev.box !== undefined) {
         this.boxHint = ev.box;
         this.hint.textContent = ev.box;

@@ -89,15 +89,35 @@ xpp.stdout.on('data', chunk => {
     for (const res of clients) res.write(`data: ${line}\n\n`);
   }
 });
-xpp.stderr.on('data', d => process.stderr.write(d));
-xpp.on('exit', code => {
-  console.log(`xppcore-server exited (${code})`);
-  for (const res of clients) res.end();
-  process.exit(0);
+/* what xppaut prints (parse errors among it) goes to the page as log events */
+let logText = '';
+let exitLine = null;
+function broadcast(obj) {
+  const line = JSON.stringify(obj);
+  for (const res of clients) res.write(`data: ${line}\n\n`);
+  return line;
+}
+xpp.stderr.setEncoding('utf8');
+xpp.stderr.on('data', d => {
+  process.stderr.write(d);
+  logText = (logText + d).slice(-100000);
+  broadcast({ev: 'log', text: d});
+});
+function serverGone(code) {
+  if (exitLine) return;
+  console.log(`xppcore-server exited (${code}); the page stays up to show why. Ctrl+C to stop.`);
+  exitLine = broadcast({ev: 'exit', code});
+}
+xpp.on('exit', code => serverGone(code));
+xpp.on('error', err => {
+  const text = `could not start ${command}: ${err.message}\n`;
+  logText += text;
+  broadcast({ev: 'log', text});
+  serverGone(-1);
 });
 
 function sendToServer(line) {
-  xpp.stdin.write(line.trim() + '\n');
+  if (!exitLine) xpp.stdin.write(line.trim() + '\n');
 }
 
 const files = {
@@ -113,7 +133,10 @@ http.createServer((req, res) => {
     fs.createReadStream(path.join(__dirname, files[url][0])).pipe(res);
   } else if (req.method === 'GET' && url === '/events') {
     res.writeHead(200, {'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive'});
-    for (const line of [sticky.hello, sticky.palette, ...windows.values(), sticky.state, sticky.ask]) {
+    const replay = [sticky.hello, sticky.palette, ...windows.values(), sticky.state, sticky.ask];
+    if (logText) replay.unshift(JSON.stringify({ev: 'log', text: logText}));
+    if (exitLine) replay.push(exitLine);
+    for (const line of replay) {
       if (line) res.write(`data: ${line}\n\n`);
     }
     clients.add(res);

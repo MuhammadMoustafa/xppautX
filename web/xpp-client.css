@@ -155,3 +155,46 @@
 .xpp-field { display: flex; align-items: center; gap: 8px; }
 .xpp-field span { width: 120px; flex: none; }
 .xpp-check { display: block; margin: 2px 0; }
+.xpp-errors { display: flex; flex-direction: column; gap: 4px; padding: 0 6px; }
+.xpp-errors:empty { display: none; }
+.xpp-error-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  color: var(--vscode-inputValidation-errorForeground, #5c0d08);
+  background: var(--vscode-inputValidation-errorBackground, #fbe3e1);
+  border: 1px solid var(--vscode-inputValidation-errorBorder, #b3261e);
+  border-radius: 4px;
+}
+.xpp-error-text { font-weight: 600; }
+.xpp-error-detail {
+  grid-column: 1 / -1;
+  margin: 0;
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: 12px var(--vscode-editor-font-family, monospace);
+}
+.xpp-log { padding: 0 6px; }
+.xpp-log summary { cursor: pointer; padding: 3px 0; }
+.xpp-log-text {
+  margin: 0;
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: 12px var(--vscode-editor-font-family, monospace);
+  border: 1px solid var(--xpp-border);
+  padding: 4px 6px;
+}
+.xpp-narrow .xpp-middle { flex-direction: column; }
+.xpp-narrow .xpp-menu {
+  width: auto;
+  flex-direction: row;
+  flex-wrap: wrap;
+  border-right: none;
+  border-bottom: 1px solid var(--xpp-border);
+}
+.xpp-narrow .xpp-plots { min-height: 360px; }
+.xpp-narrow .xpp-side { width: auto; border-left: none; border-top: 1px solid var(--xpp-border); }
