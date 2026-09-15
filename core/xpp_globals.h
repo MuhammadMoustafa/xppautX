@@ -30,6 +30,7 @@ extern int OVERRIDE_QUIET;
 extern int OVERRIDE_LOGFILE;
 extern int tfBell;
 extern int help_menu;
+extern int ks_ncycle, ks_speed;
 extern CURVE frz[MAXFRZ];
 extern XppWinId draw_win;
 extern int AutoFreezeFlag;

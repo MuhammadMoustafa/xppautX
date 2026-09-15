@@ -11,15 +11,19 @@
 
 #include "adj2.h"
 #include "auto_nox.h"
+#include "comline.h"
 #include "extra.h"
 #include "graf_par.h"
+#include "graphics.h"
 #include "integrate.h"
+#include "load_eqn.h"
 #include "lunch-new.h"
 #include "markov.h"
 #include "nullcline.h"
 #include "numerics.h"
 #include "pp_shoot.h"
 #include "tabular.h"
+#include "torus.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +33,9 @@
 #include <unistd.h>
 
 extern int DF_FLAG, NTable, POIMAP, TORUS;
+extern int Nintern_set;
+extern INTERN_SET intern_set[MAX_INTERN_SET];
+extern char *no_hint[];
 
 int status;
 
@@ -135,6 +142,75 @@ void xpp_hlp(void)
   } else {
     wait(&status);
   }
+}
+
+/* ---- commands that were in X11 files -------------------------------- */
+
+void do_movie_com(int c)
+{
+  char base[128];
+  switch (c) {
+  case 0:
+    if (xpp_ui.film_clip() == 0)
+      respond_box("Okay", "Out of film!");
+    break;
+  case 1: reset_film(); break;
+  case 2: xpp_ui.movie_play_back(); break;
+  case 3:
+    new_int("Number of cycles", &ks_ncycle);
+    new_int("Msec between frames", &ks_speed);
+    if (ks_speed < 0) ks_speed = 0;
+    if (ks_ncycle <= 0) return;
+    xpp_ui.movie_auto_play();
+    break;
+  case 4:
+    sprintf(base, "frame");
+    new_string("Base file name", base);
+    if (strlen(base) > 0)
+      xpp_ui.movie_save(base, 2);
+    break;
+  case 5: xpp_ui.movie_make_anigif(); break;
+  case 6: break;
+  }
+}
+
+/* debug stress test on the 'y' key: half a million random lines */
+void draw_many_lines(void)
+{
+  int NLINE = 500000;
+  int i;
+  for (i = 0; i < NLINE; i++)
+    xpp_ui.draw_line(rand() % 200, rand() % 200, rand() % 200, rand() % 200);
+  printf("Done\n");
+}
+
+void get_intern_set(void)
+{
+  char *n[MAX_INTERN_SET], key[MAX_INTERN_SET], ch;
+  int i, j;
+  int count = Nintern_set;
+  XppMenu m = {"param_set", "Param set", 0, NULL, NULL, NULL, -1, 12, -1};
+  if (count == 0) return;
+  for (i = 0; i < Nintern_set; i++) {
+    n[i] = (char *)malloc(256);
+    key[i] = 'a' + i;
+    sprintf(n[i], "%c: %s", key[i], intern_set[i].name);
+  }
+  key[count] = 0;
+  m.n = count; m.items = n; m.keys = key; m.hints = no_hint;
+  ch = (char)menu_choose(&m, 0);
+  for (i = 0; i < count; i++) free(n[i]);
+  j = (int)(ch - 'a');
+  if (j < 0 || j >= Nintern_set) {
+    err_msg("Not a valid set");
+    return;
+  }
+  get_graph();
+  extract_internset(j);
+  chk_delay();
+  redraw_params();
+  redraw_ics();
+  reset_graph();
 }
 
 /* ---- the command switch --------------------------------------------- */

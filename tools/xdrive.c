@@ -4,6 +4,8 @@
    script lines:  key <keysym>  |  sleep <ms>  |  shot <name>  (-> OUTDIR/name.ppm)
                   shotw <title> <name>  screenshot of the top-level window whose
                   title contains <title> (dialogs), or a note that none exists
+                  clickw <title> <x> <y>  press and release button 1 at x,y inside
+                  that window (sent to the deepest child there)
    Keys go to the main window with XSendEvent; xppaut reads KeyPress from any
    of its windows, so no focus or XTest is needed. Screenshots are of the
    main window and its children, which includes the pop-up menus. */
@@ -67,13 +69,34 @@ static void shot(Display *d, Window w, const char *file)
   XDestroyImage(img);
 }
 
+static void click(Display *d, Window top, int x, int y)
+{
+  Window w = top, child;
+  int cx = x, cy = y, nx, ny;
+  XButtonEvent e;
+  Window dummy;
+  for (;;) {
+    if (!XTranslateCoordinates(d, w, w, cx, cy, &nx, &ny, &child) || child == None) break;
+    XTranslateCoordinates(d, w, child, cx, cy, &nx, &ny, &dummy);
+    w = child; cx = nx; cy = ny;
+  }
+  memset(&e, 0, sizeof e);
+  e.display = d; e.window = w; e.root = DefaultRootWindow(d);
+  e.time = CurrentTime; e.x = cx; e.y = cy; e.button = Button1; e.same_screen = True;
+  e.type = ButtonPress;
+  XSendEvent(d, w, True, ButtonPressMask, (XEvent *)&e);
+  e.type = ButtonRelease; e.state = Button1Mask;
+  XSendEvent(d, w, True, ButtonReleaseMask, (XEvent *)&e);
+  XFlush(d);
+}
+
 static int on_err(Display *d, XErrorEvent *e) { (void)d; fprintf(stderr, "X error %d\n", e->error_code); return 0; }
 
 int main(int argc, char **argv)
 {
   Display *d = XOpenDisplay(NULL);
   Window w = 0;
-  char line[256], cmd[32], arg[200], arg2[200], path[1024];
+  char line[256], cmd[32], arg[200], arg2[200], arg3[200], path[1024];
   FILE *sc;
   int tries;
   if (!d || argc < 3) return 2;
@@ -87,9 +110,13 @@ int main(int argc, char **argv)
   if (!sc) return 2;
   while (fgets(line, sizeof line, sc)) {
     arg2[0] = 0;
-    if (sscanf(line, "%31s %199s %199s", cmd, arg, arg2) < 1) continue;
+    if (sscanf(line, "%31s %199s %199s %199s", cmd, arg, arg2, arg3) < 1) continue;
     if (!strcmp(cmd, "key")) send_key(d, w, arg);
     else if (!strcmp(cmd, "sleep")) usleep(atoi(arg) * 1000);
+    else if (!strcmp(cmd, "clickw")) {
+      Window dw = find_win(d, DefaultRootWindow(d), arg);
+      if (dw) click(d, dw, atoi(arg2), atoi(arg3));
+    }
     else if (!strcmp(cmd, "shotw")) {
       Window dw = find_win(d, DefaultRootWindow(d), arg);
       snprintf(path, sizeof path, "%s/%s.ppm", argv[2], arg2);

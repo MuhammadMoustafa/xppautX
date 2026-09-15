@@ -37,6 +37,10 @@ typedef struct XppUi {
     int (*new_string)(char *name, char *value);
     int (*yes_no_box)(void);
     int (*two_choice)(char *c1, char *c2, char *q, char *key, char *title);
+    void (*respond_box)(char *button, char *message); /* alert with one button */
+    /* toggle a set of flags (1/0) by name; flags are edited in place and
+       restored on cancel. Returns 1 for done, 0 for cancel. */
+    int (*checklist)(char *title, char **names, int *flags, int n);
     int (*string_box)(int n, int row, int col, char *title, char **names,
                       char values[][25], int maxchar);
     int (*file_selector)(char *title, char *file, char *wild);
@@ -83,6 +87,11 @@ typedef struct XppUi {
     void (*small_gr)(void);
     int (*film_clip)(void); /* returns 0 when the movie buffer is full */
     void (*reset_film)(void);
+    /* kinescope: the captured frames live in the front end */
+    void (*movie_play_back)(void);  /* step through frames with keys/mouse */
+    void (*movie_auto_play)(void);  /* ks_ncycle cycles, ks_speed ms apart */
+    void (*movie_save)(char *basename, int fmat); /* 1 ppm, 2 gif */
+    void (*movie_make_anigif)(void);
     void (*on_the_fly)(int task); /* animation hook during integration */
 
     /* mouse interaction in the plot window. rubber_band returns 1 and the
@@ -153,19 +162,15 @@ typedef struct XppUi {
        run_the_commands() reaches them through here; later phase 3 steps move
        their logic into core. Headless: they do nothing. */
     void (*new_parameter)(void);
-    void (*do_torus_com)(int c);
-    void (*do_movie_com)(int c);
     void (*do_windows_com)(int c);
     void (*do_gr_objs_com)(int c);
     void (*edit_object_com)(int c);
-    void (*get_intern_set)(void);
     void (*clone_ode)(void);
     void (*make_txtview)(void);
     void (*q_calc)(void);
     void (*edit_rhs)(void);
     void (*edit_functions)(void);
     int (*save_as)(void);
-    void (*draw_many_lines)(void);
 
     /* program is quitting */
     void (*exit_program)(void);
@@ -191,6 +196,7 @@ int new_int(char *name, int *value);
 int new_float(char *name, double *value);
 int yes_no_box(void);
 int TwoChoice(char *c1, char *c2, char *q, char *key);
+void respond_box(char *button, char *message);
 int do_string_box(int n, int row, int col, char *title, char **names,
                   char values[][25], int maxchar);
 int file_selector(char *title, char *file, char *wild);
@@ -257,18 +263,14 @@ void make_my_aplot(char *name);
 void edit_aplot(void);
 void new_vcr(void);
 void redraw_the_graph(void);
-void do_torus_com(int c);
-void do_movie_com(int c);
 void do_windows_com(int c);
 void do_gr_objs_com(int c);
 void edit_object_com(int c);
-void get_intern_set(void);
 void clone_ode(void);
 void make_txtview(void);
 void q_calc(void);
 void edit_rhs(void);
 void edit_functions(void);
 int save_as(void);
-void draw_many_lines(void);
 
 #endif

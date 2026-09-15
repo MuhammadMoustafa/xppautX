@@ -54,7 +54,7 @@ extern char file_menu_keys[];
    menu_choose() and gets back the chosen key. Item i usually runs
    run_the_commands(first_cmd + i); first_cmd is -1 when the caller handles
    the choice itself. width and row are the X11 pop_up_list layout (maximum
-   label width, and the text row the list opens at). */
+   label width, and the text row the list opens at; -1 is the top edge). */
 typedef struct XppMenu {
   const char *name;  /* stable identifier for front ends */
   char *title;

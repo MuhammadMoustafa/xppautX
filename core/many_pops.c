@@ -123,36 +123,6 @@ extern int NTable;
 
 extern INTERN_SET intern_set[MAX_INTERN_SET];
 extern int Nintern_set;
-void x11_get_intern_set()
-{
-  char *n[MAX_INTERN_SET],key[MAX_INTERN_SET],ch;
-  int i,j;
-  int count=Nintern_set;
-  Window temp=main_win;
-  if(count==0)return;
-  for(i=0;i<Nintern_set;i++){
-    n[i]=(char *)malloc(256);
-    key[i]='a'+i;
-    sprintf(n[i],"%c: %s",key[i],intern_set[i].name);
-  }
-  key[count]=0;
-  ch=(char)pop_up_list(&temp,"Param set",n,key,count,12,0,10,0,
-		       no_hint,info_pop,info_message);
-   for(i=0;i<count;i++)free(n[i]);
-  j=(int)(ch-'a');
-  if(j<0||j>=Nintern_set){
-    err_msg("Not a valid set");
-    return;
-  }
-  /* plintf(" Got set %d \n",j); */
-  get_graph();
-  extract_internset(j);
-  chk_delay();
-  redraw_params();
-  redraw_ics();
-  reset_graph();
-}
-
 
 void make_icon(icon,wid,hgt,w)
 char *icon;

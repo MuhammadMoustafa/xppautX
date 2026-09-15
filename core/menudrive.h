@@ -263,6 +263,8 @@ void get_3d_par(void);
 void edit_xpprc();
 void do_tutorial();
 void commander(int ch);
+void draw_many_lines(void);
+void get_intern_set(void);
 
 
 

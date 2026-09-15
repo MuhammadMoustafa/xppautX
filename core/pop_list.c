@@ -1073,7 +1073,7 @@ void expose_resp_box(button,message,wb,wm,w)
    }
 
 
-void respond_box(button,message)
+void x11_respond_box(button,message)
     char *button,*message;
     {
      int l1=strlen(message);
@@ -1475,3 +1475,182 @@ Window *root;
 
    
   
+
+/* ---- checklist: the torus "Fold which" box, generalised (was torus.c) --- */
+
+#define TOR_EV_MASK (ButtonPressMask|KeyPressMask|ExposureMask|StructureNotifyMask)
+#define TOR_BUT_MASK (ButtonPressMask|KeyPressMask|ExposureMask|StructureNotifyMask|		EnterWindowMask|LeaveWindowMask)
+static char **tor_names;
+static int *tor_flags;
+static int tor_n;
+extern int DisplayHeight;
+
+static struct {
+         Window base,done,cancel;
+	 Window w[MAXODE];
+       } torbox;
+
+
+
+static void draw_tor_var(i)
+int i;
+{
+ char strng[15];
+ XClearWindow(display,torbox.w[i]);
+ if(tor_flags[i]==1)sprintf(strng,"X  %s",tor_names[i]);
+ else sprintf(strng,"   %s",tor_names[i]);
+ XDrawString(display,torbox.w[i],small_gc,0,CURY_OFFs,strng,strlen(strng));
+}
+ 
+
+static void draw_torus_box(win)
+Window win;
+{
+ int i;
+ 
+ 
+ if(win==torbox.cancel){
+   XDrawString(display,win,small_gc,5,CURY_OFFs,"Cancel",6);
+   return;
+ }
+ if(win==torbox.done){
+   XDrawString(display,win,small_gc,5,CURY_OFFs,"Done",4);
+   return;
+ }
+
+for(i=0;i<tor_n;i++){
+  if(win==torbox.w[i])
+  draw_tor_var(i);
+}
+}   
+
+static void make_tor_box(title)
+char *title;
+{
+ 
+ int ndn,nac,width,height;
+ int nv;
+ /*int nh; Not used anywhere*/
+ int i,i1,j1,xpos,ypos;
+ int xstart=DCURXs;
+ int ystart=DCURYs;
+ Window base;
+ XTextProperty winname;
+   XSizeHints size_hints;
+ 
+ nv=4*DisplayHeight/(5*(DCURYs+8));
+ /*nh=DisplayWidth/(18*DCURXs);*/
+ 
+ if(tor_n<nv)ndn=tor_n;
+ else ndn=nv;
+ nac=tor_n/ndn;
+ if(nac*ndn<tor_n)nac++;
+ 
+ width=24*DCURXs*nac+10;
+ height=3*DCURYs+ndn*(DCURYs+8);
+ 
+ base=make_plain_window(RootWindow(display,screen),0,0,width,height,4);
+ 
+ torbox.base=base;
+XStringListToTextProperty(&title,1,&winname);
+ size_hints.flags=PPosition|PSize|PMinSize|PMaxSize;
+ size_hints.x=0;
+ size_hints.y=0;
+ size_hints.width=width;
+ size_hints.height=height;
+ size_hints.min_width=width;
+ size_hints.min_height=height;
+ size_hints.max_width=width;
+ size_hints.max_height=height;
+ 
+ XClassHint class_hints;
+ class_hints.res_name="";
+ class_hints.res_class="";
+ 
+ make_icon((char*)info_bits,info_width,info_height,base);
+ 
+ XSetWMProperties(display,base,&winname,NULL,NULL,0,&size_hints,NULL,&class_hints);
+ for(i=0;i<tor_n;i++){
+   i1=i/nv;
+   j1=i%nv;
+   xpos=xstart+18*DCURXs*i1;
+   ypos=ystart+j1*(DCURYs+8);
+   torbox.w[i]=make_window(base,xpos,ypos,15*DCURXs,DCURYs,1);
+ }
+
+ xpos=(width-16*DCURXs-10)/2;
+ ypos=height-3*DCURYs/2;
+
+ torbox.cancel=make_window(base,xpos,ypos,8*DCURXs,DCURYs,1);
+ torbox.done=make_window(base,xpos+8*DCURXs+10,ypos,8*DCURXs,DCURYs,1);
+ XSelectInput(display,torbox.cancel,TOR_BUT_MASK);
+ XSelectInput(display,torbox.done,TOR_BUT_MASK);
+ XRaiseWindow(display,torbox.base);
+}
+
+static int do_torus_events()
+{
+ XEvent ev;
+ int status=-1;
+ int done=0;
+ Window wt;
+ int i;
+ int oldit[MAXODE];
+ for(i=0;i<tor_n;i++)oldit[i]=tor_flags[i];
+ while(!done){
+   
+  XNextEvent(display,&ev);
+ switch(ev.type){
+ 	
+	case Expose:
+	
+		do_expose(ev);  /*  menus and graphs etc  */
+		draw_torus_box(ev.xany.window);
+		break;
+
+	case ButtonPress:
+		if(ev.xbutton.window==torbox.done){status=1;done=1;break;}
+		if(ev.xbutton.window==torbox.cancel){status=-1;done=1;break;}
+			for(i=0;i<tor_n;i++)
+ 		{
+			if(ev.xbutton.window==torbox.w[i]){
+		        tor_flags[i]=1-tor_flags[i];
+			draw_tor_var(i);
+			break;
+			}
+                  }
+                  break;
+
+        case EnterNotify:
+	wt=ev.xcrossing.window;
+        if(wt==torbox.done||wt==torbox.cancel)
+	 XSetWindowBorderWidth(display,wt,2);
+	break;
+
+	case LeaveNotify:
+	wt=ev.xcrossing.window;
+        if(wt==torbox.done||wt==torbox.cancel)
+	 XSetWindowBorderWidth(display,wt,1);
+	break;
+	      }
+}
+
+ if(status==-1){
+   for(i=0;i<tor_n;i++)tor_flags[i]=oldit[i];
+ }
+ XSelectInput(display,torbox.cancel,TOR_EV_MASK);
+ XSelectInput(display,torbox.done,TOR_EV_MASK);
+ waitasec(ClickTime);
+ XDestroySubwindows(display,torbox.base);
+ XDestroyWindow(display,torbox.base);
+ return status==1;
+}
+
+int x11_checklist(char *title, char **names, int *flags, int n)
+{
+  tor_names=names;
+  tor_flags=flags;
+  tor_n=n;
+  make_tor_box(title);
+  return do_torus_events();
+}

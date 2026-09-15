@@ -81,6 +81,13 @@ static void hl_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
         plintf("  y[%d]=%.8g  eig=%.8g%+.8gi\n", i, y[i], ev[2 * i], ev[2 * i + 1]);
 }
 static int hl_save_as(void) { return 0; }
+static void hl_respond_box(char *button, char *message) { (void)button; plintf("%s\n", message); }
+static int hl_checklist(char *title, char **names, int *flags, int n)
+{
+    (void)title; (void)names; (void)flags; (void)n;
+    return 0;
+}
+static void hl_movie_save(char *basename, int fmat) { (void)basename; (void)fmat; }
 static void hl_exit_program(void) { exit(1); }
 
 XppUi xpp_ui = {
@@ -94,6 +101,8 @@ XppUi xpp_ui = {
     .new_string = hl_new_string,
     .yes_no_box = hl_no,
     .two_choice = hl_two_choice,
+    .respond_box = hl_respond_box,
+    .checklist = hl_checklist,
     .string_box = hl_string_box,
     .file_selector = hl_file_selector,
     .get_mouse_xy = hl_get_mouse_xy,
@@ -127,6 +136,10 @@ XppUi xpp_ui = {
     .small_gr = hl_void,
     .film_clip = hl_film_clip,
     .reset_film = hl_void,
+    .movie_play_back = hl_void,
+    .movie_auto_play = hl_void,
+    .movie_save = hl_movie_save,
+    .movie_make_anigif = hl_void,
     .on_the_fly = hl_int,
     .draw_point = hl_draw_point,
     .draw_line = hl_draw_line,
@@ -172,19 +185,15 @@ XppUi xpp_ui = {
     .aplot_make = hl_str,
     .aplot_edit = hl_void,
     .new_vcr = hl_void,
-    .do_torus_com = hl_int,
-    .do_movie_com = hl_int,
     .do_windows_com = hl_int,
     .do_gr_objs_com = hl_int,
     .edit_object_com = hl_int,
-    .get_intern_set = hl_void,
     .clone_ode = hl_void,
     .make_txtview = hl_void,
     .q_calc = hl_void,
     .edit_rhs = hl_void,
     .edit_functions = hl_void,
     .save_as = hl_save_as,
-    .draw_many_lines = hl_void,
     .exit_program = hl_exit_program,
 };
 
@@ -217,6 +226,7 @@ int TwoChoice(char *c1, char *c2, char *q, char *key)
 {
     return xpp_ui.two_choice(c1, c2, q, key, NULL);
 }
+void respond_box(char *button, char *message) { xpp_ui.respond_box(button, message); }
 int do_string_box(int n, int row, int col, char *title, char **names,
                   char values[][25], int maxchar)
 {
@@ -301,19 +311,15 @@ void make_my_aplot(char *name) { xpp_ui.aplot_make(name); }
 void edit_aplot(void) { xpp_ui.aplot_edit(); }
 void new_vcr(void) { xpp_ui.new_vcr(); }
 void redraw_the_graph(void) { xpp_ui.redraw_graph(); }
-void do_torus_com(int c) { xpp_ui.do_torus_com(c); }
-void do_movie_com(int c) { xpp_ui.do_movie_com(c); }
 void do_windows_com(int c) { xpp_ui.do_windows_com(c); }
 void do_gr_objs_com(int c) { xpp_ui.do_gr_objs_com(c); }
 void edit_object_com(int c) { xpp_ui.edit_object_com(c); }
-void get_intern_set(void) { xpp_ui.get_intern_set(); }
 void clone_ode(void) { xpp_ui.clone_ode(); }
 void make_txtview(void) { xpp_ui.make_txtview(); }
 void q_calc(void) { xpp_ui.q_calc(); }
 void edit_rhs(void) { xpp_ui.edit_rhs(); }
 void edit_functions(void) { xpp_ui.edit_functions(); }
 int save_as(void) { return xpp_ui.save_as(); }
-void draw_many_lines(void) { xpp_ui.draw_many_lines(); }
 
 /* plintf, new_int and new_float were in ggets.c; they never touched X. */
 

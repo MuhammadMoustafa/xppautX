@@ -107,15 +107,6 @@ void rect_x11(x,y,w,h)
  XFillRectangle(display,draw_win,gc_graph,x,y,w,h);
 }
 
-void x11_draw_many_lines()
-{
-  int NLINE=500000;
-  int i;
-  for(i=0;i<NLINE;i++)
-    XDrawLine(display,draw_win,gc_graph,rand()%200,rand()%200,rand()%200,rand()%200);
-  printf("Done\n");
-}
-
 void line_x11(xp1,yp1,xp2,yp2)
      int xp1,yp1,xp2,yp2;
 {

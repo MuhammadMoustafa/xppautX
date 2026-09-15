@@ -25,8 +25,7 @@ extern Window draw_win,main_win,info_pop;
 extern int DCURY;
 extern GC gc_graph;
 #define MAXFILM 250
-int ks_ncycle=1;
-int ks_speed=50;
+extern int ks_ncycle,ks_speed;
 extern char *info_message,*kin_hint[];
 extern int screen;
 extern int mov_ind;
@@ -36,38 +35,6 @@ typedef struct {
 		} MOVIE;
 
 MOVIE movie[MAXFILM];
-
-void x11_do_movie_com(int c)
-
-{
-
-
-
-/*  XDestroyWindow(display,temp); 
-  draw_help();
-  XFlush(display); */ 
- switch(c){
-
-	     case 0: if(film_clip()==0)
-	 respond_box("Okay","Out of film!");
-			break;
-	      case 1: reset_film();
-	                break;
-	      case 2: play_back();
-		        break;
-	      case 3: auto_play();
-			 break;
-              case 4: save_kine();
-		        break;
-              case 5: make_anigif();
-		        break;
- case 6: /* test_keys(); */
-   break;
-	    }
-      
-  }
-
-
 
 void x11_reset_film()
 {
@@ -161,25 +128,6 @@ void play_back()
   }
 }
 	       		
-
-     
-void save_kine()
-{
- char base[128];
- int fmat=2;
- sprintf(base,"frame");
- /* #ifdef NOGIF
-#else
-new_int("format:1-ppm,2-gif",&fmat);
-#endif
- */
- new_string("Base file name",base);
- if(strlen(base)>0)
-   save_movie(base,fmat);
-   
-}
-  
-
 
      
 void make_anigif()
@@ -283,10 +231,6 @@ void  auto_play()
  int i=0,cycle=0;
 
  
- new_int("Number of cycles",&ks_ncycle);
- new_int("Msec between frames",&ks_speed);
- if(ks_speed<0)ks_speed=0;
- if(ks_ncycle<=0)return;
  XGetGeometry(display,draw_win,&root,&x,&y,&w,&h,&bw,&d);
  if(mov_ind==0)return;
  if(h<movie[i].h||w<movie[i].w){

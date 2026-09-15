@@ -24,6 +24,7 @@ int tfBell;
 int AutoFreezeFlag = 0; /* freeze the curve after every integration */
 CURVE frz[MAXFRZ];  /* frozen curves of every plot window */
 XppWinId draw_win;  /* the plot window being drawn into (an X11 Window) */
+int ks_ncycle = 1, ks_speed = 50; /* kinescope autoplay */
 int help_menu; /* which main-window menu keys go to: MAIN_MENU, FILE_MENU, NUM_MENU */
 
 char big_font_name[100], small_font_name[100];

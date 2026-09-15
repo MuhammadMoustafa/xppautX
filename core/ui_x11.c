@@ -33,6 +33,8 @@ int x11_new_string(char *name, char *value);
 int x11_yes_no_box(void);
 int x11_TwoChoice(char *c1, char *c2, char *q, char *key, char *title);
 int x11_menu_choose(const XppMenu *m, int def);
+void x11_respond_box(char *button, char *message);
+int x11_checklist(char *title, char **names, int *flags, int n);
 void x11_show_menu(int j);
 int x11_do_string_box(int n, int row, int col, char *title, char **names,
                       char values[][25], int maxchar);
@@ -105,19 +107,15 @@ void x11_create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                        double *ev, int n);
 void x11_bye_bye(void);
 void x11_new_parameter(void);
-void x11_do_torus_com(int c);
-void x11_do_movie_com(int c);
 void x11_do_windows_com(int c);
 void x11_do_gr_objs_com(int c);
 void x11_edit_object_com(int c);
-void x11_get_intern_set(void);
 void x11_clone_ode(void);
 void x11_make_txtview(void);
 void x11_q_calc(void);
 void x11_edit_rhs(void);
 void x11_edit_functions(void);
 int x11_save_as(void);
-void x11_draw_many_lines(void);
 
 static void x11_data_changed(int length)
 {
@@ -147,6 +145,8 @@ static const XppUi x11_ui = {
     .new_string = x11_new_string,
     .yes_no_box = x11_yes_no_box,
     .two_choice = x11_TwoChoice,
+    .respond_box = x11_respond_box,
+    .checklist = x11_checklist,
     .string_box = x11_do_string_box,
     .file_selector = x11_file_selector,
     .get_mouse_xy = x11_GetMouseXY,
@@ -180,6 +180,10 @@ static const XppUi x11_ui = {
     .small_gr = x11_SmallGr,
     .film_clip = film_clip,
     .reset_film = x11_reset_film,
+    .movie_play_back = play_back,
+    .movie_auto_play = auto_play,
+    .movie_save = save_movie,
+    .movie_make_anigif = make_anigif,
     .on_the_fly = x11_on_the_fly,
     .draw_point = point_x11,
     .draw_line = line_x11,
@@ -225,19 +229,15 @@ static const XppUi x11_ui = {
     .aplot_make = x11_make_my_aplot,
     .aplot_edit = x11_edit_aplot,
     .new_vcr = x11_new_vcr,
-    .do_torus_com = x11_do_torus_com,
-    .do_movie_com = x11_do_movie_com,
     .do_windows_com = x11_do_windows_com,
     .do_gr_objs_com = x11_do_gr_objs_com,
     .edit_object_com = x11_edit_object_com,
-    .get_intern_set = x11_get_intern_set,
     .clone_ode = x11_clone_ode,
     .make_txtview = x11_make_txtview,
     .q_calc = x11_q_calc,
     .edit_rhs = x11_edit_rhs,
     .edit_functions = x11_edit_functions,
     .save_as = x11_save_as,
-    .draw_many_lines = x11_draw_many_lines,
     .exit_program = x11_bye_bye,
 };
 

@@ -110,7 +110,7 @@ int x11_menu_choose(const XppMenu *m,int def)
 {
  Window temp=main_win;
  return pop_up_list(&temp,m->title,m->items,m->keys,m->n,m->width,def,
-		    10,m->row*DCURY+8,m->hints,info_pop,info_message);
+		    10,m->row<0?0:m->row*DCURY+8,m->hints,info_pop,info_message);
 }
 int x11_GetMouseXY(int *x,int *y)
 {

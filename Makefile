@@ -29,7 +29,7 @@ BUILDDIR = build/obj
 UI_SOURCES := $(addprefix $(SRCDIR)/, abort.c aniparse.c arrayplot.c auto_x11.c \
   browse.c calc.c choice_box.c color.c dialog_box.c edit_rhs.c eig_list.c \
   ggets.c graphics_x11.c init_conds.c kinescope.c main.c many_pops.c \
-  menu.c menudrive.c pop_list.c rubber.c scrngif.c torus.c txtread.c ui_x11.c \
+  menu.c menudrive.c pop_list.c rubber.c scrngif.c txtread.c ui_x11.c \
   userbut.c xppaut_main.c)
 # sbml2xpp.c needs libsbml and is not part of the upstream build.
 CORE_SOURCES := $(filter-out $(UI_SOURCES) $(SRCDIR)/sbml2xpp.c $(SRCDIR)/xppcore_cli.c,$(wildcard $(SRCDIR)/*.c))
