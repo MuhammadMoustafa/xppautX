@@ -22,6 +22,8 @@ int OVERRIDE_QUIET = 0;
 int OVERRIDE_LOGFILE = 0;
 int tfBell;
 int AutoFreezeFlag = 0; /* freeze the curve after every integration */
+CURVE frz[MAXFRZ];  /* frozen curves of every plot window */
+XppWinId draw_win;  /* the plot window being drawn into (an X11 Window) */
 int help_menu; /* which main-window menu keys go to: MAIN_MENU, FILE_MENU, NUM_MENU */
 
 char big_font_name[100], small_font_name[100];

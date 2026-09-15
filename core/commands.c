@@ -12,6 +12,7 @@
 #include "adj2.h"
 #include "auto_nox.h"
 #include "extra.h"
+#include "graf_par.h"
 #include "integrate.h"
 #include "lunch-new.h"
 #include "markov.h"

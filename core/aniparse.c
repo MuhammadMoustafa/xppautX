@@ -287,7 +287,7 @@ char *get_next(/* char *src */);
 		LeaveWindowMask		|\
 		EnterWindowMask)
 
-void new_vcr()
+void x11_new_vcr()
 {
   int tt,i;
   if(vcr.iexist==1)return;

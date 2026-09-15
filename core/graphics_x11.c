@@ -6,6 +6,15 @@
 #include "graphics.h"
 #include "color.h"
 #include "xpp_globals.h"
+#include "axes2.h"
+#include "ggets.h"
+#include "graf_par.h"
+#include "integrate.h"
+#include "many_pops.h"
+#include "nullcline.h"
+#include "browse.h"
+
+extern BROWSER my_browser;
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -247,4 +256,17 @@ void fancy_put_text_x11(x,y,str,size,font)
     XSetForeground(display,font_gc,GrBack);  
     break;
   }
+}
+
+void x11_redraw_the_graph()
+{
+ blank_screen(draw_win);
+ set_normal_scale();
+ do_axes();
+ hi_lite(draw_win);
+ restore(0,my_browser.maxrow);
+ draw_label(draw_win);
+ draw_freeze(draw_win);
+ redraw_dfield();
+ if(MyGraph->Nullrestore)restore_nullclines();
 }

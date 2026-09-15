@@ -7,6 +7,12 @@
 #define RUBBOX 0
 #define RUBLINE 1
 #include "rubber.h"
+#include "xpp_globals.h"
+#include "axes2.h"
+#include "graf_par.h"
+#include "graphics.h"
+#include "struct.h"
+#include "mykeydef.h"
 #include "ggets.h"
 #include "many_pops.h"
 
@@ -127,3 +133,104 @@ Window w;
 
 
 
+
+void test_rot()
+{
+ int done=0;
+ int kp;
+ XEvent ev;
+ double theta=MyGraph->Theta,phi=MyGraph->Phi;
+ redraw_cube(theta,phi);
+ while(done==0){
+    XNextEvent(display,&ev);
+   if(ev.type==KeyPress){
+      kp=get_key_press(&ev);
+      switch(kp){
+      case UP:
+        phi=phi+1;
+        redraw_cube(theta,phi);
+        break;
+      case DOWN:
+	phi=phi-1;
+        redraw_cube(theta,phi);
+        break;
+      case LEFT:
+	theta=theta+1;
+        redraw_cube(theta,phi);
+        break;
+      case RIGHT:
+	theta=theta-1;
+        redraw_cube(theta,phi);
+        break;
+      case FINE:
+       done=1;
+       break;
+      case ESC:
+       done=-1;
+       break;
+      }
+   }
+ }
+ if(done==1){
+   MyGraph->Phi=phi;
+   MyGraph->Theta=theta;
+ }
+ redraw_the_graph();
+   
+}
+
+void x11_scroll_window()
+{
+  XEvent ev;
+  int i=0,j=0;
+  int state=0;
+  float x,y,x0,y0;
+  float xlo=MyGraph->xlo;
+  float ylo=MyGraph->ylo;
+    float xhi=MyGraph->xhi;
+  float yhi=MyGraph->yhi;
+  float dx,dy;
+  int alldone=0;
+  XSelectInput(display,draw_win,
+   KeyPressMask|ButtonPressMask|ButtonReleaseMask|
+		PointerMotionMask|ButtonMotionMask|ExposureMask);
+  while(!alldone){
+   XNextEvent(display,&ev);
+   switch(ev.type){
+   case KeyPress:
+     alldone=1;
+     break;
+   case Expose:
+     do_expose(ev);
+     break;
+   case ButtonPress:
+     if(state==0){
+     i=ev.xkey.x;
+     j=ev.xkey.y;
+     scale_to_real(i,j,&x0,&y0);
+     state=1;
+    
+     }
+     break;
+   case MotionNotify:
+     if(state==1){
+     i=ev.xmotion.x;
+     j=ev.xmotion.y;
+     scale_to_real(i,j,&x,&y);
+     dx=-(x-x0)/2;
+     dy=-(y-y0)/2;
+
+     update_view(xlo+dx,xhi+dx,ylo+dy,yhi+dy);
+     }
+     break;
+   case ButtonRelease:
+     state=0;
+     xlo=xlo+dx;
+     xhi=xhi+dx;
+     ylo=ylo+dy;
+     yhi=yhi+dy;
+     break;
+
+   }
+  }
+}

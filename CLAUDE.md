@@ -27,7 +27,7 @@ dispatch or X11 files):
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/guicheck.sh"
 
-Metrics: `make x11free` (sources compiling without X11 headers, 84/111) and
+Metrics: `make x11free` (sources compiling without X11 headers, 85/111) and
 `tools/coredeps.sh -v` (symbols core objects import from X11 objects, 0).
 Clean-build warning baseline with gcc 13 is ~520; verify.sh's count is for
 the incremental build only.

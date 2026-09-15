@@ -22,7 +22,7 @@ for tag in base new; do
   kill $pid 2>/dev/null; wait $pid 2>/dev/null
 done
 same=0; total=0
-for f in "$out"/base/*.ppm; do
+for f in "$out"/base/*; do
   n=$(basename "$f"); total=$((total+1))
   if cmp -s "$f" "$out/new/$n"; then same=$((same+1)); else echo "DIFF: $n"; fi
 done

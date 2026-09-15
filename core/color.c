@@ -94,7 +94,7 @@ int col;
    n copies of rr,gg,bb
 */
   
-void NewColormap(int type)
+void x11_NewColormap(int type)
 {
   /*  printf(" My color map = %d\n",type); */
    if(TrueColorFlag==0){

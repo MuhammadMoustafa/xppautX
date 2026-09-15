@@ -2,6 +2,8 @@
    before/after GUI comparisons (tools/guicheck.sh).
    usage: xdrive SCRIPT OUTDIR
    script lines:  key <keysym>  |  sleep <ms>  |  shot <name>  (-> OUTDIR/name.ppm)
+                  shotw <title> <name>  screenshot of the top-level window whose
+                  title contains <title> (dialogs), or a note that none exists
    Keys go to the main window with XSendEvent; xppaut reads KeyPress from any
    of its windows, so no focus or XTest is needed. Screenshots are of the
    main window and its children, which includes the pop-up menus. */
@@ -71,7 +73,7 @@ int main(int argc, char **argv)
 {
   Display *d = XOpenDisplay(NULL);
   Window w = 0;
-  char line[256], cmd[32], arg[200], path[1024];
+  char line[256], cmd[32], arg[200], arg2[200], path[1024];
   FILE *sc;
   int tries;
   if (!d || argc < 3) return 2;
@@ -84,9 +86,16 @@ int main(int argc, char **argv)
   sc = fopen(argv[1], "r");
   if (!sc) return 2;
   while (fgets(line, sizeof line, sc)) {
-    if (sscanf(line, "%31s %199s", cmd, arg) < 1) continue;
+    arg2[0] = 0;
+    if (sscanf(line, "%31s %199s %199s", cmd, arg, arg2) < 1) continue;
     if (!strcmp(cmd, "key")) send_key(d, w, arg);
     else if (!strcmp(cmd, "sleep")) usleep(atoi(arg) * 1000);
+    else if (!strcmp(cmd, "shotw")) {
+      Window dw = find_win(d, DefaultRootWindow(d), arg);
+      snprintf(path, sizeof path, "%s/%s.ppm", argv[2], arg2);
+      if (dw) shot(d, dw, path);
+      else { FILE *fp = fopen(path, "w"); if (fp) { fprintf(fp, "no window %s\n", arg); fclose(fp); } }
+    }
     else if (!strcmp(cmd, "shot")) {
       snprintf(path, sizeof path, "%s/%s.ppm", argv[2], arg);
       shot(d, w, path);

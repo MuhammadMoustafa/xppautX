@@ -167,7 +167,7 @@ void menu_button(win)
   }
 }
       
-void draw_help()
+void x11_draw_help()
 {
   int i,j=help_menu,n;
   /*char **z;

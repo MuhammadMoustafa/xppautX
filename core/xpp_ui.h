@@ -49,6 +49,7 @@ typedef struct XppUi {
        highlighted item. */
     void (*menu_flash)(int num);
     void (*show_menu)(int which);
+    void (*redraw_menu)(void);
     int (*menu_choose)(const struct XppMenu *m, int def);
 
     /* long-running loops poll these */
@@ -83,7 +84,16 @@ typedef struct XppUi {
     int (*film_clip)(void); /* returns 0 when the movie buffer is full */
     void (*reset_film)(void);
     void (*on_the_fly)(int task); /* animation hook during integration */
-    void (*freeze_curve)(void);   /* auto-freeze after a range run */
+
+    /* mouse interaction in the plot window. rubber_band returns 1 and the
+       corners in pixels when the user drew a box (flag RUBBOX) or line
+       (RUBLINE), 0 when cancelled. scroll_window lets the user drag the
+       view until a key is pressed (calling update_view). */
+    int (*rubber_band)(int *i1, int *j1, int *i2, int *j2, int flag);
+    void (*scroll_window)(void);
+
+    /* colormap changed (custom_color); X11 reallocates its colours */
+    void (*new_colormap)(int type);
 
     /* raw drawing primitives used by graphics.c when the plot format is
        the screen (PS and SVG are handled in graphics.c itself) */
@@ -98,6 +108,8 @@ typedef struct XppUi {
 
     /* array plot window */
     void (*aplot_init)(void);
+    void (*aplot_make)(char *name); /* open the array plot window */
+    void (*aplot_edit)(void);       /* its settings dialog */
     void (*aplot_close_files)(void);
     void (*aplot_draw_one)(char *tag);
     void (*aplot_io)(FILE *fp, int f);
@@ -126,6 +138,9 @@ typedef struct XppUi {
     void (*auto_scroll_window)(void);
     void (*auto_traverse_diagram)(void);
 
+    /* animation (toon) window */
+    void (*new_vcr)(void);
+
     /* misc front-end hooks called while loading an ODE file */
     void (*init_txtview)(void);
     void (*add_user_button)(char *s);
@@ -137,15 +152,7 @@ typedef struct XppUi {
     /* Commands whose implementation still lives in the X11 front end.
        run_the_commands() reaches them through here; later phase 3 steps move
        their logic into core. Headless: they do nothing. */
-    void (*xi_vs_t)(void);
-    void (*get_3d_par_com)(void);
     void (*new_parameter)(void);
-    void (*window_zoom_com)(int c);
-    void (*change_view_com)(int c);
-    void (*add_a_curve_com)(int c);
-    void (*freeze_com)(int c);
-    void (*change_cmap_com)(int c);
-    void (*key_frz_com)(int c);
     void (*do_torus_com)(int c);
     void (*do_movie_com)(int c);
     void (*do_windows_com)(int c);
@@ -209,7 +216,6 @@ void SmallBase(void);
 void SmallGr(void);
 void reset_film(void);
 void on_the_fly(int task);
-void auto_freeze_it(void);
 void set_color(int col);
 void init_my_aplot(void);
 void close_aplot_files(void);
@@ -242,15 +248,15 @@ void add_user_button(char *s);
 void create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                    double *ev, int n);
 void bye_bye(void);
-void xi_vs_t(void);
-void get_3d_par_com(void);
 void new_parameter(void);
-void window_zoom_com(int c);
-void change_view_com(int c);
-void add_a_curve_com(int c);
-void freeze_com(int c);
-void change_cmap_com(int c);
-void key_frz_com(int c);
+void draw_help(void);
+int rubber_band(int *i1, int *j1, int *i2, int *j2, int flag);
+void scroll_window(void);
+void NewColormap(int type);
+void make_my_aplot(char *name);
+void edit_aplot(void);
+void new_vcr(void);
+void redraw_the_graph(void);
 void do_torus_com(int c);
 void do_movie_com(int c);
 void do_windows_com(int c);

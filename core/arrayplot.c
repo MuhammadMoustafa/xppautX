@@ -168,7 +168,7 @@ void optimize_aplot(int *plist)
   
   
   
-void make_my_aplot(name)
+void x11_make_my_aplot(name)
      char *name;
 {
   if(aplot.alive==1)return;
@@ -442,7 +442,7 @@ void draw_aplot(ap)
   redraw_aplot(ap);
 }
 
-void edit_aplot()
+void x11_edit_aplot()
 {
   editaplot(&aplot);
 }

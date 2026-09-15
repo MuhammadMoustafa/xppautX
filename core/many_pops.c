@@ -71,7 +71,7 @@ extern BROWSER my_browser;
 extern Atom deleteWindowAtom;
 LABEL lb[MAXLAB];
 GROB grob[MAXGROB];
-CURVE frz[MAXFRZ];
+extern CURVE frz[MAXFRZ];
 extern NCLINE nclines[MAXNCLINE];
 extern int help_menu,screen;
 extern int SCALEY,CURY_OFF,CURY_OFFs,DCURYs,DCURXs,DCURYb;

@@ -128,7 +128,6 @@ XppUi xpp_ui = {
     .film_clip = hl_film_clip,
     .reset_film = hl_void,
     .on_the_fly = hl_int,
-    .freeze_curve = hl_void,
     .draw_point = hl_draw_point,
     .draw_line = hl_draw_line,
     .draw_bead = hl_draw_point,
@@ -165,15 +164,14 @@ XppUi xpp_ui = {
     .init_txtview = hl_void,
     .add_user_button = hl_str,
     .show_eq_box = hl_show_eq_box,
-    .xi_vs_t = hl_void,
-    .get_3d_par_com = hl_void,
     .new_parameter = hl_void,
-    .window_zoom_com = hl_int,
-    .change_view_com = hl_int,
-    .add_a_curve_com = hl_int,
-    .freeze_com = hl_int,
-    .change_cmap_com = hl_int,
-    .key_frz_com = hl_int,
+    .redraw_menu = hl_void,
+    .rubber_band = hl_auto_rubber,
+    .scroll_window = hl_void,
+    .new_colormap = hl_int,
+    .aplot_make = hl_str,
+    .aplot_edit = hl_void,
+    .new_vcr = hl_void,
     .do_torus_com = hl_int,
     .do_movie_com = hl_int,
     .do_windows_com = hl_int,
@@ -250,7 +248,6 @@ void SmallBase(void) { xpp_ui.small_base(); }
 void SmallGr(void) { xpp_ui.small_gr(); }
 void reset_film(void) { xpp_ui.reset_film(); }
 void on_the_fly(int task) { xpp_ui.on_the_fly(task); }
-void auto_freeze_it(void) { xpp_ui.freeze_curve(); }
 void set_color(int col) { xpp_ui.set_color(col); }
 void init_my_aplot(void) { xpp_ui.aplot_init(); }
 void close_aplot_files(void) { xpp_ui.aplot_close_files(); }
@@ -292,15 +289,18 @@ void create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
     xpp_ui.show_eq_box(cp, cm, rp, rm, im, y, ev, n);
 }
 void bye_bye(void) { xpp_ui.exit_program(); }
-void xi_vs_t(void) { xpp_ui.xi_vs_t(); }
-void get_3d_par_com(void) { xpp_ui.get_3d_par_com(); }
 void new_parameter(void) { xpp_ui.new_parameter(); }
-void window_zoom_com(int c) { xpp_ui.window_zoom_com(c); }
-void change_view_com(int c) { xpp_ui.change_view_com(c); }
-void add_a_curve_com(int c) { xpp_ui.add_a_curve_com(c); }
-void freeze_com(int c) { xpp_ui.freeze_com(c); }
-void change_cmap_com(int c) { xpp_ui.change_cmap_com(c); }
-void key_frz_com(int c) { xpp_ui.key_frz_com(c); }
+void draw_help(void) { xpp_ui.redraw_menu(); }
+int rubber_band(int *i1, int *j1, int *i2, int *j2, int flag)
+{
+    return xpp_ui.rubber_band(i1, j1, i2, j2, flag);
+}
+void scroll_window(void) { xpp_ui.scroll_window(); }
+void NewColormap(int type) { xpp_ui.new_colormap(type); }
+void make_my_aplot(char *name) { xpp_ui.aplot_make(name); }
+void edit_aplot(void) { xpp_ui.aplot_edit(); }
+void new_vcr(void) { xpp_ui.new_vcr(); }
+void redraw_the_graph(void) { xpp_ui.redraw_graph(); }
 void do_torus_com(int c) { xpp_ui.do_torus_com(c); }
 void do_movie_com(int c) { xpp_ui.do_movie_com(c); }
 void do_windows_com(int c) { xpp_ui.do_windows_com(c); }

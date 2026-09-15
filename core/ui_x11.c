@@ -49,7 +49,19 @@ void x11_redraw_ics(void);
 void x11_redraw_all(void);
 void x11_redraw_bcs(void);
 void x11_redraw_delays(void);
-void redraw_the_graph(void);
+void x11_redraw_the_graph(void);
+void x11_draw_help(void);
+void x11_scroll_window(void);
+void x11_NewColormap(int type);
+void x11_make_my_aplot(char *name);
+void x11_edit_aplot(void);
+void x11_new_vcr(void);
+int rubber(int *x1, int *y1, int *x2, int *y2, Window w, int f);
+
+static int x11_rubber_band(int *i1, int *j1, int *i2, int *j2, int flag)
+{
+    return rubber(i1, j1, i2, j2, draw_win, flag);
+}
 void x11_drw_all_scrns(void);
 void x11_clr_all_scrns(void);
 void x11_clear_draw_window(void);
@@ -60,7 +72,6 @@ void x11_SmallBase(void);
 void x11_SmallGr(void);
 void x11_reset_film(void);
 void x11_on_the_fly(int task);
-void x11_auto_freeze_it(void);
 void x11_set_color(int col);
 void x11_init_my_aplot(void);
 void x11_close_aplot_files(void);
@@ -93,15 +104,7 @@ void x11_add_user_button(char *s);
 void x11_create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                        double *ev, int n);
 void x11_bye_bye(void);
-void x11_xi_vs_t(void);
-void x11_get_3d_par_com(void);
 void x11_new_parameter(void);
-void x11_window_zoom_com(int c);
-void x11_change_view_com(int c);
-void x11_add_a_curve_com(int c);
-void x11_freeze_com(int c);
-void x11_change_cmap_com(int c);
-void x11_key_frz_com(int c);
 void x11_do_torus_com(int c);
 void x11_do_movie_com(int c);
 void x11_do_windows_com(int c);
@@ -160,7 +163,7 @@ static const XppUi x11_ui = {
     .redraw_all = x11_redraw_all,
     .redraw_bcs = x11_redraw_bcs,
     .redraw_delays = x11_redraw_delays,
-    .redraw_graph = redraw_the_graph,
+    .redraw_graph = x11_redraw_the_graph,
     .redraw_screens = x11_drw_all_scrns,
     .clear_screens = x11_clr_all_scrns,
     .clear_draw_window = x11_clear_draw_window,
@@ -178,7 +181,6 @@ static const XppUi x11_ui = {
     .film_clip = film_clip,
     .reset_film = x11_reset_film,
     .on_the_fly = x11_on_the_fly,
-    .freeze_curve = x11_auto_freeze_it,
     .draw_point = point_x11,
     .draw_line = line_x11,
     .draw_bead = bead_x11,
@@ -215,15 +217,14 @@ static const XppUi x11_ui = {
     .init_txtview = x11_init_txtview,
     .add_user_button = x11_add_user_button,
     .show_eq_box = x11_create_eq_box,
-    .xi_vs_t = x11_xi_vs_t,
-    .get_3d_par_com = x11_get_3d_par_com,
     .new_parameter = x11_new_parameter,
-    .window_zoom_com = x11_window_zoom_com,
-    .change_view_com = x11_change_view_com,
-    .add_a_curve_com = x11_add_a_curve_com,
-    .freeze_com = x11_freeze_com,
-    .change_cmap_com = x11_change_cmap_com,
-    .key_frz_com = x11_key_frz_com,
+    .redraw_menu = x11_draw_help,
+    .rubber_band = x11_rubber_band,
+    .scroll_window = x11_scroll_window,
+    .new_colormap = x11_NewColormap,
+    .aplot_make = x11_make_my_aplot,
+    .aplot_edit = x11_edit_aplot,
+    .new_vcr = x11_new_vcr,
     .do_torus_com = x11_do_torus_com,
     .do_movie_com = x11_do_movie_com,
     .do_windows_com = x11_do_windows_com,

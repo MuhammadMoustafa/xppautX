@@ -6,6 +6,8 @@
 /* xpp_util.c: pure helpers relocated out of X11 files */
 void restore_off(void);
 void restore_on(void);
+void ps_restore(void);
+void svg_restore(void);
 void make_active(int i, int flag);
 void clr_scrn(void);
 int find_user_name(int type, char *oname);

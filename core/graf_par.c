@@ -1,34 +1,22 @@
-#include <X11/Xlib.h>
-
 #include "graf_par.h"
 #include "xpp_globals.h"
 
 #include "integrate.h"
+#include "xpp_ui.h"
+#include "xpp_util.h"
+#include "menus.h"
 
 #include "menudrive.h"
-#include "aniparse.h"
-#include "arrayplot.h"
-#include "auto_x11.h"
-#include "color.h"
-#include "init_conds.h"
-#include "rubber.h"
 
-#include "auto_x11.h"
-#include "ggets.h"
 #include "graphics.h"
-#include "menu.h"
-#include "pop_list.h"
 #include <stdlib.h> 
 #include <string.h>
-#include <X11/Xutil.h>
 #include <stdio.h>
 #include <math.h>
 #include "xpplim.h"
 #include "struct.h"
 #include "browse.h"
 #include "mykeydef.h"
-#include "many_pops.h"
-#include "kinescope.h"
 #include "nullcline.h"
 #include "axes2.h"
 #include "my_ps.h"
@@ -38,10 +26,7 @@
 
 double atof();
 NCLINE nclines[MAXNCLINE];
-extern CURVE frz[MAXFRZ];
 extern GRAPH *MyGraph;
-extern Display *display;
-extern Window main_win,draw_win,info_pop;
 extern int DCURY;
 extern int storind;
 extern int PS_FONTSIZE;
@@ -88,7 +73,7 @@ extern char this_internset[XPP_MAX_NAME];
 extern int PltFmtFlag;
 extern char uvar_names[MAXODE][12];
 
-extern char *info_message,*no_hint[],*wind_hint[],*view_hint[],*frz_hint[];
+extern char *no_hint[],*wind_hint[],*view_hint[],*frz_hint[];
 extern char *graf_hint[], *cmap_hint[]; 
 
 int colorline[]={0,20,21,22,23,24,25,26,27,28,29,0};
@@ -97,7 +82,7 @@ char *color_names[]={"WHITE","RED","REDORANGE","ORANGE","YELLOWORANGE",
 		      "BLUE","PURPLE","BLACK"};
 
 
-void x11_change_view_com(int com)
+void change_view_com(int com)
 {
  
  if(com==2){
@@ -479,7 +464,7 @@ void user_window()
  redraw_the_graph();
 }
 
-void x11_xi_vs_t() /*  a short cut   */
+void xi_vs_t() /*  a short cut   */
 {
  char name[20],value[20];
  int i=MyGraph->yv[0];
@@ -520,19 +505,6 @@ void x11_xi_vs_t() /*  a short cut   */
 
 
 
-void redraw_the_graph()
-{
- blank_screen(draw_win);
- set_normal_scale();
- do_axes();
- hi_lite(draw_win);
- restore(0,my_browser.maxrow);
- draw_label(draw_win);
- draw_freeze(draw_win);
- redraw_dfield();
- if(MyGraph->Nullrestore)restore_nullclines();
-}
-
 void movie_rot(start,increment,nclip,angle)
      int nclip,angle;
      double start,increment;
@@ -547,58 +519,13 @@ void movie_rot(start,increment,nclip,angle)
     else
       make_rot(thetaold,start+i*increment);
     redraw_the_graph();
-    film_clip();
+    xpp_ui.film_clip();
   }
   MyGraph->Theta=thetaold;
   MyGraph->Phi=phiold;
 }
 
-void test_rot()
-{
- int done=0;
- int kp;
- XEvent ev;
- double theta=MyGraph->Theta,phi=MyGraph->Phi;
- redraw_cube(theta,phi);
- while(done==0){
-    XNextEvent(display,&ev);
-   if(ev.type==KeyPress){
-      kp=get_key_press(&ev);
-      switch(kp){
-      case UP:
-        phi=phi+1;
-        redraw_cube(theta,phi);
-        break;
-      case DOWN:
-	phi=phi-1;
-        redraw_cube(theta,phi);
-        break;
-      case LEFT:
-	theta=theta+1;
-        redraw_cube(theta,phi);
-        break;
-      case RIGHT:
-	theta=theta-1;
-        redraw_cube(theta,phi);
-        break;
-      case FINE:
-       done=1;
-       break;
-      case ESC:
-       done=-1;
-       break;
-      }
-   }
- }
- if(done==1){
-   MyGraph->Phi=phi;
-   MyGraph->Theta=theta;
- }
- redraw_the_graph();
-   
-}
-
-void x11_get_3d_par_com()
+void get_3d_par_com()
 {
   
 
@@ -726,64 +653,8 @@ void update_view(float xlo,float xhi, float ylo, float yhi)
  redraw_the_graph();
 
 }
-void scroll_window()
-{
-  XEvent ev;
-  int i=0,j=0;
-  int state=0;
-  float x,y,x0,y0;
-  float xlo=MyGraph->xlo;
-  float ylo=MyGraph->ylo;
-    float xhi=MyGraph->xhi;
-  float yhi=MyGraph->yhi;
-  float dx,dy;
-  int alldone=0;
-  XSelectInput(display,draw_win,
-   KeyPressMask|ButtonPressMask|ButtonReleaseMask|
-		PointerMotionMask|ButtonMotionMask|ExposureMask);
-  while(!alldone){
-   XNextEvent(display,&ev);
-   switch(ev.type){
-   case KeyPress:
-     alldone=1;
-     break;
-   case Expose:
-     do_expose(ev);
-     break;
-   case ButtonPress:
-     if(state==0){
-     i=ev.xkey.x;
-     j=ev.xkey.y;
-     scale_to_real(i,j,&x0,&y0);
-     state=1;
     
-     }
-     break;
-   case MotionNotify:
-     if(state==1){
-     i=ev.xmotion.x;
-     j=ev.xmotion.y;
-     scale_to_real(i,j,&x,&y);
-     dx=-(x-x0)/2;
-     dy=-(y-y0)/2;
-
-     update_view(xlo+dx,xhi+dx,ylo+dy,yhi+dy);
-     }
-     break;
-   case ButtonRelease:
-     state=0;
-     xlo=xlo+dx;
-     xhi=xhi+dx;
-     ylo=ylo+dy;
-     yhi=yhi+dy;
-     break;
-
-   }
-  }
-}
-
-    
-void x11_window_zoom_com(int c)
+void window_zoom_com(int c)
 {
  int i1,i2,j1,j2;
   switch(c){
@@ -798,11 +669,11 @@ void x11_window_zoom_com(int c)
 		   	XNextEvent(display,&ev);
    			switch(ev.type){ 
 		   } */
-	    	if(rubber(&i1,&j1,&i2,&j2,draw_win,RUBBOX)==0)break;
+	    	if(rubber_band(&i1,&j1,&i2,&j2,RUBBOX)==0)break;
 		     zoom_in(i1,j1,i2,j2);
 		 
 		     break;
-       	    case 2: if(rubber(&i1,&j1,&i2,&j2,draw_win,RUBBOX)==0)break;
+       	    case 2: if(rubber_band(&i1,&j1,&i2,&j2,RUBBOX)==0)break;
 		     zoom_out(i1,j1,i2,j2);
 		     break;
  	    case 3: fit_window();
@@ -1109,13 +980,13 @@ ps_test()
 */
 
 
-void x11_change_cmap_com(int i)
+void change_cmap_com(int i)
 {
       NewColormap(i);
 
 }
 
-void x11_freeze_com(int c)
+void freeze_com(int c)
 {
 
  switch(c){
@@ -1179,7 +1050,7 @@ void draw_freeze_key()
   }
 }
 
-void x11_key_frz_com(int c)
+void key_frz_com(int c)
 {
   int x,y;
   switch(c){
@@ -1188,7 +1059,7 @@ void x11_key_frz_com(int c)
     break;
   case 1:
     MessageBox("Position with mouse");
-    if(get_mouse_xy(&x,&y,draw_win)){
+    if(GetMouseXY(&x,&y)){
       set_key(x,y);
       draw_freeze_key();
     }
@@ -1246,7 +1117,7 @@ int freeze_crv(ind)
  return(1);
 }
 
-void x11_auto_freeze_it()
+void auto_freeze_it()
 {
   if(AutoFreezeFlag==0)return;
   create_crv(0);
@@ -1314,14 +1185,14 @@ void edit_frz_crv(i)
 
 void draw_frozen_cline(index,w)
      int index;
-     Window w;
+     XppWinId w;
 {
   if(nclines[index].use==0||nclines[index].w!=w)
     return;
 }
 
 void draw_freeze(w)
-Window w;
+XppWinId w;
 {
   int i,j,type=MyGraph->grtype,lt=0;
   float oldxpl,oldypl,oldzpl=0.0,xpl,ypl,zpl=0.0;
@@ -1379,7 +1250,7 @@ void init_bd()
 }
 
 void draw_bd(w)
-     Window w;
+     XppWinId w;
 {
  int i,j,len;
  float oldxpl,oldypl,xpl,ypl,*x,*y;
@@ -1496,14 +1367,14 @@ void read_bd(fp)
 } 
 
 int get_frz_index(w)
-     Window w;
+     XppWinId w;
 {
   char *n[MAXFRZ];
   char key[MAXFRZ],ch;
+  XppMenu m={"freeze_curves","Curves",0,NULL,NULL,NULL,-1,12,8};
   
   int i;
   int count=0;
-  Window temp=main_win;
   for(i=0;i<MAXFRZ;i++){
     if(frz[i].use==1&&w==frz[i].w){
 	n[count]=(char *)malloc(20);
@@ -1516,8 +1387,8 @@ int get_frz_index(w)
   }
   if(count==0)return(-1);
   key[count]=0;
-   ch=(char)pop_up_list(&temp,"Curves",n,key,count,12,0,10,8*DCURY+8,
-			no_hint,info_pop,info_message);
+   m.n=count; m.items=n; m.keys=key; m.hints=no_hint;
+   ch=(char)menu_choose(&m,0);
    for(i=0;i<count;i++)free(n[i]);
   return((int)(ch-'a'));
        
@@ -1545,7 +1416,7 @@ if((fp=fopen(filename,"w"))==NULL){
  fclose(fp);
 }
 
-void x11_add_a_curve_com(int c)
+void add_a_curve_com(int c)
 {
 
  switch(c){

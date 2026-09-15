@@ -133,7 +133,7 @@ Window TopButton[6];
 Window init_win();
 Window make_fancy_window();
 /* Window win; */
-Window draw_win;
+extern Window draw_win;
 Window make_input_strip();
 Window main_win;
 Window command_pop,info_pop;
