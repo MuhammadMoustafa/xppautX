@@ -34,8 +34,10 @@ int x11_yes_no_box(void);
 int x11_TwoChoice(char *c1, char *c2, char *q, char *key, char *title);
 int x11_menu_choose(const XppMenu *m, int def);
 int x11_do_edit_box(int n, char *title, char **names, char **values);
-extern BoxList ParamBox;
+extern BoxList ParamBox, ICBox;
 static void x11_param_box_set(int i, char *s) { set_edit_params(&ParamBox, i, s); }
+static void x11_ic_box_set(int i, char *s) { set_edit_params(&ICBox, i, s); }
+static void x11_ic_box_redraw(int i) { draw_one_box(ICBox, i); }
 static void x11_param_box_redraw(int i)
 {
     draw_one_box(ParamBox, i);
@@ -47,8 +49,8 @@ void x11_show_menu(int j);
 int x11_do_string_box(int n, int row, int col, char *title, char **names,
                       char values[][25], int maxchar);
 int x11_file_selector(char *title, char *file, char *wild);
+int x11_get_dialog(char *wname, char *name, char *value, char *ok, char *cancel, int max);
 int x11_GetMouseXY(int *x, int *y);
-void x11_man_ic(void);
 void x11_flash(int num);
 int x11_my_abort(void);
 int x11_get_command_width(void);
@@ -64,7 +66,8 @@ void x11_draw_help(void);
 void x11_scroll_window(void);
 void x11_NewColormap(int type);
 void x11_make_my_aplot(char *name);
-void x11_edit_aplot(void);
+static void x11_aplot_redraw(void) { redraw_aplot(aplot); }
+static void x11_aplot_reset_axes(void) { reset_aplot_axes(aplot); }
 void x11_new_vcr(void);
 int rubber(int *x1, int *y1, int *x2, int *y2, Window w, int f);
 
@@ -88,12 +91,18 @@ void x11_get_draw_size(unsigned int *w, unsigned int *h);
 void x11_SmallBase(void);
 void x11_SmallGr(void);
 void x11_reset_film(void);
-void x11_on_the_fly(int task);
+void x11_ani_clear(void);
+void x11_ani_show(void);
+void x11_ani_color(int icol);
+void x11_ani_thick(int t);
+void x11_ani_font(int size, int font, int color);
+void x11_ani_line(int x1, int y1, int x2, int y2);
+void x11_ani_rect(int x, int y, int w, int h, int fill);
+void x11_ani_arc(int x, int y, int w, int h, int fill);
+void x11_ani_text(int x, int y, char *s);
+void redraw_ani_slider(void);
 void x11_set_color(int col);
-void x11_init_my_aplot(void);
-void x11_close_aplot_files(void);
 void x11_draw_one_array_plot(char *bob);
-void x11_dump_aplot(FILE *fp, int f);
 void x11_make_auto(char *wname, char *iname);
 void x11_ALINE(int a, int b, int c, int d);
 void x11_ATEXT(int a, int b, char *c);
@@ -115,9 +124,9 @@ int x11_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag);
 int x11_auto_pop_up_list(char *title, char **list, char *key, int n, int max,
                          int def, int x, int y, char **hints, char *httxt);
 void x11_auto_scroll_window(void);
-void x11_traverse_diagram(void);
+int x11_auto_grab_event(int *x, int *y);
+void x11_auto_show_hint(void);
 void x11_init_txtview(void);
-void x11_add_user_button(char *s);
 void x11_create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                        double *ev, int n);
 void x11_bye_bye(void);
@@ -128,6 +137,12 @@ static void x11_data_changed(int length)
 {
     (void)length;
     if (Xup && my_browser.xflag == 1) draw_data(my_browser);
+}
+
+static void x11_browser_redraw(int full)
+{
+    if (full) redraw_browser(my_browser);
+    else draw_data(my_browser);
 }
 
 static void x11_activate_graph(int i, int flag)
@@ -154,12 +169,14 @@ static const XppUi x11_ui = {
     .edit_box = x11_do_edit_box,
     .param_box_set = x11_param_box_set,
     .param_box_redraw = x11_param_box_redraw,
+    .ic_box_set = x11_ic_box_set,
+    .ic_box_redraw = x11_ic_box_redraw,
     .respond_box = x11_respond_box,
     .checklist = x11_checklist,
     .string_box = x11_do_string_box,
     .file_selector = x11_file_selector,
+    .dialog = x11_get_dialog,
     .get_mouse_xy = x11_GetMouseXY,
-    .edit_ics = x11_man_ic,
     .menu_flash = x11_flash,
     .show_menu = x11_show_menu,
     .menu_choose = x11_menu_choose,
@@ -178,6 +195,7 @@ static const XppUi x11_ui = {
     .clear_draw_window = x11_clear_draw_window,
     .reset_graphics = x11_reset_graphics,
     .data_changed = x11_data_changed,
+    .browser_redraw = x11_browser_redraw,
     .activate_graph = x11_activate_graph,
     .create_plot_window = x11_create_a_pop,
     .destroy_plot_window = x11_destroy_a_pop,
@@ -198,7 +216,6 @@ static const XppUi x11_ui = {
     .movie_auto_play = auto_play,
     .movie_save = save_movie,
     .movie_make_anigif = make_anigif,
-    .on_the_fly = x11_on_the_fly,
     .draw_point = point_x11,
     .draw_line = line_x11,
     .draw_bead = bead_x11,
@@ -207,10 +224,7 @@ static const XppUi x11_ui = {
     .draw_special_text = special_put_text_x11,
     .draw_linestyle = set_line_style_x11,
     .set_color = x11_set_color,
-    .aplot_init = x11_init_my_aplot,
-    .aplot_close_files = x11_close_aplot_files,
     .aplot_draw_one = x11_draw_one_array_plot,
-    .aplot_io = x11_dump_aplot,
     .auto_make_window = x11_make_auto,
     .auto_line = x11_ALINE,
     .auto_text = x11_ATEXT,
@@ -231,17 +245,28 @@ static const XppUi x11_ui = {
     .auto_rubber = x11_auto_rubber,
     .auto_choose_key = x11_auto_pop_up_list,
     .auto_scroll_window = x11_auto_scroll_window,
-    .auto_traverse_diagram = x11_traverse_diagram,
+    .auto_grab_event = x11_auto_grab_event,
+    .auto_show_hint = x11_auto_show_hint,
     .init_txtview = x11_init_txtview,
-    .add_user_button = x11_add_user_button,
     .show_eq_box = x11_create_eq_box,
     .redraw_menu = x11_draw_help,
     .rubber_band = x11_rubber_band,
     .scroll_window = x11_scroll_window,
     .new_colormap = x11_NewColormap,
     .aplot_make = x11_make_my_aplot,
-    .aplot_edit = x11_edit_aplot,
+    .aplot_redraw = x11_aplot_redraw,
+    .aplot_reset_axes = x11_aplot_reset_axes,
     .new_vcr = x11_new_vcr,
+    .ani_clear = x11_ani_clear,
+    .ani_show = x11_ani_show,
+    .ani_color = x11_ani_color,
+    .ani_thick = x11_ani_thick,
+    .ani_font = x11_ani_font,
+    .ani_line = x11_ani_line,
+    .ani_rect = x11_ani_rect,
+    .ani_arc = x11_ani_arc,
+    .ani_text = x11_ani_text,
+    .ani_slider = redraw_ani_slider,
     .make_txtview = x11_make_txtview,
     .q_calc = x11_q_calc,
     .exit_program = x11_bye_bye,

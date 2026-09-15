@@ -30,9 +30,6 @@ void GrCol(void);
 void BaseCol(void);
 void SmallGr(void);
 void SmallBase(void);
-void change_plot_vars(int k);
-int check_active_plot(int k);
-int graph_used(int i);
 void make_active(int i,int flag);
 #if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void select_window(Window w);

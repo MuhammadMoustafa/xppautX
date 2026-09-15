@@ -19,3 +19,8 @@
 /xppcore-cli
 /libxppcore.a
 /build/guicheck/
+/build/probe/
+/build/snap/
+/build/asan/
+/build/mingw/
+/build/webtest/

@@ -42,7 +42,7 @@ extern int xor_flag,DCURY,DCURX,CURY_OFF,CURS_X,CURS_Y;
 double atof();
  Window make_window();
 
-int get_dialog(wname,name,value,ok,cancel,max)
+int x11_get_dialog(wname,name,value,ok,cancel,max)
 char *wname,*name,*value,*ok,*cancel;
 int max;
 {

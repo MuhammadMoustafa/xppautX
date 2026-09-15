@@ -1,4 +1,5 @@
 #include "graf_par.h"
+#include "arrayplot.h"
 #include "xpp_globals.h"
 
 #include "integrate.h"

@@ -55,10 +55,10 @@ static void hl_draw_point(int x, int y) { (void)x; (void)y; }
 static void hl_draw_line(int x1, int y1, int x2, int y2) { (void)x1; (void)y1; (void)x2; (void)y2; }
 static void hl_draw_frect(int x, int y, int w, int h) { (void)x; (void)y; (void)w; (void)h; }
 static void hl_draw_special_text(int x, int y, char *s, int size) { (void)x; (void)y; (void)s; (void)size; }
-static void hl_aplot_io(FILE *fp, int f) { (void)fp; (void)f; }
 static void hl_auto_make_window(char *w, char *i) { (void)w; (void)i; }
 static void hl_auto_circle(int x, int y, int r) { (void)x; (void)y; (void)r; }
 static void hl_auto_draw_info(char *s, int x, int y) { (void)s; (void)x; (void)y; }
+static int hl_auto_grab_event(int *x, int *y) { (void)x; (void)y; return 27; }
 static int hl_auto_check_abort(int *iflag) { *iflag = 0; return 0; }
 static int hl_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag)
 {
@@ -80,6 +80,13 @@ static void hl_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
     for (i = 0; i < n; i++)
         plintf("  y[%d]=%.8g  eig=%.8g%+.8gi\n", i, y[i], ev[2 * i], ev[2 * i + 1]);
 }
+static int hl_dialog(char *title, char *name, char *value, char *ok, char *cancel, int max)
+{
+    (void)title; (void)name; (void)value; (void)ok; (void)cancel; (void)max;
+    return 0;
+}
+static void hl_ani_font(int size, int font, int color) { (void)size; (void)font; (void)color; }
+static void hl_ani_box(int x, int y, int w, int h, int fill) { (void)x; (void)y; (void)w; (void)h; (void)fill; }
 static int hl_edit_box(int n, char *title, char **names, char **values)
 {
     (void)n; (void)title; (void)names; (void)values;
@@ -110,9 +117,19 @@ XppUi xpp_ui = {
     .checklist = hl_checklist,
     .string_box = hl_string_box,
     .file_selector = hl_file_selector,
+    .ani_clear = hl_void,
+    .ani_show = hl_void,
+    .ani_color = hl_int,
+    .ani_thick = hl_int,
+    .ani_font = hl_ani_font,
+    .ani_line = hl_draw_line,
+    .ani_rect = hl_ani_box,
+    .ani_arc = hl_ani_box,
+    .ani_text = hl_put_text,
+    .ani_slider = hl_void,
+    .dialog = hl_dialog,
     .edit_box = hl_edit_box,
     .get_mouse_xy = hl_get_mouse_xy,
-    .edit_ics = hl_void,
     .menu_flash = hl_int,
     .show_menu = hl_int,
     .menu_choose = hl_menu_choose,
@@ -123,6 +140,8 @@ XppUi xpp_ui = {
     .redraw_params = hl_void,
     .param_box_set = hl_param_box_set,
     .param_box_redraw = hl_int,
+    .ic_box_set = hl_param_box_set,
+    .ic_box_redraw = hl_int,
     .redraw_ics = hl_void,
     .redraw_all = hl_void,
     .redraw_bcs = hl_void,
@@ -132,6 +151,7 @@ XppUi xpp_ui = {
     .clear_screens = hl_void,
     .clear_draw_window = hl_void,
     .reset_graphics = hl_void,
+    .browser_redraw = hl_int,
     .data_changed = hl_int,
     .activate_graph = hl_activate_graph,
     .create_plot_window = hl_void,
@@ -153,7 +173,6 @@ XppUi xpp_ui = {
     .movie_auto_play = hl_void,
     .movie_save = hl_movie_save,
     .movie_make_anigif = hl_void,
-    .on_the_fly = hl_int,
     .draw_point = hl_draw_point,
     .draw_line = hl_draw_line,
     .draw_bead = hl_draw_point,
@@ -162,10 +181,7 @@ XppUi xpp_ui = {
     .draw_special_text = hl_draw_special_text,
     .draw_linestyle = hl_int,
     .set_color = hl_int,
-    .aplot_init = hl_void,
-    .aplot_close_files = hl_void,
     .aplot_draw_one = hl_str,
-    .aplot_io = hl_aplot_io,
     .auto_make_window = hl_auto_make_window,
     .auto_line = hl_draw_line,
     .auto_text = hl_put_text,
@@ -186,16 +202,17 @@ XppUi xpp_ui = {
     .auto_rubber = hl_auto_rubber,
     .auto_choose_key = hl_auto_choose_key,
     .auto_scroll_window = hl_void,
-    .auto_traverse_diagram = hl_void,
+    .auto_grab_event = hl_auto_grab_event,
+    .auto_show_hint = hl_void,
     .init_txtview = hl_void,
-    .add_user_button = hl_str,
     .show_eq_box = hl_show_eq_box,
     .redraw_menu = hl_void,
     .rubber_band = hl_auto_rubber,
     .scroll_window = hl_void,
     .new_colormap = hl_int,
+    .aplot_redraw = hl_void,
+    .aplot_reset_axes = hl_void,
     .aplot_make = hl_str,
-    .aplot_edit = hl_void,
     .new_vcr = hl_void,
     .make_txtview = hl_void,
     .q_calc = hl_void,
@@ -241,12 +258,15 @@ int file_selector(char *title, char *file, char *wild)
 {
     return xpp_ui.file_selector(title, file, wild);
 }
+int get_dialog(char *wname, char *name, char *value, char *ok, char *cancel, int max)
+{
+    return xpp_ui.dialog(wname, name, value, ok, cancel, max);
+}
 int do_edit_box(int n, char *title, char **names, char **values)
 {
     return xpp_ui.edit_box(n, title, names, values);
 }
 int GetMouseXY(int *x, int *y) { return xpp_ui.get_mouse_xy(x, y); }
-void man_ic(void) { xpp_ui.edit_ics(); }
 void flash(int num) { xpp_ui.menu_flash(num); }
 int menu_choose(const struct XppMenu *m, int def) { return xpp_ui.menu_choose(m, def); }
 int my_abort(void) { return xpp_ui.check_abort(); }
@@ -271,12 +291,8 @@ void cput_text(void) { xpp_ui.cput_text(); }
 void SmallBase(void) { xpp_ui.small_base(); }
 void SmallGr(void) { xpp_ui.small_gr(); }
 void reset_film(void) { xpp_ui.reset_film(); }
-void on_the_fly(int task) { xpp_ui.on_the_fly(task); }
 void set_color(int col) { xpp_ui.set_color(col); }
-void init_my_aplot(void) { xpp_ui.aplot_init(); }
-void close_aplot_files(void) { xpp_ui.aplot_close_files(); }
 void draw_one_array_plot(char *bob) { xpp_ui.aplot_draw_one(bob); }
-void dump_aplot(FILE *fp, int f) { xpp_ui.aplot_io(fp, f); }
 void make_auto(char *wname, char *iname) { xpp_ui.auto_make_window(wname, iname); }
 void ALINE(int a, int b, int c, int d) { xpp_ui.auto_line(a, b, c, d); }
 void ATEXT(int a, int b, char *c) { xpp_ui.auto_text(a, b, c); }
@@ -304,9 +320,7 @@ int auto_pop_up_list(char *title, char **list, char *key, int n, int max,
     return xpp_ui.auto_choose_key(title, list, key, n, max, def, x, y, hints, httxt);
 }
 void auto_scroll_window(void) { xpp_ui.auto_scroll_window(); }
-void traverse_diagram(void) { xpp_ui.auto_traverse_diagram(); }
 void init_txtview(void) { xpp_ui.init_txtview(); }
-void add_user_button(char *s) { xpp_ui.add_user_button(s); }
 void create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                    double *ev, int n)
 {
@@ -321,7 +335,6 @@ int rubber_band(int *i1, int *j1, int *i2, int *j2, int flag)
 void scroll_window(void) { xpp_ui.scroll_window(); }
 void NewColormap(int type) { xpp_ui.new_colormap(type); }
 void make_my_aplot(char *name) { xpp_ui.aplot_make(name); }
-void edit_aplot(void) { xpp_ui.aplot_edit(); }
 void new_vcr(void) { xpp_ui.new_vcr(); }
 void redraw_the_graph(void) { xpp_ui.redraw_graph(); }
 void make_txtview(void) { xpp_ui.make_txtview(); }

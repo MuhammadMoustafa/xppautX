@@ -1,19 +1,12 @@
-#include <X11/Xlib.h>
 #include "aniparse.h"
 #include "xpp_globals.h"
-#include "color.h"
 #include "parserslow.h"
 #include "form_ode.h"
 #include "my_rhs.h"
 #include "nullcline.h"
-#include "dialog_box.h"
-#include "ggets.h"
-#include "init_conds.h"
-#include "many_pops.h"
-#include "menudrive.h"
-#include "pop_list.h" 
+#include "xpp_ui.h"
+#include "xpp_util.h"
 #include <unistd.h>
-#include "scrngif.h"
 #include "load_eqn.h"
 #include "integrate.h"
 #include "sys/types.h"
@@ -28,42 +21,8 @@
 */
 
 
-/***************   NOTES ON MPEG STUFF   ********************
-To prepare for mpeg encoding in order to make your movies
-permanent, I have to do some image manipulation - the main 
-routine is writeframe()
-
-The current version works for most 8 bit color servers.  I have
-a version also working for TrueColor 16 bit and I think it works on
-24 bit color as well but havent tried it.  I really dont know
-how all colors are organized.  For my machine the 15 lowest order bits
-code color as 
-     xrrrrrgggggbbbbb
-in binary so lobits are blue etc. If the colors seem screwy, then you might
-want to alter the ordering below
-
-************************************************************/
-
-#define INIT_C_SHIFT 0
-
-/* who knows how the colors are ordered */
-#ifdef BGR
-#define MY_BLUE hibits
-#define MY_GREEN midbits
-#define MY_RED lobits
-#else
-
-#define MY_BLUE lobits
-#define MY_GREEN midbits
-#define MY_RED hibits
-#endif
 
 
-
-/**************************************************************/
-
-#include <X11/Xutil.h>
-#include <X11/Xproto.h>
 #include <stdio.h>
 #include <math.h>
 #ifndef WCTYPE
@@ -73,8 +32,6 @@ want to alter the ordering below
 #endif
 #include "xpplim.h"
 #include "browse.h"
-#include "toons.h"
-#include "aniwin.bitmap"
 
 #define MAX_LEN_SBOX 25
 
@@ -132,16 +89,11 @@ extern double last_ic[MAXODE],T0;
 
 #define FIRSTCOLOR 30
 int on_the_fly_speed=10;
-extern int TrueColorFlag;
 extern char *color_names[11];
 extern int colorline[];
-extern Display *display;
-extern XFontStruct *symfonts[5],*romfonts[5];
-extern int avsymfonts[5],avromfonts[5];
 extern int color_total,screen;
-extern int DCURX,DCURXs,DCURY,DCURYs,CURY_OFFs,CURY_OFF,NODE;
+extern int NODE;
 extern int  FIX_VAR,NMarkov;
-extern GC small_gc;
 double evaluate();
 double atof();
 extern BROWSER my_browser;
@@ -157,7 +109,6 @@ extern char this_file[XPP_MAX_NAME];
 
 double ani_xlo=0,ani_xhi=1,ani_ylo=0,ani_yhi=1;
 double ani_lastx,ani_lasty;
-Pixmap ani_pixmap;
 
 /*
 typedef struct {
@@ -191,17 +142,6 @@ MPEG_SAVE mpeg;
 ANI_COM my_ani[MAX_ANI_LINES];
 
 
-typedef struct {
-Window base, wfile,wgo,wpause,wreset,wfast,wslow,wmpeg;
-  Window wfly,kill,slider;
-Window wup,wdn,wskip;
-  Window view,wgrab;
-int hgt,wid,iexist,ok;
-int pos,inc;
-  int slipos,sliwid;
-char file[XPP_MAX_NAME];
-/*char file[256];*/
-} VCR;
 
 VCR vcr; 
 
@@ -213,7 +153,6 @@ int ani_text_size;
 int ani_text_color;
 int ani_text_font;
 
-GC ani_gc;
 
 extern int use_ani_file;
 
@@ -279,167 +218,10 @@ char *get_next(/* char *src */);
 */
 
 
-#define MYMASK  (ButtonPressMask 	|\
-                ButtonReleaseMask |\
-		KeyPressMask		|\
-		ExposureMask		|\
-		StructureNotifyMask	|\
-		LeaveWindowMask		|\
-		EnterWindowMask)
 
-void x11_new_vcr()
-{
-  int tt,i;
-  if(vcr.iexist==1)return;
-  tt=gettimenow();
-  i=(10+(tt%10))%10;
-  if(i>=0&&i<10)
-    create_vcr(toons[i]);
-  else
-    create_vcr("Wanna be a member");
-}
 
-void create_vcr(name)
-     char *name;
-{
- unsigned int valuemask=0;
- XGCValues values;
- Window base;
- int wid=280,hgt=350;
- /*XWMHints wm_hints;*/
- XSizeHints size_hints;
-  
- XTextProperty winname,iconname;
-
- base=make_plain_window(RootWindow(display,screen),0,0,5*12*DCURXs+8*DCURXs+4,20*(DCURYs+6),1);
- vcr.base=base;
-  size_hints.flags=PPosition|PSize|PMinSize;
-  size_hints.min_width=51*DCURXs;
-  size_hints.min_height=300;
- XStringListToTextProperty(&name,1,&winname);
- XStringListToTextProperty(&name,1,&iconname);
- XSetWMProperties(display,base,&winname,&iconname,NULL,0,&size_hints,NULL,NULL);
-  make_icon((char *)aniwin_bits,aniwin_width,aniwin_height,base);
- vcr.wfile   = br_button(base,0,0,"File",0);
- vcr.wgo = br_button(base,0,1,"Go",0);
- vcr.wreset = br_button(base,0,2,"Reset",0);
- vcr.wskip=br_button(base,0,3,"Skip",0);
- vcr.wfast   = br_button(base,1,0,"Fast",0);
- vcr.wslow = br_button(base,1,1,"Slow",0);
-  vcr.wup = br_button(base,1,2,">>>>",0);
- vcr.wdn = br_button(base,1,3,"<<<<",0);
- vcr.wgrab=br_button(base,2,3,"Grab",0);
- vcr.slider=make_window(base,DCURXs,7+4*DCURYs,48*DCURXs,DCURYs+4,1);
- vcr.slipos=0;
- vcr.sliwid=48*DCURXs;
- vcr.wpause = br_button(base,2,0,"Pause",0);
- vcr.wmpeg = br_button(base,2,1,"MPeg",0);
- vcr.kill=br_button(base,2,2,"Close",0);
-
- vcr.wfly=make_window(base,4*12*DCURXs,4,5+DCURXs+5,(DCURYs+6)-4,1);
- /*   vcr.kill=make_window(base,5*12*DCURXs,(DCURYs+6)+4,8*DCURXs,DCURYs+1,1); */
- vcr.view=make_plain_window(base,10,100,wid,hgt,2);
- ani_gc=XCreateGC(display,vcr.view,valuemask,&values);
- vcr.hgt=hgt;
- vcr.wid=wid;
- ani_pixmap=  XCreatePixmap(display,RootWindow(display,screen),vcr.wid,vcr.hgt,
-		  DefaultDepth(display,screen));
- if(ani_pixmap==0){
-   err_msg("Failed to get the required pixmap");
-   XFlush(display);
-   waitasec(ClickTime);
-   XDestroySubwindows(display,base);
-   XDestroyWindow(display,base);
-   vcr.iexist=0;
-   return;
- }
- vcr.iexist=1;
-
- XSetFunction(display,ani_gc,GXcopy);
- XSetForeground(display,ani_gc,WhitePixel(display,screen));
- XFillRectangle(display,ani_pixmap,ani_gc,0,0,vcr.wid,vcr.hgt);
- XSetForeground(display,ani_gc,BlackPixel(display,screen));
- XSetFont(display,ani_gc,romfonts[0]->fid);
- tst_pix_draw();
- get_global_colormap(ani_pixmap);
- mpeg.flag=0;
- mpeg.filflag=0;
- strcpy(mpeg.root,"frame");
- mpeg.filter[0]=0;
- mpeg.skip=1;
- vcr.pos=0;
- if(use_ani_file)
-   get_ani_file(vcr.file);
-}
-
-void ani_border(w,i)
-     Window w;
-     int i;
-{
-    if(w==vcr.wgrab||w==vcr.wgo||w==vcr.wreset||w==vcr.wpause||w==vcr.wfast||w==vcr.wfile
-       ||w==vcr.wslow||w==vcr.wmpeg||w==vcr.wup||w==vcr.wdn||w==vcr.wskip||w==vcr.kill)
-      XSetWindowBorderWidth(display,w,i);
-}
-
-void destroy_vcr()
-{
-  vcr.iexist=0;
-  XDestroySubwindows(display,vcr.base);
-
-   XDestroyWindow(display,vcr.base);
-}
-
-int check_ani_pause(ev)
-     XEvent ev;
-{
-  if((vcr.iexist==0)||(!animation_on_the_fly)) return 0;
-  if(ev.type==ButtonPress && ev.xbutton.window==vcr.wpause) return(27);
-  return(0);
-}
-void do_ani_events(ev)
-     XEvent ev;
-{
- int x,y;
- /*Window w;*/
- if(vcr.iexist==0)return;
- switch(ev.type){
- case ConfigureNotify:
-   if(ev.xconfigure.window!=vcr.base)return;
-   x=ev.xconfigure.width;
-   y=ev.xconfigure.height;
-   x=(x)/8;
-   x=8*x;
-   y=(y)/8;
-   y=y*8;
-   ani_resize(x,y);
-   break;
- case EnterNotify:
-   ani_border(ev.xexpose.window,2);
-   break;
- case LeaveNotify:
-   ani_border(ev.xexpose.window,1);
-   break;
- case MotionNotify:
-   do_ani_slider_motion(ev.xmotion.window,ev.xmotion.x);
-   if(ani_grab_flag == 0)break;
-   ani_motion_stuff(ev.xmotion.window,ev.xmotion.x,ev.xmotion.y);
-   break;
- case ButtonRelease:
-   if(ani_grab_flag==0)break;
-   ani_buttonx(ev,0);
-   break;
- case ButtonPress:
-   ani_buttonx(ev,1);
-    break;
- }
-}
 /*************************  NEW ANIMaTION STUFF ***********************/
 
-void ani_motion_stuff(Window w,int x,int y)
-{
-  if(w==vcr.view)
-    update_ani_motion_stuff(x,y);
-}
 double get_current_time()
 {
   double t1;
@@ -479,96 +261,6 @@ void update_ani_motion_stuff(int x,int y)
 
 /*************************** End motion & speed stuff   ****************/
 
-void ani_buttonx(XEvent ev,int flag)
-{
-  Window w=ev.xbutton.window;
-  /*   ADDED FOR THE GRAB FEATURE IN ANIMATOR  This is BUTTON PRESS */
-  if((w==vcr.view)&&(ani_grab_flag==1)){
-    if(flag==1){
-  
-      ami.t1=get_current_time();
-      ami.tstart=ami.t1;
-      ani_ij_to_xy(ev.xbutton.x,ev.xbutton.y,&ami.x,&ami.y);
-      ami.x0=ami.x;
-      ami.y0=ami.y;
-      	who_was_grabbed=search_for_grab(ami.x,ami.y);
-	if(who_was_grabbed<0)
-	  printf("Nothing grabbed\n");
-	
-      
-      /*     printf("found %d\n",who_was_grabbed); */
-      
-    }
-    if(flag==0){ /* This is BUTTON RELEASE  */
-      /*  update_ani_motion_stuff(ev.xbutton.x,ev.xbutton.y); */
-  
-         if(who_was_grabbed<0){
-	   /*  ani_grab_flag=0; */
-	 return;
-       } 
-       /* printf("Final position %g %g %g %g \n",ami.x,ami.y,ami.vx,ami.vy); */ 
-       do_grab_tasks(2);
-       set_to_init_data();
-       ani_grab_flag=0;  
-       redraw_params();
-       if(run_now_grab()){
-	 run_now();
-	 ani_grab_flag=0;
-       }
-    }
-    return;
-  }
-  if(flag==0)return;
-  /*   END OF ADDED STUFF  ************************/
-
-
-  ani_button(w);
-}
-void ani_button(w)
-     Window w;
-{
-  if((ani_grab_flag==1))return; 
-   /* Grab button resets and shows first frame */ 
-   if(w==vcr.wgrab){
-     if(n_ani_grab==0)return;
-    if(vcr.ok){
-      vcr.pos=0;
-
-      show_grab_points=1;
-      /* ani_flip1(0); */
-      ani_frame(1);
-      ani_frame(0); 
-      ani_grab_flag=1;
-    }
-    } 
-  if(w==vcr.wmpeg)
-    ani_create_mpeg();
-  if(w==vcr.wgo)
-  
-    {ani_flip();} 
-  if(w==vcr.wskip)
-    ani_newskip();
-  if(w==vcr.wup)
-    ani_flip1(1);
-  if(w==vcr.wdn)
-    ani_flip1(-1);
-  if(w==vcr.wfile)
-    get_ani_file(NULL);
-  if(w==vcr.wfly){
-    animation_on_the_fly=1-animation_on_the_fly;
-    check_on_the_fly();
-  }
-  if(w==vcr.wreset){
-    vcr.pos=0;
-    reset_comets();
-    redraw_ani_slider();
-    ani_flip1(0);
-  }
-  if(w==vcr.kill){
-    destroy_vcr();
-  }
-}
-
 void ani_create_mpeg()
 {
   static char *n[]={"PPM 0/1","Basename","AniGif(0/1)" };
@@ -594,152 +286,24 @@ void ani_create_mpeg()
     
 }
 
-void do_ani_slider_motion(Window w, int x)
-{
-  int l=48*DCURXs,x0=x;
-  int mr=my_browser.maxrow;
-  int k;
-  if(w!=vcr.slider)
-    return;
-  if(mr<2)return;
-  if(x0>l-2)x0=l-2;
-  vcr.slipos=x0;
-  draw_ani_slider(w,x0);
-  k=x0*mr/l;
-  vcr.pos=0;
-  ani_flip1(0);
-  ani_flip1(k);
+
+
 
   
-}
-void redraw_ani_slider()
-{
-  int k=vcr.pos;
-  int l=48*DCURXs;
-  int xx;
-  int mr=my_browser.maxrow;
-  if(mr<2)return;
-  xx=(k*l)/mr;
-  draw_ani_slider(vcr.slider,xx);
-}
-void draw_ani_slider(Window w,int x)
-
-{
-  int hgt=DCURYs+4,l=48*DCURXs;
-  int x0=x-2,i;
-  if(x0<0)x0=0;
-  if(x0>(l-4))x0=l-4;
-  XClearWindow(display,w);
-  for(i=0;i<4;i++)
-    XDrawLine(display,w,small_gc,x0+i,0,x0+i,hgt);
-}
-
-
-
-
-void ani_expose(w)
-Window w;
-{
-  if(vcr.iexist==0)return;
-  if(w==vcr.wgrab)XDrawString(display,w,small_gc,5,CURY_OFFs,"Grab",4);
-  if(w==vcr.view)
-    XCopyArea(display,ani_pixmap,vcr.view,ani_gc,0,0,vcr.wid,vcr.hgt,0,0);
-  if(w==vcr.wgo)
-    XDrawString(display,w,small_gc,5,CURY_OFFs,"Go  ",4);
-  if(w==vcr.wup)
-    XDrawString(display,w,small_gc,5,CURY_OFFs," >>>>",5);
-   if(w==vcr.wskip)
-    XDrawString(display,w,small_gc,5,CURY_OFFs,"Skip",4);
-  if(w==vcr.wdn)
-    XDrawString(display,w,small_gc,5,CURY_OFFs," <<<<",5);
-  if(w==vcr.wfast)
-    XDrawString(display,w,small_gc,5,CURY_OFFs,"Fast",4);
-  if(w==vcr.wslow)
-    XDrawString(display,w,small_gc,5,CURY_OFFs,"Slow",4);
- 
-  if(w==vcr.slider)
-    draw_ani_slider(w,vcr.slipos);
-  if(w==vcr.wpause)
-    XDrawString(display,w,small_gc,5,CURY_OFFs,"Pause",5);
-  if(w==vcr.wreset)
-    XDrawString(display,w,small_gc,5,CURY_OFFs,"Reset",5);
-   if(w==vcr.kill)
-    XDrawString(display,w,small_gc,5,CURY_OFFs,"Close",5);
-  if(w==vcr.wfile)
-     XDrawString(display,w,small_gc,5,CURY_OFFs,"File",4);
-  if(w==vcr.wmpeg)
-    XDrawString(display,w,small_gc,5,CURY_OFFs,"MPEG",4);
-  if(w==vcr.wfly)
-    check_on_the_fly();
-}
-    
   
-  
-void ani_resize(x,y)
-     int x,y;
-{
- int ww=x-(2*4);
- int hh=y-((2.5*(DCURYs+6))+5);
- if(ww==vcr.wid&&hh==vcr.hgt)return;
- XFreePixmap(display,ani_pixmap);
-
- vcr.hgt=5*((y-((4.5*(DCURYs+6))+5))/5);
- vcr.wid=4*((x-(2*4))/4);
- 
- /*This little safety check prevents a <X Error of failed request:  BadValue>
- from occuring if the user shrinks the window size smaller than the vcr.hgt | vcr.wid
- */
- if (vcr.hgt < 1)
- 	vcr.hgt = 1;
- if (vcr.wid < 1)
- 	vcr.wid = 1;
-	
-	
- XMoveResizeWindow(display,vcr.view,4,4.5*(DCURYs+6),vcr.wid,vcr.hgt);
- ani_pixmap=  XCreatePixmap(display,RootWindow(display,screen),vcr.wid,vcr.hgt,
-		  DefaultDepth(display,screen));
- if(ani_pixmap==0){
-   err_msg("Failed to get the required pixmap");
-   XFlush(display);
-   XDestroySubwindows(display,vcr.base);
-   XDestroyWindow(display,vcr.base);
-   vcr.iexist=0;
-   return;
- } 
-/*  XSetFunction(display,ani_gc,GXclear);
- XCopyArea(display,ani_pixmap,ani_pixmap,ani_gc,0,0,vcr.wid,vcr.hgt,0,0);
- */
- XSetFunction(display,ani_gc,GXcopy);
- XSetForeground(display,ani_gc,WhitePixel(display,screen));
- XFillRectangle(display,ani_pixmap,ani_gc,0,0,vcr.wid,vcr.hgt);
- XSetForeground(display,ani_gc,BlackPixel(display,screen));
- tst_pix_draw();
-}
-
 void ani_newskip()
 {
   char bob[20];
-  Window w;
-  int rev,status;
-  XGetInputFocus(display,&w,&rev);
+  int status;
   sprintf(bob,"%d",vcr.inc);
   status=get_dialog("Frame skip","Increment:",bob,"Ok","Cancel",20);
   if(status!=0){
     vcr.inc=atoi(bob);
     if(vcr.inc<=0)vcr.inc=1;
   }
-  XSetInputFocus(display,w,rev,CurrentTime);
  }
 
-void check_on_the_fly()
-{
-  XClearWindow(display,vcr.wfly);
-  if(animation_on_the_fly)
-  {  
-    	XDrawString(display,vcr.wfly,small_gc,5,1.5*CURY_OFFs,"*",1); 
-  }
-}
-void x11_on_the_fly(int task)
+void on_the_fly(int task)
 {
   if(vcr.iexist==0||n_anicom==0)return;
   ani_frame(task);
@@ -749,9 +313,7 @@ void x11_on_the_fly(int task)
 void ani_frame(int task)
 {
  
- XSetForeground(display,ani_gc,WhitePixel(display,screen));
- XFillRectangle(display,ani_pixmap,ani_gc,0,0,vcr.wid,vcr.hgt);
- XSetForeground(display,ani_gc,BlackPixel(display,screen));
+ xpp_ui.ani_clear();
   if(task==1){
     set_ani_perm();
     reset_comets();
@@ -765,9 +327,7 @@ void ani_frame(int task)
 
  /*  done drawing   */
  
- XCopyArea(display,ani_pixmap,vcr.view,ani_gc,0,0,vcr.wid,vcr.hgt,0,0);
-
- XFlush(display);
+ xpp_ui.ani_show();
 }
 
 void set_to_init_data()
@@ -807,9 +367,7 @@ int n;
   if(n_anicom==0)return;
   if(my_browser.maxrow<2)return;
   ss=my_browser.data;
-XSetForeground(display,ani_gc,WhitePixel(display,screen));
- XFillRectangle(display,ani_pixmap,ani_gc,0,0,vcr.wid,vcr.hgt);
- XSetForeground(display,ani_gc,BlackPixel(display,screen));
+xpp_ui.ani_clear();
  if(vcr.pos==0) set_ani_perm(); 
 
 
@@ -832,122 +390,9 @@ t=(double)ss[0][row];
  
  /*  done drawing   */
  
- XCopyArea(display,ani_pixmap,vcr.view,ani_gc,0,0,vcr.wid,vcr.hgt,0,0);
-
- XFlush(display); 
+ xpp_ui.ani_show();
  
 }
-void ani_flip()
-{
- double y[MAXODE];
- double t;
- char fname[256];
- FILE *angiffile=NULL;
- float **ss;
- int i,row,done;
- int mpeg_frame=0,mpeg_write=0,count=0;
- XEvent ev;
- Window w;
- /*Window root;
- unsigned int he,wi,bw,d;
- int x0,y0;
- */
- done=0;
- if(n_anicom==0)return;
- if(my_browser.maxrow<2)return;
- ss=my_browser.data;
- set_ani_perm(); /* evaluate all permanent structures  */
- /* check avi_flags for initialization */
- if(mpeg.aviflag==1){
-  angiffile=fopen("anim.gif","wb");
-  set_global_map(1);
- }
- count=0;  
- while(!done){ /* Ignore all events except the button presses */
- if(XPending(display)>0)
-   {
-     XNextEvent(display,&ev);
-     switch(ev.type){
-     case ButtonPress:
-       w=ev.xbutton.window;
-       if(w==vcr.wpause){
-	 done=1;
-	 break;
-       }
-       if(w==vcr.wfast){
-	 ani_speed=ani_speed-ani_speed_inc;
-	 if(ani_speed<0)ani_speed=0;
-	 break;
-       }
-       if(w==vcr.wslow){
-	 ani_speed=ani_speed+ani_speed_inc;
-	 if(ani_speed>100)ani_speed=100;
-	 break;
-       }
-       break;
-     }
-   }
-  /* Okay no events  so lets go! */     
- 
- /* first set all the variables */
- XSetForeground(display,ani_gc,WhitePixel(display,screen));
- XFillRectangle(display,ani_pixmap,ani_gc,0,0,vcr.wid,vcr.hgt);
- XSetForeground(display,ani_gc,BlackPixel(display,screen));
- row=vcr.pos;
- t=(double)ss[0][row];
- for(i=0;i<NODE+NMarkov;i++)
-   y[i]=(double)ss[i+1][row];
- set_fix_rhs(t,y);
-
-
- /* now draw the stuff  */
-
- render_ani();
- 
- /*  done drawing   */
- 
- XCopyArea(display,ani_pixmap,vcr.view,ani_gc,0,0,vcr.wid,vcr.hgt,0,0);
-
- XFlush(display);
- 
-  waitasec(ani_speed); 
-  if(mpeg.aviflag==1||mpeg.flag>0)
-    waitasec(5*ani_speed);
- vcr.pos=vcr.pos+vcr.inc;
- if(vcr.pos>=my_browser.maxrow){
-   done=1;
-   vcr.pos=0;
-   reset_comets();
- }
-
-/* now check mpeg stuff */
- if(mpeg.flag>0&&((mpeg_frame%mpeg.skip)==0)){
-     sprintf(fname,"%s_%d.ppm",mpeg.root,mpeg_write);
-     mpeg_write++;
-     writeframe(fname,ani_pixmap,vcr.wid,vcr.hgt);
- }
- mpeg_frame++;
- /* now check AVI stuff */
-
- if(mpeg.aviflag==1)
-   /* add_ani_gif(ani_pixmap,angiffile,count); */
-   {
-     add_ani_gif(vcr.view,angiffile,count);
-
-   }
-
- count++;
- }
-/* always stop mpeg writing */
-mpeg.flag=0;
- if(mpeg.aviflag==1){
-   end_ani_gif(angiffile);
-   fclose(angiffile);
-   set_global_map(0);
- }
-   
-}
-
 
 void ani_disk_warn()
 {
@@ -962,186 +407,6 @@ void ani_disk_warn()
   
  }
  
-}
-
-int getppmbits(Window window,int *wid,int *hgt, unsigned char *out)
-{
-  XImage *ximage;
-  Colormap cmap;
-  unsigned long value;
-  int i;
-  int CMSK=0,CSHIFT=0,CMULT=0;
-  int bbp=0,bbc=0;
-  int lobits,midbits,hibits;
-  /*int vv; Not used anywhere?*/
-  unsigned x,y;
-  XColor palette[256];
-  XColor pix;
-  unsigned char *dst,*pixel;
-  cmap = DefaultColormap(display,screen);
-
-  ximage=XGetImage(display,window,0,0,*wid,*hgt,AllPlanes,ZPixmap);
-  
-  if(!ximage){
-  
-    return -1;
-  }
-  /* this is only good for 256 color displays */
-  for(i = 0; i < 256; i++)
-    palette[i].pixel = i;
-  XQueryColors(display,
-	       cmap,
-	       palette,
-	       256);
-  if(TrueColorFlag==1){
-    bbp=ximage->bits_per_pixel; /* is it 16 or 24 bit */
-    if(bbp>24)bbp=24;
-    bbc=bbp/3;  /*  divide up the 3 colors equally to bbc bits  */
-    CMSK=(1<<bbc)-1;  /*  make a mask  2^bbc  -1  */
-    CSHIFT=bbc;       /*  how far to shift to get the next color */
-    CMULT=8-bbc;       /* multiply 5 bit color to get to 8 bit */
-  }
-  /* plintf("CMULT=%d CMSK=%d CSHIFT=%d \n",CMULT,CMSK,CSHIFT); */
-  *wid=ximage->width;
-  *hgt=ximage->height;
-  pixel=(unsigned char*)ximage->data;
-  dst=out;
-  for(y=0;y < (unsigned)(ximage->height); y++) {
-    for (x = 0; x < (unsigned)(ximage->width); x++) {
-      if(TrueColorFlag==1){
-       
-	/*  use the slow way to get the pixel 
-            but then you dont need to screw around
-            with byte order etc  
-	*/
-	value=XGetPixel(ximage,x,y)>>INIT_C_SHIFT;
-	/*vv=value; Not used?*/
-	/*  get the 3 colors   hopefully  */
-	lobits=value&CMSK;
-	value=value>>CSHIFT;
-	if(bbc==5)
-	  value=value>>1;
-	midbits=value&CMSK;
-	value=value>>CSHIFT;
-	hibits=value&CMSK;
-	/*	       if(y==200&&(x>200)&&(x<400))
-	 plintf("(%d,%d): %x %x %x %x \n",x,y,vv,MY_RED,MY_GREEN,MY_BLUE);
-	*/
-	 /* store them for ppm dumping  */
-	*dst++=(MY_RED<<CMULT);
-	*dst++=(MY_GREEN<<CMULT);
-	*dst++=(MY_BLUE<<CMULT);
-      }
-      else
-	{
-	  /* 256 color is easier sort of  */
-	    pix = palette[*pixel++];
-	    *dst++ = pix.red;
-	    *dst++ = pix.green;
-	    *dst++ = pix.blue;
-	}
-    }
-  }
-  /* XDestroyImage(ximage); */
-
-  return(1);
-}
-
-int writeframe(filename,window,wid,hgt)
-     Window window;
-     char *filename;
-     int wid,hgt;
-{
-  int fd;
-  XImage *ximage;
-  Colormap cmap;
-  unsigned long value;
-  int i;
-  int CMSK=0,CSHIFT=0,CMULT=0;
-  int bbp=0,bbc=0;
-  int lobits,midbits,hibits;
-  /*int vv; Not used anywhere...*/
-  unsigned x,y;
-  char head[100];
-  XColor palette[256];
-  XColor pix;
-  unsigned char *pixel;
-  unsigned area;
-  unsigned char *out,*dst;
-  cmap = DefaultColormap(display,screen);
-  ximage=XGetImage(display,window,0,0,wid,hgt,AllPlanes,ZPixmap);
-  if(!ximage){
-    return -1;
-  }
-  /* this is only good for 256 color displays */
-  for(i = 0; i < 256; i++)
-    palette[i].pixel = i;
-  XQueryColors(display,
-	       cmap,
-	       palette,
-		 256);
-  fd=creat(filename,0666);
-  if(fd==-1){
-    return -1;
-  }
-  /*    this worked for me - but you may want to change
-        it for your machine  
-  */
-  if(TrueColorFlag==1){
-    bbp=ximage->bits_per_pixel; /* is it 16 or 24 bit */
-    if(bbp>24)bbp=24;
-    bbc=bbp/3;  /*  divide up the 3 colors equally to bbc bits  */
-    CMSK=(1<<bbc)-1;  /*  make a mask  2^bbc  -1  */
-    CSHIFT=bbc;       /*  how far to shift to get the next color */
-    CMULT=8-bbc;       /* multiply 5 bit color to get to 8 bit */
-   /* plintf(" bbp=%d CMSK=%d CSHIFT=%d CMULT=%d \n",
-      bbp,CMSK,CSHIFT,CMULT); */
-  }
-  sprintf(head,"P6\n%d %d\n255\n",ximage->width,ximage->height);
-  write(fd,head,strlen(head));
-  area=ximage->width*ximage->height;
-  pixel=(unsigned char*)ximage->data;
-  out=(unsigned char *)malloc(3*area);
-  dst=out;
-  for(y=0;y < (unsigned)(ximage->height); y++) {
-    for (x = 0; x < (unsigned)(ximage->width); x++) {
-      if(TrueColorFlag==1){
-       
-	/*  use the slow way to get the pixel 
-            but then you dont need to screw around
-            with byte order etc  
-	*/
-	value=XGetPixel(ximage,x,y)>>INIT_C_SHIFT;
-	/*vv=value;
-	*/
-	/*  get the 3 colors   hopefully  */
-	lobits=value&CMSK;
-	value=value>>CSHIFT;
-        if(bbc==5)
-	  value=value>>1;
-	midbits=value&CMSK;
-	value=value>>CSHIFT;
-	hibits=value&CMSK;
-	/* store them for ppm dumping  */
-	*dst++=(MY_RED<<CMULT);
-	*dst++=(MY_GREEN<<CMULT);
-	*dst++=(MY_BLUE<<CMULT);
-      }
-      else
-	{
-	  /* 256 color is easier sort of  */
-	    pix = palette[*pixel++];
-	    *dst++ = pix.red;
-	    *dst++ = pix.green;
-	    *dst++ = pix.blue;
-	}
-    }
-  }
-  write(fd,out,area*3);
-  close(fd);
-  free(out);
-  free(ximage);
-  return 1;
 }
 
       
@@ -1978,7 +1243,7 @@ void render_ani()
 {
   int i;
   int type,flag;
-  redraw_ani_slider();
+  xpp_ui.ani_slider();
   for(i=0;i<n_anicom;i++){
     type=my_ani[i].type;
     flag=my_ani[i].flag;
@@ -2142,22 +1407,13 @@ void set_ani_thick(t)
      int t;
 {
   if(t<0)t=0;
-  XSetLineAttributes(display,ani_gc,t,LineSolid,CapButt,JoinRound);
+  xpp_ui.ani_thick(t);
 }
 
 void set_ani_font_stuff(size,font,color)
      int size,font,color;
 {
-
- if(color==0)
-    XSetForeground(display,ani_gc,BlackPixel(display,screen));
- else
-   XSetForeground(display,ani_gc,ColorMap(color));
- if(font==0)
-   XSetFont(display,ani_gc,romfonts[size]->fid);
- else
-   XSetFont(display,ani_gc,symfonts[size]->fid);
-
+  xpp_ui.ani_font(size,font,color);
 }
 
 
@@ -2172,21 +1428,14 @@ void set_ani_col(j)
   else
     icol=(int)(color_total*my_ani[j].zcol)+FIRSTCOLOR;
   /* plintf(" t=%d j=%d col=%d \n",vcr.pos,j,icol); */
-  if(icol==0) 
-    XSetForeground(display,ani_gc,BlackPixel(display,screen));
-  else
-    XSetForeground(display,ani_gc,ColorMap(icol));
+  xpp_ui.ani_color(icol);
   LastAniColor=icol;
 }
 
 void xset_ani_col(icol)
      int icol;
 {
- 
-if(icol==0) 
-    XSetForeground(display,ani_gc,BlackPixel(display,screen));
-  else
-    XSetForeground(display,ani_gc,ColorMap(icol));
+  xpp_ui.ani_color(icol);
 }
 
 
@@ -2262,7 +1511,7 @@ void draw_ani_comet(j)
        i1=my_ani[j].c.x[k];
        j1=my_ani[j].c.y[k];
        xset_ani_col(my_ani[j].c.col[k]);
-       XFillArc(display,ani_pixmap,ani_gc,i1-ir,j1-ir,2*ir,2*ir,0,360*64);
+       xpp_ui.ani_arc(i1-ir,j1-ir,2*ir,2*ir,1);
     }
   }
   else {
@@ -2273,7 +1522,7 @@ void draw_ani_comet(j)
        i2=my_ani[j].c.x[k];
        j2=my_ani[j].c.y[k];  
        xset_ani_col(my_ani[j].c.col[k]);
-       XDrawLine(display,ani_pixmap,ani_gc,i1,j1,i2,j2);
+       xpp_ui.ani_line(i1,j1,i2,j2);
      }
     }
   }
@@ -2304,7 +1553,7 @@ void draw_ani_null(j,id)
     y2=(v[i4+3]-yl)/dy;
     ani_xyscale(x1,y1,&i1,&j1);
     ani_xyscale(x2,y2,&i2,&j2);
-    XDrawLine(display,ani_pixmap,ani_gc,i1,j1,i2,j2); 
+    xpp_ui.ani_line(i1,j1,i2,j2); 
   }
 }
 
@@ -2318,7 +1567,7 @@ void draw_ani_line(j)
   set_ani_col(j);
   ani_xyscale(x1,y1,&i1,&j1);
   ani_xyscale(x2,y2,&i2,&j2);
-  XDrawLine(display,ani_pixmap,ani_gc,i1,j1,i2,j2); 
+  xpp_ui.ani_line(i1,j1,i2,j2); 
   ani_lastx=x2;
   ani_lasty=y2;
  
@@ -2334,7 +1583,7 @@ void draw_ani_rline(j)
   set_ani_col(j);
   ani_xyscale(ani_lastx,ani_lasty,&i1,&j1);
   ani_xyscale(x1,y1,&i2,&j2);
-  XDrawLine(display,ani_pixmap,ani_gc,i1,j1,i2,j2);
+  xpp_ui.ani_line(i1,j1,i2,j2);
   ani_lastx=x1;
   ani_lasty=y1;
 }
@@ -2351,7 +1600,7 @@ void draw_ani_circ(j)
   ani_xyscale(x1,y1,&i1,&j1);
   ani_radscale(rad,&i2,&j2);
   ir=(i2+j2)/2;
-  XDrawArc(display,ani_pixmap,ani_gc,i1-ir,j1-ir,2*ir,2*ir,0,360*64);
+  xpp_ui.ani_arc(i1-ir,j1-ir,2*ir,2*ir,0);
 }
 
 void draw_ani_fcirc(j)
@@ -2366,8 +1615,8 @@ void draw_ani_fcirc(j)
   ani_radscale(rad,&i2,&j2);
   ir=(i2+j2)/2;
 /*  plintf(" arc %d %d %d %d \n",i1,j1,i2,j2); */
-/*  XFillArc(display,ani_pixmap,ani_gc,i1-i2,j1-j2,2*i2,2*j2,0,360*64); */
-  XFillArc(display,ani_pixmap,ani_gc,i1-ir,j1-ir,2*ir,2*ir,0,360*64);
+/*  xpp_ui.ani_arc(i1-i2,j1-j2,2*i2,2*j2,1); */
+  xpp_ui.ani_arc(i1-ir,j1-ir,2*ir,2*ir,1);
 }
 
 void draw_ani_rect(j)
@@ -2384,7 +1633,7 @@ void draw_ani_rect(j)
   w=abs(i2-i1);
   if(i1>i2)i1=i2;
   if(j1>j2)j1=j2;
-   XDrawRectangle(display,ani_pixmap,ani_gc,i1,j1,w,h);
+   xpp_ui.ani_rect(i1,j1,w,h,0);
 }
 
 void draw_ani_frect(j)
@@ -2403,7 +1652,7 @@ void draw_ani_frect(j)
   if(i1>i2)i1=i2;
   if(j1>j2)j1=j2;
 
-  XFillRectangle(display,ani_pixmap,ani_gc,i1,j1,w,h);
+  xpp_ui.ani_rect(i1,j1,w,h,1);
 }
 
 
@@ -2417,7 +1666,7 @@ void draw_ani_ellip(j)
   set_ani_col(j);
   ani_xyscale(x1,y1,&i1,&j1);
   ani_rad2scale(x2,y2,&i2,&j2);
-  XDrawArc(display,ani_pixmap,ani_gc,i1-i2,j1-j2,2*i2,2*j2,0,360*64);
+  xpp_ui.ani_arc(i1-i2,j1-j2,2*i2,2*j2,0);
 }
 
 void draw_ani_fellip(j)
@@ -2429,7 +1678,7 @@ void draw_ani_fellip(j)
   set_ani_col(j);
   ani_xyscale(x1,y1,&i1,&j1);
   ani_rad2scale(x2,y2,&i2,&j2);
-  XFillArc(display,ani_pixmap,ani_gc,i1-i2,j1-j2,2*i2,2*j2,0,360*64);
+  xpp_ui.ani_arc(i1-i2,j1-j2,2*i2,2*j2,1);
 }
 
 void draw_ani_text(j)
@@ -2442,7 +1691,7 @@ void draw_ani_text(j)
   ani_xyscale(x1,y1,&i1,&j1);
   s=(char *)my_ani[j].y2;
   n=strlen(s);
-  XDrawString(display,ani_pixmap,ani_gc,i1,j1,s,n);
+  xpp_ui.ani_text(i1,j1,s);
 }
 
 void draw_ani_vtext(j)
@@ -2457,40 +1706,11 @@ void draw_ani_vtext(j)
   sprintf(s2,"%s%g",s,my_ani[j].zval);
   n=strlen(s2);
   ani_xyscale(x1,y1,&i1,&j1);
-  XDrawString(display,ani_pixmap,ani_gc,i1,j1,s2,n);
+  xpp_ui.ani_text(i1,j1,s2);
 }
 
-/* tst_pix_draw()
-{
- int i;
- set_ani_thick(2);
- for(i=1;i<10;i++){
-    XSetForeground(display,ani_gc,ColorMap(20+i));
-    XDrawArc(display,ani_pixmap,ani_gc,140-10*i,140-10*i,20*i,20*i,0,360*64);
-  }
- XSetForeground(display,ani_gc,BlackPixel(display,screen));
- XDrawString(display,ani_pixmap,ani_gc,140,140,"!",1);
-}
-*/ 
+ 
 
-void tst_pix_draw()
-{
- int i;
- XSetForeground(display,ani_gc,BlackPixel(display,screen));
- XDrawLine(display,ani_pixmap,ani_gc,0,2,vcr.wid,2);
- for(i=1;i<11;i++){
-   XSetForeground(display,ani_gc,ColorMap(colorline[i]));
-   XDrawLine(display,ani_pixmap,ani_gc,0,2+i,vcr.wid,2+i);
- }
- for(i=0;i<=color_total;i++){
-    XSetForeground(display,ani_gc,ColorMap(i+FIRSTCOLOR));
-     XDrawLine(display,ani_pixmap,ani_gc,0,14+i,vcr.wid,14+i);
- }
-  XSetForeground(display,ani_gc,BlackPixel(display,screen));
-  XDrawString(display,ani_pixmap,ani_gc,10,vcr.hgt-(DCURYs+6),"THIS SPACE FOR RENT",20);
-  /* plintf(" color_tot=%d \n",color_total); */
-}
-   
 
 
 void read_ani_line(fp,s)
@@ -2714,7 +1934,7 @@ void draw_grab_points()  /* Draw little black x's where the grab points are */
   double x1,y1,x2,y2,z;
   int i1,j1,i2,j2,ic,jc;
   int i;
- XSetForeground(display,ani_gc,BlackPixel(display,screen));
+ xpp_ui.ani_color(0);
   for(i=0;i<n_ani_grab;i++){
     xc=evaluate(ani_grab[i].x);
     yc=evaluate(ani_grab[i].y);
@@ -2728,8 +1948,8 @@ void draw_grab_points()  /* Draw little black x's where the grab points are */
     ani_xyscale(xc,yc,&ic,&jc);
     ani_xyscale(x1,y1,&i1,&j1);
     ani_xyscale(x2,y2,&i2,&j2);
-    XDrawLine(display,ani_pixmap,ani_gc,i1,j1,i2,j2);
-    XDrawLine(display,ani_pixmap,ani_gc,i1,j2,i2,j1);
+    xpp_ui.ani_line(i1,j1,i2,j2);
+    xpp_ui.ani_line(i1,j2,i2,j1);
   }
   show_grab_points=0;
 }
@@ -2752,4 +1972,81 @@ void free_grabber()
     ani_grab[i].end.n=0;
   }
     
+}
+
+/* ---- what the animation window's buttons and mouse do (was spread over
+   aniparse.c's X11 event handlers) ---- */
+
+/* a new animation window of vcr.wid x vcr.hgt exists */
+void ani_view_created(void)
+{
+ mpeg.flag=0;
+ mpeg.filflag=0;
+ strcpy(mpeg.root,"frame");
+ mpeg.filter[0]=0;
+ mpeg.skip=1;
+ vcr.pos=0;
+ if(use_ani_file)
+   get_ani_file(vcr.file);
+}
+
+/* Grab: show the first frame with the grab points and wait for the mouse */
+void ani_grab_start(void)
+{
+     if(n_ani_grab==0)return;
+    if(vcr.ok){
+      vcr.pos=0;
+
+      show_grab_points=1;
+      /* ani_flip1(0); */
+      ani_frame(1);
+      ani_frame(0);
+      ani_grab_flag=1;
+    }
+}
+
+/* Reset: back to the first frame */
+void ani_reset(void)
+{
+    vcr.pos=0;
+    reset_comets();
+    xpp_ui.ani_slider();
+    ani_flip1(0);
+}
+
+/* the mouse went down (flag 1) or up (0) at pixel ix,iy while grabbing */
+void ani_grab_mouse(int flag,int ix,int iy)
+{
+    if(flag==1){
+
+      ami.t1=get_current_time();
+      ami.tstart=ami.t1;
+      ani_ij_to_xy(ix,iy,&ami.x,&ami.y);
+      ami.x0=ami.x;
+      ami.y0=ami.y;
+      	who_was_grabbed=search_for_grab(ami.x,ami.y);
+	if(who_was_grabbed<0)
+	  printf("Nothing grabbed\n");
+
+
+      /*     printf("found %d\n",who_was_grabbed); */
+
+    }
+    if(flag==0){ /* This is BUTTON RELEASE  */
+      /*  update_ani_motion_stuff(ev.xbutton.x,ev.xbutton.y); */
+
+         if(who_was_grabbed<0){
+	   /*  ani_grab_flag=0; */
+	 return;
+       }
+       /* printf("Final position %g %g %g %g \n",ami.x,ami.y,ami.vx,ami.vy); */
+       do_grab_tasks(2);
+       set_to_init_data();
+       ani_grab_flag=0;
+       redraw_params();
+       if(run_now_grab()){
+	 run_now();
+	 ani_grab_flag=0;
+       }
+    }
 }

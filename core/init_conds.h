@@ -157,7 +157,6 @@ void do_box_key(BoxList *b, XEvent ev, int *used);
 void man_ic(void);
 void new_parameter(void);
 void redo_stuff(void);
-void set_default_ics(void);
 void set_default_params(void);
 #if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void draw_editable(Window win, char *string, int off, int cursor, int mc);
@@ -169,7 +168,6 @@ void add_editval(BoxList *b, int i, char *string);
 #endif /* Xlib.h */
 void check_box_cursor(void);
 void prt_focus(void);
-int to_float(char *s, double *z);
 #if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void set_value_from_box(BoxList *b, int i);
 void load_entire_box(BoxList *b);

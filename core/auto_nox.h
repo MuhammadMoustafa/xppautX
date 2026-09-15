@@ -167,4 +167,13 @@ void get_a_row(double *u, double *t, int n, FILE *fp);
 void auto_file(void);
 int check_plot_type(int flag2,int icp1, int icp2);
 
+/* grabbing and marking points on the diagram (from auto_x11.c) */
+void traverse_diagram(void);
+int query_special(char *title, char *nsymb);
+void RedrawMark(void);
+void MarkAuto(int x, int y);
+void clear_msg(void);
+void auto_update_view(float xlo, float xhi, float ylo, float yhi);
+void auto_motion_xy(int i, int j);
+
 #endif

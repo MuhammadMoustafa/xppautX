@@ -64,6 +64,7 @@ This also has the clone gadget
 #include "derived.h"
 #include "form_ode.h"
 #include "many_pops.h"
+#include "xpp_util.h"
 
 #include "mykeydef.h"
 #define HOTWILD 2
@@ -329,19 +330,9 @@ void do_slide_button(w,p)
     p->use=0;
     return;
   }
-  status=find_user_name(PARAMBOX,values[0]);
-  if(status==-1){
-    status=find_user_name(ICBOX,values[0]);
-    if(status==-1){
-      err_msg("Not a parameter or variable !");
-      return;
-    }
-    p->type=ICBOX;
-    p->index=status;
-  }
-  else {
-    p->type=PARAMBOX;
-    p->index=status;
+  if(!find_par_or_var(values[0],&p->type,&p->index)){
+    err_msg("Not a parameter or variable !");
+    return;
   }
   lo=atof(values[2]);
   hi=atof(values[3]);
@@ -354,9 +345,7 @@ void do_slide_button(w,p)
   p->hi=hi;
   p->lo=lo;
   strcpy(p->parname,values[0]);
-  set_val(p->parname,val);
-  if(p->type==ICBOX)
-    last_ic[p->index]=val;
+  set_par_or_var(p->parname,p->type,p->index,val);
   redraw_params();
   redraw_ics();  
   p->use=1;
@@ -1217,9 +1206,7 @@ void do_slide_release(w,p)
 {
   if(p->use==0)return;
   if(p->slide==w){
-    set_val(p->parname,p->val);
-    if(p->type==ICBOX)
-      last_ic[p->index]=p->val;
+    set_par_or_var(p->parname,p->type,p->index,p->val);
     redraw_ics();
     redraw_params();
   }
@@ -1243,7 +1230,6 @@ void do_slide_motion(w,x,p,s)
      Window w;
      int x,s;
 {
-  int sp=SuppressBounds;
   if(w==p->slide){
     p->pos=x;
     if(x<2)
@@ -1254,16 +1240,9 @@ void do_slide_motion(w,x,p,s)
     if(p->use){
       p->val=p->lo+ (p->hi-p->lo)*(double)(p->pos-2)/(double)(p->l-4);
       expose_slider(p->top,p);
-      set_val(p->parname,p->val);
-        if(p->type==ICBOX)
-      last_ic[p->index]=p->val;
-	if(s<300) {clr_all_scrns();
-	redraw_dfield();
-	create_new_cline();
-	draw_label(draw_win);
-	SuppressBounds=1;
-	run_now();
-	SuppressBounds=sp;}
+      set_par_or_var(p->parname,p->type,p->index,p->val);
+	if(s<300)
+	  slider_rerun();
     }
   }
 }
@@ -2037,40 +2016,18 @@ int *index;
 void set_up_xvt()
 {
   int i;
-  int plot_list[10];
-  int n=0;
-  for(i=0;i<ICBox.n;i++)
-    if(ICBox.isck[i]){
-      if(n<10){
-	plot_list[n]=i+1;
-	n++;
-      }
-      ICBox.isck[i]=0;
-    }
   for(i=0;i<ICBox.nwin;i++)
     XClearWindow(display,ICBox.ck[i]);
-  if(n>0)
-    graph_all(plot_list,n,0);
+  plot_checked_vars(0,ICBox.isck,ICBox.n);
 }
 
 
 void set_up_pp()
 {
-int i;
-int plot_list[3],n=0;
- 
- for(i=0;i<ICBox.n;i++)
-    if(ICBox.isck[i]){
-      if(n<3){
-	plot_list[n]=i+1;
-	n++;
-      }
-      ICBox.isck[i]=0;
-    }
- for(i=0;i<ICBox.nwin;i++)
-   XClearWindow(display,ICBox.ck[i]);
- if(n>1)
-   graph_all(plot_list,n,1);
+  int i;
+  for(i=0;i<ICBox.nwin;i++)
+    XClearWindow(display,ICBox.ck[i]);
+  plot_checked_vars(1,ICBox.isck,ICBox.n);
 }
 
 
@@ -2293,36 +2250,7 @@ void do_box_key(b,ev,used)
 
 
 
-void x11_man_ic()
-{
-  int done,index=0;
-  double z;
-  char name[256],junk[256];
-  while(1){
-    sprintf(name,"%s :",uvar_names[index]);
-    z=last_ic[index];
-    done=new_float(name,&z);
-    if(done==0){
-      last_ic[index]=z;
-      sprintf(junk,"%.16g",z);
-      set_edit_params(&ICBox,index,junk);
-      draw_one_box(ICBox,index);
-      index++;
-      if(index>=NODE+NMarkov)return;
-    }
-    if(done==-1)return;
-  }
-}
 
-
-
-void   set_default_ics()
-{
-  int i;
-  for(i=0;i<NODE+NMarkov;i++)
-    last_ic[i]=default_ic[i];
-   redraw_ics();
-}
 
   
 
@@ -2555,22 +2483,6 @@ void prt_focus()
 }
 	
 
-int to_float(s,z)
-     char *s;
-     double *z;
-{
-  int flag;
-  *z=0.0;
-  if(s[0]=='%')
-    {
-      flag=do_calc(&s[1],z);
-      if(flag==-1)return -1;
-      return 0;
-    }
-  *z=atof(s);
-  return(0);
-}
-  
 
 void set_value_from_box(b,i)
      BoxList *b;
@@ -2579,28 +2491,14 @@ void set_value_from_box(b,i)
   char *s;
   double z;
   s=b->value[i];
-  switch(b->type){
-  case ICBOX:
-    if(to_float(s,&z)==-1)return;
-    last_ic[i]=z;
+  switch(box_set_value(b->type,i,s,&z)){
+  case 1:
     add_edit_float(b,i,z);
     break;
-  case PARAMBOX:
-    if(to_float(s,&z)==-1)return;
-    set_val(upar_names[i],z);
-    add_edit_float(b,i,z);
-    break;
-		    
-  case BCBOX:
-    strcpy(my_bc[i].string,s);
+  case 0:
     add_editval(b,i,s);
     break;
-  case DELAYBOX:
-    strcpy(delay_string[i],s);
-    add_editval(b,i,s);
-    break;
-
-  } 
+  }
 }
  
 
@@ -2611,14 +2509,9 @@ void load_entire_box(b)
 
   for(i=0;i<n;i++)
     set_value_from_box(b,i);
-  if(b->type==PARAMBOX){
-    re_evaluate_kernels();
-    redo_all_fun_tables();
+  box_values_loaded(b->type);
+  if(b->type==PARAMBOX)
     reset_sliders();
-  }
-  if(b->type==DELAYBOX){
-   do_init_delay(DELAY);
-  }
 }
  
 

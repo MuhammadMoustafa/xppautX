@@ -23,6 +23,8 @@
 
 struct XppMenu; /* menus.h */
 
+#define XPP_AUTO_CLICK 1000
+
 typedef struct XppUi {
     /* messages */
     void (*err_msg)(char *msg);
@@ -44,11 +46,13 @@ typedef struct XppUi {
     int (*string_box)(int n, int row, int col, char *title, char **names,
                       char values[][25], int maxchar);
     int (*file_selector)(char *title, char *file, char *wild);
+    /* one-line text entry with named buttons; returns 0 on cancel */
+    int (*dialog)(char *title, char *name, char *value, char *ok, char *cancel,
+                  int max);
     /* like string_box but for n long strings (MAX_LEN_EBOX); returns 0 on
        cancel */
     int (*edit_box)(int n, char *title, char **names, char **values);
     int (*get_mouse_xy)(int *x, int *y);
-    void (*edit_ics)(void); /* walk the user through every initial condition */
 
     /* menus. show_menu makes MAIN_MENU, FILE_MENU or NUM_MENU (menus.h) the
        main-window menu; core sets help_menu and dispatches keys itself
@@ -70,6 +74,9 @@ typedef struct XppUi {
     /* parameter i now has text value s; redraw that one entry */
     void (*param_box_set)(int i, char *s);
     void (*param_box_redraw)(int i);
+    /* the same for initial condition i */
+    void (*ic_box_set)(int i, char *s);
+    void (*ic_box_redraw)(int i);
     void (*redraw_ics)(void);
     void (*redraw_all)(void);
     void (*redraw_bcs)(void);
@@ -80,6 +87,7 @@ typedef struct XppUi {
     void (*clear_draw_window)(void);
     void (*reset_graphics)(void);
     void (*data_changed)(int length); /* browser storage grew/shrank */
+    void (*browser_redraw)(int full); /* my_browser: 1 columns too, 0 data */
 
     /* plot windows */
     void (*activate_graph)(int i, int flag); /* graph i became MyGraph */
@@ -105,7 +113,6 @@ typedef struct XppUi {
     void (*movie_auto_play)(void);  /* ks_ncycle cycles, ks_speed ms apart */
     void (*movie_save)(char *basename, int fmat); /* 1 ppm, 2 gif */
     void (*movie_make_anigif)(void);
-    void (*on_the_fly)(int task); /* animation hook during integration */
 
     /* mouse interaction in the plot window. rubber_band returns 1 and the
        corners in pixels when the user drew a box (flag RUBBOX) or line
@@ -128,13 +135,11 @@ typedef struct XppUi {
     void (*draw_linestyle)(int ls);
     void (*set_color)(int col);
 
-    /* array plot window */
-    void (*aplot_init)(void);
+    /* array plot window (arrayplot.h: aplot) */
     void (*aplot_make)(char *name); /* open the array plot window */
-    void (*aplot_edit)(void);       /* its settings dialog */
-    void (*aplot_close_files)(void);
-    void (*aplot_draw_one)(char *tag);
-    void (*aplot_io)(FILE *fp, int f);
+    void (*aplot_redraw)(void);
+    void (*aplot_reset_axes)(void);  /* its title and z range labels */
+    void (*aplot_draw_one)(char *tag); /* redraw, tag and save a range frame */
 
     /* AUTO bifurcation window */
     void (*auto_make_window)(char *wname, char *iname);
@@ -158,14 +163,27 @@ typedef struct XppUi {
     int (*auto_choose_key)(char *title, char **list, char *key, int n, int max,
                            int def, int x, int y, char **hints, char *httxt);
     void (*auto_scroll_window)(void);
-    void (*auto_traverse_diagram)(void);
+    /* Grab: wait for a key (returns its code, mykeydef.h) or a click on
+       the diagram (returns XPP_AUTO_CLICK with the pixel in x,y) */
+    int (*auto_grab_event)(int *x, int *y);
+    void (*auto_show_hint)(void); /* Auto.hinttxt changed */
 
-    /* animation (toon) window */
+    /* animation (toon) window. Frames are drawn off screen, vcr.wid by
+       vcr.hgt pixels (aniparse.h), then ani_show puts one on screen. */
     void (*new_vcr)(void);
+    void (*ani_clear)(void);    /* white frame, black pen */
+    void (*ani_show)(void);
+    void (*ani_color)(int icol); /* 0 black, else a colour index */
+    void (*ani_thick)(int t);
+    void (*ani_font)(int size, int font, int color); /* font 0 roman, 1 symbol */
+    void (*ani_line)(int x1, int y1, int x2, int y2);
+    void (*ani_rect)(int x, int y, int w, int h, int fill);
+    void (*ani_arc)(int x, int y, int w, int h, int fill); /* ellipse in box */
+    void (*ani_text)(int x, int y, char *s);
+    void (*ani_slider)(void);    /* vcr.pos changed */
 
     /* misc front-end hooks called while loading an ODE file */
     void (*init_txtview)(void);
-    void (*add_user_button)(char *s);
 
     /* equilibrium eigenvalue summary window */
     void (*show_eq_box)(int cp, int cm, int rp, int rm, int im, double *y,
@@ -205,9 +223,9 @@ void respond_box(char *button, char *message);
 int do_string_box(int n, int row, int col, char *title, char **names,
                   char values[][25], int maxchar);
 int file_selector(char *title, char *file, char *wild);
+int get_dialog(char *wname, char *name, char *value, char *ok, char *cancel, int max);
 int do_edit_box(int n, char *title, char **names, char **values);
 int GetMouseXY(int *x, int *y);
-void man_ic(void);
 void flash(int num);
 int menu_choose(const struct XppMenu *m, int def);
 int my_abort(void);
@@ -232,12 +250,8 @@ void cput_text(void);
 void SmallBase(void);
 void SmallGr(void);
 void reset_film(void);
-void on_the_fly(int task);
 void set_color(int col);
-void init_my_aplot(void);
-void close_aplot_files(void);
 void draw_one_array_plot(char *bob);
-void dump_aplot(FILE *fp, int f);
 void make_auto(char *wname, char *iname);
 void ALINE(int a, int b, int c, int d);
 void ATEXT(int a, int b, char *c);
@@ -259,9 +273,7 @@ int auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag);
 int auto_pop_up_list(char *title, char **list, char *key, int n, int max,
                      int def, int x, int y, char **hints, char *httxt);
 void auto_scroll_window(void);
-void traverse_diagram(void);
 void init_txtview(void);
-void add_user_button(char *s);
 void create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                    double *ev, int n);
 void bye_bye(void);
@@ -270,7 +282,6 @@ int rubber_band(int *i1, int *j1, int *i2, int *j2, int flag);
 void scroll_window(void);
 void NewColormap(int type);
 void make_my_aplot(char *name);
-void edit_aplot(void);
 void new_vcr(void);
 void redraw_the_graph(void);
 void make_txtview(void);

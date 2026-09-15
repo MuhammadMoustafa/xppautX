@@ -44,6 +44,24 @@ typedef struct {
   int i;
 } Comet;
 
+#include "xpp_types.h"
+#include "xpplim.h"
+#include "load_eqn.h"
+
+/* the animation window; the ids are the front end's */
+typedef struct {
+XppWinId base, wfile,wgo,wpause,wreset,wfast,wslow,wmpeg;
+  XppWinId wfly,kill,slider;
+XppWinId wup,wdn,wskip;
+  XppWinId view,wgrab;
+int hgt,wid,iexist,ok;
+int pos,inc;
+  int slipos,sliwid;
+char file[XPP_MAX_NAME];
+} VCR;
+
+extern VCR vcr;
+
 typedef struct {
   Comet c;
   int type, flag;
@@ -77,6 +95,10 @@ void ani_newskip(void);
 void check_on_the_fly(void);
 void on_the_fly(int task);
 void ani_frame(int task);
+void ani_view_created(void);
+void ani_grab_start(void);
+void ani_reset(void);
+void ani_grab_mouse(int flag, int ix, int iy);
 void set_to_init_data(void);
 void set_from_init_data(void);
 void ani_flip1(int n);

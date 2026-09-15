@@ -3,6 +3,11 @@
 
 #include <stdio.h>
 
+#define MAKE_ONE_GIF 2
+#define GET_GLOBAL_CMAP 1
+#define FIRST_ANI_GIF 3
+#define NEXT_ANI_GIF 4
+
  typedef struct GifTree {
    char typ;             /* terminating, lookup, or search */
    int code;             /* the code to be output */
@@ -19,6 +24,7 @@ typedef struct {
 void set_global_map(int flag);
 int ppmtopix(unsigned char r, unsigned char g, unsigned char b, int *n);
 void end_ani_gif(FILE *fp);
+void gif_stuff_ppm(unsigned char *ppm, int w, int h, FILE *fp, int task);
 #if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void add_ani_gif(Window win, FILE *fp, int count);
 void screen_to_gif(Window win, FILE *fp);

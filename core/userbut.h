@@ -2,12 +2,20 @@
 #define _userbut_h_
 
 
-#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
+#include "xpp_types.h"
+
+#define USERBUTMAX 20
+
 typedef struct {
-  Window w;
+  XppWinId w;
   char bname[10];
   int com;
 } USERBUT;
+
+extern int nuserbut;
+extern USERBUT userbut[USERBUTMAX];
+
+#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 
 void user_button_events(XEvent report);
 void user_button_press(Window w);
@@ -16,7 +24,7 @@ void user_button_cross(Window w, int b);
 #endif /* Xlib.h */
 int get_button_info(char *s, char *bname, char *sc);
 int find_kbs(char *sc);
-void add_user_button(char *s);
+void add_user_button(char *s); /* parse "name:keys" from an @ button line */
 #if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void create_user_buttons(int x0, int y0, Window base);
 

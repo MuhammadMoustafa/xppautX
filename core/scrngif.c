@@ -1,20 +1,13 @@
-#include <X11/Xlib.h>
 #include "scrngif.h"
 
 #include "aniparse.h"
 
-#include "ggets.h"
+#include "xpp_ui.h"
 #include <stdlib.h> 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <X11/Xutil.h>
-#include <X11/Xproto.h>
 
-#define MAKE_ONE_GIF 2
-#define GET_GLOBAL_CMAP 1
-#define FIRST_ANI_GIF 3
-#define NEXT_ANI_GIF 4
 #define BLOKLEN 255
 #define BUFLEN 1000
 #define TERMIN 'T'
@@ -39,7 +32,6 @@
          *topNode, *baseNode, **nodeArray, **lastArray;
 
 
-extern Display *display;
 
 
 GIFCOL gifcol[256];
@@ -84,26 +76,6 @@ void end_ani_gif(FILE *fp)
 {
 
   fputc(';',fp);
-}
-
-void add_ani_gif(Window win,FILE *fp,int count)
-{
-  plintf("Frame %d \n",count);
-  if(count==0)
-    gif_stuff(win,fp,FIRST_ANI_GIF);
-  else
-    gif_stuff(win,fp,NEXT_ANI_GIF);
-}
-
-void screen_to_gif(Window win, FILE *fp)
-{
- gif_stuff(win,fp,MAKE_ONE_GIF);
-}
-
-void get_global_colormap(Window win)
-{
-  FILE *junk=NULL;
-  gif_stuff(win,junk,GET_GLOBAL_CMAP);
 }
 
 void local_to_global()
@@ -160,104 +132,6 @@ int i,j,k=0,l=0;
    gifcol[i].b=255;
  }
  return ncol;
-}
-
-void gif_stuff(Window win,FILE *fp,int task)
-{
- Window root;
- unsigned int h,w,bw,d;
- int x0,y0;
- unsigned char *ppm;
- 
- unsigned char *pixels;
- int i;
- int ncol=0;
-
- int ok;
-/*  plintf("stog !! \n");*/
-
- XGetGeometry(display,win,&root,&x0,&y0,&w,&h,&bw,&d);
- ppm=(unsigned char *)malloc(w*h*3);
- pixels=(unsigned char *)malloc(h*w);
- /* plintf(" h=%d w=%d \n",h,w);*/
- 
- getppmbits(win,(int*)&w,(int*)&h,ppm);   
- switch(task){
- case GET_GLOBAL_CMAP:
-    ncol=make_local_map(pixels,ppm,h,w);
-   for(i=0;i<256;i++){
-     gifGcol[i].r=gifcol[i].r;
-     gifGcol[i].g=gifcol[i].g;
-     gifGcol[i].b=gifcol[i].b;
-     
-   }
-   NGlobalColors=ncol;
- 
-   break;
- case MAKE_ONE_GIF: /* don't need global map! */
-   ncol=make_local_map(pixels,ppm,h,w);
-   make_gif(pixels,w,h,fp);
-   break;
- case FIRST_ANI_GIF: 
-   if(UseGlobalMap)
-     {
-       ok=use_global_map(pixels,ppm,h,w);
-       if(ok==1)
-	 {
-	   local_to_global();
-	   write_global_header(w,h,fp);
-	   write_local_header(w,h,fp,0,GifFrameDelay);
-	   GifEncode(fp,pixels,8,w*h);
-	 }
-       else /* first map cant be encoded */
-	 {
-           UseGlobalMap=0;
-	   local_to_global();
-	   write_global_header(w,h,fp);  /* write global header */
-	   make_local_map(pixels,ppm,h,w);
-	   write_local_header(w,h,fp,1,GifFrameDelay);
-	   GifEncode(fp,pixels,8,w*h);
-	   UseGlobalMap=1;
-		      
-	 }
-     }
-   else  
-     {
-        make_local_map(pixels,ppm,h,w);
-	write_global_header(w,h,fp);
-	write_local_header(w,h,fp,0,GifFrameDelay);
-	GifEncode(fp,pixels,8,w*h);
-     }
-    break;
- case NEXT_ANI_GIF:
-   if(UseGlobalMap)
-     {
-       ok=use_global_map(pixels,ppm,h,w);
-       if(ok==1)
-	 {
-	   write_local_header(w,h,fp,0,GifFrameDelay);
-	   GifEncode(fp,pixels,8,w*h);
-	 }
-       else 
-	 {
-	   UseGlobalMap=0;
-	   make_local_map(pixels,ppm,h,w);
-	   write_local_header(w,h,fp,1,GifFrameDelay);
-	   GifEncode(fp,pixels,8,w*h);
-	   UseGlobalMap=1;
-	 }
-     }
-   else
-     {
-       make_local_map(pixels,ppm,h,w);
-       write_local_header(w,h,fp,1,GifFrameDelay);
-       GifEncode(fp,pixels,8,w*h);
-     }
-   break;
- }
- free(pixels);
- free(ppm);
-
 }
 
 void write_global_header(int cols,int rows, FILE *dst)
@@ -629,13 +503,88 @@ unsigned char *AddCodeToBuffer(int code, short n, unsigned char *buf)
   return buf;
 }
 
+/* encode the w x h RGB image ppm for task (scrngif.h): one GIF, the global
+   colour map, or the first/next frame of an animated GIF */
+void gif_stuff_ppm(unsigned char *ppm,int w,int h,FILE *fp,int task)
+{
+ unsigned char *pixels;
+ int i;
+ int ncol=0;
 
-
-
-
-
-
-
-
-
-
+ int ok;
+ pixels=(unsigned char *)malloc(h*w);
+ switch(task){
+ case GET_GLOBAL_CMAP:
+    ncol=make_local_map(pixels,ppm,h,w);
+   for(i=0;i<256;i++){
+     gifGcol[i].r=gifcol[i].r;
+     gifGcol[i].g=gifcol[i].g;
+     gifGcol[i].b=gifcol[i].b;
+     
+   }
+   NGlobalColors=ncol;
+ 
+   break;
+ case MAKE_ONE_GIF: /* don't need global map! */
+   ncol=make_local_map(pixels,ppm,h,w);
+   make_gif(pixels,w,h,fp);
+   break;
+ case FIRST_ANI_GIF: 
+   if(UseGlobalMap)
+     {
+       ok=use_global_map(pixels,ppm,h,w);
+       if(ok==1)
+	 {
+	   local_to_global();
+	   write_global_header(w,h,fp);
+	   write_local_header(w,h,fp,0,GifFrameDelay);
+	   GifEncode(fp,pixels,8,w*h);
+	 }
+       else /* first map cant be encoded */
+	 {
+           UseGlobalMap=0;
+	   local_to_global();
+	   write_global_header(w,h,fp);  /* write global header */
+	   make_local_map(pixels,ppm,h,w);
+	   write_local_header(w,h,fp,1,GifFrameDelay);
+	   GifEncode(fp,pixels,8,w*h);
+	   UseGlobalMap=1;
+		      
+	 }
+     }
+   else  
+     {
+        make_local_map(pixels,ppm,h,w);
+	write_global_header(w,h,fp);
+	write_local_header(w,h,fp,0,GifFrameDelay);
+	GifEncode(fp,pixels,8,w*h);
+     }
+    break;
+ case NEXT_ANI_GIF:
+   if(UseGlobalMap)
+     {
+       ok=use_global_map(pixels,ppm,h,w);
+       if(ok==1)
+	 {
+	   write_local_header(w,h,fp,0,GifFrameDelay);
+	   GifEncode(fp,pixels,8,w*h);
+	 }
+       else 
+	 {
+	   UseGlobalMap=0;
+	   make_local_map(pixels,ppm,h,w);
+	   write_local_header(w,h,fp,1,GifFrameDelay);
+	   GifEncode(fp,pixels,8,w*h);
+	   UseGlobalMap=1;
+	 }
+     }
+   else
+     {
+       make_local_map(pixels,ppm,h,w);
+       write_local_header(w,h,fp,1,GifFrameDelay);
+       GifEncode(fp,pixels,8,w*h);
+     }
+   break;
+ }
+ free(pixels);
+}

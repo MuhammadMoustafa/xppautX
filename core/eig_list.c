@@ -16,6 +16,7 @@
 #include "eqns.bitmap"
 #include "equilib.bitmap"
 #include "browse.h"
+#include "xpp_util.h"
 
 #include "newhome.h"
 
@@ -71,8 +72,6 @@ struct{
 } eq_list;
 
  
-extern int HomoFlag,sparity;
-extern double homo_l[100],homo_r[100];
 
 void draw_eq_list(w)
 Window w;
@@ -242,25 +241,7 @@ void eq_list_down(){
 
 void eq_box_import()
 {
-  int n=eq_box.n,i;
-  for(i=0;i<n;i++)
-    last_ic[i]=eq_box.y[i];
-
-
-  if(n<20){
-    if(sparity==0){
-      for(i=0;i<n;i++)
-	homo_l[i]=eq_box.y[i];
-      printf("Saved to left equilibrium\n");
-    }
-    if(sparity==1){
-      for(i=0;i<n;i++)
-	homo_r[i]=eq_box.y[i];
-      printf("Saved to right equilibrium\n");
-    }
-    sparity=1-sparity;
-  }
-   redraw_ics();
+  eq_import(eq_box.y,eq_box.n);
 }
 
 void get_new_size(win,wid,hgt)
@@ -328,9 +309,7 @@ double *y,*ev;
  eq_box.info[2]=im;
  eq_box.info[3]=rp;
  eq_box.info[4]=rm;
- if(cp>0||rp>0)sprintf(eq_box.type,"UNSTABLE");
- else if(im>0)sprintf(eq_box.type,"NEUTRAL");
- else sprintf(eq_box.type,"STABLE");
+ sprintf(eq_box.type,"%s",eq_stability(cp,rp,im));
 
  if(eq_box.flag==0){   /*   the box is not made yet    */
  width=(30+30*(int)(n/20))*DCURXs;

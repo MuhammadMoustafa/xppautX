@@ -335,6 +335,10 @@ sleep 600
 key g
 sleep 600
 shot 81
+key Escape
+sleep 600
+key Escape
+sleep 600
 key t
 sleep 600
 key m
@@ -599,3 +603,281 @@ key Return
 sleep 400
 sleep 800
 shot 111
+sleep 1500
+clickw XPP 257 8
+sleep 1500
+shotw Viewer 1200
+keyw Viewer Down
+sleep 300
+keyw Viewer Down
+sleep 300
+keyw Viewer Next
+sleep 600
+shotw Viewer 1201
+clickw Viewer 20 11
+sleep 800
+shotw Find 1202
+key Tab
+sleep 800
+shotw Viewer 1203
+clickw Viewer 20 49
+sleep 800
+shotw Replace 1204
+key Return
+sleep 800
+key BackSpace
+sleep 300
+key w
+sleep 300
+key minus
+sleep 300
+key 1
+sleep 300
+shotw Replace 1205
+key Return
+sleep 800
+shotw Viewer 1206
+clickw Viewer 170 49
+sleep 800
+shotw Viewer 1207
+clickw Viewer 318 49
+sleep 800
+key z
+sleep 300
+key Return
+sleep 800
+key v
+sleep 300
+key minus
+sleep 300
+key w
+sleep 300
+key Return
+sleep 800
+keyw Viewer Right
+sleep 600
+shotw Viewer 1208
+keyw Viewer t
+sleep 800
+shotw Tabulate 1209
+key Tab
+sleep 800
+keyw Viewer w
+sleep 800
+shotw *.dat 1210
+key Return
+sleep 800
+keyw Viewer Home
+sleep 300
+keyw Viewer Down
+sleep 300
+keyw Viewer s
+sleep 300
+keyw Viewer Next
+sleep 300
+keyw Viewer e
+sleep 300
+keyw Viewer r
+sleep 1500
+shot 1211
+keyw Viewer g
+sleep 600
+keyw Viewer d
+sleep 800
+shot 1212
+key Return
+sleep 600
+keyw Viewer l
+sleep 800
+shotw *.dat 1213
+key Return
+sleep 1500
+shotw Viewer 1214
+keyw Viewer f
+sleep 800
+key Return
+sleep 300
+key Tab
+sleep 800
+shotw Viewer 1215
+clickw Viewer 462 49
+sleep 800
+shot 1216
+key v
+sleep 600
+key t
+sleep 1500
+shotw Popeye|Betty|Astroboy|Rocky|Speedracer|Felix|Bosko|Booze|Porky|Skeleton 1300
+clickw Popeye|Betty|Astroboy|Rocky|Speedracer|Felix|Bosko|Booze|Porky|Skeleton 174 30
+sleep 400
+clickw Popeye|Betty|Astroboy|Rocky|Speedracer|Felix|Bosko|Booze|Porky|Skeleton 174 30
+sleep 400
+shotw Popeye|Betty|Astroboy|Rocky|Speedracer|Felix|Bosko|Booze|Porky|Skeleton 1301
+clickw Popeye|Betty|Astroboy|Rocky|Speedracer|Felix|Bosko|Booze|Porky|Skeleton 246 11
+sleep 600
+key BackSpace
+key 1
+key 5
+key 0
+key Return
+sleep 600
+clickw Popeye|Betty|Astroboy|Rocky|Speedracer|Felix|Bosko|Booze|Porky|Skeleton 102 49
+sleep 600
+shotw Frame 1302
+key BackSpace
+key 1
+key Tab
+sleep 600
+clickw Popeye|Betty|Astroboy|Rocky|Speedracer|Felix|Bosko|Booze|Porky|Skeleton 102 11
+sleep 4000
+shotw Popeye|Betty|Astroboy|Rocky|Speedracer|Felix|Bosko|Booze|Porky|Skeleton 1303
+clickw Popeye|Betty|Astroboy|Rocky|Speedracer|Felix|Bosko|Booze|Porky|Skeleton 30 11
+sleep 800
+shotw *.ani 1304
+key Return
+sleep 800
+clickw Popeye|Betty|Astroboy|Rocky|Speedracer|Felix|Bosko|Booze|Porky|Skeleton 295 9
+sleep 400
+key i
+sleep 400
+key g
+sleep 15000
+shotw Popeye|Betty|Astroboy|Rocky|Speedracer|Felix|Bosko|Booze|Porky|Skeleton 1306
+clickw Popeye|Betty|Astroboy|Rocky|Speedracer|Felix|Bosko|Booze|Porky|Skeleton 295 9
+sleep 400
+clickw Popeye|Betty|Astroboy|Rocky|Speedracer|Felix|Bosko|Booze|Porky|Skeleton 246 49
+sleep 800
+shotw Popeye|Betty|Astroboy|Rocky|Speedracer|Felix|Bosko|Booze|Porky|Skeleton 1305
+clickw Popeye|Betty|Astroboy|Rocky|Speedracer|Felix|Bosko|Booze|Porky|Skeleton 100 200
+sleep 800
+key s
+sleep 600
+key g
+sleep 1500
+shotw !!!! 1307
+key n
+sleep 800
+shotw Equilibria 1309
+shot 1308
+key Escape
+sleep 600
+key v
+sleep 600
+key a
+sleep 1000
+shotw Edit 1500
+key v
+sleep 300
+key Return
+sleep 300
+key BackSpace
+sleep 300
+key 2
+sleep 300
+key Tab
+sleep 1000
+shotw Array!|v0..1 1501
+clickw Array!|v0..1 310 11
+sleep 800
+shotw Array!|v0..1 1502
+clickw Array!|v0..1 160 11
+sleep 800
+shotw Print 1503
+key Tab
+sleep 1000
+clickw Array!|v0..1 20 30
+sleep 800
+shotw *.gif 1504
+key Return
+sleep 1000
+clickw Array!|v0..1 90 11
+sleep 800
+key Tab
+sleep 800
+clickw Array!|v0..1 20 11
+sleep 800
+shotw Array!|v0..1 1505
+clickw Array!|v0..1 230 11
+sleep 800
+shot 1506
+key i
+sleep 400
+key l
+sleep 400
+key Tab
+sleep 3000
+key i
+sleep 400
+key l
+sleep 400
+key Tab
+sleep 3000
+key f
+sleep 400
+key a
+sleep 2000
+shotw AUTO 1400
+keyw AUTO p
+sleep 800
+shotw Parameters 1401
+key Tab
+sleep 600
+keyw AUTO a
+sleep 800
+key h
+sleep 800
+shotw Plot 1402
+key Tab
+sleep 600
+keyw AUTO n
+sleep 800
+shotw AutoNum 1403
+key Tab
+sleep 600
+keyw AUTO r
+sleep 800
+shotw AUTO 1404
+key s
+sleep 5000
+shotw AUTO 1405
+keyw AUTO g
+sleep 800
+key Right
+sleep 300
+key Right
+sleep 300
+key Tab
+sleep 300
+shotw AUTO 1406
+key s
+sleep 300
+key Right
+key Right
+key e
+sleep 300
+key Up
+sleep 600
+shotw AUTO 1407
+key l
+sleep 600
+key End
+sleep 300
+key Home
+sleep 300
+key Next
+sleep 300
+key Prior
+sleep 300
+shotw AUTO 1408
+clickw AUTO 330 230
+sleep 800
+shotw AUTO 1411
+key Return
+sleep 1000
+shotw AUTO 1409
+shot 1410
+keyw AUTO c
+sleep 800
+keyw AUTO d
+sleep 1500
+shotw AUTO 1412

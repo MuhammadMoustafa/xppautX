@@ -41,6 +41,13 @@ still builds and behaves as before.
       rubber band, scroll, mouse position), window management (plot windows,
       kinescope frames) and three whole dialogs (source viewer, calculator,
       text placement).
+   2.5 *(done)* Logic out of the remaining X11 windows: the data browser's
+      commands (`browse_data.c`), the IC/parameter box values and sliders
+      (`xpp_util.c`), the animation language and its drawing geometry
+      (`aniparse.c`, drawing through `xpp_ui.ani_*`; the window is
+      `aniwin.c`), array plot settings and printing (`arrayplot.c`; window
+      `aplotwin.c`), AUTO diagram grabbing (`auto_nox.c`), the GIF encoder
+      (`scrngif.c`), user buttons (`userbut.c`) and the equilibrium import.
    3. A protocol front end: an `XppUi` table that speaks line-delimited
       JSON (drawing, redraw notices and state out; keys, menu picks and
       prompt answers in), and an `xppcore-server` binary around it.
@@ -54,12 +61,15 @@ them after a build and checks the output checksums):
 
 | Script | Measures | Now |
 |---|---|---|
-| `tools/x11free.sh` | sources that compile with X11 headers stubbed out | 88 / 112 |
+| `tools/x11free.sh` | sources that compile with X11 headers stubbed out | 92 / 114 |
 | `tools/coredeps.sh` | symbols those objects import from X11 objects | 0 |
 
 `tools/guicheck.sh [REF]` guards the X11 program itself: it builds `REF`
 (default `HEAD`), drives both GUIs through the keys in `tools/gui_keys.txt`
-with `tools/xdrive.c` and compares the screenshots (needs a display).
+with `tools/xdrive.c` and compares the screenshots and the files the
+session writes. It covers every menu, the data browser, the animation,
+array plot, equilibrium and AUTO windows, and runs on a private Xvfb display
+when `xvfb` is installed (about ten minutes).
 
 ## Layout
 

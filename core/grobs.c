@@ -643,3 +643,43 @@ int nc;
   }
   return 0;
 }
+
+void change_plot_vars(int k)
+{
+ int i,ip;
+  int np;
+  for(i=0;i<MAXPOP;i++){
+    if(graph[i].Use){
+      np=graph[i].nvars;
+      for(ip=0;ip<np;ip++){
+	if(graph[i].xv[ip]>k)
+	  graph[i].xv[ip]=graph[i].xv[ip]-1;
+	if(graph[i].yv[ip]>k)
+	  graph[i].yv[ip]=graph[i].yv[ip]-1;
+	if(graph[i].zv[ip]>k)
+	  graph[i].zv[ip]=graph[i].zv[ip]-1;
+      }
+    }
+  }
+}
+
+int check_active_plot(int k)
+{
+  int i,ip;
+  int np;
+  for(i=0;i<MAXPOP;i++){
+    if(graph[i].Use){
+      np=graph[i].nvars;
+      for(ip=0;ip<np;ip++){
+	if(graph[i].xv[ip]==k||graph[i].yv[ip]==k||graph[i].zv[ip]==k)
+	  return 1;
+      }
+    }
+  }
+    return 0;
+}
+
+int graph_used(int i)
+{
+ return graph[i].Use;
+} 

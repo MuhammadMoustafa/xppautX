@@ -1,7 +1,7 @@
 /* xdrive: send keys to a running xppaut and grab screenshots, for
    before/after GUI comparisons (tools/guicheck.sh).
    usage: xdrive SCRIPT OUTDIR
-   script lines:  key <keysym>  |  sleep <ms>  |  shot <name>  (-> OUTDIR/name.ppm)
+   script lines:  key <keysym>  |  keyw <title> <keysym> (to that window)  |  sleep <ms>  |  shot <name>  (-> OUTDIR/name.ppm)
                   shotw <title> <name>  screenshot of the top-level window whose
                   title contains <title> (dialogs), or a note that none exists
                   names  print the titles of all windows (to find a dialog's title)
@@ -9,7 +9,8 @@
                   that window (sent to the deepest child there)
    Keys go to the main window with XSendEvent; xppaut reads KeyPress from any
    of its windows, so no focus or XTest is needed. Screenshots are of the
-   main window and its children, which includes the pop-up menus. */
+   main window and its children, which includes the pop-up menus; the
+   window is raised first. */
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <stdio.h>
@@ -17,13 +18,24 @@
 #include <string.h>
 #include <unistd.h>
 
+/* name may list alternatives separated by '|' (the toon window has a
+   random title) */
+static int title_hit(const char *title, const char *name)
+{
+  char buf[256], *tok, *save;
+  snprintf(buf, sizeof buf, "%s", name);
+  for (tok = strtok_r(buf, "|", &save); tok; tok = strtok_r(NULL, "|", &save))
+    if (strstr(title, tok)) return 1;
+  return 0;
+}
+
 static Window find_win(Display *d, Window w, const char *name)
 {
   Window root, parent, *kids = NULL, r = 0;
   unsigned int n, i;
   char *wn = NULL;
   if (XFetchName(d, w, &wn) && wn) {
-    int hit = strstr(wn, name) != NULL;
+    int hit = title_hit(wn, name);
     XFree(wn);
     if (hit) return w;
   }
@@ -56,6 +68,12 @@ static void shot(Display *d, Window w, const char *file)
   int x, y;
   XImage *img;
   FILE *fp;
+  /* without a window manager (Xvfb) top-level windows pile up at 0,0 and
+     XGetImage returns black for covered parts: raise it and let the
+     program redraw the exposed area first */
+  XRaiseWindow(d, w);
+  XSync(d, False);
+  usleep(300000);
   XGetWindowAttributes(d, w, &a);
   img = XGetImage(d, w, 0, 0, a.width, a.height, AllPlanes, ZPixmap);
   if (!img) { fprintf(stderr, "XGetImage failed\n"); return; }
@@ -127,6 +145,10 @@ int main(int argc, char **argv)
     arg2[0] = 0;
     if (sscanf(line, "%31s %199s %199s %199s", cmd, arg, arg2, arg3) < 1) continue;
     if (!strcmp(cmd, "key")) send_key(d, w, arg);
+    else if (!strcmp(cmd, "keyw")) {
+      Window dw = find_win(d, DefaultRootWindow(d), arg);
+      if (dw) send_key(d, dw, arg2);
+    }
     else if (!strcmp(cmd, "sleep")) usleep(atoi(arg) * 1000);
     else if (!strcmp(cmd, "names")) list_names(d, DefaultRootWindow(d));
     else if (!strcmp(cmd, "clickw")) {

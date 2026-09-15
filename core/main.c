@@ -1374,7 +1374,83 @@ int seed;
 
 */
 
+/* ---- user buttons along the top of the main window (were in userbut.c;
+   the table and the @ button parser are core) ---- */
+#define USERBUTCOLOR 24
 
+void user_button_events(XEvent report)
+{
+switch(report.type){
+  case Expose:
+  case MapNotify:
+    user_button_draw(report.xany.window);
+    break;
+  case EnterNotify:
+    user_button_cross(report.xcrossing.window,2);
+    break;
+  case LeaveNotify:
+    user_button_cross(report.xcrossing.window,1);
+    break;
+  case ButtonPress:
+    user_button_press(report.xbutton.window);
+    break;
+  }
+}
 
+void user_button_press(Window w)
+{
+  int i;
+  for(i=0;i<nuserbut;i++)
+  {
+    if(w==userbut[i].w)
+    {
+    	run_the_commands(userbut[i].com);
+    }
+  }
+}
 
+void  draw_all_user_buttons()
+{
+	int i=0;
+	for(i=0;i<nuserbut;i++){ 
+	  user_button_draw(userbut[i].w);
+	}
+}
 
+void user_button_draw(Window w)
+{
+  int i;
+  for(i=0;i<nuserbut;i++){ 
+    if(w==userbut[i].w)
+    {
+    	
+      XDrawString(display,w,small_gc,5,CURY_OFFs,
+		  userbut[i].bname,strlen(userbut[i].bname));
+    }
+  }
+}
+
+void user_button_cross(Window w,int b)
+{
+  int i;
+  for(i=0;i<nuserbut;i++)
+    if(w==userbut[i].w){
+      XSetWindowBorderWidth(display,w,b);
+      return;
+    }
+}
+
+void create_user_buttons(int x0,int y0, Window base)
+{
+  int i;
+  int x=x0;
+  int l;
+  if(nuserbut==0)return;
+  for(i=0;i<nuserbut;i++){
+    l=DCURXs*(strlen(userbut[i].bname)+2);
+    userbut[i].w=make_fancy_window(base,x,y0,l,DCURYs,
+				   1,ColorMap(20),ColorMap(USERBUTCOLOR));
+    x=x+l+DCURXs;
+  }
+  draw_all_user_buttons();
+}  

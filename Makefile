@@ -1,4 +1,4 @@
-# xppautX â€” build the classic X11 xppaut binary from core/
+# xppautX — build the classic X11 xppaut binary from core/
 # Phase 0: same code as upstream XPPAUT 8.0, just relocated.
 # Requires: gcc, make, X11 headers (Debian/Ubuntu: apt install libx11-dev)
 
@@ -26,11 +26,11 @@ SRCDIR   = core
 BUILDDIR = build/obj
 
 # Sources that need X11 (the front end). Everything else is libxppcore.
-UI_SOURCES := $(addprefix $(SRCDIR)/, abort.c aniparse.c arrayplot.c auto_x11.c \
+UI_SOURCES := $(addprefix $(SRCDIR)/, abort.c aniwin.c aplotwin.c auto_x11.c \
   browse.c calc.c choice_box.c color.c dialog_box.c eig_list.c \
   ggets.c graphics_x11.c init_conds.c kinescope.c main.c many_pops.c \
-  menu.c menudrive.c pop_list.c rubber.c scrngif.c txtread.c ui_x11.c \
-  userbut.c xppaut_main.c)
+  menu.c menudrive.c pop_list.c rubber.c txtread.c ui_x11.c \
+  xppaut_main.c)
 # sbml2xpp.c needs libsbml and is not part of the upstream build.
 CORE_SOURCES := $(filter-out $(UI_SOURCES) $(SRCDIR)/sbml2xpp.c $(SRCDIR)/xppcore_cli.c,$(wildcard $(SRCDIR)/*.c))
 SOURCES := $(CORE_SOURCES) $(UI_SOURCES)

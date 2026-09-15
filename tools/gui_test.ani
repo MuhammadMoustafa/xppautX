@@ -1,0 +1,26 @@
+# animation for tools/guicheck.sh: one of every command, driven by lecar.ode
+dimension -0.6;-0.1;0.4;0.6
+speed 5
+permanent
+settext 3;rom;$BLUE
+text -0.55;0.55;lecar
+line -0.6;0;0.4;0;$BLACK;1
+transient
+line v;0;v;w;$RED;3
+rline 0.05;0.05
+circle v;w;0.03;$PURPLE;2
+fcircle -0.4;w;0.02;w
+rect -0.55;0.1;-0.5;0.1+w;$BLACK;1
+frect -0.45;0.1;-0.4;0.1+w;$ORANGE
+ellip 0;0.4;0.1;0.05;$BLUE;1
+fellip 0.2;0.4;0.05;w;$YELLOWGREEN
+settext 1;sym;$BLACK
+vtext -0.55;0.5;t=;t
+settext 2;rom;$RED
+text -0.3;0.5;done
+comet v;w;-2;10;$RED
+comet v+0.2;w;2;10;$BLUE
+grab v;w;0.05
+{w=w}
+{runnow=0}
+end

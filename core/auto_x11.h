@@ -17,7 +17,6 @@ void clr_stab(void);
 void auto_stab_line(int x, int y, int xp, int yp);
 void clear_auto_plot(void);
 void redraw_auto_menus(void);
-void traverse_diagram(void);
 void clear_auto_info(void);
 void draw_auto_info(char *bob, int x, int y);
 void refreshdisplay(void);
@@ -27,7 +26,6 @@ void autocol(int col);
 void autobw(void);
 int auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag);
 int auto_pop_up_list(char *title, char **list, char *key, int n, int max, int def, int x, int y, char **hints, char *httxt);
-void MarkAuto(int x,int y);
 void XORCross(int x, int y);
 void FillCircle(int x, int y, int r);
 void LineWidth(int wid);
@@ -49,12 +47,9 @@ void auto_kill(void);
 #if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void auto_keypress(XEvent ev, int *used);
 #endif /* Xlib.h */
-int query_special(char* title,char *nsymb);
-void clear_msg();
 void find_point(int ibr,int pt);
 void auto_get_info( int *n, char *pname);
 void auto_set_mark(int i);
 void do_auto_range();
-void RedrawMark();
 
 #endif

@@ -20,6 +20,7 @@
 #include "form_ode.h"
 #include "shoot.h"
 #include "lunch-new.h"
+#include "delay_handle.h"
 #include <time.h>
 #include <ctype.h>
 #include <math.h>
@@ -30,6 +31,8 @@
 
 #define PARAMBOX 1
 #define ICBOX 2
+#define DELAYBOX 3
+#define BCBOX 4
 #define PARAM 1
 #define IC 2
 #define REAL_SMALL 1.e-6
@@ -77,6 +80,7 @@ extern int NLINES, NMarkov, NODE, NUPAR;
 #define READEM 1
 #define WRITEM 0
 extern BC_STRUCT my_bc[MAXODE];
+
 
 void ind_to_sym(ind,str)
  char *str;
@@ -508,3 +512,186 @@ void   set_default_params()
  re_evaluate_kernels();
  redo_all_fun_tables(); 
  }
+
+/* ---- the values behind the IC, parameter, BC and delay boxes and the
+   parameter sliders (logic from init_conds.c; the widgets stay there) ---- */
+extern char delay_string[MAXODE][80];
+extern double default_ic[MAXODE];
+extern double DELAY;
+extern int SuppressBounds;
+
+void   set_default_ics()
+{
+  int i;
+  for(i=0;i<NODE+NMarkov;i++)
+    last_ic[i]=default_ic[i];
+   redraw_ics();
+}
+
+int to_float(s,z)
+     char *s;
+     double *z;
+{
+  int flag;
+  *z=0.0;
+  if(s[0]=='%')
+    {
+      flag=do_calc(&s[1],z);
+      if(flag==-1)return -1;
+      return 0;
+    }
+  *z=atof(s);
+  return(0);
+}
+
+void man_ic()
+{
+  int done,index=0;
+  double z;
+  char name[256],junk[256];
+  while(1){
+    sprintf(name,"%s :",uvar_names[index]);
+    z=last_ic[index];
+    done=new_float(name,&z);
+    if(done==0){
+      last_ic[index]=z;
+      sprintf(junk,"%.16g",z);
+      xpp_ui.ic_box_set(index,junk);
+      xpp_ui.ic_box_redraw(index);
+      index++;
+      if(index>=NODE+NMarkov)return;
+    }
+    if(done==-1)return;
+  }
+}
+
+/* store the text s typed for entry i of a box of the given type. Numbers
+   (ICs, parameters) come back in *z and the result is 1; BCs and delays are
+   strings (0); -1 when a %formula does not evaluate. */
+int box_set_value(int type,int i,char *s,double *z)
+{
+  *z=0.0;
+  switch(type){
+  case ICBOX:
+    if(to_float(s,z)==-1)return -1;
+    last_ic[i]=*z;
+    return 1;
+  case PARAMBOX:
+    if(to_float(s,z)==-1)return -1;
+    set_val(upar_names[i],*z);
+    return 1;
+  case BCBOX:
+    strcpy(my_bc[i].string,s);
+    return 0;
+  case DELAYBOX:
+    strcpy(delay_string[i],s);
+    return 0;
+  }
+  return 0;
+}
+
+/* every entry of a box was just stored: recompute what depends on them */
+void box_values_loaded(int type)
+{
+  if(type==PARAMBOX){
+    re_evaluate_kernels();
+    redo_all_fun_tables();
+  }
+  if(type==DELAYBOX){
+   do_init_delay(DELAY);
+  }
+}
+
+/* the ICs box "xvst" (how 0) and "pp" (how 1) buttons: plot the checked
+   variables (isck, n entries) and uncheck them */
+void plot_checked_vars(int how,int *isck,int n)
+{
+  int i;
+  int plot_list[10];
+  int k=0,max=(how==0)?10:3;
+  for(i=0;i<n;i++)
+    if(isck[i]){
+      if(k<max){
+	plot_list[k]=i+1;
+	k++;
+      }
+      isck[i]=0;
+    }
+  if(how==0&&k>0)
+    graph_all(plot_list,k,0);
+  if(how==1&&k>1)
+    graph_all(plot_list,k,1);
+}
+
+/* a slider names a parameter (PARAMBOX) or a variable (ICBOX); 0 if
+   neither */
+int find_par_or_var(char *name,int *type,int *index)
+{
+  int status=find_user_name(PARAMBOX,name);
+  if(status==-1){
+    status=find_user_name(ICBOX,name);
+    if(status==-1)return 0;
+    *type=ICBOX;
+  }
+  else *type=PARAMBOX;
+  *index=status;
+  return 1;
+}
+
+void set_par_or_var(char *name,int type,int index,double val)
+{
+  set_val(name,val);
+  if(type==ICBOX)
+    last_ic[index]=val;
+}
+
+/* a slider was dragged: redraw and integrate again */
+void slider_rerun(void)
+{
+  int sp=SuppressBounds;
+  clr_all_scrns();
+  redraw_dfield();
+  create_new_cline();
+  draw_label(draw_win);
+  SuppressBounds=1;
+  run_now();
+  SuppressBounds=sp;
+}
+
+/* ---- the equilibrium window's Import button and its label (logic from
+   eig_list.c) ---- */
+extern int sparity;
+extern double homo_l[100],homo_r[100];
+
+/* make equilibrium y (n values) the initial data; for small systems it is
+   also saved alternately as the left/right equilibrium for homoclinics */
+void eq_import(double *y,int n)
+{
+  int i;
+  for(i=0;i<n;i++)
+    last_ic[i]=y[i];
+
+
+  if(n<20){
+    if(sparity==0){
+      for(i=0;i<n;i++)
+	homo_l[i]=y[i];
+      printf("Saved to left equilibrium\n");
+    }
+    if(sparity==1){
+      for(i=0;i<n;i++)
+	homo_r[i]=y[i];
+      printf("Saved to right equilibrium\n");
+    }
+    sparity=1-sparity;
+  }
+   redraw_ics();
+}
+
+/* cp/rp: complex/real eigenvalues with positive real part, im: imaginary */
+char *eq_stability(int cp,int rp,int im)
+{
+ if(cp>0||rp>0)return "UNSTABLE";
+ else if(im>0)return "NEUTRAL";
+ else return "STABLE";
+}

@@ -3137,3 +3137,404 @@ void DLINE(double a,double b,double c,double d)
 {
   ALINE(IXVal(a),IYVal(b),IXVal(c),IYVal(d));
 }
+
+/* ---- grabbing a point on the bifurcation diagram, marking a branch and
+   the hint line (logic from auto_x11.c) ---- */
+#include "mykeydef.h"
+extern char *aspecial_hint[];
+DIAGRAM *CUR_DIAGRAM;
+
+int query_special(char* title,char *nsymb)
+{
+        int status=1;
+        static char *m[]={"BP","EP","HB","LP","MX","PD","TR","UZ"};
+	static  char key[]="behlmptu";
+	int ch=(char)auto_pop_up_list(title,m,key,8,11,1,10,10,
+			     aspecial_hint,Auto.hinttxt);
+	if(ch=='b'){
+	  sprintf(nsymb,"BP");
+	}
+	else if(ch=='e'){
+	  sprintf(nsymb,"EP");
+	}
+	else if(ch=='h'){
+	   sprintf(nsymb,"HB");
+	}
+	else if(ch=='l'){ 
+	   sprintf(nsymb,"LP");
+	}
+	else if(ch=='m'){ 
+	   sprintf(nsymb,"MX");
+	}
+	else if(ch=='p'){
+	   sprintf(nsymb,"PD"); 
+	}
+	else if(ch=='t'){
+	   sprintf(nsymb,"TR");  
+	}
+	else if(ch=='u'){ 
+	   sprintf(nsymb,"UZ");
+	}
+	else
+	{
+	   status=0;   
+	   sprintf(nsymb,"  ");
+	}
+	redraw_auto_menus();
+	return(status);
+}
+
+void traverse_diagram()
+{
+  DIAGRAM *d,*dnew,*dold;
+  int done=0;
+  int ix,iy,i; 
+  int lalo;
+  int kp;
+  int xm,ym;
+  mark_flag=0;
+  if(NBifs<2)return;
+  
+  d=bifd; 
+  DONT_XORCross=0;
+  traverse_out(d,&ix,&iy,1);
+  
+  while(done==0){
+    kp=xpp_ui.auto_grab_event(&xm,&ym);
+    if(kp==XPP_AUTO_CLICK)
+    {
+	{
+       		clear_msg();
+	        /*
+		GO HOME
+		*/
+		XORCross(ix,iy);
+		DONT_XORCross = 1;
+		while (1){
+        		dnew=d->prev;
+        		if(dnew==NULL){dnew=d;break;}
+        		/*bifd = dnew;*/
+        		d=dnew;
+		}
+		d=dnew;
+		CUR_DIAGRAM=d;
+		traverse_out(d,&ix,&iy,0);
+                /*
+		END GO HOME
+		*/
+       
+       		/*
+		GO END
+		*/
+		int mindex=0;
+		double dist;
+		double ndist = Auto.wid*Auto.hgt;
+		XORCross(ix,iy);
+                lalo=load_all_labeled_orbits;
+		load_all_labeled_orbits=0;
+		while (1)
+		{
+			dist = sqrt(((double)(xm-ix))*((double)(xm-ix)) + ((double)(ym-iy))*((double)(ym-iy))); 
+			if (dist<ndist)
+			{
+				ndist = dist;
+				mindex=d->index;
+			}
+			dnew=d->next;
+			if(dnew==NULL){dnew=d;break;}
+			d=dnew;
+			traverse_out(d,&ix,&iy,0);/*Need this each time to update the distance calc*/
+	        }
+		d=dnew;
+       		CUR_DIAGRAM=d;
+		load_all_labeled_orbits=lalo;
+       		traverse_out(d,&ix,&iy,0);
+		/*
+		END GO END
+		*/
+		 
+      
+		
+		/*
+		GO HOME
+		*/
+		XORCross(ix,iy);
+		while (1){
+		        if (d->index == mindex){dnew=d;break;}
+        		dnew=d->prev;
+        		if(dnew==NULL){dnew=d;break;}
+        		/*bifd = dnew;*/
+        		d=dnew;
+		}
+		d=dnew;
+		CUR_DIAGRAM=d;
+		DONT_XORCross = 0;
+		traverse_out(d,&ix,&iy,1);
+                /*
+		END GO HOME
+		*/
+		
+	}
+    }
+    else {
+        clear_msg();
+	char symb[3],nsymb[3];
+        
+	int found=0;
+
+      switch(kp){
+      case RIGHT:
+	dnew=d->next;
+	if(dnew==NULL)dnew=bifd;
+	XORCross(ix,iy);
+	d=dnew;
+	CUR_DIAGRAM=dnew;
+	traverse_out(d,&ix,&iy,1);
+	break;
+	
+      case LEFT:
+	dnew=d->prev;
+	if(dnew==NULL)dnew=bifd;
+	XORCross(ix,iy);
+	d=dnew;
+	CUR_DIAGRAM=dnew;
+	traverse_out(d,&ix,&iy,1);
+	break;
+      case UP:
+       if (!query_special("Next...",nsymb)){break;}
+       XORCross(ix,iy);
+       found=0;
+       dold=d;
+       while(1){
+         dnew=d->next;
+	 if(dnew==NULL){dnew=d;break;} 
+	 get_bif_sym(symb,dnew->itp);
+	 if(strcmp(symb,nsymb)==0){d=dnew;found=1;break;} 
+         d=dnew;
+         /*if(d->lab==0)break;*/
+       }
+       if (found)
+       {
+         d=dnew;
+       }
+       else
+       {
+         snprintf(Auto.hinttxt,255,"  Higher %s not found",nsymb);
+	 xpp_ui.auto_show_hint();
+	 d=dold;
+       }
+       CUR_DIAGRAM=d;
+       traverse_out(d,&ix,&iy,1);
+       break;
+      case DOWN:
+       if (!query_special("Previous...",nsymb)){break;}
+       XORCross(ix,iy);
+       found=0;
+       dold=d;
+       while(1){
+         dnew=d->prev;
+	 if(dnew==NULL){dnew=d;break;} 
+	 get_bif_sym(symb,dnew->itp);
+	 if(strcmp(symb,nsymb)==0){d=dnew;found=1;break;} 
+         d=dnew;
+       }
+       if (found)
+       {
+         d=dnew;
+       }
+       else
+       {
+         snprintf(Auto.hinttxt,255,"  Lower %s not found",nsymb);
+	 xpp_ui.auto_show_hint();
+	 d=dold;
+       }
+       CUR_DIAGRAM=d;
+       traverse_out(d,&ix,&iy,1);
+       break; 
+      case TAB:
+       XORCross(ix,iy);
+       while(1){
+         dnew=d->next;
+         if(dnew==NULL){dnew=bifd;break;} /*TAB wraps*/
+         d=dnew;
+         if(d->lab!=0)break;
+       }
+       d=dnew;
+       CUR_DIAGRAM=d;
+       traverse_out(d,&ix,&iy,1);
+       break;
+	/* New code */
+      case 's': /* mark the start of a branch */
+	if(mark_flag==0) {
+	  MarkAuto(ix,iy);
+	  mark_ibrs=d->ibr;
+	  mark_ipts=d->ntot;
+	  mark_flag=1;
+	  mark_ixs=ix;
+	  mark_iys=iy;
+
+	}
+	break;
+      case 'e': /* mark end of branch */
+	if(mark_flag==1){
+	  MarkAuto(ix,iy);
+	  mark_ibre=d->ibr;
+	  mark_ipte=d->ntot;
+	  mark_flag=2;
+	  mark_ixe=ix;
+	  mark_iye=iy;
+
+	}
+	break;
+       case END:/*All the way to end*/
+       XORCross(ix,iy);
+       while (1){
+               dnew=d->next;
+               if(dnew==NULL){dnew=d;break;}
+               /*bifd = dnew;*/
+               d=dnew;
+       }
+       d=dnew;
+       CUR_DIAGRAM=d;
+       traverse_out(d,&ix,&iy,1);
+       break;
+       case HOME:/*All the way to beginning*/
+       XORCross(ix,iy);
+       while (1){
+               dnew=d->prev;
+               if(dnew==NULL){dnew=d;break;}
+               /*bifd = dnew;*/
+               d=dnew;
+       }
+       d=dnew;
+       CUR_DIAGRAM=d;
+       traverse_out(d,&ix,&iy,1);
+       break;
+       case PGUP: /*Same as TAB except we don't wrap*/
+       XORCross(ix,iy);
+       while(1){
+         dnew=d->next;
+         if(dnew==NULL){dnew=d;break;}
+         d=dnew;
+         if(d->lab!=0)break;
+       }
+       d=dnew;
+       CUR_DIAGRAM=d;
+       traverse_out(d,&ix,&iy,1);
+       break;
+       case PGDN: /*REVERSE TAB*/
+       XORCross(ix,iy);
+       while(1){
+         dnew=d->prev;
+         if(dnew==NULL){dnew=d;break;}
+         d=dnew;
+         if(d->lab!=0)break;
+       }
+       d=dnew;
+       CUR_DIAGRAM=d;
+       traverse_out(d,&ix,&iy,1);
+       break;
+      
+      case FINE:
+	done=1;
+	XORCross(ix,iy);
+	/*Cross should be erased now that we have made our selection.*/
+	/*Seems XORing it with new draw can tend to bring it back randomly
+	depending on the order of window expose events.  Best not
+	to do the XORCross function at all.*/
+	DONT_XORCross = 1;
+	redraw_diagram();
+	RedrawMark();
+	break;
+      case ESC:
+	done=-1;
+	break;
+      }
+    }
+    
+  }
+  /*XORCross(ix,iy);
+*/
+  /* check mark_flag branch similarity */
+  if(mark_flag==2){
+    if(mark_ibrs!=mark_ibre)
+      mark_flag=0;
+  }
+  if(done==1){
+    grabpt.ibr=d->ibr;
+    grabpt.lab=d->lab;
+    for(i=0;i<8;i++)
+    grabpt.par[i]=d->par[i];
+    grabpt.icp1=d->icp1;
+    grabpt.icp2=d->icp2;
+    grabpt.per=d->per;
+    grabpt.torper=d->torper;
+    for(i=0;i<NODE;i++){
+      grabpt.uhi[i]=d->uhi[i];
+      grabpt.ulo[i]=d->ulo[i];
+      grabpt.u0[i]=d->u0[i];
+      grabpt.ubar[i]=d->ubar[i];
+      set_ivar(i+1,grabpt.u0[i]);
+    }
+    get_ic(0,grabpt.u0);
+    grabpt.flag=1;
+    grabpt.itp=d->itp;
+    grabpt.ntot=d->ntot;
+    grabpt.nfpar=d->nfpar;
+    grabpt.index=d->index;
+    for(i=0;i<NAutoPar;i++)
+      constants[Auto_index_to_array[i]]=grabpt.par[i];
+  }
+  evaluate_derived();
+  redo_all_fun_tables();
+  redraw_params();
+  redraw_ics();
+}
+
+void RedrawMark()
+{
+  if(mark_flag==2){
+    MarkAuto(mark_ixs,mark_iys);
+    MarkAuto(mark_ixe,mark_iye);
+  }
+}
+
+void MarkAuto(x,y)
+     int x,y;
+{
+
+  LineWidth(2);
+  ALINE(x-8,y-8,x+8,y+8);
+  ALINE(x+8,y-8,x-8,y+8);
+  LineWidth(1);
+
+
+
+}
+
+void clear_msg()
+{
+  Auto.hinttxt[0]='\0';
+  xpp_ui.auto_show_hint();
+}
+
+void auto_update_view(float xlo,float xhi, float ylo, float yhi)
+{
+              Auto.xmin=xlo;
+	      Auto.ymin=ylo;
+	      Auto.xmax=xhi;
+	      Auto.ymax=yhi;
+	      redraw_diagram();
+
+}
+
+/* the pointer moved to pixel (i,j) of the diagram: show its coordinates */
+void auto_motion_xy(int i,int j)
+{
+  double x,y;
+    x=Auto.xmin+(double)(i-Auto.x0)*(Auto.xmax-Auto.xmin)/(double)Auto.wid;
+    y=Auto.ymin+(double)(Auto.y0-j+Auto.hgt)*(Auto.ymax-Auto.ymin)/(double)Auto.hgt;
+    sprintf(Auto.hinttxt,"x=%g,y=%g",x,y);
+    storeautopoint(x,y);
+    xpp_ui.auto_show_hint();
+}

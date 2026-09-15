@@ -23,11 +23,14 @@ Run the GUI (WSLg shows the X11 window on the Windows desktop):
 
 GUI regression check (builds HEAD, drives both GUIs with the same keys via
 XSendEvent, compares screenshots; run it for any change that touches menus,
-dispatch or X11 files):
+dispatch or X11 files). It takes ~10 minutes: run it once per finished batch
+of work, not per edit. It uses a private Xvfb display (installed) so it does
+not steal focus; `NEW=/abs/path/xppaut` compares a frozen copy so you can keep
+building while it runs:
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/guicheck.sh"
 
-Metrics: `make x11free` (sources compiling without X11 headers, 88/112) and
+Metrics: `make x11free` (sources compiling without X11 headers, 92/114) and
 `tools/coredeps.sh -v` (symbols core objects import from X11 objects, 0).
 Clean-build warning baseline with gcc 13 is ~520; verify.sh's count is for
 the incremental build only.
@@ -60,8 +63,14 @@ The Windows-side gcc at C:\Strawberry\c\bin is Perl's MinGW without X11 headers 
   Command logic is all core (phase 3 step 2); `XppUi` only holds
   interaction primitives, window management and a few whole dialogs.
 - `tools/guicheck.sh` also compares files the session writes (clone,
-  save as, kinescope frames). `tools/xdrive.c` script commands: key, sleep,
-  shot, shotw (dialog by title), clickw, names (list window titles).
+  save as, kinescope frames, browser tables, array plot PS/GIF) and fails
+  when a `shotw` dialog never appeared. `tools/xdrive.c` script commands:
+  key, keyw (key to a window by title), sleep, shot, shotw (dialog by
+  title; `a|b` alternatives), clickw, names (list window titles). Without a
+  window manager a pending prompt swallows the next key: add `key Escape`
+  before a new section. `tools/gui_test.ani` is the animation it loads.
+- Window code split off core files keeps a `*win.c` name (`aniwin.c`,
+  `aplotwin.c`); the upstream file keeps the logic and becomes core.
 - The Makefile's `UI_SOURCES` list is the X11 set; everything else goes
   into `libxppcore.a`. `core/xpp_batch.c` is the headless entry point.
 
