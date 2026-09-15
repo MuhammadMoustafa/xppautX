@@ -16,6 +16,16 @@ jobs:
         run: tools/verify.sh
       - name: Coupling metric
         run: tools/coredeps.sh -v && test "$(tools/coredeps.sh | grep -oE 'imports: [0-9]+' | grep -oE '[0-9]+')" -eq 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Web front end screenshots (every step must run; HEAD against the build)
+        run: node tools/webshots.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: webshots
+          path: build/webshots/
 
   macos:
     runs-on: macos-latest

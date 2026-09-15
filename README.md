@@ -22,8 +22,9 @@ same program with the browser front end compiled in:
 It needs nothing else (no X server, no Node), builds natively on Windows,
 and does what the X11 program does ([docs/front-end-gaps.md](docs/front-end-gaps.md)).
 The X11 program still builds and behaves as before; it is frozen (no new
-features) and kept as the reference until the web front end has its own
-screenshot regression test.
+features). The web front end has its own screenshot regression test
+(`tools/webshots.mjs`), so the X11 program is no longer needed as the
+reference.
 
 ## Plan
 
@@ -92,6 +93,16 @@ them after a build and checks the output checksums):
 | `tools/coredeps.sh` | symbols those objects import from X11 objects | 0 |
 | `tools/servercheck.py` | protocol session against `xppcore-server` (menus, prompts, integration, equilibria, windows, browser, animation, kinescope, array plot, scrolling) | 34 checks |
 | `tools/webcheck.py` | `xppaut-web` over HTTP: page, token, event stream, commands, exit | 11 checks |
+
+`node tools/webshots.mjs [--ref REF]` guards the web front end the same
+way: it builds `xppaut-web` from `REF` (default `HEAD`), plays
+`tools/web_steps.txt` (real key presses, clicks and drags: menus, prompts,
+side panel, data browser, text views, scrolling, windows, animation,
+kinescope, array plot, AUTO, 3D, file selector, calculator, errors, a
+narrow panel) against both binaries in a headless Chrome or Edge, and
+compares 65 screenshots and the files the session writes; `report.html` in
+`build/webshots/` shows them side by side. It needs Node 22+ and a Chrome,
+Chromium or Edge, nothing else, and takes about four minutes.
 
 `tools/guicheck.sh [REF]` guards the X11 program itself: it builds `REF`
 (default `HEAD`), drives both GUIs through the keys in `tools/gui_keys.txt`

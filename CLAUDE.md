@@ -30,6 +30,17 @@ building while it runs:
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/guicheck.sh"
 
+Web front end regression check (the counterpart of guicheck for
+`xppaut-web`; run it for changes to `web/`, ui_json.c or xpp_http.c, once
+per batch). From Git Bash on Windows, where Node and Chrome are (not WSL):
+
+    PATH=/c/Strawberry/c/bin:$PATH node tools/webshots.mjs
+
+It builds `xppaut-web` from HEAD into build/webshots/src, compares it with
+./xppaut-web.exe (`--new`), `--base BIN` skips the build. Steps are in
+tools/web_steps.txt; CSS selectors in steps must not contain spaces (use
+`>`). `const client` of the page is what steps and settling look at.
+
 Metrics: `make x11free` (sources compiling without X11 headers, 92/114) and
 `tools/coredeps.sh -v` (symbols core objects import from X11 objects, 0).
 Clean-build warning baseline with gcc 13 is ~520; verify.sh's count is for

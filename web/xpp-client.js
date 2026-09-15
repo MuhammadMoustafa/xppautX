@@ -303,8 +303,9 @@
 
     /* text the program printed (what xppaut writes to its terminal) */
     log(text, scan = true) {
-      const lines = String(text).replace(/\r/g, '').split('\n');
-      if (lines[lines.length - 1] === '') lines.pop();
+      /* output arrives in pieces: a line counts once its newline has come */
+      const lines = ((this.logPartial || '') + String(text).replace(/\r/g, '')).split('\n');
+      this.logPartial = lines.pop();
       for (const line of lines) {
         this.logText.textContent += line + '\n';
         this.logLines++;
@@ -327,6 +328,7 @@
 
     /* the server process ended */
     exited(code) {
+      if (this.logPartial) this.log('\n');
       /* the summary below already shows what was printed */
       clearTimeout(this.errorTimer);
       this.recentErrors = [];
@@ -870,7 +872,7 @@
         this.recentErrors = [];
         this.lastError = ev.error.trim();
         this.showError(ev.error);
-        this.log('error: ' + ev.error, false);
+        this.log('error: ' + ev.error + '\n', false);
       } else if (ev.box !== undefined) {
         this.boxHint = ev.box;
         this.hint.textContent = ev.box;
@@ -1205,7 +1207,8 @@
         const h = this.root.classList.contains('xpp-narrow') ? Math.round(w * 1.2)
           : Math.floor(frame.clientHeight - bar.offsetHeight - buttons.offsetHeight
             - this.aniSlider.offsetHeight - this.aniInfo.offsetHeight - 24);
-        if (w < 80 || h < 80 || (Math.abs(w - s.canvas.width) < 4 && Math.abs(h - s.canvas.height) < 5)) return;
+        /* the server rounds to 4 and 5 pixels and the frame follows the picture: small changes would loop */
+        if (w < 80 || h < 80 || (Math.abs(w - s.canvas.width) < 10 && Math.abs(h - s.canvas.height) < 10)) return;
         clearTimeout(this.aniSizeTimer);
         this.aniSizeTimer = setTimeout(() => this.send({cmd: 'size', win: 104, w, h}), 150);
       };

@@ -29,3 +29,5 @@
 /build/idx/
 /build/win/
 /build/*.mk
+/build/webshots/
+/build/webshots.log

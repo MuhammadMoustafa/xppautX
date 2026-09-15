@@ -148,6 +148,7 @@
 .xpp-dialogs {
   position: fixed;
   inset: 0;
+  z-index: 10; /* above sticky table headers */
   pointer-events: none;
   display: flex;
   align-items: flex-start;

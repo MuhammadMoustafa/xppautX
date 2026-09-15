@@ -1,0 +1,243 @@
+# The session tools/webshots.mjs plays in the browser: lecar.ode started
+# with -anifile gui_test.ani, 1280x860. One step per line:
+#   key K...              key presses (xppaut names: Escape, Enter, ArrowUp...)
+#   click TARGET          a button, tab or list item by its text, or css=SELECTOR (no spaces)
+#   clickat TARGET X Y    a click at X,Y inside the element
+#   drag TARGET X1 Y1 X2 Y2
+#   type TEXT             into the focused field (a new dialog focuses and selects its first)
+#   set css=SELECTOR VALUE  a field's value, as if typed and left
+#   shot NAME [TARGET]    a screenshot of the page or of one element
+#   size W H | wait MS | eval JS
+# Every step waits until the client is idle or waiting in a prompt.
+
+shot 000-start
+click Plot
+shot 001-plot
+
+# ---- Initialconds ----
+key i
+shot 010-menu-integrate css=.xpp-dialog
+key g
+shot 011-integrated
+click From end
+shot 012-from-end
+click css=.xpp-side .xpp-values-list input
+set css=.xpp-value>.xpp-value-input 0.2
+click Integrate
+shot 013-new-ic
+click Default
+click Integrate
+shot 014-default-ics
+
+# ---- menus and prompts ----
+key n
+shot 020-menu-nullclines css=.xpp-dialog
+key n
+shot 021-nullclines
+key d
+shot 022-menu-dirfield css=.xpp-dialog
+key d
+shot 023-dirfield-prompt css=.xpp-dialog
+key Enter
+shot 024-dirfield
+key e
+shot 025-erased
+key w
+shot 026-menu-window css=.xpp-dialog
+key w
+shot 027-window-form css=.xpp-dialog
+key Escape
+key v
+shot 028-menu-view css=.xpp-dialog
+key 2
+shot 029-view-2d-form css=.xpp-dialog
+key Escape
+key u
+shot 030-menu-numerics
+key Escape
+key f
+shot 031-menu-file
+key Escape
+
+# ---- equilibria ----
+key s
+shot 040-menu-sing css=.xpp-dialog
+key g
+shot 041-eigen-question css=.xpp-dialog
+click NO
+shot 042-strong-sets css=.xpp-dialog
+click NO
+shot 043-equilibrium css=.xpp-eq
+click Import
+shot 044-imported css=.xpp-side
+click css=.xpp-eq .xpp-close
+
+# ---- side panel ----
+click Sliders
+set css=.xpp-slider-name iapp
+set css=.xpp-slider-lim 0
+set css=.xpp-slider-limits>input:last-child 0.2
+shot 050-slider css=.xpp-sliders
+click css=.xpp-value-check
+click x vs t
+shot 051-x-vs-t
+click Phase
+shot 052-phase-hint css=.xpp-status
+key Escape
+set css=.xpp-value>.xpp-value-input %0.1*2
+shot 053-formula css=.xpp-side
+click Default
+click Boundary conditions
+shot 054-bcs css=.xpp-side
+
+# ---- data browser ----
+key i
+key g
+click Data
+shot 060-data
+clickat css=.xpp-data-space 300 70
+shot 061-data-selected css=.xpp-data-info
+click Find
+shot 062-find-form css=.xpp-dialog
+type T
+key Tab
+type 20
+key Enter
+shot 063-found
+click Get
+shot 064-get css=.xpp-side
+click Plot
+
+# ---- text views ----
+click Equations
+shot 070-equations
+key f
+key p
+shot 071-source
+click css=.xpp-action
+shot 072-action css=.xpp-side
+click Plot
+
+# ---- window/zoom scroll and a second window ----
+key w
+key s
+drag css=.xpp-main-plot>canvas 300 300 380 260
+key Escape
+shot 080-scrolled
+key w
+key d
+key m
+key c
+shot 081-window-2
+click Plot
+key m
+key k
+shot 082-kill-confirm css=.xpp-dialog
+key y
+shot 083-killed
+
+# ---- animation ----
+click Animation
+shot 090-animation
+click ▶
+click ▶
+shot 091-step
+click Go
+shot 092-played
+click Reset
+shot 093-reset
+click Skip
+shot 094-skip-prompt css=.xpp-dialog
+key Escape
+click Plot
+
+# ---- kinescope ----
+key k
+key c
+key e
+key i
+key l
+key k
+key c
+key k
+key p
+shot 100-kinescope
+key ArrowRight
+click ▶
+shot 101-kinescope-next
+click Plot
+
+# ---- array plot ----
+click css=.xpp-value-check
+eval document.querySelectorAll('.xpp-value-check')[1].checked = true
+click Array
+shot 110-array
+click Fit
+shot 111-array-fit
+click Close
+click Plot
+
+# ---- AUTO: from the rest state of the default parameters ----
+eval client.command({cmd: 'default', kind: 'par'})
+key i
+key g
+key i
+key l
+key i
+key l
+key f
+key a
+shot 120-auto
+click Run
+shot 121-auto-run-menu css=.xpp-dialog
+click Steady state
+shot 122-auto-steady
+click Grab
+key ArrowRight
+key ArrowRight
+shot 123-auto-grab
+key Escape
+click Axes
+shot 124-auto-axes css=.xpp-dialog
+key Escape
+click Close
+shot 125-auto-closed
+
+# ---- 3D ----
+click Plot
+key v
+key 3
+shot 130-3d-form css=.xpp-dialog
+key Enter
+shot 131-3d
+drag css=.xpp-main-plot>canvas 300 300 360 330
+shot 132-3d-turned
+
+# ---- file selector and calculator ----
+key f
+key s
+shot 140-file-selector css=.xpp-dialog
+key Escape
+key f
+key c
+shot 141-calc css=.xpp-dialog
+type 2*pi
+key Enter
+shot 142-calc-answer css=.xpp-dialog
+key Escape
+
+# ---- errors ----
+click Plot
+set css=.xpp-value>.xpp-value-input 5000
+click Integrate
+shot 150-error
+
+# ---- narrow panel, as in a VS Code side panel ----
+size 600 900
+shot 160-narrow
+size 1280 860
+
+# ---- quit ----
+key f
+key q
+shot 170-quit css=.xpp-dialog
