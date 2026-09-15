@@ -80,7 +80,12 @@ static void hl_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
     for (i = 0; i < n; i++)
         plintf("  y[%d]=%.8g  eig=%.8g%+.8gi\n", i, y[i], ev[2 * i], ev[2 * i + 1]);
 }
-static int hl_save_as(void) { return 0; }
+static int hl_edit_box(int n, char *title, char **names, char **values)
+{
+    (void)n; (void)title; (void)names; (void)values;
+    return 0;
+}
+static void hl_param_box_set(int i, char *s) { (void)i; (void)s; }
 static void hl_respond_box(char *button, char *message) { (void)button; plintf("%s\n", message); }
 static int hl_checklist(char *title, char **names, int *flags, int n)
 {
@@ -105,6 +110,7 @@ XppUi xpp_ui = {
     .checklist = hl_checklist,
     .string_box = hl_string_box,
     .file_selector = hl_file_selector,
+    .edit_box = hl_edit_box,
     .get_mouse_xy = hl_get_mouse_xy,
     .edit_ics = hl_void,
     .menu_flash = hl_int,
@@ -115,6 +121,8 @@ XppUi xpp_ui = {
     .progress = hl_progress,
     .flush = hl_void,
     .redraw_params = hl_void,
+    .param_box_set = hl_param_box_set,
+    .param_box_redraw = hl_int,
     .redraw_ics = hl_void,
     .redraw_all = hl_void,
     .redraw_bcs = hl_void,
@@ -182,7 +190,6 @@ XppUi xpp_ui = {
     .init_txtview = hl_void,
     .add_user_button = hl_str,
     .show_eq_box = hl_show_eq_box,
-    .new_parameter = hl_void,
     .redraw_menu = hl_void,
     .rubber_band = hl_auto_rubber,
     .scroll_window = hl_void,
@@ -190,12 +197,8 @@ XppUi xpp_ui = {
     .aplot_make = hl_str,
     .aplot_edit = hl_void,
     .new_vcr = hl_void,
-    .clone_ode = hl_void,
     .make_txtview = hl_void,
     .q_calc = hl_void,
-    .edit_rhs = hl_void,
-    .edit_functions = hl_void,
-    .save_as = hl_save_as,
     .exit_program = hl_exit_program,
 };
 
@@ -237,6 +240,10 @@ int do_string_box(int n, int row, int col, char *title, char **names,
 int file_selector(char *title, char *file, char *wild)
 {
     return xpp_ui.file_selector(title, file, wild);
+}
+int do_edit_box(int n, char *title, char **names, char **values)
+{
+    return xpp_ui.edit_box(n, title, names, values);
 }
 int GetMouseXY(int *x, int *y) { return xpp_ui.get_mouse_xy(x, y); }
 void man_ic(void) { xpp_ui.edit_ics(); }
@@ -306,7 +313,6 @@ void create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
     xpp_ui.show_eq_box(cp, cm, rp, rm, im, y, ev, n);
 }
 void bye_bye(void) { xpp_ui.exit_program(); }
-void new_parameter(void) { xpp_ui.new_parameter(); }
 void draw_help(void) { xpp_ui.redraw_menu(); }
 int rubber_band(int *i1, int *j1, int *i2, int *j2, int flag)
 {
@@ -318,12 +324,8 @@ void make_my_aplot(char *name) { xpp_ui.aplot_make(name); }
 void edit_aplot(void) { xpp_ui.aplot_edit(); }
 void new_vcr(void) { xpp_ui.new_vcr(); }
 void redraw_the_graph(void) { xpp_ui.redraw_graph(); }
-void clone_ode(void) { xpp_ui.clone_ode(); }
 void make_txtview(void) { xpp_ui.make_txtview(); }
 void q_calc(void) { xpp_ui.q_calc(); }
-void edit_rhs(void) { xpp_ui.edit_rhs(); }
-void edit_functions(void) { xpp_ui.edit_functions(); }
-int save_as(void) { return xpp_ui.save_as(); }
 
 /* plintf, new_int and new_float were in ggets.c; they never touched X. */
 

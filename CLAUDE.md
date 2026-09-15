@@ -27,7 +27,7 @@ dispatch or X11 files):
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/guicheck.sh"
 
-Metrics: `make x11free` (sources compiling without X11 headers, 87/112) and
+Metrics: `make x11free` (sources compiling without X11 headers, 88/112) and
 `tools/coredeps.sh -v` (symbols core objects import from X11 objects, 0).
 Clean-build warning baseline with gcc 13 is ~520; verify.sh's count is for
 the incremental build only.
@@ -57,8 +57,11 @@ The Windows-side gcc at C:\Strawberry\c\bin is Perl's MinGW without X11 headers 
   `XppMenu` data in `core/menus.c`; front ends show them via
   `xpp_ui.menu_choose` and switch the main menu via `xpp_ui.show_menu`.
   A menu's layout numbers (width, row) are the X11 `pop_up_list` arguments.
-  The "commands" group at the end of `XppUi` lists handlers still living in
-  X11 files; moving them into core shrinks that group.
+  Command logic is all core (phase 3 step 2); `XppUi` only holds
+  interaction primitives, window management and a few whole dialogs.
+- `tools/guicheck.sh` also compares files the session writes (clone,
+  save as, kinescope frames). `tools/xdrive.c` script commands: key, sleep,
+  shot, shotw (dialog by title), clickw, names (list window titles).
 - The Makefile's `UI_SOURCES` list is the X11 set; everything else goes
   into `libxppcore.a`. `core/xpp_batch.c` is the headless entry point.
 

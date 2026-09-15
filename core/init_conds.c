@@ -274,77 +274,6 @@ void c_hints()
 
 }
 /* CLONE */
-void x11_clone_ode()
-{
-  int i,j,x,y;
-  FILE *fp;
-  char clone[256];
-  
-  char *s;
-  time_t ttt;
-  double z;
-  clone[0]=0;
-  if(!file_selector("Clone ODE file",clone,"*.ode"))return;
-  if((fp=fopen(clone,"w"))==NULL){
-      err_msg(" Cant open clone file");
-      return;
-    }
-  ttt=time(0);
-  fprintf(fp,"# clone of %s on %s",this_file,ctime(&ttt));
-  for(i=0;i<NLINES;i++){
-    s=save_eqn[i];
-    
-    if(s[0]=='p'||s[0]=='P'||s[0]=='b'||s[0]=='B'){
-      x=find_char(s,"'",0,&j);
-      y=find_char(s,"=",0,&j);
-
-      if(x!=0||y!=0){
-	fprintf(fp,"# original\n# %s\n",s);
-	continue;
-      }
-    }
-    if(strncasecmp("done",s,4)==0)continue;
-    fprintf(fp,"%s\n",s);
-  }
-  fprintf(fp,"# Cloned parameters etc here\n");
-  /* now we do parameters boundary conds and ICs */
-  j=0;
-  fprintf(fp,"init ");
-  for(i=0;i<(NODE+NMarkov);i++){
-    if(j==8){
-      fprintf(fp,"\ninit ");
-      j=0;
-    }
-    
-    fprintf(fp,"%s=%g ",uvar_names[i],last_ic[i]);
-    j++;
-  }
-  fprintf(fp,"\n");
-
-  /* BDRY conds */
-  if(my_bc[0].string[0]!='0'){
-    for(i=0;i<NODE;i++)
-      fprintf(fp,"bdry %s\n",my_bc[i].string);
-  }
-  j=0;
-  if(NUPAR>0){
-    
-    fprintf(fp,"par ");
-    for(i=0;i<NUPAR;i++){
-      if(j==8){
-	fprintf(fp,"\npar ");
-      j=0;
-    }
-      get_val(upar_names[i],&z); 
-      fprintf(fp,"%s=%g ",upar_names[i],z);
-    j++;
-    }
-  }
-    fprintf(fp,"\n");
-  fprintf(fp,"done \n");
-  fclose(fp);
-}
-    
 
     
 void create_par_sliders(base,x0,h0)
@@ -2385,51 +2314,6 @@ void x11_man_ic()
   }
 }
 
-void x11_new_parameter()
-{
-  int done,index;
-  double z;
-  char name[256],value[256],junk[256];
-  while(1){
-    name[0]=0;
-    done=new_string("Parameter:",name);
-    if(strlen(name)==0||done==0){redo_stuff(); return;}
-    if(strncasecmp(name,"DEFAULT",7  )==0){
-      set_default_params();
-      continue;
-    }
-
-    if(strncasecmp(name,"!LOAD", 5 )==0){
-      io_parameter_file(name,READEM);
-      continue;
-    }
-    if(strncasecmp(name,"!SAVE", 5 )==0){
-      io_parameter_file(name,WRITEM);
-      continue;
-    }
-    
-    else {
-      index=find_user_name(PARAMBOX,name);
-      if(index>=0){
-	get_val(upar_names[index],&z);
-	sprintf(value,"%s :",name);
-	done=new_float(value,&z);
-	if(done==0){
-	  set_val(upar_names[index],z);
-	  sprintf(junk,"%.16g",z);
-	  set_edit_params(&ParamBox,index,junk);
-	  draw_one_box(ParamBox,index);
-	  reset_sliders();
-	}
-        if(done==-1){
-         redo_stuff();
-	  return;
-	}
-      }
-    }
-  }
-}
-
 
 
 void   set_default_ics()
@@ -2442,22 +2326,6 @@ void   set_default_ics()
 
   
 
-void   set_default_params()
- {
-
- int i;
- char junk[256];
- for(i=0;i<NUPAR;i++){
-   set_val(upar_names[i],default_val[i]);
-   sprintf(junk,"%.16g",default_val[i]);
-   set_edit_params(&ParamBox,i,junk);
- }
- 
- redraw_params();
- re_evaluate_kernels();
- redo_all_fun_tables(); 
- }
-	
 
 		
 			

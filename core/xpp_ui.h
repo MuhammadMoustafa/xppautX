@@ -44,6 +44,9 @@ typedef struct XppUi {
     int (*string_box)(int n, int row, int col, char *title, char **names,
                       char values[][25], int maxchar);
     int (*file_selector)(char *title, char *file, char *wild);
+    /* like string_box but for n long strings (MAX_LEN_EBOX); returns 0 on
+       cancel */
+    int (*edit_box)(int n, char *title, char **names, char **values);
     int (*get_mouse_xy)(int *x, int *y);
     void (*edit_ics)(void); /* walk the user through every initial condition */
 
@@ -64,6 +67,9 @@ typedef struct XppUi {
 
     /* things changed, please redraw */
     void (*redraw_params)(void);
+    /* parameter i now has text value s; redraw that one entry */
+    void (*param_box_set)(int i, char *s);
+    void (*param_box_redraw)(int i);
     void (*redraw_ics)(void);
     void (*redraw_all)(void);
     void (*redraw_bcs)(void);
@@ -165,16 +171,11 @@ typedef struct XppUi {
     void (*show_eq_box)(int cp, int cm, int rp, int rm, int im, double *y,
                         double *ev, int n);
 
-    /* Commands whose implementation still lives in the X11 front end.
-       run_the_commands() reaches them through here; later phase 3 steps move
-       their logic into core. Headless: they do nothing. */
-    void (*new_parameter)(void);
-    void (*clone_ode)(void);
-    void (*make_txtview)(void);
-    void (*q_calc)(void);
-    void (*edit_rhs)(void);
-    void (*edit_functions)(void);
-    int (*save_as)(void);
+    /* Whole dialogs a front end provides; the core has no logic in them
+       beyond what they call back (do_calc, the ODE source in save_eqn).
+       Headless: they do nothing. */
+    void (*make_txtview)(void); /* File/Prt src: source and active comments */
+    void (*q_calc)(void);       /* File/Calculator: evaluate formulas */
 
     /* program is quitting */
     void (*exit_program)(void);
@@ -204,6 +205,7 @@ void respond_box(char *button, char *message);
 int do_string_box(int n, int row, int col, char *title, char **names,
                   char values[][25], int maxchar);
 int file_selector(char *title, char *file, char *wild);
+int do_edit_box(int n, char *title, char **names, char **values);
 int GetMouseXY(int *x, int *y);
 void man_ic(void);
 void flash(int num);
@@ -263,7 +265,6 @@ void add_user_button(char *s);
 void create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                    double *ev, int n);
 void bye_bye(void);
-void new_parameter(void);
 void draw_help(void);
 int rubber_band(int *i1, int *j1, int *i2, int *j2, int flag);
 void scroll_window(void);
@@ -272,11 +273,7 @@ void make_my_aplot(char *name);
 void edit_aplot(void);
 void new_vcr(void);
 void redraw_the_graph(void);
-void clone_ode(void);
 void make_txtview(void);
 void q_calc(void);
-void edit_rhs(void);
-void edit_functions(void);
-int save_as(void);
 
 #endif

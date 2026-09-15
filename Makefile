@@ -27,7 +27,7 @@ BUILDDIR = build/obj
 
 # Sources that need X11 (the front end). Everything else is libxppcore.
 UI_SOURCES := $(addprefix $(SRCDIR)/, abort.c aniparse.c arrayplot.c auto_x11.c \
-  browse.c calc.c choice_box.c color.c dialog_box.c edit_rhs.c eig_list.c \
+  browse.c calc.c choice_box.c color.c dialog_box.c eig_list.c \
   ggets.c graphics_x11.c init_conds.c kinescope.c main.c many_pops.c \
   menu.c menudrive.c pop_list.c rubber.c scrngif.c txtread.c ui_x11.c \
   userbut.c xppaut_main.c)

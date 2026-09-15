@@ -46,6 +46,7 @@ void reset_ebox(EDIT_BOX *sb, int *pos, int *col);
 #endif /* Xlib.h */
 int do_edit_box(int n, char *title, char **names, char **values);
 #if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
+int x11_do_edit_box(int n, char *title, char **names, char **values);
 void expose_ebox(EDIT_BOX *sb, Window w, int pos, int col);
 void ereset_hot(int inew, EDIT_BOX *sb);
 void enew_editable(EDIT_BOX *sb, int inew, int *pos, int *col, int *done, Window *w);

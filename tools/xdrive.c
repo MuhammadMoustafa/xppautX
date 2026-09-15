@@ -4,6 +4,7 @@
    script lines:  key <keysym>  |  sleep <ms>  |  shot <name>  (-> OUTDIR/name.ppm)
                   shotw <title> <name>  screenshot of the top-level window whose
                   title contains <title> (dialogs), or a note that none exists
+                  names  print the titles of all windows (to find a dialog's title)
                   clickw <title> <x> <y>  press and release button 1 at x,y inside
                   that window (sent to the deepest child there)
    Keys go to the main window with XSendEvent; xppaut reads KeyPress from any
@@ -69,6 +70,20 @@ static void shot(Display *d, Window w, const char *file)
   XDestroyImage(img);
 }
 
+static void list_names(Display *d, Window w)
+{
+  Window root, parent, *kids = NULL;
+  unsigned int n, i;
+  char *wn = NULL;
+  if (XFetchName(d, w, &wn) && wn) {
+    fprintf(stderr, "window 0x%lx: %s\n", w, wn);
+    XFree(wn);
+  }
+  if (!XQueryTree(d, w, &root, &parent, &kids, &n)) return;
+  for (i = 0; i < n; i++) list_names(d, kids[i]);
+  if (kids) XFree(kids);
+}
+
 static void click(Display *d, Window top, int x, int y)
 {
   Window w = top, child;
@@ -113,6 +128,7 @@ int main(int argc, char **argv)
     if (sscanf(line, "%31s %199s %199s %199s", cmd, arg, arg2, arg3) < 1) continue;
     if (!strcmp(cmd, "key")) send_key(d, w, arg);
     else if (!strcmp(cmd, "sleep")) usleep(atoi(arg) * 1000);
+    else if (!strcmp(cmd, "names")) list_names(d, DefaultRootWindow(d));
     else if (!strcmp(cmd, "clickw")) {
       Window dw = find_win(d, DefaultRootWindow(d), arg);
       if (dw) click(d, dw, atoi(arg2), atoi(arg3));

@@ -33,6 +33,14 @@ int x11_new_string(char *name, char *value);
 int x11_yes_no_box(void);
 int x11_TwoChoice(char *c1, char *c2, char *q, char *key, char *title);
 int x11_menu_choose(const XppMenu *m, int def);
+int x11_do_edit_box(int n, char *title, char **names, char **values);
+extern BoxList ParamBox;
+static void x11_param_box_set(int i, char *s) { set_edit_params(&ParamBox, i, s); }
+static void x11_param_box_redraw(int i)
+{
+    draw_one_box(ParamBox, i);
+    reset_sliders();
+}
 void x11_respond_box(char *button, char *message);
 int x11_checklist(char *title, char **names, int *flags, int n);
 void x11_show_menu(int j);
@@ -113,13 +121,8 @@ void x11_add_user_button(char *s);
 void x11_create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                        double *ev, int n);
 void x11_bye_bye(void);
-void x11_new_parameter(void);
-void x11_clone_ode(void);
 void x11_make_txtview(void);
 void x11_q_calc(void);
-void x11_edit_rhs(void);
-void x11_edit_functions(void);
-int x11_save_as(void);
 
 static void x11_data_changed(int length)
 {
@@ -148,6 +151,9 @@ static const XppUi x11_ui = {
     .new_string = x11_new_string,
     .yes_no_box = x11_yes_no_box,
     .two_choice = x11_TwoChoice,
+    .edit_box = x11_do_edit_box,
+    .param_box_set = x11_param_box_set,
+    .param_box_redraw = x11_param_box_redraw,
     .respond_box = x11_respond_box,
     .checklist = x11_checklist,
     .string_box = x11_do_string_box,
@@ -229,7 +235,6 @@ static const XppUi x11_ui = {
     .init_txtview = x11_init_txtview,
     .add_user_button = x11_add_user_button,
     .show_eq_box = x11_create_eq_box,
-    .new_parameter = x11_new_parameter,
     .redraw_menu = x11_draw_help,
     .rubber_band = x11_rubber_band,
     .scroll_window = x11_scroll_window,
@@ -237,12 +242,8 @@ static const XppUi x11_ui = {
     .aplot_make = x11_make_my_aplot,
     .aplot_edit = x11_edit_aplot,
     .new_vcr = x11_new_vcr,
-    .clone_ode = x11_clone_ode,
     .make_txtview = x11_make_txtview,
     .q_calc = x11_q_calc,
-    .edit_rhs = x11_edit_rhs,
-    .edit_functions = x11_edit_functions,
-    .save_as = x11_save_as,
     .exit_program = x11_bye_bye,
 };
 

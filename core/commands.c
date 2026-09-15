@@ -5,6 +5,8 @@
    menu_choose(); see xpp_ui.h. */
 #include "xpp_ui.h"
 #include "xpp_globals.h"
+#include "xpp_util.h"
+#include "edit_rhs.h"
 #include "menus.h"
 #include "menudrive.h"
 #include "tutor.h"
