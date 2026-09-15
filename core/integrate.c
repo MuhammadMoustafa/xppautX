@@ -1,4 +1,6 @@
 #include "xpp_ui.h"
+#include "grobs.h"
+#include "xpp_globals.h"
 #include "integrate.h"
 
 #include "load_eqn.h"
@@ -736,7 +738,7 @@ double *x;
 		   NODE,&ierr,&stabinfo);
       }
       if(eq_range.movie){
-	xpp_ui.draw_label();
+	draw_label(draw_win);
         xpp_ui.put_text(5,10,bob);
 	if(xpp_ui.film_clip()==0)err_msg("Out of film");
       }
@@ -921,7 +923,7 @@ if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
    xpp_ui.put_text(5,10,bob);
    redraw_dfield();
 	create_new_cline();
-   xpp_ui.draw_label();
+   draw_label(draw_win);
    if(xpp_ui.film_clip()==0){err_msg("Out of film");break;}
  }
  refresh_browser(storind);

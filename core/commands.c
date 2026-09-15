@@ -15,6 +15,7 @@
 #include "extra.h"
 #include "graf_par.h"
 #include "graphics.h"
+#include "grobs.h"
 #include "integrate.h"
 #include "load_eqn.h"
 #include "lunch-new.h"

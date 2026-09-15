@@ -69,6 +69,13 @@ void x11_clr_all_scrns(void);
 void x11_clear_draw_window(void);
 void x11_reset_graphics(void);
 void x11_create_a_pop(void);
+void x11_destroy_a_pop(void);
+void x11_kill_all_pops(void);
+void x11_GrCol(void);
+void x11_BaseCol(void);
+void x11_cput_text(void);
+extern Display *display;
+static void x11_lower_plot_window(void) { XLowerWindow(display, draw_win); }
 void x11_get_draw_size(unsigned int *w, unsigned int *h);
 void x11_SmallBase(void);
 void x11_SmallGr(void);
@@ -107,9 +114,6 @@ void x11_create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                        double *ev, int n);
 void x11_bye_bye(void);
 void x11_new_parameter(void);
-void x11_do_windows_com(int c);
-void x11_do_gr_objs_com(int c);
-void x11_edit_object_com(int c);
 void x11_clone_ode(void);
 void x11_make_txtview(void);
 void x11_q_calc(void);
@@ -130,7 +134,6 @@ static void x11_activate_graph(int i, int flag)
     get_draw_area_flag(flag);
 }
 
-static void x11_draw_label(void) { draw_label(draw_win); }
 static void x11_draw_freeze(void) { draw_freeze(draw_win); }
 static void x11_blank_draw_window(void) { blank_screen(draw_win); }
 
@@ -171,8 +174,13 @@ static const XppUi x11_ui = {
     .data_changed = x11_data_changed,
     .activate_graph = x11_activate_graph,
     .create_plot_window = x11_create_a_pop,
+    .destroy_plot_window = x11_destroy_a_pop,
+    .kill_plot_windows = x11_kill_all_pops,
+    .lower_plot_window = x11_lower_plot_window,
+    .gr_col = x11_GrCol,
+    .base_col = x11_BaseCol,
+    .cput_text = x11_cput_text,
     .get_draw_size = x11_get_draw_size,
-    .draw_label = x11_draw_label,
     .draw_freeze = x11_draw_freeze,
     .blank_draw_window = x11_blank_draw_window,
     .put_text = put_text_x11,
@@ -229,9 +237,6 @@ static const XppUi x11_ui = {
     .aplot_make = x11_make_my_aplot,
     .aplot_edit = x11_edit_aplot,
     .new_vcr = x11_new_vcr,
-    .do_windows_com = x11_do_windows_com,
-    .do_gr_objs_com = x11_do_gr_objs_com,
-    .edit_object_com = x11_edit_object_com,
     .clone_ode = x11_clone_ode,
     .make_txtview = x11_make_txtview,
     .q_calc = x11_q_calc,

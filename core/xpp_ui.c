@@ -127,8 +127,13 @@ XppUi xpp_ui = {
     .data_changed = hl_int,
     .activate_graph = hl_activate_graph,
     .create_plot_window = hl_void,
+    .destroy_plot_window = hl_void,
+    .kill_plot_windows = hl_void,
+    .lower_plot_window = hl_void,
+    .gr_col = hl_void,
+    .base_col = hl_void,
+    .cput_text = hl_void,
     .get_draw_size = hl_get_draw_size,
-    .draw_label = hl_void,
     .draw_freeze = hl_void,
     .blank_draw_window = hl_void,
     .put_text = hl_put_text,
@@ -185,9 +190,6 @@ XppUi xpp_ui = {
     .aplot_make = hl_str,
     .aplot_edit = hl_void,
     .new_vcr = hl_void,
-    .do_windows_com = hl_int,
-    .do_gr_objs_com = hl_int,
-    .edit_object_com = hl_int,
     .clone_ode = hl_void,
     .make_txtview = hl_void,
     .q_calc = hl_void,
@@ -254,6 +256,11 @@ void clr_all_scrns(void) { xpp_ui.clear_screens(); }
 void clear_draw_window(void) { xpp_ui.clear_draw_window(); }
 void reset_graphics(void) { xpp_ui.reset_graphics(); }
 void create_a_pop(void) { xpp_ui.create_plot_window(); }
+void destroy_a_pop(void) { xpp_ui.destroy_plot_window(); }
+void kill_all_pops(void) { xpp_ui.kill_plot_windows(); }
+void GrCol(void) { xpp_ui.gr_col(); }
+void BaseCol(void) { xpp_ui.base_col(); }
+void cput_text(void) { xpp_ui.cput_text(); }
 void SmallBase(void) { xpp_ui.small_base(); }
 void SmallGr(void) { xpp_ui.small_gr(); }
 void reset_film(void) { xpp_ui.reset_film(); }
@@ -311,9 +318,6 @@ void make_my_aplot(char *name) { xpp_ui.aplot_make(name); }
 void edit_aplot(void) { xpp_ui.aplot_edit(); }
 void new_vcr(void) { xpp_ui.new_vcr(); }
 void redraw_the_graph(void) { xpp_ui.redraw_graph(); }
-void do_windows_com(int c) { xpp_ui.do_windows_com(c); }
-void do_gr_objs_com(int c) { xpp_ui.do_gr_objs_com(c); }
-void edit_object_com(int c) { xpp_ui.edit_object_com(c); }
 void clone_ode(void) { xpp_ui.clone_ode(); }
 void make_txtview(void) { xpp_ui.make_txtview(); }
 void q_calc(void) { xpp_ui.q_calc(); }

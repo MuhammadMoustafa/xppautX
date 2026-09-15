@@ -3,6 +3,7 @@
    touches a window. */
 #include "xpp_util.h"
 #include "xpp_ui.h"
+#include "grobs.h"
 #include "xpp_globals.h"
 #include "parserslow.h"
 #include "browse.h"
@@ -335,7 +336,7 @@ void ps_restore()
   
  ps_do_color(0); 
  if(Xup){
- xpp_ui.draw_label();
+ draw_label(draw_win);
  xpp_ui.draw_freeze();
  }
  ps_end();
@@ -357,7 +358,7 @@ void svg_restore()
  restore(0,my_browser.maxrow);
  do_axes();
  if(Xup){
- xpp_ui.draw_label();
+ draw_label(draw_win);
  xpp_ui.draw_freeze();
  }
   do_batch_nclines();

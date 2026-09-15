@@ -78,8 +78,15 @@ typedef struct XppUi {
     /* plot windows */
     void (*activate_graph)(int i, int flag); /* graph i became MyGraph */
     void (*create_plot_window)(void);
+    void (*destroy_plot_window)(void); /* the active one; not the main window */
+    void (*kill_plot_windows)(void);   /* all but the main window */
+    void (*lower_plot_window)(void);   /* put the active one at the bottom */
+    void (*gr_col)(void);   /* pen: graph colours (GrCol) */
+    void (*base_col)(void); /* pen: window colours (BaseCol) */
+    /* Text,etc (T)ext: ask for a label, place it with the mouse, draw it
+       and add_label() it */
+    void (*cput_text)(void);
     void (*get_draw_size)(unsigned int *w, unsigned int *h);
-    void (*draw_label)(void);
     void (*draw_freeze)(void); /* frozen curves */
     void (*blank_draw_window)(void);
     void (*put_text)(int x, int y, char *s);
@@ -162,9 +169,6 @@ typedef struct XppUi {
        run_the_commands() reaches them through here; later phase 3 steps move
        their logic into core. Headless: they do nothing. */
     void (*new_parameter)(void);
-    void (*do_windows_com)(int c);
-    void (*do_gr_objs_com)(int c);
-    void (*edit_object_com)(int c);
     void (*clone_ode)(void);
     void (*make_txtview)(void);
     void (*q_calc)(void);
@@ -218,6 +222,11 @@ void clr_all_scrns(void);
 void clear_draw_window(void);
 void reset_graphics(void);
 void create_a_pop(void);
+void destroy_a_pop(void);
+void kill_all_pops(void);
+void GrCol(void);
+void BaseCol(void);
+void cput_text(void);
 void SmallBase(void);
 void SmallGr(void);
 void reset_film(void);
@@ -263,9 +272,6 @@ void make_my_aplot(char *name);
 void edit_aplot(void);
 void new_vcr(void);
 void redraw_the_graph(void);
-void do_windows_com(int c);
-void do_gr_objs_com(int c);
-void edit_object_com(int c);
 void clone_ode(void);
 void make_txtview(void);
 void q_calc(void);

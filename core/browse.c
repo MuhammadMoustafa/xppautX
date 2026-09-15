@@ -1108,16 +1108,6 @@ BROWSER *b;
 }
 
 
-void get_data_xyz(x,y,z,i1,i2,i3,off)
-     int i1,i2,i3,off;
-     float *x,*y,*z;
-{
-  int in=my_browser.row0+off;
-  *x=my_browser.data[i1][in];
-  *y=my_browser.data[i2][in];
-  *z=my_browser.data[i3][in];
-}
-  
 
   
 

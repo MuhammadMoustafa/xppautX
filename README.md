@@ -33,7 +33,7 @@ still builds and behaves as before.
    1. *(done)* Command layer in core: `commander`, `run_the_commands` and
       every pop-up menu live in `core/commands.c`; the menus are `XppMenu`
       data in `core/menus.c`, shown through `xpp_ui.menu_choose`.
-   2. *(in progress: `graf_par.c`, `torus.c` done)* Move the command handlers that still live in X11 files (the
+   2. *(in progress: `graf_par.c`, `torus.c`, graphic objects done)* Move the command handlers that still live in X11 files (the
       "commands" group in `xpp_ui.h`: graphics parameters, freeze, windows,
       text objects, torus, kinescope, ...) into core, with seams only for
       the genuinely interactive parts (rubber band, 3D rotate, scroll).
@@ -50,7 +50,7 @@ them after a build and checks the output checksums):
 
 | Script | Measures | Now |
 |---|---|---|
-| `tools/x11free.sh` | sources that compile with X11 headers stubbed out | 86 / 111 |
+| `tools/x11free.sh` | sources that compile with X11 headers stubbed out | 87 / 112 |
 | `tools/coredeps.sh` | symbols those objects import from X11 objects | 0 |
 
 `tools/guicheck.sh [REF]` guards the X11 program itself: it builds `REF`

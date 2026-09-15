@@ -8,6 +8,7 @@ void restore_off(void);
 void restore_on(void);
 void ps_restore(void);
 void svg_restore(void);
+void set_active_windows(void);
 void make_active(int i, int flag);
 void clr_scrn(void);
 int find_user_name(int type, char *oname);

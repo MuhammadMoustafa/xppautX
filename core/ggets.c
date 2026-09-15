@@ -274,7 +274,7 @@ int get_key_press(ev)
     
 
 
-void cput_text()
+void x11_cput_text()
  {
   char string[256],new[256];
   int x,y,size=2,font=0;
