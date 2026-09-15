@@ -54,7 +54,12 @@ still builds and behaves as before.
       `xppcore-server` around it. The protocol is in
       [docs/protocol.md](docs/protocol.md); `tools/servercheck.py` drives a
       session through it in a few seconds without a display.
-   4. The webview renderer in the VS Code extension.
+   4. *(done)* The front end: `web/xpp-client.js` renders the protocol in any
+      browser page (canvas plots, menu column, parameter and IC panel,
+      dialogs for every prompt, AUTO and animation windows). `node
+      web/serve.js file.ode` runs it standalone at http://127.0.0.1:8765/;
+      the XPP-ODE extension (branch `interactive-webview`) hosts the same
+      script in a webview with **Open in XPP Interactive**.
    5. Native Windows and macOS builds of the server (or a WebAssembly build).
 
 ### Metrics

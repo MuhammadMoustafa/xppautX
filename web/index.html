@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XPP</title>
+<link rel="stylesheet" href="xpp-client.css">
+<style>
+  html, body { height: 100%; margin: 0; }
+  #xpp { height: 100%; }
+</style>
+</head>
+<body>
+<div id="xpp"></div>
+<script src="xpp-client.js"></script>
+<script>
+  const client = new XppClient(document.getElementById('xpp'), cmd =>
+    fetch('cmd', {method: 'POST', body: JSON.stringify(cmd)}));
+  const events = new EventSource('events');
+  events.onmessage = m => client.receive(JSON.parse(m.data));
+  document.getElementById('xpp').focus();
+</script>
+</body>
+</html>
