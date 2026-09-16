@@ -873,6 +873,7 @@
           this.busy = false;
           this.progress.textContent = '';
           this.aniPlaying = false;
+          if (this.autoGrab) this.autoGrab.hidden = true; /* the grab is over */
           if (this.pendingSlide) {
             this.flushSlide();
             break;
@@ -1594,7 +1595,8 @@
       if (!a) return;
       this.pendingAsk = null;
       if (a.close) a.close();
-      if (this.autoGrab) this.autoGrab.hidden = true;
+      /* the grab strip stays up: every key is answered and asked again, and
+         hiding it in between resized the AUTO window twice per key */
       this.root.classList.remove('xpp-picking');
       this.send(Object.assign({cmd: 'answer', id: a.id}, fields));
       this.root.focus();
