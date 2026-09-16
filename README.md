@@ -21,6 +21,9 @@ same program with the browser front end compiled in:
 
 It needs nothing else (no X server, no Node), builds natively on Windows,
 and does what the X11 program does ([docs/front-end-gaps.md](docs/front-end-gaps.md)).
+[docs/using-the-panel.md](docs/using-the-panel.md) is the guide for people
+who know the X11 windows; [docs/vscode-extension.md](docs/vscode-extension.md)
+says how the VS Code extension ships the same front end.
 The X11 program still builds and behaves as before; it is frozen (no new
 features). The web front end has its own screenshot regression test
 (`tools/webshots.mjs`), so the X11 program is no longer needed as the
@@ -93,6 +96,7 @@ them after a build and checks the output checksums):
 | `tools/coredeps.sh` | symbols those objects import from X11 objects | 0 |
 | `tools/servercheck.py` | protocol session against `xppcore-server` (menus, prompts, integration, equilibria, windows, browser, animation, kinescope, array plot, scrolling) | 34 checks |
 | `tools/webcheck.py` | `xppaut-web` over HTTP: page, token, event stream, commands, exit | 11 checks |
+| `tools/examples_check.sh` | every `examples/**/*.ode` through `xppaut -silent` and `xppcore-cli`, outputs compared | all models |
 
 `node tools/webshots.mjs [--ref REF]` guards the web front end the same
 way: it builds `xppaut-web` from `REF` (default `HEAD`), plays
@@ -205,12 +209,44 @@ make cli          # xppcore-cli: batch runner linked against the library only
 
 Objects go to `build/obj/`. `make clean` removes them and the binary.
 
+## Releases
+
+Tagging `v*` runs `.github/workflows/release.yml`, which builds the X11-free
+programs on Linux, Windows and macOS (arm64 and x64), checks each build with
+`tools/servercheck.py` and `tools/webcheck.py`, and attaches one archive per
+platform plus the source of those binaries to the GitHub release.
+`tools/package_release.sh PLATFORM` makes such an archive locally.
+
+The macOS and Windows binaries are not signed, so those systems ask the user
+to allow them the first time. Signing and notarizing macOS needs an Apple
+developer account.
+
 ## Documentation
+
+For the browser front end: [docs/using-the-panel.md](docs/using-the-panel.md)
+(what differs from the X11 windows), [docs/protocol.md](docs/protocol.md)
+(the JSON protocol), [docs/front-end-gaps.md](docs/front-end-gaps.md) (X11
+against it) and [docs/vscode-extension.md](docs/vscode-extension.md).
 
 The original manual is `docs/xpp_doc.pdf`; the quick summary is
 `docs/xpp_sum.pdf`; the HTML help that the program's Help menu opens lives in
 `docs/help/`. Upstream's install notes are in `docs/README.upstream`.
 
+## How to cite
+
+If xppautX was useful in work you publish, please cite it (`CITATION.cff`,
+or GitHub's "Cite this repository") and cite XPPAUT itself: the numerics are
+Bard Ermentrout's, described in *Simulating, Analyzing, and Animating
+Dynamical Systems: A Guide to XPPAUT for Researchers and Students* (SIAM,
+2002). Citing is a request, not a licence condition.
+
 ## License
 
 GPL v2, as upstream. See `LICENSE`. XPPAUT is copyright Bard Ermentrout.
+
+That applies to anything built from this repository, including
+`xppcore-server` inside another program: ship the licence text with the
+binaries and point to the source they were built from (each release attaches
+it). Software that only talks to `xppcore-server` over the protocol, in
+another process, is a separate program and can have its own licence, as the
+VS Code extension does.

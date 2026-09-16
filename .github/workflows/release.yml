@@ -1,0 +1,120 @@
+name: release
+
+# Tagging v* builds the X11-free programs for each platform and attaches them,
+# with the source (GPL v2), to the GitHub release.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build (a dry run when the release does not exist)'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Source archive (GPL v2: the binaries' exact source)
+        run: |
+          name="xppautX-${GITHUB_REF_NAME}-source"
+          git archive --format=tar.gz --prefix="$name/" -o "$name.tar.gz" HEAD
+          sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source
+          path: xppautX-*-source.tar.gz*
+
+  linux:
+    # an older runner so the binaries also run on older distributions
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: make -j4 server cli web
+      - name: Check
+        run: |
+          python3 tools/servercheck.py
+          python3 tools/webcheck.py
+      - name: Package
+        run: tools/package_release.sh linux-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-x64
+          path: xppaut-web-*.tar.gz*
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          install: make zip mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-python
+      - name: Build
+        run: make -j4 server cli web
+      - name: Check
+        run: |
+          python tools/servercheck.py --server ./xppcore-server.exe
+          python tools/webcheck.py --bin ./xppaut-web.exe
+      - name: Package
+        run: tools/package_release.sh windows-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: xppaut-web-*.zip*
+
+  macos:
+    # not tried by hand yet: the binaries are unsigned, so macOS asks the user
+    # to allow them (Gatekeeper). Signing and notarizing need an Apple account.
+    strategy:
+      matrix:
+        include:
+          - runner: macos-14
+            arch: macos-arm64
+          - runner: macos-13
+            arch: macos-x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: make -j3 server cli web
+      - name: Check
+        run: |
+          python3 tools/servercheck.py
+          python3 tools/webcheck.py
+      - name: Package
+        run: tools/package_release.sh ${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.arch }}
+          path: xppaut-web-*.tar.gz*
+
+  publish:
+    needs: [source, linux, windows, macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Attach everything to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*/*
+          body: |
+            xppaut-web, xppcore-server and xppcore-cli for Linux, Windows and macOS.
+
+            `xppaut-web model.ode` opens the front end in your browser; it needs
+            nothing else installed. The macOS and Windows binaries are not signed,
+            so the system asks you to allow them the first time.
+
+            GPL v2, as upstream XPPAUT (Bard Ermentrout). The source of these
+            binaries is the attached `*-source.tar.gz`.

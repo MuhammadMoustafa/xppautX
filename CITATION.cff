@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: >-
+  If xppautX was useful in work you publish, please cite it, and cite
+  XPPAUT itself: the numerics are Bard Ermentrout's.
+title: "xppautX: XPPAUT without X11, with a browser front end"
+abstract: >-
+  A fork of XPPAUT 8.x that separates the numerics from the X11 front end.
+  It adds a library (libxppcore), a headless runner (xppcore-cli), a JSON
+  protocol server (xppcore-server) and xppaut-web, which serves the same
+  menus and plots to a browser, on Linux, macOS and Windows.
+type: software
+authors:
+  - given-names: Muhammad
+    family-names: Moustafa
+    alias: MuhammadMoustafa
+repository-code: "https://github.com/MuhammadMoustafa/xppautX"
+license: GPL-2.0
+keywords:
+  - XPPAUT
+  - dynamical systems
+  - bifurcation analysis
+  - ODE
+# On each release, add the version and date of that release, and the DOI if
+# the repository is connected to Zenodo:
+#   version: 0.1.0
+#   date-released: 2026-01-01
+#   doi: 10.5281/zenodo.XXXXXXX
+references:
+  - type: book
+    title: >-
+      Simulating, Analyzing, and Animating Dynamical Systems: A Guide to
+      XPPAUT for Researchers and Students
+    authors:
+      - given-names: Bard
+        family-names: Ermentrout
+    publisher:
+      name: Society for Industrial and Applied Mathematics
+    year: 2002
+    isbn: "978-0-89871-506-4"
