@@ -967,9 +967,10 @@
         abort.addEventListener('click', () => this.send({cmd: 'abort'}));
         buttons.appendChild(abort);
         const stab = new Surface(this, 102, 108, 108);
+        stab.canvas.classList.add('xpp-auto-circle');
         this.surfaces.set(102, stab);
-        buttons.appendChild(stab.canvas);
         const right = el('div', 'xpp-auto-right');
+        const top = el('div', 'xpp-auto-top');
         const info = new Surface(this, 103, ev.w, 45);
         this.surfaces.set(103, info);
         this.autoHint = el('div', 'xpp-auto-hint');
@@ -995,14 +996,16 @@
           const [x, y] = s.at(e);
           this.command({cmd: 'auto', op: 'point', x, y});
         });
-        right.append(s.canvas, info.canvas, this.autoHint);
+        top.append(s.canvas, stab.canvas);
+        right.append(top, info.canvas, this.autoHint);
         body.append(buttons, right);
         frame.appendChild(body);
-        /* the diagram takes the room its tab has */
+        /* the diagram takes the room its tab has, beside the fixed-size circle */
         const fit = () => {
           if (!frame.clientWidth) return; /* another tab is shown */
           /* the frame, not the body: the body grows with the canvas */
-          const w = Math.floor(frame.clientWidth - buttons.offsetWidth - 24);
+          const circleW = stab.canvas.width + 6;
+          const w = Math.floor(frame.clientWidth - buttons.offsetWidth - circleW - 24);
           /* stacked (narrow) layout: the height follows the content, so derive it */
           const h = this.root.classList.contains('xpp-narrow') ? Math.round(w * 0.75)
             : Math.floor(frame.clientHeight - bar.offsetHeight - this.autoGrab.offsetHeight
@@ -1010,7 +1013,7 @@
           if (w < 200 || h < 150 || (w === s.canvas.width && h === s.canvas.height)) return;
           clearTimeout(this.autoSizeTimer);
           this.autoSizeTimer = setTimeout(() => {
-            info.resize(w, 45);
+            info.resize(w + circleW, 45);
             this.send({cmd: 'size', win: 101, w, h});
           }, 150);
         };

@@ -126,7 +126,9 @@
 .xpp-close { padding: 0 6px; }
 .xpp-auto { display: flex; gap: 6px; padding: 6px; }
 .xpp-auto-buttons { display: flex; flex-direction: column; gap: 2px; width: 112px; }
-.xpp-auto-right { display: flex; flex-direction: column; gap: 4px; }
+.xpp-auto-right { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.xpp-auto-top { display: flex; gap: 6px; align-items: flex-start; min-width: 0; }
+.xpp-auto-circle { flex: none; }
 .xpp-auto-hint { font-family: var(--vscode-editor-font-family, monospace); min-height: 1.3em; }
 .xpp-abort { margin-top: 12px; }
 .xpp-ani-buttons { display: flex; gap: 4px; padding: 4px; flex-wrap: wrap; }
