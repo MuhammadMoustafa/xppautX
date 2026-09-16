@@ -5,6 +5,7 @@
 # the X11-free metric. Run from repo root (WSL/Linux/macOS).
 cd "$(dirname "$0")/.." || exit 1
 BASELINE=c281851de59ffd03b2a46428619a0c8f
+mkdir -p build || exit 1
 make -j8 xppaut xppcore-cli xppcore-server xppaut-web > build/last-build.log 2>&1
 st=$?
 tr -d '\r' < build/last-build.log > build/last-build.tmp && mv build/last-build.tmp build/last-build.log

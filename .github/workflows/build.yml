@@ -36,7 +36,9 @@ jobs:
       - name: Install deps
         run: brew install libx11
       - name: Build
-        run: make -j"$(sysctl -n hw.ncpu)" xppaut xppcore-cli xppcore-server xppaut-web X11_INC="-I$(brew --prefix)/include" X11_LIB="-L$(brew --prefix)/lib" 2>&1 | tee build.log
+        run: |
+          set -o pipefail
+          make -j"$(sysctl -n hw.ncpu)" xppaut xppcore-cli xppcore-server xppaut-web X11_INC="-I$(brew --prefix)/include" X11_LIB="-L$(brew --prefix)/lib" 2>&1 | tee build.log
       - name: Smoke test (headless, both binaries must agree)
         run: |
           ./xppaut -version
