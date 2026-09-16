@@ -71,6 +71,12 @@ int go_go_auto() /* this is the entry  at this point, xAuto has been set */
 	if (iap.mynode == 0) {
 	  fprintf(stderr,"\nRestart label %4ld not found\n",iap.irs);
 	}
+	/* close the units before giving up: Windows cannot rename or delete
+	   an open file, so leaking them here makes every later run fail too */
+	fclose(fp3);
+	fclose(fp7);
+	fclose(fp9);
+	free(thu);
 	return(0);/* bad retrun */
       }
     }

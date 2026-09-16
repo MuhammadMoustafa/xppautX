@@ -456,7 +456,13 @@ int chk_auto_bnds(int ix,int iy)
 void renamef(old,new)
 char *old,*new;
 {
- rename(old,new);
+ /* POSIX rename() replaces an existing destination; on Windows it fails, so
+    the old .s was silently kept and fort.8 left behind. */
+ if(rename(old,new)==0)return;
+ remove(new);
+ if(rename(old,new)==0)return;
+ copyf(old,new);   /* the source may still be open: copy, then try to drop it */
+ remove(old);
 }
 
 void cat_fp(fo)
@@ -488,17 +494,28 @@ char *old,*new;
 {
  FILE *fo,*fn;
  int c;
- fo=fopen(old,"r");
- fn=fopen(new,"w");
- 
-
+ /* Binary: these files carry AUTO's own line ends and text mode would
+    rewrite them. Both opens are checked -- on Windows fopen fails while the
+    file is still open elsewhere, and writing into a NULL FILE * left fort.3
+    empty, which AUTO then reported as "Restart label N not found". */
+ fo=fopen(old,"rb");
+ if(fo==NULL){
+   plintf("Cannot read %s \n",old);
+   return;
+ }
+ fn=fopen(new,"wb");
+ if(fn==NULL){
+   plintf("Cannot write %s \n",new);
+   fclose(fo);
+   return;
+ }
  while((c=getc(fo))!=EOF){
  	putc(c,fn);
 
  }
  fclose(fo);
  fclose(fn);
- 
+
 }
 
 void appendf(old,new)
@@ -508,8 +525,12 @@ char *old,*new;
  FILE *ft;
  int c;
  /*  printf("Appending old=%s new=%s\n",old,new); */
- fo=fopen(old,"r");
- fn=fopen(new,"r");
+ fo=fopen(old,"rb");
+ if(fo==NULL){
+   plintf("Cannot read %s \n",old);
+   return;
+ }
+ fn=fopen(new,"rb");
  if(fn==NULL){
      fclose(fo);
 
