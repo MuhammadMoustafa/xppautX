@@ -200,8 +200,15 @@ key Escape
 click Axes
 shot 124-auto-axes css=.xpp-dialog
 key Escape
+# AUTO has a window of its own: drag it by its title bar, then resize it
+drag css=.xpp-window-title 60 10 220 120
+# the drag selects text and hovers buttons where AUTO is still a tab
+eval getSelection().removeAllRanges(); client.hint.textContent = ''
+shot 125-auto-moved
+eval if (client.moveAutoPanel) client.moveAutoPanel(300, 60, 620, 380)
+shot 126-auto-resized
 click Close
-shot 125-auto-closed
+shot 127-auto-closed
 
 # ---- 3D ----
 click Plot

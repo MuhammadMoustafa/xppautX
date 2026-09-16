@@ -124,6 +124,30 @@
   border-bottom: 1px solid var(--xpp-border);
 }
 .xpp-close { padding: 0 6px; }
+/* AUTO has a window of its own, as it does in X11: it floats over the page so
+   the plot and the value panels stay in view beside it */
+.xpp-float {
+  position: absolute;
+  z-index: 6; /* under .xpp-dialogs */
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  overflow: hidden;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+}
+.xpp-float > .xpp-window-title { cursor: move; user-select: none; }
+.xpp-float .xpp-auto { flex: 1; min-height: 0; }
+.xpp-resize { display: none; }
+.xpp-float > .xpp-resize {
+  display: block;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, var(--xpp-border) 50%);
+}
 .xpp-auto { display: flex; gap: 6px; padding: 6px; }
 .xpp-auto-buttons { display: flex; flex-direction: column; gap: 2px; width: 112px; }
 .xpp-auto-right { display: flex; flex-direction: column; gap: 4px; min-width: 0; }

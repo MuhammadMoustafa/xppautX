@@ -20,8 +20,10 @@
   const SMALL_FONT = '12px "DejaVu Sans Mono", Consolas, monospace';
   const AUTO_BUTTONS = [['Parameter', 'param'], ['Axes', 'axes'], ['Numerics', 'numerics'], ['Run', 'run'],
     ['Grab', 'grab'], ['Usr period', 'usr'], ['Clear', 'clear'], ['reDraw', 'redraw'], ['File', 'file']];
-  /* keys typed while the AUTO tab is shown (auto_x11.c auto_keypress) */
+  /* keys typed while the pointer or the focus is on the AUTO window
+     (auto_x11.c auto_keypress) */
   const AUTO_KEYS = {a: 'axes', n: 'numerics', g: 'grab', r: 'run', d: 'redraw', c: 'clear', u: 'usr', p: 'param', f: 'file'};
+  const AUTO_GEOM = 'xppAutoPanel'; /* where its position and size are remembered */
 
   /* the data browser's buttons: label, op, hint */
   const BROWSER_BUTTONS = [
@@ -278,7 +280,16 @@
       r.addEventListener('keydown', e => this.onKey(e));
       new ResizeObserver(() => this.sendMainSize()).observe(this.mainHost);
       /* side by side needs room; a narrow panel stacks menus, plot and values */
-      new ResizeObserver(() => r.classList.toggle('xpp-narrow', r.clientWidth < 760)).observe(r);
+      this.narrow = false;
+      new ResizeObserver(() => this.setNarrow(r.clientWidth < 760)).observe(r);
+    }
+
+    setNarrow(narrow) {
+      narrow = !!narrow;
+      if (narrow === this.narrow) return;
+      this.narrow = narrow;
+      this.root.classList.toggle('xpp-narrow', narrow);
+      if (this.autoFrame) this.mountAuto();
     }
 
     /* The error the user must see. One at a time: a newer one replaces it,
@@ -789,11 +800,21 @@
       const k = keyName(e);
       if (!k) return;
       e.preventDefault();
-      if (this.shownWin === 101 && !this.pendingAsk && AUTO_KEYS[k.toLowerCase()]) {
+      if (!this.pendingAsk && this.autoHasKeys() && AUTO_KEYS[k.toLowerCase()]) {
         this.command({cmd: 'auto', op: AUTO_KEYS[k.toLowerCase()]});
         return;
       }
       this.key(k);
+    }
+
+    /* X11 sends a key to the window under the pointer: AUTO's hotkeys work
+       while the pointer or the focus is on its window, the main menu keys
+       everywhere else. As a tab (narrow layout) the shown tab decides. */
+    autoHasKeys() {
+      const f = this.autoFrame;
+      if (!f) return false;
+      if (this.pages.has(101)) return this.shownWin === 101;
+      return this.autoHover || f.contains(document.activeElement);
     }
 
     /* commands sent while dragging: only the latest of each kind, in order,
@@ -907,6 +928,7 @@
           (s.frame || s.canvas).remove();
           this.surfaces.delete(ev.win);
         }
+        if (ev.win === 101) this.closeAuto();
         this.removePage(ev.win);
       } else if (ev.op === 'select') {
         this.activeWin = ev.win;
@@ -963,6 +985,10 @@
         closeAuto.title = 'Close the AUTO window (File/Auto opens it again with the diagram)';
         closeAuto.addEventListener('click', () => this.command({cmd: 'auto', op: 'close'}));
         buttons.appendChild(closeAuto);
+        const shut = el('button', 'xpp-close', '×');
+        shut.title = 'Close the AUTO window';
+        shut.addEventListener('click', () => this.command({cmd: 'auto', op: 'close'}));
+        bar.appendChild(shut);
         const abort = el('button', 'xpp-abort', 'ABORT');
         abort.addEventListener('click', () => this.send({cmd: 'abort'}));
         buttons.appendChild(abort);
@@ -1000,7 +1026,7 @@
         right.append(top, info.canvas, this.autoHint);
         body.append(buttons, right);
         frame.appendChild(body);
-        /* the diagram takes the room its tab has, beside the fixed-size circle */
+        /* the diagram takes the room the window has, beside the fixed-size circle */
         const fit = () => {
           if (!frame.clientWidth) return; /* another tab is shown */
           /* the frame, not the body: the body grows with the canvas */
@@ -1018,6 +1044,28 @@
           }, 150);
         };
         new ResizeObserver(fit).observe(frame);
+        /* a window of its own: drag the title bar, pull the corner */
+        const grip = el('div', 'xpp-resize');
+        grip.title = 'Drag to resize the AUTO window';
+        frame.appendChild(grip);
+        bar.addEventListener('mousedown', e => {
+          if (!this.autoGeom || e.target.closest('button')) return;
+          e.preventDefault();
+          const {left, top, w, h} = this.autoGeom, x0 = e.clientX, y0 = e.clientY;
+          this.trackWindow((mx, my) => this.moveAutoPanel(left + mx - x0, top + my - y0, w, h));
+        });
+        grip.addEventListener('mousedown', e => {
+          if (!this.autoGeom) return;
+          e.preventDefault();
+          const {left, top, w, h} = this.autoGeom, x0 = e.clientX, y0 = e.clientY;
+          this.trackWindow((mx, my) => this.moveAutoPanel(left, top, w + mx - x0, h + my - y0));
+        });
+        this.autoFrame = frame;
+        this.autoFit = fit;
+        this.autoSize = {w: ev.w, h: ev.h};
+        this.autoHover = false;
+        frame.addEventListener('mouseenter', () => { this.autoHover = true; });
+        frame.addEventListener('mouseleave', () => { this.autoHover = false; });
       } else if (ev.win === 105) {
         frame.append(this.buildArrayPlot(s, frame, bar));
       } else if (ev.win === 104) {
@@ -1040,9 +1088,107 @@
           }, 150);
         }).observe(frame);
       }
-      const label = ev.win === 101 ? 'AUTO' : ev.win === 104 ? 'Animation' : ev.win === 105 ? 'Array' : `Window ${ev.win}`;
+      if (ev.win === 101) {
+        this.mountAuto();
+        return;
+      }
+      const label = ev.win === 104 ? 'Animation' : ev.win === 105 ? 'Array' : `Window ${ev.win}`;
       this.addPage(ev.win, label, frame);
       this.showPage(ev.win);
+    }
+
+    /* ---- the AUTO window ------------------------------------------------------- */
+
+    /* X11 gives AUTO a top-level window of its own, so the main plot and the
+       value panels stay in view beside it while it runs; here it is a floating
+       panel over the page. A narrow layout has no room beside the plot: there
+       it stays a tab, like the other windows. */
+    mountAuto() {
+      const f = this.autoFrame;
+      if (!f) return;
+      if (this.narrow) {
+        f.classList.remove('xpp-float');
+        f.classList.add('xpp-page');
+        f.style.left = f.style.top = f.style.width = f.style.height = '';
+        this.autoGeom = null;
+        if (!this.pages.has(101)) this.addPage(101, 'AUTO', f);
+        this.showPage(101);
+      } else {
+        if (this.pages.has(101)) this.removePage(101); /* the frame moves out of the tab */
+        f.hidden = false;
+        f.classList.remove('xpp-page');
+        f.classList.add('xpp-float');
+        this.root.appendChild(f);
+        this.placeAutoPanel();
+      }
+      if (this.autoFit) setTimeout(this.autoFit, 0);
+    }
+
+    /* where it opens: beside the plot area, or where the user last left it */
+    placeAutoPanel() {
+      const saved = this.autoSaved || this.loadAutoGeom() || {};
+      const rw = this.root.clientWidth;
+      const w = Math.min(saved.w || this.autoSize.w + 258, Math.max(360, rw - 16));
+      const h = saved.h || this.autoSize.h + 122;
+      this.autoGeom = {left: 0, top: 0, w, h};
+      this.moveAutoPanel(saved.left !== undefined ? saved.left : rw - w - 8,
+        saved.top !== undefined ? saved.top : this.plotArea.offsetTop, w, h);
+    }
+
+    moveAutoPanel(left, top, w, h) {
+      const f = this.autoFrame, r = this.root;
+      if (!f || !this.autoGeom) return;
+      const rw = r.clientWidth, rh = r.clientHeight;
+      w = Math.max(360, Math.min(Math.round(w), Math.max(360, rw - 8)));
+      h = Math.max(260, Math.min(Math.round(h), Math.max(260, rh - 8)));
+      left = Math.max(0, Math.min(Math.round(left), Math.max(0, rw - w)));
+      /* the title bar stays reachable, whatever the panel's height */
+      top = Math.max(0, Math.min(Math.round(top), Math.max(0, rh - 40)));
+      f.style.width = w + 'px';
+      f.style.height = h + 'px';
+      f.style.left = left + 'px';
+      f.style.top = top + 'px';
+      this.autoSaved = this.autoGeom = {left, top, w, h};
+      this.saveAutoGeom();
+    }
+
+    /* mouse moves until the button comes up (dragging or resizing the window) */
+    trackWindow(report) {
+      const move = m => report(m.clientX, m.clientY);
+      const up = u => {
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', up);
+        report(u.clientX, u.clientY);
+      };
+      window.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+    }
+
+    loadAutoGeom() {
+      try {
+        return JSON.parse(localStorage.getItem(AUTO_GEOM));
+      } catch (e) {
+        return null; /* no storage in this host, or nothing stored yet */
+      }
+    }
+
+    saveAutoGeom() {
+      try {
+        localStorage.setItem(AUTO_GEOM, JSON.stringify(this.autoGeom));
+      } catch (e) { /* storage may be off: the position is then this session's */ }
+    }
+
+    closeAuto() {
+      if (this.autoFrame) this.autoFrame.remove();
+      this.removePage(101);
+      this.autoFrame = null;
+      this.autoFit = null;
+      this.autoGeom = null;
+      this.autoHover = false;
+      this.autoHint = null;
+      this.autoGrab = null;
+      this.surfaces.delete(102);
+      this.surfaces.delete(103);
     }
 
     /* ---- array plot (aplotwin.c): a grid of colour indices painted here ---- */

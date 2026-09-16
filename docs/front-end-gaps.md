@@ -19,7 +19,7 @@ row changes.
 | Data browser and all its buttons | Data tab |
 | Equilibrium window with Import | Top of the side panel |
 | Equations window, source viewer with comment actions | Tabs |
-| AUTO window: every button, grab, hotkeys, scroll, close, point readout | AUTO tab |
+| AUTO window: every button, grab, hotkeys, scroll, close, point readout | A window of its own, floating over the page: drag its title bar, pull its corner to resize, and the main plot and the value panels stay in view beside it (a tab in the narrow layout) |
 | Animation window: Go, Pause, Fast, Slow, step, slider, Skip, File, Grab, Fly, frame saving, Close, resize | Animation tab |
 | Array plot: Redraw, Edit, Print, Fit, Range, GIF, Close, drag to scroll | Array tab |
 | Kinescope: capture, reset, playback, autoplay, save, animated GIF | Kinescope tab |
@@ -28,14 +28,17 @@ row changes.
 
 ## Different on purpose
 
-- One window at a time: plot windows, AUTO, animation, array plot, data,
-  source and equations are tabs of one area, not separate windows. A
-  prompt that wants a click in a window brings its tab forward.
+- One window at a time: plot windows, animation, array plot, data, source
+  and equations are tabs of one area, not separate windows. A prompt that
+  wants a click in a window brings its tab forward. AUTO is the exception:
+  it floats over the page, and its position and size are remembered. Under
+  760px there is no room beside the plot, so there it is a tab too.
 - Values typed in a box take effect when the field is left; there is no
   Ok/Cancel for the whole box.
 - Window/Bottom (raise a plot window) does nothing: tabs replace stacking.
-- Keys go to the tab that is shown (AUTO hotkeys on the AUTO tab), not to
-  the window under the pointer.
+- Keys go to the tab that is shown, not to the window under the pointer.
+  AUTO's hotkeys are the exception: they work while the pointer or the
+  focus is on the AUTO window, as X11 does.
 - Saved frames and GIFs come from the canvas the client drew, with colours
   rounded to the 216 web-safe ones (the GIF writer takes 256 colours and a
   canvas smooths lines). The X11 files are pixel copies of the window.
