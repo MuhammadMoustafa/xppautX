@@ -566,11 +566,16 @@ void close_auto(flg)  /* labels compatible with A2K  */
      int flg;
 {
   char string[1000];
-  /*    if(fp8_is_open){
+  /* Close fp8 before the renames below: Windows refuses rename()/remove()
+     on a file that is still open (see renamef/deletef), which left
+     fort.8 behind next to <model>.s with the handle leaked. Linux allows
+     renaming/removing an open file, which is likely why this was never
+     turned on upstream -- it was dead code there, not a deliberate
+     no-op. */
+  if(fp8_is_open){
       fclose(fp8);
       fp8_is_open=0;
-    }
-  */
+  }
   if(flg==0) {/*Overwrite*/
     sprintf(string,"%s.b",this_auto_file);
     renamef(fort7,string);
