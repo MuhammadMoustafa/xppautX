@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Source archive (GPL v2: the binaries' exact source)
+      - name: "Source archive (GPL v2: the binaries' exact source)"
         run: |
           name="xppautX-${GITHUB_REF_NAME}-source"
           git archive --format=tar.gz --prefix="$name/" -o "$name.tar.gz" HEAD

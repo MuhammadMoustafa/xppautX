@@ -15,11 +15,13 @@ jobs:
       - name: Build, smoke test, metrics
         run: tools/verify.sh
       - name: Coupling metric
-        run: tools/coredeps.sh -v && test "$(tools/coredeps.sh | grep -oE 'imports: [0-9]+' | grep -oE '[0-9]+')" -eq 0
+        run: |
+          tools/coredeps.sh -v
+          test "$(tools/coredeps.sh | grep -oE 'imports: [0-9]+' | grep -oE '[0-9]+')" -eq 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Web front end screenshots (every step must run; HEAD against the build)
+      - name: "Web front end screenshots (every step must run; HEAD against the build)"
         run: node tools/webshots.mjs
       - uses: actions/upload-artifact@v4
         if: always()
@@ -68,7 +70,7 @@ jobs:
       - name: Headless run matches Linux (ignoring line ends)
         run: |
           cd /tmp && "$GITHUB_WORKSPACE/xppcore-cli.exe" "$GITHUB_WORKSPACE/examples/ode/lecar.ode"
-          test "$(tr -d '' < output.dat | md5sum | cut -d' ' -f1)" = c281851de59ffd03b2a46428619a0c8f
+          test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = c281851de59ffd03b2a46428619a0c8f
       - name: Server protocol and web front end
         run: python tools/servercheck.py --server ./xppcore-server.exe && python tools/webcheck.py --bin ./xppaut-web.exe
       - uses: actions/upload-artifact@v4
