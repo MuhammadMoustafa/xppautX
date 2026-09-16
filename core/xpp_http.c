@@ -8,6 +8,11 @@
    copies what xppaut prints to the terminal and into the page's log. This
    file includes no core header, so the socket and Windows headers cannot
    clash with core names. */
+/* macOS hides the BSD names (INADDR_LOOPBACK) under _XOPEN_SOURCE=600;
+   this must come before any system header. */
+#ifdef __APPLE__
+#define _DARWIN_C_SOURCE 1
+#endif
 #include "xpp_http.h"
 #include <errno.h>
 #include <pthread.h>
@@ -38,6 +43,11 @@ typedef SOCKET sock_t;
 typedef int sock_t;
 #define INVALID_SOCKET (-1)
 #define close_sock close
+#endif
+
+/* BSD and macOS have no MSG_NOSIGNAL; SIGPIPE is ignored in xpp_http_start */
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
 #endif
 
 typedef struct {
