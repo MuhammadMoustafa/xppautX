@@ -14,6 +14,10 @@
     K: 'Κ', L: 'Λ', M: 'Μ', N: 'Ν', O: 'Ο', P: 'Π', Q: 'Θ', R: 'Ρ', S: 'Σ', T: 'Τ', U: 'Υ', W: 'Ω',
     X: 'Ξ', Y: 'Ψ', Z: 'Ζ'};
   const TEXT_SIZES = [8, 10, 12, 14, 18]; /* xppaut's five font sizes */
+  /* X11 draws AUTO's labels and its info table with small_gc, which the server
+     declares as 7x13 (DCURXs, DCURYs). 12px of this font advances 7.2px, so the
+     columns the core laid out in character cells line up. */
+  const SMALL_FONT = '12px "DejaVu Sans Mono", Consolas, monospace';
   const AUTO_BUTTONS = [['Parameter', 'param'], ['Axes', 'axes'], ['Numerics', 'numerics'], ['Run', 'run'],
     ['Grab', 'grab'], ['Usr period', 'usr'], ['Clear', 'clear'], ['reDraw', 'redraw'], ['File', 'file']];
   /* keys typed while the AUTO tab is shown (auto_x11.c auto_keypress) */
@@ -65,7 +69,7 @@
       this.color = 0;
       this.lineWidth = 1;
       this.dash = 0;
-      this.font = {size: 1, symbol: false, color: 0};
+      this.font = {size: -1, symbol: false, color: 0}; /* -1: small_gc */
     }
     resize(w, h) {
       if (this.canvas.width === w && this.canvas.height === h) return;
@@ -158,12 +162,12 @@
           case 'font': this.font = {size: o[1], symbol: o[2] === 1, color: o[3]}; this.color = o[3]; break;
           case 'text':
             c.fillStyle = this.pen(0);
-            c.font = this.textFont(1, false);
+            c.font = SMALL_FONT;
             c.fillText(o[3], o[1], o[2]);
             break;
           case 'rtext':
             this.apply();
-            c.font = this.textFont(this.font.size, this.font.symbol);
+            c.font = this.font.size < 0 ? SMALL_FONT : this.textFont(this.font.size, this.font.symbol);
             c.fillText(this.font.symbol ? greek(o[3]) : o[3], o[1], o[2]);
             break;
           case 'stext': this.richText(o[1], o[2], o[3], o[4]); break;
