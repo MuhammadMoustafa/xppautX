@@ -295,6 +295,7 @@ double vector_value(x,i)
     if(ir==ZERO)return 0.0;
     return variables[2*n-k-1+root];
   }
+  return 0.0;
 
 
 

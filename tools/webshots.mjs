@@ -16,6 +16,7 @@ import {spawn, spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import {fileURLToPath} from 'node:url';
 
 const win = process.platform === 'win32';
@@ -298,14 +299,69 @@ async function main() {
   problems.base = await runOnce('base', base, browser, steps);
   problems.new = await runOnce('new', path.resolve(top, opt.new), browser, steps);
 
+/* A PNG decoder, so two shots can be called the same when they differ only by
+   Skia's antialiasing rounding (a channel off by one on a rounded corner);
+   headless Chrome is not bit-exact between two runs of the same page. */
+function decodePng(buf) {
+  if (buf.length < 8 || buf.readUInt32BE(0) !== 0x89504e47) return null;
+  let w = 0, h = 0, depth = 0, color = 0, interlace = 0;
+  const idat = [];
+  for (let i = 8; i + 8 <= buf.length;) {
+    const len = buf.readUInt32BE(i), type = buf.toString('latin1', i + 4, i + 8);
+    const body = buf.subarray(i + 8, i + 8 + len);
+    if (type === 'IHDR') {
+      w = body.readUInt32BE(0); h = body.readUInt32BE(4);
+      depth = body[8]; color = body[9]; interlace = body[12];
+    } else if (type === 'IDAT') idat.push(body);
+    i += 12 + len;
+  }
+  if (depth !== 8 || interlace !== 0 || (color !== 2 && color !== 6)) return null;
+  const bpp = color === 6 ? 4 : 3, stride = w * bpp;
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const out = Buffer.alloc(h * stride);
+  for (let y = 0, o = 0; y < h; y++) {
+    const filter = raw[y * (stride + 1)], line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
+    for (let x = 0; x < stride; x++, o++) {
+      const a = x >= bpp ? out[o - bpp] : 0, b = y ? out[o - stride] : 0, c = x >= bpp && y ? out[o - stride - bpp] : 0;
+      let v = line[x];
+      if (filter === 1) v += a;
+      else if (filter === 2) v += b;
+      else if (filter === 3) v += (a + b) >> 1;
+      else if (filter === 4) {
+        const pp = a + b - c, pa = Math.abs(pp - a), pb = Math.abs(pp - b), pc = Math.abs(pp - c);
+        v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+      }
+      out[o] = v & 255;
+    }
+  }
+  return {w, h, bpp, data: out};
+}
+
+/* same, or off by at most SLACK in a channel on a handful of pixels */
+const SLACK = 2, SLACK_PIXELS = 64;
+function sameShot(a, b) {
+  if (a.equals(b)) return 'equal';
+  const x = decodePng(a), y = decodePng(b);
+  if (!x || !y || x.w !== y.w || x.h !== y.h || x.bpp !== y.bpp) return false;
+  let n = 0;
+  for (let i = 0; i < x.data.length; i += x.bpp) {
+    let d = 0;
+    for (let k = 0; k < x.bpp; k++) d = Math.max(d, Math.abs(x.data[i + k] - y.data[i + k]));
+    if (d > SLACK) return false;
+    if (d) n++;
+  }
+  return n > SLACK_PIXELS ? false : 'antialiasing (' + n + ' px)';
+}
+
   let same = 0, total = 0, rows = '';
   for (const f of fs.readdirSync(path.join(out, 'base')).sort()) {
     total++;
     const a = fs.readFileSync(path.join(out, 'base', f)), b = fs.existsSync(path.join(out, 'new', f))
       ? fs.readFileSync(path.join(out, 'new', f)) : Buffer.alloc(0);
-    const equal = a.equals(b);
+    const verdict = sameShot(a, b), equal = verdict !== false;
     if (equal) same++;
-    else console.log('DIFF: ' + f);
+    if (equal && verdict !== 'equal') console.log('same but for ' + verdict + ': ' + f);
+    if (!equal) console.log('DIFF: ' + f);
     rows += `<tr class="${equal ? 'same' : 'diff'}"><th>${f}${equal ? '' : ' (differs)'}</th>` +
       `<td><img src="base/${f}"></td><td>${equal ? '' : `<img src="new/${f}">`}</td></tr>\n`;
   }

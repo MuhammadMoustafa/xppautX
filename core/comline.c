@@ -477,7 +477,7 @@ int if_needed_load_ext_options()
     extract_action(myoptsx);
     return 1;
   }  
-  
+  return 0;
 }
 int if_needed_select_sets()
 {

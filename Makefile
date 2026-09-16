@@ -9,12 +9,15 @@ MINORVER = 1
 CC      ?= gcc
 CSTD    ?= -std=c99 -pedantic -D_XOPEN_SOURCE=600
 WARN    ?= -Wall
+# gcc 14 and clang 16 turned these into errors; keep older compilers strict
+# about them too, so a build that only runs here does not break CI.
+STRICT  ?= -Werror=implicit-function-declaration -Werror=implicit-int -Werror=int-conversion -Werror=incompatible-pointer-types -Werror=return-type
 OPT     ?= -g -O2
 DEFS     = -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES -DHAVEDLL \
            -DMYSTR1=$(MAJORVER) -DMYSTR2=$(MINORVER)
 # -I. is needed because fftn.c does "#include __FILE__"
 INCS     = -I. -Icore -Icore/bitmaps $(X11_INC)
-CFLAGS  ?= $(CSTD) $(WARN) $(OPT) $(DEFS) $(INCS) -fcommon
+CFLAGS  ?= $(CSTD) $(WARN) $(STRICT) $(OPT) $(DEFS) $(INCS) -fcommon
 LDFLAGS ?= $(X11_LIB) -fcommon
 LIBS     = -lX11 -lm -ldl
 
