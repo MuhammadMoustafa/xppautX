@@ -31,3 +31,5 @@
 /build/*.mk
 /build/webshots/
 /build/webshots.log
+/build/examples/
+/xppaut-web-*
