@@ -75,11 +75,20 @@
     }
     resize(w, h) {
       if (this.canvas.width === w && this.canvas.height === h) return;
-      const old = this.canvas.width ? this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height) : null;
+      /* keep the old picture with drawImage, which composites: putImageData
+         copied alpha, so the browser's transparent default 300x150 bitmap
+         punched a hole in the background on the first resize */
+      let old = null;
+      if (this.canvas.width && this.canvas.height) {
+        old = document.createElement('canvas');
+        old.width = this.canvas.width;
+        old.height = this.canvas.height;
+        old.getContext('2d').drawImage(this.canvas, 0, 0);
+      }
       this.canvas.width = w;
       this.canvas.height = h;
       this.clear();
-      if (old) this.ctx.putImageData(old, 0, 0);
+      if (old) this.ctx.drawImage(old, 0, 0);
     }
     pen(i) {
       return this.client.colorOf(i);
