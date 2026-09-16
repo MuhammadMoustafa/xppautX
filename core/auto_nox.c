@@ -604,6 +604,36 @@ void close_auto(flg)  /* labels compatible with A2K  */
  
 }
 
+/* AUTO writes fort.3/7/8/9 under HOME. A HOME that is set but unusable
+   (missing, not writable) must fall back to the model's directory like an
+   unset one, or the opens fail deep inside autlib1.c. Probe by creating a
+   scratch file: portable, and a directory can exist without being
+   writable. */
+static int dir_is_writable(const char *dir)
+{
+  char probe[300];
+  FILE *fp;
+
+  if (dir == NULL || dir[0] == 0)
+    return 0;
+  snprintf(probe, sizeof(probe), "%s/.xppautx_homecheck", dir);
+  fp = fopen(probe, "w");
+  if (fp == NULL)
+    return 0;
+  fclose(fp);
+  remove(probe);
+  return 1;
+}
+
+static char *auto_home_dir(char *dname)
+{
+  char *home = getenv("HOME");
+
+  if (home == NULL || !dir_is_writable(home))
+    home = dname;
+  return home;
+}
+
 void create_auto_file_name()
 {
   char string[200];
@@ -613,18 +643,13 @@ void create_auto_file_name()
   dirc  = strdup(this_file);
   bname = (char*)basename(basec);
   dname = (char*)dirname(dirc);
-  
-  char* HOME = getenv("HOME");
 
-  if (HOME == NULL)
-  {
-  	HOME = dname;
-  }
- 
+  char* HOME = auto_home_dir(dname);
+
   sprintf(this_auto_file,"%s/%s",HOME,bname);
 
 }
-  
+
 void open_auto(flg) /* compatible with new auto */
      int flg;
 {
@@ -635,13 +660,9 @@ void open_auto(flg) /* compatible with new auto */
   dirc  = strdup(this_file);
   bname = (char*)basename(basec);
   dname = (char*)dirname(dirc);
-  
-  char* HOME = getenv("HOME");
-  if (HOME == NULL)
-  {
-  	HOME = dname;
-  }
- 
+
+  char* HOME = auto_home_dir(dname);
+
   sprintf(this_auto_file,"%s/%s",HOME,bname);
   sprintf(fort3,"%s/%s",HOME,"fort.3");
   sprintf(fort7,"%s/%s",HOME,"fort.7");

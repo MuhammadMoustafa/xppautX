@@ -15,47 +15,60 @@ ap.add_argument('--ode', default='examples/ode/lecar.ode')
 ap.add_argument('-v', action='store_true')
 args = ap.parse_args()
 
-run = tempfile.mkdtemp(prefix='xppserver')
-shutil.copy(args.ode, run)
-proc = subprocess.Popen([os.path.abspath(args.server), '--server', os.path.basename(args.ode)], cwd=run,
-                        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                        text=True, bufsize=1)
-events = queue.Queue()
-def reader():
-    for l in proc.stdout:
-        try:
-            events.put(json.loads(l))
-        except ValueError:
-            print('BAD LINE: %r' % l[:300])
-            events.put({'ev': 'bad'})
+def launch_server(extra_env=None):
+    """Start one xppautX --server instance in its own scratch directory and
+    return (proc, run_dir, send, collect, events) -- send/collect work just
+    like the module-level ones below but are bound to this instance, so a
+    second, differently-configured server (e.g. a bad HOME) can be driven
+    the same way without disturbing the main session."""
+    run_dir = tempfile.mkdtemp(prefix='xppserver')
+    shutil.copy(args.ode, run_dir)
+    env = None
+    if extra_env is not None:
+        env = dict(os.environ)
+        env.update(extra_env)
+    proc = subprocess.Popen([os.path.abspath(args.server), '--server', os.path.basename(args.ode)], cwd=run_dir,
+                            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True, bufsize=1, env=env)
+    events = queue.Queue()
 
+    def reader():
+        for l in proc.stdout:
+            try:
+                events.put(json.loads(l))
+            except ValueError:
+                print('BAD LINE: %r' % l[:300])
+                events.put({'ev': 'bad'})
 
-threading.Thread(target=reader, daemon=True).start()
-threading.Thread(target=lambda: [None for _ in proc.stderr], daemon=True).start()
-failures = 0
+    threading.Thread(target=reader, daemon=True).start()
+    threading.Thread(target=lambda: [None for _ in proc.stderr], daemon=True).start()
 
-
-def send(**cmd):
-    if args.v:
-        print('  >', json.dumps(cmd))
-    proc.stdin.write(json.dumps(cmd) + '\n')
-    proc.stdin.flush()
-
-
-def collect(until, timeout=10):
-    """events up to and including the first one for which until(ev) is true"""
-    got = []
-    while True:
-        try:
-            ev = events.get(timeout=timeout)
-        except queue.Empty:
-            return got, None
+    def send(**cmd):
         if args.v:
-            s = json.dumps(ev)
-            print('  <', s[:160] + ('...' if len(s) > 160 else ''))
-        got.append(ev)
-        if until(ev):
-            return got, ev
+            print('  >', json.dumps(cmd))
+        proc.stdin.write(json.dumps(cmd) + '\n')
+        proc.stdin.flush()
+
+    def collect(until, timeout=10):
+        """events up to and including the first one for which until(ev) is true"""
+        got = []
+        while True:
+            try:
+                ev = events.get(timeout=timeout)
+            except queue.Empty:
+                return got, None
+            if args.v:
+                s = json.dumps(ev)
+                print('  <', s[:160] + ('...' if len(s) > 160 else ''))
+            got.append(ev)
+            if until(ev):
+                return got, ev
+
+    return proc, run_dir, send, collect, events
+
+
+proc, run, send, collect, events = launch_server()
+failures = 0
 
 
 def check(name, ok, detail=''):
@@ -290,6 +303,47 @@ evs, _ = collect(is_idle)
 win = [e for e in evs if e.get('ev') == 'window' and e.get('win') == 101]
 check('size resizes the AUTO diagram', win and win[-1]['w'] == 500 and win[-1]['h'] == 300
       and len(draw_ops(evs, 101)) > 5, str(win))
+
+# A HOME the process cannot write to used to make AUTO exit(1) under the
+# client when it opened fort.8 there; open_auto() now falls back to the
+# model's directory. Drive a second server with such a HOME and check it survives.
+bad_home = tempfile.mkdtemp(prefix='xppbadhome')
+shutil.rmtree(bad_home)  # a path that is guaranteed not to exist
+proc2, run2, send2, collect2, events2 = launch_server(extra_env={'HOME': bad_home})
+collect2(is_idle)  # startup hello/state/idle
+send2(cmd='key', key='f')
+send2(cmd='key', key='a')
+collect2(lambda e: e.get('ev') == 'window' and e.get('win') == 101)
+collect2(is_idle)
+send2(cmd='auto', op='run')
+evs, ask = collect2(lambda e: e.get('ev') == 'ask')
+check('bad-HOME server: Auto/Run opens the Start menu',
+      ask is not None and ask['kind'] == 'menu' and 's' in ask['keys'], str(ask))
+if ask:
+    send2(cmd='answer', id=ask['id'], key='s')
+evs, e = collect2(is_idle, timeout=20)
+st2 = [x for x in evs if x.get('ev') == 'state']
+alive = proc2.poll() is None
+check('bad-HOME server survives Run/Steady state (state then idle, still alive)',
+      ask is not None and st2 and e is not None and alive, str(evs)[-300:])
+
+if alive:
+    # writing to a dead server's stdin would raise and end the script
+    send2(cmd='key', key='f')
+    send2(cmd='key', key='q')
+    evs, ask = collect2(lambda e: e.get('ev') == 'ask')
+    if ask:
+        send2(cmd='answer', id=ask['id'], key='y')
+    try:
+        proc2.wait(timeout=5)
+        check('bad-HOME server: File/Quit exits', True)
+    except subprocess.TimeoutExpired:
+        proc2.kill()
+        check('bad-HOME server: File/Quit exits', False)
+else:
+    proc2.kill()
+    check('bad-HOME server: File/Quit exits', False, 'server had already exited')
+shutil.rmtree(run2, ignore_errors=True)
 
 send(cmd='key', key='f')
 send(cmd='key', key='q')

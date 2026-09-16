@@ -1,6 +1,7 @@
 #include "auto_f2c.h"
 #include "auto_c.h"
 #include "xAuto.h"
+#include "xpp_ui.h" /* err_msg() */
 extern XAUTO xAuto;
 extern int NODE;
 extern int RestartLabel;
@@ -3073,11 +3074,15 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
 
   if(fp8_is_open==0){
     fp8 = fopen(fort8,"w");
-    fp8_is_open=1;
     if(fp8 == NULL) {
-      fprintf(stderr,"Error:  Could not open fort.8\n");
-      exit(1);
+      /* Report instead of exit(1): a server must outlive a bad HOME. fp8_is_open
+	 stays 0 so later calls retry the open instead of using a NULL fp8. */
+      char msg[256];
+      sprintf(msg,"Could not open %.200s",fort8);
+      err_msg(msg);
+      return 0;
     }
+    fp8_is_open=1;
   }
 
 
@@ -7171,11 +7176,14 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   if(fp8_is_open==0) {
     fp8 = fopen(fort8,"w");
-    fp8_is_open=1;
     if(fp8 == NULL) {
-      fprintf(stderr,"Error:  Could not open fort.8\n");
-      exit(1);
+      /* as in wrtsp8() */
+      char msg[256];
+      sprintf(msg,"Could not open %.200s",fort8);
+      err_msg(msg);
+      return 0;
     }
+    fp8_is_open=1;
   }
 
   /* Writes plotting and restart data on unit 8, viz.: */
