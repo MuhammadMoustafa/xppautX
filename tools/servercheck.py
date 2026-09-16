@@ -304,6 +304,34 @@ win = [e for e in evs if e.get('ev') == 'window' and e.get('win') == 101]
 check('size resizes the AUTO diagram', win and win[-1]['w'] == 500 and win[-1]['h'] == 300
       and len(draw_ops(evs, 101)) > 5, str(win))
 
+# Run, Grab a labelled point, Run again: the second run restarts from the
+# label in fort.3 (findlb/readlb). On Windows the backward fseek that located
+# the label line was undefined on a text stream and corrupted the heap.
+send(cmd='auto', op='run')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+check('Auto/Run opens the start menu', ask is not None and ask['kind'] == 'menu' and 's' in ask['keys'], str(ask))
+if ask:
+    send(cmd='answer', id=ask['id'], key='s')
+    collect(is_idle, timeout=30)
+    send(cmd='auto', op='grab')
+    evs, ask = collect(lambda e: e.get('ev') == 'ask')
+    check('Auto/Grab asks for a point', ask is not None and ask['kind'] == 'grab', str(ask))
+    for k in ['Tab', 'Tab', 'Return']:
+        if ask is None:
+            break
+        send(cmd='answer', id=ask['id'], key=k)
+        evs, ask = collect(lambda e: e.get('ev') == 'ask' or is_idle(e))
+        if k == 'Return' and ask is not None and ask.get('ev') == 'ask':
+            send(cmd='answer', id=ask['id'], ok=0)  # a confirmation is not expected; cancel it
+            collect(is_idle)
+    send(cmd='auto', op='run')
+    evs, e = collect(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=30)
+    if e is not None and e.get('ev') == 'ask':
+        send(cmd='answer', id=e['id'], ok=0)
+        evs, e = collect(is_idle, timeout=30)
+    check('Auto/Run after a Grab restarts from the label and the server survives',
+          e is not None and proc.poll() is None, 'exit code %s' % proc.poll())
+
 # A HOME the process cannot write to used to make AUTO exit(1) under the
 # client when it opened fort.8 there; open_auto() now falls back to the
 # model's directory. Drive a second server with such a HOME and check it survives.

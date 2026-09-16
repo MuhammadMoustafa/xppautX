@@ -4478,18 +4478,21 @@ findlb(iap_type *iap, const rap_type *rap,
   integer labrs, nskip, itpst, iswrs, ntplrs, ntotrs, ibr, itp, 
     isw;
   logical eof3;
+  long line_start;
 
-  
+
   /* Locates restart point with label IRS and determines type. */
   /* If the label can not be located on unit 3 then FOUND will be .FALSE. */
-  
 
-  
+
+
   *found = FALSE_;
   rewind(fp3);
   isw = iap->isw;
-  
+
   while(1) {
+    /* where this label line starts: readlb() reads it again from here */
+    line_start = ftell(fp3);
     if (fscanf(fp3,"%ld",&ibr) != 1) {
       break;
     }
@@ -4535,10 +4538,12 @@ findlb(iap_type *iap, const rap_type *rap,
         itpst = 0;
 	iap->itpst = itpst;
       }
-      fseek(fp3,-2,SEEK_CUR);
-      while((fgetc(fp3)!='\n') && (ftell(fp3)!=1)){
-	fseek(fp3,-2,SEEK_CUR);
-      }
+      /* Back to the start of the line with an absolute seek. The old
+	 backward walk with fseek(fp3,-2,SEEK_CUR) is undefined on a text
+	 stream in the Windows C runtime (CRLF translation): it left the
+	 stream mid-line, so readlb() parsed garbage for nar and wrote
+	 that many values past the end of u, corrupting the heap. */
+      fseek(fp3,line_start,SEEK_SET);
       return 0;
     } else {
       skip3(&nskip, &eof3);
