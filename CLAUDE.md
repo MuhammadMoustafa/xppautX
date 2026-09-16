@@ -15,7 +15,7 @@ Headless smoke test by hand (writes output.dat in cwd, expect 601 rows and
 md5 c281851de59ffd03b2a46428619a0c8f for lecar.ode):
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && ./xppaut examples/ode/lecar.ode -silent && wc -l output.dat"
-    wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && ./xppcore-cli examples/ode/lecar.ode && md5sum output.dat"
+    wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && ./xppautX examples/ode/lecar.ode -silent && md5sum output.dat"
 
 Run the GUI (WSLg shows the X11 window on the Windows desktop):
 
@@ -31,13 +31,13 @@ building while it runs:
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/guicheck.sh"
 
 Web front end regression check (the counterpart of guicheck for
-`xppaut-web`; run it for changes to `web/`, ui_json.c or xpp_http.c, once
+`xppautX`; run it for changes to `web/`, ui_json.c or xpp_http.c, once
 per batch). From Git Bash on Windows, where Node and Chrome are (not WSL):
 
     PATH=/c/Strawberry/c/bin:$PATH node tools/webshots.mjs
 
-It builds `xppaut-web` from HEAD into build/webshots/src, compares it with
-./xppaut-web.exe (`--new`), `--base BIN` skips the build. Steps are in
+It builds `xppautX` from HEAD into build/webshots/src, compares it with
+./xppautX.exe (`--new`), `--base BIN` skips the build. Steps are in
 tools/web_steps.txt; CSS selectors in steps must not contain spaces (use
 `>`). `const client` of the page is what steps and settling look at.
 
@@ -50,9 +50,9 @@ the incremental build only.
 The Windows-side gcc at C:\Strawberry\c\bin is MinGW-w64 without X11 headers: use it
 only for the native X11-free build, from Git Bash:
 
-    PATH=/c/Strawberry/c/bin:$PATH mingw32-make -j8 server cli web BUILDDIR=build/win
-    python3 tools/servercheck.py --server ./xppcore-server.exe
-    python3 tools/webcheck.py --bin ./xppaut-web.exe
+    PATH=/c/Strawberry/c/bin:$PATH mingw32-make -j8 xppautx BUILDDIR=build/win
+    python3 tools/servercheck.py --server ./xppautX.exe
+    python3 tools/webcheck.py --bin ./xppautX.exe
 
 Windows API code lives only in `core/xpp_win32.c` (windows.h macros clash
 with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
@@ -94,13 +94,15 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
 - The Makefile's `UI_SOURCES` list is the X11 set; everything else goes
   into `libxppcore.a`. `core/xpp_batch.c` is the headless entry point;
   `xpp_load_model()` there is the start shared with the server.
-- `core/ui_json.c` + `core/xppcore_server.c` (`SERVER_SOURCES`) are the JSON
+- `core/ui_json.c` + `core/xppautx_main.c` (`SERVER_SOURCES`) are the JSON
   protocol front end (docs/protocol.md). When adding an `XppUi` field, give
   it a `j_` implementation too, and extend `tools/servercheck.py` for new
   protocol behaviour; `tools/verify.sh` runs it. Every command ends with
   `state` then `idle`; a client waits for `idle`.
-- `xppaut-web` (`make web`) is `xppcore_server.c` built with
-  `XPP_WEB_DEFAULT`, plus `core/xpp_http.c` (HTTP + Server-Sent Events on
+- `xppautX` (`make xppautx`) is one program: `core/xppautx_main.c` picks
+  browser mode (the default), `--server` (the protocol on stdin/stdout) or
+  `-silent` (xpp_batch_main, no interface at all). It carries
+  `core/xpp_http.c` (HTTP + Server-Sent Events on
   127.0.0.1, threads, sockets; it includes no core header) and
   `build/.../web_assets.c`, generated from `web/` by `tools/embed.c`. The
   protocol lines go through `out_line()` in ui_json.c and input through

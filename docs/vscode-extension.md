@@ -11,13 +11,14 @@ Each tagged release of xppautX attaches, per platform
 
 | Asset | Contents |
 |---|---|
-| `xppaut-web-<tag>-linux-x64.tar.gz` | `xppcore-server`, `xppaut-web`, `xppcore-cli`, LICENSE |
-| `xppaut-web-<tag>-macos-arm64.tar.gz`, `...-macos-x64.tar.gz` | the same, for macOS |
-| `xppaut-web-<tag>-windows-x64.zip` | the same with `.exe` |
+| `xppautX-<tag>-linux-x64.tar.gz` | `xppautX`, LICENSE, CITATION.cff, README.txt |
+| `xppautX-<tag>-macos-arm64.tar.gz`, `...-macos-x64.tar.gz` | the same, for macOS |
+| `xppautX-<tag>-windows-x64.zip` | the same with `.exe` |
 | `xppautX-<tag>-source.tar.gz` | the source of those binaries (GPL v2) |
 
-The extension needs only `xppcore-server` (it renders the page itself in a
-webview); `xppaut-web` is for people without VS Code.
+The extension runs `xppautX --server` (it renders the page itself in a
+webview). The same binary without `--server` is what people without VS Code
+run to get the front end in a browser.
 
 The protocol is `docs/protocol.md`; `hello.protocol` is its version number
 (1 today). The front end script is `web/xpp-client.js` and
@@ -33,7 +34,7 @@ gives each user the right one.
 
 - Add a workflow that, for each target (`win32-x64`, `linux-x64`,
   `darwin-arm64`, `darwin-x64`), downloads the matching xppautX release
-  asset, unpacks `xppcore-server` into `bin/`, marks it executable on
+  asset, unpacks `xppautX` into `bin/`, marks it executable on
   Linux and macOS, and runs `vsce package --target <target>`.
   `gh release download <tag> --repo MuhammadMoustafa/xppautX --pattern '...'`
   does the download; pin the xppautX tag in a variable so the extension
@@ -48,7 +49,8 @@ gives each user the right one.
 ### 2. Find the binary at run time
 
 Order: the `xpp-ode.serverCommand` setting if the user set one, else the
-bundled `bin/xppcore-server[.exe]`, else `xppcore-server` on PATH. Say which
+bundled `bin/xppautX[.exe]`, else `xppautX` on PATH; the extension appends
+`--server` itself. Say which
 one failed when it cannot start; the panel already shows what the program
 printed.
 
@@ -56,7 +58,7 @@ printed.
 
 The first event is `hello` with `protocol`. If it is not the version the
 bundled `media/xpp-client.js` expects, show a message asking the user to
-update the extension or their own `xppcore-server`, and do not open the
+update the extension or their own `xppautX`, and do not open the
 panel.
 
 ### 4. Keep the front end in step
@@ -68,12 +70,12 @@ version of the bundled server.
 
 ### 5. Licensing
 
-The extension is MIT; `xppcore-server` is GPL v2 (XPPAUT is Bard
+The extension is MIT; `xppautX` is GPL v2 (XPPAUT is Bard
 Ermentrout's). Shipping them together is fine as long as each release:
 
 - includes the GPL v2 text (`LICENSE` from the asset) next to the binary,
 - states in the README and the Marketplace page that the panel runs
-  `xppcore-server` from xppautX under GPL v2, with a link to the exact
+  `xppautX` under GPL v2, with a link to the exact
   source (`xppautX-<tag>-source.tar.gz` of the pinned tag).
 
 Have someone check this before the first publish; it is the one part that

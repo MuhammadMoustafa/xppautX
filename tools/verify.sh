@@ -1,12 +1,12 @@
 #!/bin/sh
 # Build, run the headless smoke test, compare against the known-good checksum,
-# drive xppcore-server through its protocol (tools/servercheck.py) and
-# xppaut-web through HTTP (tools/webcheck.py), and print
+# drive xppautX --server through its protocol (tools/servercheck.py) and
+# its browser mode through HTTP (tools/webcheck.py), and print
 # the X11-free metric. Run from repo root (WSL/Linux/macOS).
 cd "$(dirname "$0")/.." || exit 1
 BASELINE=c281851de59ffd03b2a46428619a0c8f
 mkdir -p build || exit 1
-make -j8 xppaut xppcore-cli xppcore-server xppaut-web > build/last-build.log 2>&1
+make -j8 xppaut xppautx > build/last-build.log 2>&1
 st=$?
 tr -d '\r' < build/last-build.log > build/last-build.tmp && mv build/last-build.tmp build/last-build.log
 if [ $st -ne 0 ] || grep -q ' error:' build/last-build.log; then
@@ -27,13 +27,13 @@ else
   exit 1
 fi
 tmp=$(mktemp -d)
-( cd "$tmp" && "$OLDPWD/xppcore-cli" "$OLDPWD/examples/ode/lecar.ode" >/dev/null 2>&1 )
+( cd "$tmp" && "$OLDPWD/xppautX" "$OLDPWD/examples/ode/lecar.ode" -silent >/dev/null 2>&1 )
 sum=$(md5sum "$tmp/output.dat" 2>/dev/null | cut -d' ' -f1)
 rm -rf "$tmp"
 if [ "$sum" = "$BASELINE" ]; then
-  echo "headless cli ok: checksum matches baseline"
+  echo "headless -silent ok: checksum matches baseline"
 else
-  echo "HEADLESS CLI MISMATCH: sum=$sum"
+  echo "HEADLESS -silent MISMATCH: sum=$sum"
   exit 1
 fi
 if command -v python3 >/dev/null; then

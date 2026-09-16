@@ -9,15 +9,17 @@ hotkey of the original, and exposes the numerics as a library that other
 tools (for example a VS Code extension) can drive directly.
 
 Current status: **phase 3 steps 1-5 done**. The numerics and every command
-are X11-free. `make lib` builds `build/obj/libxppcore.a`; `make cli` builds
-`xppcore-cli`, a headless runner with byte-identical `output.dat` to
-`xppaut -silent`; `make server` builds `xppcore-server`, which runs the full
-menu system over a JSON protocol, and `make web` builds `xppaut-web`, the
-same program with the browser front end compiled in:
+are X11-free. `make lib` builds `build/obj/libxppcore.a` and `make xppautx`
+builds **`xppautX`**, one program that, like `xppaut`, takes what to do from
+the command line:
 
 ```bash
-./xppaut-web examples/ode/lecar.ode    # opens http://127.0.0.1:8765/?t=... in the browser
+./xppautX examples/ode/lecar.ode           # the front end in your browser
+./xppautX examples/ode/lecar.ode -silent   # no interface: writes output.dat
+./xppautX --server examples/ode/lecar.ode  # the JSON protocol on stdin/stdout
 ```
+
+`-silent` writes an `output.dat` byte-identical to `xppaut -silent`.
 
 It needs nothing else (no X server, no Node), builds natively on Windows,
 and does what the X11 program does ([docs/front-end-gaps.md](docs/front-end-gaps.md)).
@@ -66,7 +68,7 @@ reference.
    3. *(done)* A protocol front end: `core/ui_json.c` is an `XppUi` table
       that speaks line-delimited JSON (drawing, state and prompts out; keys,
       answers, sizes and parameter edits in) and `make server` builds
-      `xppcore-server` around it. The protocol is in
+      `xppautX --server` around it. The protocol is in
       [docs/protocol.md](docs/protocol.md); `tools/servercheck.py` drives a
       session through it in a few seconds without a display.
    4. *(done)* The front end: `web/xpp-client.js` renders the protocol in any
@@ -74,13 +76,13 @@ reference.
       dialogs for every prompt, AUTO and animation windows). `node
       web/serve.js file.ode` runs it standalone at http://127.0.0.1:8765/;
       the XPP-ODE extension hosts the same script in a webview with **Open in
-      XPP Interactive**. `make web` builds `xppaut-web`: `xppcore-server`
+      XPP Interactive**. `xppautX` without `--server` is the same program
       with the page compiled in and a small HTTP server (`core/xpp_http.c`,
       127.0.0.1 only, a random token in the address) instead of Node;
       options `--port N` and `--no-open`.
    5. *(done for Windows; macOS in CI)* Native builds of the X11-free
-      binaries: `make server cli` works with MinGW-w64 gcc on Windows
-      (`xppcore-server.exe` needs only the system C runtime, and dll_lib
+      program: `make xppautx` works with MinGW-w64 gcc on Windows
+      (`xppautX.exe` needs only the system C runtime, and dll_lib
       models load `.dll`s) and on macOS without XQuartz. The Windows build
       passes the same protocol checks and writes the same `output.dat` as
       Linux apart from line endings. CI builds and checks both.
@@ -94,12 +96,12 @@ them after a build and checks the output checksums):
 |---|---|---|
 | `tools/x11free.sh` | sources that compile with X11 headers stubbed out | 92 / 114 |
 | `tools/coredeps.sh` | symbols those objects import from X11 objects | 0 |
-| `tools/servercheck.py` | protocol session against `xppcore-server` (menus, prompts, integration, equilibria, windows, browser, animation, kinescope, array plot, scrolling) | 34 checks |
-| `tools/webcheck.py` | `xppaut-web` over HTTP: page, token, event stream, commands, exit | 11 checks |
-| `tools/examples_check.sh` | every `examples/**/*.ode` through `xppaut -silent` and `xppcore-cli`, outputs compared | all models |
+| `tools/servercheck.py` | protocol session against `xppautX --server` (menus, prompts, integration, equilibria, windows, browser, animation, kinescope, array plot, scrolling) | 34 checks |
+| `tools/webcheck.py` | `xppautX` over HTTP: page, token, event stream, commands, exit | 11 checks |
+| `tools/examples_check.sh` | every `examples/**/*.ode` through `xppaut -silent` and `xppautX -silent`, outputs compared | all models |
 
 `node tools/webshots.mjs [--ref REF]` guards the web front end the same
-way: it builds `xppaut-web` from `REF` (default `HEAD`), plays
+way: it builds `xppautX` from `REF` (default `HEAD`), plays
 `tools/web_steps.txt` (real key presses, clicks and drags: menus, prompts,
 side panel, data browser, text views, scrolling, windows, animation,
 kinescope, array plot, AUTO, 3D, file selector, calculator, errors, a
@@ -194,8 +196,8 @@ head output.dat
 
 ```bash
 make lib          # build/obj/libxppcore.a: the numerics, no X11
-make cli          # xppcore-cli: batch runner linked against the library only
-./xppcore-cli examples/ode/lecar.ode   # writes output.dat, same as xppaut -silent
+make xppautx      # xppautX: the one X11-free program
+./xppautX examples/ode/lecar.ode -silent   # writes output.dat, same as xppaut -silent
 ```
 
 ### Makefile knobs
@@ -244,9 +246,8 @@ Dynamical Systems: A Guide to XPPAUT for Researchers and Students* (SIAM,
 
 GPL v2, as upstream. See `LICENSE`. XPPAUT is copyright Bard Ermentrout.
 
-That applies to anything built from this repository, including
-`xppcore-server` inside another program: ship the licence text with the
-binaries and point to the source they were built from (each release attaches
-it). Software that only talks to `xppcore-server` over the protocol, in
-another process, is a separate program and can have its own licence, as the
-VS Code extension does.
+That applies to anything built from this repository, including `xppautX`
+inside another program: ship the licence text with the binaries and point to
+the source they were built from (each release attaches it). Software that
+only talks to `xppautX` over the protocol, in another process, is a separate
+program and can have its own licence, as the VS Code extension does.

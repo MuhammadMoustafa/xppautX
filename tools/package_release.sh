@@ -5,28 +5,32 @@ cd "$(dirname "$0")/.." || exit 1
 platform=$1
 [ -n "$platform" ] || { echo "usage: $0 PLATFORM"; exit 2; }
 version=${GITHUB_REF_NAME:-$(git describe --tags --always 2>/dev/null || echo dev)}
-name="xppaut-web-$version-$platform"
+name="xppautX-$version-$platform"
 rm -rf "build/$name" && mkdir -p "build/$name" || exit 1
 case "$platform" in
   windows-*) suffix=.exe ;;
   *) suffix= ;;
 esac
-for f in xppaut-web xppcore-server xppcore-cli; do
-  [ -f "$f$suffix" ] && cp "$f$suffix" "build/$name/"
-done
+[ -f "xppautX$suffix" ] && cp "xppautX$suffix" "build/$name/"
 cp LICENSE "build/$name/"
 [ -f CITATION.cff ] && cp CITATION.cff "build/$name/"
 mkdir -p "build/$name/examples" && cp examples/ode/lecar.ode "build/$name/examples/"
 cat > "build/$name/README.txt" <<EOF
 xppautX $version ($platform)
 
-xppaut-web MODEL.ode      the front end in your browser (nothing else needed)
-xppcore-server MODEL.ode  the same engine over the JSON protocol on stdin/stdout
-xppcore-cli MODEL.ode     a headless run, writes output.dat
+One program, and like xppaut it takes what to do from the command line:
 
-Try:  ./xppaut-web examples/lecar.ode
-Options: --port N (default 8765), --no-open (print the address only).
+  xppautX MODEL.ode            the front end in your browser (nothing else
+                               needed): it serves the page and opens it
+  xppautX MODEL.ode -silent    a headless run that writes output.dat, the
+                               same switch upstream xppaut uses
+  xppautX --server MODEL.ode   the JSON protocol on stdin/stdout, for a
+                               program that embeds it
+
+Try:  ./xppautX examples/lecar.ode
+Browser options: --port N (default 8765), --no-open (print the address only).
 Only this machine can reach it, and the address carries a one-time token.
+Every xppaut option still works; xppautX's own options have to come first.
 
 XPPAUT is by Bard Ermentrout; xppautX is a fork that runs without X11.
 GPL v2: see LICENSE. The source of these binaries is the

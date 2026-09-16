@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-/* Standalone XPP in a browser: runs xppcore-server and serves the web front
+/* Standalone XPP in a browser: runs xppautX --server and serves the web front
    end. No dependencies.
 
    node web/serve.js [--port 8765] [--server "command"] file.ode [xppaut options]
 
-   --server is the command that starts xppcore-server; the ODE file name is
-   appended and it runs in the file's folder. Default: the xppcore-server
-   built in this repository; on Windows xppcore-server.exe (make server with
+   --server is the command that starts xppautX; the ODE file name is
+   appended and it runs in the file's folder. Default: the xppautX
+   built in this repository; on Windows xppautX.exe (make xppautx with
    MinGW) or else the Linux build through `wsl -e`. Events reach the page by
    Server-Sent Events, commands come back by POST. */
 'use strict';
@@ -44,20 +44,20 @@ if (serverCmd) {
   const parts = serverCmd.match(/"[^"]*"|\S+/g).map(s => s.replace(/^"|"$/g, ''));
   command = parts[0];
   commandArgs = parts.slice(1);
-} else if (process.platform === 'win32' && fs.existsSync(path.join(repo, 'xppcore-server.exe'))) {
-  command = path.join(repo, 'xppcore-server.exe');
-  commandArgs = [];
+} else if (process.platform === 'win32' && fs.existsSync(path.join(repo, 'xppautX.exe'))) {
+  command = path.join(repo, 'xppautX.exe');
+  commandArgs = ['--server'];
 } else if (process.platform === 'win32') {
   command = 'wsl';
-  commandArgs = ['-e', wslPath(path.join(repo, 'xppcore-server'))];
+  commandArgs = ['-e', wslPath(path.join(repo, 'xppautX')), '--server'];
 } else {
-  command = path.join(repo, 'xppcore-server');
-  commandArgs = [];
+  command = path.join(repo, 'xppautX');
+  commandArgs = ['--server'];
 }
 commandArgs.push(path.basename(odePath), ...args);
 
 const xpp = spawn(command, commandArgs, {cwd: path.dirname(odePath)});
-console.log(`xppcore-server: ${command} ${commandArgs.join(' ')}`);
+console.log(`xppautX: ${command} ${commandArgs.join(' ')}`);
 
 /* the events a newly opened page needs before it can draw */
 const sticky = {hello: null, palette: null, state: null, ask: null};
@@ -105,7 +105,7 @@ xpp.stderr.on('data', d => {
 });
 function serverGone(code) {
   if (exitLine) return;
-  console.log(`xppcore-server exited (${code}); the page stays up to show why. Ctrl+C to stop.`);
+  console.log(`xppautX exited (${code}); the page stays up to show why. Ctrl+C to stop.`);
   exitLine = broadcast({ev: 'exit', code});
 }
 xpp.on('exit', code => serverGone(code));

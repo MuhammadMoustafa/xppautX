@@ -1,12 +1,18 @@
-/* xppcore-server: xppaut without a window system. Loads the ODE file like
-   xppaut does, then speaks the line-delimited JSON protocol of ui_json.c on
-   stdin/stdout, so any front end (the VS Code webview, a browser, a test
-   script) can drive the same menus and hotkeys.
-   usage: xppcore-server [--web] [--port N] [--no-open] file.ode [xppaut options]
+/* xppautX: xppaut without a window system. It loads the ODE file exactly as
+   xppaut does and then, like xppaut, picks what to do from the command line:
 
-   Compiled with XPP_WEB_DEFAULT this is xppaut-web, which starts with --web:
-   the protocol goes to the page it serves on 127.0.0.1 (xpp_http.c) and a
-   browser opens it. */
+     xppautX model.ode              the front end in a browser (the default):
+                                    xpp_http.c serves the compiled-in page on
+                                    127.0.0.1 and opens it
+     xppautX --server model.ode     the same session over the line-delimited
+                                    JSON protocol of ui_json.c on stdin and
+                                    stdout, for a front end that embeds it
+                                    (the VS Code webview, a test script)
+     xppautX model.ode -silent      a headless batch run that writes
+                                    output.dat, as upstream xppaut -silent
+
+   usage: xppautX [--server|--web] [--port N] [--no-open] file.ode [xppaut options]
+   Every xppaut option still applies; ours have to come first. */
 #include "xpp_batch.h"
 #include "xpp_globals.h"
 #include "xpp_ui.h"
@@ -66,21 +72,22 @@ static void init_main_graph(void)
 int main(int argc, char **argv)
 {
     char title[128];
-#ifdef XPP_WEB_DEFAULT
-    int web = 1;
-#else
-    int web = 0;
-#endif
-    int port = 8765, open_browser = 1, i, k;
+    int web = 1, batch = 0, port = 8765, open_browser = 1, i, k;
     /* our options come first; the rest are xppaut's */
     for (i = k = 1; i < argc; i++) {
         if (strcmp(argv[i], "--web") == 0) web = 1;
+        else if (strcmp(argv[i], "--server") == 0) web = 0;
         else if (strcmp(argv[i], "--no-open") == 0) open_browser = 0;
         else if (strcmp(argv[i], "--port") == 0 && i + 1 < argc) port = atoi(argv[++i]);
-        else argv[k++] = argv[i];
+        else {
+            /* xppaut's own switch for a run with no interface at all */
+            if (strcmp(argv[i], "-silent") == 0) batch = 1;
+            argv[k++] = argv[i];
+        }
     }
     argc = k;
     argv[argc] = NULL;
+    if (batch) return xpp_batch_main(argc, argv);
     if (web && !xpp_http_start(port, open_browser)) return 1;
     /* a monospace font the client can match: small 7x13, big 9x15 */
     DCURXs = 7; DCURYs = 13; CURY_OFFs = 10;

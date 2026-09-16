@@ -1,6 +1,6 @@
 #!/bin/sh
 # Run every example ODE through the X11 program (xppaut -silent) and the
-# headless runner (xppcore-cli) and compare what they write. The two share
+# X11-free one (xppautX -silent) and compare what they write. The two share
 # the numerics, so a difference means the split broke something; a model
 # only one of them can run at all is reported too.
 # Usage: tools/examples_check.sh [pattern]     (default: every examples/**/*.ode)
@@ -24,7 +24,7 @@ for f in $(find examples -name '*.ode' | sort); do
     run=$out/$tag
     rm -rf "$run" && mkdir -p "$run"
     cp "$dir"/* "$run"/ 2>/dev/null
-    if [ $tag = base ]; then bin="$top/xppaut"; set -- -silent; else bin="$top/xppcore-cli"; set --; fi
+    bin="$top/xppaut"; [ $tag = base ] || bin="$top/xppautX"; set -- -silent
     ( cd "$run" && timeout "$timeout" "$bin" "$(basename "$f")" "$@" > run.log 2>&1 )
     echo $? > "$run/status"
   done
@@ -41,7 +41,7 @@ for f in $(find examples -name '*.ode' | sort); do
     fi
   elif [ -s "$a" ] || [ -s "$b" ]; then
     only=$((only + 1))
-    [ -s "$a" ] && which=xppcore-cli || which=xppaut
+    [ -s "$a" ] && which=xppautX || which=xppaut
     echo "ONLY ONE RAN: $f (no output from $which)"
     mkdir -p "$out/diffs/$name"
     cp "$out/base/run.log" "$out/diffs/$name/base.log"

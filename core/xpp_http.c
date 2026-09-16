@@ -1,4 +1,4 @@
-/* The browser front end's HTTP server, inside xppcore-server (xpp_http.h).
+/* The browser front end's HTTP server, inside xppautX (xpp_http.h).
    The same job as web/serve.js without Node: serve the compiled-in page,
    stream protocol events to it (Server-Sent Events), take its commands by
    POST, and replay what a page that (re)connects needs to draw.
@@ -400,7 +400,7 @@ static void at_exit(void)
     xpp_http_emit(line, strlen(line));
     if (saw_bye) return;
     if (orig_stderr >= 0) {
-        static const char msg[] = "xppaut-web: the model stopped; the page shows what it printed. Ctrl+C quits.\n";
+        static const char msg[] = "xppautX: the model stopped; the page shows what it printed. Ctrl+C quits.\n";
         if (write(orig_stderr, msg, sizeof msg - 1) < 0) orig_stderr = -1;
     }
     pthread_join(http_thread, NULL); /* until Ctrl+C */
@@ -490,7 +490,7 @@ int xpp_http_start(int port, int open_browser)
     got = listen_on(port);
     if (got < 0 && port != 0) got = listen_on(0); /* taken: any free port */
     if (got < 0) {
-        fprintf(stderr, "xppaut-web: cannot open a port on 127.0.0.1\n");
+        fprintf(stderr, "xppautX: cannot open a port on 127.0.0.1\n");
         return 0;
     }
     make_token();

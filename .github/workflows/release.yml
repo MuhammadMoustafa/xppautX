@@ -35,7 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build
-        run: make -j4 server cli web
+        run: make -j4 xppautx
       - name: Check
         run: |
           python3 tools/servercheck.py
@@ -45,7 +45,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: linux-x64
-          path: xppaut-web-*.tar.gz*
+          path: xppautX-*-*.tar.gz*
 
   windows:
     runs-on: windows-latest
@@ -59,17 +59,17 @@ jobs:
           msystem: UCRT64
           install: make zip mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-python
       - name: Build
-        run: make -j4 server cli web
+        run: make -j4 xppautx
       - name: Check
         run: |
-          python tools/servercheck.py --server ./xppcore-server.exe
-          python tools/webcheck.py --bin ./xppaut-web.exe
+          python tools/servercheck.py --server ./xppautX.exe
+          python tools/webcheck.py --bin ./xppautX.exe
       - name: Package
         run: tools/package_release.sh windows-x64
       - uses: actions/upload-artifact@v4
         with:
           name: windows-x64
-          path: xppaut-web-*.zip*
+          path: xppautX-*.zip*
 
   macos:
     # not tried by hand yet: the binaries are unsigned, so macOS asks the user
@@ -85,7 +85,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build
-        run: make -j3 server cli web
+        run: make -j3 xppautx
       - name: Check
         run: |
           python3 tools/servercheck.py
@@ -95,7 +95,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.arch }}
-          path: xppaut-web-*.tar.gz*
+          path: xppautX-*-*.tar.gz*
 
   publish:
     needs: [source, linux, windows, macos]
@@ -110,11 +110,13 @@ jobs:
         with:
           files: dist/*/*
           body: |
-            xppaut-web, xppcore-server and xppcore-cli for Linux, Windows and macOS.
+            xppautX for Linux, Windows and macOS: one program, no X11.
 
-            `xppaut-web model.ode` opens the front end in your browser; it needs
-            nothing else installed. The macOS and Windows binaries are not signed,
-            so the system asks you to allow them the first time.
+            `xppautX model.ode` opens the front end in your browser and needs
+            nothing else installed; `-silent` runs it headlessly and writes
+            output.dat, as upstream xppaut does; `--server` speaks the JSON
+            protocol on stdin/stdout. The macOS and Windows binaries are not
+            signed, so the system asks you to allow them the first time.
 
             GPL v2, as upstream XPPAUT (Bard Ermentrout). The source of these
             binaries is the attached `*-source.tar.gz`.

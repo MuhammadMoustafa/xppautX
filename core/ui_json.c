@@ -165,7 +165,7 @@ static void buf_str_array(Buf *b, char **v, int n)
     BUF_LIT(b, "]");
 }
 
-/* one event line to the client: stdout, or the page of xppaut-web */
+/* one event line to the client: stdout, or the page xppautX serves */
 static void out_line(const char *s, size_t n)
 {
     if (xpp_http_active()) {
@@ -2268,7 +2268,7 @@ void json_ui_loop(void)
 void json_ui_install(void)
 {
     int i;
-    if (!xpp_http_active()) { /* xppaut-web has taken stdout and stderr */
+    if (!xpp_http_active()) { /* browser mode has taken stdout and stderr */
         int fd = dup(1);
 #ifdef _WIN32
         xpp_binary_mode(fd); /* "\n" line ends, not "\r\n" */

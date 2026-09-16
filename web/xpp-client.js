@@ -1,4 +1,4 @@
-/* XPP front end for the xppcore-server protocol (docs/protocol.md).
+/* XPP front end for the xppautX protocol (docs/protocol.md).
 
    Plain browser JavaScript, no dependencies and no editor API: the host
    creates `new XppClient(rootElement, sendFunction)` and feeds every event

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Drive xppcore-server through the JSON protocol and check what comes back.
+"""Drive xppautX --server through the JSON protocol and check what comes back.
 
-usage: tools/servercheck.py [--server ./xppcore-server] [--ode examples/ode/lecar.ode] [-v]
+usage: tools/servercheck.py [--server ./xppautX] [--ode examples/ode/lecar.ode] [-v]
 
 Plays a fixed session (integrate, change a parameter, answer a menu, a
 string prompt and a form, find an equilibrium, open a second plot window)
@@ -10,14 +10,14 @@ and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 import argparse, base64, json, os, shutil, subprocess, sys, tempfile, threading, queue
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--server', default='./xppcore-server')
+ap.add_argument('--server', default='./xppautX')
 ap.add_argument('--ode', default='examples/ode/lecar.ode')
 ap.add_argument('-v', action='store_true')
 args = ap.parse_args()
 
 run = tempfile.mkdtemp(prefix='xppserver')
 shutil.copy(args.ode, run)
-proc = subprocess.Popen([os.path.abspath(args.server), os.path.basename(args.ode)], cwd=run,
+proc = subprocess.Popen([os.path.abspath(args.server), '--server', os.path.basename(args.ode)], cwd=run,
                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                         text=True, bufsize=1)
 events = queue.Queue()

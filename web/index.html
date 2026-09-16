@@ -14,7 +14,7 @@
 <div id="xpp"></div>
 <script src="xpp-client.js"></script>
 <script>
-  /* xppaut-web puts a token in the address; its event and command URLs need it */
+  /* xppautX puts a token in the address; its event and command URLs need it */
   const token = location.search;
   const client = new XppClient(document.getElementById('xpp'), cmd =>
     fetch('cmd' + token, {method: 'POST', body: JSON.stringify(cmd)}));

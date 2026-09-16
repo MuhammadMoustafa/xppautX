@@ -5,8 +5,8 @@ message: >-
 title: "xppautX: XPPAUT without X11, with a browser front end"
 abstract: >-
   A fork of XPPAUT 8.x that separates the numerics from the X11 front end.
-  It adds a library (libxppcore), a headless runner (xppcore-cli), a JSON
-  protocol server (xppcore-server) and xppaut-web, which serves the same
+  It adds a library (libxppcore) and xppautX, one X11-free program that
+  runs headlessly, speaks a JSON protocol and serves the same
   menus and plots to a browser, on Linux, macOS and Windows.
 type: software
 authors:

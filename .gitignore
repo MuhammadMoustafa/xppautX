@@ -16,9 +16,7 @@
 /build/scratch/
 /build/*.log
 /build/*.txt
-/xppcore-cli
-/xppcore-server
-/xppaut-web
+/xppautX
 /libxppcore.a
 /build/guicheck/
 /build/probe/
@@ -32,4 +30,4 @@
 /build/webshots/
 /build/webshots.log
 /build/examples/
-/xppaut-web-*
+/xppautX-*

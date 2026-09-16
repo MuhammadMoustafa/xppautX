@@ -1,6 +1,6 @@
-# xppcore-server protocol
+# xppautX protocol
 
-`xppcore-server file.ode [xppaut options]` loads the model the way `xppaut`
+`xppautX --server file.ode [xppaut options]` loads the model the way `xppaut`
 does and then talks line-delimited JSON: one object per line, UTF-8, on
 stdin (commands, `"cmd"`) and stdout (events, `"ev"`). stderr carries the
 core's own log output. The implementation is `core/ui_json.c`;

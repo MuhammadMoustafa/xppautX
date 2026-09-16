@@ -1,7 +1,7 @@
 # X11 front end vs the JSON front end
 
 What a user of the X11 windows can do, and whether the protocol front end
-(`xppcore-server` + `web/xpp-client.js`, also the VS Code panel) does it.
+(`xppautX` + `web/xpp-client.js`, also the VS Code panel) does it.
 Checked against the X11 sources window by window; update this file when a
 row changes.
 

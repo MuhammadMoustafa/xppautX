@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Screenshot regression check for the web front end (the web counterpart of
-   tools/guicheck.sh). Builds xppaut-web from a git ref (default HEAD), runs
+   tools/guicheck.sh). Builds xppautX from a git ref (default HEAD), runs
    it and the working-tree binary through the same session of real key
    presses and clicks (tools/web_steps.txt) in a headless Chrome or Edge,
    and compares the screenshots and the files the session writes.
@@ -22,7 +22,7 @@ import {fileURLToPath} from 'node:url';
 const win = process.platform === 'win32';
 const exe = win ? '.exe' : '';
 const top = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const opt = {ref: 'HEAD', steps: 'tools/web_steps.txt', out: 'build/webshots', new: `xppaut-web${exe}`};
+const opt = {ref: 'HEAD', steps: 'tools/web_steps.txt', out: 'build/webshots', new: `xppautX${exe}`};
 for (let i = 2; i < process.argv.length; i++) {
   const k = process.argv[i].replace(/^--/, '');
   opt[k] = process.argv[++i];
@@ -291,8 +291,8 @@ async function main() {
     fs.writeFileSync(path.join(out, 'src.tar'), run('git', ['archive', '--format=tar', opt.ref], top));
     run('tar', ['-xf', 'src.tar', '-C', 'src'], out); /* relative: GNU tar reads C: as a host */
     const make = process.env.MAKE || (win ? 'mingw32-make' : 'make');
-    run(make, ['-j8', `xppaut-web${exe}`], src);
-    base = path.join(src, `xppaut-web${exe}`);
+    run(make, ['-j8', `xppautX${exe}`], src);
+    base = path.join(src, `xppautX${exe}`);
   }
   const steps = fs.readFileSync(path.join(top, opt.steps), 'utf8').split(/\r?\n/);
   const problems = {};

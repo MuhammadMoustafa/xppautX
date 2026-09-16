@@ -53,24 +53,22 @@ UI_SOURCES := $(addprefix $(SRCDIR)/, abort.c aniwin.c aplotwin.c auto_x11.c \
   menu.c menudrive.c pop_list.c rubber.c txtread.c ui_x11.c \
   xppaut_main.c)
 # sbml2xpp.c needs libsbml and is not part of the upstream build.
-SERVER_SOURCES := $(addprefix $(SRCDIR)/, ui_json.c xppcore_server.c xpp_http.c)
-CORE_SOURCES := $(filter-out $(UI_SOURCES) $(SERVER_SOURCES) $(SRCDIR)/sbml2xpp.c $(SRCDIR)/xppcore_cli.c,$(wildcard $(SRCDIR)/*.c))
-# the page and script xppaut-web serves, compiled in
+SERVER_SOURCES := $(addprefix $(SRCDIR)/, ui_json.c xppautx_main.c xpp_http.c)
+CORE_SOURCES := $(filter-out $(UI_SOURCES) $(SERVER_SOURCES) $(SRCDIR)/sbml2xpp.c,$(wildcard $(SRCDIR)/*.c))
+# the page and script xppautX serves, compiled in
 WEB_FILES := web/index.html web/xpp-client.js web/xpp-client.css
-SERVER_OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(filter-out $(SRCDIR)/xppcore_server.c,$(SERVER_SOURCES))) \
-  $(BUILDDIR)/web_assets.o
+SERVER_OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SERVER_SOURCES)) $(BUILDDIR)/web_assets.o
 SOURCES := $(CORE_SOURCES) $(UI_SOURCES)
 OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SOURCES))
 CORE_OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(CORE_SOURCES))
 # per build directory, so a MinGW build does not replace the Linux library
 CORELIB := $(BUILDDIR)/libxppcore.a
 
-.PHONY: all clean x11free lib cli server web
+.PHONY: all clean x11free lib xppautx
 all: xppaut
 lib: $(CORELIB)
-cli: xppcore-cli$(EXE)
-server: xppcore-server$(EXE)
-web: xppaut-web$(EXE)
+# one X11-free program: browser front end, --server protocol and -silent batch
+xppautx: xppautX$(EXE)
 
 xppaut: $(OBJECTS)
 	$(CC) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
@@ -78,17 +76,8 @@ xppaut: $(OBJECTS)
 $(CORELIB): $(CORE_OBJECTS)
 	ar rcs $@ $(CORE_OBJECTS)
 
-xppcore-cli$(EXE): $(BUILDDIR)/xppcore_cli.o $(CORELIB)
-	$(CC) $(LDSTATIC) -o $@ $(BUILDDIR)/xppcore_cli.o $(CORELIB) -lm $(DLLIB)
-
-xppcore-server$(EXE): $(BUILDDIR)/xppcore_server.o $(SERVER_OBJECTS) $(CORELIB)
-	$(CC) $(LDSTATIC) -o $@ $(BUILDDIR)/xppcore_server.o $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS)
-
-xppaut-web$(EXE): $(BUILDDIR)/xppaut_web.o $(SERVER_OBJECTS) $(CORELIB)
-	$(CC) $(LDSTATIC) -o $@ $(BUILDDIR)/xppaut_web.o $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS)
-
-$(BUILDDIR)/xppaut_web.o: $(SRCDIR)/xppcore_server.c | $(BUILDDIR)
-	$(CC) $(CFLAGS) -DXPP_WEB_DEFAULT -MMD -MP -c $< -o $@
+xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
+	$(CC) $(LDSTATIC) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS)
 
 $(BUILDDIR)/embed$(EXE): tools/embed.c | $(BUILDDIR)
 	$(CC) -O2 -o $@ $<
@@ -105,10 +94,10 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.c | $(BUILDDIR)
 $(BUILDDIR):
 	mkdir -p $@
 
--include $(OBJECTS:.o=.d) $(BUILDDIR)/xppcore_cli.d $(BUILDDIR)/xppaut_web.d $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.d,$(SERVER_SOURCES))
+-include $(OBJECTS:.o=.d) $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.d,$(SERVER_SOURCES))
 
 clean:
-	rm -rf $(BUILDDIR) xppaut libxppcore.a xppcore-cli xppcore-server xppcore-cli.exe xppcore-server.exe xppaut-web xppaut-web.exe
+	rm -rf $(BUILDDIR) xppaut libxppcore.a xppautX xppautX.exe
 
 .PHONY: x11free
 x11free:

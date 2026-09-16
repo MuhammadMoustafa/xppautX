@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Check xppaut-web: the page is served, events stream, commands work, and
+"""Check xppautX in browser mode: the page is served, events stream, commands work, and
 the token protects the event and command URLs.
 
-usage: tools/webcheck.py [--bin ./xppaut-web] [--ode examples/ode/lecar.ode]
+usage: tools/webcheck.py [--bin ./xppautX] [--ode examples/ode/lecar.ode]
 """
 import argparse, http.client, json, os, queue, re, shutil, subprocess, sys, tempfile, threading
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--bin', default='./xppaut-web')
+ap.add_argument('--bin', default='./xppautX')
 ap.add_argument('--ode', default='examples/ode/lecar.ode')
 args = ap.parse_args()
 

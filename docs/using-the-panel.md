@@ -1,13 +1,14 @@
 # Using XPP in a browser
 
-`xppaut-web model.ode` starts XPP and opens the front end in your browser.
+`xppautX model.ode` starts XPP and opens the front end in your browser.
 Everything runs on your machine: the address it prints is only reachable
 from this computer and carries a one-time token.
 
 ```bash
-xppaut-web examples/ode/lecar.ode      # prints http://127.0.0.1:8765/?t=... and opens it
-xppaut-web --port 9000 model.ode       # another port
-xppaut-web --no-open model.ode         # print the address, open it yourself
+xppautX examples/ode/lecar.ode      # prints http://127.0.0.1:8765/?t=... and opens it
+xppautX --port 9000 model.ode       # another port
+xppautX --no-open model.ode         # print the address, open it yourself
+xppautX model.ode -silent           # no interface at all: writes output.dat
 ```
 
 Closing the browser tab does not stop XPP; press Ctrl+C in the terminal, or
@@ -67,7 +68,7 @@ Two differences:
 ## What still needs a compiler
 
 A model that loads user C functions (`load dll`) needs that library built
-for the machine that runs `xppaut-web`; the Windows build loads `.dll`
+for the machine that runs `xppautX`; the Windows build loads `.dll`
 files. Everything else in XPPAUT works without any compiler.
 
 Help and "Edit .xpprc" open a browser or an editor on the machine that runs
