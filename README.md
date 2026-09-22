@@ -128,6 +128,45 @@ when `xvfb` is installed (about ten minutes).
 | `tools/` | `animsvgwww`, `default.opt`. |
 | `contrib/` | The CUDA experiment and the XppBetty Java GUI jars from upstream. |
 
+## Installing a release
+
+Each release attaches one archive per platform. Unpack it and run the
+program on a model:
+
+```bash
+./xppautX examples/ode/lecar.ode
+```
+
+on Windows, `xppautX.exe examples\ode\lecar.ode`. Nothing else is needed:
+the front end opens in your browser and the program serves it itself.
+
+The binaries are not signed, because a signing identity costs money at both
+Apple and Microsoft, so each system asks once before running a program it
+downloaded. Neither warning means anything is wrong with the file.
+
+**macOS.** The download is quarantined. Clear the flag, then run it:
+
+```bash
+xattr -d com.apple.quarantine xppautX
+chmod +x xppautX
+```
+
+For a program you double-click instead, right-click it, choose **Open**, and
+confirm **Open** in the dialog; after that it starts normally.
+
+**Windows.** SmartScreen shows "Windows protected your PC". Choose **More
+info**, then **Run anyway**. If the zip came from a browser you can also
+untick the file's **Unblock** box in its Properties before unpacking.
+
+**Linux.** No warning. If the file lost its permissions in the zip:
+
+```bash
+chmod +x xppautX
+```
+
+Neither warning appears when the program is installed by a package manager
+or built from source, so those routes skip this entirely.
+
 ## Building
 
 Requires gcc (or clang), make, and X11 headers.
@@ -220,8 +259,12 @@ platform plus the source of those binaries to the GitHub release.
 `tools/package_release.sh PLATFORM` makes such an archive locally.
 
 The macOS and Windows binaries are not signed, so those systems ask the user
-to allow them the first time. Signing and notarizing macOS needs an Apple
-developer account.
+to allow them the first time; "Installing a release" above says what to
+click. Removing the warning is not free: it needs a Developer ID certificate
+from the Apple Developer Program for macOS and a code-signing certificate
+for Windows, both paid and yearly. The tooling itself is free (`codesign`
+and `notarytool` come with the Xcode command line tools, and `rcodesign`
+signs from Linux), so only the certificates are missing.
 
 ## Documentation
 
