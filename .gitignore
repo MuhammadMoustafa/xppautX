@@ -1,3 +1,6 @@
+# personal scratch models, never committed
+sandbox/
+
 *.o
 *.a
 *.so
