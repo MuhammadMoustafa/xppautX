@@ -181,10 +181,28 @@ static void out_flush(void)
     if (proto) fflush(proto);
 }
 
+/* AUTO draws a branch as a chain of one-segment lines, and one JSON op per
+   segment is what makes a redraw of a large diagram slow: the wire carries
+   tens of thousands of ops and the client strokes each one. Segments that
+   join up are gathered into a single ["poly",x0,y0,x1,y1,...] that the client
+   strokes as one path. The op stays open while it grows, so anything else
+   that writes an op closes it first. */
+static int poly_open, poly_x, poly_y;
+static void auto_reset_state(void); /* colour/width cache, below */
+static void auto_sync_state(void);
+
+static void close_poly(void)
+{
+    if (!poly_open) return;
+    poly_open = 0;
+    BUF_LIT(&ops, "]");
+}
+
 static void flush_ops(void)
 {
     char head[64];
     size_t k;
+    close_poly();
     if (ops.len == 0) return;
     k = (size_t)snprintf(head, sizeof head, "{\"ev\":\"draw\",\"win\":%lu,\"ops\":[", ops_win);
     /* wrap the ops in place: {"ev":"draw",...,"ops":[ ... ]} */
@@ -229,6 +247,7 @@ static void op(unsigned long win, const char *fmt, ...)
     char tmp[2048];
     va_list ap;
     int n;
+    close_poly();
     if (win != ops_win) {
         flush_ops();
         ops_win = win;
@@ -1669,22 +1688,78 @@ static void j_auto_make_window(char *wname, char *iname)
     Auto.y0 = 2 * DCURYs;
     Auto.st_wid = 12 * DCURX;
     strcpy(Auto.hinttxt, "hint");
+    auto_reset_state(); /* a fresh canvas starts from the defaults */
     send_window("create", WIN_AUTO, Auto.wid + 12 * DCURXs, Auto.hgt + 4 * DCURYs, wname);
     draw_bif_axes();
 }
 
-static void j_auto_line(int a, int b, int c, int d) { op(WIN_AUTO, "[\"line\",%d,%d,%d,%d]", a, b, c, d); }
-static void j_auto_text(int a, int b, char *c) { op_text(WIN_AUTO, "rtext", a, b, c, -1); }
-static void j_auto_circle(int x, int y, int r) { op(WIN_AUTO, "[\"circle\",%d,%d,%d]", x, y, r); }
-static void j_auto_fill_circle(int x, int y, int r) { op(WIN_AUTO, "[\"fcircle\",%d,%d,%d]", x, y, r); }
+static void j_auto_line(int a, int b, int c, int d)
+{
+    char tmp[48];
+    int n;
+    auto_sync_state(); /* a change here closes the run, which is correct */
+    /* the diagram draws each segment as (this point, the previous one), so a
+       branch arrives end first: the run continues when the new segment's
+       second point is where the last one started. The path is stored in the
+       order it was walked, which strokes the same either way. */
+    if (poly_open && ops_win == WIN_AUTO && c == poly_x && d == poly_y) {
+        n = snprintf(tmp, sizeof tmp, ",%d,%d", a, b);
+        buf_add(&ops, tmp, (size_t)n);
+        poly_x = a;
+        poly_y = b;
+        if (ops.len > 60000) flush_ops();
+        return;
+    }
+    op(WIN_AUTO, "[\"poly\",%d,%d,%d,%d", c, d, a, b); /* left open to grow */
+    poly_open = 1;
+    poly_x = a;
+    poly_y = b;
+}
+static void j_auto_text(int a, int b, char *c) { auto_sync_state(); op_text(WIN_AUTO, "rtext", a, b, c, -1); }
+static void j_auto_circle(int x, int y, int r) { auto_sync_state(); op(WIN_AUTO, "[\"circle\",%d,%d,%d]", x, y, r); }
+static void j_auto_fill_circle(int x, int y, int r) { auto_sync_state(); op(WIN_AUTO, "[\"fcircle\",%d,%d,%d]", x, y, r); }
 static void j_auto_xor_cross(int x, int y)
 {
     if (DONT_XORCross) return;
+    auto_sync_state();
     op(WIN_AUTO, "[\"cross\",%d,%d]", x, y);
 }
-static void j_auto_line_width(int wid) { op(WIN_AUTO, "[\"lw\",%d]", wid); }
-static void j_auto_col(int col) { op(WIN_AUTO, "[\"color\",%d]", col); }
-static void j_auto_bw(void) { op(WIN_AUTO, "[\"color\",0]"); }
+/* For every point the diagram sets the width and the colour, draws one
+   segment, then sets the colour back to black. Sending each of those puts
+   two state ops between every pair of segments, which is both bandwidth and
+   a broken polyline run.
+
+   So the wanted state is only recorded, and goes out just before something
+   is actually drawn with it. The colour set back after the last segment
+   never reaches the client, and a run of same-coloured points sends the
+   colour once. auto_reset_state() is called wherever the client's canvas
+   goes back to its own defaults, so the two cannot drift apart. */
+static int auto_col_want, auto_lw_want = 1;
+static int auto_col_sent, auto_lw_sent = 1;
+
+static void auto_reset_state(void)
+{
+    auto_col_want = auto_col_sent = 0;
+    auto_lw_want = auto_lw_sent = 1;
+}
+
+/* emit what a drawing op is about to depend on; a change closes any open
+   polyline, which is right: it is no longer the same stroke */
+static void auto_sync_state(void)
+{
+    if (auto_lw_want != auto_lw_sent) {
+        auto_lw_sent = auto_lw_want;
+        op(WIN_AUTO, "[\"lw\",%d]", auto_lw_sent);
+    }
+    if (auto_col_want != auto_col_sent) {
+        auto_col_sent = auto_col_want;
+        op(WIN_AUTO, "[\"color\",%d]", auto_col_sent);
+    }
+}
+
+static void j_auto_line_width(int wid) { auto_lw_want = wid; }
+static void j_auto_col(int col) { auto_col_want = col; }
+static void j_auto_bw(void) { auto_col_want = 0; }
 static void j_auto_clr_stab(void)
 {
     int r = Auto.st_wid / 4;
@@ -1692,7 +1767,7 @@ static void j_auto_clr_stab(void)
     op(WIN_AUTO_STAB, "[\"circle\",%d,%d,%d]", 2 * r, 2 * r, r);
 }
 static void j_auto_stab_line(int x, int y, int xp, int yp) { op(WIN_AUTO_STAB, "[\"line\",%d,%d,%d,%d]", x, y, xp, yp); }
-static void j_auto_clear_plot(void) { op(WIN_AUTO, "[\"clear\"]"); }
+static void j_auto_clear_plot(void) { auto_reset_state(); op(WIN_AUTO, "[\"clear\"]"); }
 static void j_auto_clear_info(void) { op(WIN_AUTO_INFO, "[\"clear\"]"); }
 static void j_auto_draw_info(char *s, int x, int y) { op_text(WIN_AUTO_INFO, "rtext", x, y, s, -1); }
 static int j_auto_check_abort(int *iflag)
@@ -2103,6 +2178,7 @@ static void apply_auto_size(void)
     if (w - 12 * DCURXs == Auto.wid && h - 4 * DCURYs == Auto.hgt) return;
     Auto.wid = w - 12 * DCURXs;
     Auto.hgt = h - 4 * DCURYs;
+    auto_reset_state();
     send_window("create", WIN_AUTO, w, h, "It's AUTO man!");
     redraw_diagram();
 }
