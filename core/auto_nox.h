@@ -91,6 +91,9 @@ void do_auto(int iold, int isave, int itp);
 void set_auto(void);
 int auto_name_to_index(char *s);
 int auto_par_to_name(int index, char *s);
+/* AUTO's printed column headings, in the user's own names (screen only) */
+#define AUTO_COL_W 14
+void auto_screen_col(char *col, char *out);
 void auto_per_par(void);
 void auto_params(void);
 void auto_num_par(void);

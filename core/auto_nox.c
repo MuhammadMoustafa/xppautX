@@ -746,6 +746,46 @@ int auto_par_to_name(index,s)
   return(1);
 }
 
+/* AUTO heads its printed columns PAR(n) and U(n); XPP knows what the user
+   called them, and already uses those names for the diagram's axes. This
+   rewrites one 14-character column heading for the screen only: fort.7 and
+   fort.9 keep AUTO's own format, which its restart path and other people's
+   scripts read. PAR(10) and friends are the period and such, not the user's
+   parameters, and auto_par_to_name leaves them alone. */
+static void auto_col_centre(char *out,char *s)
+{
+  int n,l;
+  char t[AUTO_COL_W+1];
+  sprintf(t,"%.*s",AUTO_COL_W,s);
+  n=(int)strlen(t);
+  l=(AUTO_COL_W-n)/2;
+  sprintf(out,"%*s%s%*s",l,"",t,AUTO_COL_W-n-l,"");
+}
+
+void auto_screen_col(char *col,char *out)
+{
+  long p;
+  int i;
+  char name[64],pre[AUTO_COL_W+1],*q;
+  if(sscanf(col," PAR(%ld)",&p)==1&&auto_par_to_name((int)p,name)){
+    auto_col_centre(out,name);
+    return;
+  }
+  q=strstr(col,"U(");
+  if(q!=NULL&&sscanf(q,"U(%ld)",&p)==1&&p>=1&&p<=NODE){
+    /* keep what stands in front of it: MAX, MIN, L2-NORM, INTEGRAL */
+    sprintf(pre,"%.*s",(int)(q-col),col);
+    for(i=(int)strlen(pre);i>0&&pre[i-1]==' ';i--)
+      pre[i-1]=0;
+    for(i=0;pre[i]==' ';i++)
+      ;
+    sprintf(name,"%s%s%s",pre+i,pre[i]?" ":"",uvar_names[p-1]);
+    auto_col_centre(out,name);
+    return;
+  }
+  sprintf(out,"%.*s",AUTO_COL_W,col);
+}
+
 
 void auto_per_par()
 {
@@ -819,23 +859,26 @@ void auto_params()
 
 void auto_num_par()
 {
-  static char *n[]={"Ntst","Nmax","NPr","Ds","Dsmin","Ncol","EPSL",
-		    "Dsmax","Par Min","Par Max","Norm Min","Norm Max",
-                    "EPSU","EPSS","IAD","MXBF","IID","ITMX","ITNW","NWTN","IADS","SuppBP"};
+  /* grouped by what they do, which upstream's order was not: the box is 7
+     rows by 4 columns, so a column is a group. Mesh and step size, then the
+     ranges and tolerances, then the solver's integer knobs. */
+  static char *n[]={"Ntst","Nmax","NPr","Ncol","Ds","Dsmin","Dsmax",
+		    "Par Min","Par Max","Norm Min","Norm Max","EPSL","EPSU","EPSS",
+                    "IAD","MXBF","IID","ITMX","ITNW","NWTN","IADS","SuppBP"};
   int status;
   char values[22][MAX_LEN_SBOX];
   sprintf(values[0],"%d",Auto.ntst);
   sprintf(values[1],"%d",Auto.nmx);
   sprintf(values[2],"%d",Auto.npr);
-  sprintf(values[3],"%g",Auto.ds);
-  sprintf(values[4],"%g",Auto.dsmin);
-  sprintf(values[7],"%g",Auto.dsmax);
-  sprintf(values[8],"%g",Auto.rl0);
-  sprintf(values[9],"%g",Auto.rl1);
-  sprintf(values[10],"%g",Auto.a0);
-  sprintf(values[11],"%g",Auto.a1);
-  sprintf(values[5],"%d",Auto.ncol);
-  sprintf(values[6],"%g",Auto.epsl);
+  sprintf(values[3],"%d",Auto.ncol);
+  sprintf(values[4],"%g",Auto.ds);
+  sprintf(values[5],"%g",Auto.dsmin);
+  sprintf(values[6],"%g",Auto.dsmax);
+  sprintf(values[7],"%g",Auto.rl0);
+  sprintf(values[8],"%g",Auto.rl1);
+  sprintf(values[9],"%g",Auto.a0);
+  sprintf(values[10],"%g",Auto.a1);
+  sprintf(values[11],"%g",Auto.epsl);
   sprintf(values[12],"%g",Auto.epsu);
   sprintf(values[13],"%g",Auto.epss);
   sprintf(values[14],"%d",aauto.iad);
@@ -853,15 +896,15 @@ void auto_num_par()
     Auto.ntst=atoi(values[0]);
     Auto.nmx=atoi(values[1]);
     Auto.npr=atoi(values[2]);
-    Auto.ds=atof(values[3]);
-    Auto.dsmin=atof(values[4]);
-    Auto.dsmax=atof(values[7]);
-    Auto.rl0=atof(values[8]);
-    Auto.rl1=atof(values[9]);
-    Auto.a0=atof(values[10]);
-    Auto.a1=atof(values[11]);
-    Auto.ncol=atoi(values[5]);
-    Auto.epsl=atof(values[6]);
+    Auto.ncol=atoi(values[3]);
+    Auto.ds=atof(values[4]);
+    Auto.dsmin=atof(values[5]);
+    Auto.dsmax=atof(values[6]);
+    Auto.rl0=atof(values[7]);
+    Auto.rl1=atof(values[8]);
+    Auto.a0=atof(values[9]);
+    Auto.a1=atof(values[10]);
+    Auto.epsl=atof(values[11]);
     Auto.epsu=atof(values[12]);
     Auto.epss=atof(values[13]);
     aauto.iad=atoi(values[14]);

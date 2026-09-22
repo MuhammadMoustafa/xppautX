@@ -2,6 +2,7 @@
 #include "auto_c.h"
 #include "xAuto.h"
 #include "xpp_ui.h" /* err_msg() */
+#include "auto_nox.h" /* auto_screen_col() */
 extern XAUTO xAuto;
 extern int NODE;
 extern int RestartLabel;
@@ -2687,7 +2688,9 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
     if (iunit == 6) {
       printf("  BR    PT  TY LAB ");
       for (i = 0; i < *n1 + *n2 + 1; ++i) {
-	printf("%s",col[i]);
+	char scr[AUTO_COL_W+1]; /* PAR(n)/U(n) as the user named them */
+	auto_screen_col(col[i],scr);
+	printf("%s",scr);
       }
       printf("\n");
       fflush(stdout);
