@@ -126,6 +126,17 @@
             c.lineTo(o[3] + 0.5, o[4] + 0.5);
             c.stroke();
             break;
+          /* a run of joined segments in one op: one path, one stroke. A big
+             AUTO diagram is tens of thousands of segments, and drawing them
+             one at a time is what made a redraw crawl. */
+          case 'poly': {
+            this.apply();
+            c.beginPath();
+            c.moveTo(o[1] + 0.5, o[2] + 0.5);
+            for (let i = 3; i + 1 < o.length; i += 2) c.lineTo(o[i] + 0.5, o[i + 1] + 0.5);
+            c.stroke();
+            break;
+          }
           case 'point':
             this.apply();
             if (!o[3]) c.fillRect(o[1], o[2], 1, 1);
@@ -271,6 +282,10 @@
       this.status = el('div', 'xpp-status');
       this.hint = el('span', 'xpp-hint');
       this.progress = el('span', 'xpp-progress');
+      this.progressFill = el('span', 'xpp-progress-fill');
+      this.progressText = el('span', 'xpp-progress-text');
+      this.progress.append(this.progressFill, this.progressText);
+      this.progress.hidden = true;
       this.status.append(this.hint, this.progress);
       this.extraWindows = el('div', 'xpp-extra');
       this.errorBar = el('div', 'xpp-errors');
@@ -290,7 +305,17 @@
       new ResizeObserver(() => this.sendMainSize()).observe(this.mainHost);
       /* side by side needs room; a narrow panel stacks menus, plot and values */
       this.narrow = false;
-      new ResizeObserver(() => this.setNarrow(r.clientWidth < 760)).observe(r);
+      new ResizeObserver(() => {
+        this.setNarrow(r.clientWidth < 760);
+        /* the floating AUTO window is placed in pixels: keep it on the page
+           when the page changes size under it */
+        if (this.autoGeom && !this.narrow) {
+          const g = this.autoSaved || this.autoGeom;
+          if (this.autoZoomed) this.moveAutoPanel(0, this.plotArea.offsetTop,
+            r.clientWidth, r.clientHeight - this.plotArea.offsetTop, true);
+          else this.moveAutoPanel(g.left, g.top, g.w, g.h, true);
+        }
+      }).observe(r);
     }
 
     setNarrow(narrow) {
@@ -333,6 +358,7 @@
       for (const line of lines) {
         this.logText.textContent += line + '\n';
         this.logLines++;
+        this.autoLog(line); /* AUTO's own copy, while its window is up */
         /* xppaut reports model and file problems only as printed text */
         const known = this.lastError && line.includes(this.lastError);
         if (scan && !known && /error|illegal|not found|can't|cannot|unable|bad |undefined|failed/i.test(line)) {
@@ -868,10 +894,11 @@
         case 'menu': this.menuWhich = ev.which; this.renderMenu(); break;
         case 'title': this.setPlotTitle(ev.text); break;
         case 'message': this.onMessage(ev); break;
-        case 'progress': this.progress.textContent = ev.of ? `${ev.n}/${ev.of}` : ''; break;
+        case 'progress': this.setProgress(ev.n, ev.of); break;
         case 'idle':
           this.busy = false;
-          this.progress.textContent = '';
+          this.setProgress(0, 0);
+          this.setAutoRunning(false);
           this.aniPlaying = false;
           if (this.autoGrab) this.autoGrab.hidden = true; /* the grab is over */
           if (this.pendingSlide) {
@@ -899,6 +926,21 @@
         case 'log': this.log(ev.text); break;
         case 'exit': this.exited(ev.code); break;
       }
+    }
+
+    /* the strip that fills as the integration runs: X11 draws it over the
+       command line, we put it at the right of the status bar */
+    setProgress(n, of) {
+      if (!of) {
+        this.progress.hidden = true;
+        this.progressFill.style.width = '0%';
+        this.progressText.textContent = '';
+        return;
+      }
+      const done = Math.max(0, Math.min(1, n / of));
+      this.progress.hidden = false;
+      this.progressFill.style.width = `${(done * 100).toFixed(1)}%`;
+      this.progressText.textContent = `${n}/${of}`;
     }
 
     onMessage(ev) {
@@ -995,10 +1037,21 @@
         closeAuto.title = 'Close the AUTO window (File/Auto opens it again with the diagram)';
         closeAuto.addEventListener('click', () => this.command({cmd: 'auto', op: 'close'}));
         buttons.appendChild(closeAuto);
+        /* what a window manager gives an X11 window: shade, fill the page, close */
+        const mini = el('button', 'xpp-window-btn', '–');
+        mini.title = 'Roll the window up to its title bar';
+        mini.addEventListener('click', () => this.shadeAuto());
+        const maxi = el('button', 'xpp-window-btn', '□');
+        maxi.title = 'Fill the page with the AUTO window';
+        maxi.addEventListener('click', () => this.zoomAuto());
+        this.autoMiniBtn = mini;
+        this.autoMaxiBtn = maxi;
         const shut = el('button', 'xpp-close', '×');
         shut.title = 'Close the AUTO window';
         shut.addEventListener('click', () => this.command({cmd: 'auto', op: 'close'}));
-        bar.appendChild(shut);
+        const winBtns = el('span', 'xpp-window-btns');
+        winBtns.append(mini, maxi, shut);
+        bar.appendChild(winBtns);
         const abort = el('button', 'xpp-abort', 'ABORT');
         abort.addEventListener('click', () => this.send({cmd: 'abort'}));
         buttons.appendChild(abort);
@@ -1011,13 +1064,15 @@
         this.surfaces.set(103, info);
         this.autoHint = el('div', 'xpp-auto-hint');
         /* Grab waits for keys on the diagram: say so where the user looks */
-        this.autoGrab = el('div', 'xpp-auto-grab');
+        /* in the status bar, not above the diagram: a strip that appears and
+           disappears changes the window's size, and every size change costs a
+           full redraw of the diagram from the server */
+        this.autoGrab = el('span', 'xpp-auto-grab');
         this.autoGrab.hidden = true;
-        this.autoGrab.append(el('span', '', 'Grab: ← → move along the branch, Tab jumps to the next labelled point, Enter grabs it. '));
-        const done = el('button', '', 'Stop grabbing (Esc)');
+        this.autoGrab.append(el('span', '', '←→ move, Tab next label, Enter take it. '));
+        const done = el('button', '', 'Cancel (Esc)');
         done.addEventListener('click', () => this.answer({key: 'Escape'}));
         this.autoGrab.appendChild(done);
-        frame.appendChild(this.autoGrab);
         /* x,y under the mouse (auto_motion_xy); a click also stores the point */
         s.canvas.addEventListener('mousemove', e => {
           const au = this.state && this.state.auto;
@@ -1036,6 +1091,21 @@
         right.append(top, info.canvas, this.autoHint);
         body.append(buttons, right);
         frame.appendChild(body);
+        /* a run blocks until AUTO is done: say whether it is still going,
+           and show what it printed without a trip to the terminal */
+        this.autoState = el('span', 'xpp-auto-state');
+        this.autoElapsed = el('span', 'xpp-auto-elapsed');
+        const status = el('div', 'xpp-auto-status');
+        status.append(this.autoState, this.autoGrab, this.autoElapsed);
+        this.autoStatus = status;
+        const logBox = el('details', 'xpp-auto-log');
+        this.autoLogSummary = el('summary', '', 'Output');
+        this.autoLogText = el('pre', 'xpp-auto-log-text');
+        logBox.append(this.autoLogSummary, this.autoLogText);
+        this.autoLogBox = logBox;
+        this.autoLogLines = 0;
+        frame.append(status, logBox);
+        this.setAutoRunning(false);
         /* the diagram takes the room the window has, beside the fixed-size circle */
         const fit = () => {
           if (!frame.clientWidth) return; /* another tab is shown */
@@ -1044,8 +1114,9 @@
           const w = Math.floor(frame.clientWidth - buttons.offsetWidth - circleW - 24);
           /* stacked (narrow) layout: the height follows the content, so derive it */
           const h = this.root.classList.contains('xpp-narrow') ? Math.round(w * 0.75)
-            : Math.floor(frame.clientHeight - bar.offsetHeight - this.autoGrab.offsetHeight
-              - info.canvas.offsetHeight - this.autoHint.offsetHeight - 30);
+            : Math.floor(frame.clientHeight - bar.offsetHeight
+              - info.canvas.offsetHeight - this.autoHint.offsetHeight
+              - status.offsetHeight - logBox.offsetHeight - 30);
           if (w < 200 || h < 150 || (w === s.canvas.width && h === s.canvas.height)) return;
           clearTimeout(this.autoSizeTimer);
           this.autoSizeTimer = setTimeout(() => {
@@ -1145,7 +1216,9 @@
         saved.top !== undefined ? saved.top : this.plotArea.offsetTop, w, h);
     }
 
-    moveAutoPanel(left, top, w, h) {
+    /* transient: the page resized under the window, so clamp what is shown but
+       keep the size the user chose for when there is room for it again */
+    moveAutoPanel(left, top, w, h, transient) {
       const f = this.autoFrame, r = this.root;
       if (!f || !this.autoGeom) return;
       const rw = r.clientWidth, rh = r.clientHeight;
@@ -1158,8 +1231,11 @@
       f.style.height = h + 'px';
       f.style.left = left + 'px';
       f.style.top = top + 'px';
-      this.autoSaved = this.autoGeom = {left, top, w, h};
-      this.saveAutoGeom();
+      this.autoGeom = {left, top, w, h};
+      if (!transient) {
+        this.autoSaved = this.autoGeom;
+        this.saveAutoGeom();
+      }
     }
 
     /* mouse moves until the button comes up (dragging or resizing the window) */
@@ -1188,6 +1264,76 @@
       } catch (e) { /* storage may be off: the position is then this session's */ }
     }
 
+    /* roll the window up to its title bar, and back down */
+    shadeAuto() {
+      const f = this.autoFrame;
+      if (!f || !this.autoGeom) return;
+      this.autoShaded = !this.autoShaded;
+      f.classList.toggle('xpp-shaded', this.autoShaded);
+      this.autoMiniBtn.textContent = this.autoShaded ? '■' : '–';
+      this.autoMiniBtn.title = this.autoShaded ? 'Roll the window back down'
+        : 'Roll the window up to its title bar';
+      if (this.autoShaded) f.style.height = 'auto';
+      else {
+        const g = this.autoGeom;
+        f.style.height = g.h + 'px';
+        if (this.autoFit) setTimeout(this.autoFit, 0);
+      }
+    }
+
+    /* fill the page, or go back to the size it had before */
+    zoomAuto() {
+      const f = this.autoFrame, r = this.root;
+      if (!f || !this.autoGeom) return;
+      if (this.autoShaded) this.shadeAuto(); /* rolled up: come down first */
+      if (this.autoZoomed) {
+        const g = this.autoZoomed;
+        this.autoZoomed = null;
+        this.moveAutoPanel(g.left, g.top, g.w, g.h);
+      } else {
+        this.autoZoomed = this.autoGeom;
+        const top = this.plotArea.offsetTop;
+        this.moveAutoPanel(0, top, r.clientWidth, r.clientHeight - top);
+      }
+      f.classList.toggle('xpp-zoomed', !!this.autoZoomed);
+      this.autoMaxiBtn.textContent = this.autoZoomed ? '❐' : '□';
+      this.autoMaxiBtn.title = this.autoZoomed ? 'Back to the earlier size'
+        : 'Fill the page with the AUTO window';
+    }
+
+    /* AUTO runs without sending anything until it is done, so the footer says
+       how long the run has been going; the buttons are dead while it runs */
+    setAutoRunning(on) {
+      if (!this.autoState) return;
+      clearInterval(this.autoTimer);
+      if (!on) {
+        this.autoTimer = null;
+        this.autoState.textContent = this.autoRan ? 'Done' : 'Ready';
+        this.autoState.classList.remove('xpp-running');
+        return;
+      }
+      this.autoRan = true;
+      const t0 = Date.now();
+      this.autoState.textContent = 'Running';
+      this.autoState.classList.add('xpp-running');
+      const tick = () => {
+        this.autoElapsed.textContent = ((Date.now() - t0) / 1000).toFixed(1) + ' s';
+      };
+      tick();
+      this.autoTimer = setInterval(tick, 100);
+    }
+
+    /* the same printed lines as the Messages box, beside the diagram */
+    autoLog(line) {
+      if (!this.autoLogText) return;
+      this.autoLogText.textContent += line + '\n';
+      this.autoLogLines++;
+      const extra = this.autoLogText.textContent.length - 100000;
+      if (extra > 0) this.autoLogText.textContent = this.autoLogText.textContent.slice(extra);
+      this.autoLogSummary.textContent = `Output (${this.autoLogLines})`;
+      if (this.autoLogBox.open) this.autoLogText.scrollTop = this.autoLogText.scrollHeight;
+    }
+
     closeAuto() {
       if (this.autoFrame) this.autoFrame.remove();
       this.removePage(101);
@@ -1197,6 +1343,13 @@
       this.autoHover = false;
       this.autoHint = null;
       this.autoGrab = null;
+      clearInterval(this.autoTimer);
+      this.autoTimer = null;
+      this.autoState = null;
+      this.autoLogText = null;
+      this.autoShaded = false;
+      this.autoZoomed = null;
+      this.autoRan = false;
       this.surfaces.delete(102);
       this.surfaces.delete(103);
     }
@@ -1507,6 +1660,7 @@
     command(cmd) {
       if (this.busy) return;
       this.busy = true;
+      if (cmd.cmd === 'auto' && cmd.op !== 'close') this.setAutoRunning(true);
       this.clearError();
       this.send(cmd);
     }
@@ -1660,6 +1814,14 @@
         case 'grab':
           this.hint.textContent = 'Arrows/Tab move, Enter grabs, Esc quits, s/e mark a branch';
           if (this.autoGrab) this.autoGrab.hidden = false;
+          /* waiting for keys, not computing: the elapsed count would mislead */
+          if (this.autoState) {
+            clearInterval(this.autoTimer);
+            this.autoTimer = null;
+            this.autoState.textContent = 'Grabbing';
+            this.autoState.classList.remove('xpp-running');
+            this.autoElapsed.textContent = '';
+          }
           break;
       }
       if (this.typeahead.length && (a.kind === 'menu' || a.kind === 'choice')) {

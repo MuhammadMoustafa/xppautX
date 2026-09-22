@@ -63,16 +63,19 @@
 .xpp .xpp-tab-on { background: var(--xpp-accent); color: #fff; border-color: var(--xpp-accent); }
 .xpp-page { flex: 1; min-height: 0; min-width: 0; }
 .xpp-main-page { display: flex; flex-direction: column; }
+/* one line in the status bar: it must not wrap, or showing it would change
+   the window's height and cost a redraw of the whole diagram */
 .xpp-auto-grab {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  margin: 0 6px 6px;
-  padding: 4px 8px;
-  border: 1px solid var(--xpp-accent);
-  border-radius: 3px;
+  min-width: 0;
+  padding: 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  color: var(--xpp-accent);
 }
+.xpp-auto-grab[hidden] { display: none; }
 .xpp-main-plot canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .xpp-canvas { display: block; background: #fff; outline: none; image-rendering: pixelated; }
 .xpp-canvas.xpp-active { box-shadow: 0 0 0 2px var(--xpp-accent); }
@@ -154,6 +157,44 @@
 .xpp-auto-top { display: flex; gap: 6px; align-items: flex-start; min-width: 0; }
 .xpp-auto-circle { flex: none; }
 .xpp-auto-hint { font-family: var(--vscode-editor-font-family, monospace); min-height: 1.3em; }
+.xpp-window-btns { display: flex; gap: 2px; }
+.xpp-window-btn { padding: 0 6px; line-height: 1.2; }
+/* rolled up to the title bar: everything under it is out of the way */
+.xpp-shaded > *:not(.xpp-window-title) { display: none; }
+.xpp-auto-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 6px;
+  border-top: 1px solid var(--xpp-border);
+  min-height: 1.8em; /* fixed: a taller status bar would cost a redraw */
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+.xpp-auto-status .xpp-auto-grab { flex: 1; }
+.xpp-auto-state, .xpp-auto-elapsed { flex: none; }
+.xpp-auto-state.xpp-running { font-weight: 600; }
+.xpp-auto-state.xpp-running::after {
+  content: '';
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  margin-left: 0.4em;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: currentColor;
+  animation: xpp-blink 1s steps(2, start) infinite;
+}
+@keyframes xpp-blink { to { visibility: hidden; } }
+.xpp-auto-log { border-top: 1px solid var(--xpp-border); }
+.xpp-auto-log > summary { padding: 2px 6px; cursor: pointer; }
+.xpp-auto-log-text {
+  margin: 0;
+  padding: 0 6px 4px;
+  max-height: 9em;
+  overflow: auto;
+  font-size: 0.9em;
+}
 .xpp-abort { margin-top: 12px; }
 .xpp-ani-buttons { display: flex; gap: 4px; padding: 4px; flex-wrap: wrap; }
 .xpp-eq, .xpp-source { padding-bottom: 4px; }
@@ -168,6 +209,29 @@
   border-top: 1px solid var(--xpp-border);
   min-height: 1.6em;
   font-family: var(--vscode-editor-font-family, monospace);
+}
+.xpp-progress {
+  position: relative;
+  flex: 0 0 auto;
+  align-self: center;
+  width: 12em;
+  height: 1.1em;
+  border: 1px solid var(--xpp-border);
+  overflow: hidden;
+}
+.xpp-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: var(--xpp-fg);
+  opacity: 0.55;
+}
+.xpp-progress-text {
+  position: relative; /* over the fill */
+  display: block;
+  text-align: center;
+  line-height: 1.1em;
+  font-size: 0.85em;
 }
 .xpp-error { color: var(--xpp-error); }
 .xpp-ping { outline: 2px solid var(--xpp-error); }
