@@ -64,7 +64,7 @@ CORE_OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(CORE_SOURCES))
 # per build directory, so a MinGW build does not replace the Linux library
 CORELIB := $(BUILDDIR)/libxppcore.a
 
-.PHONY: all clean x11free lib xppautx
+.PHONY: all clean x11free lib xppautx test
 all: xppaut
 lib: $(CORELIB)
 # one X11-free program: browser front end, --server protocol and -silent batch
@@ -78,6 +78,22 @@ $(CORELIB): $(CORE_OBJECTS)
 
 xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
 	$(CC) $(LDSTATIC) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS)
+
+# unit tests over libxppcore, for pure code that an end-to-end run would only
+# report as a puzzling difference somewhere else. tests/README.md says more.
+TEST_SOURCES := $(wildcard tests/test_*.c)
+TEST_BINS := $(patsubst tests/%.c,$(BUILDDIR)/tests/%$(EXE),$(TEST_SOURCES))
+
+test: $(TEST_BINS)
+	@fail=0; for t in $(TEST_BINS); do ./$$t || fail=1; done; \
+	  if [ $$fail -eq 0 ]; then echo "unit tests: all passed"; \
+	  else echo "unit tests: FAILURES"; exit 1; fi
+
+$(BUILDDIR)/tests/%$(EXE): tests/%.c $(CORELIB) | $(BUILDDIR)/tests
+	$(CC) $(CFLAGS) -Itests -o $@ $< $(CORELIB) -lm $(DLLIB)
+
+$(BUILDDIR)/tests:
+	mkdir -p $@
 
 $(BUILDDIR)/embed$(EXE): tools/embed.c | $(BUILDDIR)
 	$(CC) -O2 -o $@ $<

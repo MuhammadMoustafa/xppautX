@@ -36,6 +36,13 @@ else
   echo "HEADLESS -silent MISMATCH: sum=$sum"
   exit 1
 fi
+if make test > build/unittest.log 2>&1; then
+  echo "unit tests ok: $(grep -c 'checks,' build/unittest.log) files"
+else
+  grep -E 'FAIL|failed' build/unittest.log
+  echo "UNIT TESTS FAILED"
+  exit 1
+fi
 if command -v python3 >/dev/null; then
   if python3 tools/servercheck.py > build/servercheck.log 2>&1; then
     echo "server protocol ok: $(grep -c '^PASS' build/servercheck.log) checks"
