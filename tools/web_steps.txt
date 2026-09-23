@@ -261,3 +261,5 @@ size 1280 860
 key f
 key q
 shot 170-quit css=.xpp-dialog
+# the session is recorded for xppautX --script, without the queries
+eval if (client.script.length < 20 || client.script.some(c => c.cmd === 'state' || (c.cmd === 'answer' && 'id' in c))) throw new Error('session script: ' + JSON.stringify(client.script.slice(0, 5)))

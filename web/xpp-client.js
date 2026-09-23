@@ -290,18 +290,18 @@
   class XppClient {
     constructor(root, send) {
       this.root = root;
-      /* Save session script (docs/protocol.md "Scripts"): every command
-         this client sends, recorded from page load so it can be replayed
-         with xppautX --script. A thin wrapper around send(), independent
-         of the many places that call it (command(), answer(), the raw
-         control-line send()s); an answer's id is dropped since a script
-         answers whichever ask is pending. */
+      /* Save session script: what this client sends, for xppautX --script
+         (docs/protocol.md "Scripts"). Queries that change nothing are left
+         out, a resize keeps only its last size, and an answer loses its id:
+         a script answers whichever ask is pending. */
       this.script = [];
       this.send = cmd => {
-        const rec = Object.assign({}, cmd);
-        if (rec.cmd === 'answer') delete rec.id;
-        this.script.push(rec);
         send(cmd);
+        if (cmd.cmd === 'state' || (cmd.cmd === 'browser' && 'from' in cmd)) return;
+        const rec = Object.assign({}, cmd), last = this.script[this.script.length - 1];
+        if (rec.cmd === 'answer') delete rec.id;
+        if (rec.cmd === 'size' && last && last.cmd === 'size' && last.win === rec.win) this.script.pop();
+        this.script.push(rec);
       };
       this.palette = [];
       this.surfaces = new Map();
@@ -1780,9 +1780,7 @@
       this.send(cmd);
     }
 
-    /* Save session script: this.script (recorded in the send() wrapper
-       above) as a file xppautX --script can replay (docs/protocol.md
-       "Scripts"), offered as a download via a Blob URL. */
+    /* the recorded session (constructor) as a download */
     downloadSessionScript() {
       const text = this.script.map(cmd => JSON.stringify(cmd)).join('\n') + '\n';
       const name = (this.modelFile || 'xpp').replace(/\.ode$/i, '') + '-session.jsonl';
