@@ -175,7 +175,9 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   nullcline.c and the integrator (Flow) draw and forgets it when ui_json.c
   blanks the window; `marks` likewise from `core/marks_data.cpp`: Sing pts'
   equilibrium symbols (graphics.c eq_symb), Text,etc's labels and objects
-  (grobs.cpp draw_label) and frozen curves (graf_par.c) by their slot);
+  (grobs.cpp draw_label) and frozen curves (graf_par.c) by their slot; the animation's frames, `ani` `frame`, come from
+  `core/ani_data.cpp`, to which aniparse.cpp gives every primitive in the
+  `.ani`'s unit coordinates beside the pixel ops);
   `web/` (the draw-op replay) only gets fixes until web2 replaces it.
   docs/ui-v2.md has the protocol v2 events and the task list;
   docs/front-end-gaps.md tracks parity.

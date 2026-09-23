@@ -1250,8 +1250,191 @@ def check_marks():
         stop_server(proc6, run6, send6)
 
 
+def check_ani_data():
+    """The animation as data (docs/protocol.md "The animation as data",
+    docs/ui-v2.md T13): tools/gui_test.ani (one of every command) on lecar.
+    Each frame event's primitives are in unit coordinates of the dimension
+    box, and they are the classic pixel ops of the same frame divided by
+    the window's size (within a pixel), colour for colour; the player's
+    step, seek and Go send the frames they draw, Go at most 25 a second and
+    always its last one."""
+    proc6, run6, send6, collect6, _ = launch_server()
+    shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gui_test.ani'), run6)
+    of = lambda evs, name: [e for e in evs if e.get('ev') == name]
+    frames = lambda evs: [e for e in evs if e.get('ev') == 'ani' and e.get('op') == 'frame']
+    states = lambda evs: [e for e in evs if e.get('ev') == 'ani' and 'op' not in e]
+
+    def answered(pending):
+        got = []
+        while True:
+            evs, e = collect6(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60)
+            got += evs
+            if e is None or e['ev'] == 'idle':
+                return got
+            send6(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
+
+    def command(key, *answers):
+        send6(cmd='key', key=key)
+        return answered(list(answers))
+
+    def ani(op, *answers, **kw):
+        send6(cmd='ani', op=op, **kw)
+        return answered(list(answers))
+
+    def classic(evs):
+        """the geometry ops of window 104's last frame, each with the colour it is drawn in"""
+        out, col = [], 0
+        for o in draw_ops(evs, 104):
+            if o[0] == 'clear':
+                out, col = [], 0
+            elif o[0] == 'color':
+                col = o[1]
+            elif o[0] == 'font':
+                col = o[3]
+            elif o[0] in ('line', 'rect', 'frect', 'ellipse', 'fellipse', 'rtext'):
+                out.append((o, col))
+        return out
+
+    def xpp_color(icol):
+        """a palette index as the frame event names it"""
+        return icol - 19 if 20 <= icol <= 29 else 0 if icol < 30 else 'map'
+
+    def matches(f, ops):
+        """None when frame f is the classic ops divided by the window size, else what differs"""
+        W, H = f['w'], f['h']
+        px = lambda u: min(max(int(u * W + 1e-9), 0), W - 1)
+        py = lambda v: min(max(int(H - v * H + 1e-9), 0), H - 1)
+        near = lambda a, b, tol=1.01: abs(a - b) <= tol
+        if len(f['prims']) != len(ops):
+            return '%d primitives, %d classic ops' % (len(f['prims']), len(ops))
+        for i, (p, (o, icol)) in enumerate(zip(f['prims'], ops)):
+            k = p[0]
+            if k == 'line':
+                ok = o[0] == 'line' and all(near(a, b) for a, b in zip(o[1:], (px(p[1]), py(p[2]), px(p[3]), py(p[4]))))
+                pc = p[5]
+            elif k == 'rect':
+                x1, x2, y1, y2 = px(p[1]), px(p[3]), py(p[2]), py(p[4])
+                ok = (o[0] == ('frect' if p[7] else 'rect') and near(o[1], min(x1, x2)) and near(o[2], min(y1, y2))
+                      and near(o[3], abs(x2 - x1), 2.01) and near(o[4], abs(y2 - y1), 2.01))
+                pc = p[5]
+            elif k in ('circle', 'ellipse'):
+                rx, ry = p[3] * W, p[4] * H
+                if k == 'circle':
+                    rx = ry = (rx + ry) / 2
+                ok = (o[0] == ('fellipse' if p[7] else 'ellipse') and near(o[1] + o[3] / 2, px(p[1]), 1.51)
+                      and near(o[2] + o[4] / 2, py(p[2]), 1.51) and near(o[3] / 2, rx) and near(o[4] / 2, ry))
+                pc = p[5]
+            elif k == 'dot':
+                ok = (o[0] == 'fellipse' and o[3] == 2 * p[3] and near(o[1] + p[3], px(p[1]))
+                      and near(o[2] + p[3], py(p[2])))
+                pc = p[4]
+            elif k == 'text':
+                ok = o[0] == 'rtext' and o[3] == p[3] and near(o[1], px(p[1])) and near(o[2], py(p[2]))
+                pc = p[4]
+            else:
+                return 'primitive %d: unknown kind %s' % (i, k)
+            want = xpp_color(icol)
+            ok = ok and (pc == want if want != 'map' else isinstance(pc, str) and pc.startswith('#'))
+            if not ok:
+                return 'primitive %d %s vs %s (colour %s)' % (i, p, o, icol)
+        return None
+
+    def in_unit(f, ops):
+        """every coordinate is in [0,1], or outside it only where the .ani leaves the box, and there
+        the classic drawing is clamped to the window's edge"""
+        W, H = f['w'], f['h']
+        for p, (o, _) in zip(f['prims'], ops):
+            pts = [(p[1], p[2])] + ([(p[3], p[4])] if p[0] in ('line', 'rect') else [])
+            for j, (u, v) in enumerate(pts):
+                if 0 <= u <= 1 and 0 <= v <= 1:
+                    continue
+                if o[0] != 'line':
+                    return '%s at %s' % (p, (u, v))
+                x, y = o[1 + 2 * j], o[2 + 2 * j]
+                if not ((u < 0 and x == 0) or (u > 1 and x == W - 1) or 0 <= u <= 1) or \
+                        not ((v < 0 and y == H - 1) or (v > 1 and y == 0) or 0 <= v <= 1):
+                    return '%s at %s, the classic op %s' % (p, (u, v), o)
+        return None
+
+    try:
+        evs, _ = collect6(is_idle)
+        hello = of(evs, 'hello')
+        check('ani data: hello lists the ani feature', bool(hello) and 'ani' in hello[0].get('features', []))
+        send6(cmd='data', events=['ani'])
+        evs, _ = collect6(is_idle)
+        check('ani data: no frame before one is drawn', not frames(evs))
+        command('i', {'key': 'g'})
+        evs = command('v', {'key': 't'})
+        check('ani data: Viewaxes/Toon opens the animation window',
+              any(e.get('ev') == 'window' and e.get('win') == 104 and e.get('op') == 'create' for e in evs))
+        evs = ani('file', {'file': 'gui_test.ani'})
+        fr, st = frames(evs), states(evs)
+        check('ani data: loading an animation shows its first frame', len(fr) == 1 and fr[0]['pos'] == 0
+              and fr[0]['rows'] == 601 and bool(st) and st[-1]['loaded'] == 1, str(evs)[-400:])
+        if not fr:
+            return
+        f0 = fr[0]
+        check('ani data: the frame names its box, window, speed and time',
+              f0['dim'] == [-0.6, -0.1, 0.4, 0.6] and (f0['w'], f0['h']) == (280, 350) and f0['speed'] == 5
+              and f0['skip'] == 1 and f0['t'] == 0, str({k: v for k, v in f0.items() if k != 'prims'}))
+        kinds = sorted({p[0] for p in f0['prims']})
+        check('ani data: every kind of primitive (line, rect, circle, ellipse, dot, text)',
+              kinds == ['circle', 'dot', 'ellipse', 'line', 'rect', 'text'], str(kinds))
+        ops = classic(evs)
+        check('ani data: frame 0 is the classic pixel ops divided by the window size, colour for colour',
+              matches(f0, ops) is None, str(matches(f0, ops)))
+        check('ani data: its coordinates are in [0,1] (outside only where the .ani leaves the box)',
+              in_unit(f0, ops) is None, str(in_unit(f0, ops)))
+        spectral = [p for p in f0['prims'] if p[0] == 'circle' and isinstance(p[5], str)]
+        check('ani data: a colour of the colour map is #rrggbb (fcircle ...;w)', len(spectral) == 1, str(spectral))
+
+        evs = ani('step', n=1)
+        fr = frames(evs)
+        check('ani data: step sends the next frame, equal to the classic one', len(fr) == 1 and fr[0]['pos'] == 1
+              and fr[0]['t'] > 0 and matches(fr[0], classic(evs)) is None, str(fr)[:300])
+        evs = ani('seek', pos=300)
+        fr = frames(evs)
+        bad = matches(fr[-1], classic(evs)) or in_unit(fr[-1], classic(evs)) if fr else 'no frame'
+        check('ani data: seek sends the frame it lands on, equal to the classic one',
+              bool(fr) and fr[-1]['pos'] == 300 and bad is None, str(bad))
+        evs = ani('speed', ms=20)
+        check('ani data: speed sets the delay between frames', bool(states(evs)) and states(evs)[-1]['speed'] == 20,
+              str(states(evs)))
+        evs = ani('go')
+        fr = frames(evs)
+        drawn = sum(1 for o in draw_ops(evs, 104) if o[0] == 'clear')
+        check('ani data: Go sends frames as it plays, at most 25 a second, and its last one',
+              3 <= len(fr) < drawn and fr[-1]['pos'] == 600 and all(a['pos'] < b['pos'] for a, b in zip(fr, fr[1:])),
+              '%d frames of %d drawn, last %s' % (len(fr), drawn, fr and fr[-1]['pos']))
+        check('ani data: the last frame of Go is its classic drawing',
+              bool(fr) and matches(fr[-1], classic(evs)) is None, str(fr and matches(fr[-1], classic(evs))))
+
+        # grab: the grab point's cross (the last two black lines), hit in unit coordinates
+        evs = ani('grab')
+        fr = frames(evs)
+        check('ani data: Grab shows the grab points', bool(fr) and states(evs)[-1]['grab'] == 1, str(states(evs)))
+        cross = [p for p in (fr[-1] if fr else f0)['prims'] if p[0] == 'line' and p[5] == 0][-2:]
+        if len(cross) == 2:
+            cx, cy = (cross[1][1] + cross[1][3]) / 2, (cross[1][2] + cross[1][4]) / 2
+            ani('mouse', what='down', u=cx, v=cy)
+            evs = ani('mouse', what='up', u=cx, v=cy)
+            check('ani data: a press and release at the point in unit coordinates (u, v) grabs it',
+                  bool(states(evs)) and states(evs)[-1]['grab'] == 0, str(states(evs)))
+        else:
+            check('ani data: a press and release at the point in unit coordinates (u, v) grabs it', False,
+                  'no grab cross drawn')
+
+        send6(cmd='data', events=[])
+        collect6(is_idle)
+        evs = ani('step', n=1)
+        check('ani data: not asked for, no frame is sent (the classic drawing still is)',
+              not frames(evs) and bool(draw_ops(evs, 104)))
+    finally:
+        stop_server(proc6, run6, send6)
+
 check_view()
 check_marks()
+check_ani_data()
 
 # A HOME the process cannot write to used to make AUTO exit(1) under the
 # client when it opened fort.8 there; open_auto() now falls back to the

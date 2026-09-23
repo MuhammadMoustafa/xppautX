@@ -39,7 +39,7 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `browser` | `op` (`find`, `get`, `replace`, `unreplace`, `table`, `load`, `write`, `first`, `last`, `restore`, `addcol`, `delcol`), `row` | A data browser button, with `row` the selected row (the X11 browser's top row). |
 | `eqimport` | | The equilibrium window's Import: the last equilibrium becomes the initial conditions. |
 | `equations` | | Send `equations`. |
-| `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves, `marks`: equilibria, text, arrows, markers and frozen curves on the plots (all in "The plot as data", below). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers. |
+| `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves, `marks`: equilibria, text, arrows, markers and frozen curves on the plots (all in "The plot as data", below); `ani`: the animation's frames ("The animation as data"). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers (an `ani` frame is always JSON). |
 | `action` | `index` | Run the action of comment `index` of `source.comments`. |
 | `click` | `win` | The user selected plot window `win`. |
 | `view` | `win`, `xlo`, `xhi`, `ylo`, `yhi` | "Use this view" (docs/ui-v2.md T9): sets window `win`'s 2D axes exactly as Window/Window would (graf_par.c `update_view`), so a later PostScript/SVG export, Restore and redraw all agree with them; the `plots` and `state.view` that follow the command show the new axes. Refused (`message` `error`) and nothing changed when `xlo`..`yhi` are not all finite, `xlo>=xhi`, `ylo>=yhi`, or `win` names no open window. |
@@ -49,7 +49,7 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `session` | `op` (`save`, `load`), `name` | Save or load a session: `<name>.set` (File/Write set, File/Read set) and, when a diagram exists (save) or a `<name>.auto` file is found (load), `<name>.auto` too (AUTO File/Save diagram, File/Load diagram). Without `name`, asks for one (`ask` kind `file`, like any other Save/Load). A load opens the AUTO window first when `<name>.auto` exists and AUTO is not already open. `state.session` (below) names the files the current session was last saved to or loaded from. |
 | `aplot` | `op`: `redraw`, `edit`, `print`, `fit`, `range`, `gif`, `close`, `scroll` (`dy` pixels) | The array plot window buttons; dragging the plot scrolls through time. |
 | `rotate` | `what` (`down`, `move`, `up`), `x`, `y` | Dragging a 3D plot turns it (the active window, when `state.view.three`). |
-| `ani` | `op`: `go`, `pause`, `fast`, `slow`, `step` (`n`), `seek` (`pos`), `reset`, `skip`, `file`, `mpeg`, `grab`, `mouse` (`what` down/move/up, `x`, `y`), `fly`, `close` | The animation window buttons. `go` plays until the last frame; `pause`, `fast`, `slow` sent while it plays reach its loop. `mpeg` asks for frame saving (PPM files or `anim.gif`), done with `pixels` asks while playing. `mouse` drags a grab point after `grab`. `size` for win 104 resizes the picture when the command ends. |
+| `ani` | `op`: `go`, `pause`, `fast`, `slow`, `speed` (`ms`), `step` (`n`), `seek` (`pos`), `reset`, `skip`, `file`, `mpeg`, `grab`, `mouse` (`what` down/move/up, `x`, `y` or `u`, `v`), `fly`, `close` | The animation window buttons. `go` plays until the last frame; `pause`, `fast`, `slow` and `speed` sent while it plays reach its loop. `speed` sets the delay between two frames of `go` to `ms` (0..1000; `fast` and `slow` change it by 2 within 0..100). `step` moves `n` rows from the core's position (`ani` `pos`), `seek` goes to row `pos`. `file` loads an `.ani` file (a `file` ask) and, when there is data, shows its first frame. `mpeg` asks for frame saving (PPM files or `anim.gif`), done with `pixels` asks while playing. `mouse` drags a grab point after `grab`, at pixel `x`, `y`, or at `u`, `v` in the animation's unit coordinates (those of the `ani` `frame` event, y up). `size` for win 104 resizes the picture when the command ends. |
 | `abort` | `at` (scripts only) | Stop the running command's computation, at once (see below). No reply of its own: the stopped command ends with `stopped`, `state` and `idle`; outside a command it does nothing. `at` is where a recorded session stopped (the `stopped` event's `at`); only a script's player reads it (see "Scripts"), anywhere else it is an ordinary `abort`. |
 | `file` | `op` (`list`, `get`, `put`), `name`, `data` | The model's folder (the working directory) for a client that cannot reach it: `put` writes `data` (base64, at most 64 MB decoded) as `name`, `get` reads `name` back, `list` lists the folder. Answered with a `file` event, then `state` and `idle`. Names are base names only (see "Files" below). |
 | `quit` | | Exit, at once even during a computation. |
@@ -69,7 +69,7 @@ in the input.
   after an `abort` counts as the user's last word: the rest of that command
   is not cancelled. `quit` then exits.
 - While a job runs, `key`, `set`, `size`, `state`, `browser` with `from`, and
-  `ani` `pause`/`fast`/`slow` are *control* lines: the computation acts on
+  `ani` `pause`/`fast`/`slow`/`speed` are *control* lines: the computation acts on
   them as they come (Escape stops it, a `set` changes a parameter under it,
   `size` and `state` are answered at once). Other keys are consumed, as the
   X11 program does. A control line the job does not get to runs after it
@@ -173,7 +173,7 @@ Run it with:
 
 | ev | fields | meaning |
 |---|---|---|
-| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`), `title`, `file`, `char` {`w`,`h`,`bw`,`bh`}, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. Text is laid out on a `char.w` x `char.h` monospace cell. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). |
+| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`), `title`, `file`, `char` {`w`,`h`,`bw`,`bh`}, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. Text is laid out on a `char.w` x `char.h` monospace cell. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). |
 | `palette` | `colors` (256 `#rrggbb`) | Colour table; sent again after a colormap change. |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows 1..10, AUTO 101 (stability circle 102, info strip 103), animation 104. |
 | `draw` | `win`, `ops` | Drawing, see below. |
@@ -193,7 +193,7 @@ Run it with:
 | `equilibrium` | `type`, `cplus`, `cminus`, `rplus`, `rminus`, `im`, `values`, `eigenvalues` | Result of Sing pts. `eigenvalues`: the Jacobian's `[re,im]` pairs, one per variable; absent for a delay equation. |
 | `source` | `lines`, `comments` [[text, has action]...] | File/Prt src. |
 | `equations` | `lines` | One `dX/dT=...` line per equation. |
-| `ani` | `pos`, `rows`, `fly`, `grab`, `skip`, `speed` | Animation state for its slider and toggles; sent with every frame. |
+| `ani` | `pos`, `rows`, `fly`, `grab`, `skip`, `speed`, `loaded`, `open`; or `op` `frame`, ... | Animation state for its slider and toggles, sent with every frame drawn and after every `ani` command: `pos` the row the next step starts from, `speed` the ms between frames of Go, `loaded` 1 when an `.ani` file is loaded, `open` 1 while the animation window exists. With `op` `frame`: a frame as data, for a client that asked (`data`); see "The animation as data". |
 | `aplot` | `title`, `nx`, `ny`, `cells` (ny rows of nx colour indices, -1 blank), `values`, `enc`, `first`, `ncolors`, `zmin`, `zmax`, `tlo`, `thi`, `tag` | The array plot (window 105): cell index k is palette colour `first`+k. `values` is the same `ny` rows of `nx` cells' stored numbers, before that mapping (float32, `null`/NaN off the stored rows or columns, same layout as `cells`), for a client that picks its own colour scale from them and `zmin`/`zmax`; `enc` `"f32"` (the client's last `data` `enc`, reused here since `aplot` is not itself in the `data` subscription list) sends `values` as base64 float32 like a series column (see "The plot as data"). |
 | `film` | `op` (`capture`, `reset`, `play`, `autoplay`), `count`, `win`, `cycles`, `delay` | Kinescope. The client keeps the frames: on `capture` it copies window `win` as it is drawn now; `play` shows them, `autoplay` plays `cycles` times `delay` ms apart. |
 | `browser` | `rows`, `cols` (names, `T` first), `row0` (selected row), `start`, `end` (the First..Last range), `from`, `col`, `data` | Rows `from`.. as [T, column `col`, `col`+1, ...]; `null` for NaN. Sent for a `browser` block request and after any command that changed the data while the client shows the browser. |
@@ -559,6 +559,71 @@ trailing dot or space, no control characters, none of `: * ? " < > |`
 `ok` 0). A name that is a symbolic link, a folder or anything but a plain
 file is refused too (403): nothing outside the folder is reached through
 it. The server listens on 127.0.0.1 only.
+
+### The animation as data
+
+Window 104 is drawn with the drawing ops like any other, and that stays
+what the classic page and the X11 program show. Beside it, a client that
+asked with `{"cmd":"data","events":["ani"]}` gets each frame the core draws
+as data, in the animation's own coordinates, and draws it at any size
+itself (web2, docs/ui-v2.md T13). core/aniparse.cpp evaluates a frame in
+the `.ani` file's coordinates (its `dimension` box, [0,1] x [0,1] unless the
+file says otherwise, y up) and hands each primitive both to the pixel ops,
+scaled to the window as XPP always has, and to core/ani_data.cpp, which
+sends it in unit coordinates:
+
+    u = (x - xlo) / (xhi - xlo)      v = (y - ylo) / (yhi - ylo)
+
+so (0,0) is the box's bottom left and (1,1) its top right. They are not
+clamped: where the `.ani` puts something outside its box the value lies
+outside [0,1] (the pixel ops clamp such a point to the window's edge).
+The pixel op of the same primitive is at `u*w`, `h - v*h`, truncated to
+whole pixels (`tools/servercheck.py` checks every primitive of a frame
+against its op within a pixel, colour for colour).
+
+```
+{"ev":"ani","op":"frame","pos":0,"rows":601,"t":0,"speed":5,"skip":1,
+ "dim":[-0.6,-0.1,0.4,0.6],"w":280,"h":350,
+ "prims":[["text",0.05,0.928571,"lecar  ",9,3,0],["line",0,0.142857,1,0.142857,0,1],
+          ["circle",0.456,0.185714,0.03,0.0428571,10,0,0],["dot",0.456,0.185714,2,1],...]}
+```
+
+| field | meaning |
+|---|---|
+| `pos`, `rows` | the stored row the frame shows (0-based), of how many |
+| `t` | the frame's time (9 digits; `null` when not finite) |
+| `speed`, `skip` | ms between two frames of Go, rows per step |
+| `dim` | the `dimension` box: `xlo`, `ylo`, `xhi`, `yhi`. A client that keeps its aspect `(xhi-xlo)/(yhi-ylo)` has equal units along x and y |
+| `w`, `h` | the pixel window the classic drawing has: what line widths, dots and text sizes are relative to |
+| `prims` | the primitives in drawing order, each an array (below); unit coordinates have 6 significant digits, `null` where the `.ani` evaluated to NaN |
+
+| primitive | arguments |
+|---|---|
+| `line` | `u1`, `v1`, `u2`, `v2`, colour, width |
+| `rect` | `u1`, `v1`, `u2`, `v2` (two opposite corners, either order), colour, width, fill (0/1) |
+| `circle` | `u`, `v`, `ru`, `rv`, colour, width, fill: the centre, and the radius over the box's width (`ru`) and over its height (`rv`); XPP draws it with the mean of the two in pixels, `(ru*w + rv*h)/2` |
+| `ellipse` | `u`, `v`, `ru`, `rv`, colour, width, fill: the centre and the two radii, as `circle`'s |
+| `dot` | `u`, `v`, `r`, colour: a filled circle of `r` pixels (a comet's, with a negative thickness) |
+| `text` | `u`, `v`, string, colour, size (0..4), font (0 roman, 1 symbol: Greek letters): from the baseline's left end |
+
+A colour is an XPP colour index (0 the foreground, 1..10 red .. purple, as
+`curves` `color`) for the `.ani`'s named colours, or `"#rrggbb"` for a
+colour of the colour map (an expression's value, 0..1). A primitive's
+colour, width and text font are the ones the pixel ops have at that point
+(`color`, `lw`, `font`): the colour starts at 0 each frame, width and font
+carry over from the frame before, `settext` sets the font and colour for
+the text after it, and text takes the colour last set, as XPP draws it.
+Widths are in pixels (0 is a thin line of one pixel).
+
+A frame goes out when the core draws it: after `step`, `seek`, `reset`, a
+`file` that shows the first frame, `grab` and its `mouse`, Fly's frames
+during an integration, and Go's. Frames that come faster than 25 a second
+(Go, Fly) are thinned: the latest one goes when 40 ms have passed since the
+last one sent, and the last frame drawn always goes, at the latest at the
+end of the command, before its `state` and `idle`. After `data` with `ani`
+the last frame drawn (if any) goes at the end of that command. The comets'
+trails are the core's, so a thinned frame loses nothing. A new `.ani` file
+forgets the frame of the old one.
 
 ## Not yet implemented
 

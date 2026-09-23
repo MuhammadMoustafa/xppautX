@@ -51,6 +51,7 @@
 #include "phase_data.h"
 #include "marks_data.h"
 #include "series_enc.h"
+#include "ani_data.h"
 #include "xpp_files.h"
 #include <strings.h>
 #include <stdarg.h>
@@ -613,12 +614,28 @@ static int classify(const char *line, unsigned long seq)
         return XPP_INBOX_CONTROL;
     if (strcmp(c, "browser") == 0 && js_find(line, "from")) return XPP_INBOX_CONTROL;
     if (strcmp(c, "ani") == 0 && get_str(line, "op", o, sizeof o) &&
-        (strcmp(o, "pause") == 0 || strcmp(o, "fast") == 0 || strcmp(o, "slow") == 0))
+        (strcmp(o, "pause") == 0 || strcmp(o, "fast") == 0 || strcmp(o, "slow") == 0 || strcmp(o, "speed") == 0))
         return XPP_INBOX_CONTROL;
     return XPP_INBOX_NORMAL;
 }
 
 #define ANI_PAUSE (-1)
+
+/* ani fast, slow and speed: the delay between two frames of Go, ms; 0 when
+   op is none of them */
+static int ani_speed_op(const char *o, const char *line)
+{
+    if (strcmp(o, "fast") == 0) {
+        if ((ani_speed -= ani_speed_inc) < 0) ani_speed = 0;
+    } else if (strcmp(o, "slow") == 0) {
+        if ((ani_speed += ani_speed_inc) > 100) ani_speed = 100;
+    } else if (strcmp(o, "speed") == 0) {
+        double ms = get_num(line, "ms", ani_speed);
+        ani_speed = ms < 0 ? 0 : ms > 1000 ? 1000 : (int)ms; /* the .ani `speed` command's range */
+    } else
+        return 0;
+    return 1;
+}
 
 /* a control line taken by a checkpoint: every kind classify() puts there
    is acted on, none dropped. Returns ESC for abort, the code of a key,
@@ -639,8 +656,7 @@ static int control_line(const char *line)
     if (is_cmd(line, "ani")) {
         get_str(line, "op", k, sizeof k);
         if (strcmp(k, "pause") == 0) return ANI_PAUSE;
-        if (strcmp(k, "fast") == 0 && (ani_speed -= ani_speed_inc) < 0) ani_speed = 0;
-        if (strcmp(k, "slow") == 0 && (ani_speed += ani_speed_inc) > 100) ani_speed = 100;
+        ani_speed_op(k, line);
     }
     return 64;
 }
@@ -1224,7 +1240,7 @@ static void data_emit(const char *line, size_t n)
     out_flush();
 }
 
-/* {"cmd":"data","events":["series","plots","nullclines","dfield","marks"],"enc":"f32"}:
+/* {"cmd":"data","events":["series","plots","nullclines","dfield","marks","ani"],"enc":"f32"}:
    the data events the client wants from now on (an empty list stops them);
    each is sent at the end of this command, which is what a client that
    (re)connects needs. hello.features lists the names known here. "enc":"f32"
@@ -1234,7 +1250,7 @@ static void data_command(const char *line)
 {
     const char *arr = js_find(line, "events");
     char name[32], enc[8];
-    int i, series = 0, plots = 0, nullclines = 0, dfield = 0, marks = 0, f32;
+    int i, series = 0, plots = 0, nullclines = 0, dfield = 0, marks = 0, ani = 0, f32;
     for (i = 0; arr && js_elem(arr, i); i++) {
         if (!js_string(js_elem(arr, i), name, sizeof name)) continue;
         if (strcmp(name, "series") == 0) series = 1;
@@ -1242,11 +1258,13 @@ static void data_command(const char *line)
         else if (strcmp(name, "nullclines") == 0) nullclines = 1;
         else if (strcmp(name, "dfield") == 0) dfield = 1;
         else if (strcmp(name, "marks") == 0) marks = 1;
+        else if (strcmp(name, "ani") == 0) ani = 1;
     }
     f32 = get_str(line, "enc", enc, sizeof enc) && strcmp(enc, "f32") == 0;
     plot_data_subscribe(series, plots, f32);
     phase_data_subscribe(nullclines, dfield, f32);
     marks_data_subscribe(marks, f32);
+    ani_data_subscribe(ani);
 }
 
 /* the equations window: one "dX/dT=..." line per equation (eig_list.c) */
@@ -2333,8 +2351,10 @@ static void j_auto_refresh(void)
 static void j_ani_slider(void)
 {
     Buf b = {0};
-    buf_printf(&b, "{\"ev\":\"ani\",\"pos\":%d,\"rows\":%d,\"fly\":%d,\"grab\":%d,\"skip\":%d,\"speed\":%d}",
-               vcr.pos, my_browser.maxrow, animation_on_the_fly, ani_grab_flag, vcr.inc, ani_speed);
+    buf_printf(&b, "{\"ev\":\"ani\",\"pos\":%d,\"rows\":%d,\"fly\":%d,\"grab\":%d,\"skip\":%d,\"speed\":%d,"
+               "\"loaded\":%d,\"open\":%d}",
+               vcr.pos, my_browser.maxrow, animation_on_the_fly, ani_grab_flag, vcr.inc, ani_speed, n_anicom > 0,
+               vcr.iexist);
     send_buf(&b);
     xpp_free(b.s);
 }
@@ -2431,15 +2451,25 @@ static void ani_command(const char *line)
 {
     char o[16], what[8];
     int x = (int)get_num(line, "x", 0), yy = (int)get_num(line, "y", 0);
+    /* a point in the animation's unit coordinates (u, v: y up, as the ani
+       frame event's) instead of pixels: the nearest pixel of the window */
+    if (js_find(line, "u") && js_find(line, "v")) {
+        x = (int)floor(get_num(line, "u", 0) * vcr.wid + 0.5);
+        yy = (int)floor((1 - get_num(line, "v", 0)) * vcr.hgt + 0.5);
+    }
     get_str(line, "op", o, sizeof o);
+    if (ani_speed_op(o, line)) {
+        j_ani_slider();
+        return;
+    }
     if (strcmp(o, "step") == 0) ani_flip1((int)get_num(line, "n", 1));
     else if (strcmp(o, "reset") == 0) ani_reset();
-    else if (strcmp(o, "file") == 0) get_ani_file(NULL);
-    else if (strcmp(o, "go") == 0) ani_go();
+    else if (strcmp(o, "file") == 0) {
+        /* a new animation shows its first frame at once when there is data */
+        if (get_ani_file(NULL) && my_browser.maxrow >= 2) ani_reset();
+    } else if (strcmp(o, "go") == 0) ani_go();
     else if (strcmp(o, "skip") == 0) ani_newskip();
     else if (strcmp(o, "mpeg") == 0) ani_create_mpeg();
-    else if (strcmp(o, "fast") == 0 && (ani_speed -= ani_speed_inc) < 0) ani_speed = 0;
-    else if (strcmp(o, "slow") == 0 && (ani_speed += ani_speed_inc) > 100) ani_speed = 100;
     else if (strcmp(o, "fly") == 0) animation_on_the_fly = 1 - animation_on_the_fly;
     else if (strcmp(o, "grab") == 0) ani_grab_start();
     else if (strcmp(o, "seek") == 0 && my_browser.maxrow >= 2) {
@@ -2462,7 +2492,11 @@ static void ani_command(const char *line)
 
 static void j_new_vcr(void)
 {
-    if (vcr.iexist == 1) return;
+    /* already open: say so (a client that reconnected has not seen it made) */
+    if (vcr.iexist == 1) {
+        j_ani_slider();
+        return;
+    }
     vcr.wid = 280;
     vcr.hgt = 350;
     vcr.iexist = 1;
@@ -2925,6 +2959,7 @@ static void handle_line(const char *line, unsigned long seq)
     plot_data_update();
     phase_data_update();
     marks_data_update();
+    ani_data_update();
     diag_flush(1);
     json_flush();
     /* a cancelled job says where it stopped; a replayed one must have
@@ -2998,6 +3033,7 @@ void json_ui_install(void)
     plot_data_init(data_emit);
     phase_data_init(data_emit);
     marks_data_init(data_emit);
+    ani_data_init(data_emit);
     xpp_inbox_set_classifier(classify);
     xpp_set_ui(&json_ui);
 }
@@ -3007,7 +3043,7 @@ void json_ui_hello(char *title)
 {
     Buf b = {0};
     int i;
-    BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":1,\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\"],\"title\":");
+    BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":1,\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\"],\"title\":");
     buf_str(&b, title);
     BUF_LIT(&b, ",\"file\":");
     buf_str(&b, this_file);

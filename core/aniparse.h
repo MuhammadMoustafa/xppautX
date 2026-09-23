@@ -42,9 +42,11 @@ typedef struct {
 } MPEG_SAVE;
 
 
+/* a comet's last n positions, in the animation's coordinates, and their colours */
 typedef struct {
   int n;
-  int *x,*y,*col;
+  double *x,*y;
+  int *col;
   int i;
 } Comet;
 
@@ -118,7 +120,7 @@ int getppmbits(Window window, int *wid, int *hgt, unsigned char *out);
 int writeframe(char *filename, Window window, int wid, int hgt);
 #endif /* Xlib.h */
 void ani_zero(void);
-void get_ani_file(char *fname);
+int get_ani_file(char *fname); /* 1 when a file was loaded */
 int ani_new_file(char *filename);
 int load_ani_file(FILE *fp);
 int parse_ani_string(char *s, FILE *fp);
@@ -130,7 +132,7 @@ int chk_ani_color(char *s, int *index);
 int add_ani_expr(char *x, int *c);
 int add_ani_rline(ANI_COM *a, char *x1, char *y1, char *col, char *thick);
 void reset_comets(void);
-void roll_comet(ANI_COM *a, int xn, int yn, int col);
+void roll_comet(ANI_COM *a, double xn, double yn, int col);
 int add_ani_comet(ANI_COM *a, char *x1, char *y1, char *x2, char *y2, char *col, char *thick);
 int add_ani_line(ANI_COM *a, char *x1, char *y1, char *x2, char *y2, char *col, char *thick);
 int add_ani_null(ANI_COM *a, char *x1, char *y1, char *x2, char *y2, char *col, char *who);
