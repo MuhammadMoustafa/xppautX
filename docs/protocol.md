@@ -364,15 +364,31 @@ core/ui_json.c sends at most one append per 100 ms).
 | `menu` | `name`, `title`, `items`, `keys`, `hints`, `def` | `key` (empty or `ok:0` cancels) |
 | `choice` | `title`, `question`, `choices`, `keys` | `key` |
 | `string` | `title`, `name`, `value`, `ok`, `cancel`, `max` | `value` |
-| `form` | `title`, `names`, `values`, `max` | `values` (same length). A name starting with `*n` means the field names a variable (`*0`), colour (`*4`) or marker (`*5`). |
+| `form` | `title`, `names`, `values`, `max` | `values` (same length). A name starting with `*n` means the field picks from `hello.lists[n]`: a variable (`*0`), a parameter (`*2`), a colour (`*4`), a marker (`*5`), ...; for a list whose items start with a number (`2 Box`) the value is that number. |
 | `checklist` | `title`, `names`, `flags` | `flags` |
 | `file` | `title`, `file`, `wild`, `dir`, `dirs`, `files` | `file`; or `cd` (a folder name or `..`) or `wild` (a new pattern) to be asked again with that listing |
 | `alert` | `button`, `message` | nothing |
-| `mouse` | `win` | `x`, `y` |
-| `rubber` | `win`, `flag` (0 box, 1 line) | `x`, `y`, `x2`, `y2` |
-| `grab` | `win` | `key`, or `x`, `y` for a click on the diagram |
-| `drag` | `win` | `what` (`down`, `move`, `up`), `x`, `y` for each pointer event; cancel or a key ends. Window/Scroll and AUTO Axes/Scroll ask it again after every event. |
+| `mouse` | `win` | `x`, `y`; or `xd`, `yd` (data coordinates, below) |
+| `rubber` | `win`, `flag` (0 box, 1 line) | `x`, `y`, `x2`, `y2`; or `xd`, `yd`, `xd2`, `yd2` |
+| `grab` | `win` | `key`, or `x`, `y` (or `xd`, `yd`) for a click on the diagram |
+| `drag` | `win` | `what` (`down`, `move`, `up`), `x`, `y` (or `xd`, `yd`) for each pointer event; cancel or a key ends. Window/Scroll and AUTO Axes/Scroll ask it again after every event. |
 | `pixels` | `win`, or `film` (a kinescope frame index) | `w`, `h`, `rgb` (base64 of w*h*3 bytes). Frame, GIF and kinescope writers use it: only the client has the picture. |
+
+**Data coordinates.** A point of a `mouse`, `rubber`, `drag` or `grab`
+answer can be given in the plot's own quantities instead of pixels: `xd`,
+`yd` for the point (`xd2`, `yd2` for a rubber band's second corner), in the
+coordinates `state.view` maps to (the active window's `xlo`..`xhi`,
+`ylo`..`yhi`; for the AUTO diagram, window 101, those of `state.auto` or
+the `diagram` `axes`). The server turns them into the nearest pixel of its
+window at the axes it has when the answer comes (the inverse of the
+mapping `state.view` describes), and the command goes on exactly as for a
+click at that pixel: Window/Zoom by `xd`..`xd2`, `yd`..`yd2` gives that
+box within a pixel, and Initialconds/Mouse at `xd`, `yd` starts from that
+point within a pixel. A point outside the window is fine (its pixel lies
+outside too). When both are there, `xd`/`yd` win over `x`/`y`. A client
+that draws the plot itself (web2) answers in data coordinates and needs
+no pixel geometry. `tools/servercheck.py` checks that a box in data
+coordinates zooms exactly as the same box in pixels.
 
 ## Not yet implemented
 

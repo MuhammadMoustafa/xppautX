@@ -890,14 +890,46 @@ static int j_file_selector(char *title, char *file, char *wild)
     }
 }
 
+/* a data coordinate as the nearest pixel of an axis that maps pixel p0 to
+   v0 and p1 to v1 (the inverse of scale_to_real, auto_motion_xy) */
+static int data_to_pixel(double v, double v0, double v1, int p0, int p1)
+{
+    double p;
+    if (!(v1 != v0) || !isfinite(v)) return p0;
+    p = p0 + (v - v0) * (p1 - p0) / (v1 - v0);
+    if (p > 1e6) p = 1e6;
+    if (p < -1e6) p = -1e6;
+    return (int)lround(p);
+}
+
+/* point k (0: x,y; 1: x2,y2) of the answer to a mouse, rubber, drag or grab
+   ask in window win: pixels, or data coordinates xd,yd (xd2,yd2) converted
+   with the window's current axes to the pixels that map back to them, so
+   the command goes on exactly as for a click there (docs/protocol.md) */
+static void answer_point(unsigned long win, int k, int *x, int *y)
+{
+    static const char *px[] = {"x", "x2"}, *py[] = {"y", "y2"}, *dx[] = {"xd", "xd2"}, *dy[] = {"yd", "yd2"};
+    const char *jx = js_find(answer, dx[k]), *jy = js_find(answer, dy[k]);
+    if (!jx || !jy) {
+        *x = (int)get_num(answer, px[k], 0);
+        *y = (int)get_num(answer, py[k], 0);
+    } else if (win == WIN_AUTO) {
+        *x = data_to_pixel(js_num(jx, 0), Auto.xmin, Auto.xmax, Auto.x0, Auto.x0 + Auto.wid);
+        *y = data_to_pixel(js_num(jy, 0), Auto.ymin, Auto.ymax, Auto.y0 + Auto.hgt, Auto.y0);
+    } else {
+        get_draw_area();
+        *x = data_to_pixel(js_num(jx, 0), MyGraph->xlo, MyGraph->xhi, DLeft, DRight);
+        *y = data_to_pixel(js_num(jy, 0), MyGraph->ylo, MyGraph->yhi, DBottom, DTop);
+    }
+}
+
 static int mouse_ask(unsigned long win, const char *kind, int flag, int *v, int nv)
 {
     Buf b;
     int i, id = ask_begin(&b, kind);
-    static const char *names[] = {"x", "y", "x2", "y2"};
     buf_printf(&b, ",\"win\":%lu,\"flag\":%d", win, flag);
     if (!ask_wait(&b, id)) return 0;
-    for (i = 0; i < nv; i++) v[i] = (int)get_num(answer, names[i], 0);
+    for (i = 0; i < nv / 2; i++) answer_point(win, i, &v[2 * i], &v[2 * i + 1]);
     return 1;
 }
 
@@ -1727,8 +1759,7 @@ static int ask_drag(unsigned long win, int *x, int *y)
     int id = ask_begin(&b, "drag");
     buf_printf(&b, ",\"win\":%lu", win);
     if (!ask_wait(&b, id) || !get_str(answer, "what", what, sizeof what)) return 0;
-    *x = (int)get_num(answer, "x", 0);
-    *y = (int)get_num(answer, "y", 0);
+    answer_point(win, 0, x, y);
     return strcmp(what, "down") == 0 ? 1 : strcmp(what, "move") == 0 ? 2 : strcmp(what, "up") == 0 ? 3 : 0;
 }
 
@@ -2166,8 +2197,7 @@ static int j_auto_grab_event(int *x, int *y)
     buf_printf(&b, ",\"win\":%d", WIN_AUTO);
     if (!ask_wait(&b, id)) return ESC;
     if (get_str(answer, "key", k, sizeof k)) return key_code(k);
-    *x = (int)get_num(answer, "x", 0);
-    *y = (int)get_num(answer, "y", 0);
+    answer_point(WIN_AUTO, 0, x, y);
     return XPP_AUTO_CLICK;
 }
 static void j_auto_show_hint(void) { send_simple("message", "auto", Auto.hinttxt); }

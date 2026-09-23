@@ -577,6 +577,102 @@ def check_live_series():
 
 check_live_series()
 
+
+# Answers in data coordinates (docs/protocol.md "Asks"): a mouse, rubber or
+# drag ask also takes xd,yd (xd2,yd2), which the core turns into the pixels
+# of its window that map to them. Two fresh servers zoom by the same box,
+# one answered in pixels, the other in the data coordinates of those pixels
+# (state.view's mapping): the views must be the same.
+def zoomed_view(answer_of):
+    """a fresh lecar server's view after Window/Zoom answered with answer_of(view), and the server's session"""
+    p, r, snd, col, _ = launch_server()
+    col(is_idle)
+    snd(cmd='state')
+    evs, st = col(is_state)
+    col(is_idle)
+    view = st['view']
+    snd(cmd='key', key='w')
+    evs, ask = col(lambda e: e.get('ev') == 'ask')
+    snd(cmd='answer', id=ask['id'], key='z')
+    evs, ask = col(lambda e: e.get('ev') == 'ask')
+    ok = ask is not None and ask['kind'] == 'rubber'
+    if ok:
+        snd(cmd='answer', id=ask['id'], **answer_of(view))
+    evs, _ = col(is_idle)
+    st = last_state(evs)
+    return ok, view, st and st['view'], (p, r, snd, col)
+
+
+def pixel_to_data(v, i, j):
+    return (v['xlo'] + (v['xhi'] - v['xlo']) * (i - v['left']) / (v['right'] - v['left']),
+            v['ylo'] + (v['yhi'] - v['ylo']) * (j - v['bottom']) / (v['top'] - v['bottom']))
+
+
+def stop_server(p, r, snd):
+    snd(cmd='quit')
+    try:
+        p.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        p.kill()
+    shutil.rmtree(r, ignore_errors=True)
+
+
+def box_of(v):
+    """a box from 20% to 60% of the window across and 30% to 80% down, in whole pixels"""
+    w, h = v['right'] - v['left'], v['bottom'] - v['top']
+    return (v['left'] + int(0.2 * w), v['top'] + int(0.3 * h), v['left'] + int(0.6 * w), v['top'] + int(0.8 * h))
+
+
+def check_data_coordinates():
+    ok1, v1, by_pixels, s1 = zoomed_view(lambda v: dict(zip(('x', 'y', 'x2', 'y2'), box_of(v))))
+    stop_server(*s1[:3])
+
+    def data_box(v):
+        i1, j1, i2, j2 = box_of(v)
+        (xd, yd), (xd2, yd2) = pixel_to_data(v, i1, j1), pixel_to_data(v, i2, j2)
+        return {'xd': xd, 'yd': yd, 'xd2': xd2, 'yd2': yd2}
+    ok2, v2, by_data, s2 = zoomed_view(data_box)
+    p, r, snd, col = s2
+    try:
+        check('Window/Zoom asks for a box (rubber)', ok1 and ok2)
+        keys = ('xlo', 'xhi', 'ylo', 'yhi')
+        check('a box answered in data coordinates zooms as the same box in pixels',
+              by_pixels is not None and by_data is not None and v1 == v2
+              and all(by_pixels[k] == by_data[k] for k in keys) and by_data['xhi'] - by_data['xlo'] < v2['xhi'] - v2['xlo'],
+              '%s vs %s' % (by_pixels, by_data))
+        want = data_box(v2)
+        px = (v2['xhi'] - v2['xlo']) / (v2['right'] - v2['left'])
+        py = (v2['yhi'] - v2['ylo']) / (v2['bottom'] - v2['top'])
+        got = by_data or {}
+        check('the zoomed view is the box asked for, within a pixel',
+              by_data is not None and abs(min(got['xlo'], got['xhi']) - min(want['xd'], want['xd2'])) <= px
+              and abs(max(got['xlo'], got['xhi']) - max(want['xd'], want['xd2'])) <= px
+              and abs(min(got['ylo'], got['yhi']) - min(want['yd'], want['yd2'])) <= py
+              and abs(max(got['ylo'], got['yhi']) - max(want['yd'], want['yd2'])) <= py, '%s vs %s' % (got, want))
+        # Initialconds/Mouse picked in data coordinates: the ICs are that point
+        if by_data:
+            v = by_data
+            xd, yd = v['xlo'] + 0.3 * (v['xhi'] - v['xlo']), v['ylo'] + 0.6 * (v['yhi'] - v['ylo'])
+            snd(cmd='key', key='i')
+            evs, ask = col(lambda e: e.get('ev') == 'ask')
+            snd(cmd='answer', id=ask['id'], key='m')
+            evs, ask = col(lambda e: e.get('ev') == 'ask')
+            if ask is not None and ask['kind'] == 'mouse':
+                snd(cmd='answer', id=ask['id'], xd=xd, yd=yd)
+            evs, _ = col(is_idle, timeout=30)
+            st = last_state(evs)
+            ics = dict(st['ics']) if st else {}
+            pxm = abs(v['xhi'] - v['xlo']) / (v['right'] - v['left'])
+            pym = abs(v['yhi'] - v['ylo']) / (v['bottom'] - v['top'])
+            check('Initialconds/Mouse answered in data coordinates starts from that point, within a pixel',
+                  ask is not None and ask['kind'] == 'mouse' and abs(ics.get('V', 1e9) - xd) <= pxm
+                  and abs(ics.get('W', 1e9) - yd) <= pym, '%s vs %s' % (ics, (xd, yd)))
+    finally:
+        stop_server(p, r, snd)
+
+
+check_data_coordinates()
+
 # A HOME the process cannot write to used to make AUTO exit(1) under the
 # client when it opened fort.8 there; open_auto() now falls back to the
 # model's directory. Drive a second server with such a HOME and check it survives.
