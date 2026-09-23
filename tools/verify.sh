@@ -5,6 +5,7 @@
 # the X11-free and C++ metrics. Run from repo root (WSL/Linux/macOS).
 # It also links both programs with LTO (make ltocheck), which reports types
 # that differ across files, and checks that a failed allocation is loud.
+# The sanitizer build (tools/asancheck.sh) is slower and runs apart, in CI.
 # Usage: tools/verify.sh [--clean-warnings]
 cd "$(dirname "$0")/.." || exit 1
 BASELINE=c281851de59ffd03b2a46428619a0c8f

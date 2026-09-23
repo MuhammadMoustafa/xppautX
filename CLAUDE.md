@@ -60,7 +60,15 @@ headless-browser driver webtest.mjs and web2check.mjs share.
 build/lto and fails on `-Wlto-type-mismatch`: an extern whose type or
 array bound differs from its definition, which a normal build cannot see.
 
-Metrics: `make x11free` (sources compiling without X11 headers, 99/121),
+`make asan` builds both programs with AddressSanitizer, LeakSanitizer and
+UBSan into build/asan; `tools/asancheck.sh` (CI's `sanitizers` job, not
+verify.sh: it takes a few minutes) builds them and runs the smoke runs,
+every example, the unit tests, servercheck, webcheck and autocheck under
+them, and fails on any report (written to build/asan/reports):
+
+    wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/asancheck.sh"
+
+Metrics: `make x11free` (sources compiling without X11 headers, 100/122),
 `tools/coredeps.sh -v` (symbols core objects import from X11 objects, 0)
 and verify.sh's `C++: N / M sources` (core/*.cpp over all core sources).
 The tree builds with 0 warnings (gcc 13 and MinGW gcc 13): verify.sh builds
@@ -160,6 +168,20 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   docs/front-end-gaps.md tracks parity.
 - Pop-up menu arrays in menus.c (`main_menu` etc.) start with the title:
   item i is `main_menu[i+1]` with key `main_menu_keys[i]`.
+
+## Memory
+
+- The core allocates with `xpp_malloc`, `xpp_calloc`, `xpp_realloc`,
+  `xpp_strdup` and frees with `xpp_free` (core/xpp_mem.h), never libc's
+  directly. They never return NULL: a failure logs an ERROR naming the size
+  and file:line and exits 1, so callers do not check. `XPP_MEM_FAIL_AT=N`
+  fails the N-th allocation (verify.sh checks the message); `--debug`
+  prints the counts at exit. The exceptions (memory a library allocates or
+  frees) are listed in xpp_mem.h's comment; add any new one there.
+- A leak or memory error LeakSanitizer/ASan/UBSan reports in our code is
+  fixed, never suppressed; tools/lsan.supp is only for code we do not own,
+  with a reason per line. Memory kept for the program's life (a global set
+  once) needs no free at exit: LSan sees it as reachable.
 
 ## C and C++
 

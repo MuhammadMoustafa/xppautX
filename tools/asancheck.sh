@@ -1,0 +1,102 @@
+#!/bin/sh
+# Build both programs with AddressSanitizer, LeakSanitizer and
+# UndefinedBehaviorSanitizer (make asan, into build/asan) and run the checks
+# under them: the -silent smoke run of both programs (same checksum as
+# verify.sh), the unit tests, the protocol (servercheck.py), browser mode
+# (webcheck.py) and AUTO (autocheck.py).
+#
+# Any sanitizer report fails the script, whether or not the check that
+# provoked it noticed: every report goes to a file in build/asan/reports
+# (log_path), and that directory must end up empty. A leak is reported when
+# a process exits, so the checks must let the programs exit (File/Quit),
+# not kill them. tools/lsan.supp lists the only leaks tolerated, all in code
+# we do not own.
+#
+# Slow (the checks run several times slower than in verify.sh), so not part
+# of verify.sh; CI runs it. Linux only (LeakSanitizer).
+# Usage: tools/asancheck.sh
+cd "$(dirname "$0")/.." || exit 1
+top=$PWD
+BASELINE=c281851de59ffd03b2a46428619a0c8f
+mkdir -p build || exit 1
+if ! make -j8 asan > build/asan-build.log 2>&1; then
+  grep -E ' error:' build/asan-build.log | head -20
+  echo "ASAN BUILD FAILED"
+  exit 1
+fi
+echo "asan build ok"
+reports=$top/build/asan/reports
+rm -rf "$reports" && mkdir -p "$reports" || exit 1
+export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1:log_path=$reports/asan"
+export UBSAN_OPTIONS="halt_on_error=1:print_stacktrace=1:log_path=$reports/ubsan"
+export LSAN_OPTIONS="suppressions=$top/tools/lsan.supp:print_suppressions=0"
+fail=0
+
+for bin in xppautX xppaut; do
+  tmp=$(mktemp -d)
+  ( cd "$tmp" && "$top/build/asan/$bin" "$top/examples/ode/lecar.ode" -silent > run.log 2>&1 )
+  st=$?
+  sum=$(md5sum "$tmp/output.dat" 2>/dev/null | cut -d' ' -f1)
+  if [ $st -eq 0 ] && [ "$sum" = "$BASELINE" ]; then
+    echo "$bin -silent ok: checksum matches baseline"
+  else
+    head -20 "$tmp/run.log"
+    echo "$bin -silent FAILED: exit $st, sum=$sum"
+    fail=1
+  fi
+  rm -rf "$tmp"
+done
+
+# every example, as tools/examples_check.sh runs them (xppautX only: the
+# output is compared there, here only the sanitizers' verdict counts); a
+# model that does not run by itself exits non-zero without a report
+ex=$(mktemp -d)
+find examples -name '*.ode' | sort | xargs -P"$(nproc 2>/dev/null || echo 4)" -I{} sh -c '
+  f=$1; run=$2/$(echo "$f" | tr / _); mkdir -p "$run"
+  cp "$(dirname "$f")"/* "$run"/ 2>/dev/null
+  cd "$run" && timeout 120 "$3" "$(basename "$f")" -silent > run.log 2>&1
+  echo "$? $f" >> "$2/status"' sh {} "$ex" "$top/build/asan/xppautX"
+echo "examples run: $(wc -l < "$ex/status"), exit codes: $(cut -d' ' -f1 "$ex/status" | sort -n | uniq -c | tr -s ' \n' ' ')"
+rm -rf "$ex"
+
+if make BUILDDIR=build/asan ASAN=1 test > build/asan-unittest.log 2>&1; then
+  echo "unit tests ok"
+else
+  grep -E 'FAIL|failed|ERROR' build/asan-unittest.log | head -20
+  echo "UNIT TESTS FAILED"
+  fail=1
+fi
+
+# the name, then the command
+run_check() {
+  name=$1; shift
+  if "$@" > "build/asan-$name.log" 2>&1; then
+    echo "$name ok: $(grep -c '^PASS' "build/asan-$name.log") checks"
+  else
+    grep -v '^PASS' "build/asan-$name.log" | head -30
+    echo "$name FAILED"
+    fail=1
+  fi
+}
+run_check servercheck python3 tools/servercheck.py --server build/asan/xppautX
+run_check webcheck python3 tools/webcheck.py --bin build/asan/xppautX
+# --report: the sanitizers slow everything down, so the latency limits
+# (which verify.sh checks) only measure here
+run_check autocheck python3 tools/autocheck.py --server build/asan/xppautX --report
+
+n=$(ls "$reports" | wc -l)
+if [ "$n" -ne 0 ]; then
+  for f in "$reports"/*; do
+    echo "== $f"
+    head -60 "$f"
+  done
+  echo "SANITIZER REPORTS: $n (in $reports)"
+  fail=1
+else
+  echo "sanitizers ok: no error or leak report"
+fi
+if [ $fail -ne 0 ]; then
+  echo "ASAN CHECK FAILED"
+  exit 1
+fi
+echo "asan check ok"

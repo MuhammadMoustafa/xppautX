@@ -127,6 +127,24 @@ lto-link: $(OBJECTS) $(SERVER_OBJECTS)
 	@$(LINK_X11) -flto=auto -fcommon -o $(BUILDDIR)/xppaut $(OBJECTS) $(LDFLAGS) $(LIBS) 2> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
 	@$(LINK_X) -flto=auto -fcommon -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) -lm $(DLLIB) $(NETLIBS) 2>> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
 	@if grep -A4 'lto-type-mismatch' $(BUILDDIR)/lto.log; then echo "ltocheck: types differ across files"; exit 1; fi
+# AddressSanitizer + UndefinedBehaviorSanitizer (and LeakSanitizer, part of
+# ASan on Linux): both programs built into build/asan, the ones in the tree
+# left alone. tools/asancheck.sh builds them and runs the checks.
+ifeq ($(ASAN),1)
+SANITIZE := -fsanitize=address,undefined -fno-omit-frame-pointer
+# -O1 and the instrumentation blur gcc's value ranges: these two then warn
+# about code the normal (WERROR) build proves safe
+OPT := -g -O1 $(SANITIZE) -Wno-format-overflow -Wno-restrict
+endif
+.PHONY: asan asan-link
+asan:
+	@$(MAKE) BUILDDIR=build/asan ASAN=1 asan-link
+asan-link: $(BUILDDIR)/xppautX$(EXE) $(if $(filter Windows_NT,$(OS)),,$(BUILDDIR)/xppaut)
+$(BUILDDIR)/xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
+	$(LINK_X) $(SANITIZE) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS)
+$(BUILDDIR)/xppaut: $(OBJECTS)
+	$(LINK_X11) $(SANITIZE) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
+
 # one X11-free program: browser front end, --server protocol and -silent batch
 xppautx: xppautX$(EXE)
 
@@ -154,7 +172,7 @@ test: $(TEST_BINS)
 	  else echo "unit tests: FAILURES"; exit 1; fi
 
 $(TEST_BINS): %$(EXE): %.o $(CORELIB)
-	$(LINK_TESTS) -o $@ $< $(CORELIB) -lm $(DLLIB)
+	$(LINK_TESTS) $(SANITIZE) -o $@ $< $(CORELIB) -lm $(DLLIB)
 
 $(BUILDDIR)/tests/%.o: tests/%.c | $(BUILDDIR)/tests
 	$(CC) $(CFLAGS) -Itests -MMD -MP -c $< -o $@

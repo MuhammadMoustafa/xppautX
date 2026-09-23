@@ -1,0 +1,2 @@
+# LeakSanitizer suppressions for tools/asancheck.sh: leaks in code we do not
+# own only, one justified line each. A leak in core/ is fixed, never listed.
