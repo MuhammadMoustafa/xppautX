@@ -1040,7 +1040,7 @@ reduce(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2,
     ipr_dim1;
 
     /* Local variables */
-  logical oddc[KREDO];
+  logical oddc[KREDO] = {FALSE_};
   integer niam, ibuf, ismc[KREDO], irmc[KREDO], info, irmm[KREDO], 
     ismm[KREDO], nlev, itmp;
   doublereal zero, tpiv;
@@ -1051,10 +1051,10 @@ reduce(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2,
 
   integer i1, i2, k1, k2, i3, l1, iprow, k3, l2, l3, ic, ir;
   doublereal rm;
-  logical master[KREDO];
+  logical master[KREDO] = {FALSE_};
   integer ib1, ib2, myleft[KREDO];
 
-  logical worker[KREDO];
+  logical worker[KREDO] = {FALSE_};
   integer ir1, iprown, iprown2, ism[KREDO], irm[KREDO], nrcmnbc;
   doublereal tmp;
   integer myleftc[KREDO];
@@ -1807,9 +1807,9 @@ redrhs(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2,
 
   integer i1, i2, k1, l1, ic, ir;
   doublereal rm;
-  logical master[KREDO];
+  logical master[KREDO] = {FALSE_};
   integer myleft[KREDO];
-  logical worker[KREDO];
+  logical worker[KREDO] = {FALSE_};
   doublereal buf[2];
   integer ism[KREDO], irm[KREDO];
   doublereal tmp;
@@ -2197,7 +2197,7 @@ bcksub(integer *iam, integer *kwt, logical *par, doublereal *s1, doublereal *s2,
   doublereal sm;
   integer msglen;
 
-  logical master[KREDO];
+  logical master[KREDO] = {FALSE_};
   integer myleft, kp1;
   logical odd = FALSE_;
   integer ism, irm;
