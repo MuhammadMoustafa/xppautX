@@ -436,7 +436,7 @@ void make_gill_nu(double *nu,int n,int m,double *v)
   yp=(double *)malloc(n*sizeof(double));
   for(ir=0;ir<m;ir++)
     v[ir+1]=0;
-    rhs_only(y,yold);
+  rhs_only(y,yold);
   for(ir=0;ir<m;ir++){
     v[ir+1]=1;
     rhs_only(y,yp);

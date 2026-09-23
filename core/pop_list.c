@@ -1343,7 +1343,7 @@ Window *root,hwin;
  			for(i=0;i<p.n;i++)if(ev.xcrossing.window==p.w[i])
 			     XSetWindowBorderWidth(display,
 			      p.w[i],0);
-			     break;
+			break;
 			   			
 			}
 	}

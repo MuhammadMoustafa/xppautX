@@ -103,9 +103,9 @@ int cvode(command,y,t,n,tout,kflag,atol,rtol)
  int err=0;
  if(NFlags==0)
    return(ccvode(command,y,t,n,tout,kflag,atol,rtol));
-   err=one_flag_step_cvode(command,y,t,n,tout,kflag,atol,rtol);
-   if(err==1)*kflag=-9;
-   return 1;
+ err=one_flag_step_cvode(command,y,t,n,tout,kflag,atol,rtol);
+ if(err==1)*kflag=-9;
+ return 1;
 }
 /* rtol is like our TOLER and atol is something else ?? */
 int ccvode(command,y,t,n,tout,kflag,atol,rtol) 

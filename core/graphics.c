@@ -434,7 +434,7 @@ int i;
   for(k=0;k<3;k++)
         if(k==j)graph[i].rm[k][j]=1.0;
 	else graph[i].rm[k][j]=0.0;
-  graph[i].nvars=1;
+ graph[i].nvars=1;
   for(j=0;j<MAXPERPLOT;j++){
         graph[i].xv[j]=IXPLT;
 	graph[i].yv[j]=IYPLT;
@@ -513,7 +513,7 @@ int i,l;
  for(j=0;j<3;j++)
   for(k=0;k<3;k++)
         graph[i].rm[k][j]=graph[l].rm[k][j];
-  graph[i].nvars=graph[l].nvars;
+ graph[i].nvars=graph[l].nvars;
   for(j=0;j<MAXPERPLOT;j++){
         graph[i].xv[j]=graph[l].xv[j];
 	graph[i].yv[j]=graph[l].yv[j];

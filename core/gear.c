@@ -1355,9 +1355,9 @@ L330:
       j2=k-j1+j-1;
       for(i=0;i<n;i++) ytable[j2-1][i]=ytable[j2-1][i]+ytable[j2][i];
      }
-     for(i=0;i<n;i++)
-     error[i]=0.0;
-     for(l=0;l<3;l++)
+    for(i=0;i<n;i++)
+      error[i]=0.0;
+    for(l=0;l<3;l++)
      {
       rhs(*t,ytable[0],save11,n);
       if(iweval<1)

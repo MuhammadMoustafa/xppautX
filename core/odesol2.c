@@ -707,7 +707,7 @@ int bandfac(a,ml,mr,n)   /*   factors the matrix    */
       if(al==0.0)continue;
       for(k=1;k<=m;k++)
 	a[ri0-i+k]=a[ri0-i+k]-(al*a[r0+k]);
-        a[ri0-i]=-al;
+      a[ri0-i]=-al;
     }
 
 

@@ -1286,9 +1286,9 @@ int if_include_file(char *old,char *nf)
      }
   for(j=i+1;j<n;j++)
     nf[j-i-1]=old[j];
-    nf[n-i-1]=0;
-    de_space(nf);
-   return 1;
+  nf[n-i-1]=0;
+  de_space(nf);
+  return 1;
   }
   return 0;    
   

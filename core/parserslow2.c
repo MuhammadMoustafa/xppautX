@@ -1507,10 +1507,12 @@ int *ind;
              {
               case 'E':
                        nexp++;
-                       if((nexp==2)||(ndig==0))goto err;break;
+                       if((nexp==2)||(ndig==0))goto err;
+                       break;
               case '.':
                        ndec++;
-                       if((ndec==2)||(nexp==1))goto err;break;
+                       if((ndec==2)||(nexp==1))goto err;
+                       break;
 
              }
    num[j]=ch;

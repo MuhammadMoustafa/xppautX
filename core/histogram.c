@@ -753,9 +753,10 @@ void compute_fourier()
     err_msg("No data!");
     return;
   }
-  if(get_col_info(&spec_col,"Variable ")==1)
+  if(get_col_info(&spec_col,"Variable ")==1){
     nmodes=storind/2-1;
     new_four(nmodes,spec_col);
+  }
 }
  
 

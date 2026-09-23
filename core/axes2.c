@@ -310,9 +310,9 @@ void Box_axis(x_min,x_max,y_min,y_max,sx,sy,flag)
   if(MyGraph->xorgflag&&flag)
     if(xaxis_y>=ybot&&xaxis_y<=ytop)
       line(xleft,xaxis_y,xright,xaxis_y);
-    if(MyGraph->yorgflag&&flag)
-      if(yaxis_x>=xleft&&yaxis_x<=xright)
-	line(yaxis_x,ybot,yaxis_x,ytop);
+  if(MyGraph->yorgflag&&flag)
+    if(yaxis_x>=xleft&&yaxis_x<=xright)
+      line(yaxis_x,ybot,yaxis_x,ytop);
  set_linestyle(-2);
   DOING_BOX_AXES=1;
   line(xleft,ybot,xright,ybot);
