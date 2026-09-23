@@ -4,7 +4,7 @@
 extern "C" {
 #endif
 
-/* The cancel token of a running computation (xpp_job.c).
+/* The cancel token of a running computation (xpp_job.cpp).
 
    The core computes on the main thread. A "job" is one command being carried
    out: the JSON front end runs every protocol command as a job, the X11 front
@@ -21,7 +21,7 @@ extern "C" {
    takes Run from its queue, while a command sent after the Abort runs
    normally.
 
-   This file and xpp_job.c include no front-end header. */
+   This file and xpp_job.cpp include no front-end header. */
 
 /* A job begins and ends; nested pairs are fine (a counter), the outermost
    one counts. seq is the sequence number of the command line that started
