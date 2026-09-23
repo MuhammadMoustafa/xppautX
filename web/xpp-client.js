@@ -76,11 +76,8 @@
       this.dirty = false;
       this.heldSinceClear = false;
       this.holdTimer = null;
-      /* A transparent layer stacked on the view canvas (see web/xpp-client.css),
-         for marks that come and go far more often than the picture underneath
-         changes - AUTO's grab cursor is the only user so far. Drawn to
-         directly, with no buffering: it is cheap and rare enough not to need
-         it, and it must never wait on the held blit below. */
+      /* a transparent layer on the view for marks that come and go (AUTO's
+         grab cursor), drawn directly: it never waits for the blit */
       this.overlay = el('canvas', 'xpp-overlay');
       this.octx = this.overlay.getContext('2d');
       this.resize(w, h);
@@ -120,11 +117,8 @@
     }
 
     /* show it on the next frame, so a burst of events costs one repaint.
-       After a clear, hold off on that frame: a redraw is a clear plus
-       thousands of ops arriving over several events, and painting the first
-       frame would flash the blank canvas before the picture is back. Wait
-       for releaseHold() (the command's ask or idle, see XppClient.receive)
-       or, failing that, 250ms, so zoom/fit/reDraw appear in one step. */
+       After a clear, wait for the command's ask or idle (releaseHold), or
+       250 ms, so a redraw arriving over several events appears in one step. */
     mark() {
       if (this.dirty) return;
       this.dirty = true;
@@ -146,9 +140,7 @@
       const c = this.octx;
       c.clearRect(0, 0, this.overlay.width, this.overlay.height);
       if (x === undefined) return;
-      /* a fixed colour, not XOR: the overlay is its own transparent layer,
-         so there is nothing to XOR against. Magenta reads on both the white
-         and black diagram backgrounds AUTO uses. */
+      /* magenta reads on AUTO's white and black backgrounds alike */
       c.save();
       c.strokeStyle = '#ff00ff';
       c.lineWidth = 2;
@@ -994,9 +986,7 @@
       }
     }
 
-    /* let every surface's held post-clear blit (Surface.mark()) through: the
-       command that cleared it has reached a point - waiting for an answer,
-       or done - where the picture is expected to be back and settled */
+    /* the command is waiting or done: show every held picture */
     releaseHeldSurfaces() {
       this.surfaces.forEach(s => s.releaseHold());
     }
@@ -1170,15 +1160,8 @@
         });
         s.canvas.addEventListener('click', e => {
           const [x, y] = s.at(e);
-          /* During a grab, onCanvasDown already answered the ask on
-             mousedown (a pixel instead of a key, as X11 also lets a click
-             jump to the nearest point on the diagram). answeredByPress
-             covers that case generically: it is set whenever mousedown found
-             a pendingAsk, so this click is its follow-through, not a new
-             click-to-place. Answering again here, on whatever ask the first
-             answer's reply already brought (typically the next grab step),
-             was the bug - this guard already prevented it for every other
-             ask kind; grab just needs the same treatment, not a special case. */
+          /* a grab was answered on mousedown (onCanvasDown); this click is
+             its follow-through, not a second answer */
           if (this.pendingAsk || this.busy || this.answeredByPress) return;
           this.command({cmd: 'auto', op: 'point', x, y});
         });
@@ -1956,12 +1939,8 @@
           }
           break;
       }
-      /* Keys typed between a grab answer and the next grab ask land in
-         typeahead (key() queues them while busy) and would otherwise wait
-         for idle, i.e. until the grab loop ends and the main menu is back -
-         the opposite of what a fast Enter/arrow sequence during a grab
-         wants. Answering the new ask with the first of them keeps the grab
-         moving at typing speed instead of eating one key per round trip. */
+      /* keys typed while the core worked answer the next prompt, a grab's
+         too, rather than waiting for the main menu */
       if (this.typeahead.length && (a.kind === 'menu' || a.kind === 'choice' || a.kind === 'grab')) {
         const k = this.typeahead.shift();
         this.answerByKey(k);

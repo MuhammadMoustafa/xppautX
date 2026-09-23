@@ -1727,14 +1727,9 @@ static void j_auto_line(int a, int b, int c, int d)
 static void j_auto_text(int a, int b, char *c) { auto_sync_state(); op_text(WIN_AUTO, "rtext", a, b, c, -1); }
 static void j_auto_circle(int x, int y, int r) { auto_sync_state(); op(WIN_AUTO, "[\"circle\",%d,%d,%d]", x, y, r); }
 static void j_auto_fill_circle(int x, int y, int r) { auto_sync_state(); op(WIN_AUTO, "[\"fcircle\",%d,%d,%d]", x, y, r); }
-/* The browser keeps the grab cursor on its own overlay canvas instead of
-   drawing it into the diagram (see j_auto_grab_end), so there is no XOR
-   trick to play here: track whether it is currently shown and where, and
-   turn the "toggle at (x,y)" calling convention XORCross uses (erase by
-   XORing the old position again, draw by XORing the new one) into "show the
-   cursor at the latest position" for the client. A call at the position
-   already shown hides it, matching the erase X11 gets from re-XORing; a
-   call anywhere else shows it there, matching a fresh XOR draw. */
+/* The grab cursor lives on the client's overlay, not in the diagram.
+   XORCross toggles: a call where the cursor is shown hides it, a call
+   anywhere else shows it there. */
 static int auto_cross_shown;
 static int auto_cross_x, auto_cross_y;
 
@@ -1752,13 +1747,8 @@ static void j_auto_xor_cross(int x, int y)
     auto_cross_y = y;
 }
 
-/* traverse_diagram()'s grab loop is done. X11 redraws the whole diagram to
-   be rid of the XOR cursor for good (auto_x11.c x11_auto_grab_end); the
-   cursor here never touched the diagram, so hiding it is just clearing the
-   overlay. done==1 (FINE/Enter) still needs the branch marks redrawn -
-   RedrawMark() only sends a couple of ALINE calls, nothing like the cost of
-   redraw_diagram(), so it is cheap to keep. done==-1 (ESC) leaves the
-   diagram exactly as drawn; only the cursor needs to go. */
+/* the grab is over: the diagram was never touched, so hiding the cursor
+   and putting back the branch marks is all a taken point needs */
 static void j_auto_grab_end(int done)
 {
     if (auto_cross_shown) {
