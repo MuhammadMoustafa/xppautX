@@ -6,12 +6,19 @@ VERSION  = 8.0
 MAJORVER = 8.0
 MINORVER = 1
 
+# The core is C converting to C++ file by file (CLAUDE.md, "C and C++"):
+# core/x.c builds with $(CC), core/x.cpp with $(CXX), and a program with any
+# C++ object links with $(CXX).
 CC      ?= gcc
+CXX     ?= g++
 CSTD    ?= -std=c99 -pedantic -D_XOPEN_SOURCE=600
+CXXSTD  ?= -std=c++17 -pedantic
 WARN    ?= -Wall
 # gcc 14 and clang 16 turned these into errors; keep older compilers strict
-# about them too, so a build that only runs here does not break CI.
+# about them too, so a build that only runs here does not break CI. All but
+# return-type are C-only names (C++ has always rejected those constructs).
 STRICT  ?= -Werror=implicit-function-declaration -Werror=implicit-int -Werror=int-conversion -Werror=incompatible-pointer-types -Werror=return-type
+CXXSTRICT ?= -Werror=return-type
 OPT     ?= -g -O2
 DEFS     = -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES -DHAVEDLL \
            -DMYSTR1=$(MAJORVER) -DMYSTR2=$(MINORVER)
@@ -21,16 +28,23 @@ XPPAUTX_VERSION ?= $(or $(XPP_VERSION),$(shell git describe --tags --always 2>/d
 # -I. is needed because fftn.c does "#include __FILE__"
 INCS     = -I. -Icore -Icore/bitmaps $(X11_INC)
 CFLAGS  ?= $(CSTD) $(WARN) $(STRICT) $(OPT) $(DEFS) $(INCS) -fcommon
+# no -fcommon: C++ has no tentative definitions
+CXXFLAGS ?= $(CXXSTD) $(WARN) $(CXXSTRICT) $(OPT) $(DEFS) $(INCS)
 LDFLAGS ?= $(X11_LIB) -fcommon
 LIBS     = -lX11 -lm -ldl
 
 # Native Windows (MinGW-w64 gcc, from Git Bash or MSYS2): only the X11-free
 # targets build there: make server cli
 ifeq ($(OS),Windows_NT)
+# (a make built elsewhere may default to its builder's compiler paths)
 ifeq ($(origin CC),default)
 CC       = gcc
 endif
+ifeq ($(origin CXX),default)
+CXX      = g++
+endif
 CSTD     = -std=gnu99
+CXXSTD   = -std=gnu++17
 EXE      = .exe
 DLLIB    =
 LDSTATIC = -static
@@ -47,7 +61,9 @@ endif
 # default: another compiler (clang on macOS, a newer gcc) may not know these
 # names or may warn where gcc 13 does not, and must still build.
 ifeq ($(WERROR),1)
-STRICT += -Werror=unused-result -Werror=format-overflow -Werror=unused-variable   -Werror=misleading-indentation -Werror=unused-but-set-variable -Werror=format-security   -Werror=maybe-uninitialized -Werror=stringop-truncation -Werror=restrict -Werror=format   -Werror=tautological-compare -Werror=stringop-overflow   -Werror=aggressive-loop-optimizations -Werror=use-after-free -Werror=array-bounds   -Werror=format-truncation
+WERROR_FLAGS = -Werror=unused-result -Werror=format-overflow -Werror=unused-variable   -Werror=misleading-indentation -Werror=unused-but-set-variable -Werror=format-security   -Werror=maybe-uninitialized -Werror=stringop-truncation -Werror=restrict -Werror=format   -Werror=tautological-compare -Werror=stringop-overflow   -Werror=aggressive-loop-optimizations -Werror=use-after-free -Werror=array-bounds   -Werror=format-truncation
+STRICT += $(WERROR_FLAGS)
+CXXSTRICT += $(WERROR_FLAGS)
 endif
 
 # For the legacy X11 xppaut target only: macOS/XQuartz users, pass
@@ -58,22 +74,37 @@ X11_LIB ?=
 SRCDIR   = core
 BUILDDIR = build/obj
 
+# Source lists name files without an extension: $(call src,a b) finds
+# core/a.c or core/a.cpp, so converting a file is `git mv x.c x.cpp` alone.
+ALL_SOURCES := $(wildcard $(SRCDIR)/*.c $(SRCDIR)/*.cpp)
+$(foreach f,$(filter $(basename $(filter %.cpp,$(ALL_SOURCES))),$(basename $(filter %.c,$(ALL_SOURCES)))),$(error both $(f).c and $(f).cpp exist))
+src = $(foreach f,$(1),$(or $(filter $(SRCDIR)/$(f).c $(SRCDIR)/$(f).cpp,$(ALL_SOURCES)),$(error no $(SRCDIR)/$(f).c or .cpp)))
+# core/x.c or core/x.cpp -> $(BUILDDIR)/x.o
+obj = $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%.o,$(basename $(1)))
+# the linker for a program built from these sources: $(CXX) when one of
+# them is C++ (it brings the C++ runtime), else $(CC)
+link = $(if $(filter %.cpp,$(1)),$(CXX),$(CC))
+
 # Sources that need X11 (the front end). Everything else is libxppcore.
-UI_SOURCES := $(addprefix $(SRCDIR)/, abort.c aniwin.c aplotwin.c auto_x11.c \
-  browse.c calc.c choice_box.c color.c dialog_box.c eig_list.c \
-  ggets.c graphics_x11.c init_conds.c kinescope.c main.c many_pops.c \
-  menu.c menudrive.c pop_list.c rubber.c txtread.c ui_x11.c \
-  xppaut_main.c)
+UI_SOURCES := $(call src, abort aniwin aplotwin auto_x11 \
+  browse calc choice_box color dialog_box eig_list \
+  ggets graphics_x11 init_conds kinescope main many_pops \
+  menu menudrive pop_list rubber txtread ui_x11 \
+  xppaut_main)
 # sbml2xpp.c needs libsbml and is not part of the upstream build.
-SERVER_SOURCES := $(addprefix $(SRCDIR)/, ui_json.c xppautx_main.c xpp_http.c xpp_inbox.c)
-CORE_SOURCES := $(filter-out $(UI_SOURCES) $(SERVER_SOURCES) $(SRCDIR)/sbml2xpp.c,$(wildcard $(SRCDIR)/*.c))
+SERVER_SOURCES := $(call src, ui_json xppautx_main xpp_http xpp_inbox)
+CORE_SOURCES := $(filter-out $(UI_SOURCES) $(SERVER_SOURCES) $(SRCDIR)/sbml2xpp.%,$(ALL_SOURCES))
 # the page and script xppautX serves, compiled in
 WEB_FILES := web/index.html web/xpp-client.js web/xpp-client.css
-SERVER_OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SERVER_SOURCES)) $(BUILDDIR)/web_assets.o
+SERVER_OBJECTS := $(call obj,$(SERVER_SOURCES)) $(BUILDDIR)/web_assets.o
 $(BUILDDIR)/xppautx_main.o: CFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'
+$(BUILDDIR)/xppautx_main.o: CXXFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'
 SOURCES := $(CORE_SOURCES) $(UI_SOURCES)
-OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SOURCES))
-CORE_OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(CORE_SOURCES))
+OBJECTS := $(call obj,$(SOURCES))
+CORE_OBJECTS := $(call obj,$(CORE_SOURCES))
+# the linkers of the X11 xppaut and of xppautX
+LINK_X11 := $(call link,$(SOURCES))
+LINK_X := $(call link,$(SERVER_SOURCES) $(CORE_SOURCES))
 # per build directory, so a MinGW build does not replace the Linux library
 CORELIB := $(BUILDDIR)/libxppcore.a
 
@@ -91,33 +122,43 @@ objects: $(OBJECTS) $(SERVER_OBJECTS)
 ltocheck:
 	@$(MAKE) -s BUILDDIR=build/lto OPT="-O1 -flto=auto -ffat-lto-objects" lto-link
 lto-link: $(OBJECTS) $(SERVER_OBJECTS)
-	@$(CC) -flto=auto -fcommon -o $(BUILDDIR)/xppaut $(OBJECTS) $(LDFLAGS) $(LIBS) 2> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
-	@$(CC) -flto=auto -fcommon -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) -lm $(DLLIB) $(NETLIBS) 2>> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
+	@$(LINK_X11) -flto=auto -fcommon -o $(BUILDDIR)/xppaut $(OBJECTS) $(LDFLAGS) $(LIBS) 2> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
+	@$(LINK_X) -flto=auto -fcommon -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) -lm $(DLLIB) $(NETLIBS) 2>> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
 	@if grep -A4 'lto-type-mismatch' $(BUILDDIR)/lto.log; then echo "ltocheck: types differ across files"; exit 1; fi
 # one X11-free program: browser front end, --server protocol and -silent batch
 xppautx: xppautX$(EXE)
 
 xppaut: $(OBJECTS)
-	$(CC) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
+	$(LINK_X11) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
 
 $(CORELIB): $(CORE_OBJECTS)
 	ar rcs $@ $(CORE_OBJECTS)
 
 xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
-	$(CC) $(LDSTATIC) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS)
+	$(LINK_X) $(LDSTATIC) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS)
 
 # unit tests over libxppcore, for pure code that an end-to-end run would only
 # report as a puzzling difference somewhere else. tests/README.md says more.
-TEST_SOURCES := $(wildcard tests/test_*.c)
-TEST_BINS := $(patsubst tests/%.c,$(BUILDDIR)/tests/%$(EXE),$(TEST_SOURCES))
+# a test is C or C++ (tests/test_x.c or .cpp)
+TEST_SOURCES := $(wildcard tests/test_*.c tests/test_*.cpp)
+TEST_OBJECTS := $(patsubst tests/%,$(BUILDDIR)/tests/%.o,$(basename $(TEST_SOURCES)))
+TEST_BINS := $(TEST_OBJECTS:.o=$(EXE))
+LINK_TESTS := $(call link,$(CORE_SOURCES) $(TEST_SOURCES))
+.SECONDARY: $(TEST_OBJECTS)
 
 test: $(TEST_BINS)
 	@fail=0; for t in $(TEST_BINS); do ./$$t || fail=1; done; \
 	  if [ $$fail -eq 0 ]; then echo "unit tests: all passed"; \
 	  else echo "unit tests: FAILURES"; exit 1; fi
 
-$(BUILDDIR)/tests/%$(EXE): tests/%.c $(CORELIB) | $(BUILDDIR)/tests
-	$(CC) $(CFLAGS) -Itests -o $@ $< $(CORELIB) -lm $(DLLIB)
+$(TEST_BINS): %$(EXE): %.o $(CORELIB)
+	$(LINK_TESTS) -o $@ $< $(CORELIB) -lm $(DLLIB)
+
+$(BUILDDIR)/tests/%.o: tests/%.c | $(BUILDDIR)/tests
+	$(CC) $(CFLAGS) -Itests -MMD -MP -c $< -o $@
+
+$(BUILDDIR)/tests/%.o: tests/%.cpp | $(BUILDDIR)/tests
+	$(CXX) $(CXXFLAGS) -Itests -MMD -MP -MF $(@:.o=.cpp.d) -c $< -o $@
 
 $(BUILDDIR)/tests:
 	mkdir -p $@
@@ -134,10 +175,18 @@ $(BUILDDIR)/web_assets.o: $(BUILDDIR)/web_assets.c
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c | $(BUILDDIR)
 	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
+$(BUILDDIR)/%.o: $(SRCDIR)/%.cpp | $(BUILDDIR)
+	$(CXX) $(CXXFLAGS) -MMD -MP -MF $(@:.o=.cpp.d) -c $< -o $@
+
 $(BUILDDIR):
 	mkdir -p $@
 
--include $(OBJECTS:.o=.d) $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.d,$(SERVER_SOURCES))
+# Dependency files: x.d for core/x.c, x.cpp.d for core/x.cpp, and only
+# those of existing sources are read, so after `git mv x.c x.cpp` the
+# stale x.d, which names core/x.c, does not stop the build.
+depfiles = $(patsubst %.c,%.d,$(patsubst %.cpp,%.cpp.d,$(1)))
+-include $(call depfiles,$(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES) $(SERVER_SOURCES)))
+-include $(call depfiles,$(patsubst tests/%,$(BUILDDIR)/tests/%,$(TEST_SOURCES)))
 
 clean:
 	rm -rf $(BUILDDIR) xppaut libxppcore.a xppautX xppautX.exe

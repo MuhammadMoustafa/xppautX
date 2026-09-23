@@ -4,8 +4,8 @@
 # library without the X11 front end. Run after a full build.
 # Usage: tools/coredeps.sh [-v]   (-v lists symbol, defining file, importing file)
 cd "$(dirname "$0")/.."
-tools/x11free.sh -v | grep 'needs X11' | sed 's|needs X11: core/||; s|\.c$||' | sort > build/x11set.txt
-ls core/*.c | xargs -n1 basename | sed 's/\.c$//' | grep -vE 'sbml2xpp|xppaut_main' | sort | comm -23 - build/x11set.txt > build/pureset.txt
+tools/x11free.sh -v | grep 'needs X11' | sed 's|needs X11: core/||; s|\.cpp$||; s|\.c$||' | sort > build/x11set.txt
+ls core/*.c core/*.cpp 2>/dev/null | xargs -n1 basename | sed 's/\.cpp$//; s/\.c$//' | grep -vE 'sbml2xpp|xppaut_main' | sort | comm -23 - build/x11set.txt > build/pureset.txt
 for f in $(cat build/x11set.txt); do nm --defined-only -g build/obj/$f.o 2>/dev/null | awk -v f=$f '{print $3" "f}'; done | sort -u > build/x11defs.txt
 : > build/coredeps.txt
 for f in $(cat build/pureset.txt); do

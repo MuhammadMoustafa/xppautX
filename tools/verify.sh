@@ -2,7 +2,7 @@
 # Build, run the headless smoke test, compare against the known-good checksum,
 # drive xppautX --server through its protocol (tools/servercheck.py) and
 # its browser mode through HTTP (tools/webcheck.py), and print
-# the X11-free metric. Run from repo root (WSL/Linux/macOS).
+# the X11-free and C++ metrics. Run from repo root (WSL/Linux/macOS).
 # It also links both programs with LTO (make ltocheck), which reports types
 # that differ across files.
 # Usage: tools/verify.sh [--clean-warnings]
@@ -77,4 +77,6 @@ if command -v python3 >/dev/null; then
   fi
 fi
 tools/x11free.sh
+# the conversion of the core to C++ (CLAUDE.md, "C and C++")
+echo "C++: $(( $(ls core/*.cpp 2>/dev/null | wc -l) )) / $(( $(ls core/*.c core/*.cpp 2>/dev/null | wc -l) )) sources"
 if [ "$1" = --clean-warnings ]; then tools/warnings.sh; fi
