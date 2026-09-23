@@ -197,6 +197,19 @@ key ArrowRight
 key ArrowRight
 shot 123-auto-grab
 key Escape
+# a click during a grab jumps to the nearest point, with one answer
+click Grab
+eval window.nAnswers = 0; const send = client.send.bind(client); client.send = c => { if (c.cmd === 'answer') nAnswers++; return send(c); }
+clickat css=.xpp-auto-top>canvas:first-child,.xpp-auto-top>div>canvas:first-child 150 120
+eval if (nAnswers !== 1) throw new Error('one click answered the grab ' + nAnswers + ' times')
+shot 123a-auto-grab-click
+key Escape
+shot 123b-auto-grab-escaped
+# taking a labelled point leaves the diagram as it was, without the cursor
+click Grab
+key Tab
+key Enter
+shot 123c-auto-grab-taken
 click Axes
 shot 124-auto-axes css=.xpp-dialog
 key Escape
