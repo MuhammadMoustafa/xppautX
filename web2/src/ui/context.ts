@@ -20,8 +20,15 @@ export function useStore<T>(select: (s: AppState) => T): T {
   const last = useRef(selected), selector = useRef(select);
   last.current = selected;
   selector.current = select;
-  useEffect(() => session.store.subscribe(() => {
-    if (!Object.is(selector.current(session.store.getState()), last.current)) force(0);
-  }), [session]);
+  useEffect(() => {
+    const check = () => {
+      if (!Object.is(selector.current(session.store.getState()), last.current)) force(0);
+    };
+    const stop = session.store.subscribe(check);
+    /* an update between this render and the subscription (a command the
+       mount itself sent, answered at once) would otherwise go unseen */
+    check();
+    return stop;
+  }, [session]);
   return selected;
 }

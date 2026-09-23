@@ -2425,7 +2425,6 @@ static void j_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y, dou
 {
     Buf b = {0};
     int i;
-    (void)ev;
     redraw_ics();
     for (i = 0; i < n && i < MAXODE; i++) last_eq[i] = y[i];
     last_eq_n = n < MAXODE ? n : MAXODE;
@@ -2438,7 +2437,13 @@ static void j_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y, dou
         buf_str(&b, uvar_names[i]);
         buf_printf(&b, ",%.16g]", y[i]);
     }
-    BUF_LIT(&b, "]}");
+    BUF_LIT(&b, "]");
+    if (ev) { /* the Jacobian's eigenvalues, (re, im) pairs (gear.c eigen) */
+        BUF_LIT(&b, ",\"eigenvalues\":[");
+        for (i = 0; i < n; i++) buf_printf(&b, "%s[%.16g,%.16g]", i ? "," : "", ev[2 * i], ev[2 * i + 1]);
+        BUF_LIT(&b, "]");
+    }
+    BUF_LIT(&b, "}");
     send_buf(&b);
     xpp_free(b.s);
 }

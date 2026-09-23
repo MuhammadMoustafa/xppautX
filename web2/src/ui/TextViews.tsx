@@ -14,37 +14,13 @@
    `equilibrium`): its type, eigenvalue counts, and values, six significant
    digits (A14) with the full value on hover/title; Import
    (docs/protocol.md `eqimport`) makes it the initial conditions. */
-import {useEffect, useLayoutEffect, useReducer, useRef} from 'preact/hooks';
+import {useEffect, useRef} from 'preact/hooks';
 import type {Session} from '../session';
-import type {AppState} from '../store/state';
 import {sixSig} from '../store/values';
 import type {SourceLine, TextTab} from '../store/text';
 import {useSession, useStore} from './context';
 
 const FOCUSABLE = 'button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])';
-
-/** like ui/context.ts's useStore, but subscribes with useLayoutEffect
-    (synchronous, right after this render commits) instead of useEffect
-    (deferred): a tab's data here comes from a command sent the instant it
-    mounts (session.ts refreshText), a local round trip fast enough that the
-    response can arrive and be dispatched before a *deferred* effect has
-    subscribed -- missing the one notification that would show it, and
-    nothing later nudges it (found by web2check.mjs: the view stayed on "no
-    data yet" until an unrelated command forced another render). Scoped to
-    this file rather than fixed in context.ts to avoid touching shared code
-    other in-flight work also depends on. */
-function useLiveStore<T>(select: (s: AppState) => T): T {
-  const session = useSession();
-  const [, force] = useReducer((n: number) => n + 1, 0);
-  const selected = select(session.store.getState());
-  const last = useRef(selected), selector = useRef(select);
-  last.current = selected;
-  selector.current = select;
-  useLayoutEffect(() => session.store.subscribe(() => {
-    if (!Object.is(selector.current(session.store.getState()), last.current)) force(0);
-  }), [session]);
-  return selected;
-}
 
 const TABS: {id: TextTab; label: string}[] = [
   {id: 'equations', label: 'Equations'},
@@ -53,7 +29,7 @@ const TABS: {id: TextTab; label: string}[] = [
 ];
 
 function EquationsView() {
-  const lines = useLiveStore(s => s.text.equations);
+  const lines = useStore(s => s.text.equations);
   if (!lines) return <p class="text-empty">No equations yet.</p>;
   if (!lines.length) return <p class="text-empty">The model has no equations.</p>;
   return <pre class="text-equations" tabIndex={0} aria-label="The model's equations">{lines.join('\n')}</pre>;
@@ -75,7 +51,7 @@ function SourceLineRow({line, session}: {line: SourceLine; session: Session}) {
 
 function SourceView() {
   const session = useSession();
-  const source = useLiveStore(s => s.text.source);
+  const source = useStore(s => s.text.source);
   if (!source) return <p class="text-empty">No source yet.</p>;
   const actionCount = source.comments.filter(c => c.hasAction).length;
   return (
@@ -105,7 +81,7 @@ function stabilityClass(type: string): string {
 
 function EquilibriumView() {
   const session = useSession();
-  const eq = useLiveStore(s => s.text.equilibrium);
+  const eq = useStore(s => s.text.equilibrium);
   return (
     <div class="text-equilibrium">
       <div class="text-tools">
@@ -144,9 +120,11 @@ function EquilibriumView() {
             <caption>Eigenvalues</caption>
             <thead><tr><th scope="col">Real</th><th scope="col">Imaginary</th></tr></thead>
             <tbody>
-              <tr><td colSpan={2} class="text-hint">
-                Not sent by the server yet (the core computes them but the `equilibrium` event does not carry them).
-              </td></tr>
+              {eq.eigenvalues?.length ? eq.eigenvalues.map(([re, im], i) => (
+                <tr key={i}><td title={String(re)}>{sixSig(re)}</td><td title={String(im)}>{sixSig(im)}</td></tr>
+              )) : (
+                <tr><td colSpan={2} class="text-hint">Not known for this equilibrium (a delay equation).</td></tr>
+              )}
             </tbody>
           </table>
         </>

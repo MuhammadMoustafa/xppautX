@@ -227,10 +227,8 @@ export interface EquationsEvent {
 /** Sing pts result (docs/protocol.md `equilibrium`, core/ui_json.c j_show_eq_box):
     `type` is "STABLE", "UNSTABLE" or "NEUTRAL" (core/xpp_util.c eq_stability);
     cplus/cminus/rplus/rminus/im are eigenvalue counts (complex/real with
-    positive/negative real part, purely imaginary). The core also computes the
-    eigenvalues themselves (gear.c's `eval`, del_stab.c) but j_show_eq_box does
-    not yet forward them to the client (its `ev` parameter is discarded), so
-    there is no eigenvalues field to read here today. */
+    positive/negative real part, purely imaginary); `eigenvalues` the
+    Jacobian's eigenvalues as [re, im] pairs, absent for a delay equation. */
 export interface EquilibriumEvent {
   ev: 'equilibrium';
   type: string;
@@ -240,6 +238,7 @@ export interface EquilibriumEvent {
   rminus: number;
   im: number;
   values: [string, number][];
+  eigenvalues?: [number, number][];
 }
 
 export type XppEvent =

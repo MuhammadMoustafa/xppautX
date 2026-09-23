@@ -216,7 +216,8 @@ typedef struct XppUi {
     /* misc front-end hooks called while loading an ODE file */
     void (*init_txtview)(void);
 
-    /* equilibrium eigenvalue summary window */
+    /* equilibrium eigenvalue summary window; ev: the n eigenvalues as
+       (re, im) pairs, or NULL when there is no list (a delay equation) */
     void (*show_eq_box)(int cp, int cm, int rp, int rm, int im, double *y,
                         double *ev, int n);
 

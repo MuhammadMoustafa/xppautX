@@ -392,6 +392,10 @@ async function textViews() {
   check('the view shows the type and the values (six significant digits)',
     await cdp.eval(`document.querySelector('.text-equilibrium .eq-type').textContent === ${JSON.stringify(eq.type)}
       && document.querySelectorAll('.text-equilibrium .eq-values tbody tr').length >= 2`));
+  check('and its eigenvalues, one row per variable',
+    eq.eigenvalues && eq.eigenvalues.length === 2 && await cdp.eval(`[...document.querySelectorAll('.text-equilibrium .eq-values')]
+      .find(t => t.querySelector('caption').textContent === 'Eigenvalues').querySelectorAll('tbody tr').length === 2`),
+    JSON.stringify(eq.eigenvalues));
   await cdp.eval(`[...document.querySelectorAll('.text-tools button')].find(b => b.textContent === 'Import').click()`);
   const wantIcs = eq.values.map(([, v]) => v);
   check('Import (eqimport) makes the equilibrium the initial conditions',

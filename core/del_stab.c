@@ -133,7 +133,9 @@ void do_delay_sing(x,eps,err,big,maxit,n,ierr,stabinfo)
 if(i==0&&okroot==1&&AlphaMax>0)
   i=2;
 
- create_eq_box(abs(i),2,0,0,0,x,ev,n);
+ /* no eigenvalue list: a delay equation has infinitely many; the
+    counts say which way the dominant root lies */
+ create_eq_box(abs(i),2,0,0,0,x,NULL,n);
  /* DING; */
  del_stab_flag=1;
  xpp_free(ev);

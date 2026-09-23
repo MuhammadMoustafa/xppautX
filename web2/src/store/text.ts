@@ -29,6 +29,8 @@ export interface EquilibriumInfo {
   rminus: number;
   im: number;
   values: [string, number][];
+  /** [re, im] per variable; absent for a delay equation */
+  eigenvalues?: [number, number][];
 }
 
 export interface TextState {
@@ -83,8 +85,8 @@ export function reduceText(state: TextState, action: TextAction): TextState {
       return {...state, source: {lines: attachComments(action.ev.lines, comments), comments}};
     }
     case 'equilibrium': {
-      const {type, cplus, cminus, rplus, rminus, im, values} = action.ev;
-      return {...state, equilibrium: {type, cplus, cminus, rplus, rminus, im, values}};
+      const {ev: _, ...equilibrium} = action.ev;
+      return {...state, equilibrium};
     }
   }
 }

@@ -367,6 +367,9 @@ for _ in range(6):
     if eq:
         break
 check('Sing pts/Go reports an equilibrium', eq is not None and eq['type'] in ('STABLE', 'UNSTABLE', 'NEUTRAL'), str(eq))
+ev = (eq or {}).get('eigenvalues') or []
+check('with its eigenvalues, one [re, im] per variable, as its counts say',
+      len(ev) == len(eq['values']) and sum(1 for r, i in ev if r < 0) == eq['cminus'] + eq['rminus'], str(ev))
 collect(is_idle)
 
 send(cmd='key', key='m')

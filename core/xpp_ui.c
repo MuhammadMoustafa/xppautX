@@ -80,8 +80,10 @@ static void hl_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
 {
     int i;
     plintf("Equilibrium: c+=%d c-=%d r+=%d r-=%d im=%d\n", cp, cm, rp, rm, im);
-    for (i = 0; i < n; i++)
-        plintf("  y[%d]=%.8g  eig=%.8g%+.8gi\n", i, y[i], ev[2 * i], ev[2 * i + 1]);
+    for (i = 0; i < n; i++) {
+        if (ev) plintf("  y[%d]=%.8g  eig=%.8g%+.8gi\n", i, y[i], ev[2 * i], ev[2 * i + 1]);
+        else plintf("  y[%d]=%.8g\n", i, y[i]);
+    }
 }
 static int hl_dialog(char *title, char *name, char *value, char *ok, char *cancel, int max)
 {
