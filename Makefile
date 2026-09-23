@@ -42,20 +42,12 @@ LDSTATIC =
 NETLIBS  = -lpthread
 endif
 
-# The whole tree (core/ and the front ends) currently builds clean of these
-# categories with gcc (13 on Linux/WSL, 15 on MSYS2 Windows); keep it that
-# way. CI also builds with Apple clang 17 on macOS, which does not know
-# several of these -W names (format-overflow, stringop-truncation,
-# maybe-uninitialized, ...) -- an unrecognized -Werror= option is itself
-# an error, so only add these for gcc.
-ifeq ($(findstring clang,$(shell $(CC) --version)),)
-WERROR_CLEAN := -Werror=unused-result -Werror=format-overflow -Werror=unused-variable \
-  -Werror=misleading-indentation -Werror=unused-but-set-variable -Werror=format-security \
-  -Werror=maybe-uninitialized -Werror=stringop-truncation -Werror=restrict -Werror=format \
-  -Werror=tautological-compare -Werror=stringop-overflow \
-  -Werror=aggressive-loop-optimizations -Werror=use-after-free -Werror=array-bounds \
-  -Werror=format-truncation
-STRICT += $(WERROR_CLEAN)
+# Every warning category gcc 13 ever reported here is fixed; WERROR=1 (what
+# tools/verify.sh builds with) makes them errors so none comes back. Not the
+# default: another compiler (clang on macOS, a newer gcc) may not know these
+# names or may warn where gcc 13 does not, and must still build.
+ifeq ($(WERROR),1)
+STRICT += -Werror=unused-result -Werror=format-overflow -Werror=unused-variable   -Werror=misleading-indentation -Werror=unused-but-set-variable -Werror=format-security   -Werror=maybe-uninitialized -Werror=stringop-truncation -Werror=restrict -Werror=format   -Werror=tautological-compare -Werror=stringop-overflow   -Werror=aggressive-loop-optimizations -Werror=use-after-free -Werror=array-bounds   -Werror=format-truncation
 endif
 
 # For the legacy X11 xppaut target only: macOS/XQuartz users, pass

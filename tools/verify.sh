@@ -9,7 +9,7 @@
 cd "$(dirname "$0")/.." || exit 1
 BASELINE=c281851de59ffd03b2a46428619a0c8f
 mkdir -p build || exit 1
-make -j8 xppaut xppautx > build/last-build.log 2>&1
+make -j8 WERROR=1 xppaut xppautx > build/last-build.log 2>&1
 st=$?
 tr -d '\r' < build/last-build.log > build/last-build.tmp && mv build/last-build.tmp build/last-build.log
 if [ $st -ne 0 ] || grep -q ' error:' build/last-build.log; then

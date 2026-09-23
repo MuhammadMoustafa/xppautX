@@ -47,8 +47,9 @@ array bound differs from its definition, which a normal build cannot see.
 
 Metrics: `make x11free` (sources compiling without X11 headers, 92/114) and
 `tools/coredeps.sh -v` (symbols core objects import from X11 objects, 0).
-Clean-build warning baseline with gcc 13 is ~520; verify.sh's count is for
-the incremental build only.
+The tree builds with 0 warnings (gcc 13 and MinGW gcc 13): verify.sh builds
+with `make WERROR=1`, which makes every category ever reported an error;
+`tools/warnings.sh` counts a clean build's warnings by flag and file.
 
 `sudo` inside WSL needs the user's password; apt installs must be run by the user.
 The Windows-side gcc at C:\Strawberry\c\bin is MinGW-w64 without X11 headers: use it
