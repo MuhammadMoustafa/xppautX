@@ -20,13 +20,13 @@ issue; the card here is the one kept up to date.
 
 | ID  | Issue | Task | Needs | Status |
 |-----|-------|------|-------|--------|
-| W0  | #12 | C/C++ mixed build | none | running |
-| W1  | #13 | Screenshot tests become state tests | none | running |
+| W0  | #12 | C/C++ mixed build | none | done (cacadb4) |
+| W1  | #13 | Screenshot tests become state tests | none | done (7121aaf) |
 | W2  | #14 | Logging module, quiet by default | none | done (a47c1ad) |
 | W3  | #15 | No short-name limit | none | running |
 | W4  | #16 | Memory module and leak checks | W2 | ready |
-| W5  | #17 | New UI: design, protocol v2, scaffold | none | running |
-| W6  | #18 | New UI: the views | W5 | blocked |
+| W5  | #17 | New UI: design, protocol v2, scaffold | none | done (7c26dbf) |
+| W6  | #18 | New UI: the views | W5 | ready |
 | W7  | #19 | Core refactor for single responsibility | W3, W4, W5 | blocked |
 | W8  | #20 | Remove the X11 front end | W6 | blocked |
 | W9  | #21 | WebAssembly build (proof of concept) | maintainer's OK to install emsdk | blocked |
@@ -111,7 +111,11 @@ error report, and is part of CI.
 - The `series` event carries the numbers in output.dat.
 - verify.sh passes.
 
-## W6: New UI views (from W5's task list)
+## W6: New UI views
+The implementation tasks and their acceptance criteria are in
+docs/ui-v2.md, section 10 (T2 to T18, in dependency order), with the
+layout rules R1-R7 and the accessibility rules A1-A14 each view must
+meet. In short:
 - The shell and theme.
 - Plots: phase plane, nullclines, direction fields.
 - The AUTO view. It also draws the segment from a Hopf point to the first
