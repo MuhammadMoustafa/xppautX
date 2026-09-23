@@ -9,6 +9,7 @@ import {
   windowOf, type PlotsState,
   type Viewport,
 } from './plots';
+import {initialFiles, missingFile, onSent, reduceFiles, type FilesAction, type FilesState, type RunRecord} from './files';
 import {initialTable, reduceTable, type TableAction, type TableState} from './table';
 import {initialText, reduceText, type TextAction, type TextState} from './text';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
@@ -46,11 +47,20 @@ export function classifyLogText(text: string): 'log' | 'auto' {
   return AUTO_ROW.test(text) || AUTO_PHRASE.test(text) ? 'auto' : 'log';
 }
 
+/** what a notification offers: "Add file…" for a file the core could not
+    open, which uploads it under `name` and runs `run` again (store/files.ts) */
+export interface ToastAction {
+  kind: 'addFile';
+  name: string;
+  run: RunRecord | null;
+}
+
 /** a non-blocking notification (errors, the core's alerts) */
 export interface Toast {
   id: number;
   kind: 'error' | 'info';
   text: string;
+  action?: ToastAction;
 }
 
 export interface AppState {
@@ -91,6 +101,8 @@ export interface AppState {
   table: TableState;
   /** text views (T16): equations, source, equilibrium, and their panel's open/tab state */
   text: TextState;
+  /** files through the browser's dialogs (T5): listing, replace confirm, uploads, see store/files.ts */
+  files: FilesState;
 }
 
 export type Action =
@@ -114,7 +126,8 @@ export type Action =
   | {type: 'values'; action: ValuesAction}
   | {type: 'valuesPanel'; open: boolean}
   | {type: 'table'; action: TableAction}
-  | {type: 'text'; action: TextAction};
+  | {type: 'text'; action: TextAction}
+  | {type: 'files'; action: FilesAction};
 
 export const initialState: AppState = {
   connected: false,
@@ -142,6 +155,7 @@ export const initialState: AppState = {
   valuesOpen: false,
   table: initialTable,
   text: initialText,
+  files: initialFiles,
 };
 
 const LOG_KEEP = 200, TOASTS_KEEP = 4;
@@ -152,8 +166,9 @@ function addLog(state: AppState, entry: LogEntry): AppState {
   return {...state, log};
 }
 
-function addToast(state: AppState, kind: Toast['kind'], text: string): AppState {
-  const toasts = [...state.toasts, {id: state.nextToast, kind, text}].slice(-TOASTS_KEEP);
+function addToast(state: AppState, kind: Toast['kind'], text: string, action?: ToastAction): AppState {
+  const toast: Toast = action ? {id: state.nextToast, kind, text, action} : {id: state.nextToast, kind, text};
+  const toasts = [...state.toasts, toast].slice(-TOASTS_KEEP);
   return {...state, toasts, nextToast: state.nextToast + 1};
 }
 
@@ -227,7 +242,12 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {...state, title: ev.text};
     case 'message':
       if (ev.error !== undefined) {
-        const withLog = addToast(addLog({...state, bottom: ev.error}, {kind: 'error', text: ev.error}), 'error', ev.error);
+        /* a file the command could not open: the notification offers to add it */
+        const missing = missingFile(ev.error, state.files.run);
+        const action: ToastAction | undefined = missing ? {kind: 'addFile', name: missing, run: state.files.run} : undefined;
+        const files = {...state.files, runFailed: true};
+        const withLog = addToast(addLog({...state, bottom: ev.error, files}, {kind: 'error', text: ev.error}), 'error',
+          ev.error, action);
         /* a rejected `set`/`slide`: shown as that field's error too (A11), not only the toast */
         return {...withLog, values: reduceValues(withLog.values, {type: 'error', text: ev.error})};
       }
@@ -259,13 +279,16 @@ export function reduce(state: AppState, action: Action): AppState {
       return onEvent(state, action.ev);
     case 'connection':
       return action.open === state.connected ? state : {...state, connected: action.open};
-    case 'sent':
+    case 'sent': {
+      const files = onSent(state.files, action.cmd, state.ask, state.core?.menu ?? 0);
+      if (files !== state.files) state = {...state, files};
       if (action.cmd.cmd === 'answer') {
         /* a point or a box is done once answered; a drag is asked again until it ends */
         const p = state.pick, cancelled = action.cmd.ok === 0;
         return {...state, ask: null, pick: !p || cancelled ? null : p.mode === 'drag' ? p : {...p, waiting: true}};
       }
       return noIdle(action.cmd) ? state : {...state, busy: true};
+    }
     case 'aborting':
       return state.busy ? {...state, stopping: true} : state;
     case 'viewport':
@@ -294,5 +317,7 @@ export function reduce(state: AppState, action: Action): AppState {
       return {...state, table: reduceTable(state.table, action.action)};
     case 'text':
       return {...state, text: reduceText(state.text, action.action)};
+    case 'files':
+      return {...state, files: reduceFiles(state.files, action.action)};
   }
 }

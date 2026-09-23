@@ -1,9 +1,14 @@
 /* The session: connects a transport to the store and is the one place that
    sends commands. Components call its methods, never the transport. */
+import {offerDownload, writeTo, type SaveHandle} from './pickers';
 import {pickAnswer, type PickState} from './plot/pick';
 import type {Ranges} from './plot/viewmath';
+import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
 import type {AskEvent, BrowserEvent, Command, XppEvent} from './protocol/types';
+import {
+  answerName, keepBothName, menuKeys, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type Upload,
+} from './store/files';
 import {createStore, type Store} from './store/store';
 import {initialState, reduce, type Action, type AppState} from './store/state';
 import {MAX_COUNT, MAX_NCOL, planRequest, tableCsv} from './store/table';
@@ -22,8 +27,17 @@ export class Session {
       `drag`: it asks again after each one), and whether the drag has ended */
   private dragQueue: Record<string, unknown>[] = [];
   private dragEnded = false;
+  /** a file ask for writing answered: the file to hand to the browser once the command is done */
+  private pendingSave: {name: string; handle: SaveHandle | null} | null = null;
+  /** the answer to the replace confirm, when it is open */
+  private replaceChoice: ((c: ReplaceChoice) => void) | null = null;
+  /** a command run again after "Add file…": the answers its prompts get, and
+      the idles to wait for (the menu keys before it, then its own) */
+  private replayAnswers: RunAnswer[] = [];
+  private replayIdles = 0;
 
-  constructor(private readonly transport: Transport) {
+  /** files: the model's folder over HTTP (none in unit tests) */
+  constructor(private readonly transport: Transport, private readonly files: FilesApi | null = null) {
     this.store = createStore(reduce, initialState);
   }
 
@@ -52,12 +66,27 @@ export class Session {
         /* the events made meanwhile first, then the end */
         if (this.dragQueue.length) this.answer(ev, this.dragQueue.shift()!);
         else this.cancel(ev);
-      } else this.continueKeys(ev);
+      } else if (this.replayAnswers.length) this.continueReplay(ev);
+      else this.continueKeys(ev);
     } else if (ev.ev === 'idle') {
       this.pendingKeys = [];
       this.dragQueue = [];
       this.dragEnded = false;
+      if (this.replayIdles > 0 && --this.replayIdles === 0) this.replayAnswers = [];
+      const save = this.pendingSave;
+      this.pendingSave = null;
+      if (save && !this.store.getState().files.runFailed) void this.deliver(save.name, save.handle);
     }
+  }
+
+  private continueReplay(ask: AskEvent): void {
+    const next = this.replayAnswers[0];
+    if (next.kind !== ask.kind) {
+      this.replayAnswers = []; /* not the prompt it had: the user's to answer */
+      return;
+    }
+    this.replayAnswers.shift();
+    this.answer(ask, next.fields);
   }
 
   private continueKeys(ask: AskEvent): void {
@@ -334,9 +363,8 @@ export class Session {
       conditions; its result arrives as the `equilibrium` event. The core
       asks "Print eigenvalues?" (a plain `ask` `choice`, its own `y`/`n`
       keys) before it sends that event; answered `n` here since the answer
-      only controls whether they are also printed to the log at INFO
-      (usually below the console's threshold) -- not part of the event
-      either way (see protocol/types.ts EquilibriumEvent). */
+      only controls whether they are also printed to the log at INFO: the
+      event carries them either way (protocol/types.ts EquilibriumEvent). */
   findEquilibrium(): void {
     this.keys('s', 'g', 'n');
   }
@@ -346,4 +374,122 @@ export class Session {
   importEquilibrium(): void {
     this.send({cmd: 'eqimport'});
   }
+
+  /* ---- files (docs/ui-v2.md section 4, T5): the model's folder is the workspace ---- */
+
+  private failed(text: string): void {
+    this.store.dispatch({type: 'toast', kind: 'error', text});
+  }
+
+  /** the files picked for a `file` ask for reading, copied into the model's
+      folder (one already there with the same content is not copied; one
+      with other content only after the replace confirm), then the ask
+      answered with the name its pattern matches. Resolves false when
+      nothing was answered: cancelled at the confirm, or a failure, which a
+      notification reports. */
+  async openFiles(ask: AskEvent, picked: File[]): Promise<boolean> {
+    if (!this.files || !picked.length) return false;
+    try {
+      const listing = await this.files.list();
+      this.store.dispatch({type: 'files', action: {type: 'listing', files: listing}});
+      const taken = new Set(listing.map(f => f.name)), uploads: Upload[] = [];
+      for (const file of picked) {
+        if (!safeName(file.name)) {
+          this.failed(`XPP cannot use a file named “${file.name}” in the model's folder. Rename it and pick it again.`);
+          return false;
+        }
+        if (file.size > FILE_CAP) {
+          this.failed(`${file.name} is larger than 64 MB, the most the model's folder takes from the page.`);
+          return false;
+        }
+        const sha256 = await sha256Hex(file);
+        const plan = uploadPlan(file.name, sha256, listing);
+        let name = file.name;
+        if (plan === 'confirm') {
+          const keepBoth = keepBothName(file.name, taken);
+          const choice = await this.confirmReplace(ask, file.name, keepBoth);
+          if (choice === 'cancel') return false;
+          if (choice === 'keep') name = keepBoth;
+        }
+        if (plan !== 'same') await this.files.put(name, file);
+        taken.add(name);
+        uploads.push({picked: file.name, name, sha256, copied: plan !== 'same'});
+      }
+      this.store.dispatch({type: 'files', action: {type: 'uploaded', uploads}});
+      if (this.store.getState().ask?.id !== ask.id) return false; /* the prompt went meanwhile */
+      const chosen = answerName(uploads.map(u => u.picked), ask.wild);
+      this.answer(ask, {file: uploads.find(u => u.picked === chosen)!.name});
+      return true;
+    } catch (e) {
+      this.failed(e instanceof Error ? e.message : String(e));
+      return false;
+    }
+  }
+
+  /** the folder has `name` with other content: Replace, Keep both or Cancel (the dialog asks) */
+  private confirmReplace(ask: AskEvent, name: string, keepBoth: string): Promise<ReplaceChoice> {
+    this.replaceChoice?.('cancel');
+    this.store.dispatch({type: 'files', action: {type: 'confirm', confirm: {ask: ask.id, name, keepBoth}}});
+    return new Promise(resolve => {
+      this.replaceChoice = resolve;
+    });
+  }
+
+  /** the user's answer to the replace confirm */
+  resolveReplace(choice: ReplaceChoice): void {
+    const done = this.replaceChoice;
+    this.replaceChoice = null;
+    this.store.dispatch({type: 'files', action: {type: 'confirm', confirm: null}});
+    done?.(choice);
+  }
+
+  /** a `file` ask for writing answered with `name`: the core writes it into
+      the model's folder, then, at the command's idle, the page copies it to
+      `handle` (showSaveFilePicker's) or offers it as a download */
+  saveFile(ask: AskEvent, name: string, handle: SaveHandle | null): void {
+    this.pendingSave = {name, handle};
+    this.answer(ask, {file: name});
+  }
+
+  private async deliver(name: string, handle: SaveHandle | null): Promise<void> {
+    if (!this.files) return;
+    try {
+      const data = await this.files.get(name);
+      if (!data) return; /* not written: the command stopped before it */
+      if (handle) await writeTo(handle, data);
+      else offerDownload(name, data);
+      const how = handle ? 'picker' as const : 'download' as const;
+      this.store.dispatch({type: 'files', action: {type: 'offered', offered: {name, size: data.size, sha256: await sha256Hex(data), how}}});
+    } catch (e) {
+      this.failed(`${name} is in the model's folder, but copying it failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  /** "Add file…" of a notification: `file` goes into the model's folder
+      under the name the core could not open, and the command runs again */
+  async addMissingFile(toastId: number, file: File): Promise<void> {
+    const action = this.store.getState().toasts.find(t => t.id === toastId)?.action;
+    if (!this.files || !action) return;
+    try {
+      if (file.size > FILE_CAP) throw new Error(`${file.name} is larger than 64 MB, the most the model's folder takes from the page.`);
+      await this.files.put(action.name, file);
+    } catch (e) {
+      this.failed(e instanceof Error ? e.message : String(e));
+      return;
+    }
+    this.store.dispatch({type: 'dismiss', id: toastId});
+    const {run} = action, state = this.store.getState();
+    const keys = run ? menuKeys(state.core?.menu ?? 0, run.menu) : null;
+    if (!run || !keys || state.busy) {
+      this.store.dispatch({type: 'toast', kind: 'info', text: `${action.name} is in the model's folder now. Run the command again.`});
+      return;
+    }
+    this.replayAnswers = run.answers.slice();
+    this.replayIdles = keys.length + 1;
+    for (const k of keys) this.key(k);
+    this.send(run.cmd);
+  }
 }
+
+/** the largest file the model's folder takes from the page (core/xpp_files.h XPP_FILES_CAP) */
+const FILE_CAP = 64 * 1024 * 1024;

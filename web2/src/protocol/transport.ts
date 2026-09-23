@@ -1,5 +1,5 @@
 /* The wire: events by Server-Sent Events, commands by POST, on the same
-   endpoints web/index.html uses (core/xpp_http.c, web/serve.js). xppautX
+   endpoints web/index.html uses (core/xpp_http.cpp, web/serve.js). xppautX
    puts a token in the page's address; both URLs need it. */
 import type {Command, XppEvent} from './types';
 

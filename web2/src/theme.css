@@ -642,6 +642,33 @@ kbd {
 .eq-counts th, .eq-counts td, .eq-values th, .eq-values td { padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--grid); text-align: left; font: var(--text-sm) var(--mono); }
 .eq-counts th { color: var(--fg-muted); font-weight: 600; width: 2.5rem; }
 
+/* the file dialog (FileDialog.tsx): this computer, or the core's listing */
+.file-tabs { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-bottom: var(--space-3); border-bottom: 1px solid var(--border); }
+.file-ask p { margin: 0 0 var(--space-3); overflow-wrap: anywhere; }
+.file-confirm { border: 1px solid var(--border); border-left: 0.25rem solid var(--warn); border-radius: var(--radius); padding: var(--space-3); }
+.file-confirm p { margin: 0; }
+.file-dir { font: var(--text-xs) var(--mono); }
+.file-list {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  max-height: 14rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.file-entry {
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-radius: 0;
+  background: none;
+  font: var(--text-sm) var(--mono);
+  overflow-wrap: anywhere;
+}
+.file-entry.dir { color: var(--accent); }
+.file-entry.selected { background: var(--surface-2); }
+
 /* ---- breakpoints (docs/ui-v2.md "Responsive layout") ---- */
 /* wide: more room for the menu, and the values panel becomes a right column (R3, R6) */
 @media (min-width: 80rem) {

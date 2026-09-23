@@ -21,11 +21,16 @@
    and the plot grow while 20 001 rows are computed, and end as output.dat)
    and a run of 10^6 rows (tools/models/million.ode) that must draw and zoom
    with no frame over 50 ms (draw times and long tasks, read through __xpp).
+   Files (T5): Write set lands in the model's folder and is downloaded, Read
+   set by upload restores the parameters, a same-content upload is not
+   copied, a same-name one asks Replace / Keep both / Cancel, and "Add
+   file…" adds a file the core could not open and runs the command again.
 
-   node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [-v]
+   node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--only desktop,phase,files,live,million] [-v]
 
    Needs Node 22 or later and a browser, nothing else (tools/cdp.mjs). */
 import {spawnSync} from 'node:child_process';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -1093,16 +1098,166 @@ async function million() {
     z.zoomed && z.draws > 0 && Math.max(...z.drawMs) < 50 && z.long.length === 0, JSON.stringify(z));
 }
 
-/* xppautX in browser mode on a copy of `ode`, the page at /v2/, then `fn`;
-   the server stops after it */
-async function session(ode, fn) {
+/* ---- files (docs/ui-v2.md section 4, T5) ------------------------------------------ */
+
+/** the files of an <input type=file>, as a user picking them would set them */
+async function pickFiles(selector, files) {
+  const {root} = await cdp.send('DOM.getDocument', {depth: 0});
+  const {nodeId} = await cdp.send('DOM.querySelector', {nodeId: root.nodeId, selector});
+  if (!nodeId) throw new Error(`no ${selector}`);
+  await cdp.send('DOM.setFileInputFiles', {nodeId, files});
+}
+
+const sha256 = data => crypto.createHash('sha256').update(data).digest('hex');
+const par = name => S(`(s.core.pars.find(p => p[0] === ${JSON.stringify(name)}) || [])[1]`);
+async function setPar(name, value) {
+  await cdp.eval(`__xpp.send({cmd: 'set', kind: 'par', name: ${JSON.stringify(name)}, text: '${value}'})`);
+  return until(`!s.busy && Math.abs(s.core.pars.find(p => p[0] === ${JSON.stringify(name)})[1] - ${value}) < 1e-12`, 'set');
+}
+
+/** File, then the File menu's key: the dialog of the file ask it opens */
+async function fileMenu(k, mode) {
+  await focusPlot();
+  await key('f');
+  await until('!s.busy && s.core.menu === 1', 'the File menu');
+  await key(k);
+  return until(`s.ask && s.ask.kind === 'file' && s.ask.mode === '${mode}' && document.querySelector('.file-ask')`, `file ask ${k}`);
+}
+
+async function waitFile(p, ms = 10000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) {
+    if (fs.existsSync(p) && fs.statSync(p).size > 0) return fs.readFileSync(p);
+    await sleep(100);
+  }
+  return null;
+}
+
+async function files(dir) {
+  await desktopMetrics();
+  await until('!s.busy && !s.ask', 'idle');
+  /* a headless browser shows no picker: the page takes its fallbacks, the
+     <input type=file> and the download, which a test can drive */
+  await cdp.eval('window.showOpenFilePicker = undefined; window.showSaveFilePicker = undefined; true');
+  const downloads = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-dl-'));
+  const up = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-up-'));
+  let canDownload = true;
+  await cdp.send('Browser.setDownloadBehavior', {behavior: 'allow', downloadPath: downloads})
+    .catch(() => cdp.send('Page.setDownloadBehavior', {behavior: 'allow', downloadPath: downloads}))
+    .catch(() => { canDownload = false; });
+  try {
+    const iapp0 = await par('iapp');
+
+    /* File/Write set: the core writes into the model's folder, the page offers it */
+    check('File/Write set opens a save dialog (the ask says it writes)', await fileMenu('w', 'write'),
+      JSON.stringify(await S('s.ask')));
+    await cdp.eval(`(() => { const i = document.querySelector('[data-file-name]'); i.value = 't5.set';
+      i.dispatchEvent(new Event('input', {bubbles: true})); i.focus(); })()`);
+    await sleep(50);
+    await key('Enter');
+    check('the ask is answered with the name', (await lastAnswer())?.file === 't5.set', JSON.stringify(await lastAnswer()));
+    const offered = await until("s.files.offered && s.files.offered.name === 't5.set' && !s.busy", 'offered');
+    const saved = fs.existsSync(path.join(dir, 't5.set')) ? fs.readFileSync(path.join(dir, 't5.set')) : null;
+    check('Write set lands in the model\'s folder', saved && saved.length > 100, String(saved && saved.length));
+    const off = await S('s.files.offered');
+    check('... and is offered to the browser as a download, the same bytes',
+      offered && saved && off.how === 'download' && off.size === saved.length && off.sha256 === sha256(saved), JSON.stringify(off));
+    if (canDownload) {
+      const got = await waitFile(path.join(downloads, 't5.set'));
+      check('the browser downloaded it', got && saved && got.equals(saved), String(got && got.length));
+    }
+
+    /* File/Read set by upload restores the parameters */
+    check('a new parameter value', await setPar('iapp', 0.2));
+    fs.copyFileSync(path.join(dir, 't5.set'), path.join(up, 't5up.set'));
+    check('File/Read set opens an open dialog (the ask says it reads)', await fileMenu('r', 'read'),
+      JSON.stringify(await S('s.ask')));
+    await pickFiles('[data-file-input=open]', [path.join(up, 't5up.set')]);
+    check('Read set by upload restores the parameters (the next state has the file\'s values)',
+      await until(`!s.ask && !s.busy && Math.abs(s.core.pars.find(p => p[0] === 'iapp')[1] - ${iapp0}) < 1e-12`, 'read set'),
+      String(await par('iapp')));
+    const copied = fs.existsSync(path.join(dir, 't5up.set')) && fs.readFileSync(path.join(dir, 't5up.set'));
+    check('the picked file was copied into the model\'s folder and the ask answered with its name',
+      copied && copied.equals(saved) && (await lastAnswer())?.file === 't5up.set'
+      && (await S('s.files.uploads[0].copied')) === true, JSON.stringify(await S('s.files.uploads')));
+
+    /* the same content again: not copied, still answered */
+    await setPar('iapp', 0.2);
+    await fileMenu('r', 'read');
+    await pickFiles('[data-file-input=open]', [path.join(up, 't5up.set')]);
+    check('a file already there with the same content is not copied again',
+      await until(`!s.ask && !s.busy && s.files.uploads.length === 1 && s.files.uploads[0].copied === false`, 'same')
+      && Math.abs(await par('iapp') - iapp0) < 1e-12, JSON.stringify(await S('s.files.uploads')));
+
+    /* the same name with other content: the replace confirm */
+    await setPar('iapp', 0.123);
+    await fileMenu('w', 'write');
+    await cdp.eval(`(() => { const i = document.querySelector('[data-file-name]'); i.value = 't5b.set';
+      i.dispatchEvent(new Event('input', {bubbles: true})); i.focus(); })()`);
+    await sleep(50);
+    await key('Enter');
+    await until("s.files.offered && s.files.offered.name === 't5b.set' && !s.busy", 'offered t5b');
+    fs.mkdirSync(path.join(up, 'other'));
+    const other = path.join(up, 'other', 't5up.set');
+    fs.copyFileSync(path.join(dir, 't5b.set'), other);
+    await setPar('iapp', 0.3);
+    await fileMenu('r', 'read');
+    await pickFiles('[data-file-input=open]', [other]);
+    check('a same-name upload with other content asks: Replace, Keep both, Cancel',
+      await until(`s.files.confirm && s.files.confirm.name === 't5up.set' && s.files.confirm.keepBoth === 't5up-2.set'
+        && document.querySelectorAll('[data-confirm] [data-choice]').length === 3`, 'confirm'),
+      JSON.stringify(await S('s.files.confirm')));
+    await cdp.eval(`document.querySelector('[data-choice=cancel]').click()`);
+    check('Cancel copies nothing and leaves the prompt open',
+      await until(`!s.files.confirm && s.ask && s.ask.kind === 'file'`, 'cancel')
+      && fs.readFileSync(path.join(dir, 't5up.set')).equals(saved) && !fs.existsSync(path.join(dir, 't5up-2.set')));
+    await pickFiles('[data-file-input=open]', [other]);
+    await until('s.files.confirm', 'confirm again');
+    await cdp.eval(`document.querySelector('[data-choice=keep]').click()`);
+    check('Keep both copies it as name-2.ext, keeps the old one, and reads the new one',
+      await until(`!s.ask && !s.busy && Math.abs(s.core.pars.find(p => p[0] === 'iapp')[1] - 0.123) < 1e-12`, 'keep both')
+      && fs.readFileSync(path.join(dir, 't5up.set')).equals(saved)
+      && fs.readFileSync(path.join(dir, 't5up-2.set')).equals(fs.readFileSync(other))
+      && (await lastAnswer())?.file === 't5up-2.set', String(await par('iapp')));
+
+    /* a file the core cannot open: "Add file…" copies it under that name and runs the command again */
+    await setPar('iapp', 0.4);
+    await fileMenu('r', 'read');
+    await cdp.eval(`document.getElementById('file-tab-folder').click()`);
+    await until('document.querySelector("[data-folder-file]")', 'folder tab');
+    await cdp.eval(`(() => { const i = document.querySelector('[data-folder-file]'); i.value = 'gone.set';
+      i.dispatchEvent(new Event('input', {bubbles: true})); i.focus(); })()`);
+    await sleep(50);
+    await key('Enter');
+    check('the core\'s listing answers with the name (In the model\'s folder)', (await lastAnswer())?.file === 'gone.set');
+    check('a file the core cannot open: the notification offers "Add file…"',
+      await until(`s.toasts.some(t => t.action && t.action.name === 'gone.set') && document.querySelector('[data-add-file="gone.set"]')`,
+        'add file'), JSON.stringify(await S('s.toasts')));
+    await pickFiles('[data-file-input=add]', [path.join(up, 't5up.set')]);
+    check('Add file… copies it under that name and runs the command again',
+      await until(`!s.busy && !s.ask && Math.abs(s.core.pars.find(p => p[0] === 'iapp')[1] - ${iapp0}) < 1e-12
+        && !s.toasts.some(t => t.action)`, 'replayed')
+      && fs.existsSync(path.join(dir, 'gone.set')) && fs.readFileSync(path.join(dir, 'gone.set')).equals(saved),
+      JSON.stringify([await par('iapp'), await S('s.toasts'), await cdp.eval('__xpp.sent().slice(-4)')]));
+    check('no file dialog is left open', await S('!s.ask'));
+  } finally {
+    await cdp.send('Browser.setDownloadBehavior', {behavior: 'default'}).catch(() => {});
+    fs.rmSync(downloads, {recursive: true, force: true, maxRetries: 5});
+    fs.rmSync(up, {recursive: true, force: true, maxRetries: 5});
+  }
+}
+
+/* xppautX in browser mode on a copy of `ode`, the page at /v2/, then `fn`
+   (given the model's folder); the server stops after it. `expected` are
+   errors the session provokes on purpose. */
+async function session(ode, fn, expected = []) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-'));
   fs.copyFileSync(ode, path.join(dir, path.basename(ode)));
   const server = await startServer(bin, dir, [path.basename(ode)]);
   try {
     await cdp.send('Page.navigate', {url: server.url.replace('/?t=', '/v2/?t=')});
-    await fn();
-    const errors = await S('s.log.filter(l => l.kind === "error").map(l => l.text)');
+    await fn(dir);
+    const errors = (await S('s.log.filter(l => l.kind === "error").map(l => l.text)')).filter(e => !expected.includes(e));
     check(`${path.basename(ode)}: no errors reported by the core`, errors.length === 0, JSON.stringify(errors));
   } finally {
     server.proc.kill();
@@ -1125,7 +1280,8 @@ async function main() {
   try {
     await cdp.send('Page.enable');
     await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
-    await session(ODE, async () => {
+    const run = name => !opt.only || opt.only.split(',').includes(name);
+    if (run('desktop')) await session(ODE, async () => {
       await desktop(want);
       /* before values(): its slider moves a parameter and reruns the
          integration (docs/protocol.md `slide`), so the stored data would no
@@ -1139,9 +1295,10 @@ async function main() {
       await windows();
       await textViews();
     });
-    await session(ODE, phasePlane);
-    await session(LIVE, () => live(wantLive));
-    await session(MILLION, million);
+    if (run('phase')) await session(ODE, phasePlane);
+    if (run('files')) await session(ODE, files, ['Cannot open file']);
+    if (run('live')) await session(LIVE, () => live(wantLive));
+    if (run('million')) await session(MILLION, million);
   } finally {
     b.proc.kill();
     await sleep(500);

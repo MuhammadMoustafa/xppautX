@@ -1,14 +1,15 @@
 /* The core's prompts (docs/protocol.md "Asks") as a modal dialog: focus
    moves into it, stays in it (Tab cycles), Escape cancels, and focus goes
    back where it was when it closes. Menus, yes/no choices, string boxes,
-   forms (a field that picks from `hello.lists` is a select) and checklists;
-   alerts are notifications (session.ts); mouse, rubber and drag asks are
-   plot modes (PlotView.tsx); other kinds say they are not offered yet and
-   offer Cancel (A13, docs/ui-v2.md). */
+   forms (a field that picks from `hello.lists` is a select), checklists and
+   files (FileDialog.tsx); alerts are notifications (session.ts); mouse,
+   rubber and drag asks are plot modes (PlotView.tsx); other kinds say they
+   are not offered yet and offer Cancel (A13, docs/ui-v2.md). */
 import type {ComponentChildren} from 'preact';
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {fieldSpec, selectOptions} from '../protocol/lists';
 import type {AskEvent} from '../protocol/types';
+import {FileAsk} from './FileDialog';
 import {useSession, useStore} from './context';
 
 const FOCUSABLE = 'button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -144,7 +145,6 @@ function ChecklistAsk({ask}: {ask: AskEvent}) {
 
 /* what an ask this interface does not offer yet wants, in words (A13) */
 const PENDING: Record<string, string> = {
-  file: 'a file name',
   grab: 'a point of the AUTO diagram',
   mouse: 'a click in a window this interface does not show yet',
   rubber: 'a box in a window this interface does not show yet',
@@ -213,6 +213,7 @@ export function AskDialog() {
   const body = ask.kind === 'menu' || ask.kind === 'choice' ? <MenuAsk ask={ask} />
     : ask.kind === 'string' || ask.kind === 'form' ? <FormAsk ask={ask} />
       : ask.kind === 'checklist' ? <ChecklistAsk ask={ask} />
-        : <PendingAsk ask={ask} />;
+        : ask.kind === 'file' ? <FileAsk ask={ask} />
+          : <PendingAsk ask={ask} />;
   return <Modal key={ask.id} ask={ask}>{body}</Modal>;
 }

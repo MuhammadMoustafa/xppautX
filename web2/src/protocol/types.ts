@@ -171,6 +171,15 @@ export interface AskEvent {
   values?: string[];
   message?: string;
   button?: string;
+  /** a `file` ask: whether the command opens the file or saves one */
+  mode?: 'read' | 'write';
+  /** a `file` ask: the name offered (possibly a path), the pattern, and the
+      core's folder listing (the "In the model's folder" tab) */
+  file?: string;
+  wild?: string;
+  dir?: string;
+  dirs?: string[];
+  files?: string[];
   [k: string]: unknown;
 }
 

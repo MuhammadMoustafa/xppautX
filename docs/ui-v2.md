@@ -157,10 +157,9 @@ new page adds direct manipulation that maps onto existing commands:
 | `string`, `form` | modal form, first field focused and selected, Enter submits (from a select too), Escape cancels | done; a `*n` field is a select of `hello.lists[n]` (`protocol/lists.ts`): a numbered item (`2 Box`) answers its number, a value the list lacks is kept as an option of its own |
 | `checklist` | checkbox list with All and None | done |
 | `alert` | a notification (toast); the ask is answered at once, so the run is not blocked | done |
-| `file` | the browser's open or save dialog (section 4); the core's listing is a fallback tab | T5 |
+| `file` | the browser's open or save dialog (section 4, `ui/FileDialog.tsx`); the core's listing is the second tab, "In the model's folder" | done |
 | `mouse`, `rubber`, `drag` | a plot mode (`plot/pick.ts`, the store's `pick`): a crosshair (click or tap picks), a box or line (drag it), or a drag of the plot, with an instruction bar and Cancel (Done for a drag); Escape cancels; from the keyboard, arrows move the crosshair or the free corner (Shift: ten times as far), Enter picks or fixes a corner, arrows drag in a drag. Answered in data coordinates (`xd`, `yd`, `xd2`, `yd2`, docs/protocol.md), so no pixel maths; the drag's events queue while the core works. When the core's window moves (Window/Zoom, Viewaxes), the plot shows it again (the client zoom is one Undo away). Asks for windows the page does not draw yet (AUTO, 3D) say so and offer Cancel | done |
 | `grab` (AUTO) | select a point of the diagram (click, tap, or arrow keys); answered by index | T11 (says it is not offered yet and offers Cancel, A13) |
-| `file` | see below | T5 (not offered yet, Cancel, A13) |
 | `pixels` | answered `ok:0` by the session: web2 renders frames from data (kinescope, GIF) itself | done / T15 |
 
 A prompt never steals keys it does not use: the menu dialog takes only its
@@ -213,7 +212,7 @@ files for the browser's Load, `-anifile`. The page runs on the same machine
 - **The core's listing stays reachable** as a secondary tab of the dialog
   ("In the model's folder"), for the rare ask that needs a path elsewhere
   on the core's machine; it answers with `cd` and `file` as today.
-- **Endpoints** (xpp_http.c, token-protected like `/cmd`, base names only,
+- **Endpoints** (xpp_http.cpp, token-protected like `/cmd`, base names only,
   no separators, no `..`, no dot files, a size cap of 64 MB):
   `GET /files` (listing: name, size, mtime, sha-256), `GET /files/NAME`,
   `PUT /files/NAME` (streams the body to a temporary file and renames, so a
@@ -222,6 +221,29 @@ files for the browser's Load, `-anifile`. The page runs on the same machine
   VS Code extension write files themselves; they get
   `{"cmd":"file","op":"put","name":...,"data":base64}` and `get` for
   parity (T5).
+
+### Built (T5)
+
+- **Core**: `core/xpp_files.cpp` (C API in `xpp_files.h`, SHA-256 in
+  `xpp_sha256.cpp`) holds the rules and the file work: which names are
+  reachable, the listing with digests, reading, and the write through a
+  hidden temporary file renamed into place; `xpp_http.cpp` serves it as
+  `/files` (its request reader now reads the head, then streams a body of
+  any declared length up to the endpoint's cap) and `ui_json.c` as the
+  `file` command. The `file` ask carries `mode` (`read` or `write`, from
+  the selector's title). docs/protocol.md "Files" is the contract.
+- **Page**: `ui/FileDialog.tsx` (the two tabs, the replace confirm),
+  `pickers.ts` (the pickers, the input and download fallbacks),
+  `protocol/files.ts` (the endpoints), `store/files.ts` (pure: names,
+  Keep both names, the upload plan, the running command's record and the
+  missing file of an error), the session's `openFiles`, `saveFile`,
+  `resolveReplace` and `addMissingFile`.
+- **Missing companions**: the core's errors do not name the file ("Cannot
+  open file"), so the page takes the name its command's `file` ask for
+  reading was answered with (or a name the error gives, `File<x> not
+  found`). "Add file…" uploads the pick under that name, then sends the
+  command again (with the File or nUmerics menu key first when the command
+  was in that menu) and answers its prompts as they were answered.
 
 ## 5. Architecture of the page
 
@@ -261,7 +283,7 @@ Rules:
   `__xpp.plot(win)` (the active window's without `win`).
 - **State slices** follow the views: `plots` (windows, T6, done),
   `values` (parameters, ICs, sliders, T3, done), `diagram` (AUTO), `table` (browser),
-  `ani`, `aplot`, `files`. Each gets its reducer file under `store/` and its
+  `ani`, `aplot`, `files` (T5, done). Each gets its reducer file under `store/` and its
   view under `ui/`.
 
 ### Libraries
@@ -441,6 +463,18 @@ Target: WCAG 2.2 AA. Rules:
   No screenshot is compared.
 - **Assets** (`tools/webcheck.py`): `/v2/`, its script and font with their
   types.
+- **Files** (T5): `tools/webcheck.py`: a PUT then GET round-trips binary
+  bytes, the listing's digests; traversal (`../x`, `..%2Fx`, `a/b`, `a\b`),
+  dot, device and long names (400), a missing or wrong token (403), an
+  upload over 64 MB (413), cut short (400) or without a length (411), a
+  folder and a symbolic link (403) all refused, leaving no file and no
+  temporary file. `tools/servercheck.py`: the ask's `mode`, `file` put, get
+  and list, refused names and data. `tests/test_files.cpp`: SHA-256
+  vectors, names, the cap, abort and replace, every selector title's mode.
+  `tools/web2check.mjs`: Write set lands in the folder and is downloaded
+  (the same bytes); Read set by upload restores the parameters; the same
+  content is not copied again; the replace confirm (Cancel, Keep both as
+  `name-2.set`); "Add file…" after a file the core could not open.
 - Each task below adds its view's checks to web2check and its events'
   checks to servercheck.
 
@@ -457,7 +491,7 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T2 (**done**) | Live plotting: `series` `append` during integrations (throttled), store appends in place, binary option for long runs | T1 | yes | a 20 000-row run grows on screen; servercheck: the appended rows equal the final series; a 10^6-row series renders and zooms without a frame over 50 ms |
 | T3 (**done**) | Values panel: parameters, ICs, BCs, delays, sliders (`@ s1=`), user buttons, Default, `%formula`, undo of an edit | T1 | no | web2check: edit a parameter, see `state`; move a slider, get a new series; undo restores; keyboard and 44 px targets; right column at 80 rem, sheet on a phone |
 | T4 (**done**) | Prompts complete: `*n` selects, checklist, mouse/rubber/drag asks as plot modes; core accepts data coordinates `xd`,`yd` | T1 | small | servercheck: an answer in data coordinates; web2check: Viewaxes form with a variable select; Window/Zoom by a box drawn on the plot, by mouse and by keyboard |
-| T5 | Files: `/files` endpoints (list, get, put; streaming bodies), `file` asks through the browser's dialogs, the confirm on replace, "Add file…" for missing companions, `file` commands for `--server` | T4 | yes | webcheck: traversal and dot names refused, 64 MB cap, token required; web2check: Write set lands in the model's folder and is offered to the browser; Read set by upload restores parameters |
+| T5 (**done**) | Files: `/files` endpoints (list, get, put; streaming bodies), `file` asks through the browser's dialogs, the confirm on replace, "Add file…" for missing companions, `file` commands for `--server` | T4 | yes | webcheck: traversal and dot names refused, 64 MB cap, token required; web2check: Write set lands in the model's folder and is offered to the browser; Read set by upload restores parameters |
 | T6 (**done**) | Plot windows: `plots` event, series per window, tabs, Makewindow create/kill/select | T2 | yes | servercheck: two windows, each with its curves; web2check: switch tabs, each keeps its zoom |
 | T7 (**done**) | Nullclines and direction fields as data (`nullclines`, `dfield`), drawn in uPlot's draw hook | T6 | yes | servercheck: segment counts equal the classic draw ops' lines for lecar; web2check: the store holds them, they toggle in the legend |
 | T8 | Marks: Sing pts equilibria, Graphic stuff text/arrows/markers, frozen curves; Greek labels as Unicode | T6 | yes | servercheck: `marks` after Sing pts has the equilibrium's coordinates; web2check: marks listed in the store and the legend |
