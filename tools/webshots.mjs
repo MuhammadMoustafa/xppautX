@@ -9,9 +9,9 @@
                            [--steps tools/web_steps.txt] [--out build/webshots]
                            [--once]
 
-   --base skips building the ref. --once skips the base run and comparison;
-   runs steps once against --new (default ./xppautX[.exe]); exits with status 1
-   if any step fails or a shotw-style wait/check fails. No npm packages: the
+   --base skips building the ref. --once runs the steps a single time against
+   --new, with no ref to build or compare, and fails when a step does: what CI
+   needs, where the ref and the build are the same commit. No npm packages: the
    browser is driven through the DevTools protocol with Node's WebSocket
    (Node 22 or later). Screenshots and session files are left in --out. */
 import {spawn, spawnSync} from 'node:child_process';
@@ -25,9 +25,10 @@ const win = process.platform === 'win32';
 const exe = win ? '.exe' : '';
 const top = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const opt = {ref: 'HEAD', steps: 'tools/web_steps.txt', out: 'build/webshots', new: `xppautX${exe}`};
+const FLAGS = ['once'];
 for (let i = 2; i < process.argv.length; i++) {
   const k = process.argv[i].replace(/^--/, '');
-  opt[k] = process.argv[++i];
+  opt[k] = FLAGS.includes(k) ? true : process.argv[++i];
 }
 const out = path.resolve(top, opt.out);
 
@@ -287,17 +288,15 @@ async function main() {
   fs.mkdirSync(out, {recursive: true});
   for (const e of fs.readdirSync(out)) fs.rmSync(path.join(out, e), {recursive: true, force: true, maxRetries: 5});
 
-  const once = opt.once === 'true' || opt.once === '';
-  const steps = fs.readFileSync(path.join(top, opt.steps), 'utf8').split(/\r?\n/);
+  const steps = fs.readFileSync(path.resolve(top, opt.steps), 'utf8').split(/\r?\n/);
   const problems = {};
 
-  if (once) {
-    /* --once: run steps once against --new only, skip base and comparison */
+  if (opt.once) {
+    /* one session against --new: every step must run, nothing to compare */
     problems.new = await runOnce('new', path.resolve(top, opt.new), browser, steps);
     for (const p of problems.new) console.log(`PROBLEM: ${p}`);
-    console.log(`${problems.new.length === 0 ? 'web session passed' : 'web session had problems'}`);
-    const ok = problems.new.length === 0;
-    process.exit(ok ? 0 : 1);
+    console.log(problems.new.length ? 'web session had problems' : 'web session passed');
+    process.exit(problems.new.length ? 1 : 0);
   }
 
   let base = opt.base && path.resolve(top, opt.base);

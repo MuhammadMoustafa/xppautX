@@ -16,8 +16,8 @@ jobs:
         run: tools/verify.sh
       - name: Coupling metric
         run: |
-          tools/coredeps.sh -v > coredeps.txt
-          test "$(grep -oE 'imports: [0-9]+' coredeps.txt | grep -oE '[0-9]+')" -eq 0
+          tools/coredeps.sh -v | tee build/coredeps.out
+          test "$(grep -oE 'imports: [0-9]+' build/coredeps.out | grep -oE '[0-9]+')" -eq 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22

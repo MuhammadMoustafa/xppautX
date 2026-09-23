@@ -195,10 +195,10 @@ the gcc that ships with Strawberry Perl) from a bash shell:
 
 ```bash
 make -j8 xppautx
-xppautX.exe examples\ode\lecar.ode
+./xppautX.exe examples/ode/lecar.ode
 ```
 
-Then open http://127.0.0.1:8765/.
+It opens the front end in your browser.
 
 ### Headless smoke test
 
@@ -223,10 +223,11 @@ sudo apt install build-essential libx11-dev
 make -j8 xppaut
 ```
 
-**macOS:** Install [XQuartz](https://www.xquartz.org/) or use Homebrew:
+**macOS:** Install [XQuartz](https://www.xquartz.org/) or `brew install libx11`:
 
 ```bash
-brew install libx11
+make -j8 xppaut X11_INC=-I/opt/X11/include X11_LIB=-L/opt/X11/lib
+# Homebrew instead of XQuartz:
 make -j8 xppaut X11_INC=-I$(brew --prefix)/include X11_LIB=-L$(brew --prefix)/lib
 ```
 
