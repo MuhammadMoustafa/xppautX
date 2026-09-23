@@ -63,16 +63,21 @@ void xpp_job_resume(unsigned long seq)
     }
 }
 
+int xpp_every(double *last, double seconds)
+{
+    struct timeval tv;
+    double now;
+    gettimeofday(&tv, NULL);
+    now = tv.tv_sec + tv.tv_usec * 1e-6;
+    if (now - *last < seconds && now >= *last) return 0; /* a clock set back also passes */
+    *last = now;
+    return 1;
+}
+
 int xpp_job_poll_due(void)
 {
-    static struct timeval last;
-    struct timeval now;
-    gettimeofday(&now, NULL);
-    if ((now.tv_sec - last.tv_sec) * 1000000L + (now.tv_usec - last.tv_usec) < 50000L &&
-        now.tv_sec >= last.tv_sec)
-        return 0;
-    last = now;
-    return 1;
+    static double last;
+    return xpp_every(&last, 0.05);
 }
 
 int xpp_job_checkpoint(void)

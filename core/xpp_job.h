@@ -47,6 +47,10 @@ int xpp_job_cancelled(void);
    the answer, not the Abort, is their last word. Main thread. */
 void xpp_job_resume(unsigned long seq);
 
+/* 1 when at least `seconds` have passed since *last (then *last becomes
+   now; start it at 0): the rate limit of polls and flushes in long loops */
+int xpp_every(double *last, double seconds);
+
 /* 1 at most every 50 ms (then the clock starts again): whether the front end
    should be polled now. my_abort() and byeauto_() (xpp_ui.c) share it, so a
    tight loop calling them does not hammer the front end. */

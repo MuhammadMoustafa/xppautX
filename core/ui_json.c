@@ -906,23 +906,12 @@ static void j_show_menu(int which)
 
 /* ---- long loops ------------------------------------------------------------ */
 
-/* 1 when at least us microseconds have passed since *last (then reset);
-   the throttles of the long loops below */
-static int every(struct timeval *last, long us)
-{
-    struct timeval now;
-    gettimeofday(&now, NULL);
-    if ((now.tv_sec - last->tv_sec) * 1000000L + (now.tv_usec - last->tv_usec) < us) return 0;
-    *last = now;
-    return 1;
-}
-
 static int j_check_abort(void)
 {
     char *line;
-    static struct timeval last;
+    static double last;
     /* let the client see the picture grow, a few frames a second */
-    if (every(&last, 50000)) {
+    if (xpp_every(&last, 0.05)) {
         flush_ops();
         out_flush();
     }
@@ -939,10 +928,10 @@ static int j_progress_begin(void) { return 100; }
 
 static void j_progress(int nit, int icount, int cwidth)
 {
-    static struct timeval last;
+    static double last;
     Buf b = {0};
     (void)cwidth;
-    if (!every(&last, 100000)) return;
+    if (!xpp_every(&last, 0.1)) return;
     buf_printf(&b, "{\"ev\":\"progress\",\"n\":%d,\"of\":%d}", icount, nit);
     send_buf(&b);
     free(b.s);
@@ -1941,8 +1930,8 @@ static void j_auto_show_hint(void) { send_simple("message", "auto", Auto.hinttxt
    the last point of a run and a grab's circle are never held back. */
 static void j_auto_refresh(void)
 {
-    static struct timeval last;
-    if (every(&last, 50000)) json_flush();
+    static double last;
+    if (xpp_every(&last, 0.05)) json_flush();
 }
 
 /* ---- animation window ------------------------------------------------------------ */
