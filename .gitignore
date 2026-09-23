@@ -18,25 +18,11 @@ output.dat
 *.tgz
 *.bak
 *conflicted copy*
-/build/obj/
-/build/nox11/
-/build/scratch/
-/build/*.log
-/build/*.txt
+# everything a build writes; build/legacy holds upstream Makefiles, kept
+/build/*
+!/build/legacy/
 /xppautX
 /libxppcore.a
-/build/guicheck/
-/build/probe/
-/build/snap/
-/build/asan/
-/build/mingw/
-/build/webtest/
-/build/idx/
-/build/win/
-/build/*.mk
-/build/webshots/
-/build/webshots.log
-/build/examples/
 /xppautX-*
 
 # Python bytecode from the check scripts
