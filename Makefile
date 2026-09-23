@@ -1,6 +1,7 @@
-# xppautX — build the classic X11 xppaut binary from core/
-# Phase 0: same code as upstream XPPAUT 8.0, just relocated.
-# Requires: gcc, make, X11 headers (Debian/Ubuntu: apt install libx11-dev)
+# xppautX — build xppautX from core/. No X11: the legacy X11 front end
+# was removed (issue #20); xppautX is the one program (browser mode,
+# --server or -silent).
+# Requires: gcc, make
 
 VERSION  = 8.0
 MAJORVER = 8.0
@@ -26,15 +27,14 @@ DEFS     = -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES -DHAVEDLL \
 # XPP_VERSION), else git describe
 XPPAUTX_VERSION ?= $(or $(XPP_VERSION),$(shell git describe --tags --always 2>/dev/null),dev)
 # -I. is needed because fftn.c does "#include __FILE__"
-INCS     = -I. -Icore -Icore/bitmaps $(X11_INC)
+INCS     = -I. -Icore
 CFLAGS  ?= $(CSTD) $(WARN) $(STRICT) $(OPT) $(DEFS) $(INCS) -fcommon
 # no -fcommon: C++ has no tentative definitions
 CXXFLAGS ?= $(CXXSTD) $(WARN) $(CXXSTRICT) $(OPT) $(DEFS) $(INCS)
-LDFLAGS ?= $(X11_LIB) -fcommon
-LIBS     = -lX11 -lm -ldl
+LDFLAGS ?= -fcommon
+LIBS     = -lm -ldl
 
-# Native Windows (MinGW-w64 gcc, from Git Bash or MSYS2): only the X11-free
-# targets build there: make server cli
+# Native Windows (MinGW-w64 gcc, from Git Bash or MSYS2)
 ifeq ($(OS),Windows_NT)
 # (a make built elsewhere may default to its builder's compiler paths)
 ifeq ($(origin CC),default)
@@ -66,11 +66,6 @@ STRICT += $(WERROR_FLAGS)
 CXXSTRICT += $(WERROR_FLAGS)
 endif
 
-# For the legacy X11 xppaut target only: macOS/XQuartz users, pass
-# X11_INC=-I/opt/X11/include X11_LIB=-L/opt/X11/lib (not needed for xppautx)
-X11_INC ?=
-X11_LIB ?=
-
 SRCDIR   = core
 BUILDDIR = build/obj
 
@@ -85,15 +80,9 @@ obj = $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%.o,$(basename $(1)))
 # them is C++ (it brings the C++ runtime), else $(CC)
 link = $(if $(filter %.cpp,$(1)),$(CXX),$(CC))
 
-# Sources that need X11 (the front end). Everything else is libxppcore.
-UI_SOURCES := $(call src, abort aniwin aplotwin auto_x11 \
-  browse calc choice_box color dialog_box eig_list \
-  ggets graphics_x11 init_conds kinescope main many_pops \
-  menu menudrive pop_list rubber txtread ui_x11 \
-  xppaut_main)
 # sbml2xpp.c needs libsbml and is not part of the upstream build.
 SERVER_SOURCES := $(call src, ui_json xppautx_main xpp_http xpp_inbox)
-CORE_SOURCES := $(filter-out $(UI_SOURCES) $(SERVER_SOURCES) $(SRCDIR)/sbml2xpp.%,$(ALL_SOURCES))
+CORE_SOURCES := $(filter-out $(SERVER_SOURCES) $(SRCDIR)/sbml2xpp.%,$(ALL_SOURCES))
 # the pages xppautX serves, compiled in: the classic front end at /, the new
 # one at /v2/ (web2/dist, built from web2/src and committed: web2/build.mjs)
 WEB_FILES := web/index.html web/xpp-client.js web/xpp-client.css
@@ -105,35 +94,31 @@ $(BUILDDIR)/xppautx_main.o: CXXFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'
 # the version is an input of xppautx_main.o: the stamp is rewritten only when
 # it changes, so --version never names an older commit than the build's
 $(BUILDDIR)/xppautx_main.o: $(BUILDDIR)/version.stamp
-SOURCES := $(CORE_SOURCES) $(UI_SOURCES)
-OBJECTS := $(call obj,$(SOURCES))
 CORE_OBJECTS := $(call obj,$(CORE_SOURCES))
-# the linkers of the X11 xppaut and of xppautX
-LINK_X11 := $(call link,$(SOURCES))
+# the linker of xppautX
 LINK_X := $(call link,$(SERVER_SOURCES) $(CORE_SOURCES))
 # per build directory, so a MinGW build does not replace the Linux library
 CORELIB := $(BUILDDIR)/libxppcore.a
 
-.PHONY: all clean x11free lib objects ltocheck lto-link xppautx test FORCE
-all: xppaut
+.PHONY: all clean lib objects ltocheck lto-link xppautx test FORCE
+all: xppautx
 lib: $(CORELIB)
 
-# every object of both programs, nothing linked (tools/warnings.sh)
-objects: $(OBJECTS) $(SERVER_OBJECTS)
+# every object, nothing linked (tools/warnings.sh)
+objects: $(CORE_OBJECTS) $(SERVER_OBJECTS)
 
 # Types that disagree across files, such as an extern whose array bound is
-# not its definition's: an LTO link of both programs reports them
-# (-Wlto-type-mismatch), where a normal build cannot see them. Built and
-# linked in build/lto, so the programs in the tree are left alone.
+# not its definition's: an LTO link reports them (-Wlto-type-mismatch),
+# where a normal build cannot see them. Built and linked in build/lto, so
+# the program in the tree is left alone.
 ltocheck:
 	@$(MAKE) -s BUILDDIR=build/lto OPT="-O1 -flto=auto -ffat-lto-objects" lto-link
-lto-link: $(OBJECTS) $(SERVER_OBJECTS)
-	@$(LINK_X11) -flto=auto -fcommon -o $(BUILDDIR)/xppaut $(OBJECTS) $(LDFLAGS) $(LIBS) 2> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
-	@$(LINK_X) -flto=auto -fcommon -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) -lm $(DLLIB) $(NETLIBS) 2>> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
+lto-link: $(CORE_OBJECTS) $(SERVER_OBJECTS)
+	@$(LINK_X) -flto=auto -fcommon -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) -lm $(DLLIB) $(NETLIBS) 2> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
 	@if grep -A4 'lto-type-mismatch' $(BUILDDIR)/lto.log; then echo "ltocheck: types differ across files"; exit 1; fi
 # AddressSanitizer + UndefinedBehaviorSanitizer (and LeakSanitizer, part of
-# ASan on Linux): both programs built into build/asan, the ones in the tree
-# left alone. tools/asancheck.sh builds them and runs the checks.
+# ASan on Linux): built into build/asan, the program in the tree left
+# alone. tools/asancheck.sh builds it and runs the checks.
 ifeq ($(ASAN),1)
 SANITIZE := -fsanitize=address,undefined -fno-omit-frame-pointer
 # -O1 and the instrumentation blur gcc's value ranges: these two then warn
@@ -143,17 +128,12 @@ endif
 .PHONY: asan asan-link
 asan:
 	@$(MAKE) BUILDDIR=build/asan ASAN=1 asan-link
-asan-link: $(BUILDDIR)/xppautX$(EXE) $(if $(filter Windows_NT,$(OS)),,$(BUILDDIR)/xppaut)
+asan-link: $(BUILDDIR)/xppautX$(EXE)
 $(BUILDDIR)/xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
 	$(LINK_X) $(SANITIZE) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS)
-$(BUILDDIR)/xppaut: $(OBJECTS)
-	$(LINK_X11) $(SANITIZE) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
 
-# one X11-free program: browser front end, --server protocol and -silent batch
+# the one X11-free program: browser front end, --server protocol and -silent batch
 xppautx: xppautX$(EXE)
-
-xppaut: $(OBJECTS)
-	$(LINK_X11) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
 
 $(CORELIB): $(CORE_OBJECTS)
 	ar rcs $@ $(CORE_OBJECTS)
@@ -218,8 +198,4 @@ depfiles = $(patsubst %.c,%.d,$(patsubst %.cpp,%.cpp.d,$(1)))
 -include $(call depfiles,$(patsubst tests/%,$(BUILDDIR)/tests/%,$(TEST_SOURCES)))
 
 clean:
-	rm -rf $(BUILDDIR) xppaut libxppcore.a xppautX xppautX.exe
-
-.PHONY: x11free
-x11free:
-	tools/x11free.sh -v
+	rm -rf $(BUILDDIR) libxppcore.a xppautX xppautX.exe

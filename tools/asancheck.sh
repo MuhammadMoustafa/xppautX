@@ -1,9 +1,9 @@
 #!/bin/sh
-# Build both programs with AddressSanitizer, LeakSanitizer and
+# Build xppautX with AddressSanitizer, LeakSanitizer and
 # UndefinedBehaviorSanitizer (make asan, into build/asan) and run the checks
-# under them: the -silent smoke run of both programs (same checksum as
-# verify.sh), the unit tests, the protocol (servercheck.py), browser mode
-# (webcheck.py) and AUTO (autocheck.py).
+# under it: the -silent smoke run (same checksum as verify.sh), the unit
+# tests, the protocol (servercheck.py), browser mode (webcheck.py) and
+# AUTO (autocheck.py).
 #
 # Any sanitizer report fails the script, whether or not the check that
 # provoked it noticed: every report goes to a file in build/asan/reports
@@ -32,24 +32,23 @@ export UBSAN_OPTIONS="halt_on_error=1:print_stacktrace=1:log_path=$reports/ubsan
 export LSAN_OPTIONS="suppressions=$top/tools/lsan.supp:print_suppressions=0"
 fail=0
 
-for bin in xppautX xppaut; do
-  tmp=$(mktemp -d)
-  ( cd "$tmp" && "$top/build/asan/$bin" "$top/examples/ode/lecar.ode" -silent > run.log 2>&1 )
-  st=$?
-  sum=$(md5sum "$tmp/output.dat" 2>/dev/null | cut -d' ' -f1)
-  if [ $st -eq 0 ] && [ "$sum" = "$BASELINE" ]; then
-    echo "$bin -silent ok: checksum matches baseline"
-  else
-    head -20 "$tmp/run.log"
-    echo "$bin -silent FAILED: exit $st, sum=$sum"
-    fail=1
-  fi
-  rm -rf "$tmp"
-done
+bin=xppautX
+tmp=$(mktemp -d)
+( cd "$tmp" && "$top/build/asan/$bin" "$top/examples/ode/lecar.ode" -silent > run.log 2>&1 )
+st=$?
+sum=$(md5sum "$tmp/output.dat" 2>/dev/null | cut -d' ' -f1)
+if [ $st -eq 0 ] && [ "$sum" = "$BASELINE" ]; then
+  echo "$bin -silent ok: checksum matches baseline"
+else
+  head -20 "$tmp/run.log"
+  echo "$bin -silent FAILED: exit $st, sum=$sum"
+  fail=1
+fi
+rm -rf "$tmp"
 
-# every example, as tools/examples_check.sh runs them (xppautX only: the
-# output is compared there, here only the sanitizers' verdict counts); a
-# model that does not run by itself exits non-zero without a report
+# every example through xppautX -silent, sanitizers only (no output
+# comparison, just their verdict); a model that does not run by itself
+# exits non-zero without a report
 ex=$(mktemp -d)
 find examples -name '*.ode' | sort | xargs -P"$(nproc 2>/dev/null || echo 4)" -I{} sh -c '
   f=$1; run=$2/$(echo "$f" | tr / _); mkdir -p "$run"
