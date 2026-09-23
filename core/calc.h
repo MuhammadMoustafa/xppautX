@@ -6,9 +6,6 @@ extern "C" {
 
 
 
-#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
-void draw_calc(Window w);
-#endif /* Xlib.h */
 void make_calc(double z);
 void quit_calc(void);
 void ini_calc_string(char *name, char *value, int *pos, int *col);

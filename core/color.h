@@ -5,9 +5,6 @@ extern "C" {
 #endif
 
 
-#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
-void tst_color(Window w);
-#endif /* Xlib.h */
 void set_scolor(int col);
 void set_color(int col);
 void make_cmaps(int *r, int *g, int *b, int n, int type);

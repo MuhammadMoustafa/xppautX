@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 /* Reset the "which options were explicitly set" table. Called at the start
-   of both the X11 do_main() and the headless xpp_batch_main(). */
+   of the headless xpp_batch_main(). */
 void xpp_reset_options(void);
 
 /* Command-line scan for -quiet / -logfile (they must win over .xpprc) */

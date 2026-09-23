@@ -228,9 +228,6 @@ extern "C" {
 
 void xpp_hlp(void);
 void MessageBox(char *m);
-#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
-void RedrawMessageBox(Window w);
-#endif /* Xlib.h */
 void KillMessageBox(void);
 int TwoChoice(char *c1, char *c2, char *q, char *key);
 int GetMouseXY(int *x, int *y);

@@ -81,21 +81,6 @@ extern const XppMenu menu_integrate, menu_nullclines, menu_freeze_cline,
 extern const XppMenu *const xpp_menus[];
 extern const int xpp_menu_count;
 
-#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
-typedef struct {
-  Window base,title;
-  Window w[25];
-  char key[25];
-  char **names;
-  char **hints;
-  int n,visible;
-} MENUDEF;
-
-
-
-
-
-#endif /* Xlib.h */
 
 #ifdef __cplusplus
 }

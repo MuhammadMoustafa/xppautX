@@ -9,8 +9,8 @@
  * refresh_browser, TwoChoice, set_color, ALINE, ...). Those are thin
  * dispatchers in xpp_ui.c that go through the XppUi table below. The
  * default table is headless: messages go to the log, prompts are declined,
- * redraws and drawing do nothing. The X11 front end installs its own table
- * (ui_x11.c) before it shows a window.
+ * redraws and drawing do nothing. The browser front end installs its own
+ * table (ui_json.c) before it serves a session.
  *
  * Conventions kept from the original code:
  *   new_string / file_selector / string_box return 0 when the user cancels.
@@ -151,7 +151,7 @@ typedef struct XppUi {
     int (*rubber_band)(int *i1, int *j1, int *i2, int *j2, int flag);
     void (*scroll_window)(void);
 
-    /* colormap changed (custom_color); X11 reallocates its colours */
+    /* colormap changed (custom_color) */
     void (*new_colormap)(int type);
 
     /* raw drawing primitives used by graphics.c when the plot format is
@@ -202,7 +202,7 @@ typedef struct XppUi {
     void (*auto_grab_end)(int done);
     /* The diagram as data, beside the drawing: p is a point add_point()
        just plotted, NULL that the diagram was cleared and its axes (Auto)
-       drawn again. X11 draws the primitives only and ignores it. */
+       drawn again. */
     void (*auto_diagram)(const XppDiagPoint *p);
 
     /* animation (toon) window. Frames are drawn off screen, vcr.wid by

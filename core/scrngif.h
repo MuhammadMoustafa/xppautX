@@ -28,17 +28,9 @@ void set_global_map(int flag);
 int ppmtopix(unsigned char r, unsigned char g, unsigned char b, int *n);
 void end_ani_gif(FILE *fp);
 void gif_stuff_ppm(unsigned char *ppm, int w, int h, FILE *fp, int task);
-#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
-void add_ani_gif(Window win, FILE *fp, int count);
-void screen_to_gif(Window win, FILE *fp);
-void get_global_colormap(Window win);
-#endif /* Xlib.h */
 void local_to_global(void);
 int use_global_map(unsigned char *pixels, unsigned char *ppm, int h, int w);
 int make_local_map(unsigned char *pixels, unsigned char *ppm, int h, int w);
-#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
-void gif_stuff(Window win, FILE *fp, int task);
-#endif /* Xlib.h */
 void write_global_header(int cols, int rows, FILE *dst);
 void GifLoop(FILE *fout, unsigned int repeats);
 void write_local_header(int cols, int rows, FILE *fout, int colflag, int delay);

@@ -49,11 +49,6 @@ void unreplace_column(void);
 void make_d_table(double xlo, double xhi, int col, char *filename, BROWSER b);
 void find_value(int col, double val, int *row, BROWSER b);
 void find_variable(char *s, int *col);
-#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
-void browse_but_on(BROWSER *b, int i, Window w, int yn);
-void enter_browser(XEvent ev, BROWSER *b, int yn);
-void display_browser(Window w, BROWSER b);
-#endif /* Xlib.h */
 void redraw_browser(BROWSER b);
 void new_browse_dat(float **new_dat, int dat_len);
 void refresh_browser(int length);
@@ -62,22 +57,7 @@ void draw_data(BROWSER b);
 void init_browser(void);
 void kill_browser(BROWSER *b);
 void make_new_browser(void);
-#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
-Window br_button(Window root, int row, int col, char *name, int iflag);
-Window br_button_data(Window root, int row, int col, char *name, int iflag);
-#endif /* Xlib.h */
 void make_browser(BROWSER *b, char *wname, char *iname, int row, int col);
-#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
-void expose_my_browser(XEvent ev);
-void enter_my_browser(XEvent ev, int yn);
-void my_browse_button(XEvent ev);
-void my_browse_keypress(XEvent ev, int *used);
-void resize_my_browser(Window win);
-void expose_browser(XEvent ev, BROWSER b);
-void resize_browser(Window win, BROWSER *b);
-void browse_button(XEvent ev, BROWSER *b);
-void browse_keypress(XEvent ev, int *used, BROWSER *b);
-#endif /* Xlib.h */
 void data_up(BROWSER *b);
 void data_down(BROWSER *b);
 void data_pgup(BROWSER *b);

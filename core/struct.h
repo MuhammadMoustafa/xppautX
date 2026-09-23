@@ -71,14 +71,6 @@ typedef struct {
                 char gr_info[256];
 		} GRAPH;
 
-#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
-typedef struct {
-		GC gc;
-		int dx,dy,yoff;
- 		unsigned int fcol,bcol;
-		} TEXTGC;
-
-#endif /* Xlib.h */
 typedef struct {
 		XppWinId w;
 		float x;

@@ -1,6 +1,6 @@
 /* Headless entry point: load an ODE file, integrate, write output.dat and
    whatever else the batch options ask for. This is the XPPBatch branch of
-   do_main() in main.c without any X11 setup, so it links against
+   the historical do_main(), with no front end setup, so it links against
    libxppcore alone. */
 #include "xpp_batch.h"
 #include "xpp_mem.h"

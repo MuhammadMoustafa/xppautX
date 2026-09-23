@@ -35,19 +35,9 @@ void set_up_aplot_range(void);
 void fit_aplot(void);
 int editaplot(APLOT *ap);
 void print_aplot(APLOT *ap);
-#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
-void expose_aplot(Window w);
-void do_array_plot_events(XEvent ev);
-void wborder(Window w, int i, APLOT ap);
-#endif /* Xlib.h */
 void destroy_aplot(void);
 void init_my_aplot(void);
 void create_arrayplot(APLOT *ap, char *wname, char *iname);
-#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
-void apbutton(Window w);
-void draw_scale(APLOT ap);
-void draw_aplot(APLOT ap);
-#endif /* Xlib.h */
 void edit_aplot(void);
 void get_root(char *s, char *sroot, int *num);
 void reset_aplot_axes(APLOT ap);
@@ -55,10 +45,6 @@ void dump_aplot(FILE *fp, int f);
 void gif_aplot(void);
 void grab_aplot_screen(APLOT ap);
 void redraw_aplot(APLOT ap);
-#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
-void display_aplot(Window w, APLOT ap);
-
-#endif /* Xlib.h */
 
 #ifdef __cplusplus
 }
