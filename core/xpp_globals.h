@@ -18,11 +18,9 @@ extern char UserOUTFILE[256];
 extern int allwinvis;
 extern int use_intern_sets;
 extern int use_ani_file;
-/* AUTO's scratch directory (fort.3/7/8/9, __tmp__, <model>.ode.b/.d/.s):
-   NULL keeps auto_home_dir()'s upstream HOME/model-directory fallback (the
-   X11 front end, -silent); browser/--server mode in xppautx_main.c points
-   it at a private directory so concurrent sessions on one machine never
-   share AUTO files. See xpp_util.h for the directory itself. */
+/* AUTO's scratch directory (fort.3/7/8/9, <model>.ode.b/.d/.s). NULL: HOME,
+   as upstream (X11, -silent); xppautX sets a private one per session so
+   concurrent sessions never share AUTO files (xppautx_main.c). */
 extern char *xpp_auto_dir;
 extern char anifile[XPP_MAX_NAME];
 extern float xppvermaj, xppvermin;

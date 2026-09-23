@@ -718,11 +718,9 @@ void do_txt_action(char *s)
   reset_graph();
 }
 
-/* ---- a private scratch directory for AUTO (xpp_globals.h: xpp_auto_dir) --
-   POSIX side; the Windows side is xpp_win32.c, next to the rest of the
-   windows.h-using code. Not mkdtemp(): CSTD builds with -D_XOPEN_SOURCE=600,
-   under which mkdtemp is not declared (it needs 700), and -Werror on an
-   implicit declaration would stop the build; so the name is built here. */
+/* ---- AUTO's private scratch directory (xpp_globals.h: xpp_auto_dir) ----
+   POSIX here, Windows in xpp_win32.c. Named by the pid, so unique while the
+   process lives (mkdtemp needs _XOPEN_SOURCE 700; the build uses 600). */
 #ifndef _WIN32
 #include <dirent.h>
 #include <errno.h>
@@ -741,17 +739,8 @@ char *xpp_make_temp_dir(void)
   path = malloc(strlen(base) + 64);
   if (path == NULL)
     return NULL;
-  for (i = 0; i < 1000; i++) {
-    unsigned r = 0;
-    FILE *f = fopen("/dev/urandom", "rb");
-    if (f != NULL) {
-      if (fread(&r, sizeof(r), 1, f) != 1)
-        r = 0;
-      fclose(f);
-    }
-    if (r == 0)
-      r = (unsigned)time(NULL) ^ (unsigned)getpid() ^ (unsigned)(i * 2654435761u);
-    sprintf(path, "%s/xppautoX-%ld-%u", base, (long)getpid(), r);
+  for (i = 0; i < 1000; i++) { /* a crashed run with our pid may have left one */
+    sprintf(path, "%s/xppautoX-%ld-%d", base, (long)getpid(), i);
     if (mkdir(path, 0700) == 0)
       return path;
     if (errno != EEXIST)

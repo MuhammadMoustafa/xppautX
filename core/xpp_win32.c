@@ -51,9 +51,7 @@ int xpp_read_stdin(char *buf, int n)
 
 void xpp_binary_mode(int fd) { _setmode(fd, _O_BINARY); }
 
-/* xpp_util.c's POSIX xpp_make_temp_dir/xpp_remove_temp_dir, built here
-   instead so <windows.h> stays out of the core files that call them
-   (xpp_util.c, auto_nox.c via xpp_globals.h's xpp_auto_dir). */
+/* the Windows side of xpp_util.c's AUTO scratch directory */
 char *xpp_make_temp_dir(void)
 {
     char base[MAX_PATH];
@@ -67,8 +65,7 @@ char *xpp_make_temp_dir(void)
     path = (char *)malloc((size_t)n + 64);
     if (path == NULL) return NULL;
     for (i = 0; i < 1000; i++) {
-        sprintf(path, "%s\\xppautoX-%lu-%lu-%d", base, (unsigned long)GetCurrentProcessId(),
-                (unsigned long)GetTickCount(), i);
+        sprintf(path, "%s\\xppautoX-%lu-%d", base, (unsigned long)GetCurrentProcessId(), i);
         if (_mkdir(path) == 0) return path;
     }
     free(path);

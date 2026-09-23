@@ -55,16 +55,14 @@ class Server:
                                      text=True, bufsize=1, env=full)
         self.events = queue.Queue()
         self.sent_at = {}
-        self.stderr = []
-        self.auto_dir = None  # from "xpp_auto_dir=..." (xppautx_main.c), once seen
         threading.Thread(target=self._read, daemon=True).start()
-        threading.Thread(target=self._read_stderr, daemon=True).start()
+        threading.Thread(target=lambda: [None for _ in self.proc.stderr], daemon=True).start()
 
-    def _read_stderr(self):
-        for line in self.proc.stderr:
-            self.stderr.append(line)
-            if self.auto_dir is None and line.startswith('xpp_auto_dir='):
-                self.auto_dir = line.strip().split('=', 1)[1]
+    def auto_dirs(self):
+        """AUTO's scratch directories of this process (xpp_make_temp_dir)"""
+        tmp = tempfile.gettempdir() if os.name == 'nt' else (os.environ.get('TMPDIR') or '/tmp')
+        pre = 'xppautoX-%d-' % self.proc.pid
+        return [os.path.join(tmp, d) for d in os.listdir(tmp) if d.startswith(pre)]
 
     def _read(self):
         for line in self.proc.stdout:
