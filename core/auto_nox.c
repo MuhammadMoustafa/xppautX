@@ -55,6 +55,7 @@
 #include "xpplim.h"
 #include "autlim.h"
 #include "xAuto.h" 
+#include "xpp_job.h"
 
 #define MAXLINELENGTH 100000
 #define PACK_AUTO 0
@@ -692,9 +693,11 @@ void do_auto(iold,isave,itp)
 		*/
  
     open_auto(iold); /* this copies the relevant files .s  to fort.3 */
+    xpp_job_begin(0); /* Abort cancels it (xpp_job.h) */
     go_go_auto(); /* this complets the initialization and calls the 
                       main routines 
 		  */
+    xpp_job_end();
     /* plintf("AUTO opened it==%d\n",itp); */
     /*     run_aut(Auto.nfpar,itp); THIS WILL CHANGE TO gogoauto stuff */ 
     close_auto(isave); /* this copies fort.8 to the .s file and other 

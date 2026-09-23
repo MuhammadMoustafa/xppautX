@@ -80,6 +80,7 @@ NOTE: except for the structure MyGraph, it is "x-free" so it
 extern GRAPH *MyGraph;
 #include "menudrive.h"
 #include "arrayplot.h"
+#include "xpp_job.h"
 #define MSWTCH(u,v) memcpy((void *)(u),(void *)(v),xpv.node*sizeof(double))
 
 #define READEM 1
@@ -1493,7 +1494,9 @@ void usual_integrate_stuff(x)
       storind=1;
     }
  
+  xpp_job_begin(0); /* Abort cancels it (xpp_job.h) */
   integrate(&MyTime,x,TEND,DELTA_T,1,NJMP,&MyStart);
+  xpp_job_end();
   
   ping();
   INFLAG=1;

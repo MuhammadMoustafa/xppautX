@@ -2,6 +2,7 @@
    historical function names working. See xpp_ui.h. */
 #include "xpp_ui.h"
 #include "xpp_globals.h"
+#include "xpp_job.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -270,7 +271,18 @@ int do_edit_box(int n, char *title, char **names, char **values)
 int GetMouseXY(int *x, int *y) { return xpp_ui.get_mouse_xy(x, y); }
 void flash(int num) { xpp_ui.menu_flash(num); }
 int menu_choose(const struct XppMenu *m, int def) { return xpp_ui.menu_choose(m, def); }
-int my_abort(void) { return xpp_ui.check_abort(); }
+/* the running job's checkpoint (xpp_job.h): Escape as soon as the job is
+   cancelled, else the front end's own poll at most every 50 ms; its Escape
+   (or Abort button) cancels the job, so later checks need no poll */
+int my_abort(void)
+{
+    int ch;
+    if (xpp_job_cancelled()) return 27;
+    if (!xpp_job_poll_due()) return 64;
+    ch = xpp_ui.check_abort();
+    if (ch == 27) xpp_job_cancel_current();
+    return ch;
+}
 int get_command_width(void) { return xpp_ui.progress_begin(); }
 void plot_command(int nit, int icount, int cwidth) { xpp_ui.progress(nit, icount, cwidth); }
 void FlushDisplay(void) { xpp_ui.flush(); }
@@ -310,7 +322,19 @@ void redraw_auto_menus(void) { xpp_ui.auto_redraw_menus(); }
 void clear_auto_info(void) { xpp_ui.auto_clear_info(); }
 void draw_auto_info(char *bob, int x, int y) { xpp_ui.auto_draw_info(bob, x, y); }
 void refreshdisplay(void) { xpp_ui.auto_refresh(); }
-int byeauto_(int *iflag) { return xpp_ui.auto_check_abort(iflag); }
+int byeauto_(int *iflag) /* AUTO's checkpoint, as my_abort() */
+{
+    int r;
+    *iflag = 0;
+    if (xpp_job_cancelled()) {
+        *iflag = 1;
+        return 0;
+    }
+    if (!xpp_job_poll_due()) return 0;
+    r = xpp_ui.auto_check_abort(iflag);
+    if (*iflag == 1) xpp_job_cancel_current();
+    return r;
+}
 int auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag)
 {
     return xpp_ui.auto_rubber(i1, j1, i2, j2, flag);

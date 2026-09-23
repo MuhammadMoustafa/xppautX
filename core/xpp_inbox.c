@@ -80,6 +80,11 @@ void xpp_inbox_close(void)
 /* the queue to take from now, or -1; call with the lock held */
 static int pick(int which)
 {
+    if (which == XPP_INBOX_ARRIVAL) {
+        Item *n = queues[XPP_INBOX_NORMAL].head, *c = queues[XPP_INBOX_CONTROL].head;
+        if (!n || !c) return c ? XPP_INBOX_CONTROL : n ? XPP_INBOX_NORMAL : -1;
+        return c->seq < n->seq ? XPP_INBOX_CONTROL : XPP_INBOX_NORMAL;
+    }
     if (which != XPP_INBOX_NORMAL && queues[XPP_INBOX_CONTROL].head) return XPP_INBOX_CONTROL;
     if (which != XPP_INBOX_CONTROL && queues[XPP_INBOX_NORMAL].head) return XPP_INBOX_NORMAL;
     return -1;

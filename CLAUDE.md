@@ -109,7 +109,12 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   xpp_http.c in web mode. Input never touches the core thread: reader
   threads (xpp_http.c, or the --server stdin reader) push lines into
   `core/xpp_inbox.c` (control and normal queues) and `read_line()` takes
-  them from there; `-silent` starts no reader. Rebuild after
+  them from there; `-silent` starts no reader. Abort and Quit cancel the
+  running job from the reader thread (`core/xpp_job.[ch]`, by sequence
+  number); computations ask `xpp_job_cancelled()` or go through the
+  throttled checkpoints `my_abort()`/`byeauto_()`. ui_json.c's `classify()`
+  says which lines are control lines; docs/protocol.md "Commands during a
+  command" is the contract. Rebuild after
   editing `web/` files; `node web/serve.js` still serves them from disk.
 - The X11 front end is frozen: new UI work goes into ui_json.c and
   `web/`; docs/front-end-gaps.md tracks parity.

@@ -4,8 +4,8 @@ travels, how input is read, and how quickly a long computation stops.
 
 usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [SECTION...]
 
-Sections: draw, input, abort, files, sessions (default: draw input abort
-files). files compares AUTO's saved diagram of lecar with a reference;
+Sections: draw, input, abort, control, files, sessions (default: all but
+sessions). files compares AUTO's saved diagram of lecar with a reference;
 sessions checks that concurrent servers keep their AUTO files apart. --report prints the measurements
 without failing on the latency limits, for comparing builds.
 """
@@ -17,7 +17,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
 ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
-ap.add_argument('sections', nargs='*', default=['draw', 'input', 'abort', 'files'])
+ap.add_argument('sections', nargs='*', default=['draw', 'input', 'abort', 'control', 'files'])
 args = ap.parse_args()
 here = os.path.dirname(os.path.abspath(__file__))
 LECAR = 'examples/ode/lecar.ode'
@@ -339,6 +339,86 @@ def section_sessions():
     left = os.listdir(home)
     check('nothing is written to HOME', left == [], str(left))
     shutil.rmtree(home, ignore_errors=True)
+
+# ---- control: Abort, Quit and queued commands during a long integration ----
+
+def set_total(s, total):
+    """nUmerics/Total"""
+    s.send(cmd='key', key='u')
+    s.collect(is_idle)
+    s.send(cmd='key', key='t')
+    evs, ask = s.collect(is_ask)
+    s.send(cmd='answer', id=ask['id'], ok=1, value=str(total))
+    s.collect(is_idle)
+    s.send(cmd='key', key='Escape')
+    s.collect(is_idle)
+
+
+def rows(evs):
+    st = [e for e in evs if e.get('ev') == 'state']
+    return st[-1]['rows'] if st else None
+
+
+# a slider move integrates again at once, with no prompt on the way
+RERUN = {'cmd': 'slide', 'name': 'mu', 'value': -1, 'rerun': 1}
+
+
+def section_control():
+    s = Server(args.server, HEAVY, verbose=args.v)
+    s.collect(is_idle)
+    set_total(s, 400)  # 40001 rows, some 10 s
+
+    # an Abort sent right behind the command, before the engine has taken it
+    s.proc.stdin.write(json.dumps(RERUN) + '\n' + json.dumps({'cmd': 'abort'}) + '\n')
+    s.proc.stdin.flush()
+    t = time.monotonic()
+    evs, e = s.collect(is_idle, timeout=60)
+    took = (e['_t'] if e else time.monotonic()) - t
+    n = rows(evs)
+    check('an Abort sent with the command still stops it', e is not None and n is not None and n < 40001,
+          'rows %s' % n)
+    check('Abort right after the command: idle within 0.5 s', e is not None and took < 0.5, '%.2f s' % took,
+          limit=True)
+    print('INFO abort with the command -> idle %.2f s, %s rows' % (took, n))
+    s.collect(is_idle)  # the abort's own
+
+    # a command sent after an Abort is not cancelled by it
+    set_total(s, 20)
+    s.send(**RERUN)
+    evs, e = s.collect(is_idle, timeout=60)
+    check('a command sent after an Abort runs in full', rows(evs) == 2001, 'rows %s' % rows(evs))
+
+    # a normal command sent during a job waits for it and is not lost
+    set_total(s, 400)
+    open_auto(s)
+    s.send(**RERUN)
+    s.collect(lambda e: e.get('ev') == 'progress', timeout=30)
+    s.send(cmd='auto', op='close')
+    t = s.send(cmd='abort')
+    evs, e = s.collect(is_idle, timeout=60)
+    took = (e['_t'] if e else time.monotonic()) - t
+    closed = [x for x in evs if x.get('ev') == 'window' and x.get('win') == 101 and x.get('op') == 'destroy']
+    check('Abort stops an integration', e is not None and (rows(evs) or 0) < 40001, 'rows %s' % rows(evs))
+    check('Abort stops an integration within 0.5 s', e is not None and took < 0.5, '%.2f s' % took, limit=True)
+    print('INFO abort during an integration -> idle %.2f s' % took)
+    check('a command sent during a job waits for its idle', not closed)
+    evs, e = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 101 and e.get('op') == 'destroy',
+                       timeout=10)
+    check('a command sent during a job runs after it (Close)', e is not None)
+    s.collect(is_idle)
+
+    # Quit during an integration
+    s.send(**RERUN)
+    s.collect(lambda e: e.get('ev') == 'progress', timeout=30)
+    t = s.send(cmd='quit')
+    try:
+        s.proc.wait(timeout=30)
+    except subprocess.TimeoutExpired:
+        s.proc.kill()
+    took = time.monotonic() - t
+    check('Quit during an integration exits within 1 s', took < 1, '%.2f s' % took, limit=True)
+    print('INFO quit during an integration -> exit %.2f s' % took)
+    s.close()
 
 
 for name in args.sections:

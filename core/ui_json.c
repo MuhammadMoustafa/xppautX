@@ -13,6 +13,7 @@
 #include "ui_json.h"
 #include "xpp_http.h"
 #include "xpp_inbox.h"
+#include "xpp_job.h"
 #include "xpp_win32.h"
 #include "xpp_ui.h"
 #include "xpp_globals.h"
@@ -337,16 +338,24 @@ static void json_flush(void)
    HTTP server in browser mode and a stdin reader with --server, so the core
    never reads a descriptor itself.
 
-   The next line (without newline), in a buffer that stays valid until the
-   next call; NULL when nothing came within wait_ms (< 0 blocks, 0 polls).
-   Lines can be long (the pixels of a window in an answer). End of input
-   quits. */
-static char *read_line(int wait_ms)
+   Which queue a reader takes from (see classify() below): the command loop
+   takes lines in the order they came (XPP_INBOX_ARRIVAL), a prompt the
+   control lines first (XPP_INBOX_ANY), a long computation's checkpoint only
+   the control queue, so it never takes (and never drops) a command meant to
+   run after it.
+
+   The next line (without newline) from `which`, in a buffer that stays
+   valid until the next call, with its sequence number in line_seq; NULL
+   when nothing came within wait_ms (< 0 blocks, 0 polls). Lines can be long
+   (the pixels of a window in an answer). End of input quits. */
+static unsigned long line_seq;
+
+static char *read_line(int which, int wait_ms)
 {
     static char *line;
     free(line);
     line = NULL;
-    switch (xpp_inbox_next(XPP_INBOX_ANY, wait_ms, &line, NULL)) {
+    switch (xpp_inbox_next(which, wait_ms, &line, &line_seq)) {
     case 1:
         return line;
     case -1:
@@ -533,9 +542,77 @@ static int handle_async(const char *line)
     return 0;
 }
 
+/* The input classifier (xpp_inbox.h), on the reader thread: it only parses
+   the line and touches xpp_job's atomics.
+
+   abort and quit go to the control queue always, and cancel the running
+   job (and any not yet begun that came before them) at once: the
+   computation sees xpp_job_cancelled() at its next check without reading
+   input. Quit then exits when the engine takes the line.
+
+   key, set, size, state, browser with from, and ani pause/fast/slow are
+   what a computation's checkpoint acts on (Escape stops it, a set changes
+   a parameter under it, the animation loop changes speed): they go to the
+   control queue only while a job runs, and are meant for that job; a set
+   sent then applies at once, ahead of commands queued behind the job, as
+   it always has. Sent while no job runs they stay normal: prompts take
+   control lines first and checkpoints nothing else, so a control line
+   could be taken by the next command's prompt or computation ahead of
+   commands sent before it; a normal line runs in its turn. The command
+   loop reads both queues in arrival order, so a control line no job
+   consumed also runs in its turn, as an ordinary command.
+
+   Everything else is normal: a command sent while a job runs waits for
+   it, and runs after the job's idle. */
+static int classify(const char *line, unsigned long seq)
+{
+    char c[16], o[16];
+    if (!get_str(line, "cmd", c, sizeof c)) return XPP_INBOX_NORMAL;
+    if (strcmp(c, "abort") == 0 || strcmp(c, "quit") == 0) {
+        xpp_job_cancel(seq);
+        return XPP_INBOX_CONTROL;
+    }
+    if (!xpp_job_running()) return XPP_INBOX_NORMAL;
+    if (strcmp(c, "key") == 0 || strcmp(c, "set") == 0 || strcmp(c, "size") == 0 || strcmp(c, "state") == 0)
+        return XPP_INBOX_CONTROL;
+    if (strcmp(c, "browser") == 0 && js_find(line, "from")) return XPP_INBOX_CONTROL;
+    if (strcmp(c, "ani") == 0 && get_str(line, "op", o, sizeof o) &&
+        (strcmp(o, "pause") == 0 || strcmp(o, "fast") == 0 || strcmp(o, "slow") == 0))
+        return XPP_INBOX_CONTROL;
+    return XPP_INBOX_NORMAL;
+}
+
+#define ANI_PAUSE (-1)
+
+/* a control line taken by a checkpoint: every kind classify() puts there
+   is acted on, none dropped. Returns ESC for abort, the code of a key,
+   ANI_PAUSE for the animation's Pause, 64 otherwise. */
+static int control_line(const char *line)
+{
+    char k[32];
+    if (handle_async(line)) return 64;
+    if (is_cmd(line, "abort")) return ESC;
+    if (is_cmd(line, "key")) {
+        get_str(line, "key", k, sizeof k);
+        return key_code(k);
+    }
+    if (is_cmd(line, "set")) {
+        apply_set(line);
+        return 64;
+    }
+    if (is_cmd(line, "ani")) {
+        get_str(line, "op", k, sizeof k);
+        if (strcmp(k, "pause") == 0) return ANI_PAUSE;
+        if (strcmp(k, "fast") == 0 && (ani_speed -= ani_speed_inc) < 0) ani_speed = 0;
+        if (strcmp(k, "slow") == 0 && (ani_speed += ani_speed_inc) > 100) ani_speed = 100;
+    }
+    return 64;
+}
+
 /* ---- prompts ------------------------------------------------------------- */
 
 static int ask_id;
+static int ask_user; /* the open ask is the user's to answer, not the client's (pixels) */
 static char *answer;
 static size_t answer_cap;
 
@@ -549,7 +626,7 @@ static int ask_wait(Buf *b, int id)
     send_buf(b);
     free(b->s);
     for (;;) {
-        char *line = read_line(-1);
+        char *line = read_line(XPP_INBOX_ANY, -1);
         if (handle_async(line)) {
             flush_ops();
             out_flush();
@@ -563,6 +640,8 @@ static int ask_wait(Buf *b, int id)
                 answer = realloc(answer, n);
             }
             memcpy(answer, line, n);
+            /* an Abort sent before this answer no longer stops the command */
+            if (ask_user) xpp_job_resume(line_seq);
             ok = js_find(answer, "ok");
             return ok == NULL || js_num(ok, 0) != 0;
         }
@@ -576,6 +655,7 @@ static int ask_begin(Buf *b, const char *kind)
     b->s = NULL;
     b->len = b->cap = 0;
     ask_id++;
+    ask_user = strcmp(kind, "pixels") != 0;
     buf_printf(b, "{\"ev\":\"ask\",\"id\":%d,\"kind\":\"%s\"", ask_id, kind);
     return ask_id;
 }
@@ -846,15 +926,11 @@ static int j_check_abort(void)
         flush_ops();
         out_flush();
     }
-    while ((line = read_line(0)) != NULL) {
-        if (handle_async(line)) continue;
-        if (is_cmd(line, "key")) {
-            char k[32];
-            get_str(line, "key", k, sizeof k);
-            return key_code(k);
-        }
-        if (is_cmd(line, "abort")) return ESC;
-        if (is_cmd(line, "set")) apply_set(line);
+    /* only the control queue: a command sent during the computation waits
+       for it (classify()) */
+    while ((line = read_line(XPP_INBOX_CONTROL, 0)) != NULL) {
+        int r = control_line(line);
+        if (r != 64 && r != ANI_PAUSE) return r;
     }
     return 64;
 }
@@ -1889,23 +1965,16 @@ static int ani_wait(int ms)
     flush_ops();
     out_flush();
     for (;;) {
-        char *line, o[16];
+        char *line;
         long left;
+        int r;
+        if (xpp_job_cancelled()) return 1;
         gettimeofday(&now, NULL);
         left = ms - ((now.tv_sec - start.tv_sec) * 1000 + (now.tv_usec - start.tv_usec) / 1000);
-        line = read_line(left > 0 ? (int)left : 0);
+        line = read_line(XPP_INBOX_CONTROL, left > 0 ? (int)left : 0);
         if (!line) return 0;
-        if (handle_async(line)) continue;
-        if (is_cmd(line, "abort")) return 1;
-        if (is_cmd(line, "key")) {
-            get_str(line, "key", o, sizeof o);
-            if (key_code(o) == ESC) return 1;
-        }
-        if (!is_cmd(line, "ani")) continue;
-        get_str(line, "op", o, sizeof o);
-        if (strcmp(o, "pause") == 0) return 1;
-        if (strcmp(o, "fast") == 0 && (ani_speed -= ani_speed_inc) < 0) ani_speed = 0;
-        if (strcmp(o, "slow") == 0 && (ani_speed += ani_speed_inc) > 100) ani_speed = 100;
+        r = control_line(line);
+        if (r == ESC || r == ANI_PAUSE) return 1;
     }
 }
 
@@ -2298,9 +2367,12 @@ static void apply_set(const char *line)
     box_values_loaded(type);
 }
 
-void json_ui_handle(const char *line)
+/* one command, run as a job (xpp_job.h) numbered by its line's sequence
+   number: an abort cancels it from the reader thread */
+static void handle_line(const char *line, unsigned long seq)
 {
     char k[32];
+    xpp_job_begin(seq);
     if (handle_async(line)) {
     } else if (is_cmd(line, "key")) {
         get_str(line, "key", k, sizeof k);
@@ -2374,9 +2446,12 @@ void json_ui_handle(const char *line)
     if (browser_dirty && br_count) send_browser();
     json_flush();
     /* the command is finished; the client may send the next one */
+    xpp_job_end();
     send_state();
     send_simple("idle", NULL, NULL);
 }
+
+void json_ui_handle(const char *line) { handle_line(line, 0); }
 
 void json_ui_loop(void)
 {
@@ -2384,14 +2459,15 @@ void json_ui_loop(void)
     size_t cap = 0;
     for (;;) {
         /* a copy: the command's own prompts read further lines */
-        char *line = read_line(-1);
+        char *line = read_line(XPP_INBOX_ARRIVAL, -1);
+        unsigned long seq = line_seq;
         size_t n = strlen(line) + 1;
         if (n > cap) {
             cap = n;
             copy = realloc(copy, cap);
         }
         memcpy(copy, line, n);
-        json_ui_handle(copy);
+        handle_line(copy, seq);
     }
 }
 
@@ -2416,6 +2492,7 @@ void json_ui_install(void)
         win_w[i] = 640;
         win_h[i] = 480;
     }
+    xpp_inbox_set_classifier(classify);
     xpp_set_ui(&json_ui);
 }
 
