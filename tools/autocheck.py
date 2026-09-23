@@ -211,6 +211,15 @@ def periodic_run(s):
     return stamps[1] - stamps[0]
 
 
+def run_periodic(s):
+    """Auto/Run from the grabbed point, continuing its periodic branch: the
+    Hopf point's menu starts it (p), a periodic label's extends it (e)"""
+    s.send(cmd='auto', op='run')
+    evs, ask = s.collect(is_ask)
+    if ask:
+        s.send(cmd='answer', id=ask['id'], key='p' if 'p' in ask.get('keys', '') else 'e')
+
+
 def section_abort():
     s = Server(args.server, HEAVY, verbose=args.v)
     gap = periodic_run(s)
@@ -218,6 +227,8 @@ def section_abort():
     if gap is None:
         s.close()
         return
+    # a point takes a few Newton steps: land the Abort inside one of them
+    time.sleep(0.25)
     t = s.send(cmd='abort')
     evs, e = s.collect(is_idle, timeout=120)
     took = (e['_t'] if e else time.monotonic()) - t
@@ -225,22 +236,36 @@ def section_abort():
           'abort->idle %.2f s (a point takes %.2f s)' % (took, gap), limit=True)
     print('INFO abort->idle %.2f s, one point %.2f s' % (took, gap))
 
-    # the run can be continued from where it stopped
+    # the run ends on an end point (EP, not MX: no convergence), which is
+    # where it can be continued from
     s.send(cmd='auto', op='grab')
     evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='End')
     evs, ask = s.collect(is_ask)
     info = [o[3] for o in draw_ops(evs, 103) if o[0] == 'rtext']
-    s.send(cmd='answer', id=ask['id'], key='Escape')
+    last = info[-1] if info else '?'
+    print('INFO last point after abort: %s' % last)
+    check('an aborted run ends on an EP point', last.split()[2:3] == ['EP'], last)
+    s.send(cmd='answer', id=ask['id'], key='Return')
     s.collect(is_idle)
-    print('INFO last point after abort: %s' % (info[-1:] or '?'))
     check('the server is still alive after an abort', s.alive())
 
+    # a second run continues the branch from that point
+    run_periodic(s)
+    n = 0
+    while n < 2:
+        evs, e = s.collect(lambda e: (e.get('ev') == 'draw' and e.get('win') == 102) or is_idle(e) or is_ask(e),
+                           timeout=60)
+        if e is None or e.get('ev') != 'draw':
+            break
+        n += 1
+    check('a run from the end point of the aborted run draws new points', n == 2, '%d points' % n)
+    s.send(cmd='abort')
+    s.collect(is_idle, timeout=120)
+    check('the server is still alive after the second run', s.alive())
+
     # Close during a run: the AUTO window goes within a second
-    s.send(cmd='auto', op='run')
-    evs, ask = s.collect(is_ask)
-    if ask:
-        s.send(cmd='answer', id=ask['id'], key='p')
+    run_periodic(s)
     s.collect(lambda e: e.get('ev') == 'draw' and e.get('win') == 102, timeout=60)
     t = s.send(cmd='abort')
     s.send(cmd='auto', op='close')
@@ -254,10 +279,7 @@ def section_abort():
 
     # Quit during a run: the process ends within a second
     open_auto(s)
-    s.send(cmd='auto', op='run')
-    evs, ask = s.collect(is_ask)
-    if ask:
-        s.send(cmd='answer', id=ask['id'], key='p')
+    run_periodic(s)
     s.collect(lambda e: e.get('ev') == 'draw' and e.get('win') == 102, timeout=60)
     t = s.send(cmd='quit')
     try:

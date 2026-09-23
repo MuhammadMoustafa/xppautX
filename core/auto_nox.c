@@ -697,6 +697,7 @@ void do_auto(iold,isave,itp)
     go_go_auto(); /* this complets the initialization and calls the 
                       main routines 
 		  */
+    if(xpp_job_cancelled())RestartLabel=0; /* xppautX: cancel: no follow-up run */
     xpp_job_end();
     /* plintf("AUTO opened it==%d\n",itp); */
     /*     run_aut(Auto.nfpar,itp); THIS WILL CHANGE TO gogoauto stuff */ 

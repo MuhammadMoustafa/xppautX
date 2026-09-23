@@ -3,6 +3,8 @@
 #include "xAuto.h"
 #include "xpp_ui.h" /* err_msg() */
 #include "auto_nox.h" /* auto_screen_col() */
+#include "xpp_job.h" /* xpp_job_cancelled() */ /* xppautX: cancel */
+extern int xpp_setubv_stop; /* xppautX: cancel (setubv2.c) */
 extern XAUTO xAuto;
 extern int NODE;
 extern int RestartLabel;
@@ -1429,6 +1431,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   for (nit1 = 1; nit1 <= itnw; ++nit1) {
 
+    if (xpp_job_cancelled()) goto L5; /* xppautX: cancel */
     nit = nit1;
     iap->nit = nit;
     par[icp[0]] = rlcur[0];
@@ -2823,7 +2826,7 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   rap->amp = amp;
   byeauto_(&iflag); 
   istop = iap->istop;
-  if (istop == 1) {
+  if (istop == 1 && !xpp_job_cancelled()) { /* xppautX: cancel: EP, not MX */
     /*        Maximum number of iterations reached somewhere. */
     itp = -9 - itpst * 10;
     iap->itp = itp;
@@ -5648,6 +5651,8 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   for (nit1 = 1; nit1 <= itnw; ++nit1) {
 
+    { int iflag; byeauto_(&iflag); } /* xppautX: cancel */
+    if (xpp_job_cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
     nitps = nit1;
     iap->nit = nitps;
     nllv = 0;
@@ -5657,11 +5662,14 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       ifst = 1;
     }
 
+    xpp_setubv_stop = 1; /* xppautX: cancel */
     solvbv(&ifst, iap, rap, par, icp, funi, bcni, icni, 
 	   rds, &nllv, rlcur, rlold, rldot, ndxloc, 
 	   ups, dups, uoldps, 
 	   udotps, upoldp, dtm, fa, fc, p0, 
 	   p1, thl, thu);
+    xpp_setubv_stop = 0; /* xppautX: cancel */
+    if (xpp_job_cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
     /* Add Newton increments. */
 
     for (i = 0; i < ndim; ++i) {
@@ -7085,7 +7093,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
    call with iflag  */
   byeauto_(&iflag);
   istop = iap->istop;
-  if (istop == 1) {
+  if (istop == 1 && !xpp_job_cancelled()) { /* xppautX: cancel: EP, not MX */
     /*        ** Maximum number of iterations reached somewhere. */
     itp = -9 - itpst * 10;
     iap->itp = itp;

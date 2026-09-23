@@ -1,6 +1,12 @@
 #include "auto_f2c.h"
 #include "auto_c.h"
 #include "auto_types.h"
+#include "xpp_job.h" /* xppautX: cancel */
+
+/* xppautX: cancel: 1 while stepbv solves a Newton step. A cancelled job then
+   stops setubv early; solvbv skips the solve and stepbv goes back to the last
+   point (its failure exit). Other solves (stdrbv's direction) run to the end. */
+int xpp_setubv_stop = 0;
 
 #ifdef TIME
 #include <unistd.h>
@@ -108,6 +114,7 @@ void *setubv_make_aa_bb_cc(void * arg)
   /*      Partition the mesh intervals */
   /*jj will be replaced with loop_start and loop_end*/
   for (jj = larg->loop_start; jj < larg->loop_end; ++jj) {
+    if (xpp_setubv_stop && xpp_job_cancelled()) break; /* xppautX: cancel */
     j = jj;
     jp1 = j + 1;
     dt = larg->dtm[j];
@@ -409,6 +416,7 @@ void setubv_make_fa(setubv_parallel_arglist larg) {
   doublereal *prm  = (doublereal *)malloc(sizeof(doublereal)*NPARX);
 
   for (jj = 0; jj < larg.na; ++jj) {
+    if (xpp_setubv_stop && xpp_job_cancelled()) break; /* xppautX: cancel */
     j = jj;
     jp1 = j + 1;
     dt = larg.dtm[j];

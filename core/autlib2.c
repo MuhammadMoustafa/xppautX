@@ -5,6 +5,8 @@
 
 #include "auto_f2c.h"
 #include "auto_c.h"
+#include "xpp_job.h" /* xppautX: cancel */
+extern int xpp_setubv_stop; /* xppautX: cancel (setubv2.c) */
 /* #include "malloc.h" */
 
 /*#define ACCES_TEST*/
@@ -337,6 +339,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   }
   /*     The matrix D and FC are set to zero for all nodes except the first.
    */
+  if (xpp_setubv_stop && xpp_job_cancelled()) { free(ff); free(ft); return 0; } /* xppautX: cancel */
   if (iam > 0) {
     setfcdd(ifst, main_auto_storage.d, fc, &nfpr, &nrc);
   }

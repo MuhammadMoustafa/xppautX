@@ -59,9 +59,9 @@ if command -v python3 >/dev/null; then
     echo "WEB CHECK FAILED"
     exit 1
   fi
-  # the sections whose limits the code meets; abort joins when AUTO checks for
-  # cancellation inside a continuation step, not only between points
-  if python3 tools/autocheck.py draw input control files > build/autocheck.log 2>&1; then
+  # every section but sessions (two servers, slow); abort's limits hold since
+  # AUTO checks for cancellation inside a continuation step
+  if python3 tools/autocheck.py draw input abort control files > build/autocheck.log 2>&1; then
     echo "auto checks ok: $(grep -c '^PASS' build/autocheck.log) checks"
   else
     grep -v '^PASS' build/autocheck.log
