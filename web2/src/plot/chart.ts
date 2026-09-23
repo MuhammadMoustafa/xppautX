@@ -221,7 +221,9 @@ export class Chart {
     this.u?.destroy();
     this.traces = [];
     this.vertices = m.curves.map(() => null);
-    const fg = cssVar('--fg-muted') || '#666', grid = cssVar('--grid') || '#eee', font = cssVar('--plot-font');
+    /* the theme's colours when drawn: a theme switch sets the variables after the chart is made
+       (useDark's effect runs after this view's), so values read now would be the old theme's */
+    const fg = () => cssVar('--fg-muted') || '#666', grid = () => cssVar('--grid') || '#eee', font = cssVar('--plot-font');
     const axis = (label: string): uPlot.Axis => ({
       label, stroke: fg, font, labelFont: font, grid: {stroke: grid, width: 1}, ticks: {stroke: grid, width: 1},
     });

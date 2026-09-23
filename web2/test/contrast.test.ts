@@ -35,7 +35,28 @@ const PAIRS: [string, string, number][] = [
   ['--focus', '--surface', 3], ['--focus', '--bg', 3], ['--field-border', '--surface', 3], ['--field-border', '--bg', 3],
 ];
 
+/* hue in degrees, reds near 360 counted as just below 0 */
+function hue(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
+  const h = d === 0 ? 0 : max === r ? 60 * (((g - b) / d) % 6) : max === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+  const deg = (h + 360) % 360;
+  return deg > 330 ? deg - 360 : deg;
+}
+
 for (const theme of ['light', 'dark'] as const) {
+  test(`${theme} theme: curve colours 1..10 follow XPP's names, red to purple`, () => {
+    /* color_names[] in core/graf_par.c: RED, REDORANGE, ORANGE, YELLOWORANGE, YELLOW, YELLOWGREEN, GREEN,
+       BLUEGREEN, BLUE, PURPLE: the hue climbs from red (0) to purple (about 270) */
+    const hues = CURVE_COLORS[theme].slice(1).map(hue);
+    assert.equal(hues.length, 10);
+    for (let i = 1; i < hues.length; i++)
+      assert.ok(hues[i] > hues[i - 1], `colour ${i + 1} ${CURVE_COLORS[theme][i + 1]} (hue ${hues[i].toFixed(0)}) `
+        + `after colour ${i} (hue ${hues[i - 1].toFixed(0)})`);
+    assert.ok(hues[0] < 15 && hues[6] > 90 && hues[6] < 160 && hues[9] > 240 && hues[9] < 300,
+      `red, green and purple where XPP names them: ${hues.map(h => h.toFixed(0)).join(' ')}`);
+  });
+
   test(`${theme} theme: text 4.5:1, focus ring and field edges 3:1`, () => {
     const t = tokens()[theme];
     for (const [fg, bg, min] of PAIRS) {

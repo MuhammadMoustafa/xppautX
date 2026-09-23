@@ -6,8 +6,8 @@
 
 const LIGHT = ['#1f2937', '#d62839', '#e8590c', '#d97706', '#b8860b', '#a88400', '#6b8e00', '#2b9348', '#0c8599',
   '#1c7ed6', '#7048e8'];
-const DARK = ['#e5e7eb', '#ff6b6b', '#ff922b', '#fcc419', '#ffe066', '#c0eb75', '#69db7c', '#3bc9db',
-  '#4dabf7', '#748ffc', '#b197fc'];
+const DARK = ['#e5e7eb', '#ff6b6b', '#ff7a45', '#ffa94d', '#fcc419', '#ffe066', '#c0eb75', '#69db7c', '#3bc9db',
+  '#4dabf7', '#b197fc'];
 
 export const CURVE_COLORS = {light: LIGHT, dark: DARK} as const;
 
