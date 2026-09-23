@@ -177,7 +177,7 @@ void x11_err_msg(string)
 char *string;
 {
  if(Xup) respond_box("OK",string);
- else {xpp_log(XPP_LOG_ERROR,"%s",string);}
+ else {xpp_log(XPP_LOG_ERROR,"%s\n",string);}
  
 }
 

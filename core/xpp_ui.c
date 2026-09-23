@@ -13,7 +13,7 @@ int do_calc(char *temp, double *z); /* xpp_util.c */
 
 /* ---- headless defaults ------------------------------------------------ */
 
-static void hl_err_msg(char *msg) { xpp_log(XPP_LOG_ERROR, "%s", msg); }
+static void hl_err_msg(char *msg) { xpp_log(XPP_LOG_ERROR, "%s\n", msg); }
 static void hl_void(void) {}
 static void hl_str(char *s) { (void)s; }
 static void hl_int(int v) { (void)v; }

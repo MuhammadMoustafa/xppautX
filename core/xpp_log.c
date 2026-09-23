@@ -4,45 +4,48 @@
 #include <string.h>
 
 static XppLogLevel threshold = XPP_LOG_WARN;
+static int auto_echo;
+
+extern FILE *logfile; /* xpp_globals.c: -logfile FILE or LOGFILE= in the model */
 
 void xpp_log_set_threshold(XppLogLevel level) { threshold = level; }
 XppLogLevel xpp_log_get_threshold(void) { return threshold; }
+void xpp_log_set_auto_echo(int on) { auto_echo = on; }
 
-/* Reader threads (xpp_http.c, the --server stdin reader) do not log in
-   their hot paths (see xpp_log.h); an occasional fprintf from one of them
-   racing the main thread's is no worse than any other interleaved writes
-   to the same stderr, which is what upstream xppaut already did with
-   plintf()/printf() from a single thread. No extra locking here. */
-static void emit(FILE *out, const char *fmt, va_list ap)
+/* where messages go: -logfile's file when one was given, else stderr
+   (stdout is the protocol's in --server mode; logfile's default is stdout) */
+static FILE *sink(void)
 {
-    size_t n = strlen(fmt);
-    vfprintf(out, fmt, ap);
-    if (n == 0 || fmt[n - 1] != '\n') fputc('\n', out);
-    fflush(out);
+    return logfile != NULL && logfile != stdout ? logfile : stderr;
 }
 
+/* printf semantics: the caller writes the newline, so a line can be built
+   in pieces */
 void xpp_log_v(XppLogLevel level, const char *fmt, va_list ap)
 {
+    FILE *out = sink();
     if (level > threshold) return;
-    emit(stderr, fmt, ap);
+    vfprintf(out, fmt, ap);
+    fflush(out);
 }
 
 void xpp_log(XppLogLevel level, const char *fmt, ...)
 {
     va_list ap;
-    if (level > threshold) return;
     va_start(ap, fmt);
-    emit(stderr, fmt, ap);
+    xpp_log_v(level, fmt, ap);
     va_end(ap);
 }
 
 void xpp_log_auto(const char *fmt, ...)
 {
     va_list ap;
+    FILE *out = sink();
+    if (!auto_echo && threshold < XPP_LOG_INFO) return;
     va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
+    vfprintf(out, fmt, ap);
     va_end(ap);
-    fflush(stderr);
+    fflush(out);
 }
 
 int xpp_log_parse_arg(const char *arg)

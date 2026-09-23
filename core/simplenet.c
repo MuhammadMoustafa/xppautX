@@ -1662,7 +1662,7 @@ int getimpstr(char *in,int *i,char *out)
 
 int import_error()
 {
-  xpp_log(XPP_LOG_INFO, "k=import(soname,sofun,nret,var0,w1,...,wm)");
+  xpp_log(XPP_LOG_INFO, "k=import(soname,sofun,nret,var0,w1,...,wm)\n");
   return 0;
 }
 int parse_import(char *s,  char *soname,char *sofun,int *n, char *vname,int *m, char *tname[MAXW])

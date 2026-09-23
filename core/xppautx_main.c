@@ -128,10 +128,12 @@ int main(int argc, char **argv)
     if (batch) return xpp_batch_main(argc, argv);
     start_auto_dir();
     if (script && !json_ui_set_script(script)) {
-        xpp_log(XPP_LOG_ERROR, "xppautX: cannot open script %s", script);
+        xpp_log(XPP_LOG_ERROR, "xppautX: cannot open script %s\n", script);
         return 1;
     }
     if (web && !xpp_http_start(port, open_browser)) return 1;
+    /* the AUTO window's Output panel shows AUTO's table from the log */
+    if (web) xpp_log_set_auto_echo(1);
     /* a monospace font the client can match: small 7x13, big 9x15 */
     DCURXs = 7; DCURYs = 13; CURY_OFFs = 10;
     DCURXb = 9; DCURYb = 15; CURY_OFFb = 12;

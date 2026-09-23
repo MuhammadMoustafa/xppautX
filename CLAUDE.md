@@ -121,31 +121,14 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   says which lines are control lines; docs/protocol.md "Commands during a
   command" is the contract. Rebuild after
   editing `web/` files; `node web/serve.js` still serves them from disk.
-- `core/xpp_log.[ch]` is the one logging module, quiet by default: levels
-  `XPP_LOG_ERROR`/`WARN`/`INFO`/`DEBUG`, a global threshold (default
-  `WARN`), `xpp_log(level, fmt, ...)`/`xpp_log_v()`. `xppautX --verbose`/
-  `--debug` and `xpp_batch_main`'s own argv (`xppautx_main.c`, before
-  xpp's own options) and xpp's `-verbose`/`-debug` (`comline.c`) raise it
-  to `INFO`/`DEBUG`. Sink is stderr only, on purpose: in `--web` mode
-  `xpp_http.c` already redirects stdout and stderr into the pipe that
-  becomes the page's log panel, and in `--server` mode a stderr write
-  never touches `out_line()`'s protocol stream on stdout -- so quiet vs.
-  verbose Just Works on both front ends without a second, protocol-level
-  sink. `plintf()` (`core/xpp_ui.c`) is now a thin wrapper at `INFO`
-  (still honouring `XPPVERBOSE`, the ODE file's own `QUIET` option); a
-  real error goes through `err_msg()`/`xpp_log(..., ERROR)` instead,
-  never plintf. AUTO's per-point continuation table and its console
-  warnings (`autlib1.c` `wrline`/`headng_`, `gogoauto.c`, `auto_nox.c`,
-  `auto_x11.c`, `autlib2.c`, `autlib3.c`) go through `xpp_log_auto()`,
-  which always writes to stderr, ignoring the threshold: it is INFO-level
-  content, but the AUTO window's "Output" panel (web/xpp-client.js
-  `autoLog()`) is fed from the same captured stream as the console, and
-  needs it regardless of `--verbose`. AUTO's fort.7/fort.8/fort.9 files
-  are unrelated `fprintf(fp7/fp9, ...)` calls elsewhere and stay data,
-  not log output. One behaviour change: xpp's old `-logfile <file>`
-  option no longer redirects console text there (plintf used to write to
-  the `logfile` global directly); redirect stderr yourself
-  (`xppaut ... -logfile x 2> x` still works by hand) if you need that.
+- `core/xpp_log.[ch]` is the one logging module, quiet by default:
+  `xpp_log(level, fmt, ...)` with ERROR/WARN/INFO/DEBUG, threshold WARN,
+  raised by `--verbose`/`--debug` (`-verbose`/`-debug` for xppaut).
+  printf semantics (the caller writes the newline); output goes to
+  `-logfile`'s file if given, else stderr, which browser mode shows in the
+  page's log. `plintf()` is INFO, `err_msg()`'s headless default ERROR.
+  AUTO's table goes through `xpp_log_auto()`: INFO on the console, always
+  written in browser mode, where the AUTO window's Output panel shows it.
 - The X11 front end is frozen and will be removed once the new web UI
   covers it; new UI work goes into ui_json.c and `web/`;
   docs/front-end-gaps.md tracks parity.

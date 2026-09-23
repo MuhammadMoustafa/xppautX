@@ -2751,7 +2751,7 @@ void json_ui_install(void)
            file (json_ui_set_script(), called before this) is read by the
            core thread itself instead, so no reader thread for it here */
         if (!script_mode && !xpp_inbox_start_stdin()) {
-            xpp_log(XPP_LOG_ERROR, "xppautX: cannot start the input thread");
+            xpp_log(XPP_LOG_ERROR, "xppautX: cannot start the input thread\n");
             exit(1);
         }
     }
