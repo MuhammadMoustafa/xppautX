@@ -1,0 +1,119 @@
+/* The reducer and the plot model, without a browser (npm test). */
+import assert from 'node:assert/strict';
+import {test} from 'node:test';
+import {buildModel} from '../src/plot/model';
+import {nearestPoint} from '../src/plot/nearest';
+import {plotKey} from '../src/plot/plotKeys';
+import {zoomAbout} from '../src/plot/viewmath';
+import type {SeriesEvent} from '../src/protocol/types';
+import {initialState, reduce, type AppState} from '../src/store/state';
+
+const phase: SeriesEvent = {
+  ev: 'series', win: 1, rows: 3, three: 0, xlabel: '', ylabel: '', zlabel: '',
+  curves: [{x: 1, y: 2, z: 1, color: 0, line: 1}], shift: [0, 0, 0],
+  columns: [
+    {col: 0, name: 'T', data: [0, 0.05, 0.1]},
+    {col: 1, name: 'V', data: [-0.144, -0.1438, null]},
+    {col: 2, name: 'W', data: [0.03, 0.0301, 0.0302]},
+  ],
+};
+
+const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
+
+test('a series event becomes typed columns', () => {
+  const s = ev(initialState, phase);
+  assert.equal(s.seriesCount, 1);
+  assert.equal(s.series!.rows, 3);
+  assert.deepEqual([...s.series!.columns.keys()], [0, 1, 2]);
+  assert.ok(Number.isNaN(s.series!.columns.get(1)![2]), 'null is NaN');
+});
+
+test('the zoom survives new data for the same curves, not other curves', () => {
+  let s = ev(initialState, phase);
+  s = reduce(s, {type: 'viewport', viewport: {x: {min: 0, max: 1}, y: null}});
+  s = ev(s, phase);
+  assert.deepEqual(s.viewport.x, {min: 0, max: 1});
+  s = ev(s, {...phase, curves: [{x: 0, y: 1, z: 0, color: 0, line: 1}]});
+  assert.equal(s.viewport.x, null);
+});
+
+test('busy from a command to its idle; an answer closes the ask', () => {
+  let s = reduce(initialState, {type: 'sent', cmd: {cmd: 'key', key: 'i'}});
+  assert.equal(s.busy, true);
+  s = ev(s, {ev: 'ask', id: 3, kind: 'menu'});
+  assert.equal(s.ask?.id, 3);
+  s = reduce(s, {type: 'sent', cmd: {cmd: 'answer', id: 3, key: 'g'}});
+  assert.equal(s.ask, null);
+  assert.equal(s.busy, true);
+  s = ev(s, {ev: 'idle'});
+  assert.equal(s.busy, false);
+  assert.equal(reduce(s, {type: 'sent', cmd: {cmd: 'abort'}}), s, 'abort has no idle');
+});
+
+test('a phase plane is an xy plot, a time plot an aligned one', () => {
+  const s = ev(initialState, phase);
+  const m = buildModel(s.series!);
+  assert.equal(m.mode, 2);
+  assert.equal(m.curves[0].label, 'W vs V');
+  assert.equal(m.xLabel, 'V');
+  const t = ev(initialState, {...phase, curves: [{x: 0, y: 1, z: 0, color: 0, line: 1}]});
+  assert.equal(buildModel(t.series!).mode, 1);
+});
+
+test('lag plots drop the rows before the shift', () => {
+  const s = ev(initialState, {...phase, shift: [1, 0, 0]});
+  const c = buildModel(s.series!).curves[0];
+  assert.equal(c.row0, 1);
+  assert.deepEqual([...c.xs], [-0.144, -0.1438]); /* V of rows 0, 1 against W of rows 1, 2 */
+  assert.deepEqual([...c.ys], [0.0301, 0.0302]);
+});
+
+test('the nearest point is found in screen distance', () => {
+  const m = buildModel(ev(initialState, {...phase, columns: [phase.columns[0],
+    {col: 1, name: 'V', data: [0, 1, 2]}, {col: 2, name: 'W', data: [0, 10, 20]}]}).series!);
+  const frame = {xmin: 0, xmax: 2, ymin: 0, ymax: 20, width: 200, height: 200};
+  assert.deepEqual(nearestPoint(m.curves, [true], frame, 100, 100, 24), {curve: 0, index: 1, dist: 0});
+  assert.equal(nearestPoint(m.curves, [true], frame, 150, 20, 24), null);
+  assert.equal(nearestPoint(m.curves, [false], frame, 100, 100, 24), null);
+});
+
+test('zooms can be undone, one gesture at a time', () => {
+  const a = {x: {min: 0, max: 1}, y: null}, b = {x: {min: 0, max: 0.5}, y: null};
+  let s = reduce(initialState, {type: 'viewport', viewport: a, push: true});
+  s = reduce(s, {type: 'viewport', viewport: b, push: false}); /* the same gesture going on */
+  assert.equal(s.viewportHistory.length, 1);
+  s = reduce(s, {type: 'undoViewport'});
+  assert.deepEqual(s.viewport, {x: null, y: null});
+  assert.equal(reduce(s, {type: 'undoViewport'}), s);
+});
+
+test('errors and alerts become notifications; Abort shows Stopping until idle', () => {
+  let s = ev(initialState, {ev: 'message', error: 'bad formula'});
+  assert.deepEqual(s.toasts.map(t => [t.kind, t.text]), [['error', 'bad formula']]);
+  s = reduce(s, {type: 'dismiss', id: s.toasts[0].id});
+  assert.equal(s.toasts.length, 0);
+  s = reduce(s, {type: 'sent', cmd: {cmd: 'key', key: 'i'}});
+  s = reduce(s, {type: 'aborting'});
+  assert.equal(s.stopping, true);
+  assert.equal(ev(s, {ev: 'idle'}).stopping, false);
+});
+
+test('the plot keys pan, zoom, reset and step through points', () => {
+  const ranges = {x: {min: 0, max: 10}, y: {min: 0, max: 10}};
+  const ctx = {ranges, hover: null, counts: [5, 0, 3]};
+  assert.deepEqual(plotKey('ArrowRight', ctx), {view: {x: {min: 1, max: 11}, y: {min: 0, max: 10}}});
+  assert.deepEqual(plotKey('+', ctx), {view: {x: {min: 1, max: 9}, y: {min: 1, max: 9}}});
+  assert.deepEqual(plotKey('0', ctx), {reset: true});
+  assert.deepEqual(plotKey(']', ctx), {hover: {curve: 0, index: 0}});
+  assert.deepEqual(plotKey(']', {...ctx, hover: {curve: 0, index: 4}}), {hover: {curve: 0, index: 4}});
+  assert.deepEqual(plotKey('}', {...ctx, hover: {curve: 0, index: 4}}), {hover: {curve: 2, index: 2}}, 'skips hidden');
+  assert.deepEqual(plotKey('End', {...ctx, hover: {curve: 2, index: 0}}), {hover: {curve: 2, index: 2}});
+  assert.deepEqual(plotKey('Escape', {...ctx, hover: {curve: 0, index: 1}}), {hover: null});
+  assert.equal(plotKey('Escape', ctx), null, 'Escape goes on to XPP');
+  assert.equal(plotKey('i', ctx), null, 'letters are XPP hotkeys');
+});
+
+test('zoomAbout keeps the point under the pointer', () => {
+  const r = zoomAbout({x: {min: 0, max: 10}, y: {min: 0, max: 10}}, 0.2, 0.5, 0.5);
+  assert.deepEqual(r, {x: {min: 1, max: 6}, y: {min: 2.5, max: 7.5}});
+});

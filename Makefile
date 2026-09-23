@@ -94,8 +94,10 @@ UI_SOURCES := $(call src, abort aniwin aplotwin auto_x11 \
 # sbml2xpp.c needs libsbml and is not part of the upstream build.
 SERVER_SOURCES := $(call src, ui_json xppautx_main xpp_http xpp_inbox)
 CORE_SOURCES := $(filter-out $(UI_SOURCES) $(SERVER_SOURCES) $(SRCDIR)/sbml2xpp.%,$(ALL_SOURCES))
-# the page and script xppautX serves, compiled in
+# the pages xppautX serves, compiled in: the classic front end at /, the new
+# one at /v2/ (web2/dist, built from web2/src and committed: web2/build.mjs)
 WEB_FILES := web/index.html web/xpp-client.js web/xpp-client.css
+WEB2_FILES := web2/dist/index.html web2/dist/app.js web2/dist/app.css web2/dist/inter.woff2 web2/dist/inter-OFL.txt
 SERVER_OBJECTS := $(call obj,$(SERVER_SOURCES)) $(BUILDDIR)/web_assets.o
 $(BUILDDIR)/xppautx_main.o: CFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'
 $(BUILDDIR)/xppautx_main.o: CXXFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'
@@ -166,8 +168,8 @@ $(BUILDDIR)/tests:
 $(BUILDDIR)/embed$(EXE): tools/embed.c | $(BUILDDIR)
 	$(CC) -O2 -o $@ $<
 
-$(BUILDDIR)/web_assets.c: $(BUILDDIR)/embed$(EXE) $(WEB_FILES)
-	$(BUILDDIR)/embed$(EXE) $@ $(WEB_FILES)
+$(BUILDDIR)/web_assets.c: $(BUILDDIR)/embed$(EXE) $(WEB_FILES) $(WEB2_FILES)
+	$(BUILDDIR)/embed$(EXE) $@ $(WEB_FILES) --prefix=/v2/ $(WEB2_FILES)
 
 $(BUILDDIR)/web_assets.o: $(BUILDDIR)/web_assets.c
 	$(CC) -O2 -c $< -o $@

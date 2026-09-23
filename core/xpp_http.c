@@ -515,6 +515,8 @@ int xpp_http_start(int port, int open_browser)
     make_token();
     snprintf(url, sizeof url, "http://127.0.0.1:%d/?t=%s", got, token);
     printf("XPP: %s\n", url);
+    /* the new front end (docs/ui-v2.md), until it replaces the classic one */
+    printf("XPP (new interface, preview): http://127.0.0.1:%d/v2/?t=%s\n", got, token);
     fflush(stdout);
 
     /* what xppaut prints: to the terminal and the page */

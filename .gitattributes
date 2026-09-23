@@ -2,3 +2,5 @@
 *.pdf binary
 *.jar binary
 *.png binary
+# the built front end is compared byte for byte with what web2/src builds
+web2/dist/** -text

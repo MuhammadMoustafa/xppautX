@@ -126,11 +126,25 @@ const files = {
   '/xpp-client.css': ['xpp-client.css', 'text/css'],
 };
 
+/* the new front end, from web2/dist (npm run watch in web2 rebuilds it) */
+const web2Types = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8'};
+function web2File(url) {
+  const m = /^\/v2\/([\w.-]*)$/.exec(url);
+  if (!m) return null;
+  const file = path.join(repo, 'web2', 'dist', m[1] || 'index.html');
+  return fs.existsSync(file) ? file : null;
+}
+
 http.createServer((req, res) => {
   const url = req.url.split('?')[0];
+  const v2 = req.method === 'GET' && web2File(url);
   if (req.method === 'GET' && files[url]) {
     res.writeHead(200, {'Content-Type': files[url][1] + '; charset=utf-8', 'Cache-Control': 'no-store'});
     fs.createReadStream(path.join(__dirname, files[url][0])).pipe(res);
+  } else if (v2) {
+    res.writeHead(200, {'Content-Type': web2Types[path.extname(v2)] || 'application/octet-stream', 'Cache-Control': 'no-store'});
+    fs.createReadStream(v2).pipe(res);
   } else if (req.method === 'GET' && url === '/events') {
     res.writeHead(200, {'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive'});
     const replay = [sticky.hello, sticky.palette, ...windows.values(), sticky.state, sticky.ask];
@@ -160,4 +174,7 @@ http.createServer((req, res) => {
     res.writeHead(404);
     res.end();
   }
-}).listen(port, '127.0.0.1', () => console.log(`XPP: http://127.0.0.1:${port}/`));
+}).listen(port, '127.0.0.1', () => {
+  console.log(`XPP: http://127.0.0.1:${port}/`);
+  console.log(`XPP (new interface, preview): http://127.0.0.1:${port}/v2/`);
+});
