@@ -7,7 +7,7 @@ import {plotKey} from '../src/plot/plotKeys';
 import {zoomAbout} from '../src/plot/viewmath';
 import type {SeriesEvent} from '../src/protocol/types';
 import {activeWindow} from '../src/store/plots';
-import {initialState, reduce, type AppState} from '../src/store/state';
+import {classifyLogText, initialState, reduce, type AppState} from '../src/store/state';
 
 const phase: SeriesEvent = {
   ev: 'series', win: 1, rows: 3, three: 0, xlabel: '', ylabel: '', zlabel: '',
@@ -131,6 +131,41 @@ test('the values panel is a sheet the store tracks for narrow screens', () => {
   assert.equal(reduce(s, {type: 'valuesPanel', open: true}), s);
   s = reduce(s, {type: 'valuesPanel', open: false});
   assert.equal(s.valuesOpen, false);
+});
+
+test('a text/source/equilibrium event lands in the text slice (T16)', () => {
+  let s = ev(initialState, {ev: 'equations', lines: ["V'=I-W"]});
+  assert.deepEqual(s.text.equations, ["V'=I-W"]);
+  s = ev(s, {ev: 'source', lines: ['v\'=-v', '" * set iapp=0.1'], comments: [['* set iapp=0.1', 1]]});
+  assert.equal(s.text.source!.lines[1].comment?.hasAction, true);
+  s = ev(s, {
+    ev: 'equilibrium', type: 'STABLE', cplus: 0, cminus: 2, rplus: 0, rminus: 0, im: 0,
+    values: [['v', -0.144]],
+  });
+  assert.equal(s.text.equilibrium!.type, 'STABLE');
+});
+
+test('the text panel open/tab state is tracked like the other panels', () => {
+  let s = reduce(initialState, {type: 'text', action: {type: 'open', open: true}});
+  assert.equal(s.text.open, true);
+  s = reduce(s, {type: 'text', action: {type: 'tab', tab: 'equilibrium'}});
+  assert.equal(s.text.tab, 'equilibrium');
+});
+
+test('classifyLogText tells AUTO\'s console table apart from the rest of the log', () => {
+  assert.equal(classifyLogText('  BR    PT  TY LAB '), 'auto');
+  assert.equal(classifyLogText('   1     1  EP   1  1.000000E-01  2.000000E-01'), 'auto');
+  assert.equal(classifyLogText('Generating starting data :'), 'auto');
+  assert.equal(classifyLogText('Hopf point\n'), 'auto');
+  assert.equal(classifyLogText('nvar=2 naux=4 nfix=0 nmark=0 NEQ=6 NODE=6'), 'log');
+  assert.equal(classifyLogText('All formulas are valid!!\n'), 'log');
+});
+
+test('a log event is classified when it is added (Messages: AUTO output distinguishable)', () => {
+  const s = ev(initialState, {ev: 'log', text: '  BR    PT  TY LAB \n'});
+  assert.equal(s.log[0].kind, 'auto');
+  const s2 = ev(initialState, {ev: 'log', text: 'nvar=2 naux=4\n'});
+  assert.equal(s2.log[0].kind, 'log');
 });
 
 test('zoomAbout keeps the point under the pointer', () => {

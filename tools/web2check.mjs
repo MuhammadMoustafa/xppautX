@@ -8,7 +8,9 @@
    keyboard, undo, Tab reachability, the panel as a right column), the data
    table (docs/ui-v2.md T10: scroll and keyboard navigation to row 500
    against output.dat, Get, CSV export, Tab reachability), keyboard-
-   only use of the plot and of a prompt, and a phone-sized one (390x844,
+   only use of the plot and of a prompt, text views (docs/ui-v2.md T16:
+   equations, source with a comment action, equilibrium with Import, Tab
+   reachability), and a phone-sized one (390x844,
    touch: no sideways scroll, the menu drawer, the values sheet, the table
    sheet, pinch, tap, pan, 44px targets). Prompts (T4): a form field as a
    select of variables, Window/Zoom by a box drawn with the mouse and by the
@@ -352,6 +354,91 @@ async function dataTable(want) {
   check('Back closes the table panel', await until('!s.table.open', 'close table'));
 }
 
+/* text views (docs/ui-v2.md T16, docs/protocol.md `equations`, `source`,
+   `action`, `equilibrium`, `eqimport`): equations, source with a comment
+   action, equilibrium with Import, and Tab reachability. lecar.ode's own
+   tutorial ("To set parameters click on the asterisks") is the model with
+   comment actions the task asks for: six `"..{name=value,...}"` lines, each
+   an X11 "Action view" button. This picks the second one ({gk=0}) rather
+   than the first ({total=100,iapp=.1}), so it leaves TOTAL (and so the
+   601-row runs later windows() and prompts() still expect) alone. */
+async function textViews() {
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
+  await sleep(150);
+  await cdp.eval(`document.querySelector('.text-toggle').click()`);
+  check('the Text button opens the panel on Equations', await until("s.text.open && s.text.tab === 'equations'", 'text open')
+    && await cdp.eval(`getComputedStyle(document.querySelector('.text-panel')).visibility === 'visible'`));
+  check('its first control has the focus', await until(`document.activeElement.closest('.text-panel')`, 'text focus'));
+
+  /* Equations: the model's own dV/dT, dW/dT lines from the `equations` event */
+  check('opening it asks for the equations', await until('s.text.equations && s.text.equations.length >= 2', 'equations'),
+    JSON.stringify(await S('s.text.equations')));
+  check('the equations view lists them (wrapped, monospace)', await cdp.eval(
+    `/d[vw]\\/dt=/i.test(document.querySelector('.text-equations').textContent)`),
+    await cdp.eval(`document.querySelector('.text-equations').textContent`));
+
+  /* Equilibrium: Sing pts/Go, then Import -- at the ODE file's own defaults,
+     before the comment action below changes a parameter (gk=0 makes the
+     model's dynamics degenerate along one variable and Newton's method
+     does not reliably converge from the default ICs) */
+  await cdp.eval(`[...document.querySelectorAll('.text-tab')].find(b => b.textContent === 'Equilibrium').click()`);
+  check('no equilibrium yet', await cdp.eval(`document.querySelector('.text-equilibrium .text-empty') !== null`));
+  await cdp.eval(`[...document.querySelectorAll('.text-tools button')].find(b => b.textContent === 'Find equilibrium').click()`);
+  check('Find equilibrium (Sing pts/Go) computes one: type, counts and values from the equilibrium event',
+    await until(`s.text.equilibrium && /STABLE|UNSTABLE|NEUTRAL/.test(s.text.equilibrium.type)
+      && s.text.equilibrium.values.length === 2 && !s.busy`, 'equilibrium', 20000),
+    JSON.stringify(await S('s.text.equilibrium')));
+  const eq = await S('s.text.equilibrium');
+  check('the view shows the type and the values (six significant digits)',
+    await cdp.eval(`document.querySelector('.text-equilibrium .eq-type').textContent === ${JSON.stringify(eq.type)}
+      && document.querySelectorAll('.text-equilibrium .eq-values tbody tr').length >= 2`));
+  await cdp.eval(`[...document.querySelectorAll('.text-tools button')].find(b => b.textContent === 'Import').click()`);
+  const wantIcs = eq.values.map(([, v]) => v);
+  check('Import (eqimport) makes the equilibrium the initial conditions',
+    await until(`(() => { const ics = s.core.ics.map(p => p[1]);
+      return ics.length === ${wantIcs.length} && ics.every((v, i) => Math.abs(v - (${JSON.stringify(wantIcs)})[i]) < 1e-6); })() && !s.busy`,
+      'eqimport'), JSON.stringify({ics: await S('s.core.ics'), want: wantIcs}));
+
+  /* Source: File/Prt src, with a button on the comment actions' lines */
+  await cdp.eval(`[...document.querySelectorAll('.text-tab')].find(b => b.textContent === 'Source').click()`);
+  check('picking Source asks for it (File/Prt src)', await until('s.text.source && s.text.source.lines.length > 10', 'source'),
+    JSON.stringify(await S('s.text.source && s.text.source.lines.length')));
+  check('the source view renders its comment actions as buttons',
+    await until(`document.querySelectorAll('.source-action').length >= 6`, 'source actions rendered'));
+  const before = await S(`(s.core.pars.find(p => p[0].toLowerCase() === 'gk') || [])[1]`);
+  check('gk starts at its ODE-file default (2)', Math.abs(before - 2) < 1e-9, String(before));
+  await cdp.eval(`document.querySelectorAll('.source-action')[1].click()`); /* "{gk=0}" */
+  check('choosing a comment action sends action: the next state has its parameters (gk=0)',
+    await until(`Math.abs((s.core.pars.find(p => p[0].toLowerCase() === "gk") || [])[1]) < 1e-9 && !s.busy`, 'gk=0'),
+    JSON.stringify(await S('s.core.pars')));
+
+  /* every control in the panel (Back, the three tabs, and the shown view's
+     own controls) is reachable by Tab, in order, without a trap */
+  await cdp.eval(`document.querySelector('.skip-link').focus()`);
+  let steps = 0, reached = false;
+  while (steps < 200) {
+    await key('Tab');
+    steps++;
+    if (await cdp.eval(`!!document.activeElement.closest('.text-panel')`)) { reached = true; break; }
+  }
+  check(`Tab reaches the text panel (${steps} presses)`, reached);
+  const labels = new Set();
+  let sawAction = false;
+  for (let i = 0; i < 30 && await cdp.eval(`!!document.activeElement.closest('.text-panel')`); i++) {
+    const t = await cdp.eval(`(document.activeElement && document.activeElement.textContent || '').trim()`);
+    if (t) labels.add(t);
+    if (await cdp.eval(`document.activeElement.classList.contains('source-action')`)) sawAction = true;
+    await key('Tab');
+  }
+  check('Back and the three tabs are reachable by Tab',
+    ['Back', 'Equations', 'Source', 'Equilibrium'].every(l => labels.has(l)), JSON.stringify([...labels]));
+  check('a comment action button is reachable by Tab too (the shown view\'s own controls)', sawAction);
+
+  /* leave it closed for the phone session */
+  await cdp.eval(`document.querySelector('.text-back').click()`);
+  check('Back closes the text panel', await until('!s.text.open', 'close text'));
+}
+
 async function keyboardOnly() {
   /* Tab from the top of the page to the plot */
   await cdp.eval('document.activeElement && document.activeElement.blur()');
@@ -632,6 +719,29 @@ async function phone() {
   await cdp.eval(`document.querySelector('.table-back').click()`);
   check('Back closes the table sheet', await until('!s.table.open', 'close table sheet'));
   check('the focus returns to the Data button', await until(`document.activeElement.closest('.table-toggle')`, 'table focus back'));
+
+  /* the text views panel is a full-screen sheet with a Back button too (R6, docs/ui-v2.md T16) */
+  check('the text sheet starts closed', !(await S('s.text.open'))
+    && await cdp.eval(`getComputedStyle(document.querySelector('.text-panel')).visibility === 'hidden'`));
+  const xt = await cdp.eval(`(() => { const r = document.querySelector('.text-toggle').getBoundingClientRect();
+    return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()`);
+  await touch('touchStart', [xt]);
+  await touch('touchEnd', []);
+  check('tapping Text opens the sheet', await until('s.text.open', 'text sheet')
+    && await cdp.eval(`getComputedStyle(document.querySelector('.text-panel')).visibility === 'visible'`));
+  check('the sheet covers the viewport', await cdp.eval(`(() => { const r = document.querySelector('.text-panel')
+    .getBoundingClientRect(); return r.width >= innerWidth - 1 && r.height >= innerHeight - 1; })()`));
+  check('its first control has the focus', await until(`document.activeElement.closest('.text-panel')`, 'text sheet focus'));
+  const textScroll = await cdp.eval(`({doc: document.documentElement.scrollWidth, body: document.body.scrollWidth, w: innerWidth})`);
+  check('390x844: the text panel causes no sideways page scroll',
+    textScroll.doc <= textScroll.w && textScroll.body <= textScroll.w, JSON.stringify(textScroll));
+  const textSmall = await cdp.eval(`[...document.querySelectorAll('.text-panel button, .text-panel input')]
+    .filter(b => b.getClientRects().length).map(b => [(b.textContent || b.placeholder || '').trim(), b.getBoundingClientRect().height])
+    .filter(([, h]) => h < 44)`);
+  check('the text sheet\'s targets are at least 44px high', textSmall.length === 0, JSON.stringify(textSmall));
+  await cdp.eval(`document.querySelector('.text-back').click()`);
+  check('Back closes the text sheet', await until('!s.text.open', 'close text sheet'));
+  check('the focus returns to the Text button', await until(`document.activeElement.closest('.text-toggle')`, 'text focus back'));
 
   /* pinch out about the middle */
   const a = await area(), cx = a.x + a.w / 2, cy = a.y + a.h / 2;
@@ -1023,6 +1133,7 @@ async function main() {
       await phone();
       await prompts();
       await windows();
+      await textViews();
     });
     await session(ODE, phasePlane);
     await session(LIVE, () => live(wantLive));

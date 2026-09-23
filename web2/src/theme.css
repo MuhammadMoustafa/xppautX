@@ -461,19 +461,54 @@ kbd {
   .plot-tools button { flex: 1; }
 }
 
-/* ---- messages, notifications ---- */
+/* ---- messages, notifications (docs/ui-v2.md T16: errors, the core's log ---- */
+/* and AUTO's output distinguishable, searchable and filterable) */
 .messages { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
 .messages summary { padding: var(--space-1) var(--space-3); cursor: pointer; font-size: var(--text-xs); min-height: var(--target); display: flex; align-items: center; }
-.messages pre {
-  margin: 0;
-  padding: var(--space-2) var(--space-3);
-  max-height: 10rem;
-  overflow: auto;
-  font: var(--text-xs) var(--mono);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
 .error-count { color: var(--danger); }
+.messages-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-top: 1px solid var(--border);
+}
+.messages-filters { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.messages-filters button.active { border-color: var(--accent); color: var(--accent); }
+.messages-search { margin-left: auto; min-width: 0; }
+.messages-search input {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--field-border);
+  border-radius: 0.375rem;
+  min-height: var(--target);
+  padding: 0 var(--space-2);
+  width: 10rem;
+  max-width: 40vw;
+}
+.messages-list {
+  margin: 0;
+  padding: var(--space-1) var(--space-3) var(--space-2);
+  max-height: 12rem;
+  overflow: auto;
+  list-style: none;
+  font: var(--text-xs) var(--mono);
+}
+.message-line { display: flex; gap: var(--space-2); padding: 0.125rem 0; border-bottom: 1px solid var(--grid); }
+.message-kind {
+  flex: none;
+  width: 3.5rem;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.6875rem;
+}
+.message-text { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.message-error .message-kind { color: var(--danger); }
+.message-error .message-text { color: var(--danger); }
+.message-auto .message-kind { color: var(--accent); }
 .toasts {
   position: fixed;
   right: var(--space-4);
@@ -548,6 +583,65 @@ kbd {
 .checklist label { display: flex; align-items: center; gap: var(--space-2); min-height: var(--target); overflow-wrap: anywhere; }
 .checklist input { width: 1.1rem; height: 1.1rem; margin: 0; accent-color: var(--accent); flex: none; }
 
+/* ---- text views (docs/ui-v2.md T16): equations, source, equilibrium; ---- */
+/* always a floating overlay (R6), like .table-panel -- full screen under */
+/* 48rem (the base rule below), a fixed-width panel from there */
+.text-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 160;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transform: translateX(100%);
+  visibility: hidden;
+  transition: transform 0.2s ease, visibility 0s 0.2s;
+}
+.text-panel.open { transform: none; visibility: visible; transition: transform 0.2s ease; }
+.text-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.text-header h2 { font-size: var(--text-md); flex: 1; }
+.text-tabs { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+.text-tab { border-color: transparent; background: none; color: var(--fg-muted); }
+.text-tab.active { color: var(--fg); background: var(--surface-2); border-color: var(--border); }
+.text-body { flex: 1; min-height: 0; overflow: auto; padding: var(--space-3); }
+.text-empty { color: var(--fg-muted); }
+.text-hint { color: var(--fg-muted); font-size: var(--text-xs); }
+.text-equations {
+  margin: 0;
+  font: var(--text-sm) var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.text-tools { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+
+/* source: line numbers in a gutter, the text wrapped (R1: never sideways scroll), */
+/* an action comment's button below its line */
+.source-lines { font: var(--text-sm) var(--mono); }
+.source-row { display: flex; gap: var(--space-2); align-items: flex-start; padding: 0.0625rem 0; }
+.source-lineno { flex: none; width: 3ch; text-align: right; color: var(--fg-muted); user-select: none; }
+.source-line { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); flex: 1; }
+.source-text { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.source-action { font-size: var(--text-xs); min-height: 1.75rem; padding: 0 var(--space-2); }
+@media (pointer: coarse) { .source-action { min-height: var(--target); } }
+
+/* equilibrium */
+.eq-type { display: inline-block; font-weight: 650; padding: var(--space-1) var(--space-3); border-radius: var(--radius); margin: 0 0 var(--space-3); }
+.eq-stable { color: var(--ok); background: color-mix(in srgb, var(--ok) 15%, transparent); }
+.eq-unstable { color: var(--danger); background: var(--danger-bg); }
+.eq-neutral { color: var(--warn); background: color-mix(in srgb, var(--warn) 15%, transparent); }
+.eq-counts, .eq-values { border-collapse: collapse; margin-bottom: var(--space-4); width: 100%; max-width: 24rem; }
+.eq-counts caption, .eq-values caption { text-align: left; font-size: var(--text-sm); font-weight: 650; margin-bottom: var(--space-1); }
+.eq-counts th, .eq-counts td, .eq-values th, .eq-values td { padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--grid); text-align: left; font: var(--text-sm) var(--mono); }
+.eq-counts th { color: var(--fg-muted); font-weight: 600; width: 2.5rem; }
+
 /* ---- breakpoints (docs/ui-v2.md "Responsive layout") ---- */
 /* wide: more room for the menu, and the values panel becomes a right column (R3, R6) */
 @media (min-width: 80rem) {
@@ -564,6 +658,10 @@ kbd {
    the right from there, so the plot stays visible behind it */
 @media (min-width: 48rem) {
   .table-panel { left: auto; width: min(56rem, 92vw); border-left: 1px solid var(--border); }
+}
+/* the text views panel: the same floating-overlay pattern as the data table */
+@media (min-width: 48rem) {
+  .text-panel { left: auto; width: min(48rem, 92vw); border-left: 1px solid var(--border); }
 }
 /* narrow (phones, small tablets): one column, the menu and the values panel are drawers/sheets */
 @media (max-width: 47.99rem) {

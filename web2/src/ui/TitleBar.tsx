@@ -15,6 +15,7 @@ export function TitleBar() {
   const drawer = useStore(s => s.drawerOpen);
   const valuesOpen = useStore(s => s.valuesOpen);
   const tableOpen = useStore(s => s.table.open);
+  const textOpen = useStore(s => s.text.open);
   const busy = useStore(s => s.busy);
   const setTheme = () => {
     const t = NEXT_THEME[theme];
@@ -37,6 +38,9 @@ export function TitleBar() {
         onClick={() => session.store.dispatch({type: 'valuesPanel', open: !valuesOpen})}>Values</button>
       <button class="table-toggle" aria-controls="table-panel" aria-expanded={tableOpen}
         onClick={() => (tableOpen ? session.closeTable() : session.openTable())}>Data</button>
+      <button class="text-toggle" aria-controls="text-panel" aria-expanded={textOpen}
+        onClick={() => (textOpen ? session.closeText() : session.openText())}
+        title="Equations, source and the last equilibrium">Text</button>
       <a class="button classic" href={`/${location.search}`} title="The classic interface, with every window">Classic</a>
     </header>
   );

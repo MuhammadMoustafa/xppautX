@@ -10,6 +10,7 @@ import {
   type Viewport,
 } from './plots';
 import {initialTable, reduceTable, type TableAction, type TableState} from './table';
+import {initialText, reduceText, type TextAction, type TextState} from './text';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
 
 export type {Range, Viewport} from './plots';
@@ -24,9 +25,25 @@ export interface Hover {
   t: number | null;
 }
 
+/** 'auto' is a best-effort guess (classifyLogText, below): the protocol does
+    not tag xpp_log_auto's lines apart from any other stderr text, so this is
+    only ever as good as the patterns AUTO's own console table prints. */
 export interface LogEntry {
-  kind: 'log' | 'error' | 'info';
+  kind: 'log' | 'error' | 'info' | 'auto';
   text: string;
+}
+
+/** distinguishes AUTO's console output from the rest of the core's log
+    (docs/ui-v2.md T16, Messages: "the core's log and AUTO output are
+    distinguishable"), cheaply and without a protocol change: AUTO's table
+    header and rows (core/autlib1.c xpp_log_auto, "  BR    PT  TY LAB " then
+    "%4li%6li  %c%c%4li%14.6E..." rows) and its handful of fixed messages
+    ("Generating starting data", "Hopf point", ...). Anything else stays
+    plain `log`; this never sees `message` `error` text (handled separately). */
+const AUTO_ROW = /^\s*-?\d+\s+-?\d+\s+\S\S\s+-?\d+(\s+-?\d+(\.\d+)?([eE][+-]?\d+)?){2,}\s*$/;
+const AUTO_PHRASE = /BR\s+PT\s+TY\s+LAB|Generating starting data|Restart at EP label|Hopf point|Limit point|Periodic point|Max point|End point|NPARX|NCOL=|DSMIN|DSMAX|Division by Zero|Initialization Error CRASH|Restart label/;
+export function classifyLogText(text: string): 'log' | 'auto' {
+  return AUTO_ROW.test(text) || AUTO_PHRASE.test(text) ? 'auto' : 'log';
 }
 
 /** a non-blocking notification (errors, the core's alerts) */
@@ -72,6 +89,8 @@ export interface AppState {
   valuesOpen: boolean;
   /** the data table (T10): the cached page, selection and CSV export, see store/table.ts */
   table: TableState;
+  /** text views (T16): equations, source, equilibrium, and their panel's open/tab state */
+  text: TextState;
 }
 
 export type Action =
@@ -94,7 +113,8 @@ export type Action =
   | {type: 'theme'; theme: Theme}
   | {type: 'values'; action: ValuesAction}
   | {type: 'valuesPanel'; open: boolean}
-  | {type: 'table'; action: TableAction};
+  | {type: 'table'; action: TableAction}
+  | {type: 'text'; action: TextAction};
 
 export const initialState: AppState = {
   connected: false,
@@ -121,6 +141,7 @@ export const initialState: AppState = {
   values: initialValues,
   valuesOpen: false,
   table: initialTable,
+  text: initialText,
 };
 
 const LOG_KEEP = 200, TOASTS_KEEP = 4;
@@ -215,8 +236,14 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return state;
     case 'browser':
       return {...state, table: reduceTable(state.table, {type: 'event', ev})};
+    case 'equations':
+      return {...state, text: reduceText(state.text, {type: 'equations', ev})};
+    case 'source':
+      return {...state, text: reduceText(state.text, {type: 'source', ev})};
+    case 'equilibrium':
+      return {...state, text: reduceText(state.text, {type: 'equilibrium', ev})};
     case 'log':
-      return addLog(state, {kind: 'log', text: ev.text});
+      return addLog(state, {kind: classifyLogText(ev.text), text: ev.text});
     case 'exit':
       return {...state, exited: ev.code, busy: false, stopping: false};
     case 'bye':
@@ -265,5 +292,7 @@ export function reduce(state: AppState, action: Action): AppState {
       return action.open === state.valuesOpen ? state : {...state, valuesOpen: action.open};
     case 'table':
       return {...state, table: reduceTable(state.table, action.action)};
+    case 'text':
+      return {...state, text: reduceText(state.text, action.action)};
   }
 }

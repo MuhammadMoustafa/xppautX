@@ -7,6 +7,7 @@ import type {AskEvent, BrowserEvent, Command, XppEvent} from './protocol/types';
 import {createStore, type Store} from './store/store';
 import {initialState, reduce, type Action, type AppState} from './store/state';
 import {MAX_COUNT, MAX_NCOL, planRequest, tableCsv} from './store/table';
+import type {TextTab} from './store/text';
 import type {ValueEdit} from './store/values';
 
 /** the data browser's buttons (docs/protocol.md `browser` op; web/xpp-client.js's BROWSER_BUTTONS) */
@@ -275,4 +276,74 @@ export class Session {
     });
   }
 
+  /* ---- text views (docs/ui-v2.md T16, docs/protocol.md `equations`, `source`, ---- */
+  /* `action`, `equilibrium`, `eqimport`): equations, the source with its comment
+     actions, and the last Sing pts equilibrium */
+
+  /** opens the panel (R6: a side panel from 48rem, a sheet under that), on
+      `tab` when given, and asks the core to (re)send that tab's data: the
+      three are always fetched fresh, since the model or the ICs may have
+      changed since they were last shown */
+  openText(tab?: TextTab): void {
+    const cur = this.store.getState().text;
+    const next = tab ?? cur.tab;
+    this.store.dispatch({type: 'text', action: {type: 'open', open: true}});
+    if (next !== cur.tab) this.store.dispatch({type: 'text', action: {type: 'tab', tab: next}});
+    this.refreshText(next);
+  }
+
+  closeText(): void {
+    this.store.dispatch({type: 'text', action: {type: 'open', open: false}});
+  }
+
+  /** switches the panel's tab and asks the core for that tab's data */
+  selectTextTab(tab: TextTab): void {
+    if (tab === this.store.getState().text.tab) return;
+    this.store.dispatch({type: 'text', action: {type: 'tab', tab}});
+    this.refreshText(tab);
+  }
+
+  private refreshText(tab: TextTab): void {
+    if (tab === 'equations') {
+      this.send({cmd: 'equations'});
+    } else if (tab === 'source') {
+      /* File/Prt src (docs/protocol.md: no direct command, only the menu
+         key sequence): 'f' switches the core's own menu to File (a no-op
+         once already there) unless the numerics menu is open, which reads
+         a plain key as one of its own items and must be left with Escape
+         first (core/commands.c commander(), help_menu); 'p' runs Prt src
+         and the core returns to the main menu on its own afterward. */
+      const menu = this.store.getState().core?.menu ?? 0;
+      if (menu === 2) this.key('Escape');
+      if (menu !== 1) this.key('f');
+      this.key('p');
+    }
+    /* 'equilibrium' has no fetch of its own: it is the last Sing pts result
+       the core sent (Sing pts/Go, session.findEquilibrium()) and stays
+       shown until the next one */
+  }
+
+  /** run the action of comment `index` of the source's comments
+      (docs/protocol.md `action`): a comment with a `{par=value,...}` block,
+      shown as a button on its line (ui/TextViews.tsx) */
+  runAction(index: number): void {
+    this.send({cmd: 'action', index});
+  }
+
+  /** Sing pts/Go: find the equilibrium closest to the current initial
+      conditions; its result arrives as the `equilibrium` event. The core
+      asks "Print eigenvalues?" (a plain `ask` `choice`, its own `y`/`n`
+      keys) before it sends that event; answered `n` here since the answer
+      only controls whether they are also printed to the log at INFO
+      (usually below the console's threshold) -- not part of the event
+      either way (see protocol/types.ts EquilibriumEvent). */
+  findEquilibrium(): void {
+    this.keys('s', 'g', 'n');
+  }
+
+  /** the equilibrium window's Import: the last equilibrium becomes the
+      initial conditions (the next `state` has them) */
+  importEquilibrium(): void {
+    this.send({cmd: 'eqimport'});
+  }
 }
