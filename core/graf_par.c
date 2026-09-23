@@ -1158,7 +1158,7 @@ int ind;
       frz[i].type=type;
       frz[i].w=draw_win;
       sprintf(frz[i].name,"crv%c",'a'+i);
-      sprintf(frz[i].key,"%s",frz[i].name);
+      sprintf(frz[i].key,"crv%c",'a'+i);
       return(i);
     }
   }

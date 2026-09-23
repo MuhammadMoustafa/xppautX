@@ -448,7 +448,7 @@ void get_ani_file(char *fname)
   }
   else
   {
-  	strcpy(vcr.file,fname);
+  	if(fname!=vcr.file)strcpy(vcr.file,fname);
   }
   err=ani_new_file(vcr.file);
   if(err>=0){
