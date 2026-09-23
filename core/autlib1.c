@@ -4308,7 +4308,7 @@ ge(integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublere
 #ifdef GE_PIVOTS_DEBUG
     if(jj==0)  fprintf(fp9,"\n Pivots in GE");
     if((jj%6)==0) fprintf(fp9,"\n");
-    fprintf(fp9," %4d %12.3e ",jj,fabs(ARRAY2D(a, ir[ipiv], ic[jpiv])));
+    fprintf(fp9," %4ld %12.3e ",jj,fabs(ARRAY2D(a, ir[ipiv], ic[jpiv])));
 #endif
     if (ipiv != jj) {
       *det = -(*det);
@@ -4348,7 +4348,7 @@ ge(integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublere
   *det *= ARRAY2D(a, ir[n - 1], ic[n - 1]);
 #ifdef GE_PIVOTS_DEBUG
      if((jj%6)==0) fprintf(fp9,"\n");
-     fprintf(fp9," %4d %12.3e \n",n-1,ARRAY2D(a, ir[n - 1], ic[n - 1]));
+     fprintf(fp9," %4ld %12.3e \n",n-1,ARRAY2D(a, ir[n - 1], ic[n - 1]));
 #endif
 
   if (nrhs == 0) {
