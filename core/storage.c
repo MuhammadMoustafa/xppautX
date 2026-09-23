@@ -31,6 +31,7 @@ void init_alloc_info()
   int i;
   xpv.node=NODE+NMarkov;
   xpv.nvec=0; /* this is just for now */
+  xpp_free(xpv.x); /* called again once the model's options are read */
   xpv.x=(double *)xpp_malloc((xpv.nvec+xpv.node)*sizeof(double));
   /* plintf(" node=%d nvec=%d \n",xpv.node,xpv.nvec); */
   for(i=xpv.node;i<(xpv.nvec+xpv.node);i++)

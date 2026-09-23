@@ -5,8 +5,8 @@ extern "C" {
 #endif
 
 
-double evaluate( );
-double get_ivar( );
+double evaluate(int *equat);
+double get_ivar(int i);
 
 
 #ifdef __cplusplus

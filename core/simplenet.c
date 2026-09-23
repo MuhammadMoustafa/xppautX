@@ -1070,7 +1070,8 @@ int add_spec_fun(name,rhs)
     my_net[ind].root=ivar2;
     my_net[ind].n=ivar2+1;
     my_net[ind].ncon=-1;
-    my_net[ind].values=(double *)xpp_malloc((ivar2+2)*sizeof(double));
+    /* zeroed: the first output row reads them before the first step */
+    my_net[ind].values=(double *)xpp_calloc(ivar2+2,sizeof(double));
     plintf("Added gillespie chain with %d reactions \n",ivar2);
     return 1;
 
@@ -1278,7 +1279,9 @@ int ind;
        sum=0.0;
        for(i=0;i<ncon;i++){
          ij=j*ncon+i;
-	 sum+=(w[ij]*get_delay(i+in0,tau[ij]));
+	 /* root indexes variables[], where t comes first; get_delay counts
+	    from the first state variable, as the parser's delay() does */
+	 sum+=(w[ij]*get_delay(i+in0-1,tau[ij]));
        }
        values[j]=sum;
      }
@@ -1303,7 +1306,7 @@ int ind;
 	 ij=i*ncon+j;
 	 k=(int)cc[ij];
          if(k>=0)
-	   sum+=(w[ij]*get_delay(k+in0,tau[ij]));
+	   sum+=(w[ij]*get_delay(k+in0-1,tau[ij])); /* as in DEL_MUL */
        }
        values[i]=sum;
      }  

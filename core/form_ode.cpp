@@ -1,3 +1,7 @@
+#include <new>
+#include <string>
+#include <vector>
+
 #include "form_ode.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
@@ -21,6 +25,7 @@
 #include "simplenet.h"
 #include "integrate.h"
 #include "newpars.h"
+#include "xpp_ui.h"
 
 
 #include <stdlib.h>
@@ -56,8 +61,11 @@ extern int IN_VARS;
 extern int leng[MAXODE];
 extern int NincludedFiles;
 
-VAR_INFO *my_varinfo;
-int start_var_info=0;
+namespace {
+/* the lines of the model being read, in order: do_new_parser() adds them,
+   compile_em() compiles them, free_varinfo() lets them go */
+std::vector<VAR_INFO> model_lines;
+}
 
 int *my_ode[MAXODE];
 
@@ -70,13 +78,10 @@ typedef struct {
 
 char errmsg[256];
 extern int XPPBatch;
-extern int file_selector();
+
 extern int loadincludefile;
 /*extern char includefilename[MaxIncludeFiles][100];*/
 extern char includefilename[MaxIncludeFiles][XPP_MAX_NAME];
-extern double initialize_pH();
-extern double initialize_ionicstr();
-extern void deblank();
 
 char *onlylist[MAXONLY];
 int *plotlist;
@@ -137,12 +142,6 @@ extern char cur_dir[];
 
 extern FILEINFO my_ff;
 
-char *get_first(/* char *string,char *src */);
-char *get_next(/* char *src */);
-
-char *getsi();
-double atof();
-
 int make_eqn()
   {
    
@@ -181,8 +180,7 @@ void strip_saveqn()
   }
 }
 
-int disc(string)
-     char *string;
+int disc(char *string)
 {
   char c;
   int i=0,l=strlen(string),j=0,flag=0;
@@ -318,7 +316,8 @@ int get_a_filename(char *filename,char *wild)
     {
 	    strcat(filename,"/");
     }
-    status = file_selector ("Select an ODE file", filename, wild);
+    char title[]="Select an ODE file";
+    status = file_selector (title, filename, wild);
     if (status == 0)
       bye_bye ();
     else
@@ -382,8 +381,7 @@ get_dir()
 
 
 
-int get_eqn(fptr)
-     FILE *fptr;
+int get_eqn(FILE *fptr)
 {
   char bob[MAXEXPLEN];
   /*char filename[256];*/
@@ -391,6 +389,7 @@ int get_eqn(fptr)
   int done=1,nn,i;
   int flag;
   char prim[XPP_NAME_MAX+2];
+  char t_name[]="t",t_prime[]="t'"; /* add_var takes a char * */
   init_rpn();
   NLINES=0;
   IN_VARS=0;
@@ -403,7 +402,7 @@ int get_eqn(fptr)
   /*check_for_xpprc();  This is now done just once and in do_vis_env()
   */
   strcpy(options,"default.opt");
-  add_var("t",0.0);
+  add_var(t_name,0.0);
   /* plintf(" NEQ: "); */
   if(fgets(bob,MAXEXPLEN,fptr)==NULL)bob[0]=0;
   nn=strlen(bob)+1;
@@ -508,7 +507,7 @@ int get_eqn(fptr)
      add primed variables                              */
   PrimeStart=NVAR;
   if(NVAR<MAXPRIMEVAR){
-  add_var("t'",0.0);
+  add_var(t_prime,0.0);
   for(i=0;i<NODE ;i++){
     snprintf(prim,sizeof(prim),"%.*s'",XPP_NAME_MAX,uvar_names[i]);
     add_var(prim,0.0);
@@ -594,9 +593,7 @@ write_eqn()
   }
 
 */
-int compiler(bob,fptr)
-     char *bob;
-     FILE *fptr;
+int compiler(char *bob, FILE *fptr)
 {
   double value,xlo,xhi;
   int narg,done,nn,iflg=0,VFlag=0,nstates,alt,index,sign;
@@ -1064,9 +1061,7 @@ void show_syms()
 }
 
 /* ram: do I need to strip the name of any whitespace? */
-void take_apart(bob, value, name)
-char *bob,*name;
-double *value;
+void take_apart(char *bob, double *value, char *name)
 {
  int k,i,l;
  char number[40];
@@ -1087,26 +1082,22 @@ double *value;
   }
 }
 
-char *get_first(string,src)
-char *string,*src;
+char *get_first(char *string, const char *src)
 {
  char *ptr;
  ptr=strtok(string,src);
  return(ptr);
 }
-char *get_next(src)
-char *src;
+char *get_next(const char *src)
 {
  char *ptr;
  ptr=strtok(NULL,src);
  return(ptr);
 }
 
-void find_ker(string,alt)   /* this extracts the integral operators from the string */ 
-     char *string;
-     int *alt;
+void find_ker(char *string, int *alt)   /* this extracts the integral operators from the string */ 
 {
-  char new[MAXEXPLEN],form[MAXEXPLEN],num[MAXEXPLEN];
+  char newstr[MAXEXPLEN],form[MAXEXPLEN],num[MAXEXPLEN];
   double mu=0.0;
   int fflag=0,in=0,i=0,ifr=0,inum=0;
   int n=strlen(string),j;
@@ -1143,8 +1134,8 @@ void find_ker(string,alt)   /* this extracts the integral operators from the str
       sprintf(name,"K##%d",NKernel);
       plintf("Kernel mu=%f %s = %s \n",mu,name,form);
       if(add_kernel(name,mu,form))exit(0);
-      for(j=0;j<strlen(name);j++){
-	new[in]=name[j];
+      for(j=0;j<(int)strlen(name);j++){
+	newstr[in]=name[j];
 	in++;
       }
       mu=0.0;
@@ -1158,19 +1149,17 @@ void find_ker(string,alt)   /* this extracts the integral operators from the str
       ifr++;
     }
     else {
-      new[in]=ch;
+      newstr[in]=ch;
       in++;
     }
     i++;
   }
-  new[in]=0;
-  strcpy(string,new);
+  newstr[in]=0;
+  strcpy(string,newstr);
   
 }
 
-void pos_prn(s,x,y)
-char *s;
-int x,y;
+void pos_prn(char *s, int x, int y)
 {
  plintf("%s\n",s);
  }
@@ -1262,7 +1251,7 @@ u(0) = value >---  initial data (replaces v, init is also OK )
    uvar_names[] <----\  
    aux_names[]  <----/ external names
 
-   New parser reads in each line storing it in the var_info structure
+   New parser reads in each line storing it in model_lines
    if it is a markov (the only truly multiline command) then it
    ** immediately ** reads in the markov stuff
  
@@ -1301,8 +1290,7 @@ int if_include_file(char *old,char *nf)
 
 }
 
-int if_end_include(old)
-char *old;
+int if_end_include(char *old)
 {
   if (IN_INCLUDED_FILE>0)
   {
@@ -1353,15 +1341,27 @@ void print_count_of_object()
 NUMODES,NUMFIX,NUMPARAM,NUMMARK,NUMVOLT,NUMAUX,NUMSOL);
 }
 
-int do_new_parser(fp,first,nnn)
-FILE *fp;
-char *first;
-int nnn;
+static int parse_model(FILE *fp, char *first, int nnn);
+
+/* no exception crosses into C: the only one parse_model() can throw is
+   std::bad_alloc, and running out of memory ends the program, as
+   xpp_malloc() does */
+int do_new_parser(FILE *fp, char *first, int nnn)
+{
+  try {
+    return parse_model(fp, first, nnn);
+  } catch (const std::bad_alloc &) {
+    xpp_log(XPP_LOG_ERROR, "out of memory reading %s\n", first);
+    exit(1);
+  }
+}
+
+static int parse_model(FILE *fp, char *first, int nnn)
 {
  VAR_INFO v;
  char **markovarrays=NULL;
- char *strings[256];
- int nstrings,ns;
+ std::vector<std::string> strings; /* this line, or a for loop's lines */
+ int ns;
  char **markovarrays2=NULL;
  int done=0,start=0,i0,i1,i2,istates;
  int jj1=0,jj2=0,jj,notdone=1,jjsgn=1;
@@ -1371,12 +1371,12 @@ int nnn;
  FILE *fnew;
  /*int nlin;
  */
- char big[MAXEXPLEN],old[MAXEXPLEN],new[MAXEXPLEN];
+ char big[MAXEXPLEN],old[MAXEXPLEN],newstr[MAXEXPLEN];
  char *my_string;
  int is_array=0;
  if(nnn==0){init_varinfo();}
  while(notdone){
-   nstrings=0;
+   strings.clear();
    if(start||nnn==1){
      read_a_line(fp,old);
 /* plintf(" read line BVP_N=%d  \n",BVP_N); */
@@ -1440,7 +1440,7 @@ int nnn;
     }
      
     /*    printf("calling search %s \n",old); */
-    search_array(old,new,&jj1,&jj2,&is_array);
+    search_array(old,newstr,&jj1,&jj2,&is_array);
    jj=jj1;
    jjsgn=1;
    if(jj2<jj1)jjsgn=-1;
@@ -1448,9 +1448,7 @@ int nnn;
    switch(is_array){
      case 0:  /*  not a for loop so */ 
      case 1:
-           nstrings=1;
-           strings[0]=(char *)xpp_malloc(strlen(new)+10);
-           strcpy(strings[0],new);
+           strings.assign(1,newstr);
            break;
       case 2: /*  a for loop, so we will ignore the first line */
 	/* is_array=1; */
@@ -1458,10 +1456,8 @@ int nnn;
              read_a_line(fp,old);
              if(old[0]=='%')
                break;
-             strings[nstrings]=(char *)xpp_malloc(strlen(old)+10);
-             strcpy(strings[nstrings],old);
-             nstrings++;
-             if(nstrings>255)break;
+             strings.push_back(old);
+             if(strings.size()>255)break;
              }
              
             break;
@@ -1471,9 +1467,9 @@ int nnn;
             
   
    while(1){
-      for(ns=0;ns<nstrings;ns++){
-      strcpy(new,strings[ns]);
-      subsk(new,big,jj,is_array); 
+      for(ns=0;ns<(int)strings.size();ns++){
+      strcpy(newstr,strings[ns].c_str());
+      subsk(newstr,big,jj,is_array); 
      
  
    done=parse_a_string(big,&v);
@@ -1534,7 +1530,7 @@ int nnn;
            if(is_array==2)
 	     {
                
-	       strcpy(markovarrays[istates],strings[ns+1+istates]);
+	       strcpy(markovarrays[istates],strings[ns+1+istates].c_str());
 		     
 	     }
 	   else 
@@ -1657,13 +1653,6 @@ int nnn;
     count_object(v.type);
       }
    } /* end loop for the strings */
-      /*     if(nstrings>0){
-	for(i=0;i<nstrings;i++)
-	   free(strings[i]); 
-	nstrings=0;
-	
-	
-	} */
    if(done==2)notdone=0;
    if(feof(fp))
    {
@@ -1682,19 +1671,20 @@ int nnn;
 
    }
 
-   if(v.type==COMMAND && v.lhs[0]=='M' && v.lhs[1]=='A'){
+   /* a Markov line's states (build_markov copied them); v.type is
+      MARKOV_VAR by now, so the upstream test on COMMAND never freed them */
+   if(markovarrays!=NULL){
     for(istates=0;istates<nstates;istates++){
       xpp_free(markovarrays[istates]);
       xpp_free(markovarrays2[istates]);
     }
     xpp_free(markovarrays);
     xpp_free(markovarrays2);
+    markovarrays=markovarrays2=NULL;
   }
  
      
  }
- for(ns=0;ns<nstrings;ns++)
-   xpp_free(strings[ns]);
  compile_em();
  
  free_varinfo();
@@ -1751,9 +1741,7 @@ void break_up_list(char *rhs)
 }
 
 
-int find_the_name(list,n,name)
-     char list[MAXODE1][MAXVNAM],*name;
-     int n;
+int find_the_name(char list[MAXODE1][MAXVNAM], int n, char *name)
 {
   int i;
 
@@ -1779,14 +1767,14 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
  int fon;
  FILE *fp=NULL;
 
- v=my_varinfo;
- /* On this first pass through, all the variable names 
+ /* On this first pass through, all the variable names
     are kept as well as fixed declarations, boundary conds,
     and parameters, functions and tables.  Once this pass is
     completed all the names will be known to the compiler.
  */
- while(1) 
+ for(VAR_INFO &line : model_lines)
    {
+     v=&line;
       
 
     if(v->type==COMMAND && v->lhs[0]=='P'){
@@ -1903,9 +1891,6 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
     
       nufun++;
     }
-      
-    if(v->next==NULL)break;
-     v=v->next;
    }
  
  /*  plintf(" Found\n %d variables\n %d markov\n %d fixed\n %d aux\n %d fun \n %d tab\n ",
@@ -1964,9 +1949,9 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
  nmark=0;
 
 
- v=my_varinfo;
- while(1)
+ for(VAR_INFO &line : model_lines)
    {
+     v=&line;
      
      if(v->type==COMMAND && v->lhs[0]=='I'){
        snprintf(big,sizeof(big),"i %.1019s \n",v->rhs);
@@ -2204,9 +2189,6 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	   }
        break;
      }
-   	 
-     if(v->next==NULL)break;
-     v=v->next;
    }
  if(compile_derived()==1)
    exit(0);
@@ -2233,15 +2215,13 @@ int formula_or_number(char *expr,double *z)
   *z=0.0; /* initial it to 0 */
   convert(expr,form);
   flag=do_num(form,num,z,&i);
-  if(i<strlen(form))flag=1;
+  if(i<(int)strlen(form))flag=1;
   ERROUT=olderr;
   if(flag==0)
     return 0; /* 0 is a number */
   return 1; /* 1 is a formula */
 }
-void strpiece(dest,src,i0,ie)
-     int i0,ie;
-     char *dest,*src;
+void strpiece(char *dest, char *src, int i0, int ie)
 {
   int i;
   for(i=i0;i<=ie;i++)
@@ -2249,9 +2229,7 @@ void strpiece(dest,src,i0,ie)
   dest[ie-i0+1]=0;
 }
 
-int parse_a_string(s1,v)
-     char *s1;
-     VAR_INFO *v;
+int parse_a_string(char *s1, VAR_INFO *v)
 {
   int i0=0,i1,i2,i3;
   char lhs[MAXEXPLEN],rhs[MAXEXPLEN],args[MAXARG][NAMLEN+1];
@@ -2415,73 +2393,38 @@ good_type:
   return 1;
 }
 
+/* a new model: no lines yet */
 void init_varinfo()
 {
- my_varinfo=(VAR_INFO *)xpp_malloc(sizeof(VAR_INFO));
- my_varinfo->next=NULL;
- my_varinfo->prev=NULL;
- start_var_info=0;
+  model_lines.clear();
 }
 
-
-void add_varinfo(type,lhs,rhs,nargs,args)
-     int type;
-     char *lhs;
-     char *rhs;
-     int nargs;
-     char args[MAXARG][NAMLEN+1];
+void add_varinfo(int type, char *lhs, char *rhs, int nargs, char args[MAXARG][NAMLEN+1])
 {
-  VAR_INFO *v,*vnew;
+  VAR_INFO v{};
   int i;
-  v=my_varinfo;
-  if(start_var_info==0) {
-    v->type=type;
-    v->nargs=nargs;
-    strcpy(v->lhs,lhs);
-    strcpy(v->rhs,rhs);
-    for(i=0;i<nargs;i++)
-      strcpy(v->args[i],args[i]);
-    start_var_info=1;
-  }
-  else {
-    while(v->next != NULL){
-      v=(v->next);
-    }
-    v->next=(VAR_INFO *)xpp_malloc(sizeof(VAR_INFO));
-    vnew=v->next;
-    vnew->type=type;
-    vnew->nargs=nargs;
-    strcpy(vnew->lhs,lhs);
-    strcpy(vnew->rhs,rhs);
-    for(i=0;i<nargs;i++)
-      strcpy(vnew->args[i],args[i]);
-    vnew->next=NULL;
-    vnew->prev=v;
+  v.type=type;
+  v.nargs=nargs;
+  strcpy(v.lhs,lhs);
+  strcpy(v.rhs,rhs);
+  for(i=0;i<nargs;i++)
+    strcpy(v.args[i],args[i]);
+  try {
+    model_lines.push_back(v);
+  } catch (const std::bad_alloc &) { /* no exception crosses into C */
+    xpp_log(XPP_LOG_ERROR, "out of memory: the model's line %d\n", (int)model_lines.size() + 1);
+    exit(1);
   }
 }
-    
+
+/* compiled: the lines and their memory go */
 void free_varinfo()
 {
-  VAR_INFO *v,*vnew;
-  v=my_varinfo;
-  while(v->next != NULL){
-    v=v->next;
-  }
-  while(v->prev != NULL){
-    vnew=v->prev;
-    v->next=NULL;
-    v->prev=NULL;
-    xpp_free(v);
-    v=vnew;
-  }
-  init_varinfo();
-
+  std::vector<VAR_INFO>().swap(model_lines);
 }
 
 
-int extract_ode(s1,ie,i1)  /* name is char 1-i1  ie is start of rhs */
-     int i1,*ie;
-     char *s1;
+int extract_ode(char *s1, int *ie, int i1)  /* name is char 1-i1  ie is start of rhs */
 {
   int i=0,n=strlen(s1);
   
@@ -2496,9 +2439,7 @@ int extract_ode(s1,ie,i1)  /* name is char 1-i1  ie is start of rhs */
   return 0;
 }
 
-int strparse(s1,s2,i0,i1)
-     int i0,*i1;
-     char *s1,*s2;
+int strparse(char *s1, const char *s2, int i0, int *i1)
 {
   int i=i0;
   int n=strlen(s1);
@@ -2545,10 +2486,7 @@ int strparse(s1,s2,i0,i1)
   return(0);
 }
 
-int extract_args(s1,i0,ie,narg,args)
-     char args[MAXARG][NAMLEN+1];
-     int *narg,*ie,i0;
-     char *s1;
+int extract_args(char *s1, int i0, int *ie, int *narg, char args[MAXARG][NAMLEN+1])
 {
   int k,i=i0,n=strlen(s1);
   int type,na=0,i1;
@@ -2587,9 +2525,7 @@ int extract_args(s1,i0,ie,narg,args)
       
     
     
-int find_char(s1,s2,i0,i1)
-     int i0,*i1;
-     char *s1,*s2;
+int find_char(char *s1, const char *s2, int i0, int *i1)
 {
   int m=strlen(s2),n=strlen(s1);
   int i=i0;
@@ -2608,9 +2544,7 @@ int find_char(s1,s2,i0,i1)
   return(-1);
 }
 
-int next_nonspace(s1,i0,i1)
-     int i0,*i1;
-     char *s1;
+int next_nonspace(char *s1, int i0, int *i1)
 {
   int i=i0;
   int n=strlen(s1);
@@ -2628,8 +2562,7 @@ int next_nonspace(s1,i0,i1)
 }
 
 /* removes starting blanks from s  */
-void remove_blanks(s1)
-     char *s1;
+void remove_blanks(char *s1)
 {
   int i=0,n=strlen(s1),l;
   int j;
@@ -2652,9 +2585,7 @@ void remove_blanks(s1)
 }
       
 
-void read_a_line(fp,s)
-     char *s;
-     FILE *fp;
+void read_a_line(FILE *fp, char *s)
 {
   char temp[MAXEXPLEN];
   int i,n,nn,ok,ihat=0;
@@ -2696,7 +2627,7 @@ void read_a_line(fp,s)
     }
   */
       
-  if(s[n-1]=='\n'||s[n-1]=='\r')s[n-1]=' ';
+  if(n>0&&(s[n-1]=='\n'||s[n-1]=='\r'))s[n-1]=' '; /* n is 0 at the end of the file */
   s[n]=' ';
   s[n+1]=0;
   
@@ -2710,9 +2641,7 @@ void read_a_line(fp,s)
 
  
 
-int search_array(old,new,i1,i2,flag)
-     char *old,*new;
-     int *i1,*i2,*flag;
+int search_array(char *old, char *newstr, int *i1, int *i2, int *flag)
 {
   int i,j,k,l;
   int ileft,iright;
@@ -2728,14 +2657,14 @@ int search_array(old,new,i1,i2,flag)
   strcpy(num2,"0");
   if(old[0]=='#'||old[1]=='#') {  /* check for comments */
 
-    strcpy(new,old);
+    strcpy(newstr,old);
         
     return 1;
   }
   if(check_if_ic(old)==1){
 
     extract_ic_data(old);
-    strcpy(new,old);
+    strcpy(newstr,old);
     return 1;
   }
   for(i=0;i<n;i++){
@@ -2763,7 +2692,7 @@ int search_array(old,new,i1,i2,flag)
 	if((i+j)<=0){
 	  *i1=0;
           *i2=0;
-	  strcpy(new,old);
+	  strcpy(newstr,old);
           plintf(" Possible error in array %s -- ignoring it \n",old);
 	  return(0); /* error in array  */
 	}
@@ -2785,7 +2714,7 @@ int search_array(old,new,i1,i2,flag)
 	if((i+j)>=n) {
 	  *i1=0;
           *i2=0;
-	  strcpy(new,old);
+	  strcpy(newstr,old);
           plintf(" Possible error in array  %s -- ignoring it \n",old);
 	  return(0); /* error again   */
 	}
@@ -2799,18 +2728,18 @@ int search_array(old,new,i1,i2,flag)
      /* now we have the numbers and will get rid of the junk inbetween */
   l=0;
   for(i=0;i<=ileft;i++){
-    new[l]=old[i];
+    newstr[l]=old[i];
     l++;
   }
   if(iright>0){
-    new[l]='j';
+    newstr[l]='j';
     l++;
     for(i=iright;i<n;i++){
-      new[l]=old[i];
+      newstr[l]=old[i];
       l++;
     }
   }
-  new[l]=0;
+  newstr[l]=0;
   return 1;
 
 }
@@ -2836,9 +2765,7 @@ int check_if_ic(char *big)
   return 0;
 }
 
-int not_ker(s,i) /* returns 1 if string is not 'int[' */
-     char *s;
-     int i;
+int not_ker(char *s, int i) /* returns 1 if string is not 'int[' */
 {
   if(i<3)return 1;
   if(s[i-3]=='i'&&s[i-2]=='n'&&s[i-1]=='t')return 0;
@@ -2864,9 +2791,7 @@ int is_comment(char *s)
 }
  
   
-void subsk(big,new,k,flag)
-     char *big,*new;
-     int k,flag;
+void subsk(char *big, char *newstr, int k, int flag)
 {
   int i,n=strlen(big),inew,add,inum,j,m,isign,ok,multflag=0;
   char ch,chp,num[20];
@@ -2875,7 +2800,7 @@ void subsk(big,new,k,flag)
   /*  if(big[0]=='#'){   */
   if(is_comment(big)){
     
-    strcpy(new,big);
+    strcpy(newstr,big);
     return;
   }
   
@@ -2897,7 +2822,7 @@ void subsk(big,new,k,flag)
 	  sprintf(num,"%d",add);
 	  m=strlen(num);
 	  for(j=0;j<m;j++){
-	    new[inew]=num[j];
+	    newstr[inew]=num[j];
 	    inew++;
 	  }
 	  ok=0;
@@ -2924,7 +2849,7 @@ void subsk(big,new,k,flag)
 	  ok=1;
 	  while(ok){
 	    if(i>=n){
-	      new[inew]=0;
+	      newstr[inew]=0;
 	      plintf("Error in %s The expression does not terminate. Perhaps a ] is missing.\n",big);
 	      exit(0);
 	    }
@@ -2957,7 +2882,7 @@ void subsk(big,new,k,flag)
 	      sprintf(num,"%d",add);
 		m=strlen(num);
 		for(j=0;j<m;j++){
-		  new[inew]=num[j];
+		  newstr[inew]=num[j];
 		  inew++;
 		}
 		ok=0;
@@ -2972,7 +2897,7 @@ void subsk(big,new,k,flag)
 	}
 	else
 	  {
-	    new[inew]=ch;
+	    newstr[inew]=ch;
 
 	    i++;
 	    inew++;
@@ -2980,7 +2905,7 @@ void subsk(big,new,k,flag)
   
     if(i>=n)break;
   }
-  new[inew]=0;
+  newstr[inew]=0;
 
 }
 

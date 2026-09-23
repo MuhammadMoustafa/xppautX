@@ -30,7 +30,7 @@ void bottom_msg(int line, char *msg);
 void gputs(char *string, Window win);
 #endif /* Xlib.h */
 void err_msg(char *string);
-int plintf(char *fmt, ...);
+int plintf(const char *fmt, ...);
 #if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 int show_position(XEvent ev, int *com);
 #endif /* Xlib.h */

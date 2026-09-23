@@ -212,13 +212,18 @@ void do_in_out()
 
 void add_export_list(char *in,char *out)
 {
-  int l1=strlen(in);
-  int l2=strlen(out);
   int i;
-  in_out.lin=(char *)xpp_malloc(l1);
-  in_out.lout=(char *)xpp_malloc(l2);
-  strcpy(in_out.lin,in);
-  strcpy(in_out.lout,out);
+  /* a model loaded before this one had its own list */
+  xpp_free(in_out.lin);
+  xpp_free(in_out.lout);
+  xpp_free(in_out.in);
+  xpp_free(in_out.intype);
+  xpp_free(in_out.vin);
+  xpp_free(in_out.out);
+  xpp_free(in_out.outtype);
+  xpp_free(in_out.vout);
+  in_out.lin=xpp_strdup(in); /* was malloc(strlen(in)): one byte short */
+  in_out.lout=xpp_strdup(out);
   i=get_export_count(in);
   in_out.in=(int *)xpp_malloc((i+1)*sizeof(int));
   in_out.intype=(int *)xpp_malloc((i+1)*sizeof(int));

@@ -382,7 +382,7 @@ void q_calc(void) { xpp_ui.q_calc(); }
    existed. A real error uses err_msg()/xpp_log(..., XPP_LOG_ERROR/WARN)
    instead, never plintf. */
 
-int plintf(char *fmt, ...)
+int plintf(const char *fmt, ...)
 {
     va_list arglist;
 

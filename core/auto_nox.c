@@ -658,7 +658,8 @@ void create_auto_file_name()
   char* HOME = auto_home_dir(dname);
 
   sprintf(this_auto_file,"%s/%s",HOME,bname);
-
+  xpp_free(basec); /* HOME may point into dirc: freed after its last use */
+  xpp_free(dirc);
 }
 
 void open_auto(flg) /* compatible with new auto */
@@ -680,6 +681,8 @@ void open_auto(flg) /* compatible with new auto */
   sprintf(fort8,"%s/%s",HOME,"fort.8");
   sprintf(fort9,"%s/%s",HOME,"fort.9");
   sprintf(TMPSWAP,"%s/%s",HOME,"__tmp__");
+  xpp_free(basec); /* HOME may point into dirc: freed after its last use */
+  xpp_free(dirc);
   is_3_there=flg;
 
   if(flg==1){
