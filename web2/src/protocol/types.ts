@@ -22,9 +22,9 @@ export interface View {
   left: number; right: number; top: number; bottom: number;
   xlo: number; xhi: number; ylo: number; yhi: number;
   three: number;
-  /** the active window's 3D angles, degrees (meaningful when `three`) */
-  theta: number;
-  phi: number;
+  /** the active window's 3D angles, degrees (sent only when `three`) */
+  theta?: number;
+  phi?: number;
 }
 
 export interface StateEvent {

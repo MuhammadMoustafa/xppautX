@@ -1092,9 +1092,13 @@ static void send_state(void)
        for the x,y readout under the mouse (scale_to_real, auto_motion_xy) */
     get_draw_area();
     buf_printf(&b, ",\"view\":{\"win\":%lu,\"left\":%d,\"right\":%d,\"top\":%d,\"bottom\":%d,"
-               "\"xlo\":%g,\"xhi\":%g,\"ylo\":%g,\"yhi\":%g,\"three\":%d,\"theta\":%g,\"phi\":%g}",
+               "\"xlo\":%g,\"xhi\":%g,\"ylo\":%g,\"yhi\":%g,\"three\":%d",
                (unsigned long)draw_win, DLeft, DRight, DTop, DBottom, MyGraph->xlo, MyGraph->xhi,
-               MyGraph->ylo, MyGraph->yhi, MyGraph->ThreeDFlag, MyGraph->Theta, MyGraph->Phi);
+               MyGraph->ylo, MyGraph->yhi, MyGraph->ThreeDFlag);
+    /* a 3D window's angles (view3d); only then are they set at all */
+    if (MyGraph->ThreeDFlag && isfinite(MyGraph->Theta) && isfinite(MyGraph->Phi))
+        buf_printf(&b, ",\"theta\":%g,\"phi\":%g", MyGraph->Theta, MyGraph->Phi);
+    BUF_LIT(&b, "}");
     if (Auto.exist)
         buf_printf(&b, ",\"auto\":{\"x0\":%d,\"y0\":%d,\"wid\":%d,\"hgt\":%d,\"xmin\":%g,\"xmax\":%g,"
                    "\"ymin\":%g,\"ymax\":%g}", Auto.x0, Auto.y0, Auto.wid, Auto.hgt, Auto.xmin, Auto.xmax,
@@ -1894,15 +1898,24 @@ static void j_aplot_draw_one(char *tag)
    Restore and later redraws all agree with it. A range that is not
    finite or not increasing, or a window that does not exist, is refused
    (message error) and changes nothing. */
-static void view_command(const char *line)
+/* the plot window a command names ("win", 1-based): its index, or -1
+   after telling the client it does not exist */
+static int command_window(const char *line)
 {
-    int win = (int)get_num(line, "win", -1), i = win - 1;
-    double xlo = get_num(line, "xlo", 0), xhi = get_num(line, "xhi", 0);
-    double ylo = get_num(line, "ylo", 0), yhi = get_num(line, "yhi", 0);
+    int i = (int)get_num(line, "win", -1) - 1;
     if (i < 0 || i >= MAXPOP || !graph[i].Use) {
         j_err_msg("No such window");
-        return;
+        return -1;
     }
+    return i;
+}
+
+static void view_command(const char *line)
+{
+    int i = command_window(line);
+    double xlo = get_num(line, "xlo", 0), xhi = get_num(line, "xhi", 0);
+    double ylo = get_num(line, "ylo", 0), yhi = get_num(line, "yhi", 0);
+    if (i < 0) return;
     if (!isfinite(xlo) || !isfinite(xhi) || !isfinite(ylo) || !isfinite(yhi) || xlo >= xhi || ylo >= yhi) {
         j_err_msg("Bad view");
         return;
@@ -1947,12 +1960,9 @@ static void rotate_command(const char *line)
    error) and changes nothing. */
 static void view3d_command(const char *line)
 {
-    int win = (int)get_num(line, "win", -1), i = win - 1;
+    int i = command_window(line);
     double theta = get_num(line, "theta", 0), phi = get_num(line, "phi", 0);
-    if (i < 0 || i >= MAXPOP || !graph[i].Use) {
-        j_err_msg("No such window");
-        return;
-    }
+    if (i < 0) return;
     if (!graph[i].ThreeDFlag) {
         j_err_msg("Not a 3D window");
         return;
