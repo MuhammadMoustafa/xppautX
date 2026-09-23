@@ -35,7 +35,8 @@ static int ask_base(const char *title, char *buf, size_t n)
     char *dot;
     snprintf(buf, n, "%s.set", this_file);
     ping();
-    if (!file_selector(title, buf, "*.set")) return 0;
+    /* file_selector only displays title; it does not write through it. */
+    if (!file_selector((char *)title, buf, "*.set")) return 0;
     dot = strrchr(buf, '.');
     if (dot && strcmp(dot, ".set") == 0) *dot = 0;
     return 1;
