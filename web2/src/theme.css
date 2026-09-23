@@ -610,7 +610,9 @@ kbd {
   place-items: center;
   padding: var(--space-4);
   background: rgba(15, 23, 42, 0.3);
-  z-index: 100;
+  /* above every panel (AUTO 155, table, text, array plot, animation 160) a
+     dialog can be opened from; only the toasts (200) are higher */
+  z-index: 180;
 }
 .dialog {
   width: min(34rem, 100%);

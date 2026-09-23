@@ -1436,6 +1436,18 @@ async function autoView() {
     ['Parameter', 'Axes', 'Numerics', 'Run', 'Grab', 'Usr period', 'Clear', 'reDraw', 'File', 'Close'].every(w => words.includes(w))
     && !words.some(w => /abort|stop/i.test(w)), JSON.stringify(words));
 
+  /* a dialog the view opens is on top of it, not behind (Numerics' form) */
+  await autoButton('N');
+  await until("s.ask && s.ask.kind === 'form'", 'numerics form');
+  check("Numerics' form is above the AUTO view: its centre and its fields are the topmost elements",
+    await cdp.eval(`(() => { const d = document.querySelector('.dialog'); if (!d) return false;
+      const r = d.getBoundingClientRect(), f = d.querySelector('input').getBoundingClientRect();
+      return d.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2))
+        && d.contains(document.elementFromPoint(f.left + f.width / 2, f.top + f.height / 2)); })()`));
+  await until(`!!document.activeElement.closest('.dialog')`, 'dialog focus'); /* Escape goes to the focused dialog */
+  await key('Escape');
+  await until('!s.busy && !s.ask', 'numerics cancelled');
+
   /* Run / Steady state */
   await autoButton('R');
   check('Run asks how to start', await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Start'", 'start menu'),
