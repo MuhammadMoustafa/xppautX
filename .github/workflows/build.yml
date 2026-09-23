@@ -30,6 +30,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build xppautX (X11-free)
         run: make -j"$(sysctl -n hw.ncpu)" xppautx
+      - name: "Unit tests (C and C++ objects linked with clang++)"
+        run: make test
       - name: Smoke test (headless)
         run: |
           cd /tmp && "$GITHUB_WORKSPACE/xppautX" "$GITHUB_WORKSPACE/examples/ode/lecar.ode" -silent
@@ -54,9 +56,12 @@ jobs:
           msystem: UCRT64
           release: false
           cache: true
+          # the gcc package brings g++ too (core/*.cpp)
           install: make mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-python
       - name: Build the X11-free binaries natively
         run: make -j4 xppautx
+      - name: "Unit tests (C and C++ objects linked with g++)"
+        run: make test
       - name: Headless run matches Linux (ignoring line ends)
         run: |
           cd /tmp && "$GITHUB_WORKSPACE/xppautX.exe" "$GITHUB_WORKSPACE/examples/ode/lecar.ode" -silent

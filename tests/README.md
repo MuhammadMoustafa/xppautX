@@ -4,12 +4,12 @@
 make test
 ```
 
-Each `test_*.c` is a program that links `libxppcore.a`, checks pure core code
+Each `test_*.c` (or `.cpp`) is a program that links `libxppcore.a`, checks pure core code
 and prints one summary line; `tools/verify.sh` runs them before the
 end-to-end checks. The framework is `xpptest.h`: `CHECK`, `CHECK_STR` and
 `TEST_REPORT`, about thirty lines, no dependency.
 
-To add one, drop a `test_<thing>.c` in here — the Makefile picks it up from a
+To add one, drop a `test_<thing>.c` or `.cpp` in here — the Makefile picks it up from a
 wildcard, so there is no list to keep in step.
 
 ## What belongs here

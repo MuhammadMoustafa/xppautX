@@ -48,8 +48,9 @@ look at.
 build/lto and fails on `-Wlto-type-mismatch`: an extern whose type or
 array bound differs from its definition, which a normal build cannot see.
 
-Metrics: `make x11free` (sources compiling without X11 headers, 99/121) and
-`tools/coredeps.sh -v` (symbols core objects import from X11 objects, 0).
+Metrics: `make x11free` (sources compiling without X11 headers, 99/121),
+`tools/coredeps.sh -v` (symbols core objects import from X11 objects, 0)
+and verify.sh's `C++: N / M sources` (core/*.cpp over all core sources).
 The tree builds with 0 warnings (gcc 13 and MinGW gcc 13): verify.sh builds
 with `make WERROR=1`, which makes every category ever reported an error;
 `tools/warnings.sh` counts a clean build's warnings by flag and file.
@@ -118,7 +119,7 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   threads (xpp_http.c, or the --server stdin reader) push lines into
   `core/xpp_inbox.c` (control and normal queues) and `read_line()` takes
   them from there; `-silent` starts no reader. Abort and Quit cancel the
-  running job from the reader thread (`core/xpp_job.[ch]`, by sequence
+  running job from the reader thread (`core/xpp_job.{h,cpp}`, by sequence
   number); computations ask `xpp_job_cancelled()` or go through the
   throttled checkpoints `my_abort()`/`byeauto_()`. ui_json.c's `classify()`
   says which lines are control lines; docs/protocol.md "Commands during a
@@ -138,6 +139,41 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
 - Pop-up menu arrays in menus.c (`main_menu` etc.) start with the title:
   item i is `main_menu[i+1]` with key `main_menu_keys[i]`.
 
+## C and C++
+
+The core stays C and converts to C++ progressively (decision 2026-09-23;
+aim: 70%+ C++ over time, verify.sh's `C++: N / M sources` is the metric).
+
+- The rule: a task that fixes or refactors a core file converts that file
+  to .cpp as part of the task. Mechanical sweeps (renames, logging calls,
+  warning fixes across many files) do not convert anything.
+- Converting is `git mv core/x.c core/x.cpp` and nothing in the Makefile:
+  source lists name files without an extension, core/*.cpp builds with
+  $(CXX) (-std=c++17, gnu++17 on Windows) and programs with any C++ object
+  link with $(CXX). Then fix what C++ rejects: K&R definitions and `f()`
+  declarations (in C++ `()` means no arguments) become prototypes, casts
+  from `void *` (malloc) become explicit, identifiers that are C++ keywords
+  (`new`, `delete`, `class`, `this`, `template`, `or`, `and`, `not`, ...)
+  are renamed, designated initializers must follow member order (or wait
+  for C++20), string literals are `const char *`, and `int` is not an enum.
+- The API stays C: core headers are `extern "C"` (`#ifdef __cplusplus`
+  guards, added by tools/cxx_guard_headers.py; a new header that declares
+  functions or variables gets the same guard by hand, after its
+  #includes, never with an #include inside it). A .cpp that calls C code
+  defined in a file without a header declares it `extern "C"`.
+- No exception may cross into C: C++ code called from C catches what it
+  can throw (std::bad_alloc included) or uses only non-throwing code, and
+  C callbacks called from C++ are assumed not to throw.
+- Use C++ where it clarifies: RAII (std::vector, std::string,
+  std::unique_ptr) for allocations the task touches, std::atomic,
+  std::chrono, anonymous namespaces for file-local state. No behaviour
+  change: verify.sh's checksums still guard the numerics.
+- llnltyps.h makes `bool` a macro for int (CVODE's structs, which C and
+  C++ must lay out alike): convert the CVODE files together, and include
+  C++ standard headers before it.
+- `core/xpp_job.cpp` was the first file converted (std::atomic,
+  std::chrono).
+
 ## Conventions
 
 - Upstream mergeability is no longer a goal (2026-09-23): refactor for
@@ -149,7 +185,7 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
 - `core/fftn.c` does `#include __FILE__`; the Makefile's `-I.` is required for it.
 - `core/sbml2xpp.c` needs libsbml and is not built, same as upstream.
 - The refactoring scripts under `tools/` (guard_x11_headers.py, move_funcs.py,
-  ui_seam_refactor.py, phase2_step*.py) are one-shot and already applied;
+  ui_seam_refactor.py, phase2_step*.py, cxx_guard_headers.py) are one-shot and already applied;
   keep them for the record, do not re-run them.
 - Files on disk may be CRLF (Windows checkout); scripts that edit them must
   preserve line endings. Python written with `newline=''` does.
