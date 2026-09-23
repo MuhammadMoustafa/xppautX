@@ -366,7 +366,7 @@ if(!PAR_FOL)
 
 void save_batch_shoot()
 {
-int i,k,type,oldcol,dummy;
+int i,k,type;
   double x[MAXODE],olddt;
   char name[256];
   FILE *fp;

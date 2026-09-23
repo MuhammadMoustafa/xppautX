@@ -309,7 +309,6 @@ void x11_auto_scroll_window()
   int i=0,j=0;
   int i0=0,j0=0;
   int state=0;
-  float x,y,x0,y0;
   float xlo=Auto.xmin;
   float ylo=Auto.ymin;
   float xhi=Auto.xmax;

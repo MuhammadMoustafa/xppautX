@@ -247,8 +247,7 @@ int add_vectorizer(char *name,char *rhs)
   int ind;
   int len;
   int flag;
-  
-  char rootname[100];
+
   for(i=0;i<n_vector;i++)
        if(strcmp(name,my_vec[i].name)==0)break;  
 
@@ -1162,7 +1161,7 @@ int ind;
    double sum,z;
    int n=my_net[ind].n,*f;
    int ncon=my_net[ind].ncon;
-   double *w,*y,*cc,*values,*yp,*tau;
+   double *w,*y,*cc,*values,*tau;
    int twon=2*n,root=my_net[ind].root,root2=my_net[ind].root2;
    cc=my_net[ind].index;
    w=my_net[ind].weight;

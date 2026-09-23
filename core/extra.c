@@ -95,7 +95,6 @@ void get_import_values(int n, double *ydot, char *soname, char *sofun,
 		       int ivar, double *wgt[MAXW],
 		       double *var, double *con)
 {
-  int i;
   char sofullname[256];
   char *error;
   if(dll_loaded==1){

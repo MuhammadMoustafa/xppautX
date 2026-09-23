@@ -1138,13 +1138,6 @@ GC *gc;
 {
  unsigned int valuemask=0;
  XGCValues values;
- unsigned int lw=6;
-  int ls=LineOnOffDash;
- int cs=CapRound;
- int js=JoinRound;
- int dash_off=0;
- static char dash[]={12,24};
- int ll=2; 
  *gc=XCreateGC(display,main_win,valuemask,&values);
  XSetForeground(display,*gc,MyForeColor);
  /* XSetLineAttributes(display,*gc,lw,ls,cs,js);

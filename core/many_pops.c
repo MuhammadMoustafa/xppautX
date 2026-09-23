@@ -195,7 +195,6 @@ void init_grafs(x,y,w,h)
 int x,y,w,h;
 {
  int i;
- int botmen=DCURYs+DCURYb+10+21*(DCURY+2);
  GrCol();
  for(i=0;i<MAXLAB;i++)
  {
@@ -258,7 +257,6 @@ int rotate3dcheck(ev)
   XEvent z;
   int xini,yini,dx,dy;
   double theta,phi;
-  double xm,ym,xn,yn;
   if(w==draw_win&&MyGraph->ThreeDFlag){
     xini=ev.xbutton.x;
     yini=ev.xbutton.y;

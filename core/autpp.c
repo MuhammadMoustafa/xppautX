@@ -137,9 +137,9 @@ double *u, *uold, *udot, *upold, *fi;
 integer *ijac;
 double *dint;
 {
+   /*
    int i;
    double dum=0.0;
-   /*
   for(i=0;i<Homo_n;i++)
     dum+=upold[i]*(u[i]-uold[i]);
   fi[0]=dum;

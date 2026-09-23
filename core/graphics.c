@@ -111,8 +111,7 @@ void get_draw_area()
 }
 void get_draw_area_flag(int flag)
 {
-  int x,y;
-  unsigned int w,h,bw,de;
+  unsigned int w,h;
   if(flag==1)
     {
       xpp_ui.get_draw_size(&w,&h);
