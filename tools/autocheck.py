@@ -4,10 +4,12 @@ travels, how input is read, and how quickly a long computation stops.
 
 usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [SECTION...]
 
-Sections: draw, input, abort (default: all). --report prints the measurements
+Sections: draw, input, abort, files, sessions (default: draw input abort
+files). files compares AUTO's saved diagram of lecar with a reference;
+sessions checks that concurrent servers keep their AUTO files apart. --report prints the measurements
 without failing on the latency limits, for comparing builds.
 """
-import argparse, json, os, subprocess, sys, time
+import argparse, json, os, shutil, subprocess, sys, tempfile, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from xppclient import Server, is_idle, is_ask, draws, draw_ops, last_picture
 
@@ -15,12 +17,13 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
 ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
-ap.add_argument('sections', nargs='*', default=['draw', 'input', 'abort'])
+ap.add_argument('sections', nargs='*', default=['draw', 'input', 'abort', 'files'])
 args = ap.parse_args()
 here = os.path.dirname(os.path.abspath(__file__))
 LECAR = 'examples/ode/lecar.ode'
 HEAVY = os.path.join(here, 'models', 'heavy.ode')
 PICTURES = os.path.join(here, 'models', 'lecar_auto_pictures.json')
+DIAGRAM = os.path.join(here, 'models', 'lecar_diagram.auto')
 failures = 0
 
 
@@ -241,6 +244,77 @@ def section_abort():
     check('Quit during a run exits within 1 s', took < 1, '%.2f s' % took, limit=True)
     print('INFO quit -> exit %.2f s' % took)
     s.close()
+
+
+# ---- files: the saved diagram of lecar is what it always was --------------
+
+def lecar_diagram(s):
+    """steady state, grab the first label, a periodic branch, File/Save
+    diagram; returns the file's text (None if not written)"""
+    s.collect(is_idle)
+    open_auto(s)
+    run_menu(s, 's')
+    grab_hopf(s)
+    run_menu(s, 'p', timeout=120)
+    s.send(cmd='auto', op='file')
+    evs, e = s.answer_asks(is_idle, {'menu': lambda e: {'key': 's'},
+                                     'file': lambda e: {'ok': 1, 'file': 'diagram.auto'},
+                                     'string': lambda e: {'ok': 1, 'value': 'diagram.auto'}})
+    path = os.path.join(s.run, 'diagram.auto')
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        return f.read()
+
+
+def section_files():
+    home = tempfile.mkdtemp(prefix='xpphome')
+    s = Server(args.server, LECAR, env={'HOME': home}, verbose=args.v)
+    got = lecar_diagram(s)
+    s.close()
+    shutil.rmtree(home, ignore_errors=True)
+    lines = got.splitlines() if got else []
+    check('File/Save diagram writes the diagram', len(lines) > 50, '%d lines' % len(lines))
+    if got is None:
+        return
+    if not os.path.exists(DIAGRAM):
+        with open(DIAGRAM, 'w', newline='') as f:
+            f.write(got)
+        print('INFO wrote %s (the reference diagram)' % DIAGRAM)
+        return
+    with open(DIAGRAM, newline='') as f:
+        want = f.read().splitlines()
+    diff = next((i for i, (a, b) in enumerate(zip(lines, want)) if a != b), None)
+    check('the saved diagram of lecar is unchanged', lines == want,
+          'first difference at line %s; %d vs %d lines' % (diff, len(lines), len(want)))
+
+
+# ---- sessions: two servers on one model keep their AUTO files apart --------
+
+def section_sessions():
+    home = tempfile.mkdtemp(prefix='xpphome')
+    a = Server(args.server, LECAR, env={'HOME': home}, verbose=args.v)
+    b = Server(args.server, LECAR, env={'HOME': home}, verbose=args.v)
+    da = lecar_diagram(a)
+    db = lecar_diagram(b)
+    check('two sessions on one model both save their diagram', da is not None and db is not None)
+    check('and the two diagrams agree', da == db)
+    # a grabs the label its own run wrote, after b has run too
+    a.send(cmd='auto', op='grab')
+    evs, ask = a.collect(is_ask)
+    a.send(cmd='answer', id=ask['id'], key='Tab')
+    evs, ask = a.collect(is_ask)
+    a.send(cmd='answer', id=ask['id'], key='Return')
+    a.collect(is_idle)
+    evs = run_menu(a, 'e', timeout=120)
+    msgs = ' '.join(str(e.get('text', '')) for e in evs if e.get('ev') == 'message')
+    check('a session still extends from its own orbit', 'nan' not in msgs.lower() and a.alive(), msgs[:200])
+    runs = [a.run, b.run]
+    a.close()
+    b.close()
+    left = os.listdir(home)
+    check('nothing is written to HOME', left == [], str(left))
+    shutil.rmtree(home, ignore_errors=True)
 
 
 for name in args.sections:
