@@ -21,6 +21,10 @@ jobs:
         run: cd web2 && npm ci && npm run check && npm run typecheck && npm test
       - name: "New front end in a browser (store and plot state)"
         run: node tools/web2check.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xppaut-linux
+          path: xppautX
 
   # AddressSanitizer, LeakSanitizer and UBSan over the same checks, in
   # parallel with the job above (it takes a few minutes)
