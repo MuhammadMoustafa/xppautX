@@ -68,6 +68,8 @@
    cut to something no name equals */
 #define NAME_IN (XPP_NAME_MAX + 2)
 
+/* the core's own globals and functions that have no header of their own */
+extern "C" {
 extern int NUPAR, NODE, NMarkov, NEQ;
 extern char upar_names[MAXPAR][XPP_NAME_MAX+1], uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern double last_ic[MAXODE];
@@ -98,6 +100,7 @@ extern int DLeft, DRight, DTop, DBottom;
 extern char *color_names[], *auto_hint[];
 extern int DoTutorial, RunImmediately;
 void commander(int ch); /* commands.c */
+}
 
 #define MAX_LEN_EBOX 86 /* edit_rhs.h */
 
@@ -190,7 +193,7 @@ static void buf_add(Buf *b, const char *s, size_t n)
 {
     if (b->len + n + 1 > b->cap) {
         b->cap = (b->len + n + 1) * 2 + 4096;
-        b->s = xpp_realloc(b->s, b->cap);
+        b->s = static_cast<char *>(xpp_realloc(b->s, b->cap));
     }
     memcpy(b->s + b->len, s, n);
     b->len += n;
@@ -296,7 +299,7 @@ static void flush_ops(void)
         /* wrap the ops in place: {"ev":"draw",...,"ops":[ ... ]} */
         if (ob->b.len + k + 3 > ob->b.cap) {
             ob->b.cap = ob->b.len + k + 3 + 4096;
-            ob->b.s = xpp_realloc(ob->b.s, ob->b.cap);
+            ob->b.s = static_cast<char *>(xpp_realloc(ob->b.s, ob->b.cap));
         }
         memmove(ob->b.s + k, ob->b.s, ob->b.len);
         memcpy(ob->b.s, head, k);
@@ -702,7 +705,7 @@ static int ask_wait(Buf *b, int id)
             const char *ok;
             if (n > answer_cap) {
                 answer_cap = n;
-                answer = xpp_realloc(answer, n);
+                answer = static_cast<char *>(xpp_realloc(answer, n));
             }
             memcpy(answer, line, n);
             /* an Abort sent before this answer no longer stops the command */
@@ -727,7 +730,7 @@ static int ask_begin(Buf *b, const char *kind)
     return ask_id;
 }
 
-static void j_err_msg(char *msg)
+static void j_err_msg(const char *msg)
 {
     /* a script that provokes an error fails the run (docs/protocol.md) */
     if (script_mode) script_error = 1;
@@ -742,12 +745,12 @@ static void j_bottom_msg(int line, char *msg)
     send_simple("message", "bottom", msg);
 }
 
-static void j_message_box(char *msg) { send_simple("message", "box", msg); }
+static void j_message_box(const char *msg) { send_simple("message", "box", msg); }
 static void j_kill_message_box(void) { send_simple("message", "box", ""); }
 static void j_title_text(char *s) { send_simple("title", "text", s); }
 static void j_canvas_xy(char *s) { send_simple("message", "xy", s); }
 
-static int j_dialog(char *title, char *name, char *value, char *ok, char *cancel, int max)
+static int j_dialog(const char *title, const char *name, char *value, const char *ok, const char *cancel, int max)
 {
     Buf b;
     int id = ask_begin(&b, "string");
@@ -806,7 +809,7 @@ static int j_two_choice(char *c1, char *c2, char *q, char *key, char *title)
     return (unsigned char)k[0];
 }
 
-static void j_respond_box(char *button, char *message)
+static void j_respond_box(const char *button, const char *message)
 {
     Buf b;
     int id = ask_begin(&b, "alert");
@@ -1469,22 +1472,22 @@ static void j_kill_plot_windows(void)
 
 static void j_cput_text(void)
 {
-    char string[256], new[256];
+    char string[256], text[256];
     int x, y, size = 2;
     strcpy(string, "");
-    if (new_string("Text: ", string) == 0) return;
+    if (new_string(const_cast<char *>("Text: "), string) == 0) return;
     if (string[0] == '%') {
-        fillintext(&string[1], new);
-        strcpy(string, new);
+        fillintext(&string[1], text);
+        strcpy(string, text);
     }
-    new_int("Size 0-4 :", &size);
+    new_int(const_cast<char *>("Size 0-4 :"), &size);
     if (size > 4) size = 4;
     if (size < 0) size = 0;
     j_message_box("Place text with mouse");
     if (j_get_mouse_xy(&x, &y)) {
-        fillintext(string, new);
-        op_text(draw_win, "stext", x, y, new, size);
-        marks_data_label(draw_win, add_label(string, x, y, size, 0), new);
+        fillintext(string, text);
+        op_text(draw_win, "stext", x, y, text, size);
+        marks_data_label(draw_win, add_label(string, x, y, size, 0), text);
     }
     j_kill_message_box();
 }
@@ -1523,7 +1526,7 @@ static unsigned char *ask_pixels(int win, int film, int *w, int *h)
     v = js_find(answer, "rgb");
     if (!v || *v != '"' || *w <= 0 || *h <= 0 || *w > 8192 || *h > 8192) return NULL;
     n = (size_t)*w * (size_t)*h * 3;
-    rgb = xpp_calloc(n, 1);
+    rgb = static_cast<unsigned char *>(xpp_calloc(n, 1));
     for (v++; *v && *v != '"' && k < n; v++) {
         int d = b64_value((unsigned char)*v);
         if (d < 0) continue;
@@ -1994,7 +1997,7 @@ static void aplot_command(const char *line)
     else if (strcmp(o, "gif") == 0) {
         char file[XPP_MAX_NAME];
         snprintf(file, sizeof file, "%s.gif", this_file);
-        if (file_selector("GIF plot", file, "*.gif")) aplot_gif(file, 1);
+        if (file_selector(const_cast<char *>("GIF plot"), file, const_cast<char *>("*.gif"))) aplot_gif(file, 1);
     } else if (strcmp(o, "scroll") == 0) {
         /* dragging the plot by dy pixels moves the first row, as in X11 */
         aplot.nstart -= (int)get_num(line, "dy", 0);
@@ -2281,7 +2284,7 @@ static void j_auto_diagram(const XppDiagPoint *p)
     }
     if (dg_n == dg_cap) {
         dg_cap = dg_cap ? 2 * dg_cap : 1024;
-        dg = xpp_realloc(dg, (size_t)dg_cap * sizeof *dg);
+        dg = static_cast<XppDiagPoint *>(xpp_realloc(dg, (size_t)dg_cap * sizeof *dg));
     }
     dg[dg_n++] = *p;
 }
@@ -2673,125 +2676,132 @@ static void j_exit_program(void)
 static void j_void(void) {}
 static void j_int(int i) { (void)i; }
 
-static const XppUi json_ui = {
-    .err_msg = j_err_msg,
-    .ping = j_ping,
-    .bottom_msg = j_bottom_msg,
-    .message_box = j_message_box,
-    .kill_message_box = j_kill_message_box,
-    .title_text = j_title_text,
-    .canvas_xy = j_canvas_xy,
-    .new_string = j_new_string,
-    .yes_no_box = j_yes_no_box,
-    .two_choice = j_two_choice,
-    .respond_box = j_respond_box,
-    .checklist = j_checklist,
-    .string_box = j_string_box,
-    .file_selector = j_file_selector,
-    .dialog = j_dialog,
-    .edit_box = j_edit_box,
-    .get_mouse_xy = j_get_mouse_xy,
-    .menu_flash = j_int,
-    .show_menu = j_show_menu,
-    .redraw_menu = j_void,
-    .menu_choose = j_menu_choose,
-    .check_abort = j_check_abort,
-    .progress_begin = j_progress_begin,
-    .progress = j_progress,
-    .flush = json_flush,
-    .redraw_params = j_state_dirty,
-    .param_box_set = j_state_dirty_is,
-    .param_box_redraw = j_state_dirty_i,
-    .ic_box_set = j_state_dirty_is,
-    .ic_box_redraw = j_state_dirty_i,
-    .redraw_ics = j_state_dirty,
-    .redraw_all = j_redraw_all,
-    .redraw_bcs = j_state_dirty,
-    .redraw_delays = j_state_dirty,
-    .redraw_graph = j_redraw_graph,
-    .redraw_screens = j_redraw_screens,
-    .clear_screens = j_clear_screens,
-    .clear_draw_window = clr_scrn,
-    .reset_graphics = j_reset_graphics,
-    .data_changed = j_browser_changed,
-    .rows_stored = plot_data_rows_stored,
-    .browser_redraw = j_browser_changed,
-    .activate_graph = j_activate_graph,
-    .create_plot_window = j_create_plot_window,
-    .destroy_plot_window = j_destroy_plot_window,
-    .kill_plot_windows = j_kill_plot_windows,
-    .lower_plot_window = j_void,
-    .gr_col = j_void,
-    .base_col = j_void,
-    .cput_text = j_cput_text,
-    .get_draw_size = j_get_draw_size,
-    .draw_freeze = j_draw_freeze,
-    .blank_draw_window = j_blank_draw_window,
-    .put_text = j_put_text,
-    .small_base = j_void,
-    .small_gr = j_void,
-    .film_clip = j_film_clip,
-    .reset_film = j_reset_film,
-    .movie_play_back = j_movie_play_back,
-    .movie_auto_play = j_movie_auto_play,
-    .movie_save = j_movie_save,
-    .movie_make_anigif = j_movie_make_anigif,
-    .rubber_band = j_rubber_band,
-    .scroll_window = j_scroll_window,
-    .new_colormap = j_new_colormap,
-    .draw_point = j_draw_point,
-    .draw_line = j_draw_line,
-    .draw_bead = j_draw_bead,
-    .draw_frect = j_draw_frect,
-    .draw_text = j_draw_text,
-    .draw_special_text = j_draw_special_text,
-    .draw_linestyle = j_draw_linestyle,
-    .set_color = j_set_color,
-    .aplot_make = j_aplot_make,
-    .aplot_redraw = j_aplot_redraw,
-    .aplot_reset_axes = j_aplot_redraw,
-    .aplot_draw_one = j_aplot_draw_one,
-    .auto_make_window = j_auto_make_window,
-    .auto_line = j_auto_line,
-    .auto_text = j_auto_text,
-    .auto_circle = j_auto_circle,
-    .auto_fill_circle = j_auto_fill_circle,
-    .auto_xor_cross = j_auto_xor_cross,
-    .auto_line_width = j_auto_line_width,
-    .auto_col = j_auto_col,
-    .auto_bw = j_auto_bw,
-    .auto_clr_stab = j_auto_clr_stab,
-    .auto_stab_line = j_auto_stab_line,
-    .auto_clear_plot = j_auto_clear_plot,
-    .auto_redraw_menus = j_void,
-    .auto_clear_info = j_auto_clear_info,
-    .auto_draw_info = j_auto_draw_info,
-    .auto_refresh = j_auto_refresh,
-    .auto_check_abort = j_auto_check_abort,
-    .auto_rubber = j_auto_rubber,
-    .auto_choose_key = j_auto_choose_key,
-    .auto_scroll_window = j_auto_scroll_window,
-    .auto_grab_event = j_auto_grab_event,
-    .auto_show_hint = j_auto_show_hint,
-    .auto_grab_end = j_auto_grab_end,
-    .auto_diagram = j_auto_diagram,
-    .new_vcr = j_new_vcr,
-    .ani_clear = j_ani_clear,
-    .ani_show = j_ani_show,
-    .ani_color = j_ani_color,
-    .ani_thick = j_ani_thick,
-    .ani_font = j_ani_font,
-    .ani_line = j_ani_line,
-    .ani_rect = j_ani_rect,
-    .ani_arc = j_ani_arc,
-    .ani_text = j_ani_text,
-    .ani_slider = j_ani_slider,
-    .init_txtview = j_void,
-    .show_eq_box = j_show_eq_box,
-    .make_txtview = j_make_txtview,
-    .q_calc = j_q_calc,
-    .exit_program = j_exit_program,
-};
+/* the JSON front end's table: assignments, so C++17 needs no designated
+   initializers; fields not set stay null, as in the C initializer */
+static XppUi make_json_ui(void)
+{
+    XppUi u{};
+    u.err_msg = [](char *m) { j_err_msg(m); };
+    u.ping = j_ping;
+    u.bottom_msg = j_bottom_msg;
+    u.message_box = [](char *m) { j_message_box(m); };
+    u.kill_message_box = j_kill_message_box;
+    u.title_text = j_title_text;
+    u.canvas_xy = j_canvas_xy;
+    u.new_string = j_new_string;
+    u.yes_no_box = j_yes_no_box;
+    u.two_choice = j_two_choice;
+    u.respond_box = [](char *b, char *m) { j_respond_box(b, m); };
+    u.checklist = j_checklist;
+    u.string_box = j_string_box;
+    u.file_selector = j_file_selector;
+    u.dialog = [](char *t, char *n, char *v, char *o, char *c, int m) { return j_dialog(t, n, v, o, c, m); };
+    u.edit_box = j_edit_box;
+    u.get_mouse_xy = j_get_mouse_xy;
+    u.menu_flash = j_int;
+    u.show_menu = j_show_menu;
+    u.redraw_menu = j_void;
+    u.menu_choose = j_menu_choose;
+    u.check_abort = j_check_abort;
+    u.progress_begin = j_progress_begin;
+    u.progress = j_progress;
+    u.flush = json_flush;
+    u.redraw_params = j_state_dirty;
+    u.param_box_set = j_state_dirty_is;
+    u.param_box_redraw = j_state_dirty_i;
+    u.ic_box_set = j_state_dirty_is;
+    u.ic_box_redraw = j_state_dirty_i;
+    u.redraw_ics = j_state_dirty;
+    u.redraw_all = j_redraw_all;
+    u.redraw_bcs = j_state_dirty;
+    u.redraw_delays = j_state_dirty;
+    u.redraw_graph = j_redraw_graph;
+    u.redraw_screens = j_redraw_screens;
+    u.clear_screens = j_clear_screens;
+    u.clear_draw_window = clr_scrn;
+    u.reset_graphics = j_reset_graphics;
+    u.data_changed = j_browser_changed;
+    u.rows_stored = plot_data_rows_stored;
+    u.browser_redraw = j_browser_changed;
+    u.activate_graph = j_activate_graph;
+    u.create_plot_window = j_create_plot_window;
+    u.destroy_plot_window = j_destroy_plot_window;
+    u.kill_plot_windows = j_kill_plot_windows;
+    u.lower_plot_window = j_void;
+    u.gr_col = j_void;
+    u.base_col = j_void;
+    u.cput_text = j_cput_text;
+    u.get_draw_size = j_get_draw_size;
+    u.draw_freeze = j_draw_freeze;
+    u.blank_draw_window = j_blank_draw_window;
+    u.put_text = j_put_text;
+    u.small_base = j_void;
+    u.small_gr = j_void;
+    u.film_clip = j_film_clip;
+    u.reset_film = j_reset_film;
+    u.movie_play_back = j_movie_play_back;
+    u.movie_auto_play = j_movie_auto_play;
+    u.movie_save = j_movie_save;
+    u.movie_make_anigif = j_movie_make_anigif;
+    u.rubber_band = j_rubber_band;
+    u.scroll_window = j_scroll_window;
+    u.new_colormap = j_new_colormap;
+    u.draw_point = j_draw_point;
+    u.draw_line = j_draw_line;
+    u.draw_bead = j_draw_bead;
+    u.draw_frect = j_draw_frect;
+    u.draw_text = j_draw_text;
+    u.draw_special_text = j_draw_special_text;
+    u.draw_linestyle = j_draw_linestyle;
+    u.set_color = j_set_color;
+    u.aplot_make = j_aplot_make;
+    u.aplot_redraw = j_aplot_redraw;
+    u.aplot_reset_axes = j_aplot_redraw;
+    u.aplot_draw_one = j_aplot_draw_one;
+    u.auto_make_window = j_auto_make_window;
+    u.auto_line = j_auto_line;
+    u.auto_text = j_auto_text;
+    u.auto_circle = j_auto_circle;
+    u.auto_fill_circle = j_auto_fill_circle;
+    u.auto_xor_cross = j_auto_xor_cross;
+    u.auto_line_width = j_auto_line_width;
+    u.auto_col = j_auto_col;
+    u.auto_bw = j_auto_bw;
+    u.auto_clr_stab = j_auto_clr_stab;
+    u.auto_stab_line = j_auto_stab_line;
+    u.auto_clear_plot = j_auto_clear_plot;
+    u.auto_redraw_menus = j_void;
+    u.auto_clear_info = j_auto_clear_info;
+    u.auto_draw_info = j_auto_draw_info;
+    u.auto_refresh = j_auto_refresh;
+    u.auto_check_abort = j_auto_check_abort;
+    u.auto_rubber = j_auto_rubber;
+    u.auto_choose_key = j_auto_choose_key;
+    u.auto_scroll_window = j_auto_scroll_window;
+    u.auto_grab_event = j_auto_grab_event;
+    u.auto_show_hint = j_auto_show_hint;
+    u.auto_grab_end = j_auto_grab_end;
+    u.auto_diagram = j_auto_diagram;
+    u.new_vcr = j_new_vcr;
+    u.ani_clear = j_ani_clear;
+    u.ani_show = j_ani_show;
+    u.ani_color = j_ani_color;
+    u.ani_thick = j_ani_thick;
+    u.ani_font = j_ani_font;
+    u.ani_line = j_ani_line;
+    u.ani_rect = j_ani_rect;
+    u.ani_arc = j_ani_arc;
+    u.ani_text = j_ani_text;
+    u.ani_slider = j_ani_slider;
+    u.init_txtview = j_void;
+    u.show_eq_box = j_show_eq_box;
+    u.make_txtview = j_make_txtview;
+    u.q_calc = j_q_calc;
+    u.exit_program = j_exit_program;
+    return u;
+}
+
+static const XppUi json_ui = make_json_ui();
 
 /* ---- commands from the client ------------------------------------------------------ */
 
@@ -3080,7 +3090,7 @@ void json_ui_loop(void)
         size_t n = strlen(line) + 1;
         if (n > cap) {
             cap = n;
-            copy = xpp_realloc(copy, cap);
+            copy = static_cast<char *>(xpp_realloc(copy, cap));
         }
         memcpy(copy, line, n);
         /* an abort did its work when it arrived (classify()): it is no
