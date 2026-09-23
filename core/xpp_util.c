@@ -38,7 +38,6 @@
 #define PARAM 1
 #define IC 2
 #define REAL_SMALL 1.e-6
-#define lmax(a, b) ((a) > (b) ? (a) : (b))
 
 extern int NUPAR, NEQ;
 extern char upar_names[MAXPAR][11], uvar_names[MAXODE][12];
