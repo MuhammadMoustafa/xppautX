@@ -10,14 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install deps
-        run: sudo apt-get update && sudo apt-get install -y libx11-dev
       - name: Build, smoke test, metrics
         run: tools/verify.sh
-      - name: Coupling metric
-        run: |
-          tools/coredeps.sh -v | tee build/coredeps.out
-          test "$(grep -oE 'imports: [0-9]+' build/coredeps.out | grep -oE '[0-9]+')" -eq 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -34,8 +28,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install deps
-        run: sudo apt-get update && sudo apt-get install -y libx11-dev
       # gcc's ASan cannot map its shadow memory with the 32 bits of mmap
       # randomness recent runner kernels use
       - name: Allow ASan's memory layout

@@ -6,7 +6,7 @@ Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && make -j8"
 
-Full check after any change (build both binaries, smoke-test checksums,
+Full check after any change (build xppautX, smoke-test checksum,
 print the metrics). This is the gate before committing:
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/verify.sh"
@@ -14,25 +14,15 @@ print the metrics). This is the gate before committing:
 Headless smoke test by hand (writes output.dat in cwd, expect 601 rows and
 md5 c281851de59ffd03b2a46428619a0c8f for lecar.ode):
 
-    wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && ./xppaut examples/ode/lecar.ode -silent && wc -l output.dat"
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && ./xppautX examples/ode/lecar.ode -silent && md5sum output.dat"
 
-Run the GUI (WSLg shows the X11 window on the Windows desktop):
+Run it (opens the browser front end):
 
-    wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && ./xppaut examples/ode/lecar.ode"
+    wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && ./xppautX examples/ode/lecar.ode"
 
-GUI regression check (builds HEAD, drives both GUIs with the same keys via
-XSendEvent, compares screenshots; run it for any change that touches menus,
-dispatch or X11 files). It takes ~10 minutes: run it once per finished batch
-of work, not per edit. It uses a private Xvfb display (installed) so it does
-not steal focus; `NEW=/abs/path/xppaut` compares a frozen copy so you can keep
-building while it runs:
-
-    wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/guicheck.sh"
-
-Web front end regression check (the counterpart of guicheck for
-`xppautX`; run it for changes to `web/`, ui_json.c or xpp_http.cpp, once
-per batch). From Git Bash on Windows, where Node and Chrome are (not WSL):
+Web front end regression check (run it for changes to `web/`, ui_json.c
+or xpp_http.cpp, once per batch). From Git Bash on Windows, where Node
+and Chrome are (not WSL):
 
     PATH=/c/Strawberry/c/bin:$PATH node tools/webtest.mjs
 
@@ -58,28 +48,27 @@ and commit `web2/dist` with the source. Tests read `window.__xpp`
 `diagramEvents()`, `longTasks()`), never pixels. `tools/cdp.mjs` is the
 headless-browser driver webtest.mjs and web2check.mjs share.
 
-`make ltocheck` (run by verify.sh) links both programs with LTO into
-build/lto and fails on `-Wlto-type-mismatch`: an extern whose type or
-array bound differs from its definition, which a normal build cannot see.
+`make ltocheck` (run by verify.sh) links xppautX with LTO into build/lto
+and fails on `-Wlto-type-mismatch`: an extern whose type or array bound
+differs from its definition, which a normal build cannot see.
 
-`make asan` builds both programs with AddressSanitizer, LeakSanitizer and
+`make asan` builds xppautX with AddressSanitizer, LeakSanitizer and
 UBSan into build/asan; `tools/asancheck.sh` (CI's `sanitizers` job, not
-verify.sh: it takes a few minutes) builds them and runs the smoke runs,
+verify.sh: it takes a few minutes) builds it and runs the smoke run,
 every example, the unit tests, servercheck, webcheck and autocheck under
-them, and fails on any report (written to build/asan/reports):
+it, and fails on any report (written to build/asan/reports):
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/asancheck.sh"
 
-Metrics: `make x11free` (sources compiling without X11 headers, 100/122),
-`tools/coredeps.sh -v` (symbols core objects import from X11 objects, 0)
-and verify.sh's `C++: N / M sources` (core/*.cpp over all core sources).
-The tree builds with 0 warnings (gcc 13 and MinGW gcc 13): verify.sh builds
-with `make WERROR=1`, which makes every category ever reported an error;
-`tools/warnings.sh` counts a clean build's warnings by flag and file.
+Metrics: verify.sh's `C++: N / M sources` (core/*.cpp over all core
+sources). The tree builds with 0 warnings (gcc 13 and MinGW gcc 13):
+verify.sh builds with `make WERROR=1`, which makes every category ever
+reported an error; `tools/warnings.sh` counts a clean build's warnings by
+flag and file.
 
 `sudo` inside WSL needs the user's password; apt installs must be run by the user.
-The Windows-side gcc at C:\Strawberry\c\bin is MinGW-w64 without X11 headers: use it
-only for the native X11-free build, from Git Bash:
+The Windows-side gcc at C:\Strawberry\c\bin is MinGW-w64; use it for the
+native build, from Git Bash:
 
     PATH=/c/Strawberry/c/bin:$PATH mingw32-make -j8 xppautx BUILDDIR=build/win
     python3 tools/servercheck.py --server ./xppautX.exe
@@ -94,37 +83,23 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
 - `core/xpp_ui.h` is the seam: an `XppUi` table of callbacks. Core code
   calls the historical names (`err_msg`, `new_float`, `redraw_params`,
   `TwoChoice`, `ALINE`, `set_color`, ...); those are dispatchers in
-  `core/xpp_ui.c` with headless defaults. `core/ui_x11.c` installs the X11
-  table from `init_X()`. X11 implementations are renamed `x11_<name>`.
-  Adding a UI call from core: add a field, a headless default, a dispatcher,
-  and the `x11_` entry; never call an X11 file from a core file directly.
+  `core/xpp_ui.c` with headless defaults. `core/ui_json.c` installs its
+  own table before it serves a session. Adding a UI call from core: add a
+  field, a headless default, a dispatcher, and a `j_` entry in ui_json.c.
 - `core/xpp_globals.[ch]` holds shared state that used to live in main.c
-  and other X11 files. `core/xpp_util.c`, `core/browse_data.c`,
-  `core/colormap.c`, `core/menus.c` hold pure code moved out of X11 files.
-- Core structs that hold a window store an `XppWinId` (unsigned long, same
-  representation as an X11 Window); see `core/xpp_types.h`.
-- X-typed declarations in headers are wrapped in
-  `#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)`. Every X11 .c file must
-  therefore include `<X11/Xlib.h>` on its first line.
+  and the other X11 files (removed, issue #20). `core/xpp_util.c`,
+  `core/browse_data.c`, `core/colormap.c`, `core/menus.c` hold pure code
+  moved out of those files.
+- Core structs that hold a window store an `XppWinId` (unsigned long); see
+  `core/xpp_types.h`.
 - `core/commands.c` is the command layer (phase 3): `commander` (keys),
   `run_the_commands` (`M_*` ids), and every pop-up menu. Menus are
   `XppMenu` data in `core/menus.c`; front ends show them via
   `xpp_ui.menu_choose` and switch the main menu via `xpp_ui.show_menu`.
-  A menu's layout numbers (width, row) are the X11 `pop_up_list` arguments.
   Command logic is all core (phase 3 step 2); `XppUi` only holds
   interaction primitives, window management and a few whole dialogs.
-- `tools/guicheck.sh` also compares files the session writes (clone,
-  save as, kinescope frames, browser tables, array plot PS/GIF) and fails
-  when a `shotw` dialog never appeared. `tools/xdrive.c` script commands:
-  key, keyw (key to a window by title), sleep, shot, shotw (dialog by
-  title; `a|b` alternatives), clickw, names (list window titles). Without a
-  window manager a pending prompt swallows the next key: add `key Escape`
-  before a new section. `tools/gui_test.ani` is the animation it loads.
-- Window code split off core files keeps a `*win.c` name (`aniwin.c`,
-  `aplotwin.c`); the upstream file keeps the logic and becomes core.
-- The Makefile's `UI_SOURCES` list is the X11 set; everything else goes
-  into `libxppcore.a`. `core/xpp_batch.c` is the headless entry point;
-  `xpp_load_model()` there is the start shared with the server.
+- `core/xpp_batch.c` is the headless entry point; `xpp_load_model()` there
+  is the start shared with the server.
 - `core/ui_json.c` + `core/xppautx_main.c` (`SERVER_SOURCES`) are the JSON
   protocol front end (docs/protocol.md). When adding an `XppUi` field, give
   it a `j_` implementation too, and extend `tools/servercheck.py` for new
@@ -160,15 +135,15 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   editing `web/` files; `node web/serve.js` still serves them from disk.
 - `core/xpp_log.[ch]` is the one logging module, quiet by default:
   `xpp_log(level, fmt, ...)` with ERROR/WARN/INFO/DEBUG, threshold WARN,
-  raised by `--verbose`/`--debug` (`-verbose`/`-debug` for xppaut).
-  printf semantics (the caller writes the newline); output goes to
+  raised by `--verbose`/`--debug`. printf semantics (the caller writes the
+  newline); output goes to
   `-logfile`'s file if given, else stderr, which browser mode shows in the
   page's log. `plintf()` is INFO, `err_msg()`'s headless default ERROR.
   AUTO's table goes through `xpp_log_auto()`: INFO on the console, always
   written in browser mode, where the AUTO window's Output panel shows it.
-- The X11 front end is frozen and will be removed once the new web UI
-  covers it; new UI work goes into ui_json.c and `web2/` (the data-level
-  front end: the core sends numbers, e.g. the `series` and `plots` events
+- The X11 front end was removed (issue #20, task W8); new UI work goes
+  into ui_json.c and `web2/` (the data-level front end: the core sends
+  numbers, e.g. the `series` and `plots` events
   after `{"cmd":"data","events":["series","plots"]}`, built in
   `core/plot_data.cpp`, and the page draws them; `nullclines` and `dfield`
   come from `core/phase_data.cpp`, which records per window what

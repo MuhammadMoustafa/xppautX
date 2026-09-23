@@ -8,9 +8,9 @@ Linux without an X server, keeps every feature and every single-letter menu
 hotkey of the original, and exposes the numerics as a library that other
 tools (for example a VS Code extension) can drive directly.
 
-Current status: **phase 3 steps 1-5 done**. The numerics and every command
-are X11-free. `make lib` builds `build/obj/libxppcore.a` and `make xppautx`
-builds **`xppautX`**, one program that, like `xppaut`, takes what to do from
+Current status: **phase 3 steps 1-5 done, legacy front end removed
+(issue #20)**. `make lib` builds `build/obj/libxppcore.a` and `make xppautx`
+builds **`xppautX`**, the one program, which takes what to do from
 the command line:
 
 ```bash
@@ -19,23 +19,21 @@ the command line:
 ./xppautX --server examples/ode/lecar.ode  # the JSON protocol on stdin/stdout
 ```
 
-`-silent` writes an `output.dat` byte-identical to `xppaut -silent`.
-Names in a model (variables, parameters, auxiliaries, functions and their
-arguments, tables) can be up to 64 characters long (`XPP_NAME_MAX` in
-`core/xpplim.h`); XPPAUT 8 cut them to about 10.
+`-silent` writes an `output.dat`; `tools/verify.sh` checks it against a
+known-good checksum. Names in a model (variables, parameters, auxiliaries,
+functions and their arguments, tables) can be up to 64 characters long
+(`XPP_NAME_MAX` in `core/xpplim.h`); XPPAUT 8 cut them to about 10.
 
 It needs nothing else (no X server, no Node), builds natively on Windows,
-and does what the X11 program does ([docs/front-end-gaps.md](docs/front-end-gaps.md)).
-A new interface is in progress: `xppautX` also prints a `/v2/` address that
-serves it (the plot drawn from data, zoom, pan, touch, keyboard, light and
-dark themes); [docs/ui-v2.md](docs/ui-v2.md) is its design and plan.
-[docs/using-the-panel.md](docs/using-the-panel.md) is the guide for people
-who know the X11 windows; [docs/vscode-extension.md](docs/vscode-extension.md)
-says how the VS Code extension uses the program.
-The X11 program still builds and behaves as before; it is frozen (no new
-features). The web front end has its own behavioural regression test
-(`tools/webtest.mjs`), so the X11 program is no longer needed as the
-reference.
+and covers every feature of classic XPPAUT
+([docs/front-end-gaps.md](docs/front-end-gaps.md) is the historical parity
+record). A new interface is in progress: `xppautX` also prints a `/v2/`
+address that serves it (the plot drawn from data, zoom, pan, touch,
+keyboard, light and dark themes); [docs/ui-v2.md](docs/ui-v2.md) is its
+design and plan. [docs/using-the-panel.md](docs/using-the-panel.md) is the
+guide to the browser front end; [docs/vscode-extension.md](docs/vscode-extension.md)
+says how the VS Code extension uses the program. The web front end has its
+own behavioural regression test (`tools/webtest.mjs`).
 
 ## Plan
 
@@ -44,10 +42,9 @@ reference.
 2. **Split numerics from UI.** *(done)* Every call from the numerics into the
    front end goes through the `XppUi` callback table in `core/xpp_ui.h`.
    The historical function names (`err_msg`, `new_int`, `redraw_params`,
-   `ALINE`, ...) still exist as dispatchers, so upstream diffs stay
-   mergeable; the X11 implementations carry an `x11_` prefix and are wired
-   in by `core/ui_x11.c`. The headless defaults log messages, decline
-   prompts and draw nothing.
+   `ALINE`, ...) still exist as dispatchers. The headless defaults log
+   messages, decline prompts and draw nothing; `core/ui_json.c` installs
+   the browser front end's table.
 3. **New front end.** Menus and hotkeys come from the menu tables in
    `core/menus.c` and are dispatched through the same `M_*` switch, so
    behaviour stays identical. Targets: a webview inside the
@@ -58,19 +55,19 @@ reference.
       data in `core/menus.c`, shown through `xpp_ui.menu_choose`.
    2. *(done)* Every command handler is core code: `graf_par.c`,
       `torus.c`, `edit_rhs.c` and `core/grobs.c` (labels, arrows, markers,
-      plot-window commands) left the X11 set, and the rest moved into
+      plot-window commands) left the front-end set, and the rest moved into
       `commands.c`/`xpp_util.c`. What a front end still provides are
       interaction primitives (menus, prompts, string/edit boxes, checklist,
       rubber band, scroll, mouse position), window management (plot windows,
       kinescope frames) and three whole dialogs (source viewer, calculator,
       text placement).
-   2.5 *(done)* Logic out of the remaining X11 windows: the data browser's
-      commands (`browse_data.c`), the IC/parameter box values and sliders
-      (`xpp_util.c`), the animation language and its drawing geometry
-      (`aniparse.c`, drawing through `xpp_ui.ani_*`; the window is
-      `aniwin.c`), array plot settings and printing (`arrayplot.c`; window
-      `aplotwin.c`), AUTO diagram grabbing (`auto_nox.c`), the GIF encoder
-      (`scrngif.c`), user buttons (`userbut.c`) and the equilibrium import.
+   2.5 *(done)* Logic out of the remaining front-end windows: the data
+      browser's commands (`browse_data.c`), the IC/parameter box values
+      and sliders (`xpp_util.c`), the animation language and its drawing
+      geometry (`aniparse.c`, drawing through `xpp_ui.ani_*`), array plot
+      settings and printing (`arrayplot.c`), AUTO diagram grabbing
+      (`auto_nox.c`), the GIF encoder (`scrngif.c`), user buttons
+      (`userbut.c`) and the equilibrium import.
    3. *(done)* A protocol front end: `core/ui_json.c` is an `XppUi` table
       that speaks line-delimited JSON (drawing, state and prompts out; keys,
       answers, sizes and parameter edits in) and `make server` builds
@@ -87,25 +84,25 @@ reference.
       options `--port N`, `--no-open` and `--version`. The XPP-ODE extension
       frames that page in a panel with **Open in XPP Interactive**
       ([docs/vscode-extension.md](docs/vscode-extension.md)).
-   5. *(done for Windows; macOS in CI)* Native builds of the X11-free
-      program: `make xppautx` works with MinGW-w64 gcc on Windows
-      (`xppautX.exe` needs only the system C runtime, and dll_lib
-      models load `.dll`s) and on macOS without XQuartz. The Windows build
-      passes the same protocol checks and writes the same `output.dat` as
-      Linux apart from line endings. CI builds and checks both.
+   5. *(done for Windows; macOS in CI)* Native builds of the program:
+      `make xppautx` works with MinGW-w64 gcc on Windows (`xppautX.exe`
+      needs only the system C runtime, and dll_lib models load `.dll`s)
+      and on macOS with nothing extra installed. The Windows build passes
+      the same protocol checks and writes the same `output.dat` as Linux
+      apart from line endings. CI builds and checks both.
+   6. *(done, issue #20)* Retire the legacy front end: its sources,
+      Makefile target and CI steps are gone; `tools/webtest.mjs` remains
+      the browser front end's own regression test.
 
 ### Metrics
 
-Two scripts track the split; both must stay green (`tools/verify.sh` runs
-them after a build and checks the output checksums):
+Scripts that track the numerics; both must stay green (`tools/verify.sh`
+runs them after a build and checks the output checksums):
 
 | Script | Measures | Now |
 |---|---|---|
-| `tools/x11free.sh` | sources that compile with X11 headers stubbed out | 92 / 114 |
-| `tools/coredeps.sh` | symbols those objects import from X11 objects | 0 |
 | `tools/servercheck.py` | protocol session against `xppautX --server` (menus, prompts, integration, equilibria, windows, browser, animation, kinescope, array plot, scrolling) | 34 checks |
 | `tools/webcheck.py` | `xppautX` over HTTP: page, token, event stream, commands, exit | 11 checks |
-| `tools/examples_check.sh` | every `examples/**/*.ode` through `xppaut -silent` and `xppautX -silent`, outputs compared | all models |
 
 `node tools/webtest.mjs [--bin BIN]` guards the web front end the same way:
 it builds nothing, and plays `tools/web_steps.txt` (real key presses,
@@ -117,18 +114,11 @@ a headless Chrome or Edge, checking what each step claims about the result
 drawn to, the files the session wrote) instead of comparing screenshots.
 It needs Node 22+ and a Chrome, Chromium or Edge, nothing else.
 
-`tools/guicheck.sh [REF]` guards the X11 program itself: it builds `REF`
-(default `HEAD`), drives both GUIs through the keys in `tools/gui_keys.txt`
-with `tools/xdrive.c` and compares the screenshots and the files the
-session writes. It covers every menu, the data browser, the animation,
-array plot, equilibrium and AUTO windows, and runs on a private Xvfb display
-when `xvfb` is installed (about ten minutes).
-
 ## Layout
 
 | Path | Contents |
 |---|---|
-| `core/` | All C sources and headers. `core/bitmaps/` holds the `#include`d X bitmaps. |
+| `core/` | All C sources and headers. |
 | `docs/` | Manuals (`xpp_doc.pdf`, `xpp_sum.pdf`), TeX sources, HTML help, man page, upstream `HISTORY` and `README`. |
 | `examples/` | `ode/` example models, `canonical/`, `tstauto/` AUTO tests. |
 | `build/legacy/` | The upstream Makefile variants, kept for reference. |
@@ -176,7 +166,7 @@ or built from source, so those routes skip this entirely.
 
 ## Building
 
-The released **xppautX** program needs nothing installed — it is X11-free.
+The released **xppautX** program needs nothing installed.
 
 If you want to build from source, you need gcc (or clang) and make.
 
@@ -196,8 +186,8 @@ make -j8 xppautx
 
 ### Windows
 
-The X11-free binaries build natively with MinGW-w64 gcc (MSYS2 UCRT64, or
-the gcc that ships with Strawberry Perl) from a bash shell:
+The binaries build natively with MinGW-w64 gcc (MSYS2 UCRT64, or the gcc
+that ships with Strawberry Perl) from a bash shell:
 
 ```bash
 make -j8 xppautx
@@ -216,42 +206,12 @@ current directory:
 head output.dat
 ```
 
-### Building the legacy X11 xppaut (optional)
-
-The original X11 GUI (`xppaut`) is frozen and no longer shipped with
-releases. If you want to build it for reference or development, you need
-X11 headers.
-
-**Linux:** Add `libx11-dev` to the dependencies above:
-
-```bash
-sudo apt install build-essential libx11-dev
-make -j8 xppaut
-```
-
-**macOS:** Install [XQuartz](https://www.xquartz.org/) or `brew install libx11`:
-
-```bash
-make -j8 xppaut X11_INC=-I/opt/X11/include X11_LIB=-L/opt/X11/lib
-# Homebrew instead of XQuartz:
-make -j8 xppaut X11_INC=-I$(brew --prefix)/include X11_LIB=-L$(brew --prefix)/lib
-```
-
-**Windows:** The X11 `xppaut` builds only under WSL. Windows 11 ships WSLg,
-so its window opens on the Windows desktop:
-
-```bash
-wsl -e bash -lc "sudo apt install -y build-essential libx11-dev"
-wsl -e bash -lc "cd /path/to/repo && make -j8 xppaut"
-wsl -e bash -lc "cd /path/to/repo && ./xppaut examples/ode/lecar.ode"
-```
-
 ### Library and headless runner
 
 ```bash
-make lib          # build/obj/libxppcore.a: the numerics, no X11
-make xppautx      # xppautX: the one X11-free program
-./xppautX examples/ode/lecar.ode -silent   # writes output.dat, same as xppaut -silent
+make lib          # build/obj/libxppcore.a: the numerics
+make xppautx      # xppautX: the one program
+./xppautX examples/ode/lecar.ode -silent   # writes output.dat
 ```
 
 ### Makefile knobs
@@ -261,14 +221,13 @@ make xppautx      # xppautX: the one X11-free program
 | `CC` | `gcc` | Compiler |
 | `OPT` | `-g -O2` | Optimisation / debug flags |
 | `WARN` | `-Wall` | Warning flags |
-| `X11_INC`, `X11_LIB` | empty | Extra `-I` / `-L` for non-standard X11 locations |
 
 Objects go to `build/obj/`. `make clean` removes them and the binary.
 
 ## Releases
 
-Tagging `v*` runs `.github/workflows/release.yml`, which builds the X11-free
-programs on Linux, Windows and macOS (arm64 and x64), checks each build with
+Tagging `v*` runs `.github/workflows/release.yml`, which builds xppautX
+on Linux, Windows and macOS (arm64 and x64), checks each build with
 `tools/servercheck.py` and `tools/webcheck.py`, and attaches one archive per
 platform plus the source of those binaries to the GitHub release.
 `tools/package_release.sh PLATFORM` makes such an archive locally.
@@ -284,9 +243,9 @@ signs from Linux), so only the certificates are missing.
 ## Documentation
 
 For the browser front end: [docs/using-the-panel.md](docs/using-the-panel.md)
-(what differs from the X11 windows), [docs/protocol.md](docs/protocol.md)
-(the JSON protocol), [docs/front-end-gaps.md](docs/front-end-gaps.md) (X11
-against it) and [docs/vscode-extension.md](docs/vscode-extension.md).
+(what differs from the classic menus), [docs/protocol.md](docs/protocol.md)
+(the JSON protocol), [docs/front-end-gaps.md](docs/front-end-gaps.md) (the
+historical parity record) and [docs/vscode-extension.md](docs/vscode-extension.md).
 
 The original manual is `docs/xpp_doc.pdf`; the quick summary is
 `docs/xpp_sum.pdf`; the HTML help that the program's Help menu opens lives in

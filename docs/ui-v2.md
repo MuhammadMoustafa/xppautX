@@ -16,7 +16,8 @@ Decisions already taken (not revisited here): data-level plotting; TypeScript,
 a light framework and uPlot, bundled with esbuild into the files xppautX
 embeds; tests check data and UI state, never pixels; the C core stays C and
 the JSON protocol is the seam; `web/` keeps working until web2 covers it,
-then `web/` and the X11 program go; upstream mergeability is not a goal.
+then `web/` goes too (the X11 program already went, W8); upstream
+mergeability is not a goal.
 
 ## Contents
 
@@ -162,9 +163,10 @@ already data and stay as they are.
    can even be open at once.
 2. T17 makes web2 the page at `/` (classic at `/v1/`), and the VS Code panel
    switches to it.
-3. T18 removes `web/`, the X11 program, and the `draw`, `palette`, `pixels`
-   and window-size paths that only they use; the `XppUi` drawing callbacks
-   become data producers only. The protocol number goes to 2 then.
+3. T18 removes `web/` and the `draw`, `palette`, `pixels` and window-size
+   paths that only it uses (the X11 program itself was already removed by
+   W8); the `XppUi` drawing callbacks become data producers only. The
+   protocol number goes to 2 then.
 
 ## 3. Commands, prompts and components
 
@@ -584,4 +586,4 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T15 | Kinescope and exports from data: capture snapshots, play, GIF/PNG from the client | T7, T8 | small | web2check: capture two frames, play them; GIF export has two frames |
 | T16 (**done**) | Text views: equations, source with actions, equilibrium details, messages | T3 | no | web2check: comment action sets its parameters |
 | T17 | Switch: web2 at `/`, classic at `/v1/`; VS Code panel; docs (using-the-panel, front-end-gaps, README) | T3-T16 | small | every row of docs/front-end-gaps.md covered by web2; webshots runs against `/v1/` until T18 |
-| T18 | Retire: remove `web/`, the X11 program and guicheck, the `draw`/`palette`/`pixels` paths; protocol 2 | T17 | yes | verify.sh green without X11; servercheck and web2check cover what webshots did |
+| T18 | Retire: remove `web/`, the `draw`/`palette`/`pixels` paths (the X11 program and guicheck were already removed by W8); protocol 2 | T17 | yes | verify.sh green without web/; servercheck and web2check cover what webshots did |
