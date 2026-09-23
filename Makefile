@@ -69,12 +69,23 @@ CORE_OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(CORE_SOURCES))
 # per build directory, so a MinGW build does not replace the Linux library
 CORELIB := $(BUILDDIR)/libxppcore.a
 
-.PHONY: all clean x11free lib objects xppautx test
+.PHONY: all clean x11free lib objects ltocheck lto-link xppautx test
 all: xppaut
 lib: $(CORELIB)
 
 # every object of both programs, nothing linked (tools/warnings.sh)
 objects: $(OBJECTS) $(SERVER_OBJECTS)
+
+# Types that disagree across files, such as an extern whose array bound is
+# not its definition's: an LTO link of both programs reports them
+# (-Wlto-type-mismatch), where a normal build cannot see them. Built and
+# linked in build/lto, so the programs in the tree are left alone.
+ltocheck:
+	@$(MAKE) -s BUILDDIR=build/lto OPT="-O1 -flto=auto -ffat-lto-objects" lto-link
+lto-link: $(OBJECTS) $(SERVER_OBJECTS)
+	@$(CC) -flto=auto -fcommon -o $(BUILDDIR)/xppaut $(OBJECTS) $(LDFLAGS) $(LIBS) 2> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
+	@$(CC) -flto=auto -fcommon -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) -lm $(DLLIB) $(NETLIBS) 2>> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
+	@if grep -A4 'lto-type-mismatch' $(BUILDDIR)/lto.log; then echo "ltocheck: types differ across files"; exit 1; fi
 # one X11-free program: browser front end, --server protocol and -silent batch
 xppautx: xppautX$(EXE)
 

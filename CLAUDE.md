@@ -41,6 +41,10 @@ It builds `xppautX` from HEAD into build/webshots/src, compares it with
 tools/web_steps.txt; CSS selectors in steps must not contain spaces (use
 `>`). `const client` of the page is what steps and settling look at.
 
+`make ltocheck` (run by verify.sh) links both programs with LTO into
+build/lto and fails on `-Wlto-type-mismatch`: an extern whose type or
+array bound differs from its definition, which a normal build cannot see.
+
 Metrics: `make x11free` (sources compiling without X11 headers, 92/114) and
 `tools/coredeps.sh -v` (symbols core objects import from X11 objects, 0).
 Clean-build warning baseline with gcc 13 is ~520; verify.sh's count is for

@@ -3,6 +3,8 @@
 # drive xppautX --server through its protocol (tools/servercheck.py) and
 # its browser mode through HTTP (tools/webcheck.py), and print
 # the X11-free metric. Run from repo root (WSL/Linux/macOS).
+# It also links both programs with LTO (make ltocheck), which reports types
+# that differ across files.
 # Usage: tools/verify.sh [--clean-warnings]
 cd "$(dirname "$0")/.." || exit 1
 BASELINE=c281851de59ffd03b2a46428619a0c8f
@@ -42,6 +44,13 @@ if make test > build/unittest.log 2>&1; then
 else
   grep -E 'FAIL|failed' build/unittest.log
   echo "UNIT TESTS FAILED"
+  exit 1
+fi
+if make ltocheck > build/ltocheck.log 2>&1; then
+  echo "lto link ok: no types differ across files"
+else
+  tail -30 build/ltocheck.log
+  echo "LTO CHECK FAILED"
   exit 1
 fi
 if command -v python3 >/dev/null; then
