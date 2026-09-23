@@ -4,14 +4,16 @@ travels, how input is read, and how quickly a long computation stops.
 
 usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [SECTION...]
 
-Sections: draw, input, abort, control, files, sessions, session, script
-(default: all; tools/verify.sh runs them all). files compares AUTO's saved
-diagram of lecar with a reference; sessions checks that concurrent servers
+Sections: draw, input, abort, control, files, sessions, session, script,
+names (default: all; tools/verify.sh runs them all). files compares AUTO's
+saved diagram of lecar with a reference; sessions checks that concurrent servers
 keep their AUTO files apart; session is the "cmd":"session" save/load of
 docs/protocol.md (issue #11): one name for the .set and .auto pair a long
 AUTO run is picked back up from; script plays
 examples/scripts/lecar_auto.jsonl through --script (docs/protocol.md
-"Scripts") and checks a broken script exits 1. --report prints the
+"Scripts") and checks a broken script exits 1; names loads
+tools/models/longnames.ode (20-40 character names) and checks it computes,
+saves and continues exactly like shortnames.ode. --report prints the
 measurements without failing on the latency limits, for comparing builds.
 """
 import argparse, json, os, shutil, subprocess, sys, tempfile, time
@@ -22,7 +24,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
 ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
-ap.add_argument('sections', nargs='*', default=['draw', 'input', 'abort', 'control', 'files', 'sessions', 'session', 'script'])
+ap.add_argument('sections', nargs='*', default=['draw', 'input', 'abort', 'control', 'files', 'sessions', 'session',
+                                                'script', 'names'])
 args = ap.parse_args()
 here = os.path.dirname(os.path.abspath(__file__))
 LECAR = 'examples/ode/lecar.ode'
@@ -662,6 +665,133 @@ def section_control():
     check('Quit during an integration exits within 1 s', took < 1, '%.2f s' % took, limit=True)
     print('INFO quit during an integration -> exit %.2f s' % took)
     s.close()
+
+
+# ---- names: a model with long names works like the same model with short --
+
+LONG = os.path.join(here, 'models', 'longnames.ode')
+SHORT = os.path.join(here, 'models', 'shortnames.ode')
+LONG_PAR = 'applied_stimulus_current_amplitude'
+LONG_B = 'recovery_slope_parameter_b_with_forty_ch'
+
+
+def silent_output(ode):
+    """xppautX ODE -silent in a scratch dir: output.dat's text (None if none)"""
+    run = tempfile.mkdtemp(prefix='xppnames')
+    shutil.copy(ode, run)
+    subprocess.run([os.path.abspath(args.server), os.path.basename(ode), '-silent'], cwd=run,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
+    path = os.path.join(run, 'output.dat')
+    text = open(path).read() if os.path.exists(path) else None
+    shutil.rmtree(run, ignore_errors=True)
+    return text
+
+
+def last_state(evs):
+    st = [e for e in evs if e.get('ev') == 'state']
+    return st[-1] if st else None
+
+
+def names_diagram(ode):
+    """load ODE, integrate, start from the end (the rest state), AUTO steady
+    state over the first parameter; returns the Diagram and the symbols of
+    its labelled points"""
+    s = Server(args.server, ode, verbose=args.v)
+    s.collect(is_idle)
+    for key in 'gl':  # Initialconds/Go, then Initialconds/Last
+        s.send(cmd='key', key='i')
+        evs, ask = s.collect(is_ask)
+        s.send(cmd='answer', id=ask['id'], key=key)
+        s.collect(is_idle, timeout=30)
+    s.send(cmd='key', key='f')
+    s.send(cmd='key', key='a')
+    evs, _ = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 101)
+    more, _ = s.collect(is_idle)
+    evs += more + run_menu(s, 's', timeout=60)
+    syms = [sym for e in evs if e.get('ev') == 'diagram' and e['op'] == 'add'
+            for r in e['runs'] for i, lab, sym in r.get('lab', [])]
+    s.close()
+    return Diagram().apply(evs), syms
+
+
+def section_names():
+    short, long_ = silent_output(SHORT), silent_output(LONG)
+    check('names: -silent integrates the long-named model',
+          long_ is not None and len(long_.splitlines()) == 2001, str(long_ and len(long_.splitlines())))
+    check('names: and its output.dat is the short-named model\'s', long_ is not None and long_ == short)
+
+    home = tempfile.mkdtemp(prefix='xpphome')
+    s = Server(args.server, LONG, env={'HOME': home}, verbose=args.v)
+    evs, _ = s.collect(is_idle)
+    hello = next((e for e in evs if e.get('ev') == 'hello'), None)
+    st = last_state(evs)
+    msgs = [e for e in evs if e.get('ev') == 'message']
+    check('names: the model loads with no message', st is not None and not msgs, str(msgs)[:200])
+    pars = dict(st['pars']) if st else {}
+    check('names: state carries the parameters\' full names', LONG_B in pars and LONG_PAR in pars, str(pars))
+    check('names: and the variables\'', st is not None and [n for n, v in st['ics']] ==
+          ['MEMBRANE_POTENTIAL_FAST_VARIABLE', 'SLOW_RECOVERY_VARIABLE_W'], str(st and st['ics']))
+    check('names: hello lists the auxiliary by name', hello is not None and
+          'TOTAL_MEMBRANE_DRIVE_CURRENT' in hello['lists'][0], str(hello and hello['lists'][0]))
+
+    s.send(cmd='set', kind='par', name=LONG_B, value=0.9)
+    s.collect(is_idle)
+    s.send(cmd='set', kind='ic', name='slow_recovery_variable_w', value=-0.25)
+    evs, _ = s.collect(is_idle)
+    st = last_state(evs)
+    check('names: set a parameter by its long name', st is not None and dict(st['pars']).get(LONG_B) == 0.9,
+          str(st and st['pars']))
+    check('names: set an initial condition by its long name, in any case',
+          st is not None and dict(st['ics']).get('SLOW_RECOVERY_VARIABLE_W') == -0.25, str(st and st['ics']))
+    # a name longer than any matches nothing, not the name it starts with
+    s.send(cmd='set', kind='par', name=LONG_B + 'x' * 40, value=5)
+    evs, _ = s.collect(is_idle)
+    st = last_state(evs)
+    check('names: a longer name sets nothing', st is not None and dict(st['pars']).get(LONG_B) == 0.9,
+          str(st and st['pars']))
+
+    s.send(cmd='key', key='i')
+    evs, ask = s.collect(is_ask)
+    s.send(cmd='answer', id=ask['id'], key='g')
+    s.collect(is_idle, timeout=30)
+    s.send(cmd='browser', **{'from': 0, 'count': 1, 'col': 1, 'ncol': 3})
+    evs, br = s.collect(lambda e: e.get('ev') == 'browser')
+    s.collect(is_idle)
+    check('names: the data browser heads its columns with the long names', br is not None and br['cols'] ==
+          ['T', 'MEMBRANE_POTENTIAL_FAST_VARIABLE', 'SLOW_RECOVERY_VARIABLE_W', 'TOTAL_MEMBRANE_DRIVE_CURRENT'],
+          str(br and br['cols']))
+
+    # the .set file of a session keeps the values under the long names
+    s.send(cmd='session', op='save', name='ln')
+    s.collect(is_idle, timeout=20)
+    set_path = os.path.join(s.run, 'ln.set')
+    text = open(set_path).read() if os.path.exists(set_path) else ''
+    check('names: the .set file names the long parameter', LONG_B in text)
+    s2 = Server(args.server, LONG, env={'HOME': home}, verbose=args.v)
+    s2.collect(is_idle)
+    for f in ('ln.set', 'ln.auto'):
+        if os.path.exists(os.path.join(s.run, f)):
+            shutil.copy(os.path.join(s.run, f), s2.run)
+    s.close()
+    s2.send(cmd='session', op='load', name='ln')
+    evs, _ = s2.collect(is_idle, timeout=20)
+    st = last_state(evs)
+    check('names: a .set round trip keeps the long-named values',
+          st is not None and dict(st['pars']).get(LONG_B) == 0.9 and
+          dict(st['ics']).get('SLOW_RECOVERY_VARIABLE_W') == -0.25, str(st and (st['pars'], st['ics'])))
+    s2.close()
+    shutil.rmtree(home, ignore_errors=True)
+
+    dl, syml = names_diagram(LONG)
+    ds, syms = names_diagram(SHORT)
+    check('names: AUTO continues the steady state over a long-named parameter', len(dl.pts) > 20,
+          '%d points' % len(dl.pts))
+    check('names: the diagram\'s axis is labelled with the parameter\'s full name',
+          dl.axes is not None and dl.axes.get('xlabel') == LONG_PAR, str(dl.axes and dl.axes.get('xlabel')))
+    key = lambda d: [(p['br'], p['pt'], p['lab'], p['x'], p['y']) for p in d.pts]
+    check('names: and the diagram is the short-named model\'s', key(dl) == key(ds),
+          '%d vs %d points' % (len(dl.pts), len(ds.pts)))
+    check('names: the Hopf bifurcation is labelled in both', 'HB' in syml and syml == syms, '%s %s' % (syml, syms))
 
 
 # ---- script: xppautX --script plays a file of protocol commands -----------

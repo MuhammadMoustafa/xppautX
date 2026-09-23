@@ -1,0 +1,17 @@
+# FitzHugh-Nagumo with long names: variables, parameters, a fixed
+# quantity, a function and its argument, an auxiliary. shortnames.ode is
+# the same model with short names; tools/autocheck.py (section names)
+# checks that both compute the same numbers.
+par applied_stimulus_current_amplitude=0
+par recovery_time_scale_epsilon=0.08, recovery_offset_parameter_a=0.7
+par recovery_slope_parameter_b_with_forty_ch=0.8
+cubic_membrane_nonlinearity(membrane_potential_value)=membrane_potential_value-membrane_potential_value^3/3
+recovery_drive_term=membrane_potential_fast_variable+recovery_offset_parameter_a
+membrane_potential_fast_variable'=cubic_membrane_nonlinearity(membrane_potential_fast_variable)-slow_recovery_variable_w+applied_stimulus_current_amplitude
+slow_recovery_variable_w'=recovery_time_scale_epsilon*(recovery_drive_term-recovery_slope_parameter_b_with_forty_ch*slow_recovery_variable_w)
+aux total_membrane_drive_current=cubic_membrane_nonlinearity(membrane_potential_fast_variable)+applied_stimulus_current_amplitude
+init membrane_potential_fast_variable=-1, slow_recovery_variable_w=-0.5
+@ total=100, dt=0.05, xp=membrane_potential_fast_variable, yp=slow_recovery_variable_w
+@ xlo=-2.5, xhi=2.5, ylo=-1, yhi=2
+@ parmin=0, parmax=2, autoxmin=0, autoxmax=2, autoymin=-2.5, autoymax=2.5, dsmax=0.05
+done
