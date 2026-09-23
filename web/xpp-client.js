@@ -311,6 +311,9 @@
       this.pendingAsk = null;
       this.typeahead = [];
       this.busy = false;
+      this.stopping = false;
+      this.abortIdlesExpected = 0;
+      this.afterIdle = null;
       this.build();
     }
 
@@ -965,17 +968,36 @@
         case 'message': this.onMessage(ev); break;
         case 'progress': this.setProgress(ev.n, ev.of); break;
         case 'idle':
+          /* an abort that stopped a running job gets a second, spurious
+             state+idle of its own once the core reaches its own line (see
+             docs/protocol.md "Commands during a command"); it must not be
+             mistaken for the idle of whatever runs next */
+          if (this.skipNextIdle) {
+            this.skipNextIdle = false;
+            break;
+          }
           this.releaseHeldSurfaces();
           this.busy = false;
           this.setProgress(0, 0);
           this.autoWorking = false;
           this.setAutoRunning(false);
+          if (this.stopping) this.clearStopping();
+          if (this.abortIdlesExpected > 0) {
+            this.abortIdlesExpected--;
+            this.skipNextIdle = true;
+          }
           if (this.autoFitPending && this.autoFit) { /* a resize waited for this */
             this.autoFitPending = false;
             setTimeout(this.autoFit, 0);
           }
           this.aniPlaying = false;
           if (this.autoGrab) this.autoGrab.hidden = true; /* the grab is over */
+          if (this.afterIdle) {
+            const cmd = this.afterIdle;
+            this.afterIdle = null;
+            this.command(cmd);
+            break;
+          }
           if (this.pendingSlide) {
             this.flushSlide();
             break;
@@ -1128,7 +1150,7 @@
         });
         const closeAuto = el('button', '', 'Close');
         closeAuto.title = 'Close the AUTO window (File/Auto opens it again with the diagram)';
-        closeAuto.addEventListener('click', () => this.command({cmd: 'auto', op: 'close'}));
+        closeAuto.addEventListener('click', () => this.closeAutoWindow());
         buttons.appendChild(closeAuto);
         /* what a window manager gives an X11 window: shade, fill the page, close */
         const mini = el('button', 'xpp-window-btn', '–');
@@ -1141,12 +1163,13 @@
         this.autoMaxiBtn = maxi;
         const shut = el('button', 'xpp-close', '×');
         shut.title = 'Close the AUTO window';
-        shut.addEventListener('click', () => this.command({cmd: 'auto', op: 'close'}));
+        shut.addEventListener('click', () => this.closeAutoWindow());
         const winBtns = el('span', 'xpp-window-btns');
         winBtns.append(mini, maxi, shut);
         bar.appendChild(winBtns);
         const abort = el('button', 'xpp-abort', 'ABORT');
-        abort.addEventListener('click', () => this.send({cmd: 'abort'}));
+        abort.addEventListener('click', () => this.startAbort());
+        this.autoAbortBtn = abort;
         buttons.appendChild(abort);
         const stab = new Surface(this, 102, 108, 108);
         stab.canvas.classList.add('xpp-auto-circle');
@@ -1450,6 +1473,7 @@
       this.autoHover = false;
       this.autoHint = null;
       this.autoGrab = null;
+      this.autoAbortBtn = null;
       clearInterval(this.autoTimer);
       this.autoTimer = null;
       this.autoState = null;
@@ -1768,7 +1792,10 @@
     }
 
     command(cmd) {
-      if (this.busy) return;
+      if (this.busy) {
+        this.showBusyHint();
+        return;
+      }
       this.busy = true;
       /* only AUTO's own work is AUTO's to report: an integration started from
          the side panel is not, however long it takes */
@@ -1790,6 +1817,50 @@
       a.download = name;
       a.click();
       URL.revokeObjectURL(url);
+    }
+
+    /* a click that command() dropped because the core is busy: say so,
+       briefly, instead of doing nothing */
+    showBusyHint() {
+      if (this.stopping) return; /* already stopping: Abort is disabled, nothing more to say */
+      this.hint.textContent = 'Busy — press Abort to stop';
+      clearTimeout(this.busyHintTimer);
+      this.busyHintTimer = setTimeout(() => {
+        if (this.hint.textContent === 'Busy — press Abort to stop') this.hint.textContent = '';
+      }, 2000);
+    }
+
+    /* Abort and Quit reach the core at once, however busy it is (see
+       docs/protocol.md); button clicks otherwise go through command() and are
+       dropped while busy. Abort tells the user it was taken and, when a job
+       was actually running (not just waiting on a prompt), expects one extra
+       idle of its own once the core gets to the abort's own line. */
+    startAbort() {
+      if (this.busy && !this.pendingAsk) this.abortIdlesExpected++;
+      this.stopping = true;
+      clearTimeout(this.busyHintTimer);
+      if (this.autoFrame && this.autoWorking && this.autoState) this.autoState.textContent = 'Stopping…';
+      else this.hint.textContent = 'Stopping…';
+      if (this.autoAbortBtn) this.autoAbortBtn.disabled = true;
+      this.send({cmd: 'abort'});
+    }
+
+    clearStopping() {
+      this.stopping = false;
+      if (this.autoAbortBtn) this.autoAbortBtn.disabled = false;
+      if (this.hint.textContent === 'Stopping…') this.hint.textContent = '';
+      /* the AUTO status line is set right after this, by setAutoRunning(false) */
+    }
+
+    /* the AUTO window's ×/Close: while busy, stop the run first and close
+       once it actually has (afterIdle), instead of doing nothing */
+    closeAutoWindow() {
+      if (this.busy) {
+        this.afterIdle = {cmd: 'auto', op: 'close'};
+        if (!this.stopping) this.startAbort();
+        return;
+      }
+      this.command({cmd: 'auto', op: 'close'});
     }
 
     onCanvasDown(s, e) {

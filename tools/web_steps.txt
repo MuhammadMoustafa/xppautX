@@ -233,6 +233,35 @@ shot 131-3d
 drag css=.xpp-main-plot>canvas 300 300 360 330
 shot 132-3d-turned
 
+# ---- AUTO: abort and close during a run (T11) ----
+# back to the default parameters: AUTO's own run above left iapp at a label
+# on the branch, and a run from there can hit the variable bound too fast
+eval client.command({cmd: 'default', kind: 'par'})
+key f
+key a
+shot 133-auto-reopened
+key u
+key t
+shot 134-total-prompt css=.xpp-dialog
+type 100000
+key Enter
+key Escape
+# key(i) then answer(g) done from eval, not as key/click steps: each of those
+# waits for the client to settle (idle) before the next step runs, which
+# would hide the busy window we need to click into
+eval client.key('i'); for (let n = 0; n < 50 && !client.pendingAsk; n++) await new Promise(r => setTimeout(r, 20)); if (!client.pendingAsk || client.pendingAsk.kind !== 'menu') throw new Error('Initialconds menu did not open: ' + JSON.stringify(client.pendingAsk)); client.answer({key: 'g'}); for (let n = 0; n < 50 && !client.busy; n++) await new Promise(r => setTimeout(r, 20)); if (!client.busy) throw new Error('the run finished before the close test could click'); const btn = document.querySelector('.xpp-window-btns>.xpp-close'); if (!btn) throw new Error('no AUTO close button'); btn.click(); client.root.focus(); for (let n = 0; n < 20 && client.autoFrame; n++) await new Promise(r => setTimeout(r, 100)); if (client.autoFrame) throw new Error('AUTO window still open 2s after closing it during a run')
+shot 135-auto-closed-during-run
+key f
+key a
+shot 136-auto-reopened-again
+eval client.key('i'); for (let n = 0; n < 50 && !client.pendingAsk; n++) await new Promise(r => setTimeout(r, 20)); if (!client.pendingAsk || client.pendingAsk.kind !== 'menu') throw new Error('Initialconds menu did not open: ' + JSON.stringify(client.pendingAsk)); client.answer({key: 'g'}); for (let n = 0; n < 50 && !client.busy; n++) await new Promise(r => setTimeout(r, 20)); if (!client.busy) throw new Error('the run finished before the abort test could click'); const abortBtn = document.querySelector('.xpp-abort'); if (!abortBtn) throw new Error('no ABORT button'); const stopping = () => client.hint.textContent === 'Stopping…' || (client.autoState && client.autoState.textContent === 'Stopping…'); abortBtn.click(); if (!stopping()) throw new Error('no Stopping indicator right after clicking Abort'); for (let n = 0; n < 20 && client.busy; n++) await new Promise(r => setTimeout(r, 100)); if (client.busy) throw new Error('still busy 2s after clicking Abort'); if (stopping()) throw new Error('Stopping indicator still showing once idle')
+shot 137-aborted
+click Close
+# closing AUTO removes the button the click focused, which drops focus to
+# <body>; nothing after this would then see a key press
+eval client.root.focus()
+shot 138-auto-closed
+
 # ---- file selector and calculator ----
 key f
 key s

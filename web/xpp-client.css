@@ -216,6 +216,7 @@
   border-top: 1px solid var(--xpp-border);
 }
 .xpp-abort { margin-top: 12px; }
+.xpp-abort:disabled { opacity: 0.5; cursor: default; }
 .xpp-ani-buttons { display: flex; gap: 4px; padding: 4px; flex-wrap: wrap; }
 .xpp-eq, .xpp-source { padding-bottom: 4px; }
 .xpp-eq-counts, .xpp-eq-value { padding: 1px 6px; font-family: var(--vscode-editor-font-family, monospace); }

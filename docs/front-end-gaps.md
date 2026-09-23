@@ -45,6 +45,12 @@ row changes.
 - Kinescope frames live in the client: reloading the page loses them.
 - The AUTO diagram stores a point for 2-parameter work on click, not on
   every mouse move.
+- While a run is going, other clicks show "Busy — press Abort to stop"
+  instead of doing nothing. ABORT itself shows "Stopping…" (in the AUTO
+  status footer for an AUTO run, the main hint otherwise) and is disabled
+  until the run's `idle`. The AUTO window's × and Close, clicked while busy,
+  send Abort and close once the run's `idle` arrives, instead of being
+  dropped.
 
 ## Not done
 
