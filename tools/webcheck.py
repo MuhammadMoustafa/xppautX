@@ -67,6 +67,10 @@ c = http.client.HTTPConnection('127.0.0.1', port, timeout=10)
 c.request('GET', '/v2/inter.woff2')
 r = c.getresponse()
 check('serves its font', r.status == 200 and r.getheader('Content-Type') == 'font/woff2' and len(r.read()) > 10000)
+c.request('GET', '/v2/inter-greek.woff2')
+r = c.getresponse()
+check('and the font\'s Greek subset (T8: symbol-font labels as Greek text)',
+      r.status == 200 and r.getheader('Content-Type') == 'font/woff2' and len(r.read()) > 10000)
 check('refuses events without the token', get('/events?t=wrong')[0] == 403)
 check('refuses commands without the token', post({'cmd': 'state'}, 'wrong') == 403)
 

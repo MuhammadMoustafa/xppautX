@@ -4,13 +4,19 @@
    view that owns it (ui/PlotView.tsx) feeds it the store's viewport and puts
    what it reports back into the store. A phase plane's nullclines,
    direction field and flows (phase.ts) are drawn on the same canvas, under
-   the curves, each shown or hidden from the legend like a curve. */
+   the curves, and so are its frozen curves; its other marks (marks.ts:
+   equilibria, text, arrows, markers) over them. Each is shown or hidden
+   from the legend like a curve. */
 import uPlot from 'uplot';
 import {curveColor} from './colors';
 import {LineTrace, sameFrame, tracePoints, type PixelFrame} from './decimate';
 import type {PlotModel} from './model';
 import {nearestPoint, type Nearest} from './nearest';
+import {
+  arrowPath, equilibriumPath, MARKER_PX, markerPath, markLayers, textPx, traceFrozen, type MarkKey, type MarkLayer,
+} from './marks';
 import {arrowSegments, phaseLayers, tracePolyline, traceSegments, type Layer, type LayerKey} from './phase';
+import type {Marks} from '../store/marks';
 import type {Dfield, Nullclines} from '../store/phase';
 import type {Ranges} from './viewmath';
 import type {Range, Viewport} from '../store/state';
@@ -36,9 +42,9 @@ export interface ChartInfo {
   traceMs: number | null;
   /** vertices the phase plane's line paths drew last, per curve (null: uPlot's own path) */
   vertices: (number | null)[];
-  /** the nullclines, direction field and flow, and what the last draw drew of
-      each: segments, arrows, points (0 when hidden) */
-  layers: (Layer & {visible: boolean; drawn: number; css: string})[];
+  /** the nullclines, direction field and flow, then the marks, and what the
+      last draw drew of each: segments, arrows, points, marks (0 when hidden) */
+  layers: ((Layer | MarkLayer) & {visible: boolean; drawn: number; css: string})[];
 }
 
 const DRAWS_KEPT = 100;
@@ -74,6 +80,13 @@ function extent(arrays: Float32Array[]): Range | null {
   return {min: min - pad, max: max + pad};
 }
 
+/** a plot point in canvas pixels on `f`, or null off the finite plane */
+function pixelOf(f: PixelFrame, x: number, y: number): {x: number; y: number} | null {
+  const px = f.left + ((x - f.xmin) * f.width) / (f.xmax - f.xmin);
+  const py = f.top + ((f.ymax - y) * f.height) / (f.ymax - f.ymin);
+  return Number.isFinite(px) && Number.isFinite(py) ? {x: px, y: py} : null;
+}
+
 function cssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
@@ -97,8 +110,10 @@ export class Chart {
   private nullclines: Nullclines | null = null;
   private dfield: Dfield | null = null;
   private layers: Layer[] = [];
-  private hiddenLayers = new Set<LayerKey>();
-  private layerDrawn = new Map<LayerKey, number>();
+  private marks: Marks | null = null;
+  private markLayers: MarkLayer[] = [];
+  private hiddenLayers = new Set<LayerKey | MarkKey>();
+  private layerDrawn = new Map<LayerKey | MarkKey, number>();
   /** called with the plotting area each time uPlot makes a new one */
   onArea: (area: HTMLElement) => void = () => {};
 
@@ -257,7 +272,7 @@ export class Chart {
         setScale: [() => this.scaleChanged()],
         drawClear: [() => { this.drawStart = performance.now(); }],
         drawAxes: [u => this.drawPhase(u)], /* after the axes, before the curves */
-        draw: [() => this.drawn()],
+        draw: [u => { this.drawMarks(u); this.drawn(); }], /* over the curves */
       },
     };
     this.u = new uPlot(opts, this.data(), this.root);
@@ -273,18 +288,32 @@ export class Chart {
     this.u?.redraw(false, false);
   }
 
-  setLayerVisible(key: LayerKey, show: boolean): void {
+  /** the window's marks (null: none) */
+  setMarks(marks: Marks | null): void {
+    if (marks === this.marks) return;
+    this.marks = marks;
+    this.markLayers = markLayers(marks);
+    this.u?.redraw(false, false);
+    /* Greek letters come from the font's Greek subset, which a canvas does
+       not ask for itself: load it, then draw again */
+    const greek = marks?.text.some(t => /[\u0370-\u03ff]/.test(t.plain));
+    if (greek && typeof document !== 'undefined' && document.fonts?.load)
+      document.fonts.load(`${textPx(2)}px Inter`, '\u03b1\u03b2').then(() => this.u?.redraw(false, false), () => {});
+  }
+
+  setLayerVisible(key: LayerKey | MarkKey, show: boolean): void {
     if (show) this.hiddenLayers.delete(key);
     else this.hiddenLayers.add(key);
     this.u?.redraw(false, false);
   }
 
-  isLayerVisible(key: LayerKey): boolean {
+  isLayerVisible(key: LayerKey | MarkKey): boolean {
     return !this.hiddenLayers.has(key);
   }
 
   private drawPhase(u: uPlot): void {
     this.layerDrawn.clear();
+    this.drawFrozen(u);
     if (!this.layers.length) return;
     const ctx = u.ctx, f = this.frame(u), r = uPlot.pxRatio, nc = this.nullclines, df = this.dfield;
     const stroke = (key: LayerKey, color: number, width: number, dash: number[], trace: (p: Path2D) => number) => {
@@ -325,6 +354,85 @@ export class Chart {
       stroke('ynull', nc.yColor, 2, [], p => traceSegments(nc.y, f, p));
     }
     ctx.restore();
+  }
+
+  /** the plotting area as the clip of `ctx`, then `draw`, then as it was */
+  private clipped(u: uPlot, draw: (ctx: CanvasRenderingContext2D) => void): void {
+    const ctx = u.ctx;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(u.bbox.left, u.bbox.top, u.bbox.width, u.bbox.height);
+    ctx.clip();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.setLineDash([]);
+    draw(ctx);
+    ctx.restore();
+  }
+
+  /** a mark layer's path, stroked (and filled) in `css`, counted as drawn */
+  private strokeLayer(ctx: CanvasRenderingContext2D, key: MarkKey, css: string, width: number,
+    trace: (p: Path2D) => number, fill = false): void {
+    if (this.hiddenLayers.has(key)) return;
+    const p = new Path2D(), n = trace(p);
+    this.layerDrawn.set(key, (this.layerDrawn.get(key) ?? 0) + n);
+    ctx.strokeStyle = css;
+    ctx.lineWidth = width * uPlot.pxRatio;
+    ctx.stroke(p);
+    if (fill) {
+      ctx.fillStyle = css;
+      ctx.fill(p);
+    }
+  }
+
+  /** frozen curves: under the curves, like curves */
+  private drawFrozen(u: uPlot): void {
+    const m = this.marks;
+    if (!m?.frozen.length) return;
+    const f = this.frame(u), r = uPlot.pxRatio;
+    this.clipped(u, ctx => m.frozen.forEach((c, i) => {
+      const css = curveColor(c.color, this.dark);
+      this.strokeLayer(ctx, `frozen-${i}`, css, 1.5, p => traceFrozen(c.xs, c.ys, c.line, f, 1.5 * r, p), !c.line);
+    }));
+  }
+
+  /** equilibria, arrows, markers and text: over the curves */
+  private drawMarks(u: uPlot): void {
+    const m = this.marks;
+    if (!m) return;
+    const f = this.frame(u), r = uPlot.pxRatio, fg = cssVar('--fg') || '#1c2330', bg = cssVar('--surface') || '#fff';
+    this.clipped(u, ctx => {
+      for (const a of m.arrows)
+        this.strokeLayer(ctx, 'arrows', curveColor(a.color, this.dark), 1.5, p => (arrowPath(a, f, p) ? 1 : 0));
+      for (const k of m.markers)
+        this.strokeLayer(ctx, 'markers', curveColor(k.color, this.dark), 1.5,
+          p => (markerPath(k, f, MARKER_PX * r, p) ? 1 : 0));
+      /* a stable one filled, so the three kinds differ by more than their outline */
+      for (const e of m.equilibria)
+        this.strokeLayer(ctx, 'equilibria', fg, 1.5, p => (equilibriumPath(e, f, 5 * r, p) ? 1 : 0), e.type === 'stable');
+      if (m.text.length && !this.hiddenLayers.has('text')) {
+        ctx.textAlign = 'left'; /* uPlot leaves its axes' alignment set */
+        ctx.textBaseline = 'alphabetic';
+        ctx.lineWidth = 3 * r;
+        ctx.strokeStyle = bg; /* a halo, so the text keeps its contrast over curves */
+        ctx.fillStyle = fg;
+        let drawn = 0;
+        for (const t of m.text) {
+          const base = textPx(t.size) * r, at = pixelOf(f, t.x, t.y);
+          if (!at) continue;
+          let x = at.x;
+          for (const run of t.runs) {
+            ctx.font = `${run.small ? Math.round(base * 0.75) : base}px Inter, system-ui, sans-serif`;
+            const y = at.y - run.rise * 0.45 * base;
+            ctx.strokeText(run.text, x, y);
+            ctx.fillText(run.text, x, y);
+            x += ctx.measureText(run.text).width;
+          }
+          drawn++;
+        }
+        this.layerDrawn.set('text', drawn);
+      }
+    });
   }
 
   private drawn(): void {
@@ -436,8 +544,8 @@ export class Chart {
       tracing: this.traceTimer !== null,
       traceMs: this.traceMs,
       vertices: this.vertices.slice(),
-      layers: this.layers.map(l => ({...l, visible: this.isLayerVisible(l.key), drawn: this.layerDrawn.get(l.key) ?? 0,
-        css: curveColor(l.color, this.dark)})),
+      layers: [...this.layers, ...this.markLayers].map(l => ({...l, visible: this.isLayerVisible(l.key),
+        drawn: this.layerDrawn.get(l.key) ?? 0, css: curveColor(l.color, this.dark)})),
     };
   }
 

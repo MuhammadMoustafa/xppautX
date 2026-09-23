@@ -5,10 +5,11 @@
    for a window not listed yet adds it, for a server that sends no `plots`.
    `active` is the core's active window, which is the selected tab: the
    user's choice sets it at once, the core's `plots` and `window select`
-   confirm it. A window's nullclines, direction field and flows (T7) come
-   from their own events and are kept beside its series. Pure: no DOM, no
-   I/O. */
-import type {DfieldEvent, NullclinesEvent, PlotsEvent, PlotWindowInfo, SeriesAppendEvent, SeriesEvent} from '../protocol/types';
+   confirm it. A window's nullclines, direction field and flows (T7) and
+   its marks (T8) come from their own events and are kept beside its
+   series. Pure: no DOM, no I/O. */
+import type {DfieldEvent, MarksEvent, NullclinesEvent, PlotsEvent, PlotWindowInfo, SeriesAppendEvent, SeriesEvent} from '../protocol/types';
+import {marksFromEvent, type Marks} from './marks';
 import {dfieldFromEvent, nullclinesFromEvent, type Dfield, type Nullclines} from './phase';
 import {appendRows, seriesFromEvent, type PlotSeries} from './series';
 
@@ -33,6 +34,8 @@ export interface PlotWindow {
   /** from `nullclines` and `dfield` (null until the server sends them) */
   nullclines: Nullclines | null;
   dfield: Dfield | null;
+  /** from `marks`: equilibria, labels, arrows, markers, frozen curves (null until sent) */
+  marks: Marks | null;
   viewport: Viewport;
   /** earlier viewports, for Undo zoom (newest last) */
   viewportHistory: Viewport[];
@@ -49,7 +52,7 @@ export const initialPlots: PlotsState = {windows: [], active: 1};
 const HISTORY_KEEP = 50;
 
 function blank(win: number): PlotWindow {
-  return {win, info: null, series: null, nullclines: null, dfield: null, viewport: HOME, viewportHistory: []};
+  return {win, info: null, series: null, nullclines: null, dfield: null, marks: null, viewport: HOME, viewportHistory: []};
 }
 
 export function windowOf(p: PlotsState, win: number): PlotWindow | undefined {
@@ -96,6 +99,11 @@ export function onNullclines(p: PlotsState, ev: NullclinesEvent): PlotsState {
 export function onDfield(p: PlotsState, ev: DfieldEvent): PlotsState {
   const dfield = dfieldFromEvent(ev);
   return update(p, ev.win, w => ({...w, dfield}));
+}
+
+export function onMarks(p: PlotsState, ev: MarksEvent): PlotsState {
+  const marks = marksFromEvent(ev);
+  return update(p, ev.win, w => ({...w, marks}));
 }
 
 /** null when the append does not continue the window's series (the full series that ends the command puts that right) */

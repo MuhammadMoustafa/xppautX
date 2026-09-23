@@ -97,7 +97,8 @@ CORE_SOURCES := $(filter-out $(UI_SOURCES) $(SERVER_SOURCES) $(SRCDIR)/sbml2xpp.
 # the pages xppautX serves, compiled in: the classic front end at /, the new
 # one at /v2/ (web2/dist, built from web2/src and committed: web2/build.mjs)
 WEB_FILES := web/index.html web/xpp-client.js web/xpp-client.css
-WEB2_FILES := web2/dist/index.html web2/dist/app.js web2/dist/app.css web2/dist/inter.woff2 web2/dist/inter-OFL.txt
+WEB2_FILES := web2/dist/index.html web2/dist/app.js web2/dist/app.css web2/dist/inter.woff2 web2/dist/inter-greek.woff2 \
+  web2/dist/inter-OFL.txt
 SERVER_OBJECTS := $(call obj,$(SERVER_SOURCES)) $(BUILDDIR)/web_assets.o
 $(BUILDDIR)/xppautx_main.o: CFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'
 $(BUILDDIR)/xppautx_main.o: CXXFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'

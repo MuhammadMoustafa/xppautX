@@ -21,7 +21,10 @@
    keyboard only, Escape cancelling a plot mode, Initialconds/Mouse by a
    click, a checklist. Plot windows as tabs (T6: a second window, each tab
    its own zoom, arrow keys, close). Nullclines, direction field and flow
-   (T7: in the store, drawn, toggled from the legend, cleared by Erase). Then live plotting (tools/models/live.ode: the store
+   (T7: in the store, drawn, toggled from the legend, cleared by Erase).
+   Marks (T8: text with Greek, a pointer, a marker, a frozen curve and an
+   equilibrium in the store, drawn, in the legend, toggled, cleared by
+   Erase). Then live plotting (tools/models/live.ode: the store
    and the plot grow while 20 001 rows are computed, and end as output.dat)
    and a run of 10^6 rows (tools/models/million.ode) that must draw and zoom
    with no frame over 50 ms (draw times and long tasks, read through __xpp).
@@ -30,7 +33,7 @@
    copied, a same-name one asks Replace / Keep both / Cancel, and "Add
    file…" adds a file the core could not open and runs the command again.
 
-   node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--only desktop,phase,auto,view,files,live,million] [-v]
+   node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--only desktop,phase,marks,auto,view,files,live,million] [-v]
 
    Needs Node 22 or later and a browser, nothing else (tools/cdp.mjs). */
 import {spawnSync} from 'node:child_process';
@@ -561,6 +564,112 @@ async function phasePlane() {
   check('Erase clears them: nothing in the store, nothing drawn, no legend entries',
     await until('!s.busy && w.nullclines && w.nullclines.x.length === 0 && w.dfield && w.dfield.n === 0 && w.dfield.flows.length === 0', 'erase')
     && (await P()).layers.length === 0 && await cdp.eval(`document.querySelectorAll('.legend-item.layer').length === 0`));
+}
+
+/* marks (docs/ui-v2.md T8): Text,etc's text, pointer and marker, a frozen
+   curve and a Sing pts equilibrium in the store, drawn, named in the legend
+   and toggled from it; Erase clears them */
+async function marks() {
+  check('T8: the page connects and asks for marks', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello')
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'data' && c.events.includes('marks'))`));
+  const layer = k => cdp.eval(`(__xpp.plot().layers.find(l => l.key === '${k}') || null)`);
+  const legendLabels = () => cdp.eval(`[...document.querySelectorAll('.plot-view:not([hidden]) .legend-item.layer')].map(b => b.textContent.trim())`);
+  const legend = label => cdp.eval(`(() => { const b = [...document.querySelectorAll('.plot-view:not([hidden]) .legend-item.layer')]
+    .find(b => b.textContent.trim() === ${JSON.stringify(label)}); if (b) b.click(); return b ? b.getAttribute('aria-pressed') : null; })()`);
+  let askId = -1;
+  /* the next ask of `kind` (not the one answered last), answered with `reply` */
+  const answer = async (kind, reply) => {
+    if (!(await until(`s.ask && s.ask.kind === '${kind}' && s.ask.id !== ${askId}`, kind))) return false;
+    askId = await S('s.ask.id');
+    await cdp.eval(`__xpp.send(Object.assign({cmd: 'answer', id: ${askId}}, ${JSON.stringify(reply)}))`);
+    return true;
+  };
+  const menu = async (...keys) => {
+    for (const k of keys) await answer('menu', {key: k});
+  };
+  const idle = () => until('!s.busy && !s.ask', 'idle', 30000);
+
+  await focusPlot();
+  await key('i');
+  await menu('g');
+  await idle();
+  check('... an integration: no marks yet', await until('w.series && w.series.rows > 2', 'series')
+    && await S('!w.marks || (w.marks.text.length + w.marks.equilibria.length + w.marks.frozen.length === 0)'));
+
+  await key('t');
+  await menu('t');
+  await answer('string', {value: '\\1a\\0-point'});
+  await answer('string', {value: '3'});
+  await answer('mouse', {xd: -0.3, yd: 0.5});
+  await idle();
+  check('Text,etc/Text: the store holds the text, Greek as Unicode', await until("w.marks && w.marks.text.length === 1", 'text')
+    && await S("w.marks.text[0].plain === 'α-point' && w.marks.text[0].size === 3 && Math.abs(w.marks.text[0].x + 0.3) < 0.01"),
+    JSON.stringify(await S('w.marks && w.marks.text')));
+  let t = await layer('text');
+  check('... drawn as text, "Text" in the legend, named in the plot\'s label', t && t.drawn === 1 && t.visible
+    && (await legendLabels()).includes('Text')
+    && (await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').getAttribute('aria-label')`)).includes('α-point'),
+    JSON.stringify(t));
+
+  await key('t');
+  await menu('p');
+  await answer('string', {value: '0.2'});
+  await answer('string', {value: '5'});
+  await answer('rubber', {xd: 0.1, yd: 0.2, xd2: 0.6, yd2: 0.8});
+  await idle();
+  await key('t');
+  await menu('m');
+  await answer('form', {values: ['3', '7', '2']});
+  await answer('mouse', {xd: 0.9, yd: 0.1});
+  await idle();
+  check('Pointer and Marker: in the store, drawn, "Arrows" and "Markers" in the legend',
+    await until('w.marks && w.marks.arrows.length === 1 && w.marks.markers.length === 1', 'objects')
+    && await S("w.marks.arrows[0].pointer && w.marks.arrows[0].color === 5 && w.marks.markers[0].shape === 'diamond'")
+    && (await layer('arrows'))?.drawn === 1 && (await layer('markers'))?.drawn === 1
+    && (await legendLabels()).join() === 'Text,Arrows,Markers', JSON.stringify(await S('w.marks')));
+
+  await key('g');
+  await menu('f', 'f');
+  await answer('form', {values: ['4', 'first run', 'frz1']});
+  await idle();
+  check('Graphic stuff/Freeze: the frozen curve in the store equals the series, named by its key',
+    await until('w.marks && w.marks.frozen.length === 1', 'frozen')
+    && await S(`(() => { const f = w.marks.frozen[0], c = w.series.curves[0];
+      const x = w.series.columns.get(c.x), y = w.series.columns.get(c.y);
+      return f.label === 'first run' && f.color === 4 && f.xs.length === x.length
+        && f.xs.every((v, i) => v === x[i]) && f.ys.every((v, i) => v === y[i]); })()`),
+    JSON.stringify(await S('w.marks && w.marks.frozen.map(f => [f.label, f.xs.length])')));
+  const frozen = await layer('frozen-0');
+  check('... drawn under the curves, its key in the legend', frozen && frozen.label === 'first run' && frozen.drawn > 2
+    && (await legendLabels()).includes('first run'), JSON.stringify(frozen));
+
+  await key('s');
+  await menu('g');
+  for (let k = 0; k < 6 && !(await until('!s.busy', 'sing pts', 800)); k++)
+    if (await S("s.ask && s.ask.kind === 'choice'")) await answer('choice', {key: 'n'});
+  await idle();
+  check('Sing pts: the equilibrium in the store with its stability, drawn, "Equilibria" in the legend',
+    await until('w.marks && w.marks.equilibria.length === 1', 'equilibrium')
+    && await S("['stable', 'unstable', 'saddle'].includes(w.marks.equilibria[0].type)")
+    && (await layer('equilibria'))?.drawn === 1 && (await legendLabels()).join() === 'Equilibria,Text,Arrows,Markers,first run',
+    JSON.stringify({eq: await S('w.marks && w.marks.equilibria'), legend: await legendLabels()}));
+
+  let pressed = await legend('Text');
+  t = await layer('text');
+  check('the legend hides the text: not drawn, the toggle not pressed, the other marks still drawn',
+    pressed === 'true' && t && !t.visible && t.drawn === 0 && (await layer('equilibria')).drawn === 1
+    && (await layer('frozen-0')).drawn > 2, JSON.stringify(t));
+  await legend('Text');
+  pressed = await legend('first run');
+  const f0 = await layer('frozen-0');
+  check('... shows it again; a frozen curve hides on its own',
+    (await layer('text')).drawn === 1 && pressed === 'true' && !f0.visible && f0.drawn === 0, JSON.stringify(f0));
+  await legend('first run');
+
+  await key('e'); /* Erase */
+  check('Erase clears them: no marks in the store, none drawn, no legend entries',
+    await until('!s.busy && w.marks && w.marks.text.length === 0 && w.marks.equilibria.length === 0 && w.marks.frozen.length === 0', 'erase')
+    && (await P()).layers.length === 0 && (await legendLabels()).length === 0);
 }
 
 /* plot windows as tabs (docs/ui-v2.md T6): Makewindow create adds a tab,
@@ -1589,6 +1698,7 @@ async function main() {
     if (run('phase')) await session(ODE, phasePlane);
     if (run('auto')) await session(ODE, autoView);
     if (run('view')) await session(ODE, viewCheck);
+    if (run('marks')) await session(ODE, marks);
     if (run('files')) await session(ODE, files, ['Cannot open file']);
     if (run('live')) await session(LIVE, () => live(wantLive));
     if (run('million')) await session(MILLION, million);

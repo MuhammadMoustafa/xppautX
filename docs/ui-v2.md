@@ -127,7 +127,7 @@ bundle is ~95 KB of JS (Preact 4 KB, uPlot 50 KB), 11 KB of CSS, 48 KB of font.
 | 3 | `plots` (**done**) | plot windows as tabs | per window: `win`, title, 2D/3D, axes ranges (`xlo..yhi`), labels, the 3D box and angles (`theta`, `phi`, `persp`), and its curves; `series` is sent per window (each with its `win`), appends for the active one | done (`core/plot_data.cpp`) |
 | 4 | `nullclines` (**done**) | phase plane | per window: the x and y nullclines as flat segment lists `[x1,y1,x2,y2,...]` in plot coordinates, colours, plus the frozen nullclines | `core/phase_data.cpp`, recorded where `nullcline.c` draws them |
 | 5 | `dfield` (**done**) | phase plane | direction field: grid of `[x,y,ux,uy]` (unit direction in plot units) and each arrow's speed, scaled by the client; flow: the trajectories as `x`, `y` point lists per curve, NaN between two | `core/phase_data.cpp`, from `redraw_dfield`/`direct_field_com` and the integrator's `plot_one_graph` |
-| 6 | `marks` | plot | equilibria found by Sing pts (x, y, stability type), labels, arrows and markers of Graphic stuff/Text (`grobs.c`), frozen curves (Graphic stuff/Freeze) as series | yes: from `grobs.c` and `freeze` storage |
+| 6 | `marks` (**done**) | plot | equilibria found by Sing pts (x, y, stability type), labels, arrows and markers of Text,etc, frozen curves (Graphic stuff/Freeze) as series | `core/marks_data.cpp`, recorded where `eq_symb` (graphics.c), `draw_label` (grobs.cpp) and `draw_freeze`/`create_crv` (graf_par.c) draw them |
 | 7 | `diagram` (exists) + `autoinfo` | AUTO view | the diagram is already data; add the info strip as fields (branch, point, type, parameter, norm, period, ...) and the stability circle as eigenvalues `[[re,im],...]` | small: `auto_x11.c` prints these, the data is in `auto_nox.c` |
 | 8 | `browser` (exists) | data table | rows and columns on request: already data | none |
 | 9 | `aplot` (exists) | array plot | cells as colour indices; add `values` (the numbers) so the client picks its colour map | small |
@@ -279,7 +279,10 @@ plot/       model.ts (series -> curves, pure), nearest.ts, viewmath.ts,
             plotKeys.ts (pure), decimate.ts (what of a long curve changes
             pixels, pure), chart.ts (uPlot adapter), interactions.ts
             (mouse, wheel, touch), pick.ts (plot modes of the mouse,
-            rubber and drag asks, pure), colors.ts, export.ts, registry.ts,
+            rubber and drag asks, pure), phase.ts and marks.ts (what the
+            chart draws besides the curves and the legend's names for it,
+            pure), richtext.ts (XPP's label markup as Unicode runs, pure),
+            colors.ts, export.ts, registry.ts,
             diagramModel.ts (diagram -> curves, label marks, Hopf joins,
             nearest point, readout; pure), diagramChart.ts (uPlot adapter)
 ui/         App.tsx (shell), TitleBar, MenuPanel, Plots (the windows' tabs),
@@ -337,9 +340,10 @@ Rules:
   `web2/dist` and embedded in xppautX: the program must work offline, so no
   font or script comes from a CDN. Tabular numerals (`tnum`) keep columns of
   numbers aligned. Code and tables of numbers use the system monospace
-  stack (`ui-monospace, Cascadia Code, SF Mono, Menlo, Consolas`). A Greek
-  subset (19 KB) is added when XPP's symbol-font labels become Unicode text
-  (T8).
+  stack (`ui-monospace, Cascadia Code, SF Mono, Menlo, Consolas`). Inter's
+  Greek subset (19 KB, `inter-greek.woff2`, loaded only for Greek text)
+  draws XPP's symbol-font labels, which the page turns into Unicode Greek
+  (`plot/richtext.ts`, T8).
 - **Tokens** on `:root` (`web2/src/theme.css`): a type scale
   (0.75/0.875/1/1.125 rem), a spacing scale (0.25..1.5 rem), colours for
   light and `[data-theme=dark]`, the minimum target size.
@@ -489,7 +493,11 @@ Target: WCAG 2.2 AA. Rules:
   changes only its window, each tab keeps its zoom across switches (by
   click and by the arrow keys, which also make the window the core's
   active one), no sideways scroll at 390 px with two tabs, Close window
-  removes the tab.
+  removes the tab. Marks (T8): a text with Greek, a pointer, a marker, a
+  frozen curve and a Sing pts equilibrium in the store and the legend,
+  drawn (`__xpp.plot().layers`), toggled, cleared by Erase; servercheck
+  compares the equilibrium with the `equilibrium` event and the frozen
+  curve with the `series`.
   No screenshot is compared.
 - **Assets** (`tools/webcheck.py`): `/v2/`, its script and font with their
   types.
@@ -524,7 +532,7 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T5 (**done**) | Files: `/files` endpoints (list, get, put; streaming bodies), `file` asks through the browser's dialogs, the confirm on replace, "Add file…" for missing companions, `file` commands for `--server` | T4 | yes | webcheck: traversal and dot names refused, 64 MB cap, token required; web2check: Write set lands in the model's folder and is offered to the browser; Read set by upload restores parameters |
 | T6 (**done**) | Plot windows: `plots` event, series per window, tabs, Makewindow create/kill/select | T2 | yes | servercheck: two windows, each with its curves; web2check: switch tabs, each keeps its zoom |
 | T7 (**done**) | Nullclines and direction fields as data (`nullclines`, `dfield`), drawn in uPlot's draw hook | T6 | yes | servercheck: segment counts equal the classic draw ops' lines for lecar; web2check: the store holds them, they toggle in the legend |
-| T8 | Marks: Sing pts equilibria, Graphic stuff text/arrows/markers, frozen curves; Greek labels as Unicode | T6 | yes | servercheck: `marks` after Sing pts has the equilibrium's coordinates; web2check: marks listed in the store and the legend |
+| T8 (**done**) | Marks: Sing pts equilibria, Graphic stuff text/arrows/markers, frozen curves; Greek labels as Unicode | T6 | yes | servercheck: `marks` after Sing pts has the equilibrium's coordinates; web2check: marks listed in the store and the legend |
 | T9 (**done**) | Use this view: `view` command sets the window's axes from the client's zoom; Fit | T6 | small | servercheck: `view` then `state.view` matches; PostScript export uses it |
 | T10 (**done**) | Data table: virtualized browser table on `browser`, its buttons, CSV export, keyboard navigation | T3 | no | web2check: scroll to row 500, Get sets the ICs, keyboard reaches every button |
 | T11a (**done**) | AUTO view from `diagram`: branches by stability, labels, zoom, pan, readout; buttons (no Abort: the status bar's Stop, A10) | T4 | no | web2check: after an AUTO run the store's diagram equals the `diagram` events; readout names a labelled point |

@@ -5,7 +5,7 @@
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
 import type {AskEvent, Command, HelloEvent, StateEvent, View, XppEvent} from '../protocol/types';
 import {
-  coreMoved, initialPlots, onAppend, onDfield, onNullclines, onPlots, onSeries, select, setViewport, undoViewport,
+  coreMoved, initialPlots, onAppend, onDfield, onMarks, onNullclines, onPlots, onSeries, select, setViewport, undoViewport,
   windowOf, type PlotsState,
   type Viewport,
 } from './plots';
@@ -229,6 +229,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return withPlots(state, onNullclines(state.plots, ev));
     case 'dfield':
       return withPlots(state, onDfield(state.plots, ev));
+    case 'marks':
+      return withPlots(state, onMarks(state.plots, ev));
     case 'window':
       if (ev.win === 101 && ev.op !== 'select')
         return {...state, diagram: reduceDiagram(state.diagram, {type: 'window', op: ev.op})};

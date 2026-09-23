@@ -22,6 +22,7 @@ const mode = process.argv[2] ?? '--build';
 const COPIED = {
   'index.html': path.join(here, 'src/index.html'),
   'inter.woff2': path.join(here, 'node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2'),
+  'inter-greek.woff2': path.join(here, 'node_modules/@fontsource-variable/inter/files/inter-greek-wght-normal.woff2'),
   'inter-OFL.txt': path.join(here, 'node_modules/@fontsource-variable/inter/LICENSE'),
 };
 

@@ -6,7 +6,8 @@
    it is shown again (ui/Plots.tsx). The core's mouse, rubber and drag asks
    for this window are plot modes here (plot/pick.ts): an instruction bar
    with Cancel, a crosshair, a box or a line drawn over the plot, answered
-   in data coordinates. Its nullclines, direction field and flows (T7) are
+   in data coordinates. Its nullclines, direction field and flows (T7) and
+   its marks (T8: equilibria, text, arrows, markers, frozen curves) are
    drawn by the chart too, and listed in the legend after the curves. */
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {Chart} from '../plot/chart';
@@ -15,7 +16,8 @@ import {download, downloadCsv} from '../plot/export';
 import {attachGestures, type PickSink} from '../plot/interactions';
 import {pickInstruction, pickKey, toData, type Frac, type PickState} from '../plot/pick';
 import {buildModel, type PlotModel} from '../plot/model';
-import {phaseLayers} from '../plot/phase';
+import {markLayers, type MarkLayer} from '../plot/marks';
+import {phaseLayers, type Layer} from '../plot/phase';
 import {plotKey} from '../plot/plotKeys';
 import {setChart} from '../plot/registry';
 import type {Ranges} from '../plot/viewmath';
@@ -165,7 +167,9 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   const info = pw?.info ?? null;
   const nullclines = pw?.nullclines ?? null;
   const dfield = pw?.dfield ?? null;
-  const layers = useMemo(() => phaseLayers(nullclines, dfield), [nullclines, dfield]);
+  const marks = pw?.marks ?? null;
+  const layers: (Layer | MarkLayer)[] = useMemo(() => [...phaseLayers(nullclines, dfield), ...markLayers(marks)],
+    [nullclines, dfield, marks]);
   const viewport = pw?.viewport ?? HOME;
   const canUndo = !!pw?.viewportHistory.length;
   const view = useStore(s => s.core?.view);
@@ -219,6 +223,10 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   }, [nullclines, dfield, shown]);
 
   useEffect(() => {
+    if (shown) chart.current!.setMarks(marks);
+  }, [marks, shown]);
+
+  useEffect(() => {
     if (shown) chart.current!.applyViewport(viewport);
   }, [viewport]);
 
@@ -270,7 +278,8 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   const zoomed = viewport.x !== null || viewport.y !== null;
   const noCurves = !model || model.curves.every(c => c.xs.length === 0);
   const empty = noCurves && !layers.length;
-  const withLayers = layers.length ? `; ${layers.map(l => l.label).join(', ')}` : '';
+  const texts = marks?.text.length ? `; text: ${marks.text.map(t => t.plain).join('; ')}` : '';
+  const withLayers = layers.length ? `; ${layers.map(l => l.label).join(', ')}${texts}` : '';
   const label = model?.curves.length
     ? `Plot of ${model.curves.map(c => c.label).join(', ')}, ${model.curves[0].xs.length} points${withLayers}`
     : `Plot, no data yet${withLayers}`;
@@ -307,7 +316,8 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
                 chart.current!.setLayerVisible(l.key, !chart.current!.isLayerVisible(l.key));
                 setShown(n => n + 1);
               }}>
-              <span class={`swatch swatch-${l.key}`} style={{background: curveColor(l.color, dark)}} aria-hidden="true" />
+              <span class={`swatch swatch-${l.key.replace(/-\d+$/, '')}`} style={{background: curveColor(l.color, dark)}}
+                aria-hidden="true" />
               {l.label}
             </button>
           ))}

@@ -3,13 +3,23 @@
    Sizes are rem (1rem = the browser's font size, 16px by default); the
    spacing and type scales below are the only sizes components use.
    Inter is self-hosted (web2/dist/inter.woff2, embedded in xppautX): the
-   program works offline, so nothing loads from a CDN. */
+   program works offline, so nothing loads from a CDN. Its Greek subset
+   (inter-greek.woff2) draws XPP's symbol-font labels as Greek text (T8);
+   the browser fetches it only for a page that shows Greek. */
 @font-face {
   font-family: 'Inter';
   font-style: normal;
   font-display: swap;
   font-weight: 100 900;
   src: url('inter.woff2') format('woff2-variations'), url('inter.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('inter-greek.woff2') format('woff2-variations'), url('inter-greek.woff2') format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
 }
 
 :root {
@@ -399,6 +409,10 @@ kbd {
 .swatch-xnull, .swatch-ynull { height: 0.25rem; }
 .swatch-dfield { height: 0.6rem; border-radius: 0; clip-path: polygon(0 40%, 60% 40%, 60% 5%, 100% 50%, 60% 95%, 60% 60%, 0 60%); }
 .swatch-flow { height: 0.125rem; }
+/* marks (T8): the equilibria a dot, markers a square, text a letter's stem */
+.swatch-equilibria { width: 0.6rem; height: 0.6rem; border-radius: 50%; }
+.swatch-markers { width: 0.55rem; height: 0.55rem; border-radius: 0; }
+.swatch-text { width: 0.2rem; height: 0.7rem; border-radius: 0; }
 .plot-tools { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .plot-host { position: relative; flex: 1; min-height: 12rem; overflow: hidden; }
 .plot-host .u-over { touch-action: none; }
