@@ -1,6 +1,7 @@
 /* A column of the series event as JSON numbers or base64 float32
    (series_enc.h). Pure: no core state, no I/O. */
 #include "series_enc.h"
+#include "xpp_mem.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -83,7 +84,7 @@ char *xpp_series_values(const float *v, int n, int f32, size_t *len)
         if (n < 0) n = 0;
         if (f32) base64(v, n, s);
         else numbers(v, n, s);
-        char *out = static_cast<char *>(std::malloc(s.size() + 1));
+        char *out = static_cast<char *>(xpp_malloc(s.size() + 1));
         if (!out) return nullptr;
         std::memcpy(out, s.c_str(), s.size() + 1);
         *len = s.size();

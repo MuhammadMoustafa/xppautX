@@ -4,6 +4,7 @@
 */
 
 #include "auto_f2c.h"
+#include "xpp_mem.h"
 #include "auto_c.h"
 
 
@@ -87,15 +88,15 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
   integer qzierr;
   doublereal *svdwrk, qzz[1];
 
-  svde = (doublereal *)malloc(sizeof(doublereal)*(*ndim));
-  svds = (doublereal *)malloc(sizeof(doublereal)*(*ndim+1));
-  svdv = (doublereal *)malloc(sizeof(doublereal)*(*ndim)*(*ndim));
-  v = (doublereal *)malloc(sizeof(doublereal)*(*ndim));
-  x = (doublereal *)malloc(sizeof(doublereal)*(*ndim));
-  qzalfi = (doublereal *)malloc(sizeof(doublereal)*(*ndim));
-  qzbeta = (doublereal *)malloc(sizeof(doublereal)*(*ndim));
-  qzalfr = (doublereal *)malloc(sizeof(doublereal)*(*ndim));
-  svdwrk = (doublereal *)malloc(sizeof(doublereal)*(*ndim));
+  svde = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim));
+  svds = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim+1));
+  svdv = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim)*(*ndim));
+  v = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim));
+  x = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim));
+  qzalfi = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim));
+  qzbeta = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim));
+  qzalfr = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim));
+  svdwrk = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim));
 
   /*  Subroutine to compute Floquet multipliers via the "deflated circuit */
   /*  pencil" method. This routine is called by the AUTO routine FNSPBV */
@@ -358,15 +359,15 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
 
   }
 
-  free(svde); 
-  free(svds); 
-  free(svdv); 
-  free(v); 
-  free(x); 
-  free(qzalfi); 
-  free(qzbeta); 
-  free(qzalfr); 
-  free(svdwrk); 
+  xpp_free(svde); 
+  xpp_free(svds); 
+  xpp_free(svdv); 
+  xpp_free(v); 
+  xpp_free(x); 
+  xpp_free(qzalfi); 
+  xpp_free(qzbeta); 
+  xpp_free(qzalfr); 
+  xpp_free(svdwrk); 
 
   return 0;
 

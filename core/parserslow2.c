@@ -1,4 +1,5 @@
 #include "parserslow.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 
 #include <time.h>
@@ -303,8 +304,8 @@ void free_ufuns()
  int i;
  for(i=0;i<NFUN;i++)
  {
-  free(ufun[i]);
-  free(ufun_def[i]);
+  xpp_free(ufun[i]);
+  xpp_free(ufun_def[i]);
  }
 }
 
@@ -449,8 +450,8 @@ int add_kernel(name,mu,expr)
   }
   if(in>0){
     kernel[NKernel].flag=CONV;
-    kernel[NKernel].expr=(char *)malloc(strlen(expr)+2-in);
-    kernel[NKernel].kerexpr=(char *)malloc(in+1);
+    kernel[NKernel].expr=(char *)xpp_malloc(strlen(expr)+2-in);
+    kernel[NKernel].kerexpr=(char *)xpp_malloc(in+1);
     for(i=0;i<in;i++)kernel[NKernel].kerexpr[i]=expr[i];
     kernel[NKernel].kerexpr[in]=0;
     for(i=in+1;i<strlen(expr);i++)kernel[NKernel].expr[i-in-1]=expr[i];
@@ -459,7 +460,7 @@ int add_kernel(name,mu,expr)
 	   kernel[NKernel].kerexpr,kernel[NKernel].expr);
   }
   else {
-    kernel[NKernel].expr=(char *)malloc(strlen(expr)+2);
+    kernel[NKernel].expr=(char *)xpp_malloc(strlen(expr)+2);
     strcpy(kernel[NKernel].expr,expr);
   }
   NSYM++;
@@ -687,12 +688,12 @@ int add_ufun_new(index,narg,rhs,args)
     plintf("Maximal arguments exceeded \n");
     return(1);
   }
-  if((ufun[index]=(int *)malloc(1024))==NULL)
+  if((ufun[index]=(int *)xpp_malloc(1024))==NULL)
     {
       if(ERROUT)xpp_log(XPP_LOG_WARN, "not enough memory!!\n");
       return(1);
     }
-  if((ufun_def[index]=(char *)malloc(MAXEXPLEN))==NULL)
+  if((ufun_def[index]=(char *)xpp_malloc(MAXEXPLEN))==NULL)
     {
       if(ERROUT)xpp_log(XPP_LOG_WARN, "not enough memory!!\n");
       return(1);
@@ -736,12 +737,12 @@ int narg;
   if(ERROUT)xpp_log(XPP_LOG_WARN, "too many functions !!\n");
   return(1);
  }
- if((ufun[NFUN]=(int *)malloc(1024))==NULL)
+ if((ufun[NFUN]=(int *)xpp_malloc(1024))==NULL)
  {
   if(ERROUT)xpp_log(XPP_LOG_WARN, "not enough memory!!\n");
   return(1);
  }
- if((ufun_def[NFUN]=(char *)malloc(MAXEXPLEN))==NULL)
+ if((ufun_def[NFUN]=(char *)xpp_malloc(MAXEXPLEN))==NULL)
  {
   if(ERROUT)xpp_log(XPP_LOG_WARN, "not enough memory!!\n");
   return(1);

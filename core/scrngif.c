@@ -1,4 +1,5 @@
 #include "scrngif.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 
 #include "aniparse.h"
@@ -142,7 +143,7 @@ void write_global_header(int cols,int rows, FILE *dst)
   unsigned char    *pos,*buffer;
 
 
-  buffer = (unsigned char *)malloc((BUFLEN+1)*sizeof(unsigned char))+1;
+  buffer = (unsigned char *)xpp_malloc((BUFLEN+1)*sizeof(unsigned char))+1;
 
   pos = buffer;
 
@@ -167,7 +168,7 @@ void write_global_header(int cols,int rows, FILE *dst)
     *pos++ = 0xff & gifcol[i].b;
   }    
   fwrite(buffer,pos-buffer,1,dst);
-  free(buffer-1);
+  xpp_free(buffer-1);
   GifLoop(dst,GifFrameLoop);
 }
 
@@ -227,7 +228,7 @@ void make_gif(unsigned char *pixels,int cols,int rows,FILE *dst)
   unsigned char    *pos,*buffer;
 
 
-  buffer = (unsigned char *)malloc((BUFLEN+1)*sizeof(unsigned char))+1;
+  buffer = (unsigned char *)xpp_malloc((BUFLEN+1)*sizeof(unsigned char))+1;
 
 
   
@@ -272,7 +273,7 @@ void make_gif(unsigned char *pixels,int cols,int rows,FILE *dst)
 
   GifEncode(dst,pixels,depth,rows*cols);
   fputc(';',dst);
-   free(buffer-1);
+   xpp_free(buffer-1);
 
 }
  
@@ -290,7 +291,7 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
 
   nodeArray = empty;
   memmove(++nodeArray, empty, 255*sizeof(GifTree **));
-  if (( buffer = (unsigned char *)malloc((BUFLEN+1)*sizeof(unsigned char))) == NULL )
+  if (( buffer = (unsigned char *)xpp_malloc((BUFLEN+1)*sizeof(unsigned char))) == NULL )
 	 return 0;
   buffer++;
 
@@ -305,9 +306,9 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
 
   cLength = (depth == 1) ? 3 : depth+1;
 
-  if (( topNode = baseNode = (GifTree *)malloc(sizeof(GifTree)*4094)) == NULL )
+  if (( topNode = baseNode = (GifTree *)xpp_malloc(sizeof(GifTree)*4094)) == NULL )
       return 0;
-  if (( nodeArray = first->node = (GifTree **)malloc(256*sizeof(GifTree *)*noOfArrays)) == NULL )
+  if (( nodeArray = first->node = (GifTree **)xpp_malloc(256*sizeof(GifTree *)*noOfArrays)) == NULL )
        return 0;
   lastArray = nodeArray + ( 256*noOfArrays - cc);
   ClearTree(cc, first);
@@ -440,7 +441,7 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
    pos = AddCodeToBuffer(0x0,8,pos);
 
   fwrite(buffer-1, pos-buffer+1, 1, fout);
-  free(buffer-1); free(first->node); free(baseNode);
+  xpp_free(buffer-1); xpp_free(first->node); xpp_free(baseNode);
   if (debugFlag) xpp_log(XPP_LOG_DEBUG, "pixel count = %d; nodeCount = %d lookup nodes = %d\n", tel, nodecount, lookuptypes);
   return 1;
 
@@ -513,7 +514,7 @@ void gif_stuff_ppm(unsigned char *ppm,int w,int h,FILE *fp,int task)
  int ncol=0;
 
  int ok;
- pixels=(unsigned char *)malloc(h*w);
+ pixels=(unsigned char *)xpp_malloc(h*w);
  switch(task){
  case GET_GLOBAL_CMAP:
     ncol=make_local_map(pixels,ppm,h,w);
@@ -587,5 +588,5 @@ void gif_stuff_ppm(unsigned char *ppm,int w,int h,FILE *fp,int task)
      }
    break;
  }
- free(pixels);
+ xpp_free(pixels);
 }

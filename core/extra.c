@@ -1,4 +1,5 @@
 #include "extra.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 
 #include "init_conds.h"
@@ -214,19 +215,19 @@ void add_export_list(char *in,char *out)
   int l1=strlen(in);
   int l2=strlen(out);
   int i;
-  in_out.lin=(char *)malloc(l1);
-  in_out.lout=(char *)malloc(l2);
+  in_out.lin=(char *)xpp_malloc(l1);
+  in_out.lout=(char *)xpp_malloc(l2);
   strcpy(in_out.lin,in);
   strcpy(in_out.lout,out);
   i=get_export_count(in);
-  in_out.in=(int *)malloc((i+1)*sizeof(int));
-  in_out.intype=(int *)malloc((i+1)*sizeof(int));
-  in_out.vin=(double *)malloc((i+1)*sizeof(double));
+  in_out.in=(int *)xpp_malloc((i+1)*sizeof(int));
+  in_out.intype=(int *)xpp_malloc((i+1)*sizeof(int));
+  in_out.vin=(double *)xpp_malloc((i+1)*sizeof(double));
   in_out.nin=i;
   i=get_export_count(out);
-  in_out.out=(int *)malloc((i+1)*sizeof(int));
-  in_out.outtype=(int *)malloc((i+1)*sizeof(int));
-  in_out.vout=(double *)malloc((i+1)*sizeof(double));
+  in_out.out=(int *)xpp_malloc((i+1)*sizeof(int));
+  in_out.outtype=(int *)xpp_malloc((i+1)*sizeof(int));
+  in_out.vout=(double *)xpp_malloc((i+1)*sizeof(double));
   in_out.nout=i;
   /* plintf(" in %d out %d \n",in_out.nin,in_out.nout); */
 

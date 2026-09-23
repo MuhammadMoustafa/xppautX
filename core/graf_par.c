@@ -1,4 +1,5 @@
 #include "graf_par.h"
+#include "xpp_mem.h"
 #include "arrayplot.h"
 #include "xpp_globals.h"
 
@@ -1084,10 +1085,10 @@ void delete_frz_crv(i)
   frz[i].use=0;
   frz[i].name[0]=0;
   frz[i].key[0]=0;
-  free(frz[i].xv);
-  free(frz[i].yv);
+  xpp_free(frz[i].xv);
+  xpp_free(frz[i].yv);
   if(frz[i].type>0)
-    free(frz[i].zv);
+    xpp_free(frz[i].zv);
 }
 
 void delete_frz()
@@ -1139,10 +1140,10 @@ int ind;
 	err_msg("No Curve to freeze");
 	return(-1);
       }
-      frz[i].xv=(float *) malloc(sizeof(float)*my_browser.maxrow);
-      frz[i].yv=(float *) malloc(sizeof(float)*my_browser.maxrow);
+      frz[i].xv=(float *) xpp_malloc(sizeof(float)*my_browser.maxrow);
+      frz[i].yv=(float *) xpp_malloc(sizeof(float)*my_browser.maxrow);
       if((type=MyGraph->grtype)>0)
-	frz[i].zv=(float *)malloc(sizeof(float)*my_browser.maxrow);
+	frz[i].zv=(float *)xpp_malloc(sizeof(float)*my_browser.maxrow);
       if ((type>0&&frz[i].zv==NULL)|| (type==0&&frz[i].yv==NULL)){
 	err_msg("Cant allocate storage for curve");
 	return(-1);
@@ -1279,8 +1280,8 @@ void free_bd()
   int i;
   if(my_bd.nbifcrv>0){
     for(i=0;i<my_bd.nbifcrv;i++){
-      free(my_bd.x[i]);
-      free(my_bd.y[i]);
+      xpp_free(my_bd.x[i]);
+      xpp_free(my_bd.y[i]);
     }
     my_bd.nbifcrv=0;
   }
@@ -1293,8 +1294,8 @@ void add_bd_crv(x,y,len,type,ncrv)
 {
   int i;
   if(ncrv>=MAXBIFCRV)return;
-  my_bd.x[ncrv]=(float *)malloc(sizeof(float)*len);
-  my_bd.y[ncrv]=(float *)malloc(sizeof(float)*len);
+  my_bd.x[ncrv]=(float *)xpp_malloc(sizeof(float)*len);
+  my_bd.y[ncrv]=(float *)xpp_malloc(sizeof(float)*len);
   for(i=0;i<len;i++){
     my_bd.x[ncrv][i]=x[i];
     my_bd.y[ncrv][i]=y[i];
@@ -1382,7 +1383,7 @@ int get_frz_index(w)
   int count=0;
   for(i=0;i<MAXFRZ;i++){
     if(frz[i].use==1&&w==frz[i].w){
-	n[count]=(char *)malloc(20);
+	n[count]=(char *)xpp_malloc(20);
       sprintf(n[count],"%s",frz[i].name);
       key[count]='a'+i;
       
@@ -1394,7 +1395,7 @@ int get_frz_index(w)
   key[count]=0;
    m.n=count; m.items=n; m.keys=key; m.hints=no_hint;
    ch=(char)menu_choose(&m,0);
-   for(i=0;i<count;i++)free(n[i]);
+   for(i=0;i<count;i++)xpp_free(n[i]);
   return((int)(ch-'a'));
        
 }

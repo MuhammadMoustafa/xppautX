@@ -11,6 +11,7 @@
 
 
 #include <stdio.h>
+#include "xpp_mem.h"
 #include <stdlib.h>
 #include "cvband.h"
 #include "cvode.h"
@@ -234,7 +235,7 @@ void CVBand(void *cvode_mem, integer mupper, integer mlower, CVBandJacFn bjac,
   lfree  = CVBandFree;
   
   /* Get memory for CVBandMemRec */
-  lmem = cvband_mem = (CVBandMem) malloc(sizeof(CVBandMemRec));
+  lmem = cvband_mem = (CVBandMem) xpp_malloc(sizeof(CVBandMemRec));
   if (cvband_mem == NULL) return;  /* CVBandInit reports this error */
   
   /* Set Jacobian routine field to user's bjac or CVBandDQJac */
@@ -411,5 +412,5 @@ static void CVBandFree(CVodeMem cv_mem)
   BandFreeMat(M);
   BandFreeMat(savedJ);
   BandFreePiv(pivots);
-  free(lmem);
+  xpp_free(lmem);
 }

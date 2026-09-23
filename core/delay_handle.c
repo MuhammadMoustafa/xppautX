@@ -1,4 +1,5 @@
 #include "delay_handle.h"
+#include "xpp_mem.h"
 #include "parserslow.h"
 #include "ggets.h"
 #include "integrate.h"
@@ -71,7 +72,7 @@ double big;
  MaxDelay=n;
  LatestDelay=1;
  DelayFlag=0;
- DelayWork=(double *)calloc(n*(NODE ),sizeof(double));
+ DelayWork=(double *)xpp_calloc(n*(NODE ),sizeof(double));
  if(DelayWork==NULL){
   err_msg("Could not allocate memory for Delay");
   return(0);
@@ -86,7 +87,7 @@ double big;
 
 void free_delay()
 {
- if(DelayFlag)free(DelayWork);
+ if(DelayFlag)xpp_free(DelayWork);
  DelayFlag=0;
 }
 
@@ -214,10 +215,10 @@ double big;
  NCON=NCON_START;
  NSYM=NSYM_START;
  for(i=0;i<(NODE );i++){
-	del_form[i]=(int *)calloc(200,sizeof(int));
+	del_form[i]=(int *)xpp_calloc(200,sizeof(int));
 	if(del_form[i]==NULL){
 		err_msg("Failed to allocate delay formula ...");
-		for(j=0;j<i;j++)free(del_form[j]);
+		for(j=0;j<i;j++)xpp_free(del_form[j]);
                 NCON=NCON_START;
 		NSYM=NSYM_START;
 		return(0);
@@ -225,7 +226,7 @@ double big;
 
 	 if(add_expr(delay_string[i],del_form[i],&len)){
 		err_msg("Illegal delay expression");
-                for(j=0;j<=i;j++)free(del_form[j]);
+                for(j=0;j<=i;j++)xpp_free(del_form[j]);
 		 NCON=NCON_START;
 		NSYM=NSYM_START;
 		return(0);
@@ -242,7 +243,7 @@ double big;
 		y[j]=evaluate(del_form[j]);
 	stor_delay(y);
   }
-   for(j=0;j<(NODE );j++)free(del_form[j]);
+   for(j=0;j<(NODE );j++)xpp_free(del_form[j]);
    NCON=NCON_START;
    NSYM=NSYM_START;
   set_val("t",old_t);

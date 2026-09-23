@@ -1,4 +1,5 @@
 #include "aniparse.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_globals.h"
 #include "parserslow.h"
@@ -796,12 +797,12 @@ int add_ani_com(type,x1,y1,x2,y2,col,thick)
     return 1;
   my_ani[n_anicom].type=type;
   my_ani[n_anicom].flag=aniflag;
-  my_ani[n_anicom].x1=(int *)malloc(256*sizeof(int));
-  my_ani[n_anicom].y1=(int *)malloc(256*sizeof(int));
-  my_ani[n_anicom].x2=(int *)malloc(256*sizeof(int));
-  my_ani[n_anicom].y2=(int *)malloc(256*sizeof(int));
-  my_ani[n_anicom].col=(int *)malloc(256*sizeof(int));
-  my_ani[n_anicom].who=(int *)malloc(256*sizeof(int));
+  my_ani[n_anicom].x1=(int *)xpp_malloc(256*sizeof(int));
+  my_ani[n_anicom].y1=(int *)xpp_malloc(256*sizeof(int));
+  my_ani[n_anicom].x2=(int *)xpp_malloc(256*sizeof(int));
+  my_ani[n_anicom].y2=(int *)xpp_malloc(256*sizeof(int));
+  my_ani[n_anicom].col=(int *)xpp_malloc(256*sizeof(int));
+  my_ani[n_anicom].who=(int *)xpp_malloc(256*sizeof(int));
   switch(type){
   case AXNULL:
   case AYNULL:
@@ -876,16 +877,16 @@ void free_ani()
 {
   int i;
   for(i=0;i<n_anicom;i++){
-    free(my_ani[i].x1);
-    free(my_ani[i].y1);
-    free(my_ani[i].x2);
-    free(my_ani[i].y2);
-    free(my_ani[i].who);
-    free(my_ani[i].col);
+    xpp_free(my_ani[i].x1);
+    xpp_free(my_ani[i].y1);
+    xpp_free(my_ani[i].x2);
+    xpp_free(my_ani[i].y2);
+    xpp_free(my_ani[i].who);
+    xpp_free(my_ani[i].col);
     if(my_ani[i].type==COMET){
-      free(my_ani[i].c.x);
-      free(my_ani[i].c.y);
-      free(my_ani[i].c.col); 
+      xpp_free(my_ani[i].c.x);
+      xpp_free(my_ani[i].c.y);
+      xpp_free(my_ani[i].c.col); 
     }
   }
   n_anicom=0;
@@ -1035,9 +1036,9 @@ int add_ani_comet(a,x1,y1,x2,y2,col,thick)
  err=add_ani_expr(y1,a->y1);
  if(err)return -1;
  a->c.n=n;
- a->c.x=(int *)malloc(n*sizeof(int));
- a->c.y=(int *)malloc(n*sizeof(int));
- a->c.col=(int *)malloc(n*sizeof(int));
+ a->c.x=(int *)xpp_malloc(n*sizeof(int));
+ a->c.y=(int *)xpp_malloc(n*sizeof(int));
+ a->c.col=(int *)xpp_malloc(n*sizeof(int));
  a->c.i=0;
  return 1;
 }
@@ -1766,7 +1767,7 @@ int add_grab_command(char *xs,char *ys,char *ts, FILE *fp)
     plintf("Bad grab x %s \n",xs);
     return(-1);
   }
-  ani_grab[j].x= (int *)malloc(sizeof(int)*(nc+1));
+  ani_grab[j].x= (int *)xpp_malloc(sizeof(int)*(nc+1));
   for(k=0;k<=nc;k++)
     ani_grab[j].x[k]=com[k];
 
@@ -1775,7 +1776,7 @@ int add_grab_command(char *xs,char *ys,char *ts, FILE *fp)
     plintf("Bad grab y %s \n",ys);
     return(-1);
   }
-  ani_grab[j].y= (int *)malloc(sizeof(int)*(nc+1));
+  ani_grab[j].y= (int *)xpp_malloc(sizeof(int)*(nc+1));
   for(k=0;k<=nc;k++)
     ani_grab[j].y[k]=com[k];
   ans=ani_grab_tasks(start,j,1);
@@ -1894,7 +1895,7 @@ int add_grab_task(char *lhs,char *rhs, int igrab,int which)
 
       return(-1);
     }
-    ani_grab[igrab].start.comrhs[i] = (int *)malloc(sizeof(int)*(nc+1));
+    ani_grab[igrab].start.comrhs[i] = (int *)xpp_malloc(sizeof(int)*(nc+1));
      for(k=0;k<=nc;k++)
       ani_grab[igrab].start.comrhs[i][k]=com[k];
  
@@ -1919,7 +1920,7 @@ int add_grab_task(char *lhs,char *rhs, int igrab,int which)
       plintf("should return -1\n");
       return(-1);
     }
-    ani_grab[igrab].end.comrhs[i] = (int *)malloc(sizeof(int)*(nc+1));
+    ani_grab[igrab].end.comrhs[i] = (int *)xpp_malloc(sizeof(int)*(nc+1));
      for(k=0;k<=nc;k++)
       ani_grab[igrab].end.comrhs[i][k]=com[k];
      ani_grab[igrab].end.n=ani_grab[igrab].end.n+1;
@@ -1959,15 +1960,15 @@ void free_grabber()
 { 
   int i,j,m;
   for(i=0;i<n_ani_grab;i++){
-    free(ani_grab[i].x);
-    free(ani_grab[i].y);
+    xpp_free(ani_grab[i].x);
+    xpp_free(ani_grab[i].y);
     m=ani_grab[i].start.n;
     for(j=0;j<m;j++)
-      free(ani_grab[i].start.comrhs[j]);
+      xpp_free(ani_grab[i].start.comrhs[j]);
     
     m=ani_grab[i].end.n;
     for(j=0;j<m;j++)
-      free(ani_grab[i].end.comrhs[j]);
+      xpp_free(ani_grab[i].end.comrhs[j]);
     ani_grab[i].start.n=0;
     ani_grab[i].end.n=0;
   }

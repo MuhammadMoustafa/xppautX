@@ -3,6 +3,7 @@
    do_main() in main.c without any X11 setup, so it links against
    libxppcore alone. */
 #include "xpp_batch.h"
+#include "xpp_mem.h"
 #include "xpp_globals.h"
 #include "xpp_ui.h"
 #include "colormap.h"
@@ -270,10 +271,10 @@ void xpp_load_model(int argc, char **argv, int batch)
 
     load_eqn();
 
-    tempNS = (OptionsSet *)malloc(sizeof(OptionsSet));
+    tempNS = (OptionsSet *)xpp_malloc(sizeof(OptionsSet));
     *tempNS = notAlreadySet;
     set_internopts(tempNS);
-    free(tempNS);
+    xpp_free(tempNS);
 
     init_alloc_info();
     do_vis_env();

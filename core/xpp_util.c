@@ -2,6 +2,7 @@
    aniparse.c, graf_par.c, calc.c, many_pops.c, main.c). Nothing here
    touches a window. */
 #include "xpp_util.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"
 #include "grobs.h"
@@ -745,7 +746,7 @@ char *xpp_make_temp_dir(void)
 
   if (base == NULL || base[0] == 0)
     base = "/tmp";
-  path = malloc(strlen(base) + 64);
+  path = xpp_malloc(strlen(base) + 64);
   if (path == NULL)
     return NULL;
   for (i = 0; i < 1000; i++) { /* a crashed run with our pid may have left one */
@@ -755,7 +756,7 @@ char *xpp_make_temp_dir(void)
     if (errno != EEXIST)
       break;
   }
-  free(path);
+  xpp_free(path);
   return NULL;
 }
 
@@ -785,7 +786,7 @@ void xpp_cleanup_auto_dir(void)
 {
   if (xpp_auto_dir != NULL) {
     xpp_remove_temp_dir(xpp_auto_dir);
-    free(xpp_auto_dir);
+    xpp_free(xpp_auto_dir);
     xpp_auto_dir = NULL;
   }
 }

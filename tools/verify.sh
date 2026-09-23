@@ -4,7 +4,7 @@
 # its browser mode through HTTP (tools/webcheck.py), and print
 # the X11-free and C++ metrics. Run from repo root (WSL/Linux/macOS).
 # It also links both programs with LTO (make ltocheck), which reports types
-# that differ across files.
+# that differ across files, and checks that a failed allocation is loud.
 # Usage: tools/verify.sh [--clean-warnings]
 cd "$(dirname "$0")/.." || exit 1
 BASELINE=c281851de59ffd03b2a46428619a0c8f
@@ -37,6 +37,19 @@ if [ "$sum" = "$BASELINE" ]; then
   echo "headless -silent ok: checksum matches baseline"
 else
   echo "HEADLESS -silent MISMATCH: sum=$sum"
+  exit 1
+fi
+# a failed allocation is loud: exit 1 and an ERROR naming the call site
+# (core/xpp_mem.h; XPP_MEM_FAIL_AT makes the 5th allocation fail)
+tmp=$(mktemp -d)
+( cd "$tmp" && XPP_MEM_FAIL_AT=5 "$OLDPWD/xppautX" "$OLDPWD/examples/ode/lecar.ode" -silent > run.log 2>&1 )
+st=$?
+site=$(grep -oE 'out of memory: .* at core/[a-z0-9_]+\.(c|cpp):[0-9]+' "$tmp/run.log")
+rm -rf "$tmp"
+if [ $st -eq 1 ] && [ -n "$site" ]; then
+  echo "allocation failure ok: exit 1, \"$site\""
+else
+  echo "ALLOCATION FAILURE NOT LOUD: exit $st, message \"$site\""
   exit 1
 fi
 if make test > build/unittest.log 2>&1; then

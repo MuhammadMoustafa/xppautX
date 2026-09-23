@@ -11,6 +11,7 @@
 
 
 #include <stdio.h>
+#include "xpp_mem.h"
 #include <stdlib.h>
 #include "cvdense.h"
 #include "cvode.h"
@@ -202,7 +203,7 @@ void CVDense(void *cvode_mem, CVDenseJacFn djac, void *jac_data)
   lfree  = CVDenseFree;
 
   /* Get memory for CVDenseMemRec */
-  lmem = cvdense_mem = (CVDenseMem) malloc(sizeof(CVDenseMemRec));
+  lmem = cvdense_mem = (CVDenseMem) xpp_malloc(sizeof(CVDenseMemRec));
   if (cvdense_mem == NULL) return;  /* CVDenseInit reports this error */
 
   /* Set Jacobian routine field to user's djac or CVDenseDQJac */
@@ -368,5 +369,5 @@ static void CVDenseFree(CVodeMem cv_mem)
   DenseFreeMat(M);
   DenseFreeMat(savedJ);
   DenseFreePiv(pivots);
-  free(lmem);
+  xpp_free(lmem);
 }

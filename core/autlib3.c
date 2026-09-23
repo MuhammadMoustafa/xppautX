@@ -4,6 +4,7 @@
 */
 
 #include "auto_f2c.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "auto_c.h"
 
@@ -166,8 +167,8 @@ stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   integer ndm, ips, irs;
 
-  f = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  v = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
+  f = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  v = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
   /* Generates starting data for the continuation of folds. */
 
   /* Local */
@@ -197,8 +198,8 @@ stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   }
   u[-1 + ndim] = par[icp[1]];
 
-  free(f);
-  free(v);
+  xpp_free(f);
+  xpp_free(v);
   return 0;
 } /* stpnlp_ */
 
@@ -222,7 +223,7 @@ fnc1(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   doublereal ddp[NPARX], *ddu;
   integer ndm;
 
-  ddu = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
+  ddu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
   /* Generate the equations for the continuation scheme used for */
   /* the optimization of algebraic systems (one parameter). */
 
@@ -266,7 +267,7 @@ fnc1(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     ARRAY2D(dfdu, (ndim - 1), (ndim - 1)) = -ddp[icp[1]];
     ARRAY2D(dfdp, (ndim - 1), (icp[0])) = 1.;
   }
-  free(ddu);
+  xpp_free(ddu);
   return 0;
 } /* fnc1_ */
 
@@ -398,7 +399,7 @@ ffc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   integer ndm2;
 
 
-  ddu = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
+  ddu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
   /* Local */
 
     /* Parameter adjustments */
@@ -438,7 +439,7 @@ ffc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   }
   f[-1 + ndim] = par[icp[0]] - fop;
 
-  free(ddu);
+  xpp_free(ddu);
   return 0;
 } /* ffc2_ */
 
@@ -465,10 +466,10 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   doublereal fop;
   integer irs;
 
-  f  = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  v  = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  dd = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
-  du = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
+  f  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  v  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  dd = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
+  du = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
   /* Generates starting data for the continuation equations for */
   /* optimization of algebraic systems (More than one parameter). */
 
@@ -515,10 +516,10 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     u[ndim - nfpr + 1 + i] = par[icp[i + 1]];
   }
 
-  free(f  );
-  free(v  );
-  free(dd );
-  free(du );
+  xpp_free(f  );
+  xpp_free(v  );
+  xpp_free(dd );
+  xpp_free(du );
   return 0;
 } /* stpnc2_ */
 
@@ -792,9 +793,9 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   integer ndm, irs, ndm2;
 
-  f = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  v = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  smat = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim * 2)*(iap->ndim * 2));
+  f = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  v = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  smat = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim * 2)*(iap->ndim * 2));
   /* Generates starting data for the continuation of Hopf bifurcation */
   /* points for maps. */
 
@@ -851,9 +852,9 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   u[-1 + ndim - 1] = thta;
   u[-1 + ndim] = par[icp[1]];
 
-  free(smat);
-  free(f);
-  free(v);
+  xpp_free(smat);
+  xpp_free(f);
+  xpp_free(v);
   return 0;
 } /* stpnhd_ */
 
@@ -1021,9 +1022,9 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   integer ndm, irs;
   doublereal rom;
   integer ndm2;
-  smat = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim * 2)*(iap->ndim * 2));
-  f = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  v = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
+  smat = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim * 2)*(iap->ndim * 2));
+  f = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  v = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
   /* Generates starting data for the 2-parameter continuation of */
   /* Hopf bifurcation point (ODE). */
 
@@ -1076,9 +1077,9 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   u[ndim - 2] = rom;
   u[-1 + ndim] = par[icp[1]];
-  free(smat);
-  free(f);
-  free(v);
+  xpp_free(smat);
+  xpp_free(f);
+  xpp_free(v);
   return 0;
 } /* stpnhb_ */
 
@@ -1247,11 +1248,11 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   doublereal rom;
   integer ndm2;
 
-  smat= (doublereal *)malloc(sizeof(doublereal)*(2*iap->ndim)*(2*iap->ndim));
-  f   = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  v   = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  dfp = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim)*NPARX);
-  dfu = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
+  smat= (doublereal *)xpp_malloc(sizeof(doublereal)*(2*iap->ndim)*(2*iap->ndim));
+  f   = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  v   = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  dfp = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*NPARX);
+  dfu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
 
 
   /* Generates starting data for the continuation of a bifurcation to a */
@@ -1307,11 +1308,11 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   u[ndim - 2] = rom;
   u[-1 + ndim] = par[icp[1]];
 
-  free(smat);
-  free(f   );
-  free(v   );
-  free(dfp );
-  free(dfu ); 
+  xpp_free(smat);
+  xpp_free(f   );
+  xpp_free(v   );
+  xpp_free(dfp );
+  xpp_free(dfu ); 
 
   return 0;
 } /* stpnhw_ */
@@ -1574,10 +1575,10 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   doublereal tpi;
   integer irs;
 
-  smat = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim * 2)*(iap->ndim * 2));
-  rnllv = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim * 2)*(iap->ndim * 2));
-  f = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  u = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
+  smat = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim * 2)*(iap->ndim * 2));
+  rnllv = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim * 2)*(iap->ndim * 2));
+  f = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  u = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
   /* Generates starting data for the continuation of a branch of periodic */
   /* solutions from a Hopf bifurcation point. */
 
@@ -1676,10 +1677,10 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   scaleb(iap, icp, ndxloc, udotps, rldot, dtm, thl, thu);
 
   *nodir = -1;
-  free(smat);
-  free(rnllv);
-  free(f);
-  free(u);
+  xpp_free(smat);
+  xpp_free(rnllv);
+  xpp_free(f);
+  xpp_free(u);
 
   return 0;
 } /* stpnps_ */
@@ -1903,12 +1904,12 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   doublereal tpi;
   integer irs;
 
-  smat = (doublereal *)malloc(sizeof(doublereal)*(2*iap->ndim)*(2*iap->ndim));
-  f    = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  u    = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  rnllv= (doublereal *)malloc(sizeof(doublereal)*2*(iap->ndim));
-  dfp  = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim)*NPARX);
-  dfu  = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
+  smat = (doublereal *)xpp_malloc(sizeof(doublereal)*(2*iap->ndim)*(2*iap->ndim));
+  f    = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  u    = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  rnllv= (doublereal *)xpp_malloc(sizeof(doublereal)*2*(iap->ndim));
+  dfp  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*NPARX);
+  dfu  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
 
 
 /* Generates starting data for the continuation of a branch of periodic */
@@ -2006,12 +2007,12 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   *nodir = -1;
 
-  free(smat );
-  free(f    );
-  free(u    );
-  free(rnllv);
-  free(dfp  );
-  free(dfu  );
+  xpp_free(smat );
+  xpp_free(f    );
+  xpp_free(u    );
+  xpp_free(rnllv);
+  xpp_free(dfp  );
+  xpp_free(dfu  );
 
   return 0;
 } /* stpnwp_ */
@@ -3441,7 +3442,7 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   integer ndm;
   doublereal umx;
 
-  upold = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
+  upold = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
 
   /* Generates the equations for periodic optimization problems. */
 
@@ -3469,7 +3470,7 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
        ndm, global_scratch.dfu, global_scratch.dfp);
 
   if (ijac == 0) {
-    free(upold);
+    xpp_free(upold);
     return 0;
   }
 
@@ -3511,7 +3512,7 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     par[icp[i]] -= ep;
   }
 
-  free(upold);
+  xpp_free(upold);
   return 0;
 } /* fnpo_ */
 
@@ -3529,7 +3530,7 @@ ffpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   doublereal gamma, rkappa, period, dfp[NPARX], *dfu, fop;
 
 
-  dfu = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
+  dfu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
   /* Local */
 
     /* Parameter adjustments */
@@ -3561,7 +3562,7 @@ ffpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     f[ndm + i] = period * f[ndm + i] + rkappa * upold[i] + gamma *dfu[i];
   }
 
-  free(dfu);
+  xpp_free(dfu);
   return 0;
 } /* ffpo_ */
 
@@ -3638,9 +3639,9 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   doublereal *dnt, umx;
   integer nnt0;
 
-  f1  = (doublereal *)malloc(sizeof(doublereal)*(iap->nint));
-  f2  = (doublereal *)malloc(sizeof(doublereal)*(iap->nint));
-  dnt = (doublereal *)malloc(sizeof(doublereal)*(iap->nint)*(iap->ndim + NPARX));
+  f1  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint));
+  f2  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint));
+  dnt = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint)*(iap->ndim + NPARX));
 
 
 /* Generates integral conditions for periodic optimization problems. */
@@ -3660,9 +3661,9 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
        udot, upold, f, dnt, ndm, global_scratch.dfu, global_scratch.dfp);
 
   if (ijac == 0) {
-    free(f1);
-    free(f2);
-    free(dnt);
+    xpp_free(f1);
+    xpp_free(f2);
+    xpp_free(dnt);
     return 0;
   }
 
@@ -3705,9 +3706,9 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     par[icp[i]] -= ep;
   }
-  free(f1);
-  free(f2);
-  free(dnt);
+  xpp_free(f1);
+  xpp_free(f2);
+  xpp_free(dnt);
 
   return 0;
 } /* icpo_ */
@@ -3729,8 +3730,8 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   integer ndm;
   doublereal fop;
 
-  f = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  dfu = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
+  f = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  dfu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
   /* Local */
 
   /* Parameter adjustments */
@@ -3782,8 +3783,8 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
       }
     }
   }
-  free(f);
-  free(dfu);
+  xpp_free(f);
+  xpp_free(dfu);
 
   return 0;
 } /* fipo_ */
@@ -3830,8 +3831,8 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
      like 4 to take into account the increase in size for certain calculations).
      So, that is why I use ndxloc here.  Also, iap->ncol MAY BE tool small, 
      but I am not sure how to get value from the fort.8 file into here. */
-  temporary_storage = (doublereal *)malloc(sizeof(doublereal)*(*ndxloc)*(iap->ndim * iap->ncol));;
-  u = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
+  temporary_storage = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndxloc)*(iap->ndim * iap->ncol));;
+  u = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
 
   /* Generates starting data for optimization of periodic solutions. */
 
@@ -3970,13 +3971,13 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   *nodir = 1;
 
-  free(u);
-  free(temporary_storage);
+  xpp_free(u);
+  xpp_free(temporary_storage);
   return 0;
 
  read_failed:
-  free(u);
-  free(temporary_storage);
+  xpp_free(u);
+  xpp_free(temporary_storage);
   return 1;
 } /* stpnpo_ */
 
@@ -4125,11 +4126,11 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   doublereal ep, *ff1, *ff2, *uu1, *uu2, *dfu, umx;
   integer nbc0;
 
-  ff1=(doublereal *)malloc(sizeof(doublereal)*(iap->nbc));
-  ff2=(doublereal *)malloc(sizeof(doublereal)*(iap->nbc));
-  uu1=(doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  uu2=(doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  dfu=(doublereal *)malloc(sizeof(doublereal)*(iap->nbc)*(2*iap->ndim+NPARX));
+  ff1=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc));
+  ff2=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc));
+  uu1=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  uu2=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  dfu=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc)*(2*iap->ndim+NPARX));
 		     
 
 
@@ -4151,11 +4152,11 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1, f, dfu);
 
   if (ijac == 0) {
-    free(ff1);
-    free(ff2);
-    free(uu1);
-    free(uu2);
-    free(dfu);
+    xpp_free(ff1);
+    xpp_free(ff2);
+    xpp_free(uu1);
+    xpp_free(uu2);
+    xpp_free(dfu);
     return 0;
   }
 
@@ -4219,11 +4220,11 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     par[icp[i]] -= ep;
   }
-  free(ff1);
-  free(ff2);
-  free(uu1);
-  free(uu2);
-  free(dfu);
+  xpp_free(ff1);
+  xpp_free(ff2);
+  xpp_free(uu1);
+  xpp_free(uu2);
+  xpp_free(dfu);
 
   return 0;
 } /* bcbl_ */
@@ -4285,11 +4286,11 @@ icbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   doublereal ep, *ff1, *ff2, *uu1, *uu2, *dfu, umx;
   integer nnt0;
 
-  ff1 = (doublereal *)malloc(sizeof(doublereal)*(iap->nint));
-  ff2 = (doublereal *)malloc(sizeof(doublereal)*(iap->nint));
-  uu1 = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  uu2 = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  dfu = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim + NPARX));
+  ff1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint));
+  ff2 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint));
+  uu1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  uu2 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  dfu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim + NPARX));
 
 
 
@@ -4311,11 +4312,11 @@ icbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
        udot, upold, f, dfu);
 
   if (ijac == 0) {
-    free(ff1);
-    free(ff2);
-    free(uu1);
-    free(uu2);
-    free(dfu);
+    xpp_free(ff1);
+    xpp_free(ff2);
+    xpp_free(uu1);
+    xpp_free(uu2);
+    xpp_free(dfu);
     return 0;
   }
 
@@ -4356,11 +4357,11 @@ icbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     par[icp[i]] -= ep;
   }
 
-  free(ff1);
-  free(ff2);
-  free(uu1);
-  free(uu2);
-  free(dfu);
+  xpp_free(ff1);
+  xpp_free(ff2);
+  xpp_free(uu1);
+  xpp_free(uu2);
+  xpp_free(dfu);
   return 0;
 } /* icbl_ */
 
@@ -4573,10 +4574,10 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   doublereal umx, *f1zz, *f2zz;
 
 
-  u1zz = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  u2zz = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  f1zz = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  f2zz = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
+  u1zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  u2zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  f1zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  f2zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
 
   /* Interface subroutine to user supplied FUNC. */
 
@@ -4600,10 +4601,10 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
        dfdp);
 
   if (jac == 1 || ijac == 0) {
-    free(u1zz);
-    free(u2zz);
-    free(f1zz);
-    free(f2zz);
+    xpp_free(u1zz);
+    xpp_free(u2zz);
+    xpp_free(f1zz);
+    xpp_free(f2zz);
     return 0;
   }
 
@@ -4634,10 +4635,10 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   }
 
   if (ijac == 1) {
-    free(u1zz);
-    free(u2zz);
-    free(f1zz);
-    free(f2zz);
+    xpp_free(u1zz);
+    xpp_free(u2zz);
+    xpp_free(f1zz);
+    xpp_free(f2zz);
     return 0;
   }
 
@@ -4653,10 +4654,10 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     par[icp[i]] -= ep;
   }
 
-  free(u1zz);
-  free(u2zz);
-  free(f1zz);
-  free(f2zz);
+  xpp_free(u1zz);
+  xpp_free(u2zz);
+  xpp_free(f1zz);
+  xpp_free(f2zz);
   return 0;
 } /* funi */
 
@@ -4678,10 +4679,10 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   integer jac, ijc;
   doublereal umx, *f1zz, *f2zz;
 
-  u1zz = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  u2zz = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  f1zz = (doublereal *)malloc(sizeof(doublereal)*(iap->nbc));
-  f2zz = (doublereal *)malloc(sizeof(doublereal)*(iap->nbc));
+  u1zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  u2zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  f1zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc));
+  f2zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc));
 
   
 
@@ -4760,10 +4761,10 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   if (ijac == 1) {
-    free(u1zz);
-    free(u2zz);
-    free(f1zz);
-    free(f2zz);
+    xpp_free(u1zz);
+    xpp_free(u2zz);
+    xpp_free(f1zz);
+    xpp_free(f2zz);
     return 0;
   }
 
@@ -4777,10 +4778,10 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     par[icp[i]] -= ep;
   }
-  free(u1zz);
-  free(u2zz);
-  free(f1zz);
-  free(f2zz);
+  xpp_free(u1zz);
+  xpp_free(u2zz);
+  xpp_free(f1zz);
+  xpp_free(f2zz);
 
   return 0;
 } /* bcni */
@@ -4804,10 +4805,10 @@ icni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   doublereal umx, *f1zz, *f2zz;
 
     
-  f1zz = (doublereal *)malloc(sizeof(doublereal)*(iap->nint));
-  f2zz = (doublereal *)malloc(sizeof(doublereal)*(iap->nint));
-  u1zz = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  u2zz = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
+  f1zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint));
+  f2zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint));
+  u1zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  u2zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
   /* Interface subroutine to user supplied ICND. */
 
 /* Local */
@@ -4860,10 +4861,10 @@ icni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   if (ijac == 1) {
-    free(f1zz);
-    free(f2zz);
-    free(u1zz);
-    free(u2zz);
+    xpp_free(f1zz);
+    xpp_free(f2zz);
+    xpp_free(u1zz);
+    xpp_free(u2zz);
     return 0;
   }
 
@@ -4877,10 +4878,10 @@ icni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     par[icp[i]] -= ep;
   }
-  free(f1zz);
-  free(f2zz);
-  free(u1zz);
-  free(u2zz);
+  xpp_free(f1zz);
+  xpp_free(f2zz);
+  xpp_free(u1zz);
+  xpp_free(u2zz);
 
   return 0;
 } /* icni */
@@ -4901,8 +4902,8 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   integer jac, ijc;
   doublereal umx;
 
-  u1zz = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  u2zz = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
+  u1zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  u2zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
 
   /* Interface subroutine to user supplied FOPT. */
 
@@ -4923,8 +4924,8 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   fopt(ndim, u, icp, par, ijc, f, dfdu, dfdp);
 
   if (jac == 1 || ijac == 0) {
-    free(u1zz);
-    free(u2zz);
+    xpp_free(u1zz);
+    xpp_free(u2zz);
     return 0;
   }
 
@@ -4953,8 +4954,8 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   }
 
   if (ijac == 1) {
-    free(u1zz);
-    free(u2zz);
+    xpp_free(u1zz);
+    xpp_free(u2zz);
     return 0;
   }
 
@@ -4967,8 +4968,8 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     par[icp[i]] -= ep;
   }
 
-  free(u1zz);
-  free(u2zz);
+  xpp_free(u1zz);
+  xpp_free(u2zz);
   return 0;
 } /* fopi */
 

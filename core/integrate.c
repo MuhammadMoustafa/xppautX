@@ -1,4 +1,5 @@
 #include "xpp_ui.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "grobs.h"
 #include "xpp_globals.h"
@@ -622,9 +623,9 @@ void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
 
   if(fixptlist.flag==0){
     for(i=0;i<MAXFP;i++){
-      fixptlist.x[i]=(double *)malloc(NODE*sizeof(double));
-      fixptlist.er[i]=(double *)malloc(NODE*sizeof(double));
-      fixptlist.em[i]=(double *)malloc(NODE*sizeof(double));
+      fixptlist.x[i]=(double *)xpp_malloc(NODE*sizeof(double));
+      fixptlist.er[i]=(double *)xpp_malloc(NODE*sizeof(double));
+      fixptlist.em[i]=(double *)xpp_malloc(NODE*sizeof(double));
       /* fixptlist.x1[i]=(double *)malloc(NODE*sizeof(double));
       fixptlist.x2[i]=(double *)malloc(NODE*sizeof(double));
       fixptlist.x3[i]=(double *)malloc(NODE*sizeof(double));

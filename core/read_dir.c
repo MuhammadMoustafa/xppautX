@@ -1,4 +1,5 @@
 #include "read_dir.h"
+#include "xpp_mem.h"
 
 #include <unistd.h>
 #include "ggets.h"
@@ -99,11 +100,11 @@ void free_finfo(ff)
 {
   int i;
   for(i=0;i<ff->ndirs;i++)
-    free(ff->dirnames[i]);
-  free(ff->dirnames);
+    xpp_free(ff->dirnames[i]);
+  xpp_free(ff->dirnames);
   for(i=0;i<ff->nfiles;i++)
-    free(ff->filenames[i]);
-  free(ff->filenames);
+    xpp_free(ff->filenames[i]);
+  xpp_free(ff->filenames);
 }
 
 
@@ -130,12 +131,12 @@ int get_fileinfo_tab(wild,direct,ff,wild2)
   if(ans==0)return 0;
   ff->nfiles=nf;
   ff->ndirs=nd;
-  ff->dirnames=(char **)malloc(nd*sizeof(char *));
-  ff->filenames=(char **)malloc(nf*sizeof(char *));
+  ff->dirnames=(char **)xpp_malloc(nd*sizeof(char *));
+  ff->filenames=(char **)xpp_malloc(nf*sizeof(char *));
   for(i=0;i<nd;i++)
-    ff->dirnames[i]=(char *)malloc(mld+2);
+    ff->dirnames[i]=(char *)xpp_malloc(mld+2);
   for(i=0;i<nf;i++)
-    ff->filenames[i]=(char *)malloc(mlf+2);
+    ff->filenames[i]=(char *)xpp_malloc(mlf+2);
   dirp=opendir(direct);
   dp=readdir(dirp);
   nf=0;
@@ -188,12 +189,12 @@ int get_fileinfo(wild,direct,ff)
   if(ans==0)return 0;
   ff->nfiles=nf;
   ff->ndirs=nd;
-  ff->dirnames=(char **)malloc(nd*sizeof(char *));
-  ff->filenames=(char **)malloc(nf*sizeof(char *));
+  ff->dirnames=(char **)xpp_malloc(nd*sizeof(char *));
+  ff->filenames=(char **)xpp_malloc(nf*sizeof(char *));
   for(i=0;i<nd;i++)
-    ff->dirnames[i]=(char *)malloc(mld+2);
+    ff->dirnames[i]=(char *)xpp_malloc(mld+2);
   for(i=0;i<nf;i++)
-    ff->filenames[i]=(char *)malloc(mlf+2);
+    ff->filenames[i]=(char *)xpp_malloc(mlf+2);
   dirp=opendir(direct);
   dp=readdir(dirp);
   nf=0;

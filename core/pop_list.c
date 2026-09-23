@@ -1,4 +1,5 @@
 #include <X11/Xlib.h>
+#include "xpp_mem.h"
 #include <X11/Xutil.h>
 #include <X11/cursorfont.h>
 #include "pop_list.h"
@@ -35,53 +36,53 @@ void make_scrbox_lists()
          "Stiff","CVode","DoPri5","DoPri8(3)","Rosenbrock","Symplectic"};
  /* plottable list */
  scrbox_list[0].n=NEQ+1;
- scrbox_list[0].list=(char **)malloc((NEQ+1)*sizeof(char *));
- scrbox_list[0].list[0]=(char *)malloc(5);
+ scrbox_list[0].list=(char **)xpp_malloc((NEQ+1)*sizeof(char *));
+ scrbox_list[0].list[0]=(char *)xpp_malloc(5);
  strcpy(scrbox_list[0].list[0],"T");
  for(i=0;i<NEQ;i++){
-   scrbox_list[0].list[i+1]=(char *)malloc(XPP_NAME_MAX+1);
+   scrbox_list[0].list[i+1]=(char *)xpp_malloc(XPP_NAME_MAX+1);
    strcpy(scrbox_list[0].list[i+1],uvar_names[i]);
  }
  /* variable list */
  scrbox_list[1].n=NODE+NMarkov;
- scrbox_list[1].list=(char **)malloc((NODE+NMarkov)*sizeof(char *));
+ scrbox_list[1].list=(char **)xpp_malloc((NODE+NMarkov)*sizeof(char *));
  for(i=0;i<NODE+NMarkov;i++){
-   scrbox_list[1].list[i]=(char *)malloc(XPP_NAME_MAX+1);
+   scrbox_list[1].list[i]=(char *)xpp_malloc(XPP_NAME_MAX+1);
    strcpy(scrbox_list[1].list[i],uvar_names[i]);
  }
 
  /* parameter list */
 scrbox_list[2].n=NUPAR;
- scrbox_list[2].list=(char **)malloc(NUPAR*sizeof(char *));
+ scrbox_list[2].list=(char **)xpp_malloc(NUPAR*sizeof(char *));
  for(i=0;i<NUPAR;i++){
-   scrbox_list[2].list[i]=(char *)malloc(XPP_NAME_MAX+1);
+   scrbox_list[2].list[i]=(char *)xpp_malloc(XPP_NAME_MAX+1);
    strcpy(scrbox_list[2].list[i],upar_names[i]);
  }
 
  /* parvar list */
   n=NODE+NMarkov+NUPAR;
 scrbox_list[3].n=n;
- scrbox_list[3].list=(char **)malloc(n*sizeof(char *));
+ scrbox_list[3].list=(char **)xpp_malloc(n*sizeof(char *));
  for(i=0;i<NODE+NMarkov;i++){
-   scrbox_list[3].list[i]=(char *)malloc(XPP_NAME_MAX+1);
+   scrbox_list[3].list[i]=(char *)xpp_malloc(XPP_NAME_MAX+1);
    strcpy(scrbox_list[3].list[i],uvar_names[i]);
  }
  for(i=NODE+NMarkov;i<n;i++){
-   scrbox_list[3].list[i]=(char *)malloc(XPP_NAME_MAX+1);
+   scrbox_list[3].list[i]=(char *)xpp_malloc(XPP_NAME_MAX+1);
    strcpy(scrbox_list[3].list[i],upar_names[i-NODE-NMarkov]);
  }
  /* color list */
  scrbox_list[4].n=11;
- scrbox_list[4].list=(char **)malloc(11*sizeof(char *));
+ scrbox_list[4].list=(char **)xpp_malloc(11*sizeof(char *));
  for(i=0;i<11;i++){
-  scrbox_list[4].list[i]=(char *)malloc(20);
+  scrbox_list[4].list[i]=(char *)xpp_malloc(20);
   sprintf(scrbox_list[4].list[i],"%d %s",i,color_names[i]);
  }
  /* marker list */
  scrbox_list[5].n=6;
- scrbox_list[5].list=(char **)malloc(6*sizeof(char *));
+ scrbox_list[5].list=(char **)xpp_malloc(6*sizeof(char *));
  for(i=0;i<6;i++)
-   scrbox_list[5].list[i]=(char *)malloc(13*sizeof(char));
+   scrbox_list[5].list[i]=(char *)xpp_malloc(13*sizeof(char));
  strcpy(scrbox_list[5].list[0],"2 Box");
   strcpy(scrbox_list[5].list[1],"3 Diamond");
   strcpy(scrbox_list[5].list[2],"4 Triangle");
@@ -89,10 +90,10 @@ scrbox_list[3].n=n;
   strcpy(scrbox_list[5].list[4],"6 X");
    strcpy(scrbox_list[5].list[5],"7 Circle");
    /* method list */
-   scrbox_list[6].list=(char **)malloc(15*sizeof(char *));
+   scrbox_list[6].list=(char **)xpp_malloc(15*sizeof(char *));
    scrbox_list[6].n=15;
    for(i=0;i<15;i++){
-     scrbox_list[6].list[i]=(char *)malloc(22*sizeof(char));
+     scrbox_list[6].list[i]=(char *)xpp_malloc(22*sizeof(char));
      sprintf(scrbox_list[6].list[i],"%d %s",i,method[i]);
    }
  
@@ -132,7 +133,7 @@ void create_scroll_box(Window root,int x0,int y0,int nent,
  hgt=hw*(nw+1);
  len=hgt-6;
  sb->base=(Window)make_plain_window(root,x0,y0,wid,hgt,2);
- sb->w=(Window *)malloc(nw*sizeof(Window));
+ sb->w=(Window *)xpp_malloc(nw*sizeof(Window));
  for(i=0;i<nw;i++)
    sb->w[i]=make_window(sb->base,1,hw/2+i*hw,ww,DCURYs,0);
  sb->i0=0;
@@ -1298,7 +1299,7 @@ Window *root,hwin;
   p.key=key;
   p.hot=def;
   value=(int)key[def];
-  p.w=(Window *)malloc(n * sizeof(Window));
+  p.w=(Window *)xpp_malloc(n * sizeof(Window));
   p.tit=make_window(w,0,0,width,DCURY+7,0);
   for(i=0;i<n;i++){
 	p.w[i]=make_window(w,DCURX,DCURY+10+i*(DCURY+6),DCURX*(max+3),DCURY+3,0);

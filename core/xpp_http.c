@@ -15,6 +15,7 @@
 #define _DARWIN_C_SOURCE 1
 #endif
 #include "xpp_http.h"
+#include "xpp_mem.h"
 #include "xpp_inbox.h"
 #include <errno.h>
 #include <pthread.h>
@@ -95,7 +96,7 @@ static int saw_bye, orig_stderr = -1;
 
 static char *copy_line(const char *s, size_t n)
 {
-    char *c = malloc(n + 1);
+    char *c = xpp_malloc(n + 1);
     memcpy(c, s, n);
     c[n] = 0;
     return c;
@@ -103,7 +104,7 @@ static char *copy_line(const char *s, size_t n)
 
 static void set_sticky(char **slot, const char *s, size_t n)
 {
-    free(*slot);
+    xpp_free(*slot);
     *slot = s ? copy_line(s, n) : NULL;
 }
 
@@ -249,7 +250,7 @@ static void push_command(const char *s, size_t n)
 /* {"ev":"log","text":"..."} for n bytes of printed text; malloc'd, length in *len */
 static char *log_event(const char *text, size_t n, size_t *len)
 {
-    char *line = malloc(6 * n + 32);
+    char *line = xpp_malloc(6 * n + 32);
     size_t i, k = (size_t)sprintf(line, "{\"ev\":\"log\",\"text\":\"");
     for (i = 0; i < n; i++) {
         unsigned char c = (unsigned char)text[i];
@@ -279,7 +280,7 @@ static void *log_main(void *arg)
         if (r <= 0) break;
         if (orig_stderr >= 0 && write(orig_stderr, chunk, (unsigned)r) < 0) orig_stderr = -1;
         pthread_mutex_lock(&lock);
-        log_text = realloc(log_text, log_len + (size_t)r);
+        log_text = xpp_realloc(log_text, log_len + (size_t)r);
         memcpy(log_text + log_len, chunk, (size_t)r);
         log_len += (size_t)r;
         if (log_len > LOG_KEEP) { /* keep the last lines */
@@ -291,7 +292,7 @@ static void *log_main(void *arg)
         pthread_mutex_unlock(&lock);
         line = log_event(chunk, (size_t)r, &k);
         xpp_http_emit(line, k);
-        free(line);
+        xpp_free(line);
     }
     return NULL;
 }
@@ -332,7 +333,7 @@ static void open_events(sock_t s, int draw)
         size_t k;
         char *line = log_event(log_text, log_len, &k);
         ok = send_event(s, line, k);
-        free(line);
+        xpp_free(line);
     }
     if (ok && sticky_hello) ok = send_event(s, sticky_hello, strlen(sticky_hello));
     if (ok && sticky_palette) ok = send_event(s, sticky_palette, strlen(sticky_palette));

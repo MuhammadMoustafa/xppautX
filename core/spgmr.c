@@ -11,6 +11,7 @@
 
 
 #include <stdio.h>
+#include "xpp_mem.h"
 #include <stdlib.h>
 #include "iterativ.h"
 #include "spgmr.h"
@@ -46,8 +47,7 @@ SpgmrMem SpgmrMalloc(integer N, int l_max, void *machEnv)
 
   /* Get memory for the Krylov basis vectors V[0], ..., V[l_max] */
   
-  V = (N_Vector *) malloc((l_max+1)*sizeof(N_Vector));
-  if (V == NULL) return(NULL);
+  V = (N_Vector *) xpp_malloc((l_max+1)*sizeof(N_Vector));
 
   for (k=0; k <= l_max; k++) {
     V[k] = N_VNew(N, machEnv);
@@ -59,16 +59,16 @@ SpgmrMem SpgmrMalloc(integer N, int l_max, void *machEnv)
 
   /* Get memory for the Hessenberg matrix Hes */
 
-  Hes = (real **) malloc((l_max+1)*sizeof(real *)); 
+  Hes = (real **) xpp_malloc((l_max+1)*sizeof(real *)); 
   if (Hes == NULL) {
     FreeVectorArray(V, l_max);
     return(NULL);
   }
 
   for (k=0; k <= l_max; k++) {
-    Hes[k] = (real *) malloc(l_max*sizeof(real));
+    Hes[k] = (real *) xpp_malloc(l_max*sizeof(real));
     if (Hes[k] == NULL) {
-      for (i=0; i < k; i++) free(Hes[i]);
+      for (i=0; i < k; i++) xpp_free(Hes[i]);
       FreeVectorArray(V, l_max);
       return(NULL);
     }
@@ -76,9 +76,9 @@ SpgmrMem SpgmrMalloc(integer N, int l_max, void *machEnv)
 
   /* Get memory for Givens rotation components */
 
-  givens = (real *) malloc(2*l_max*sizeof(real));
+  givens = (real *) xpp_malloc(2*l_max*sizeof(real));
   if (givens == NULL) {
-    for (i=0; i <= l_max; i++) free(Hes[i]);
+    for (i=0; i <= l_max; i++) xpp_free(Hes[i]);
     FreeVectorArray(V, l_max);
     return(NULL);
   }
@@ -87,19 +87,19 @@ SpgmrMem SpgmrMalloc(integer N, int l_max, void *machEnv)
 
   xcor = N_VNew(N, machEnv);
   if (xcor == NULL) {
-    free(givens);
-    for (i=0; i <= l_max; i++) free(Hes[i]);
+    xpp_free(givens);
+    for (i=0; i <= l_max; i++) xpp_free(Hes[i]);
     FreeVectorArray(V, l_max);
     return(NULL);
   }
 
   /* Get memory to hold SPGMR y and g vectors */
 
-  yg = (real *) malloc((l_max+1)*sizeof(real));
+  yg = (real *) xpp_malloc((l_max+1)*sizeof(real));
   if (yg == NULL) {
     N_VFree(xcor);
-    free(givens);
-    for (i=0; i <= l_max; i++) free(Hes[i]);
+    xpp_free(givens);
+    for (i=0; i <= l_max; i++) xpp_free(Hes[i]);
     FreeVectorArray(V, l_max);
     return(NULL);
   }
@@ -108,23 +108,23 @@ SpgmrMem SpgmrMalloc(integer N, int l_max, void *machEnv)
 
   vtemp = N_VNew(N, machEnv);
   if (vtemp == NULL) {
-    free(yg);
+    xpp_free(yg);
     N_VFree(xcor);
-    free(givens);
-    for (i=0; i <= l_max; i++) free(Hes[i]);
+    xpp_free(givens);
+    for (i=0; i <= l_max; i++) xpp_free(Hes[i]);
     FreeVectorArray(V, l_max);
     return(NULL);
   }
 
   /* Get memory for an SpgmrMemRec containing SPGMR matrices and vectors */
 
-  mem = (SpgmrMem) malloc(sizeof(SpgmrMemRec));
+  mem = (SpgmrMem) xpp_malloc(sizeof(SpgmrMemRec));
   if (mem == NULL) {
     N_VFree(vtemp);
-    free(yg);
+    xpp_free(yg);
     N_VFree(xcor);
-    free(givens);
-    for (i=0; i <= l_max; i++) free(Hes[i]);
+    xpp_free(givens);
+    for (i=0; i <= l_max; i++) xpp_free(Hes[i]);
     FreeVectorArray(V, l_max);
     return(NULL); 
   }
@@ -420,14 +420,14 @@ void SpgmrFree(SpgmrMem mem)
   Hes = mem->Hes;
 
   FreeVectorArray(mem->V, l_max);
-  for (i=0; i <= l_max; i++) free(Hes[i]);
-  free(Hes);
-  free(mem->givens);
+  for (i=0; i <= l_max; i++) xpp_free(Hes[i]);
+  xpp_free(Hes);
+  xpp_free(mem->givens);
   N_VFree(mem->xcor);
-  free(mem->yg);
+  xpp_free(mem->yg);
   N_VFree(mem->vtemp);
 
-  free(mem);
+  xpp_free(mem);
 }
 
 
@@ -439,5 +439,5 @@ static void FreeVectorArray(N_Vector *A, int indMax)
 
   for (j=0; j <= indMax; j++) N_VFree(A[j]);
 
-  free(A);
+  xpp_free(A);
 }

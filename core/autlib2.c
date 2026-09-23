@@ -4,6 +4,7 @@
 */
 
 #include "auto_f2c.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "auto_c.h"
 #include "xpp_job.h" /* xppautX: cancel */
@@ -188,8 +189,8 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
      and setubv).
   */
 
-  ff = (double *)malloc(sizeof(double)*((iap->ndim * iap->ncol ) )* iap->ntst + 1);
-  ft = (double *)malloc(sizeof(double)*((iap->ndim * iap->ncol ) )* (iap->ntst + 1));
+  ff = (double *)xpp_malloc(sizeof(double)*((iap->ndim * iap->ncol ) )* iap->ntst + 1);
+  ft = (double *)xpp_malloc(sizeof(double)*((iap->ndim * iap->ncol ) )* (iap->ntst + 1));
 
 
 
@@ -215,72 +216,72 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
     */
     
     /* Free floating point arrays */
-    free(main_auto_storage.a);
-    free(main_auto_storage.b);
-    free(main_auto_storage.c);
-    free(main_auto_storage.d);
-    free(main_auto_storage.a1);
-    free(main_auto_storage.a2);
-    free(main_auto_storage.s1);
-    free(main_auto_storage.s2);
-    free(main_auto_storage.bb);
-    free(main_auto_storage.cc);
-    free(main_auto_storage.faa);
-    free(main_auto_storage.ca1);
+    xpp_free(main_auto_storage.a);
+    xpp_free(main_auto_storage.b);
+    xpp_free(main_auto_storage.c);
+    xpp_free(main_auto_storage.d);
+    xpp_free(main_auto_storage.a1);
+    xpp_free(main_auto_storage.a2);
+    xpp_free(main_auto_storage.s1);
+    xpp_free(main_auto_storage.s2);
+    xpp_free(main_auto_storage.bb);
+    xpp_free(main_auto_storage.cc);
+    xpp_free(main_auto_storage.faa);
+    xpp_free(main_auto_storage.ca1);
     
     /* Free integer arrays */
-    free(main_auto_storage.icf);
-    free(main_auto_storage.irf);
-    free(main_auto_storage.ipr);
-    free(main_auto_storage.icf11);
-    free(main_auto_storage.icf1);
-    free(main_auto_storage.icf2);
-    free(main_auto_storage.np);
+    xpp_free(main_auto_storage.icf);
+    xpp_free(main_auto_storage.irf);
+    xpp_free(main_auto_storage.ipr);
+    xpp_free(main_auto_storage.icf11);
+    xpp_free(main_auto_storage.icf1);
+    xpp_free(main_auto_storage.icf2);
+    xpp_free(main_auto_storage.np);
 
     /*(M 1AAR*M 2AA*N AX) */
-    main_auto_storage.a=(doublereal *)malloc(sizeof(doublereal)*((((iap->ndim * iap->ncol ) + iap->ndim ) ) * 
+    main_auto_storage.a=(doublereal *)xpp_malloc(sizeof(doublereal)*((((iap->ndim * iap->ncol ) + iap->ndim ) ) * 
 								 ((iap->ndim * iap->ncol ) ) * 
 								 (iap->ntst +1) )); 
     /*(M 1BB*M 2BB*N AX)*/ 
-    main_auto_storage.b=(doublereal *)malloc(sizeof(doublereal)*((NPARX) * ((iap->ndim * iap->ncol ) ) * (iap->ntst +1) ) );
+    main_auto_storage.b=(doublereal *)xpp_malloc(sizeof(doublereal)*((NPARX) * ((iap->ndim * iap->ncol ) ) * (iap->ntst +1) ) );
     /*(M 1CC*M 2CC*N AX)*/ 
-    main_auto_storage.c=(doublereal *)malloc(sizeof(doublereal)*(((((iap->ndim * iap->ncol ) + iap->ndim ) ) ) * 
+    main_auto_storage.c=(doublereal *)xpp_malloc(sizeof(doublereal)*(((((iap->ndim * iap->ncol ) + iap->ndim ) ) ) * 
 								   ((iap->nbc +iap->nint+1) ) * (iap->ntst +1) ));
     /*(M 1DD*M 2DD)*/ 
-    main_auto_storage.d=(doublereal *)malloc(sizeof(doublereal)*(((iap->nbc +iap->nint+1) ) * (NPARX) ) );
+    main_auto_storage.d=(doublereal *)xpp_malloc(sizeof(doublereal)*(((iap->nbc +iap->nint+1) ) * (NPARX) ) );
     /*(iap->ndim * iap->ndim *N AX)*/ 
-    main_auto_storage.a1=(doublereal *)malloc(sizeof(doublereal)*(iap->ndim * iap->ndim * (iap->ntst +1) ) );
+    main_auto_storage.a1=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim * iap->ndim * (iap->ntst +1) ) );
     /*(iap->ndim * iap->ndim *N AX)*/ 
-    main_auto_storage.a2=(doublereal *)malloc(sizeof(doublereal)*(iap->ndim * iap->ndim * (iap->ntst +1) )); 
+    main_auto_storage.a2=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim * iap->ndim * (iap->ntst +1) )); 
     /*(iap->ndim * iap->ndim *N AX)*/ 
-    main_auto_storage.s1=(doublereal *)malloc(sizeof(doublereal)*(iap->ndim * iap->ndim * (iap->ntst +1) )); 
+    main_auto_storage.s1=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim * iap->ndim * (iap->ntst +1) )); 
     /*(iap->ndim * iap->ndim *N AX)*/ 
-    main_auto_storage.s2=(doublereal *)malloc(sizeof(doublereal)*(iap->ndim * iap->ndim * (iap->ntst +1) )); 
+    main_auto_storage.s2=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim * iap->ndim * (iap->ntst +1) )); 
     /*(iap->ndim *N PARX*N AX)*/ 
-    main_auto_storage.bb=(doublereal *)malloc(sizeof(doublereal)*(iap->ndim *NPARX* (iap->ntst +1) ) );
+    main_auto_storage.bb=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim *NPARX* (iap->ntst +1) ) );
     /*(N RCX* iap->ndim *N AX+1)*/ 
-    main_auto_storage.cc=(doublereal *)malloc(sizeof(doublereal)*((iap->nbc + iap->nint + 1) * iap->ndim * (iap->ntst  + 1) + 1));
+    main_auto_storage.cc=(doublereal *)xpp_malloc(sizeof(doublereal)*((iap->nbc + iap->nint + 1) * iap->ndim * (iap->ntst  + 1) + 1));
 
     /*(iap->ndim *N AX)*/ 
-    main_auto_storage.faa=(doublereal *)malloc(sizeof(doublereal)*(iap->ndim * (iap->ntst +1) ) );
+    main_auto_storage.faa=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim * (iap->ntst +1) ) );
 
     /*(iap->ndim * iap->ndim *K REDO)*/ 
-    main_auto_storage.ca1=(doublereal *)malloc(sizeof(doublereal)*(iap->ndim * iap->ndim *KREDO) );
+    main_auto_storage.ca1=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim * iap->ndim *KREDO) );
     
     /*(N CLMX*N AX)*/ 
-    main_auto_storage.icf=(integer *)malloc(sizeof(integer)*(((iap->ndim * iap->ncol ) + iap->ndim ) * (iap->ntst +1) ) );
+    main_auto_storage.icf=(integer *)xpp_malloc(sizeof(integer)*(((iap->ndim * iap->ncol ) + iap->ndim ) * (iap->ntst +1) ) );
     /*(N ROWX*N AX)*/ 
-    main_auto_storage.irf=(integer *)malloc(sizeof(integer)*((iap->ndim * iap->ncol ) * (iap->ntst +1) ) );
+    main_auto_storage.irf=(integer *)xpp_malloc(sizeof(integer)*((iap->ndim * iap->ncol ) * (iap->ntst +1) ) );
     /*(iap->ndim *N AX)*/ 
-    main_auto_storage.ipr=(integer *)malloc(sizeof(integer)*(iap->ndim * (iap->ntst +1) ) );
+    main_auto_storage.ipr=(integer *)xpp_malloc(sizeof(integer)*(iap->ndim * (iap->ntst +1) ) );
     /*(iap->ndim *K REDO)*/ 
-    main_auto_storage.icf11=(integer *)malloc(sizeof(integer)*(iap->ndim *KREDO) );
+    main_auto_storage.icf11=(integer *)xpp_malloc(sizeof(integer)*(iap->ndim *KREDO) );
     /*(iap->ndim *N AX)*/ 
-    main_auto_storage.icf1=(integer *)malloc(sizeof(integer)*(iap->ndim * (iap->ntst +1) ));
+    main_auto_storage.icf1=(integer *)xpp_malloc(sizeof(integer)*(iap->ndim * (iap->ntst +1) ));
     /*(iap->ndim *N AX)*/ 
-    main_auto_storage.icf2=(integer *)malloc(sizeof(integer)*(iap->ndim * (iap->ntst +1) )); 
+    main_auto_storage.icf2=(integer *)xpp_malloc(sizeof(integer)*(iap->ndim * (iap->ntst +1) )); 
     /*(2)*/ 
-    main_auto_storage.np=(integer *)malloc(sizeof(integer)*(2) );
+    main_auto_storage.np=(integer *)xpp_malloc(sizeof(integer)*(2) );
      } 
   
   
@@ -339,7 +340,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   }
   /*     The matrix D and FC are set to zero for all nodes except the first.
    */
-  if (xpp_setubv_stop && xpp_job_cancelled()) { free(ff); free(ft); return 0; } /* xppautX: cancel */
+  if (xpp_setubv_stop && xpp_job_cancelled()) { xpp_free(ff); xpp_free(ft); return 0; } /* xppautX: cancel */
   if (iam > 0) {
     setfcdd(ifst, main_auto_storage.d, fc, &nfpr, &nrc);
   }
@@ -393,8 +394,8 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
 #endif  
 
   rap->det = det;
-  free(ff);
-  free(ft);
+  xpp_free(ff);
+  xpp_free(ft);
   return 0;
 } /* solvbv_ */
 
@@ -540,26 +541,26 @@ setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, int
   doublereal *wi, *wp, *wt;
   doublereal *dbc, *fbc, *uic, *uio, *prm, *uid, *uip, *ubc0, *ubc1;
 
-  dicd = (doublereal *)malloc(sizeof(doublereal)*(iap->nint)*(iap->ndim + NPARX));
-  ficd = (doublereal *)malloc(sizeof(doublereal)*(iap->nint));
-  dfdp = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim)*NPARX);
-  dfdu = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
-  uold = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  f    = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  u    = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  wploc= (doublereal *)malloc(sizeof(doublereal)*(iap->ncol)*(iap->ncol+1));
-  wi   = (doublereal *)malloc(sizeof(doublereal)*(iap->ncol+1) );
-  wp   = (doublereal *)malloc(sizeof(doublereal)*(iap->ncol)*(iap->ncol+1) );
-  wt   = (doublereal *)malloc(sizeof(doublereal)*(iap->ncol)*(iap->ncol+1) );
-  dbc  = (doublereal *)malloc(sizeof(doublereal)*(iap->nbc)*(2*iap->ndim + NPARX));
-  fbc  = (doublereal *)malloc(sizeof(doublereal)*(iap->nbc));
-  uic  = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  uio  = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  prm  = (doublereal *)malloc(sizeof(doublereal)*NPARX);
-  uid  = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  uip  = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  ubc0 = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  ubc1 = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
+  dicd = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint)*(iap->ndim + NPARX));
+  ficd = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint));
+  dfdp = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*NPARX);
+  dfdu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
+  uold = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  f    = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  u    = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  wploc= (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ncol)*(iap->ncol+1));
+  wi   = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ncol+1) );
+  wp   = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ncol)*(iap->ncol+1) );
+  wt   = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ncol)*(iap->ncol+1) );
+  dbc  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc)*(2*iap->ndim + NPARX));
+  fbc  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc));
+  uic  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  uio  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  prm  = (doublereal *)xpp_malloc(sizeof(doublereal)*NPARX);
+  uid  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  uip  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  ubc0 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  ubc1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
 
 
   /* Parameter adjustments */
@@ -711,26 +712,26 @@ setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, int
   fc[-1 + *nrc] = *rds - rinpr(iap, ndim, ndxloc, udotps, 
 			       dups, dtm, thu) - rlsum;
 
-  free(dicd );
-  free(ficd );
-  free(dfdp );
-  free(dfdu );
-  free(uold );
-  free(f    );
-  free(u    );
-  free(wploc);
-  free(wi   );
-  free(wp   );
-  free(wt   );
-  free(dbc  );
-  free(fbc  );
-  free(uic  );
-  free(uio  );
-  free(prm  );
-  free(uid  );
-  free(uip  );
-  free(ubc0 );
-  free(ubc1 );
+  xpp_free(dicd );
+  xpp_free(ficd );
+  xpp_free(dfdp );
+  xpp_free(dfdu );
+  xpp_free(uold );
+  xpp_free(f    );
+  xpp_free(u    );
+  xpp_free(wploc);
+  xpp_free(wi   );
+  xpp_free(wp   );
+  xpp_free(wt   );
+  xpp_free(dbc  );
+  xpp_free(fbc  );
+  xpp_free(uic  );
+  xpp_free(uio  );
+  xpp_free(prm  );
+  xpp_free(uid  );
+  xpp_free(uip  );
+  xpp_free(ubc0 );
+  xpp_free(ubc1 );
 
   return 0;
 } /* setrhs_ */
@@ -744,12 +745,12 @@ brbd(doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa,
   doublereal *fcc;
   doublereal *sol1,*sol2,*sol3;
 
-  e = (doublereal *)malloc(sizeof(doublereal)*(*nov + *nrc)*(*nov + *nrc));
-  fcc = (doublereal *)malloc(sizeof(doublereal)*((*nov + *nrc) + (2*(*nov)*(*nov))+1));
+  e = (doublereal *)xpp_malloc(sizeof(doublereal)*(*nov + *nrc)*(*nov + *nrc));
+  fcc = (doublereal *)xpp_malloc(sizeof(doublereal)*((*nov + *nrc) + (2*(*nov)*(*nov))+1));
 
-  sol1 = (doublereal *)malloc(sizeof(doublereal)*(*nov)*(*na + 1));
-  sol2 = (doublereal *)malloc(sizeof(doublereal)*(*nov)*(*na + 1));
-  sol3 = (doublereal *)malloc(sizeof(doublereal)*(*nov)*(*na + 1));
+  sol1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(*nov)*(*na + 1));
+  sol2 = (doublereal *)xpp_malloc(sizeof(doublereal)*(*nov)*(*na + 1));
+  sol3 = (doublereal *)xpp_malloc(sizeof(doublereal)*(*nov)*(*na + 1));
   
   /* Local */
 
@@ -837,11 +838,11 @@ brbd(doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa,
   infpar(iam, par, a, b, fa, sol1, sol2, fc, na, nov, nra, 
 	 nca, ncb, irf, icf);
 
-  free(e);
-  free(fcc);
-  free(sol1);
-  free(sol2);
-  free(sol3);
+  xpp_free(e);
+  xpp_free(fcc);
+  xpp_free(sol1);
+  xpp_free(sol2);
+  xpp_free(sol3);
   return 0;
 } /* brbd_ */
 
@@ -1362,7 +1363,7 @@ e.*/
        fork never sets numnodes above 1, so *par is always false, but
        the function must still hold a real buffer for the size *par
        is meant to select. */
-    buf = (doublereal *) malloc(sizeof(doublereal) *
+    buf = (doublereal *) xpp_malloc(sizeof(doublereal) *
 				 (3 * (*nov) + *ncb + (*nrc - *nbc) + 10));
 
     for (i = 0; i < nlev; ++i) {
@@ -1760,7 +1761,7 @@ e.*/
       rd0(iam, kwt, &ARRAY2D(dd, 0, (nbcp1 - 1)), &tmp);
     }
 
-    free(buf);
+    xpp_free(buf);
     buf = NULL;
 
   }
@@ -1963,7 +1964,7 @@ dimrge(integer *iam, integer *kwt, logical *par, doublereal *e, doublereal *cc, 
   integer novpj2, kc, kr, ncrloc, nap1;
 
   double *xe;
-  xe = (doublereal *)malloc(sizeof(doublereal)*(*nov + *nrc));
+  xe = (doublereal *)xpp_malloc(sizeof(doublereal)*(*nov + *nrc));
 
 
   /* Parameter adjustments */
@@ -2137,7 +2138,7 @@ dimrge(integer *iam, integer *kwt, logical *par, doublereal *e, doublereal *cc, 
   /* Not the we have modified these parameter before, so
      we undo the modifications here and then free them. */
   /*xe \+= 1;*/
-  free(xe);
+  xpp_free(xe);
 
   return 0;
 } /* dimrge_ */
@@ -2389,7 +2390,7 @@ infpar(integer *iam, logical *par, doublereal *a, doublereal *b, doublereal *fa,
   doublereal sm;
   integer novpir, irp1;
 
-  x = (doublereal *)malloc(sizeof(doublereal)*(*nra));
+  x = (doublereal *)xpp_malloc(sizeof(doublereal)*(*nra));
 
 
 /* Determine the local varables by backsubstitition. */
@@ -2441,7 +2442,7 @@ infpar(integer *iam, logical *par, doublereal *a, doublereal *b, doublereal *fa,
       ARRAY2D(fa, j, i) = x[j];
     }
   }
-  free(x);
+  xpp_free(x);
 
   return 0;
 } /* infpar_ */
@@ -2465,7 +2466,7 @@ rd0(integer *iam, integer *kwt, doublereal *d, integer *nrc)
 
   logical notsend;
 
-  buf = (doublereal *)malloc(sizeof(doublereal)*(*nrc));
+  buf = (doublereal *)xpp_malloc(sizeof(doublereal)*(*nrc));
 
 /*     RECURSIVE DOUBLING PROCEDURE TO GET */
 /*     THE GLOBAL SUM OF VECTORS FROM */
@@ -2516,7 +2517,7 @@ rd0(integer *iam, integer *kwt, doublereal *d, integer *nrc)
       }
     }
   }
-  free(buf);
+  xpp_free(buf);
   return 0;
 } /* rd0_ */
 

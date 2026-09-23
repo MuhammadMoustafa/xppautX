@@ -1,4 +1,5 @@
 #include "load_eqn.h"
+#include "xpp_mem.h"
 #include "parserslow.h"
 
 #include "read_dir.h"
@@ -789,7 +790,7 @@ void add_intern_set(name,does)
   }
   intern_set[j].use=1;
   n=strlen(name);
-  intern_set[j].name=(char *)malloc((n+1));
+  intern_set[j].name=(char *)xpp_malloc((n+1));
   strcpy(intern_set[j].name,name);
   n=strlen(does);
   bob[0]='$';
@@ -809,7 +810,7 @@ void add_intern_set(name,does)
     }
   }
   bob[k]=0;
-  intern_set[j].does=(char *)malloc(n+3);
+  intern_set[j].does=(char *)xpp_malloc(n+3);
   strcpy(intern_set[j].does,bob);
  plintf(" added %s doing %s \n",
 	 intern_set[j].name,intern_set[j].does);
@@ -963,7 +964,7 @@ void set_internopts(OptionsSet *mask)
  
   for(i=0;i<Nopts;i++)
   {
-    free(interopt[i]);
+    xpp_free(interopt[i]);
   }  
   Nopts = 0;  
 }
@@ -1013,7 +1014,7 @@ void set_internopts_xpprc_and_comline()
   /*This allows options to be overwritten multiple times within .xpprc
   but prevents overwriting across comline, .xpprc etc.
   */ 
-  OptionsSet *tempNAS = (OptionsSet*)malloc(sizeof(OptionsSet));
+  OptionsSet *tempNAS = (OptionsSet*)xpp_malloc(sizeof(OptionsSet));
   *tempNAS = notAlreadySet;
   
   for(i=0;i<Nopts;i++){
@@ -1028,14 +1029,14 @@ void set_internopts_xpprc_and_comline()
       }	
     }
   }
-  free(tempNAS);
+  xpp_free(tempNAS);
    
   /*
   We leave a fresh start for options specified in the ODE file.
   */
   for(i=0;i<Nopts;i++)
   {
-  	free(interopt[i]);
+  	xpp_free(interopt[i]);
   } 
   
   Nopts=0;
@@ -1099,7 +1100,7 @@ void stor_internopts(s1)
    plintf("WARNING -- to many options set %s ignored\n",s1);
     return;
   }
-  interopt[Nopts]=(char *)malloc(n+1);
+  interopt[Nopts]=(char *)xpp_malloc(n+1);
   sprintf(interopt[Nopts],"%s",s1);
   Nopts++;
 

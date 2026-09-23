@@ -10,6 +10,7 @@
  ******************************************************************/
 
 #include <stdio.h>
+#include "xpp_mem.h"
 #include <stdlib.h>
 #include "band.h"
 #include "llnltyps.h"
@@ -32,12 +33,11 @@ BandMat BandAllocMat(integer N, integer mu, integer ml, integer smu)
 
   if (N <= 0) return(NULL);
   
-  A = (BandMat) malloc(sizeof *A);
-  if (A == NULL) return (NULL);
+  A = (BandMat) xpp_malloc(sizeof *A);
 
   A->data = bandalloc(N, smu, ml);
   if (A->data == NULL) {
-    free(A);
+    xpp_free(A);
     return(NULL);
   }
   
@@ -54,7 +54,7 @@ integer *BandAllocPiv(integer N)
 {
   if (N <= 0) return(NULL);
   
-  return((integer *) malloc(N * sizeof(integer)));
+  return((integer *) xpp_malloc(N * sizeof(integer)));
 }
 
 
@@ -92,12 +92,12 @@ void BandAddI(BandMat A)
 void BandFreeMat(BandMat A)
 {
   bandfree(A->data);
-  free(A);
+  xpp_free(A);
 }
 
 void BandFreePiv(integer *p)
 { 
-  free(p);
+  xpp_free(p);
 }
 
 void BandPrint(BandMat A)
@@ -113,13 +113,12 @@ real **bandalloc(integer n, integer smu, integer ml)
 
   if (n <= 0) return(NULL);
 
-  a = (real **) malloc(n * sizeof(real *));
-  if (a == NULL) return(NULL);
+  a = (real **) xpp_malloc(n * sizeof(real *));
 
   colSize = smu + ml + 1;
-  a[0] = (real *) malloc(n * colSize * sizeof(real));
+  a[0] = (real *) xpp_malloc(n * colSize * sizeof(real));
   if (a[0] == NULL) {
-    free(a);
+    xpp_free(a);
     return(NULL);
   }
 
@@ -132,7 +131,7 @@ integer *bandallocpiv(integer n)
 {
   if (n <= 0) return(NULL);
 
-  return((integer *) malloc(n * sizeof(integer)));
+  return((integer *) xpp_malloc(n * sizeof(integer)));
 }
 
 
@@ -330,13 +329,13 @@ void bandaddI(real **a, integer n, integer smu)
 
 void bandfreepiv(integer *p)
 {
-  free(p);
+  xpp_free(p);
 }
 
 void bandfree(real **a)
 {
-  free(a[0]);
-  free(a);
+  xpp_free(a[0]);
+  xpp_free(a);
 }
 
 void bandprint(real **a, integer n, integer mu, integer ml, integer smu)

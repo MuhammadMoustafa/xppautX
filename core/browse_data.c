@@ -2,6 +2,7 @@
    pointer, row/column bookkeeping and the file writer. No X11 here; the
    widget code that displays it stays in browse.c. */
 #include <stdlib.h>
+#include "xpp_mem.h"
 #include "parserslow.h"
 #include "browse.h"
 #include "xpp_ui.h"
@@ -180,7 +181,7 @@ void open_write_file(fp,fil,ok)
 void  wipe_rep()
  {
     if(!REPLACE)return;
-    free(old_rep);
+    xpp_free(old_rep);
     REPLACE=0;
   }
 
@@ -273,9 +274,9 @@ char *var;
       strcpy(ode_names[j-1],ode_names[j]);
     }
   }
-  free(storage[NEQ+1]);
-  free(ode_names[NEQ]);
-  free(my_ode[NEQ+FIX_VAR]);
+  xpp_free(storage[NEQ+1]);
+  xpp_free(ode_names[NEQ]);
+  xpp_free(my_ode[NEQ+FIX_VAR]);
   NEQ--;
   b->maxcol=NEQ+1;
   xpp_ui.browser_redraw(1);  
@@ -324,19 +325,19 @@ int add_stor_col(name,formula,b)
     err_msg("Bad Formula .... ");
     return(0);
   }
-  if((my_ode[NEQ+FIX_VAR]=(int *)malloc((i+2)*sizeof(int)))==NULL){
+  if((my_ode[NEQ+FIX_VAR]=(int *)xpp_malloc((i+2)*sizeof(int)))==NULL){
      err_msg("Cant allocate formula space");
      return(0);
    }
-  if((storage[NEQ+1]=(float *)malloc(MAXSTOR * sizeof(float)))==NULL){
+  if((storage[NEQ+1]=(float *)xpp_malloc(MAXSTOR * sizeof(float)))==NULL){
     err_msg("Cant allocate space ....");
-    free(my_ode[NEQ]);
+    xpp_free(my_ode[NEQ]);
     return(0);
   }
-  if((ode_names[NEQ]=(char *)malloc(80))==NULL){
+  if((ode_names[NEQ]=(char *)xpp_malloc(80))==NULL){
     err_msg("Cannot allocate space ...");
-    free(my_ode[NEQ]);
-    free(storage[NEQ+1]);
+    xpp_free(my_ode[NEQ]);
+    xpp_free(storage[NEQ+1]);
     return(0);
   }
   strcpy(ode_names[NEQ],formula);
@@ -465,7 +466,7 @@ if(dif_var<0)
  /* Okay the formula is cool so lets allocate and replace  */
 
  wipe_rep();
- old_rep=(float *)malloc(sizeof(float)*n);
+ old_rep=(float *)xpp_malloc(sizeof(float)*n);
  REPLACE=1;
  for(i=0;i<n;i++)
  {

@@ -1,5 +1,6 @@
 
 #include "auto_f2c.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "auto_c.h"
 #include "xAuto.h"
@@ -76,7 +77,7 @@ int go_go_auto() /* this is the entry  at this point, xAuto has been set */
 	fclose(fp3);
 	fclose(fp7);
 	fclose(fp9);
-	free(thu);
+	xpp_free(thu);
 	return(0);/* bad retrun */
       }
     }
@@ -111,7 +112,7 @@ int go_go_auto() /* this is the entry  at this point, xAuto has been set */
   
 
 
-  free(thu);
+  xpp_free(thu);
   /*   free(iuz);
        free(vuz); */
   fclose(fp3);

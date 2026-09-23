@@ -4,6 +4,7 @@
    through the same code. Menus are data (menus.c) and are shown with
    menu_choose(); see xpp_ui.h. */
 #include "xpp_ui.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_globals.h"
 #include "xpp_util.h"
@@ -226,14 +227,14 @@ void get_intern_set(void)
   XppMenu m = {"param_set", "Param set", 0, NULL, NULL, NULL, -1, 12, -1};
   if (count <= 0 || count >= MAX_INTERN_SET) return;
   for (i = 0; i < Nintern_set; i++) {
-    n[i] = (char *)malloc(256);
+    n[i] = (char *)xpp_malloc(256);
     key[i] = 'a' + i;
     sprintf(n[i], "%c: %s", key[i], intern_set[i].name);
   }
   key[count] = 0;
   m.n = count; m.items = n; m.keys = key; m.hints = no_hint;
   ch = (char)menu_choose(&m, 0);
-  for (i = 0; i < count; i++) free(n[i]);
+  for (i = 0; i < count; i++) xpp_free(n[i]);
   j = (int)(ch - 'a');
   if (j < 0 || j >= Nintern_set) {
     err_msg("Not a valid set");

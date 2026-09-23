@@ -1,4 +1,5 @@
 #include <stdlib.h> 
+#include "xpp_mem.h"
 #include "xpp_log.h"
 /*--------------------------------*-C-*---------------------------------*
  * File:
@@ -209,11 +210,11 @@ void
 fft_free (void)
 {
    SpaceAlloced = MaxPermAlloced = 0;
-   if (Tmp0) { free (Tmp0); Tmp0 = NULL; }
-   if (Tmp1) { free (Tmp1); Tmp1 = NULL; }
-   if (Tmp2) { free (Tmp2); Tmp2 = NULL; }
-   if (Tmp3) { free (Tmp3); Tmp3 = NULL; }
-   if (Perm) { free (Perm); Perm = NULL; }
+   if (Tmp0) { xpp_free (Tmp0); Tmp0 = NULL; }
+   if (Tmp1) { xpp_free (Tmp1); Tmp1 = NULL; }
+   if (Tmp2) { xpp_free (Tmp2); Tmp2 = NULL; }
+   if (Tmp3) { xpp_free (Tmp3); Tmp3 = NULL; }
+   if (Perm) { xpp_free (Perm); Perm = NULL; }
 }
 /*}}}*/
 
@@ -525,19 +526,19 @@ FFTRADIX (REAL Re [],
 	if (!SpaceAlloced)	/* first time */
 	  {
 	     SpaceAlloced = maxFactors * sizeof (REAL);
-	     Tmp0 = malloc (SpaceAlloced);
-	     Tmp1 = malloc (SpaceAlloced);
-	     Tmp2 = malloc (SpaceAlloced);
-	     Tmp3 = malloc (SpaceAlloced);
+	     Tmp0 = xpp_malloc (SpaceAlloced);
+	     Tmp1 = xpp_malloc (SpaceAlloced);
+	     Tmp2 = xpp_malloc (SpaceAlloced);
+	     Tmp3 = xpp_malloc (SpaceAlloced);
 	  }
 	else
 	  {
 #endif
 	     SpaceAlloced = maxFactors * sizeof (REAL);
-	     Tmp0 = realloc (Tmp0, SpaceAlloced);
-	     Tmp1 = realloc (Tmp1, SpaceAlloced);
-	     Tmp2 = realloc (Tmp2, SpaceAlloced);
-	     Tmp3 = realloc (Tmp3, SpaceAlloced);
+	     Tmp0 = xpp_realloc (Tmp0, SpaceAlloced);
+	     Tmp1 = xpp_realloc (Tmp1, SpaceAlloced);
+	     Tmp2 = xpp_realloc (Tmp2, SpaceAlloced);
+	     Tmp3 = xpp_realloc (Tmp3, SpaceAlloced);
 #ifdef SUN_BROKEN_REALLOC
 	  }
 #endif
@@ -551,10 +552,10 @@ FFTRADIX (REAL Re [],
      {
 #ifdef SUN_BROKEN_REALLOC
 	if (!MaxPermAlloced)	/* first time */
-	  Perm = malloc (maxPerm * sizeof(int));
+	  Perm = xpp_malloc (maxPerm * sizeof(int));
 	else
 #endif
-	  Perm = realloc (Perm, maxPerm * sizeof(int));
+	  Perm = xpp_realloc (Perm, maxPerm * sizeof(int));
 	MaxPermAlloced = maxPerm;
      }
    else

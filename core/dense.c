@@ -10,6 +10,7 @@
  ******************************************************************/ 
 
 #include <stdio.h>
+#include "xpp_mem.h"
 #include <stdlib.h>
 #include "dense.h"
 #include "llnltyps.h"
@@ -31,12 +32,11 @@ DenseMat DenseAllocMat(integer N)
 
   if (N <= 0) return(NULL);
 
-  A = (DenseMat) malloc(sizeof *A);
-  if (A==NULL) return (NULL);
+  A = (DenseMat) xpp_malloc(sizeof *A);
   
   A->data = denalloc(N);
   if (A->data == NULL) {
-    free(A);
+    xpp_free(A);
     return(NULL);
   }
 
@@ -50,7 +50,7 @@ integer *DenseAllocPiv(integer N)
 {
   if (N <= 0) return(NULL);
 
-  return((integer *) malloc(N * sizeof(integer)));
+  return((integer *) xpp_malloc(N * sizeof(integer)));
 }
 
 
@@ -89,12 +89,12 @@ void DenseAddI(DenseMat A)
 void DenseFreeMat(DenseMat A)
 {
   denfree(A->data);
-  free(A);
+  xpp_free(A);
 }
 
 void DenseFreePiv(integer *p)
 {  
-  free(p);
+  xpp_free(p);
 }
 
 void DensePrint(DenseMat A)
@@ -110,12 +110,11 @@ real **denalloc(integer n)
 
   if (n <= 0) return(NULL);
 
-  a = (real **) malloc(n * sizeof(real *));
-  if (a == NULL) return(NULL);
+  a = (real **) xpp_malloc(n * sizeof(real *));
 
-  a[0] = (real *) malloc(n * n * sizeof(real));
+  a[0] = (real *) xpp_malloc(n * n * sizeof(real));
   if (a[0] == NULL) {
-    free(a);
+    xpp_free(a);
     return(NULL);
   }
 
@@ -128,7 +127,7 @@ integer *denallocpiv(integer n)
 {
   if (n <= 0) return(NULL);
 
-  return((integer *) malloc(n * sizeof(integer)));
+  return((integer *) xpp_malloc(n * sizeof(integer)));
 }
 
 integer gefa(real **a, integer n, integer *p)
@@ -288,13 +287,13 @@ void denaddI(real **a, integer n)
 
 void denfreepiv(integer *p)
 {
-  free(p);
+  xpp_free(p);
 }
 
 void denfree(real **a)
 {
-  free(a[0]);
-  free(a);
+  xpp_free(a[0]);
+  xpp_free(a);
 }
 
 void denprint(real **a, integer n)

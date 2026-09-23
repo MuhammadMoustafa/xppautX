@@ -1,4 +1,5 @@
 #include "xpp_ui.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 #include <stdlib.h>
 
@@ -46,17 +47,17 @@ void do_delay_sing(x,eps,err,big,maxit,n,ierr,stabinfo)
  int kmem=n*(2*n+5)+50,i,j,k,okroot;
 
  double *ev;
- ev=(double *)malloc(2*n*sizeof(double));
+ ev=(double *)xpp_malloc(2*n*sizeof(double));
  for(i=0;i<(2*n);i++)ev[i]=0.0;
  /* first we establish how many delays there are */
  del_stab_flag=0;
  for(i=0;i<n;i++)old_x[i]=x[i];
- work=(double *)malloc(kmem*sizeof(double));
+ work=(double *)xpp_malloc(kmem*sizeof(double));
  rooter(x,err,eps,big,work,ierr,maxit,n);
  if(*ierr!=0)
    {
      del_stab_flag=1;
-     free(work);
+     xpp_free(work);
      err_msg("Could not converge to root");
      for(i=0;i<n;i++)x[i]=old_x[i];
      return;
@@ -68,9 +69,9 @@ void do_delay_sing(x,eps,err,big,maxit,n,ierr,stabinfo)
    variable_shift[0][i]=x[i];  /* unshifted  */
    variable_shift[1][i]=x[i];
  }
- free(work);
+ xpp_free(work);
  /*  plintf(" Found %d delays \n",NDelay); */ 
- coef=(double *)malloc(n*n*(NDelay+1)*sizeof(double));
+ coef=(double *)xpp_malloc(n*n*(NDelay+1)*sizeof(double));
  
  /* now we must compute a bunch of jacobians  */
  /* first the normal one   */
@@ -125,7 +126,7 @@ void do_delay_sing(x,eps,err,big,maxit,n,ierr,stabinfo)
    ev[0]=rr[0];
    ev[1]=rr[1];
  }
- free(coef);  
+ xpp_free(coef);  
  *stabinfo=(float)fabs(sign);
  /* if(*stabinfo>0) */
  i=(int)sign;
@@ -135,7 +136,7 @@ if(i==0&&okroot==1&&AlphaMax>0)
  create_eq_box(abs(i),2,0,0,0,x,ev,n);
  /* DING; */
  del_stab_flag=1;
- free(ev);
+ xpp_free(ev);
  if(okroot==1)*stabinfo=AlphaMax;
 }
 
@@ -340,7 +341,7 @@ int find_positive_root(coef,delay,n,m,rad,err,eps,big,maxit,rr)
     lambda.r=AlphaMax;
     lambda.i=OmegaMax;
  
-   z=(COMPLEX *)malloc(sizeof(COMPLEX)*n*n); 
+   z=(COMPLEX *)xpp_malloc(sizeof(COMPLEX)*n*n); 
  
   /* now Newtons Method for maxit times */
   for(k=0;k<maxit;k++){
@@ -425,7 +426,7 @@ double get_arg(delay,coef,m,n,lambda)
   COMPLEX temp,eld;
   double arg;
   if(m==0)return(0);  /* no delays so don't use this! */
-  z=(COMPLEX *)malloc(sizeof(COMPLEX)*n*n); 
+  z=(COMPLEX *)xpp_malloc(sizeof(COMPLEX)*n*n); 
   for(j=0;j<n;j++)
     for(i=0;i<n;i++){
       if(i==j)temp=lambda;
@@ -448,7 +449,7 @@ double get_arg(delay,coef,m,n,lambda)
   /* cprint(lambda); 
   cprint(temp); 
   plintf(" \n"); */
-   free(z); 
+   xpp_free(z); 
   arg=atan2(temp.i,temp.r);
   /*   plintf("%g %g %g \n",lambda.r,lambda.i,arg); */ 
   return(arg);

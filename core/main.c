@@ -1,4 +1,5 @@
 #include <X11/Xlib.h>
+#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "main.h"
 #include "xpp_globals.h"
@@ -230,7 +231,7 @@ int argc;
   {    
        /*Swap out the current options for a temporary place holder
        */
-       OptionsSet *tempNS = (OptionsSet*)malloc(sizeof(OptionsSet));
+       OptionsSet *tempNS = (OptionsSet*)xpp_malloc(sizeof(OptionsSet));
        *tempNS = notAlreadySet;
        /*Initialize what's needed to open a browser based on 
        the current options.
@@ -243,16 +244,16 @@ int argc;
        Now swap back the options for proper precedence ordering of options.
        */
        notAlreadySet = *tempNS;
-       free(tempNS);
+       xpp_free(tempNS);
   }
   
 
   load_eqn();
 
-  OptionsSet *tempNS = (OptionsSet*)malloc(sizeof(OptionsSet));
+  OptionsSet *tempNS = (OptionsSet*)xpp_malloc(sizeof(OptionsSet));
   *tempNS = notAlreadySet;
   set_internopts(tempNS);
-  free(tempNS);
+  xpp_free(tempNS);
   
   init_alloc_info();
       do_vis_env();
@@ -1289,7 +1290,7 @@ int getxcolors(win_info, colors)
   ncolors = win_info->visual->map_entries;
  plintf("%d entries in colormap\n", ncolors);
 
-  *colors = (XColor *) malloc (sizeof(XColor) * ncolors);
+  *colors = (XColor *) xpp_malloc (sizeof(XColor) * ncolors);
   xorfix=0;
 
   if (win_info->visual->class == DirectColor) {
@@ -1343,7 +1344,7 @@ void test_color_info()
  */
  getxcolors(&xwa,&colors);
  
-if (colors) free((char *) colors);
+if (colors) xpp_free((char *) colors);
 }
 
 

@@ -13,6 +13,7 @@
 
 
 #include <stdio.h>
+#include "xpp_mem.h"
 #include <stdlib.h>
 #include "vector.h"
 #include "llnltyps.h"
@@ -48,12 +49,11 @@ N_Vector N_VNew(integer N, void *machEnv)
 
   if (N <= 0) return(NULL);
 
-  v = (N_Vector) malloc(sizeof *v);
-  if (v == NULL) return(NULL);
+  v = (N_Vector) xpp_malloc(sizeof *v);
   
-  v->data = (real *) malloc(N * sizeof(real));
+  v->data = (real *) xpp_malloc(N * sizeof(real));
   if (v->data == NULL) {
-    free(v);
+    xpp_free(v);
     return(NULL);
   }
 
@@ -65,8 +65,8 @@ N_Vector N_VNew(integer N, void *machEnv)
 
 void N_VFree(N_Vector x)
 {
-  free(x->data);
-  free(x);
+  xpp_free(x->data);
+  xpp_free(x);
 }
 
 

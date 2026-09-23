@@ -4,6 +4,7 @@
 */
 
 #include "auto_f2c.h"
+#include "xpp_mem.h"
 #include "auto_c.h"
 #include "xAuto.h"
 
@@ -227,11 +228,11 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   doublereal ep, *ff1, *ff2, *uu1, *uu2, *dfu, umx;
   integer nbc0;
 
-  ff1=(doublereal *)malloc(sizeof(doublereal)*(iap->nbc));
-  ff2=(doublereal *)malloc(sizeof(doublereal)*(iap->nbc));
-  uu1=(doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  uu2=(doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  dfu=(doublereal *)malloc(sizeof(doublereal)*(iap->nbc)*(2*iap->ndim+NPARX));
+  ff1=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc));
+  ff2=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc));
+  uu1=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  uu2=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  dfu=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc)*(2*iap->ndim+NPARX));
 		     
 
 
@@ -260,11 +261,11 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
        f[0], dfu);
 
   if (ijac == 0) {
-    free(ff1);
-    free(ff2);
-    free(uu1);
-    free(uu2);
-    free(dfu);
+    xpp_free(ff1);
+    xpp_free(ff2);
+    xpp_free(uu1);
+    xpp_free(uu2);
+    xpp_free(dfu);
     return 0;
   }
 
@@ -329,11 +330,11 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     par[icp[i]] -= ep;
   }
-  free(ff1);
-  free(ff2);
-  free(uu1);
-  free(uu2);
-  free(dfu);
+  xpp_free(ff1);
+  xpp_free(ff2);
+  xpp_free(uu1);
+  xpp_free(uu2);
+  xpp_free(dfu);
 
   return 0;
 } /* bcho_ */
@@ -378,15 +379,15 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
        also depend on these arrays, and more importantly the algorithm,
        having N X.  So, they all need to be changed at once.
     */
-  f       = (doublereal *)malloc(sizeof(doublereal)*(iap->ndm));
-  bound   = (doublereal *)malloc(sizeof(doublereal)*(iap->ndm)*(iap->ndm));
-  fj      = (doublereal *)malloc(sizeof(doublereal)*(iap->ndm));
-  ri      = (doublereal *)malloc(sizeof(doublereal)*(iap->ndm));
-  rr      = (doublereal *)malloc(sizeof(doublereal)*(iap->ndm));
-  vr      = (doublereal *)malloc(sizeof(doublereal)*(iap->ndm)*(iap->ndm));
-  vt      = (doublereal *)malloc(sizeof(doublereal)*(iap->ndm)*(iap->ndm));
-  xequib1 = (doublereal *)malloc(sizeof(doublereal)*(iap->ndm));
-  xequib2 = (doublereal *)malloc(sizeof(doublereal)*(iap->ndm));
+  f       = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
+  bound   = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm)*(iap->ndm));
+  fj      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
+  ri      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
+  rr      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
+  vr      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm)*(iap->ndm));
+  vt      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm)*(iap->ndm));
+  xequib1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
+  xequib2 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
 
 
   /* Generates the boundary conditions for homoclinic orbits. */
@@ -541,15 +542,15 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 	fb[-1 + jb] = dum;
 	++jb;
       }
-      free(f    );
-      free(bound);
-      free(fj   );
-      free(ri   );
-      free(rr   );
-      free(vr   );
-      free(vt   );
-      free(xequib1);
-      free(xequib2);
+      xpp_free(f    );
+      xpp_free(bound);
+      xpp_free(fj   );
+      xpp_free(ri   );
+      xpp_free(rr   );
+      xpp_free(vr   );
+      xpp_free(vt   );
+      xpp_free(xequib1);
+      xpp_free(xequib2);
       return 0;
     }
   } else {
@@ -640,15 +641,15 @@ t=1 */
     }
   }
 
-  free(f    );
-  free(bound);
-  free(fj   );
-  free(ri   );
-  free(rr   );
-  free(vr   );
-  free(vt   );
-  free(xequib1);
-  free(xequib2);
+  xpp_free(f    );
+  xpp_free(bound);
+  xpp_free(fj   );
+  xpp_free(ri   );
+  xpp_free(rr   );
+  xpp_free(vr   );
+  xpp_free(vt   );
+  xpp_free(xequib1);
+  xpp_free(xequib2);
 
   return 0;
 } /* fbho_ */
@@ -669,11 +670,11 @@ icho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   doublereal ep, *ff1, *ff2, *uu1, *uu2, *dfu, umx;
   integer nnt0;
 
-  ff1 = (doublereal *)malloc(sizeof(doublereal)*(iap->nint));
-  ff2 = (doublereal *)malloc(sizeof(doublereal)*(iap->nint));
-  uu1 = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  uu2 = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
-  dfu = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim + NPARX));
+  ff1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint));
+  ff2 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint));
+  uu1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  uu2 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  dfu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim + NPARX));
 
 
 /* Generates integral conditions for homoclinic bifurcation analysis */
@@ -699,11 +700,11 @@ icho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
        udot, upold, f, dfu);
 
   if (ijac == 0) {
-    free(ff1);
-    free(ff2);
-    free(uu1);
-    free(uu2);
-    free(dfu);
+    xpp_free(ff1);
+    xpp_free(ff2);
+    xpp_free(uu1);
+    xpp_free(uu2);
+    xpp_free(dfu);
     return 0;
   }
 
@@ -745,11 +746,11 @@ icho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     par[icp[i]] -= ep;
   }
 
-  free(ff1);
-  free(ff2);
-  free(uu1);
-  free(uu2);
-  free(dfu);
+  xpp_free(ff1);
+  xpp_free(ff2);
+  xpp_free(uu1);
+  xpp_free(uu2);
+  xpp_free(dfu);
   return 0;
 } /* icho_ */
 
@@ -768,7 +769,7 @@ fiho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   doublereal dum;
 
 
-  fj = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
+  fj = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
   /* Generates the integral conditions for homoclinic orbits. */
 
 
@@ -816,7 +817,7 @@ fiho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
       fi[i + jb] = fj[i];
     }
   }
-  free(fj);
+  xpp_free(fj);
   return 0;
 } /* fiho_ */
 
@@ -830,32 +831,32 @@ inho(iap_type *iap, integer *icp, doublereal *par)
   integer ndim, nint, nuzr, i, nfree, icorr, nbc, ndm, isw;
 
   /* Allocate memory for global structures. */
-  free(blhmp_1.ipsi);
-  free(blhmp_1.ifixed);
-  free(blhmp_1.irev);
+  xpp_free(blhmp_1.ipsi);
+  xpp_free(blhmp_1.ifixed);
+  xpp_free(blhmp_1.irev);
 
-  free(blhmu_1.pu0);
-  free(blhmu_1.pu1);
+  xpp_free(blhmu_1.pu0);
+  xpp_free(blhmu_1.pu1);
 
-  free(bleig_1.rr);
-  free(bleig_1.ri);
-  free(bleig_1.v);
-  free(bleig_1.vt);
-  free(bleig_1.xequib);
+  xpp_free(bleig_1.rr);
+  xpp_free(bleig_1.ri);
+  xpp_free(bleig_1.v);
+  xpp_free(bleig_1.vt);
+  xpp_free(bleig_1.xequib);
     
-  free(blhme_1.vrprev);
-  free(blhme_1.ieigc);
+  xpp_free(blhme_1.vrprev);
+  xpp_free(blhme_1.ieigc);
 
-  free(beyn_1.cprev);
-  free(beyn_1.iflag);
+  xpp_free(beyn_1.cprev);
+  xpp_free(beyn_1.iflag);
 
-  blhmp_1.ipsi   = (integer *)malloc(sizeof(integer)*NPARX);
-  blhmp_1.ifixed = (integer *)malloc(sizeof(integer)*NPARX);
-  blhmp_1.irev   = (integer *)malloc(sizeof(integer)*(iap->ndim));
+  blhmp_1.ipsi   = (integer *)xpp_malloc(sizeof(integer)*NPARX);
+  blhmp_1.ifixed = (integer *)xpp_malloc(sizeof(integer)*NPARX);
+  blhmp_1.irev   = (integer *)xpp_malloc(sizeof(integer)*(iap->ndim));
 
-  blhme_1.ieigc  = (integer *)malloc(sizeof(integer)*2);
+  blhme_1.ieigc  = (integer *)xpp_malloc(sizeof(integer)*2);
 
-  beyn_1.iflag   = (integer *)malloc(sizeof(integer)*4);
+  beyn_1.iflag   = (integer *)xpp_malloc(sizeof(integer)*4);
 
   /* the prjctn_ function uses this array to test if this is
        the first time the prjctn_ function has been called.
@@ -903,18 +904,18 @@ inho(iap_type *iap, integer *icp, doublereal *par)
   /* Allocate memory for global structures.  We didn't know the
      size for these until ndim was computed. */
 
-  blhmu_1.pu0    = (doublereal *)malloc(sizeof(doublereal)*(ndim));
-  blhmu_1.pu1    = (doublereal *)malloc(sizeof(doublereal)*(ndim));
+  blhmu_1.pu0    = (doublereal *)xpp_malloc(sizeof(doublereal)*(ndim));
+  blhmu_1.pu1    = (doublereal *)xpp_malloc(sizeof(doublereal)*(ndim));
 
-  bleig_1.rr     = (doublereal *)malloc(sizeof(doublereal)*(ndim));
-  bleig_1.ri     = (doublereal *)malloc(sizeof(doublereal)*(ndim));
-  bleig_1.v      = (doublereal *)malloc(sizeof(doublereal)*(ndim)*(ndim));
-  bleig_1.vt     = (doublereal *)malloc(sizeof(doublereal)*(ndim)*(ndim));
-  bleig_1.xequib = (doublereal *)malloc(sizeof(doublereal)*(ndim));
+  bleig_1.rr     = (doublereal *)xpp_malloc(sizeof(doublereal)*(ndim));
+  bleig_1.ri     = (doublereal *)xpp_malloc(sizeof(doublereal)*(ndim));
+  bleig_1.v      = (doublereal *)xpp_malloc(sizeof(doublereal)*(ndim)*(ndim));
+  bleig_1.vt     = (doublereal *)xpp_malloc(sizeof(doublereal)*(ndim)*(ndim));
+  bleig_1.xequib = (doublereal *)xpp_malloc(sizeof(doublereal)*(ndim));
 
-  blhme_1.vrprev = (doublereal *)malloc(sizeof(doublereal)*2*(ndim)*(ndim));
+  blhme_1.vrprev = (doublereal *)xpp_malloc(sizeof(doublereal)*2*(ndim)*(ndim));
 
-  beyn_1.cprev   = (doublereal *)malloc(sizeof(doublereal)*2*2*(ndim)*(ndim));
+  beyn_1.cprev   = (doublereal *)xpp_malloc(sizeof(doublereal)*2*2*(ndim)*(ndim));
 
  
  
@@ -1117,7 +1118,7 @@ stpnho(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   doublereal dt;
   integer lab, ibr;
 
-  u = (doublereal *)malloc(sizeof(doublereal)*(iap->ndim));
+  u = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
   /* Generates a starting point for the continuation of a branch of */
   /* of solutions to general boundary value problems by calling the user */
   /* supplied subroutine STPNT where an analytical solution is given. */
@@ -1172,7 +1173,7 @@ stpnho(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   }
 
   *nodir = 1;
-  free(u);
+  xpp_free(u);
   return 0;
 } /* stpnho_ */
 
@@ -1192,11 +1193,11 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
   doublereal *ri;
   doublereal *rr, *vr, *vt, *xequib;
 
-  ri      = (doublereal *)malloc(sizeof(doublereal)*(iap->ndm));
-  rr      = (doublereal *)malloc(sizeof(doublereal)*(iap->ndm));
-  vr      = (doublereal *)malloc(sizeof(doublereal)*(iap->ndm)*(iap->ndm));
-  vt      = (doublereal *)malloc(sizeof(doublereal)*(iap->ndm)*(iap->ndm));
-  xequib  = (doublereal *)malloc(sizeof(doublereal)*(iap->ndm));
+  ri      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
+  rr      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
+  vr      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm)*(iap->ndm));
+  vt      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm)*(iap->ndm));
+  xequib  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
 
 
   /* Generates a starting point for homoclinic continuation */
@@ -1232,11 +1233,11 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
  L1:
   /* Obsolete option */
 
-  free(ri      );
-  free(rr      );
-  free(vr      );
-  free(vt      );
-  free(xequib  );
+  xpp_free(ri      );
+  xpp_free(rr      );
+  xpp_free(vr      );
+  xpp_free(vt      );
+  xpp_free(xequib  );
   return 0;
 
 /* -----------------------------------------------------------------------
@@ -1244,11 +1245,11 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
  L2:
   /*     *Regular continuation (explicit solution in STHO) */
 
-  free(ri      );
-  free(rr      );
-  free(vr      );
-  free(vt      );
-  free(xequib  );
+  xpp_free(ri      );
+  xpp_free(rr      );
+  xpp_free(vr      );
+  xpp_free(vt      );
+  xpp_free(xequib  );
   return 0;
 
 /* -----------------------------------------------------------------------
@@ -1306,11 +1307,11 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
     }
   }
   ip += blhom_1.nunstab;
-  free(ri      );
-  free(rr      );
-  free(vr      );
-  free(vt      );
-  free(xequib  );
+  xpp_free(ri      );
+  xpp_free(rr      );
+  xpp_free(vr      );
+  xpp_free(vt      );
+  xpp_free(xequib  );
   return 0;
   /* -----------------------------------------------------------------------
    */
@@ -1403,8 +1404,8 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
   integer ndm;
   doublereal dum1, dum2;
 
-  f0 = (doublereal *)malloc(sizeof(doublereal)*(iap->ndm));    
-  f1 = (doublereal *)malloc(sizeof(doublereal)*(iap->ndm));
+  f0 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));    
+  f1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
 
 /* The conditions for degenerate homoclinic orbits are given by PSI(IS)=0.
  */
@@ -1466,18 +1467,18 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
     } else {
       ret_val = 0.;
     }
-    free(f0);
-    free(f1);
+    xpp_free(f0);
+    xpp_free(f1);
     return ret_val;
   } else if (is == 11) {
     /* L11 below still reads f1[]; free it there instead. */
-    free(f0);
+    xpp_free(f0);
   } else if (is == 12) {
     /* L12 below still reads f0[]; free it there instead. */
-    free(f1);
+    xpp_free(f1);
   } else {
-    free(f0);
-    free(f1);
+    xpp_free(f0);
+    xpp_free(f1);
   }
 
   switch ((int)is) {
@@ -1587,7 +1588,7 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
     ret_val += f1[j] * vt[blhom_1.nstab + (j + 1) * (iap->ndm)];
   }
   ret_val *= exp(-par[10] * rr[-1 + blhom_1.nstab] / 2.);
-  free(f1);
+  xpp_free(f1);
   return ret_val;
 
   /* Orbit flip (with respect to leading unstable direction) */
@@ -1598,7 +1599,7 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
     ret_val += f0[j] * vt[blhom_1.nstab + 1 + (j + 1) * (iap->ndm)];
   }
   ret_val *= exp(par[10] * rr[blhom_1.nstab] / 2.);
-  free(f0);
+  xpp_free(f0);
   return ret_val;
 
   /* Inclination flip (critically twisted) with respect to stable manifold 
@@ -1650,15 +1651,15 @@ eighi(integer isign, integer itrans, doublereal *rr, doublereal *ri, doublereal 
   doublereal *dfdp, *dfdu;
   doublereal *zz;
 
-  dfdp = (doublereal *)malloc(sizeof(doublereal)*(*ndm)*NPARX);
-  dfdu = (doublereal *)malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  zz   = (doublereal *)malloc(sizeof(doublereal)*(*ndm)*(*ndm));
+  dfdp = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*NPARX);
+  dfdu = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
+  zz   = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
 
   eigho(&isign, &itrans, rr, ri, vret, xequib, icp, par, ndm, dfdu, dfdp, zz);
 
-  free(dfdp);
-  free(dfdu);
-  free(zz);
+  xpp_free(dfdp);
+  xpp_free(dfdu);
+  xpp_free(zz);
 
   return 0;
 } /* eighi */
@@ -1682,15 +1683,15 @@ eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublerea
   doublereal *vi, *vr, *fv1;
   integer *iv1;
 
-  f     = (doublereal *)malloc(sizeof(doublereal)*(*ndm));
-  ridum = (doublereal *)malloc(sizeof(doublereal)*(*ndm));
-  vidum = (doublereal *)malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  rrdum = (doublereal *)malloc(sizeof(doublereal)*(*ndm));
-  vrdum = (doublereal *)malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  vi    = (doublereal *)malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  vr    = (doublereal *)malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  fv1   = (doublereal *)malloc(sizeof(doublereal)*(*ndm));
-  iv1   = (integer *)malloc(sizeof(integer)*(*ndm));
+  f     = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm));
+  ridum = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm));
+  vidum = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
+  rrdum = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm));
+  vrdum = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
+  vi    = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
+  vr    = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
+  fv1   = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm));
+  iv1   = (integer *)xpp_malloc(sizeof(integer)*(*ndm));
 
   /* Uses EISPACK routine RG to calculate the eigenvalues/eigenvectors */
   /* of the linearization matrix a (obtained from DFHO) and orders them */
@@ -1839,15 +1840,15 @@ eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublerea
     }
   }
 
-  free(f    );
-  free(ridum);
-  free(vidum);
-  free(rrdum);
-  free(vrdum);
-  free(vi   );
-  free(vr   );
-  free(fv1  );
-  free(iv1  );
+  xpp_free(f    );
+  xpp_free(ridum);
+  xpp_free(vidum);
+  xpp_free(rrdum);
+  xpp_free(vrdum);
+  xpp_free(vi   );
+  xpp_free(vr   );
+  xpp_free(fv1  );
+  xpp_free(iv1  );
   return 0;
 } /* eigho_ */
 
@@ -1858,13 +1859,13 @@ prjcti(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *pa
 {
   doublereal *dfdp, *dfdu;
   
-  dfdp = (doublereal *)malloc(sizeof(doublereal)*(*ndm)*NPARX);
-  dfdu = (doublereal *)malloc(sizeof(doublereal)*(*ndm)*(*ndm));
+  dfdp = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*NPARX);
+  dfdu = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
   
   prjctn(bound, xequib, icp, par, &imfd, &is, &itrans, ndm, dfdu, dfdp);
   
-  free(dfdp);
-  free(dfdu);
+  xpp_free(dfdp);
+  xpp_free(dfdu);
   return 0;
 } /* prjcti */
 
@@ -1892,17 +1893,17 @@ prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *pa
   doublereal *ei, *er;
   doublereal *ort, *dum1, *dum2;
     
-  fdum   = (doublereal *)malloc(sizeof(doublereal)*(*ndm));
-  cnow   = (doublereal *)malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  type__ = (integer *)malloc(sizeof(integer)*(*ndm));
-  a      = (doublereal *)malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  d    = (doublereal *)malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  v      = (doublereal *)malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  ei     = (doublereal *)malloc(sizeof(doublereal)*(*ndm));
-  er     = (doublereal *)malloc(sizeof(doublereal)*(*ndm));
-  ort    = (doublereal *)malloc(sizeof(doublereal)*(*ndm));
-  dum1   = (doublereal *)malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  dum2   = (doublereal *)malloc(sizeof(doublereal)*(*ndm)*(*ndm));
+  fdum   = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm));
+  cnow   = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
+  type__ = (integer *)xpp_malloc(sizeof(integer)*(*ndm));
+  a      = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
+  d    = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
+  v      = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
+  ei     = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm));
+  er     = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm));
+  ort    = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm));
+  dum1   = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
+  dum2   = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
 
   /* Compute NUNSTAB (or NSTAB) projection boundary condition functions */
   /*onto to the UNSTABLE (or STABLE) manifold of the appropriate equilibrium
@@ -2009,17 +2010,17 @@ prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *pa
       }
     }
     beyn_1.iflag[*is + (*itrans * 2) - 3] = 1;
-    free(fdum  );
-    free(cnow  );
-    free(type__);
-    free(a    );
-    free(d  );
-    free(v    );
-    free(ei   );
-    free(er   );
-    free(ort  );
-    free(dum1 );
-    free(dum2 );
+    xpp_free(fdum  );
+    xpp_free(cnow  );
+    xpp_free(type__);
+    xpp_free(a    );
+    xpp_free(d  );
+    xpp_free(v    );
+    xpp_free(ei   );
+    xpp_free(er   );
+    xpp_free(ort  );
+    xpp_free(dum1 );
+    xpp_free(dum2 );
     return 0;
   }
 
@@ -2072,17 +2073,17 @@ prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *pa
     }
   }
 
-  free(fdum  );
-  free(cnow  );
-  free(type__);
-  free(a    );
-  free(d  );
-  free(v    );
-  free(ei   );
-  free(er   );
-  free(ort  );
-  free(dum1 );
-  free(dum2 );
+  xpp_free(fdum  );
+  xpp_free(cnow  );
+  xpp_free(type__);
+  xpp_free(a    );
+  xpp_free(d  );
+  xpp_free(v    );
+  xpp_free(ei   );
+  xpp_free(er   );
+  xpp_free(ort  );
+  xpp_free(dum1 );
+  xpp_free(dum2 );
 
   return 0;
 } /* prjctn_ */

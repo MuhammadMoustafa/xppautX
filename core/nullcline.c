@@ -1,4 +1,5 @@
 #include "nullcline.h"
+#include "xpp_mem.h"
 #include "my_rhs.h"
 #include "abort.h"
 #include "browse.h"
@@ -164,20 +165,20 @@ void do_range_clines()
       set_val(ncrange.rv,z);
       if(NULL_HERE==0)
 	{
-	  if((X_n=(float *)malloc(4*MAX_NULL*sizeof(float)))!=NULL
-	     && (Y_n=(float *)malloc(4*MAX_NULL*sizeof(float)))!=NULL)
+	  if((X_n=(float *)xpp_malloc(4*MAX_NULL*sizeof(float)))!=NULL
+	     && (Y_n=(float *)xpp_malloc(4*MAX_NULL*sizeof(float)))!=NULL)
 	    
 	    
 	    NULL_HERE=1;
-	  NTop=(float *)malloc((course+1)*sizeof(float));
-	  NBot=(float *)malloc((course+1)*sizeof(float));
+	  NTop=(float *)xpp_malloc((course+1)*sizeof(float));
+	  NBot=(float *)xpp_malloc((course+1)*sizeof(float));
 	  if(NTop==NULL||NBot==NULL)NULL_HERE=0;
 	}
       else {
-	free(NTop);
-	free(NBot);
-	NTop=(float *)malloc((course+1)*sizeof(float));
-	NBot=(float *)malloc((course+1)*sizeof(float));
+	xpp_free(NTop);
+	xpp_free(NBot);
+	NTop=(float *)xpp_malloc((course+1)*sizeof(float));
+	NBot=(float *)xpp_malloc((course+1)*sizeof(float));
 	if(NTop==NULL||NBot==NULL){NULL_HERE=0;
 	return;}
       }
@@ -200,7 +201,7 @@ void do_range_clines()
 void start_ncline()
 {
   n_nstore=1;
-  ncperm=(NCLINES *)malloc(sizeof(NCLINES));
+  ncperm=(NCLINES *)xpp_malloc(sizeof(NCLINES));
   ncperm->p=NULL;
   ncperm->n=NULL;
   ncperm->nmx=0;
@@ -223,24 +224,24 @@ void clear_froz_cline()
   
   znew=z->p;
   if(znew==NULL)return;
-  free(z);
+  xpp_free(z);
   z=znew;
   /* now we are deleting everything */
    while(z->p !=NULL){
       znew=z->p;
       z->n=NULL;
       z->p=NULL;
-      free(z->xn);
-      free(z->yn);
-      free(z);
+      xpp_free(z->xn);
+      xpp_free(z->yn);
+      xpp_free(z);
       z=znew;
   }
   if(ncperm->nmx>0){
-    free(ncperm->xn);
+    xpp_free(ncperm->xn);
     ncperm->nmx=0;
   }
   if(ncperm->nmy>0){
-    free(ncperm->yn);
+    xpp_free(ncperm->yn);
     ncperm->nmy=0;
   }
   ncperm->n=NULL;
@@ -360,17 +361,17 @@ void add_froz_cline(xn,nmx,n_ix,yn,nmy,n_iy)
   while(z->n!=NULL){
     z=(z->n); 
   }
-  z->xn=(float *)malloc(4*nmx*sizeof(float));
+  z->xn=(float *)xpp_malloc(4*nmx*sizeof(float));
   for(i=0;i<4*nmx;i++)
     z->xn[i]=xn[i];
-  z->yn=(float *)malloc(4*nmy*sizeof(float));
+  z->yn=(float *)xpp_malloc(4*nmy*sizeof(float));
   for(i=0;i<4*nmy;i++)
     z->yn[i]=yn[i]; 
   z->nmx=nmx;
   z->nmy=nmy;
   z->n_ix=n_ix;
   z->n_iy=n_iy;
-  z->n=(NCLINES *)malloc(sizeof(NCLINES));
+  z->n=(NCLINES *)xpp_malloc(sizeof(NCLINES));
   znew=z->n;
   znew->n=NULL;
   znew->p=z;
@@ -883,20 +884,20 @@ void new_clines_com(int c)
   null_iy=MyGraph->yv[0];
   if(NULL_HERE==0)
     {
-      if((X_n=(float *)malloc(4*MAX_NULL*sizeof(float)))!=NULL
-	 && (Y_n=(float *)malloc(4*MAX_NULL*sizeof(float)))!=NULL)
+      if((X_n=(float *)xpp_malloc(4*MAX_NULL*sizeof(float)))!=NULL
+	 && (Y_n=(float *)xpp_malloc(4*MAX_NULL*sizeof(float)))!=NULL)
 	
 	
 	NULL_HERE=1;
-      NTop=(float *)malloc((course+1)*sizeof(float));
-      NBot=(float *)malloc((course+1)*sizeof(float));
+      NTop=(float *)xpp_malloc((course+1)*sizeof(float));
+      NBot=(float *)xpp_malloc((course+1)*sizeof(float));
       if(NTop==NULL||NBot==NULL)NULL_HERE=0;
     }
   else {
-    free(NTop);
-    free(NBot);
-    NTop=(float *)malloc((course+1)*sizeof(float));
-   NBot=(float *)malloc((course+1)*sizeof(float));
+    xpp_free(NTop);
+    xpp_free(NBot);
+    NTop=(float *)xpp_malloc((course+1)*sizeof(float));
+   NBot=(float *)xpp_malloc((course+1)*sizeof(float));
    if(NTop==NULL||NBot==NULL){NULL_HERE=0;
    return;}
   }

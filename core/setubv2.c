@@ -1,4 +1,5 @@
 #include "auto_f2c.h"
+#include "xpp_mem.h"
 #include "auto_c.h"
 #include "auto_types.h"
 #include "xpp_job.h" /* xppautX: cancel */
@@ -66,23 +67,23 @@ void *setubv_make_aa_bb_cc(void * arg)
   doublereal *wt = larg->wt;
 
 
-  dicd = (doublereal *)malloc(sizeof(doublereal)*(larg->nint)*(larg->ndim + NPARX));
-  ficd = (doublereal *)malloc(sizeof(doublereal)*(larg->nint));
-  dfdp = (doublereal *)malloc(sizeof(doublereal)*(larg->ndim)*NPARX);
-  dfdu = (doublereal *)malloc(sizeof(doublereal)*(larg->ndim)*(larg->ndim));
-  uold = (doublereal *)malloc(sizeof(doublereal)*(larg->ndim));
-  f    = (doublereal *)malloc(sizeof(doublereal)*(larg->ndim));
-  u    = (doublereal *)malloc(sizeof(doublereal)*(larg->ndim));
-  wploc= (doublereal *)malloc(sizeof(doublereal)*(larg->ncol)*(larg->ncol+1));
-  dbc  = (doublereal *)malloc(sizeof(doublereal)*(larg->nbc)*(2*larg->ndim + NPARX));
-  fbc  = (doublereal *)malloc(sizeof(doublereal)*(larg->nbc));
-  uic  = (doublereal *)malloc(sizeof(doublereal)*(larg->ndim));
-  uio  = (doublereal *)malloc(sizeof(doublereal)*(larg->ndim));
-  prm  = (doublereal *)malloc(sizeof(doublereal)*NPARX);
-  uid  = (doublereal *)malloc(sizeof(doublereal)*(larg->ndim));
-  uip  = (doublereal *)malloc(sizeof(doublereal)*(larg->ndim));
-  ubc0 = (doublereal *)malloc(sizeof(doublereal)*(larg->ndim));
-  ubc1 = (doublereal *)malloc(sizeof(doublereal)*(larg->ndim));
+  dicd = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->nint)*(larg->ndim + NPARX));
+  ficd = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->nint));
+  dfdp = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim)*NPARX);
+  dfdu = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim)*(larg->ndim));
+  uold = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
+  f    = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
+  u    = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
+  wploc= (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ncol)*(larg->ncol+1));
+  dbc  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->nbc)*(2*larg->ndim + NPARX));
+  fbc  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->nbc));
+  uic  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
+  uio  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
+  prm  = (doublereal *)xpp_malloc(sizeof(doublereal)*NPARX);
+  uid  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
+  uip  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
+  ubc0 = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
+  ubc1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
 
   upoldp_dim1 = larg->ndxloc;
   udotps_dim1 = larg->ndxloc;
@@ -255,23 +256,23 @@ void *setubv_make_aa_bb_cc(void * arg)
     }
   }
 
-  free(dicd );
-  free(ficd );
-  free(dfdp );
-  free(dfdu );
-  free(uold );
-  free(f    );
-  free(u    );
-  free(wploc);
-  free(dbc  );
-  free(fbc  );
-  free(uic  );
-  free(uio  );
-  free(prm  );
-  free(uid  );
-  free(uip  );
-  free(ubc0 );
-  free(ubc1 );
+  xpp_free(dicd );
+  xpp_free(ficd );
+  xpp_free(dfdp );
+  xpp_free(dfdu );
+  xpp_free(uold );
+  xpp_free(f    );
+  xpp_free(u    );
+  xpp_free(wploc);
+  xpp_free(dbc  );
+  xpp_free(fbc  );
+  xpp_free(uic  );
+  xpp_free(uio  );
+  xpp_free(prm  );
+  xpp_free(uid  );
+  xpp_free(uip  );
+  xpp_free(ubc0 );
+  xpp_free(ubc1 );
 
   return NULL;
 
@@ -300,9 +301,9 @@ setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer
 
   doublereal *wi, *wp, *wt;
   
-  wi   = (doublereal *)malloc(sizeof(doublereal)*(ncol+1) );
-  wp   = (doublereal *)malloc(sizeof(doublereal)*(ncol)*(ncol+1) );
-  wt   = (doublereal *)malloc(sizeof(doublereal)*(ncol)*(ncol+1) );
+  wi   = (doublereal *)xpp_malloc(sizeof(doublereal)*(ncol+1) );
+  wp   = (doublereal *)xpp_malloc(sizeof(doublereal)*(ncol)*(ncol+1) );
+  wt   = (doublereal *)xpp_malloc(sizeof(doublereal)*(ncol)*(ncol+1) );
 
   dd_dim1 = ncb;
   
@@ -375,9 +376,9 @@ setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer
     setubv_make_fc_dd(arglist,dups,rlcur,rlold,rds);
   }
 
-  free(wi   );
-  free(wp   );
-  free(wt   );
+  xpp_free(wi   );
+  xpp_free(wp   );
+  xpp_free(wt   );
   return 0;
 }
 
@@ -402,15 +403,15 @@ void setubv_make_fa(setubv_parallel_arglist larg) {
   doublereal *fa = larg.fa;
   integer fa_dim1 = larg.nra;
   
-  doublereal *wploc= (doublereal *)malloc(sizeof(doublereal)*(larg.ncol)*(larg.ncol+1));
+  doublereal *wploc= (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ncol)*(larg.ncol+1));
   integer wploc_dim1 = larg.ncol + 1;
   
-  doublereal *dfdp = (doublereal *)malloc(sizeof(doublereal)*(larg.ndim)*NPARX);
-  doublereal *dfdu = (doublereal *)malloc(sizeof(doublereal)*(larg.ndim)*(larg.ndim));
-  doublereal *u    = (doublereal *)malloc(sizeof(doublereal)*(larg.ndim));
-  doublereal *uold = (doublereal *)malloc(sizeof(doublereal)*(larg.ndim));
-  doublereal *f    = (doublereal *)malloc(sizeof(doublereal)*(larg.ndim));
-  doublereal *prm  = (doublereal *)malloc(sizeof(doublereal)*NPARX);
+  doublereal *dfdp = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim)*NPARX);
+  doublereal *dfdu = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim)*(larg.ndim));
+  doublereal *u    = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
+  doublereal *uold = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
+  doublereal *f    = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
+  doublereal *prm  = (doublereal *)xpp_malloc(sizeof(doublereal)*NPARX);
 
   for (jj = 0; jj < larg.na; ++jj) {
     if (xpp_setubv_stop && xpp_job_cancelled()) break; /* xppautX: cancel */
@@ -450,13 +451,13 @@ void setubv_make_fa(setubv_parallel_arglist larg) {
     }
   
   }
-  free(wploc);
-  free(dfdp);
-  free(dfdu);
-  free(u);
-  free(uold);
-  free(f);
-  free(prm);
+  xpp_free(wploc);
+  xpp_free(dfdp);
+  xpp_free(dfdu);
+  xpp_free(u);
+  xpp_free(uold);
+  xpp_free(f);
+  xpp_free(prm);
   
 }
 
@@ -484,17 +485,17 @@ void setubv_make_fc_dd(setubv_parallel_arglist larg, doublereal *dups, doublerea
   integer upoldp_dim1 = larg.ndxloc;
   
   integer dbc_dim1 = larg.nbc;
-  doublereal *dbc  = (doublereal *)malloc(sizeof(doublereal)*(larg.nbc)*(2*larg.ndim + NPARX));
-  doublereal *fbc  = (doublereal *)malloc(sizeof(doublereal)*(larg.nbc));
-  doublereal *ubc0 = (doublereal *)malloc(sizeof(doublereal)*(larg.ndim));
-  doublereal *ubc1 = (doublereal *)malloc(sizeof(doublereal)*(larg.ndim));
+  doublereal *dbc  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.nbc)*(2*larg.ndim + NPARX));
+  doublereal *fbc  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.nbc));
+  doublereal *ubc0 = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
+  doublereal *ubc1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
   integer dicd_dim1 = larg.nint;
-  doublereal *dicd = (doublereal *)malloc(sizeof(doublereal)*(larg.nint)*(larg.ndim + NPARX));
-  doublereal *ficd = (doublereal *)malloc(sizeof(doublereal)*(larg.nint));
-  doublereal *uic  = (doublereal *)malloc(sizeof(doublereal)*(larg.ndim));
-  doublereal *uio  = (doublereal *)malloc(sizeof(doublereal)*(larg.ndim));
-  doublereal *uid  = (doublereal *)malloc(sizeof(doublereal)*(larg.ndim));
-  doublereal *uip  = (doublereal *)malloc(sizeof(doublereal)*(larg.ndim));
+  doublereal *dicd = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.nint)*(larg.ndim + NPARX));
+  doublereal *ficd = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.nint));
+  doublereal *uic  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
+  doublereal *uio  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
+  doublereal *uid  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
+  doublereal *uip  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
 
   /* Boundary condition part of FC */
   if (larg.nbc > 0) {
@@ -567,16 +568,16 @@ void setubv_make_fc_dd(setubv_parallel_arglist larg, doublereal *dups, doublerea
 
   larg.fc[larg.nrc-1] = rds - rinpr(larg.iap, &(larg.ndim), &(larg.ndxloc), larg.udotps, dups, larg.dtm, larg.thu) - rlsum;
 
-  free(dbc);
-  free(fbc);
-  free(ubc0);
-  free(ubc1);
-  free(dicd);
-  free(ficd);
-  free(uic);
-  free(uio);
-  free(uid);
-  free(uip);
+  xpp_free(dbc);
+  xpp_free(fbc);
+  xpp_free(ubc0);
+  xpp_free(ubc1);
+  xpp_free(dicd);
+  xpp_free(ficd);
+  xpp_free(uic);
+  xpp_free(uio);
+  xpp_free(uid);
+  xpp_free(uip);
 
 }
 

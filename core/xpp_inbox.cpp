@@ -9,12 +9,13 @@
    enqueue happen as one step, so sequence order is queue order) and is
    never taken by the core; lock guards the queues and is held only briefly.
    Waiting is on a condition variable, never a polling loop. This file
-   includes no core header.
+   includes no core header but xpp_mem.h.
 
    C++ with a C API (xpp_inbox.h is extern "C"). The lines handed out are
-   malloc'd C strings the caller frees; nothing here throws into C: an
-   allocation that fails ends the program, as the C version's did. */
+   xpp_malloc'd C strings the caller frees with xpp_free; nothing here
+   throws into C (xpp_mem.h: an allocation that fails ends the program). */
 #include "xpp_inbox.h"
+#include "xpp_mem.h"
 
 #include <cerrno>
 #include <cstdio>
@@ -52,16 +53,6 @@ int closed;
 unsigned long next_seq = 1;
 int (*classify)(const char *line, unsigned long seq);
 
-/* malloc that does not return NULL (the lines go to C, which frees them) */
-void *xmalloc(size_t n)
-{
-    void *p = std::malloc(n ? n : 1);
-    if (!p) {
-        std::fputs("xppautX: out of memory\n", stderr);
-        std::abort();
-    }
-    return p;
-}
 
 /* the queue to take from now, or -1; call with the lock held */
 int pick(int which)
@@ -87,10 +78,10 @@ void xpp_inbox_set_classifier(int (*cls)(const char *line, unsigned long seq))
 
 void xpp_inbox_push(const char *line, size_t n)
 {
-    Item *it = static_cast<Item *>(xmalloc(sizeof *it));
+    Item *it = static_cast<Item *>(xpp_malloc(sizeof *it));
     int q = XPP_INBOX_NORMAL;
     it->next = nullptr;
-    it->line = static_cast<char *>(xmalloc(n + 1));
+    it->line = static_cast<char *>(xpp_malloc(n + 1));
     std::memcpy(it->line, line, n);
     it->line[n] = 0;
     pthread_mutex_lock(&push_lock);
@@ -139,7 +130,7 @@ int xpp_inbox_next(int which, int wait_ms, char **line, unsigned long *seq)
         if (!(queues[q].head = it->next)) queues[q].tail = nullptr;
         *line = it->line;
         if (seq) *seq = it->seq;
-        std::free(it);
+        xpp_free(it);
         r = 1;
     } else if (closed && !queues[0].head && !queues[1].head) {
         r = -1;
@@ -179,9 +170,7 @@ void *stdin_main(void *)
     for (;;) {
         if (cap - len < CHUNK) {
             cap = cap * 2 + CHUNK;
-            char *grown = static_cast<char *>(std::realloc(buf, cap));
-            if (!grown) break; /* out of memory: end of input */
-            buf = grown;
+            buf = static_cast<char *>(xpp_realloc(buf, cap));
         }
         long r = read_stdin(buf + len, cap - len);
         if (r <= 0) break;
@@ -206,7 +195,7 @@ void *stdin_main(void *)
             len = scanned = 0;
         }
     }
-    std::free(buf);
+    xpp_free(buf);
     xpp_inbox_close();
     return nullptr;
 }

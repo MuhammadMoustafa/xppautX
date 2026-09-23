@@ -1,4 +1,5 @@
 #include "simplenet.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 
 #include "aniparse.h"
@@ -386,7 +387,7 @@ int add_spec_fun(name,rhs)
 	     name,rootname);
       return 0;
     }
-    my_net[ind].values=(double *)malloc((ntot+1)*sizeof(double));
+    my_net[ind].values=(double *)xpp_malloc((ntot+1)*sizeof(double));
     init_net(my_net[ind].values,ntot);
     my_net[ind].weight=my_table[iwgt].y;
     my_net[ind].type=ntype;
@@ -445,7 +446,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
  
-    my_net[ind].values=(double *)malloc((ntot+1)*sizeof(double));
+    my_net[ind].values=(double *)xpp_malloc((ntot+1)*sizeof(double));
        init_net(my_net[ind].values,ntot);
     my_net[ind].weight=my_table[iwgt].y;
     my_net[ind].index=my_table[iind].y;
@@ -515,7 +516,7 @@ int add_spec_fun(name,rhs)
       plintf(" bad function %s \n",fname);
       return 0;
     }
-    my_net[ind].values=(double *)malloc((ntot+1)*sizeof(double));
+    my_net[ind].values=(double *)xpp_malloc((ntot+1)*sizeof(double));
        init_net(my_net[ind].values,ntot);
     my_net[ind].weight=my_table[iwgt].y;
     my_net[ind].type=ntype;
@@ -593,7 +594,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
 
-    my_net[ind].values=(double *)malloc((ntot+1)*sizeof(double));
+    my_net[ind].values=(double *)xpp_malloc((ntot+1)*sizeof(double));
       init_net(my_net[ind].values,ntot);
     my_net[ind].weight=my_table[iwgt].y;
     my_net[ind].index=my_table[iind].y;
@@ -655,12 +656,12 @@ int add_spec_fun(name,rhs)
       ncon=2*ntot;
     else
       ncon=ntot;
-    my_net[ind].fftr=(double *)malloc((ncon+2)*sizeof(double));
-    my_net[ind].ffti=(double *)malloc((ncon+2)*sizeof(double));
-    my_net[ind].dr=(double *)malloc((ncon+2)*sizeof(double));
-    my_net[ind].di=(double *)malloc((ncon+2)*sizeof(double));
+    my_net[ind].fftr=(double *)xpp_malloc((ncon+2)*sizeof(double));
+    my_net[ind].ffti=(double *)xpp_malloc((ncon+2)*sizeof(double));
+    my_net[ind].dr=(double *)xpp_malloc((ncon+2)*sizeof(double));
+    my_net[ind].di=(double *)xpp_malloc((ncon+2)*sizeof(double));
     my_net[ind].iwgt=iwgt;
-    my_net[ind].values=(double *)malloc((ntot+1)*sizeof(double));
+    my_net[ind].values=(double *)xpp_malloc((ntot+1)*sizeof(double));
        init_net(my_net[ind].values,ntot);
     my_net[ind].weight=my_table[iwgt].y;
     my_net[ind].type=ntype;
@@ -711,7 +712,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
  
-    my_net[ind].values=(double *)malloc((ncon+1)*sizeof(double));
+    my_net[ind].values=(double *)xpp_malloc((ncon+1)*sizeof(double));
        init_net(my_net[ind].values,ncon);
     my_net[ind].weight=my_table[iwgt].y;
 
@@ -778,7 +779,7 @@ int add_spec_fun(name,rhs)
     /*for(i=0;i<elen;i++)
       printf("%d %d \n",i,my_net[ind].f[i]);
     */
-    my_net[ind].values=(double *)malloc((ncon+1)*sizeof(double));
+    my_net[ind].values=(double *)xpp_malloc((ncon+1)*sizeof(double));
     init_net(my_net[ind].values,ncon);
     my_net[ind].weight=my_table[iwgt].y;
 
@@ -823,7 +824,7 @@ int add_spec_fun(name,rhs)
 	     name,rootname);
       return 0;
     }
-    my_net[ind].values=(double *)malloc(6*sizeof(double));
+    my_net[ind].values=(double *)xpp_malloc(6*sizeof(double));
     my_net[ind].type=FINDEXT;
     my_net[ind].root=ivar;
     my_net[ind].n=ntot;
@@ -864,10 +865,10 @@ int add_spec_fun(name,rhs)
    case IMPORT:
      ntype=IMPORT;
      for(i=0;i<MAXW;i++)
-       tname[i]=(char *)malloc(25);
+       tname[i]=(char *)xpp_malloc(25);
      err=parse_import(rhs,soname,sofun,&ncon,rootname,&ntab,tname);
      if(err==0)return 0;
-     my_net[ind].values=(double *)malloc((ncon+1)*sizeof(double));
+     my_net[ind].values=(double *)xpp_malloc((ncon+1)*sizeof(double));
      init_net(my_net[ind].values,ncon);
      my_net[ind].n=ncon;
      ivar=get_var_index(rootname);
@@ -892,7 +893,7 @@ int add_spec_fun(name,rhs)
        my_net[ind].wgtlist[i]=my_table[iwgt].y;
      }
      for(i=0;i<MAXW;i++)
-       free(tname[i]);
+       xpp_free(tname[i]);
      plintf(" Added import %s len=%d  with %s %s var[%d] %d weights\n",
 	    name,my_net[ind].n,soname,sofun,ivar,ntab );
      
@@ -947,7 +948,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
  
-    my_net[ind].values=(double *)malloc((ncon+1)*sizeof(double));
+    my_net[ind].values=(double *)xpp_malloc((ncon+1)*sizeof(double));
        init_net(my_net[ind].values,ncon);
     my_net[ind].weight=my_table[iwgt].y;
     my_net[ind].taud=my_table[itau].y;
@@ -1022,7 +1023,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
  
-    my_net[ind].values=(double *)malloc((ntot+1)*sizeof(double));
+    my_net[ind].values=(double *)xpp_malloc((ntot+1)*sizeof(double));
        init_net(my_net[ind].values,ntot);
     my_net[ind].weight=my_table[iwgt].y;
     my_net[ind].index=my_table[iind].y;
@@ -1063,13 +1064,13 @@ int add_spec_fun(name,rhs)
       ivar=0;
     }
     my_net[ind].iwgt=ivar;
-    my_net[ind].gcom=(int *)malloc(1000*sizeof(int));
+    my_net[ind].gcom=(int *)xpp_malloc(1000*sizeof(int));
     if(gilparse(str,my_net[ind].gcom,&ivar2)==0)
       return 0;
     my_net[ind].root=ivar2;
     my_net[ind].n=ivar2+1;
     my_net[ind].ncon=-1;
-    my_net[ind].values=(double *)malloc((ivar2+2)*sizeof(double));
+    my_net[ind].values=(double *)xpp_malloc((ivar2+2)*sizeof(double));
     plintf("Added gillespie chain with %d reactions \n",ivar2);
     return 1;
 
@@ -1214,7 +1215,7 @@ int ind;
      break;
    case GILLTYPE:
      if(my_net[ind].ncon==-1&&my_net[ind].iwgt>0){
-       my_net[ind].weight=(double *)malloc(my_net[ind].root*NODE*sizeof(double));
+       my_net[ind].weight=(double *)xpp_malloc(my_net[ind].root*NODE*sizeof(double));
        make_gill_nu(my_net[ind].weight,NODE,my_net[ind].root,my_net[ind].values);
        my_net[ind].ncon=0;
      }

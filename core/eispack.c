@@ -9,6 +9,7 @@
 
 extern int (*rhs)();
 #include "auto_f2c.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "math.h"
 #include "auto_c.h"
@@ -7437,13 +7438,13 @@ int get_qp(double *a1,int n, double *qr,double *qi, double *pr, double *pi)
   int i,j,k,kt;
   integer *iv1,ier;   /* rg() takes f2c integers, not int */
   double eps=1e-8;
-  at=(double *)malloc(n*n*sizeof(double));
-    a=(double *)malloc(n*n*sizeof(double));
-  z=(double *)malloc(n*n*sizeof(double));
-  wr=(double *)malloc(n*sizeof(double));
-  wi=(double *)malloc(n*sizeof(double));
-  fv1=(double *)malloc(n*sizeof(double));
-   iv1=(integer *)malloc(n*sizeof(integer));
+  at=(double *)xpp_malloc(n*n*sizeof(double));
+    a=(double *)xpp_malloc(n*n*sizeof(double));
+  z=(double *)xpp_malloc(n*n*sizeof(double));
+  wr=(double *)xpp_malloc(n*sizeof(double));
+  wi=(double *)xpp_malloc(n*sizeof(double));
+  fv1=(double *)xpp_malloc(n*sizeof(double));
+   iv1=(integer *)xpp_malloc(n*sizeof(integer));
    xpp_log(XPP_LOG_DEBUG, "I am here \n");
 
   for(i=0;i<n;i++){
@@ -7475,13 +7476,13 @@ int get_qp(double *a1,int n, double *qr,double *qi, double *pr, double *pi)
     }
 
 			
-  free(at);
-  free(a);
-  free(z);
-  free(wr);
-  free(fv1);
-  free(iv1);
-  free(wi);
+  xpp_free(at);
+  xpp_free(a);
+  xpp_free(z);
+  xpp_free(wr);
+  xpp_free(fv1);
+  xpp_free(iv1);
+  xpp_free(wi);
    return(ier);
 
 }

@@ -1,5 +1,6 @@
 
 #include "do_fit.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 
 #include "cv2.h"
@@ -378,7 +379,7 @@ void test_fit()
      return;
    }
  }
- yfit=(double *)malloc(fin.npts*fin.nvars*sizeof(double));
+ yfit=(double *)xpp_malloc(fin.npts*fin.nvars*sizeof(double));
   for(i=0;i<NODE;i++)
     y0[i]=last_ic[i];
   for(i=0;i<fin.npars;i++){
@@ -395,7 +396,7 @@ void test_fit()
 	 fin.ipar,fin.ivar,fin.icols,
 	 y0,a,yfit);
 
-   free(yfit);
+   xpp_free(yfit);
    if(ok==0)return;
 
  /* get the latest par values ...  */
@@ -451,21 +452,21 @@ int run_fit( filename,  /* string */
     err_msg("No such file...");
     return(0);
   }
-  t0=(double *)malloc((npts+1)*sizeof(double));
-  y=(double *)malloc((npts+1)*nvars*sizeof(double));
+  t0=(double *)xpp_malloc((npts+1)*sizeof(double));
+  y=(double *)xpp_malloc((npts+1)*nvars*sizeof(double));
 /* load up the data to fit   */
 
   for(i=0;i<npts;i++){
     if(fscanf(fp,"%lg ",&t)!=1){
       err_msg("Data file too short...");
-      free(t0);free(y);fclose(fp);
+      xpp_free(t0);xpp_free(y);fclose(fp);
       return(0);
     }
 
     for(j=0;j<ndim-1;j++)
       if(fscanf(fp,"%lg ",&ytemp[j])!=1){
 	err_msg("Data file too short...");
-	free(t0);free(y);fclose(fp);
+	xpp_free(t0);xpp_free(y);fclose(fp);
 	return(0);
       }
     t0[i]=t;
@@ -482,15 +483,15 @@ int run_fit( filename,  /* string */
 
   
 
-  work=(double *)malloc(sizeof(double)*(4*npars+npars*npars));
-  yderv=(double **)malloc(npars*sizeof(double *));
+  work=(double *)xpp_malloc(sizeof(double)*(4*npars+npars*npars));
+  yderv=(double **)xpp_malloc(npars*sizeof(double *));
   for(i=0;i<npars;i++)
-    yderv[i]=(double *)malloc((npts+1)*nvars*sizeof(double));
+    yderv[i]=(double *)xpp_malloc((npts+1)*nvars*sizeof(double));
   for(i=0;i<nvars;i++)
     sig[i]=1.0;
     
-  covar=(double *)malloc(npars*npars*sizeof(double));
-  alpha=(double *)malloc(npars*npars*sizeof(double));
+  covar=(double *)xpp_malloc(npars*npars*sizeof(double));
+  alpha=(double *)xpp_malloc(npars*npars*sizeof(double));
   
   while(good_flag<3){  /* take 3 good steps after convergence  */
     
@@ -523,28 +524,28 @@ int run_fit( filename,  /* string */
   if(ok==0){
     err_msg("Error in step...");
 
- free(work);
+ xpp_free(work);
   for(i=0;i<npars;i++)
-    free(yderv[i]);
-  free(yderv);
-  free(alpha);
-  free(covar);
-  free(t0);
-  free(y);
+    xpp_free(yderv[i]);
+  xpp_free(yderv);
+  xpp_free(alpha);
+  xpp_free(covar);
+  xpp_free(t0);
+  xpp_free(y);
   
     return(0);
   }
   if(niter>=maxiter){
     err_msg("Max iterations exceeded...");
 
- free(work);
+ xpp_free(work);
   for(i=0;i<npars;i++)
-    free(yderv[i]);
-  free(yderv);
-  free(alpha);
-  free(covar);
-  free(t0);
-  free(y);
+    xpp_free(yderv[i]);
+  xpp_free(yderv);
+  xpp_free(alpha);
+  xpp_free(covar);
+  xpp_free(t0);
+  xpp_free(y);
   
 
     return(1);
@@ -563,14 +564,14 @@ int run_fit( filename,  /* string */
   }
 
 
-  free(work);
+  xpp_free(work);
   for(i=0;i<npars;i++)
-    free(yderv[i]);
-  free(yderv);
-  free(alpha);
-  free(covar);
-  free(t0);
-  free(y);
+    xpp_free(yderv[i]);
+  xpp_free(yderv);
+  xpp_free(alpha);
+  xpp_free(covar);
+  xpp_free(t0);
+  xpp_free(y);
   
   return(1);
 }  

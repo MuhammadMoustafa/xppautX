@@ -1,5 +1,6 @@
 
 #include "storage.h"
+#include "xpp_mem.h"
 #include "ggets.h"
 #include <stdlib.h> 
 #include <stdio.h>
@@ -30,7 +31,7 @@ void init_alloc_info()
   int i;
   xpv.node=NODE+NMarkov;
   xpv.nvec=0; /* this is just for now */
-  xpv.x=(double *)malloc((xpv.nvec+xpv.node)*sizeof(double));
+  xpv.x=(double *)xpp_malloc((xpv.nvec+xpv.node)*sizeof(double));
   /* plintf(" node=%d nvec=%d \n",xpv.node,xpv.nvec); */
   for(i=xpv.node;i<(xpv.nvec+xpv.node);i++)
     xpv.x[i]=0.0;
@@ -57,15 +58,15 @@ void alloc_meth()
     break;
   }
   if(WORK)
-    free(WORK);
-  WORK=(double *)malloc(sz*sizeof(double));
+    xpp_free(WORK);
+  WORK=(double *)xpp_malloc(sz*sizeof(double));
   /* plintf(" I have allocated %d doubles \n",sz); */
 }
     
 int reallocstor(int ncol,int nrow)
 {
   int i=0;
-  while((storage[i]=(float *)realloc(storage[i],nrow*sizeof(float)))!=NULL){
+  while((storage[i]=(float *)xpp_realloc(storage[i],nrow*sizeof(float)))!=NULL){
    i++;
    if(i==ncol)return 1;
    }  
@@ -80,12 +81,12 @@ int nrow,ncol;
  /* WORK=(double *)malloc(WORKSIZE*sizeof(double));
     if(WORK!=NULL){ */
 WORK=NULL;
- storage=(float **)malloc((MAXODE+1)*sizeof(float *));
+ storage=(float **)xpp_malloc((MAXODE+1)*sizeof(float *));
  MAXSTOR=nrow;
  storind=0;
  if(storage!=NULL){
    i=0;
-   while((storage[i]=(float *)malloc(nrow*sizeof(float)))!=NULL){
+   while((storage[i]=(float *)xpp_malloc(nrow*sizeof(float)))!=NULL){
    i++;
    if(i==ncol)return;
    }
@@ -102,9 +103,9 @@ void free_storage(ncol)
 int ncol;
 {
   int i;
-  for(i=0;i<ncol;i++)free(storage[i]);
-  free(storage);
-  if(WORK)free(WORK);
+  for(i=0;i<ncol;i++)xpp_free(storage[i]);
+  xpp_free(storage);
+  if(WORK)xpp_free(WORK);
   
 }
 

@@ -11,6 +11,7 @@
 
 
 #include <stdio.h>
+#include "xpp_mem.h"
 #include <stdlib.h>
 #include "cvspgmr.h"
 #include "cvode.h"
@@ -189,7 +190,7 @@ void CVSpgmr(void *cvode_mem, int pretype, int gstype, int maxl, real delt,
   lfree  = CVSpgmrFree;
 
   /* Get memory for CVSpgmrMemRec */
-  lmem = cvspgmr_mem = (CVSpgmrMem) malloc(sizeof(CVSpgmrMemRec));
+  lmem = cvspgmr_mem = (CVSpgmrMem) xpp_malloc(sizeof(CVSpgmrMemRec));
   if (cvspgmr_mem == NULL) return;  /* CVSpgmrInit reports this error */
 
   /* Set Spgmr parameters that have been passed in call sequence */
@@ -426,7 +427,7 @@ static void CVSpgmrFree(CVodeMem cv_mem)
   N_VFree(ytemp);
   N_VFree(x);
   SpgmrFree(spgmr_mem);
-  free(lmem);
+  xpp_free(lmem);
 }
 
 /*************** CVSpgmrAtimesDQ *************************************

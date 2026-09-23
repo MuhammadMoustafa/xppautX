@@ -1,4 +1,5 @@
 #include "markov.h"
+#include "xpp_mem.h"
 
 #include "integrate.h"
 #include "browse.h"
@@ -267,13 +268,13 @@ void create_markov(nstates,st,type,name)
   }
 
   markov[j].nstates=nstates;
-  markov[j].states=(double *)malloc(nstates*sizeof(double));
+  markov[j].states=(double *)xpp_malloc(nstates*sizeof(double));
   if(type==0){
-    markov[j].trans=(char **)malloc(n2*sizeof(char*));
-    markov[j].command = (int **)malloc(n2*sizeof(int*));
+    markov[j].trans=(char **)xpp_malloc(n2*sizeof(char*));
+    markov[j].command = (int **)xpp_malloc(n2*sizeof(int*));
   }
   else {
-    markov[j].fixed=(double *)malloc(n2*sizeof(double));
+    markov[j].fixed=(double *)xpp_malloc(n2*sizeof(double));
     
   }
     
@@ -292,7 +293,7 @@ void add_markov_entry(index,j,k,expr)
   int l0=markov[index].nstates*j+k;
   int type=markov[index].type;
   if(type==0){
-  markov[index].trans[l0]=(char *)malloc(sizeof(char)*(strlen(expr)+1));
+  markov[index].trans[l0]=(char *)xpp_malloc(sizeof(char)*(strlen(expr)+1));
   strcpy(markov[index].trans[l0],expr);
   /*  compilation step -- can be delayed */
  /*
@@ -345,7 +346,7 @@ int compile_markov(index,j,k)
   
   if(add_expr(expr,com,&leng))
     return -1;
-  markov[index].command[l0]=(int *)malloc(sizeof(int)*(leng+2));
+  markov[index].command[l0]=(int *)xpp_malloc(sizeof(int)*(leng+2));
   for(i=0;i<leng;i++){
     markov[index].command[l0][i]=com[i];
     
@@ -434,9 +435,9 @@ void make_gill_nu(double *nu,int n,int m,double *v)
   double *y,*yp,*yold;
   int ir,iy;
 
-  y=(double *)malloc(n*sizeof(double));
-  yold=(double *)malloc(n*sizeof(double));
-  yp=(double *)malloc(n*sizeof(double));
+  y=(double *)xpp_malloc(n*sizeof(double));
+  yold=(double *)xpp_malloc(n*sizeof(double));
+  yp=(double *)xpp_malloc(n*sizeof(double));
   for(ir=0;ir<m;ir++)
     v[ir+1]=0;
   rhs_only(y,yold);
@@ -450,9 +451,9 @@ void make_gill_nu(double *nu,int n,int m,double *v)
     v[ir+1]=0;
   }
 
-  free(y);
-  free(yp);
-  free(yold);
+  xpp_free(y);
+  xpp_free(yp);
+  xpp_free(yold);
 
 }
 
@@ -604,8 +605,8 @@ void free_stoch()
   if(STOCH_HERE){
     data_back();
     for(i=0;i<(NEQ+1);i++){
-      free(my_mean[i]);
-      free(my_variance[i]);
+      xpp_free(my_mean[i]);
+      xpp_free(my_variance[i]);
     }
     STOCH_HERE=0;
   }
@@ -619,8 +620,8 @@ void init_stoch(len)
   N_TRIALS=0;
   stoch_len=len;
   for(i=0;i<(NEQ+1);i++){
-    my_mean[i]=(float *)malloc(sizeof(float)*stoch_len);
-    my_variance[i]=(float *)malloc(sizeof(float)*stoch_len);
+    my_mean[i]=(float *)xpp_malloc(sizeof(float)*stoch_len);
+    my_variance[i]=(float *)xpp_malloc(sizeof(float)*stoch_len);
     for(j=0;j<stoch_len;j++){
       my_mean[i][j]=0.0;
       my_variance[i][j]=0.0;

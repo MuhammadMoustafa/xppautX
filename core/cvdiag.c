@@ -11,6 +11,7 @@
 
 
 #include <stdio.h>
+#include "xpp_mem.h"
 #include <stdlib.h>
 #include "cvdiag.h"
 #include "cvode.h"
@@ -126,7 +127,7 @@ void CVDiag(void *cvode_mem)
   lfree  = CVDiagFree;
 
   /* Get memory for CVDiagMemRec */
-  lmem = cvdiag_mem = (CVDiagMem) malloc(sizeof(CVDiagMemRec));
+  lmem = cvdiag_mem = (CVDiagMem) xpp_malloc(sizeof(CVDiagMemRec));
   if (cvdiag_mem == NULL) return; /* CVDiagInit reports this error */
 }
 
@@ -288,5 +289,5 @@ static void CVDiagFree(CVodeMem cv_mem)
   N_VFree(M);
   N_VFree(bit);
   N_VFree(bitcomp);
-  free(lmem);
+  xpp_free(lmem);
 }

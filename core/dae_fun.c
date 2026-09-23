@@ -1,5 +1,6 @@
 
 #include "dae_fun.h"
+#include "xpp_mem.h"
 #include "gear.h"
 #include "parserslow.h"
 
@@ -64,7 +65,7 @@ int add_svar(name,rhs)
   }
   if(name_too_long(name))return 1;
   strcpy(svar[nsvar].name,name);
-  svar[nsvar].rhs=(char *) malloc(80);
+  svar[nsvar].rhs=(char *) xpp_malloc(80);
   strcpy(svar[nsvar].rhs,rhs);
   plintf(" Added sol-var[%d] %s = %s \n",
 	 nsvar,svar[nsvar].name,svar[nsvar].rhs);
@@ -94,7 +95,7 @@ int add_aeqn(rhs)
     plintf(" Too many equations\n");
     return 1;
   }
-  aeqn[naeqn].rhs=(char *) malloc(strlen(rhs)+5);
+  aeqn[naeqn].rhs=(char *) xpp_malloc(strlen(rhs)+5);
   strcpy(aeqn[naeqn].rhs,rhs);
   naeqn++;
  return 0;
@@ -115,7 +116,7 @@ int compile_svars()
     plintf(" Bad right-hand side for alg-eqn \n");
     return(1);
     }
-    aeqn[i].form=(int *)malloc(sizeof(int)*(n+2));
+    aeqn[i].form=(int *)xpp_malloc(sizeof(int)*(n+2));
     for(k=0;k<n;k++)
       aeqn[i].form[k]=f[k];
   }
@@ -125,7 +126,7 @@ int compile_svars()
     plintf(" Bad initial guess for sol-var \n");
     return(1);
     }
-    svar[i].form=(int *)malloc(100*sizeof(int));
+    svar[i].form=(int *)xpp_malloc(100*sizeof(int));
     for(k=0;k<n;k++)
       svar[i].form[k]=f[k];
    }
@@ -176,8 +177,8 @@ void err_dae()
 void init_dae_work()
 {
 
-  dae_work.work=(double *)malloc(sizeof(double)*(nsvar*nsvar+10*nsvar));
-  dae_work.iwork=(int *)malloc(sizeof(int)*nsvar);
+  dae_work.work=(double *)xpp_malloc(sizeof(double)*(nsvar*nsvar+10*nsvar));
+  dae_work.iwork=(int *)xpp_malloc(sizeof(int)*nsvar);
   dae_work.status=1;
 }
 

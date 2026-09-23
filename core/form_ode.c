@@ -1,4 +1,5 @@
 #include "form_ode.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "aniparse.h"
 
@@ -410,7 +411,7 @@ int get_eqn(fptr)
     xpp_log(XPP_LOG_WARN, "whoops! NLINES>MAXLINES in form_ode.c ...\n");
     exit(1);
   };
-  if((save_eqn[NLINES]=(char *)malloc(nn))==NULL){
+  if((save_eqn[NLINES]=(char *)xpp_malloc(nn))==NULL){
     plintf("Out of memory...");
     exit(0);
   }
@@ -444,7 +445,7 @@ int get_eqn(fptr)
       {
 	if(fgets(bob,MAXEXPLEN,fptr)==NULL)break;
 	nn=strlen(bob)+1;
-	if((save_eqn[NLINES]=(char *)malloc(nn))==NULL)exit(0);
+	save_eqn[NLINES]=(char *)xpp_malloc(nn);
 	strncpy(save_eqn[NLINES++],bob,nn);
 	/* plintf("inc NLINES in geteqn2 %s \n",bob); */
 	done=compiler(bob,fptr);
@@ -466,9 +467,9 @@ int get_eqn(fptr)
   if(BVP_N<IN_VARS ){
     if(BVP_N>0)xpp_log(XPP_LOG_WARN, "Warning: Too few boundary conditions\n");
     for(i=BVP_N;i<IN_VARS ;i++){
-      my_bc[i].com=(int *)malloc(200*sizeof(int));
-      my_bc[i].string=(char *)malloc(256);
-      my_bc[i].name=(char *)malloc(10);
+      my_bc[i].com=(int *)xpp_malloc(200*sizeof(int));
+      my_bc[i].string=(char *)xpp_malloc(256);
+      my_bc[i].name=(char *)xpp_malloc(10);
       my_bc[i].side=0;
       strcpy(my_bc[i].string,"0");
       strcpy(my_bc[i].name,"0=");
@@ -639,7 +640,7 @@ int compiler(bob,fptr)
       while((my_string=get_next2(&ptr))!=NULL)
 	{
 	  take_apart(my_string,&value,name);
-	  free(my_string);
+	  xpp_free(my_string);
 	  plintf("|%s|=%f ",name,value);
 	  if(ConvertStyle)
 	    fprintf(convertf,"%s  ",name);
@@ -663,7 +664,7 @@ int compiler(bob,fptr)
       while((my_string=get_next2(&ptr))!=NULL)
 	{
 	  take_apart(my_string,&value,name);
-	  free(my_string);
+	  xpp_free(my_string);
 	  if(ConvertStyle)
 	    fprintf(convertf,"%s=%g  ",name,value);
           
@@ -707,7 +708,7 @@ int compiler(bob,fptr)
 	{
 
 	  take_apart(my_string,&value,name);
-	  free(my_string);
+	  xpp_free(my_string);
 	  if(add_con(name,value)){
 	    plintf("ERROR at line %d\n",NLINES);
 	    exit(0);
@@ -758,7 +759,7 @@ int compiler(bob,fptr)
       index=old_build_markov(fptr,name);
       nn=strlen(save_eqn[nlin]);
       /* if(nn>72)nn=72; */
-      if((ode_names[IN_VARS+index]=(char *)malloc(nn+10))==NULL)exit(0);
+      ode_names[IN_VARS+index]=(char *)xpp_malloc(nn+10);
       strcpy(formula,save_eqn[nlin]);
       /*      formula[nn-1]=0; */
       sprintf(ode_names[IN_VARS+index],"{ %s ... }",formula);
@@ -782,7 +783,7 @@ int compiler(bob,fptr)
 	      exit(0);
 	    }
 	  take_apart(my_string,&value,name);
-	  free(my_string);
+	  xpp_free(my_string);
 	  if(name_too_long(name)||add_var(name,value)){
 	    plintf("ERROR at line %d\n",NLINES);
 	    exit(0);
@@ -811,11 +812,11 @@ int compiler(bob,fptr)
       break;
     case 'b':
             my_string=get_next("\n");
-      my_bc[BVP_N].com=(int *)malloc(200*sizeof(int));
+      my_bc[BVP_N].com=(int *)xpp_malloc(200*sizeof(int));
       /*         plintf(" adding boundary condition %s \n",my_string);
        */
-      my_bc[BVP_N].string=(char *)malloc(256);
-      my_bc[BVP_N].name=(char *)malloc(10);
+      my_bc[BVP_N].string=(char *)xpp_malloc(256);
+      my_bc[BVP_N].name=(char *)xpp_malloc(10);
       strcpy(my_bc[BVP_N].string,my_string);
       strcpy(my_bc[BVP_N].name,"0=");
       if(ConvertStyle)
@@ -941,14 +942,14 @@ int compiler(bob,fptr)
       strcpy(formula,my_string);
       nn=strlen(formula)+1;
       /* if(nn>79)nn=79;  */
-      if((my_ode[NODE]=(int *)malloc(MAXEXPLEN*sizeof(int)))==NULL){
+      if((my_ode[NODE]=(int *)xpp_malloc(MAXEXPLEN*sizeof(int)))==NULL){
 	xpp_log(XPP_LOG_WARN, "Out of memory at line %d\n",NLINES);
 	exit(0);
       }
       
       if(NODE<IN_VARS)
 	{
-	  if((ode_names[NODE]=(char *)malloc(nn+5))==NULL){
+	  if((ode_names[NODE]=(char *)xpp_malloc(nn+5))==NULL){
 	    plintf("Out of memory at line %d\n",NLINES);
 	    exit(0);
 	  }
@@ -979,7 +980,7 @@ int compiler(bob,fptr)
       if(NODE>=(IN_VARS+FIX_VAR))
 	{
 	  i=NODE-(IN_VARS+FIX_VAR);
-	  if((ode_names[NODE-FIX_VAR+NMarkov]=(char *)malloc(nn))==NULL){
+	  if((ode_names[NODE-FIX_VAR+NMarkov]=(char *)xpp_malloc(nn))==NULL){
 	    plintf("Out of memory at line %d\n",NLINES);
 	    exit(0);
 	  }
@@ -1448,7 +1449,7 @@ int nnn;
      case 0:  /*  not a for loop so */ 
      case 1:
            nstrings=1;
-           strings[0]=(char *)malloc(strlen(new)+10);
+           strings[0]=(char *)xpp_malloc(strlen(new)+10);
            strcpy(strings[0],new);
            break;
       case 2: /*  a for loop, so we will ignore the first line */
@@ -1457,7 +1458,7 @@ int nnn;
              read_a_line(fp,old);
              if(old[0]=='%')
                break;
-             strings[nstrings]=(char *)malloc(strlen(old)+10);
+             strings[nstrings]=(char *)xpp_malloc(strlen(old)+10);
              strcpy(strings[nstrings],old);
              nstrings++;
              if(nstrings>255)break;
@@ -1522,12 +1523,12 @@ int nnn;
        */
        add_markov(nstates,name);
        if(jj==jj1) {  /* test to see if this is the first one */
-	 markovarrays=(char **)malloc(nstates*sizeof(char *));
-	  markovarrays2=(char **)malloc(nstates*sizeof(char *));
+	 markovarrays=(char **)xpp_malloc(nstates*sizeof(char *));
+	  markovarrays2=(char **)xpp_malloc(nstates*sizeof(char *));
 
 	 for(istates=0;istates<nstates;istates++){
-	   markovarrays[istates]=(char *)malloc(MAXEXPLEN);
-	   markovarrays2[istates]=(char *)malloc(MAXEXPLEN);
+	   markovarrays[istates]=(char *)xpp_malloc(MAXEXPLEN);
+	   markovarrays2[istates]=(char *)xpp_malloc(MAXEXPLEN);
 	   /* fgets(markovarrays[istates],MAXEXPLEN,fp); */
 
            if(is_array==2)
@@ -1683,17 +1684,17 @@ int nnn;
 
    if(v.type==COMMAND && v.lhs[0]=='M' && v.lhs[1]=='A'){
     for(istates=0;istates<nstates;istates++){
-      free(markovarrays[istates]);
-      free(markovarrays2[istates]);
+      xpp_free(markovarrays[istates]);
+      xpp_free(markovarrays2[istates]);
     }
-    free(markovarrays);
-    free(markovarrays2);
+    xpp_free(markovarrays);
+    xpp_free(markovarrays2);
   }
  
      
  }
  for(ns=0;ns<nstrings;ns++)
-   free(strings[ns]);
+   xpp_free(strings[ns]);
  compile_em();
  
  free_varinfo();
@@ -1706,7 +1707,7 @@ void create_plot_list()
 {
   int i,j=0,k;
   if(N_only==0)return;
-  plotlist=(int *)malloc(sizeof(int)*(N_only+1));
+  plotlist=(int *)xpp_malloc(sizeof(int)*(N_only+1));
   for(i=0;i<N_only;i++){
     find_variable(onlylist[i],&k);
     if(k>=0){
@@ -1722,7 +1723,7 @@ void add_only(char *s)
 {
   if(strlen(s)<1)return;
   if(N_only>=MAXONLY)return;
-  onlylist[N_only]=(char *)malloc(strlen(s)+1);
+  onlylist[N_only]=(char *)xpp_malloc(strlen(s)+1);
   strcpy(onlylist[N_only],s);
 
   N_only++;
@@ -1872,8 +1873,8 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	exit(0);
     }
     if(v->type==FIXED){
-      fixinfo[nfix].name=(char *)malloc(strlen(v->lhs)+2);
-      fixinfo[nfix].value=(char *)malloc(strlen(v->rhs)+2);
+      fixinfo[nfix].name=(char *)xpp_malloc(strlen(v->lhs)+2);
+      fixinfo[nfix].value=(char *)xpp_malloc(strlen(v->rhs)+2);
       strcpy(fixinfo[nfix].name,v->lhs);
       strcpy(fixinfo[nfix].value,v->rhs);
       convert(v->lhs,tmp);
@@ -1979,7 +1980,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
       while((my_string=get_next2(&ptr))!=NULL)
 	{
 	  take_apart(my_string,&z,name);
-	  free(my_string);
+	  xpp_free(my_string);
 	   convert(name,tmp);
 	   in=find_the_name(vnames,IN_VARS,tmp);
 	   if(in>=0){
@@ -2055,8 +2056,8 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
      case MAP:
        EqType[nvar]=iflag;
        nn=strlen(v->rhs)+1;
-       if((ode_names[nvar]=(char *)malloc(nn+2))==NULL||
-	  (my_ode[nvar]=(int *)malloc(MAXEXPLEN*sizeof(int)))==NULL){
+       if((ode_names[nvar]=(char *)xpp_malloc(nn+2))==NULL||
+	  (my_ode[nvar]=(int *)xpp_malloc(MAXEXPLEN*sizeof(int)))==NULL){
 	 plintf("could not allocate space for %s \n",v->lhs);
 	 exit(0);
        }
@@ -2082,7 +2083,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        break;
       case FIXED:
        find_ker(v->rhs,&alt);
-       if((my_ode[nfix+IN_VARS]=(int *)malloc(MAXEXPLEN*sizeof(int)))==NULL ||
+       if((my_ode[nfix+IN_VARS]=(int *)xpp_malloc(MAXEXPLEN*sizeof(int)))==NULL ||
 	  add_expr(v->rhs,my_ode[nfix+IN_VARS],&leng[IN_VARS+nfix])!=0){
 	 plintf(" Error allocating or compiling %s\n",v->lhs);
 	 exit(0);
@@ -2100,8 +2101,8 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        in1=IN_VARS+NMarkov+naux;
        in2=IN_VARS+FIX_VAR+naux;
               nn=strlen(v->rhs)+1;
-	 if((ode_names[in1]=(char *)malloc(nn+2))==NULL||
-	    (my_ode[in2]=(int *)malloc(MAXEXPLEN*sizeof(int)))==NULL){
+	 if((ode_names[in1]=(char *)xpp_malloc(nn+2))==NULL||
+	    (my_ode[in2]=(int *)xpp_malloc(MAXEXPLEN*sizeof(int)))==NULL){
 	   plintf("could not allocate space for %s \n",v->lhs);
 	   exit(0);
 	 }
@@ -2133,7 +2134,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
      case MARKOV_VAR:
        nn=strlen(v->rhs)+1;
 
-       if((ode_names[IN_VARS+nmark]=(char *)malloc(nn+2))==NULL){
+       if((ode_names[IN_VARS+nmark]=(char *)xpp_malloc(nn+2))==NULL){
 	 plintf(" Out of memory for  %s \n",v->lhs);
 	 exit(0);
        }
@@ -2416,7 +2417,7 @@ good_type:
 
 void init_varinfo()
 {
- my_varinfo=(VAR_INFO *)malloc(sizeof(VAR_INFO));
+ my_varinfo=(VAR_INFO *)xpp_malloc(sizeof(VAR_INFO));
  my_varinfo->next=NULL;
  my_varinfo->prev=NULL;
  start_var_info=0;
@@ -2446,7 +2447,7 @@ void add_varinfo(type,lhs,rhs,nargs,args)
     while(v->next != NULL){
       v=(v->next);
     }
-    v->next=(VAR_INFO *)malloc(sizeof(VAR_INFO));
+    v->next=(VAR_INFO *)xpp_malloc(sizeof(VAR_INFO));
     vnew=v->next;
     vnew->type=type;
     vnew->nargs=nargs;
@@ -2470,7 +2471,7 @@ void free_varinfo()
     vnew=v->prev;
     v->next=NULL;
     v->prev=NULL;
-    free(v);
+    xpp_free(v);
     v=vnew;
   }
   init_varinfo();
@@ -2665,7 +2666,7 @@ void read_a_line(fp,s)
     if(fgets(temp,MAXEXPLEN,fp)==NULL){temp[0]=0;}
 
      nn=strlen(temp)+1;
-     if((save_eqn[NLINES]=(char *)malloc(nn))==NULL)exit(0);
+     save_eqn[NLINES]=(char *)xpp_malloc(nn);
      strncpy(save_eqn[NLINES++],temp,nn);
      /* plintf("inc NLINES in readaline %s \n",temp); */
      /* plintf(" NLINES = %d \n",NLINES); */
@@ -2989,11 +2990,11 @@ void keep_orig_comments()
   
   if(orig_ncomments>0)return; /* already stored these so return */
   if(n_comments==0)return; /* nothing to keep ! */
-  orig_comments=(ACTION *)malloc(sizeof(ACTION)*n_comments);
+  orig_comments=(ACTION *)xpp_malloc(sizeof(ACTION)*n_comments);
   for(i=0;i<n_comments;i++){
-    orig_comments[i].text=(char *)malloc(strlen(comments[i].text)+1);
+    orig_comments[i].text=(char *)xpp_malloc(strlen(comments[i].text)+1);
     if(comments[i].aflag)
-      orig_comments[i].action=(char *)malloc(strlen(comments[i].action)+1);
+      orig_comments[i].action=(char *)xpp_malloc(strlen(comments[i].action)+1);
     strcpy(orig_comments[i].text,comments[i].text);
     if(comments[i].aflag)
       strcpy(orig_comments[i].action,comments[i].action);
@@ -3009,10 +3010,10 @@ void default_comments()
   /* first free up the comments */
   free_comments();
   for(i=0;i<orig_ncomments;i++){ 
-    comments[i].text=(char *)malloc(strlen(orig_comments[i].text)+1);
+    comments[i].text=(char *)xpp_malloc(strlen(orig_comments[i].text)+1);
     strcpy(comments[i].text,orig_comments[i].text);
     if(orig_comments[i].aflag){
-      comments[i].action=(char *)malloc(strlen(orig_comments[i].action)+1);
+      comments[i].action=(char *)xpp_malloc(strlen(orig_comments[i].action)+1);
       strcpy(comments[i].action,orig_comments[i].action);
     }
     comments[i].aflag=orig_comments[i].aflag;
@@ -3023,9 +3024,9 @@ void free_comments()
 {
   int i;
   for(i=0;i<n_comments;i++){
-     free(comments[i].text);
+     xpp_free(comments[i].text);
       if(comments[i].aflag)
-	free(comments[i].action);
+	xpp_free(comments[i].action);
   }
   n_comments=0;
 }
@@ -3060,7 +3061,7 @@ void add_comment(char *s)
     }
   }
   if(noact){
-    comments[n_comments].text=(char *)malloc(strlen(s)+1);
+    comments[n_comments].text=(char *)xpp_malloc(strlen(s)+1);
     strcpy(comments[n_comments].text,s+1);
     comments[n_comments].aflag=0;
   }
@@ -3093,9 +3094,9 @@ void add_comment(char *s)
       ja++;
     }
     text[ja]=0;
-    comments[n_comments].text=(char *)malloc(strlen(text)+1);
+    comments[n_comments].text=(char *)xpp_malloc(strlen(text)+1);
     strcpy(comments[n_comments].text,text);
-    comments[n_comments].action=(char *)malloc(strlen(action)+1);
+    comments[n_comments].action=(char *)xpp_malloc(strlen(action)+1);
     strcpy(comments[n_comments].action,action);
     comments[n_comments].aflag=1;
 
@@ -3118,7 +3119,7 @@ void advance_past_first_word(char** sptr) {
 
 char* new_string2(char* old, int length) {
     /*cout << "new_string2(\"" << old << "\", " << length << ")\n"; */
-    char* s = (char*) malloc((length + 1) * sizeof(char));
+    char* s = (char*) xpp_malloc((length + 1) * sizeof(char));
     memcpy(s, old, length);
     s[length] = '\0';
     if (length > 0 && s[length - 1] == ',') {

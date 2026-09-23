@@ -1,4 +1,5 @@
 #include "diagram.h"
+#include "xpp_mem.h"
 #include "autevd.h"
 #include "init_conds.h"
 #include "ggets.h"
@@ -12,7 +13,7 @@
 #include <stdio.h>
 #include "autlim.h"
 #include "load_eqn.h"
-#define DALLOC(a) (double *)malloc((a)*sizeof(double))
+#define DALLOC(a) (double *)xpp_malloc((a)*sizeof(double))
 int refresh_browser();
 extern int TypeOfCalc;
 extern ROTCHK blrtn;
@@ -33,7 +34,7 @@ void start_diagram(n)
      int n;
 {
   NBifs=1;
-  bifd=(DIAGRAM *)malloc(sizeof(DIAGRAM));
+  bifd=(DIAGRAM *)xpp_malloc(sizeof(DIAGRAM));
   bifd->prev=NULL;
   bifd->next=NULL;
   bifd->index=0;
@@ -152,7 +153,7 @@ void add_diagram(ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,
  while(d->next != NULL){
    d=(d->next);
  }
- d->next=(DIAGRAM *)malloc(sizeof(DIAGRAM));
+ d->next=(DIAGRAM *)xpp_malloc(sizeof(DIAGRAM));
  dnew=d->next;
  dnew->next=NULL;
  dnew->prev=d;
@@ -180,13 +181,13 @@ void kill_diagrams()
    dnew=d->prev;
    d->next=NULL;
    d->prev=NULL;
-   free(d->uhi);
-   free(d->ulo);
-   free(d->u0);
-   free(d->ubar);
-   free(d->evr);
-   free(d->evi);
-   free(d);
+   xpp_free(d->uhi);
+   xpp_free(d->ulo);
+   xpp_free(d->u0);
+   xpp_free(d->ubar);
+   xpp_free(d->evr);
+   xpp_free(d->evi);
+   xpp_free(d);
    d=dnew;
  }
 /*  NBifs=1;
@@ -194,13 +195,13 @@ void kill_diagrams()
   bifd->next=NULL;
   bifd->index=0;
   */
-  free(bifd->uhi);
-  free(bifd->ulo);
-  free(bifd->u0);
-  free(bifd->ubar);
-  free(bifd->evr);
-  free(bifd->evi);
-  free(bifd);
+  xpp_free(bifd->uhi);
+  xpp_free(bifd->ulo);
+  xpp_free(bifd->u0);
+  xpp_free(bifd->ubar);
+  xpp_free(bifd->evr);
+  xpp_free(bifd->evi);
+  xpp_free(bifd);
   start_diagram(NODE);
 }
 

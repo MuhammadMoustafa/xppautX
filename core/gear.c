@@ -1,4 +1,5 @@
 #include "xpp_ui.h"
+#include "xpp_mem.h"
 #include "gear.h"
 #include "ggets.h"
 #include "menudrive.h"
@@ -66,7 +67,7 @@ void silent_fixpt(double *x,double eps,double err,double big,int maxit,int n,
  
  kmem=n*(2*n+5)+50;
  *ierr=0;
- if((work=(double *)malloc(sizeof(double)*kmem))==NULL)
+ if((work=(double *)xpp_malloc(sizeof(double)*kmem))==NULL)
  {
   err_msg("Insufficient core ");
   *ierr=1;
@@ -82,7 +83,7 @@ void silent_fixpt(double *x,double eps,double err,double big,int maxit,int n,
  rooter(x,err,eps,big,work,ierr,maxit,n);
  if(*ierr!=0)
  {
-  free(work);
+  xpp_free(work);
   for(i=0;i<n;i++)x[i]=old_x[i];
   return;
  }
@@ -104,7 +105,7 @@ void silent_fixpt(double *x,double eps,double err,double big,int maxit,int n,
  eigen(n,work,eval,ework,ierr);
  if(*ierr!=0)
  {
-    free(work);
+    xpp_free(work);
   return;
  }
   for(i=0;i<n;i++)
@@ -136,7 +137,7 @@ int maxit, n,*ierr;
  int bpos=0,bneg=0;
  /* float xl[MAXODE]; */
  kmem=n*(2*n+5)+50;
- if((work=(double *)malloc(sizeof(double)*kmem))==NULL)
+ if((work=(double *)xpp_malloc(sizeof(double)*kmem))==NULL)
  {
   err_msg("Insufficient core ");
   return;
@@ -152,7 +153,7 @@ int maxit, n,*ierr;
  rooter(x,err,eps,big,work,ierr,maxit,n);
  if(*ierr!=0)
  {
-  free(work);
+  xpp_free(work);
   err_msg("Could not converge to root");
   for(i=0;i<n;i++)x[i]=old_x[i];
   return;
@@ -178,7 +179,7 @@ int maxit, n,*ierr;
  if(*ierr!=0)
  {
   err_msg("Could not compute eigenvalues");
-  free(work);
+  xpp_free(work);
   return;
  }
 /* succesfully computed evals now lets work with them */
@@ -360,7 +361,7 @@ if(!PAR_FOL)
   
 
  
- free(work);
+ xpp_free(work);
  return;
 }
 
@@ -452,7 +453,7 @@ void do_sing_info(x,eps, err,big,maxit, n,er,em,ierr)
 
  /* float xl[MAXODE]; */
  kmem=n*(2*n+5)+50;
- if((work=(double *)malloc(sizeof(double)*kmem))==NULL)
+ if((work=(double *)xpp_malloc(sizeof(double)*kmem))==NULL)
  {
    /* printf("Insufficient core \n");  */
   return;
@@ -469,7 +470,7 @@ void do_sing_info(x,eps, err,big,maxit, n,er,em,ierr)
  rooter(x,err,eps,big,work,ierr,maxit,n);
  if(*ierr!=0)
  {
-  free(work);
+  xpp_free(work);
   /* err_msg("Could not converge to root"); */
   for(i=0;i<n;i++)x[i]=old_x[i];
   return;
@@ -495,7 +496,7 @@ void do_sing_info(x,eps, err,big,maxit, n,er,em,ierr)
  if(*ierr!=0)
  {
  
-  free(work);
+  xpp_free(work);
   return;
  }
 /* succesfully computed evals now lets work with them */
@@ -596,7 +597,7 @@ void do_sing_info(x,eps, err,big,maxit, n,er,em,ierr)
   
 
  
- free(work);
+ xpp_free(work);
  return;
 }
 
@@ -641,11 +642,11 @@ void get_complex_evec(m,evr,evm,br,bm,n,maxit,err,ierr)
   double *b,*bp;
   int nn=2*n;
   int i,j,k;
-  a=(double *)malloc(nn*nn*sizeof(double));
-  anew=(double *)malloc(nn*nn*sizeof(double));
-  b=(double *)malloc(nn*sizeof(double));
-  bp=(double *)malloc(nn*sizeof(double));
-  ipivot=(int *)malloc(nn*sizeof(int));
+  a=(double *)xpp_malloc(nn*nn*sizeof(double));
+  anew=(double *)xpp_malloc(nn*nn*sizeof(double));
+  b=(double *)xpp_malloc(nn*sizeof(double));
+  bp=(double *)xpp_malloc(nn*sizeof(double));
+  ipivot=(int *)xpp_malloc(nn*sizeof(int));
   for(i=0;i<nn;i++){
     for(j=0;j<nn;j++){
       k=j*nn+i;
@@ -665,11 +666,11 @@ void get_complex_evec(m,evr,evm,br,bm,n,maxit,err,ierr)
       bm[i]=b[i+n];
     }
   }
-  free(a);
-  free(anew);
-  free(b);
-  free(bp);
-  free(ipivot);
+  xpp_free(a);
+  xpp_free(anew);
+  xpp_free(b);
+  xpp_free(bp);
+  xpp_free(ipivot);
 }
 
 void get_evec(a,anew,b,bp, n, maxit,

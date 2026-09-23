@@ -1,4 +1,5 @@
 #include "xpplim.h"
+#include "xpp_mem.h"
 #include "comline.h"
 #include "ggets.h"
 #include "load_eqn.h"
@@ -226,7 +227,7 @@ char * nam;
 	if (!is_set_name(set,nam))
 	{
 		SET_NAME *curr;	
-		curr = (SET_NAME *)malloc(sizeof(SET_NAME));
+		curr = (SET_NAME *)xpp_malloc(sizeof(SET_NAME));
         	curr->name = (char *)nam;
 		curr->next  = (struct SET_NAME *)set;
 		set=curr;

@@ -1,4 +1,5 @@
 #include "volterra2.h"
+#include "xpp_mem.h"
 #include "delay_handle.h"
 #include "gear.h"
 #include "ggets.h"
@@ -84,7 +85,7 @@ void alloc_v_memory()  /* allocate stuff for volterra equations */
     plintf("Illegal kernel %s=%s\n",kernel[i].name,kernel[i].expr);
     exit(0); /* fatal error ... */
   }
-     kernel[i].formula=(int *)malloc((len+2)*sizeof(int));
+     kernel[i].formula=(int *)xpp_malloc((len+2)*sizeof(int));
      for(j=0;j<len;j++){
 
        kernel[i].formula[j]=formula[j];
@@ -95,7 +96,7 @@ void alloc_v_memory()  /* allocate stuff for volterra equations */
 		kernel[i].name,kernel[i].kerexpr);
 	 exit(0); /* fatal error ... */
        }
-       kernel[i].kerform=(int *)malloc((len+2)*sizeof(int));
+       kernel[i].kerform=(int *)xpp_malloc((len+2)*sizeof(int));
        for(j=0;j<len;j++){
 	 kernel[i].kerform[j]=formula[j];
        }
@@ -113,9 +114,9 @@ void allocate_volterra(npts,flag)
   MaxPoints=npts;
   /* now allocate the memory   */
   if(NKernel==0)return;
-  if(flag==1)for(i=0;i<ntot;i++)free(Memory[i]);
+  if(flag==1)for(i=0;i<ntot;i++)xpp_free(Memory[i]);
   for(i=0;i<ntot;i++){
-    Memory[i]=(double *)malloc(sizeof(double)*MaxPoints);
+    Memory[i]=(double *)xpp_malloc(sizeof(double)*MaxPoints);
     if(Memory[i]==NULL)break; 
   }
  
@@ -125,9 +126,9 @@ void allocate_volterra(npts,flag)
     }
   if(i<ntot){
     MaxPoints=oldmem;
-    for(j=0;j<i;j++)free(Memory[j]);
+    for(j=0;j<i;j++)xpp_free(Memory[j]);
     for(i=0;i<ntot;i++)
-      Memory[i]=(double *)malloc(sizeof(double)*MaxPoints);
+      Memory[i]=(double *)xpp_malloc(sizeof(double)*MaxPoints);
     err_msg("Not enough memory...resetting");
   } 
   CurrentPoint=0;
@@ -158,8 +159,8 @@ void alloc_kernels(flag)
   double mu;
   for(i=0;i<NKernel;i++){
     if(kernel[i].flag==CONV){
-      if(flag==1)free(kernel[i].cnv);
-      kernel[i].cnv=(double *)malloc((n+1)*sizeof(double));
+      if(flag==1)xpp_free(kernel[i].cnv);
+      kernel[i].cnv=(double *)xpp_malloc((n+1)*sizeof(double));
       for(j=0;j<=n;j++){
 	SETVAR(0,T0+DELTA_T*j);
 	kernel[i].cnv[j]=evaluate(kernel[i].kerform);
@@ -168,8 +169,8 @@ void alloc_kernels(flag)
     /* Do the alpha functions here later  */
    if(kernel[i].mu>0.0){
      mu=kernel[i].mu;
-     if(flag==1)free(kernel[i].al);
-     kernel[i].al=(double *)malloc((n+1)*sizeof(double));
+     if(flag==1)xpp_free(kernel[i].al);
+     kernel[i].al=(double *)xpp_malloc((n+1)*sizeof(double));
      for(j=0;j<=n;j++)kernel[i].al[j]=alpbetjn(mu,DELTA_T,j);
    }
   }

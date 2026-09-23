@@ -15,6 +15,7 @@
 /************************************************************/
 
 #include <stdio.h>
+#include "xpp_mem.h"
 #include <stdlib.h>
 #include "cvode.h"
 #include "llnltyps.h"
@@ -566,7 +567,7 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
     if (iopt[MAXORD] > 0)  maxord = MIN(maxord, iopt[MAXORD]);
   }
 
-  cv_mem = (CVodeMem) malloc(sizeof(struct CVodeMemRec));
+  cv_mem = (CVodeMem) xpp_malloc(sizeof(struct CVodeMemRec));
   if (cv_mem == NULL) {
     fprintf(fp, MSG_MEM_FAIL);
     return(NULL);
@@ -577,7 +578,7 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
   allocOK = CVAllocVectors(cv_mem, N, maxord, machEnv);
   if (!allocOK) {
     fprintf(fp, MSG_MEM_FAIL);
-    free(cv_mem);
+    xpp_free(cv_mem);
     return(NULL);
   }
  
@@ -587,7 +588,7 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
   if (!ewtsetOK) {
     fprintf(fp, MSG_BAD_EWT);
     CVFreeVectors(cv_mem, maxord);
-    free(cv_mem);
+    xpp_free(cv_mem);
     return(NULL);
   }
   
@@ -1021,7 +1022,7 @@ void CVodeFree(void *cvode_mem)
 
   CVFreeVectors(cv_mem, qmax);
   if ((iter == NEWTON) && linitOK) lfree(cv_mem);
-  free(cv_mem);
+  xpp_free(cv_mem);
 }
 
 

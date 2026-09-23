@@ -1,4 +1,5 @@
 #include "adj2.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "my_rhs.h"
 #include "pop_list.h"
@@ -116,8 +117,8 @@ int do_transpose()
  sprintf(values[5],"%d",my_trans.rowskip);
  if(my_trans.here){
    
-   for(i=0;i<=my_trans.nrow;i++)free(my_trans.data[i]);
-   free(my_trans.data);
+   for(i=0;i<=my_trans.nrow;i++)xpp_free(my_trans.data[i]);
+   xpp_free(my_trans.data);
    my_trans.here=0;
    data_back();
  }
@@ -150,9 +151,9 @@ int create_transpose()
 {
   int i,j;
   int inrow,incol;
-  my_trans.data=(float **)malloc(sizeof(float *)*(NEQ+1));
+  my_trans.data=(float **)xpp_malloc(sizeof(float *)*(NEQ+1));
   for(i=0;i<=my_trans.nrow;i++)
-    my_trans.data[i]=(float *)malloc(sizeof(float)*my_trans.ncol);
+    my_trans.data[i]=(float *)xpp_malloc(sizeof(float)*my_trans.ncol);
   for(i=my_trans.nrow+1;i<=NEQ;i++)my_trans.data[i]=storage[i];
   for(j=0;j<my_trans.ncol;j++)
     my_trans.data[0][j]=j+1;
@@ -183,8 +184,8 @@ void alloc_h_stuff()
 {
   int i;
  for(i=0;i<NODE ;i++){
-   coup_fun[i]=(int *)malloc(100*sizeof(int));
-   coup_string[i]=(char *)malloc(80);
+   coup_fun[i]=(int *)xpp_malloc(100*sizeof(int));
+   coup_string[i]=(char *)xpp_malloc(80);
    strcpy(coup_string[i],"0");
  }
 }
@@ -288,13 +289,13 @@ void new_h_fun(silent)
      return;
    }
  if(H_HERE){
-   free(my_h[0]);
-   free(my_h[1]);
+   xpp_free(my_h[0]);
+   xpp_free(my_h[1]);
    if(HODD_EV){
-     free(my_h[2]);
-     free(my_h[3]);
+     xpp_free(my_h[2]);
+     xpp_free(my_h[3]);
    }
-   free(my_h);
+   xpp_free(my_h);
    H_HERE=0;
    HODD_EV=0;
  }
@@ -304,8 +305,8 @@ void new_h_fun(silent)
    }
    h_len=storind;
    data_back(); 
-   my_h=(float **)malloc(sizeof(float*)*(NEQ+1));
-   for(i=0;i<n;i++)my_h[i]=(float *)malloc(sizeof(float)*h_len);
+   my_h=(float **)xpp_malloc(sizeof(float*)*(NEQ+1));
+   for(i=0;i<n;i++)my_h[i]=(float *)xpp_malloc(sizeof(float)*h_len);
    for(i=n;i<=NEQ;i++)my_h[i]=storage[i];
    if(make_h(storage,my_adj,my_h,h_len,DELTA_T*NJMP,NODE,silent )){
      H_HERE=1;
@@ -406,13 +407,13 @@ void new_adjoint()
  int i,n=NODE +1;
  if(ADJ_HERE){
    data_back();
-   for(i=0;i<n;i++)free(my_adj[i]);
-   free(my_adj);
+   for(i=0;i<n;i++)xpp_free(my_adj[i]);
+   xpp_free(my_adj);
    ADJ_HERE=0;
  }
  adj_len=storind;
- my_adj=(float **)malloc((NEQ+1)*sizeof(float *));
- for(i=0;i<n;i++)my_adj[i]=(float *)malloc(sizeof(float)*adj_len);
+ my_adj=(float **)xpp_malloc((NEQ+1)*sizeof(float *));
+ for(i=0;i<n;i++)my_adj[i]=(float *)xpp_malloc(sizeof(float)*adj_len);
  for(i=n;i<=NEQ;i++)my_adj[i]=storage[i];
  if(adjoint(storage,my_adj,adj_len,DELTA_T*NJMP,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,NODE )){
    ADJ_HERE=1;;
@@ -479,16 +480,16 @@ int adjoint(orbit,adjnt,nt,dt,eps,minerr,maxit,node)
   int n2=node*node;
   double error;
    
-   work = (double *)malloc((n2+4*node)*sizeof(double));
-   yprime = (double *)malloc(node*sizeof(double));
-   yold=(double *)malloc(node*sizeof(double));
-   fold=(double *)malloc(node*sizeof(double));
-   fdev=(double *)malloc(node*sizeof(double));
-  jac = (double **)malloc(n2*sizeof(double *));
+   work = (double *)xpp_malloc((n2+4*node)*sizeof(double));
+   yprime = (double *)xpp_malloc(node*sizeof(double));
+   yold=(double *)xpp_malloc(node*sizeof(double));
+   fold=(double *)xpp_malloc(node*sizeof(double));
+   fdev=(double *)xpp_malloc(node*sizeof(double));
+  jac = (double **)xpp_malloc(n2*sizeof(double *));
   
   for(i=0;i<n2;i++)
   {
-   jac[i]=(double *)malloc(nt*sizeof(double));
+   jac[i]=(double *)xpp_malloc(nt*sizeof(double));
        if(jac[i]==NULL){
        err_msg("Insufficient storage");
 	return(0);
@@ -597,14 +598,14 @@ int adjoint(orbit,adjnt,nt,dt,eps,minerr,maxit,node)
   rval=1;
 
  bye: 
-   free(work);  
-   free(yprime);
-   free(yold);
-   free(fold);
-   free(fdev);
+   xpp_free(work);  
+   xpp_free(yprime);
+   xpp_free(yold);
+   xpp_free(fold);
+   xpp_free(fdev);
    for(i=0;i<n2;i++)
-   free(jac[i]);
-   free(jac); 
+   xpp_free(jac[i]);
+   xpp_free(jac); 
    return(rval);
  }
  
@@ -725,15 +726,15 @@ void do_liapunov()
   storind=LIAP_I;
   refresh_browser(storind);
   LIAP_FLAG=0;
-  free(my_liap[0]);
-  free(my_liap[1]);
+  xpp_free(my_liap[0]);
+  xpp_free(my_liap[1]);
 }
 
 void alloc_liap(int n)
 {
   if(LIAP_FLAG==0)return;
-  my_liap[0]=(float *)malloc(sizeof(float)*(n+1));
-  my_liap[1]=(float *)malloc(sizeof(float)*(n+1));
+  my_liap[0]=(float *)xpp_malloc(sizeof(float)*(n+1));
+  my_liap[1]=(float *)xpp_malloc(sizeof(float)*(n+1));
   LIAP_N=(n+1);
   LIAP_I=0;
 }

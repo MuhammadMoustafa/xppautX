@@ -11,6 +11,7 @@
    ran; stdout itself is pointed at stderr so the core's own printing never
    corrupts the stream. */
 #include "ui_json.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_http.h"
 #include "xpp_inbox.h"
@@ -183,7 +184,7 @@ static void buf_add(Buf *b, const char *s, size_t n)
 {
     if (b->len + n + 1 > b->cap) {
         b->cap = (b->len + n + 1) * 2 + 4096;
-        b->s = realloc(b->s, b->cap);
+        b->s = xpp_realloc(b->s, b->cap);
     }
     memcpy(b->s + b->len, s, n);
     b->len += n;
@@ -287,7 +288,7 @@ static void flush_ops(void)
         /* wrap the ops in place: {"ev":"draw",...,"ops":[ ... ]} */
         if (ob->b.len + k + 3 > ob->b.cap) {
             ob->b.cap = ob->b.len + k + 3 + 4096;
-            ob->b.s = realloc(ob->b.s, ob->b.cap);
+            ob->b.s = xpp_realloc(ob->b.s, ob->b.cap);
         }
         memmove(ob->b.s + k, ob->b.s, ob->b.len);
         memcpy(ob->b.s, head, k);
@@ -320,7 +321,7 @@ static void send_simple(const char *ev, const char *key, const char *text)
     }
     BUF_LIT(&b, "}");
     send_buf(&b);
-    free(b.s);
+    xpp_free(b.s);
 }
 
 static void op(unsigned long win, const char *fmt, ...)
@@ -351,7 +352,7 @@ static void op_text(unsigned long win, const char *name, int x, int y, const cha
     if (size >= 0) buf_printf(&b, ",%d", size);
     BUF_LIT(&b, "]");
     op(win, "%s", b.s);
-    free(b.s);
+    xpp_free(b.s);
 }
 
 static void json_flush(void)
@@ -382,7 +383,7 @@ static unsigned long line_seq;
 static char *read_line(int which, int wait_ms)
 {
     static char *line;
-    free(line);
+    xpp_free(line);
     line = NULL;
     switch (xpp_inbox_next(which, wait_ms, &line, &line_seq)) {
     case 1:
@@ -657,7 +658,7 @@ static int ask_wait(Buf *b, int id)
     json_flush();
     if (script_mode) snprintf(script_ask, sizeof script_ask, "%s", b->s);
     send_buf(b);
-    free(b->s);
+    xpp_free(b->s);
     /* a script's next line is its answer to this ask (ui_json.c "Which
        queue" comment above, and docs/protocol.md "Scripts") */
     if (script_mode) script_next();
@@ -677,7 +678,7 @@ static int ask_wait(Buf *b, int id)
             const char *ok;
             if (n > answer_cap) {
                 answer_cap = n;
-                answer = realloc(answer, n);
+                answer = xpp_realloc(answer, n);
             }
             memcpy(answer, line, n);
             /* an Abort sent before this answer no longer stops the command */
@@ -945,7 +946,7 @@ static void j_show_menu(int which)
     Buf b = {0};
     buf_printf(&b, "{\"ev\":\"menu\",\"which\":%d}", which);
     send_buf(&b);
-    free(b.s);
+    xpp_free(b.s);
 }
 
 /* ---- long loops ------------------------------------------------------------ */
@@ -978,7 +979,7 @@ static void j_progress(int nit, int icount, int cwidth)
     if (!xpp_every(&last, 0.1)) return;
     buf_printf(&b, "{\"ev\":\"progress\",\"n\":%d,\"of\":%d}", icount, nit);
     send_buf(&b);
-    free(b.s);
+    xpp_free(b.s);
 }
 
 /* ---- state ------------------------------------------------------------------ */
@@ -1051,7 +1052,7 @@ static void send_state(void)
     }
     BUF_LIT(&b, "}");
     send_buf(&b);
-    free(b.s);
+    xpp_free(b.s);
 }
 
 static void j_state_dirty(void) { state_dirty = 1; }
@@ -1100,7 +1101,7 @@ static void send_browser(void)
     }
     BUF_LIT(&b, "]}");
     send_buf(&b);
-    free(b.s);
+    xpp_free(b.s);
 }
 
 /* {"cmd":"browser","from":row,"count":n,"col":first column,"ncol":n}: the
@@ -1244,7 +1245,7 @@ static void buf_values(Buf *b, int col, int from, int to)
     char *t = xpp_series_values(my_browser.data[col] + from, to - from, series_f32, &n);
     if (t) {
         buf_add(b, t, n);
-        free(t);
+        xpp_free(t);
     } else BUF_LIT(b, "[]");
 }
 
@@ -1286,7 +1287,7 @@ static void send_series(const SeriesSig *s, int rows)
     }
     BUF_LIT(&b, "]}");
     send_buf(&b);
-    free(b.s);
+    xpp_free(b.s);
     memcpy(live_cols, cols, sizeof cols);
     live_ncols = ncols;
     live_valid = live_seen = rows;
@@ -1316,7 +1317,7 @@ static void series_append(int rows)
     }
     BUF_LIT(&b, "]}");
     send_buf(&b);
-    free(b.s);
+    xpp_free(b.s);
     live_valid = rows;
 }
 
@@ -1382,8 +1383,8 @@ static void send_equations(void)
     }
     BUF_LIT(&b, "]}");
     send_buf(&b);
-    free(b.s);
-    free(line.s);
+    xpp_free(b.s);
+    xpp_free(line.s);
 }
 static void j_state_dirty_i(int i) { (void)i; state_dirty = 1; }
 static void j_state_dirty_is(int i, char *s) { (void)i; (void)s; state_dirty = 1; }
@@ -1470,7 +1471,7 @@ static void send_window(const char *what, unsigned long id, int w, int h, const 
     buf_str(&b, title ? title : "");
     BUF_LIT(&b, "}");
     send_buf(&b);
-    free(b.s);
+    xpp_free(b.s);
 }
 
 static void select_graph(int i)
@@ -1595,7 +1596,7 @@ static unsigned char *ask_pixels(int win, int film, int *w, int *h)
     v = js_find(answer, "rgb");
     if (!v || *v != '"' || *w <= 0 || *h <= 0 || *w > 8192 || *h > 8192) return NULL;
     n = (size_t)*w * (size_t)*h * 3;
-    rgb = calloc(n, 1);
+    rgb = xpp_calloc(n, 1);
     for (v++; *v && *v != '"' && k < n; v++) {
         int d = b64_value((unsigned char)*v);
         if (d < 0) continue;
@@ -1648,7 +1649,7 @@ static void send_film(const char *what)
     buf_printf(&b, "{\"ev\":\"film\",\"op\":\"%s\",\"count\":%d,\"win\":%lu,\"cycles\":%d,\"delay\":%d}",
                what, film_count, (unsigned long)draw_win, ks_ncycle, ks_speed);
     send_buf(&b);
-    free(b.s);
+    xpp_free(b.s);
 }
 
 static int j_film_clip(void)
@@ -1685,7 +1686,7 @@ static void j_movie_save(char *basename, int fmat)
         snprintf(file, sizeof file, "%s_%d.%s", basename, i, fmat == 1 ? "ppm" : "gif");
         if (fmat == 1) write_ppm(file, rgb, w, h);
         else write_gif(file, rgb, w, h);
-        free(rgb);
+        xpp_free(rgb);
     }
 }
 
@@ -1704,13 +1705,13 @@ static void j_movie_make_anigif(void)
             w0 = w;
             h0 = h;
         } else if (w != w0 || h != h0) {
-            free(rgb);
+            xpp_free(rgb);
             j_err_msg("All clips must be same size");
             break;
         }
         web_safe_colors(rgb, w, h);
         gif_stuff_ppm(rgb, w, h, fp, i == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
-        free(rgb);
+        xpp_free(rgb);
     }
     end_ani_gif(fp);
     fclose(fp);
@@ -1796,7 +1797,7 @@ static void send_palette(void)
                    xpp_cmap_rgb[i][1] >> 8, xpp_cmap_rgb[i][2] >> 8);
     BUF_LIT(&b, "]}");
     send_buf(&b);
-    free(b.s);
+    xpp_free(b.s);
 }
 
 static void j_new_colormap(int type)
@@ -1892,7 +1893,7 @@ static void send_aplot(const char *tag)
     }
     BUF_LIT(&b, "]}");
     send_buf(&b);
-    free(b.s);
+    xpp_free(b.s);
 }
 
 static void j_aplot_make(char *name)
@@ -1923,7 +1924,7 @@ static void aplot_gif(const char *file, int still)
         web_safe_colors(rgb, w, h);
         if (still == 1) gif_stuff_ppm(rgb, w, h, ap_fp, MAKE_ONE_GIF);
         else gif_stuff_ppm(rgb, w, h, ap_fp, aplot_range_count == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
-        free(rgb);
+        xpp_free(rgb);
     }
     if (still == 1) fclose(ap_fp);
 }
@@ -2245,7 +2246,7 @@ static void j_auto_diagram(const XppDiagPoint *p)
     }
     if (dg_n == dg_cap) {
         dg_cap = dg_cap ? 2 * dg_cap : 1024;
-        dg = realloc(dg, (size_t)dg_cap * sizeof *dg);
+        dg = xpp_realloc(dg, (size_t)dg_cap * sizeof *dg);
     }
     dg[dg_n++] = *p;
 }
@@ -2366,7 +2367,7 @@ static void diag_flush(int final)
         dg_client = i;
     }
     dg_dirty = dg_n;
-    free(b.s);
+    xpp_free(b.s);
 }
 
 /* AUTO's refreshdisplay() after every point: a few frames a second, not a
@@ -2387,7 +2388,7 @@ static void j_ani_slider(void)
     buf_printf(&b, "{\"ev\":\"ani\",\"pos\":%d,\"rows\":%d,\"fly\":%d,\"grab\":%d,\"skip\":%d,\"speed\":%d}",
                vcr.pos, my_browser.maxrow, animation_on_the_fly, ani_grab_flag, vcr.inc, ani_speed);
     send_buf(&b);
-    free(b.s);
+    xpp_free(b.s);
 }
 
 /* between frames of Go: 1 when Pause, ABORT or Esc stops the playback */
@@ -2443,7 +2444,7 @@ static void ani_go(void)
                 web_safe_colors(rgb, w, h);
                 gif_stuff_ppm(rgb, w, h, gif, frame == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
             }
-            free(rgb);
+            xpp_free(rgb);
         }
         frame++;
         stop = ani_wait(ani_speed * (mpeg.aviflag == 1 || mpeg.flag > 0 ? 6 : 1));
@@ -2555,7 +2556,7 @@ static void j_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y, dou
     }
     BUF_LIT(&b, "]}");
     send_buf(&b);
-    free(b.s);
+    xpp_free(b.s);
 }
 
 static void j_make_txtview(void)
@@ -2576,7 +2577,7 @@ static void j_make_txtview(void)
     }
     BUF_LIT(&b, "]}");
     send_buf(&b);
-    free(b.s);
+    xpp_free(b.s);
 }
 
 static void j_q_calc(void)
@@ -2822,7 +2823,7 @@ static void send_stopped(void)
     }
     BUF_LIT(&b, "}");
     send_buf(&b);
-    free(b.s);
+    xpp_free(b.s);
 }
 
 /* A recorded interruption (docs/protocol.md "Scripts"): the line after the
@@ -2991,7 +2992,7 @@ void json_ui_loop(void)
         size_t n = strlen(line) + 1;
         if (n > cap) {
             cap = n;
-            copy = realloc(copy, cap);
+            copy = xpp_realloc(copy, cap);
         }
         memcpy(copy, line, n);
         /* an abort did its work when it arrived (classify()): it is no
@@ -3122,7 +3123,7 @@ void json_ui_hello(char *title)
     }
     BUF_LIT(&b, "]}");
     send_buf(&b);
-    free(b.s);
+    xpp_free(b.s);
     send_palette();
     send_window("create", 1, win_w[0], win_h[0], title);
     send_state();

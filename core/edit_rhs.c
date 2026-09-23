@@ -1,5 +1,6 @@
 
 #include "edit_rhs.h"
+#include "xpp_mem.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "extra.h"
@@ -68,13 +69,13 @@ void edit_rhs()
  int n=NEQ;
  char fstr[20],msg[200];
  if(NEQ>NEQMAXFOREDIT) return;
- names=(char **)malloc(n*sizeof(char*));
- values=(char **)malloc(n*sizeof(char*));
- command=(int **)malloc(n*sizeof(int*));
+ names=(char **)xpp_malloc(n*sizeof(char*));
+ values=(char **)xpp_malloc(n*sizeof(char*));
+ command=(int **)xpp_malloc(n*sizeof(int*));
  for(i=0;i<n;i++){
-   values[i]=(char *)malloc(MAX_LEN_EBOX*sizeof(char));
-   names[i]=(char *)malloc(MAX_LEN_EBOX+3*XPP_NAME_MAX);
-   command[i]=(int *)malloc(200*sizeof(int));
+   values[i]=(char *)xpp_malloc(MAX_LEN_EBOX*sizeof(char));
+   names[i]=(char *)xpp_malloc(MAX_LEN_EBOX+3*XPP_NAME_MAX);
+   command[i]=(int *)xpp_malloc(200*sizeof(int));
    if(i<NODE &&METHOD>0)strcpy(fstr,"d%s/dT");
    if(i<NODE &&METHOD==0)strcpy(fstr,"%s(n+1)");
    if(i<NODE &&EqType[i]==1)strcpy(fstr,"%s(T)");
@@ -96,8 +97,8 @@ void edit_rhs()
 	 }
        else 
 	 {
-	   free(ode_names[i]);
-	   ode_names[i]=(char *)malloc(strlen(values[i])+5);
+	   xpp_free(ode_names[i]);
+	   ode_names[i]=(char *)xpp_malloc(strlen(values[i])+5);
 	   strcpy(ode_names[i],values[i]);
 	   i0=i;
 	   if(i>=NODE)i0=i0+FIX_VAR-NMarkov;
@@ -111,13 +112,13 @@ void edit_rhs()
      
 
  for(i=0;i<n;i++){
-   free(values[i]);
-   free(names[i]);
-   free(command[i]);
+   xpp_free(values[i]);
+   xpp_free(names[i]);
+   xpp_free(command[i]);
  }
- free(values);
- free(names);
- free(command);
+ xpp_free(values);
+ xpp_free(names);
+ xpp_free(command);
 }
 
 void edit_functions()
@@ -128,13 +129,13 @@ void edit_functions()
  int n=NFUN;
  char msg[200];
  if(n==0||n>NEQMAXFOREDIT)return;
- names=(char **)malloc(n*sizeof(char*));
- values=(char **)malloc(n*sizeof(char*));
- command=(int **)malloc(n*sizeof(int*));
+ names=(char **)xpp_malloc(n*sizeof(char*));
+ values=(char **)xpp_malloc(n*sizeof(char*));
+ command=(int **)xpp_malloc(n*sizeof(int*));
  for(i=0;i<n;i++){
-   values[i]=(char *)malloc(MAX_LEN_EBOX*sizeof(char));
-   names[i]=(char *)malloc(MAX_LEN_EBOX+3*XPP_NAME_MAX);
-   command[i]=(int *)malloc(200*sizeof(int));
+   values[i]=(char *)xpp_malloc(MAX_LEN_EBOX*sizeof(char));
+   names[i]=(char *)xpp_malloc(MAX_LEN_EBOX+3*XPP_NAME_MAX);
+   command[i]=(int *)xpp_malloc(200*sizeof(int));
    sprintf(values[i],"%s",ufun_def[i]);
 
    if(narg_fun[i]==0){
@@ -178,13 +179,13 @@ void edit_functions()
  
 
  for(i=0;i<n;i++){
-   free(values[i]);
-   free(names[i]);
-   free(command[i]);
+   xpp_free(values[i]);
+   xpp_free(names[i]);
+   xpp_free(command[i]);
  }
- free(values);
- free(names);
- free(command);
+ xpp_free(values);
+ xpp_free(names);
+ xpp_free(command);
 
 }
 

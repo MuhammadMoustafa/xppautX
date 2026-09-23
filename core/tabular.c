@@ -1,4 +1,5 @@
 #include "tabular.h"
+#include "xpp_mem.h"
 
 #include "browse.h"
 #include "ggets.h"
@@ -359,11 +360,11 @@ int create_fun_table(npts,xlo,xhi,formula,index)
     return(0);
   }
   if(my_table[index].flag==0){
-   my_table[index].y=(double *)malloc(length*sizeof(double));
+   my_table[index].y=(double *)xpp_malloc(length*sizeof(double));
    }
   else {
     my_table[index].y=
-      (double *)realloc((void *)my_table[index].y,length*sizeof(double));
+      (double *)xpp_realloc((void *)my_table[index].y,length*sizeof(double));
   }
   if(my_table[index].y==NULL){
      err_msg("Unable to allocate table");
@@ -466,7 +467,7 @@ int load_table(filename,index)
     return(0);
   }
   if(my_table[index].flag==0){
-   my_table[index].y=(double *)malloc(length*sizeof(double));
+   my_table[index].y=(double *)xpp_malloc(length*sizeof(double));
    if(my_table[index].y==NULL){
      err_msg("Unable to allocate table");
      fclose(fp); 
@@ -475,7 +476,7 @@ int load_table(filename,index)
    for(i=0;i<length;i++){
      if(fgets(bob,100,fp)==NULL){
        err_msg("Table file too short");
-       free(my_table[index].y);
+       xpp_free(my_table[index].y);
        my_table[index].y=NULL;
        fclose(fp);
        return(0);
@@ -492,7 +493,7 @@ int load_table(filename,index)
    return(1);
  }
   my_table[index].y=
-    (double *)realloc((void *)my_table[index].y,length*sizeof(double));
+    (double *)xpp_realloc((void *)my_table[index].y,length*sizeof(double));
   if(my_table[index].y==NULL){
      err_msg("Unable to reallocate table");
      fclose(fp);
@@ -501,7 +502,7 @@ int load_table(filename,index)
   for(i=0;i<length;i++){
      if(fgets(bob,100,fp)==NULL){
        err_msg("Table file too short");
-       free(my_table[index].y);
+       xpp_free(my_table[index].y);
        my_table[index].y=NULL;
        my_table[index].flag=0;
        fclose(fp);
@@ -552,7 +553,7 @@ int select_table(void)
  int i,j;
  char *n[MAX_TAB],key[MAX_TAB],ch;
  for(i=0;i<NTable;i++){
-   n[i]=(char *)malloc(XPP_NAME_MAX+4);
+   n[i]=(char *)xpp_malloc(XPP_NAME_MAX+4);
    key[i]='a'+i;
    sprintf(n[i],"%c: %s",key[i],my_table[i].name);
  }
@@ -562,7 +563,7 @@ int select_table(void)
    m.n=NTable; m.items=n; m.keys=key; m.hints=no_hint; m.width=NTable;
    ch=(char)menu_choose(&m,0);
  }
- for(i=0;i<NTable;i++)free(n[i]);
+ for(i=0;i<NTable;i++)xpp_free(n[i]);
  j=(int)(ch-'a');
  if(j<0||j>=NTable){
    err_msg("Not a valid table");

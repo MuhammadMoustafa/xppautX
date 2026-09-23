@@ -1,4 +1,5 @@
 #include "histogram.h"
+#include "xpp_mem.h"
 
 #include <stdlib.h> 
 #include <stdio.h>
@@ -139,18 +140,18 @@ void new_four(nmodes,col)
   float *bob;
   if(FOUR_HERE){
    data_back();
-   free(my_four[0]);
-   free(my_four[1]);
-   free(my_four[2]);
+   xpp_free(my_four[0]);
+   xpp_free(my_four[1]);
+   xpp_free(my_four[2]);
    FOUR_HERE=0;
  }
   four_len=nmodes;
-  my_four[0]=(float *)malloc(sizeof(float)*length);
-  my_four[1]=(float *)malloc(sizeof(float)*length);
-  my_four[2]=(float *)malloc(sizeof(float)*length);
+  my_four[0]=(float *)xpp_malloc(sizeof(float)*length);
+  my_four[1]=(float *)xpp_malloc(sizeof(float)*length);
+  my_four[2]=(float *)xpp_malloc(sizeof(float)*length);
   if(my_four[2]==NULL){
-   free(my_four[1]);
-   free(my_four[2]);
+   xpp_free(my_four[1]);
+   xpp_free(my_four[2]);
    err_msg("Cant allocate enough memory...");
    return;
  }
@@ -171,7 +172,7 @@ void post_process_stuff()
   
 
   if(post_process==0)return;
-    if(N_plist<1)plotlist=(int *)malloc(sizeof(int)*10);
+    if(N_plist<1)plotlist=(int *)xpp_malloc(sizeof(int)*10);
     N_plist=2;
     plotlist[0]=0;
     plotlist[1]=1;
@@ -214,20 +215,20 @@ int twod_hist()
 
   if(HIST_HERE){
     data_back();
-    free(my_hist[0]);
-    free(my_hist[1]);
+    xpp_free(my_hist[0]);
+    xpp_free(my_hist[1]);
     if(HIST_HERE==2)
-      free(my_hist[2]);
+      xpp_free(my_hist[2]);
     HIST_HERE=0;
   }
 
    hist_len=length;
-  my_hist[0]=(float *)malloc(sizeof(float)*length);
-  my_hist[1]=(float *)malloc(sizeof(float)*length);
-  my_hist[2]=(float *)malloc(sizeof(float)*length);
+  my_hist[0]=(float *)xpp_malloc(sizeof(float)*length);
+  my_hist[1]=(float *)xpp_malloc(sizeof(float)*length);
+  my_hist[2]=(float *)xpp_malloc(sizeof(float)*length);
   if(my_hist[2]==NULL){
-    free(my_hist[0]);
-    free(my_hist[1]);
+    xpp_free(my_hist[0]);
+    xpp_free(my_hist[1]);
     err_msg("Cannot allocate enough...");
     return(-1);
   }
@@ -303,17 +304,17 @@ void new_hist(nbins,zlo,zhi,col,col2,condition,which)
   dz=(zhi-zlo)/(double)(length-1);
   if(HIST_HERE){
     data_back();
-    free(my_hist[0]);
-    free(my_hist[1]);
+    xpp_free(my_hist[0]);
+    xpp_free(my_hist[1]);
     if(HIST_HERE==2)
-      free(my_hist[2]);
+      xpp_free(my_hist[2]);
     HIST_HERE=0;
   }
   hist_len=length;
-  my_hist[0]=(float *)malloc(sizeof(float)*length);
-  my_hist[1]=(float *)malloc(sizeof(float)*length);
+  my_hist[0]=(float *)xpp_malloc(sizeof(float)*length);
+  my_hist[1]=(float *)xpp_malloc(sizeof(float)*length);
   if(my_hist[1]==NULL){
-    free(my_hist[0]);
+    xpp_free(my_hist[0]);
     err_msg("Cannot allocate enough...");
     return;
   }
@@ -486,10 +487,10 @@ int spectrum(float *data,int nr,int win,int w_type,float *pow)
  */
  if(nr<2)return(0);
  if(kwin<1)return(0);
- ct=(float *)malloc(sizeof(float)*win);
- d=(float *)malloc(sizeof(float)*win);
- st=(float *)malloc(sizeof(float)*win);
- f=(float *)malloc(sizeof(float)*win);
+ ct=(float *)xpp_malloc(sizeof(float)*win);
+ d=(float *)xpp_malloc(sizeof(float)*win);
+ st=(float *)xpp_malloc(sizeof(float)*win);
+ f=(float *)xpp_malloc(sizeof(float)*win);
  /*  plintf("nr=%d,win=%d,type=%d,data[10]=%g,kwin=%d\n",
      nr,win,w_type,data[10],kwin); */
  nrmf=0.0;
@@ -527,10 +528,10 @@ int spectrum(float *data,int nr,int win,int w_type,float *pow)
  for(i=0;i<shift;i++)
    /*  pow[i]=log(pow[i]/((kwin)*nrmf)); */
    pow[i]=pow[i]/((kwin)*sqrt(nrmf));
- free(f);
- free(ct);
- free(st);
- free(d);
+ xpp_free(f);
+ xpp_free(ct);
+ xpp_free(st);
+ xpp_free(d);
  
  return(1);
 }
@@ -565,17 +566,17 @@ int cross_spectrum(float *data,float *data2,int nr,int win,int w_type,float *pow
  float *pxyr,*pxym;
  if(nr<2)return(0);
  if(kwin<1)return(0);
- ct=(float *)malloc(sizeof(float)*win);
- d=(float *)malloc(sizeof(float)*win);
- st=(float *)malloc(sizeof(float)*win);
- f=(float *)malloc(sizeof(float)*win);
- ct2=(float *)malloc(sizeof(float)*win);
- d2=(float *)malloc(sizeof(float)*win);
- st2=(float *)malloc(sizeof(float)*win);
-  pxx=(float *)malloc(sizeof(float)*win);
-  pyy=(float *)malloc(sizeof(float)*win);
-pxyr=(float *)malloc(sizeof(float)*win);
-pxym=(float *)malloc(sizeof(float)*win);
+ ct=(float *)xpp_malloc(sizeof(float)*win);
+ d=(float *)xpp_malloc(sizeof(float)*win);
+ st=(float *)xpp_malloc(sizeof(float)*win);
+ f=(float *)xpp_malloc(sizeof(float)*win);
+ ct2=(float *)xpp_malloc(sizeof(float)*win);
+ d2=(float *)xpp_malloc(sizeof(float)*win);
+ st2=(float *)xpp_malloc(sizeof(float)*win);
+  pxx=(float *)xpp_malloc(sizeof(float)*win);
+  pyy=(float *)xpp_malloc(sizeof(float)*win);
+pxyr=(float *)xpp_malloc(sizeof(float)*win);
+pxym=(float *)xpp_malloc(sizeof(float)*win);
  /*  plintf("nr=%d,win=%d,type=%d,data[10]=%g,kwin=%d\n",
      nr,win,w_type,data[10],kwin); */
  nrmwin=0.0;
@@ -631,17 +632,17 @@ pxym=(float *)malloc(sizeof(float)*win);
    else
      pow[i]=pxyr[i]/(pxx[i]*pyy[i]);
  }
- free(f);
- free(ct);
- free(st);
- free(d);
- free(ct2);
- free(st2);
- free(d2);
- free(pxx);
- free(pyy);
- free(pxyr);
- free(pxym);
+ xpp_free(f);
+ xpp_free(ct);
+ xpp_free(st);
+ xpp_free(d);
+ xpp_free(ct2);
+ xpp_free(st2);
+ xpp_free(d2);
+ xpp_free(pxx);
+ xpp_free(pyy);
+ xpp_free(pxyr);
+ xpp_free(pxym);
  
  return(1);
 }
@@ -653,18 +654,18 @@ void just_sd(int flag)
   spec_type=flag;
   if(HIST_HERE){
     data_back();
-    free(my_hist[0]);
-    free(my_hist[1]);
+    xpp_free(my_hist[0]);
+    xpp_free(my_hist[1]);
     if(HIST_HERE==2)
-      free(my_hist[2]);
+      xpp_free(my_hist[2]);
     HIST_HERE=0;
   }  
    hist_len=spec_wid/2;
    length=hist_len+2;
-   my_hist[0]=(float *)malloc(sizeof(float)*length);
-   my_hist[1]=(float *)malloc(sizeof(float)*length);
+   my_hist[0]=(float *)xpp_malloc(sizeof(float)*length);
+   my_hist[1]=(float *)xpp_malloc(sizeof(float)*length);
   if(my_hist[1]==NULL){
-    free(my_hist[0]);
+    xpp_free(my_hist[0]);
     err_msg("Cannot allocate enough...");
     return;
   }
@@ -691,18 +692,18 @@ void compute_sd()
   new_int("0:sqr 1:par 2:ham 3:bart 4:han ",&spec_win);
    if(HIST_HERE){
     data_back();
-    free(my_hist[0]);
-    free(my_hist[1]);
+    xpp_free(my_hist[0]);
+    xpp_free(my_hist[1]);
     if(HIST_HERE==2)
-      free(my_hist[2]);
+      xpp_free(my_hist[2]);
     HIST_HERE=0;
   }  
    hist_len=spec_wid/2;
    length=hist_len+2;
-   my_hist[0]=(float *)malloc(sizeof(float)*length);
-   my_hist[1]=(float *)malloc(sizeof(float)*length);
+   my_hist[0]=(float *)xpp_malloc(sizeof(float)*length);
+   my_hist[1]=(float *)xpp_malloc(sizeof(float)*length);
   if(my_hist[1]==NULL){
-    free(my_hist[0]);
+    xpp_free(my_hist[0]);
     err_msg("Cannot allocate enough...");
     return;
   }
@@ -925,10 +926,10 @@ void fftxcorr(float *data1,float *data2,int length,int nlag,float *cr,int flag)
  /* n2=length/2;*/
  
   dim[0]=length;
-    re1=(double *)malloc(length*sizeof(double));
-  im1=(double *)malloc(length*sizeof(double));
-      re2=(double *)malloc(length*sizeof(double));
-  im2=(double *)malloc(length*sizeof(double));
+    re1=(double *)xpp_malloc(length*sizeof(double));
+  im1=(double *)xpp_malloc(length*sizeof(double));
+      re2=(double *)xpp_malloc(length*sizeof(double));
+  im2=(double *)xpp_malloc(length*sizeof(double));
 
   for(i=0;i<length;i++){
     im1[i]=0.0;
@@ -957,10 +958,10 @@ void fftxcorr(float *data1,float *data2,int length,int nlag,float *cr,int flag)
    for(i=0;i<nlag;i++){
      sum+=fabs(im1[length-nlag+i]);
      cr[i]=(float) re1[length-nlag+i]*length;}
-   free(re1);
-   free(re2);
-   free(im1);
-   free(im2);
+   xpp_free(re1);
+   xpp_free(re2);
+   xpp_free(im1);
+   xpp_free(im2);
    plintf("residual = %g\n",sum);  
    
 }
@@ -974,8 +975,8 @@ void fft(data,ct,st,nmodes,length)
   double *im,*re;
   int dim[2],i;
   dim[0]=length;
-  re=(double *)malloc(length*sizeof(double));
-  im=(double *)malloc(length*sizeof(double));
+  re=(double *)xpp_malloc(length*sizeof(double));
+  im=(double *)xpp_malloc(length*sizeof(double));
   for(i=0;i<length;i++){
     im[i]=0.0;
     re[i]=data[i];
@@ -989,8 +990,8 @@ void fft(data,ct,st,nmodes,length)
      ct[i]=re[i]*2.0;
      st[i]=im[i]*2.0;
    }
-   free(im);
-   free(re);
+   xpp_free(im);
+   xpp_free(re);
 }
 
    

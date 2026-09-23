@@ -1,4 +1,5 @@
 #include "xpp_ui.h"
+#include "xpp_mem.h"
 #include "pp_shoot.h"
 
 #include "my_rhs.h"
@@ -471,11 +472,11 @@ void bvshoot(y,yend,err,eps,maxit,iret,n,ishow,iper,ipar,ivar,sect)
  double t1=T0+TEND*dt/fabs(dt);
  
  if(iper)ntot=n+1;
- jac=(double *)malloc(ntot*ntot*sizeof(double));
- f=(double *)malloc(ntot*sizeof(double));
- fdev=(double *)malloc(ntot*sizeof(double));
- y0=(double *)malloc(ntot*sizeof(double));
- y1=(double *)malloc(ntot*sizeof(double));
+ jac=(double *)xpp_malloc(ntot*ntot*sizeof(double));
+ f=(double *)xpp_malloc(ntot*sizeof(double));
+ fdev=(double *)xpp_malloc(ntot*sizeof(double));
+ y0=(double *)xpp_malloc(ntot*sizeof(double));
+ y1=(double *)xpp_malloc(ntot*sizeof(double));
   
  for(i=0;i<n;i++)
    y0[i]=y[i];
@@ -593,11 +594,11 @@ void bvshoot(y,yend,err,eps,maxit,iret,n,ishow,iper,ipar,ivar,sect)
   
  bye:
 
-      free(f);
-   free(y1);
-   free(y0);
-   free(jac);
-   free(fdev);
+      xpp_free(f);
+   xpp_free(y1);
+   xpp_free(y0);
+   xpp_free(jac);
+   xpp_free(fdev);
    return;
 }
 

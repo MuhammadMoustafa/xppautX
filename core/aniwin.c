@@ -1,4 +1,5 @@
 #include <X11/Xlib.h>
+#include "xpp_mem.h"
 /* The animation (toon) window: the VCR buttons, the off-screen pixmap the
    frames are drawn into, playback and frame grabbing. Moved out of
    aniparse.c; the animation language, its evaluation and the geometry of
@@ -635,12 +636,12 @@ int writeframe(filename,window,wid,hgt)
   sprintf(head,"P6\n%d %d\n255\n",ximage->width,ximage->height);
   if(write(fd,head,strlen(head))<0){
     close(fd);
-    free(ximage);
+    xpp_free(ximage);
     return -1;
   }
   area=ximage->width*ximage->height;
   pixel=(unsigned char*)ximage->data;
-  out=(unsigned char *)malloc(3*area);
+  out=(unsigned char *)xpp_malloc(3*area);
   dst=out;
   for(y=0;y < (unsigned)(ximage->height); y++) {
     for (x = 0; x < (unsigned)(ximage->width); x++) {
@@ -678,13 +679,13 @@ int writeframe(filename,window,wid,hgt)
   }
   if(write(fd,out,area*3)<0){
     close(fd);
-    free(out);
-    free(ximage);
+    xpp_free(out);
+    xpp_free(ximage);
     return -1;
   }
   close(fd);
-  free(out);
-  free(ximage);
+  xpp_free(out);
+  xpp_free(ximage);
   return 1;
 }
 
@@ -803,10 +804,10 @@ void gif_stuff(Window win,FILE *fp,int task)
  unsigned char *ppm;
 
  XGetGeometry(display,win,&root,&x0,&y0,&w,&h,&bw,&d);
- ppm=(unsigned char *)malloc(w*h*3);
+ ppm=(unsigned char *)xpp_malloc(w*h*3);
  /* plintf(" h=%d w=%d \n",h,w);*/
 
  getppmbits(win,(int*)&w,(int*)&h,ppm);
  gif_stuff_ppm(ppm,w,h,fp,task);
- free(ppm);
+ xpp_free(ppm);
 }

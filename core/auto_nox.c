@@ -1,4 +1,5 @@
 #include "integrate.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "numerics.h"
 #include "xpp_globals.h"
@@ -649,8 +650,8 @@ void create_auto_file_name()
 {
  char *basec,*bname,*dirc,*dname;
 
-  basec = strdup(this_file);
-  dirc  = strdup(this_file);
+  basec = xpp_strdup(this_file);
+  dirc  = xpp_strdup(this_file);
   bname = (char*)basename(basec);
   dname = (char*)dirname(dirc);
 
@@ -666,8 +667,8 @@ void open_auto(flg) /* compatible with new auto */
   char string[210];
   char *basec,*bname,*dirc,*dname;
 
-  basec = strdup(this_file);
-  dirc  = strdup(this_file);
+  basec = xpp_strdup(this_file);
+  dirc  = xpp_strdup(this_file);
   bname = (char*)basename(basec);
   dname = (char*)dirname(dirc);
 
@@ -2435,9 +2436,9 @@ int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
   int n=2+2*NODE;
   int i;
   int flag=0;
-  s=(char **)malloc(n *sizeof(char *));
+  s=(char **)xpp_malloc(n *sizeof(char *));
   for(i=0;i<n;i++){
-   s[i]=(char *)malloc(XPP_NAME_MAX+8); /* name_L, name_R */
+   s[i]=(char *)xpp_malloc(XPP_NAME_MAX+8); /* name_L, name_R */
 
   }
   sprintf(s[0],"dim unstable");
@@ -2462,10 +2463,10 @@ int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
     }
   }
   for(i=0;i<n;i++){
-    free(s[i]);
+    xpp_free(s[i]);
 
   }
-  free(s);
+  xpp_free(s);
 
   return flag;
 }

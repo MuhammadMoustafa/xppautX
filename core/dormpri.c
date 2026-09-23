@@ -1,4 +1,5 @@
 #include <stdlib.h> 
+#include "xpp_mem.h"
 #include <math.h>
 #include <stdio.h>
 /* #include <malloc.h> */
@@ -838,7 +839,7 @@ int dop853
     rcont7 = rcont6+nrdens;
     rcont8 = rcont7+nrdens;
     if (nrdens < n)
-      indir = (unsigned*) malloc (n*sizeof(unsigned));
+      indir = (unsigned*) xpp_malloc (n*sizeof(unsigned));
 
     /* control of length of icont */
     if (nrdens == n)
@@ -924,7 +925,7 @@ int dop853
   
     idid = dopcor (n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler, fileout,
 		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont);
-  if(indir)free(indir);
+  if(indir)xpp_free(indir);
     return idid;
   
 
@@ -1405,7 +1406,7 @@ int dopri5
     rcont4 = rcont3+nrdens;
     rcont5 = rcont4+nrdens;
     if (nrdens < n)
-      indir = (unsigned*) malloc (n*sizeof(unsigned));
+      indir = (unsigned*) xpp_malloc (n*sizeof(unsigned));
 
 
 
@@ -1491,7 +1492,7 @@ int dopri5
 		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont);
 
     if (indir)
-      free (indir);
+      xpp_free (indir);
 
     return idid;
 

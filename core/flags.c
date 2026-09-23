@@ -1,4 +1,5 @@
 #include "flags.h"
+#include "xpp_mem.h"
 #include "xpp_log.h"
 
 #include "cv2.h"
@@ -125,7 +126,7 @@ int add_global(cond,sign,rest)
     return(1);
   }
   l=strlen(cond);
-  flag[j].cond=(char *) malloc(l+1);
+  flag[j].cond=(char *) xpp_malloc(l+1);
   strcpy(flag[j].cond,cond);
   nevents=0;
   flag[j].lhsname[0][0]=0;
@@ -145,7 +146,7 @@ int add_global(cond,sign,rest)
 	xpp_log(XPP_LOG_INFO, " No event variable named for %s \n",temp);
 	return(1);
       }
-      flag[j].rhs[nevents]=(char *)malloc(lt+1);
+      flag[j].rhs[nevents]=(char *)xpp_malloc(lt+1);
       strcpy(flag[j].rhs[nevents],temp);
       nevents++;
       k=0;
@@ -208,7 +209,7 @@ int compile_flags()
     }
     flag[j].anypars=0;
     flag[j].nointerp=0;
-    flag[j].comcond=(int *)malloc(sizeof(int)*(nc+1));
+    flag[j].comcond=(int *)xpp_malloc(sizeof(int)*(nc+1));
     for(k=0;k<=nc;k++)
       flag[j].comcond[k]=command[k];
     for(i=0;i<flag[j].nevents;i++){
@@ -259,7 +260,7 @@ int compile_flags()
 	       flag[j].rhs[i],flag[j].cond);
       return(1);
       }
-      flag[j].comrhs[i]=(int *)malloc(sizeof(int)*(nc+1));
+      flag[j].comrhs[i]=(int *)xpp_malloc(sizeof(int)*(nc+1));
       for(k=0;k<=nc;k++)
       flag[j].comrhs[i][k]=command[k];
     }

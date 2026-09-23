@@ -1,4 +1,5 @@
 #include <X11/Xlib.h>
+#include "xpp_mem.h"
 #include "init_conds.h"
 #include "parserslow.h"
 #include "tabular.h"
@@ -188,8 +189,8 @@ void free_scroll_list(SCROLL_LIST *sl)
 {
  int n=sl->n;
  int i;
- for(i=0;i<n;i++)free(sl->v[i]);
- free(sl->v);
+ for(i=0;i<n;i++)xpp_free(sl->v[i]);
+ xpp_free(sl->v);
  sl->v=NULL;
  sl->n=0;
 }
@@ -198,8 +199,8 @@ void add_scroll_item(char *v,SCROLL_LIST *sl)
 {
   int n=sl->n;
   int m=strlen(v);
-  sl->v=(char **)realloc((void *)sl->v,(n+1)*sizeof(char *));
-  sl->v[n]=(char *)malloc((m+1));
+  sl->v=(char **)xpp_realloc((void *)sl->v,(n+1)*sizeof(char *));
+  sl->v[n]=(char *)xpp_malloc((m+1));
   strcpy(sl->v[n],v);
   sl->n=n+1;
 }
@@ -1585,11 +1586,11 @@ void destroy_box(BoxList *b)
   nrow=b->nwin;
   */
   /* now free up stuff */
-  free(b->w);
-  free(b->we);
+  xpp_free(b->w);
+  xpp_free(b->we);
   if(b->type==ICBOX){
-    free(b->ck);
-    free(b->isck);
+    xpp_free(b->ck);
+    xpp_free(b->isck);
   }
   waitasec(200);
   XFlush(display);
@@ -1643,11 +1644,11 @@ int nrow,n;
  class_hints.res_name="";
  class_hints.res_class="";
  XSetWMProperties(display,base,&winname,&iconame,NULL,0,&size_hints,NULL,&class_hints);
- b->w = (Window *)malloc(nrow*sizeof(Window));
- b->we = (Window *)malloc(nrow*sizeof(Window));
+ b->w = (Window *)xpp_malloc(nrow*sizeof(Window));
+ b->we = (Window *)xpp_malloc(nrow*sizeof(Window));
  if(type==ICBOX){
-   b->ck=(Window *)malloc(nrow*sizeof(Window));
-   b->isck=(int *)malloc(n*sizeof(int));
+   b->ck=(Window *)xpp_malloc(nrow*sizeof(Window));
+   b->isck=(int *)xpp_malloc(n*sizeof(int));
    for(i=0;i<n;i++)
      b->isck[i]=0;
 }
@@ -1731,17 +1732,17 @@ if(n<10)nrow=n;
  b->n=n;
  b->n0=0;
  b->nwin=nrow;
- b->value=(char **)malloc(n*sizeof(char*));
- b->pos=(int *)malloc(n*sizeof(int));
- b->off=(int *)malloc(n*sizeof(int));
- b->iname=(char *)malloc(strlen(iname)+5);
+ b->value=(char **)xpp_malloc(n*sizeof(char*));
+ b->pos=(int *)xpp_malloc(n*sizeof(int));
+ b->off=(int *)xpp_malloc(n*sizeof(int));
+ b->iname=(char *)xpp_malloc(strlen(iname)+5);
  strcpy(b->iname,iname);
- b->wname=(char *)malloc(strlen(wname)+5);
+ b->wname=(char *)xpp_malloc(strlen(wname)+5);
  strcpy(b->wname,wname);
 
    
  for(i=0;i<n;i++){
-   b->value[i]=(char *)malloc(256);
+   b->value[i]=(char *)xpp_malloc(256);
    switch(type){
    case PARAMBOX:
     get_val(upar_names[i],&z);
