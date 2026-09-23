@@ -11,6 +11,7 @@
    ran; stdout itself is pointed at stderr so the core's own printing never
    corrupts the stream. */
 #include "ui_json.h"
+#include "xpp_log.h"
 #include "xpp_http.h"
 #include "xpp_inbox.h"
 #include "xpp_job.h"
@@ -2750,7 +2751,7 @@ void json_ui_install(void)
            file (json_ui_set_script(), called before this) is read by the
            core thread itself instead, so no reader thread for it here */
         if (!script_mode && !xpp_inbox_start_stdin()) {
-            fprintf(stderr, "xppautX: cannot start the input thread\n");
+            xpp_log(XPP_LOG_ERROR, "xppautX: cannot start the input thread");
             exit(1);
         }
     }

@@ -2,6 +2,7 @@
 #include <X11/Xlib.h>
 #include "ggets.h"
 #include "xpp_globals.h"
+#include "xpp_log.h"
 
 #include <stdlib.h> 
 #include <stdio.h>
@@ -176,7 +177,7 @@ void x11_err_msg(string)
 char *string;
 {
  if(Xup) respond_box("OK",string);
- else {plintf("%s\n",string);}
+ else {xpp_log(XPP_LOG_ERROR,"%s",string);}
  
 }
 

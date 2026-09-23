@@ -15,11 +15,17 @@
      xppautX model.ode -silent      a headless batch run that writes
                                     output.dat, as upstream xppaut -silent
 
-   usage: xppautX [--server|--web|--script FILE] [--port N] [--no-open] file.ode [xppaut options]
+   usage: xppautX [--server|--web|--script FILE] [--port N] [--no-open]
+                  [--verbose|--debug] file.ode [xppaut options]
           xppautX --version
-   Every xppaut option still applies; ours have to come first. */
+   Every xppaut option still applies; ours have to come first. --verbose
+   and --debug raise the core/xpp_log.h threshold (default: warnings and
+   errors only) so the banner, parser stats and integrator chatter show
+   on stderr too; xpp_log_parse_arg() also recognizes xpp_batch_main's
+   own argv, so they work with -silent as well. */
 #include "xpp_batch.h"
 #include "xpp_globals.h"
+#include "xpp_log.h"
 #include "xpp_ui.h"
 #include "ui_json.h"
 #include "colormap.h"
@@ -110,6 +116,7 @@ int main(int argc, char **argv)
         }
         else if (strcmp(argv[i], "--no-open") == 0) open_browser = 0;
         else if (strcmp(argv[i], "--port") == 0 && i + 1 < argc) port = atoi(argv[++i]);
+        else if (xpp_log_parse_arg(argv[i])) { /* --verbose / --debug: xpp_log.h */ }
         else {
             /* xppaut's own switch for a run with no interface at all */
             if (strcmp(argv[i], "-silent") == 0) batch = 1;
@@ -121,7 +128,7 @@ int main(int argc, char **argv)
     if (batch) return xpp_batch_main(argc, argv);
     start_auto_dir();
     if (script && !json_ui_set_script(script)) {
-        fprintf(stderr, "xppautX: cannot open script %s\n", script);
+        xpp_log(XPP_LOG_ERROR, "xppautX: cannot open script %s", script);
         return 1;
     }
     if (web && !xpp_http_start(port, open_browser)) return 1;

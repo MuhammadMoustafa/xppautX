@@ -3,6 +3,7 @@
 #include "xpp_ui.h"
 #include "xpp_globals.h"
 #include "xpp_job.h"
+#include "xpp_log.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +13,7 @@ int do_calc(char *temp, double *z); /* xpp_util.c */
 
 /* ---- headless defaults ------------------------------------------------ */
 
-static void hl_err_msg(char *msg) { plintf("%s\n", msg); }
+static void hl_err_msg(char *msg) { xpp_log(XPP_LOG_ERROR, "%s", msg); }
 static void hl_void(void) {}
 static void hl_str(char *s) { (void)s; }
 static void hl_int(int v) { (void)v; }
@@ -368,27 +369,28 @@ void redraw_the_graph(void) { xpp_ui.redraw_graph(); }
 void make_txtview(void) { xpp_ui.make_txtview(); }
 void q_calc(void) { xpp_ui.q_calc(); }
 
-/* plintf, new_int and new_float were in ggets.c; they never touched X. */
+/* plintf, new_int and new_float were in ggets.c; they never touched X.
+
+   plintf is now a thin wrapper around xpp_log() at INFO: the banner,
+   "All formulas are valid!!", parser statistics, duplicate-name notes
+   and the like, quiet by default and shown with --verbose/--debug (see
+   xpp_log.h). It still honours XPPVERBOSE, the ODE file's own QUIET
+   option (load_eqn.c) -- set XPPVERBOSE=0 there and plintf stays fully
+   silent regardless of the log threshold, same as before this module
+   existed. A real error uses err_msg()/xpp_log(..., XPP_LOG_ERROR/WARN)
+   instead, never plintf. */
 
 int plintf(char *fmt, ...)
 {
-    int nchar = 0;
     va_list arglist;
 
-    if (!XPPVERBOSE) return nchar; /* Don't print at all! */
-
-    if (logfile == NULL) {
-        printf("The log file is NULL!\n");
-        logfile = stdout;
-    }
+    if (!XPPVERBOSE) return 0; /* Don't print at all! */
 
     va_start(arglist, fmt);
-    nchar = vfprintf(logfile, fmt, arglist);
+    xpp_log_v(XPP_LOG_INFO, fmt, arglist);
     va_end(arglist);
-    /* Flush so log info survives a crash. */
-    fflush(logfile);
 
-    return nchar;
+    return 0;
 }
 
 int new_int(char *name, int *value)
