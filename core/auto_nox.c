@@ -682,7 +682,7 @@ void open_auto(flg) /* compatible with new auto */
   is_3_there=flg;
 
   if(flg==1){
-    sprintf(string,"%s.s",this_auto_file);
+    snprintf(string,sizeof string,"%s.s",this_auto_file);
     copyf(string,fort3);
   }
 

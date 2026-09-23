@@ -60,7 +60,7 @@ void file_inf()
   FILE *fp;
  /*char filename[256];*/
  char filename[XPP_MAX_NAME];
- sprintf(filename,"%s.pars",this_file);
+ snprintf(filename,sizeof filename,"%s.pars",this_file);
  ping();
  if(!file_selector("Save info",filename,"*.pars*"))return;
  /* if(new_string("Filename: ",filename)==0)return; */
@@ -245,7 +245,7 @@ int f;
  FILE *fp;
  /*char filename[256];*/
  char filename[XPP_MAX_NAME];
- sprintf(filename,"%s.set",this_file);
+ snprintf(filename,sizeof filename,"%s.set",this_file);
  
 
  if(f==READEM){
