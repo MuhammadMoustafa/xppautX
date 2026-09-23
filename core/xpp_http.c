@@ -66,6 +66,7 @@ static char token[40];
 static sock_t listener = INVALID_SOCKET;
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t input_ready = PTHREAD_COND_INITIALIZER;
+static pthread_t watchdog_thread;
 static pthread_t http_thread, log_thread;
 
 /* commands from the page, newline separated, read by the core */
@@ -123,6 +124,55 @@ static int send_all(sock_t s, const char *p, size_t n)
 static int send_event(sock_t s, const char *line, size_t n)
 {
     return send_all(s, "data: ", 6) && send_all(s, line, n) && send_all(s, "\n\n", 2);
+}
+
+/* Closing the page used to leave the program running with its port held and
+   nothing to talk to, which for `xppautX model.ode` is a process the user
+   never sees again. The watchdog ends it once the last page has been gone a
+   while. A closed tab is not noticed until a write to it fails, and an idle
+   session writes nothing, so it also sends an SSE comment as a heartbeat.
+
+   The wait matters: a reload or a navigation drops the connection for a
+   moment and the page comes back, and serve_events() then pushes a redraw.
+   Only a session that has had a page at all can time out, so a slow browser
+   start is not mistaken for a closed one. */
+#define ALONE_SECONDS 10
+
+static int had_client;
+static time_t alone_since;
+
+static void *watchdog_main(void *arg)
+{
+    int i;
+    (void)arg;
+    for (;;) {
+#ifdef _WIN32
+        Sleep(2000);
+#else
+        sleep(2);
+#endif
+        pthread_mutex_lock(&lock);
+        for (i = 0; i < nclients; i++) {
+            if (!send_all(clients[i], ":\n\n", 3)) { /* a comment: the page ignores it */
+                close_sock(clients[i]);
+                clients[i--] = clients[--nclients];
+            }
+        }
+        if (nclients > 0) alone_since = 0;
+        else if (had_client && !alone_since) alone_since = time(NULL);
+        if (had_client && nclients == 0 && alone_since
+            && time(NULL) - alone_since >= ALONE_SECONDS) {
+            pthread_mutex_unlock(&lock);
+            /* exit() would run at_exit(), which tells the page the program is
+               going and waits on the same lock from this thread: it hangs, and
+               there is no page left to tell anyway. Flush what the core wrote,
+               then go. */
+            fflush(NULL);
+            _exit(0);
+        }
+        pthread_mutex_unlock(&lock);
+    }
+    return NULL;
 }
 
 /* the value of "key":"..." or "key":number in a flat event line */
@@ -310,6 +360,8 @@ static void open_events(sock_t s)
     if (ok && sticky_ask) ok = send_event(s, sticky_ask, strlen(sticky_ask));
     if (ok && exit_event) ok = send_event(s, exit_event, strlen(exit_event));
     if (ok && nclients < MAX_CLIENTS) {
+        had_client = 1;
+        alone_since = 0;
         clients[nclients++] = s;
         /* the page draws from scratch; a redraw would wait behind an open prompt */
         if (sticky_hello && !sticky_ask && !exit_event) push_command("{\"cmd\":\"redraw\"}", 16);
@@ -513,6 +565,7 @@ int xpp_http_start(int port, int open_browser)
     }
     active = 1;
     pthread_create(&http_thread, NULL, http_main, NULL);
+    pthread_create(&watchdog_thread, NULL, watchdog_main, NULL);
     atexit(at_exit);
     if (open_browser) open_in_browser(url);
     return 1;
