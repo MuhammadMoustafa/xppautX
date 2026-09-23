@@ -38,3 +38,6 @@ output.dat
 /build/webshots.log
 /build/examples/
 /xppautX-*
+
+# Python bytecode from the check scripts
+__pycache__/
