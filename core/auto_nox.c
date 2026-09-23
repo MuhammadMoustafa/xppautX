@@ -538,9 +538,17 @@ char *old,*new;
      copyf(old,new);
      return;
  }
- ft=fopen(TMPSWAP,"w");
+ /* Binary, like copyf(): these are AUTO's own fort.8/.s bytes. Opened "w"
+    here (text mode) on Windows, every byte copied through putc() that
+    happened to be '\n' came out "\r\n" -- the saved diagram (fort.8, then
+    the old .s appended after it) grew a stray '\r' before each '\n', which
+    is why a native Windows build's .auto file has more lines than the
+    Linux one once a run appends to an existing diagram. */
+ ft=fopen(TMPSWAP,"wb");
  if(ft==NULL){
    printf("Can't open %s \n",TMPSWAP);
+   fclose(fo);
+   fclose(fn);
    return;
  }
  while((c=getc(fo))!= EOF)
@@ -628,8 +636,16 @@ static int dir_is_writable(const char *dir)
 
 static char *auto_home_dir(char *dname)
 {
-  char *home = getenv("HOME");
+  char *home;
 
+  /* browser/--server mode (xppautx_main.c) points every session at its own
+     scratch directory, so two sessions never share fort.3/7/8/9 or one
+     model's .b/.d/.s files; unset for the X11 front end and -silent, which
+     keep the upstream HOME/model-directory behaviour below. */
+  if (xpp_auto_dir != NULL)
+    return xpp_auto_dir;
+
+  home = getenv("HOME");
   if (home == NULL || !dir_is_writable(home))
     home = dname;
   return home;
@@ -2857,7 +2873,14 @@ void save_auto()
   save_auto_graph(fp);
   status=save_diagram(fp,NODE);
   if(status!=1){
+    /* NBifs==1 is an empty diagram (no branch computed yet): save_diagram
+       writes its "0" header and stops there, same as load_diagram treats a
+       "0" it reads as "no diagram" (status -1). That much is right -- but
+       up to here save_auto gave no sign anything was wrong, leaving a
+       .auto file with numerics and an empty diagram and no orbit data.
+       Say so. */
     fclose(fp);
+    auto_err("Empty diagram -- nothing to save");
     return;
   }
   save_q_file(fp);
@@ -2931,10 +2954,11 @@ void save_q_file(fp)  /* I am keeping the name q_file even though they are s_fil
     auto_err("Couldnt open s-file");
     return;
   }
-  while(!feof(fq)){
-    fgets(string,500,fq);
+  /* !feof(fq) is still false going into the read that hits EOF, so that
+     read's stale buffer (the last line, still there from the read before)
+     got written a second time. Stop on fgets' own EOF instead. */
+  while(fgets(string,500,fq)!=NULL){
     fputs(string,fp);
-    /* break; */
   }
   fclose(fq);
 }
@@ -2951,9 +2975,9 @@ void make_q_file(fp)
     auto_err("Couldnt open s-file");
     return;
   }
-  
-  while(!feof(fp)){
-    fgets(string,500,fp);
+
+  /* same off-by-one as save_q_file (see there): stop on fgets' own EOF. */
+  while(fgets(string,500,fp)!=NULL){
     if(!noinfo(string)){
       fputs(string,fq);
     }

@@ -36,4 +36,15 @@ char *eq_stability(int cp, int rp, int im);
 /* browse_data.c */
 void open_write_file(FILE **fp, char *fil, int *ok);
 
+/* A private scratch directory, mode 0700, under $TMPDIR/$TMP or /tmp
+   (POSIX; xpp_util.c) or the system temp path (Windows; xpp_win32.c).
+   Returns a malloc'd absolute path, or NULL on failure. */
+char *xpp_make_temp_dir(void);
+/* Removes every file directly under dir (no subdirectories are expected)
+   and then dir itself. Safe to call with NULL. */
+void xpp_remove_temp_dir(const char *dir);
+/* atexit hook: removes xpp_auto_dir (xpp_globals.h) if it is set, and
+   clears it. Registered by xppautx_main.c, not the X11 front end. */
+void xpp_cleanup_auto_dir(void);
+
 #endif

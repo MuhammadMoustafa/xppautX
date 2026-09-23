@@ -28,9 +28,22 @@
 #include "load_eqn.h"
 #include "menudrive.h"
 #include "xpp_http.h"
+#include "xpp_util.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* AUTO's own scratch directory (issue #11): browser and --server mode each
+   get one, so concurrent sessions never share fort.3/7/8/9 or one model's
+   .b/.d/.s files (auto_home_dir() in auto_nox.c). Removed at exit. Not for
+   -silent, which runs no AUTO. */
+static void start_auto_dir(void)
+{
+    xpp_auto_dir = xpp_make_temp_dir();
+    if (xpp_auto_dir == NULL) return;
+    atexit(xpp_cleanup_auto_dir);
+    fprintf(stderr, "xpp_auto_dir=%s\n", xpp_auto_dir);
+}
 
 /* What --version prints. The Makefile passes the release tag when there is
    one (XPP_VERSION in release.yml, else git describe); a build from a tree with
@@ -101,6 +114,7 @@ int main(int argc, char **argv)
     argc = k;
     argv[argc] = NULL;
     if (batch) return xpp_batch_main(argc, argv);
+    start_auto_dir();
     if (web && !xpp_http_start(port, open_browser)) return 1;
     /* a monospace font the client can match: small 7x13, big 9x15 */
     DCURXs = 7; DCURYs = 13; CURY_OFFs = 10;

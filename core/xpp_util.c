@@ -717,3 +717,77 @@ void do_txt_action(char *s)
   redraw_ics();
   reset_graph();
 }
+
+/* ---- a private scratch directory for AUTO (xpp_globals.h: xpp_auto_dir) --
+   POSIX side; the Windows side is xpp_win32.c, next to the rest of the
+   windows.h-using code. Not mkdtemp(): CSTD builds with -D_XOPEN_SOURCE=600,
+   under which mkdtemp is not declared (it needs 700), and -Werror on an
+   implicit declaration would stop the build; so the name is built here. */
+#ifndef _WIN32
+#include <dirent.h>
+#include <errno.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+char *xpp_make_temp_dir(void)
+{
+  const char *base = getenv("TMPDIR");
+  char *path;
+  int i;
+
+  if (base == NULL || base[0] == 0)
+    base = "/tmp";
+  path = malloc(strlen(base) + 64);
+  if (path == NULL)
+    return NULL;
+  for (i = 0; i < 1000; i++) {
+    unsigned r = 0;
+    FILE *f = fopen("/dev/urandom", "rb");
+    if (f != NULL) {
+      if (fread(&r, sizeof(r), 1, f) != 1)
+        r = 0;
+      fclose(f);
+    }
+    if (r == 0)
+      r = (unsigned)time(NULL) ^ (unsigned)getpid() ^ (unsigned)(i * 2654435761u);
+    sprintf(path, "%s/xppautoX-%ld-%u", base, (long)getpid(), r);
+    if (mkdir(path, 0700) == 0)
+      return path;
+    if (errno != EEXIST)
+      break;
+  }
+  free(path);
+  return NULL;
+}
+
+void xpp_remove_temp_dir(const char *dir)
+{
+  DIR *d;
+  struct dirent *e;
+  char path[1024];
+
+  if (dir == NULL)
+    return;
+  d = opendir(dir);
+  if (d != NULL) {
+    while ((e = readdir(d)) != NULL) {
+      if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0)
+        continue;
+      snprintf(path, sizeof(path), "%s/%s", dir, e->d_name);
+      remove(path);
+    }
+    closedir(d);
+  }
+  rmdir(dir);
+}
+#endif
+
+void xpp_cleanup_auto_dir(void)
+{
+  if (xpp_auto_dir != NULL) {
+    xpp_remove_temp_dir(xpp_auto_dir);
+    free(xpp_auto_dir);
+    xpp_auto_dir = NULL;
+  }
+}

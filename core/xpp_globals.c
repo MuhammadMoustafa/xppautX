@@ -10,6 +10,7 @@ int allwinvis = 0;
 int use_intern_sets = 1;
 int use_ani_file = 0;
 char anifile[XPP_MAX_NAME];
+char *xpp_auto_dir = NULL;
 float xppvermaj, xppvermin;
 /* Set this to 1 if you want the tutorial to come up at start-up as default
    behavior */

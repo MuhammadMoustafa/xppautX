@@ -313,6 +313,30 @@ def lecar_diagram(s):
         return f.read()
 
 
+def lines_close(a, b, rtol=1e-6, atol=1e-9):
+    """a and b, line by line: the same tokens, numbers allowed to differ by
+    a little. AUTO's continuation runs Newton's method for ~500 steps on
+    whatever the platform's libm hands back for cosh/tanh/exp in lecar's
+    right-hand side; glibc and mingw-w64's implementations of those agree
+    to a handful of ULPs but not bit for bit, and that grows over the run
+    into a last-few-significant-digits difference in the saved orbit. A
+    structural bug (the appendf() text-mode one this check caught before)
+    changes line counts or non-numeric tokens, which this still catches."""
+    ta, tb = a.split(), b.split()
+    if len(ta) != len(tb):
+        return False
+    for x, y in zip(ta, tb):
+        if x == y:
+            continue
+        try:
+            fx, fy = float(x), float(y)
+        except ValueError:
+            return False
+        if abs(fx - fy) > atol + rtol * max(abs(fx), abs(fy)):
+            return False
+    return True
+
+
 def section_files():
     home = tempfile.mkdtemp(prefix='xpphome')
     s = Server(args.server, LECAR, env={'HOME': home}, verbose=args.v)
@@ -330,8 +354,9 @@ def section_files():
         return
     with open(DIAGRAM, newline='') as f:
         want = f.read().splitlines()
-    diff = next((i for i, (a, b) in enumerate(zip(lines, want)) if a != b), None)
-    check('the saved diagram of lecar is unchanged', lines == want,
+    diff = next((i for i, (a, b) in enumerate(zip(lines, want)) if not lines_close(a, b)), None)
+    check('the saved diagram of lecar is unchanged',
+          len(lines) == len(want) and diff is None,
           'first difference at line %s; %d vs %d lines' % (diff, len(lines), len(want)))
 
 
@@ -356,8 +381,18 @@ def section_sessions():
     msgs = ' '.join(str(e.get('text', '')) for e in evs if e.get('ev') == 'message')
     check('a session still extends from its own orbit', 'nan' not in msgs.lower() and a.alive(), msgs[:200])
     runs = [a.run, b.run]
+    # each session's AUTO scratch directory (xpp_auto_dir, printed at startup
+    # on stderr) is its own, exists while the session is up, and is gone
+    # once it has exited (xpp_cleanup_auto_dir's atexit hook)
+    auto_dirs = [a.auto_dir, b.auto_dir]
+    check('each session got its own AUTO scratch directory',
+          all(auto_dirs) and auto_dirs[0] != auto_dirs[1], str(auto_dirs))
+    check('a scratch directory exists while its session is up',
+          all(d and os.path.isdir(d) for d in auto_dirs), str(auto_dirs))
     a.close()
     b.close()
+    check('a scratch directory is gone once its session exits',
+          all(d and not os.path.isdir(d) for d in auto_dirs), str(auto_dirs))
     left = os.listdir(home)
     check('nothing is written to HOME', left == [], str(left))
     shutil.rmtree(home, ignore_errors=True)

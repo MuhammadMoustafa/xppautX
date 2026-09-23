@@ -7,9 +7,13 @@
 #include <windows.h>
 #include <io.h>
 #include <fcntl.h>
+#include <direct.h>
 #include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 #include "xpp_dlfcn.h"
 #include "xpp_win32.h"
+#include "xpp_util.h"
 
 static const char *dl_error;
 
@@ -46,6 +50,51 @@ int xpp_read_stdin(char *buf, int n)
 }
 
 void xpp_binary_mode(int fd) { _setmode(fd, _O_BINARY); }
+
+/* xpp_util.c's POSIX xpp_make_temp_dir/xpp_remove_temp_dir, built here
+   instead so <windows.h> stays out of the core files that call them
+   (xpp_util.c, auto_nox.c via xpp_globals.h's xpp_auto_dir). */
+char *xpp_make_temp_dir(void)
+{
+    char base[MAX_PATH];
+    char *path;
+    DWORD n;
+    int i;
+
+    n = GetTempPathA(sizeof(base), base);
+    if (n == 0 || n >= sizeof(base)) return NULL;
+    if (n > 0 && base[n - 1] == '\\') base[--n] = 0;
+    path = (char *)malloc((size_t)n + 64);
+    if (path == NULL) return NULL;
+    for (i = 0; i < 1000; i++) {
+        sprintf(path, "%s\\xppautoX-%lu-%lu-%d", base, (unsigned long)GetCurrentProcessId(),
+                (unsigned long)GetTickCount(), i);
+        if (_mkdir(path) == 0) return path;
+    }
+    free(path);
+    return NULL;
+}
+
+void xpp_remove_temp_dir(const char *dir)
+{
+    WIN32_FIND_DATAA fd;
+    HANDLE h;
+    char pattern[2 * MAX_PATH];
+    char path[2 * MAX_PATH];
+
+    if (dir == NULL) return;
+    snprintf(pattern, sizeof(pattern), "%s\\*", dir);
+    h = FindFirstFileA(pattern, &fd);
+    if (h != INVALID_HANDLE_VALUE) {
+        do {
+            if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0) continue;
+            snprintf(path, sizeof(path), "%s\\%s", dir, fd.cFileName);
+            DeleteFileA(path);
+        } while (FindNextFileA(h, &fd));
+        FindClose(h);
+    }
+    RemoveDirectoryA(dir);
+}
 #else
 typedef int xpp_win32_unused;
 #endif
