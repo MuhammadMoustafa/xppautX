@@ -577,7 +577,7 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T9 (**done**) | Use this view: `view` command sets the window's axes from the client's zoom; Fit | T6 | small | servercheck: `view` then `state.view` matches; PostScript export uses it |
 | T10 (**done**) | Data table: virtualized browser table on `browser`, its buttons, CSV export, keyboard navigation | T3 | no | web2check: scroll to row 500, Get sets the ICs, keyboard reaches every button |
 | T11a (**done**) | AUTO view from `diagram`: branches by stability, labels, zoom, pan, readout; buttons (no Abort: the status bar's Stop, A10) | T4 | no | web2check: after an AUTO run the store's diagram equals the `diagram` events; readout names a labelled point |
-| T11b | AUTO grab by point, `autoinfo`, stability circle as data | T11a | yes | servercheck: grab by index then run; web2check: grab from the keyboard |
+| T11b (**done**) | AUTO grab by point, `autoinfo`, stability circle as data | T11a | yes | servercheck: grab by index then run; web2check: grab from the keyboard |
 | T12 (**done**) | Array plot view from `aplot` (with `values`), colour maps, scroll | T6 | small | web2check: cells equal the event's; scroll in time |
 | T13 (**done**) | Animation: frames in unit coordinates, player controls, scaling to any size | T6 | yes | servercheck: frame primitives in [0,1]; web2check: play, pause, step, seek update the frame index |
 | T14 | 3D plots: projection and rotation in the client, angles synced with `rotate` | T6 | small | web2check: rotate by drag and keys; `state.view.three` agrees |
