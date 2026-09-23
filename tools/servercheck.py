@@ -854,6 +854,103 @@ def check_plot_windows():
 check_plot_windows()
 
 
+# The values panel and the run history of web2 (GitHub #18): hello's
+# defaults, state's now, a batched set with rerun, the ICs from where the
+# last run ended, the state at the start of a run, the series version, and
+# the erase/redraw events of the Erase and Redraw commands only.
+def check_values_protocol():
+    pv, rv, sndv, colv, _ = launch_server()
+
+    def after(**cmd):
+        sndv(**cmd)
+        return colv(is_idle, timeout=30)[0]
+
+    def keys(key, *answers):
+        sndv(cmd='key', key=key)
+        got, pending = [], list(answers)
+        while True:
+            evs, e = colv(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60)
+            got += evs
+            if e is None or e['ev'] == 'idle':
+                return got
+            sndv(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
+
+    full = lambda evs: [e for e in evs if e.get('ev') == 'series' and 'op' not in e]
+    pics = lambda evs: [(e['ev'], e['win']) for e in evs if e.get('ev') in ('erase', 'redraw')]
+    par = lambda st, n: next(v for k, v in st['pars'] if k.lower() == n)
+    ic = lambda st, n: next(v for k, v in st['ics'] if k.lower() == n)
+    try:
+        evs, _ = colv(is_idle)
+        hv = next((e for e in evs if e.get('ev') == 'hello'), {})
+        st0 = last_state(evs)
+        d = hv.get('defaults', {})
+        check('hello: defaults, one per parameter and IC, equal to the values as loaded',
+              st0 and len(d.get('pars', [])) == len(st0['pars']) and len(d.get('ics', [])) == len(st0['ics'])
+              and d['pars'] == [v for _, v in st0['pars']] and d['ics'] == [v for _, v in st0['ics']], str(d)[:200])
+        check('state: no now before any run', st0 and 'now' not in st0, str(st0)[:200])
+        after(cmd='data', events=['series'])
+        evs = keys('i', {'key': 'g'})
+        st, ser = last_state(evs), full(evs)
+        cols = {c['col']: c['data'] for c in ser[-1]['columns']} if ser else {}
+        check('a run: the full series carries the data version',
+              ser and isinstance(ser[-1].get('version'), int), str(ser and {k: v for k, v in ser[-1].items() if k != 'columns'})[:200])
+        check('state: now is where the run ended (the last stored row)',
+              st and len(st.get('now', [])) == len(st['ics']) and ser
+              and all(abs(st['now'][i] - cols[i + 1][-1]) < 1e-6 for i in range(len(st['ics'])) if i + 1 in cols),
+              str(st and st.get('now')))
+        v0 = ser[-1]['version'] if ser else None
+
+        # one command sets several values and runs once
+        evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': '0.1'},
+                                       {'kind': 'ic', 'name': 'v', 'value': -0.2}], rerun=1)
+        st, ser = last_state(evs), full(evs)
+        v_col = ser[-1]['columns'][[c['col'] for c in ser[-1]['columns']].index(1)]['data'] if ser else []
+        check('set values[]: both set, then one run from them (rerun)',
+              st and abs(par(st, 'iapp') - 0.1) < 1e-12 and abs(ic(st, 'v') + 0.2) < 1e-12 and len(ser) == 1
+              and ser[0]['rows'] == 601 and v_col and abs(v_col[0] - f32(-0.2)) < 1e-9 and ser[0]['version'] != v0,
+              str(st and st['pars'][:3]) + str([(s['rows'], s.get('version')) for s in ser]))
+        check('the Erase-free rerun sends no erase event', not pics(evs), str(pics(evs)))
+        evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': '%nosuch+'}], rerun=1)
+        check('set values[] with a bad formula: an error, and no run',
+              any(e.get('ev') == 'message' and 'error' in e for e in evs) and not full(evs), str(evs)[:300])
+        before = last_state(after(cmd='state'))
+        evs = after(cmd='set', kind='ic', **{'from': 'last'})
+        st = last_state(evs)
+        check('set from last: the ICs become now, without a run',
+              st and st['ics'] and [v for _, v in st['ics']] == before['now'] and not full(evs),
+              str(st and st['ics']) + ' vs ' + str(before and before.get('now')))
+        after(cmd='set', kind='ic', name='v', value=-0.3)
+        prev_now = last_state(after(cmd='state'))['now']
+        evs = keys('i', {'key': 'l'})
+        states = [i for i, e in enumerate(evs) if is_state(e)]
+        sers = [i for i, e in enumerate(evs) if e.get('ev') == 'series']
+        first = evs[states[0]] if states else None
+        check('Initialconds/Last: a state at the start of the run already has the ICs from where the last one ended',
+              first and sers and states[0] < sers[-1] and [v for _, v in first['ics']] == prev_now,
+              str(first and first['ics']) + ' vs ' + str(prev_now))
+        evs = after(cmd='default', kind='par', rerun=1)
+        st = last_state(evs)
+        check('default with rerun: the model values, then a run',
+              st and par(st, 'iapp') == d['pars'][[k.lower() for k, _ in st['pars']].index('iapp')] and len(full(evs)) == 1,
+              str(st and st['pars'][:3]))
+
+        evs = after(cmd='slide', name='iapp', value=0.07)
+        check('a slider rerun sends no erase event', not pics(evs) and len(full(evs)) == 1, str(pics(evs)))
+        evs = keys('e')
+        check('Erase: one erase event for the active window, no series', pics(evs) == [('erase', 1)] and not full(evs),
+              str(pics(evs)))
+        evs = keys('r')
+        check('Redraw: one redraw event for the active window, no series', pics(evs) == [('redraw', 1)] and not full(evs),
+              str(pics(evs)))
+        evs = after(cmd='redraw')
+        check('the redraw command (a reconnect) sends no erase or redraw event', not pics(evs), str(pics(evs)))
+    finally:
+        stop_server(pv, rv, sndv)
+
+
+check_values_protocol()
+
+
 # Nullclines, direction fields and flows as data (docs/protocol.md "The
 # plot as data", docs/ui-v2.md T7): what the classic window draws, in plot
 # coordinates. The segments and arrows are compared with the draw ops of the

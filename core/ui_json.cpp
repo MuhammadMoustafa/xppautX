@@ -55,6 +55,7 @@
 #include "auto_data.h"
 #include "xpp_files.h"
 #include <strings.h>
+#include <climits>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,7 +73,8 @@
 extern "C" {
 extern int NUPAR, NODE, NMarkov, NEQ;
 extern char upar_names[MAXPAR][XPP_NAME_MAX+1], uvar_names[MAXODE][XPP_NAME_MAX+1];
-extern double last_ic[MAXODE];
+extern double last_ic[MAXODE], MyData[MAXODE], default_val[MAXPAR], default_ic[MAXODE];
+extern int INFLAG;
 extern char this_file[];
 extern char cur_dir[];
 extern BROWSER my_browser;
@@ -1069,7 +1071,14 @@ static void send_state(void)
         buf_str(&b, uvar_names[i]);
         buf_printf(&b, ",%.16g]", last_ic[i]);
     }
-    BUF_LIT(&b, "],\"bcs\":[");
+    BUF_LIT(&b, "]");
+    /* where the last run ended (MyData, what Initialconds/Last starts from) */
+    if (INFLAG) {
+        BUF_LIT(&b, ",\"now\":[");
+        for (i = 0; i < NODE + NMarkov; i++) buf_printf(&b, "%s%.16g", i ? "," : "", MyData[i]);
+        BUF_LIT(&b, "]");
+    }
+    BUF_LIT(&b, ",\"bcs\":[");
     for (i = 0; i < NODE; i++) {
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
@@ -2673,6 +2682,21 @@ static void j_exit_program(void)
     exit(0);
 }
 
+/* a stored row (integrate.c row_stored): the data events' appends, and at
+   the start of a run (storage starting again) the state, so a client shows
+   the initial conditions the run starts from (Initialconds/Last changed
+   them) while it runs, not after */
+static void j_rows_stored(int nrows)
+{
+    static int last = INT_MAX;
+    if (nrows <= last) {
+        state_dirty = 1;
+        json_flush();
+    }
+    last = nrows;
+    plot_data_rows_stored(nrows);
+}
+
 static void j_void(void) {}
 static void j_int(int i) { (void)i; }
 
@@ -2721,7 +2745,7 @@ static XppUi make_json_ui(void)
     u.clear_draw_window = clr_scrn;
     u.reset_graphics = j_reset_graphics;
     u.data_changed = j_browser_changed;
-    u.rows_stored = plot_data_rows_stored;
+    u.rows_stored = j_rows_stored;
     u.browser_redraw = j_browser_changed;
     u.activate_graph = j_activate_graph;
     u.create_plot_window = j_create_plot_window;
@@ -2849,10 +2873,11 @@ static void apply_size(const char *line)
     }
 }
 
-/* {"cmd":"set","kind":"par|ic|bc|delay","name":...,"value":number or "text":...}
-   Text is what the user would type in the X11 box: a number or %formula for
-   parameters and ICs, an expression for BCs and delays. */
-static void apply_set(const char *line)
+/* one value of a "set": {"kind":"par|ic|bc|delay","name":...,"value":number
+   or "text":...}. Text is what the user would type in the X11 box: a number
+   or %formula for parameters and ICs, an expression for BCs and delays.
+   0 when set (or nothing to set), -1 on a formula that does not evaluate. */
+static int apply_value(const char *line)
 {
     char kind[16], name[NAME_IN], text[256];
     double z;
@@ -2865,7 +2890,7 @@ static void apply_set(const char *line)
     else if (strcmp(kind, "ic") == 0) type = 2;   /* ICBOX */
     else if (strcmp(kind, "delay") == 0) type = 3; /* DELAYBOX */
     else if (strcmp(kind, "bc") == 0) type = 4;   /* BCBOX */
-    else return;
+    else return 0;
     n = type == 1 ? NUPAR : type == 2 ? NODE + NMarkov : NODE;
     /* BC names are not unique ("0="): those come by index */
     index = (int)get_num(line, "index", -1);
@@ -2875,12 +2900,40 @@ static void apply_set(const char *line)
         if (s && strcasecmp(s, name) == 0) index = i;
     }
     state_dirty = 1;
-    if (index < 0) return;
+    if (index < 0) return 0;
     if (box_set_value(type, index, text, &z) == -1) {
         j_err_msg("Bad formula");
-        return;
+        return -1;
     }
     box_values_loaded(type);
+    return 0;
+}
+
+/* {"cmd":"set", one value's members (apply_value), or "values":[{...}...]
+   to set several in one command, "rerun":1 to integrate again afterwards
+   as a slider does (only when every value was set), or "kind":"ic",
+   "from":"last" for the initial conditions from where the last run ended,
+   what Initialconds/Last starts from, without a run} */
+static void apply_set(const char *line)
+{
+    const char *values = js_find(line, "values");
+    char from[8];
+    int i, bad = 0;
+    if (get_str(line, "from", from, sizeof from)) {
+        if (strcmp(from, "last") != 0) return;
+        if (!INFLAG) {
+            j_err_msg("No prior solution");
+            return;
+        }
+        get_ic(0, MyData); /* integrate.c do_init_data M_IL: last_ic = the current state */
+        state_dirty = 1;
+        return;
+    }
+    if (values)
+        for (i = 0; js_elem(values, i); i++) bad |= apply_value(js_elem(values, i));
+    else
+        bad = apply_value(line);
+    if (!bad && get_num(line, "rerun", 0)) slider_rerun();
 }
 
 /* {"ev":"stopped","at":AT}: where the running job was when it was
@@ -2965,6 +3018,7 @@ static void handle_line(const char *line, unsigned long seq)
         get_str(line, "kind", kind, sizeof kind);
         if (strcmp(kind, "par") == 0) set_default_params();
         else set_default_ics();
+        if (get_num(line, "rerun", 0)) slider_rerun();
     } else if (is_cmd(line, "slide")) {
         /* a parameter slider moved: {"cmd":"slide","name":...,"value":v,"rerun":1} */
         char name[NAME_IN];
@@ -3224,7 +3278,12 @@ void json_ui_hello(char *title)
             buf_printf(&b, ",\"lo\":%.16g,\"hi\":%.16g}", lo[i], hi[i]);
         }
     }
-    BUF_LIT(&b, "]}");
+    /* the model file's values, what `default` restores, in state's order */
+    BUF_LIT(&b, "],\"defaults\":{\"pars\":[");
+    for (i = 0; i < NUPAR; i++) buf_printf(&b, "%s%.16g", i ? "," : "", default_val[i]);
+    BUF_LIT(&b, "],\"ics\":[");
+    for (i = 0; i < NODE + NMarkov; i++) buf_printf(&b, "%s%.16g", i ? "," : "", default_ic[i]);
+    BUF_LIT(&b, "]}}");
     send_buf(&b);
     xpp_free(b.s);
     send_palette();

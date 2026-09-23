@@ -37,6 +37,12 @@ int plot_data_want_f32(void);
 /* the stored data changed (xpp_ui.h data_changed) */
 void plot_data_changed(void);
 
+/* the Erase (redraw 0) or Redraw (1) command: an "erase" or "redraw" event
+   for each window it blanked or drew again, to a client that asked for
+   series (docs/protocol.md "The plot as data"). Only these commands: other
+   blanks (a slider's rerun, a resize, a zoom) keep what the client shows. */
+void plot_data_picture(int redraw);
+
 /* the integrator stored row nrows-1 (xpp_ui.h rows_stored): appends, at
    most ten a second */
 void plot_data_rows_stored(int nrows);

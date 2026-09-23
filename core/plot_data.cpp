@@ -205,6 +205,8 @@ void send_series(int pop, const SeriesSig &s, int rows)
     add_int(o, static_cast<long>(s.win));
     o += ",\"rows\":";
     add_int(o, rows);
+    o += ",\"version\":";
+    add_int(o, static_cast<long>(s.version));
     o += ",\"three\":";
     add_int(o, s.three);
     if (series_f32) o += ",\"enc\":\"f32\"";
@@ -382,6 +384,24 @@ extern "C" void plot_data_subscribe(int series, int plots, int f32)
 }
 
 extern "C" void plot_data_changed(void) { data_version++; }
+
+/* the windows a command draws on: all of ActiveWinList under Simulplot, else the active one */
+extern "C" void plot_data_picture(int redraw)
+{
+    if (!series_on) return;
+    const int n = SimulPlotFlag ? num_pops : 1;
+    try {
+        for (int k = 0; k < n; k++) {
+            const int pop = SimulPlotFlag ? ActiveWinList[k] : current_pop;
+            if (pop < 0 || pop >= MAXPOP || !graph[pop].Use) continue;
+            std::string o = redraw ? "{\"ev\":\"redraw\",\"win\":" : "{\"ev\":\"erase\",\"win\":";
+            add_int(o, static_cast<long>(graph[pop].w));
+            o += '}';
+            emit(o);
+        }
+    } catch (...) {
+    }
+}
 
 /* the encoding the client asked for in its last "data" command (docs/ui-v2.md
    T12, "reuse series_enc"): other events that carry value arrays outside the
