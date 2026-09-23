@@ -354,8 +354,13 @@ Target: WCAG 2.2 AA. Rules:
 - **A9 Consistency**: one spacing and one type scale; buttons, fields and
   dialogs share their shapes; the same action has the same name
   everywhere.
-- **A10 Long runs**: the status bar shows Working… with a progress bar;
-  Abort turns into a disabled "Stopping…" until the run's `idle`; buttons
+- **A10 Long runs**: the status bar shows Working… with a progress bar and
+  the one Stop control (`abort`, also Escape) for whatever runs, in any
+  view; it exists only while something runs and turns into a disabled
+  "Stopping…" until the run's `idle`. Views have no Abort buttons of their
+  own (decision 2026-09-23): a view's close (×) means "done with it", and
+  stops a running job first, while Stop keeps the view and its partial
+  result (an AUTO branch ending on its EP, to grab and continue). Buttons
   that would queue behind the run (Integrate) are disabled while it runs.
 - **A11 Notifications, not modal alerts**: errors and the core's alerts are
   toasts that do not take the focus or stop the run; errors stay until
@@ -415,7 +420,7 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T8 | Marks: Sing pts equilibria, Graphic stuff text/arrows/markers, frozen curves; Greek labels as Unicode | T6 | yes | servercheck: `marks` after Sing pts has the equilibrium's coordinates; web2check: marks listed in the store and the legend |
 | T9 | Use this view: `view` command sets the window's axes from the client's zoom; Fit | T6 | small | servercheck: `view` then `state.view` matches; PostScript export uses it |
 | T10 | Data table: virtualized browser table on `browser`, its buttons, CSV export, keyboard navigation | T3 | no | web2check: scroll to row 500, Get sets the ICs, keyboard reaches every button |
-| T11a | AUTO view from `diagram`: branches by stability, labels, zoom, pan, readout; buttons | T4 | no | web2check: after an AUTO run the store's diagram equals the `diagram` events; readout names a labelled point |
+| T11a | AUTO view from `diagram`: branches by stability, labels, zoom, pan, readout; buttons (no Abort: the status bar's Stop, A10) | T4 | no | web2check: after an AUTO run the store's diagram equals the `diagram` events; readout names a labelled point |
 | T11b | AUTO grab by point, `autoinfo`, stability circle as data | T11a | yes | servercheck: grab by index then run; web2check: grab from the keyboard |
 | T12 | Array plot view from `aplot` (with `values`), colour maps, scroll | T6 | small | web2check: cells equal the event's; scroll in time |
 | T13 | Animation: frames in unit coordinates, player controls, scaling to any size | T6 | yes | servercheck: frame primitives in [0,1]; web2check: play, pause, step, seek update the frame index |
