@@ -1,5 +1,5 @@
 /* The layout shell: title bar, command menu (a drawer on narrow screens),
-   the plot, messages, status, notifications and the prompt dialog.
+   the plot windows, messages, status, notifications and the prompt dialog.
    Panels still to come (docs/ui-v2.md) get their own components here. */
 import type {Session} from '../session';
 import {AskDialog} from './AskDialog';
@@ -7,7 +7,7 @@ import {SessionContext, useStore} from './context';
 import {useHotkeys} from './hotkeys';
 import {MenuPanel} from './MenuPanel';
 import {Messages} from './Messages';
-import {PlotView} from './PlotView';
+import {Plots} from './Plots';
 import {StatusBar} from './StatusBar';
 import {TableView} from './TableView';
 import {useDark} from './theme';
@@ -42,7 +42,7 @@ function Shell() {
       <MenuPanel />
       <main id="main" class="workspace">
         <Banner />
-        <PlotView dark={dark} />
+        <Plots dark={dark} />
         <Messages />
       </main>
       <ValuesPanel />

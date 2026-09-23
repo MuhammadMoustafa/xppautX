@@ -161,8 +161,9 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   written in browser mode, where the AUTO window's Output panel shows it.
 - The X11 front end is frozen and will be removed once the new web UI
   covers it; new UI work goes into ui_json.c and `web2/` (the data-level
-  front end: the core sends numbers, e.g. the `series` event after
-  `{"cmd":"data","events":["series"]}`, and the page draws them);
+  front end: the core sends numbers, e.g. the `series` and `plots` events
+  after `{"cmd":"data","events":["series","plots"]}`, built in
+  `core/plot_data.cpp`, and the page draws them);
   `web/` (the draw-op replay) only gets fixes until web2 replaces it.
   docs/ui-v2.md has the protocol v2 events and the task list;
   docs/front-end-gaps.md tracks parity.

@@ -5,6 +5,7 @@ import {test} from 'node:test';
 import {CENTRE, pickAnswer, pickKey, pickModeOf, startPick, STEP, toData, type PickState} from '../src/plot/pick';
 import {fieldSpec, listOption, selectOptions} from '../src/protocol/lists';
 import type {AskEvent, View} from '../src/protocol/types';
+import {activeWindow} from '../src/store/plots';
 import {initialState, reduce, type AppState} from '../src/store/state';
 
 const view: View = {win: 1, left: 50, right: 550, top: 20, bottom: 420, xlo: -0.6, xhi: 0.5, ylo: -0.1, yhi: 0.5, three: 0};
@@ -131,11 +132,11 @@ test('the core\'s window moving (Window/Zoom) shows it: the client zoom is undoa
   let s = withPlot();
   s = reduce(s, {type: 'viewport', viewport: {x: {min: 0, max: 0.1}, y: null}, push: true});
   s = ev(s, {ev: 'state', pars: [], ics: [], bcs: [], view, rows: 0, menu: 0, win: 1});
-  assert.deepEqual(s.viewport.x, {min: 0, max: 0.1}, 'the same window: the zoom stays');
+  assert.deepEqual(activeWindow(s.plots)!.viewport.x, {min: 0, max: 0.1}, 'the same window: the zoom stays');
   s = ev(s, {ev: 'state', pars: [], ics: [], bcs: [], view: {...view, xlo: -0.2}, rows: 0, menu: 0, win: 1});
-  assert.equal(s.viewport.x, null);
+  assert.equal(activeWindow(s.plots)!.viewport.x, null);
   s = reduce(s, {type: 'undoViewport'});
-  assert.deepEqual(s.viewport.x, {min: 0, max: 0.1});
+  assert.deepEqual(activeWindow(s.plots)!.viewport.x, {min: 0, max: 0.1});
 });
 
 test('the core\'s hint box is kept until the command ends', () => {

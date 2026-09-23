@@ -1,12 +1,13 @@
-/* The plot view's chart, for the test hook and the export buttons. */
+/* Each plot window's chart, for the test hook and the export buttons. */
 import type {Chart} from './chart';
 
-let current: Chart | null = null;
+const charts = new Map<number, Chart>();
 
-export function setCurrentChart(c: Chart | null): void {
-  current = c;
+export function setChart(win: number, c: Chart | null): void {
+  if (c) charts.set(win, c);
+  else charts.delete(win);
 }
 
-export function currentChart(): Chart | null {
-  return current;
+export function chartOf(win: number): Chart | null {
+  return charts.get(win) ?? null;
 }

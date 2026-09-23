@@ -35,14 +35,16 @@ then `web/` and the X11 program go; upstream mergeability is not a goal.
 
 | Piece | Where | What it does |
 |---|---|---|
-| `series` event and `data` command | `core/ui_json.c` (`send_series`, `series_update`, `j_rows_stored`), `core/series_enc.cpp`, docs/protocol.md "The plot as data" | The active plot window's curves as numbers: T and every plotted column, float32 values printed with 9 digits or base64 float32 (`enc` `f32`), sent at the end of a command when the data, the window or its curves changed, and in `append` parts while an integration runs. |
+| `series` and `plots` events, `data` command | `core/plot_data.cpp` (C API in `plot_data.h`, called from `core/ui_json.c`), `core/series_enc.cpp`, docs/protocol.md "The plot as data" | Every plot window's curves as numbers, one `series` per window: T and every plotted column, float32 values printed with 9 digits or base64 float32 (`enc` `f32`), sent at the end of a command when the window's data or curves changed, and for the active window in `append` parts while an integration runs. `plots` lists the windows (axes, labels, 3D view, curves) and the active one. |
 | Page | `web2/src/` | Preact + TypeScript. A store fed by protocol events, a session that sends commands, the layout shell, the command menu, the plot (uPlot), prompts as dialogs, notifications, status bar. |
 | Build | `web2/build.mjs`, `web2/package.json` | esbuild bundles `src/` into `web2/dist/` (`app.js`, `app.css`, `index.html`, the Inter font and its licence). `dist/` is committed. |
 | Embedding | `Makefile` `WEB2_FILES`, `tools/embed.c --prefix=/v2/` | xppautX serves `web2/dist` at `/v2/` next to the classic page at `/`. |
 | Tests | `web2/test/`, `tools/web2check.mjs`, `tools/servercheck.py`, `tools/webcheck.py` | Reducer and plot-model unit tests; a browser session asserting store and plot state (desktop, keyboard only, 390x844 touch); the `series` numbers against `output.dat`; the `/v2/` assets. |
 
-The plot shows the curves of the active window (a phase plane in xy mode,
-a time plot in aligned mode), starts at the window's axes (Viewaxes), and
+The plot windows are tabs (Makewindow's windows, the core's active one
+selected; picking a tab makes it active). Each shows its window's curves (a
+phase plane in xy mode, a time plot in aligned mode), starts at the
+window's axes (Viewaxes), keeps its own zoom when the tabs switch, and
 adds, all in the client without a round trip: drag a box to zoom, the wheel
 zooms about the pointer, Shift+drag or the middle button pans, pinch and
 one-finger drag on touch, a double click (or `0`) goes back to the window's
@@ -104,7 +106,7 @@ bundle is ~95 KB of JS (Preact 4 KB, uPlot 50 KB), 11 KB of CSS, 48 KB of font.
 |---|---|---|---|---|
 | 1 | `series` (**done**) | main plot | the active window's curves: storage columns (T always), colour, line or points, lag shifts, axis labels | done |
 | 2 | `series` `op:"append"` | live plot | `from`, the new rows of the same columns, during an integration; the final `series` at the end | yes: from the integrator's plot hook (`plot_the_graphs`), throttled |
-| 3 | `plots` | plot windows as tabs | per window: `win`, title, 2D/3D, axes ranges (`xlo..yhi`), labels, 3D angles (`Theta`, `Phi`, persp), and its curves; `series` gains a `win` subscription for a window that is not active | yes: send per window, not only `MyGraph` |
+| 3 | `plots` (**done**) | plot windows as tabs | per window: `win`, title, 2D/3D, axes ranges (`xlo..yhi`), labels, the 3D box and angles (`theta`, `phi`, `persp`), and its curves; `series` is sent per window (each with its `win`), appends for the active one | done (`core/plot_data.cpp`) |
 | 4 | `nullclines` | phase plane | per window: the x and y nullclines as flat segment lists `[x1,y1,x2,y2,...]` in plot coordinates, colours, plus the frozen nullclines | yes: from `nullcline.c`'s stored curves |
 | 5 | `dfield` | phase plane | direction field: grid of `[x,y,dx,dy]` (unit direction, scaled by the client); flow: the trajectories as curves (same shape as `series` columns) | yes: from `redraw_dfield`/`direct_field_com` |
 | 6 | `marks` | plot | equilibria found by Sing pts (x, y, stability type), labels, arrows and markers of Graphic stuff/Text (`grobs.c`), frozen curves (Graphic stuff/Freeze) as series | yes: from `grobs.c` and `freeze` storage |
@@ -228,14 +230,17 @@ protocol/   types.ts (events, commands), transport.ts (SSE + POST),
             decode.ts (JSON or base64 float32 columns, pure), lists.ts
             (form fields that pick from hello.lists, pure)
 store/      store.ts (generic store), state.ts (AppState + reducer), series.ts
-            (float32 columns; appends fill growing buffers in place)
+            (float32 columns; appends fill growing buffers in place),
+            plots.ts (the plot windows: each one's series and zoom, the
+            active one), values.ts
 session.ts  the only sender: commands, key sequences, answers, abort
 plot/       model.ts (series -> curves, pure), nearest.ts, viewmath.ts,
             plotKeys.ts (pure), decimate.ts (what of a long curve changes
             pixels, pure), chart.ts (uPlot adapter), interactions.ts
             (mouse, wheel, touch), pick.ts (plot modes of the mouse,
             rubber and drag asks, pure), colors.ts, export.ts, registry.ts
-ui/         App.tsx (shell), TitleBar, MenuPanel, PlotView, AskDialog,
+ui/         App.tsx (shell), TitleBar, MenuPanel, Plots (the windows' tabs),
+            PlotView (one window), ValuesPanel, TableView, AskDialog,
             Toasts, StatusBar, Messages, hotkeys.ts, theme.ts, context.ts
 testhook.ts window.__xpp for tests
 ```
@@ -250,11 +255,12 @@ Rules:
   zoom maths, nearest point) has no DOM and is unit-tested in Node; adapters
   (uPlot, EventSource, downloads) are thin.
 - **The store is the truth for anything a test checks**: connection, busy,
-  the open prompt, the series, the viewport and its undo history, the
-  readout, notifications, the drawer, the theme. The chart's own state
-  (ranges, visible curves) is read through `__xpp.plot()`.
-- **State slices to come** follow the views: `plots` (windows, T3/T6),
-  `values` (parameters, ICs, sliders), `diagram` (AUTO), `table` (browser),
+  the open prompt, the plot windows (each one's series, viewport and undo
+  history, the active one), the readout, notifications, the drawer, the
+  theme. A chart's own state (ranges, visible curves) is read through
+  `__xpp.plot(win)` (the active window's without `win`).
+- **State slices** follow the views: `plots` (windows, T6, done),
+  `values` (parameters, ICs, sliders, T3, done), `diagram` (AUTO), `table` (browser),
   `ani`, `aplot`, `files`. Each gets its reducer file under `store/` and its
   view under `ui/`.
 
@@ -403,7 +409,11 @@ Target: WCAG 2.2 AA. Rules:
   (tools/models/live.ode, 20 001 rows): several appends, contiguous from
   row 0 (from the rows already there for Continue), their rows the final
   series', nothing after it; `enc` `f32` decodes to the JSON numbers; an
-  unsubscribed client gets nothing. `tools/webcheck.py`: `draw=0` streams
+  unsubscribed client gets nothing. Plot windows: `plots` at once, then
+  after Makewindow create, destroy and kill all; a new window's own
+  series; Xi vs t in one window sends only its series; `click` changes
+  `plots.active` and sends no series; a run appends to the active window
+  only and ends with every window's series. `tools/webcheck.py`: `draw=0` streams
   carry no drawing.
 - **Page** (`tools/web2check.mjs`, headless Chrome or Edge through the
   DevTools protocol, shared driver `tools/cdp.mjs`): real key presses, mouse
@@ -422,7 +432,12 @@ Target: WCAG 2.2 AA. Rules:
   run and end equal to `output.dat`. Long runs (tools/models/million.ode,
   10^6 rows): every draw under 50 ms while the rows arrive, and during
   wheel zooms of the phase plane and the time plot no draw over 50 ms and
-  no long task (`__xpp.plot().drawMs`, `__xpp.longTasks()`).
+  no long task (`__xpp.plot().drawMs`, `__xpp.longTasks()`). Plot windows:
+  New window adds a tab and the store holds both windows' series, Xi vs t
+  changes only its window, each tab keeps its zoom across switches (by
+  click and by the arrow keys, which also make the window the core's
+  active one), no sideways scroll at 390 px with two tabs, Close window
+  removes the tab.
   No screenshot is compared.
 - **Assets** (`tools/webcheck.py`): `/v2/`, its script and font with their
   types.
@@ -443,7 +458,7 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T3 (**done**) | Values panel: parameters, ICs, BCs, delays, sliders (`@ s1=`), user buttons, Default, `%formula`, undo of an edit | T1 | no | web2check: edit a parameter, see `state`; move a slider, get a new series; undo restores; keyboard and 44 px targets; right column at 80 rem, sheet on a phone |
 | T4 (**done**) | Prompts complete: `*n` selects, checklist, mouse/rubber/drag asks as plot modes; core accepts data coordinates `xd`,`yd` | T1 | small | servercheck: an answer in data coordinates; web2check: Viewaxes form with a variable select; Window/Zoom by a box drawn on the plot, by mouse and by keyboard |
 | T5 | Files: `/files` endpoints (list, get, put; streaming bodies), `file` asks through the browser's dialogs, the confirm on replace, "Add file…" for missing companions, `file` commands for `--server` | T4 | yes | webcheck: traversal and dot names refused, 64 MB cap, token required; web2check: Write set lands in the model's folder and is offered to the browser; Read set by upload restores parameters |
-| T6 | Plot windows: `plots` event, series per window, tabs, Makewindow create/kill/select | T2 | yes | servercheck: two windows, each with its curves; web2check: switch tabs, each keeps its zoom |
+| T6 (**done**) | Plot windows: `plots` event, series per window, tabs, Makewindow create/kill/select | T2 | yes | servercheck: two windows, each with its curves; web2check: switch tabs, each keeps its zoom |
 | T7 | Nullclines and direction fields as data (`nullclines`, `dfield`), drawn in uPlot's draw hook | T6 | yes | servercheck: segment counts equal the classic draw ops' lines for lecar; web2check: the store holds them, they toggle in the legend |
 | T8 | Marks: Sing pts equilibria, Graphic stuff text/arrows/markers, frozen curves; Greek labels as Unicode | T6 | yes | servercheck: `marks` after Sing pts has the equilibrium's coordinates; web2check: marks listed in the store and the legend |
 | T9 | Use this view: `view` command sets the window's axes from the client's zoom; Fit | T6 | small | servercheck: `view` then `state.view` matches; PostScript export uses it |

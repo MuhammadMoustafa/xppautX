@@ -1,10 +1,12 @@
-/* The main plot: the active window's curves from the series event, drawn by
-   plot/chart.ts. Zoom, pan and the point readout go through the store
-   (viewport, hover), so they are state a test can read, and work by mouse,
-   touch and keyboard alike (plot/interactions.ts, plot/plotKeys.ts). The
-   core's mouse, rubber and drag asks are plot modes here (plot/pick.ts):
-   an instruction bar with Cancel, a crosshair, a box or a line drawn over
-   the plot, answered in data coordinates. */
+/* One plot window: its curves from its series event, drawn by
+   plot/chart.ts. Zoom, pan and the point readout go through the store (the
+   window's viewport, hover), so they are state a test can read, and work by
+   mouse, touch and keyboard alike (plot/interactions.ts, plot/plotKeys.ts).
+   A window whose tab is not shown keeps its chart but draws nothing until
+   it is shown again (ui/Plots.tsx). The core's mouse, rubber and drag asks
+   for this window are plot modes here (plot/pick.ts): an instruction bar
+   with Cancel, a crosshair, a box or a line drawn over the plot, answered
+   in data coordinates. */
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {Chart} from '../plot/chart';
 import {curveColor} from '../plot/colors';
@@ -12,18 +14,23 @@ import {download, downloadCsv} from '../plot/export';
 import {attachGestures, type PickSink} from '../plot/interactions';
 import {pickInstruction, pickKey, toData, type Frac, type PickState} from '../plot/pick';
 import {buildModel, type PlotModel} from '../plot/model';
-import {PLOT_KEYS_HELP, plotKey} from '../plot/plotKeys';
-import {setCurrentChart} from '../plot/registry';
+import {plotKey} from '../plot/plotKeys';
+import {setChart} from '../plot/registry';
 import type {Ranges} from '../plot/viewmath';
-import type {View} from '../protocol/types';
+import type {PlotWindowInfo, View} from '../protocol/types';
 import type {Session} from '../session';
+import {HOME, windowOf} from '../store/plots';
 import {useSession, useStore} from './context';
 
-/** the core's window (Viewaxes, Window/Zoom) when it is the plot's window */
-function coreView(view: View | undefined, win: number | undefined): Ranges | null {
-  if (!view || view.win !== win || view.three) return null;
-  if (!(view.xlo < view.xhi && view.ylo < view.yhi)) return null;
-  return {x: {min: view.xlo, max: view.xhi}, y: {min: view.ylo, max: view.yhi}};
+type Axes = Pick<View, 'xlo' | 'xhi' | 'ylo' | 'yhi' | 'three'>;
+
+/** the core's axes (Viewaxes, Window/Zoom) of window `win`: from `plots`, else
+    from `state.view` when that is the window's */
+function coreView(info: PlotWindowInfo | null, view: View | undefined, win: number): Ranges | null {
+  const a: Axes | null = info ?? (view && view.win === win ? view : null);
+  if (!a || a.three) return null;
+  if (!(a.xlo < a.xhi && a.ylo < a.yhi)) return null;
+  return {x: {min: a.xlo, max: a.xhi}, y: {min: a.ylo, max: a.yhi}};
 }
 
 function fmt(v: number): string {
@@ -43,14 +50,14 @@ function clearHover(session: Session): void {
   if (session.store.getState().hover) session.store.dispatch({type: 'hover', hover: null});
 }
 
-/** the plot mode waiting for the user, if any */
-function activePick(session: Session): PickState | null {
+/** the plot mode waiting for the user on window `win`, if any */
+function activePick(session: Session, win: number): PickState | null {
   const p = session.store.getState().pick;
-  return p && !p.waiting ? p : null;
+  return p && !p.waiting && p.win === win ? p : null;
 }
 
 /** pointer events of a plot mode (plot/interactions.ts) as moves and answers */
-function pickSink(session: Session, chart: () => Chart | null): PickSink {
+function pickSink(session: Session, win: number, chart: () => Chart | null): PickSink {
   const drag = (what: 'down' | 'move' | 'up', at: Frac) => {
     const c = chart();
     if (!c) return;
@@ -62,21 +69,21 @@ function pickSink(session: Session, chart: () => Chart | null): PickSink {
     if (c) session.confirmPick(p, c.ranges());
   };
   return {
-    mode: () => activePick(session)?.mode ?? null,
+    mode: () => activePick(session, win)?.mode ?? null,
     press(at) {
-      const p = activePick(session);
+      const p = activePick(session, win);
       if (!p) return;
       if (p.mode === 'drag') drag('down', at);
       session.movePick({...p, cursor: at, anchor: p.mode === 'box' || p.mode === 'line' ? at : null});
     },
     drag(at) {
-      const p = activePick(session);
+      const p = activePick(session, win);
       if (!p) return;
       if (p.mode === 'drag') drag('move', at);
       else session.movePick({...p, cursor: at});
     },
     release(at) {
-      const p = activePick(session);
+      const p = activePick(session, win);
       if (!p) return;
       if (p.mode === 'drag') {
         drag('up', at);
@@ -87,7 +94,7 @@ function pickSink(session: Session, chart: () => Chart | null): PickSink {
       confirm(q);
     },
     hover(at) {
-      const p = activePick(session);
+      const p = activePick(session, win);
       if (p && p.mode !== 'drag') session.movePick({...p, cursor: at});
     },
   };
@@ -140,15 +147,26 @@ function PickBar({pick}: {pick: PickState}) {
   );
 }
 
-export function PlotView({dark}: {dark: boolean}) {
+interface Props {
+  win: number;
+  dark: boolean;
+  /** this window's tab is the one shown */
+  shown: boolean;
+  /** shown as a tab panel (more than one window) */
+  tabbed: boolean;
+}
+
+export function PlotView({win, dark, shown, tabbed}: Props) {
   const session = useSession();
-  const series = useStore(s => s.series);
+  const pw = useStore(s => windowOf(s.plots, win));
+  const series = pw?.series ?? null;
+  const info = pw?.info ?? null;
+  const viewport = pw?.viewport ?? HOME;
+  const canUndo = !!pw?.viewportHistory.length;
   const view = useStore(s => s.core?.view);
-  const viewport = useStore(s => s.viewport);
-  const canUndo = useStore(s => s.viewportHistory.length > 0);
-  const hover = useStore(s => s.hover);
+  const hover = useStore(s => (shown ? s.hover : null));
   const busy = useStore(s => s.busy);
-  const pick = useStore(s => s.pick);
+  const pick = useStore(s => (s.pick?.win === win ? s.pick : null));
   const picking = pick && !pick.waiting ? pick : null;
   const host = useRef<HTMLDivElement>(null);
   const chart = useRef<Chart | null>(null);
@@ -157,9 +175,11 @@ export function PlotView({dark}: {dark: boolean}) {
   const modelRef = useRef(model);
   modelRef.current = model;
 
+  const axes = useMemo(() => coreView(info, view, win), [info, view, win]);
+
   useEffect(() => {
     const c = new Chart(host.current!, {
-      onViewport: (v, push) => session.store.dispatch({type: 'viewport', viewport: v, push}),
+      onViewport: (v, push) => session.store.dispatch({type: 'viewport', viewport: v, push, win}),
     });
     let detach = () => {};
     c.onArea = area => {
@@ -167,26 +187,30 @@ export function PlotView({dark}: {dark: boolean}) {
       detach = attachGestures(c, area, {
         hover: (curve, index) => setHover(session, modelRef.current, curve, index),
         leave: () => clearHover(session),
-      }, pickSink(session, () => chart.current));
+      }, pickSink(session, win, () => chart.current));
     };
     chart.current = c;
-    setCurrentChart(c);
-    const ro = new ResizeObserver(() => c.resize());
+    setChart(win, c);
+    const ro = new ResizeObserver(() => {
+      if (host.current?.clientWidth) c.resize(); /* not while its tab is hidden */
+    });
     ro.observe(host.current!);
     return () => {
       ro.disconnect();
       detach();
-      setCurrentChart(null);
+      setChart(win, null);
       c.destroy();
     };
-  }, [session]);
+  }, [session, win]);
+
+  /* a hidden tab draws nothing: the chart catches up when it is shown */
+  useEffect(() => {
+    const w = windowOf(session.store.getState().plots, win);
+    if (model && shown) chart.current!.set(model, axes, w?.viewport ?? HOME, dark);
+  }, [model, axes, dark, shown]);
 
   useEffect(() => {
-    if (model) chart.current!.set(model, coreView(view, series?.win), session.store.getState().viewport, dark);
-  }, [model, view, dark]);
-
-  useEffect(() => {
-    chart.current!.applyViewport(viewport);
+    if (shown) chart.current!.applyViewport(viewport);
   }, [viewport]);
 
   /* a plot mode takes the focus, so its keys work at once (A3) */
@@ -195,7 +219,7 @@ export function PlotView({dark}: {dark: boolean}) {
   }, [picking?.ask]);
 
   const onKeyDown = (e: KeyboardEvent) => {
-    const c = chart.current, m = modelRef.current, p = activePick(session);
+    const c = chart.current, m = modelRef.current, p = activePick(session, win);
     if (c && p && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const r = pickKey(p, e.key, e.shiftKey);
       if (r) {
@@ -227,7 +251,7 @@ export function PlotView({dark}: {dark: boolean}) {
     e.stopPropagation(); /* not an XPP hotkey */
     if ('view' in r) c.setView(r.view, true);
     else if ('reset' in r) c.reset();
-    else if ('undo' in r) session.store.dispatch({type: 'undoViewport'});
+    else if ('undo' in r) session.store.dispatch({type: 'undoViewport', win});
     else if (r.hover) setHover(session, m, r.hover.curve, r.hover.index);
     else clearHover(session);
   };
@@ -239,9 +263,12 @@ export function PlotView({dark}: {dark: boolean}) {
   const label = model?.curves.length
     ? `Plot of ${model.curves.map(c => c.label).join(', ')}, ${model.curves[0].xs.length} points`
     : 'Plot, no data yet';
+  const panel = tabbed
+    ? {role: 'tabpanel' as const, id: `plot-panel-${win}`, 'aria-labelledby': `plot-tab-${win}`}
+    : {'aria-label': 'Plot'};
 
   return (
-    <section class="plot-view" aria-label="Plot">
+    <section class="plot-view" hidden={!shown} {...panel}>
       <header class="plot-bar">
         <div class="legend" role="group" aria-label="Curves">
           {model?.curves.map((c, i) => (
@@ -260,7 +287,7 @@ export function PlotView({dark}: {dark: boolean}) {
           ))}
         </div>
         <div class="plot-tools">
-          <button disabled={!canUndo} onClick={() => session.store.dispatch({type: 'undoViewport'})}
+          <button disabled={!canUndo} onClick={() => session.store.dispatch({type: 'undoViewport', win})}
             title="Undo the last zoom or pan (Ctrl+Z on the plot)">Undo zoom</button>
           <button disabled={!zoomed} onClick={() => chart.current!.reset()}
             title="Back to the window's axes (double click, or 0 on the plot)">Reset view</button>
@@ -291,7 +318,6 @@ export function PlotView({dark}: {dark: boolean}) {
           </div>
         )}
       </div>
-      <p id="plot-keys-help" class="visually-hidden">{PLOT_KEYS_HELP}</p>
       <footer class="readout" role="status" aria-live="polite">
         {hover && model ? (
           <span>

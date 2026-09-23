@@ -1,25 +1,19 @@
 /* The application state and its reducer. Protocol events come in as
-   {type:'event'}; the UI's own facts (connection, commands sent, the plot's
-   viewport and hover, notifications, the menu drawer) as their own actions.
-   Pure: no DOM, no I/O, no clock. */
+   {type:'event'}; the UI's own facts (connection, commands sent, the plots'
+   viewports, the tab shown, hover, notifications, the menu drawer) as their
+   own actions. Pure: no DOM, no I/O, no clock. */
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
 import type {AskEvent, Command, HelloEvent, StateEvent, View, XppEvent} from '../protocol/types';
-import {appendRows, seriesFromEvent, type PlotSeries} from './series';
+import {
+  coreMoved, initialPlots, onAppend, onPlots, onSeries, select, setViewport, undoViewport, windowOf, type PlotsState,
+  type Viewport,
+} from './plots';
 import {initialTable, reduceTable, type TableAction, type TableState} from './table';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
 
+export type {Range, Viewport} from './plots';
+
 export type Theme = 'light' | 'dark' | 'system';
-
-export interface Range {
-  min: number;
-  max: number;
-}
-
-/** What the plot shows: null ranges mean the core's view (Viewaxes/Window) */
-export interface Viewport {
-  x: Range | null;
-  y: Range | null;
-}
 
 export interface Hover {
   curve: number;
@@ -57,14 +51,13 @@ export interface AppState {
   progress: {n: number; of: number} | null;
   bottom: string;
   title: string;
-  series: PlotSeries | null;
+  /** the plot windows, each with its series and zoom, and the active one (store/plots.ts) */
+  plots: PlotsState;
   /** how many full series events arrived: tests wait on it */
   seriesCount: number;
-  /** how many appends (rows of a running integration) went into the series */
+  /** how many appends (rows of a running integration) went into a series */
   seriesAppends: number;
-  viewport: Viewport;
-  /** earlier viewports, for Undo zoom (newest last) */
-  viewportHistory: Viewport[];
+  /** the point read out on the active window's plot */
   hover: Hover | null;
   log: LogEntry[];
   toasts: Toast[];
@@ -85,9 +78,12 @@ export type Action =
   | {type: 'connection'; open: boolean}
   | {type: 'sent'; cmd: Command}
   | {type: 'aborting'}
-  /** push: remember the viewport it replaces (the start of a gesture), for undo */
-  | {type: 'viewport'; viewport: Viewport; push?: boolean}
-  | {type: 'undoViewport'}
+  /** window `win`'s zoom (the active window's without `win`); push: remember
+      the viewport it replaces (the start of a gesture), for undo */
+  | {type: 'viewport'; viewport: Viewport; push?: boolean; win?: number}
+  | {type: 'undoViewport'; win?: number}
+  /** the user picked a plot window's tab (the core is told with `click`) */
+  | {type: 'selectWindow'; win: number}
   | {type: 'hover'; hover: Hover | null}
   /** the plot mode's crosshair or corner moved */
   | {type: 'pick'; pick: PickState | null}
@@ -98,8 +94,6 @@ export type Action =
   | {type: 'values'; action: ValuesAction}
   | {type: 'valuesPanel'; open: boolean}
   | {type: 'table'; action: TableAction};
-
-const HOME: Viewport = {x: null, y: null};
 
 export const initialState: AppState = {
   connected: false,
@@ -114,11 +108,9 @@ export const initialState: AppState = {
   progress: null,
   bottom: '',
   title: '',
-  series: null,
+  plots: initialPlots,
   seriesCount: 0,
   seriesAppends: 0,
-  viewport: HOME,
-  viewportHistory: [],
   hover: null,
   log: [],
   toasts: [],
@@ -130,7 +122,7 @@ export const initialState: AppState = {
   table: initialTable,
 };
 
-const LOG_KEEP = 200, TOASTS_KEEP = 4, HISTORY_KEEP = 50;
+const LOG_KEEP = 200, TOASTS_KEEP = 4;
 
 function addLog(state: AppState, entry: LogEntry): AppState {
   const log = state.log.length >= LOG_KEEP ? state.log.slice(1 - LOG_KEEP) : state.log.slice();
@@ -153,8 +145,10 @@ function noIdle(cmd: Command): boolean {
   return NO_IDLE.has(cmd.cmd) || (cmd.cmd === 'browser' && 'from' in cmd);
 }
 
-function sameCurves(a: PlotSeries | null, b: PlotSeries): boolean {
-  return !!a && a.win === b.win && JSON.stringify(a.curves) === JSON.stringify(b.curves);
+/* another window shown: the readout was the old one's */
+function withPlots(state: AppState, plots: PlotsState): AppState {
+  if (plots === state.plots) return state;
+  return {...state, plots, hover: plots.active === state.plots.active ? state.hover : null};
 }
 
 /** the core's window moved (Viewaxes, Window/Zoom, Fit, a scroll): what it
@@ -169,32 +163,32 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     case 'hello':
       return {...state, hello: ev, title: ev.title};
     case 'state': {
-      const moved = ev.view && coreViewMoved(state.core?.view, ev.view)
-        && (state.viewport.x !== null || state.viewport.y !== null);
-      if (!moved) return {...state, core: ev};
-      return {
-        ...state, core: ev, viewport: HOME,
-        viewportHistory: [...state.viewportHistory, state.viewport].slice(-HISTORY_KEEP),
-      };
+      const moved = ev.view && coreViewMoved(state.core?.view, ev.view);
+      return {...state, core: ev, plots: moved ? coreMoved(state.plots, ev.view.win) : state.plots};
     }
     case 'series': {
+      const shown = ev.win === state.plots.active;
       if (ev.op === 'append') {
-        const series = state.series && appendRows(state.series, ev);
-        if (!series) return state; /* not ours to continue: the full series follows */
-        const hover = state.hover && state.hover.row < ev.from ? state.hover : null;
-        return {...state, series, seriesAppends: state.seriesAppends + 1, hover};
+        const plots = onAppend(state.plots, ev);
+        if (!plots) return state; /* not ours to continue: the full series follows */
+        const hover = state.hover && (!shown || state.hover.row < ev.from) ? state.hover : null;
+        return {...state, plots, seriesAppends: state.seriesAppends + 1, hover};
       }
-      const series = seriesFromEvent(ev);
-      /* another window or other curves: the user's zoom does not apply to it */
-      const keep = sameCurves(state.series, series);
       return {
-        ...state, series, seriesCount: state.seriesCount + 1, hover: null,
-        viewport: keep ? state.viewport : HOME, viewportHistory: keep ? state.viewportHistory : [],
+        ...state, plots: onSeries(state.plots, ev), seriesCount: state.seriesCount + 1,
+        hover: shown ? null : state.hover,
       };
     }
+    case 'plots':
+      return withPlots(state, onPlots(state.plots, ev));
+    case 'window':
+      /* create selects the new window too; destroy waits for `plots` */
+      return ev.op === 'select' && ev.win <= 10 ? withPlots(state, select(state.plots, ev.win)) : state;
     case 'ask': {
-      const mode = pickModeOf(ev, state.core?.view, state.series !== null);
-      return {...state, ask: ev, pick: mode ? startPick(state.pick, ev, mode) : null};
+      const mode = pickModeOf(ev, state.core?.view, !!windowOf(state.plots, Number(ev.win))?.series);
+      /* a plot mode is the core's active window's: its tab is the one shown */
+      const withAsk = {...state, ask: ev, pick: mode ? startPick(state.pick, ev, mode) : null};
+      return mode ? withPlots(withAsk, select(state.plots, Number(ev.win))) : withAsk;
     }
     case 'idle':
       return {
@@ -227,10 +221,6 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
   }
 }
 
-function sameViewport(a: Viewport, b: Viewport): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
-}
-
 export function reduce(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'event':
@@ -246,17 +236,12 @@ export function reduce(state: AppState, action: Action): AppState {
       return noIdle(action.cmd) ? state : {...state, busy: true};
     case 'aborting':
       return state.busy ? {...state, stopping: true} : state;
-    case 'viewport': {
-      if (sameViewport(action.viewport, state.viewport)) return state;
-      const history = action.push
-        ? [...state.viewportHistory, state.viewport].slice(-HISTORY_KEEP) : state.viewportHistory;
-      return {...state, viewport: action.viewport, viewportHistory: history};
-    }
-    case 'undoViewport': {
-      if (!state.viewportHistory.length) return state;
-      const history = state.viewportHistory.slice(0, -1);
-      return {...state, viewport: state.viewportHistory[state.viewportHistory.length - 1], viewportHistory: history};
-    }
+    case 'viewport':
+      return withPlots(state, setViewport(state.plots, action.win ?? state.plots.active, action.viewport, action.push));
+    case 'undoViewport':
+      return withPlots(state, undoViewport(state.plots, action.win ?? state.plots.active));
+    case 'selectWindow':
+      return withPlots(state, select(state.plots, action.win));
     case 'hover':
       return {...state, hover: action.hover};
     case 'pick':

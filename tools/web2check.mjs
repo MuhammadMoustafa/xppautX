@@ -13,7 +13,8 @@
    sheet, pinch, tap, pan, 44px targets). Prompts (T4): a form field as a
    select of variables, Window/Zoom by a box drawn with the mouse and by the
    keyboard only, Escape cancelling a plot mode, Initialconds/Mouse by a
-   click, a checklist. Then live plotting (tools/models/live.ode: the store
+   click, a checklist. Plot windows as tabs (T6: a second window, each tab
+   its own zoom, arrow keys, close). Then live plotting (tools/models/live.ode: the store
    and the plot grow while 20 001 rows are computed, and end as output.dat)
    and a run of 10^6 rows (tools/models/million.ode) that must draw and zoom
    with no frame over 50 ms (draw times and long tasks, read through __xpp).
@@ -59,7 +60,10 @@ function outputDat(ode = ODE) {
 /* ---- page helpers --------------------------------------------------------- */
 
 let cdp;
-const S = expr => cdp.eval(`(() => { const s = __xpp.state(); return ${expr}; })()`);
+/* in page expressions: `s` is the store's state, `w` its active plot window
+   (store/plots.ts: series, viewport, viewportHistory) */
+const ACTIVE = 's.plots.windows.find(x => x.win === s.plots.active) || {}';
+const S = expr => cdp.eval(`(() => { const s = __xpp.state(), w = ${ACTIVE}; return ${expr}; })()`);
 const P = () => cdp.eval('__xpp.plot()');
 
 async function until(expr, what, ms = 15000) {
@@ -67,7 +71,7 @@ async function until(expr, what, ms = 15000) {
   for (;;) {
     let v = null;
     try {
-      v = await cdp.eval(`(() => { try { const s = window.__xpp && __xpp.state(); return !!(${expr}); } catch (e) { return false; } })()`);
+      v = await cdp.eval(`(() => { try { const s = window.__xpp && __xpp.state(), w = ${ACTIVE}; return !!(${expr}); } catch (e) { return false; } })()`);
     } catch { /* page not there yet */ }
     if (v) return true;
     if (Date.now() - t0 > ms) {
@@ -98,10 +102,10 @@ async function key(k, modifiers = 0) {
 const mouse = (type, x, y, extra = {}) => cdp.send('Input.dispatchMouseEvent', {type, x, y, ...extra});
 
 /* the plotting area's box and the screen position of point i of curve c */
-const area = () => cdp.eval(`(() => { const r = document.querySelector('.plot-host .u-over').getBoundingClientRect();
+const area = () => cdp.eval(`(() => { const r = document.querySelector('.plot-view:not([hidden]) .u-over').getBoundingClientRect();
   return {x: r.left, y: r.top, w: r.width, h: r.height}; })()`);
 async function screenOf(curve, i) {
-  const [a, p, s] = [await area(), await P(), await cdp.eval(`(() => { const m = __xpp.state().series;
+  const [a, p, s] = [await area(), await P(), await cdp.eval(`(() => { const s = __xpp.state(), m = (${ACTIVE}).series;
     const c = m.curves[${curve}]; return {x: m.columns.get(c.x)[${i}], y: m.columns.get(c.y)[${i}]}; })()`)];
   return {x: a.x + (s.x - p.x.min) / (p.x.max - p.x.min) * a.w, y: a.y + (p.y.max - s.y) / (p.y.max - p.y.min) * a.h};
 }
@@ -122,10 +126,10 @@ async function desktop(want) {
   check('the dialog has the focus', await until(`document.activeElement.closest('[role=dialog]')`, 'focus'));
   const n0 = await S('s.seriesCount');
   await key('g');
-  check('G integrates: a new series of 601 rows', await until(`s.seriesCount > ${n0} && s.series.rows === 601 && !s.busy`, 'series'),
-    JSON.stringify(await S('s.series && s.series.rows')));
+  check('G integrates: a new series of 601 rows', await until(`s.seriesCount > ${n0} && w.series.rows === 601 && !s.busy`, 'series'),
+    JSON.stringify(await S('w.series && w.series.rows')));
 
-  const cols = await cdp.eval(`(() => { const m = __xpp.state().series; const o = {};
+  const cols = await cdp.eval(`(() => { const s = __xpp.state(), m = (${ACTIVE}).series; const o = {};
     for (const [k, v] of m.columns) o[k] = Array.from(v); return {cols: o, names: Object.fromEntries(m.names)}; })()`);
   let bad = null;
   for (const [col, values] of Object.entries(cols.cols)) {
@@ -155,8 +159,8 @@ async function desktop(want) {
   /* wheel zoom about the pointer, then undo */
   const a = await area(), cx = a.x + a.w / 2, cy = a.y + a.h / 2;
   await mouse('mouseWheel', cx, cy, {deltaX: 0, deltaY: -120});
-  await until('s.viewport.x', 'wheel');
-  const z1 = await S('s.viewport');
+  await until('w.viewport.x', 'wheel');
+  const z1 = await S('w.viewport');
   check('the wheel zooms in about the pointer', z1.x && width(z1.x) < width(p.x) * 0.9, JSON.stringify(z1));
   /* a box */
   await mouse('mouseMoved', cx - 80, cy - 60);
@@ -164,19 +168,19 @@ async function desktop(want) {
   for (let s = 1; s <= 6; s++) await mouse('mouseMoved', cx - 80 + 25 * s, cy - 60 + 20 * s, {button: 'left', buttons: 1});
   await mouse('mouseReleased', cx + 70, cy + 60, {button: 'left', buttons: 0, clickCount: 1});
   await sleep(100);
-  const z2 = await S('s.viewport');
-  const depth = await S('s.viewportHistory.length');
+  const z2 = await S('w.viewport');
+  const depth = await S('w.viewportHistory.length');
   check('dragging a box zooms to it (one undo step)', z2.x && width(z2.x) < width(z1.x) * 0.8 && depth === 2,
     JSON.stringify({z1, z2, depth}));
   await cdp.eval(`[...document.querySelectorAll('button')].find(b => b.textContent === 'Undo zoom').click()`);
-  check('Undo zoom goes back one step', await until(`Math.abs(s.viewport.x.min - ${z1.x.min}) < 1e-12`, 'undo'));
+  check('Undo zoom goes back one step', await until(`Math.abs(w.viewport.x.min - ${z1.x.min}) < 1e-12`, 'undo'));
   /* pan */
-  const before = await S('s.viewport.x');
+  const before = await S('w.viewport.x');
   await mouse('mousePressed', cx, cy, {button: 'left', buttons: 1, clickCount: 1, modifiers: 8});
   for (let s = 1; s <= 4; s++) await mouse('mouseMoved', cx + 20 * s, cy, {button: 'left', buttons: 1, modifiers: 8});
   await mouse('mouseReleased', cx + 80, cy, {button: 'left', buttons: 0, clickCount: 1, modifiers: 8});
   await sleep(100);
-  const after = await S('s.viewport.x');
+  const after = await S('w.viewport.x');
   check('Shift+drag pans (same width, moved left in data)',
     after.min < before.min && Math.abs(width(after) - width(before)) < 1e-9 * width(before) + 1e-15, JSON.stringify([before, after]));
   /* double click resets */
@@ -184,7 +188,7 @@ async function desktop(want) {
   await mouse('mouseReleased', cx, cy, {button: 'left', clickCount: 1});
   await mouse('mousePressed', cx, cy, {button: 'left', buttons: 1, clickCount: 2});
   await mouse('mouseReleased', cx, cy, {button: 'left', clickCount: 2});
-  check("a double click goes back to the core's window", await until('s.viewport.x === null && s.viewport.y === null', 'reset'));
+  check("a double click goes back to the core's window", await until('w.viewport.x === null && w.viewport.y === null', 'reset'));
   await mouse('mouseMoved', 5, 5);
 }
 
@@ -244,8 +248,8 @@ async function values() {
   await key('ArrowRight');
   await key('ArrowRight');
   check('a slider moved by the keyboard sends slide: a new series arrives',
-    await until(`s.seriesCount > ${n0} && s.series.rows === 601 && !s.busy`, 'slide series'),
-    JSON.stringify(await S('[s.seriesCount, s.series && s.series.rows]')));
+    await until(`s.seriesCount > ${n0} && w.series.rows === 601 && !s.busy`, 'slide series'),
+    JSON.stringify(await S('[s.seriesCount, w.series && w.series.rows]')));
 
   /* every control in the panel is reachable by Tab, in order, without a trap: start from the very top */
   await cdp.eval(`document.querySelector('.skip-link').focus()`);
@@ -359,10 +363,10 @@ async function keyboardOnly() {
   check('the focus is visible there', await cdp.eval(`getComputedStyle(document.activeElement).outlineStyle !== 'none'`));
   const w0 = (await P()).x;
   await key('+');
-  const z = await S('s.viewport');
+  const z = await S('w.viewport');
   check('+ zooms in', z.x && width(z.x) < width(w0), JSON.stringify(z));
   await key('ArrowRight');
-  const z2 = await S('s.viewport');
+  const z2 = await S('w.viewport');
   check('an arrow key pans', z2.x.min > z.x.min && Math.abs(width(z2.x) - width(z.x)) < 1e-12, JSON.stringify(z2));
   await key(']');
   check('] reads the first point', await until('s.hover && s.hover.row === 0', ']'));
@@ -377,9 +381,9 @@ async function keyboardOnly() {
   await key('Escape');
   check('Escape clears the readout', await until('s.hover === null', 'Escape'));
   await key('z', 2); /* Ctrl+Z */
-  check('Ctrl+Z undoes the pan', await until(`Math.abs(s.viewport.x.min - ${z.x.min}) < 1e-12`, 'undo'));
+  check('Ctrl+Z undoes the pan', await until(`Math.abs(w.viewport.x.min - ${z.x.min}) < 1e-12`, 'undo'));
   await key('0');
-  check('0 resets the view', await until('s.viewport.x === null', '0'));
+  check('0 resets the view', await until('w.viewport.x === null', '0'));
   /* a prompt from the plot, cancelled with Escape: focus comes back */
   await key('x');
   check('X (an XPP hotkey) still works with the plot focused', await until("s.ask && s.ask.kind === 'string'", 'x'),
@@ -392,6 +396,101 @@ async function keyboardOnly() {
   await key('Escape');
   check('Escape cancels it', await until('!s.ask && !s.busy', 'cancel'));
   check('and the focus is back on the plot', await until(`document.activeElement.closest('.plot-host')`, 'focus back'));
+}
+
+/* plot windows as tabs (docs/ui-v2.md T6): Makewindow create adds a tab,
+   each tab keeps its own zoom, arrow keys move between tabs, the core's
+   active window follows the tab, destroy removes it */
+async function windows() {
+  const tabs = () => cdp.eval(`[...document.querySelectorAll('[role=tab]')].map(t => [t.id, t.getAttribute('aria-selected')])`);
+  const clickButton = text => cdp.eval(`[...document.querySelectorAll('button')].find(b => b.textContent === '${text}').click()`);
+  check('one window: no tab list', await S('s.plots.windows.length === 1') && (await tabs()).length === 0);
+  const t1 = await S('w.info && w.info.title'); /* what window 1 plots after the sessions above */
+  await focusPlot();
+  await key('+');
+  const z1 = await S('w.viewport');
+  check('window 1 zoomed', !!z1.x, JSON.stringify(z1));
+
+  await clickButton('New window');
+  check('New window (Makewindow/Create) adds window 2, selected',
+    await until('s.plots.windows.length === 2 && s.plots.active === 2 && !s.busy', 'create'),
+    JSON.stringify(await S('[s.plots.windows.map(x => x.win), s.plots.active]')));
+  check('the tab list follows: two tabs, the second selected',
+    JSON.stringify(await tabs()) === JSON.stringify([['plot-tab-1', 'false'], ['plot-tab-2', 'true']]), JSON.stringify(await tabs()));
+  check('the store holds both windows\' series', await S('s.plots.windows.every(x => x.series && x.series.rows === 601)'));
+  check("window 2 starts at the core's axes", await S('w.viewport.x === null && w.viewport.y === null'));
+
+  await focusPlot();
+  await key('x');
+  if (await until("s.ask && s.ask.kind === 'string'", 'x')) await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: 'V'})`);
+  check('Xi vs t in window 2 changes its curves only',
+    await until(`!s.busy && w.series.curves[0].x === 0 && w.series.curves[0].y === 1 && w.info.title === 'V vs T'
+      && s.plots.windows[0].info.title === '${t1}'`, 'x vs t'),
+    JSON.stringify(await S('s.plots.windows.map(x => x.info && x.info.title)')));
+  check('the tabs name what each window plots', await cdp.eval(`[...document.querySelectorAll('[role=tab]')].map(t => t.textContent).join('|')`)
+    === `1${t1}|2V vs T`);
+  await focusPlot();
+  await key('-');
+  const z2 = await S('w.viewport');
+  check('window 2 zoomed on its own', !!z2.x && JSON.stringify(z2) !== JSON.stringify(z1), JSON.stringify(z2));
+
+  await cdp.eval(`document.getElementById('plot-tab-1').click()`);
+  check('clicking tab 1 shows window 1 and makes it the core\'s active window',
+    await until('s.plots.active === 1 && !s.busy && s.core.win === 1', 'tab 1'), JSON.stringify(await S('[s.plots.active, s.core.win]')));
+  const back = await S('w.viewport'), p1 = await P();
+  check("tab 1 keeps its zoom", JSON.stringify(back) === JSON.stringify(z1)
+    && Math.abs(p1.x.min - z1.x.min) < 1e-9 && Math.abs(p1.x.max - z1.x.max) < 1e-9, JSON.stringify([back, p1 && p1.x]));
+  check('its chart is the one shown', p1 && p1.curves[0].label === t1 && p1.width > 200, JSON.stringify(p1 && [p1.curves, p1.width]));
+
+  await cdp.eval(`document.getElementById('plot-tab-1').focus()`);
+  await key('ArrowRight');
+  check('ArrowRight on the tabs moves to window 2, focus with it',
+    await until(`s.plots.active === 2 && document.activeElement.id === 'plot-tab-2'`, 'arrow right'));
+  check('tab 2 kept its zoom', JSON.stringify(await S('w.viewport')) === JSON.stringify(z2));
+  await key('ArrowLeft');
+  check('ArrowLeft back to window 1', await until(`s.plots.active === 1 && document.activeElement.id === 'plot-tab-1'`, 'arrow left'));
+  await key('End');
+  check('End to the last tab', await until(`s.plots.active === 2 && document.activeElement.id === 'plot-tab-2'`, 'End'));
+  check('the tab key goes back to the core', await until('!s.busy && s.core.win === 2', 'core win 2'));
+
+  /* a plot mode (T4) on the tab shown: Window/Zoom by the keyboard zooms window 2, not window 1 */
+  const axes1 = await S('JSON.stringify(s.plots.windows[0].info)');
+  await focusPlot();
+  await menuKeys('w', 'z');
+  check("Window/Zoom in window 2: its plot is in box mode, one instruction bar",
+    await until("s.pick && s.pick.mode === 'box' && s.pick.win === 2 && !s.pick.waiting", 'box mode in 2')
+    && await cdp.eval(`document.querySelectorAll('.pick-bar').length === 1 && !!document.querySelector('.plot-view:not([hidden]) .pick-bar')`),
+    JSON.stringify(await S('s.pick')));
+  const pz = await P(), vz = await S('s.core.view');
+  await key('Enter');
+  for (let i = 0; i < 5; i++) await key('ArrowRight');
+  for (let i = 0; i < 5; i++) await key('ArrowDown');
+  await key('Enter');
+  const box = [dataAt(pz, 0.5, 0.5), dataAt(pz, 0.6, 0.6)];
+  await until('!s.busy && !s.pick', 'zoom in 2');
+  const vb = await S('s.core.view'), info2 = await S('w.info');
+  check("window 2's axes are the box, in state.view and in plots; window 1's are unchanged",
+    vb.win === 2 && viewIsBox(vb, box[0], box[1], corePixel(vz))
+    /* state.view has 6 digits, plots the doubles */
+    && Math.abs(info2.xlo - vb.xlo) <= 1e-5 * Math.abs(vb.xhi - vb.xlo) && Math.abs(info2.yhi - vb.yhi) <= 1e-5 * Math.abs(vb.yhi - vb.ylo)
+    && await S('JSON.stringify(s.plots.windows[0].info)') === axes1, JSON.stringify({vz, pz: [pz.x, pz.y], vb, box, info2}));
+
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
+  await sleep(300);
+  const scroll = await cdp.eval(`({doc: document.documentElement.scrollWidth, w: innerWidth,
+    tabs: [...document.querySelectorAll('[role=tab]')].every(t => t.getBoundingClientRect().right <= innerWidth)})`);
+  check('390 px with two tabs: no sideways scroll, the tabs fit', scroll.doc <= scroll.w && scroll.tabs, JSON.stringify(scroll));
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+  await sleep(200);
+
+  await clickButton('Close window');
+  check('Close window (Makewindow/Destroy) removes its tab',
+    await until('s.plots.windows.length === 1 && s.plots.active === 1 && !s.busy', 'destroy')
+    && (await tabs()).length === 0, JSON.stringify(await S('s.plots.windows.map(x => x.win)')));
+  check('window 1 still has its zoom and its series', JSON.stringify(await S('w.viewport')) === JSON.stringify(z1)
+    && await S('w.series.rows === 601'));
+  await focusPlot();
+  await key('0');
 }
 
 async function touch(type, points) {
@@ -475,19 +574,19 @@ async function phone() {
   await touch('touchStart', [{x: cx - 30, y: cy}, {x: cx + 30, y: cy}]);
   for (let s = 1; s <= 5; s++) await touch('touchMove', [{x: cx - 30 - 12 * s, y: cy}, {x: cx + 30 + 12 * s, y: cy}]);
   await touch('touchEnd', []);
-  const z = await S('s.viewport');
+  const z = await S('w.viewport');
   check('a pinch zooms in', z.x && width(z.x) < width(w0) * 0.6, JSON.stringify([w0, z.x]));
   if (!z.x) return;
   /* one finger pans */
   await touch('touchStart', [{x: cx, y: cy}]);
   for (let s = 1; s <= 5; s++) await touch('touchMove', [{x: cx + 10 * s, y: cy}]);
   await touch('touchEnd', []);
-  const z2 = await S('s.viewport');
+  const z2 = await S('w.viewport');
   check('one finger pans', z2.x.min < z.x.min && Math.abs(width(z2.x) - width(z.x)) < 1e-9 * width(z.x), JSON.stringify(z2));
   /* a tap on a point reads it */
-  await cdp.eval(`document.querySelector('.plot-host').focus()`);
+  await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
   await key('0');
-  await until('s.viewport.x === null', 'reset');
+  await until('w.viewport.x === null', 'reset');
   /* a point well inside the plot */
   const box = await area();
   let row = 100, pt = await screenOf(0, row);
@@ -504,7 +603,7 @@ async function phone() {
 /* ---- prompts (docs/ui-v2.md T4) ------------------------------------------------- */
 
 const lastAnswer = async () => (await cdp.eval('__xpp.sent()')).filter(c => c.cmd === 'answer').pop();
-const focusPlot = () => cdp.eval(`document.querySelector('.plot-host').focus()`);
+const focusPlot = () => cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
 
 /** a key, then the key that answers the menu it opens */
 async function menuKeys(first, then) {
@@ -545,21 +644,21 @@ async function prompts() {
   check('Viewaxes/2D opens its form', await until("s.ask && s.ask.kind === 'form' && document.querySelector('[role=dialog] select')", 'form'));
   const sel = await cdp.eval(`(() => { const s = document.querySelector('[role=dialog] select');
     return s && {list: s.dataset.list, options: [...s.options].map(o => o.value), value: s.value, focused: document.activeElement === s}; })()`);
-  const x0 = await S('s.series.curves[0].x');
+  const x0 = await S('w.series.curves[0].x');
   check('its X-axis field is a select of T and the variables, at the plotted one, with the focus',
     sel && sel.list === '0' && sel.options.join() === lists[0].join() && sel.value === lists[0][x0] && sel.focused,
     JSON.stringify({sel, x0}));
   const other = lists[0][x0] === 'T' ? 'V' : 'T', n0 = await S('s.seriesCount');
   await pickX(other);
   check(`picking ${other} from the select and Enter: the core plots W against it (a new series)`,
-    await until(`s.seriesCount > ${n0} && !s.busy && s.series.curves[0].x === ${lists[0].indexOf(other)}
-      && s.series.curves[0].y === 2`, 'W vs other'), JSON.stringify([await S('s.series && s.series.curves'), await lastAnswer()]));
+    await until(`s.seriesCount > ${n0} && !s.busy && w.series.curves[0].x === ${lists[0].indexOf(other)}
+      && w.series.curves[0].y === 2`, 'W vs other'), JSON.stringify([await S('w.series && w.series.curves'), await lastAnswer()]));
   check('the answer carries the name picked', (await lastAnswer())?.values?.[0] === other, JSON.stringify(await lastAnswer()));
   await focusPlot();
   await menuKeys('v', '2');
   await until("s.ask && s.ask.kind === 'form' && document.querySelector('[role=dialog] select')", 'form');
   await pickX('V');
-  check('and V again: W against V', await until('!s.busy && s.series.curves[0].x === 1 && s.series.curves[0].y === 2', 'W vs V'));
+  check('and V again: W against V', await until('!s.busy && w.series.curves[0].x === 1 && w.series.curves[0].y === 2', 'W vs V'));
 
   /* Window/Zoom by a box drawn with the mouse */
   await focusPlot();
@@ -585,7 +684,9 @@ async function prompts() {
   check("the core's view is the box drawn, within a pixel", viewIsBox(v1, want[0], want[1], corePixel(v0)),
     JSON.stringify({v1, want}));
   p = await P();
-  check('and the plot shows it', Math.abs(p.x.min - v1.xlo) < 1e-9 && Math.abs(p.y.max - v1.yhi) < 1e-9, JSON.stringify([p.x, p.y]));
+  /* the window's axes: exact in `plots` (T6), 6 digits in state.view */
+  const ax = await S('w.info || s.core.view');
+  check('and the plot shows it', Math.abs(p.x.min - ax.xlo) < 1e-9 && Math.abs(p.y.max - ax.yhi) < 1e-9, JSON.stringify([p.x, p.y, ax]));
 
   /* the same by the keyboard only: arrows move the crosshair, Enter fixes a corner, Enter again zooms */
   await menuKeys('w', 'z');
@@ -688,8 +789,8 @@ async function desktopMetrics() {
 /* what the store and the chart hold, sampled by the page at every frame
    while an integration runs, and the samples it took */
 const startSampling = () => cdp.eval(`(() => { const seen = window.__seen = []; window.__sampling = true;
-  const tick = () => { const s = __xpp.state(), p = __xpp.plot();
-    const r = [s.series ? s.series.rows : -1, p && p.curves[0] ? p.curves[0].points : -1, s.busy];
+  const tick = () => { const s = __xpp.state(), w = ${ACTIVE}, p = __xpp.plot();
+    const r = [w.series ? w.series.rows : -1, p && p.curves[0] ? p.curves[0].points : -1, s.busy];
     const l = seen[seen.length - 1];
     if (!l || l[0] !== r[0] || l[1] !== r[1] || l[2] !== r[2]) seen.push(r);
     if (window.__sampling) requestAnimationFrame(tick); };
@@ -702,7 +803,7 @@ async function integrate(rows, ms) {
   await key('i');
   if (!(await until("s.ask && s.ask.kind === 'menu'", 'menu'))) return false;
   await key('g');
-  return until(`s.seriesCount > ${n0} && s.series.rows === ${rows} && !s.busy`, `${rows} rows`, ms);
+  return until(`s.seriesCount > ${n0} && w.series.rows === ${rows} && !s.busy`, `${rows} rows`, ms);
 }
 
 /* tools/models/live.ode: 20 001 rows in about a second */
@@ -713,7 +814,7 @@ async function live(want) {
   await startSampling();
   const done = await integrate(20001, 60000);
   const seen = await stopSampling();
-  check('live: I, G integrates 20 001 rows', done, JSON.stringify(await S('s.series && s.series.rows')));
+  check('live: I, G integrates 20 001 rows', done, JSON.stringify(await S('w.series && w.series.rows')));
   const appends = (await S('s.seriesAppends')) - a0;
   const busy = seen.filter(([, , b]) => b);
   const rows = busy.map(([r]) => r).filter(r => r > 0 && r < 20001);
@@ -722,7 +823,7 @@ async function live(want) {
   check(`live: the store grows over several appends before the idle (${appends} appends)`,
     appends >= 3 && grows(rows), JSON.stringify({appends, rows: rows.slice(0, 20)}));
   check('live: and so does the plot', grows(points), JSON.stringify(points.slice(0, 20)));
-  const cols = await cdp.eval(`(() => { const m = __xpp.state().series; const o = {};
+  const cols = await cdp.eval(`(() => { const s = __xpp.state(), m = (${ACTIVE}).series; const o = {};
     for (const [k, v] of m.columns) o[k] = Array.from(v); return o; })()`);
   let bad = null;
   for (const [col, values] of Object.entries(cols)) {
@@ -743,7 +844,7 @@ async function zoomFrames() {
   const a = await area(), cx = a.x + a.w * 0.55, cy = a.y + a.h * 0.45;
   await sleep(300);
   const t0 = await cdp.eval('performance.now()'), d0 = (await P()).draws;
-  const v0 = await S('s.viewport');
+  const v0 = await S('w.viewport');
   for (const dy of [-120, -120, -120, 120, 120, 120, 120]) {
     await mouse('mouseWheel', cx, cy, {deltaX: 0, deltaY: dy});
     await sleep(60);
@@ -752,7 +853,7 @@ async function zoomFrames() {
   await until('!__xpp.plot().tracing', 'tracing', 5000);
   const p = await P(), draws = p.draws - d0;
   return {
-    zoomed: JSON.stringify(v0) !== JSON.stringify(await S('s.viewport')),
+    zoomed: JSON.stringify(v0) !== JSON.stringify(await S('w.viewport')),
     traceMs: p.traceMs,
     vertices: p.vertices,
     long: await cdp.eval(`__xpp.longTasks(${t0})`),
@@ -772,7 +873,7 @@ async function million() {
   const done = await integrate(1000001, 300000);
   const secs = (Date.now() - t0) / 1000;
   check(`10^6: I, G stores 1 000 001 rows in the store (${secs.toFixed(1)} s, ${(await S('s.seriesAppends')) - a0} appends)`,
-    done, JSON.stringify(await S('s.series && [s.series.rows, s.busy]')));
+    done, JSON.stringify(await S('w.series && [w.series.rows, s.busy]')));
   if (!done) return;
   await until('!__xpp.plot().tracing', 'tracing', 10000);
   await sleep(300);
@@ -794,12 +895,12 @@ async function million() {
     z.zoomed && z.draws > 0 && Math.max(...z.drawMs) < 50 && z.long.length === 0 && z.vertices[0] > 0, JSON.stringify(z));
 
   /* x against time: uPlot's own line with its min and max per pixel column */
-  await cdp.eval(`document.querySelector('.plot-host').focus()`);
+  await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
   const n0 = await S('s.seriesCount');
   await key('x');
   if (!(await until("s.ask && s.ask.kind === 'string'", 'Xi vs t'))) return check('10^6: X asks what to plot', false);
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: 'x'})`);
-  check('10^6: X plots x against T', await until(`s.seriesCount > ${n0} && !s.busy && s.series.curves[0].x === 0`, 'x vs t', 60000));
+  check('10^6: X plots x against T', await until(`s.seriesCount > ${n0} && !s.busy && w.series.curves[0].x === 0`, 'x vs t', 60000));
   await until('!__xpp.plot().tracing', 'tracing', 10000);
   await sleep(300);
   const q = await P();
@@ -856,6 +957,7 @@ async function main() {
       await keyboardOnly();
       await phone();
       await prompts();
+      await windows();
     });
     await session(LIVE, () => live(wantLive));
     await session(MILLION, million);

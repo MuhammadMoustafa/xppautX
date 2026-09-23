@@ -1,11 +1,11 @@
 /* What tests read and drive (tools/web2check.mjs): the store's state, the
-   actions it took (newest last) and the plot's own state, never pixels.
+   actions it took (newest last) and a plot window's chart, never pixels.
    window.__xpp exists in every build; only `send` changes anything, and it
    is what the UI itself does. `sent` lists the commands the page sent
    (newest last), such as an ask's answer. `longTasks` lists the main thread's tasks of
    more than 50 ms (the Long Tasks API), so a test can tell that a gesture
    never held a frame back longer than that. */
-import {currentChart} from './plot/registry';
+import {chartOf} from './plot/registry';
 import type {Session} from './session';
 import type {Action} from './store/state';
 
@@ -49,7 +49,8 @@ export function installTestHook(session: Session): void {
     state: () => session.store.getState(),
     actions: () => actions.slice(),
     sent: () => sent.slice(),
-    plot: () => currentChart()?.info() ?? null,
+    /** window `win`'s chart (the active window's by default) */
+    plot: (win?: number) => chartOf(win ?? session.store.getState().plots.active)?.info() ?? null,
     /** long tasks that started at or after `since` (performance.now() milliseconds) */
     longTasks: (since = 0) => tasks.filter(t => t.start >= since),
     longTasksSupported: () => PerformanceObserver.supportedEntryTypes?.includes('longtask') ?? false,

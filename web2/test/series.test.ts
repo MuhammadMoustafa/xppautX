@@ -4,6 +4,7 @@ import {test} from 'node:test';
 import {decode, valueCount} from '../src/protocol/decode';
 import type {SeriesAppendEvent, SeriesEvent} from '../src/protocol/types';
 import {appendRows, seriesFromEvent} from '../src/store/series';
+import {activeWindow} from '../src/store/plots';
 import {initialState, reduce, type AppState} from '../src/store/state';
 
 /** base64 of little-endian float32, as the server's enc "f32" */
@@ -31,6 +32,7 @@ function append(from: number, n: number, win = 1): SeriesAppendEvent {
 }
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
+const shown = (s: AppState) => activeWindow(s.plots)!;
 
 test('f32 columns decode to the floats, NaN included; JSON null is NaN', () => {
   const v = [0, 0.05, -1.5e-7, 3.25, NaN, 1e30];
@@ -101,13 +103,13 @@ test('the reducer applies appends, keeps the zoom, and counts them', () => {
   s = reduce(s, {type: 'viewport', viewport: {x: {min: 0, max: 1}, y: null}});
   s = reduce(s, {type: 'hover', hover: {curve: 0, row: 1, x: 11, y: 21, t: 1}});
   s = ev(s, append(2, 2));
-  assert.equal(s.series!.rows, 4);
+  assert.equal(shown(s).series!.rows, 4);
   assert.equal(s.seriesAppends, 1);
   assert.equal(s.seriesCount, 1, 'only full series count there');
-  assert.deepEqual(s.viewport.x, {min: 0, max: 1});
+  assert.deepEqual(shown(s).viewport.x, {min: 0, max: 1});
   assert.equal(s.hover?.row, 1, 'a hovered row before the append stays');
   s = ev(s, append(0, 1));
-  assert.equal(s.series!.rows, 1);
+  assert.equal(shown(s).series!.rows, 1);
   assert.equal(s.hover, null, 'rows from 0 on were replaced');
   assert.equal(ev(initialState, append(0, 2)), initialState, 'nothing to append to');
 });

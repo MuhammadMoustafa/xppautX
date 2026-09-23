@@ -57,7 +57,7 @@ export interface SeriesColumn {
   data: SeriesData;
 }
 
-/** the whole series of the active plot window */
+/** the whole series of one plot window */
 export interface SeriesEvent {
   ev: 'series';
   op?: undefined;
@@ -85,6 +85,34 @@ export interface SeriesAppendEvent {
   /** rows after this append */
   rows: number;
   columns: {col: number; data: SeriesData}[];
+}
+
+/** one plot window as `plots` describes it */
+export interface PlotWindowInfo {
+  win: number;
+  /** "W vs V" */
+  title: string;
+  three: number;
+  /** the window's axes (Viewaxes, Window/Zoom); in 3D the projected view's */
+  xlo: number; xhi: number; ylo: number; yhi: number;
+  xlabel: string; ylabel: string; zlabel: string;
+  /** the 3D box: the data ranges of x, y and z */
+  box: {xmin: number; xmax: number; ymin: number; ymax: number; zmin: number; zmax: number};
+  /** the 3D view's angles, degrees */
+  theta: number;
+  phi: number;
+  persp: number;
+  zplane: number;
+  zview: number;
+  curves: Curve[];
+  shift: [number, number, number];
+}
+
+/** every plot window and the active one */
+export interface PlotsEvent {
+  ev: 'plots';
+  active: number;
+  windows: PlotWindowInfo[];
 }
 
 export interface AskEvent {
@@ -145,6 +173,7 @@ export type XppEvent =
   | StateEvent
   | SeriesEvent
   | SeriesAppendEvent
+  | PlotsEvent
   | AskEvent
   | MessageEvent
   | BrowserEvent

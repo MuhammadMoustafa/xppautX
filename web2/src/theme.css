@@ -356,7 +356,23 @@ kbd {
 .status-dot.busy { background: var(--warn); }
 .status-dot.down { background: var(--danger); }
 
-/* ---- plot ---- */
+/* ---- plot windows (tabs), plot ---- */
+.plots { flex: 1; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; min-height: 0; }
+.plot-windows { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-1) var(--space-2); min-width: 0; }
+.plot-tabs { display: flex; flex-wrap: wrap; gap: var(--space-1); flex: 1; min-width: 0; }
+.plot-tab {
+  max-width: 100%;
+  border-color: transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: 0.375rem 0.375rem 0 0;
+  background: none;
+  color: var(--fg-muted);
+}
+.plot-tab[aria-selected='true'] { color: var(--fg); border-bottom-color: var(--accent); background: var(--surface); }
+.plot-tab-num { font-weight: 600; }
+.plot-tab-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.plot-window-tools { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-left: auto; }
+.plot-view[hidden] { display: none; }
 .plot-view {
   container-type: inline-size;
   flex: 1;

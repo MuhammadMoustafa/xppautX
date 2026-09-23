@@ -33,11 +33,12 @@ export class Session {
   private receive(ev: XppEvent): void {
     this.store.dispatch({type: 'event', ev});
     if (ev.ev === 'hello') {
-      /* the plot as data (docs/protocol.md): asked for on every (re)connection,
-         which also makes the server send the current plot; values as base64
-         float32, which a long run needs (a server that does not know enc
-         sends JSON numbers, which the store reads as well) */
-      if (ev.features?.includes('series')) this.send({cmd: 'data', events: ['series'], enc: 'f32'});
+      /* the plots as data (docs/protocol.md): asked for on every (re)connection,
+         which also makes the server send the windows and their series; values
+         as base64 float32, which a long run needs (a server that does not know
+         enc sends JSON numbers, which the store reads as well) */
+      const events = ['series', 'plots'].filter(name => ev.features?.includes(name));
+      if (events.length) this.send({cmd: 'data', events, enc: 'f32'});
     } else if (ev.ev === 'ask') {
       if (ev.kind === 'pixels') {
         this.cancel(ev); /* frame and GIF writers want the client's picture; this UI has none yet */
@@ -124,6 +125,26 @@ export class Session {
       this.store.dispatch({type: 'pick', pick: null});
       if (ask?.kind === 'drag') this.answer(ask, this.dragQueue.shift()!);
     }
+  }
+
+  /* ---- plot windows (docs/ui-v2.md T6): the core's Makewindow commands ---- */
+
+  /** a window's tab picked: it is shown at once, and becomes the core's active window */
+  selectWindow(win: number): void {
+    const {plots, ask} = this.store.getState();
+    if (plots.active === win || ask) return; /* a prompt is the shown window's until answered */
+    this.store.dispatch({type: 'selectWindow', win});
+    this.send({cmd: 'click', win});
+  }
+
+  /** Makewindow/Create: a copy of the active window, which becomes active */
+  newWindow(): void {
+    this.keys('m', 'c');
+  }
+
+  /** Makewindow/Destroy: the active window (never window 1) */
+  closeWindow(): void {
+    this.keys('m', 'd');
   }
 
   /** stops the running command; it still ends with its idle */
