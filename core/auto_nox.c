@@ -771,10 +771,14 @@ void auto_screen_col(char *col,char *out)
     auto_col_centre(out,name);
     return;
   }
-  q=strstr(col,"U(");
-  if(q!=NULL&&sscanf(q,"U(%ld)",&p)==1&&p>=1&&p<=NODE){
+  /* U(n), and the MAX(n) / MIN(n) a periodic branch prints, where AUTO has
+     overwritten the U itself */
+  q=strchr(col,'(');
+  if(q!=NULL&&strstr(col,"PAR")==NULL&&sscanf(q,"(%ld)",&p)==1&&p>=1&&p<=NODE){
+    int n=(int)(q-col);
+    if(n>0&&col[n-1]=='U')n--; /* the name replaces the U */
     /* keep what stands in front of it: MAX, MIN, L2-NORM, INTEGRAL */
-    sprintf(pre,"%.*s",(int)(q-col),col);
+    sprintf(pre,"%.*s",n,col);
     for(i=(int)strlen(pre);i>0&&pre[i-1]==' ';i--)
       pre[i-1]=0;
     for(i=0;pre[i]==' ';i++)

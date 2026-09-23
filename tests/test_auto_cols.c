@@ -41,6 +41,7 @@ int main(void)
     CHECK_STR(out, "     iapp     ");
 
     /* a variable column, with and without the prefix AUTO puts in front */
+    strcpy(uvar_names[0], "v");
     auto_screen_col("     U(1)     ", out);
     CHECK_STR(out, "      v       ");
     auto_screen_col("   MAX U(2)   ", out);
@@ -55,6 +56,14 @@ int main(void)
     /* PAR(10) is the period, whatever sits at parameter 10 */
     auto_screen_col("   PAR(10)    ", out);
     CHECK(strstr(out, "T") != NULL);
+
+    /* a periodic branch prints MAX(n)/MIN(n): AUTO has overwritten the U */
+    strcpy(uvar_names[1], "w");
+    auto_screen_col("   MAX(2)     ", out);
+    CHECK(strlen(out) == AUTO_COL_W);
+    CHECK(strstr(out, "MAX w") != NULL);
+    auto_screen_col("   MIN(1)     ", out);
+    CHECK(strstr(out, "MIN v") != NULL);
 
     /* out of range: a variable AUTO reports that this model does not have */
     auto_screen_col("     U(9)     ", out);
