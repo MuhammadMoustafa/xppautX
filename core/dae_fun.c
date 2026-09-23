@@ -35,7 +35,7 @@ typedef struct {
 DAEWORK dae_work;
 
 typedef struct {
-  char name[12],*rhs;
+  char name[XPP_NAME_MAX+1],*rhs;
   int *form;
   int index;
   double value,last;
@@ -62,7 +62,7 @@ int add_svar(name,rhs)
     plintf(" Too many variables\n");
     return 1;
   }
-  
+  if(name_too_long(name))return 1;
   strcpy(svar[nsvar].name,name);
   svar[nsvar].rhs=(char *) malloc(80);
   strcpy(svar[nsvar].rhs,rhs);
@@ -295,12 +295,12 @@ int solve_dae()
 void get_new_guesses()
 {
   int i,n;
-  char name[48];
+  char name[XPP_NAME_MAX+40];
   double z;
   if(nsvar<1)return;
   for(i=0;i<nsvar;i++){
     z=svar[i].last;
-    snprintf(name,sizeof(name),"Initial %.11s(%g):",svar[i].name,z);
+    snprintf(name,sizeof(name),"Initial %.*s(%g):",XPP_NAME_MAX,svar[i].name,z);
     new_string(name,svar[i].rhs);
     if(add_expr(svar[i].rhs,svar[i].form,&n)){
       err_msg("Illegal formula");

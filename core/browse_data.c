@@ -27,7 +27,7 @@ BROWSER my_browser;
 float *old_rep;
 int REPLACE=0,R_COL=0;
 extern int NODE,NMarkov,FIX_VAR;
-extern char uvar_names[MAXODE][12];
+extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern double last_ic[MAXODE];
 
 float **get_browser_data()
@@ -284,12 +284,12 @@ char *var;
 void data_del_col(b)  /*  this only works with storage  */
  BROWSER *b;
 { int status;
-  char var[20];
+  char var[XPP_NAME_MAX+1];
     if(check_for_stor(b->data)==0)return;
   err_msg("Sorry - not working very well yet...");
   return;
   strcpy(var,"");
-  status=get_dialog("Delete","Name",var,"Ok","Cancel",20);
+  status=get_dialog("Delete","Name",var,"Ok","Cancel",XPP_NAME_MAX);
    if(status!=0)
     del_stor_col(var,b); 
 }
@@ -298,11 +298,11 @@ void data_add_col(b)
 BROWSER *b;
 { 
   int status;
-  char var[20],form[80];
+  char var[XPP_NAME_MAX+1],form[80];
    if(check_for_stor(b->data)==0)return;
   strcpy(var,"");
   strcpy(form,"");
-  status=get_dialog("Add Column","Name",var,"Ok","Cancel",20);
+  status=get_dialog("Add Column","Name",var,"Ok","Cancel",XPP_NAME_MAX);
   if(status!=0){
     status=get_dialog("Add Column","Formula:",form,"Add it","Cancel",80);
      if(status!=0)
@@ -315,7 +315,11 @@ int add_stor_col(name,formula,b)
      BROWSER *b;
 {
   int com[4000],i,j;
-  
+
+  if(strlen(name)>XPP_NAME_MAX){
+    err_msg("Name too long");
+    return(0);
+  }
   if(add_expr(formula,com,&i)){
     err_msg("Bad Formula .... ");
     return(0);
@@ -556,10 +560,10 @@ void data_replace(b)
 BROWSER *b;
 {
  int status;
- char var[20],form[80];
+ char var[XPP_NAME_MAX+1],form[80];
 strcpy(var,uvar_names[0]);
 strcpy(form,uvar_names[0]);
-status=get_dialog("Replace","Variable:",var,"Ok","Cancel",20);
+status=get_dialog("Replace","Variable:",var,"Ok","Cancel",XPP_NAME_MAX);
 if(status!=0){
  status=get_dialog("Replace","Formula:",form,"Replace","Cancel",80);
  if(status!=0)replace_column(var,form,b->data,b->maxrow);
@@ -583,14 +587,14 @@ BROWSER *b;
  int status;
  
  static char *name[]={"Variable","Xlo","Xhi","File"};
- char value[4][25];
- 
+ char value[4][MAX_LEN_SBOX];
+
  double xlo=0,xhi=1;
  int col;
  sprintf(value[0],"%s",uvar_names[0]);
  sprintf(value[1],"0.00");
  sprintf(value[2],"1.00");
- snprintf(value[3],sizeof(value[3]),"%.20s.tab",value[0]);
+ snprintf(value[3],sizeof(value[3]),"%.*s.tab",XPP_NAME_MAX,value[0]);
  status=do_string_box(4,4,1,"Tabulate",name,value,40);
  if(status==0)return;
  xlo=atof(value[1]);
@@ -606,7 +610,7 @@ BROWSER *b;
  int status;
 
  static char *name[]={"*0Variable","Value"};
- char value[2][25];
+ char value[2][MAX_LEN_SBOX];
  int col,row=-1;
 
  float val;

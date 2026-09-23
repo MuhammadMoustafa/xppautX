@@ -163,7 +163,7 @@ int parse_import();
 #define MAXVEC 100
 
 typedef struct {
-  char name[20];
+  char name[XPP_NAME_MAX+1];
   int root,length,il,ir;
 } VECTORIZER;
 
@@ -180,14 +180,14 @@ typedef struct {
 		         interp=0 for normal interpolation, interp=1 for 'step'
     table   and finally, xyvals=1 if both x and y vals are needed (xyvals=0
     is faster lookup )*/
-  char filename[128],name[12];
+  char filename[128],name[XPP_NAME_MAX+1];
 }TABULAR;
 
 extern TABULAR my_table[MAX_TAB];
 
 typedef struct {
   int type,ncon,n;
-  char name[20];
+  char name[XPP_NAME_MAX+1];
   char soname[256],sofun[256];
   
   int root,root2;
@@ -273,6 +273,7 @@ void add_vectorizer_name(char *name, char *rhs)
     plintf("Too many vectors \n");
     exit(0);
   }
+  if(name_too_long(name))exit(0);
   strcpy(my_vec[n_vector].name,name);
   if(add_vector_name( n_vector,name))
     exit(0);
@@ -330,9 +331,10 @@ int add_spec_fun(name,rhs)
   int iwgt,itau,iind,ivar,ivar2;
   int ntype,ntot,ncon,ntab;
   char *str;
-  char junk[256];
-  char rootname[20],wgtname[20],tauname[20],indname[20];
-  char root2name[20],fname[20];
+  char junk[3*1024+8]; /* "fname(rootname,root2name)" */
+  /* tokens of the right-hand side, checked as names after the copy */
+  char rootname[1024],wgtname[1024],tauname[1024],indname[1024];
+  char root2name[1024],fname[1024];
   char sofun[256],soname[256],*tname[MAXW];
   type=is_network(rhs);
     if(type==0)return 0;
@@ -508,7 +510,7 @@ int add_spec_fun(name,rhs)
     }
     str=get_next(")");
     strcpy(fname,str);
-    sprintf(junk,"%s(%s,%s)",fname,rootname,root2name);
+    snprintf(junk,sizeof(junk),"%s(%s,%s)",fname,rootname,root2name);
     if(add_expr(junk,my_net[ind].f,&elen)){
       plintf(" bad function %s \n",fname);
       return 0;
@@ -585,7 +587,7 @@ int add_spec_fun(name,rhs)
     }
     str=get_next(")");
     strcpy(fname,str);
-    sprintf(junk,"%s(%s,%s)",fname,rootname,root2name);
+    snprintf(junk,sizeof(junk),"%s(%s,%s)",fname,rootname,root2name);
     if(add_expr(junk,my_net[ind].f,&elen)){
       plintf(" bad function %s \n",fname);
       return 0;
@@ -768,7 +770,7 @@ int add_spec_fun(name,rhs)
     }
     str=get_next(")");
     strcpy(fname,str);
-    sprintf(junk,"%s(%s,%s)",fname,rootname,root2name);
+    snprintf(junk,sizeof(junk),"%s(%s,%s)",fname,rootname,root2name);
     if(add_expr(junk,my_net[ind].f,&elen)){
       plintf(" bad function %s \n",fname);
       return 0;
@@ -1109,6 +1111,7 @@ void add_special_name(name,rhs)
     if(n_network>=MAXNET){
       return;
     }
+    if(name_too_long(name))exit(0);
     strcpy(my_net[n_network].name,name);
     add_net_name(n_network,name);
     n_network++;
@@ -1527,7 +1530,7 @@ void fft_conv(int it,int n,double *values,double *yy,double *fftr,double *ffti,d
 int gilparse(char *s,int *ind,int *nn)
 {
   int i=0,n=strlen(s);
-  char piece[50],b[20],bn[25],c;
+  char piece[1024],b[1024],bn[1036],c;
   int i1,i2,jp=0,f;
   int k=0,iv;
   int id,m;

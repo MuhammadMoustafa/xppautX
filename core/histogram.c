@@ -21,7 +21,7 @@ double ndrand48();
 void mycor(),mycor2();
 float *get_data_col();
 extern int DCURY,MAXSTOR;
-extern char uvar_names[MAXODE][12];
+extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 typedef struct {
   int nbins,nbins2,type,col,col2,fftc;
   double xlo,xhi;
@@ -426,7 +426,7 @@ int get_col_info(col,prompt)
  int *col;
  char *prompt;
 {
- char variable[20];
+ char variable[256]; /* new_string edits up to 255 characters */
  if(*col==0)
    strcpy(variable,"t");
  else

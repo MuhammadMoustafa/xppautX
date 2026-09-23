@@ -23,11 +23,6 @@ extern "C" {
 
 
 
-/*typedef struct {
-  int narg;
-  char args[MAXARG][11];
-} UFUN_ARG;
-*/
 
 
 /*  This is a edit box widget which handles a list of 

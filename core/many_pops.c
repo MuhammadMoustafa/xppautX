@@ -38,7 +38,6 @@
 #include "eig_list.h"
 
 
-#define MAX_LEN_SBOX 25
 
 int manual_expose=0;
 extern char *info_message;
@@ -87,7 +86,7 @@ typedef struct {
                          interp=2 for cubic spline
     table   and finally, xyvals=1 if both x and y vals are needed (xyvals=0
     is faster lookup )*/
-  char filename[128],name[12];
+  char filename[128],name[XPP_NAME_MAX+1];
 }TABULAR;
 
 extern TABULAR my_table[MAX_TAB];

@@ -16,11 +16,10 @@
 #define MAXNCLINE 26
 
 #define ICLENGTH 30
-#define NAMELENGTH 10
 
 typedef struct {
 		double xlo,xhi;
-		char rv[10];
+		char rv[MAX_LEN_SBOX]; /* the parameter ranged over, as typed */
   		int nstep, ic,stor;
 		} RANGE_INFO; 
 		
@@ -68,7 +67,7 @@ typedef struct {
 		int xshft,yshft,zshft;
 	        int xorgflag,yorgflag,zorgflag;
 		int ColorFlag,ColorValue;
-	        char xlabel[30],ylabel[30],zlabel[30];
+	        char xlabel[MAX_LEN_SBOX],ylabel[MAX_LEN_SBOX],zlabel[MAX_LEN_SBOX];
                 char gr_info[256];
 		} GRAPH;
 

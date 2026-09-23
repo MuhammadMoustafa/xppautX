@@ -3,6 +3,7 @@
 #include "numerics.h"
 #include "xpp_globals.h"
 #include "xpp_ui.h"
+#include "xpp_util.h"
 #include <string.h>
 #include "parserslow.h"
 #include "autevd.h"
@@ -99,7 +100,6 @@ int TypeOfCalc=0;
 
 #define STD_WID 460       /* golden mean  */
 #define STD_HGT 284
-#define MAX_LEN_SBOX 25
 #define HI_P 0  /* uhi vs par */
 #define NR_P 1  /* norm vs par */
 #define HL_P 2  /* Hi and Lo vs par  periodic only */
@@ -223,8 +223,8 @@ char fort9[200];
 char TMPSWAP[200];
 
 
-extern char uvar_names[MAXODE][12];
-extern char upar_names[MAXPAR][11];
+extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
+extern char upar_names[MAXPAR][XPP_NAME_MAX+1];
 extern int NUPAR;
 unsigned int DONT_XORCross=0;
 
@@ -239,7 +239,7 @@ int HomoFlag=0;
 int sparity=0;
 double homo_l[100],homo_r[100];
 double HOMO_SHIFT=0.0;
-extern char uvar_names[MAXODE][12];
+extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 
 extern int storind;
 extern int DCURX,DCURXs,DCURY,DCURYs,CURY_OFFs,CURY_OFF;
@@ -385,7 +385,7 @@ char *xlabel,*ylabel;
 
 void draw_ps_axes()
 {
- char sx[20],sy[20];
+ char sx[AUTO_LABEL_LEN],sy[AUTO_LABEL_LEN];
  set_scale(Auto.xmin,Auto.ymin,Auto.xmax,Auto.ymax);
  get_auto_str(sx,sy);
  Box_axis(Auto.xmin,Auto.xmax,Auto.ymin,Auto.ymax,sx,sy,0);
@@ -393,7 +393,7 @@ void draw_ps_axes()
 
 void draw_svg_axes()
 {
- char sx[20],sy[20];
+ char sx[AUTO_LABEL_LEN],sy[AUTO_LABEL_LEN];
  set_scale(Auto.xmin,Auto.ymin,Auto.xmax,Auto.ymax);
  get_auto_str(sx,sy);
  Box_axis(Auto.xmin,Auto.xmax,Auto.ymin,Auto.ymax,sx,sy,0);
@@ -403,7 +403,7 @@ void draw_bif_axes()
 {
  int x0=Auto.x0,y0=Auto.y0,ii,i0;
  int x1=x0+Auto.wid,y1=y0+Auto.hgt;
- char junk[20],xlabel[20],ylabel[20];
+ char junk[20],xlabel[AUTO_LABEL_LEN],ylabel[AUTO_LABEL_LEN];
  clear_auto_plot();
  ALINE(x0,y0,x1,y0);
  ALINE(x1,y0,x1,y1);
@@ -764,12 +764,15 @@ int auto_par_to_name(index,s)
    rewrites one 14-character column heading for the screen only: fort.7 and
    fort.9 keep AUTO's own format, which its restart path and other people's
    scripts read. PAR(10) and friends are the period and such, not the user's
-   parameters, and auto_par_to_name leaves them alone. */
+   parameters, and auto_par_to_name leaves them alone. A name that does not
+   fit (names go to XPP_NAME_MAX) is shortened with a '~' (short_name) and
+   still leaves a blank between it and the next heading: the column stays
+   14 wide so the numbers below stay under it. */
 static void auto_col_centre(char *out,char *s)
 {
   int n,l;
-  char t[AUTO_COL_W+1];
-  sprintf(t,"%.*s",AUTO_COL_W,s);
+  char t[AUTO_COL_W];
+  short_name(t,s,AUTO_COL_W-1);
   n=(int)strlen(t);
   l=(AUTO_COL_W-n)/2;
   sprintf(out,"%*s%s%*s",l,"",t,AUTO_COL_W-n-l,"");
@@ -779,7 +782,7 @@ void auto_screen_col(char *col,char *out)
 {
   long p;
   int i;
-  char name[64],pre[AUTO_COL_W+1],*q;
+  char name[AUTO_COL_W+XPP_NAME_MAX+2],pre[AUTO_COL_W+1],*q;
   if(sscanf(col," PAR(%ld)",&p)==1&&auto_par_to_name((int)p,name)){
     auto_col_centre(out,name);
     return;
@@ -956,7 +959,7 @@ void auto_plot_par()
   int  status,i;
   int ii1,ii2,ji1,ji2;
   int i1=Auto.var+1;
-  char n1[15];
+  char n1[XPP_NAME_MAX+1];
   ch=(char)auto_pop_up_list("Plot Type",m,key,14,10,Auto.plot,10,50,
 		       aaxes_hint,Auto.hinttxt);
   if(ch==ESC) 
@@ -1543,16 +1546,18 @@ void info_header(flag2,icp1,icp2)
      int icp1,icp2,flag2;
 {
   char bob[80];
-  char p1name[12],p2name[12];
- 
-  sprintf(p1name,"%s",upar_names[AutoPar[icp1]]);
-  if(icp2<NAutoPar)sprintf(p2name,"%s",upar_names[AutoPar[icp2]]);
+  /* the names head 10-wide columns of new_info's numbers */
+  char p1name[11],p2name[11],vname[11];
+
+  short_name(p1name,upar_names[AutoPar[icp1]],10);
+  if(icp2<NAutoPar)short_name(p2name,upar_names[AutoPar[icp2]],10);
   else sprintf(p2name,"   ");
+  short_name(vname,uvar_names[Auto.var],10);
   SmallBase();
   sprintf(bob,"  Br  Pt Ty  Lab %10s %10s       norm %10s     period",
 	  p1name,
 	  p2name,
-	  uvar_names[Auto.var]);
+	  vname);
   draw_auto_info(bob,10,DCURYs+1);
   
 }
@@ -2432,7 +2437,7 @@ int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
   int flag=0;
   s=(char **)malloc(n *sizeof(char *));
   for(i=0;i<n;i++){
-   s[i]=(char *)malloc(100);
+   s[i]=(char *)malloc(XPP_NAME_MAX+8); /* name_L, name_R */
 
   }
   sprintf(s[0],"dim unstable");

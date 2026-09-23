@@ -47,7 +47,7 @@ void x11_respond_box(char *button, char *message);
 int x11_checklist(char *title, char **names, int *flags, int n);
 void x11_show_menu(int j);
 int x11_do_string_box(int n, int row, int col, char *title, char **names,
-                      char values[][25], int maxchar);
+                      char values[][MAX_LEN_SBOX], int maxchar);
 int x11_file_selector(char *title, char *file, char *wild);
 int x11_get_dialog(char *wname, char *name, char *value, char *ok, char *cancel, int max);
 int x11_GetMouseXY(int *x, int *y);

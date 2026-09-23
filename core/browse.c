@@ -111,7 +111,7 @@ extern int REPLACE,R_COL;
 
 
 extern int noicon;
-extern char uvar_names[MAXODE][12];
+extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 
 extern float **storage;
 

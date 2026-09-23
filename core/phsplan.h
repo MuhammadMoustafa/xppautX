@@ -65,7 +65,7 @@ extern int HIST,HVAR,hist_ind;
  extern float *X_n,*Y_n;
 
 
- extern char uvar_names[MAXODE][12];
+ extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 
 
 #ifdef __cplusplus

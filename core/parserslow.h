@@ -73,8 +73,9 @@ extern "C" {
 
 
 
-/* #define MXLEN 32 */
-#define MXLEN 10
+/* longest symbol name: a model's names, and the primed name X' that
+   form_ode.c adds for each variable X */
+#define MXLEN (XPP_NAME_MAX+1)
 
 typedef struct
         {
@@ -87,7 +88,7 @@ typedef struct
 	
 typedef struct {
   int narg;
-  char args[MAXARG][11];
+  char args[MAXARG][XPP_NAME_MAX+1];
 } UFUN_ARG;
 
 
@@ -100,6 +101,7 @@ typedef struct {
 void init_rpn(void);
 void free_ufuns(void);
 int duplicate_name(char *junk);
+int name_too_long(char *name);
 int add_constant(char *junk);
 int get_var_index(char *name);
 int get_type(int index);
@@ -114,10 +116,10 @@ int add_file_table(int index, char *file);
 int add_table_name(int index, char *name);
 int add_form_table(int index, int nn, double xlo, double xhi, char *formula);
 void set_old_arg_names(int narg);
-void set_new_arg_names(int narg, char args[10][11]);
+void set_new_arg_names(int narg, char args[MAXARG][XPP_NAME_MAX+1]);
 int add_ufun_name(char *name, int index, int narg);
 void fixup_endfun(int *u, int l, int narg);
-int add_ufun_new(int index, int narg, char *rhs, char args[20][11]);
+int add_ufun_new(int index, int narg, char *rhs, char args[MAXARG][XPP_NAME_MAX+1]);
 int add_ufun(char *junk, char *expr, int narg);
 int check_num(int *tok, double value);
 int is_ufun(int x);

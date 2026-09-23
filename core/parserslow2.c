@@ -83,7 +83,7 @@ double constants[MAXPAR];
 double variables[MAXODE1];
 int *ufun[MAXUFUN];
 char *ufun_def[MAXUFUN];
-char ufun_names[MAXUFUN][12];
+char ufun_names[MAXUFUN][XPP_NAME_MAX+1];
 int narg_fun[MAXUFUN];
 double stack[200],ustack[200];
 
@@ -320,29 +320,53 @@ int duplicate_name(junk)
   return(0);
 }
 
+/* Puts name, without blanks and in upper case, into symbol slot k.
+   Returns 1 (and says why) when it is empty or longer than XPP_NAME_MAX;
+   with primed set, the primed name X' of a variable X (form_ode.c) may be
+   one longer. */
+static int set_symbol_name(int k, char *name, int primed)
+{
+  char string[MAXEXPLEN];
+  int len;
+  if(strlen(name)>=sizeof(string))return name_too_long(name);
+  convert(name,string);
+  len=strlen(string);
+  if(len<1){
+    plintf("Empty name - remove spaces\n");
+    return 1;
+  }
+  if(len>XPP_NAME_MAX&&!(primed&&len==MXLEN&&string[len-1]=='\''))
+    return name_too_long(name);
+  memcpy(my_symb[k].name,string,len+1);
+  my_symb[k].len=len;
+  return 0;
+}
+
+/* 1 (with a message) when name, blanks removed, is longer than
+   XPP_NAME_MAX and so cannot be a symbol */
+int name_too_long(char *name)
+{
+  char string[MAXEXPLEN];
+  if(strlen(name)<sizeof(string)){
+    convert(name,string);
+    if(strlen(string)<=XPP_NAME_MAX)return 0;
+  }
+  plintf("Name %.40s... is longer than %d characters\n",name,XPP_NAME_MAX);
+  return 1;
+}
+
 /*  ADD_CONSTANT   */
 
 int add_constant(junk)
 char *junk;
 {
- int len;
- char string[100];
  if(duplicate_name(junk)==1)return(1);
  if(NCON>=MAXPAR)
  {
   if(ERROUT)xpp_log(XPP_LOG_WARN, "too many constants !!\n");
   return(1);
  }
- convert(junk,string);
- len=strlen(string);
-  if(len<1){
-   plintf("Empty parameter - remove spaces\n");
-   return 1;
- }
- if(len>MXLEN)len=MXLEN;
- memcpy(my_symb[NSYM].name,string,len);
- my_symb[NSYM].name[len]='\0';
- my_symb[NSYM].len=len;
+ if(set_symbol_name(NSYM,junk,0))return 1;
  my_symb[NSYM].pri=10;
  my_symb[NSYM].arg=0;
  my_symb[NSYM].com=COM(CONTYPE,NCON-1);
@@ -398,9 +422,7 @@ int add_kernel(name,mu,expr)
      char *name,*expr;
      double mu;
 {
-  char string[100];
-  
-  int len,i,in=-1;
+  int i,in=-1;
   if(duplicate_name(name)==1)return(1);
   if(NKernel==MAXKER){
     plintf("Too many kernels..\n");
@@ -410,12 +432,7 @@ int add_kernel(name,mu,expr)
     plintf(" mu must lie in [0,1.0) \n");
     return(1);
   }
-  convert(name,string);
-  len=strlen(string);
-  if(len>MXLEN)len=MXLEN;
-  memcpy(my_symb[NSYM].name,string,len);
-  my_symb[NSYM].name[len]='\0';
-  my_symb[NSYM].len=len;
+  if(set_symbol_name(NSYM,name,0))return 1;
   my_symb[NSYM].pri=10;
   my_symb[NSYM].arg=0;
   my_symb[NSYM].com=COM(KERTYPE,NKernel);
@@ -458,8 +475,6 @@ int add_var(junk, value)
 char *junk;
 double value;
 {
- char string[100];
- int len;
  /*   plintf(" variable - %s \n",junk); */
  if(duplicate_name(junk)==1)return(1);
  if(NVAR>=MAXODE1)
@@ -467,12 +482,7 @@ double value;
   if(ERROUT)xpp_log(XPP_LOG_WARN, "too many variables !!\n");
   return(1);
  }
- convert(junk,string);
- len=strlen(string);
- if(len>MXLEN)len=MXLEN;
- memcpy(my_symb[NSYM].name,string,len);
- my_symb[NSYM].name[len]='\0';
- my_symb[NSYM].len=len;
+ if(set_symbol_name(NSYM,junk,1))return 1;
  my_symb[NSYM].pri=10;
  my_symb[NSYM].arg=0;
  my_symb[NSYM].com=COM(VARTYPE,NVAR);
@@ -513,17 +523,10 @@ int *command, *length;
 
 int add_vector_name(int index,char *name)
 {
-  
-char string[50];
-  int len=strlen(name);
   plintf(" Adding vectorizer %s %d \n",name,index);
-  if(duplicate_name(name)==1)return(1);  
-  convert(name,string);
-  xpp_log(XPP_LOG_WARN, " 1\n");
-  if(len>MXLEN)len=MXLEN;
-  strncpy(my_symb[NSYM].name,string,len);
-  my_symb[NSYM].name[len]='\0';
-  my_symb[NSYM].len=len;
+  if(duplicate_name(name)==1)return(1);
+  xpp_log(XPP_LOG_DEBUG, " 1\n");
+  if(set_symbol_name(NSYM,name,0))return 1;
   my_symb[NSYM].pri=10;
   my_symb[NSYM].arg=1;
   my_symb[NSYM].com=COM(VECTYPE,index);
@@ -538,15 +541,9 @@ int add_net_name(index,name)
      int index;
      char *name;
 {
-  char string[50];
-  int len=strlen(name);
   plintf(" Adding net %s %d \n",name,index);
-  if(duplicate_name(name)==1)return(1);  
-  convert(name,string);
-  if(len>MXLEN)len=MXLEN;
-  strncpy(my_symb[NSYM].name,string,len);
-  my_symb[NSYM].name[len]='\0';
-  my_symb[NSYM].len=len;
+  if(duplicate_name(name)==1)return(1);
+  if(set_symbol_name(NSYM,name,0))return 1;
   my_symb[NSYM].pri=10;
   my_symb[NSYM].arg=1;
   my_symb[NSYM].com=COM(NETTYPE,index);
@@ -596,14 +593,8 @@ int add_table_name(index,name)
      char *name;
      int index;
 {
-     char string[50];
-     int len=strlen(name);
-     if(duplicate_name(name)==1)return(1);  
-     convert(name,string);
-     if(len>MXLEN)len=MXLEN;
-     strncpy(my_symb[NSYM].name,string,len);
-     my_symb[NSYM].name[len]='\0';
-     my_symb[NSYM].len=len;
+     if(duplicate_name(name)==1)return(1);
+     if(set_symbol_name(NSYM,name,0))return 1;
      my_symb[NSYM].pri=10;
      my_symb[NSYM].arg=1;
      my_symb[NSYM].com=COM(TABTYPE, index);
@@ -642,7 +633,7 @@ void set_old_arg_names(narg)
 }
 
 void set_new_arg_names(narg,args)
-     char args[10][11];
+     char args[MAXARG][XPP_NAME_MAX+1];
      int narg;
 {
   int i;
@@ -659,8 +650,6 @@ int add_ufun_name(name,index,narg)
      char *name;
      int index,narg;
 {
-  char string[50];
-  int len=strlen(name);
  if(duplicate_name(name)==1)return(1);
  if(index>=MAXUFUN)
  {
@@ -668,11 +657,7 @@ int add_ufun_name(name,index,narg)
   return(1);
  }
   plintf(" Added user fun %s \n",name);
-  convert(name,string);
-  if(len>MXLEN)len=MXLEN;
-  strncpy(my_symb[NSYM].name,string,len);
-  my_symb[NSYM].name[len]='\0';
-  my_symb[NSYM].len=len;
+  if(set_symbol_name(NSYM,name,0))return 1;
   my_symb[NSYM].pri=10;
   my_symb[NSYM].arg=narg;
   my_symb[NSYM].com=COM(UFUNTYPE, index);
@@ -692,7 +677,7 @@ void fixup_endfun(u,l,narg)
 
 
 int add_ufun_new(index,narg,rhs,args)
-     char *rhs,args[MAXARG][11];
+     char *rhs,args[MAXARG][XPP_NAME_MAX+1];
      int narg,index;
 {
   
@@ -741,12 +726,11 @@ int add_ufun(junk,expr,narg)
 char *junk, *expr;
 int narg;
 {
- char string[50];
  int i,l;
  int end;
- int len=strlen(junk);
 
  if(duplicate_name(junk)==1)return(1);
+ if(name_too_long(junk))return(1);
  if(NFUN>=MAXUFUN)
  {
   if(ERROUT)xpp_log(XPP_LOG_WARN, "too many functions !!\n");
@@ -763,13 +747,9 @@ int narg;
   return(1);
  }
 
- convert(junk,string);
  if(add_expr(expr,ufun[NFUN],&end)==0)
  {
-  if(len>MXLEN)len=MXLEN;
-  strncpy(my_symb[NSYM].name,string,len);
-  my_symb[NSYM].name[len]='\0';
-  my_symb[NSYM].len=len;
+  set_symbol_name(NSYM,junk,0);
   my_symb[NSYM].pri=10;
   my_symb[NSYM].arg=narg;
   my_symb[NSYM].com=COM(UFUNTYPE, NFUN);
@@ -894,8 +874,12 @@ void find_name(string, index)
  char *string;
  int *index;
 {
-  char junk[100];
+  char junk[MAXEXPLEN];
   int i,len;
+  if(strlen(string)>=sizeof(junk)){
+    *index=-1;
+    return;
+  }
   convert(string,junk);
   len=strlen(junk);
   for(i=0;i<NSYM;i++)

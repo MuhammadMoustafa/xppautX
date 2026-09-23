@@ -23,7 +23,6 @@
 #include <stdio.h>
 
 
-#define MAX_LEN_SBOX 25
 #define DING ping
 #define MAX_NULL 10000
 
@@ -61,7 +60,7 @@ int DFIELD_TYPE=0;
 
 int DOING_DFIELD=0;
 
-char ColorVia[15]="speed";
+char ColorVia[XPP_NAME_MAX+1]="speed";
 double ColorViaLo=0,ColorViaHi=1;
 int ColorizeFlag=0;
 

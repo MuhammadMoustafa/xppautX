@@ -4,11 +4,13 @@
 extern "C" {
 #endif
 
+#include "xpplim.h"
+
 
 typedef struct {
-  char file[25];
-  char varlist[25],collist[25];
-  char parlist1[25],parlist2[25];
+  char file[MAX_LEN_SBOX];
+  char varlist[MAX_LEN_SBOX],collist[MAX_LEN_SBOX];
+  char parlist1[MAX_LEN_SBOX],parlist2[MAX_LEN_SBOX];
   int dim,npars,nvars,npts,maxiter;
   int icols[50],ipar[50],ivar[50];
   double tol,eps;

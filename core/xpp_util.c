@@ -41,14 +41,14 @@
 #define REAL_SMALL 1.e-6
 
 extern int NUPAR, NEQ;
-extern char upar_names[MAXPAR][11], uvar_names[MAXODE][12];
+extern char upar_names[MAXPAR][XPP_NAME_MAX+1], uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern double last_ic[MAXODE];
 extern int NCON, NSYM, NCON_START, NSYM_START;
 extern BROWSER my_browser;
 extern char this_file[XPP_MAX_NAME];
 extern char this_internset[XPP_MAX_NAME];
 extern char *ufun_def[MAXUFUN];
-extern char ufun_names[MAXUFUN][12];
+extern char ufun_names[MAXUFUN][XPP_NAME_MAX+1];
 extern int narg_fun[MAXUFUN];
 extern UFUN_ARG ufun_arg[MAXUFUN];
 extern int NFUN;
@@ -117,6 +117,17 @@ void  get_max(index, vmin,vmax)
  
  }
 
+/* name, shortened for a fixed-width display of width characters: a longer
+   one keeps its start and ends in '~' so it cannot pass for another name.
+   out holds width+1 bytes. */
+void short_name(char *out, const char *name, int width)
+{
+  if((int)strlen(name)<=width)
+    snprintf(out,width+1,"%s",name);
+  else
+    snprintf(out,width+1,"%.*s~",width-1,name);
+}
+
 void de_space(s)
      char *s;
 {
@@ -137,10 +148,13 @@ int find_user_name(type,oname)
 int type;
 char *oname;
 {
- char name[25];
+ char name[XPP_NAME_MAX+1];
  int j=0,k=0,i=-1;
  for(j=0;j<strlen(oname);j++){
- if(!isspace(oname[j])){name[k]=oname[j];k++;}
+ if(!isspace(oname[j])){
+   if(k>=XPP_NAME_MAX)return(-1); /* longer than any name */
+   name[k]=oname[j];k++;
+ }
 }
  name[k]=0;
   
@@ -158,7 +172,7 @@ int do_calc(temp,z)
 char *temp;
 double *z;
  {
- char val[15];
+ char val[256];
  int ok; 
  int i;
  double newz;
@@ -208,6 +222,7 @@ int has_eq(z, w, where)
   for(i=0;i<strlen(z);i++)
    if(z[i]==':')break;
   if(i==strlen(z))return(0);
+  if(i>255)return(0); /* w holds 256 bytes; no name is that long */
   strncpy(w,z,i);
   w[i]=0;
   *where=i+1;
@@ -322,18 +337,12 @@ void   redo_stuff()
 void user_fun_info(fp)
      FILE *fp;
 {
-  char fundef[256];
   int i,j;
   for(j=0;j<NFUN;j++){
-    snprintf(fundef,sizeof(fundef),"%.11s(",ufun_names[j]);
-    for(i=0;i<narg_fun[j];i++){
-      strcat(fundef,ufun_arg[j].args[i]);
-      if(i<narg_fun[j]-1)
-	strcat(fundef,",");
-    }
-    strcat(fundef,") = ");
-    strcat(fundef,ufun_def[j]);
-    fprintf(fp,"%s\n",fundef);
+    fprintf(fp,"%s(",ufun_names[j]);
+    for(i=0;i<narg_fun[j];i++)
+      fprintf(fp,"%s%s",ufun_arg[j].args[i],i<narg_fun[j]-1?",":"");
+    fprintf(fp,") = %s\n",ufun_def[j]);
   }
 }
 

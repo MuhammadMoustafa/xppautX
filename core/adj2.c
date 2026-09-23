@@ -28,7 +28,6 @@
 #include "xpplim.h"
 
 
-#define MAX_LEN_SBOX 25
 #define READEM 1
 
 double evaluate();
@@ -40,7 +39,7 @@ extern float **storage;
 extern int storind,FOUR_HERE;
 extern int NODE,INFLAG,NEQ,NJMP,FIX_VAR,NMarkov,nvec;
 extern double TEND;
-extern char uvar_names[MAXODE][12];
+extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 float **my_adj;
 int adj_len;
 float **my_h;
@@ -53,7 +52,7 @@ struct {
   int here,col0,ncol,colskip;
   int row0,nrow,rowskip; 
   float **data;
-  char firstcol[11];
+  char firstcol[XPP_NAME_MAX+1];
 } my_trans;
    
 int TRANPOSE_HERE=0;
@@ -94,7 +93,7 @@ void dump_transpose_info(fp,f)
   }
   else
     fprintf(fp,"# Transpose variables etc\n");
-  io_string(my_trans.firstcol,11,fp,f);
+  io_string(my_trans.firstcol,sizeof(my_trans.firstcol),fp,f);
   io_int(&my_trans.ncol,fp,f,"n columns");
   io_int(&my_trans.nrow,fp,f,"n rows");
   io_int(&my_trans.rowskip,fp,f,"row skip");
@@ -132,7 +131,7 @@ int do_transpose()
        err_msg("No such columns");
        return 0;
      }
-   strcpy(my_trans.firstcol,values[0]);
+   snprintf(my_trans.firstcol,sizeof(my_trans.firstcol),"%.*s",XPP_NAME_MAX,values[0]);
    i=atoi(values[4]);
    if(i>=NEQ)i=NEQ-1;
    my_trans.nrow=i;
@@ -343,10 +342,10 @@ int node,nt,silent;
  float sum;
  double z;
  int n0=node+1+FIX_VAR,k2,k;
- char name[30];
+ char name[XPP_NAME_MAX+32];
  if(silent==0){
    for(i=0;i<NODE ;i++){
-     snprintf(name,sizeof(name),"Coupling for %.11s eqn:",uvar_names[i]);
+     snprintf(name,sizeof(name),"Coupling for %.*s eqn:",XPP_NAME_MAX,uvar_names[i]);
      new_string(name,coup_string[i]);
      if(add_expr(coup_string[i],coup_fun[i],&j)){
        err_msg("Illegal formula");

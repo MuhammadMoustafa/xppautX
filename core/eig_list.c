@@ -36,7 +36,7 @@ extern int screen;
 extern GC gc, small_gc;
 extern int DCURX,DCURXs,DCURY,DCURYs,CURY_OFFs,CURY_OFF;
 
-extern char uvar_names[MAXODE][12];
+extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern char *ode_names[MAXODE];
 extern int METHOD,NEQ,NODE,NMarkov;
 
@@ -91,7 +91,7 @@ Window w;
      if(i<NODE &&METHOD==0)strcpy(fstr,"%s(n+1)=%s");
      if(i<NODE &&EqType[i]==1)strcpy(fstr,"%s(t)=%s");
      if(i>=NODE)strcpy(fstr,"%s=%s");
-     sprintf(bob,fstr,uvar_names[i],ode_names[i]);
+     snprintf(bob,sizeof(bob),fstr,uvar_names[i],ode_names[i]);
     
      bob[299]=0;
      XDrawString(display,w,small_gc,0,CURY_OFFs+(i-eq_list.istart)*(DCURYs+2),
@@ -399,7 +399,11 @@ void  draw_eq_box(w)
      for(i=0;i<nrow;i++){
        in=j*20+i;
        if(in>=n)continue;
-       sprintf(temp,"%s=%.5g",uvar_names[in],eq_box.y[in]);
+       {
+	 char nm[15]; /* the columns are 28 characters apart */
+	 short_name(nm,uvar_names[in],14);
+	 sprintf(temp,"%s=%.5g",nm,eq_box.y[in]);
+       }
        XDrawString(display,eq_box.rest,small_gc,j*28*DCURXs+8,i*(DCURYs+3)+13,
 		   temp,strlen(temp));
      

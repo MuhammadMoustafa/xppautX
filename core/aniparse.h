@@ -2,6 +2,7 @@
 #define _aniparse_h_
 
 
+#include "xpplim.h"
 #include <stdio.h>
 #ifdef __cplusplus
 extern "C" {
@@ -15,7 +16,7 @@ extern "C" {
 typedef struct {  /* tasks have the form {name1=formula1;name2=formula2;...} */
  
   double vrhs[MAX_GEVENTS];
-  char lhsname[MAX_GEVENTS][11]; 
+  char lhsname[MAX_GEVENTS][XPP_NAME_MAX+1]; 
   int lhsivar[MAX_GEVENTS];
   int *comrhs[MAX_GEVENTS];
   int runnow;
@@ -51,7 +52,6 @@ typedef struct {
 }
 #endif
 #include "xpp_types.h"
-#include "xpplim.h"
 #include "load_eqn.h"
 #ifdef __cplusplus
 extern "C" {

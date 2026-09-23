@@ -36,7 +36,7 @@ extern GRAPH *MyGraph;
 extern int DCURXs,DCURYs;
 extern int DX_0,DY_0,D_WID,D_HGT;
 extern int PltFmtFlag;
-extern char uvar_names[MAXODE][12];
+extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern int DLeft,DRight,DTop,DBottom,VTic,HTic,VChar,HChar;
 extern int TextJustify,TextAngle;
 extern double XMin,XMax,YMin,YMax;
@@ -51,7 +51,7 @@ extern FILE *svgfile;
 
 void re_title()
 {
- char bob[40];
+ char bob[3*XPP_NAME_MAX+16]; /* "z vs y vs x" */
  make_title(bob);
  title_text(bob);
 }
@@ -74,9 +74,9 @@ void make_title(str)
 char *str;
 {
  int i;
- char name1[20];
- char name2[20];
- char name3[20];
+ char name1[XPP_NAME_MAX+1];
+ char name2[XPP_NAME_MAX+1];
+ char name3[XPP_NAME_MAX+1];
  if((i=MyGraph->xv[0])==0)strcpy(name1,"T");
  else strcpy(name1,uvar_names[i-1]);
 
@@ -149,7 +149,7 @@ void redraw_cube_pt(double theta,double phi)
 
 void do_axes()
 {
-    char s1[20],s2[20],s3[20];
+    char s1[XPP_NAME_MAX+1],s2[XPP_NAME_MAX+1],s3[XPP_NAME_MAX+1];
     get_title_str(s1,s2,s3);
     set_linestyle(0);
     if(Xup){  re_title();

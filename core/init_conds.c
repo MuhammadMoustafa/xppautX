@@ -72,7 +72,6 @@ This also has the clone gadget
 
 #define READEM 1
 #define WRITEM 0
-#define MAX_LEN_SBOX 25
 
 #define MAXLINES 5000
 extern char *save_eqn[MAXLINES];
@@ -116,7 +115,7 @@ FILESEL filesel;
 extern FILEINFO my_ff;
 
 extern int NUPAR,NODE,NEQ,NMarkov;
-extern char upar_names[MAXPAR][11],uvar_names[MAXODE][12];
+extern char upar_names[MAXPAR][XPP_NAME_MAX+1],uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern char delay_string[MAXODE][80];
 extern double default_val[MAXPAR];
 extern double last_ic[MAXODE];
@@ -130,9 +129,9 @@ extern OptionsSet notAlreadySet;
 extern    int SLIDER1;
 extern    int SLIDER2;
 extern    int SLIDER3;
-extern   char SLIDER1VAR[20];
-extern   char SLIDER2VAR[20];
-extern   char SLIDER3VAR[20];
+extern   char SLIDER1VAR[XPP_NAME_MAX+1];
+extern   char SLIDER2VAR[XPP_NAME_MAX+1];
+extern   char SLIDER3VAR[XPP_NAME_MAX+1];
 extern double SLIDER1LO;
 extern double SLIDER2LO;
 extern double SLIDER3LO;
@@ -344,7 +343,7 @@ void do_slide_button(w,p)
   p->val=val;
   p->hi=hi;
   p->lo=lo;
-  strcpy(p->parname,values[0]);
+  snprintf(p->parname,sizeof(p->parname),"%.*s",XPP_NAME_MAX,values[0]);
   set_par_or_var(p->parname,p->type,p->index,val);
   redraw_params();
   redraw_ics();  
@@ -1793,9 +1792,12 @@ void justify_string(w1,s1)
 {
   int n1=strlen(s1)*DCURXs,nt=10*DCURXs;
   int i=0;
+  char s[11];
   if(n1<nt)
     i=nt-n1;
   XClearWindow(display,w1);
+  short_name(s,s1,10); /* the box is 10 characters wide */
+  s1=s;
   XDrawString(display,w1,small_gc,i,CURY_OFFs,s1,strlen(s1));
 }
 

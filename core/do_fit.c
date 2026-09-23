@@ -30,7 +30,6 @@
 #define DP5 11
 #define DP83 12
 #define RB23 13
-#define MAX_LEN_SBOX 25
 #define MAX(a,b) ((a)>(b)?(a):(b))
 extern double constants[];
 extern double last_ic[MAXODE];
@@ -326,7 +325,7 @@ void test_fit()
 {
  double *yfit,a[1000],y0[1000];
  int nvars,npars,i,ok;
- char collist[30],parlist1[30],parlist2[30],varlist[30];
+ char collist[MAX_LEN_SBOX],parlist1[MAX_LEN_SBOX],parlist2[MAX_LEN_SBOX],varlist[MAX_LEN_SBOX];
  fin.nvars=0;
  fin.npars=0;
  if(get_fit_params()==0)return;

@@ -85,13 +85,13 @@ type =3 halt
 
 #define MAX_EVENTS 20 /*  this is the maximum number of events per flag */
 
-extern char upar_names[MAXPAR][11];
+extern char upar_names[MAXPAR][XPP_NAME_MAX+1];
 typedef struct {
   double f0,f1;
   double tstar;
   int lhs[MAX_EVENTS];
   double vrhs[MAX_EVENTS];
-  char lhsname[MAX_EVENTS][11];
+  char lhsname[MAX_EVENTS][XPP_NAME_MAX+1];
   char *rhs[MAX_EVENTS];
   int *comrhs[MAX_EVENTS];
   char *cond;
@@ -154,6 +154,10 @@ int add_global(cond,sign,rest)
     }
     if(ch=='='){
       temp[k]=0;
+      if(k>XPP_NAME_MAX){
+	plintf(" Event variable %s is too long\n",temp);
+	return(1);
+      }
       strcpy(flag[j].lhsname[nevents],temp);
       
       k=0;

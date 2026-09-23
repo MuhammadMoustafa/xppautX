@@ -7,8 +7,8 @@
 #include "auto_nox.h"
 
 /* what the core holds for a loaded model; the names come from the .ode file */
-extern char upar_names[][11];
-extern char uvar_names[][12];
+extern char upar_names[][XPP_NAME_MAX + 1];
+extern char uvar_names[][XPP_NAME_MAX + 1];
 extern int AutoPar[8];
 extern int NAutoPar;
 extern int NODE, NEQ;

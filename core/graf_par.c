@@ -72,7 +72,7 @@ extern char this_file[XPP_MAX_NAME];
 extern char this_internset[XPP_MAX_NAME];
 
 extern int PltFmtFlag;
-extern char uvar_names[MAXODE][12];
+extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 
 extern char *no_hint[],*wind_hint[],*view_hint[],*frz_hint[];
 extern char *graf_hint[], *cmap_hint[]; 
@@ -123,7 +123,7 @@ int ind;
  char values[8][MAX_LEN_SBOX];
  int  status,i; 
  int i1=MyGraph->xv[ind],i2=MyGraph->yv[ind];
- char n1[15],n2[15];
+ char n1[XPP_NAME_MAX+1],n2[XPP_NAME_MAX+1];
  ind_to_sym(i1,n1);
  ind_to_sym(i2,n2);
  sprintf(values[0],"%s",n1);
@@ -132,8 +132,8 @@ int ind;
  sprintf(values[3],"%g",MyGraph->ymin);
  sprintf(values[4],"%g",MyGraph->xmax);
  sprintf(values[5],"%g",MyGraph->ymax);
- snprintf(values[6],sizeof(values[6]),"%.24s",MyGraph->xlabel);
- snprintf(values[7],sizeof(values[7]),"%.24s",MyGraph->ylabel);
+ snprintf(values[6],sizeof(values[6]),"%s",MyGraph->xlabel);
+ snprintf(values[7],sizeof(values[7]),"%s",MyGraph->ylabel);
  MyGraph->ThreeDFlag=0;
  status=do_string_box(8,4,2,"2D View",n,values,31);
  if(status!=0){
@@ -203,7 +203,7 @@ int ind;
 		   "XLo", "XHi", "YLo", "YHi","Xlabel","Ylabel","Zlabel"};
  char values[16][MAX_LEN_SBOX];
  int  status,i,i1=MyGraph->xv[ind],i2=MyGraph->yv[ind],i3=MyGraph->zv[ind];
- char n1[15],n2[15],n3[15];
+ char n1[XPP_NAME_MAX+1],n2[XPP_NAME_MAX+1],n3[XPP_NAME_MAX+1];
  ind_to_sym(i1,n1);
  ind_to_sym(i2,n2);
  ind_to_sym(i3,n3);
@@ -220,9 +220,9 @@ int ind;
  sprintf(values[11],"%g",MyGraph->ylo);
  sprintf(values[10],"%g",MyGraph->xhi);
  sprintf(values[12],"%g",MyGraph->yhi);
- snprintf(values[13],sizeof(values[13]),"%.24s",MyGraph->xlabel);
- snprintf(values[14],sizeof(values[14]),"%.24s",MyGraph->ylabel);
- snprintf(values[15],sizeof(values[15]),"%.24s",MyGraph->zlabel);
+ snprintf(values[13],sizeof(values[13]),"%s",MyGraph->xlabel);
+ snprintf(values[14],sizeof(values[14]),"%s",MyGraph->ylabel);
+ snprintf(values[15],sizeof(values[15]),"%s",MyGraph->zlabel);
  MyGraph->ThreeDFlag=1;
  status=do_string_box(16,6,3,"3D View",n,values,31);
  if(status!=0){
@@ -467,7 +467,7 @@ void user_window()
 
 void xi_vs_t() /*  a short cut   */
 {
- char name[20],value[20];
+ char name[20],value[256]; /* new_string edits up to 255 characters */
  int i=MyGraph->yv[0];
  
 
@@ -560,8 +560,8 @@ void get_3d_par_com()
 	      MyGraph->Theta=atof(values[3]);
 	      MyGraph->Phi=atof(values[4]);
              if(values[5][0]=='y'|| values[5][0]=='Y'){  
-	      strcpy(mov3d.yes,values[5]);
-	      strcpy(mov3d.angle,values[6]);
+	      snprintf(mov3d.yes,sizeof(mov3d.yes),"%.*s",(int)sizeof(mov3d.yes)-1,values[5]);
+	      snprintf(mov3d.angle,sizeof(mov3d.angle),"%.*s",(int)sizeof(mov3d.angle)-1,values[6]);
               start=atof(values[7]);
 	      increment=atof(values[8]);
 	      nclip=atoi(values[9]);
@@ -614,8 +614,8 @@ void get_3d_par_noper()
 	      MyGraph->Theta=atof(values[0]);
 	      MyGraph->Phi=atof(values[1]);
              if(values[2][0]=='y'|| values[2][0]=='Y'){  
-	      strcpy(mov3d.yes,values[2]);
-	      strcpy(mov3d.angle,values[3]);
+	      snprintf(mov3d.yes,sizeof(mov3d.yes),"%.*s",(int)sizeof(mov3d.yes)-1,values[2]);
+	      snprintf(mov3d.angle,sizeof(mov3d.angle),"%.*s",(int)sizeof(mov3d.angle)-1,values[3]);
               start=atof(values[4]);
 	      increment=atof(values[5]);
 	      nclip=atoi(values[6]);
@@ -846,9 +846,9 @@ int in_it,n;
  char values[5][MAX_LEN_SBOX];
  int status,i;
  int i1=MyGraph->xv[in_it],i2=MyGraph->yv[in_it],i3=MyGraph->zv[in_it];
- char n1[15],n2[15],n3[15];
+ char n1[XPP_NAME_MAX+1],n2[XPP_NAME_MAX+1],n3[XPP_NAME_MAX+1];
 
- 
+
  ind_to_sym(i1,n1);
  ind_to_sym(i2,n2);
  ind_to_sym(i3,n3);

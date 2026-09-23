@@ -263,7 +263,7 @@ void parse_inout(char *l,int flag)
 {
   int i=0,j=0;
   int k=0,index;
-  char new[20],c;
+  char new[XPP_NAME_MAX+1],c;
   int done=1;
   while(done)
     {
@@ -324,6 +324,10 @@ void parse_inout(char *l,int flag)
 	break;
 
       default:
+	if(j>=XPP_NAME_MAX){
+	  printf("Cant export %.*s... - name too long!\n",XPP_NAME_MAX,new);
+	  exit(0);
+	}
 	new[j]=c;
 	j++;
 	i++;

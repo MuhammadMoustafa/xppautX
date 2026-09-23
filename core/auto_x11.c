@@ -45,7 +45,6 @@
 
 #define STD_WID 460	  /* golden mean  */
 #define STD_HGT 284
-#define MAX_LEN_SBOX 25
 
 #define xds(a) { XDrawString(display,w,gc,5,CURY_OFFb,a,strlen(a));return;}
 

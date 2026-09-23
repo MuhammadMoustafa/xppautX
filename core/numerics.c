@@ -25,7 +25,6 @@ extern int DCURY,NDELAYS;
 extern int RandSeed;
 #include "struct.h"
 extern GRAPH *MyGraph;
-#define MAX_LEN_SBOX 25
 #define VOLTERRA 6
 #define BACKEUL 7
 #define RKQS 8
@@ -487,7 +486,7 @@ void get_pmap_pars_com(int l)
  char values[4][MAX_LEN_SBOX];
  static char *yn[]={"N","Y"};
  int status;
- char n1[15];
+ char n1[XPP_NAME_MAX+1];
  int i1=POIVAR;
  
  ch=mkey[l];
@@ -575,7 +574,7 @@ void set_col_par_com(int i)
     int j,ivar;
     double temp[2];
     float maxder=0.0,minder=0.0,sum=0.0;
-    char ch,name[20];
+    char ch,name[256]; /* new_string edits up to 255 characters */
    MyGraph->ColorFlag=i;
    if(MyGraph->ColorFlag==0){
    /* set color to black/white */

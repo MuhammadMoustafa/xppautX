@@ -30,7 +30,6 @@
 #include "xpplim.h"
 #include "getvar.h"
 
-#define MAX_LEN_SBOX 25
 #define ESCAPE 27
 
 #define NOCHANGE 2
@@ -75,13 +74,13 @@ extern int NKernel;
 
 extern double MyData[MAXODE],MyTime;
 struct {
-  char item[30];
+  char item[MAX_LEN_SBOX];
   int steps,side,cycle,movie;
   double plow,phigh;
 } shoot_range;
 
-extern char upar_names[MAXPAR][11];
-extern char uvar_names[MAXODE][12];
+extern char upar_names[MAXPAR][XPP_NAME_MAX+1];
+extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 double atof();
 
 double evaluate();
@@ -168,7 +167,7 @@ reset_bvp()
 void init_shoot_range(s)
 char *s;
 {
- strcpy(shoot_range.item,s);
+ snprintf(shoot_range.item,sizeof(shoot_range.item),"%s",s);
  shoot_range.phigh=1.0;
  shoot_range.plow=0.0;
  shoot_range.side=0;
@@ -181,7 +180,7 @@ void dump_shoot_range(fp,f)
      FILE *fp;
      int f;
 {
-  io_string(shoot_range.item,11,fp,f);
+  io_string(shoot_range.item,sizeof(shoot_range.item),fp,f);
   io_int(&shoot_range.side,fp,f,"BVP side");
   io_int(&shoot_range.cycle,fp,f,"color cycle flag 1=on");
   io_int(&shoot_range.steps,fp,f,"BVP range steps");
@@ -218,7 +217,7 @@ double *ystart,*yend;
  double parlo,parhi,dpar,temp;
  int npar,i,j,ierr;
  int side,cycle,icol,color;
- char bob[64];
+ char bob[MAX_LEN_SBOX+32];
  
 
  
@@ -238,7 +237,7 @@ double *ystart,*yend;
    {
      temp=parlo+dpar*(double)i;
      set_val(shoot_range.item,temp);
-     snprintf(bob,sizeof(bob),"%.29s=%.16g",shoot_range.item,temp);
+     snprintf(bob,sizeof(bob),"%s=%.16g",shoot_range.item,temp);
      bottom_msg(2,bob);
      if(shoot_range.movie==1)
        clr_scrn();
@@ -418,7 +417,7 @@ static char *n[]={"*2Range over","Steps","Start","End",
  char values[7][MAX_LEN_SBOX];
  int status,i;
  static  char *yn[]={"N","Y"};
- snprintf(values[0],sizeof(values[0]),"%.24s",shoot_range.item);
+ snprintf(values[0],sizeof(values[0]),"%s",shoot_range.item);
  sprintf(values[1],"%d",shoot_range.steps);
  sprintf(values[2],"%g",shoot_range.plow);
  sprintf(values[3],"%g",shoot_range.phigh);

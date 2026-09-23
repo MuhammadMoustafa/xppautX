@@ -39,14 +39,14 @@ void make_scrbox_lists()
  scrbox_list[0].list[0]=(char *)malloc(5);
  strcpy(scrbox_list[0].list[0],"T");
  for(i=0;i<NEQ;i++){
-   scrbox_list[0].list[i+1]=(char *)malloc(15);
+   scrbox_list[0].list[i+1]=(char *)malloc(XPP_NAME_MAX+1);
    strcpy(scrbox_list[0].list[i+1],uvar_names[i]);
  }
  /* variable list */
  scrbox_list[1].n=NODE+NMarkov;
  scrbox_list[1].list=(char **)malloc((NODE+NMarkov)*sizeof(char *));
  for(i=0;i<NODE+NMarkov;i++){
-   scrbox_list[1].list[i]=(char *)malloc(15);
+   scrbox_list[1].list[i]=(char *)malloc(XPP_NAME_MAX+1);
    strcpy(scrbox_list[1].list[i],uvar_names[i]);
  }
 
@@ -54,7 +54,7 @@ void make_scrbox_lists()
 scrbox_list[2].n=NUPAR;
  scrbox_list[2].list=(char **)malloc(NUPAR*sizeof(char *));
  for(i=0;i<NUPAR;i++){
-   scrbox_list[2].list[i]=(char *)malloc(15);
+   scrbox_list[2].list[i]=(char *)malloc(XPP_NAME_MAX+1);
    strcpy(scrbox_list[2].list[i],upar_names[i]);
  }
 
@@ -63,11 +63,11 @@ scrbox_list[2].n=NUPAR;
 scrbox_list[3].n=n;
  scrbox_list[3].list=(char **)malloc(n*sizeof(char *));
  for(i=0;i<NODE+NMarkov;i++){
-   scrbox_list[3].list[i]=(char *)malloc(15);
+   scrbox_list[3].list[i]=(char *)malloc(XPP_NAME_MAX+1);
    strcpy(scrbox_list[3].list[i],uvar_names[i]);
  }
  for(i=NODE+NMarkov;i<n;i++){
-   scrbox_list[3].list[i]=(char *)malloc(15);
+   scrbox_list[3].list[i]=(char *)malloc(XPP_NAME_MAX+1);
    strcpy(scrbox_list[3].list[i],upar_names[i-NODE-NMarkov]);
  }
  /* color list */
@@ -257,10 +257,10 @@ int x11_do_string_box(n,row,col,title,names,values,maxchar)
         sb.hh[i]=-1;
         if(names[i][0]=='*'){
 	  sb.hh[i]=atoi(names[i]+1);
-	  sprintf(sb.name[i],"*%s:",names[i]+2);
+	  snprintf(sb.name[i],sizeof(sb.name[i]),"*%s:",names[i]+2);
 	}
 	else
-	  sprintf(sb.name[i],"%s:",names[i]);
+	  snprintf(sb.name[i],sizeof(sb.name[i]),"%s:",names[i]);
 	strcpy(sb.value[i],values[i]);
   }
   sb.n=n;
@@ -1495,10 +1495,10 @@ static struct {
 static void draw_tor_var(i)
 int i;
 {
- char strng[15];
+ char strng[XPP_NAME_MAX+4];
  XClearWindow(display,torbox.w[i]);
- if(tor_flags[i]==1)sprintf(strng,"X  %s",tor_names[i]);
- else sprintf(strng,"   %s",tor_names[i]);
+ if(tor_flags[i]==1)snprintf(strng,sizeof(strng),"X  %s",tor_names[i]);
+ else snprintf(strng,sizeof(strng),"   %s",tor_names[i]);
  XDrawString(display,torbox.w[i],small_gc,0,CURY_OFFs,strng,strlen(strng));
 }
  
@@ -1696,7 +1696,7 @@ char **names,**values,*title;
  int colm,pos;
 
   for(i=0;i<n;i++){
-	sprintf(sb.name[i],"%s=",names[i]);
+	snprintf(sb.name[i],sizeof(sb.name[i]),"%s=",names[i]);
 	strcpy(sb.value[i],values[i]);
         strcpy(sb.rval[i],values[i]);
 	}

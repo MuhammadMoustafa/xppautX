@@ -51,13 +51,12 @@
 #include "xpplim.h"
 #define READEM 1
 #include "browse.h"
-#define MAX_LEN_SBOX 25
 #define FIRSTCOLOR 30
 #define FIX_MIN_SIZE 2
 /*extern char this_file[100];*/
 extern char this_file[XPP_MAX_NAME];
 double atof();
-extern char uvar_names[MAXODE][12];
+extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern BROWSER my_browser;
 int aplot_range_count=0;
 char aplot_range_stem[256]="rangearray";
@@ -284,7 +283,7 @@ void dump_aplot(fp,f)
   }
   else
     fprintf(fp,"# Array plot stuff\n");
-  io_string(aplot.name,11,fp,f);
+  io_string(aplot.name,sizeof(aplot.name),fp,f);
   io_int(&aplot.nacross ,fp,f,"NCols");
     io_int(&aplot.nstart ,fp,f,"Row 1");
   io_int(&aplot.ndown ,fp,f,"NRows");
@@ -316,7 +315,7 @@ sprintf(values[8],"%d",ap->ncskip);
    find_variable(values[0],&i);
    if(i>-1){
      ap->index0=i;
-     strcpy(ap->name,values[0]);
+     snprintf(ap->name,sizeof(ap->name),"%.*s",XPP_NAME_MAX,values[0]);
    }
    else
      {

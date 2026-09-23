@@ -27,7 +27,7 @@
 char *get_next(),*get_first();
 
 
-extern char uvar_names[MAXODE][12];
+extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern char *ode_names[MAXODE];
 extern int METHOD,NEQ,NODE,NMarkov,FIX_VAR;
 
@@ -35,13 +35,13 @@ extern int *my_ode[];
 extern int NUPAR;
 extern double last_ic[MAXODE];
 
-/*extern char upar_names[MAXPAR][11],this_file[100];*/
+/*extern char upar_names[MAXPAR][XPP_NAME_MAX+1],this_file[100];*/
 
-extern char upar_names[MAXPAR][11],this_file[XPP_MAX_NAME];
+extern char upar_names[MAXPAR][XPP_NAME_MAX+1],this_file[XPP_MAX_NAME];
 extern int EqType[MAXODE];
 
 extern char *ufun_def[MAXUFUN];
-extern char ufun_names[MAXUFUN][12];
+extern char ufun_names[MAXUFUN][XPP_NAME_MAX+1];
 extern int narg_fun[MAXUFUN], *ufun[MAXUFUN];
 
 
@@ -73,7 +73,7 @@ void edit_rhs()
  command=(int **)malloc(n*sizeof(int*));
  for(i=0;i<n;i++){
    values[i]=(char *)malloc(MAX_LEN_EBOX*sizeof(char));
-   names[i]=(char *)malloc(MAX_LEN_EBOX*sizeof(char));
+   names[i]=(char *)malloc(MAX_LEN_EBOX+3*XPP_NAME_MAX);
    command[i]=(int *)malloc(200*sizeof(int));
    if(i<NODE &&METHOD>0)strcpy(fstr,"d%s/dT");
    if(i<NODE &&METHOD==0)strcpy(fstr,"%s(n+1)");
@@ -91,7 +91,7 @@ void edit_rhs()
        err=add_expr(values[i],command[i],&len);
        if(err==1)
 	 {
-	   sprintf(msg,"Bad rhs:%s=%s",names[i],values[i]);
+	   snprintf(msg,sizeof(msg),"Bad rhs:%s=%s",names[i],values[i]);
 	   err_msg(msg);
 	 }
        else 
@@ -133,7 +133,7 @@ void edit_functions()
  command=(int **)malloc(n*sizeof(int*));
  for(i=0;i<n;i++){
    values[i]=(char *)malloc(MAX_LEN_EBOX*sizeof(char));
-   names[i]=(char *)malloc(MAX_LEN_EBOX*sizeof(char));
+   names[i]=(char *)malloc(MAX_LEN_EBOX+3*XPP_NAME_MAX);
    command[i]=(int *)malloc(200*sizeof(int));
    sprintf(values[i],"%s",ufun_def[i]);
 
@@ -159,7 +159,7 @@ void edit_functions()
      err=add_expr(values[i],command[i],&len);
      set_old_arg_names(narg_fun[i]);
      if(err==1){
-       sprintf(msg,"Bad func.:%s=%s",names[i],values[i]);
+       snprintf(msg,sizeof(msg),"Bad func.:%s=%s",names[i],values[i]);
        err_msg(msg);
      }
      else {

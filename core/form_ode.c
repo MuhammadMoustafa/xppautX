@@ -43,9 +43,9 @@
 #define MAXCOMMENTS 500
 
 int IN_INCLUDED_FILE=0;
-char uvar_names[MAXODE][12];
+char uvar_names[MAXODE][XPP_NAME_MAX+1];
 char *ode_names[MAXODE];
-char upar_names[MAXPAR][11];
+char upar_names[MAXPAR][XPP_NAME_MAX+1];
 char *save_eqn[MAXLINES];
 double default_val[MAXPAR];
 extern int NODE;
@@ -125,7 +125,7 @@ extern char this_file[XPP_MAX_NAME];
 extern char options[100];
 int EqType[MAXODE];
 int Naux=0;
-char aux_names[MAXODE][12];
+char aux_names[MAXODE][XPP_NAME_MAX+1];
 
 int NUMODES=0,NUMFIX=0,NUMPARAM=0,NUMMARK=0,NUMAUX=0,NUMVOLT=0,NUMSOL=0;
 
@@ -389,7 +389,7 @@ int get_eqn(fptr)
   char filename[XPP_MAX_NAME];
   int done=1,nn,i;
   int flag;
-  char prim[15];
+  char prim[XPP_NAME_MAX+2];
   init_rpn();
   NLINES=0;
   IN_VARS=0;
@@ -509,7 +509,7 @@ int get_eqn(fptr)
   if(NVAR<MAXPRIMEVAR){
   add_var("t'",0.0);
   for(i=0;i<NODE ;i++){
-    snprintf(prim,sizeof(prim),"%.11s'",uvar_names[i]);
+    snprintf(prim,sizeof(prim),"%.*s'",XPP_NAME_MAX,uvar_names[i]);
     add_var(prim,0.0);
   }
 }
@@ -600,9 +600,9 @@ int compiler(bob,fptr)
   double value,xlo,xhi;
   int narg,done,nn,iflg=0,VFlag=0,nstates,alt,index,sign;
   char *ptr,*my_string,*command;
-  char name[20],formula[MAXEXPLEN];
+  char name[MAXEXPLEN],formula[MAXEXPLEN];
   char condition[MAXEXPLEN];
-  char fixname[MAXODE1][12];
+  static char fixname[MAXODE1][MAXVNAM];
   int nlin,i;
   ptr=bob;
   done=1;
@@ -708,15 +708,15 @@ int compiler(bob,fptr)
 
 	  take_apart(my_string,&value,name);
 	  free(my_string);
+	  if(add_con(name,value)){
+	    plintf("ERROR at line %d\n",NLINES);
+	    exit(0);
+	  }
 	  default_val[NUPAR]=value;
 	  strcpy(upar_names[NUPAR++],name);
 	  if(ConvertStyle)
 	    fprintf(convertf,"%s=%g  ",name,value);
 	  plintf("|%s|=%f ",name,value);
-	  if(add_con(name,value)){
-	    exit(0);
-	    plintf("ERROR at line %d\n",NLINES);
-	  }
     
 	}
       if(ConvertStyle)
@@ -739,7 +739,10 @@ int compiler(bob,fptr)
       value=atof(my_string);
       my_string=get_next(" \n");
       nstates=atoi(my_string);
-      add_var(name,value);
+      if(name_too_long(name)||add_var(name,value)){
+	plintf("ERROR at line %d\n",NLINES);
+	exit(0);
+      }
       strcpy(uvar_names[IN_VARS+NMarkov],name);
       last_ic[IN_VARS+NMarkov]=value;
       default_ic[IN_VARS+NMarkov]=value;
@@ -780,7 +783,7 @@ int compiler(bob,fptr)
 	    }
 	  take_apart(my_string,&value,name);
 	  free(my_string);
-	  if(add_var(name,value)){
+	  if(name_too_long(name)||add_var(name,value)){
 	    plintf("ERROR at line %d\n",NLINES);
 	    exit(0);
 	  }
@@ -1002,6 +1005,7 @@ int compiler(bob,fptr)
       plintf("Auxiliary variables:\n");
       while((my_string=get_next(" ,\n"))!=NULL)
 	{
+	  if(name_too_long(my_string))exit(0);
 	  strcpy(aux_names[Naux],my_string);   
 	  plintf("|%s| ",aux_names[Naux]);
 	  Naux++;
@@ -1360,7 +1364,7 @@ int nnn;
  char **markovarrays2=NULL;
  int done=0,start=0,i0,i1,i2,istates;
  int jj1=0,jj2=0,jj,notdone=1,jjsgn=1;
- char name[20],nstates=0;
+ char name[MAXEXPLEN],nstates=0;
  /*char newfile[256];*/
  char newfile[XPP_MAX_NAME];
  FILE *fnew;
@@ -1513,6 +1517,7 @@ int nnn;
 	 plintf("Markov variable %s  must have at least 2 states \n",name);
 	 return -1;
        }
+       if(name_too_long(name))return -1;
        /*nlin=NLINES;
        */
        add_markov(nstates,name);
@@ -1717,7 +1722,7 @@ void add_only(char *s)
 {
   if(strlen(s)<1)return;
   if(N_only>=MAXONLY)return;
-  onlylist[N_only]=(char *)malloc(11);
+  onlylist[N_only]=(char *)malloc(strlen(s)+1);
   strcpy(onlylist[N_only],s);
 
   N_only++;
@@ -1726,7 +1731,7 @@ void add_only(char *s)
 void break_up_list(char *rhs)
 {
   int i=0,j=0,l=strlen(rhs);
-  char s[20],c;
+  char s[MAXEXPLEN],c;
   while(i<l){
     c=rhs[i];
     if(c==' '||c==','){
@@ -1763,10 +1768,11 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 		well as their names  */
 {
  VAR_INFO *v;
- char vnames[MAXODE1][MAXVNAM],fnames[MAXODE1][MAXVNAM],anames[MAXODE1][MAXVNAM];
- char mnames[MAXODE1][MAXVNAM];
+ /* static: together they are too big for a thread's stack */
+ static char vnames[MAXODE1][MAXVNAM],fnames[MAXODE1][MAXVNAM],anames[MAXODE1][MAXVNAM];
+ static char mnames[MAXODE1][MAXVNAM];
  double z,xlo,xhi;
- char tmp[50],big[MAXEXPLEN],formula[MAXEXPLEN],*my_string,*junk,*ptr,name[10];
+ char tmp[MAXEXPLEN],big[MAXEXPLEN],formula[MAXEXPLEN],*my_string,*junk,*ptr,name[MAXEXPLEN];
  int nmark=0,nfix=0,naux=0,nvar=0,nn,alt,in,i,ntab=0,nufun=0;
  int in1,in2,iflag;
  int fon;
@@ -1814,6 +1820,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
     }
     if(v->type==MAP||v->type==ODE||v->type==VEQ){
       convert(v->lhs,tmp);
+      if(name_too_long(tmp))exit(0);
       if(find_the_name(vnames,nvar,tmp)<0){
 	strcpy(vnames[nvar],tmp);
 	nvar++;
@@ -1829,6 +1836,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 
     if(v->type==MARKOV_VAR){
       convert(v->lhs,tmp);
+      if(name_too_long(tmp))exit(0);
       if(find_the_name(mnames,nmark,tmp)<0){
 	strcpy(mnames[nmark],tmp);
 	nmark++;
@@ -1854,6 +1862,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        
     if(v->type==AUX_VAR){
       convert(v->lhs,tmp);
+      if(name_too_long(tmp))exit(0);
       strcpy(anames[naux],tmp);
       naux++;
       plintf("%s = %s \n",anames[naux-1],v->rhs); 
@@ -1868,6 +1877,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
       strcpy(fixinfo[nfix].name,v->lhs);
       strcpy(fixinfo[nfix].value,v->rhs);
       convert(v->lhs,tmp);
+      if(name_too_long(tmp))exit(0);
       strcpy(fnames[nfix],tmp);
       nfix++;
      plintf("%s = %s \n",fnames[nfix-1],v->rhs); 
@@ -2365,14 +2375,14 @@ int parse_a_string(s1,v)
       }
       else {
 	type2=FUNCTION;
-        extract_args(s1,i0+1,&i2,&narg,args);
+        if(extract_args(s1,i0+1,&i2,&narg,args)==0)return -1;
 	strpiece(lhs,s1,0,i0-1);
 	strpiece(rhs,s1,i2,n1);
 	break;
       }
     }
     i0++;
-    extract_args(s1,i0,&i2,&narg,args);
+    if(extract_args(s1,i0,&i2,&narg,args)==0)return -1;
     type2=FUNCTION;
     strpiece(lhs,s1,0,i0-2);
     strpiece(rhs,s1,i2,n1);
@@ -2543,6 +2553,15 @@ int extract_args(s1,i0,ie,narg,args)
   int type,na=0,i1;
   while(i<n){
     type=find_char(s1,",)",i,&i1);
+    if(type<0)break;
+    if(na>=MAXARG){
+      plintf("More than %d arguments\n",MAXARG);
+      return 0;
+    }
+    if(i1-i>NAMLEN){
+      plintf("Argument name longer than %d characters\n",NAMLEN);
+      return 0;
+    }
     if(type==0){
       for(k=i;k<i1;k++)
 	args[na][k-i]=s1[k];

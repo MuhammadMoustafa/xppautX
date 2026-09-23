@@ -89,7 +89,6 @@ extern GRAPH *MyGraph;
 #define ESCAPE 27
 #define FIRSTCOLOR 30
 
-#define MAX_LEN_SBOX 25
 #define PARAM 1
 #define IC 2
 #define BMAXCOL 20
@@ -133,7 +132,7 @@ typedef struct {
   int index0,type;
   char formula[256];
   int n;
-  char var[20];
+  char var[1024];
   int j1,j2;
 } ARRAY_IC;
 int ar_ic_defined=0;
@@ -186,7 +185,7 @@ int MyStart;
 extern int DelayFlag,DCURY,NKernel;
 int RANGE_FLAG; 
 extern int PAR_FOL,SHOOT;
-extern char upar_names[MAXPAR][11];
+extern char upar_names[MAXPAR][XPP_NAME_MAX+1];
 extern double default_val[MAXPAR];
 extern double last_ic[MAXODE];
 double LastTime;
@@ -200,13 +199,13 @@ extern int (*rhs)();
 int STOP_FLAG=0;
 int PSLineStyle;
  struct {
-         char item[30];
+         char item[MAX_LEN_SBOX];
    int steps,shoot,col,movie,mc;
 	 double plow,phigh;
        } eq_range;
 
  struct {
-         char item[30],item2[30];
+         char item[MAX_LEN_SBOX],item2[MAX_LEN_SBOX];
 	 int steps,steps2,reset,oldic,index,index2,cycle,type,type2,movie;
 	 double plow,phigh,plow2,phigh2;
          int rtype;
@@ -251,14 +250,14 @@ void dump_range(fp,f)
   }
   else
     fprintf(fp,"# Range information\n");
-  io_string(eq_range.item,11,fp,f);
+  io_string(eq_range.item,sizeof(eq_range.item),fp,f);
   io_int(&eq_range.col,fp,f,"eq-range stab col");
   io_int(&eq_range.shoot,fp,f,"shoot flag 1=on");
   io_int(&eq_range.steps,fp,f,"eq-range steps");
   io_double(&eq_range.plow,fp,f,"eq_range low");
   io_double(&eq_range.phigh,fp,f,"eq_range high");
-  io_string(range.item,11,fp,f);
-  io_string(range.item2,11,fp,f);
+  io_string(range.item,sizeof(range.item),fp,f);
+  io_string(range.item2,sizeof(range.item2),fp,f);
   io_int(&range.steps,fp,f,"Range steps");
   io_int(&range.cycle,fp,f,"Cycle color 1=on");
   io_int(&range.reset,fp,f,"Reset data 1=on");
@@ -330,7 +329,7 @@ static char *n[]={"*2Range over","Steps","Start","End",
  char values[8][MAX_LEN_SBOX];
  int status,i;
  static  char *yn[]={"N","Y"};
- snprintf(values[0],sizeof(values[0]),"%.24s",eq_range.item);
+ snprintf(values[0],sizeof(values[0]),"%s",eq_range.item);
  sprintf(values[1],"%d",eq_range.steps);
  sprintf(values[2],"%.16g",eq_range.plow);
  sprintf(values[3],"%.16g",eq_range.phigh);
@@ -446,7 +445,7 @@ int set_up_range()
    return(range_item());
  }
  
- snprintf(values[0],sizeof(values[0]),"%.24s",range.item);
+ snprintf(values[0],sizeof(values[0]),"%s",range.item);
  sprintf(values[1],"%d",range.steps);
  sprintf(values[2],"%.16g",range.plow);
  sprintf(values[3],"%.16g",range.phigh);
@@ -509,10 +508,10 @@ int set_up_range2()
  if(!Xup){
    return(range_item());
  }
- snprintf(values[0],sizeof(values[0]),"%.24s",range.item);
+ snprintf(values[0],sizeof(values[0]),"%s",range.item);
   sprintf(values[1],"%.16g",range.plow);
  sprintf(values[2],"%.16g",range.phigh);
- snprintf(values[3],sizeof(values[3]),"%.24s",range.item2);
+ snprintf(values[3],sizeof(values[3]),"%s",range.item2);
   sprintf(values[4],"%.16g",range.plow2);
  sprintf(values[5],"%.16g",range.phigh2);
 sprintf(values[6],"%d",range.steps);
@@ -582,13 +581,13 @@ void monte_carlo()
   new_int("# Guesses:",&fixptguess.n);
   new_float("Tolerance:",&fixptguess.tol);
   while(1){
-    snprintf(name,sizeof(name),"%.11s_lo :",uvar_names[i]);
+    snprintf(name,sizeof(name),"%.*s_lo :",XPP_NAME_MAX,uvar_names[i]);
     z=fixptguess.xlo[i];
     done=new_float(name,&z);
     if(done==0)
       fixptguess.xlo[i]=z;
     if(done==-1)break;
-    snprintf(name,sizeof(name),"%.11s_hi :",uvar_names[i]);
+    snprintf(name,sizeof(name),"%.*s_hi :",XPP_NAME_MAX,uvar_names[i]);
     z=fixptguess.xhi[i];
     done=new_float(name,&z);
     if(done==0)
@@ -1592,7 +1591,7 @@ void evaluate_ar_ic(v,f,j1,j2)
   int j;
   int i,flag;
   double z;
-  char vp[25],fp[256];
+  char vp[256],fp[256];
   for(j=j1;j<=j2;j++){
     i=-1;
     subsk(v,vp,j,1);
@@ -1613,12 +1612,14 @@ int extract_ic_data(char *big)
 {
   int i,n,j;
   int j1,j2,flag2;
-  char front[40],new[50],c;
-  char back[256];
+  /* a whole line of the file fits in each (MAXEXPLEN, form_ode.c) */
+  char front[1024],new[1024],c;
+  char back[1024];
   de_space(big);
   i=0;
   n=strlen(big);
- 
+  if(n>=(int)sizeof(front))return(-1);
+
   while(1){
     c=big[i];
     if(c=='(')break;
@@ -1663,8 +1664,8 @@ void arr_ic_start()
 
 int set_array_ic()
 {
- char junk[50];
- char new[50];
+ char junk[256]; /* new_string edits up to 255 characters */
+ char new[256];
  int i,index0,myar=-1;
  int i1,in;
  int j1,j2,flag2;

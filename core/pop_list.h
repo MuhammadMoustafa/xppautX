@@ -16,7 +16,6 @@ extern "C" {
 
 
 #define MAX_N_SBOX 22
-#define MAX_LEN_SBOX 25 
 
 
 #define FORGET_ALL 0
@@ -91,7 +90,7 @@ typedef struct {
 }  SCRBOX_LIST;
 
 extern int NUPAR,NEQ,NODE,NMarkov;
-extern char  upar_names[MAXPAR][11],uvar_names[MAXODE][12];
+extern char  upar_names[MAXPAR][XPP_NAME_MAX+1],uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern  char *color_names[];
 extern SCRBOX_LIST scrbox_list[10];
 
@@ -154,7 +153,7 @@ int scroll_box_motion(XEvent ev, SCROLLBOX *sb);
 int select_scroll_item(Window w, SCROLLBOX sb);
 void scroll_popup(STRING_BOX *sb, SCROLLBOX *scrb);
 #endif /* Xlib.h */
-int do_string_box(int n, int row, int col, char *title, char **names, char values[][25], int maxchar);
+int do_string_box(int n, int row, int col, char *title, char **names, char values[][MAX_LEN_SBOX], int maxchar);
 #if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
 void expose_sbox(STRING_BOX sb, Window w, int pos, int col);
 void do_hilite_text(char *name, char *value, int flag, Window w, int pos, int col);

@@ -78,6 +78,8 @@ typedef struct {
 void colset(int type);
 void pscolset2(int flag2);
 void colset2(int flag2);
+/* get_auto_str writes a name, name_bar or "Frequency" into each label */
+#define AUTO_LABEL_LEN (XPP_NAME_MAX+8)
 void get_auto_str(char *xlabel, char *ylabel);
 void draw_ps_axes(void);
 void draw_svg_axes(void);

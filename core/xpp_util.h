@@ -18,6 +18,7 @@ void clone_ode(void);
 void make_active(int i, int flag);
 void clr_scrn(void);
 int find_user_name(int type, char *oname);
+void short_name(char *out, const char *name, int width);
 void de_space(char *s);
 void ind_to_sym(int ind, char *str);
 void get_max(int index, double *vmin, double *vmax);

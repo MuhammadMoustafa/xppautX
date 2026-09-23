@@ -3,7 +3,7 @@
 #include "xpplim.h"
 
 extern int NEQ;
-extern char uvar_names[MAXODE][12];
+extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern int TORUS;
 extern double TOR_PERIOD;
 extern int itor[MAXODE];

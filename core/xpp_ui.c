@@ -26,7 +26,7 @@ static int hl_two_choice(char *c1, char *c2, char *q, char *key, char *title)
     return 0;
 }
 static int hl_string_box(int n, int row, int col, char *title, char **names,
-                         char values[][25], int maxchar)
+                         char values[][MAX_LEN_SBOX], int maxchar)
 {
     (void)n; (void)row; (void)col; (void)title; (void)names; (void)values; (void)maxchar;
     return 0;
@@ -255,7 +255,7 @@ int TwoChoice(char *c1, char *c2, char *q, char *key)
 }
 void respond_box(char *button, char *message) { xpp_ui.respond_box(button, message); }
 int do_string_box(int n, int row, int col, char *title, char **names,
-                  char values[][25], int maxchar)
+                  char values[][MAX_LEN_SBOX], int maxchar)
 {
     return xpp_ui.string_box(n, row, col, title, names, values, maxchar);
 }

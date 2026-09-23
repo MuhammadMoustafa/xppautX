@@ -13,7 +13,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_LEN_SBOX 25
 #define POINTER 0
 #define ARROW 1
 #define MARKER 2 /* markers start at 2  there are several of them */

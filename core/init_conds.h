@@ -1,6 +1,7 @@
 #ifndef _init_conds_h_
 #define _init_conds_h_
 
+#include "xpplim.h"
 #include "read_dir.h"
 #ifdef __cplusplus
 extern "C" {
@@ -30,7 +31,7 @@ typedef struct {
 
 typedef struct {
   int use,pos,l; 
-  char parname[20];
+  char parname[XPP_NAME_MAX+1];
   double lo,hi,val;
   int hgt;
   int type,index;

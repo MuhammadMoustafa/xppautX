@@ -82,9 +82,9 @@ extern int OVERRIDE_LOGFILE;
 extern int SLIDER1;
 extern int SLIDER2;
 extern int SLIDER3;
-extern char SLIDER1VAR[20];
-extern char SLIDER2VAR[20];
-extern char SLIDER3VAR[20];
+extern char SLIDER1VAR[XPP_NAME_MAX+1];
+extern char SLIDER2VAR[XPP_NAME_MAX+1];
+extern char SLIDER3VAR[XPP_NAME_MAX+1];
 extern double SLIDER1LO;
 extern double SLIDER2LO;
 extern double SLIDER3LO;
@@ -114,9 +114,9 @@ INTERN_SET intern_set[MAX_INTERN_SET];
 int Nintern_set=0;
 
 extern int STOCH_FLAG;
-extern char uvar_names[MAXODE][12]; 
+extern char uvar_names[MAXODE][XPP_NAME_MAX+1]; 
 extern struct {
-         char item[30],item2[30];
+         char item[MAX_LEN_SBOX],item2[MAX_LEN_SBOX];
 	 int steps,steps2,reset,oldic,index,index2,cycle,type,type2,movie;
 	 double plow,phigh,plow2,phigh2;
          int rtype;
@@ -200,7 +200,7 @@ extern int cv_bandflag,cv_bandupper,cv_bandlower;
 
 /*  custon color stuff  */
 
-extern char ColorVia[15];
+extern char ColorVia[XPP_NAME_MAX+1];
 extern double ColorViaLo,ColorViaHi;
 extern int ColorizeFlag;
 
@@ -847,7 +847,8 @@ void do_intern_set(name1,value)
      char *name1,*value;
 {
   int i;
-  char name[20];
+  char name[256]; /* as in extract_action */
+  if(strlen(name1)>=sizeof(name))return;
   convert(name1,name);
 
   i=find_user_name(IC,name);
@@ -1859,7 +1860,7 @@ if(msc(yyl,s1)){
  if(msc("RANGEOVER",s1)){
      if ((notAlreadySet.RANGEOVER||force)|| ((mask!=NULL)&&(mask->RANGEOVER==1)))
      {
-    	strcpy(range.item,s2);
+    	snprintf(range.item,sizeof(range.item),"%s",s2);
 	notAlreadySet.RANGEOVER=0;
      }
 
@@ -2200,8 +2201,7 @@ if(msc("TUTORIAL",s1)){
  if(msc("S1",s1)){
      if ((notAlreadySet.SLIDER1||force) || ((mask!=NULL)&&(mask->SLIDER1==1)))
      {
-	strncpy(SLIDER1VAR,s2,20);
-	SLIDER1VAR[19]= '\0';
+	snprintf(SLIDER1VAR,sizeof(SLIDER1VAR),"%s",s2);
 	notAlreadySet.SLIDER1=0;
      }
     return;
@@ -2210,8 +2210,7 @@ if(msc("TUTORIAL",s1)){
 if(msc("S2",s1)){
      if ((notAlreadySet.SLIDER2||force) || ((mask!=NULL)&&(mask->SLIDER2==1)))
      {
-    	strncpy(SLIDER2VAR,s2,20);
-	SLIDER2VAR[19]= '\0';
+    	snprintf(SLIDER2VAR,sizeof(SLIDER2VAR),"%s",s2);
 	notAlreadySet.SLIDER2=0;
      }
     return;
@@ -2219,8 +2218,7 @@ if(msc("S2",s1)){
  if(msc("S3",s1)){
      if ((notAlreadySet.SLIDER3||force) || ((mask!=NULL)&&(mask->SLIDER3==1)))
      {	
-     	strncpy(SLIDER3VAR,s2,20);
-	SLIDER3VAR[19]= '\0';
+     	snprintf(SLIDER3VAR,sizeof(SLIDER3VAR),"%s",s2);
 	notAlreadySet.SLIDER3=0;
      }
     return;
@@ -2432,7 +2430,7 @@ if(msc("SLO2",s1)){
    if(msc("COLORVIA",s1))
      {
        if ((notAlreadySet.COLORVIA||force)|| ((mask!=NULL)&&(mask->COLORVIA==1)))
-       strcpy(ColorVia,s2);
+       snprintf(ColorVia,sizeof(ColorVia),"%s",s2);
        	notAlreadySet.COLORVIA=0;
        return;
      }

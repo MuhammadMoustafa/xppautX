@@ -79,7 +79,7 @@ typedef struct {
                          interp=2 for cubic spline
     table   and finally, xyvals=1 if both x and y vals are needed (xyvals=0
     is faster lookup )*/
-  char filename[128],name[12];
+  char filename[128],name[XPP_NAME_MAX+1];
 }TABULAR;
 
 TABULAR my_table[MAX_TAB];
@@ -104,7 +104,7 @@ void set_table_name(name,index)
      char *name;
      int index;
 {
-  strcpy(my_table[index].name,name);
+  snprintf(my_table[index].name,sizeof(my_table[index].name),"%s",name);
 }
 
 void view_table(int index)
@@ -165,7 +165,7 @@ void new_lookup_com(int i)
 void new_lookup_ok()
 {
  char file[128];
- char name[10];
+ char name[256]; /* new_string edits up to 255 characters */
  int index,ok;
  double xlo,xhi;
  int npts;
@@ -552,7 +552,7 @@ int select_table(void)
  int i,j;
  char *n[MAX_TAB],key[MAX_TAB],ch;
  for(i=0;i<NTable;i++){
-   n[i]=(char *)malloc(25);
+   n[i]=(char *)malloc(XPP_NAME_MAX+4);
    key[i]='a'+i;
    sprintf(n[i],"%c: %s",key[i],my_table[i].name);
  }

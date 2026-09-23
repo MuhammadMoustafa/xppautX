@@ -34,7 +34,6 @@
 #include "xpplim.h"
 #include "browse.h"
 
-#define MAX_LEN_SBOX 25
 
 #define LINE 0
 #define RLINE 1
@@ -1803,7 +1802,7 @@ int ani_grab_tasks(char *line, int igrab,int which)
   int i,k;
   int n=strlen(line);
   char form[256],c;
-  char rhs[256],lhs[20];
+  char rhs[256],lhs[256];
   k=0;
   for(i=0;i<n;i++){
     c=line[i];
@@ -1882,6 +1881,10 @@ int add_grab_task(char *lhs,char *rhs, int igrab,int which)
   int com[256];
   int i,nc,k;
   int rn;
+  if(strlen(lhs)>XPP_NAME_MAX){
+    plintf("Grab event variable %s is too long\n",lhs);
+    return(-1);
+  }
   if(which==1) {
     i=ani_grab[igrab].start.n;
     if(i>=MAX_GEVENTS)return(-1); /* too many events */

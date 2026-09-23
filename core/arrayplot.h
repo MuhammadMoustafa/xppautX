@@ -1,6 +1,7 @@
 #ifndef _arrayplot_h_
 #define _arrayplot_h_
 
+#include "xpplim.h"
 #include <stdio.h>
 
 
@@ -14,7 +15,7 @@ typedef struct {
   int index0,indexn,alive,nacross,ndown,plotdef;
   int height,width,ploth,plotw;
   int nstart,nskip,ncskip;
-  char name[20];
+  char name[XPP_NAME_MAX+1];
   double tstart,tend,zmin,zmax,dt;
   char xtitle[256],ytitle[256],filename[256],bottom[256];
   int type;

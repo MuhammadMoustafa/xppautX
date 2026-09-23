@@ -1,6 +1,8 @@
 #ifndef _newpars_h
 #define _newpars_h
 
+#include "xpplim.h"
+
 
 /*#define LPAREN 1
 */
@@ -38,7 +40,7 @@
 
 #define VECTOR 28
 
-#define NAMLEN 10
+#define NAMLEN XPP_NAME_MAX
 #define MAXARG 20
 #define MAXEXPLEN 1024
 typedef struct var_info {

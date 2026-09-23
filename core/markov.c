@@ -63,7 +63,7 @@ typedef struct {
   int nstates;
   double *states;
   int type;   /* 0 is default and state dependent.  1 is fixed for all time  */
-  char name[12];
+  char name[XPP_NAME_MAX+1];
 } MARKOV;
 
 MARKOV markov[MAXMARK];
@@ -278,7 +278,7 @@ void create_markov(nstates,st,type,name)
   }
     
   for(i=0;i<nstates;i++)markov[j].states[i]=st[i];
-  strcpy(markov[j].name,name);
+  snprintf(markov[j].name,sizeof(markov[j].name),"%s",name);
   NMarkov++;
 
   

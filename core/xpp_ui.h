@@ -1,6 +1,7 @@
 #ifndef XPP_UI_H
 #define XPP_UI_H
 
+#include "xpplim.h"
 /*
  * The seam between the numerics and whatever front end is driving them.
  *
@@ -64,7 +65,7 @@ typedef struct XppUi {
        restored on cancel. Returns 1 for done, 0 for cancel. */
     int (*checklist)(char *title, char **names, int *flags, int n);
     int (*string_box)(int n, int row, int col, char *title, char **names,
-                      char values[][25], int maxchar);
+                      char values[][MAX_LEN_SBOX], int maxchar);
     int (*file_selector)(char *title, char *file, char *wild);
     /* one-line text entry with named buttons; returns 0 on cancel */
     int (*dialog)(char *title, char *name, char *value, char *ok, char *cancel,
@@ -247,7 +248,7 @@ int yes_no_box(void);
 int TwoChoice(char *c1, char *c2, char *q, char *key);
 void respond_box(char *button, char *message);
 int do_string_box(int n, int row, int col, char *title, char **names,
-                  char values[][25], int maxchar);
+                  char values[][MAX_LEN_SBOX], int maxchar);
 int file_selector(char *title, char *file, char *wild);
 int get_dialog(char *wname, char *name, char *value, char *ok, char *cancel, int max);
 int do_edit_box(int n, char *title, char **names, char **values);

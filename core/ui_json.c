@@ -55,8 +55,12 @@
 #include <unistd.h>
 #include <sys/time.h>
 
+/* a name a client sends: one byte more than any name, so a longer one is
+   cut to something no name equals */
+#define NAME_IN (XPP_NAME_MAX + 2)
+
 extern int NUPAR, NODE, NMarkov, NEQ;
-extern char upar_names[MAXPAR][11], uvar_names[MAXODE][12];
+extern char upar_names[MAXPAR][XPP_NAME_MAX+1], uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern double last_ic[MAXODE];
 extern char this_file[];
 extern char cur_dir[];
@@ -828,14 +832,14 @@ static int form(char *title, char **names, int n, char **values, int size)
 }
 
 static int j_string_box(int n, int row, int col, char *title, char **names,
-                        char values[][25], int maxchar)
+                        char values[][MAX_LEN_SBOX], int maxchar)
 {
     char *v[64];
     int i;
     (void)row; (void)col; (void)maxchar;
     if (n > 64) n = 64;
     for (i = 0; i < n; i++) v[i] = values[i];
-    return form(title, names, n, v, 25);
+    return form(title, names, n, v, MAX_LEN_SBOX);
 }
 
 static int j_edit_box(int n, char *title, char **names, char **values)
@@ -1147,7 +1151,7 @@ static void plotvars_command(const char *line)
 {
     int isck[MAXODE], i, n = NODE + NMarkov;
     const char *arr = js_find(line, "names");
-    char name[64];
+    char name[NAME_IN];
     memset(isck, 0, sizeof isck);
     for (i = 0; arr && js_elem(arr, i); i++) {
         int k;
@@ -2107,7 +2111,7 @@ static int dg_replay, dg_match, dg_axes;
 static struct {
     double xmin, xmax, ymin, ymax;
     int x0, y0, wid, hgt, plot;
-    char xlabel[20], ylabel[20];
+    char xlabel[AUTO_LABEL_LEN], ylabel[AUTO_LABEL_LEN];
 } dg_ax;
 
 /* the client has nothing: a new window, or one it no longer holds */
@@ -2687,7 +2691,7 @@ static void apply_size(const char *line)
    parameters and ICs, an expression for BCs and delays. */
 static void apply_set(const char *line)
 {
-    char kind[16], name[64], text[256];
+    char kind[16], name[NAME_IN], text[256];
     double z;
     int type, i, n, index = -1;
     get_str(line, "kind", kind, sizeof kind);
@@ -2735,7 +2739,7 @@ static void handle_line(const char *line, unsigned long seq)
         else set_default_ics();
     } else if (is_cmd(line, "slide")) {
         /* a parameter slider moved: {"cmd":"slide","name":...,"value":v,"rerun":1} */
-        char name[64];
+        char name[NAME_IN];
         int type, index;
         get_str(line, "name", name, sizeof name);
         if (find_par_or_var(name, &type, &index)) {

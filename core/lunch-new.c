@@ -50,8 +50,8 @@ extern int FIX_VAR,NFUN;
 extern double BVP_TOL,BVP_EPS;
 extern int MaxPoints;
 
- extern char upar_names[MAXPAR][11],this_file[XPP_MAX_NAME],delay_string[MAXODE][80];
- extern char uvar_names[MAXODE][12]; 
+ extern char upar_names[MAXPAR][XPP_NAME_MAX+1],this_file[XPP_MAX_NAME],delay_string[MAXODE][80];
+ extern char uvar_names[MAXODE][XPP_NAME_MAX+1]; 
  extern char *ode_names[MAXODE],*fix_names[MAXODE];
 
 
@@ -547,12 +547,12 @@ FILE *fp;
   if(fgets(temp,255,fp)){} /* skip a line */}
 if(f!=READEM)
   fprintf(fp,"# Delays\n");
- for(i=0;i<NODE;i++)io_string(delay_string[i],100,fp,f);
+ for(i=0;i<NODE;i++)io_string(delay_string[i],sizeof(delay_string[i]),fp,f);
  if(f==READEM&&set_type==1){
   if(fgets(temp,255,fp)){} /* skip a line */}
 if(f!=READEM)
   fprintf(fp,"# Bndry conds\n");
- for(i=0;i<NODE;i++)io_string(my_bc[i].string,100,fp,f);
+ for(i=0;i<NODE;i++)io_string(my_bc[i].string,256,fp,f);
  if(f==READEM&&set_type==1){
   if(fgets(temp,255,fp)){} /* skip a line */}
 if(f!=READEM)
@@ -719,14 +719,18 @@ FILE *fp;
 char *s;
 int f,len;
 {
- int i;
+ /* One line per string. Read the whole line even when it is longer than s
+    (len bytes) holds, so the lines after it stay in step; s gets its start.
+    Files written with the old 10-character names read the same. */
+ char line[1024];
  if(f==READEM){
-   if(fgets(s,len,fp)==NULL){s[0]=0;return;}
-   i=0;
-   while(i<strlen(s)){
-     if(s[i]=='\n')s[i]=0;
-     i++;
+   if(fgets(line,sizeof(line),fp)==NULL){s[0]=0;return;}
+   if(strchr(line,'\n')==NULL){ /* rest of an overlong line */
+     int c;
+     while((c=fgetc(fp))!=EOF&&c!='\n'){}
    }
+   line[strcspn(line,"\r\n")]=0;
+   snprintf(s,len,"%s",line);
  }
  else 
    fprintf(fp,"%s\n",s);
