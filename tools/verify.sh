@@ -3,7 +3,10 @@
 # drive xppautX --server through its protocol (tools/servercheck.py) and
 # its browser mode through HTTP (tools/webcheck.py), and print
 # the X11-free metric. Run from repo root (WSL/Linux/macOS).
+# Usage: tools/verify.sh [--clean-warnings]
 cd "$(dirname "$0")/.." || exit 1
+CLEAN_WARNINGS=0
+[ "$1" = "--clean-warnings" ] && CLEAN_WARNINGS=1
 BASELINE=c281851de59ffd03b2a46428619a0c8f
 mkdir -p build || exit 1
 make -j8 xppaut xppautx > build/last-build.log 2>&1
@@ -68,3 +71,7 @@ if command -v python3 >/dev/null; then
   fi
 fi
 tools/x11free.sh
+if [ $CLEAN_WARNINGS -eq 1 ]; then
+  echo ""
+  tools/warnings.sh
+fi
