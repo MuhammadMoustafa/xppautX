@@ -7,7 +7,7 @@ Plays a fixed session (integrate, change a parameter, answer a menu, a
 string prompt and a form, find an equilibrium, open a second plot window)
 and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
-import argparse, base64, json, os, shutil, subprocess, sys, tempfile, threading, queue
+import argparse, base64, json, os, shutil, struct, subprocess, sys, tempfile, threading, queue
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -142,6 +142,12 @@ check('axes drawn', len(draw_ops(evs)) > 10)
 
 send(cmd='size', win=1, w=800, h=600)
 collect(is_idle)
+check('hello lists the series feature', 'series' in hello.get('features', []), str(hello.get('features')))
+send(cmd='data', events=['series'])
+evs, _ = collect(is_idle)
+ser = [e for e in evs if e.get('ev') == 'series']
+check('asking for the series data sends the plot at once', len(ser) == 1 and ser[0]['win'] == 1 and ser[0]['rows'] == 0
+      and len(ser[0]['curves']) == 1, str(ser)[:300])
 send(cmd='key', key='i')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 check('Initialconds opens a menu', ask is not None and ask['kind'] == 'menu' and 'g' in ask['keys'], str(ask))
@@ -151,6 +157,53 @@ st = last_state(evs)
 lines = [o for o in draw_ops(evs) if o[0] == 'line']
 check('integration draws the trajectory', len(lines) > 100, '%d lines' % len(lines))
 check('storage has 601 rows', st is not None and st['rows'] == 601, str(st and st['rows']))
+
+
+def series_matches_output_dat(ser):
+    """the series' columns hold the numbers output.dat has for the same run
+    (xppautX -silent): both are the stored floats, output.dat prints %.8g"""
+    silent = tempfile.mkdtemp(prefix='xppsilent')
+    shutil.copy(args.ode, silent)
+    subprocess.run([os.path.abspath(args.server), os.path.basename(args.ode), '-silent'], cwd=silent,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
+    with open(os.path.join(silent, 'output.dat')) as f:
+        rows = [l.split() for l in f if l.strip()]
+    shutil.rmtree(silent, ignore_errors=True)
+    f32 = lambda v: struct.unpack('f', struct.pack('f', v))[0]
+    for c in ser['columns']:
+        want = [r[c['col']] for r in rows]
+        got = ['%.8g' % f32(v) for v in c['data']]
+        if got != want:
+            bad = next(i for i, (a, b) in enumerate(zip(got, want)) if a != b) if len(got) == len(want) else -1
+            return 'column %s differs at row %d (%d rows, output.dat %d)' % (c['name'], bad, len(got), len(want))
+    return None
+
+
+ser = [e for e in evs if e.get('ev') == 'series']
+check('integration sends the series: the curve V against W, 601 rows',
+      len(ser) == 1 and ser[0]['rows'] == 601 and ser[0]['curves'][0]['x'] == 1 and ser[0]['curves'][0]['y'] == 2
+      and [c['name'] for c in ser[0]['columns']] == ['T', 'V', 'W'], str(ser)[:300])
+if ser:
+    problem = series_matches_output_dat(ser[0])
+    check('the series carries the numbers of output.dat', problem is None, problem or '')
+send(cmd='redraw')
+evs, _ = collect(is_idle)
+check('a redraw of unchanged data sends no series', not any(e.get('ev') == 'series' for e in evs))
+send(cmd='key', key='x')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+if ask:
+    send(cmd='answer', id=ask['id'], ok=1, value='V')
+evs, _ = collect(is_idle)
+ser = [e for e in evs if e.get('ev') == 'series']
+check('Xi vs t sends the series of V against T', len(ser) == 1 and ser[0]['curves'][0]['x'] == 0
+      and ser[0]['curves'][0]['y'] == 1 and [c['name'] for c in ser[0]['columns']] == ['T', 'V'], str(ser)[:300])
+send(cmd='data', events=[])
+collect(is_idle)
+send(cmd='key', key='i')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+send(cmd='answer', id=ask['id'], key='g')
+evs, _ = collect(is_idle, timeout=30)
+check('an empty data list stops the series', not any(e.get('ev') == 'series' for e in evs))
 
 send(cmd='set', kind='par', name='iapp', value=0.1)
 send(cmd='state')

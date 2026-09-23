@@ -39,6 +39,7 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `browser` | `op` (`find`, `get`, `replace`, `unreplace`, `table`, `load`, `write`, `first`, `last`, `restore`, `addcol`, `delcol`), `row` | A data browser button, with `row` the selected row (the X11 browser's top row). |
 | `eqimport` | | The equilibrium window's Import: the last equilibrium becomes the initial conditions. |
 | `equations` | | Send `equations`. |
+| `data` | `events` (names from `hello.features`) | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot as data (below). |
 | `action` | `index` | Run the action of comment `index` of `source.comments`. |
 | `click` | `win` | The user selected plot window `win`. |
 | `redraw` | | Redraw the active plot window, and the AUTO diagram when AUTO is open (for a client that reconnects). |
@@ -145,11 +146,12 @@ Run it with:
 
 | ev | fields | meaning |
 |---|---|---|
-| `hello` | `protocol`, `title`, `file`, `char` {`w`,`h`,`bw`,`bh`}, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. Text is laid out on a `char.w` x `char.h` monospace cell. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). |
+| `hello` | `protocol`, `features` (optional parts the server speaks: `series`), `title`, `file`, `char` {`w`,`h`,`bw`,`bh`}, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. Text is laid out on a `char.w` x `char.h` monospace cell. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). |
 | `palette` | `colors` (256 `#rrggbb`) | Colour table; sent again after a colormap change. |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows 1..10, AUTO 101 (stability circle 102, info strip 103), animation 104. |
 | `draw` | `win`, `ops` | Drawing, see below. |
 | `diagram` | `op` (`axes`, `reset`, `add`), ... | The AUTO diagram as data, beside its drawing; see "The AUTO diagram as data". |
+| `series` | `win`, `rows`, `three`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns` | The active plot window's curves as numbers, for a client that asked (`data`); see "The plot as data". |
 | `state` | `pars` [[name,value]...], `ics` [[name,value]...], `bcs` [[name,text]...], `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `menu`, `win`, `session` {`set`,`auto`} | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics), `win` the active window; `session` names the files of the last `session` `save` or `load` (`auto` absent when that session has no diagram; the member itself absent before any `session` command). |
 | `idle` | | The command finished. |
 | `menu` | `which` | The main menu switched (0 main, 1 file, 2 numerics). |
@@ -246,6 +248,41 @@ wheel and pans with Shift+drag or the middle button, drawing from the data;
 a tooltip names the point under the mouse. Anything that makes the core
 draw the diagram again (a `clear` op for window 101) shows the core's view
 again.
+
+### The plot as data
+
+The new front end (docs/ui-v2.md) draws the plot itself from numbers instead
+of replaying drawing ops. A client that sends `{"cmd":"data","events":["series"]}` gets
+a `series` event at the end of that command and then at the end of every
+command after which what the active plot window shows has changed: the
+stored data (an integration, Continue, a browser Load or Replace, ...), the
+active window, or its curves (Xi vs t, Viewaxes, Graphic stuff/Add curve,
+...). Nothing else sends it, so a command that only redraws sends none.
+It comes before the command's `state` and `idle`.
+
+```
+{"ev":"series","win":1,"rows":601,"three":0,"xlabel":"","ylabel":"","zlabel":"",
+ "curves":[{"x":1,"y":2,"z":1,"color":0,"line":1}],"shift":[0,0,0],
+ "columns":[{"col":0,"name":"T","data":[0,0.0500000007,...]},
+            {"col":1,"name":"V","data":[-0.143999994,...]},
+            {"col":2,"name":"W","data":[0.0299999993,...]}]}
+```
+
+| field | meaning |
+|---|---|
+| `win` | the plot window (1..10), as in `window` |
+| `rows` | stored rows: every column has this many values (0 before an integration) |
+| `three` | 1 when the window is a 3D plot (then `z` matters) |
+| `xlabel`, `ylabel`, `zlabel` | the window's axis labels; empty means "the plotted column's name" |
+| `curves` | the window's curves (`MyGraph->nvars` of them): `x`, `y`, `z` are storage columns (0 is T, `i` is `cols[i]` of `browser`), `color` the XPP colour index (0 foreground, 1..10 red .. purple), `line` > 0 a line, <= 0 points of radius `-line` |
+| `shift` | row shifts of the x, y and z columns (a lag plot): point `i` pairs x row `i - shift[0]` with y row `i - shift[1]`, from row `max(shift)` on |
+| `columns` | T and each column a curve uses, once each: `col`, its `name`, and `data`, one value per row (`null` for NaN) |
+
+The values are the stored single-precision numbers printed with 9
+significant digits, so they convert back to exactly the stored floats:
+`output.dat` for the same run holds the same numbers printed with 8
+(`tools/servercheck.py` checks this). The event carries the whole data every
+time; docs/ui-v2.md plans an `append` form for long runs.
 
 ### Asks
 
