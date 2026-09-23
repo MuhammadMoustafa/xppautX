@@ -39,7 +39,7 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `browser` | `op` (`find`, `get`, `replace`, `unreplace`, `table`, `load`, `write`, `first`, `last`, `restore`, `addcol`, `delcol`), `row` | A data browser button, with `row` the selected row (the X11 browser's top row). |
 | `eqimport` | | The equilibrium window's Import: the last equilibrium becomes the initial conditions. |
 | `equations` | | Send `equations`. |
-| `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves (all in "The plot as data", below). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers. |
+| `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves, `marks`: equilibria, text, arrows, markers and frozen curves on the plots (all in "The plot as data", below). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers. |
 | `action` | `index` | Run the action of comment `index` of `source.comments`. |
 | `click` | `win` | The user selected plot window `win`. |
 | `view` | `win`, `xlo`, `xhi`, `ylo`, `yhi` | "Use this view" (docs/ui-v2.md T9): sets window `win`'s 2D axes exactly as Window/Window would (graf_par.c `update_view`), so a later PostScript/SVG export, Restore and redraw all agree with them; the `plots` and `state.view` that follow the command show the new axes. Refused (`message` `error`) and nothing changed when `xlo`..`yhi` are not all finite, `xlo>=xhi`, `ylo>=yhi`, or `win` names no open window. |
@@ -173,7 +173,7 @@ Run it with:
 
 | ev | fields | meaning |
 |---|---|---|
-| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`), `title`, `file`, `char` {`w`,`h`,`bw`,`bh`}, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. Text is laid out on a `char.w` x `char.h` monospace cell. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). |
+| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`), `title`, `file`, `char` {`w`,`h`,`bw`,`bh`}, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. Text is laid out on a `char.w` x `char.h` monospace cell. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). |
 | `palette` | `colors` (256 `#rrggbb`) | Colour table; sent again after a colormap change. |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows 1..10, AUTO 101 (stability circle 102, info strip 103), animation 104. |
 | `draw` | `win`, `ops` | Drawing, see below. |
@@ -182,6 +182,7 @@ Run it with:
 | `plots` | `active`, `windows` [{`win`, `title`, `three`, `xlo`, `xhi`, `ylo`, `yhi`, `xlabel`, `ylabel`, `zlabel`, `box`, `theta`, `phi`, `persp`, `zplane`, `zview`, `curves`, `shift`}...] | Every plot window and the active one, for a client that asked (`data`); see "The plot as data". |
 | `nullclines` | `win`, `enc`, `xname`, `yname`, `xcolor`, `ycolor`, `x`, `y`, `frozen` [{`x`,`y`}...] | A plot window's nullclines as segments in plot coordinates, for a client that asked (`data`); see "The plot as data". |
 | `dfield` | `win`, `enc`, `scaled`, `color`, `n`, `du`, `dv`, `grid`, `speed`, `flows` [{`color`,`x`,`y`}...] | A plot window's direction field and Flow trajectories, for a client that asked (`data`); see "The plot as data". |
+| `marks` | `win`, `enc`, `equilibria`, `text`, `arrows`, `markers`, `frozen` | A plot window's equilibria, text, arrows, markers and frozen curves, for a client that asked (`data`); see "The plot as data". |
 | `state` | `pars` [[name,value]...], `ics` [[name,value]...], `bcs` [[name,text]...], `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `menu`, `win`, `session` {`set`,`auto`} | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics), `win` the active window; `session` names the files of the last `session` `save` or `load` (`auto` absent when that session has no diagram; the member itself absent before any `session` command). |
 | `idle` | | The command finished. |
 | `stopped` | `at` | The command's computation was cancelled; sent before its `state` and `idle`. `at` says where it stopped: `{"what":"integrate","rows":N,"t":T}` for an integration, N the rows in storage (as `state.rows`) and T the time of the last one stored (9 digits: the stored single-precision value exactly); `{"what":"auto","branch":B,"point":P}` for an AUTO run, P the last point it stored on branch B (the end point the cancel adds, as in the diagram's data); `{"what":"other"}` for anything else. A script replays the interruption from it (see "Scripts"). |
@@ -289,14 +290,14 @@ again.
 ### The plot as data
 
 The new front end (docs/ui-v2.md) draws the plots itself from numbers
-instead of replaying drawing ops. Four events carry them, each sent only to
+instead of replaying drawing ops. Five events carry them, each sent only to
 a client that asked with
-`{"cmd":"data","events":["series","plots","nullclines","dfield"]}` (any of
+`{"cmd":"data","events":["series","plots","nullclines","dfield","marks"]}` (any of
 the names alone works too), at the end of that command and then at the end
 of every command after which what it says has changed. Nothing else sends
 them, so a command that only redraws sends none. They come before the
 command's `state` and `idle`, in that order: `plots`, the `series`, the
-`nullclines`, the `dfield`.
+`nullclines`, the `dfield`, the `marks`.
 
 **`series`**: one event per plot window (`win` 1..10), each at the end of
 a command after which what that window shows has changed: the stored data
@@ -408,10 +409,43 @@ comes first.
 Values in these arrays are float32 (9 digits in JSON). Dir.field/flow's
 Colorize (coloured cells) sends no arrows yet.
 
+**`marks`**: what a plot window shows on top of its curves, one event per
+window, saying what the classic window draws there: the equilibria Sing
+pts marked (its symbols), Text,etc's text, arrows, pointers and markers,
+and Graphic stuff/Freeze's frozen curves. As with `nullclines`, drawing
+fills it and anything that blanks the window empties it unless it draws
+the marks again: a redraw (Redraw, Window/Zoom, Viewaxes, ...) draws the
+text, objects and frozen curves again but not the equilibria, which the
+classic window loses too; Erase clears them all until the next redraw. A
+freeze adds its curve at once (the window already shows it: it is the
+current curve), and a deleted mark goes at the end of the command that
+deleted it (Freeze/Delete and Remove all do not redraw). Sent at the end
+of a command when the window's marks differ from the last ones sent, and
+for every window once after `data`; the active window's first.
+
+```
+{"ev":"marks","win":1,
+ "equilibria":[{"x":-0.1425351775676935,"y":0.034048992272573395,"type":"saddle","symbol":"triangle"}],
+ "text":[{"x":-0.298305094,"y":0.498503745,"text":"\\1a\\0-point 6","size":3,"font":0}],
+ "arrows":[{"kind":"pointer","x1":0.1,"y1":0.2,"x2":0.6,"y2":0.8,"size":0.2,"color":5}],
+ "markers":[{"x":0.9,"y":0.1,"shape":"diamond","size":2,"color":7}],
+ "frozen":[{"key":"first run","name":"frz1","color":4,"line":1,"x":[...],"y":[...]}]}
+```
+
+| field | meaning |
+|---|---|
+| `equilibria` | the points Sing pts marked (Monte Carlo's too), in the order marked, each once: `x`, `y` in plot coordinates (the window's x and y variables at the equilibrium, the doubles themselves: the `equilibrium` event's values for those variables), `type` what its symbol says (`stable`: no eigenvalue with a positive real part; `saddle`: some on each side; `unstable`: the rest) and `symbol` XPP's (`circle`, `triangle`, `box`). 2D windows only |
+| `text` | Text,etc's labels: `x`, `y` where the text starts (its baseline, plot coordinates), `text` as drawn (`\{expr}` already replaced by its value), `size` 0-4, `font` (1: all in the symbol font; 0 otherwise). XPP's markup stays in the text: a backslash and `1` switches to the symbol font, where the Latin letters show Greek ones (`\1a` is α, Adobe Symbol encoding), `0` back to roman, `s` and `S` a subscript and a superscript one size smaller (they add up), `n` back to the baseline and size; any other character after a backslash is dropped. Bytes that are not UTF-8 are Latin-1 |
+| `arrows` | Text,etc's arrows and pointers: `kind` `arrow` (only a head) or `pointer` (a head and a shaft), the head's tip at `x1`, `y1`, pointing from `x2`, `y2`; `size` the head's length as a fraction of that distance (half as wide as long); `color` an XPP colour index |
+| `markers` | Text,etc's markers (Marker, marKers): `x`, `y`, `shape` (`box`, `diamond`, `triangle`, `plus`, `cross`, `circle`), `size` (1 is about 1% of the window), `color` |
+| `frozen` | the frozen curves of the window (2D ones): `key` (its legend text) and `name` (Freeze's Edit form), `color` an XPP colour index, `line` 1 a line, 0 points (a negative colour in the form), `x`, `y` the values of the curve's x and y columns when it was frozen (float32, as `series`: equal to that `series`' columns then) |
+
+Label and object positions are the stored float32 values, 9 digits.
+
 **Binary values.** After `{"cmd":"data","events":["series"],"enc":"f32"}`
 every `series` event (full or append) has `"enc":"f32"` and each column's
-`data` is a string (and so is every value array of `nullclines` and
-`dfield`, which then carry `"enc":"f32"` too): the base64 (RFC 4648, with padding) of the values as
+`data` is a string (and so is every value array of `nullclines`,
+`dfield` and the frozen curves of `marks`, which then carry `"enc":"f32"` too): the base64 (RFC 4648, with padding) of the values as
 IEEE float32, 4 bytes each, least significant byte first, whatever the
 host's byte order. NaN and infinities travel as they are. That is 5.3
 characters a value instead of about 12, and nothing to parse: a million

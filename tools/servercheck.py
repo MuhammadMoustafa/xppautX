@@ -1065,7 +1065,156 @@ def check_view():
         stop_server(proc6, run6, send6)
 
 
+# Marks as data (docs/protocol.md "The plot as data", docs/ui-v2.md T8): the
+# equilibria Sing pts marks, Text,etc's text, arrows and markers, and frozen
+# curves, as the classic window shows them: a redraw draws the labels,
+# objects and frozen curves again but not the equilibria, Erase clears them
+# all, a deleted one goes at once.
+def check_marks():
+    proc6, run6, send6, collect6, _ = launch_server()
+    of = lambda evs, name: [e for e in evs if e.get('ev') == name]
+
+    def command(key, answer):
+        """a key, its asks answered by answer(ask, n) (n counts them), up to its idle"""
+        send6(cmd='key', key=key)
+        got, n = [], 0
+        while True:
+            evs, e = collect6(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60)
+            got += evs
+            if e is None or e['ev'] == 'idle':
+                return got
+            reply = answer(e, n) or {'ok': 0}
+            n += 1
+            send6(cmd='answer', id=e['id'], **reply)
+
+    def keys(*replies):
+        """answers in order: a str is a menu key, a dict the answer itself; then cancel"""
+        def answer(e, n):
+            if n >= len(replies):
+                return None
+            return {'key': replies[n]} if isinstance(replies[n], str) else replies[n]
+        return answer
+
+    def after(cmd):
+        send6(**cmd)
+        return collect6(is_idle, timeout=30)[0]
+
+    def marks_of(evs):
+        m = of(evs, 'marks')
+        return m[-1] if len(m) == 1 else None
+
+    def near(a, b, tol):
+        return a is not None and b is not None and abs(a - b) <= tol
+
+    try:
+        evs, _ = collect6(is_idle)
+        hello6 = next((e for e in evs if e.get('ev') == 'hello'), {})
+        check('hello lists the marks feature', 'marks' in hello6.get('features', []), str(hello6.get('features')))
+        evs = after({'cmd': 'data', 'events': ['marks', 'plots', 'series']})
+        m = marks_of(evs)
+        check('data sends marks at once, empty, for window 1',
+              m is not None and m['win'] == 1 and m['equilibria'] == [] and m['text'] == [] and m['arrows'] == []
+              and m['markers'] == [] and m['frozen'] == [], str(of(evs, 'marks'))[:300])
+        curve = of(evs, 'plots')[0]['windows'][0]['curves'][0]
+
+        evs = command('i', keys('g'))
+        ser = of(evs, 'series')
+        v = last_state(evs)['view']
+        px = (v['xhi'] - v['xlo']) / abs(v['right'] - v['left']) * 1.5
+        py = (v['yhi'] - v['ylo']) / abs(v['bottom'] - v['top']) * 1.5
+        check('an integration sends no marks', bool(ser) and not of(evs, 'marks'))
+        cols = {c['col']: c['data'] for c in ser[-1]['columns']} if ser else {}
+
+        typed = r'\1a\0-point \{2*3}'
+        evs = command('t', keys('t', {'value': typed}, {'value': '3'}, {'xd': -0.3, 'yd': 0.5}))
+        m = marks_of(evs)
+        t = m['text'] if m else []
+        check('Text,etc/Text: a text mark with its text (\\{expr} filled in), size and position',
+              len(t) == 1 and t[0]['text'] == r'\1a\0-point 6' and t[0]['size'] == 3 and t[0]['font'] == 0
+              and near(t[0]['x'], -0.3, px) and near(t[0]['y'], 0.5, py), str(m)[:300])
+
+        evs = command('t', keys('p', {'value': '0.2'}, {'value': '5'},
+                                {'xd': 0.1, 'yd': 0.2, 'xd2': 0.6, 'yd2': 0.8}))
+        m = marks_of(evs)
+        a = m['arrows'] if m else []
+        check('Text,etc/Pointer: an arrow mark from the first point to the second, its size and colour',
+              len(a) == 1 and a[0]['kind'] == 'pointer' and a[0]['size'] == 0.2 and a[0]['color'] == 5
+              and near(a[0]['x1'], 0.1, px) and near(a[0]['y1'], 0.2, py) and near(a[0]['x2'], 0.6, px)
+              and near(a[0]['y2'], 0.8, py) and len(m['text']) == 1, str(m)[:300])
+
+        evs = command('t', keys('m', {'values': ['3', '7', '2']}, {'xd': 0.9, 'yd': 0.1}))
+        m = marks_of(evs)
+        k = m['markers'] if m else []
+        check('Text,etc/Marker: a marker mark with its shape, size, colour and position',
+              len(k) == 1 and k[0]['shape'] == 'diamond' and k[0]['size'] == 2 and k[0]['color'] == 7
+              and near(k[0]['x'], 0.9, px) and near(k[0]['y'], 0.1, py), str(m)[:300])
+
+        evs = command('g', keys('f', 'f', {'values': ['4', 'first run', 'frz1']}))
+        m = marks_of(evs)
+        f = m['frozen'] if m else []
+        check('Graphic stuff/Freeze: a frozen curve equal to the series at freeze time, its key and colour',
+              len(f) == 1 and f[0]['key'] == 'first run' and f[0]['name'] == 'frz1' and f[0]['color'] == 4
+              and f[0]['line'] == 1 and f[0]['x'] == cols.get(curve['x']) and f[0]['y'] == cols.get(curve['y'])
+              and len(f[0]['x']) > 2, str(m)[:300])
+
+        got = command('s', lambda e, n: {'key': 'g' if n == 0 else 'n'})
+        eq = next(iter(of(got, 'equilibrium')), None)
+        m = marks_of(got)
+        q = m['equilibria'] if m else []
+        vals = [val for _, val in eq['values']] if eq else []
+        check("Sing pts: an equilibrium mark at the equilibrium's values of the plotted variables",
+              eq is not None and len(q) == 1 and near(q[0]['x'], vals[curve['x'] - 1], 1e-12)
+              and near(q[0]['y'], vals[curve['y'] - 1], 1e-12), '%s vs %s' % (q, vals))
+        check('... its type and symbol as the stability says',
+              len(q) == 1 and q[0]['symbol'] == {'stable': 'circle', 'unstable': 'box', 'saddle': 'triangle'}[q[0]['type']]
+              and (q[0]['type'] == 'stable') == (eq['cplus'] + eq['rplus'] == 0)
+              and (q[0]['type'] == 'saddle') == (eq['cplus'] + eq['rplus'] > 0 and eq['cminus'] + eq['rminus'] > 0),
+              '%s, %s' % (q, eq and eq['type']))
+        check('... the other marks unchanged', m is not None and len(m['text']) == 1 and len(m['frozen']) == 1)
+
+        evs = after({'cmd': 'redraw'})
+        m = marks_of(evs)
+        check('a redraw draws text, objects and frozen curves again, not the equilibrium (as the classic window)',
+              m is not None and m['equilibria'] == [] and len(m['text']) == 1 and len(m['arrows']) == 1
+              and len(m['markers']) == 1 and len(m['frozen']) == 1, str(m)[:300])
+        evs = after({'cmd': 'redraw'})
+        check('... and a second one sends nothing', not of(evs, 'marks'))
+
+        evs = after({'cmd': 'data', 'events': ['marks'], 'enc': 'f32'})
+        m = marks_of(evs)
+        check('enc f32: the frozen curve as base64 float32, the same values',
+              m is not None and m.get('enc') == 'f32' and len(m['frozen']) == 1 and bool(f)
+              and same_floats(values({'data': m['frozen'][0]['x']}, 'f32'), values({'data': f[0]['x']}, None)),
+              str(m)[:200])
+        after({'cmd': 'data', 'events': ['marks']})
+
+        evs = command('g', keys('f', 'r'))
+        m = marks_of(evs)
+        check('Freeze/Remove all: the frozen curve goes at once', m is not None and m['frozen'] == []
+              and len(m['text']) == 1, str(m)[:300])
+
+        evs = command('e', keys())
+        m = marks_of(evs)
+        check('Erase clears every mark',
+              m is not None and not any(m[k] for k in ('equilibria', 'text', 'arrows', 'markers', 'frozen')),
+              str(m)[:300])
+        evs = after({'cmd': 'redraw'})
+        m = marks_of(evs)
+        check('... a redraw brings the text and objects back', m is not None and len(m['text']) == 1
+              and len(m['arrows']) == 1 and len(m['markers']) == 1, str(m)[:300])
+        evs = command('t', keys('d'))
+        m = marks_of(evs)
+        check('Text,etc/Delete all deletes them', m is not None and m['text'] == [] and m['arrows'] == []
+              and m['markers'] == [], str(m)[:300])
+        evs = after({'cmd': 'data', 'events': ['series']})
+        evs += command('s', lambda e, n: {'key': 'g' if n == 0 else 'n'})
+        check('not asked for: no marks', not of(evs, 'marks'))
+    finally:
+        stop_server(proc6, run6, send6)
+
+
 check_view()
+check_marks()
 
 # A HOME the process cannot write to used to make AUTO exit(1) under the
 # client when it opened fort.8 there; open_auto() now falls back to the

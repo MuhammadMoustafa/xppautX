@@ -1,6 +1,7 @@
 #include "graphics.h"
 #include "xpp_ui.h"
 #include "xpp_globals.h"
+#include "marks_data.h"
 #include "my_ps.h"
 #include "my_svg.h"
 
@@ -1217,6 +1218,7 @@ double *x;
   }
   draw_symbol((float)x[ix],(float)x[iy],SYMSIZE,type);
   point_abs((float)x[ix],(float)x[iy]);
+  if(ix>=0&&iy>=0)marks_data_equilibrium(x[ix],x[iy],type); /* the mark as data */
  
 }
 

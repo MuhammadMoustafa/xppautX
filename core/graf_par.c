@@ -2,6 +2,7 @@
 #include "xpp_mem.h"
 #include "arrayplot.h"
 #include "xpp_globals.h"
+#include "marks_data.h"
 
 #include "integrate.h"
 #include "xpp_ui.h"
@@ -1160,6 +1161,7 @@ int ind;
       frz[i].w=draw_win;
       sprintf(frz[i].name,"crv%c",'a'+i);
       sprintf(frz[i].key,"crv%c",'a'+i);
+      marks_data_frozen_new(i); /* the window shows it: it is its current curve */
       return(i);
     }
   }
@@ -1203,6 +1205,7 @@ XppWinId w;
     draw_frozen_cline(i,w);
   for(i=0;i<MAXFRZ;i++){
     if(frz[i].use==1&&frz[i].w==w&&frz[i].type==type){
+      if(type==0)marks_data_frozen(w,i); /* the curve as data */
       if(frz[i].color<0){
 	set_linestyle(-frz[i].color);
 	lt=1;
