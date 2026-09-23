@@ -961,10 +961,11 @@ void auto_plot_par()
 		       aaxes_hint,Auto.hinttxt);
   if(ch==ESC) 
     return;
-  for(i=0;i<5;i++)
+  for(i=0;i<5;i++){
     if(ch==key[i])Auto.plot=i;
-    if(ch==key[10])Auto.plot=10;
-    if(ch==key[11])Auto.plot=11;
+  }
+  if(ch==key[10])Auto.plot=10;
+  if(ch==key[11])Auto.plot=11;
   if(ch==key[5]){
     if(auto_rubber(&ii1,&ji1,&ii2,&ji2,RUBBOX)!=0){
       auto_zoom_in(ii1,ji1,ii2,ji2);
@@ -1372,7 +1373,7 @@ int check_plot_type(int flag2,int icp1, int icp2)
     return 0; 
   if(icp1!=Auto.icp1)
     return 0;
-  if(flag2>0 && icp2!=icp2)
+  if(flag2>0 && icp2!=Auto.icp2)
     return 0;
   return 1;
 
