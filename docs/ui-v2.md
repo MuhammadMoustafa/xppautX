@@ -152,12 +152,13 @@ new page adds direct manipulation that maps onto existing commands:
 |---|---|---|
 | `menu` | modal menu list (role `menu`), keys shown as `kbd`, the key answers | done |
 | `choice` | the same list, with the question | done |
-| `string`, `form` | modal form, first field focused and selected, Enter submits, Escape cancels | done; `*n` fields become selects from `hello.lists` (T4) |
-| `checklist` | checkbox list | T4 |
+| `string`, `form` | modal form, first field focused and selected, Enter submits (from a select too), Escape cancels | done; a `*n` field is a select of `hello.lists[n]` (`protocol/lists.ts`): a numbered item (`2 Box`) answers its number, a value the list lacks is kept as an option of its own |
+| `checklist` | checkbox list with All and None | done |
 | `alert` | a notification (toast); the ask is answered at once, so the run is not blocked | done |
 | `file` | the browser's open or save dialog (section 4); the core's listing is a fallback tab | T5 |
-| `mouse`, `rubber`, `drag` | a plot interaction mode: a crosshair, a box or a drag on the plot, with an instruction bar and Cancel; the answer is converted to the window's pixels with `state.view` until the core takes data coordinates (`xd`, `yd`) | T4 (core: accept `xd`/`yd`) |
-| `grab` (AUTO) | select a point of the diagram (click, tap, or arrow keys); answered by index | T11 |
+| `mouse`, `rubber`, `drag` | a plot mode (`plot/pick.ts`, the store's `pick`): a crosshair (click or tap picks), a box or line (drag it), or a drag of the plot, with an instruction bar and Cancel (Done for a drag); Escape cancels; from the keyboard, arrows move the crosshair or the free corner (Shift: ten times as far), Enter picks or fixes a corner, arrows drag in a drag. Answered in data coordinates (`xd`, `yd`, `xd2`, `yd2`, docs/protocol.md), so no pixel maths; the drag's events queue while the core works. When the core's window moves (Window/Zoom, Viewaxes), the plot shows it again (the client zoom is one Undo away). Asks for windows the page does not draw yet (AUTO, 3D) say so and offer Cancel | done |
+| `grab` (AUTO) | select a point of the diagram (click, tap, or arrow keys); answered by index | T11 (says it is not offered yet and offers Cancel, A13) |
+| `file` | see below | T5 (not offered yet, Cancel, A13) |
 | `pixels` | answered `ok:0` by the session: web2 renders frames from data (kinescope, GIF) itself | done / T15 |
 
 A prompt never steals keys it does not use: the menu dialog takes only its
@@ -224,14 +225,16 @@ files for the browser's Load, `-anifile`. The page runs on the same machine
 
 ```
 protocol/   types.ts (events, commands), transport.ts (SSE + POST),
-            decode.ts (JSON or base64 float32 columns, pure)
+            decode.ts (JSON or base64 float32 columns, pure), lists.ts
+            (form fields that pick from hello.lists, pure)
 store/      store.ts (generic store), state.ts (AppState + reducer), series.ts
             (float32 columns; appends fill growing buffers in place)
 session.ts  the only sender: commands, key sequences, answers, abort
 plot/       model.ts (series -> curves, pure), nearest.ts, viewmath.ts,
             plotKeys.ts (pure), decimate.ts (what of a long curve changes
             pixels, pure), chart.ts (uPlot adapter), interactions.ts
-            (mouse, wheel, touch), colors.ts, export.ts, registry.ts
+            (mouse, wheel, touch), pick.ts (plot modes of the mouse,
+            rubber and drag asks, pure), colors.ts, export.ts, registry.ts
 ui/         App.tsx (shell), TitleBar, MenuPanel, PlotView, AskDialog,
             Toasts, StatusBar, Messages, hotkeys.ts, theme.ts, context.ts
 testhook.ts window.__xpp for tests
@@ -391,7 +394,9 @@ Target: WCAG 2.2 AA. Rules:
   shifts), nearest point, zoom maths, the plot's key map, and the A1
   contrast rules checked on the tokens of `theme.css` and the curve
   palettes.
-- **Protocol** (`tools/servercheck.py`): `data` sends the series at once;
+- **Protocol** (`tools/servercheck.py`): a Window/Zoom box answered in
+  data coordinates zooms as the same box in pixels, Initialconds/Mouse in
+  data coordinates starts there; `data` sends the series at once;
   after an integration the series is W against V with 601 rows and its
   numbers are exactly those of `output.dat` (as float32, printed `%.8g`); a
   redraw sends none; Xi vs t sends T and V. Live runs
@@ -407,7 +412,11 @@ Target: WCAG 2.2 AA. Rules:
   ranges and curves). Desktop: integrate from the keyboard, the store's
   numbers equal `output.dat`, hover, wheel and box zoom, undo, pan, reset.
   Keyboard only: Tab to the plot, visible focus, every plot key, a prompt's
-  focus trap and focus return. Phone (390x844, touch, coarse pointer): no
+  focus trap and focus return. Prompts: Viewaxes with a variable picked from
+  its select, Window/Zoom by a box drawn by mouse and by keyboard only (the
+  core's view is the box within a pixel), Escape cancelling a plot mode
+  (answered `ok` 0), Initialconds/Mouse by a click, Window/Scroll by an
+  arrow key, a checklist answered. Phone (390x844, touch, coarse pointer): no
   sideways scroll, plot width, 44 px targets, the drawer, pinch, pan, tap.
   Live: the store and the plot grow over several appends of a 20 001-row
   run and end equal to `output.dat`. Long runs (tools/models/million.ode,

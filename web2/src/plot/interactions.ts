@@ -2,13 +2,28 @@
    Mouse: drag a box to zoom (uPlot's own), wheel to zoom about the pointer,
    Shift+drag or the middle button to pan, hover names the nearest point.
    Touch: one finger pans, two fingers pinch-zoom (and pan), a tap names the
-   nearest point (or clears it). The keyboard is in plotKeys.ts. */
+   nearest point (or clears it). The keyboard is in plotKeys.ts.
+   In a plot mode (a mouse, rubber or drag ask: pick.ts) a press, a drag and
+   the release of the left button or of one finger go to the mode instead,
+   ahead of all of the above; hovering still names points. */
 import type {Chart} from './chart';
+import type {Frac, PickMode} from './pick';
 import {panBy, zoomAbout, type Ranges} from './viewmath';
 
 export interface HoverSink {
   hover(curve: number, index: number): void;
   leave(): void;
+}
+
+/** where a plot mode's pointer events go, as positions of the area (pick.ts) */
+export interface PickSink {
+  /** the mode, while one waits for the user */
+  mode(): PickMode | null;
+  press(at: Frac): void;
+  drag(at: Frac): void;
+  release(at: Frac): void;
+  /** the mouse moved with no button down */
+  hover(at: Frac): void;
 }
 
 const WHEEL_STEP = 0.85;
@@ -17,10 +32,41 @@ const HOVER_PX = 24;
 const TAP_PX = 32; /* a finger is less precise */
 const TAP_SLOP = 8; /* movement that still counts as a tap */
 
-export function attachGestures(chart: Chart, area: HTMLElement, sink: HoverSink): () => void {
+export function attachGestures(chart: Chart, area: HTMLElement, sink: HoverSink, pick?: PickSink): () => void {
   const local = (e: {clientX: number; clientY: number}) => {
     const r = area.getBoundingClientRect();
     return {x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, h: r.height};
+  };
+  const frac = (e: {clientX: number; clientY: number}): Frac => {
+    const p = local(e), clamp = (v: number) => Math.max(0, Math.min(1, v));
+    return {fx: clamp(p.x / p.w), fy: clamp(p.y / p.h)};
+  };
+
+  /* plot modes, in the capture phase: before uPlot's box, the pan and the
+     touch gestures (a pointerdown whose default is prevented sends no mouse
+     events, so uPlot never sees the press) */
+  let picking: number | null = null;
+  const onPickDown = (e: PointerEvent) => {
+    /* Shift+drag and the middle button still pan */
+    if (!pick?.mode() || picking !== null || (e.pointerType === 'mouse' && (e.button !== 0 || e.shiftKey))) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    picking = e.pointerId;
+    area.setPointerCapture?.(e.pointerId);
+    pick.press(frac(e));
+  };
+  const onPickMove = (e: PointerEvent) => {
+    if (!pick) return;
+    if (picking === e.pointerId) {
+      e.stopImmediatePropagation();
+      pick.drag(frac(e));
+    } else if (picking === null && e.pointerType !== 'touch' && !e.buttons && pick.mode()) pick.hover(frac(e));
+  };
+  const onPickUp = (e: PointerEvent) => {
+    if (!pick || picking !== e.pointerId) return;
+    e.stopImmediatePropagation();
+    picking = null;
+    if (e.type === 'pointerup') pick.release(frac(e));
   };
 
   let lastWheel = -Infinity;
@@ -116,6 +162,10 @@ export function attachGestures(chart: Chart, area: HTMLElement, sink: HoverSink)
     if (fingers.size) restart();
   };
 
+  area.addEventListener('pointerdown', onPickDown, {capture: true});
+  area.addEventListener('pointermove', onPickMove, {capture: true});
+  area.addEventListener('pointerup', onPickUp, {capture: true});
+  area.addEventListener('pointercancel', onPickUp, {capture: true});
   area.addEventListener('wheel', onWheel, {passive: false});
   area.addEventListener('mousedown', onMouseDown, {capture: true});
   area.addEventListener('pointermove', onHoverMove);
@@ -125,6 +175,10 @@ export function attachGestures(chart: Chart, area: HTMLElement, sink: HoverSink)
   area.addEventListener('pointerup', onPointerUp);
   area.addEventListener('pointercancel', onPointerUp);
   return () => {
+    area.removeEventListener('pointerdown', onPickDown, {capture: true});
+    area.removeEventListener('pointermove', onPickMove, {capture: true});
+    area.removeEventListener('pointerup', onPickUp, {capture: true});
+    area.removeEventListener('pointercancel', onPickUp, {capture: true});
     area.removeEventListener('wheel', onWheel);
     area.removeEventListener('mousedown', onMouseDown, {capture: true});
     area.removeEventListener('pointermove', onHoverMove);

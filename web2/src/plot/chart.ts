@@ -321,6 +321,14 @@ export class Chart {
     return {left: o.left - r.left + u.valToPos(c.xs[index], 'x'), top: o.top - r.top + u.valToPos(c.ys[index], 'y')};
   }
 
+  /** the plotting area, in CSS pixels from the chart's root (for overlays) */
+  areaBox(): {left: number; top: number; width: number; height: number} | null {
+    const u = this.u;
+    if (!u) return null;
+    const o = u.over.getBoundingClientRect(), r = this.root.getBoundingClientRect();
+    return {left: o.left - r.left, top: o.top - r.top, width: o.width, height: o.height};
+  }
+
   setVisible(curve: number, show: boolean): void {
     this.visible[curve] = show;
     this.u?.setSeries(curve + 1, {show});

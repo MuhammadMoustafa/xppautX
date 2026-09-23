@@ -418,6 +418,23 @@ kbd {
   .hint-mouse { display: none; }
   .hint-touch { display: inline; }
 }
+/* a plot mode (a mouse, rubber or drag ask): the instruction bar and the overlay */
+.pick-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-bottom: 1px solid var(--border);
+}
+.pick-bar span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.plot-host.picking .u-over { cursor: crosshair; }
+.plot-host.pick-drag .u-over { cursor: move; }
+.pick-overlay { position: absolute; pointer-events: none; z-index: 5; overflow: visible; }
+.pick-overlay line { stroke: var(--fg-muted); stroke-width: 1; stroke-dasharray: 4 3; }
+.pick-overlay .pick-shape { stroke: var(--accent); stroke-width: 2; stroke-dasharray: none; fill: color-mix(in srgb, var(--accent) 15%, transparent); }
+.pick-overlay .pick-corner { fill: var(--accent); }
 /* a narrow plot (container query): the tools wrap under the legend */
 @container (max-width: 34rem) {
   .plot-tools { width: 100%; }
@@ -488,7 +505,7 @@ kbd {
 .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
 .form-grid { display: grid; gap: var(--space-2); }
 .form-grid label { display: grid; grid-template-columns: minmax(6rem, auto) minmax(0, 1fr); gap: var(--space-3); align-items: center; }
-.form-grid input {
+.form-grid input, .form-grid select {
   font: inherit;
   color: var(--fg);
   background: var(--bg);
@@ -498,6 +515,18 @@ kbd {
   padding: 0 var(--space-2);
   min-width: 0;
 }
+
+.checklist {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+.checklist label { display: flex; align-items: center; gap: var(--space-2); min-height: var(--target); overflow-wrap: anywhere; }
+.checklist input { width: 1.1rem; height: 1.1rem; margin: 0; accent-color: var(--accent); flex: none; }
 
 /* ---- breakpoints (docs/ui-v2.md "Responsive layout") ---- */
 /* wide: more room for the menu, and the values panel becomes a right column (R3, R6) */

@@ -2,7 +2,8 @@
    {type:'event'}; the UI's own facts (connection, commands sent, the plot's
    viewport and hover, notifications, the menu drawer) as their own actions.
    Pure: no DOM, no I/O, no clock. */
-import type {AskEvent, Command, HelloEvent, StateEvent, XppEvent} from '../protocol/types';
+import {pickModeOf, startPick, type PickState} from '../plot/pick';
+import type {AskEvent, Command, HelloEvent, StateEvent, View, XppEvent} from '../protocol/types';
 import {appendRows, seriesFromEvent, type PlotSeries} from './series';
 import {initialTable, reduceTable, type TableAction, type TableState} from './table';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
@@ -49,6 +50,10 @@ export interface AppState {
   /** Abort was pressed; the run ends at its idle */
   stopping: boolean;
   ask: AskEvent | null;
+  /** a mouse, rubber or drag ask as a plot mode (plot/pick.ts), while it lasts */
+  pick: PickState | null;
+  /** the core's hint for the running command ("Click on initial data"), or empty */
+  box: string;
   progress: {n: number; of: number} | null;
   bottom: string;
   title: string;
@@ -84,6 +89,8 @@ export type Action =
   | {type: 'viewport'; viewport: Viewport; push?: boolean}
   | {type: 'undoViewport'}
   | {type: 'hover'; hover: Hover | null}
+  /** the plot mode's crosshair or corner moved */
+  | {type: 'pick'; pick: PickState | null}
   | {type: 'toast'; kind: Toast['kind']; text: string}
   | {type: 'dismiss'; id: number}
   | {type: 'drawer'; open: boolean}
@@ -102,6 +109,8 @@ export const initialState: AppState = {
   busy: false,
   stopping: false,
   ask: null,
+  pick: null,
+  box: '',
   progress: null,
   bottom: '',
   title: '',
@@ -148,12 +157,26 @@ function sameCurves(a: PlotSeries | null, b: PlotSeries): boolean {
   return !!a && a.win === b.win && JSON.stringify(a.curves) === JSON.stringify(b.curves);
 }
 
+/** the core's window moved (Viewaxes, Window/Zoom, Fit, a scroll): what it
+    shows now is what the user asked for, so the plot goes back to it (the
+    zoom it had stays one Undo away) */
+function coreViewMoved(a: View | undefined, b: View): boolean {
+  return !!a && a.win === b.win && (a.xlo !== b.xlo || a.xhi !== b.xhi || a.ylo !== b.ylo || a.yhi !== b.yhi);
+}
+
 function onEvent(state: AppState, ev: XppEvent): AppState {
   switch (ev.ev) {
     case 'hello':
       return {...state, hello: ev, title: ev.title};
-    case 'state':
-      return {...state, core: ev};
+    case 'state': {
+      const moved = ev.view && coreViewMoved(state.core?.view, ev.view)
+        && (state.viewport.x !== null || state.viewport.y !== null);
+      if (!moved) return {...state, core: ev};
+      return {
+        ...state, core: ev, viewport: HOME,
+        viewportHistory: [...state.viewportHistory, state.viewport].slice(-HISTORY_KEEP),
+      };
+    }
     case 'series': {
       if (ev.op === 'append') {
         const series = state.series && appendRows(state.series, ev);
@@ -169,11 +192,13 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         viewport: keep ? state.viewport : HOME, viewportHistory: keep ? state.viewportHistory : [],
       };
     }
-    case 'ask':
-      return {...state, ask: ev};
+    case 'ask': {
+      const mode = pickModeOf(ev, state.core?.view, state.series !== null);
+      return {...state, ask: ev, pick: mode ? startPick(state.pick, ev, mode) : null};
+    }
     case 'idle':
       return {
-        ...state, busy: false, stopping: false, ask: null, progress: null,
+        ...state, busy: false, stopping: false, ask: null, pick: null, box: '', progress: null,
         values: reduceValues(state.values, {type: 'settled'}),
       };
     case 'progress':
@@ -187,6 +212,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         return {...withLog, values: reduceValues(withLog.values, {type: 'error', text: ev.error})};
       }
       if (ev.bottom !== undefined) return {...state, bottom: ev.bottom};
+      if (ev.box !== undefined) return {...state, box: ev.box};
       return state;
     case 'browser':
       return {...state, table: reduceTable(state.table, {type: 'event', ev})};
@@ -212,7 +238,11 @@ export function reduce(state: AppState, action: Action): AppState {
     case 'connection':
       return action.open === state.connected ? state : {...state, connected: action.open};
     case 'sent':
-      if (action.cmd.cmd === 'answer') return {...state, ask: null};
+      if (action.cmd.cmd === 'answer') {
+        /* a point or a box is done once answered; a drag is asked again until it ends */
+        const p = state.pick, cancelled = action.cmd.ok === 0;
+        return {...state, ask: null, pick: !p || cancelled ? null : p.mode === 'drag' ? p : {...p, waiting: true}};
+      }
       return noIdle(action.cmd) ? state : {...state, busy: true};
     case 'aborting':
       return state.busy ? {...state, stopping: true} : state;
@@ -229,6 +259,8 @@ export function reduce(state: AppState, action: Action): AppState {
     }
     case 'hover':
       return {...state, hover: action.hover};
+    case 'pick':
+      return {...state, pick: action.pick};
     case 'toast':
       return addToast(state, action.kind, action.text);
     case 'dismiss':

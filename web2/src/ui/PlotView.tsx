@@ -1,12 +1,16 @@
 /* The main plot: the active window's curves from the series event, drawn by
    plot/chart.ts. Zoom, pan and the point readout go through the store
    (viewport, hover), so they are state a test can read, and work by mouse,
-   touch and keyboard alike (plot/interactions.ts, plot/plotKeys.ts). */
+   touch and keyboard alike (plot/interactions.ts, plot/plotKeys.ts). The
+   core's mouse, rubber and drag asks are plot modes here (plot/pick.ts):
+   an instruction bar with Cancel, a crosshair, a box or a line drawn over
+   the plot, answered in data coordinates. */
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {Chart} from '../plot/chart';
 import {curveColor} from '../plot/colors';
 import {download, downloadCsv} from '../plot/export';
-import {attachGestures} from '../plot/interactions';
+import {attachGestures, type PickSink} from '../plot/interactions';
+import {pickInstruction, pickKey, toData, type Frac, type PickState} from '../plot/pick';
 import {buildModel, type PlotModel} from '../plot/model';
 import {PLOT_KEYS_HELP, plotKey} from '../plot/plotKeys';
 import {setCurrentChart} from '../plot/registry';
@@ -39,6 +43,103 @@ function clearHover(session: Session): void {
   if (session.store.getState().hover) session.store.dispatch({type: 'hover', hover: null});
 }
 
+/** the plot mode waiting for the user, if any */
+function activePick(session: Session): PickState | null {
+  const p = session.store.getState().pick;
+  return p && !p.waiting ? p : null;
+}
+
+/** pointer events of a plot mode (plot/interactions.ts) as moves and answers */
+function pickSink(session: Session, chart: () => Chart | null): PickSink {
+  const drag = (what: 'down' | 'move' | 'up', at: Frac) => {
+    const c = chart();
+    if (!c) return;
+    const d = toData(c.ranges(), at);
+    session.dragEvent(what, d.x, d.y);
+  };
+  const confirm = (p: PickState) => {
+    const c = chart();
+    if (c) session.confirmPick(p, c.ranges());
+  };
+  return {
+    mode: () => activePick(session)?.mode ?? null,
+    press(at) {
+      const p = activePick(session);
+      if (!p) return;
+      if (p.mode === 'drag') drag('down', at);
+      session.movePick({...p, cursor: at, anchor: p.mode === 'box' || p.mode === 'line' ? at : null});
+    },
+    drag(at) {
+      const p = activePick(session);
+      if (!p) return;
+      if (p.mode === 'drag') drag('move', at);
+      else session.movePick({...p, cursor: at});
+    },
+    release(at) {
+      const p = activePick(session);
+      if (!p) return;
+      if (p.mode === 'drag') {
+        drag('up', at);
+        return;
+      }
+      const q = {...p, cursor: at, anchor: p.mode === 'point' ? null : p.anchor ?? at};
+      session.movePick(q);
+      confirm(q);
+    },
+    hover(at) {
+      const p = activePick(session);
+      if (p && p.mode !== 'drag') session.movePick({...p, cursor: at});
+    },
+  };
+}
+
+/** the crosshair, and the box or line from its fixed corner, over the plotting area */
+function PickOverlay({pick, chart}: {pick: PickState; chart: Chart}) {
+  const a = chart.areaBox();
+  if (!a || pick.mode === 'drag') return null;
+  const x = pick.cursor.fx * a.width, y = pick.cursor.fy * a.height;
+  const ax = pick.anchor ? pick.anchor.fx * a.width : x, ay = pick.anchor ? pick.anchor.fy * a.height : y;
+  return (
+    <svg class="pick-overlay" aria-hidden="true" width={a.width} height={a.height}
+      style={{left: `${a.left}px`, top: `${a.top}px`}}>
+      <line x1={x} y1={0} x2={x} y2={a.height} />
+      <line x1={0} y1={y} x2={a.width} y2={y} />
+      {pick.anchor && pick.mode === 'box' && (
+        <rect class="pick-shape" x={Math.min(ax, x)} y={Math.min(ay, y)} width={Math.abs(x - ax)} height={Math.abs(y - ay)} />
+      )}
+      {pick.anchor && pick.mode === 'line' && <line class="pick-shape" x1={ax} y1={ay} x2={x} y2={y} />}
+      {pick.anchor && <circle class="pick-corner" cx={ax} cy={ay} r={4} />}
+    </svg>
+  );
+}
+
+/** what the plot mode wants, and Cancel (Done for a drag); Escape anywhere cancels too */
+function PickBar({pick}: {pick: PickState}) {
+  const session = useSession();
+  const hint = useStore(s => s.box);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      e.preventDefault();
+      e.stopPropagation();
+      session.cancelPick();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [session]);
+  const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  return (
+    <div class="pick-bar" data-pick={pick.mode}>
+      <span id="pick-instruction" role="status">
+        {hint && pick.mode !== 'drag' && <b>{hint.replace(/[\s.:]+$/, '')}. </b>}
+        {pickInstruction(pick, touch)}
+        <span class="visually-hidden">{pick.anchor ? ' First corner set.' : ''}</span>
+      </span>
+      <button onClick={() => session.cancelPick()}>{pick.mode === 'drag' ? 'Done' : 'Cancel'}</button>
+    </div>
+  );
+}
+
 export function PlotView({dark}: {dark: boolean}) {
   const session = useSession();
   const series = useStore(s => s.series);
@@ -47,6 +148,8 @@ export function PlotView({dark}: {dark: boolean}) {
   const canUndo = useStore(s => s.viewportHistory.length > 0);
   const hover = useStore(s => s.hover);
   const busy = useStore(s => s.busy);
+  const pick = useStore(s => s.pick);
+  const picking = pick && !pick.waiting ? pick : null;
   const host = useRef<HTMLDivElement>(null);
   const chart = useRef<Chart | null>(null);
   const [, setShown] = useState(0); /* the legend's toggles live in the chart */
@@ -64,7 +167,7 @@ export function PlotView({dark}: {dark: boolean}) {
       detach = attachGestures(c, area, {
         hover: (curve, index) => setHover(session, modelRef.current, curve, index),
         leave: () => clearHover(session),
-      });
+      }, pickSink(session, () => chart.current));
     };
     chart.current = c;
     setCurrentChart(c);
@@ -86,8 +189,30 @@ export function PlotView({dark}: {dark: boolean}) {
     chart.current!.applyViewport(viewport);
   }, [viewport]);
 
+  /* a plot mode takes the focus, so its keys work at once (A3) */
+  useEffect(() => {
+    if (picking) host.current?.focus({preventScroll: true});
+  }, [picking?.ask]);
+
   const onKeyDown = (e: KeyboardEvent) => {
-    const c = chart.current, m = modelRef.current;
+    const c = chart.current, m = modelRef.current, p = activePick(session);
+    if (c && p && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const r = pickKey(p, e.key, e.shiftKey);
+      if (r) {
+        e.preventDefault();
+        e.stopPropagation();
+        if ('pick' in r) session.movePick(r.pick);
+        else if ('confirm' in r) session.confirmPick(r.confirm, c.ranges());
+        else if ('drag' in r) {
+          const ranges = c.ranges();
+          for (const s of r.drag) {
+            const d = toData(ranges, s.at);
+            session.dragEvent(s.what, d.x, d.y);
+          }
+        } else session.cancelPick();
+        return;
+      }
+    }
     if (!c || !m || !m.curves.length) return;
     const h = session.store.getState().hover, curve = h ? m.curves[h.curve] : null;
     const key = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' ? 'Undo'
@@ -145,15 +270,17 @@ export function PlotView({dark}: {dark: boolean}) {
             title="Save the plotted numbers as CSV">CSV</button>
         </div>
       </header>
+      {picking && <PickBar pick={picking} />}
       <div
-        class="plot-host"
+        class={'plot-host' + (picking ? ` picking pick-${picking.mode}` : '')}
         ref={host}
         tabIndex={0}
         role="application"
         aria-roledescription="plot"
         aria-label={label}
-        aria-describedby="plot-keys-help"
+        aria-describedby={picking ? 'pick-instruction plot-keys-help' : 'plot-keys-help'}
         onKeyDown={onKeyDown}>
+        {picking && chart.current && <PickOverlay pick={picking} chart={chart.current} />}
         {marker && <span class="hover-dot" style={{left: `${marker.left}px`, top: `${marker.top}px`}} />}
         {empty && (
           <div class="plot-empty">

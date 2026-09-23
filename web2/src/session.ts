@@ -1,5 +1,7 @@
 /* The session: connects a transport to the store and is the one place that
    sends commands. Components call its methods, never the transport. */
+import {pickAnswer, type PickState} from './plot/pick';
+import type {Ranges} from './plot/viewmath';
 import type {Transport} from './protocol/transport';
 import type {AskEvent, BrowserEvent, Command, XppEvent} from './protocol/types';
 import {createStore, type Store} from './store/store';
@@ -15,6 +17,10 @@ export class Session {
   readonly store: Store<AppState, Action>;
   /** keys that answer the menus a key sequence opens ("i g": Initialconds, Go) */
   private pendingKeys: string[] = [];
+  /** pointer events of a drag made while the core was not asking (docs/protocol.md
+      `drag`: it asks again after each one), and whether the drag has ended */
+  private dragQueue: Record<string, unknown>[] = [];
+  private dragEnded = false;
 
   constructor(private readonly transport: Transport) {
     this.store = createStore(reduce, initialState);
@@ -39,9 +45,15 @@ export class Session {
         /* an alert only informs: a notification that does not stop the run */
         this.store.dispatch({type: 'toast', kind: 'info', text: ev.message ?? ''});
         this.answer(ev, {});
+      } else if (ev.kind === 'drag' && (this.dragEnded || this.dragQueue.length)) {
+        /* the events made meanwhile first, then the end */
+        if (this.dragQueue.length) this.answer(ev, this.dragQueue.shift()!);
+        else this.cancel(ev);
       } else this.continueKeys(ev);
     } else if (ev.ev === 'idle') {
       this.pendingKeys = [];
+      this.dragQueue = [];
+      this.dragEnded = false;
     }
   }
 
@@ -73,6 +85,45 @@ export class Session {
 
   cancel(ask: AskEvent): void {
     this.answer(ask, {ok: 0});
+  }
+
+  /* ---- plot modes: mouse, rubber and drag asks (plot/pick.ts, docs/ui-v2.md T4) ---- */
+
+  /** the crosshair or a corner moved */
+  movePick(pick: PickState): void {
+    this.store.dispatch({type: 'pick', pick});
+  }
+
+  /** answers the plot mode's ask with its point or box, in data coordinates of `ranges` */
+  confirmPick(pick: PickState, ranges: Ranges): void {
+    const ask = this.store.getState().ask;
+    if (ask && ask.id === pick.ask) this.answer(ask, pickAnswer(pick, ranges));
+  }
+
+  /** one pointer event of a drag (Window/Scroll), in data coordinates: the answer to
+      the drag ask, or the next one when the core is still busy with the last */
+  dragEvent(what: 'down' | 'move' | 'up', xd: number, yd: number): void {
+    const ask = this.store.getState().ask, ev = {what, xd, yd};
+    if (ask?.kind === 'drag' && !this.dragQueue.length) {
+      this.answer(ask, ev);
+      return;
+    }
+    const last = this.dragQueue[this.dragQueue.length - 1];
+    if (what === 'move' && last?.what === 'move') this.dragQueue.pop(); /* only the latest position matters */
+    this.dragQueue.push(ev);
+  }
+
+  /** Cancel, Done or Escape in a plot mode: the ask is answered as cancelled (a drag's
+      next one after the events still queued, when the core is busy with the last) */
+  cancelPick(): void {
+    const {ask, pick} = this.store.getState();
+    if (ask && (ask.kind === 'mouse' || ask.kind === 'rubber' || ask.kind === 'drag') && !this.dragQueue.length) {
+      this.cancel(ask);
+    } else if (pick) {
+      this.dragEnded = true;
+      this.store.dispatch({type: 'pick', pick: null});
+      if (ask?.kind === 'drag') this.answer(ask, this.dragQueue.shift()!);
+    }
   }
 
   /** stops the running command; it still ends with its idle */

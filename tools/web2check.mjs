@@ -10,7 +10,10 @@
    against output.dat, Get, CSV export, Tab reachability), keyboard-
    only use of the plot and of a prompt, and a phone-sized one (390x844,
    touch: no sideways scroll, the menu drawer, the values sheet, the table
-   sheet, pinch, tap, pan, 44px targets). Then live plotting (tools/models/live.ode: the store
+   sheet, pinch, tap, pan, 44px targets). Prompts (T4): a form field as a
+   select of variables, Window/Zoom by a box drawn with the mouse and by the
+   keyboard only, Escape cancelling a plot mode, Initialconds/Mouse by a
+   click, a checklist. Then live plotting (tools/models/live.ode: the store
    and the plot grow while 20 001 rows are computed, and end as output.dat)
    and a run of 10^6 rows (tools/models/million.ode) that must draw and zoom
    with no frame over 50 ms (draw times and long tasks, read through __xpp).
@@ -498,6 +501,182 @@ async function phone() {
     JSON.stringify([await S('s.hover'), pt, await area(), await cdp.eval('__xpp.actions().slice(-8)')]));
 }
 
+/* ---- prompts (docs/ui-v2.md T4) ------------------------------------------------- */
+
+const lastAnswer = async () => (await cdp.eval('__xpp.sent()')).filter(c => c.cmd === 'answer').pop();
+const focusPlot = () => cdp.eval(`document.querySelector('.plot-host').focus()`);
+
+/** a key, then the key that answers the menu it opens */
+async function menuKeys(first, then) {
+  await key(first);
+  if (!(await until("s.ask && s.ask.kind === 'menu'", `menu of ${first}`))) return false;
+  await key(then);
+  return true;
+}
+
+/** the core's pixel size in data units: an answer in data coordinates lands on the nearest pixel */
+const corePixel = v => ({x: Math.abs(v.xhi - v.xlo) / Math.abs(v.right - v.left), y: Math.abs(v.yhi - v.ylo) / Math.abs(v.bottom - v.top)});
+
+/** the core's view against the box a..b (data coordinates), within a pixel of the view before */
+function viewIsBox(v, a, b, px) {
+  const near = (u, w, d) => Math.abs(u - w) <= d * 1.01 + 1e-12;
+  return near(Math.min(v.xlo, v.xhi), Math.min(a.x, b.x), px.x) && near(Math.max(v.xlo, v.xhi), Math.max(a.x, b.x), px.x)
+    && near(Math.min(v.ylo, v.yhi), Math.min(a.y, b.y), px.y) && near(Math.max(v.ylo, v.yhi), Math.max(a.y, b.y), px.y);
+}
+
+/** fractions of the plotting area in the data coordinates the plot shows */
+const dataAt = (p, fx, fy) => ({x: p.x.min + fx * (p.x.max - p.x.min), y: p.y.max - fy * (p.y.max - p.y.min)});
+
+async function prompts() {
+  await desktopMetrics();
+  await sleep(300);
+  await until('!s.busy', 'idle');
+  const lists = await S('s.hello.lists');
+
+  /* Viewaxes/2D: the axis fields are selects of hello.lists[0]; picking another variable plots it */
+  const pickX = async name => {
+    await cdp.eval(`(() => { const s = document.querySelector('[role=dialog] select'); s.value = ${JSON.stringify(name)};
+      s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+    await sleep(80);
+    await key('Enter');
+  };
+  await focusPlot();
+  await menuKeys('v', '2');
+  check('Viewaxes/2D opens its form', await until("s.ask && s.ask.kind === 'form' && document.querySelector('[role=dialog] select')", 'form'));
+  const sel = await cdp.eval(`(() => { const s = document.querySelector('[role=dialog] select');
+    return s && {list: s.dataset.list, options: [...s.options].map(o => o.value), value: s.value, focused: document.activeElement === s}; })()`);
+  const x0 = await S('s.series.curves[0].x');
+  check('its X-axis field is a select of T and the variables, at the plotted one, with the focus',
+    sel && sel.list === '0' && sel.options.join() === lists[0].join() && sel.value === lists[0][x0] && sel.focused,
+    JSON.stringify({sel, x0}));
+  const other = lists[0][x0] === 'T' ? 'V' : 'T', n0 = await S('s.seriesCount');
+  await pickX(other);
+  check(`picking ${other} from the select and Enter: the core plots W against it (a new series)`,
+    await until(`s.seriesCount > ${n0} && !s.busy && s.series.curves[0].x === ${lists[0].indexOf(other)}
+      && s.series.curves[0].y === 2`, 'W vs other'), JSON.stringify([await S('s.series && s.series.curves'), await lastAnswer()]));
+  check('the answer carries the name picked', (await lastAnswer())?.values?.[0] === other, JSON.stringify(await lastAnswer()));
+  await focusPlot();
+  await menuKeys('v', '2');
+  await until("s.ask && s.ask.kind === 'form' && document.querySelector('[role=dialog] select')", 'form');
+  await pickX('V');
+  check('and V again: W against V', await until('!s.busy && s.series.curves[0].x === 1 && s.series.curves[0].y === 2', 'W vs V'));
+
+  /* Window/Zoom by a box drawn with the mouse */
+  await focusPlot();
+  await menuKeys('w', 'z');
+  check('Window/Zoom asks for a box: the plot is in box mode, with its instruction bar and Cancel',
+    await until("s.pick && s.pick.mode === 'box' && !s.pick.waiting", 'box mode')
+    && await cdp.eval(`!!document.querySelector('.pick-bar button') && !document.querySelector('[role=dialog]')`),
+    JSON.stringify(await S('[s.ask, s.pick]')));
+  check('the plot has the focus', await until(`document.activeElement.closest('.plot-host')`, 'plot focus'));
+  let v0 = await S('s.core.view'), p = await P(), a = await area();
+  const from = {x: Math.round(a.x + 0.25 * a.w), y: Math.round(a.y + 0.3 * a.h)};
+  const to = {x: Math.round(a.x + 0.7 * a.w), y: Math.round(a.y + 0.8 * a.h)};
+  await mouse('mouseMoved', from.x, from.y);
+  await mouse('mousePressed', from.x, from.y, {button: 'left', buttons: 1, clickCount: 1});
+  for (let s = 1; s <= 5; s++) {
+    await mouse('mouseMoved', from.x + (to.x - from.x) * s / 5, from.y + (to.y - from.y) * s / 5, {button: 'left', buttons: 1});
+  }
+  await mouse('mouseReleased', to.x, to.y, {button: 'left', buttons: 0, clickCount: 1});
+  let want = [dataAt(p, (from.x - a.x) / a.w, (from.y - a.y) / a.h), dataAt(p, (to.x - a.x) / a.w, (to.y - a.y) / a.h)];
+  check('the box is answered in data coordinates', await until('!s.busy', 'zoom') && 'xd2' in (await lastAnswer() ?? {}),
+    JSON.stringify(await lastAnswer()));
+  let v1 = await S('s.core.view');
+  check("the core's view is the box drawn, within a pixel", viewIsBox(v1, want[0], want[1], corePixel(v0)),
+    JSON.stringify({v1, want}));
+  p = await P();
+  check('and the plot shows it', Math.abs(p.x.min - v1.xlo) < 1e-9 && Math.abs(p.y.max - v1.yhi) < 1e-9, JSON.stringify([p.x, p.y]));
+
+  /* the same by the keyboard only: arrows move the crosshair, Enter fixes a corner, Enter again zooms */
+  await menuKeys('w', 'z');
+  await until("s.pick && s.pick.mode === 'box' && !s.pick.waiting", 'box mode');
+  check('keyboard: the plot has the focus in box mode', await until(`document.activeElement.closest('.plot-host')`, 'plot focus'));
+  for (let i = 0; i < 5; i++) await key('ArrowLeft');
+  for (let i = 0; i < 5; i++) await key('ArrowUp');
+  await key('Enter');
+  for (let i = 0; i < 10; i++) await key('ArrowRight');
+  for (let i = 0; i < 10; i++) await key('ArrowDown');
+  const pk = await S('s.pick');
+  check('arrow keys and Enter set the corners', pk && pk.anchor && Math.abs(pk.anchor.fx - 0.4) < 1e-9
+    && Math.abs(pk.anchor.fy - 0.4) < 1e-9 && Math.abs(pk.cursor.fx - 0.6) < 1e-9 && Math.abs(pk.cursor.fy - 0.6) < 1e-9, JSON.stringify(pk));
+  v0 = await S('s.core.view');
+  p = await P();
+  want = [dataAt(p, 0.4, 0.4), dataAt(p, 0.6, 0.6)];
+  await key('Enter');
+  await until('!s.busy && !s.pick', 'keyboard zoom');
+  v1 = await S('s.core.view');
+  check("keyboard: the core's view is the box, within a pixel", viewIsBox(v1, want[0], want[1], corePixel(v0)),
+    JSON.stringify({v1, want}));
+
+  /* Escape cancels a plot mode: the ask is answered as cancelled, the view stays */
+  await menuKeys('w', 'z');
+  await until("s.pick && s.pick.mode === 'box'", 'box mode');
+  v0 = await S('s.core.view');
+  await key('ArrowRight');
+  await key('Escape');
+  check('Escape cancels the box: answered with ok 0, the mode is gone', await until('!s.busy && !s.ask && !s.pick', 'cancel')
+    && (await lastAnswer())?.ok === 0, JSON.stringify(await lastAnswer()));
+  v1 = await S('s.core.view');
+  check("and the core's view is unchanged", v1.xlo === v0.xlo && v1.xhi === v0.xhi && v1.ylo === v0.ylo && v1.yhi === v0.yhi);
+  await menuKeys('w', 'd'); /* Window/Default: back to the file's window */
+  await until('!s.busy', 'default window');
+
+  /* Initialconds/Mouse: a click picks the initial point */
+  await focusPlot();
+  await menuKeys('i', 'm');
+  check('Initialconds/Mouse puts the plot in point mode', await until("s.pick && s.pick.mode === 'point'", 'point mode'));
+  v0 = await S('s.core.view');
+  p = await P();
+  a = await area();
+  const at = {x: Math.round(a.x + 0.3 * a.w), y: Math.round(a.y + 0.35 * a.h)};
+  await mouse('mouseMoved', at.x, at.y);
+  await mouse('mousePressed', at.x, at.y, {button: 'left', buttons: 1, clickCount: 1});
+  await mouse('mouseReleased', at.x, at.y, {button: 'left', buttons: 0, clickCount: 1});
+  const pt = dataAt(p, (at.x - a.x) / a.w, (at.y - a.y) / a.h), px = corePixel(v0);
+  check('a click there starts from that point (the ICs), within a pixel',
+    await until(`!s.busy && Math.abs(s.core.ics.find(c => c[0] === 'V')[1] - ${pt.x}) <= ${px.x * 1.01}
+      && Math.abs(s.core.ics.find(c => c[0] === 'W')[1] - ${pt.y}) <= ${px.y * 1.01}`, 'mouse ICs', 30000),
+    JSON.stringify([await S('s.core.ics'), pt]));
+
+  /* Window/Scroll: a drag mode; an arrow key drags the plot (down, move, up), Enter (Done) ends it */
+  await focusPlot();
+  await menuKeys('w', 's');
+  check('Window/Scroll puts the plot in drag mode', await until("s.pick && s.pick.mode === 'drag'", 'drag mode'));
+  v0 = await S('s.core.view');
+  await key('ArrowLeft');
+  await sleep(300);
+  await key('Enter');
+  const drags = (await cdp.eval('__xpp.sent()')).filter(c => c.cmd === 'answer').slice(-4);
+  check('an arrow key drags the plot in data coordinates and Enter ends the drag',
+    await until('!s.busy && !s.pick', 'scroll ends') && drags.map(c => c.what ?? `ok ${c.ok}`).join() === 'down,move,up,ok 0'
+    && drags[0].xd !== undefined, JSON.stringify(drags));
+  v1 = await S('s.core.view');
+  check("the core's view moved left (more on the left shown)", v1.xlo < v0.xlo && v1.xhi < v0.xhi, JSON.stringify([v0, v1]));
+  await menuKeys('w', 'd');
+  await until('!s.busy', 'default window');
+
+  /* a checklist: phAsespace/Choose asks the period, then which variables to fold */
+  await focusPlot();
+  await menuKeys('a', 'c');
+  if (await until("s.ask && s.ask.kind === 'string'", 'period')) {
+    await until(`document.activeElement.closest('[role=dialog]')`, 'period focus');
+    await key('Enter');
+  }
+  check('phAsespace/Choose opens a checklist of the variables', await until("s.ask && s.ask.kind === 'checklist'", 'checklist')
+    && await cdp.eval(`document.querySelectorAll('[role=dialog] input[type=checkbox]').length`) === lists[0].length - 1,
+    JSON.stringify(await S('s.ask')));
+  check('its first box has the focus', await cdp.eval(`document.activeElement.type === 'checkbox'`));
+  await cdp.eval(`document.querySelector('[role=dialog] input[type=checkbox]').click()`);
+  await sleep(80);
+  await cdp.eval(`[...document.querySelectorAll('[role=dialog] button')].find(b => b.textContent === 'OK').click()`);
+  const ans = await lastAnswer();
+  check('OK answers the checklist with its flags', await until('!s.busy && !s.ask', 'checklist answered')
+    && Array.isArray(ans?.flags) && ans.flags[0] === 1 && ans.flags.slice(1).every(f => f === 0), JSON.stringify(ans));
+  await focusPlot();
+  await menuKeys('a', 'n'); /* phAsespace/None again */
+  await until('!s.busy', 'torus off');
+}
+
 /* ---- live plotting and long runs ------------------------------------------------ */
 
 async function desktopMetrics() {
@@ -676,6 +855,7 @@ async function main() {
       await values();
       await keyboardOnly();
       await phone();
+      await prompts();
     });
     await session(LIVE, () => live(wantLive));
     await session(MILLION, million);

@@ -1,10 +1,13 @@
 /* The core's prompts (docs/protocol.md "Asks") as a modal dialog: focus
    moves into it, stays in it (Tab cycles), Escape cancels, and focus goes
-   back where it was when it closes. This scaffold covers menus, yes/no
-   choices, string boxes and forms; alerts are notifications (session.ts);
-   other kinds offer Cancel until their components exist (docs/ui-v2.md). */
+   back where it was when it closes. Menus, yes/no choices, string boxes,
+   forms (a field that picks from `hello.lists` is a select) and checklists;
+   alerts are notifications (session.ts); mouse, rubber and drag asks are
+   plot modes (PlotView.tsx); other kinds say they are not offered yet and
+   offer Cancel (A13, docs/ui-v2.md). */
 import type {ComponentChildren} from 'preact';
 import {useEffect, useRef, useState} from 'preact/hooks';
+import {fieldSpec, selectOptions} from '../protocol/lists';
 import type {AskEvent} from '../protocol/types';
 import {useSession, useStore} from './context';
 
@@ -49,6 +52,7 @@ function MenuAsk({ask}: {ask: AskEvent}) {
 
 function FormAsk({ask}: {ask: AskEvent}) {
   const session = useSession();
+  const lists = useStore(s => s.hello?.lists);
   const isString = ask.kind === 'string';
   const names = isString ? [ask.name ?? ''] : ask.names ?? [];
   const [values, setValues] = useState<string[]>(isString ? [ask.value ?? ''] : [...(ask.values ?? [])]);
@@ -56,23 +60,44 @@ function FormAsk({ask}: {ask: AskEvent}) {
     e.preventDefault();
     session.answer(ask, isString ? {ok: 1, value: values[0]} : {ok: 1, values});
   };
+  /* Enter submits from any field, a select included (A3) */
+  const onKeyDown = (e: KeyboardEvent) => {
+    const tag = (e.target as HTMLElement).tagName;
+    if (e.key === 'Enter' && (tag === 'SELECT' || tag === 'INPUT')) {
+      e.preventDefault();
+      (e.currentTarget as HTMLFormElement).requestSubmit();
+    }
+  };
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={submit} onKeyDown={onKeyDown}>
       <div class="form-grid">
-        {names.map((n, i) => (
-          <label key={i}>
-            <span>{n.replace(/^\*\d/, '')}</span>
-            <input
-              value={values[i]}
-              data-autofocus={i === 0 ? '' : undefined}
-              onInput={e => {
-                const v = values.slice();
-                v[i] = (e.target as HTMLInputElement).value;
-                setValues(v);
-              }}
-            />
-          </label>
-        ))}
+        {names.map((n, i) => {
+          const spec = isString ? {label: n, list: null} : fieldSpec(n);
+          const items = spec.list !== null ? lists?.[spec.list] : undefined;
+          const change = (e: Event) => {
+            const v = values.slice();
+            v[i] = (e.target as HTMLInputElement | HTMLSelectElement).value;
+            setValues(v);
+          };
+          if (items) {
+            /* the X11 scroll list of variables, parameters, colours, markers or methods */
+            const {options, selected} = selectOptions(items, values[i] ?? '');
+            return (
+              <label key={i}>
+                <span>{spec.label}</span>
+                <select value={selected} data-list={spec.list} data-autofocus={i === 0 ? '' : undefined} onChange={change}>
+                  {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </label>
+            );
+          }
+          return (
+            <label key={i}>
+              <span>{spec.label}</span>
+              <input value={values[i]} data-autofocus={i === 0 ? '' : undefined} onInput={change} />
+            </label>
+          );
+        })}
       </div>
       <div class="dialog-actions">
         <button type="button" onClick={() => session.cancel(ask)}>{(ask.cancel as string) || 'Cancel'}</button>
@@ -82,13 +107,57 @@ function FormAsk({ask}: {ask: AskEvent}) {
   );
 }
 
+function ChecklistAsk({ask}: {ask: AskEvent}) {
+  const session = useSession();
+  const names = (ask.names as string[] | undefined) ?? [];
+  const [flags, setFlags] = useState<number[]>(names.map((_, i) => ((ask.flags as number[] | undefined)?.[i] ? 1 : 0)));
+  const all = (v: number) => setFlags(names.map(() => v));
+  const submit = (e: Event) => {
+    e.preventDefault();
+    session.answer(ask, {ok: 1, flags});
+  };
+  return (
+    <form onSubmit={submit}>
+      <fieldset class="checklist">
+        <legend class="visually-hidden">{ask.title || 'Choose'}</legend>
+        {names.map((n, i) => (
+          <label key={i}>
+            <input type="checkbox" checked={!!flags[i]} data-autofocus={i === 0 ? '' : undefined}
+              onChange={e => {
+                const f = flags.slice();
+                f[i] = (e.target as HTMLInputElement).checked ? 1 : 0;
+                setFlags(f);
+              }} />
+            <span>{n}</span>
+          </label>
+        ))}
+      </fieldset>
+      <div class="dialog-actions">
+        <button type="button" onClick={() => all(1)}>All</button>
+        <button type="button" onClick={() => all(0)}>None</button>
+        <button type="button" onClick={() => session.cancel(ask)}>Cancel</button>
+        <button type="submit" class="primary">OK</button>
+      </div>
+    </form>
+  );
+}
+
+/* what an ask this interface does not offer yet wants, in words (A13) */
+const PENDING: Record<string, string> = {
+  file: 'a file name',
+  grab: 'a point of the AUTO diagram',
+  mouse: 'a click in a window this interface does not show yet',
+  rubber: 'a box in a window this interface does not show yet',
+  drag: 'a drag in a window this interface does not show yet',
+};
+
 function PendingAsk({ask}: {ask: AskEvent}) {
   const session = useSession();
   return (
     <>
       <p>
-        XPP asks for <b>{ask.kind}</b> input, which the new interface does not offer yet. Cancel it here, or use
-        the classic interface for this command.
+        XPP asks for {PENDING[ask.kind] ?? <b>{ask.kind}</b>}, which the new interface does not offer yet. Cancel
+        it here, or use the classic interface for this command.
       </p>
       <div class="dialog-actions">
         <button class="primary" onClick={() => session.cancel(ask)}>Cancel</button>
@@ -138,9 +207,12 @@ function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
 
 export function AskDialog() {
   const ask = useStore(s => s.ask);
+  const pick = useStore(s => s.pick);
   if (!ask || ask.kind === 'pixels' || ask.kind === 'alert') return null;
+  if (pick && pick.ask === ask.id) return null; /* a plot mode (PlotView.tsx) */
   const body = ask.kind === 'menu' || ask.kind === 'choice' ? <MenuAsk ask={ask} />
     : ask.kind === 'string' || ask.kind === 'form' ? <FormAsk ask={ask} />
-      : <PendingAsk ask={ask} />;
+      : ask.kind === 'checklist' ? <ChecklistAsk ask={ask} />
+        : <PendingAsk ask={ask} />;
   return <Modal key={ask.id} ask={ask}>{body}</Modal>;
 }
