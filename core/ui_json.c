@@ -122,20 +122,6 @@ static int state_dirty;
 
 static void flush_ops(void); /* forward: get_op_buf() may need to make room */
 
-/* the buffer for win, creating it (in first-use order) if this is the first
-   op for it since the last flush */
-static OpBuf *get_op_buf(unsigned long win)
-{
-    int i;
-    for (i = 0; i < n_op_bufs; i++)
-        if (op_bufs[i].win == win) return &op_bufs[i];
-    if (n_op_bufs >= MAX_OP_BUFS) flush_ops();
-    op_bufs[n_op_bufs].win = win;
-    op_bufs[n_op_bufs].b.len = 0;
-    if (op_bufs[n_op_bufs].b.s) op_bufs[n_op_bufs].b.s[0] = 0;
-    return &op_bufs[n_op_bufs++];
-}
-
 /* the buffer for win if it already has pending content, else NULL */
 static OpBuf *find_op_buf(unsigned long win)
 {
@@ -145,15 +131,26 @@ static OpBuf *find_op_buf(unsigned long win)
     return NULL;
 }
 
+/* the buffer for win, taking a new one (in first-use order) if this is the
+   first op for it since the last flush */
+static OpBuf *get_op_buf(unsigned long win)
+{
+    OpBuf *ob = find_op_buf(win);
+    if (ob) return ob;
+    if (n_op_bufs >= MAX_OP_BUFS) flush_ops();
+    ob = &op_bufs[n_op_bufs++];
+    ob->win = win;
+    ob->b.len = 0;
+    return ob;
+}
+
 /* windows 102/103 (the stability circle, the info strip) only ever show
    their latest picture: a clear should drop whatever of theirs is still
    unsent rather than ship a picture the client will immediately overwrite */
 static void op_buf_discard(unsigned long win)
 {
     OpBuf *ob = find_op_buf(win);
-    if (!ob) return;
-    ob->b.len = 0;
-    if (ob->b.s) ob->b.s[0] = 0;
+    if (ob) ob->b.len = 0;
 }
 
 static void buf_add(Buf *b, const char *s, size_t n)
@@ -245,11 +242,8 @@ static void close_poly(void)
     BUF_LIT(&get_op_buf(WIN_AUTO)->b, "]");
 }
 
-/* flush every window with pending ops, one draw event per window, in the
-   order each window was first written to since the last flush. Draw events
-   for different windows are independent canvases on the client, so this
-   cross-window order doesn't matter; order within a window is preserved
-   because each window's ops only ever land in its own buffer. */
+/* one draw event per window with pending ops, in first-use order (windows
+   are separate canvases, so only the order within a window matters) */
 static void flush_ops(void)
 {
     int i;
@@ -305,11 +299,8 @@ static void op(unsigned long win, const char *fmt, ...)
     char tmp[2048];
     va_list ap;
     int n;
-    /* a poly is only ever open in WIN_AUTO's buffer; any other op on that
-       same window is a new, disjoint drawing primitive and must close it
-       first. An op on a different window doesn't touch WIN_AUTO's buffer at
-       all, so it must NOT close the poly -- that's the point of buffering
-       per window: 102/103 can interleave with a growing 101 polyline. */
+    /* the open poly is WIN_AUTO's: ops for 102/103 between two diagram
+       segments leave it open, which is what joins a branch into one poly */
     if (win == WIN_AUTO) close_poly();
     ob = get_op_buf(win);
     va_start(ap, fmt);
@@ -835,15 +826,23 @@ static void j_show_menu(int which)
 
 /* ---- long loops ------------------------------------------------------------ */
 
+/* 1 when at least us microseconds have passed since *last (then reset);
+   the throttles of the long loops below */
+static int every(struct timeval *last, long us)
+{
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    if ((now.tv_sec - last->tv_sec) * 1000000L + (now.tv_usec - last->tv_usec) < us) return 0;
+    *last = now;
+    return 1;
+}
+
 static int j_check_abort(void)
 {
     char *line;
     static struct timeval last;
-    struct timeval now;
     /* let the client see the picture grow, a few frames a second */
-    gettimeofday(&now, NULL);
-    if ((now.tv_sec - last.tv_sec) * 1000000 + (now.tv_usec - last.tv_usec) > 50000) {
-        last = now;
+    if (every(&last, 50000)) {
         flush_ops();
         out_flush();
     }
@@ -865,12 +864,9 @@ static int j_progress_begin(void) { return 100; }
 static void j_progress(int nit, int icount, int cwidth)
 {
     static struct timeval last;
-    struct timeval now;
     Buf b = {0};
     (void)cwidth;
-    gettimeofday(&now, NULL);
-    if ((now.tv_sec - last.tv_sec) * 1000000 + (now.tv_usec - last.tv_usec) < 100000) return;
-    last = now;
+    if (!every(&last, 100000)) return;
     buf_printf(&b, "{\"ev\":\"progress\",\"n\":%d,\"of\":%d}", icount, nit);
     send_buf(&b);
     free(b.s);
@@ -1715,8 +1711,6 @@ static void j_auto_line(int a, int b, int c, int d)
        second point is where the last one started. The path is stored in the
        order it was walked, which strokes the same either way. */
     if (poly_open && c == poly_x && d == poly_y) {
-        /* the open poly, when there is one, always lives in WIN_AUTO's
-           buffer (see close_poly()) */
         OpBuf *ob = get_op_buf(WIN_AUTO);
         n = snprintf(tmp, sizeof tmp, ",%d,%d", a, b);
         buf_add(&ob->b, tmp, (size_t)n);
@@ -1841,21 +1835,13 @@ static int j_auto_grab_event(int *x, int *y)
 }
 static void j_auto_show_hint(void) { send_simple("message", "auto", Auto.hinttxt); }
 
-/* AUTO calls this after every continuation point (refreshdisplay(), via
-   xpp_ui.auto_refresh) to let the client see the diagram grow -- same idea
-   as j_check_abort's throttle, a few frames a second rather than one flush
-   (and one draw event per window touched) per point. A command boundary
-   (json_flush() before "state"/"idle" in json_command(), ask_wait() before
-   an "ask") always flushes in full regardless of this, so the last point of
-   a run and a grab's circle are never held back by the throttle. */
+/* AUTO's refreshdisplay() after every point: a few frames a second, not a
+   flush per point. The end of a command and every ask flush in full, so
+   the last point of a run and a grab's circle are never held back. */
 static void j_auto_refresh(void)
 {
     static struct timeval last;
-    struct timeval now;
-    gettimeofday(&now, NULL);
-    if ((now.tv_sec - last.tv_sec) * 1000000 + (now.tv_usec - last.tv_usec) < 50000) return;
-    last = now;
-    json_flush();
+    if (every(&last, 50000)) json_flush();
 }
 
 /* ---- animation window ------------------------------------------------------------ */

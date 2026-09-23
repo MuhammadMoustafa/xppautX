@@ -58,5 +58,13 @@ if command -v python3 >/dev/null; then
     echo "WEB CHECK FAILED"
     exit 1
   fi
+  # the sections whose limits the code meets; abort joins when cancellation lands
+  if python3 tools/autocheck.py draw input > build/autocheck.log 2>&1; then
+    echo "auto checks ok: $(grep -c '^PASS' build/autocheck.log) checks"
+  else
+    grep -v '^PASS' build/autocheck.log
+    echo "AUTO CHECK FAILED"
+    exit 1
+  fi
 fi
 tools/x11free.sh
