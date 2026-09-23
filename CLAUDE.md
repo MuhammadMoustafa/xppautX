@@ -44,6 +44,18 @@ screenshots, no pixel comparison. CSS selectors in steps must not contain
 spaces (use `>`). `const client` of the page is what steps and settling
 look at.
 
+New front end (`web2/`, served at `/v2/`; design and plan in
+docs/ui-v2.md). Building xppautX never needs Node: `web2/dist` is built
+from `web2/src` and committed. After editing `web2/src`, from Git Bash:
+
+    cd web2 && npm ci && npm run build && npm run check && npm test && npm run typecheck
+    PATH=/c/Strawberry/c/bin:$PATH mingw32-make -j8 xppautx BUILDDIR=build/win
+    node tools/web2check.mjs      # state-level browser checks against ./xppautX.exe
+
+and commit `web2/dist` with the source. Tests read `window.__xpp`
+(`state()`, `actions()`, `plot()`), never pixels. `tools/cdp.mjs` is the
+headless-browser driver webshots.mjs and web2check.mjs share.
+
 `make ltocheck` (run by verify.sh) links both programs with LTO into
 build/lto and fails on `-Wlto-type-mismatch`: an extern whose type or
 array bound differs from its definition, which a normal build cannot see.
@@ -134,7 +146,11 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   AUTO's table goes through `xpp_log_auto()`: INFO on the console, always
   written in browser mode, where the AUTO window's Output panel shows it.
 - The X11 front end is frozen and will be removed once the new web UI
-  covers it; new UI work goes into ui_json.c and `web/`;
+  covers it; new UI work goes into ui_json.c and `web2/` (the data-level
+  front end: the core sends numbers, e.g. the `series` event after
+  `{"cmd":"data","events":["series"]}`, and the page draws them);
+  `web/` (the draw-op replay) only gets fixes until web2 replaces it.
+  docs/ui-v2.md has the protocol v2 events and the task list;
   docs/front-end-gaps.md tracks parity.
 - Pop-up menu arrays in menus.c (`main_menu` etc.) start with the title:
   item i is `main_menu[i+1]` with key `main_menu_keys[i]`.

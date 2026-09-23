@@ -1,0 +1,426 @@
+# The new front end (web2)
+
+The browser front end in `web/` copies the X11 program pixel for pixel: the
+core sends drawing primitives in window pixels and the page replays them on
+canvases. The new front end in `web2/` replaces it with a modern interface:
+the core sends **data** (the numbers a view shows) and the page draws them
+itself, with modern type and rendering, zoom, pan, a point readout, legends,
+exports, the browser's own file dialogs, a layout that works from a phone to
+a wide desktop, and full keyboard and screen reader support.
+
+This document is the design and the plan. The first view (the main plot) is
+built: `xppautX model.ode` prints a second address, `.../v2/?t=...`, that
+serves it.
+
+Decisions already taken (not revisited here): data-level plotting; TypeScript,
+a light framework and uPlot, bundled with esbuild into the files xppautX
+embeds; tests check data and UI state, never pixels; the C core stays C and
+the JSON protocol is the seam; `web/` keeps working until web2 covers it,
+then `web/` and the X11 program go; upstream mergeability is not a goal.
+
+## Contents
+
+1. [What exists](#1-what-exists)
+2. [Protocol v2: the data events](#2-protocol-v2-the-data-events)
+3. [Commands, prompts and components](#3-commands-prompts-and-components)
+4. [Files: open and save with the browser's dialogs](#4-files-open-and-save-with-the-browsers-dialogs)
+5. [Architecture of the page](#5-architecture-of-the-page)
+6. [Type and theme](#6-type-and-theme)
+7. [Responsive layout](#7-responsive-layout)
+8. [Accessibility and UX](#8-accessibility-and-ux)
+9. [Tests](#9-tests)
+10. [Migration plan](#10-migration-plan)
+
+## 1. What exists
+
+| Piece | Where | What it does |
+|---|---|---|
+| `series` event and `data` command | `core/ui_json.c` (`send_series`, `series_update`), docs/protocol.md "The plot as data" | The active plot window's curves as numbers: T and every plotted column, float32 values printed with 9 digits, sent at the end of a command when the data, the window or its curves changed. |
+| Page | `web2/src/` | Preact + TypeScript. A store fed by protocol events, a session that sends commands, the layout shell, the command menu, the plot (uPlot), prompts as dialogs, notifications, status bar. |
+| Build | `web2/build.mjs`, `web2/package.json` | esbuild bundles `src/` into `web2/dist/` (`app.js`, `app.css`, `index.html`, the Inter font and its licence). `dist/` is committed. |
+| Embedding | `Makefile` `WEB2_FILES`, `tools/embed.c --prefix=/v2/` | xppautX serves `web2/dist` at `/v2/` next to the classic page at `/`. |
+| Tests | `web2/test/`, `tools/web2check.mjs`, `tools/servercheck.py`, `tools/webcheck.py` | Reducer and plot-model unit tests; a browser session asserting store and plot state (desktop, keyboard only, 390x844 touch); the `series` numbers against `output.dat`; the `/v2/` assets. |
+
+The plot shows the curves of the active window (a phase plane in xy mode,
+a time plot in aligned mode), starts at the window's axes (Viewaxes), and
+adds, all in the client without a round trip: drag a box to zoom, the wheel
+zooms about the pointer, Shift+drag or the middle button pans, pinch and
+one-finger drag on touch, a double click (or `0`) goes back to the window's
+axes, Undo zoom (`Ctrl+Z`) steps back, the nearest point is named under the
+mouse, on a tap, or by stepping with `[` `]` from the keyboard, curves can be
+hidden from the legend, and PNG and CSV export what is shown.
+
+### Build and run
+
+Building xppautX needs no Node: `web2/dist` is committed and embedded. Only
+someone who edits `web2/src` needs Node 22+:
+
+```bash
+cd web2
+npm ci                 # pinned versions (package-lock.json)
+npm run build          # web2/dist, commit it with the change
+npm run check          # fails when dist/ is not what src/ builds (CI runs this)
+npm test               # unit tests (store, plot model, keys)
+npm run typecheck
+npm run watch          # rebuild on save; `node web/serve.js model.ode` serves /v2/ from disk
+```
+
+Why committed and not built by make: CI and users building from source must
+not need npm; esbuild's output is deterministic for pinned versions, so
+`npm run check` in CI proves the committed bundle matches the source. The
+bundle is ~95 KB of JS (Preact 4 KB, uPlot 50 KB), 11 KB of CSS, 48 KB of font.
+
+## 2. Protocol v2: the data events
+
+### Principles
+
+- **Data beside drawing, then instead of it.** Every view gets a data event
+  that says what the view shows, in the model's own quantities (plot
+  coordinates, not pixels). The classic `draw` ops keep flowing while `web/`
+  exists; the data events are sent only to a client that asks for them, so
+  the classic page and the VS Code panel pay nothing.
+- **One subscription command.** `{"cmd":"data","events":["series", ...]}`
+  declares the set of data events the client wants (`[]` stops them; a new
+  command replaces the set). Each named event is sent at the end of that
+  command, which is what a client that (re)connects needs. `hello.features`
+  lists the names the server knows, so a newer page can tell an older
+  server.
+- **Sent when it changed.** At the end of a command the server compares what
+  it would send with what it sent (a signature, as `diagram` does) and sends
+  only on a difference. A command that only redraws sends nothing.
+- **Numbers as JSON.** float32 storage values go out with 9 significant
+  digits, which round-trip exactly; `null` is NaN. A binary encoding
+  (`"enc":"f32"`, base64 of little-endian floats) is an option for very long
+  runs (task T2), not the default.
+- **Increments for long runs.** A long integration or AUTO run sends `append`
+  parts at most ~10 times a second (like `progress` and `diagram add`), and
+  the final state at the end.
+- **Every command still ends with `state` then `idle`.** Data events come
+  before them.
+
+### The events, in the order to build them
+
+| # | Event | For | Contents | Core work |
+|---|---|---|---|---|
+| 1 | `series` (**done**) | main plot | the active window's curves: storage columns (T always), colour, line or points, lag shifts, axis labels | done |
+| 2 | `series` `op:"append"` | live plot | `from`, the new rows of the same columns, during an integration; the final `series` at the end | yes: from the integrator's plot hook (`plot_the_graphs`), throttled |
+| 3 | `plots` | plot windows as tabs | per window: `win`, title, 2D/3D, axes ranges (`xlo..yhi`), labels, 3D angles (`Theta`, `Phi`, persp), and its curves; `series` gains a `win` subscription for a window that is not active | yes: send per window, not only `MyGraph` |
+| 4 | `nullclines` | phase plane | per window: the x and y nullclines as flat segment lists `[x1,y1,x2,y2,...]` in plot coordinates, colours, plus the frozen nullclines | yes: from `nullcline.c`'s stored curves |
+| 5 | `dfield` | phase plane | direction field: grid of `[x,y,dx,dy]` (unit direction, scaled by the client); flow: the trajectories as curves (same shape as `series` columns) | yes: from `redraw_dfield`/`direct_field_com` |
+| 6 | `marks` | plot | equilibria found by Sing pts (x, y, stability type), labels, arrows and markers of Graphic stuff/Text (`grobs.c`), frozen curves (Graphic stuff/Freeze) as series | yes: from `grobs.c` and `freeze` storage |
+| 7 | `diagram` (exists) + `autoinfo` | AUTO view | the diagram is already data; add the info strip as fields (branch, point, type, parameter, norm, period, ...) and the stability circle as eigenvalues `[[re,im],...]` | small: `auto_x11.c` prints these, the data is in `auto_nox.c` |
+| 8 | `browser` (exists) | data table | rows and columns on request: already data | none |
+| 9 | `aplot` (exists) | array plot | cells as colour indices; add `values` (the numbers) so the client picks its colour map | small |
+| 10 | `ani` frames | animation | the frame's primitives in the animation's own unit coordinates (the `.ani` language's `[0,1]` space) before the core scales them to pixels | yes: `aniparse.c` computes geometry in pixels; move the scaling to the client |
+| 11 | kinescope | kinescope | nothing new: the client keeps data snapshots (series + marks + viewport) as frames and renders or exports them itself | none (the `pixels` ask stays for `web/`) |
+
+Equilibrium, equations, source, message, progress and state events are
+already data and stay as they are.
+
+### How the two paths coexist
+
+1. Until task T17 both pages work against the same binary: `draw` ops are
+   always sent, data events only after `data`. In browser mode both pages
+   can even be open at once.
+2. T17 makes web2 the page at `/` (classic at `/v1/`), and the VS Code panel
+   switches to it.
+3. T18 removes `web/`, the X11 program, and the `draw`, `palette`, `pixels`
+   and window-size paths that only they use; the `XppUi` drawing callbacks
+   become data producers only. The protocol number goes to 2 then.
+
+## 3. Commands, prompts and components
+
+### Commands
+
+XPP's single-letter hotkeys stay the command vocabulary: the core owns
+every command (`commands.c`), and the menus come from `hello.menus`. The
+new page adds direct manipulation that maps onto existing commands:
+
+| UI action | Protocol |
+|---|---|
+| menu item, hotkey (focus on the page or the plot) | `key` |
+| Integrate button | `key` `i`, then answers the menu with `g` (the session's key sequence) |
+| edit a parameter or IC, slider, Default | `set`, `slide`, `default` |
+| legend toggle, zoom, pan, reset, readout, export | client only |
+| "Use this view" (make the client's zoom the window's axes, so PostScript/SVG export and Restore agree) | new `{"cmd":"view","win":w,"xlo":..,"xhi":..,"ylo":..,"yhi":..}` (T9) |
+| Abort | `abort` |
+| open / save a file | the `file` ask plus the file endpoints (section 4) |
+
+### Prompts (`ask`) as components
+
+| ask kind | Component | Notes |
+|---|---|---|
+| `menu` | modal menu list (role `menu`), keys shown as `kbd`, the key answers | done |
+| `choice` | the same list, with the question | done |
+| `string`, `form` | modal form, first field focused and selected, Enter submits, Escape cancels | done; `*n` fields become selects from `hello.lists` (T4) |
+| `checklist` | checkbox list | T4 |
+| `alert` | a notification (toast); the ask is answered at once, so the run is not blocked | done |
+| `file` | the browser's open or save dialog (section 4); the core's listing is a fallback tab | T5 |
+| `mouse`, `rubber`, `drag` | a plot interaction mode: a crosshair, a box or a drag on the plot, with an instruction bar and Cancel; the answer is converted to the window's pixels with `state.view` until the core takes data coordinates (`xd`, `yd`) | T4 (core: accept `xd`/`yd`) |
+| `grab` (AUTO) | select a point of the diagram (click, tap, or arrow keys); answered by index | T11 |
+| `pixels` | answered `ok:0` by the session: web2 renders frames from data (kinescope, GIF) itself | done / T15 |
+
+A prompt never steals keys it does not use: the menu dialog takes only its
+own keys; everything else is ignored while a prompt is open, as the protocol
+requires.
+
+## 4. Files: open and save with the browser's dialogs
+
+The core reads and writes files on its own machine, in its working directory
+(the model's folder), and many of XPP's files refer to others by relative
+name: `.set` files, `.auto` diagrams, `#include`d files, `table` files, data
+files for the browser's Load, `-anifile`. The page runs on the same machine
+(127.0.0.1) but the browser never tells a page where a picked file lives.
+
+### Options
+
+| Option | For | Against |
+|---|---|---|
+| A. Keep the core's file selector (restyled) | true paths, relative names work, no copying | not the browser's dialog (the user's decision); a custom file browser is what users dislike in XPP today |
+| B. Native OS dialogs opened by the core (`GetOpenFileName`, `zenity`, `osascript`) | true paths | three platforms of C, blocks the core thread, fails when the page is not on the core's machine (VS Code remote), not the browser's dialog |
+| C. Browser dialogs, files copied through the page into the model's folder | the browser's own dialogs on every browser, works remote, the model's folder stays the one place XPP reads and writes, so relative names keep working | a copy per open; a save lands in the model's folder as well as where the user chose |
+| D. Browser dialogs, files only in the browser (File System Access handles), the core reading them through the page | no copies on disk | the core would need every read and write routed through the page, including relative references it resolves itself; Chromium only |
+
+### Choice: C, the model's folder as the workspace
+
+- **The working directory stays the workspace.** XPP keeps reading and
+  writing there, so relative references resolve as they always have, and
+  scripts, `-silent` and the VS Code extension see the same files.
+- **Open** (a `file` ask for reading: Read set, Load diagram, the browser's
+  Load, `session load`): the page shows the browser's picker
+  (`showOpenFilePicker` where available, else `<input type=file multiple>`).
+  The picked files are uploaded into the working directory; the ask is
+  answered with the base name. Picking several files at once (a `.set` and
+  the table files it uses) uploads them all, so their relative names
+  resolve. A file whose name exists with other content is not overwritten
+  without a confirm (Replace, Keep both as `name-2.ext`, Cancel); one with
+  the same content is not copied.
+- **Save** (a `file` ask for writing: Write set, Save diagram, the browser's
+  Write, `session save`, Save info, PostScript/SVG): where the File System
+  Access API exists (Chrome, Edge, the VS Code webview), the page shows
+  `showSaveFilePicker` with the ask's name suggested; the core writes the
+  file into the working directory under that base name, and the page copies
+  it to the picked location. Elsewhere (Firefox, Safari) the page asks for
+  the name, the core writes it, and the page offers it as a download. Either
+  way the working directory has the latest copy, so a later Read set by name
+  finds it.
+- **Missing companions.** When the core reports it cannot open a file (an
+  error naming it), the notification offers "Add file…", which uploads it
+  under that name and repeats the command.
+- **The core's listing stays reachable** as a secondary tab of the dialog
+  ("In the model's folder"), for the rare ask that needs a path elsewhere
+  on the core's machine; it answers with `cd` and `file` as today.
+- **Endpoints** (xpp_http.c, token-protected like `/cmd`, base names only,
+  no separators, no `..`, no dot files, a size cap of 64 MB):
+  `GET /files` (listing: name, size, mtime, sha-256), `GET /files/NAME`,
+  `PUT /files/NAME` (streams the body to a temporary file and renames, so a
+  failed upload leaves nothing). The request reader gets a streaming body
+  path; today it reads at most 8 KB. `--server` (stdio) clients such as the
+  VS Code extension write files themselves; they get
+  `{"cmd":"file","op":"put","name":...,"data":base64}` and `get` for
+  parity (T5).
+
+## 5. Architecture of the page
+
+```
+protocol/   types.ts (events, commands), transport.ts (SSE + POST)
+store/      store.ts (generic store), state.ts (AppState + reducer), series.ts
+session.ts  the only sender: commands, key sequences, answers, abort
+plot/       model.ts (series -> curves, pure), nearest.ts, viewmath.ts,
+            plotKeys.ts (pure), chart.ts (uPlot adapter), interactions.ts
+            (mouse, wheel, touch), colors.ts, export.ts, registry.ts
+ui/         App.tsx (shell), TitleBar, MenuPanel, PlotView, AskDialog,
+            Toasts, StatusBar, Messages, hotkeys.ts, theme.ts, context.ts
+testhook.ts window.__xpp for tests
+```
+
+Rules:
+
+- **One direction.** Transport → session → store → components. Components
+  read the store through `useStore(selector)` and act through the session;
+  none touches the transport. The chart reports gestures through callbacks
+  and never writes the store itself.
+- **One job per module.** Pure logic (reducers, the plot model, key maps,
+  zoom maths, nearest point) has no DOM and is unit-tested in Node; adapters
+  (uPlot, EventSource, downloads) are thin.
+- **The store is the truth for anything a test checks**: connection, busy,
+  the open prompt, the series, the viewport and its undo history, the
+  readout, notifications, the drawer, the theme. The chart's own state
+  (ranges, visible curves) is read through `__xpp.plot()`.
+- **State slices to come** follow the views: `plots` (windows, T3/T6),
+  `values` (parameters, ICs, sliders), `diagram` (AUTO), `table` (browser),
+  `ani`, `aplot`, `files`. Each gets its reducer file under `store/` and its
+  view under `ui/`.
+
+### Libraries
+
+- **Preact** (4 KB) over Svelte: esbuild compiles TSX itself, so the build
+  needs no compiler plugin or preprocessor to pin; the runtime is tiny; the
+  component model is React's, which most contributors know; the store is
+  plain TypeScript, so nothing is tied to the framework.
+- **uPlot** (50 KB) for every 2D plot: canvas, fast with 10^5-10^6 points,
+  an xy mode for phase planes, hooks for drawing extras. Nullclines,
+  direction-field arrows, equilibria and labels draw in its `draw` hook on
+  the same canvas; no second library.
+- **3D** plots (XPP's 3D is curves in a box) are projected in the client
+  with the window's angles on uPlot's canvas; three.js (600 KB) is not worth
+  it for line plots.
+- **AUTO** uses uPlot too (branches as xy series, labels as points).
+- Nothing else at runtime. Dev only: esbuild, TypeScript, @types/node,
+  the Inter font package.
+
+## 6. Type and theme
+
+- **Inter** (variable, Latin subset, 48 KB, SIL OFL 1.1) is self-hosted in
+  `web2/dist` and embedded in xppautX: the program must work offline, so no
+  font or script comes from a CDN. Tabular numerals (`tnum`) keep columns of
+  numbers aligned. Code and tables of numbers use the system monospace
+  stack (`ui-monospace, Cascadia Code, SF Mono, Menlo, Consolas`). A Greek
+  subset (19 KB) is added when XPP's symbol-font labels become Unicode text
+  (T8).
+- **Tokens** on `:root` (`web2/src/theme.css`): a type scale
+  (0.75/0.875/1/1.125 rem), a spacing scale (0.25..1.5 rem), colours for
+  light and `[data-theme=dark]`, the minimum target size.
+- **Light, dark or system**: the title bar's Theme button cycles
+  Auto → Light → Dark; the choice is remembered in the browser; Auto follows
+  `prefers-color-scheme`.
+- **Curve colours**: XPP's eleven colour indices (0 the foreground, then
+  red .. purple) map to a palette per theme (`plot/colors.ts`), keeping the
+  hue XPP names.
+
+## 7. Responsive layout
+
+Rules (each checkable; `tools/web2check.mjs` checks R1, R3 and R5 at 390x844):
+
+- **R1** No horizontal page scroll at any width from 320 px: the page does
+  not scroll sideways; grid children have `min-width: 0`; long text wraps
+  (`overflow-wrap: anywhere`) or ellipsizes.
+- **R2** Sizes are `rem` and `%` (type, spacing, targets, panel widths);
+  `px` only for hairlines and canvas text.
+- **R3** Breakpoints (`min-width` in rem, so they follow the user's font
+  size):
+  - below 48 rem (phones, small tablets): one column; the command menu is a
+    drawer (the title bar's Menu button; Escape, the scrim or a choice
+    closes it, focus moves in and back); the file name and the Classic link
+    are hidden; forms stack label over field;
+  - 48-80 rem: the menu as a 13 rem column beside the work area;
+  - from 80 rem: a 15 rem menu, and room for the values panel (T3) as a
+    right column.
+- **R4** Components adapt to their own width with container queries (the
+  plot's tools wrap under the legend below 34 rem), not to the window.
+- **R5** Touch: on a coarse pointer every control is at least 44x44 px; the
+  plot takes one-finger pan, two-finger pinch zoom (about the fingers'
+  midpoint) and tap to read a point; `touch-action: none` on the plot area
+  only, so the page still scrolls elsewhere.
+- **R6** Panels still to come (values, AUTO, data table, animation) are
+  columns or floating panels on wide screens, tabs under the plot on medium
+  ones, and full-screen sheets with a Back button on phones.
+- **R7** Dialogs fit the viewport (`max-height: 100%`, scroll inside), with
+  a 1 rem margin.
+
+## 8. Accessibility and UX
+
+Target: WCAG 2.2 AA. Rules:
+
+- **A1 Contrast**: text at least 4.5:1 against its background (the tokens:
+  `--fg-muted` #525c6b is 6.8:1 on white, dark #a3adbb 7.6:1 on #171b21;
+  white on the accent 5.5:1); the focus ring (6.5:1, dark 8.9:1), field
+  edges (`--field-border`, 3.5:1 and 4:1) and every curve colour at least
+  3:1 against the plot. Buttons are identified by their text, so their
+  decorative border may be lighter.
+- **A2 Visible focus**: `:focus-visible` draws a 2 px ring in `--focus` on
+  every control and on the plot; nothing removes it.
+- **A3 Keyboard, all of it**: every command by its hotkey or the menu;
+  Tab reaches every control in reading order (a skip link jumps to the
+  plot); the plot has its own keys (arrows pan, `+`/`-` zoom, `0` reset,
+  `Ctrl+Z` undo, `[` `]` `PageUp` `PageDown` `Home` `End` step through the
+  points, `{` `}` change curve, Escape clears); Tab is never taken as an XPP
+  key.
+- **A4 Dialogs**: `role=dialog`, `aria-modal`, labelled by their title;
+  focus moves in (first field, else first control), Tab cycles inside,
+  Escape cancels, focus returns to where it was.
+- **A5 Names and roles**: landmarks (header, nav, main, footer); menus as
+  `role=menu`/`menuitem` with `aria-keyshortcuts`; the plot as
+  `role=application` with a label naming its curves and points and a
+  description of its keys; the readout and the status as `role=status`
+  (announced politely); errors as `role=alert`; legend toggles with
+  `aria-pressed`; the menu button with `aria-expanded`/`aria-controls`.
+- **A6 Motion**: `prefers-reduced-motion` removes transitions; nothing
+  flashes or moves by itself.
+- **A7 Colour scheme**: follows `prefers-color-scheme` unless the user
+  chose; colour is never the only carrier (curves are named in the legend
+  and the readout; hidden curves are struck through as well as faded).
+- **A8 Targets**: 32 px with a mouse, 44 px on touch.
+- **A9 Consistency**: one spacing and one type scale; buttons, fields and
+  dialogs share their shapes; the same action has the same name
+  everywhere.
+- **A10 Long runs**: the status bar shows Working… with a progress bar;
+  Abort turns into a disabled "Stopping…" until the run's `idle`; buttons
+  that would queue behind the run (Integrate) are disabled while it runs.
+- **A11 Notifications, not modal alerts**: errors and the core's alerts are
+  toasts that do not take the focus or stop the run; errors stay until
+  dismissed, information for six seconds; all of them also go to Messages.
+- **A12 Undo where cheap**: zoom and pan have an undo history (a gesture is
+  one step); parameter and IC edits get Undo in T3 (the previous value is
+  in the store); Default stays as XPP's reset.
+- **A13 Empty and error states**: no data says so and offers Integrate;
+  a lost connection shows "Reconnecting…"; a stopped core says so and
+  points to Messages; a prompt kind not built yet says so and offers
+  Cancel.
+- **A14 Text**: sentences in plain words, no jargon the user did not
+  type; numbers with six significant digits in readouts, full precision in
+  tables and exports.
+
+## 9. Tests
+
+- **Unit** (`npm test`, Node): reducers, the plot model (modes, lag
+  shifts), nearest point, zoom maths, the plot's key map, and the A1
+  contrast rules checked on the tokens of `theme.css` and the curve
+  palettes.
+- **Protocol** (`tools/servercheck.py`): `data` sends the series at once;
+  after an integration the series is W against V with 601 rows and its
+  numbers are exactly those of `output.dat` (as float32, printed `%.8g`); a
+  redraw sends none; Xi vs t sends T and V.
+- **Page** (`tools/web2check.mjs`, headless Chrome or Edge through the
+  DevTools protocol, shared driver `tools/cdp.mjs`): real key presses, mouse
+  and touch events; assertions read `window.__xpp.state()` (the store),
+  `__xpp.actions()` (the actions taken) and `__xpp.plot()` (the chart's
+  ranges and curves). Desktop: integrate from the keyboard, the store's
+  numbers equal `output.dat`, hover, wheel and box zoom, undo, pan, reset.
+  Keyboard only: Tab to the plot, visible focus, every plot key, a prompt's
+  focus trap and focus return. Phone (390x844, touch, coarse pointer): no
+  sideways scroll, plot width, 44 px targets, the drawer, pinch, pan, tap.
+  No screenshot is compared.
+- **Assets** (`tools/webcheck.py`): `/v2/`, its script and font with their
+  types.
+- Each task below adds its view's checks to web2check and its events'
+  checks to servercheck.
+
+## 10. Migration plan
+
+Tasks in dependency order; each is 1-3 days of agent work. "Core" marks
+tasks that change C code or the protocol (extend docs/protocol.md and
+servercheck.py with them). Every task keeps `tools/verify.sh`,
+`npm run check`, `npm test` and `web2check` green and adds its own checks.
+
+| ID | Task | Needs | Core | Acceptance |
+|---|---|---|---|---|
+| T1 | Scaffold: `series`, web2 build/embedding, shell, the main plot, tests | - | yes | done: this branch |
+| T2 | Live plotting: `series` `append` during integrations (throttled), store appends in place, binary option for long runs | T1 | yes | a 20 000-row run grows on screen; servercheck: the appended rows equal the final series; a 10^6-row series renders and zooms without a frame over 50 ms |
+| T3 | Values panel: parameters, ICs, BCs, delays, sliders (`@ s1=`), user buttons, Default, `%formula`, undo of an edit | T1 | no | web2check: edit a parameter, see `state`; move a slider, get a new series; undo restores; keyboard and 44 px targets; right column at 80 rem, sheet on a phone |
+| T4 | Prompts complete: `*n` selects, checklist, mouse/rubber/drag asks as plot modes; core accepts data coordinates `xd`,`yd` | T1 | small | servercheck: an answer in data coordinates; web2check: Viewaxes form with a variable select; Window/Zoom by a box drawn on the plot, by mouse and by keyboard |
+| T5 | Files: `/files` endpoints (list, get, put; streaming bodies), `file` asks through the browser's dialogs, the confirm on replace, "Add file…" for missing companions, `file` commands for `--server` | T4 | yes | webcheck: traversal and dot names refused, 64 MB cap, token required; web2check: Write set lands in the model's folder and is offered to the browser; Read set by upload restores parameters |
+| T6 | Plot windows: `plots` event, series per window, tabs, Makewindow create/kill/select | T2 | yes | servercheck: two windows, each with its curves; web2check: switch tabs, each keeps its zoom |
+| T7 | Nullclines and direction fields as data (`nullclines`, `dfield`), drawn in uPlot's draw hook | T6 | yes | servercheck: segment counts equal the classic draw ops' lines for lecar; web2check: the store holds them, they toggle in the legend |
+| T8 | Marks: Sing pts equilibria, Graphic stuff text/arrows/markers, frozen curves; Greek labels as Unicode | T6 | yes | servercheck: `marks` after Sing pts has the equilibrium's coordinates; web2check: marks listed in the store and the legend |
+| T9 | Use this view: `view` command sets the window's axes from the client's zoom; Fit | T6 | small | servercheck: `view` then `state.view` matches; PostScript export uses it |
+| T10 | Data table: virtualized browser table on `browser`, its buttons, CSV export, keyboard navigation | T3 | no | web2check: scroll to row 500, Get sets the ICs, keyboard reaches every button |
+| T11a | AUTO view from `diagram`: branches by stability, labels, zoom, pan, readout; buttons | T4 | no | web2check: after an AUTO run the store's diagram equals the `diagram` events; readout names a labelled point |
+| T11b | AUTO grab by point, `autoinfo`, stability circle as data | T11a | yes | servercheck: grab by index then run; web2check: grab from the keyboard |
+| T12 | Array plot view from `aplot` (with `values`), colour maps, scroll | T6 | small | web2check: cells equal the event's; scroll in time |
+| T13 | Animation: frames in unit coordinates, player controls, scaling to any size | T6 | yes | servercheck: frame primitives in [0,1]; web2check: play, pause, step, seek update the frame index |
+| T14 | 3D plots: projection and rotation in the client, angles synced with `rotate` | T6 | small | web2check: rotate by drag and keys; `state.view.three` agrees |
+| T15 | Kinescope and exports from data: capture snapshots, play, GIF/PNG from the client | T7, T8 | small | web2check: capture two frames, play them; GIF export has two frames |
+| T16 | Text views: equations, source with actions, equilibrium details, messages | T3 | no | web2check: comment action sets its parameters |
+| T17 | Switch: web2 at `/`, classic at `/v1/`; VS Code panel; docs (using-the-panel, front-end-gaps, README) | T3-T16 | small | every row of docs/front-end-gaps.md covered by web2; webshots runs against `/v1/` until T18 |
+| T18 | Retire: remove `web/`, the X11 program and guicheck, the `draw`/`palette`/`pixels` paths; protocol 2 | T17 | yes | verify.sh green without X11; servercheck and web2check cover what webshots did |
