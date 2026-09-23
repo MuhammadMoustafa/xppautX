@@ -69,9 +69,12 @@ CORE_OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(CORE_SOURCES))
 # per build directory, so a MinGW build does not replace the Linux library
 CORELIB := $(BUILDDIR)/libxppcore.a
 
-.PHONY: all clean x11free lib xppautx test
+.PHONY: all clean x11free lib objects xppautx test
 all: xppaut
 lib: $(CORELIB)
+
+# every object of both programs, nothing linked (tools/warnings.sh)
+objects: $(OBJECTS) $(SERVER_OBJECTS)
 # one X11-free program: browser front end, --server protocol and -silent batch
 xppautx: xppautX$(EXE)
 
