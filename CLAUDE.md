@@ -121,14 +121,20 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   says which lines are control lines; docs/protocol.md "Commands during a
   command" is the contract. Rebuild after
   editing `web/` files; `node web/serve.js` still serves them from disk.
-- The X11 front end is frozen: new UI work goes into ui_json.c and
-  `web/`; docs/front-end-gaps.md tracks parity.
+- The X11 front end is frozen and will be removed once the new web UI
+  covers it; new UI work goes into ui_json.c and `web/`;
+  docs/front-end-gaps.md tracks parity.
 - Pop-up menu arrays in menus.c (`main_menu` etc.) start with the title:
   item i is `main_menu[i+1]` with key `main_menu_keys[i]`.
 
 ## Conventions
 
-- Keep upstream function and file names so upstream patches stay mergeable.
+- Upstream mergeability is no longer a goal (2026-09-23): refactor for
+  single responsibility and clean code, numerics included. Numerical
+  results must not change: tools/verify.sh's checksums and saved AUTO
+  diagram are the guard.
+- Tests check data (output files, protocol events, UI state), never
+  pixels: do not add screenshot comparisons.
 - `core/fftn.c` does `#include __FILE__`; the Makefile's `-I.` is required for it.
 - `core/sbml2xpp.c` needs libsbml and is not built, same as upstream.
 - The refactoring scripts under `tools/` (guard_x11_headers.py, move_funcs.py,
