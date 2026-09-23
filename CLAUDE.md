@@ -54,7 +54,7 @@ from `web2/src` and committed. After editing `web2/src`, from Git Bash:
 
 and commit `web2/dist` with the source. Tests read `window.__xpp`
 (`state()`, `actions()`, `plot()`), never pixels. `tools/cdp.mjs` is the
-headless-browser driver webshots.mjs and web2check.mjs share.
+headless-browser driver webtest.mjs and web2check.mjs share.
 
 `make ltocheck` (run by verify.sh) links both programs with LTO into
 build/lto and fails on `-Wlto-type-mismatch`: an extern whose type or
