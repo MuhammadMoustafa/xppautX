@@ -13,8 +13,12 @@ args = ap.parse_args()
 
 run = tempfile.mkdtemp(prefix='xppweb')
 shutil.copy(args.ode, run)
-proc = subprocess.Popen([os.path.abspath(args.bin), '--no-open', '--port', '0', os.path.basename(args.ode)],
+proc = subprocess.Popen([os.path.abspath(args.bin), '--no-open', '--port', '0', '--verbose', os.path.basename(args.ode)],
                         cwd=run, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+# --verbose: core/xpp_log.h is quiet by default now, and this script's "what
+# xppaut printed reaches the page" check below wants the startup banner/
+# parser-stats chatter that used to always print, to exercise the log ->
+# page pipeline (xpp_http.c log thread -> the "log" event -> web/xpp-client.js).
 failures = 0
 
 

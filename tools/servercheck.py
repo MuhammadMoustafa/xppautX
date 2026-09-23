@@ -15,6 +15,41 @@ ap.add_argument('--ode', default='examples/ode/lecar.ode')
 ap.add_argument('-v', action='store_true')
 args = ap.parse_args()
 
+def check_logging():
+    """core/xpp_log.h: -silent is quiet by default, --verbose shows the
+    banner/parser stats, and a real parse error still reaches stderr even
+    at the default (quiet) level. Uses -silent so this needs no JSON
+    conversation; see CLAUDE.md "Logging"."""
+    global failures
+    run_dir = tempfile.mkdtemp(prefix='xppquiet')
+    try:
+        shutil.copy(args.ode, run_dir)
+        odename = os.path.basename(args.ode)
+
+        p = subprocess.run([os.path.abspath(args.server), odename, '-silent'],
+                            cwd=run_dir, capture_output=True, text=True, timeout=30)
+        check('log: -silent is quiet by default', p.stderr.strip() == '', repr(p.stderr[:300]))
+
+        p = subprocess.run([os.path.abspath(args.server), '--verbose', odename, '-silent'],
+                            cwd=run_dir, capture_output=True, text=True, timeout=30)
+        check('log: --verbose shows the banner and parser stats',
+              'Copyright' in p.stderr and 'nvar=' in p.stderr, repr(p.stderr[:300]))
+
+        bad_dir = tempfile.mkdtemp(prefix='xppbadode')
+        try:
+            bad_ode = os.path.join(bad_dir, 'bad.ode')
+            with open(bad_ode, 'w') as f:
+                f.write("x'=(1+2\ndone\n")
+            p = subprocess.run([os.path.abspath(args.server), 'bad.ode', '-silent'],
+                                cwd=bad_dir, capture_output=True, text=True, timeout=30)
+            check('log: a syntax error still reaches stderr at the default level',
+                  p.stderr.strip() != '', repr(p.stderr[:300]))
+        finally:
+            shutil.rmtree(bad_dir, ignore_errors=True)
+    finally:
+        shutil.rmtree(run_dir, ignore_errors=True)
+
+
 def launch_server(extra_env=None):
     """Start one xppautX --server instance in its own scratch directory and
     return (proc, run_dir, send, collect, events) -- send/collect work just
@@ -75,6 +110,9 @@ def check(name, ok, detail=''):
     global failures
     print(('PASS ' if ok else 'FAIL ') + name + ('' if ok else '  ' + detail))
     failures += 0 if ok else 1
+
+
+check_logging()
 
 
 def draw_ops(evs, win=1):
