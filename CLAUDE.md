@@ -53,7 +53,7 @@ from `web2/src` and committed. After editing `web2/src`, from Git Bash:
     node tools/web2check.mjs      # state-level browser checks against ./xppautX.exe
 
 and commit `web2/dist` with the source. Tests read `window.__xpp`
-(`state()`, `actions()`, `plot()`), never pixels. `tools/cdp.mjs` is the
+(`state()`, `actions()`, `plot()`, `longTasks()`), never pixels. `tools/cdp.mjs` is the
 headless-browser driver webtest.mjs and web2check.mjs share.
 
 `make ltocheck` (run by verify.sh) links both programs with LTO into
@@ -136,7 +136,8 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   throttled checkpoints `my_abort()`/`byeauto_()`. ui_json.c's `classify()`
   says which lines are control lines; docs/protocol.md "Commands during a
   command" is the contract. Computations report how far they got to
-  xpp_job (`xpp_job_rows_stored` per stored row in integrate.c,
+  xpp_job (`xpp_job_rows_stored` per stored row in integrate.c's `row_stored()`,
+  which also feeds `XppUi.rows_stored` (web2's live `series` appends),
   `xpp_job_point_stored` per AUTO point in autevd.c addbif): a cancelled
   command sends `stopped` with that, and `--script` replays a recorded
   `{"cmd":"abort","at":...}` by arming `xpp_job_stop_at_rows/point` for
