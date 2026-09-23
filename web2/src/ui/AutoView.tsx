@@ -15,17 +15,30 @@
    or the keyboard's stepping ([ ] PageUp PageDown Home End along a curve,
    { } between curves, < > from label to label) is named in the readout:
    branch, point, kind, label and values. AUTO's own hotkeys (A, N, G, R, D,
-   C, U, P, F, as on its X11 window) work while the focus is in the view. */
+   C, U, P, F, as on its X11 window) work while the focus is in the view.
+
+   T11b: the core's asks on the diagram are answered here. Grab is a mode of
+   the diagram: the arrow keys, [ ], Page Up and Down, Home and End move its
+   cursor from point to point, Tab and Shift+Tab from label to label, Enter
+   takes the point, Escape cancels, and a click or a tap takes the nearest
+   point (each step is a `grab` answer with the point's index, so the core's
+   cursor, its info strip and circle follow). Axes/Zoom's box and
+   Axes/Scroll's drag are the plot's modes (plot/pick.ts) on the diagram. A
+   click on a two-parameter diagram stores the point (`auto point`), marked
+   on it. The info strip and the stability circle are ui/AutoInfo.tsx. */
 import {useEffect, useMemo, useRef} from 'preact/hooks';
 import {DiagramChart, paletteColor, setDiagramChart} from '../plot/diagramChart';
-import {buildDiagramModel, describePoint, stepLabel, vertexOf, type DiagramModel} from '../plot/diagramModel';
+import {buildDiagramModel, describePoint, fmt, grabStep, stepLabel, vertexOf, type DiagramModel} from '../plot/diagramModel';
 import {download} from '../plot/export';
-import {attachGestures} from '../plot/interactions';
+import {attachGestures, type PickSink} from '../plot/interactions';
+import {pickKey, toData} from '../plot/pick';
 import {plotKey} from '../plot/plotKeys';
 import type {Ranges} from '../plot/viewmath';
 import type {AutoOp, Session} from '../session';
-import type {DiagramHover} from '../store/diagram';
+import {pointCount, type DiagramHover} from '../store/diagram';
+import {AutoInfo} from './AutoInfo';
 import {useSession, useStore} from './context';
+import {PickBar, PickOverlay, pickSink} from './PlotView';
 import './auto.css';
 
 /** label, op, key (auto_x11.c auto_keypress), in the X11 window's order */
@@ -42,6 +55,70 @@ const KEYS_HELP = 'Arrow keys pan, plus and minus zoom, 0 resets, Control Z undo
 
 function setHover(session: Session, hover: DiagramHover | null): void {
   session.store.dispatch({type: 'diagram', action: {type: 'hover', hover}});
+}
+
+const WIN = 101;
+const GRAB_PX = 48; /* how far from a point a click or a tap still takes it */
+
+/** the plot mode of an ask on the diagram, while it waits for the user */
+function activePick(session: Session) {
+  const p = session.store.getState().pick;
+  return p && !p.waiting && p.win === WIN ? p : null;
+}
+
+/** the diagram's pointer events: the plot modes' (Axes/Zoom, Axes/Scroll),
+    and a grab's, where a release takes the nearest point */
+function autoSink(session: Session, chart: () => DiagramChart | null, model: () => DiagramModel): PickSink {
+  const picks = pickSink(session, WIN, chart);
+  const grabbing = () => session.store.getState().diagram.grabbing;
+  return {
+    mode: () => picks.mode() ?? (grabbing() ? 'point' : null),
+    press(at) { if (picks.mode()) picks.press(at); },
+    drag(at) { if (picks.mode()) picks.drag(at); },
+    release(at) {
+      if (picks.mode()) {
+        picks.release(at);
+        return;
+      }
+      const c = chart(), a = c?.areaBox();
+      if (!c || !a || !grabbing()) return;
+      const hit = c.hit(at.fx * a.width, at.fy * a.height, GRAB_PX);
+      const point = hit ? model().curves[hit.curve]?.idx[hit.index] : undefined;
+      if (point !== undefined) session.grabPoint(point, true);
+    },
+    hover(at) { if (picks.mode()) picks.hover(at); },
+  };
+}
+
+const GRAB_HELP = 'Arrow keys or square brackets step to the next or previous point, Page Up and Down ten points, '
+  + 'Home and End the first and the last, Tab and Shift+Tab the next and previous labelled point. Enter takes it, '
+  + 'Escape cancels.';
+
+/** what a grab wants, with Take and Cancel; Escape anywhere cancels */
+function GrabBar() {
+  const session = useSession();
+  const waiting = useStore(s => s.ask?.kind !== 'grab');
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      e.preventDefault();
+      e.stopPropagation();
+      session.cancelPick();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [session]);
+  const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  return (
+    <div class="pick-bar" data-pick="grab">
+      <span id="grab-instruction" role="status">
+        <b>Grab a point. </b>
+        {touch ? 'Tap a point to take it.' : 'Click a point to take it, or step with the arrow keys and Tab, then press Enter.'}
+      </span>
+      <button disabled={waiting} onClick={() => session.grabTake()}>Take</button>
+      <button disabled={waiting} onClick={() => session.cancelPick()}>Cancel</button>
+    </div>
+  );
 }
 
 /** the kinds of curve the diagram has, for its key (colour is not the only carrier, A7) */
@@ -66,6 +143,10 @@ function AutoPanel({dark}: {dark: boolean}) {
   const hover = useStore(s => s.diagram.hover);
   const busy = useStore(s => s.busy);
   const hints = useStore(s => (s.hello as {auto_hints?: string[]} | null)?.auto_hints);
+  const grabbing = useStore(s => s.diagram.grabbing);
+  const info = useStore(s => s.diagram.info);
+  const stored = useStore(s => (s.diagram.axes?.plot === 4 ? s.diagram.stored : null));
+  const pick = useStore(s => (s.pick?.win === WIN && !s.pick.waiting ? s.pick : null));
   const panel = useRef<HTMLElement>(null);
   const host = useRef<HTMLDivElement>(null);
   const chart = useRef<DiagramChart | null>(null);
@@ -93,7 +174,27 @@ function AutoPanel({dark}: {dark: boolean}) {
     let detach = () => {};
     c.onArea = area => {
       detach();
-      detach = attachGestures(c, area, {hover: hoverVertex, leave: () => setHover(session, null)});
+      const off = attachGestures(c, area, {hover: hoverVertex, leave: () => setHover(session, null)},
+        autoSink(session, () => chart.current, () => modelRef.current));
+      /* a click (not a box) on a two-parameter diagram stores the point for AUTO's File/sElect 2par pt */
+      let down: {x: number; y: number} | null = null;
+      const onDown = (e: MouseEvent) => { down = e.button === 0 && !e.shiftKey ? {x: e.clientX, y: e.clientY} : null; };
+      const onClick = (e: MouseEvent) => {
+        const st = session.store.getState(), at = down;
+        down = null;
+        if (!at || Math.hypot(e.clientX - at.x, e.clientY - at.y) > 4) return;
+        if (st.diagram.axes?.plot !== 4 || st.diagram.grabbing || st.pick || st.ask || st.busy) return;
+        const r = area.getBoundingClientRect();
+        const d = toData(c.ranges(), {fx: (e.clientX - r.left) / r.width, fy: (e.clientY - r.top) / r.height});
+        session.autoPoint(d.x, d.y);
+      };
+      area.addEventListener('mousedown', onDown, true);
+      area.addEventListener('click', onClick);
+      detach = () => {
+        off();
+        area.removeEventListener('mousedown', onDown, true);
+        area.removeEventListener('click', onClick);
+      };
     };
     chart.current = c;
     setDiagramChart(c);
@@ -131,8 +232,62 @@ function AutoPanel({dark}: {dark: boolean}) {
     if (!session.store.getState().ask) host.current?.focus({preventScroll: true});
   }, []);
 
+  /* a grab or a plot mode takes the focus, so its keys work at once (A3) */
+  useEffect(() => {
+    if (grabbing || pick) host.current?.focus({preventScroll: true});
+  }, [grabbing, pick?.ask]);
+
+  /* the readout follows the grab's cursor */
+  useEffect(() => {
+    if (grabbing && info && info.point >= 0 && info.point < pointCount(points)) {
+      hint.current = -1;
+      setHover(session, {point: info.point, low: false});
+    }
+  }, [grabbing, info]);
+
+  /* a grab's keys: each step answers the grab with the point's index */
+  const grabKey = (e: KeyboardEvent): boolean => {
+    const st = session.store.getState();
+    if (!st.diagram.grabbing || e.ctrlKey || e.metaKey || e.altKey) return false;
+    const ask = st.ask?.kind === 'grab' ? st.ask : null;
+    if (e.key === 'Enter' || e.key === 'Escape') {
+      if (ask) {
+        if (e.key === 'Enter') session.grabTake();
+        else session.cancelPick();
+      }
+      return true;
+    }
+    const to = grabStep(e.key, e.shiftKey, st.diagram.info?.point ?? -1, pointCount(st.diagram.points), st.diagram.labels);
+    if (to === null) return false;
+    if (ask) session.grabPoint(to);
+    return true; /* a step while the last one is answered is dropped: the cursor is the core's */
+  };
+
+  /* a plot mode's keys (Axes/Zoom's box, Axes/Scroll's drag), as on the plot */
+  const pickKeyDown = (e: KeyboardEvent): boolean => {
+    const c = chart.current, p = activePick(session);
+    if (!c || !p || e.ctrlKey || e.metaKey || e.altKey) return false;
+    const r = pickKey(p, e.key, e.shiftKey);
+    if (!r) return false;
+    if ('pick' in r) session.movePick(r.pick);
+    else if ('confirm' in r) session.confirmPick(r.confirm, c.ranges());
+    else if ('drag' in r) {
+      const ranges = c.ranges();
+      for (const st of r.drag) {
+        const d = toData(ranges, st.at);
+        session.dragEvent(st.what, d.x, d.y);
+      }
+    } else session.cancelPick();
+    return true;
+  };
+
   const onHostKey = (e: KeyboardEvent) => {
     const c = chart.current, m = modelRef.current;
+    if (grabKey(e) || pickKeyDown(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     if (!c || e.altKey) return;
     const h = session.store.getState().diagram.hover;
     const at = h ? vertexOf(m, h.point, h.low, hint.current) : null;
@@ -179,6 +334,9 @@ function AutoPanel({dark}: {dark: boolean}) {
 
   const at = hover ? vertexOf(model, hover.point, hover.low, hint.current) : null;
   const marker = at && chart.current ? chart.current.position(at.curve, at.index) : null;
+  const cursor = grabbing && info && info.x !== null && info.y !== null && chart.current
+    ? chart.current.place(info.x, info.y) : null;
+  const storedAt = stored && chart.current ? chart.current.place(stored.x, stored.y) : null;
   const zoomed = viewport.x !== null || viewport.y !== null;
   const empty = !model.curves.length;
   const said = hover && hover.point < points.x.length ? describePoint(points, labels, axes, hover.point) : null;
@@ -205,6 +363,8 @@ function AutoPanel({dark}: {dark: boolean}) {
         ))}
       </div>
       <div class="auto-view">
+        {grabbing && <GrabBar />}
+        {pick && <PickBar pick={pick} />}
         <header class="plot-bar">
           <ul class="auto-legend" aria-label="Key">
             {legendOf(model).map(l => (
@@ -224,9 +384,17 @@ function AutoPanel({dark}: {dark: boolean}) {
               title="Save the diagram as a PNG picture">PNG</button>
           </div>
         </header>
-        <div class="plot-host auto-host" ref={host} tabIndex={0} role="application" aria-roledescription="diagram"
-          aria-label={label} aria-describedby="auto-keys-help" onKeyDown={onHostKey}>
+        <div class={'plot-host auto-host' + (grabbing ? ' picking pick-grab' : pick ? ` picking pick-${pick.mode}` : '')}
+          ref={host} tabIndex={0} role="application" aria-roledescription="diagram"
+          aria-label={label} onKeyDown={onHostKey} aria-describedby={grabbing ? 'grab-instruction grab-keys-help'
+            : pick ? 'pick-instruction auto-keys-help' : 'auto-keys-help'}>
           {marker && <span class="hover-dot" style={{left: `${marker.left}px`, top: `${marker.top}px`}} />}
+          {cursor && <span class="auto-cursor" aria-hidden="true" style={{left: `${cursor.left}px`, top: `${cursor.top}px`}} />}
+          {storedAt && (
+            <span class="auto-stored" style={{left: `${storedAt.left}px`, top: `${storedAt.top}px`}}
+              title={`Stored point: ${fmt(stored!.x)}, ${fmt(stored!.y)}`} />
+          )}
+          {pick && chart.current && <PickOverlay pick={pick} chart={chart.current} />}
           {empty && (
             <div class="plot-empty">
               <p>{busy ? 'AUTO is running…' : 'No branches yet: Run starts a continuation from the current point.'}</p>
@@ -248,7 +416,12 @@ function AutoPanel({dark}: {dark: boolean}) {
           )}
         </footer>
       </div>
+      <AutoInfo />
+      {stored && (
+        <p class="auto-stored-text muted">Stored point for File/sElect 2par pt: {fmt(stored.x)}, {fmt(stored.y)}</p>
+      )}
       <p id="auto-keys-help" class="visually-hidden">{KEYS_HELP}</p>
+      <p id="grab-keys-help" class="visually-hidden">{GRAB_HELP}</p>
     </section>
   );
 }

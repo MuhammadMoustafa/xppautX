@@ -36,6 +36,7 @@ XAUTO xAuto;
 
 extern int AutoTwoParam;
 int DiagFlag=0;
+extern int NBifs; /* diagram.c: the index the next add_diagram() gives */
 /*typedef struct {double r,i;} ddoublecomplex;
 
 typedef struct {
@@ -174,8 +175,10 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   int icp1=icp[0],icp2=icp[1],icp3=icp[2],icp4=icp[3];
   double    per=par[10];
   /* printf("In add bif \n"); */
+  int from=auto_run_from_take(); /* the run's first point says which label it started from */
   type=get_bif_type(ibrs,ntots,lab);
-  auto_point_id(ibrs,ntots,iap->itp);
+  /* its entry in the diagram list: the first one after start_diagram, else a new one */
+  auto_point_id(ibrs,ntots,iap->itp,DiagFlag==0?0:NBifs,from);
 
   /*if(my_ev.br==abs(*ibr)&&my_ev.pt==abs(*ntot)){evflag=1;}*/
   if(iap->ntot==1)
@@ -194,12 +197,14 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
     edit_start(ibrs,ntots,iap->itp,lab,iap->nfpr,*a,uhigh,ulow,u0,ubar,
 	       par,per,iap->ndim,icp1,icp2,icp3,icp4,my_ev.evr,my_ev.evi);
     DiagFlag=1;
+    if(from)set_last_diagram_from(from);
     xpp_job_point_stored((int)labs(ibrs),(int)labs(ntots)); /* xppautX: where it got to (xpp_job.h) */
     return;
   } 
   add_diagram(ibrs,ntots,iap->itp,lab,iap->nfpr,*a,uhigh,ulow,u0,ubar,
 	      par,per,iap->ndim,icp1,icp2,icp3,icp4,AutoTwoParam,my_ev.evr,
 	      my_ev.evi);
+  if(from)set_last_diagram_from(from);
   xpp_job_point_stored((int)labs(ibrs),(int)labs(ntots)); /* xppautX: where it got to (xpp_job.h) */
 }
     

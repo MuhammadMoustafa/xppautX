@@ -70,6 +70,24 @@ send `auto` ops, their prompts are the ordinary dialogs. Back hides the
 panel (Show AUTO brings it back), Close is done with AUTO: it stops a
 running continuation first, then closes the window.
 
+T11b answers the core's asks on the diagram in the view itself. Grab is a
+mode of the diagram (an instruction bar with Take and Cancel): arrows,
+`[` `]`, Page Up and Down, Home and End move the core's cursor from point
+to point, Tab and Shift+Tab from label to label, Enter takes the point,
+Escape cancels, and a click or a tap takes the nearest point; each step is
+a `grab` answer with the point's index (`point`), so the cursor, the info
+strip and the circle are the core's. Axes/Zoom (and Zoom out) draw their
+box, Axes/Scroll its drag, as the plot's modes on the diagram, answered in
+its data coordinates; a click on a two-parameter diagram stores the point
+(`auto point`, marked on the diagram) for AUTO's File/sElect 2par pt. Under the
+diagram, the `autoinfo` data: the strip as a panel (branch, point, type,
+label, parameters, norm, the plotted variable, the period of a periodic
+orbit) and the stability circle as a small unit circle, a dot for a value
+inside, a cross for one outside, with the eigenvalues or multipliers
+listed. A periodic branch is joined to the Hopf point its run started from
+(the diagram's `from`); only a diagram without it (loaded from a file)
+falls back to where the points lie.
+
 ### Build and run
 
 Building xppautX needs no Node: `web2/dist` is committed and embedded. Only
@@ -128,7 +146,7 @@ bundle is ~95 KB of JS (Preact 4 KB, uPlot 50 KB), 11 KB of CSS, 48 KB of font.
 | 4 | `nullclines` (**done**) | phase plane | per window: the x and y nullclines as flat segment lists `[x1,y1,x2,y2,...]` in plot coordinates, colours, plus the frozen nullclines | `core/phase_data.cpp`, recorded where `nullcline.c` draws them |
 | 5 | `dfield` (**done**) | phase plane | direction field: grid of `[x,y,ux,uy]` (unit direction in plot units) and each arrow's speed, scaled by the client; flow: the trajectories as `x`, `y` point lists per curve, NaN between two | `core/phase_data.cpp`, from `redraw_dfield`/`direct_field_com` and the integrator's `plot_one_graph` |
 | 6 | `marks` (**done**) | plot | equilibria found by Sing pts (x, y, stability type), labels, arrows and markers of Text,etc, frozen curves (Graphic stuff/Freeze) as series | `core/marks_data.cpp`, recorded where `eq_symb` (graphics.c), `draw_label` (grobs.cpp) and `draw_freeze`/`create_crv` (graf_par.c) draw them |
-| 7 | `diagram` (exists) + `autoinfo` | AUTO view | the diagram is already data; add the info strip as fields (branch, point, type, parameter, norm, period, ...) and the stability circle as eigenvalues `[[re,im],...]` | small: `auto_x11.c` prints these, the data is in `auto_nox.c` |
+| 7 | `diagram` + `autoinfo` (**done**) | AUTO view | the diagram's points (and `from`, the label a branch started from); the info strip as fields (branch, point, type, label, parameters, norm, the plotted variable, period) and the stability circle (e^λ or Floquet multipliers `[[re,im],...]`, and a steady state's eigenvalues) | `core/auto_data.cpp`, reported by `auto_nox.c` where it draws the strip and the circle |
 | 8 | `browser` (exists) | data table | rows and columns on request: already data | none |
 | 9 | `aplot` (exists) | array plot | cells as colour indices; add `values` (the numbers) so the client picks its colour map | small |
 | 10 | `ani` `frame` (**done**) | animation | the frame's primitives (line, rect, circle, ellipse, comet dot, text) in unit coordinates of the `.ani`'s `dimension` box (y up, not clamped), their colours (XPP index or `#rrggbb` of the colour map), widths and fonts; the frame's row, time, box and the classic window's size; thinned to 25 a second while Go plays | `core/aniparse.cpp` computes a frame in the `.ani`'s coordinates and gives each primitive to the pixel ops and to `core/ani_data.cpp` (docs/protocol.md "The animation as data") |
@@ -177,7 +195,7 @@ new page adds direct manipulation that maps onto existing commands:
 | `alert` | a notification (toast); the ask is answered at once, so the run is not blocked | done |
 | `file` | the browser's open or save dialog (section 4, `ui/FileDialog.tsx`); the core's listing is the second tab, "In the model's folder" | done |
 | `mouse`, `rubber`, `drag` | a plot mode (`plot/pick.ts`, the store's `pick`): a crosshair (click or tap picks), a box or line (drag it), or a drag of the plot, with an instruction bar and Cancel (Done for a drag); Escape cancels; from the keyboard, arrows move the crosshair or the free corner (Shift: ten times as far), Enter picks or fixes a corner, arrows drag in a drag. Answered in data coordinates (`xd`, `yd`, `xd2`, `yd2`, docs/protocol.md), so no pixel maths; the drag's events queue while the core works. When the core's window moves (Window/Zoom, Viewaxes), the plot shows it again (the client zoom is one Undo away). Asks for windows the page does not draw yet (AUTO, 3D) say so and offer Cancel | done |
-| `grab` (AUTO) | select a point of the diagram (click, tap, or arrow keys); answered by index | T11 (says it is not offered yet and offers Cancel, A13) |
+| `grab` (AUTO) | a mode of the AUTO view: arrows, `[` `]`, Tab to the labels, Enter takes, Escape cancels, a click or tap takes the nearest point; answered by index (`point`) | done (T11b) |
 | `pixels` | answered `ok:0` by the session: web2 renders frames from data (kinescope, GIF) itself | done / T15 |
 
 A prompt never steals keys it does not use: the menu dialog takes only its
@@ -486,7 +504,13 @@ Target: WCAG 2.2 AA. Rules:
   branch and stability run and every label, the periodic branch starts at
   its Hopf point, hover and `<` `>` name the Hopf point, wheel, box, undo,
   pan and reset, no Abort in the view, a sheet at 390x844 with 44 px
-  targets, Back and Show, Close.
+  targets, Back and Show, Close; grab from the keyboard only (G, `]`, Tab
+  to the Hopf point, Enter) with the store's `autoinfo` following each
+  step, the periodic branch run from it and marked `from` its label,
+  Escape cancelling a grab, Axes/Zoom by a box drawn on the diagram (the
+  core's axes are the box within a pixel). `tools/servercheck.py`: grab by
+  index then Run gives the diagram grabbing by keys gives; `autoinfo`
+  equals the strip's text and AUTO's printed eigenvalues and multipliers.
   Live: the store and the plot grow over several appends of a 20 001-row
   run and end equal to `output.dat`. Long runs (tools/models/million.ode,
   10^6 rows): every draw under 50 ms while the rows arrive, and during

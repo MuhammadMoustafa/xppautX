@@ -43,7 +43,10 @@ test('mouse, rubber and drag asks of the shown 2D window are plot modes', () => 
   assert.equal(pickModeOf(ask('rubber', {flag: 0}), view, true), 'box');
   assert.equal(pickModeOf(ask('rubber', {flag: 1}), view, true), 'line');
   assert.equal(pickModeOf(ask('drag'), view, true), 'drag');
-  assert.equal(pickModeOf(ask('rubber', {win: 101}), view, true), null, 'the AUTO diagram is not shown yet');
+  assert.equal(pickModeOf(ask('rubber', {win: 101}), view, true), null, 'the AUTO diagram while AUTO is not open');
+  assert.equal(pickModeOf(ask('rubber', {win: 101, flag: 0}), view, false, true), 'box', 'Axes/Zoom on the AUTO view');
+  assert.equal(pickModeOf(ask('drag', {win: 101}), undefined, false, true), 'drag', 'Axes/Scroll on the AUTO view');
+  assert.equal(pickModeOf(ask('grab', {win: 101}), view, false, true), null, "a grab is the AUTO view's own mode");
   assert.equal(pickModeOf(ask('mouse'), {...view, three: 1}, true), null, 'nor a 3D plot');
   assert.equal(pickModeOf(ask('mouse'), view, false), null, 'nor a plot before the first series');
   assert.equal(pickModeOf(ask('menu'), view, true), null);

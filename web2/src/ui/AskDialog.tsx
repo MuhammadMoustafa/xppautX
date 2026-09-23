@@ -208,8 +208,10 @@ function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
 export function AskDialog() {
   const ask = useStore(s => s.ask);
   const pick = useStore(s => s.pick);
+  const auto = useStore(s => s.diagram.open);
   if (!ask || ask.kind === 'pixels' || ask.kind === 'alert') return null;
-  if (pick && pick.ask === ask.id) return null; /* a plot mode (PlotView.tsx) */
+  if (pick && pick.ask === ask.id) return null; /* a plot mode (PlotView.tsx, AutoView.tsx) */
+  if (ask.kind === 'grab' && auto) return null; /* the AUTO view's grab (AutoView.tsx) */
   const body = ask.kind === 'menu' || ask.kind === 'choice' ? <MenuAsk ask={ask} />
     : ask.kind === 'string' || ask.kind === 'form' ? <FormAsk ask={ask} />
       : ask.kind === 'checklist' ? <ChecklistAsk ask={ask} />

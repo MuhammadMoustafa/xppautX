@@ -46,6 +46,7 @@ void start_diagram(n)
   bifd->evi=DALLOC(n);
   bifd->norm=0;
   bifd->lab=0;
+  bifd->from=0;
    
   DiagFlag=0;
 }
@@ -164,10 +165,25 @@ void add_diagram(ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,
  dnew->evr=DALLOC(n);
  dnew->evi=DALLOC(n);
  dnew->index=NBifs;
+ dnew->from=0;
  NBifs++;
  edit_diagram(dnew,ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,par,per,n,
 	      icp1,icp2,icp3,icp4,flag2,evr,evi,blrtn.torper);
  
+}
+
+void set_last_diagram_from(int from)
+{
+  DIAGRAM *d=bifd;
+  while(d->next!=NULL)d=d->next;
+  d->from=from;
+}
+
+int diagram_has(int index,int ibr,int ntot)
+{
+  DIAGRAM *d=bifd;
+  while(d!=NULL&&d->index!=index)d=d->next;
+  return d!=NULL&&d->ibr==ibr&&abs(d->ntot)==abs(ntot);
 }
 
 void kill_diagrams()
@@ -217,7 +233,7 @@ void redraw_diagram()
  
     if(d->ntot==1)flag=0;
     else flag=1;
-    auto_point_id(d->ibr,d->ntot,d->itp);
+    auto_point_id(d->ibr,d->ntot,d->itp,d->index,d->from);
     add_point(d->par,d->per,d->uhi,d->ulo,d->ubar,d->norm,type,flag,
 	      d->lab,d->nfpar,d->icp1,d->icp2,d->icp3,d->icp4,d->flag2,d->evr,d->evi);
     d=d->next;

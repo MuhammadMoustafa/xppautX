@@ -247,6 +247,22 @@ export class DiagramChart {
     return {left: o.left - r.left + u.valToPos(c.xs[index], 'x'), top: o.top - r.top + u.valToPos(c.ys[index], 'y')};
   }
 
+  /** the plotting area in CSS pixels from the chart's root */
+  areaBox(): {left: number; top: number; width: number; height: number} | null {
+    const u = this.u;
+    if (!u) return null;
+    const o = u.over.getBoundingClientRect(), r = this.root.getBoundingClientRect();
+    return {left: o.left - r.left, top: o.top - r.top, width: o.width, height: o.height};
+  }
+
+  /** where (x, y) of the diagram is, in CSS pixels from the chart's root */
+  place(x: number, y: number): {left: number; top: number} | null {
+    const u = this.u;
+    if (!u || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+    const o = u.over.getBoundingClientRect(), r = this.root.getBoundingClientRect();
+    return {left: o.left - r.left + u.valToPos(x, 'x'), top: o.top - r.top + u.valToPos(y, 'y')};
+  }
+
   png(): string | null {
     return this.u ? this.u.ctx.canvas.toDataURL('image/png') : null;
   }

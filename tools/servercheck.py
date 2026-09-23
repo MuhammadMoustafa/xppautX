@@ -7,7 +7,7 @@ Plays a fixed session (integrate, change a parameter, answer a menu, a
 string prompt and a form, find an equilibrium, open a second plot window)
 and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
-import argparse, base64, hashlib, json, os, shutil, struct, subprocess, sys, tempfile, threading, queue
+import argparse, base64, cmath, glob, hashlib, json, os, re, shutil, struct, subprocess, sys, tempfile, threading, queue
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -1435,6 +1435,222 @@ def check_ani_data():
 check_view()
 check_marks()
 check_ani_data()
+# AUTO's info strip and stability circle as data (docs/protocol.md "The AUTO
+# diagram as data", `autoinfo`), and a grab answered with a point of the
+# diagram's data (`point`). lecar's steady-state branch from its "hopf" fixed
+# point, then the periodic branch from the Hopf point, as
+# examples/scripts/lecar_auto.jsonl does it.
+def auto_scratch(p):
+    """AUTO's private scratch directories of server process p (xpp_make_temp_dir)"""
+    tmp = tempfile.gettempdir() if os.name == 'nt' else (os.environ.get('TMPDIR') or '/tmp')
+    pre = 'xppautoX-%d-' % p.pid
+    return [os.path.join(tmp, d) for d in os.listdir(tmp) if d.startswith(pre)]
+
+
+NUM = r'([-+]?\d\.\d+E[-+]\d+)'
+
+
+def printed_stability(p):
+    """(branch, point) -> the eigenvalues or multipliers AUTO printed for it
+    (its fort.9, kept as <model>.d in its scratch directory), the last printing"""
+    out = {}
+    for d in auto_scratch(p):
+        for f in glob.glob(os.path.join(d, '*.d')):
+            with open(f) as fh:
+                for line in fh:
+                    m = re.match(r'\s*(\d+)\s+(\d+)\s+(Eigenvalue|Multiplier)\s*(\d+)\s*' + NUM + r'\s*' + NUM + r'\s*$',
+                                 line)
+                    if m:
+                        key = (int(m.group(1)), int(m.group(2)))
+                        if int(m.group(4)) == (1 if m.group(3) == 'Eigenvalue' else 0):  # the first of a printing
+                            out[key] = []
+                        out.setdefault(key, []).append([float(m.group(5)), float(m.group(6))])
+    return out
+
+
+def strip_text(evs):
+    """the classic info strip (window 103) as its lines of text"""
+    pic = draw_ops(evs, 103)
+    for i in range(len(pic) - 1, -1, -1):
+        if pic[i][0] == 'clear':
+            pic = pic[i:]
+            break
+    return [o[3] for o in pic if o[0] == 'rtext']
+
+
+def strip_matches(info, evs):
+    """None when autoinfo's fields are what the strip's text shows, else why not"""
+    lines = strip_text(evs)
+    if len(lines) != 2:
+        return 'strip: %r' % lines
+    head, row = lines
+    par = info['par']
+    want_names = ['Br', 'Pt', 'Ty', 'Lab', par[0]['name']] + ([par[1]['name']] if len(par) > 1 else []) \
+        + ['norm', info['var'], 'period']
+    if head.split() != want_names:
+        return 'names %r vs %r' % (head.split(), want_names)
+    g = lambda v: '%10.4g' % v
+    values = ' '.join(g(v) for v in (par[0]['value'], par[1]['value'] if len(par) > 1 else 0, info['norm'], info['u'],
+                                     info['per']))
+    if abs(int(row[0:4])) != info['br'] or abs(int(row[5:9])) != info['pt'] or row[10:12].strip() != info['sym'] \
+            or int(row[13:17]) != info['lab'] or row[18:] != values:
+        return 'row %r vs %r (%s)' % (row, values, json.dumps(info))
+    return None
+
+
+def close_pairs(a, b, tol):
+    """two lists of [re, im] the same within tol (relative to 1 or more), in any order"""
+    if a is None or b is None or len(a) != len(b):
+        return False
+    rest = list(b)
+    for x in a:
+        k = next((i for i, y in enumerate(rest) if abs(x[0] - y[0]) <= tol * max(1, abs(y[0]))
+                  and abs(x[1] - y[1]) <= tol * max(1, abs(y[1]))), None)
+        if k is None:
+            return False
+        rest.pop(k)
+    return True
+
+
+def rebuild_diagram(evs, pts):
+    """the diagram data after these events: (br, pt, ty, x, y, y2, from) per point"""
+    for e in evs:
+        if e.get('ev') != 'diagram':
+            continue
+        if e['op'] == 'reset':
+            del pts[e['keep']:]
+        elif e['op'] == 'add':
+            del pts[e['from']:]
+            for r in e['runs']:
+                for i, x in enumerate(r['x']):
+                    pts.append((r['br'], r['pt'] + i, r['ty'], x, r['y'][i], (r.get('y2') or r['y'])[i],
+                                r.get('from', 0) if i == 0 else 0))
+    return pts
+
+
+def lecar_to_auto(snd, col):
+    """the "hopf" set, its fixed point as the IC, File/Auto, Run a steady state: the events"""
+    def step(**c):
+        snd(**c)
+        return col(lambda e: is_idle(e) or e.get('ev') == 'ask', timeout=30)
+    for c in ({'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'd'},
+              {'cmd': 'key', 'key': 's'}, {'cmd': 'answer', 'key': 'g'}, {'cmd': 'answer', 'key': 'n'},
+              {'cmd': 'eqimport'}, {'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'a'}, {'cmd': 'auto', 'op': 'run'}):
+        step(**c)
+    snd(cmd='answer', key='s')
+    evs, _ = col(is_idle, timeout=60)
+    return evs
+
+
+def infos(evs):
+    return [e for e in evs if e.get('ev') == 'autoinfo']
+
+
+def check_autoinfo():
+    pa, ra, snda, cola, _ = launch_server()
+    pb, rb, sndb, colb, _ = launch_server()
+    try:
+        cola(is_idle)
+        colb(is_idle)
+        snda(cmd='data', events=['autoinfo'])
+        evs, _ = cola(is_idle)
+        check('autoinfo: sent at once after data, empty before AUTO',
+              [(e['info'], e['stab']) for e in infos(evs)] == [(None, None)], str(infos(evs)))
+        evs = lecar_to_auto(snda, cola)
+        diag_a = rebuild_diagram(evs, [])
+        got = infos(evs)
+        stab = got[-1]['stab'] if got else None
+        last = diag_a[-1] if diag_a else None
+        pr = printed_stability(pa).get(last[:2]) if last else None
+        check("autoinfo: after a run, the circle is its last point's (e^eigenvalue), as AUTO printed it",
+              stab is not None and got[-1]['info'] is None and stab['periodic'] == 0 and len(stab['circle']) == 2
+              and close_pairs(stab['eig'], pr, 2e-5), '%s vs %s' % (got[-1:], pr))
+        evs = lecar_to_auto(sndb, colb)
+        diag_b = rebuild_diagram(evs, [])
+        check('autoinfo: a client that did not ask gets none', not infos(evs))
+
+        snda(cmd='auto', op='grab')
+        evs, ask = cola(lambda e: e.get('ev') == 'ask')
+        got = infos(evs)
+        info = got[-1]['info'] if got else None
+        check('autoinfo: Grab sends the strip of the point under the cursor (the first), as the strip shows it',
+              info is not None and info['point'] == 0 and info['br'] == 1 and info['pt'] == 1
+              and strip_matches(info, evs) is None, info and strip_matches(info, evs) or str(got))
+        snda(cmd='answer', id=ask['id'], key='Tab')
+        evs, ask = cola(lambda e: e.get('ev') == 'ask')
+        got = infos(evs)
+        info, stab = (got[-1]['info'], got[-1]['stab']) if got else (None, None)
+        check('autoinfo: Tab to the Hopf point: its strip', info is not None and info['sym'] == 'HB'
+              and info['lab'] > 0 and strip_matches(info, evs) is None, info and strip_matches(info, evs) or str(got))
+        hb = info
+        printed = printed_stability(pa)
+        pr = printed.get((1, hb['pt'])) if hb else None
+        check("autoinfo: the Hopf point's eigenvalues are what AUTO printed for it, a pair on the imaginary axis",
+              stab is not None and stab['periodic'] == 0 and len(stab['circle']) == 2 and close_pairs(stab['eig'], pr, 2e-5)
+              and all(abs(e[0]) < 1e-3 and abs(e[1]) > 0.1 for e in stab['eig']), '%s vs %s' % (stab, pr))
+        check('autoinfo: the circle is e^eigenvalue', stab is not None and all(
+            abs(complex(*z) - cmath.exp(complex(*e))) < 1e-9 for z, e in zip(stab['circle'], stab['eig'])))
+        # a point of the data by its index moves the cursor there
+        snda(cmd='answer', id=ask['id'], point=5)
+        evs, ask = cola(lambda e: e.get('ev') == 'ask')
+        got = infos(evs)
+        info, stab = (got[-1]['info'], got[-1]['stab']) if got else (None, None)
+        p5 = diag_a[5] if len(diag_a) > 5 else None
+        pr = printed.get((info['br'], info['pt'])) if info else None
+        check('grab by point: the cursor goes to point 5 of the data, its strip and eigenvalues',
+              info is not None and p5 is not None and info['point'] == 5 and (info['br'], info['pt']) == p5[:2]
+              and strip_matches(info, evs) is None and stab is not None and close_pairs(stab['eig'], pr, 2e-5),
+              '%s %s %s' % (info, p5, pr))
+        snda(cmd='answer', id=ask['id'], point=100000, key='Return')
+        evs, ask = cola(lambda e: e.get('ev') == 'ask' or is_idle(e))
+        check('grab by point: a point the data do not have is ignored, and so is its key',
+              ask is not None and ask.get('ev') == 'ask' and not infos(evs), str(evs)[:300])
+        # take the Hopf point by its index, in one answer; the other server by its keys
+        snda(cmd='answer', id=ask['id'], point=hb['point'], key='Return')
+        evs, end = cola(is_idle)
+        check('grab by point: point and Return take it in one answer', end is not None
+              and not any(e.get('ev') == 'ask' for e in evs), str(evs)[:300])
+        sndb(cmd='auto', op='grab')
+        for k in ['Tab', 'Return']:
+            evs, ask = colb(lambda e: e.get('ev') == 'ask')
+            sndb(cmd='answer', id=ask['id'], key=k)
+        colb(is_idle)
+        run_evs = []
+        for snd, col, diag in ((snda, cola, diag_a), (sndb, colb, diag_b)):
+            snd(cmd='auto', op='run')
+            evs, ask = col(lambda e: e.get('ev') == 'ask', timeout=30)
+            snd(cmd='answer', id=ask['id'], key='p')
+            evs, _ = col(is_idle, timeout=120)
+            rebuild_diagram(evs, diag)
+            run_evs = run_evs or evs
+        per = [p for p in diag_a if p[0] == 2]
+        check('grab by point, then Run: the periodic branch is the one grabbing by keys gives',
+              len(per) > 10 and diag_a == diag_b, '%d periodic points; %d vs %d points' % (len(per), len(diag_a), len(diag_b)))
+        check('diagram: the periodic branch says it started from the Hopf label (from)',
+              per and per[0][6] == hb['lab'] and all(p[6] == 0 for p in per[1:]), str(per[:2]))
+        got = infos(run_evs)
+        stab = got[-1]['stab'] if got else None
+        pr = printed_stability(pa).get(per[-1][:2]) if per else None
+        check("autoinfo: after the periodic run, the circle holds its last point's Floquet multipliers, as AUTO printed them",
+              stab is not None and stab['periodic'] == 1 and 'eig' not in stab and close_pairs(stab['circle'], pr, 2e-5)
+              and any(abs(complex(*z) - 1) < 1e-3 for z in stab['circle']), '%s vs %s' % (stab, pr))
+        snda(cmd='redraw')
+        evs, _ = cola(is_idle)
+        check('autoinfo: a redraw sends none (nothing it shows changed)', not infos(evs), str(infos(evs))[:200])
+        snda(cmd='auto', op='point', xd=0.125, yd=-0.25)
+        evs, _ = cola(is_idle)
+        hint = [e.get('auto') for e in evs if e.get('ev') == 'message' and 'auto' in e]
+        check('auto point in data coordinates shows exactly those', hint and hint[-1] == 'x=0.125,y=-0.25', str(hint))
+        snda(cmd='auto', op='close')
+        evs, _ = cola(is_idle)
+        got = infos(evs)
+        check('autoinfo: closing AUTO empties it', got and got[-1]['info'] is None and got[-1]['stab'] is None, str(got))
+    finally:
+        stop_server(pa, ra, snda)
+        stop_server(pb, rb, sndb)
+
+
+check_autoinfo()
 
 # A HOME the process cannot write to used to make AUTO exit(1) under the
 # client when it opened fort.8 there; open_auto() now falls back to the

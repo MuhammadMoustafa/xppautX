@@ -3,7 +3,8 @@
    and the segment from a Hopf point to its periodic branch. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {buildDiagramModel, describePoint, hopfOf, nearestVertex, stepLabel, vertexOf} from '../src/plot/diagramModel';
+import {circlePoints, complexText, infoRows, stabilitySummary} from '../src/plot/autoInfo';
+import {buildDiagramModel, describePoint, grabStep, hopfOf, nearestVertex, stepLabel, vertexOf} from '../src/plot/diagramModel';
 import {initialDiagram, pointCount, type DiagramRun, type DiagramState} from '../src/store/diagram';
 import {initialState, reduce, type AppState} from '../src/store/state';
 
@@ -220,4 +221,88 @@ test('stepping from label to label, and the readout of a point', () => {
   assert.equal(q.kind, 'unstable periodic orbit');
   assert.deepEqual(q.values, ['iapp = 0.259', 'V max = -0.17', 'V min = -0.23']);
   assert.equal(initialDiagram.open, false);
+});
+
+/* ---- T11b: autoinfo, the grab, the label a branch started from ---- */
+
+const hbInfo = {point: 4, br: 1, pt: 5, type: 2, sym: 'HB', lab: 2, par: [{name: 'iapp', value: 0.26}, {name: 'phi', value: 0.2}],
+  norm: 0.29, var: 'V', u: -0.2, per: 14.4, x: 0.26, y: -0.2, y2: -0.2};
+const hbStab = {periodic: 0, circle: [[0.9, 0.42], [0.9, -0.42]], eig: [[6e-5, 0.435], [6e-5, -0.435]]};
+
+test('autoinfo holds the strip and the circle; a new window or a closed one has neither', () => {
+  let s = ev(lecar(), {ev: 'autoinfo', info: hbInfo, stab: hbStab});
+  assert.deepEqual(s.diagram.info, hbInfo);
+  assert.deepEqual(s.diagram.stab, hbStab);
+  assert.equal(s.diagram.infoEvents, 1);
+  s = ev(s, {ev: 'autoinfo', info: null, stab: hbStab});
+  assert.equal(s.diagram.info, null);
+  assert.equal(s.diagram.infoEvents, 2);
+  s = ev(s, {ev: 'window', op: 'destroy', win: 101});
+  assert.equal(s.diagram.stab, null);
+  assert.equal(s.diagram.infoEvents, 2, 'the count goes on');
+});
+
+test('a grab ask on the diagram is the view\'s grab until the command ends, and shows the panel', () => {
+  let s = lecar();
+  s = reduce(s, {type: 'diagram', action: {type: 'show', shown: false}});
+  s = ev(s, {ev: 'ask', id: 7, kind: 'grab', win: 101});
+  assert.equal(s.diagram.grabbing, true);
+  assert.equal(s.diagram.shown, true);
+  assert.equal(s.pick, null, 'not a plot mode');
+  s = reduce(s, {type: 'sent', cmd: {cmd: 'answer', id: 7, point: 3}});
+  assert.equal(s.ask, null);
+  assert.equal(s.diagram.grabbing, true, 'between two asks of the same grab');
+  s = ev(s, {ev: 'idle'});
+  assert.equal(s.diagram.grabbing, false);
+  /* Axes/Zoom's box on the diagram is a plot mode of window 101 */
+  s = ev(s, {ev: 'ask', id: 8, kind: 'rubber', win: 101, flag: 0});
+  assert.equal(s.pick?.mode, 'box');
+  assert.equal(s.pick?.win, 101);
+  assert.equal(s.plots.active, initialState.plots.active, 'the plot windows are left alone');
+});
+
+test('grab keys: points one by one (the ends wrap to the first), ten, the ends, labels by Tab', () => {
+  const d = lecar().diagram, n = pointCount(d.points); /* 14 points, labels at 0, 4, 6, 8, 13 */
+  assert.equal(grabStep('ArrowRight', false, 3, n, d.labels), 4);
+  assert.equal(grabStep(']', false, n - 1, n, d.labels), 0);
+  assert.equal(grabStep('ArrowLeft', false, 0, n, d.labels), 0);
+  assert.equal(grabStep('[', false, 5, n, d.labels), 4);
+  assert.equal(grabStep('ArrowRight', false, -1, n, d.labels), 0, 'from no point: the first');
+  assert.equal(grabStep('PageDown', false, 2, n, d.labels), 12);
+  assert.equal(grabStep('PageDown', false, 9, n, d.labels), n - 1);
+  assert.equal(grabStep('PageUp', false, 3, n, d.labels), 0);
+  assert.equal(grabStep('Home', false, 7, n, d.labels), 0);
+  assert.equal(grabStep('End', false, 7, n, d.labels), n - 1);
+  assert.equal(grabStep('Tab', false, 0, n, d.labels), 4, 'Tab from the first point: the Hopf point');
+  assert.equal(grabStep('Tab', true, 4, n, d.labels), 0);
+  assert.equal(grabStep('Tab', false, 13, n, d.labels), 0, 'Tab wraps');
+  assert.equal(grabStep('x', false, 3, n, d.labels), null);
+  assert.equal(grabStep('Tab', false, 0, 0, []), null);
+});
+
+test('a periodic branch whose run says it started from the Hopf label joins that label, wherever it lies', () => {
+  const tagged: DiagramRun[] = [{...periodic[0], from: 3, x: [0.44, 0.43, 0.42]}, periodic[1]];
+  const s = ev(ev(opened(), add(0, steady)), add(9, tagged));
+  assert.deepEqual(s.diagram.points.fr.slice(8, 12), [0, 3, 0, 0], 'on the run\'s first point only');
+  const m = buildDiagramModel(s.diagram.points, s.diagram.labels, s.diagram.axes);
+  assert.deepEqual(m.hopf, [{point: 9, from: 6}], 'label 3, the second Hopf point, not the nearer first');
+  /* a run from a label that is not a Hopf point is not joined, even where one lies */
+  const fromEp: DiagramRun[] = [{...periodic[0], from: 1}];
+  const t = ev(ev(opened(), add(0, steady)), add(9, fromEp));
+  assert.deepEqual(buildDiagramModel(t.diagram.points, t.diagram.labels, t.diagram.axes).hopf, []);
+});
+
+test('the strip in words and the circle: inside is stable, the eigenvalues listed', () => {
+  const rows = infoRows(hbInfo as never);
+  assert.deepEqual(rows.slice(0, 4), [['Branch', '1'], ['Point', '5'], ['Type', 'Unstable steady state'],
+    ['Label', 'HB 2 (Hopf bifurcation)']]);
+  assert.deepEqual(rows.slice(4), [['iapp', '0.26'], ['phi', '0.2'], ['Norm', '0.29'], ['V', '-0.2']], 'no period for a steady state');
+  assert.deepEqual(infoRows({...hbInfo, type: 4, sym: '', lab: 0} as never).slice(-1), [['Period', '14.4']]);
+  const pts = circlePoints(hbStab as never);
+  assert.deepEqual(pts.map(p => [p.inside, p.text]), [[true, '0.00006 + 0.435i'], [true, '0.00006 − 0.435i']]);
+  const mult = circlePoints({periodic: 1, circle: [[1, 0], [2.5, 0], [0.1, -3]]} as never);
+  assert.deepEqual(mult.map(p => [p.x, p.y, p.inside, p.text]), [[1, 0, true, '1'], [1.95, 0, false, '2.5'],
+    [0.1, -1.95, false, '0.1 − 3i']]);
+  assert.equal(stabilitySummary({periodic: 1, circle: [[1, 0], [2.5, 0]]} as never), '2 Floquet multipliers, 1 inside the unit circle');
+  assert.equal(complexText(null, null), 'none (below the smallest number)');
 });

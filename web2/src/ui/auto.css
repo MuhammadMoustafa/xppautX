@@ -83,3 +83,48 @@
 @media (pointer: coarse) {
   .auto-tools button { flex: 1 0 auto; }
 }
+/* T11b: the grab's cursor, the stored point of a two-parameter diagram, the
+   info strip and the stability circle (ui/AutoInfo.tsx) */
+.plot-host.pick-grab .u-over { cursor: pointer; }
+.auto-cursor, .auto-stored {
+  position: absolute;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: -0.625rem 0 0 -0.625rem;
+  pointer-events: none;
+  z-index: 5;
+  background:
+    linear-gradient(var(--fg), var(--fg)) center / 2px 100% no-repeat,
+    linear-gradient(var(--fg), var(--fg)) center / 100% 2px no-repeat;
+}
+.auto-stored { transform: rotate(45deg); }
+.auto-stored-text { margin: 0; padding: var(--space-1) var(--space-3); font-size: var(--text-xs); }
+.auto-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-xs);
+  min-width: 0;
+}
+.auto-info-rows {
+  flex: 1 1 16rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  min-width: 0;
+}
+.auto-info-rows div { min-width: 0; }
+.auto-info-rows dt { color: var(--fg-muted); overflow-wrap: anywhere; }
+.auto-info-rows dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.auto-stab { display: flex; gap: var(--space-2); margin: 0; min-width: 0; }
+.auto-stab svg { width: 5.5rem; height: 5.5rem; flex: none; overflow: visible; }
+.auto-stab-axis { stroke: var(--grid); stroke-width: 0.03; }
+.auto-stab-unit { fill: none; stroke: var(--fg-muted); stroke-width: 0.05; }
+.auto-stab-in { fill: var(--fg); }
+.auto-stab-out { stroke: var(--danger); stroke-width: 0.08; fill: none; }
+.auto-stab figcaption { min-width: 0; }
+.auto-stab-list { margin: var(--space-1) 0 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }

@@ -177,7 +177,9 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   equilibrium symbols (graphics.c eq_symb), Text,etc's labels and objects
   (grobs.cpp draw_label) and frozen curves (graf_par.c) by their slot; the animation's frames, `ani` `frame`, come from
   `core/ani_data.cpp`, to which aniparse.cpp gives every primitive in the
-  `.ani`'s unit coordinates beside the pixel ops);
+  `.ani`'s unit coordinates beside the pixel ops;
+  `autoinfo`, AUTO's info strip and stability circle,
+  from `core/auto_data.cpp`, which auto_nox.c tells what it draws there);
   `web/` (the draw-op replay) only gets fixes until web2 replaces it.
   docs/ui-v2.md has the protocol v2 events and the task list;
   docs/front-end-gaps.md tracks parity.

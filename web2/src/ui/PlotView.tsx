@@ -60,8 +60,9 @@ function activePick(session: Session, win: number): PickState | null {
   return p && !p.waiting && p.win === win ? p : null;
 }
 
-/** pointer events of a plot mode (plot/interactions.ts) as moves and answers */
-function pickSink(session: Session, win: number, chart: () => Chart | null): PickSink {
+/** pointer events of a plot mode (plot/interactions.ts) as moves and answers
+    (the AUTO view's too, for window 101) */
+export function pickSink(session: Session, win: number, chart: () => Pick<Chart, 'ranges'> | null): PickSink {
   const drag = (what: 'down' | 'move' | 'up', at: Frac) => {
     const c = chart();
     if (!c) return;
@@ -105,7 +106,7 @@ function pickSink(session: Session, win: number, chart: () => Chart | null): Pic
 }
 
 /** the crosshair, and the box or line from its fixed corner, over the plotting area */
-function PickOverlay({pick, chart}: {pick: PickState; chart: Chart}) {
+export function PickOverlay({pick, chart}: {pick: PickState; chart: Pick<Chart, 'areaBox'>}) {
   const a = chart.areaBox();
   if (!a || pick.mode === 'drag') return null;
   const x = pick.cursor.fx * a.width, y = pick.cursor.fy * a.height;
@@ -125,7 +126,7 @@ function PickOverlay({pick, chart}: {pick: PickState; chart: Chart}) {
 }
 
 /** what the plot mode wants, and Cancel (Done for a drag); Escape anywhere cancels too */
-function PickBar({pick}: {pick: PickState}) {
+export function PickBar({pick}: {pick: PickState}) {
   const session = useSession();
   const hint = useStore(s => s.box);
   useEffect(() => {

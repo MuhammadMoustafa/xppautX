@@ -13,12 +13,12 @@
    and a periodic one at the previous periodic point of its branch.
 
    XPP leaves the start of a periodic branch unjoined to the Hopf point it
-   bifurcates from. Here a periodic branch whose first point lies at a Hopf
+   bifurcates from. Here a periodic branch that starts at a Hopf label's
+   point is drawn from that point: the run that computed it says which label
+   it started from (`from`, T11b), and for a diagram whose data do not say
+   (loaded from a file) a periodic branch whose first point lies at a Hopf
    label's parameter (within a small part of the axes' width) and whose
-   max..min spans the label's value starts at that label's point: the
-   segment from the Hopf point to the first periodic point is drawn as part
-   of the branch (the `diagram` data do not say which label a branch was
-   started from, so this is decided from where the points lie). */
+   max..min spans the label's value is taken to start there. */
 import type {DiagramAxes, DiagramLabel, DiagramPoints} from '../store/diagram';
 
 export type CurveKind = 'steady' | 'periodic' | 'two-parameter';
@@ -72,8 +72,16 @@ function kindOf(p: DiagramPoints, i: number): CurveKind {
   return p.f2[i] ? 'two-parameter' : PERIODIC(p.d[i]) ? 'periodic' : 'steady';
 }
 
-/** the Hopf label a periodic branch starting at point `s` bifurcates from, or -1 */
+/** the Hopf label's point a periodic branch starting at point `s` bifurcates
+    from, or -1: the label its run started from, else one where it lies */
 export function hopfOf(p: DiagramPoints, labels: DiagramLabel[], s: number, span: {x: number; y: number}): number {
+  if (p.fr[s]) {
+    /* the last point before it with that label: labels restart with a new diagram */
+    let at = -1;
+    for (const l of labels) if (l.lab === p.fr[s] && l.point < s && l.point > at) at = l.point;
+    const l = at >= 0 ? labels.find(x => x.point === at) : undefined;
+    return l && l.sym === 'HB' && !p.f2[at] && !PERIODIC(p.d[at]) ? at : -1;
+  }
   const x = p.x[s], lo = Math.min(p.y[s], p.y2[s]), hi = Math.max(p.y[s], p.y2[s]);
   const tx = 0.05 * span.x, ty = 0.02 * span.y;
   let best = -1, bestScore = Infinity;
@@ -224,6 +232,33 @@ export function stepLabel(labels: DiagramLabel[], from: number, dir: 1 | -1): nu
   if (dir > 0) return pts.find(p => p > from) ?? pts[0];
   for (let i = pts.length - 1; i >= 0; i--) if (from < 0 || pts[i] < from) return pts[i];
   return pts[pts.length - 1];
+}
+
+/** where a key moves a grab's cursor from point `from` (-1: not on a point
+    of the data) among `n` points: arrows and [ ] one point (the ends wrap
+    to the first point, as XPP's grab does), Page Up and Down ten, Home and
+    End the first and the last, Tab and Shift+Tab the next and the previous
+    labelled point (wrapping); null for any other key */
+export function grabStep(key: string, shift: boolean, from: number, n: number, labels: DiagramLabel[]): number | null {
+  if (n <= 0) return null;
+  switch (key) {
+    case 'ArrowRight': case 'ArrowDown': case ']':
+      return from + 1 < n ? from + 1 : 0;
+    case 'ArrowLeft': case 'ArrowUp': case '[':
+      return from > 0 ? Math.min(from - 1, n - 1) : 0;
+    case 'PageDown':
+      return Math.min(Math.max(from, 0) + 10, n - 1);
+    case 'PageUp':
+      return Math.max(Math.min(from, n - 1) - 10, 0);
+    case 'Home':
+      return 0;
+    case 'End':
+      return n - 1;
+    case 'Tab':
+      return stepLabel(labels.filter(l => l.point < n), from, shift ? -1 : 1);
+    default:
+      return null;
+  }
 }
 
 /* ---- the readout ---- */

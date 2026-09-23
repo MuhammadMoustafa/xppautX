@@ -68,7 +68,7 @@ export class Session {
          direction fields and marks; values
          as base64 float32, which a long run needs (a server that does not know
          enc sends JSON numbers, which the store reads as well) */
-      const events = ['series', 'plots', 'nullclines', 'dfield', 'marks', 'ani'].filter(name => ev.features?.includes(name));
+      const events = ['series', 'plots', 'nullclines', 'dfield', 'marks', 'ani', 'autoinfo'].filter(name => ev.features?.includes(name));
       if (events.length) this.send({cmd: 'data', events, enc: 'f32'});
     } else if (ev.ev === 'ask') {
       if (ev.kind === 'pixels') {
@@ -182,7 +182,8 @@ export class Session {
       next one after the events still queued, when the core is busy with the last) */
   cancelPick(): void {
     const {ask, pick} = this.store.getState();
-    if (ask && (ask.kind === 'mouse' || ask.kind === 'rubber' || ask.kind === 'drag') && !this.dragQueue.length) {
+    if (ask && (ask.kind === 'mouse' || ask.kind === 'rubber' || ask.kind === 'drag' || ask.kind === 'grab')
+      && !this.dragQueue.length) {
       this.cancel(ask);
     } else if (pick) {
       this.dragEnded = true;
@@ -254,6 +255,26 @@ export class Session {
     }
     this.afterIdle = {cmd: 'auto', op: 'close'};
     if (!stopping) this.abort();
+  }
+
+  /** the core's grab (docs/protocol.md `grab`): the cursor to point `point`
+      of the diagram's data, and with `take` the point is taken at once */
+  grabPoint(point: number, take = false): void {
+    const ask = this.store.getState().ask;
+    if (ask?.kind === 'grab') this.answer(ask, take ? {point, key: 'Return'} : {point});
+  }
+
+  /** the grab takes the point under its cursor (Enter) */
+  grabTake(): void {
+    const ask = this.store.getState().ask;
+    if (ask?.kind === 'grab') this.answer(ask, {key: 'Return'});
+  }
+
+  /** a click on a two-parameter diagram: shown and kept as the point
+      AUTO's File/sElect 2par pt uses (docs/protocol.md `auto` `point`) */
+  autoPoint(x: number, y: number): void {
+    this.store.dispatch({type: 'diagram', action: {type: 'stored', at: {x, y}}});
+    this.send({cmd: 'auto', op: 'point', xd: x, yd: y});
   }
 
   /** Back hides the AUTO panel (the core's window stays open); Show brings it back */

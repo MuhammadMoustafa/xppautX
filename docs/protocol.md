@@ -39,13 +39,13 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `browser` | `op` (`find`, `get`, `replace`, `unreplace`, `table`, `load`, `write`, `first`, `last`, `restore`, `addcol`, `delcol`), `row` | A data browser button, with `row` the selected row (the X11 browser's top row). |
 | `eqimport` | | The equilibrium window's Import: the last equilibrium becomes the initial conditions. |
 | `equations` | | Send `equations`. |
-| `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves, `marks`: equilibria, text, arrows, markers and frozen curves on the plots (all in "The plot as data", below); `ani`: the animation's frames ("The animation as data"). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers (an `ani` frame is always JSON). |
+| `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves, `marks`: equilibria, text, arrows, markers and frozen curves on the plots (all in "The plot as data", below); `ani`: the animation's frames ("The animation as data"); `autoinfo`: AUTO's info strip and stability circle ("The AUTO diagram as data"). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers (an `ani` frame is always JSON). |
 | `action` | `index` | Run the action of comment `index` of `source.comments`. |
 | `click` | `win` | The user selected plot window `win`. |
 | `view` | `win`, `xlo`, `xhi`, `ylo`, `yhi` | "Use this view" (docs/ui-v2.md T9): sets window `win`'s 2D axes exactly as Window/Window would (graf_par.c `update_view`), so a later PostScript/SVG export, Restore and redraw all agree with them; the `plots` and `state.view` that follow the command show the new axes. Refused (`message` `error`) and nothing changed when `xlo`..`yhi` are not all finite, `xlo>=xhi`, `ylo>=yhi`, or `win` names no open window. |
 | `redraw` | | Redraw the active plot window, and the AUTO diagram when AUTO is open (for a client that reconnects). |
 | `state` | | Send `state` now. |
-| `auto` | `op`: `param`, `axes`, `numerics`, `run`, `grab`, `usr`, `clear`, `redraw`, `file`, `close`, `point` (`x`, `y`) | The AUTO window buttons; `point` is a click on the diagram (shows and stores its coordinates); `close` destroys window 101, File/Auto opens it again. |
+| `auto` | `op`: `param`, `axes`, `numerics`, `run`, `grab`, `usr`, `clear`, `redraw`, `file`, `close`, `point` (`x`, `y`, or `xd`, `yd`) | The AUTO window buttons; `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); `close` destroys window 101, File/Auto opens it again. |
 | `session` | `op` (`save`, `load`), `name` | Save or load a session: `<name>.set` (File/Write set, File/Read set) and, when a diagram exists (save) or a `<name>.auto` file is found (load), `<name>.auto` too (AUTO File/Save diagram, File/Load diagram). Without `name`, asks for one (`ask` kind `file`, like any other Save/Load). A load opens the AUTO window first when `<name>.auto` exists and AUTO is not already open. `state.session` (below) names the files the current session was last saved to or loaded from. |
 | `aplot` | `op`: `redraw`, `edit`, `print`, `fit`, `range`, `gif`, `close`, `scroll` (`dy` pixels) | The array plot window buttons; dragging the plot scrolls through time. |
 | `rotate` | `what` (`down`, `move`, `up`), `x`, `y` | Dragging a 3D plot turns it (the active window, when `state.view.three`). |
@@ -173,11 +173,12 @@ Run it with:
 
 | ev | fields | meaning |
 |---|---|---|
-| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`), `title`, `file`, `char` {`w`,`h`,`bw`,`bh`}, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. Text is laid out on a `char.w` x `char.h` monospace cell. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). |
+| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`), `title`, `file`, `char` {`w`,`h`,`bw`,`bh`}, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. Text is laid out on a `char.w` x `char.h` monospace cell. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). |
 | `palette` | `colors` (256 `#rrggbb`) | Colour table; sent again after a colormap change. |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows 1..10, AUTO 101 (stability circle 102, info strip 103), animation 104. |
 | `draw` | `win`, `ops` | Drawing, see below. |
 | `diagram` | `op` (`axes`, `reset`, `add`), ... | The AUTO diagram as data, beside its drawing; see "The AUTO diagram as data". |
+| `autoinfo` | `info`, `stab` | AUTO's info strip and stability circle as data, for a client that asked (`data`); see "The AUTO diagram as data". |
 | `series` | `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`; or `op` `append`, `win`, `from`, `rows`, `enc`, `columns` | A plot window's curves as numbers, one event per window, for a client that asked (`data`), and during an integration the active window's rows as they are stored; see "The plot as data". |
 | `plots` | `active`, `windows` [{`win`, `title`, `three`, `xlo`, `xhi`, `ylo`, `yhi`, `xlabel`, `ylabel`, `zlabel`, `box`, `theta`, `phi`, `persp`, `zplane`, `zview`, `curves`, `shift`}...] | Every plot window and the active one, for a client that asked (`data`); see "The plot as data". |
 | `nullclines` | `win`, `enc`, `xname`, `yname`, `xcolor`, `ycolor`, `x`, `y`, `frozen` [{`x`,`y`}...] | A plot window's nullclines as segments in plot coordinates, for a client that asked (`data`); see "The plot as data". |
@@ -269,6 +270,7 @@ period, ... of the Axes setting), in the order it was plotted.
 | `d` | how it is drawn: 0 not at all (the next line starts from it), 1 a line back to the point before it, 2 filled circles of radius 3 at y and y2, 3 open circles |
 | `c`, `lw` | palette colour and line width |
 | `new` | 1: the run's first point starts a new line (no line back) |
+| `from` | the label the continuation that computed the run's first point started from (Auto.irs: the point Grab took), on the first point of such a continuation only; absent otherwise, and for a diagram loaded from a file or computed before AUTO kept it. A periodic branch's `from` names the Hopf point it bifurcates from |
 | `x`, `y` | the values, one per point (`null` for NaN) |
 | `y2` | the second value (the minimum, for hi and lo), when it differs from `y` anywhere in the run |
 | `lab` | [[index in the run, label, type (`EP`, `LP`, `HB`, `BP`, `PD`, `TR`, `UZ`, `MX`)], ...] for the points whose label the drawing marks (a cross at y and y2, the number at x+8, y+8) |
@@ -280,6 +282,42 @@ compares the points it plots again with what it sent, and only when they
 differ (another Axes quantity, new points) does it send `reset` with how
 many still agree and `add` for the rest. The points of a redraw go out
 when the redraw is over, not while it runs. A new AUTO window starts empty.
+
+**`autoinfo`**: what the AUTO window's info strip (window 103) and
+stability circle (window 102) show, as data, for a client that asked with
+`{"cmd":"data","events":["autoinfo"]}`. It is sent at the end of that
+command, and then whenever what it says changed: before every ask (so
+every step of a grab brings the point's strip and circle before the grab
+asks again), at the end of a command, and at most ten times a second while
+AUTO runs; a command that changes neither sends none. core/auto_data.cpp
+keeps it, from what auto_nox.c draws.
+
+```
+{"ev":"autoinfo",
+ "info":{"point":18,"br":1,"pt":19,"type":2,"sym":"HB","lab":2,
+         "par":[{"name":"iapp","value":0.2624638},{"name":"phi","value":0.2}],
+         "norm":0.2891081,"var":"V","u":-0.1989438,"per":14.44537,"x":0.2624638,"y":-0.1989438,"y2":-0.1989438},
+ "stab":{"periodic":0,"circle":[[0.9069413,0.4214016],[0.9069413,-0.4214016]],
+         "eig":[[6.093e-05,0.434962],[6.093e-05,-0.434962]]}}
+```
+
+| field | meaning |
+|---|---|
+| `info` | the point the strip shows: the one a grab's cursor is on (the strip changes only while grabbing); `null` before a grab, and in a new AUTO window |
+| `info.point` | its index in the `diagram` data (the points the client holds), -1 when they do not have it (after Clear, or a load not drawn yet) |
+| `info.br`, `pt`, `type`, `sym`, `lab`, `f2` | branch and point number (positive, as in `diagram`), `type` as a run's `ty` (1 stable steady state .. 4 unstable periodic), the label's type (`EP`, `LP`, `HB`, ... or empty), the label (0 for none), and for a two-parameter point its curve kind as `f2` |
+| `info.par` | the continuation parameter's `name` and `value`, and the second parameter's for a two-parameter point (the strip then shows both; for a one-parameter point it shows a blank name and 0) |
+| `info.norm`, `var`, `u`, `per` | the norm, the variable of the Axes setting and its value, the period (AUTO's value for a steady state too: what the strip prints) |
+| `info.x`, `y`, `y2` | where the diagram plots the point, in the quantities of the Axes setting |
+| `stab` | what the circle shows: the point AUTO computed or a redraw plotted last, or the grab's cursor; `null` before any |
+| `stab.periodic` | 1: `circle` holds the Floquet multipliers of a periodic orbit; 0: e^λ of each eigenvalue λ of a steady state (XPP keeps them so: inside the unit circle is stable) |
+| `stab.circle` | `[re,im]` per variable, the values themselves (the X11 circle clamps them to ±1.95) |
+| `stab.eig` | steady states only: the eigenvalues λ = log z of the `circle` values, `[null,null]` where z is 0 (Re λ below about -745); the imaginary part is only known modulo 2π, its principal value |
+
+Numbers are doubles in the shortest of 15 or 17 digits that reads back
+exactly, `null` when not finite. `tools/servercheck.py` checks that the
+fields are what the strip's text shows (its `rtext` ops) and that the
+circle holds what AUTO printed (its fort.9) for that point.
 
 `web/xpp-client.js` keeps the data and, over the diagram, zooms with the
 wheel and pans with Shift+drag or the middle button, drawing from the data;
@@ -499,7 +537,7 @@ core/plot_data.cpp sends at most one append per 100 ms).
 | `alert` | `button`, `message` | nothing |
 | `mouse` | `win` | `x`, `y`; or `xd`, `yd` (data coordinates, below) |
 | `rubber` | `win`, `flag` (0 box, 1 line) | `x`, `y`, `x2`, `y2`; or `xd`, `yd`, `xd2`, `yd2` |
-| `grab` | `win` | `key`, or `x`, `y` (or `xd`, `yd`) for a click on the diagram |
+| `grab` | `win` | `key`; or `x`, `y` (or `xd`, `yd`) for a click on the diagram; or `point`, a point of the `diagram` data by its index (with `key`, that key after it) |
 | `drag` | `win` | `what` (`down`, `move`, `up`), `x`, `y` (or `xd`, `yd`) for each pointer event; cancel or a key ends. Window/Scroll and AUTO Axes/Scroll ask it again after every event. |
 | `pixels` | `win`, or `film` (a kinescope frame index) | `w`, `h`, `rgb` (base64 of w*h*3 bytes). Frame, GIF and kinescope writers use it: only the client has the picture. |
 
@@ -518,6 +556,19 @@ outside too). When both are there, `xd`/`yd` win over `x`/`y`. A client
 that draws the plot itself (web2) answers in data coordinates and needs
 no pixel geometry. `tools/servercheck.py` checks that a box in data
 coordinates zooms exactly as the same box in pixels.
+
+**Grab by point.** A grab is a cursor on the diagram's points that the
+client moves until a key takes the point (`Return`) or cancels (`Escape`,
+or `ok` 0): arrow keys, `Tab` (the next labelled point), `Home`, `End`,
+`PageUp` and `PageDown` as in the X11 program, a click (the nearest
+point), or `{"point":i}`, point `i` of the `diagram` data as the client
+holds it (the order of `add`), which moves the cursor to exactly that point.
+Each answer that moves it brings the new point's `autoinfo` (to a client
+that asked for it) and asks again. `{"point":i,"key":"Return"}` moves and
+takes in one answer. An index the data do not have (out of range) is
+ignored, and so is the key that came with it: the grab asks again. So is a
+point AUTO no longer has: after Reset diagram or a load the data are the
+old drawing until reDraw, like the picture.
 
 **The file ask's mode.** `mode` says whether the command opens the file
 (`read`: Read set, Load diagram, the browser's Load, Import, ...) or saves

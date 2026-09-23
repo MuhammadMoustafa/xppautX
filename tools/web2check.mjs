@@ -1277,7 +1277,7 @@ function rebuildDiagram(events) {
       for (const r of e.runs) {
         for (const [i, lab, sym] of r.lab || []) labels.push({point: pts.length + i, lab, sym});
         r.x.forEach((x, i) => pts.push({x, y: r.y[i], y2: (r.y2 || r.y)[i], br: r.br, pt: r.pt + i, ty: r.ty, d: r.d,
-          c: r.c, lw: r.lw, f2: r.f2 || 0, nw: i === 0 && r.new ? 1 : 0}));
+          c: r.c, lw: r.lw, f2: r.f2 || 0, nw: i === 0 && r.new ? 1 : 0, fr: i === 0 && r.from ? r.from : 0}));
       }
     }
   }
@@ -1359,19 +1359,48 @@ async function autoView() {
     JSON.stringify(await S('s.ask')));
   await menuKey('s');
   check('the steady-state branch arrives', await until('!s.busy && s.diagram.points.x.length > 10', 'steady state', 60000));
-  /* Grab the first label (the Hopf point: Tab, then Return, as the script does) */
-  await autoButton('G');
-  await until("s.ask && s.ask.kind === 'grab'", 'grab');
-  const grab1 = await S('s.ask.id');
-  await answerAsk({key: 'Tab'});
-  await until(`s.ask && s.ask.kind === 'grab' && s.ask.id !== ${grab1}`, 'grab 2');
-  await answerAsk({key: 'Return'});
-  await until('!s.busy', 'grabbed');
-  await autoButton('R');
-  check('Run from the Hopf point offers the periodic branch',
+  check('after the run the store holds its last point\'s stability circle (autoinfo)',
+    await until('s.diagram.stab && s.diagram.stab.circle.length === 2 && s.diagram.stab.periodic === 0', 'run stab'),
+    JSON.stringify(await DS('[d.info, d.stab]')));
+
+  /* Grab from the keyboard only (T11b): G on the diagram, a step, Tab to the Hopf point, Enter */
+  await cdp.eval(`document.querySelector('.auto-host').focus()`);
+  await key('g');
+  check('G grabs in the view: a grab mode on the diagram, no dialog, the cursor on the first point',
+    await until("s.ask && s.ask.kind === 'grab' && s.diagram.grabbing && s.diagram.info && s.diagram.info.point === 0", 'grab')
+    && await cdp.eval(`!document.querySelector('[role=dialog]') && !!document.querySelector('.pick-bar[data-pick=grab]')
+      && !!document.activeElement.closest('.auto-host')`), JSON.stringify(await DS('[d.grabbing, d.info]')));
+  const nInfo = await DS('d.infoEvents');
+  await key(']');
+  check('] steps the cursor: the store\'s autoinfo follows (the next point, its strip and circle)',
+    await until(`s.diagram.infoEvents > ${nInfo} && s.diagram.info.point === 1 && s.diagram.info.pt === 2 && s.ask`, 'grab step')
+    && (await lastAnswer())?.point === 1 && await until('s.diagram.hover && s.diagram.hover.point === 1', 'readout follows'),
+    JSON.stringify([await DS('d.info'), await lastAnswer()]));
+  check('the info panel shows the point, the circle its eigenvalues',
+    /Branch\s*1/.test(await cdp.eval(`document.querySelector('.auto-info').textContent`))
+    && (await cdp.eval(`document.querySelectorAll('.auto-stab-list li').length`)) === 2
+    && /Stability circle: 2 eigenvalues/.test(await cdp.eval(`document.querySelector('.auto-stab svg').getAttribute('aria-label')`)),
+    await cdp.eval(`document.querySelector('.auto-info')?.textContent`));
+  await key('Tab');
+  check('Tab jumps to the next label, the Hopf point: its strip and a pair of eigenvalues on the imaginary axis',
+    await until("s.diagram.info.sym === 'HB' && s.ask && s.ask.kind === 'grab'", 'grab tab')
+    && await DS('d.stab.eig.length === 2 && d.stab.eig.every(e => Math.abs(e[0]) < 1e-3 && Math.abs(e[1]) > 0.1)')
+    && /HB/.test(await cdp.eval(`document.querySelector('.auto-info').textContent`))
+    && await cdp.eval(`!!document.activeElement.closest('.auto-host')`), JSON.stringify(await DS('[d.info, d.stab]')));
+  const hbLab = await DS('d.info.lab');
+  await key('Enter');
+  check('Enter takes it: the grab ends', await until('!s.busy && !s.diagram.grabbing', 'grabbed')
+    && (await lastAnswer())?.key === 'Return' && !(await cdp.eval(`!!document.querySelector('.pick-bar')`)),
+    JSON.stringify(await lastAnswer()));
+  await cdp.eval(`document.querySelector('.auto-host').focus()`);
+  await key('r');
+  check('R, from the Hopf point, offers the periodic branch',
     await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Hopf Pt'", 'hopf menu'), JSON.stringify(await S('s.ask')));
   await menuKey('p');
   check('the periodic branch arrives', await until('!s.busy && s.diagram.points.br.includes(2)', 'periodic', 120000));
+  check('its first point says it started from the Hopf label; the circle holds Floquet multipliers',
+    await DS(`d.points.fr[d.points.br.indexOf(2)] === ${hbLab}`) && await DS('d.stab.periodic === 1 && d.stab.circle.length === 2'),
+    JSON.stringify(await DS('[d.points.fr.filter(f => f), d.stab]')));
 
   /* the store is the events, exactly */
   const want = rebuildDiagram(await cdp.eval('__xpp.diagramEvents()'));
@@ -1383,6 +1412,8 @@ async function autoView() {
       if (!same(want.pts[i][f], got[f][i])) bad = `point ${i} ${f}: ${got[f][i]} vs ${want.pts[i][f]}`;
   }
   const labels = await DS('d.labels');
+  const fr = await DS('d.points.fr');
+  for (let i = 0; i < want.pts.length && !bad; i++) if (fr[i] !== want.pts[i].fr) bad = `point ${i} fr: ${fr[i]} vs ${want.pts[i].fr}`;
   check(`the store's diagram equals the diagram events (${want.pts.length} points, ${want.labels.length} labels)`,
     !bad && want.pts.length > 1000 && JSON.stringify(want.labels) === JSON.stringify(labels), bad || JSON.stringify(labels.slice(0, 5)));
 
@@ -1446,6 +1477,43 @@ async function autoView() {
   await key('0');
   check("0 goes back to AUTO's axes", await until('s.diagram.viewport.x === null', 'auto reset')
     && Math.abs((await DG()).x.min - axes.xmin) < 1e-9);
+
+  /* Escape cancels a grab */
+  await key('g');
+  await until("s.ask && s.ask.kind === 'grab'", 'grab again');
+  await key('Escape');
+  check('Escape cancels a grab', await until('!s.busy && !s.diagram.grabbing', 'grab cancelled')
+    && (await lastAnswer())?.ok === 0 && (await DS('d.shown')), JSON.stringify(await lastAnswer()));
+
+  /* Axes/Zoom: a box drawn on the diagram, answered in its data coordinates (T11b) */
+  await cdp.eval(`document.querySelector('.auto-host').focus()`);
+  await key('a');
+  await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Plot Type'", 'axes menu');
+  await menuKey('z');
+  check('Axes/Zoom is a box mode on the diagram, not a dialog',
+    await until("s.pick && s.pick.win === 101 && s.pick.mode === 'box'", 'auto box mode')
+    && await cdp.eval(`!document.querySelector('[role=dialog]') && !!document.querySelector('.auto-panel .pick-bar')`),
+    JSON.stringify(await S('[s.ask, s.pick]')));
+  const za = await autoArea(), zd = await DG();
+  const zx = f => zd.x.min + f * (zd.x.max - zd.x.min), zy = f => zd.y.max - f * (zd.y.max - zd.y.min);
+  await mouse('mouseMoved', za.x + 0.3 * za.w, za.y + 0.2 * za.h);
+  await mouse('mousePressed', za.x + 0.3 * za.w, za.y + 0.2 * za.h, {button: 'left', buttons: 1, clickCount: 1});
+  for (let st = 1; st <= 5; st++)
+    await mouse('mouseMoved', za.x + (0.3 + 0.06 * st) * za.w, za.y + (0.2 + 0.08 * st) * za.h, {button: 'left', buttons: 1});
+  await mouse('mouseReleased', za.x + 0.6 * za.w, za.y + 0.6 * za.h, {button: 'left', buttons: 0, clickCount: 1});
+  const zAns = await lastAnswer();
+  await until('!s.busy', 'auto zoomed');
+  const zAxes = await DS('d.axes');
+  const px = (zd.x.max - zd.x.min) / axes.wid * 2, py = (zd.y.max - zd.y.min) / axes.hgt * 2;
+  check("the box, in the diagram's data coordinates, becomes AUTO's axes (within a pixel)",
+    zAns && 'xd2' in zAns && Math.abs(zAxes.xmin - zx(0.3)) < px && Math.abs(zAxes.xmax - zx(0.6)) < px
+    && Math.abs(zAxes.ymax - zy(0.2)) < py && Math.abs(zAxes.ymin - zy(0.6)) < py && await DS('d.viewport.x === null'),
+    JSON.stringify([zAns, zAxes, [zx(0.3), zx(0.6), zy(0.6), zy(0.2)]]));
+  /* back to AUTO's first axes for what follows */
+  await key('a');
+  await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Plot Type'", 'axes menu 2');
+  await menuKey('f');
+  await until('!s.busy', 'auto fit');
 
   /* on a phone: a sheet with Back, 44 px targets, no sideways scroll */
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 2, mobile: true});

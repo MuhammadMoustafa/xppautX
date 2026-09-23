@@ -59,6 +59,7 @@
 #include "autlim.h"
 #include "xAuto.h" 
 #include "xpp_job.h"
+#include "auto_data.h"
 
 #define MAXLINELENGTH 100000
 #define PACK_AUTO 0
@@ -117,6 +118,9 @@ int TypeOfCalc=0;
 
 #define DISCRETE 0
 extern XAUTO xAuto;
+/* the label the running continuation started from (Auto.irs), for its
+   first point: do_auto sets it, addbif takes it (auto_run_from_take) */
+static int run_from;
 extern int leng[MAXODE];
 extern int PS_Color;
 extern double TOR_PERIOD;
@@ -707,9 +711,11 @@ void do_auto(iold,isave,itp)
  
     open_auto(iold); /* this copies the relevant files .s  to fort.3 */
     xpp_job_begin(0); /* Abort cancels it (xpp_job.h) */
+    run_from=Auto.irs>0?Auto.irs:0; /* the diagram's data say where the run started */
     go_go_auto(); /* this complets the initialization and calls the 
                       main routines 
 		  */
+    run_from=0;
     if(xpp_job_cancelled())RestartLabel=0; /* xppautX: cancel: no follow-up run */
     xpp_job_end();
     /* plintf("AUTO opened it==%d\n",itp); */
@@ -1337,12 +1343,28 @@ void auto_line(x1i,y1i,x2i,y2i)
 }
 /* The point add_point() is given next, for the diagram's data
    (auto_diagram): its caller knows the branch and point, add_point does not. */
-static int dpt_ibr,dpt_ntot,dpt_itp;
-void auto_point_id(int ibr,int ntot,int itp)
+static int dpt_ibr,dpt_ntot,dpt_itp,dpt_node,dpt_from;
+void auto_point_id(int ibr,int ntot,int itp,int node,int from)
 {
   dpt_ibr=ibr;
   dpt_ntot=ntot;
   dpt_itp=itp;
+  dpt_node=node;
+  dpt_from=from;
+}
+
+int auto_run_from_take(void)
+{
+  int f=run_from;
+  run_from=0;
+  return f;
+}
+
+/* the stability circle, and the same as data (auto_data.h) */
+static void show_stab(double *evr,double *evi,int n,int periodic)
+{
+  plot_stab(evr,evi,n);
+  auto_data_stab(evr,evi,n,periodic);
 }
 
 /* the colour colset() and colset2() give a point */
@@ -1404,6 +1426,8 @@ auto_xy_plot(&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a); /* figure out who sits
   dp.ibr=dpt_ibr;
   dp.pt=dpt_ntot;
   dp.itp=dpt_itp;
+  dp.node=dpt_node;
+  dp.from=dpt_from;
   dp.type=type;
   dp.flag2=flag2;
   dp.newseg=(flg==0);
@@ -1423,13 +1447,13 @@ auto_xy_plot(&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a); /* figure out who sits
 if(flag2==0&&Auto.plot==P_P) /* if the point was a 1 param run and we are in 2 param plot, skip */
     {
        if(flg==0)auto_diagram(&dp); /* not drawn, but the next line starts here */
-       plot_stab(evr,evi,NODE);
+       show_stab(evr,evi,NODE,type==SPER||type==UPER);
        refreshdisplay();
        return;
      }
 if(flag2>0&&Auto.plot!=P_P){ /* two parameter and not in two parameter plot, just skip it */
     if(flg==0)auto_diagram(&dp);
-    plot_stab(evr,evi,NODE);
+    show_stab(evr,evi,NODE,type==SPER||type==UPER);
     refreshdisplay();
     return;
   }
@@ -1502,7 +1526,7 @@ if(flag2>0&&Auto.plot!=P_P){ /* two parameter and not in two parameter plot, jus
   Auto.lastx=x;
   Auto.lasty=y1;
   auto_diagram(&dp);
-   plot_stab(evr,evi,NODE);
+  show_stab(evr,evi,NODE,type==SPER||type==UPER);
   refreshdisplay();
 }
   
@@ -1623,9 +1647,31 @@ void traverse_out(d,ix,iy,dodraw)
     *iy=IYVal(y1);
     if (dodraw==1)
     {
+      AutoDataInfo ai;
     	XORCross(*ix,*iy);
-  	plot_stab(evr,evi,NODE);
+  	show_stab(evr,evi,NODE,ibr<0);
   	new_info(ibr,pt,symb,lab,par,norm,d->u0[Auto.var],per,flag2,icp1,icp2);
+      /* what the strip shows, as data */
+      ai.ibr=ibr;
+      ai.pt=pt;
+      ai.itp=itp;
+      ai.lab=lab;
+      ai.type=get_bif_type(ibr,pt,lab);
+      ai.flag2=flag2;
+      ai.node=d->index;
+      ai.sym=symb;
+      ai.p1name=upar_names[AutoPar[icp1]];
+      ai.p1=par1;
+      ai.p2name=icp2<NAutoPar?upar_names[AutoPar[icp2]]:NULL;
+      ai.p2=par2;
+      ai.norm=norm;
+      ai.vname=uvar_names[Auto.var];
+      ai.u=d->u0[Auto.var];
+      ai.per=per;
+      ai.x=x;
+      ai.y=y1;
+      ai.y2=y2;
+      auto_data_info(&ai);
     }
     if(lab>0 && load_all_labeled_orbits>0)
       load_auto_orbitx(ibr,1,lab,per);
@@ -3396,7 +3442,20 @@ void traverse_diagram()
   
   while(done==0){
     kp=xpp_ui.auto_grab_event(&xm,&ym);
-    if(kp==XPP_AUTO_CLICK)
+    if(kp==XPP_AUTO_NODE)
+    {
+      /* a point of the diagram by its entry: the cursor goes there */
+      dnew=bifd;
+      while(dnew!=NULL&&dnew->index!=xm)dnew=dnew->next;
+      if(dnew!=NULL){
+        clear_msg();
+        XORCross(ix,iy);
+        d=dnew;
+        CUR_DIAGRAM=d;
+        traverse_out(d,&ix,&iy,1);
+      }
+    }
+    else if(kp==XPP_AUTO_CLICK)
     {
 	{
        		clear_msg();
@@ -3729,6 +3788,11 @@ void auto_motion_xy(int i,int j)
   double x,y;
     x=Auto.xmin+(double)(i-Auto.x0)*(Auto.xmax-Auto.xmin)/(double)Auto.wid;
     y=Auto.ymin+(double)(Auto.y0-j+Auto.hgt)*(Auto.ymax-Auto.ymin)/(double)Auto.hgt;
+    auto_point_xy(x,y);
+}
+
+void auto_point_xy(double x,double y)
+{
     sprintf(Auto.hinttxt,"x=%g,y=%g",x,y);
     storeautopoint(x,y);
     xpp_ui.auto_show_hint();

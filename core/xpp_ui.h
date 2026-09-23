@@ -28,6 +28,8 @@ extern "C" {
 struct XppMenu; /* menus.h */
 
 #define XPP_AUTO_CLICK 1000
+/* auto_grab_event: move the cursor to AUTO's diagram entry x (DIAGRAM.index) */
+#define XPP_AUTO_NODE 1001
 
 /* One point of the AUTO diagram as add_point() (auto_nox.c) plots it, in
    the diagram's current axis quantities (auto_xy_plot), for a front end
@@ -43,6 +45,9 @@ typedef struct XppDiagPoint {
                       y2, 3 open circles */
     int newseg;    /* the previous point is this one: no line back */
     int color, lw; /* what autocol() and LineWidth() get for it */
+    int node;      /* its entry in AUTO's diagram list (DIAGRAM.index) */
+    int from;      /* the label the run that computed it started from, on
+                      the run's first point only (0 otherwise, or unknown) */
     double x, y1, y2;
 } XppDiagPoint;
 
@@ -188,8 +193,9 @@ typedef struct XppUi {
     int (*auto_choose_key)(char *title, char **list, char *key, int n, int max,
                            int def, int x, int y, char **hints, char *httxt);
     void (*auto_scroll_window)(void);
-    /* Grab: wait for a key (returns its code, mykeydef.h) or a click on
-       the diagram (returns XPP_AUTO_CLICK with the pixel in x,y) */
+    /* Grab: wait for a key (returns its code, mykeydef.h), a click on
+       the diagram (returns XPP_AUTO_CLICK with the pixel in x,y) or a
+       point of the diagram by its entry (XPP_AUTO_NODE, DIAGRAM.index in x) */
     int (*auto_grab_event)(int *x, int *y);
     void (*auto_show_hint)(void); /* Auto.hinttxt changed */
     /* the grab is over: done=1 a point was taken (Enter), -1 cancelled (Esc) */

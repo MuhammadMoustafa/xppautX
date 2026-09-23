@@ -52,6 +52,7 @@
 #include "marks_data.h"
 #include "series_enc.h"
 #include "ani_data.h"
+#include "auto_data.h"
 #include "xpp_files.h"
 #include <strings.h>
 #include <stdarg.h>
@@ -278,6 +279,8 @@ static void close_poly(void)
    are separate canvases, so only the order within a window matters) */
 static void diag_flush(int final); /* the AUTO diagram's data, below */
 static void diag_forget(void);
+static XppDiagPoint *dg;
+static int dg_n, dg_cap, dg_client, dg_dirty;
 
 static void flush_ops(void)
 {
@@ -675,6 +678,7 @@ static int ask_wait(Buf *b, int id)
 {
     BUF_LIT(b, "}");
     diag_flush(1);
+    auto_data_update(1);
     json_flush();
     if (script_mode) snprintf(script_ask, sizeof script_ask, "%s", b->s);
     send_buf(b);
@@ -1250,7 +1254,7 @@ static void data_command(const char *line)
 {
     const char *arr = js_find(line, "events");
     char name[32], enc[8];
-    int i, series = 0, plots = 0, nullclines = 0, dfield = 0, marks = 0, ani = 0, f32;
+    int i, series = 0, plots = 0, nullclines = 0, dfield = 0, marks = 0, ani = 0, autoinfo = 0, f32;
     for (i = 0; arr && js_elem(arr, i); i++) {
         if (!js_string(js_elem(arr, i), name, sizeof name)) continue;
         if (strcmp(name, "series") == 0) series = 1;
@@ -1259,12 +1263,14 @@ static void data_command(const char *line)
         else if (strcmp(name, "dfield") == 0) dfield = 1;
         else if (strcmp(name, "marks") == 0) marks = 1;
         else if (strcmp(name, "ani") == 0) ani = 1;
+        else if (strcmp(name, "autoinfo") == 0) autoinfo = 1;
     }
     f32 = get_str(line, "enc", enc, sizeof enc) && strcmp(enc, "f32") == 0;
     plot_data_subscribe(series, plots, f32);
     phase_data_subscribe(nullclines, dfield, f32);
     marks_data_subscribe(marks, f32);
     ani_data_subscribe(ani);
+    auto_data_subscribe(autoinfo);
 }
 
 /* the equations window: one "dX/dT=..." line per equation (eig_list.c) */
@@ -1975,6 +1981,7 @@ static void j_auto_make_window(char *wname, char *iname)
     strcpy(Auto.hinttxt, "hint");
     auto_reset_state(); /* a fresh canvas starts from the defaults */
     diag_forget();      /* and a new window has no data */
+    auto_data_forget(); /* nor an info strip or a stability circle */
     send_window("create", WIN_AUTO, Auto.wid + 12 * DCURXs, Auto.hgt + 4 * DCURYs, wname);
     draw_bif_axes();
 }
@@ -2124,13 +2131,35 @@ static int j_auto_choose_key(char *title, char **list, char *key, int n, int max
     m.row = 0;
     return j_menu_choose(&m, def);
 }
+/* a grab answer's key after its point ({"point":i,"key":"Return"}): the
+   point first, then the key without asking again */
+static int grab_key_after;
+
 static int j_auto_grab_event(int *x, int *y)
 {
     Buf b;
     char k[32];
-    int id = ask_begin(&b, "grab");
+    const char *jp;
+    int id;
+    if (grab_key_after) {
+        id = grab_key_after;
+        grab_key_after = 0;
+        return id;
+    }
+    id = ask_begin(&b, "grab");
     buf_printf(&b, ",\"win\":%d", WIN_AUTO);
     if (!ask_wait(&b, id)) return ESC;
+    /* a point of the diagram data by its index: the cursor goes to that
+       point's entry (docs/protocol.md "Grab by point"); one the data do not
+       have, or whose entry AUTO no longer has (the data are an old drawing
+       until reDraw), is ignored, and so is its key */
+    if ((jp = js_find(answer, "point")) != NULL) {
+        double i = js_num(jp, -1);
+        const XppDiagPoint *p = i >= 0 && i < dg_client ? &dg[(int)i] : NULL;
+        *x = p && diagram_has(p->node, p->ibr, p->pt) ? p->node : -1;
+        if (*x >= 0 && get_str(answer, "key", k, sizeof k)) grab_key_after = key_code(k);
+        return XPP_AUTO_NODE;
+    }
     if (get_str(answer, "key", k, sizeof k)) return key_code(k);
     answer_point(WIN_AUTO, 0, x, y);
     return XPP_AUTO_CLICK;
@@ -2153,8 +2182,6 @@ static void j_auto_show_hint(void) { send_simple("message", "auto", Auto.hinttxt
    drops the rest of the old list and is sent with the ones after it. A
    clear that is not followed by the whole list (the Clear button) drops
    the rest at the end of the command. */
-static XppDiagPoint *dg;
-static int dg_n, dg_cap, dg_client, dg_dirty;
 static int dg_replay, dg_match, dg_axes;
 static struct {
     double xmin, xmax, ymin, ymax;
@@ -2173,7 +2200,7 @@ static int diag_same(const XppDiagPoint *a, const XppDiagPoint *b)
 {
     return a->ibr == b->ibr && a->pt == b->pt && a->itp == b->itp && a->lab == b->lab && a->type == b->type &&
            a->flag2 == b->flag2 && a->draw == b->draw && a->newseg == b->newseg && a->color == b->color &&
-           a->lw == b->lw && memcmp(&a->x, &b->x, sizeof a->x) == 0 && memcmp(&a->y1, &b->y1, sizeof a->y1) == 0 &&
+           a->lw == b->lw && a->from == b->from && memcmp(&a->x, &b->x, sizeof a->x) == 0 && memcmp(&a->y1, &b->y1, sizeof a->y1) == 0 &&
            memcmp(&a->y2, &b->y2, sizeof a->y2) == 0;
 }
 
@@ -2205,7 +2232,7 @@ static void j_auto_diagram(const XppDiagPoint *p)
     }
     if (dg_replay) {
         if (dg_match < dg_n && diag_same(&dg[dg_match], p)) {
-            dg_match++;
+            dg[dg_match++].node = p->node; /* not in the data: the entry a grab by point goes to */
             return;
         }
         diag_end_replay(dg_match);
@@ -2246,6 +2273,7 @@ static void diag_run(Buf *b, int i, int j)
                p->draw, p->color, p->lw);
     if (p->flag2) buf_printf(b, ",\"f2\":%d", p->flag2);
     if (p->newseg) BUF_LIT(b, ",\"new\":1");
+    if (p->from) buf_printf(b, ",\"from\":%d", p->from);
     BUF_LIT(b, ",\"x\":[");
     for (k = i; k <= j; k++) {
         if (k > i) BUF_LIT(b, ",");
@@ -2283,10 +2311,20 @@ static void diag_run(Buf *b, int i, int j)
     BUF_LIT(b, "}");
 }
 
+/* the index in the data the client holds of AUTO's diagram entry `node`
+   (auto_data.h); the latest when a redraw of other axes left two */
+static int diag_point_of_node(int node)
+{
+    int i;
+    for (i = dg_client - 1; i >= 0; i--)
+        if (dg[i].node == node) return i;
+    return -1;
+}
+
 /* b continues a's run */
 static int diag_joins(const XppDiagPoint *a, const XppDiagPoint *b)
 {
-    return !b->newseg && abs(a->ibr) == abs(b->ibr) && abs(b->pt) == abs(a->pt) + 1 && a->type == b->type &&
+    return !b->newseg && !b->from && abs(a->ibr) == abs(b->ibr) && abs(b->pt) == abs(a->pt) + 1 && a->type == b->type &&
            a->draw == b->draw && a->color == b->color && a->lw == b->lw && a->flag2 == b->flag2;
 }
 
@@ -2342,7 +2380,10 @@ static void diag_flush(int final)
 static void j_auto_refresh(void)
 {
     static double last;
-    if (xpp_every(&last, 0.05)) json_flush();
+    if (xpp_every(&last, 0.05)) {
+        json_flush();
+        auto_data_update(0);
+    }
 }
 
 /* ---- animation window ------------------------------------------------------------ */
@@ -2932,12 +2973,17 @@ static void handle_line(const char *line, unsigned long seq)
         else if (strcmp(o, "clear") == 0) draw_bif_axes();
         else if (strcmp(o, "redraw") == 0) redraw_diagram();
         else if (strcmp(o, "file") == 0) auto_file();
-        else if (strcmp(o, "point") == 0 && Auto.exist)
-            auto_motion_xy((int)get_num(line, "x", 0), (int)get_num(line, "y", 0));
+        else if (strcmp(o, "point") == 0 && Auto.exist) {
+            /* in the diagram's quantities, or a pixel of window 101 */
+            const char *jx = js_find(line, "xd"), *jy = js_find(line, "yd");
+            if (jx && jy) auto_point_xy(js_num(jx, 0), js_num(jy, 0));
+            else auto_motion_xy((int)get_num(line, "x", 0), (int)get_num(line, "y", 0));
+        }
         else if (strcmp(o, "close") == 0 && Auto.exist) {
             Auto.exist = 0; /* auto_x11.c auto_kill; File/Auto opens it again */
             send_window("destroy", WIN_AUTO, 0, 0, NULL);
             diag_forget();
+            auto_data_forget();
         }
     } else if (is_cmd(line, "session")) {
         char o[8], name[XPP_MAX_NAME];
@@ -2961,6 +3007,7 @@ static void handle_line(const char *line, unsigned long seq)
     marks_data_update();
     ani_data_update();
     diag_flush(1);
+    auto_data_update(1);
     json_flush();
     /* a cancelled job says where it stopped; a replayed one must have
        stopped where the recorded session did */
@@ -3034,6 +3081,7 @@ void json_ui_install(void)
     phase_data_init(data_emit);
     marks_data_init(data_emit);
     ani_data_init(data_emit);
+    auto_data_init(data_emit, diag_point_of_node);
     xpp_inbox_set_classifier(classify);
     xpp_set_ui(&json_ui);
 }
@@ -3043,7 +3091,7 @@ void json_ui_hello(char *title)
 {
     Buf b = {0};
     int i;
-    BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":1,\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\"],\"title\":");
+    BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":1,\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\"],\"title\":");
     buf_str(&b, title);
     BUF_LIT(&b, ",\"file\":");
     buf_str(&b, this_file);

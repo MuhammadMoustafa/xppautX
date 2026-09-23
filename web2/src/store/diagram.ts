@@ -6,6 +6,9 @@
    the user's zoom (with undo) and the point read out. The window follows the
    core: `window` create/destroy for 101, and `state.auto`, which is there
    exactly while AUTO is open (a page that connects later learns it so).
+   T11b adds the `autoinfo` event (the info strip and the stability circle
+   as data), the grab (the core's `grab` ask, answered from the view) and
+   the point a click stored in a two-parameter diagram (`auto point`).
    Pure: no DOM, no I/O. */
 import type {Viewport} from './plots';
 
@@ -30,6 +33,8 @@ export interface DiagramRun {
   lw: number;
   f2?: number;
   new?: number;
+  /** the label the run that computed its first point started from */
+  from?: number;
   x: (number | null)[];
   y: (number | null)[];
   y2?: (number | null)[];
@@ -60,6 +65,48 @@ export interface DiagramPoints {
   f2: number[];
   /** 1: no line back to the point before */
   nw: number[];
+  /** the label its run started from (a run's first point only), 0 otherwise */
+  fr: number[];
+}
+
+/** `autoinfo` `info`: the point AUTO's info strip shows (the grab's cursor) */
+export interface AutoInfo {
+  /** its index in the diagram's points, -1 when they do not have it */
+  point: number;
+  br: number;
+  pt: number;
+  /** as a run's `ty` */
+  type: number;
+  /** EP, LP, HB, ... or empty */
+  sym: string;
+  lab: number;
+  f2?: number;
+  /** the continuation parameter, and the second one of a two-parameter point */
+  par: {name: string; value: number | null}[];
+  norm: number | null;
+  /** the variable of the Axes setting and its value */
+  var: string;
+  u: number | null;
+  per: number | null;
+  /** where the diagram plots it */
+  x: number | null;
+  y: number | null;
+  y2: number | null;
+}
+
+/** `autoinfo` `stab`: what the stability circle shows */
+export interface AutoStab {
+  /** 1: Floquet multipliers of a periodic orbit; 0: e^λ of a steady state's eigenvalues λ */
+  periodic: number;
+  circle: [number | null, number | null][];
+  /** a steady state's eigenvalues λ (the imaginary part modulo 2π) */
+  eig?: [number | null, number | null][];
+}
+
+export interface AutoInfoEvent {
+  ev: 'autoinfo';
+  info: AutoInfo | null;
+  stab: AutoStab | null;
 }
 
 export interface DiagramLabel {
@@ -92,12 +139,21 @@ export interface DiagramState {
   viewport: Viewport;
   viewportHistory: Viewport[];
   hover: DiagramHover | null;
+  /** the info strip and the stability circle (`autoinfo`) */
+  info: AutoInfo | null;
+  stab: AutoStab | null;
+  /** `autoinfo` events applied (tests wait on it) */
+  infoEvents: number;
+  /** the core is grabbing a point: from its `grab` ask to the command's end */
+  grabbing: boolean;
+  /** the point a click stored in a two-parameter diagram (`auto point`) */
+  stored: {x: number; y: number} | null;
 }
 
-export const FIELDS = ['x', 'y', 'y2', 'br', 'pt', 'ty', 'd', 'c', 'lw', 'f2', 'nw'] as const;
+export const FIELDS = ['x', 'y', 'y2', 'br', 'pt', 'ty', 'd', 'c', 'lw', 'f2', 'nw', 'fr'] as const;
 
 function noPoints(): DiagramPoints {
-  return {x: [], y: [], y2: [], br: [], pt: [], ty: [], d: [], c: [], lw: [], f2: [], nw: []};
+  return {x: [], y: [], y2: [], br: [], pt: [], ty: [], d: [], c: [], lw: [], f2: [], nw: [], fr: []};
 }
 
 const HOME: Viewport = {x: null, y: null};
@@ -105,7 +161,7 @@ const HISTORY_KEEP = 50;
 
 export const initialDiagram: DiagramState = {
   open: false, shown: false, axes: null, points: noPoints(), labels: [], events: 0, outOfStep: false,
-  viewport: HOME, viewportHistory: [], hover: null,
+  viewport: HOME, viewportHistory: [], hover: null, info: null, stab: null, infoEvents: 0, grabbing: false, stored: null,
 };
 
 export type DiagramAction =
@@ -116,7 +172,11 @@ export type DiagramAction =
   | {type: 'show'; shown: boolean}
   | {type: 'viewport'; viewport: Viewport; push?: boolean}
   | {type: 'undoViewport'}
-  | {type: 'hover'; hover: DiagramHover | null};
+  | {type: 'hover'; hover: DiagramHover | null}
+  | {type: 'info'; ev: AutoInfoEvent}
+  /** the core's grab: its ask came (on), or its command ended */
+  | {type: 'grabbing'; on: boolean}
+  | {type: 'stored'; at: {x: number; y: number} | null};
 
 export function pointCount(p: DiagramPoints): number {
   return p.x.length;
@@ -153,6 +213,7 @@ function add(p: DiagramPoints, labels: DiagramLabel[], from: number, runs: Diagr
       out.lw.push(r.lw);
       out.f2.push(r.f2 ?? 0);
       out.nw.push(i === 0 && r.new ? 1 : 0);
+      out.fr.push(i === 0 && r.from ? r.from : 0);
     }
     for (const [i, lab, sym] of r.lab ?? []) labs.push({point: base + i, lab, sym});
   }
@@ -207,11 +268,11 @@ function onEvent(s: DiagramState, ev: DiagramEvent): DiagramState {
 
 /** a new window starts empty; a second create for an open one is a resize, which keeps what it has */
 function opened(s: DiagramState): DiagramState {
-  return s.open ? s : {...initialDiagram, open: true, shown: true, events: s.events};
+  return s.open ? s : {...initialDiagram, open: true, shown: true, events: s.events, infoEvents: s.infoEvents};
 }
 
 function closed(s: DiagramState): DiagramState {
-  return s.open || s.axes || pointCount(s.points) ? {...initialDiagram, events: s.events} : s;
+  return s.open || s.axes || pointCount(s.points) ? {...initialDiagram, events: s.events, infoEvents: s.infoEvents} : s;
 }
 
 export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
@@ -234,6 +295,13 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
       if (h === o || (h && o && h.point === o.point && h.low === o.low)) return s;
       return {...s, hover: h};
     }
+    case 'info':
+      return {...s, info: a.ev.info ?? null, stab: a.ev.stab ?? null, infoEvents: s.infoEvents + 1};
+    case 'grabbing':
+      /* a grab shows the panel: the diagram is where the point is picked */
+      return a.on === s.grabbing ? s : {...s, grabbing: a.on, shown: a.on && s.open ? true : s.shown};
+    case 'stored':
+      return {...s, stored: a.at};
   }
 }
 

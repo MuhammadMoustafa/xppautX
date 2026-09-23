@@ -12,7 +12,9 @@ import {
 import {initialAplot, reduceAplot, type AplotAction, type AplotState} from './aplot';
 import {initialAni, reduceAni, type AniAction, type AniState} from './ani';
 import {initialFiles, missingFile, onSent, reduceFiles, type FilesAction, type FilesState, type RunRecord} from './files';
-import {initialDiagram, reduceDiagram, type DiagramAction, type DiagramEvent, type DiagramState} from './diagram';
+import {
+  initialDiagram, reduceDiagram, type AutoInfoEvent, type DiagramAction, type DiagramEvent, type DiagramState,
+} from './diagram';
 import {initialTable, reduceTable, type TableAction, type TableState} from './table';
 import {initialText, reduceText, type TextAction, type TextState} from './text';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
@@ -263,9 +265,16 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       }
       return ev.op === 'select' && ev.win <= 10 ? withPlots(state, select(state.plots, ev.win)) : state;
     case 'ask': {
-      const mode = pickModeOf(ev, state.core?.view, !!windowOf(state.plots, Number(ev.win))?.series);
-      /* a plot mode is the core's active window's: its tab is the one shown */
+      const auto = Number(ev.win) === 101 && state.diagram.open;
+      const mode = pickModeOf(ev, state.core?.view, !!windowOf(state.plots, Number(ev.win))?.series, auto);
       const withAsk = {...state, ask: ev, pick: mode ? startPick(state.pick, ev, mode) : null};
+      /* the AUTO diagram's asks (a grab, Axes/Zoom's box, Axes/Scroll's drag) are the AUTO view's: it is shown */
+      if (auto && (mode || ev.kind === 'grab')) {
+        const diagram = reduceDiagram(reduceDiagram(state.diagram, {type: 'show', shown: true}),
+          {type: 'grabbing', on: ev.kind === 'grab' || state.diagram.grabbing});
+        return {...withAsk, diagram};
+      }
+      /* a plot mode is the core's active window's: its tab is the one shown */
       return mode ? withPlots(withAsk, select(state.plots, Number(ev.win))) : withAsk;
     }
     case 'idle':
@@ -273,9 +282,12 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         ...state, busy: false, stopping: false, ask: null, pick: null, box: '', progress: null,
         values: reduceValues(state.values, {type: 'settled'}),
         ani: reduceAni(state.ani, {type: 'playing', playing: false}),
+        diagram: reduceDiagram(state.diagram, {type: 'grabbing', on: false}),
       };
     case 'ani':
       return {...state, ani: reduceAni(state.ani, ev.op === 'frame' ? {type: 'frame', ev} : {type: 'state', ev})};
+    case 'autoinfo':
+      return {...state, diagram: reduceDiagram(state.diagram, {type: 'info', ev: ev as unknown as AutoInfoEvent})};
     case 'progress':
       return {...state, progress: ev.of > 0 ? {n: ev.n, of: ev.of} : null};
     case 'title':

@@ -373,6 +373,8 @@ export type XppEvent =
   | {ev: 'exit'; code: number}
   | {ev: 'bye'}
   /* every other event: drawing ops, AUTO, ... (not used by this UI yet) */
-  | {ev: 'draw' | 'palette' | 'diagram' | 'film' | 'ping'; [k: string]: unknown};
+  | {ev: 'draw' | 'palette' | 'diagram' | 'film' | 'ping'; [k: string]: unknown}
+  /* AUTO's info strip and stability circle (store/diagram.ts AutoInfoEvent) */
+  | {ev: 'autoinfo'; [k: string]: unknown};
 
 export type Command = {cmd: string; [k: string]: unknown};
