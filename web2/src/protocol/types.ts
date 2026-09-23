@@ -270,6 +270,30 @@ export interface EquilibriumEvent {
   eigenvalues?: [number, number][];
 }
 
+/** the array plot (docs/ui-v2.md T12, docs/protocol.md `aplot`, window 105):
+    `ny` rows of `nx` cells, row-major like `cells` (the core's own colour
+    indices, kept for the classic page). `values` is the same cells' stored
+    numbers before that mapping (float32, null/NaN off the stored rows or
+    columns), so this view can pick its own colour scale from them and
+    zmin/zmax; `enc` "f32" (the client's last `data` `enc`) sends it as
+    base64 like a series column. */
+export interface AplotEvent {
+  ev: 'aplot';
+  title: string;
+  nx: number;
+  ny: number;
+  cells: number[];
+  values: SeriesData;
+  enc?: 'f32';
+  first: number;
+  ncolors: number;
+  zmin: number;
+  zmax: number;
+  tlo: number;
+  thi: number;
+  tag?: string;
+}
+
 export type XppEvent =
   | HelloEvent
   | StateEvent
@@ -285,6 +309,7 @@ export type XppEvent =
   | SourceEvent
   | EquationsEvent
   | EquilibriumEvent
+  | AplotEvent
   | {ev: 'idle'}
   | {ev: 'progress'; n: number; of: number}
   | {ev: 'title'; text: string}
@@ -294,6 +319,6 @@ export type XppEvent =
   | {ev: 'exit'; code: number}
   | {ev: 'bye'}
   /* every other event: drawing ops, AUTO, ... (not used by this UI yet) */
-  | {ev: 'draw' | 'palette' | 'diagram' | 'ani' | 'aplot' | 'film' | 'ping'; [k: string]: unknown};
+  | {ev: 'draw' | 'palette' | 'diagram' | 'ani' | 'film' | 'ping'; [k: string]: unknown};
 
 export type Command = {cmd: string; [k: string]: unknown};

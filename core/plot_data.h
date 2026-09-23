@@ -29,6 +29,11 @@ void plot_data_init(PlotDataEmit emit);
    base64 float32 (f32) or JSON numbers */
 void plot_data_subscribe(int series, int plots, int f32);
 
+/* the "f32" the client last asked for in its "data" command: for value
+   arrays other events send outside the subscription list above (the aplot
+   event's "values", docs/ui-v2.md T12) */
+int plot_data_want_f32(void);
+
 /* the stored data changed (xpp_ui.h data_changed) */
 void plot_data_changed(void);
 

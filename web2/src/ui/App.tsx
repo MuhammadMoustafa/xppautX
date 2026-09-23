@@ -2,6 +2,7 @@
    the plot windows, messages, status, notifications and the prompt dialog.
    Panels still to come (docs/ui-v2.md) get their own components here. */
 import type {Session} from '../session';
+import {AplotView} from './AplotView';
 import {AskDialog} from './AskDialog';
 import {AutoView} from './AutoView';
 import {SessionContext, useStore} from './context';
@@ -51,6 +52,7 @@ function Shell() {
       <TableView />
       <TextViews />
       <AutoView dark={dark} />
+      <AplotView />
       <StatusBar />
       <Toasts />
       <AskDialog />

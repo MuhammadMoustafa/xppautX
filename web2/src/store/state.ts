@@ -9,6 +9,7 @@ import {
   windowOf, type PlotsState,
   type Viewport,
 } from './plots';
+import {initialAplot, reduceAplot, type AplotAction, type AplotState} from './aplot';
 import {initialFiles, missingFile, onSent, reduceFiles, type FilesAction, type FilesState, type RunRecord} from './files';
 import {initialDiagram, reduceDiagram, type DiagramAction, type DiagramEvent, type DiagramState} from './diagram';
 import {initialTable, reduceTable, type TableAction, type TableState} from './table';
@@ -106,6 +107,8 @@ export interface AppState {
   files: FilesState;
   /** the AUTO diagram and its view (T11a), see store/diagram.ts */
   diagram: DiagramState;
+  /** the array plot (T12): its latest event, colour map and panel state, see store/aplot.ts */
+  aplot: AplotState;
 }
 
 export type Action =
@@ -131,7 +134,8 @@ export type Action =
   | {type: 'table'; action: TableAction}
   | {type: 'text'; action: TextAction}
   | {type: 'files'; action: FilesAction}
-  | {type: 'diagram'; action: DiagramAction};
+  | {type: 'diagram'; action: DiagramAction}
+  | {type: 'aplot'; action: AplotAction};
 
 export const initialState: AppState = {
   connected: false,
@@ -161,6 +165,7 @@ export const initialState: AppState = {
   text: initialText,
   files: initialFiles,
   diagram: initialDiagram,
+  aplot: initialAplot,
 };
 
 const LOG_KEEP = 200, TOASTS_KEEP = 4;
@@ -200,6 +205,9 @@ function coreViewMoved(a: View | undefined, b: View): boolean {
   return !!a && a.win === b.win && (a.xlo !== b.xlo || a.xhi !== b.xhi || a.ylo !== b.ylo || a.yhi !== b.yhi);
 }
 
+/** the array plot's window id (core/ui_json.c WIN_APLOT) */
+const WIN_APLOT = 105;
+
 function onEvent(state: AppState, ev: XppEvent): AppState {
   switch (ev.ev) {
     case 'hello':
@@ -235,6 +243,15 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       if (ev.win === 101 && ev.op !== 'select')
         return {...state, diagram: reduceDiagram(state.diagram, {type: 'window', op: ev.op})};
       /* create selects the new window too; destroy waits for `plots` */
+      if (ev.win === WIN_APLOT) {
+        if (ev.op === 'destroy') return {...state, aplot: reduceAplot(state.aplot, {type: 'window', open: false})};
+        if (ev.op === 'create') {
+          /* shown at once, like the classic page (web/xpp-client.js onArrayPlot) */
+          const aplot = reduceAplot(reduceAplot(state.aplot, {type: 'window', open: true}), {type: 'panel', open: true});
+          return {...state, aplot};
+        }
+        return state;
+      }
       return ev.op === 'select' && ev.win <= 10 ? withPlots(state, select(state.plots, ev.win)) : state;
     case 'ask': {
       const mode = pickModeOf(ev, state.core?.view, !!windowOf(state.plots, Number(ev.win))?.series);
@@ -265,6 +282,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       if (ev.bottom !== undefined) return {...state, bottom: ev.bottom};
       if (ev.box !== undefined) return {...state, box: ev.box};
       return state;
+    case 'aplot':
+      return {...state, aplot: reduceAplot(state.aplot, {type: 'event', ev})};
     case 'browser':
       return {...state, table: reduceTable(state.table, {type: 'event', ev})};
     case 'equations':
@@ -336,5 +355,7 @@ export function reduce(state: AppState, action: Action): AppState {
       const diagram = reduceDiagram(state.diagram, action.action);
       return diagram === state.diagram ? state : {...state, diagram};
     }
+    case 'aplot':
+      return {...state, aplot: reduceAplot(state.aplot, action.action)};
   }
 }

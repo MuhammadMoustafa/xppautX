@@ -331,6 +331,53 @@ kbd {
 }
 .table-cell:first-child { flex-basis: 6rem; color: var(--fg-muted); }
 
+/* ---- array plot (docs/ui-v2.md T12): the same floating-overlay pattern ---- */
+/* as the data table (R6) -- a panel from 48rem (the base rule below), a */
+/* full-screen sheet under that */
+.aplot-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 160;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transform: translateX(100%);
+  visibility: hidden;
+  transition: transform 0.2s ease, visibility 0s 0.2s;
+}
+.aplot-panel.open { transform: none; visibility: visible; transition: transform 0.2s ease; }
+.aplot-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.aplot-header h2 { font-size: var(--text-md); flex: 1; }
+.aplot-map { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
+.aplot-map select { min-height: var(--target); font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--field-border); border-radius: 0.375rem; }
+.aplot-tools { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+.aplot-info { margin: 0; padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--fg-muted); }
+.aplot-body { flex: 1; min-height: 0; display: flex; gap: var(--space-2); padding: 0 var(--space-3) var(--space-2); }
+.aplot-scale { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); font: var(--text-xs) var(--mono); color: var(--fg-muted); flex: none; }
+.aplot-bar { width: 1.25rem; flex: 1; min-height: 4rem; border: 1px solid var(--border); border-radius: 0.25rem; }
+.aplot-grid-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  touch-action: none; /* R5: the grid takes drag/pinch itself, the page still scrolls elsewhere */
+  cursor: ns-resize;
+}
+.aplot-canvas { display: block; width: 100%; height: 100%; }
+.aplot-hover { margin: 0; padding: var(--space-1) var(--space-3) var(--space-2); font: var(--text-xs) var(--mono); color: var(--fg-muted); min-height: 1.5em; }
+
 .workspace {
   grid-area: work;
   display: flex;
@@ -703,6 +750,10 @@ kbd {
 /* the text views panel: the same floating-overlay pattern as the data table */
 @media (min-width: 48rem) {
   .text-panel { left: auto; width: min(48rem, 92vw); border-left: 1px solid var(--border); }
+}
+/* the array plot panel: the same floating-overlay pattern as the data table */
+@media (min-width: 48rem) {
+  .aplot-panel { left: auto; width: min(56rem, 92vw); border-left: 1px solid var(--border); }
 }
 /* narrow (phones, small tablets): one column, the menu and the values panel are drawers/sheets */
 @media (max-width: 47.99rem) {

@@ -1,11 +1,14 @@
 /* The session: connects a transport to the store and is the one place that
    sends commands. Components call its methods, never the transport. */
 import {offerDownload, writeTo, type SaveHandle} from './pickers';
+import {accumulateScroll, keyScroll} from './plot/aplotScroll';
+import type {AplotColorMap} from './plot/aplotColors';
 import {pickAnswer, type PickState} from './plot/pick';
 import type {Ranges} from './plot/viewmath';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
 import type {AskEvent, BrowserEvent, Command, XppEvent} from './protocol/types';
+import type {AplotHover} from './store/aplot';
 import {
   answerName, keepBothName, menuKeys, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type Upload,
 } from './store/files';
@@ -21,6 +24,8 @@ export type BrowserOp = 'find' | 'get' | 'replace' | 'unreplace' | 'table' | 'lo
 
 /** the AUTO window's buttons (docs/protocol.md `auto` op); Close is session.closeAuto */
 export type AutoOp = 'param' | 'axes' | 'numerics' | 'run' | 'grab' | 'usr' | 'clear' | 'redraw' | 'file';
+/** the array plot window's buttons (docs/protocol.md `aplot` op; web/xpp-client.js's buildArrayPlot) */
+export type AplotOp = 'redraw' | 'edit' | 'print' | 'fit' | 'range' | 'gif' | 'close';
 
 export class Session {
   readonly store: Store<AppState, Action>;
@@ -42,6 +47,8 @@ export class Session {
   private afterIdle: Command | null = null;
   /** `redraw` was sent for the AUTO diagram's data, not yet answered */
   private diagramAsked = false;
+  /** the array plot's scroll made while the core was busy (plot/aplotScroll.ts) */
+  private pendingAplotDy = 0;
 
   /** files: the model's folder over HTTP (none in unit tests) */
   constructor(private readonly transport: Transport, private readonly files: FilesApi | null = null) {
@@ -557,6 +564,57 @@ export class Session {
     this.replayIdles = keys.length + 1;
     for (const k of keys) this.key(k);
     this.send(run.cmd);
+  }
+
+  /* ---- array plot (docs/ui-v2.md T12, docs/protocol.md `aplot`) ---- */
+
+  /** shows the panel; the core's array plot window (105) is created through
+      its own menu (Window/zoom, Axes, Array: `v` then `a`, docs/ui-v2.md
+      section 3), which also pops the Edit form the first time -- both
+      already generic (AskDialog answers a `menu` ask, then a `form` one).
+      Once the window exists this only asks for a fresh picture. */
+  openAplot(): void {
+    const {windowOpen} = this.store.getState().aplot;
+    this.store.dispatch({type: 'aplot', action: {type: 'panel', open: true}});
+    if (windowOpen) this.aplotOp('redraw');
+    else this.keys('v', 'a');
+  }
+
+  closeAplot(): void {
+    this.store.dispatch({type: 'aplot', action: {type: 'panel', open: false}});
+  }
+
+  /** the classic array plot window's own buttons: Redraw, Edit (a form,
+      AskDialog), Fit, Range, Print, GIF (a file ask, FileDialog), Close */
+  aplotOp(op: AplotOp): void {
+    this.send({cmd: 'aplot', op});
+  }
+
+  /** the picture scrolled through time by dragging, wheeling or a keyboard
+      step (plot/aplotScroll.ts): several gestures while the core is busy
+      collapse into the one `scroll` it can act on next */
+  aplotScroll(dy: number): void {
+    const {send, pending} = accumulateScroll(this.pendingAplotDy, dy, this.store.getState().busy);
+    this.pendingAplotDy = pending;
+    if (send) this.send({cmd: 'aplot', op: 'scroll', dy: send});
+  }
+
+  /** a key the array plot's own hotkeys use (ui/AplotView.tsx); false when
+      `key` is not one of them, so the caller can fall through to XPP's own */
+  aplotKeyScroll(key: string): boolean {
+    const dy = keyScroll(key, this.store.getState().aplot.event?.ny ?? 1);
+    if (dy === null) return false;
+    this.aplotScroll(dy);
+    return true;
+  }
+
+  setAplotColorMap(map: AplotColorMap): void {
+    this.store.dispatch({type: 'aplot', action: {type: 'colorMap', map}});
+  }
+
+  /** the cell under the pointer, or null off the grid */
+  aplotHover(hover: AplotHover | null): void {
+    this.store.dispatch({type: 'aplot', action: {type: 'hover', hover}});
   }
 }
 

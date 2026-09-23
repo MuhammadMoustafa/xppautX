@@ -16,6 +16,7 @@ export function TitleBar() {
   const valuesOpen = useStore(s => s.valuesOpen);
   const tableOpen = useStore(s => s.table.open);
   const textOpen = useStore(s => s.text.open);
+  const aplotOpen = useStore(s => s.aplot.open);
   const busy = useStore(s => s.busy);
   const setTheme = () => {
     const t = NEXT_THEME[theme];
@@ -41,6 +42,9 @@ export function TitleBar() {
       <button class="text-toggle" aria-controls="text-panel" aria-expanded={textOpen}
         onClick={() => (textOpen ? session.closeText() : session.openText())}
         title="Equations, source and the last equilibrium">Text</button>
+      <button class="aplot-toggle" aria-controls="aplot-panel" aria-expanded={aplotOpen}
+        onClick={() => (aplotOpen ? session.closeAplot() : session.openAplot())}
+        title="The array plot: XPP's grid of a range of columns and rows, coloured by value">Array</button>
       <a class="button classic" href={`/${location.search}`} title="The classic interface, with every window">Classic</a>
     </header>
   );

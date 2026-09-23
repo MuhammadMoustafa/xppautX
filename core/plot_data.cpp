@@ -383,6 +383,11 @@ extern "C" void plot_data_subscribe(int series, int plots, int f32)
 
 extern "C" void plot_data_changed(void) { data_version++; }
 
+/* the encoding the client asked for in its last "data" command (docs/ui-v2.md
+   T12, "reuse series_enc"): other events that carry value arrays outside the
+   subscription list (aplot) still honour it. */
+extern "C" int plot_data_want_f32(void) { return series_f32; }
+
 extern "C" void plot_data_rows_stored(int nrows)
 {
     static double last;

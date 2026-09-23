@@ -465,6 +465,43 @@ evs, _ = collect(is_idle)
 ap = [e for e in evs if e.get('ev') == 'aplot']
 check('the IC arry button opens an array plot', ap and ap[-1]['nx'] == 2 and len(ap[-1]['cells']) == 2 * ap[-1]['ny'],
       str(ap[-1:])[:200])
+
+# docs/ui-v2.md T12: `values`, the cells' numbers before XPP maps them to a
+# colour, equal the browser's own numbers for the same rows and columns.
+# optimize_aplot (core/graf_par.c) always starts at row 0 with ColSkip 1 and
+# picks RowSkip so `ny` rows span the run (ndown = min(201, nrows), nskip =
+# nrows // ndown, both integer division as the core computes them); the
+# columns are V, W (plotvars picked them, in that order).
+send(cmd='state')
+evs, st = collect(is_state)
+collect(is_idle)
+nrows = st['rows']
+send(cmd='browser', **{'from': 0, 'count': nrows, 'col': 1, 'ncol': 500})
+evs, br = collect(lambda e: e.get('ev') == 'browser')
+collect(is_idle)
+iv, iw = br['cols'].index('V'), br['cols'].index('W')
+nskip = max(1, nrows // ap[-1]['ny'])
+want = []
+for j in range(ap[-1]['ny']):
+    row = br['data'][nskip * j]
+    want += [f32(row[iv]), f32(row[iw])]
+got = values({'data': ap[-1]['values']}, ap[-1].get('enc'))
+check('aplot values equal the browser numbers for the same rows and columns',
+      same_floats(got, want), '%s != %s' % (got[:6], want[:6]))
+
+# the same, base64 float32, when the client last asked for it (reused from
+# the "data" subscription's own "enc", core/plot_data_want_f32)
+send(cmd='data', events=[], enc='f32')
+collect(is_idle)
+send(cmd='aplot', op='redraw')
+evs, _ = collect(is_idle)
+ap2 = [e for e in evs if e.get('ev') == 'aplot']
+check('aplot values as base64 float32 when the client asked for it',
+      ap2 and ap2[-1].get('enc') == 'f32' and isinstance(ap2[-1]['values'], str)
+      and same_floats(values({'data': ap2[-1]['values']}, 'f32'), got), str(ap2[-1:])[:200])
+send(cmd='data', events=[])
+collect(is_idle)
+
 send(cmd='aplot', op='close')
 collect(is_idle)
 send(cmd='click', win=1)

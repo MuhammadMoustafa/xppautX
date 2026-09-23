@@ -33,7 +33,7 @@
    copied, a same-name one asks Replace / Keep both / Cancel, and "Add
    file…" adds a file the core could not open and runs the command again.
 
-   node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--only desktop,phase,marks,auto,view,files,live,million] [-v]
+   node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--only desktop,phase,marks,auto,view,aplot,files,live,million] [-v]
 
    Needs Node 22 or later and a browser, nothing else (tools/cdp.mjs). */
 import {spawnSync} from 'node:child_process';
@@ -55,6 +55,7 @@ const bin = path.resolve(top, opt.bin);
 const ODE = path.join(top, 'examples/ode/lecar.ode');
 const LIVE = path.join(top, 'tools/models/live.ode');
 const MILLION = path.join(top, 'tools/models/million.ode');
+const APLOT_ODE = path.join(top, 'examples/ode/wcring.ode');
 
 let failures = 0;
 function check(name, ok, detail = '') {
@@ -670,6 +671,131 @@ async function marks() {
   check('Erase clears them: no marks in the store, none drawn, no legend entries',
     await until('!s.busy && w.marks && w.marks.text.length === 0 && w.marks.equilibria.length === 0 && w.marks.frozen.length === 0', 'erase')
     && (await P()).layers.length === 0 && (await legendLabels()).length === 0);
+}
+
+/* the array plot (docs/ui-v2.md T12, docs/protocol.md `aplot`): opened from
+   the title bar's Array button (the classic key path underneath it,
+   Window/zoom's Axes submenu, Array: `v` `a`, which also pops the Edit
+   form the first time -- both already generic, AskDialog's menu and form).
+   Its cells come from `values` (not the core's own colour indices), so the
+   store can pick its own colour map; the core's own buttons (Fit, Redraw,
+   Close) and time scroll (wheel, keyboard) still go through the protocol.
+   examples/ode/wcring.ode (a ring of 20 coupled neurons, u0..u19) is a real
+   array model, so the grid actually has columns worth scrolling through. */
+async function aplotView() {
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+  check('T12: the page connects', await until('s.hello && !s.busy', 'hello'));
+
+  await key('i');
+  await until("s.ask && s.ask.kind === 'menu'", 'initialconds menu');
+  const n0 = await S('s.seriesCount');
+  await key('g');
+  check('integrating the ring gives 401 rows', await until(`s.seriesCount > ${n0} && s.core.rows === 401 && !s.busy`, 'series'),
+    JSON.stringify(await S('s.core.rows')));
+
+  check('no array plot window yet', !(await S('s.aplot.windowOpen')));
+  await cdp.eval(`document.querySelector('.aplot-toggle').click()`);
+  check('the Array button opens the panel and the core\'s array plot window',
+    await until('s.aplot.open && s.aplot.windowOpen', 'aplot window'));
+  check('... and pops the Edit form the first time (the classic key path, v then a)',
+    await until("s.ask && s.ask.kind === 'form' && s.ask.title === 'Edit arrayplot'", 'edit form'),
+    JSON.stringify(await S('s.ask')));
+
+  /* Column 1 is a select of the variables (like Viewaxes' axis fields, T4);
+     the rest are plain number fields, in the order the core sent them.
+     Zmin/Zmax (indices 4, 5 of the inputs) are left at the core's own
+     defaults, so Fit below has something to change. */
+  await cdp.eval(`(() => { const s = document.querySelector('[role=dialog] select');
+    s.value = 'U0'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  await sleep(60); /* Preact's state update must be flushed before an input field's own change reads `values` */
+  const editFields = ['20', '0', '10', '1', null, null, '0', '1']; /* NCols, Row1, NRows, RowSkip, -, -, Autoplot, ColSkip */
+  for (let i = 0; i < editFields.length; i++) {
+    if (editFields[i] === null) continue;
+    await cdp.eval(`(() => { const el = document.querySelectorAll('[role=dialog] input')[${i}];
+      el.value = ${JSON.stringify(editFields[i])}; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+    await sleep(60); /* Preact's state update from 'input' must be flushed (a render) before the next field or OK reads it */
+  }
+  await cdp.eval(`[...document.querySelectorAll('[role=dialog] button')].find(b => b.textContent === 'OK').click()`);
+  check('Edit sends the array plot: 20 columns (u0..u19), 10 rows',
+    await until('!s.busy && s.aplot.event && s.aplot.event.nx === 20 && s.aplot.event.ny === 10', 'edited'),
+    JSON.stringify(await S('s.aplot.event && [s.aplot.event.nx, s.aplot.event.ny, s.aplot.event.title]')));
+
+  /* the store's cells equal the event's values (ACCEPTANCE) */
+  check('the store decodes `values` into its own cells, in the event\'s order',
+    await cdp.eval(`(() => { const s = __xpp.state(), ev = s.aplot.event, got = Array.from(s.aplot.values);
+      if (got.length !== ev.nx * ev.ny) return false;
+      if (typeof ev.values === 'string') return true; /* f32: decoded already, nothing else to compare to */
+      return got.every((v, i) => v === ev.values[i] || (v !== v && ev.values[i] === null)); })()`));
+
+  /* Fit rescales zmin/zmax to the data actually shown */
+  const before = await S('[s.aplot.event.zmin, s.aplot.event.zmax]');
+  await cdp.eval(`[...document.querySelectorAll('.aplot-tools button')].find(b => b.textContent === 'Fit').click()`);
+  check('Fit rescales zmin/zmax to the data actually shown', await until('!s.busy', 'fit'));
+  const after = await S('[s.aplot.event.zmin, s.aplot.event.zmax]');
+  check('... zmax > zmin, and the range changed from the core\'s default',
+    after[1] > after[0] && JSON.stringify(after) !== JSON.stringify(before), JSON.stringify({before, after}));
+
+  /* the colour map switch is client-only: the store's map changes, nothing goes to the core */
+  const sentBefore = await cdp.eval('__xpp.sent().length');
+  await cdp.eval(`(() => { const s = document.querySelector('.aplot-map select');
+    s.value = 'xpp'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  check('the colour map switch changes the store\'s map, and sends nothing to the core',
+    await S("s.aplot.colorMap === 'xpp'") && await cdp.eval('__xpp.sent().length') === sentBefore);
+
+  /* hover names a cell: its variable, row and value */
+  const cellPt = await cdp.eval(`(() => { const r = document.querySelector('.aplot-canvas').getBoundingClientRect();
+    return {x: r.left + r.width * 0.3, y: r.top + r.height * 0.5}; })()`);
+  await mouse('mouseMoved', cellPt.x, cellPt.y);
+  check('hovering a cell names it: a variable, a row, a time and a value',
+    await until('s.aplot.hover', 'hover'), JSON.stringify(await S('s.aplot.hover')));
+  check('... the hover text names the variable (U..)',
+    await cdp.eval(`/U\\d+, row \\d+: t/.test(document.querySelector('.aplot-hover').textContent)`),
+    await cdp.eval(`document.querySelector('.aplot-hover').textContent`));
+
+  /* scrolling in time (wheel) changes the shown rows and asks the core */
+  const t0 = await S('[s.aplot.event.tlo, s.aplot.event.thi]');
+  const grid = await cdp.eval(`(() => { const r = document.querySelector('.aplot-grid-wrap').getBoundingClientRect();
+    return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()`);
+  await mouse('mouseWheel', grid.x, grid.y, {deltaX: 0, deltaY: 300});
+  check('wheeling the grid asks the core to scroll (aplot op scroll)',
+    await until('!s.busy', 'wheel scroll') && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'aplot' && c.op === 'scroll')`));
+  const t1 = await S('[s.aplot.event.tlo, s.aplot.event.thi]');
+  check('... and the shown rows changed (tlo/thi moved)', JSON.stringify(t1) !== JSON.stringify(t0), JSON.stringify({t0, t1}));
+
+  /* the same from the keyboard */
+  await cdp.eval(`document.querySelector('.aplot-grid-wrap').focus()`);
+  const sent1 = await cdp.eval('__xpp.sent().length');
+  await key('PageUp');
+  check('PageUp (the keyboard) scrolls it too, toward earlier rows',
+    await until('!s.busy', 'key scroll') && await cdp.eval('__xpp.sent().length') > sent1
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'aplot' && c.op === 'scroll')`));
+
+  /* Redraw, then Back leaves the core's window alive */
+  await cdp.eval(`[...document.querySelectorAll('.aplot-tools button')].find(b => b.textContent === 'Redraw').click()`);
+  check('Redraw asks for a fresh picture', await until('!s.busy', 'redraw')
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'aplot' && c.op === 'redraw')`));
+  await cdp.eval(`document.querySelector('.aplot-back').click()`);
+  check('Back closes the panel; the core\'s array plot window stays alive',
+    await until('!s.aplot.open && s.aplot.windowOpen', 'close panel'));
+
+  /* 390x844: a full-screen sheet, no sideways scroll, 44px targets (SCOPE) */
+  await cdp.eval(`document.querySelector('.aplot-toggle').click()`);
+  check('reopening it (the window already exists) shows the panel again, no Edit form',
+    await until('s.aplot.open && !s.ask', 'reopen'));
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
+  await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
+  await sleep(300);
+  const scroll = await cdp.eval(`({doc: document.documentElement.scrollWidth, body: document.body.scrollWidth, w: innerWidth})`);
+  check('390x844: the array plot sheet causes no sideways scroll',
+    scroll.doc <= scroll.w && scroll.body <= scroll.w, JSON.stringify(scroll));
+  const sheet = await cdp.eval(`(() => { const r = document.querySelector('.aplot-panel').getBoundingClientRect();
+    return {w: r.width, h: r.height}; })()`);
+  check('the panel covers the viewport', sheet.w >= 390 - 1 && sheet.h >= 844 - 1, JSON.stringify(sheet));
+  const small = await cdp.eval(`[...document.querySelectorAll('.aplot-panel button, .aplot-panel select')]
+    .filter(b => b.getClientRects().length).map(b => [(b.textContent || '').trim(), b.getBoundingClientRect().height])
+    .filter(([, h]) => h < 44)`);
+  check('the panel\'s targets are at least 44px high', small.length === 0, JSON.stringify(small));
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
 }
 
 /* plot windows as tabs (docs/ui-v2.md T6): Makewindow create adds a tab,
@@ -1699,6 +1825,7 @@ async function main() {
     if (run('auto')) await session(ODE, autoView);
     if (run('view')) await session(ODE, viewCheck);
     if (run('marks')) await session(ODE, marks);
+    if (run('aplot')) await session(APLOT_ODE, aplotView);
     if (run('files')) await session(ODE, files, ['Cannot open file']);
     if (run('live')) await session(LIVE, () => live(wantLive));
     if (run('million')) await session(MILLION, million);

@@ -50,6 +50,7 @@
 #include "plot_data.h"
 #include "phase_data.h"
 #include "marks_data.h"
+#include "series_enc.h"
 #include "xpp_files.h"
 #include <strings.h>
 #include <stdarg.h>
@@ -1742,7 +1743,13 @@ static void j_set_color(int col) { op(draw_win, "[\"color\",%d]", col); }
 
 /* ---- array plot ------------------------------------------------------------------
    The picture is a grid of colour indices (aplotwin.c redraw_aplot): the
-   client paints it at the size of its window. */
+   classic client paints them at the size of its window. `values` (added for
+   web2/, docs/ui-v2.md T12) carries the same cells' numbers before that
+   mapping, so a client can pick its own colour scale from them and zmin/zmax;
+   encoded like a series column (series_enc.h), base64 float32 when the
+   client last asked for that (data_command's "enc":"f32", reused here via
+   plot_data_want_f32 since aplot is not itself in the "data" subscription
+   list -- it is sent whenever the window is alive and dirtied, as before). */
 #define FIRSTCOLOR 30 /* aplotwin.c */
 
 static void send_aplot(const char *tag)
@@ -1752,6 +1759,8 @@ static void send_aplot(const char *tag)
     int num, i, j, nx, ny, nrows = my_browser.maxrow;
     double tlo = 0.0, thi = 20.0;
     APLOT *ap = &aplot;
+    float *vals;
+    int f32 = plot_data_want_f32();
     aplot_dirty = 0;
     if (!ap->alive) return;
     get_root(ap->name, sroot, &num);
@@ -1773,22 +1782,41 @@ static void send_aplot(const char *tag)
         BUF_LIT(&b, ",\"tag\":");
         buf_str(&b, tag);
     }
-    /* -1: past the stored rows or columns (left blank) */
+    vals = nx * ny > 0 ? (float *)xpp_malloc(sizeof(float) * (size_t)(nx * ny)) : NULL;
+    /* -1 (cells) / NaN (values): past the stored rows or columns (left blank) */
     BUF_LIT(&b, ",\"cells\":[");
     for (j = 0; j < ny; j++) {
         int jb = ap->nstart + ap->nskip * j;
         for (i = 0; i < nx; i++) {
             int ib = ap->index0 + i * ap->ncskip, c = -1;
-            if (ib < my_browser.maxcol && jb < nrows && jb >= 0 && ap->zmax > ap->zmin) {
-                c = (int)(color_total * (my_browser.data[ib][jb] - ap->zmin) / (ap->zmax - ap->zmin));
-                if (c < 0) c = 0;
-                if (c > color_total) c = color_total;
+            float v = NAN;
+            if (ib < my_browser.maxcol && jb < nrows && jb >= 0) {
+                double z = my_browser.data[ib][jb];
+                v = (float)z;
+                if (ap->zmax > ap->zmin) {
+                    c = (int)(color_total * (z - ap->zmin) / (ap->zmax - ap->zmin));
+                    if (c < 0) c = 0;
+                    if (c > color_total) c = color_total;
+                }
             }
+            if (vals) vals[j * nx + i] = v;
             if (i || j) BUF_LIT(&b, ",");
             buf_printf(&b, "%d", c);
         }
     }
-    BUF_LIT(&b, "]}");
+    BUF_LIT(&b, "]");
+    if (f32) BUF_LIT(&b, ",\"enc\":\"f32\"");
+    BUF_LIT(&b, ",\"values\":");
+    {
+        size_t len;
+        char *t = xpp_series_values(vals, nx * ny, f32, &len);
+        if (t) {
+            buf_add(&b, t, len);
+            xpp_free(t);
+        } else BUF_LIT(&b, "[]");
+    }
+    if (vals) xpp_free(vals);
+    BUF_LIT(&b, "}");
     send_buf(&b);
     xpp_free(b.s);
 }
