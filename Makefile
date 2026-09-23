@@ -101,6 +101,9 @@ WEB2_FILES := web2/dist/index.html web2/dist/app.js web2/dist/app.css web2/dist/
 SERVER_OBJECTS := $(call obj,$(SERVER_SOURCES)) $(BUILDDIR)/web_assets.o
 $(BUILDDIR)/xppautx_main.o: CFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'
 $(BUILDDIR)/xppautx_main.o: CXXFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'
+# the version is an input of xppautx_main.o: the stamp is rewritten only when
+# it changes, so --version never names an older commit than the build's
+$(BUILDDIR)/xppautx_main.o: $(BUILDDIR)/version.stamp
 SOURCES := $(CORE_SOURCES) $(UI_SOURCES)
 OBJECTS := $(call obj,$(SOURCES))
 CORE_OBJECTS := $(call obj,$(CORE_SOURCES))
@@ -110,7 +113,7 @@ LINK_X := $(call link,$(SERVER_SOURCES) $(CORE_SOURCES))
 # per build directory, so a MinGW build does not replace the Linux library
 CORELIB := $(BUILDDIR)/libxppcore.a
 
-.PHONY: all clean x11free lib objects ltocheck lto-link xppautx test
+.PHONY: all clean x11free lib objects ltocheck lto-link xppautx test FORCE
 all: xppaut
 lib: $(CORELIB)
 
@@ -200,6 +203,11 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.cpp | $(BUILDDIR)
 
 $(BUILDDIR):
 	mkdir -p $@
+
+$(BUILDDIR)/version.stamp: FORCE | $(BUILDDIR)
+	@echo '$(XPPAUTX_VERSION)' | cmp -s - $@ || echo '$(XPPAUTX_VERSION)' > $@
+
+FORCE:
 
 # Dependency files: x.d for core/x.c, x.cpp.d for core/x.cpp, and only
 # those of existing sources are read, so after `git mv x.c x.cpp` the
