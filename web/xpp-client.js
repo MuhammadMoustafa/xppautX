@@ -926,8 +926,11 @@
       };
       this.brHead.innerHTML = '';
       this.brHead.appendChild(cell('T', 'xpp-data-t', sc.scrollLeft));
-      for (let j = c0; j < Math.min(ndata, c0 + nc); j++)
-        this.brHead.appendChild(cell(cols[j + 1], '', BR_TCOL + j * BR_COL));
+      for (let j = c0; j < Math.min(ndata, c0 + nc); j++) {
+        const head = cell(cols[j + 1], '', BR_TCOL + j * BR_COL);
+        head.title = cols[j + 1]; /* the column clips a long name */
+        this.brHead.appendChild(head);
+      }
       this.brSpace.innerHTML = '';
       const fmt = v => (v === null ? 'nan' : v === undefined ? '' : String(v));
       for (let i = first; i < Math.min(rows, first + count); i++) {
@@ -963,7 +966,9 @@
             row.appendChild(check);
             t.checks.set(name, check);
           }
-          row.appendChild(el('span', 'xpp-value-name', name));
+          const nameEl = el('span', 'xpp-value-name', name);
+          nameEl.title = name; /* the column clips a long name */
+          row.appendChild(nameEl);
           input = el('input', 'xpp-value-input');
           input.spellcheck = false;
           if (t.hint) input.title = t.hint;

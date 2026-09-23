@@ -403,7 +403,7 @@
   overflow: hidden;
   text-align: right;
 }
-.xpp-data-head .xpp-data-cell { line-height: 22px; }
+.xpp-data-head .xpp-data-cell { line-height: 22px; text-overflow: ellipsis; }
 .xpp-data-t { width: 110px; z-index: 1; background: inherit; background-color: var(--xpp-panel); }
 .xpp-data-sel .xpp-data-t { background-color: var(--xpp-accent); }
 .xpp-actions { padding: 6px; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
