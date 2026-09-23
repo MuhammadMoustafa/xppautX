@@ -294,6 +294,58 @@ export interface AplotEvent {
   tag?: string;
 }
 
+/** the animation window's state (docs/protocol.md `ani`), for its slider and
+    toggles: sent with every frame drawn and after every `ani` command */
+export interface AniStateEvent {
+  ev: 'ani';
+  op?: undefined;
+  /** the row the next step starts from (the core's vcr.pos) */
+  pos: number;
+  rows: number;
+  fly: number;
+  grab: number;
+  skip: number;
+  /** ms between two frames of Go */
+  speed: number;
+  /** an animation file is loaded */
+  loaded?: number;
+  /** the animation window exists */
+  open?: number;
+}
+
+/** a primitive's colour: an XPP colour index (0 the foreground, 1..10 red ..
+    purple), or a colour of the colour map as #rrggbb */
+export type AniColor = number | string;
+
+/** a frame's primitive as sent (docs/protocol.md "The animation as data"):
+    unit coordinates u, v of the dimension box (y up), not clamped; widths
+    and a dot's radius in pixels */
+export type AniPrimWire =
+  | ['line', number, number, number, number, AniColor, number]
+  | ['rect' | 'circle' | 'ellipse', number, number, number, number, AniColor, number, number]
+  | ['dot', number, number, number, AniColor]
+  | ['text', number, number, string, AniColor, number, number];
+
+/** one frame of the animation, for a client that asked (`data` with `ani`) */
+export interface AniFrameEvent {
+  ev: 'ani';
+  op: 'frame';
+  /** the stored row the frame shows, of `rows` */
+  pos: number;
+  rows: number;
+  /** the frame's time; null when not finite */
+  t: number | null;
+  speed: number;
+  skip: number;
+  /** the dimension box: xlo, ylo, xhi, yhi */
+  dim: [number, number, number, number];
+  /** the classic window's size in pixels (what widths and dots are relative to) */
+  w: number;
+  h: number;
+  /** numbers are null where the .ani evaluated to NaN */
+  prims: AniPrimWire[];
+}
+
 export type XppEvent =
   | HelloEvent
   | StateEvent
@@ -310,6 +362,8 @@ export type XppEvent =
   | EquationsEvent
   | EquilibriumEvent
   | AplotEvent
+  | AniStateEvent
+  | AniFrameEvent
   | {ev: 'idle'}
   | {ev: 'progress'; n: number; of: number}
   | {ev: 'title'; text: string}
@@ -319,6 +373,6 @@ export type XppEvent =
   | {ev: 'exit'; code: number}
   | {ev: 'bye'}
   /* every other event: drawing ops, AUTO, ... (not used by this UI yet) */
-  | {ev: 'draw' | 'palette' | 'diagram' | 'ani' | 'film' | 'ping'; [k: string]: unknown};
+  | {ev: 'draw' | 'palette' | 'diagram' | 'film' | 'ping'; [k: string]: unknown};
 
 export type Command = {cmd: string; [k: string]: unknown};

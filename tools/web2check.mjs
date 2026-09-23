@@ -32,8 +32,12 @@
    set by upload restores the parameters, a same-content upload is not
    copied, a same-name one asks Replace / Keep both / Cancel, and "Add
    file…" adds a file the core could not open and runs the command again.
+   Animation (T13): tools/gui_test.ani loaded by upload, its frames in the
+   store in unit coordinates and drawn at the dimension's aspect; the
+   keyboard's steps, Home/End, the seek slider, the delay, Play and Pause
+   move the store's frame and the drawn one; a 390x844 sheet.
 
-   node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--only desktop,phase,marks,auto,view,aplot,files,live,million] [-v]
+   node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--only desktop,phase,marks,auto,view,aplot,files,live,million,ani] [-v]
 
    Needs Node 22 or later and a browser, nothing else (tools/cdp.mjs). */
 import {spawnSync} from 'node:child_process';
@@ -460,7 +464,7 @@ async function keyboardOnly() {
   /* Tab from the top of the page to the plot */
   await cdp.eval('document.activeElement && document.activeElement.blur()');
   let steps = 0;
-  while (steps < 70 && !(await cdp.eval(`!!document.activeElement.closest('.plot-host')`))) {
+  while (steps < 100 && !(await cdp.eval(`!!document.activeElement.closest('.plot-host')`))) {
     await key('Tab');
     steps++;
   }
@@ -1773,6 +1777,135 @@ async function files(dir) {
   }
 }
 
+/* ---- animation (docs/ui-v2.md T13) ---------------------------------------------- */
+
+/* the frame the store holds, the one drawn (__xpp.ani()), and the slider, once the core is idle */
+const aniShown = pos => until(`!s.busy && s.ani.frame && s.ani.frame.pos === ${pos} && __xpp.ani()
+  && __xpp.ani().pos === ${pos} && +document.querySelector('.ani-slider').value === ${pos}`, `frame ${pos}`);
+const focusStage = () => cdp.eval(`document.querySelector('.ani-stage').focus()`);
+
+async function animation() {
+  await desktopMetrics();
+  check('ani: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
+  check('ani: the server offers the ani data event and the page asks for it',
+    await S(`s.hello.features.includes('ani')`)
+    && (await cdp.eval('__xpp.sent()')).some(c => c.cmd === 'data' && c.events.includes('ani')));
+  check('ani: integrate first (601 rows)', await integrate(601, 30000));
+
+  /* the title bar's Animation button: Viewaxes/Toon opens the core's window, the panel shows */
+  await cdp.eval(`document.querySelector('.ani-toggle').click()`);
+  check('ani: the Animation button opens the core\'s animation window and the panel',
+    await until(`s.ani.open && s.ani.exists && !s.busy`, 'ani window')
+    && await cdp.eval(`getComputedStyle(document.querySelector('.ani-panel')).visibility === 'visible'`));
+  check('ani: the picture has the focus', await until(`document.activeElement.classList.contains('ani-stage')`, 'stage focus'));
+
+  /* Load: the file ask for reading, answered by an upload of tools/gui_test.ani */
+  await cdp.eval('window.showOpenFilePicker = undefined; true');
+  await cdp.eval(`[...document.querySelectorAll('.ani-header button')].find(b => b.textContent.startsWith('Load')).click()`);
+  check('ani: Load asks for a file to open', await until(`s.ask && s.ask.kind === 'file' && s.ask.mode === 'read'
+    && document.querySelector('[data-file-input=open]')`, 'ani file ask'), JSON.stringify(await S('s.ask')));
+  await pickFiles('[data-file-input=open]', [path.join(top, 'tools/gui_test.ani')]);
+  check('ani: loading it shows its first frame (store and drawing)', await aniShown(0),
+    JSON.stringify(await S('s.ani.frame && {pos: s.ani.frame.pos, n: s.ani.frame.prims.length}')));
+  const f0 = await S('s.ani.frame');
+  check('ani: the frame\'s primitives are in the store in unit coordinates, every kind',
+    ['line', 'rect', 'circle', 'ellipse', 'text', 'dot'].every(k => f0.prims.some(p => p.kind === k))
+    && f0.prims.filter(p => p.kind === 'line').every(p => [p.u1, p.v1, p.u2, p.v2].every(x => x >= -0.5 && x <= 1.5)),
+    JSON.stringify(f0.prims.slice(0, 4)));
+  const d0 = await cdp.eval('__xpp.ani()');
+  const aspect = (f0.dim[2] - f0.dim[0]) / (f0.dim[3] - f0.dim[1]);
+  check('ani: drawn with every primitive, at the dimension box\'s aspect',
+    d0.prims === f0.prims.length && Math.abs(d0.box.w / d0.box.h - aspect) < 1e-6 && d0.box.w > 100,
+    JSON.stringify(d0));
+  check('ani: nothing plays by itself (A6): no Go was sent', !(await cdp.eval('__xpp.sent()')).some(c => c.cmd === 'ani' && c.op === 'go'));
+
+  /* keyboard on the picture: arrows step, Shift ten, End and Home */
+  await focusStage();
+  await key('ArrowRight');
+  check('ani: Right arrow steps a frame', await aniShown(1));
+  await key('ArrowRight', 8);
+  check('ani: Shift+Right steps ten', await aniShown(11));
+  await key('ArrowLeft');
+  check('ani: Left arrow steps back', await aniShown(10));
+  await key('End');
+  check('ani: End goes to the last frame', await aniShown(600));
+  await key('Home');
+  check('ani: Home goes to the first frame', await aniShown(0));
+
+  /* the seek slider */
+  await cdp.eval(`(() => { const r = document.querySelector('.ani-slider'); r.value = '300';
+    r.dispatchEvent(new Event('input', {bubbles: true})); r.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  check('ani: the seek slider seeks (frame 300)', await aniShown(300));
+
+  /* the delay between frames */
+  await cdp.eval(`(() => { const s = document.querySelector('.ani-speed select'); s.value = '20';
+    s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  check('ani: the delay select sets the speed', await until('!s.busy && s.ani.speed === 20', 'speed 20'));
+
+  /* Space plays, the frames advance, Space pauses */
+  await focusStage();
+  const n0 = await S('s.ani.frames');
+  await key(' ');
+  check('ani: Space plays (Go)', await until('s.ani.playing', 'playing')
+    && (await cdp.eval('__xpp.sent()')).some(c => c.cmd === 'ani' && c.op === 'go'));
+  check('ani: the frames advance while it plays', await until(`s.ani.frames >= ${n0} + 3 && s.ani.frame.pos > 300`, 'advance'),
+    JSON.stringify(await S('[s.ani.frames, s.ani.frame.pos]')));
+  await focusStage();
+  await key(' ');
+  check('ani: Space pauses', await until('!s.ani.playing && !s.busy', 'paused'));
+  const paused = await S('s.ani.frame.pos');
+  check('ani: paused on a frame before the end, drawn', paused > 300 && paused < 600
+    && await until(`__xpp.ani().pos === ${paused}`, 'paused drawn'), String(paused));
+  await focusStage();
+  await key('ArrowLeft');
+  check('ani: after a pause a step goes from the frame shown', await aniShown(paused - 1),
+    JSON.stringify(await S('[s.ani.frame.pos, s.ani.pos]')));
+
+  /* the Play button, played to the end */
+  await cdp.eval(`document.querySelector('.ani-speed select').value = '0';
+    document.querySelector('.ani-speed select').dispatchEvent(new Event('change', {bubbles: true}))`);
+  await until('!s.busy && s.ani.speed === 0', 'speed 0');
+  await cdp.eval(`document.querySelector('.ani-play').click()`);
+  check('ani: the Play button plays to the last frame', await until('!s.ani.playing && !s.busy && s.ani.frame.pos === 600', 'end', 30000)
+    && await until('__xpp.ani().pos === 600', 'end drawn'), JSON.stringify(await S('[s.ani.frame.pos, s.ani.playing]')));
+  await cdp.eval(`[...document.querySelectorAll('.ani-controls button')].find(b => b.getAttribute('aria-label') === 'One frame back').click()`);
+  check('ani: the step back button, from the last frame shown', await aniShown(599));
+
+  /* any size: a smaller window keeps the aspect */
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 600, deviceScaleFactor: 1, mobile: false});
+  check('ani: drawn again at another size, the same aspect', await until(`__xpp.ani().height < ${d0.height}`, 'resized')
+    && Math.abs((await cdp.eval('__xpp.ani().box.w / __xpp.ani().box.h')) - aspect) < 1e-6,
+    JSON.stringify(await cdp.eval('__xpp.ani()')));
+
+  /* a reload: the server shows the new page the animation window again, and the data
+     subscription brings the last frame */
+  await cdp.send('Page.reload');
+  await sleep(300);
+  check('ani: after a reload the panel shows the core\'s window and its last frame again',
+    await until('s.hello && !s.busy && s.ani.open && s.ani.exists', 'window again') && await aniShown(599),
+    JSON.stringify(await S('[s.ani.open, s.ani.exists, s.busy, s.ani.frame && s.ani.frame.pos]')));
+
+  /* a phone: a full-screen sheet, 44px targets, no sideways scroll */
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
+  await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
+  await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'pointer', value: 'coarse'}, {name: 'hover', value: 'none'}]}).catch(() => {});
+  await sleep(400);
+  const scroll = await cdp.eval(`({doc: document.documentElement.scrollWidth, body: document.body.scrollWidth, w: innerWidth})`);
+  check('ani 390x844: no sideways scroll', scroll.doc <= scroll.w && scroll.body <= scroll.w, JSON.stringify(scroll));
+  check('ani 390x844: the panel is a full-screen sheet', await cdp.eval(`(() => { const r = document.querySelector('.ani-panel')
+    .getBoundingClientRect(); return r.width >= innerWidth - 1 && r.height >= innerHeight - 1; })()`));
+  const small = await cdp.eval(`[...document.querySelectorAll('.ani-panel button, .ani-panel select, .ani-panel input')]
+    .filter(b => b.getClientRects().length).map(b => [(b.getAttribute('aria-label') || b.textContent || b.className).trim(),
+      b.getBoundingClientRect().height]).filter(([, h]) => h < 44)`);
+  check('ani 390x844: the sheet\'s targets are at least 44px high', small.length === 0, JSON.stringify(small));
+  check('ani 390x844: the picture fits the width at its aspect', await until(`__xpp.ani().width <= 390
+    && Math.abs(__xpp.ani().box.w / __xpp.ani().box.h - ${aspect}) < 1e-6`, 'phone drawn'), JSON.stringify(await cdp.eval('__xpp.ani()')));
+  await cdp.eval(`document.querySelector('.ani-back').click()`);
+  check('ani: Back closes the sheet, the focus back on the Animation button',
+    await until('!s.ani.open', 'close ani') && await until(`document.activeElement.closest('.ani-toggle')`, 'ani focus back'));
+  await desktopMetrics();
+}
+
 /* xppautX in browser mode on a copy of `ode`, the page at /v2/, then `fn`
    (given the model's folder); the server stops after it. `expected` are
    errors the session provokes on purpose. */
@@ -1829,6 +1962,7 @@ async function main() {
     if (run('files')) await session(ODE, files, ['Cannot open file']);
     if (run('live')) await session(LIVE, () => live(wantLive));
     if (run('million')) await session(MILLION, million);
+    if (run('ani')) await session(ODE, animation);
   } finally {
     b.proc.kill();
     await sleep(500);

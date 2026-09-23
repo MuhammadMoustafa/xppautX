@@ -10,6 +10,7 @@ import {
   type Viewport,
 } from './plots';
 import {initialAplot, reduceAplot, type AplotAction, type AplotState} from './aplot';
+import {initialAni, reduceAni, type AniAction, type AniState} from './ani';
 import {initialFiles, missingFile, onSent, reduceFiles, type FilesAction, type FilesState, type RunRecord} from './files';
 import {initialDiagram, reduceDiagram, type DiagramAction, type DiagramEvent, type DiagramState} from './diagram';
 import {initialTable, reduceTable, type TableAction, type TableState} from './table';
@@ -109,6 +110,8 @@ export interface AppState {
   diagram: DiagramState;
   /** the array plot (T12): its latest event, colour map and panel state, see store/aplot.ts */
   aplot: AplotState;
+  /** the animation (T13): its window, player state and last frame, see store/ani.ts */
+  ani: AniState;
 }
 
 export type Action =
@@ -135,7 +138,8 @@ export type Action =
   | {type: 'text'; action: TextAction}
   | {type: 'files'; action: FilesAction}
   | {type: 'diagram'; action: DiagramAction}
-  | {type: 'aplot'; action: AplotAction};
+  | {type: 'aplot'; action: AplotAction}
+  | {type: 'ani'; action: AniAction};
 
 export const initialState: AppState = {
   connected: false,
@@ -166,9 +170,12 @@ export const initialState: AppState = {
   files: initialFiles,
   diagram: initialDiagram,
   aplot: initialAplot,
+  ani: initialAni,
 };
 
 const LOG_KEEP = 200, TOASTS_KEEP = 4;
+/** the core's animation window (docs/protocol.md `window`) */
+const ANI_WINDOW = 104;
 
 function addLog(state: AppState, entry: LogEntry): AppState {
   const log = state.log.length >= LOG_KEEP ? state.log.slice(1 - LOG_KEEP) : state.log.slice();
@@ -242,6 +249,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     case 'window':
       if (ev.win === 101 && ev.op !== 'select')
         return {...state, diagram: reduceDiagram(state.diagram, {type: 'window', op: ev.op})};
+      if (ev.win === ANI_WINDOW && ev.op !== 'select')
+        return {...state, ani: reduceAni(state.ani, {type: 'window', exists: ev.op === 'create'})};
       /* create selects the new window too; destroy waits for `plots` */
       if (ev.win === WIN_APLOT) {
         if (ev.op === 'destroy') return {...state, aplot: reduceAplot(state.aplot, {type: 'window', open: false})};
@@ -263,7 +272,10 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {
         ...state, busy: false, stopping: false, ask: null, pick: null, box: '', progress: null,
         values: reduceValues(state.values, {type: 'settled'}),
+        ani: reduceAni(state.ani, {type: 'playing', playing: false}),
       };
+    case 'ani':
+      return {...state, ani: reduceAni(state.ani, ev.op === 'frame' ? {type: 'frame', ev} : {type: 'state', ev})};
     case 'progress':
       return {...state, progress: ev.of > 0 ? {n: ev.n, of: ev.of} : null};
     case 'title':
@@ -319,6 +331,8 @@ export function reduce(state: AppState, action: Action): AppState {
         const p = state.pick, cancelled = action.cmd.ok === 0;
         return {...state, ask: null, pick: !p || cancelled ? null : p.mode === 'drag' ? p : {...p, waiting: true}};
       }
+      if (action.cmd.cmd === 'ani' && action.cmd.op === 'go')
+        state = {...state, ani: reduceAni(state.ani, {type: 'playing', playing: true})};
       return noIdle(action.cmd) ? state : {...state, busy: true};
     }
     case 'aborting':
@@ -357,5 +371,7 @@ export function reduce(state: AppState, action: Action): AppState {
     }
     case 'aplot':
       return {...state, aplot: reduceAplot(state.aplot, action.action)};
+    case 'ani':
+      return {...state, ani: reduceAni(state.ani, action.action)};
   }
 }

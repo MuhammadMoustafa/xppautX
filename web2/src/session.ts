@@ -14,6 +14,7 @@ import {
 } from './store/files';
 import {createStore, type Store} from './store/store';
 import {initialState, reduce, type Action, type AppState} from './store/state';
+import {stepTarget} from './store/ani';
 import {MAX_COUNT, MAX_NCOL, planRequest, tableCsv} from './store/table';
 import type {TextTab} from './store/text';
 import type {ValueEdit} from './store/values';
@@ -67,7 +68,7 @@ export class Session {
          direction fields and marks; values
          as base64 float32, which a long run needs (a server that does not know
          enc sends JSON numbers, which the store reads as well) */
-      const events = ['series', 'plots', 'nullclines', 'dfield', 'marks'].filter(name => ev.features?.includes(name));
+      const events = ['series', 'plots', 'nullclines', 'dfield', 'marks', 'ani'].filter(name => ev.features?.includes(name));
       if (events.length) this.send({cmd: 'data', events, enc: 'f32'});
     } else if (ev.ev === 'ask') {
       if (ev.kind === 'pixels') {
@@ -379,6 +380,64 @@ export class Session {
       });
       this.send({cmd: 'browser', from, count, col: 1, ncol: MAX_NCOL});
     });
+  }
+
+  /* ---- animation (docs/ui-v2.md T13, docs/protocol.md `ani` and "The animation as data") ---- */
+
+  /** shows the panel, opening the core's animation window first (Viewaxes/Toon) when there is none */
+  openAni(): void {
+    this.store.dispatch({type: 'ani', action: {type: 'open', open: true}});
+    const {ani, busy} = this.store.getState();
+    if (!ani.exists && !busy) this.keys('v', 't');
+  }
+
+  /** hides the panel; a playing animation stops */
+  closeAni(): void {
+    this.aniPause();
+    this.store.dispatch({type: 'ani', action: {type: 'open', open: false}});
+  }
+
+  /** File: an .ani file, through the file ask (the browser's open dialog) */
+  aniLoad(): void {
+    this.send({cmd: 'ani', op: 'file'});
+  }
+
+  /** Go: plays from the core's position to the last frame; never started by the page itself (A6) */
+  aniPlay(): void {
+    if (!this.store.getState().ani.playing) this.send({cmd: 'ani', op: 'go'});
+  }
+
+  /** Pause: reaches the running Go at once (a control line: no idle of its own) */
+  aniPause(): void {
+    if (this.store.getState().ani.playing) this.send({cmd: 'ani', op: 'pause'});
+  }
+
+  /** n frames from the frame shown (a playing animation pauses there first) */
+  aniStep(n: number): void {
+    const ani = this.store.getState().ani, target = stepTarget(ani, n);
+    if (ani.playing) this.aniSeek(target);
+    else this.send({cmd: 'ani', op: 'step', n: target - ani.pos});
+  }
+
+  /** the frame of stored row `pos` */
+  aniSeek(pos: number): void {
+    this.aniPause();
+    this.send({cmd: 'ani', op: 'seek', pos: Math.max(0, Math.round(pos))});
+  }
+
+  /** the delay between two frames of Go, ms (reaches a running Go at once) */
+  aniSpeed(ms: number): void {
+    this.send({cmd: 'ani', op: 'speed', ms: Math.max(0, Math.round(ms))});
+  }
+
+  /** Grab: the frame's grab points wait for the pointer */
+  aniGrab(): void {
+    this.send({cmd: 'ani', op: 'grab'});
+  }
+
+  /** the pointer over the picture while grabbing, in unit coordinates (u, v: y up) */
+  aniPointer(what: 'down' | 'move' | 'up', u: number, v: number): void {
+    this.send({cmd: 'ani', op: 'mouse', what, u, v});
   }
 
   /* ---- text views (docs/ui-v2.md T16, docs/protocol.md `equations`, `source`, ---- */

@@ -131,7 +131,7 @@ bundle is ~95 KB of JS (Preact 4 KB, uPlot 50 KB), 11 KB of CSS, 48 KB of font.
 | 7 | `diagram` (exists) + `autoinfo` | AUTO view | the diagram is already data; add the info strip as fields (branch, point, type, parameter, norm, period, ...) and the stability circle as eigenvalues `[[re,im],...]` | small: `auto_x11.c` prints these, the data is in `auto_nox.c` |
 | 8 | `browser` (exists) | data table | rows and columns on request: already data | none |
 | 9 | `aplot` (exists) | array plot | cells as colour indices; add `values` (the numbers) so the client picks its colour map | small |
-| 10 | `ani` frames | animation | the frame's primitives in the animation's own unit coordinates (the `.ani` language's `[0,1]` space) before the core scales them to pixels | yes: `aniparse.c` computes geometry in pixels; move the scaling to the client |
+| 10 | `ani` `frame` (**done**) | animation | the frame's primitives (line, rect, circle, ellipse, comet dot, text) in unit coordinates of the `.ani`'s `dimension` box (y up, not clamped), their colours (XPP index or `#rrggbb` of the colour map), widths and fonts; the frame's row, time, box and the classic window's size; thinned to 25 a second while Go plays | `core/aniparse.cpp` computes a frame in the `.ani`'s coordinates and gives each primitive to the pixel ops and to `core/ani_data.cpp` (docs/protocol.md "The animation as data") |
 | 11 | kinescope | kinescope | nothing new: the client keeps data snapshots (series + marks + viewport) as frames and renders or exports them itself | none (the `pixels` ask stays for `web/`) |
 
 Equilibrium, equations, source, message, progress and state events are
@@ -286,9 +286,12 @@ plot/       model.ts (series -> curves, pure), nearest.ts, viewmath.ts,
             diagramModel.ts (diagram -> curves, label marks, Hopf joins,
             nearest point, readout; pure), diagramChart.ts (uPlot adapter)
 ui/         App.tsx (shell), TitleBar, MenuPanel, Plots (the windows' tabs),
-            PlotView (one window), ValuesPanel, TableView, AutoView
-            (with auto.css), AskDialog,
-            Toasts, StatusBar, Messages, hotkeys.ts, theme.ts, context.ts
+            PlotView (one window), ValuesPanel, TableView, AutoView (with auto.css), AniView (the
+            animation), AskDialog, Toasts, StatusBar, Messages, hotkeys.ts,
+            theme.ts, context.ts
+ani/        frame.ts (a frame's primitives decoded, the box at the
+            dimension's aspect, unit <-> canvas, pixel sizes, pure),
+            render.ts (canvas drawing, __xpp.ani())
 testhook.ts window.__xpp for tests
 ```
 
@@ -308,7 +311,7 @@ Rules:
   `__xpp.plot(win)` (the active window's without `win`).
 - **State slices** follow the views: `plots` (windows, T6, done),
   `values` (parameters, ICs, sliders, T3, done), `diagram` (AUTO), `table` (browser),
-  `ani`, `aplot`, `files` (T5, done). Each gets its reducer file under `store/` and its
+  `ani` (T13, done), `aplot`, `files` (T5, done). Each gets its reducer file under `store/` and its
   view under `ui/`.
 
 ### Libraries
@@ -513,6 +516,20 @@ Target: WCAG 2.2 AA. Rules:
   (the same bytes); Read set by upload restores the parameters; the same
   content is not copied again; the replace confirm (Cancel, Keep both as
   `name-2.set`); "Add file…" after a file the core could not open.
+- **Animation** (T13): `tools/servercheck.py`: with tools/gui_test.ani
+  (one of every command) on lecar, every primitive of a frame is the
+  classic pixel op divided by the window's size within a pixel, colour for
+  colour, in [0,1] except where the `.ani` leaves its box (and there the
+  pixel op is clamped to the edge); load, step, seek and the end of Go send
+  the frame they draw; Go sends fewer frames than it draws, in order, and
+  its last; `speed`; a grab by unit coordinates; nothing without `data`.
+  `npm test` (`test/ani.test.ts`): decoding, the box's aspect, unit to
+  canvas and back, pixel sizes, the slice. `tools/web2check.mjs` (`ani`):
+  Load by upload shows frame 0 in the store and drawn, at the box's aspect;
+  arrows, Shift, Home, End, the seek slider, the delay, Space and the Play
+  button move the store's frame and the drawn one (`__xpp.ani()`); a step
+  after Pause goes from the frame shown; nothing plays by itself; at
+  390x844 a full-screen sheet with 44 px targets and no sideways scroll.
 - Each task below adds its view's checks to web2check and its events'
   checks to servercheck.
 
@@ -538,7 +555,7 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T11a (**done**) | AUTO view from `diagram`: branches by stability, labels, zoom, pan, readout; buttons (no Abort: the status bar's Stop, A10) | T4 | no | web2check: after an AUTO run the store's diagram equals the `diagram` events; readout names a labelled point |
 | T11b | AUTO grab by point, `autoinfo`, stability circle as data | T11a | yes | servercheck: grab by index then run; web2check: grab from the keyboard |
 | T12 (**done**) | Array plot view from `aplot` (with `values`), colour maps, scroll | T6 | small | web2check: cells equal the event's; scroll in time |
-| T13 | Animation: frames in unit coordinates, player controls, scaling to any size | T6 | yes | servercheck: frame primitives in [0,1]; web2check: play, pause, step, seek update the frame index |
+| T13 (**done**) | Animation: frames in unit coordinates, player controls, scaling to any size | T6 | yes | servercheck: frame primitives in [0,1]; web2check: play, pause, step, seek update the frame index |
 | T14 | 3D plots: projection and rotation in the client, angles synced with `rotate` | T6 | small | web2check: rotate by drag and keys; `state.view.three` agrees |
 | T15 | Kinescope and exports from data: capture snapshots, play, GIF/PNG from the client | T7, T8 | small | web2check: capture two frames, play them; GIF export has two frames |
 | T16 (**done**) | Text views: equations, source with actions, equilibrium details, messages | T3 | no | web2check: comment action sets its parameters |

@@ -6,6 +6,7 @@
    more than 50 ms (the Long Tasks API), so a test can tell that a gesture
    never held a frame back longer than that. */
 import {diagramChart} from './plot/diagramChart';
+import {aniDrawInfo} from './ani/render';
 import {chartOf} from './plot/registry';
 import type {Session} from './session';
 import type {Action} from './store/state';
@@ -68,5 +69,7 @@ export function installTestHook(session: Session): void {
     longTasks: (since = 0) => tasks.filter(t => t.start >= since),
     longTasksSupported: () => PerformanceObserver.supportedEntryTypes?.includes('longtask') ?? false,
     send: (cmd: {cmd: string}) => session.send(cmd),
+    /** the animation's last drawing: the frame, its primitive count, the canvas and the box on it */
+    ani: () => aniDrawInfo(),
   };
 }

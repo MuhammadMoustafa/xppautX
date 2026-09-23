@@ -17,6 +17,7 @@ export function TitleBar() {
   const tableOpen = useStore(s => s.table.open);
   const textOpen = useStore(s => s.text.open);
   const aplotOpen = useStore(s => s.aplot.open);
+  const aniOpen = useStore(s => s.ani.open);
   const busy = useStore(s => s.busy);
   const setTheme = () => {
     const t = NEXT_THEME[theme];
@@ -45,6 +46,9 @@ export function TitleBar() {
       <button class="aplot-toggle" aria-controls="aplot-panel" aria-expanded={aplotOpen}
         onClick={() => (aplotOpen ? session.closeAplot() : session.openAplot())}
         title="The array plot: XPP's grid of a range of columns and rows, coloured by value">Array</button>
+      <button class="ani-toggle" aria-controls="ani-panel" aria-expanded={aniOpen}
+        onClick={() => (aniOpen ? session.closeAni() : session.openAni())}
+        title="The animation (Viewaxes/Toon): play, step and seek its frames">Animation</button>
       <a class="button classic" href={`/${location.search}`} title="The classic interface, with every window">Classic</a>
     </header>
   );

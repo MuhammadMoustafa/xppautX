@@ -730,6 +730,56 @@ kbd {
 .file-entry.dir { color: var(--accent); }
 .file-entry.selected { background: var(--surface-2); }
 
+/* ---- animation (docs/ui-v2.md T13): always a floating overlay (R6), like ---- */
+/* .table-panel -- full screen under 48rem, a side panel from there */
+.ani-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 160;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transform: translateX(100%);
+  visibility: hidden;
+  transition: transform 0.2s ease, visibility 0s 0.2s;
+}
+.ani-panel.open { transform: none; visibility: visible; transition: transform 0.2s ease; }
+.ani-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.ani-header h2 { font-size: var(--text-md); flex: 1; min-width: 0; }
+/* the picture: the canvas fills it, so its size never feeds back into the layout */
+.ani-stage { position: relative; flex: 1; min-height: 12rem; background: var(--surface-2); touch-action: none; }
+.ani-stage.grabbing { cursor: crosshair; }
+.ani-stage:focus-visible { outline-offset: -2px; }
+.ani-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ani-info { margin: 0; padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--fg-muted); overflow-wrap: anywhere; }
+.ani-seek { padding: 0 var(--space-3); }
+.ani-slider { width: 100%; min-height: var(--target); margin: 0; accent-color: var(--accent); }
+.ani-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+.ani-play { min-width: 5.5rem; }
+.ani-speed { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--text-sm); }
+.ani-speed select {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--field-border);
+  border-radius: 0.375rem;
+  min-height: var(--target);
+}
+
 /* ---- breakpoints (docs/ui-v2.md "Responsive layout") ---- */
 /* wide: more room for the menu, and the values panel becomes a right column (R3, R6) */
 @media (min-width: 80rem) {
@@ -754,6 +804,10 @@ kbd {
 /* the array plot panel: the same floating-overlay pattern as the data table */
 @media (min-width: 48rem) {
   .aplot-panel { left: auto; width: min(56rem, 92vw); border-left: 1px solid var(--border); }
+}
+/* the animation: the same, the plot visible beside it */
+@media (min-width: 48rem) {
+  .ani-panel { left: auto; width: min(40rem, 92vw); border-left: 1px solid var(--border); }
 }
 /* narrow (phones, small tablets): one column, the menu and the values panel are drawers/sheets */
 @media (max-width: 47.99rem) {
