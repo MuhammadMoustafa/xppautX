@@ -14,17 +14,21 @@ on:
 permissions:
   contents: write
 
+# the release's name: the tag pushed or the tag asked for; empty on a dry run
+# of a branch, where the Makefile and package_release.sh use git describe
 env:
-  XPP_VERSION: ${{ inputs.tag || (github.ref_type == 'tag' && github.ref_name) || format('dev-{0}', github.sha) }}
+  XPP_VERSION: ${{ inputs.tag || (github.ref_type == 'tag' && github.ref_name) || '' }}
 
 jobs:
   source:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - name: "Source archive (GPL v2: the binaries' exact source)"
         run: |
-          name="xppautX-${XPP_VERSION}-source"
+          name="xppautX-${XPP_VERSION:-$(git describe --tags --always)}-source"
           git archive --format=tar.gz --prefix="$name/" -o "$name.tar.gz" HEAD
           sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
       - uses: actions/upload-artifact@v4
@@ -37,6 +41,8 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - name: Build
         run: make -j4 xppautx
       - name: Check
@@ -57,6 +63,8 @@ jobs:
         shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
@@ -87,6 +95,8 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - name: Build
         run: make -j3 xppautx
       - name: Check

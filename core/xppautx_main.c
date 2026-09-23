@@ -33,7 +33,7 @@
 #include <string.h>
 
 /* What --version prints. The Makefile passes the release tag when there is
-   one (GITHUB_REF_NAME in CI, else git describe); a build from a tree with
+   one (XPP_VERSION in release.yml, else git describe); a build from a tree with
    no tags and no git says "dev". */
 #ifndef XPPAUTX_VERSION
 #define XPPAUTX_VERSION "dev"

@@ -37,8 +37,8 @@ release tag and offers the newer one (a setting turns this off).
 - `--web --no-open --port 0`: pick a free port, print the `XPP:` line
   above on stdout before anything else, then serve on 127.0.0.1 only.
 - `--version`: print `xppautX <tag>` and exit. The Makefile sets the tag
-  from `GITHUB_REF_NAME` in CI (the release tag, `v1.2.0`) or `git
-  describe` locally.
+  from `XPP_VERSION`, which release.yml sets to the release tag
+  (`v1.2.0`), or from `git describe` otherwise.
 - Release assets named `xppautX-<tag>-<platform>.tar.gz` (`.zip` on
   Windows) for `windows-x64`, `linux-x64`, `macos-arm64` and `macos-x64`,
   each holding the binary and `LICENSE` in one top-level folder
