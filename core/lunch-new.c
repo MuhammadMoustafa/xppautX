@@ -209,7 +209,7 @@ int read_lunch(FILE *fp)
    dump_torus(fp,f);
    dump_range(fp,f);
    }
-
+  
    return 1;
 }
 
@@ -243,7 +243,6 @@ int f;
  int ne,np,ok,temp;
  char bob[256];
  FILE *fp;
- time_t ttt;
  /*char filename[256];*/
  char filename[XPP_MAX_NAME];
  sprintf(filename,"%s.set",this_file);
@@ -294,7 +293,7 @@ int f;
    return;
  }
   if(!file_selector("Save SET File",filename,"*.set"))return;
-  open_write_file(&fp,filename,&ok);
+  open_write_file(&fp,filename,&ok); 
    if(!ok)return;
  redraw_params();
  write_lunch(fp);

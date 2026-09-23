@@ -1,43 +1,91 @@
-/* The .set file round trip: verify that write_lunch() produces consistent
-   output that read_lunch() can parse.
+/* The .set file round trip: write_lunch() then read_lunch() must bring back
+   every parameter, initial condition and numerics setting, and writing again
+   must give the same file. A field that one side writes and the other reads
+   in a different order shifts every value after it, which a user only
+   notices as a restored session that behaves differently.
 
-   This tests the write_lunch() extraction from do_lunch(). The requirement is
-   that bytes written must be identical to the original do_lunch() code flow,
-   so this test verifies that write_lunch() and read_lunch() work together in
-   a round-trip.
-
-   NOTE ON GLOBAL INITIALIZATION:
-   The read_lunch() and write_lunch() functions depend on extensive global
-   state: GRAPH *MyGraph, APLOT aplot, various TRANS_* and TORUS_* structs,
-   and many others. These globals are initialized by xpp_load_model() and
-   related functions in xpp_batch.c. Loading a full model via xpp_load_model()
-   in a unit test causes a segmentation fault in the test harness, likely due
-   to complex initialization code that has side effects and cannot be safely
-   cleaned up between tests.
-
-   Instead, this test verifies that write_lunch() and read_lunch() compile
-   and link correctly (tests/test_lunch.c exists and defines the functions).
-   The actual round-trip test (load model -> write A -> modify -> read A ->
-   check values -> write B -> byte compare A and B) should be done with
-   xppautX directly, not in the unit test suite. The examples/ode/lecar.ode.set
-   file provides a test case that can be loaded and re-saved interactively.
-*/
-
+   The model is loaded the way xppautX -silent loads it (xpp_batch_main),
+   without integrating. make test runs this from the top of the tree. */
 #include "xpptest.h"
+#include "lunch-new.h"
+#include "xpp_batch.h"
+#include "parserslow.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/* Just verify that lunch-new.h declares the functions we extracted. */
-#include "lunch-new.h"
+extern double TEND, DELTA_T;
+extern double last_ic[];
+void init_browser(void);
+void init_all_graph(void);
+
+/* the file without its first line, which carries the time it was written */
+static char *body(const char *path)
+{
+    FILE *fp = fopen(path, "rb");
+    long n;
+    char *s, *nl;
+    if (!fp) return NULL;
+    fseek(fp, 0, SEEK_END);
+    n = ftell(fp);
+    rewind(fp);
+    s = calloc((size_t)n + 1, 1);
+    if (fread(s, 1, (size_t)n, fp) != (size_t)n) n = 0;
+    fclose(fp);
+    nl = strchr(s, '\n');
+    return nl ? memmove(s, nl + 1, strlen(nl + 1) + 1) : s;
+}
+
+static void save(const char *path)
+{
+    FILE *fp = fopen(path, "w");
+    write_lunch(fp);
+    fclose(fp);
+}
 
 int main(void)
 {
-    /* Verify that write_lunch is declared and callable (it is, since
-       we included the header that declares it). If the extraction failed
-       or the function wasn't added to the header, compilation would fail. */
+    char *argv[] = {"test_lunch", "examples/ode/lecar.ode", NULL};
+    const char *a = "build/test_lunch_a.set", *b = "build/test_lunch_b.set";
+    double iapp, v0, tend, dt, x;
+    FILE *fp;
+    char *sa, *sb;
 
-    CHECK(1);  /* If we got here, the headers are correct */
+    xpp_load_model(2, argv, 1);
+    init_browser();
+    init_all_graph();
 
-    TEST_REPORT("lunch round-trip");
+    get_val("iapp", &iapp);
+    v0 = last_ic[0];
+    tend = TEND;
+    dt = DELTA_T;
+    save(a);
+
+    set_val("iapp", iapp + 1);
+    last_ic[0] = v0 + 1;
+    TEND = tend * 2;
+    DELTA_T = dt / 2;
+
+    fp = fopen(a, "r");
+    CHECK(fp != NULL);
+    if (!fp) TEST_REPORT("lunch round trip");
+    CHECK(read_lunch(fp) == 1);
+    fclose(fp);
+
+    get_val("iapp", &x);
+    CHECK(x == iapp);
+    CHECK(last_ic[0] == v0);
+    CHECK(TEND == tend);
+    CHECK(DELTA_T == dt);
+
+    save(b);
+    sa = body(a);
+    sb = body(b);
+    CHECK(sa && sb && strlen(sa) > 100);
+    CHECK(sa && sb && strcmp(sa, sb) == 0);
+    free(sa);
+    free(sb);
+    remove(a);
+    remove(b);
+    TEST_REPORT("lunch round trip");
 }
