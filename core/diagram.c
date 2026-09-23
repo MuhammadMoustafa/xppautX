@@ -617,20 +617,22 @@ int load_diagram(fp,node)
   int i,flag=0;
   int n;
   int calc,ibr,ntot,itp,lab,index,nfpar,icp1,icp2,icp3,icp4,flag2;
-  fscanf(fp,"%d",&n);
+  if (fscanf(fp,"%d",&n) != 1) return -1;
   if(n==0){
 /*    start_diagram(NODE); */
     return(-1);
   }
-    
+
   while(1){
-    fscanf(fp,"%d %d %d %d %d %d %d %d %d %d %d %d",
+    if (fscanf(fp,"%d %d %d %d %d %d %d %d %d %d %d %d",
 	   &calc,&ibr,&ntot,&itp,&lab,&index,&nfpar,
-	   &icp1,&icp2,&icp3,&icp4,&flag2);
-    for(i=0;i<8;i++)fscanf(fp,"%lg ",&par[i]);
-    fscanf(fp,"%lg %lg ",&norm,&per);
-    for(i=0;i<node;i++)fscanf(fp,"%lg %lg %lg %lg %lg %lg",&u0[i],&uhi[i],&ulo[i],
-			      &ubar[i],&evr[i],&evi[i]);
+	   &icp1,&icp2,&icp3,&icp4,&flag2) != 12) break;
+    for(i=0;i<8;i++) if (fscanf(fp,"%lg ",&par[i]) != 1) break;
+    if (i<8) break;
+    if (fscanf(fp,"%lg %lg ",&norm,&per) != 2) break;
+    for(i=0;i<node;i++) if (fscanf(fp,"%lg %lg %lg %lg %lg %lg",&u0[i],&uhi[i],&ulo[i],
+			      &ubar[i],&evr[i],&evi[i]) != 6) break;
+    if (i<node) break;
     if(flag==0){
       edit_start(ibr,ntot,itp,lab,nfpar,norm,uhi,ulo,u0,ubar,par,per,node,
 		 icp1,icp2,icp3,icp4,evr,evi);

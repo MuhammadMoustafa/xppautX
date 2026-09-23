@@ -2961,25 +2961,25 @@ void load_auto_numerics(fp)
      FILE *fp;
 {
  int i,in;
- fscanf(fp,"%d ",&NAutoPar);
+ if (fscanf(fp,"%d ",&NAutoPar) != 1) return;
  for(i=0;i<NAutoPar;i++){
-   fscanf(fp,"%d ",&AutoPar[i]);
+   if (fscanf(fp,"%d ",&AutoPar[i]) != 1) return;
    in=get_param_index(upar_names[AutoPar[i]]);
    Auto_index_to_array[i]=in;
  }
- fscanf(fp,"%d ",&NAutoUzr);
+ if (fscanf(fp,"%d ",&NAutoUzr) != 1) return;
   for(i=0;i<9;i++){
     Auto.nper=NAutoUzr;
-    fscanf(fp,"%lg %ld\n",&outperiod[i],&UzrPar[i]);
+    if (fscanf(fp,"%lg %ld\n",&outperiod[i],&UzrPar[i]) != 2) return;
     Auto.period[i]=outperiod[i];
     Auto.uzrpar[i]=UzrPar[i];
     /*    printf("%g %d\n",Auto.period[i],Auto.uzrpar[i]); */
   }
- 
- fscanf(fp,"%d %d %d \n",&Auto.ntst,&Auto.nmx,&Auto.npr);
- fscanf(fp,"%lg %lg %lg \n",&Auto.ds,&Auto.dsmin,&Auto.dsmax);
- fscanf(fp,"%lg %lg %lg %lg\n",&Auto.rl0,&Auto.rl1,&Auto.a0,&Auto.a1);
- fscanf(fp,"%d %d %d %d %d %d %d\n",&aauto.iad,&aauto.mxbf,&aauto.iid,&aauto.itmx,&aauto.itnw,&aauto.nwtn,&aauto.iads);
+
+ if (fscanf(fp,"%d %d %d \n",&Auto.ntst,&Auto.nmx,&Auto.npr) != 3) return;
+ if (fscanf(fp,"%lg %lg %lg \n",&Auto.ds,&Auto.dsmin,&Auto.dsmax) != 3) return;
+ if (fscanf(fp,"%lg %lg %lg %lg\n",&Auto.rl0,&Auto.rl1,&Auto.a0,&Auto.a1) != 4) return;
+ if (fscanf(fp,"%d %d %d %d %d %d %d\n",&aauto.iad,&aauto.mxbf,&aauto.iid,&aauto.itmx,&aauto.itnw,&aauto.nwtn,&aauto.iads) != 7) return;
 }
 
 void save_auto_graph(fp)
@@ -2992,8 +2992,8 @@ void save_auto_graph(fp)
 void load_auto_graph(fp)
      FILE *fp;
 {
-  fscanf(fp,"%lg %lg %lg %lg %d %d \n",&Auto.xmin,&Auto.ymin,&Auto.xmax,&Auto.ymax,
-	&Auto.var,&Auto.plot);
+  if (fscanf(fp,"%lg %lg %lg %lg %d %d \n",&Auto.xmin,&Auto.ymin,&Auto.xmax,&Auto.ymax,
+	&Auto.var,&Auto.plot) != 6) return;
 }
   
 void save_q_file(fp)  /* I am keeping the name q_file even though they are s_files */
@@ -3098,7 +3098,7 @@ int move_to_label(mylab,nrow,ndim,fp)
   int i;
   char line[MAXLINELENGTH];
   while(1){
-    fgets(line,MAXLINELENGTH,fp);
+    if(fgets(line,MAXLINELENGTH,fp)==NULL)break;
     sscanf(line,"%d%d %d %d %d %d %d %d %d",
 	   &ibr,&ntot,&itp,&lab,&nfpar,&isw,&ntpl,&nar,&nskip);
     if(mylab==lab){
@@ -3107,7 +3107,7 @@ int move_to_label(mylab,nrow,ndim,fp)
       return(1);
     }
     for(i=0;i<nskip;i++)
-      fgets(line,MAXLINELENGTH,fp);
+      if(fgets(line,MAXLINELENGTH,fp)==NULL)break;
     if(feof(fp))break;
   }
   return(0);
@@ -3119,9 +3119,9 @@ void get_a_row(u,t,n,fp)
  FILE *fp;
  {
    int i;
-   fscanf(fp,"%lg ",t);
+   if (fscanf(fp,"%lg ",t) != 1) return;
    for(i=0;i<n;i++)
-     fscanf(fp,"%lg ",&u[i]);
+     if (fscanf(fp,"%lg ",&u[i]) != 1) return;
  }
 
 

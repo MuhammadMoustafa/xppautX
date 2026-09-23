@@ -178,7 +178,10 @@ int read_lunch(FILE *fp)
   int f=READEM,ne,np,temp;
   char bob[256];
 
- fgets(bob,255,fp);
+ if(fgets(bob,255,fp)==NULL){
+   plintf("Set file read failed\n");
+   return 0;
+ }
    if(bob[0]=='#'){
      set_type=1;
      io_int(&ne,fp,f," ");
@@ -257,7 +260,11 @@ int f;
      err_msg("Cannot open file");
      return;
    }
-   fgets(bob,255,fp);
+   if(fgets(bob,255,fp)==NULL){
+     err_msg("Cannot read file");
+     fclose(fp);
+     return;
+   }
    if(bob[0]=='#'){
      set_type=1;
      io_int(&ne,fp,f," ");
@@ -340,7 +347,7 @@ char *method[]={"Discrete","Euler","Mod. Euler",
 char *pmap[]={"Poincare None","Poincare Section","Poincare Max","Period"};
 char temp[256];
 if(f==READEM&&set_type==1){
-  fgets(temp,255,fp); /* skip a line */}
+  if(fgets(temp,255,fp)){} /* skip a line */}
 if(f!=READEM)
   fprintf(fp,"# Numerical stuff\n");
 io_int(&NJMP,fp,f," nout");
@@ -537,27 +544,27 @@ FILE *fp;
  char temp[256];
  double z;
  if(f==READEM&&set_type==1){
-  fgets(temp,255,fp); /* skip a line */}
+  if(fgets(temp,255,fp)){} /* skip a line */}
 if(f!=READEM)
   fprintf(fp,"# Delays\n");
  for(i=0;i<NODE;i++)io_string(delay_string[i],100,fp,f);
  if(f==READEM&&set_type==1){
-  fgets(temp,255,fp); /* skip a line */}
+  if(fgets(temp,255,fp)){} /* skip a line */}
 if(f!=READEM)
   fprintf(fp,"# Bndry conds\n");
  for(i=0;i<NODE;i++)io_string(my_bc[i].string,100,fp,f);
  if(f==READEM&&set_type==1){
-  fgets(temp,255,fp); /* skip a line */}
+  if(fgets(temp,255,fp)){} /* skip a line */}
 if(f!=READEM)
   fprintf(fp,"# Old ICs\n");
  for(i=0;i<NODE+NMarkov;i++)io_double(&last_ic[i],fp,f,uvar_names[i]);
 if(f==READEM&&set_type==1){
-  fgets(temp,255,fp); /* skip a line */}
+  if(fgets(temp,255,fp)){} /* skip a line */}
 if(f!=READEM)
   fprintf(fp,"# Ending  ICs\n");
  for(i=0;i<NODE+NMarkov;i++)io_double(&MyData[i],fp,f,uvar_names[i]);
  if(f==READEM&&set_type==1){
-  fgets(temp,255,fp); /* skip a line */}
+  if(fgets(temp,255,fp)){} /* skip a line */}
 if(f!=READEM)
   fprintf(fp,"# Parameters\n");
  for(i=0;i<NUPAR;i++){
@@ -591,7 +598,7 @@ FILE *fp;
  int j,k;
  char temp[256];
  if(f==READEM&&set_type==1){
-  fgets(temp,255,fp); /* skip a line */}
+  if(fgets(temp,255,fp)){} /* skip a line */}
 if(f!=READEM)
   fprintf(fp,"# Graphics\n");
  for(j=0;j<3;j++)
@@ -652,7 +659,7 @@ char *ss;
 {
  char bob[256];
  if(f==READEM){
-   fgets(bob,255,fp);
+   if(fgets(bob,255,fp)==NULL){*i=0;return;}
    *i=atoi(bob);
  }
  else
@@ -667,7 +674,7 @@ char *ss;
 {
 char bob[256];
  if(f==READEM){
-   fgets(bob,255,fp);
+   if(fgets(bob,255,fp)==NULL){*z=0.0;return;}
    *z=atof(bob);
  }
  else
@@ -682,7 +689,7 @@ float *z;
 {
  char bob[256];
 if(f==READEM){
-   fgets(bob,255,fp);
+   if(fgets(bob,255,fp)==NULL){*z=0.0f;return;}
    *z=(float)atof(bob);
  }
  else
@@ -714,7 +721,7 @@ int f,len;
 {
  int i;
  if(f==READEM){
-   fgets(s,len,fp);
+   if(fgets(s,len,fp)==NULL){s[0]=0;return;}
    i=0;
    while(i<strlen(s)){
      if(s[i]=='\n')s[i]=0;
