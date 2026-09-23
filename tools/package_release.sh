@@ -4,14 +4,19 @@
 cd "$(dirname "$0")/.." || exit 1
 platform=$1
 [ -n "$platform" ] || { echo "usage: $0 PLATFORM"; exit 2; }
-version=${GITHUB_REF_NAME:-$(git describe --tags --always 2>/dev/null || echo dev)}
+version=${XPP_VERSION:-${GITHUB_REF_NAME:-$(git describe --tags --always 2>/dev/null || echo dev)}}
 name="xppautX-$version-$platform"
 rm -rf "build/$name" && mkdir -p "build/$name" || exit 1
 case "$platform" in
   windows-*) suffix=.exe ;;
   *) suffix= ;;
 esac
-[ -f "xppautX$suffix" ] && cp "xppautX$suffix" "build/$name/"
+if [ -f "xppautX$suffix" ]; then
+  cp "xppautX$suffix" "build/$name/"
+else
+  echo "Error: binary xppautX$suffix not found" >&2
+  exit 1
+fi
 cp LICENSE "build/$name/"
 [ -f CITATION.cff ] && cp CITATION.cff "build/$name/"
 mkdir -p "build/$name/examples" && cp examples/ode/lecar.ode "build/$name/examples/"

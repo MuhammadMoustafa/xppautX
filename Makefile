@@ -16,7 +16,8 @@ OPT     ?= -g -O2
 DEFS     = -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES -DHAVEDLL \
            -DMYSTR1=$(MAJORVER) -DMYSTR2=$(MINORVER)
 # what `xppautX --version` prints: the release tag in CI, else git describe
-XPPAUTX_VERSION ?= $(or $(GITHUB_REF_NAME),$(shell git describe --tags --always 2>/dev/null),dev)
+# XPP_VERSION can be set by workflow to use a custom version
+XPPAUTX_VERSION ?= $(or $(XPP_VERSION),$(GITHUB_REF_NAME),$(shell git describe --tags --always 2>/dev/null),dev)
 # -I. is needed because fftn.c does "#include __FILE__"
 INCS     = -I. -Icore -Icore/bitmaps $(X11_INC)
 CFLAGS  ?= $(CSTD) $(WARN) $(STRICT) $(OPT) $(DEFS) $(INCS) -fcommon
