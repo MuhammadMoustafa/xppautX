@@ -23,6 +23,10 @@ jobs:
           node-version: 22
       - name: Web front end behaviour (against the build)
         run: node tools/webtest.mjs
+      - name: "New front end: dist/ built from src/, types, unit tests"
+        run: cd web2 && npm ci && npm run check && npm run typecheck && npm test
+      - name: "New front end in a browser (store and plot state)"
+        run: node tools/web2check.mjs
 
   macos:
     runs-on: macos-latest
