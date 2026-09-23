@@ -131,7 +131,7 @@ const NAMED = {Escape: 27, Enter: 13, Tab: 9, Backspace: 8, Delete: 46, Home: 36
 /* until the client has finished (idle, or waiting in a prompt) for a while */
 const SETTLE = `(async () => {
   const ok = () => typeof client !== 'undefined' && client.menus && (!client.busy || client.pendingAsk);
-  for (let n = 0, good = 0; n < 1200 && good < 12; n++) {
+  for (let n = 0, good = 0; n < 1200 && good < 4; n++) {
     await new Promise(r => setTimeout(r, 25));
     good = ok() ? good + 1 : 0;
   }
