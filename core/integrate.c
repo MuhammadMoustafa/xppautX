@@ -1941,6 +1941,8 @@ if(Xup) cwidth=get_command_width();
  if(dt<0.0)tscal=-tend;
  if(tscal==0.0)tscal=1.0;
  stor_delay(x);
+ /* xppautX: the rows a cancel before the first step finds (xpp_job.h) */
+ xpp_job_rows_stored(storind, storind > 0 ? storage[0][storind-1] : *t);
 
  while(1)
  {
@@ -2399,6 +2401,7 @@ poi:    for(i=0;i<NEQ;i++)oldx[i]=x[i];
            for(ieqn=0;ieqn<=NEQ;ieqn++)
 		 storage[ieqn][storind]=xv[ieqn];
 	    storind++;
+	    xpp_job_rows_stored(storind, xv[0]); /* xppautX: replay stops here (xpp_job.h) */
 	    if(!(storind<MAXSTOR))
             if(stor_full()==0)break;
 	    if((pflag==1)&&(SOS==1))break;
@@ -2437,6 +2440,7 @@ void send_output(double *y,double t)
       storage[i+1][storind]=(float)yy[i];
     storage[0][storind]=(float)t;
     storind++;
+    xpp_job_rows_stored(storind, storage[0][storind-1]); /* xppautX: replay (xpp_job.h) */
   }
 }
 

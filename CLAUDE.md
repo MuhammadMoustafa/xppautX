@@ -129,13 +129,18 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   protocol lines go through `out_line()` in ui_json.c, which switches to
   xpp_http.c in web mode. Input never touches the core thread: reader
   threads (xpp_http.c, or the --server stdin reader) push lines into
-  `core/xpp_inbox.c` (control and normal queues) and `read_line()` takes
+  `core/xpp_inbox.cpp` (control and normal queues) and `read_line()` takes
   them from there; `-silent` starts no reader. Abort and Quit cancel the
   running job from the reader thread (`core/xpp_job.{h,cpp}`, by sequence
   number); computations ask `xpp_job_cancelled()` or go through the
   throttled checkpoints `my_abort()`/`byeauto_()`. ui_json.c's `classify()`
   says which lines are control lines; docs/protocol.md "Commands during a
-  command" is the contract. Rebuild after
+  command" is the contract. Computations report how far they got to
+  xpp_job (`xpp_job_rows_stored` per stored row in integrate.c,
+  `xpp_job_point_stored` per AUTO point in autevd.c addbif): a cancelled
+  command sends `stopped` with that, and `--script` replays a recorded
+  `{"cmd":"abort","at":...}` by arming `xpp_job_stop_at_rows/point` for
+  the line before it (ui_json.c `script_arm_stop`). Rebuild after
   editing `web/` files; `node web/serve.js` still serves them from disk.
 - `core/xpp_log.[ch]` is the one logging module, quiet by default:
   `xpp_log(level, fmt, ...)` with ERROR/WARN/INFO/DEBUG, threshold WARN,

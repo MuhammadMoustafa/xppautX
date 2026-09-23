@@ -24,11 +24,20 @@ unsigned long last_seq;
 
 unsigned long load_upto() { return cancel_upto.load(std::memory_order_acquire); }
 
+/* where the job got to (xpp_job_progress), and the armed stop */
+XppJobProgress progress;
+
+enum class Stop { none, rows, point };
+Stop stop = Stop::none;
+long stop_rows;
+int stop_branch, stop_point;
+
 } // namespace
 
 void xpp_job_begin(unsigned long seq)
 {
     if (depth++ > 0) return;
+    progress = XppJobProgress{};
     if (seq == 0) { /* no command line: a number no cancel so far covers */
         seq = last_seq > load_upto() ? last_seq : load_upto();
         seq++;
@@ -41,8 +50,48 @@ void xpp_job_begin(unsigned long seq)
 void xpp_job_end(void)
 {
     if (depth == 0 || --depth > 0) return;
+    stop = Stop::none;
     running.store(false, std::memory_order_release);
 }
+
+void xpp_job_rows_stored(long rows, double t)
+{
+    progress.what = XPP_JOB_INTEGRATE;
+    progress.rows = rows;
+    progress.t = t;
+    if (stop == Stop::rows && rows == stop_rows) {
+        stop = Stop::none;
+        xpp_job_cancel_current();
+    }
+}
+
+void xpp_job_point_stored(int branch, int point)
+{
+    progress.what = XPP_JOB_AUTO;
+    progress.branch = branch;
+    progress.point = point;
+    if (stop == Stop::point && branch == stop_branch && point + 1 == stop_point) {
+        stop = Stop::none;
+        xpp_job_cancel_current();
+    }
+}
+
+XppJobProgress xpp_job_progress(void) { return progress; }
+
+void xpp_job_stop_at_rows(long rows)
+{
+    stop = Stop::rows;
+    stop_rows = rows;
+}
+
+void xpp_job_stop_at_point(int branch, int point)
+{
+    stop = Stop::point;
+    stop_branch = branch;
+    stop_point = point;
+}
+
+int xpp_job_stop_armed(void) { return stop != Stop::none; }
 
 int xpp_job_running(void) { return running.load(std::memory_order_acquire); }
 

@@ -277,6 +277,10 @@ key f
 key a
 eval if (!client.autoFrame) throw new Error('AUTO did not reopen again')
 eval client.key('i'); for (let n = 0; n < 50 && !client.pendingAsk; n++) await new Promise(r => setTimeout(r, 20)); if (!client.pendingAsk || client.pendingAsk.kind !== 'menu') throw new Error('Initialconds menu did not open: ' + JSON.stringify(client.pendingAsk)); client.answer({key: 'g'}); for (let n = 0; n < 50 && !client.busy; n++) await new Promise(r => setTimeout(r, 20)); if (!client.busy) throw new Error('the run finished before the abort test could click'); const abortBtn = document.querySelector('.xpp-abort'); if (!abortBtn) throw new Error('no ABORT button'); const stopping = () => client.hint.textContent === 'Stopping…' || (client.autoState && client.autoState.textContent === 'Stopping…'); abortBtn.click(); if (!stopping()) throw new Error('no Stopping indicator right after clicking Abort'); for (let n = 0; n < 20 && client.busy; n++) await new Promise(r => setTimeout(r, 100)); if (client.busy) throw new Error('still busy 2s after clicking Abort'); if (stopping()) throw new Error('Stopping indicator still showing once idle')
+# the session script records both interruptions where they stopped
+# (docs/protocol.md "Scripts"), right after the answer that started the run,
+# and the close that waited for the first one after it; no bare Abort
+eval { const s = client.script, ab = s.map((c, i) => [c, i]).filter(([c]) => c.cmd === 'abort').slice(-2); if (s.some(c => c.cmd === 'abort' && !c.at)) throw new Error('a bare abort was recorded'); if (ab.length < 2 || ab.some(([c, i]) => c.at.what !== 'integrate' || !(c.at.rows > 0) || s[i - 1].cmd !== 'answer' || s[i - 1].key !== 'g')) throw new Error('interruptions not recorded after their run: ' + JSON.stringify(ab)); const k = ab[0][1]; if (!(s[k + 1].cmd === 'auto' && s[k + 1].op === 'close')) throw new Error('the close is not after the interruption it waited for: ' + JSON.stringify(s.slice(k - 1, k + 3))) }
 click Close
 # closing AUTO removes the button the click focused, which drops focus to
 # <body>; nothing after this would then see a key press

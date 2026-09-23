@@ -52,6 +52,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <math.h>
 #include <unistd.h>
 #include <sys/time.h>
 
@@ -116,6 +117,8 @@ static void script_fail(const char *what, const char *line, const char *ask)
     if (ask && ask[0]) fprintf(stderr, "  open question: %s}\n", ask);
     exit(1);
 }
+
+static void script_next(void); /* the next line, and an interruption after it */
 
 /* ---- output ------------------------------------------------------------ */
 
@@ -656,7 +659,7 @@ static int ask_wait(Buf *b, int id)
     free(b->s);
     /* a script's next line is its answer to this ask (ui_json.c "Which
        queue" comment above, and docs/protocol.md "Scripts") */
-    if (script_mode) xpp_inbox_script_advance();
+    if (script_mode) script_next();
     for (;;) {
         char *line = read_line(XPP_INBOX_ANY, -1);
         int lid;
@@ -2720,6 +2723,71 @@ static void apply_set(const char *line)
     box_values_loaded(type);
 }
 
+/* {"ev":"stopped","at":AT}: where the running job was when it was
+   cancelled (docs/protocol.md "stopped"), from what the computation
+   reported last (xpp_job.h). A script replays the interruption from AT. */
+static void send_stopped(void)
+{
+    XppJobProgress p = xpp_job_progress();
+    Buf b = {0};
+    BUF_LIT(&b, "{\"ev\":\"stopped\",\"at\":");
+    if (p.what == XPP_JOB_INTEGRATE) {
+        /* t is a stored single-precision number: 9 digits read back exactly */
+        buf_printf(&b, "{\"what\":\"integrate\",\"rows\":%ld,\"t\":", p.rows);
+        if (isfinite(p.t)) buf_printf(&b, "%.9g}", p.t);
+        else BUF_LIT(&b, "null}");
+    } else if (p.what == XPP_JOB_AUTO) {
+        buf_printf(&b, "{\"what\":\"auto\",\"branch\":%d,\"point\":%d}", p.branch, p.point);
+    } else {
+        BUF_LIT(&b, "{\"what\":\"other\"}");
+    }
+    BUF_LIT(&b, "}");
+    send_buf(&b);
+    free(b.s);
+}
+
+/* A recorded interruption (docs/protocol.md "Scripts"): the line after the
+   one a script is about to run is {"cmd":"abort","at":AT}. That line is
+   dropped, and the job of the line about to run (the running job, for an
+   answer) cancels itself at AT (xpp_job_stop_at_rows/point). stop_line and
+   stop_at say what was armed, for script_stop_missed(). */
+static int stop_line;
+static char stop_at[400];
+
+static void script_arm_stop(void)
+{
+    int no = 0;
+    const char *next = xpp_inbox_script_peek(&no), *at, *end;
+    char what[16];
+    if (!next || !is_cmd(next, "abort") || !(at = js_find(next, "at")) || *at != '{') return;
+    end = skip_value(at);
+    snprintf(stop_at, sizeof stop_at, "%.*s", (int)(end - at), at);
+    stop_line = no;
+    get_str(at, "what", what, sizeof what);
+    if (strcmp(what, "integrate") == 0)
+        xpp_job_stop_at_rows((long)get_num(at, "rows", -1));
+    else if (strcmp(what, "auto") == 0)
+        xpp_job_stop_at_point((int)get_num(at, "branch", -1), (int)get_num(at, "point", -1));
+    /* an interruption of anything else cannot be placed: the job runs on */
+    xpp_inbox_script_skip();
+}
+
+/* the script's next line to the core (docs/protocol.md "Scripts"), and
+   the interruption recorded after it */
+static void script_next(void)
+{
+    xpp_inbox_script_advance();
+    script_arm_stop();
+}
+
+/* the job ends with its recorded interruption still armed */
+static void script_stop_missed(void)
+{
+    fprintf(stderr, "xppautX: script line %d: the recorded interruption at %s was never reached\n", stop_line,
+            stop_at);
+    exit(1);
+}
+
 /* one command, run as a job (xpp_job.h) numbered by its line's sequence
    number: an abort cancels it from the reader thread */
 static void handle_line(const char *line, unsigned long seq)
@@ -2817,6 +2885,10 @@ static void handle_line(const char *line, unsigned long seq)
     series_update();
     diag_flush(1);
     json_flush();
+    /* a cancelled job says where it stopped; a replayed one must have
+       stopped where the recorded session did */
+    if (xpp_job_cancelled()) send_stopped();
+    if (script_mode && xpp_job_stop_armed()) script_stop_missed();
     /* the command is finished; the client may send the next one */
     xpp_job_end();
     send_state();
@@ -2824,7 +2896,7 @@ static void handle_line(const char *line, unsigned long seq)
     /* a script's next line is the next command (docs/protocol.md
        "Scripts"); this also releases the very first script line, since
        xppautx_main.c's startup "redraw" ends here too */
-    if (script_mode) xpp_inbox_script_advance();
+    if (script_mode) script_next();
 }
 
 void json_ui_handle(const char *line) { handle_line(line, 0); }
@@ -2844,8 +2916,10 @@ void json_ui_loop(void)
         }
         memcpy(copy, line, n);
         /* an abort did its work when it arrived (classify()): it is no
-           command of its own, and gets no state or idle */
+           command of its own, and gets no state or idle; in a script,
+           where nothing ran for it to stop, the next line follows */
         if (!is_cmd(copy, "abort")) handle_line(copy, seq);
+        else if (script_mode) script_next();
     }
 }
 

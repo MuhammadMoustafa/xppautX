@@ -41,7 +41,7 @@ char *dlerror(void)
     return (char *)e;
 }
 
-/* blocks until stdin has data: xpp_inbox.c calls it on its reader thread */
+/* blocks until stdin has data: xpp_inbox.cpp calls it on its reader thread */
 int xpp_read_stdin(char *buf, int n)
 {
     DWORD got = 0;

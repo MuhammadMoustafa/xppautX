@@ -13,6 +13,7 @@
 #include "auto_def2.h"
 #include "autlim.h"
 #include "xAuto.h"
+#include "xpp_job.h"
 
 #define SPECIAL 5
 #define SPER 3
@@ -193,11 +194,13 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
     edit_start(ibrs,ntots,iap->itp,lab,iap->nfpr,*a,uhigh,ulow,u0,ubar,
 	       par,per,iap->ndim,icp1,icp2,icp3,icp4,my_ev.evr,my_ev.evi);
     DiagFlag=1;
+    xpp_job_point_stored((int)labs(ibrs),(int)labs(ntots)); /* xppautX: where it got to (xpp_job.h) */
     return;
   } 
   add_diagram(ibrs,ntots,iap->itp,lab,iap->nfpr,*a,uhigh,ulow,u0,ubar,
 	      par,per,iap->ndim,icp1,icp2,icp3,icp4,AutoTwoParam,my_ev.evr,
 	      my_ev.evi);
+  xpp_job_point_stored((int)labs(ibrs),(int)labs(ntots)); /* xppautX: where it got to (xpp_job.h) */
 }
     
 

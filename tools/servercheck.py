@@ -300,6 +300,40 @@ send(cmd='answer', id=ask['id'], key='g')
 evs, _ = collect(is_idle, timeout=30)
 st = last_state(evs)
 check('total 40 gives 801 rows', st is not None and st['rows'] == 801, str(st and st['rows']))
+check('a run that is not cancelled sends no stopped', not any(e.get('ev') == 'stopped' for e in evs))
+
+# an Abort right behind the answer that starts the run: the run stops, and
+# says where (docs/protocol.md "stopped") before its state and idle
+send(cmd='key', key='i')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+proc.stdin.write(json.dumps({'cmd': 'answer', 'id': ask['id'], 'key': 'g'}) + '\n' +
+                 json.dumps({'cmd': 'abort'}) + '\n')
+proc.stdin.flush()
+evs, _ = collect(is_idle, timeout=30)
+kinds = [e.get('ev') for e in evs]
+stopped = next((e for e in evs if e.get('ev') == 'stopped'), None)
+st = last_state(evs)
+check('a cancelled integration sends stopped, then state and idle',
+      stopped is not None and kinds.index('stopped') < len(kinds) - 1 - kinds[::-1].index('state'), str(kinds[-5:]))
+at = stopped['at'] if stopped else {}
+check('stopped says how many rows the integration stored, and the last time',
+      at.get('what') == 'integrate' and st is not None and at.get('rows') == st['rows'] and 0 < st['rows'] < 801
+      and isinstance(at.get('t'), (int, float)), '%s, state rows %s' % (at, st and st['rows']))
+if stopped and st and st['rows'] > 0:
+    send(cmd='browser', **{'from': st['rows'] - 1, 'count': 1, 'col': 1, 'ncol': 1})
+    evs, br = collect(lambda e: e.get('ev') == 'browser')
+    collect(is_idle)
+    check('stopped\'s t is the time of the last stored row', br is not None and br['data'] and
+          '%.8g' % br['data'][0][0] == '%.8g' % at['t'], '%s vs %s' % (at.get('t'), br and br['data']))
+    send(cmd='browser', **{'from': 0, 'count': 0})
+    collect(is_idle)
+send(cmd='key', key='i')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+send(cmd='answer', id=ask['id'], key='g')
+evs, _ = collect(is_idle, timeout=30)
+st = last_state(evs)
+check('the next run is whole again', st is not None and st['rows'] == 801 and
+      not any(e.get('ev') == 'stopped' for e in evs), str(st and st['rows']))
 
 send(cmd='key', key='s')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')

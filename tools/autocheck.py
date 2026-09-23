@@ -5,7 +5,7 @@ travels, how input is read, and how quickly a long computation stops.
 usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [SECTION...]
 
 Sections: draw, input, abort, control, files, sessions, session, script,
-names (default: all; tools/verify.sh runs them all). files compares AUTO's
+replay, names (default: all; tools/verify.sh runs them all). files compares AUTO's
 saved diagram of lecar with a reference; sessions checks that concurrent servers
 keep their AUTO files apart; session is the "cmd":"session" save/load of
 docs/protocol.md (issue #11): one name for the .set and .auto pair a long
@@ -13,7 +13,10 @@ AUTO run is picked back up from; script plays
 examples/scripts/lecar_auto.jsonl through --script (docs/protocol.md
 "Scripts") and checks a broken script exits 1; names loads
 tools/models/longnames.ode (20-40 character names) and checks it computes,
-saves and continues exactly like shortnames.ode. --report prints the
+saves and continues exactly like shortnames.ode. replay interrupts an
+integration and an AUTO run over --server and checks that a script made of
+the same commands and the recorded {"cmd":"abort","at":...} stops them at
+the same point: the same data file, the same saved diagram. --report prints the
 measurements without failing on the latency limits, for comparing builds.
 """
 import argparse, json, os, shutil, subprocess, sys, tempfile, time
@@ -25,7 +28,7 @@ ap.add_argument('--server', default='./xppautX')
 ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
 ap.add_argument('sections', nargs='*', default=['draw', 'input', 'abort', 'control', 'files', 'sessions', 'session',
-                                                'script', 'names'])
+                                                'script', 'replay', 'names'])
 args = ap.parse_args()
 here = os.path.dirname(os.path.abspath(__file__))
 LECAR = 'examples/ode/lecar.ode'
@@ -848,6 +851,159 @@ def section_script():
           code == 1 and time.monotonic() - t < 10 and 'script line 3 does not answer' in run_script.stderr,
           'exit %d, %s' % (code, run_script.stderr[-300:]))
     os.unlink(bad.name)
+    shutil.rmtree(run, ignore_errors=True)
+
+
+# ---- replay: a recorded interruption stops the script's job at the same point
+
+class Recording:
+    """a --server session that keeps the commands it sends, as the browser's
+    "Save session script" does: a script of them replays the session"""
+    def __init__(self, ode):
+        self.s = Server(args.server, ode, verbose=args.v)
+        self.s.collect(is_idle)
+        self.script = []
+
+    def send(self, **cmd):
+        self.script.append(dict(cmd))
+        return self.s.send(**cmd)
+
+    def interrupt(self, after):
+        """Abort `after` seconds from now; returns the stopped event (None if
+        the job ended first) and the events to idle, and records the event as
+        the script's abort line"""
+        time.sleep(after)
+        self.s.send(cmd='abort')
+        evs, e = self.s.collect(is_idle, timeout=120)
+        stopped = next((x for x in evs if x.get('ev') == 'stopped'), None)
+        if stopped:
+            self.script.append({'cmd': 'abort', 'at': stopped['at']})
+        return stopped, evs
+
+    def write(self, path):
+        with open(path, 'w') as f:
+            f.write(''.join(json.dumps(c) + '\n' for c in self.script))
+
+
+def script_file(lines):
+    f = tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False, dir=here)
+    f.write(''.join(l + '\n' for l in lines))
+    f.close()
+    return f.name
+
+
+def stopped_events(out):
+    return [json.loads(l)['at'] for l in out.splitlines() if l.startswith('{"ev":"stopped"')]
+
+
+def last_rows(out):
+    st = [json.loads(l) for l in out.splitlines() if l.startswith('{"ev":"state"')]
+    return st[-1]['rows'] if st else None
+
+
+def file_content(path, mode='r'):
+    if not os.path.exists(path):
+        return None
+    with open(path, mode) as f:
+        return f.read()
+
+
+def section_replay():
+    # (a) an integration of lecar, total 20000 (400001 rows, some seconds),
+    # stopped after 0.3 s, then its data written by the browser's Write
+    r = Recording(LECAR)
+    s = r.s
+    r.send(cmd='key', key='u')
+    s.collect(is_idle)
+    r.send(cmd='key', key='t')
+    s.collect(is_ask)
+    r.send(cmd='answer', ok=1, value='20000')
+    s.collect(is_idle)
+    r.send(cmd='key', key='Escape')
+    s.collect(is_idle)
+    r.send(cmd='key', key='i')
+    s.collect(is_ask)
+    r.send(cmd='answer', key='g')
+    stopped, evs = r.interrupt(0.3)
+    at = stopped['at'] if stopped else {}
+    check('replay: an interrupted integration says where it stopped', at.get('what') == 'integrate' and
+          0 < at.get('rows', 0) < 400001 and at['rows'] == rows(evs), '%s, rows %s' % (at, rows(evs)))
+    print('INFO replay: integration stopped at %s' % at)
+    r.send(cmd='browser', op='write')
+    s.collect(is_ask)
+    r.send(cmd='answer', file='run.dat')
+    s.collect(is_idle, timeout=60)
+    live_data = file_content(os.path.join(s.run, 'run.dat'), 'rb')
+    path = os.path.join(here, 'replay_integrate.jsonl')
+    r.write(path)
+    s.close()
+    code, out, run = run_script(path)
+    replay_data = file_content(os.path.join(run, 'run.dat'), 'rb')
+    check('replay: the script plays the interrupted integration', code == 0,
+          'exit %d, %s' % (code, run_script.stderr[-300:]))
+    check('replay: it stops at the recorded point, and says so', stopped_events(out) == [at] and
+          last_rows(out) == at.get('rows'), '%s vs %s' % (stopped_events(out), at))
+    check('replay: it writes the same data as the recorded session', live_data is not None and
+          live_data == replay_data, '%s vs %s bytes' % (live_data and len(live_data), replay_data and len(replay_data)))
+    os.unlink(path)
+    shutil.rmtree(run, ignore_errors=True)
+
+    # (b) lecar_auto.jsonl's periodic branch stopped after 0.3 s, then the
+    # diagram saved (AUTO File/Save diagram)
+    with open(SCRIPT) as f:
+        lines = [json.loads(l) for l in f if l.strip() and not l.lstrip().startswith('#')]
+    body, save = lines[:-3], lines[-3:]
+    r = Recording(LECAR)
+    for i, c in enumerate(body):
+        r.send(**c)
+        if i + 1 < len(body):
+            r.s.collect(is_ask if body[i + 1]['cmd'] == 'answer' else is_idle, timeout=60)
+    stopped, evs = r.interrupt(0.3)
+    at = stopped['at'] if stopped else {}
+    check('replay: an interrupted AUTO run says where it stopped',
+          at.get('what') == 'auto' and at.get('branch', 0) > 0 and at.get('point', 0) > 1, str(at))
+    print('INFO replay: AUTO stopped at %s' % at)
+    for i, c in enumerate(save):
+        r.send(**c)
+        r.s.collect(is_ask if i < 2 else is_idle, timeout=30)
+    live_diagram = file_content(os.path.join(r.s.run, 'lecar.auto'))
+    path = os.path.join(here, 'replay_auto.jsonl')
+    r.write(path)
+    r.s.close()
+    code, out, run = run_script(path)
+    replay_diagram = file_content(os.path.join(run, 'lecar.auto'))
+    check('replay: the script plays the interrupted AUTO run', code == 0,
+          'exit %d, %s' % (code, run_script.stderr[-300:]))
+    check('replay: AUTO stops at the recorded branch and point', stopped_events(out) == [at],
+          '%s vs %s' % (stopped_events(out), at))
+    check('replay: and saves the same diagram as the recorded session', live_diagram is not None and
+          live_diagram == replay_diagram, '%s vs %s chars' % (live_diagram and len(live_diagram),
+                                                              replay_diagram and len(replay_diagram)))
+    os.unlink(path)
+    shutil.rmtree(run, ignore_errors=True)
+
+    # (c) an interruption the job never gets to: exit 1 at once, naming the line
+    path = script_file(['{"cmd":"key","key":"i"}', '{"cmd":"answer","key":"g"}',
+                        '# lecar stores 601 rows',
+                        '{"cmd":"abort","at":{"what":"integrate","rows":100000,"t":5000}}',
+                        '{"cmd":"key","key":"i"}', '{"cmd":"answer","key":"g"}'])
+    code, out, run = run_script(path)
+    check('replay: an interruption never reached exits 1, naming its line',
+          code == 1 and 'script line 4: the recorded interruption at' in run_script.stderr and
+          'was never reached' in run_script.stderr, 'exit %d, %s' % (code, run_script.stderr[-300:]))
+    check('replay: and plays nothing after it', out.count('"ev":"idle"') == 1, '%d idles' % out.count('"ev":"idle"'))
+    os.unlink(path)
+    shutil.rmtree(run, ignore_errors=True)
+
+    # (d) abort lines that interrupt nothing (bare, or of a job that cannot be
+    # placed) are consumed: the script goes on
+    path = script_file(['{"cmd":"abort"}', '{"cmd":"key","key":"i"}', '{"cmd":"answer","key":"g"}',
+                        '{"cmd":"abort","at":{"what":"other"}}', '{"cmd":"abort"}'])
+    code, out, run = run_script(path)
+    check('replay: abort lines that interrupt nothing do not stall the script',
+          code == 0 and last_rows(out) == 601 and not stopped_events(out),
+          'exit %d, rows %s, %s' % (code, last_rows(out), run_script.stderr[-300:]))
+    os.unlink(path)
     shutil.rmtree(run, ignore_errors=True)
 
 

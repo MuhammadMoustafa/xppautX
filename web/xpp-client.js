@@ -385,8 +385,15 @@
       /* Save session script: what this client sends, for xppautX --script
          (docs/protocol.md "Scripts"). Queries that change nothing are left
          out, a resize keeps only its last size, and an answer loses its id:
-         a script answers whichever ask is pending. */
+         a script answers whichever ask is pending. An interruption is
+         recorded from the core's `stopped` event, as {"cmd":"abort","at":...}
+         right after the line that started the stopped computation, which is
+         what lets the script stop it at the same point: the Escape key or
+         Abort that caused it (sendUnrecorded) is not in the script, nor is a
+         key sent while busy that did nothing. */
       this.script = [];
+      this.scriptJobEnd = 0; /* script index after the last line that started or answered a job */
+      this.sendUnrecorded = send;
       this.send = cmd => {
         send(cmd);
         if (cmd.cmd === 'state' || (cmd.cmd === 'browser' && 'from' in cmd)) return;
@@ -394,6 +401,11 @@
         if (rec.cmd === 'answer') delete rec.id;
         if (rec.cmd === 'size' && last && last.cmd === 'size' && last.win === rec.win) this.script.pop();
         this.script.push(rec);
+        /* lines that act on a running job (a resize, a click, a value, the
+           animation's speed) do not start one */
+        const side = ['size', 'click', 'set'].includes(rec.cmd) ||
+          (rec.cmd === 'ani' && ['pause', 'fast', 'slow'].includes(rec.op));
+        if (!side) this.scriptJobEnd = this.script.length;
       };
       this.palette = [];
       this.surfaces = new Map();
@@ -1009,7 +1021,8 @@
     key(k) {
       if (this.pendingAsk && this.answerByKey(k)) return;
       if (this.busy) {
-        if (k === 'Escape') this.send({cmd: 'key', key: k});
+        /* recorded only if it stops something, as the `stopped` event */
+        if (k === 'Escape') this.sendUnrecorded({cmd: 'key', key: k});
         else this.typeahead.push(k);
         return;
       }
@@ -1092,6 +1105,10 @@
         case 'title': this.setPlotTitle(ev.text); break;
         case 'message': this.onMessage(ev); break;
         case 'progress': this.setProgress(ev.n, ev.of); break;
+        case 'stopped': /* an interruption, for the session script (constructor) */
+          this.script.splice(this.scriptJobEnd, 0, {cmd: 'abort', at: ev.at});
+          this.scriptJobEnd++;
+          break;
         case 'idle':
           this.releaseHeldSurfaces();
           this.busy = false;
@@ -2214,7 +2231,7 @@
     /* Abort reaches the core at once, however busy it is, and has no idle of
        its own (docs/protocol.md): say it was taken until the command ends */
     startAbort() {
-      this.send({cmd: 'abort'});
+      this.sendUnrecorded({cmd: 'abort'}); /* recorded from the `stopped` event */
       if (!this.busy) return;
       this.stopping = true;
       clearTimeout(this.busyHintTimer);

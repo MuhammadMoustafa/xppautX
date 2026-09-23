@@ -6,7 +6,7 @@
 extern "C" {
 #endif
 
-/* The protocol's input, read off the core's thread (xpp_inbox.c).
+/* The protocol's input, read off the core's thread (xpp_inbox.cpp).
 
    Reader threads (the HTTP server in browser mode, a stdin reader with
    --server) push whole command lines; the core, which stays on the main
@@ -17,7 +17,7 @@ extern "C" {
    the core sees lines in the order they arrived. Every line gets a sequence
    number that grows by one per line, whichever queue it lands in.
 
-   This file and xpp_inbox.c include no core header. */
+   This file and xpp_inbox.cpp include no core header. */
 
 #define XPP_INBOX_NORMAL 0  /* a classifier result; next(): the normal queue only */
 #define XPP_INBOX_CONTROL 1 /* a classifier result; next(): the control queue only */
@@ -71,6 +71,16 @@ void xpp_inbox_script_advance(void);
 
 /* the file line number of the script line pushed last (1-based) */
 int xpp_inbox_script_line(void);
+
+/* The command line the next xpp_inbox_script_advance() pushes, without
+   pushing it, with its file line number in *line_no (when not NULL); NULL
+   at the end of the file or when no file is open. Valid until the next
+   advance or skip. The core looks at it to see what follows the line it is
+   about to run (a recorded interruption, core/ui_json.c). */
+const char *xpp_inbox_script_peek(int *line_no);
+
+/* Drop the line peek() shows: the next advance pushes the one after it. */
+void xpp_inbox_script_skip(void);
 
 #ifdef __cplusplus
 }

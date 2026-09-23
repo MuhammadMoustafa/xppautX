@@ -68,6 +68,52 @@ int main(void)
     xpp_job_end();
     CHECK(!xpp_job_running());
 
+    /* where a job got to: the last report, reset when a job begins */
+    xpp_job_begin(20);
+    CHECK(xpp_job_progress().what == XPP_JOB_OTHER);
+    xpp_job_rows_stored(10, 0.5);
+    CHECK(xpp_job_progress().what == XPP_JOB_INTEGRATE && xpp_job_progress().rows == 10 &&
+          xpp_job_progress().t == 0.5);
+    xpp_job_end();
+    CHECK(xpp_job_progress().rows == 10); /* still there after the job */
+
+    /* a replayed interruption: a stop armed between jobs is the next job's,
+       and cancels it when the row counter reaches it, not before */
+    xpp_job_stop_at_rows(3);
+    CHECK(xpp_job_stop_armed());
+    xpp_job_begin(21);
+    CHECK(xpp_job_progress().what == XPP_JOB_OTHER);
+    xpp_job_rows_stored(2, 0.1);
+    CHECK(!xpp_job_cancelled());
+    xpp_job_rows_stored(3, 0.2);
+    CHECK(xpp_job_cancelled());
+    CHECK(!xpp_job_stop_armed());
+    xpp_job_end();
+
+    /* AUTO: a stop at point P of branch B is reached when P-1 of B is stored
+       (the cancelled run then ends B with point P, an end point) */
+    xpp_job_begin(22);
+    xpp_job_stop_at_point(2, 5);
+    xpp_job_point_stored(1, 4);
+    CHECK(!xpp_job_cancelled());
+    xpp_job_point_stored(2, 3);
+    CHECK(!xpp_job_cancelled());
+    xpp_job_point_stored(2, 4);
+    CHECK(xpp_job_cancelled());
+    CHECK(xpp_job_progress().what == XPP_JOB_AUTO && xpp_job_progress().branch == 2 &&
+          xpp_job_progress().point == 4);
+    xpp_job_end();
+
+    /* a stop the job never reached is still armed at its end (a script then
+       fails), and gone after it */
+    xpp_job_begin(23);
+    xpp_job_stop_at_rows(100);
+    xpp_job_rows_stored(5, 1.0);
+    CHECK(xpp_job_stop_armed());
+    CHECK(!xpp_job_cancelled());
+    xpp_job_end();
+    CHECK(!xpp_job_stop_armed());
+
     /* the poll throttle lets the first poll through (the 50 ms after it
        would make a flaky test) */
     CHECK(xpp_job_poll_due());

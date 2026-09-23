@@ -49,6 +49,13 @@ extern char fort8[200],fort3[200];
 void send_eigen();
 void send_mult();
 int byeauto_();
+/* xppautX: cancel: 1 while lcspae/lcspbv locate a special point. Their
+   solves run to the end, as stdrbv's does (xpp_job.h): contae/contbv have
+   already made the new, unstored point the one a cancelled solve returns
+   to. The cancel then reaches the next ordinary solve, which returns to the
+   last stored point, so a cancelled run always ends the same way (the EP
+   repeating that point) and a script can replay it exactly. */
+static int auto_locating = 0;
 void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *par,integer *icp,int labw, double *a, double *uhigh, double *ulow, double *u0, double *ubar);
 
 int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, doublereal **thu_pointer, integer *iuz, doublereal *vuz)
@@ -1423,7 +1430,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   for (nit1 = 1; nit1 <= itnw; ++nit1) {
 
-    if (xpp_job_cancelled()) goto L5; /* xppautX: cancel */
+    if (!auto_locating && xpp_job_cancelled()) goto L5; /* xppautX: cancel */
     nit = nit1;
     iap->nit = nit;
     par[icp[0]] = rlcur[0];
@@ -1652,11 +1659,13 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
     fprintf(fp9," ==> Location of special point :  Iteration %3li   Stepsize =%11.3E\n",itlcsp,rds);	
   }
 
-  contae(iap, rap, &rds, rlcur, rlold, rldot, u, uold, 
+  contae(iap, rap, &rds, rlcur, rlold, rldot, u, uold,
 	 udot);
-  solvae(iap, rap, par, icp, funi, &rds, m1aaloc, aa, 
+  auto_locating = 1; /* xppautX: cancel: runs to the end */
+  solvae(iap, rap, par, icp, funi, &rds, m1aaloc, aa,
 	 rhs, rlcur, rlold, rldot, u, du, uold, udot, f,
 	 dfdu, dfdp, thl, thu);
+  auto_locating = 0;
   istop = iap->istop;
   if (istop == 1) {
     *q = 0.;
@@ -2814,6 +2823,10 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   rap->amp = amp;
   byeauto_(&iflag); 
   istop = iap->istop;
+  /* xppautX: cancel: a point the solve reached is stored as it is; the next
+     solve sees the cancel and ends the branch with an EP repeating it, so a
+     cancel always ends the same way, wherever it came (xpp_job.h, replay) */
+  if (istop == 0 && xpp_job_cancelled()) iflag = 0;
   if (istop == 1 && !xpp_job_cancelled()) { /* xppautX: cancel: EP, not MX */
     /*        Maximum number of iterations reached somewhere. */
     itp = -9 - itpst * 10;
@@ -5636,7 +5649,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   for (nit1 = 1; nit1 <= itnw; ++nit1) {
 
     { int iflag; byeauto_(&iflag); } /* xppautX: cancel */
-    if (xpp_job_cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
+    if (!auto_locating && xpp_job_cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
     nitps = nit1;
     iap->nit = nitps;
     nllv = 0;
@@ -5646,14 +5659,14 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       ifst = 1;
     }
 
-    xpp_setubv_stop = 1; /* xppautX: cancel */
+    xpp_setubv_stop = !auto_locating; /* xppautX: cancel */
     solvbv(&ifst, iap, rap, par, icp, funi, bcni, icni, 
 	   rds, &nllv, rlcur, rlold, rldot, ndxloc, 
 	   ups, dups, uoldps, 
 	   udotps, upoldp, dtm, fa, fc, p0, 
 	   p1, thl, thu);
     xpp_setubv_stop = 0; /* xppautX: cancel */
-    if (xpp_job_cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
+    if (!auto_locating && xpp_job_cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
     /* Add Newton increments. */
 
     for (i = 0; i < ndim; ++i) {
@@ -6480,9 +6493,11 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
 
   contbv(iap, rap, par, icp, funi, &rds, rlcur, rlold, &
 	 rldot[0], ndxloc, ups, uoldps, udotps, upoldp, dtm, thl, thu);
-  stepbv(iap, rap, par, icp, funi, bcni, icni, pvli, &rds, &rlcur[-1 + 
-								 1], rlold, rldot, ndxloc, ups, dups, uoldps, udotps, 
+  auto_locating = 1; /* xppautX: cancel: runs to the end */
+  stepbv(iap, rap, par, icp, funi, bcni, icni, pvli, &rds, &rlcur[-1 +
+								 1], rlold, rldot, ndxloc, ups, dups, uoldps, udotps,
 	 upoldp, fa, fc, tm, dtm, p0, p1, thl, thu);
+  auto_locating = 0;
   istop = iap->istop;
   if (istop != 0) {
     *q = 0.;
@@ -7082,6 +7097,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
    call with iflag  */
   byeauto_(&iflag);
   istop = iap->istop;
+  if (istop == 0 && xpp_job_cancelled()) iflag = 0; /* xppautX: cancel: as in stplae */
   if (istop == 1 && !xpp_job_cancelled()) { /* xppautX: cancel: EP, not MX */
     /*        ** Maximum number of iterations reached somewhere. */
     itp = -9 - itpst * 10;

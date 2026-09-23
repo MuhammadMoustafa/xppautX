@@ -49,7 +49,7 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `aplot` | `op`: `redraw`, `edit`, `print`, `fit`, `range`, `gif`, `close`, `scroll` (`dy` pixels) | The array plot window buttons; dragging the plot scrolls through time. |
 | `rotate` | `what` (`down`, `move`, `up`), `x`, `y` | Dragging a 3D plot turns it (the active window, when `state.view.three`). |
 | `ani` | `op`: `go`, `pause`, `fast`, `slow`, `step` (`n`), `seek` (`pos`), `reset`, `skip`, `file`, `mpeg`, `grab`, `mouse` (`what` down/move/up, `x`, `y`), `fly`, `close` | The animation window buttons. `go` plays until the last frame; `pause`, `fast`, `slow` sent while it plays reach its loop. `mpeg` asks for frame saving (PPM files or `anim.gif`), done with `pixels` asks while playing. `mouse` drags a grab point after `grab`. `size` for win 104 resizes the picture when the command ends. |
-| `abort` | | Stop the running command's computation, at once (see below). No reply of its own: the stopped command ends with its `state` and `idle`; outside a command it does nothing. |
+| `abort` | `at` (scripts only) | Stop the running command's computation, at once (see below). No reply of its own: the stopped command ends with `stopped`, `state` and `idle`; outside a command it does nothing. `at` is where a recorded session stopped (the `stopped` event's `at`); only a script's player reads it (see "Scripts"), anywhere else it is an ordinary `abort`. |
 | `quit` | | Exit, at once even during a computation. |
 
 ## Commands during a command
@@ -77,6 +77,9 @@ in the input.
   except keys and edits sent while a prompt is open.
 - `abort` never has an `idle` of its own, so a client can send it at any
   time without upsetting its count of commands and idles.
+- A command whose job was cancelled (by `abort`, Escape, `quit`) sends
+  `stopped` before its `state` and `idle`: where the computation got to,
+  which is what a script needs to replay the interruption (below).
 
 ## Scripts
 
@@ -102,6 +105,28 @@ since that is the only thing a script's next line can mean. Nothing is
 read ahead, so a line already in FILE is never mistaken for the answer to
 the wrong `ask`, and every `answer` line can omit `id` (above): a script
 cannot know it in advance.
+
+Interruptions: a recorded session that stopped a computation with Escape
+or Abort replays it with `{"cmd":"abort","at":AT}` on the line right
+after the command it interrupted (the `answer` that started it, for a run
+started from a menu), AT being the `stopped` event's `at`. When the player
+hands the core a line whose next line is such an abort, it arms a stop
+for that line's job and drops the abort line: the job cancels itself
+exactly where the recorded one stopped, so the rows it stored, or the AUTO
+diagram, are the recorded session's, and it ends with the same `stopped`
+event. An integration stops when it has stored `rows` rows; an AUTO run
+when it has stored point `point` - 1 of branch `branch`, so that, as every
+cancelled run does, it ends the branch on point `point`, an end point (EP)
+repeating the one before. If the job ends without getting there, the
+script stops with exit status 1 and "script line K: the recorded
+interruption at AT was never reached", K being the abort line. An `at` of
+`other` cannot be placed: the job runs to its end. An abort line with no
+`at` stops nothing (the player hands lines over only between commands) and
+the script goes on. The browser client's "Save session script" writes
+these lines: it records a `stopped` event as the abort, and leaves out the
+Escape keys and Aborts it sent while the core was busy. A range
+integration (Integrate/Range) stops in the first of its runs that stores
+`rows` rows.
 
 examples/scripts/lecar_auto.jsonl is a complete example: it selects the
 Le Car model's "hopf" parameter set, finds its fixed point by Newton and
@@ -154,6 +179,7 @@ Run it with:
 | `series` | `win`, `rows`, `three`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns` | The active plot window's curves as numbers, for a client that asked (`data`); see "The plot as data". |
 | `state` | `pars` [[name,value]...], `ics` [[name,value]...], `bcs` [[name,text]...], `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `menu`, `win`, `session` {`set`,`auto`} | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics), `win` the active window; `session` names the files of the last `session` `save` or `load` (`auto` absent when that session has no diagram; the member itself absent before any `session` command). |
 | `idle` | | The command finished. |
+| `stopped` | `at` | The command's computation was cancelled; sent before its `state` and `idle`. `at` says where it stopped: `{"what":"integrate","rows":N,"t":T}` for an integration, N the rows in storage (as `state.rows`) and T the time of the last one stored (9 digits: the stored single-precision value exactly); `{"what":"auto","branch":B,"point":P}` for an AUTO run, P the last point it stored on branch B (the end point the cancel adds, as in the diagram's data); `{"what":"other"}` for anything else. A script replays the interruption from it (see "Scripts"). |
 | `menu` | `which` | The main menu switched (0 main, 1 file, 2 numerics). |
 | `title` | `text` | Title of the selected plot window: what it plots (`W vs V`). The server also labels unlabelled 2D axes with the plotted variables. |
 | `message` | one of `error`, `bottom`, `box`, `xy`, `auto`, `calc` | Status text. `box` with empty text removes a hint box. |
