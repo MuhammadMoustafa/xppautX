@@ -268,7 +268,7 @@ void ani_create_mpeg()
   int status;
   mpeg.flag=0;
   sprintf(values[0],"%d",mpeg.flag);
-  sprintf(values[1],"%s",mpeg.root);
+  snprintf(values[1],sizeof(values[1]),"%s",mpeg.root);
    sprintf(values[2],"%d",mpeg.aviflag); 
   status=do_string_box(3,3,1,"Frame saving",n,values,28); 
   if(status!=0){

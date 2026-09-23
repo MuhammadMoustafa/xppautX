@@ -132,8 +132,8 @@ int ind;
  sprintf(values[3],"%g",MyGraph->ymin);
  sprintf(values[4],"%g",MyGraph->xmax);
  sprintf(values[5],"%g",MyGraph->ymax);
- sprintf(values[6],"%s",MyGraph->xlabel);
- sprintf(values[7],"%s",MyGraph->ylabel);
+ snprintf(values[6],sizeof(values[6]),"%s",MyGraph->xlabel);
+ snprintf(values[7],sizeof(values[7]),"%s",MyGraph->ylabel);
  MyGraph->ThreeDFlag=0;
  status=do_string_box(8,4,2,"2D View",n,values,31);
  if(status!=0){
@@ -220,9 +220,9 @@ int ind;
  sprintf(values[11],"%g",MyGraph->ylo);
  sprintf(values[10],"%g",MyGraph->xhi);
  sprintf(values[12],"%g",MyGraph->yhi);
- sprintf(values[13],"%s",MyGraph->xlabel);	     
- sprintf(values[14],"%s",MyGraph->ylabel);	     
- sprintf(values[15],"%s",MyGraph->zlabel);	     
+ snprintf(values[13],sizeof(values[13]),"%s",MyGraph->xlabel);
+ snprintf(values[14],sizeof(values[14]),"%s",MyGraph->ylabel);
+ snprintf(values[15],sizeof(values[15]),"%s",MyGraph->zlabel);
  MyGraph->ThreeDFlag=1;
  status=do_string_box(16,6,3,"3D View",n,values,31);
  if(status!=0){
@@ -885,12 +885,12 @@ void edit_curve()
 {
  char bob[20];
  int crv=0;
- sprintf(bob,"Edit 0-%d :",MyGraph->nvars-1);
+ snprintf(bob,sizeof(bob),"Edit 0-%d :",MyGraph->nvars-1);
  ping();
  new_int(bob,&crv);
  if(crv>=0&&crv<MyGraph->nvars)
    {
-     sprintf(bob,"Edit curve %d",crv);
+     snprintf(bob,sizeof(bob),"Edit curve %d",crv);
      alter_curve(bob,crv,crv);
    }
 }
@@ -912,7 +912,7 @@ void create_ps()
  sprintf(values[0],"%d",PS_Color);
  sprintf(values[1],"%d",PS_Port);
  sprintf(values[2],"%d",PS_FONTSIZE);
- sprintf(values[3],"%s",PS_FONT);
+ snprintf(values[3],sizeof(values[3]),"%s",PS_FONT);
  sprintf(values[4],"%g",PS_LW);
  status=do_string_box(5,5,1,"Postscript parameters",nn,values,25);
  if(status!=0){
@@ -921,7 +921,7 @@ void create_ps()
 	 PS_FONTSIZE=atoi(values[2]);
 	 PS_LW=atof(values[4]);
          sprintf(PS_FONT,"%s",values[3]);
-	 sprintf(filename,"%s.ps",this_file);
+	 snprintf(filename,sizeof(filename),"%s.ps",this_file);
 	 ping();
  
 	 if(!file_selector("Print postscript",filename,"*.ps"))return;
@@ -1179,8 +1179,8 @@ void edit_frz_crv(i)
  status=do_string_box(3,3,1,"Edit Freeze",nn,values,25);
  if(status!=0){
    frz[i].color=atoi(values[0]);
-   sprintf(frz[i].key,"%s",values[1]);
-   sprintf(frz[i].name,"%s",values[2]);
+   snprintf(frz[i].key,sizeof(frz[i].key),"%s",values[1]);
+   snprintf(frz[i].name,sizeof(frz[i].name),"%s",values[2]);
  }
 }
 

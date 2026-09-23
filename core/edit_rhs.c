@@ -194,7 +194,7 @@ int save_as()
   FILE *fp;
   double z;
   char filename[256];
-  sprintf(filename,"%s",this_file);
+  snprintf(filename,sizeof(filename),"%s",this_file);
   ping();
   /* if(new_string("Filename: ",filename)==0)return; */
   if(!file_selector("Save As",filename,"*.ode"))return(-1);

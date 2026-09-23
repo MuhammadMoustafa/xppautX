@@ -300,7 +300,7 @@ void get_new_guesses()
   if(nsvar<1)return;
   for(i=0;i<nsvar;i++){
     z=svar[i].last;
-    sprintf(name,"Initial %s(%g):",svar[i].name,z);
+    snprintf(name,sizeof(name),"Initial %s(%g):",svar[i].name,z);
     new_string(name,svar[i].rhs);
     if(add_expr(svar[i].rhs,svar[i].form,&n)){
       err_msg("Illegal formula");

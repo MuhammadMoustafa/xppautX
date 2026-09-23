@@ -328,7 +328,7 @@ static char *n[]={"*2Range over","Steps","Start","End",
  char values[8][MAX_LEN_SBOX];
  int status,i;
  static  char *yn[]={"N","Y"};
- sprintf(values[0],"%s",eq_range.item);
+ snprintf(values[0],sizeof(values[0]),"%s",eq_range.item);
  sprintf(values[1],"%d",eq_range.steps);
  sprintf(values[2],"%.16g",eq_range.plow);
  sprintf(values[3],"%.16g",eq_range.phigh);
@@ -444,7 +444,7 @@ int set_up_range()
    return(range_item());
  }
  
- sprintf(values[0],"%s",range.item);
+ snprintf(values[0],sizeof(values[0]),"%s",range.item);
  sprintf(values[1],"%d",range.steps);
  sprintf(values[2],"%.16g",range.plow);
  sprintf(values[3],"%.16g",range.phigh);
@@ -507,10 +507,10 @@ int set_up_range2()
  if(!Xup){
    return(range_item());
  }
- sprintf(values[0],"%s",range.item);
+ snprintf(values[0],sizeof(values[0]),"%s",range.item);
   sprintf(values[1],"%.16g",range.plow);
  sprintf(values[2],"%.16g",range.phigh);
- sprintf(values[3],"%s",range.item2);
+ snprintf(values[3],sizeof(values[3]),"%s",range.item2);
   sprintf(values[4],"%.16g",range.plow2);
  sprintf(values[5],"%.16g",range.phigh2);
 sprintf(values[6],"%d",range.steps);
@@ -899,7 +899,7 @@ if(range.type==PARAM)get_val(range.item,&temp);
      auto_set_mark(i);
      get_ic(2,x);
      get_val(parn,&temp);
-     sprintf(bob,"%s=%.16g",parn,temp);
+     snprintf(bob,sizeof(bob),"%s=%.16g",parn,temp);
      bottom_msg(2,bob);
    }
    do_start_flags(x,&MyTime);
