@@ -644,11 +644,12 @@ static void serve_files(Request *q)
    the same path under /, keeping the query string (the token). */
 static void redirect(sock_t s, const char *location)
 {
-    char head[560];
+    char head[700]; /* the location (under 560, see its caller) and the fixed lines */
     int n = snprintf(head, sizeof head,
                      "HTTP/1.1 302 Found\r\nLocation: %s\r\nContent-Length: 0\r\nCache-Control: no-store\r\n"
                      "Connection: close\r\n\r\n", location);
-    send_all(s, head, (size_t)n);
+    if (n < 0) return;
+    send_all(s, head, n < (int)sizeof head ? (size_t)n : sizeof head - 1); /* cut, never past the buffer */
 }
 
 static void serve_asset(Request *q)
