@@ -290,7 +290,19 @@
   class XppClient {
     constructor(root, send) {
       this.root = root;
-      this.send = send;
+      /* Save session script (docs/protocol.md "Scripts"): every command
+         this client sends, recorded from page load so it can be replayed
+         with xppautX --script. A thin wrapper around send(), independent
+         of the many places that call it (command(), answer(), the raw
+         control-line send()s); an answer's id is dropped since a script
+         answers whichever ask is pending. */
+      this.script = [];
+      this.send = cmd => {
+        const rec = Object.assign({}, cmd);
+        if (rec.cmd === 'answer') delete rec.id;
+        this.script.push(rec);
+        send(cmd);
+      };
       this.palette = [];
       this.surfaces = new Map();
       this.menus = null;
@@ -338,7 +350,11 @@
       this.progressText = el('span', 'xpp-progress-text');
       this.progress.append(this.progressFill, this.progressText);
       this.progress.hidden = true;
-      this.status.append(this.hint, this.progress);
+      this.saveScript = el('button', 'xpp-save-script', 'Save session script');
+      this.saveScript.type = 'button';
+      this.saveScript.title = 'Download the commands sent this session as a file xppautX --script can replay';
+      this.saveScript.addEventListener('click', () => this.downloadSessionScript());
+      this.status.append(this.hint, this.progress, this.saveScript);
       this.extraWindows = el('div', 'xpp-extra');
       this.errorBar = el('div', 'xpp-errors');
       this.logBox = el('details', 'xpp-log');
@@ -931,6 +947,7 @@
           this.lists = ev.lists || [];
           this.autoHints = ev.auto_hints || [];
           this.sliderDefs = ev.sliders || [];
+          this.modelFile = ev.file;
           this.titleBar.textContent = ev.title;
           this.charCell = ev.char;
           this.renderMenu();
@@ -1761,6 +1778,20 @@
       }
       this.clearError();
       this.send(cmd);
+    }
+
+    /* Save session script: this.script (recorded in the send() wrapper
+       above) as a file xppautX --script can replay (docs/protocol.md
+       "Scripts"), offered as a download via a Blob URL. */
+    downloadSessionScript() {
+      const text = this.script.map(cmd => JSON.stringify(cmd)).join('\n') + '\n';
+      const name = (this.modelFile || 'xpp').replace(/\.ode$/i, '') + '-session.jsonl';
+      const url = URL.createObjectURL(new Blob([text], {type: 'application/x-ndjson'}));
+      const a = el('a');
+      a.href = url;
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(url);
     }
 
     onCanvasDown(s, e) {

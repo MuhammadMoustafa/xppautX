@@ -28,7 +28,7 @@ Send `size` for window 1 as soon as the canvas size is known.
 | cmd | fields | meaning |
 |---|---|---|
 | `key` | `key` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. |
-| `answer` | `id`, `ok` (0/1), plus the kind's fields | Reply to an `ask`. Omitting `ok` means ok. |
+| `answer` | `id`, `ok` (0/1), plus the kind's fields | Reply to an `ask`. Omitting `ok` means ok. Omitting `id` answers whichever `ask` is currently pending (see "Scripts": a script cannot know the id an `ask` is handed at run time, and this equally lets a plain client skip tracking it). |
 | `size` | `win`, `w`, `h` | Canvas size in pixels; the plot is redrawn. For the AUTO diagram (`win` 101) the size includes the axis margins and applies when the current command ends; the server answers with `window` `create` for 101 and redraws the diagram. |
 | `set` | `kind` (`par`, `ic`, `bc`, `delay`), `name` or `index`, `value` or `text` | Change a value (no redraw or rerun). `text` is what the X11 box takes: a number or `%formula` for `par` and `ic`, an expression for `bc` and `delay`. BCs and delays go by `index` (BC names all read `0=`). A formula that does not evaluate gives `message` `error`. |
 | `default` | `kind` (`par` or `ic`) | The Default button: values from the ODE file. |
@@ -77,6 +77,66 @@ in the input.
   command of its own and answers with `state` and `idle`, so a client that
   sends `abort` sees one `idle` more; one taken while a prompt is open gets
   none. Clients should not count idles for `abort`.
+
+## Scripts
+
+`xppautX --script FILE model.ode [xppaut options]` plays FILE instead of
+reading commands from stdin: FILE holds the same line-delimited JSON
+commands a `--server` client sends, one per line (blank lines and lines
+whose first non-blank character is `#` are ignored). Protocol events go to
+stdout exactly as `--server` sends them. The process exits 0 when FILE
+runs out, or 1 if a `message` event of `error` kind was sent, or a line
+could not be matched to the `ask` it was meant to answer.
+
+Pacing: a script cannot see the protocol's events going by, so it cannot
+itself wait for `idle` or watch for an `ask` the way a real client does.
+Instead the player takes FILE's next line only when the core is ready for
+it: an ordinary command's line is taken right after the previous command's
+`idle` (this includes the very first line, taken after the session's own
+opening `redraw`); an `answer` line is taken the moment an `ask` is sent,
+since that is the only thing a script's next line can mean. Nothing is
+read ahead, so a line already in FILE is never mistaken for the answer to
+the wrong `ask`, and every `answer` line can omit `id` (above): a script
+cannot know it in advance.
+
+examples/scripts/lecar_auto.jsonl is a complete example: it selects the
+Le Car model's "hopf" parameter set, finds its fixed point by Newton and
+imports it as the initial condition (a Hopf bifurcation is only on the
+branch from a converged point), runs an AUTO steady-state continuation
+from there, grabs the Hopf point AUTO finds, starts the periodic branch
+that bifurcates from it, and saves the diagram:
+
+```
+{"cmd":"key","key":"f"}
+{"cmd":"key","key":"g"}
+{"cmd":"answer","key":"d"}
+
+{"cmd":"key","key":"s"}
+{"cmd":"answer","key":"g"}
+{"cmd":"answer","key":"n"}
+{"cmd":"eqimport"}
+
+{"cmd":"key","key":"f"}
+{"cmd":"key","key":"a"}
+
+{"cmd":"auto","op":"run"}
+{"cmd":"answer","key":"s"}
+
+{"cmd":"auto","op":"grab"}
+{"cmd":"answer","key":"Tab"}
+{"cmd":"answer","key":"Return"}
+
+{"cmd":"auto","op":"run"}
+{"cmd":"answer","key":"p"}
+
+{"cmd":"auto","op":"file"}
+{"cmd":"answer","key":"s"}
+{"cmd":"answer","file":"lecar.auto"}
+```
+
+Run it with:
+
+    xppautX --script examples/scripts/lecar_auto.jsonl examples/ode/lecar.ode
 
 ## Events (server to client)
 

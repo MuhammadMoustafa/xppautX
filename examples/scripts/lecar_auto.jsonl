@@ -1,0 +1,48 @@
+# An AUTO-07p continuation played through xppautX --script (docs/protocol.md
+# "Scripts"). Run: xppautX --script lecar_auto.jsonl lecar.ode
+#
+# The Le Car model's ODE file defines four named parameter sets (its
+# "set NAME {...}" blocks); "hopf" is the one whose parameters actually put
+# a Hopf bifurcation on the branch as iapp varies, so this script selects it
+# first, finds the fixed point there by Newton (Sing pts / Go) and imports
+# it as the initial condition, so AUTO starts from a converged point.
+# Every "answer" below omits "id": it always answers whichever ask is
+# pending, which is what lets a script like this one be written without
+# running it first to learn the ids.
+
+# File / get a parameter set -> the Param set menu -> pick "hopf"
+{"cmd":"key","key":"f"}
+{"cmd":"key","key":"g"}
+{"cmd":"answer","key":"d"}
+
+# Sing pts / Go: a Newton search from the current initial condition
+{"cmd":"key","key":"s"}
+{"cmd":"answer","key":"g"}
+# "Print eigenvalues?" -- no
+{"cmd":"answer","key":"n"}
+# the equilibrium window's Import: the point just found becomes the IC
+{"cmd":"eqimport"}
+
+# File / Auto: open the AUTO window
+{"cmd":"key","key":"f"}
+{"cmd":"key","key":"a"}
+
+# Run -> steady state, from the converged fixed point
+{"cmd":"auto","op":"run"}
+{"cmd":"answer","key":"s"}
+
+# Grab the first label on the diagram: Tab cycles the candidates, Return
+# picks the one shown
+{"cmd":"auto","op":"grab"}
+{"cmd":"answer","key":"Tab"}
+{"cmd":"answer","key":"Return"}
+
+# The grabbed point is a Hopf bifurcation, so Run now offers its own menu;
+# Periodic starts the periodic branch bifurcating from it
+{"cmd":"auto","op":"run"}
+{"cmd":"answer","key":"p"}
+
+# File / Save diagram
+{"cmd":"auto","op":"file"}
+{"cmd":"answer","key":"s"}
+{"cmd":"answer","file":"lecar.auto"}

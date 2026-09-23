@@ -8,10 +8,14 @@
                                     JSON protocol of ui_json.c on stdin and
                                     stdout, for a front end that embeds it
                                     (the VS Code webview, a test script)
+     xppautX --script FILE model.ode  the same protocol, played from FILE
+                                    instead of stdin, one command per line;
+                                    exits when FILE ends (docs/protocol.md
+                                    "Scripts")
      xppautX model.ode -silent      a headless batch run that writes
                                     output.dat, as upstream xppaut -silent
 
-   usage: xppautX [--server|--web] [--port N] [--no-open] file.ode [xppaut options]
+   usage: xppautX [--server|--web|--script FILE] [--port N] [--no-open] file.ode [xppaut options]
           xppautX --version
    Every xppaut option still applies; ours have to come first. */
 #include "xpp_batch.h"
@@ -90,6 +94,7 @@ int main(int argc, char **argv)
 {
     char title[128];
     int web = 1, batch = 0, port = 8765, open_browser = 1, i, k;
+    char *script = NULL;
     /* our options come first; the rest are xppaut's */
     for (i = k = 1; i < argc; i++) {
         if (strcmp(argv[i], "--version") == 0) {
@@ -99,6 +104,10 @@ int main(int argc, char **argv)
         }
         if (strcmp(argv[i], "--web") == 0) web = 1;
         else if (strcmp(argv[i], "--server") == 0) web = 0;
+        else if (strcmp(argv[i], "--script") == 0 && i + 1 < argc) {
+            web = 0;
+            script = argv[++i];
+        }
         else if (strcmp(argv[i], "--no-open") == 0) open_browser = 0;
         else if (strcmp(argv[i], "--port") == 0 && i + 1 < argc) port = atoi(argv[++i]);
         else {
@@ -111,6 +120,10 @@ int main(int argc, char **argv)
     argv[argc] = NULL;
     if (batch) return xpp_batch_main(argc, argv);
     start_auto_dir();
+    if (script && !json_ui_set_script(script)) {
+        fprintf(stderr, "xppautX: cannot open script %s\n", script);
+        return 1;
+    }
     if (web && !xpp_http_start(port, open_browser)) return 1;
     /* a monospace font the client can match: small 7x13, big 9x15 */
     DCURXs = 7; DCURYs = 13; CURY_OFFs = 10;

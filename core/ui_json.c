@@ -96,6 +96,12 @@ void commander(int ch); /* commands.c */
 static FILE *proto;
 static int win_w[MAXPOP], win_h[MAXPOP];
 
+/* --script FILE (docs/protocol.md "Scripts"): script_mode is set by
+   json_ui_set_script(), script_error by anything that should make the
+   process exit 1 at end of file (a "message" "error" event, or a script
+   line that did not answer the ask it was sent for). */
+static int script_mode, script_error;
+
 /* ---- output ------------------------------------------------------------ */
 
 typedef struct {
@@ -359,7 +365,9 @@ static char *read_line(int which, int wait_ms)
     case 1:
         return line;
     case -1:
-        exit(0);
+        /* end of input: exit 1 for a script that hit an error or an
+           unmatched ask (docs/protocol.md "Scripts"), else as always, 0 */
+        exit(script_mode && script_error ? 1 : 0);
     default:
         return NULL;
     }
@@ -530,7 +538,7 @@ static int handle_async(const char *line)
         apply_size(line);
         return 1;
     }
-    if (is_cmd(line, "quit")) exit(0);
+    if (is_cmd(line, "quit")) exit(script_mode && script_error ? 1 : 0);
     if (is_cmd(line, "state")) {
         send_state();
         return 1;
@@ -625,14 +633,21 @@ static int ask_wait(Buf *b, int id)
     json_flush();
     send_buf(b);
     free(b->s);
+    /* a script's next line is its answer to this ask (ui_json.c "Which
+       queue" comment above, and docs/protocol.md "Scripts") */
+    if (script_mode) xpp_inbox_script_advance();
     for (;;) {
         char *line = read_line(XPP_INBOX_ANY, -1);
+        int lid;
         if (handle_async(line)) {
             flush_ops();
             out_flush();
             continue;
         }
-        if (is_cmd(line, "answer") && (int)get_num(line, "id", -1) == id) {
+        /* an id-less answer answers whichever ask is pending: a script
+           cannot know the id handed out at run time (docs/protocol.md) */
+        lid = (int)get_num(line, "id", -1);
+        if (is_cmd(line, "answer") && (lid == -1 || lid == id)) {
             size_t n = strlen(line) + 1;
             const char *ok;
             if (n > answer_cap) {
@@ -646,7 +661,9 @@ static int ask_wait(Buf *b, int id)
             return ok == NULL || js_num(ok, 0) != 0;
         }
         /* anything else (keys typed at the plot while a dialog is up) is
-           dropped, as the X11 dialogs do */
+           dropped, as the X11 dialogs do; for a script this line was
+           supposed to answer this ask and did not, so it fails the run */
+        if (script_mode) script_error = 1;
     }
 }
 
@@ -662,6 +679,8 @@ static int ask_begin(Buf *b, const char *kind)
 
 static void j_err_msg(char *msg)
 {
+    /* a script that provokes an error fails the run (docs/protocol.md) */
+    if (script_mode) script_error = 1;
     send_simple("message", "error", msg);
 }
 
@@ -2396,6 +2415,11 @@ static void handle_line(const char *line, unsigned long seq)
         plotvars_command(line);
     } else if (is_cmd(line, "eqimport")) {
         if (last_eq_n) eq_import(last_eq, last_eq_n);
+    } else if (is_cmd(line, "answer")) {
+        /* reaching the main dispatch (rather than ask_wait) means no ask
+           was pending for it: a script line answering nothing fails the
+           run (docs/protocol.md "Scripts") */
+        if (script_mode) script_error = 1;
     } else if (is_cmd(line, "equations")) {
         send_equations();
     } else if (is_cmd(line, "action")) {
@@ -2438,6 +2462,10 @@ static void handle_line(const char *line, unsigned long seq)
     xpp_job_end();
     send_state();
     send_simple("idle", NULL, NULL);
+    /* a script's next line is the next command (docs/protocol.md
+       "Scripts"); this also releases the very first script line, since
+       xppautx_main.c's startup "redraw" ends here too */
+    if (script_mode) xpp_inbox_script_advance();
 }
 
 void json_ui_handle(const char *line) { handle_line(line, 0); }
@@ -2460,6 +2488,13 @@ void json_ui_loop(void)
     }
 }
 
+int json_ui_set_script(const char *path)
+{
+    if (!xpp_inbox_start_file(path)) return 0;
+    script_mode = 1;
+    return 1;
+}
+
 void json_ui_install(void)
 {
     int i;
@@ -2471,8 +2506,10 @@ void json_ui_install(void)
 #endif
         proto = fdopen(fd, "w");
         dup2(2, 1);
-        /* commands from stdin, read on a thread of their own */
-        if (!xpp_inbox_start_stdin()) {
+        /* commands from stdin, read on a thread of their own; a script's
+           file (json_ui_set_script(), called before this) is read by the
+           core thread itself instead, so no reader thread for it here */
+        if (!script_mode && !xpp_inbox_start_stdin()) {
             fprintf(stderr, "xppautX: cannot start the input thread\n");
             exit(1);
         }

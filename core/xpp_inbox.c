@@ -13,6 +13,7 @@
 #include "xpp_inbox.h"
 #include <errno.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
@@ -192,4 +193,50 @@ int xpp_inbox_start_stdin(void)
     if (pthread_create(&t, NULL, stdin_main, NULL) != 0) return 0;
     pthread_detach(t);
     return 1;
+}
+
+/* ---- the --script reader: a file, one line at a time, pulled by the core ---- */
+
+static FILE *script_fp;
+
+int xpp_inbox_start_file(const char *path)
+{
+    script_fp = fopen(path, "rb");
+    return script_fp != NULL;
+}
+
+void xpp_inbox_script_advance(void)
+{
+    static char *buf;
+    static size_t cap;
+    if (!script_fp) return;
+    for (;;) {
+        size_t len = 0;
+        int c;
+        const char *p;
+        if (!buf) {
+            cap = 4096;
+            buf = malloc(cap);
+        }
+        for (;;) {
+            c = fgetc(script_fp);
+            if (c == EOF || c == '\n') break;
+            if (len + 1 >= cap) {
+                cap *= 2;
+                buf = realloc(buf, cap);
+            }
+            if (c != '\r') buf[len++] = (char)c; /* CRLF script files */
+        }
+        if (c == EOF && len == 0) { /* nothing left to skip past */
+            fclose(script_fp);
+            script_fp = NULL;
+            xpp_inbox_close();
+            return;
+        }
+        p = buf;
+        while (p < buf + len && (*p == ' ' || *p == '\t')) p++;
+        if (p == buf + len || *p == '#') continue; /* blank or a comment line */
+        xpp_inbox_push(buf, len);
+        return;
+    }
 }

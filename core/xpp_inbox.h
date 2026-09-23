@@ -51,4 +51,19 @@ void xpp_inbox_close(void);
    It never writes to stdout. Returns 0 when the thread cannot start. */
 int xpp_inbox_start_stdin(void);
 
+/* --script FILE: open FILE for xpp_inbox_script_advance() (below); no
+   thread and nothing pushed yet, unlike xpp_inbox_start_stdin(). A script
+   is one client talking to itself in order, so nothing needs to race the
+   core to catch an Abort: the core thread pulls one line at a time, only
+   when it is ready for it (see core/ui_json.c: after a command's idle, and
+   when an ask is pending). Returns 0 when FILE cannot be opened. */
+int xpp_inbox_start_file(const char *path);
+
+/* Push the file source's next command line (blank lines and lines whose
+   first non-blank character is '#' are skipped, a '\r' before the newline
+   dropped), or close the inbox at end of file, ending a line with no
+   newline too. A no-op once no file is open (xpp_inbox_start_file was
+   never called, or already reached end of file). */
+void xpp_inbox_script_advance(void);
+
 #endif

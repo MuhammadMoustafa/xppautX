@@ -253,6 +253,19 @@
   line-height: 1.1em;
   font-size: 0.85em;
 }
+.xpp-save-script {
+  flex: 0 0 auto;
+  align-self: center;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85em;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+.xpp-save-script:hover { opacity: 0.8; }
 .xpp-error { color: var(--xpp-error); }
 .xpp-ping { outline: 2px solid var(--xpp-error); }
 .xpp-dialogs {

@@ -4,10 +4,13 @@ travels, how input is read, and how quickly a long computation stops.
 
 usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [SECTION...]
 
-Sections: draw, input, abort, control, files, sessions (default: all but
-sessions). files compares AUTO's saved diagram of lecar with a reference;
-sessions checks that concurrent servers keep their AUTO files apart. --report prints the measurements
-without failing on the latency limits, for comparing builds.
+Sections: draw, input, abort, control, files, sessions, script (default:
+all; tools/verify.sh runs them all). files compares AUTO's saved diagram of lecar with a
+reference; sessions checks that concurrent servers keep their AUTO files
+apart; script plays examples/scripts/lecar_auto.jsonl through --script
+(docs/protocol.md "Scripts") and checks a broken script exits 1. --report
+prints the measurements without failing on the latency limits, for
+comparing builds.
 """
 import argparse, json, os, shutil, subprocess, sys, tempfile, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -17,13 +20,14 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
 ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
-ap.add_argument('sections', nargs='*', default=['draw', 'input', 'abort', 'control', 'files'])
+ap.add_argument('sections', nargs='*', default=['draw', 'input', 'abort', 'control', 'files', 'sessions', 'script'])
 args = ap.parse_args()
 here = os.path.dirname(os.path.abspath(__file__))
 LECAR = 'examples/ode/lecar.ode'
 HEAVY = os.path.join(here, 'models', 'heavy.ode')
 PICTURES = os.path.join(here, 'models', 'lecar_auto_pictures.json')
 DIAGRAM = os.path.join(here, 'models', 'lecar_diagram.auto')
+SCRIPT = 'examples/scripts/lecar_auto.jsonl'
 failures = 0
 
 
@@ -465,6 +469,47 @@ def section_control():
     check('Quit during an integration exits within 1 s', took < 1, '%.2f s' % took, limit=True)
     print('INFO quit during an integration -> exit %.2f s' % took)
     s.close()
+
+
+# ---- script: xppautX --script plays a file of protocol commands -----------
+
+def run_script(script_path, ode=LECAR):
+    """xppautX --script SCRIPT_PATH ODE, in a scratch dir with a copy of
+    ODE; returns (exit code, stdout text, the scratch dir)"""
+    run = tempfile.mkdtemp(prefix='xppscript')
+    shutil.copy(ode, run)
+    r = subprocess.run([os.path.abspath(args.server), '--script', os.path.abspath(script_path),
+                        os.path.basename(ode)], cwd=run, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                       text=True, timeout=60)
+    return r.returncode, r.stdout, run
+
+
+def section_script():
+    code, out, run = run_script(SCRIPT)
+    idles = out.count('"ev":"idle"')
+    check('xppautX --script plays lecar_auto.jsonl to the end', code == 0, 'exit %d, %s' % (code, out[-300:]))
+    check('it reaches idle after each of its commands', idles >= 8, '%d idles' % idles)
+    check('it saves the AUTO diagram (File/Save diagram, key s)',
+          os.path.exists(os.path.join(run, 'lecar.auto')))
+    shutil.rmtree(run, ignore_errors=True)
+
+    # a bad formula in a "set" sends a "message" "error" event
+    bad = tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False, dir=here)
+    bad.write('{"cmd":"set","kind":"par","name":"iapp","text":"%not a valid formula("}\n')
+    bad.close()
+    code, out, run = run_script(bad.name)
+    check('a "set" with a bad formula exits 1', code == 1, 'exit %d' % code)
+    os.unlink(bad.name)
+    shutil.rmtree(run, ignore_errors=True)
+
+    # an answer sent with no ask pending for it cannot be matched
+    bad = tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False, dir=here)
+    bad.write('{"cmd":"answer","key":"s"}\n')
+    bad.close()
+    code, out, run = run_script(bad.name)
+    check('an answer to nothing exits 1', code == 1, 'exit %d' % code)
+    os.unlink(bad.name)
+    shutil.rmtree(run, ignore_errors=True)
 
 
 for name in args.sections:
