@@ -47,7 +47,7 @@
    a real anim.gif into the model's folder.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH]
-     [--only desktop,phase,marks,auto,view,three,aplot,files,live,million,ani,kinescope] [-v]
+     [--only desktop,phase,marks,auto,view,three,aplot,files,live,million,ani,kinescope,runs,values] [-v]
 
    Needs Node 22 or later and a browser, nothing else (tools/cdp.mjs). */
 import {spawnSync} from 'node:child_process';
@@ -267,20 +267,22 @@ async function values() {
   check('the Undo button is disabled once the history is empty',
     await cdp.eval(`[...document.querySelectorAll('.values-header button')].find(b => b.textContent === 'Undo').disabled`));
 
-  /* a slider by the keyboard: pick iapp for slot 0, then arrow keys move it and a new series arrives */
-  await cdp.eval(`(() => { const sel = document.getElementById('slider-pick-0');
-    sel.value = 'iapp'; sel.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  /* a slider by the keyboard: Add slider under the plot, pick iapp, then arrow keys move it and a new series arrives */
+  const sid = await addSlider('iapp');
   const n0 = await S('s.seriesCount');
-  await cdp.eval(`document.getElementById('slider-lo-0').value = '0'; document.getElementById('slider-lo-0')
+  await cdp.eval(`document.getElementById('slider-lo-${sid}').value = '0'; document.getElementById('slider-lo-${sid}')
     .dispatchEvent(new Event('input', {bubbles: true}));
-    document.getElementById('slider-hi-0').value = '0.5'; document.getElementById('slider-hi-0')
-    .dispatchEvent(new Event('input', {bubbles: true}));
-    document.querySelector('.value-slider-range').focus(); `);
+    document.getElementById('slider-hi-${sid}').value = '0.5'; document.getElementById('slider-hi-${sid}')
+    .dispatchEvent(new Event('input', {bubbles: true}));`);
+  await sleep(80);
+  await cdp.eval(`document.getElementById('slider-range-${sid}').focus()`);
   await key('ArrowRight');
   await key('ArrowRight');
   check('a slider moved by the keyboard sends slide: a new series arrives',
     await until(`s.seriesCount > ${n0} && w.series.rows === 601 && !s.busy`, 'slide series'),
     JSON.stringify(await S('[s.seriesCount, w.series && w.series.rows]')));
+  await cdp.eval(`document.querySelector('[data-slider="${sid}"] .value-slider-remove').click()`);
+  check('a slider is removed by its button', await until(`!s.values.sliders.some(d => d.id === ${sid})`, 'remove'));
 
   /* every control in the panel is reachable by Tab, in order, without a trap: start from the very top */
   await cdp.eval(`document.querySelector('.skip-link').focus()`);
@@ -1684,6 +1686,217 @@ async function integrate(rows, ms) {
   return until(`s.seriesCount > ${n0} && w.series.rows === ${rows} && !s.busy`, `${rows} rows`, ms);
 }
 
+/* ---- runs, Erase, sliders and the values panel (GitHub #18) --------------------------- */
+
+/** Add slider, then pick `name`: the new slider's id */
+async function addSlider(name) {
+  await cdp.eval(`document.querySelector('.slider-add').click()`);
+  await until('s.values.sliders.length > 0 && document.querySelector(".value-slider:last-of-type select")', 'a slider');
+  const id = await S('s.values.sliders[s.values.sliders.length - 1].id');
+  await sleep(50);
+  await cdp.eval(`(() => { const sel = document.getElementById('slider-pick-${id}');
+    sel.value = ${JSON.stringify(name)}; sel.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  await until(`s.values.sliders.find(d => d.id === ${id}).name === ${JSON.stringify(name)}`, 'slider pick');
+  return id;
+}
+
+/** the input of field `name` in the values panel's section `sec` (par or ic) */
+const fieldOf = (sec, name) => `[...document.querySelectorAll('[data-section="${sec}"] .value-field')]
+  .find(f => f.querySelector('.value-name').textContent.toLowerCase() === ${JSON.stringify(name.toLowerCase())})`;
+/** type `text` into a field and leave it (two round trips: Preact renders the draft before the blur reads it) */
+async function editField(sec, name, text) {
+  await cdp.eval(`(() => { const el = ${fieldOf(sec, name)}.querySelector('input'); el.focus();
+    el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await sleep(60);
+  await cdp.eval(`${fieldOf(sec, name)}.querySelector('input').blur()`);
+  await sleep(20);
+}
+const icsOf = 'JSON.stringify(s.core.ics.map(p => p[1]))';
+const icFields = () => cdp.eval(`JSON.stringify([...document.querySelectorAll('[data-section="ic"] .value-field input')].map(i => i.value))`);
+const nowCells = () => cdp.eval(`JSON.stringify([...document.querySelectorAll('.value-now')].map(o => o.textContent))`);
+const close6 = (a, b) => Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b));
+
+/* lecar.ode: runs accumulate, Erase, Redraw, Last and "Use current state", reset, save and load, sliders */
+async function runsCheck(dir) {
+  await desktopMetrics();
+  check('runs: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy && s.values.defaults', 'hello'));
+  check('runs: before any run Now shows nothing', (await nowCells()) === JSON.stringify(['–', '–']), await nowCells());
+  await focusPlot();
+  check('runs: I, G integrates', await integrate(601, 30000));
+  check('runs: one run, nothing earlier', await S('w.history.runs.length === 0 && __xpp.plot().runs.count === 0'));
+  const end = await S('w.series.columns.get(1)[600]');
+  check('runs: after the run Now is its last row', await until(`s.core.now && Math.abs(s.core.now[0] - ${end}) < 1e-6`, 'now')
+    && (await nowCells()).includes(String(Number(end.toPrecision(6)))), await nowCells());
+
+  /* Initialconds/Last: Now -> Initial, then a run; the first run stays under the new one */
+  const now0 = await S('s.core.now.slice()');
+  const n0 = await S('s.seriesCount');
+  await focusPlot();
+  await menuKeys('i', 'l');
+  check('runs: Initialconds/Last runs again', await until(`s.seriesCount > ${n0} && !s.busy && w.series.rows === 601`, 'last'));
+  check('runs: after Last the IC fields are where the previous run ended',
+    (await S(`s.core.ics.every((p, i) => p[1] === ${JSON.stringify(now0)}[i])`))
+    && JSON.parse(await icFields()).every((t, i) => close6(Number(t), now0[i])), `${await icFields()} vs ${JSON.stringify(now0)}`);
+  check('runs: two runs keep two curves: the earlier one drawn under the current',
+    await until('w.history.runs.length === 1 && __xpp.plot().runs.count === 1 && __xpp.plot().runs.drawn > 0 && __xpp.plot().curves[0].points === 601', 'two runs'),
+    JSON.stringify(await cdp.eval('__xpp.plot().runs')));
+  const legend = `[...document.querySelectorAll('.legend-item')].find(b => b.dataset.layer === 'runs')`;
+  check('runs: the legend lists "previous runs (1)"', await cdp.eval(`(${legend} || {}).textContent === 'previous runs (1)'`));
+  await cdp.eval(`${legend}.click()`);
+  check('runs: the legend entry hides them', await until('!w.showRuns && __xpp.plot().runs.shown === false && __xpp.plot().runs.drawn === 0', 'hide runs'));
+  await cdp.eval(`${legend}.click()`);
+  await until('w.showRuns', 'show runs');
+  await focusPlot();
+  check('runs: a third run (Go) keeps both earlier ones', (await integrate(601, 30000)) && await until('w.history.runs.length === 2', '3 runs'));
+
+  /* Erase blanks the picture, Redraw draws the current data again */
+  await focusPlot();
+  await key('e');
+  check('runs: Erase clears the picture and the shown runs',
+    await until('!s.busy && w.history.erased && w.history.runs.length === 0 && __xpp.plot().curves[0].points === 0 && __xpp.plot().runs.count === 0', 'erase'),
+    JSON.stringify(await S('w.history')));
+  await focusPlot();
+  await key('r');
+  check('runs: Redraw shows the current data again',
+    await until('!s.busy && !w.history.erased && __xpp.plot().curves[0].points === 601', 'redraw'), JSON.stringify(await S('w.history')));
+
+  /* "Use current state": the ICs become Now, no run */
+  await cdp.eval(`[...document.querySelectorAll('[data-section="ic"] .value-tools button')].find(b => b.textContent.includes('Use current state')).click()`);
+  const n1 = await S('s.seriesCount');
+  check('runs: "Use current state" makes the ICs equal Now, without a run',
+    await until(`!s.busy && s.core.ics.every((p, i) => p[1] === s.core.now[i])`, 'use state') && (await S('s.seriesCount')) === n1,
+    JSON.stringify(await S('[s.core.ics, s.core.now]')));
+
+  /* a parameter's reset: its title names the model value, a changed field is marked */
+  await editField('par', 'phi', '0.5');
+  await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "phi")[1] - 0.5) < 1e-12', 'phi');
+  const reset = `${fieldOf('par', 'phi')}.querySelector('.value-reset')`;
+  check('runs: a changed parameter is marked, its reset names the default',
+    await cdp.eval(`${fieldOf('par', 'phi')}.classList.contains('changed') && ${reset}.title === 'default: 0.333'`),
+    await cdp.eval(`${reset}.title`));
+  await cdp.eval(`${reset}.click()`);
+  check('runs: reset restores the model value', await until('!s.busy && s.core.pars.find(p => p[0] === "phi")[1] === 0.333', 'reset'));
+
+  /* Save, then Load a changed copy: one set, at most one run */
+  await cdp.eval(`[...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Save').click()`);
+  const saved = await S('s.values.lastSaved && s.values.lastSaved.text');
+  check('runs: Save writes XPP\'s parameter file', /^\d+   Number params\n/.test(saved || '') && /\n0\.05  iapp\n/.test(saved || ''),
+    String(saved).slice(0, 80));
+  const parFile = path.join(dir, 'changed.par');
+  fs.writeFileSync(parFile, saved.replace('\n0.05  iapp\n', '\n0.075  iapp\n'));
+  const sent0 = (await cdp.eval('__xpp.sent().length'));
+  await pickFiles('#values-load-par', [parFile]);
+  check('runs: Load applies the file: one set, one run',
+    await until('!s.busy && s.core.pars.find(p => p[0] === "iapp")[1] === 0.075', 'load')
+    && (await cdp.eval(`__xpp.sent().slice(${sent0}).filter(c => c.cmd === 'set').length`)) === 1,
+    JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sent0})`)));
+  await cdp.eval(`[...document.querySelectorAll('[data-section="ic"] .value-tools button')].find(b => b.textContent === 'Save').click()`);
+  const icText = await S('s.values.lastSaved.text');
+  const icFile = path.join(dir, 'changed.ic');
+  fs.writeFileSync(icFile, '-0.25\n0.1\n');
+  await pickFiles('#values-load-ic', [icFile]);
+  check('runs: IC Save is the values alone; Load sets them',
+    icText.trim().split('\n').length === 2 && await until('!s.busy && s.core.ics[0][1] === -0.25 && s.core.ics[1][1] === 0.1', 'ic load'),
+    icText);
+
+  /* a slider: its default range is [0, 2v]; a drag sends while idle, and the release leaves its value */
+  const iapp = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
+  const sid = await addSlider('iapp');
+  check('runs: a picked slider ranges over [0, 2v]',
+    (await S(`JSON.stringify(s.values.sliders.find(d => d.id === ${sid}))`)) === JSON.stringify({id: sid, name: 'iapp', lo: '0', hi: String(2 * iapp)}),
+    await S(`JSON.stringify(s.values.sliders.find(d => d.id === ${sid}))`));
+  const track = await cdp.eval(`(() => { const r = document.getElementById('slider-range-${sid}').getBoundingClientRect();
+    return {x: r.left, y: r.top + r.height / 2, w: r.width}; })()`);
+  const sent1 = await cdp.eval('__xpp.sent().length');
+  await mouse('mousePressed', track.x + track.w * 0.5, track.y, {button: 'left', clickCount: 1});
+  for (let k = 1; k <= 10; k++) await mouse('mouseMoved', track.x + track.w * (0.5 + k * 0.04), track.y, {button: 'left'});
+  await mouse('mouseReleased', track.x + track.w * 0.9, track.y, {button: 'left', clickCount: 1});
+  await until('!s.busy && !s.values.queue.length', 'drag settles', 20000);
+  await sleep(300);
+  const out = await cdp.eval(`__xpp.sent().slice(${sent1}).filter(c => c.cmd === 'slide' || c.cmd === 'set')`);
+  const final = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
+  const vals = out.map(c => c.value ?? Number(c.text));
+  check(`runs: a slider drag sends as it goes (${out.length} runs for 11 positions), ends at its final value, never twice`,
+    out.length >= 1 && out.length <= 11 && Math.abs(final - 0.9 * 2 * iapp) < 2 * iapp * 0.05 && !(await S('s.busy'))
+    && vals.every((v, i) => i === 0 || v !== vals[i - 1]) && vals[vals.length - 1] === final,
+    JSON.stringify({out, final}));
+
+  /* folding a section is remembered by the viewer */
+  await cdp.eval(`document.querySelector('[data-section="par"] .value-fold').click()`);
+  check('runs: a section folds, and the page remembers it',
+    await until(`document.getElementById('values-sec-par').hidden && JSON.parse(localStorage.getItem('xpp.values.folded')).includes('par')`, 'fold'));
+  await cdp.eval(`document.querySelector('[data-section="par"] .value-fold').click()`);
+}
+
+/* tools/models/live.ode (about a second a run): edits while busy wait and go
+   out once; the IC fields do not move during a run, Now does */
+async function valuesLive() {
+  await desktopMetrics();
+  check('values: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
+  const ics0 = await S(icsOf), fields0 = await icFields();
+  await cdp.eval(`window.__icSeen = []; window.__nowSeen = []; window.__sampling = true;
+    (function tick() { const s = __xpp.state();
+      if (s.busy) { __icSeen.push(JSON.stringify(s.core.ics.map(p => p[1])) + [...document.querySelectorAll('[data-section="ic"] .value-field input')].map(i => i.value).join());
+        __nowSeen.push([...document.querySelectorAll('.value-now')].map(o => o.textContent).join()); }
+      if (window.__sampling) requestAnimationFrame(tick); })(); true`);
+  await focusPlot();
+  await key('i');
+  await until("s.ask && s.ask.kind === 'menu'", 'menu');
+  await key('g');
+  await until('s.busy && w.series && w.series.rows > 100', 'running');
+  /* five edits of a parameter while the run goes: they wait, marked */
+  for (const v of ['0.051', '0.052', '0.053', '0.054', '0.055']) await editField('par', 'iapp', v);
+  const queued = await S('JSON.stringify(s.values.queue)');
+  const marked = await cdp.eval(`${fieldOf('par', 'iapp')}.classList.contains('queued')`);
+  const wasBusy = await S('s.busy');
+  const sent0 = await cdp.eval('__xpp.sent().length');
+  await until('!s.busy && w.series.rows === 20001', 'first run', 60000);
+  await until('!s.busy && s.core.pars.find(p => p[0] === "iapp")[1] === 0.055 && !s.values.queue.length', 'the queued run', 60000);
+  await sleep(500);
+  await cdp.eval('window.__sampling = false; true');
+  const after = await cdp.eval(`__xpp.sent().slice(${sent0})`);
+  check('values: five edits while busy wait (the latest, marked) and go out as one set with one run',
+    wasBusy && queued === JSON.stringify([{kind: 'par', name: 'iapp', text: '0.055'}]) && marked
+    && after.length === 1 && after[0].cmd === 'set' && after[0].rerun === 1 && after[0].text === '0.055'
+    && (await S('s.values.queue.length')) === 0,
+    JSON.stringify({wasBusy, queued, marked, after}));
+  const icSeen = await cdp.eval('[...new Set(__icSeen)]');
+  const nowSeen = await cdp.eval('[...new Set(__nowSeen)]');
+  check('values: the IC fields and the ICs do not change during a run',
+    icSeen.length === 1 && icSeen[0].startsWith(ics0) && (await S(icsOf)) === ics0 && (await icFields()) === fields0,
+    JSON.stringify({icSeen: icSeen.slice(0, 3), ics0}));
+  check(`values: Now changes during the run (${nowSeen.length} values seen)`, nowSeen.length >= 3, JSON.stringify(nowSeen.slice(0, 5)));
+  const last = await S('[w.series.columns.get(1)[w.series.rows - 1], w.series.columns.get(2)[w.series.rows - 1]]');
+  check('values: after the run Now is the last row of the series',
+    await S(`s.core.now && s.core.now.every((v, i) => Math.abs(v - ${JSON.stringify(last)}[i]) < 1e-6)`),
+    JSON.stringify([await S('s.core.now'), last]));
+
+  /* a slider dragged while a run goes: no position goes out until it ends, then only the last */
+  const sid = await addSlider('iapp');
+  await focusPlot();
+  await key('i');
+  await until("s.ask && s.ask.kind === 'menu'", 'menu');
+  await key('g');
+  await until('s.busy && w.series && w.series.rows > 100', 'running');
+  const track = await cdp.eval(`(() => { const r = document.getElementById('slider-range-${sid}').getBoundingClientRect();
+    return {x: r.left, y: r.top + r.height / 2, w: r.width}; })()`);
+  const sent1 = await cdp.eval('__xpp.sent().length');
+  await mouse('mousePressed', track.x + track.w * 0.3, track.y, {button: 'left', clickCount: 1});
+  for (let k = 1; k <= 10; k++) await mouse('mouseMoved', track.x + track.w * (0.3 + k * 0.05), track.y, {button: 'left'});
+  await mouse('mouseReleased', track.x + track.w * 0.8, track.y, {button: 'left', clickCount: 1});
+  const during = await cdp.eval(`__xpp.sent().slice(${sent1}).length`);
+  const busyThen = await S('s.busy');
+  const shown = await S(`s.values.queue.length === 1 && document.querySelector('[data-slider="${sid}"]').classList.contains('queued')`);
+  await until('!s.busy && !s.values.queue.length && w.series.rows === 20001', 'the drag run', 60000);
+  await until('!s.busy', 'idle', 60000);
+  await sleep(300);
+  const out = await cdp.eval(`__xpp.sent().slice(${sent1})`);
+  check('values: a slider dragged during a run sends nothing until it ends, then its last position, one run',
+    busyThen && during === 0 && shown && out.length === 1 && out[0].cmd === 'set' && out[0].rerun === 1
+    && Math.abs(Number(out[0].text) - (await S('s.core.pars.find(p => p[0] === "iapp")[1]'))) < 1e-12,
+    JSON.stringify({busyThen, during, shown, out}));
+}
+
 /* tools/models/live.ode: 20 001 rows in about a second */
 async function live(want) {
   await desktopMetrics();
@@ -2230,6 +2443,8 @@ async function main() {
     if (run('million')) await session(MILLION, million);
     if (run('ani')) await session(ODE, animation);
     if (run('kinescope')) await session(ODE, kinescope);
+    if (run('runs')) await session(ODE, runsCheck);
+    if (run('values')) await session(LIVE, valuesLive);
   } finally {
     b.proc.kill();
     await sleep(500);
