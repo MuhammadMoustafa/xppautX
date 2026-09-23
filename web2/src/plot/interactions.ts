@@ -6,9 +6,16 @@
    In a plot mode (a mouse, rubber or drag ask: pick.ts) a press, a drag and
    the release of the left button or of one finger go to the mode instead,
    ahead of all of the above; hovering still names points. */
-import type {Chart} from './chart';
 import type {Frac, PickMode} from './pick';
 import {panBy, zoomAbout, type Ranges} from './viewmath';
+
+/** what the gestures need of a chart (plot/chart.ts, plot/diagramChart.ts) */
+export interface GestureChart {
+  ranges(): Ranges;
+  setView(r: Ranges, push: boolean): void;
+  /** the point nearest to (px, py) of the plotting area, within maxDist CSS pixels */
+  hit(px: number, py: number, maxDist: number): {curve: number; index: number} | null;
+}
 
 export interface HoverSink {
   hover(curve: number, index: number): void;
@@ -32,7 +39,7 @@ const HOVER_PX = 24;
 const TAP_PX = 32; /* a finger is less precise */
 const TAP_SLOP = 8; /* movement that still counts as a tap */
 
-export function attachGestures(chart: Chart, area: HTMLElement, sink: HoverSink, pick?: PickSink): () => void {
+export function attachGestures(chart: GestureChart, area: HTMLElement, sink: HoverSink, pick?: PickSink): () => void {
   const local = (e: {clientX: number; clientY: number}) => {
     const r = area.getBoundingClientRect();
     return {x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, h: r.height};

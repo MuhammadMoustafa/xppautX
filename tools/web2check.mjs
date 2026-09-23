@@ -4,6 +4,10 @@
    and asserts what the page's store and plot hold (window.__xpp), never
    pixels. A desktop session (integrate from the keyboard, the plotted
    numbers against output.dat, hover, wheel and box zoom, undo, reset, pan),
+   the AUTO view (docs/ui-v2.md T11a: lecar's steady state and the periodic
+   branch from its Hopf point, the store against the diagram events, the
+   curves and labels drawn, the Hopf join, the readout by mouse and keys,
+   zoom and undo, the sheet on a phone, Close),
    the values panel (docs/ui-v2.md T3: edit a parameter, a slider by
    keyboard, undo, Tab reachability, the panel as a right column), the data
    table (docs/ui-v2.md T10: scroll and keyboard navigation to row 500
@@ -26,7 +30,7 @@
    copied, a same-name one asks Replace / Keep both / Cancel, and "Add
    file…" adds a file the core could not open and runs the command again.
 
-   node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--only desktop,phase,files,live,million] [-v]
+   node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--only desktop,phase,auto,files,live,million] [-v]
 
    Needs Node 22 or later and a browser, nothing else (tools/cdp.mjs). */
 import {spawnSync} from 'node:child_process';
@@ -962,6 +966,239 @@ async function prompts() {
   await until('!s.busy', 'torus off');
 }
 
+/* ---- the AUTO view (docs/ui-v2.md T11a) ------------------------------------------ */
+
+/* the diagram from the `diagram` events on their own (docs/protocol.md), as
+   tools/autocheck.py's Diagram does: what the store must equal */
+function rebuildDiagram(events) {
+  const pts = [];
+  let labels = [];
+  for (const e of events) {
+    if (e.op === 'reset') {
+      pts.length = Math.min(pts.length, e.keep);
+      labels = labels.filter(l => l.point < e.keep);
+    } else if (e.op === 'add') {
+      if (e.from > pts.length) throw new Error(`diagram add from ${e.from} with ${pts.length} held`);
+      pts.length = e.from;
+      labels = labels.filter(l => l.point < e.from);
+      for (const r of e.runs) {
+        for (const [i, lab, sym] of r.lab || []) labels.push({point: pts.length + i, lab, sym});
+        r.x.forEach((x, i) => pts.push({x, y: r.y[i], y2: (r.y2 || r.y)[i], br: r.br, pt: r.pt + i, ty: r.ty, d: r.d,
+          c: r.c, lw: r.lw, f2: r.f2 || 0, nw: i === 0 && r.new ? 1 : 0}));
+      }
+    }
+  }
+  return {pts, labels};
+}
+
+/* the curves the view must draw, counted from the store's points: one per
+   run of points that share branch, kind and style (two, max and min, for a
+   periodic run whose values differ) */
+function expectedCurves(p) {
+  let n = 0;
+  const same = (a, b) => !p.nw[b] && ['br', 'ty', 'd', 'c', 'lw', 'f2'].every(f => p[f][a] === p[f][b]);
+  for (let s = 0; s < p.x.length;) {
+    let e = s;
+    while (e + 1 < p.x.length && same(e, e + 1)) e++;
+    if (p.d[s] !== 0) {
+      n++;
+      let two = false;
+      for (let i = s; i <= e; i++) if ((p.d[i] === 2 || p.d[i] === 3) && p.y2[i] !== p.y[i]) two = true;
+      if (two) n++;
+    }
+    s = e + 1;
+  }
+  return n;
+}
+
+const DG = () => cdp.eval('__xpp.diagram()');
+const DS = expr => cdp.eval(`(() => { const d = __xpp.state().diagram; return ${expr}; })()`);
+const autoButton = k => cdp.eval(`document.querySelector('.auto-tools button[aria-keyshortcuts=${k}]').click()`);
+/* the diagram's plotting area and the screen position of (x, y) in it */
+const autoArea = () => cdp.eval(`(() => { const r = document.querySelector('.auto-panel .u-over').getBoundingClientRect();
+  return {x: r.left, y: r.top, w: r.width, h: r.height}; })()`);
+async function autoScreen(x, y) {
+  const [a, d] = [await autoArea(), await DG()];
+  return {x: a.x + (x - d.x.min) / (d.x.max - d.x.min) * a.w, y: a.y + (d.y.max - y) / (d.y.max - d.y.min) * a.h};
+}
+const readout = () => cdp.eval(`document.querySelector('.auto-readout').textContent`);
+const answerAsk = fields => cdp.eval(`__xpp.send(Object.assign({cmd: 'answer', id: __xpp.state().ask.id}, ${JSON.stringify(fields)}))`);
+/* a menu's key, once its dialog is up (it takes its keys from then on) */
+async function menuKey(k) {
+  await until(`s.ask && document.activeElement.closest('[role=dialog]')`, `dialog for ${k}`);
+  await key(k);
+}
+const center = sel => cdp.eval(`(() => { const r = document.querySelector('${sel}').getBoundingClientRect();
+  return {x: r.left + r.width / 2, y: r.top + r.height / 2, h: r.height}; })()`);
+
+async function autoView() {
+  await desktopMetrics();
+  check('AUTO: the page connects', await until('s.hello && !s.busy', 'hello'));
+  check('AUTO: no view before the core opens it', !(await cdp.eval(`!!document.querySelector('.auto-panel')`)));
+
+  /* examples/scripts/lecar_auto.jsonl: the "hopf" parameter set, its fixed point as the IC */
+  await key('f');
+  await until('!s.busy', 'file menu');
+  await key('g');
+  await menuKey('d');
+  await until('!s.busy', 'hopf set');
+  await key('s');
+  await menuKey('g');
+  await until("s.ask && s.ask.kind === 'choice'", 'eigenvalues?');
+  await menuKey('n');
+  await until('!s.busy', 'fixed point', 30000);
+  await cdp.eval(`__xpp.send({cmd: 'eqimport'})`);
+  await until('!s.busy', 'import');
+  await key('f');
+  await until('!s.busy', 'file menu');
+  await key('a');
+  check('File/Auto opens the AUTO view', await until('s.diagram.open && s.diagram.shown && s.diagram.axes && !s.busy', 'auto open')
+    && await cdp.eval(`!!document.querySelector('.auto-panel .auto-host')`), JSON.stringify(await DS('d.axes')));
+  check("the diagram has the focus, so AUTO's keys work", await until(`document.activeElement.closest('.auto-host')`, 'auto focus'));
+  const words = await cdp.eval(`[...document.querySelectorAll('.auto-panel button')].map(b => b.textContent.trim())`);
+  check('the view has the AUTO buttons and no Abort of its own (A10)',
+    ['Parameter', 'Axes', 'Numerics', 'Run', 'Grab', 'Usr period', 'Clear', 'reDraw', 'File', 'Close'].every(w => words.includes(w))
+    && !words.some(w => /abort|stop/i.test(w)), JSON.stringify(words));
+
+  /* Run / Steady state */
+  await autoButton('R');
+  check('Run asks how to start', await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Start'", 'start menu'),
+    JSON.stringify(await S('s.ask')));
+  await menuKey('s');
+  check('the steady-state branch arrives', await until('!s.busy && s.diagram.points.x.length > 10', 'steady state', 60000));
+  /* Grab the first label (the Hopf point: Tab, then Return, as the script does) */
+  await autoButton('G');
+  await until("s.ask && s.ask.kind === 'grab'", 'grab');
+  const grab1 = await S('s.ask.id');
+  await answerAsk({key: 'Tab'});
+  await until(`s.ask && s.ask.kind === 'grab' && s.ask.id !== ${grab1}`, 'grab 2');
+  await answerAsk({key: 'Return'});
+  await until('!s.busy', 'grabbed');
+  await autoButton('R');
+  check('Run from the Hopf point offers the periodic branch',
+    await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Hopf Pt'", 'hopf menu'), JSON.stringify(await S('s.ask')));
+  await menuKey('p');
+  check('the periodic branch arrives', await until('!s.busy && s.diagram.points.br.includes(2)', 'periodic', 120000));
+
+  /* the store is the events, exactly */
+  const want = rebuildDiagram(await cdp.eval('__xpp.diagramEvents()'));
+  const got = await DS('d.points');
+  let bad = want.pts.length === got.x.length ? null : `${got.x.length} points held, ${want.pts.length} sent`;
+  const same = (a, b) => (a === null ? b === null : a === b); /* NaN arrives as null through JSON */
+  for (let i = 0; i < want.pts.length && !bad; i++) {
+    for (const f of ['x', 'y', 'y2', 'br', 'pt', 'ty', 'd', 'c', 'lw', 'f2', 'nw'])
+      if (!same(want.pts[i][f], got[f][i])) bad = `point ${i} ${f}: ${got[f][i]} vs ${want.pts[i][f]}`;
+  }
+  const labels = await DS('d.labels');
+  check(`the store's diagram equals the diagram events (${want.pts.length} points, ${want.labels.length} labels)`,
+    !bad && want.pts.length > 1000 && JSON.stringify(want.labels) === JSON.stringify(labels), bad || JSON.stringify(labels.slice(0, 5)));
+
+  /* the chart: a curve per branch and stability run, the label marks */
+  const dg = await DG();
+  const nCurves = expectedCurves(got);
+  check(`the chart draws one curve per branch and stability run (${nCurves}), every label marked`,
+    dg && dg.curves.length === nCurves && dg.labels.length === want.labels.length
+    && dg.curves.reduce((n, c) => n + c.points, 0) > want.pts.length, JSON.stringify(dg && [dg.curves.length, nCurves, dg.labels.length]));
+  const steady = dg.curves.filter(c => c.kind === 'steady');
+  check('stable branches are solid, unstable ones dashed; periodic ones have max and min',
+    steady.some(c => c.stable && !c.dashed) && steady.some(c => !c.stable && c.dashed)
+    && dg.curves.some(c => c.kind === 'periodic' && c.which === 'y2'), JSON.stringify(dg.curves.slice(0, 6)));
+  const hb = want.labels.find(l => l.sym === 'HB');
+  const joined = dg.curves.filter(c => c.hopf >= 0);
+  check("the periodic branch starts at its Hopf point: its max and min lines begin at the HB point",
+    hb && joined.length === 2 && joined.every(c => c.hopf === hb.point && c.first[2] === hb.point && c.branch === 2
+      && c.first[0] === want.pts[hb.point].x && c.first[1] === want.pts[hb.point].y), JSON.stringify({hb, joined}));
+
+  /* hover names the Hopf point */
+  const hbAt = await autoScreen(want.pts[hb.point].x, want.pts[hb.point].y);
+  await mouse('mouseMoved', hbAt.x, hbAt.y);
+  check('hovering the Hopf point names it in the readout',
+    await until(`s.diagram.hover && s.diagram.hover.point === ${hb.point}`, 'hover hb') && /HB label \d+/.test(await readout()),
+    JSON.stringify([await DS('d.hover'), await readout()]));
+  await mouse('mouseMoved', 5, 5);
+  /* and so does stepping from label to label with the keyboard */
+  await until('!s.diagram.hover', 'hover gone');
+  await cdp.eval(`document.querySelector('.auto-host').focus()`);
+  let steps = 0;
+  while (steps < 5 && !(await DS(`!!d.hover && d.labels.some(l => l.point === d.hover.point && l.sym === 'HB')`))) {
+    await key('>');
+    steps++;
+  }
+  check('> steps from label to label to the Hopf point', steps > 0 && /HB label/.test(await readout())
+    && (await DS('d.hover.point')) === hb.point, JSON.stringify([steps, await readout()]));
+  await key(']');
+  check('] steps to the next point of the branch', await until(`s.diagram.hover && s.diagram.hover.point === ${hb.point + 1}`, 'next point'),
+    JSON.stringify(await DS('d.hover')));
+
+  /* zoom, pan, undo */
+  const a = await autoArea(), cx = a.x + a.w / 2, cy = a.y + a.h / 2;
+  const axes = await DS('d.axes');
+  await mouse('mouseWheel', cx, cy, {deltaX: 0, deltaY: -120});
+  check('the wheel zooms the diagram', await until('s.diagram.viewport.x', 'auto wheel')
+    && width((await DG()).x) < (axes.xmax - axes.xmin) * 0.9, JSON.stringify(await DS('d.viewport')));
+  const z1 = await DS('d.viewport');
+  await mouse('mouseMoved', cx - 60, cy - 40);
+  await mouse('mousePressed', cx - 60, cy - 40, {button: 'left', buttons: 1, clickCount: 1});
+  for (let st = 1; st <= 6; st++) await mouse('mouseMoved', cx - 60 + 20 * st, cy - 40 + 14 * st, {button: 'left', buttons: 1});
+  await mouse('mouseReleased', cx + 60, cy + 44, {button: 'left', buttons: 0, clickCount: 1});
+  check('a box zooms to it', await until(`s.diagram.viewport.x && s.diagram.viewport.x.max - s.diagram.viewport.x.min < ${width(z1.x) * 0.8}`, 'auto box')
+    && (await DS('d.viewportHistory.length')) === 2, JSON.stringify(await DS('d.viewport')));
+  await cdp.eval(`[...document.querySelectorAll('.auto-panel button')].find(b => b.textContent === 'Undo zoom').click()`);
+  check('Undo zoom goes back one step', await until(`s.diagram.viewport.x && Math.abs(s.diagram.viewport.x.min - ${z1.x.min}) < 1e-12`, 'auto undo'));
+  await cdp.eval(`document.querySelector('.auto-host').focus()`);
+  await key('z', 2);
+  check('Ctrl+Z on the diagram undoes the wheel', await until('s.diagram.viewport.x === null', 'auto ctrl z'));
+  await key('ArrowLeft');
+  check('the arrow keys pan it', await until('s.diagram.viewport.x', 'auto pan'));
+  await key('0');
+  check("0 goes back to AUTO's axes", await until('s.diagram.viewport.x === null', 'auto reset')
+    && Math.abs((await DG()).x.min - axes.xmin) < 1e-9);
+
+  /* on a phone: a sheet with Back, 44 px targets, no sideways scroll */
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
+  await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
+  await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'pointer', value: 'coarse'}, {name: 'hover', value: 'none'}]}).catch(() => {});
+  await sleep(400);
+  const sheet = await cdp.eval(`(() => { const r = document.querySelector('.auto-panel').getBoundingClientRect(),
+    b = document.querySelector('.status-bar').getBoundingClientRect();
+    return {l: r.left, t: r.top, w: r.width, bottom: r.bottom, bar: b.top, iw: innerWidth,
+      doc: document.documentElement.scrollWidth, body: document.body.scrollWidth}; })()`);
+  check('390x844: the AUTO view is a full-width sheet down to the status bar (its Stop stays in view), no sideways scroll',
+    sheet.l === 0 && sheet.t === 0 && sheet.w >= sheet.iw - 1 && Math.abs(sheet.bottom - sheet.bar) <= 1
+    && sheet.doc <= sheet.iw && sheet.body <= sheet.iw, JSON.stringify(sheet));
+  const small = await cdp.eval(`[...document.querySelectorAll('.auto-panel button')].filter(b => b.getClientRects().length)
+    .map(b => [b.textContent.trim(), b.getBoundingClientRect().height, b.getBoundingClientRect().width])
+    .filter(([, h, w]) => h < 44 || w < 44)`);
+  check("390x844: the sheet's targets are at least 44 px", small.length === 0, JSON.stringify(small));
+  const plotW = (await autoArea()).w;
+  check("390x844: the diagram fills the sheet's width", plotW > 250 && plotW <= 390, String(plotW));
+  await touch('touchStart', [await center('.auto-back')]);
+  await touch('touchEnd', []);
+  check('Back hides the sheet, AUTO stays open', await until('!s.diagram.shown && s.diagram.open', 'auto back')
+    && await cdp.eval(`!document.querySelector('.auto-panel') && !!document.querySelector('.auto-show')`));
+  check('the focus goes to Show AUTO', await until(`document.activeElement.closest('.auto-show')`, 'show focus'));
+  const show = await center('.auto-show');
+  await touch('touchStart', [show]);
+  await touch('touchEnd', []);
+  check('Show AUTO (44 px) brings the sheet back with its diagram', show.h >= 44 && await until('s.diagram.shown', 'auto show')
+    && await until(`__xpp.diagram() && __xpp.diagram().curves.length === ${nCurves}`, 'auto chart again'));
+  await desktopMetrics();
+  await sleep(200);
+
+  /* a page that connects while AUTO is open gets the view and the whole diagram again */
+  await cdp.send('Page.reload');
+  check('a reloaded page opens the AUTO view and asks for the diagram again',
+    await until(`s.diagram.open && s.diagram.axes && !s.busy && s.diagram.points.x.length === ${want.pts.length}`, 'reload auto', 30000)
+    && JSON.stringify(await DS('d.labels')) === JSON.stringify(labels), JSON.stringify(await DS('[d.open, d.points.x.length]')));
+
+  /* Close: done with AUTO */
+  await cdp.eval(`document.querySelector('.auto-close').click()`);
+  check("Close closes AUTO's window and the view", await until('!s.diagram.open && !s.busy', 'auto close')
+    && !(await cdp.eval(`!!document.querySelector('.auto-panel, .auto-show')`))
+    && (await DS('d.points.x.length')) === 0, JSON.stringify(await DS('[d.open, d.shown]')));
+  check('the focus goes back to the plot', await until(`document.activeElement.closest('.plot-host')`, 'plot focus'));
+}
+
 /* ---- live plotting and long runs ------------------------------------------------ */
 
 async function desktopMetrics() {
@@ -1296,6 +1533,7 @@ async function main() {
       await textViews();
     });
     if (run('phase')) await session(ODE, phasePlane);
+    if (run('auto')) await session(ODE, autoView);
     if (run('files')) await session(ODE, files, ['Cannot open file']);
     if (run('live')) await session(LIVE, () => live(wantLive));
     if (run('million')) await session(MILLION, million);

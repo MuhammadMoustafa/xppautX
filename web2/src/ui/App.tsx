@@ -3,6 +3,7 @@
    Panels still to come (docs/ui-v2.md) get their own components here. */
 import type {Session} from '../session';
 import {AskDialog} from './AskDialog';
+import {AutoView} from './AutoView';
 import {SessionContext, useStore} from './context';
 import {useHotkeys} from './hotkeys';
 import {MenuPanel} from './MenuPanel';
@@ -49,6 +50,7 @@ function Shell() {
       <ValuesPanel />
       <TableView />
       <TextViews />
+      <AutoView dark={dark} />
       <StatusBar />
       <Toasts />
       <AskDialog />

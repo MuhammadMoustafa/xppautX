@@ -10,6 +10,7 @@ import {
   type Viewport,
 } from './plots';
 import {initialFiles, missingFile, onSent, reduceFiles, type FilesAction, type FilesState, type RunRecord} from './files';
+import {initialDiagram, reduceDiagram, type DiagramAction, type DiagramEvent, type DiagramState} from './diagram';
 import {initialTable, reduceTable, type TableAction, type TableState} from './table';
 import {initialText, reduceText, type TextAction, type TextState} from './text';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
@@ -103,6 +104,8 @@ export interface AppState {
   text: TextState;
   /** files through the browser's dialogs (T5): listing, replace confirm, uploads, see store/files.ts */
   files: FilesState;
+  /** the AUTO diagram and its view (T11a), see store/diagram.ts */
+  diagram: DiagramState;
 }
 
 export type Action =
@@ -127,7 +130,8 @@ export type Action =
   | {type: 'valuesPanel'; open: boolean}
   | {type: 'table'; action: TableAction}
   | {type: 'text'; action: TextAction}
-  | {type: 'files'; action: FilesAction};
+  | {type: 'files'; action: FilesAction}
+  | {type: 'diagram'; action: DiagramAction};
 
 export const initialState: AppState = {
   connected: false,
@@ -156,6 +160,7 @@ export const initialState: AppState = {
   table: initialTable,
   text: initialText,
   files: initialFiles,
+  diagram: initialDiagram,
 };
 
 const LOG_KEEP = 200, TOASTS_KEEP = 4;
@@ -201,7 +206,9 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {...state, hello: ev, title: ev.title};
     case 'state': {
       const moved = ev.view && coreViewMoved(state.core?.view, ev.view);
-      return {...state, core: ev, plots: moved ? coreMoved(state.plots, ev.view.win) : state.plots};
+      /* `auto` is there exactly while AUTO is open */
+      const diagram = reduceDiagram(state.diagram, {type: 'core', open: !!(ev as {auto?: unknown}).auto});
+      return {...state, core: ev, plots: moved ? coreMoved(state.plots, ev.view.win) : state.plots, diagram};
     }
     case 'series': {
       const shown = ev.win === state.plots.active;
@@ -223,6 +230,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     case 'dfield':
       return withPlots(state, onDfield(state.plots, ev));
     case 'window':
+      if (ev.win === 101 && ev.op !== 'select')
+        return {...state, diagram: reduceDiagram(state.diagram, {type: 'window', op: ev.op})};
       /* create selects the new window too; destroy waits for `plots` */
       return ev.op === 'select' && ev.win <= 10 ? withPlots(state, select(state.plots, ev.win)) : state;
     case 'ask': {
@@ -262,6 +271,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {...state, text: reduceText(state.text, {type: 'source', ev})};
     case 'equilibrium':
       return {...state, text: reduceText(state.text, {type: 'equilibrium', ev})};
+    case 'diagram':
+      return {...state, diagram: reduceDiagram(state.diagram, {type: 'event', ev: ev as unknown as DiagramEvent})};
     case 'log':
       return addLog(state, {kind: classifyLogText(ev.text), text: ev.text});
     case 'exit':
@@ -319,5 +330,9 @@ export function reduce(state: AppState, action: Action): AppState {
       return {...state, text: reduceText(state.text, action.action)};
     case 'files':
       return {...state, files: reduceFiles(state.files, action.action)};
+    case 'diagram': {
+      const diagram = reduceDiagram(state.diagram, action.action);
+      return diagram === state.diagram ? state : {...state, diagram};
+    }
   }
 }

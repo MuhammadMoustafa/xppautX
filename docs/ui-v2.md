@@ -52,6 +52,24 @@ axes, Undo zoom (`Ctrl+Z`) steps back, the nearest point is named under the
 mouse, on a tap, or by stepping with `[` `]` from the keyboard, curves can be
 hidden from the legend, and PNG and CSV export what is shown.
 
+The AUTO view (T11a) opens when the core opens AUTO's window (File/Auto)
+and closes when the core destroys it: a panel anchored to the right on
+screens from 48 rem, a full-screen sheet on phones, both ending above the
+status bar (whose Stop stops a run, A10). It draws the diagram from the
+`diagram` events (store/diagram.ts holds them exactly, full and `add`
+increments): a curve per branch and stability run (stable solid, unstable
+dashed, periodic branches as their maximum and minimum), the labelled
+points as crosses with their type and number, and the segment from a Hopf
+point to the first point of the periodic branch that starts there (XPP
+leaves it blank; the data do not name a branch's starting label, so the
+join is made where a periodic branch starts at a Hopf label's parameter and
+its max..min spans the label's value). Zoom, pan, reset, undo and the
+readout (branch, point, kind, label, values) work as on the plot, with `<`
+`>` stepping from label to label; the AUTO window's buttons and hotkeys
+send `auto` ops, their prompts are the ordinary dialogs. Back hides the
+panel (Show AUTO brings it back), Close is done with AUTO: it stops a
+running continuation first, then closes the window.
+
 ### Build and run
 
 Building xppautX needs no Node: `web2/dist` is committed and embedded. Only
@@ -254,15 +272,19 @@ protocol/   types.ts (events, commands), transport.ts (SSE + POST),
 store/      store.ts (generic store), state.ts (AppState + reducer), series.ts
             (float32 columns; appends fill growing buffers in place),
             plots.ts (the plot windows: each one's series and zoom, the
-            active one), values.ts
+            active one), values.ts, table.ts, diagram.ts (the AUTO
+            diagram's points, labels, axes and the view's zoom)
 session.ts  the only sender: commands, key sequences, answers, abort
 plot/       model.ts (series -> curves, pure), nearest.ts, viewmath.ts,
             plotKeys.ts (pure), decimate.ts (what of a long curve changes
             pixels, pure), chart.ts (uPlot adapter), interactions.ts
             (mouse, wheel, touch), pick.ts (plot modes of the mouse,
-            rubber and drag asks, pure), colors.ts, export.ts, registry.ts
+            rubber and drag asks, pure), colors.ts, export.ts, registry.ts,
+            diagramModel.ts (diagram -> curves, label marks, Hopf joins,
+            nearest point, readout; pure), diagramChart.ts (uPlot adapter)
 ui/         App.tsx (shell), TitleBar, MenuPanel, Plots (the windows' tabs),
-            PlotView (one window), ValuesPanel, TableView, AskDialog,
+            PlotView (one window), ValuesPanel, TableView, AutoView
+            (with auto.css), AskDialog,
             Toasts, StatusBar, Messages, hotkeys.ts, theme.ts, context.ts
 testhook.ts window.__xpp for tests
 ```
@@ -418,8 +440,9 @@ Target: WCAG 2.2 AA. Rules:
 
 ## 9. Tests
 
-- **Unit** (`npm test`, Node): reducers, the plot model (modes, lag
-  shifts), nearest point, zoom maths, the plot's key map, and the A1
+- **Unit** (`npm test`, Node): reducers (the diagram's full and `add`
+  events included), the plot model (modes, lag shifts), the diagram model
+  (curves by branch and stability, the Hopf join), nearest point, zoom maths, the plot's key map, and the A1
   contrast rules checked on the tokens of `theme.css` and the curve
   palettes.
 - **Protocol** (`tools/servercheck.py`): a Window/Zoom box answered in
@@ -450,6 +473,13 @@ Target: WCAG 2.2 AA. Rules:
   (answered `ok` 0), Initialconds/Mouse by a click, Window/Scroll by an
   arrow key, a checklist answered. Phone (390x844, touch, coarse pointer): no
   sideways scroll, plot width, 44 px targets, the drawer, pinch, pan, tap.
+  AUTO (lecar, examples/scripts/lecar_auto.jsonl's steps from the page):
+  the store's diagram equals the `diagram` events (`__xpp.diagramEvents()`
+  rebuilt in the test), the chart (`__xpp.diagram()`) has one curve per
+  branch and stability run and every label, the periodic branch starts at
+  its Hopf point, hover and `<` `>` name the Hopf point, wheel, box, undo,
+  pan and reset, no Abort in the view, a sheet at 390x844 with 44 px
+  targets, Back and Show, Close.
   Live: the store and the plot grow over several appends of a 20 001-row
   run and end equal to `output.dat`. Long runs (tools/models/million.ode,
   10^6 rows): every draw under 50 ms while the rows arrive, and during

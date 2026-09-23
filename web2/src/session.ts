@@ -19,6 +19,9 @@ import type {ValueEdit} from './store/values';
 export type BrowserOp = 'find' | 'get' | 'replace' | 'unreplace' | 'table' | 'load' | 'write' | 'first' | 'last'
   | 'restore' | 'addcol' | 'delcol';
 
+/** the AUTO window's buttons (docs/protocol.md `auto` op); Close is session.closeAuto */
+export type AutoOp = 'param' | 'axes' | 'numerics' | 'run' | 'grab' | 'usr' | 'clear' | 'redraw' | 'file';
+
 export class Session {
   readonly store: Store<AppState, Action>;
   /** keys that answer the menus a key sequence opens ("i g": Initialconds, Go) */
@@ -35,6 +38,10 @@ export class Session {
       the idles to wait for (the menu keys before it, then its own) */
   private replayAnswers: RunAnswer[] = [];
   private replayIdles = 0;
+  /** a command to send when the running one has ended (the AUTO view's close while busy, A10) */
+  private afterIdle: Command | null = null;
+  /** `redraw` was sent for the AUTO diagram's data, not yet answered */
+  private diagramAsked = false;
 
   /** files: the model's folder over HTTP (none in unit tests) */
   constructor(private readonly transport: Transport, private readonly files: FilesApi | null = null) {
@@ -76,7 +83,25 @@ export class Session {
       const save = this.pendingSave;
       this.pendingSave = null;
       if (save && !this.store.getState().files.runFailed) void this.deliver(save.name, save.handle);
+      const next = this.afterIdle;
+      this.afterIdle = null;
+      if (next) this.send(next);
     }
+    this.checkDiagram(ev);
+  }
+
+  /* the AUTO diagram is data the page must hold whole: a page that connected
+     after AUTO opened has none, and an `add` it could not place leaves it out
+     of step; `redraw` makes the core send all of it again (docs/protocol.md) */
+  private checkDiagram(ev: XppEvent): void {
+    const d = this.store.getState().diagram;
+    if (!d.open || (d.axes && !d.outOfStep)) {
+      this.diagramAsked = false;
+      return;
+    }
+    if (this.diagramAsked || ev.ev !== 'state') return;
+    this.diagramAsked = true;
+    this.send({cmd: 'redraw'});
   }
 
   private continueReplay(ask: AskEvent): void {
@@ -182,6 +207,31 @@ export class Session {
   abort(): void {
     this.store.dispatch({type: 'aborting'});
     this.transport.send({cmd: 'abort'});
+  }
+
+  /* ---- the AUTO view (docs/ui-v2.md T11a, docs/protocol.md `auto`) ---- */
+
+  /** one of the AUTO window's buttons; its prompts come as ordinary asks */
+  autoOp(op: AutoOp): void {
+    this.send({cmd: 'auto', op});
+  }
+
+  /** the AUTO view's close: done with it (A10). A running job is stopped
+      first and the window closes at its idle, instead of the close waiting
+      behind the run. */
+  closeAuto(): void {
+    const {busy, stopping} = this.store.getState();
+    if (!busy) {
+      this.send({cmd: 'auto', op: 'close'});
+      return;
+    }
+    this.afterIdle = {cmd: 'auto', op: 'close'};
+    if (!stopping) this.abort();
+  }
+
+  /** Back hides the AUTO panel (the core's window stays open); Show brings it back */
+  showAuto(shown: boolean): void {
+    this.store.dispatch({type: 'diagram', action: {type: 'show', shown}});
   }
 
   /* ---- values panel (docs/ui-v2.md T3, docs/protocol.md `set`/`slide`/`default`/`userbut`) ---- */

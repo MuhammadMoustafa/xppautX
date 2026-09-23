@@ -1,0 +1,85 @@
+/* The AUTO view (ui/AutoView.tsx, docs/ui-v2.md T11a, R6): a full-screen
+   sheet under 48rem, a floating panel anchored to the right from there;
+   both end above the status bar (--auto-bottom, measured), whose Stop is
+   the one way to stop a run (A10). Sizes and colours are theme.css's tokens. */
+.auto-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: var(--auto-bottom, 0);
+  z-index: 155;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.auto-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+.auto-header h2 {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-md);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.auto-what { font-weight: 400; font-size: var(--text-sm); margin-left: var(--space-1); }
+.auto-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.auto-view {
+  container-type: inline-size;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.auto-host { min-height: 10rem; }
+.auto-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0 var(--space-1);
+  list-style: none;
+  font-size: var(--text-xs);
+}
+.auto-legend li { display: inline-flex; align-items: center; gap: var(--space-2); }
+.auto-swatch { width: 1.25rem; height: 0; border-top: 2px solid; }
+.auto-swatch.dashed { border-top-style: dashed; }
+.auto-label { color: var(--accent); }
+.auto-show {
+  position: fixed;
+  left: var(--space-2);
+  bottom: 3rem;
+  z-index: 120;
+  box-shadow: var(--shadow);
+  font-weight: 600;
+}
+@media (min-width: 48rem) {
+  .auto-panel { left: auto; width: min(60rem, 94vw); border-left: 1px solid var(--border); }
+  .auto-show { left: calc(var(--menu-width) + var(--space-4)); }
+}
+@container (max-width: 34rem) {
+  .auto-view .plot-tools { width: 100%; }
+  .auto-view .plot-tools button { flex: 1; }
+}
+@media (pointer: coarse) {
+  .auto-tools button { flex: 1 0 auto; }
+}
