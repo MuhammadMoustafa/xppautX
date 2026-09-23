@@ -31,6 +31,7 @@ issue; the card here is the one kept up to date.
 | W8  | #20 | Remove the X11 front end (pulled ahead of W6, 2026-09-23: the classic web page covers its features until T17) | none | done (4136541) |
 | W9  | #21 | WebAssembly build (proof of concept) | maintainer's OK to install emsdk | blocked |
 | W10 | #22 | Replayable interruptions in scripts | none | done (539b300) |
+| W11 | - | One I/O module: logging only, safe formatting, file reading and writing | none (step 3 with W7) | running (step 1) |
 
 ## W0: C/C++ mixed build
 **Goal.** core/*.cpp builds next to core/*.c on Linux, Windows (MinGW,
@@ -155,3 +156,25 @@ run with Esc or Abort replays to the same point.
 **Done when.** A recorded session with interrupted integrations replays to
 the same output.dat, and one with an interrupted AUTO run replays to the
 same diagram.
+
+## W11: One I/O module
+**Goal.** The core reads, writes and formats text through one C++ module
+(`core/xpp_io.cpp`, C API), so the classes of bugs that `printf` and its
+relatives cause (overflowed fixed buffers, a last line read twice by a
+`while(!feof)` loop, unchecked reads, stray output on the protocol's
+stdout) cannot come back.
+**Scope.**
+1. The core never prints to stdout or stderr itself: the direct `printf`,
+   `puts`, `putchar` and `fprintf(stdout|stderr)` calls go through
+   `xpp_log` (quiet by default, shown in the page's log panel);
+   verify.sh fails on a new one.
+2. Formatting: `xpp_fmt` (a string) and `xpp_snprintf` (never past the
+   buffer, reports a cut) replace `sprintf` and `strcpy` into fixed
+   buffers (463 and 354 calls, 2026-09-23).
+3. Files: one line reader replaces the `fgets`/`fscanf`/`feof` loops and
+   one writer (errors logged, temp-then-rename, closed by RAII) replaces
+   `fopen`/`fprintf`/`fclose` sequences, file by file as W7 converts them.
+**Done when.** No core file calls `sprintf`, `strcpy` into a fixed
+buffer, `fscanf`, or prints directly; the data files written are byte for
+byte the same (the lecar checksum, tests/examples.md5, the .set round
+trip).
