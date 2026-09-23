@@ -16,6 +16,7 @@
 
 #include <stdio.h>
 #include "xpp_mem.h"
+#include "xpp_log.h"
 #include <stdlib.h>
 #include "cvode.h"
 #include "llnltyps.h"
@@ -743,7 +744,7 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
 
   cv_mem = (CVodeMem) cvode_mem;
   if (cvode_mem == NULL) {
-    fprintf(stdout, MSG_CVODE_NO_MEM);
+    xpp_log(XPP_LOG_ERROR, MSG_CVODE_NO_MEM);
     return(CVODE_NO_MEM);
   }
   
@@ -963,12 +964,12 @@ int CVodeDky(void *cvode_mem, real t, int k, N_Vector dky)
   /* Check all inputs for legality */
  
   if (cvode_mem == NULL) {
-    fprintf(stdout, MSG_DKY_NO_MEM);
+    xpp_log(XPP_LOG_ERROR, MSG_DKY_NO_MEM);
     return(DKY_NO_MEM);
   }
-  
+
   if (dky == NULL) {
-    fprintf(stdout, MSG_BAD_DKY);
+    xpp_log(XPP_LOG_ERROR, MSG_BAD_DKY);
     return(BAD_DKY);
   }
 

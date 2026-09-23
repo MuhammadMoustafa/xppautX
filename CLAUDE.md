@@ -151,6 +151,10 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   page's log. `plintf()` is INFO, `err_msg()`'s headless default ERROR.
   AUTO's table goes through `xpp_log_auto()`: INFO on the console, always
   written in browser mode, where the AUTO window's Output panel shows it.
+  The core never prints to stdout or stderr directly; `tools/stdoutcheck.sh`
+  (run by verify.sh) enforces it, with a short allowlist inside the script
+  for the handful of lines that are legitimately direct (the `-version`
+  and `--version` text, the `XPP:` address lines).
 - The X11 front end was removed (issue #20, task W8); new UI work goes
   into ui_json.c and `web2/` (the data-level front end: the core sends
   numbers, e.g. the `series` and `plots` events

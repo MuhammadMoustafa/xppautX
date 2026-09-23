@@ -121,8 +121,8 @@ static char script_ask[400]; /* the open question, for script_fail() */
 
 static void script_fail(const char *what, const char *line, const char *ask)
 {
-    fprintf(stderr, "xppautX: script line %d %s\n  line: %s\n", xpp_inbox_script_line(), what, line);
-    if (ask && ask[0]) fprintf(stderr, "  open question: %s}\n", ask);
+    xpp_log(XPP_LOG_ERROR, "xppautX: script line %d %s\n  line: %s\n", xpp_inbox_script_line(), what, line);
+    if (ask && ask[0]) xpp_log(XPP_LOG_ERROR, "  open question: %s}\n", ask);
     exit(1);
 }
 
@@ -2933,7 +2933,7 @@ static void script_next(void)
 /* the job ends with its recorded interruption still armed */
 static void script_stop_missed(void)
 {
-    fprintf(stderr, "xppautX: script line %d: the recorded interruption at %s was never reached\n", stop_line,
+    xpp_log(XPP_LOG_ERROR, "xppautX: script line %d: the recorded interruption at %s was never reached\n", stop_line,
             stop_at);
     exit(1);
 }

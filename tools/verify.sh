@@ -54,6 +54,10 @@ if ! python3 tools/utf8check.py; then
   echo "ENCODING CHECK FAILED"
   exit 1
 fi
+if ! sh tools/stdoutcheck.sh; then
+  echo "STDOUT CHECK FAILED"
+  exit 1
+fi
 if make ltocheck > build/ltocheck.log 2>&1; then
   echo "lto link ok: no types differ across files"
 else

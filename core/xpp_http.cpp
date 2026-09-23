@@ -9,8 +9,8 @@
    copies what xppaut prints to the terminal and into the page's log. The
    model's folder is served as /files (xpp_files.h: listing, reading, and
    uploads streamed to a temporary file). This file includes no core header
-   but those small C APIs (xpp_mem.h, xpp_inbox.h, xpp_files.h), so the
-   socket and Windows headers cannot clash with core names. */
+   but those small C APIs (xpp_mem.h, xpp_inbox.h, xpp_files.h, xpp_log.h),
+   so the socket and Windows headers cannot clash with core names. */
 /* macOS hides the BSD names (INADDR_LOOPBACK) under _XOPEN_SOURCE=600;
    this must come before any system header. */
 #ifdef __APPLE__
@@ -20,6 +20,7 @@
 #include "xpp_mem.h"
 #include "xpp_inbox.h"
 #include "xpp_files.h"
+#include "xpp_log.h"
 #include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -818,7 +819,7 @@ static void open_in_browser(const char *url)
 #endif
     if (getenv("WSL_DISTRO_NAME")) opener = "cmd.exe /c start";
     snprintf(cmd, sizeof cmd, "%s '%s' >/dev/null 2>&1 &", opener, url);
-    if (system(cmd) != 0) fprintf(stderr, "open %s in a browser\n", url);
+    if (system(cmd) != 0) xpp_log(XPP_LOG_WARN, "open %s in a browser\n", url);
 #endif
 }
 
@@ -863,7 +864,7 @@ int xpp_http_start(int port, int open_browser)
     got = listen_on(port);
     if (got < 0 && port != 0) got = listen_on(0); /* taken: any free port */
     if (got < 0) {
-        fprintf(stderr, "xppautX: cannot open a port on 127.0.0.1\n");
+        xpp_log(XPP_LOG_ERROR, "xppautX: cannot open a port on 127.0.0.1\n");
         return 0;
     }
     make_token();

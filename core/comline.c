@@ -448,7 +448,7 @@ int argc;
    if(k==30){ /* -equil */
      BatchEquil=atoi(argv[i+1]);
      i++;
-     printf(" Batch equilibria %d \n",BatchEquil);
+     plintf(" Batch equilibria %d \n",BatchEquil);
    }
 	 
   

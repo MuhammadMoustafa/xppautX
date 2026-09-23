@@ -1091,7 +1091,7 @@ int add_spec_fun(name,rhs)
       junk[i]=cc;
       i++;
       if(i==elen){
-	printf("Illegal syntax for GROUP %s \n",str);
+	plintf("Illegal syntax for GROUP %s \n",str);
 	return 0;
       }
       
