@@ -864,6 +864,7 @@ int add_spec_fun(name,rhs)
      for(i=0;i<MAXW;i++)
        tname[i]=(char *)malloc(25);
      err=parse_import(rhs,soname,sofun,&ncon,rootname,&ntab,tname);
+     if(err==0)return 0;
      my_net[ind].values=(double *)malloc((ncon+1)*sizeof(double));
      init_net(my_net[ind].values,ncon);
      my_net[ind].n=ncon;

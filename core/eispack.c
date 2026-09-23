@@ -4039,7 +4039,7 @@ dgemm(char *transa, char *transb, integer *m, integer *n, integer *k, doublereal
     static integer info;
     static logical nota, notb;
     static doublereal temp;
-    static integer i__, j, l, ncola;
+    static integer i__, j, l;
 
     static integer nrowa, nrowb;
 
@@ -4229,10 +4229,8 @@ dgemm(char *transa, char *transb, integer *m, integer *n, integer *k, doublereal
     notb = lsame(transb, "N", 1L, 1L);
     if (nota) {
 	nrowa = *m;
-	ncola = *k;
     } else {
 	nrowa = *k;
-	ncola = *m;
     }
     if (notb) {
 	nrowb = *k;

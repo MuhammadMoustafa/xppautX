@@ -1684,13 +1684,11 @@ void draw_ani_fellip(j)
 void draw_ani_text(j)
      int j;
 {
-  int n;
   char *s;
   double x1=my_ani[j].zx1,y1=my_ani[j].zy1;
   int i1,j1;
   ani_xyscale(x1,y1,&i1,&j1);
   s=(char *)my_ani[j].y2;
-  n=strlen(s);
   xpp_ui.ani_text(i1,j1,s);
 }
 
@@ -1698,13 +1696,11 @@ void draw_ani_vtext(j)
      int j;
 {
   char s2[256];
-  int n;
   char *s;
   double x1=my_ani[j].zx1,y1=my_ani[j].zy1;
   int i1,j1;
   s=(char *)my_ani[j].y2;
   sprintf(s2,"%s%g",s,my_ani[j].zval);
-  n=strlen(s2);
   ani_xyscale(x1,y1,&i1,&j1);
   xpp_ui.ani_text(i1,j1,s2);
 }
