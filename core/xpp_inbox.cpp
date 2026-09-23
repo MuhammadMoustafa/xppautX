@@ -53,7 +53,6 @@ int closed;
 unsigned long next_seq = 1;
 int (*classify)(const char *line, unsigned long seq);
 
-
 /* the queue to take from now, or -1; call with the lock held */
 int pick(int which)
 {
