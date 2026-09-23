@@ -56,11 +56,11 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
   doublereal hbff, biff;
   integer nbif;
   doublereal fldf;
-  integer iads, ndim, nicp, ncol, mxbf, ithl;
+  integer iads, ndim, nicp, ncol, mxbf;
   doublereal epsl;
   integer nthl, nfpr, nins, iplt, nint, jtmp;
   doublereal epsu, epss;
-  integer nthu, itmx, itnw, ithu, ntot, ipos, nwtn;
+  integer itmx, itnw, ntot, ipos, nwtn;
   doublereal tivp;
   integer ntst, iuzr;
   doublereal spbf;
@@ -160,7 +160,6 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
     
   }
     
-  nthu=0;      
   nuzr=xAuto.nuzr;
   for(i=0;i<nuzr;i++)
     {    
@@ -426,7 +425,6 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
   integer nneg, nfpr, nint, jtmp, nuzr, i;
   doublereal dsmin, dsmax, fc;
   integer ic, jc;
-  int ii;
   doublereal ds;
   integer nxploc, jac, nbc, ndm, ict[NPARX], ilp, ips, isp, irs, itp,
     isw, nmx;
@@ -816,13 +814,12 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   doublereal ds, *du;
 
-  integer lab, ibr, ndm;
+  integer lab, ibr;
   doublereal rbp, rds;
   integer ips;
   doublereal *rhs;
   integer irs, isp;
   doublereal rev;
-  integer isw;
   doublereal rlp;
   integer nit, itp;
   doublereal *stu, *uzr;
@@ -853,10 +850,8 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   irs = iap->irs;
   iads = iap->iads;
   isp = iap->isp;
-  isw = iap->isw;
   nuzr = iap->nuzr;
   mxbf = iap->mxbf;
-  ndm = iap->ndm;
   itpst = iap->itpst;
   ibr = iap->ibr;
 
@@ -1355,7 +1350,6 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer ntop, itnw, ntot, i, k;
   doublereal dsold, dsmin;
 
-  doublereal dsmax;
   doublereal rdrlm, rdumx;
   integer istop;
 
@@ -1364,7 +1358,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   integer iid;
   doublereal dds;
-  integer ibr, ndm;
+  integer ibr;
   doublereal det, adu;
   integer nit, mxt;
   doublereal umx;
@@ -1387,11 +1381,9 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   iads = iap->iads;
   iid = iap->iid;
   itnw = iap->itnw;
-  ndm = iap->ndm;
   ibr = iap->ibr;
 
   dsmin = rap->dsmin;
-  dsmax = rap->dsmax;
   epsl = rap->epsl;
   epsu = rap->epsu;
 
@@ -1586,7 +1578,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
   /* Local variables */
   logical chng;
   doublereal epss, rrds;
-  integer ntop, itmx;
+  integer itmx;
   doublereal rtmp;
   integer ntot;
   doublereal s, dsold, dsmax;
@@ -1625,7 +1617,6 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
 	       rhs, dfdu, dfdp, iuz, vuz);
   pq = q0 * q1;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % 10000;
   if (pq >= 0. || ! chng) {
     *q = q1;
     return 0;
@@ -1853,7 +1844,6 @@ doublereal
 fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, integer *iuz, doublereal *vuz)
 {
   /* System generated locals */
-  integer aa_dim1;
   doublereal ret_val;
 
   /* Local variables */
@@ -1884,8 +1874,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   /*--uold;*/
   /*--udot;*/
   /*--rhs;*/
-  aa_dim1 = *m1aaloc;
-  
+
   ndim = iap->ndim;
   ndm = iap->ndm;
   ips = iap->ips;
@@ -2258,7 +2247,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
   integer ntop, itnw, ntot, i, k;
   doublereal dsold, dsmin;
 
-  doublereal dsmax, rdrlm, rdumx;
+  doublereal rdrlm, rdumx;
   integer istop;
   doublereal *u1;
 
@@ -2312,7 +2301,6 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
   ntop = (ntot + 1) % 10000;
 
   dsmin = rap->dsmin;
-  dsmax = rap->dsmax;
   epsl = rap->epsl;
   epsu = rap->epsu;
 
@@ -2592,14 +2580,13 @@ sthd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *th
 headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iunit, integer *n1, integer *n2)
 {
   /* Local variables */
-  integer iplt, itmp, i, j;
+  integer iplt, i, j;
   /* Column text is normally the 14-char fixed-width fields printed
      below, but the %ld values are `integer` (a long): size the
      buffer for the worst case (sign + 19 digits) instead of assuming
      they stay small, so a large index can never overflow it. */
   char col[9][14+21];
-  integer ndm, ips, itp;
-  integer isw;
+  integer ndm, ips;
 
   /* Prints headings above columns on unit 6 and 7. */
 
@@ -2610,10 +2597,8 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
 
     
   ips = iap->ips;
-  isw = iap->isw;
   iplt = iap->iplt;
   ndm = iap->ndm;
-  itp = iap->itp;
 
   /*initialize strings*/
   for (i = 0; i < 9; ++i) {
@@ -2669,7 +2654,6 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
   if (*n2 > 0) {
     for (i = 0; i < *n2; ++i) {
       sprintf(col[i+2],"     U(%ld)     ",i + 1);
-      itmp = i;
     }
     if ((ips >= 2 && ips <= 4) || (ips >= 6 && ips <= 9) || (ips >= 12 && ips <= 17)) {
       for (i = 3; i <= *n2 + 2; ++i) {
@@ -2887,11 +2871,11 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 {
 
   /* Local variables */
-  integer nicp, nfpr, mtot, i;
+  integer nicp, mtot, i;
   char atype[3];
   integer n1, n2;
 
-  integer nt, ndm, ips, itp, isw,lb;
+  integer nt, ndm, itp, lb;
   lb=*lab;
   if((restart_flag==1)&&(lb!=0)){
     
@@ -2916,11 +2900,8 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
     
 
     
-  ips = iap->ips;
-  isw = iap->isw;
   ndm = iap->ndm;
   itp = iap->itp;
-  nfpr = iap->nfpr;
   nicp = iap->nicp;
 
   n1 = nicp;
@@ -3542,7 +3523,7 @@ adptds(iap_type *iap, rap_type *rap, doublereal *rds)
   doublereal ards;
   integer ntop, itnw, ntot;
   doublereal dsmax;
-  integer n1, iid, ibr, nit;
+  integer n1, ibr, nit;
 
 /* The stepsize along the branch of solutions is adapted depending on the 
 */
@@ -3553,7 +3534,6 @@ adptds(iap_type *iap, rap_type *rap, doublereal *rds)
 
     
   dsmax = rap->dsmax;
-  iid = iap->iid;
   itnw = iap->itnw;
   ibr = iap->ibr;
   nit = iap->nit;
@@ -4011,9 +3991,6 @@ eqdf(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, 
 /* Subroutine */ int 
 eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev, integer *ier)
 {
-  /* System generated locals */
-  integer a_dim1;
-
     /* Local variables */
   integer matz, ntop, ntot, i;
   doublereal *z__;
@@ -4038,8 +4015,7 @@ eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev
 
   /* Parameter adjustments */
   /*--ev;*/
-  a_dim1 = *m1a;
-  
+
   ibr = iap->ibr;
   ntot = iap->ntot;
   ntop = (ntot + 1) % 10000;
@@ -5822,8 +5798,6 @@ rsptbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   integer ncolrs;
 
-  integer irs, isw;
-
   integer ntst_fort8,ncol_fort8,junk;
   
 
@@ -5851,10 +5825,8 @@ rsptbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   ups_dim1 = *ndxloc;
     
   ndim = iap->ndim;
-  irs = iap->irs;
   ntst = iap->ntst;
   ncol = iap->ncol;
-  isw = iap->isw;
   nfpr = iap->nfpr;
 
   /* Get restart data : */
@@ -5979,7 +5951,6 @@ rsptbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   if (*nodir == -1) {
     /*        ** Restart from a Hopf bifurcation. */
     *nodir = 0;
-    isw = 1;
   } else {
     /*        ** Restart from orbit. */
     stupbv(iap, rap, par, icp, funi, rlcur, rlold, rldot, ndxloc, ups, uoldps, 
@@ -6176,7 +6147,7 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 stpnub(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsrs, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
   /* System generated locals */
-  integer ups_dim1, udotps_dim1;
+  integer ups_dim1;
 
   /* Local variables */
   integer ndim, ncol, nfpr, ntst, ncol1, i, j, k;
@@ -6201,9 +6172,8 @@ stpnub(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   /*--rldot;*/
   /*--tm;*/
   /*--dtm;*/
-  udotps_dim1 = *ndxloc;
   ups_dim1 = *ndxloc;
-    
+
   ndim = iap->ndim;
   ntst = iap->ntst;
   ncol = iap->ncol;
@@ -6558,7 +6528,7 @@ fnlpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   doublereal rdsz;
   integer ntot, ntst, i, j;
 
-  integer iid, ibr, isp;
+  integer iid, ibr;
 
 /* RETURNS A QUANTITY THAT CHANGES SIGN AT A LIMIT POINT (BVP) */
 
@@ -6566,11 +6536,10 @@ fnlpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   fa_dim1 = *ndxloc;
   udotps_dim1 = *ndxloc;
 
-  
+
   ndim = iap->ndim;
   ntst = iap->ntst;
   ncol = iap->ncol;
-  isp = iap->isp;
   iid = iap->iid;
   nfpr = iap->nfpr;
   ibr = iap->ibr;
@@ -7021,7 +6990,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   integer iab, lab, ibr, ndm;
   doublereal amp;
-  integer ips, itp, irs, npr, isw, nmx;
+  integer ips, itp, npr, isw, nmx;
   doublereal umx[7];
 
   /* Writes the bifurcation diagram on unit 7 (Differential Equations) */
@@ -7058,7 +7027,6 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   
   ndim = iap->ndim;
   ips = iap->ips;
-  irs = iap->irs;
   isw = iap->isw;
   iplt = iap->iplt;
   nmx = iap->nmx;
@@ -7396,10 +7364,10 @@ wrtbv9(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   
   
   /* Local variables */
-  integer ndim, ncol, nfpr, iplt, mtot, ntot, ntst, i, j, k;
+  integer ndim, ncol, iplt, mtot, ntot, ntst, i, j, k;
   doublereal t;
-  integer nfprp, k1, nitps, k2;
-  doublereal ds, rn;
+  integer k1, nitps, k2;
+  doublereal rn;
   
   integer iab, iid, ibr, ndm;
   doublereal amp=0.0;
@@ -7415,11 +7383,9 @@ wrtbv9(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   iplt = iap->iplt;
   iid = iap->iid;
   ndm = iap->ndm;
-  nfpr = iap->nfpr;
   ibr = iap->ibr;
   nitps = iap->nit;
   ntot = iap->ntot;
-  ds = rap->ds;
   
   iab = abs(iplt);
   if (iab == 0 || iab > ndim) {
@@ -7433,11 +7399,6 @@ wrtbv9(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   }
   rap->amp = amp;
   if (iid >= 2) {
-    if (nfpr <= 5) {
-      nfprp = nfpr;
-    } else {
-      nfprp = 5;
-    }
     if (iap->mynode == 0) {
       if (nitps == 0 || iid >= 3) {
 	fprintf(fp9,"========================================");

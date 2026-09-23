@@ -376,13 +376,9 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   */
   if (ipar) {
     /*        Global concatenation of the solution from each node. */
-    integer tmp;
     gcol();
-    tmp = iap->ntst + 1;
     faft(ff, fa, &ntst0, &nrow, ndxloc);
   } else {
-    integer tmp;
-    tmp = iap->ntst + 1;
     faft(ft, fa, &ntst0, &nrow, ndxloc);
   }
 #ifdef MATLAB_OUTPUT
@@ -885,7 +881,7 @@ conrhs(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, int
   integer icf_dim1, irf_dim1, a_dim1, a_dim2, c_dim1, c_dim2, fa_dim1;
 
     /* Local variables */
-  integer nbcp1, i, icfic, irfir, m1, m2, ic, ir, irfirp, ir1, nex,
+  integer i, icfic, irfir, m2, ic, ir, irfirp, ir1, nex,
     irp;
 
 
@@ -906,8 +902,6 @@ conrhs(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, int
 
   /* Condensation of right hand side. */
 
-  nbcp1 = *nbc + 1;
-  m1 = *nov + 1;
   m2 = *nov + nex;
 
   for (i = 0; i < *na; ++i) {
@@ -1041,25 +1035,24 @@ reduce(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2,
 
     /* Local variables */
   logical oddc[KREDO] = {FALSE_};
-  integer niam, ibuf, ismc[KREDO], irmc[KREDO], info, irmm[KREDO], 
-    ismm[KREDO], nlev, itmp;
+  integer niam, info,
+    nlev, itmp;
   doublereal zero, tpiv;
   real xkwt;
-  integer nbcp1, ibuf1, ipiv1, jpiv1, ipiv2, jpiv2, i, k, l;
+  integer nbcp1, ipiv1, jpiv1, ipiv2, jpiv2, i, k, l;
 
   logical evenc[KREDO];
 
   integer i1, i2, k1, k2, i3, l1, iprow, k3, l2, l3, ic, ir;
   doublereal rm;
   logical master[KREDO] = {FALSE_};
-  integer ib1, ib2, myleft[KREDO];
+  integer ib1, ib2;
 
   logical worker[KREDO] = {FALSE_};
-  integer ir1, iprown, iprown2, ism[KREDO], irm[KREDO], nrcmnbc;
+  integer ir1, iprown, iprown2, nrcmnbc;
   doublereal tmp;
-  integer myleftc[KREDO];
   logical notsend;
-  integer nap1, myright[KREDO], nam1, len1, len2, icp1;
+  integer nap1, nam1, icp1;
   doublereal piv1, piv2;
   doublereal *buf=NULL;
 
@@ -1090,8 +1083,6 @@ reduce(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2,
   nap1 = *na + 1;
   nam1 = *na - 1;
   nrcmnbc = *nrc - *nbc;
-  len1 = (*nov * (*nrc - *nbc)) * 8;
-  len2 = (*nov + *nrc - *nbc + 1) * 8;
   xkwt = (real) (*kwt);
   {
     real tmp = r_lg10(xkwt) / r_lg10(2.0);
@@ -1131,19 +1122,10 @@ reduce(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2,
 
 	  master[i] = TRUE_;
 	  notsend = FALSE_;
-	  ism[i] = (i + 1) + *iam;
-	  irm[i] = ism[i] + k1;
-	  myright[i] = *iam + k1;
-	  irmm[i] = (i + 1) + *iam + 1 + (*kwt * 2);
-	  ismc[i] = (i + 1) + *iam + *kwt;
-	  myleftc[i] = *iam - (k1 - 1);
 
 	} else {
 
 	  worker[i] = TRUE_;
-	  ism[i] = (i + 1) + *iam;
-	  irm[i] = ism[i] - k1;
-	  myleft[i] = *iam - k1;
 
 	}
 
@@ -1152,12 +1134,10 @@ reduce(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2,
       k = *iam % k2;
       if (k == k1) {
 	evenc[i] = TRUE_;
-	ismm[i] = (i + 1) + *iam + (*kwt * 2);
       }
 
       if (*iam % k2 == 0) {
 	oddc[i] = TRUE_;
-	irmc[i] = (i + 1) + *iam + *kwt + (k1 - 1);
       }
 
       /* L1: */
@@ -1427,8 +1407,6 @@ e.*/
 	iprown2 = iprown + *nov;
 	ib1 = iprown2 + *ncb + 1;
 	ib2 = ib1 + 1;
-	ibuf = (ib2 + 1) * 8;
-	ibuf1 = (ib2 + *nrc - *nbc) * 8;
 
 	if (master[i]) {
 
@@ -1808,13 +1786,11 @@ redrhs(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2,
   integer i1, i2, k1, l1, ic, ir;
   doublereal rm;
   logical master[KREDO] = {FALSE_};
-  integer myleft[KREDO];
   logical worker[KREDO] = {FALSE_};
   doublereal buf[2];
-  integer ism[KREDO], irm[KREDO];
   doublereal tmp;
   logical notsend;
-  integer nap1, nam1, myright[KREDO], icp1;
+  integer nap1, nam1, icp1;
 
   
     /* Parameter adjustments */
@@ -1859,14 +1835,8 @@ redrhs(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2,
 	if (niam % 2 == 0) {
 	  master[i] = TRUE_;
 	  notsend = FALSE_;
-	  ism[i] = (i + 1) + *iam + 10000;
-	  irm[i] = ism[i] + k1;
-	  myright[i] = *iam + k1;
 	} else {
 	  worker[i] = TRUE_;
-	  ism[i] = (i + 1) + *iam + 10000;
-	  irm[i] = ism[i] - k1;
-	  myleft[i] = *iam - k1;
 	}
       }
     }
@@ -1989,7 +1959,7 @@ dimrge(integer *iam, integer *kwt, logical *par, doublereal *e, doublereal *cc, 
 
   integer novpi, novpj, k1, k2;
 
-  integer novpj2, kc, kr, ncrloc, msglen1, msglen2, nap1;
+  integer novpj2, kc, kr, ncrloc, nap1;
 
   double *xe;
   xe = (doublereal *)malloc(sizeof(doublereal)*(*nov + *nrc));
@@ -2014,9 +1984,6 @@ dimrge(integer *iam, integer *kwt, logical *par, doublereal *e, doublereal *cc, 
   d_dim1 = *ncb;
     
   nap1 = *na + 1;
-  msglen1 = (*nrc * 8) * *nov;
-  /* Computing 2nd power */
-  msglen2 = (*nov + *nrc + ((*nov * *nov) * 2) + 1) * 8;
   ncrloc = *nrc + *nov;
 
   /* Send CC(1:NOV,1:NRC,1) in node 0 to node KWT-1 */
@@ -2186,23 +2153,21 @@ bcksub(integer *iam, integer *kwt, logical *par, doublereal *s1, doublereal *s2,
     sol3_dim1, faa_dim1;
 
     /* Local variables */
-  integer niam, ibuf;
+  integer niam;
   logical even = FALSE_;
   integer nlev;
   logical hasright;
   doublereal xkwt;
-  integer rmsgtype, smsgtype, i, k, l;
+  integer i, k, l;
 
-  integer nlist[2], itest, l1, l2;
+  integer itest, l1, l2;
   doublereal sm;
-  integer msglen;
 
   logical master[KREDO] = {FALSE_};
-  integer myleft, kp1;
+  integer kp1;
   logical odd = FALSE_;
-  integer ism, irm;
   logical hasleft, notsend;
-  integer nam1, myright, nov2, nov3;
+  integer nam1, nov2, nov3;
   double *buf=NULL;
 
 
@@ -2230,7 +2195,6 @@ bcksub(integer *iam, integer *kwt, logical *par, doublereal *s1, doublereal *s2,
   }
   nov2 = *nov * 2;
   nov3 = *nov * 3;
-  ibuf = (nov3 + 1) * 8;
 
   /* The backsubstitution in the reduction process is recursive. */
   notsend = TRUE_;
@@ -2263,12 +2227,7 @@ bcksub(integer *iam, integer *kwt, logical *par, doublereal *s1, doublereal *s2,
 
     for (i = nlev - 1; i >= 0; --i) {
       if (master[i]) {
-	ism = i + nlev + (*kwt * 4);
-	irm = ism + 1;
 	k = pow_ii(2, i - 1);
-	/*              **Compute the ID of the receiving node */
-	nlist[0] = *iam - k;
-	nlist[1] = *iam + k;
 	/*              **Receive solutions from previous level */
 	if ((i + 1) < nlev) {
 	  crecv();
@@ -2339,17 +2298,6 @@ bcksub(integer *iam, integer *kwt, logical *par, doublereal *s1, doublereal *s2,
     } else {
       hasleft = TRUE_;
     }
-
-    /* Define send message type */
-    smsgtype = *iam + 1000;
-
-    /* Define receive message type */
-    rmsgtype = smsgtype - 1;
-
-    /* Define my right neighbor */
-    myleft = *iam - 1;
-    myright = *iam + 1;
-    msglen = *nov << 3;
 
     /* May only need odd sends to even */
     itest = 0;
@@ -2509,13 +2457,12 @@ rd0(integer *iam, integer *kwt, doublereal *d, integer *nrc)
   doublereal xkwt;
   integer i, n;
 
-  integer nredo, msglen, rmtype[KREDO], smtype[KREDO];
+  integer nredo;
   logical odd[KREDO];
 
   doublereal *buf;
 
   logical notsend;
-  integer myright[KREDO];
 
   buf = (doublereal *)malloc(sizeof(doublereal)*(*nrc));
 
@@ -2540,9 +2487,6 @@ rd0(integer *iam, integer *kwt, doublereal *d, integer *nrc)
 /* At each recursion level determine the odd and even nodes */
   notsend = TRUE_;
   for (n = 0; n < nredo; ++n) {
-    smtype[n] = n + 1000 + *iam + 1;
-    rmtype[n] = smtype[n] - pow_ii(2, n);
-    myright[n] = *iam + pow_ii(2, n);
     even[n] = FALSE_;
     odd[n] = FALSE_;
     niam = *iam / pow_ii(2, n);
@@ -2556,8 +2500,6 @@ rd0(integer *iam, integer *kwt, doublereal *d, integer *nrc)
     }
   }
 
-  niam = *nrc;
-  msglen = niam * 8;
   for (n = 0; n < nredo; ++n) {
     /*        **Even nodes send and odd nodes receive from left to right 
      */

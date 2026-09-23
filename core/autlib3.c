@@ -109,7 +109,7 @@ fnlp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 fflp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
+  integer dfdu_dim1;
   
   /* Local variables */
   
@@ -120,7 +120,6 @@ fflp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   
   
   /* Parameter adjustments */
-  dfdp_dim1 = ndm;
   dfdu_dim1 = ndm;
 
   ips = iap->ips;
@@ -534,7 +533,7 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 fnds(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
+  integer dfdu_dim1;
 
     /* Local variables */
 
@@ -547,7 +546,6 @@ fnds(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
 
     /* Parameter adjustments */
-  dfdp_dim1 = ndim;
   dfdu_dim1 = ndim;
     
   funi(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp);
@@ -716,7 +714,7 @@ fnhd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 ffhd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
+  integer dfdu_dim1;
 
     /* Local variables */
   doublereal thta;
@@ -731,7 +729,6 @@ ffhd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
     /* Parameter adjustments */
 
-  dfdp_dim1 = ndm;
   dfdu_dim1 = ndm;
 
     
@@ -953,7 +950,7 @@ fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
+  integer dfdu_dim1;
 
     /* Local variables */
 
@@ -968,7 +965,6 @@ ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Parameter adjustments */
 
-  dfdp_dim1 = ndm;
   dfdu_dim1 = ndm;
     
   ndm2 = ndm * 2;
@@ -1180,7 +1176,7 @@ fnhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 ffhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
+  integer dfdu_dim1;
 
     /* Local variables */
   integer ijac;
@@ -1194,7 +1190,6 @@ ffhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
 
     /* Parameter adjustments */
-  dfdp_dim1 = ndm;
   dfdu_dim1 = ndm;
     
   ndm2 = ndm * 2;
@@ -1700,7 +1695,6 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 fnws(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
 
     /* Local variables */
 
@@ -1717,8 +1711,6 @@ fnws(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Local */
 
     /* Parameter adjustments */
-  dfdp_dim1 = ndim;
-  dfdu_dim1 = ndim;
     
   ndm = iap->ndm;
 
@@ -2035,7 +2027,6 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 fnsp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
 
     /* Local variables */
 
@@ -2046,8 +2037,6 @@ fnsp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Local */
 
     /* Parameter adjustments */
-  dfdp_dim1 = ndim;
-  dfdu_dim1 = ndim;
     
   ndm = iap->ndm;
 
@@ -2131,7 +2120,6 @@ ffsp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 fnpe(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
 
     /* Local variables */
 
@@ -2142,8 +2130,6 @@ fnpe(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Local */
 
     /* Parameter adjustments */
-  dfdp_dim1 = ndim;
-  dfdu_dim1 = ndim;
     
   ndm = iap->ndm;
 
@@ -2161,7 +2147,7 @@ fnpe(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 ffpe(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp, integer ndm, doublereal *dfu, doublereal *dfp)
 {
   /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1, dfu_dim1, dfp_dim1;
+  integer dfdu_dim1, dfdp_dim1, dfu_dim1;
 
     /* Local variables */
 
@@ -2175,7 +2161,6 @@ ffpe(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     /* Parameter adjustments */
   dfdp_dim1 = ndim;
   dfdu_dim1 = ndim;
-  dfp_dim1 = ndm;
   dfu_dim1 = ndm;
     
   ds = rap->ds;
@@ -2327,8 +2312,6 @@ ffpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   integer i, j;
   doublereal period;
-  integer ips;
-
 
 
 
@@ -2342,7 +2325,6 @@ ffpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   funi(iap, rap, ndm, u, uold, icp, par, 2, f, 
        dfdu, dfdp);
 
-  ips = iap->ips;
   for (i = 0; i < ndm; ++i) {
     f[ndm + i] = 0.;
     for (j = 0; j < ndm; ++j) {
@@ -2488,9 +2470,9 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   
 
   /* System generated locals */
-  integer ups_dim1, udotps_dim1, upoldp_dim1;
+  integer ups_dim1, udotps_dim1;
 
-    
+
 
   /* Local variables */
   integer ndim;
@@ -2500,7 +2482,7 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   integer icprs[NPARX], nparr, k1, k2, nskip1;
 
   doublereal rd1, rd2;
-  integer ibr, ndm, ips, irs, lab1, nar1, itp1, isw1;
+  integer ibr, ndm, irs, lab1, nar1, itp1, isw1;
 
   
 
@@ -2516,12 +2498,10 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
 
   /* Parameter adjustments */
-  upoldp_dim1 = *ndxloc;
   udotps_dim1 = *ndxloc;
   ups_dim1 = *ndxloc;
-  
+
   ndim = iap->ndim;
-  ips = iap->ips;
   irs = iap->irs;
   ndm = iap->ndm;
   nfpr = iap->nfpr;
@@ -2734,7 +2714,7 @@ fnpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 ffpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
+  integer dfdu_dim1;
 
     /* Local variables */
 
@@ -2746,7 +2726,6 @@ ffpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
 
     /* Parameter adjustments */
-  dfdp_dim1 = ndm;
   dfdu_dim1 = ndm;
     
   period = par[10];
@@ -2891,7 +2870,7 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   
 
   /* System generated locals */
-  integer ups_dim1, udotps_dim1, upoldp_dim1;
+  integer ups_dim1, udotps_dim1;
 
 
   /* Local variables */
@@ -2917,7 +2896,6 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
 
   /* Parameter adjustments */
-  upoldp_dim1 = *ndxloc;
   udotps_dim1 = *ndxloc;
   ups_dim1 = *ndxloc;
 
@@ -3120,7 +3098,7 @@ fntr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 fftr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
+  integer dfdu_dim1;
 
     /* Local variables */
 
@@ -3133,7 +3111,6 @@ fftr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
 
   /* Parameter adjustments */
-  dfdp_dim1 = ndm;
   dfdu_dim1 = ndm;
     
   period = par[10];
@@ -3308,7 +3285,7 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   /* Local variables */
   integer ndim;
   doublereal temp[7];
-  integer nfpr, nfpr1, ntpl1, nrsp1, ntot1, i, j, k;
+  integer nfpr, nfpr1, ntpl1, ntot1, i, j, k;
   logical found;
   integer icprs[NPARX], nparr, k1, k2, k3, nskip1;
 
@@ -3356,7 +3333,6 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   if (fscanf(fp3,"%ld",&(*ncolrs)) != 1) return 1;
   if (fscanf(fp3,"%ld",&nparr) != 1) return 1;
   iap->ibr = ibr;
-  nrsp1 = *ntsr + 1;
 
   for (j = 0; j < *ntsr; ++j) {
     for (i = 0; i < *ncolrs; ++i) {
@@ -3741,7 +3717,7 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, integer nnt0, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *fi, doublereal *dint, integer ndmt, doublereal *dfdu, doublereal *dfdp)
 {
   /* System generated locals */
-  integer dint_dim1, dfdu_dim1, dfdp_dim1;
+  integer dfdp_dim1;
 
     /* Local variables */
 
@@ -3757,9 +3733,7 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Local */
 
   /* Parameter adjustments */
-  dint_dim1 = nnt0;
   dfdp_dim1 = ndmt;
-  dfdu_dim1 = ndmt;
 
     
   ndm = iap->ndm;
@@ -3821,18 +3795,18 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   
 
   /* System generated locals */
-  integer ups_dim1, udotps_dim1, upoldp_dim1;
+  integer ups_dim1, udotps_dim1;
 
 
 
   /* Local variables */
-  integer ndim; 
+  integer ndim;
   doublereal temp[7];
   integer nfpr;
   doublereal dump;
 
   doublereal dumu;
-  integer nfpr1, ntpl1, nrsp1, ntot1, i, j, k;
+  integer nfpr1, ntpl1, ntot1, i, j, k;
   doublereal *u;
   logical found;
   integer icprs[NPARX], nparr;
@@ -3864,7 +3838,6 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
 
   /* Parameter adjustments */
-  upoldp_dim1 = *ndxloc;
   udotps_dim1 = *ndxloc;
   ups_dim1 = *ndxloc;
   temporary_storage_dim1 = *ndxloc;
@@ -3894,7 +3867,6 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   if (fscanf(fp3,"%ld",&(*ncolrs)) != 1) goto read_failed;
   if (fscanf(fp3,"%ld",&nparr) != 1) goto read_failed;
   iap->ibr = ibr;
-  nrsp1 = *ntsr + 1;
 
   for (j = 0; j < *ntsr; ++j) {
     for (i = 0; i < *ncolrs; ++i) {
@@ -4452,13 +4424,13 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   
 
   /* System generated locals */
-  integer ups_dim1, udotps_dim1;
+  integer ups_dim1;
 
 
   /* Local variables */
   integer ndim;
   doublereal temp[7];
-  integer nfpr, nfpx, nfpr0, nfpr1, ntpl1, nrsp1, ntot1, i, j, k;
+  integer nfpr, nfpx, nfpr0, nfpr1, ntpl1, ntot1, i, j, k;
   logical found;
   integer icprs[NPARX], nparr, k1, k2, nskip1;
 
@@ -4478,10 +4450,9 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
 
   /* Parameter adjustments */
-  udotps_dim1 = *ndxloc;
   ups_dim1 = *ndxloc;
 
-    
+
   ndim = iap->ndim;
   irs = iap->irs;
   ndm = iap->ndm;
@@ -4507,7 +4478,6 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   if (fscanf(fp3,"%ld",&(*ncolrs)) != 1) return 1;
   if (fscanf(fp3,"%ld",&nparr) != 1) return 1;
   iap->ibr = ibr;
-  nrsp1 = *ntsr + 1;
 
   for (j = 0; j < *ntsr; ++j) {
     for (i = 0; i < *ncolrs; ++i) {

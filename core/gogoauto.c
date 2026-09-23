@@ -22,7 +22,6 @@ extern char fort3[200], fort7[200], fort8[200],fort9[200];
 
 int go_go_auto() /* this is the entry  at this point, xAuto has been set */
 {
-  doublereal time0, time1;
   integer icp[NPARX2];
   doublereal par[NPARX2], thl[NPARX];
   doublereal *thu;

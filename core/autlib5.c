@@ -157,7 +157,7 @@ fnho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 ffho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
+  integer dfdu_dim1;
 
     /* Local variables */
 
@@ -176,7 +176,6 @@ ffho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     /*--icp;*/
     /*--par;*/
     /*--f;*/
-  dfdp_dim1 = ndm;
   dfdu_dim1 = ndm;
     
   ndm = iap->ndm;
@@ -344,8 +343,6 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 /* Subroutine */ int 
 fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, integer nbc0, const doublereal *u0, const doublereal *u1, doublereal *fb, doublereal *dbc)
 {
-  /* System generated locals */
-  integer dbc_dim1;
 
   
 
@@ -402,8 +399,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     /*--u0;*/
     /*--u1;*/
     /*--fb;*/
-  dbc_dim1 = nbc;
-  
+
   ndm = iap->ndm;
 
   /*     *Initialization */
@@ -762,8 +758,6 @@ icho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 /* Subroutine */ int 
 fiho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, integer nnt0, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *fi, doublereal *dint)
 {
-  /* System generated locals */
-  integer dint_dim1;
 
     /* Local variables */
   integer ijac = 0;
@@ -787,8 +781,7 @@ fiho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /*--udot;*/
   /*--upold;*/
   /*--fi;*/
-  dint_dim1 = nint;
-    
+
   ndm = iap->ndm;
   jb = 0;
 
@@ -834,7 +827,7 @@ inho(iap_type *iap, integer *icp, doublereal *par)
 {
 
     /* Local variables */
-  integer ndim, nint, nuzr, i, nfree, icorr, nbc, ndm, irs, isw;
+  integer ndim, nint, nuzr, i, nfree, icorr, nbc, ndm, isw;
 
   /* Allocate memory for global structures. */
   free(blhmp_1.ipsi);
@@ -886,7 +879,6 @@ inho(iap_type *iap, integer *icp, doublereal *par)
 
     
   ndim = iap->ndim;
-  irs = iap->irs;
   isw = iap->isw;
   nbc = iap->nbc;
   nint = iap->nint;
@@ -1115,7 +1107,7 @@ preho(integer *ndx, integer *ntsr, integer *nar, integer *ndim, integer *ncolrs,
 stpnho(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
   /* System generated locals */
-  integer ups_dim1, udotps_dim1;
+  integer ups_dim1;
 
   /* Local variables */
   integer ndim, ncol, nfpr, ntst, ncol1, i, j, k;
@@ -1139,9 +1131,8 @@ stpnho(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     /*--rldot;*/
     /*--tm;*/
     /*--dtm;*/
-  udotps_dim1 = *ndxloc;
   ups_dim1 = *ndxloc;
-    
+
   ndim = iap->ndim;
   ntst = iap->ntst;
   ncol = iap->ncol;
@@ -1332,10 +1323,7 @@ pvlsho(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
 {
   
 
-  /* System generated locals */
-  integer ups_dim1, p0_dim1, p1_dim1;    
-
-    /* Local variables */
+  /* Local variables */
   integer i, j;
 
 
@@ -1347,10 +1335,7 @@ pvlsho(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
     /*--icp;*/
     /*--dtm;*/
     /*--par;*/
-  ups_dim1 = *ndxloc;
-  p1_dim1 = *ndim;
-  p0_dim1 = *ndim;
-  
+
   iid = iap->iid;
   ndm = iap->ndm;
 
@@ -1684,7 +1669,7 @@ eighi(integer isign, integer itrans, doublereal *rr, doublereal *ri, doublereal 
 eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm, doublereal *dfdu, doublereal *dfdp, doublereal *zz)
 {
   /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1, zz_dim1;
+  integer dfdu_dim1, zz_dim1;
 
   /* Local variables */
 
@@ -1737,7 +1722,6 @@ eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublerea
     /*--par;*/
   vret -= ((*ndm)+1);
   zz_dim1 = *ndm;
-  dfdp_dim1 = *ndm;
   dfdu_dim1 = *ndm;
     
   ifail = 0;
@@ -1890,7 +1874,7 @@ prjcti(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *pa
 prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, integer *imfd, integer *is, integer *itrans, integer *ndm, doublereal *dfdu, doublereal *dfdp)
 {
   /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
+  integer dfdu_dim1;
 
     /* Local variables */
   integer i, j, k;
@@ -1946,7 +1930,6 @@ prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *pa
     /*--icp;*/
     /*--par;*/
   bound -= ((*ndm)+1);
-  dfdp_dim1 = *ndm;
   dfdu_dim1 = *ndm;
   
   func(*ndm, xequib, icp, par, 1, fdum, dfdu, dfdp);
