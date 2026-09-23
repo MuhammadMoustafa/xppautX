@@ -666,7 +666,7 @@ if(status==0)return;
     
  do
    {
-    fscanf(fp,"%c",&ch);
+    if(fscanf(fp,"%c",&ch)!=1){ch='\n';break;}
     if( !isspace((int)ch)&&(white) )
     {
      white=0;
@@ -678,11 +678,13 @@ if(status==0)return;
  len=0;
  while(!feof(fp))
  {
+  int gotrow=1;
   for(k=0;k<count;k++)
   {
-   fscanf(fp,"%f ",&z);
+   if(fscanf(fp,"%f ",&z)!=1){gotrow=0;break;}
    if(k<b->maxcol)b->data[k][len]=z;
    }
+   if(!gotrow)break;
    ++len;
    if(len>=MAXSTOR)break;
   }

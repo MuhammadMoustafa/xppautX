@@ -245,8 +245,9 @@ void dump_range(fp,f)
      int f;
 {
   char bob[256];
-  if(f==READEM)
-    fgets(bob,255,fp);
+  if(f==READEM){
+    if(fgets(bob,255,fp)==NULL)return;
+  }
   else
     fprintf(fp,"# Range information\n");
   io_string(eq_range.item,11,fp,f);
@@ -1406,7 +1407,10 @@ void do_init_data(int com)
       return;
     }
     for(i=0;i<NODE;i++)
-      fscanf(fp,"%lg",&last_ic[i]);
+      if(fscanf(fp,"%lg",&last_ic[i])!=1){
+	err_msg(" IC file too short");
+	break;
+      }
     fclose(fp);
     get_ic(2,x);
     break;

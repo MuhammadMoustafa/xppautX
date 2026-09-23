@@ -88,8 +88,9 @@ void dump_transpose_info(fp,f)
      int f;
 {
   char bob[256];
-  if(f==READEM)
-    fgets(bob,255,fp);
+  if(f==READEM){
+    if(fgets(bob,255,fp)==NULL)return;
+  }
   else
     fprintf(fp,"# Transpose variables etc\n");
   io_string(my_trans.firstcol,11,fp,f);
@@ -320,8 +321,9 @@ void dump_h_stuff(fp,f)
 {
   char bob[256];
   int i;
-  if(f==READEM)
-    fgets(bob,255,fp);
+  if(f==READEM){
+    if(fgets(bob,255,fp)==NULL)return;
+  }
   else
     fprintf(fp,"# Coupling stuff for H funs\n");
  for(i=0;i<NODE ;i++)

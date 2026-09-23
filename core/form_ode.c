@@ -279,10 +279,10 @@ int get_a_filename(char *filename,char *wild)
    list_em(wild);
   while(1){
   plintf("(r)un (c)d (l)ist ");
-  scanf("%s",string);
+  if(scanf("%s",string)!=1)return 0;
   if(string[0]=='r'){
     plintf("Run file: ");
-    scanf("%s",filename);
+    if(scanf("%s",filename)!=1)return 0;
     plintf("Loading %s\n ",filename);
     return 1;
   }
@@ -290,14 +290,14 @@ int get_a_filename(char *filename,char *wild)
     {
       if(string[0]=='l'){
         plintf("List files of type: ");
-        scanf("%s",wild);
+        if(scanf("%s",wild)!=1)return 0;
         list_em(wild);
       }
       else
         {
  	 if(string[0]=='c'){
 	   plintf("Change to directory: ");
-	   scanf("%s",string);
+	   if(scanf("%s",string)!=1)return 0;
 	   change_directory(string);
 	   list_em(wild);
 	 }
@@ -403,7 +403,7 @@ int get_eqn(fptr)
   strcpy(options,"default.opt");
   add_var("t",0.0);
   /* plintf(" NEQ: "); */
-  fgets(bob,MAXEXPLEN,fptr);
+  if(fgets(bob,MAXEXPLEN,fptr)==NULL)bob[0]=0;
   nn=strlen(bob)+1;
   if (NLINES>MAXLINES) {
     fprintf(stderr,"whoops! NLINES>MAXLINES in form_ode.c ...\n");
@@ -441,7 +441,7 @@ int get_eqn(fptr)
     }
     while(done)
       {
-	fgets(bob,MAXEXPLEN,fptr);
+	if(fgets(bob,MAXEXPLEN,fptr)==NULL)break;
 	nn=strlen(bob)+1;
 	if((save_eqn[NLINES]=(char *)malloc(nn))==NULL)exit(0);
 	strncpy(save_eqn[NLINES++],bob,nn);
@@ -1171,7 +1171,7 @@ int x,y;
 
 void clrscr()
 {
- system("clear");
+ if(system("clear")){}
  }
 
 
@@ -2642,7 +2642,7 @@ void read_a_line(fp,s)
 
   while(ok){
     ok=0;
-    fgets(temp,MAXEXPLEN,fp);
+    if(fgets(temp,MAXEXPLEN,fp)==NULL){temp[0]=0;}
 
      nn=strlen(temp)+1;
      if((save_eqn[NLINES]=(char *)malloc(nn))==NULL)exit(0);

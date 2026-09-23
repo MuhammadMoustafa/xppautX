@@ -464,7 +464,7 @@ int if_needed_load_ext_options()
       plintf("%s external set not found\n",readsetfile);
       return 0;
     }
-    fgets(myopts,1024,fp);
+    if(fgets(myopts,1024,fp)==NULL)myopts[0]=0;
     sprintf(myoptsx,"$ %s",myopts);
     plintf("Got this string: {%s}\n",myopts);
     extract_action(myoptsx);

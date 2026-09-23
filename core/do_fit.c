@@ -456,10 +456,18 @@ int run_fit( filename,  /* string */
 /* load up the data to fit   */
 
   for(i=0;i<npts;i++){
-    fscanf(fp,"%lg ",&t);
+    if(fscanf(fp,"%lg ",&t)!=1){
+      err_msg("Data file too short...");
+      free(t0);free(y);fclose(fp);
+      return(0);
+    }
 
     for(j=0;j<ndim-1;j++)
-      fscanf(fp,"%lg ",&ytemp[j]);
+      if(fscanf(fp,"%lg ",&ytemp[j])!=1){
+	err_msg("Data file too short...");
+	free(t0);free(y);fclose(fp);
+	return(0);
+      }
     t0[i]=t;
 
     ioff=nvars*i;

@@ -279,8 +279,9 @@ void dump_aplot(fp,f)
      int f;
 {
   char bob[256];
-  if(f==READEM)
-    fgets(bob,255,fp);
+  if(f==READEM){
+    if(fgets(bob,255,fp)==NULL)return;
+  }
   else
     fprintf(fp,"# Array plot stuff\n");
   io_string(aplot.name,11,fp,f);

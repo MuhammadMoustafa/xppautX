@@ -157,8 +157,8 @@ int read_cmap_from_file(char *fname, int n, int *rr, int *gg, int *bb)
     FILE *fp;
     fp = fopen(fname, "r");
     if (fp == NULL) return 0;
-    while (!feof(fp)) {
-        fscanf(fp, "%g %g %g %g \n", &x, &r[i], &g[i], &b[i]);
+    while (!feof(fp) && i < 1000) {
+        if (fscanf(fp, "%g %g %g %g \n", &x, &r[i], &g[i], &b[i]) != 4) break;
         i++;
     }
     fclose(fp);

@@ -1724,7 +1724,7 @@ void read_ani_line(fp,s)
   ok=1;
   while(ok){
     ok=0;
-    fgets(temp,256,fp);
+    if(fgets(temp,256,fp)==NULL){temp[0]=0;break;}
      /*nn=strlen(temp)+1;Not used*/
     n=strlen(temp);
     for(i=n-1;i>=0;i--){

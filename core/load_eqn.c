@@ -356,8 +356,9 @@ void dump_torus(fp,f)
 {
   int i;
   char bob[256];
-  if(f==READEM)
-    fgets(bob,255,fp);
+  if(f==READEM){
+    if(fgets(bob,255,fp)==NULL)return;
+  }
   else
     fprintf(fp,"# Torus information \n");
   io_int(&TORUS,fp,f," Torus flag 1=ON");
@@ -704,19 +705,19 @@ void read_defaults(fp)
  {
  char bob[100];
  char *ptr;
- fgets(bob,80,fp);
+ if(fgets(bob,80,fp)==NULL)bob[0]=0;
  ptr=get_first(bob," ");
- if (notAlreadySet.BIG_FONT_NAME)
+ if (notAlreadySet.BIG_FONT_NAME && ptr!=NULL)
  {
  	strcpy(big_font_name,ptr);
 	notAlreadySet.BIG_FONT_NAME=0;
  }
- 
- fgets(bob,80,fp);
+
+ if(fgets(bob,80,fp)==NULL)bob[0]=0;
  ptr=get_first(bob," ");
- if (notAlreadySet.SMALL_FONT_NAME)
+ if (notAlreadySet.SMALL_FONT_NAME && ptr!=NULL)
  {
-        
+
  	strcpy(small_font_name,ptr);
 	notAlreadySet.SMALL_FONT_NAME=0;
  }
@@ -754,7 +755,7 @@ FILE *fpt;
 double *val;
 {
  char bob[80];
- fgets(bob,80,fpt);
+ if(fgets(bob,80,fpt)==NULL)bob[0]=0;
  *val=atof(bob);
 }
 
@@ -763,7 +764,7 @@ int *val;
 FILE *fpt;
 {
  char bob[80];
- fgets(bob,80,fpt);
+ if(fgets(bob,80,fpt)==NULL)bob[0]=0;
  *val=atoi(bob);
 }
 
@@ -1079,7 +1080,7 @@ void check_for_xpprc()
   }
   while(!feof(fp)){
     bob[0]='\0';
-    fgets(bob,255,fp);
+    if(fgets(bob,255,fp)==NULL)break;
     if(bob[0]=='@'){
       stor_internopts(bob);
 

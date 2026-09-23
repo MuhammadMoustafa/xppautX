@@ -427,7 +427,11 @@ int load_table(filename,index)
     return(0);
   }
  my_table[index].interp=0;
-  fgets(bob,100,fp);
+  if(fgets(bob,100,fp)==NULL){
+    err_msg("Table file too short");
+    fclose(fp);
+    return(0);
+  }
   if (bob[0]=='i') /* closest step value */
     {
       my_table[index].interp=1;
@@ -444,9 +448,17 @@ int load_table(filename,index)
     fclose(fp);
     return(0);
   }
-  fgets(bob,100,fp);
+  if(fgets(bob,100,fp)==NULL){
+    err_msg("Table file too short");
+    fclose(fp);
+    return(0);
+  }
   xlo=atof(bob);
-  fgets(bob,100,fp);
+  if(fgets(bob,100,fp)==NULL){
+    err_msg("Table file too short");
+    fclose(fp);
+    return(0);
+  }
   xhi=atof(bob);
   if(xlo>=xhi){
     err_msg("xlo >= xhi ??? ");
@@ -461,7 +473,13 @@ int load_table(filename,index)
      return(0);
    }
    for(i=0;i<length;i++){
-     fgets(bob,100,fp);
+     if(fgets(bob,100,fp)==NULL){
+       err_msg("Table file too short");
+       free(my_table[index].y);
+       my_table[index].y=NULL;
+       fclose(fp);
+       return(0);
+     }
      my_table[index].y[i]=atof(bob);
    }
    my_table[index].xlo=xlo;
@@ -481,7 +499,14 @@ int load_table(filename,index)
      return(0);
    }
   for(i=0;i<length;i++){
-     fgets(bob,100,fp);
+     if(fgets(bob,100,fp)==NULL){
+       err_msg("Table file too short");
+       free(my_table[index].y);
+       my_table[index].y=NULL;
+       my_table[index].flag=0;
+       fclose(fp);
+       return(0);
+     }
      my_table[index].y[i]=atof(bob);
    }
   my_table[index].xlo=xlo;

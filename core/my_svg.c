@@ -249,7 +249,7 @@ int svg_init(char *filename, int color)
 			while(!feof(fp))
 			{ 
 				bob[0]='\0';
-				fgets(bob,255,fp);
+				if(fgets(bob,255,fp)==NULL)break;
         			fprintf(svgfile,"%s",bob);
 
 			}

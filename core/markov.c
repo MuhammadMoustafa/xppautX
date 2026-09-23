@@ -203,7 +203,10 @@ int old_build_markov(fptr,name)
    fprintf(convertf,"markov %s %d\n",name,nstates);
  plintf(" Building %s ...\n",name);
  for(i=0;i<nstates;i++){
-    fgets(line,256,fptr); 
+    if(fgets(line,256,fptr)==NULL){
+      plintf(" Unexpected end of file building markov variable |%s|\n",name);
+      exit(0);
+    }
 
    if(ConvertStyle)
      fprintf(convertf,"%s",line);
