@@ -83,8 +83,9 @@ link = $(if $(filter %.cpp,$(1)),$(CXX),$(CC))
 # sbml2xpp.c needs libsbml and is not part of the upstream build.
 SERVER_SOURCES := $(call src, ui_json xppautx_main xpp_http xpp_inbox)
 CORE_SOURCES := $(filter-out $(SERVER_SOURCES) $(SRCDIR)/sbml2xpp.%,$(ALL_SOURCES))
-# the pages xppautX serves, compiled in: the classic front end at /, the new
-# one at /v2/ (web2/dist, built from web2/src and committed: web2/build.mjs)
+# the pages xppautX serves, compiled in: web2 (web2/dist, built from
+# web2/src and committed: web2/build.mjs) at /, the classic front end at
+# /v1/ (legacy, docs/ui-v2.md T17)
 WEB_FILES := web/index.html web/xpp-client.js web/xpp-client.css
 WEB2_FILES := web2/dist/index.html web2/dist/app.js web2/dist/app.css web2/dist/inter.woff2 web2/dist/inter-greek.woff2 \
   web2/dist/inter-OFL.txt
@@ -171,7 +172,7 @@ $(BUILDDIR)/embed$(EXE): tools/embed.c | $(BUILDDIR)
 	$(CC) -O2 -o $@ $<
 
 $(BUILDDIR)/web_assets.c: $(BUILDDIR)/embed$(EXE) $(WEB_FILES) $(WEB2_FILES)
-	$(BUILDDIR)/embed$(EXE) $@ $(WEB_FILES) --prefix=/v2/ $(WEB2_FILES)
+	$(BUILDDIR)/embed$(EXE) $@ $(WEB2_FILES) --prefix=/v1/ $(WEB_FILES)
 
 $(BUILDDIR)/web_assets.o: $(BUILDDIR)/web_assets.c
 	$(CC) -O2 -c $< -o $@

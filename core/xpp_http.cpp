@@ -65,7 +65,7 @@ typedef struct {
     const unsigned char *data;
     size_t len;
 } XppWebAsset;
-extern "C" const XppWebAsset xpp_web_assets[]; /* web_assets.c (C), from web/ */
+extern "C" const XppWebAsset xpp_web_assets[]; /* web_assets.c (C): web2/dist/ at /, web/ (legacy) at /v1/ */
 
 #define MAX_CLIENTS 16
 #define MAX_WINDOWS 32
@@ -640,6 +640,17 @@ static void serve_files(Request *q)
     else reply_text(q->s, "405 Method Not Allowed", "GET or PUT");
 }
 
+/* a bookmark of the old /v2/ path (web2 moved to / at T17): redirect it to
+   the same path under /, keeping the query string (the token). */
+static void redirect(sock_t s, const char *location)
+{
+    char head[560];
+    int n = snprintf(head, sizeof head,
+                     "HTTP/1.1 302 Found\r\nLocation: %s\r\nContent-Length: 0\r\nCache-Control: no-store\r\n"
+                     "Connection: close\r\n\r\n", location);
+    send_all(s, head, (size_t)n);
+}
+
 static void serve_asset(Request *q)
 {
     char path[512];
@@ -647,6 +658,14 @@ static void serve_asset(Request *q)
     int i;
     for (i = 0; q->target[i] && q->target[i] != '?' && i < (int)sizeof path - 1; i++) path[i] = q->target[i];
     path[i] = 0;
+    if (strcmp(path, "/v2") == 0 || strncmp(path, "/v2/", 4) == 0) {
+        char location[560];
+        const char *rest = path[3] == '/' ? path + 4 : "";
+        const char *query = strchr(q->target, '?');
+        snprintf(location, sizeof location, "/%s%s", rest, query ? query : "");
+        redirect(q->s, location);
+        return;
+    }
     if (strcmp(path, "/index.html") == 0) strcpy(path, "/");
     for (a = xpp_web_assets; a->path; a++)
         if (strcmp(a->path, path) == 0) break;
@@ -849,8 +868,8 @@ int xpp_http_start(int port, int open_browser)
     make_token();
     snprintf(url, sizeof url, "http://127.0.0.1:%d/?t=%s", got, token);
     printf("XPP: %s\n", url);
-    /* the new front end (docs/ui-v2.md), until it replaces the classic one */
-    printf("XPP (new interface, preview): http://127.0.0.1:%d/v2/?t=%s\n", got, token);
+    /* the classic front end (docs/ui-v2.md T17): kept at /v1/ for now, /v2/ redirects to / */
+    printf("XPP (classic interface, legacy): http://127.0.0.1:%d/v1/?t=%s\n", got, token);
     fflush(stdout);
 
     /* what xppaut prints: to the terminal and the page */

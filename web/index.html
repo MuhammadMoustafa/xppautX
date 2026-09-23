@@ -14,11 +14,13 @@
 <div id="xpp"></div>
 <script src="xpp-client.js"></script>
 <script>
-  /* xppautX puts a token in the address; its event and command URLs need it */
+  /* xppautX puts a token in the address; its event and command URLs need it.
+     /cmd and /events are server routes at the root, not under this page's
+     own path (this page moved to /v1/ at T17), so the paths are absolute. */
   const token = location.search;
   const client = new XppClient(document.getElementById('xpp'), cmd =>
-    fetch('cmd' + token, {method: 'POST', body: JSON.stringify(cmd)}));
-  const events = new EventSource('events' + token);
+    fetch('/cmd' + token, {method: 'POST', body: JSON.stringify(cmd)}));
+  const events = new EventSource('/events' + token);
   events.onmessage = m => client.receive(JSON.parse(m.data));
   document.getElementById('xpp').focus();
 </script>

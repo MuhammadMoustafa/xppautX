@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-/* State-level check of the new front end (web2/, served at /v2/): drives a
-   headless Chrome or Edge through real key presses, mouse and touch events
+/* State-level check of the front end (web2/, served at /; the classic
+   page is legacy, at /v1/): drives a headless Chrome or Edge through real
+   key presses, mouse and touch events
    and asserts what the page's store and plot hold (window.__xpp), never
    pixels. A desktop session (integrate from the keyboard, the plotted
    numbers against output.dat, hover, wheel and box zoom, undo, reset, pan),
@@ -2170,7 +2171,7 @@ async function kinescope(dir) {
   await desktopMetrics();
 }
 
-/* xppautX in browser mode on a copy of `ode`, the page at /v2/, then `fn`
+/* xppautX in browser mode on a copy of `ode`, the page at /, then `fn`
    (given the model's folder); the server stops after it. `expected` are
    errors the session provokes on purpose. */
 async function session(ode, fn, expected = []) {
@@ -2178,7 +2179,7 @@ async function session(ode, fn, expected = []) {
   fs.copyFileSync(ode, path.join(dir, path.basename(ode)));
   const server = await startServer(bin, dir, [path.basename(ode)]);
   try {
-    await cdp.send('Page.navigate', {url: server.url.replace('/?t=', '/v2/?t=')});
+    await cdp.send('Page.navigate', {url: server.url});
     await fn(dir);
     const errors = (await S('s.log.filter(l => l.kind === "error").map(l => l.text)')).filter(e => !expected.includes(e));
     check(`${path.basename(ode)}: no errors reported by the core`, errors.length === 0, JSON.stringify(errors));

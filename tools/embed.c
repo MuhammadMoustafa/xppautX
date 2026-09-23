@@ -1,6 +1,6 @@
 /* embed: write the web front ends' files into a C source as byte arrays
    for xpp_http.cpp. Build step only (Makefile rule for web_assets.c).
-   usage: embed out.c web/index.html web/xpp-client.js ... --prefix=/v2/ web2/dist/index.html ...
+   usage: embed out.c web2/dist/index.html ... --prefix=/v1/ web/index.html ...
    A file is served at the prefix (initially "/") plus its base name;
    index.html at the prefix itself. */
 #include <stdio.h>

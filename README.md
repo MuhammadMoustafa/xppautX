@@ -27,11 +27,13 @@ functions and their arguments, tables) can be up to 64 characters long
 It needs nothing else (no X server, no Node), builds natively on Windows,
 and covers every feature of classic XPPAUT
 ([docs/front-end-gaps.md](docs/front-end-gaps.md) is the historical parity
-record). A new interface is in progress: `xppautX` also prints a `/v2/`
-address that serves it (the plot drawn from data, zoom, pan, touch,
-keyboard, light and dark themes); [docs/ui-v2.md](docs/ui-v2.md) is its
-design and plan. [docs/using-the-panel.md](docs/using-the-panel.md) is the
-guide to the browser front end; [docs/vscode-extension.md](docs/vscode-extension.md)
+record). The browser front end is **web2** (the plot drawn from data,
+zoom, pan, touch, keyboard, light and dark themes); `xppautX` prints and
+opens its address; [docs/ui-v2.md](docs/ui-v2.md) is its design and plan.
+The classic page is legacy, kept at `/v1/` until
+[docs/ui-v2.md](docs/ui-v2.md) task T18 removes it.
+[docs/using-the-panel.md](docs/using-the-panel.md) is the guide to the
+browser front end; [docs/vscode-extension.md](docs/vscode-extension.md)
 says how the VS Code extension uses the program. The web front end has its
 own behavioural regression test (`tools/webtest.mjs`).
 

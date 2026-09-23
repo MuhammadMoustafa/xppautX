@@ -120,17 +120,18 @@ function sendToServer(line) {
   if (!exitLine) xpp.stdin.write(line.trim() + '\n');
 }
 
+/* the classic page (legacy, docs/ui-v2.md T17), at /v1/ */
 const files = {
-  '/': ['index.html', 'text/html'],
-  '/xpp-client.js': ['xpp-client.js', 'text/javascript'],
-  '/xpp-client.css': ['xpp-client.css', 'text/css'],
+  '/v1/': ['index.html', 'text/html'],
+  '/v1/xpp-client.js': ['xpp-client.js', 'text/javascript'],
+  '/v1/xpp-client.css': ['xpp-client.css', 'text/css'],
 };
 
-/* the new front end, from web2/dist (npm run watch in web2 rebuilds it) */
+/* the front end, from web2/dist (npm run watch in web2 rebuilds it), at / */
 const web2Types = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8'};
 function web2File(url) {
-  const m = /^\/v2\/([\w.-]*)$/.exec(url);
+  const m = /^\/([\w.-]*)$/.exec(url);
   if (!m) return null;
   const file = path.join(repo, 'web2', 'dist', m[1] || 'index.html');
   return fs.existsSync(file) ? file : null;
@@ -176,5 +177,5 @@ http.createServer((req, res) => {
   }
 }).listen(port, '127.0.0.1', () => {
   console.log(`XPP: http://127.0.0.1:${port}/`);
-  console.log(`XPP (new interface, preview): http://127.0.0.1:${port}/v2/`);
+  console.log(`XPP (classic interface, legacy): http://127.0.0.1:${port}/v1/`);
 });

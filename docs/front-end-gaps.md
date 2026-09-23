@@ -1,30 +1,41 @@
-# X11 front end vs the JSON front end
+# X11 front end vs web2
 
-What a user of the X11 windows can do, and whether the protocol front end
-(`xppautX` + `web/xpp-client.js`, also the VS Code panel) does it.
+What a user of the X11 windows (removed, issue #20) could do, and whether
+**web2** (`xppautX`, the default page at `/`; docs/ui-v2.md) does it now.
+The classic page (`web/xpp-client.js`, legacy, kept at `/v1/` until
+docs/ui-v2.md task T18 removes it) is the same JSON protocol front end
+this file used to track; it is no longer the subject of this file.
 Checked against the X11 sources window by window; update this file when a
 row changes.
 
 ## Works the same
 
-| X11 | JSON front end |
+| X11 | web2 |
 |---|---|
 | Main, File, Numerics menus, hotkeys, hints | Menu panel and keys |
 | Every pop-up menu, string box, form, yes/no, file selector, alert | Dialogs; form fields `*n` pick from the X11 lists; the file selector lists folders and files |
-| Plot windows: create, kill, select, zoom, fit, scroll, text/arrows/markers, 3D rotation by dragging | Tabs; drag asks for Scroll; rotate command |
+| Plot windows: create, kill, select, zoom, fit, scroll, text/arrows/markers, 3D rotation by dragging | Tabs; drag asks for Scroll; rotate command; 3D projected and rotated in the client (T14) |
 | x,y readout under the mouse (plot and AUTO) | From `state.view` / `state.auto` |
-| IC, parameter, BC and delay boxes with %formulas, Default, xvst/pp/arry | Side panel |
+| IC, parameter, BC and delay boxes with %formulas, Default, xvst/pp/arry | Side panel (values panel, T3) |
 | The three parameter sliders, `@ s1=...` presets | Side panel |
 | `@ button` user buttons | Side panel |
-| Data browser and all its buttons | Data tab |
-| Equilibrium window with Import | Top of the side panel |
-| Equations window, source viewer with comment actions | Tabs |
-| AUTO window: every button, grab, hotkeys, scroll, close, point readout | A window of its own, floating over the page: drag its title bar, pull its corner to resize, and the main plot and the value panels stay in view beside it (a tab in the narrow layout) |
-| Animation window: Go, Pause, Fast, Slow, step, slider, Skip, File, Grab, Fly, frame saving, Close, resize | Animation tab |
-| Array plot: Redraw, Edit, Print, Fit, Range, GIF, Close, drag to scroll | Array tab |
-| Kinescope: capture, reset, playback, autoplay, save, animated GIF | Kinescope tab |
+| Data browser and all its buttons | Data tab (virtualized table, T10) |
+| Equilibrium window with Import | Text tab's Equilibrium view (T16) |
+| Equations window, source viewer with comment actions | Text tab (T16) |
+| AUTO window: every button, grab, hotkeys, scroll, close, point readout | A window of its own, floating over the page (T11a/T11b): drag its title bar, pull its corner to resize, and the main plot and the value panels stay in view beside it (a tab in the narrow layout) |
+| Animation window: Go, Pause, Fast, Slow, step, slider, Skip, File, Grab, Fly, frame saving, Close, resize | Animation tab (T13) |
+| Array plot: Redraw, Edit, Print, Fit, Range, GIF, Close, drag to scroll | Array tab (T12) |
 | Calculator | Prompt shows the last answer |
 | `-runnow`, tutorial, `-anifile`, errors printed by xppaut | Handled at start; errors shown in the panel |
+
+## Not yet covered
+
+- **Kinescope** (capture, reset, playback, autoplay, save, animated GIF):
+  docs/ui-v2.md task T15 is not merged to master yet (still in its own
+  worktree/branch); web2 has no kinescope code (`web2/src` has no match
+  for "kinescope"). Until T15 lands, only the legacy classic page (`/v1/`)
+  has it. Not closeable as a small fix: a whole feature (capture, replay,
+  GIF/PNG export), left for T15.
 
 ## Different on purpose
 

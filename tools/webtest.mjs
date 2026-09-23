@@ -205,7 +205,8 @@ async function main() {
   const {proc, cdp} = await startBrowser(browser, profile);
   let problems;
   try {
-    problems = await session(cdp, server.url, steps);
+    /* the classic page moved to /v1/ at T17 (docs/ui-v2.md); web2 is now at / */
+    problems = await session(cdp, server.url.replace('/?t=', '/v1/?t='), steps);
   } finally {
     proc.kill();
     server.proc.kill();
