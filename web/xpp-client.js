@@ -65,7 +65,16 @@
       this.id = id;
       this.canvas = el('canvas', 'xpp-canvas');
       this.canvas.tabIndex = 0;
-      this.ctx = this.canvas.getContext('2d');
+      /* Drawing goes to a buffer and is shown a frame at a time. A redraw
+         arrives as a clear followed by thousands of ops, often split across
+         several events, so drawing straight to the screen shows the blank
+         canvas and then the picture building up: the flash after a grab, when
+         AUTO repaints the whole diagram just to erase the cross. Captures read
+         this.ctx, so they still see the finished picture. */
+      this.buf = el('canvas');
+      this.ctx = this.buf.getContext('2d');
+      this.view = this.canvas.getContext('2d');
+      this.dirty = false;
       this.overlay = null;
       this.resize(w, h);
       this.color = 0;
@@ -79,16 +88,31 @@
          copied alpha, so the browser's transparent default 300x150 bitmap
          punched a hole in the background on the first resize */
       let old = null;
-      if (this.canvas.width && this.canvas.height) {
+      if (this.buf.width && this.buf.height) {
         old = document.createElement('canvas');
-        old.width = this.canvas.width;
-        old.height = this.canvas.height;
-        old.getContext('2d').drawImage(this.canvas, 0, 0);
+        old.width = this.buf.width;
+        old.height = this.buf.height;
+        old.getContext('2d').drawImage(this.buf, 0, 0);
       }
-      this.canvas.width = w;
-      this.canvas.height = h;
+      this.canvas.width = this.buf.width = w;
+      this.canvas.height = this.buf.height = h;
       this.clear();
       if (old) this.ctx.drawImage(old, 0, 0);
+      this.paint();
+    }
+
+    /* show what has been drawn; one blit, so nothing half-drawn is seen */
+    paint() {
+      this.dirty = false;
+      if (!this.buf.width || !this.buf.height) return;
+      this.view.drawImage(this.buf, 0, 0);
+    }
+
+    /* show it on the next frame, so a burst of events costs one repaint */
+    mark() {
+      if (this.dirty) return;
+      this.dirty = true;
+      requestAnimationFrame(() => { if (this.dirty) this.paint(); });
     }
     pen(i) {
       return this.client.colorOf(i);
@@ -195,6 +219,7 @@
           case 'stext': this.richText(o[1], o[2], o[3], o[4]); break;
         }
       }
+      this.mark();
     }
     /* XPP rich text: \1 symbol, \0 roman, \s sub, \S super, \n normal */
     richText(x, y, s, size) {
@@ -898,7 +923,12 @@
         case 'idle':
           this.busy = false;
           this.setProgress(0, 0);
+          this.autoWorking = false;
           this.setAutoRunning(false);
+          if (this.autoFitPending && this.autoFit) { /* a resize waited for this */
+            this.autoFitPending = false;
+            setTimeout(this.autoFit, 0);
+          }
           this.aniPlaying = false;
           if (this.autoGrab) this.autoGrab.hidden = true; /* the grab is over */
           if (this.pendingSlide) {
@@ -932,15 +962,28 @@
        command line, we put it at the right of the status bar */
     setProgress(n, of) {
       if (!of) {
+        clearTimeout(this.progressTimer);
+        this.progressTimer = null;
+        this.progressSince = 0;
         this.progress.hidden = true;
         this.progressFill.style.width = '0%';
         this.progressText.textContent = '';
         return;
       }
       const done = Math.max(0, Math.min(1, n / of));
-      this.progress.hidden = false;
       this.progressFill.style.width = `${(done * 100).toFixed(1)}%`;
       this.progressText.textContent = `${n}/${of}`;
+      /* Most runs finish in a few milliseconds, and a bar that appears at 0%
+         and vanishes is worse than none: it reads as a flicker. Show it only
+         once the work has lasted long enough to be worth reporting, and then
+         leave it up until the run ends. */
+      if (this.progress.hidden && !this.progressTimer) {
+        this.progressSince = Date.now();
+        this.progressTimer = setTimeout(() => {
+          this.progressTimer = null;
+          if (this.busy) this.progress.hidden = false;
+        }, 250);
+      }
     }
 
     onMessage(ev) {
@@ -1083,12 +1126,20 @@
           if (!this.pendingAsk) this.autoHint.textContent = `x=${Number(x.toPrecision(6))},y=${Number(y.toPrecision(6))}`;
         });
         s.canvas.addEventListener('click', e => {
-          if (this.pendingAsk || this.busy || this.answeredByPress) return;
           const [x, y] = s.at(e);
+          /* During a grab a click jumps to the nearest point on the diagram,
+             as it does in X11: the protocol answers the grab with a pixel
+             instead of a key. Without it the only way to a distant labelled
+             point is the arrow keys, one diagram point at a time. */
+          if (this.pendingAsk && this.pendingAsk.kind === 'grab') {
+            this.answer({x, y});
+            return;
+          }
+          if (this.pendingAsk || this.busy || this.answeredByPress) return;
           this.command({cmd: 'auto', op: 'point', x, y});
         });
         top.append(s.canvas, stab.canvas);
-        right.append(top, info.canvas, this.autoHint);
+        right.append(top, info.canvas);
         body.append(buttons, right);
         frame.appendChild(body);
         /* a run blocks until AUTO is done: say whether it is still going,
@@ -1096,7 +1147,8 @@
         this.autoState = el('span', 'xpp-auto-state');
         this.autoElapsed = el('span', 'xpp-auto-elapsed');
         const status = el('div', 'xpp-auto-status');
-        status.append(this.autoState, this.autoGrab, this.autoElapsed);
+        /* the x,y readout lives here too, so the output box cannot cover it */
+        status.append(this.autoState, this.autoGrab, this.autoHint, this.autoElapsed);
         this.autoStatus = status;
         const logBox = el('details', 'xpp-auto-log');
         this.autoLogSummary = el('summary', '', 'Output');
@@ -1104,7 +1156,9 @@
         logBox.append(this.autoLogSummary, this.autoLogText);
         this.autoLogBox = logBox;
         this.autoLogLines = 0;
-        frame.append(status, logBox);
+        /* output above, status bar last: the output opens upward over the
+           diagram and leaves the status bar and the readout in view */
+        frame.append(logBox, status);
         this.setAutoRunning(false);
         /* the diagram takes the room the window has, beside the fixed-size circle */
         const fit = () => {
@@ -1115,9 +1169,16 @@
           /* stacked (narrow) layout: the height follows the content, so derive it */
           const h = this.root.classList.contains('xpp-narrow') ? Math.round(w * 0.75)
             : Math.floor(frame.clientHeight - bar.offsetHeight
-              - info.canvas.offsetHeight - this.autoHint.offsetHeight
+              - info.canvas.offsetHeight
               - status.offsetHeight - logBox.offsetHeight - 30);
           if (w < 200 || h < 150 || (w === s.canvas.width && h === s.canvas.height)) return;
+          /* A run holds the core, so it cannot redraw at the new size until it
+             ends: resizing now would stretch the old picture and leave it that
+             way for the length of the run. Wait and fit once it is done. */
+          if (this.busy) {
+            this.autoFitPending = true;
+            return;
+          }
           clearTimeout(this.autoSizeTimer);
           this.autoSizeTimer = setTimeout(() => {
             info.resize(w + circleW, 45);
@@ -1403,9 +1464,11 @@
         const w = Math.max(100, frame.clientWidth - scale.offsetWidth - 24);
         const h = this.root.classList.contains('xpp-narrow') ? w
           : Math.max(100, frame.clientHeight - bar.offsetHeight - buttons.offsetHeight - this.aplotTime.offsetHeight - 24);
+        /* resize() and not the canvas directly: the picture is drawn into a
+           buffer that has to change size with it, or the paint below is
+           clipped to the old one */
         if (w !== s.canvas.width || h !== s.canvas.height) {
-          s.canvas.width = w;
-          s.canvas.height = h;
+          s.resize(w, h);
           this.paintArrayPlot();
         }
       }).observe(frame);
@@ -1441,6 +1504,7 @@
         c.font = '12px monospace';
         c.fillText(ev.tag, 2, 12);
       }
+      s.paint(); /* painted here rather than by a draw event: show it */
       this.aplotTime.textContent = ev.nx ? ` ${ev.tlo} < t < ${ev.thi}` : 'Nothing to show: use Edit, or integrate first';
       this.aplotMax.textContent = ev.zmax;
       this.aplotMin.textContent = ev.zmin;
@@ -1660,7 +1724,12 @@
     command(cmd) {
       if (this.busy) return;
       this.busy = true;
-      if (cmd.cmd === 'auto' && cmd.op !== 'close') this.setAutoRunning(true);
+      /* only AUTO's own work is AUTO's to report: an integration started from
+         the side panel is not, however long it takes */
+      if (cmd.cmd === 'auto' && cmd.op !== 'close') {
+        this.autoWorking = true;
+        this.setAutoRunning(true);
+      }
       this.clearError();
       this.send(cmd);
     }
@@ -1730,12 +1799,14 @@
         } else s.ctx.rect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0));
         s.ctx.stroke();
         s.ctx.restore();
+        s.paint(); /* dragged live, so show it now rather than next frame */
       };
       const up = e => {
         window.removeEventListener('mousemove', move);
         window.removeEventListener('mouseup', up);
         [x1, y1] = s.at(e);
         s.ctx.putImageData(snap, 0, 0);
+        s.paint();
         this.answer({x: x0, y: y0, x2: x1, y2: y1});
       };
       window.addEventListener('mousemove', move);
@@ -1753,6 +1824,10 @@
          hiding it in between resized the AUTO window twice per key */
       this.root.classList.remove('xpp-picking');
       this.send(Object.assign({cmd: 'answer', id: a.id}, fields));
+      /* The core is working again, and a run started by answering a menu is
+         exactly the long one worth timing. A grab answers a key and is asked
+         again at once, which sets its own state back. */
+      if (this.autoFrame && this.autoWorking && a.kind !== 'grab') this.setAutoRunning(true);
       this.root.focus();
     }
 
@@ -1790,6 +1865,17 @@
     onAsk(a) {
       this.pendingAsk = a;
       this.busy = true;
+      /* The core is waiting for an answer, not working. Counting that as run
+         time reads as a run that has hung, when the program is in fact waiting
+         for the person looking at it. The grab case below says more than
+         "Waiting", so it sets its own text after this. */
+      if (this.autoState && this.autoTimer) {
+        clearInterval(this.autoTimer);
+        this.autoTimer = null;
+        this.autoState.textContent = 'Waiting';
+        this.autoState.classList.remove('xpp-running');
+        this.autoElapsed.textContent = '';
+      }
       /* a click or key is wanted in a window: bring its tab forward */
       if (a.win !== undefined) this.showPage(a.win === 102 || a.win === 103 ? 101 : a.win);
       switch (a.kind) {

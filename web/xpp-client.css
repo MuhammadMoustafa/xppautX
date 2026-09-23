@@ -9,6 +9,7 @@
   --xpp-button-fg: var(--vscode-button-secondaryForeground, #1d1d1b);
   --xpp-accent: var(--vscode-focusBorder, #2f6fb3);
   --xpp-error: var(--vscode-errorForeground, #b3261e);
+  --xpp-ok: var(--vscode-testing-iconPassed, #2e7d32);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -182,18 +183,32 @@
   margin-left: 0.4em;
   vertical-align: middle;
   border-radius: 50%;
-  background: currentColor;
+  background: var(--xpp-ok); /* running, not an error: green reads at a glance */
   animation: xpp-blink 1s steps(2, start) infinite;
 }
 @keyframes xpp-blink { to { visibility: hidden; } }
-.xpp-auto-log { border-top: 1px solid var(--xpp-border); }
+/* Only the summary is in the flow, and it keeps its height whether the box is
+   open or shut: the text opens over the diagram instead of pushing it. A box
+   that changed the window's height would fire the size command and cost a
+   full redraw of the diagram from the server on every click. */
+.xpp-auto-log {
+  position: relative;
+  border-top: 1px solid var(--xpp-border);
+}
 .xpp-auto-log > summary { padding: 2px 6px; cursor: pointer; }
 .xpp-auto-log-text {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  z-index: 3;
   margin: 0;
-  padding: 0 6px 4px;
-  max-height: 9em;
+  padding: 4px 6px;
+  max-height: 12em;
   overflow: auto;
   font-size: 0.9em;
+  background: var(--xpp-bg);
+  border-top: 1px solid var(--xpp-border);
 }
 .xpp-abort { margin-top: 12px; }
 .xpp-ani-buttons { display: flex; gap: 4px; padding: 4px; flex-wrap: wrap; }

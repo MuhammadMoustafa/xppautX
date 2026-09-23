@@ -1737,10 +1737,16 @@ static void j_auto_xor_cross(int x, int y)
 static int auto_col_want, auto_lw_want = 1;
 static int auto_col_sent, auto_lw_sent = 1;
 
+/* The canvas keeps its colour across a clear, so after one the client is not
+   back at the default however much the core would like it to be: the axes
+   would be drawn in whatever colour the last branch left behind. Ask for the
+   default and mark what the client holds as unknown, so the next thing drawn
+   sends the colour rather than assuming it. */
 static void auto_reset_state(void)
 {
-    auto_col_want = auto_col_sent = 0;
-    auto_lw_want = auto_lw_sent = 1;
+    auto_col_want = 0;
+    auto_lw_want = 1;
+    auto_col_sent = auto_lw_sent = -1;
 }
 
 /* emit what a drawing op is about to depend on; a change closes any open
