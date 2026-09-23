@@ -1484,6 +1484,12 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
     free(f0);
     free(f1);
     return ret_val;
+  } else if (is == 11) {
+    /* L11 below still reads f1[]; free it there instead. */
+    free(f0);
+  } else if (is == 12) {
+    /* L12 below still reads f0[]; free it there instead. */
+    free(f1);
   } else {
     free(f0);
     free(f1);
@@ -1596,6 +1602,7 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
     ret_val += f1[j] * vt[blhom_1.nstab + (j + 1) * (iap->ndm)];
   }
   ret_val *= exp(-par[10] * rr[-1 + blhom_1.nstab] / 2.);
+  free(f1);
   return ret_val;
 
   /* Orbit flip (with respect to leading unstable direction) */
@@ -1606,6 +1613,7 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
     ret_val += f0[j] * vt[blhom_1.nstab + 1 + (j + 1) * (iap->ndm)];
   }
   ret_val *= exp(par[10] * rr[blhom_1.nstab] / 2.);
+  free(f0);
   return ret_val;
 
   /* Inclination flip (critically twisted) with respect to stable manifold 
