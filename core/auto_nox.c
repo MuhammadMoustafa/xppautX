@@ -646,7 +646,6 @@ static char *auto_home_dir(char *dname)
 
 void create_auto_file_name()
 {
-  char string[200];
  char *basec,*bname,*dirc,*dname;
 
   basec = strdup(this_file);
@@ -1917,9 +1916,9 @@ void get_shifted_orbit(u,t,p,n)
      double t,p,*u;
      int n;
 {
-  double ts,t1,t2;
+  double ts;
   int i,i1,i2,ip,j;
-  double v1,v2,lam;
+  double lam;
   if(t>1.0)t-=1.0;
   if(t<0.0)t+=1.0;
   ts=fmod(t*p+HOMO_SHIFT,p);

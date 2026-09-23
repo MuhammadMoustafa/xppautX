@@ -518,8 +518,7 @@ void io_parameters(f,fp)
 int f;
 FILE *fp;
 {
- int i,index;
- char junk[256];
+ int i;
  double z;
  for(i=0;i<NUPAR;i++){
   if(f!=READEM){
