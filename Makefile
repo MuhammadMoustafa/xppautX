@@ -42,7 +42,8 @@ LDSTATIC =
 NETLIBS  = -lpthread
 endif
 
-# macOS/XQuartz users: make X11_INC=-I/opt/X11/include X11_LIB=-L/opt/X11/lib
+# For the legacy X11 xppaut target only: macOS/XQuartz users, pass
+# X11_INC=-I/opt/X11/include X11_LIB=-L/opt/X11/lib (not needed for xppautx)
 X11_INC ?=
 X11_LIB ?=
 

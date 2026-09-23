@@ -170,24 +170,22 @@ or built from source, so those routes skip this entirely.
 
 ## Building
 
-Requires gcc (or clang), make, and X11 headers.
+The released **xppautX** program needs nothing installed — it is X11-free.
+
+If you want to build from source, you need gcc (or clang) and make.
 
 ### Linux
 
 ```bash
-sudo apt install build-essential libx11-dev   # Debian / Ubuntu
-make -j8
-./xppaut examples/ode/lecar.ode
+make -j8 xppautx
+./xppautX examples/ode/lecar.ode
 ```
 
 ### macOS
 
-Install [XQuartz](https://www.xquartz.org/) or `brew install libx11`, then:
-
 ```bash
-make -j8 X11_INC=-I/opt/X11/include X11_LIB=-L/opt/X11/lib
-# Homebrew instead of XQuartz:
-make -j8 X11_INC=-I$(brew --prefix)/include X11_LIB=-L$(brew --prefix)/lib
+make -j8 xppautx
+./xppautX examples/ode/lecar.ode
 ```
 
 ### Windows
@@ -196,31 +194,11 @@ The X11-free binaries build natively with MinGW-w64 gcc (MSYS2 UCRT64, or
 the gcc that ships with Strawberry Perl) from a bash shell:
 
 ```bash
-make -j8 server cli
-node web/serve.js examples/ode/lecar.ode
+make -j8 xppautx
+xppautX.exe examples\ode\lecar.ode
 ```
 
-Then open http://127.0.0.1:8765/. The classic X11 `xppaut` builds only under
-WSL; Windows 11 ships WSLg, so its window opens on the Windows desktop with
-no extra X server.
-
-One-time setup inside WSL:
-
-```bash
-wsl -e bash -lc "sudo apt install -y build-essential libx11-dev"
-```
-
-Build and run from a Windows terminal:
-
-```bash
-wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && make -j8"
-```
-
-```bash
-wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && ./xppaut examples/ode/lecar.ode"
-```
-
-Adjust the path if you cloned somewhere else.
+Then open http://127.0.0.1:8765/.
 
 ### Headless smoke test
 
@@ -228,8 +206,37 @@ Adjust the path if you cloned somewhere else.
 current directory:
 
 ```bash
-./xppaut examples/ode/lecar.ode -silent
+./xppautX examples/ode/lecar.ode -silent
 head output.dat
+```
+
+### Building the legacy X11 xppaut (optional)
+
+The original X11 GUI (`xppaut`) is frozen and no longer shipped with
+releases. If you want to build it for reference or development, you need
+X11 headers.
+
+**Linux:** Add `libx11-dev` to the dependencies above:
+
+```bash
+sudo apt install build-essential libx11-dev
+make -j8 xppaut
+```
+
+**macOS:** Install [XQuartz](https://www.xquartz.org/) or use Homebrew:
+
+```bash
+brew install libx11
+make -j8 xppaut X11_INC=-I$(brew --prefix)/include X11_LIB=-L$(brew --prefix)/lib
+```
+
+**Windows:** The X11 `xppaut` builds only under WSL. Windows 11 ships WSLg,
+so its window opens on the Windows desktop:
+
+```bash
+wsl -e bash -lc "sudo apt install -y build-essential libx11-dev"
+wsl -e bash -lc "cd /path/to/repo && make -j8 xppaut"
+wsl -e bash -lc "cd /path/to/repo && ./xppaut examples/ode/lecar.ode"
 ```
 
 ### Library and headless runner

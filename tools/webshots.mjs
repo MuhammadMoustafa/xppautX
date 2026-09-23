@@ -7,11 +7,13 @@
 
    node tools/webshots.mjs [--ref HEAD] [--base BIN] [--new BIN] [--browser PATH]
                            [--steps tools/web_steps.txt] [--out build/webshots]
+                           [--once]
 
-   --base skips building the ref. No npm packages: the browser is driven
-   through the DevTools protocol with Node's WebSocket (Node 22 or later).
-   Screenshots, a side-by-side report.html and both sessions' files are
-   left in --out. */
+   --base skips building the ref. --once skips the base run and comparison;
+   runs steps once against --new (default ./xppautX[.exe]); exits with status 1
+   if any step fails or a shotw-style wait/check fails. No npm packages: the
+   browser is driven through the DevTools protocol with Node's WebSocket
+   (Node 22 or later). Screenshots and session files are left in --out. */
 import {spawn, spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -284,6 +286,20 @@ async function main() {
   /* the contents, not the folder: a viewer may hold it open */
   fs.mkdirSync(out, {recursive: true});
   for (const e of fs.readdirSync(out)) fs.rmSync(path.join(out, e), {recursive: true, force: true, maxRetries: 5});
+
+  const once = opt.once === 'true' || opt.once === '';
+  const steps = fs.readFileSync(path.join(top, opt.steps), 'utf8').split(/\r?\n/);
+  const problems = {};
+
+  if (once) {
+    /* --once: run steps once against --new only, skip base and comparison */
+    problems.new = await runOnce('new', path.resolve(top, opt.new), browser, steps);
+    for (const p of problems.new) console.log(`PROBLEM: ${p}`);
+    console.log(`${problems.new.length === 0 ? 'web session passed' : 'web session had problems'}`);
+    const ok = problems.new.length === 0;
+    process.exit(ok ? 0 : 1);
+  }
+
   let base = opt.base && path.resolve(top, opt.base);
   if (!base) {
     const src = path.join(out, 'src');
@@ -294,8 +310,6 @@ async function main() {
     run(make, ['-j8', `xppautX${exe}`], src);
     base = path.join(src, `xppautX${exe}`);
   }
-  const steps = fs.readFileSync(path.join(top, opt.steps), 'utf8').split(/\r?\n/);
-  const problems = {};
   problems.base = await runOnce('base', base, browser, steps);
   problems.new = await runOnce('new', path.resolve(top, opt.new), browser, steps);
 

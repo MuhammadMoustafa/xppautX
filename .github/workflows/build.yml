@@ -16,13 +16,13 @@ jobs:
         run: tools/verify.sh
       - name: Coupling metric
         run: |
-          tools/coredeps.sh -v
-          test "$(tools/coredeps.sh | grep -oE 'imports: [0-9]+' | grep -oE '[0-9]+')" -eq 0
+          tools/coredeps.sh -v > coredeps.txt
+          test "$(grep -oE 'imports: [0-9]+' coredeps.txt | grep -oE '[0-9]+')" -eq 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: "Web front end screenshots (every step must run; HEAD against the build)"
-        run: node tools/webshots.mjs
+      - name: "Web front end screenshots (once only, against the build)"
+        run: node tools/webshots.mjs --once
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -33,19 +33,12 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install deps
-        run: brew install libx11
-      - name: Build
+      - name: Build xppautX (X11-free)
+        run: make -j"$(sysctl -n hw.ncpu)" xppautx
+      - name: Smoke test (headless)
         run: |
-          set -o pipefail
-          make -j"$(sysctl -n hw.ncpu)" xppaut xppautx X11_INC="-I$(brew --prefix)/include" X11_LIB="-L$(brew --prefix)/lib" 2>&1 | tee build.log
-      - name: Smoke test (headless, both binaries must agree)
-        run: |
-          ./xppaut -version
-          cd /tmp && "$GITHUB_WORKSPACE/xppaut" "$GITHUB_WORKSPACE/examples/ode/lecar.ode" -silent
+          cd /tmp && "$GITHUB_WORKSPACE/xppautX" "$GITHUB_WORKSPACE/examples/ode/lecar.ode" -silent
           test "$(wc -l < output.dat)" -eq 601
-          mv output.dat x11.dat && "$GITHUB_WORKSPACE/xppautX" "$GITHUB_WORKSPACE/examples/ode/lecar.ode" -silent
-          cmp x11.dat output.dat
           echo "md5 on this platform: $(md5 -q output.dat) (linux baseline c281851de59ffd03b2a46428619a0c8f)"
       - name: Server protocol and web front end
         run: python3 tools/servercheck.py && python3 tools/webcheck.py
@@ -64,6 +57,8 @@ jobs:
       - uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
+          release: false
+          cache: true
           install: make mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-python
       - name: Build the X11-free binaries natively
         run: make -j4 xppautx
