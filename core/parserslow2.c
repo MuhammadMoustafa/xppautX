@@ -339,7 +339,7 @@ char *junk;
    return 1;
  }
  if(len>MXLEN)len=MXLEN;
- strncpy(my_symb[NSYM].name,string,len);
+ memcpy(my_symb[NSYM].name,string,len);
  my_symb[NSYM].name[len]='\0';
  my_symb[NSYM].len=len;
  my_symb[NSYM].pri=10;
@@ -412,7 +412,7 @@ int add_kernel(name,mu,expr)
   convert(name,string);
   len=strlen(string);
   if(len>MXLEN)len=MXLEN;
-  strncpy(my_symb[NSYM].name,string,len);
+  memcpy(my_symb[NSYM].name,string,len);
   my_symb[NSYM].name[len]='\0';
   my_symb[NSYM].len=len;
   my_symb[NSYM].pri=10;
@@ -469,7 +469,7 @@ double value;
  convert(junk,string);
  len=strlen(string);
  if(len>MXLEN)len=MXLEN;
- strncpy(my_symb[NSYM].name,string,len);
+ memcpy(my_symb[NSYM].name,string,len);
  my_symb[NSYM].name[len]='\0';
  my_symb[NSYM].len=len;
  my_symb[NSYM].pri=10;
