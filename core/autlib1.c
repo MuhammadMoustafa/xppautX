@@ -2593,7 +2593,11 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
 {
   /* Local variables */
   integer iplt, itmp, i, j;
-  char col[9][14+1];
+  /* Column text is normally the 14-char fixed-width fields printed
+     below, but the %ld values are `integer` (a long): size the
+     buffer for the worst case (sign + 19 digits) instead of assuming
+     they stay small, so a large index can never overflow it. */
+  char col[9][14+21];
   integer ndm, ips, itp;
   integer isw;
 
