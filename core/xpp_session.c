@@ -21,8 +21,10 @@ const char *xpp_session_set_file(void) { return session_set; }
 
 static void keep(char *dst, const char *name)
 {
-    strncpy(dst, name, XPP_MAX_NAME - 1);
-    dst[XPP_MAX_NAME - 1] = 0;
+    size_t len = strlen(name);
+    if (len >= XPP_MAX_NAME) len = XPP_MAX_NAME - 1;
+    memcpy(dst, name, len);
+    dst[len] = 0;
 }
 const char *xpp_session_auto_file(void) { return session_auto; }
 
