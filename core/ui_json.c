@@ -47,7 +47,7 @@
 #include "arrayplot.h"
 #include "read_dir.h"
 #include "xpp_session.h"
-#include "series_enc.h"
+#include "plot_data.h"
 #include <strings.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -1150,12 +1150,10 @@ static void browser_rows(const char *line)
     send_browser();
 }
 
-static unsigned long data_version; /* counts data changes, for the series event (below) */
-
 static void j_browser_changed(int i)
 {
     (void)i;
-    data_version++;
+    plot_data_changed();
     state_dirty = 1;
     browser_dirty = 1;
     aplot_dirty = 1; /* X11 redraws an auto-redrawn array plot on expose */
@@ -1208,191 +1206,32 @@ static void plotvars_command(const char *line)
     plot_checked_vars((int)get_num(line, "how", 0), isck, n);
 }
 
-/* ---- the plot as data --------------------------------------------------------------
-   {"ev":"series"}: what the active plot window's curves plot, as numbers, so
-   a client can draw the plot itself (docs/protocol.md "The plot as data").
-   Sent only to a client that asked ({"cmd":"data","events":["series"]}), at the end of
-   a command, and only when something it shows changed: the data (any
-   data_changed), the window, or the window's curves. The columns are T and
-   every column a curve plots, once each. The values are the
-   stored single-precision numbers, printed with 9 digits so they read back
-   exactly, or with "enc":"f32" base64 of the floats (series_enc.h).
+/* ---- the plot as data (plot_data.cpp) ---------------------------------------- */
 
-   While an integration runs, the rows it stores go out as they come:
-   {"op":"append","from":n,...} events, at most ten a second, with the
-   columns of the last full series (j_rows_stored). A full series still
-   ends the command. */
-static int series_on, series_f32;
-
-typedef struct {
-    unsigned long win, version;
-    int rows, nvars, three;
-    int xv[MAXPERPLOT], yv[MAXPERPLOT], zv[MAXPERPLOT], line[MAXPERPLOT], color[MAXPERPLOT];
-    int shift[3];
-} SeriesSig;
-static SeriesSig series_sent;
-
-/* what the client holds, for appends: the columns of the last full series,
-   and how many of its first rows still equal storage */
-static int live_cols[3 * MAXPERPLOT + 1], live_ncols;
-static int live_valid;
-static int live_seen; /* the row count of the last rows_stored() */
-static int live_sent; /* appends went out in this command: a full series must end it */
-
-static void series_sig(SeriesSig *s)
+/* a plots or series event: after the pending drawing, like any event */
+static void data_emit(const char *line, size_t n)
 {
-    int i;
-    memset(s, 0, sizeof *s); /* padding too: signatures are compared with memcmp */
-    s->win = (unsigned long)draw_win;
-    s->version = data_version;
-    s->rows = my_browser.maxrow;
-    s->nvars = MyGraph->nvars;
-    s->three = MyGraph->ThreeDFlag;
-    for (i = 0; i < MyGraph->nvars && i < MAXPERPLOT; i++) {
-        s->xv[i] = MyGraph->xv[i];
-        s->yv[i] = MyGraph->yv[i];
-        s->zv[i] = MyGraph->zv[i];
-        s->line[i] = MyGraph->line[i];
-        s->color[i] = MyGraph->color[i];
-    }
-    s->shift[0] = MyGraph->xshft;
-    s->shift[1] = MyGraph->yshft;
-    s->shift[2] = MyGraph->zshft;
+    flush_ops();
+    out_line(line, n);
+    out_flush();
 }
 
-/* the same window and curves, whatever the data */
-static int same_plot(const SeriesSig *a, const SeriesSig *b)
-{
-    SeriesSig x = *a;
-    x.version = b->version;
-    x.rows = b->rows;
-    return memcmp(&x, b, sizeof x) == 0;
-}
-
-static const char *column_name(int col) { return col == 0 ? "T" : uvar_names[col - 1]; }
-
-/* rows [from, to) of storage column col as a JSON value */
-static void buf_values(Buf *b, int col, int from, int to)
-{
-    size_t n;
-    char *t = xpp_series_values(my_browser.data[col] + from, to - from, series_f32, &n);
-    if (t) {
-        buf_add(b, t, n);
-        xpp_free(t);
-    } else BUF_LIT(b, "[]");
-}
-
-/* the whole series: rows 0..rows of the columns the curves use */
-static void send_series(const SeriesSig *s, int rows)
-{
-    Buf b = {0};
-    int used[MAXODE + 1], cols[3 * MAXPERPLOT + 1], ncols = 0, i, k;
-    int maxcol = my_browser.maxcol;
-    memset(used, 0, sizeof used);
-    used[0] = 1; /* T always: a readout names the time of any point */
-    cols[ncols++] = 0;
-    buf_printf(&b, "{\"ev\":\"series\",\"win\":%lu,\"rows\":%d,\"three\":%d,", s->win, rows, s->three);
-    if (series_f32) BUF_LIT(&b, "\"enc\":\"f32\",");
-    BUF_LIT(&b, "\"xlabel\":");
-    buf_str(&b, MyGraph->xlabel);
-    BUF_LIT(&b, ",\"ylabel\":");
-    buf_str(&b, MyGraph->ylabel);
-    BUF_LIT(&b, ",\"zlabel\":");
-    buf_str(&b, MyGraph->zlabel);
-    BUF_LIT(&b, ",\"curves\":[");
-    for (i = 0; i < s->nvars && i < MAXPERPLOT; i++) {
-        int c[3] = {s->xv[i], s->yv[i], s->zv[i]};
-        buf_printf(&b, "%s{\"x\":%d,\"y\":%d,\"z\":%d,\"color\":%d,\"line\":%d}", i ? "," : "", c[0], c[1], c[2],
-                   s->color[i], s->line[i]);
-        for (k = 0; k < (s->three ? 3 : 2); k++)
-            if (c[k] >= 0 && c[k] < maxcol && c[k] <= MAXODE && !used[c[k]]) {
-                used[c[k]] = 1;
-                cols[ncols++] = c[k];
-            }
-    }
-    buf_printf(&b, "],\"shift\":[%d,%d,%d],\"columns\":[", s->shift[0], s->shift[1], s->shift[2]);
-    for (k = 0; k < ncols; k++) {
-        buf_printf(&b, "%s{\"col\":%d,\"name\":", k ? "," : "", cols[k]);
-        buf_str(&b, column_name(cols[k]));
-        BUF_LIT(&b, ",\"data\":");
-        buf_values(&b, cols[k], 0, rows);
-        BUF_LIT(&b, "}");
-    }
-    BUF_LIT(&b, "]}");
-    send_buf(&b);
-    xpp_free(b.s);
-    memcpy(live_cols, cols, sizeof cols);
-    live_ncols = ncols;
-    live_valid = live_seen = rows;
-}
-
-/* during a run: the rows stored since what the client holds */
-static void series_append(int rows)
-{
-    Buf b = {0};
-    SeriesSig s;
-    int k, from = live_valid;
-    series_sig(&s);
-    live_sent = 1;
-    if (!same_plot(&s, &series_sent)) { /* other columns: the whole series, as far as it goes */
-        series_sent = s;
-        send_series(&s, rows);
-        return;
-    }
-    if (rows <= from) return;
-    buf_printf(&b, "{\"ev\":\"series\",\"op\":\"append\",\"win\":%lu,\"from\":%d,\"rows\":%d,", s.win, from, rows);
-    if (series_f32) BUF_LIT(&b, "\"enc\":\"f32\",");
-    BUF_LIT(&b, "\"columns\":[");
-    for (k = 0; k < live_ncols; k++) {
-        buf_printf(&b, "%s{\"col\":%d,\"data\":", k ? "," : "", live_cols[k]);
-        buf_values(&b, live_cols[k], from, rows);
-        BUF_LIT(&b, "}");
-    }
-    BUF_LIT(&b, "]}");
-    send_buf(&b);
-    xpp_free(b.s);
-    live_valid = rows;
-}
-
-/* the integrator stored row nrows-1 (xpp_ui.h rows_stored): called for
-   every row, so the clock is read only when the client wants the series */
-static void j_rows_stored(int nrows)
-{
-    static double last;
-    if (!series_on) return;
-    if (nrows <= live_seen) live_valid = 0; /* storage started again from its first row */
-    live_seen = nrows;
-    if (xpp_every(&last, 0.1)) series_append(nrows);
-}
-
-/* at the end of a command: the series, when the client wants it and it
-   changed, and always after appends */
-static void series_update(void)
-{
-    SeriesSig s;
-    if (!series_on) return;
-    series_sig(&s);
-    if (!live_sent && memcmp(&s, &series_sent, sizeof s) == 0) return;
-    live_sent = 0;
-    series_sent = s;
-    send_series(&s, my_browser.dataflag ? s.rows : 0);
-}
-
-/* {"cmd":"data","events":["series",...],"enc":"f32"}: the data events the
-   client wants from now on (an empty list stops them); each is sent at the
-   end of this command, which is what a client that (re)connects needs.
+/* {"cmd":"data","events":["series","plots"],"enc":"f32"}: the data events
+   the client wants from now on (an empty list stops them); each is sent at
+   the end of this command, which is what a client that (re)connects needs.
    hello.features lists the names known here. "enc":"f32" sends the series'
    values as base64 of little-endian float32, anything else as JSON numbers. */
 static void data_command(const char *line)
 {
     const char *arr = js_find(line, "events");
     char name[32], enc[8];
-    int i;
-    series_on = 0;
-    for (i = 0; arr && js_elem(arr, i); i++)
-        if (js_string(js_elem(arr, i), name, sizeof name) && strcmp(name, "series") == 0) series_on = 1;
-    series_f32 = get_str(line, "enc", enc, sizeof enc) && strcmp(enc, "f32") == 0;
-    memset(&series_sent, 0xff, sizeof series_sent); /* the next update sends */
+    int i, series = 0, plots = 0;
+    for (i = 0; arr && js_elem(arr, i); i++) {
+        if (!js_string(js_elem(arr, i), name, sizeof name)) continue;
+        if (strcmp(name, "series") == 0) series = 1;
+        else if (strcmp(name, "plots") == 0) plots = 1;
+    }
+    plot_data_subscribe(series, plots, get_str(line, "enc", enc, sizeof enc) && strcmp(enc, "f32") == 0);
 }
 
 /* the equations window: one "dX/dT=..." line per equation (eig_list.c) */
@@ -2675,7 +2514,7 @@ static const XppUi json_ui = {
     .clear_draw_window = clr_scrn,
     .reset_graphics = j_reset_graphics,
     .data_changed = j_browser_changed,
-    .rows_stored = j_rows_stored,
+    .rows_stored = plot_data_rows_stored,
     .browser_redraw = j_browser_changed,
     .activate_graph = j_activate_graph,
     .create_plot_window = j_create_plot_window,
@@ -2993,7 +2832,7 @@ static void handle_line(const char *line, unsigned long seq)
     if (aplot_dirty && aplot.alive && plot3d_auto_redraw == 1) send_aplot(NULL);
     aplot_dirty = 0;
     if (browser_dirty && br_count) send_browser();
-    series_update();
+    plot_data_update();
     diag_flush(1);
     json_flush();
     /* a cancelled job says where it stopped; a replayed one must have
@@ -3064,6 +2903,7 @@ void json_ui_install(void)
         win_w[i] = 640;
         win_h[i] = 480;
     }
+    plot_data_init(data_emit);
     xpp_inbox_set_classifier(classify);
     xpp_set_ui(&json_ui);
 }
@@ -3073,7 +2913,7 @@ void json_ui_hello(char *title)
 {
     Buf b = {0};
     int i;
-    BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":1,\"features\":[\"series\"],\"title\":");
+    BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":1,\"features\":[\"series\",\"plots\"],\"title\":");
     buf_str(&b, title);
     BUF_LIT(&b, ",\"file\":");
     buf_str(&b, this_file);

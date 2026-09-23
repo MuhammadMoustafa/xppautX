@@ -39,7 +39,7 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `browser` | `op` (`find`, `get`, `replace`, `unreplace`, `table`, `load`, `write`, `first`, `last`, `restore`, `addcol`, `delcol`), `row` | A data browser button, with `row` the selected row (the X11 browser's top row). |
 | `eqimport` | | The equilibrium window's Import: the last equilibrium becomes the initial conditions. |
 | `equations` | | Send `equations`. |
-| `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot as data (below). `enc` `"f32"` sends the series' values as base64 of little-endian float32 instead of JSON numbers. |
+| `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves (both in "The plot as data", below). `enc` `"f32"` sends the series' values as base64 of little-endian float32 instead of JSON numbers. |
 | `action` | `index` | Run the action of comment `index` of `source.comments`. |
 | `click` | `win` | The user selected plot window `win`. |
 | `redraw` | | Redraw the active plot window, and the AUTO diagram when AUTO is open (for a client that reconnects). |
@@ -171,12 +171,13 @@ Run it with:
 
 | ev | fields | meaning |
 |---|---|---|
-| `hello` | `protocol`, `features` (optional parts the server speaks: `series`), `title`, `file`, `char` {`w`,`h`,`bw`,`bh`}, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. Text is laid out on a `char.w` x `char.h` monospace cell. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). |
+| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`), `title`, `file`, `char` {`w`,`h`,`bw`,`bh`}, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. Text is laid out on a `char.w` x `char.h` monospace cell. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). |
 | `palette` | `colors` (256 `#rrggbb`) | Colour table; sent again after a colormap change. |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows 1..10, AUTO 101 (stability circle 102, info strip 103), animation 104. |
 | `draw` | `win`, `ops` | Drawing, see below. |
 | `diagram` | `op` (`axes`, `reset`, `add`), ... | The AUTO diagram as data, beside its drawing; see "The AUTO diagram as data". |
-| `series` | `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`; or `op` `append`, `win`, `from`, `rows`, `enc`, `columns` | The active plot window's curves as numbers, for a client that asked (`data`), and during an integration the rows as they are stored; see "The plot as data". |
+| `series` | `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`; or `op` `append`, `win`, `from`, `rows`, `enc`, `columns` | A plot window's curves as numbers, one event per window, for a client that asked (`data`), and during an integration the active window's rows as they are stored; see "The plot as data". |
+| `plots` | `active`, `windows` [{`win`, `title`, `three`, `xlo`, `xhi`, `ylo`, `yhi`, `xlabel`, `ylabel`, `zlabel`, `box`, `theta`, `phi`, `persp`, `zplane`, `zview`, `curves`, `shift`}...] | Every plot window and the active one, for a client that asked (`data`); see "The plot as data". |
 | `state` | `pars` [[name,value]...], `ics` [[name,value]...], `bcs` [[name,text]...], `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `menu`, `win`, `session` {`set`,`auto`} | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics), `win` the active window; `session` names the files of the last `session` `save` or `load` (`auto` absent when that session has no diagram; the member itself absent before any `session` command). |
 | `idle` | | The command finished. |
 | `stopped` | `at` | The command's computation was cancelled; sent before its `state` and `idle`. `at` says where it stopped: `{"what":"integrate","rows":N,"t":T}` for an integration, N the rows in storage (as `state.rows`) and T the time of the last one stored (9 digits: the stored single-precision value exactly); `{"what":"auto","branch":B,"point":P}` for an AUTO run, P the last point it stored on branch B (the end point the cancel adds, as in the diagram's data); `{"what":"other"}` for anything else. A script replays the interruption from it (see "Scripts"). |
@@ -282,14 +283,23 @@ again.
 
 ### The plot as data
 
-The new front end (docs/ui-v2.md) draws the plot itself from numbers instead
-of replaying drawing ops. A client that sends `{"cmd":"data","events":["series"]}` gets
-a `series` event at the end of that command and then at the end of every
-command after which what the active plot window shows has changed: the
-stored data (an integration, Continue, a browser Load or Replace, ...), the
-active window, or its curves (Xi vs t, Viewaxes, Graphic stuff/Add curve,
-...). Nothing else sends it, so a command that only redraws sends none.
-It comes before the command's `state` and `idle`.
+The new front end (docs/ui-v2.md) draws the plots itself from numbers
+instead of replaying drawing ops. Two events carry them, each sent only to a
+client that asked with `{"cmd":"data","events":["series","plots"]}` (either
+name alone works too), at the end of that command and then at the end of
+every command after which what it says has changed. Nothing else sends
+them, so a command that only redraws sends none. They come before the
+command's `state` and `idle`, `plots` first.
+
+**`series`**: one event per plot window (`win` 1..10), each at the end of
+a command after which what that window shows has changed: the stored data
+(an integration, Continue, a browser Load or Replace, ...; this changes
+every window), the window's curves (Xi vs t, Viewaxes, Graphic
+stuff/Add curve, ...), or the window itself (a new one gets its series at
+once). The active window's comes first. Switching the active window sends
+none: the client has every window's already. A client that shows one plot
+keeps the event whose `win` is the active one (`plots.active` or
+`state.win`).
 
 ```
 {"ev":"series","win":1,"rows":601,"three":0,"xlabel":"","ylabel":"","zlabel":"",
@@ -301,7 +311,7 @@ It comes before the command's `state` and `idle`.
 
 | field | meaning |
 |---|---|
-| `win` | the plot window (1..10), as in `window` |
+| `win` | the plot window (1..10), as in `window` and `plots` |
 | `rows` | stored rows: every column has this many values (0 before an integration) |
 | `three` | 1 when the window is a 3D plot (then `z` matters) |
 | `xlabel`, `ylabel`, `zlabel` | the window's axis labels; empty means "the plotted column's name" |
@@ -314,6 +324,38 @@ significant digits, so they convert back to exactly the stored floats:
 `output.dat` for the same run holds the same numbers printed with 8
 (`tools/servercheck.py` checks this). The event carries the whole data every
 time.
+
+**`plots`**: the plot windows as a list, sent when anything in it changed
+(a window made or destroyed, the active one, a window's axes, curves,
+labels or 3D view); its text is compared with the last one sent.
+
+```
+{"ev":"plots","active":2,"windows":[
+ {"win":1,"title":"W vs V","three":0,"xlo":-0.6,"xhi":1.2,"ylo":-0.25,"yhi":1.2,
+  "xlabel":"","ylabel":"","zlabel":"",
+  "box":{"xmin":-0.6,"xmax":1.2,"ymin":-0.25,"ymax":1.2,"zmin":-12,"zmax":12},
+  "theta":45,"phi":45,"persp":0,"zplane":-1000,"zview":1000,
+  "curves":[{"x":1,"y":2,"z":1,"color":0,"line":1}],"shift":[0,0,0]},
+ {"win":2,"title":"V vs T",...}]}
+```
+
+| field | meaning |
+|---|---|
+| `active` | the active window: the one keys, Viewaxes, Xi vs t, ... act on (`click` selects another) |
+| `windows` | every plot window, by `win`; a window missing from the list was destroyed |
+| `title` | what the window plots, `y vs x` (`z vs y vs x` in 3D), as its X11 title |
+| `three` | 1 for a 3D plot |
+| `xlo`, `xhi`, `ylo`, `yhi` | the window's axes (Viewaxes, Window/Zoom); in 3D the projected view's |
+| `xlabel`, `ylabel`, `zlabel` | the axis labels; empty means "the plotted column's name" |
+| `box` | the 3D box (3d-params, Viewaxes in 3D): the data ranges of x, y and z |
+| `theta`, `phi` | the 3D view's angles in degrees (3d-params, `rotate`) |
+| `persp`, `zplane`, `zview` | perspective on (1) or off, and its planes |
+| `curves`, `shift` | as in `series` |
+
+Numbers are the doubles themselves, in the shortest of 15 or 17 digits that
+reads back exactly; `null` for a value that is not finite. Makewindow
+(`m`, then `c` create, `d` destroy the active window, `k` kill all but
+window 1) changes the list; `click` with a window's `win` makes it active.
 
 **Binary values.** After `{"cmd":"data","events":["series"],"enc":"f32"}`
 every `series` event (full or append) has `"enc":"f32"` and each column's
@@ -328,8 +370,8 @@ means JSON numbers. A client should read `enc` on every event: a server
 that does not know the option sends JSON numbers.
 
 **Live runs.** While an integration runs (Initialconds/Go, Continue, a
-range, a slider's rerun, ...), the rows it stores go out as they come, at
-most ten times a second:
+range, a slider's rerun, ...), the rows it stores go out as they come for
+the active window, at most ten times a second:
 
 ```
 {"ev":"series","op":"append","win":1,"from":1200,"rows":2400,
@@ -340,7 +382,7 @@ most ten times a second:
 |---|---|
 | `from` | the row the first value of each column is: the client keeps its rows `0..from-1` and drops any others it holds |
 | `rows` | the rows the client holds after this event: `from` plus the number of values |
-| `columns` | `col` and `data` for the columns of the last full `series`, in its order (no names) |
+| `columns` | `col` and `data` for the columns of the window's last full `series`, in its order (no names) |
 
 A new integration starts again from row 0, so its first append has `from`
 0; Continue's first has `from` equal to the rows already there. The
@@ -350,12 +392,13 @@ would not be the last full series'), the server sends a full `series` of
 the rows stored so far instead and appends after it. The command still
 ends with the full `series` (always after appends, else when something
 changed), before its `state` and `idle`, and no append follows it; its
-first rows are what the appends delivered. A client that did not ask for
+first rows are what the appends delivered. The other windows get only
+their full `series`, after the active one's. A client that did not ask for
 `series` gets neither.
 
 The appends come from the integrator itself (`rows_stored()` in
-core/xpp_ui.h, called for every stored row; `j_rows_stored` in
-core/ui_json.c sends at most one append per 100 ms).
+core/xpp_ui.h, called for every stored row; `plot_data_rows_stored` in
+core/plot_data.cpp sends at most one append per 100 ms).
 
 ### Asks
 

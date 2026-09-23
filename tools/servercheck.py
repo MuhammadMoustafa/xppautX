@@ -673,6 +673,98 @@ def check_data_coordinates():
 
 check_data_coordinates()
 
+
+# Plot windows as data (docs/protocol.md "The plot as data", docs/ui-v2.md
+# T6): "plots" lists every window and the active one; "series" comes per
+# window, each with its win, when that window's data or curves changed;
+# appends only for the active window. live.ode runs long enough for appends.
+def check_plot_windows():
+    proc4, run4, send4, collect4, _ = launch_server(ode=LIVE)
+
+    def command(key, *answers):
+        """a key and the answers to the asks it opens; the events up to its idle"""
+        send4(cmd='key', key=key)
+        got, pending = [], list(answers)
+        while True:
+            evs, e = collect4(lambda e: e.get('ev') in ('ask', 'idle'), timeout=120)
+            got += evs
+            if e is None or e['ev'] == 'idle':
+                return got
+            send4(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
+
+    def after(cmd):
+        send4(**cmd)
+        return collect4(is_idle, timeout=30)[0]
+
+    plots = lambda evs: [e for e in evs if e.get('ev') == 'plots']
+    full = lambda evs: [e for e in evs if e.get('ev') == 'series' and 'op' not in e]
+    wins = lambda p: [w['win'] for w in p['windows']]
+    try:
+        evs, _ = collect4(is_idle)
+        hello4 = next((e for e in evs if e.get('ev') == 'hello'), {})
+        check('hello lists the plots feature', 'plots' in hello4.get('features', []), str(hello4.get('features')))
+        evs = after({'cmd': 'data', 'events': ['series', 'plots']})
+        pl = plots(evs)
+        w1 = pl[0]['windows'][0] if pl and pl[0]['windows'] else {}
+        check('plots at once: window 1, active, its title, axes and curves',
+              len(pl) == 1 and pl[0]['active'] == 1 and wins(pl[0]) == [1] and w1.get('title') == 'W vs V'
+              and w1.get('three') == 0 and w1.get('xlo') == -0.6 and w1.get('yhi') == 1.2
+              and w1.get('curves') and w1['curves'][0]['x'] == 1 and 'theta' in w1 and 'zmax' in w1.get('box', {}),
+              str(pl)[:400])
+        check('plots comes before the series', evs.index(pl[0]) < evs.index(full(evs)[0]) if pl and full(evs) else False)
+        command('i', {'key': 'g'})
+        evs = command('m', {'key': 'c'})
+        pl, ser = plots(evs), full(evs)
+        check('Makewindow/Create: plots has windows 1 and 2, 2 active',
+              len(pl) == 1 and wins(pl[0]) == [1, 2] and pl[0]['active'] == 2, str(pl)[:300])
+        check('the new window gets its own series, with the data', [e['win'] for e in ser] == [2]
+              and ser[0]['rows'] == 20001, str([(e['win'], e['rows']) for e in ser]))
+        evs = command('x', {'value': 'V'})
+        pl, ser = plots(evs), full(evs)
+        cur = {w['win']: (w['curves'][0]['x'], w['curves'][0]['y']) for w in pl[0]['windows']} if pl else {}
+        check('Xi vs t in window 2: its curves change, window 1 keeps its own',
+              cur == {1: (1, 2), 2: (0, 1)} and [w['title'] for w in pl[0]['windows']] == ['W vs V', 'V vs T'],
+              str(pl)[:400])
+        check('... and only window 2 gets a new series', [e['win'] for e in ser] == [2]
+              and [c['name'] for c in ser[0]['columns']] == ['T', 'V'], str([(e['win'], e['rows']) for e in ser]))
+        evs = after({'cmd': 'click', 'win': 1})
+        pl = plots(evs)
+        check('selecting window 1 (click) makes it active in plots, and sends no series',
+              len(pl) == 1 and pl[0]['active'] == 1 and not full(evs), str(pl)[:200])
+        evs = command('i', {'key': 'g'})
+        ser = [e for e in evs if e.get('ev') == 'series']
+        apps = [e for e in ser if e.get('op') == 'append']
+        check('a run appends to the active window only', len(apps) >= 3 and all(e['win'] == 1 for e in apps),
+              str([(e['win'], e.get('op')) for e in ser])[:300])
+        check('... and ends with a full series for each window, the active one first',
+              [e['win'] for e in full(evs)] == [1, 2] and all(e['rows'] == 20001 for e in full(evs)),
+              str([(e['win'], e['rows']) for e in full(evs)]))
+        after({'cmd': 'click', 'win': 2})
+        evs = command('m', {'key': 'd'})
+        pl = plots(evs)
+        check('Makewindow/Destroy of window 2: plots has window 1 only, active',
+              len(pl) == 1 and wins(pl[0]) == [1] and pl[0]['active'] == 1 and not full(evs), str(pl)[:300])
+        command('m', {'key': 'c'})
+        evs = command('m', {'key': 'c'})
+        check('two more windows', plots(evs) and wins(plots(evs)[0]) == [1, 2, 3], str(plots(evs))[:200])
+        evs = command('m', {'key': 'k'}, {'key': 'y'})
+        pl = plots(evs)
+        check('Makewindow/Kill all leaves window 1', len(pl) == 1 and wins(pl[0]) == [1] and pl[0]['active'] == 1,
+              str(pl)[:300])
+        evs = command('m', {'key': 'c'})
+        check('a window made again gets its series again', [e['win'] for e in full(evs)] == [2],
+              str([(e['win'], e['rows']) for e in full(evs)]))
+        evs = after({'cmd': 'redraw'})
+        check('a redraw sends neither plots nor series', not plots(evs) and not full(evs))
+        evs = after({'cmd': 'data', 'events': ['series']})
+        check('without plots in the list: series only', not plots(evs) and [e['win'] for e in full(evs)] == [2, 1],
+              str([(e['ev'], e.get('win')) for e in evs if e.get('ev') in ('plots', 'series')]))
+    finally:
+        stop_server(proc4, run4, send4)
+
+
+check_plot_windows()
+
 # A HOME the process cannot write to used to make AUTO exit(1) under the
 # client when it opened fort.8 there; open_auto() now falls back to the
 # model's directory. Drive a second server with such a HOME and check it survives.
