@@ -2527,19 +2527,24 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   nfpr = iap->nfpr;
   ibr = iap->ibr;
 
+  /* This re-reads the label line findlb() just located and validated
+     (9 of these 12 fields are the ones it already checked), so these
+     reads are not expected to fail; still bail out before *ntsr,
+     *ncolrs or nparr can be used as a garbage loop bound or array
+     index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
-  fscanf(fp3,"%ld",&ibr);
-  fscanf(fp3,"%ld",&ntot1);
-  fscanf(fp3,"%ld",&itp1);
-  fscanf(fp3,"%ld",&lab1);
-  fscanf(fp3,"%ld",&nfpr1);
-  fscanf(fp3,"%ld",&isw1);
-  fscanf(fp3,"%ld",&ntpl1);
-  fscanf(fp3,"%ld",&nar1);
-  fscanf(fp3,"%ld",&nskip1);
-  fscanf(fp3,"%ld",&(*ntsr));
-  fscanf(fp3,"%ld",&(*ncolrs));
-  fscanf(fp3,"%ld",&nparr);
+  if (fscanf(fp3,"%ld",&ibr) != 1) return 1;
+  if (fscanf(fp3,"%ld",&ntot1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&itp1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&lab1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nfpr1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&isw1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&ntpl1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nar1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nskip1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&(*ntsr)) != 1) return 1;
+  if (fscanf(fp3,"%ld",&(*ncolrs)) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nparr) != 1) return 1;
   iap->ibr = ibr;
   nrsp1 = *ntsr + 1;
 
@@ -2547,23 +2552,23 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     for (i = 0; i < *ncolrs; ++i) {
       k1 = i * ndim;
       k2 = k1 + ndm - 1;
-      fscanf(fp3,"%lf",&temp[i]);
+      if (fscanf(fp3,"%lf",&temp[i]) != 1) return 1;
       for (k = k1; k <= k2; ++k) {
-	fscanf(fp3,"%lf",&ARRAY2D(ups, j, k));		
+	if (fscanf(fp3,"%lf",&ARRAY2D(ups, j, k)) != 1) return 1;
       }
     }
     tm[j] = temp[0];
   }
 
-  fscanf(fp3,"%lf",&tm[-1 + nrsp1]);
+  if (fscanf(fp3,"%lf",&tm[-1 + nrsp1]) != 1) return 1;
   for (k = 0; k < ndm; ++k) {
-    fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k));
+    if (fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k)) != 1) return 1;
   }
 
-  fscanf(fp3,"%ld",icprs);
-  fscanf(fp3,"%ld",&icprs[1]);
-  fscanf(fp3,"%lf",&rd1);
-  fscanf(fp3,"%lf",&rd2);
+  if (fscanf(fp3,"%ld",icprs) != 1) return 1;
+  if (fscanf(fp3,"%ld",&icprs[1]) != 1) return 1;
+  if (fscanf(fp3,"%lf",&rd1) != 1) return 1;
+  if (fscanf(fp3,"%lf",&rd2) != 1) return 1;
 
   /* Read U-dot (derivative with respect to arclength). */
 
@@ -2572,14 +2577,14 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
       k1 = i* ndim;
       k2 = k1 + ndm - 1;
       for (k = k1; k <= k2; ++k) {
-	fscanf(fp3,"%lf",&ARRAY2D(udotps, j, k));
+	if (fscanf(fp3,"%lf",&ARRAY2D(udotps, j, k)) != 1) return 1;
       }
     }
   }
 
 
   for (k = 0; k < ndm; ++k) {
-    fscanf(fp3,"%lf",&ARRAY2D(udotps, *ntsr, k));
+    if (fscanf(fp3,"%lf",&ARRAY2D(udotps, *ntsr, k)) != 1) return 1;
   }
 
   /* Read the parameter values. */
@@ -2590,7 +2595,7 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     printf("PAR(i) set to zero, fot i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
-    fscanf(fp3,"%lf",&par[i]);
+    if (fscanf(fp3,"%lf",&par[i]) != 1) return 1;
   }
 
   /* Complement starting data */
@@ -2922,19 +2927,24 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   nfpr = iap->nfpr;
   ibr = iap->ibr;
 
+  /* This re-reads the label line findlb() just located and validated
+     (9 of these 12 fields are the ones it already checked), so these
+     reads are not expected to fail; still bail out before *ntsr,
+     *ncolrs or nparr can be used as a garbage loop bound or array
+     index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
-  fscanf(fp3,"%ld",&ibr);
-  fscanf(fp3,"%ld",&ntot1);
-  fscanf(fp3,"%ld",&itp1);
-  fscanf(fp3,"%ld",&lab1);
-  fscanf(fp3,"%ld",&nfpr1);
-  fscanf(fp3,"%ld",&isw1);
-  fscanf(fp3,"%ld",&ntpl1);
-  fscanf(fp3,"%ld",&nar1);
-  fscanf(fp3,"%ld",&nskip1);
-  fscanf(fp3,"%ld",&(*ntsr));
-  fscanf(fp3,"%ld",&(*ncolrs));
-  fscanf(fp3,"%ld",&nparr);
+  if (fscanf(fp3,"%ld",&ibr) != 1) return 1;
+  if (fscanf(fp3,"%ld",&ntot1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&itp1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&lab1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nfpr1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&isw1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&ntpl1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nar1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nskip1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&(*ntsr)) != 1) return 1;
+  if (fscanf(fp3,"%ld",&(*ncolrs)) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nparr) != 1) return 1;
   iap->ibr = ibr;
   nrsp1 = *ntsr + 1;
 
@@ -2942,22 +2952,22 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     for (i = 0; i < *ncolrs; ++i) {
       k1 = i * ndim;
       k2 = k1 + ndm - 1;
-      fscanf(fp3,"%lf",&temp[i]);
+      if (fscanf(fp3,"%lf",&temp[i]) != 1) return 1;
       for (k = k1; k <= k2; ++k) {
-	fscanf(fp3,"%lf",&ARRAY2D(ups, j, k));		
+	if (fscanf(fp3,"%lf",&ARRAY2D(ups, j, k)) != 1) return 1;
       }
     }
     tm[j] = temp[0];
   }
-  fscanf(fp3,"%lf",&tm[-1 + nrsp1]);
+  if (fscanf(fp3,"%lf",&tm[-1 + nrsp1]) != 1) return 1;
   for (k = 0; k < ndm; ++k) {
-    fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k));
+    if (fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k)) != 1) return 1;
   }
 
-  fscanf(fp3,"%ld",icprs);
-  fscanf(fp3,"%ld",&icprs[1]);
-  fscanf(fp3,"%lf",rldot);
-  fscanf(fp3,"%lf",&rldot[1]);
+  if (fscanf(fp3,"%ld",icprs) != 1) return 1;
+  if (fscanf(fp3,"%ld",&icprs[1]) != 1) return 1;
+  if (fscanf(fp3,"%lf",rldot) != 1) return 1;
+  if (fscanf(fp3,"%lf",&rldot[1]) != 1) return 1;
 
   /* Read U-dot (derivative with respect to arclength). */
 
@@ -2966,14 +2976,14 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
       k1 = i* ndim;
       k2 = k1 + ndm - 1;
       for (k = k1; k <= k2; ++k) {
-	fscanf(fp3,"%lf",&ARRAY2D(udotps, j, k));
+	if (fscanf(fp3,"%lf",&ARRAY2D(udotps, j, k)) != 1) return 1;
       }
     }
   }
 
 
   for (k = 0; k < ndm; ++k) {
-    fscanf(fp3,"%lf",&ARRAY2D(udotps, *ntsr, k));
+    if (fscanf(fp3,"%lf",&ARRAY2D(udotps, *ntsr, k)) != 1) return 1;
   }
 
   /* Read the parameter values. */
@@ -2984,7 +2994,7 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     printf("PAR(i) set to zero, fot i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
-    fscanf(fp3,"%lf",&par[i]);
+    if (fscanf(fp3,"%lf",&par[i]) != 1) return 1;
   }
 
   /* Complement starting data */
@@ -3327,19 +3337,24 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   nfpr = iap->nfpr;
   ibr = iap->ibr;
 
+  /* This re-reads the label line findlb() just located and validated
+     (9 of these 12 fields are the ones it already checked), so these
+     reads are not expected to fail; still bail out before *ntsr,
+     *ncolrs or nparr can be used as a garbage loop bound or array
+     index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
-  fscanf(fp3,"%ld",&ibr);
-  fscanf(fp3,"%ld",&ntot1);
-  fscanf(fp3,"%ld",&itp1);
-  fscanf(fp3,"%ld",&lab1);
-  fscanf(fp3,"%ld",&nfpr1);
-  fscanf(fp3,"%ld",&isw1);
-  fscanf(fp3,"%ld",&ntpl1);
-  fscanf(fp3,"%ld",&nar1);
-  fscanf(fp3,"%ld",&nskip1);
-  fscanf(fp3,"%ld",&(*ntsr));
-  fscanf(fp3,"%ld",&(*ncolrs));
-  fscanf(fp3,"%ld",&nparr);
+  if (fscanf(fp3,"%ld",&ibr) != 1) return 1;
+  if (fscanf(fp3,"%ld",&ntot1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&itp1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&lab1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nfpr1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&isw1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&ntpl1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nar1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nskip1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&(*ntsr)) != 1) return 1;
+  if (fscanf(fp3,"%ld",&(*ncolrs)) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nparr) != 1) return 1;
   iap->ibr = ibr;
   nrsp1 = *ntsr + 1;
 
@@ -3347,9 +3362,9 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     for (i = 0; i < *ncolrs; ++i) {
       k1 = i * ndim;
       k2 = k1 + ndm - 1;
-      fscanf(fp3,"%lf",&temp[i]);
+      if (fscanf(fp3,"%lf",&temp[i]) != 1) return 1;
       for (k = k1; k <= k2; ++k) {
-	fscanf(fp3,"%lf",&ARRAY2D(ups, j, k));
+	if (fscanf(fp3,"%lf",&ARRAY2D(ups, j, k)) != 1) return 1;
       }
       k2p1 = k2 + 1;
       k3 = k2 + ndm;
@@ -3361,19 +3376,19 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     tm[j] = temp[0];
   }
 
-  fscanf(fp3,"%lf",&tm[*ntsr]);
+  if (fscanf(fp3,"%lf",&tm[*ntsr]) != 1) return 1;
   for (k = 0; k < ndm; ++k) {
-    fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k));
+    if (fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k)) != 1) return 1;
   }
   for (i = 0; i < ndm; ++i) {
     ARRAY2D(ups, *ntsr, (ndm + i)) = 0.;
     ARRAY2D(ups, *ntsr, ((ndm * 2) + i)) = 0.;
   }
 
-  fscanf(fp3,"%ld",icprs);
-  fscanf(fp3,"%ld",&icprs[1]);
-  fscanf(fp3,"%lf",rldot);
-  fscanf(fp3,"%lf",&rldot[1]);
+  if (fscanf(fp3,"%ld",icprs) != 1) return 1;
+  if (fscanf(fp3,"%ld",&icprs[1]) != 1) return 1;
+  if (fscanf(fp3,"%lf",rldot) != 1) return 1;
+  if (fscanf(fp3,"%lf",&rldot[1]) != 1) return 1;
   rldot[2] = 0.;
   rldot[3] = 0.;
 
@@ -3384,7 +3399,7 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
       k1 = i * ndim;
       k2 = k1 + ndm - 1;
       for (k = k1; k <= k2; ++k) {
-	fscanf(fp3,"%lf",&ARRAY2D(udotps, j, k));
+	if (fscanf(fp3,"%lf",&ARRAY2D(udotps, j, k)) != 1) return 1;
       }
       k2p1 = k2 + 1;
       k3 = k2 + ndm;
@@ -3396,7 +3411,7 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   }
 
   for (k = 0; k < ndm; ++k) {
-    fscanf(fp3,"%lf",&ARRAY2D(udotps, *ntsr, k));
+    if (fscanf(fp3,"%lf",&ARRAY2D(udotps, *ntsr, k)) != 1) return 1;
   }
   for (i = 0; i < ndm; ++i) {
     ARRAY2D(udotps, *ntsr, (ndm + i)) = 0.;
@@ -3411,7 +3426,7 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     printf("PAR(i) set to zero, fot i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
-    fscanf(fp3,"%lf",&par[i]);
+    if (fscanf(fp3,"%lf",&par[i]) != 1) return 1;
   }
 
   par[12] = 0.;
@@ -3860,19 +3875,24 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   nfpr = iap->nfpr;
   ibr = iap->ibr;
 
+  /* This re-reads the label line findlb() just located and validated
+     (9 of these 12 fields are the ones it already checked), so these
+     reads are not expected to fail; still bail out (freeing the
+     buffers allocated above) before *ntsr, *ncolrs or nparr can be
+     used as a garbage loop bound or array index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
-  fscanf(fp3,"%ld",&ibr);
-  fscanf(fp3,"%ld",&ntot1);
-  fscanf(fp3,"%ld",&itp1);
-  fscanf(fp3,"%ld",&lab1);
-  fscanf(fp3,"%ld",&nfpr1);
-  fscanf(fp3,"%ld",&isw1);
-  fscanf(fp3,"%ld",&ntpl1);
-  fscanf(fp3,"%ld",&nar1);
-  fscanf(fp3,"%ld",&nskip1);
-  fscanf(fp3,"%ld",&(*ntsr));
-  fscanf(fp3,"%ld",&(*ncolrs));
-  fscanf(fp3,"%ld",&nparr);
+  if (fscanf(fp3,"%ld",&ibr) != 1) goto read_failed;
+  if (fscanf(fp3,"%ld",&ntot1) != 1) goto read_failed;
+  if (fscanf(fp3,"%ld",&itp1) != 1) goto read_failed;
+  if (fscanf(fp3,"%ld",&lab1) != 1) goto read_failed;
+  if (fscanf(fp3,"%ld",&nfpr1) != 1) goto read_failed;
+  if (fscanf(fp3,"%ld",&isw1) != 1) goto read_failed;
+  if (fscanf(fp3,"%ld",&ntpl1) != 1) goto read_failed;
+  if (fscanf(fp3,"%ld",&nar1) != 1) goto read_failed;
+  if (fscanf(fp3,"%ld",&nskip1) != 1) goto read_failed;
+  if (fscanf(fp3,"%ld",&(*ntsr)) != 1) goto read_failed;
+  if (fscanf(fp3,"%ld",&(*ncolrs)) != 1) goto read_failed;
+  if (fscanf(fp3,"%ld",&nparr) != 1) goto read_failed;
   iap->ibr = ibr;
   nrsp1 = *ntsr + 1;
 
@@ -3880,25 +3900,25 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     for (i = 0; i < *ncolrs; ++i) {
       k1 = i * ndim;
       k2 = k1 + ndm - 1;
-      fscanf(fp3,"%lf",&temp[i]);
+      if (fscanf(fp3,"%lf",&temp[i]) != 1) goto read_failed;
       for (k = k1; k <= k2; ++k) {
-	fscanf(fp3,"%lf",&ARRAY2D(ups, j, k));		
+	if (fscanf(fp3,"%lf",&ARRAY2D(ups, j, k)) != 1) goto read_failed;
       }
     }
     tm[j] = temp[0];
   }
-  fscanf(fp3,"%lf",&tm[*ntsr]);
+  if (fscanf(fp3,"%lf",&tm[*ntsr]) != 1) goto read_failed;
   for (k = 0; k < ndm; ++k) {
-    fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k));
+    if (fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k)) != 1) goto read_failed;
   }
   for (j = 0; j < *ntsr; ++j) {
     dtm[j] = tm[j + 1] - tm[j];
   }
 
-  fscanf(fp3,"%ld",icprs);
-  fscanf(fp3,"%ld",&icprs[1]);
-  fscanf(fp3,"%lf",&rld1);
-  fscanf(fp3,"%lf",&rld2);
+  if (fscanf(fp3,"%ld",icprs) != 1) goto read_failed;
+  if (fscanf(fp3,"%ld",&icprs[1]) != 1) goto read_failed;
+  if (fscanf(fp3,"%lf",&rld1) != 1) goto read_failed;
+  if (fscanf(fp3,"%lf",&rld2) != 1) goto read_failed;
 
   /* Read U-dot (derivative with respect to arclength). */
   for (j = 0; j < *ntsr; ++j) {
@@ -3906,12 +3926,12 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
       k1 = i* ndim;
       k2 = k1 + ndm - 1;
       for (k = k1; k <= k2; ++k) {
-	fscanf(fp3,"%lf",&ARRAY2D(udotps, j, k));
+	if (fscanf(fp3,"%lf",&ARRAY2D(udotps, j, k)) != 1) goto read_failed;
       }
     }
   }
   for (k = 0; k < ndm; ++k) {
-    fscanf(fp3,"%lf",&ARRAY2D(udotps, *ntsr, k));
+    if (fscanf(fp3,"%lf",&ARRAY2D(udotps, *ntsr, k)) != 1) goto read_failed;
   }
 
   /* Read the parameter values. */
@@ -3921,7 +3941,7 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     printf("PAR(i) set to zero, fot i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
-    fscanf(fp3,"%lf",&par[i]);
+    if (fscanf(fp3,"%lf",&par[i]) != 1) goto read_failed;
   }
 
   for (j = 0; j < *ntsr; ++j) {
@@ -3980,6 +4000,11 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   free(u);
   free(temporary_storage);
   return 0;
+
+ read_failed:
+  free(u);
+  free(temporary_storage);
+  return 1;
 } /* stpnpo_ */
 
 /* ----------------------------------------------------------------------- */
@@ -4463,19 +4488,24 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   nfpr = iap->nfpr;
   ibr = iap->ibr;
 
+  /* This re-reads the label line findlb() just located and validated
+     (9 of these 12 fields are the ones it already checked), so these
+     reads are not expected to fail; still bail out before *ntsr,
+     *ncolrs or nparr can be used as a garbage loop bound or array
+     index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
-  fscanf(fp3,"%ld",&ibr);
-  fscanf(fp3,"%ld",&ntot1);
-  fscanf(fp3,"%ld",&itp1);
-  fscanf(fp3,"%ld",&lab1);
-  fscanf(fp3,"%ld",&nfpr1);
-  fscanf(fp3,"%ld",&isw1);
-  fscanf(fp3,"%ld",&ntpl1);
-  fscanf(fp3,"%ld",&nar1);
-  fscanf(fp3,"%ld",&nskip1);
-  fscanf(fp3,"%ld",&(*ntsr));
-  fscanf(fp3,"%ld",&(*ncolrs));
-  fscanf(fp3,"%ld",&nparr);
+  if (fscanf(fp3,"%ld",&ibr) != 1) return 1;
+  if (fscanf(fp3,"%ld",&ntot1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&itp1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&lab1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nfpr1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&isw1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&ntpl1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nar1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nskip1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&(*ntsr)) != 1) return 1;
+  if (fscanf(fp3,"%ld",&(*ncolrs)) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nparr) != 1) return 1;
   iap->ibr = ibr;
   nrsp1 = *ntsr + 1;
 
@@ -4483,22 +4513,22 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     for (i = 0; i < *ncolrs; ++i) {
       k1 = i * ndim;
       k2 = k1 + ndm - 1;
-      fscanf(fp3,"%lf",&temp[i]);
+      if (fscanf(fp3,"%lf",&temp[i]) != 1) return 1;
       for (k = k1; k <= k2; ++k) {
-	fscanf(fp3,"%lf",&ARRAY2D(ups, j, k));		
+	if (fscanf(fp3,"%lf",&ARRAY2D(ups, j, k)) != 1) return 1;
       }
     }
     tm[j] = temp[0];
   }
-  fscanf(fp3,"%lf",&tm[*ntsr]);
+  if (fscanf(fp3,"%lf",&tm[*ntsr]) != 1) return 1;
   for (k = 0; k < ndm; ++k) {
-    fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k));
+    if (fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k)) != 1) return 1;
   }
 
   nfpr0 = nfpr / 2;
-  fscanf(fp3,"%ld",icprs);
+  if (fscanf(fp3,"%ld",icprs) != 1) return 1;
   for (i = 0; i < nfpr0; ++i) {
-    fscanf(fp3,"%lf",&rldot[i]);
+    if (fscanf(fp3,"%lf",&rldot[i]) != 1) return 1;
   }
 
   /* Read U-dot (Derivative with respect to arclength). */
@@ -4508,12 +4538,12 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
       k1 = i * ndim + ndm;
       k2 = (i + 1) * ndim - 1;
       for (k = k1; k <= k2; ++k) {
-	fscanf(fp3,"%lf",&ARRAY2D(ups, j, k));
+	if (fscanf(fp3,"%lf",&ARRAY2D(ups, j, k)) != 1) return 1;
       }
     }
   }
   for (k = ndm; k < ndim; ++k) {
-    fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k));
+    if (fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k)) != 1) return 1;
   }
 
   /* Read the parameter values. */
@@ -4524,7 +4554,7 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     printf("PAR(i) set to zero, for i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
-    fscanf(fp3,"%lf",&par[i]);
+    if (fscanf(fp3,"%lf",&par[i]) != 1) return 1;
   }
 
   nfpx = nfpr / 2 - 1;

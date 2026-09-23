@@ -4574,31 +4574,35 @@ readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par)
   doublereal t;
   integer nparr, nfprr, n1, n2, ntotr, nskipr, ntplrs, nar;
 
-  /* Reads the restart data for algebraic problems. */
+  /* Reads the restart data for algebraic problems. findlb() has
+     already validated the label line this is reading (it's the same
+     line, re-read from its start), so these reads are not expected to
+     fail; still, bail out before ndim (read from nar) or nparr can be
+     used as a garbage loop bound or array size if one ever does. */
 
-  fscanf(fp3,"%ld",&ibrr);
-  fscanf(fp3,"%ld",&ntotr);
-  fscanf(fp3,"%ld",&itpr);
-  fscanf(fp3,"%ld",&labr);
-  fscanf(fp3,"%ld",&nfprr);
-  fscanf(fp3,"%ld",&iswr);
-  fscanf(fp3,"%ld",&ntplrs);
-  fscanf(fp3,"%ld",&nar);
-  fscanf(fp3,"%ld",&nskipr);
-  fscanf(fp3,"%ld",&n1);
-  fscanf(fp3,"%ld",&n2);
-  fscanf(fp3,"%ld",&nparr);
+  if (fscanf(fp3,"%ld",&ibrr) != 1) return 1;
+  if (fscanf(fp3,"%ld",&ntotr) != 1) return 1;
+  if (fscanf(fp3,"%ld",&itpr) != 1) return 1;
+  if (fscanf(fp3,"%ld",&labr) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nfprr) != 1) return 1;
+  if (fscanf(fp3,"%ld",&iswr) != 1) return 1;
+  if (fscanf(fp3,"%ld",&ntplrs) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nar) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nskipr) != 1) return 1;
+  if (fscanf(fp3,"%ld",&n1) != 1) return 1;
+  if (fscanf(fp3,"%ld",&n2) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nparr) != 1) return 1;
   ndim = nar - 1;
-  fscanf(fp3,"%le",&t);
+  if (fscanf(fp3,"%le",&t) != 1) return 1;
   for (i = 0; i < ndim; ++i) {
-    fscanf(fp3,"%le",&u[i]);
+    if (fscanf(fp3,"%le",&u[i]) != 1) return 1;
   }
   if (nparr > NPARX) {
     nparr = NPARX;
     printf("Warning : NPARX too small for restart data :\n restart PAR(i) skipped for i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
-    fscanf(fp3,"%le",&par[i]);
+    if (fscanf(fp3,"%le",&par[i]) != 1) return 1;
   }
 
   return 0;
@@ -5860,18 +5864,26 @@ rsptbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
        the parameter file fort.2.
     */
   if(iap->irs > 0) {
+    /* Peek at ntst/ncol as written in this restart line of fort.8, past
+       the 9 fields findlb() already validated for this label. Older
+       restart files may not carry these two extra fields; if either
+       read comes up short, fall back to the fort.2 values exactly as
+       the iap->irs <= 0 case below does, instead of sizing the
+       allocations below from whatever was left on the stack. */
+    logical fort8_ok = TRUE_;
     findlb(iap, rap, iap->irs, &junk, &junk);
-    fscanf(fp3,"%ld",&junk);
-    fscanf(fp3,"%ld",&junk);
-    fscanf(fp3,"%ld",&junk);
-    fscanf(fp3,"%ld",&junk);
-    fscanf(fp3,"%ld",&junk);
-    fscanf(fp3,"%ld",&junk);
-    fscanf(fp3,"%ld",&junk);
-    fscanf(fp3,"%ld",&junk);
-    fscanf(fp3,"%ld",&junk);
-    fscanf(fp3,"%ld",&ntst_fort8);
-    fscanf(fp3,"%ld",&ncol_fort8);
+    for (i = 0; i < 9; ++i) {
+      if (fscanf(fp3,"%ld",&junk) != 1) {
+	fort8_ok = FALSE_;
+	break;
+      }
+    }
+    if (!fort8_ok ||
+	fscanf(fp3,"%ld",&ntst_fort8) != 1 ||
+	fscanf(fp3,"%ld",&ncol_fort8) != 1) {
+      ntst_fort8 = iap->ntst;
+      ncol_fort8 = iap->ncol;
+    }
   } else {
     ntst_fort8 = iap->ntst;
     ncol_fort8 = iap->ncol;
@@ -6024,19 +6036,24 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   isw = iap->isw;
   nfpr = iap->nfpr;
 
+  /* This re-reads the label line findlb() just located and validated
+     (9 of these 12 fields are the ones it already checked), so these
+     reads are not expected to fail; still bail out before *ntsrs,
+     *ncolrs or nparr can be used as a garbage loop bound or array
+     index below. */
   findlb(iap, rap, irs, &nfprs, &found);
-  fscanf(fp3,"%ld",&ibr);
-  fscanf(fp3,"%ld",&ntotrs);
-  fscanf(fp3,"%ld",&itprs);
-  fscanf(fp3,"%ld",&lab);
-  fscanf(fp3,"%ld",&nfprs);
-  fscanf(fp3,"%ld",&iswrs);
-  fscanf(fp3,"%ld",&ntplrs);
-  fscanf(fp3,"%ld",&nars);
-  fscanf(fp3,"%ld",&nskip);
-  fscanf(fp3,"%ld",&(*ntsrs));
-  fscanf(fp3,"%ld",&(*ncolrs));
-  fscanf(fp3,"%ld",&nparr);
+  if (fscanf(fp3,"%ld",&ibr) != 1) return 1;
+  if (fscanf(fp3,"%ld",&ntotrs) != 1) return 1;
+  if (fscanf(fp3,"%ld",&itprs) != 1) return 1;
+  if (fscanf(fp3,"%ld",&lab) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nfprs) != 1) return 1;
+  if (fscanf(fp3,"%ld",&iswrs) != 1) return 1;
+  if (fscanf(fp3,"%ld",&ntplrs) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nars) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nskip) != 1) return 1;
+  if (fscanf(fp3,"%ld",&(*ntsrs)) != 1) return 1;
+  if (fscanf(fp3,"%ld",&(*ncolrs)) != 1) return 1;
+  if (fscanf(fp3,"%ld",&nparr) != 1) return 1;
   iap->ibr = ibr;
   iap->lab = lab;
 
@@ -6053,9 +6070,9 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     for (i = 0; i < *ncolrs; ++i) {
       k1 = i * ndim;
       k2 = k1 + ndimrd - 1;
-      fscanf(fp3,"%le",&temp[i]);
+      if (fscanf(fp3,"%le",&temp[i]) != 1) return 1;
       for (k = k1; k <= k2; ++k) {
-	fscanf(fp3,"%lf",&ARRAY2D(ups, j, k));
+	if (fscanf(fp3,"%lf",&ARRAY2D(ups, j, k)) != 1) return 1;
       }
       /*go to the end of the line*/
       while(fgetc(fp3)!='\n');
@@ -6066,9 +6083,9 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     }
     tm[j] = temp[0];
   }
-  fscanf(fp3,"%le",&tm[*ntsrs]);
+  if (fscanf(fp3,"%le",&tm[*ntsrs]) != 1) return 1;
   for (k = 0; k < ndimrd; ++k) {
-    fscanf(fp3,"%le",&ARRAY2D(ups, *ntsrs, k));
+    if (fscanf(fp3,"%le",&ARRAY2D(ups, *ntsrs, k)) != 1) return 1;
   }
   /*go to the end of the line*/
   while(fgetc(fp3)!='\n');
@@ -6077,10 +6094,10 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   }
 
   for (i = 0; i < nfprs; ++i) {
-    fscanf(fp3,"%ld",&icprs[i]);
+    if (fscanf(fp3,"%ld",&icprs[i]) != 1) return 1;
   }
   for (i = 0; i < nfprs; ++i) {
-    fscanf(fp3,"%le",&rldot[i]);
+    if (fscanf(fp3,"%le",&rldot[i]) != 1) return 1;
   }
 
   /* Read U-dot (deriv. with respect to arclength along solution branch). */
@@ -6090,7 +6107,7 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
       k1 = i * ndim;
       k2 = k1 + ndimrd - 1;
       for (k = k1; k <= k2; ++k) {
-	fscanf(fp3,"%le",&ARRAY2D(udotps, j, k));
+	if (fscanf(fp3,"%le",&ARRAY2D(udotps, j, k)) != 1) return 1;
       }
       /*go to the end of the line*/
       while(fgetc(fp3)!='\n');
@@ -6100,7 +6117,7 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     }
   }
   for (k = 0; k < ndimrd; ++k) {
-    fscanf(fp3,"%le",&ARRAY2D(udotps, *ntsrs, k));
+    if (fscanf(fp3,"%le",&ARRAY2D(udotps, *ntsrs, k)) != 1) return 1;
   }
   /*go to the end of the line*/
   while(fgetc(fp3)!='\n');
@@ -6115,7 +6132,7 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     printf("Warning : NPARX too small for restart data :\n restart PAR(i) skipped for i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
-    fscanf(fp3,"%le",&par[i]);
+    if (fscanf(fp3,"%le",&par[i]) != 1) return 1;
   }
   for (i = 0; i < nfpr; ++i) {
     rlcur[i] = par[icp[i]];
