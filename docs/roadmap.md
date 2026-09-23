@@ -28,7 +28,7 @@ issue; the card here is the one kept up to date.
 | W5  | #17 | New UI: design, protocol v2, scaffold | none | done (7c26dbf) |
 | W6  | #18 | New UI: the views | W5 | running (T14, T15, T17, T18 left; T2-T13, T16 done) |
 | W7  | #19 | Core refactor for single responsibility | W4 | ready |
-| W8  | #20 | Remove the X11 front end (pulled ahead of W6, 2026-09-23: the classic web page covers its features until T17) | none | running |
+| W8  | #20 | Remove the X11 front end (pulled ahead of W6, 2026-09-23: the classic web page covers its features until T17) | none | done (4136541) |
 | W9  | #21 | WebAssembly build (proof of concept) | maintainer's OK to install emsdk | blocked |
 | W10 | #22 | Replayable interruptions in scripts | none | done (539b300) |
 
