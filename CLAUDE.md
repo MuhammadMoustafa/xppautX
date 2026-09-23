@@ -105,8 +105,11 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   `core/xpp_http.c` (HTTP + Server-Sent Events on
   127.0.0.1, threads, sockets; it includes no core header) and
   `build/.../web_assets.c`, generated from `web/` by `tools/embed.c`. The
-  protocol lines go through `out_line()` in ui_json.c and input through
-  `read_input()`, which switch to xpp_http.c in web mode. Rebuild after
+  protocol lines go through `out_line()` in ui_json.c, which switches to
+  xpp_http.c in web mode. Input never touches the core thread: reader
+  threads (xpp_http.c, or the --server stdin reader) push lines into
+  `core/xpp_inbox.c` (control and normal queues) and `read_line()` takes
+  them from there; `-silent` starts no reader. Rebuild after
   editing `web/` files; `node web/serve.js` still serves them from disk.
 - The X11 front end is frozen: new UI work goes into ui_json.c and
   `web/`; docs/front-end-gaps.md tracks parity.

@@ -56,7 +56,7 @@ UI_SOURCES := $(addprefix $(SRCDIR)/, abort.c aniwin.c aplotwin.c auto_x11.c \
   menu.c menudrive.c pop_list.c rubber.c txtread.c ui_x11.c \
   xppaut_main.c)
 # sbml2xpp.c needs libsbml and is not part of the upstream build.
-SERVER_SOURCES := $(addprefix $(SRCDIR)/, ui_json.c xppautx_main.c xpp_http.c)
+SERVER_SOURCES := $(addprefix $(SRCDIR)/, ui_json.c xppautx_main.c xpp_http.c xpp_inbox.c)
 CORE_SOURCES := $(filter-out $(UI_SOURCES) $(SERVER_SOURCES) $(SRCDIR)/sbml2xpp.c,$(wildcard $(SRCDIR)/*.c))
 # the page and script xppautX serves, compiled in
 WEB_FILES := web/index.html web/xpp-client.js web/xpp-client.css

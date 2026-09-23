@@ -37,24 +37,11 @@ char *dlerror(void)
     return (char *)e;
 }
 
-int xpp_read_stdin(char *buf, int n, int wait_ms)
+/* blocks until stdin has data: xpp_inbox.c calls it on its reader thread */
+int xpp_read_stdin(char *buf, int n)
 {
-    HANDLE h = GetStdHandle(STD_INPUT_HANDLE);
-    DWORD avail = 0, got = 0;
-    int waited = 0;
-    if (GetFileType(h) == FILE_TYPE_PIPE) {
-        for (;;) {
-            if (!PeekNamedPipe(h, NULL, 0, NULL, &avail, NULL)) return -1; /* closed */
-            if (avail > 0 || wait_ms < 0) break;
-            if (waited >= wait_ms) return 0;
-            Sleep(5);
-            waited += 5;
-        }
-        if (avail > 0 && avail < (DWORD)n) n = (int)avail;
-    } else if (wait_ms >= 0 && WaitForSingleObject(h, (DWORD)wait_ms) != WAIT_OBJECT_0) {
-        return 0;
-    }
-    if (!ReadFile(h, buf, (DWORD)n, &got, NULL) || got == 0) return -1;
+    DWORD got = 0;
+    if (!ReadFile(GetStdHandle(STD_INPUT_HANDLE), buf, (DWORD)n, &got, NULL) || got == 0) return -1;
     return (int)got;
 }
 

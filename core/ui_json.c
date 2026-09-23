@@ -12,6 +12,7 @@
    corrupts the stream. */
 #include "ui_json.h"
 #include "xpp_http.h"
+#include "xpp_inbox.h"
 #include "xpp_win32.h"
 #include "xpp_ui.h"
 #include "xpp_globals.h"
@@ -50,9 +51,6 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/time.h>
-#ifndef _WIN32
-#include <sys/select.h>
-#endif
 
 extern int NUPAR, NODE, NMarkov, NEQ;
 extern char upar_names[MAXPAR][11], uvar_names[MAXODE][12];
@@ -282,74 +280,26 @@ static void json_flush(void)
 
 /* ---- input ------------------------------------------------------------- */
 
-static char *inbuf, *linebuf;
-static size_t inlen, incap, linecap;
+/* Input comes from the inbox (xpp_inbox.h): reader threads fill it, the
+   HTTP server in browser mode and a stdin reader with --server, so the core
+   never reads a descriptor itself.
 
-/* up to n bytes of input into buf, waiting at most wait_ms (< 0: block).
-   Returns the byte count, 0 on timeout; end of input quits the program. */
-#ifdef _WIN32
-static int read_input(char *buf, int n, int wait_ms)
-{
-    int r = xpp_http_active() ? xpp_http_read(buf, n, wait_ms) : xpp_read_stdin(buf, n, wait_ms);
-    if (r < 0) exit(0);
-    return r;
-}
-#else
-static int read_input(char *buf, int n, int wait_ms)
-{
-    if (xpp_http_active()) return xpp_http_read(buf, n, wait_ms);
-    for (;;) {
-        fd_set fds;
-        struct timeval tv, *tvp = NULL;
-        int r;
-        FD_ZERO(&fds);
-        FD_SET(0, &fds);
-        if (wait_ms >= 0) {
-            tv.tv_sec = wait_ms / 1000;
-            tv.tv_usec = (wait_ms % 1000) * 1000;
-            tvp = &tv;
-        }
-        r = select(1, &fds, NULL, NULL, tvp);
-        if (r < 0 && errno == EINTR) continue;
-        if (r <= 0) return 0;
-        r = read(0, buf, n);
-        if (r <= 0) exit(0);
-        return r;
-    }
-}
-#endif
-
-/* the next complete line (without newline), in a buffer that stays valid
-   until the next call; NULL on timeout. wait_ms < 0 blocks. Lines can be
-   long (the pixels of a window in an answer). End of input quits. */
+   The next line (without newline), in a buffer that stays valid until the
+   next call; NULL when nothing came within wait_ms (< 0 blocks, 0 polls).
+   Lines can be long (the pixels of a window in an answer). End of input
+   quits. */
 static char *read_line(int wait_ms)
 {
-    for (;;) {
-        char *nl = inlen ? memchr(inbuf, '\n', inlen) : NULL;
-        int r;
-        if (nl) {
-            size_t n = nl - inbuf;
-            if (n + 1 > linecap) {
-                linecap = n + 1 + 4096;
-                linebuf = realloc(linebuf, linecap);
-            }
-            memcpy(linebuf, inbuf, n);
-            linebuf[n] = 0;
-            if (n > 0 && linebuf[n - 1] == '\r') linebuf[n - 1] = 0;
-            memmove(inbuf, nl + 1, inlen - n - 1);
-            inlen -= n + 1;
-            return linebuf;
-        }
-        if (incap - inlen < 65536) {
-            if (incap > (256u << 20)) inlen = 0; /* overlong line: drop it */
-            else {
-                incap = incap * 2 + 65536;
-                inbuf = realloc(inbuf, incap);
-            }
-        }
-        r = read_input(inbuf + inlen, (int)(incap - inlen), wait_ms);
-        if (r == 0) return NULL;
-        inlen += r;
+    static char *line;
+    free(line);
+    line = NULL;
+    switch (xpp_inbox_next(XPP_INBOX_ANY, wait_ms, &line, NULL)) {
+    case 1:
+        return line;
+    case -1:
+        exit(0);
+    default:
+        return NULL;
     }
 }
 
@@ -2358,6 +2308,11 @@ void json_ui_install(void)
 #endif
         proto = fdopen(fd, "w");
         dup2(2, 1);
+        /* commands from stdin, read on a thread of their own */
+        if (!xpp_inbox_start_stdin()) {
+            fprintf(stderr, "xppautX: cannot start the input thread\n");
+            exit(1);
+        }
     }
     for (i = 0; i < MAXPOP; i++) {
         win_w[i] = 640;

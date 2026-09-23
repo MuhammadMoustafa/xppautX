@@ -3,8 +3,9 @@
    stream protocol events to it (Server-Sent Events), take its commands by
    POST, and replay what a page that (re)connects needs to draw.
 
-   Threads: the core runs on the main thread and calls xpp_http_emit and
-   xpp_http_read; one thread accepts and answers HTTP requests; one thread
+   Threads: the core runs on the main thread and calls xpp_http_emit; one
+   thread accepts and answers HTTP requests and pushes the page's commands
+   into the inbox (xpp_inbox.h), where the core takes them; one thread
    copies what xppaut prints to the terminal and into the page's log. This
    file includes no core header, so the socket and Windows headers cannot
    clash with core names. */
@@ -14,12 +15,12 @@
 #define _DARWIN_C_SOURCE 1
 #endif
 #include "xpp_http.h"
+#include "xpp_inbox.h"
 #include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
 #include <time.h>
 #ifdef _WIN32
 #include <winsock2.h>
@@ -65,13 +66,8 @@ static int active;
 static char token[40];
 static sock_t listener = INVALID_SOCKET;
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t input_ready = PTHREAD_COND_INITIALIZER;
 static pthread_t watchdog_thread;
 static pthread_t http_thread, log_thread;
-
-/* commands from the page, newline separated, read by the core */
-static char *input;
-static size_t input_len, input_cap;
 
 /* event streams and what a new one gets first */
 static sock_t clients[MAX_CLIENTS];
@@ -84,13 +80,6 @@ static struct {
 static char *log_text; /* the last LOG_KEEP bytes printed */
 static size_t log_len;
 static int saw_bye, orig_stderr = -1;
-
-static void grow(char **s, size_t *cap, size_t need)
-{
-    if (need <= *cap) return;
-    *cap = need * 2 + 1024;
-    *s = realloc(*s, *cap);
-}
 
 static char *copy_line(const char *s, size_t n)
 {
@@ -232,43 +221,21 @@ void xpp_http_emit(const char *line, size_t n)
     pthread_mutex_unlock(&lock);
 }
 
-int xpp_http_read(char *buf, int n, int wait_ms)
-{
-    int got;
-    pthread_mutex_lock(&lock);
-    if (wait_ms < 0) {
-        while (input_len == 0) pthread_cond_wait(&input_ready, &lock);
-    } else if (input_len == 0 && wait_ms > 0) {
-        struct timeval now;
-        struct timespec until;
-        gettimeofday(&now, NULL);
-        until.tv_sec = now.tv_sec + wait_ms / 1000;
-        until.tv_nsec = now.tv_usec * 1000L + (wait_ms % 1000) * 1000000L;
-        if (until.tv_nsec >= 1000000000L) {
-            until.tv_sec++;
-            until.tv_nsec -= 1000000000L;
-        }
-        while (input_len == 0)
-            if (pthread_cond_timedwait(&input_ready, &lock, &until) != 0) break;
-    }
-    got = input_len < (size_t)n ? (int)input_len : n;
-    memcpy(buf, input, (size_t)got);
-    memmove(input, input + got, input_len - (size_t)got);
-    input_len -= (size_t)got;
-    pthread_mutex_unlock(&lock);
-    return got;
-}
-
-/* call with the lock held */
+/* a command from the page, into the inbox. Trailing blanks go and an empty
+   body is ignored; a body of several lines gives several lines (a CR before
+   a newline dropped), as when the core split this text itself. Called with
+   the lock held: the inbox's locks nest inside it, never the other way. */
 static void push_command(const char *s, size_t n)
 {
     while (n > 0 && (s[n - 1] == '\n' || s[n - 1] == '\r' || s[n - 1] == ' ')) n--;
-    if (n == 0) return;
-    grow(&input, &input_cap, input_len + n + 1);
-    memcpy(input + input_len, s, n);
-    input_len += n;
-    input[input_len++] = '\n';
-    pthread_cond_signal(&input_ready);
+    while (n > 0) {
+        const char *nl = memchr(s, '\n', n);
+        size_t k = nl ? (size_t)(nl - s) : n;
+        xpp_inbox_push(s, k > 0 && s[k - 1] == '\r' ? k - 1 : k);
+        if (!nl) break;
+        s += k + 1;
+        n -= k + 1;
+    }
 }
 
 /* ---- what xppaut prints ----------------------------------------------------------- */
