@@ -110,7 +110,7 @@ void edit_xpprc(void)
     err_msg("Environment variable XPPEDITOR needs to be set.");
     return;
   }
-  snprintf(cmd, sizeof(cmd), "start \"\" \"%s\" \"%s\.xpprc\"", ed, home ? home : ".");
+  snprintf(cmd, sizeof(cmd), "start \"\" \"%s\" \"%s\\.xpprc\"", ed, home ? home : ".");
   if (system(cmd) != 0) err_msg("Unable to start the editor.");
 }
 
@@ -223,7 +223,7 @@ void get_intern_set(void)
   int i, j;
   int count = Nintern_set;
   XppMenu m = {"param_set", "Param set", 0, NULL, NULL, NULL, -1, 12, -1};
-  if (count == 0) return;
+  if (count <= 0 || count >= MAX_INTERN_SET) return;
   for (i = 0; i < Nintern_set; i++) {
     n[i] = (char *)malloc(256);
     key[i] = 'a' + i;
