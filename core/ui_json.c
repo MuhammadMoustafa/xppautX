@@ -1092,9 +1092,9 @@ static void send_state(void)
        for the x,y readout under the mouse (scale_to_real, auto_motion_xy) */
     get_draw_area();
     buf_printf(&b, ",\"view\":{\"win\":%lu,\"left\":%d,\"right\":%d,\"top\":%d,\"bottom\":%d,"
-               "\"xlo\":%g,\"xhi\":%g,\"ylo\":%g,\"yhi\":%g,\"three\":%d}",
+               "\"xlo\":%g,\"xhi\":%g,\"ylo\":%g,\"yhi\":%g,\"three\":%d,\"theta\":%g,\"phi\":%g}",
                (unsigned long)draw_win, DLeft, DRight, DTop, DBottom, MyGraph->xlo, MyGraph->xhi,
-               MyGraph->ylo, MyGraph->yhi, MyGraph->ThreeDFlag);
+               MyGraph->ylo, MyGraph->yhi, MyGraph->ThreeDFlag, MyGraph->Theta, MyGraph->Phi);
     if (Auto.exist)
         buf_printf(&b, ",\"auto\":{\"x0\":%d,\"y0\":%d,\"wid\":%d,\"hgt\":%d,\"xmin\":%g,\"xmax\":%g,"
                    "\"ymin\":%g,\"ymax\":%g}", Auto.x0, Auto.y0, Auto.wid, Auto.hgt, Auto.xmin, Auto.xmax,
@@ -1934,6 +1934,38 @@ static void rotate_command(const char *line)
         do_axes();
         j_redraw_all();
     }
+}
+
+/* a web2 client turns a 3D plot itself (projecting the box with its own
+   angles, docs/ui-v2.md T14) and reports where it settled, so the core's
+   own state agrees for a PostScript/SVG export, Restore, and any other
+   client: {"cmd":"view3d","win":w,"theta":..,"phi":..} sets window w's
+   angles exactly, redraws it, and sends state and idle as usual. Simpler
+   than replaying `rotate`'s pixel deltas, which only make sense relative
+   to a drag the core itself is tracking. A window that is not a 3D plot,
+   does not exist, or an angle that is not finite, is refused (message
+   error) and changes nothing. */
+static void view3d_command(const char *line)
+{
+    int win = (int)get_num(line, "win", -1), i = win - 1;
+    double theta = get_num(line, "theta", 0), phi = get_num(line, "phi", 0);
+    if (i < 0 || i >= MAXPOP || !graph[i].Use) {
+        j_err_msg("No such window");
+        return;
+    }
+    if (!graph[i].ThreeDFlag) {
+        j_err_msg("Not a 3D window");
+        return;
+    }
+    if (!isfinite(theta) || !isfinite(phi)) {
+        j_err_msg("Bad view");
+        return;
+    }
+    if (i != current_pop) select_graph(i);
+    MyGraph->Theta = theta;
+    MyGraph->Phi = phi;
+    do_axes();
+    j_redraw_all();
 }
 
 /* the array plot window's buttons */
@@ -2934,6 +2966,8 @@ static void handle_line(const char *line, unsigned long seq)
         view_command(line);
     } else if (is_cmd(line, "rotate")) {
         rotate_command(line);
+    } else if (is_cmd(line, "view3d")) {
+        view3d_command(line);
     } else if (is_cmd(line, "plotvars")) {
         plotvars_command(line);
     } else if (is_cmd(line, "eqimport")) {

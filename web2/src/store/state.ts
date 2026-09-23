@@ -5,8 +5,8 @@
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
 import type {AskEvent, Command, HelloEvent, StateEvent, View, XppEvent} from '../protocol/types';
 import {
-  coreMoved, initialPlots, onAppend, onDfield, onMarks, onNullclines, onPlots, onSeries, select, setViewport, undoViewport,
-  windowOf, type PlotsState,
+  coreMoved, initialPlots, onAppend, onDfield, onMarks, onNullclines, onPlots, onSeries, rotate3d, select, setViewport,
+  undoViewport, windowOf, type PlotsState,
   type Viewport,
 } from './plots';
 import {initialAplot, reduceAplot, type AplotAction, type AplotState} from './aplot';
@@ -125,6 +125,9 @@ export type Action =
       the viewport it replaces (the start of a gesture), for undo */
   | {type: 'viewport'; viewport: Viewport; push?: boolean; win?: number}
   | {type: 'undoViewport'; win?: number}
+  /** a 3D window `win` turned to `theta`, `phi` (a drag, arrow keys, or the
+      core's own echo of a `view3d` sent for it), docs/ui-v2.md T14 */
+  | {type: 'rotate3d'; win: number; theta: number; phi: number}
   /** the user picked a plot window's tab (the core is told with `click`) */
   | {type: 'selectWindow'; win: number}
   | {type: 'hover'; hover: Hover | null}
@@ -353,6 +356,8 @@ export function reduce(state: AppState, action: Action): AppState {
       return withPlots(state, setViewport(state.plots, action.win ?? state.plots.active, action.viewport, action.push));
     case 'undoViewport':
       return withPlots(state, undoViewport(state.plots, action.win ?? state.plots.active));
+    case 'rotate3d':
+      return withPlots(state, rotate3d(state.plots, action.win, action.theta, action.phi));
     case 'selectWindow':
       return withPlots(state, select(state.plots, action.win));
     case 'hover':

@@ -1102,6 +1102,73 @@ def check_view():
         stop_server(proc6, run6, send6)
 
 
+# 3D plots turned by the client (docs/ui-v2.md T14, GitHub issue #18):
+# {"cmd":"view3d","win":w,"theta":..,"phi":..} sets window w's angles
+# directly and redraws (core/ui_json.c view3d_command), so "plots" and
+# state.view.theta/phi agree with whatever web2 settled on after
+# projecting the box itself and turning it locally (no need to replay
+# rotate's pixel deltas). lorenz.ode sets axes=3d and phi=60 (theta stays
+# the default 45).
+def check_view3d():
+    proc7, run7, send7, collect7, _ = launch_server(ode='examples/ode/lorenz.ode')
+    # runnow=1 loads, then runs, as two command cycles (the load's own idle
+    # comes first, at row 0; the run keeps going in the background and
+    # ends with its own state/idle some time later): the first idle is
+    # only the load's, so keep collecting (a short timeout: nothing more
+    # means the run's own idle already came) until the stored rows stop
+    # growing, so what follows starts from the settled run.
+    evs0, _ = collect7(is_idle, timeout=30)
+    rows0 = last_state(evs0) and last_state(evs0).get('rows')
+    for _ in range(9):
+        more, _ = collect7(is_idle, timeout=3)
+        if not more:
+            break
+        evs0 = more
+        rows = last_state(evs0) and last_state(evs0).get('rows')
+        if rows == rows0:
+            break
+        rows0 = rows
+    view0 = last_state(evs0) and last_state(evs0)['view']
+    check('lorenz.ode opens a 3D window at its @ phi=60 (theta the default 45)',
+          view0 is not None and view0['three'] == 1 and view0['theta'] == 45 and view0['phi'] == 60, str(view0))
+
+    send7(cmd='data', events=['plots'])
+    collect7(is_idle)
+
+    def view3d_cmd(**kw):
+        """sends {"cmd":"view3d",...}; returns (plots or None, message-error
+        text or None, state.view) of the command's events up to its idle"""
+        send7(cmd='view3d', **kw)
+        evs, _ = collect7(is_idle)
+        pl = next((e for e in evs if e.get('ev') == 'plots'), None)
+        msg = next((e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e), None)
+        st = last_state(evs)
+        return pl, msg, st and st.get('view')
+
+    def angles(v):
+        return v and (v['theta'], v['phi'])
+
+    try:
+        pl, msg, view = view3d_cmd(win=1, theta=10, phi=-20)
+        w = pl and next((x for x in pl['windows'] if x['win'] == 1), None)
+        check('view3d sets the window\'s angles: plots reflects them',
+              msg is None and w is not None and (w['theta'], w['phi']) == (10, -20), str(w))
+        check('... and state.view.theta/phi matches, for the active window',
+              view is not None and view['win'] == 1 and angles(view) == (10, -20), str(view))
+
+        # a non-finite angle is refused and changes nothing
+        _, msg2, view2 = view3d_cmd(win=1, theta=float('nan'), phi=0)
+        check('a non-finite angle is refused (message error)', msg2 is not None, str(msg2))
+        check('... and leaves the angles unchanged', angles(view2) == (10, -20), str(view2))
+
+        # a window that does not exist is refused
+        _, msg3, view3 = view3d_cmd(win=7, theta=0, phi=0)
+        check('a window that does not exist is refused (message error)', msg3 is not None, str(msg3))
+        check('... and leaves the angles unchanged', angles(view3) == (10, -20), str(view3))
+    finally:
+        stop_server(proc7, run7, send7)
+
+
 # Marks as data (docs/protocol.md "The plot as data", docs/ui-v2.md T8): the
 # equilibria Sing pts marks, Text,etc's text, arrows and markers, and frozen
 # curves, as the classic window shows them: a redraw draws the labels,
@@ -1433,6 +1500,7 @@ def check_ani_data():
         stop_server(proc6, run6, send6)
 
 check_view()
+check_view3d()
 check_marks()
 check_ani_data()
 # AUTO's info strip and stability circle as data (docs/protocol.md "The AUTO

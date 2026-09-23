@@ -8,7 +8,9 @@ import type {AskEvent, View} from '../src/protocol/types';
 import {activeWindow} from '../src/store/plots';
 import {initialState, reduce, type AppState} from '../src/store/state';
 
-const view: View = {win: 1, left: 50, right: 550, top: 20, bottom: 420, xlo: -0.6, xhi: 0.5, ylo: -0.1, yhi: 0.5, three: 0};
+const view: View = {
+  win: 1, left: 50, right: 550, top: 20, bottom: 420, xlo: -0.6, xhi: 0.5, ylo: -0.1, yhi: 0.5, three: 0, theta: 45, phi: 45,
+};
 const ask = (kind: AskEvent['kind'], extra: object = {}): AskEvent => ({ev: 'ask', id: 7, kind, win: 1, ...extra});
 const close = (a: number, b: number) => Math.abs(a - b) < 1e-12;
 

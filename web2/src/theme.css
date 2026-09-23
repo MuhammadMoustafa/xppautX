@@ -465,6 +465,9 @@ kbd {
 .plot-host .u-over { touch-action: none; }
 .plot-host .uplot { font-family: var(--font); }
 .plot-host .u-select { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+/* a 3D plot (T14): drag turns it, no zoom or pan, so its cursor says so */
+.plot-canvas-3d { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.plot-canvas-3d:active { cursor: grabbing; }
 .plot-empty {
   position: absolute;
   inset: 0;

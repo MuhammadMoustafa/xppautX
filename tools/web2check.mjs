@@ -24,7 +24,10 @@
    (T7: in the store, drawn, toggled from the legend, cleared by Erase).
    Marks (T8: text with Greek, a pointer, a marker, a frozen curve and an
    equilibrium in the store, drawn, in the legend, toggled, cleared by
-   Erase). Then live plotting (tools/models/live.ode: the store
+   Erase). 3D plots (T14, examples/ode/lorenz.ode: the store's own window,
+   the projection drawn on a canvas, a drag and the arrow keys turning it
+   locally at once, throttled `view3d` commands, and state.view settling
+   to agree). Then live plotting (tools/models/live.ode: the store
    and the plot grow while 20 001 rows are computed, and end as output.dat)
    and a run of 10^6 rows (tools/models/million.ode) that must draw and zoom
    with no frame over 50 ms (draw times and long tasks, read through __xpp).
@@ -37,7 +40,8 @@
    keyboard's steps, Home/End, the seek slider, the delay, Play and Pause
    move the store's frame and the drawn one; a 390x844 sheet.
 
-   node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--only desktop,phase,marks,auto,view,aplot,files,live,million,ani] [-v]
+   node tools/web2check.mjs [--bin ./xppautX] [--browser PATH]
+     [--only desktop,phase,marks,auto,view,three,aplot,files,live,million,ani] [-v]
 
    Needs Node 22 or later and a browser, nothing else (tools/cdp.mjs). */
 import {spawnSync} from 'node:child_process';
@@ -60,6 +64,7 @@ const ODE = path.join(top, 'examples/ode/lecar.ode');
 const LIVE = path.join(top, 'tools/models/live.ode');
 const MILLION = path.join(top, 'tools/models/million.ode');
 const APLOT_ODE = path.join(top, 'examples/ode/wcring.ode');
+const LORENZ_ODE = path.join(top, 'examples/ode/lorenz.ode');
 
 let failures = 0;
 function check(name, ok, detail = '') {
@@ -949,6 +954,79 @@ async function viewCheck() {
     await until(`s.core.view && s.core.view.xlo <= ${extent.xmin} + 1e-6 && s.core.view.xhi >= ${extent.xmax} - 1e-6
       && s.core.view.ylo <= ${extent.ymin} + 1e-6 && s.core.view.yhi >= ${extent.ymax} - 1e-6`, 'fit'),
     JSON.stringify([await S('s.core.view'), extent]));
+}
+
+/* the 3D plot host's box on screen (docs/ui-v2.md T14): Plot3DView.tsx's
+   canvas fills it, and drag/key events go to the host div itself */
+const area3d = () => cdp.eval(`(() => { const r = document.querySelector('.plot-view:not([hidden]) .plot-host').getBoundingClientRect();
+  return {x: r.left, y: r.top, w: r.width, h: r.height}; })()`);
+const sentView3d = () => cdp.eval("__xpp.sent().filter(c => c.cmd === 'view3d').length");
+
+/* 3D plots (docs/ui-v2.md T14, GitHub issue #18): lorenz.ode sets axes=3d
+   and phi=60 (theta stays the default 45) and runnow=1, which the core
+   runs as its own command cycle after loading (servercheck.py's
+   check_view3d has the same two-cycle wait); the plot never draws with
+   three.js, just a canvas (plot/render3d.ts) from the projection
+   (plot/project3d.ts). */
+async function threePlot() {
+  check('the store holds the 3D window: three, its box, and its own angles seeded from the core\'s',
+    await until("w.info && w.info.three === 1 && w.view3d && w.info.box && w.info.box.xmax === 20", '3D window', 20000));
+  check('runnow=1\'s run finishes: 1601 rows (dt=.025, total=40)',
+    await until('w.series && w.series.rows === 1601', 'lorenz run', 20000));
+
+  const angles0 = await S('w.view3d');
+  check("the client's angles start at the core's own (@ phi=60, theta the default 45)",
+    angles0 && angles0.theta === 45 && angles0.phi === 60, JSON.stringify(angles0));
+  check("state.view.theta/phi agrees too, from the start", await until(
+    's.core.view && s.core.view.three === 1 && s.core.view.theta === 45 && s.core.view.phi === 60', 'state.view'));
+
+  const before = await P();
+  check('it draws a projection: the box\'s 8 corners, at least one curve with points',
+    before && before.box.length === 8 && before.curves.length >= 1 && before.curves[0].points > 0, JSON.stringify(before));
+
+  /* a drag on the focused plot turns it locally at once */
+  const a = await area3d(), cx = a.x + a.w / 2, cy = a.y + a.h / 2;
+  const sentBefore = await sentView3d();
+  const steps = 12;
+  await mouse('mousePressed', cx, cy, {button: 'left', buttons: 1, clickCount: 1});
+  for (let s = 1; s <= steps; s++) await mouse('mouseMoved', cx + 3 * s, cy - 2 * s, {button: 'left', buttons: 1});
+  const dragged = await S('w.view3d');
+  check('drag: theta/phi changed at once, by the drag\'s pixels (core/many_pops.c rotate3dcheck: 1 pixel, 1 degree, subtracted)',
+    dragged && dragged.theta === angles0.theta - 3 * steps && dragged.phi === angles0.phi + 2 * steps,
+    JSON.stringify([angles0, dragged]));
+  const during = await P();
+  check('... and the drawn projection changed too (still dragging, no round trip needed)',
+    during && JSON.stringify(during.box) !== JSON.stringify(before.box), '');
+  const sentDuring = (await sentView3d()) - sentBefore;
+  check(`throttled: ${steps} pointer moves sent far fewer view3d commands (${sentDuring})`,
+    sentDuring > 0 && sentDuring < steps, String(sentDuring));
+  await mouse('mouseReleased', cx + 3 * steps, cy - 2 * steps, {button: 'left', buttons: 0, clickCount: 1});
+
+  check("state.view.theta/phi settles to agree with the client's angles",
+    await until(`s.core.view && Math.abs(s.core.view.theta - w.view3d.theta) < 1e-6
+      && Math.abs(s.core.view.phi - w.view3d.phi) < 1e-6`, 'drag settle', 5000));
+  const plotsAfterDrag = await S('w.info');
+  check('... "plots" agrees too', plotsAfterDrag && plotsAfterDrag.theta === dragged.theta && plotsAfterDrag.phi === dragged.phi,
+    JSON.stringify([plotsAfterDrag, dragged]));
+
+  /* the arrow keys turn it too, on the focused plot (plot/project3d.ts KEY_STEP) */
+  await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
+  const beforeKey = await S('w.view3d');
+  await key('ArrowRight');
+  const afterKey = await S('w.view3d');
+  check('an arrow key on the focused plot turns it too (5 degrees)',
+    afterKey && afterKey.theta === beforeKey.theta + 5 && afterKey.phi === beforeKey.phi,
+    JSON.stringify([beforeKey, afterKey]));
+  check('... and state.view settles to agree', await until(`s.core.view && Math.abs(s.core.view.theta - w.view3d.theta) < 1e-6
+    && Math.abs(s.core.view.phi - w.view3d.phi) < 1e-6`, 'key settle', 5000));
+
+  /* Shift+arrow is the coarse step (CDP modifiers: 8 is Shift) */
+  const beforeShift = await S('w.view3d');
+  await key('ArrowUp', 8);
+  const afterShift = await S('w.view3d');
+  check('Shift+arrow turns it by the coarse step (30 degrees)',
+    afterShift && afterShift.phi === beforeShift.phi + 30 && afterShift.theta === beforeShift.theta,
+    JSON.stringify([beforeShift, afterShift]));
 }
 
 async function touch(type, points) {
@@ -2025,6 +2103,7 @@ async function main() {
     if (run('phase')) await session(ODE, phasePlane);
     if (run('auto')) await session(ODE, autoView);
     if (run('view')) await session(ODE, viewCheck);
+    if (run('three')) await session(LORENZ_ODE, threePlot);
     if (run('marks')) await session(ODE, marks);
     if (run('aplot')) await session(APLOT_ODE, aplotView);
     if (run('files')) await session(ODE, files, ['Cannot open file']);

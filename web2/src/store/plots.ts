@@ -26,6 +26,16 @@ export interface Viewport {
 
 export const HOME: Viewport = {x: null, y: null};
 
+/** a 3D plot's angles (docs/ui-v2.md T14): set from the core's `theta`,
+    `phi` the first time a window is seen, then owned by the client (a
+    drag or arrow keys turn it at once; `view3d` tells the core where it
+    settled, throttled, see session.ts), so it does not fight the core's
+    own echo of the same numbers. */
+export interface View3d {
+  theta: number;
+  phi: number;
+}
+
 export interface PlotWindow {
   win: number;
   /** from `plots`: title, axes, 3D view (null until the server sends it) */
@@ -39,6 +49,8 @@ export interface PlotWindow {
   viewport: Viewport;
   /** earlier viewports, for Undo zoom (newest last) */
   viewportHistory: Viewport[];
+  /** a 3D window's own angles (null: not seen yet, or not 3D) */
+  view3d: View3d | null;
 }
 
 export interface PlotsState {
@@ -52,7 +64,10 @@ export const initialPlots: PlotsState = {windows: [], active: 1};
 const HISTORY_KEEP = 50;
 
 function blank(win: number): PlotWindow {
-  return {win, info: null, series: null, nullclines: null, dfield: null, marks: null, viewport: HOME, viewportHistory: []};
+  return {
+    win, info: null, series: null, nullclines: null, dfield: null, marks: null, viewport: HOME, viewportHistory: [],
+    view3d: null,
+  };
 }
 
 export function windowOf(p: PlotsState, win: number): PlotWindow | undefined {
@@ -76,10 +91,21 @@ function sameCurves(a: PlotSeries | null, b: PlotSeries): boolean {
   return !!a && JSON.stringify(a.curves) === JSON.stringify(b.curves);
 }
 
-/** the windows the core has now: kept ones keep their series and zoom */
+/** the windows the core has now: kept ones keep their series, zoom and,
+    once set, their own 3D angles (the client's to turn from here on) */
 export function onPlots(p: PlotsState, ev: PlotsEvent): PlotsState {
-  const windows = ev.windows.map(info => ({...(windowOf(p, info.win) ?? blank(info.win)), info}));
+  const windows = ev.windows.map(info => {
+    const w = windowOf(p, info.win) ?? blank(info.win);
+    return {...w, info, view3d: w.view3d ?? (info.three ? {theta: info.theta, phi: info.phi} : null)};
+  });
   return {windows, active: ev.active};
+}
+
+/** a 3D window turned, locally (a drag or arrow keys) or by the core's own
+    echo of a `view3d` it sent (session.ts): the store is what the plot
+    draws from, so this is the single point a rotation changes it. */
+export function rotate3d(p: PlotsState, win: number, theta: number, phi: number): PlotsState {
+  return update(p, win, w => ({...w, view3d: {theta, phi}}));
 }
 
 export function onSeries(p: PlotsState, ev: SeriesEvent): PlotsState {

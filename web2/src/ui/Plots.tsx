@@ -9,6 +9,7 @@ import {useRef} from 'preact/hooks';
 import {PLOT_KEYS_HELP} from '../plot/plotKeys';
 import type {PlotWindow} from '../store/plots';
 import {useSession, useStore} from './context';
+import {Plot3DView} from './Plot3DView';
 import {PlotView} from './PlotView';
 
 function tabTitle(w: PlotWindow): string {
@@ -71,9 +72,13 @@ export function Plots({dark}: {dark: boolean}) {
           )}
         </div>
       </div>
-      {shownWins.map(win => (
-        <PlotView key={win} win={win} dark={dark} shown={win === active || shownWins.length === 1} tabbed={tabbed} />
-      ))}
+      {shownWins.map(win => {
+        const shown = win === active || shownWins.length === 1;
+        const three = windows.find(w => w.win === win)?.info?.three;
+        return three
+          ? <Plot3DView key={win} win={win} dark={dark} shown={shown} tabbed={tabbed} />
+          : <PlotView key={win} win={win} dark={dark} shown={shown} tabbed={tabbed} />;
+      })}
       <p id="plot-keys-help" class="visually-hidden">{PLOT_KEYS_HELP}</p>
     </div>
   );

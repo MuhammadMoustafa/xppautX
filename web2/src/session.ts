@@ -43,6 +43,10 @@ export class Session {
   /** a command run again after "Add file…": the answers its prompts get, and
       the idles to wait for (the menu keys before it, then its own) */
   private replayAnswers: RunAnswer[] = [];
+  /** rotate3d's throttle: the last time a `view3d` went out for a window,
+      and its pending trailing send, by window */
+  private rotate3dLast = new Map<number, number>();
+  private rotate3dTimer = new Map<number, ReturnType<typeof setTimeout>>();
   private replayIdles = 0;
   /** a command to send when the running one has ended (the AUTO view's close while busy, A10) */
   private afterIdle: Command | null = null;
@@ -229,6 +233,32 @@ export class Session {
       data's extent. */
   fitView(): void {
     this.keys('w', 'f');
+  }
+
+  /* ---- 3D plots (docs/ui-v2.md T14) ---- */
+
+  /** window `win`'s 3D view turned to `theta`, `phi` (a drag or the arrow
+      keys on the focused plot): the store updates at once, so the plot
+      (projected in the client, plot/project3d.ts) redraws with no round
+      trip. The core's own state (a PostScript/SVG export, `state.view`,
+      any other client) is kept in step with `{"cmd":"view3d",...}`,
+      throttled to at most 10 a second while the turn continues, matching
+      plot_data's own throttle (docs/protocol.md); a trailing send 150 ms
+      after the last change always lands, so the settled angle reaches the
+      core even with no explicit end wired in (a key held down auto-
+      repeats, with no keyup between steps). */
+  rotate3d(win: number, theta: number, phi: number): void {
+    this.store.dispatch({type: 'rotate3d', win, theta, phi});
+    const timer = this.rotate3dTimer.get(win);
+    if (timer !== undefined) clearTimeout(timer);
+    const last = this.rotate3dLast.get(win) ?? -Infinity;
+    const send = () => {
+      this.rotate3dLast.set(win, performance.now());
+      this.rotate3dTimer.delete(win);
+      this.send({cmd: 'view3d', win, theta, phi});
+    };
+    if (performance.now() - last >= 100) send();
+    else this.rotate3dTimer.set(win, setTimeout(send, 150));
   }
 
   /** stops the running command; it still ends with its idle */
