@@ -163,7 +163,10 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   covers it; new UI work goes into ui_json.c and `web2/` (the data-level
   front end: the core sends numbers, e.g. the `series` and `plots` events
   after `{"cmd":"data","events":["series","plots"]}`, built in
-  `core/plot_data.cpp`, and the page draws them);
+  `core/plot_data.cpp`, and the page draws them; `nullclines` and `dfield`
+  come from `core/phase_data.cpp`, which records per window what
+  nullcline.c and the integrator (Flow) draw and forgets it when ui_json.c
+  blanks the window);
   `web/` (the draw-op replay) only gets fixes until web2 replaces it.
   docs/ui-v2.md has the protocol v2 events and the task list;
   docs/front-end-gaps.md tracks parity.

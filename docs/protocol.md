@@ -39,7 +39,7 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `browser` | `op` (`find`, `get`, `replace`, `unreplace`, `table`, `load`, `write`, `first`, `last`, `restore`, `addcol`, `delcol`), `row` | A data browser button, with `row` the selected row (the X11 browser's top row). |
 | `eqimport` | | The equilibrium window's Import: the last equilibrium becomes the initial conditions. |
 | `equations` | | Send `equations`. |
-| `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves (both in "The plot as data", below). `enc` `"f32"` sends the series' values as base64 of little-endian float32 instead of JSON numbers. |
+| `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves (all in "The plot as data", below). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers. |
 | `action` | `index` | Run the action of comment `index` of `source.comments`. |
 | `click` | `win` | The user selected plot window `win`. |
 | `redraw` | | Redraw the active plot window, and the AUTO diagram when AUTO is open (for a client that reconnects). |
@@ -171,13 +171,15 @@ Run it with:
 
 | ev | fields | meaning |
 |---|---|---|
-| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`), `title`, `file`, `char` {`w`,`h`,`bw`,`bh`}, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. Text is laid out on a `char.w` x `char.h` monospace cell. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). |
+| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`), `title`, `file`, `char` {`w`,`h`,`bw`,`bh`}, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. Text is laid out on a `char.w` x `char.h` monospace cell. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). |
 | `palette` | `colors` (256 `#rrggbb`) | Colour table; sent again after a colormap change. |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows 1..10, AUTO 101 (stability circle 102, info strip 103), animation 104. |
 | `draw` | `win`, `ops` | Drawing, see below. |
 | `diagram` | `op` (`axes`, `reset`, `add`), ... | The AUTO diagram as data, beside its drawing; see "The AUTO diagram as data". |
 | `series` | `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`; or `op` `append`, `win`, `from`, `rows`, `enc`, `columns` | A plot window's curves as numbers, one event per window, for a client that asked (`data`), and during an integration the active window's rows as they are stored; see "The plot as data". |
 | `plots` | `active`, `windows` [{`win`, `title`, `three`, `xlo`, `xhi`, `ylo`, `yhi`, `xlabel`, `ylabel`, `zlabel`, `box`, `theta`, `phi`, `persp`, `zplane`, `zview`, `curves`, `shift`}...] | Every plot window and the active one, for a client that asked (`data`); see "The plot as data". |
+| `nullclines` | `win`, `enc`, `xname`, `yname`, `xcolor`, `ycolor`, `x`, `y`, `frozen` [{`x`,`y`}...] | A plot window's nullclines as segments in plot coordinates, for a client that asked (`data`); see "The plot as data". |
+| `dfield` | `win`, `enc`, `scaled`, `color`, `n`, `du`, `dv`, `grid`, `speed`, `flows` [{`color`,`x`,`y`}...] | A plot window's direction field and Flow trajectories, for a client that asked (`data`); see "The plot as data". |
 | `state` | `pars` [[name,value]...], `ics` [[name,value]...], `bcs` [[name,text]...], `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `menu`, `win`, `session` {`set`,`auto`} | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics), `win` the active window; `session` names the files of the last `session` `save` or `load` (`auto` absent when that session has no diagram; the member itself absent before any `session` command). |
 | `idle` | | The command finished. |
 | `stopped` | `at` | The command's computation was cancelled; sent before its `state` and `idle`. `at` says where it stopped: `{"what":"integrate","rows":N,"t":T}` for an integration, N the rows in storage (as `state.rows`) and T the time of the last one stored (9 digits: the stored single-precision value exactly); `{"what":"auto","branch":B,"point":P}` for an AUTO run, P the last point it stored on branch B (the end point the cancel adds, as in the diagram's data); `{"what":"other"}` for anything else. A script replays the interruption from it (see "Scripts"). |
@@ -284,12 +286,14 @@ again.
 ### The plot as data
 
 The new front end (docs/ui-v2.md) draws the plots itself from numbers
-instead of replaying drawing ops. Two events carry them, each sent only to a
-client that asked with `{"cmd":"data","events":["series","plots"]}` (either
-name alone works too), at the end of that command and then at the end of
-every command after which what it says has changed. Nothing else sends
+instead of replaying drawing ops. Four events carry them, each sent only to
+a client that asked with
+`{"cmd":"data","events":["series","plots","nullclines","dfield"]}` (any of
+the names alone works too), at the end of that command and then at the end
+of every command after which what it says has changed. Nothing else sends
 them, so a command that only redraws sends none. They come before the
-command's `state` and `idle`, `plots` first.
+command's `state` and `idle`, in that order: `plots`, the `series`, the
+`nullclines`, the `dfield`.
 
 **`series`**: one event per plot window (`win` 1..10), each at the end of
 a command after which what that window shows has changed: the stored data
@@ -357,9 +361,54 @@ reads back exactly; `null` for a value that is not finite. Makewindow
 (`m`, then `c` create, `d` destroy the active window, `k` kill all but
 window 1) changes the list; `click` with a window's `win` makes it active.
 
+**`nullclines`** and **`dfield`**: what a phase plane shows besides its
+curves, one event per plot window, each saying what the classic window
+draws: Nullcline/New, Dir.field/flow and the redraws that draw them again
+fill them; anything that blanks the window empties them unless it draws them
+again (Erase; Viewaxes to other variables, which redraws without them). So after Erase both are
+empty, and a later redraw brings the nullclines back (they are redrawn
+while Nullcline/Restore is on) but not the field Erase turned off. Each is
+sent at the end of a command when the window's content differs from the
+last one sent (compared value for value: drawing the same again sends
+nothing), and for every window once after `data`. The active window's
+comes first.
+
+```
+{"ev":"nullclines","win":1,"xname":"V","yname":"W","xcolor":2,"ycolor":7,
+ "x":[-0.596100688,0.475000024,-0.600000024,0.503065467,...],"y":[...],
+ "frozen":[{"x":[...],"y":[...]}]}
+```
+
+| field | meaning |
+|---|---|
+| `xname`, `yname` | the variables of the x- and y-nullclines (where their derivative is 0): the window's x and y axes when they were computed; `""` before any |
+| `xcolor`, `ycolor` | their XPP colour indices (as `curves` `color`; 2 and 7 unless the model sets them) |
+| `x`, `y` | the x- and y-nullcline as line segments, 4 values each: `[x1,y1,x2,y2, x1,y1,x2,y2, ...]`, in plot coordinates, in the order XPP draws them (the same number as the classic `line` ops); empty when the window does not show them |
+| `frozen` | the frozen nullclines (Nullcline/Freeze) the window shows, the same colours, each set's `x` and `y` as above |
+
+```
+{"ev":"dfield","win":1,"scaled":1,"color":0,"n":17,"du":0.1125,"dv":0.090625,
+ "grid":[-0.600000024,-0.25,0.305723518,0.952120364,...],"speed":[0.0421,...],
+ "flows":[{"color":0,"x":[-0.600000024,-0.59258616,...,null,...],"y":[...]}]}
+```
+
+| field | meaning |
+|---|---|
+| `n` | grid points a side (Dir.field's Grid + 1); 0 when the window shows no field (then `grid` and `speed` are empty) |
+| `du`, `dv` | the grid's spacing in plot units, x and y |
+| `grid` | one arrow per grid point, 4 values each: `[x,y,ux,uy, ...]`, the point and the field's direction there as a unit vector in plot coordinates (`0,0` where the field is 0), x outer, y inner, in XPP's order |
+| `speed` | one per arrow: the length of the field's (x, y) components there, in plot units per unit time |
+| `scaled` | 1 (Scaled Dir.Fld): every arrow the same length, a quarter of a grid cell's diagonal in XPP; 0 (Direct field): lengths in proportion to the speed, the fastest a whole cell's diagonal. The client scales the arrows to its own grid spacing on screen: a direction in plot units maps to pixels with the axes' scales, so it is normalized after that mapping. |
+| `color` | the arrows' XPP colour index (the window's first curve's) |
+| `flows` | Flow's trajectories in this window, one entry per curve of the window (its `color`): `x` and `y` of the points drawn, the trajectories one after the other with `null` (NaN) between two. Points that move less than 1/5000 of the axes from the last one kept are left out |
+
+Values in these arrays are float32 (9 digits in JSON). Dir.field/flow's
+Colorize (coloured cells) sends no arrows yet.
+
 **Binary values.** After `{"cmd":"data","events":["series"],"enc":"f32"}`
 every `series` event (full or append) has `"enc":"f32"` and each column's
-`data` is a string: the base64 (RFC 4648, with padding) of the values as
+`data` is a string (and so is every value array of `nullclines` and
+`dfield`, which then carry `"enc":"f32"` too): the base64 (RFC 4648, with padding) of the values as
 IEEE float32, 4 bytes each, least significant byte first, whatever the
 host's byte order. NaN and infinities travel as they are. That is 5.3
 characters a value instead of about 12, and nothing to parse: a million

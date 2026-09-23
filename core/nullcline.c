@@ -9,6 +9,7 @@
 #include "load_eqn.h"
 #include "main.h"
 #include "graf_par.h"
+#include "phase_data.h"
 
 #include "parserslow.h"
 #include "pop_list.h"
@@ -71,6 +72,17 @@ NCLINES *ncperm;
 int n_nstore=0;
 int ncline_cnt;
 
+/* the frozen nullclines the current window shows (phase_data.h): those of
+   its axes, as redraw_froz_cline draws them */
+static void note_frozen(void)
+{
+  NCLINES *z;
+  phase_data_frozen_begin();
+  for(z=ncperm;n_nstore&&z!=NULL&&(z->nmx!=0||z->nmy!=0);z=z->n)
+    if(MyGraph->xv[0]==z->n_ix&&MyGraph->yv[0]==z->n_iy&&MyGraph->ThreeDFlag==0)
+      phase_data_frozen(z->xn,z->nmx,z->yn,z->nmy);
+}
+
 void froz_cline_stuff_com(int i)
 {
   int delay=200;
@@ -79,9 +91,11 @@ void froz_cline_stuff_com(int i)
   case 0:
     if(NULL_HERE==0)return;
     add_froz_cline(X_n,num_x_n,null_ix,Y_n,num_y_n,null_iy);
+    note_frozen();
     break;
   case 1:
     clear_froz_cline();
+    note_frozen();
     break;
   case 3:
     new_int("Delay (msec)",&delay);
@@ -194,6 +208,8 @@ void do_range_clines()
       add_froz_cline(X_n,num_x_n,null_ix,Y_n,num_y_n,null_iy);
     }
     set_val(ncrange.rv,zold);
+    phase_data_nullclines(X_n,num_x_n,Y_n,num_y_n,null_ix,null_iy,col1,col2);
+    note_frozen();
   }
   
 }
@@ -322,6 +338,7 @@ void redraw_froz_cline(flag)
     col2=9;
     } */
   if(n_nstore==0)return;
+  phase_data_frozen_begin();
   z=ncperm;
   while(1){
     if(z==NULL||(z->nmx==0&&z->nmy==0))return;
@@ -340,6 +357,7 @@ void redraw_froz_cline(flag)
 	restor_null(z->xn,z->nmx,1);
 	set_linestyle(col2);
 	restor_null(z->yn,z->nmy,2);
+	phase_data_frozen(z->xn,z->nmx,z->yn,z->nmy);
 	if(flag>0)
 	  FlushDisplay();
       }
@@ -500,6 +518,8 @@ void redraw_dfield()
   if(!DFSuppress)set_linestyle(MyGraph->color[0]);
   get_ic(2,y);
   get_max_dfield(y,ydot,u0,v0,du,dv,grid,inx,iny,&mdf);
+  if(!DFSuppress&&(DF_FLAG==1||DF_FLAG==4))
+    phase_data_dfield_begin(grid+1,du,dv,DFIELD_TYPE==0,MyGraph->color[0]);
      if (PltFmtFlag==SVGFMT)
      {
      	    DOING_DFIELD=1;
@@ -521,6 +541,7 @@ void redraw_dfield()
 	if(!DFSuppress)comp_color(v1,v2,NODE,1.0);
       }
       if(DF_FLAG==1||DF_FLAG==4){
+	if(!DFSuppress)phase_data_arrow(y[inx],y[iny],ydot[inx],ydot[iny]);
 	scale_dxdy(ydot[inx],ydot[iny],&dxp,&dyp);
 	if(DFIELD_TYPE==1)
 	  {
@@ -615,6 +636,8 @@ void direct_field_com(int c)
     DF_IY=iny+1;
     get_ic(2,y);
      get_max_dfield(y,ydot,u0,v0,du,dv,grid,inx,iny,&mdf);
+     if(DF_FLAG==1)
+       phase_data_dfield_begin(grid+1,du,dv,DFIELD_TYPE==0,MyGraph->color[0]);
      if (PltFmtFlag==SVGFMT)
      {
      	    DOING_DFIELD=1;
@@ -638,6 +661,7 @@ void direct_field_com(int c)
 	 comp_color(v1,v2,NODE,1.0);
        }
        if(DF_FLAG==1){
+	 phase_data_arrow(y[inx],y[iny],ydot[inx],ydot[iny]);
 	 scale_dxdy(ydot[inx],ydot[iny],&dxp,&dyp);
 	 if(DFIELD_TYPE==0){
 	   amp=hypot(dxp,dyp);
@@ -672,6 +696,7 @@ void direct_field_com(int c)
   STORFLAG=0;
 
    SuppressBounds=1;
+   phase_data_flow_start();
    for(k=0;k<2;k++){
      for(i=0;i<=grid;i++)
        for(j=0;j<=grid;j++)
@@ -681,6 +706,7 @@ void direct_field_com(int c)
 	 y[iny]=v0+dv*j;
 	 t=0.0;
 	 start=1;
+	 phase_data_flow_next();
 	 /*if(integrate(&t,y,TEND,DELTA_T,1,NJMP,&start)==1){
 	   TRANS=oldtrans;
 	   DELTA_T=dtold;
@@ -692,6 +718,7 @@ void direct_field_com(int c)
      DELTA_T=-DELTA_T;
 
    }
+   phase_data_flow_stop();
    SuppressBounds=0;
    DELTA_T=dtold;
    if (PltFmtFlag==SVGFMT)
@@ -750,6 +777,7 @@ void restore_nullclines()
     restor_null(X_n,num_x_n,1);
     set_linestyle(col2);
     restor_null(Y_n,num_y_n,2);
+    phase_data_nullclines(X_n,num_x_n,Y_n,num_y_n,null_ix,null_iy,col1,col2);
   }
  redraw_froz_cline(0);
 }
@@ -911,7 +939,8 @@ void new_clines_com(int c)
   if(!NCSuppress)set_linestyle(col2);
   new_nullcline(course,xmin,y_bot,xmax,y_tp,Y_n,&num_y_n);
   ping();
-  
+  if(!NCSuppress)
+    phase_data_nullclines(X_n,num_x_n,Y_n,num_y_n,null_ix,null_iy,col1,col2);
   }
 }
 

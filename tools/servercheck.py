@@ -765,6 +765,167 @@ def check_plot_windows():
 
 check_plot_windows()
 
+
+# Nullclines, direction fields and flows as data (docs/protocol.md "The
+# plot as data", docs/ui-v2.md T7): what the classic window draws, in plot
+# coordinates. The segments and arrows are compared with the draw ops of the
+# same command, mapped to pixels with state.view.
+def check_phase_data():
+    proc5, run5, send5, collect5, _ = launch_server()
+
+    def command(key, *answers):
+        send5(cmd='key', key=key)
+        got, pending = [], list(answers)
+        while True:
+            evs, e = collect5(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60)
+            got += evs
+            if e is None or e['ev'] == 'idle':
+                return got
+            send5(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
+
+    def after(cmd):
+        send5(**cmd)
+        return collect5(is_idle, timeout=30)[0]
+
+    of = lambda evs, name: [e for e in evs if e.get('ev') == name]
+
+    def runs(ops, stop=('lw', 'dash', 'color', 'clear')):
+        """the ops as runs of lines, split at style changes and clears: [[line op, ...], ...]"""
+        out, cur = [], None
+        for o in ops:
+            if o[0] in stop:
+                cur = None
+            elif o[0] == 'line':
+                if cur is None:
+                    cur = []
+                    out.append(cur)
+                cur.append(o)
+        return out
+
+    def to_px(v, x, y):
+        return (v['left'] + (x - v['xlo']) * (v['right'] - v['left']) / (v['xhi'] - v['xlo']),
+                v['bottom'] + (y - v['ylo']) * (v['top'] - v['bottom']) / (v['yhi'] - v['ylo']))
+
+    def segs_match(segs, lines, v):
+        """the segments [x1,y1,x2,y2,...] drawn as these line ops, within a pixel and a half"""
+        if len(segs) != 4 * len(lines):
+            return False
+        for k, o in enumerate(lines):
+            a, b = to_px(v, segs[4 * k], segs[4 * k + 1]), to_px(v, segs[4 * k + 2], segs[4 * k + 3])
+            if max(abs(a[0] - o[1]), abs(a[1] - o[2]), abs(b[0] - o[3]), abs(b[1] - o[4])) > 1.5:
+                return False
+        return True
+
+    def arrows_match(grid, lines, v):
+        """each arrow starts at its grid point and points along its line (the line's
+        end within a pixel of the direction's ray), for lines long enough to tell"""
+        if len(grid) != 4 * len(lines):
+            return 'count %d arrows, %d lines' % (len(grid) // 4, len(lines))
+        sx = (v['right'] - v['left']) / (v['xhi'] - v['xlo'])
+        sy = (v['top'] - v['bottom']) / (v['yhi'] - v['ylo'])
+        for k, o in enumerate(lines):
+            x, y, ux, uy = grid[4 * k:4 * k + 4]
+            p = to_px(v, x, y)
+            if abs(p[0] - o[1]) > 1 or abs(p[1] - o[2]) > 1:
+                return 'arrow %d starts at %s, its line at %s' % (k, p, o[1:3])
+            dx, dy = o[3] - o[1], o[4] - o[2]
+            if dx * dx + dy * dy < 16:
+                continue
+            px, py = ux * sx, uy * sy
+            n = (px * px + py * py) ** 0.5
+            if n == 0 or (dx * px + dy * py) <= 0 or abs(dx * py - dy * px) / n > 1.5:
+                return 'arrow %d direction %s, its line %s' % (k, (ux, uy), o[1:])
+        return ''
+
+    try:
+        evs, _ = collect5(is_idle)
+        hello5 = next((e for e in evs if e.get('ev') == 'hello'), {})
+        check('hello lists the nullclines and dfield features',
+              {'nullclines', 'dfield'} <= set(hello5.get('features', [])), str(hello5.get('features')))
+        evs = after({'cmd': 'data', 'events': ['nullclines', 'dfield']})
+        nc, df = of(evs, 'nullclines'), of(evs, 'dfield')
+        check('data sends both at once, empty, for window 1',
+              len(nc) == 1 and len(df) == 1 and nc[0]['win'] == 1 and nc[0]['x'] == [] and nc[0]['frozen'] == []
+              and df[0]['grid'] == [] and df[0]['flows'] == [] and not of(evs, 'series'), str(evs)[:300])
+
+        evs = command('n', {'key': 'n'})
+        nc, v = of(evs, 'nullclines'), last_state(evs)['view']
+        lr = runs(draw_ops(evs))
+        n0 = nc[0] if nc else {}
+        check('Nullcline/New: the event names V and W, colours 2 and 7',
+              len(nc) == 1 and n0['xname'] == 'V' and n0['yname'] == 'W' and n0['xcolor'] == 2 and n0['ycolor'] == 7,
+              str(nc)[:300])
+        check('... its x- and y-nullclines are the classic lines, segment for segment',
+              len(lr) == 2 and len(n0.get('x', [])) > 0 and segs_match(n0['x'], lr[0], v)
+              and segs_match(n0['y'], lr[1], v),
+              '%d/%d segments, lines %s' % (len(n0.get('x', [])) // 4, len(n0.get('y', [])) // 4,
+                                            [len(r) for r in lr]))
+        evs = after({'cmd': 'redraw'})
+        check('a redraw draws them again and sends nothing', not of(evs, 'nullclines') and not of(evs, 'dfield'))
+
+        evs = command('d', {'key': 's'}, {'value': '16'})
+        df, v = of(evs, 'dfield'), last_state(evs)['view']
+        ops = draw_ops(evs)
+        first = ops[:ops.index(['clear'])] if ['clear'] in ops else ops
+        # direct_field_com's arrows (bead, line per grid point), then the nullclines drawn again
+        fr = runs(first)
+        arrow_lines = fr[0] if fr else []
+        d0 = df[0] if df else {}
+        check('Dir.field/Scaled: dfield has a 17 x 17 grid, scaled, in the curve\'s colour',
+              len(df) == 1 and d0['n'] == 17 and d0['scaled'] == 1 and d0['color'] == 0
+              and len(d0['grid']) == 4 * 289 and len(d0['speed']) == 289, str(df)[:300])
+        why = arrows_match(d0.get('grid', []), arrow_lines, v) if d0 else 'no event'
+        check('... its arrows are the classic ones: as many, from the same points, the same directions', not why, why)
+        check('... unit directions', all(abs(d0['grid'][k + 2] ** 2 + d0['grid'][k + 3] ** 2 - 1) < 1e-5
+                                         for k in range(0, len(d0.get('grid', [])), 4)) if d0 else False)
+
+        evs = command('n', {'key': 'f'}, {'key': 'f'})
+        nc = of(evs, 'nullclines')
+        ncx = nc[0]['x'] if nc else []
+        check('Nullcline/Freeze/Freeze: the frozen nullclines are in the event',
+              len(nc) == 1 and len(nc[0]['frozen']) == 1 and nc[0]['frozen'][0]['x'] == nc[0]['x']
+              and nc[0]['frozen'][0]['y'] == nc[0]['y'], str(nc)[:300])
+
+        evs = command('e')
+        nc, df = of(evs, 'nullclines'), of(evs, 'dfield')
+        check('Erase clears them: both events empty',
+              len(nc) == 1 and nc[0]['x'] == [] and nc[0]['frozen'] == [] and len(df) == 1 and df[0]['grid'] == [],
+              str(evs)[:300])
+        evs = after({'cmd': 'redraw'})
+        nc, df = of(evs, 'nullclines'), of(evs, 'dfield')
+        check('a redraw draws the nullclines again (not the field Erase turned off)',
+              len(nc) == 1 and len(nc[0]['x']) > 0 and len(nc[0]['frozen']) == 1 and not df, str(evs)[:300])
+
+        evs = command('d', {'key': 'f'}, {'value': '5'})
+        df = of(evs, 'dfield')
+        fl = df[0]['flows'] if df else []
+        xs = fl[0]['x'] if fl else []
+        starts = [0] + [i + 1 for i, a in enumerate(xs) if a is None]
+        nlines = sum(1 for o in draw_ops(evs) if o[0] == 'line')
+        check('Dir.field/Flow: one curve of 72 trajectories (6 x 6, forward and back), no more points than lines',
+              len(fl) == 1 and fl[0]['color'] == 0 and len(starts) == 72 and len(xs) == len(fl[0]['y'])
+              and len(xs) - 71 <= nlines + 72, '%d curves, %d trajectories, %d points, %d lines'
+              % (len(fl), len(starts), len(xs), nlines))
+        check('... each trajectory starts on the grid',
+              bool(fl) and all(abs((xs[s] + 0.6) / 0.36 - round((xs[s] + 0.6) / 0.36)) < 1e-4 for s in starts),
+              str([xs[s] for s in starts][:8]))
+
+        evs = after({'cmd': 'data', 'events': ['nullclines', 'dfield'], 'enc': 'f32'})
+        nc, df = of(evs, 'nullclines'), of(evs, 'dfield')
+        same = False
+        if nc and df and fl:
+            same = (nc[0].get('enc') == 'f32' and df[0].get('enc') == 'f32'
+                    and same_floats(values({'data': nc[0]['x']}, 'f32'), values({'data': ncx}, None))
+                    and same_floats(values({'data': df[0]['flows'][0]['x']}, 'f32'), values({'data': xs}, None)))
+        check('enc f32: the same values as base64 float32', same, str(evs)[:200])
+        evs = after({'cmd': 'data', 'events': ['series']})
+        check('not asked for: neither is sent', not of(evs, 'nullclines') and not of(evs, 'dfield'))
+    finally:
+        stop_server(proc5, run5, send5)
+
+
+check_phase_data()
+
 # A HOME the process cannot write to used to make AUTO exit(1) under the
 # client when it opened fort.8 there; open_auto() now falls back to the
 # model's directory. Drive a second server with such a HOME and check it survives.

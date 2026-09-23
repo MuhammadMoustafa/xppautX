@@ -83,6 +83,7 @@ extern GRAPH *MyGraph;
 #include "menudrive.h"
 #include "arrayplot.h"
 #include "xpp_job.h"
+#include "phase_data.h"
 
 /* a row was just stored (storage[.][storind-1]): a replayed script may stop
    the job here (xpp_job.h), and a front end may show the run growing */
@@ -2588,6 +2589,7 @@ void plot_one_graph(float *xv,float *xvold,int node,int neq,double ddt,int *tc)
  if(MyGraph->ColorFlag)
    comp_color(xv,xvold,NODE,(float)ddt);
  do_plot(oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
+ phase_data_flow_step(NPlots,oldxpl,oldypl,xpl,ypl,MyGraph->color); /* Dir.field/flow's Flow as data */
 }
 void restore(i1,i2)
      int i1,i2;

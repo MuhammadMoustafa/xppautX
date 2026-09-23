@@ -48,6 +48,7 @@
 #include "read_dir.h"
 #include "xpp_session.h"
 #include "plot_data.h"
+#include "phase_data.h"
 #include <strings.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -1216,22 +1217,27 @@ static void data_emit(const char *line, size_t n)
     out_flush();
 }
 
-/* {"cmd":"data","events":["series","plots"],"enc":"f32"}: the data events
-   the client wants from now on (an empty list stops them); each is sent at
-   the end of this command, which is what a client that (re)connects needs.
-   hello.features lists the names known here. "enc":"f32" sends the series'
-   values as base64 of little-endian float32, anything else as JSON numbers. */
+/* {"cmd":"data","events":["series","plots","nullclines","dfield"],"enc":"f32"}:
+   the data events the client wants from now on (an empty list stops them);
+   each is sent at the end of this command, which is what a client that
+   (re)connects needs. hello.features lists the names known here. "enc":"f32"
+   sends the events' value arrays as base64 of little-endian float32,
+   anything else as JSON numbers. */
 static void data_command(const char *line)
 {
     const char *arr = js_find(line, "events");
     char name[32], enc[8];
-    int i, series = 0, plots = 0;
+    int i, series = 0, plots = 0, nullclines = 0, dfield = 0, f32;
     for (i = 0; arr && js_elem(arr, i); i++) {
         if (!js_string(js_elem(arr, i), name, sizeof name)) continue;
         if (strcmp(name, "series") == 0) series = 1;
         else if (strcmp(name, "plots") == 0) plots = 1;
+        else if (strcmp(name, "nullclines") == 0) nullclines = 1;
+        else if (strcmp(name, "dfield") == 0) dfield = 1;
     }
-    plot_data_subscribe(series, plots, get_str(line, "enc", enc, sizeof enc) && strcmp(enc, "f32") == 0);
+    f32 = get_str(line, "enc", enc, sizeof enc) && strcmp(enc, "f32") == 0;
+    plot_data_subscribe(series, plots, f32);
+    phase_data_subscribe(nullclines, dfield, f32);
 }
 
 /* the equations window: one "dX/dT=..." line per equation (eig_list.c) */
@@ -1278,7 +1284,15 @@ static void j_get_draw_size(unsigned int *w, unsigned int *h)
     *h = win_h[i];
 }
 
-static void j_blank_draw_window(void) { op(draw_win, "[\"clear\"]"); }
+/* a blanked plot window no longer shows its nullclines, direction field
+   and flows (phase_data.h) until they are drawn again */
+static void j_blank_draw_window(void)
+{
+    int i;
+    op(draw_win, "[\"clear\"]");
+    for (i = 0; i < MAXPOP; i++)
+        if (graph[i].Use && graph[i].w == draw_win) phase_data_cleared(i);
+}
 
 static void j_redraw_all(void)
 {
@@ -2833,6 +2847,7 @@ static void handle_line(const char *line, unsigned long seq)
     aplot_dirty = 0;
     if (browser_dirty && br_count) send_browser();
     plot_data_update();
+    phase_data_update();
     diag_flush(1);
     json_flush();
     /* a cancelled job says where it stopped; a replayed one must have
@@ -2904,6 +2919,7 @@ void json_ui_install(void)
         win_h[i] = 480;
     }
     plot_data_init(data_emit);
+    phase_data_init(data_emit);
     xpp_inbox_set_classifier(classify);
     xpp_set_ui(&json_ui);
 }
@@ -2913,7 +2929,7 @@ void json_ui_hello(char *title)
 {
     Buf b = {0};
     int i;
-    BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":1,\"features\":[\"series\",\"plots\"],\"title\":");
+    BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":1,\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\"],\"title\":");
     buf_str(&b, title);
     BUF_LIT(&b, ",\"file\":");
     buf_str(&b, this_file);
