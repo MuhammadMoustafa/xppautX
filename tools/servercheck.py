@@ -977,6 +977,96 @@ def check_phase_data():
 
 check_phase_data()
 
+
+# "Use this view" (docs/ui-v2.md T9, GitHub issue #18): {"cmd":"view",
+# "win":w,"xlo":..,"xhi":..,"ylo":..,"yhi":..} sets window w's axes exactly
+# as Window/Window (graf_par.c update_view) would, so state.view, "plots"
+# and a PostScript export all agree with it afterward. An invalid range
+# (inverted or non-finite) or a window that does not exist is refused
+# (message error) and changes nothing.
+def check_view():
+    proc6, run6, send6, collect6, _ = launch_server()
+    collect6(is_idle)  # startup hello/state/idle
+    send6(cmd='data', events=['plots'])
+    collect6(is_idle)
+
+    def view_cmd(**kw):
+        """sends {"cmd":"view",...}; returns (plots or None, message-error
+        text or None, state.view) of the command's events up to its idle"""
+        send6(cmd='view', **kw)
+        evs, _ = collect6(is_idle)
+        pl = next((e for e in evs if e.get('ev') == 'plots'), None)
+        msg = next((e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e), None)
+        st = last_state(evs)
+        return pl, msg, st and st.get('view')
+
+    def axes(v):
+        return v and (v['xlo'], v['xhi'], v['ylo'], v['yhi'])
+
+    try:
+        pl, msg, view = view_cmd(win=1, xlo=-100, xhi=100, ylo=-100, yhi=100)
+        w = pl and next((x for x in pl['windows'] if x['win'] == 1), None)
+        check('view sets the window\'s axes: plots reflects them',
+              msg is None and axes(w) == (-100, 100, -100, 100), str(w))
+        check('... and state.view matches, for the active window',
+              view is not None and view['win'] == 1 and axes(view) == (-100, 100, -100, 100), str(view))
+
+        # an inverted range (lo >= hi) is refused and changes nothing
+        _, msg2, view2 = view_cmd(win=1, xlo=5, xhi=5, ylo=-1, yhi=1)
+        check('an inverted range (lo >= hi) is refused (message error)', msg2 is not None, str(msg2))
+        check('... and leaves the axes unchanged', axes(view2) == (-100, 100, -100, 100), str(view2))
+
+        # a non-finite bound is refused too
+        _, msg3, view3 = view_cmd(win=1, xlo=float('-inf'), xhi=100, ylo=-1, yhi=1)
+        check('a non-finite bound is refused too', msg3 is not None, str(msg3))
+        check('... and leaves the axes unchanged', axes(view3) == (-100, 100, -100, 100), str(view3))
+
+        # a window that does not exist is refused
+        _, msg4, view4 = view_cmd(win=7, xlo=0, xhi=1, ylo=0, yhi=1)
+        check('a window that does not exist is refused (message error)', msg4 is not None, str(msg4))
+        check('... and leaves the axes unchanged', axes(view4) == (-100, 100, -100, 100), str(view4))
+
+        # Graphic stuff/Postscript (key g, then its submenu's p): a menu,
+        # then a form for the PS parameters (answered with its own
+        # defaults), then a file to write; the written file's axes come
+        # from the same MyGraph the view command set, so its tick labels
+        # ("%g" of the boundary, Box_axis/draw_xtics/draw_ytics in
+        # axes2.c) are the boundary values themselves, -100 and 100 (a
+        # symmetric [-100,100] range makes make_tics() choose a 20-wide
+        # tic, which lands exactly on the boundary).
+        send6(cmd='key', key='g')
+        evs, ask = collect6(lambda e: e.get('ev') == 'ask')
+        check('Graphic stuff opens its submenu (curves)',
+              ask is not None and ask['kind'] == 'menu' and 'p' in ask.get('keys', ''), str(ask))
+        if ask:
+            send6(cmd='answer', id=ask['id'], key='p')
+        evs, ask2 = collect6(lambda e: e.get('ev') == 'ask')
+        check('Postscript asks for its PS parameters first',
+              ask2 is not None and ask2['kind'] == 'form', str(ask2))
+        if ask2:
+            send6(cmd='answer', id=ask2['id'], ok=1, values=ask2['values'])
+        evs, ask3 = collect6(lambda e: e.get('ev') == 'ask')
+        check('... then a file to write it to (mode write, *.ps)',
+              ask3 is not None and ask3['kind'] == 'file' and ask3.get('mode') == 'write'
+              and ask3.get('wild') == '*.ps', str(ask3))
+        psname = 't9view.ps'
+        if ask3:
+            send6(cmd='answer', id=ask3['id'], ok=1, file=psname)
+        collect6(is_idle)
+        pspath = os.path.join(run6, psname)
+        ps = ''
+        if os.path.exists(pspath):
+            with open(pspath, encoding='latin-1') as f:
+                ps = f.read()
+        check('the PostScript file was written', ps != '')
+        check("its axes use the new view: the boundary tick labels (-100, 100) appear in the file's text",
+              '(-100) ' in ps and '(100) ' in ps, str(len(ps)))
+    finally:
+        stop_server(proc6, run6, send6)
+
+
+check_view()
+
 # A HOME the process cannot write to used to make AUTO exit(1) under the
 # client when it opened fort.8 there; open_auto() now falls back to the
 # model's directory. Drive a second server with such a HOME and check it survives.

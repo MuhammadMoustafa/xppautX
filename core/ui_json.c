@@ -1828,6 +1828,30 @@ static void j_aplot_draw_one(char *tag)
     aplot_range_count++;
 }
 
+/* "Use this view" (docs/ui-v2.md T9): {"cmd":"view","win":w,"xlo":..,
+   "xhi":..,"ylo":..,"yhi":..} sets window w's axes exactly as
+   Window/Window (graf_par.c user_window, here update_view()) would: the
+   client's zoom becomes the core's own, so a PostScript/SVG export,
+   Restore and later redraws all agree with it. A range that is not
+   finite or not increasing, or a window that does not exist, is refused
+   (message error) and changes nothing. */
+static void view_command(const char *line)
+{
+    int win = (int)get_num(line, "win", -1), i = win - 1;
+    double xlo = get_num(line, "xlo", 0), xhi = get_num(line, "xhi", 0);
+    double ylo = get_num(line, "ylo", 0), yhi = get_num(line, "yhi", 0);
+    if (i < 0 || i >= MAXPOP || !graph[i].Use) {
+        j_err_msg("No such window");
+        return;
+    }
+    if (!isfinite(xlo) || !isfinite(xhi) || !isfinite(ylo) || !isfinite(yhi) || xlo >= xhi || ylo >= yhi) {
+        j_err_msg("Bad view");
+        return;
+    }
+    if (i != current_pop) select_graph(i);
+    update_view((float)xlo, (float)xhi, (float)ylo, (float)yhi);
+}
+
 /* dragging a 3D plot turns it (many_pops.c rotate3dcheck):
    {"cmd":"rotate","what":"down|move|up","x","y"} */
 static void rotate_command(const char *line)
@@ -2796,6 +2820,8 @@ static void handle_line(const char *line, unsigned long seq)
         browser_command(line);
     } else if (is_cmd(line, "aplot")) {
         aplot_command(line);
+    } else if (is_cmd(line, "view")) {
+        view_command(line);
     } else if (is_cmd(line, "rotate")) {
         rotate_command(line);
     } else if (is_cmd(line, "plotvars")) {

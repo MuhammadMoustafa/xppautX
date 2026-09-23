@@ -203,6 +203,25 @@ export class Session {
     this.keys('m', 'd');
   }
 
+  /* ---- Use this view (docs/ui-v2.md T9) ---- */
+
+  /** "Use this view": the client's current zoom of `win` becomes the
+      core's own axes (`{"cmd":"view",...}`, docs/protocol.md), exactly as
+      Window/Window would. The core's `plots` and `state.view` that follow
+      report the new axes; the plot's own viewport then goes back to "the
+      core's axes" (store/plots.ts coreMoved, from the `state` reducer),
+      with no visible jump since they are now the same range. */
+  useThisView(win: number, ranges: Ranges): void {
+    this.send({cmd: 'view', win, xlo: ranges.x.min, xhi: ranges.x.max, ylo: ranges.y.min, yhi: ranges.y.max});
+  }
+
+  /** Window/Fit: the key sequence the classic page uses ('w' opens the
+      Window submenu, 'f' is Fit) sets the active window's axes to the
+      data's extent. */
+  fitView(): void {
+    this.keys('w', 'f');
+  }
+
   /** stops the running command; it still ends with its idle */
   abort(): void {
     this.store.dispatch({type: 'aborting'});

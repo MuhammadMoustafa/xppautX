@@ -30,7 +30,7 @@
    copied, a same-name one asks Replace / Keep both / Cancel, and "Add
    file…" adds a file the core could not open and runs the command again.
 
-   node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--only desktop,phase,auto,files,live,million] [-v]
+   node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--only desktop,phase,auto,view,files,live,million] [-v]
 
    Needs Node 22 or later and a browser, nothing else (tools/cdp.mjs). */
 import {spawnSync} from 'node:child_process';
@@ -456,7 +456,7 @@ async function keyboardOnly() {
   /* Tab from the top of the page to the plot */
   await cdp.eval('document.activeElement && document.activeElement.blur()');
   let steps = 0;
-  while (steps < 60 && !(await cdp.eval(`!!document.activeElement.closest('.plot-host')`))) {
+  while (steps < 70 && !(await cdp.eval(`!!document.activeElement.closest('.plot-host')`))) {
     await key('Tab');
     steps++;
   }
@@ -656,6 +656,60 @@ async function windows() {
     && await S('w.series.rows === 601'));
   await focusPlot();
   await key('0');
+}
+
+/* "Use this view" and Fit (docs/ui-v2.md T9, session.ts useThisView/fitView):
+   zoom by wheel, press "Use this view" and check the core's axes (state.view,
+   and the window's own info from "plots") equal the zoomed ranges, with the
+   client viewport reset to null (the core's axes, no visible jump: the
+   chart still shows the same range); then Fit (the classic page's Window/Fit
+   key sequence, w then f) widens the core's axes to contain the data. */
+async function viewCheck() {
+  check('the page connects and asks for the plot as data', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
+  await key('i');
+  await until("s.ask && s.ask.kind === 'menu'", 'menu');
+  await key('g');
+  check('I, G integrates a series', await until('w.series && w.series.rows === 601 && !s.busy', 'series'));
+
+  const a = await area(), cx = a.x + a.w / 2, cy = a.y + a.h / 2;
+  await mouse('mouseMoved', cx, cy);
+  await mouse('mouseWheel', cx, cy, {deltaX: 0, deltaY: -240});
+  await until('w.viewport.x', 'wheel');
+  const zoomed = await P();
+  check('zoom by wheel', zoomed && zoomed.x && zoomed.y, JSON.stringify(zoomed));
+
+  await cdp.eval(`document.querySelector('.plot-tools button[title^="Make this zoom"]').click()`);
+  const close = (a2, b) => Math.abs(a2 - b) < 1e-5 * Math.max(1, Math.abs(b));
+  await until('s.core.view && !s.busy', 'view');
+  const view = await S('s.core.view');
+  check("Use this view: the core's axes (state.view) equal the zoomed ranges",
+    view && close(view.xlo, zoomed.x.min) && close(view.xhi, zoomed.x.max) && close(view.ylo, zoomed.y.min) && close(view.yhi, zoomed.y.max),
+    JSON.stringify([view, zoomed.x, zoomed.y]));
+  const info = await S('w.info');
+  check('... "plots" agrees (the window\'s own axes)',
+    close(info.xlo, zoomed.x.min) && close(info.xhi, zoomed.x.max) && close(info.ylo, zoomed.y.min) && close(info.yhi, zoomed.y.max),
+    JSON.stringify([info, zoomed.x, zoomed.y]));
+  check('... and the client viewport is reset', await until('w.viewport.x === null && w.viewport.y === null', 'reset'));
+  const shown = await P();
+  check('... with no visible jump: the chart still shows the same range',
+    close(shown.x.min, zoomed.x.min) && close(shown.x.max, zoomed.x.max) && close(shown.y.min, zoomed.y.min) && close(shown.y.max, zoomed.y.max),
+    JSON.stringify([shown.x, shown.y, zoomed.x, zoomed.y]));
+
+  const extent = await cdp.eval(`(() => {
+    const s = __xpp.state(), w = ${ACTIVE}, m = w.series, c = m.curves[0];
+    const xs = m.columns.get(c.x), ys = m.columns.get(c.y);
+    let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
+    for (let i = 0; i < xs.length; i++) {
+      if (xs[i] < xmin) xmin = xs[i]; if (xs[i] > xmax) xmax = xs[i];
+      if (ys[i] < ymin) ymin = ys[i]; if (ys[i] > ymax) ymax = ys[i];
+    }
+    return {xmin, xmax, ymin, ymax};
+  })()`);
+  await cdp.eval(`document.querySelector('.plot-tools button[title^="Fit the window"]').click()`);
+  check("Fit changes the core's axes to the data's extent",
+    await until(`s.core.view && s.core.view.xlo <= ${extent.xmin} + 1e-6 && s.core.view.xhi >= ${extent.xmax} - 1e-6
+      && s.core.view.ylo <= ${extent.ymin} + 1e-6 && s.core.view.yhi >= ${extent.ymax} - 1e-6`, 'fit'),
+    JSON.stringify([await S('s.core.view'), extent]));
 }
 
 async function touch(type, points) {
@@ -1534,6 +1588,7 @@ async function main() {
     });
     if (run('phase')) await session(ODE, phasePlane);
     if (run('auto')) await session(ODE, autoView);
+    if (run('view')) await session(ODE, viewCheck);
     if (run('files')) await session(ODE, files, ['Cannot open file']);
     if (run('live')) await session(LIVE, () => live(wantLive));
     if (run('million')) await session(MILLION, million);

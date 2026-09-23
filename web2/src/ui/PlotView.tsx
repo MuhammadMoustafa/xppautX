@@ -317,6 +317,12 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
             title="Undo the last zoom or pan (Ctrl+Z on the plot)">Undo zoom</button>
           <button disabled={!zoomed} onClick={() => chart.current!.reset()}
             title="Back to the window's axes (double click, or 0 on the plot)">Reset view</button>
+          <button disabled={!zoomed} onClick={() => session.useThisView(win, chart.current!.ranges())}
+            title="Make this zoom the window's own axes (Window/Window), for PostScript/SVG export and Restore">
+            Use this view
+          </button>
+          <button disabled={noCurves} onClick={() => session.fitView()}
+            title="Fit the window's axes to the data (Window/Fit)">Fit</button>
           <button disabled={empty} onClick={() => { const u = chart.current!.png(); if (u) download('xpp-plot.png', u); }}
             title="Save the plot as a PNG picture">PNG</button>
           <button disabled={noCurves} onClick={() => model && downloadCsv('xpp-curves.csv', model)}
