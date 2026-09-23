@@ -295,12 +295,12 @@ int solve_dae()
 void get_new_guesses()
 {
   int i,n;
-  char name[30];
+  char name[48];
   double z;
   if(nsvar<1)return;
   for(i=0;i<nsvar;i++){
     z=svar[i].last;
-    snprintf(name,sizeof(name),"Initial %s(%g):",svar[i].name,z);
+    snprintf(name,sizeof(name),"Initial %.11s(%g):",svar[i].name,z);
     new_string(name,svar[i].rhs);
     if(add_expr(svar[i].rhs,svar[i].form,&n)){
       err_msg("Illegal formula");

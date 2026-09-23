@@ -590,7 +590,7 @@ BROWSER *b;
  sprintf(value[0],"%s",uvar_names[0]);
  sprintf(value[1],"0.00");
  sprintf(value[2],"1.00");
- snprintf(value[3],sizeof(value[3]),"%s.tab",value[0]);
+ snprintf(value[3],sizeof(value[3]),"%.20s.tab",value[0]);
  status=do_string_box(4,4,1,"Tabulate",name,value,40);
  if(status==0)return;
  xlo=atof(value[1]);

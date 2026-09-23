@@ -432,7 +432,7 @@ int get_eqn(fptr)
       if(strlen(this_file)==0)
 	sprintf(filename,"convert.ode");
       else
-	snprintf(filename,sizeof(filename),"%s.new",this_file);
+	snprintf(filename,sizeof(filename),"%.295s.new",this_file);
       if((convertf=fopen(filename,"w"))==NULL){
 	printf(" Cannot open %s - no conversion done \n",filename);
 	ConvertStyle=0;
@@ -508,7 +508,7 @@ int get_eqn(fptr)
   if(NVAR<MAXPRIMEVAR){
   add_var("t'",0.0);
   for(i=0;i<NODE ;i++){
-    snprintf(prim,sizeof(prim),"%s'",uvar_names[i]);
+    snprintf(prim,sizeof(prim),"%.11s'",uvar_names[i]);
     add_var(prim,0.0);
   }
 }
@@ -1782,33 +1782,33 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
       
 
     if(v->type==COMMAND && v->lhs[0]=='P'){
-      snprintf(big,sizeof(big),"par %s \n",v->rhs);
+      snprintf(big,sizeof(big),"par %.1017s \n",v->rhs);
       compiler(big,fp);
     }
     if(v->type==COMMAND && v->lhs[0]=='W'){
-      snprintf(big,sizeof(big),"wie %s \n",v->rhs);
+      snprintf(big,sizeof(big),"wie %.1017s \n",v->rhs);
       compiler(big,fp);
     }
     if(v->type==COMMAND && v->lhs[0]=='N'){
-      snprintf(big,sizeof(big),"num %s \n",v->rhs);
+      snprintf(big,sizeof(big),"num %.1017s \n",v->rhs);
       compiler(big,fp);
     }
     if(v->type==COMMAND && v->lhs[0]=='O'){
-     snprintf(big,sizeof(big),"c %s \n",v->rhs);
+     snprintf(big,sizeof(big),"c %.1019s \n",v->rhs);
      compiler(big,fp);
 
     }
     if(v->type==COMMAND && v->lhs[0]=='S' && v->lhs[1]=='E'){
-      snprintf(big,sizeof(big),"x %s\n",v->rhs);
+      snprintf(big,sizeof(big),"x %.1020s\n",v->rhs);
       compiler(big,fp);
     }
 
     if(v->type==COMMAND && v->lhs[0]=='B'){
-      snprintf(big,sizeof(big),"b %s \n",v->rhs);
+      snprintf(big,sizeof(big),"b %.1019s \n",v->rhs);
       compiler(big,fp);
     }
     if(v->type==COMMAND && v->lhs[0]=='G'){
-      snprintf(big,sizeof(big),"g %s \n",v->rhs);
+      snprintf(big,sizeof(big),"g %.1019s \n",v->rhs);
       compiler(big,fp);
     }
     if(v->type==MAP||v->type==ODE||v->type==VEQ){
@@ -1957,7 +1957,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
    {
      
      if(v->type==COMMAND && v->lhs[0]=='I'){
-       snprintf(big,sizeof(big),"i %s \n",v->rhs);
+       snprintf(big,sizeof(big),"i %.1019s \n",v->rhs);
        ptr=big;
        junk=get_first(ptr," ,");
        if (junk == NULL)
@@ -2144,7 +2144,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        break;
      
      case TABLE:
-       snprintf(big,sizeof(big),"t %s %s ",v->lhs,v->rhs);
+       snprintf(big,sizeof(big),"t %.509s %.509s ",v->lhs,v->rhs);
        ptr=big;
        junk=get_first(ptr," ,");
        my_string=get_next(" ");

@@ -455,10 +455,10 @@ FILESEL f;
  if(f.ww==w)XDrawString(display,w,small_gc,5,
 			  CURY_OFFs,"Wild: ",6);
  if(f.dir==w){
-      snprintf(t,sizeof(t)," %s",f.title);
+      snprintf(t,sizeof(t)," %.254s",f.title);
       XDrawString(display,w,small_gc,0,CURY_OFFs,t,strlen(t));
       XTextProperty windowName;
-      snprintf(t,sizeof(t),"%s - %s",f.wildtxt,cur_dir);
+      snprintf(t,sizeof(t),"%.126s - %.126s",f.wildtxt,cur_dir);
       char *nameit[]={t};
       XStringListToTextProperty(nameit,1,&windowName);
       XSetWMName(display,f.base,&windowName);

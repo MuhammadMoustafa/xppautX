@@ -78,7 +78,7 @@ void set_up_aplot_range()
   char values[3][MAX_LEN_SBOX];
   int status;
   double *x;
- snprintf(values[0],sizeof(values[0]),"%s",aplot_range_stem);
+ snprintf(values[0],sizeof(values[0]),"%.24s",aplot_range_stem);
  sprintf(values[1],"%d",aplot_still);
  sprintf(values[2],"%d",aplot_tag);
  status=do_string_box(3,3,1,"Array range saving",n,values,28); 
@@ -214,10 +214,10 @@ void print_aplot(ap)
   jb=row0+ap->nskip*(ap->ndown-1);
   if(jb>=nrows)jb=nrows-1;
   if(jb>=0)thi=my_browser.data[0][jb];
-  snprintf(values[0],sizeof(values[0]),"%s",ap->filename);
-  snprintf(values[1],sizeof(values[1]),"%s",ap->xtitle);
-  snprintf(values[2],sizeof(values[2]),"%s",ap->ytitle);
-    snprintf(values[3],sizeof(values[3]),"%s",ap->bottom);
+  snprintf(values[0],sizeof(values[0]),"%.24s",ap->filename);
+  snprintf(values[1],sizeof(values[1]),"%.24s",ap->xtitle);
+  snprintf(values[2],sizeof(values[2]),"%.24s",ap->ytitle);
+    snprintf(values[3],sizeof(values[3]),"%.24s",ap->bottom);
   sprintf(values[4],"%d",ap->type);
   status=do_string_box(5,5,1,"Print arrayplot",n,values,40);
  if(status!=0){

@@ -422,7 +422,7 @@ int load_table(filename,index)
   fp=fopen(filename2,"r");
   if(fp==NULL){
      get_directory(cur_dir);
-    snprintf(error,sizeof(error),"File<%s> not found in %s",filename2,cur_dir);
+    snprintf(error,sizeof(error),"File<%.245s> not found in %.245s",filename2,cur_dir);
     err_msg(error);
     return(0);
   }

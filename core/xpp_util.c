@@ -286,12 +286,12 @@ void dump_ps(int i)
   char filename[XPP_MAX_NAME];
    if(i<0)
      {
-       snprintf(filename,sizeof(filename),"%s%s.%s",this_file,this_internset,PlotFormat);
+       snprintf(filename,sizeof(filename),"%.120s%.120s.%.15s",this_file,this_internset,PlotFormat);
      }
    else
      {
        /*   padnum(s,i,4); */
-       snprintf(filename,sizeof(filename),"%s%s_%04d.%s",this_file,this_internset,i,PlotFormat);
+       snprintf(filename,sizeof(filename),"%.120s%.120s_%04d.%.15s",this_file,this_internset,i,PlotFormat);
      }   
       
    if (strcmp(PlotFormat,"ps")==0)
@@ -324,7 +324,7 @@ void user_fun_info(fp)
   char fundef[256];
   int i,j;
   for(j=0;j<NFUN;j++){
-    snprintf(fundef,sizeof(fundef),"%s(",ufun_names[j]);
+    snprintf(fundef,sizeof(fundef),"%.11s(",ufun_names[j]);
     for(i=0;i<narg_fun[j];i++){
       strcat(fundef,ufun_arg[j].args[i]);
       if(i<narg_fun[j]-1)

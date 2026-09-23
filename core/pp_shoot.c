@@ -218,7 +218,7 @@ double *ystart,*yend;
  double parlo,parhi,dpar,temp;
  int npar,i,j,ierr;
  int side,cycle,icol,color;
- char bob[50];
+ char bob[64];
  
 
  
@@ -238,7 +238,7 @@ double *ystart,*yend;
    {
      temp=parlo+dpar*(double)i;
      set_val(shoot_range.item,temp);
-     snprintf(bob,sizeof(bob),"%s=%.16g",shoot_range.item,temp);
+     snprintf(bob,sizeof(bob),"%.29s=%.16g",shoot_range.item,temp);
      bottom_msg(2,bob);
      if(shoot_range.movie==1)
        clr_scrn();
@@ -418,7 +418,7 @@ static char *n[]={"*2Range over","Steps","Start","End",
  char values[7][MAX_LEN_SBOX];
  int status,i;
  static  char *yn[]={"N","Y"};
- snprintf(values[0],sizeof(values[0]),"%s",shoot_range.item);
+ snprintf(values[0],sizeof(values[0]),"%.24s",shoot_range.item);
  sprintf(values[1],"%d",shoot_range.steps);
  sprintf(values[2],"%g",shoot_range.plow);
  sprintf(values[3],"%g",shoot_range.phigh);

@@ -345,7 +345,7 @@ int node,nt,silent;
  char name[30];
  if(silent==0){
    for(i=0;i<NODE ;i++){
-     snprintf(name,sizeof(name),"Coupling for %s eqn:",uvar_names[i]);
+     snprintf(name,sizeof(name),"Coupling for %.11s eqn:",uvar_names[i]);
      new_string(name,coup_string[i]);
      if(add_expr(coup_string[i],coup_fun[i],&j)){
        err_msg("Illegal formula");
