@@ -663,7 +663,7 @@ void create_auto_file_name()
 void open_auto(flg) /* compatible with new auto */
      int flg;
 {
-  char string[200];
+  char string[210];
   char *basec,*bname,*dirc,*dname;
 
   basec = strdup(this_file);

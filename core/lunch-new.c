@@ -59,7 +59,7 @@ void file_inf()
   int ok;
   FILE *fp;
  /*char filename[256];*/
- char filename[XPP_MAX_NAME];
+ char filename[XPP_MAX_NAME+10];
  snprintf(filename,sizeof filename,"%s.pars",this_file);
  ping();
  if(!file_selector("Save info",filename,"*.pars*"))return;
@@ -244,7 +244,7 @@ int f;
  char bob[256];
  FILE *fp;
  /*char filename[256];*/
- char filename[XPP_MAX_NAME];
+ char filename[XPP_MAX_NAME+10];
  snprintf(filename,sizeof filename,"%s.set",this_file);
  
 

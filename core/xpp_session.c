@@ -41,7 +41,10 @@ static int ask_base(const char *title, char *buf, size_t n)
 
 int xpp_session_save(const char *base)
 {
-    char basebuf[XPP_MAX_NAME], set_name[XPP_MAX_NAME], auto_name[XPP_MAX_NAME];
+    /* +10/+20 headroom so snprintf can provably never truncate the
+       ".set"/".auto" suffix appended to a name up to XPP_MAX_NAME-1
+       long. */
+    char basebuf[XPP_MAX_NAME+10], set_name[XPP_MAX_NAME+20], auto_name[XPP_MAX_NAME+20];
     FILE *fp;
 
     if (base == NULL || base[0] == 0) {
@@ -81,7 +84,7 @@ int xpp_session_save(const char *base)
 
 int xpp_session_load(const char *base)
 {
-    char basebuf[XPP_MAX_NAME], set_name[XPP_MAX_NAME], auto_name[XPP_MAX_NAME];
+    char basebuf[XPP_MAX_NAME+10], set_name[XPP_MAX_NAME+20], auto_name[XPP_MAX_NAME+20];
     FILE *fp;
 
     if (base == NULL || base[0] == 0) {
