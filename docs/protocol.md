@@ -84,8 +84,12 @@ reading commands from stdin: FILE holds the same line-delimited JSON
 commands a `--server` client sends, one per line (blank lines and lines
 whose first non-blank character is `#` are ignored). Protocol events go to
 stdout exactly as `--server` sends them. The process exits 0 when FILE
-runs out, or 1 if a `message` event of `error` kind was sent, or a line
-could not be matched to the `ask` it was meant to answer.
+runs out, or 1 if a `message` event of `error` kind was sent. A line that
+does not fit the dialogue stops the script at once with exit status 1 and
+a message on stderr naming the line and the open question: an `answer`
+when no question is open, or a command where an answer was due (a prompt
+the script did not expect, such as "Draw Strong Sets?" after Sing pts on
+some models).
 
 Pacing: a script cannot see the protocol's events going by, so it cannot
 itself wait for `idle` or watch for an `ask` the way a real client does.

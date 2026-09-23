@@ -66,4 +66,7 @@ int xpp_inbox_start_file(const char *path);
    never called, or already reached end of file). */
 void xpp_inbox_script_advance(void);
 
+/* the file line number of the script line pushed last (1-based) */
+int xpp_inbox_script_line(void);
+
 #endif

@@ -674,6 +674,7 @@ def run_script(script_path, ode=LECAR):
     r = subprocess.run([os.path.abspath(args.server), '--script', os.path.abspath(script_path),
                         os.path.basename(ode)], cwd=run, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                        text=True, timeout=60)
+    run_script.stderr = r.stderr
     return r.returncode, r.stdout, run
 
 
@@ -701,6 +702,21 @@ def section_script():
     bad.close()
     code, out, run = run_script(bad.name)
     check('an answer to nothing exits 1', code == 1, 'exit %d' % code)
+    os.unlink(bad.name)
+    shutil.rmtree(run, ignore_errors=True)
+
+    # a command where an answer was due stops at once, naming the line
+    # (it used to wait for an answer forever)
+    bad = tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False, dir=here)
+    bad.write('# the Initialconds menu opens and wants an answer\n'
+              '{"cmd":"key","key":"i"}\n'
+              '{"cmd":"key","key":"f"}\n')
+    bad.close()
+    t = time.monotonic()
+    code, out, run = run_script(bad.name)
+    check('a command where an answer was due exits 1 at once, naming the line',
+          code == 1 and time.monotonic() - t < 10 and 'script line 3 does not answer' in run_script.stderr,
+          'exit %d, %s' % (code, run_script.stderr[-300:]))
     os.unlink(bad.name)
     shutil.rmtree(run, ignore_errors=True)
 

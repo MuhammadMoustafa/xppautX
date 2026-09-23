@@ -198,6 +198,9 @@ int xpp_inbox_start_stdin(void)
 /* ---- the --script reader: a file, one line at a time, pulled by the core ---- */
 
 static FILE *script_fp;
+static int script_line; /* of the line last pushed, for error messages */
+
+int xpp_inbox_script_line(void) { return script_line; }
 
 int xpp_inbox_start_file(const char *path)
 {
@@ -218,6 +221,7 @@ void xpp_inbox_script_advance(void)
             cap = 4096;
             buf = malloc(cap);
         }
+        script_line++;
         for (;;) {
             c = fgetc(script_fp);
             if (c == EOF || c == '\n') break;

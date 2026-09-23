@@ -98,10 +98,19 @@ static FILE *proto;
 static int win_w[MAXPOP], win_h[MAXPOP];
 
 /* --script FILE (docs/protocol.md "Scripts"): script_mode is set by
-   json_ui_set_script(), script_error by anything that should make the
-   process exit 1 at end of file (a "message" "error" event, or a script
-   line that did not answer the ask it was sent for). */
+   json_ui_set_script(), script_error by an error message, which makes the
+   process exit 1 at the end of the file. A line that does not fit the
+   dialogue (an answer with no question open, or a command where an answer
+   was due) stops the script at once: nothing after it can line up. */
 static int script_mode, script_error;
+static char script_ask[400]; /* the open question, for script_fail() */
+
+static void script_fail(const char *what, const char *line, const char *ask)
+{
+    fprintf(stderr, "xppautX: script line %d %s\n  line: %s\n", xpp_inbox_script_line(), what, line);
+    if (ask && ask[0]) fprintf(stderr, "  open question: %s}\n", ask);
+    exit(1);
+}
 
 /* ---- output ------------------------------------------------------------ */
 
@@ -637,6 +646,7 @@ static int ask_wait(Buf *b, int id)
     BUF_LIT(b, "}");
     diag_flush(1);
     json_flush();
+    if (script_mode) snprintf(script_ask, sizeof script_ask, "%s", b->s);
     send_buf(b);
     free(b->s);
     /* a script's next line is its answer to this ask (ui_json.c "Which
@@ -668,8 +678,8 @@ static int ask_wait(Buf *b, int id)
         }
         /* anything else (keys typed at the plot while a dialog is up) is
            dropped, as the X11 dialogs do; for a script this line was
-           supposed to answer this ask and did not, so it fails the run */
-        if (script_mode) script_error = 1;
+           supposed to answer this ask, and nothing after it can line up */
+        if (script_mode) script_fail("does not answer the open question", line, script_ask);
     }
 }
 
@@ -2634,9 +2644,8 @@ static void handle_line(const char *line, unsigned long seq)
         if (last_eq_n) eq_import(last_eq, last_eq_n);
     } else if (is_cmd(line, "answer")) {
         /* reaching the main dispatch (rather than ask_wait) means no ask
-           was pending for it: a script line answering nothing fails the
-           run (docs/protocol.md "Scripts") */
-        if (script_mode) script_error = 1;
+           was pending for it (docs/protocol.md "Scripts") */
+        if (script_mode) script_fail("answers a question that was never asked", line, NULL);
     } else if (is_cmd(line, "equations")) {
         send_equations();
     } else if (is_cmd(line, "action")) {
