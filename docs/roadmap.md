@@ -24,13 +24,13 @@ issue; the card here is the one kept up to date.
 | W1  | #13 | Screenshot tests become state tests | none | done (7121aaf) |
 | W2  | #14 | Logging module, quiet by default | none | done (a47c1ad) |
 | W3  | #15 | No short-name limit | none | done (5b68289) |
-| W4  | #16 | Memory module and leak checks | W2 | ready |
+| W4  | #16 | Memory module and leak checks | W2 | running |
 | W5  | #17 | New UI: design, protocol v2, scaffold | none | done (7c26dbf) |
-| W6  | #18 | New UI: the views | W5 | ready |
+| W6  | #18 | New UI: the views | W5 | running (T2, T3) |
 | W7  | #19 | Core refactor for single responsibility | W4 | blocked |
 | W8  | #20 | Remove the X11 front end | W6 | blocked |
 | W9  | #21 | WebAssembly build (proof of concept) | maintainer's OK to install emsdk | blocked |
-| W10 | #22 | Replayable interruptions in scripts | none | ready |
+| W10 | #22 | Replayable interruptions in scripts | none | running |
 
 ## W0: C/C++ mixed build
 **Goal.** core/*.cpp builds next to core/*.c on Linux, Windows (MinGW,
