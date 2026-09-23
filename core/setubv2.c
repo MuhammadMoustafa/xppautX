@@ -3,10 +3,7 @@
 #include "auto_types.h"
 #include "xpp_job.h" /* xppautX: cancel */
 
-/* xppautX: cancel: 1 while stepbv solves a Newton step. A cancelled job then
-   stops setubv early; solvbv skips the solve and stepbv goes back to the last
-   point (its failure exit). Other solves (stdrbv's direction) run to the end. */
-int xpp_setubv_stop = 0;
+int xpp_setubv_stop = 0; /* xppautX: cancel (xpp_job.h) */
 
 #ifdef TIME
 #include <unistd.h>

@@ -6,7 +6,6 @@
 #include "auto_f2c.h"
 #include "auto_c.h"
 #include "xpp_job.h" /* xppautX: cancel */
-extern int xpp_setubv_stop; /* xppautX: cancel (setubv2.c) */
 /* #include "malloc.h" */
 
 /*#define ACCES_TEST*/

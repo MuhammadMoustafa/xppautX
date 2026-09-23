@@ -63,4 +63,10 @@ int xpp_job_poll_due(void);
    polling through the AUTO window (its Abort button). */
 int xpp_job_checkpoint(void);
 
+/* AUTO: 1 while stepbv solves a Newton step (autlib1.c). A cancelled job
+   then stops the collocation setup early (setubv2.c), solvbv skips the
+   solve and stepbv returns to the last converged point. Other solves, such
+   as stdrbv's starting direction, always run to the end. */
+extern int xpp_setubv_stop;
+
 #endif

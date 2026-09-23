@@ -3,8 +3,7 @@
 #include "xAuto.h"
 #include "xpp_ui.h" /* err_msg() */
 #include "auto_nox.h" /* auto_screen_col() */
-#include "xpp_job.h" /* xpp_job_cancelled() */ /* xppautX: cancel */
-extern int xpp_setubv_stop; /* xppautX: cancel (setubv2.c) */
+#include "xpp_job.h" /* xppautX: cancel */
 extern XAUTO xAuto;
 extern int NODE;
 extern int RestartLabel;
