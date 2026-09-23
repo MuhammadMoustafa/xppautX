@@ -1,4 +1,4 @@
-/* The headless browser driver the web checks share (tools/webshots.mjs,
+/* The headless browser driver the web checks share (tools/webtest.mjs,
    tools/web2check.mjs): find a Chrome, Chromium or Edge, start it with the
    DevTools protocol on, talk to it over Node's WebSocket (Node 22 or later,
    no npm packages), and start xppautX in browser mode. */

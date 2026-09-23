@@ -13,11 +13,11 @@
    No npm packages: the browser is driven through the DevTools protocol with
    Node's WebSocket (Node 22 or later). It builds nothing: run it against the
    binary a previous step already built. */
-import {spawn, spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {findBrowser, sleep, startBrowser, startServer} from './cdp.mjs';
 
 const win = process.platform === 'win32';
 const exe = win ? '.exe' : '';
@@ -29,99 +29,6 @@ for (let i = 2; i < process.argv.length; i++) {
   opt[k] = FLAGS.includes(k) ? true : process.argv[++i];
 }
 const out = path.resolve(top, opt.out);
-
-function findBrowser() {
-  if (opt.browser) return opt.browser;
-  if (process.env.CHROME) return process.env.CHROME;
-  const candidates = win
-    ? ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
-      'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', 'C:/Program Files/Microsoft/Edge/Application/msedge.exe']
-    : process.platform === 'darwin'
-      ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium']
-      : ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'microsoft-edge'];
-  for (const c of candidates) {
-    if (path.isAbsolute(c) ? fs.existsSync(c) : spawnSync('which', [c]).status === 0) return c;
-  }
-  return null;
-}
-
-/* ---- the DevTools protocol ------------------------------------------------ */
-
-class Cdp {
-  constructor(url) {
-    this.ws = new WebSocket(url);
-    this.id = 0;
-    this.pending = new Map();
-    this.ws.onmessage = m => {
-      const d = JSON.parse(m.data);
-      const p = d.id && this.pending.get(d.id);
-      if (!p) return;
-      this.pending.delete(d.id);
-      d.error ? p.reject(new Error(`${p.method}: ${JSON.stringify(d.error)}`)) : p.resolve(d.result);
-    };
-  }
-  open() {
-    return new Promise((resolve, reject) => {
-      this.ws.onopen = resolve;
-      this.ws.onerror = reject;
-    });
-  }
-  send(method, params = {}) {
-    const id = ++this.id;
-    this.ws.send(JSON.stringify({id, method, params}));
-    return new Promise((resolve, reject) => this.pending.set(id, {resolve, reject, method}));
-  }
-  async eval(expression) {
-    const r = await this.send('Runtime.evaluate', {expression, awaitPromise: true, returnByValue: true});
-    if (r.exceptionDetails) throw new Error(`page: ${r.exceptionDetails.exception?.description || r.exceptionDetails.text}`);
-    return r.result.value;
-  }
-}
-
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-async function startBrowser(browser, profile) {
-  const proc = spawn(browser, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
-    '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--hide-scrollbars', '--mute-audio',
-    '--force-device-scale-factor=1', 'about:blank'],
-  {stdio: ['ignore', 'ignore', 'pipe']});
-  const wsUrl = await new Promise((resolve, reject) => {
-    let text = '';
-    proc.stderr.on('data', d => {
-      text += d;
-      const m = /DevTools listening on (ws:\/\/\S+)/.exec(text);
-      if (m) resolve(m[1]);
-    });
-    proc.on('exit', () => reject(new Error('browser exited:\n' + text)));
-    setTimeout(() => reject(new Error('browser did not start:\n' + text)), 30000);
-  });
-  const port = new URL(wsUrl).port;
-  let page = null;
-  for (let i = 0; i < 50 && !page; i++) {
-    const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
-    page = list.find(t => t.type === 'page');
-    if (!page) await sleep(100);
-  }
-  const cdp = new Cdp(page.webSocketDebuggerUrl);
-  await cdp.open();
-  return {proc, cdp};
-}
-
-function startServer(bin, dir) {
-  const proc = spawn(bin, ['--no-open', '--port', '0', 'lecar.ode', '-anifile', 'gui_test.ani'],
-    {cwd: dir, stdio: ['ignore', 'pipe', 'pipe']});
-  return new Promise((resolve, reject) => {
-    let text = '';
-    const look = d => {
-      text += d;
-      const m = /(http:\/\/127\.0\.0\.1:\d+\/\?t=\w+)/.exec(text);
-      if (m) resolve({proc, url: m[1]});
-    };
-    proc.stdout.on('data', look);
-    proc.stderr.on('data', d => { text += d; });
-    proc.on('exit', code => reject(new Error(`${bin} exited (${code}):\n${text}`)));
-  });
-}
 
 /* ---- the session ------------------------------------------------------------ */
 
@@ -277,7 +184,7 @@ function checkWrittenFiles(dir, before) {
 }
 
 async function main() {
-  const browser = findBrowser();
+  const browser = findBrowser(opt.browser);
   if (!browser) {
     console.log('webtest: no Chrome, Chromium or Edge found (set CHROME=path); skipped');
     process.exit(0);
@@ -293,7 +200,7 @@ async function main() {
   fs.copyFileSync(path.join(top, 'tools/gui_test.ani'), path.join(dir, 'gui_test.ani'));
   const before = new Map(SEED.map(f => [f, fs.readFileSync(path.join(dir, f))]));
 
-  const server = await startServer(bin, dir);
+  const server = await startServer(bin, dir, ['lecar.ode', '-anifile', 'gui_test.ani']);
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb-'));
   const {proc, cdp} = await startBrowser(browser, profile);
   let problems;
