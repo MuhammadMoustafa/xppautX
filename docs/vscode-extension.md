@@ -1,96 +1,58 @@
-# Shipping the panel in the VS Code extension
+# The VS Code extension and xppautX
 
-What the extension repository (XPP-ODE-Extension) has to do to ship the
-interactive panel. Nothing here belongs in xppautX; this file only says what
-this project provides and what the extension must add.
+How the [XPP-ODE extension](https://github.com/MuhammadMoustafa/XPP-ODE-Extension)
+uses this program, and what this project promises it. The two are released
+independently: the extension does not bundle `xppautX`, so a user can stay
+on any release of either.
 
-## What xppautX provides
+## What the extension does
 
-Each tagged release of xppautX attaches, per platform
-(`.github/workflows/release.yml`):
+**Open in XPP Interactive** runs
 
-| Asset | Contents |
-|---|---|
-| `xppautX-<tag>-linux-x64.tar.gz` | `xppautX`, LICENSE, CITATION.cff, README.txt |
-| `xppautX-<tag>-macos-arm64.tar.gz`, `...-macos-x64.tar.gz` | the same, for macOS |
-| `xppautX-<tag>-windows-x64.zip` | the same with `.exe` |
-| `xppautX-<tag>-source.tar.gz` | the source of those binaries (GPL v2) |
+```
+xppautX --web --no-open --port 0 model.ode
+```
 
-The extension runs `xppautX --server` (it renders the page itself in a
-webview). The same binary without `--server` is what people without VS Code
-run to get the front end in a browser.
+in the model's folder, reads the one line the program prints,
 
-The protocol is `docs/protocol.md`; `hello.protocol` is its version number
-(1 today). The front end script is `web/xpp-client.js` and
-`web/xpp-client.css`, which the extension copies into `media/`.
+```
+XPP: http://127.0.0.1:<port>/?t=<token>
+```
 
-## What the extension repository has to add
+and shows that address in a frame inside a VS Code webview. The page, the
+script and the engine all come from the same binary, so there is nothing
+to keep in step. Closing the panel kills the process; the process exits by
+itself ten seconds after its last page disconnects.
 
-### 1. Get the binary in, one package per platform
+Which `xppautX` runs: the `xpp-ode.xppautxPath` setting when it is set,
+else the copy the extension's **Download xppautX** command fetched from the
+latest GitHub release into VS Code's global storage. With neither, the
+panel button is hidden and the command explains how to get the program.
 
-VS Code supports platform-specific extension packages: build one `.vsix`
-per target with only that platform's binary inside, and the Marketplace
-gives each user the right one.
+Once a day the extension compares `xppautX --version` with the latest
+release tag and offers the newer one (a setting turns this off).
 
-- Add a workflow that, for each target (`win32-x64`, `linux-x64`,
-  `darwin-arm64`, `darwin-x64`), downloads the matching xppautX release
-  asset, unpacks `xppautX` into `bin/`, marks it executable on
-  Linux and macOS, and runs `vsce package --target <target>`.
-  `gh release download <tag> --repo MuhammadMoustafa/xppautX --pattern '...'`
-  does the download; pin the xppautX tag in a variable so the extension
-  controls when it moves.
-- Publish all packages from one job: `vsce publish --packagePath *.vsix`.
-- Add `bin/` to `.gitignore` and to `.vscodeignore` exceptions (the binary
-  must be *in* the package but not in git).
-- Building locally for a test: download the assets by hand into `bin/` and
-  run `vsce package --target win32-x64`. The workflow is the normal route;
-  local packaging is only for trying it out.
+## What xppautX promises
 
-### 2. Find the binary at run time
+- `--web --no-open --port 0`: pick a free port, print the `XPP:` line
+  above on stdout before anything else, then serve on 127.0.0.1 only.
+- `--version`: print `xppautX <tag>` and exit. The Makefile sets the tag
+  from `GITHUB_REF_NAME` in CI (the release tag, `v1.2.0`) or `git
+  describe` locally.
+- Release assets named `xppautX-<tag>-<platform>.tar.gz` (`.zip` on
+  Windows) for `windows-x64`, `linux-x64`, `macos-arm64` and `macos-x64`,
+  each holding the binary and `LICENSE` in one top-level folder
+  (`.github/workflows/release.yml`, `tools/package_release.sh`). The
+  extension downloads the one for the machine and extracts it with `tar`.
+- The page keeps working when framed from another origin: it uses only
+  relative addresses and the token in its query string.
 
-Order: the `xpp-ode.serverCommand` setting if the user set one, else the
-bundled `bin/xppautX[.exe]`, else `xppautX` on PATH; the extension appends
-`--server` itself. Say which
-one failed when it cannot start; the panel already shows what the program
-printed.
+The `--server` mode (JSON on stdin/stdout, `docs/protocol.md`) is not used
+by the extension any more; it stays for tests and other embedders.
 
-### 3. Refuse a server that speaks another protocol
+## Licensing
 
-The first event is `hello` with `protocol`. If it is not the version the
-bundled `media/xpp-client.js` expects, show a message asking the user to
-update the extension or their own `xppautX`, and do not open the
-panel.
-
-### 4. Keep the front end in step
-
-`media/xpp-client.js` and `media/xpp-client.css` are copies of xppautX
-`web/`. Copy them whenever the pinned xppautX tag changes (a script or a
-workflow step: `curl` them from the tag). They must match the protocol
-version of the bundled server.
-
-### 5. Licensing
-
-The extension is MIT; `xppautX` is GPL v2 (XPPAUT is Bard
-Ermentrout's). Shipping them together is fine as long as each release:
-
-- includes the GPL v2 text (`LICENSE` from the asset) next to the binary,
-- states in the README and the Marketplace page that the panel runs
-  `xppautX` under GPL v2, with a link to the exact
-  source (`xppautX-<tag>-source.tar.gz` of the pinned tag).
-
-Have someone check this before the first publish; it is the one part that
-cannot be fixed afterwards by a patch release.
-
-### 6. Tests worth having
-
-- Start the bundled binary, wait for `hello`, send a key, expect an `ask`
-  (`test/serverProtocol.test.ts` already does the protocol part).
-- One test per platform package in CI: unpack the built `.vsix` and check
-  that the binary is there and runs `--version`.
-
-## Suggested order
-
-1. Tag xppautX, let its release workflow produce the assets.
-2. Add the packaging workflow with that tag pinned, and the run-time lookup.
-3. Try the package locally on Windows, then publish a pre-release version.
-4. Ask a few users; then publish properly.
+xppautX is GPL v2 (XPPAUT is Bard Ermentrout's). The extension is MIT and
+ships no xppautX code; it downloads a release at the user's request and
+records its origin in a `SOURCE.txt` next to the binary. The source of every
+release is its `xppautX-<tag>-source.tar.gz` asset.

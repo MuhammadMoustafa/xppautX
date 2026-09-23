@@ -15,6 +15,8 @@ STRICT  ?= -Werror=implicit-function-declaration -Werror=implicit-int -Werror=in
 OPT     ?= -g -O2
 DEFS     = -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES -DHAVEDLL \
            -DMYSTR1=$(MAJORVER) -DMYSTR2=$(MINORVER)
+# what `xppautX --version` prints: the release tag in CI, else git describe
+XPPAUTX_VERSION ?= $(or $(GITHUB_REF_NAME),$(shell git describe --tags --always 2>/dev/null),dev)
 # -I. is needed because fftn.c does "#include __FILE__"
 INCS     = -I. -Icore -Icore/bitmaps $(X11_INC)
 CFLAGS  ?= $(CSTD) $(WARN) $(STRICT) $(OPT) $(DEFS) $(INCS) -fcommon
@@ -58,6 +60,7 @@ CORE_SOURCES := $(filter-out $(UI_SOURCES) $(SERVER_SOURCES) $(SRCDIR)/sbml2xpp.
 # the page and script xppautX serves, compiled in
 WEB_FILES := web/index.html web/xpp-client.js web/xpp-client.css
 SERVER_OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SERVER_SOURCES)) $(BUILDDIR)/web_assets.o
+$(BUILDDIR)/xppautx_main.o: CFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'
 SOURCES := $(CORE_SOURCES) $(UI_SOURCES)
 OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SOURCES))
 CORE_OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(CORE_SOURCES))

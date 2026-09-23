@@ -25,7 +25,7 @@ It needs nothing else (no X server, no Node), builds natively on Windows,
 and does what the X11 program does ([docs/front-end-gaps.md](docs/front-end-gaps.md)).
 [docs/using-the-panel.md](docs/using-the-panel.md) is the guide for people
 who know the X11 windows; [docs/vscode-extension.md](docs/vscode-extension.md)
-says how the VS Code extension ships the same front end.
+says how the VS Code extension uses the program.
 The X11 program still builds and behaves as before; it is frozen (no new
 features). The web front end has its own screenshot regression test
 (`tools/webshots.mjs`), so the X11 program is no longer needed as the
@@ -74,12 +74,13 @@ reference.
    4. *(done)* The front end: `web/xpp-client.js` renders the protocol in any
       browser page (canvas plots, menu column, parameter and IC panel,
       dialogs for every prompt, AUTO and animation windows). `node
-      web/serve.js file.ode` runs it standalone at http://127.0.0.1:8765/;
-      the XPP-ODE extension hosts the same script in a webview with **Open in
-      XPP Interactive**. `xppautX` without `--server` is the same program
+      web/serve.js file.ode` runs it standalone at http://127.0.0.1:8765/.
+      `xppautX` without `--server` is the same program
       with the page compiled in and a small HTTP server (`core/xpp_http.c`,
       127.0.0.1 only, a random token in the address) instead of Node;
-      options `--port N` and `--no-open`.
+      options `--port N`, `--no-open` and `--version`. The XPP-ODE extension
+      frames that page in a panel with **Open in XPP Interactive**
+      ([docs/vscode-extension.md](docs/vscode-extension.md)).
    5. *(done for Windows; macOS in CI)* Native builds of the X11-free
       program: `make xppautx` works with MinGW-w64 gcc on Windows
       (`xppautX.exe` needs only the system C runtime, and dll_lib

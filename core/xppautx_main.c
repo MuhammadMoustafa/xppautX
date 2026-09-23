@@ -12,6 +12,7 @@
                                     output.dat, as upstream xppaut -silent
 
    usage: xppautX [--server|--web] [--port N] [--no-open] file.ode [xppaut options]
+          xppautX --version
    Every xppaut option still applies; ours have to come first. */
 #include "xpp_batch.h"
 #include "xpp_globals.h"
@@ -27,9 +28,16 @@
 #include "load_eqn.h"
 #include "menudrive.h"
 #include "xpp_http.h"
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+/* What --version prints. The Makefile passes the release tag when there is
+   one (GITHUB_REF_NAME in CI, else git describe); a build from a tree with
+   no tags and no git says "dev". */
+#ifndef XPPAUTX_VERSION
+#define XPPAUTX_VERSION "dev"
+#endif
 
 void set_colorization_stuff(void);
 extern char this_file[XPP_MAX_NAME];
@@ -75,6 +83,11 @@ int main(int argc, char **argv)
     int web = 1, batch = 0, port = 8765, open_browser = 1, i, k;
     /* our options come first; the rest are xppaut's */
     for (i = k = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--version") == 0) {
+            /* the release tag (v1.2.0); the VS Code extension compares it with the latest release */
+            printf("xppautX %s\n", XPPAUTX_VERSION);
+            return 0;
+        }
         if (strcmp(argv[i], "--web") == 0) web = 1;
         else if (strcmp(argv[i], "--server") == 0) web = 0;
         else if (strcmp(argv[i], "--no-open") == 0) open_browser = 0;
