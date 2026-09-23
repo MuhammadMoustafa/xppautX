@@ -94,7 +94,7 @@ extern int UserMinHeight;
 extern int UserMinHeight;
 /*extern char UserOUTFILE[256];
 */
-extern char UserOUTFILE[XPP_MAX_NAME];
+extern char UserOUTFILE[256]; /* xpp_globals.c */
 extern int tfBell;
 extern int use_intern_sets;
 extern int use_ani_file;
@@ -116,7 +116,7 @@ extern INTERN_SET intern_set[MAX_INTERN_SET];
 
 /*extern char batchout[256];
 */
-extern char batchout[XPP_MAX_NAME];
+extern char batchout[256]; /* xpp_globals.c */
 
 int loadsetfile=0;
 int loadparfile=0;
@@ -303,9 +303,9 @@ int argc;
      loadparfile=1;
    }
    if(k==5){
-    plintf(argv[i+1]);
-     sprintf(batchout,argv[i+1]);
-     sprintf(UserOUTFILE,argv[i+1]);
+    plintf("%s",argv[i+1]);
+     snprintf(batchout,sizeof batchout,"%s",argv[i+1]);
+     snprintf(UserOUTFILE,sizeof UserOUTFILE,"%s",argv[i+1]);
      i++;
    }
    if(k==6){
