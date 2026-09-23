@@ -20,6 +20,9 @@ the command line:
 ```
 
 `-silent` writes an `output.dat` byte-identical to `xppaut -silent`.
+Names in a model (variables, parameters, auxiliaries, functions and their
+arguments, tables) can be up to 64 characters long (`XPP_NAME_MAX` in
+`core/xpplim.h`); XPPAUT 8 cut them to about 10.
 
 It needs nothing else (no X server, no Node), builds natively on Windows,
 and does what the X11 program does ([docs/front-end-gaps.md](docs/front-end-gaps.md)).

@@ -43,6 +43,10 @@ row changes.
   rounded to the 216 web-safe ones (the GIF writer takes 256 colours and a
   canvas smooths lines). The X11 files are pixel copies of the window.
 - Kinescope frames live in the client: reloading the page loses them.
+- Names (up to 64 characters) are shown in full, clipped with a tooltip
+  where a column is narrow. The X11 boxes show the first 9 characters and a
+  `~` for a longer name; AUTO's printed column headings (14 wide in both)
+  do the same at 12 characters.
 - The AUTO diagram stores a point for 2-parameter work on click, not on
   every mouse move.
 - The AUTO diagram also zooms (mouse wheel) and pans (Shift+drag, or the

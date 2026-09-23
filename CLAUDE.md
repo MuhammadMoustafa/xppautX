@@ -77,7 +77,7 @@ only for the native X11-free build, from Git Bash:
 
 Windows API code lives only in `core/xpp_win32.c` (windows.h macros clash
 with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
-`strupr`/`strlwr` are renamed on Windows in parserslow.h/parser.h.
+`strupr`/`strlwr` are renamed on Windows in parserslow.h.
 
 ## Architecture of the split (phase 2)
 
@@ -198,6 +198,13 @@ aim: 70%+ C++ over time, verify.sh's `C++: N / M sources` is the metric).
   diagram are the guard.
 - Tests check data (output files, protocol events, UI state), never
   pixels: do not add screenshot comparisons.
+- A model's names (variables, parameters, aux, functions, arguments,
+  tables) go up to `XPP_NAME_MAX` (64, core/xpplim.h); arrays holding one
+  are `[XPP_NAME_MAX+1]`, dialog values `[MAX_LEN_SBOX]`. The parser
+  refuses a longer name (`name_too_long`) instead of cutting it. A display
+  of fixed width shortens with `short_name()` (xpp_util.c, ends in `~`);
+  the JSON front end always sends names whole. tools/models/longnames.ode
+  and autocheck's `names` section are the test.
 - `core/fftn.c` does `#include __FILE__`; the Makefile's `-I.` is required for it.
 - `core/sbml2xpp.c` needs libsbml and is not built, same as upstream.
 - The refactoring scripts under `tools/` (guard_x11_headers.py, move_funcs.py,
