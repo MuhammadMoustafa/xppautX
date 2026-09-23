@@ -89,7 +89,7 @@ double stack[200],ustack[200];
 KERNEL kernel[MAXKER];
 int NKernel;
 int MaxPoints;
-double *Memory[MAXKER];
+double *Memory[MAXODE]; /* one per variable (volterra2.c), not per kernel */
 int NTable;
 
 
