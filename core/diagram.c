@@ -292,12 +292,12 @@ void write_info_out()
 void load_browser_with_branch(int ibr,int pts,int pte)
 {
    DIAGRAM *d;
-   int type,i,j,pt;
+   int i,j,pt;
   /*int flag=0;
   */
-  int icp1,icp2;
+  int icp1;
   double *par;
-  double par1,par2=0,*u0,per;
+  double par1,*u0;
   int first,last,nrows;
   first=abs(pts);
   last=abs(pte);
@@ -311,20 +311,13 @@ void load_browser_with_branch(int ibr,int pts,int pte)
   if(d->next==NULL)return;
   j=0;
  while(1){
-    type=get_bif_type(d->ibr,d->ntot,d->lab);
     pt=abs(d->ntot);
     if((d->ibr==ibr) && (pt>=first) && (pt<=last)){
       icp1=d->icp1;
-      icp2=d->icp2;
       par=d->par;
-      per=d->per;
       u0=d->u0;
-    
+
       par1=par[icp1];
-      if(icp2<NAutoPar)
-	par2=par[icp2];
-      else 
-	par2=par1;
       storage[0][j]=par1;
       for(i=0;i<NODE;i++)
 	storage[i+1][j]=u0[i];
@@ -342,13 +335,13 @@ void write_init_data_file()
   /*char filename[256];*/
   char filename[XPP_MAX_NAME];
   DIAGRAM *d;
-  int type,i;
+  int i;
   /*int flag=0;
   */
   int status;
-  int icp1,icp2;
+  int icp1;
   double *par;
-  double par1,par2=0,*u0,per;
+  double par1,*u0;
   /*double a,*uhigh,*ulow,*ubar;*/
   FILE *fp;
   sprintf(filename,"initdata.dat");
@@ -366,35 +359,27 @@ void write_init_data_file()
   d=bifd;
   if(d->next==NULL)return;
  while(1){
-    type=get_bif_type(d->ibr,d->ntot,d->lab);
-    
     /*if(d->ntot==1)flag=0;
     else flag=1;
     Unused here?
     */
     icp1=d->icp1;
-    icp2=d->icp2;
     par=d->par;
-    per=d->per;
     /*
     uhigh=d->uhi;
     ulow=d->ulo;
-    ubar=d->ubar; 
+    ubar=d->ubar;
     Unused here??
     */
     u0=d->u0;
-    
+
     /*
     a=d->norm;
-    
+
     Unused here??
     */
     par1=par[icp1];
-    if(icp2<NAutoPar)
-      par2=par[icp2];
-    else 
-      par2=par1;
-     
+
     /* fprintf(fp,"%d %d %g %g %g ",
        type,d->ibr,par1,par2,per); */
     fprintf(fp,"%g ",par1);
