@@ -30,7 +30,7 @@ issue; the card here is the one kept up to date.
 | W7  | #19 | Core refactor for single responsibility | W4 | blocked |
 | W8  | #20 | Remove the X11 front end | W6 | blocked |
 | W9  | #21 | WebAssembly build (proof of concept) | maintainer's OK to install emsdk | blocked |
-| W10 | #22 | Replayable interruptions in scripts | none | running |
+| W10 | #22 | Replayable interruptions in scripts | none | done (539b300) |
 
 ## W0: C/C++ mixed build
 **Goal.** core/*.cpp builds next to core/*.c on Linux, Windows (MinGW,
