@@ -3,11 +3,15 @@
 import {offerDownload, writeTo, type SaveHandle} from './pickers';
 import {accumulateScroll, keyScroll} from './plot/aplotScroll';
 import type {AplotColorMap} from './plot/aplotColors';
+import {download} from './plot/export';
+import {bytesToBase64, encodeGif} from './plot/gif';
+import {renderFrame} from './plot/kinescopeRender';
 import {pickAnswer, type PickState} from './plot/pick';
+import {chartOf} from './plot/registry';
 import type {Ranges} from './plot/viewmath';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
-import type {AskEvent, BrowserEvent, Command, XppEvent} from './protocol/types';
+import type {AskEvent, BrowserEvent, Command, FilmEvent, XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
 import {
   answerName, keepBothName, menuKeys, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type Upload,
@@ -15,6 +19,8 @@ import {
 import {createStore, type Store} from './store/store';
 import {initialState, reduce, type Action, type AppState} from './store/state';
 import {stepTarget} from './store/ani';
+import {snapshotWindow, type KinescopeFrame} from './store/kinescope';
+import {windowOf} from './store/plots';
 import {MAX_COUNT, MAX_NCOL, planRequest, tableCsv} from './store/table';
 import type {TextTab} from './store/text';
 import type {ValueEdit} from './store/values';
@@ -54,6 +60,9 @@ export class Session {
   private diagramAsked = false;
   /** the array plot's scroll made while the core was busy (plot/aplotScroll.ts) */
   private pendingAplotDy = 0;
+  /** the kinescope's play/autoplay clock (store/kinescope.ts: the core only
+      says a play started; stepping the frames shown is this session's job) */
+  private filmTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** files: the model's folder over HTTP (none in unit tests) */
   constructor(private readonly transport: Transport, private readonly files: FilesApi | null = null) {
@@ -74,9 +83,11 @@ export class Session {
          enc sends JSON numbers, which the store reads as well) */
       const events = ['series', 'plots', 'nullclines', 'dfield', 'marks', 'ani', 'autoinfo'].filter(name => ev.features?.includes(name));
       if (events.length) this.send({cmd: 'data', events, enc: 'f32'});
+    } else if (ev.ev === 'film') {
+      this.onFilm(ev);
     } else if (ev.ev === 'ask') {
       if (ev.kind === 'pixels') {
-        this.cancel(ev); /* frame and GIF writers want the client's picture; this UI has none yet */
+        this.answerPixels(ev);
       } else if (ev.kind === 'alert') {
         /* an alert only informs: a notification that does not stop the run */
         this.store.dispatch({type: 'toast', kind: 'info', text: ev.message ?? ''});
@@ -489,6 +500,124 @@ export class Session {
   /** the pointer over the picture while grabbing, in unit coordinates (u, v: y up) */
   aniPointer(what: 'down' | 'move' | 'up', u: number, v: number): void {
     this.send({cmd: 'ani', op: 'mouse', what, u, v});
+  }
+
+  /* ---- kinescope (docs/ui-v2.md T15, docs/protocol.md `film` and `pixels`) ----
+     The core's Kinescope menu (keys k then c/r/p/a/s/m) decides when a frame
+     is captured or reset, and when a play or autoplay starts; store/state.ts's
+     reducer keeps the frames, captured as data (store/kinescope.ts
+     snapshotWindow) the moment a `capture` event arrives. What this session
+     owns is the two things a reducer cannot: the playback clock (`onFilm`
+     below, an ordinary timer, since the core sent nothing further once it
+     said "play" - docs/protocol.md's do_movie_com case 2/3 ends the command
+     at once) and answering a `pixels` ask by rendering the picture the ask
+     is about (plot/kinescopeRender.ts), never by taking a screenshot. */
+
+  /** a play or autoplay: shows the frames stored so far, `delay` ms apart,
+      once (`play`) or `cycles` times (`autoplay`); Stop below ends it early */
+  private onFilm(ev: FilmEvent): void {
+    if (ev.op !== 'play' && ev.op !== 'autoplay') return; /* capture/reset: store/state.ts already updated the frames */
+    this.stopFilmTimer();
+    const total = Math.min(ev.count, this.store.getState().kinescope.frames.length);
+    if (total <= 0) return;
+    const cycles = ev.op === 'autoplay' ? Math.max(1, ev.cycles) : 1;
+    const delay = Math.max(0, ev.delay);
+    let shown = 0, cycle = 0;
+    const step = () => {
+      this.store.dispatch({type: 'kinescope', action: {type: 'show', index: shown}});
+      shown++;
+      if (shown >= total) {
+        shown = 0;
+        cycle++;
+        if (cycle >= cycles) {
+          this.filmTimer = null;
+          this.store.dispatch({type: 'kinescope', action: {type: 'playing', playing: false}});
+          return;
+        }
+      }
+      this.filmTimer = setTimeout(step, delay);
+    };
+    step();
+  }
+
+  private stopFilmTimer(): void {
+    if (this.filmTimer !== null) {
+      clearTimeout(this.filmTimer);
+      this.filmTimer = null;
+    }
+  }
+
+  /** the core's Kinescope menu (keys k then the item's own mnemonic); a no-op
+      while a command is already running, like the rest of the menu keys */
+  private kinescopeMenu(item: string): void {
+    if (!this.store.getState().busy) this.keys('k', item);
+  }
+
+  kinescopeCapture(): void {
+    this.kinescopeMenu('c');
+  }
+
+  kinescopeReset(): void {
+    this.kinescopeMenu('r');
+  }
+
+  kinescopePlay(): void {
+    this.kinescopeMenu('p');
+  }
+
+  /** Stop: a client-only action (the core's own command already ended) */
+  kinescopeStop(): void {
+    this.stopFilmTimer();
+    if (this.store.getState().kinescope.playing) this.store.dispatch({type: 'kinescope', action: {type: 'playing', playing: false}});
+  }
+
+  /** a `pixels` ask (docs/protocol.md): a kinescope frame's picture when
+      `film` is given, else window `win`'s (its live chart when it is on
+      screen, else an offscreen render of the same data); cancelled when
+      there is nothing to render, as before this task */
+  private answerPixels(ask: AskEvent): void {
+    const dark = document.documentElement.dataset.theme === 'dark';
+    let pixels: {w: number; h: number; rgb: Uint8ClampedArray} | null = null;
+    if (typeof ask.film === 'number') {
+      const frame = this.store.getState().kinescope.frames[ask.film];
+      if (frame) pixels = renderFrame(frame, dark);
+    } else if (typeof ask.win === 'number') {
+      pixels = chartOf(ask.win)?.pixels() ?? null;
+      if (!pixels) {
+        const w = windowOf(this.store.getState().plots, ask.win);
+        if (w) pixels = renderFrame(snapshotWindow(w), dark);
+      }
+    }
+    if (pixels) this.answer(ask, {w: pixels.w, h: pixels.h, rgb: bytesToBase64(pixels.rgb)});
+    else this.cancel(ask);
+  }
+
+  /** every captured frame's picture, rendered the same way a `pixels` ask
+      is (plot/kinescopeRender.ts): null when there is nothing captured */
+  kinescopeFramePixels(): {w: number; h: number; rgb: Uint8ClampedArray}[] | null {
+    const dark = document.documentElement.dataset.theme === 'dark';
+    const frames = this.store.getState().kinescope.frames;
+    if (!frames.length) return null;
+    const rendered = frames.map((f: KinescopeFrame) => renderFrame(f, dark));
+    return rendered.every(p => p !== null) ? rendered as {w: number; h: number; rgb: Uint8ClampedArray}[] : null;
+  }
+
+  /** an animated GIF of the captured frames (plot/gif.ts), delay ms apart
+      (the autoplay speed set last, or the kinescope slice's default) */
+  kinescopeGifBytes(): Uint8Array | null {
+    const pixels = this.kinescopeFramePixels();
+    if (!pixels) return null;
+    return encodeGif(pixels.map(p => ({w: p.w, h: p.h, rgb: p.rgb})), this.store.getState().kinescope.delay);
+  }
+
+  /** Export GIF: built in the client, downloaded through the browser (docs/ui-v2.md
+      "GIF/PNG from the client") */
+  downloadKinescopeGif(name = 'xpp-kinescope.gif'): void {
+    const bytes = this.kinescopeGifBytes();
+    if (!bytes) return;
+    const url = URL.createObjectURL(new Blob([bytes as unknown as BlobPart], {type: 'image/gif'}));
+    download(name, url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   /* ---- text views (docs/ui-v2.md T16, docs/protocol.md `equations`, `source`, ---- */

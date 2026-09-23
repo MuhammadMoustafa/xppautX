@@ -203,6 +203,10 @@ export interface AskEvent {
   dir?: string;
   dirs?: string[];
   files?: string[];
+  /** the window the ask is about (mouse, rubber, drag, grab; a `pixels` ask's window to render) */
+  win?: number;
+  /** a `pixels` ask for a kinescope frame instead of a window */
+  film?: number;
   [k: string]: unknown;
 }
 
@@ -349,6 +353,19 @@ export interface AniFrameEvent {
   prims: AniPrimWire[];
 }
 
+/** Kinescope (docs/protocol.md `film`): the core only says what happened
+    (a capture, a reset, a play or autoplay to run) and gives the window,
+    count and playback timing; the client keeps the frames themselves
+    (store/kinescope.ts) and does the drawing and the export. */
+export interface FilmEvent {
+  ev: 'film';
+  op: 'capture' | 'reset' | 'play' | 'autoplay';
+  count: number;
+  win: number;
+  cycles: number;
+  delay: number;
+}
+
 export type XppEvent =
   | HelloEvent
   | StateEvent
@@ -367,6 +384,7 @@ export type XppEvent =
   | AplotEvent
   | AniStateEvent
   | AniFrameEvent
+  | FilmEvent
   | {ev: 'idle'}
   | {ev: 'progress'; n: number; of: number}
   | {ev: 'title'; text: string}
@@ -376,7 +394,7 @@ export type XppEvent =
   | {ev: 'exit'; code: number}
   | {ev: 'bye'}
   /* every other event: drawing ops, AUTO, ... (not used by this UI yet) */
-  | {ev: 'draw' | 'palette' | 'diagram' | 'film' | 'ping'; [k: string]: unknown}
+  | {ev: 'draw' | 'palette' | 'diagram' | 'ping'; [k: string]: unknown}
   /* AUTO's info strip and stability circle (store/diagram.ts AutoInfoEvent) */
   | {ev: 'autoinfo'; [k: string]: unknown};
 

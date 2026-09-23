@@ -39,9 +39,14 @@
    store in unit coordinates and drawn at the dimension's aspect; the
    keyboard's steps, Home/End, the seek slider, the delay, Play and Pause
    move the store's frame and the drawn one; a 390x844 sheet.
+   Kinescope (T15): Capture after two different integrations holds two
+   frames of different data, client-side Export GIF decodes to one frame
+   per capture, Playback shows frame 1 then frame 2, Reset empties the
+   frames, and the core's own Make Anigif (a `pixels` ask per frame) writes
+   a real anim.gif into the model's folder.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH]
-     [--only desktop,phase,marks,auto,view,three,aplot,files,live,million,ani] [-v]
+     [--only desktop,phase,marks,auto,view,three,aplot,files,live,million,ani,kinescope] [-v]
 
    Needs Node 22 or later and a browser, nothing else (tools/cdp.mjs). */
 import {spawnSync} from 'node:child_process';
@@ -2052,6 +2057,107 @@ async function animation() {
   await desktopMetrics();
 }
 
+/* structure only (header, each frame's size, the trailer), not the LZW
+   pixels: web2/test/gif.test.ts already checks the encoder decodes right;
+   this just confirms what __xpp.kinescopeGif() produced is a real GIF with
+   the frames a kinescope export should have. */
+function parseGifStructure(buf) {
+  let p = 0;
+  const u8 = () => buf[p++];
+  const u16 = () => { const v = buf[p] | (buf[p + 1] << 8); p += 2; return v; };
+  const header = buf.toString('ascii', 0, 6);
+  if (header !== 'GIF87a' && header !== 'GIF89a') throw new Error(`not a GIF: ${header}`);
+  p = 6;
+  const w = u16(), h = u16();
+  const packed = u8();
+  u8(); u8();
+  if (packed & 0x80) p += (2 << (packed & 7)) * 3;
+  const frames = [];
+  for (;;) {
+    const block = u8();
+    if (block === 0x3b || p >= buf.length) break;
+    if (block === 0x21) {
+      u8();
+      let len;
+      while ((len = u8()) !== 0) p += len;
+      continue;
+    }
+    if (block !== 0x2c) throw new Error(`unexpected GIF block 0x${block.toString(16)} at ${p - 1}`);
+    u16(); u16();
+    const fw = u16(), fh = u16();
+    const ipacked = u8();
+    if (ipacked & 0x80) p += (2 << (ipacked & 7)) * 3;
+    u8(); /* LZW minimum code size */
+    let len;
+    while ((len = u8()) !== 0) p += len;
+    frames.push({w: fw, h: fh});
+  }
+  return {w, h, frames};
+}
+
+/* Kinescope (docs/ui-v2.md T15): capturing two frames of two different
+   integrations, playing them, resetting, the client's own GIF export
+   (plot/gif.ts, web2/test/gif.test.ts covers the encoder itself), and the
+   core's own Kinescope writers (Make Anigif) getting real pixels back
+   from a `pixels` ask (session.ts answerPixels) instead of the ok:0 this
+   task replaces. */
+async function kinescope(dir) {
+  await desktopMetrics();
+  check('kinescope: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
+  check('kinescope: integrate once (601 rows)', await integrate(601, 30000));
+
+  const openKinescope = async item => {
+    await key('k');
+    if (!(await until("s.ask && s.ask.kind === 'menu'", 'kinescope menu'))) return false;
+    await key(item);
+    return true;
+  };
+
+  check('kinescope: Capture (k, c) sends a film capture', await openKinescope('c')
+    && await until('s.kinescope.frames.length === 1 && !s.busy', 'frame 1'));
+
+  check('kinescope: a different parameter, integrated again', await setPar('iapp', (await par('iapp')) + 0.05)
+    && await integrate(601, 30000));
+  check('kinescope: a second capture', await openKinescope('c')
+    && await until('s.kinescope.frames.length === 2 && !s.busy', 'frame 2'));
+
+  const differ = await cdp.eval(`(() => {
+    const f = __xpp.state().kinescope.frames;
+    const col = fr => Array.from(fr.series.columns.get(fr.series.curves[0].y) ?? []);
+    return JSON.stringify(col(f[0])) !== JSON.stringify(col(f[1]));
+  })()`);
+  check('kinescope: the two captured frames hold different data', differ);
+
+  const gifB64 = await cdp.eval('__xpp.kinescopeGif()');
+  check('kinescope: Export GIF (client-side) produces a GIF', !!gifB64);
+  if (gifB64) {
+    const gif = parseGifStructure(Buffer.from(gifB64, 'base64'));
+    check('kinescope: the GIF has one frame per capture, all the same size',
+      gif.frames.length === 2 && gif.frames.every(f => f.w === gif.w && f.h === gif.h && f.w > 0 && f.h > 0),
+      JSON.stringify(gif));
+  }
+
+  check('kinescope: Playback (k, p) shows frame 1 then frame 2', await openKinescope('p')
+    && await until('s.kinescope.playing && s.kinescope.shown === 0', 'showing 0')
+    && await until('s.kinescope.shown === 1', 'showing 1')
+    && await until('!s.kinescope.playing && !s.busy', 'play done'));
+
+  /* Make Anigif (k, m): no prompt, so a plain menu pick; core/ui_json.c's
+     j_movie_make_anigif asks `pixels` for every captured frame and writes
+     anim.gif in the model's folder itself */
+  const animPath = path.join(dir, 'anim.gif');
+  check('kinescope: Make Anigif (k, m) runs', await openKinescope('m') && await until('!s.busy', 'anigif done'));
+  for (let t0 = Date.now(); !fs.existsSync(animPath) && Date.now() - t0 < 5000;) await sleep(50);
+  check('kinescope: it wrote anim.gif from the pixels answer (a real GIF, not empty)',
+    fs.existsSync(animPath) && fs.readFileSync(animPath).length > 20
+    && fs.readFileSync(animPath).toString('ascii', 0, 3) === 'GIF',
+    fs.existsSync(animPath) ? String(fs.statSync(animPath).size) : 'missing');
+
+  check('kinescope: Reset (k, r) empties the frames', await openKinescope('r')
+    && await until('s.kinescope.frames.length === 0 && s.kinescope.shown === null && !s.busy', 'reset'));
+  await desktopMetrics();
+}
+
 /* xppautX in browser mode on a copy of `ode`, the page at /v2/, then `fn`
    (given the model's folder); the server stops after it. `expected` are
    errors the session provokes on purpose. */
@@ -2110,6 +2216,7 @@ async function main() {
     if (run('live')) await session(LIVE, () => live(wantLive));
     if (run('million')) await session(MILLION, million);
     if (run('ani')) await session(ODE, animation);
+    if (run('kinescope')) await session(ODE, kinescope);
   } finally {
     b.proc.kill();
     await sleep(500);

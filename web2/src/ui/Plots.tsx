@@ -18,6 +18,35 @@ function tabTitle(w: PlotWindow): string {
   return c ? `${name(c.y)} vs ${name(c.x)}` : '';
 }
 
+/** the Kinescope's own controls (docs/ui-v2.md T15): the core's menu
+    (Capture, Reset, Playback) plus Stop and Export GIF, which are the
+    client's own (nothing in the core to ask). Shown once there is
+    something to play or export; Capture works from the start. */
+function KinescopeBar() {
+  const session = useSession();
+  const {frames, playing, shown} = useStore(s => s.kinescope);
+  const busy = useStore(s => s.busy);
+  return (
+    <div class="kinescope-bar" role="group" aria-label="Kinescope">
+      <button class="small" disabled={busy} onClick={() => session.kinescopeCapture()}
+        title="Kinescope/Capture: keep this plot as a frame (k, c)">Capture</button>
+      {frames.length > 0 && (
+        <>
+          <span class="kinescope-count">{frames.length} frame{frames.length === 1 ? '' : 's'}
+            {playing && shown !== null ? `, showing ${shown + 1}` : ''}</span>
+          <button class="small" disabled={busy || playing} onClick={() => session.kinescopePlay()}
+            title="Kinescope/Playback: show the captured frames (k, p)">Play</button>
+          <button class="small" disabled={!playing} onClick={() => session.kinescopeStop()}>Stop</button>
+          <button class="small" disabled={playing} onClick={() => session.downloadKinescopeGif()}
+            title="An animated GIF of the captured frames, built here and downloaded">Export GIF</button>
+          <button class="small" disabled={busy} onClick={() => session.kinescopeReset()}
+            title="Kinescope/Reset: clear the captured frames (k, r)">Reset</button>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function Plots({dark}: {dark: boolean}) {
   const session = useSession();
   const windows = useStore(s => s.plots.windows);
@@ -71,6 +100,7 @@ export function Plots({dark}: {dark: boolean}) {
               title="Makewindow/Destroy: close this plot window (M, D); window 1 stays">Close window</button>
           )}
         </div>
+        <KinescopeBar />
       </div>
       {shownWins.map(win => {
         const shown = win === active || shownWins.length === 1;

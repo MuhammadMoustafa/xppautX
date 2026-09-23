@@ -429,6 +429,8 @@ kbd {
 .plot-tab-num { font-weight: 600; }
 .plot-tab-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .plot-window-tools { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-left: auto; }
+.kinescope-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+.kinescope-count { font-size: 0.875rem; color: var(--fg-muted); white-space: nowrap; }
 .plot-view[hidden] { display: none; }
 .plot-view {
   container-type: inline-size;

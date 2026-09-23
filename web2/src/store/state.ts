@@ -11,6 +11,7 @@ import {
 } from './plots';
 import {initialAplot, reduceAplot, type AplotAction, type AplotState} from './aplot';
 import {initialAni, reduceAni, type AniAction, type AniState} from './ani';
+import {initialKinescope, reduceKinescope, snapshotWindow, type KinescopeAction, type KinescopeState} from './kinescope';
 import {initialFiles, missingFile, onSent, reduceFiles, type FilesAction, type FilesState, type RunRecord} from './files';
 import {
   initialDiagram, reduceDiagram, type AutoInfoEvent, type DiagramAction, type DiagramEvent, type DiagramState,
@@ -114,6 +115,8 @@ export interface AppState {
   aplot: AplotState;
   /** the animation (T13): its window, player state and last frame, see store/ani.ts */
   ani: AniState;
+  /** the kinescope (T15): captured frames and playback, see store/kinescope.ts */
+  kinescope: KinescopeState;
 }
 
 export type Action =
@@ -144,7 +147,8 @@ export type Action =
   | {type: 'files'; action: FilesAction}
   | {type: 'diagram'; action: DiagramAction}
   | {type: 'aplot'; action: AplotAction}
-  | {type: 'ani'; action: AniAction};
+  | {type: 'ani'; action: AniAction}
+  | {type: 'kinescope'; action: KinescopeAction};
 
 export const initialState: AppState = {
   connected: false,
@@ -176,6 +180,7 @@ export const initialState: AppState = {
   diagram: initialDiagram,
   aplot: initialAplot,
   ani: initialAni,
+  kinescope: initialKinescope,
 };
 
 const LOG_KEEP = 200, TOASTS_KEEP = 4;
@@ -289,6 +294,16 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       };
     case 'ani':
       return {...state, ani: reduceAni(state.ani, ev.op === 'frame' ? {type: 'frame', ev} : {type: 'state', ev})};
+    case 'film': {
+      if (ev.op === 'capture') {
+        const w = windowOf(state.plots, ev.win);
+        return w ? {...state, kinescope: reduceKinescope(state.kinescope, {type: 'capture', frame: snapshotWindow(w)})}
+          : state;
+      }
+      if (ev.op === 'reset') return {...state, kinescope: reduceKinescope(state.kinescope, {type: 'clear'})};
+      /* play/autoplay: the timing is noted here; session.ts's timer steps `shown` (impure, not this reducer) */
+      return {...state, kinescope: reduceKinescope(state.kinescope, {type: 'playing', playing: true, cycles: ev.cycles, delay: ev.delay})};
+    }
     case 'autoinfo':
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'info', ev: ev as unknown as AutoInfoEvent})};
     case 'progress':
@@ -390,5 +405,7 @@ export function reduce(state: AppState, action: Action): AppState {
       return {...state, aplot: reduceAplot(state.aplot, action.action)};
     case 'ani':
       return {...state, ani: reduceAni(state.ani, action.action)};
+    case 'kinescope':
+      return {...state, kinescope: reduceKinescope(state.kinescope, action.action)};
   }
 }
