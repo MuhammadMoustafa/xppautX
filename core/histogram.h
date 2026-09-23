@@ -1,5 +1,8 @@
 #ifndef _histogram_h_
 #define _histogram_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /* histogram.c */
@@ -28,5 +31,8 @@ void post_process_stuff();
 void just_fourier(int flag);
 void just_sd(int flag);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 

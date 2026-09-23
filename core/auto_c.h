@@ -9,6 +9,9 @@
 #include "auto_mpi.h"
 #endif
 #include <string.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifndef __AUTO_C_H__
 #define __AUTO_C_H__
@@ -447,7 +450,13 @@ int pvls(integer ndim, const doublereal *u, doublereal *par);
 void *conpar_process(void *);
 int conpar(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf);
 /*setubv.c */
+#ifdef __cplusplus
+}
+#endif
 #include "auto_types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 void *setubv_make_aa_bb_cc(void *);
 int setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
 	   FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, 
@@ -474,7 +483,13 @@ void setubv_make_fc_dd(setubv_parallel_arglist larg,doublereal *dups, doublereal
 int mpi_worker();
 int mpi_setubv_worker();
 int mpi_conpar_worker();
+#ifdef __cplusplus
+}
+#endif
 #include "auto_types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 int set_funi_and_icni(iap_type *,setubv_parallel_arglist *);
 int set_function_pointers(const iap_type,function_list *);
 
@@ -489,3 +504,6 @@ int user_destruct();
 
 
 
+#ifdef __cplusplus
+}
+#endif

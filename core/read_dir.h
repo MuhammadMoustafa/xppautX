@@ -1,5 +1,8 @@
 #ifndef _read_dir_h_
 #define _read_dir_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 typedef struct {
@@ -21,4 +24,7 @@ int wild_match(char *string, char *pattern);
 
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

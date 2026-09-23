@@ -2,6 +2,9 @@
 #define _scrngif_h_
 
 #include <stdio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define MAKE_ONE_GIF 2
 #define GET_GLOBAL_CMAP 1
@@ -44,4 +47,7 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz);
 void ClearTree(int cc, GifTree *root);
 unsigned char *AddCodeToBuffer(int code, short n, unsigned char *buf);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

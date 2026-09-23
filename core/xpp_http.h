@@ -2,6 +2,9 @@
 #define XPP_HTTP_H
 
 #include <stddef.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* The browser front end without Node: a small HTTP server inside
    xppautX (xpp_http.c). The page and its script are compiled in
@@ -17,4 +20,7 @@ int xpp_http_start(int port, int open_browser);
 int xpp_http_active(void);
 void xpp_http_emit(const char *line, size_t len); /* one event, no newline */
 
+#ifdef __cplusplus
+}
+#endif
 #endif

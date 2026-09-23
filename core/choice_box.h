@@ -2,6 +2,9 @@
 #define _choice_box_h_
 
 #include "struct.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void destroy_choice(CHOICE_BOX p);
 #if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
@@ -14,4 +17,7 @@ int do_choice_box(Window root, char *wname, int n, int mcc, char **names, int *c
 #endif /* Xlib.h */
 int choice_box_event_loop(CHOICE_BOX p);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -3,6 +3,9 @@
 
 
 #include <stdio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**************  New stuff for the Grabber ***************************/
 #define MAX_GEVENTS 20  /* maximum variables you can change per grabbable */
@@ -44,9 +47,15 @@ typedef struct {
   int i;
 } Comet;
 
+#ifdef __cplusplus
+}
+#endif
 #include "xpp_types.h"
 #include "xpplim.h"
 #include "load_eqn.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* the animation window; the ids are the front end's */
 typedef struct {
@@ -176,4 +185,8 @@ void do_ani_slider_motion(Window w,int x);
 void draw_ani_slider(Window w,int x);
 #endif /* Xlib.h */
 void redraw_ani_slider(void);
+
+#ifdef __cplusplus
+}
+#endif
 #endif

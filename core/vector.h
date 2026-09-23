@@ -47,6 +47,9 @@
 
 
 #include "llnltyps.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /* Part I: Machine Environment-Dependent Declarations */
@@ -425,4 +428,7 @@ bool N_VInvTest(N_Vector x, N_Vector z);
 void N_VPrint(N_Vector x);
  
 
+#ifdef __cplusplus
+}
+#endif
 #endif

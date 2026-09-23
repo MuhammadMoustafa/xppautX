@@ -1,5 +1,8 @@
 #ifndef _tutor_h_
 #define _tutor_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /*
@@ -21,5 +24,8 @@ char* tutorial[N_TUTORIAL]={"use captital letters on buttons as keyboard shortcu
      "edit files using your favorite text editor by setting the environment variable XPPEDITOR on your computer.",
      "have XPP open to a default starting directory by setting the environment variable XPPSTART on your computer."};
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 

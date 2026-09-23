@@ -2,6 +2,9 @@
 #define XPP_UTIL_H
 
 #include <stdio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* xpp_util.c: pure helpers relocated out of X11 files */
 void restore_off(void);
@@ -47,4 +50,7 @@ void xpp_remove_temp_dir(const char *dir);
    clears it. Registered by xppautx_main.c, not the X11 front end. */
 void xpp_cleanup_auto_dir(void);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

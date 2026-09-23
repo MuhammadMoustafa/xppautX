@@ -1,6 +1,9 @@
 #ifndef _main_h__
 
 #define _main_h__
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 
@@ -38,5 +41,8 @@ int getxcolors(XWindowAttributes *win_info, XColor **colors);
 void test_color_info(void);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif
  

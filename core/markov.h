@@ -2,6 +2,9 @@
 #define _markov_h_
 
 #include <stdio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* markov.c */
 void add_wiener(int index);
@@ -33,4 +36,7 @@ void nsrand48(int seed);
 double ran1(long *idum);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

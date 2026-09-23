@@ -3,6 +3,9 @@
 
 
 #include <stdio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct {
 		float x,y,z;
@@ -44,4 +47,7 @@ void do_cline(int ngrid, double x1, double y1, double x2, double y2);
 void do_batch_nclines();
 void do_batch_dfield();
 
+#ifdef __cplusplus
+}
+#endif
 #endif

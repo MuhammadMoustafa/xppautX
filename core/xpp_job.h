@@ -1,5 +1,8 @@
 #ifndef XPP_JOB_H
 #define XPP_JOB_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* The cancel token of a running computation (xpp_job.c).
 
@@ -69,4 +72,7 @@ int xpp_job_checkpoint(void);
    as stdrbv's starting direction, always run to the end. */
 extern int xpp_setubv_stop;
 
+#ifdef __cplusplus
+}
+#endif
 #endif

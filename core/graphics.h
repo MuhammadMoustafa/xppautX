@@ -1,12 +1,15 @@
 #ifndef _graphics_h
 #define _graphics_h
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 void get_scale(double *x1, double *y1, double *x2, double *y2);
 void set_scale(double x1, double y1, double x2, double y2);
 void get_draw_area_flag(int flag);
 void get_draw_area(void);
-void change_current_linestyle(int new, int *old);
+void change_current_linestyle(int newstyle, int *old);
 void set_normal_scale(void);
 void point(int x, int y);
 void line(int x1, int y1, int x2, int y2);
@@ -53,7 +56,7 @@ void bead_abs(double x1, double y1);
 void frect_abs(double x1, double y1, double w, double h);
 void line_abs(double x1, double y1, double x2, double y2);
 void text_abs(double x, double y, char *text);
-void fillintext(char *old, char *new);
+void fillintext(char *old, char *newname);
 void fancy_text_abs(double x, double y, char *old, int size, int font);
 int clip3d(double x1, double y1, double z1, double x2, double y2, double z2, float *x1p, float *y1p, float *z1p, float *x2p, float *y2p, float *z2p);
 int clip(double x1, double x2, double y1, double y2, float *x1_out, float *y1_out, float *x2_out, float *y2_out);
@@ -61,4 +64,7 @@ void eq_symb(double *x, int type);
 void draw_symbol(double x, double y, double size, int my_symb);
 void reset_all_line_type();
 
+#ifdef __cplusplus
+}
+#endif
 #endif

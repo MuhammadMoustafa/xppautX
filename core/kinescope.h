@@ -1,5 +1,8 @@
 #ifndef _kinescope_h_
 #define _kinescope_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void do_movie_com(int c);
 void reset_film(void);
@@ -12,6 +15,9 @@ void save_movie(char *basename, int fmat);
 void auto_play(void);
 void too_small(void);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 
 

@@ -5,6 +5,9 @@
 #include "xpp_types.h"
 
 #include <stdio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct {
 		XppWinId base,upper;
@@ -97,6 +100,9 @@ void data_last(BROWSER *b);
 void data_restore(BROWSER *b);
 void get_col_list(char *s, int *cl, int *n);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 
 

@@ -3,6 +3,9 @@
 #define _dialog_box_h
 
 #include "struct.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int dialog_event_loop(DIALOG *d, int max, int *pos, int *col);
 #if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
@@ -11,4 +14,8 @@ void display_dialog(Window w, DIALOG d, int pos, int col);
 
 
 #endif /* Xlib.h */
+
+#ifdef __cplusplus
+}
+#endif
 #endif

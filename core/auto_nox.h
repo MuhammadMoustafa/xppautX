@@ -4,6 +4,10 @@
 #include <stdio.h>
 #include "xpplim.h"
 #include "autlim.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_AUT_PER 10
 
 typedef struct {
@@ -81,9 +85,9 @@ void draw_bif_axes(void);
 int IXVal(double x);
 int IYVal(double y);
 int chk_auto_bnds(int ix, int iy);
-void renamef(char *old, char *new);
-void copyf(char *old, char *new);
-void appendf(char *old, char *new);
+void renamef(char *old, char *newname);
+void copyf(char *old, char *newname);
+void appendf(char *old, char *newname);
 void deletef(char *old);
 void close_auto(int flag);
 void open_auto(int flag);
@@ -182,4 +186,7 @@ void clear_msg(void);
 void auto_update_view(float xlo, float xhi, float ylo, float yhi);
 void auto_motion_xy(int i, int j);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -1,5 +1,8 @@
 #ifndef _myfonts_h_
 #define _myfonts_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
 char *timesfonts[]={
@@ -32,4 +35,7 @@ char *symbolfonts[]={
 "*-symbol-medium-r-*-18-180-*",
 "*-symbol-medium-r-*-24-240-*"};
 
+#ifdef __cplusplus
+}
+#endif
 #endif

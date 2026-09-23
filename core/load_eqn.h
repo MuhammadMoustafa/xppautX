@@ -20,6 +20,9 @@ override the below definition.
 	#define XPP_MAX_NAME FILENAME_MAX
 #endif
 #endif
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 
@@ -214,4 +217,7 @@ void set_option(char *s1, char *s2,int force,OptionsSet *mask);
 
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

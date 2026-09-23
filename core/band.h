@@ -55,6 +55,9 @@
 
 #include "llnltyps.h"
 #include "vector.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
  
 /******************************************************************
@@ -600,4 +603,7 @@ void bandfree(real **a);
 void bandprint(real **a, integer n, integer mu, integer ml, integer smu);
  
 
+#ifdef __cplusplus
+}
+#endif
 #endif

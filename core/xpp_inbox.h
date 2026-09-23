@@ -2,6 +2,9 @@
 #define XPP_INBOX_H
 
 #include <stddef.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* The protocol's input, read off the core's thread (xpp_inbox.c).
 
@@ -69,4 +72,7 @@ void xpp_inbox_script_advance(void);
 /* the file line number of the script line pushed last (1-based) */
 int xpp_inbox_script_line(void);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -1,5 +1,8 @@
 #ifndef _menudrive_h_
 #define _menudrive_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 #define M_IR 0
@@ -268,6 +271,9 @@ void get_intern_set(void);
 
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 
 

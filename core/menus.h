@@ -1,5 +1,9 @@
 #ifndef _menus_h_
 #define _menus_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAIN_MENU 0
 #define FILE_MENU 1
 #define NUM_MENU 2
@@ -93,4 +97,7 @@ typedef struct {
 
 #endif /* Xlib.h */
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -3,6 +3,9 @@
 
 #include "volterra.h"
 #include "xpplim.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define FUN1TYPE 9
 #define FUN2TYPE 1
@@ -186,7 +189,13 @@ double eval_rpn(int *equat);
 /*  STRING STUFF  */
 #ifdef _WIN32
 /* the Windows C library has its own char *strupr/strlwr; use private names */
+#ifdef __cplusplus
+}
+#endif
 #include <string.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define strupr xpp_strupr
 #define strlwr xpp_strlwr
 #endif
@@ -202,6 +211,9 @@ void strlwr(char *s);
 
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 
 

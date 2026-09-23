@@ -22,6 +22,9 @@
 #include "llnltyps.h"
 #include "dense.h"
 #include "vector.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
  
 /******************************************************************
@@ -180,4 +183,7 @@ void CVDenseDQJac(integer N, DenseMat J, RhsFn f, void *f_data, real t,
 		  void *jac_data,   int *nfePtr, N_Vector vtemp1,
 		  N_Vector vtemp2, N_Vector vtemp3);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

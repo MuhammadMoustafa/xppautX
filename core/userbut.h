@@ -3,6 +3,9 @@
 
 
 #include "xpp_types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define USERBUTMAX 20
 
@@ -31,4 +34,8 @@ void create_user_buttons(int x0, int y0, Window base);
 
 
 #endif /* Xlib.h */
+
+#ifdef __cplusplus
+}
+#endif
 #endif

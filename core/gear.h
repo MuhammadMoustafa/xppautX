@@ -1,5 +1,8 @@
 #ifndef _gear_h_
 #define _gear_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void silent_fixpt(double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr);
 void do_sing(double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo);
@@ -33,4 +36,7 @@ double sdot(int n, double *sx, int incx, double *sy, int incy);
 void sscal(int n, double sa, double *sx, int incx);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

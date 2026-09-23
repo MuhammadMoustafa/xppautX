@@ -1,6 +1,9 @@
 
 #ifndef _tabular_h_
 #define _tabular_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /* tabular.c */
@@ -20,5 +23,8 @@ int load_table(char *filename, int index);
 int get_lookup_len(int i);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 

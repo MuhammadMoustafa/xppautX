@@ -1,5 +1,8 @@
 #ifndef _eig_list_h_
 #define _eig_list_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 #if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
@@ -25,4 +28,8 @@ void draw_eq_box(Window w);
 
 
 #endif /* Xlib.h */
+
+#ifdef __cplusplus
+}
+#endif
 #endif

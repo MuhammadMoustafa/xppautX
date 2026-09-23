@@ -3,6 +3,9 @@
 
 
 #include <stdio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 int get_auto_str(char *xlabel, char *ylabel);
@@ -15,9 +18,9 @@ int Circle(int x, int y, int r);
 int XORCross(int x, int y);
 int FillCircle(int x, int y, int r);
 int LineWidth(int wid);
-int renamef(char *old, char *new);
-int copyf(char *old, char *new);
-int appendf(char *old, char *new);
+int renamef(char *old, char *newname);
+int copyf(char *old, char *newname);
+int appendf(char *old, char *newname);
 int deletef(char *old);
 int close_auto(int flag);
 int open_auto(int flag);
@@ -107,4 +110,8 @@ int auto_kill(void);
 int auto_keypress(XEvent ev, int *used);
 
 #endif /* Xlib.h */
+
+#ifdef __cplusplus
+}
+#endif
 #endif

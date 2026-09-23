@@ -9,6 +9,9 @@
 
 #include <stdlib.h>
 #include <math.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef long int integer;
 typedef float real;
@@ -68,6 +71,9 @@ void z_exp(doublecomplex *r, doublecomplex *z);
 /* z_log.c */
 void z_log(doublecomplex *r, doublecomplex *z);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 
 

@@ -9,6 +9,9 @@
 */
 
 #include "xpplim.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
  extern int NEQ,NODE;
 
@@ -65,6 +68,9 @@ extern int HIST,HVAR,hist_ind;
  extern char uvar_names[MAXODE][12];
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 
 

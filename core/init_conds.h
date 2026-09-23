@@ -2,6 +2,9 @@
 #define _init_conds_h_
 
 #include "read_dir.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 
@@ -173,4 +176,8 @@ void set_value_from_box(BoxList *b, int i);
 void load_entire_box(BoxList *b);
 
 #endif /* Xlib.h */
+
+#ifdef __cplusplus
+}
+#endif
 #endif

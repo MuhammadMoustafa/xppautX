@@ -22,6 +22,9 @@
 #include "spgmr.h"
 #include "llnltyps.h"
 #include "vector.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
  
 /******************************************************************
@@ -319,4 +322,7 @@ typedef int (*CVSpgmrPSolveFn)(integer N, real t, N_Vector y, N_Vector fy,
 void CVSpgmr(void *cvode_mem, int pretype, int gstype, int maxl, real delt,
              CVSpgmrPrecondFn precond, CVSpgmrPSolveFn psolve, void *P_data);
  
+#ifdef __cplusplus
+}
+#endif
 #endif

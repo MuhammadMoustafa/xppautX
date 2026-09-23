@@ -1,5 +1,8 @@
 #ifndef _stiff_h_
 #define _stiff_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /* stiff.c */
@@ -11,5 +14,8 @@ int rkqs(double *y, double *dydx, int n, double *x, double htry, double eps, dou
 void rkck(double *y, double *dydx, int n, double x, double h, double *yout, double *yerr, double *work);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 

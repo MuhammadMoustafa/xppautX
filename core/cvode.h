@@ -16,6 +16,9 @@
 #include <stdio.h>
 #include "llnltyps.h"
 #include "vector.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /******************************************************************
  *                                                                *
@@ -753,4 +756,7 @@ typedef struct CVodeMemRec {
  *******************************************************************/
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

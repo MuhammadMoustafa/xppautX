@@ -20,6 +20,9 @@
 #include "cvode.h"
 #include "llnltyps.h"
 #include "vector.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
  
 /******************************************************************
@@ -60,4 +63,7 @@ enum { DIAG_LRW=CVODE_IOPT_SIZE, DIAG_LIW };
   
 void CVDiag(void *cvode_mem);
  
+#ifdef __cplusplus
+}
+#endif
 #endif

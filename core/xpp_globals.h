@@ -9,6 +9,9 @@
 #include "xpplim.h"
 #include "struct.h"
 #include "load_eqn.h" /* OptionsSet */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* run mode */
 extern int Xup, TipsFlag;
@@ -92,4 +95,7 @@ extern int aplot_range;
 /* label unlabelled 2D axes with the plotted variables (front ends that ask) */
 extern int AxisVarLabels;
 
+#ifdef __cplusplus
+}
+#endif
 #endif

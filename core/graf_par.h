@@ -17,6 +17,9 @@
 
 #include <stdio.h>
 #include "xpp_types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct {
   char angle[20];
@@ -87,4 +90,7 @@ void add_a_curve_com(int c);
 void default_window();
 void dump_ps( int i);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -9,6 +9,9 @@
 #include <stdio.h>
 #include "xpplim.h"
 #include "math.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 
@@ -65,11 +68,6 @@ extern char UserWhite[8];
 extern int UserGradients;
 
 
-#if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
-Window make_window();
-Window make_plain_window();
-
-#endif /* Xlib.h */
 /*  This is a string box widget which handles a list of 
 	editable strings  
  */
@@ -186,4 +184,8 @@ Window make_unmapped_icon_window(Window root,int x,int y,int width,int height,in
 Window make_icon_window(Window root,int x,int y,int width,int height,int bw,int icx,int icy,unsigned char* icdata);
 
 #endif /* Xlib.h */
+
+#ifdef __cplusplus
+}
+#endif
 #endif

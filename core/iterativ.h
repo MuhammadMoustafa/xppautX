@@ -22,6 +22,9 @@
 
 #include "llnltyps.h"
 #include "vector.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /******************************************************************
@@ -231,4 +234,7 @@ int QRfact(int n, real **h, real *q, int job);
 
 int QRsol(int n, real **h, real *q, real *b);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

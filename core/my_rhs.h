@@ -1,5 +1,8 @@
 #ifndef _my_rhs_h_
 #define _my_rhs_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /* my_rhs.c */
@@ -14,4 +17,7 @@ void rhs_only(double *y, double *ydot);
 void vec_rhs(double t, double *y, double *ydot, int neq);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

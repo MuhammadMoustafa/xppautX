@@ -2,6 +2,9 @@
 #define _pp_shoot_h_
 
 #include <stdio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 void do_bc(double *y__0, double t0, double *y__1, double t1, double *f, int n);
@@ -19,4 +22,7 @@ int set_up_sh_range(void);
 void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *iret, int n, int ishow, int iper, int ipar, int ivar, double sect);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

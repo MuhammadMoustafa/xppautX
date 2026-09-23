@@ -1,5 +1,8 @@
 #ifndef XPP_UI_JSON_H
 #define XPP_UI_JSON_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* line-delimited JSON front end (ui_json.c, docs/protocol.md) */
 void json_ui_install(void);        /* protocol on the current stdout */
@@ -14,4 +17,7 @@ void json_ui_loop(void);           /* read and run commands until EOF */
    could not be matched to the ask it was meant to answer; 0 otherwise. */
 int json_ui_set_script(const char *path);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

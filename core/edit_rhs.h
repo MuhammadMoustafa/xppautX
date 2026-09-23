@@ -4,6 +4,9 @@
 
 #include "xpplim.h"
 #include <stdio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 #define NEQMAXFOREDIT 20
@@ -59,4 +62,7 @@ void user_fun_info(FILE *fp);
 void edit_functions(void);
 int save_as(void);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

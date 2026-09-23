@@ -55,6 +55,9 @@
 
 #include "llnltyps.h"
 #include "vector.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
  
 /******************************************************************
@@ -487,4 +490,7 @@ void denfree(real **a);
 void denprint(real **a, integer n);
  
 
+#ifdef __cplusplus
+}
+#endif
 #endif

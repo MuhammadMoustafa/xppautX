@@ -23,6 +23,9 @@
 
 
 #include "llnltyps.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /******************************************************************
@@ -106,6 +109,9 @@ real RPowerR(real base, real exponent);
 real RSqrt(real x);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 
 

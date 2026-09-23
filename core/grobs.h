@@ -6,6 +6,9 @@
 #include "xpp_types.h"
 #include "xpplim.h"
 #include "struct.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define MAXLAB 50
 #define MAXGROB 400
@@ -47,4 +50,7 @@ void change_plot_vars(int k);
 int check_active_plot(int k);
 int graph_used(int i);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

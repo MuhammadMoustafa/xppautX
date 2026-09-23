@@ -3,6 +3,10 @@
 
 #include "volterra.h"
 #include "xpplim.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_SYMBS 10000
 #define MAXARG 20
 #define NEGATE 9
@@ -377,7 +381,13 @@ double evaluate(int *equat);
 int pass3(int *com1, int *com2, int *len);
 double feval_rpn(int *comz);
 #ifdef _WIN32
+#ifdef __cplusplus
+}
+#endif
 #include <string.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define strupr xpp_strupr
 #define strlwr xpp_strlwr
 #endif
@@ -386,6 +396,9 @@ int strlwr(char *s);
 
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 
 

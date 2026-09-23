@@ -1,5 +1,8 @@
 #ifndef _del_stab_h_
 #define _del_stab_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct{
   double r,i;
@@ -24,8 +27,11 @@ void make_z(COMPLEX *z, double *delay, int n, int m, double *coef, COMPLEX lambd
 int find_positive_root(double *coef, double *delay, int n, int m, double rad, double err, double eps, double big, int maxit, double *rr);
 void process_root(double real, double im);
 double get_arg(double *delay, double *coef, int m, int n, COMPLEX lambda);
-int test_sign(double old, double new);
+int test_sign(double old, double newval);
 int plot_args(double *coef, double *delay, int n, int m, int npts, double almax, double wmax);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

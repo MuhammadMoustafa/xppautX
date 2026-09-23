@@ -1,5 +1,8 @@
 #ifndef _do_fit_h_
 #define _do_fit_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 typedef struct {
@@ -26,5 +29,8 @@ void parse_collist(char *collist, int *icols, int *n);
 void parse_varlist(char *varlist, int *ivars, int *n);
 void parse_parlist(char *parlist, int *ipars, int *n);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 

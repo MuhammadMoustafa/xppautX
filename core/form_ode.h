@@ -5,6 +5,9 @@
 #include "xpplim.h"
 #include "newpars.h"
 #include <stdio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define MAXVNAM 33
 #define MAXLINES 5000
@@ -16,7 +19,7 @@ void free_varinfo();
 void remove_blanks(char *s1);
 void read_a_line(FILE *fp,char *s);
 
-void subsk(char *big,char *new,int k,int flag);
+void subsk(char *big,char *newstr,int k,int flag);
 void free_comments();
 
 void add_comment(char *s);
@@ -73,11 +76,11 @@ int find_char(char *s1, char *s2, int i0, int *i1);
 int next_nonspace(char *s1, int i0, int *i1);
 void remove_blanks(char *s1);
 void read_a_line(FILE *fp, char *s);
-int search_array(char *old, char *new, int *i1, int *i2, int *flag);
+int search_array(char *old, char *newname, int *i1, int *i2, int *flag);
 int check_if_ic(char *big);
 int not_ker(char *s, int i);
 int is_comment(char *s);
-void subsk(char *big, char *new, int k, int flag);
+void subsk(char *big, char *newstr, int k, int flag);
 void keep_orig_comments(void);
 void default_comments(void);
 void free_comments(void);
@@ -90,4 +93,8 @@ void advance_past_first_word(char** sptr);
 char* get_next2(char** tokens_ptr);
 void strcpy_trim(char* dest, char* source);
 void strncpy_trim(char* dest, char* source, int n);
+
+#ifdef __cplusplus
+}
+#endif
 #endif 

@@ -1,6 +1,9 @@
 
 #ifndef _my_svg_h_
 #define _my_svg_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /* my_ps.c */
@@ -26,4 +29,7 @@ void fancy_svg_text(int x, int y, char *str, int size, int font);
 void svg_text(int x, int y, char *str);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

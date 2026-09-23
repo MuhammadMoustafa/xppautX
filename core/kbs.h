@@ -1,4 +1,8 @@
 #include "menudrive.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
   int com;
   char seq[5];
@@ -176,3 +180,6 @@ KBS kbs[400]={
 
 
   
+#ifdef __cplusplus
+}
+#endif

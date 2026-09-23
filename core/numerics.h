@@ -1,5 +1,8 @@
 #ifndef _numerics_h_
 #define _numerics_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*       Numerics.h   */
 
@@ -33,4 +36,8 @@ void do_meth(void);
 void set_total(double total);
 void user_set_color_par(int flag,char *via,double lo,double hi);
 void compute_one_period(double period,double *x, char *name);
+
+#ifdef __cplusplus
+}
+#endif
 #endif

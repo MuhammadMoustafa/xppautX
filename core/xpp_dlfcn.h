@@ -1,5 +1,8 @@
 #ifndef XPP_DLFCN_H
 #define XPP_DLFCN_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* dlopen/dlsym for extra.c (dll_lib= and dll_fun= in an .ode file). On
    Windows xpp_win32.c maps them to LoadLibrary/GetProcAddress, so a model
@@ -12,7 +15,16 @@ void *dlsym(void *handle, const char *name);
 int dlclose(void *handle);
 char *dlerror(void);
 #else
+#ifdef __cplusplus
+}
+#endif
 #include <dlfcn.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 #endif
 
+#ifdef __cplusplus
+}
+#endif
 #endif

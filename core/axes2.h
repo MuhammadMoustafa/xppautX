@@ -1,6 +1,9 @@
 
 #ifndef _axes2_h_
 #define _axes2_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 void re_title(void);
@@ -18,4 +21,7 @@ void Box_axis(double x_min, double x_max, double y_min, double y_max, char *sx, 
 void draw_ytics(char *s1, double start, double incr, double end);
 void draw_xtics(char *s2, double start, double incr, double end);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

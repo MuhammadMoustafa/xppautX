@@ -24,6 +24,9 @@
 #include "llnltyps.h"
 #include "band.h"
 #include "vector.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
  
 /******************************************************************
@@ -210,6 +213,9 @@ void CVBandDQJac(integer N, integer mupper, integer mlower, BandMat J,
 		   int *nfePtr, N_Vector vtemp1, N_Vector vtemp2,
 		 N_Vector vtemp3);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 
 

@@ -3,6 +3,9 @@
 
 #include <stdio.h>
 #include "auto_nox.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void start_diagram(int n);
 int find_diagram(int irs, int n, int *index, int *ibr, int *ntot, int *itp, int *nfpar, double *a, double *uhi, double *ulo, double *u0, double *par, double *per, int *icp1, int *icp2, int *icp3, int *icp4);
@@ -21,4 +24,7 @@ int save_diagram(FILE *fp, int n);
 int load_diagram(FILE *fp, int node);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

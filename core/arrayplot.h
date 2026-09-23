@@ -5,6 +5,9 @@
 
 
 #include "xpp_types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct {
   XppWinId base,wclose,wedit,wprint,wstyle,wscale,wmax,wmin,wplot,wredraw,wtime,wgif,wrange,wfit;
@@ -55,4 +58,8 @@ void redraw_aplot(APLOT ap);
 void display_aplot(Window w, APLOT ap);
 
 #endif /* Xlib.h */
+
+#ifdef __cplusplus
+}
+#endif
 #endif

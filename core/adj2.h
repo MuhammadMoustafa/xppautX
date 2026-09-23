@@ -2,6 +2,9 @@
 #define _adj2_h_
 
 #include <stdio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void init_trans(void);
 void dump_transpose_info(FILE *fp, int f);
@@ -31,5 +34,8 @@ int hrw_liapunov(double *liap, int batch, double eps);
 
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 

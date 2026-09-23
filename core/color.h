@@ -1,5 +1,8 @@
 #ifndef _color_h_
 #define _color_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 #if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
@@ -18,4 +21,7 @@ void MakeColormap(void);
 int ColorMap(int i);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

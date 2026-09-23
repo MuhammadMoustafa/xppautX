@@ -1,5 +1,8 @@
 #ifndef _my_ps_h_
 #define _my_ps_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /* my_ps.c */
@@ -25,4 +28,7 @@ void fancy_ps_text(int x, int y, char *str, int size, int font);
 void ps_text(int x, int y, char *str);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -20,6 +20,9 @@
  */
 
 #include <stdio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct XppMenu; /* menus.h */
 
@@ -311,4 +314,7 @@ void redraw_the_graph(void);
 void make_txtview(void);
 void q_calc(void);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

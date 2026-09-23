@@ -1,6 +1,9 @@
 
 #ifndef _ggets_h
 #define _ggets_h
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 #define MaxIncludeFiles 10
@@ -14,7 +17,7 @@ void blank_screen(Window w);
 void set_fore(void);
 void set_back(void);
 #if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
-void showchar(int ch, int col, int row, Window or);
+void showchar(int ch, int col, int row, Window w);
 #endif /* Xlib.h */
 void chk_xor(void);
 void set_gcurs(int y, int x);
@@ -66,5 +69,8 @@ void edit_command_string(XEvent ev, char *name, char *value, int *done, int *pos
 int new_string(char *name, char *value);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif
  

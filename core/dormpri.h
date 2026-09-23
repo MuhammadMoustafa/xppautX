@@ -348,6 +348,9 @@ nfcnRead    Number of function calls.
 #include "my_rhs.h"
 #include <stdio.h>
 #include <limits.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef void (*FcnEqDiff)(unsigned n, double x, double *y, double *f);
 typedef void (*SolTrait)(long nr, double xold, double x, double* y, unsigned n, int* irtrn);
@@ -465,3 +468,6 @@ extern double xRead (void);
 
 
 
+#ifdef __cplusplus
+}
+#endif

@@ -1,5 +1,8 @@
 #ifndef _flags_h_
 #define _flags_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /* flags.c */
@@ -20,5 +23,8 @@ int one_flag_step_adap(double *y, int neq, double *t, double tout, double eps, d
 int one_flag_step_backeul(double *y, double *t, double dt, int neq, double *yg, double *yp, double *yp2, double *ytemp, double *errvec, double *jac, int *istart);
 int one_flag_step_cvode(int *command,double *y,double *t,int n,double tout,int *kflag,double *atol,double *rtol);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 

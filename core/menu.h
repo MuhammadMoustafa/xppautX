@@ -1,5 +1,8 @@
 #ifndef _xppmenu_h_
 #define _xppmenu_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 
@@ -20,4 +23,7 @@ void menu_button(Window win);
 #endif /* Xlib.h */
 void draw_help(void);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

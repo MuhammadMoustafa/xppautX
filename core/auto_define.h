@@ -1,3 +1,6 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct {
     int ndim, ips, irs, ilp, icp[20];
@@ -84,3 +87,6 @@ struct {
 
 
 
+#ifdef __cplusplus
+}
+#endif

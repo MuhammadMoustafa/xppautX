@@ -17,6 +17,9 @@
 #include "llnltyps.h"
 #include "iterativ.h"
 #include "vector.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /******************************************************************
@@ -224,5 +227,8 @@ int SpgmrSolve(SpgmrMem mem, void *A_data, N_Vector x, N_Vector b,
 void SpgmrFree(SpgmrMem mem);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 

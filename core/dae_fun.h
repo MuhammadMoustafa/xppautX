@@ -1,5 +1,8 @@
 #ifndef _dae_fun_h_
 #define _dae_fun_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int add_svar(char *name, char *rhs);
 int add_svar_names(void);
@@ -14,4 +17,7 @@ void do_daes(void);
 int solve_dae(void);
 void get_new_guesses(void);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

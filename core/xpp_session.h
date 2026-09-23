@@ -1,5 +1,8 @@
 #ifndef _xpp_session_h_
 #define _xpp_session_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* One "session" = the .set file write_lunch/read_lunch already handle
    (parameters, ICs, numerics, graphics) plus, when there is one, the AUTO
@@ -24,4 +27,7 @@ int xpp_session_load(const char *base);
 const char *xpp_session_set_file(void);
 const char *xpp_session_auto_file(void);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

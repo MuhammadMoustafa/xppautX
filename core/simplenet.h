@@ -1,5 +1,8 @@
 #ifndef _simplenet_h_
 #define _simplenet_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int get_vector_info();
 double net_interp(double x, int i);
@@ -19,4 +22,7 @@ int gilparse(char *s, int *ind, int *nn);
 int g_namelist(char *s, char *root, int *flag, int *i1, int *i2);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

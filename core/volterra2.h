@@ -1,5 +1,8 @@
 #ifndef _volterra2_h_
 #define _volterra2_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /* volterra2.c */
@@ -17,5 +20,8 @@ int volterra(double *y, double *t, double dt, int nt, int neq, int *istart, doub
 int volt_step(double *y, double t, double dt, int neq, double *yg, double *yp, double *yp2, double *ytemp, double *errvec, double *jac);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 

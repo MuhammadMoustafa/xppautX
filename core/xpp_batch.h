@@ -1,5 +1,8 @@
 #ifndef XPP_BATCH_H
 #define XPP_BATCH_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Reset the "which options were explicitly set" table. Called at the start
    of both the X11 do_main() and the headless xpp_batch_main(). */
@@ -19,4 +22,7 @@ int xpp_batch_main(int argc, char **argv);
    batch mode */
 void xpp_load_model(int argc, char **argv, int batch);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -1,6 +1,9 @@
 
 #ifndef _delay_handle_h_
 #define _delay_handle_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /* delay_handle.c */
@@ -14,4 +17,7 @@ double get_delay(int in, double tau);
 int do_init_delay(double big);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -1,5 +1,8 @@
 #ifndef _array_print_h_
 #define _array_print_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /* array_print.c */
@@ -21,4 +24,7 @@ void ps_rgb_bar(double x, double y, double wid, double len, double fill, int fla
 void ps_hsb_bar(double x, double y, double wid, double len, double fill, int flag);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

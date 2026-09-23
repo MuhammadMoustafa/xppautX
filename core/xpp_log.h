@@ -28,6 +28,9 @@
 #define XPP_LOG_H
 
 #include <stdarg.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum {
     XPP_LOG_ERROR = 0,
@@ -55,4 +58,7 @@ void xpp_log_set_auto_echo(int on);
    (xppaut); returns 1 and applies the threshold if arg matched, else 0. */
 int xpp_log_parse_arg(const char *arg);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

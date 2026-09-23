@@ -1,5 +1,8 @@
 #ifndef _auto_x11_h_
 #define _auto_x11_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 #if defined(_XLIB_H_) || defined(_X11_XLIB_H_)
@@ -52,4 +55,7 @@ void auto_get_info( int *n, char *pname);
 void auto_set_mark(int i);
 void do_auto_range();
 
+#ifdef __cplusplus
+}
+#endif
 #endif

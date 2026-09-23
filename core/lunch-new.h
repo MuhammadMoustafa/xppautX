@@ -4,6 +4,9 @@
 
 #include <stdio.h>
 #include "form_ode.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 
@@ -26,4 +29,7 @@ void io_float(float *z, FILE *fp, int f, char *ss);
 void io_string(char *s, int len, FILE *fp, int f);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

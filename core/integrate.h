@@ -2,6 +2,9 @@
 #define _integrate_h_
 
 #include <stdio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void init_ar_ic(void);
 void dump_range(FILE *fp, int f);
@@ -29,8 +32,8 @@ void run_from_x(double *x);
 void run_now(void);
 void do_start_flags(double *x, double *t);
 void usual_integrate_stuff(double *x);
-void do_new_array_ic(char *new, int j1, int j2);
-void store_new_array_ic(char *new, int j1, int j2, char *formula);
+void do_new_array_ic(char *newic, int j1, int j2);
+void store_new_array_ic(char *newic, int j1, int j2, char *formula);
 void evaluate_ar_ic(char *v, char *f, int j1, int j2);
 int extract_ic_data(char *big);
 void arr_ic_start(void);
@@ -53,4 +56,7 @@ void stop_integration(void);
 int stor_full(void);
 int do_auto_range_go();
 
+#ifdef __cplusplus
+}
+#endif
 #endif

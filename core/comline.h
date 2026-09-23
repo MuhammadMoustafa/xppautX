@@ -1,5 +1,8 @@
 #ifndef _comline_h_
 #define _comline_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 typedef struct {
@@ -9,7 +12,7 @@ typedef struct {
 } INTERN_SET;
 
 
-typedef struct {
+typedef struct SET_NAME {
    char *name;
    struct SET_NAME * next;
 } SET_NAME;
@@ -28,4 +31,7 @@ int if_needed_load_ext_options(void);
 int parse_it(char *com);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

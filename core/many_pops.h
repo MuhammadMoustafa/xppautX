@@ -1,5 +1,8 @@
 #ifndef _many_pops_h
 #define _many_pops_h
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 int select_table(void);
@@ -13,7 +16,13 @@ void gtitle_text(char *string, Window win);
 #endif /* Xlib.h */
 void restore_off(void);
 void restore_on(void);
+#ifdef __cplusplus
+}
+#endif
 #include "grobs.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 void destroy_a_pop(void);
 void init_grafs(int x, int y, int w, int h);
 void ps_restore(void);
@@ -48,4 +57,7 @@ void check_draw_button(XEvent ev);
 void set_active_windows();
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

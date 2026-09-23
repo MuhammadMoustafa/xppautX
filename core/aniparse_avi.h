@@ -1,5 +1,8 @@
 #ifndef _aniparse_avi_h
 #define _aniparse_avi_h
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 typedef struct {
@@ -107,4 +110,7 @@ int read_ani_line(FILE *fp, char *s);
 int de_space(char *s);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

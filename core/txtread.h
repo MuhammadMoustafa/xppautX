@@ -1,5 +1,8 @@
 #ifndef _txtread_h
 #define _txtread_h
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 
@@ -19,4 +22,7 @@ void init_txtview(void);
 void make_txtview(void);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

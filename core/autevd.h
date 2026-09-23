@@ -4,6 +4,10 @@
 #include "autlim.h"
 #include "auto_f2c.h"
 #include "auto_c.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* autevd.c */
 
 /* typedef struct {double r,i;} doublecomplex; */
@@ -23,4 +27,7 @@ int eigrf_(double *a, int *n, int *m, doublecomplex *ecv, double *work, int *ier
 void init_auto(int ndim, int nicp,int nbc, int ips, int irs, int ilp, int ntst, int isp, int isw, int nmx, int npr, double ds, double dsmin, double dsmax, double rl0, double rl1, double a0, double a1, int ip1, int ip2, int ip3, int ip4, int ip5, int nuzr, double epsl, double epsu, double epss, int ncol);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

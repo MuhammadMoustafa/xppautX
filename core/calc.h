@@ -1,5 +1,8 @@
 #ifndef _calc_h_
 #define _calc_h_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 
@@ -15,4 +18,7 @@ int has_eq(char *z, char *w, int *where);
 double calculate(char *expr, int *ok);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif
