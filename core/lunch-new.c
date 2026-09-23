@@ -209,8 +209,31 @@ int read_lunch(FILE *fp)
    dump_torus(fp,f);
    dump_range(fp,f);
    }
-  
+
    return 1;
+}
+
+void write_lunch(FILE *fp)
+{
+ int f=0;
+ time_t ttt;
+
+ ttt=time(0);
+ fprintf(fp,"## Set file for %s on %s",this_file,ctime(&ttt));
+ io_int(&NEQ,fp,f,"Number of equations and auxiliaries");
+ io_int(&NUPAR,fp,f,"Number of parameters");
+ io_numerics(f,fp);
+ if(METHOD==VOLTERRA){
+     io_int(&MaxPoints,fp,f,"Max points for volterra");
+     }
+   io_exprs(f,fp);
+   io_graph(f,fp);
+    dump_transpose_info(fp,f);
+   dump_h_stuff(fp,f);
+   dump_aplot(fp,f);
+   dump_torus(fp,f);
+   dump_range(fp,f);
+   dump_eqn(fp);
 }
 
 void do_lunch(f) /* f=1 to read and 0 to write */
@@ -271,26 +294,11 @@ int f;
    return;
  }
   if(!file_selector("Save SET File",filename,"*.set"))return;
-  open_write_file(&fp,filename,&ok); 
+  open_write_file(&fp,filename,&ok);
    if(!ok)return;
  redraw_params();
- ttt=time(0);
- fprintf(fp,"## Set file for %s on %s",this_file,ctime(&ttt));
- io_int(&NEQ,fp,f,"Number of equations and auxiliaries");
- io_int(&NUPAR,fp,f,"Number of parameters");
- io_numerics(f,fp);
- if(METHOD==VOLTERRA){
-     io_int(&MaxPoints,fp,f,"Max points for volterra");
-     }
-   io_exprs(f,fp);
-   io_graph(f,fp);
-    dump_transpose_info(fp,f);
-   dump_h_stuff(fp,f);
-   dump_aplot(fp,f);
-   dump_torus(fp,f);
-   dump_range(fp,f);  
-   dump_eqn(fp);
-   fclose(fp);
+ write_lunch(fp);
+ fclose(fp);
 }
  
  

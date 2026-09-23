@@ -11,6 +11,7 @@ void file_inf(void);
 void ps_write_pars(FILE *fp);
 void do_info(FILE *fp);
 int read_lunch(FILE *fp);
+void write_lunch(FILE *fp);
 void do_lunch(int f);
 void dump_eqn(FILE *fp);
 void io_numerics(int f, FILE *fp);
