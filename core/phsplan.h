@@ -49,7 +49,7 @@ extern int HIST,HVAR,hist_ind;
 
 
  extern double *WORK;
- extern int IWORK[1000];
+ extern int IWORK[10000]; /* storage.c */
 
  extern int TORUS,itor[MAXODE];
  extern double TOR_PERIOD;

@@ -89,7 +89,7 @@ extern double last_ic[MAXODE],T0;
 
 #define FIRSTCOLOR 30
 int on_the_fly_speed=10;
-extern char *color_names[11];
+extern char *color_names[12]; /* graf_par.c */
 extern int colorline[];
 extern int color_total,screen;
 extern int NODE;
