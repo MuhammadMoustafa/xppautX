@@ -8,6 +8,7 @@
    equilibria, text, arrows, markers) over them. Each is shown or hidden
    from the legend like a curve. */
 import uPlot from 'uplot';
+import {canvasPixels} from './canvasPixels';
 import {curveColor} from './colors';
 import {LineTrace, sameFrame, tracePoints, type PixelFrame} from './decimate';
 import type {PlotModel} from './model';
@@ -532,17 +533,7 @@ export class Chart {
   /** the canvas's own pixels, RGB (no alpha): what a frame, GIF or kinescope
       writer's `pixels` ask wants (docs/protocol.md, plot/kinescopeRender.ts) */
   pixels(): {w: number; h: number; rgb: Uint8ClampedArray} | null {
-    if (!this.u) return null;
-    const canvas = this.u.ctx.canvas, w = canvas.width, h = canvas.height;
-    if (!w || !h) return null;
-    const rgba = this.u.ctx.getImageData(0, 0, w, h).data;
-    const rgb = new Uint8ClampedArray(w * h * 3);
-    for (let i = 0, j = 0; j < rgb.length; i += 4, j += 3) {
-      rgb[j] = rgba[i];
-      rgb[j + 1] = rgba[i + 1];
-      rgb[j + 2] = rgba[i + 2];
-    }
-    return {w, h, rgb};
+    return this.u ? canvasPixels(this.u.ctx.canvas) : null;
   }
 
   info(): ChartInfo | null {

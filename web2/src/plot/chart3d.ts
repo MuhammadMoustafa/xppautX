@@ -4,6 +4,7 @@
    PlotView.tsx already uses for 2D plots (plot/chart.ts) so both register
    the same way. */
 import {draw3d, type Draw3DInfo} from './render3d';
+import {canvasPixels} from './canvasPixels';
 import type {Model3D} from './model3d';
 
 export class Chart3D {
@@ -38,6 +39,11 @@ export class Chart3D {
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
     if (!w || !h) return;
     this.lastInfo = draw3d(this.canvas, w, h, this.model, this.theta, this.phi, this.dark, this.axisColor);
+  }
+
+  /** the picture as drawn now, for the core's `pixels` ask (kinescope, GIF) */
+  pixels(): {w: number; h: number; rgb: Uint8ClampedArray} | null {
+    return canvasPixels(this.canvas);
   }
 
   info(): Draw3DInfo | null {

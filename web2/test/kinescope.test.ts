@@ -36,7 +36,7 @@ function oneCapturedFrame(v0: number): AppState {
 
 test('reduceKinescope: capture appends, reset empties, show/playing update the player', () => {
   const frame = snapshotWindow({win: 1, info: null, series: null, nullclines: null, dfield: null, marks: null,
-    viewport: {x: null, y: null}, viewportHistory: []});
+    viewport: {x: null, y: null}, viewportHistory: [], view3d: null});
   let s = reduceKinescope(initialKinescope, {type: 'capture', frame});
   assert.equal(s.frames.length, 1);
   s = reduceKinescope(s, {type: 'capture', frame});
@@ -90,7 +90,7 @@ test('a capture for a window the store does not know is left out (nothing to sna
 
 test('snapshotWindow carries exactly what the chart draws from, not the viewport history', () => {
   const w = {win: 3, info: info(3), series: null, nullclines: null, dfield: null, marks: null,
-    viewport: {x: {min: 0, max: 1}, y: null}, viewportHistory: [{x: null, y: null}]};
+    viewport: {x: {min: 0, max: 1}, y: null}, viewportHistory: [{x: null, y: null}], view3d: null};
   const f = snapshotWindow(w);
   assert.deepEqual(f, {win: 3, info: w.info, series: null, nullclines: null, dfield: null, marks: null, viewport: w.viewport});
   assert.ok(!('viewportHistory' in f));
