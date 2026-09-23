@@ -551,6 +551,25 @@
       if (st.delays) this.fillTable(this.delayTable, st.delays);
       this.menuWhich = st.menu;
       this.updateSliders();
+      this.renderSessionFiles(st.session);
+    }
+
+    /* the files the current session was last saved to or loaded from
+       (state.session, "cmd":"session"): shown after the model name, kept
+       out of the way of the title itself */
+    renderSessionFiles(session) {
+      if (!this.sessionFilesEl) {
+        this.sessionFilesEl = el('span', 'xpp-session-files');
+        this.titleBar.appendChild(this.sessionFilesEl);
+      }
+      if (!session || !session.set) {
+        this.sessionFilesEl.textContent = '';
+        this.sessionFilesEl.title = '';
+        return;
+      }
+      const files = [session.set, session.auto].filter(Boolean).join(', ');
+      this.sessionFilesEl.textContent = '  — ' + files;
+      this.sessionFilesEl.title = 'Session: ' + files;
     }
 
     buildSide() {
@@ -570,7 +589,13 @@
       views.append(
         button('Data', 'Browse the numbers of the last run (the X11 Data window)', () => this.openData()),
         button('Equations', 'List the equations', () => this.command({cmd: 'equations'})));
-      this.sidePanel.append(runs, views);
+      const session = el('div', 'xpp-row');
+      session.append(
+        button('Save session', 'Write parameters, ICs, numerics and, if there is one, the AUTO diagram, ' +
+          'to a .set file (and a .auto file); asks for a name', () => this.command({cmd: 'session', op: 'save'})),
+        button('Load session', 'Read a .set file and, if there is one, its matching .auto diagram; asks for a name',
+          () => this.command({cmd: 'session', op: 'load'})));
+      this.sidePanel.append(runs, views, session);
       /* @ button lines of the ODE file */
       if (this.userButtons && this.userButtons.length) {
         const row = el('div', 'xpp-row xpp-userbuttons');
@@ -950,7 +975,9 @@
           this.autoHints = ev.auto_hints || [];
           this.sliderDefs = ev.sliders || [];
           this.modelFile = ev.file;
+          this.baseTitle = ev.title;
           this.titleBar.textContent = ev.title;
+          this.sessionFilesEl = null; /* titleBar.textContent above dropped it */
           this.charCell = ev.char;
           this.renderMenu();
           break;

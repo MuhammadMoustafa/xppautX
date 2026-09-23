@@ -43,6 +43,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* the files of the last session save/load (state.session), after the
+   model name: unobtrusive, not part of the bold title */
+.xpp-session-files { font-weight: 400; opacity: 0.7; }
 .xpp-middle { display: flex; flex: 1 0 auto; min-height: max(420px, 70vh); }
 .xpp-menu {
   display: flex;

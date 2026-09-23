@@ -44,6 +44,7 @@
 #include "my_rhs.h"
 #include "arrayplot.h"
 #include "read_dir.h"
+#include "xpp_session.h"
 #include <strings.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -1013,8 +1014,18 @@ static void send_state(void)
         buf_printf(&b, ",\"auto\":{\"x0\":%d,\"y0\":%d,\"wid\":%d,\"hgt\":%d,\"xmin\":%g,\"xmax\":%g,"
                    "\"ymin\":%g,\"ymax\":%g}", Auto.x0, Auto.y0, Auto.wid, Auto.hgt, Auto.xmin, Auto.xmax,
                    Auto.ymin, Auto.ymax);
-    buf_printf(&b, ",\"rows\":%d,\"menu\":%d,\"win\":%lu}", my_browser.maxrow, help_menu,
+    buf_printf(&b, ",\"rows\":%d,\"menu\":%d,\"win\":%lu", my_browser.maxrow, help_menu,
                (unsigned long)draw_win);
+    if (xpp_session_set_file()[0]) {
+        BUF_LIT(&b, ",\"session\":{\"set\":");
+        buf_str(&b, xpp_session_set_file());
+        if (xpp_session_auto_file()[0]) {
+            BUF_LIT(&b, ",\"auto\":");
+            buf_str(&b, xpp_session_auto_file());
+        }
+        BUF_LIT(&b, "}");
+    }
+    BUF_LIT(&b, "}");
     send_buf(&b);
     free(b.s);
 }
@@ -2451,6 +2462,12 @@ static void handle_line(const char *line, unsigned long seq)
             Auto.exist = 0; /* auto_x11.c auto_kill; File/Auto opens it again */
             send_window("destroy", WIN_AUTO, 0, 0, NULL);
         }
+    } else if (is_cmd(line, "session")) {
+        char o[8], name[XPP_MAX_NAME];
+        get_str(line, "op", o, sizeof o);
+        get_str(line, "name", name, sizeof name);
+        if (strcmp(o, "save") == 0) xpp_session_save(name[0] ? name : NULL);
+        else if (strcmp(o, "load") == 0) xpp_session_load(name[0] ? name : NULL);
     }
     apply_auto_size();
     apply_ani_size();

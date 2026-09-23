@@ -2852,7 +2852,7 @@ void save_auto()
   char filename[XPP_MAX_NAME];
   int status;
   /* XGetInputFocus(display,&w,&rev); */
-  
+
   sprintf(filename,"%s.auto",basename(this_auto_file));
   /* status=get_dialog("Save Auto","Filename",filename,"Ok","Cancel",60);
   XSetInputFocus(display,w,rev,CurrentTime);
@@ -2861,19 +2861,31 @@ void save_auto()
   if(status==0)return;
   open_write_file(&fp,filename,&ok);
   if(!ok)return;
-  save_auto_numerics(fp);
-  save_auto_graph(fp);
-  status=save_diagram(fp,NODE);
+  status=save_auto_file(fp);
+  fclose(fp);
   if(status!=1){
     /* an empty diagram: say so rather than leave a file without orbits */
-    fclose(fp);
     auto_err("Empty diagram -- nothing to save");
     return;
   }
-  save_q_file(fp);
-  fclose(fp);
 }
- 
+
+/* the body of save_auto without its file_selector dialog, so xpp_session.c
+   (File/Write session, docs/protocol.md "session") can write a .auto file
+   of its own; returns what save_diagram returns: 1 written, else the
+   diagram was empty and fp holds only the numerics/graph header */
+int save_auto_file(fp)
+     FILE *fp;
+{
+  int status;
+  save_auto_numerics(fp);
+  save_auto_graph(fp);
+  status=save_diagram(fp,NODE);
+  if(status!=1)return status;
+  save_q_file(fp);
+  return 1;
+}
+
 void save_auto_numerics(fp)
      FILE *fp;
 {
@@ -3004,16 +3016,24 @@ void load_auto()
     auto_err("Cannot open file");
     return;
   }
-  
+
+  load_auto_file(fp);
+  fclose(fp);
+}
+
+/* the body of load_auto without its NBifs reset or file_selector dialog, so
+   xpp_session.c (File/Read session) can load a .auto file of its own;
+   returns what load_diagram returns: 1 loaded, -1 an empty diagram */
+int load_auto_file(fp)
+     FILE *fp;
+{
+  int status;
   load_auto_numerics(fp);
   load_auto_graph(fp);
   status=load_diagram(fp,NODE);
-  if(status!=1){
-    fclose(fp);
-    return;
-  }
+  if(status!=1)return status;
   make_q_file(fp);
-  fclose(fp);
+  return 1;
 }
 
 int move_to_label(mylab,nrow,ndim,fp)

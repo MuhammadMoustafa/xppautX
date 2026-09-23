@@ -4,13 +4,15 @@ travels, how input is read, and how quickly a long computation stops.
 
 usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [SECTION...]
 
-Sections: draw, input, abort, control, files, sessions, script (default:
-all; tools/verify.sh runs them all). files compares AUTO's saved diagram of lecar with a
-reference; sessions checks that concurrent servers keep their AUTO files
-apart; script plays examples/scripts/lecar_auto.jsonl through --script
-(docs/protocol.md "Scripts") and checks a broken script exits 1. --report
-prints the measurements without failing on the latency limits, for
-comparing builds.
+Sections: draw, input, abort, control, files, sessions, session, script
+(default: all; tools/verify.sh runs them all). files compares AUTO's saved
+diagram of lecar with a reference; sessions checks that concurrent servers
+keep their AUTO files apart; session is the "cmd":"session" save/load of
+docs/protocol.md (issue #11): one name for the .set and .auto pair a long
+AUTO run is picked back up from; script plays
+examples/scripts/lecar_auto.jsonl through --script (docs/protocol.md
+"Scripts") and checks a broken script exits 1. --report prints the
+measurements without failing on the latency limits, for comparing builds.
 """
 import argparse, json, os, shutil, subprocess, sys, tempfile, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -20,7 +22,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
 ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
-ap.add_argument('sections', nargs='*', default=['draw', 'input', 'abort', 'control', 'files', 'sessions', 'script'])
+ap.add_argument('sections', nargs='*', default=['draw', 'input', 'abort', 'control', 'files', 'sessions', 'session', 'script'])
 args = ap.parse_args()
 here = os.path.dirname(os.path.abspath(__file__))
 LECAR = 'examples/ode/lecar.ode'
@@ -389,6 +391,70 @@ def section_sessions():
     left = os.listdir(home)
     check('nothing is written to HOME', left == [], str(left))
     shutil.rmtree(home, ignore_errors=True)
+
+
+# ---- session: "cmd":"session" save/load picks a long AUTO run back up -----
+
+def section_session():
+    home1 = tempfile.mkdtemp(prefix='xpphome')
+    s = Server(args.server, LECAR, env={'HOME': home1}, verbose=args.v)
+    s.collect(is_idle)
+    open_auto(s)
+    run_menu(s, 's')
+    grab_hopf(s)
+    run_menu(s, 'p', timeout=120)
+
+    s.send(cmd='session', op='save', name='s1')
+    evs, e = s.collect(is_idle, timeout=20)
+    st = [x for x in evs if x.get('ev') == 'state']
+    saved = st[-1] if st else None
+    sess = saved.get('session') if saved else None
+    check('session save reports the .set and .auto files',
+          sess == {'set': 's1.set', 'auto': 's1.auto'}, str(sess))
+    set_path = os.path.join(s.run, 's1.set')
+    auto_path = os.path.join(s.run, 's1.auto')
+    check('session save writes the .set file', os.path.exists(set_path))
+    check('session save writes the .auto file', os.path.exists(auto_path))
+    pars1 = dict(saved['pars']) if saved else {}
+
+    # a NEW server, in a new directory, with only the two saved files copied in
+    home2 = tempfile.mkdtemp(prefix='xpphome')
+    s2 = Server(args.server, LECAR, env={'HOME': home2}, verbose=args.v)
+    s2.collect(is_idle)
+    if os.path.exists(set_path): shutil.copy(set_path, s2.run)
+    if os.path.exists(auto_path): shutil.copy(auto_path, s2.run)
+    s.close()
+    shutil.rmtree(home1, ignore_errors=True)
+
+    s2.send(cmd='session', op='load', name='s1')
+    evs, e = s2.collect(is_idle, timeout=20)
+    st = [x for x in evs if x.get('ev') == 'state']
+    loaded = st[-1] if st else None
+    sess2 = loaded.get('session') if loaded else None
+    check('session load reports the same files', sess2 == sess, str(sess2))
+    pars2 = dict(loaded['pars']) if loaded else {}
+    check('session load restores the first session\'s parameters',
+          bool(pars1) and pars1 == pars2, 'saved %s loaded %s' % (pars1, pars2))
+    check('session load opens the AUTO window',
+          any(x.get('ev') == 'window' and x.get('win') == 101 for x in evs))
+    check('session load draws the diagram', bool(draw_ops(evs, 101)))
+
+    # grab the first label and Run extending the branch, as section_sessions
+    # does for a session's own orbit: new points, and no NaN
+    s2.send(cmd='auto', op='grab')
+    evs, ask = s2.collect(is_ask)
+    s2.send(cmd='answer', id=ask['id'], key='Tab')
+    evs, ask = s2.collect(is_ask)
+    s2.send(cmd='answer', id=ask['id'], key='Return')
+    s2.collect(is_idle)
+    evs = run_menu(s2, 'e', timeout=60)
+    msgs = ' '.join(str(e.get('text', '')) for e in evs if e.get('ev') == 'message')
+    check('extending the loaded branch draws new points',
+          any(e.get('ev') == 'draw' for e in evs) and s2.alive(), str(evs)[:200])
+    check('extending the loaded branch draws no NaN message', 'nan' not in msgs.lower(), msgs[:200])
+    s2.close()
+    shutil.rmtree(home2, ignore_errors=True)
+
 
 # ---- control: Abort, Quit and queued commands during a long integration ----
 
