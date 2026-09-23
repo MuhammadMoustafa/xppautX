@@ -201,6 +201,18 @@ async function values() {
     await until(`Math.abs((s.core.pars.find(p => p[0].toLowerCase() === "iapp") || [])[1] - 0.2) < 1e-9 && !s.busy`, 'iapp=0.2'),
     JSON.stringify(await S('s.core.pars')));
 
+  /* Escape while editing drops the draft: nothing is sent, nothing to undo */
+  const edits = await S('s.values.history.length');
+  await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)}); el.focus();
+    el.value = '0.3'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await sleep(80);
+  await key('Escape');
+  await sleep(300);
+  check('Escape in a field cancels the edit: no set, the value stays',
+    await S('s.values.history.length') === edits && !(await S('s.busy'))
+    && Math.abs(await S(`(s.core.pars.find(p => p[0].toLowerCase() === "iapp") || [])[1]`) - 0.2) < 1e-9,
+    JSON.stringify(await S('[s.values.history.length, s.core.pars]')));
+
   /* undo (Ctrl+Z with the focus still in the field): the core's state goes back */
   await cdp.eval(`document.getElementById(${JSON.stringify(field)}).focus()`);
   await key('z', 2); /* Ctrl+Z */
@@ -327,7 +339,7 @@ async function phone() {
   check('the sheet covers the viewport', await cdp.eval(`(() => { const r = document.querySelector('.values-panel')
     .getBoundingClientRect(); return r.width >= innerWidth - 1 && r.height >= innerHeight - 1; })()`));
   check('its first control has the focus', await until(`document.activeElement.closest('.values-panel')`, 'sheet focus'));
-  const sheetSmall = await cdp.eval(`[...document.querySelectorAll('.values-panel button, .values-panel select')]
+  const sheetSmall = await cdp.eval(`[...document.querySelectorAll('.values-panel button, .values-panel select, .values-panel input')]
     .filter(b => b.getClientRects().length).map(b => [b.tagName + ':' + (b.textContent || b.id || '').trim(),
       b.getBoundingClientRect().height]).filter(([, h]) => h < 44)`);
   check('the sheet\'s own targets are at least 44px high', sheetSmall.length === 0, JSON.stringify(sheetSmall));

@@ -30,9 +30,12 @@ function ValueField({kind, label, name, index, display, full, hint, numeric}: {
   useEffect(() => { if (!editing) setDraft(display); }, [display, editing]);
   const id = `value-${field}`.replace(/[^\w-]/g, '_');
   const errId = error ? `${id}-err` : undefined;
+  /* Escape blurs the field too: its blur must not commit the draft it drops */
+  const dropped = useRef(false);
   const revert = () => setDraft(display);
   const commit = () => {
     setEditing(false);
+    if (dropped.current) { dropped.current = false; revert(); return; }
     const text = draft.trim();
     if (text === '' || text === full) { revert(); return; }
     if (numeric && !text.startsWith('%') && !Number.isFinite(Number(text))) { revert(); return; }
@@ -50,7 +53,7 @@ function ValueField({kind, label, name, index, display, full, hint, numeric}: {
           onBlur={commit}
           onKeyDown={e => {
             if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
-            else if (e.key === 'Escape') { e.stopPropagation(); revert(); setEditing(false); (e.target as HTMLInputElement).blur(); }
+            else if (e.key === 'Escape') { e.stopPropagation(); dropped.current = true; (e.target as HTMLInputElement).blur(); }
           }}
         />
       </label>
