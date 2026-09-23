@@ -174,6 +174,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   double    per=par[10];
   /* printf("In add bif \n"); */
   type=get_bif_type(ibrs,ntots,lab);
+  auto_point_id(ibrs,ntots,iap->itp);
 
   /*if(my_ev.br==abs(*ibr)&&my_ev.pt==abs(*ntot)){evflag=1;}*/
   if(iap->ntot==1)

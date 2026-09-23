@@ -145,6 +145,7 @@ Run it with:
 | `palette` | `colors` (256 `#rrggbb`) | Colour table; sent again after a colormap change. |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows 1..10, AUTO 101 (stability circle 102, info strip 103), animation 104. |
 | `draw` | `win`, `ops` | Drawing, see below. |
+| `diagram` | `op` (`axes`, `reset`, `add`), ... | The AUTO diagram as data, beside its drawing; see "The AUTO diagram as data". |
 | `state` | `pars` [[name,value]...], `ics` [[name,value]...], `bcs` [[name,text]...], `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `menu`, `win`, `session` {`set`,`auto`} | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics), `win` the active window; `session` names the files of the last `session` `save` or `load` (`auto` absent when that session has no diagram; the member itself absent before any `session` command). |
 | `idle` | | The command finished. |
 | `menu` | `which` | The main menu switched (0 main, 1 file, 2 numerics). |
@@ -190,6 +191,57 @@ Each op is an array; coordinates are pixels from the top-left of the window.
 | `rtext` | x, y, string; baseline at y, current colour and `font` |
 | `stext` | x, y, string, size 0-4; XPP rich text in the foreground colour: backslash `1` symbol (Greek), `0` roman, `s` subscript, `S` superscript, `n` normal |
 | `font` | size 0-4, font (0 roman, 1 symbol), colour; for following `rtext` |
+
+### The AUTO diagram as data
+
+Window 101 is drawn with the ops above like any other, and that stays what
+it shows (and what PostScript, SVG and the X11 program draw). Beside it the
+server sends the diagram's points as data, so that a client can zoom, pan
+and name the point under the mouse without a round trip. The data describe
+exactly what the drawing shows: after Clear it is empty, after File/Load or
+Reset diagram it is unchanged until reDraw, as the picture is.
+
+A point is one `add_point()` of `core/auto_nox.c`, in the quantities the
+axes plot (`auto_xy_plot`: the parameter against the maximum, norm,
+period, ... of the Axes setting), in the order it was plotted.
+
+- `{"ev":"diagram","op":"axes", xmin, xmax, ymin, ymax, x0, y0, wid, hgt, plot, xlabel, ylabel}`:
+  the diagram was drawn again at these axes (`plot` is `Auto.plot`: 0 hi,
+  1 norm, 2 hi and lo, 3 period, 4 two parameters, 10 frequency, 11
+  average); the points are unchanged. Pixel `x0 + wid*(x-xmin)/(xmax-xmin)`,
+  `y0 + hgt - hgt*(y-ymin)/(ymax-ymin)` of window 101 is where the drawing
+  has (x, y).
+- `{"ev":"diagram","op":"reset","keep":k, ...the axes fields}`: drop every
+  point after the first `k` (all of them for 0), then the axes as above.
+- `{"ev":"diagram","op":"add","from":n,"runs":[...]}`: points `n`, `n+1`, ...
+  (`n` is the number of points the client holds) in runs of points that
+  share their branch, kind and style and whose numbers count up by one:
+
+| run field | meaning |
+|---|---|
+| `br`, `pt` | branch, and the number of the run's first point (absolute values) |
+| `ty` | 1 stable steady state, 2 unstable steady state, 3 stable periodic, 4 unstable periodic |
+| `f2` | two-parameter curve (1 limit point, 2 limit point of periodics, 3 Hopf, 4 torus, 5 branch point, 6 period doubling, 7 fixed period); absent for one parameter |
+| `d` | how it is drawn: 0 not at all (the next line starts from it), 1 a line back to the point before it, 2 filled circles of radius 3 at y and y2, 3 open circles |
+| `c`, `lw` | palette colour and line width |
+| `new` | 1: the run's first point starts a new line (no line back) |
+| `x`, `y` | the values, one per point (`null` for NaN) |
+| `y2` | the second value (the minimum, for hi and lo), when it differs from `y` anywhere in the run |
+| `lab` | [[index in the run, label, type (`EP`, `LP`, `HB`, `BP`, `PD`, `TR`, `UZ`, `MX`)], ...] for the points whose label the drawing marks (a cross at y and y2, the number at x+8, y+8) |
+
+A run of AUTO sends `add` events as the points come, at most a few a
+second like the drawing. A redraw that plots the same points at other axes
+(reDraw, Fit, zoom, scroll, a resize) sends only `axes`: the server
+compares the points it plots again with what it sent, and only when they
+differ (another Axes quantity, new points) does it send `reset` with how
+many still agree and `add` for the rest. The points of a redraw go out
+when the redraw is over, not while it runs. A new AUTO window starts empty.
+
+`web/xpp-client.js` keeps the data and, over the diagram, zooms with the
+wheel and pans with Shift+drag or the middle button, drawing from the data;
+a tooltip names the point under the mouse. Anything that makes the core
+draw the diagram again (a `clear` op for window 101) shows the core's view
+again.
 
 ### Asks
 

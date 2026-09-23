@@ -303,6 +303,8 @@ evs, _ = collect(is_idle)
 win = [e for e in evs if e.get('ev') == 'window' and e.get('win') == 101]
 check('size resizes the AUTO diagram', win and win[-1]['w'] == 500 and win[-1]['h'] == 300
       and len(draw_ops(evs, 101)) > 5, str(win))
+axes = [e for e in evs if e.get('ev') == 'diagram' and e['op'] in ('axes', 'reset')]
+check('the AUTO diagram sends its axes as data', axes and axes[-1]['wid'] > 0 and axes[-1]['xlabel'], str(axes))
 
 # Run, Grab a labelled point, Run again: the second run restarts from the
 # label in fort.3 (findlb/readlb). On Windows the backward fseek that located
@@ -312,7 +314,10 @@ evs, ask = collect(lambda e: e.get('ev') == 'ask')
 check('Auto/Run opens the start menu', ask is not None and ask['kind'] == 'menu' and 's' in ask['keys'], str(ask))
 if ask:
     send(cmd='answer', id=ask['id'], key='s')
-    collect(is_idle, timeout=30)
+    evs, _ = collect(is_idle, timeout=30)
+    adds = [e for e in evs if e.get('ev') == 'diagram' and e['op'] == 'add']
+    check('Auto/Run sends the points it draws as diagram data',
+          adds and adds[0]['from'] == 0 and sum(len(r['x']) for e in adds for r in e['runs']) > 0, str(adds)[:200])
     send(cmd='auto', op='grab')
     evs, ask = collect(lambda e: e.get('ev') == 'ask')
     check('Auto/Grab asks for a point', ask is not None and ask['kind'] == 'grab', str(ask))

@@ -25,6 +25,23 @@ struct XppMenu; /* menus.h */
 
 #define XPP_AUTO_CLICK 1000
 
+/* One point of the AUTO diagram as add_point() (auto_nox.c) plots it, in
+   the diagram's current axis quantities (auto_xy_plot), for a front end
+   that draws the diagram from data. */
+typedef struct XppDiagPoint {
+    int ibr, pt;   /* AUTO's branch and point number, signed as AUTO has them */
+    int itp;       /* AUTO's point type (get_bif_sym) */
+    int lab;       /* label, 0 when none or when the label mark is not drawn */
+    int type;      /* 1 stable eq, 2 unstable eq, 3 stable periodic, 4 unstable periodic */
+    int flag2;     /* two-parameter curve kind (LPE2...), 0 for one parameter */
+    int draw;      /* 0 not drawn (only the start of the next line), 1 a line
+                      back to the previous point, 2 filled circles at y1 and
+                      y2, 3 open circles */
+    int newseg;    /* the previous point is this one: no line back */
+    int color, lw; /* what autocol() and LineWidth() get for it */
+    double x, y1, y2;
+} XppDiagPoint;
+
 typedef struct XppUi {
     /* messages */
     void (*err_msg)(char *msg);
@@ -169,6 +186,10 @@ typedef struct XppUi {
     void (*auto_show_hint)(void); /* Auto.hinttxt changed */
     /* the grab is over: done=1 a point was taken (Enter), -1 cancelled (Esc) */
     void (*auto_grab_end)(int done);
+    /* The diagram as data, beside the drawing: p is a point add_point()
+       just plotted, NULL that the diagram was cleared and its axes (Auto)
+       drawn again. X11 draws the primitives only and ignores it. */
+    void (*auto_diagram)(const XppDiagPoint *p);
 
     /* animation (toon) window. Frames are drawn off screen, vcr.wid by
        vcr.hgt pixels (aniparse.h), then ani_show puts one on screen. */
@@ -275,6 +296,7 @@ int auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag);
 int auto_pop_up_list(char *title, char **list, char *key, int n, int max,
                      int def, int x, int y, char **hints, char *httxt);
 void auto_scroll_window(void);
+void auto_diagram(const XppDiagPoint *p);
 void init_txtview(void);
 void create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                    double *ev, int n);

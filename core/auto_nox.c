@@ -426,6 +426,7 @@ void draw_bif_axes()
  get_auto_str(xlabel,ylabel);
  ATEXT((x0+x1)/2,y1+DCURYs+2,xlabel);
  ATEXT(10*DCURXs,DCURYs,ylabel);
+ auto_diagram(NULL); /* the data of the diagram starts again too */
  refreshdisplay();
 }
    
@@ -1326,6 +1327,39 @@ void auto_line(x1i,y1i,x2i,y2i)
  
   set_scale(xmin,ymin,xmax,ymax);
 }
+/* The point add_point() is given next, for the diagram's data
+   (auto_diagram): its caller knows the branch and point, add_point does not. */
+static int dpt_ibr,dpt_ntot,dpt_itp;
+void auto_point_id(int ibr,int ntot,int itp)
+{
+  dpt_ibr=ibr;
+  dpt_ntot=ntot;
+  dpt_itp=itp;
+}
+
+/* the colour colset() and colset2() give a point */
+static int auto_point_color(int type,int flag2)
+{
+  switch(flag2){
+  case 0: break;
+  case LPE2: return LPE_color;
+  case LPP2: return LPP_color;
+  case HB2: return HB_color;
+  case TR2: return TR_color;
+  case BR2: return BR_color;
+  case PD2: return PD_color;
+  case FP2: return FP_color;
+  default: return 0;
+  }
+  switch(type){
+  case CSEQ: return SEc;
+  case CUEQ: return UEc;
+  case SPER: return SPc;
+  case UPER: return UPc;
+  }
+  return 0;
+}
+
 /* this bit of code is for writing points - it only saves what is
    in the current view
 
@@ -1353,10 +1387,23 @@ void add_point(par,per,uhigh,ulow,ubar,a,type,flg,lab,npar,icp1,icp2,icp3,icp4,f
   double x,y1,y2,par1,par2=0;
   int ix,iy1,iy2,type1=type;
   char bob[5];
+  XppDiagPoint dp;
   sprintf(bob,"%d",lab);
   par1=par[icp1];
   if(icp2<NAutoPar)par2=par[icp2];
 auto_xy_plot(&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a); /* figure out who sits on axes */
+  memset(&dp,0,sizeof dp);
+  dp.ibr=dpt_ibr;
+  dp.pt=dpt_ntot;
+  dp.itp=dpt_itp;
+  dp.type=type;
+  dp.flag2=flag2;
+  dp.newseg=(flg==0);
+  dp.color=auto_point_color(type,flag2);
+  dp.lw=(type==CSEQ||flag2>0)?2:1;
+  dp.x=x;
+  dp.y1=y1;
+  dp.y2=y2;
   if(flg==0){
     Auto.lastx=x;
     Auto.lasty=y1;
@@ -1367,11 +1414,13 @@ auto_xy_plot(&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a); /* figure out who sits
   autobw();
 if(flag2==0&&Auto.plot==P_P) /* if the point was a 1 param run and we are in 2 param plot, skip */
     {
+       if(flg==0)auto_diagram(&dp); /* not drawn, but the next line starts here */
        plot_stab(evr,evi,NODE);
        refreshdisplay();
        return;
      }
 if(flag2>0&&Auto.plot!=P_P){ /* two parameter and not in two parameter plot, just skip it */
+    if(flg==0)auto_diagram(&dp);
     plot_stab(evr,evi,NODE);
     refreshdisplay();
     return;
@@ -1385,6 +1434,7 @@ if(flag2>0&&Auto.plot!=P_P){ /* two parameter and not in two parameter plot, jus
     if(Auto.plot==PE_P||Auto.plot==FR_P)break;
     if(icp1!=Auto.icp1)break;
     if(flag2>0&&Auto.icp2!=icp2)break;
+    dp.draw=1;
     LineWidth(2);
     colset(type);
     if(flag2>0)colset2(flag2);
@@ -1395,6 +1445,7 @@ if(flag2>0&&Auto.plot!=P_P){ /* two parameter and not in two parameter plot, jus
     if(Auto.plot==PE_P||Auto.plot==FR_P)break;
     if(icp1!=Auto.icp1)break;
     if(flag2>0&&Auto.icp2!=icp2)break;
+    dp.draw=1;
     LineWidth(1);
         colset(type);
 	if(flag2>0)colset2(flag2);
@@ -1404,6 +1455,7 @@ if(flag2>0&&Auto.plot!=P_P){ /* two parameter and not in two parameter plot, jus
   case UPER:
     if(icp1!=Auto.icp1)break;
     if(flag2>0&&Auto.icp2!=icp2)break;
+    dp.draw=3;
     LineWidth(1);
         colset(type);
 	if(flag2>0)colset2(flag2);
@@ -1414,6 +1466,7 @@ if(flag2>0&&Auto.plot!=P_P){ /* two parameter and not in two parameter plot, jus
   case SPER:
     if(icp1!=Auto.icp1)break;
     if(flag2>0&&Auto.icp2!=icp2)break;
+    dp.draw=2;
     LineWidth(1);
         colset(type);
 	if(flag2>0)colset2(flag2);
@@ -1425,6 +1478,7 @@ if(flag2>0&&Auto.plot!=P_P){ /* two parameter and not in two parameter plot, jus
   if(lab!=0){
     if(icp1==Auto.icp1){
       if(flag2==0||(flag2>0&&Auto.icp2==icp2)){
+	dp.lab=lab;
 	LineWidth(1);
         if(chk_auto_bnds(ix,iy1)){
 	ALINE(ix-4,iy1,ix+4,iy1);
@@ -1439,6 +1493,7 @@ if(flag2>0&&Auto.plot!=P_P){ /* two parameter and not in two parameter plot, jus
 
   Auto.lastx=x;
   Auto.lasty=y1;
+  auto_diagram(&dp);
    plot_stab(evr,evi,NODE);
   refreshdisplay();
 }

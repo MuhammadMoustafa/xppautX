@@ -252,10 +252,14 @@ static void close_poly(void)
 
 /* one draw event per window with pending ops, in first-use order (windows
    are separate canvases, so only the order within a window matters) */
+static void diag_flush(int final); /* the AUTO diagram's data, below */
+static void diag_forget(void);
+
 static void flush_ops(void)
 {
     int i;
     close_poly();
+    diag_flush(0);
     for (i = 0; i < n_op_bufs; i++) {
         OpBuf *ob = &op_bufs[i];
         char head[64];
@@ -631,6 +635,7 @@ static size_t answer_cap;
 static int ask_wait(Buf *b, int id)
 {
     BUF_LIT(b, "}");
+    diag_flush(1);
     json_flush();
     send_buf(b);
     free(b->s);
@@ -1792,6 +1797,7 @@ static void j_auto_make_window(char *wname, char *iname)
     Auto.st_wid = 12 * DCURX;
     strcpy(Auto.hinttxt, "hint");
     auto_reset_state(); /* a fresh canvas starts from the defaults */
+    diag_forget();      /* and a new window has no data */
     send_window("create", WIN_AUTO, Auto.wid + 12 * DCURXs, Auto.hgt + 4 * DCURYs, wname);
     draw_bif_axes();
 }
@@ -1954,6 +1960,205 @@ static int j_auto_grab_event(int *x, int *y)
     return XPP_AUTO_CLICK;
 }
 static void j_auto_show_hint(void) { send_simple("message", "auto", Auto.hinttxt); }
+
+/* ---- AUTO diagram data --------------------------------------------------------
+   Beside the primitives, the points of the diagram go out as data ("diagram"
+   events, docs/protocol.md), so that the client can zoom, pan and show a
+   point under the mouse without a round trip. dg[0..dg_n) is the list the
+   client holds once the pending events are out: dg_client points of it
+   were sent, and from dg_dirty on it changed since (dg_dirty < dg_client
+   means the client must first drop its points from dg_dirty on).
+
+   A redraw is a clear (draw_bif_axes) and then every point again, and
+   mostly the same points at other axes: a zoom, Fit, a scroll, a resize.
+   So after a clear the points are compared with the list (dg_replay,
+   dg_match of them agreed so far) and nothing is sent while they agree; if
+   all of them agree only the new axes go out. The first point that differs
+   drops the rest of the old list and is sent with the ones after it. A
+   clear that is not followed by the whole list (the Clear button) drops
+   the rest at the end of the command. */
+static XppDiagPoint *dg;
+static int dg_n, dg_cap, dg_client, dg_dirty;
+static int dg_replay, dg_match, dg_axes;
+static struct {
+    double xmin, xmax, ymin, ymax;
+    int x0, y0, wid, hgt, plot;
+    char xlabel[20], ylabel[20];
+} dg_ax;
+
+/* the client has nothing: a new window, or one it no longer holds */
+static void diag_forget(void)
+{
+    dg_n = dg_client = dg_dirty = 0;
+    dg_replay = dg_match = dg_axes = 0;
+}
+
+static int diag_same(const XppDiagPoint *a, const XppDiagPoint *b)
+{
+    return a->ibr == b->ibr && a->pt == b->pt && a->itp == b->itp && a->lab == b->lab && a->type == b->type &&
+           a->flag2 == b->flag2 && a->draw == b->draw && a->newseg == b->newseg && a->color == b->color &&
+           a->lw == b->lw && memcmp(&a->x, &b->x, sizeof a->x) == 0 && memcmp(&a->y1, &b->y1, sizeof a->y1) == 0 &&
+           memcmp(&a->y2, &b->y2, sizeof a->y2) == 0;
+}
+
+/* the replay is over: the list is its first k points */
+static void diag_end_replay(int k)
+{
+    dg_replay = 0;
+    dg_n = k;
+    if (k < dg_dirty) dg_dirty = k;
+}
+
+static void j_auto_diagram(const XppDiagPoint *p)
+{
+    if (!p) {
+        dg_ax.xmin = Auto.xmin;
+        dg_ax.xmax = Auto.xmax;
+        dg_ax.ymin = Auto.ymin;
+        dg_ax.ymax = Auto.ymax;
+        dg_ax.x0 = Auto.x0;
+        dg_ax.y0 = Auto.y0;
+        dg_ax.wid = Auto.wid;
+        dg_ax.hgt = Auto.hgt;
+        dg_ax.plot = Auto.plot;
+        get_auto_str(dg_ax.xlabel, dg_ax.ylabel);
+        dg_axes = 1;
+        dg_replay = 1;
+        dg_match = 0;
+        return;
+    }
+    if (dg_replay) {
+        if (dg_match < dg_n && diag_same(&dg[dg_match], p)) {
+            dg_match++;
+            return;
+        }
+        diag_end_replay(dg_match);
+    }
+    if (dg_n == dg_cap) {
+        dg_cap = dg_cap ? 2 * dg_cap : 1024;
+        dg = realloc(dg, (size_t)dg_cap * sizeof *dg);
+    }
+    dg[dg_n++] = *p;
+}
+
+/* a number, null when it is not finite (JSON has no nan) */
+static void buf_num(Buf *b, double v)
+{
+    if (v != v || v > 1e308 || v < -1e308) BUF_LIT(b, "null");
+    else buf_printf(b, "%.7g", v);
+}
+
+static void diag_axes(Buf *b)
+{
+    buf_printf(b, ",\"xmin\":%.17g,\"xmax\":%.17g,\"ymin\":%.17g,\"ymax\":%.17g", dg_ax.xmin, dg_ax.xmax,
+               dg_ax.ymin, dg_ax.ymax);
+    buf_printf(b, ",\"x0\":%d,\"y0\":%d,\"wid\":%d,\"hgt\":%d,\"plot\":%d,\"xlabel\":", dg_ax.x0, dg_ax.y0,
+               dg_ax.wid, dg_ax.hgt, dg_ax.plot);
+    buf_str(b, dg_ax.xlabel);
+    BUF_LIT(b, ",\"ylabel\":");
+    buf_str(b, dg_ax.ylabel);
+}
+
+/* points i..j of the list as one run: they share branch, kind and style,
+   and their point numbers count up by one */
+static void diag_run(Buf *b, int i, int j)
+{
+    const XppDiagPoint *p = &dg[i];
+    int k, two = 0, nlab = 0;
+    char sym[4];
+    buf_printf(b, "{\"br\":%d,\"pt\":%d,\"ty\":%d,\"d\":%d,\"c\":%d,\"lw\":%d", abs(p->ibr), abs(p->pt), p->type,
+               p->draw, p->color, p->lw);
+    if (p->flag2) buf_printf(b, ",\"f2\":%d", p->flag2);
+    if (p->newseg) BUF_LIT(b, ",\"new\":1");
+    BUF_LIT(b, ",\"x\":[");
+    for (k = i; k <= j; k++) {
+        if (k > i) BUF_LIT(b, ",");
+        buf_num(b, dg[k].x);
+        if (dg[k].y2 != dg[k].y1) two = 1;
+        if (dg[k].lab) nlab++;
+    }
+    BUF_LIT(b, "],\"y\":[");
+    for (k = i; k <= j; k++) {
+        if (k > i) BUF_LIT(b, ",");
+        buf_num(b, dg[k].y1);
+    }
+    BUF_LIT(b, "]");
+    if (two) {
+        BUF_LIT(b, ",\"y2\":[");
+        for (k = i; k <= j; k++) {
+            if (k > i) BUF_LIT(b, ",");
+            buf_num(b, dg[k].y2);
+        }
+        BUF_LIT(b, "]");
+    }
+    if (nlab) {
+        BUF_LIT(b, ",\"lab\":[");
+        for (k = i, nlab = 0; k <= j; k++) {
+            const char *t = sym;
+            if (!dg[k].lab) continue;
+            get_bif_sym(sym, dg[k].itp);
+            while (*t == ' ') t++;
+            buf_printf(b, "%s[%d,%d,", nlab++ ? "," : "", k - i, dg[k].lab);
+            buf_str(b, t);
+            BUF_LIT(b, "]");
+        }
+        BUF_LIT(b, "]");
+    }
+    BUF_LIT(b, "}");
+}
+
+/* b continues a's run */
+static int diag_joins(const XppDiagPoint *a, const XppDiagPoint *b)
+{
+    return !b->newseg && abs(a->ibr) == abs(b->ibr) && abs(b->pt) == abs(a->pt) + 1 && a->type == b->type &&
+           a->draw == b->draw && a->color == b->color && a->lw == b->lw && a->flag2 == b->flag2;
+}
+
+/* send what the client does not have yet. final: the command ends or asks
+   something, so a replay that has not been completed never will be */
+static void diag_flush(int final)
+{
+    Buf b = {0};
+    if (dg_replay) {
+        if (dg_match == dg_n) diag_end_replay(dg_n); /* all agreed; more points are new ones */
+        else if (final) diag_end_replay(dg_match);
+        else return; /* still replaying: nothing is known yet */
+    }
+    if (dg_dirty < dg_client) {
+        buf_printf(&b, "{\"ev\":\"diagram\",\"op\":\"reset\",\"keep\":%d", dg_dirty);
+        diag_axes(&b);
+        BUF_LIT(&b, "}");
+        out_line(b.s, b.len);
+        b.len = 0;
+        dg_client = dg_dirty;
+        dg_axes = 0;
+    } else if (dg_axes) {
+        BUF_LIT(&b, "{\"ev\":\"diagram\",\"op\":\"axes\"");
+        diag_axes(&b);
+        BUF_LIT(&b, "}");
+        out_line(b.s, b.len);
+        b.len = 0;
+        dg_axes = 0;
+    }
+    /* the points in events of some 60 kB, like the drawing */
+    while (dg_client < dg_n) {
+        int i = dg_client, j;
+        buf_printf(&b, "{\"ev\":\"diagram\",\"op\":\"add\",\"from\":%d,\"runs\":[", dg_client);
+        while (i < dg_n && b.len < 60000) {
+            for (j = i; j + 1 < dg_n && j - i < 2000 && diag_joins(&dg[j], &dg[j + 1]); j++) {
+            }
+            if (i > dg_client) BUF_LIT(&b, ",");
+            diag_run(&b, i, j);
+            i = j + 1;
+        }
+        BUF_LIT(&b, "]}");
+        out_line(b.s, b.len);
+        b.len = 0;
+        dg_client = i;
+    }
+    dg_dirty = dg_n;
+    free(b.s);
+}
 
 /* AUTO's refreshdisplay() after every point: a few frames a second, not a
    flush per point. The end of a command and every ask flush in full, so
@@ -2288,6 +2493,7 @@ static const XppUi json_ui = {
     .auto_grab_event = j_auto_grab_event,
     .auto_show_hint = j_auto_show_hint,
     .auto_grab_end = j_auto_grab_end,
+    .auto_diagram = j_auto_diagram,
     .new_vcr = j_new_vcr,
     .ani_clear = j_ani_clear,
     .ani_show = j_ani_show,
@@ -2441,7 +2647,11 @@ static void handle_line(const char *line, unsigned long seq)
         if (win >= 0 && win < MAXPOP && graph[win].Use && current_pop != win) select_graph(win);
     } else if (is_cmd(line, "redraw")) {
         j_redraw_graph();
-        if (Auto.exist) redraw_diagram(); /* a reconnected client has a blank one */
+        if (Auto.exist) { /* a reconnected client has a blank one, and no data */
+            dg_dirty = 0;
+            dg_client = dg_n > 0 ? dg_n : 1; /* so the data starts with a reset */
+            redraw_diagram();
+        }
     } else if (is_cmd(line, "ani")) {
         ani_command(line);
     } else if (is_cmd(line, "auto")) {
@@ -2461,6 +2671,7 @@ static void handle_line(const char *line, unsigned long seq)
         else if (strcmp(o, "close") == 0 && Auto.exist) {
             Auto.exist = 0; /* auto_x11.c auto_kill; File/Auto opens it again */
             send_window("destroy", WIN_AUTO, 0, 0, NULL);
+            diag_forget();
         }
     } else if (is_cmd(line, "session")) {
         char o[8], name[XPP_MAX_NAME];
@@ -2474,6 +2685,7 @@ static void handle_line(const char *line, unsigned long seq)
     if (aplot_dirty && aplot.alive && plot3d_auto_redraw == 1) send_aplot(NULL);
     aplot_dirty = 0;
     if (browser_dirty && br_count) send_browser();
+    diag_flush(1);
     json_flush();
     /* the command is finished; the client may send the next one */
     xpp_job_end();

@@ -45,6 +45,12 @@ row changes.
 - Kinescope frames live in the client: reloading the page loses them.
 - The AUTO diagram stores a point for 2-parameter work on click, not on
   every mouse move.
+- The AUTO diagram also zooms (mouse wheel) and pans (Shift+drag, or the
+  middle button) in the client, from the diagram's data, without asking the
+  core; a tooltip names the point under the mouse (branch, point, type,
+  label, values). reDraw, or anything else that redraws the diagram, goes
+  back to the core's view, which Axes/Zoom, Fit and Scroll still change as
+  in X11.
 - While a run is going, other clicks show "Busy — press Abort to stop"
   instead of doing nothing. ABORT itself shows "Stopping…" (in the AUTO
   status footer for an AUTO run, the main hint otherwise) and is disabled

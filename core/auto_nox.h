@@ -106,6 +106,7 @@ void auto_xy_plot(double *x, double *y1, double *y2, double par1, double par2, d
 int plot_point(int flag2, int icp1, int icp2);
 void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *ubar, double a, int type, int flag, int lab, int npar, int icp1, int icp2, int flag2, double *evr, double *evi);
 void auto_line(double x1i, double y1i, double x2i, double y2i);
+void auto_point_id(int ibr, int ntot, int itp);
 void add_point(double *par, double per, double *uhigh, double *ulow, double *ubar, double a, int type, int flag, int lab, int npar, int icp1, int icp2, int flag2,int icp3, int icp4, double *evr, double *evi);
 void get_bif_sym(char *at, int itp);
 void info_header(int flag2, int icp1, int icp2);

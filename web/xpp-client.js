@@ -113,7 +113,9 @@
       this.heldSinceClear = false;
       if (this.holdTimer) { clearTimeout(this.holdTimer); this.holdTimer = null; }
       if (!this.buf.width || !this.buf.height) return;
-      this.view.drawImage(this.buf, 0, 0);
+      /* the AUTO diagram zoomed on the client draws itself from its data */
+      if (this.painter) this.painter(this.view);
+      else this.view.drawImage(this.buf, 0, 0);
     }
 
     /* show it on the next frame, so a burst of events costs one repaint.
@@ -135,11 +137,14 @@
       if (this.dirty) this.paint();
       else this.heldSinceClear = false;
     }
-    /* draw the grab cursor on the overlay, or (no x,y) hide it */
+    /* draw the grab cursor on the overlay, or (no x,y) hide it. mapCursor
+       moves it to where a zoomed view shows the point. */
     cursor(x, y) {
       const c = this.octx;
+      this.lastCursor = x === undefined ? null : [x, y];
       c.clearRect(0, 0, this.overlay.width, this.overlay.height);
       if (x === undefined) return;
+      if (this.mapCursor) [x, y] = this.mapCursor(x, y);
       /* magenta reads on AUTO's white and black backgrounds alike */
       c.save();
       c.strokeStyle = '#ff00ff';
@@ -286,6 +291,93 @@
   function greek(s) {
     return Array.from(s, ch => GREEK[ch] || ch).join('');
   }
+
+  /* C's %g: what the core prints the diagram's axis limits with */
+  function fmtG(v) {
+    if (!isFinite(v)) return String(v);
+    if (v === 0) return '0';
+    const [m, e] = v.toExponential(5).split('e');
+    const exp = +e;
+    if (exp < -4 || exp >= 6) {
+      return m.replace(/\.?0+$/, '') + 'e' + (exp < 0 ? '-' : '+') + String(Math.abs(exp)).padStart(2, '0');
+    }
+    const f = v.toFixed(Math.max(0, 5 - exp));
+    return f.includes('.') ? f.replace(/\.?0+$/, '') : f;
+  }
+
+  /* the part of the segment (ax,ay)-(bx,by) inside the box, or null
+     (Liang-Barsky): a canvas copes badly with far-away coordinates, which a
+     deep zoom makes of every point outside the view */
+  function clipSegment(ax, ay, bx, by, xlo, ylo, xhi, yhi) {
+    if (!isFinite(ax + ay + bx + by)) return null;
+    const dx = bx - ax, dy = by - ay;
+    let t0 = 0, t1 = 1;
+    for (const [p, q] of [[-dx, ax - xlo], [dx, xhi - ax], [-dy, ay - ylo], [dy, yhi - ay]]) {
+      if (p === 0) {
+        if (q < 0) return null;
+      } else {
+        const r = q / p;
+        if (p < 0) { if (r > t1) return null; if (r > t0) t0 = r; }
+        else { if (r < t0) return null; if (r < t1) t1 = r; }
+      }
+    }
+    return [ax + t0 * dx, ay + t0 * dy, ax + t1 * dx, ay + t1 * dy];
+  }
+
+  const DIAG_TYPES = ['', 'stable steady state', 'unstable steady state', 'stable periodic', 'unstable periodic'];
+  const DIAG_CURVES = ['', 'limit point', 'limit point (periodic)', 'Hopf', 'torus', 'branch point',
+    'period doubling', 'fixed period'];
+
+  /* The AUTO diagram as data ("diagram" events, docs/protocol.md): every
+     point the core plots, in the diagram's axis quantities, with how it is
+     drawn. The core's own drawing stays what the window shows; this is what
+     lets the client zoom, pan and name the point under the mouse without
+     asking the core. */
+  class DiagramData {
+    constructor() {
+      this.axes = null;
+      this.truncate(0);
+    }
+    get n() { return this.x.length; }
+    truncate(k) {
+      if (!this.x) {
+        for (const f of DiagramData.FIELDS) this[f] = [];
+        this.labels = new Map();
+      }
+      for (const f of DiagramData.FIELDS) this[f].length = Math.min(k, this[f].length);
+      for (const i of this.labels.keys()) if (i >= k) this.labels.delete(i);
+    }
+    /* one event; false when it does not follow on from what is held */
+    apply(ev) {
+      if (ev.op === 'axes' || ev.op === 'reset') {
+        if (ev.op === 'reset') this.truncate(ev.keep || 0);
+        this.axes = ev;
+        return true;
+      }
+      if (ev.op !== 'add') return true;
+      if (ev.from > this.n) return false;
+      this.truncate(ev.from);
+      for (const r of ev.runs) {
+        const base = this.n;
+        for (let i = 0; i < r.x.length; i++) {
+          this.x.push(r.x[i] ?? NaN);
+          this.y.push(r.y[i] ?? NaN);
+          this.y2.push(r.y2 ? r.y2[i] ?? NaN : r.y[i] ?? NaN);
+          this.br.push(r.br);
+          this.pt.push(r.pt + i);
+          this.ty.push(r.ty);
+          this.d.push(r.d);
+          this.c.push(r.c);
+          this.lw.push(r.lw);
+          this.f2.push(r.f2 || 0);
+          this.nw.push(i === 0 && r.new ? 1 : 0);
+        }
+        for (const [i, lab, sym] of r.lab || []) this.labels.set(base + i, {lab, sym});
+      }
+      return true;
+    }
+  }
+  DiagramData.FIELDS = ['x', 'y', 'y2', 'br', 'pt', 'ty', 'd', 'c', 'lw', 'f2', 'nw'];
 
   class XppClient {
     constructor(root, send) {
@@ -984,9 +1076,12 @@
         case 'window': this.onWindow(ev); break;
         case 'draw': {
           const s = this.surfaces.get(ev.win);
+          /* the core drew the diagram again: its view is back */
+          if (ev.win === 101 && this.autoView && ev.ops.some(o => o[0] === 'clear')) this.resetAutoView(false);
           if (s) s.run(ev.ops);
           break;
         }
+        case 'diagram': this.onDiagram(ev); break;
         case 'state': this.state = ev; this.renderState(); this.renderMenu(); break;
         case 'menu': this.menuWhich = ev.which; this.renderMenu(); break;
         case 'title': this.setPlotTitle(ev.text); break;
@@ -1099,6 +1194,10 @@
         if (!s) {
           s = new Surface(this, ev.win, ev.w, ev.h);
           this.surfaces.set(ev.win, s);
+          if (ev.win === 101) {
+            this.diag = new DiagramData();
+            this.autoView = null;
+          }
           this.placeSurface(s, ev);
         } else s.resize(ev.w, ev.h);
         if (ev.win === 1) this.sendMainSize();
@@ -1202,24 +1301,38 @@
         const done = el('button', '', 'Cancel (Esc)');
         done.addEventListener('click', () => this.answer({key: 'Escape'}));
         this.autoGrab.appendChild(done);
-        /* x,y under the mouse (auto_motion_xy); a click also stores the point */
+        /* x,y under the mouse (auto_motion_xy), and the point there; a click
+           also stores the point */
         s.canvas.addEventListener('mousemove', e => {
-          const au = this.state && this.state.auto;
+          this.hoverAuto(s, e);
+          const au = this.autoView ? Object.assign({}, this.diag.axes, this.autoView) : this.state && this.state.auto;
           if (!au || !au.wid || !au.hgt || (this.pendingAsk && this.pendingAsk.kind === 'drag')) return;
           const [i, j] = s.at(e);
           const x = au.xmin + (i - au.x0) * (au.xmax - au.xmin) / au.wid;
           const y = au.ymin + (au.y0 - j + au.hgt) * (au.ymax - au.ymin) / au.hgt;
-          if (!this.pendingAsk) this.autoHint.textContent = `x=${Number(x.toPrecision(6))},y=${Number(y.toPrecision(6))}`;
+          if (!this.pendingAsk) {
+            this.autoHint.textContent = `x=${Number(x.toPrecision(6))},y=${Number(y.toPrecision(6))}` +
+              (this.autoView ? '   zoomed here: reDraw goes back' : '   wheel zooms, Shift+drag pans');
+          }
         });
+        s.canvas.addEventListener('mouseleave', () => { if (this.autoTip) this.autoTip.hidden = true; });
+        s.canvas.addEventListener('wheel', e => this.wheelAuto(s, e), {passive: false});
         s.canvas.addEventListener('click', e => {
-          const [x, y] = s.at(e);
+          /* the end of a Shift+drag, not a click on the diagram */
+          if (this.autoPanned) {
+            this.autoPanned = false;
+            return;
+          }
+          const [x, y] = this.autoCorePx(s, e);
           /* a grab was answered on mousedown (onCanvasDown); this click is
              its follow-through, not a second answer */
           if (this.pendingAsk || this.busy || this.answeredByPress) return;
           this.command({cmd: 'auto', op: 'point', x, y});
         });
         const diagramWrap = el('div', 'xpp-canvas-wrap');
-        diagramWrap.append(s.canvas, s.overlay);
+        this.autoTip = el('div', 'xpp-auto-tip');
+        this.autoTip.hidden = true;
+        diagramWrap.append(s.canvas, s.overlay, this.autoTip);
         top.append(diagramWrap, stab.canvas);
         right.append(top, info.canvas);
         body.append(buttons, right);
@@ -1467,6 +1580,253 @@
     }
 
     /* the same printed lines as the Messages box, beside the diagram */
+    /* ---- the AUTO diagram drawn from its data ---------------------------------------
+       The wheel zooms and Shift+drag (or the middle button) pans the diagram
+       here, from the points the "diagram" events carry: no command goes to
+       the core. What the core draws next (reDraw, Axes, a resize: anything
+       that clears the diagram) brings back its own view. */
+
+    onDiagram(ev) {
+      if (!this.diag) this.diag = new DiagramData();
+      if (!this.diag.apply(ev)) this.log(`diagram data out of step: points from ${ev.from}, ${this.diag.n} held\n`, false);
+      const s = this.surfaces.get(101);
+      if (this.autoView && s) s.mark();
+    }
+
+    /* the view the diagram shows now: the local one, else the core's */
+    autoRange() {
+      return this.autoView || (this.diag && this.diag.axes);
+    }
+
+    /* show the diagram at v ({xmin, xmax, ymin, ymax}) from the data, or
+       (null) as the core drew it. paint false: leave the showing to the
+       drawing that follows. */
+    setAutoView(v, paint = true) {
+      const s = this.surfaces.get(101);
+      this.autoView = v;
+      if (!s) return;
+      s.painter = v ? ctx => this.paintAutoLocal(ctx) : null;
+      s.mapCursor = v ? (x, y) => this.autoLocalPx(x, y) : null;
+      if (!paint) return;
+      s.paint();
+      if (s.lastCursor) s.cursor(...s.lastCursor);
+    }
+
+    resetAutoView(paint = true) {
+      if (this.autoView) this.setAutoView(null, paint);
+    }
+
+    /* a pixel of the core's diagram to the same point in the local view */
+    autoLocalPx(i, j) {
+      const A = this.diag.axes, v = this.autoView;
+      const x = A.xmin + (i - A.x0) * (A.xmax - A.xmin) / A.wid;
+      const y = A.ymin + (A.y0 + A.hgt - j) * (A.ymax - A.ymin) / A.hgt;
+      return [A.x0 + (x - v.xmin) * A.wid / (v.xmax - v.xmin), A.y0 + A.hgt - (y - v.ymin) * A.hgt / (v.ymax - v.ymin)];
+    }
+
+    /* where a mouse event is in the core's diagram: what a click, a grab or
+       the x,y readout needs, whatever the local view */
+    autoCorePx(s, e) {
+      const [i, j] = s.at(e);
+      const A = this.diag && this.diag.axes, v = this.autoView;
+      if (!v || !A) return [i, j];
+      const x = v.xmin + (i - A.x0) * (v.xmax - v.xmin) / A.wid;
+      const y = v.ymin + (A.y0 + A.hgt - j) * (v.ymax - v.ymin) / A.hgt;
+      return [Math.round(A.x0 + (x - A.xmin) * A.wid / (A.xmax - A.xmin)),
+        Math.round(A.y0 + A.hgt - (y - A.ymin) * A.hgt / (A.ymax - A.ymin))];
+    }
+
+    /* the diagram as add_point (core/auto_nox.c) and draw_bif_axes draw it,
+       at the local view */
+    paintAutoLocal(c) {
+      const t0 = performance.now();
+      const D = this.diag, A = D.axes, v = this.autoView;
+      const x0 = A.x0, y0 = A.y0, x1 = x0 + A.wid, y1 = y0 + A.hgt;
+      const sx = A.wid / (v.xmax - v.xmin), sy = A.hgt / (v.ymax - v.ymin);
+      const X = x => x0 + (x - v.xmin) * sx, Y = y => y1 - (y - v.ymin) * sy;
+      const cw = (this.charCell && this.charCell.w) || 7, ch = (this.charCell && this.charCell.h) || 13;
+      const inside = (x, y) => x >= x0 && x < x1 && y >= y0 && y < y1;
+      c.save();
+      c.fillStyle = this.colorOf(-1);
+      c.fillRect(0, 0, c.canvas.width, c.canvas.height);
+      c.strokeStyle = c.fillStyle = this.colorOf(0);
+      c.lineWidth = 1;
+      c.setLineDash([]);
+      c.strokeRect(x0 + 0.5, y0 + 0.5, A.wid, A.hgt);
+      c.font = SMALL_FONT;
+      let t = fmtG(v.xmin);
+      c.fillText(t, x0, y1 + ch + 2);
+      t = fmtG(v.xmax);
+      c.fillText(t, x1 - t.length * cw, y1 + ch + 2);
+      t = fmtG(v.ymin);
+      c.fillText(t, Math.max(0, 9 - t.length) * cw, y1);
+      t = fmtG(v.ymax);
+      c.fillText(t, Math.max(0, 9 - t.length) * cw, y0 + ch);
+      c.fillText(A.xlabel || '', Math.trunc((x0 + x1) / 2), y1 + ch + 2);
+      c.fillText(A.ylabel || '', 10 * cw, ch);
+
+      /* each point's line goes back to the point before it (Auto.lastx) */
+      c.save();
+      c.beginPath();
+      c.rect(x0, y0, A.wid, A.hgt);
+      c.clip();
+      let style = -1, px = NaN, py = NaN;
+      const n = D.n;
+      for (let k = 0; k < n; k++) {
+        const qx = X(D.x[k]), qy = Y(D.y[k]);
+        if (D.nw[k]) { px = qx; py = qy; }
+        if (D.d[k] === 1) {
+          const seg = clipSegment(qx, qy, px, py, x0 - 2, y0 - 2, x1 + 2, y1 + 2);
+          if (seg) {
+            const st = D.c[k] * 8 + D.lw[k];
+            if (st !== style) {
+              if (style >= 0) c.stroke();
+              c.beginPath();
+              style = st;
+              c.strokeStyle = this.colorOf(D.c[k]);
+              c.lineWidth = D.lw[k];
+            }
+            c.moveTo(Math.trunc(seg[0]) + 0.5, Math.trunc(seg[1]) + 0.5);
+            c.lineTo(Math.trunc(seg[2]) + 0.5, Math.trunc(seg[3]) + 0.5);
+          }
+        }
+        px = qx;
+        py = qy;
+      }
+      if (style >= 0) c.stroke();
+      c.restore();
+
+      /* periodic orbits: circles at the high and low values, where the
+         centre is inside the frame */
+      style = -1;
+      let fill = false;
+      for (let k = 0; k < n; k++) {
+        const d = D.d[k];
+        if (d !== 2 && d !== 3) continue;
+        const st = (D.c[k] * 8 + D.lw[k]) * 4 + d;
+        if (st !== style) {
+          if (style >= 0) fill ? c.fill() : c.stroke();
+          c.beginPath();
+          style = st;
+          fill = d === 2;
+          c.strokeStyle = c.fillStyle = this.colorOf(D.c[k]);
+          c.lineWidth = D.lw[k];
+        }
+        const qx = Math.trunc(X(D.x[k]));
+        for (const y of [D.y[k], D.y2[k]]) {
+          const qy = Math.trunc(Y(y));
+          if (!inside(qx, qy)) continue;
+          c.moveTo(qx + 3, qy);
+          c.arc(qx, qy, 3, 0, 2 * Math.PI);
+        }
+      }
+      if (style >= 0) fill ? c.fill() : c.stroke();
+
+      /* labels: a cross and the number, in the foreground colour */
+      c.strokeStyle = c.fillStyle = this.colorOf(0);
+      c.lineWidth = 1;
+      c.beginPath();
+      for (const [k, L] of D.labels) {
+        const qx = Math.trunc(X(D.x[k])), qy = Math.trunc(Y(D.y[k])), qy2 = Math.trunc(Y(D.y2[k]));
+        for (const y of [qy, qy2]) {
+          if (!inside(qx, y)) continue;
+          c.moveTo(qx - 4 + 0.5, y + 0.5); c.lineTo(qx + 4 + 0.5, y + 0.5);
+          c.moveTo(qx + 0.5, y - 4 + 0.5); c.lineTo(qx + 0.5, y + 4 + 0.5);
+        }
+        if (inside(qx, qy)) c.fillText(String(L.lab), qx + 8, qy + 8);
+      }
+      c.stroke();
+      c.restore();
+      this.autoPaintMs = performance.now() - t0;
+    }
+
+    /* the wheel over the diagram: zoom about the point under the mouse */
+    wheelAuto(s, e) {
+      const D = this.diag, A = D && D.axes;
+      if (!A || !A.wid || !A.hgt) return;
+      e.preventDefault();
+      const t0 = performance.now();
+      const v = this.autoRange(), [i, j] = s.at(e);
+      const fx = Math.min(1, Math.max(0, (i - A.x0) / A.wid)), fy = Math.min(1, Math.max(0, (A.y0 + A.hgt - j) / A.hgt));
+      const k = Math.pow(1.0015, e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1));
+      const cx = v.xmin + fx * (v.xmax - v.xmin), cy = v.ymin + fy * (v.ymax - v.ymin);
+      const w = (v.xmax - v.xmin) * k, h = (v.ymax - v.ymin) * k;
+      /* no further than doubles can tell apart */
+      if (!(Math.abs(w) > 1e-12 * Math.max(1, Math.abs(cx)) && Math.abs(h) > 1e-12 * Math.max(1, Math.abs(cy)))) return;
+      this.setAutoView({xmin: cx - fx * w, xmax: cx + (1 - fx) * w, ymin: cy - fy * h, ymax: cy + (1 - fy) * h});
+      this.autoZoomMs = performance.now() - t0;
+      this.hoverAuto(s, e);
+    }
+
+    /* Shift+drag or the middle button: move the diagram with the mouse */
+    panAuto(s, e) {
+      const A = this.diag.axes, v0 = Object.assign({}, this.autoRange()), [i0, j0] = s.at(e);
+      const kx = (v0.xmax - v0.xmin) / A.wid, ky = (v0.ymax - v0.ymin) / A.hgt;
+      const move = m => {
+        const [i, j] = s.at(m);
+        const dx = (i0 - i) * kx, dy = (j - j0) * ky;
+        this.setAutoView({xmin: v0.xmin + dx, xmax: v0.xmax + dx, ymin: v0.ymin + dy, ymax: v0.ymax + dy});
+      };
+      const up = () => {
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', up);
+      };
+      window.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+    }
+
+    /* the point of the diagram nearest pixel (i, j), within 8 pixels:
+       {k, low} (low: its low value, of a periodic orbit), or null */
+    autoNearest(i, j) {
+      const D = this.diag, A = D && D.axes, v = this.autoRange();
+      if (!A || !D.n || i < A.x0 || i >= A.x0 + A.wid || j < A.y0 || j >= A.y0 + A.hgt) return null;
+      const sx = A.wid / (v.xmax - v.xmin), sy = A.hgt / (v.ymax - v.ymin), yb = A.y0 + A.hgt;
+      let best = -1, low = false, bd = 64;
+      for (let k = 0; k < D.n; k++) {
+        const lab = D.labels.has(k);
+        if (!D.d[k] && !lab) continue;
+        const dx = A.x0 + (D.x[k] - v.xmin) * sx - i;
+        if (!(dx * dx < bd + 4)) continue;
+        /* a labelled point wins over a plain one a pixel or two nearer */
+        const bias = lab ? 4 : 0;
+        let dy = yb - (D.y[k] - v.ymin) * sy - j;
+        if (dx * dx + dy * dy - bias < bd) { bd = dx * dx + dy * dy - bias; best = k; low = false; }
+        if (D.y2[k] !== D.y[k]) {
+          dy = yb - (D.y2[k] - v.ymin) * sy - j;
+          if (dx * dx + dy * dy - bias < bd) { bd = dx * dx + dy * dy - bias; best = k; low = true; }
+        }
+      }
+      return best < 0 ? null : {k: best, low};
+    }
+
+    /* the tooltip naming the point under the mouse */
+    hoverAuto(s, e) {
+      const tip = this.autoTip;
+      if (!tip) return;
+      const [i, j] = s.at(e);
+      const hit = this.pendingAsk && this.pendingAsk.kind === 'drag' ? null : this.autoNearest(i, j);
+      if (!hit) {
+        tip.hidden = true;
+        return;
+      }
+      const D = this.diag, A = D.axes, k = hit.k, L = D.labels.get(k);
+      const num = x => (x === null || !isFinite(x) ? String(x) : String(Number(x.toPrecision(7))));
+      const kind = D.f2[k] ? `${DIAG_CURVES[D.f2[k]] || 'two-parameter'} curve` : DIAG_TYPES[D.ty[k]] || '';
+      const two = D.y2[k] !== D.y[k];
+      tip.textContent = '';
+      tip.append(el('div', 'xpp-auto-tip-head', `Branch ${D.br[k]}, point ${D.pt[k]}: ${kind}`));
+      if (L) tip.append(el('div', 'xpp-auto-tip-label', `${L.sym ? L.sym + ' ' : ''}label ${L.lab}`));
+      tip.append(el('div', '', `${A.xlabel}=${num(D.x[k])}  ${A.ylabel}=${num(hit.low ? D.y2[k] : D.y[k])}` +
+        (two ? (hit.low ? ' (low)' : ' (high)') : '')));
+      tip.hidden = false;
+      /* beside the mouse, kept inside the diagram */
+      const r = s.canvas.getBoundingClientRect();
+      const mx = e.clientX - r.left, my = e.clientY - r.top;
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      tip.style.left = `${mx + 14 + tw > r.width ? Math.max(0, mx - 14 - tw) : mx + 14}px`;
+      tip.style.top = `${my + 14 + th > r.height ? Math.max(0, my - 14 - th) : my + 14}px`;
+    }
+
     autoLog(line) {
       if (!this.autoLogText) return;
       this.autoLogText.textContent += line + '\n';
@@ -1478,6 +1838,9 @@
     }
 
     closeAuto() {
+      this.diag = null;
+      this.autoView = null;
+      this.autoTip = null;
       if (this.autoFrame) this.autoFrame.remove();
       this.removePage(101);
       this.autoFrame = null;
@@ -1875,6 +2238,13 @@
 
     onCanvasDown(s, e) {
       const a = this.pendingAsk;
+      if (s.id === 101 && (e.button === 1 || (e.button === 0 && e.shiftKey)) && this.diag && this.diag.axes &&
+          !(a && (a.kind === 'rubber' || a.kind === 'drag'))) {
+        e.preventDefault(); /* no autoscroll, no text selection */
+        this.autoPanned = e.button === 0; /* a click follows a left button */
+        this.panAuto(s, e);
+        return;
+      }
       this.answeredByPress = !!a; /* the click that follows is not a new action */
       const v = this.state && this.state.view;
       if (!a && v && v.three && v.win === s.id && !this.busy) {
@@ -1888,7 +2258,7 @@
         if (s.id >= 2 && s.id <= 10 && !this.busy) this.send({cmd: 'click', win: s.id});
         return;
       }
-      const [x, y] = s.at(e);
+      const [x, y] = s.id === 101 ? this.autoCorePx(s, e) : s.at(e);
       if (a.kind === 'drag') {
         /* Scroll: every pointer event answers one drag ask */
         this.dragEvents = [];
@@ -2017,6 +2387,8 @@
       }
       /* a click or key is wanted in a window: bring its tab forward */
       if (a.win !== undefined) this.showPage(a.win === 102 || a.win === 103 ? 101 : a.win);
+      /* a box or a drag on the diagram is in the core's pixels */
+      if (a.win === 101 && (a.kind === 'rubber' || a.kind === 'drag')) this.resetAutoView();
       switch (a.kind) {
         case 'menu': this.askMenu(a); break;
         case 'choice': this.askChoice(a); break;

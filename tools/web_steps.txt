@@ -192,6 +192,16 @@ click Run
 shot 121-auto-run-menu css=.xpp-dialog
 click Steady state
 shot 122-auto-steady
+# the wheel zooms the diagram on the client, from its data: nothing is sent
+eval const cv = document.querySelector('.xpp-auto-top>div>canvas'), r = cv.getBoundingClientRect(), D = client.diag, A = D && D.axes; if (!A) throw new Error('no diagram data'); const k = [...D.labels.keys()].find(k => D.labels.get(k).lab === 2); if (k === undefined) throw new Error('no label 2 in the data'); window.labPx = [A.x0 + (D.x[k] - A.xmin) * A.wid / (A.xmax - A.xmin), A.y0 + A.hgt - (D.y[k] - A.ymin) * A.hgt / (A.ymax - A.ymin)]; let sent = 0; const send = client.send; client.send = c => { sent++; return send(c); }; for (let i = 0; i < 4; i++) cv.dispatchEvent(new WheelEvent('wheel', {deltaY: -120, clientX: r.left + labPx[0] * r.width / cv.width, clientY: r.top + labPx[1] * r.height / cv.height, bubbles: true, cancelable: true})); client.send = send; if (sent) throw new Error('a wheel zoom sent ' + sent + ' commands'); if (!client.autoView || !(client.autoView.xmax - client.autoView.xmin < A.xmax - A.xmin)) throw new Error('the wheel did not zoom: ' + JSON.stringify(client.autoView)); cv.dispatchEvent(new MouseEvent('mouseleave'))
+shot 122a-auto-wheel-zoom css=.xpp-auto-top>div
+# the point under the mouse, with its label
+eval const cv = document.querySelector('.xpp-auto-top>div>canvas'), r = cv.getBoundingClientRect(); cv.dispatchEvent(new MouseEvent('mousemove', {clientX: r.left + labPx[0] * r.width / cv.width, clientY: r.top + labPx[1] * r.height / cv.height, bubbles: true})); const tip = document.querySelector('.xpp-auto-tip'); if (!tip || tip.hidden || !/label 2/.test(tip.textContent)) throw new Error('no tooltip with label 2: ' + (tip && tip.textContent))
+shot 122b-auto-hover css=.xpp-auto-top>div
+# reDraw is the core's picture again
+eval document.querySelector('.xpp-auto-top>div>canvas').dispatchEvent(new MouseEvent('mouseleave'))
+click reDraw
+eval if (client.autoView) throw new Error('reDraw left the local view')
 click Grab
 key ArrowRight
 key ArrowRight

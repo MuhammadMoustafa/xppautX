@@ -127,6 +127,8 @@ void x11_auto_scroll_window(void);
 int x11_auto_grab_event(int *x, int *y);
 void x11_auto_show_hint(void);
 void x11_auto_grab_end(int done);
+/* X11 draws the diagram from its primitives only */
+static void x11_auto_diagram(const XppDiagPoint *p) { (void)p; }
 void x11_init_txtview(void);
 void x11_create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                        double *ev, int n);
@@ -249,6 +251,7 @@ static const XppUi x11_ui = {
     .auto_grab_event = x11_auto_grab_event,
     .auto_show_hint = x11_auto_show_hint,
     .auto_grab_end = x11_auto_grab_end,
+    .auto_diagram = x11_auto_diagram,
     .init_txtview = x11_init_txtview,
     .show_eq_box = x11_create_eq_box,
     .redraw_menu = x11_draw_help,

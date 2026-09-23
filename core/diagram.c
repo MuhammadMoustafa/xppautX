@@ -216,6 +216,7 @@ void redraw_diagram()
  
     if(d->ntot==1)flag=0;
     else flag=1;
+    auto_point_id(d->ibr,d->ntot,d->itp);
     add_point(d->par,d->per,d->uhi,d->ulo,d->ubar,d->norm,type,flag,
 	      d->lab,d->nfpar,d->icp1,d->icp2,d->icp3,d->icp4,d->flag2,d->evr,d->evi);
     d=d->next;

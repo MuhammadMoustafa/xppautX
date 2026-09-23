@@ -58,6 +58,7 @@ static void hl_draw_frect(int x, int y, int w, int h) { (void)x; (void)y; (void)
 static void hl_draw_special_text(int x, int y, char *s, int size) { (void)x; (void)y; (void)s; (void)size; }
 static void hl_auto_make_window(char *w, char *i) { (void)w; (void)i; }
 static void hl_auto_circle(int x, int y, int r) { (void)x; (void)y; (void)r; }
+static void hl_auto_diagram(const XppDiagPoint *p) { (void)p; }
 static void hl_auto_draw_info(char *s, int x, int y) { (void)s; (void)x; (void)y; }
 static int hl_auto_grab_event(int *x, int *y) { (void)x; (void)y; return 27; }
 static int hl_auto_check_abort(int *iflag) { *iflag = 0; return 0; }
@@ -206,6 +207,7 @@ XppUi xpp_ui = {
     .auto_grab_event = hl_auto_grab_event,
     .auto_show_hint = hl_void,
     .auto_grab_end = hl_int,
+    .auto_diagram = hl_auto_diagram,
     .init_txtview = hl_void,
     .show_eq_box = hl_show_eq_box,
     .redraw_menu = hl_void,
@@ -345,6 +347,7 @@ int auto_pop_up_list(char *title, char **list, char *key, int n, int max,
     return xpp_ui.auto_choose_key(title, list, key, n, max, def, x, y, hints, httxt);
 }
 void auto_scroll_window(void) { xpp_ui.auto_scroll_window(); }
+void auto_diagram(const XppDiagPoint *p) { xpp_ui.auto_diagram(p); }
 void init_txtview(void) { xpp_ui.init_txtview(); }
 void create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                    double *ev, int n)

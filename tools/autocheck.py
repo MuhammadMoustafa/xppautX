@@ -16,7 +16,7 @@ measurements without failing on the latency limits, for comparing builds.
 """
 import argparse, json, os, shutil, subprocess, sys, tempfile, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import Server, is_idle, is_ask, draws, draw_ops, last_picture
+from xppclient import Server, is_idle, is_ask, is_state, draws, draw_ops, last_picture
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -71,6 +71,81 @@ def grab_hopf(s):
     s.collect(is_idle)
 
 
+class Diagram:
+    """the AUTO diagram as the client keeps it from "diagram" events"""
+
+    def __init__(self):
+        self.axes, self.pts = None, []
+
+    def apply(self, evs):
+        for e in evs:
+            if e.get('ev') != 'diagram':
+                continue
+            if e['op'] in ('axes', 'reset'):
+                if e['op'] == 'reset':
+                    del self.pts[e['keep']:]
+                self.axes = e
+            elif e['op'] == 'add':
+                assert e['from'] <= len(self.pts), (e['from'], len(self.pts))
+                del self.pts[e['from']:]
+                for r in e['runs']:
+                    labs = {i: lab for i, lab, sym in r.get('lab', [])}
+                    for i, x in enumerate(r['x']):
+                        self.pts.append({'br': r['br'], 'pt': r['pt'] + i, 'd': r['d'], 'c': r['c'], 'x': x,
+                                         'y': r['y'][i], 'y2': (r.get('y2') or r['y'])[i], 'lab': labs.get(i, 0),
+                                         'new': i == 0 and r.get('new', 0)})
+        return self
+
+    def visible(self, a, b):
+        """whether auto_line draws some of the segment a-b (clipped to the axes)"""
+        ax, ay, bx, by = a['x'], a['y'], b['x'], b['y']
+        t0, t1 = 0.0, 1.0
+        for p, q in ((ax - bx, ax - self.axes['xmin']), (bx - ax, self.axes['xmax'] - ax),
+                     (ay - by, ay - self.axes['ymin']), (by - ay, self.axes['ymax'] - ay)):
+            if p == 0:
+                if q < 0:
+                    return False
+            elif p < 0:
+                t0 = max(t0, q / p)
+            else:
+                t1 = min(t1, q / p)
+        return t0 <= t1
+
+    def inside(self, x, y):
+        """chk_auto_bnds"""
+        i, j = self.pixel(x, y)
+        a = self.axes
+        return a['x0'] <= i < a['x0'] + a['wid'] and a['y0'] <= j < a['y0'] + a['hgt']
+
+    def pixel(self, x, y):
+        """auto_nox.c IXVal, IYVal"""
+        a = self.axes
+        return (int(a['wid'] * (x - a['xmin']) / (a['xmax'] - a['xmin'])) + a['x0'],
+                a['hgt'] - int(a['hgt'] * (y - a['ymin']) / (a['ymax'] - a['ymin'])) + a['y0'])
+
+
+def segments_by_color(ops):
+    """the line segments of window 101's ops by colour, and their ends"""
+    n, ends, col = {}, set(), 0
+    for o in ops:
+        if o[0] == 'color':
+            col = o[1]
+        elif o[0] in ('poly', 'line'):
+            v = list(zip(o[1::2], o[2::2]))
+            n[col] = n.get(col, 0) + len(v) - 1
+            ends.update(v)
+    return n, ends
+
+
+def diagram_ops(evs):
+    return [e['op'] for e in evs if e.get('ev') == 'diagram']
+
+
+def same_axes(axes, st, keys=('xmin', 'xmax', 'ymin', 'ymax', 'x0', 'y0', 'wid', 'hgt')):
+    """the axes of the diagram data are state.auto (printed with %g)"""
+    return all(abs(axes[k] - st[k]) <= 1e-5 * max(1, abs(st[k])) for k in keys)
+
+
 def ops_by_kind(ops):
     n = {}
     for o in ops:
@@ -85,10 +160,35 @@ def section_draw():
     s.collect(is_idle)
     open_auto(s)
     s.send(cmd='size', win=101, w=500, h=300)
-    s.collect(is_idle)
+    evs, _ = s.collect(is_idle)
+    dg = Diagram().apply(evs)
     evs = run_menu(s, 's')
     pts = sum(1 for o in draw_ops(evs, 101) if o[0] in ('line', 'poly'))
     got = {'run': {w: last_picture(evs, w) for w in (102, 103)}}
+
+    # the diagram's data (docs/protocol.md "diagram") is what was drawn: a
+    # segment back to the point before for every line point, in the colour
+    # of its stability, and a cross of two segments at a label's y and y2,
+    # all where the axes show them
+    dg.apply(evs)
+    lines, branches = {}, {}
+    for k, p in enumerate(dg.pts):
+        branches[p['br']] = branches.get(p['br'], 0) + 1
+        if p['d'] == 1 and dg.visible(p, p if p['new'] or k == 0 else dg.pts[k - 1]):
+            lines[p['c']] = lines.get(p['c'], 0) + 1
+        if p['lab']:
+            lines[0] = lines.get(0, 0) + 2 * (dg.inside(p['x'], p['y']) + dg.inside(p['x'], p['y2']))
+    drawn, ends = segments_by_color(draw_ops(evs, 101))
+    print('INFO steady run: points by branch %s, data %d B, drawing %d B' % (
+        branches, sum(len(json.dumps(e)) for e in evs if e.get('ev') == 'diagram'),
+        sum(len(json.dumps(e)) for e in draws(evs, 101))))
+    check('the diagram data of a steady run has every point drawn (segments by colour)',
+          len(dg.pts) > 20 and lines == drawn, 'data %s drawing %s' % (lines, drawn))
+    off = [p for p in dg.pts if p['d'] == 1 and dg.inside(p['x'], p['y']) and not any(
+        abs(dg.pixel(p['x'], p['y'])[0] - x) <= 1 and abs(dg.pixel(p['x'], p['y'])[1] - y) <= 1 for x, y in ends)]
+    check('and every point is where the drawing has it', not off, str(off[:3]))
+    st = [e for e in evs if is_state(e)][-1]['auto']
+    check('the diagram axes are the AUTO ranges', same_axes(dg.axes, st), 'axes %s state %s' % (dg.axes, st))
 
     s.send(cmd='auto', op='redraw')
     evs, _ = s.collect(is_idle)
@@ -100,6 +200,8 @@ def section_draw():
           % (len([e for e in evs if e.get('ev') == 'draw']), n101, len(draws(evs, 102)), ops_by_kind(ops), longest))
     check('a reDraw arrives in a few draw events', len([e for e in evs if e.get('ev') == 'draw']) <= 10,
           '%d events' % len([e for e in evs if e.get('ev') == 'draw']))
+    check('a reDraw of the same diagram sends its axes, not its points again', diagram_ops(evs) == ['axes'],
+          str(diagram_ops(evs)))
     check('a reDraw joins the branch into polylines', longest >= 10, 'longest poly %d points' % longest)
 
     s.send(cmd='auto', op='grab')
@@ -137,6 +239,28 @@ def section_draw():
     cursor_ops = [o for o in draw_ops(esc_evs, 101) if o[0] == 'cursor']
     check('Esc from a grab leaves the cursor hidden',
           bool(cursor_ops) and cursor_ops[-1] == ['cursor'], str(cursor_ops))
+
+    # Axes/hI-lo plots another quantity: it clears the diagram (a reset that
+    # keeps nothing), and its reDraw sends every point again; a Fit after
+    # that only sends the new axes
+    n = len(dg.pts)
+    s.send(cmd='auto', op='axes')
+    evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'i'},
+                                     'form': lambda e: {'ok': 1, 'values': e['values']}})
+    s.send(cmd='auto', op='redraw')
+    more, _ = s.collect(is_idle)
+    evs += more
+    dg.apply(evs)
+    resets = [e for e in evs if e.get('ev') == 'diagram' and e['op'] == 'reset']
+    check('Axes/hI-lo then reDraw: a reset, then every point again',
+          diagram_ops(evs)[:1] == ['reset'] and resets[0]['keep'] == 0 and 'add' in diagram_ops(evs) and
+          len(dg.pts) == n and dg.axes['plot'] == 2, '%s, %d points of %d' % (diagram_ops(evs), len(dg.pts), n))
+    s.send(cmd='auto', op='axes')
+    evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'f'}})
+    dg.apply(evs)
+    st = [e for e in evs if is_state(e)][-1]['auto']
+    check('Axes/Fit sends the fitted axes only', diagram_ops(evs) == ['axes'] and same_axes(dg.axes, st),
+          '%s axes %s state %s' % (diagram_ops(evs), dg.axes, st))
     s.close()
 
     got = json.loads(json.dumps(got))  # window keys as strings, like the file
