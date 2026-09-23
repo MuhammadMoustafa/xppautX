@@ -4,6 +4,7 @@ import type {Transport} from './protocol/transport';
 import type {AskEvent, Command, XppEvent} from './protocol/types';
 import {createStore, type Store} from './store/store';
 import {initialState, reduce, type Action, type AppState} from './store/state';
+import type {ValueEdit} from './store/values';
 
 export class Session {
   readonly store: Store<AppState, Action>;
@@ -71,5 +72,50 @@ export class Session {
   abort(): void {
     this.store.dispatch({type: 'aborting'});
     this.transport.send({cmd: 'abort'});
+  }
+
+  /* ---- values panel (docs/ui-v2.md T3, docs/protocol.md `set`/`slide`/`default`/`userbut`) ---- */
+
+  /** remember an edit for Undo (A12), without sending anything: the caller sends `set` or `slide` itself */
+  recordEdit(edit: ValueEdit): void {
+    this.store.dispatch({type: 'values', action: {type: 'edit', edit}});
+  }
+
+  /** a parameter or initial condition box left with a new value */
+  setValue(kind: 'par' | 'ic', name: string, text: string, previous: string): void {
+    this.recordEdit({kind, name, previous});
+    this.send({cmd: 'set', kind, name, text});
+  }
+
+  /** a boundary condition or delay box (by position: docs/protocol.md, BC names all read "0=") */
+  setValueByIndex(kind: 'bc' | 'delay', index: number, text: string, previous: string): void {
+    this.recordEdit({kind, index, previous});
+    this.send({cmd: 'set', kind, index, text});
+  }
+
+  /** a slider dragged: only the latest position while busy matters, like the classic panel */
+  slide(name: string, value: number): void {
+    this.send({cmd: 'slide', name, value, rerun: 1});
+  }
+
+  /** Ctrl+Z or the Undo button: sends `set` again with the previous text (A12) */
+  undoValue(): void {
+    const {history} = this.store.getState().values;
+    const last = history[history.length - 1];
+    if (!last) return;
+    this.store.dispatch({type: 'values', action: {type: 'undo'}});
+    if (last.index !== undefined) this.send({cmd: 'set', kind: last.kind, index: last.index, text: last.previous});
+    else this.send({cmd: 'set', kind: last.kind, name: last.name, text: last.previous});
+  }
+
+  /** the Default button: values from the ODE file (not itself undoable: A12) */
+  defaultValues(kind: 'par' | 'ic'): void {
+    this.store.dispatch({type: 'values', action: {type: 'defaulted', kind}});
+    this.send({cmd: 'default', kind});
+  }
+
+  /** an `@ button` of the ODE file */
+  userButton(index: number): void {
+    this.send({cmd: 'userbut', index});
   }
 }

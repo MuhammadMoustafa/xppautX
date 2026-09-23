@@ -4,8 +4,11 @@
    and asserts what the page's store and plot hold (window.__xpp), never
    pixels. A desktop session (integrate from the keyboard, the plotted
    numbers against output.dat, hover, wheel and box zoom, undo, reset, pan),
-   keyboard-only use of the plot and of a prompt, and a phone-sized one
-   (390x844, touch: no sideways scroll, the menu drawer, pinch, tap, pan).
+   the values panel (docs/ui-v2.md T3: edit a parameter, a slider by
+   keyboard, undo, Tab reachability, the panel as a right column), keyboard-
+   only use of the plot and of a prompt, and a phone-sized one (390x844,
+   touch: no sideways scroll, the menu drawer, the values sheet, pinch, tap,
+   pan, 44px targets).
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [-v]
 
@@ -175,6 +178,64 @@ async function desktop(want) {
   await mouse('mouseMoved', 5, 5);
 }
 
+/* the values panel (docs/ui-v2.md T3): parameters, a slider, undo, layout */
+async function values() {
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
+  await sleep(150);
+  const box = await cdp.eval(`(() => { const r = document.querySelector('.values-panel').getBoundingClientRect();
+    return {left: r.left, right: r.right, top: r.top, width: r.width, winWidth: innerWidth}; })()`);
+  check('at 1400px wide the values panel is a right column',
+    box.width > 200 && box.right >= box.winWidth - 2 && box.top < 100, JSON.stringify(box));
+
+  /* edit a parameter: the field, then a new value, then the next state has it */
+  const field = await cdp.eval(`(() => { const l = [...document.querySelectorAll('.value-field .value-name')]
+    .find(e => e.textContent.toLowerCase() === 'iapp'); return l ? l.closest('.value-field').querySelector('input').id : null; })()`);
+  check('the iapp field is in the panel', !!field, String(field));
+  const before = await S(`(s.core.pars.find(p => p[0].toLowerCase() === 'iapp') || [])[1]`);
+  /* two round trips, not one: Preact's state update from 'input' must be flushed (a render) before blur reads it */
+  await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)}); el.focus();
+    el.value = '0.2'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await sleep(80);
+  await cdp.eval(`document.getElementById(${JSON.stringify(field)}).blur()`);
+  check('editing a parameter sends set: the next state has the new value',
+    await until(`Math.abs((s.core.pars.find(p => p[0].toLowerCase() === "iapp") || [])[1] - 0.2) < 1e-9 && !s.busy`, 'iapp=0.2'),
+    JSON.stringify(await S('s.core.pars')));
+
+  /* undo (Ctrl+Z with the focus still in the field): the core's state goes back */
+  await cdp.eval(`document.getElementById(${JSON.stringify(field)}).focus()`);
+  await key('z', 2); /* Ctrl+Z */
+  check('Ctrl+Z inside the panel undoes the edit: the core state is back to the old value',
+    await until(`Math.abs((s.core.pars.find(p => p[0].toLowerCase() === "iapp") || [])[1] - ${before}) < 1e-9 && !s.busy`, 'undo'),
+    JSON.stringify(await S('s.core.pars')));
+  check('the Undo button is disabled once the history is empty',
+    await cdp.eval(`[...document.querySelectorAll('.values-header button')].find(b => b.textContent === 'Undo').disabled`));
+
+  /* a slider by the keyboard: pick iapp for slot 0, then arrow keys move it and a new series arrives */
+  await cdp.eval(`(() => { const sel = document.getElementById('slider-pick-0');
+    sel.value = 'iapp'; sel.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  const n0 = await S('s.seriesCount');
+  await cdp.eval(`document.getElementById('slider-lo-0').value = '0'; document.getElementById('slider-lo-0')
+    .dispatchEvent(new Event('input', {bubbles: true}));
+    document.getElementById('slider-hi-0').value = '0.5'; document.getElementById('slider-hi-0')
+    .dispatchEvent(new Event('input', {bubbles: true}));
+    document.querySelector('.value-slider-range').focus(); `);
+  await key('ArrowRight');
+  await key('ArrowRight');
+  check('a slider moved by the keyboard sends slide: a new series arrives',
+    await until(`s.seriesCount > ${n0} && s.series.rows === 601 && !s.busy`, 'slide series'),
+    JSON.stringify(await S('[s.seriesCount, s.series && s.series.rows]')));
+
+  /* every control in the panel is reachable by Tab, in order, without a trap: start from the very top */
+  await cdp.eval(`document.querySelector('.skip-link').focus()`);
+  let steps = 0, reached = false;
+  while (steps < 200) {
+    await key('Tab');
+    steps++;
+    if (await cdp.eval(`!!document.activeElement.closest('.values-panel')`)) { reached = true; break; }
+  }
+  check(`Tab reaches the values panel (${steps} presses)`, reached);
+}
+
 async function keyboardOnly() {
   /* Tab from the top of the page to the plot */
   await cdp.eval('document.activeElement && document.activeElement.blur()');
@@ -240,7 +301,8 @@ async function phone() {
     && await cdp.eval(`getComputedStyle(document.querySelector('.menu-panel')).visibility === 'hidden'`));
   const coarse = await cdp.eval(`matchMedia('(pointer: coarse)').matches`);
   const small = await cdp.eval(`[...document.querySelectorAll('button, .button')].filter(b => b.getClientRects().length
-    && getComputedStyle(b).visibility !== 'hidden' && !b.closest('.menu-panel')).map(b => [b.textContent.trim(), b.getBoundingClientRect().height]).filter(([, h]) => h < 44)`);
+    && getComputedStyle(b).visibility !== 'hidden' && !b.closest('.menu-panel') && !b.closest('.values-panel'))
+    .map(b => [b.textContent.trim(), b.getBoundingClientRect().height]).filter(([, h]) => h < 44)`);
   check('touch targets are at least 44px high', coarse && small.length === 0, `coarse=${coarse} ${JSON.stringify(small)}`);
   const t = await cdp.eval(`(() => { const r = document.querySelector('.menu-toggle').getBoundingClientRect();
     return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()`);
@@ -252,6 +314,26 @@ async function phone() {
     await cdp.eval(`document.activeElement.outerHTML.slice(0, 120)`));
   await key('Escape');
   check('Escape closes it', await until('!s.drawerOpen', 'close drawer'));
+
+  /* the values panel is a full-screen sheet with a Back button (R6) */
+  check('the values sheet starts closed', !(await S('s.valuesOpen'))
+    && await cdp.eval(`getComputedStyle(document.querySelector('.values-panel')).visibility === 'hidden'`));
+  const vt = await cdp.eval(`(() => { const r = document.querySelector('.values-toggle').getBoundingClientRect();
+    return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()`);
+  await touch('touchStart', [vt]);
+  await touch('touchEnd', []);
+  check('tapping Values opens the sheet', await until('s.valuesOpen', 'values sheet')
+    && await cdp.eval(`getComputedStyle(document.querySelector('.values-panel')).visibility === 'visible'`));
+  check('the sheet covers the viewport', await cdp.eval(`(() => { const r = document.querySelector('.values-panel')
+    .getBoundingClientRect(); return r.width >= innerWidth - 1 && r.height >= innerHeight - 1; })()`));
+  check('its first control has the focus', await until(`document.activeElement.closest('.values-panel')`, 'sheet focus'));
+  const sheetSmall = await cdp.eval(`[...document.querySelectorAll('.values-panel button, .values-panel select')]
+    .filter(b => b.getClientRects().length).map(b => [b.tagName + ':' + (b.textContent || b.id || '').trim(),
+      b.getBoundingClientRect().height]).filter(([, h]) => h < 44)`);
+  check('the sheet\'s own targets are at least 44px high', sheetSmall.length === 0, JSON.stringify(sheetSmall));
+  await cdp.eval(`document.querySelector('.values-back').click()`);
+  check('Back closes the sheet', await until('!s.valuesOpen', 'close values sheet'));
+  check('the focus returns to the Values button', await until(`document.activeElement.closest('.values-toggle')`, 'values focus back'));
 
   /* pinch out about the middle */
   const a = await area(), cx = a.x + a.w / 2, cy = a.y + a.h / 2;
@@ -304,6 +386,7 @@ async function main() {
     await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     await cdp.send('Page.navigate', {url: server.url.replace('/?t=', '/v2/?t=')});
     await desktop(want);
+    await values();
     await keyboardOnly();
     await phone();
     const errors = await S('s.log.filter(l => l.kind === "error").map(l => l.text)');

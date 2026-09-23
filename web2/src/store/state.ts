@@ -4,6 +4,7 @@
    Pure: no DOM, no I/O, no clock. */
 import type {AskEvent, Command, HelloEvent, StateEvent, XppEvent} from '../protocol/types';
 import {seriesFromEvent, type PlotSeries} from './series';
+import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
 
 export type Theme = 'light' | 'dark' | 'system';
 
@@ -63,6 +64,10 @@ export interface AppState {
   theme: Theme;
   /** the command menu, a drawer on narrow screens */
   drawerOpen: boolean;
+  /** parameters, ICs, BCs, delays, sliders (T3): pending/error/undo, see store/values.ts */
+  values: ValuesState;
+  /** the values panel, a full-screen sheet on narrow screens */
+  valuesOpen: boolean;
 }
 
 export type Action =
@@ -77,7 +82,9 @@ export type Action =
   | {type: 'toast'; kind: Toast['kind']; text: string}
   | {type: 'dismiss'; id: number}
   | {type: 'drawer'; open: boolean}
-  | {type: 'theme'; theme: Theme};
+  | {type: 'theme'; theme: Theme}
+  | {type: 'values'; action: ValuesAction}
+  | {type: 'valuesPanel'; open: boolean};
 
 const HOME: Viewport = {x: null, y: null};
 
@@ -102,6 +109,8 @@ export const initialState: AppState = {
   nextToast: 1,
   theme: 'system',
   drawerOpen: false,
+  values: initialValues,
+  valuesOpen: false,
 };
 
 const LOG_KEEP = 200, TOASTS_KEEP = 4, HISTORY_KEEP = 50;
@@ -142,14 +151,19 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     case 'ask':
       return {...state, ask: ev};
     case 'idle':
-      return {...state, busy: false, stopping: false, ask: null, progress: null};
+      return {
+        ...state, busy: false, stopping: false, ask: null, progress: null,
+        values: reduceValues(state.values, {type: 'settled'}),
+      };
     case 'progress':
       return {...state, progress: ev.of > 0 ? {n: ev.n, of: ev.of} : null};
     case 'title':
       return {...state, title: ev.text};
     case 'message':
       if (ev.error !== undefined) {
-        return addToast(addLog({...state, bottom: ev.error}, {kind: 'error', text: ev.error}), 'error', ev.error);
+        const withLog = addToast(addLog({...state, bottom: ev.error}, {kind: 'error', text: ev.error}), 'error', ev.error);
+        /* a rejected `set`/`slide`: shown as that field's error too (A11), not only the toast */
+        return {...withLog, values: reduceValues(withLog.values, {type: 'error', text: ev.error})};
       }
       if (ev.bottom !== undefined) return {...state, bottom: ev.bottom};
       return state;
@@ -200,5 +214,9 @@ export function reduce(state: AppState, action: Action): AppState {
       return action.open === state.drawerOpen ? state : {...state, drawerOpen: action.open};
     case 'theme':
       return {...state, theme: action.theme};
+    case 'values':
+      return {...state, values: reduceValues(state.values, action.action)};
+    case 'valuesPanel':
+      return action.open === state.valuesOpen ? state : {...state, valuesOpen: action.open};
   }
 }

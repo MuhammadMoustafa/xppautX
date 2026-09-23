@@ -113,6 +113,23 @@ test('the plot keys pan, zoom, reset and step through points', () => {
   assert.equal(plotKey('i', ctx), null, 'letters are XPP hotkeys');
 });
 
+test('a set that the core rejects lands on the pending value field, not only the toast (T3)', () => {
+  let s = reduce(initialState, {type: 'values', action: {type: 'edit', edit: {kind: 'par', name: 'iapp', previous: '0.05'}}});
+  s = ev(s, {ev: 'message', error: 'bad formula'});
+  assert.equal(s.values.errors['par:iapp'], 'bad formula');
+  assert.deepEqual(s.toasts.map(t => t.text), ['bad formula'], 'still a non-modal toast too (A11)');
+  s = ev(s, {ev: 'idle'});
+  assert.equal(s.values.pending, null);
+});
+
+test('the values panel is a sheet the store tracks for narrow screens', () => {
+  let s = reduce(initialState, {type: 'valuesPanel', open: true});
+  assert.equal(s.valuesOpen, true);
+  assert.equal(reduce(s, {type: 'valuesPanel', open: true}), s);
+  s = reduce(s, {type: 'valuesPanel', open: false});
+  assert.equal(s.valuesOpen, false);
+});
+
 test('zoomAbout keeps the point under the pointer', () => {
   const r = zoomAbout({x: {min: 0, max: 10}, y: {min: 0, max: 10}}, 0.2, 0.5, 0.5);
   assert.deepEqual(r, {x: {min: 1, max: 6}, y: {min: 2.5, max: 7.5}});

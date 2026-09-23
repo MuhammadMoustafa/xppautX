@@ -12,6 +12,7 @@ import {StatusBar} from './StatusBar';
 import {useDark} from './theme';
 import {TitleBar} from './TitleBar';
 import {Toasts} from './Toasts';
+import {ValuesPanel} from './ValuesPanel';
 
 /* what is wrong with the connection, in words, or nothing */
 function Banner() {
@@ -43,6 +44,7 @@ function Shell() {
         <PlotView dark={dark} />
         <Messages />
       </main>
+      <ValuesPanel />
       <StatusBar />
       <Toasts />
       <AskDialog />

@@ -13,6 +13,7 @@ export function TitleBar() {
   const file = useStore(s => s.hello?.file ?? '');
   const theme = useStore(s => s.theme);
   const drawer = useStore(s => s.drawerOpen);
+  const valuesOpen = useStore(s => s.valuesOpen);
   const busy = useStore(s => s.busy);
   const setTheme = () => {
     const t = NEXT_THEME[theme];
@@ -31,6 +32,8 @@ export function TitleBar() {
       <button onClick={setTheme} title="Theme: light, dark, or as the system">
         <span class="wide-only">Theme:</span> {THEME_NAME[theme]}
       </button>
+      <button class="values-toggle" aria-controls="values-panel" aria-expanded={valuesOpen}
+        onClick={() => session.store.dispatch({type: 'valuesPanel', open: !valuesOpen})}>Values</button>
       <a class="button classic" href={`/${location.search}`} title="The classic interface, with every window">Classic</a>
     </header>
   );
