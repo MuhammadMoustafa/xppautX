@@ -30,17 +30,21 @@ export interface TableState {
   page: BrowserEvent | null;
   /** the request in flight (or last sent), so the same block is not asked twice */
   pendingKey: string | null;
+  /** Export CSV is fetching the run block by block: the view asks for nothing meanwhile */
+  exporting: boolean;
   /** the text of the last Export CSV (A14: tests read it through __xpp, no download needed) */
   lastExport: string | null;
 }
 
-export const initialTable: TableState = {open: false, selected: 0, page: null, pendingKey: null, lastExport: null};
+export const initialTable: TableState =
+  {open: false, selected: 0, page: null, pendingKey: null, exporting: false, lastExport: null};
 
 export type TableAction =
   | {type: 'open'; open: boolean}
   | {type: 'select'; row: number}
   | {type: 'event'; ev: BrowserEvent}
   | {type: 'requested'; req: BrowserRequest | null}
+  | {type: 'exporting'}
   | {type: 'exported'; csv: string};
 
 export function reduceTable(state: TableState, action: TableAction): TableState {
@@ -61,16 +65,18 @@ export function reduceTable(state: TableState, action: TableAction): TableState 
     }
     case 'requested':
       return {...state, pendingKey: action.req ? JSON.stringify(action.req) : null};
+    case 'exporting':
+      return {...state, exporting: true};
     case 'exported':
-      return {...state, lastExport: action.csv};
+      return {...state, exporting: false, lastExport: action.csv};
   }
 }
 
 /* ---- paging: what to ask for so the visible rows are in `page` ---- */
 
 const ROW_BUFFER = 3; /* ask for 3x the visible window, like the classic browser: a small scroll needs nothing */
-const MAX_COUNT = 2000; /* the core's own cap (core/ui_json.c browser_rows) */
-const MAX_NCOL = 500; /* the core's own cap; comfortably more than a model has, so every column is always asked for */
+export const MAX_COUNT = 2000; /* the core's own cap (core/ui_json.c browser_rows) */
+export const MAX_NCOL = 500; /* the core's own cap; comfortably more than a model has, so every column is always asked for */
 
 /** the request to send so rows [visibleFrom, visibleFrom+visibleCount) are
     cached, or null when `page` already covers them. Always asks for every
@@ -97,15 +103,13 @@ export function rowAt(page: BrowserEvent | null, row: number): (number | null)[]
   return page.data[row - page.from];
 }
 
-/** the cached page as CSV, full precision (A14): exactly the digits the
-    core sent (docs/protocol.md `browser`: T at 8 significant digits, the
-    other columns at 7 -- a client cannot show more precision than it was
-    sent). Only the rows fetched so far, as docs/ui-v2.md T10 asks
-    ("CSV export done in the client from fetched data"): Export CSV first,
-    or scroll further and export again, for more of the run. */
-export function tableCsv(page: BrowserEvent | null): string {
-  if (!page || !page.data.length) return page ? page.cols.join(',') + '\n' : '';
-  const header = page.cols.join(',');
-  const lines = page.data.map(row => row.map(v => (v === null ? 'NaN' : String(v))).join(','));
-  return [header, ...lines].join('\n') + '\n';
+/** blocks of the run (in order, as session.exportTableCsv fetched them) as
+    CSV, full precision (A14): the digits the core sent, 9 significant, which
+    read back as exactly the stored single-precision numbers */
+export function tableCsv(blocks: BrowserEvent[]): string {
+  if (!blocks.length) return '';
+  const lines = [blocks[0].cols.join(',')];
+  for (const b of blocks)
+    for (const row of b.data) lines.push(row.map(v => (v === null ? 'NaN' : String(v))).join(','));
+  return lines.join('\n') + '\n';
 }

@@ -1092,10 +1092,11 @@ static void send_browser(void)
     for (i = br_from; i < last; i++) {
         if (i > br_from) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
-        buf_float(&b, my_browser.data[0][i], 8); /* as the X11 browser shows them */
+        /* 9 significant digits read back as exactly the stored floats (as series) */
+        buf_float(&b, my_browser.data[0][i], 9);
         for (j = br_col; j < br_col + br_ncol && j < maxcol; j++) {
             BUF_LIT(&b, ",");
-            buf_float(&b, my_browser.data[j][i], 7);
+            buf_float(&b, my_browser.data[j][i], 9);
         }
         BUF_LIT(&b, "]");
     }

@@ -71,6 +71,7 @@ export function TableView() {
   const session = useSession();
   const open = useStore(s => s.table.open);
   const page = useStore(s => s.table.page);
+  const exporting = useStore(s => s.table.exporting);
   const selected = useStore(s => s.table.selected);
   const coreRows = useStore(s => s.core?.rows ?? 0);
   const rows = Math.max(page?.rows ?? 0, coreRows);
@@ -123,9 +124,9 @@ export function TableView() {
   const first = Math.max(0, Math.floor(scrollTop / rowHeight));
 
   useEffect(() => {
-    if (!open || !rows) return;
+    if (!open || !rows || exporting) return;
     session.fetchTableRows(first, visibleCount);
-  }, [open, rows, first, visibleCount, page]);
+  }, [open, rows, first, visibleCount, page, exporting]);
 
   const scrollToRow = (row: number) => {
     const el = scroller.current;
@@ -170,8 +171,8 @@ export function TableView() {
   const items: {row: number; values: (number | null)[] | null}[] = [];
   for (let i = first; i < last; i++) items.push({row: i, values: rowAt(page, i)});
 
-  const exportCsv = () => {
-    const csv = session.exportTableCsv();
+  const exportCsv = async () => {
+    const csv = await session.exportTableCsv();
     const url = URL.createObjectURL(new Blob([csv], {type: 'text/csv'}));
     download('data.csv', url);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -182,9 +183,9 @@ export function TableView() {
       <div class="table-header">
         <button class="table-back" onClick={close}>Back</button>
         <h2>Data</h2>
-        <button class="small" onClick={exportCsv} disabled={!page?.data.length}
-          title="Save the rows fetched so far as a CSV file">
-          Export CSV
+        <button class="small" onClick={exportCsv} disabled={!page?.data.length || exporting}
+          title="Save every stored row as a CSV file">
+          {exporting ? 'Exporting…' : 'Export CSV'}
         </button>
       </div>
       <div class="table-tools">

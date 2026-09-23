@@ -82,9 +82,18 @@ test('open/close and export are tracked', () => {
   assert.equal(s.lastExport, 'T,V\n0,1\n');
 });
 
-test('tableCsv is the header then the cached rows, full precision, NaN for null', () => {
-  const p = page({cols: ['T', 'V'], data: [[0, -0.144], [0.05, null]]});
-  assert.equal(tableCsv(p), 'T,V\n0,-0.144\n0.05,NaN\n');
-  assert.equal(tableCsv(null), '');
-  assert.equal(tableCsv(page({cols: ['T', 'V'], data: []})), 'T,V\n');
+test('tableCsv is the header then the rows of every block in order, NaN for null', () => {
+  const a = page({cols: ['T', 'V'], data: [[0, -0.144], [0.05, null]]});
+  const b = page({cols: ['T', 'V'], from: 2, data: [[0.1, 0.25]]});
+  assert.equal(tableCsv([a, b]), 'T,V\n0,-0.144\n0.05,NaN\n0.1,0.25\n');
+  assert.equal(tableCsv([]), '');
+  assert.equal(tableCsv([page({cols: ['T', 'V'], data: []})]), 'T,V\n');
+});
+
+test('an export in progress is tracked until it is done', () => {
+  let s = reduceTable(initialTable, {type: 'exporting'});
+  assert.equal(s.exporting, true);
+  s = reduceTable(s, {type: 'exported', csv: 'T\n'});
+  assert.equal(s.exporting, false);
+  assert.equal(s.lastExport, 'T\n');
 });

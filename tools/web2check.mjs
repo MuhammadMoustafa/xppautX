@@ -269,7 +269,8 @@ async function dataTable(want) {
     await until('s.table.page && s.table.page.cols.length >= 2', 'table page'),
     JSON.stringify(await S('s.table.page && s.table.page.cols')));
 
-  const tol = (v, w) => Math.abs(v - w) <= 1e-6 * Math.abs(w) + 1e-9;
+  /* output.dat prints 8 digits, the table the exact float (9): they agree to 1e-7 */
+  const tol = (v, w) => Math.abs(v - w) <= 1e-7 * Math.abs(w) + 1e-30;
   const rowOk = (row, want500) => row && row.every((v, i) => tol(v, want500[i]));
 
   /* scroll to row 500 with the scrollbar */
@@ -308,13 +309,16 @@ async function dataTable(want) {
     `(() => { const ics = s.core.ics.map(p => p[1]); return Math.abs(ics[0] - ${want[499][1]}) < 1e-6 && !s.busy; })()`,
     'Enter=Get'), JSON.stringify(await S('s.core.ics')));
 
-  /* CSV export: the client's own, from the rows fetched so far (no download needed to check it) */
+  /* CSV export: every stored row, fetched block by block (no download needed to check it) */
   await cdp.eval(`document.querySelector('.table-header .small').click()`);
-  check('Export CSV records the exported text', await until('!!s.table.lastExport', 'csv'));
-  const csvOk = await cdp.eval(`(() => { const s = __xpp.state(), p = s.table.page;
-    const header = p.cols.join(','); const lines = p.data.map(r => r.map(v => v === null ? 'NaN' : String(v)).join(','));
-    return s.table.lastExport === [header, ...lines].join('\\n') + '\\n'; })()`);
-  check('the exported CSV is exactly the header and the cached rows', csvOk, await S('s.table.lastExport.slice(0, 80)'));
+  check('Export CSV records the exported text', await until('!!s.table.lastExport && !s.table.exporting', 'csv'));
+  const csv = (await S('s.table.lastExport')).trim().split('\n');
+  const r500 = csv[501] ? csv[501].split(',').map(Number) : [];
+  check('the exported CSV has the header and all 601 rows, row 500 as in output.dat',
+    csv.length === 602 && r500.length >= 3 && r500.every((v, k) => Math.abs(v - want[500][k]) <= 1e-7 * Math.abs(want[500][k]) + 1e-30),
+    `${csv.length} lines, row 500: ${csv[501]} vs ${want[500]}`);
+  check('the table asks for its own rows again after the export',
+    await until('s.table.page && s.table.page.from <= s.table.selected && s.table.selected < s.table.page.from + s.table.page.data.length', 'refetch'));
 
   /* every button (and the grid) reachable by Tab */
   await cdp.eval(`document.querySelector('.skip-link').focus()`);

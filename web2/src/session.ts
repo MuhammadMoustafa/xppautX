@@ -1,10 +1,10 @@
 /* The session: connects a transport to the store and is the one place that
    sends commands. Components call its methods, never the transport. */
 import type {Transport} from './protocol/transport';
-import type {AskEvent, Command, XppEvent} from './protocol/types';
+import type {AskEvent, BrowserEvent, Command, XppEvent} from './protocol/types';
 import {createStore, type Store} from './store/store';
 import {initialState, reduce, type Action, type AppState} from './store/state';
-import {planRequest, tableCsv} from './store/table';
+import {MAX_COUNT, MAX_NCOL, planRequest, tableCsv} from './store/table';
 import type {ValueEdit} from './store/values';
 
 /** the data browser's buttons (docs/protocol.md `browser` op; web/xpp-client.js's BROWSER_BUTTONS) */
@@ -171,13 +171,35 @@ export class Session {
     this.browserOp('get');
   }
 
-  /** the cached page as CSV (docs/ui-v2.md T10: "CSV export done in the
-      client from fetched data"); returns the text so the caller can offer
-      it as a download (plot/export.ts's download()) and tests can read it
-      through __xpp.state().table.lastExport without one */
-  exportTableCsv(): string {
-    const csv = tableCsv(this.store.getState().table.page);
+  /** every stored row as CSV (A14), fetched from the core block by block
+      and kept in the store (lastExport) for tests; the caller offers it as
+      a download. The view asks for nothing meanwhile (table.exporting), and
+      asks for its rows again once the export is done. */
+  async exportTableCsv(): Promise<string> {
+    const rows = this.store.getState().table.page?.rows ?? 0;
+    this.store.dispatch({type: 'table', action: {type: 'exporting'}});
+    const blocks: BrowserEvent[] = [];
+    for (let from = 0; from < rows; from += MAX_COUNT)
+      blocks.push(await this.browserBlock(from, MAX_COUNT));
+    const csv = tableCsv(blocks);
     this.store.dispatch({type: 'table', action: {type: 'exported', csv}});
     return csv;
   }
+
+  /** rows [from, from+count) of every column: the core answers a request
+      with `from` at once and in order (a control line, docs/protocol.md) */
+  private browserBlock(from: number, count: number): Promise<BrowserEvent> {
+    return new Promise(resolve => {
+      const before = this.store.getState().table.page;
+      const stop = this.store.subscribe(() => {
+        const page = this.store.getState().table.page;
+        if (page && page !== before && page.from === from) {
+          stop();
+          resolve(page);
+        }
+      });
+      this.send({cmd: 'browser', from, count, col: 1, ncol: MAX_NCOL});
+    });
+  }
+
 }
