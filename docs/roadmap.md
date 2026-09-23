@@ -15,21 +15,22 @@ The task board for the work after the 2026-09-23 batch (issues #1, #3,
 - The X11 front end is removed once the new UI covers it.
 
 Status: `ready` (can start), `running`, `review`, `done`, `blocked`
-(waits for the task named in "Needs").
+(waits for the task named in "Needs"). Each card is mirrored as a GitHub
+issue; the card here is the one kept up to date.
 
-| ID  | Task | Needs | Status |
-|-----|------|-------|--------|
-| W0  | C/C++ mixed build | none | running |
-| W1  | Screenshot tests become state tests | none | running |
-| W2  | Logging module, quiet by default | none | done (a47c1ad) |
-| W3  | No short-name limit | none | running |
-| W4  | Memory module and leak checks | W2 | ready |
-| W5  | New UI: design, protocol v2, scaffold | none | running |
-| W6  | New UI: the views | W5 | blocked |
-| W7  | Core refactor for single responsibility | W3, W4, W5 | blocked |
-| W8  | Remove the X11 front end | W6 | blocked |
-| W9  | WebAssembly build (proof of concept) | maintainer's OK to install emsdk | blocked |
-| W10 | Replayable interruptions in scripts | none | ready |
+| ID  | Issue | Task | Needs | Status |
+|-----|-------|------|-------|--------|
+| W0  | #12 | C/C++ mixed build | none | running |
+| W1  | #13 | Screenshot tests become state tests | none | running |
+| W2  | #14 | Logging module, quiet by default | none | done (a47c1ad) |
+| W3  | #15 | No short-name limit | none | running |
+| W4  | #16 | Memory module and leak checks | W2 | ready |
+| W5  | #17 | New UI: design, protocol v2, scaffold | none | running |
+| W6  | #18 | New UI: the views | W5 | blocked |
+| W7  | #19 | Core refactor for single responsibility | W3, W4, W5 | blocked |
+| W8  | #20 | Remove the X11 front end | W6 | blocked |
+| W9  | #21 | WebAssembly build (proof of concept) | maintainer's OK to install emsdk | blocked |
+| W10 | #22 | Replayable interruptions in scripts | none | ready |
 
 ## W0: C/C++ mixed build
 **Goal.** core/*.cpp builds next to core/*.c on Linux, Windows (MinGW,
