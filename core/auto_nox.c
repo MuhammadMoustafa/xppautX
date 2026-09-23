@@ -3319,6 +3319,12 @@ void DLINE(double a,double b,double c,double d)
 
 /* ---- grabbing a point on the bifurcation diagram, marking a branch and
    the hint line (logic from auto_x11.c) ---- */
+/* auto_c.h's LEFT/RIGHT (1/2, unused below) are for AUTO's own
+   continuation direction; undef them so mykeydef.h's key codes (6/2,
+   used by the switch below) don't warn about redefining a different
+   value. */
+#undef LEFT
+#undef RIGHT
 #include "mykeydef.h"
 extern char *aspecial_hint[];
 DIAGRAM *CUR_DIAGRAM;

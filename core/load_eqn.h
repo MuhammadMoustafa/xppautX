@@ -16,6 +16,7 @@ override the below definition.
 #ifndef XPP_MAX_NAME
 #define XPP_MAX_NAME 300
 #if (XPP_MAX_NAME > FILENAME_MAX)
+	#undef XPP_MAX_NAME
 	#define XPP_MAX_NAME FILENAME_MAX
 #endif
 #endif
