@@ -612,7 +612,7 @@ void a_msg(i,v)
      int v;
 {
   if(v==0||TipsFlag==0)return;
-  snprintf(Auto.hinttxt,255,auto_hint[i]);
+  snprintf(Auto.hinttxt,255,"%s",auto_hint[i]);
   display_auto(AutoW.hint);
 }
 

@@ -1331,7 +1331,7 @@ Window *root,hwin;
 			     for(i=0;i<p.n;i++)if(ev.xcrossing.window==p.w[i]){
 			       XSetWindowBorderWidth(display,p.w[i],1);
 			       if(TipsFlag){
-			       sprintf(httxt,hints[i]);
+			       sprintf(httxt,"%s",hints[i]);
 			       XClearWindow(display,hwin);
 			       XDrawString(display,hwin,gc,5,CURY_OFF,
 					   hints[i],strlen(hints[i]));
