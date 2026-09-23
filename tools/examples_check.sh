@@ -24,6 +24,9 @@ for f in $(find examples -name '*.ode' | sort); do
     run=$out/$tag
     rm -rf "$run" && mkdir -p "$run"
     cp "$dir"/* "$run"/ 2>/dev/null
+    # a stray output.dat in the example directory would be copied in and then
+    # compared as if the run had produced it, which reads as a difference
+    rm -f "$run"/output.dat
     bin="$top/xppaut"; [ $tag = base ] || bin="$top/xppautX"; set -- -silent
     ( cd "$run" && timeout "$timeout" "$bin" "$(basename "$f")" "$@" > run.log 2>&1 )
     echo $? > "$run/status"
