@@ -6,9 +6,11 @@
    Threads: the core runs on the main thread and calls xpp_http_emit; one
    thread accepts and answers HTTP requests and pushes the page's commands
    into the inbox (xpp_inbox.h), where the core takes them; one thread
-   copies what xppaut prints to the terminal and into the page's log. This
-   file includes no core header, so the socket and Windows headers cannot
-   clash with core names. */
+   copies what xppaut prints to the terminal and into the page's log. The
+   model's folder is served as /files (xpp_files.h: listing, reading, and
+   uploads streamed to a temporary file). This file includes no core header
+   but those small C APIs (xpp_mem.h, xpp_inbox.h, xpp_files.h), so the
+   socket and Windows headers cannot clash with core names. */
 /* macOS hides the BSD names (INADDR_LOOPBACK) under _XOPEN_SOURCE=600;
    this must come before any system header. */
 #ifdef __APPLE__
@@ -17,6 +19,7 @@
 #include "xpp_http.h"
 #include "xpp_mem.h"
 #include "xpp_inbox.h"
+#include "xpp_files.h"
 #include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -41,10 +44,15 @@ typedef SOCKET sock_t;
 #include <netinet/in.h>
 #include <signal.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
 typedef int sock_t;
 #define INVALID_SOCKET (-1)
 #define close_sock close
+#endif
+
+#ifdef _WIN32
+extern "C" errno_t rand_s(unsigned int *); /* the C library's; stdlib.h declares it only with _CRT_RAND_S */
 #endif
 
 /* BSD and macOS have no MSG_NOSIGNAL; SIGPIPE is ignored in xpp_http_start */
@@ -57,7 +65,7 @@ typedef struct {
     const unsigned char *data;
     size_t len;
 } XppWebAsset;
-extern const XppWebAsset xpp_web_assets[]; /* web_assets.c, from web/ */
+extern "C" const XppWebAsset xpp_web_assets[]; /* web_assets.c (C), from web/ */
 
 #define MAX_CLIENTS 16
 #define MAX_WINDOWS 32
@@ -96,7 +104,7 @@ static int saw_bye, orig_stderr = -1;
 
 static char *copy_line(const char *s, size_t n)
 {
-    char *c = xpp_malloc(n + 1);
+    char *c = static_cast<char *>(xpp_malloc(n + 1));
     memcpy(c, s, n);
     c[n] = 0;
     return c;
@@ -236,7 +244,7 @@ static void push_command(const char *s, size_t n)
 {
     while (n > 0 && (s[n - 1] == '\n' || s[n - 1] == '\r' || s[n - 1] == ' ')) n--;
     while (n > 0) {
-        const char *nl = memchr(s, '\n', n);
+        const char *nl = static_cast<const char *>(memchr(s, '\n', n));
         size_t k = nl ? (size_t)(nl - s) : n;
         xpp_inbox_push(s, k > 0 && s[k - 1] == '\r' ? k - 1 : k);
         if (!nl) break;
@@ -250,7 +258,7 @@ static void push_command(const char *s, size_t n)
 /* {"ev":"log","text":"..."} for n bytes of printed text; malloc'd, length in *len */
 static char *log_event(const char *text, size_t n, size_t *len)
 {
-    char *line = xpp_malloc(6 * n + 32);
+    char *line = static_cast<char *>(xpp_malloc(6 * n + 32));
     size_t i, k = (size_t)sprintf(line, "{\"ev\":\"log\",\"text\":\"");
     for (i = 0; i < n; i++) {
         unsigned char c = (unsigned char)text[i];
@@ -280,7 +288,7 @@ static void *log_main(void *arg)
         if (r <= 0) break;
         if (orig_stderr >= 0 && write(orig_stderr, chunk, (unsigned)r) < 0) orig_stderr = -1;
         pthread_mutex_lock(&lock);
-        log_text = xpp_realloc(log_text, log_len + (size_t)r);
+        log_text = static_cast<char *>(xpp_realloc(log_text, log_len + (size_t)r));
         memcpy(log_text + log_len, chunk, (size_t)r);
         log_len += (size_t)r;
         if (log_len > LOG_KEEP) { /* keep the last lines */
@@ -304,14 +312,30 @@ static void reply(sock_t s, const char *status, const char *type, const unsigned
     char head[256];
     int n = snprintf(head, sizeof head,
                      "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %lu\r\nCache-Control: no-store\r\n"
-                     "Connection: close\r\n\r\n", status, type, (unsigned long)len);
+                     "X-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n", status, type, (unsigned long)len);
     if (send_all(s, head, (size_t)n) && len) send_all(s, (const char *)body, len);
 }
 
+static void reply_text(sock_t s, const char *status, const char *text)
+{
+    reply(s, status, "text/plain", (const unsigned char *)text, strlen(text));
+}
+
+/* the query's t= is the token, compared in full and in constant time */
 static int token_ok(const char *target)
 {
-    const char *q = strstr(target, "t=");
-    return q && strncmp(q + 2, token, strlen(token)) == 0;
+    size_t n = strlen(token), i;
+    const char *q = strchr(target, '?');
+    for (; q; q = strchr(q + 1, '&')) {
+        const char *v = q + 1;
+        unsigned diff = 0;
+        if (strncmp(v, "t=", 2) != 0) continue;
+        v += 2;
+        if (n == 0 || strcspn(v, "&") != n) continue;
+        for (i = 0; i < n; i++) diff |= (unsigned char)(v[i] ^ token[i]);
+        if (!diff) return 1;
+    }
+    return 0;
 }
 
 /* 1 unless the query has draw=0 */
@@ -353,57 +377,350 @@ static void open_events(sock_t s, int draw)
     pthread_mutex_unlock(&lock);
 }
 
-static void handle(sock_t s)
+/* ---- a request: its head, then a body read as it comes -------------------------------- */
+
+#define HEAD_MAX 8192       /* request line and headers */
+#define CMD_MAX (1UL << 20) /* a POST /cmd body */
+#define RECV_SECONDS 30     /* a client that stops sending mid-request is dropped */
+#define CHUNK 65536
+
+typedef struct {
+    sock_t s;
+    char head[HEAD_MAX + 1];
+    char method[8], target[1024];
+    size_t head_len;   /* the head, up to and with its blank line */
+    const char *body0; /* body bytes that arrived with the head */
+    size_t have;       /* how many */
+    int has_length;    /* a Content-Length was sent */
+    unsigned long long length;
+    unsigned long long consumed; /* body bytes read so far */
+} Request;
+
+static int lower(int c) { return c >= 'A' && c <= 'Z' ? c + 32 : c; }
+
+/* header `name` (lower case) of the head: its value, blanks trimmed */
+static int header(const Request *q, const char *name, char *out, size_t max)
 {
-    char req[8192], method[8], target[512];
-    int got = 0, r, header_end = -1, length = 0, i;
-    const XppWebAsset *a;
-    /* the request line, headers and a small body */
-    while (got < (int)sizeof req - 1) {
-        char *p;
-        r = recv(s, req + got, (int)sizeof req - 1 - got, 0);
-        if (r <= 0) break;
-        got += r;
-        req[got] = 0;
-        if (header_end < 0 && (p = strstr(req, "\r\n\r\n")) != NULL) {
-            char *cl = strstr(req, "Content-Length:");
-            if (!cl) cl = strstr(req, "content-length:");
-            header_end = (int)(p - req) + 4;
-            length = cl && cl < p ? atoi(cl + 15) : 0;
-        }
-        if (header_end >= 0 && got >= header_end + length) break;
+    size_t n = strlen(name), i;
+    const char *p = q->head, *end = q->head + q->head_len;
+    while ((p = static_cast<const char *>(memchr(p, '\n', (size_t)(end - p)))) != NULL) {
+        size_t k = 0;
+        p++;
+        if ((size_t)(end - p) <= n || p[n] != ':') continue;
+        for (i = 0; i < n && lower((unsigned char)p[i]) == name[i]; i++) {}
+        if (i < n) continue;
+        p += n + 1;
+        while (p < end && (*p == ' ' || *p == '\t')) p++;
+        while (p < end && *p != '\r' && *p != '\n' && k + 1 < max) out[k++] = *p++;
+        while (k > 0 && (out[k - 1] == ' ' || out[k - 1] == '\t')) k--;
+        out[k] = 0;
+        return 1;
     }
-    req[got] = 0;
-    if (header_end < 0 || sscanf(req, "%7s %511s", method, target) != 2) {
-        close_sock(s);
+    return 0;
+}
+
+/* reads the head; 0 when the connection is not a request worth an answer */
+static int read_head(Request *q)
+{
+    size_t got = 0, i = 0;
+    char v[32];
+    while (got < HEAD_MAX) {
+        int r = recv(q->s, q->head + got, (int)(HEAD_MAX - got), 0);
+        if (r <= 0) return 0;
+        got += (size_t)r;
+        for (i = got >= (size_t)r + 3 ? got - (size_t)r - 3 : 0; i + 4 <= got; i++)
+            if (memcmp(q->head + i, "\r\n\r\n", 4) == 0) break;
+        if (i + 4 <= got) {
+            q->head_len = i + 4;
+            break;
+        }
+    }
+    if (!q->head_len) return 0;
+    q->body0 = q->head + q->head_len;
+    q->have = got - q->head_len;
+    q->head[q->head_len - 2] = 0; /* the head as a string, for sscanf (the body starts after it) */
+    if (sscanf(q->head, "%7s %1023s", q->method, q->target) != 2) return 0;
+    q->has_length = header(q, "content-length", v, sizeof v);
+    if (q->has_length) {
+        if (!v[0] || strspn(v, "0123456789") != strlen(v) || strlen(v) > 18) q->length = ~0ULL;
+        else q->length = strtoull(v, NULL, 10);
+        q->consumed = q->have < q->length ? q->have : q->length;
+    }
+    return 1;
+}
+
+/* up to n more bytes of the body */
+static int take(Request *q, char *buf, size_t n)
+{
+    int r = recv(q->s, buf, (int)n, 0);
+    if (r > 0) q->consumed += (unsigned long long)r;
+    return r;
+}
+
+/* the query-less path of the target */
+static size_t path_len(const char *target) { return strcspn(target, "?"); }
+
+/* a %-encoded name; 0 for a bad escape, a NUL or no room */
+static int url_decode(const char *s, size_t n, char *out, size_t max)
+{
+    size_t i, k = 0;
+    for (i = 0; i < n; i++) {
+        int c = (unsigned char)s[i];
+        if (c == '%') {
+            int h = 0, j;
+            for (j = 1; j <= 2; j++) {
+                int d;
+                if (i + (size_t)j >= n) return 0;
+                d = lower((unsigned char)s[i + (size_t)j]);
+                d = d >= '0' && d <= '9' ? d - '0' : d >= 'a' && d <= 'f' ? d - 'a' + 10 : -1;
+                if (d < 0) return 0;
+                h = h * 16 + d;
+            }
+            if (h == 0) return 0;
+            c = h;
+            i += 2;
+        }
+        if (k + 1 >= max) return 0;
+        out[k++] = (char)c;
+    }
+    out[k] = 0;
+    return 1;
+}
+
+/* POST /cmd: the whole body, then into the inbox */
+static void serve_cmd(Request *q)
+{
+    unsigned long long n = q->has_length ? q->length : q->have;
+    char *body;
+    size_t got;
+    if (!token_ok(q->target)) {
+        reply_text(q->s, "403 Forbidden", "bad token");
         return;
     }
-    if (strcmp(method, "GET") == 0 && strncmp(target, "/events", 7) == 0) {
-        if (token_ok(target)) {
-            open_events(s, wants_draw(target));
+    if (n > CMD_MAX) {
+        reply_text(q->s, "413 Payload Too Large", "command too long");
+        return;
+    }
+    body = static_cast<char *>(xpp_malloc((size_t)n + 1));
+    got = q->have < n ? q->have : (size_t)n;
+    memcpy(body, q->body0, got);
+    while (got < n) {
+        int r = take(q, body + got, (size_t)n - got);
+        if (r <= 0) break;
+        got += (size_t)r;
+    }
+    body[got] = 0;
+    if (got < n) {
+        reply_text(q->s, "400 Bad Request", "incomplete body");
+    } else {
+        pthread_mutex_lock(&lock);
+        if (strstr(body, "\"cmd\":\"answer\"")) set_sticky(&sticky_ask, NULL, 0);
+        if (!exit_event) push_command(body, strlen(body));
+        pthread_mutex_unlock(&lock);
+        reply(q->s, "204 No Content", "text/plain", NULL, 0);
+    }
+    xpp_free(body);
+}
+
+static const char *files_status(int st)
+{
+    switch (st) {
+    case XPP_FILES_BAD_NAME: return "400 Bad Request";
+    case XPP_FILES_NOT_FOUND: return "404 Not Found";
+    case XPP_FILES_REFUSED: return "403 Forbidden";
+    case XPP_FILES_TOO_LARGE: return "413 Payload Too Large";
+    default: return "500 Internal Server Error";
+    }
+}
+
+static void get_file(sock_t s, const char *name)
+{
+    FILE *fp;
+    unsigned long long size;
+    char head[256], *buf;
+    size_t n;
+    int ok, st = xpp_files_open(name, &fp, &size);
+    if (st != XPP_FILES_OK) {
+        reply_text(s, files_status(st), xpp_files_status_text(st));
+        return;
+    }
+    n = (size_t)snprintf(head, sizeof head,
+                         "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %llu\r\n"
+                         "Cache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n",
+                         size);
+    ok = send_all(s, head, n);
+    buf = static_cast<char *>(xpp_malloc(CHUNK));
+    while (ok && (n = fread(buf, 1, CHUNK, fp)) > 0) ok = send_all(s, buf, n);
+    xpp_free(buf);
+    fclose(fp);
+}
+
+/* PUT /files/NAME: the body streams into a temporary file that becomes
+   NAME only once all of it arrived (xpp_files.h) */
+static void put_file(Request *q, const char *name)
+{
+    XppFilePut *put;
+    unsigned long long left, size;
+    char sha[65], v[32], *buf;
+    int st;
+    if (!q->has_length) {
+        reply_text(q->s, "411 Length Required", "a Content-Length is required");
+        return;
+    }
+    if (q->length > XPP_FILES_CAP) { /* refused before a byte of the body is read */
+        reply_text(q->s, "413 Payload Too Large", xpp_files_status_text(XPP_FILES_TOO_LARGE));
+        return;
+    }
+    st = xpp_files_put_begin(name, XPP_FILES_CAP, &put);
+    if (st != XPP_FILES_OK) {
+        reply_text(q->s, files_status(st), xpp_files_status_text(st));
+        return;
+    }
+    if (header(q, "expect", v, sizeof v) && strcmp(v, "100-continue") == 0)
+        send_all(q->s, "HTTP/1.1 100 Continue\r\n\r\n", 25);
+    left = q->length;
+    {
+        size_t first = q->have < left ? q->have : (size_t)left;
+        st = xpp_files_put_write(put, q->body0, first);
+        left -= first;
+    }
+    buf = static_cast<char *>(xpp_malloc(CHUNK));
+    while (st == XPP_FILES_OK && left > 0) {
+        int r = take(q, buf, (size_t)(left < CHUNK ? left : CHUNK));
+        if (r <= 0) break; /* cut short, or the client stopped sending */
+        st = xpp_files_put_write(put, buf, (size_t)r);
+        left -= (unsigned long long)r;
+    }
+    xpp_free(buf);
+    if (st != XPP_FILES_OK || left > 0) {
+        xpp_files_put_abort(put);
+        if (st != XPP_FILES_OK) reply_text(q->s, files_status(st), xpp_files_status_text(st));
+        else reply_text(q->s, "400 Bad Request", "incomplete body");
+        return;
+    }
+    st = xpp_files_put_commit(put, &size, sha);
+    if (st != XPP_FILES_OK) {
+        reply_text(q->s, files_status(st), xpp_files_status_text(st));
+        return;
+    }
+    {
+        /* the name passed xpp_files_name_ok: no quote, backslash or control character */
+        size_t n = strlen(name) + 160;
+        char *json = static_cast<char *>(xpp_malloc(n));
+        snprintf(json, n, "{\"name\":\"%s\",\"size\":%llu,\"sha256\":\"%s\"}", name, size, sha);
+        reply(q->s, "200 OK", "application/json", (const unsigned char *)json, strlen(json));
+        xpp_free(json);
+    }
+}
+
+/* /files (the listing), /files/NAME (GET, PUT): docs/protocol.md "Files" */
+static void serve_files(Request *q)
+{
+    size_t n = path_len(q->target);
+    char name[1024];
+    if (!token_ok(q->target)) {
+        reply_text(q->s, "403 Forbidden", "bad token");
+        return;
+    }
+    if (n == 6 || (n == 7 && q->target[6] == '/')) {
+        if (strcmp(q->method, "GET") == 0) {
+            size_t len;
+            char *json = xpp_files_list_json(&len);
+            reply(q->s, "200 OK", "application/json", (const unsigned char *)json, len);
+            xpp_free(json);
+        } else reply_text(q->s, "405 Method Not Allowed", "GET only");
+        return;
+    }
+    if (!url_decode(q->target + 7, n - 7, name, sizeof name) || !xpp_files_name_ok(name)) {
+        reply_text(q->s, files_status(XPP_FILES_BAD_NAME), xpp_files_status_text(XPP_FILES_BAD_NAME));
+        return;
+    }
+    if (strcmp(q->method, "GET") == 0) get_file(q->s, name);
+    else if (strcmp(q->method, "PUT") == 0) put_file(q, name);
+    else reply_text(q->s, "405 Method Not Allowed", "GET or PUT");
+}
+
+static void serve_asset(Request *q)
+{
+    char path[512];
+    const XppWebAsset *a;
+    int i;
+    for (i = 0; q->target[i] && q->target[i] != '?' && i < (int)sizeof path - 1; i++) path[i] = q->target[i];
+    path[i] = 0;
+    if (strcmp(path, "/index.html") == 0) strcpy(path, "/");
+    for (a = xpp_web_assets; a->path; a++)
+        if (strcmp(a->path, path) == 0) break;
+    if (a->path) reply(q->s, "200 OK", a->type, a->data, a->len);
+    else reply_text(q->s, "404 Not Found", "not found");
+}
+
+/* a client that stops sending (a stalled upload) must not hold the one
+   thread that answers requests */
+static void set_recv_timeout(sock_t s, int seconds)
+{
+#ifdef _WIN32
+    DWORD ms = (DWORD)seconds * 1000;
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char *)&ms, sizeof ms);
+#else
+    struct timeval tv;
+    tv.tv_sec = seconds;
+    tv.tv_usec = 0;
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
+#endif
+}
+
+/* A request refused before its body was read (a bad token, a bad name)
+   still has the body coming: closing on unread data resets the connection,
+   and the client may lose the answer. A small rest is read and dropped
+   first; a large one (an upload over the cap) is not waited for. */
+#define DRAIN_MAX (1ULL << 20)
+static void drain(Request *q)
+{
+    char buf[4096];
+    unsigned long long left;
+    if (!q->has_length || q->length == ~0ULL || q->consumed >= q->length) return;
+    left = q->length - q->consumed;
+    if (left > DRAIN_MAX) return;
+    set_recv_timeout(q->s, 2);
+    while (left > 0) {
+        int r = take(q, buf, left < sizeof buf ? (size_t)left : sizeof buf);
+        if (r <= 0) break;
+        left -= (unsigned long long)r;
+    }
+}
+
+static void handle(sock_t s)
+{
+    Request *q = static_cast<Request *>(xpp_calloc(1, sizeof *q));
+    size_t n;
+    q->s = s;
+    if (!read_head(q)) {
+        close_sock(s);
+        xpp_free(q);
+        return;
+    }
+    n = path_len(q->target);
+    if (strlen(q->target) >= sizeof q->target - 1) {
+        reply_text(s, "414 URI Too Long", "address too long");
+    } else if (q->has_length && q->length == ~0ULL) {
+        reply_text(s, "400 Bad Request", "bad Content-Length");
+    } else if (strcmp(q->method, "GET") == 0 && strncmp(q->target, "/events", 7) == 0) {
+        if (token_ok(q->target)) {
+            open_events(s, wants_draw(q->target));
+            xpp_free(q);
             return;
         }
-        reply(s, "403 Forbidden", "text/plain", (const unsigned char *)"bad token", 9);
-    } else if (strcmp(method, "POST") == 0 && strncmp(target, "/cmd", 4) == 0) {
-        if (token_ok(target)) {
-            const char *body = req + header_end;
-            pthread_mutex_lock(&lock);
-            if (strstr(body, "\"cmd\":\"answer\"")) set_sticky(&sticky_ask, NULL, 0);
-            if (!exit_event) push_command(body, strlen(body));
-            pthread_mutex_unlock(&lock);
-            reply(s, "204 No Content", "text/plain", NULL, 0);
-        } else reply(s, "403 Forbidden", "text/plain", (const unsigned char *)"bad token", 9);
-    } else if (strcmp(method, "GET") == 0) {
-        char path[512];
-        for (i = 0; target[i] && target[i] != '?' && i < (int)sizeof path - 1; i++) path[i] = target[i];
-        path[i] = 0;
-        if (strcmp(path, "/index.html") == 0) strcpy(path, "/");
-        for (a = xpp_web_assets; a->path; a++)
-            if (strcmp(a->path, path) == 0) break;
-        if (a->path) reply(s, "200 OK", a->type, a->data, a->len);
-        else reply(s, "404 Not Found", "text/plain", (const unsigned char *)"not found", 9);
+        reply_text(s, "403 Forbidden", "bad token");
+    } else if (strcmp(q->method, "POST") == 0 && strncmp(q->target, "/cmd", 4) == 0) {
+        serve_cmd(q);
+    } else if (n >= 6 && strncmp(q->target, "/files", 6) == 0 && (n == 6 || q->target[6] == '/')) {
+        serve_files(q);
+    } else if (strcmp(q->method, "GET") == 0) {
+        serve_asset(q);
     } else reply(s, "405 Method Not Allowed", "text/plain", NULL, 0);
+    drain(q);
     close_sock(s);
+    xpp_free(q);
 }
 
 static void *http_main(void *arg)
@@ -412,6 +729,7 @@ static void *http_main(void *arg)
     for (;;) {
         sock_t s = accept(listener, NULL, NULL);
         if (s == INVALID_SOCKET) continue;
+        set_recv_timeout(s, RECV_SECONDS);
         handle(s);
     }
     return NULL;
@@ -450,7 +768,6 @@ static void make_token(void)
 #ifdef _WIN32
     for (i = 0; i < 16; i++) {
         unsigned int v = 0;
-        errno_t rand_s(unsigned int *);
         rand_s(&v);
         bytes[i] = (unsigned char)v;
     }

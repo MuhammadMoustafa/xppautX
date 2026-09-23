@@ -50,6 +50,7 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `rotate` | `what` (`down`, `move`, `up`), `x`, `y` | Dragging a 3D plot turns it (the active window, when `state.view.three`). |
 | `ani` | `op`: `go`, `pause`, `fast`, `slow`, `step` (`n`), `seek` (`pos`), `reset`, `skip`, `file`, `mpeg`, `grab`, `mouse` (`what` down/move/up, `x`, `y`), `fly`, `close` | The animation window buttons. `go` plays until the last frame; `pause`, `fast`, `slow` sent while it plays reach its loop. `mpeg` asks for frame saving (PPM files or `anim.gif`), done with `pixels` asks while playing. `mouse` drags a grab point after `grab`. `size` for win 104 resizes the picture when the command ends. |
 | `abort` | `at` (scripts only) | Stop the running command's computation, at once (see below). No reply of its own: the stopped command ends with `stopped`, `state` and `idle`; outside a command it does nothing. `at` is where a recorded session stopped (the `stopped` event's `at`); only a script's player reads it (see "Scripts"), anywhere else it is an ordinary `abort`. |
+| `file` | `op` (`list`, `get`, `put`), `name`, `data` | The model's folder (the working directory) for a client that cannot reach it: `put` writes `data` (base64, at most 64 MB decoded) as `name`, `get` reads `name` back, `list` lists the folder. Answered with a `file` event, then `state` and `idle`. Names are base names only (see "Files" below). |
 | `quit` | | Exit, at once even during a computation. |
 
 ## Commands during a command
@@ -196,6 +197,7 @@ Run it with:
 | `browser` | `rows`, `cols` (names, `T` first), `row0` (selected row), `start`, `end` (the First..Last range), `from`, `col`, `data` | Rows `from`.. as [T, column `col`, `col`+1, ...]; `null` for NaN. Sent for a `browser` block request and after any command that changed the data while the client shows the browser. |
 | `ping` | | Beep. |
 | `bye` | | The program is exiting. |
+| `file` | `op`, `name`, `ok`; `size`, `sha256` (`put`, `get`), `data` (`get`, base64), `files` (`list`: [{`name`,`size`,`mtime`,`sha256`}...]); `error` when `ok` is 0 | The answer to a `file` command (see "Files" below). |
 | `ask` | `id`, `kind`, ... | See below. |
 
 In browser mode (`xppautX model.ode`) events stream from `/events?t=TOKEN`;
@@ -458,7 +460,7 @@ core/plot_data.cpp sends at most one append per 100 ms).
 | `string` | `title`, `name`, `value`, `ok`, `cancel`, `max` | `value` |
 | `form` | `title`, `names`, `values`, `max` | `values` (same length). A name starting with `*n` means the field picks from `hello.lists[n]`: a variable (`*0`), a parameter (`*2`), a colour (`*4`), a marker (`*5`), ...; for a list whose items start with a number (`2 Box`) the value is that number. |
 | `checklist` | `title`, `names`, `flags` | `flags` |
-| `file` | `title`, `file`, `wild`, `dir`, `dirs`, `files` | `file`; or `cd` (a folder name or `..`) or `wild` (a new pattern) to be asked again with that listing |
+| `file` | `title`, `mode` (`read` or `write`), `file`, `wild`, `dir`, `dirs`, `files` | `file`; or `cd` (a folder name or `..`) or `wild` (a new pattern) to be asked again with that listing |
 | `alert` | `button`, `message` | nothing |
 | `mouse` | `win` | `x`, `y`; or `xd`, `yd` (data coordinates, below) |
 | `rubber` | `win`, `flag` (0 box, 1 line) | `x`, `y`, `x2`, `y2`; or `xd`, `yd`, `xd2`, `yd2` |
@@ -481,6 +483,47 @@ outside too). When both are there, `xd`/`yd` win over `x`/`y`. A client
 that draws the plot itself (web2) answers in data coordinates and needs
 no pixel geometry. `tools/servercheck.py` checks that a box in data
 coordinates zooms exactly as the same box in pixels.
+
+**The file ask's mode.** `mode` says whether the command opens the file
+(`read`: Read set, Load diagram, the browser's Load, Import, ...) or saves
+one (`write`: Write set, Save diagram, PostScript, SVG, ...), so a client
+can show an open or a save dialog. The core decides by the selector's title
+(`xpp_files_ask_mode` in core/xpp_files.cpp: a title starting with Load,
+Read, Import, Open, Select or Library reads, anything else writes;
+tests/test_files.cpp lists every title).
+
+## Files
+
+XPP reads and writes in its working directory, the model's folder, and its
+files refer to each other by relative name. A client that shows the
+browser's own file dialogs (web2, docs/ui-v2.md section 4) copies what the
+user picks into that folder and answers the `file` ask with the base name;
+for a save it answers with a name, lets the core write, then fetches the
+file. core/xpp_files.cpp does the work for both ways in:
+
+- **Browser mode (HTTP, core/xpp_http.cpp)**, token-protected like `/cmd`
+  (`?t=TOKEN`, else 403):
+  - `GET /files` lists the folder: `{"files":[{"name","size","mtime","sha256"}...]}`,
+    plain files only (no folders, links or hidden files), sorted by name,
+    `mtime` in seconds since 1970, `sha256` in hex.
+  - `GET /files/NAME` sends the file (`application/octet-stream`).
+  - `PUT /files/NAME` stores the request body as NAME and answers
+    `{"name","size","sha256"}`. It needs a `Content-Length` (411 without
+    one, chunked bodies included); over 64 MB is refused (413) before a
+    byte of the body is read. The body streams into a hidden temporary file
+    in the folder, renamed to NAME only once complete: an upload that is
+    cut short (400), over the cap or refused leaves nothing, and a file it
+    replaces stays as it was until then.
+- **`--server`**: the `file` command above, with the same rules.
+
+A NAME is percent-decoded, then must be a base name: no `/` or `\`, no
+`..`, no leading dot (hidden files, `.` and `..`), no leading space and no
+trailing dot or space, no control characters, none of `: * ? " < > |`
+(which also refuses drive letters), not a Windows device name (`CON`,
+`NUL`, `COM1`, ...), at most 255 bytes. Anything else is refused (400, or
+`ok` 0). A name that is a symbolic link, a folder or anything but a plain
+file is refused too (403): nothing outside the folder is reached through
+it. The server listens on 127.0.0.1 only.
 
 ## Not yet implemented
 

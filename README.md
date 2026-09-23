@@ -82,7 +82,7 @@ reference.
       dialogs for every prompt, AUTO and animation windows). `node
       web/serve.js file.ode` runs it standalone at http://127.0.0.1:8765/.
       `xppautX` without `--server` is the same program
-      with the page compiled in and a small HTTP server (`core/xpp_http.c`,
+      with the page compiled in and a small HTTP server (`core/xpp_http.cpp`,
       127.0.0.1 only, a random token in the address) instead of Node;
       options `--port N`, `--no-open` and `--version`. The XPP-ODE extension
       frames that page in a panel with **Open in XPP Interactive**

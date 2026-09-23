@@ -31,7 +31,7 @@ building while it runs:
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/guicheck.sh"
 
 Web front end regression check (the counterpart of guicheck for
-`xppautX`; run it for changes to `web/`, ui_json.c or xpp_http.c, once
+`xppautX`; run it for changes to `web/`, ui_json.c or xpp_http.cpp, once
 per batch). From Git Bash on Windows, where Node and Chrome are (not WSL):
 
     PATH=/c/Strawberry/c/bin:$PATH node tools/webtest.mjs
@@ -51,6 +51,7 @@ from `web2/src` and committed. After editing `web2/src`, from Git Bash:
     cd web2 && npm ci && npm run build && npm run check && npm test && npm run typecheck
     PATH=/c/Strawberry/c/bin:$PATH mingw32-make -j8 xppautx BUILDDIR=build/win
     node tools/web2check.mjs      # state-level browser checks against ./xppautX.exe
+                                  # (--only desktop,files,live,million runs a part)
 
 and commit `web2/dist` with the source. Tests read `window.__xpp`
 (`state()`, `actions()`, `sent()`, `plot()`, `longTasks()`), never pixels. `tools/cdp.mjs` is the
@@ -131,12 +132,17 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
 - `xppautX` (`make xppautx`) is one program: `core/xppautx_main.c` picks
   browser mode (the default), `--server` (the protocol on stdin/stdout) or
   `-silent` (xpp_batch_main, no interface at all). It carries
-  `core/xpp_http.c` (HTTP + Server-Sent Events on
-  127.0.0.1, threads, sockets; it includes no core header) and
-  `build/.../web_assets.c`, generated from `web/` by `tools/embed.c`. The
+  `core/xpp_http.cpp` (HTTP + Server-Sent Events on
+  127.0.0.1, threads, sockets; it includes no core header but the small
+  C APIs of xpp_mem.h, xpp_inbox.h and xpp_files.h) and
+  `build/.../web_assets.c`, generated from `web/` by `tools/embed.c`.
+  `/files` (list, GET, streamed PUT of the model's folder) and the
+  protocol's `file` command both go through `core/xpp_files.cpp`, which
+  owns the name rules (base names only, no links) and the temp-then-rename
+  write; docs/protocol.md "Files" is the contract. The
   protocol lines go through `out_line()` in ui_json.c, which switches to
-  xpp_http.c in web mode. Input never touches the core thread: reader
-  threads (xpp_http.c, or the --server stdin reader) push lines into
+  xpp_http.cpp in web mode. Input never touches the core thread: reader
+  threads (xpp_http.cpp, or the --server stdin reader) push lines into
   `core/xpp_inbox.cpp` (control and normal queues) and `read_line()` takes
   them from there; `-silent` starts no reader. Abort and Quit cancel the
   running job from the reader thread (`core/xpp_job.{h,cpp}`, by sequence

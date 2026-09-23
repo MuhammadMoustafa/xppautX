@@ -52,6 +52,18 @@ int xpp_read_stdin(char *buf, int n)
 
 void xpp_binary_mode(int fd) { _setmode(fd, _O_BINARY); }
 
+/* xpp_files.cpp: a link is never read or written through */
+int xpp_path_is_link(const char *path)
+{
+    DWORD a = GetFileAttributesA(path);
+    return a != INVALID_FILE_ATTRIBUTES && (a & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+}
+
+int xpp_replace_file(const char *from, const char *to)
+{
+    return MoveFileExA(from, to, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) ? 0 : -1;
+}
+
 /* the Windows side of xpp_util.c's AUTO scratch directory */
 char *xpp_make_temp_dir(void)
 {

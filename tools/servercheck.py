@@ -7,7 +7,7 @@ Plays a fixed session (integrate, change a parameter, answer a menu, a
 string prompt and a form, find an equilibrium, open a second plot window)
 and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
-import argparse, base64, json, os, shutil, struct, subprocess, sys, tempfile, threading, queue
+import argparse, base64, hashlib, json, os, shutil, struct, subprocess, sys, tempfile, threading, queue
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -289,6 +289,54 @@ if ask:
         send(cmd='answer', id=ask['id'], ok=1, value='info.txt')
     collect(is_idle)
     check('info file written', os.path.exists(os.path.join(run, 'info.txt')))
+    check('a file ask for writing says so (mode write)', ask.get('mode') == 'write', str(ask)[:200])
+send(cmd='key', key='f')
+send(cmd='key', key='r')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+check('File/Read set asks for a file to read (mode read)', ask is not None and ask['kind'] == 'file'
+      and ask.get('mode') == 'read' and ask.get('wild') == '*.set', str(ask)[:200])
+if ask:
+    send(cmd='answer', id=ask['id'], ok=0)
+collect(is_idle)
+
+
+# The model's folder for a client that cannot reach it (docs/protocol.md
+# "Files"): the `file` command puts, gets and lists files there, base names
+# only, as the /files endpoints of browser mode do (tools/webcheck.py).
+def file_cmd(**kw):
+    send(cmd='file', **kw)
+    evs, ev = collect(lambda e: e.get('ev') == 'file')
+    collect(is_idle)
+    return ev or {}
+
+
+blob = bytes(range(256)) * 4 + b'\x00\r\n\x1a'
+before = sorted(os.listdir(run))
+outside = os.path.join(os.path.dirname(run), 'x')  # where ../x would land
+stat_of = lambda p: (os.stat(p).st_mtime_ns, os.stat(p).st_size) if os.path.exists(p) else None
+above = stat_of(outside)
+ev = file_cmd(op='put', name='srv.bin', data=base64.b64encode(blob).decode())
+with open(os.path.join(run, 'srv.bin'), 'rb') as f:
+    on_disk = f.read()
+check('file put writes the bytes into the model\'s folder', ev.get('ok') == 1 and ev.get('name') == 'srv.bin'
+      and ev.get('size') == len(blob) and ev.get('sha256') == hashlib.sha256(blob).hexdigest() and on_disk == blob, str(ev))
+ev = file_cmd(op='get', name='srv.bin')
+check('file get gives them back', ev.get('ok') == 1 and base64.b64decode(ev.get('data', '')) == blob
+      and ev.get('sha256') == hashlib.sha256(blob).hexdigest(), str(ev)[:200])
+ev = file_cmd(op='list')
+names = [f['name'] for f in ev.get('files', [])]
+check('file list names the folder\'s files with their digests', ev.get('ok') == 1 and 'srv.bin' in names
+      and 'lecar.ode' in names and all(len(f['sha256']) == 64 for f in ev['files']), str(ev)[:300])
+refused = {n: file_cmd(op='put', name=n, data='eA==').get('ok') for n in ['../x', 'a/b', 'a\\b', '.hidden', '..', 'C:x', '']}
+refused['a\\u0000b'] = file_cmd(op='put', name='a\x00b', data='eA==').get('ok')
+refused['get ../lecar.ode'] = file_cmd(op='get', name='../' + os.path.basename(run) + '/lecar.ode').get('ok')
+check('file put and get refuse anything but a base name', all(v == 0 for v in refused.values()), str(refused))
+ev = file_cmd(op='put', name='bad.bin', data='not base64!')
+check('file put refuses data that is not base64', ev.get('ok') == 0 and 'base64' in ev.get('error', ''), str(ev))
+ev = file_cmd(op='get', name='none.bin')
+check('file get of a missing file says so', ev.get('ok') == 0 and ev.get('error'), str(ev))
+check('refused file commands leave nothing behind', sorted(os.listdir(run)) == sorted(before + ['srv.bin'])
+      and stat_of(outside) == above, str(sorted(os.listdir(run))))
 
 send(cmd='key', key='u')  # nUmerics menu
 send(cmd='key', key='t')  # total

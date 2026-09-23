@@ -2,7 +2,7 @@
    xppaut does and then, like xppaut, picks what to do from the command line:
 
      xppautX model.ode              the front end in a browser (the default):
-                                    xpp_http.c serves the compiled-in page on
+                                    xpp_http.cpp serves the compiled-in page on
                                     127.0.0.1 and opens it
      xppautX --server model.ode     the same session over the line-delimited
                                     JSON protocol of ui_json.c on stdin and

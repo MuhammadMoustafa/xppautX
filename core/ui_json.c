@@ -49,6 +49,7 @@
 #include "xpp_session.h"
 #include "plot_data.h"
 #include "phase_data.h"
+#include "xpp_files.h"
 #include <strings.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -854,7 +855,9 @@ static int j_edit_box(int n, char *title, char **names, char **values)
 }
 
 /* the file selector lists the directory like the X11 one; an answer with
-   "cd" changes directory (as X11 does, for good) and asks again */
+   "cd" changes directory (as X11 does, for good) and asks again. "mode"
+   says whether the command reads the file or writes it, so a client can
+   show an open or a save dialog (docs/ui-v2.md section 4). */
 static int j_file_selector(char *title, char *file, char *wild)
 {
     char pattern[256], cd[1024];
@@ -866,6 +869,8 @@ static int j_file_selector(char *title, char *file, char *wild)
         int id = ask_begin(&b, "file");
         BUF_LIT(&b, ",\"title\":");
         buf_str(&b, title);
+        BUF_LIT(&b, ",\"mode\":");
+        buf_str(&b, xpp_files_ask_mode(title));
         BUF_LIT(&b, ",\"file\":");
         buf_str(&b, file);
         BUF_LIT(&b, ",\"wild\":");
@@ -2845,6 +2850,11 @@ static void handle_line(const char *line, unsigned long seq)
         get_str(line, "name", name, sizeof name);
         if (strcmp(o, "save") == 0) xpp_session_save(name[0] ? name : NULL);
         else if (strcmp(o, "load") == 0) xpp_session_load(name[0] ? name : NULL);
+    } else if (is_cmd(line, "file")) {
+        /* the model's folder for a client that cannot reach it (xpp_files.h) */
+        char o[8];
+        get_str(line, "op", o, sizeof o);
+        xpp_files_command(o, js_find(line, "name"), js_find(line, "data"), data_emit);
     }
     apply_auto_size();
     apply_ani_size();

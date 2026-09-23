@@ -33,7 +33,7 @@ void xpp_inbox_push(const char *line, size_t n);
    the pushing reader thread, before the line is queued, with no inbox lock
    held that the core waits on (it may set atomics or signal the core), but
    it must not touch core state or call back into the inbox. The pushing
-   thread may hold its own locks (xpp_http.c's) while it runs. NULL restores
+   thread may hold its own locks (xpp_http.cpp's) while it runs. NULL restores
    the default: everything normal. */
 void xpp_inbox_set_classifier(int (*cls)(const char *line, unsigned long seq));
 
