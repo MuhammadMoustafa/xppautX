@@ -24,6 +24,8 @@ export interface PlotSeries {
   names: Map<number, string>;
   /** the arrays behind `columns`, at least `rows` long: appends fill them in place */
   buffers: Map<number, Float32Array>;
+  /** the core's data version (null from a server that sends none): store/runs.ts */
+  version: number | null;
 }
 
 export function seriesFromEvent(ev: SeriesEvent): PlotSeries {
@@ -43,6 +45,7 @@ export function seriesFromEvent(ev: SeriesEvent): PlotSeries {
     columns,
     names,
     buffers: new Map(columns),
+    version: ev.version ?? null,
   };
 }
 

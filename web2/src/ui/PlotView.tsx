@@ -181,7 +181,11 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   const host = useRef<HTMLDivElement>(null);
   const chart = useRef<Chart | null>(null);
   const [, setShown] = useState(0); /* the legend's toggles live in the chart */
-  const model: PlotModel | null = useMemo(() => (series ? buildModel(series) : null), [series]);
+  const history = pw?.history;
+  const erased = !!history?.erased;
+  const runsShown = pw?.showRuns ?? true;
+  const model: PlotModel | null = useMemo(() => (series ? buildModel(series, erased) : null), [series, erased]);
+  const runs: PlotModel[] = useMemo(() => (history?.runs ?? []).map(r => buildModel(r)), [history?.runs]);
   const modelRef = useRef(model);
   modelRef.current = model;
 
@@ -226,6 +230,10 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   useEffect(() => {
     if (shown) chart.current!.setMarks(marks);
   }, [marks, shown]);
+
+  useEffect(() => {
+    if (shown) chart.current!.setRuns(runs, runsShown);
+  }, [runs, runsShown, shown]);
 
   useEffect(() => {
     if (shown) chart.current!.applyViewport(viewport);
@@ -278,7 +286,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
     ? chart.current.position(hover.curve, hover.row - (model.curves[hover.curve]?.row0 ?? 0)) : null;
   const zoomed = viewport.x !== null || viewport.y !== null;
   const noCurves = !model || model.curves.every(c => c.xs.length === 0);
-  const empty = noCurves && !layers.length;
+  const empty = noCurves && !layers.length && !(runs.length && runsShown);
   const texts = marks?.text.length ? `; text: ${marks.text.map(t => t.plain).join('; ')}` : '';
   const withLayers = layers.length ? `; ${layers.map(l => l.label).join(', ')}${texts}` : '';
   const label = model?.curves.length
@@ -306,6 +314,17 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
               {c.label}
             </button>
           ))}
+          {runs.length > 0 && (
+            <button
+              class={'legend-item layer runs' + (runsShown ? '' : ' off')}
+              data-layer="runs"
+              aria-pressed={runsShown}
+              title="Show or hide the earlier runs (Erase clears them)"
+              onClick={() => session.store.dispatch({type: 'showRuns', win, show: !runsShown})}>
+              <span class="swatch swatch-runs" aria-hidden="true" />
+              previous runs ({runs.length})
+            </button>
+          )}
           {layers.map(l => (
             <button
               key={l.key}
@@ -354,8 +373,8 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
         {marker && <span class="hover-dot" style={{left: `${marker.left}px`, top: `${marker.top}px`}} />}
         {empty && (
           <div class="plot-empty">
-            <p>{busy ? 'Integrating…' : 'No trajectory yet.'}</p>
-            {!busy && (
+            <p>{busy ? 'Integrating…' : erased ? 'Erased: Redraw (R) draws the data again.' : 'No trajectory yet.'}</p>
+            {!busy && !erased && (
               <button class="primary" onClick={() => session.keys('i', 'g')}>Integrate (I, G)</button>
             )}
           </div>

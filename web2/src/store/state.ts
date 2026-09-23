@@ -5,8 +5,8 @@
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
 import type {AskEvent, Command, HelloEvent, StateEvent, View, XppEvent} from '../protocol/types';
 import {
-  coreMoved, initialPlots, onAppend, onDfield, onMarks, onNullclines, onPlots, onSeries, rotate3d, select, setViewport,
-  undoViewport, windowOf, type PlotsState,
+  coreMoved, eraseWindow, initialPlots, onAppend, onDfield, onMarks, onNullclines, onPlots, onSeries, redrawWindow,
+  rotate3d, select, setViewport, showRuns, undoViewport, windowOf, type PlotsState,
   type Viewport,
 } from './plots';
 import {initialAplot, reduceAplot, type AplotAction, type AplotState} from './aplot';
@@ -133,6 +133,8 @@ export type Action =
   | {type: 'rotate3d'; win: number; theta: number; phi: number}
   /** the user picked a plot window's tab (the core is told with `click`) */
   | {type: 'selectWindow'; win: number}
+  /** the legend's "previous runs" toggle of window `win` */
+  | {type: 'showRuns'; win: number; show: boolean}
   | {type: 'hover'; hover: Hover | null}
   /** the plot mode's crosshair or corner moved */
   | {type: 'pick'; pick: PickState | null}
@@ -222,18 +224,33 @@ function coreViewMoved(a: View | undefined, b: View): boolean {
   return !!a && a.win === b.win && (a.xlo !== b.xlo || a.xhi !== b.xhi || a.ylo !== b.ylo || a.yhi !== b.yhi);
 }
 
+/** the model file's values: hello.defaults by the state's names, or (an
+    older server) the values of the first state after the hello */
+function defaultsOf(hello: HelloEvent | null, st: StateEvent): ValuesAction {
+  const d = hello?.defaults;
+  const zip = (named: [string, number][], vals: number[] | undefined): [string, number][] =>
+    vals && vals.length === named.length ? named.map(([n], i) => [n, vals[i]]) : named;
+  return {type: 'defaults', pars: zip(st.pars, d?.pars), ics: zip(st.ics, d?.ics)};
+}
+
 /** the array plot's window id (core/ui_json.c WIN_APLOT) */
 const WIN_APLOT = 105;
 
 function onEvent(state: AppState, ev: XppEvent): AppState {
   switch (ev.ev) {
-    case 'hello':
-      return {...state, hello: ev, title: ev.title};
+    case 'hello': {
+      /* a (re)connection: the defaults come with the next state; the model's sliders start the list */
+      const values = reduceValues({...state.values, defaults: null}, {type: 'presetSliders', defs: ev.sliders ?? []});
+      return {...state, hello: ev, title: ev.title, values};
+    }
     case 'state': {
       const moved = ev.view && coreViewMoved(state.core?.view, ev.view);
       /* `auto` is there exactly while AUTO is open */
       const diagram = reduceDiagram(state.diagram, {type: 'core', open: !!(ev as {auto?: unknown}).auto});
-      return {...state, core: ev, plots: moved ? coreMoved(state.plots, ev.view.win) : state.plots, diagram};
+      return {
+        ...state, core: ev, plots: moved ? coreMoved(state.plots, ev.view.win) : state.plots, diagram,
+        values: state.values.defaults ? state.values : reduceValues(state.values, defaultsOf(state.hello, ev)),
+      };
     }
     case 'series': {
       const shown = ev.win === state.plots.active;
@@ -250,6 +267,10 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     }
     case 'plots':
       return withPlots(state, onPlots(state.plots, ev));
+    case 'erase':
+      return withPlots(state, eraseWindow(state.plots, ev.win));
+    case 'redraw':
+      return withPlots(state, redrawWindow(state.plots, ev.win));
     case 'nullclines':
       return withPlots(state, onNullclines(state.plots, ev));
     case 'dfield':
@@ -375,6 +396,8 @@ export function reduce(state: AppState, action: Action): AppState {
       return withPlots(state, rotate3d(state.plots, action.win, action.theta, action.phi));
     case 'selectWindow':
       return withPlots(state, select(state.plots, action.win));
+    case 'showRuns':
+      return withPlots(state, showRuns(state.plots, action.win, action.show));
     case 'hover':
       return {...state, hover: action.hover};
     case 'pick':

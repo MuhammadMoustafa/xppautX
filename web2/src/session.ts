@@ -23,7 +23,8 @@ import {snapshotWindow, type KinescopeFrame} from './store/kinescope';
 import {windowOf} from './store/plots';
 import {MAX_COUNT, MAX_NCOL, planRequest, tableCsv} from './store/table';
 import type {TextTab} from './store/text';
-import type {ValueEdit} from './store/values';
+import {fieldKey, setCommand, type ValueEdit, type ValueKind, type ValueSet} from './store/values';
+import {formatIcFile, formatParFile, parseValuesFile} from './store/valueFiles';
 
 /** the data browser's buttons (docs/protocol.md `browser` op; web/xpp-client.js's BROWSER_BUTTONS) */
 export type BrowserOp = 'find' | 'get' | 'replace' | 'unreplace' | 'table' | 'load' | 'write' | 'first' | 'last'
@@ -33,6 +34,8 @@ export type BrowserOp = 'find' | 'get' | 'replace' | 'unreplace' | 'table' | 'lo
 export type AutoOp = 'param' | 'axes' | 'numerics' | 'run' | 'grab' | 'usr' | 'clear' | 'redraw' | 'file';
 /** the array plot window's buttons (docs/protocol.md `aplot` op; web/xpp-client.js's buildArrayPlot) */
 export type AplotOp = 'redraw' | 'edit' | 'print' | 'fit' | 'range' | 'gif' | 'close';
+
+const RUN_ON_CHANGE_KEY = 'xpp.values.runOnChange';
 
 export class Session {
   readonly store: Store<AppState, Action>;
@@ -70,6 +73,12 @@ export class Session {
   }
 
   start(): void {
+    try {
+      if (localStorage.getItem(RUN_ON_CHANGE_KEY) === '0')
+        this.store.dispatch({type: 'values', action: {type: 'runOnChange', on: false}});
+    } catch {
+      /* no storage: the default */
+    }
     this.transport.open(ev => this.receive(ev), open => this.store.dispatch({type: 'connection', open}));
   }
 
@@ -109,6 +118,7 @@ export class Session {
       const next = this.afterIdle;
       this.afterIdle = null;
       if (next) this.send(next);
+      else this.flushValues();
     }
     this.checkDiagram(ev);
   }
@@ -330,21 +340,47 @@ export class Session {
     this.store.dispatch({type: 'values', action: {type: 'edit', edit}});
   }
 
+  /** whether an edit of `kind` integrates again ("Run on change": parameters and ICs) */
+  private rerunsOn(kind: ValueKind): boolean {
+    return this.store.getState().values.runOnChange && (kind === 'par' || kind === 'ic');
+  }
+
+  /** values to set, then a run when `rerun`: at once when idle, else kept
+      (the latest per field) until the running command ends, so edits
+      during a run never queue up integrations (GitHub #18) */
+  private submit(sets: ValueSet[], rerun: boolean): void {
+    if (!sets.length) return;
+    if (this.store.getState().busy) {
+      for (const set of sets) this.store.dispatch({type: 'values', action: {type: 'queue', set, rerun}});
+      return;
+    }
+    this.send(setCommand(sets, rerun)!);
+  }
+
+  /** the values edited while the command ran, in one `set`, and at most one run */
+  private flushValues(): void {
+    const {queue, queueRerun} = this.store.getState().values;
+    if (!queue.length) return;
+    this.store.dispatch({type: 'values', action: {type: 'flushed'}});
+    this.send(setCommand(queue, queueRerun)!);
+  }
+
   /** a parameter or initial condition box left with a new value */
   setValue(kind: 'par' | 'ic', name: string, text: string, previous: string): void {
     this.recordEdit({kind, name, previous});
-    this.send({cmd: 'set', kind, name, text});
+    this.submit([{kind, name, text}], this.rerunsOn(kind));
   }
 
   /** a boundary condition or delay box (by position: docs/protocol.md, BC names all read "0=") */
   setValueByIndex(kind: 'bc' | 'delay', index: number, text: string, previous: string): void {
     this.recordEdit({kind, index, previous});
-    this.send({cmd: 'set', kind, index, text});
+    this.submit([{kind, index, text}], false);
   }
 
-  /** a slider dragged: only the latest position while busy matters, like the classic panel */
-  slide(name: string, value: number): void {
-    this.send({cmd: 'slide', name, value, rerun: 1});
+  /** a slider moved: sent when idle (it runs again), else only its latest position, when the command ends */
+  slide(kind: 'par' | 'ic', name: string, value: number): void {
+    if (this.store.getState().busy) this.submit([{kind, name, text: String(value)}], true);
+    else this.send({cmd: 'slide', name, value, rerun: 1});
   }
 
   /** Ctrl+Z or the Undo button: sends `set` again with the previous text (A12) */
@@ -353,14 +389,77 @@ export class Session {
     const last = history[history.length - 1];
     if (!last) return;
     this.store.dispatch({type: 'values', action: {type: 'undo'}});
-    if (last.index !== undefined) this.send({cmd: 'set', kind: last.kind, index: last.index, text: last.previous});
-    else this.send({cmd: 'set', kind: last.kind, name: last.name, text: last.previous});
+    const set: ValueSet = last.index !== undefined
+      ? {kind: last.kind, index: last.index, text: last.previous} : {kind: last.kind, name: last.name, text: last.previous};
+    this.submit([set], this.rerunsOn(last.kind));
   }
 
-  /** the Default button: values from the ODE file (not itself undoable: A12) */
+  /** the model file's value of a parameter or IC (null: not known) */
+  defaultOf(kind: 'par' | 'ic', name: string): number | null {
+    return this.store.getState().values.defaults?.[fieldKey(kind, name)] ?? null;
+  }
+
+  /** one field back to the model file's value (undoable, like an edit) */
+  resetValue(kind: 'par' | 'ic', name: string, previous: string): void {
+    const d = this.defaultOf(kind, name);
+    if (d !== null) this.setValue(kind, name, String(d), previous);
+  }
+
+  /** Reset all: every parameter or IC to the model file's value, in one
+      command (not itself undoable: A12) */
   defaultValues(kind: 'par' | 'ic'): void {
     this.store.dispatch({type: 'values', action: {type: 'defaulted', kind}});
-    this.send({cmd: 'default', kind});
+    const st = this.store.getState();
+    if (st.busy) {
+      const list = (kind === 'par' ? st.core?.pars : st.core?.ics) ?? [];
+      const sets = list.flatMap(([name]): ValueSet[] => {
+        const d = this.defaultOf(kind, name);
+        return d === null ? [] : [{kind, name, text: String(d)}];
+      });
+      this.submit(sets, this.rerunsOn(kind));
+    } else this.send(this.rerunsOn(kind) ? {cmd: 'default', kind, rerun: 1} : {cmd: 'default', kind});
+  }
+
+  /** "Use current state": the ICs from where the last run ended (Initialconds/Last's values), no run */
+  useCurrentState(): void {
+    this.send({cmd: 'set', kind: 'ic', from: 'last'});
+  }
+
+  /** the panel's "Run on change", remembered per viewer */
+  setRunOnChange(on: boolean): void {
+    this.store.dispatch({type: 'values', action: {type: 'runOnChange', on}});
+    try {
+      localStorage.setItem(RUN_ON_CHANGE_KEY, on ? '1' : '0');
+    } catch {
+      /* no storage: it lasts this page */
+    }
+  }
+
+  /** Save of a section: XPP's parameter or IC file (store/valueFiles.ts), downloaded */
+  saveValues(kind: 'par' | 'ic'): string {
+    const st = this.store.getState();
+    const list = (kind === 'par' ? st.core?.pars : st.core?.ics) ?? [];
+    const file = st.hello?.file ?? '';
+    const base = file.replace(/^.*[\\/]/, '').replace(/\.[^.]*$/, '') || 'model';
+    const text = kind === 'par' ? formatParFile(list, file, new Date().toString()) : formatIcFile(list);
+    this.store.dispatch({type: 'values', action: {type: 'saved', kind, text}});
+    offerDownload(`${base}.${kind === 'par' ? 'par' : 'ic'}`, new Blob([text], {type: 'text/plain'}));
+    return text;
+  }
+
+  /** Load of a section: the file's values in one `set`, then at most one run;
+      null when done, else what is wrong with the file (also a notification) */
+  loadValues(kind: 'par' | 'ic', text: string): string | null {
+    const st = this.store.getState();
+    const names = ((kind === 'par' ? st.core?.pars : st.core?.ics) ?? []).map(([n]) => n);
+    const parsed = parseValuesFile(text, names);
+    if (parsed.error) {
+      this.store.dispatch({type: 'toast', kind: 'error', text: parsed.error});
+      return parsed.error;
+    }
+    this.store.dispatch({type: 'values', action: {type: 'defaulted', kind}});
+    this.submit(parsed.values.map(([name, v]): ValueSet => ({kind, name, text: v})), this.rerunsOn(kind));
+    return null;
   }
 
   /** an `@ button` of the ODE file */

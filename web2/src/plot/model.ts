@@ -33,7 +33,8 @@ function increasing(a: Float32Array): boolean {
   return true;
 }
 
-export function buildModel(s: PlotSeries): PlotModel {
+/** `erased`: the window's curves, with no points (Erase, until the next run or Redraw) */
+export function buildModel(s: PlotSeries, erased = false): PlotModel {
   const [xs, ys] = s.shift;
   const start = Math.max(xs, ys, 0);
   const curves: CurveData[] = s.curves.map(c => {
@@ -46,14 +47,14 @@ export function buildModel(s: PlotSeries): PlotModel {
       color: c.color,
       line: c.line > 0,
       radius: c.line > 0 ? 0 : Math.max(1, -c.line),
-      xs: x.subarray(start - xs, start - xs + n),
-      ys: y.subarray(start - ys, start - ys + n),
+      xs: erased ? EMPTY : x.subarray(start - xs, start - xs + n),
+      ys: erased ? EMPTY : y.subarray(start - ys, start - ys + n),
       row0: start,
     };
   });
   const first = s.curves[0];
   const shared = !!first && start === 0 && s.curves.every(c => c.x === first.x);
-  const mode = shared && curves.length > 0 && increasing(curves[0].xs) ? 1 : 2;
+  const mode = shared && curves.length > 0 && increasing(erased ? (s.columns.get(first.x) ?? EMPTY) : curves[0].xs) ? 1 : 2;
   const xLabel = s.labels.x || (first ? columnName(s, first.x) : '');
   const yLabel = s.labels.y || (s.curves.length === 1 && first ? columnName(s, first.y) : '');
   return {mode, curves, xLabel, yLabel, t: s.columns.get(0) ?? null};

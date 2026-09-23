@@ -227,21 +227,59 @@ kbd {
   gap: var(--space-4);
 }
 .value-group-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
-.value-group-head h3 {
-  font-size: var(--text-sm);
+.value-group-head h3 { flex: 1; font-size: var(--text-sm); }
+.value-fold {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--target);
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--fg-muted);
-  flex: 1;
+  cursor: pointer;
 }
+.value-fold-mark { width: 1em; }
+.value-hint { margin: 0 0 var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); }
+.value-tools { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-bottom: var(--space-2); }
+.value-cols, .value-state .value-field {
+  grid-template-columns: minmax(4rem, 1fr) minmax(0, 7rem) minmax(0, 5.5rem) var(--target);
+}
+.value-cols { display: grid; gap: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); margin-bottom: var(--space-1); }
+.value-now { font: var(--text-sm) var(--mono); color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.value-now.none { opacity: 0.6; }
+.values-queued { margin: 0; padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--fg-muted); border-bottom: 1px solid var(--border); }
+.value-runs { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--text-xs); color: var(--fg-muted); min-height: var(--target); }
+.value-runs input { width: 1.1rem; height: var(--target); margin: 0; }
 .value-list { display: flex; flex-direction: column; gap: var(--space-2); }
 .value-buttons { flex-direction: row; flex-wrap: wrap; }
-.value-field label {
+.value-field {
   display: grid;
-  grid-template-columns: minmax(5rem, 1fr) minmax(0, 8rem);
+  grid-template-columns: minmax(5rem, 1fr) minmax(0, 8rem) var(--target);
   align-items: center;
   gap: var(--space-2);
 }
+.value-field .field-error { grid-column: 1 / -1; }
+.value-reset {
+  min-width: var(--target);
+  min-height: var(--target);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  background: none;
+  color: var(--fg-muted);
+  font-size: var(--text-md);
+  cursor: pointer;
+}
+.value-reset:disabled { opacity: 0.25; cursor: default; }
+.value-reset:not(:disabled):hover { border-color: var(--border); color: var(--fg); }
+/* differs from the model file: a mark at the name; waits for the run: a dashed field */
+.value-field.changed .value-name { font-weight: 600; }
+.value-field.changed .value-name::after { content: ' •'; color: var(--fg-muted); }
+.value-field.queued input, .value-slider.queued .value-slider-val { border-style: dashed; background: var(--surface-2); }
 .value-name { overflow-wrap: anywhere; font: var(--text-sm) var(--mono); }
 .value-field input {
   font: var(--text-sm) var(--mono);
@@ -255,13 +293,32 @@ kbd {
 }
 .value-field input[aria-invalid='true'] { border-color: var(--danger); }
 .field-error { margin: var(--space-1) 0 0; color: var(--danger); font-size: var(--text-xs); }
+/* ---- sliders: a strip under the plot, full width (GitHub #18) ---- */
+.slider-strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border);
+}
+.slider-add { align-self: flex-start; }
 .value-slider {
   display: grid;
-  grid-template-columns: minmax(6rem, auto) 3.5rem minmax(6rem, 1fr) 3rem 3.5rem;
+  grid-template-columns: minmax(6rem, 10rem) 5rem minmax(8rem, 1fr) 6rem 5rem var(--target);
   gap: var(--space-2);
   align-items: center;
 }
-.value-slider select, .value-slider-lim {
+.value-slider-remove {
+  min-width: var(--target);
+  min-height: var(--target);
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  background: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.value-slider-remove:hover { border-color: var(--border); color: var(--fg); }
+.value-slider select, .value-slider-lim, .value-slider-val {
   font: inherit;
   color: var(--fg);
   background: var(--bg);
@@ -272,7 +329,7 @@ kbd {
   min-width: 0;
 }
 .value-slider-range { min-height: var(--target); width: 100%; }
-.value-slider-val { font: var(--text-xs) var(--mono); text-align: right; color: var(--fg-muted); }
+.value-slider-val { font: var(--text-sm) var(--mono); text-align: right; }
 
 /* ---- data table (docs/ui-v2.md T10): always a floating overlay (R6) -- a ---- */
 /* panel anchored to the side from 48rem, a full-screen sheet under that */
@@ -458,6 +515,7 @@ kbd {
 .swatch-xnull, .swatch-ynull { height: 0.25rem; }
 .swatch-dfield { height: 0.6rem; border-radius: 0; clip-path: polygon(0 40%, 60% 40%, 60% 5%, 100% 50%, 60% 95%, 60% 60%, 0 60%); }
 .swatch-flow { height: 0.125rem; }
+.swatch-runs { height: 0.2rem; background: var(--fg-muted); opacity: 0.45; }
 /* marks (T8): the equilibria a dot, markers a square, text a letter's stem */
 .swatch-equilibria { width: 0.6rem; height: 0.6rem; border-radius: 50%; }
 .swatch-markers { width: 0.55rem; height: 0.55rem; border-radius: 0; }
@@ -842,9 +900,10 @@ kbd {
   .drawer-scrim { display: block; position: fixed; inset: 0; z-index: 140; background: rgba(15, 23, 42, 0.3); }
   .workspace { padding: var(--space-2); }
   .form-grid label { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }
-  .value-field label { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }
-  .value-slider { grid-template-columns: 1fr 1fr; }
-  .value-slider-range { grid-column: 1 / -1; }
+  .value-slider { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--target); }
+  .value-slider select { grid-column: 1 / 3; }
+  .value-slider-range { grid-column: 1 / -1; order: 1; }
+  .value-slider-lim, .value-slider-val { order: 2; }
   .status-bar .rows { display: none; }
   /* a full-screen sheet (R6), like the command drawer above */
   .values-panel {

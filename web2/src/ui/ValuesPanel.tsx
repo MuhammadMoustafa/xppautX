@@ -1,30 +1,91 @@
-/* The values panel (docs/ui-v2.md T3): parameters, initial conditions,
-   boundary conditions, delay initial data, sliders (the model's `@ s1=`
-   ones and the user's own), the model's user buttons, and Default. A right
-   column from 80rem, a section under the plot from 48rem, a full-screen
-   sheet with a Back button below that (R6). An edit sends `set`; a slider
-   drag sends `slide`, throttled like the classic panel while a command is
-   busy; Ctrl+Z (while the focus is inside) or the Undo button restores the
-   previous value (A12) through session.undoValue(). A rejected value comes
-   back as a `message` `error`, shown on the field it belongs to (A11), not
-   as a modal. */
-import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
+/* The values panel (docs/ui-v2.md T3, GitHub #18): parameters, the state
+   (each variable's initial condition beside where the last run is now),
+   boundary conditions, delay initial data, and the model's user buttons.
+   A right column from 80rem, a section under the plot from 48rem, a
+   full-screen sheet with a Back button below that (R6). The sliders are
+   under the plot (SliderStrip.tsx).
+
+   An edit sends `set` (and a run, with "Run on change"); while a command
+   runs it waits, the latest per field, marked on the field, and goes out
+   in one `set` when it ends (session.ts submit). Ctrl+Z (while the focus is
+   inside) or the Undo button restores the previous value (A12). A rejected
+   value comes back as a `message` `error`, shown on its field (A11). Each
+   parameter and IC has a reset to the model file's value (its title names
+   it) and is marked when it differs; each section folds (remembered per
+   viewer), and Parameters and State save and load XPP's own files. */
+import {useEffect, useRef, useState} from 'preact/hooks';
+import type {ComponentChildren} from 'preact';
 import type {Session} from '../session';
-import {fieldKey, sixSig, type ValueKind} from '../store/values';
+import {fieldKey, isQueued, sixSig, type ValueKind} from '../store/values';
 import {useSession, useStore} from './context';
 
 const NUMBER_HINT = 'A number, or %formula such as %2*pi';
 const FOCUSABLE = 'button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])';
+const STATE_HINT = 'Go runs from Initial; Last copies Now into Initial, then runs.';
+
+/* ---- folded sections, remembered per viewer ---- */
+
+const FOLD_KEY = 'xpp.values.folded';
+
+function readFolded(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(FOLD_KEY) ?? '[]');
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function useFolded(id: string): [boolean, () => void] {
+  const [folded, setFolded] = useState(() => readFolded().includes(id));
+  const toggle = () => {
+    const next = !folded;
+    setFolded(next);
+    try {
+      const all = readFolded().filter(x => x !== id);
+      localStorage.setItem(FOLD_KEY, JSON.stringify(next ? [...all, id] : all));
+    } catch {
+      /* no storage: it lasts this page */
+    }
+  };
+  return [folded, toggle];
+}
+
+function Section({id, title, hint, tools, children}: {
+  id: string; title: string; hint?: string; tools?: ComponentChildren; children: ComponentChildren;
+}) {
+  const [folded, toggle] = useFolded(id);
+  const bodyId = `values-sec-${id}`;
+  return (
+    <section class={'value-group' + (folded ? ' folded' : '')} aria-label={title} data-section={id}>
+      <div class="value-group-head">
+        <h3>
+          <button class="value-fold" aria-expanded={!folded} aria-controls={bodyId} onClick={toggle}
+            title={hint ?? `Show or hide ${title.toLowerCase()}`}>
+            <span class="value-fold-mark" aria-hidden="true">{folded ? '▸' : '▾'}</span>{title}
+          </button>
+        </h3>
+      </div>
+      <div id={bodyId} hidden={folded}>
+        {hint && <p class="value-hint">{hint}</p>}
+        {tools && <div class="value-tools">{tools}</div>}
+        {children}
+      </div>
+    </section>
+  );
+}
 
 /* ---- one field: display precision until focused, full precision while editing (A14) ---- */
 
-function ValueField({kind, label, name, index, display, full, hint, numeric}: {
+function ValueField({kind, label, name, index, display, full, hint, numeric, extra}: {
   kind: ValueKind; label: string; name?: string; index?: number; display: string; full: string; hint: string;
-  numeric: boolean;
+  numeric: boolean; extra?: ComponentChildren;
 }) {
   const session = useSession();
   const field = fieldKey(kind, index ?? name!);
   const error = useStore(s => s.values.errors[field]);
+  const queued = useStore(s => isQueued(s.values.queue, field));
+  const def = useStore(s => (kind === 'par' || kind === 'ic' ? s.values.defaults?.[field] ?? null : null));
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(display);
   useEffect(() => { if (!editing) setDraft(display); }, [display, editing]);
@@ -42,144 +103,148 @@ function ValueField({kind, label, name, index, display, full, hint, numeric}: {
     if (index !== undefined) session.setValueByIndex(kind as 'bc' | 'delay', index, text, full);
     else session.setValue(kind as 'par' | 'ic', name!, text, full);
   };
+  const changed = def !== null && Number(full) !== def;
+  const title = queued ? 'Sent when the running command ends' : def !== null ? `${hint}; default: ${sixSig(def)}` : hint;
   return (
-    <div class="value-field">
-      <label htmlFor={id}>
-        <span class="value-name" title={label}>{label}</span>
-        <input id={id} value={editing ? draft : display} title={hint} spellcheck={false} autocomplete="off"
-          aria-invalid={error ? 'true' : undefined} aria-describedby={errId}
-          onFocus={() => { setEditing(true); setDraft(full); }}
-          onInput={e => setDraft((e.target as HTMLInputElement).value)}
-          onBlur={commit}
-          onKeyDown={e => {
-            if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
-            else if (e.key === 'Escape') { e.stopPropagation(); dropped.current = true; (e.target as HTMLInputElement).blur(); }
-          }}
-        />
-      </label>
+    <div class={'value-field' + (queued ? ' queued' : '') + (changed ? ' changed' : '')}>
+      <label htmlFor={id} class="value-name" title={label}>{label}</label>
+      <input id={id} value={editing ? draft : display} title={title} spellcheck={false} autocomplete="off"
+        aria-invalid={error ? 'true' : undefined} aria-describedby={errId} data-queued={queued ? '1' : undefined}
+        onFocus={() => { setEditing(true); setDraft(full); }}
+        onInput={e => setDraft((e.target as HTMLInputElement).value)}
+        onBlur={commit}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+          else if (e.key === 'Escape') { e.stopPropagation(); dropped.current = true; (e.target as HTMLInputElement).blur(); }
+        }}
+      />
+      {extra}
+      {def !== null && name !== undefined && (
+        <button class="value-reset icon" title={`default: ${sixSig(def)}`} disabled={!changed}
+          aria-label={`Reset ${label} to its default, ${sixSig(def)}`}
+          onClick={() => session.resetValue(kind as 'par' | 'ic', name, full)}>↺</button>
+      )}
       {error && <p class="field-error" id={errId} role="alert">{error}</p>}
     </div>
   );
 }
 
-function ValueTable({title, kind, entries, byIndex, hint, numeric, onDefault}: {
-  title: string; kind: ValueKind; entries: [string, string | number][]; byIndex: boolean;
-  hint: string; numeric: boolean; onDefault?: () => void;
-}) {
-  if (!entries.length) return null;
-  return (
-    <section class="value-group" aria-label={title}>
-      <div class="value-group-head">
-        <h3>{title}</h3>
-        {onDefault && <button class="small" onClick={onDefault} title={`${title} from the ODE file`}>Default</button>}
-      </div>
-      <div class="value-list">
-        {entries.map(([name, value], i) => {
-          const display = typeof value === 'number' ? sixSig(value) : value;
-          const full = typeof value === 'number' ? String(value) : value;
-          return (
-            <ValueField key={byIndex ? i : name.toLowerCase()} kind={kind} label={byIndex ? `${title} ${i + 1}` : name}
-              name={byIndex ? undefined : name} index={byIndex ? i : undefined}
-              display={display} full={full} hint={hint} numeric={numeric} />
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-/* ---- sliders: the model's `@ s1=`.. presets, or the user's own pick and range ---- */
-
-/** only the latest position matters while a command is running (like the classic panel) */
-function useSlide(session: Session) {
-  const pending = useRef<{name: string; value: number} | null>(null);
-  const busy = useStore(s => s.busy);
-  const busyRef = useRef(busy);
-  busyRef.current = busy;
-  useEffect(() => {
-    if (!busy && pending.current) {
-      const p = pending.current;
-      pending.current = null;
-      session.slide(p.name, p.value);
-    }
-  }, [busy]);
-  return (name: string, value: number) => {
-    if (busyRef.current) { pending.current = {name, value}; return; }
-    session.slide(name, value);
+function fieldProps(value: string | number) {
+  return {
+    display: typeof value === 'number' ? sixSig(value) : value,
+    full: typeof value === 'number' ? String(value) : value,
   };
 }
 
-function Slider({index, def}: {index: number; def?: {name: string; lo: number; hi: number}}) {
+/** Save and Load of a section's values (store/valueFiles.ts) */
+function FileTools({kind}: {kind: 'par' | 'ic'}) {
   const session = useSession();
-  const pars = useStore(s => s.core?.pars ?? []);
-  const ics = useStore(s => s.core?.ics ?? []);
-  const names = useMemo(() => [...pars, ...ics].map(([n]) => n), [pars, ics]);
-  const [name, setName] = useState(def?.name ?? '');
-  const [lo, setLo] = useState(String(def?.lo ?? 0));
-  const [hi, setHi] = useState(String(def?.hi ?? 1));
-  const seeded = useRef(false);
-  useEffect(() => {
-    if (!seeded.current && def) {
-      seeded.current = true;
-      setName(def.name);
-      setLo(String(def.lo));
-      setHi(String(def.hi));
-    }
-  }, [def]);
-  const slide = useSlide(session);
-  const gesture = useRef<string | null>(null);
-  const match = names.find(n => n.toLowerCase() === name.toLowerCase()) ?? '';
-  const value = match
-    ? [...pars, ...ics].find(([n]) => n.toLowerCase() === match.toLowerCase())?.[1]
-    : undefined;
-  const a = Number(lo), b = Number(hi);
-  const ranged = Number.isFinite(a) && Number.isFinite(b) && a !== b;
-  const pos = value !== undefined && ranged ? Math.max(0, Math.min(1000, Math.round(1000 * (value - a) / (b - a)))) : 500;
-  const label = `Slider ${index + 1}`;
+  const input = useRef<HTMLInputElement>(null);
+  const what = kind === 'par' ? 'parameters' : 'initial conditions';
   return (
-    <div class="value-slider">
-      <label class="visually-hidden" htmlFor={`slider-pick-${index}`}>{label}: parameter or variable</label>
-      <select id={`slider-pick-${index}`} value={match} onChange={e => setName((e.target as HTMLSelectElement).value)}>
-        <option value="">Par/Var…</option>
-        {names.map(n => <option key={n} value={n}>{n}</option>)}
-      </select>
-      <label class="visually-hidden" htmlFor={`slider-lo-${index}`}>{label}: low end</label>
-      <input id={`slider-lo-${index}`} class="value-slider-lim" title="Low end" value={lo}
-        onInput={e => setLo((e.target as HTMLInputElement).value)} />
-      <input type="range" class="value-slider-range" min={0} max={1000} step={1} value={pos} disabled={!match}
-        aria-label={match ? `${match} slider` : label}
-        title="Drag or use the arrow keys to change the value and integrate again"
-        onInput={e => {
-          if (!match || !ranged) return;
-          if (gesture.current === null) gesture.current = value !== undefined ? String(value) : null;
-          const v = a + (b - a) * Number((e.target as HTMLInputElement).value) / 1000;
-          slide(match, v);
-        }}
-        onChange={() => {
-          if (match && gesture.current !== null) {
-            const kind: ValueKind = pars.some(([n]) => n.toLowerCase() === match.toLowerCase()) ? 'par' : 'ic';
-            session.recordEdit({kind, name: match, previous: gesture.current});
-          }
-          gesture.current = null;
-        }}
-      />
-      <span class="value-slider-val" aria-hidden="true">{value !== undefined ? sixSig(value) : ''}</span>
-      <label class="visually-hidden" htmlFor={`slider-hi-${index}`}>{label}: high end</label>
-      <input id={`slider-hi-${index}`} class="value-slider-lim" title="High end" value={hi}
-        onInput={e => setHi((e.target as HTMLInputElement).value)} />
-    </div>
+    <>
+      <button class="small" onClick={() => session.saveValues(kind)}
+        title={`Save the ${what} as a file XPP reads (${kind === 'par' ? 'File/Read par' : 'Initialconds/File, -icfile'})`}>
+        Save
+      </button>
+      <button class="small" onClick={() => input.current?.click()}
+        title={`Load ${what} from a saved file (XPP's, or "name value" lines)`}>Load</button>
+      <input ref={input} id={`values-load-${kind}`} type="file" hidden
+        onChange={async e => {
+          const el = e.target as HTMLInputElement, file = el.files?.[0];
+          if (file) session.loadValues(kind, await file.text());
+          el.value = '';
+        }} />
+    </>
   );
 }
 
-function SlidersBlock() {
-  const defs = useStore(s => s.hello?.sliders ?? []);
+function Parameters() {
+  const session = useSession();
+  const pars = useStore(s => s.core?.pars);
+  if (!pars?.length) return null;
   return (
-    <section class="value-group" aria-label="Sliders">
-      <div class="value-group-head"><h3>Sliders</h3></div>
+    <Section id="par" title="Parameters" tools={(
+      <>
+        <FileTools kind="par" />
+        <button class="small" onClick={() => session.defaultValues('par')} title="Every parameter from the ODE file">
+          Reset all
+        </button>
+      </>
+    )}>
       <div class="value-list">
-        {[0, 1, 2].map(i => <Slider key={i} index={i} def={defs[i]} />)}
+        {pars.map(([name, value]) => (
+          <ValueField key={name.toLowerCase()} kind="par" label={name} name={name} hint={NUMBER_HINT} numeric
+            {...fieldProps(value)} />
+        ))}
       </div>
-    </section>
+    </Section>
+  );
+}
+
+/** where each variable is now: the active window's last stored row while a
+    run goes (the column when its series has it), else `state.now` (where
+    the last run ended or stopped); null before any run */
+function useNow(): (number | null)[] {
+  const ics = useStore(s => s.core?.ics);
+  const now = useStore(s => s.core?.now);
+  const busy = useStore(s => s.busy);
+  const series = useStore(s => (s.busy ? s.plots.windows.find(w => w.win === s.plots.active)?.series ?? null : null));
+  return (ics ?? []).map(([name], i) => {
+    const col = busy && series && series.rows > 0 ? series.columns.get(i + 1) : undefined;
+    if (col && series!.names.get(i + 1)?.toLowerCase() === name.toLowerCase()) return col[series!.rows - 1];
+    return now?.[i] ?? null;
+  });
+}
+
+function StateSection() {
+  const session = useSession();
+  const ics = useStore(s => s.core?.ics);
+  const hasNow = useStore(s => !!s.core?.now);
+  const busy = useStore(s => s.busy);
+  const now = useNow();
+  if (!ics?.length) return null;
+  return (
+    <Section id="ic" title="State" hint={STATE_HINT} tools={(
+      <>
+        <button class="small" disabled={busy || !hasNow} onClick={() => session.useCurrentState()}
+          title="Copy Now into Initial (as Initialconds/Last does), without running">← Use current state</button>
+        <FileTools kind="ic" />
+        <button class="small" onClick={() => session.defaultValues('ic')} title="Every initial condition from the ODE file">
+          Reset all
+        </button>
+      </>
+    )}>
+      <div class="value-cols" aria-hidden="true"><span /><span>Initial</span><span>Now</span></div>
+      <div class="value-list value-state">
+        {ics.map(([name, value], i) => (
+          <ValueField key={name.toLowerCase()} kind="ic" label={name} name={name} hint={NUMBER_HINT} numeric
+            {...fieldProps(value)}
+            extra={(
+              <output class={'value-now' + (now[i] === null ? ' none' : '')} data-name={name}
+                aria-label={`${name} now`} title={now[i] === null ? 'No run yet' : `Now: ${now[i]}`}>
+                {now[i] === null ? '–' : sixSig(now[i]!)}
+              </output>
+            )} />
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function IndexedSection({id, title, kind, entries, hint}: {
+  id: string; title: string; kind: 'bc' | 'delay'; entries: [string, string][]; hint: string;
+}) {
+  if (!entries.length) return null;
+  return (
+    <Section id={id} title={title}>
+      <div class="value-list">
+        {entries.map(([, value], i) => (
+          <ValueField key={i} kind={kind} label={`${title} ${i + 1}`} index={i} hint={hint} numeric={false}
+            {...fieldProps(value)} />
+        ))}
+      </div>
+    </Section>
   );
 }
 
@@ -198,14 +263,23 @@ function UserButtonsBlock() {
   );
 }
 
+function RunOnChange({session}: {session: Session}) {
+  const on = useStore(s => s.values.runOnChange);
+  return (
+    <label class="value-runs" title="Integrate again after a parameter or initial condition changes (like a slider)">
+      <input type="checkbox" checked={on} onChange={e => session.setRunOnChange((e.target as HTMLInputElement).checked)} />
+      Run on change
+    </label>
+  );
+}
+
 /* ---- the panel: a column, a section, or a sheet, depending on the width (R6) ---- */
 
 export function ValuesPanel() {
   const session = useSession();
   const open = useStore(s => s.valuesOpen);
   const history = useStore(s => s.values.history);
-  const pars = useStore(s => s.core?.pars ?? []);
-  const ics = useStore(s => s.core?.ics ?? []);
+  const queued = useStore(s => s.values.queue.length);
   const bcs = useStore(s => s.core?.bcs ?? []);
   const delays = useStore(s => s.core?.delays ?? []);
   const panel = useRef<HTMLElement>(null);
@@ -242,21 +316,24 @@ export function ValuesPanel() {
       <div class="values-header">
         <button class="values-back" onClick={close}>Back</button>
         <h2>Values</h2>
+        <RunOnChange session={session} />
         <button class="small" disabled={!history.length} title={undoLabel} onClick={() => session.undoValue()}>
           Undo
         </button>
       </div>
+      {queued > 0 && (
+        <p class="values-queued" role="status">
+          {queued === 1 ? '1 change waits' : `${queued} changes wait`} for the running command to end.
+        </p>
+      )}
       <div class="values-body">
-        <SlidersBlock />
         <UserButtonsBlock />
-        <ValueTable title="Parameters" kind="par" entries={pars} byIndex={false} hint={NUMBER_HINT} numeric
-          onDefault={() => session.defaultValues('par')} />
-        <ValueTable title="Initial conditions" kind="ic" entries={ics} byIndex={false} hint={NUMBER_HINT} numeric
-          onDefault={() => session.defaultValues('ic')} />
-        <ValueTable title="Boundary conditions" kind="bc" entries={bcs} byIndex
-          hint="An expression that is zero at the boundary" numeric={false} />
-        <ValueTable title="Delay initial data" kind="delay" entries={delays ?? []} byIndex
-          hint="An expression in t for t < 0" numeric={false} />
+        <Parameters />
+        <StateSection />
+        <IndexedSection id="bc" title="Boundary conditions" kind="bc" entries={bcs}
+          hint="An expression that is zero at the boundary" />
+        <IndexedSection id="delay" title="Delay initial data" kind="delay" entries={delays}
+          hint="An expression in t for t < 0" />
       </div>
     </section>
   );

@@ -15,6 +15,9 @@ export interface HelloEvent {
   lists: string[][];
   userbuttons: string[];
   sliders: {name: string; lo: number; hi: number}[];
+  /** the model file's own values, in the order of `state`'s pars and ics
+      (what `default` restores); absent from an older server */
+  defaults?: {pars: number[]; ics: number[]};
 }
 
 export interface View {
@@ -33,6 +36,9 @@ export interface StateEvent {
   ics: [string, number][];
   bcs: [string, string][];
   delays?: [string, string][];
+  /** the current state, one value per `ics` entry: where the last run ended
+      (what Initialconds/Last starts from); absent before any run */
+  now?: number[];
   view: View;
   rows: number;
   menu: number;
@@ -75,6 +81,9 @@ export interface SeriesEvent {
   /** row shifts of the x, y and z columns (lag plots) */
   shift: [number, number, number];
   columns: SeriesColumn[];
+  /** the stored data's version: another one is other data (a new run), the
+      same one is the same data sent again (docs/protocol.md "The plot as data") */
+  version?: number;
 }
 
 /** rows an integration stored since what the client holds: it keeps rows
@@ -386,6 +395,8 @@ export type XppEvent =
   | AniFrameEvent
   | FilmEvent
   | {ev: 'idle'}
+  /** Erase blanked plot window `win`; Redraw drew its current data again */
+  | {ev: 'erase' | 'redraw'; win: number}
   | {ev: 'progress'; n: number; of: number}
   | {ev: 'title'; text: string}
   | {ev: 'menu'; which: number}

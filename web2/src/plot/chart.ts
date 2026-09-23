@@ -43,6 +43,9 @@ export interface ChartInfo {
   traceMs: number | null;
   /** vertices the phase plane's line paths drew last, per curve (null: uPlot's own path) */
   vertices: (number | null)[];
+  /** earlier runs drawn under the curves (store/runs.ts): how many, whether
+      shown, and the vertices the last draw drew of them */
+  runs: {count: number; shown: boolean; drawn: number};
   /** the nullclines, direction field and flow, then the marks, and what the
       last draw drew of each: segments, arrows, points, marks (0 when hidden) */
   layers: ((Layer | MarkLayer) & {visible: boolean; drawn: number; css: string})[];
@@ -114,6 +117,13 @@ export class Chart {
   private marks: Marks | null = null;
   private markLayers: MarkLayer[] = [];
   private hiddenLayers = new Set<LayerKey | MarkKey>();
+  private runs: PlotModel[] = [];
+  private showRuns = true;
+  private runsDrawn = 0;
+  /** each earlier run's paths for the frame they were traced for: a run does
+      not change, so only a new view traces it again */
+  private runPaths = new WeakMap<PlotModel,
+    {frame: PixelFrame; dark: boolean; drawn: number; paths: {p: Path2D; css: string; fill: boolean}[]}>();
   private layerDrawn = new Map<LayerKey | MarkKey, number>();
   /** called with the plotting area each time uPlot makes a new one */
   onArea: (area: HTMLElement) => void = () => {};
@@ -302,6 +312,14 @@ export class Chart {
       document.fonts.load(`${textPx(2)}px Inter`, '\u03b1\u03b2').then(() => this.u?.redraw(false, false), () => {});
   }
 
+  /** earlier runs of the window, oldest first, and whether they are shown */
+  setRuns(runs: PlotModel[], show: boolean): void {
+    if (runs === this.runs && show === this.showRuns) return;
+    this.runs = runs;
+    this.showRuns = show;
+    this.u?.redraw(false, false);
+  }
+
   setLayerVisible(key: LayerKey | MarkKey, show: boolean): void {
     if (show) this.hiddenLayers.delete(key);
     else this.hiddenLayers.add(key);
@@ -314,6 +332,7 @@ export class Chart {
 
   private drawPhase(u: uPlot): void {
     this.layerDrawn.clear();
+    this.drawRuns(u);
     this.drawFrozen(u);
     if (!this.layers.length) return;
     const ctx = u.ctx, f = this.frame(u), r = uPlot.pxRatio, nc = this.nullclines, df = this.dfield;
@@ -384,6 +403,39 @@ export class Chart {
       ctx.fillStyle = css;
       ctx.fill(p);
     }
+  }
+
+  /** earlier runs: under everything else, in their curves' colours, lighter */
+  private drawRuns(u: uPlot): void {
+    this.runsDrawn = 0;
+    if (!this.runs.length || !this.showRuns) return;
+    const f = this.frame(u), r = uPlot.pxRatio;
+    this.clipped(u, ctx => {
+      ctx.globalAlpha = 0.35;
+      ctx.lineWidth = 1.25 * r;
+      for (const run of this.runs) {
+        let cached = this.runPaths.get(run);
+        if (!cached || cached.dark !== this.dark || !sameFrame(cached.frame, f)) {
+          let drawn = 0;
+          const paths = run.curves.map(c => {
+            const p = new Path2D();
+            drawn += traceFrozen(c.xs, c.ys, c.line, f, Math.max(1, c.radius) * r, p);
+            return {p, css: curveColor(c.color, this.dark), fill: !c.line};
+          });
+          cached = {frame: f, dark: this.dark, drawn, paths};
+          this.runPaths.set(run, cached);
+        }
+        this.runsDrawn += cached.drawn;
+        for (const {p, css, fill} of cached.paths) {
+          ctx.strokeStyle = css;
+          ctx.stroke(p);
+          if (fill) {
+            ctx.fillStyle = css;
+            ctx.fill(p);
+          }
+        }
+      }
+    });
   }
 
   /** frozen curves: under the curves, like curves */
@@ -551,6 +603,7 @@ export class Chart {
       tracing: this.traceTimer !== null,
       traceMs: this.traceMs,
       vertices: this.vertices.slice(),
+      runs: {count: this.runs.length, shown: this.showRuns, drawn: this.runsDrawn},
       layers: [...this.layers, ...this.markLayers].map(l => ({...l, visible: this.isLayerVisible(l.key),
         drawn: this.layerDrawn.get(l.key) ?? 0, css: curveColor(l.color, this.dark)})),
     };

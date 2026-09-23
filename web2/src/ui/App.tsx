@@ -17,6 +17,7 @@ import {TextViews} from './TextViews';
 import {useDark} from './theme';
 import {TitleBar} from './TitleBar';
 import {Toasts} from './Toasts';
+import {SliderStrip} from './SliderStrip';
 import {ValuesPanel} from './ValuesPanel';
 
 /* what is wrong with the connection, in words, or nothing */
@@ -47,6 +48,7 @@ function Shell() {
       <main id="main" class="workspace">
         <Banner />
         <Plots dark={dark} />
+        <SliderStrip />
         <Messages />
       </main>
       <ValuesPanel />

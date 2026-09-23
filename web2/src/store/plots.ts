@@ -11,6 +11,7 @@
 import type {DfieldEvent, MarksEvent, NullclinesEvent, PlotsEvent, PlotWindowInfo, SeriesAppendEvent, SeriesEvent} from '../protocol/types';
 import {marksFromEvent, type Marks} from './marks';
 import {dfieldFromEvent, nullclinesFromEvent, type Dfield, type Nullclines} from './phase';
+import {emptyHistory, onAppendFrom, onErase, onFull, onRedraw, type RunHistory} from './runs';
 import {appendRows, seriesFromEvent, type PlotSeries} from './series';
 
 export interface Range {
@@ -51,6 +52,10 @@ export interface PlotWindow {
   viewportHistory: Viewport[];
   /** a 3D window's own angles (null: not seen yet, or not 3D) */
   view3d: View3d | null;
+  /** earlier runs drawn under the current one, and whether Erase hid it (store/runs.ts) */
+  history: RunHistory;
+  /** the legend's "previous runs" toggle */
+  showRuns: boolean;
 }
 
 export interface PlotsState {
@@ -66,7 +71,7 @@ const HISTORY_KEEP = 50;
 function blank(win: number): PlotWindow {
   return {
     win, info: null, series: null, nullclines: null, dfield: null, marks: null, viewport: HOME, viewportHistory: [],
-    view3d: null,
+    view3d: null, history: emptyHistory, showRuns: true,
   };
 }
 
@@ -113,8 +118,30 @@ export function onSeries(p: PlotsState, ev: SeriesEvent): PlotsState {
   return update(p, ev.win, w => {
     /* other curves: the user's zoom does not apply to them */
     const keep = sameCurves(w.series, series);
-    return {...w, series, viewport: keep ? w.viewport : HOME, viewportHistory: keep ? w.viewportHistory : []};
+    const history = onFull(w.history, w.series, series);
+    return {...w, series, history, viewport: keep ? w.viewport : HOME, viewportHistory: keep ? w.viewportHistory : []};
   });
+}
+
+/** Erase (docs/protocol.md `erase`): the window shows nothing until its next run or Redraw */
+export function eraseWindow(p: PlotsState, win: number): PlotsState {
+  if (!windowOf(p, win)) return p;
+  return update(p, win, w => ({...w, history: onErase()}));
+}
+
+/** Redraw (docs/protocol.md `redraw`): the current data again, without the earlier runs */
+export function redrawWindow(p: PlotsState, win: number): PlotsState {
+  const w = windowOf(p, win);
+  if (!w) return p;
+  const history = onRedraw(w.history);
+  return history === w.history ? p : update(p, win, x => ({...x, history}));
+}
+
+/** the legend's "previous runs" toggle */
+export function showRuns(p: PlotsState, win: number, show: boolean): PlotsState {
+  const w = windowOf(p, win);
+  if (!w || w.showRuns === show) return p;
+  return update(p, win, x => ({...x, showRuns: show}));
 }
 
 export function onNullclines(p: PlotsState, ev: NullclinesEvent): PlotsState {
@@ -137,7 +164,8 @@ export function onAppend(p: PlotsState, ev: SeriesAppendEvent): PlotsState | nul
   const w = windowOf(p, ev.win);
   const series = w?.series && appendRows(w.series, ev);
   if (!w || !series) return null;
-  return update(p, ev.win, x => ({...x, series}));
+  const history = onAppendFrom(w.history, w.series!, ev.from);
+  return update(p, ev.win, x => ({...x, series, history}));
 }
 
 export function select(p: PlotsState, win: number): PlotsState {
