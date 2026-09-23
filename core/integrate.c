@@ -1,4 +1,5 @@
 #include "xpp_ui.h"
+#include "xpp_log.h"
 #include "grobs.h"
 #include "xpp_globals.h"
 #include "integrate.h"
@@ -1107,7 +1108,7 @@ void do_batch_dry_run()
 	FILE *fp;
  	fp=fopen(batchout,"w");
    	if(fp==NULL){
-     		printf(" Unable to open %s to write \n",batchout);
+     		xpp_log(XPP_LOG_WARN, " Unable to open %s to write \n",batchout);
      		return;
    	}
  	
@@ -2198,17 +2199,17 @@ if(Xup) cwidth=get_command_width();
              uvar_names[ieqn-1],*t);
           /* if((STORFLAG==1)&&(storind<MAXSTOR))
 	     { */ i_nan=0;
-	         fprintf(stderr,"variable\tf(t-1)\tf(t) \n");
+	         xpp_log(XPP_LOG_DEBUG, "variable\tf(t-1)\tf(t) \n");
 	        /* storage[i_nan][storind]=*t;     */
                 for(i_nan=1;i_nan<=ieqn;i_nan++)
 		 {/*storage[i_nan][storind]=xv[i_nan];*/
- 		 fprintf(stderr," %s\t%g\t%g\n",
+ 		 xpp_log(XPP_LOG_DEBUG, " %s\t%g\t%g\n",
              		uvar_names[i_nan-1],xvold[i_nan],xv[i_nan]);
 		 }
 		for(;i_nan<=NEQ;i_nan++) 
 		 {
 		 /*storage[i_nan][storind]=(float)x[i_nan-1];*/
- 		 fprintf(stderr," %s\t%g\t%g\n",
+ 		 xpp_log(XPP_LOG_DEBUG, " %s\t%g\t%g\n",
              		uvar_names[i_nan-1],xv[i_nan],(float)x[i_nan-1]);
 		 }	
 	     /* storind++;
@@ -2228,17 +2229,17 @@ if(Xup) cwidth=get_command_width();
              uvar_names[ieqn-1],*t);
          /* if((STORFLAG==1)&&(storind<MAXSTOR))
 	     { */ i_nan=0;
-	         fprintf(stderr,"variable\tf(t-1)\tf(t) \n");
+	         xpp_log(XPP_LOG_DEBUG, "variable\tf(t-1)\tf(t) \n");
 	        /* storage[i_nan][storind]=*t;     */
                 for(i_nan=1;i_nan<=ieqn;i_nan++)
 		 {/*storage[i_nan][storind]=xv[i_nan];*/
- 		 fprintf(stderr," %s\t%g\t%g\n",
+ 		 xpp_log(XPP_LOG_DEBUG, " %s\t%g\t%g\n",
              		uvar_names[i_nan-1],xvold[i_nan],xv[i_nan]);
 		 }
 		for(;i_nan<=NEQ;i_nan++) 
 		 {
 		 /*storage[i_nan][storind]=(float)x[i_nan-1];*/
- 		 fprintf(stderr," %s\t%g\t%g\n",
+ 		 xpp_log(XPP_LOG_DEBUG, " %s\t%g\t%g\n",
              		uvar_names[i_nan-1],xv[i_nan],(float)x[i_nan-1]);
 		 }	
 	     /* storind++;

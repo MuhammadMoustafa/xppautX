@@ -83,6 +83,7 @@ so i dont have to parse the event trigger
 
 */
 #include <stdio.h>
+#include "xpp_log.h"
 #include <stdlib.h>
 
 #include "sbml/SBMLReader.h"
@@ -257,14 +258,14 @@ add_parameter(char *name, char *id,double z,int f)
   if(!is_blank(name)){
     for(i=0;i<Npar;i++)
       if(strcmp(name,par[i].name)==0){
-	printf("Hmm  par %d(%s) and %d(%s) are the same\n",Npar,name,i,par[i].name);
+	xpp_log(XPP_LOG_INFO, "Hmm  par %d(%s) and %d(%s) are the same\n",Npar,name,i,par[i].name);
 	return;
       }
   }
   if(!is_blank(id)){
     for(i=0;i<Npar;i++)
       if(strcmp(id,par[i].id)==0){
-	printf("Hmm  par %d(%s) and %d(%s) are the same\n",Npar,id,i,par[i].id);
+	xpp_log(XPP_LOG_INFO, "Hmm  par %d(%s) and %d(%s) are the same\n",Npar,id,i,par[i].id);
 	return;
       }
   }
@@ -917,7 +918,7 @@ species_participation()
     for(j=0;j<r->nre;j++){
       k=find_species(r->re[j]);
       if(k==-1){
-	printf("WARNING: species %s not found \n",r->re[j]);
+	xpp_log(XPP_LOG_WARN, "WARNING: species %s not found \n",r->re[j]);
 	continue;
       }
       s=X_spec+k;
@@ -931,7 +932,7 @@ species_participation()
      for(j=0;j<r->npr;j++){
       k=find_species(r->pr[j]);
       if(k==-1){
-	printf("WARNING: species %s not found \n",r->re[j]);
+	xpp_log(XPP_LOG_WARN, "WARNING: species %s not found \n",r->re[j]);
 	continue;
       }
       s=X_spec+k;

@@ -4,6 +4,7 @@
    through the same code. Menus are data (menus.c) and are shown with
    menu_choose(); see xpp_ui.h. */
 #include "xpp_ui.h"
+#include "xpp_log.h"
 #include "xpp_globals.h"
 #include "xpp_util.h"
 #include "edit_rhs.h"
@@ -88,7 +89,7 @@ void help_file(void)
 void do_tutorial(void)
 {
   int tut = 0;
-  printf("Running tutorial!\n");
+  xpp_log(XPP_LOG_INFO, "Running tutorial!\n");
   while (1) {
     char ans = (char)xpp_ui.two_choice("Next", "Done", tutorial[tut], "nd",
                                        "Did you know you can...");
@@ -214,7 +215,7 @@ void draw_many_lines(void)
   int i;
   for (i = 0; i < NLINE; i++)
     xpp_ui.draw_line(rand() % 200, rand() % 200, rand() % 200, rand() % 200);
-  printf("Done\n");
+  xpp_log(XPP_LOG_INFO, "Done\n");
 }
 
 void get_intern_set(void)

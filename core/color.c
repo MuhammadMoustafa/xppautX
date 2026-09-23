@@ -1,4 +1,5 @@
 #include <X11/Xlib.h>
+#include "xpp_log.h"
 #include "color.h"
 #include "colormap.h"
 #include "xpp_globals.h"
@@ -107,7 +108,7 @@ void x11_NewColormap(int type)
 
 int print_cust()
 {
-  printf("custom map =%d \n",custom_color);
+  xpp_log(XPP_LOG_INFO, "custom map =%d \n",custom_color);
   return 1;
 }
 

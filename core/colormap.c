@@ -2,6 +2,7 @@
    export (which need the RGB values) work without an X display. color.c
    keeps the X colormap allocation and pixel lookup. */
 #include "colormap.h"
+#include "xpp_log.h"
 #include "xpp_globals.h"
 #include <math.h>
 #include <stdio.h>
@@ -163,7 +164,7 @@ int read_cmap_from_file(char *fname, int n, int *rr, int *gg, int *bb)
     }
     fclose(fp);
     m = i;
-    printf(" read %d entries \n", m);
+    xpp_log(XPP_LOG_INFO, " read %d entries \n", m);
     for (i = 0; i < n; i++) {
         j = i * m / n;
         rr[i] = 256 * 255 * r[j];

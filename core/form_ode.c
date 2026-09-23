@@ -1,4 +1,5 @@
 #include "form_ode.h"
+#include "xpp_log.h"
 #include "aniparse.h"
 
 #include "parserslow.h"
@@ -406,7 +407,7 @@ int get_eqn(fptr)
   if(fgets(bob,MAXEXPLEN,fptr)==NULL)bob[0]=0;
   nn=strlen(bob)+1;
   if (NLINES>MAXLINES) {
-    fprintf(stderr,"whoops! NLINES>MAXLINES in form_ode.c ...\n");
+    xpp_log(XPP_LOG_WARN, "whoops! NLINES>MAXLINES in form_ode.c ...\n");
     exit(1);
   };
   if((save_eqn[NLINES]=(char *)malloc(nn))==NULL){
@@ -434,7 +435,7 @@ int get_eqn(fptr)
       else
 	snprintf(filename,sizeof(filename),"%.250s.new",this_file);
       if((convertf=fopen(filename,"w"))==NULL){
-	printf(" Cannot open %s - no conversion done \n",filename);
+	xpp_log(XPP_LOG_WARN, " Cannot open %s - no conversion done \n",filename);
 	ConvertStyle=0;
       }
       fprintf(convertf,"# converted %s \n",this_file);
@@ -463,7 +464,7 @@ int get_eqn(fptr)
   }
   /* plintf("BVP_N=%d NODE=%d NVAR=%d IN_VARS=%d\n",BVP_N,NODE,NVAR,IN_VARS); */
   if(BVP_N<IN_VARS ){
-    if(BVP_N>0)printf("Warning: Too few boundary conditions\n");
+    if(BVP_N>0)xpp_log(XPP_LOG_WARN, "Warning: Too few boundary conditions\n");
     for(i=BVP_N;i<IN_VARS ;i++){
       my_bc[i].com=(int *)malloc(200*sizeof(int));
       my_bc[i].string=(char *)malloc(256);
@@ -688,7 +689,7 @@ int compiler(bob,fptr)
       strcpy(formula,my_string);
       plintf(" events=%s \n",formula);
       if(add_global(condition,sign,formula)){
-	printf("Bad global !! \n");
+	xpp_log(XPP_LOG_WARN, "Bad global !! \n");
 	exit(0);
       }
       if(ConvertStyle){
@@ -766,7 +767,7 @@ int compiler(bob,fptr)
 	fprintf(convertf,"init ");
     vrs:
       if(NMarkov>0&&OldStyle) {
-	printf(" Error at line %d \n Must declare Markov variables after fixed and regular variables\n",NLINES);
+	xpp_log(XPP_LOG_WARN, " Error at line %d \n Must declare Markov variables after fixed and regular variables\n",NLINES);
 	exit(0);
       }
       advance_past_first_word(&ptr);
@@ -825,7 +826,7 @@ int compiler(bob,fptr)
       break;
     case 'k':
       if(ConvertStyle)
-	printf(" Warning  kernel declaration cannot be converted \n");
+	xpp_log(XPP_LOG_WARN, " Warning  kernel declaration cannot be converted \n");
       my_string=get_next(" ");
       strcpy(name,my_string);
       my_string=get_next(" ");
@@ -834,21 +835,21 @@ int compiler(bob,fptr)
       strcpy(formula,my_string);
       plintf("Kernel mu=%f %s = %s \n",value,name,formula);
       if(add_kernel(name,value,formula)){
-	printf("ERROR at line %d\n",NLINES);
+	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",NLINES);
 	exit(0);
       }
       break;
     case 't': 
       if(NTable>=MAX_TAB)
 	{
-	  if(ERROUT)printf("too many tables !!\n");
+	  if(ERROUT)xpp_log(XPP_LOG_WARN, "too many tables !!\n");
 	  exit(0);
 	}
       my_string=get_next(" ");
       strcpy(name,my_string);
       my_string=get_next(" \n");
       if(my_string[0]=='%') {
-	printf(" Function form of table....\n");
+	xpp_log(XPP_LOG_INFO, " Function form of table....\n");
 	my_string=get_next(" ");
 	nn=atoi(my_string);
 	my_string=get_next(" ");
@@ -857,7 +858,7 @@ int compiler(bob,fptr)
 	xhi=atof(my_string);
 	my_string=get_next("\n");
 	strcpy(formula,my_string);
-	printf(" %s has %d pts from %f to %f = %s\n",
+	xpp_log(XPP_LOG_INFO, " %s has %d pts from %f to %f = %s\n",
 	       name,nn,xlo,xhi,formula);
 	add_table_name(NTable,name);
 
@@ -870,7 +871,7 @@ int compiler(bob,fptr)
 	  fprintf(convertf,"table %s %% %d %g %g %s\n",
 		  name,nn,xlo,xhi,formula);
 	NTable++;
-	printf(" NTable = %d \n",NTable);
+	xpp_log(XPP_LOG_INFO, " NTable = %d \n",NTable);
 
 	
 	
@@ -920,7 +921,7 @@ int compiler(bob,fptr)
 	fprintf(convertf,")=%s",formula);
       }
       if(add_ufun(name,formula,narg)){
-	printf("ERROR at line %d\n",NLINES);
+	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",NLINES);
 	exit(0);
       }
 
@@ -938,7 +939,7 @@ int compiler(bob,fptr)
       nn=strlen(formula)+1;
       /* if(nn>79)nn=79;  */
       if((my_ode[NODE]=(int *)malloc(MAXEXPLEN*sizeof(int)))==NULL){
-	printf("Out of memory at line %d\n",NLINES);
+	xpp_log(XPP_LOG_WARN, "Out of memory at line %d\n",NLINES);
 	exit(0);
       }
       
@@ -990,7 +991,7 @@ int compiler(bob,fptr)
 	}
       plintf("RHS(%d)=%s\n",NODE,formula);
       if(add_expr(formula,my_ode[NODE],&leng[NODE])){
-	printf("ERROR at line %d\n",NLINES);
+	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",NLINES);
 	exit(0);
       }
       /* fpr_command(my_ode[NODE]); */
@@ -1022,7 +1023,7 @@ int compiler(bob,fptr)
 void list_upar()
 {
  int i;
- for(i=0;i<NUPAR;i++)printf(" %s",upar_names[i]);
+ for(i=0;i<NUPAR;i++)xpp_log(XPP_LOG_INFO, " %s",upar_names[i]);
 }
 
 void welcome()
@@ -1342,7 +1343,7 @@ void count_object(int type)
 
 void print_count_of_object()
 {
-  printf(
+  xpp_log(XPP_LOG_INFO, 
 "NUMODES=%d \n NUMFIX=%d \n NUMPARAM=%d \n NUMMARK=%d \n NUMVOLT=%d \n NUMAUX=%d \n NUMSOL=%d \n",
 NUMODES,NUMFIX,NUMPARAM,NUMMARK,NUMVOLT,NUMAUX,NUMSOL);
 }
@@ -1383,7 +1384,7 @@ int nnn;
 		int j=0;
 		for (j=0;j<NincludedFiles;j++)
 		{
-			printf("Trying to open %d %s\n",NincludedFiles,includefilename[j]);
+			xpp_log(XPP_LOG_INFO, "Trying to open %d %s\n",NincludedFiles,includefilename[j]);
 			fnew=fopen(includefilename[j],"r");
       			if(fnew==NULL){
          		  plintf("Can't open include file <%s>\n",includefilename[j]);
@@ -1634,7 +1635,7 @@ int nnn;
       i0=i1;
       i2=find_char(v.rhs," ",i0,&i1);
       if(i2!=0){
-	printf(" Illegal definition of table %s \n",v.rhs);
+	xpp_log(XPP_LOG_WARN, " Illegal definition of table %s \n",v.rhs);
 	exit(0);
       }
       strpiece(v.lhs,v.rhs,i0,i1-1);
@@ -1875,7 +1876,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
     if(v->type==TABLE){
       convert(v->lhs,tmp);
       if(add_table_name(ntab,tmp)==1){
-	printf(" %s is duplicate name \n", tmp);
+	xpp_log(XPP_LOG_INFO, " %s is duplicate name \n", tmp);
 	exit(0);
       }
       plintf("added name %d\n",ntab);
@@ -1885,7 +1886,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
     if(v->type==FUNCTION){
       convert(v->lhs,tmp);
       if(add_ufun_name(tmp,nufun,v->nargs)==1){
-	printf("Duplicate name or too many functions for %s \n",tmp);
+	xpp_log(XPP_LOG_INFO, "Duplicate name or too many functions for %s \n",tmp);
 	exit(0);
       }
     
@@ -1905,7 +1906,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
  */
  for(i=0;i<nvar;i++){
       if(add_var(vnames[i],0.0)){
-	printf(" Duplicate name %s \n",vnames[i]);
+	xpp_log(XPP_LOG_INFO, " Duplicate name %s \n",vnames[i]);
 	exit(0);
       }
       strcpy(uvar_names[i],vnames[i]);
@@ -1914,13 +1915,13 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
     }
  for(i=0;i<nfix;i++){
    if(add_var(fnames[i],0.0)){
-	printf(" Duplicate name %s \n",fnames[i]);
+	xpp_log(XPP_LOG_INFO, " Duplicate name %s \n",fnames[i]);
 	exit(0);
       }
  }
  for(i=0;i<nmark;i++){
    if(add_var(mnames[i],0.0)){
-	printf(" Duplicate name %s \n",mnames[i]);
+	xpp_log(XPP_LOG_INFO, " Duplicate name %s \n",mnames[i]);
 	exit(0);
       }
    strcpy(uvar_names[i+nvar],mnames[i]);
@@ -2054,7 +2055,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        find_ker(v->rhs,&alt);
        /*       ode_names[nvar][nn-1]=0; */
        if(add_expr(v->rhs,my_ode[nvar],&leng[nvar])){
-         printf("A\n");
+         xpp_log(XPP_LOG_INFO, "A\n");
 	 plintf("ERROR compiling %s' \n",v->lhs);
 	 exit(0);
        }
@@ -2099,7 +2100,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        strcpy(ode_names[in1],v->rhs);
        /* ode_names[in1][nn]=0; */
        if(add_expr(v->rhs,my_ode[in2],&leng[in2])){
-         printf("B\n");
+         xpp_log(XPP_LOG_INFO, "B\n");
 	 plintf("ERROR compiling %s \n",v->lhs);
 	 exit(0);
        }
@@ -2893,7 +2894,7 @@ void subsk(big,new,k,flag)
       if(ch=='['&&chp=='j')
 	{
            if(flag==0){
-	printf(" Illegal use of [j] at %s \n",big);
+	xpp_log(XPP_LOG_WARN, " Illegal use of [j] at %s \n",big);
 	exit(0);
       }
 	  add=0;

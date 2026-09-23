@@ -1,4 +1,5 @@
 #include "parserslow.h"
+#include "xpp_log.h"
 
 #include <time.h>
 #include "ggets.h"
@@ -313,7 +314,7 @@ int duplicate_name(junk)
   int i;
   find_name(junk,&i);
   if(i>=0){
-    if(ERROUT)printf("%s is a duplicate name\n",junk);
+    if(ERROUT)xpp_log(XPP_LOG_INFO, "%s is a duplicate name\n",junk);
     return(1);
   }
   return(0);
@@ -329,7 +330,7 @@ char *junk;
  if(duplicate_name(junk)==1)return(1);
  if(NCON>=MAXPAR)
  {
-  if(ERROUT)printf("too many constants !!\n");
+  if(ERROUT)xpp_log(XPP_LOG_WARN, "too many constants !!\n");
   return(1);
  }
  convert(junk,string);
@@ -385,7 +386,7 @@ double value;
   /*  printf("Adding constant %s # %d\n",name,NCON); */
  if(NCON>=MAXPAR)
  {
-  if(ERROUT)printf("too many constants !!\n");
+  if(ERROUT)xpp_log(XPP_LOG_WARN, "too many constants !!\n");
   return(1);
  }
  constants[NCON]=value;
@@ -463,7 +464,7 @@ double value;
  if(duplicate_name(junk)==1)return(1);
  if(NVAR>=MAXODE1)
  {
-  if(ERROUT)printf("too many variables !!\n");
+  if(ERROUT)xpp_log(XPP_LOG_WARN, "too many variables !!\n");
   return(1);
  }
  convert(junk,string);
@@ -518,7 +519,7 @@ char string[50];
   plintf(" Adding vectorizer %s %d \n",name,index);
   if(duplicate_name(name)==1)return(1);  
   convert(name,string);
-  printf(" 1\n");
+  xpp_log(XPP_LOG_WARN, " 1\n");
   if(len>MXLEN)len=MXLEN;
   strncpy(my_symb[NSYM].name,string,len);
   my_symb[NSYM].name[len]='\0';
@@ -584,7 +585,7 @@ int add_file_table(index,file)
   file2[i2]=0;
   if(load_table(file2,index)==0)
     {
-      if(ERROUT)printf("Problem with creating table !!\n");
+      if(ERROUT)xpp_log(XPP_LOG_WARN, "Problem with creating table !!\n");
        return(1);
     }
  
@@ -623,7 +624,7 @@ int add_form_table(index,nn,xlo,xhi,formula)
  
   if(create_fun_table(nn,xlo,xhi,formula,index)==0)
     {
-      if(ERROUT)printf("Problem with creating table !!\n");
+      if(ERROUT)xpp_log(XPP_LOG_WARN, "Problem with creating table !!\n");
        return(1);
     }
     return(0);
@@ -663,7 +664,7 @@ int add_ufun_name(name,index,narg)
  if(duplicate_name(name)==1)return(1);
  if(index>=MAXUFUN)
  {
-  if(ERROUT)printf("too many functions !!\n");
+  if(ERROUT)xpp_log(XPP_LOG_WARN, "too many functions !!\n");
   return(1);
  }
   plintf(" Added user fun %s \n",name);
@@ -703,12 +704,12 @@ int add_ufun_new(index,narg,rhs,args)
   }
   if((ufun[index]=(int *)malloc(1024))==NULL)
     {
-      if(ERROUT)printf("not enough memory!!\n");
+      if(ERROUT)xpp_log(XPP_LOG_WARN, "not enough memory!!\n");
       return(1);
     }
   if((ufun_def[index]=(char *)malloc(MAXEXPLEN))==NULL)
     {
-      if(ERROUT)printf("not enough memory!!\n");
+      if(ERROUT)xpp_log(XPP_LOG_WARN, "not enough memory!!\n");
       return(1);
     }
   ufun_arg[index].narg=narg;
@@ -730,7 +731,7 @@ int add_ufun_new(index,narg,rhs,args)
     } 
   
   set_old_arg_names(narg);
-  if(ERROUT)printf(" ERROR IN FUNCTION DEFINITION\n");
+  if(ERROUT)xpp_log(XPP_LOG_WARN, " ERROR IN FUNCTION DEFINITION\n");
   return(1);
 }
 
@@ -748,17 +749,17 @@ int narg;
  if(duplicate_name(junk)==1)return(1);
  if(NFUN>=MAXUFUN)
  {
-  if(ERROUT)printf("too many functions !!\n");
+  if(ERROUT)xpp_log(XPP_LOG_WARN, "too many functions !!\n");
   return(1);
  }
  if((ufun[NFUN]=(int *)malloc(1024))==NULL)
  {
-  if(ERROUT)printf("not enough memory!!\n");
+  if(ERROUT)xpp_log(XPP_LOG_WARN, "not enough memory!!\n");
   return(1);
  }
  if((ufun_def[NFUN]=(char *)malloc(MAXEXPLEN))==NULL)
  {
-  if(ERROUT)printf("not enough memory!!\n");
+  if(ERROUT)xpp_log(XPP_LOG_WARN, "not enough memory!!\n");
   return(1);
  }
 
@@ -787,7 +788,7 @@ int narg;
   NFUN++;
   return(0);
  }
-       if(ERROUT)printf(" ERROR IN FUNCTION DEFINITION\n");
+       if(ERROUT)xpp_log(XPP_LOG_WARN, " ERROR IN FUNCTION DEFINITION\n");
        return(1);
 }
 
@@ -1025,7 +1026,7 @@ int *toklist,*command;
 	   	    }
 	   else 
 	   {
-		printf("Illegal use of DELAY \n");
+		xpp_log(XPP_LOG_WARN, "Illegal use of DELAY \n");
 		return(1);
            }
 
@@ -1048,7 +1049,7 @@ int *toklist,*command;
 	   	    }
 	   else 
 	   {
-		printf("Illegal use of DELAY Shift \n");
+		xpp_log(XPP_LOG_WARN, "Illegal use of DELAY Shift \n");
 		return(1);
            }
 
@@ -1067,7 +1068,7 @@ int *toklist,*command;
 	   }
 	     else
 	       {
-		 printf("Illegal use of set - variables only\n");
+		 xpp_log(XPP_LOG_WARN, "Illegal use of set - variables only\n");
 		   return(1);
 	       }
 	  }
@@ -1090,7 +1091,7 @@ int *toklist,*command;
 	   	    }
 	   else 
 	   {
-		printf("Illegal use of SHIFT \n");
+		xpp_log(XPP_LOG_WARN, "Illegal use of SHIFT \n");
 		return(1);
            }
 
@@ -1467,7 +1468,7 @@ if(check_syntax(old_tok,ENDTOK)==1){
 }
 if(nparen!=0)
 {
- if(ERROUT)printf(" parentheses don't match\n");
+ if(ERROUT)xpp_log(XPP_LOG_WARN, " parentheses don't match\n");
  return(1);
 }
 return(0);
@@ -1532,7 +1533,7 @@ err:
   num[j]='\0';
   if(error==0)*value=atof(num);
   else
-  if(ERROUT)printf(" illegal expression: %s\n",num);
+  if(ERROUT)xpp_log(XPP_LOG_WARN, " illegal expression: %s\n",num);
   *ind=i;
   return(error);
 }

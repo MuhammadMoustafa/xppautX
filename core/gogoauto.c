@@ -1,5 +1,6 @@
 
 #include "auto_f2c.h"
+#include "xpp_log.h"
 #include "auto_c.h"
 #include "xAuto.h"
 
@@ -68,7 +69,7 @@ int go_go_auto() /* this is the entry  at this point, xAuto has been set */
       findlb(&iap, &rap, iap.irs, &(iap.nfpr), &found);
       if (! found) {
 	if (iap.mynode == 0) {
-	  fprintf(stderr,"\nRestart label %4ld not found\n",iap.irs);
+	  xpp_log_auto("\nRestart label %4ld not found\n",iap.irs);
 	}
 	/* close the units before giving up: Windows cannot rename or delete
 	   an open file, so leaking them here makes every later run fail too */
@@ -500,9 +501,9 @@ int set_function_pointers(const iap_type iap,function_list *data) {
   } else {
     /*        ** Error in INIT. */
     
-      printf("\nInitialization Error CRASH!!\n");
+      xpp_log_auto("\nInitialization Error CRASH!!\n");
    
-      printf("itp=%ld ips=%ld isw=%ld\n",iap.itp,iap.ips,iap.isw);
+      xpp_log_auto("itp=%ld ips=%ld isw=%ld\n",iap.itp,iap.ips,iap.isw);
   }
   /* -----------------------------------------------------------------------*/
 
@@ -513,19 +514,19 @@ int set_function_pointers(const iap_type iap,function_list *data) {
 void dump_params(iap_type iap, rap_type rap,int *icp, double *thl)
 {
   int i;
-  printf("%ld %ld %ld %ld  \n", iap.ndim,iap.ips,iap.irs,iap.ilp);
-  printf("%ld ",iap.nicp);
+  xpp_log_auto("%ld %ld %ld %ld  \n", iap.ndim,iap.ips,iap.irs,iap.ilp);
+  xpp_log_auto("%ld ",iap.nicp);
   for(i=0;i<iap.nicp;i++)
-    printf("%d ",icp[i]);
-  printf("\n");
-  printf("%ld %ld %ld %ld %ld %ld %ld %ld\n",iap.ntst,iap.ncol,iap.iad,iap.isp,iap.isw,iap.iplt,iap.nbc,iap.nint);
-  printf("%ld %g %g %g %g\n",iap.nmx,rap.rl0,rap.rl1,rap.a0,rap.a1);
-  printf("%ld %ld %ld %ld %ld %ld %ld\n",iap.npr,iap.mxbf,iap.iid,iap.itmx,iap.itnw,iap.nwtn,iap.jac);
-  printf("%g %g %g\n",rap.epsl,rap.epsu,rap.epss);
-  printf("%g %g %g %ld\n",rap.ds,rap.dsmin,rap.dsmax,iap.iads);
+    xpp_log_auto("%d ",icp[i]);
+  xpp_log_auto("\n");
+  xpp_log_auto("%ld %ld %ld %ld %ld %ld %ld %ld\n",iap.ntst,iap.ncol,iap.iad,iap.isp,iap.isw,iap.iplt,iap.nbc,iap.nint);
+  xpp_log_auto("%ld %g %g %g %g\n",iap.nmx,rap.rl0,rap.rl1,rap.a0,rap.a1);
+  xpp_log_auto("%ld %ld %ld %ld %ld %ld %ld\n",iap.npr,iap.mxbf,iap.iid,iap.itmx,iap.itnw,iap.nwtn,iap.jac);
+  xpp_log_auto("%g %g %g\n",rap.epsl,rap.epsu,rap.epss);
+  xpp_log_auto("%g %g %g %ld\n",rap.ds,rap.dsmin,rap.dsmax,iap.iads);
   for(i=0;i<5;i++)
-    printf("%g ",thl[icp[i]]);
-  printf("\n");
+    xpp_log_auto("%g ",thl[icp[i]]);
+  xpp_log_auto("\n");
   
 }
 

@@ -1,5 +1,6 @@
 
 #include "do_fit.h"
+#include "xpp_log.h"
 
 #include "cv2.h"
 #include "dormpri.h"
@@ -202,7 +203,7 @@ void printem(yderv,yfit,t0,npars,nvars,npts)
     for(j=0;j<nvars;j++){
       plintf(" %g ",yfit[ioff+j]);
       for(k=0;k<npars;k++)
-	printf(" %g ",yderv[k][ioff+j]);
+	xpp_log(XPP_LOG_INFO, " %g ",yderv[k][ioff+j]);
     }
     plintf(" \n");
   }

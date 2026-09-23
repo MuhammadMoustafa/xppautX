@@ -1,4 +1,5 @@
 #include "xpp_ui.h"
+#include "xpp_log.h"
 #include "lunch-new.h"
 #include "parserslow.h"
 #include "edit_rhs.h"
@@ -415,8 +416,8 @@ void io_parameter_file(char *fn,int flag)
       }
       io_int(&np,fp,flag," ");
       if(np!=NUPAR){
-      	printf("%d",np);
-	printf("%d",NUPAR);
+      	xpp_log(XPP_LOG_INFO, "%d",np);
+	xpp_log(XPP_LOG_INFO, "%d",NUPAR);
 	err_msg("Incompatible parameters");
      fclose(fp);
      return;

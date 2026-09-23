@@ -1,4 +1,5 @@
 #include "auto_f2c.h"
+#include "xpp_log.h"
 #include "auto_c.h"
 #include "xAuto.h"
 #include "xpp_ui.h" /* err_msg() */
@@ -144,12 +145,12 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
   
   
   if(dsmin < 0.0) {
-    printf("Warning : DSMIN less then 0.0, will use absolute value instead.");
+    xpp_log_auto("Warning : DSMIN less then 0.0, will use absolute value instead.");
     dsmin = fabs(dsmin);
   }
 
   if(dsmax < 0.0) {
-    printf("Warning : DSMAX less then 0.0, will use absolute value instead.");
+    xpp_log_auto("Warning : DSMAX less then 0.0, will use absolute value instead.");
     dsmax = fabs(dsmax);
   }
   nthl=xAuto.nthl;
@@ -373,7 +374,7 @@ chdim(iap_type *iap)
 
   if (npar > NPARX) {
     if (iap->mynode == 0) {
-      printf("Dimension exceeded : NPAR=%5ld  maximum=%5d (Increase NPARX in auto.h and recompile AUTO",npar,NPARX);
+      xpp_log_auto("Dimension exceeded : NPAR=%5ld  maximum=%5d (Increase NPARX in auto.h and recompile AUTO",npar,NPARX);
     }
     exit(0);
   }
@@ -636,7 +637,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       isp = 0;
       nmx = 5;
       if (iap->mynode == 0) {
-	printf("\nGenerating starting data :\n Restart at EP label below :\n");
+	xpp_log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
 	restart_flag=1;
       }
 
@@ -672,7 +673,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       isp = 0;
       nmx = 5;
       if (iap->mynode == 0) {
-	printf("\nGenerating starting data :\n Restart at EP label below :\n");
+	xpp_log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
 	restart_flag=1;
       }
 
@@ -702,7 +703,7 @@ rt */
       isw = -2;
       nmx = 5;
       if (iap->mynode == 0) {
-	printf("\nGenerating starting data :\n Restart at EP label below :\n");
+	xpp_log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
 	restart_flag=1;
       }
 
@@ -734,7 +735,7 @@ rt */
       nmx = 5; 
       if (iap->mynode == 0) {
 	restart_flag=1;
-	printf("\nGenerating starting data :\n Restart at EP label below :\n");
+	xpp_log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
       }
 
     } else if ((abs(itp) / 10 == 5 || abs(itp) / 10 == 5) && ips == 4) {
@@ -2607,7 +2608,7 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
 
   if (iap->mynode == 0) {
     if (iunit == 6) {
-      printf(" \n");
+      xpp_log_auto(" \n");
     }
     if (iunit == 7) {
       fprintf(fp7,"   0\n");
@@ -2676,13 +2677,13 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
 
   if (iap->mynode == 0) {
     if (iunit == 6) {
-      printf("  BR    PT  TY LAB ");
+      xpp_log_auto("  BR    PT  TY LAB ");
       for (i = 0; i < *n1 + *n2 + 1; ++i) {
 	char scr[AUTO_COL_W+1]; /* PAR(n)/U(n) as the user named them */
 	auto_screen_col(col[i],scr);
-	printf("%s",scr);
+	xpp_log_auto("%s",scr);
       }
-      printf("\n");
+      xpp_log_auto("\n");
       fflush(stdout);
     } else if (iunit == 7) {
       fprintf(fp7,"   0    PT  TY LAB ");
@@ -2958,13 +2959,13 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   mtot = *ntot % 10000;
   if (n2 == 0) {
     if (itp % 10 != 0) {
-      printf("%4li%6li  %c%c%4li",(*ibr),mtot,atype[0],atype[1],*(lab));
-      printf("%14.6E",par[icu[0]]);
-      printf("%14.6E",(*vaxis));
+      xpp_log_auto("%4li%6li  %c%c%4li",(*ibr),mtot,atype[0],atype[1],*(lab));
+      xpp_log_auto("%14.6E",par[icu[0]]);
+      xpp_log_auto("%14.6E",(*vaxis));
       for (i = 1; i < n1; ++i) {
-	printf("%14.6E",par[icu[i]]);
+	xpp_log_auto("%14.6E",par[icu[i]]);
       }
-      printf("\n");
+      xpp_log_auto("\n");
       fflush(stdout);
     }
     fprintf(fp7,"%4li%6li%4li%4li",(*ibr),mtot,itp,(*lab));
@@ -2984,13 +2985,13 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   } else {
     if (n1 == 1) {
       if (itp % 10 != 0) {
-	printf("%4li%6li  %c%c%4li",abs(*ibr),abs(mtot),atype[0],atype[1],*(lab));
-	printf("%14.6E",par[icu[0]]);
-	printf("%14.6E",(*vaxis));
+	xpp_log_auto("%4li%6li  %c%c%4li",abs(*ibr),abs(mtot),atype[0],atype[1],*(lab));
+	xpp_log_auto("%14.6E",par[icu[0]]);
+	xpp_log_auto("%14.6E",(*vaxis));
 	for (i = 0; i < n2; ++i) {
-	  printf("%14.6E",u[i]);
+	  xpp_log_auto("%14.6E",u[i]);
 	}
-	printf("\n");
+	xpp_log_auto("\n");
 	fflush(stdout);
       }
       fprintf(fp7,"%4li%6li%4li%4li",(*ibr),mtot,itp,(*lab));
@@ -3010,16 +3011,16 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 
     } else {
       if (itp % 10 != 0) {
-	printf("%4li%6li  %c%c%4li",abs(*ibr),abs(mtot),atype[0],atype[1],*(lab));
-	printf("%14.6E",par[icu[0]]);
-	printf("%14.6E",(*vaxis));
+	xpp_log_auto("%4li%6li  %c%c%4li",abs(*ibr),abs(mtot),atype[0],atype[1],*(lab));
+	xpp_log_auto("%14.6E",par[icu[0]]);
+	xpp_log_auto("%14.6E",(*vaxis));
 	for (i = 0; i < n2; ++i) {
-	  printf("%14.6E",u[i]);
+	  xpp_log_auto("%14.6E",u[i]);
 	}
 	for (i = 1; i < n1; ++i) {
-	  printf("%14.6E",par[icu[i]]);
+	  xpp_log_auto("%14.6E",par[icu[i]]);
 	}
-	printf("\n");
+	xpp_log_auto("\n");
 	fflush(stdout);      
       }
       fprintf(fp7,"%4li%6li%4li%4li",(*ibr),mtot,itp,(*lab));
@@ -3313,9 +3314,9 @@ cpnts(const integer ncol, doublereal *zm)
 
   /* Generates the collocation points with respect to [0,1]. */
   if (ncol > 7) {
-    fprintf(stderr,"Dimension exceeded : NCOL=%5ld  maximum=7\n",ncol);
-    fprintf(stderr,"AUTO does not contain weights for NCOL > 1\n");
-    fprintf(stderr,"Please reset NCOL to 7 or smaller\n");
+    xpp_log_auto("Dimension exceeded : NCOL=%5ld  maximum=7\n",ncol);
+    xpp_log_auto("AUTO does not contain weights for NCOL > 1\n");
+    xpp_log_auto("Please reset NCOL to 7 or smaller\n");
     exit(1);
   }
 
@@ -4342,7 +4343,7 @@ ge(integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublere
   for (irh = 0; irh < nrhs; ++irh) {
 #ifndef FLOATING_POINT_TRAP
     if(ARRAY2D(a, ir[n - 1], ic[n - 1]) == 0) {
-      printf("Division by Zero, exiting\n");
+      xpp_log_auto("Division by Zero, exiting\n");
       exit(0);
     }
 #endif
@@ -4575,7 +4576,7 @@ readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par)
   }
   if (nparr > NPARX) {
     nparr = NPARX;
-    printf("Warning : NPARX too small for restart data :\n restart PAR(i) skipped for i > %3ld\n",nparr);
+    xpp_log_auto("Warning : NPARX too small for restart data :\n restart PAR(i) skipped for i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
     if (fscanf(fp3,"%le",&par[i]) != 1) return 1;
@@ -6100,7 +6101,7 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   if (nparr > NPARX) {
     nparr = NPARX;
-    printf("Warning : NPARX too small for restart data :\n restart PAR(i) skipped for i > %3ld\n",nparr);
+    xpp_log_auto("Warning : NPARX too small for restart data :\n restart PAR(i) skipped for i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
     if (fscanf(fp3,"%le",&par[i]) != 1) return 1;

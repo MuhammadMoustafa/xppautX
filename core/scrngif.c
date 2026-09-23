@@ -1,4 +1,5 @@
 #include "scrngif.h"
+#include "xpp_log.h"
 
 #include "aniparse.h"
 
@@ -372,7 +373,7 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
      curNode->typ = SEARCH;
      break;
    default:
-     fprintf(stderr, "Silly node type: %d\n", curNode->typ);
+     xpp_log(XPP_LOG_WARN, "Silly node type: %d\n", curNode->typ);
   }
   newNode->code = next;
   newNode->ix = *pixels;
@@ -384,9 +385,9 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
 * ******************************************************
 */
   if (debugFlag) {
-    if (curNode == newNode) fprintf(stderr, "Wrong choice of node\n");
-    if ( curNode->typ == LOOKUP && curNode->node[*pixels] != newNode ) fprintf(stderr, "Wrong pixel coding\n");
-    if ( curNode->typ == TERMIN ) fprintf(stderr, "Wrong Type coding; pixel# = %d; nodecount = %d\n", tel, nodecount);
+    if (curNode == newNode) xpp_log(XPP_LOG_WARN, "Wrong choice of node\n");
+    if ( curNode->typ == LOOKUP && curNode->node[*pixels] != newNode ) xpp_log(XPP_LOG_WARN, "Wrong pixel coding\n");
+    if ( curNode->typ == TERMIN ) xpp_log(XPP_LOG_WARN, "Wrong Type coding; pixel# = %d; nodecount = %d\n", tel, nodecount);
   }
     pos = AddCodeToBuffer(curNode->code, cLength, pos);
     if ( chainlen > maxchainlen ) maxchainlen = chainlen;
@@ -440,7 +441,7 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
 
   fwrite(buffer-1, pos-buffer+1, 1, fout);
   free(buffer-1); free(first->node); free(baseNode);
-  if (debugFlag) fprintf(stderr, "pixel count = %d; nodeCount = %d lookup nodes = %d\n", tel, nodecount, lookuptypes);
+  if (debugFlag) xpp_log(XPP_LOG_DEBUG, "pixel count = %d; nodeCount = %d lookup nodes = %d\n", tel, nodecount, lookuptypes);
   return 1;
 
 }
@@ -450,8 +451,8 @@ void ClearTree(int cc, GifTree *root)
   int i;
   GifTree *newNode, **xx;
 
-  if (debugFlag>1) fprintf(stderr, "Clear Tree  cc= %d\n", cc);
-  if (debugFlag>1) fprintf(stderr, "nodeCount = %d lookup nodes = %d\n", nodecount, lookuptypes);
+  if (debugFlag>1) xpp_log(XPP_LOG_DEBUG, "Clear Tree  cc= %d\n", cc);
+  if (debugFlag>1) xpp_log(XPP_LOG_DEBUG, "nodeCount = %d lookup nodes = %d\n", nodecount, lookuptypes);
   maxchainlen=0; lookuptypes = 1;
   nodecount = 0;
   nodeArray = root->node;

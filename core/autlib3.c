@@ -4,6 +4,7 @@
 */
 
 #include "auto_f2c.h"
+#include "xpp_log.h"
 #include "auto_c.h"
 
 /* The memory for these are taken care of in main, and setubv for the
@@ -2571,8 +2572,8 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   if (nparr > NPARX) {
     nparr = NPARX;
-    printf("Warning : NPARX too small for restart data\n");
-    printf("PAR(i) set to zero, fot i > %3ld\n",nparr);
+    xpp_log_auto("Warning : NPARX too small for restart data\n");
+    xpp_log_auto("PAR(i) set to zero, fot i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
     if (fscanf(fp3,"%lf",&par[i]) != 1) return 1;
@@ -2968,8 +2969,8 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   if (nparr > NPARX) {
     nparr = NPARX;
-    printf("Warning : NPARX too small for restart data\n");
-    printf("PAR(i) set to zero, fot i > %3ld\n",nparr);
+    xpp_log_auto("Warning : NPARX too small for restart data\n");
+    xpp_log_auto("PAR(i) set to zero, fot i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
     if (fscanf(fp3,"%lf",&par[i]) != 1) return 1;
@@ -3398,8 +3399,8 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   if (nparr > NPARX) {
     nparr = NPARX;
-    printf("Warning : NPARX too small for restart data\n");
-    printf("PAR(i) set to zero, fot i > %3ld\n",nparr);
+    xpp_log_auto("Warning : NPARX too small for restart data\n");
+    xpp_log_auto("PAR(i) set to zero, fot i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
     if (fscanf(fp3,"%lf",&par[i]) != 1) return 1;
@@ -3909,8 +3910,8 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   /* Read the parameter values. */
   if (nparr > NPARX) {
     nparr = NPARX;
-    printf("Warning : NPARX too small for restart data\n");
-    printf("PAR(i) set to zero, fot i > %3ld\n",nparr);
+    xpp_log_auto("Warning : NPARX too small for restart data\n");
+    xpp_log_auto("PAR(i) set to zero, fot i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
     if (fscanf(fp3,"%lf",&par[i]) != 1) goto read_failed;
@@ -4520,8 +4521,8 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   if (nparr > NPARX) {
     nparr = NPARX;
-    printf("Warning : NPARX too small for restart data\n");
-    printf("PAR(i) set to zero, for i > %3ld\n",nparr);
+    xpp_log_auto("Warning : NPARX too small for restart data\n");
+    xpp_log_auto("PAR(i) set to zero, for i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
     if (fscanf(fp3,"%lf",&par[i]) != 1) return 1;

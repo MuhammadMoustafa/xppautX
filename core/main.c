@@ -1,4 +1,5 @@
 #include <X11/Xlib.h>
+#include "xpp_log.h"
 #include "main.h"
 #include "xpp_globals.h"
 #include "xpp_batch.h"
@@ -460,7 +461,7 @@ void init_X ()
   
   if (PaperWhite == 1) /*Respect the swapping implied by the -white option.*/
   {
-  	  printf("Doing swap!\n");
+  	  xpp_log(XPP_LOG_INFO, "Doing swap!\n");
 	  char swapcol[8];
 	  strcpy(swapcol,UserWhite);
 	  strcpy(UserWhite,UserBlack);

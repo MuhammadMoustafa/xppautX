@@ -2,6 +2,7 @@
    aniparse.c, graf_par.c, calc.c, many_pops.c, main.c). Nothing here
    touches a window. */
 #include "xpp_util.h"
+#include "xpp_log.h"
 #include "xpp_ui.h"
 #include "grobs.h"
 #include "xpp_globals.h"
@@ -677,12 +678,12 @@ void eq_import(double *y,int n)
     if(sparity==0){
       for(i=0;i<n;i++)
 	homo_l[i]=y[i];
-      printf("Saved to left equilibrium\n");
+      xpp_log(XPP_LOG_INFO, "Saved to left equilibrium\n");
     }
     if(sparity==1){
       for(i=0;i<n;i++)
 	homo_r[i]=y[i];
-      printf("Saved to right equilibrium\n");
+      xpp_log(XPP_LOG_INFO, "Saved to right equilibrium\n");
     }
     sparity=1-sparity;
   }

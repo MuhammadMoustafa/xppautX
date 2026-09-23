@@ -1,4 +1,5 @@
 #include "xpp_ui.h"
+#include "xpp_log.h"
 #include <stdlib.h>
 
 #include "eig_list.h" 
@@ -220,7 +221,7 @@ void cprintn(z)
 void cprint(z)
      COMPLEX z;
 {
-printf("(%g,%g) ",z.r,z.i);
+xpp_log(XPP_LOG_INFO, "(%g,%g) ",z.r,z.i);
 }
 
 void cprintarr(z,n,m)

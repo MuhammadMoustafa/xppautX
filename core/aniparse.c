@@ -1,4 +1,5 @@
 #include "aniparse.h"
+#include "xpp_log.h"
 #include "xpp_globals.h"
 #include "parserslow.h"
 #include "form_ode.h"
@@ -2022,7 +2023,7 @@ void ani_grab_mouse(int flag,int ix,int iy)
       ami.y0=ami.y;
       	who_was_grabbed=search_for_grab(ami.x,ami.y);
 	if(who_was_grabbed<0)
-	  printf("Nothing grabbed\n");
+	  xpp_log(XPP_LOG_INFO, "Nothing grabbed\n");
 
 
       /*     printf("found %d\n",who_was_grabbed); */

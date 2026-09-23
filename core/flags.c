@@ -1,4 +1,5 @@
 #include "flags.h"
+#include "xpp_log.h"
 
 #include "cv2.h"
 #include "stiff.h"
@@ -135,13 +136,13 @@ int add_global(cond,sign,rest)
     if(ch=='{'||ch==' ')continue;
     if(ch=='}'||ch==';'){
       if(nevents==MAX_EVENTS){
-	printf(" Too many events per flag \n");
+	xpp_log(XPP_LOG_WARN, " Too many events per flag \n");
 	return(1);
       }
       temp[k]=0;
       lt=strlen(temp);
       if(flag[j].lhsname[nevents][0]==0){
-	printf(" No event variable named for %s \n",temp);
+	xpp_log(XPP_LOG_INFO, " No event variable named for %s \n",temp);
 	return(1);
       }
       flag[j].rhs[nevents]=(char *)malloc(lt+1);
@@ -250,7 +251,7 @@ int compile_flags()
 	flag[j].type[i]=0;
       }
       if(add_expr(flag[j].rhs[i],command,&nc)){
-	printf("Illegal event %s for global %s\n",
+	xpp_log(XPP_LOG_WARN, "Illegal event %s for global %s\n",
 	       flag[j].rhs[i],flag[j].cond);
       return(1);
       }

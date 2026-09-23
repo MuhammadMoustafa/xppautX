@@ -4,6 +4,7 @@
 */
 
 #include "auto_f2c.h"
+#include "xpp_log.h"
 #include "auto_c.h"
 #include "xpp_job.h" /* xppautX: cancel */
 /* #include "malloc.h" */
@@ -304,7 +305,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   nclm = nrow + ndim;
   
   if (kwt > ntst) {
-    printf("NTST is less than the number of nodes\n");
+    xpp_log_auto("NTST is less than the number of nodes\n");
     exit(0);
   } else {
     partition(&ntst, &kwt, main_auto_storage.np);

@@ -1,4 +1,5 @@
 #include "simplenet.h"
+#include "xpp_log.h"
 
 #include "aniparse.h"
 #include "ggets.h"
@@ -1536,7 +1537,7 @@ int gilparse(char *s,int *ind,int *nn)
     if(c==','||i>(n-1)){
       piece[jp]=0;
       if(g_namelist(piece,b,&f,&i1,&i2)==0){
-	printf("Bad gillespie list %s\n",s);
+	xpp_log(XPP_LOG_WARN, "Bad gillespie list %s\n",s);
 	return 0;
       }
       if(f==0)
@@ -1661,7 +1662,7 @@ int getimpstr(char *in,int *i,char *out)
 
 int import_error()
 {
-  printf("k=import(soname,sofun,nret,var0,w1,...,wm)");
+  xpp_log(XPP_LOG_INFO, "k=import(soname,sofun,nret,var0,w1,...,wm)");
   return 0;
 }
 int parse_import(char *s,  char *soname,char *sofun,int *n, char *vname,int *m, char *tname[MAXW])
@@ -1698,7 +1699,7 @@ int parse_import(char *s,  char *soname,char *sofun,int *n, char *vname,int *m, 
   /*  plintf("%s %s %d %s\n",soname,sofun,*n,vname); */
   *m=0;
   if(j==1){
-    printf("No weights....\n");
+    xpp_log(XPP_LOG_INFO, "No weights....\n");
     return(1);
   } 
 

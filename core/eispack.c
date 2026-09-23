@@ -9,6 +9,7 @@
 
 extern int (*rhs)();
 #include "auto_f2c.h"
+#include "xpp_log.h"
 #include "math.h"
 #include "auto_c.h"
 /* Table of constant values */
@@ -3919,7 +3920,7 @@ xerbla(char *srname, integer *info, integer srname_len)
 
 /*     .. Executable Statements .. */
 
-    printf("On entry to %c%c%c%c%c%c parameter number %ld had an illegal value\n",
+    xpp_log(XPP_LOG_ERROR, "On entry to %c%c%c%c%c%c parameter number %ld had an illegal value\n",
 	   srname[0],srname[1],srname[2],srname[3],srname[4],srname[5],(*info));
     exit(0);
     return 0;
@@ -5133,8 +5134,8 @@ L350:
 /*     begin loop */
 L999:
     if (*idbg > 0) {
-      printf("top of loop\n");
-      printf("oldll,oldm,oldacc,m,iter,maxit,ifull,thresh=%ld,%ld,%ld,%ld,%ld,%ld,%ld,%f\n",
+      xpp_log(XPP_LOG_DEBUG, "top of loop\n");
+      xpp_log(XPP_LOG_DEBUG, "oldll,oldm,oldacc,m,iter,maxit,ifull,thresh=%ld,%ld,%ld,%ld,%ld,%ld,%ld,%f\n",
 	     oldll,oldm,oldacc,oldacc,iter,maxit,(*ifull),thresh);
 	prse(&c__1, &mm, n, p, &s[1], &e[1]);
     }
@@ -5161,7 +5162,7 @@ L999:
 	thresh = 0.;
     }
     if (*idbg > 0) {
-            printf("thresh=%f\n",thresh);
+            xpp_log(XPP_LOG_DEBUG, "thresh=%f\n",thresh);
     }
     i__1 = m;
     for (lll = 1; lll <= i__1; ++lll) {
@@ -5191,7 +5192,7 @@ L1002:
 /*       convergence of bottom singular values */
 	--m;
 	if (*idbg > 0) {
-	        printf("convergence\n");
+	        xpp_log(XPP_LOG_DEBUG, "convergence\n");
 	}
 	goto L999;
     }
@@ -5199,10 +5200,10 @@ L1003:
     ++ll;
 /*     e(ll) ... e(m-1) are nonzero */
     if (*idbg > 0) {
-      printf("work on block ll,m=%ld,%ld\n",ll,m);	
-      printf("smin=%f\n",smin);
+      xpp_log(XPP_LOG_DEBUG, "work on block ll,m=%ld,%ld\n",ll,m);	
+      xpp_log(XPP_LOG_DEBUG, "smin=%f\n",smin);
 
-      printf("smax=%f\n",smax);
+      xpp_log(XPP_LOG_DEBUG, "smax=%f\n",smax);
     }
 
 /*     2 by 2 block - handle specially to guarantee convergence */
@@ -5271,7 +5272,7 @@ L1003:
 	}
     }
     if (*idbg > 0) {
-            printf("idir=%ld\n",idir);
+            xpp_log(XPP_LOG_DEBUG, "idir=%ld\n",idir);
     }
 
 /*     compute lower bound on smallest singular value */
@@ -5347,7 +5348,7 @@ L1003:
 		if ((d__1 = e[lll], fabs(d__1)) <= *tol * mu) {
 /*             test for negligibility satisfied */
 		    if (*idbg >= 1) {
-		            printf("knew: e(lll),mu=%f,%f\n",e[lll],mu);
+		            xpp_log(XPP_LOG_DEBUG, "knew: e(lll),mu=%f,%f\n",e[lll],mu);
 		    }
 		    e[lll] = 0.;
 		    goto L999;
@@ -5375,7 +5376,7 @@ L1003:
 		if ((d__1 = e[lll], fabs(d__1)) <= *tol * lambda) {
 /*             test for negligibility satisfied */
 		    if (*idbg >= 1) {
-		            printf("knew: e(lll),lambda=%f,%f\n",e[lll],lambda);
+		            xpp_log(XPP_LOG_DEBUG, "knew: e(lll),lambda=%f,%f\n",e[lll],lambda);
 		    }
 		    e[lll] = 0.;
 		    goto L999;
@@ -5400,7 +5401,7 @@ L1003:
 /*       smallest singular value */
 	shift = 0.;
 	if (*idbg > 0) {
-	        printf("sminl test for shift is zero\n");
+	        xpp_log(XPP_LOG_DEBUG, "sminl test for shift is zero\n");
 	}
     } else {
 
@@ -5417,26 +5418,26 @@ L1003:
 	    sll = s[m];
 	}
 	if (*idbg > 0) {
-	        printf("smm1,emm1,sm=%f,%f,%f\n",smm1,emm1,sm);
+	        xpp_log(XPP_LOG_DEBUG, "smm1,emm1,sm=%f,%f,%f\n",smm1,emm1,sm);
 	}
 	shift = sigmin(&smm1, &emm1, &sm);
 	if (*idbg > 0) {
-	  printf("sigma-min of 2 by 2 corner=%f\n",shift);
+	  xpp_log(XPP_LOG_DEBUG, "sigma-min of 2 by 2 corner=%f\n",shift);
 	}
 	if (*tol > (double)0.) {
 	    if (shift > nct * smin) {
 		++(*limshf);
 		shift = nct * smin;
 		if (*idbg > 0) {
-		        printf("shift limited\n");
+		        xpp_log(XPP_LOG_DEBUG, "shift limited\n");
 		}
 	    }
 	    if (*idbg > 0) {
-	            printf("shift=%f\n",shift);
+	            xpp_log(XPP_LOG_DEBUG, "shift=%f\n",shift);
 	    }
 	    temp = shift / sll;
 	    if (*idbg > 0) {
-	            printf("temp=%f\n",temp);
+	            xpp_log(XPP_LOG_DEBUG, "temp=%f\n",temp);
 	    }
 /* Computing 2nd power */
 	    d__1 = temp;
@@ -5458,7 +5459,7 @@ s case */
 			shift = (double)0.;
 		    }
 		    if (*idbg > 0 && *ifull != 1) {
-		            printf("shift limited\n");
+		            xpp_log(XPP_LOG_DEBUG, "shift limited\n");
 		    }
 		}
 	    }
@@ -5468,7 +5469,7 @@ s case */
 	    }
 	}
 	if (*idbg > 0) {
-	        printf("test,shift=%f,%f\n",test,shift);
+	        xpp_log(XPP_LOG_DEBUG, "test,shift=%f,%f\n",test,shift);
 	}
     }
 
@@ -5476,7 +5477,7 @@ s case */
     iter = iter + m - ll;
     ++(*kount);
     if (*idbg > 1) {
-      printf("s,e before qr\n");
+      xpp_log(XPP_LOG_DEBUG, "s,e before qr\n");
 	prse(&ll, &m, n, p, &s[1], &e[1]);
     }
 
@@ -5487,7 +5488,7 @@ s case */
 /*       if idir=1, chase bulge from top to bottom */
 	if (idir == 1) {
 	    if (*idbg > 2) {
-	            printf("qr with zero shift, top to bottom\n");
+	            xpp_log(XPP_LOG_DEBUG, "qr with zero shift, top to bottom\n");
 	    }
 	    oldcs = 1.;
 	    f = s[ll];
@@ -5549,10 +5550,10 @@ k-1) */
 
 /*         test convergence */
 	    if (*idbg > 0) {
-	            printf("convergence decision for zero shift top to bottom\n");
-		          printf("e(m-1), threshold=%f,%f\n",e[m - 1],thresh);
+	            xpp_log(XPP_LOG_DEBUG, "convergence decision for zero shift top to bottom\n");
+		          xpp_log(XPP_LOG_DEBUG, "e(m-1), threshold=%f,%f\n",e[m - 1],thresh);
 		if ((d__1 = e[m - 1], fabs(d__1)) <= thresh) {
-		        printf("***converged***\n");
+		        xpp_log(XPP_LOG_DEBUG, "***converged***\n");
 		}
 	    }
 	    if ((d__1 = e[m - 1], fabs(d__1)) <= thresh) {
@@ -5561,7 +5562,7 @@ k-1) */
 	} else {
 /*       (idir=2, so chase bulge from bottom to top) */
 	    if (*idbg > 2) {
-      printf("qr with zero shift, bottom to top\n");
+      xpp_log(XPP_LOG_DEBUG, "qr with zero shift, bottom to top\n");
 	    }
 	    oldcs = 1.;
 	    f = s[m];
@@ -5628,11 +5629,11 @@ est for */
 
 /*         test convergence */
 	    if (*idbg > 0) {
-	            printf("convergence decision for zero shift bottom to top\n");
-		          printf("e(ll), threshold=%f,%f\n",e[ll],thresh);
+	            xpp_log(XPP_LOG_DEBUG, "convergence decision for zero shift bottom to top\n");
+		          xpp_log(XPP_LOG_DEBUG, "e(ll), threshold=%f,%f\n",e[ll],thresh);
 
 		if ((d__1 = e[ll], fabs(d__1)) <= thresh) {
-		        printf("***converged***\n");
+		        xpp_log(XPP_LOG_DEBUG, "***converged***\n");
 		}
 	    }
 	    if ((d__1 = e[ll], fabs(d__1)) <= thresh) {
@@ -5646,7 +5647,7 @@ est for */
 /*       if idir=1, chase bulge from top to bottom */
 	if (idir == 1) {
 	    if (*idbg > 2) {
-	            printf("qr with nonzero shift, top to bottom\n");
+	            xpp_log(XPP_LOG_DEBUG, "qr with nonzero shift, top to bottom\n");
 	    }
 	    f = ((d__1 = s[ll], fabs(d__1)) - shift) * (d_sign(c_b170, s[ll])
 		     + shift / s[ll]);
@@ -5701,10 +5702,10 @@ s zero */
 
 /*         check convergence */
 	    if (*idbg > 0) {
-	            printf("convergence decision for shift top to bottom\n");
-		          printf("e(m-1), threshold=%f,%f\n",e[m - 1],thresh);
+	            xpp_log(XPP_LOG_DEBUG, "convergence decision for shift top to bottom\n");
+		          xpp_log(XPP_LOG_DEBUG, "e(m-1), threshold=%f,%f\n",e[m - 1],thresh);
 		if ((d__1 = e[m - 1], fabs(d__1)) <= thresh) {
-		  printf("***converged***\n");
+		  xpp_log(XPP_LOG_DEBUG, "***converged***\n");
 		}
 	    }
 	    if ((d__1 = e[m - 1], fabs(d__1)) <= thresh) {
@@ -5713,7 +5714,7 @@ s zero */
 	} else {
 /*       (idir=2, so chase bulge from bottom to top) */
 	    if (*idbg > 2) {
-	            printf("qr with nonzero shift, bottom to top\n");
+	            xpp_log(XPP_LOG_DEBUG, "qr with nonzero shift, bottom to top\n");
 	    }
 	    f = ((d__1 = s[m], fabs(d__1)) - shift) * (d_sign(c_b170, s[m]) 
 		    + shift / s[m]);
@@ -5769,11 +5770,11 @@ s zero */
 
 /*         test convergence */
 	    if (*idbg > 0) {
-	            printf("convergence decision for shift bottom to top\n");
-		          printf("e(ll), threshold=%f,%f\n",e[ll],thresh);
+	            xpp_log(XPP_LOG_DEBUG, "convergence decision for shift bottom to top\n");
+		          xpp_log(XPP_LOG_DEBUG, "e(ll), threshold=%f,%f\n",e[ll],thresh);
 
 		if ((d__1 = e[ll], fabs(d__1)) <= thresh) {
-		        printf("***converged***\n");
+		        xpp_log(XPP_LOG_DEBUG, "***converged***\n");
 		}
 	    }
 	    if ((d__1 = e[ll], fabs(d__1)) <= thresh) {
@@ -5783,7 +5784,7 @@ s zero */
     }
 
     if (*idbg > 1) {
-            printf("s,e after qr\n");
+            xpp_log(XPP_LOG_DEBUG, "s,e after qr\n");
 	prse(&ll, &m, n, p, &s[1], &e[1]);
     }
 
@@ -5878,18 +5879,18 @@ prse(integer *ll, integer *m, integer *nrow, integer *ncol, doublereal *s, doubl
     --s;
 
     /* Function Body */
-    printf("                      s(.)                       e(.) for ll,m=%ld,%ld\n",(*ll),(*m));
+    xpp_log(XPP_LOG_DEBUG, "                      s(.)                       e(.) for ll,m=%ld,%ld\n",(*ll),(*m));
     i__1 = *m - 1;
     for (i__ = *ll; i__ <= i__1; ++i__) {
-      printf("%26.17f %26.17f\n",s[i__],e[i__]);
+      xpp_log(XPP_LOG_DEBUG, "%26.17f %26.17f\n",s[i__],e[i__]);
 
 /* L1: */
     }
     if (*m >= *ncol) {
-      printf("%26.17f\n",s[*m]);
+      xpp_log(XPP_LOG_DEBUG, "%26.17f\n",s[*m]);
     }
     if (*m < *ncol) {
-      printf("%26.17f %26.17f\n",s[*m],e[*m]);
+      xpp_log(XPP_LOG_DEBUG, "%26.17f %26.17f\n",s[*m],e[*m]);
     }
     return 0;
 } /* prse_ */
@@ -7443,7 +7444,7 @@ int get_qp(double *a1,int n, double *qr,double *qi, double *pr, double *pi)
   wi=(double *)malloc(n*sizeof(double));
   fv1=(double *)malloc(n*sizeof(double));
    iv1=(integer *)malloc(n*sizeof(integer));
-   printf("I am here \n");
+   xpp_log(XPP_LOG_DEBUG, "I am here \n");
 
   for(i=0;i<n;i++){
     for(j=0;j<n;j++){
@@ -7451,14 +7452,14 @@ int get_qp(double *a1,int n, double *qr,double *qi, double *pr, double *pi)
       kt=j*n+i;
       at[k]=a1[k];
       a[k]=a1[kt];
-      printf(" %d %d %g %g \n",i,j,at[k],a[k]);
+      xpp_log(XPP_LOG_DEBUG, " %d %d %g %g \n",i,j,at[k],a[k]);
     }
   }
  rg(n,n,at,wr,wi,1,z,iv1,fv1,&ier);
  j=-1;
  for(i=0;i<n;i++)
    if((fabs(wr[i])<eps)&&(wi[i]>0))j=i;
- printf("%d is imaginary \n",j);
+ xpp_log(XPP_LOG_DEBUG, "%d is imaginary \n",j);
  for(i=0;i<n;i++){
    qr[i]=z[n*j+i];
    qi[i]=z[n*(j+1)+i];
@@ -7467,7 +7468,7 @@ int get_qp(double *a1,int n, double *qr,double *qi, double *pr, double *pi)
  j=-1;
     for(i=0;i<n;i++)
     if((fabs(wr[i])<eps)&&(wi[i]>0))j=i;
-  printf("%d is imaginary \n",j);
+  xpp_log(XPP_LOG_DEBUG, "%d is imaginary \n",j);
   for(i=0;i<n;i++){
     pr[i]=z[n*j+i];
     pi[i]=-z[n*(j+1)+i]; /* get AT z = i w z, take CC to get AT zbar = -i w zbar */
@@ -7497,7 +7498,7 @@ void test_matrix_stuff()
 
 
   for(i=0;i<3;i++)
-    printf(" %g    %g  ||  %g    %g \n",qr[i],qi[i],pr[i],pi[i]);
+    xpp_log(XPP_LOG_DEBUG, " %g    %g  ||  %g    %g \n",qr[i],qi[i],pr[i],pi[i]);
   
 
   

@@ -1,4 +1,5 @@
 #include <stdlib.h> 
+#include "xpp_log.h"
 /*--------------------------------*-C-*---------------------------------*
  * File:
  *	fftn.c
@@ -454,7 +455,7 @@ FFTN (int ndim,
    return 0;
 
    Dimension_Error:
-   fprintf (stderr, "Error: " FFTNS "() - dimension error\n");
+   xpp_log(XPP_LOG_WARN, "Error: " FFTNS "() - dimension error\n");
    fft_free ();	/* free-up memory */
    return -1;
 }
@@ -601,7 +602,7 @@ FFTRADIX (REAL Re [],
    /* test that nFactors is in range */
    if (nFactor > NFACTOR)
      {
-	fprintf (stderr, "Error: " FFTRADIXS "() - exceeded number of factors\n");
+	xpp_log(XPP_LOG_WARN, "Error: " FFTRADIXS "() - exceeded number of factors\n");
 	goto Memory_Error;
      }
 
@@ -764,7 +765,7 @@ FFTRADIX (REAL Re [],
        default:
 	 /* transform for odd factors */
 #ifdef FFT_RADIX4
-	 fprintf (stderr, "Error: " FFTRADIXS "(): compiled for radix 2/4 only\n");
+	 xpp_log(XPP_LOG_WARN, "Error: " FFTRADIXS "(): compiled for radix 2/4 only\n");
 	 fft_free ();		/* free-up memory */
 	 return -1;
 	 break;
@@ -1191,7 +1192,7 @@ Permute_Single:
 
    /* alloc or other problem, do some clean-up */
 Memory_Error:
-   fprintf (stderr, "Error: " FFTRADIXS "() - insufficient memory.\n");
+   xpp_log(XPP_LOG_WARN, "Error: " FFTRADIXS "() - insufficient memory.\n");
    fft_free ();			/* free-up memory */
    return -1;
 }

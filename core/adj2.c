@@ -1,4 +1,5 @@
 #include "adj2.h"
+#include "xpp_log.h"
 #include "my_rhs.h"
 #include "pop_list.h"
 #include "browse.h"
@@ -560,7 +561,7 @@ int adjoint(orbit,adjnt,nt,dt,eps,minerr,maxit,node)
         for(i=0;i<node;i++){ yold[i]=yold[i]/ytemp;
 			     fdev[i]=yold[i];
 			   }
-	printf("%f %f \n",yold[0],yold[1]);
+	xpp_log(XPP_LOG_INFO, "%f %f \n",yold[0],yold[1]);
         plintf("err=%f \n",error);
 	if(error<minerr)break; /*  exit if error small   */
  }

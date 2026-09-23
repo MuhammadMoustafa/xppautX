@@ -1,4 +1,5 @@
 #include "integrate.h"
+#include "xpp_log.h"
 #include "numerics.h"
 #include "xpp_globals.h"
 #include "xpp_ui.h"
@@ -473,7 +474,7 @@ void cat_fp(fo)
   int c;  
   rewind(fo);
   while((c=getc(fo))!=EOF){
-     printf("%c",c);
+     xpp_log_auto("%c",c);
 
  }
 }
@@ -482,10 +483,10 @@ void cat_file(f)
 {
   FILE *fo;
   int c;
-  printf(" cat %s \n", f);
+  xpp_log_auto(" cat %s \n", f);
    fo=fopen(f,"r");
    while((c=getc(fo))!=EOF){
-     printf("%c",c);
+     xpp_log_auto("%c",c);
 
  }
    fclose(fo);
@@ -542,7 +543,7 @@ char *old,*new;
  /* binary, like copyf(): text mode on Windows added a '\r' to every line */
  ft=fopen(TMPSWAP,"wb");
  if(ft==NULL){
-   printf("Can't open %s \n",TMPSWAP);
+   xpp_log_auto("Can't open %s \n",TMPSWAP);
    fclose(fo);
    fclose(fn);
    return;
@@ -714,7 +715,7 @@ void do_auto(iold,isave,itp)
 		       */
     
     if(RestartLabel!=0){
-      printf("RestartLabel=%d itp=%d ips=%d nfpar=%d ilp=%d isw=%d isp=%d A2p=%d \n",RestartLabel,Auto.itp, Auto.ips,Auto.nfpar,Auto.ilp,Auto.isw,Auto.isp,AutoTwoParam);
+      xpp_log_auto("RestartLabel=%d itp=%d ips=%d nfpar=%d ilp=%d isw=%d isp=%d A2p=%d \n",RestartLabel,Auto.itp, Auto.ips,Auto.nfpar,Auto.ilp,Auto.isw,Auto.isp,AutoTwoParam);
       Auto.irs=RestartLabel;
       RestartLabel=0;
       do_auto(iold,isave, Auto.itp);
@@ -1850,29 +1851,29 @@ void auto_next()
 		       no_hint,Auto.hinttxt);
    if(ch=='e'){
     /*auto_new_per();*/
-    printf("End point\n");
+    xpp_log_auto("End point\n");
     return;
   }
   if(ch=='h'){
-     printf("Hopf point\n");
+     xpp_log_auto("Hopf point\n");
      /* auto_2p_fixper();*/
      
     return;
   }
   if(ch=='l'){ 
-     printf("Limit point\n");
+     xpp_log_auto("Limit point\n");
      /* auto_2p_fixper();*/
      
     return;
   }
   if(ch=='p'){
-     printf("Periodic point\n");
+     xpp_log_auto("Periodic point\n");
      /* auto_2p_fixper();*/
      
     return;
   }
   if(ch=='m'){ 
-     printf("Max point\n");
+     xpp_log_auto("Max point\n");
      /* auto_2p_fixper();*/
      
     return;
@@ -1910,7 +1911,7 @@ void find_best_homo_shift(int n)
     }
   }
   HOMO_SHIFT=tshift;
-  printf("shifting %g\n",HOMO_SHIFT);
+  xpp_log_auto("shifting %g\n",HOMO_SHIFT);
 }
 void get_shifted_orbit(u,t,p,n)
      double t,p,*u;
@@ -2865,7 +2866,7 @@ void load_auto_orbit()
   nstor=ndim;
   if(ndim>NODE)nstor=NODE;
   if(flg==0){
-    printf("Could not find label %d in file %s \n",label,string);
+    xpp_log_auto("Could not find label %d in file %s \n",label,string);
     auto_err("Cant find labeled pt");
     fclose(fp);
     return;

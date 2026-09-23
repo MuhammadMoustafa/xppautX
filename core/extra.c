@@ -1,4 +1,5 @@
 #include "extra.h"
+#include "xpp_log.h"
 
 #include "init_conds.h"
 #include "ggets.h"
@@ -103,7 +104,7 @@ void get_import_values(int n, double *ydot, char *soname, char *sofun,
   }
   if(dll_loaded==-1)
     return;
-  printf("soname = %s  sofun = %s \n",soname,sofun);
+  xpp_log(XPP_LOG_INFO, "soname = %s  sofun = %s \n",soname,sofun);
   get_directory(cur_dir);
   sprintf(sofullname,"%s/%s",cur_dir,soname);
   dlhandle=dlopen (sofullname, RTLD_LAZY);
@@ -284,7 +285,7 @@ void parse_inout(char *l,int flag)
 	    index=get_var_index(new);
 	    if(index<0)
 	      {
-		printf("Cant export %s - non existent!\n",new);
+		xpp_log(XPP_LOG_INFO, "Cant export %s - non existent!\n",new);
 		exit(0);
 	      }
 	    else /* it is a variable */
