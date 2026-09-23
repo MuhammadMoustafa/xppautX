@@ -1727,11 +1727,45 @@ static void j_auto_line(int a, int b, int c, int d)
 static void j_auto_text(int a, int b, char *c) { auto_sync_state(); op_text(WIN_AUTO, "rtext", a, b, c, -1); }
 static void j_auto_circle(int x, int y, int r) { auto_sync_state(); op(WIN_AUTO, "[\"circle\",%d,%d,%d]", x, y, r); }
 static void j_auto_fill_circle(int x, int y, int r) { auto_sync_state(); op(WIN_AUTO, "[\"fcircle\",%d,%d,%d]", x, y, r); }
+/* The browser keeps the grab cursor on its own overlay canvas instead of
+   drawing it into the diagram (see j_auto_grab_end), so there is no XOR
+   trick to play here: track whether it is currently shown and where, and
+   turn the "toggle at (x,y)" calling convention XORCross uses (erase by
+   XORing the old position again, draw by XORing the new one) into "show the
+   cursor at the latest position" for the client. A call at the position
+   already shown hides it, matching the erase X11 gets from re-XORing; a
+   call anywhere else shows it there, matching a fresh XOR draw. */
+static int auto_cross_shown;
+static int auto_cross_x, auto_cross_y;
+
 static void j_auto_xor_cross(int x, int y)
 {
     if (DONT_XORCross) return;
-    auto_sync_state();
-    op(WIN_AUTO, "[\"cross\",%d,%d]", x, y);
+    if (auto_cross_shown && x == auto_cross_x && y == auto_cross_y) {
+        op(WIN_AUTO, "[\"cursor\"]");
+        auto_cross_shown = 0;
+        return;
+    }
+    op(WIN_AUTO, "[\"cursor\",%d,%d]", x, y);
+    auto_cross_shown = 1;
+    auto_cross_x = x;
+    auto_cross_y = y;
+}
+
+/* traverse_diagram()'s grab loop is done. X11 redraws the whole diagram to
+   be rid of the XOR cursor for good (auto_x11.c x11_auto_grab_end); the
+   cursor here never touched the diagram, so hiding it is just clearing the
+   overlay. done==1 (FINE/Enter) still needs the branch marks redrawn -
+   RedrawMark() only sends a couple of ALINE calls, nothing like the cost of
+   redraw_diagram(), so it is cheap to keep. done==-1 (ESC) leaves the
+   diagram exactly as drawn; only the cursor needs to go. */
+static void j_auto_grab_end(int done)
+{
+    if (auto_cross_shown) {
+        op(WIN_AUTO, "[\"cursor\"]");
+        auto_cross_shown = 0;
+    }
+    if (done == 1) RedrawMark();
 }
 /* For every point the diagram sets the width and the colour, draws one
    segment, then sets the colour back to black. Sending each of those puts
@@ -1756,6 +1790,7 @@ static void auto_reset_state(void)
     auto_col_want = 0;
     auto_lw_want = 1;
     auto_col_sent = auto_lw_sent = -1;
+    auto_cross_shown = 0; /* a fresh canvas has no cursor on it either */
 }
 
 /* emit what a drawing op is about to depend on; a change closes any open
@@ -2174,6 +2209,7 @@ static const XppUi json_ui = {
     .auto_scroll_window = j_auto_scroll_window,
     .auto_grab_event = j_auto_grab_event,
     .auto_show_hint = j_auto_show_hint,
+    .auto_grab_end = j_auto_grab_end,
     .new_vcr = j_new_vcr,
     .ani_clear = j_ani_clear,
     .ani_show = j_ani_show,

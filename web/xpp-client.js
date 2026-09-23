@@ -68,14 +68,21 @@
       /* Drawing goes to a buffer and is shown a frame at a time. A redraw
          arrives as a clear followed by thousands of ops, often split across
          several events, so drawing straight to the screen shows the blank
-         canvas and then the picture building up: the flash after a grab, when
-         AUTO repaints the whole diagram just to erase the cross. Captures read
-         this.ctx, so they still see the finished picture. */
+         canvas and then the picture building up. Captures read this.ctx, so
+         they still see the finished picture. */
       this.buf = el('canvas');
       this.ctx = this.buf.getContext('2d');
       this.view = this.canvas.getContext('2d');
       this.dirty = false;
-      this.overlay = null;
+      this.heldSinceClear = false;
+      this.holdTimer = null;
+      /* A transparent layer stacked on the view canvas (see web/xpp-client.css),
+         for marks that come and go far more often than the picture underneath
+         changes - AUTO's grab cursor is the only user so far. Drawn to
+         directly, with no buffering: it is cheap and rare enough not to need
+         it, and it must never wait on the held blit below. */
+      this.overlay = el('canvas', 'xpp-overlay');
+      this.octx = this.overlay.getContext('2d');
       this.resize(w, h);
       this.color = 0;
       this.lineWidth = 1;
@@ -96,6 +103,8 @@
       }
       this.canvas.width = this.buf.width = w;
       this.canvas.height = this.buf.height = h;
+      this.overlay.width = w;
+      this.overlay.height = h;
       this.clear();
       if (old) this.ctx.drawImage(old, 0, 0);
       this.paint();
@@ -104,15 +113,51 @@
     /* show what has been drawn; one blit, so nothing half-drawn is seen */
     paint() {
       this.dirty = false;
+      this.heldSinceClear = false;
+      if (this.holdTimer) { clearTimeout(this.holdTimer); this.holdTimer = null; }
       if (!this.buf.width || !this.buf.height) return;
       this.view.drawImage(this.buf, 0, 0);
     }
 
-    /* show it on the next frame, so a burst of events costs one repaint */
+    /* show it on the next frame, so a burst of events costs one repaint.
+       After a clear, hold off on that frame: a redraw is a clear plus
+       thousands of ops arriving over several events, and painting the first
+       frame would flash the blank canvas before the picture is back. Wait
+       for releaseHold() (the command's ask or idle, see XppClient.receive)
+       or, failing that, 250ms, so zoom/fit/reDraw appear in one step. */
     mark() {
       if (this.dirty) return;
       this.dirty = true;
+      if (this.heldSinceClear) {
+        if (!this.holdTimer) this.holdTimer = setTimeout(() => { this.holdTimer = null; this.releaseHold(); }, 250);
+        return;
+      }
       requestAnimationFrame(() => { if (this.dirty) this.paint(); });
+    }
+    /* let a held frame through; a no-op when nothing is held */
+    releaseHold() {
+      if (!this.heldSinceClear) return;
+      if (this.holdTimer) { clearTimeout(this.holdTimer); this.holdTimer = null; }
+      if (this.dirty) this.paint();
+      else this.heldSinceClear = false;
+    }
+    /* draw the grab cursor on the overlay, or (no x,y) hide it */
+    cursor(x, y) {
+      const c = this.octx;
+      c.clearRect(0, 0, this.overlay.width, this.overlay.height);
+      if (x === undefined) return;
+      /* a fixed colour, not XOR: the overlay is its own transparent layer,
+         so there is nothing to XOR against. Magenta reads on both the white
+         and black diagram backgrounds AUTO uses. */
+      c.save();
+      c.strokeStyle = '#ff00ff';
+      c.lineWidth = 2;
+      c.setLineDash([]);
+      c.beginPath();
+      c.moveTo(x - 8, y + 0.5); c.lineTo(x + 8, y + 0.5);
+      c.moveTo(x + 0.5, y - 8); c.lineTo(x + 0.5, y + 8);
+      c.stroke();
+      c.restore();
     }
     pen(i) {
       return this.client.colorOf(i);
@@ -129,6 +174,7 @@
       c.fillStyle = this.client.colorOf(-1);
       c.fillRect(0, 0, this.canvas.width, this.canvas.height);
       c.restore();
+      this.heldSinceClear = true;
     }
     textFont(size, symbol) {
       const px = TEXT_SIZES[Math.max(0, Math.min(4, size))];
@@ -193,18 +239,7 @@
             c.ellipse(o[1] + o[3] / 2, o[2] + o[4] / 2, Math.abs(o[3] / 2), Math.abs(o[4] / 2), 0, 0, 2 * Math.PI);
             o[0] === 'ellipse' ? c.stroke() : c.fill();
             break;
-          case 'cross':
-            c.save();
-            c.globalCompositeOperation = 'difference';
-            c.strokeStyle = '#ffffff';
-            c.lineWidth = 2;
-            c.setLineDash([]);
-            c.beginPath();
-            c.moveTo(o[1] - 8, o[2]); c.lineTo(o[1] + 8, o[2]);
-            c.moveTo(o[1], o[2] - 8); c.lineTo(o[1], o[2] + 8);
-            c.stroke();
-            c.restore();
-            break;
+          case 'cursor': this.cursor(o[1], o[2]); break;
           case 'font': this.font = {size: o[1], symbol: o[2] === 1, color: o[3]}; this.color = o[3]; break;
           case 'text':
             c.fillStyle = this.pen(0);
@@ -921,6 +956,7 @@
         case 'message': this.onMessage(ev); break;
         case 'progress': this.setProgress(ev.n, ev.of); break;
         case 'idle':
+          this.releaseHeldSurfaces();
           this.busy = false;
           this.setProgress(0, 0);
           this.autoWorking = false;
@@ -942,7 +978,7 @@
           }
           if (this.typeahead.length) this.key(this.typeahead.shift());
           break;
-        case 'ask': this.onAsk(ev); break;
+        case 'ask': this.releaseHeldSurfaces(); this.onAsk(ev); break;
         case 'equilibrium': this.showEquilibrium(ev); break;
         case 'source': this.showSource(ev); break;
         case 'equations': this.showEquations(ev); break;
@@ -956,6 +992,13 @@
         case 'log': this.log(ev.text); break;
         case 'exit': this.exited(ev.code); break;
       }
+    }
+
+    /* let every surface's held post-clear blit (Surface.mark()) through: the
+       command that cleared it has reached a point - waiting for an answer,
+       or done - where the picture is expected to be back and settled */
+    releaseHeldSurfaces() {
+      this.surfaces.forEach(s => s.releaseHold());
     }
 
     /* the strip that fills as the integration runs: X11 draws it over the
@@ -1127,18 +1170,21 @@
         });
         s.canvas.addEventListener('click', e => {
           const [x, y] = s.at(e);
-          /* During a grab a click jumps to the nearest point on the diagram,
-             as it does in X11: the protocol answers the grab with a pixel
-             instead of a key. Without it the only way to a distant labelled
-             point is the arrow keys, one diagram point at a time. */
-          if (this.pendingAsk && this.pendingAsk.kind === 'grab') {
-            this.answer({x, y});
-            return;
-          }
+          /* During a grab, onCanvasDown already answered the ask on
+             mousedown (a pixel instead of a key, as X11 also lets a click
+             jump to the nearest point on the diagram). answeredByPress
+             covers that case generically: it is set whenever mousedown found
+             a pendingAsk, so this click is its follow-through, not a new
+             click-to-place. Answering again here, on whatever ask the first
+             answer's reply already brought (typically the next grab step),
+             was the bug - this guard already prevented it for every other
+             ask kind; grab just needs the same treatment, not a special case. */
           if (this.pendingAsk || this.busy || this.answeredByPress) return;
           this.command({cmd: 'auto', op: 'point', x, y});
         });
-        top.append(s.canvas, stab.canvas);
+        const diagramWrap = el('div', 'xpp-canvas-wrap');
+        diagramWrap.append(s.canvas, s.overlay);
+        top.append(diagramWrap, stab.canvas);
         right.append(top, info.canvas);
         body.append(buttons, right);
         frame.appendChild(body);
@@ -1910,7 +1956,13 @@
           }
           break;
       }
-      if (this.typeahead.length && (a.kind === 'menu' || a.kind === 'choice')) {
+      /* Keys typed between a grab answer and the next grab ask land in
+         typeahead (key() queues them while busy) and would otherwise wait
+         for idle, i.e. until the grab loop ends and the main menu is back -
+         the opposite of what a fast Enter/arrow sequence during a grab
+         wants. Answering the new ask with the first of them keeps the grab
+         moving at typing speed instead of eating one key per round trip. */
+      if (this.typeahead.length && (a.kind === 'menu' || a.kind === 'choice' || a.kind === 'grab')) {
         const k = this.typeahead.shift();
         this.answerByKey(k);
       }

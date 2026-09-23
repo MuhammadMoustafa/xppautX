@@ -81,6 +81,11 @@
 .xpp-canvas { display: block; background: #fff; outline: none; image-rendering: pixelated; }
 .xpp-canvas.xpp-active { box-shadow: 0 0 0 2px var(--xpp-accent); }
 .xpp-picking .xpp-canvas { cursor: crosshair; }
+/* a Surface's overlay (marks that come and go, e.g. the AUTO grab cursor),
+   stacked exactly on its view canvas: same size, no offset, and never in
+   the way of the mouse events the canvas underneath needs. */
+.xpp-canvas-wrap { position: relative; flex: none; }
+.xpp-overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
 .xpp-side {
   width: 220px;
   flex: none;

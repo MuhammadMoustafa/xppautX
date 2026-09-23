@@ -734,3 +734,18 @@ void x11_auto_show_hint(void)
 {
   display_auto(AutoW.hint);
 }
+
+/* traverse_diagram()'s grab loop is done. On X11 the cursor is XORed into
+   the diagram itself, and XORing it away can "bring it back randomly
+   depending on the order of window expose events" (see the FINE case that
+   used to be here): safest is a full redraw, then the branch marks back on
+   top. ESC never drew a final cross to begin with, so there is nothing to
+   clean up. This is exactly what traverse_diagram() did inline before the
+   auto_grab_end seam existed. */
+void x11_auto_grab_end(int done)
+{
+  if (done == 1) {
+    redraw_diagram();
+    RedrawMark();
+  }
+}

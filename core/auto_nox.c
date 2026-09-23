@@ -3537,11 +3537,11 @@ void traverse_diagram()
 	depending on the order of window expose events.  Best not
 	to do the XORCross function at all.*/
 	DONT_XORCross = 1;
-	redraw_diagram();
-	RedrawMark();
+	xpp_ui.auto_grab_end(1);
 	break;
       case ESC:
 	done=-1;
+	xpp_ui.auto_grab_end(-1);
 	break;
       }
     }

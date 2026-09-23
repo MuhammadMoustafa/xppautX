@@ -126,6 +126,7 @@ int x11_auto_pop_up_list(char *title, char **list, char *key, int n, int max,
 void x11_auto_scroll_window(void);
 int x11_auto_grab_event(int *x, int *y);
 void x11_auto_show_hint(void);
+void x11_auto_grab_end(int done);
 void x11_init_txtview(void);
 void x11_create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                        double *ev, int n);
@@ -247,6 +248,7 @@ static const XppUi x11_ui = {
     .auto_scroll_window = x11_auto_scroll_window,
     .auto_grab_event = x11_auto_grab_event,
     .auto_show_hint = x11_auto_show_hint,
+    .auto_grab_end = x11_auto_grab_end,
     .init_txtview = x11_init_txtview,
     .show_eq_box = x11_create_eq_box,
     .redraw_menu = x11_draw_help,

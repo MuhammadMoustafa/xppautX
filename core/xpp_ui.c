@@ -204,6 +204,7 @@ XppUi xpp_ui = {
     .auto_scroll_window = hl_void,
     .auto_grab_event = hl_auto_grab_event,
     .auto_show_hint = hl_void,
+    .auto_grab_end = hl_int,
     .init_txtview = hl_void,
     .show_eq_box = hl_show_eq_box,
     .redraw_menu = hl_void,

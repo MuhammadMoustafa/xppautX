@@ -167,6 +167,11 @@ typedef struct XppUi {
        the diagram (returns XPP_AUTO_CLICK with the pixel in x,y) */
     int (*auto_grab_event)(int *x, int *y);
     void (*auto_show_hint)(void); /* Auto.hinttxt changed */
+    /* the grab loop in traverse_diagram() is done: done=1 a point was taken
+       (FINE/Enter), done=-1 cancelled (ESC). X11 redraws the diagram to make
+       sure the XOR cursor is gone and re-marks the branch; a front end that
+       does not draw the cursor into the picture itself has cheaper options. */
+    void (*auto_grab_end)(int done);
 
     /* animation (toon) window. Frames are drawn off screen, vcr.wid by
        vcr.hgt pixels (aniparse.h), then ani_show puts one on screen. */

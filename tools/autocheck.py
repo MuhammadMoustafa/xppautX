@@ -105,8 +105,32 @@ def section_draw():
           got['grab'][102][:1] == [['clear']] and got['grab'][103][:1] == [['clear']],
           str(got['grab'])[:200])
     check('a grab step does not clear the diagram', ['clear'] not in draw_ops(evs, 101), str(draw_ops(evs, 101))[:200])
+
+    # Enter (FINE) used to redraw_diagram() the whole thing just to be rid of
+    # the XOR cursor (auto_grab_end, core/auto_nox.c traverse_diagram): the
+    # browser now hides a cursor overlay instead, so taking a point should be
+    # as cheap as any other grab step, not a full repaint.
+    s.send(cmd='answer', id=ask['id'], key='Return')
+    take_evs, _ = s.collect(is_idle)
+    n_draw = len(draws(take_evs, 101))
+    check('taking a grab point (Enter) does not clear the diagram',
+          ['clear'] not in draw_ops(take_evs, 101), str(draw_ops(take_evs, 101))[:200])
+    check('taking a grab point (Enter) redraws in a few events', n_draw < 10, '%d draw events' % n_draw)
+
+    # Esc used to leave the XOR cursor on screen in the browser (it erases
+    # nothing on the way out, relying on X11's later full redraw to clean up
+    # a cursor that was drawn into the diagram - the browser's overlay has no
+    # such redraw to rely on, so auto_grab_end must hide it itself).
+    s.send(cmd='auto', op='grab')
+    evs, ask = s.collect(is_ask)
+    s.send(cmd='answer', id=ask['id'], key='ArrowRight')
+    esc_evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='Escape')
-    s.collect(is_idle)
+    more, _ = s.collect(is_idle)
+    esc_evs = esc_evs + more
+    cursor_ops = [o for o in draw_ops(esc_evs, 101) if o[0] == 'cursor']
+    check('Esc from a grab leaves the cursor hidden',
+          bool(cursor_ops) and cursor_ops[-1] == ['cursor'], str(cursor_ops))
     s.close()
 
     got = json.loads(json.dumps(got))  # window keys as strings, like the file

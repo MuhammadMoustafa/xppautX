@@ -98,7 +98,7 @@ Each op is an array; coordinates are pixels from the top-left of the window.
 | `frect`, `rect` | x, y, w, h |
 | `circle`, `fcircle` | x, y, r |
 | `ellipse`, `fellipse` | x, y, w, h (bounding box) |
-| `cross` | x, y (the AUTO grab cursor, drawn with XOR: drawing it twice erases it) |
+| `cursor` | x, y, or no arguments (the AUTO grab cursor; drawn on its own overlay above the diagram, not into it - `x,y` shows it there, no arguments hides it) |
 | `text` | x, y, string; baseline at y, always in the foreground colour, small font |
 | `rtext` | x, y, string; baseline at y, current colour and `font` |
 | `stext` | x, y, string, size 0-4; XPP rich text in the foreground colour: backslash `1` symbol (Greek), `0` roman, `s` subscript, `S` superscript, `n` normal |
