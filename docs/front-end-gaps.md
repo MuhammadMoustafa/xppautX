@@ -25,17 +25,13 @@ row changes.
 | AUTO window: every button, grab, hotkeys, scroll, close, point readout | A window of its own, floating over the page (T11a/T11b): drag its title bar, pull its corner to resize, and the main plot and the value panels stay in view beside it (a tab in the narrow layout) |
 | Animation window: Go, Pause, Fast, Slow, step, slider, Skip, File, Grab, Fly, frame saving, Close, resize | Animation tab (T13) |
 | Array plot: Redraw, Edit, Print, Fit, Range, GIF, Close, drag to scroll | Array tab (T12) |
+| Kinescope: capture, reset, playback, autoplay, save, animated GIF | Captured as data and replayed by the page; GIF and PNG made in the page (T15) |
 | Calculator | Prompt shows the last answer |
 | `-runnow`, tutorial, `-anifile`, errors printed by xppaut | Handled at start; errors shown in the panel |
 
 ## Not yet covered
 
-- **Kinescope** (capture, reset, playback, autoplay, save, animated GIF):
-  docs/ui-v2.md task T15 is not merged to master yet (still in its own
-  worktree/branch); web2 has no kinescope code (`web2/src` has no match
-  for "kinescope"). Until T15 lands, only the legacy classic page (`/v1/`)
-  has it. Not closeable as a small fix: a whole feature (capture, replay,
-  GIF/PNG export), left for T15.
+Nothing. Fixes from hands-on use are tracked in docs/ui-v2.md (T19).
 
 ## Different on purpose
 
