@@ -5,7 +5,8 @@
 # changed: find why, and only when the change is intended, rewrite the
 # baseline with --update and say so in the commit message.
 # Usage: tools/examples_check.sh [--update]   (tools/verify.sh runs it)
-# TIMEOUT=seconds per run (default 60).
+# TIMEOUT=seconds per run (default 300: the slowest model takes ~12 s
+# alone, several times that while other checks share the machine).
 cd "$(dirname "$0")/.." || exit 1
 top=$PWD
 base=tests/examples.md5
@@ -15,8 +16,11 @@ find examples -name '*.ode' | sort | xargs -P"$(nproc 2>/dev/null || echo 4)" -I
   cp "$(dirname "$f")"/* "$run"/ 2>/dev/null
   rm -f "$run/output.dat"
   ( cd "$run" && timeout "$4" "$3" "$(basename "$f")" -silent > run.log 2>&1 )
-  if [ -s "$run/output.dat" ]; then sum=$(md5sum < "$run/output.dat" | cut -d" " -f1); else sum=none; fi
-  echo "$sum $f" > "$run/sum"' sh {} "$out" "$top/xppautX" "${TIMEOUT:-60}"
+  st=$?
+  if [ $st -eq 124 ]; then sum=timeout
+  elif [ -s "$run/output.dat" ]; then sum=$(md5sum < "$run/output.dat" | cut -d" " -f1)
+  else sum=none; fi
+  echo "$sum $f" > "$run/sum"' sh {} "$out" "$top/xppautX" "${TIMEOUT:-300}"
 cat "$out"/*/sum | sort -k2 > "$out/all"
 rm -rf "$out"/*_*
 if [ "$1" = --update ]; then
