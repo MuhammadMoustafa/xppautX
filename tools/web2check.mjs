@@ -14,7 +14,8 @@
    select of variables, Window/Zoom by a box drawn with the mouse and by the
    keyboard only, Escape cancelling a plot mode, Initialconds/Mouse by a
    click, a checklist. Plot windows as tabs (T6: a second window, each tab
-   its own zoom, arrow keys, close). Then live plotting (tools/models/live.ode: the store
+   its own zoom, arrow keys, close). Nullclines, direction field and flow
+   (T7: in the store, drawn, toggled from the legend, cleared by Erase). Then live plotting (tools/models/live.ode: the store
    and the plot grow while 20 001 rows are computed, and end as output.dat)
    and a run of 10^6 rows (tools/models/million.ode) that must draw and zoom
    with no frame over 50 ms (draw times and long tasks, read through __xpp).
@@ -396,6 +397,70 @@ async function keyboardOnly() {
   await key('Escape');
   check('Escape cancels it', await until('!s.ask && !s.busy', 'cancel'));
   check('and the focus is back on the plot', await until(`document.activeElement.closest('.plot-host')`, 'focus back'));
+}
+
+/* nullclines, the direction field and flows as data (docs/ui-v2.md T7): the
+   store holds the events' numbers for the active window, the chart draws
+   them (its own record: what the last draw drew of each layer), the legend
+   shows and hides each, and Erase clears them */
+async function phasePlane() {
+  check('T7: the page connects and asks for nullclines and dfield', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello')
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'data' && c.events.includes('nullclines') && c.events.includes('dfield'))`));
+  const layer = key => cdp.eval(`(__xpp.plot().layers.find(l => l.key === '${key}') || null)`);
+  const legend = label => cdp.eval(`(() => { const b = [...document.querySelectorAll('.plot-view:not([hidden]) .legend-item.layer')]
+    .find(b => b.textContent.trim() === ${JSON.stringify(label)}); if (b) b.click(); return b ? b.getAttribute('aria-pressed') : null; })()`);
+  const answerValue = v => cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: '${v}'})`);
+
+  await menuKeys('n', 'n'); /* Nullcline/New */
+  check('Nullcline/New: the store holds both nullclines of the active window',
+    await until('!s.busy && w.nullclines && w.nullclines.x.length > 0 && w.nullclines.y.length > 0', 'nullclines')
+    && await S("w.nullclines.xName === 'V' && w.nullclines.yName === 'W' && w.nullclines.x.length % 4 === 0"),
+    JSON.stringify(await S('w.nullclines && [w.nullclines.xName, w.nullclines.x.length, w.nullclines.y.length]')));
+  const segs = await S('[w.nullclines.x.length / 4, w.nullclines.y.length / 4]');
+  let v = await layer('xnull'), wv = await layer('ynull');
+  check('... the chart draws every segment of each, named V-nullcline and W-nullcline in the legend',
+    v && wv && v.label === 'V-nullcline' && wv.label === 'W-nullcline' && v.drawn === segs[0] && wv.drawn === segs[1]
+    && v.visible && await cdp.eval(`[...document.querySelectorAll('.legend-item.layer')].map(b => b.textContent.trim()).join()`) === 'V-nullcline,W-nullcline',
+    JSON.stringify({v, wv, segs}));
+
+  await menuKeys('d', 's'); /* Dir.field/flow, Scaled Dir.Fld */
+  if (await until("s.ask && s.ask.kind === 'string'", 'grid')) await answerValue('16');
+  check('Dir.field/Scaled: the store holds a 17 x 17 grid of unit directions',
+    await until('!s.busy && w.dfield && w.dfield.n === 17 && w.dfield.grid.length === 4 * 289', 'dfield')
+    && await S('w.dfield.scaled && w.dfield.speed.length === 289'), JSON.stringify(await S('w.dfield && [w.dfield.n, w.dfield.grid.length]')));
+  v = await layer('dfield');
+  check('... drawn as 289 arrows, "Direction field" in the legend', v && v.label === 'Direction field' && v.drawn === 289 && v.visible,
+    JSON.stringify(v));
+  check('... and the nullclines drawn again with it', (await layer('xnull'))?.drawn === segs[0]);
+
+  let pressed = await legend('Direction field');
+  v = await layer('dfield');
+  check('the legend hides the direction field: not drawn, the toggle not pressed, the nullclines still drawn',
+    pressed === 'true' && v && !v.visible && v.drawn === 0 && (await layer('xnull')).drawn === segs[0]
+    && await cdp.eval(`[...document.querySelectorAll('.legend-item.layer')].find(b => b.textContent.trim() === 'Direction field').getAttribute('aria-pressed')`) === 'false',
+    JSON.stringify(v));
+  await legend('Direction field');
+  await legend('V-nullcline');
+  v = await layer('dfield');
+  const x = await layer('xnull');
+  check('... and shows it again; V-nullcline hides on its own',
+    v.visible && v.drawn === 289 && !x.visible && x.drawn === 0 && (await layer('ynull')).drawn === segs[1], JSON.stringify({v, x}));
+  await legend('V-nullcline');
+
+  await menuKeys('d', 'f'); /* Dir.field/flow, Flow */
+  if (await until("s.ask && s.ask.kind === 'string'", 'grid')) await answerValue('5');
+  check('Dir.field/Flow: the store holds the trajectories (72 of them, NaN between two)',
+    await until('!s.busy && w.dfield && w.dfield.flows.length === 1 && w.dfield.flows[0].xs.length > 72', 'flow', 30000)
+    && await S('Array.from(w.dfield.flows[0].xs).filter(v => v !== v).length === 71'),
+    JSON.stringify(await S('w.dfield && w.dfield.flows.map(f => f.xs.length)')));
+  v = await layer('flow');
+  check('... drawn, "Flow" in the legend, the field still there', v && v.label === 'Flow' && v.count === 72 && v.drawn > 72
+    && (await layer('dfield'))?.drawn === 289, JSON.stringify(v));
+
+  await key('e'); /* Erase */
+  check('Erase clears them: nothing in the store, nothing drawn, no legend entries',
+    await until('!s.busy && w.nullclines && w.nullclines.x.length === 0 && w.dfield && w.dfield.n === 0 && w.dfield.flows.length === 0', 'erase')
+    && (await P()).layers.length === 0 && await cdp.eval(`document.querySelectorAll('.legend-item.layer').length === 0`));
 }
 
 /* plot windows as tabs (docs/ui-v2.md T6): Makewindow create adds a tab,
@@ -959,6 +1024,7 @@ async function main() {
       await prompts();
       await windows();
     });
+    await session(ODE, phasePlane);
     await session(LIVE, () => live(wantLive));
     await session(MILLION, million);
   } finally {

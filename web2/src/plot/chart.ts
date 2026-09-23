@@ -2,12 +2,16 @@
    data and screen, and finds the point under a position; the gestures that
    change the view are in interactions.ts. It owns no application state: the
    view that owns it (ui/PlotView.tsx) feeds it the store's viewport and puts
-   what it reports back into the store. */
+   what it reports back into the store. A phase plane's nullclines,
+   direction field and flows (phase.ts) are drawn on the same canvas, under
+   the curves, each shown or hidden from the legend like a curve. */
 import uPlot from 'uplot';
 import {curveColor} from './colors';
 import {LineTrace, sameFrame, tracePoints, type PixelFrame} from './decimate';
 import type {PlotModel} from './model';
 import {nearestPoint, type Nearest} from './nearest';
+import {arrowSegments, phaseLayers, tracePolyline, traceSegments, type Layer, type LayerKey} from './phase';
+import type {Dfield, Nullclines} from '../store/phase';
 import type {Ranges} from './viewmath';
 import type {Range, Viewport} from '../store/state';
 
@@ -32,6 +36,9 @@ export interface ChartInfo {
   traceMs: number | null;
   /** vertices the phase plane's line paths drew last, per curve (null: uPlot's own path) */
   vertices: (number | null)[];
+  /** the nullclines, direction field and flow, and what the last draw drew of
+      each: segments, arrows, points (0 when hidden) */
+  layers: (Layer & {visible: boolean; drawn: number; css: string})[];
 }
 
 const DRAWS_KEPT = 100;
@@ -87,6 +94,11 @@ export class Chart {
   private traceStart = 0;
   private traceMs: number | null = null;
   private vertices: (number | null)[] = [];
+  private nullclines: Nullclines | null = null;
+  private dfield: Dfield | null = null;
+  private layers: Layer[] = [];
+  private hiddenLayers = new Set<LayerKey>();
+  private layerDrawn = new Map<LayerKey, number>();
   /** called with the plotting area each time uPlot makes a new one */
   onArea: (area: HTMLElement) => void = () => {};
 
@@ -242,11 +254,75 @@ export class Chart {
       hooks: {
         setScale: [() => this.scaleChanged()],
         drawClear: [() => { this.drawStart = performance.now(); }],
+        drawAxes: [u => this.drawPhase(u)], /* after the axes, before the curves */
         draw: [() => this.drawn()],
       },
     };
     this.u = new uPlot(opts, this.data(), this.root);
     this.onArea(this.u.over);
+  }
+
+  /** the window's nullclines, direction field and flows (null: none) */
+  setPhase(nullclines: Nullclines | null, dfield: Dfield | null): void {
+    if (nullclines === this.nullclines && dfield === this.dfield) return;
+    this.nullclines = nullclines;
+    this.dfield = dfield;
+    this.layers = phaseLayers(nullclines, dfield);
+    this.u?.redraw(false, false);
+  }
+
+  setLayerVisible(key: LayerKey, show: boolean): void {
+    if (show) this.hiddenLayers.delete(key);
+    else this.hiddenLayers.add(key);
+    this.u?.redraw(false, false);
+  }
+
+  isLayerVisible(key: LayerKey): boolean {
+    return !this.hiddenLayers.has(key);
+  }
+
+  private drawPhase(u: uPlot): void {
+    this.layerDrawn.clear();
+    if (!this.layers.length) return;
+    const ctx = u.ctx, f = this.frame(u), r = uPlot.pxRatio, nc = this.nullclines, df = this.dfield;
+    const stroke = (key: LayerKey, color: number, width: number, dash: number[], trace: (p: Path2D) => number) => {
+      if (this.hiddenLayers.has(key)) return;
+      const p = new Path2D();
+      const n = trace(p);
+      this.layerDrawn.set(key, (this.layerDrawn.get(key) ?? 0) + n);
+      ctx.strokeStyle = curveColor(color, this.dark);
+      ctx.lineWidth = width * r;
+      ctx.setLineDash(dash.map(d => d * r));
+      ctx.stroke(p);
+    };
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(u.bbox.left, u.bbox.top, u.bbox.width, u.bbox.height);
+    ctx.clip();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    if (df) {
+      for (const c of df.flows) stroke('flow', c.color, 1, [], p => tracePolyline(c.xs, c.ys, f, p));
+      if (df.n > 0)
+        stroke('dfield', df.color, 1, [], p => {
+          const {segments, arrows} = arrowSegments(df, f, 7 * r);
+          for (let i = 0; i < segments.length; i += 4) {
+            p.moveTo(segments[i], segments[i + 1]);
+            p.lineTo(segments[i + 2], segments[i + 3]);
+          }
+          return arrows;
+        });
+    }
+    if (nc) {
+      /* frozen ones dashed, so they are told apart without their colour (A7) */
+      for (const z of nc.frozen) {
+        stroke('xnull', nc.xColor, 1.25, [5, 3], p => traceSegments(z.x, f, p));
+        stroke('ynull', nc.yColor, 1.25, [5, 3], p => traceSegments(z.y, f, p));
+      }
+      stroke('xnull', nc.xColor, 2, [], p => traceSegments(nc.x, f, p));
+      stroke('ynull', nc.yColor, 2, [], p => traceSegments(nc.y, f, p));
+    }
+    ctx.restore();
   }
 
   private drawn(): void {
@@ -358,6 +434,8 @@ export class Chart {
       tracing: this.traceTimer !== null,
       traceMs: this.traceMs,
       vertices: this.vertices.slice(),
+      layers: this.layers.map(l => ({...l, visible: this.isLayerVisible(l.key), drawn: this.layerDrawn.get(l.key) ?? 0,
+        css: curveColor(l.color, this.dark)})),
     };
   }
 

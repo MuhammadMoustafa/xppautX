@@ -34,10 +34,11 @@ export class Session {
     this.store.dispatch({type: 'event', ev});
     if (ev.ev === 'hello') {
       /* the plots as data (docs/protocol.md): asked for on every (re)connection,
-         which also makes the server send the windows and their series; values
+         which also makes the server send the windows, their series, nullclines
+         and direction fields; values
          as base64 float32, which a long run needs (a server that does not know
          enc sends JSON numbers, which the store reads as well) */
-      const events = ['series', 'plots'].filter(name => ev.features?.includes(name));
+      const events = ['series', 'plots', 'nullclines', 'dfield'].filter(name => ev.features?.includes(name));
       if (events.length) this.send({cmd: 'data', events, enc: 'f32'});
     } else if (ev.ev === 'ask') {
       if (ev.kind === 'pixels') {

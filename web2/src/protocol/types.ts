@@ -115,6 +115,45 @@ export interface PlotsEvent {
   windows: PlotWindowInfo[];
 }
 
+/** a plot window's nullclines (docs/protocol.md "The plot as data"): segments
+    [x1,y1,x2,y2,...] in plot coordinates, empty when the window shows none */
+export interface NullclinesEvent {
+  ev: 'nullclines';
+  win: number;
+  enc?: 'f32';
+  /** the variables whose derivative is 0 along the x- and y-nullcline */
+  xname: string;
+  yname: string;
+  /** XPP colour indices, as a curve's */
+  xcolor: number;
+  ycolor: number;
+  x: SeriesData;
+  y: SeriesData;
+  /** Nullcline/Freeze: earlier sets, drawn in the same colours */
+  frozen: {x: SeriesData; y: SeriesData}[];
+}
+
+/** a plot window's direction field and Flow trajectories */
+export interface DfieldEvent {
+  ev: 'dfield';
+  win: number;
+  enc?: 'f32';
+  /** 1: arrows of one length (Scaled Dir.Fld); 0: lengths follow the speed (Direct field) */
+  scaled: number;
+  color: number;
+  /** grid points a side; 0 when the window shows no field */
+  n: number;
+  /** the grid's spacing in plot units */
+  du: number;
+  dv: number;
+  /** x, y, ux, uy per arrow: the unit direction in plot coordinates */
+  grid: SeriesData;
+  /** one per arrow, plot units per unit time */
+  speed: SeriesData;
+  /** one per curve of the window: its trajectories, NaN (null) between two */
+  flows: {color: number; x: SeriesData; y: SeriesData}[];
+}
+
 export interface AskEvent {
   ev: 'ask';
   id: number;
@@ -174,6 +213,8 @@ export type XppEvent =
   | SeriesEvent
   | SeriesAppendEvent
   | PlotsEvent
+  | NullclinesEvent
+  | DfieldEvent
   | AskEvent
   | MessageEvent
   | BrowserEvent

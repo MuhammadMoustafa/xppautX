@@ -395,6 +395,10 @@ kbd {
 .legend-item { border: none; background: none; padding: 0 var(--space-2); }
 .legend-item[aria-pressed='false'] { opacity: 0.45; text-decoration: line-through; }
 .swatch { width: 0.9rem; height: 0.2rem; border-radius: 0.125rem; }
+/* the phase plane's layers (T7): nullclines thicker than a curve, the field an arrow */
+.swatch-xnull, .swatch-ynull { height: 0.25rem; }
+.swatch-dfield { height: 0.6rem; border-radius: 0; clip-path: polygon(0 40%, 60% 40%, 60% 5%, 100% 50%, 60% 95%, 60% 60%, 0 60%); }
+.swatch-flow { height: 0.125rem; }
 .plot-tools { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .plot-host { position: relative; flex: 1; min-height: 12rem; overflow: hidden; }
 .plot-host .u-over { touch-action: none; }

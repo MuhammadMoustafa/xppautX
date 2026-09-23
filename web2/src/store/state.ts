@@ -5,7 +5,8 @@
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
 import type {AskEvent, Command, HelloEvent, StateEvent, View, XppEvent} from '../protocol/types';
 import {
-  coreMoved, initialPlots, onAppend, onPlots, onSeries, select, setViewport, undoViewport, windowOf, type PlotsState,
+  coreMoved, initialPlots, onAppend, onDfield, onNullclines, onPlots, onSeries, select, setViewport, undoViewport,
+  windowOf, type PlotsState,
   type Viewport,
 } from './plots';
 import {initialTable, reduceTable, type TableAction, type TableState} from './table';
@@ -181,6 +182,10 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     }
     case 'plots':
       return withPlots(state, onPlots(state.plots, ev));
+    case 'nullclines':
+      return withPlots(state, onNullclines(state.plots, ev));
+    case 'dfield':
+      return withPlots(state, onDfield(state.plots, ev));
     case 'window':
       /* create selects the new window too; destroy waits for `plots` */
       return ev.op === 'select' && ev.win <= 10 ? withPlots(state, select(state.plots, ev.win)) : state;

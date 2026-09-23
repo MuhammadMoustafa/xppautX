@@ -5,8 +5,11 @@
    for a window not listed yet adds it, for a server that sends no `plots`.
    `active` is the core's active window, which is the selected tab: the
    user's choice sets it at once, the core's `plots` and `window select`
-   confirm it. Pure: no DOM, no I/O. */
-import type {PlotsEvent, PlotWindowInfo, SeriesAppendEvent, SeriesEvent} from '../protocol/types';
+   confirm it. A window's nullclines, direction field and flows (T7) come
+   from their own events and are kept beside its series. Pure: no DOM, no
+   I/O. */
+import type {DfieldEvent, NullclinesEvent, PlotsEvent, PlotWindowInfo, SeriesAppendEvent, SeriesEvent} from '../protocol/types';
+import {dfieldFromEvent, nullclinesFromEvent, type Dfield, type Nullclines} from './phase';
 import {appendRows, seriesFromEvent, type PlotSeries} from './series';
 
 export interface Range {
@@ -27,6 +30,9 @@ export interface PlotWindow {
   /** from `plots`: title, axes, 3D view (null until the server sends it) */
   info: PlotWindowInfo | null;
   series: PlotSeries | null;
+  /** from `nullclines` and `dfield` (null until the server sends them) */
+  nullclines: Nullclines | null;
+  dfield: Dfield | null;
   viewport: Viewport;
   /** earlier viewports, for Undo zoom (newest last) */
   viewportHistory: Viewport[];
@@ -43,7 +49,7 @@ export const initialPlots: PlotsState = {windows: [], active: 1};
 const HISTORY_KEEP = 50;
 
 function blank(win: number): PlotWindow {
-  return {win, info: null, series: null, viewport: HOME, viewportHistory: []};
+  return {win, info: null, series: null, nullclines: null, dfield: null, viewport: HOME, viewportHistory: []};
 }
 
 export function windowOf(p: PlotsState, win: number): PlotWindow | undefined {
@@ -80,6 +86,16 @@ export function onSeries(p: PlotsState, ev: SeriesEvent): PlotsState {
     const keep = sameCurves(w.series, series);
     return {...w, series, viewport: keep ? w.viewport : HOME, viewportHistory: keep ? w.viewportHistory : []};
   });
+}
+
+export function onNullclines(p: PlotsState, ev: NullclinesEvent): PlotsState {
+  const nullclines = nullclinesFromEvent(ev);
+  return update(p, ev.win, w => ({...w, nullclines}));
+}
+
+export function onDfield(p: PlotsState, ev: DfieldEvent): PlotsState {
+  const dfield = dfieldFromEvent(ev);
+  return update(p, ev.win, w => ({...w, dfield}));
 }
 
 /** null when the append does not continue the window's series (the full series that ends the command puts that right) */

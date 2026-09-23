@@ -6,7 +6,8 @@
    it is shown again (ui/Plots.tsx). The core's mouse, rubber and drag asks
    for this window are plot modes here (plot/pick.ts): an instruction bar
    with Cancel, a crosshair, a box or a line drawn over the plot, answered
-   in data coordinates. */
+   in data coordinates. Its nullclines, direction field and flows (T7) are
+   drawn by the chart too, and listed in the legend after the curves. */
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {Chart} from '../plot/chart';
 import {curveColor} from '../plot/colors';
@@ -14,6 +15,7 @@ import {download, downloadCsv} from '../plot/export';
 import {attachGestures, type PickSink} from '../plot/interactions';
 import {pickInstruction, pickKey, toData, type Frac, type PickState} from '../plot/pick';
 import {buildModel, type PlotModel} from '../plot/model';
+import {phaseLayers} from '../plot/phase';
 import {plotKey} from '../plot/plotKeys';
 import {setChart} from '../plot/registry';
 import type {Ranges} from '../plot/viewmath';
@@ -161,6 +163,9 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   const pw = useStore(s => windowOf(s.plots, win));
   const series = pw?.series ?? null;
   const info = pw?.info ?? null;
+  const nullclines = pw?.nullclines ?? null;
+  const dfield = pw?.dfield ?? null;
+  const layers = useMemo(() => phaseLayers(nullclines, dfield), [nullclines, dfield]);
   const viewport = pw?.viewport ?? HOME;
   const canUndo = !!pw?.viewportHistory.length;
   const view = useStore(s => s.core?.view);
@@ -208,6 +213,10 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
     const w = windowOf(session.store.getState().plots, win);
     if (model && shown) chart.current!.set(model, axes, w?.viewport ?? HOME, dark);
   }, [model, axes, dark, shown]);
+
+  useEffect(() => {
+    if (shown) chart.current!.setPhase(nullclines, dfield);
+  }, [nullclines, dfield, shown]);
 
   useEffect(() => {
     if (shown) chart.current!.applyViewport(viewport);
@@ -259,10 +268,12 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   const marker = hover && model && chart.current
     ? chart.current.position(hover.curve, hover.row - (model.curves[hover.curve]?.row0 ?? 0)) : null;
   const zoomed = viewport.x !== null || viewport.y !== null;
-  const empty = !model || model.curves.every(c => c.xs.length === 0);
+  const noCurves = !model || model.curves.every(c => c.xs.length === 0);
+  const empty = noCurves && !layers.length;
+  const withLayers = layers.length ? `; ${layers.map(l => l.label).join(', ')}` : '';
   const label = model?.curves.length
-    ? `Plot of ${model.curves.map(c => c.label).join(', ')}, ${model.curves[0].xs.length} points`
-    : 'Plot, no data yet';
+    ? `Plot of ${model.curves.map(c => c.label).join(', ')}, ${model.curves[0].xs.length} points${withLayers}`
+    : `Plot, no data yet${withLayers}`;
   const panel = tabbed
     ? {role: 'tabpanel' as const, id: `plot-panel-${win}`, 'aria-labelledby': `plot-tab-${win}`}
     : {'aria-label': 'Plot'};
@@ -285,6 +296,21 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
               {c.label}
             </button>
           ))}
+          {layers.map(l => (
+            <button
+              key={l.key}
+              class={'legend-item layer' + (chart.current?.isLayerVisible(l.key) === false ? ' off' : '')}
+              data-layer={l.key}
+              aria-pressed={chart.current?.isLayerVisible(l.key) !== false}
+              title={`Show or hide the ${l.label}`}
+              onClick={() => {
+                chart.current!.setLayerVisible(l.key, !chart.current!.isLayerVisible(l.key));
+                setShown(n => n + 1);
+              }}>
+              <span class={`swatch swatch-${l.key}`} style={{background: curveColor(l.color, dark)}} aria-hidden="true" />
+              {l.label}
+            </button>
+          ))}
         </div>
         <div class="plot-tools">
           <button disabled={!canUndo} onClick={() => session.store.dispatch({type: 'undoViewport', win})}
@@ -293,7 +319,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
             title="Back to the window's axes (double click, or 0 on the plot)">Reset view</button>
           <button disabled={empty} onClick={() => { const u = chart.current!.png(); if (u) download('xpp-plot.png', u); }}
             title="Save the plot as a PNG picture">PNG</button>
-          <button disabled={empty} onClick={() => model && downloadCsv('xpp-curves.csv', model)}
+          <button disabled={noCurves} onClick={() => model && downloadCsv('xpp-curves.csv', model)}
             title="Save the plotted numbers as CSV">CSV</button>
         </div>
       </header>
