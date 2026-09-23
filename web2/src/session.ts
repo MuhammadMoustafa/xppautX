@@ -4,7 +4,12 @@ import type {Transport} from './protocol/transport';
 import type {AskEvent, Command, XppEvent} from './protocol/types';
 import {createStore, type Store} from './store/store';
 import {initialState, reduce, type Action, type AppState} from './store/state';
+import {planRequest, tableCsv} from './store/table';
 import type {ValueEdit} from './store/values';
+
+/** the data browser's buttons (docs/protocol.md `browser` op; web/xpp-client.js's BROWSER_BUTTONS) */
+export type BrowserOp = 'find' | 'get' | 'replace' | 'unreplace' | 'table' | 'load' | 'write' | 'first' | 'last'
+  | 'restore' | 'addcol' | 'delcol';
 
 export class Session {
   readonly store: Store<AppState, Action>;
@@ -119,5 +124,60 @@ export class Session {
   /** an `@ button` of the ODE file */
   userButton(index: number): void {
     this.send({cmd: 'userbut', index});
+  }
+
+  /* ---- data table (docs/ui-v2.md T10, docs/protocol.md `browser`) ---- */
+
+  openTable(): void {
+    this.store.dispatch({type: 'table', action: {type: 'open', open: true}});
+  }
+
+  /** stops the core sending further blocks (docs/protocol.md: `count` 0 stops the updates) */
+  closeTable(): void {
+    this.store.dispatch({type: 'table', action: {type: 'open', open: false}});
+    this.send({cmd: 'browser', from: 0, count: 0});
+  }
+
+  /** the row the arrow keys, a click, Home/End move to */
+  selectTableRow(row: number): void {
+    this.store.dispatch({type: 'table', action: {type: 'select', row}});
+  }
+
+  /** the rows [visibleFrom, visibleFrom+visibleCount) the view can see: asks
+      for a new block only when the cached one does not cover them, and
+      never twice for the same block (store/table.ts planRequest). A
+      `browser` request with `from` is a control line, answered at once
+      even during a job or a prompt (docs/protocol.md), so this never waits
+      on `state.busy`. */
+  fetchTableRows(visibleFrom: number, visibleCount: number): void {
+    const {page, pendingKey} = this.store.getState().table;
+    const req = planRequest(page, visibleFrom, visibleCount);
+    if (!req) return;
+    const key = JSON.stringify(req);
+    if (key === pendingKey) return;
+    this.store.dispatch({type: 'table', action: {type: 'requested', req}});
+    this.send({cmd: 'browser', ...req});
+  }
+
+  /** one of the browser's buttons, on the selected row (docs/protocol.md
+      `browser` op; Find, Replace, Table, Load and Write prompt through the
+      ordinary `ask`, AskDialog already shows) */
+  browserOp(op: BrowserOp): void {
+    this.send({cmd: 'browser', op, row: this.store.getState().table.selected});
+  }
+
+  /** Get: the selected row becomes the initial conditions (the next `state` has them) */
+  getRow(): void {
+    this.browserOp('get');
+  }
+
+  /** the cached page as CSV (docs/ui-v2.md T10: "CSV export done in the
+      client from fetched data"); returns the text so the caller can offer
+      it as a download (plot/export.ts's download()) and tests can read it
+      through __xpp.state().table.lastExport without one */
+  exportTableCsv(): string {
+    const csv = tableCsv(this.store.getState().table.page);
+    this.store.dispatch({type: 'table', action: {type: 'exported', csv}});
+    return csv;
   }
 }

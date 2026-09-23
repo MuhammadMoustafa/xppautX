@@ -14,6 +14,7 @@ export function TitleBar() {
   const theme = useStore(s => s.theme);
   const drawer = useStore(s => s.drawerOpen);
   const valuesOpen = useStore(s => s.valuesOpen);
+  const tableOpen = useStore(s => s.table.open);
   const busy = useStore(s => s.busy);
   const setTheme = () => {
     const t = NEXT_THEME[theme];
@@ -34,6 +35,8 @@ export function TitleBar() {
       </button>
       <button class="values-toggle" aria-controls="values-panel" aria-expanded={valuesOpen}
         onClick={() => session.store.dispatch({type: 'valuesPanel', open: !valuesOpen})}>Values</button>
+      <button class="table-toggle" aria-controls="table-panel" aria-expanded={tableOpen}
+        onClick={() => (tableOpen ? session.closeTable() : session.openTable())}>Data</button>
       <a class="button classic" href={`/${location.search}`} title="The classic interface, with every window">Classic</a>
     </header>
   );

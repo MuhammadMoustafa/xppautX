@@ -9,6 +9,7 @@ import {MenuPanel} from './MenuPanel';
 import {Messages} from './Messages';
 import {PlotView} from './PlotView';
 import {StatusBar} from './StatusBar';
+import {TableView} from './TableView';
 import {useDark} from './theme';
 import {TitleBar} from './TitleBar';
 import {Toasts} from './Toasts';
@@ -45,6 +46,7 @@ function Shell() {
         <Messages />
       </main>
       <ValuesPanel />
+      <TableView />
       <StatusBar />
       <Toasts />
       <AskDialog />

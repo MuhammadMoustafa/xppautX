@@ -5,10 +5,12 @@
    pixels. A desktop session (integrate from the keyboard, the plotted
    numbers against output.dat, hover, wheel and box zoom, undo, reset, pan),
    the values panel (docs/ui-v2.md T3: edit a parameter, a slider by
-   keyboard, undo, Tab reachability, the panel as a right column), keyboard-
+   keyboard, undo, Tab reachability, the panel as a right column), the data
+   table (docs/ui-v2.md T10: scroll and keyboard navigation to row 500
+   against output.dat, Get, CSV export, Tab reachability), keyboard-
    only use of the plot and of a prompt, and a phone-sized one (390x844,
-   touch: no sideways scroll, the menu drawer, the values sheet, pinch, tap,
-   pan, 44px targets). Then live plotting (tools/models/live.ode: the store
+   touch: no sideways scroll, the menu drawer, the values sheet, the table
+   sheet, pinch, tap, pan, 44px targets). Then live plotting (tools/models/live.ode: the store
    and the plot grow while 20 001 rows are computed, and end as output.dat)
    and a run of 10^6 rows (tools/models/million.ode) that must draw and zoom
    with no frame over 50 ms (draw times and long tasks, read through __xpp).
@@ -253,6 +255,91 @@ async function values() {
   check(`Tab reaches the values panel (${steps} presses)`, reached);
 }
 
+/* the data table (docs/ui-v2.md T10): open it, scroll to row 500 by
+   scrolling and by keyboard, check its values against output.dat, Get,
+   CSV export, and Tab reachability of every button */
+async function dataTable(want) {
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
+  await sleep(150);
+  await cdp.eval(`document.querySelector('.table-toggle').click()`);
+  check('the Data button opens the table panel', await until('s.table.open', 'table open')
+    && await cdp.eval(`getComputedStyle(document.querySelector('.table-panel')).visibility === 'visible'`));
+  check('its first control has the focus', await until(`document.activeElement.closest('.table-panel')`, 'table focus'));
+  check('the table asks for rows and gets T plus every column',
+    await until('s.table.page && s.table.page.cols.length >= 2', 'table page'),
+    JSON.stringify(await S('s.table.page && s.table.page.cols')));
+
+  const tol = (v, w) => Math.abs(v - w) <= 1e-6 * Math.abs(w) + 1e-9;
+  const rowOk = (row, want500) => row && row.every((v, i) => tol(v, want500[i]));
+
+  /* scroll to row 500 with the scrollbar */
+  await cdp.eval(`(() => { const el = document.querySelector('.table-grid-wrap');
+    const h = document.querySelector('.table-row-head').getBoundingClientRect().height;
+    el.scrollTop = 500 * h; el.dispatchEvent(new Event('scroll')); })()`);
+  check('scrolling to row 500 fetches it', await until(
+    '(() => { const p = s.table.page; return p && p.from <= 500 && p.from + p.data.length > 500; })()', 'row 500 scrolled'));
+  let row500 = await cdp.eval(`(() => { const p = __xpp.state().table.page; return p.data[500 - p.from]; })()`);
+  check("the displayed row 500 (scrolled) equals output.dat's row 500", rowOk(row500, want[500]),
+    JSON.stringify({row500, want: want[500]}));
+
+  /* the same row, reached from the keyboard only: End, then Up to 500 */
+  await cdp.eval(`document.querySelector('.table-grid-wrap').focus()`);
+  await key('End');
+  check('End selects the last row', await until(`s.table.selected === ${want.length - 1}`, 'End'));
+  for (let i = 0; i < want.length - 1 - 500; i++) await key('ArrowUp');
+  check('keyboard navigation (End, Up) reaches row 500',
+    await until('s.table.selected === 500', 'row 500 by keyboard'));
+  row500 = await cdp.eval(`(() => { const s = __xpp.state(); const p = s.table.page;
+    return p && p.from <= 500 && p.from + p.data.length > 500 ? p.data[500 - p.from] : null; })()`);
+  check("the displayed row 500 (keyboard) equals output.dat's row 500", rowOk(row500, want[500]),
+    JSON.stringify({row500, want: want[500]}));
+
+  /* Get: the selected row (500) becomes the initial conditions */
+  await cdp.eval(`[...document.querySelectorAll('.table-tools button')].find(b => b.textContent === 'Get').click()`);
+  check("Get sets the ICs from the selected row: the next state has them", await until(
+    `(() => { const ics = s.core.ics.map(p => p[1]); return Math.abs(ics[0] - ${want[500][1]}) < 1e-6 && !s.busy; })()`,
+    'Get'), JSON.stringify(await S('s.core.ics')));
+
+  /* Enter is Get too, on whatever row is selected (a step away, so the check is meaningful) */
+  await cdp.eval(`document.querySelector('.table-grid-wrap').focus()`);
+  await key('ArrowUp');
+  await key('Enter');
+  check('Enter on the grid is Get, for row 499', await until(
+    `(() => { const ics = s.core.ics.map(p => p[1]); return Math.abs(ics[0] - ${want[499][1]}) < 1e-6 && !s.busy; })()`,
+    'Enter=Get'), JSON.stringify(await S('s.core.ics')));
+
+  /* CSV export: the client's own, from the rows fetched so far (no download needed to check it) */
+  await cdp.eval(`document.querySelector('.table-header .small').click()`);
+  check('Export CSV records the exported text', await until('!!s.table.lastExport', 'csv'));
+  const csvOk = await cdp.eval(`(() => { const s = __xpp.state(), p = s.table.page;
+    const header = p.cols.join(','); const lines = p.data.map(r => r.map(v => v === null ? 'NaN' : String(v)).join(','));
+    return s.table.lastExport === [header, ...lines].join('\\n') + '\\n'; })()`);
+  check('the exported CSV is exactly the header and the cached rows', csvOk, await S('s.table.lastExport.slice(0, 80)'));
+
+  /* every button (and the grid) reachable by Tab */
+  await cdp.eval(`document.querySelector('.skip-link').focus()`);
+  let steps = 0, reached = false;
+  while (steps < 200) {
+    await key('Tab');
+    steps++;
+    if (await cdp.eval(`!!document.activeElement.closest('.table-panel')`)) { reached = true; break; }
+  }
+  check(`Tab reaches the table panel (${steps} presses)`, reached);
+  const labels = new Set();
+  for (let i = 0; i < 20 && await cdp.eval(`!!document.activeElement.closest('.table-panel')`); i++) {
+    const t = await cdp.eval(`(document.activeElement && document.activeElement.textContent || '').trim()`);
+    if (t) labels.add(t);
+    await key('Tab');
+  }
+  const expect = ['Back', 'Export CSV', 'Find', 'Get', 'Replace', 'Unrepl', 'Table', 'Load', 'Write', 'First',
+    'Last', 'Restore', 'Add col', 'Del col'];
+  check('every button in the table panel is reachable by Tab', expect.every(l => labels.has(l)), JSON.stringify([...labels]));
+
+  /* leave it closed for the phone session */
+  await cdp.eval(`document.querySelector('.table-back').click()`);
+  check('Back closes the table panel', await until('!s.table.open', 'close table'));
+}
+
 async function keyboardOnly() {
   /* Tab from the top of the page to the plot */
   await cdp.eval('document.activeElement && document.activeElement.blur()');
@@ -351,6 +438,29 @@ async function phone() {
   await cdp.eval(`document.querySelector('.values-back').click()`);
   check('Back closes the sheet', await until('!s.valuesOpen', 'close values sheet'));
   check('the focus returns to the Values button', await until(`document.activeElement.closest('.values-toggle')`, 'values focus back'));
+
+  /* the data table is a full-screen sheet with a Back button (R6) */
+  check('the table sheet starts closed', !(await S('s.table.open'))
+    && await cdp.eval(`getComputedStyle(document.querySelector('.table-panel')).visibility === 'hidden'`));
+  const dt = await cdp.eval(`(() => { const r = document.querySelector('.table-toggle').getBoundingClientRect();
+    return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()`);
+  await touch('touchStart', [dt]);
+  await touch('touchEnd', []);
+  check('tapping Data opens the table sheet', await until('s.table.open', 'table sheet')
+    && await cdp.eval(`getComputedStyle(document.querySelector('.table-panel')).visibility === 'visible'`));
+  check('the sheet covers the viewport', await cdp.eval(`(() => { const r = document.querySelector('.table-panel')
+    .getBoundingClientRect(); return r.width >= innerWidth - 1 && r.height >= innerHeight - 1; })()`));
+  check('its first control has the focus', await until(`document.activeElement.closest('.table-panel')`, 'table sheet focus'));
+  const tableScroll = await cdp.eval(`({doc: document.documentElement.scrollWidth, body: document.body.scrollWidth, w: innerWidth})`);
+  check('390x844: the table causes no sideways page scroll',
+    tableScroll.doc <= tableScroll.w && tableScroll.body <= tableScroll.w, JSON.stringify(tableScroll));
+  const tableSmall = await cdp.eval(`[...document.querySelectorAll('.table-panel button')]
+    .filter(b => b.getClientRects().length).map(b => [b.textContent.trim(), b.getBoundingClientRect().height])
+    .filter(([, h]) => h < 44)`);
+  check('the table sheet\'s targets are at least 44px high', tableSmall.length === 0, JSON.stringify(tableSmall));
+  await cdp.eval(`document.querySelector('.table-back').click()`);
+  check('Back closes the table sheet', await until('!s.table.open', 'close table sheet'));
+  check('the focus returns to the Data button', await until(`document.activeElement.closest('.table-toggle')`, 'table focus back'));
 
   /* pinch out about the middle */
   const a = await area(), cx = a.x + a.w / 2, cy = a.y + a.h / 2;
@@ -554,6 +664,11 @@ async function main() {
     await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     await session(ODE, async () => {
       await desktop(want);
+      /* before values(): its slider moves a parameter and reruns the
+         integration (docs/protocol.md `slide`), so the stored data would no
+         longer match the pristine `want` computed from the ODE file's own
+         defaults */
+      await dataTable(want);
       await values();
       await keyboardOnly();
       await phone();

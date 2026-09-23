@@ -4,6 +4,7 @@
    Pure: no DOM, no I/O, no clock. */
 import type {AskEvent, Command, HelloEvent, StateEvent, XppEvent} from '../protocol/types';
 import {appendRows, seriesFromEvent, type PlotSeries} from './series';
+import {initialTable, reduceTable, type TableAction, type TableState} from './table';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
 
 export type Theme = 'light' | 'dark' | 'system';
@@ -70,6 +71,8 @@ export interface AppState {
   values: ValuesState;
   /** the values panel, a full-screen sheet on narrow screens */
   valuesOpen: boolean;
+  /** the data table (T10): the cached page, selection and CSV export, see store/table.ts */
+  table: TableState;
 }
 
 export type Action =
@@ -86,7 +89,8 @@ export type Action =
   | {type: 'drawer'; open: boolean}
   | {type: 'theme'; theme: Theme}
   | {type: 'values'; action: ValuesAction}
-  | {type: 'valuesPanel'; open: boolean};
+  | {type: 'valuesPanel'; open: boolean}
+  | {type: 'table'; action: TableAction};
 
 const HOME: Viewport = {x: null, y: null};
 
@@ -114,6 +118,7 @@ export const initialState: AppState = {
   drawerOpen: false,
   values: initialValues,
   valuesOpen: false,
+  table: initialTable,
 };
 
 const LOG_KEEP = 200, TOASTS_KEEP = 4, HISTORY_KEEP = 50;
@@ -129,8 +134,15 @@ function addToast(state: AppState, kind: Toast['kind'], text: string): AppState 
   return {...state, toasts, nextToast: state.nextToast + 1};
 }
 
-/* commands with no idle of their own (abort) or none at all (quit) */
+/* commands with no idle of their own (abort) or none at all (quit); a
+   `browser` request with `from` is answered at once too (docs/protocol.md:
+   "answered at once with browser, even during a prompt"), so the table's
+   paging (store/table.ts planRequest) never leaves the status bar stuck
+   showing Working */
 const NO_IDLE = new Set(['abort', 'quit']);
+function noIdle(cmd: Command): boolean {
+  return NO_IDLE.has(cmd.cmd) || (cmd.cmd === 'browser' && 'from' in cmd);
+}
 
 function sameCurves(a: PlotSeries | null, b: PlotSeries): boolean {
   return !!a && a.win === b.win && JSON.stringify(a.curves) === JSON.stringify(b.curves);
@@ -176,6 +188,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       }
       if (ev.bottom !== undefined) return {...state, bottom: ev.bottom};
       return state;
+    case 'browser':
+      return {...state, table: reduceTable(state.table, {type: 'event', ev})};
     case 'log':
       return addLog(state, {kind: 'log', text: ev.text});
     case 'exit':
@@ -199,7 +213,7 @@ export function reduce(state: AppState, action: Action): AppState {
       return action.open === state.connected ? state : {...state, connected: action.open};
     case 'sent':
       if (action.cmd.cmd === 'answer') return {...state, ask: null};
-      return NO_IDLE.has(action.cmd.cmd) ? state : {...state, busy: true};
+      return noIdle(action.cmd) ? state : {...state, busy: true};
     case 'aborting':
       return state.busy ? {...state, stopping: true} : state;
     case 'viewport': {
@@ -227,5 +241,7 @@ export function reduce(state: AppState, action: Action): AppState {
       return {...state, values: reduceValues(state.values, action.action)};
     case 'valuesPanel':
       return action.open === state.valuesOpen ? state : {...state, valuesOpen: action.open};
+    case 'table':
+      return {...state, table: reduceTable(state.table, action.action)};
   }
 }

@@ -117,6 +117,29 @@ export interface MessageEvent {
   calc?: string;
 }
 
+/** the data browser block the client asked for (docs/protocol.md `browser`,
+    docs/ui-v2.md T10): rows `from`..`from+data.length-1` of columns
+    `col`..`col+data[i].length-2` (each row is [T, that column, ...]); sent
+    for a `browser` `from` request and again, with the same range, after any
+    command that changed the data while the client showed the browser. */
+export interface BrowserEvent {
+  ev: 'browser';
+  /** rows stored (my_browser.maxrow); 0 before any integration */
+  rows: number;
+  /** column names, T first, in storage order */
+  cols: string[];
+  /** the core's selected row (the X11 browser's top row): what Get, First, Last act on */
+  row0: number;
+  /** the First..Last range Write and Restore use */
+  start: number;
+  end: number;
+  /** where this block starts: row `from`, column `col` (1-based, T is column 0 but always included) */
+  from: number;
+  col: number;
+  /** data[i][0] is T of row from+i; data[i][k] for k>=1 is column col+k-1; null is NaN */
+  data: (number | null)[][];
+}
+
 export type XppEvent =
   | HelloEvent
   | StateEvent
@@ -124,6 +147,7 @@ export type XppEvent =
   | SeriesAppendEvent
   | AskEvent
   | MessageEvent
+  | BrowserEvent
   | {ev: 'idle'}
   | {ev: 'progress'; n: number; of: number}
   | {ev: 'title'; text: string}
@@ -132,8 +156,8 @@ export type XppEvent =
   | {ev: 'log'; text: string}
   | {ev: 'exit'; code: number}
   | {ev: 'bye'}
-  /* every other event: drawing ops, AUTO, browser, ... (not used by this UI yet) */
-  | {ev: 'draw' | 'palette' | 'diagram' | 'browser' | 'equilibrium' | 'source' | 'equations' | 'ani' | 'aplot'
+  /* every other event: drawing ops, AUTO, ... (not used by this UI yet) */
+  | {ev: 'draw' | 'palette' | 'diagram' | 'equilibrium' | 'source' | 'equations' | 'ani' | 'aplot'
       | 'film' | 'ping'; [k: string]: unknown};
 
 export type Command = {cmd: string; [k: string]: unknown};
