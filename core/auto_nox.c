@@ -2852,7 +2852,7 @@ void save_auto()
   char filename[XPP_MAX_NAME];
   int status;
   /* XGetInputFocus(display,&w,&rev); */
-
+  
   sprintf(filename,"%s.auto",basename(this_auto_file));
   /* status=get_dialog("Save Auto","Filename",filename,"Ok","Cancel",60);
   XSetInputFocus(display,w,rev,CurrentTime);
@@ -2870,10 +2870,8 @@ void save_auto()
   }
 }
 
-/* the body of save_auto without its file_selector dialog, so xpp_session.c
-   (File/Write session, docs/protocol.md "session") can write a .auto file
-   of its own; returns what save_diagram returns: 1 written, else the
-   diagram was empty and fp holds only the numerics/graph header */
+/* save_auto without its dialog (xpp_session.c): 1 written, else the
+   diagram was empty and fp holds only the numerics and graph header */
 int save_auto_file(fp)
      FILE *fp;
 {
@@ -2885,7 +2883,7 @@ int save_auto_file(fp)
   save_q_file(fp);
   return 1;
 }
-
+ 
 void save_auto_numerics(fp)
      FILE *fp;
 {
@@ -3016,14 +3014,13 @@ void load_auto()
     auto_err("Cannot open file");
     return;
   }
-
+  
   load_auto_file(fp);
   fclose(fp);
 }
 
-/* the body of load_auto without its NBifs reset or file_selector dialog, so
-   xpp_session.c (File/Read session) can load a .auto file of its own;
-   returns what load_diagram returns: 1 loaded, -1 an empty diagram */
+/* load_auto without its reset and dialog (xpp_session.c): 1 loaded,
+   -1 an empty diagram */
 int load_auto_file(fp)
      FILE *fp;
 {

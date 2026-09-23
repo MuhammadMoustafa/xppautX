@@ -1,11 +1,7 @@
-/* File/Write session and File/Read session (issue #11): one name for the
-   pair of files a long AUTO run needs to be picked back up from -- the
-   .set file do_lunch's Write/Read set already write and read
-   (write_lunch/read_lunch, core/lunch-new.c) and, when there is a
-   diagram, the .auto file AUTO's File/Save diagram and File/Load diagram
-   already write and read (save_auto/load_auto, core/auto_nox.c, split
-   into a dialog half and a save_auto_file(FILE*)/load_auto_file(FILE*)
-   half for this). */
+/* A session (issue #11, the protocol's "session" command): one name for
+   the files a long AUTO run is picked back up from, <base>.set (as File/
+   Write set) and, when there is a diagram, <base>.auto (as AUTO's File/
+   Save diagram, orbits included). */
 #include "xpp_session.h"
 #include "xpp_ui.h"
 #include "lunch-new.h"
@@ -22,6 +18,12 @@ static char session_set[XPP_MAX_NAME];
 static char session_auto[XPP_MAX_NAME];
 
 const char *xpp_session_set_file(void) { return session_set; }
+
+static void keep(char *dst, const char *name)
+{
+    strncpy(dst, name, XPP_MAX_NAME - 1);
+    dst[XPP_MAX_NAME - 1] = 0;
+}
 const char *xpp_session_auto_file(void) { return session_auto; }
 
 /* base may be NULL: ask for one the way do_lunch's Write/Read set does,
@@ -56,8 +58,7 @@ int xpp_session_save(const char *base)
     redraw_params(); /* as do_lunch's Write set does, before write_lunch */
     write_lunch(fp);
     fclose(fp);
-    strncpy(session_set, set_name, sizeof session_set - 1);
-    session_set[sizeof session_set - 1] = 0;
+    keep(session_set, set_name);
     session_auto[0] = 0;
 
     if (NBifs > 1) { /* a diagram exists (save_diagram's own empty check) */
@@ -73,8 +74,7 @@ int xpp_session_save(const char *base)
             return 0;
         }
         fclose(fp);
-        strncpy(session_auto, auto_name, sizeof session_auto - 1);
-        session_auto[sizeof session_auto - 1] = 0;
+        keep(session_auto, auto_name);
     }
     return 1;
 }
@@ -100,8 +100,7 @@ int xpp_session_load(const char *base)
         return 0;
     }
     fclose(fp);
-    strncpy(session_set, set_name, sizeof session_set - 1);
-    session_set[sizeof session_set - 1] = 0;
+    keep(session_set, set_name);
     session_auto[0] = 0;
 
     snprintf(auto_name, sizeof auto_name, "%s.auto", base);
@@ -116,8 +115,7 @@ int xpp_session_load(const char *base)
         }
         fclose(fp);
         if (Auto.exist) redraw_diagram(); /* load_auto leaves this to the caller */
-        strncpy(session_auto, auto_name, sizeof session_auto - 1);
-        session_auto[sizeof session_auto - 1] = 0;
+        keep(session_auto, auto_name);
     }
     return 1;
 }

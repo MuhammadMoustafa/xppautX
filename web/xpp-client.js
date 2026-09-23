@@ -975,7 +975,6 @@
           this.autoHints = ev.auto_hints || [];
           this.sliderDefs = ev.sliders || [];
           this.modelFile = ev.file;
-          this.baseTitle = ev.title;
           this.titleBar.textContent = ev.title;
           this.sessionFilesEl = null; /* titleBar.textContent above dropped it */
           this.charCell = ev.char;
