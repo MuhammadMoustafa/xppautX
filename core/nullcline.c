@@ -471,7 +471,7 @@ void redraw_dfield()
   int iny=MyGraph->yv[0]-1;
   double y[MAXODE],ydot[MAXODE],xv1,xv2;
   float v1[MAXODE],v2[MAXODE];
-  FILE *fp;
+  FILE *fp=NULL;
 
   double amp,mdf;
 

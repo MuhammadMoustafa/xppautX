@@ -1835,7 +1835,7 @@ static int CVnls(CVodeMem cv_mem, int nflag)
 static int CVnlsFunctional(CVodeMem cv_mem)
 {
   int m;
-  real del, delp, dcon;
+  real del, delp=ZERO, dcon;
 
   /* Initialize counter and evaluate f at predicted y */
   
@@ -1963,7 +1963,7 @@ static int CVnlsNewton(CVodeMem cv_mem, int nflag)
 static int CVNewtonIteration(CVodeMem cv_mem)
 {
   int m, ret;
-  real del, delp, dcon;
+  real del, delp=ZERO, dcon;
   N_Vector b;
   
   

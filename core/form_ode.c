@@ -1567,40 +1567,44 @@ int nnn;
 
    /* take care of special form for auxiliary */       
      if(v.type==COMMAND && v.lhs[0]=='A' && v.lhs[1]=='U'){
-       find_char(v.rhs,"=",0,&i1);
+       if(find_char(v.rhs,"=",0,&i1)>=0){
        strpiece(v.lhs,v.rhs,0,i1-1);
        strcpy(big,v.rhs);
        strpiece(v.rhs,big,i1+1,strlen(big));
+       }
        v.type=AUX_VAR;
      }
    
      /* take care of special form for vector */      
      if(v.type==COMMAND && v.lhs[0]=='V' && v.lhs[1]=='E' && v.lhs[5]=='R')
      {
-      find_char(v.rhs,"=",0,&i1);
+      if(find_char(v.rhs,"=",0,&i1)>=0){
        strpiece(v.lhs,v.rhs,0,i1-1);
        strcpy(big,v.rhs);
        strpiece(v.rhs,big,i1+1,strlen(big));
+       }
        v.type=VECTOR;
 
 
      }
         /* take care of special form for special */      
      if(v.type==COMMAND && v.lhs[0]=='S'&&v.lhs[1]=='P'&&v.lhs[5]=='A'){
-       find_char(v.rhs,"=",0,&i1);
+       if(find_char(v.rhs,"=",0,&i1)>=0){
        strpiece(v.lhs,v.rhs,0,i1-1);
        strcpy(big,v.rhs);
        strpiece(v.rhs,big,i1+1,strlen(big));
+       }
        v.type=SPEC_FUN;
      }
 
 /*   import-export to external C program   */
      if(v.type==COMMAND && v.lhs[0]=='E' && v.lhs[1]=='X'){
        v.type=EXPORT;
-       find_char(v.rhs,"}",0,&i1);
+       if(find_char(v.rhs,"}",0,&i1)>=0){
        strpiece(v.lhs,v.rhs,0,i1);
        strcpy(big,v.rhs);
        strpiece(v.rhs,big,i1+1,strlen(big));
+       }
 
     }
    
@@ -1615,10 +1619,11 @@ int nnn;
 
  /*  forced integral equation form */
      if(v.type==COMMAND && v.lhs[0]=='V'){
-       find_char(v.rhs,"=",0,&i1);
+       if(find_char(v.rhs,"=",0,&i1)>=0){
        strpiece(v.lhs,v.rhs,0,i1-1);
        strcpy(big,v.rhs);
        strpiece(v.rhs,big,i1+1,strlen(big));
+       }
        v.type=VEQ;
      }
     /* take care of tables   */

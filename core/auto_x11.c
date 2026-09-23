@@ -314,7 +314,7 @@ void x11_auto_scroll_window()
   float ylo=Auto.ymin;
   float xhi=Auto.xmax;
   float yhi=Auto.ymax;
-  float dx,dy;
+  float dx=0,dy=0;
   int alldone=0;
   /*    printf("xin: %g %g %g %g\n",xlo,xhi,ylo,yhi); */
   XSelectInput(display,AutoW.canvas,

@@ -607,8 +607,8 @@ BROWSER *b;
 
  static char *name[]={"*0Variable","Value"};
  char value[2][25];
- int col,row;
- 
+ int col,row=-1;
+
  float val;
 
  sprintf(value[0],uvar_names[0]);

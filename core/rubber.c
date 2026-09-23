@@ -189,7 +189,7 @@ void x11_scroll_window()
   float ylo=MyGraph->ylo;
     float xhi=MyGraph->xhi;
   float yhi=MyGraph->yhi;
-  float dx,dy;
+  float dx=0,dy=0;
   int alldone=0;
   XSelectInput(display,draw_win,
    KeyPressMask|ButtonPressMask|ButtonReleaseMask|
