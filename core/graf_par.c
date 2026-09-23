@@ -33,7 +33,7 @@ extern int storind;
 extern int PS_FONTSIZE;
 extern int PS_Port;
 /*extern char PS_FONT[100];*/
-extern char PS_FONT[XPP_MAX_NAME];
+extern char PS_FONT[100]; /* my_ps.c */
 extern double PS_LW;
 extern BROWSER my_browser;
 extern double x_3d[2],y_3d[2],z_3d[2];
