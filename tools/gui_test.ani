@@ -1,4 +1,4 @@
-# animation for tools/guicheck.sh: one of every command, driven by lecar.ode
+# animation for servercheck and webtest.mjs: one of every command, driven by lecar.ode
 dimension -0.6;-0.1;0.4;0.6
 speed 5
 permanent

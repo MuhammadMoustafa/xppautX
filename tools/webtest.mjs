@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-/* Behavioural regression check for the web front end (the web counterpart of
-   tools/guicheck.sh). Runs xppautX and drives it through a real session of
+/* Behavioural regression check for the web front end of the classic page
+   (web/, frozen until docs/ui-v2.md T18 removes it). Runs xppautX and drives it through a real session of
    key presses and clicks (tools/web_steps.txt) in a headless Chrome or Edge,
    and checks what each step claims about the result: a dialog with the
    right kind, a value the server computed, a canvas that got drawn to, a

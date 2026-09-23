@@ -18,8 +18,8 @@ Pure functions whose breakage an end-to-end run would report as a puzzling
 difference somewhere else rather than as a failure of the thing that broke:
 the parser, name and format helpers, file round trips. Whole-session
 behaviour is already covered, and better covered, by `tools/servercheck.py`
-(the protocol), `tools/webcheck.py` (HTTP) and `tools/webtest.mjs` (the web
-front end).
+(the protocol), `tools/webcheck.py` (HTTP), `tools/web2check.mjs` (the web front end)
+and `tools/examples_check.sh` (every example's output).
 
 ## What the tests pin
 

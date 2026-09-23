@@ -20,9 +20,16 @@ Run it (opens the browser front end):
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && ./xppautX examples/ode/lecar.ode"
 
-Web front end regression check (run it for changes to `web/`, ui_json.c
-or xpp_http.cpp, once per batch). From Git Bash on Windows, where Node
-and Chrome are (not WSL):
+verify.sh also runs every example model through `xppautX -silent` and
+compares each output.dat's md5 with tests/examples.md5
+(`tools/examples_check.sh`, ~30 s). A difference means the numerics
+changed: rewrite the baseline with `tools/examples_check.sh --update` only
+when the change is intended, and say which models changed in the commit.
+
+The classic page (`web/`) is frozen until T18 removes it; its check,
+`tools/webtest.mjs`, is not a routine gate any more (run it only for a
+fix to `web/`). From Git Bash on Windows, where Node and Chrome are (not
+WSL):
 
     PATH=/c/Strawberry/c/bin:$PATH node tools/webtest.mjs
 

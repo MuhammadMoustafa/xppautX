@@ -1,7 +1,7 @@
 # personal scratch models, never committed
 sandbox/
 
-# what a run writes next to the model; examples_check compares it and a
+# what a run writes next to the model; examples_check hashes it and a
 # committed one was being copied into every run directory
 output.dat
 

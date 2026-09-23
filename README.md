@@ -96,15 +96,21 @@ own behavioural regression test (`tools/webtest.mjs`).
 
 ### Metrics
 
-Scripts that track the numerics; both must stay green (`tools/verify.sh`
-runs them after a build and checks the output checksums):
+Scripts that track the numerics and the protocol; `tools/verify.sh` runs
+them after a build and fails on any difference:
 
-| Script | Measures | Now |
-|---|---|---|
-| `tools/servercheck.py` | protocol session against `xppautX --server` (menus, prompts, integration, equilibria, windows, browser, animation, kinescope, array plot, scrolling) | 34 checks |
-| `tools/webcheck.py` | `xppautX` over HTTP: page, token, event stream, commands, exit | 11 checks |
+| Script | Checks |
+|---|---|
+| `tools/examples_check.sh` | every `examples/**/*.ode` through `xppautX -silent`, each output's md5 against `tests/examples.md5` |
+| `tools/servercheck.py` | protocol session against `xppautX --server` (menus, prompts, integration, equilibria, windows, browser, animation, kinescope, array plot, the data events) |
+| `tools/autocheck.py` | AUTO continuations over the protocol (diagrams, labels, grabs, long names) |
+| `tools/webcheck.py` | `xppautX` over HTTP: page, token, event stream, files, commands, exit |
 
-`node tools/webtest.mjs [--bin BIN]` guards the web front end the same way:
+`node tools/web2check.mjs` drives the new front end (web2) in a headless
+browser and checks its state (docs/ui-v2.md).
+
+`node tools/webtest.mjs [--bin BIN]` guards the classic page (`web/`, frozen
+until web2 replaces it):
 it builds nothing, and plays `tools/web_steps.txt` (real key presses,
 clicks and drags: menus, prompts, side panel, data browser, text views,
 scrolling, windows, animation, kinescope, array plot, AUTO, 3D, file

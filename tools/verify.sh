@@ -84,6 +84,14 @@ if command -v python3 >/dev/null; then
     exit 1
   fi
 fi
+# every example's output against tests/examples.md5: the numerics
+if tools/examples_check.sh > build/examples.log 2>&1; then
+  tail -1 build/examples.log
+else
+  tail -20 build/examples.log
+  echo "EXAMPLES CHECK FAILED"
+  exit 1
+fi
 # the conversion of the core to C++ (CLAUDE.md, "C and C++")
 echo "C++: $(( $(ls core/*.cpp 2>/dev/null | wc -l) )) / $(( $(ls core/*.c core/*.cpp 2>/dev/null | wc -l) )) sources"
 if [ "$1" = --clean-warnings ]; then tools/warnings.sh; fi
