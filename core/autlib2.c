@@ -1374,6 +1374,16 @@ reduce(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2,
 e.*/
   if (*par) {
 
+    /* buf is the message-passing scratch buffer for the master/worker
+       pivot exchange below; it stayed NULL here (never allocated),
+       which is a null-pointer dereference on every buf[...] access
+       once *par is true. It reads as unreachable today because this
+       fork never sets numnodes above 1, so *par is always false, but
+       the function must still hold a real buffer for the size *par
+       is meant to select. */
+    buf = (doublereal *) malloc(sizeof(doublereal) *
+				 (3 * (*nov) + *ncb + (*nrc - *nbc) + 10));
+
     for (i = 0; i < nlev; ++i) {
 
       if (master[i]) {
@@ -1770,7 +1780,10 @@ e.*/
       integer tmp= (*nrc - *nbc) * *ncb;
       rd0(iam, kwt, &ARRAY2D(dd, 0, (nbcp1 - 1)), &tmp);
     }
-	
+
+    free(buf);
+    buf = NULL;
+
   }
     
   return 0;
