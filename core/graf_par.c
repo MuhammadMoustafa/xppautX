@@ -921,7 +921,7 @@ void create_ps()
 	 PS_FONTSIZE=atoi(values[2]);
 	 PS_LW=atof(values[4]);
          sprintf(PS_FONT,"%s",values[3]);
-	 snprintf(filename,sizeof(filename),"%.296s.ps",this_file);
+	 snprintf(filename,sizeof(filename),"%.250s.ps",this_file);
 	 ping();
  
 	 if(!file_selector("Print postscript",filename,"*.ps"))return;

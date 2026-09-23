@@ -432,7 +432,7 @@ int get_eqn(fptr)
       if(strlen(this_file)==0)
 	sprintf(filename,"convert.ode");
       else
-	snprintf(filename,sizeof(filename),"%.295s.new",this_file);
+	snprintf(filename,sizeof(filename),"%.250s.new",this_file);
       if((convertf=fopen(filename,"w"))==NULL){
 	printf(" Cannot open %s - no conversion done \n",filename);
 	ConvertStyle=0;
@@ -3099,7 +3099,7 @@ void advance_past_first_word(char** sptr) {
 char* new_string2(char* old, int length) {
     /*cout << "new_string2(\"" << old << "\", " << length << ")\n"; */
     char* s = (char*) malloc((length + 1) * sizeof(char));
-    strncpy(s, old, length);
+    memcpy(s, old, length);
     s[length] = '\0';
     if (length > 0 && s[length - 1] == ',') {
         s[length - 1] = '\0';

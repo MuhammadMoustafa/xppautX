@@ -286,12 +286,12 @@ void dump_ps(int i)
   char filename[XPP_MAX_NAME];
    if(i<0)
      {
-       snprintf(filename,sizeof(filename),"%.120s%.120s.%.15s",this_file,this_internset,PlotFormat);
+       snprintf(filename,sizeof(filename),"%.100s%.100s.%.10s",this_file,this_internset,PlotFormat);
      }
    else
      {
        /*   padnum(s,i,4); */
-       snprintf(filename,sizeof(filename),"%.120s%.120s_%04d.%.15s",this_file,this_internset,i,PlotFormat);
+       snprintf(filename,sizeof(filename),"%.100s%.100s_%04d.%.10s",this_file,this_internset,i,PlotFormat);
      }   
       
    if (strcmp(PlotFormat,"ps")==0)

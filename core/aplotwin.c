@@ -288,7 +288,7 @@ void gif_aplot()
 {
   /*char filename[256];*/
   char filename[XPP_MAX_NAME];
-  snprintf(filename,sizeof(filename),"%.295s.gif",this_file);
+  snprintf(filename,sizeof(filename),"%.250s.gif",this_file);
   if(!file_selector("GIF plot",filename,"*.gif"))return;
   gif_aplot_all(filename,1);
 }

@@ -581,13 +581,13 @@ void monte_carlo()
   new_int("# Guesses:",&fixptguess.n);
   new_float("Tolerance:",&fixptguess.tol);
   while(1){
-    sprintf(name,"%s_lo :",uvar_names[i]);
+    snprintf(name,sizeof(name),"%.11s_lo :",uvar_names[i]);
     z=fixptguess.xlo[i];
     done=new_float(name,&z);
     if(done==0)
       fixptguess.xlo[i]=z;
     if(done==-1)break;
-    sprintf(name,"%s_hi :",uvar_names[i]);
+    snprintf(name,sizeof(name),"%.11s_hi :",uvar_names[i]);
     z=fixptguess.xhi[i];
     done=new_float(name,&z);
     if(done==0)
