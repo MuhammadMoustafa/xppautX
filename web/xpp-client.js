@@ -312,7 +312,6 @@
       this.typeahead = [];
       this.busy = false;
       this.stopping = false;
-      this.abortIdlesExpected = 0;
       this.afterIdle = null;
       this.build();
     }
@@ -968,24 +967,12 @@
         case 'message': this.onMessage(ev); break;
         case 'progress': this.setProgress(ev.n, ev.of); break;
         case 'idle':
-          /* an abort that stopped a running job gets a second, spurious
-             state+idle of its own once the core reaches its own line (see
-             docs/protocol.md "Commands during a command"); it must not be
-             mistaken for the idle of whatever runs next */
-          if (this.skipNextIdle) {
-            this.skipNextIdle = false;
-            break;
-          }
           this.releaseHeldSurfaces();
           this.busy = false;
           this.setProgress(0, 0);
           this.autoWorking = false;
           this.setAutoRunning(false);
           if (this.stopping) this.clearStopping();
-          if (this.abortIdlesExpected > 0) {
-            this.abortIdlesExpected--;
-            this.skipNextIdle = true;
-          }
           if (this.autoFitPending && this.autoFit) { /* a resize waited for this */
             this.autoFitPending = false;
             setTimeout(this.autoFit, 0);
@@ -1830,19 +1817,16 @@
       }, 2000);
     }
 
-    /* Abort and Quit reach the core at once, however busy it is (see
-       docs/protocol.md); button clicks otherwise go through command() and are
-       dropped while busy. Abort tells the user it was taken and, when a job
-       was actually running (not just waiting on a prompt), expects one extra
-       idle of its own once the core gets to the abort's own line. */
+    /* Abort reaches the core at once, however busy it is, and has no idle of
+       its own (docs/protocol.md): say it was taken until the command ends */
     startAbort() {
-      if (this.busy && !this.pendingAsk) this.abortIdlesExpected++;
+      this.send({cmd: 'abort'});
+      if (!this.busy) return;
       this.stopping = true;
       clearTimeout(this.busyHintTimer);
       if (this.autoFrame && this.autoWorking && this.autoState) this.autoState.textContent = 'Stopping…';
       else this.hint.textContent = 'Stopping…';
       if (this.autoAbortBtn) this.autoAbortBtn.disabled = true;
-      this.send({cmd: 'abort'});
     }
 
     clearStopping() {

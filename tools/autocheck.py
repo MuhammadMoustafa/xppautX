@@ -430,7 +430,10 @@ def section_control():
     check('Abort right after the command: idle within 0.5 s', e is not None and took < 0.5, '%.2f s' % took,
           limit=True)
     print('INFO abort with the command -> idle %.2f s, %s rows' % (took, n))
-    s.collect(is_idle)  # the abort's own
+    s.send(cmd='state')
+    evs, e = s.collect(is_idle, timeout=10)
+    check('an Abort has no idle of its own', len([x for x in evs if is_idle(x)]) == 1 and
+          any(x.get('ev') == 'state' for x in evs), str([x.get('ev') for x in evs]))
 
     # a command sent after an Abort is not cancelled by it
     set_total(s, 20)

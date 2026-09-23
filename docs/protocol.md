@@ -47,7 +47,7 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `aplot` | `op`: `redraw`, `edit`, `print`, `fit`, `range`, `gif`, `close`, `scroll` (`dy` pixels) | The array plot window buttons; dragging the plot scrolls through time. |
 | `rotate` | `what` (`down`, `move`, `up`), `x`, `y` | Dragging a 3D plot turns it (the active window, when `state.view.three`). |
 | `ani` | `op`: `go`, `pause`, `fast`, `slow`, `step` (`n`), `seek` (`pos`), `reset`, `skip`, `file`, `mpeg`, `grab`, `mouse` (`what` down/move/up, `x`, `y`), `fly`, `close` | The animation window buttons. `go` plays until the last frame; `pause`, `fast`, `slow` sent while it plays reach its loop. `mpeg` asks for frame saving (PPM files or `anim.gif`), done with `pixels` asks while playing. `mouse` drags a grab point after `grab`. `size` for win 104 resizes the picture when the command ends. |
-| `abort` | | Stop the running command's computation, at once (see below). Outside a command: nothing, then `state` and `idle`. |
+| `abort` | | Stop the running command's computation, at once (see below). No reply of its own: the stopped command ends with its `state` and `idle`; outside a command it does nothing. |
 | `quit` | | Exit, at once even during a computation. |
 
 ## Commands during a command
@@ -73,10 +73,8 @@ in the input.
 - Every other command sent during a job is queued and runs, in order, after
   the job's `idle` (with its own `state` and `idle`). Nothing is dropped
   except keys and edits sent while a prompt is open.
-- An `abort` that the core reaches after the job it stopped is run as a
-  command of its own and answers with `state` and `idle`, so a client that
-  sends `abort` sees one `idle` more; one taken while a prompt is open gets
-  none. Clients should not count idles for `abort`.
+- `abort` never has an `idle` of its own, so a client can send it at any
+  time without upsetting its count of commands and idles.
 
 ## Scripts
 

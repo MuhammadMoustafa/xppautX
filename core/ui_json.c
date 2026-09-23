@@ -2484,7 +2484,9 @@ void json_ui_loop(void)
             copy = realloc(copy, cap);
         }
         memcpy(copy, line, n);
-        handle_line(copy, seq);
+        /* an abort did its work when it arrived (classify()): it is no
+           command of its own, and gets no state or idle */
+        if (!is_cmd(copy, "abort")) handle_line(copy, seq);
     }
 }
 

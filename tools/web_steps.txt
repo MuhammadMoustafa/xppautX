@@ -233,7 +233,7 @@ shot 131-3d
 drag css=.xpp-main-plot>canvas 300 300 360 330
 shot 132-3d-turned
 
-# ---- AUTO: abort and close during a run (T11) ----
+# ---- AUTO: abort and close during a run ----
 # back to the default parameters: AUTO's own run above left iapp at a label
 # on the branch, and a run from there can hit the variable bound too fast
 eval client.command({cmd: 'default', kind: 'par'})
