@@ -10,6 +10,9 @@ export interface Transport {
   close(): void;
 }
 
+/** how the server starts a draw event (flush_ops in core/ui_json.c) */
+const DRAW = '{"ev":"draw",';
+
 export class HttpTransport implements Transport {
   private source: EventSource | null = null;
 
@@ -20,10 +23,16 @@ export class HttpTransport implements Transport {
   }
 
   open(onEvent: (ev: XppEvent) => void, onStatus: (open: boolean) => void): void {
-    const source = new EventSource(`${this.base}events${this.token}`);
+    /* draw=0: xppautX leaves the classic page's drawing ops out of this stream */
+    const source = new EventSource(`${this.base}events${this.token}${this.token ? '&' : '?'}draw=0`);
     source.onopen = () => onStatus(true);
     source.onerror = () => onStatus(false); /* EventSource reconnects by itself */
-    source.onmessage = m => onEvent(JSON.parse(m.data) as XppEvent);
+    source.onmessage = m => {
+      /* drawing ops are the classic page's (web/): this page draws from data,
+         and a long run's redraw is tens of megabytes of them, not worth parsing */
+      if ((m.data as string).startsWith(DRAW)) return;
+      onEvent(JSON.parse(m.data) as XppEvent);
+    };
     this.source = source;
   }
 

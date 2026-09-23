@@ -11,6 +11,11 @@ export function download(name: string, url: string): void {
   a.remove();
 }
 
+/** a stored float32 in full: 9 significant digits read back as the same float */
+function num(v: number): string {
+  return Number.isFinite(v) ? String(Number(v.toPrecision(9))) : String(v);
+}
+
 /** one block per curve: row, T (when sent), x, y */
 export function curvesCsv(m: PlotModel): string {
   const lines: string[] = [];
@@ -20,7 +25,8 @@ export function curvesCsv(m: PlotModel): string {
     lines.push(m.t ? 'row,T,x,y' : 'row,x,y');
     for (let i = 0; i < c.xs.length; i++) {
       const row = c.row0 + i;
-      lines.push(m.t ? `${row},${m.t[row]},${c.xs[i]},${c.ys[i]}` : `${row},${c.xs[i]},${c.ys[i]}`);
+      const xy = `${num(c.xs[i])},${num(c.ys[i])}`;
+      lines.push(m.t ? `${row},${num(m.t[row])},${xy}` : `${row},${xy}`);
     }
   });
   return lines.join('\n') + '\n';

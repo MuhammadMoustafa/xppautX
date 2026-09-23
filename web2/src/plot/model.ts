@@ -11,8 +11,8 @@ export interface CurveData {
   /** a line, or points of this radius */
   line: boolean;
   radius: number;
-  xs: Float64Array;
-  ys: Float64Array;
+  xs: Float32Array;
+  ys: Float32Array;
   /** storage row of xs[0] (rows before the largest shift are not plotted) */
   row0: number;
 }
@@ -23,12 +23,12 @@ export interface PlotModel {
   xLabel: string;
   yLabel: string;
   /** the time column, row by row, for the hover readout (null when not sent) */
-  t: Float64Array | null;
+  t: Float32Array | null;
 }
 
-const EMPTY = new Float64Array(0);
+const EMPTY = new Float32Array(0);
 
-function increasing(a: Float64Array): boolean {
+function increasing(a: Float32Array): boolean {
   for (let i = 1; i < a.length; i++) if (!(a[i] >= a[i - 1])) return false;
   return true;
 }

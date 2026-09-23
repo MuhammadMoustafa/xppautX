@@ -82,6 +82,14 @@ extern GRAPH *MyGraph;
 #include "menudrive.h"
 #include "arrayplot.h"
 #include "xpp_job.h"
+
+/* a row was just stored (storage[.][storind-1]): a replayed script may stop
+   the job here (xpp_job.h), and a front end may show the run growing */
+static void row_stored(void)
+{
+  xpp_job_rows_stored(storind, storage[0][storind-1]);
+  rows_stored(storind);
+}
 #define MSWTCH(u,v) memcpy((void *)(u),(void *)(v),xpv.node*sizeof(double))
 
 #define READEM 1
@@ -750,7 +758,8 @@ double *x;
       for(j=NODE;j<NODE+NMarkov;j++)storage[j+1][storind]=0.0;
       if(stabcol>0)storage[stabcol-1][storind]=stabinfo;
 
-      storind++;}
+      storind++;
+      row_stored();}
       if(ENDSING==1)break;
     }
     refresh_browser(storind);
@@ -2401,7 +2410,7 @@ poi:    for(i=0;i<NEQ;i++)oldx[i]=x[i];
            for(ieqn=0;ieqn<=NEQ;ieqn++)
 		 storage[ieqn][storind]=xv[ieqn];
 	    storind++;
-	    xpp_job_rows_stored(storind, xv[0]); /* xppautX: replay stops here (xpp_job.h) */
+	    row_stored(); /* xppautX: replay stops here, a front end shows the run grow */
 	    if(!(storind<MAXSTOR))
             if(stor_full()==0)break;
 	    if((pflag==1)&&(SOS==1))break;
@@ -2440,7 +2449,7 @@ void send_output(double *y,double t)
       storage[i+1][storind]=(float)yy[i];
     storage[0][storind]=(float)t;
     storind++;
-    xpp_job_rows_stored(storind, storage[0][storind-1]); /* xppautX: replay (xpp_job.h) */
+    row_stored();
   }
 }
 

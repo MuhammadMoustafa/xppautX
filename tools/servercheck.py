@@ -50,19 +50,20 @@ def check_logging():
         shutil.rmtree(run_dir, ignore_errors=True)
 
 
-def launch_server(extra_env=None):
+def launch_server(extra_env=None, ode=None):
     """Start one xppautX --server instance in its own scratch directory and
     return (proc, run_dir, send, collect, events) -- send/collect work just
     like the module-level ones below but are bound to this instance, so a
-    second, differently-configured server (e.g. a bad HOME) can be driven
-    the same way without disturbing the main session."""
+    second, differently-configured server (e.g. a bad HOME, another model)
+    can be driven the same way without disturbing the main session."""
+    ode = ode or args.ode
     run_dir = tempfile.mkdtemp(prefix='xppserver')
-    shutil.copy(args.ode, run_dir)
+    shutil.copy(ode, run_dir)
     env = None
     if extra_env is not None:
         env = dict(os.environ)
         env.update(extra_env)
-    proc = subprocess.Popen([os.path.abspath(args.server), '--server', os.path.basename(args.ode)], cwd=run_dir,
+    proc = subprocess.Popen([os.path.abspath(args.server), '--server', os.path.basename(ode)], cwd=run_dir,
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             text=True, bufsize=1, env=env)
     events = queue.Queue()
@@ -159,27 +160,43 @@ check('integration draws the trajectory', len(lines) > 100, '%d lines' % len(lin
 check('storage has 601 rows', st is not None and st['rows'] == 601, str(st and st['rows']))
 
 
-def series_matches_output_dat(ser):
+f32 = lambda v: struct.unpack('<f', struct.pack('<f', v))[0]
+
+
+def values(ev_col, enc):
+    """a series column's data as floats (NaN for null), whatever the encoding"""
+    d = ev_col['data']
+    if enc == 'f32':
+        raw = base64.b64decode(d)
+        return list(struct.unpack('<%df' % (len(raw) // 4), raw))
+    return [float('nan') if v is None else f32(v) for v in d]
+
+
+def same_floats(a, b):
+    return len(a) == len(b) and all(x == y or (x != x and y != y) for x, y in zip(a, b))
+
+
+def series_matches_output_dat(ser, ode=None):
     """the series' columns hold the numbers output.dat has for the same run
     (xppautX -silent): both are the stored floats, output.dat prints %.8g"""
+    ode = ode or args.ode
     silent = tempfile.mkdtemp(prefix='xppsilent')
-    shutil.copy(args.ode, silent)
-    subprocess.run([os.path.abspath(args.server), os.path.basename(args.ode), '-silent'], cwd=silent,
+    shutil.copy(ode, silent)
+    subprocess.run([os.path.abspath(args.server), os.path.basename(ode), '-silent'], cwd=silent,
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
     with open(os.path.join(silent, 'output.dat')) as f:
         rows = [l.split() for l in f if l.strip()]
     shutil.rmtree(silent, ignore_errors=True)
-    f32 = lambda v: struct.unpack('f', struct.pack('f', v))[0]
     for c in ser['columns']:
         want = [r[c['col']] for r in rows]
-        got = ['%.8g' % f32(v) for v in c['data']]
+        got = ['%.8g' % v for v in values(c, ser.get('enc'))]
         if got != want:
             bad = next(i for i, (a, b) in enumerate(zip(got, want)) if a != b) if len(got) == len(want) else -1
             return 'column %s differs at row %d (%d rows, output.dat %d)' % (c['name'], bad, len(got), len(want))
     return None
 
 
-ser = [e for e in evs if e.get('ev') == 'series']
+ser = [e for e in evs if e.get('ev') == 'series' and 'op' not in e]  # the full series, after any appends
 check('integration sends the series: the curve V against W, 601 rows',
       len(ser) == 1 and ser[0]['rows'] == 601 and ser[0]['curves'][0]['x'] == 1 and ser[0]['curves'][0]['y'] == 2
       and [c['name'] for c in ser[0]['columns']] == ['T', 'V', 'W'], str(ser)[:300])
@@ -461,6 +478,104 @@ if ask:
         evs, e = collect(is_idle, timeout=30)
     check('Auto/Run after a Grab restarts from the label and the server survives',
           e is not None and proc.poll() is None, 'exit code %s' % proc.poll())
+
+
+# Live plotting (docs/protocol.md "The plot as data"): while an integration
+# runs, a subscribed client gets the rows as they are stored, in "append"
+# series events, then the full series. tools/models/live.ode stores 20 001
+# rows in about a second, long enough for several appends.
+LIVE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'live.ode')
+
+
+def live_run(send, collect, key='i', answer=None):
+    """integrate (Initialconds/Go, or Continue) and return the series events of the command"""
+    send(cmd='key', key=key)
+    evs, ask = collect(lambda e: e.get('ev') == 'ask', timeout=20)
+    if ask:
+        send(cmd='answer', id=ask['id'], **(answer or {'key': 'g'}))
+    evs, _ = collect(is_idle, timeout=120)
+    return [e for e in evs if e.get('ev') == 'series']
+
+
+def check_appends(what, ser, first_from, enc=None):
+    """appends then one full series; returns the full series' columns as floats"""
+    apps = [e for e in ser if e.get('op') == 'append']
+    full = [e for e in ser if 'op' not in e]
+    check('%s: several appends before the full series' % what, len(apps) >= 3, '%d appends' % len(apps))
+    check('%s: one full series, and nothing after it' % what,
+          len(full) == 1 and ser and ser[-1] is full[0], str([(e.get('op'), e.get('rows')) for e in ser])[:300])
+    if not apps or not full:
+        return None
+    froms = [e['from'] for e in apps]
+    contiguous = froms[0] == first_from and all(apps[i]['from'] == apps[i - 1]['rows'] for i in range(1, len(apps)))
+    sizes = all(len(values(c, enc)) == e['rows'] - e['from'] for e in apps for c in e['columns'])
+    check('%s: the appends go from row %d on, contiguous' % (what, first_from), contiguous and sizes,
+          str([(e['from'], e['rows']) for e in apps])[:300])
+    check('%s: in the encoding asked for' % what, all(e.get('enc') == enc for e in ser),
+          str([e.get('enc') for e in ser]))
+    final = {c['col']: values(c, enc) for c in full[0]['columns']}
+    cols_ok = all([c['col'] for c in e['columns']] == list(final) for e in apps)
+    held = {c: final[c][:first_from] for c in final}
+    for e in apps:
+        for c in e['columns']:
+            held[c['col']] = held[c['col']][:e['from']] + values(c, enc)
+    n = apps[-1]['rows']
+    check('%s: the appended rows are the final series\' rows (%d of %d)' % (what, n, full[0]['rows']),
+          cols_ok and all(same_floats(held[c], final[c][:n]) for c in final) and n <= full[0]['rows'],
+          str([c['col'] for c in apps[0]['columns']]) + ' vs ' + str(list(final)))
+    return final
+
+
+def check_live_series():
+    proc3, run3, send3, collect3, _ = launch_server(ode=LIVE)
+    try:
+        collect3(is_idle)
+        send3(cmd='data', events=['series'])
+        collect3(is_idle)
+        ser = live_run(send3, collect3)
+        final = check_appends('live run', ser, 0)
+        full = [e for e in ser if 'op' not in e]
+        if full:
+            check('live run: the full series has the 20 001 rows of output.dat',
+                  full[0]['rows'] == 20001 and series_matches_output_dat(full[0], LIVE) is None,
+                  str(full[0]['rows']) + ' ' + str(series_matches_output_dat(full[0], LIVE)))
+        ser = live_run(send3, collect3)
+        again = check_appends('run again', ser, 0)
+        check('run again: the same numbers', final is not None and again is not None
+              and all(same_floats(final[c], again[c]) for c in final))
+        ser = live_run(send3, collect3, 'c', {'value': '2000'})
+        more = check_appends('Continue', ser, 20001)
+        check('Continue: the rows before it are kept', more is not None and final is not None
+              and all(same_floats(more[c][:20001], final[c]) for c in final))
+
+        send3(cmd='data', events=['series'], enc='f32')
+        evs, _ = collect3(is_idle)
+        now = [e for e in evs if e.get('ev') == 'series']
+        check('enc f32: the series comes at once, base64 in each column',
+              len(now) == 1 and now[0].get('enc') == 'f32' and all(isinstance(c['data'], str) for c in now[0]['columns']),
+              str(now)[:200])
+        if now and more is not None:
+            check('enc f32: the decoded columns equal the JSON ones',
+                  all(same_floats(values(c, 'f32'), more[c['col']]) for c in now[0]['columns']))
+        ser = live_run(send3, collect3)
+        dec = check_appends('enc f32 run', ser, 0, 'f32')
+        check('enc f32 run: the decoded numbers equal the JSON run\'s', dec is not None and final is not None
+              and all(same_floats(dec[c], final[c]) for c in final))
+
+        send3(cmd='data', events=[])
+        collect3(is_idle)
+        ser = live_run(send3, collect3)
+        check('a client not subscribed gets no series, appended or full', ser == [], str(ser)[:200])
+    finally:
+        send3(cmd='quit')
+        try:
+            proc3.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc3.kill()
+        shutil.rmtree(run3, ignore_errors=True)
+
+
+check_live_series()
 
 # A HOME the process cannot write to used to make AUTO exit(1) under the
 # client when it opened fort.8 there; open_auto() now falls back to the

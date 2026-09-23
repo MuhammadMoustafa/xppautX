@@ -156,6 +156,7 @@ XppUi xpp_ui = {
     .reset_graphics = hl_void,
     .browser_redraw = hl_int,
     .data_changed = hl_int,
+    .rows_stored = hl_int,
     .activate_graph = hl_activate_graph,
     .create_plot_window = hl_void,
     .destroy_plot_window = hl_void,
@@ -288,6 +289,7 @@ int my_abort(void)
 }
 int get_command_width(void) { return xpp_ui.progress_begin(); }
 void plot_command(int nit, int icount, int cwidth) { xpp_ui.progress(nit, icount, cwidth); }
+void rows_stored(int nrows) { xpp_ui.rows_stored(nrows); }
 void FlushDisplay(void) { xpp_ui.flush(); }
 void redraw_params(void) { xpp_ui.redraw_params(); }
 void redraw_ics(void) { xpp_ui.redraw_ics(); }

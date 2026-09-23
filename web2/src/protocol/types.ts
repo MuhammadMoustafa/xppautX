@@ -48,14 +48,20 @@ export interface Curve {
   line: number;
 }
 
+/** a column's values: JSON numbers (null for NaN), or with enc "f32" base64 of little-endian float32 */
+export type SeriesData = (number | null)[] | string;
+
 export interface SeriesColumn {
   col: number;
   name: string;
-  data: (number | null)[];
+  data: SeriesData;
 }
 
+/** the whole series of the active plot window */
 export interface SeriesEvent {
   ev: 'series';
+  op?: undefined;
+  enc?: 'f32';
   win: number;
   rows: number;
   three: number;
@@ -66,6 +72,19 @@ export interface SeriesEvent {
   /** row shifts of the x, y and z columns (lag plots) */
   shift: [number, number, number];
   columns: SeriesColumn[];
+}
+
+/** rows an integration stored since what the client holds: it keeps rows
+    0..from-1, then these (the columns of the last full series, in its order) */
+export interface SeriesAppendEvent {
+  ev: 'series';
+  op: 'append';
+  enc?: 'f32';
+  win: number;
+  from: number;
+  /** rows after this append */
+  rows: number;
+  columns: {col: number; data: SeriesData}[];
 }
 
 export interface AskEvent {
@@ -102,6 +121,7 @@ export type XppEvent =
   | HelloEvent
   | StateEvent
   | SeriesEvent
+  | SeriesAppendEvent
   | AskEvent
   | MessageEvent
   | {ev: 'idle'}

@@ -108,6 +108,10 @@ typedef struct XppUi {
     void (*clear_draw_window)(void);
     void (*reset_graphics)(void);
     void (*data_changed)(int length); /* browser storage grew/shrank */
+    /* an integration stored row nrows-1: storage[.][0..nrows) is the run so
+       far, before data_changed at its end. Called for every row: keep it
+       cheap (a front end that shows the run as it grows rate-limits itself) */
+    void (*rows_stored)(int nrows);
     void (*browser_redraw)(int full); /* my_browser: 1 columns too, 0 data */
 
     /* plot windows */
@@ -258,6 +262,7 @@ int menu_choose(const struct XppMenu *m, int def);
 int my_abort(void);
 int get_command_width(void);
 void plot_command(int nit, int icount, int cwidth);
+void rows_stored(int nrows);
 void FlushDisplay(void);
 void redraw_params(void);
 void redraw_ics(void);

@@ -1,0 +1,17 @@
+# The Morris-Lecar model (examples/ode/lecar.ode) integrated with a small
+# step, so that 20 001 stored rows take about a second: the live plot
+# checks (tools/servercheck.py, tools/web2check.mjs) watch it grow.
+params iapp=0.05,phi=.333
+param v1=-.01,v2=0.15,v3=0.1,v4=0.145,gca=1
+params vk=-.7,vl=-.5,gk=2.0,gl=.5,om=1
+minf(v)=.5*(1+tanh((v-v1)/v2))
+ninf(v)=.5*(1+tanh((v-v3)/v4))
+lamn(v)= phi*cosh((v-v3)/(2*v4))
+ica=gca*minf(v)*(v-1)
+v'=  (iapp+gl*(vl-v)+gk*w*(vk-v)-ica)
+w'= (lamn(v)*(ninf(v)-w))
+init v=-.144,w=.03
+@ total=1000,dt=.002,njmp=25,maxstor=30000
+@ xlo=-.6,xhi=1.2,ylo=-.25,yhi=1.2
+@ xplot=v,yplot=w
+done

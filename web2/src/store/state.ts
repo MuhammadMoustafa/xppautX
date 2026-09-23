@@ -3,7 +3,7 @@
    viewport and hover, notifications, the menu drawer) as their own actions.
    Pure: no DOM, no I/O, no clock. */
 import type {AskEvent, Command, HelloEvent, StateEvent, XppEvent} from '../protocol/types';
-import {seriesFromEvent, type PlotSeries} from './series';
+import {appendRows, seriesFromEvent, type PlotSeries} from './series';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
 
 export type Theme = 'light' | 'dark' | 'system';
@@ -52,8 +52,10 @@ export interface AppState {
   bottom: string;
   title: string;
   series: PlotSeries | null;
-  /** how many series events arrived: tests wait on it */
+  /** how many full series events arrived: tests wait on it */
   seriesCount: number;
+  /** how many appends (rows of a running integration) went into the series */
+  seriesAppends: number;
   viewport: Viewport;
   /** earlier viewports, for Undo zoom (newest last) */
   viewportHistory: Viewport[];
@@ -101,6 +103,7 @@ export const initialState: AppState = {
   title: '',
   series: null,
   seriesCount: 0,
+  seriesAppends: 0,
   viewport: HOME,
   viewportHistory: [],
   hover: null,
@@ -140,6 +143,12 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     case 'state':
       return {...state, core: ev};
     case 'series': {
+      if (ev.op === 'append') {
+        const series = state.series && appendRows(state.series, ev);
+        if (!series) return state; /* not ours to continue: the full series follows */
+        const hover = state.hover && state.hover.row < ev.from ? state.hover : null;
+        return {...state, series, seriesAppends: state.seriesAppends + 1, hover};
+      }
       const series = seriesFromEvent(ev);
       /* another window or other curves: the user's zoom does not apply to it */
       const keep = sameCurves(state.series, series);

@@ -8,7 +8,10 @@
    keyboard, undo, Tab reachability, the panel as a right column), keyboard-
    only use of the plot and of a prompt, and a phone-sized one (390x844,
    touch: no sideways scroll, the menu drawer, the values sheet, pinch, tap,
-   pan, 44px targets).
+   pan, 44px targets). Then live plotting (tools/models/live.ode: the store
+   and the plot grow while 20 001 rows are computed, and end as output.dat)
+   and a run of 10^6 rows (tools/models/million.ode) that must draw and zoom
+   with no frame over 50 ms (draw times and long tasks, read through __xpp).
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [-v]
 
@@ -29,6 +32,8 @@ for (let i = 2; i < process.argv.length; i++) {
 }
 const bin = path.resolve(top, opt.bin);
 const ODE = path.join(top, 'examples/ode/lecar.ode');
+const LIVE = path.join(top, 'tools/models/live.ode');
+const MILLION = path.join(top, 'tools/models/million.ode');
 
 let failures = 0;
 function check(name, ok, detail = '') {
@@ -37,10 +42,10 @@ function check(name, ok, detail = '') {
 }
 
 /* output.dat of the same model: the numbers the plot must show */
-function outputDat() {
+function outputDat(ode = ODE) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppsilent-'));
-  fs.copyFileSync(ODE, path.join(dir, 'lecar.ode'));
-  spawnSync(bin, ['lecar.ode', '-silent'], {cwd: dir, stdio: 'ignore', timeout: 60000});
+  fs.copyFileSync(ode, path.join(dir, path.basename(ode)));
+  spawnSync(bin, [path.basename(ode), '-silent'], {cwd: dir, stdio: 'ignore', timeout: 60000});
   const rows = fs.readFileSync(path.join(dir, 'output.dat'), 'utf8').trim().split(/\r?\n/).map(l => l.trim().split(/\s+/).map(Number));
   fs.rmSync(dir, {recursive: true, force: true});
   return rows;
@@ -379,6 +384,160 @@ async function phone() {
     JSON.stringify([await S('s.hover'), pt, await area(), await cdp.eval('__xpp.actions().slice(-8)')]));
 }
 
+/* ---- live plotting and long runs ------------------------------------------------ */
+
+async function desktopMetrics() {
+  await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: false});
+  await cdp.send('Emulation.setEmulatedMedia', {features: []}).catch(() => {});
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+}
+
+/* what the store and the chart hold, sampled by the page at every frame
+   while an integration runs, and the samples it took */
+const startSampling = () => cdp.eval(`(() => { const seen = window.__seen = []; window.__sampling = true;
+  const tick = () => { const s = __xpp.state(), p = __xpp.plot();
+    const r = [s.series ? s.series.rows : -1, p && p.curves[0] ? p.curves[0].points : -1, s.busy];
+    const l = seen[seen.length - 1];
+    if (!l || l[0] !== r[0] || l[1] !== r[1] || l[2] !== r[2]) seen.push(r);
+    if (window.__sampling) requestAnimationFrame(tick); };
+  requestAnimationFrame(tick); return true; })()`);
+const stopSampling = () => cdp.eval('(() => { window.__sampling = false; return window.__seen; })()');
+
+/** integrate from the keyboard (I, G); true when the run ended with `rows` rows */
+async function integrate(rows, ms) {
+  const n0 = await S('s.seriesCount');
+  await key('i');
+  if (!(await until("s.ask && s.ask.kind === 'menu'", 'menu'))) return false;
+  await key('g');
+  return until(`s.seriesCount > ${n0} && s.series.rows === ${rows} && !s.busy`, `${rows} rows`, ms);
+}
+
+/* tools/models/live.ode: 20 001 rows in about a second */
+async function live(want) {
+  await desktopMetrics();
+  check('live: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
+  const a0 = await S('s.seriesAppends');
+  await startSampling();
+  const done = await integrate(20001, 60000);
+  const seen = await stopSampling();
+  check('live: I, G integrates 20 001 rows', done, JSON.stringify(await S('s.series && s.series.rows')));
+  const appends = (await S('s.seriesAppends')) - a0;
+  const busy = seen.filter(([, , b]) => b);
+  const rows = busy.map(([r]) => r).filter(r => r > 0 && r < 20001);
+  const points = busy.map(([, p]) => p).filter(p => p > 0 && p < 20001);
+  const grows = a => a.every((v, i) => i === 0 || v >= a[i - 1]) && new Set(a).size >= 3;
+  check(`live: the store grows over several appends before the idle (${appends} appends)`,
+    appends >= 3 && grows(rows), JSON.stringify({appends, rows: rows.slice(0, 20)}));
+  check('live: and so does the plot', grows(points), JSON.stringify(points.slice(0, 20)));
+  const cols = await cdp.eval(`(() => { const m = __xpp.state().series; const o = {};
+    for (const [k, v] of m.columns) o[k] = Array.from(v); return o; })()`);
+  let bad = null;
+  for (const [col, values] of Object.entries(cols)) {
+    values.forEach((v, r) => {
+      const d = Math.abs(v - want[r][+col]), tol = 1e-7 * Math.abs(want[r][+col]) + 1e-30;
+      if (d > tol && !bad) bad = `column ${col} row ${r}: ${v} vs ${want[r][+col]}`;
+    });
+  }
+  check('live: the final store holds the numbers of output.dat', !bad && want.length === 20001
+    && Object.values(cols).every(v => v.length === 20001), bad || `${want.length} rows`);
+}
+
+const pct = (a, q) => a.length ? [...a].sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor(q * a.length))] : NaN;
+const ms = v => `${v.toFixed(1)} ms`;
+
+/** wheel zooms in and out about the middle of the plot; the long tasks and draw times they cost */
+async function zoomFrames() {
+  const a = await area(), cx = a.x + a.w * 0.55, cy = a.y + a.h * 0.45;
+  await sleep(300);
+  const t0 = await cdp.eval('performance.now()'), d0 = (await P()).draws;
+  const v0 = await S('s.viewport');
+  for (const dy of [-120, -120, -120, 120, 120, 120, 120]) {
+    await mouse('mouseWheel', cx, cy, {deltaX: 0, deltaY: dy});
+    await sleep(60);
+  }
+  await sleep(200);
+  await until('!__xpp.plot().tracing', 'tracing', 5000);
+  const p = await P(), draws = p.draws - d0;
+  return {
+    zoomed: JSON.stringify(v0) !== JSON.stringify(await S('s.viewport')),
+    traceMs: p.traceMs,
+    vertices: p.vertices,
+    long: await cdp.eval(`__xpp.longTasks(${t0})`),
+    supported: await cdp.eval('__xpp.longTasksSupported()'),
+    drawMs: p.drawMs.slice(-Math.min(draws, p.drawMs.length)),
+    draws,
+  };
+}
+
+/* tools/models/million.ode: a phase plane of 1 000 001 points, then the
+   same run against time */
+async function million() {
+  await desktopMetrics();
+  check('10^6: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
+  const t0 = Date.now(), p0 = await cdp.eval('performance.now()'), d0 = (await P()).draws;
+  const a0 = await S('s.seriesAppends');
+  const done = await integrate(1000001, 300000);
+  const secs = (Date.now() - t0) / 1000;
+  check(`10^6: I, G stores 1 000 001 rows in the store (${secs.toFixed(1)} s, ${(await S('s.seriesAppends')) - a0} appends)`,
+    done, JSON.stringify(await S('s.series && [s.series.rows, s.busy]')));
+  if (!done) return;
+  await until('!__xpp.plot().tracing', 'tracing', 10000);
+  await sleep(300);
+  const p = await P(), frames = p.drawMs.slice(-Math.min(p.draws - d0, p.drawMs.length));
+  const load = await cdp.eval(`__xpp.longTasks(${p0})`);
+  /* the long tasks of the run are the arrival of the data (the final full
+     series is 16 MB of base64 in one event): reported, not drawing */
+  console.log(`  run: ${frames.length} draws, median ${ms(pct(frames, 0.5))}, max ${ms(Math.max(...frames))}; `
+    + `long tasks (data arriving) ${JSON.stringify(load.map(t => Math.round(t.duration)))}; the final trace took `
+    + `${ms(p.traceMs ?? 0)} in later tasks and keeps ${p.vertices[0]} of the 1 000 001 vertices`);
+  check('10^6: the phase plane draws its 1 000 001 points as they come, every draw under 50 ms',
+    p.mode === 2 && p.curves[0].points === 1000001 && frames.length > 0 && Math.max(...frames) < 50
+    && p.vertices[0] > 100, JSON.stringify({mode: p.mode, points: p.curves[0].points, frames, vertices: p.vertices}));
+  let z = await zoomFrames();
+  console.log(`  phase plane zoom: ${z.draws} draws, median ${ms(pct(z.drawMs, 0.5))}, max ${ms(Math.max(...z.drawMs))}, `
+    + `long tasks ${JSON.stringify(z.long.map(t => Math.round(t.duration)))}${z.supported ? '' : ' (not supported)'}; `
+    + `the last view's trace took ${ms(z.traceMs ?? 0)} (${z.vertices[0]} vertices)`);
+  check('10^6: a wheel zoom of the phase plane keeps every frame under 50 ms, and ends traced',
+    z.zoomed && z.draws > 0 && Math.max(...z.drawMs) < 50 && z.long.length === 0 && z.vertices[0] > 0, JSON.stringify(z));
+
+  /* x against time: uPlot's own line with its min and max per pixel column */
+  await cdp.eval(`document.querySelector('.plot-host').focus()`);
+  const n0 = await S('s.seriesCount');
+  await key('x');
+  if (!(await until("s.ask && s.ask.kind === 'string'", 'Xi vs t'))) return check('10^6: X asks what to plot', false);
+  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: 'x'})`);
+  check('10^6: X plots x against T', await until(`s.seriesCount > ${n0} && !s.busy && s.series.curves[0].x === 0`, 'x vs t', 60000));
+  await until('!__xpp.plot().tracing', 'tracing', 10000);
+  await sleep(300);
+  const q = await P();
+  const render2 = q.drawMs[q.drawMs.length - 1];
+  check(`10^6: the time plot draws in ${ms(render2)}`, q.mode === 1 && q.curves[0].points === 1000001 && render2 < 50,
+    JSON.stringify({mode: q.mode, points: q.curves[0].points, render2}));
+  z = await zoomFrames();
+  console.log(`  time plot zoom: ${z.draws} draws, median ${ms(pct(z.drawMs, 0.5))}, max ${ms(Math.max(...z.drawMs))}, `
+    + `long tasks ${JSON.stringify(z.long.map(t => Math.round(t.duration)))}`);
+  check('10^6: a wheel zoom of the time plot keeps every frame under 50 ms',
+    z.zoomed && z.draws > 0 && Math.max(...z.drawMs) < 50 && z.long.length === 0, JSON.stringify(z));
+}
+
+/* xppautX in browser mode on a copy of `ode`, the page at /v2/, then `fn`;
+   the server stops after it */
+async function session(ode, fn) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-'));
+  fs.copyFileSync(ode, path.join(dir, path.basename(ode)));
+  const server = await startServer(bin, dir, [path.basename(ode)]);
+  try {
+    await cdp.send('Page.navigate', {url: server.url.replace('/?t=', '/v2/?t=')});
+    await fn();
+    const errors = await S('s.log.filter(l => l.kind === "error").map(l => l.text)');
+    check(`${path.basename(ode)}: no errors reported by the core`, errors.length === 0, JSON.stringify(errors));
+  } finally {
+    server.proc.kill();
+    await sleep(300);
+    fs.rmSync(dir, {recursive: true, force: true, maxRetries: 5});
+  }
+}
+
 async function main() {
   const browser = findBrowser(opt.browser);
   if (!browser) {
@@ -386,29 +545,25 @@ async function main() {
     process.exit(0);
   }
   if (!fs.existsSync(bin)) throw new Error(`no ${bin}: build xppautX first`);
-  const want = outputDat();
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-'));
-  fs.copyFileSync(ODE, path.join(dir, 'lecar.ode'));
-  const server = await startServer(bin, dir, ['lecar.ode']);
+  const want = outputDat(), wantLive = outputDat(LIVE);
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-profile-'));
   const b = await startBrowser(browser, profile);
   cdp = b.cdp;
   try {
     await cdp.send('Page.enable');
     await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
-    await cdp.send('Page.navigate', {url: server.url.replace('/?t=', '/v2/?t=')});
-    await desktop(want);
-    await values();
-    await keyboardOnly();
-    await phone();
-    const errors = await S('s.log.filter(l => l.kind === "error").map(l => l.text)');
-    check('no errors reported by the core', errors.length === 0, JSON.stringify(errors));
+    await session(ODE, async () => {
+      await desktop(want);
+      await values();
+      await keyboardOnly();
+      await phone();
+    });
+    await session(LIVE, () => live(wantLive));
+    await session(MILLION, million);
   } finally {
     b.proc.kill();
-    server.proc.kill();
     await sleep(500);
     fs.rmSync(profile, {recursive: true, force: true, maxRetries: 5});
-    fs.rmSync(dir, {recursive: true, force: true, maxRetries: 5});
   }
   console.log(`web2 checks: ${failures ? `${failures} failed` : 'all passed'}`);
   process.exit(failures ? 1 : 0);

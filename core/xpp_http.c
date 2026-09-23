@@ -69,9 +69,21 @@ static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t watchdog_thread;
 static pthread_t http_thread, log_thread;
 
-/* event streams and what a new one gets first */
+/* event streams and what a new one gets first; client_draw[i] is 0 for a
+   page that draws from data (web2 asks /events?...&draw=0) and never
+   wants the drawing ops, which after a long run are tens of megabytes */
 static sock_t clients[MAX_CLIENTS];
+static int client_draw[MAX_CLIENTS];
 static int nclients;
+
+/* stream i is gone (the lock is held) */
+static void drop_client(int i)
+{
+    close_sock(clients[i]);
+    clients[i] = clients[nclients - 1];
+    client_draw[i] = client_draw[nclients - 1];
+    nclients--;
+}
 static char *sticky_hello, *sticky_palette, *sticky_state, *sticky_ask, *exit_event;
 static struct {
     int win;
@@ -142,10 +154,7 @@ static void *watchdog_main(void *arg)
 #endif
         pthread_mutex_lock(&lock);
         for (i = 0; i < nclients; i++) {
-            if (!send_all(clients[i], ":\n\n", 3)) { /* a comment: the page ignores it */
-                close_sock(clients[i]);
-                clients[i--] = clients[--nclients];
-            }
+            if (!send_all(clients[i], ":\n\n", 3)) drop_client(i--); /* a comment: the page ignores it */
         }
         if (nclients > 0) alone_since = 0;
         else if (had_client && !alone_since) alone_since = time(NULL);
@@ -187,9 +196,10 @@ int xpp_http_active(void) { return active; }
 void xpp_http_emit(const char *line, size_t n)
 {
     char ev[16], op[16], win[16];
-    int i;
+    int i, draw = 0;
     pthread_mutex_lock(&lock);
     if (field(line, n > 40 ? 40 : n, "ev", ev, sizeof ev)) {
+        draw = strcmp(ev, "draw") == 0;
         if (strcmp(ev, "hello") == 0) set_sticky(&sticky_hello, line, n);
         else if (strcmp(ev, "palette") == 0) set_sticky(&sticky_palette, line, n);
         else if (strcmp(ev, "state") == 0) set_sticky(&sticky_state, line, n);
@@ -212,12 +222,8 @@ void xpp_http_emit(const char *line, size_t n)
             }
         }
     }
-    for (i = 0; i < nclients; i++) {
-        if (!send_event(clients[i], line, n)) {
-            close_sock(clients[i]);
-            clients[i--] = clients[--nclients];
-        }
-    }
+    for (i = 0; i < nclients; i++)
+        if (!(draw && !client_draw[i]) && !send_event(clients[i], line, n)) drop_client(i--);
     pthread_mutex_unlock(&lock);
 }
 
@@ -307,7 +313,16 @@ static int token_ok(const char *target)
     return q && strncmp(q + 2, token, strlen(token)) == 0;
 }
 
-static void open_events(sock_t s)
+/* 1 unless the query has draw=0 */
+static int wants_draw(const char *target)
+{
+    const char *q = strchr(target, '?');
+    for (; q; q = strchr(q + 1, '&'))
+        if (strncmp(q + 1, "draw=0", 6) == 0 && (q[7] == 0 || q[7] == '&')) return 0;
+    return 1;
+}
+
+static void open_events(sock_t s, int draw)
 {
     static const char head[] = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\n\r\n";
     int i, ok;
@@ -329,6 +344,7 @@ static void open_events(sock_t s)
     if (ok && nclients < MAX_CLIENTS) {
         had_client = 1;
         alone_since = 0;
+        client_draw[nclients] = draw;
         clients[nclients++] = s;
         /* the page draws from scratch; a redraw would wait behind an open prompt */
         if (sticky_hello && !sticky_ask && !exit_event) push_command("{\"cmd\":\"redraw\"}", 16);
@@ -363,7 +379,7 @@ static void handle(sock_t s)
     }
     if (strcmp(method, "GET") == 0 && strncmp(target, "/events", 7) == 0) {
         if (token_ok(target)) {
-            open_events(s);
+            open_events(s, wants_draw(target));
             return;
         }
         reply(s, "403 Forbidden", "text/plain", (const unsigned char *)"bad token", 9);

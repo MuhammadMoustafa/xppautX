@@ -64,8 +64,9 @@ test('lag plots drop the rows before the shift', () => {
   const s = ev(initialState, {...phase, shift: [1, 0, 0]});
   const c = buildModel(s.series!).curves[0];
   assert.equal(c.row0, 1);
-  assert.deepEqual([...c.xs], [-0.144, -0.1438]); /* V of rows 0, 1 against W of rows 1, 2 */
-  assert.deepEqual([...c.ys], [0.0301, 0.0302]);
+  /* V of rows 0, 1 against W of rows 1, 2 (float32, as the core stores them) */
+  assert.deepEqual([...c.xs], [-0.144, -0.1438].map(Math.fround));
+  assert.deepEqual([...c.ys], [0.0301, 0.0302].map(Math.fround));
 });
 
 test('the nearest point is found in screen distance', () => {

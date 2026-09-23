@@ -35,7 +35,7 @@ then `web/` and the X11 program go; upstream mergeability is not a goal.
 
 | Piece | Where | What it does |
 |---|---|---|
-| `series` event and `data` command | `core/ui_json.c` (`send_series`, `series_update`), docs/protocol.md "The plot as data" | The active plot window's curves as numbers: T and every plotted column, float32 values printed with 9 digits, sent at the end of a command when the data, the window or its curves changed. |
+| `series` event and `data` command | `core/ui_json.c` (`send_series`, `series_update`, `j_rows_stored`), `core/series_enc.cpp`, docs/protocol.md "The plot as data" | The active plot window's curves as numbers: T and every plotted column, float32 values printed with 9 digits or base64 float32 (`enc` `f32`), sent at the end of a command when the data, the window or its curves changed, and in `append` parts while an integration runs. |
 | Page | `web2/src/` | Preact + TypeScript. A store fed by protocol events, a session that sends commands, the layout shell, the command menu, the plot (uPlot), prompts as dialogs, notifications, status bar. |
 | Build | `web2/build.mjs`, `web2/package.json` | esbuild bundles `src/` into `web2/dist/` (`app.js`, `app.css`, `index.html`, the Inter font and its licence). `dist/` is committed. |
 | Embedding | `Makefile` `WEB2_FILES`, `tools/embed.c --prefix=/v2/` | xppautX serves `web2/dist` at `/v2/` next to the classic page at `/`. |
@@ -90,8 +90,8 @@ bundle is ~95 KB of JS (Preact 4 KB, uPlot 50 KB), 11 KB of CSS, 48 KB of font.
   only on a difference. A command that only redraws sends nothing.
 - **Numbers as JSON.** float32 storage values go out with 9 significant
   digits, which round-trip exactly; `null` is NaN. A binary encoding
-  (`"enc":"f32"`, base64 of little-endian floats) is an option for very long
-  runs (task T2), not the default.
+  (`"enc":"f32"` in the `data` command, base64 of little-endian floats) is
+  an option for very long runs, not the default; web2 asks for it.
 - **Increments for long runs.** A long integration or AUTO run sends `append`
   parts at most ~10 times a second (like `progress` and `diagram add`), and
   the final state at the end.
@@ -223,11 +223,14 @@ files for the browser's Load, `-anifile`. The page runs on the same machine
 ## 5. Architecture of the page
 
 ```
-protocol/   types.ts (events, commands), transport.ts (SSE + POST)
+protocol/   types.ts (events, commands), transport.ts (SSE + POST),
+            decode.ts (JSON or base64 float32 columns, pure)
 store/      store.ts (generic store), state.ts (AppState + reducer), series.ts
+            (float32 columns; appends fill growing buffers in place)
 session.ts  the only sender: commands, key sequences, answers, abort
 plot/       model.ts (series -> curves, pure), nearest.ts, viewmath.ts,
-            plotKeys.ts (pure), chart.ts (uPlot adapter), interactions.ts
+            plotKeys.ts (pure), decimate.ts (what of a long curve changes
+            pixels, pure), chart.ts (uPlot adapter), interactions.ts
             (mouse, wheel, touch), colors.ts, export.ts, registry.ts
 ui/         App.tsx (shell), TitleBar, MenuPanel, PlotView, AskDialog,
             Toasts, StatusBar, Messages, hotkeys.ts, theme.ts, context.ts
@@ -259,7 +262,13 @@ Rules:
   component model is React's, which most contributors know; the store is
   plain TypeScript, so nothing is tied to the framework.
 - **uPlot** (50 KB) for every 2D plot: canvas, fast with 10^5-10^6 points,
-  an xy mode for phase planes, hooks for drawing extras. Nullclines,
+  an xy mode for phase planes, hooks for drawing extras. Its xy mode draws
+  every segment, so the phase plane's lines and all point curves use path
+  builders from `plot/decimate.ts`: a segment that paints no device pixel
+  an earlier one has not painted is left out (a limit cycle run a thousand
+  times costs one cycle), traced a slice per task for long curves, the last
+  complete trace standing in meanwhile. A time plot keeps uPlot's line,
+  which keeps a min and max per pixel column. Nullclines,
   direction-field arrows, equilibria and labels draw in its `draw` hook on
   the same canvas; no second library.
 - **3D** plots (XPP's 3D is curves in a box) are projected in the client
@@ -385,7 +394,12 @@ Target: WCAG 2.2 AA. Rules:
 - **Protocol** (`tools/servercheck.py`): `data` sends the series at once;
   after an integration the series is W against V with 601 rows and its
   numbers are exactly those of `output.dat` (as float32, printed `%.8g`); a
-  redraw sends none; Xi vs t sends T and V.
+  redraw sends none; Xi vs t sends T and V. Live runs
+  (tools/models/live.ode, 20 001 rows): several appends, contiguous from
+  row 0 (from the rows already there for Continue), their rows the final
+  series', nothing after it; `enc` `f32` decodes to the JSON numbers; an
+  unsubscribed client gets nothing. `tools/webcheck.py`: `draw=0` streams
+  carry no drawing.
 - **Page** (`tools/web2check.mjs`, headless Chrome or Edge through the
   DevTools protocol, shared driver `tools/cdp.mjs`): real key presses, mouse
   and touch events; assertions read `window.__xpp.state()` (the store),
@@ -395,6 +409,11 @@ Target: WCAG 2.2 AA. Rules:
   Keyboard only: Tab to the plot, visible focus, every plot key, a prompt's
   focus trap and focus return. Phone (390x844, touch, coarse pointer): no
   sideways scroll, plot width, 44 px targets, the drawer, pinch, pan, tap.
+  Live: the store and the plot grow over several appends of a 20 001-row
+  run and end equal to `output.dat`. Long runs (tools/models/million.ode,
+  10^6 rows): every draw under 50 ms while the rows arrive, and during
+  wheel zooms of the phase plane and the time plot no draw over 50 ms and
+  no long task (`__xpp.plot().drawMs`, `__xpp.longTasks()`).
   No screenshot is compared.
 - **Assets** (`tools/webcheck.py`): `/v2/`, its script and font with their
   types.

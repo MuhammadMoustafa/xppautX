@@ -23,8 +23,10 @@ export class Session {
     this.store.dispatch({type: 'event', ev});
     if (ev.ev === 'hello') {
       /* the plot as data (docs/protocol.md): asked for on every (re)connection,
-         which also makes the server send the current plot */
-      if (ev.features?.includes('series')) this.send({cmd: 'data', events: ['series']});
+         which also makes the server send the current plot; values as base64
+         float32, which a long run needs (a server that does not know enc
+         sends JSON numbers, which the store reads as well) */
+      if (ev.features?.includes('series')) this.send({cmd: 'data', events: ['series'], enc: 'f32'});
     } else if (ev.ev === 'ask') {
       if (ev.kind === 'pixels') {
         this.cancel(ev); /* frame and GIF writers want the client's picture; this UI has none yet */

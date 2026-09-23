@@ -5,6 +5,7 @@
    what it reports back into the store. */
 import uPlot from 'uplot';
 import {curveColor} from './colors';
+import {LineTrace, sameFrame, tracePoints, type PixelFrame} from './decimate';
 import type {PlotModel} from './model';
 import {nearestPoint, type Nearest} from './nearest';
 import type {Ranges} from './viewmath';
@@ -22,9 +23,37 @@ export interface ChartInfo {
   y: Range;
   width: number;
   height: number;
+  /** milliseconds the last draws took (newest last), and how many draws there were */
+  drawMs: number[];
+  draws: number;
+  /** a long curve's trace is still being refined in later tasks (decimate.ts) */
+  tracing: boolean;
+  /** milliseconds from a new view to its finished traces, the last time it took later tasks */
+  traceMs: number | null;
+  /** vertices the phase plane's line paths drew last, per curve (null: uPlot's own path) */
+  vertices: (number | null)[];
 }
 
-function extent(arrays: Float64Array[]): Range | null {
+const DRAWS_KEPT = 100;
+/** points of a line traced while drawing (a small curve, an append's rows);
+    more go to later tasks, TRACE_MS each at most, TRACE_STEP points at a time */
+const TRACE_NOW = 32768;
+const TRACE_MS = 8;
+const TRACE_STEP = 16384;
+
+/** a phase-plane curve's traces: the one for the frame drawn last, and the
+    last complete one, drawn in its place while the other is under way */
+interface CurveTraces {
+  xs: ArrayBufferLike | null;
+  ys: ArrayBufferLike | null;
+  row0: number;
+  current: LineTrace | null;
+  /** `current` has seen every row its arrays had when it last ran */
+  done: boolean;
+  complete: LineTrace | null;
+}
+
+function extent(arrays: Float32Array[]): Range | null {
   let min = Infinity, max = -Infinity;
   for (const a of arrays)
     for (let i = 0; i < a.length; i++) {
@@ -50,6 +79,14 @@ export class Chart {
   private reportPending = false;
   private dark = false;
   private base: Ranges = {x: {min: 0, max: 1}, y: {min: 0, max: 1}};
+  private drawStart = 0;
+  private drawMs: number[] = [];
+  private draws = 0;
+  private traces: CurveTraces[] = [];
+  private traceTimer: ReturnType<typeof setTimeout> | null = null;
+  private traceStart = 0;
+  private traceMs: number | null = null;
+  private vertices: (number | null)[] = [];
   /** called with the plotting area each time uPlot makes a new one */
   onArea: (area: HTMLElement) => void = () => {};
 
@@ -69,19 +106,109 @@ export class Chart {
       y: view?.y ?? extent(model.curves.map(c => c.ys)) ?? {min: 0, max: 1},
     };
     if (rebuild) this.create();
-    else this.u!.setData(this.data(), false);
-    this.applyViewport(viewport);
+    else this.u!.setData(this.data(), false); /* new rows (an append): the same chart, new paths */
+    this.applyViewport(viewport); /* draws */
+  }
+
+  /** the plotting area in canvas pixels and the ranges it shows */
+  private frame(u: uPlot): PixelFrame {
+    return {xmin: u.scales.x.min!, xmax: u.scales.x.max!, ymin: u.scales.y.min!, ymax: u.scales.y.max!,
+      left: u.bbox.left, top: u.bbox.top, width: u.bbox.width, height: u.bbox.height};
+  }
+
+  /* path builders that leave out what changes no pixel (decimate.ts): for
+     the phase plane's lines, and for points in either mode. A line of more
+     than a slice of points (still to trace) is traced a slice per task
+     (traceRest), and until that is done the last complete trace stands in,
+     so no frame waits for a million points. */
+  private linePath: uPlot.Series.PathBuilder = (u, si, i0, i1) => {
+    const c = this.model?.curves[si - 1];
+    const stroke = new Path2D();
+    if (!c) return {stroke, fill: null, clip: null, band: null, flags: 1};
+    const f = this.frame(u), end = Math.min(i1, c.xs.length - 1) + 1;
+    const tr = this.traces[si - 1] ??= {xs: null, ys: null, row0: 0, current: null, done: false, complete: null};
+    if (tr.xs !== c.xs.buffer || tr.ys !== c.ys.buffer || tr.row0 !== c.row0) {
+      /* other arrays (a new series, or buffers that grew): its rows are
+         traced again; the kept rows of the old trace still draw as a stand-in */
+      if (tr.current && tr.done) tr.complete = tr.current;
+      tr.current = null;
+      tr.xs = c.xs.buffer;
+      tr.ys = c.ys.buffer;
+      tr.row0 = c.row0;
+    }
+    if (!tr.current || !sameFrame(tr.current.frame, f)) {
+      if (tr.current && tr.done) tr.complete = tr.current;
+      tr.current = new LineTrace(f, Math.max(0, i0));
+      this.traceStart = performance.now();
+    }
+    /* at most a slice now (a small curve, the rows of an append), else all
+       of it in later tasks: the frame shows the stand-in meanwhile */
+    let n = 0;
+    tr.done = end - tr.current.next <= TRACE_NOW && tr.current.run(c.xs, c.ys, end);
+    if (!tr.done) {
+      n += tr.complete?.draw(c.xs, c.ys, f, stroke) ?? 0;
+      this.traceLater();
+    }
+    this.vertices[si - 1] = n + tr.current.draw(c.xs, c.ys, f, stroke);
+    return {stroke, fill: null, clip: null, band: null, flags: 1};
+  };
+
+  private traceLater(): void {
+    if (this.traceTimer === null) this.traceTimer = setTimeout(() => this.traceRest(), 0);
+  }
+
+  /** TRACE_MS more of the unfinished traces; a redraw when all are done */
+  private traceRest(): void {
+    this.traceTimer = null;
+    const m = this.model, u = this.u;
+    if (!m || !u) return;
+    const t0 = performance.now();
+    let pending: boolean;
+    do {
+      pending = false;
+      this.traces.forEach((tr, k) => {
+        const c = m.curves[k], t = tr.current;
+        if (!c || !t || tr.done || tr.xs !== c.xs.buffer || tr.ys !== c.ys.buffer) return; /* new arrays: the next draw starts over */
+        tr.done = t.run(c.xs, c.ys, c.xs.length, TRACE_STEP);
+        if (!tr.done) pending = true;
+      });
+    } while (pending && performance.now() - t0 < TRACE_MS);
+    if (pending) {
+      this.traceTimer = setTimeout(() => this.traceRest(), 0);
+      return;
+    }
+    this.traceMs = performance.now() - this.traceStart;
+    this.applying = true;
+    u.batch(() => u.setData(this.data(), false)); /* new paths from the finished traces */
+    this.applying = false;
+  }
+
+  private pointPath(radius: number): uPlot.Series.PathBuilder {
+    return (u, si, i0, i1) => {
+      const c = this.model?.curves[si - 1], fill = new Path2D(), clip = new Path2D();
+      const r = (radius + 0.5) * uPlot.pxRatio, b = u.bbox;
+      clip.rect(b.left - 2 * r, b.top - 2 * r, b.width + 4 * r, b.height + 4 * r);
+      if (c) {
+        tracePoints(c.xs, c.ys, Math.max(0, i0), Math.min(i1, c.xs.length - 1), this.frame(u), r, (x, y) => {
+          fill.moveTo(x + r, y);
+          fill.arc(x, y, r, 0, 2 * Math.PI);
+        });
+      }
+      return {stroke: null, fill, clip, flags: 3};
+    };
   }
 
   private data(): uPlot.AlignedData {
     const m = this.model!;
-    if (m.mode === 1) return [m.curves[0]?.xs ?? new Float64Array(0), ...m.curves.map(c => c.ys)] as uPlot.AlignedData;
+    if (m.mode === 1) return [m.curves[0]?.xs ?? new Float32Array(0), ...m.curves.map(c => c.ys)] as uPlot.AlignedData;
     return [null, ...m.curves.map(c => [c.xs, c.ys])] as unknown as uPlot.AlignedData;
   }
 
   private create(): void {
     const m = this.model!;
     this.u?.destroy();
+    this.traces = [];
+    this.vertices = m.curves.map(() => null);
     const fg = cssVar('--fg-muted') || '#666', grid = cssVar('--grid') || '#eee', font = cssVar('--plot-font');
     const axis = (label: string): uPlot.Axis => ({
       label, stroke: fg, font, labelFont: font, grid: {stroke: grid, width: 1}, ticks: {stroke: grid, width: 1},
@@ -90,9 +217,11 @@ export class Chart {
       const color = curveColor(c.color, this.dark);
       const s: uPlot.Series = {label: c.label, stroke: color, width: 1.5, show: this.visible[i], points: {show: false}};
       if (!c.line) {
-        s.paths = uPlot.paths.points!();
+        s.paths = this.pointPath(c.radius);
         s.fill = color;
         s.points = {show: false, size: 2 * c.radius + 1, width: 0, fill: color};
+      } else if (m.mode === 2) {
+        s.paths = this.linePath; /* a time plot keeps uPlot's, which already keeps a min and max per pixel column */
       }
       if (m.mode === 2) s.facets = [{scale: 'x', auto: false}, {scale: 'y', auto: false}];
       return s;
@@ -110,10 +239,20 @@ export class Chart {
         points: {show: false},
         bind: {dblclick: () => () => { this.reset(); return null; }},
       },
-      hooks: {setScale: [() => this.scaleChanged()]},
+      hooks: {
+        setScale: [() => this.scaleChanged()],
+        drawClear: [() => { this.drawStart = performance.now(); }],
+        draw: [() => this.drawn()],
+      },
     };
     this.u = new uPlot(opts, this.data(), this.root);
     this.onArea(this.u.over);
+  }
+
+  private drawn(): void {
+    this.drawMs.push(performance.now() - this.drawStart);
+    if (this.drawMs.length > DRAWS_KEPT) this.drawMs.shift();
+    this.draws++;
   }
 
   private size(): {width: number; height: number} {
@@ -206,10 +345,17 @@ export class Chart {
       ...this.ranges(),
       width: u.over.clientWidth,
       height: u.over.clientHeight,
+      drawMs: this.drawMs.slice(),
+      draws: this.draws,
+      tracing: this.traceTimer !== null,
+      traceMs: this.traceMs,
+      vertices: this.vertices.slice(),
     };
   }
 
   destroy(): void {
+    if (this.traceTimer !== null) clearTimeout(this.traceTimer);
+    this.traceTimer = null;
     this.u?.destroy();
     this.u = null;
   }

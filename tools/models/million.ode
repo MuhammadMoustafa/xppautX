@@ -1,0 +1,11 @@
+# A van der Pol oscillator stored 1 000 001 times (total/dt+1 rows), for
+# the web2 checks that a plot of 10^6 points draws and zooms quickly
+# (tools/web2check.mjs). Euler keeps the integration itself short.
+par mu=1
+x'=y
+y'=mu*(1-x^2)*y-x
+init x=2,y=0
+@ total=10000,dt=.01,meth=euler,maxstor=1000010,bound=100
+@ xlo=-2.5,xhi=2.5,ylo=-3,yhi=3
+@ xplot=x,yplot=y
+done

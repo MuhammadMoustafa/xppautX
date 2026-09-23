@@ -71,22 +71,24 @@ check('refuses events without the token', get('/events?t=wrong')[0] == 403)
 check('refuses commands without the token', post({'cmd': 'state'}, 'wrong') == 403)
 
 events = queue.Queue()
+nodraw = queue.Queue()  # a page that draws from data (web2) asks for no drawing ops
 
 
-def stream():
+def stream(q, extra=''):
     try:
         c = http.client.HTTPConnection('127.0.0.1', port, timeout=60)
-        c.request('GET', '/events?t=' + token)
+        c.request('GET', '/events?t=' + token + extra)
         r = c.getresponse()
         for raw in r:
             line = raw.decode('utf-8').strip()
             if line.startswith('data: '):
-                events.put(json.loads(line[6:]))
+                q.put(json.loads(line[6:]))
     except (OSError, http.client.HTTPException):
         pass  # the program exited
 
 
-threading.Thread(target=stream, daemon=True).start()
+threading.Thread(target=stream, args=(events,), daemon=True).start()
+threading.Thread(target=stream, args=(nodraw, '&draw=0'), daemon=True).start()
 
 
 def collect(until, timeout=15):
@@ -114,6 +116,18 @@ if ask:
     evs, _ = collect(lambda e: e['ev'] == 'idle', 30)
     st = [e for e in evs if e['ev'] == 'state']
     check('integrating from the page', st and st[-1]['rows'] == 601, str(st[-1:])[:120])
+    check('the page gets the drawing', any(e['ev'] == 'draw' for e in evs))
+    got = []
+    while True:
+        try:
+            got.append(nodraw.get(timeout=15))
+        except queue.Empty:
+            break
+        if got[-1]['ev'] == 'state' and got[-1].get('rows') == 601:
+            break
+    check('a stream opened with draw=0 gets the events but no drawing',
+          any(e['ev'] == 'hello' for e in got) and any(e['ev'] == 'state' and e.get('rows') == 601 for e in got)
+          and not any(e['ev'] == 'draw' for e in got), str(sorted(set(e['ev'] for e in got))))
 post({'cmd': 'key', 'key': 'f'})
 post({'cmd': 'key', 'key': 'q'})
 _, ask = collect(lambda e: e['ev'] == 'ask')
