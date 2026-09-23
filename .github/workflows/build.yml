@@ -21,13 +21,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: "Web front end screenshots (once only, against the build)"
-        run: node tools/webshots.mjs --once
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: webshots
-          path: build/webshots/
+      - name: Web front end behaviour (against the build)
+        run: node tools/webtest.mjs
 
   macos:
     runs-on: macos-latest

@@ -4,7 +4,7 @@
    These are unit tests over libxppcore, for pure code whose breakage an
    end-to-end run would report as a puzzling difference somewhere else. The
    behaviour of whole sessions is covered by tools/servercheck.py,
-   tools/webcheck.py, tools/examples_check.sh and tools/webshots.mjs. */
+   tools/webcheck.py, tools/examples_check.sh and tools/webtest.mjs. */
 #ifndef XPPTEST_H
 #define XPPTEST_H
 #include <stdio.h>

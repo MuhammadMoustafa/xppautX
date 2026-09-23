@@ -27,8 +27,8 @@ and does what the X11 program does ([docs/front-end-gaps.md](docs/front-end-gaps
 who know the X11 windows; [docs/vscode-extension.md](docs/vscode-extension.md)
 says how the VS Code extension uses the program.
 The X11 program still builds and behaves as before; it is frozen (no new
-features). The web front end has its own screenshot regression test
-(`tools/webshots.mjs`), so the X11 program is no longer needed as the
+features). The web front end has its own behavioural regression test
+(`tools/webtest.mjs`), so the X11 program is no longer needed as the
 reference.
 
 ## Plan
@@ -101,15 +101,15 @@ them after a build and checks the output checksums):
 | `tools/webcheck.py` | `xppautX` over HTTP: page, token, event stream, commands, exit | 11 checks |
 | `tools/examples_check.sh` | every `examples/**/*.ode` through `xppaut -silent` and `xppautX -silent`, outputs compared | all models |
 
-`node tools/webshots.mjs [--ref REF]` guards the web front end the same
-way: it builds `xppautX` from `REF` (default `HEAD`), plays
-`tools/web_steps.txt` (real key presses, clicks and drags: menus, prompts,
-side panel, data browser, text views, scrolling, windows, animation,
-kinescope, array plot, AUTO, 3D, file selector, calculator, errors, a
-narrow panel) against both binaries in a headless Chrome or Edge, and
-compares 65 screenshots and the files the session writes; `report.html` in
-`build/webshots/` shows them side by side. It needs Node 22+ and a Chrome,
-Chromium or Edge, nothing else, and takes about four minutes.
+`node tools/webtest.mjs [--bin BIN]` guards the web front end the same way:
+it builds nothing, and plays `tools/web_steps.txt` (real key presses,
+clicks and drags: menus, prompts, side panel, data browser, text views,
+scrolling, windows, animation, kinescope, array plot, AUTO, 3D, file
+selector, calculator, errors, a narrow panel) against `./xppautX[.exe]` in
+a headless Chrome or Edge, checking what each step claims about the result
+(a dialog's kind and title, a value the server computed, a canvas actually
+drawn to, the files the session wrote) instead of comparing screenshots.
+It needs Node 22+ and a Chrome, Chromium or Edge, nothing else.
 
 `tools/guicheck.sh [REF]` guards the X11 program itself: it builds `REF`
 (default `HEAD`), drives both GUIs through the keys in `tools/gui_keys.txt`

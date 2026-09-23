@@ -1,31 +1,29 @@
 #!/usr/bin/env node
-/* Screenshot regression check for the web front end (the web counterpart of
-   tools/guicheck.sh). Builds xppautX from a git ref (default HEAD), runs
-   it and the working-tree binary through the same session of real key
-   presses and clicks (tools/web_steps.txt) in a headless Chrome or Edge,
-   and compares the screenshots and the files the session writes.
+/* Behavioural regression check for the web front end (the web counterpart of
+   tools/guicheck.sh). Runs xppautX and drives it through a real session of
+   key presses and clicks (tools/web_steps.txt) in a headless Chrome or Edge,
+   and checks what each step claims about the result: a dialog with the
+   right kind, a value the server computed, a canvas that got drawn to, a
+   file the session wrote. No screenshots, no image comparison: tests check
+   data, never pixels.
 
-   node tools/webshots.mjs [--ref HEAD] [--base BIN] [--new BIN] [--browser PATH]
-                           [--steps tools/web_steps.txt] [--out build/webshots]
-                           [--once]
+   node tools/webtest.mjs [--bin ./xppautX] [--browser PATH]
+                          [--steps tools/web_steps.txt] [--out build/webtest]
 
-   --base skips building the ref. --once runs the steps a single time against
-   --new, with no ref to build or compare, and fails when a step does: what CI
-   needs, where the ref and the build are the same commit. No npm packages: the
-   browser is driven through the DevTools protocol with Node's WebSocket
-   (Node 22 or later). Screenshots and session files are left in --out. */
+   No npm packages: the browser is driven through the DevTools protocol with
+   Node's WebSocket (Node 22 or later). It builds nothing: run it against the
+   binary a previous step already built. */
 import {spawn, spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import zlib from 'node:zlib';
 import {fileURLToPath} from 'node:url';
 
 const win = process.platform === 'win32';
 const exe = win ? '.exe' : '';
 const top = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const opt = {ref: 'HEAD', steps: 'tools/web_steps.txt', out: 'build/webshots', new: `xppautX${exe}`};
-const FLAGS = ['once'];
+const opt = {steps: 'tools/web_steps.txt', out: 'build/webtest', bin: `xppautX${exe}`};
+const FLAGS = ['verbose'];
 for (let i = 2; i < process.argv.length; i++) {
   const k = process.argv[i].replace(/^--/, '');
   opt[k] = FLAGS.includes(k) ? true : process.argv[++i];
@@ -45,12 +43,6 @@ function findBrowser() {
     if (path.isAbsolute(c) ? fs.existsSync(c) : spawnSync('which', [c]).status === 0) return c;
   }
   return null;
-}
-
-function run(cmd, args, cwd) {
-  const r = spawnSync(cmd, args, {cwd, stdio: ['ignore', 'pipe', 'pipe'], shell: false, maxBuffer: 1 << 28});
-  if (r.status !== 0) throw new Error(`${cmd} ${args.join(' ')} failed:\n${r.stderr || r.error}`);
-  return r.stdout;
 }
 
 /* ---- the DevTools protocol ------------------------------------------------ */
@@ -91,7 +83,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function startBrowser(browser, profile) {
   const proc = spawn(browser, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
     '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--hide-scrollbars', '--mute-audio',
-    '--force-device-scale-factor=1', '--font-render-hinting=none', '--disable-lcd-text', 'about:blank'],
+    '--force-device-scale-factor=1', 'about:blank'],
   {stdio: ['ignore', 'ignore', 'pipe']});
   const wsUrl = await new Promise((resolve, reject) => {
     let text = '';
@@ -173,7 +165,7 @@ async function mouse(cdp, type, x, y) {
     clickCount: 1});
 }
 
-async function session(cdp, url, steps, shotDir) {
+async function session(cdp, url, steps) {
   const problems = [];
   await cdp.send('Page.enable');
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
@@ -232,172 +224,92 @@ async function session(cdp, url, steps, shotDir) {
         await sleep(+rest[0]);
       } else if (cmd === 'eval') {
         await cdp.eval(`(async () => { ${arg} })()`);
-      } else if (cmd === 'shot') {
-        await cdp.eval(SETTLE);
-        await sleep(150);
-        let clip = null;
-        if (rest[1]) {
-          clip = await cdp.eval(locate(rest[1]));
-          if (!clip) throw new Error(`no element ${rest[1]} to shoot`);
-        }
-        const png = await cdp.send('Page.captureScreenshot', {format: 'png',
-          ...(clip ? {clip: {x: clip.x, y: clip.y, width: Math.max(1, clip.w), height: Math.max(1, clip.h), scale: 1}} : {})});
-        fs.writeFileSync(path.join(shotDir, rest[0] + '.png'), Buffer.from(png.data, 'base64'));
+      } else if (cmd === 'expect') {
+        /* expect [!]css=SELECTOR | expect [!]TEXT: an element is (or is not) present and visible,
+           the same way click/clickat locate one. The real check for what a dialog says, a value
+           the server computed, or a canvas having been drawn to is an eval: this is for plain
+           presence/absence (a dialog is open, a tab exists, a panel closed). */
+        const neg = arg.startsWith('!');
+        const target = neg ? arg.slice(1).trim() : arg;
+        const r = await cdp.eval(locate(target));
+        if (neg && r) throw new Error(`unexpected element ${target}`);
+        if (!neg && !r) throw new Error(`no element ${target}`);
       } else throw new Error(`unknown step ${cmd}`);
-      if (cmd !== 'shot' && cmd !== 'wait') await cdp.eval(SETTLE);
+      if (cmd !== 'wait') await cdp.eval(SETTLE);
       if (opt.verbose) console.log(`${Date.now() - t0} ms  ${line}`);
     } catch (e) {
       problems.push(`step ${n + 1} (${line}): ${e.message.split('\n')[0]}`);
-      if (cmd === 'shot') fs.writeFileSync(path.join(shotDir, rest[0] + '.png'), 'missing: ' + e.message);
     }
   }
   return problems;
 }
 
-async function runOnce(tag, bin, browser, steps) {
-  const shotDir = path.join(out, tag), dir = path.join(out, 'run');
-  fs.rmSync(dir, {recursive: true, force: true});
-  fs.mkdirSync(shotDir, {recursive: true});
-  fs.mkdirSync(dir, {recursive: true});
-  fs.copyFileSync(path.join(top, 'examples/ode/lecar.ode'), path.join(dir, 'lecar.ode'));
-  fs.copyFileSync(path.join(top, 'tools/gui_test.ani'), path.join(dir, 'gui_test.ani'));
-  const server = await startServer(bin, dir);
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb-'));
-  const {proc, cdp} = await startBrowser(browser, profile);
-  let problems;
-  try {
-    problems = await session(cdp, server.url, steps, shotDir);
-  } finally {
-    proc.kill();
-    server.proc.kill();
-    await sleep(500);
-    fs.rmSync(profile, {recursive: true, force: true, maxRetries: 5});
+/* ---- files the session writes ------------------------------------------------ */
+
+/* the session's cwd starts with just these two (copied in below); anything
+   else that shows up by the end is a file the session wrote and gets a
+   content check; the two inputs themselves must come out byte-identical,
+   since nothing in a browsing session should rewrite the model it loaded */
+const SEED = ['lecar.ode', 'gui_test.ani'];
+
+function checkWrittenFiles(dir, before) {
+  const problems = [];
+  for (const f of SEED) {
+    const a = before.get(f), b = fs.existsSync(path.join(dir, f)) ? fs.readFileSync(path.join(dir, f)) : null;
+    if (!b) problems.push(`input file ${f} disappeared during the session`);
+    else if (!a.equals(b)) problems.push(`input file ${f} was modified by the session`);
   }
-  const files = path.join(out, 'files_' + tag);
-  fs.cpSync(dir, files, {recursive: true});
+  for (const f of fs.readdirSync(dir)) {
+    if (SEED.includes(f)) continue;
+    const p = path.join(dir, f), st = fs.statSync(p);
+    if (!st.isFile()) continue;
+    if (st.size === 0) { problems.push(`${f}: written but empty`); continue; }
+    const head = fs.readFileSync(p, {encoding: 'latin1', flag: 'r'}).slice(0, 4096);
+    if (/\.dat$/.test(f)) {
+      const lines = head.split(/\r?\n/).filter(Boolean);
+      if (!lines.length || !/^[\s0-9.eE+-]+$/.test(lines[0]))
+        problems.push(`${f}: first line does not look like numeric data: ${JSON.stringify(lines[0])}`);
+    } else if (/\.ps$/.test(f) && !head.startsWith('%!')) problems.push(`${f}: not a postscript file`);
+    else if (/\.gif$/i.test(f) && !head.startsWith('GIF8')) problems.push(`${f}: not a GIF`);
+    else if (/\.svg$/i.test(f) && !head.includes('<svg')) problems.push(`${f}: no <svg> in it`);
+  }
   return problems;
 }
 
 async function main() {
   const browser = findBrowser();
   if (!browser) {
-    console.log('webshots: no Chrome, Chromium or Edge found (set CHROME=path); skipped');
+    console.log('webtest: no Chrome, Chromium or Edge found (set CHROME=path); skipped');
     process.exit(0);
   }
-  /* the contents, not the folder: a viewer may hold it open */
   fs.mkdirSync(out, {recursive: true});
   for (const e of fs.readdirSync(out)) fs.rmSync(path.join(out, e), {recursive: true, force: true, maxRetries: 5});
 
   const steps = fs.readFileSync(path.resolve(top, opt.steps), 'utf8').split(/\r?\n/);
-  const problems = {};
+  const bin = path.resolve(top, opt.bin);
+  const dir = path.join(out, 'run');
+  fs.mkdirSync(dir, {recursive: true});
+  fs.copyFileSync(path.join(top, 'examples/ode/lecar.ode'), path.join(dir, 'lecar.ode'));
+  fs.copyFileSync(path.join(top, 'tools/gui_test.ani'), path.join(dir, 'gui_test.ani'));
+  const before = new Map(SEED.map(f => [f, fs.readFileSync(path.join(dir, f))]));
 
-  if (opt.once) {
-    /* one session against --new: every step must run, nothing to compare */
-    problems.new = await runOnce('new', path.resolve(top, opt.new), browser, steps);
-    for (const p of problems.new) console.log(`PROBLEM: ${p}`);
-    console.log(problems.new.length ? 'web session had problems' : 'web session passed');
-    process.exit(problems.new.length ? 1 : 0);
+  const server = await startServer(bin, dir);
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb-'));
+  const {proc, cdp} = await startBrowser(browser, profile);
+  let problems;
+  try {
+    problems = await session(cdp, server.url, steps);
+  } finally {
+    proc.kill();
+    server.proc.kill();
+    await sleep(500);
+    fs.rmSync(profile, {recursive: true, force: true, maxRetries: 5});
   }
+  problems = problems.concat(checkWrittenFiles(dir, before));
 
-  let base = opt.base && path.resolve(top, opt.base);
-  if (!base) {
-    const src = path.join(out, 'src');
-    fs.mkdirSync(src, {recursive: true});
-    fs.writeFileSync(path.join(out, 'src.tar'), run('git', ['archive', '--format=tar', opt.ref], top));
-    run('tar', ['-xf', 'src.tar', '-C', 'src'], out); /* relative: GNU tar reads C: as a host */
-    const make = process.env.MAKE || (win ? 'mingw32-make' : 'make');
-    run(make, ['-j8', `xppautX${exe}`], src);
-    base = path.join(src, `xppautX${exe}`);
-  }
-  problems.base = await runOnce('base', base, browser, steps);
-  problems.new = await runOnce('new', path.resolve(top, opt.new), browser, steps);
-
-/* A PNG decoder, so two shots can be called the same when they differ only by
-   Skia's antialiasing rounding (a channel off by one on a rounded corner);
-   headless Chrome is not bit-exact between two runs of the same page. */
-function decodePng(buf) {
-  if (buf.length < 8 || buf.readUInt32BE(0) !== 0x89504e47) return null;
-  let w = 0, h = 0, depth = 0, color = 0, interlace = 0;
-  const idat = [];
-  for (let i = 8; i + 8 <= buf.length;) {
-    const len = buf.readUInt32BE(i), type = buf.toString('latin1', i + 4, i + 8);
-    const body = buf.subarray(i + 8, i + 8 + len);
-    if (type === 'IHDR') {
-      w = body.readUInt32BE(0); h = body.readUInt32BE(4);
-      depth = body[8]; color = body[9]; interlace = body[12];
-    } else if (type === 'IDAT') idat.push(body);
-    i += 12 + len;
-  }
-  if (depth !== 8 || interlace !== 0 || (color !== 2 && color !== 6)) return null;
-  const bpp = color === 6 ? 4 : 3, stride = w * bpp;
-  const raw = zlib.inflateSync(Buffer.concat(idat));
-  const out = Buffer.alloc(h * stride);
-  for (let y = 0, o = 0; y < h; y++) {
-    const filter = raw[y * (stride + 1)], line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
-    for (let x = 0; x < stride; x++, o++) {
-      const a = x >= bpp ? out[o - bpp] : 0, b = y ? out[o - stride] : 0, c = x >= bpp && y ? out[o - stride - bpp] : 0;
-      let v = line[x];
-      if (filter === 1) v += a;
-      else if (filter === 2) v += b;
-      else if (filter === 3) v += (a + b) >> 1;
-      else if (filter === 4) {
-        const pp = a + b - c, pa = Math.abs(pp - a), pb = Math.abs(pp - b), pc = Math.abs(pp - c);
-        v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
-      }
-      out[o] = v & 255;
-    }
-  }
-  return {w, h, bpp, data: out};
-}
-
-/* same, or off by at most SLACK in a channel on a handful of pixels */
-const SLACK = 2, SLACK_PIXELS = 64;
-function sameShot(a, b) {
-  if (a.equals(b)) return 'equal';
-  const x = decodePng(a), y = decodePng(b);
-  if (!x || !y || x.w !== y.w || x.h !== y.h || x.bpp !== y.bpp) return false;
-  let n = 0;
-  for (let i = 0; i < x.data.length; i += x.bpp) {
-    let d = 0;
-    for (let k = 0; k < x.bpp; k++) d = Math.max(d, Math.abs(x.data[i + k] - y.data[i + k]));
-    if (d > SLACK) return false;
-    if (d) n++;
-  }
-  return n > SLACK_PIXELS ? false : 'antialiasing (' + n + ' px)';
-}
-
-  let same = 0, total = 0, rows = '';
-  for (const f of fs.readdirSync(path.join(out, 'base')).sort()) {
-    total++;
-    const a = fs.readFileSync(path.join(out, 'base', f)), b = fs.existsSync(path.join(out, 'new', f))
-      ? fs.readFileSync(path.join(out, 'new', f)) : Buffer.alloc(0);
-    const verdict = sameShot(a, b), equal = verdict !== false;
-    if (equal) same++;
-    if (equal && verdict !== 'equal') console.log('same but for ' + verdict + ': ' + f);
-    if (!equal) console.log('DIFF: ' + f);
-    rows += `<tr class="${equal ? 'same' : 'diff'}"><th>${f}${equal ? '' : ' (differs)'}</th>` +
-      `<td><img src="base/${f}"></td><td>${equal ? '' : `<img src="new/${f}">`}</td></tr>\n`;
-  }
-  let fsame = 0, ftotal = 0;
-  const walk = d => fs.readdirSync(d, {withFileTypes: true}).flatMap(e => e.isDirectory() ? walk(path.join(d, e.name)).map(x => path.join(e.name, x)) : [e.name]);
-  for (const f of walk(path.join(out, 'files_base')).sort()) {
-    ftotal++;
-    const a = path.join(out, 'files_base', f), b = path.join(out, 'files_new', f);
-    if (fs.existsSync(b) && fs.readFileSync(a).equals(fs.readFileSync(b))) fsame++;
-    else console.log('DIFF file: ' + f);
-  }
-  fs.writeFileSync(path.join(out, 'report.html'), `<!doctype html><meta charset="utf-8"><title>webshots</title>
-<style>body{font:13px sans-serif;margin:16px} img{max-width:600px;border:1px solid #ccc} tr.diff th{color:#b3261e}
-th{text-align:left;vertical-align:top;padding-right:12px} td{vertical-align:top}</style>
-<h1>web screenshots: ${same} / ${total} identical to ${opt.base ? opt.base : opt.ref}</h1>
-<table><tr><th></th><th>base</th><th>new (when different)</th></tr>${rows}</table>`);
-  for (const tag of ['base', 'new'])
-    for (const p of problems[tag]) console.log(`PROBLEM (${tag}): ${p}`);
-  console.log(`web screens identical to ${opt.base ? opt.base : opt.ref}: ${same} / ${total}`);
-  console.log(`files written identical: ${fsame} / ${ftotal}`);
-  console.log(`report: ${path.join(out, 'report.html')}`);
-  const ok = total > 0 && same === total && fsame === ftotal && !problems.base.length && !problems.new.length;
-  process.exit(ok ? 0 : 1);
+  for (const p of problems) console.log(`PROBLEM: ${p}`);
+  console.log(problems.length ? `web session had ${problems.length} problem(s)` : 'web session passed');
+  process.exit(problems.length ? 1 : 0);
 }
 
 main().catch(e => {

@@ -34,12 +34,15 @@ Web front end regression check (the counterpart of guicheck for
 `xppautX`; run it for changes to `web/`, ui_json.c or xpp_http.c, once
 per batch). From Git Bash on Windows, where Node and Chrome are (not WSL):
 
-    PATH=/c/Strawberry/c/bin:$PATH node tools/webshots.mjs
+    PATH=/c/Strawberry/c/bin:$PATH node tools/webtest.mjs
 
-It builds `xppautX` from HEAD into build/webshots/src, compares it with
-./xppautX.exe (`--new`), `--base BIN` skips the build. Steps are in
-tools/web_steps.txt; CSS selectors in steps must not contain spaces (use
-`>`). `const client` of the page is what steps and settling look at.
+It builds nothing: it drives `./xppautX[.exe]` (`--bin` to point elsewhere)
+through tools/web_steps.txt in a headless Chrome or Edge and checks what
+each step claims about the result (a dialog's kind and title, a value the
+server computed, a canvas actually drawn to, client state fields) — no
+screenshots, no pixel comparison. CSS selectors in steps must not contain
+spaces (use `>`). `const client` of the page is what steps and settling
+look at.
 
 `make ltocheck` (run by verify.sh) links both programs with LTO into
 build/lto and fails on `-Wlto-type-mismatch`: an extern whose type or
