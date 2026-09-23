@@ -104,9 +104,57 @@ typedef struct {
 
 #define BUF_LIT(b, lit) buf_add(b, lit, sizeof(lit) - 1)
 
-static Buf ops;          /* pending drawing ops for ops_win */
-static unsigned long ops_win;
+/* pending drawing ops, one buffer per window: an op for window A no longer
+   has to flush window B's picture, so AUTO's diagram (101), the stability
+   circle (102) and the info strip (103) each keep accumulating between
+   flushes instead of interrupting each other every couple of ops. Windows
+   actually in use at once (the plot windows 1..MAXPOP, WIN_AUTO/_STAB/_INFO,
+   WIN_ANI) comfortably fit; if something unexpected exceeds it, flush_ops()
+   is called to make room rather than grow unboundedly. */
+#define MAX_OP_BUFS 40
+typedef struct {
+    unsigned long win;
+    Buf b;
+} OpBuf;
+static OpBuf op_bufs[MAX_OP_BUFS];
+static int n_op_bufs; /* buffers with content since the last flush, in first-use order */
 static int state_dirty;
+
+static void flush_ops(void); /* forward: get_op_buf() may need to make room */
+
+/* the buffer for win, creating it (in first-use order) if this is the first
+   op for it since the last flush */
+static OpBuf *get_op_buf(unsigned long win)
+{
+    int i;
+    for (i = 0; i < n_op_bufs; i++)
+        if (op_bufs[i].win == win) return &op_bufs[i];
+    if (n_op_bufs >= MAX_OP_BUFS) flush_ops();
+    op_bufs[n_op_bufs].win = win;
+    op_bufs[n_op_bufs].b.len = 0;
+    if (op_bufs[n_op_bufs].b.s) op_bufs[n_op_bufs].b.s[0] = 0;
+    return &op_bufs[n_op_bufs++];
+}
+
+/* the buffer for win if it already has pending content, else NULL */
+static OpBuf *find_op_buf(unsigned long win)
+{
+    int i;
+    for (i = 0; i < n_op_bufs; i++)
+        if (op_bufs[i].win == win) return &op_bufs[i];
+    return NULL;
+}
+
+/* windows 102/103 (the stability circle, the info strip) only ever show
+   their latest picture: a clear should drop whatever of theirs is still
+   unsent rather than ship a picture the client will immediately overwrite */
+static void op_buf_discard(unsigned long win)
+{
+    OpBuf *ob = find_op_buf(win);
+    if (!ob) return;
+    ob->b.len = 0;
+    if (ob->b.s) ob->b.s[0] = 0;
+}
 
 static void buf_add(Buf *b, const char *s, size_t n)
 {
@@ -189,31 +237,42 @@ static int poly_open, poly_x, poly_y;
 static void auto_reset_state(void); /* colour/width cache, below */
 static void auto_sync_state(void);
 
+/* the open poly, when there is one, is always the tail of WIN_AUTO's buffer */
 static void close_poly(void)
 {
     if (!poly_open) return;
     poly_open = 0;
-    BUF_LIT(&ops, "]");
+    BUF_LIT(&get_op_buf(WIN_AUTO)->b, "]");
 }
 
+/* flush every window with pending ops, one draw event per window, in the
+   order each window was first written to since the last flush. Draw events
+   for different windows are independent canvases on the client, so this
+   cross-window order doesn't matter; order within a window is preserved
+   because each window's ops only ever land in its own buffer. */
 static void flush_ops(void)
 {
-    char head[64];
-    size_t k;
+    int i;
     close_poly();
-    if (ops.len == 0) return;
-    k = (size_t)snprintf(head, sizeof head, "{\"ev\":\"draw\",\"win\":%lu,\"ops\":[", ops_win);
-    /* wrap the ops in place: {"ev":"draw",...,"ops":[ ... ]} */
-    if (ops.len + k + 3 > ops.cap) {
-        ops.cap = ops.len + k + 3 + 4096;
-        ops.s = realloc(ops.s, ops.cap);
+    for (i = 0; i < n_op_bufs; i++) {
+        OpBuf *ob = &op_bufs[i];
+        char head[64];
+        size_t k;
+        if (ob->b.len == 0) continue;
+        k = (size_t)snprintf(head, sizeof head, "{\"ev\":\"draw\",\"win\":%lu,\"ops\":[", ob->win);
+        /* wrap the ops in place: {"ev":"draw",...,"ops":[ ... ]} */
+        if (ob->b.len + k + 3 > ob->b.cap) {
+            ob->b.cap = ob->b.len + k + 3 + 4096;
+            ob->b.s = realloc(ob->b.s, ob->b.cap);
+        }
+        memmove(ob->b.s + k, ob->b.s, ob->b.len);
+        memcpy(ob->b.s, head, k);
+        memcpy(ob->b.s + k + ob->b.len, "]}", 3);
+        out_line(ob->b.s, ob->b.len + k + 2);
+        ob->b.len = 0;
+        ob->b.s[0] = 0;
     }
-    memmove(ops.s + k, ops.s, ops.len);
-    memcpy(ops.s, head, k);
-    memcpy(ops.s + k + ops.len, "]}", 3);
-    out_line(ops.s, ops.len + k + 2);
-    ops.len = 0;
-    ops.s[0] = 0;
+    n_op_bufs = 0;
 }
 
 static void send_state(void);
@@ -242,22 +301,25 @@ static void send_simple(const char *ev, const char *key, const char *text)
 
 static void op(unsigned long win, const char *fmt, ...)
 {
+    OpBuf *ob;
     char tmp[2048];
     va_list ap;
     int n;
-    close_poly();
-    if (win != ops_win) {
-        flush_ops();
-        ops_win = win;
-    }
+    /* a poly is only ever open in WIN_AUTO's buffer; any other op on that
+       same window is a new, disjoint drawing primitive and must close it
+       first. An op on a different window doesn't touch WIN_AUTO's buffer at
+       all, so it must NOT close the poly -- that's the point of buffering
+       per window: 102/103 can interleave with a growing 101 polyline. */
+    if (win == WIN_AUTO) close_poly();
+    ob = get_op_buf(win);
     va_start(ap, fmt);
     n = vsnprintf(tmp, sizeof tmp, fmt, ap);
     va_end(ap);
     if (n < 0) return;
     if (n >= (int)sizeof tmp) n = sizeof tmp - 1;
-    if (ops.len) BUF_LIT(&ops, ",");
-    buf_add(&ops, tmp, n);
-    if (ops.len > 60000) flush_ops();
+    if (ob->b.len) BUF_LIT(&ob->b, ",");
+    buf_add(&ob->b, tmp, n);
+    if (ob->b.len > 60000) flush_ops(); /* guard is per buffer, action flushes all */
 }
 
 static void op_text(unsigned long win, const char *name, int x, int y, const char *s, int size)
@@ -1652,12 +1714,15 @@ static void j_auto_line(int a, int b, int c, int d)
        branch arrives end first: the run continues when the new segment's
        second point is where the last one started. The path is stored in the
        order it was walked, which strokes the same either way. */
-    if (poly_open && ops_win == WIN_AUTO && c == poly_x && d == poly_y) {
+    if (poly_open && c == poly_x && d == poly_y) {
+        /* the open poly, when there is one, always lives in WIN_AUTO's
+           buffer (see close_poly()) */
+        OpBuf *ob = get_op_buf(WIN_AUTO);
         n = snprintf(tmp, sizeof tmp, ",%d,%d", a, b);
-        buf_add(&ops, tmp, (size_t)n);
+        buf_add(&ob->b, tmp, (size_t)n);
         poly_x = a;
         poly_y = b;
-        if (ops.len > 60000) flush_ops();
+        if (ob->b.len > 60000) flush_ops();
         return;
     }
     op(WIN_AUTO, "[\"poly\",%d,%d,%d,%d", c, d, a, b); /* left open to grow */
@@ -1719,12 +1784,16 @@ static void j_auto_bw(void) { auto_col_want = 0; }
 static void j_auto_clr_stab(void)
 {
     int r = Auto.st_wid / 4;
+    /* window 102 only ever shows its latest picture: drop whatever of it is
+       still unsent instead of shipping a circle the client immediately
+       overwrites */
+    op_buf_discard(WIN_AUTO_STAB);
     op(WIN_AUTO_STAB, "[\"clear\"]");
     op(WIN_AUTO_STAB, "[\"circle\",%d,%d,%d]", 2 * r, 2 * r, r);
 }
 static void j_auto_stab_line(int x, int y, int xp, int yp) { op(WIN_AUTO_STAB, "[\"line\",%d,%d,%d,%d]", x, y, xp, yp); }
 static void j_auto_clear_plot(void) { auto_reset_state(); op(WIN_AUTO, "[\"clear\"]"); }
-static void j_auto_clear_info(void) { op(WIN_AUTO_INFO, "[\"clear\"]"); }
+static void j_auto_clear_info(void) { op_buf_discard(WIN_AUTO_INFO); op(WIN_AUTO_INFO, "[\"clear\"]"); }
 static void j_auto_draw_info(char *s, int x, int y) { op_text(WIN_AUTO_INFO, "rtext", x, y, s, -1); }
 static int j_auto_check_abort(int *iflag)
 {
@@ -1771,6 +1840,23 @@ static int j_auto_grab_event(int *x, int *y)
     return XPP_AUTO_CLICK;
 }
 static void j_auto_show_hint(void) { send_simple("message", "auto", Auto.hinttxt); }
+
+/* AUTO calls this after every continuation point (refreshdisplay(), via
+   xpp_ui.auto_refresh) to let the client see the diagram grow -- same idea
+   as j_check_abort's throttle, a few frames a second rather than one flush
+   (and one draw event per window touched) per point. A command boundary
+   (json_flush() before "state"/"idle" in json_command(), ask_wait() before
+   an "ask") always flushes in full regardless of this, so the last point of
+   a run and a grab's circle are never held back by the throttle. */
+static void j_auto_refresh(void)
+{
+    static struct timeval last;
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    if ((now.tv_sec - last.tv_sec) * 1000000 + (now.tv_usec - last.tv_usec) < 50000) return;
+    last = now;
+    json_flush();
+}
 
 /* ---- animation window ------------------------------------------------------------ */
 
@@ -2095,7 +2181,7 @@ static const XppUi json_ui = {
     .auto_redraw_menus = j_void,
     .auto_clear_info = j_auto_clear_info,
     .auto_draw_info = j_auto_draw_info,
-    .auto_refresh = json_flush,
+    .auto_refresh = j_auto_refresh,
     .auto_check_abort = j_auto_check_abort,
     .auto_rubber = j_auto_rubber,
     .auto_choose_key = j_auto_choose_key,
