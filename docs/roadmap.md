@@ -26,7 +26,7 @@ issue; the card here is the one kept up to date.
 | W3  | #15 | No short-name limit | none | done (5b68289) |
 | W4  | #16 | Memory module and leak checks | W2 | done (1e07f3d) |
 | W5  | #17 | New UI: design, protocol v2, scaffold | none | done (7c26dbf) |
-| W6  | #18 | New UI: the views | W5 | running (T5, T7, T11a, T16; T2-T4, T6, T10 done) |
+| W6  | #18 | New UI: the views | W5 | running (T5, T11a, T16; T2-T4, T6, T7, T10 done) |
 | W7  | #19 | Core refactor for single responsibility | W4 | ready |
 | W8  | #20 | Remove the X11 front end | W6 | blocked |
 | W9  | #21 | WebAssembly build (proof of concept) | maintainer's OK to install emsdk | blocked |
