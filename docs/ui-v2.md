@@ -469,6 +469,6 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T13 | Animation: frames in unit coordinates, player controls, scaling to any size | T6 | yes | servercheck: frame primitives in [0,1]; web2check: play, pause, step, seek update the frame index |
 | T14 | 3D plots: projection and rotation in the client, angles synced with `rotate` | T6 | small | web2check: rotate by drag and keys; `state.view.three` agrees |
 | T15 | Kinescope and exports from data: capture snapshots, play, GIF/PNG from the client | T7, T8 | small | web2check: capture two frames, play them; GIF export has two frames |
-| T16 | Text views: equations, source with actions, equilibrium details, messages | T3 | no | web2check: comment action sets its parameters |
+| T16 (**done**) | Text views: equations, source with actions, equilibrium details, messages | T3 | no | web2check: comment action sets its parameters |
 | T17 | Switch: web2 at `/`, classic at `/v1/`; VS Code panel; docs (using-the-panel, front-end-gaps, README) | T3-T16 | small | every row of docs/front-end-gaps.md covered by web2; webshots runs against `/v1/` until T18 |
 | T18 | Retire: remove `web/`, the X11 program and guicheck, the `draw`/`palette`/`pixels` paths; protocol 2 | T17 | yes | verify.sh green without X11; servercheck and web2check cover what webshots did |
