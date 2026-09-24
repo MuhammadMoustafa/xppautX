@@ -36,6 +36,7 @@ void xpp_window_set_model(const char *path) { (void)path; }
 
 #else /* XPP_WINDOW */
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <future>
@@ -79,6 +80,21 @@ const XppWindowHost *const host = &host_table;
 
 /* what the window shows first: web2 needs room for its panels */
 constexpr int WIDTH = 1280, HEIGHT = 840;
+
+/* Where the window opens (W13f): its size, which the display's scaling can
+   make larger than the screen (1280x840 at 125% is 1600x1050), shrunk to
+   95% of the work area (the monitor less the taskbar) when it does not
+   fit, and centred in it. */
+struct Placement {
+    int x, y, width, height;
+};
+[[maybe_unused]] Placement fit_in(int width, int height, int area_x, int area_y, int area_width, int area_height)
+{
+    width = std::min(width, area_width * 95 / 100);
+    height = std::min(height, area_height * 95 / 100);
+    return {area_x + (area_width - width) / 2, area_y + (area_height - height) / 2, width, height};
+}
+
 /* after the window closed, how long the core has to exit on its own */
 constexpr auto EXIT_GRACE = std::chrono::seconds(10);
 
@@ -270,16 +286,35 @@ void add_menus(webview_t w)
     SetMenu(hwnd, bar);
 }
 
+/* fit_in on the monitor the window opened on (the library sized it, frame
+   and DPI scaling included, at the system's default position) */
+void place_window(webview_t w)
+{
+    HWND hwnd = static_cast<HWND>(webview_get_window(w));
+    RECT r;
+    MONITORINFO mi;
+    mi.cbSize = sizeof mi;
+    if (!hwnd || !GetWindowRect(hwnd, &r) ||
+        !GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mi))
+        return;
+    const RECT &a = mi.rcWork;
+    Placement p = fit_in(r.right - r.left, r.bottom - r.top, a.left, a.top, a.right - a.left, a.bottom - a.top);
+    SetWindowPos(hwnd, nullptr, p.x, p.y, p.width, p.height, SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
 #elif defined(__APPLE__)
 
 /* macOS: no menu bar of ours yet, and the icon comes with the .app bundle
    (W13b) */
 void add_menus(webview_t) {}
+/* the library centres the window, and Cocoa keeps a window on its screen */
+void place_window(webview_t) {}
 
 #else /* Linux: GTK 3 (webkit2gtk-4.1) */
 
 #if GTK_MAJOR_VERSION >= 4
 void add_menus(webview_t) {} /* webkitgtk-6.0 (GTK 4) has no GtkMenuBar */
+void place_window(webview_t) {} /* nor a work area or a window position */
 #else
 
 webview_t view_of_menu()
@@ -410,6 +445,25 @@ void add_menus(webview_t w)
     gtk_container_add(GTK_CONTAINER(win), box);
     gtk_widget_show_all(box);
 }
+
+/* fit_in on the primary monitor's work area (GTK sizes in logical pixels,
+   so the scaling is already in the area); on Wayland the compositor
+   chooses the position and ignores the move */
+void place_window(webview_t w)
+{
+    GtkWindow *win = static_cast<GtkWindow *>(webview_get_window(w));
+    GdkDisplay *display = gdk_display_get_default();
+    GdkMonitor *monitor = display ? gdk_display_get_primary_monitor(display) : nullptr;
+    if (!monitor && display) monitor = gdk_display_get_monitor(display, 0);
+    if (!win || !monitor) return;
+    GdkRectangle a;
+    gdk_monitor_get_workarea(monitor, &a);
+    int width, height;
+    gtk_window_get_size(win, &width, &height);
+    Placement p = fit_in(width, height, a.x, a.y, a.width, a.height);
+    gtk_window_resize(win, p.width, p.height);
+    gtk_window_move(win, p.x, p.y);
+}
 #endif /* GTK 3 */
 
 #endif /* platform */
@@ -427,6 +481,7 @@ webview_t open_view()
     webview_set_title(w, t.c_str());
     webview_set_size(w, WIDTH, HEIGHT, WEBVIEW_HINT_NONE);
     add_menus(w);
+    place_window(w);
     /* the token stays out of sight: the web view has no address bar */
     webview_navigate(w, host->http_url());
     return w;
