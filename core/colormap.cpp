@@ -4,6 +4,7 @@
 #include "colormap.h"
 #include "xpp_log.h"
 #include "xpp_globals.h"
+#include "xpp_io.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -151,18 +152,26 @@ void make_cmaps(int *r, int *g, int *b, int n, int type)
    interpolation to fill n copies of rr,gg,bb */
 int read_cmap_from_file(char *fname, int n, int *rr, int *gg, int *bb)
 {
-    float x, r[1000], g[1000], b[1000];
+    /* each line is 4 numbers: an x that no caller of read_cmap_from_file
+       ever used (kept only so the file's own column count reads right)
+       and the r/g/b this fills in. */
+    float r[1000], g[1000], b[1000];
     int i = 0;
     int m;
     int j;
-    FILE *fp;
-    fp = fopen(fname, "r");
-    if (fp == NULL) return 0;
-    while (!feof(fp) && i < 1000) {
-        if (fscanf(fp, "%g %g %g %g \n", &x, &r[i], &g[i], &b[i]) != 4) break;
+    XppTokenReader *tr = xpp_token_reader_open(fname);
+    if (tr == NULL) return 0;
+    while (i < 1000) {
+        double dx, dr, dg, db;
+        if (xpp_token_reader_double(tr, &dx) != 1 || xpp_token_reader_double(tr, &dr) != 1
+            || xpp_token_reader_double(tr, &dg) != 1 || xpp_token_reader_double(tr, &db) != 1)
+            break;
+        r[i] = (float)dr;
+        g[i] = (float)dg;
+        b[i] = (float)db;
         i++;
     }
-    fclose(fp);
+    xpp_token_reader_close(tr);
     m = i;
     xpp_log(XPP_LOG_INFO, " read %d entries \n", m);
     for (i = 0; i < n; i++) {
