@@ -24,12 +24,12 @@
 #include <string.h>
 #include <math.h>
 #include "many_pops.h"
+#include "kinescope.h"
 
 /* the core's own globals and functions that have no header of their own */
 extern "C" {
 extern char this_file[];
 extern BROWSER my_browser;
-extern int ks_ncycle, ks_speed;
 extern int aplot_range_count, aplot_still, aplot_tag, plot3d_auto_redraw;
 extern char aplot_range_stem[256];
 extern FILE *ap_fp;
@@ -474,7 +474,7 @@ void send_film(const char *what)
 {
     Buf b = {0};
     buf_printf(&b, "{\"ev\":\"film\",\"op\":\"%s\",\"count\":%d,\"win\":%lu,\"cycles\":%d,\"delay\":%d}",
-               what, film_count, (unsigned long)plot_windows.draw_win, ks_ncycle, ks_speed);
+               what, film_count, (unsigned long)plot_windows.draw_win, movie_autoplay.cycles, movie_autoplay.frame_ms);
     send_buf(&b);
     xpp_free(b.s);
 }

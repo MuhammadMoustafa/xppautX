@@ -24,7 +24,6 @@ extern int DoTutorial;
 extern OptionsSet notAlreadySet;
 
 extern int help_menu;
-extern int ks_ncycle, ks_speed;
 
 /* array plot */
 extern int aplot_range;

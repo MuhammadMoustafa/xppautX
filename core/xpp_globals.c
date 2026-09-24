@@ -10,7 +10,6 @@ float xppvermaj, xppvermin;
 int DoTutorial = 0;
 OptionsSet notAlreadySet;
 
-int ks_ncycle = 1, ks_speed = 50; /* kinescope autoplay */
 int help_menu; /* which main-window menu keys go to: MAIN_MENU, FILE_MENU, NUM_MENU */
 
 

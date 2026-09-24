@@ -15,6 +15,13 @@ void save_movie(char *basename, int fmat);
 void auto_play(void);
 void too_small(void);
 
+/* The kinescope's Autoplay: how many times it runs the film, how fast */
+typedef struct {
+    int cycles;    /* times through the film */
+    int frame_ms;  /* milliseconds between frames */
+} XppMovieAutoPlay;
+extern XppMovieAutoPlay movie_autoplay;
+
 #ifdef __cplusplus
 }
 #endif

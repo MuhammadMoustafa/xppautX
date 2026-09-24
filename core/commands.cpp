@@ -42,6 +42,7 @@
 #endif
 #include <unistd.h>
 #include "many_pops.h"
+#include "kinescope.h"
 
 extern int DF_FLAG, NTable, POIMAP, TORUS;
 extern int Nintern_set;
@@ -195,6 +196,8 @@ void xpp_hlp(void)
 
 /* ---- commands that were in X11 files -------------------------------- */
 
+XppMovieAutoPlay movie_autoplay = {1, 50};
+
 void do_movie_com(int c)
 {
   char base[128];
@@ -206,10 +209,10 @@ void do_movie_com(int c)
   case 1: reset_film(); break;
   case 2: xpp_ui.movie_play_back(); break;
   case 3:
-    new_int(str("Number of cycles"), &ks_ncycle);
-    new_int(str("Msec between frames"), &ks_speed);
-    if (ks_speed < 0) ks_speed = 0;
-    if (ks_ncycle <= 0) return;
+    new_int(str("Number of cycles"), &movie_autoplay.cycles);
+    new_int(str("Msec between frames"), &movie_autoplay.frame_ms);
+    if (movie_autoplay.frame_ms < 0) movie_autoplay.frame_ms = 0;
+    if (movie_autoplay.cycles <= 0) return;
     xpp_ui.movie_auto_play();
     break;
   case 4:
