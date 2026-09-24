@@ -27,10 +27,10 @@ issue; the card here is the one kept up to date.
 | W4  | #16 | Memory module and leak checks | W2 | done (1e07f3d) |
 | W5  | #17 | New UI: design, protocol v2, scaffold | none | done (7c26dbf) |
 | W6  | #18 | New UI: the views | W5 | done (T2-T19) |
-| W7  | #19 | Core refactor for single responsibility | W4 | running (W7a, W7b) |
-| W7a | #19 | Split ui_json.cpp (3000 lines) by responsibility: protocol output and the JSON reader, prompts, windows and pixels, AUTO, animation and browser, commands; one internal header; no behaviour change | none | running |
+| W7  | #19 | Core refactor for single responsibility | W4 | running (W7a, W7b done; W7d running) |
+| W7a | #19 | Split ui_json.cpp (3000 lines) by responsibility: protocol output and the JSON reader, prompts, windows and pixels, AUTO, animation and browser, commands; one internal header; no behaviour change | none | done |
 | W7b | #19 | commands.c to C++; W11 step 3's line reader and file writer in xpp_io, applied to the small files that read or write data (lunch-new, browse_data, colormap, my_svg, diagram), each converted to C++ | none | done |
-| W7c | #19 | Globals into structs (xpp_globals: 58 externs grouped by owner) | W7a, W7b | blocked |
+| W7c | #19 | Globals into structs (xpp_globals: 58 externs grouped by owner) | W7a, W7b | ready |
 | W7d | #19 | AUTO's file I/O (autlib1/3, auto_nox: fort files, .s/.b/.d) through xpp_io's reader and writer; byte-identical diagrams | W7b | running |
 | W8  | #20 | Remove the X11 front end (pulled ahead of W6, 2026-09-23: the classic web page covers its features until T17) | none | done (4136541) |
 | W9  | #21 | WebAssembly build (proof of concept) | maintainer's OK to install emsdk | blocked |
