@@ -36,7 +36,6 @@ extern int IXPLT,IYPLT,IZPLT;
 extern int AXES,TIMPLOT,PLOT_3D;
 extern int START_LINE_TYPE;
 extern double MY_XLO,MY_YLO,MY_XHI,MY_YHI;
-extern int Xup;
 extern int colorline[]; 
 extern int PltFmtFlag;
 extern unsigned int GrFore,GrBack;
@@ -54,7 +53,6 @@ extern int storind;
 extern int IX_PLT[10],IY_PLT[10],IZ_PLT[10],NPltV;
 extern double X_LO[10],Y_LO[10],X_HI[10],Y_HI[10];
 extern int MultiWin;
-extern int Xup;
 
 /*  This is an improved graphics driver for XPP  
     It requires only a few commands
@@ -353,7 +351,7 @@ void set_extra_graphs()
     }
     return;
   }
-  if(Xup){
+  if(program.interactive){
   for(i=1;i<NPltV;i++){
     create_a_pop();
     plot_windows.graph[i].xv[0]=IX_PLT[i+1];
@@ -1204,7 +1202,7 @@ double *x;
   float dx=6.0*(float)(plot_windows.current->xhi-plot_windows.current->xlo)*SYMSIZE;
   float dy=6.0*(float)(plot_windows.current->yhi-plot_windows.current->ylo)*SYMSIZE;
  int ix=plot_windows.current->xv[0]-1,iy=plot_windows.current->yv[0]-1,iz=plot_windows.current->zv[0]-1;
- if(!Xup)return;
+ if(!program.interactive)return;
   if(plot_windows.current->TimeFlag)return;
   set_color(0); 
   if(plot_windows.current->ThreeDFlag)

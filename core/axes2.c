@@ -39,7 +39,6 @@ extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern int DLeft,DRight,DTop,DBottom,VTic,HTic,VChar,HChar;
 extern int TextJustify,TextAngle;
 extern double XMin,XMax,YMin,YMax;
-extern int Xup;
 
 
 int DOING_AXES=0;
@@ -156,7 +155,7 @@ void do_axes()
     char s1[XPP_NAME_MAX+1],s2[XPP_NAME_MAX+1],s3[XPP_NAME_MAX+1];
     get_title_str(s1,s2,s3);
     set_linestyle(0);
-    if(Xup){  re_title();
+    if(program.interactive){  re_title();
     SmallGr();
     }
 
@@ -168,7 +167,7 @@ void do_axes()
     case 5: Frame_3d(); break;
 
    }
-    if(Xup)SmallBase();
+    if(program.interactive)SmallBase();
  
  }
 

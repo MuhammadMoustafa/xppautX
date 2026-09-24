@@ -1,26 +1,26 @@
 #ifndef XPP_GLOBALS_H
 #define XPP_GLOBALS_H
 
-/* Program-wide state that the numerics need and that used to be defined in
-   main.c / many_pops.c / color.c / graf_par.c (all X11 files). Defined in
-   xpp_globals.c, which has no UI dependency. */
+/* What this run of the program is. The rest of the state main.c and the
+   X11 files once defined now lives with the module that owns it (batch
+   options in xpp_batch.h, logging in xpp_log.h, the plot windows in
+   many_pops.h, and so on; CLAUDE.md lists them). Defined in
+   xpp_globals.cpp, which has no UI dependency. */
 
-#include <stdio.h>
-#include "xpplim.h"
-#include "struct.h"
-#include "load_eqn.h" /* OptionsSet */
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* run mode */
-extern int Xup;
-/* AUTO's scratch directory (fort.3/7/8/9, <model>.ode.b/.d/.s). NULL: HOME,
-   as upstream (X11, -silent); xppautX sets a private one per session so
-   concurrent sessions never share AUTO files (xppautx_main.c). */
-extern char *xpp_auto_dir;
-extern float xppvermaj, xppvermin;
-extern int DoTutorial;
+typedef struct {
+    int interactive;     /* a front end is up (0: -silent, headless) */
+    /* AUTO's scratch directory (fort.3/7/8/9, <model>.ode.b/.d/.s). NULL:
+       HOME, as upstream (-silent); xppautX sets a private one per session
+       so concurrent sessions never share AUTO files (xppautx_main.c). */
+    char *auto_dir;
+    float version_major, version_minor; /* XPPAUT's version, for titles */
+    int tutorial;        /* @ tutorial=1: show the tutorial at start-up */
+} XppProgram;
+extern XppProgram program;
 
 #ifdef __cplusplus
 }

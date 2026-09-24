@@ -14,12 +14,12 @@
 #include <stdio.h>
 #include "xpplim.h"
 #include "xpp_io.h"
+#include "xpp_globals.h"
 #define DING ping()
 int UnstableManifoldColor=5;
 int StableManifoldColor=8;
 double ndrand48();
 extern int (*rhs)();
-extern int Xup;
 
 extern double DELTA_T;
 extern int METHOD;
@@ -1079,7 +1079,7 @@ int *ierr,maxit, n;
  
  while(1)
  {
-   if(Xup){
+   if(program.interactive){
      ch=my_abort();
  
      {

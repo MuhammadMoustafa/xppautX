@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "xpp_io.h"
+#include "xpp_globals.h"
 #define MAXPSLINE 100
 
 #define PS_XOFF 50
@@ -48,7 +49,6 @@ int LastPSX,LastPSY;
     since Courier is an ugly font!!  
 */
 
-extern int Xup;
 char *PS_header[]={
 "/vpt2 vpt 2 mul def\n",
 "/hpt2 hpt 2 mul def\n",
@@ -227,7 +227,7 @@ void ps_end()
  ps_write_pars(psfile);
  fclose(psfile);
  PltFmtFlag=0;
- if(Xup)init_x11(); 
+ if(program.interactive)init_x11(); 
 }
 
 void ps_bead(x,y)

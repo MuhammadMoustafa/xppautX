@@ -37,6 +37,7 @@
 #include "xpp_log.h"
 #include "many_pops.h"
 #include "graf_par.h"
+#include "xpp_globals.h"
 
 #define PARAM 1
 #define IC 2
@@ -103,7 +104,6 @@ extern int custom_color;
 extern int del_stab_flag;
 extern int MaxPoints;
 extern double THETA0,PHI0;
-extern int DoTutorial;
 /*void set_option(char *s1,char *s2);
 */
 
@@ -2037,7 +2037,7 @@ if(msc("TUTORIAL",s1)){
    }
    if ((notAlreadySet.TUTORIAL||force) || ((mask!=NULL)&&(mask->TUTORIAL==1)))
    {
-   	DoTutorial=atoi(s2);
+   	program.tutorial=atoi(s2);
 	notAlreadySet.TUTORIAL=0;
    }
    return;

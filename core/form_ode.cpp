@@ -45,6 +45,7 @@
 #include "shoot.h"
 #include "newpars.h"
 #include "xpp_batch.h"
+#include "xpp_globals.h"
 
 #define MAXONLY 1000
 
@@ -107,7 +108,6 @@ int NCON_START,NSYM_START;
 
 #define cstringmaj MYSTR1
 #define cstringmin MYSTR2
-extern float xppvermaj,xppvermin; 
 
 int ConvertStyle=0;
 FILE *convertf;
@@ -533,10 +533,10 @@ int get_eqn(FILE *fptr)
   NCON_ORIG=NCON;
   NSYM_ORIG=NSYM;
   NEQ_MIN=NEQ;
-  xppvermaj=(float)cstringmaj;
-  xppvermin=(float)cstringmin;
+  program.version_major=(float)cstringmaj;
+  program.version_minor=(float)cstringmin;
   plintf("Used %d constants and %d symbols \n",NCON,NSYM);
-  plintf("XPPAUT %g.%g Copyright (C) 2002-now  Bard Ermentrout \n",xppvermaj,xppvermin);
+  plintf("XPPAUT %g.%g Copyright (C) 2002-now  Bard Ermentrout \n",program.version_major,program.version_minor);
     return(1);
 }
 /*

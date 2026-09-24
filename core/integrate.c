@@ -177,7 +177,6 @@ int SuppressBounds=0;
 extern int NUPAR;
 
 extern char *info_message,*ic_hint[],*sing_hint[];
-extern int Xup;
 double atof();
 extern int NMarkov,STOCH_FLAG;
 extern int SCALEY,PltFmtFlag,PointRadius;
@@ -445,7 +444,7 @@ int set_up_range()
  char values[8][MAX_LEN_SBOX];
  int status;
  static  char *yn[]={"N","Y"};
- if(!Xup){
+ if(!program.interactive){
    return(range_item());
  }
  
@@ -509,7 +508,7 @@ int set_up_range2()
  char values[13][MAX_LEN_SBOX];
  int status;
  static  char *yn[]={"N","Y"};
- if(!Xup){
+ if(!program.interactive){
    return(range_item());
  }
  snprintf(values[0],sizeof(values[0]),"%s",range.item);
@@ -893,7 +892,7 @@ if(range.type==PARAM)get_val(range.item,&temp);
 	 re_evaluate_kernels();
        }
      }
-     if(Xup){   
+     if(program.interactive){   
        if(range.rtype>0)
 	 XPP_SPRINTF(bob,"%s=%.16g  %s=%.16g",range.item,p,range.item2,p2);
        else
@@ -1510,7 +1509,7 @@ void usual_integrate_stuff(x)
   ping();
   INFLAG=1;
   refresh_browser(storind);
-  if(Xup){
+  if(program.interactive){
  auto_freeze_it();
   redraw_ics();
   }
@@ -1913,7 +1912,7 @@ int count,nout, *start;
   int i_nan=0; /* NaN */
 MSWTCH(xpv.x,x);
 
-if(Xup) cwidth=get_command_width();
+if(program.interactive) cwidth=get_command_width();
 
  LastTime=*t;
  evaluate_derived();
@@ -2263,7 +2262,7 @@ if(Xup) cwidth=get_command_width();
            }
 	                
         /*   This is where the progresser goes   */
-	   if(Xup){ plot_command(nit,icount,cwidth); 
+	   if(program.interactive){ plot_command(nit,icount,cwidth); 
 	   esc=my_abort();
 	
        
@@ -2393,7 +2392,7 @@ poi:    for(i=0;i<NEQ;i++)oldx[i]=x[i];
    oldperiod=*t;
  }
      
-          if(!(fabs(*t)<TRANS)&&Xup&&OnTheFly)
+          if(!(fabs(*t)<TRANS)&&program.interactive&&OnTheFly)
 	  {
 	     plot_the_graphs(xv,xvold,NODE,NEQ,fabs(dt*NJMP),torcross,0); 
 
@@ -2699,7 +2698,7 @@ float dt;
  if(cur_color<0)cur_color=0;
  if(cur_color>color_table.count)cur_color=color_table.count-1;
   cur_color+=FIRSTCOLOR;
-  if (Xup){set_color(cur_color);}
+  if (program.interactive){set_color(cur_color);}
  if(PltFmtFlag==1){ps_do_color(cur_color);}
  else if(PltFmtFlag==SVGFMT){svg_do_color(cur_color);}
 }
@@ -2753,7 +2752,7 @@ int stor_full()
  }
  
  
- if(!Xup){
+ if(!program.interactive){
    plintf(" Storage full -- increase maxstor \n");
    return(0);
  }

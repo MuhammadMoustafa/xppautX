@@ -120,8 +120,19 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   field, a headless default, a dispatcher, and a `j_` function in the
   `core/json_*.cpp` file of its responsibility (declared in
   `core/ui_json_internal.h`) with its entry in ui_json.cpp's `make_json_ui`.
-- `core/xpp_globals.[ch]` holds shared state that used to live in main.c
-  and the other X11 files (removed, issue #20). `core/xpp_util.c`,
+- Shared state that used to live in main.c and the other X11 files
+  (removed, issue #20) is grouped into structs, each defined by the module
+  that owns it (W7c): `program` (xpp_globals.h: interactive, AUTO's
+  scratch dir, version, tutorial), `batch_options` (xpp_batch.h),
+  `log_settings` (xpp_log.h), `sliders[]` and `notAlreadySet`
+  (load_eqn.h), `plot_windows` (many_pops.h, defined in xpp_util.c: the
+  graphs, the active one, the Simulplot list, draw_win), `frozen_curves`
+  and `plot_export` (graf_par.h), `color_table` (colormap.h),
+  `text_metrics` (xpp_ui.h), `ani_options` (aniparse.h), `movie_autoplay`
+  (kinescope.h). Use them through the instance (`plot_windows.current->xlo`),
+  include the owner's header, never redeclare them `extern` in a .c file.
+  The options that set the X11 window's fonts, colours and size are still
+  accepted and no longer stored. `core/xpp_util.c`,
   `core/browse_data.c`, `core/colormap.c`, `core/menus.c` hold pure code
   moved out of those files.
 - Core structs that hold a window store an `XppWinId` (unsigned long); see

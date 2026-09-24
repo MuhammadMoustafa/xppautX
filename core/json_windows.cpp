@@ -25,6 +25,7 @@
 #include <math.h>
 #include "many_pops.h"
 #include "kinescope.h"
+#include "load_eqn.h"
 
 /* the core's own globals and functions that have no header of their own */
 extern "C" {

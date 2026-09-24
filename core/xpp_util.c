@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include "load_eqn.h"
 
 #define PARAMBOX 1
 #define ICBOX 2
@@ -355,7 +356,7 @@ void user_fun_info(fp)
 
 void ps_restore()
 {
-  if(Xup){
+  if(program.interactive){
  redraw_dfield();
  ps_do_color(0);
  if(plot_windows.current->Nullrestore){restore_nullclines();ps_stroke();}
@@ -369,7 +370,7 @@ void ps_restore()
  do_axes(); 
   
  ps_do_color(0); 
- if(Xup){
+ if(program.interactive){
  draw_label(plot_windows.draw_win);
  xpp_ui.draw_freeze();
  }
@@ -391,7 +392,7 @@ void svg_restore()
  /*ps_do_color(0);*/ 
  restore(0,my_browser.maxrow);
  do_axes();
- if(Xup){
+ if(program.interactive){
  draw_label(plot_windows.draw_win);
  xpp_ui.draw_freeze();
  }
@@ -790,9 +791,9 @@ void xpp_remove_temp_dir(const char *dir)
 
 void xpp_cleanup_auto_dir(void)
 {
-  if (xpp_auto_dir != NULL) {
-    xpp_remove_temp_dir(xpp_auto_dir);
-    xpp_free(xpp_auto_dir);
-    xpp_auto_dir = NULL;
+  if (program.auto_dir != NULL) {
+    xpp_remove_temp_dir(program.auto_dir);
+    xpp_free(program.auto_dir);
+    program.auto_dir = NULL;
   }
 }

@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "xpp_io.h"
+#include "xpp_globals.h"
 
 #define LEFT 0
 #define RIGHT 2
@@ -39,7 +40,6 @@ extern int DOING_AXES,DOING_BOX_AXES;
 int DO_MARKER=0;
 extern int DOING_DFIELD;
 
-extern int Xup;
 
 
 namespace {
@@ -310,7 +310,7 @@ void svg_end(void)
  svgfile=NULL;
  PltFmtFlag=SCRNFMT;
  DOING_SVG_COLOR=0;
- if(Xup)init_x11();
+ if(program.interactive)init_x11();
 }
 
 void svg_bead(int x, int y)

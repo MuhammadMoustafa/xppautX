@@ -265,7 +265,7 @@ void xpp_load_model(int argc, char **argv, int batch)
 
     xpp_reset_options();
     get_directory(myfile);
-    Xup = 0;
+    program.interactive = 0;
     XPP_SPRINTF(batch_options.out_file, "output.dat");
     XPP_SPRINTF(plot_export.format, "ps");
     log_settings.file = stdout;
@@ -290,8 +290,8 @@ void xpp_load_model(int argc, char **argv, int batch)
     init_auto_win();
 #endif
     if (disc(this_file)) METHOD = 0;
-    xppvermaj = (float)cstringmaj;
-    xppvermin = (float)cstringmin;
+    program.version_major = (float)cstringmaj;
+    program.version_minor = (float)cstringmin;
     do_meth();
     set_delay();
     rhs = my_rhs;

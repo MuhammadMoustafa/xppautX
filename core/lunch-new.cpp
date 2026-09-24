@@ -26,6 +26,7 @@
 #include "integrate.h"
 #include "xpp_batch.h"
 #include "many_pops.h"
+#include "xpp_globals.h"
 
 #define READEM 1
 #define VOLTERRA 6
@@ -40,7 +41,6 @@ namespace {
 char *str(const char *s) { return const_cast<char *>(s); }
 } // namespace
 
-extern int Xup;
 
  extern BC_STRUCT my_bc[MAXODE];
 
@@ -601,7 +601,7 @@ if(f!=READEM)
 }
   
    
- if(f==READEM&&Xup){
+ if(f==READEM&&program.interactive){
    xpp_ui.redraw_bcs();
    redraw_ics();
    xpp_ui.redraw_delays();
@@ -667,7 +667,7 @@ if(f!=READEM)
     io_double(&(plot_windows.current->yhi),fp,f," yhi");
     io_double(&(plot_windows.current->oldxhi),fp,f," ");
     io_double(&(plot_windows.current->oldyhi),fp,f," ");
-    if(f==READEM&&Xup)xpp_ui.redraw_graph();
+    if(f==READEM&&program.interactive)xpp_ui.redraw_graph();
 }
 
  

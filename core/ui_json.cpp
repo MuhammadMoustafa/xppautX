@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include "load_eqn.h"
 
 /* the core's own globals and functions that have no header of their own */
 extern "C" {

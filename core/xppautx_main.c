@@ -58,8 +58,8 @@
    (issue #11); -silent runs no AUTO */
 static void start_auto_dir(void)
 {
-    xpp_auto_dir = xpp_make_temp_dir();
-    if (xpp_auto_dir != NULL) atexit(xpp_cleanup_auto_dir);
+    program.auto_dir = xpp_make_temp_dir();
+    if (program.auto_dir != NULL) atexit(xpp_cleanup_auto_dir);
 }
 
 /* What --version prints. The Makefile passes the release tag when there is
@@ -167,10 +167,10 @@ static void run_session(void)
     xpp_window_set_model(this_file);
 
     if (strlen(this_file) < 60)
-        XPP_SPRINTF(title, "XPP Ver %g.%g >> %s", xppvermaj, xppvermin, this_file);
+        XPP_SPRINTF(title, "XPP Ver %g.%g >> %s", program.version_major, program.version_minor, this_file);
     else
-        XPP_SPRINTF(title, "XPP Version %g.%g", xppvermaj, xppvermin);
-    Xup = 1;
+        XPP_SPRINTF(title, "XPP Version %g.%g", program.version_major, program.version_minor);
+    program.interactive = 1;
     color_table.enabled = 1;     /* init_X on a colour display */
     periodic = 1;
     AxisVarLabels = 1; /* a plot without axis names is hard to read */
@@ -193,8 +193,8 @@ static void run_session(void)
     }
     json_ui_handle("{\"cmd\":\"redraw\"}");
     /* -tutorial and -runnow, as main.c does after opening its window */
-    if (DoTutorial == 1 || RunImmediately == 1) {
-        if (DoTutorial == 1) do_tutorial();
+    if (program.tutorial == 1 || RunImmediately == 1) {
+        if (program.tutorial == 1) do_tutorial();
         if (RunImmediately == 1) run_the_commands(4);
         RunImmediately = 0;
         json_ui_handle("{\"cmd\":\"state\"}");

@@ -625,8 +625,8 @@ static char *auto_home_dir(char *dname)
   char *home;
 
   /* xppautX gives each session its own directory (xpp_globals.h) */
-  if (xpp_auto_dir != NULL)
-    return xpp_auto_dir;
+  if (program.auto_dir != NULL)
+    return program.auto_dir;
 
   home = getenv("HOME");
   if (home == NULL || !dir_is_writable(home))
