@@ -35,7 +35,8 @@ issue; the card here is the one kept up to date.
 | W12a | #24 | The manual as Markdown (docs/manual/), current with web2; W12 steps 1, 2, 4 | T20, T21 | done |
 | W12b | #24 | web2's Help view from docs/manual/, linked from menus and dialogs; W12 step 3 | W12a, T22 | done |
 | W12c | #24 | Chapter 1 of the manual rewritten for xppautX (what it is, installing, starting it, how it relates to XPPAUT); the rest stays Bard Ermentrout's text, credited | W12a | done |
-| W13 | #25 | A desktop app: xppautX's own window, menu bar, icon, .ode files | T21 (the page it shows); Help waits for W12, updates for a first release | blocked |
+| W13a | #25 | The desktop window: web2 in the OS web view, closing it ends xppautX, `--browser` keeps browser mode, the app name, the icon slot (placeholder until one is chosen), a menu bar with File (Open model, Quit) and Help (Manual, About); W13 steps 1-3 without updates | T21, W12b | in progress |
+| W13b | #25 | .ode files open with xppautX (Windows, Linux .desktop/MIME, macOS .app), a second .ode a second window, Check for updates; W13 steps 3 (updates) to 5 | W13a, a first release (#3) for updates | blocked |
 
 ## W0: C/C++ mixed build
 **Goal.** core/*.cpp builds next to core/*.c on Linux, Windows (MinGW,
@@ -226,6 +227,10 @@ application window, not a browser tab with a token URL.
 5. web2check runs once in the native web view (WebView2) besides Chrome.
 **Needs.** The WebView2 SDK header (a download, maintainer's OK) and
 libwebkit2gtk-4.1-dev on Linux (installed by the maintainer); an icon.
+**Split.** W13a: the window, name, icon slot and menus (steps 1-3 without
+updates). W13b: file associations, a window per file, updates (steps 3-5).
+The window is optional at build time: without WebKitGTK (Linux) the
+build is browser-only, so building xppautX never requires it.
 **Done when.** Double-clicking a .ode file on Windows opens its window with
 the app's name and icon; Help, About and Check for updates work; closing
 the window leaves no process; browser mode passes its checks as before.
