@@ -227,7 +227,7 @@ void notBothOptions(OptionsSet nasA,OptionsSet nasB)
    nasA.StableManifoldColor = (nasA.StableManifoldColor & nasB.StableManifoldColor);
    nasA.UnstableManifoldColor = (nasA.UnstableManifoldColor & nasB.UnstableManifoldColor);
    nasA.START_LINE_TYPE = (nasA.START_LINE_TYPE & nasB.START_LINE_TYPE);
-   nasA.RandSeed = (nasA.RandSeed & nasB.SMALL_FONT_NAME);
+   nasA.RandSeed = (nasA.RandSeed & nasB.RandSeed);
    nasA.PaperWhite = (nasA.PaperWhite & nasB.PaperWhite);
    nasA.COLORMAP = (nasA.COLORMAP & nasB.COLORMAP);
    nasA.NPLOT = (nasA.NPLOT & nasB.NPLOT);
