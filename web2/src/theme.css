@@ -293,7 +293,7 @@ kbd {
 /* differs from the model file: a mark at the name; waits for the run: a dashed field */
 .value-field.changed .value-name { font-weight: 600; }
 .value-field.changed .value-name::after { content: ' •'; color: var(--fg-muted); }
-.value-field.queued input, .value-slider.queued .value-slider-val { border-style: dashed; background: var(--surface-2); }
+.value-field.queued input { border-style: dashed; background: var(--surface-2); }
 .value-name { overflow-wrap: anywhere; font: var(--text-sm) var(--mono); }
 .value-field input {
   font: var(--text-sm) var(--mono);
@@ -307,43 +307,90 @@ kbd {
 }
 .value-field input[aria-invalid='true'] { border-color: var(--danger); }
 .field-error { margin: var(--space-1) 0 0; color: var(--danger); font-size: var(--text-xs); }
-/* ---- sliders: a strip under the plot, full width (GitHub #18) ---- */
+/* ---- sliders: a responsive grid under the plot (GitHub #18, T20) ----
+   Each card is compact (name, track, value, edit, remove) so many fit:
+   1 per row on a phone, 2 on a tablet (48rem), 3 on a laptop (80rem),
+   the same breakpoints the shell itself uses. */
 .slider-strip {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2);
   padding: var(--space-2) 0;
   border-top: 1px solid var(--border);
 }
-.slider-add { align-self: flex-start; }
-.value-slider {
-  display: grid;
-  grid-template-columns: minmax(6rem, 10rem) 5rem minmax(8rem, 1fr) 6rem 5rem var(--target);
-  gap: var(--space-2);
-  align-items: center;
+@media (min-width: 48rem) { .slider-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 80rem) { .slider-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.slider-add { grid-column: 1 / -1; justify-self: start; }
+.slider-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  min-width: 0;
 }
-.value-slider-remove {
-  min-width: var(--target);
-  min-height: var(--target);
-  border: 1px solid transparent;
-  border-radius: 0.375rem;
-  background: none;
-  color: var(--fg-muted);
-  cursor: pointer;
+.slider-card-head { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+.slider-card-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--text-sm) var(--mono);
 }
-.value-slider-remove:hover { border-color: var(--border); color: var(--fg); }
-.value-slider select, .value-slider-lim, .value-slider-val {
-  font: inherit;
+.slider-card-value {
+  width: 6rem;
+  flex: none;
+  font: var(--text-sm) var(--mono);
   color: var(--fg);
   background: var(--bg);
   border: 1px solid var(--field-border);
   border-radius: 0.375rem;
   min-height: var(--target);
   padding: 0 var(--space-1);
-  min-width: 0;
 }
-.value-slider-range { min-height: var(--target); width: 100%; }
-.value-slider-val { font: var(--text-sm) var(--mono); text-align: right; }
+.slider-card.queued .slider-card-value { border-style: dashed; background: var(--surface-2); }
+.slider-card-head .icon { min-width: var(--target); min-height: var(--target); color: var(--fg-muted); }
+.slider-card-head .icon:hover { color: var(--fg); }
+.slider-card-track { display: flex; align-items: center; gap: var(--space-1); }
+.slider-card-lim { flex: none; font-size: var(--text-xs); font-family: var(--mono); }
+.slider-card-range { flex: 1; min-width: 0; min-height: var(--target); }
+
+/* ---- the Add/Edit slider dialog (T20) ---- */
+.slider-picker-search input {
+  width: 100%;
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--field-border);
+  border-radius: 0.375rem;
+  min-height: var(--target);
+  padding: 0 var(--space-2);
+}
+.slider-picker-list {
+  list-style: none;
+  margin: var(--space-2) 0;
+  padding: 0;
+  max-height: 12rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+}
+.slider-picker-item {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+}
+.slider-picker-item.active { background: var(--surface-2); }
+.slider-picker-item.picked { font-weight: 600; }
+.slider-picker-name { font: var(--text-sm) var(--mono); }
+.slider-picker-value { font: var(--text-sm) var(--mono); }
+.slider-picker-empty { padding: var(--space-2); }
+.slider-picker-picked { margin: 0 0 var(--space-2); font-size: var(--text-sm); }
+.slider-dialog-fields { margin-top: var(--space-2); }
 
 /* ---- data table (docs/ui-v2.md T10): always a floating overlay (R6) -- a ---- */
 /* panel anchored to the side from 48rem, a full-screen sheet under that */
@@ -914,10 +961,6 @@ kbd {
   .drawer-scrim { display: block; position: fixed; inset: 0; z-index: 140; background: rgba(15, 23, 42, 0.3); }
   .workspace { padding: var(--space-2); }
   .form-grid label { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }
-  .value-slider { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--target); }
-  .value-slider select { grid-column: 1 / 3; }
-  .value-slider-range { grid-column: 1 / -1; order: 1; }
-  .value-slider-lim, .value-slider-val { order: 2; }
   .status-bar .rows { display: none; }
   /* a full-screen sheet (R6), like the command drawer above */
   .values-panel {

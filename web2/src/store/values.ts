@@ -88,6 +88,8 @@ export type ValuesAction =
   /** the model's `@ s1=..` presets, on a (re)connection: the list starts with them when it is empty */
   | {type: 'presetSliders'; defs: {name: string; lo: number; hi: number}[]}
   | {type: 'addSlider'}
+  /** the Add/Edit slider dialog's OK, adding one fully formed (SliderDialog.tsx) */
+  | {type: 'addSliderWith'; def: Omit<SliderDef, 'id'>}
   | {type: 'setSlider'; id: number; patch: Partial<Omit<SliderDef, 'id'>>}
   | {type: 'removeSlider'; id: number}
   | {type: 'saved'; kind: 'par' | 'ic'; text: string}
@@ -133,7 +135,10 @@ export function reduceValues(state: ValuesState, action: ValuesAction): ValuesSt
       if (state.sliders.length || !action.defs.length) return state;
       return {...state, sliders: presetSliders(action.defs, state.nextSlider), nextSlider: state.nextSlider + action.defs.length};
     case 'addSlider':
-      return {...state, sliders: [...state.sliders, {id: state.nextSlider, name: '', lo: '', hi: ''}], nextSlider: state.nextSlider + 1};
+      return {...state, sliders: [...state.sliders, {id: state.nextSlider, name: '', lo: '', hi: '', step: ''}],
+        nextSlider: state.nextSlider + 1};
+    case 'addSliderWith':
+      return {...state, sliders: [...state.sliders, {id: state.nextSlider, ...action.def}], nextSlider: state.nextSlider + 1};
     case 'setSlider':
       return {...state, sliders: state.sliders.map(s => (s.id === action.id ? {...s, ...action.patch} : s))};
     case 'removeSlider':

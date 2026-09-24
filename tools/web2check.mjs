@@ -358,22 +358,108 @@ async function values() {
   check('a field kept focused through an external change (Undo) does not resend its stale draft when the plot is clicked',
     afterBlur.length === 0 && Math.abs(iappNow - 0.05) < 1e-9, JSON.stringify({afterBlur, iappNow}));
 
-  /* a slider by the keyboard: Add slider under the plot, pick iapp, then arrow keys move it and a new series arrives */
-  const sid = await addSlider('iapp');
+  /* T20: Add slider opens a dialog; search narrows the list, picking iapp
+     shows it with its current value, Min/Max/Step default from it
+     (defaultRange/defaultStep), and OK is enabled once it validates */
+  await cdp.eval(`document.querySelector('.slider-add').click()`);
+  await until(`document.querySelector('.slider-picker-search input')`, 'slider dialog open');
+  const okBtn = () => `[...document.querySelectorAll('.dialog-actions button')].find(b => b.textContent === 'OK')`;
+  check('OK starts disabled: nothing is picked yet', await cdp.eval(`${okBtn()}.disabled`));
+  await cdp.eval(`(() => { const el = document.querySelector('.slider-picker-search input');
+    el.value = 'iapp'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await until(`document.querySelectorAll('.slider-picker-item').length === 1
+    && document.querySelector('.slider-picker-item').textContent.includes('iapp')`, 'search narrows to iapp');
+  await cdp.eval(`document.querySelector('.slider-picker-item').click()`);
+  check('picking iapp shows its current value and fills Min/Max/Step from it',
+    await cdp.eval(`document.querySelector('.slider-picker-picked').textContent.includes('0.05')
+      && document.querySelector('.slider-dialog-fields input').value === '0'`),
+    await cdp.eval(`document.querySelector('.slider-picker-picked')?.textContent`));
+  check('OK is enabled once a valid range and step are picked', !(await cdp.eval(`${okBtn()}.disabled`)));
+  await setSliderDialogFields({Min: '0', Max: '0.5', Step: '0.01'});
   const n0 = await S('s.seriesCount');
-  await cdp.eval(`document.getElementById('slider-lo-${sid}').value = '0'; document.getElementById('slider-lo-${sid}')
-    .dispatchEvent(new Event('input', {bubbles: true}));
-    document.getElementById('slider-hi-${sid}').value = '0.5'; document.getElementById('slider-hi-${sid}')
-    .dispatchEvent(new Event('input', {bubbles: true}));`);
-  await sleep(80);
+  await cdp.eval(`${okBtn()}.click()`);
+  await until('s.values.sliders.length > 0', 'slider added');
+  const sid = await S('s.values.sliders[s.values.sliders.length - 1].id');
+  check('the added slider has the dialog\'s range and step',
+    await S(`(() => { const d = s.values.sliders.find(x => x.id === ${sid}); return d.lo === '0' && d.hi === '0.5' && d.step === '0.01'; })()`));
+  check('the value box respects the step attribute',
+    (await cdp.eval(`document.getElementById('slider-val-${sid}').step`)) === '0.01');
+  const valLimits = await cdp.eval(`[document.getElementById('slider-val-${sid}').min, document.getElementById('slider-val-${sid}').max]`);
+  check("the value box's min and max come from the dialog's range", JSON.stringify(valLimits) === '["0","0.5"]', JSON.stringify(valLimits));
+
+  /* the edit icon reopens the dialog prefilled, and changes take effect */
+  await cdp.eval(`document.querySelector('[data-slider="${sid}"] .slider-card-edit').click()`);
+  await until(`document.querySelector('.slider-picker-picked')?.textContent.includes('iapp')`, 'edit dialog prefilled');
+  const prefilled = await cdp.eval(`[...document.querySelectorAll('.slider-dialog-fields input')].map(i => i.value)`);
+  check('the edit dialog is prefilled with the slider\'s own range and step',
+    JSON.stringify(prefilled) === JSON.stringify(['0', '0.5', '0.01']), JSON.stringify(prefilled));
+  await setSliderDialogFields({Min: '0', Max: '0.2'});
+  await cdp.eval(`${okBtn()}.click()`);
+  await until(`(() => { const d = s.values.sliders.find(x => x.id === ${sid}); return d && d.hi === '0.2'; })()`, 'edited');
+
+  /* a slider moved by the keyboard: arrow keys on the range track send slide, a new series arrives */
   await cdp.eval(`document.getElementById('slider-range-${sid}').focus()`);
   await key('ArrowRight');
   await key('ArrowRight');
   check('a slider moved by the keyboard sends slide: a new series arrives',
     await until(`s.seriesCount > ${n0} && w.series.rows === 601 && !s.busy`, 'slide series'),
     JSON.stringify(await S('[s.seriesCount, w.series && w.series.rows]')));
-  await cdp.eval(`document.querySelector('[data-slider="${sid}"] .value-slider-remove').click()`);
+  await cdp.eval(`document.querySelector('[data-slider="${sid}"] .slider-card-remove').click()`);
   check('a slider is removed by its button', await until(`!s.values.sliders.some(d => d.id === ${sid})`, 'remove'));
+
+  /* T20: the slider grid is responsive (docs/ui-v2.md T20): 3 per row at
+     1280px (laptop), 2 on a tablet, 1 on a phone */
+  const gridIds = [await addSlider('iapp'), await addSlider('phi'), await addSlider('v1')];
+  const gridRows = async () => {
+    const boxes = await cdp.eval(`[...document.querySelectorAll('.slider-card')].map(e => Math.round(e.getBoundingClientRect().top))`);
+    return {count: boxes.length, rows: new Set(boxes).size};
+  };
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+  await sleep(150);
+  let g = await gridRows();
+  check('3 sliders sit in one row at 1280px wide', g.count === 3 && g.rows === 1, JSON.stringify(g));
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 800, height: 860, deviceScaleFactor: 1, mobile: false});
+  await sleep(150);
+  g = await gridRows();
+  check('3 sliders wrap 2 per row on a tablet (48rem)', g.count === 3 && g.rows === 2, JSON.stringify(g));
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 500, height: 860, deviceScaleFactor: 1, mobile: false});
+  await sleep(150);
+  g = await gridRows();
+  check('3 sliders stack one per row on a phone', g.count === 3 && g.rows === 3, JSON.stringify(g));
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
+  await sleep(150);
+  for (const id of gridIds) await cdp.eval(`document.querySelector('[data-slider="${id}"] .slider-card-remove')?.click()`);
+  await until(`!s.values.sliders.some(d => ${JSON.stringify(gridIds)}.includes(d.id))`, 'grid sliders removed');
+
+  /* T20: the dialog is keyboard-only reachable too: type to filter, Enter
+     picks the highlighted candidate, Tab to OK, Enter activates it */
+  await cdp.eval(`document.querySelector('.slider-add').click()`);
+  await until(`document.querySelector('.slider-picker-search input') === document.activeElement`, 'search has the focus');
+  await cdp.eval(`(() => { const el = document.querySelector('.slider-picker-search input');
+    el.value = 'v1'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await until(`document.querySelectorAll('.slider-picker-item').length === 1`, 'search narrows to v1');
+  await key('Enter');
+  check('Enter on the search field picks the highlighted candidate',
+    await until(`document.querySelector('.slider-picker-picked')?.textContent.includes('v1')`, 'picked by Enter'));
+  let tabs = 0, atOk = false;
+  while (tabs < 10 && !atOk) {
+    await key('Tab');
+    tabs++;
+    atOk = await cdp.eval(`document.activeElement.textContent === 'OK'`);
+  }
+  check(`Tab from the search field reaches OK (${tabs} presses)`, atOk);
+  const beforeKb = await S('s.values.sliders.length');
+  /* activate the focused OK button (a plain click stands in for Enter/Space
+     here: CDP's synthetic key events do not trigger a browser's native
+     button activation the way a real keypress does); Tab reaching it is
+     what this checks for keyboard use */
+  await cdp.eval('document.activeElement.click()');
+  await until(`s.values.sliders.length > ${beforeKb}`, 'added by keyboard');
+  check('the dialog can be completed by the keyboard alone: a v1 slider was added',
+    (await S('s.values.sliders.length')) > beforeKb && (await S('s.values.sliders[s.values.sliders.length - 1].name')) === 'v1');
+  const kbId = await S('s.values.sliders[s.values.sliders.length - 1].id');
+  await cdp.eval(`document.querySelector('[data-slider="${kbId}"] .slider-card-remove').click()`);
+  await until(`!s.values.sliders.some(d => d.id === ${kbId})`, 'keyboard slider removed');
 
   /* every control in the panel is reachable by Tab, in order, without a trap: start from the very top */
   await cdp.eval(`document.querySelector('.skip-link').focus()`);
@@ -2035,15 +2121,36 @@ async function integrate(rows, ms) {
 /* ---- runs, Erase, sliders and the values panel (GitHub #18) --------------------------- */
 
 /** Add slider, then pick `name`: the new slider's id */
-async function addSlider(name) {
+/** Add slider (T20): open the dialog, search for `name`, pick the first
+    match, OK. Returns the new slider's id, with the T19-rule default range
+    and step (defaultRange/defaultStep) unless `edit` overrides them
+    (Min/Max/Step, as typed) before OK. */
+async function addSlider(name, edit = null) {
+  const before = await S('s.values.sliders.length');
   await cdp.eval(`document.querySelector('.slider-add').click()`);
-  await until('s.values.sliders.length > 0 && document.querySelector(".value-slider:last-of-type select")', 'a slider');
-  const id = await S('s.values.sliders[s.values.sliders.length - 1].id');
+  await until(`document.querySelector('.slider-picker-search input')`, 'slider dialog open');
+  await cdp.eval(`(() => { const el = document.querySelector('.slider-picker-search input');
+    el.value = ${JSON.stringify(name)}; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await until(`document.querySelector('.slider-picker-item')`, 'slider candidates filtered');
+  await cdp.eval(`document.querySelector('.slider-picker-item').click()`);
+  await until(`!![...document.querySelectorAll('.dialog-actions button')].find(b => b.textContent === 'OK')`, 'slider fields shown');
+  if (edit) await setSliderDialogFields(edit);
+  await until(
+    `!([...document.querySelectorAll('.dialog-actions button')].find(b => b.textContent === 'OK')?.disabled)`, 'OK enabled');
+  await cdp.eval(`[...document.querySelectorAll('.dialog-actions button')].find(b => b.textContent === 'OK').click()`);
+  await until(`s.values.sliders.length > ${before}`, 'slider added');
+  return S('s.values.sliders[s.values.sliders.length - 1].id');
+}
+
+/** fills the open slider dialog's Min/Max/Step fields (whichever keys are given) */
+async function setSliderDialogFields(fields) {
+  for (const [label, text] of Object.entries(fields)) {
+    await cdp.eval(`(() => { const l = [...document.querySelectorAll('.slider-dialog-fields label')]
+      .find(l => l.querySelector('span').textContent === ${JSON.stringify(label)});
+      const el = l.querySelector('input'); el.value = ${JSON.stringify(text)};
+      el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  }
   await sleep(50);
-  await cdp.eval(`(() => { const sel = document.getElementById('slider-pick-${id}');
-    sel.value = ${JSON.stringify(name)}; sel.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-  await until(`s.values.sliders.find(d => d.id === ${id}).name === ${JSON.stringify(name)}`, 'slider pick');
-  return id;
 }
 
 /** the input of field `name` in the values panel's section `sec` (par or ic) */
@@ -2148,9 +2255,10 @@ async function runsCheck(dir) {
   /* a slider: its default range is [0, 2v]; a drag sends while idle, and the release leaves its value */
   const iapp = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
   const sid = await addSlider('iapp');
-  check('runs: a picked slider ranges over [0, 2v]',
-    (await S(`JSON.stringify(s.values.sliders.find(d => d.id === ${sid}))`)) === JSON.stringify({id: sid, name: 'iapp', lo: '0', hi: String(2 * iapp)}),
-    await S(`JSON.stringify(s.values.sliders.find(d => d.id === ${sid}))`));
+  const sdef = await S(`s.values.sliders.find(d => d.id === ${sid})`);
+  check('runs: a picked slider ranges over [0, 2v], with a positive step',
+    sdef && sdef.name === 'iapp' && sdef.lo === '0' && sdef.hi === String(2 * iapp) && Number(sdef.step) > 0,
+    JSON.stringify(sdef));
   const track = await cdp.eval(`(() => { const r = document.getElementById('slider-range-${sid}').getBoundingClientRect();
     return {x: r.left, y: r.top + r.height / 2, w: r.width}; })()`);
   const sent1 = await cdp.eval('__xpp.sent().length');
