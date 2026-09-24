@@ -3,10 +3,10 @@
 	-lf2c -lm   (in that order)
 */
 
+#include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
 #include "auto_c.h"
 #include "xpp_job.h" /* xppautX: cancel */
 /* #include "malloc.h" */
@@ -59,8 +59,10 @@ void print_jacobian(iap_type iap,main_auto_storage_type data) {
   char filename[80];
 
   XPP_SPRINTF(filename,"jacobian%03d",num_calls);
-  fp=fopen(filename,"w");
+  xpp::Writer w(filename);
   num_calls++;
+  if (!w) return;
+  fp = w.file();
 
   for(i=0;i<numblocks;i++){
     for(j=0;j<num_rows_A;j++){
@@ -101,9 +103,7 @@ void print_jacobian(iap_type iap,main_auto_storage_type data) {
     fprintf(fp,"\n");
   }
 
-
-  fclose(fp);
-
+  w.commit();
 }
 
 void print_ups_rlcur(iap_type iap,doublereal *ups,doublereal *rlcur) {
@@ -113,15 +113,16 @@ void print_ups_rlcur(iap_type iap,doublereal *ups,doublereal *rlcur) {
   int i;
   
   XPP_SPRINTF(filename,"ups_rlcur%03d",num_calls);
-  fp=fopen(filename,"w");
+  xpp::Writer w(filename);
   num_calls++;
+  if (!w) return;
+  fp = w.file();
   for(i=0;i<(iap.ndim)*(iap.ncol)*(iap.ntst) + iap.ndim;i++)
     fprintf(fp,"%18.10e\n",ups[i]);
   for(i=0;i<iap.nfpr;i++)
     fprintf(fp,"%18.10e\n",rlcur[i]);
 
-  fclose(fp);
-
+  w.commit();
 }
 
 void print_fa_fc(iap_type iap,doublereal *fa,doublereal *fc,char *filename) {
@@ -130,7 +131,9 @@ void print_fa_fc(iap_type iap,doublereal *fa,doublereal *fc,char *filename) {
   int num_rows_A = iap.ndim * iap.ncol;
   int numblocks = iap.ntst;
 
-  fp=fopen(filename,"w");
+  xpp::Writer w(filename);
+  if (!w) return;
+  fp = w.file();
 
   for(i=0;i<numblocks;i++)
     for(j=0;j<num_rows_A;j++)
@@ -138,8 +141,7 @@ void print_fa_fc(iap_type iap,doublereal *fa,doublereal *fc,char *filename) {
   for(i=0;i<iap.nfpr+iap.ndim;i++)
     fprintf(fp,"%10.10e\n",fc[i]);
 
-  fclose(fp);
-
+  w.commit();
 }
 
 /* ----------------------------------------------------------------------- */
@@ -349,7 +351,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
 #ifdef MATLAB_OUTPUT
   print_jacobian(*iap,main_auto_storage);
   {
-    static num_calls = 0;
+    static int num_calls = 0;
     char filename[80];
     XPP_SPRINTF(filename,"before%03d",num_calls);
     num_calls++;
@@ -386,7 +388,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   }
 #ifdef MATLAB_OUTPUT
   {
-    static num_calls = 0;
+    static int num_calls = 0;
     char filename[80];
     XPP_SPRINTF(filename,"after%03d",num_calls);
     num_calls++;
