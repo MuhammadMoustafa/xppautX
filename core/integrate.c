@@ -1,6 +1,7 @@
 #include "xpp_ui.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 #include "grobs.h"
 #include "xpp_globals.h"
 #include "integrate.h"
@@ -288,7 +289,7 @@ void init_range()
  eq_range.plow=0.0;
  eq_range.phigh=1.0;
  eq_range.movie=0;
- sprintf(eq_range.item,"%s",upar_names[0]);
+ XPP_SPRINTF(eq_range.item,"%s",upar_names[0]);
  range.type=0;
  range.rtype=0;
  range.index=range.index2=0;
@@ -323,10 +324,10 @@ void init_range()
  range.movie=0;
  if (notAlreadySet.RANGEOVER)
  {
- 	sprintf(range.item,"%s",uvar_names[0]);
+ 	XPP_SPRINTF(range.item,"%s",uvar_names[0]);
 	notAlreadySet.RANGEOVER=0;
  }
- sprintf(range.item2,"%s",uvar_names[0]);
+ XPP_SPRINTF(range.item2,"%s",uvar_names[0]);
  init_shoot_range(upar_names[0]); 
  init_monte_carlo();
 }
@@ -340,18 +341,18 @@ static char *n[]={"*2Range over","Steps","Start","End",
  int status,i;
  static  char *yn[]={"N","Y"};
  snprintf(values[0],sizeof(values[0]),"%s",eq_range.item);
- sprintf(values[1],"%d",eq_range.steps);
- sprintf(values[2],"%.16g",eq_range.plow);
- sprintf(values[3],"%.16g",eq_range.phigh);
- sprintf(values[4],"%s",yn[eq_range.shoot]);
- sprintf(values[5],"%d",eq_range.col);
- sprintf(values[6],"%s",yn[eq_range.movie]);
-sprintf(values[7],"%s",yn[eq_range.mc]);
+ XPP_SPRINTF(values[1],"%d",eq_range.steps);
+ XPP_SPRINTF(values[2],"%.16g",eq_range.plow);
+ XPP_SPRINTF(values[3],"%.16g",eq_range.phigh);
+ XPP_SPRINTF(values[4],"%s",yn[eq_range.shoot]);
+ XPP_SPRINTF(values[5],"%d",eq_range.col);
+ XPP_SPRINTF(values[6],"%s",yn[eq_range.movie]);
+XPP_SPRINTF(values[7],"%s",yn[eq_range.mc]);
 
  
  status=do_string_box(8,8,1,"Range Equilibria",n,values,45);
  if(status!=0){
-   strcpy(eq_range.item,values[0]);
+   XPP_STRCPY(eq_range.item,values[0]);
    i=find_user_name(PARAM,eq_range.item);
    if(i<0){
         err_msg("No such parameter");
@@ -411,7 +412,7 @@ int range_item()
  else {
    i=find_user_name(IC,range.item);
    if(i<=-1){
-     sprintf(bob," %s is not a parameter or variable !",range.item);
+     XPP_SPRINTF(bob," %s is not a parameter or variable !",range.item);
      err_msg(bob);
      return(0);
    }
@@ -433,7 +434,7 @@ int range_item2()
  else {
    i=find_user_name(IC,range.item2);
    if(i<=-1){
-     sprintf(bob," %s is not a parameter or variable !",range.item2);
+     XPP_SPRINTF(bob," %s is not a parameter or variable !",range.item2);
      err_msg(bob);
      return(0);
    }
@@ -456,17 +457,17 @@ int set_up_range()
  }
  
  snprintf(values[0],sizeof(values[0]),"%s",range.item);
- sprintf(values[1],"%d",range.steps);
- sprintf(values[2],"%.16g",range.plow);
- sprintf(values[3],"%.16g",range.phigh);
- sprintf(values[4],"%s",yn[range.reset]);
- sprintf(values[5],"%s",yn[range.oldic]);
- sprintf(values[6],"%s",yn[range.cycle]);
- sprintf(values[7],"%s",yn[range.movie]);
+ XPP_SPRINTF(values[1],"%d",range.steps);
+ XPP_SPRINTF(values[2],"%.16g",range.plow);
+ XPP_SPRINTF(values[3],"%.16g",range.phigh);
+ XPP_SPRINTF(values[4],"%s",yn[range.reset]);
+ XPP_SPRINTF(values[5],"%s",yn[range.oldic]);
+ XPP_SPRINTF(values[6],"%s",yn[range.cycle]);
+ XPP_SPRINTF(values[7],"%s",yn[range.movie]);
  
  status=do_string_box(8,8,1,"Range Integrate",n,values,45);
  if(status!=0){
-   strcpy(range.item,values[0]);
+   XPP_STRCPY(range.item,values[0]);
    /* i=find_user_name(PARAM,range.item);
    if(i>-1){
      range.type=PARAM;
@@ -519,27 +520,27 @@ int set_up_range2()
    return(range_item());
  }
  snprintf(values[0],sizeof(values[0]),"%s",range.item);
-  sprintf(values[1],"%.16g",range.plow);
- sprintf(values[2],"%.16g",range.phigh);
+  XPP_SPRINTF(values[1],"%.16g",range.plow);
+ XPP_SPRINTF(values[2],"%.16g",range.phigh);
  snprintf(values[3],sizeof(values[3]),"%s",range.item2);
-  sprintf(values[4],"%.16g",range.plow2);
- sprintf(values[5],"%.16g",range.phigh2);
-sprintf(values[6],"%d",range.steps);
- sprintf(values[7],"%s",yn[range.reset]);
- sprintf(values[8],"%s",yn[range.oldic]);
- sprintf(values[9],"%s",yn[range.cycle]);
- sprintf(values[10],"%s",yn[range.movie]);
+  XPP_SPRINTF(values[4],"%.16g",range.plow2);
+ XPP_SPRINTF(values[5],"%.16g",range.phigh2);
+XPP_SPRINTF(values[6],"%d",range.steps);
+ XPP_SPRINTF(values[7],"%s",yn[range.reset]);
+ XPP_SPRINTF(values[8],"%s",yn[range.oldic]);
+ XPP_SPRINTF(values[9],"%s",yn[range.cycle]);
+ XPP_SPRINTF(values[10],"%s",yn[range.movie]);
  if(range.rtype==2)
-  sprintf(values[11],"2");
+  XPP_SPRINTF(values[11],"2");
  else
-   sprintf(values[11],"1");
- sprintf(values[12],"%d",range.steps2);
+   XPP_SPRINTF(values[11],"1");
+ XPP_SPRINTF(values[12],"%d",range.steps2);
  status=do_string_box(13,7,2,"Double Range Integrate",n,values,45);
  if(status!=0){
-   strcpy(range.item,values[0]);
+   XPP_STRCPY(range.item,values[0]);
    
    if(range_item()==0)return 0;
-    strcpy(range.item2,values[3]);
+    XPP_STRCPY(range.item2,values[3]);
    
    if(range_item2()==0)return 0;
    range.steps=atoi(values[6]);
@@ -735,7 +736,7 @@ double *x;
       temp=parlo+dpar*(double)i;
       set_val(eq_range.item,temp);
       PAR_FOL=1;
-      sprintf(bob,"%s=%.16g",eq_range.item,temp);
+      XPP_SPRINTF(bob,"%s=%.16g",eq_range.item,temp);
       bottom_msg(2,bob);
       evaluate_derived();
       /*  I think  */ redo_all_fun_tables(); 
@@ -901,9 +902,9 @@ if(range.type==PARAM)get_val(range.item,&temp);
      }
      if(Xup){   
        if(range.rtype>0)
-	 sprintf(bob,"%s=%.16g  %s=%.16g",range.item,p,range.item2,p2);
+	 XPP_SPRINTF(bob,"%s=%.16g  %s=%.16g",range.item,p,range.item2,p2);
        else
-	 sprintf(bob,"%s=%.16g  i=%d",range.item,p,i);
+	 XPP_SPRINTF(bob,"%s=%.16g  i=%d",range.item,p,i);
        bottom_msg(2,bob);
      }
    }  /* normal range stuff   */ 
@@ -941,7 +942,7 @@ if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
  }
  refresh_browser(storind);
  if(AdjRange==1){
-   sprintf(bob,"%s_%g",range.item,p);
+   XPP_SPRINTF(bob,"%s_%g",range.item,p);
    data_get_mybrowser(storind-1);
    compute_one_period((double)storage[0][storind-1],last_ic,bob);
  }
@@ -1085,15 +1086,15 @@ void batch_integrate()
   for(i=0;i<Nintern_set;i++)
   {
   
-  	  sprintf(this_internset,"_%s",intern_set[i].name);
+  	  XPP_SPRINTF(this_internset,"_%s",intern_set[i].name);
 	  if (strlen(UserOUTFILE)==0) /*Use the set name for outfile name*/
 	  {
-	      sprintf(batchout,"%s.dat",intern_set[i].name);
+	      XPP_SPRINTF(batchout,"%s.dat",intern_set[i].name);
 	  }
 	  else/*Use the command line supplied outfile name*/
 	  {
 	      /*Will get over-written each internal set*/
-	      sprintf(batchout,"%s",UserOUTFILE);
+	      XPP_SPRINTF(batchout,"%s",UserOUTFILE);
 	  }
 	  plintf("out=%s\n",batchout);
 	  extract_internset(i);
@@ -1239,7 +1240,7 @@ int write_this_run(file,i)
   char outfile[XPP_MAX_NAME];
   FILE *fp;
   if(!SuppressOut){
-  sprintf(outfile,"%s.%d",file,i);
+  XPP_SPRINTF(outfile,"%s.%d",file,i);
   fp=fopen(outfile,"w");
   if(fp==NULL){
     plintf("Couldnt open %s\n",outfile);
@@ -1397,7 +1398,7 @@ void do_init_data(int com)
       err_msg("No shooting data available");
       break;
     }
-    sprintf(sr,"Which? (1-%d)",ShootIndex);
+    XPP_SPRINTF(sr,"Which? (1-%d)",ShootIndex);
     si=1;
     new_int(sr,&si);
     si--;
@@ -1550,7 +1551,7 @@ void do_new_array_ic(new,j1,j2)
       ihot=ifree;
     }
     /* copy relevant stuff */
-    strcpy(ar_ic[ihot].var,new);
+    XPP_STRCPY(ar_ic[ihot].var,new);
     ar_ic[ihot].type=2;
     ar_ic[ihot].j1=j1;
     ar_ic[ihot].j2=j2;
@@ -1587,12 +1588,12 @@ void store_new_array_ic(new,j1,j2,formula)
       ihot=ifree;
     }
     /* copy relevant stuff */
-    strcpy(ar_ic[ihot].var,new);
+    XPP_STRCPY(ar_ic[ihot].var,new);
     ar_ic[ihot].type=2;
     ar_ic[ihot].j1=j1;
     ar_ic[ihot].j2=j2;
   }
-  strcpy(ar_ic[ihot].formula,formula);
+  XPP_STRCPY(ar_ic[ihot].formula,formula);
 }
 
 void evaluate_ar_ic(v,f,j1,j2)
@@ -2209,7 +2210,7 @@ if(Xup) cwidth=get_command_width();
 	*/	    
 	    if(isnan(x[ieqn-1])!=0)
             {
-             sprintf(error_message," %s is NaN at t = %f ",
+             XPP_SPRINTF(error_message," %s is NaN at t = %f ",
              uvar_names[ieqn-1],*t);
           /* if((STORFLAG==1)&&(storind<MAXSTOR))
 	     { */ i_nan=0;
@@ -2239,7 +2240,7 @@ if(Xup) cwidth=get_command_width();
             if(fabs(x[ieqn-1])>BOUND)
             {
 	     if(RANGE_FLAG||SuppressBounds)break;
-             sprintf(error_message," %s out of bounds at t = %f ",
+             XPP_SPRINTF(error_message," %s out of bounds at t = %f ",
              uvar_names[ieqn-1],*t);
          /* if((STORFLAG==1)&&(storind<MAXSTOR))
 	     { */ i_nan=0;

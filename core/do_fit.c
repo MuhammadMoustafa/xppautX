@@ -2,6 +2,7 @@
 #include "do_fit.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 
 #include "cv2.h"
 #include "dormpri.h"
@@ -331,10 +332,10 @@ void test_fit()
  fin.npars=0;
  if(get_fit_params()==0)return;
  
- sprintf(collist,"%s",fin.collist);
- sprintf(varlist,"%s",fin.varlist);
- sprintf(parlist1,"%s",fin.parlist1);
- sprintf(parlist2,"%s",fin.parlist2);
+ XPP_SPRINTF(collist,"%s",fin.collist);
+ XPP_SPRINTF(varlist,"%s",fin.varlist);
+ XPP_SPRINTF(parlist1,"%s",fin.parlist1);
+ XPP_SPRINTF(parlist2,"%s",fin.parlist2);
 
 
  parse_collist(collist,fin.icols,&nvars);
@@ -736,16 +737,16 @@ int get_fit_params()
 		    "NCols","To Col","Params","Epsilon","Max iter"};
   int status;
   char values[10][MAX_LEN_SBOX];
-  sprintf(values[0],"%s",fin.file);
-  sprintf(values[1],"%s",fin.varlist);
-  sprintf(values[2],"%s",fin.parlist1);
-  sprintf(values[3],"%g",fin.tol);
-  sprintf(values[4],"%d",fin.npts);
-  sprintf(values[5],"%d",fin.dim);
-  sprintf(values[6],"%s",fin.collist);
-  sprintf(values[7],"%s",fin.parlist2);
-  sprintf(values[8],"%g",fin.eps);
-  sprintf(values[9],"%d",fin.maxiter);
+  XPP_SPRINTF(values[0],"%s",fin.file);
+  XPP_SPRINTF(values[1],"%s",fin.varlist);
+  XPP_SPRINTF(values[2],"%s",fin.parlist1);
+  XPP_SPRINTF(values[3],"%g",fin.tol);
+  XPP_SPRINTF(values[4],"%d",fin.npts);
+  XPP_SPRINTF(values[5],"%d",fin.dim);
+  XPP_SPRINTF(values[6],"%s",fin.collist);
+  XPP_SPRINTF(values[7],"%s",fin.parlist2);
+  XPP_SPRINTF(values[8],"%g",fin.eps);
+  XPP_SPRINTF(values[9],"%d",fin.maxiter);
   status=do_string_box(10,5,2,"Fit",n,values,45);
   if(status!=0){
     fin.tol=atof(values[3]);
@@ -753,11 +754,11 @@ int get_fit_params()
     fin.dim=atoi(values[5]);
     fin.eps=atof(values[8]);
     fin.maxiter=atoi(values[9]);
-    sprintf(fin.file,"%s",values[0]);
-    sprintf(fin.varlist,"%s",values[1]);
-    sprintf(fin.parlist1,"%s",values[2]);
-    sprintf(fin.collist,"%s",values[6]);
-    sprintf(fin.parlist2,"%s",values[7]);
+    XPP_SPRINTF(fin.file,"%s",values[0]);
+    XPP_SPRINTF(fin.varlist,"%s",values[1]);
+    XPP_SPRINTF(fin.parlist1,"%s",values[2]);
+    XPP_SPRINTF(fin.collist,"%s",values[6]);
+    XPP_SPRINTF(fin.parlist2,"%s",values[7]);
      return(1);
   }
   return(0);

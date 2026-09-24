@@ -13,6 +13,7 @@
 #include <math.h>
 #include <stdio.h>
 #include "xpplim.h"
+#include "xpp_io.h"
 #define DING ping()
 int UnstableManifoldColor=5;
 int StableManifoldColor=8;
@@ -383,7 +384,7 @@ int i,k,type;
  
        DELTA_T=fabs(DELTA_T);
        usual_integrate_stuff(x);
-       sprintf(name,"UM%d.dat",k);
+       XPP_SPRINTF(name,"UM%d.dat",k);
 
        fp=fopen(name,"w");
        write_mybrowser_data(fp);
@@ -393,7 +394,7 @@ int i,k,type;
  
        DELTA_T=-fabs(DELTA_T);
        usual_integrate_stuff(x);
-       sprintf(name,"SM%d.dat",k);
+       XPP_SPRINTF(name,"SM%d.dat",k);
 
        fp=fopen(name,"w");
        write_mybrowser_data(fp);

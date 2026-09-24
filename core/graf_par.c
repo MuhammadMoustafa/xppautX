@@ -26,6 +26,7 @@
 #include "my_svg.h"
 #include "load_eqn.h"
 #include <libgen.h>
+#include "xpp_io.h"
 
 double atof();
 NCLINE nclines[MAXNCLINE];
@@ -128,12 +129,12 @@ int ind;
  char n1[XPP_NAME_MAX+1],n2[XPP_NAME_MAX+1];
  ind_to_sym(i1,n1);
  ind_to_sym(i2,n2);
- sprintf(values[0],"%s",n1);
- sprintf(values[1],"%s",n2);
- sprintf(values[2],"%g",MyGraph->xmin);
- sprintf(values[3],"%g",MyGraph->ymin);
- sprintf(values[4],"%g",MyGraph->xmax);
- sprintf(values[5],"%g",MyGraph->ymax);
+ XPP_SPRINTF(values[0],"%s",n1);
+ XPP_SPRINTF(values[1],"%s",n2);
+ XPP_SPRINTF(values[2],"%g",MyGraph->xmin);
+ XPP_SPRINTF(values[3],"%g",MyGraph->ymin);
+ XPP_SPRINTF(values[4],"%g",MyGraph->xmax);
+ XPP_SPRINTF(values[5],"%g",MyGraph->ymax);
  snprintf(values[6],sizeof(values[6]),"%s",MyGraph->xlabel);
  snprintf(values[7],sizeof(values[7]),"%s",MyGraph->ylabel);
  MyGraph->ThreeDFlag=0;
@@ -155,8 +156,8 @@ int ind;
 	      MyGraph->ylo=MyGraph->ymin;
 	      MyGraph->xhi=MyGraph->xmax;
 	      MyGraph->yhi=MyGraph->ymax;
-	     sprintf(MyGraph->xlabel,"%s",values[6]);
-	     sprintf(MyGraph->ylabel,"%s",values[7]);
+	     XPP_SPRINTF(MyGraph->xlabel,"%s",values[6]);
+	     XPP_SPRINTF(MyGraph->ylabel,"%s",values[7]);
 	      check_windows();
 /*	      plintf(" x=%d y=%d xlo=%f ylo=%f xhi=%f yhi=%f \n",
 		     MyGraph->xv[ind],MyGraph->yv[ind],MyGraph->xlo,
@@ -174,13 +175,13 @@ void axes_opts()
 		    "PSFontSize"};
   char values[7][MAX_LEN_SBOX];
   int status;
-  sprintf(values[0],"%g",MyGraph->xorg);
-  sprintf(values[1],"%g",MyGraph->yorg);
-  sprintf(values[2],"%g",MyGraph->zorg);
-  sprintf(values[3],"%d",MyGraph->xorgflag);
-  sprintf(values[4],"%d",MyGraph->yorgflag);
-  sprintf(values[5],"%d",MyGraph->zorgflag);
-  sprintf(values[6],"%d",PS_FONTSIZE);
+  XPP_SPRINTF(values[0],"%g",MyGraph->xorg);
+  XPP_SPRINTF(values[1],"%g",MyGraph->yorg);
+  XPP_SPRINTF(values[2],"%g",MyGraph->zorg);
+  XPP_SPRINTF(values[3],"%d",MyGraph->xorgflag);
+  XPP_SPRINTF(values[4],"%d",MyGraph->yorgflag);
+  XPP_SPRINTF(values[5],"%d",MyGraph->zorgflag);
+  XPP_SPRINTF(values[6],"%d",PS_FONTSIZE);
   status=do_string_box(7,7,1,"Axes options",n,values,25);
  if(status!=0){
    MyGraph->xorg=atof(values[0]);
@@ -209,19 +210,19 @@ int ind;
  ind_to_sym(i1,n1);
  ind_to_sym(i2,n2);
  ind_to_sym(i3,n3);
- sprintf(values[0],"%s",n1);
- sprintf(values[1],"%s",n2);
- sprintf(values[2],"%s",n3);
- sprintf(values[3],"%g",MyGraph->xmin);
- sprintf(values[5],"%g",MyGraph->ymin);
- sprintf(values[7],"%g",MyGraph->zmin);
- sprintf(values[4],"%g",MyGraph->xmax);
- sprintf(values[6],"%g",MyGraph->ymax);
- sprintf(values[8],"%g",MyGraph->zmax);
- sprintf(values[9],"%g",MyGraph->xlo);
- sprintf(values[11],"%g",MyGraph->ylo);
- sprintf(values[10],"%g",MyGraph->xhi);
- sprintf(values[12],"%g",MyGraph->yhi);
+ XPP_SPRINTF(values[0],"%s",n1);
+ XPP_SPRINTF(values[1],"%s",n2);
+ XPP_SPRINTF(values[2],"%s",n3);
+ XPP_SPRINTF(values[3],"%g",MyGraph->xmin);
+ XPP_SPRINTF(values[5],"%g",MyGraph->ymin);
+ XPP_SPRINTF(values[7],"%g",MyGraph->zmin);
+ XPP_SPRINTF(values[4],"%g",MyGraph->xmax);
+ XPP_SPRINTF(values[6],"%g",MyGraph->ymax);
+ XPP_SPRINTF(values[8],"%g",MyGraph->zmax);
+ XPP_SPRINTF(values[9],"%g",MyGraph->xlo);
+ XPP_SPRINTF(values[11],"%g",MyGraph->ylo);
+ XPP_SPRINTF(values[10],"%g",MyGraph->xhi);
+ XPP_SPRINTF(values[12],"%g",MyGraph->yhi);
  snprintf(values[13],sizeof(values[13]),"%s",MyGraph->xlabel);
  snprintf(values[14],sizeof(values[14]),"%s",MyGraph->ylabel);
  snprintf(values[15],sizeof(values[15]),"%s",MyGraph->zlabel);
@@ -238,9 +239,9 @@ int ind;
               find_variable(values[2],&i);
   		if(i>-1)
 		  MyGraph->zv[ind]=i;
-	      sprintf(MyGraph->xlabel,"%s",values[13]);
-	      sprintf(MyGraph->ylabel,"%s",values[14]);
-	      sprintf(MyGraph->zlabel,"%s",values[15]);
+	      XPP_SPRINTF(MyGraph->xlabel,"%s",values[13]);
+	      XPP_SPRINTF(MyGraph->ylabel,"%s",values[14]);
+	      XPP_SPRINTF(MyGraph->zlabel,"%s",values[15]);
 
 
 	      MyGraph->xmin=atof(values[3]);
@@ -445,10 +446,10 @@ void user_window()
  static char *n[]={"X Lo","X Hi","Y Lo","Y Hi"};
  char values[4][MAX_LEN_SBOX];
  int status;
- sprintf(values[0],"%g",MyGraph->xlo);
- sprintf(values[2],"%g",MyGraph->ylo);
- sprintf(values[1],"%g",MyGraph->xhi);
- sprintf(values[3],"%g",MyGraph->yhi);
+ XPP_SPRINTF(values[0],"%g",MyGraph->xlo);
+ XPP_SPRINTF(values[2],"%g",MyGraph->ylo);
+ XPP_SPRINTF(values[1],"%g",MyGraph->xhi);
+ XPP_SPRINTF(values[3],"%g",MyGraph->yhi);
  status=do_string_box(4,2,2,"Window",n,values,28);
  if(status!=0){
              
@@ -474,7 +475,7 @@ void xi_vs_t() /*  a short cut   */
  
 
  ind_to_sym(i,value);
- sprintf(name,"Plot vs t: ");
+ XPP_SPRINTF(name,"Plot vs t: ");
  new_string(name,value);
  find_variable(value,&i);
  
@@ -543,16 +544,16 @@ void get_3d_par_com()
   if(MyGraph->grtype<5)return;
 
 
- sprintf(values[0],"%d",MyGraph->PerspFlag);
- sprintf(values[1],"%g",MyGraph->ZPlane);
- sprintf(values[2],"%g",MyGraph->ZView);
- sprintf(values[3],"%g",MyGraph->Theta);
- sprintf(values[4],"%g",MyGraph->Phi);
- sprintf(values[5],"%s",mov3d.yes);
- sprintf(values[6],"%s",mov3d.angle);
- sprintf(values[7],"%g",mov3d.start);
- sprintf(values[8],"%g",mov3d.incr);
- sprintf(values[9],"%d",mov3d.nclip);
+ XPP_SPRINTF(values[0],"%d",MyGraph->PerspFlag);
+ XPP_SPRINTF(values[1],"%g",MyGraph->ZPlane);
+ XPP_SPRINTF(values[2],"%g",MyGraph->ZView);
+ XPP_SPRINTF(values[3],"%g",MyGraph->Theta);
+ XPP_SPRINTF(values[4],"%g",MyGraph->Phi);
+ XPP_SPRINTF(values[5],"%s",mov3d.yes);
+ XPP_SPRINTF(values[6],"%s",mov3d.angle);
+ XPP_SPRINTF(values[7],"%g",mov3d.start);
+ XPP_SPRINTF(values[8],"%g",mov3d.incr);
+ XPP_SPRINTF(values[9],"%d",mov3d.nclip);
  
  status=do_string_box(10,5,2,"3D Parameters",n,values,28);
  if(status!=0){
@@ -600,13 +601,13 @@ void get_3d_par_noper()
   if(MyGraph->grtype<5)return;
 
 
- sprintf(values[0],"%g",MyGraph->Theta);
- sprintf(values[1],"%g",MyGraph->Phi);
- sprintf(values[2],"%s",mov3d.yes);
- sprintf(values[3],"%s",mov3d.angle);
- sprintf(values[4],"%g",mov3d.start);
- sprintf(values[5],"%g",mov3d.incr);
- sprintf(values[6],"%d",mov3d.nclip);
+ XPP_SPRINTF(values[0],"%g",MyGraph->Theta);
+ XPP_SPRINTF(values[1],"%g",MyGraph->Phi);
+ XPP_SPRINTF(values[2],"%s",mov3d.yes);
+ XPP_SPRINTF(values[3],"%s",mov3d.angle);
+ XPP_SPRINTF(values[4],"%g",mov3d.start);
+ XPP_SPRINTF(values[5],"%g",mov3d.incr);
+ XPP_SPRINTF(values[6],"%d",mov3d.nclip);
  
  status=do_string_box(7,7,1,"3D Parameters",n,values,28);
  if(status!=0){
@@ -854,11 +855,11 @@ int in_it,n;
  ind_to_sym(i1,n1);
  ind_to_sym(i2,n2);
  ind_to_sym(i3,n3);
- sprintf(values[0],"%s",n1);
- sprintf(values[1],"%s",n2);
- sprintf(values[2],"%s",n3);
- sprintf(values[3],"%d",MyGraph->color[in_it]);
- sprintf(values[4],"%d",MyGraph->line[in_it]);
+ XPP_SPRINTF(values[0],"%s",n1);
+ XPP_SPRINTF(values[1],"%s",n2);
+ XPP_SPRINTF(values[2],"%s",n3);
+ XPP_SPRINTF(values[3],"%d",MyGraph->color[in_it]);
+ XPP_SPRINTF(values[4],"%d",MyGraph->line[in_it]);
  status=do_string_box(5,5,1,title,nn,values,25);
  if(status!=0){
 		    find_variable(values[0],&i);
@@ -911,18 +912,18 @@ void create_ps()
  static char *nn[]={"BW-0/Color-1","Land(0)/Port(1)","Axes fontsize","Font","Linewidth"};
  int status;
  char values[5][MAX_LEN_SBOX];
- sprintf(values[0],"%d",PS_Color);
- sprintf(values[1],"%d",PS_Port);
- sprintf(values[2],"%d",PS_FONTSIZE);
+ XPP_SPRINTF(values[0],"%d",PS_Color);
+ XPP_SPRINTF(values[1],"%d",PS_Port);
+ XPP_SPRINTF(values[2],"%d",PS_FONTSIZE);
  snprintf(values[3],sizeof(values[3]),"%.24s",PS_FONT);
- sprintf(values[4],"%g",PS_LW);
+ XPP_SPRINTF(values[4],"%g",PS_LW);
  status=do_string_box(5,5,1,"Postscript parameters",nn,values,25);
  if(status!=0){
          PS_Color=atoi(values[0]);
 	 PS_Port=atoi(values[1]);
 	 PS_FONTSIZE=atoi(values[2]);
 	 PS_LW=atof(values[4]);
-         sprintf(PS_FONT,"%s",values[3]);
+         XPP_SPRINTF(PS_FONT,"%s",values[3]);
 	 snprintf(filename,sizeof(filename),"%.250s.ps",this_file);
 	 ping();
  
@@ -936,11 +937,14 @@ void create_ps()
 
 void padnum(char *s,int i,int m)
 {
+  /* s is a pointer here; padnum has no active caller (xpp_util.c's is
+     commented out) to size it from, so use tmp's own bound (25) -- the
+     most this function could ever try to copy into s. */
   char tmp[25];
   int k,q;
-  sprintf(tmp,"%d",i);
+  XPP_SPRINTF(tmp,"%d",i);
   if(strlen(tmp)>=m){
-    strcpy(s,tmp);
+    xpp_strlcpy(s,tmp,25);
     return;
   }
   q=m-strlen(tmp);
@@ -957,7 +961,7 @@ void create_svg()
 {
 
  char filename[XPP_MAX_NAME];
- strcpy(filename,this_file);
+ XPP_STRCPY(filename,this_file);
  filename[strlen(filename)-4]='\0';
  strcat(filename,".svg");	
  /*sprintf(filename,"%s.svg",tmp);*/
@@ -1159,8 +1163,8 @@ int ind;
       }
       frz[i].type=type;
       frz[i].w=draw_win;
-      sprintf(frz[i].name,"crv%c",'a'+i);
-      sprintf(frz[i].key,"crv%c",'a'+i);
+      XPP_SPRINTF(frz[i].name,"crv%c",'a'+i);
+      XPP_SPRINTF(frz[i].key,"crv%c",'a'+i);
       marks_data_frozen_new(i); /* the window shows it: it is its current curve */
       return(i);
     }
@@ -1176,9 +1180,9 @@ void edit_frz_crv(i)
  static char *nn[]={"*4Color","Key","Name"};
  char values[3][MAX_LEN_SBOX];
  int status;
- sprintf(values[0],"%d",frz[i].color);
- sprintf(values[1],"%s",frz[i].key);
- sprintf(values[2],"%s",frz[i].name);
+ XPP_SPRINTF(values[0],"%d",frz[i].color);
+ XPP_SPRINTF(values[1],"%s",frz[i].key);
+ XPP_SPRINTF(values[2],"%s",frz[i].name);
  status=do_string_box(3,3,1,"Edit Freeze",nn,values,25);
  if(status!=0){
    frz[i].color=atoi(values[0]);
@@ -1316,7 +1320,7 @@ void frz_bd()
   FILE *fp;
   /*char filename[256];*/
   char filename[XPP_MAX_NAME];
-  sprintf(filename,"diagram.dat");
+  XPP_SPRINTF(filename,"diagram.dat");
   ping();
   if(!file_selector("Import Diagram",filename,"*.dat"))return;
   /* if(new_string("Diagram to import: ",filename)==0)return; */
@@ -1387,7 +1391,8 @@ int get_frz_index(w)
   for(i=0;i<MAXFRZ;i++){
     if(frz[i].use==1&&w==frz[i].w){
 	n[count]=(char *)xpp_malloc(20);
-      sprintf(n[count],"%s",frz[i].name);
+      /* n[count] is a pointer, allocated 20 bytes just above. */
+      xpp_snprintf(n[count],20,"%s",frz[i].name);
       key[count]='a'+i;
       
       count++;
@@ -1413,7 +1418,7 @@ void export_graf_data()
  FILE *fp;
  /*char filename[256];*/
  char filename[XPP_MAX_NAME];
- sprintf(filename,"curve.dat");
+ XPP_SPRINTF(filename,"curve.dat");
  ping();
 if(!file_selector("Export graph data",filename,"*.dat"))return;
 /* if(new_string("Data filename:",filename)==0)return; */

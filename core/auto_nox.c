@@ -1,6 +1,7 @@
 #include "integrate.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 #include "numerics.h"
 #include "xpp_globals.h"
 #include "xpp_ui.h"
@@ -363,27 +364,29 @@ void setautopoint()
 void get_auto_str(xlabel,ylabel)
 char *xlabel,*ylabel;
 {
-  
- sprintf(xlabel,"%s",upar_names[AutoPar[Auto.icp1]]);
+  /* xlabel/ylabel are pointers here; every caller passes a
+     char[AUTO_LABEL_LEN] (draw_ps_axes, draw_svg_axes, draw_bif_axes,
+     ui_json.cpp's dg_ax), so that is the real size. */
+ xpp_snprintf(xlabel,AUTO_LABEL_LEN,"%s",upar_names[AutoPar[Auto.icp1]]);
  switch(Auto.plot){
  case HI_P:
  case HL_P:
-   sprintf(ylabel,"%s",uvar_names[Auto.var]);
+   xpp_snprintf(ylabel,AUTO_LABEL_LEN,"%s",uvar_names[Auto.var]);
    break;
  case NR_P:
-   sprintf(ylabel,"Norm");
+   xpp_snprintf(ylabel,AUTO_LABEL_LEN,"Norm");
    break;
  case PE_P:
-   sprintf(ylabel,"Period");
+   xpp_snprintf(ylabel,AUTO_LABEL_LEN,"Period");
    break;
  case FR_P:
-   sprintf(ylabel,"Frequency");
+   xpp_snprintf(ylabel,AUTO_LABEL_LEN,"Frequency");
    break;
  case P_P:
-   sprintf(ylabel,"%s",upar_names[AutoPar[Auto.icp2]]);
+   xpp_snprintf(ylabel,AUTO_LABEL_LEN,"%s",upar_names[AutoPar[Auto.icp2]]);
    break;
  case AV_P:
-   sprintf(ylabel,"%s_bar",uvar_names[Auto.var]);
+   xpp_snprintf(ylabel,AUTO_LABEL_LEN,"%s_bar",uvar_names[Auto.var]);
    break;
  }
 }
@@ -414,17 +417,17 @@ void draw_bif_axes()
  ALINE(x1,y0,x1,y1);
  ALINE(x1,y1,x0,y1);
  ALINE(x0,y1,x0,y0);
- sprintf(junk,"%g",Auto.xmin);
+ XPP_SPRINTF(junk,"%g",Auto.xmin);
  ATEXT(x0,y1+DCURYs+2,junk);
- sprintf(junk,"%g",Auto.xmax);
+ XPP_SPRINTF(junk,"%g",Auto.xmax);
  ii=strlen(junk)*DCURXs;
  ATEXT(x1-ii,y1+DCURYs+2,junk);
- sprintf(junk,"%g",Auto.ymin);
+ XPP_SPRINTF(junk,"%g",Auto.ymin);
  ii=strlen(junk);
  i0=9-ii;
  if(i0<0)i0=0;
  ATEXT(i0*DCURXs,y1,junk);
- sprintf(junk,"%g",Auto.ymax);
+ XPP_SPRINTF(junk,"%g",Auto.ymax);
  ii=strlen(junk);
  i0=9-ii;
  if(i0<0)i0=0;
@@ -588,20 +591,20 @@ void close_auto(flg)  /* labels compatible with A2K  */
       fp8_is_open=0;
   }
   if(flg==0) {/*Overwrite*/
-    sprintf(string,"%s.b",this_auto_file);
+    XPP_SPRINTF(string,"%s.b",this_auto_file);
     renamef(fort7,string);
-    sprintf(string,"%s.d",this_auto_file);
+    XPP_SPRINTF(string,"%s.d",this_auto_file);
     renamef(fort9,string);
 
-    sprintf(string,"%s.s",this_auto_file);
+    XPP_SPRINTF(string,"%s.s",this_auto_file);
     renamef(fort8,string);
   }
   else {/*APPEND*/
-    sprintf(string,"%s.b",this_auto_file);
+    XPP_SPRINTF(string,"%s.b",this_auto_file);
     appendf(fort7,string);
-    sprintf(string,"%s.d",this_auto_file); 
+    XPP_SPRINTF(string,"%s.d",this_auto_file); 
     appendf(fort9,string);  
-    sprintf(string,"%s.s",this_auto_file);
+    XPP_SPRINTF(string,"%s.s",this_auto_file);
     appendf(fort8,string);
   }
 
@@ -661,7 +664,7 @@ void create_auto_file_name()
 
   char* HOME = auto_home_dir(dname);
 
-  sprintf(this_auto_file,"%s/%s",HOME,bname);
+  XPP_SPRINTF(this_auto_file,"%s/%s",HOME,bname);
   xpp_free(basec); /* HOME may point into dirc: freed after its last use */
   xpp_free(dirc);
 }
@@ -679,12 +682,12 @@ void open_auto(flg) /* compatible with new auto */
 
   char* HOME = auto_home_dir(dname);
 
-  sprintf(this_auto_file,"%s/%s",HOME,bname);
-  sprintf(fort3,"%s/%s",HOME,"fort.3");
-  sprintf(fort7,"%s/%s",HOME,"fort.7");
-  sprintf(fort8,"%s/%s",HOME,"fort.8");
-  sprintf(fort9,"%s/%s",HOME,"fort.9");
-  sprintf(TMPSWAP,"%s/%s",HOME,"__tmp__");
+  XPP_SPRINTF(this_auto_file,"%s/%s",HOME,bname);
+  XPP_SPRINTF(fort3,"%s/%s",HOME,"fort.3");
+  XPP_SPRINTF(fort7,"%s/%s",HOME,"fort.7");
+  XPP_SPRINTF(fort8,"%s/%s",HOME,"fort.8");
+  XPP_SPRINTF(fort9,"%s/%s",HOME,"fort.9");
+  XPP_SPRINTF(TMPSWAP,"%s/%s",HOME,"__tmp__");
   xpp_free(basec); /* HOME may point into dirc: freed after its last use */
   xpp_free(dirc);
   is_3_there=flg;
@@ -760,12 +763,14 @@ int auto_par_to_name(index,s)
      int index;
      char *s;
 {
+  /* s is a pointer here; its callers pass char name[AUTO_COL_W+
+     XPP_NAME_MAX+2] (80) and char bob[100] -- 80 is the smaller. */
   if(index==10){
-    sprintf(s,"T");
+    xpp_snprintf(s,80,"T");
     return(1);
   }
   if(index<0||index>8)return(0);
-  sprintf(s,"%s",upar_names[AutoPar[index]]);
+  xpp_snprintf(s,80,"%s",upar_names[AutoPar[index]]);
   return(1);
 }
 
@@ -780,12 +785,15 @@ int auto_par_to_name(index,s)
    14 wide so the numbers below stay under it. */
 static void auto_col_centre(char *out,char *s)
 {
+  /* out is a pointer here; its callers pass char scr[AUTO_COL_W+1]
+     (autlib1.c) or auto_screen_col's own out parameter, itself
+     AUTO_COL_W+1 by the same reasoning. */
   int n,l;
   char t[AUTO_COL_W];
   short_name(t,s,AUTO_COL_W-1);
   n=(int)strlen(t);
   l=(AUTO_COL_W-n)/2;
-  sprintf(out,"%*s%s%*s",l,"",t,AUTO_COL_W-n-l,"");
+  xpp_snprintf(out,AUTO_COL_W+1,"%*s%s%*s",l,"",t,AUTO_COL_W-n-l,"");
 }
 
 void auto_screen_col(char *col,char *out)
@@ -804,16 +812,16 @@ void auto_screen_col(char *col,char *out)
     int n=(int)(q-col);
     if(n>0&&col[n-1]=='U')n--; /* the name replaces the U */
     /* keep what stands in front of it: MAX, MIN, L2-NORM, INTEGRAL */
-    sprintf(pre,"%.*s",n,col);
+    XPP_SPRINTF(pre,"%.*s",n,col);
     for(i=(int)strlen(pre);i>0&&pre[i-1]==' ';i--)
       pre[i-1]=0;
     for(i=0;pre[i]==' ';i++)
       ;
-    sprintf(name,"%s%s%s",pre+i,pre[i]?" ":"",uvar_names[p-1]);
+    XPP_SPRINTF(name,"%s%s%s",pre+i,pre[i]?" ":"",uvar_names[p-1]);
     auto_col_centre(out,name);
     return;
   }
-  sprintf(out,"%.*s",AUTO_COL_W,col);
+  xpp_snprintf(out,AUTO_COL_W+1,"%.*s",AUTO_COL_W,col);
 }
 
 
@@ -838,7 +846,7 @@ void auto_per_par()
       auto_par_to_name(Auto.uzrpar[i],bob);
 
 
-      sprintf(values[i],"%s=%g",bob,Auto.period[i]);
+      XPP_SPRINTF(values[i],"%s=%g",bob,Auto.period[i]);
     }
     status=do_string_box(9,5,2,"AutoPer",n,values,45);
     if(status!=0)
@@ -868,7 +876,7 @@ void auto_params()
   int status,i,in;
   char values[8][MAX_LEN_SBOX];
   for(i=0;i<8;i++){
-    if(i<NAutoPar)  sprintf(values[i],"%s",upar_names[AutoPar[i]]);
+    if(i<NAutoPar)  XPP_SPRINTF(values[i],"%s",upar_names[AutoPar[i]]);
     else values[i][0]='\0';/*sprintf(values[i],"");*/
   }
   status=do_string_box(8,8,1,"Parameters",n,values,38);
@@ -897,28 +905,28 @@ void auto_num_par()
                     "IAD","MXBF","IID","ITMX","ITNW","NWTN","IADS","SuppBP"};
   int status;
   char values[22][MAX_LEN_SBOX];
-  sprintf(values[0],"%d",Auto.ntst);
-  sprintf(values[1],"%d",Auto.nmx);
-  sprintf(values[2],"%d",Auto.npr);
-  sprintf(values[3],"%d",Auto.ncol);
-  sprintf(values[4],"%g",Auto.ds);
-  sprintf(values[5],"%g",Auto.dsmin);
-  sprintf(values[6],"%g",Auto.dsmax);
-  sprintf(values[7],"%g",Auto.rl0);
-  sprintf(values[8],"%g",Auto.rl1);
-  sprintf(values[9],"%g",Auto.a0);
-  sprintf(values[10],"%g",Auto.a1);
-  sprintf(values[11],"%g",Auto.epsl);
-  sprintf(values[12],"%g",Auto.epsu);
-  sprintf(values[13],"%g",Auto.epss);
-  sprintf(values[14],"%d",aauto.iad);
-  sprintf(values[15],"%d",aauto.mxbf);
-  sprintf(values[16],"%d",aauto.iid);
-  sprintf(values[17],"%d",aauto.itmx);
-  sprintf(values[18],"%d",aauto.itnw);
-  sprintf(values[19],"%d",aauto.nwtn);
-  sprintf(values[20],"%d",aauto.iads);
-  sprintf(values[21],"%d",SuppressBP); 
+  XPP_SPRINTF(values[0],"%d",Auto.ntst);
+  XPP_SPRINTF(values[1],"%d",Auto.nmx);
+  XPP_SPRINTF(values[2],"%d",Auto.npr);
+  XPP_SPRINTF(values[3],"%d",Auto.ncol);
+  XPP_SPRINTF(values[4],"%g",Auto.ds);
+  XPP_SPRINTF(values[5],"%g",Auto.dsmin);
+  XPP_SPRINTF(values[6],"%g",Auto.dsmax);
+  XPP_SPRINTF(values[7],"%g",Auto.rl0);
+  XPP_SPRINTF(values[8],"%g",Auto.rl1);
+  XPP_SPRINTF(values[9],"%g",Auto.a0);
+  XPP_SPRINTF(values[10],"%g",Auto.a1);
+  XPP_SPRINTF(values[11],"%g",Auto.epsl);
+  XPP_SPRINTF(values[12],"%g",Auto.epsu);
+  XPP_SPRINTF(values[13],"%g",Auto.epss);
+  XPP_SPRINTF(values[14],"%d",aauto.iad);
+  XPP_SPRINTF(values[15],"%d",aauto.mxbf);
+  XPP_SPRINTF(values[16],"%d",aauto.iid);
+  XPP_SPRINTF(values[17],"%d",aauto.itmx);
+  XPP_SPRINTF(values[18],"%d",aauto.itnw);
+  XPP_SPRINTF(values[19],"%d",aauto.nwtn);
+  XPP_SPRINTF(values[20],"%d",aauto.iads);
+  XPP_SPRINTF(values[21],"%d",SuppressBP); 
 
   
   status=do_string_box(22,7,4,"AutoNum",n,values,25);
@@ -1025,13 +1033,13 @@ void auto_plot_par()
     return;
   }
   ind_to_sym(i1,n1);
-  sprintf(values[0],"%s",n1);
-  sprintf(values[1],"%s",upar_names[AutoPar[Auto.icp1]]);
-  sprintf(values[2],"%s",upar_names[AutoPar[Auto.icp2]]);
-  sprintf(values[3],"%g",Auto.xmin);
-  sprintf(values[4],"%g",Auto.ymin);
-  sprintf(values[5],"%g",Auto.xmax);
-  sprintf(values[6],"%g",Auto.ymax);
+  XPP_SPRINTF(values[0],"%s",n1);
+  XPP_SPRINTF(values[1],"%s",upar_names[AutoPar[Auto.icp1]]);
+  XPP_SPRINTF(values[2],"%s",upar_names[AutoPar[Auto.icp2]]);
+  XPP_SPRINTF(values[3],"%g",Auto.xmin);
+  XPP_SPRINTF(values[4],"%g",Auto.ymin);
+  XPP_SPRINTF(values[5],"%g",Auto.xmax);
+  XPP_SPRINTF(values[6],"%g",Auto.ymax);
   status=do_string_box(7,7,1,"AutoPlot",n,values,31);
   if(status!=0){
     /*  get variable names  */
@@ -1421,7 +1429,7 @@ void add_point(par,per,uhigh,ulow,ubar,a,type,flg,lab,npar,icp1,icp2,icp3,icp4,f
   int ix,iy1,iy2,type1=type;
   char bob[5];
   XppDiagPoint dp;
-  sprintf(bob,"%d",lab);
+  XPP_SPRINTF(bob,"%d",lab);
   par1=par[icp1];
   if(icp2<NAutoPar)par2=par[icp2];
 auto_xy_plot(&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a); /* figure out who sits on axes */
@@ -1539,36 +1547,38 @@ void get_bif_sym(at,itp)
      char *at;
      int itp;
 {
+  /* at is a pointer here; every caller passes a char[3] (symb/nsymb/sym),
+     matching the longest label written below ("BP" etc, 2 chars + NUL). */
   int i=itp%10;
   switch(i){
   case 1:
   case 6:
-    sprintf(at,"BP");
+    xpp_snprintf(at,3,"BP");
     break;
   case 2:
   case 5:
-    sprintf(at,"LP");
+    xpp_snprintf(at,3,"LP");
     break;
   case 3:
-    sprintf(at,"HB");
+    xpp_snprintf(at,3,"HB");
     break;
   case -4:
-    sprintf(at,"UZ");
+    xpp_snprintf(at,3,"UZ");
     break;
   case 7:
-    sprintf(at,"PD");
+    xpp_snprintf(at,3,"PD");
     break;
   case 8:
-    sprintf(at,"TR");
+    xpp_snprintf(at,3,"TR");
     break;
   case 9:
-    sprintf(at,"EP");
+    xpp_snprintf(at,3,"EP");
     break;
   case -9:
-    sprintf(at,"MX");
+    xpp_snprintf(at,3,"MX");
     break;
   default:
-    sprintf(at,"  ");
+    xpp_snprintf(at,3,"  ");
     break;
   }
 }
@@ -1582,10 +1592,10 @@ void info_header(flag2,icp1,icp2)
 
   short_name(p1name,upar_names[AutoPar[icp1]],10);
   if(icp2<NAutoPar)short_name(p2name,upar_names[AutoPar[icp2]],10);
-  else sprintf(p2name,"   ");
+  else XPP_SPRINTF(p2name,"   ");
   short_name(vname,uvar_names[Auto.var],10);
   SmallBase();
-  sprintf(bob,"  Br  Pt Ty  Lab %10s %10s       norm %10s     period",
+  XPP_SPRINTF(bob,"  Br  Pt Ty  Lab %10s %10s       norm %10s     period",
 	  p1name,
 	  p2name,
 	  vname);
@@ -1604,7 +1614,7 @@ void new_info(ibr,pt,ty,lab,par,norm,u0,per,flag2,icp1,icp2)
   info_header(flag2,icp1,icp2);
   p1=par[icp1];
   if(icp2<NAutoPar)p2=par[icp2];
-  sprintf(bob,"%4d %4d %2s %4d %10.4g %10.4g %10.4g %10.4g %10.4g",
+  XPP_SPRINTF(bob,"%4d %4d %2s %4d %10.4g %10.4g %10.4g %10.4g %10.4g",
 	  ibr,pt,ty,lab,p1,p2,norm,u0,per);
   draw_auto_info(bob,10,2*DCURYs+2);
   /* SmallGr(); */
@@ -1690,7 +1700,7 @@ void do_auto_win()
   char bob[256];
   if(Auto.exist==0){
     if(NODE>NAUTO){
-   sprintf(bob,"Auto restricted to less than %d variables",NAUTO);
+   XPP_SPRINTF(bob,"Auto restricted to less than %d variables",NAUTO);
       err_msg(bob);
       return;
     }
@@ -1872,11 +1882,11 @@ int yes_reset_auto()
  FromAutoFlag=0;
     NBifs=1;
     grabpt.flag=0;
-    sprintf(string,"%s.b",this_auto_file);
+    XPP_SPRINTF(string,"%s.b",this_auto_file);
     deletef(string);
-    sprintf(string,"%s.d",this_auto_file);
+    XPP_SPRINTF(string,"%s.d",this_auto_file);
     deletef(string);
-    sprintf(string,"%s.s",this_auto_file);
+    XPP_SPRINTF(string,"%s.s",this_auto_file);
     deletef(string);
     mark_flag=0;
     return 1;
@@ -2493,15 +2503,16 @@ int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
    s[i]=(char *)xpp_malloc(XPP_NAME_MAX+8); /* name_L, name_R */
 
   }
-  sprintf(s[0],"dim unstable");
-  sprintf(v[0],"%d",*nun);
-  sprintf(s[NODE+1],"dim stable");
-  sprintf(v[NODE+1],"%d",*nst);
+  /* each s[i] is a pointer, allocated XPP_NAME_MAX+8 bytes just above. */
+  xpp_snprintf(s[0],XPP_NAME_MAX+8,"dim unstable");
+  XPP_SPRINTF(v[0],"%d",*nun);
+  xpp_snprintf(s[NODE+1],XPP_NAME_MAX+8,"dim stable");
+  XPP_SPRINTF(v[NODE+1],"%d",*nst);
   for(i=0;i<NODE;i++){
-    sprintf(s[i+1],"%s_L",uvar_names[i]);
-    sprintf(v[i+1],"%g",ul[i]);
-    sprintf(s[i+2+NODE],"%s_R",uvar_names[i]);
-    sprintf(v[i+2+NODE],"%g",ur[i]);
+    xpp_snprintf(s[i+1],XPP_NAME_MAX+8,"%s_L",uvar_names[i]);
+    XPP_SPRINTF(v[i+1],"%g",ul[i]);
+    xpp_snprintf(s[i+2+NODE],XPP_NAME_MAX+8,"%s_R",uvar_names[i]);
+    XPP_SPRINTF(v[i+2+NODE],"%g",ur[i]);
   }
  
   flag=do_string_box(n,n/2,2,"Homoclinic info",s,v,16); 
@@ -2912,7 +2923,7 @@ void load_auto_orbit()
    
   if((ibr>0&&(Auto.ips!=4)&&(Auto.ips!=3)&&(Auto.ips!=9))||flag==0)return; 
    /* either nothing grabbed or just a fixed point and that is already loaded */
-  sprintf(string,"%s.s",this_auto_file);
+  XPP_SPRINTF(string,"%s.s",this_auto_file);
   fp=fopen(string,"r");
   if(fp==NULL){
     auto_err("No such file");
@@ -2967,7 +2978,7 @@ void save_auto()
   int status;
   /* XGetInputFocus(display,&w,&rev); */
   
-  sprintf(filename,"%s.auto",basename(this_auto_file));
+  XPP_SPRINTF(filename,"%s.auto",basename(this_auto_file));
   /* status=get_dialog("Save Auto","Filename",filename,"Ok","Cancel",60);
   XSetInputFocus(display,w,rev,CurrentTime);
   */
@@ -3059,7 +3070,7 @@ void save_q_file(fp)  /* I am keeping the name q_file even though they are s_fil
 {
   char string[500];
   FILE *fq;
-  sprintf(string,"%s.s",this_auto_file);
+  XPP_SPRINTF(string,"%s.s",this_auto_file);
   fq=fopen(string,"r");
   if(fq==NULL){
     auto_err("Couldnt open s-file");
@@ -3077,7 +3088,7 @@ void make_q_file(fp)
 {
   char string[500];
   FILE *fq;
-  sprintf(string,"%s.s",this_auto_file);
+  XPP_SPRINTF(string,"%s.s",this_auto_file);
   fq=fopen(string,"w");
 
   if(fq==NULL){
@@ -3119,7 +3130,7 @@ void load_auto()
     if(ok==0)return;
   }
 
-  sprintf(filename,"%s.auto",basename(this_auto_file));
+  XPP_SPRINTF(filename,"%s.auto",basename(this_auto_file));
  
   status=file_selector("Load Auto",filename,"*.auto");
   if(status==0)return;
@@ -3302,7 +3313,8 @@ void  auto_get_info( int *n, char *pname )
     while(1){
       if(d->ibr==ibr && ((d->ntot==i1)||(d->ntot==(-i1))))
 	{
-	  strcpy(pname,upar_names[AutoPar[d->icp1]]);
+	  /* pname's one real caller (integrate.c) passes char parn[256] */
+	  xpp_strlcpy(pname,upar_names[AutoPar[d->icp1]],256);
 	  break;
 	}
        dnew=d->next;
@@ -3390,39 +3402,41 @@ DIAGRAM *CUR_DIAGRAM;
 
 int query_special(char* title,char *nsymb)
 {
+        /* nsymb is a pointer here; both callers pass a char[3] (symb/
+           nsymb below), matching the longest label written below. */
         int status=1;
         static char *m[]={"BP","EP","HB","LP","MX","PD","TR","UZ"};
 	static  char key[]="behlmptu";
 	int ch=(char)auto_pop_up_list(title,m,key,8,11,1,10,10,
 			     aspecial_hint,Auto.hinttxt);
 	if(ch=='b'){
-	  sprintf(nsymb,"BP");
+	  xpp_snprintf(nsymb,3,"BP");
 	}
 	else if(ch=='e'){
-	  sprintf(nsymb,"EP");
+	  xpp_snprintf(nsymb,3,"EP");
 	}
 	else if(ch=='h'){
-	   sprintf(nsymb,"HB");
+	   xpp_snprintf(nsymb,3,"HB");
 	}
 	else if(ch=='l'){ 
-	   sprintf(nsymb,"LP");
+	   xpp_snprintf(nsymb,3,"LP");
 	}
 	else if(ch=='m'){ 
-	   sprintf(nsymb,"MX");
+	   xpp_snprintf(nsymb,3,"MX");
 	}
 	else if(ch=='p'){
-	   sprintf(nsymb,"PD"); 
+	   xpp_snprintf(nsymb,3,"PD"); 
 	}
 	else if(ch=='t'){
-	   sprintf(nsymb,"TR");  
+	   xpp_snprintf(nsymb,3,"TR");  
 	}
 	else if(ch=='u'){ 
-	   sprintf(nsymb,"UZ");
+	   xpp_snprintf(nsymb,3,"UZ");
 	}
 	else
 	{
 	   status=0;   
-	   sprintf(nsymb,"  ");
+	   xpp_snprintf(nsymb,3,"  ");
 	}
 	redraw_auto_menus();
 	return(status);
@@ -3796,7 +3810,7 @@ void auto_motion_xy(int i,int j)
 
 void auto_point_xy(double x,double y)
 {
-    sprintf(Auto.hinttxt,"x=%g,y=%g",x,y);
+    XPP_SPRINTF(Auto.hinttxt,"x=%g,y=%g",x,y);
     storeautopoint(x,y);
     xpp_ui.auto_show_hint();
 }

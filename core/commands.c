@@ -6,6 +6,7 @@
 #include "xpp_ui.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 #include "xpp_globals.h"
 #include "xpp_util.h"
 #include "edit_rhs.h"
@@ -144,7 +145,7 @@ void edit_xpprc(void)
 
   child_pid = fork();
   if (child_pid == 0) {
-    sprintf(rc, "%s/.xpprc", getenv("HOME"));
+    XPP_SPRINTF(rc, "%s/.xpprc", getenv("HOME"));
     {
       char *const args[] = {editor, rc, NULL};
       execvp(editor, args);
@@ -168,7 +169,7 @@ void xpp_hlp(void)
     err_msg("Environment variable XPPBROWSER undefined.");
     return;
   }
-  sprintf(cmd, "file:///%s", getenv("XPPHELP"));
+  XPP_SPRINTF(cmd, "file:///%s", getenv("XPPHELP"));
   if (fork() == 0) {
     execlp(getenv("XPPBROWSER"), getenv("XPPHELP"), cmd, (char *)0);
     perror("Unable to open browser. Check your XPPBROWSER and XPPHELP environement variables.");
@@ -200,7 +201,7 @@ void do_movie_com(int c)
     xpp_ui.movie_auto_play();
     break;
   case 4:
-    sprintf(base, "frame");
+    XPP_SPRINTF(base, "frame");
     new_string("Base file name", base);
     if (strlen(base) > 0)
       xpp_ui.movie_save(base, 2);
@@ -230,7 +231,8 @@ void get_intern_set(void)
   for (i = 0; i < Nintern_set; i++) {
     n[i] = (char *)xpp_malloc(256);
     key[i] = 'a' + i;
-    sprintf(n[i], "%c: %s", key[i], intern_set[i].name);
+    /* n[i] is a pointer, allocated 256 bytes just above. */
+    xpp_snprintf(n[i], 256, "%c: %s", key[i], intern_set[i].name);
   }
   key[count] = 0;
   m.n = count; m.items = n; m.keys = key; m.hints = no_hint;

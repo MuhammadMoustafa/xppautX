@@ -1,6 +1,7 @@
 #include "flags.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 
 #include "cv2.h"
 #include "stiff.h"
@@ -127,7 +128,8 @@ int add_global(cond,sign,rest)
   }
   l=strlen(cond);
   flag[j].cond=(char *) xpp_malloc(l+1);
-  strcpy(flag[j].cond,cond);
+  /* flag[j].cond is a pointer, allocated l+1 bytes just above. */
+  xpp_strlcpy(flag[j].cond,cond,l+1);
   nevents=0;
   flag[j].lhsname[0][0]=0;
   k=0;
@@ -147,7 +149,8 @@ int add_global(cond,sign,rest)
 	return(1);
       }
       flag[j].rhs[nevents]=(char *)xpp_malloc(lt+1);
-      strcpy(flag[j].rhs[nevents],temp);
+      /* flag[j].rhs[nevents] is a pointer, allocated lt+1 bytes above. */
+      xpp_strlcpy(flag[j].rhs[nevents],temp,lt+1);
       nevents++;
       k=0;
       if(ch=='}')break;
@@ -159,7 +162,7 @@ int add_global(cond,sign,rest)
 	plintf(" Event variable %s is too long\n",temp);
 	return(1);
       }
-      strcpy(flag[j].lhsname[nevents],temp);
+      XPP_STRCPY(flag[j].lhsname[nevents],temp);
       
       k=0;
       if(nevents<MAX_EVENTS-1)

@@ -55,6 +55,7 @@ and save the file.
 #include <dirent.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include "xpp_io.h"
 
 /*Let's try to be consistent with file name buffer sizes and
 any strings that may hold a path name (e.g. dialog message etc.)*/
@@ -144,7 +145,7 @@ int get_fileinfo_tab(wild,direct,ff,wild2)
   while(dp != NULL){
      if(IsDirectory(direct,dp->d_name)){
       if(wild_match(dp->d_name,wild)){
-	 strcpy(ff->dirnames[nd],dp->d_name);
+	 xpp_strlcpy(ff->dirnames[nd],dp->d_name,mld+2);
          nd++;
        }
      }
@@ -153,7 +154,7 @@ int get_fileinfo_tab(wild,direct,ff,wild2)
        	/*printf("Matched leading (tab-completion) pattern:%s wild=%s\n",dp->d_name,wild);*/
        	if(wild_match(dp->d_name,wild2)){
        	/* printf("Also matched usual filename wild:%s wild=%s\n",dp->d_name,wild2);*/
-	 strcpy(ff->filenames[nf],dp->d_name);
+	 xpp_strlcpy(ff->filenames[nf],dp->d_name,mlf+2);
 	 nf++;
 	 }
        }
@@ -201,12 +202,12 @@ int get_fileinfo(wild,direct,ff)
   nd=0;
   while(dp != NULL){
      if(IsDirectory(direct,dp->d_name)){
-       strcpy(ff->dirnames[nd],dp->d_name);
+       xpp_strlcpy(ff->dirnames[nd],dp->d_name,mld+2);
        nd++;
      }
      else {
        if(wild_match(dp->d_name,wild)){
-	 strcpy(ff->filenames[nf],dp->d_name);
+	 xpp_strlcpy(ff->filenames[nf],dp->d_name,mlf+2);
 	 nf++;
        }
      }
@@ -342,7 +343,11 @@ void MakeFullPath(root, filename, pathname)
     char	   *filename;
     char	   *pathname;
 {
-    strcpy(pathname, root);
+    /* pathname is a pointer here; the one caller (IsDirectory) passes
+       char fullpath[MAXPATHLEN]. strcat below is unconverted (out of
+       this sweep's scope: only sprintf/strcpy/vsprintf), so a long
+       root+filename can still overflow it -- unchanged from before. */
+    xpp_strlcpy(pathname, root, MAXPATHLEN);
     strcat(pathname, "/");
     strcat(pathname, filename);
 }

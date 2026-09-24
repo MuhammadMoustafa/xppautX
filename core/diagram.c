@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include "autlim.h"
 #include "load_eqn.h"
+#include "xpp_io.h"
 #define DALLOC(a) (double *)xpp_malloc((a)*sizeof(double))
 int refresh_browser();
 extern int TypeOfCalc;
@@ -255,7 +256,7 @@ void write_info_out()
   double par1,par2=0,*uhigh,*ulow,per;
   /*double a,*ubar,*u0;*/
   FILE *fp;
-  sprintf(filename,"allinfo.dat");
+  XPP_SPRINTF(filename,"allinfo.dat");
   /* status=get_dialog("Write all info","Filename",filename,"Ok","Cancel",60);
    */
   status=file_selector("Write all info",filename,"*.dat");
@@ -361,7 +362,7 @@ void write_init_data_file()
   double par1,*u0;
   /*double a,*uhigh,*ulow,*ubar;*/
   FILE *fp;
-  sprintf(filename,"initdata.dat");
+  XPP_SPRINTF(filename,"initdata.dat");
   /* status=get_dialog("Write all info","Filename",filename,"Ok","Cancel",60);
    */
   status=file_selector("Write init data file",filename,"*.dat");
@@ -424,7 +425,7 @@ void write_pts()
   double *par;
   double x,y1,y2,par1,par2=0,a,*uhigh,*ulow,*ubar,per;
   FILE *fp;
-  sprintf(filename,"diagram.dat");
+  XPP_SPRINTF(filename,"diagram.dat");
   status=file_selector("Write points",filename,"*.dat");
   /* get_dialog("Write points","Filename",filename,"Ok","Cancel",60); */
   if(status==0)return;
@@ -477,7 +478,7 @@ void post_auto()
   DIAGRAM *d;
   int type,flag=0;
   int status;
-  sprintf(filename,"auto.ps");
+  XPP_SPRINTF(filename,"auto.ps");
   /* status=get_dialog("Postscript","Filename",filename,"Ok","Cancel",60); */
   status=file_selector("Postscript",filename,"*.ps");
   if(status==0)return;
@@ -511,7 +512,7 @@ void svg_auto()
   DIAGRAM *d;
   int type,flag=0;
   int status;
-  sprintf(filename,"auto.svg");
+  XPP_SPRINTF(filename,"auto.svg");
   /* status=get_dialog("Postscript","Filename",filename,"Ok","Cancel",60); */
   status=file_selector("SVG",filename,"*.svg");
   if(status==0)return;

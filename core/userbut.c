@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include "kbs.h"
 #include "xpp_ui.h"
+#include "xpp_io.h"
 
 
 int nuserbut=0;
@@ -80,7 +81,7 @@ void add_user_button(char *s)
 	}
   }
   userbut[nuserbut].com=z;
-  strcpy(userbut[nuserbut].bname,bname);
+  XPP_STRCPY(userbut[nuserbut].bname,bname);
   plintf(" added button(%d)  -- %s %d\n",
 	 nuserbut,userbut[nuserbut].bname,userbut[nuserbut].com); 
   nuserbut++;

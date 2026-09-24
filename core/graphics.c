@@ -14,6 +14,7 @@
 #include "graf_par.h"
 #include "calc.h"
 #include "many_pops.h"
+#include "xpp_io.h"
 
 
 
@@ -464,7 +465,7 @@ int i;
     graph[i].grtype=AXES;
     graph[i].color_scale=1.0;
     graph[i].min_scale=0.0;
-    strcpy(graph[i].gr_info,"");
+    XPP_STRCPY(graph[i].gr_info,"");
     graph[i].xmax=x_3d[1];
     graph[i].ymax=y_3d[1];
     graph[i].zmax=z_3d[1];
@@ -922,7 +923,7 @@ void fillintext(char *old,char *new)
 	   name[m]=0;
 	   ans=do_calc(name,&z);
 	   if(ans!=-1){
-	     sprintf(val,"%g",z);
+	     XPP_SPRINTF(val,"%g",z);
 
 	     for(k=0;k<strlen(val);k++){
 	       new[j]=val[k];

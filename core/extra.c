@@ -1,6 +1,7 @@
 #include "extra.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 
 #include "init_conds.h"
 #include "ggets.h"
@@ -72,9 +73,9 @@ void auto_load_dll()
   if(dll_flag==3){
     get_directory(cur_dir);
     plintf("DLL lib %s/%s with function %s \n",cur_dir,dll_lib,dll_fun);
-    sprintf(dlf.libfile,"%s",dll_lib);
-    sprintf(dlf.libname,"%s/%s",cur_dir,dlf.libfile);
-    sprintf(dlf.fun,"%s",dll_fun);
+    XPP_SPRINTF(dlf.libfile,"%s",dll_lib);
+    XPP_SPRINTF(dlf.libname,"%s/%s",cur_dir,dlf.libfile);
+    XPP_SPRINTF(dlf.fun,"%s",dll_fun);
     dlf.loaded=0;
   }
 }
@@ -86,7 +87,7 @@ void load_new_dll()
     dlclose(dlhandle);
   status=file_selector("Library:",dlf.libfile,"*.so");
   if(status==0)return;
-  sprintf(dlf.libname,"%s/%s",cur_dir,dlf.libfile);
+  XPP_SPRINTF(dlf.libname,"%s/%s",cur_dir,dlf.libfile);
   new_string("Function name:",dlf.fun);
   dlf.loaded=0;
 }
@@ -107,7 +108,7 @@ void get_import_values(int n, double *ydot, char *soname, char *sofun,
     return;
   xpp_log(XPP_LOG_INFO, "soname = %s  sofun = %s \n",soname,sofun);
   get_directory(cur_dir);
-  sprintf(sofullname,"%s/%s",cur_dir,soname);
+  XPP_SPRINTF(sofullname,"%s/%s",cur_dir,soname);
   dlhandle=dlopen (sofullname, RTLD_LAZY);
   if(!dlhandle){
     plintf(" Cant find the library %s\n",soname);

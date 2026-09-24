@@ -1,6 +1,7 @@
 #include "simplenet.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 
 #include "aniparse.h"
 #include "ggets.h"
@@ -275,7 +276,7 @@ void add_vectorizer_name(char *name, char *rhs)
     exit(0);
   }
   if(name_too_long(name))exit(0);
-  strcpy(my_vec[n_vector].name,name);
+  XPP_STRCPY(my_vec[n_vector].name,name);
   if(add_vector_name( n_vector,name))
     exit(0);
   n_vector++;
@@ -372,7 +373,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
     str=get_next(",");
-    strcpy(wgtname,str);
+    XPP_STRCPY(wgtname,str);
     iwgt=find_lookup(wgtname);
     if(iwgt<0){
       plintf("in network %s,  %s is not a table \n",
@@ -380,7 +381,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
     str=get_next(")");
-    strcpy(rootname,str);
+    XPP_STRCPY(rootname,str);
     ivar=get_var_index(rootname);
     if(ivar<0){
       plintf(" In %s , %s is not valid variable\n",
@@ -417,7 +418,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
     str=get_next(",");
-    strcpy(wgtname,str);
+    XPP_STRCPY(wgtname,str);
     iwgt=find_lookup(wgtname);
     
     if(iwgt<0){
@@ -427,7 +428,7 @@ int add_spec_fun(name,rhs)
     }
 
      str=get_next(",");
-    strcpy(indname,str);
+    XPP_STRCPY(indname,str);
     iind=find_lookup(indname);
     
     if(iind<0){
@@ -436,7 +437,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
     str=get_next(")");
-    strcpy(rootname,str);
+    XPP_STRCPY(rootname,str);
        ivar=get_var_index(rootname);
   
 
@@ -483,7 +484,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
     str=get_next(",");
-    strcpy(wgtname,str);
+    XPP_STRCPY(wgtname,str);
     iwgt=find_lookup(wgtname);
     if(iwgt<0){
       plintf("in network %s,  %s is not a table \n",
@@ -493,7 +494,7 @@ int add_spec_fun(name,rhs)
 
 
     str=get_next(",");
-    strcpy(rootname,str);
+    XPP_STRCPY(rootname,str);
     ivar=get_var_index(rootname);
     if(ivar<0){
       plintf(" In %s , %s is not valid variable\n",
@@ -502,7 +503,7 @@ int add_spec_fun(name,rhs)
     }
 
     str=get_next(",");
-    strcpy(root2name,str);
+    XPP_STRCPY(root2name,str);
     ivar2=get_var_index(root2name);
     if(ivar2<0){
       plintf(" In %s , %s is not valid variable\n",
@@ -510,7 +511,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
     str=get_next(")");
-    strcpy(fname,str);
+    XPP_STRCPY(fname,str);
     snprintf(junk,sizeof(junk),"%s(%s,%s)",fname,rootname,root2name);
     if(add_expr(junk,my_net[ind].f,&elen)){
       plintf(" bad function %s \n",fname);
@@ -546,7 +547,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
     str=get_next(",");
-    strcpy(wgtname,str);
+    XPP_STRCPY(wgtname,str);
     iwgt=find_lookup(wgtname);
     
     if(iwgt<0){
@@ -556,7 +557,7 @@ int add_spec_fun(name,rhs)
     }
 
      str=get_next(",");
-    strcpy(indname,str);
+    XPP_STRCPY(indname,str);
     iind=find_lookup(indname);
     
     if(iind<0){
@@ -567,7 +568,7 @@ int add_spec_fun(name,rhs)
 
 
     str=get_next(",");
-    strcpy(rootname,str);
+    XPP_STRCPY(rootname,str);
        ivar=get_var_index(rootname);
   
 
@@ -579,7 +580,7 @@ int add_spec_fun(name,rhs)
  
 
     str=get_next(",");
-    strcpy(root2name,str);
+    XPP_STRCPY(root2name,str);
     ivar2=get_var_index(root2name);
     if(ivar2<0){
       plintf(" In %s , %s is not valid variable\n",
@@ -587,7 +588,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
     str=get_next(")");
-    strcpy(fname,str);
+    XPP_STRCPY(fname,str);
     snprintf(junk,sizeof(junk),"%s(%s,%s)",fname,rootname,root2name);
     if(add_expr(junk,my_net[ind].f,&elen)){
       plintf(" bad function %s \n",fname);
@@ -628,7 +629,7 @@ int add_spec_fun(name,rhs)
     }
    
     str=get_next(",");
-    strcpy(wgtname,str);
+    XPP_STRCPY(wgtname,str);
     iwgt=find_lookup(wgtname);
     if(iwgt<0){
       plintf("in network %s,  %s is not a table \n",
@@ -645,7 +646,7 @@ int add_spec_fun(name,rhs)
      return 0;
     }
     str=get_next(")");
-    strcpy(rootname,str);
+    XPP_STRCPY(rootname,str);
     ivar=get_var_index(rootname);
     if(ivar<0){
       plintf(" In %s , %s is not valid variable\n",
@@ -692,7 +693,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
     str=get_next(",");
-    strcpy(wgtname,str);
+    XPP_STRCPY(wgtname,str);
     iwgt=find_lookup(wgtname);
     
     if(iwgt<0){
@@ -702,7 +703,7 @@ int add_spec_fun(name,rhs)
     }
 
     str=get_next(")");
-    strcpy(rootname,str);
+    XPP_STRCPY(rootname,str);
        ivar=get_var_index(rootname);
   
 
@@ -742,7 +743,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
     str=get_next(",");
-    strcpy(wgtname,str);
+    XPP_STRCPY(wgtname,str);
     iwgt=find_lookup(wgtname);
     
     if(iwgt<0){
@@ -752,7 +753,7 @@ int add_spec_fun(name,rhs)
     }
 
     str=get_next(",");
-    strcpy(rootname,str);
+    XPP_STRCPY(rootname,str);
        ivar=get_var_index(rootname);
   
 
@@ -762,7 +763,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
   str=get_next(",");
-    strcpy(root2name,str);
+    XPP_STRCPY(root2name,str);
     ivar2=get_var_index(root2name);
     if(ivar2<0){
       plintf(" In %s , %s is not valid variable\n",
@@ -770,7 +771,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
     str=get_next(")");
-    strcpy(fname,str);
+    XPP_STRCPY(fname,str);
     snprintf(junk,sizeof(junk),"%s(%s,%s)",fname,rootname,root2name);
     if(add_expr(junk,my_net[ind].f,&elen)){
       plintf(" bad function %s \n",fname);
@@ -817,7 +818,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
     str=get_next(")");
-    strcpy(rootname,str);
+    XPP_STRCPY(rootname,str);
     ivar=get_var_index(rootname);
     if(ivar<0){
       plintf(" In %s , %s is not valid variable\n",
@@ -851,7 +852,7 @@ int add_spec_fun(name,rhs)
     }
     my_net[ind].n=ivar; /* # entries in array */
     str=get_next(")");
-    strcpy(rootname,str);
+    XPP_STRCPY(rootname,str);
     ivar=get_var_index(rootname);
     if(ivar<0){
       plintf(" In %s , %s is not valid variable\n",
@@ -877,8 +878,8 @@ int add_spec_fun(name,rhs)
 	     name,rootname);
       return 0;
     }
-     strcpy(my_net[ind].soname,soname);
-     strcpy(my_net[ind].sofun,sofun);
+     XPP_STRCPY(my_net[ind].soname,soname);
+     XPP_STRCPY(my_net[ind].sofun,sofun);
      my_net[ind].root=ivar;
      my_net[ind].type=ntype;
      my_net[ind].ncon=0;
@@ -917,7 +918,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
     str=get_next(",");
-    strcpy(wgtname,str);
+    XPP_STRCPY(wgtname,str);
     iwgt=find_lookup(wgtname);
     
     if(iwgt<0){
@@ -926,7 +927,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
     str=get_next(",");
-    strcpy(tauname,str);
+    XPP_STRCPY(tauname,str);
     itau=find_lookup(tauname);
     
     if(itau<0){
@@ -938,7 +939,7 @@ int add_spec_fun(name,rhs)
      
 
     str=get_next(")");
-    strcpy(rootname,str);
+    XPP_STRCPY(rootname,str);
        ivar=get_var_index(rootname);
   
 
@@ -981,7 +982,7 @@ int add_spec_fun(name,rhs)
       return 0;
     }
     str=get_next(",");
-    strcpy(wgtname,str);
+    XPP_STRCPY(wgtname,str);
     iwgt=find_lookup(wgtname);
     
     if(iwgt<0){
@@ -991,7 +992,7 @@ int add_spec_fun(name,rhs)
     }
 
      str=get_next(",");
-    strcpy(indname,str);
+    XPP_STRCPY(indname,str);
     iind=find_lookup(indname);
     
     if(iind<0){
@@ -1002,7 +1003,7 @@ int add_spec_fun(name,rhs)
 
 
      str=get_next(",");
-    strcpy(tauname,str);
+    XPP_STRCPY(tauname,str);
     itau=find_lookup(tauname);
     
     if(itau<0){
@@ -1013,7 +1014,7 @@ int add_spec_fun(name,rhs)
 
     
     str=get_next(")");
-    strcpy(rootname,str);
+    XPP_STRCPY(rootname,str);
        ivar=get_var_index(rootname);
   
 
@@ -1114,7 +1115,7 @@ void add_special_name(name,rhs)
       return;
     }
     if(name_too_long(name))exit(0);
-    strcpy(my_net[n_network].name,name);
+    XPP_STRCPY(my_net[n_network].name,name);
     add_net_name(n_network,name);
     n_network++;
   }
@@ -1563,7 +1564,7 @@ int gilparse(char *s,int *ind,int *nn)
 	  plintf("added %s{%d-%d}\n",b,i1,i2);
 	  m=i2-i1+1;
 	  for(id=0;id<m;id++){
-	    sprintf(bn,"%s%d",b,id+i1);
+	    XPP_SPRINTF(bn,"%s%d",b,id+i1);
 	     iv=get_var_index(bn);
 	     if(iv<0){
 	       plintf("No such name %s\n",bn);
@@ -1600,7 +1601,8 @@ int g_namelist(char *s,char *root,int *flag,int *i1,int*i2)
   for(i=0;i<n;i++)
     if(s[i]=='{')ir=i;
   if(ir<0){
-    strcpy(root,s);
+    /* root is a pointer here; the one caller passes char b[1024]. */
+    xpp_strlcpy(root,s,1024);
     return 1;
   }
   for(i=0;i<ir;i++)
@@ -1674,6 +1676,9 @@ int import_error()
 }
 int parse_import(char *s,  char *soname,char *sofun,int *n, char *vname,int *m, char *tname[MAXW])
 {
+  /* soname/sofun/vname/tname[*] are pointers here; the one caller
+     passes char soname[256],sofun[256],rootname[1024] (vname) and
+     tname[i]=xpp_malloc(25) each. */
   char temp[256];
   int j;
   char c;
@@ -1690,11 +1695,11 @@ int parse_import(char *s,  char *soname,char *sofun,int *n, char *vname,int *m, 
   }
 
   j=getimpstr(s,&i,temp);
-  strcpy(soname,temp);
+  xpp_strlcpy(soname,temp,256);
   if(j==1)return(import_error());
 
   j=getimpstr(s,&i,temp);
-  strcpy(sofun,temp);
+  xpp_strlcpy(sofun,temp,256);
   if(j==1)return(import_error());
 
   j=getimpstr(s,&i,temp);
@@ -1702,7 +1707,7 @@ int parse_import(char *s,  char *soname,char *sofun,int *n, char *vname,int *m, 
   if(j==1||*n<=0)return(import_error());
 
   j=getimpstr(s,&i,temp);
-  strcpy(vname,temp);
+  xpp_strlcpy(vname,temp,1024);
   /*  plintf("%s %s %d %s\n",soname,sofun,*n,vname); */
   *m=0;
   if(j==1){
@@ -1714,7 +1719,7 @@ int parse_import(char *s,  char *soname,char *sofun,int *n, char *vname,int *m, 
    
   while(done>0){
     j=getimpstr(s,&i,temp);
-    strcpy(tname[*m],temp);
+    xpp_strlcpy(tname[*m],temp,25);
     *m=*m+1;
     if(j==1)done=0;
   }

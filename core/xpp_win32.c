@@ -15,6 +15,7 @@
 #include "xpp_win32.h"
 #include "xpp_util.h"
 #include "xpp_mem.h"
+#include "xpp_io.h"
 
 static const char *dl_error;
 
@@ -77,7 +78,8 @@ char *xpp_make_temp_dir(void)
     if (n > 0 && base[n - 1] == '\\') base[--n] = 0;
     path = (char *)xpp_malloc((size_t)n + 64);
     for (i = 0; i < 1000; i++) {
-        sprintf(path, "%s\\xppautoX-%lu-%d", base, (unsigned long)GetCurrentProcessId(), i);
+        /* path is a pointer, allocated n+64 bytes just above. */
+        xpp_snprintf(path, (size_t)n + 64, "%s\\xppautoX-%lu-%d", base, (unsigned long)GetCurrentProcessId(), i);
         if (_mkdir(path) == 0) return path;
     }
     xpp_free(path);

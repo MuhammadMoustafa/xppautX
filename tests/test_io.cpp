@@ -1,9 +1,10 @@
 /* xpp_io: the safe formatting/copying the whole core uses instead of
    sprintf/strcpy into fixed buffers (issue: W11 step 2). Checks
    truncation, NUL termination, the returned lengths, XPP_SPRINTF/
-   XPP_STRCPY/XPP_STRCAT taking sizeof(dst) automatically, and that a
+   XPP_STRCPY/XPP_STRCAT taking sizeof(dst) automatically, that a
    truncating call logs exactly one WARN (redirecting stderr, since
-   xpp_log's default threshold already prints WARN and up). */
+   xpp_log's default threshold already prints WARN and up), and the
+   C++ API (xpp::format, XPP_FORMAT_TO_BUF, xpp::number). */
 #include "xpptest.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
@@ -83,13 +84,13 @@ int main(void)
     CHECK(n == strlen("abcdefghijklmnop"));
     CHECK(strlen(dst) == sizeof(dst) - 1);
 
-    /* XPP_STRCPY takes sizeof(dst) and evaluates to dst, like strcpy */
+    /* XPP_STRCPY takes the size from sizeof(dst) */
     char cbuf[4];
-    char *ret = XPP_STRCPY(cbuf, "hi");
-    CHECK(ret == cbuf);
+    n = XPP_STRCPY(cbuf, "hi");
+    CHECK(n == 2);
     CHECK_STR(cbuf, "hi");
-    ret = XPP_STRCPY(cbuf, "toolong");
-    CHECK(ret == cbuf);
+    n = XPP_STRCPY(cbuf, "toolong");
+    CHECK(n == strlen("toolong"));
     CHECK(strlen(cbuf) == sizeof(cbuf) - 1);
 
     /* xpp_strlcat / XPP_STRCAT */
@@ -102,8 +103,8 @@ int main(void)
     CHECK(strlen(cat) == sizeof(cat) - 1);
 
     char cat2[6] = "xy";
-    char *catret = XPP_STRCAT(cat2, "z");
-    CHECK(catret == cat2);
+    size_t catn = XPP_STRCAT(cat2, "z");
+    CHECK(catn == 3);
     CHECK_STR(cat2, "xyz");
 
     /* struct-member and array-element destinations: sizeof(dst) still
@@ -142,6 +143,34 @@ int main(void)
         std::string out = cap.end();
         CHECK(out.empty());
     }
+
+#ifdef XPP_IO_HAVE_STD_FORMAT
+    /* xpp::format: unbounded, std::format syntax, compile-time checked */
+    CHECK_STR(xpp::format("{} and {}", 1, "two").c_str(), "1 and two");
+    CHECK_STR(xpp::format("{:.2f}", 3.14159).c_str(), "3.14");
+
+    /* XPP_FORMAT_TO_BUF: fits */
+    {
+        char fb[16];
+        XPP_FORMAT_TO_BUF(fb, "{}-{}", 12, "ab");
+        CHECK_STR(fb, "12-ab");
+    }
+    /* XPP_FORMAT_TO_BUF: truncates, still NUL-terminated, warns once */
+    {
+        StderrCapture cap;
+        cap.begin();
+        char fb[6];
+        XPP_FORMAT_TO_BUF(fb, "{}", "way too long for six bytes");
+        std::string out = cap.end();
+        CHECK(strlen(fb) == sizeof(fb) - 1);
+        CHECK(out.find("truncated") != std::string::npos);
+    }
+#endif
+#ifdef XPP_IO_HAVE_TO_CHARS
+    /* xpp::number: shortest round-trip text, no trailing garbage digits */
+    CHECK_STR(xpp::number(3.5).c_str(), "3.5");
+    CHECK_STR(xpp::number(100.0).c_str(), "100");
+#endif
 
     TEST_REPORT("test_io");
 }

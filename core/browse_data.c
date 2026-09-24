@@ -16,6 +16,7 @@
 #include <string.h>
 #include <strings.h>
 #include <sys/time.h>
+#include "xpp_io.h"
 
 extern int *plotlist, N_plist;
 extern int NEQ;
@@ -149,7 +150,7 @@ void init_browser()
  my_browser.row0=0;
  my_browser.istart=0;
  my_browser.iend=0;
- strcpy(my_browser.hinttxt,"hint");
+ XPP_STRCPY(my_browser.hinttxt,"hint");
 
 }
 
@@ -270,7 +271,13 @@ char *var;
 	storage[j][i]=storage[j+1][i];
       for(i=0;i<400;i++)
 	my_ode[j-1+FIX_VAR][i]=my_ode[j+FIX_VAR][i];
-      strcpy(uvar_names[j-1],uvar_names[j]);
+      XPP_STRCPY(uvar_names[j-1],uvar_names[j]);
+      /* ode_names[j-1] is a pointer allocated at a variable's creation
+         (edit_rhs.c, form_ode.cpp), by a size that depends on that
+         formula's own length there -- not knowable from here, and not
+         necessarily >= ode_names[j]'s length. Left as strcpy() (W11
+         report: genuine unknown-size site); tools/formatcheck.sh
+         allowlists it. */
       strcpy(ode_names[j-1],ode_names[j]);
     }
   }
@@ -289,7 +296,7 @@ void data_del_col(b)  /*  this only works with storage  */
     if(check_for_stor(b->data)==0)return;
   err_msg("Sorry - not working very well yet...");
   return;
-  strcpy(var,"");
+  XPP_STRCPY(var,"");
   status=get_dialog("Delete","Name",var,"Ok","Cancel",XPP_NAME_MAX);
    if(status!=0)
     del_stor_col(var,b); 
@@ -301,8 +308,8 @@ BROWSER *b;
   int status;
   char var[XPP_NAME_MAX+1],form[80];
    if(check_for_stor(b->data)==0)return;
-  strcpy(var,"");
-  strcpy(form,"");
+  XPP_STRCPY(var,"");
+  XPP_STRCPY(form,"");
   status=get_dialog("Add Column","Name",var,"Ok","Cancel",XPP_NAME_MAX);
   if(status!=0){
     status=get_dialog("Add Column","Formula:",form,"Add it","Cancel",80);
@@ -340,11 +347,12 @@ int add_stor_col(name,formula,b)
     xpp_free(storage[NEQ+1]);
     return(0);
   }
-  strcpy(ode_names[NEQ],formula);
+  /* ode_names[NEQ] is a pointer, allocated 80 bytes just above. */
+  xpp_strlcpy(ode_names[NEQ],formula,80);
   strupr(ode_names[NEQ]);
   for(j=0;j<=i;j++)
     my_ode[NEQ+FIX_VAR][j]=com[j];
-  strcpy(uvar_names[NEQ],name);
+  XPP_STRCPY(uvar_names[NEQ],name);
   strupr(uvar_names[NEQ]);
   for(i=0;i<b->maxrow;i++)
     storage[NEQ+1][i]=0.0;   /*  zero it all   */
@@ -562,8 +570,8 @@ BROWSER *b;
 {
  int status;
  char var[XPP_NAME_MAX+1],form[80];
-strcpy(var,uvar_names[0]);
-strcpy(form,uvar_names[0]);
+XPP_STRCPY(var,uvar_names[0]);
+XPP_STRCPY(form,uvar_names[0]);
 status=get_dialog("Replace","Variable:",var,"Ok","Cancel",XPP_NAME_MAX);
 if(status!=0){
  status=get_dialog("Replace","Formula:",form,"Replace","Cancel",80);
@@ -592,9 +600,9 @@ BROWSER *b;
 
  double xlo=0,xhi=1;
  int col;
- sprintf(value[0],"%s",uvar_names[0]);
- sprintf(value[1],"0.00");
- sprintf(value[2],"1.00");
+ XPP_SPRINTF(value[0],"%s",uvar_names[0]);
+ XPP_SPRINTF(value[1],"0.00");
+ XPP_SPRINTF(value[2],"1.00");
  snprintf(value[3],sizeof(value[3]),"%.*s.tab",XPP_NAME_MAX,value[0]);
  status=do_string_box(4,4,1,"Tabulate",name,value,40);
  if(status==0)return;
@@ -616,8 +624,8 @@ BROWSER *b;
 
  float val;
 
- sprintf(value[0],"%s",uvar_names[0]);
- sprintf(value[1],"0.00");
+ XPP_SPRINTF(value[0],"%s",uvar_names[0]);
+ XPP_SPRINTF(value[1],"0.00");
  status=do_string_box(2,2,1,"Find Data",name,value,40);
  
   
@@ -647,7 +655,7 @@ BROWSER *b;
  int len,count=0,white=1;
  float z;
  
- strcpy(fil,"test.dat");
+ XPP_STRCPY(fil,"test.dat");
  /*  XGetInputFocus(display,&w,&rev);
  status=get_dialog("Load","Filename:",fil,"Ok","Cancel",40);
  */
@@ -710,7 +718,7 @@ BROWSER *b;
  int i,j;
  int ok;
  
- strcpy(fil,"test.dat");
+ XPP_STRCPY(fil,"test.dat");
 
 /* 
  XSetInputFocus(display,command_pop,RevertToParent,CurrentTime);

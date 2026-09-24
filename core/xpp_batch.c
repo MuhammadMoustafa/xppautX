@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "xpp_io.h"
 
 #define cstringmaj MYSTR1
 #define cstringmin MYSTR2
@@ -262,8 +263,8 @@ void xpp_load_model(int argc, char **argv, int batch)
     xpp_reset_options();
     get_directory(myfile);
     Xup = 0;
-    sprintf(batchout, "output.dat");
-    sprintf(PlotFormat, "ps");
+    XPP_SPRINTF(batchout, "output.dat");
+    XPP_SPRINTF(PlotFormat, "ps");
     logfile = stdout;
     check_for_quiet(argc, argv);
     do_comline(argc, argv);

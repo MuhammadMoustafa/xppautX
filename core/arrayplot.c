@@ -51,6 +51,7 @@
 #include "xpplim.h"
 #define READEM 1
 #include "browse.h"
+#include "xpp_io.h"
 #define FIRSTCOLOR 30
 #define FIX_MIN_SIZE 2
 /*extern char this_file[100];*/
@@ -78,11 +79,11 @@ void set_up_aplot_range()
   int status;
   double *x;
  snprintf(values[0],sizeof(values[0]),"%.24s",aplot_range_stem);
- sprintf(values[1],"%d",aplot_still);
- sprintf(values[2],"%d",aplot_tag);
+ XPP_SPRINTF(values[1],"%d",aplot_still);
+ XPP_SPRINTF(values[2],"%d",aplot_tag);
  status=do_string_box(3,3,1,"Array range saving",n,values,28); 
  if(status!=0){
-   sprintf(aplot_range_stem,"%s",values[0]);
+   XPP_SPRINTF(aplot_range_stem,"%s",values[0]);
    aplot_still=atoi(values[1]);
    aplot_tag=atoi(values[2]);
  aplot_range=1;
@@ -112,7 +113,7 @@ void optimize_aplot(int *plist)
   make_my_aplot("Array!");
 
   aplot.index0=i0+1;
-  strcpy(aplot.name,uvar_names[i0]);
+  XPP_STRCPY(aplot.name,uvar_names[i0]);
   aplot.nacross=ncol;
   nr=201;
   if(nrows<nr)
@@ -178,10 +179,10 @@ APLOT *ap;
  ap->ncskip=1;
  ap->tstart=0.0;
  ap->tend=20.0;
- strcpy(ap->filename,"output.ps");
- strcpy(ap->xtitle,"index");
- strcpy(ap->ytitle,"time");
- strcpy(ap->bottom,"");
+ XPP_STRCPY(ap->filename,"output.ps");
+ XPP_STRCPY(ap->xtitle,"index");
+ XPP_STRCPY(ap->ytitle,"time");
+ XPP_STRCPY(ap->bottom,"");
  ap->type=-1;
 }
 
@@ -217,13 +218,13 @@ void print_aplot(ap)
   snprintf(values[1],sizeof(values[1]),"%.24s",ap->xtitle);
   snprintf(values[2],sizeof(values[2]),"%.24s",ap->ytitle);
     snprintf(values[3],sizeof(values[3]),"%.24s",ap->bottom);
-  sprintf(values[4],"%d",ap->type);
+  XPP_SPRINTF(values[4],"%d",ap->type);
   status=do_string_box(5,5,1,"Print arrayplot",n,values,40);
  if(status!=0){
-   strcpy(ap->filename,values[0]);
-   strcpy(ap->xtitle,values[1]);
-   strcpy(ap->ytitle,values[2]);
-   strcpy(ap->bottom,values[3]);
+   XPP_STRCPY(ap->filename,values[0]);
+   XPP_STRCPY(ap->xtitle,values[1]);
+   XPP_STRCPY(ap->ytitle,values[2]);
+   XPP_STRCPY(ap->bottom,values[3]);
    ap->type=atoi(values[4]);
    if(ap->type<-1||ap->type>2)ap->type=-1;
    errflag=array_print(ap->filename,ap->xtitle,ap->ytitle,ap->bottom,
@@ -258,7 +259,10 @@ void get_root(s,sroot,num)
     i--;
     if(i<0)break;
   }
-  if(i<0)strcpy(sroot,s);
+  /* sroot is a pointer here (get_root's one caller, ui_json.cpp, passes
+     its own char sroot[100]): XPP_STRCPY's sizeof(dst) trick does not
+     apply, so pass that real size directly. */
+  if(i<0)xpp_strlcpy(sroot,s,100);
   else {
     for(j=0;j<=i;j++)
       sroot[j]=s[j];
@@ -301,15 +305,15 @@ int editaplot(ap)
   char *n[]={"*0Column 1","NCols","Row 1","NRows","RowSkip",
   "Zmin","Zmax","Autoplot(0/1)","ColSkip"};
  char values[9][MAX_LEN_SBOX];
- sprintf(values[0],"%s",ap->name);
- sprintf(values[1],"%d",ap->nacross);
- sprintf(values[2],"%d",ap->nstart);
- sprintf(values[3],"%d",ap->ndown);
- sprintf(values[4],"%d",ap->nskip);
- sprintf(values[5],"%g",ap->zmin);
- sprintf(values[6],"%g",ap->zmax);
- sprintf(values[7],"%d",plot3d_auto_redraw);
-sprintf(values[8],"%d",ap->ncskip);
+ XPP_SPRINTF(values[0],"%s",ap->name);
+ XPP_SPRINTF(values[1],"%d",ap->nacross);
+ XPP_SPRINTF(values[2],"%d",ap->nstart);
+ XPP_SPRINTF(values[3],"%d",ap->ndown);
+ XPP_SPRINTF(values[4],"%d",ap->nskip);
+ XPP_SPRINTF(values[5],"%g",ap->zmin);
+ XPP_SPRINTF(values[6],"%g",ap->zmax);
+ XPP_SPRINTF(values[7],"%d",plot3d_auto_redraw);
+XPP_SPRINTF(values[8],"%d",ap->ncskip);
  status=do_string_box(9,9,1,"Edit arrayplot",n,values,40);
  if(status!=0){
    find_variable(values[0],&i);

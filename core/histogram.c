@@ -13,6 +13,7 @@
 
 #include "fftn.h"
 #include "parserslow.h"
+#include "xpp_io.h"
 
 
 
@@ -419,7 +420,7 @@ void column_mean()
  }
  mean=sum/(double)storind;
  sdev=sqrt(sum2/(double)storind-mean*mean);
- sprintf(bob,"Mean=%g Std. Dev. = %g ",mean,sdev);
+ XPP_SPRINTF(bob,"Mean=%g Std. Dev. = %g ",mean,sdev);
  err_msg(bob);
 }
 
@@ -429,9 +430,9 @@ int get_col_info(col,prompt)
 {
  char variable[256]; /* new_string edits up to 255 characters */
  if(*col==0)
-   strcpy(variable,"t");
+   XPP_STRCPY(variable,"t");
  else
-   strcpy(variable,uvar_names[*col-1]);
+   XPP_STRCPY(variable,uvar_names[*col-1]);
  new_string(prompt,variable);
  find_variable(variable,col);
  if(*col<0){

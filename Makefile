@@ -13,7 +13,7 @@ MINORVER = 1
 CC      ?= gcc
 CXX     ?= g++
 CSTD    ?= -std=c99 -pedantic -D_XOPEN_SOURCE=600
-CXXSTD  ?= -std=c++17 -pedantic
+CXXSTD  ?= -std=c++23 -pedantic
 WARN    ?= -Wall
 # gcc 14 and clang 16 turned these into errors; keep older compilers strict
 # about them too, so a build that only runs here does not break CI. All but
@@ -44,7 +44,7 @@ ifeq ($(origin CXX),default)
 CXX      = g++
 endif
 CSTD     = -std=gnu99
-CXXSTD   = -std=gnu++17
+CXXSTD   = -std=gnu++23
 EXE      = .exe
 DLLIB    =
 LDSTATIC = -static

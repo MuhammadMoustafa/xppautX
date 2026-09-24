@@ -24,6 +24,7 @@ void new_h_fun();
 extern int DCURY,NDELAYS;
 extern int RandSeed;
 #include "struct.h"
+#include "xpp_io.h"
 extern GRAPH *MyGraph;
 #define VOLTERRA 6
 #define BACKEUL 7
@@ -404,7 +405,7 @@ my_pmap.type=0;
 my_pmap.sos=0;
 my_pmap.sign=1;
 my_pmap.tmod=8.*atan(1.0);
-sprintf(my_pmap.section," ");
+XPP_SPRINTF(my_pmap.section," ");
 
 POIMAP=0;
 POIVAR=1;
@@ -418,9 +419,9 @@ void meth_dialog()
   /*static char *n[]={"*6Method","Abs tol","Rel Tol","DtMin","DtMax",
 		    "Banded(y/n)","UpperBand","LowerBand"};*/
    char values[8][MAX_LEN_SBOX];
-   sprintf(values[0],"%d",METHOD);
-   sprintf(values[1],"%g",ATOLER);
-   sprintf(values[2],"%g",TOLER);
+   XPP_SPRINTF(values[0],"%d",METHOD);
+   XPP_SPRINTF(values[1],"%g",ATOLER);
+   XPP_SPRINTF(values[2],"%g",TOLER);
 }
 
 
@@ -438,7 +439,7 @@ void compute_one_period(double period,double *x,char *name)
   reset_browser();
 
   usual_integrate_stuff(x);
-  sprintf(filename,"orbit.%s.dat",name);
+  XPP_SPRINTF(filename,"orbit.%s.dat",name);
   fp=fopen(filename,"w");
   if(fp!=NULL){
     write_mybrowser_data(fp);
@@ -452,7 +453,7 @@ void compute_one_period(double period,double *x,char *name)
     return;
   }
   new_adjoint();
-  sprintf(filename,"adjoint.%s.dat",name);
+  XPP_SPRINTF(filename,"adjoint.%s.dat",name);
   fp=fopen(filename,"w");
   if(fp!=NULL){
     write_mybrowser_data(fp);
@@ -460,7 +461,7 @@ void compute_one_period(double period,double *x,char *name)
     data_back();
   }
   new_h_fun(1);
-  sprintf(filename,"hfun.%s.dat",name);
+  XPP_SPRINTF(filename,"hfun.%s.dat",name);
   fp=fopen(filename,"w");
   if(fp!=NULL){
     write_mybrowser_data(fp);
@@ -500,10 +501,10 @@ void get_pmap_pars_com(int l)
  if(POIMAP==0)return;
    
  ind_to_sym(i1,n1);
- sprintf(values[0],"%s",n1);
- sprintf(values[1],"%.16g",POIPLN);
- sprintf(values[2],"%d",POISGN);
- sprintf(values[3],"%s",yn[SOS]);
+ XPP_SPRINTF(values[0],"%s",n1);
+ XPP_SPRINTF(values[1],"%.16g",POIPLN);
+ XPP_SPRINTF(values[2],"%d",POISGN);
+ XPP_SPRINTF(values[3],"%s",yn[SOS]);
  status=do_string_box(4,4,1,"Poincare map",n,values,45);
  if(status!=0){
               find_variable(values[0],&i1);

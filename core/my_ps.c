@@ -7,6 +7,7 @@
 #include <stdlib.h> 
 #include <stdio.h>
 #include <string.h>
+#include "xpp_io.h"
 #define MAXPSLINE 100
 
 #define PS_XOFF 50
@@ -213,7 +214,7 @@ void ps_setcolor(color)
   if(color==0)i=0;
   else i=3*(color-19);
  
-   sprintf(bob," %.3f %.3f %.3f setrgbcolor", pscolor[i],pscolor[i+1],pscolor[i+2]);
+   XPP_SPRINTF(bob," %.3f %.3f %.3f setrgbcolor", pscolor[i],pscolor[i+1],pscolor[i+2]);
   ps_write(bob);
 }
 

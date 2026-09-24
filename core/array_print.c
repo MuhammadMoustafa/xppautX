@@ -2,6 +2,7 @@
 #include <math.h>
 #include <stdio.h>
 #include "array_print.h"
+#include "xpp_io.h"
 
 
 #define GREYSCALE -1
@@ -156,9 +157,9 @@ for(i=0;i<n;i++){
       ps_rgb_bar(x0,y0-(i+1)*dy,dx,dy,1.-(float)i*dz,0,type);
   }
   fprintf(my_plot_file,"0 G\n");
-  sprintf(s,"%g",zlo);
+  XPP_SPRINTF(s,"%g",zlo);
   ps_text2(s,x0+.5*dx,y0+.01*dx,2);
-    sprintf(s,"%g",zhi);
+    XPP_SPRINTF(s,"%g",zhi);
   ps_text2(s,x0+.5*dx,y0-n*dy-dy/2,0);
 }
 
@@ -182,13 +183,13 @@ void ps_boxit(tlo,thi,jlo,jhi,zlo,zhi,sx,sy,sb,type)
   
   ps_text2(sx,xhi+.01*dx,.5*(yhi+ylo),1);
   ps_text2(sy,.5*(xhi+xlo),yhi+.01*dy,2);
-  sprintf(str,"%g",tlo);
+  XPP_SPRINTF(str,"%g",tlo);
   ps_text2(str,xhi-.01*dx,yhi+.01*dy,2);
-  sprintf(str,"%g",thi);
+  XPP_SPRINTF(str,"%g",thi);
   ps_text2(str,xlo,yhi+.01*dy,2);
-  sprintf(str,"%g",jlo);
+  XPP_SPRINTF(str,"%g",jlo);
   ps_text2(str,xhi+.01*dx,yhi,0);
-  sprintf(str,"%g",jhi);
+  XPP_SPRINTF(str,"%g",jhi);
   ps_text2(str,xhi+.01*dx,ylo+.01,2);
   ps_col_scale(yhi-.15*dy,xlo-.1*dx,.025*dy,.05*dx,20,zlo,zhi,type,mx);
   ps_text2(sb, xlo-.035*dx,.5*(yhi+ylo),1);

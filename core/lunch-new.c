@@ -1,5 +1,6 @@
 #include "xpp_ui.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 #include "lunch-new.h"
 #include "parserslow.h"
 #include "edit_rhs.h"
@@ -110,9 +111,9 @@ FILE *fp;
  char fstr[15];
  fprintf(fp,"File: %s \n\n Equations... \n",this_file);
  for(i=0;i<NEQ;i++){
-   if(i<NODE&&METHOD>0)strcpy(fstr,"d%s/dT=%s\n");
-    if(i<NODE&&METHOD==0)strcpy(fstr,"%s(n+1)=%s\n");
-     if(i>=NODE)strcpy(fstr,"%s=%s\n");
+   if(i<NODE&&METHOD>0)XPP_STRCPY(fstr,"d%s/dT=%s\n");
+    if(i<NODE&&METHOD==0)XPP_STRCPY(fstr,"%s(n+1)=%s\n");
+     if(i>=NODE)XPP_STRCPY(fstr,"%s=%s\n");
      fprintf(fp,fstr,uvar_names[i],ode_names[i]);
  }
 
@@ -140,8 +141,8 @@ FILE *fp;
 	 DELTA_T,T0,TRANS,TEND,BOUND,DELAY,MaxPoints);
  fprintf(fp,"EVEC_ERR=%g, NEWT_ERR=%g HMIN=%g HMAX=%g TOLER=%g \n",
 	 EVEC_ERR,NEWT_ERR,HMIN,HMAX,TOLER);
-         if(POIVAR==0)strcpy(bob,"T");
-	   else strcpy(bob,uvar_names[POIVAR-1]);
+         if(POIVAR==0)XPP_STRCPY(bob,"T");
+	   else XPP_STRCPY(bob,uvar_names[POIVAR-1]);
  fprintf(fp,"POIMAP=%d POIVAR=%s POIPLN=%g POISGN=%d \n",
         POIMAP,bob,POIPLN,POISGN);
  
@@ -319,9 +320,9 @@ FILE *fp;
  char fstr[15];
  fprintf(fp,"RHS etc ...\n");
  for(i=0;i<NEQ;i++){
-   if(i<NODE&&METHOD>0)strcpy(fstr,"d%s/dT=%s\n");
-    if(i<NODE&&METHOD==0)strcpy(fstr,"%s(n+1)=%s\n");
-     if(i>=NODE)strcpy(fstr,"%s=%s\n");
+   if(i<NODE&&METHOD>0)XPP_STRCPY(fstr,"d%s/dT=%s\n");
+    if(i<NODE&&METHOD==0)XPP_STRCPY(fstr,"%s(n+1)=%s\n");
+     if(i>=NODE)XPP_STRCPY(fstr,"%s=%s\n");
      fprintf(fp,fstr,uvar_names[i],ode_names[i]);
  }
 
@@ -468,7 +469,7 @@ void io_ic_file(char *fn,int flag)
       	chk=fscanf(fp,"%lg",&last_ic[i]);
 	if (chk!=1)
 	{	
-		sprintf(msg,"Expected %d initial conditions but only found %d in %s.",NODE,i,fn);
+		XPP_SPRINTF(msg,"Expected %d initial conditions but only found %d in %s.",NODE,i,fn);
 		err_msg(msg);
 		return;	
 	}
@@ -480,7 +481,7 @@ void io_ic_file(char *fn,int flag)
       	chk=fscanf(fp,"%lg",&last_ic[i]);
 	if (chk!=EOF)
 	{
-		sprintf(msg,"Found more than %d initial conditions in %s.",NODE,fn);
+		XPP_SPRINTF(msg,"Found more than %d initial conditions in %s.",NODE,fn);
 		err_msg(msg);
 		return;
 	}

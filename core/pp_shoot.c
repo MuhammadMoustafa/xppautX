@@ -30,6 +30,7 @@
 #include <math.h>
 #include "xpplim.h"
 #include "getvar.h"
+#include "xpp_io.h"
 
 #define ESCAPE 27
 
@@ -127,7 +128,7 @@ void compile_bvp()
  for(i=0;i<NODE;i++){
  
    if(add_expr(my_bc[i].string,my_bc[i].com,&len)){
-     sprintf(badcom,"Bad syntax on %d th BC",i+1);
+     XPP_SPRINTF(badcom,"Bad syntax on %d th BC",i+1);
      err_msg(badcom);
      return;
    }
@@ -281,10 +282,10 @@ double *sect;
  char values[4][MAX_LEN_SBOX];
  int status,i;
  static char *yn[]={"N","Y"};
- sprintf(values[0],"%s",upar_names[*ipar]);
- sprintf(values[1],"%s",uvar_names[*ivar]);
- sprintf(values[2],"%g",*sect);
- sprintf(values[3],"%s",yn[*ishow]);
+ XPP_SPRINTF(values[0],"%s",upar_names[*ipar]);
+ XPP_SPRINTF(values[1],"%s",uvar_names[*ivar]);
+ XPP_SPRINTF(values[2],"%g",*sect);
+ XPP_SPRINTF(values[3],"%s",yn[*ishow]);
  
  status=do_string_box(4,4,1,"Periodic BCs",n,values,45);
  if(status!=0){
@@ -419,16 +420,16 @@ static char *n[]={"*2Range over","Steps","Start","End",
  int status,i;
  static  char *yn[]={"N","Y"};
  snprintf(values[0],sizeof(values[0]),"%s",shoot_range.item);
- sprintf(values[1],"%d",shoot_range.steps);
- sprintf(values[2],"%g",shoot_range.plow);
- sprintf(values[3],"%g",shoot_range.phigh);
- sprintf(values[4],"%s",yn[shoot_range.cycle]);
- sprintf(values[5],"%d",shoot_range.side);
- sprintf(values[6],"%s",yn[shoot_range.movie]);
+ XPP_SPRINTF(values[1],"%d",shoot_range.steps);
+ XPP_SPRINTF(values[2],"%g",shoot_range.plow);
+ XPP_SPRINTF(values[3],"%g",shoot_range.phigh);
+ XPP_SPRINTF(values[4],"%s",yn[shoot_range.cycle]);
+ XPP_SPRINTF(values[5],"%d",shoot_range.side);
+ XPP_SPRINTF(values[6],"%s",yn[shoot_range.movie]);
 
  status=do_string_box(7,7,1,"Range Shoot",n,values,45);
  if(status!=0){
-   strcpy(shoot_range.item,values[0]);
+   XPP_STRCPY(shoot_range.item,values[0]);
    i=find_user_name(PARAM,shoot_range.item);
    if(i<0){
         err_msg("No such parameter");

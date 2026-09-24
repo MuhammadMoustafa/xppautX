@@ -5,6 +5,7 @@
 #include "load_eqn.h"
 #include "lunch-new.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 #include <stdlib.h>
 #include <string.h>
 /* command-line stuff for xpp */
@@ -289,17 +290,17 @@ int argc;
  for(i=1;i<argc;i++){
    k=parse_it(argv[i]);
    if(k==1){
-     strcpy(setfilename,argv[i+1]);
+     XPP_STRCPY(setfilename,argv[i+1]);
      i++;
      loadsetfile=1;
      
    }
    if(k==2){
-     if (notAlreadySet.SMALL_FONT_NAME){strcpy(small_font_name,argv[i+1]);notAlreadySet.SMALL_FONT_NAME=0;};
+     if (notAlreadySet.SMALL_FONT_NAME){XPP_STRCPY(small_font_name,argv[i+1]);notAlreadySet.SMALL_FONT_NAME=0;};
      i++;
    }
    if(k==3){
-     if (notAlreadySet.BIG_FONT_NAME){strcpy(big_font_name,argv[i+1]);notAlreadySet.BIG_FONT_NAME=0;};
+     if (notAlreadySet.BIG_FONT_NAME){XPP_STRCPY(big_font_name,argv[i+1]);notAlreadySet.BIG_FONT_NAME=0;};
      i++;
    } 
    if(k==4){
@@ -395,7 +396,7 @@ int argc;
      {
          xpp_log(XPP_LOG_WARN, "Max number of include files exceeded.\n");
      }
-     strcpy(includefilename[NincludedFiles],argv[i+1]);
+     XPP_STRCPY(includefilename[NincludedFiles],argv[i+1]);
      NincludedFiles++;
      i++;
      loadincludefile=1;
@@ -409,7 +410,7 @@ int argc;
      i++;
    }
    if(k==22){
-     strcpy(anifile,argv[i+1]);
+     XPP_STRCPY(anifile,argv[i+1]);
      use_ani_file=1;
      i++;
    }
@@ -435,13 +436,13 @@ int argc;
      i++;
    }
    if(k==28){ /* -readset */
-     strcpy(readsetfile,argv[i+1]);
+     XPP_STRCPY(readsetfile,argv[i+1]);
      i++;
      externaloptionsflag=1;
 
    }
    if(k==29){  /* -with */
-     strcpy(externaloptionsstring,argv[i+1]);
+     XPP_STRCPY(externaloptionsstring,argv[i+1]);
      i++;
      externaloptionsflag=2;
    }
@@ -471,7 +472,7 @@ int if_needed_load_ext_options()
       return 0;
     }
     if(fgets(myopts,1024,fp)==NULL)myopts[0]=0;
-    sprintf(myoptsx,"$ %s",myopts);
+    XPP_SPRINTF(myoptsx,"$ %s",myopts);
     plintf("Got this string: {%s}\n",myopts);
     extract_action(myoptsx);
     fclose(fp);
@@ -479,7 +480,7 @@ int if_needed_load_ext_options()
   }
 
   if(externaloptionsflag==2){
-    sprintf(myoptsx,"$ %s",externaloptionsstring);
+    XPP_SPRINTF(myoptsx,"$ %s",externaloptionsstring);
     extract_action(myoptsx);
     return 1;
   }  
@@ -754,7 +755,7 @@ int parse_it(com)
      exit(0);
     }
     else {
-      strcpy(this_file,com);
+      XPP_STRCPY(this_file,com);
       got_file=1;
     }
   }

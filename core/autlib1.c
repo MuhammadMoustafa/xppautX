@@ -1,6 +1,7 @@
 #include "auto_f2c.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 #include "auto_c.h"
 #include "xAuto.h"
 #include "xpp_ui.h" /* err_msg() */
@@ -2613,7 +2614,7 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
 
   /*initialize strings*/
   for (i = 0; i < 9; ++i) {
-    sprintf(col[i], "              ");
+    XPP_SPRINTF(col[i], "              ");
   }
 
   if (iap->mynode == 0) {
@@ -2635,36 +2636,36 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
       j = j + 1 + *n2;
     }   
     if (icp[i] > 9) {
-      sprintf(col[j-1],"   PAR(%ld)    ",icp[i]);
+      XPP_SPRINTF(col[j-1],"   PAR(%ld)    ",icp[i]);
     } else {
-      sprintf(col[j-1],"   PAR(%ld)     ",icp[i]);
+      XPP_SPRINTF(col[j-1],"   PAR(%ld)     ",icp[i]);
     }
 	
   }
 
   if (iplt > ndm && iplt <= ndm << 1) {
-    sprintf(col[1]," INTEGRAL U(%ld)",iplt-ndm);
+    XPP_SPRINTF(col[1]," INTEGRAL U(%ld)",iplt-ndm);
   } else if (iplt > ndm << 1 && iplt <= ndm * 3) {
-    sprintf(col[1]," L2-NORM U(%ld) ",iplt - (ndm * 2));
+    XPP_SPRINTF(col[1]," L2-NORM U(%ld) ",iplt - (ndm * 2));
   } else if (iplt > 0 && iplt <= ndm) {
     if (abs(ips) <= 1 || ips == 5) {
-      sprintf(col[1],"     U(%ld)     ",-iplt);
+      XPP_SPRINTF(col[1],"     U(%ld)     ",-iplt);
     } else {
-      sprintf(col[1],"   MAX U(%ld)   ",iplt);
+      XPP_SPRINTF(col[1],"   MAX U(%ld)   ",iplt);
     }
   } else if (iplt < 0 && iplt >= -ndm) {
     if (abs(ips) <= 1 || ips == 5) {
-      sprintf(col[1],"     U(%ld)     ",-iplt);
+      XPP_SPRINTF(col[1],"     U(%ld)     ",-iplt);
     } else {
-      sprintf(col[1],"   MIN U(%ld)   ",-iplt);
+      XPP_SPRINTF(col[1],"   MIN U(%ld)   ",-iplt);
     }
   } else {
-    sprintf(col[1],"   L2-NORM    ");
+    XPP_SPRINTF(col[1],"   L2-NORM    ");
   }
 
   if (*n2 > 0) {
     for (i = 0; i < *n2; ++i) {
-      sprintf(col[i+2],"     U(%ld)     ",i + 1);
+      XPP_SPRINTF(col[i+2],"     U(%ld)     ",i + 1);
     }
     if ((ips >= 2 && ips <= 4) || (ips >= 6 && ips <= 9) || (ips >= 12 && ips <= 17)) {
       for (i = 3; i <= *n2 + 2; ++i) {
@@ -2677,11 +2678,11 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
 
   for (i = 0; i < *n1 + *n2 + 1; ++i) {
     if (strcmp(col[i],"   PAR(10)    ") == 0 && ips > 0 && ips != 4) {
-      sprintf(col[i],"    PERIOD    ");
+      XPP_SPRINTF(col[i],"    PERIOD    ");
     } else if (strcmp(col[i],"   PAR(9)    ") == 0 && (ips == 5 || ips == 15)) {
-      sprintf(col[i],"     FOPT     ");
+      XPP_SPRINTF(col[i],"     FOPT     ");
     } else if (strcmp(col[i],"   PAR(13)    ") == 0 && (ips == 14 || ips == 16)) {
-      sprintf(col[i],"     TIME     ");
+      XPP_SPRINTF(col[i],"     TIME     ");
     }
   }
 
@@ -2941,29 +2942,29 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   headng(iap, rap, par, icu, 9, &n1, &n2);
 
   if (itp % 10 == 1) {
-    strcpy(atype,"BP");
+    XPP_STRCPY(atype,"BP");
   } else if (itp % 10 == 2) {
-    strcpy(atype, "LP");
+    XPP_STRCPY(atype, "LP");
   } else if (itp % 10 == 3) {
-    strcpy(atype, "HB");
+    XPP_STRCPY(atype, "HB");
   } else if (itp % 10 == 4) {
-    strcpy(atype, "  ");
+    XPP_STRCPY(atype, "  ");
   } else if (itp % 10 == -4) {
-    strcpy(atype, "UZ");
+    XPP_STRCPY(atype, "UZ");
   } else if (itp % 10 == 5) {
-    strcpy(atype, "LP");
+    XPP_STRCPY(atype, "LP");
   } else if (itp % 10 == 6) {
-    strcpy(atype, "BP");
+    XPP_STRCPY(atype, "BP");
   } else if (itp % 10 == 7) {
-    strcpy(atype, "PD");
+    XPP_STRCPY(atype, "PD");
   } else if (itp % 10 == 8) {
-    strcpy(atype, "TR");
+    XPP_STRCPY(atype, "TR");
   } else if (itp % 10 == 9) {
-    strcpy(atype, "EP");
+    XPP_STRCPY(atype, "EP");
   } else if (itp % 10 == -9) {
-    strcpy(atype, "MX");
+    XPP_STRCPY(atype, "MX");
   } else {
-    strcpy(atype, "  ");
+    XPP_STRCPY(atype, "  ");
   }
 
   if (iap->mynode > 0) {
@@ -3083,7 +3084,7 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
       /* Report instead of exit(1): a server must outlive a bad HOME. fp8_is_open
 	 stays 0 so later calls retry the open instead of using a NULL fp8. */
       char msg[256];
-      sprintf(msg,"Could not open %.200s",fort8);
+      XPP_SPRINTF(msg,"Could not open %.200s",fort8);
       err_msg(msg);
       return 0;
     }
@@ -7201,7 +7202,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     if(fp8 == NULL) {
       /* as in wrtsp8() */
       char msg[256];
-      sprintf(msg,"Could not open %.200s",fort8);
+      XPP_SPRINTF(msg,"Could not open %.200s",fort8);
       err_msg(msg);
       return 0;
     }

@@ -20,6 +20,7 @@
 #include "struct.h"
 #include "shoot.h"
 #include "load_eqn.h"
+#include "xpp_io.h"
 
 
 
@@ -76,12 +77,14 @@ void edit_rhs()
    values[i]=(char *)xpp_malloc(MAX_LEN_EBOX*sizeof(char));
    names[i]=(char *)xpp_malloc(MAX_LEN_EBOX+3*XPP_NAME_MAX);
    command[i]=(int *)xpp_malloc(200*sizeof(int));
-   if(i<NODE &&METHOD>0)strcpy(fstr,"d%s/dT");
-   if(i<NODE &&METHOD==0)strcpy(fstr,"%s(n+1)");
-   if(i<NODE &&EqType[i]==1)strcpy(fstr,"%s(T)");
-   if(i>=NODE)strcpy(fstr,"%s");
-   sprintf(names[i],fstr,uvar_names[i]);
-   strcpy(values[i],ode_names[i]);
+   if(i<NODE &&METHOD>0)XPP_STRCPY(fstr,"d%s/dT");
+   if(i<NODE &&METHOD==0)XPP_STRCPY(fstr,"%s(n+1)");
+   if(i<NODE &&EqType[i]==1)XPP_STRCPY(fstr,"%s(T)");
+   if(i>=NODE)XPP_STRCPY(fstr,"%s");
+   /* names[i]/values[i] are pointers, allocated MAX_LEN_EBOX+3*
+      XPP_NAME_MAX and MAX_LEN_EBOX bytes respectively, just above. */
+   xpp_snprintf(names[i],MAX_LEN_EBOX+3*XPP_NAME_MAX,fstr,uvar_names[i]);
+   xpp_strlcpy(values[i],ode_names[i],MAX_LEN_EBOX);
  }
  status=do_edit_box(n,"Right Hand Sides",names,values);
  if(status!=0){
@@ -99,7 +102,9 @@ void edit_rhs()
 	 {
 	   xpp_free(ode_names[i]);
 	   ode_names[i]=(char *)xpp_malloc(strlen(values[i])+5);
-	   strcpy(ode_names[i],values[i]);
+	   /* ode_names[i] is a pointer, allocated strlen(values[i])+5
+	      bytes just above. */
+	   xpp_strlcpy(ode_names[i],values[i],strlen(values[i])+5);
 	   i0=i;
 	   if(i>=NODE)i0=i0+FIX_VAR-NMarkov;
          
@@ -136,16 +141,19 @@ void edit_functions()
    values[i]=(char *)xpp_malloc(MAX_LEN_EBOX*sizeof(char));
    names[i]=(char *)xpp_malloc(MAX_LEN_EBOX+3*XPP_NAME_MAX);
    command[i]=(int *)xpp_malloc(200*sizeof(int));
-   sprintf(values[i],"%s",ufun_def[i]);
+   /* names[i]/values[i] are pointers, allocated MAX_LEN_EBOX+3*
+      XPP_NAME_MAX and MAX_LEN_EBOX bytes respectively, just above
+      (same as edit_rhs). */
+   xpp_snprintf(values[i],MAX_LEN_EBOX,"%s",ufun_def[i]);
 
    if(narg_fun[i]==0){
-     sprintf(names[i],"%s()",ufun_names[i]);
+     xpp_snprintf(names[i],MAX_LEN_EBOX+3*XPP_NAME_MAX,"%s()",ufun_names[i]);
    }
    if(narg_fun[i]==1){
-     sprintf(names[i],"%s(%s)",ufun_names[i],
+     xpp_snprintf(names[i],MAX_LEN_EBOX+3*XPP_NAME_MAX,"%s(%s)",ufun_names[i],
 			     ufun_arg[i].args[0]);
    }
-   if(narg_fun[i]>1)sprintf(names[i],"%s(%s,...,%s)",ufun_names[i],
+   if(narg_fun[i]>1)xpp_snprintf(names[i],MAX_LEN_EBOX+3*XPP_NAME_MAX,"%s(%s,...,%s)",ufun_names[i],
 			    ufun_arg[i].args[0],
 			    ufun_arg[i].args[narg_fun[i]-1]);
 
@@ -164,7 +172,10 @@ void edit_functions()
        err_msg(msg);
      }
      else {
-       strcpy(ufun_def[i],values[i]);
+       /* ufun_def[i] is a pointer, allocated MAXEXPLEN (1024,
+          newpars.h -- not included here) bytes, parserslow2.c's every
+          allocation site. */
+       xpp_strlcpy(ufun_def[i],values[i],1024);
        for(j=0;j<=len;j++){
          /* plintf("f(%d)[%d]=%d %d \n",i,j,command[i][j],ufun[i][j]); */
          ufun[i][j]=command[i][j];

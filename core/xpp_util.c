@@ -4,6 +4,7 @@
 #include "xpp_util.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 #include "xpp_ui.h"
 #include "grobs.h"
 #include "xpp_globals.h"
@@ -89,9 +90,12 @@ void ind_to_sym(ind,str)
  char *str;
  int ind;
 {
- if(ind==0)strcpy(str,"T");
- else strcpy(str,uvar_names[ind-1]);
-} 
+ /* str is a pointer here; every caller passes at least
+    char[XPP_NAME_MAX+1] (some larger), matching uvar_names' own
+    element size. */
+ if(ind==0)xpp_strlcpy(str,"T",XPP_NAME_MAX+1);
+ else xpp_strlcpy(str,uvar_names[ind-1],XPP_NAME_MAX+1);
+}
 
 void  get_max(index, vmin,vmax)
   double *vmax,*vmin;
@@ -492,11 +496,11 @@ void new_parameter()
       index=find_user_name(PARAMBOX,name);
       if(index>=0){
 	get_val(upar_names[index],&z);
-	sprintf(value,"%s :",name);
+	XPP_SPRINTF(value,"%s :",name);
 	done=new_float(value,&z);
 	if(done==0){
 	  set_val(upar_names[index],z);
-	  sprintf(junk,"%.16g",z);
+	  XPP_SPRINTF(junk,"%.16g",z);
 	  xpp_ui.param_box_set(index,junk);
 	  xpp_ui.param_box_redraw(index);
 	}
@@ -516,7 +520,7 @@ void   set_default_params()
  char junk[256];
  for(i=0;i<NUPAR;i++){
    set_val(upar_names[i],default_val[i]);
-   sprintf(junk,"%.16g",default_val[i]);
+   XPP_SPRINTF(junk,"%.16g",default_val[i]);
    xpp_ui.param_box_set(i,junk);
  }
  
@@ -562,12 +566,12 @@ void man_ic()
   double z;
   char name[256],junk[256];
   while(1){
-    sprintf(name,"%s :",uvar_names[index]);
+    XPP_SPRINTF(name,"%s :",uvar_names[index]);
     z=last_ic[index];
     done=new_float(name,&z);
     if(done==0){
       last_ic[index]=z;
-      sprintf(junk,"%.16g",z);
+      XPP_SPRINTF(junk,"%.16g",z);
       xpp_ui.ic_box_set(index,junk);
       xpp_ui.ic_box_redraw(index);
       index++;
@@ -593,10 +597,12 @@ int box_set_value(int type,int i,char *s,double *z)
     set_val(upar_names[i],*z);
     return 1;
   case BCBOX:
-    strcpy(my_bc[i].string,s);
+    /* my_bc[i].string is a pointer, allocated 256 bytes (form_ode.cpp,
+       both allocation sites). */
+    xpp_strlcpy(my_bc[i].string,s,256);
     return 0;
   case DELAYBOX:
-    strcpy(delay_string[i],s);
+    XPP_STRCPY(delay_string[i],s);
     return 0;
   }
   return 0;
@@ -750,7 +756,8 @@ char *xpp_make_temp_dir(void)
   if (path == NULL)
     return NULL;
   for (i = 0; i < 1000; i++) { /* a crashed run with our pid may have left one */
-    sprintf(path, "%s/xppautoX-%ld-%d", base, (long)getpid(), i);
+    /* path is a pointer, allocated strlen(base)+64 bytes just above. */
+    xpp_snprintf(path, strlen(base)+64, "%s/xppautoX-%ld-%d", base, (long)getpid(), i);
     if (mkdir(path, 0700) == 0)
       return path;
     if (errno != EEXIST)

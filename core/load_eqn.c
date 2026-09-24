@@ -32,6 +32,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "xpplim.h"
+#include "xpp_io.h"
 
 #define PARAM 1
 #define IC 2
@@ -382,7 +383,7 @@ void load_eqn()
  {
   itor[i]=0;
 /*  last_ic[i]=0.0; */
-  strcpy(delay_string[i],"0.0");
+  XPP_STRCPY(delay_string[i],"0.0");
  }
 /* Moved to main
  do_comline(argc,argv); */
@@ -402,7 +403,7 @@ void load_eqn()
   {
   if(got_file==1&&(fptr=fopen(this_file,"r"))!=NULL)
   {
-    if(std==1)sprintf(this_file,"console");
+    if(std==1)XPP_SPRINTF(this_file,"console");
    okay=get_eqn(fptr);
    if(std==0)
      fclose(fptr);
@@ -419,7 +420,7 @@ void load_eqn()
 	 if (getenv("XPPSTART")!=NULL)
 	 {
 	      
-	 	sprintf(odeclassrm,"%s",getenv("XPPSTART"));
+	 	XPP_SPRINTF(odeclassrm,"%s",getenv("XPPSTART"));
 	
 		if ((dp=(struct dirent*)opendir(odeclassrm))!=NULL)
 		{
@@ -506,32 +507,36 @@ void set_X_vals()
 	*/
 	if (strlen(big_font_name)==0)
  	{
-		strcpy(big_font_name,"fixed");
+		XPP_STRCPY(big_font_name,"fixed");
 	}
 	
 	if (strlen(small_font_name)==0)
  	{
- 		strcpy(small_font_name,"6x13");
+ 		XPP_STRCPY(small_font_name,"6x13");
 	}
 	
+	/* UserBlack/UserWhite/UserMainWinColor/UserDrawWinColor are
+	   char[8] (xpp_globals.h): exactly sizeof(char*) on a 64-bit
+	   build, so XPP_ARRAY_SIZE_CHECK's sizeof(dst)==sizeof(char*)
+	   heuristic false-triggers on them (documented in xpp_io.h). */
 	if (strlen(UserBlack)==0)
  	{
-        	sprintf(UserBlack,"#%s","000000");
+        	xpp_snprintf(UserBlack,8,"#%s","000000");
 	}
 	
 	if (strlen(UserWhite)==0)
  	{
-		sprintf(UserWhite,"#%s","EDE9E3");
+		xpp_snprintf(UserWhite,8,"#%s","EDE9E3");
 	}
 	
 	if (strlen(UserMainWinColor)==0)
  	{
-		sprintf(UserMainWinColor,"#%s","808080");
+		xpp_snprintf(UserMainWinColor,8,"#%s","808080");
 	}
 	
 	if (strlen(UserDrawWinColor)==0)
  	{
-		sprintf(UserDrawWinColor,"#%s","FFFFFF");
+		xpp_snprintf(UserDrawWinColor,8,"#%s","FFFFFF");
 	}
 	
 	if (UserGradients<0)
@@ -710,7 +715,7 @@ void read_defaults(fp)
  ptr=get_first(bob," ");
  if (notAlreadySet.BIG_FONT_NAME && ptr!=NULL)
  {
- 	strcpy(big_font_name,ptr);
+ 	XPP_STRCPY(big_font_name,ptr);
 	notAlreadySet.BIG_FONT_NAME=0;
  }
 
@@ -719,7 +724,7 @@ void read_defaults(fp)
  if (notAlreadySet.SMALL_FONT_NAME && ptr!=NULL)
  {
 
- 	strcpy(small_font_name,ptr);
+ 	XPP_STRCPY(small_font_name,ptr);
 	notAlreadySet.SMALL_FONT_NAME=0;
  }
  
@@ -791,7 +796,8 @@ void add_intern_set(name,does)
   intern_set[j].use=1;
   n=strlen(name);
   intern_set[j].name=(char *)xpp_malloc((n+1));
-  strcpy(intern_set[j].name,name);
+  /* intern_set[j].name is a pointer, allocated n+1 bytes just above. */
+  xpp_strlcpy(intern_set[j].name,name,n+1);
   n=strlen(does);
   bob[0]='$';
   bob[1]=' ';
@@ -811,7 +817,8 @@ void add_intern_set(name,does)
   }
   bob[k]=0;
   intern_set[j].does=(char *)xpp_malloc(n+3);
-  strcpy(intern_set[j].does,bob);
+  /* intern_set[j].does is a pointer, allocated n+3 bytes just above. */
+  xpp_strlcpy(intern_set[j].does,bob,n+3);
  plintf(" added %s doing %s \n",
 	 intern_set[j].name,intern_set[j].does);
   Nintern_set++;
@@ -824,7 +831,7 @@ void extract_action(char *ptr)
  char tmp[2048];
   char *junk,*mystring;
   /* plintf("ptr=%s \n",ptr);  */
-  strcpy(tmp,ptr);
+  XPP_STRCPY(tmp,ptr);
   junk=get_first(tmp," ");
   if (junk == NULL)
   {
@@ -978,7 +985,7 @@ void set_internopts_xpprc_and_comline()
  /*Check for QUIET and LOGFILE options first...*/
   char intrnoptcpy[255]; /*Must use copy to avoid side effects of strtok used in get_first below*/
   for(i=0;i<Nopts;i++){
-    strcpy(intrnoptcpy,interopt[i]);
+    XPP_STRCPY(intrnoptcpy,interopt[i]);
     ptr=intrnoptcpy;
     junk=get_first(ptr," ,");  
     if (junk == NULL)
@@ -1046,6 +1053,9 @@ void set_internopts_xpprc_and_comline()
 void split_apart(bob, name,value)
 char *bob,*name,*value;
 {
+ /* name/value are pointers here; the smallest of split_apart's four
+    callers pass char name[20],value[80] (the other passes [256],[256]),
+    so 20/80 are the real, safe sizes. */
  int k,i,l;
 
 
@@ -1054,7 +1064,7 @@ char *bob,*name,*value;
  if(k==l)
  {
   value[0]=0;
-  strcpy(name,bob);
+  xpp_strlcpy(name,bob,20);
   }
   else
   {
@@ -1074,7 +1084,7 @@ void check_for_xpprc()
   FILE *fp;
   char rc[256];
   char bob[256];
-  sprintf(rc,"%s/.xpprc",getenv("HOME"));
+  XPP_SPRINTF(rc,"%s/.xpprc",getenv("HOME"));
   fp=fopen(rc,"r");
   if(fp==NULL){
     /*   plintf("Didnt find rc \n"); */
@@ -1101,7 +1111,8 @@ void stor_internopts(s1)
     return;
   }
   interopt[Nopts]=(char *)xpp_malloc(n+1);
-  sprintf(interopt[Nopts],"%s",s1);
+  /* interopt[Nopts] is a pointer, allocated n+1 bytes just above. */
+  xpp_snprintf(interopt[Nopts],n+1,"%s",s1);
   Nopts++;
 
 }
@@ -1158,7 +1169,7 @@ void set_option(s1,s2,force,mask)
  if((msc("BIGFONT",s1))||(msc("BIG",s1))){
     if ((notAlreadySet.BIG_FONT_NAME||force) || ((mask!=NULL)&&(mask->BIG_FONT_NAME==1)))
     {
-    	strcpy(big_font_name,s2);
+    	XPP_STRCPY(big_font_name,s2);
 	notAlreadySet.BIG_FONT_NAME=0;
     }
     return;
@@ -1166,7 +1177,7 @@ void set_option(s1,s2,force,mask)
   if((msc("SMALLFONT",s1))||(msc("SMALL",s1))){;
     if ((notAlreadySet.SMALL_FONT_NAME||force) || ((mask!=NULL)&&(mask->SMALL_FONT_NAME==1)))
     {
-    	strcpy(small_font_name,s2);
+    	XPP_STRCPY(small_font_name,s2);
 	notAlreadySet.SMALL_FONT_NAME=0;
     }
     return;
@@ -1174,7 +1185,7 @@ void set_option(s1,s2,force,mask)
   if(msc("FORECOLOR",s1)){
     if ((notAlreadySet.UserBlack||force) || ((mask!=NULL)&&(mask->UserBlack==1)))
     {
-    	sprintf(UserBlack,"#%s",s2);
+    	xpp_snprintf(UserBlack,8,"#%s",s2);
 	notAlreadySet.UserBlack=0;
     }
     return;
@@ -1182,7 +1193,7 @@ void set_option(s1,s2,force,mask)
   if(msc("BACKCOLOR",s1)){
     if ((notAlreadySet.UserWhite||force) || ((mask!=NULL)&&(mask->UserWhite==1)))
     {
-    	sprintf(UserWhite,"#%s",s2);
+    	xpp_snprintf(UserWhite,8,"#%s",s2);
 	notAlreadySet.UserWhite=0;
     }
     return;
@@ -1191,7 +1202,7 @@ void set_option(s1,s2,force,mask)
     if ((notAlreadySet.UserMainWinColor||force) || ((mask!=NULL)&&(mask->UserMainWinColor==1)))
     {
       /* printf("Setting MWCOLOR=%s\n",s2); */
-        sprintf(UserMainWinColor,"#%s",s2);
+        xpp_snprintf(UserMainWinColor,8,"#%s",s2);
 	notAlreadySet.UserMainWinColor=0;
     }
     return;
@@ -1199,7 +1210,7 @@ void set_option(s1,s2,force,mask)
   if(msc("DWCOLOR",s1)){
     if ((notAlreadySet.UserDrawWinColor||force) || ((mask!=NULL)&&(mask->UserDrawWinColor==1)))
     {
-    	sprintf(UserDrawWinColor,"#%s",s2);
+    	xpp_snprintf(UserDrawWinColor,8,"#%s",s2);
 	notAlreadySet.UserDrawWinColor=0;
     }
     return;
@@ -1223,7 +1234,7 @@ void set_option(s1,s2,force,mask)
   if(msc("PLOTFMT",s1)){
     if ((notAlreadySet.PLOTFORMAT||force) || ((mask!=NULL)&&(mask->PLOTFORMAT==1)))
     {
-    	strcpy(PlotFormat,s2);
+    	XPP_STRCPY(PlotFormat,s2);
 	notAlreadySet.PLOTFORMAT=0;
     }
     return;
@@ -1234,7 +1245,7 @@ void set_option(s1,s2,force,mask)
   if(msc("BACKIMAGE",s1)){
     if ((notAlreadySet.UserBGBitmap||force) || ((mask!=NULL)&&(mask->UserBGBitmap==1)))
     {
-    	strcpy(UserBGBitmap,s2);
+    	XPP_STRCPY(UserBGBitmap,s2);
 	notAlreadySet.UserBGBitmap=0;
     }
     return;
@@ -1371,7 +1382,7 @@ if(msc("UMC",s1)){
    if(msc("DLL_LIB",s1)){
       if ((notAlreadySet.DLL_LIB||force) || ((mask!=NULL)&&(mask->DLL_LIB==1)))
      {
-     sprintf(dll_lib,"%s",s2);
+     XPP_SPRINTF(dll_lib,"%s",s2);
      dll_flag+=1;
      notAlreadySet.DLL_LIB=0;
      }
@@ -1380,7 +1391,7 @@ if(msc("UMC",s1)){
    if(msc("DLL_FUN",s1)){
      if ((notAlreadySet.DLL_FUN||force) || ((mask!=NULL)&&(mask->DLL_FUN==1)))
      {
-     	sprintf(dll_fun,"%s",s2);
+     	XPP_SPRINTF(dll_fun,"%s",s2);
      	dll_flag+=2;
      	notAlreadySet.DLL_FUN=0;
      }
@@ -1396,13 +1407,13 @@ if(msc("UMC",s1)){
      return;
    }
  for(j=2;j<=8;j++){
-      sprintf(xx,"XP%d",j);
-      sprintf(yy,"YP%d",j);
-      sprintf(zz,"ZP%d",j);
-      sprintf(xxh,"XHI%d",j);    
-      sprintf(xxl,"XLO%d",j);    
-      sprintf(yyh,"YHI%d",j);    
-      sprintf(yyl,"YLO%d",j);    
+      XPP_SPRINTF(xx,"XP%d",j);
+      XPP_SPRINTF(yy,"YP%d",j);
+      XPP_SPRINTF(zz,"ZP%d",j);
+      XPP_SPRINTF(xxh,"XHI%d",j);    
+      XPP_SPRINTF(xxl,"XLO%d",j);    
+      XPP_SPRINTF(yyh,"YHI%d",j);    
+      XPP_SPRINTF(yyl,"YLO%d",j);    
     if(msc(xx,s1)){
     find_variable(s2,&i);
     if(i>-1)IX_PLT[j]=i;
@@ -1816,7 +1827,7 @@ if(msc(yyl,s1)){
  if(msc("OUTPUT",s1)){
      if ((notAlreadySet.OUTPUT||force) || ((mask!=NULL)&&(mask->OUTPUT==1)))
      {
-   	strcpy(batchout,s2);
+   	XPP_STRCPY(batchout,s2);
 	notAlreadySet.OUTPUT=0;
      }
    return;
@@ -2153,7 +2164,7 @@ if(msc("AUTOVAR",s1)){
  if(msc("PS_FONT",s1)){
      if ((notAlreadySet.PS_FONT||force)|| ((mask!=NULL)&&(mask->PS_FONT==1)))
      {
-   	strcpy(PS_FONT,s2);
+   	XPP_STRCPY(PS_FONT,s2);
 	notAlreadySet.PS_FONT=0;
      }
    return;

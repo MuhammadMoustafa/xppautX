@@ -1,6 +1,7 @@
 #include "parserslow.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 
 #include <time.h>
 #include "ggets.h"
@@ -461,7 +462,9 @@ int add_kernel(name,mu,expr)
   }
   else {
     kernel[NKernel].expr=(char *)xpp_malloc(strlen(expr)+2);
-    strcpy(kernel[NKernel].expr,expr);
+    /* kernel[NKernel].expr is a pointer, allocated strlen(expr)+2
+       bytes just above. */
+    xpp_strlcpy(kernel[NKernel].expr,expr,strlen(expr)+2);
   }
   NSYM++;
   NKernel++;
@@ -628,7 +631,7 @@ void set_old_arg_names(narg)
 {
   int i;
   for(i=0;i<narg;i++){
-    sprintf(my_symb[FIRST_ARG+i].name,"ARG%d",i+1);
+    XPP_SPRINTF(my_symb[FIRST_ARG+i].name,"ARG%d",i+1);
     my_symb[FIRST_ARG+i].len=4;
   }
 }
@@ -639,7 +642,7 @@ void set_new_arg_names(narg,args)
 {
   int i;
   for(i=0;i<narg;i++){
-    strcpy(my_symb[FIRST_ARG+i].name,args[i]);
+    XPP_STRCPY(my_symb[FIRST_ARG+i].name,args[i]);
     my_symb[FIRST_ARG+i].len=strlen(args[i]);
  }
 }
@@ -663,7 +666,7 @@ int add_ufun_name(name,index,narg)
   my_symb[NSYM].arg=narg;
   my_symb[NSYM].com=COM(UFUNTYPE, index);
   NSYM++;
-  strcpy(ufun_names[index],name);
+  XPP_STRCPY(ufun_names[index],name);
   return (0);
 }
 
@@ -700,7 +703,7 @@ int add_ufun_new(index,narg,rhs,args)
     }
   ufun_arg[index].narg=narg;
   for(i=0;i<narg;i++)
-    strcpy(ufun_arg[index].args[i],args[i]);
+    XPP_STRCPY(ufun_arg[index].args[i],args[i]);
   set_new_arg_names(narg,args);
   if(add_expr(rhs,ufun[index],&end)==0)
     {
@@ -708,7 +711,9 @@ int add_ufun_new(index,narg,rhs,args)
       ufun[index][end-1]=ENDFUN;
       ufun[index][end]=narg;
       ufun[index][end+1]=ENDEXP;
-      strcpy(ufun_def[index],rhs);
+      /* ufun_def[index] is a pointer, allocated MAXEXPLEN bytes
+         (every allocation site here). */
+      xpp_strlcpy(ufun_def[index],rhs,MAXEXPLEN);
       l=strlen(ufun_def[index]);
       ufun_def[index][l]=0;
       narg_fun[index]=narg;
@@ -758,13 +763,14 @@ int narg;
   ufun[NFUN][end-1]=ENDFUN;
   ufun[NFUN][end]=narg;
   ufun[NFUN][end+1]=ENDEXP;
-  strcpy(ufun_def[NFUN],expr);
+  /* ufun_def[NFUN] is a pointer, allocated MAXEXPLEN bytes above. */
+  xpp_strlcpy(ufun_def[NFUN],expr,MAXEXPLEN);
   l=strlen(ufun_def[NFUN]);
   ufun_def[NFUN][l-1]=0;
-  strcpy(ufun_names[NFUN],junk);
+  XPP_STRCPY(ufun_names[NFUN],junk);
   narg_fun[NFUN]=narg;
   for(i=0;i<narg;i++){
-    sprintf(ufun_arg[NFUN].args[i],"ARG%d",i+1);
+    XPP_SPRINTF(ufun_arg[NFUN].args[i],"ARG%d",i+1);
   }
   NFUN++;
   return(0);

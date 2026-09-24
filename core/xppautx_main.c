@@ -26,6 +26,7 @@
 #include "xpp_batch.h"
 #include "xpp_globals.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 #include "xpp_ui.h"
 #include "ui_json.h"
 #include "colormap.h"
@@ -144,9 +145,9 @@ int main(int argc, char **argv)
     xpp_load_model(argc, argv, 0);
 
     if (strlen(this_file) < 60)
-        sprintf(title, "XPP Ver %g.%g >> %s", xppvermaj, xppvermin, this_file);
+        XPP_SPRINTF(title, "XPP Ver %g.%g >> %s", xppvermaj, xppvermin, this_file);
     else
-        sprintf(title, "XPP Version %g.%g", xppvermaj, xppvermin);
+        XPP_SPRINTF(title, "XPP Version %g.%g", xppvermaj, xppvermin);
     Xup = 1;
     COLOR = 1;     /* init_X on a colour display */
     periodic = 1;

@@ -27,10 +27,13 @@
    xpp_snprintf's return is the length it would have written, like
    snprintf's (not -1 on truncation): a caller that compares it against
    the buffer size to detect truncation still works. xpp_strlcpy/
-   xpp_strlcat return the length of the source (or dst+src), the BSD
-   strlcpy/strlcat convention. XPP_STRCPY/XPP_STRCAT instead evaluate to
-   dst, matching strcpy/strcat's own return, since a few call sites
-   chain it (`p = strcpy(buf, s);`). */
+   xpp_strlcat, and XPP_SPRINTF/XPP_STRCPY/XPP_STRCAT, return the BSD
+   strlcpy/strlcat convention (the length of the source, or dst+src) --
+   not dst, unlike strcpy/strcat's own return: no call site in core used
+   that return value (checked with grep before dropping it), and keeping
+   it would make every statement-context use (`XPP_STRCPY(buf, s);`, the
+   overwhelming majority) warn -Wunused-value on the discarded bare `dst`
+   at the end of the comma expression. */
 
 #include <stddef.h>
 
@@ -74,9 +77,95 @@ size_t xpp_strlcat_at(char *dst, const char *src, size_t size,
      xpp_snprintf_at((dst), sizeof(dst), __FILE__, __LINE__, __VA_ARGS__))
 #define XPP_STRCPY(dst, src) \
     (XPP_ARRAY_SIZE_CHECK(dst), \
-     xpp_strlcpy_at((dst), (src), sizeof(dst), __FILE__, __LINE__), (dst))
+     xpp_strlcpy_at((dst), (src), sizeof(dst), __FILE__, __LINE__))
 #define XPP_STRCAT(dst, src) \
     (XPP_ARRAY_SIZE_CHECK(dst), \
-     xpp_strlcat_at((dst), (src), sizeof(dst), __FILE__, __LINE__), (dst))
+     xpp_strlcat_at((dst), (src), sizeof(dst), __FILE__, __LINE__))
+
+#ifdef __cplusplus
+/* C++ callers get a type-checked API instead of the C wrappers above
+   (their printf-style format strings and vararg passing are for C
+   callers): xpp::format/xpp::format_to_buf take a std::format_string,
+   checked against the argument types at compile time, no printf %-verb
+   ever mismatching an argument. xpp::number is a double's shortest
+   round-trip text (std::to_chars), for when "%g" would do but a
+   guaranteed-reversible digit string is wanted. This part of the header
+   is skipped entirely by a C file, so xpp_snprintf/XPP_SPRINTF and
+   friends keep working there unchanged; C++ files in the sweep (not
+   ui_json.cpp/xpp_http.cpp, converted separately by T18) use this API
+   for a real fixed-array destination and a literal/simple format, and
+   still use xpp_snprintf/xpp_strlcpy directly for a pointer destination
+   (format_to_buf, like XPP_SPRINTF, needs an actual array: see
+   XPP_ARRAY_SIZE_CHECK above) or where the original format string used
+   dynamic width/precision (%*s, %.*s) that would need re-expressing in
+   std::format's syntax -- not a mechanical, behaviour-preserving change,
+   so those stay on the C wrappers (documented at each such call site). */
+#include <cstddef>
+#include <string>
+#include <utility>
+
+#if defined(__cpp_lib_format) || (defined(__has_include) && __has_include(<format>))
+#include <format>
+#define XPP_IO_HAVE_STD_FORMAT 1
+#endif
+#if defined(__cpp_lib_to_chars) || (defined(__has_include) && __has_include(<charconv>))
+#include <charconv>
+#define XPP_IO_HAVE_TO_CHARS 1
+#endif
+
+namespace xpp {
+
+#ifdef XPP_IO_HAVE_STD_FORMAT
+/* Compile-time checked formatting: a bad "{}" against the argument
+   types is a compile error, not a WARN at run time. No length limit
+   (returns a std::string); for a fixed buffer use format_to_buf. */
+template <class... Args>
+std::string format(std::format_string<Args...> fmt, Args &&...args)
+{
+    return std::format(fmt, std::forward<Args>(args)...);
+}
+
+/* The array-destination counterpart of XPP_SPRINTF: dst must be a real
+   array (a template on its size, not a decayed pointer -- a pointer
+   destination simply does not match this overload and fails to
+   compile), formats with std::format, then copies in with
+   xpp_strlcpy_at so a result that does not fit is cut and warns once,
+   exactly like every other truncation in this module. file/line come
+   from the XPP_FORMAT_TO_BUF macro wrapper (xpp_mem.h/XPP_SPRINTF
+   style), not std::source_location, to match the rest of the module
+   and because a source_location default argument cannot follow the
+   variadic Args&&...args this shares with std::format's own signature. */
+template <std::size_t N, class... Args>
+void format_to_buf(char (&buf)[N], const char *file, int line,
+                    std::format_string<Args...> fmt, Args &&...args)
+{
+    std::string s = std::format(fmt, std::forward<Args>(args)...);
+    xpp_strlcpy_at(buf, s.c_str(), N, file, line);
+}
+#endif
+
+#ifdef XPP_IO_HAVE_TO_CHARS
+/* A double's shortest round-trip decimal text (std::to_chars): unlike
+   "%g" it never loses precision and never needs a chosen digit count.
+   xpp_snprintf(..., "%.17g", ...) papers over the same problem with
+   more digits than usually needed; prefer this in new C++ code. */
+inline std::string number(double v)
+{
+    char buf[32];
+    std::to_chars_result r = std::to_chars(buf, buf + sizeof buf, v);
+    if (r.ec == std::errc())
+        return std::string(buf, r.ptr);
+    return std::to_string(v); /* unreachable for a finite double in 32 bytes */
+}
+#endif
+
+} // namespace xpp
+
+#ifdef XPP_IO_HAVE_STD_FORMAT
+#define XPP_FORMAT_TO_BUF(buf, ...) \
+    xpp::format_to_buf((buf), __FILE__, __LINE__, __VA_ARGS__)
+#endif
+
+#endif /* __cplusplus */
 
 #endif

@@ -6,6 +6,7 @@
 #include "auto_f2c.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 #include "auto_c.h"
 #include "xpp_job.h" /* xppautX: cancel */
 /* #include "malloc.h" */
@@ -57,7 +58,7 @@ void print_jacobian(iap_type iap,main_auto_storage_type data) {
   static int num_calls=0;
   char filename[80];
 
-  sprintf(filename,"jacobian%03d",num_calls);
+  XPP_SPRINTF(filename,"jacobian%03d",num_calls);
   fp=fopen(filename,"w");
   num_calls++;
 
@@ -111,7 +112,7 @@ void print_ups_rlcur(iap_type iap,doublereal *ups,doublereal *rlcur) {
   char filename[80];
   int i;
   
-  sprintf(filename,"ups_rlcur%03d",num_calls);
+  XPP_SPRINTF(filename,"ups_rlcur%03d",num_calls);
   fp=fopen(filename,"w");
   num_calls++;
   for(i=0;i<(iap.ndim)*(iap.ncol)*(iap.ntst) + iap.ndim;i++)
@@ -350,7 +351,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   {
     static num_calls = 0;
     char filename[80];
-    sprintf(filename,"before%03d",num_calls);
+    XPP_SPRINTF(filename,"before%03d",num_calls);
     num_calls++;
     print_fa_fc(*iap,ft,fc,filename);
   }
@@ -387,7 +388,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   {
     static num_calls = 0;
     char filename[80];
-    sprintf(filename,"after%03d",num_calls);
+    XPP_SPRINTF(filename,"after%03d",num_calls);
     num_calls++;
     print_fa_fc(*iap,ft,fc,filename);
   }

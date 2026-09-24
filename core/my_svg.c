@@ -8,6 +8,7 @@
 #include <stdlib.h> 
 #include <stdio.h>
 #include <string.h>
+#include "xpp_io.h"
 
 #define LEFT 0
 #define RIGHT 2
@@ -240,7 +241,7 @@ int svg_init(char *filename, int color)
 		fprintf(svgfile,"                    dominant-baseline: central;\n");/*Supported in Firefox v13, but not in Inkscape v0.48.2*/
 		fprintf(svgfile,"                 }\n");
 	
-		sprintf(css,"%s/xppaut-stylesheet.css",getenv("HOME"));
+		XPP_SPRINTF(css,"%s/xppaut-stylesheet.css",getenv("HOME"));
 		fp=fopen(css,"r");
 		if(fp!=NULL)
 		{
@@ -442,11 +443,14 @@ void svg_linetype(int linetype)
 
 void svg_point(int x, int y)
 {
+  /* svgcol/svgfill are char[8]: exactly sizeof(char*) on a 64-bit
+     build, so XPP_ARRAY_SIZE_CHECK's sizeof(dst)==sizeof(char*)
+     heuristic false-triggers on them (documented in xpp_io.h). */
   char svgcol[8];
   char svgfill[8];
- 
- 
-  sprintf(svgfill,"none");
+
+
+  xpp_snprintf(svgfill,8,"none");
   svgcol[0]='\0';
 
   int number=PointType;
@@ -458,15 +462,15 @@ void svg_point(int x, int y)
   
   if (number==7)
   {
-  	sprintf(svgcol,"00FF00");sprintf(svgfill,"#00FF00");
+  	xpp_snprintf(svgcol,8,"00FF00");xpp_snprintf(svgfill,8,"#00FF00");
   }
   else if (number==6)
   {
-  	sprintf(svgcol,"0000FF");
+  	xpp_snprintf(svgcol,8,"0000FF");
   }
   else
   {
-  	sprintf(svgcol,"000000");sprintf(svgfill,"#000000");
+  	xpp_snprintf(svgcol,8,"000000");xpp_snprintf(svgfill,8,"#000000");
   }
  
   if (DOING_SVG_COLOR)
@@ -584,13 +588,13 @@ void special_put_text_svg(int x, int y, char *str, int size)
    	char anchor[7];
 	
 	switch(TextJustify) {
-	case LEFT : sprintf(anchor,"start");
+	case LEFT : XPP_SPRINTF(anchor,"start");
 	  break;
-	case CENTER : sprintf(anchor,"middle");
+	case CENTER : XPP_SPRINTF(anchor,"middle");
 	  break;
-	case RIGHT : sprintf(anchor,"end");
+	case RIGHT : XPP_SPRINTF(anchor,"end");
 	  break;
-	default: sprintf(anchor,"start");
+	default: XPP_SPRINTF(anchor,"start");
 	  break;
 	}
 	
@@ -610,13 +614,13 @@ void svg_text(int x, int y, char *str)
 	char anchor[7];
 	
 	switch(TextJustify) {
-	case LEFT : sprintf(anchor,"start");
+	case LEFT : XPP_SPRINTF(anchor,"start");
 	  break;
-	case CENTER : sprintf(anchor,"middle");
+	case CENTER : XPP_SPRINTF(anchor,"middle");
 	  break;
-	case RIGHT : sprintf(anchor,"end");
+	case RIGHT : XPP_SPRINTF(anchor,"end");
 	  break;
-	default: sprintf(anchor,"start");
+	default: XPP_SPRINTF(anchor,"start");
 	  break;
 	}
 	

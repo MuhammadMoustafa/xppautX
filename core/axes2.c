@@ -16,6 +16,7 @@
 #include "many_pops.h"
 #include "graf_par.h"
 #include "xpp_globals.h"
+#include "xpp_io.h"
 
 
 #define NOAXES 0
@@ -59,15 +60,17 @@ void re_title()
 void get_title_str(s1,s2,s3)
      char *s1,*s2,*s3;
 {
+ /* s1/s2/s3 are pointers here; the one caller (do_axes) passes
+    char[XPP_NAME_MAX+1], matching uvar_names' own element size. */
  int i;
- if((i=MyGraph->xv[0])==0)strcpy(s1,"T");
- else strcpy(s1,uvar_names[i-1]);
+ if((i=MyGraph->xv[0])==0)xpp_strlcpy(s1,"T",XPP_NAME_MAX+1);
+ else xpp_strlcpy(s1,uvar_names[i-1],XPP_NAME_MAX+1);
 
-if((i=MyGraph->yv[0])==0)strcpy(s2,"T");
- else strcpy(s2,uvar_names[i-1]);
+if((i=MyGraph->yv[0])==0)xpp_strlcpy(s2,"T",XPP_NAME_MAX+1);
+ else xpp_strlcpy(s2,uvar_names[i-1],XPP_NAME_MAX+1);
  
-if((i=MyGraph->zv[0])==0)strcpy(s3,"T");
- else strcpy(s3,uvar_names[i-1]);
+if((i=MyGraph->zv[0])==0)xpp_strlcpy(s3,"T",XPP_NAME_MAX+1);
+ else xpp_strlcpy(s3,uvar_names[i-1],XPP_NAME_MAX+1);
 }
 
 void make_title(str)
@@ -77,18 +80,20 @@ char *str;
  char name1[XPP_NAME_MAX+1];
  char name2[XPP_NAME_MAX+1];
  char name3[XPP_NAME_MAX+1];
- if((i=MyGraph->xv[0])==0)strcpy(name1,"T");
- else strcpy(name1,uvar_names[i-1]);
+ if((i=MyGraph->xv[0])==0)XPP_STRCPY(name1,"T");
+ else XPP_STRCPY(name1,uvar_names[i-1]);
 
-if((i=MyGraph->yv[0])==0)strcpy(name2,"T");
- else strcpy(name2,uvar_names[i-1]);
+if((i=MyGraph->yv[0])==0)XPP_STRCPY(name2,"T");
+ else XPP_STRCPY(name2,uvar_names[i-1]);
  
-if((i=MyGraph->zv[0])==0)strcpy(name3,"T");
- else strcpy(name3,uvar_names[i-1]);
+if((i=MyGraph->zv[0])==0)XPP_STRCPY(name3,"T");
+ else XPP_STRCPY(name3,uvar_names[i-1]);
 
+ /* str is a pointer here; the one caller (re_title) passes
+    char bob[3*XPP_NAME_MAX+16], sized for exactly this "z vs y vs x". */
  if(MyGraph->grtype>=5)
- sprintf(str,"%s vs %s vs %s",name3,name2,name1);
- else sprintf(str,"%s vs %s",name2,name1);
+ xpp_snprintf(str,3*XPP_NAME_MAX+16,"%s vs %s vs %s",name3,name2,name1);
+ else xpp_snprintf(str,3*XPP_NAME_MAX+16,"%s vs %s",name2,name1);
 }
 
 double dbl_raise(x,y)
@@ -143,7 +148,7 @@ void redraw_cube_pt(double theta,double phi)
   make_rot(theta,phi);
   clr_scrn();
   
-  sprintf(bob,"theta=%g phi=%g",theta,phi);
+  XPP_SPRINTF(bob,"theta=%g phi=%g",theta,phi);
   canvas_xy(bob);
 }
 
@@ -175,7 +180,7 @@ void redraw_cube(double theta,double phi)
   make_rot(theta,phi); 
   xpp_ui.blank_draw_window();
   draw_unit_cube();
-  sprintf(bob,"theta=%g phi=%g",theta,phi);
+  XPP_SPRINTF(bob,"theta=%g phi=%g",theta,phi);
   canvas_xy(bob);
 }
 
@@ -254,25 +259,25 @@ void Frame_3d()
 
   dt=.06;
   TextJustify=2;
-  sprintf(bob,"%g",xmin);
+  XPP_SPRINTF(bob,"%g",xmin);
   text3d(x1,-1-2.*dt,-1.0,bob);
-  sprintf(bob,"%g",xmax);
+  XPP_SPRINTF(bob,"%g",xmax);
   text3d(x2,-1-2.*dt,-1.0,bob);
   text3d(0.0,-1-dt,-1.0,MyGraph->xlabel);
   TextJustify=0;
-  sprintf(bob,"%g",ymin);
+  XPP_SPRINTF(bob,"%g",ymin);
   /*sprintf(bob,"%g",ymin,bob);
   */
   text3d(1+dt,y1,-1.0,bob);
-  sprintf(bob,"%g",ymax);
+  XPP_SPRINTF(bob,"%g",ymax);
   /*sprintf(bob,"%g",ymax,bob);
   */
   text3d(1+dt,y2,-1.0,bob);
   text3d(1+dt,0.0,-1.0,MyGraph->ylabel);
   TextJustify=2;
-  sprintf(bob,"%g",zmin);
+  XPP_SPRINTF(bob,"%g",zmin);
   text3d(-1.-dt,-1-dt,z1,bob);
-  sprintf(bob,"%g",zmax);
+  XPP_SPRINTF(bob,"%g",zmax);
   text3d(-1.-dt,-1-dt,z2,bob);
   text3d(-1.-dt,-1.-dt,0.0,MyGraph->zlabel);
   TextJustify=0;
@@ -343,7 +348,7 @@ void draw_ytics(s1,start, incr, end)
   for(ticvalue=start;ticvalue<=end;ticvalue+=incr){
     place=CheckZero(ticvalue,incr);
     if(ticvalue<y_min||ticvalue>y_max)continue;
-    sprintf(bob,"%g",place);
+    XPP_SPRINTF(bob,"%g",place);
     scale_to_screen((float)x_min,(float)place,&xt,&yt);
     DOING_BOX_AXES=0;
     line(DLeft,yt,DLeft+HTic,yt);
@@ -390,7 +395,7 @@ void draw_xtics(s2,start, incr, end)
   for(ticvalue=start;ticvalue<=end;ticvalue+=incr){
     place=CheckZero(ticvalue,incr);
     if(ticvalue<x_min||ticvalue>x_max)continue;
-    sprintf(bob,"%g",place);
+    XPP_SPRINTF(bob,"%g",place);
     scale_to_screen((float)place,y_min,&xt,&yt);
     DOING_BOX_AXES=0;
     line(xt,DBottom,xt,DBottom+s*VTic); 

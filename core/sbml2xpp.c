@@ -84,6 +84,7 @@ so i dont have to parse the event trigger
 */
 #include <stdio.h>
 #include "xpp_log.h"
+#include "xpp_io.h"
 #include <stdlib.h>
 
 #include "sbml/SBMLReader.h"
@@ -233,7 +234,7 @@ add_reaction(int i,char *f,int npr,int nre)
   RXN *r;
   r=rxn+i;
   r->formula=(char *)malloc(strlen(f)+1);
-  strcpy(r->formula,f);
+  XPP_STRCPY(r->formula,f);
   r->npr=npr;
   r->nre=nre;
   
@@ -243,11 +244,11 @@ add_rule(int i,char *v,char *f, char *tc)
   RULE *r;
   r=rule+i;
   r->f=(char *)malloc(strlen(f)+1);
-  strcpy(r->f,f);
+  XPP_STRCPY(r->f,f);
   r->tc=(char *)malloc(strlen(tc)+1);
-  strcpy(r->tc,tc);
+  XPP_STRCPY(r->tc,tc);
   r->v=(char *)malloc(strlen(v)+1);
-  strcpy(r->v,v);
+  XPP_STRCPY(r->v,v);
   check_name_len(r->v);
 }
   
@@ -271,12 +272,12 @@ add_parameter(char *name, char *id,double z,int f)
   }
   if(strlen(name)>0){
     par[Npar].name=(char *)malloc(strlen(name)+1);
-    strcpy(par[Npar].name,name);
+    XPP_STRCPY(par[Npar].name,name);
     check_name_len(name);
   }
   if(strlen(id)>0){
     par[Npar].id=(char *)malloc(strlen(id)+1);
-    strcpy(par[Npar].id,id);
+    XPP_STRCPY(par[Npar].id,id);
     check_name_len(id);
   }
 
@@ -309,7 +310,7 @@ void GetEvents(Model_t *m)
       {
 	ev= SBML_formulaToString( Event_getTrigger(e) );
         x->ev=(char *)malloc(strlen(ev)+1);
-	strcpy(x->ev,ev);
+	XPP_STRCPY(x->ev,ev);
 	free(ev);
       }
     na=Event_getNumEventAssignments(e);
@@ -320,9 +321,9 @@ void GetEvents(Model_t *m)
       if ( EventAssignment_isSetMath(ea) ){
 	 variable = EventAssignment_getVariable(ea);
 	 formula  = SBML_formulaToString( EventAssignment_getMath(ea) );
-	 sprintf(big,"%s=%s",variable,formula);
+	 XPP_SPRINTF(big,"%s=%s",variable,formula);
 	 x->a[j]=(char *)malloc(strlen(big)+1);
-	 strcpy(x->a[j],big);
+	 XPP_STRCPY(x->a[j],big);
 	 free(formula);
       }
       
@@ -353,7 +354,7 @@ void GetFunctions(Model_t *m)
 	name=FunctionDefinition_getId(fd);
 	f->name=(char *)malloc(strlen(name));
 	check_name_len(name);
-	strcpy(f->name,name);
+	XPP_STRCPY(f->name,name);
 	math=FunctionDefinition_getMath(fd);
 	narg=ASTNode_getNumChildren(math)-1;
 	f->nargs=narg;
@@ -361,12 +362,12 @@ void GetFunctions(Model_t *m)
 	  {
 	    sa=ASTNode_getName( ASTNode_getLeftChild(math));
 	    f->arg[0]=(char *)malloc(strlen(sa)+1);
-	    strcpy(f->arg[0],sa);
+	    XPP_STRCPY(f->arg[0],sa);
 	    for (j = 1; j<narg; ++j)
 	      {
 		sa=ASTNode_getName( ASTNode_getChild(math, j) );
 		f->arg[j]=(char *)malloc(strlen(sa)+1);
-		strcpy(f->arg[j],sa);
+		XPP_STRCPY(f->arg[j],sa);
 	      }
 	    
 	    
@@ -375,7 +376,7 @@ void GetFunctions(Model_t *m)
 	math    = ASTNode_getChild(math, ASTNode_getNumChildren(math) - 1);
 	formula = SBML_formulaToString(math);
 	f->formula=(char *)malloc(strlen(formula)+1);
-	strcpy(f->formula,formula);
+	XPP_STRCPY(f->formula,formula);
 	free(formula);
       }
   }
@@ -455,7 +456,7 @@ add_reactant(int i,int j,char *name,double s)
   RXN *r;
   r=rxn+i;
   r->re[j]=(char *)malloc(strlen(name)+1);
-  strcpy(r->re[j],name);
+  XPP_STRCPY(r->re[j],name);
   r->sre[j]=s;
 }
 
@@ -464,7 +465,7 @@ add_product(int i,int j,char *name,double s)
   RXN *r;
   r=rxn+i;
   r->pr[j]=(char *)malloc(strlen(name)+1);
-  strcpy(r->pr[j],name);
+  XPP_STRCPY(r->pr[j],name);
   r->spr[j]=s;
 }
 
@@ -548,7 +549,7 @@ add_species(int i,char *name,char *id,double x0,int bc,int c,char *tc)
   x=X_spec+i;
   if(strlen(name)>0){
     x->name=(char *)malloc(strlen(name)+1);
-    strcpy(x->name,name);
+    XPP_STRCPY(x->name,name);
     check_name_len(name);
   }
   else
@@ -557,13 +558,13 @@ add_species(int i,char *name,char *id,double x0,int bc,int c,char *tc)
   if(strlen(id)>0){
      x->id=(char *)malloc(strlen(id)+1);
      check_name_len(id);
-    strcpy(x->id,id);
+    XPP_STRCPY(x->id,id);
   }
   else
     x->id=NULL;
   if(strlen(tc)>0){
     x->tc=(char *)malloc(strlen(tc)+1);
-    strcpy(x->tc,tc);
+    XPP_STRCPY(x->tc,tc);
   }
   else
     x->tc=NULL;
@@ -955,10 +956,10 @@ check_name_len(char *s)
   char temp[9],x[5];
   if(strlen(s)>9){
     long_names[lnum].src=(char *)malloc(strlen(s)+1);
-    strcpy(long_names[lnum].src,s);
+    XPP_STRCPY(long_names[lnum].src,s);
     strncpy(x,s,4);
     x[4]=0;
-    sprintf(long_names[lnum].rep,"%s.%d",x,lnum);
+    XPP_SPRINTF(long_names[lnum].rep,"%s.%d",x,lnum);
     plintf("long name: %s -> %s \n",long_names[lnum].src,long_names[lnum].rep);
     lnum++;
   }
@@ -1026,12 +1027,12 @@ fix_long_names(char *big,char *bigp)
 {
   int i=0;
   char z[2048],zp[2048];
-  strcpy(z,big);
+  XPP_STRCPY(z,big);
   for(i=0;i<lnum;i++){
     strrep(z,zp,long_names[i].src,long_names[i].rep);
-    strcpy(z,zp);
+    XPP_STRCPY(z,zp);
   }
-  strcpy(bigp,z);
+  XPP_STRCPY(bigp,z);
 }
 static int z_sort(sy1,sy2)
      LONG_NAMES *sy1,*sy2;
@@ -1060,7 +1061,7 @@ write_ode_file(char *base)
   SPECIES *x;
   EVENT *ev;
   int i,j,k,na;
-  sprintf(fname,"%s.ode",base);
+  XPP_SPRINTF(fname,"%s.ode",base);
   fp=fopen(fname,"w");
   fprintf(fp,"# %s\n",fname);
   fprintf(fp,"# Translated from %s by s2c \n",base);
@@ -1077,12 +1078,12 @@ write_ode_file(char *base)
   for(i=0;i<Nfuns;i++){
     fn=funs+i;
     na=fn->nargs;
-    sprintf(big,"%s(",fn->name);
+    XPP_SPRINTF(big,"%s(",fn->name);
     for(j=0;j<na-1;j++){
-      sprintf(tmp,"%s,",fn->arg[j]);
+      XPP_SPRINTF(tmp,"%s,",fn->arg[j]);
       strcat(big,tmp);
     }
-    sprintf(tmp,"%s)=%s",fn->arg[na-1],fn->formula);
+    XPP_SPRINTF(tmp,"%s)=%s",fn->arg[na-1],fn->formula);
     strcat(big,tmp);
     fix_long_names(big,bigp);
     fprintf(fp,"%s\n",bigp);
@@ -1091,7 +1092,7 @@ write_ode_file(char *base)
   for(i=0;i<Nrule;i++){
     r=rule+i;
     if(!is_blank(r->v)){
-      sprintf(big,"%s=%s",r->v,r->f);
+      XPP_SPRINTF(big,"%s=%s",r->v,r->f);
       fix_long_names(big,bigp);
       fprintf(fp,"%s\n",bigp);
     }
@@ -1102,9 +1103,9 @@ write_ode_file(char *base)
   for(i=0;i<Npar;i++){
     if((par[i].fixed==-2)||(par[i].unique==-1))continue;
     if(!is_blank(par[i].id))
-      sprintf(big,"par %s=%g",par[i].id,par[i].z);
+      XPP_SPRINTF(big,"par %s=%g",par[i].id,par[i].z);
     else
-      sprintf(big,"par %s=%g",par[i].name,par[i].z);
+      XPP_SPRINTF(big,"par %s=%g",par[i].name,par[i].z);
     fix_long_names(big,bigp);
     fprintf(fp,"%s\n",bigp);
   }
@@ -1113,15 +1114,15 @@ write_ode_file(char *base)
     if(x->rule==1)continue;
     if(x->bc==1){
       if(!is_blank(x->id))
-	sprintf(big,"%s=%g",x->id,x->x0);
+	XPP_SPRINTF(big,"%s=%g",x->id,x->x0);
       else
-	sprintf(big,"%s=%g",x->name,x->x0);
+	XPP_SPRINTF(big,"%s=%g",x->name,x->x0);
     }  
     else {
       if(!is_blank(x->id))
-	sprintf(big,"init %s=%g",x->id,x->x0);
+	XPP_SPRINTF(big,"init %s=%g",x->id,x->x0);
       else
-	sprintf(big,"init %s=%g",x->name,x->x0);
+	XPP_SPRINTF(big,"init %s=%g",x->name,x->x0);
     }
     fix_long_names(big,bigp);
     fprintf(fp,"%s\n",bigp);
@@ -1129,7 +1130,7 @@ write_ode_file(char *base)
   }
   for(i=0;i<Nrxn;i++){
     rx=rxn+i;
-    sprintf(big,"Rxn%d=%s",i+1,rx->formula);
+    XPP_SPRINTF(big,"Rxn%d=%s",i+1,rx->formula);
     fix_long_names(big,bigp);
     fprintf(fp,"%s\n",bigp);
   }
@@ -1141,17 +1142,17 @@ write_ode_file(char *base)
     if(x->bc==1||x->rule==1)continue; /* dont do boundary conditions
 				        or rules     */
     if(!is_blank(x->id))
-      sprintf(big,"d%s/dt=",x->id);
+      XPP_SPRINTF(big,"d%s/dt=",x->id);
     else
-      sprintf(big,"d%s/dt=",x->name);
+      XPP_SPRINTF(big,"d%s/dt=",x->name);
     for(j=0;j<x->nrx;j++){
       k=x->r[j];
-      if(j>0){sprintf(tmp," + ");strcat(big,tmp);}
-      sprintf(tmp,"(%g)*Rxn%d",x->s[j],k+1);
+      if(j>0){XPP_SPRINTF(tmp," + ");strcat(big,tmp);}
+      XPP_SPRINTF(tmp,"(%g)*Rxn%d",x->s[j],k+1);
       strcat(big,tmp);
     }
     if(x->nrx==0){
-      sprintf(tmp,"0");
+      XPP_SPRINTF(tmp,"0");
       strcat(big,tmp);
       }/* just to be Ok */
     fix_long_names(big,bigp);
@@ -1161,13 +1162,13 @@ write_ode_file(char *base)
 
   for(i=0;i<Nevent;i++){
     ev=event+i;
-    sprintf(big,"global 1 %s {",ev->ev);
+    XPP_SPRINTF(big,"global 1 %s {",ev->ev);
     na=ev->na;
     for(j=0;j<na-1;j++){
-      sprintf(tmp,"%s;",ev->a[j]);
+      XPP_SPRINTF(tmp,"%s;",ev->a[j]);
       strcat(big,tmp);
     }
-    sprintf(tmp,"%s}",ev->a[na-1]);
+    XPP_SPRINTF(tmp,"%s}",ev->a[na-1]);
     strcat(big,tmp);
     fix_long_names(big,bigp);
     fprintf(fp,"%s\n",bigp);

@@ -20,6 +20,7 @@
 #include <string.h>
 #include "xpplim.h"
 #include "parserslow.h"
+#include "xpp_io.h"
 /* #include "browse.h" */
 
 extern int ConvertStyle;
@@ -150,7 +151,7 @@ int build_markov(ma,name)
  plintf(" Building %s %d states...\n",name,nstates);
  for(i=0;i<nstates;i++){
    /* fgets(line,256,fptr); */
-   sprintf(line,"%s",ma[i]);
+   XPP_SPRINTF(line,"%s",ma[i]);
    if(ConvertStyle)
      fprintf(convertf,"%s",line);
    /*nn=strlen(line)+1;*/
@@ -294,7 +295,9 @@ void add_markov_entry(index,j,k,expr)
   int type=markov[index].type;
   if(type==0){
   markov[index].trans[l0]=(char *)xpp_malloc(sizeof(char)*(strlen(expr)+1));
-  strcpy(markov[index].trans[l0],expr);
+  /* markov[index].trans[l0] is a pointer, allocated strlen(expr)+1
+     bytes just above. */
+  xpp_strlcpy(markov[index].trans[l0],expr,strlen(expr)+1);
   /*  compilation step -- can be delayed */
  /*
   if(add_expr(expr,com,&leng)){ 

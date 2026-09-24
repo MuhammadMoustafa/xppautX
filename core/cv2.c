@@ -17,6 +17,7 @@
 #include "dense.h"    /* definitions of type DenseMat, macro DENSE_ELEM    */
 #include "cvband.h"
 #include "band.h"
+#include "xpp_io.h"
 double cv_ropt[OPT_SIZE];
   int cv_iopt[OPT_SIZE];
 extern int cv_bandflag,cv_bandupper,cv_bandlower;
@@ -63,28 +64,28 @@ void cvode_err_msg(kflag)
      int kflag;
 {
   char s[256];
-  strcpy(s,"");
+  XPP_STRCPY(s,"");
   switch(kflag){
-  case 0: strcpy(s,"");
+  case 0: XPP_STRCPY(s,"");
     break;
-  case -1: strcpy(s,"No memory allocated");
+  case -1: XPP_STRCPY(s,"No memory allocated");
     break;
-  case -2: strcpy(s,"Bad input to CVode");
+  case -2: XPP_STRCPY(s,"Bad input to CVode");
     break;
-  case -3: strcpy(s,"Too much work -- try smaller DT");
+  case -3: XPP_STRCPY(s,"Too much work -- try smaller DT");
     break;
-  case -4: sprintf(s,"Tolerance too low-- try TOL=%g ATOL=%g",
+  case -4: XPP_SPRINTF(s,"Tolerance too low-- try TOL=%g ATOL=%g",
 	TOLER*cv_ropt[TOLSF],ATOLER*cv_ropt[TOLSF]);
     break;
-  case -5: strcpy(s,"Error test failure too frequent ??");
+  case -5: XPP_STRCPY(s,"Error test failure too frequent ??");
     break;
-  case -6: strcpy(s,"Converg. failure -- oh well!");
+  case -6: XPP_STRCPY(s,"Converg. failure -- oh well!");
     break;
-  case -7: strcpy(s,"Setup failed for linsolver in CVODE ???");
+  case -7: XPP_STRCPY(s,"Setup failed for linsolver in CVODE ???");
     break;
-  case -8: strcpy(s,"Singular matrix encountered. Hmmm?");
+  case -8: XPP_STRCPY(s,"Singular matrix encountered. Hmmm?");
     break;
-  case -9: strcpy(s,"Flags error...");
+  case -9: XPP_STRCPY(s,"Flags error...");
     break;
   }
   if(strlen(s)>0)

@@ -5,6 +5,7 @@
 #include "form_ode.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 #include "aniparse.h"
 
 #include "parserslow.h"
@@ -260,7 +261,7 @@ void format_list(char **s,int n)
  if(ncol>8)ncol=8;
  k=n/ncol;
  j=n-ncol*k;
- sprintf(fmat,"%s%d%s","%",lmax+2,"s");
+ XPP_SPRINTF(fmat,"%s%d%s","%",lmax+2,"s");
  for(ip=0;ip<k;ip++){
    for(i=0;i<ncol;i++)
      plintf(fmat,s[ip*ncol+i]);
@@ -345,14 +346,14 @@ int read_eqn()
     FILE *fptr;
    int okay;
    okay=0;
-  sprintf(wild,"*.ode");
+  XPP_SPRINTF(wild,"*.ode");
   get_a_filename(string,wild);
   if((fptr=fopen(string,"r"))==NULL)
    {
     plintf("\n Cannot open %s \n",string);
     return(0);
    }
-   strcpy(this_file,string);
+   XPP_FORMAT_TO_BUF(this_file,"{}",string);
    clrscr();
    okay=get_eqn(fptr);
    /*close(fptr);*/
@@ -401,7 +402,7 @@ int get_eqn(FILE *fptr)
   NWiener=0;
   /*check_for_xpprc();  This is now done just once and in do_vis_env()
   */
-  strcpy(options,"default.opt");
+  XPP_FORMAT_TO_BUF(options,"{}","default.opt");
   add_var(t_name,0.0);
   /* plintf(" NEQ: "); */
   if(fgets(bob,MAXEXPLEN,fptr)==NULL)bob[0]=0;
@@ -431,7 +432,7 @@ int get_eqn(FILE *fptr)
     plintf("NEQ=%d\n",NEQ);
     if(ConvertStyle){
       if(strlen(this_file)==0)
-	sprintf(filename,"convert.ode");
+	XPP_SPRINTF(filename,"convert.ode");
       else
 	snprintf(filename,sizeof(filename),"%.250s.new",this_file);
       if((convertf=fopen(filename,"w"))==NULL){
@@ -470,8 +471,8 @@ int get_eqn(FILE *fptr)
       my_bc[i].string=(char *)xpp_malloc(256);
       my_bc[i].name=(char *)xpp_malloc(10);
       my_bc[i].side=0;
-      strcpy(my_bc[i].string,"0");
-      strcpy(my_bc[i].name,"0=");
+      xpp_strlcpy(my_bc[i].string,"0",256);
+      xpp_strlcpy(my_bc[i].name,"0=",10);
     }
   }
   BVP_FLAG=1;
@@ -489,11 +490,11 @@ int get_eqn(FILE *fptr)
   NODE=IN_VARS;
   
   for(i=0; i<Naux; i++)
-    strcpy(uvar_names[i+NODE+NMarkov],aux_names[i]);
+    XPP_FORMAT_TO_BUF(uvar_names[i+NODE+NMarkov],"{}",aux_names[i]);
   
   for(i=NODE+NMarkov+Naux;i<NEQ;i++)
     {
-      sprintf(uvar_names[i],"AUX%d",i-NODE-NMarkov+1);
+      XPP_SPRINTF(uvar_names[i],"AUX%d",i-NODE-NMarkov+1);
     }
   
   
@@ -623,10 +624,10 @@ int compiler(char *bob, FILE *fptr)
       break;
     case 'x':
       my_string=get_next("{ ");
-      strcpy(condition,my_string);
+      XPP_FORMAT_TO_BUF(condition,"{}",my_string);
 
       my_string=get_next("}\n");
-           strcpy(formula,my_string);
+           XPP_FORMAT_TO_BUF(formula,"{}",my_string);
       add_intern_set(condition,formula);
       break;
     case 'w':  /*  Make a Wiener (heh heh) constants  */
@@ -681,10 +682,10 @@ int compiler(char *bob, FILE *fptr)
       sign=atoi(my_string);
       plintf(" GLOBAL: sign =%d \n",sign);
       my_string=get_next("{}");
-      strcpy(condition,my_string);
+      XPP_FORMAT_TO_BUF(condition,"{}",my_string);
       plintf(" condition = %s \n",condition);
       my_string=get_next("\n");
-      strcpy(formula,my_string);
+      XPP_FORMAT_TO_BUF(formula,"{}",my_string);
       plintf(" events=%s \n",formula);
       if(add_global(condition,sign,formula)){
 	xpp_log(XPP_LOG_WARN, "Bad global !! \n");
@@ -711,7 +712,7 @@ int compiler(char *bob, FILE *fptr)
 	    exit(0);
 	  }
 	  default_val[NUPAR]=value;
-	  strcpy(upar_names[NUPAR++],name);
+	  XPP_FORMAT_TO_BUF(upar_names[NUPAR++],"{}",name);
 	  if(ConvertStyle)
 	    fprintf(convertf,"%s=%g  ",name,value);
 	  plintf("|%s|=%f ",name,value);
@@ -722,7 +723,7 @@ int compiler(char *bob, FILE *fptr)
       plintf("\n");
       break;
     case 'c': my_string=get_next(" \n");
-      strcpy(options,my_string);
+      XPP_FORMAT_TO_BUF(options,"{}",my_string);
       plintf(" Loading new options file:<%s>\n",my_string);
       if(ConvertStyle)
 	fprintf(convertf,"option %s\n",options);
@@ -732,7 +733,7 @@ int compiler(char *bob, FILE *fptr)
       goto vrs;
     case 'm': /* Markov variable  */
       my_string=get_next(" ");
-      strcpy(name,my_string);
+      XPP_FORMAT_TO_BUF(name,"{}",my_string);
       my_string=get_next(" ");
       value=atof(my_string);
       my_string=get_next(" \n");
@@ -741,7 +742,7 @@ int compiler(char *bob, FILE *fptr)
 	plintf("ERROR at line %d\n",NLINES);
 	exit(0);
       }
-      strcpy(uvar_names[IN_VARS+NMarkov],name);
+      XPP_FORMAT_TO_BUF(uvar_names[IN_VARS+NMarkov],"{}",name);
       last_ic[IN_VARS+NMarkov]=value;
       default_ic[IN_VARS+NMarkov]=value;
       plintf(" Markov variable %s=%f has %d states \n",name,value,nstates);
@@ -751,15 +752,15 @@ int compiler(char *bob, FILE *fptr)
       break;
     case 'r': /* state table for Markov variables  */
       my_string=get_next("\n");
-      strcpy(name,my_string);
+      XPP_FORMAT_TO_BUF(name,"{}",my_string);
       nlin=NLINES;
       index=old_build_markov(fptr,name);
       nn=strlen(save_eqn[nlin]);
       /* if(nn>72)nn=72; */
       ode_names[IN_VARS+index]=(char *)xpp_malloc(nn+10);
-      strcpy(formula,save_eqn[nlin]);
+      XPP_FORMAT_TO_BUF(formula,"{}",save_eqn[nlin]);
       /*      formula[nn-1]=0; */
-      sprintf(ode_names[IN_VARS+index],"{ %s ... }",formula);
+      xpp_snprintf(ode_names[IN_VARS+index],nn+10,"{ %s ... }",formula);
       break;
     case 'v':      
       iflg=1;
@@ -787,7 +788,7 @@ int compiler(char *bob, FILE *fptr)
 	  }
 	  if(iflg)
 	    {
-	      strcpy(uvar_names[IN_VARS],name);
+	      XPP_FORMAT_TO_BUF(uvar_names[IN_VARS],"{}",name);
 	      last_ic[IN_VARS]=value;
               default_ic[IN_VARS]=value;   
 	      IN_VARS++;
@@ -796,7 +797,7 @@ int compiler(char *bob, FILE *fptr)
 	    }
 	  else {
 	    if(ConvertStyle)
-	      strcpy(fixname[FIX_VAR],name);
+	      XPP_FORMAT_TO_BUF(fixname[FIX_VAR],"{}",name);
 	    FIX_VAR++;
 
 	  }
@@ -814,8 +815,8 @@ int compiler(char *bob, FILE *fptr)
        */
       my_bc[BVP_N].string=(char *)xpp_malloc(256);
       my_bc[BVP_N].name=(char *)xpp_malloc(10);
-      strcpy(my_bc[BVP_N].string,my_string);
-      strcpy(my_bc[BVP_N].name,"0=");
+      xpp_strlcpy(my_bc[BVP_N].string,my_string,256);
+      xpp_strlcpy(my_bc[BVP_N].name,"0=",10);
       if(ConvertStyle)
 	fprintf(convertf,"bndry %s\n",my_bc[BVP_N].string);
       
@@ -829,11 +830,11 @@ int compiler(char *bob, FILE *fptr)
       if(ConvertStyle)
 	xpp_log(XPP_LOG_WARN, " Warning  kernel declaration cannot be converted \n");
       my_string=get_next(" ");
-      strcpy(name,my_string);
+      XPP_FORMAT_TO_BUF(name,"{}",my_string);
       my_string=get_next(" ");
       value=atof(my_string);
       my_string=get_next("$");
-      strcpy(formula,my_string);
+      XPP_FORMAT_TO_BUF(formula,"{}",my_string);
       plintf("Kernel mu=%f %s = %s \n",value,name,formula);
       if(add_kernel(name,value,formula)){
 	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",NLINES);
@@ -847,7 +848,7 @@ int compiler(char *bob, FILE *fptr)
 	  exit(0);
 	}
       my_string=get_next(" ");
-      strcpy(name,my_string);
+      XPP_FORMAT_TO_BUF(name,"{}",my_string);
       my_string=get_next(" \n");
       if(my_string[0]=='%') {
 	xpp_log(XPP_LOG_INFO, " Function form of table....\n");
@@ -858,7 +859,7 @@ int compiler(char *bob, FILE *fptr)
 	my_string=get_next(" ");
 	xhi=atof(my_string);
 	my_string=get_next("\n");
-	strcpy(formula,my_string);
+	XPP_FORMAT_TO_BUF(formula,"{}",my_string);
 	xpp_log(XPP_LOG_INFO, " %s has %d pts from %f to %f = %s\n",
 	       name,nn,xlo,xhi,formula);
 	add_table_name(NTable,name);
@@ -881,7 +882,7 @@ int compiler(char *bob, FILE *fptr)
 	if(my_string[0]=='@'){
 	  plintf(" Two-dimensional array: \n ");
 	  my_string=get_next(" ");
-	  strcpy(formula,my_string);
+	  XPP_FORMAT_TO_BUF(formula,"{}",my_string);
 	  plintf(" %s = %s \n",name,formula);
 	  if(add_2d_table(name,formula)){
 	    plintf("ERROR at line %d\n",NLINES);
@@ -890,7 +891,7 @@ int compiler(char *bob, FILE *fptr)
 	}
 	else
 	  {
-	    strcpy(formula,my_string);
+	    XPP_FORMAT_TO_BUF(formula,"{}",my_string);
 	    plintf("Lookup table %s = %s \n",name,formula);
             add_table_name(NTable,name);
 	    if(add_file_table(NTable,formula)){
@@ -906,11 +907,11 @@ int compiler(char *bob, FILE *fptr)
       
     case 'u':
       my_string=get_next(" ");
-      strcpy(name,my_string);
+      XPP_FORMAT_TO_BUF(name,"{}",my_string);
       my_string=get_next(" ");
       narg=atoi(my_string);
       my_string=get_next("$");
-      strcpy(formula,my_string);
+      XPP_FORMAT_TO_BUF(formula,"{}",my_string);
       plintf("%s %d :\n",name,narg);
       if(ConvertStyle){
 	fprintf(convertf,"%s(",name);
@@ -936,7 +937,7 @@ int compiler(char *bob, FILE *fptr)
 	  break;
 	}
       my_string=get_next("\n");
-      strcpy(formula,my_string);
+      XPP_FORMAT_TO_BUF(formula,"{}",my_string);
       nn=strlen(formula)+1;
       /* if(nn>79)nn=79;  */
       if((my_ode[NODE]=(int *)xpp_malloc(MAXEXPLEN*sizeof(int)))==NULL){
@@ -950,7 +951,7 @@ int compiler(char *bob, FILE *fptr)
 	    plintf("Out of memory at line %d\n",NLINES);
 	    exit(0);
 	  }
-          strcpy(ode_names[NODE],formula);
+          xpp_strlcpy(ode_names[NODE],formula,nn+5);
 	  if(ConvertStyle){
 	    if(VFlag)
 	      fprintf(convertf,"volt %s=%s\n",uvar_names[NODE],formula);
@@ -981,7 +982,7 @@ int compiler(char *bob, FILE *fptr)
 	    plintf("Out of memory at line %d\n",NLINES);
 	    exit(0);
 	  }
-          strcpy(ode_names[NODE-FIX_VAR+NMarkov],formula);
+          xpp_strlcpy(ode_names[NODE-FIX_VAR+NMarkov],formula,nn);
 	  /* ode_names[NODE-FIX_VAR+NMarkov][nn]='\0'; */
 	  if(ConvertStyle){
 	    if(i<Naux)
@@ -1004,7 +1005,7 @@ int compiler(char *bob, FILE *fptr)
       while((my_string=get_next(" ,\n"))!=NULL)
 	{
 	  if(name_too_long(my_string))exit(0);
-	  strcpy(aux_names[Naux],my_string);   
+	  XPP_FORMAT_TO_BUF(aux_names[Naux],"{}",my_string);   
 	  plintf("|%s| ",aux_names[Naux]);
 	  Naux++;
 	};
@@ -1131,7 +1132,7 @@ void find_ker(char *string, int *alt)   /* this extracts the integral operators 
     }
     if(ch=='}'){
       form[ifr]=0;
-      sprintf(name,"K##%d",NKernel);
+      XPP_SPRINTF(name,"K##%d",NKernel);
       plintf("Kernel mu=%f %s = %s \n",mu,name,form);
       if(add_kernel(name,mu,form))exit(0);
       for(j=0;j<(int)strlen(name);j++){
@@ -1155,7 +1156,12 @@ void find_ker(char *string, int *alt)   /* this extracts the integral operators 
     i++;
   }
   newstr[in]=0;
-  strcpy(string,newstr);
+  /* string is a pointer here (find_ker's own parameter), rewritten in
+     place; newstr can only be built shorter than or equal to string's
+     original content (every branch that appends to newstr consumes at
+     least as much of string), so string's own original capacity, n+1
+     (n=strlen(string) at entry, never reassigned), is always enough. */
+  xpp_strlcpy(string,newstr,n+1);
   
 }
 
@@ -1404,7 +1410,7 @@ static int parse_model(FILE *fp, char *first, int nnn)
        		/*continue;*/
 	}
     	
-     strcpy(old,first); /* pass the first line ....  */
+     XPP_FORMAT_TO_BUF(old,"{}",first); /* pass the first line ....  */
      start=1;
    }
    if (IN_INCLUDED_FILE > 0) 
@@ -1468,7 +1474,7 @@ static int parse_model(FILE *fp, char *first, int nnn)
   
    while(1){
       for(ns=0;ns<(int)strings.size();ns++){
-      strcpy(newstr,strings[ns].c_str());
+      XPP_FORMAT_TO_BUF(newstr,"{}",strings[ns].c_str());
       subsk(newstr,big,jj,is_array); 
      
  
@@ -1482,7 +1488,7 @@ static int parse_model(FILE *fp, char *first, int nnn)
      if(v.type==COMMAND)strupr(v.lhs);
      if(v.type==COMMAND && v.lhs[0]=='G' && v.lhs[1]=='R') {
         my_string=get_first(v.rhs," ");
-       strcpy(name,my_string);
+       XPP_FORMAT_TO_BUF(name,"{}",my_string);
        my_string=get_next(" \n");
        if(my_string==NULL)
 	 nstates=0;
@@ -1504,7 +1510,7 @@ static int parse_model(FILE *fp, char *first, int nnn)
 
      if(v.type==COMMAND && v.lhs[0]=='M' && v.lhs[1]=='A'){
        my_string=get_first(v.rhs," ");
-       strcpy(name,my_string);
+       XPP_FORMAT_TO_BUF(name,"{}",my_string);
        my_string=get_next(" \n");
        if(my_string==NULL)
 	 nstates=0;
@@ -1530,7 +1536,9 @@ static int parse_model(FILE *fp, char *first, int nnn)
            if(is_array==2)
 	     {
                
-	       strcpy(markovarrays[istates],strings[ns+1+istates].c_str());
+	       /* markovarrays[istates] is a pointer, allocated MAXEXPLEN
+	          bytes just above. */
+	       xpp_strlcpy(markovarrays[istates],strings[ns+1+istates].c_str(),MAXEXPLEN);
 		     
 	     }
 	   else 
@@ -1544,9 +1552,9 @@ static int parse_model(FILE *fp, char *first, int nnn)
 
        build_markov(markovarrays2,name);
        v.type=MARKOV_VAR;
-       strcpy(v.lhs,name);
+       XPP_FORMAT_TO_BUF(v.lhs,"{}",name);
        /* strcpy(v.rhs,save_eqn[nlin]); */
-       strcpy(v.rhs,"...many states.."); 
+       XPP_FORMAT_TO_BUF(v.rhs,"{}","...many states.."); 
      }
 
    
@@ -1554,13 +1562,13 @@ static int parse_model(FILE *fp, char *first, int nnn)
         /* take care of special form for SOLVE-VARIABLE */      
           if(v.type==COMMAND && v.lhs[0]=='S' && v.lhs[1]=='O'){
            if(find_char(v.rhs,"=",0,&i1)<0){
-             strcpy(v.lhs,v.rhs);
-             strcpy(v.rhs,"0");
+             XPP_FORMAT_TO_BUF(v.lhs,"{}",v.rhs);
+             XPP_FORMAT_TO_BUF(v.rhs,"{}","0");
             }
           else{
 	  	
           strpiece(v.lhs,v.rhs,0,i1-1);
-          strcpy(big,v.rhs);
+          XPP_FORMAT_TO_BUF(big,"{}",v.rhs);
           strpiece(v.rhs,big,i1+1,strlen(big));
           }
           v.type=SOL_VAR;
@@ -1572,7 +1580,7 @@ static int parse_model(FILE *fp, char *first, int nnn)
      if(v.type==COMMAND && v.lhs[0]=='A' && v.lhs[1]=='U'){
        if(find_char(v.rhs,"=",0,&i1)>=0){
        strpiece(v.lhs,v.rhs,0,i1-1);
-       strcpy(big,v.rhs);
+       XPP_FORMAT_TO_BUF(big,"{}",v.rhs);
        strpiece(v.rhs,big,i1+1,strlen(big));
        }
        v.type=AUX_VAR;
@@ -1583,7 +1591,7 @@ static int parse_model(FILE *fp, char *first, int nnn)
      {
       if(find_char(v.rhs,"=",0,&i1)>=0){
        strpiece(v.lhs,v.rhs,0,i1-1);
-       strcpy(big,v.rhs);
+       XPP_FORMAT_TO_BUF(big,"{}",v.rhs);
        strpiece(v.rhs,big,i1+1,strlen(big));
        }
        v.type=VECTOR;
@@ -1594,7 +1602,7 @@ static int parse_model(FILE *fp, char *first, int nnn)
      if(v.type==COMMAND && v.lhs[0]=='S'&&v.lhs[1]=='P'&&v.lhs[5]=='A'){
        if(find_char(v.rhs,"=",0,&i1)>=0){
        strpiece(v.lhs,v.rhs,0,i1-1);
-       strcpy(big,v.rhs);
+       XPP_FORMAT_TO_BUF(big,"{}",v.rhs);
        strpiece(v.rhs,big,i1+1,strlen(big));
        }
        v.type=SPEC_FUN;
@@ -1605,7 +1613,7 @@ static int parse_model(FILE *fp, char *first, int nnn)
        v.type=EXPORT;
        if(find_char(v.rhs,"}",0,&i1)>=0){
        strpiece(v.lhs,v.rhs,0,i1);
-       strcpy(big,v.rhs);
+       XPP_FORMAT_TO_BUF(big,"{}",v.rhs);
        strpiece(v.rhs,big,i1+1,strlen(big));
        }
 
@@ -1624,7 +1632,7 @@ static int parse_model(FILE *fp, char *first, int nnn)
      if(v.type==COMMAND && v.lhs[0]=='V'){
        if(find_char(v.rhs,"=",0,&i1)>=0){
        strpiece(v.lhs,v.rhs,0,i1-1);
-       strcpy(big,v.rhs);
+       XPP_FORMAT_TO_BUF(big,"{}",v.rhs);
        strpiece(v.rhs,big,i1+1,strlen(big));
        }
        v.type=VEQ;
@@ -1641,7 +1649,7 @@ static int parse_model(FILE *fp, char *first, int nnn)
 	exit(0);
       }
       strpiece(v.lhs,v.rhs,i0,i1-1);
-      strcpy(big,v.rhs);
+      XPP_FORMAT_TO_BUF(big,"{}",v.rhs);
       strpiece(v.rhs,big,i1+1,strlen(big));
       v.type=TABLE;
     }
@@ -1714,7 +1722,8 @@ void add_only(char *s)
   if(strlen(s)<1)return;
   if(N_only>=MAXONLY)return;
   onlylist[N_only]=(char *)xpp_malloc(strlen(s)+1);
-  strcpy(onlylist[N_only],s);
+  /* onlylist[N_only] is a pointer, allocated strlen(s)+1 bytes above. */
+  xpp_strlcpy(onlylist[N_only],s,strlen(s)+1);
 
   N_only++;
 }
@@ -1811,7 +1820,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
       convert(v->lhs,tmp);
       if(name_too_long(tmp))exit(0);
       if(find_the_name(vnames,nvar,tmp)<0){
-	strcpy(vnames[nvar],tmp);
+	XPP_FORMAT_TO_BUF(vnames[nvar],"{}",tmp);
 	nvar++;
       }
       else
@@ -1827,7 +1836,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
       convert(v->lhs,tmp);
       if(name_too_long(tmp))exit(0);
       if(find_the_name(mnames,nmark,tmp)<0){
-	strcpy(mnames[nmark],tmp);
+	XPP_FORMAT_TO_BUF(mnames[nmark],"{}",tmp);
 	nmark++;
       }
       
@@ -1852,7 +1861,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
     if(v->type==AUX_VAR){
       convert(v->lhs,tmp);
       if(name_too_long(tmp))exit(0);
-      strcpy(anames[naux],tmp);
+      XPP_FORMAT_TO_BUF(anames[naux],"{}",tmp);
       naux++;
       plintf("%s = %s \n",anames[naux-1],v->rhs); 
     }
@@ -1863,11 +1872,12 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
     if(v->type==FIXED){
       fixinfo[nfix].name=(char *)xpp_malloc(strlen(v->lhs)+2);
       fixinfo[nfix].value=(char *)xpp_malloc(strlen(v->rhs)+2);
-      strcpy(fixinfo[nfix].name,v->lhs);
-      strcpy(fixinfo[nfix].value,v->rhs);
+      /* fixinfo[nfix].name/.value are pointers, allocated just above. */
+      xpp_strlcpy(fixinfo[nfix].name,v->lhs,strlen(v->lhs)+2);
+      xpp_strlcpy(fixinfo[nfix].value,v->rhs,strlen(v->rhs)+2);
       convert(v->lhs,tmp);
       if(name_too_long(tmp))exit(0);
-      strcpy(fnames[nfix],tmp);
+      XPP_FORMAT_TO_BUF(fnames[nfix],"{}",tmp);
       nfix++;
      plintf("%s = %s \n",fnames[nfix-1],v->rhs); 
     }
@@ -1905,7 +1915,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	xpp_log(XPP_LOG_INFO, " Duplicate name %s \n",vnames[i]);
 	exit(0);
       }
-      strcpy(uvar_names[i],vnames[i]);
+      XPP_FORMAT_TO_BUF(uvar_names[i],"{}",vnames[i]);
       last_ic[i]=0.0;
       default_ic[i]=0.0;
     }
@@ -1920,12 +1930,12 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	xpp_log(XPP_LOG_INFO, " Duplicate name %s \n",mnames[i]);
 	exit(0);
       }
-   strcpy(uvar_names[i+nvar],mnames[i]);
+   XPP_FORMAT_TO_BUF(uvar_names[i+nvar],"{}",mnames[i]);
    last_ic[i+nvar]=0.0;
    default_ic[i+nvar]=0.0;
  }
  for(i=0;i<naux;i++)
-   strcpy(aux_names[i],anames[i]);
+   XPP_FORMAT_TO_BUF(aux_names[i],"{}",anames[i]);
  add_svar_names();
  
  
@@ -2011,7 +2021,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
          default_ic[in]=z;
 	 set_val(tmp,z);
 	 /* if(fon==1) */
-	   strcpy(delay_string[in],v->rhs);
+	   XPP_FORMAT_TO_BUF(delay_string[in],"{}",v->rhs);
 	   
 	 plintf(" Initial %s(0)=%s\n",tmp,v->rhs);
        }
@@ -2047,7 +2057,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	 exit(0);
        }
        
-       strcpy(ode_names[nvar],v->rhs);
+       xpp_strlcpy(ode_names[nvar],v->rhs,nn+2);
        find_ker(v->rhs,&alt);
        /*       ode_names[nvar][nn-1]=0; */
        if(add_expr(v->rhs,my_ode[nvar],&leng[nvar])){
@@ -2093,7 +2103,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	 }
 
 
-       strcpy(ode_names[in1],v->rhs);
+       xpp_strlcpy(ode_names[in1],v->rhs,nn+2);
        /* ode_names[in1][nn]=0; */
        if(add_expr(v->rhs,my_ode[in2],&leng[in2])){
          xpp_log(XPP_LOG_INFO, "B\n");
@@ -2155,7 +2165,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	 my_string=get_next(" ");
 	 xhi=atof(my_string);
 	 my_string=get_next("\n");
-	 strcpy(formula,my_string);
+	 XPP_FORMAT_TO_BUF(formula,"{}",my_string);
 	 plintf(" %s has %d pts from %f to %f = %s\n",
 		v->lhs,nn,xlo,xhi,formula);
 	 /* plintf(" ntab = %d\n",ntab); */
@@ -2169,7 +2179,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	 if(my_string[0]=='@'){
 	   plintf(" Two-dimensional array: \n ");
 	   my_string=get_next(" ");
-	   strcpy(formula,my_string);
+	   XPP_FORMAT_TO_BUF(formula,"{}",my_string);
 	   plintf(" %s = %s \n",name,formula);
 	   if(add_2d_table(name,formula)){
 	     plintf("ERROR at line %d\n",NLINES);
@@ -2178,7 +2188,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	 }
 	 else
 	   {
-	     strcpy(formula,my_string);
+	     XPP_FORMAT_TO_BUF(formula,"{}",my_string);
 	     plintf("Lookup table %s = %s \n",v->lhs,formula);
 	     
 	     if(add_file_table(ntab,formula)){
@@ -2249,7 +2259,7 @@ int parse_a_string(char *s1, VAR_INFO *v)
   }
     remove_blanks(s1); 
 
-  strcpy(s1old,s1);
+  XPP_FORMAT_TO_BUF(s1old,"{}",s1);
   strupr(s1);
   /*   plintf(" <%s> \n",s1);   */
   if(strlen(s1)<1){
@@ -2259,11 +2269,11 @@ int parse_a_string(char *s1, VAR_INFO *v)
   if(s1[0]=='0'&&s1[1]=='='){ /* ||(s1[1]==' '&&s1[2]=='='))) */
     /* plintf("DAE --- \n");  */
    type2=DAE;
-   sprintf(lhs,"0=");
+   XPP_SPRINTF(lhs,"0=");
    strpiece(rhs,s1,2,n1);
     v->type=type2;
-  strcpy(v->lhs,lhs);
-  strcpy(v->rhs,rhs);
+  XPP_FORMAT_TO_BUF(v->lhs,"{}",lhs);
+  XPP_FORMAT_TO_BUF(v->rhs,"{}",rhs);
   goto good_type;
   }
   if(s1[0]=='#'){
@@ -2372,11 +2382,11 @@ int parse_a_string(char *s1, VAR_INFO *v)
 
 good_type:
   v->type=type2;
-  strcpy(v->lhs,lhs);
-  strcpy(v->rhs,rhs);
+  XPP_FORMAT_TO_BUF(v->lhs,"{}",lhs);
+  XPP_FORMAT_TO_BUF(v->rhs,"{}",rhs);
   v->nargs=narg;
   for(i=0;i<narg;i++)
-    strcpy(v->args[i],args[i]);
+    XPP_FORMAT_TO_BUF(v->args[i],"{}",args[i]);
 
   /* plintf("type=%d type2 = %d : %s = %s \n",type,v->type,v->lhs,v->rhs); 
    if(type2==FUNCTION){
@@ -2405,10 +2415,10 @@ void add_varinfo(int type, char *lhs, char *rhs, int nargs, char args[MAXARG][NA
   int i;
   v.type=type;
   v.nargs=nargs;
-  strcpy(v.lhs,lhs);
-  strcpy(v.rhs,rhs);
+  XPP_FORMAT_TO_BUF(v.lhs,"{}",lhs);
+  XPP_FORMAT_TO_BUF(v.rhs,"{}",rhs);
   for(i=0;i<nargs;i++)
-    strcpy(v.args[i],args[i]);
+    XPP_FORMAT_TO_BUF(v.args[i],"{}",args[i]);
   try {
     model_lines.push_back(v);
   } catch (const std::bad_alloc &) { /* no exception crosses into C */
@@ -2643,6 +2653,10 @@ void read_a_line(FILE *fp, char *s)
 
 int search_array(char *old, char *newstr, int *i1, int *i2, int *flag)
 {
+  /* old/newstr are pointers here; the smallest of search_array's four
+     callers pass char[256] (integrate.c's junk/new) -- the others use
+     [300] or [MAXEXPLEN] -- so 256 is the real, safe size for a write
+     into newstr. */
   int i,j,k,l;
   int ileft,iright;
   int n=strlen(old);
@@ -2653,18 +2667,18 @@ int search_array(char *old, char *newstr, int *i1, int *i2, int *flag)
   *i1=0;
   *i2=0;
   *flag=0;
-  strcpy(num1,"0");
-  strcpy(num2,"0");
+  XPP_FORMAT_TO_BUF(num1,"{}","0");
+  XPP_FORMAT_TO_BUF(num2,"{}","0");
   if(old[0]=='#'||old[1]=='#') {  /* check for comments */
 
-    strcpy(newstr,old);
+    xpp_strlcpy(newstr,old,256);
         
     return 1;
   }
   if(check_if_ic(old)==1){
 
     extract_ic_data(old);
-    strcpy(newstr,old);
+    xpp_strlcpy(newstr,old,256);
     return 1;
   }
   for(i=0;i<n;i++){
@@ -2692,7 +2706,7 @@ int search_array(char *old, char *newstr, int *i1, int *i2, int *flag)
 	if((i+j)<=0){
 	  *i1=0;
           *i2=0;
-	  strcpy(newstr,old);
+	  xpp_strlcpy(newstr,old,256);
           plintf(" Possible error in array %s -- ignoring it \n",old);
 	  return(0); /* error in array  */
 	}
@@ -2714,7 +2728,7 @@ int search_array(char *old, char *newstr, int *i1, int *i2, int *flag)
 	if((i+j)>=n) {
 	  *i1=0;
           *i2=0;
-	  strcpy(newstr,old);
+	  xpp_strlcpy(newstr,old,256);
           plintf(" Possible error in array  %s -- ignoring it \n",old);
 	  return(0); /* error again   */
 	}
@@ -2793,14 +2807,18 @@ int is_comment(char *s)
   
 void subsk(char *big, char *newstr, int k, int flag)
 {
+  /* big/newstr are pointers here; the smallest of subsk's callers pass
+     char[256] (integrate.c's vp/fp) -- others use [300] or
+     [MAXEXPLEN] -- so 256 is the real, safe size for a write into
+     newstr (same reasoning as search_array above). */
   int i,n=strlen(big),inew,add,inum,j,m,isign,ok,multflag=0;
   char ch,chp,num[20];
   inew=0;
   i=0;
   /*  if(big[0]=='#'){   */
   if(is_comment(big)){
-    
-    strcpy(newstr,big);
+
+    xpp_strlcpy(newstr,big,256);
     return;
   }
   
@@ -2819,7 +2837,7 @@ void subsk(char *big, char *newstr, int k, int flag)
 	  i++;
           num[inum]=0;
           add=atoi(num);
-	  sprintf(num,"%d",add);
+	  XPP_SPRINTF(num,"%d",add);
 	  m=strlen(num);
 	  for(j=0;j<m;j++){
 	    newstr[inew]=num[j];
@@ -2879,7 +2897,7 @@ void subsk(char *big, char *newstr, int k, int flag)
 		add=atoi(num)*k;
 		multflag=0;
 	      }
-	      sprintf(num,"%d",add);
+	      XPP_SPRINTF(num,"%d",add);
 		m=strlen(num);
 		for(j=0;j<m;j++){
 		  newstr[inew]=num[j];
@@ -2920,9 +2938,9 @@ void keep_orig_comments()
     orig_comments[i].text=(char *)xpp_malloc(strlen(comments[i].text)+1);
     if(comments[i].aflag)
       orig_comments[i].action=(char *)xpp_malloc(strlen(comments[i].action)+1);
-    strcpy(orig_comments[i].text,comments[i].text);
+    xpp_strlcpy(orig_comments[i].text,comments[i].text,strlen(comments[i].text)+1);
     if(comments[i].aflag)
-      strcpy(orig_comments[i].action,comments[i].action);
+      xpp_strlcpy(orig_comments[i].action,comments[i].action,strlen(comments[i].action)+1);
     orig_comments[i].aflag=comments[i].aflag;
   }
   
@@ -2936,10 +2954,10 @@ void default_comments()
   free_comments();
   for(i=0;i<orig_ncomments;i++){ 
     comments[i].text=(char *)xpp_malloc(strlen(orig_comments[i].text)+1);
-    strcpy(comments[i].text,orig_comments[i].text);
+    xpp_strlcpy(comments[i].text,orig_comments[i].text,strlen(orig_comments[i].text)+1);
     if(orig_comments[i].aflag){
       comments[i].action=(char *)xpp_malloc(strlen(orig_comments[i].action)+1);
-      strcpy(comments[i].action,orig_comments[i].action);
+      xpp_strlcpy(comments[i].action,orig_comments[i].action,strlen(orig_comments[i].action)+1);
     }
     comments[i].aflag=orig_comments[i].aflag;
   }
@@ -2964,7 +2982,7 @@ void new_comment(FILE *f)
   free_comments();
   while(!feof(f)){
     if(fgets(bob,256,f)==NULL)break;
-    sprintf(ted,"@%s",bob);
+    XPP_SPRINTF(ted,"@%s",bob);
     add_comment(ted);
   }
 
@@ -2987,7 +3005,7 @@ void add_comment(char *s)
   }
   if(noact){
     comments[n_comments].text=(char *)xpp_malloc(strlen(s)+1);
-    strcpy(comments[n_comments].text,s+1);
+    xpp_strlcpy(comments[n_comments].text,s+1,strlen(s)+1);
     comments[n_comments].aflag=0;
   }
   else {
@@ -3020,9 +3038,9 @@ void add_comment(char *s)
     }
     text[ja]=0;
     comments[n_comments].text=(char *)xpp_malloc(strlen(text)+1);
-    strcpy(comments[n_comments].text,text);
+    xpp_strlcpy(comments[n_comments].text,text,strlen(text)+1);
     comments[n_comments].action=(char *)xpp_malloc(strlen(action)+1);
-    strcpy(comments[n_comments].action,action);
+    xpp_strlcpy(comments[n_comments].action,action,strlen(action)+1);
     comments[n_comments].aflag=1;
 
   }

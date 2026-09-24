@@ -4,6 +4,7 @@
 #include "xpp_globals.h"
 #include "xpp_job.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -400,7 +401,7 @@ int plintf(const char *fmt, ...)
 int new_int(char *name, int *value)
 {
     char svalue[200];
-    sprintf(svalue, "%d", *value);
+    XPP_SPRINTF(svalue, "%d", *value);
     if (new_string(name, svalue) == 0 || strlen(svalue) == 0) return -1;
     *value = atoi(svalue);
     return 0;
@@ -412,7 +413,7 @@ int new_float(char *name, double *value)
     int flag;
     double newz;
     char tvalue[200];
-    sprintf(tvalue, "%.16g", *value);
+    XPP_SPRINTF(tvalue, "%.16g", *value);
     done = new_string(name, tvalue);
     if (done == 0 || strlen(tvalue) == 0) return -1;
 

@@ -1,5 +1,6 @@
 #include "tabular.h"
 #include "xpp_mem.h"
+#include "xpp_io.h"
 
 #include "browse.h"
 #include "ggets.h"
@@ -139,11 +140,11 @@ void new_lookup_com(int i)
     return;
   }
    if(my_table[index].flag==1){
-     strcpy(file,my_table[index].filename);
+     XPP_STRCPY(file,my_table[index].filename);
      status=file_selector("Load table",file,"*.tab");
      if(status==0)return;
      ok=load_table(file,index);
-     if(ok==1)strcpy(my_table[index].filename,file);
+     if(ok==1)XPP_STRCPY(my_table[index].filename,file);
      
    }
    if(my_table[index].flag==2){
@@ -151,7 +152,7 @@ void new_lookup_com(int i)
      
      xlo=my_table[index].xlo;
        xhi=my_table[index].xhi;
-       strcpy(newform,my_table[index].filename);
+       XPP_STRCPY(newform,my_table[index].filename);
        new_int("Auto-evaluate? (1/0)",&my_table[index].autoeval);
        new_int("NPts: ",&npts);
        new_float("Xlo: ",&xlo);
@@ -180,10 +181,10 @@ void new_lookup_ok()
    index=select_table();
    if(index!=-1){
      if(my_table[index].flag==1){
-       strcpy(file,my_table[index].filename);
+       XPP_STRCPY(file,my_table[index].filename);
        if(new_string("Filename:",file)){
 	 ok=load_table(file,index);
-	 if(ok==1)strcpy(my_table[index].filename,file);
+	 if(ok==1)XPP_STRCPY(my_table[index].filename,file);
        }
      }
      if(my_table[index].flag==2){
@@ -191,7 +192,7 @@ void new_lookup_ok()
 
        xlo=my_table[index].xlo;
        xhi=my_table[index].xhi;
-       strcpy(newform,my_table[index].filename);
+       XPP_STRCPY(newform,my_table[index].filename);
        new_int("Auto-evaluate? (1/0)",&my_table[index].autoeval);
        new_int("NPts: ",&npts);
        new_float("Xlo: ",&xlo);
@@ -376,7 +377,7 @@ int create_fun_table(npts,xlo,xhi,formula,index)
     my_table[index].xhi=xhi;
     my_table[index].n=npts;
     my_table[index].dx=(xhi-xlo)/((double)(npts-1));
-    strcpy(my_table[index].filename,formula);
+    XPP_STRCPY(my_table[index].filename,formula);
     return(1);
   }
    return(0);
@@ -488,7 +489,7 @@ int load_table(filename,index)
    my_table[index].n=length;
    my_table[index].dx=(xhi-xlo)/(length-1);
    my_table[index].flag=1;
-   strcpy(my_table[index].filename,filename2);
+   XPP_STRCPY(my_table[index].filename,filename2);
    fclose(fp); 
    return(1);
  }
@@ -555,7 +556,8 @@ int select_table(void)
  for(i=0;i<NTable;i++){
    n[i]=(char *)xpp_malloc(XPP_NAME_MAX+4);
    key[i]='a'+i;
-   sprintf(n[i],"%c: %s",key[i],my_table[i].name);
+   /* n[i] is a pointer, allocated XPP_NAME_MAX+4 bytes just above. */
+   xpp_snprintf(n[i],XPP_NAME_MAX+4,"%c: %s",key[i],my_table[i].name);
  }
  key[NTable]=0;
  {

@@ -7,6 +7,7 @@
 #include "ggets.h"
 #include "parserslow.h"
 #include "calc.h"
+#include "xpp_io.h"
 
 /* Derived parameter stuff !!  */
 #define MAXDERIVED 200
@@ -79,8 +80,9 @@ int add_derived(name,rhs)
   }
   i0=nderived;
   derived[i0].rhs=(char *)xpp_malloc(n);
-  /* save the right hand side */
-  strcpy(derived[i0].rhs,rhs);
+  /* save the right hand side; derived[i0].rhs is a pointer, allocated
+     n = strlen(rhs)+2 bytes just above. */
+  xpp_strlcpy(derived[i0].rhs,rhs,n);
   /* this is the constant to which it addresses */
   derived[i0].index=NCON;
   /* add the name to the recognized symbols */

@@ -11,6 +11,7 @@
 #include <math.h>
 #include "xpplim.h"
 #include "getvar.h"
+#include "xpp_io.h"
 #define MAXDAE 400
 
 extern double variables[];
@@ -64,9 +65,10 @@ int add_svar(name,rhs)
     return 1;
   }
   if(name_too_long(name))return 1;
-  strcpy(svar[nsvar].name,name);
+  XPP_STRCPY(svar[nsvar].name,name);
   svar[nsvar].rhs=(char *) xpp_malloc(80);
-  strcpy(svar[nsvar].rhs,rhs);
+  /* svar[nsvar].rhs is a pointer, allocated 80 bytes just above. */
+  xpp_strlcpy(svar[nsvar].rhs,rhs,80);
   plintf(" Added sol-var[%d] %s = %s \n",
 	 nsvar,svar[nsvar].name,svar[nsvar].rhs);
   nsvar++;
@@ -96,7 +98,8 @@ int add_aeqn(rhs)
     return 1;
   }
   aeqn[naeqn].rhs=(char *) xpp_malloc(strlen(rhs)+5);
-  strcpy(aeqn[naeqn].rhs,rhs);
+  /* aeqn[naeqn].rhs is a pointer, allocated strlen(rhs)+5 bytes above. */
+  xpp_strlcpy(aeqn[naeqn].rhs,rhs,strlen(rhs)+5);
   naeqn++;
  return 0;
 }

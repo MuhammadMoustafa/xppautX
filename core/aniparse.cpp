@@ -17,6 +17,7 @@
 #include "ani_data.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 #include "xpp_globals.h"
 #include "parserslow.h"
 #include "form_ode.h"
@@ -208,15 +209,15 @@ void ani_create_mpeg(void)
     char values[3][MAX_LEN_SBOX];
     int status;
     mpeg.flag = 0;
-    sprintf(values[0], "%d", mpeg.flag);
+    XPP_SPRINTF(values[0], "%d", mpeg.flag);
     snprintf(values[1], sizeof(values[1]), "%.24s", mpeg.root);
-    sprintf(values[2], "%d", mpeg.aviflag);
+    XPP_SPRINTF(values[2], "%d", mpeg.aviflag);
     status = do_string_box(3, 3, 1, title, n, values, 28);
     if (status != 0) {
         mpeg.flag = atoi(values[0]);
         if (mpeg.flag > 0) mpeg.flag = 1;
         mpeg.aviflag = atoi(values[2]);
-        sprintf(mpeg.root, "%s", values[1]);
+        XPP_SPRINTF(mpeg.root, "%s", values[1]);
         if (mpeg.aviflag == 1) mpeg.flag = 0;
     } else
         mpeg.flag = 0;
@@ -227,7 +228,7 @@ void ani_newskip(void)
 {
     char bob[20], title[] = "Frame skip", name[] = "Increment:", ok[] = "Ok", cancel[] = "Cancel";
     int status;
-    sprintf(bob, "%d", vcr.inc);
+    XPP_SPRINTF(bob, "%d", vcr.inc);
     status = get_dialog(title, name, bob, ok, cancel, 20);
     if (status != 0) {
         vcr.inc = atoi(bob);
@@ -303,7 +304,7 @@ void ani_disk_warn(void)
     char ans;
     total = total / (1024 * 1024);
     if (total > 10) {
-        sprintf(junk, " %u Mb disk space needed! Continue?", total);
+        XPP_SPRINTF(junk, " %u Mb disk space needed! Continue?", total);
         ans = (char)TwoChoice(yes, no, junk, keys);
         if (ans != 'y') mpeg.flag = 0;
     }
@@ -320,10 +321,10 @@ void ani_zero(void)
     aniflag = TRANSIENT;
     ani_grab_flag = 0;
     if (use_ani_file)
-        strcpy(vcr.file, anifile);
+        XPP_FORMAT_TO_BUF(vcr.file,"{}", anifile);
     else {
-        strcpy(vcr.file, this_file);
-        sprintf(vcr.file, "%s/", dirname(vcr.file));
+        XPP_FORMAT_TO_BUF(vcr.file,"{}", this_file);
+        XPP_SPRINTF(vcr.file, "%s/", dirname(vcr.file));
     }
 }
 
@@ -337,7 +338,7 @@ int get_ani_file(char *fname)
         status = file_selector(title, vcr.file, wild);
         if (status == 0) return 0;
     } else {
-        if (fname != vcr.file) strcpy(vcr.file, fname);
+        if (fname != vcr.file) XPP_FORMAT_TO_BUF(vcr.file,"{}", fname);
     }
     err = ani_new_file(vcr.file);
     if (err < 0) return 0;
@@ -362,7 +363,7 @@ int ani_new_file(char *filename)
     ani_data_forget();
     if (load_ani_file(fp) == 0) {
         fclose(fp);
-        sprintf(bob, "Bad ani-file at line %d", ani_line);
+        XPP_SPRINTF(bob, "Bad ani-file at line %d", ani_line);
         err_msg(bob);
         return -1;
     }
@@ -434,35 +435,35 @@ int parse_ani_string(char *s, FILE *fp)
     case GRAB:
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x1, nxt);
+        XPP_FORMAT_TO_BUF(x1,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x2, nxt);
+        XPP_FORMAT_TO_BUF(x2,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x3, nxt);
+        XPP_FORMAT_TO_BUF(x3,"{}", nxt);
         anss = add_grab_command(x1, x2, x3, fp);
         return (anss);
     case AXNULL:
     case AYNULL:
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x1, nxt);
+        XPP_FORMAT_TO_BUF(x1,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x2, nxt);
+        XPP_FORMAT_TO_BUF(x2,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x3, nxt);
+        XPP_FORMAT_TO_BUF(x3,"{}", nxt);
         nxt = get_next(";\n");
         if (nxt == NULL) return -1;
-        strcpy(x4, nxt);
+        XPP_FORMAT_TO_BUF(x4,"{}", nxt);
         nxt = get_next(";\n");
         if (nxt == NULL) return -1;
-        strcpy(col, nxt);
+        XPP_FORMAT_TO_BUF(col,"{}", nxt);
         nxt = get_next("\n");
         if (nxt == NULL) return -1;
-        strcpy(thick, nxt);
+        XPP_FORMAT_TO_BUF(thick,"{}", nxt);
         break;
     case LINE:
     case RECT:
@@ -471,104 +472,104 @@ int parse_ani_string(char *s, FILE *fp)
     case FRECT:
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x1, nxt);
+        XPP_FORMAT_TO_BUF(x1,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x2, nxt);
+        XPP_FORMAT_TO_BUF(x2,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x3, nxt);
+        XPP_FORMAT_TO_BUF(x3,"{}", nxt);
         nxt = get_next(";\n");
         if (nxt == NULL) return -1;
-        strcpy(x4, nxt);
+        XPP_FORMAT_TO_BUF(x4,"{}", nxt);
         nxt = get_next(";\n");
         if ((nxt == NULL) || strlen(nxt) == 0) break;
-        strcpy(col, nxt);
+        XPP_FORMAT_TO_BUF(col,"{}", nxt);
         nxt = get_next("\n");
         if ((nxt == NULL) || strlen(nxt) == 0) break;
-        strcpy(thick, nxt);
+        XPP_FORMAT_TO_BUF(thick,"{}", nxt);
         break;
     case RLINE:
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x1, nxt);
+        XPP_FORMAT_TO_BUF(x1,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x2, nxt);
+        XPP_FORMAT_TO_BUF(x2,"{}", nxt);
         nxt = get_next(";\n");
         if ((nxt == NULL) || strlen(nxt) == 0) break;
-        strcpy(col, nxt);
+        XPP_FORMAT_TO_BUF(col,"{}", nxt);
         nxt = get_next("\n");
         if ((nxt == NULL) || strlen(nxt) == 0) break;
-        strcpy(thick, nxt);
+        XPP_FORMAT_TO_BUF(thick,"{}", nxt);
         break;
     case COMET:
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x1, nxt);
+        XPP_FORMAT_TO_BUF(x1,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x2, nxt);
+        XPP_FORMAT_TO_BUF(x2,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(thick, nxt);
+        XPP_FORMAT_TO_BUF(thick,"{}", nxt);
         nxt = get_next(";\n");
         if (nxt == NULL) return -1;
-        strcpy(x3, nxt);
+        XPP_FORMAT_TO_BUF(x3,"{}", nxt);
         nxt = get_next(";\n");
         if ((nxt == NULL) || strlen(nxt) == 0) break;
-        strcpy(col, nxt);
+        XPP_FORMAT_TO_BUF(col,"{}", nxt);
         break;
     case CIRC:
     case FCIRC:
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x1, nxt);
+        XPP_FORMAT_TO_BUF(x1,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x2, nxt);
+        XPP_FORMAT_TO_BUF(x2,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x3, nxt);
+        XPP_FORMAT_TO_BUF(x3,"{}", nxt);
         nxt = get_next(";\n");
         if ((nxt == NULL) || strlen(nxt) == 0) break;
-        strcpy(col, nxt);
+        XPP_FORMAT_TO_BUF(col,"{}", nxt);
         break;
     case SETTEXT:
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x1, nxt);
+        XPP_FORMAT_TO_BUF(x1,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x2, nxt);
+        XPP_FORMAT_TO_BUF(x2,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(col, nxt);
+        XPP_FORMAT_TO_BUF(col,"{}", nxt);
         break;
     case TEXT:
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x1, nxt);
+        XPP_FORMAT_TO_BUF(x1,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x2, nxt);
+        XPP_FORMAT_TO_BUF(x2,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x4, nxt);
+        XPP_FORMAT_TO_BUF(x4,"{}", nxt);
         break;
     case VTEXT:
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x1, nxt);
+        XPP_FORMAT_TO_BUF(x1,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x2, nxt);
+        XPP_FORMAT_TO_BUF(x2,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x4, nxt);
+        XPP_FORMAT_TO_BUF(x4,"{}", nxt);
         nxt = get_next(";\n");
         if (nxt == NULL) return -1;
-        strcpy(x3, nxt);
+        XPP_FORMAT_TO_BUF(x3,"{}", nxt);
         break;
     case SPEED:
         nxt = get_next(" \n");
@@ -580,16 +581,16 @@ int parse_ani_string(char *s, FILE *fp)
     case DIMENSION:
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x1, nxt);
+        XPP_FORMAT_TO_BUF(x1,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x2, nxt);
+        XPP_FORMAT_TO_BUF(x2,"{}", nxt);
         nxt = get_next(";");
         if (nxt == NULL) return -1;
-        strcpy(x3, nxt);
+        XPP_FORMAT_TO_BUF(x3,"{}", nxt);
         nxt = get_next(";\n");
         if (nxt == NULL) return -1;
-        strcpy(x4, nxt);
+        XPP_FORMAT_TO_BUF(x4,"{}", nxt);
         break;
     }
 
@@ -1504,14 +1505,14 @@ int ani_grab_tasks(char *line, int igrab, int which)
         if (c == '{' || c == ' ') continue;
         if (c == ';' || c == '}') {
             form[k] = 0;
-            strcpy(rhs, form);
+            XPP_FORMAT_TO_BUF(rhs,"{}", form);
             if (add_grab_task(lhs, rhs, igrab, which) < 0) return (-1);
             k = 0;
             continue;
         }
         if (c == '=') {
             form[k] = 0;
-            strcpy(lhs, form);
+            XPP_FORMAT_TO_BUF(lhs,"{}", form);
             k = 0;
             continue;
         }
@@ -1581,7 +1582,7 @@ int add_grab_task(char *lhs, char *rhs, int igrab, int which)
     if (which == 1) {
         i = ani_grab[igrab].start.n;
         if (i >= MAX_GEVENTS) return (-1); /* too many events */
-        strcpy(ani_grab[igrab].start.lhsname[i], lhs);
+        XPP_FORMAT_TO_BUF(ani_grab[igrab].start.lhsname[i],"{}", lhs);
         if (add_expr(rhs, com, &nc)) {
             plintf("Bad right-hand side for grab event %s\n", rhs);
             return (-1);
@@ -1601,7 +1602,7 @@ int add_grab_task(char *lhs, char *rhs, int igrab, int which)
         i = ani_grab[igrab].end.n;
         if (i >= MAX_GEVENTS) return (-1); /* too many events */
 
-        strcpy(ani_grab[igrab].end.lhsname[i], lhs);
+        XPP_FORMAT_TO_BUF(ani_grab[igrab].end.lhsname[i],"{}", lhs);
         if (add_expr(rhs, com, &nc)) {
             plintf("Bad right-hand side for grab event %s\n", rhs);
             return (-1);
@@ -1656,7 +1657,7 @@ void ani_view_created(void)
 {
     mpeg.flag = 0;
     mpeg.filflag = 0;
-    strcpy(mpeg.root, "frame");
+    XPP_FORMAT_TO_BUF(mpeg.root,"{}", "frame");
     mpeg.filter[0] = 0;
     mpeg.skip = 1;
     vcr.pos = 0;

@@ -1,6 +1,7 @@
 #include "adj2.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
 #include "my_rhs.h"
 #include "pop_list.h"
 #include "browse.h"
@@ -75,7 +76,7 @@ extern int DCURY;
 void init_trans()
 {
   my_trans.here=0;
-  strcpy(my_trans.firstcol,uvar_names[0]);
+  XPP_STRCPY(my_trans.firstcol,uvar_names[0]);
   my_trans.ncol=2;
   my_trans.nrow=1;
   my_trans.rowskip=1;
@@ -109,12 +110,12 @@ int do_transpose()
  int i,status;
  static char *n[]={"*0Column 1","NCols","ColSkip","Row 1","NRows","RowSkip"};
  char values[6][MAX_LEN_SBOX];
- sprintf(values[0],"%s",my_trans.firstcol);
- sprintf(values[1],"%d",my_trans.ncol);
- sprintf(values[2],"%d",my_trans.colskip);
- sprintf(values[3],"%d",my_trans.row0);
- sprintf(values[4],"%d",my_trans.nrow);
- sprintf(values[5],"%d",my_trans.rowskip);
+ XPP_SPRINTF(values[0],"%s",my_trans.firstcol);
+ XPP_SPRINTF(values[1],"%d",my_trans.ncol);
+ XPP_SPRINTF(values[2],"%d",my_trans.colskip);
+ XPP_SPRINTF(values[3],"%d",my_trans.row0);
+ XPP_SPRINTF(values[4],"%d",my_trans.nrow);
+ XPP_SPRINTF(values[5],"%d",my_trans.rowskip);
  if(my_trans.here){
    
    for(i=0;i<=my_trans.nrow;i++)xpp_free(my_trans.data[i]);
@@ -186,7 +187,9 @@ void alloc_h_stuff()
  for(i=0;i<NODE ;i++){
    coup_fun[i]=(int *)xpp_malloc(100*sizeof(int));
    coup_string[i]=(char *)xpp_malloc(80);
-   strcpy(coup_string[i],"0");
+   /* coup_string[i] is a pointer (xpp_malloc(80) above), so XPP_STRCPY's
+      sizeof(dst) trick does not apply: pass the real allocation size. */
+   xpp_strlcpy(coup_string[i],"0",80);
  }
 }
  
@@ -814,7 +817,7 @@ int hrw_liapunov(double *liap,int batch,double eps)
      sum=sum/t1;
    *liap=sum;
    if(batch==0){
-     sprintf(bob,"Maximal exponent is %g",sum);
+     XPP_SPRINTF(bob,"Maximal exponent is %g",sum);
      err_msg(bob);
    }
 

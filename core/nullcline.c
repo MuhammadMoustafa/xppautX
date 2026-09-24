@@ -23,6 +23,7 @@
 #include "graphics.h"
 #include "menudrive.h"
 #include <stdio.h>
+#include "xpp_io.h"
 
 
 #define DING ping
@@ -150,13 +151,13 @@ void do_range_clines()
     col1=1;
     col2=9;
     } */
-  sprintf(values[0],"%s",ncrange.rv);
-  sprintf(values[1],"%d",ncrange.nstep);
-  sprintf(values[2],"%g",ncrange.xlo);
-  sprintf(values[3],"%g",ncrange.xhi);
+  XPP_SPRINTF(values[0],"%s",ncrange.rv);
+  XPP_SPRINTF(values[1],"%d",ncrange.nstep);
+  XPP_SPRINTF(values[2],"%g",ncrange.xlo);
+  XPP_SPRINTF(values[3],"%g",ncrange.xhi);
   status=do_string_box(4,4,1,"Range Clines",n,values,45);
   if(status!=0){
-    strcpy(ncrange.rv,values[0]);
+    XPP_STRCPY(ncrange.rv,values[0]);
     ncrange.nstep=atoi(values[1]);
     ncrange.xlo=atof(values[2]);
     ncrange.xhi=atof(values[3]);
@@ -227,7 +228,7 @@ void start_ncline()
   ncrange.xlo=0;
   ncrange.xhi=1;
   ncrange.nstep=10;
-  sprintf(ncrange.rv," ");
+  XPP_SPRINTF(ncrange.rv," ");
 }
 
 void clear_froz_cline()
@@ -312,7 +313,7 @@ void save_frozen_clines(fn)
     z=ncperm;
     while(1){
     if(z==NULL||(z->nmx==0&&z->nmy==0))return;
-    sprintf(fnx,"%s.%d",fn,i);
+    XPP_SPRINTF(fnx,"%s.%d",fn,i);
     fp=fopen(fnx,"w");
     if(fp==NULL){
       err_msg("Cant open file!");
@@ -749,7 +750,7 @@ void save_the_nullclines()
   FILE *fp;
   char filename[256];
   if(NULL_HERE==0)return;
-  sprintf(filename,"nc.dat");
+  XPP_SPRINTF(filename,"nc.dat");
   ping();
   if(!file_selector("Save nullclines",filename,"*.dat"))return;
   fp=fopen(filename,"w");
