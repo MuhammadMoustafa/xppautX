@@ -49,8 +49,6 @@ extern int Nintern_set;
 extern INTERN_SET intern_set[MAX_INTERN_SET];
 extern char *no_hint[];
 
-int status;
-
 namespace {
 /* err_msg/respond_box/new_int/new_string/two_choice/XppMenu.title (xpp_ui.h,
    menus.h) take char * and do not write through it; they are the historical
@@ -130,17 +128,6 @@ void edit_xpprc(void)
   snprintf(cmd, sizeof(cmd), "start \"\" \"%s\" \"%s\\.xpprc\"", ed, home ? home : ".");
   if (system(cmd) != 0) err_msg(str("Unable to start the editor."));
 }
-
-void xpp_hlp(void)
-{
-  char cmd[600];
-  if (getenv("XPPHELP") == NULL) {
-    err_msg(str("Environment variable XPPHELP undefined."));
-    return;
-  }
-  snprintf(cmd, sizeof(cmd), "start \"\" \"%s\"", getenv("XPPHELP"));
-  if (system(cmd) != 0) err_msg(str("Unable to open the help."));
-}
 #else
 void edit_xpprc(void)
 {
@@ -169,29 +156,6 @@ void edit_xpprc(void)
   if (child_pid == -1)
     err_msg(str("Unable to fork process for editor."));
 }
-
-void xpp_hlp(void)
-{
-  char cmd[256];
-
-  if (getenv("XPPHELP") == NULL) {
-    err_msg(str("Environment variable XPPHELP undefined."));
-    return;
-  }
-  if (getenv("XPPBROWSER") == NULL) {
-    err_msg(str("Environment variable XPPBROWSER undefined."));
-    return;
-  }
-  XPP_SPRINTF(cmd, "file:///%s", getenv("XPPHELP"));
-  if (fork() == 0) {
-    execlp(getenv("XPPBROWSER"), getenv("XPPHELP"), cmd, (char *)0);
-    perror("Unable to open browser. Check your XPPBROWSER and XPPHELP environement variables.");
-    exit(1);
-  } else {
-    wait(&status);
-  }
-}
-
 #endif
 
 /* ---- commands that were in X11 files -------------------------------- */
@@ -389,7 +353,6 @@ void do_file_com(int com)
   switch (com) {
   case M_FT: do_transpose(); break;
   case M_FG: get_intern_set(); break;
-  case M_FI: break; /* tips: X11 tool tips, gone with it */
   case M_FP: make_txtview(); break;
   case M_FW: do_lunch(0); break;
   case M_FS: file_inf(); break;
@@ -400,8 +363,7 @@ void do_file_com(int com)
     break;
   case M_FC: q_calc(); break;
   case M_FR: do_lunch(1); break;
-  case M_FB: break; /* bell: the page has none */
-  case M_FH: break;
+  case M_FH: open_help("05-commands", "file"); break;
   case M_FX: edit_xpprc(); break;
   case M_FU: do_tutorial(); break;
   case M_FQ:
@@ -533,7 +495,6 @@ void commander(int ch)
     switch (ch) {
     case 't': do_transpose(); break;
     case 'g': get_intern_set(); break;
-    case 'i': break;
     case 'p': flash(0); make_txtview(); flash(0); break;
     case 'w': flash(1); do_lunch(0); flash(1); break;
     case 's': flash(2); file_inf(); flash(2); break;
@@ -547,8 +508,7 @@ void commander(int ch)
     case 'c': flash(4); q_calc(); flash(4); break;
     case 'r': flash(5); do_lunch(1); flash(5); break;
     case 'e': flash(6); edit_menu(); flash(6); break;
-    case 'b': break;
-    case 'h': xpp_hlp(); break;
+    case 'h': open_help("05-commands", "file"); break;
     case 'q':
       flash(7);
       if (yes_no_box()) bye_bye();

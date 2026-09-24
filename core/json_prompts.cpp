@@ -399,6 +399,20 @@ void j_show_menu(int which)
     xpp_free(b.s);
 }
 
+void j_open_help(const char *chapter, const char *anchor)
+{
+    Buf b = {0};
+    BUF_LIT(&b, "{\"ev\":\"help\",\"chapter\":");
+    buf_str(&b, chapter);
+    if (anchor && *anchor) {
+        BUF_LIT(&b, ",\"anchor\":");
+        buf_str(&b, anchor);
+    }
+    BUF_LIT(&b, "}");
+    send_buf(&b);
+    xpp_free(b.s);
+}
+
 /* one pointer event of a drag in window win: 1 down, 2 move, 3 up; 0 when
    a key or Cancel ends the drag */
 int ask_drag(unsigned long win, int *x, int *y)

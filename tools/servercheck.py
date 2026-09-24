@@ -281,6 +281,14 @@ if acts:
     collect(is_idle)
 
 send(cmd='key', key='f')
+send(cmd='key', key='h')
+evs, help_ev = collect(lambda e: e.get('ev') == 'help')
+collect(is_idle)
+check('File/Help opens the manual at the File menu chapter',
+      help_ev is not None and help_ev.get('chapter') == '05-commands' and help_ev.get('anchor') == 'file',
+      str(help_ev))
+
+send(cmd='key', key='f')
 send(cmd='key', key='s')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 check('File/Save info asks for a file name', ask is not None and ask['kind'] in ('file', 'string'), str(ask))

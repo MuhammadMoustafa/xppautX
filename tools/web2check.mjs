@@ -2521,6 +2521,19 @@ async function helpCheck() {
     await until(`s.help.open && s.help.chapter === '05-commands'`, 'hook reopen'), JSON.stringify(await S('s.help')));
   await cdp.eval(`document.querySelector('.help-back').click()`);
   await until('!s.help.open', 'closed at the end');
+
+  /* File/Help (M_FH, key h): the core itself sends the `help` event (docs/protocol.md) */
+  await focusPlot();
+  await key('f');
+  await until('s.core.menu === 1 && !s.busy', 'file menu for help');
+  await key('h');
+  check('help: File/Help opens Help at the File menu chapter (core-sent `help` event)',
+    await until(`s.help.open && s.help.chapter === '05-commands' && s.help.anchor === 'file'`, 'file help open'),
+    JSON.stringify(await S('s.help')));
+  await cdp.eval(`document.querySelector('.help-back').click()`);
+  await until('!s.help.open', 'closed after File/Help');
+  await key('Escape');
+  await until('s.core.menu === 0 && !s.busy', 'main menu after help');
 }
 
 /* tools/models/live.ode (about a second a run): edits while busy wait and go

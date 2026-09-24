@@ -8,13 +8,12 @@ extern "C" {
 #define FILE_MENU 1
 #define NUM_MENU 2
 #define MAIN_ENTRIES 20
-#define FILE_ENTRIES 16
+#define FILE_ENTRIES 14
 #define NUM_ENTRIES 18
 
 extern char *main_menu[];
 extern char *num_menu[];
-extern char *fileon_menu[];
-extern char *fileoff_menu[];
+extern char *file_menu[];
 extern char *main_hint[];
 extern char *file_hint[];
 extern char *num_hint[];

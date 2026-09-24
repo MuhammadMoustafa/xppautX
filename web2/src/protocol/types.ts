@@ -400,6 +400,8 @@ export type XppEvent =
   | {ev: 'progress'; n: number; of: number}
   | {ev: 'title'; text: string}
   | {ev: 'menu'; which: number}
+  /** File/Help: open the manual at this chapter (and anchor) */
+  | {ev: 'help'; chapter: string; anchor?: string}
   | {ev: 'window'; op: 'create' | 'select' | 'destroy'; win: number; w: number; h: number; title?: string}
   | {ev: 'log'; text: string}
   | {ev: 'exit'; code: number}

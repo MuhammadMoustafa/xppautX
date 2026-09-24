@@ -153,11 +153,9 @@ extern "C" {
 #define M_FA 203
 #define M_FC 204
 #define M_FS 205
-#define M_FB 206
 #define M_FH 207
 #define M_FQ 208
 #define M_FT 209
-#define M_FI 210
 #define M_FG 211
 
 #define M_FER 212
@@ -226,7 +224,6 @@ extern "C" {
 #define M_UC 410
 
 
-void xpp_hlp(void);
 void MessageBox(char *m);
 void KillMessageBox(void);
 int TwoChoice(char *c1, char *c2, char *q, char *key);

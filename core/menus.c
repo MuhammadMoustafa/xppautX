@@ -9,8 +9,6 @@
 #define FILE_MENU 1
 #define NUM_MENU 2
 #define MAIN_ENTRIES 20
-/* CLONE */
-#define FILE_ENTRIES 16
 #define NUM_ENTRIES 18
 char *main_menu[]={
  "XPP","Initialconds","Continue","Nullcline",
@@ -24,19 +22,11 @@ char *num_menu[]={"NUMERICS","Total","Start time","tRansient",
 "Dt","Ncline ctrl","sIng pt ctrl","nOutput","Bounds","Method",
 "dElay","Color code","stocHast","Poincare map","rUelle plot",
 "looKup","bndVal","Averaging","[Esc]-exit"};
-/* CLONE change */  
-
-char *fileon_menu[]={
+char *file_menu[]={
 "FILE","Prt src","Write set","Read set",
 "Auto","Calculator","Edit","Save info",
-"Bell off","Help","Quit","Transpose","tIps","Get par set","cLone",".Xpprc","tUtorial"}; 
+"Help","Quit","Transpose","Get par set","cLone",".Xpprc","tUtorial"};
 
-char *fileoff_menu[]={
-"FILE","Prt src","Write set","Read set",
-"Auto","Calculator","Edit","Save info",
-"Bell on","Help","Quit","Transpose","tIps","Get par set","cLone",".Xpprc","tUtorial"}; 
-
-/* end CLONE change */
 /* hints for the main menus */
 char *main_hint[]=
 { "Integrate the equations",
@@ -69,11 +59,9 @@ char *file_hint[]={
 "A little calculator -- press ESC to exit",
 "Edit right-hand sides or functions or auxiliaries",
 "Save info about simulation in human readable format",
-"Turn bell on/off",
 "Browser help",
 "Duh!",
 "Transpose storage",
-"Turn off these silly tips",
 "Set predefined parameters",
 "Clone the ode file",
 "Edit your .xpprc preferences file",
@@ -410,7 +398,7 @@ char *browse_hint[]={
 /* keys of the main-window menus; the numerics menu ends with Esc */
 char main_menu_keys[]="icndwakgufpemtsvxr3b";
 char num_menu_keys[]="tsrdniobmechpukva\033";
-char file_menu_keys[]="pwracesbhqtiglxu";
+char file_menu_keys[]="pwraceshqtglxu";
 
 /* pop-up menus, formerly static arrays inside the menudrive.c handlers */
 static char *ic_items[]={"(R)ange","(2)par range","(L)ast","(O)ld","(G)o",

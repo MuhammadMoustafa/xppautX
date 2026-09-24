@@ -395,6 +395,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {...state, text: reduceText(state.text, {type: 'equilibrium', ev})};
     case 'diagram':
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'event', ev: ev as unknown as DiagramEvent})};
+    case 'help':
+      return {...state, help: reduceHelp(state.help, {type: 'open', target: {chapter: ev.chapter, anchor: ev.anchor}})};
     case 'log':
       return addLogText(state, ev.text);
     case 'exit':

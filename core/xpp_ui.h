@@ -240,6 +240,7 @@ typedef struct XppUi {
        Headless: they do nothing. */
     void (*make_txtview)(void); /* File/Prt src: source and active comments */
     void (*q_calc)(void);       /* File/Calculator: evaluate formulas */
+    void (*open_help)(const char *chapter, const char *anchor); /* File/Help: open the manual there */
 
     /* program is quitting */
     void (*exit_program)(void);
@@ -334,6 +335,7 @@ void new_vcr(void);
 void redraw_the_graph(void);
 void make_txtview(void);
 void q_calc(void);
+void open_help(const char *chapter, const char *anchor);
 
 /* The front end's character cell in pixels, for laying out the AUTO and
    array plot windows and text in plots: a big and a small monospace font.

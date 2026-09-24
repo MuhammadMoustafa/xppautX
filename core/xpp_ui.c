@@ -107,6 +107,7 @@ static int hl_checklist(char *title, char **names, int *flags, int n)
     return 0;
 }
 static void hl_movie_save(char *basename, int fmat) { (void)basename; (void)fmat; }
+static void hl_open_help(const char *chapter, const char *anchor) { (void)chapter; (void)anchor; }
 static void hl_exit_program(void) { exit(1); }
 
 XppTextMetrics text_metrics;
@@ -228,6 +229,7 @@ XppUi xpp_ui = {
     .new_vcr = hl_void,
     .make_txtview = hl_void,
     .q_calc = hl_void,
+    .open_help = hl_open_help,
     .exit_program = hl_exit_program,
 };
 
@@ -376,6 +378,7 @@ void new_vcr(void) { xpp_ui.new_vcr(); }
 void redraw_the_graph(void) { xpp_ui.redraw_graph(); }
 void make_txtview(void) { xpp_ui.make_txtview(); }
 void q_calc(void) { xpp_ui.q_calc(); }
+void open_help(const char *chapter, const char *anchor) { xpp_ui.open_help(chapter, anchor); }
 
 /* plintf, new_int and new_float were in ggets.c; they never touched X.
 

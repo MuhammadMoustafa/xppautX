@@ -319,6 +319,7 @@ XppUi make_json_ui(void)
     u.show_eq_box = j_show_eq_box;
     u.make_txtview = j_make_txtview;
     u.q_calc = j_q_calc;
+    u.open_help = j_open_help;
     u.exit_program = j_exit_program;
     return u;
 }
@@ -492,7 +493,7 @@ void json_ui_hello(char *title)
     BUF_LIT(&b, ",\"main_hints\":");
     buf_str_array(&b, main_hint, MAIN_ENTRIES);
     BUF_LIT(&b, ",\"file\":");
-    buf_str_array(&b, fileon_menu + 1, FILE_ENTRIES); /* [0] is the title */
+    buf_str_array(&b, file_menu + 1, FILE_ENTRIES); /* [0] is the title */
     BUF_LIT(&b, ",\"file_keys\":");
     buf_str(&b, file_menu_keys);
     BUF_LIT(&b, ",\"file_hints\":");

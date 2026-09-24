@@ -125,15 +125,13 @@ This brings up a menu with several options. Type `Esc` to abort.
   - **(S)ave as**: This creates an “ODE” file based on the current parameter values, functions, and right-hand sides. You will be asked for a filename.
   - **(L)oad DLL**: invokes the dynamic linker. You can load in complicated RHS’s that would be awkward to create using XPP’s simple language.
 - **(S)ave info**: This is like `(P)rt info` but saves the info to a file. It is human readable.
-- **(B)ell on/off**: This toggles the stupid noisy bell on and off.
-- **C-(H)ints**: spews out stuff to the terminal that represents a skeletal C program for the right-hand sides. Presumably, you could use this to create faster code by replacing the file `myrhs.c` with your compiled version. Hah! I don’t khow why this is even here – Good luck!.
+- **(H)elp**: Opens this manual, at this chapter.
 - **(Q)uit**: This exits XPP first asking if you are sure.
 - **(T)ranspose** : This is not a very good place to put this but I stuck it here just to get it into the program. The point of this routine is to allow one to transpose chunks of the output. For example, if you are solving the discretization of some spatial problem and find a steady state, there is no way to plot the steady state as a function of the index of the discrete system. This routine lets you do that. The idea is to take something that looks like:
 - t1  x11  x21  x31 ... xm1      t2  x12  x22  x32 ... xm2     ...     tn  x1n  x2n  x3n ... xmn
 - and transpose some subset of it. You are prompted for 6 items. They are the name of the first column you want to index, the number of columns (`ncols` and amount you want to skip across columns, ` colskip` (so that `colskip = 2` would be every other column. You must also provide the starting row `j1`, the number of rows, ` nrows` and the row skip, `rowskip.` the The storage array is temporarily replaced by a new array that has `M=ncols` rows and `nrows+1` columns (since the data is transposed, the rows and columns are as well; confusing ain’t it). The form of the array is:
 - 1  x(i1,j1) x(i1,j2) x(i1,j3) ...     2  x(i2,j1) x(i2,j2) x(i2,j3) ...     ...     M  x(iM,j1) x(iM,j2) x(iM,j3) ...
 - where `i2=i1+colskip, i3=i1+2*colskip, ...` and `i1` is the index corresponding to the name of the first column you provide. Similarly, `j2=j1+rowskip, ...`. As a brief example, suppose that you solve a system of equations of the form: ``` math x_j' = f(x_{j-1},x_j,x_{j+1},I_j) ``` where $`j=1,\dots,20.`$ Click on transpose and choose `x1` as the first column, `colskip=1, ncols=20` and say `row1=350, nrows=1,rowskip=1` then a new array will be produced. The first column is the index from 1 to 20 and the second is `xj(350)` where 350 is the index and not the actual value of time. By plotting the second column versus the first you get a “spatial profile.”
-- **t(I)ps**: This toggles the tips on and off that appear in the message line.
 - **(G)et par set**: This loads one of the parameter sets that you have defined in the ODE file.
 
 ### (P)arameters
