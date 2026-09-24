@@ -139,6 +139,20 @@ async function key(k, modifiers = 0) {
   await sleep(30);
 }
 const mouse = (type, x, y, extra = {}) => cdp.send('Input.dispatchMouseEvent', {type, x, y, ...extra});
+async function click(x, y) {
+  await mouse('mouseMoved', x, y);
+  await mouse('mousePressed', x, y, {button: 'left', buttons: 1, clickCount: 1});
+  await mouse('mouseReleased', x, y, {button: 'left', buttons: 0, clickCount: 1});
+}
+/* a click that edits nothing must send nothing and never make the store busy
+   (T20: "clicking the plotting panel fires an integration") */
+async function clickSendsNothing(name, x, y) {
+  const pre = await S('__xpp.sent().length');
+  await click(x, y);
+  await sleep(200);
+  const sent = await S(`__xpp.sent().slice(${pre})`);
+  check(name, sent.length === 0 && !(await S('s.busy')), JSON.stringify(sent));
+}
 
 /* the plotting area's box and the screen position of point i of curve c */
 const area = () => cdp.eval(`(() => { const r = document.querySelector('.plot-view:not([hidden]) .u-over').getBoundingClientRect();
@@ -157,6 +171,12 @@ async function desktop(want) {
   check('the page connects and asks for the plot as data', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
   check('an empty plot says so and offers Integrate',
     await cdp.eval(`!!document.querySelector('.plot-empty button')`));
+
+  /* T20: a click on the empty plot away from the Integrate button, nothing edited */
+  const emptyHost = await cdp.eval(`(() => { const r = document.querySelector('.plot-host').getBoundingClientRect();
+    return {x: r.left, y: r.top, w: r.width, h: r.height}; })()`);
+  await clickSendsNothing('a click on the empty plot (nothing edited) sends nothing and starts nothing',
+    emptyHost.x + 6, emptyHost.y + 6);
 
   /* integrate with the keyboard only: I opens the menu, G answers it */
   await key('i');
@@ -229,6 +249,18 @@ async function desktop(want) {
   await mouse('mouseReleased', cx, cy, {button: 'left', clickCount: 2});
   check("a double click goes back to the core's window", await until('w.viewport.x === null && w.viewport.y === null', 'reset'));
   await mouse('mouseMoved', 5, 5);
+
+  /* T20: a click on the drawn canvas, on empty space and on the legend must
+     never start a run by itself; last, since toggling the legend can leave
+     uPlot's own scale null until the next redraw */
+  await clickSendsNothing('a click on the drawn curve sends nothing and starts nothing', cx, cy);
+  const corner = await cdp.eval(`(() => { const r = document.querySelector('.plot-host').getBoundingClientRect();
+    return {x: r.left + 6, y: r.top + 6}; })()`);
+  await clickSendsNothing('a click on empty space in the plot host sends nothing', corner.x, corner.y);
+  const legendBox = await cdp.eval(`(() => { const r = document.querySelector('.legend-item').getBoundingClientRect();
+    return {x: r.left, y: r.top, w: r.width, h: r.height}; })()`);
+  await clickSendsNothing('a click on the legend sends nothing (it only toggles the curve)',
+    legendBox.x + legendBox.w / 2, legendBox.y + legendBox.h / 2);
 }
 
 /* the values panel (docs/ui-v2.md T3): parameters, a slider, undo, layout */
@@ -254,6 +286,27 @@ async function values() {
     await until(`Math.abs((s.core.pars.find(p => p[0].toLowerCase() === "iapp") || [])[1] - 0.2) < 1e-9 && !s.busy`, 'iapp=0.2'),
     JSON.stringify(await S('s.core.pars')));
 
+  /* "Run on change" must fire on commit only (Enter/Tab/blur), never per keystroke */
+  await cdp.eval(`document.getElementById(${JSON.stringify(field)}).focus()`);
+  await sleep(100);
+  const preType = await S('__xpp.sent().length');
+  for (const text of ['1', '16', '165']) {
+    await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)});
+      el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+    await sleep(150);
+  }
+  const whileTyping = await S(`__xpp.sent().slice(${preType})`);
+  check('typing into a field sends nothing until it commits', whileTyping.length === 0, JSON.stringify(whileTyping));
+  await cdp.eval(`document.getElementById(${JSON.stringify(field)}).blur()`);
+  await sleep(300);
+  const afterCommit = await S(`__xpp.sent().slice(${preType})`);
+  check('blurring after typing sends exactly one set',
+    afterCommit.length === 1 && afterCommit[0].cmd === 'set' && afterCommit[0].text === '165', JSON.stringify(afterCommit));
+  /* undo this probe edit so the history below is exactly what it expects (one edit: 0.2) */
+  await cdp.eval(`document.getElementById(${JSON.stringify(field)}).focus()`);
+  await key('z', 2);
+  await until(`Math.abs((s.core.pars.find(p => p[0].toLowerCase() === "iapp") || [])[1] - 0.2) < 1e-9 && !s.busy`, 'undo probe');
+
   /* Escape while editing drops the draft: nothing is sent, nothing to undo */
   const edits = await S('s.values.history.length');
   await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)}); el.focus();
@@ -274,6 +327,36 @@ async function values() {
     JSON.stringify(await S('s.core.pars')));
   check('the Undo button is disabled once the history is empty',
     await cdp.eval(`[...document.querySelectorAll('.values-header button')].find(b => b.textContent === 'Undo').disabled`));
+
+  /* T20 bug (the maintainer's report: "clicking the plotting panel fires
+     an integration"): a field must not resend a stale draft when its
+     value moves under it while it is still focused, only on a genuine
+     edit. Edit iapp, refocus the field, Undo it with the keyboard (the
+     field keeps the focus while the value changes under it, unlike a
+     click elsewhere which would itself blur first), then click the plot,
+     which was never touched: nothing must be sent. Before the fix,
+     ValueField compared the draft to the *live* value at blur, so the
+     untouched, now-stale draft (still the pre-undo text) differed from
+     the moved-on live value and was resent as if it were a fresh edit. */
+  await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)}); el.focus();
+    el.value = '0.3'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await sleep(80);
+  await cdp.eval(`document.getElementById(${JSON.stringify(field)}).blur()`);
+  await until('Math.abs((s.core.pars.find(p => p[0].toLowerCase() === "iapp") || [])[1] - 0.3) < 1e-9 && !s.busy', 'iapp=0.3');
+  await cdp.eval(`document.getElementById(${JSON.stringify(field)}).focus()`);
+  await sleep(80);
+  await key('z', 2); /* Ctrl+Z: iapp moves back to 0.05 while the field keeps the focus */
+  await until('Math.abs((s.core.pars.find(p => p[0].toLowerCase() === "iapp") || [])[1] - 0.05) < 1e-9 && !s.busy', 'undo to 0.05');
+  const preBlur = await S('__xpp.sent().length');
+  const plotCorner = await cdp.eval(`(() => { const r = document.querySelector('.plot-host').getBoundingClientRect();
+    return {x: r.left + 6, y: r.top + 6}; })()`);
+  await mouse('mousePressed', plotCorner.x, plotCorner.y, {button: 'left', buttons: 1, clickCount: 1});
+  await mouse('mouseReleased', plotCorner.x, plotCorner.y, {button: 'left', buttons: 0, clickCount: 1});
+  await sleep(300);
+  const afterBlur = await S(`__xpp.sent().slice(${preBlur})`);
+  const iappNow = await S(`(s.core.pars.find(p => p[0].toLowerCase() === 'iapp') || [])[1]`);
+  check('a field kept focused through an external change (Undo) does not resend its stale draft when the plot is clicked',
+    afterBlur.length === 0 && Math.abs(iappNow - 0.05) < 1e-9, JSON.stringify({afterBlur, iappNow}));
 
   /* a slider by the keyboard: Add slider under the plot, pick iapp, then arrow keys move it and a new series arrives */
   const sid = await addSlider('iapp');

@@ -93,12 +93,17 @@ function ValueField({kind, label, name, index, display, full, hint, numeric, ext
   const errId = error ? `${id}-err` : undefined;
   /* Escape blurs the field too: its blur must not commit the draft it drops */
   const dropped = useRef(false);
+  /* the value this focus started from: if something else changes the field
+     (Undo, a slider on the same name, a reconnection) while it is still
+     focused, `full` moves on but the untouched draft does not, and a blur
+     must not re-send that now-stale draft as if it were a fresh edit */
+  const focusFull = useRef(full);
   const revert = () => setDraft(display);
   const commit = () => {
     setEditing(false);
     if (dropped.current) { dropped.current = false; revert(); return; }
     const text = draft.trim();
-    if (text === '' || text === full) { revert(); return; }
+    if (text === '' || text === focusFull.current) { revert(); return; }
     if (numeric && !text.startsWith('%') && !Number.isFinite(Number(text))) { revert(); return; }
     if (index !== undefined) session.setValueByIndex(kind as 'bc' | 'delay', index, text, full);
     else session.setValue(kind as 'par' | 'ic', name!, text, full);
@@ -110,7 +115,7 @@ function ValueField({kind, label, name, index, display, full, hint, numeric, ext
       <label htmlFor={id} class="value-name" title={label}>{label}</label>
       <input id={id} value={editing ? draft : display} title={title} spellcheck={false} autocomplete="off"
         aria-invalid={error ? 'true' : undefined} aria-describedby={errId} data-queued={queued ? '1' : undefined}
-        onFocus={() => { setEditing(true); setDraft(full); }}
+        onFocus={() => { setEditing(true); setDraft(full); focusFull.current = full; }}
         onInput={e => setDraft((e.target as HTMLInputElement).value)}
         onBlur={commit}
         onKeyDown={e => {
