@@ -31,10 +31,10 @@ issue; the card here is the one kept up to date.
 | W8  | #20 | Remove the X11 front end (pulled ahead of W6, 2026-09-23: the classic web page covers its features until T17) | none | done (4136541) |
 | W9  | #21 | WebAssembly build (proof of concept) | maintainer's OK to install emsdk | blocked |
 | W10 | #22 | Replayable interruptions in scripts | none | done (539b300) |
-| W11 | - | One I/O module: logging only, safe formatting, file reading and writing | none (step 3 with W7) | running (steps 1-2 done; step 3 next) |
-| W12a | - | The manual as Markdown (docs/manual/), current with web2; W12 steps 1, 2, 4 | T20, T21 | done |
-| W12b | - | web2's Help view from docs/manual/, linked from menus and dialogs; W12 step 3 | W12a, T22 | in progress |
-| W13 | - | A desktop app: xppautX's own window, menu bar, icon, .ode files | T21 (the page it shows); Help waits for W12, updates for a first release | blocked |
+| W11 | #23 | One I/O module: logging only, safe formatting, file reading and writing | none (step 3 with W7) | running (steps 1-2 done; step 3 next) |
+| W12a | #24 | The manual as Markdown (docs/manual/), current with web2; W12 steps 1, 2, 4 | T20, T21 | done |
+| W12b | #24 | web2's Help view from docs/manual/, linked from menus and dialogs; W12 step 3 | W12a, T22 | in progress |
+| W13 | #25 | A desktop app: xppautX's own window, menu bar, icon, .ode files | T21 (the page it shows); Help waits for W12, updates for a first release | blocked |
 
 ## W0: C/C++ mixed build
 **Goal.** core/*.cpp builds next to core/*.c on Linux, Windows (MinGW,
