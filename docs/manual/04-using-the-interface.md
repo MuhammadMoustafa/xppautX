@@ -88,19 +88,24 @@ In place of the separate parameter, initial-data, delay and boundary
 value windows, one **values panel** holds them all, always visible
 beside the plot (a sheet on a phone):
 
-- **Initial conditions and parameters** are always visible. A value takes
-  effect when you leave the field (Tab, Enter or a click elsewhere), so
-  typing a value and clicking `Integrate` uses the value you typed —
-  there is no `Ok`/`Cancel` for the whole box, as in the X11 windows;
-  `Escape` puts back the value that was there.
+- **Parameters** and **State** are always visible. State has two
+  columns: **Initial**, the initial conditions you edit, and **Now**, the
+  last point of the latest run (read only). `Go` runs from Initial;
+  `Last` (Initialconds/Last) copies Now into Initial, then runs;
+  **← Use current state** copies Now into Initial without running.
+- A value takes effect when you leave the field (Tab, Enter or a click
+  elsewhere), so typing a value and clicking `Integrate` uses the value
+  you typed — there is no `Ok`/`Cancel` for the whole box, as in the X11
+  windows; `Escape` puts back the value that was there. Each changed
+  field has a reset button whose tooltip shows the ODE file's value.
 - A field takes a number or a `%formula`, exactly as the X11 boxes did
   (see "Formulas as values", below): `%2*pi`.
 - **Default** puts back the values from the ODE file, as the X11
   Parameter window's Default button did.
 - **The checkboxes** next to the variables pick what **x vs t**,
   **Phase** and **Array** plot, like `xvst`, `pp` and `arry` in X11.
-- **Sliders** are the three parameter sliders of the X11 main window plus
-  any number more, including the ones an ODE file sets with `@ s1=...`;
+- **Sliders** sit under the plot, any number of them (the X11 main
+  window had three), including the ones an ODE file sets with `@ s1=...`;
   each is added or edited with a dialog (searchable variable, min, max,
   step/precision), not the small binding window upstream describes.
   Dragging one changes the value and integrates again.
