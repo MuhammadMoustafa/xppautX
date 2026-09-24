@@ -1625,9 +1625,17 @@ async function autoView(dir) {
       .every(w => words.includes(w)) && !words.some(w => /abort|stop|redraw/i.test(w)), JSON.stringify(words));
   check('the status strip says AUTO is idle', /^Idle/.test(await autoStatus()), await autoStatus());
 
-  /* a dialog the view opens is on top of it, not behind (Numerics' form) */
+  /* a dialog the view opens is on top of it, not behind (Numerics' form, T22: the page's own on the autosettings data) */
+  check("T22: the store holds AUTO's settings (autosettings) before a run",
+    await until('s.autoSettings.core && s.autoSettings.core.numerics.nmx > 0 && s.autoSettings.core.pars.length > 1', 'settings'),
+    JSON.stringify(await S('s.autoSettings.core')).slice(0, 300));
+  const sentNum = await cdp.eval('__xpp.sent().length');
   await autoButton('N');
-  await until("s.ask && s.ask.kind === 'form'", 'numerics form');
+  await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-numerics]')`, 'numerics form');
+  check("T22: Numerics opens the page's form, filled from the settings (Nmax), nothing asked of the core",
+    await S(`String(s.autoSettings.core.numerics.nmx) === document.querySelector('.auto-settings-dialog input[data-field=nmx]').value
+      && !s.ask && !s.busy`) && (await cdp.eval('__xpp.sent().length')) === sentNum,
+    JSON.stringify(await cdp.eval('__xpp.sent().slice(-3)')));
   check("Numerics' form is above the AUTO view: its centre and its fields are the topmost elements",
     await cdp.eval(`(() => { const d = document.querySelector('.dialog'); if (!d) return false;
       const r = d.getBoundingClientRect(), f = d.querySelector('input').getBoundingClientRect();
@@ -1643,7 +1651,9 @@ async function autoView(dir) {
     await cdp.eval(`document.activeElement === document.querySelectorAll('.dialog input')[1] && document.activeElement.value === '77'`),
     JSON.stringify([second, await cdp.eval(`document.activeElement.value`)]));
   await key('Escape');
-  await until('!s.busy && !s.ask', 'numerics cancelled');
+  check('T22: Escape cancels it: nothing sent',
+    await until(`!document.querySelector('.auto-settings-dialog')`, 'numerics cancelled')
+    && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set')`)));
 
   /* Run / Steady state */
   await autoButton('R');
@@ -1705,16 +1715,15 @@ async function autoView(dir) {
   await cdp.eval(`document.querySelector('.auto-axis-name[data-axis=y]').click()`);
   const running = await until(`s.busy && document.querySelector('.auto-axis-dialog[data-axis=y]')`, 'axis dialog');
   const dlg = await cdp.eval(`(() => { const d = document.querySelector('.auto-axis-dialog');
-    return {plot: d.querySelector('select[data-field=plot]').disabled, hint: !!d.querySelector('#auto-axis-busy'),
+    return {plot: d.querySelector('select[data-field=plot]').disabled, yvar: d.querySelector('select[data-field=yvar]').disabled,
       min: d.querySelector('input[data-field=min]').disabled}; })()`);
   await setAxisRange(-0.6, 0.7);
-  check('T21: during the run the axis dialog\'s plot type is disabled with its hint, and min/max change the view at once',
-    running && dlg.plot && dlg.hint && !dlg.min && await until(`s.busy && s.diagram.viewport.y && s.diagram.viewport.y.min === -0.6
-      && s.diagram.viewport.y.max === 0.7`, 'axis range during run', 3000) && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'axes')`)),
+  check('T22: during the run the axis dialog\'s plot type and variable can change (they would wait), and min/max change the view at once',
+    running && !dlg.plot && !dlg.yvar && !dlg.min && await until(`s.busy && s.diagram.viewport.y && s.diagram.viewport.y.min === -0.6
+      && s.diagram.viewport.y.max === 0.7`, 'axis range during run', 3000)
+      && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && (c.op === 'axes' || c.op === 'set'))`)),
     JSON.stringify([running, dlg, await DS('d.viewport'), await S('s.busy')]));
   check('the periodic branch arrives', await until('!s.busy && s.diagram.points.br.includes(2)', 'periodic', 120000));
-  check('T21: when the run ends the plot type is enabled again',
-    await until(`!document.querySelector('.auto-axis-dialog select[data-field=plot]').disabled`, 'plot enabled'));
   await key('Escape');
   check('Escape closes the axis dialog, the focus back on the axis name',
     await until(`!document.querySelector('.auto-axis-dialog') && document.activeElement.matches('.auto-axis-name[data-axis=y]')`, 'axis closed'));
@@ -1875,10 +1884,12 @@ async function autoView(dir) {
   await until(`document.querySelector('.auto-axis-dialog select[data-field=plot]')`, 'y dialog');
   await cdp.eval(`(() => { const s = document.querySelector('.auto-axis-dialog select[data-field=plot]'); s.value = '2';
     s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-  check('T21: the axis dialog\'s plot type goes to the core (Axes, then Fit): hI-lo, every point, periodic max and min',
+  check('T22: the axis dialog\'s plot type goes to the core as an auto set with a Fit: hI-lo, every point, periodic max and min',
     await until(`!s.busy && s.diagram.axes.plot === 2 && s.diagram.points.x.length === ${nAll}
       && document.querySelector('.auto-axis-dialog select[data-field=yvar]')`, 'hilo axes', 20000)
-    && (await DG()).curves.some(c => c.which === 'y2'), JSON.stringify(await DS('d.axes')));
+    && (await DG()).curves.some(c => c.which === 'y2')
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set' && c.axes && c.axes.plot === 2 && c.axes.fit)`),
+    JSON.stringify(await DS('d.axes')));
   const fitted = await DS('d.axes');
   await setAxisRange(fitted.ymin - 0.1, fitted.ymax + 0.1);
   check("T21: its min and max change the view at once, the core's axes stay",
@@ -1899,13 +1910,16 @@ async function autoView(dir) {
   await cdp.eval(`document.querySelector('.auto-earlier').click()`);
   check('T21: "Earlier branches" shows them again', await until(`__xpp.diagram().curves.length === ${nCurvesAll}`, 'earlier shown'));
 
-  /* T21: Numerics and Axes saved to a file and loaded back */
+  /* T21: Numerics and Axes saved to a file and loaded back (T22: from and into the settings data) */
+  const sentSave = await cdp.eval('__xpp.sent().length');
   await cdp.eval(`[...document.querySelectorAll('.auto-tools button')].find(b => b.textContent === 'Save settings').click()`);
-  check('T21: Save settings writes the Numerics (22 values) and the Axes (plot type and 7 values)',
+  check('T22: Save settings writes the Numerics (22 values), the Axes (plot type and 7 values), the parameters and Mark values, asking the core nothing',
     await until('!s.busy && s.diagram.setupSaved', 'settings saved', 20000)
-    && await DS(`(() => { const o = JSON.parse(d.setupSaved); return o.xppautX === 'auto-settings' && Object.keys(o.numerics).length === 22
-      && o.plot === 2 && Object.keys(o.axes).length === 7 && o.axes['Main Parm'] === 'iapp'; })()`)
-    && !(await S('s.ask')), JSON.stringify([await DS('d.setupSaved'), await S('[s.busy, s.ask]'), await cdp.eval('__xpp.sent().slice(-6)')]));
+    && await DS(`(() => { const o = JSON.parse(d.setupSaved); return o.xppautX === 'auto-settings' && o.version === 2
+      && Object.keys(o.numerics).length === 22 && o.plot === 2 && Object.keys(o.axes).length === 7 && o.axes['Main Parm'] === 'iapp'
+      && o.pars[0] === 'iapp' && Array.isArray(o.marks); })()`)
+    && !(await S('s.ask')) && (await cdp.eval('__xpp.sent().length')) === sentSave,
+    JSON.stringify([await DS('d.setupSaved'), await S('[s.busy, s.ask]'), await cdp.eval('__xpp.sent().slice(-6)')]));
   const saved = JSON.parse(await DS('d.setupSaved'));
   saved.numerics.Nmax = '321';
   saved.plot = 1;
@@ -1914,16 +1928,45 @@ async function autoView(dir) {
   const setFile = path.join(dir, 'lecar-auto.json');
   fs.writeFileSync(setFile, JSON.stringify(saved));
   await pickFiles('#auto-settings-load', [setFile]);
-  check('T21: Load settings answers them into the Axes: norm plot at the file\'s x range',
+  check('T22: Load settings sets them (one auto set): norm plot at the file\'s x range',
     await until(`!s.busy && !s.ask && s.diagram.axes.plot === 1 && s.diagram.axes.xmin === 0.01 && s.diagram.axes.xmax === 0.4
       && s.diagram.points.x.length === ${nAll}`, 'settings loaded', 20000), JSON.stringify(await DS('d.axes')));
   await autoButton('N');
-  await until("s.ask && s.ask.kind === 'form'", 'numerics again');
-  check('T21: ... and into the Numerics (Nmax 321)',
-    await S(`s.ask.values[s.ask.names.findIndex(n => /Nmax/.test(n))] === '321'`), JSON.stringify(await S('[s.ask.names, s.ask.values]')));
+  await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-numerics]')`, 'numerics again');
+  check("T22: ... and the Numerics (Nmax 321): the core's settings and the form",
+    await S(`s.autoSettings.core.numerics.nmx === 321
+      && document.querySelector('.auto-settings-dialog input[data-field=nmx]').value === '321'`)
+    && (await cdp.eval(`__xpp.sent().filter(c => c.cmd === 'auto' && c.op === 'set').length`)) === 2,
+    JSON.stringify([await S('s.autoSettings.core.numerics'), await cdp.eval(`__xpp.sent().filter(c => c.cmd === 'auto')`)]));
   await until(`!!document.activeElement.closest('.dialog')`, 'numerics focus');
   await key('Escape');
-  await until('!s.busy && !s.ask', 'numerics closed');
+  await until(`!document.querySelector('.auto-settings-dialog')`, 'numerics closed');
+  /* T22: Parameter lists AUTO's parameters; Mark values adds a user point and takes it away again */
+  await autoButton('P');
+  await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-pars]')`, 'parameter form');
+  check("T22: Parameter is the page's form: a select per AUTO parameter, set to the settings' names",
+    await S(`(() => { const sel = [...document.querySelectorAll('.auto-settings-dialog select')];
+      return sel.length === s.autoSettings.core.pars.length && sel.every((e, i) => e.value === s.autoSettings.core.pars[i]); })()`),
+    JSON.stringify(await S('s.autoSettings.core.pars')));
+  await key('Escape');
+  await until(`!document.querySelector('.auto-settings-dialog')`, 'parameter closed');
+  await autoButton('U');
+  await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-marks]')`, 'marks form');
+  await cdp.eval(`document.querySelector('.auto-mark-add').click()`);
+  await until(`!!document.querySelector('.auto-settings-dialog input[data-field=mark1-value]')`, 'mark row');
+  await cdp.eval(`(() => { const d = document.querySelector('.auto-settings-dialog');
+    const sel = d.querySelector('select[data-field=mark1-name]'); sel.value = 'iapp'; sel.dispatchEvent(new Event('change', {bubbles: true}));
+    const i = d.querySelector('input[data-field=mark1-value]'); i.value = '0.125'; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions .primary').click()`);
+  check('T22: Mark values: iapp = 0.125 added, the core has it',
+    await until(`!s.busy && s.autoSettings.core.marks.length === 1 && s.autoSettings.core.marks[0][0] === 'iapp'
+      && s.autoSettings.core.marks[0][1] === 0.125`, 'mark set'), JSON.stringify(await S('s.autoSettings.core.marks')));
+  await autoButton('U');
+  await until(`!!document.querySelector('.auto-settings-dialog input[data-field=mark1-value]')`, 'marks form again');
+  await cdp.eval(`document.querySelector('.auto-settings-dialog .auto-mark-row button').click()`);
+  await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions .primary').click()`);
+  check('T22: ... and removed again', await until('!s.busy && s.autoSettings.core.marks.length === 0', 'mark removed'),
+    JSON.stringify(await S('s.autoSettings.core.marks')));
   /* back to hI-lo, fitted, for what follows */
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
   await key('a');
@@ -1974,6 +2017,52 @@ async function autoView(dir) {
     await until(`s.diagram.open && s.diagram.axes && !s.busy && s.diagram.points.x.length === ${want.pts.length}`, 'reload auto', 30000)
     && JSON.stringify(await DS('d.labels')) === JSON.stringify(labels), JSON.stringify(await DS('[d.open, d.points.x.length]')));
 
+  /* T22: Numerics edited during a run wait (pending) and apply when it ends; the run after uses them */
+  const firstPeriodic = await DS('d.points.br.filter(b => b === 2).length');
+  const periodicFromHopf = async what => {
+    await cdp.eval(`document.querySelector('.auto-host').focus()`);
+    await key('g');
+    await until("s.ask && s.ask.kind === 'grab' && s.diagram.info", `grab ${what}`);
+    for (let i = 0; i < 20 && !(await DS("d.info && d.info.sym === 'HB'")); i++) {
+      const n = await DS('d.infoEvents');
+      await key('Tab');
+      await until(`s.diagram.infoEvents > ${n} && s.ask`, `grab tab ${what}`);
+    }
+    await key('Enter');
+    await until('!s.busy && !s.diagram.grabbing', `grabbed ${what}`);
+    await cdp.eval(`document.querySelector('.auto-host').focus()`);
+    await key('r');
+    await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Hopf Pt'", `hopf menu ${what}`);
+    await menuKey('p');
+  };
+  const nPre = await DS('d.points.x.length'), sentPre = await cdp.eval('__xpp.sent().length');
+  await periodicFromHopf('a long run');
+  const long = await until(`s.busy && !s.ask && s.diagram.points.x.length > ${nPre}`, 'long run going', 20000);
+  await autoButton('N');
+  await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-numerics]')`, 'numerics during run');
+  await cdp.eval(`(() => { const i = document.querySelector('.auto-settings-dialog input[data-field=nmx]');
+    i.value = '15'; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions .primary').click()`);
+  const setsSent = () => cdp.eval(`__xpp.sent().slice(${sentPre}).filter(c => c.cmd === 'auto' && c.op === 'set')`);
+  check('T22: Numerics during a run: Nmax 15 waits, pending (the button dashed, the store\'s queue), nothing sent',
+    long && await S(`s.busy && s.autoSettings.queued && s.autoSettings.queued.numerics.nmx === 15
+      && s.autoSettings.core.numerics.nmx === 321`)
+    && await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)
+    && (await setsSent()).length === 0, JSON.stringify([long, await S('[s.busy, s.autoSettings]'), await setsSent()]));
+  await cdp.eval(`document.querySelector('.auto-status .auto-stop').click()`);
+  check('T22: at the run\'s idle the edit goes out, one set, and applies: the core\'s Nmax is 15, nothing pending',
+    await until(`!s.busy && s.autoSettings.core.numerics.nmx === 15 && !s.autoSettings.queued && !s.autoSettings.sent`,
+      'applied at idle', 60000)
+    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', numerics: {nmx: 15}}])
+    && !(await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)),
+    JSON.stringify([await S('s.autoSettings'), await setsSent()]));
+  const nMid = await DS('d.points.x.length');
+  await periodicFromHopf('the run after');
+  const ran = await until(`!s.busy && s.diagram.points.x.length > ${nMid}`, 'the run after', 60000);
+  const nNew = (await DS('d.points.x.length')) - nMid;
+  check(`T22: the run after uses it: its periodic branch stops at Nmax, 15 points (the first had ${firstPeriodic})`,
+    ran && nNew === 15 && firstPeriodic > 15, JSON.stringify([ran, nNew, firstPeriodic]));
+
   /* Close: done with AUTO */
   await cdp.eval(`document.querySelector('.auto-close').click()`);
   check("Close closes AUTO's window and the view", await until('!s.diagram.open && !s.busy', 'auto close')
@@ -2020,6 +2109,8 @@ async function busyAuto() {
   check('busy: during an integration the AUTO diagram zooms, and Run is disabled with "Busy: available when the current run ends"',
     busy && await until('s.busy && s.diagram.viewport.x', 'zoom while busy', 3000) && run.disabled
     && run.title === 'Busy: available when the current run ends', JSON.stringify([busy, run, await DS('d.viewport')]));
+  check('busy: T22: Parameter, Numerics and Mark values stay enabled (their changes wait)',
+    await cdp.eval(`['P', 'N', 'U'].every(k => !document.querySelector('.auto-tools button[aria-keyshortcuts=' + k + ']').disabled)`));
   check("busy: ... and the main window's menu waits the same way", !!menu && menu[0] === true
     && menu[1] === 'Busy: available when the current run ends', JSON.stringify(menu));
   await until('!s.busy', 'integration done', 30000);

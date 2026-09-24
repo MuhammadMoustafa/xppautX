@@ -148,6 +148,7 @@ bundle is ~95 KB of JS (Preact 4 KB, uPlot 50 KB), 11 KB of CSS, 48 KB of font.
 | 5 | `dfield` (**done**) | phase plane | direction field: grid of `[x,y,ux,uy]` (unit direction in plot units) and each arrow's speed, scaled by the client; flow: the trajectories as `x`, `y` point lists per curve, NaN between two | `core/phase_data.cpp`, from `redraw_dfield`/`direct_field_com` and the integrator's `plot_one_graph` |
 | 6 | `marks` (**done**) | plot | equilibria found by Sing pts (x, y, stability type), labels, arrows and markers of Text,etc, frozen curves (Graphic stuff/Freeze) as series | `core/marks_data.cpp`, recorded where `eq_symb` (graphics.c), `draw_label` (grobs.cpp) and `draw_freeze`/`create_crv` (graf_par.c) draw them |
 | 7 | `diagram` + `autoinfo` (**done**) | AUTO view | the diagram's points (and `from`, the label a branch started from); the info strip as fields (branch, point, type, label, parameters, norm, the plotted variable, period) and the stability circle (e^λ or Floquet multipliers `[[re,im],...]`, and a steady state's eigenvalues) | `core/auto_data.cpp`, reported by `auto_nox.c` where it draws the strip and the circle |
+| 7b | `autosettings` (**done**, T22) | AUTO view's forms | AUTO's Numerics (22 fields by AUTO's names), its parameters (Par1..Par8), the axes (plot type, variable, main and second parameter, ranges) and the Mark values; set with `auto` `set`, checked, all or nothing | `core/auto_settings.cpp`: the same fields the AUTO window's forms write |
 | 8 | `browser` (exists) | data table | rows and columns on request: already data | none |
 | 9 | `aplot` (exists) | array plot | cells as colour indices; add `values` (the numbers) so the client picks its colour map | small |
 | 10 | `ani` `frame` (**done**) | animation | the frame's primitives (line, rect, circle, ellipse, comet dot, text) in unit coordinates of the `.ani`'s `dimension` box (y up, not clamped), their colours (XPP index or `#rrggbb` of the colour map), widths and fonts; the frame's row, time, box and the classic window's size; thinned to 25 a second while Go plays | `core/aniparse.cpp` computes a frame in the `.ani`'s coordinates and gives each primitive to the pixel ops and to `core/ani_data.cpp` (docs/protocol.md "The animation as data") |
@@ -519,6 +520,21 @@ Target: WCAG 2.2 AA. Rules:
   core's axes are the box within a pixel). `tools/servercheck.py`: grab by
   index then Run gives the diagram grabbing by keys gives; `autoinfo`
   equals the strip's text and AUTO's printed eigenvalues and multipliers.
+  AUTO's settings (T22): `tools/servercheck.py` checks that `autosettings`
+  is what the Numerics, Parameter, Axes and Mark values forms show, that a
+  form's OK and an `auto` `set` show in it (and the set in the forms), that
+  a set with a bad value (Ncol 9, Ntst 1.5, Dsmin 0, Par Min above Par
+  Max, a name the model lacks ...) is refused whole with an error naming
+  it, that a set sent while a question is open applies at the command's
+  end, and that Nmax 12 stops the next run at 12 points;
+  tests/test_auto_settings.cpp the rules and the all-or-nothing write.
+  `tools/web2check.mjs` (`auto`): Numerics, Parameter and Mark values are
+  the page's forms on the data (nothing asked of the core), the axis
+  dialog's plot type goes out as a set with a Fit, Save and Load settings
+  on the data; during a periodic run Nmax 15 waits pending (the store's
+  queue, the button dashed, nothing sent), goes out as one set at the run's
+  idle, and the run after stops at 15 points; (`busy`) the settings'
+  buttons stay enabled during an integration.
   Live: the store and the plot grow over several appends of a 20 001-row
   run and end equal to `output.dat`. Long runs (tools/models/million.ode,
   10^6 rows): every draw under 50 ms while the rows arrive, and during

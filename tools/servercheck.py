@@ -1737,6 +1737,133 @@ def check_autoinfo():
 
 check_autoinfo()
 
+
+# AUTO's settings as data (docs/protocol.md "AUTO's settings as data", T22):
+# the autosettings event holds what the AUTO forms show, and `auto` `set`
+# writes the same fields, checked, all or nothing.
+def settings_of(evs):
+    got = [e for e in evs if e.get('ev') == 'autosettings']
+    return got[-1] if got else None
+
+
+NUM_KEYS = ['ntst', 'nmx', 'npr', 'ncol', 'ds', 'dsmin', 'dsmax', 'rl0', 'rl1', 'a0', 'a1', 'epsl', 'epsu', 'epss',
+            'iad', 'mxbf', 'iid', 'itmx', 'itnw', 'nwtn', 'iads', 'suppbp']
+
+
+def form_text(v):
+    """a value as the core's forms print it: %d for whole numbers, else %g"""
+    return '%d' % v if isinstance(v, int) else '%g' % v
+
+
+def check_autosettings():
+    pa, ra, snda, cola, _ = launch_server()
+    pb, rb, sndb, colb, _ = launch_server()
+    try:
+        cola(is_idle)
+        colb(is_idle)
+
+        def ask_of(**c):
+            snda(**c)
+            return cola(lambda e: e.get('ev') == 'ask' or is_idle(e))[1]
+
+        def cancel(ask):
+            snda(cmd='answer', id=ask['id'], ok=0)
+            return cola(is_idle)[0]
+
+        def auto_set(**c):
+            snda(cmd='auto', op='set', **c)
+            evs, _ = cola(is_idle)
+            return evs, settings_of(evs), [e['error'] for e in evs if e.get('ev') == 'message' and 'error' in e]
+
+        snda(cmd='data', events=['autosettings'])
+        evs, _ = cola(is_idle)
+        st = settings_of(evs)
+        check('autosettings: sent at once after data, before AUTO is open', st is not None
+              and sorted(st['numerics']) == sorted(NUM_KEYS) and len(st['pars']) == 8
+              and st['axes']['par1'] == st['pars'][0], str(st)[:300])
+        ask = ask_of(cmd='auto', op='numerics')
+        cancel(ask)
+        want = [form_text(st['numerics'][k]) for k in NUM_KEYS]
+        check("autosettings: the numerics are the Numerics form's values, field for field",
+              ask and ask['kind'] == 'form' and ask['values'] == want, '%s vs %s' % (ask and ask['values'], want))
+        ask = ask_of(cmd='auto', op='param')
+        cancel(ask)
+        check("autosettings: pars are the Parameter form's names", ask and ask['values'] == st['pars'],
+              '%s vs %s' % (ask and ask['values'], st['pars']))
+        plot_key = {0: 'h', 1: 'n', 2: 'i', 3: 'p', 4: 't', 10: 'r', 11: 'a'}[st['axes']['plot']]
+        menu_ask = ask_of(cmd='auto', op='axes')
+        snda(cmd='answer', id=menu_ask['id'], key=plot_key)
+        ask = cola(lambda e: e.get('ev') == 'ask')[1]
+        cancel(ask)
+        a = st['axes']
+        want = [a['var'], a['par1'], a['par2']] + [form_text(a[k]) for k in ('xmin', 'ymin', 'xmax', 'ymax')]
+        check("autosettings: axes are the Axes menu's plot type and the AutoPlot form's values",
+              ask and ask['kind'] == 'form' and ask['values'] == want, '%s vs %s' % (ask and ask['values'], want))
+        ask = ask_of(cmd='auto', op='usr')
+        snda(cmd='answer', id=ask['id'], key='0')
+        cola(is_idle)
+        check('autosettings: no Mark values at first, as the form says', st['marks'] == [], str(st['marks']))
+
+        # a form's OK shows in the event too
+        ask = ask_of(cmd='auto', op='numerics')
+        vals = list(ask['values'])
+        vals[NUM_KEYS.index('npr')] = '40'
+        snda(cmd='answer', id=ask['id'], ok=1, values=vals)
+        evs, _ = cola(is_idle)
+        st2 = settings_of(evs)
+        check('autosettings: a Numerics form answered: the event follows (NPr 40)', st2 and st2['numerics']['npr'] == 40,
+              str(st2)[:200])
+
+        # the set: every part, then read back through the forms
+        p0, p1 = st['pars'][0], st['pars'][1]
+        evs, st3, errs = auto_set(numerics={'nmx': 12, 'ds': -0.01}, pars=[p1, p0], axes={'plot': 1, 'var': 'W', 'par1': p1},
+                                  marks=[[p0, 0.25], ['T', 30]])
+        check('auto set: numerics, pars, axes and marks set, the event says so', not errs and st3
+              and st3['numerics']['nmx'] == 12 and st3['numerics']['ds'] == -0.01 and st3['pars'][:2] == [p1, p0]
+              and st3['axes']['plot'] == 1 and st3['axes']['var'] == 'W' and st3['axes']['par1'] == p1
+              and st3['marks'] == [[p0, 0.25], ['T', 30]], '%s %s' % (errs, st3))
+        ask = ask_of(cmd='auto', op='numerics')
+        cancel(ask)
+        check('auto set: the Numerics form shows it', ask and ask['values'][1] == '12' and ask['values'][4] == '-0.01',
+              str(ask and ask['values']))
+        ask = ask_of(cmd='auto', op='usr')
+        snda(cmd='answer', id=ask['id'], key='2')
+        ask2 = cola(lambda e: e.get('ev') == 'ask')[1]
+        cancel(ask2)
+        check('auto set: the Mark values form shows it', ask2 and ask2['values'][:2] == ['%s=0.25' % p0, 'T=30'],
+              str(ask2 and ask2['values']))
+
+        # refused: bad values change nothing, and say why
+        for bad, why in (({'numerics': {'ncol': 9}}, 'Ncol'), ({'numerics': {'ntst': 1.5}}, 'Ntst'),
+                         ({'numerics': {'nmx': 30, 'dsmin': 0}}, 'Dsmin'), ({'numerics': {'rl0': 5, 'rl1': 1}}, 'Par Min'),
+                         ({'numerics': {'nmx': 'many'}}, 'Nmax'), ({'pars': ['nosuch']}, 'nosuch'),
+                         ({'axes': {'var': 'nosuch'}}, 'nosuch'), ({'axes': {'plot': 7}}, 'plot'),
+                         ({'axes': {'xmin': 1, 'xmax': 0}}, 'Xmin'), ({'marks': [['W', 1]]}, 'W')):
+            evs, st4, errs = auto_set(**bad)
+            check('auto set %s is refused with an error naming %s, nothing changes' % (json.dumps(bad), why),
+                  len(errs) == 1 and why in errs[0] and st4 is None, '%s %s' % (errs, st4))
+        # a set sent while a question is open is kept for the command's end, not dropped
+        ask = ask_of(cmd='auto', op='numerics')
+        snda(cmd='auto', op='set', numerics={'nmx': 77})
+        evs = cancel(ask)
+        st5 = settings_of(evs)
+        check('auto set during a question: applied when the command ends', st5 and st5['numerics']['nmx'] == 77,
+              str(st5)[:200])
+
+        # a set changes the next run: Nmax 12 against the default on the other server
+        evs, st6, errs = auto_set(numerics={'nmx': 12}, pars=[p0, p1], axes={'plot': 2, 'var': 'V', 'par1': p0}, marks=[])
+        evs_a = lecar_to_auto(snda, cola)
+        evs_b = lecar_to_auto(sndb, colb)
+        na, nb = len(rebuild_diagram(evs_a, [])), len(rebuild_diagram(evs_b, []))
+        check('auto set: Nmax 12 makes the next run stop at 12 points (the default goes on to %d)' % nb,
+              not errs and na == 12 and nb > 12, '%s: %d vs %d points' % (errs, na, nb))
+    finally:
+        stop_server(pa, ra, snda)
+        stop_server(pb, rb, sndb)
+
+
+check_autosettings()
+
 # A HOME the process cannot write to used to make AUTO exit(1) under the
 # client when it opened fort.8 there; open_auto() now falls back to the
 # model's directory. Drive a second server with such a HOME and check it survives.

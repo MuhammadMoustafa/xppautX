@@ -25,7 +25,7 @@ import {MAX_COUNT, MAX_NCOL, planRequest, tableCsv} from './store/table';
 import type {TextTab} from './store/text';
 import {fieldKey, setCommand, type ValueEdit, type ValueKind, type ValueSet} from './store/values';
 import {formatIcFile, formatParFile, parseValuesFile} from './store/valueFiles';
-import {axesFormValues, formatSettings, parseSettings, PLOT_KEYS, valuesFor} from './store/autoSetup';
+import {formatSettings, parseSettings, setCommand as autoSetCommand, shownSettings, type AutoSettingsPatch} from './store/autoSettings';
 
 /** the data browser's buttons (docs/protocol.md `browser` op; web/xpp-client.js's BROWSER_BUTTONS) */
 export type BrowserOp = 'find' | 'get' | 'replace' | 'unreplace' | 'table' | 'load' | 'write' | 'first' | 'last'
@@ -37,16 +37,6 @@ export type AutoOp = 'param' | 'axes' | 'numerics' | 'run' | 'grab' | 'usr' | 'c
 /** one step of a planned dialogue: the answer to `ask`, or null when that ask is the user's */
 type PlanStep = (ask: AskEvent) => Record<string, unknown> | null;
 
-/** a change made in the AUTO view's axis dialog (T21) that goes to the core:
-    the plot type and the AutoPlot form's names, each only when it changes */
-export interface AutoAxesChange {
-  plot?: number;
-  yvar?: string;
-  par1?: string;
-  par2?: string;
-  /** the view's ranges, which become AUTO's axes before the Fit */
-  ranges: Ranges;
-}
 /** the array plot window's buttons (docs/protocol.md `aplot` op; web/xpp-client.js's buildArrayPlot) */
 export type AplotOp = 'redraw' | 'edit' | 'print' | 'fit' | 'range' | 'gif' | 'close';
 
@@ -120,7 +110,8 @@ export class Session {
          direction fields and marks; values
          as base64 float32, which a long run needs (a server that does not know
          enc sends JSON numbers, which the store reads as well) */
-      const events = ['series', 'plots', 'nullclines', 'dfield', 'marks', 'ani', 'autoinfo'].filter(name => ev.features?.includes(name));
+      const events = ['series', 'plots', 'nullclines', 'dfield', 'marks', 'ani', 'autoinfo', 'autosettings']
+        .filter(name => ev.features?.includes(name));
       if (events.length) this.send({cmd: 'data', events, enc: 'f32'});
     } else if (ev.ev === 'film') {
       this.onFilm(ev);
@@ -158,7 +149,10 @@ export class Session {
       const next = this.afterIdle;
       this.afterIdle = null;
       if (next) this.send(next);
-      else this.flushValues();
+      else {
+        this.flushValues();
+        this.flushAutoSettings();
+      }
       const typed = this.typeahead.shift();
       if (typed !== undefined && !next && !this.planIdles) this.key(typed);
     }
@@ -428,33 +422,35 @@ export class Session {
     this.runPlan([{cmd: 'auto', op: 'file'}], [ask => (ask.kind === 'menu' ? {key: 'i'} : null)]);
   }
 
-  /** the axis dialog's plot type, variable or parameters (T21): Axes with
-      them and the view's ranges, then Axes/Fit */
-  autoAxes(change: AutoAxesChange): void {
-    const plot = change.plot ?? this.store.getState().diagram.axes?.plot ?? 0;
-    const key = PLOT_KEYS[plot] ?? 'h';
-    this.runPlan([{cmd: 'auto', op: 'axes'}, {cmd: 'auto', op: 'axes'}], [
-      ask => (ask.kind === 'menu' ? {key} : null),
-      ask => (ask.kind === 'form' ? {ok: 1, values: axesFormValues(ask.values ?? [], change)} : null),
-      ask => (ask.kind === 'menu' ? {key: 'f'} : null),
-    ]);
+  /** AUTO's settings edited in the page's forms (T22, store/autoSettings.ts):
+      one `auto` `set` at once when the core is idle, else kept (merged with
+      the edits before) until the running command ends, shown as pending */
+  autoSettings(patch: AutoSettingsPatch): void {
+    const st = this.store.getState();
+    if (st.busy || st.autoSettings.sent) {
+      this.store.dispatch({type: 'autoSettings', action: {type: 'queue', patch}});
+      return;
+    }
+    this.store.dispatch({type: 'autoSettings', action: {type: 'sent', patch}});
+    this.send(autoSetCommand(patch));
   }
 
-  /** AUTO's Numerics and Axes saved as a file (store/autoSetup.ts): the two
-      forms are opened, read and cancelled, and the file is downloaded */
+  /** the settings edited while a command ran, in one set, when the core is idle again */
+  private flushAutoSettings(): void {
+    const st = this.store.getState(), queued = st.autoSettings.queued;
+    if (!queued || st.busy || st.autoSettings.sent) return;
+    this.store.dispatch({type: 'autoSettings', action: {type: 'sent', patch: queued}});
+    this.send(autoSetCommand(queued));
+  }
+
+  /** AUTO's settings as a file (store/autoSettings.ts): what the forms show,
+      pending edits included; nothing goes to the core */
   saveAutoSettings(): void {
-    const plot = this.store.getState().diagram.axes?.plot ?? 0;
-    let num = {names: [] as string[], values: [] as string[]}, axes = num;
-    const read = (ask: AskEvent) => ({names: ask.names ?? [], values: ask.values ?? []});
-    this.runPlan([{cmd: 'auto', op: 'numerics'}, {cmd: 'auto', op: 'axes'}], [
-      ask => (ask.kind === 'form' ? (num = read(ask), {ok: 0}) : null),
-      ask => (ask.kind === 'menu' ? {key: PLOT_KEYS[plot] ?? 'h'} : null),
-      ask => (ask.kind === 'form' ? (axes = read(ask), {ok: 0}) : null),
-    ], () => {
-      const text = formatSettings(num, plot, axes);
-      this.store.dispatch({type: 'diagram', action: {type: 'setupSaved', text}});
-      offerDownload(`${this.modelBase()}-auto.json`, new Blob([text], {type: 'application/json'}));
-    });
+    const settings = shownSettings(this.store.getState().autoSettings);
+    if (!settings) return;
+    const text = formatSettings(settings);
+    this.store.dispatch({type: 'diagram', action: {type: 'setupSaved', text}});
+    offerDownload(`${this.modelBase()}-auto.json`, new Blob([text], {type: 'application/json'}));
   }
 
   private modelBase(): string {
@@ -462,27 +458,16 @@ export class Session {
     return file.replace(/^.*[\\/]/, '').replace(/\.[^.]*$/, '') || 'model';
   }
 
-  /** a saved settings file answered into the Numerics and Axes forms; null
-      when done, else what is wrong with the file (also a notification) */
+  /** a saved settings file set as AUTO's settings (pending while the core
+      computes); null when done, else what is wrong with the file (also a
+      notification) */
   loadAutoSettings(text: string): string | null {
-    const {settings, error} = parseSettings(text);
-    if (!settings) {
+    const {patch, error} = parseSettings(text);
+    if (!patch) {
       this.store.dispatch({type: 'toast', kind: 'error', text: error!});
       return error;
     }
-    const cmds: Command[] = [], steps: PlanStep[] = [];
-    const fill = (saved: [string, string][]): PlanStep => ask =>
-      (ask.kind === 'form' ? {ok: 1, values: valuesFor(ask.names ?? [], ask.values ?? [], saved)} : null);
-    if (settings.numerics.length) {
-      cmds.push({cmd: 'auto', op: 'numerics'});
-      steps.push(fill(settings.numerics));
-    }
-    if (settings.axes.length || settings.plot >= 0) {
-      const plot = settings.plot >= 0 ? settings.plot : this.store.getState().diagram.axes?.plot ?? 0;
-      cmds.push({cmd: 'auto', op: 'axes'});
-      steps.push(ask => (ask.kind === 'menu' ? {key: PLOT_KEYS[plot] ?? 'h'} : null), fill(settings.axes));
-    }
-    this.runPlan(cmds, steps);
+    this.autoSettings(patch);
     return null;
   }
 

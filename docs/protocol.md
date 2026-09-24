@@ -39,13 +39,13 @@ A client that draws sends `data` next (see "The plot as data").
 | `browser` | `op` (`find`, `get`, `replace`, `unreplace`, `table`, `load`, `write`, `first`, `last`, `restore`, `addcol`, `delcol`), `row` | A data browser button, with `row` the selected row (the X11 browser's top row). |
 | `eqimport` | | The equilibrium window's Import: the last equilibrium becomes the initial conditions. |
 | `equations` | | Send `equations`. |
-| `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves, `marks`: equilibria, text, arrows, markers and frozen curves on the plots (all in "The plot as data", below); `ani`: the animation's frames ("The animation as data"); `autoinfo`: AUTO's info strip and stability circle ("The AUTO diagram as data"). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers (an `ani` frame is always JSON). |
+| `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves, `marks`: equilibria, text, arrows, markers and frozen curves on the plots (all in "The plot as data", below); `ani`: the animation's frames ("The animation as data"); `autoinfo`: AUTO's info strip and stability circle ("The AUTO diagram as data"); `autosettings`: AUTO's Numerics, parameters, axes and Mark values ("AUTO's settings as data"). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers (an `ani` frame is always JSON). |
 | `action` | `index` | Run the action of comment `index` of `source.comments`. |
 | `click` | `win` | The user selected plot window `win`. |
 | `view` | `win`, `xlo`, `xhi`, `ylo`, `yhi` | "Use this view" (docs/ui-v2.md T9): sets window `win`'s 2D axes exactly as Window/Window would (graf_par.c `update_view`), so a later PostScript/SVG export, Restore and redraw all agree with them; the `plots` and `state.view` that follow the command show the new axes. Refused (`message` `error`) and nothing changed when `xlo`..`yhi` are not all finite, `xlo>=xhi`, `ylo>=yhi`, or `win` names no open window. |
 | `redraw` | | Redraw the active plot window, and the AUTO diagram when AUTO is open (for a client that reconnects). |
 | `state` | | Send `state` now. |
-| `auto` | `op`: `param`, `axes`, `numerics`, `run`, `grab`, `usr`, `clear`, `redraw`, `file`, `close`, `point` (`x`, `y`, or `xd`, `yd`) | The AUTO window buttons; `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); `close` destroys window 101, File/Auto opens it again. |
+| `auto` | `op`: `param`, `axes`, `numerics`, `run`, `grab`, `usr`, `clear`, `redraw`, `file`, `close`, `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `pars`, `axes`, `marks`) | The AUTO window buttons; `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); `close` destroys window 101, File/Auto opens it again. |
 | `session` | `op` (`save`, `load`), `name` | Save or load a session: `<name>.set` (File/Write set, File/Read set) and, when a diagram exists (save) or a `<name>.auto` file is found (load), `<name>.auto` too (AUTO File/Save diagram, File/Load diagram). Without `name`, asks for one (`ask` kind `file`, like any other Save/Load). A load opens the AUTO window first when `<name>.auto` exists and AUTO is not already open. `state.session` (below) names the files the current session was last saved to or loaded from. |
 | `aplot` | `op`: `redraw`, `edit`, `print`, `fit`, `range`, `gif`, `close`, `scroll` (`dy` pixels) | The array plot window buttons; dragging the plot scrolls through time. |
 | `rotate` | `what` (`down`, `move`, `up`), `x`, `y` | Dragging a 3D plot turns it (the active window, when `state.view.three`). |
@@ -77,7 +77,9 @@ in the input.
   as an ordinary command.
 - Every other command sent during a job is queued and runs, in order, after
   the job's `idle` (with its own `state` and `idle`). Nothing is dropped
-  except keys and edits sent while a prompt is open.
+  except keys and edits sent while a prompt is open; an `auto` `set` sent
+  then is kept and applied when the command that asked ends (not in a
+  script, where the line after an ask is its answer).
 - `abort` never has an `idle` of its own, so a client can send it at any
   time without upsetting its count of commands and idles.
 - A command whose job was cancelled (by `abort`, Escape, `quit`) sends
@@ -174,10 +176,11 @@ Run it with:
 
 | ev | fields | meaning |
 |---|---|---|
-| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`), `title`, `file`, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
+| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`), `title`, `file`, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows 1..10, AUTO 101, animation 104. `w`, `h` are the core's pixel size of the window: what the pixel fields of `state.view`, `state.auto` and pixel answers to asks refer to. |
 | `diagram` | `op` (`axes`, `reset`, `add`), ... | The AUTO diagram as data; see "The AUTO diagram as data". |
 | `autoinfo` | `info`, `stab` | AUTO's info strip and stability circle as data, for a client that asked (`data`); see "The AUTO diagram as data". |
+| `autosettings` | `numerics`, `pars`, `axes`, `marks` | AUTO's settings as data, for a client that asked (`data`); see "AUTO's settings as data". |
 | `series` | `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`; or `op` `append`, `win`, `from`, `rows`, `enc`, `columns` | A plot window's curves as numbers, one event per window, for a client that asked (`data`), and during an integration the active window's rows as they are stored; see "The plot as data". |
 | `erase` | `win` | The Erase command blanked plot window `win`, for a client that asked for `series`: it shows nothing of that window's curves (nor the earlier runs it may keep) until the window's next series or `redraw`. Only Erase sends it: a slider's rerun or a zoom also redraw the window, and keep what a data client shows. See "The plot as data". |
 | `redraw` | `win` | The Redraw command drew window `win` again, for a client that asked for `series`: it shows the window's current series again (no series follows: the data did not change), and no earlier runs. |
@@ -296,6 +299,65 @@ Numbers are doubles in the shortest of 15 or 17 digits that reads back
 exactly, `null` when not finite. `tools/servercheck.py` checks that the
 point is the `diagram` data's point it names and that the circle holds
 what AUTO printed (its fort.9) for that point.
+
+### AUTO's settings as data
+
+What the AUTO window's Numerics, Parameter, Axes (the AutoPlot form and
+the plot type) and Mark values forms edit, as data, for a client with
+forms of its own (web2, docs/ui-v2.md T22). **`autosettings`** is sent to a
+client that asked with `{"cmd":"data","events":["autosettings"]}` at the
+end of that command, and then whenever the settings changed: at the end of
+a command and before every ask. The settings exist from the model's load,
+before AUTO's window opens (a model with more variables than AUTO takes
+has none, and gets no event). core/auto_settings.cpp keeps it.
+
+```
+{"ev":"autosettings",
+ "numerics":{"ntst":15,"nmx":2000,"npr":500,"ncol":4,"ds":0.02,"dsmin":1e-05,"dsmax":0.02,
+             "rl0":-0.2,"rl1":0.5,"a0":0,"a1":1000,"epsl":0.0001,"epsu":0.0001,"epss":0.0001,
+             "iad":3,"mxbf":5,"iid":2,"itmx":8,"itnw":7,"nwtn":3,"iads":1,"suppbp":0},
+ "pars":["iapp","phi","v1","v2","v3","v4","gca","vk"],
+ "axes":{"plot":2,"var":"V","par1":"iapp","par2":"phi","xmin":-0.2,"xmax":0.5,"ymin":-0.5,"ymax":0.4},
+ "marks":[["iapp",0.25],["T",30]]}
+```
+
+| field | meaning |
+|---|---|
+| `numerics` | the Numerics form's fields by AUTO's names, in the form's order: `ntst` Ntst, `nmx` Nmax, `npr` NPr, `ncol` Ncol, `ds`, `dsmin`, `dsmax`, `rl0` Par Min, `rl1` Par Max, `a0` Norm Min, `a1` Norm Max, `epsl`, `epsu`, `epss`, `iad`, `mxbf`, `iid`, `itmx`, `itnw`, `nwtn`, `iads`, `suppbp` SuppBP |
+| `pars` | AUTO's parameters, the Parameter form's Par1.. (as many as the model has, at most 8): the model parameters AUTO can continue in |
+| `axes.plot` | the plot type: 0 hi, 1 norm, 2 hi and lo, 3 period, 4 two parameters, 10 frequency, 11 average |
+| `axes.var` | the variable the y axis plots (Y-axis) |
+| `axes.par1`, `par2` | Main Parm and Secnd Parm, two of `pars` (`null` if none) |
+| `axes.xmin` .. `ymax` | the diagram's axes |
+| `marks` | Mark values: `[name, value]` per user point, where the parameter `name` (one of `pars`) or the period `T` reaches `value` AUTO labels the point (UZ) |
+
+Numbers are doubles in their shortest exact form, the whole-number fields
+as integers; `null` when not finite.
+
+**`{"cmd":"auto","op":"set", ...}`** writes them without the forms, with
+any of the four members above, each part only when given: `numerics` any
+of its fields, `pars` the first N of AUTO's parameters (an empty name keeps
+one), `axes` any of `plot`, `var`, `par1`, `par2` (names among `pars`,
+after this set's own `pars`), the four ranges, and `"fit":true` for
+Axes/Fit afterwards, `marks` the whole list (0 to 9 pairs; `[]` for none).
+The core checks every value first and sets all or nothing: a whole number
+where the form's field is one; Ntst, Nmax, NPr, ITMX, ITNW, NWTN at least
+1; Ncol 2 to 7; IID 0 to 5; IAD and IADS at least 0; SuppBP 0 or 1; Ds not
+0; Dsmin, Dsmax and the EPS values above 0; Dsmin at most Dsmax, Par Min
+below Par Max, Norm Min below Norm Max, Xmin below Xmax, Ymin below Ymax;
+names of parameters and variables the model has. A refusal is a `message`
+`error` naming the value (`AUTO settings: Ncol must be a whole number from
+2 to 7`). Axes (and new parameters) draw an open diagram again in its new
+quantities, as the AutoPlot form's OK does. The forms stay: `set` is a
+second way to the same fields (Numerics, `param`, Axes, `usr`), and each
+shows what the other wrote.
+
+`set` is an ordinary command: sent while AUTO (or anything) runs, it waits
+for that job and applies after its `idle` (a continuation already running
+keeps the settings it started with). `tools/servercheck.py` checks that the
+event is what the forms show, that a form's OK and a `set` show in it,
+that bad values are refused whole, and that Nmax set to 12 stops the next
+run at 12 points.
 
 ### The plot as data
 
@@ -672,6 +734,6 @@ T18), which replayed the core's pixel drawing:
 - `hello`'s `char` (the font cell the ops laid text out on).
 
 Everything the page shows comes from the data events: `series`, `plots`,
-`nullclines`, `dfield`, `marks`, `diagram`, `autoinfo`, `ani` `frame`,
+`nullclines`, `dfield`, `marks`, `diagram`, `autoinfo`, `autosettings`, `ani` `frame`,
 `aplot`, `erase`, `redraw`. The `pixels` ask stays: web2 answers it from
 those.

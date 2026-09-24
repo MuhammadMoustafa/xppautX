@@ -54,6 +54,8 @@
 #include "series_enc.h"
 #include "ani_data.h"
 #include "auto_data.h"
+#include "auto_settings.h"
+#include "xpp_io.h"
 #include "xpp_files.h"
 #include <strings.h>
 #include <climits>
@@ -444,6 +446,8 @@ static int key_code(const char *k)
 
 static void apply_set(const char *line);
 static void browser_rows(const char *line);
+static int is_auto_set(const char *line);
+static void defer_auto_set(const char *line);
 
 /* commands that make sense at any moment, even while a prompt is open */
 static int handle_async(const char *line)
@@ -557,6 +561,7 @@ static int ask_wait(Buf *b, int id)
     BUF_LIT(b, "}");
     diag_flush(1);
     auto_data_update(1);
+    auto_settings_update();
     json_flush();
     if (script_mode) snprintf(script_ask, sizeof script_ask, "%s", b->s);
     send_buf(b);
@@ -587,6 +592,13 @@ static int ask_wait(Buf *b, int id)
             if (ask_user) xpp_job_resume(line_seq);
             ok = js_find(answer, "ok");
             return ok == NULL || js_num(ok, 0) != 0;
+        }
+        /* AUTO's settings sent while a question is open are the page's
+           own forms, not an answer: they apply when the command is done
+           (docs/protocol.md "AUTO's settings as data") */
+        if (!script_mode && is_auto_set(line)) {
+            defer_auto_set(line);
+            continue;
         }
         /* anything else (keys typed at the plot while a dialog is up) is
            dropped, as the X11 dialogs do; for a script this line was
@@ -1133,7 +1145,7 @@ static void data_emit(const char *line, size_t n)
     out_flush();
 }
 
-/* {"cmd":"data","events":["series","plots","nullclines","dfield","marks","ani"],"enc":"f32"}:
+/* {"cmd":"data","events":["series","plots","nullclines","dfield","marks","ani","autoinfo","autosettings"],"enc":"f32"}:
    the data events the client wants from now on (an empty list stops them);
    each is sent at the end of this command, which is what a client that
    (re)connects needs. hello.features lists the names known here. "enc":"f32"
@@ -1143,7 +1155,7 @@ static void data_command(const char *line)
 {
     const char *arr = js_find(line, "events");
     char name[32], enc[8];
-    int i, series = 0, plots = 0, nullclines = 0, dfield = 0, marks = 0, ani = 0, autoinfo = 0, f32;
+    int i, series = 0, plots = 0, nullclines = 0, dfield = 0, marks = 0, ani = 0, autoinfo = 0, autosettings = 0, f32;
     for (i = 0; arr && js_elem(arr, i); i++) {
         if (!js_string(js_elem(arr, i), name, sizeof name)) continue;
         if (strcmp(name, "series") == 0) series = 1;
@@ -1153,6 +1165,7 @@ static void data_command(const char *line)
         else if (strcmp(name, "marks") == 0) marks = 1;
         else if (strcmp(name, "ani") == 0) ani = 1;
         else if (strcmp(name, "autoinfo") == 0) autoinfo = 1;
+        else if (strcmp(name, "autosettings") == 0) autosettings = 1;
     }
     f32 = get_str(line, "enc", enc, sizeof enc) && strcmp(enc, "f32") == 0;
     plot_data_subscribe(series, plots, f32);
@@ -1160,6 +1173,7 @@ static void data_command(const char *line)
     marks_data_subscribe(marks, f32);
     ani_data_subscribe(ani);
     auto_data_subscribe(autoinfo);
+    auto_settings_subscribe(autosettings);
 }
 
 /* the equations window: one "dX/dT=..." line per equation (eig_list.c) */
@@ -2542,6 +2556,121 @@ static void apply_set(const char *line)
     if (!bad && get_num(line, "rerun", 0)) slider_rerun();
 }
 
+/* ---- AUTO's settings as data (auto_settings.h) ---- */
+
+static int is_auto_set(const char *line)
+{
+    char o[8];
+    return is_cmd(line, "auto") && get_str(line, "op", o, sizeof o) && strcmp(o, "set") == 0;
+}
+
+/* a JSON number at v into *out; 0 for anything else (a string, null, true) */
+static int js_number(const char *v, double *out)
+{
+    char *end;
+    if (!v || !(*v == '-' || (*v >= '0' && *v <= '9'))) return 0;
+    *out = strtod(v, &end);
+    return end != v;
+}
+
+/* the "numerics", "pars", "axes" and "marks" of {"cmd":"auto","op":"set",...}
+   into s; 0 with why when one is not what docs/protocol.md says */
+static int read_auto_set(const char *line, AutoSettingsSet *s, char *why, size_t n)
+{
+    const char *num = js_find(line, "numerics"), *pars = js_find(line, "pars"), *axes = js_find(line, "axes"),
+               *marks = js_find(line, "marks"), *v;
+    int i;
+    for (i = 0; num && *num == '{' && i < AUTO_NUM_N; i++) {
+        if (!(v = js_find(num, auto_settings_num_key(i)))) continue;
+        if (!js_number(v, &s->num[i])) {
+            xpp_snprintf(why, n, "%s must be a number", auto_settings_num_label(i));
+            return 0;
+        }
+        s->has_num[i] = 1;
+    }
+    if (pars && *pars == '[') {
+        for (i = 0; (v = js_elem(pars, i)) != NULL; i++) {
+            if (i >= AUTO_SETTINGS_PARS || !js_string(v, s->pars[i], sizeof s->pars[i])) {
+                xpp_snprintf(why, n, "AUTO's parameters must be a list of at most %d names", AUTO_SETTINGS_PARS);
+                return 0;
+            }
+        }
+        s->npars = i;
+    }
+    if (axes && *axes == '{') {
+        static const char *const range[4] = {"xmin", "xmax", "ymin", "ymax"};
+        double z;
+        if ((v = js_find(axes, "plot")) != NULL) {
+            if (!js_number(v, &z) || z < INT_MIN || z > INT_MAX || z != floor(z)) {
+                xpp_snprintf(why, n, "the plot type must be a whole number");
+                return 0;
+            }
+            s->has_plot = 1;
+            s->plot = (int)z;
+        }
+        get_str(axes, "var", s->var, sizeof s->var);
+        get_str(axes, "par1", s->par1, sizeof s->par1);
+        get_str(axes, "par2", s->par2, sizeof s->par2);
+        for (i = 0; i < 4; i++) {
+            if (!(v = js_find(axes, range[i]))) continue;
+            if (!js_number(v, &s->range[i])) {
+                xpp_snprintf(why, n, "%c%s must be a number", range[i][0] - 32, range[i] + 1);
+                return 0;
+            }
+            s->has_range[i] = 1;
+        }
+        s->fit = get_num(axes, "fit", 0) != 0;
+    }
+    if (marks && *marks == '[') {
+        for (i = 0; (v = js_elem(marks, i)) != NULL; i++) {
+            if (i >= AUTO_SETTINGS_MARKS || *v != '[' || !js_string(js_elem(v, 0), s->mark_name[i], sizeof s->mark_name[i])
+                || !js_number(js_elem(v, 1), &s->mark_value[i])) {
+                xpp_snprintf(why, n, "Mark values must be a list of at most %d pairs [name, number]", AUTO_SETTINGS_MARKS);
+                return 0;
+            }
+        }
+        s->nmarks = i;
+    }
+    return 1;
+}
+
+/* {"cmd":"auto","op":"set",...}: AUTO's settings, checked and set all
+   together or not at all; a refusal is an error message */
+static void auto_set_command(const char *line)
+{
+    AutoSettingsSet s;
+    char why[256];
+    auto_settings_set_init(&s);
+    if (!read_auto_set(line, &s, why, sizeof why) || auto_settings_apply(&s, why, sizeof why) != 0) {
+        char msg[300];
+        XPP_FORMAT_TO_BUF(msg, "AUTO settings: {}", why);
+        j_err_msg(msg);
+    }
+}
+
+/* the settings a question's wait put aside, applied at the command's end */
+static char **deferred_sets;
+static int n_deferred, cap_deferred;
+
+static void defer_auto_set(const char *line)
+{
+    if (n_deferred == cap_deferred) {
+        cap_deferred = cap_deferred ? 2 * cap_deferred : 4;
+        deferred_sets = static_cast<char **>(xpp_realloc(deferred_sets, cap_deferred * sizeof *deferred_sets));
+    }
+    deferred_sets[n_deferred++] = xpp_strdup(line);
+}
+
+static void apply_deferred_sets(void)
+{
+    int i;
+    for (i = 0; i < n_deferred; i++) {
+        auto_set_command(deferred_sets[i]);
+        xpp_free(deferred_sets[i]);
+    }
+    n_deferred = 0;
+}
+
 /* {"ev":"stopped","at":AT}: where the running job was when it was
    cancelled (docs/protocol.md "stopped"), from what the computation
    reported last (xpp_job.h). A script replays the interruption from AT. */
@@ -2687,6 +2816,7 @@ static void handle_line(const char *line, unsigned long seq)
         else if (strcmp(o, "clear") == 0) draw_bif_axes();
         else if (strcmp(o, "redraw") == 0) redraw_diagram();
         else if (strcmp(o, "file") == 0) auto_file();
+        else if (strcmp(o, "set") == 0) auto_set_command(line);
         else if (strcmp(o, "point") == 0 && Auto.exist) {
             /* in the diagram's quantities, or a pixel of window 101 */
             const char *jx = js_find(line, "xd"), *jy = js_find(line, "yd");
@@ -2711,6 +2841,7 @@ static void handle_line(const char *line, unsigned long seq)
         get_str(line, "op", o, sizeof o);
         xpp_files_command(o, js_find(line, "name"), js_find(line, "data"), data_emit);
     }
+    apply_deferred_sets();
     if (aplot_dirty && aplot.alive && plot3d_auto_redraw == 1) send_aplot(NULL);
     aplot_dirty = 0;
     if (browser_dirty && br_count) send_browser();
@@ -2720,6 +2851,7 @@ static void handle_line(const char *line, unsigned long seq)
     ani_data_update();
     diag_flush(1);
     auto_data_update(1);
+    auto_settings_update();
     json_flush();
     /* a cancelled job says where it stopped; a replayed one must have
        stopped where the recorded session did */
@@ -2794,6 +2926,7 @@ void json_ui_install(void)
     marks_data_init(data_emit);
     ani_data_init(data_emit);
     auto_data_init(data_emit, diag_point_of_node);
+    auto_settings_init(data_emit);
     xpp_inbox_set_classifier(classify);
     xpp_set_ui(&json_ui);
 }
@@ -2803,7 +2936,7 @@ void json_ui_hello(char *title)
 {
     Buf b = {0};
     int i;
-    BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":2,\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\"],\"title\":");
+    BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":2,\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\",\"autosettings\"],\"title\":");
     buf_str(&b, title);
     BUF_LIT(&b, ",\"file\":");
     buf_str(&b, this_file);

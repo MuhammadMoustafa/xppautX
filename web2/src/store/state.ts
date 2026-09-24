@@ -19,6 +19,9 @@ import {
 import {initialTable, reduceTable, type TableAction, type TableState} from './table';
 import {initialText, reduceText, type TextAction, type TextState} from './text';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
+import {
+  initialAutoSettings, reduceAutoSettings, type AutoSettings, type AutoSettingsAction, type AutoSettingsState,
+} from './autoSettings';
 
 export type {Range, Viewport} from './plots';
 
@@ -111,6 +114,8 @@ export interface AppState {
   files: FilesState;
   /** the AUTO diagram and its view (T11a), see store/diagram.ts */
   diagram: DiagramState;
+  /** AUTO's Numerics, parameters, axes and Mark values (T22), see store/autoSettings.ts */
+  autoSettings: AutoSettingsState;
   /** the array plot (T12): its latest event, colour map and panel state, see store/aplot.ts */
   aplot: AplotState;
   /** the animation (T13): its window, player state and last frame, see store/ani.ts */
@@ -148,6 +153,7 @@ export type Action =
   | {type: 'text'; action: TextAction}
   | {type: 'files'; action: FilesAction}
   | {type: 'diagram'; action: DiagramAction}
+  | {type: 'autoSettings'; action: AutoSettingsAction}
   | {type: 'aplot'; action: AplotAction}
   | {type: 'ani'; action: AniAction}
   | {type: 'kinescope'; action: KinescopeAction};
@@ -180,6 +186,7 @@ export const initialState: AppState = {
   text: initialText,
   files: initialFiles,
   diagram: initialDiagram,
+  autoSettings: initialAutoSettings,
   aplot: initialAplot,
   ani: initialAni,
   kinescope: initialKinescope,
@@ -241,7 +248,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     case 'hello': {
       /* a (re)connection: the defaults come with the next state; the model's sliders start the list */
       const values = reduceValues({...state.values, defaults: null}, {type: 'presetSliders', defs: ev.sliders ?? []});
-      return {...state, hello: ev, title: ev.title, values};
+      /* a set sent before gets no idle now; the edits not yet sent still go out */
+      return {...state, hello: ev, title: ev.title, values, autoSettings: {...state.autoSettings, sent: null}};
     }
     case 'state': {
       const moved = ev.view && coreViewMoved(state.core?.view, ev.view);
@@ -312,6 +320,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         values: reduceValues(state.values, {type: 'settled'}),
         ani: reduceAni(state.ani, {type: 'playing', playing: false}),
         diagram: diagramSettled(state.diagram),
+        autoSettings: reduceAutoSettings(state.autoSettings, {type: 'settled'}),
       };
     case 'ani':
       return {...state, ani: reduceAni(state.ani, ev.op === 'frame' ? {type: 'frame', ev} : {type: 'state', ev})};
@@ -329,6 +338,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'runStopped'})};
     case 'autoinfo':
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'info', ev: ev as unknown as AutoInfoEvent})};
+    case 'autosettings':
+      return {...state, autoSettings: reduceAutoSettings(state.autoSettings, {type: 'event', ev: ev as unknown as AutoSettings})};
     case 'progress':
       return {...state, progress: ev.of > 0 ? {n: ev.n, of: ev.of} : null};
     case 'title':
@@ -341,8 +352,11 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         const files = {...state.files, runFailed: true};
         const withLog = addToast(addLog({...state, bottom: ev.error, files}, {kind: 'error', text: ev.error}), 'error',
           ev.error, action);
-        /* a rejected `set`/`slide`: shown as that field's error too (A11), not only the toast */
-        return {...withLog, values: reduceValues(withLog.values, {type: 'error', text: ev.error})};
+        /* a rejected `set`/`slide`: shown as that field's error too (A11), not only the toast; a
+           rejected `auto` `set` in the AUTO forms */
+        const autoSettings = /^AUTO settings: /.test(ev.error)
+          ? reduceAutoSettings(state.autoSettings, {type: 'error', text: ev.error}) : state.autoSettings;
+        return {...withLog, values: reduceValues(withLog.values, {type: 'error', text: ev.error}), autoSettings};
       }
       if (ev.bottom !== undefined) return {...state, bottom: ev.bottom};
       if (ev.box !== undefined) return {...state, box: ev.box};
@@ -426,6 +440,8 @@ export function reduce(state: AppState, action: Action): AppState {
       const diagram = reduceDiagram(state.diagram, action.action);
       return diagram === state.diagram ? state : {...state, diagram};
     }
+    case 'autoSettings':
+      return {...state, autoSettings: reduceAutoSettings(state.autoSettings, action.action)};
     case 'aplot':
       return {...state, aplot: reduceAplot(state.aplot, action.action)};
     case 'ani':

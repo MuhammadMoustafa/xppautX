@@ -7,7 +7,6 @@ import {axesNames, boundText, spinStep, typedRange, yNeeds} from '../src/plot/ax
 import {formatElapsed, kindOfPoint, runStatus} from '../src/plot/autoStatus';
 import {buildDiagramModel} from '../src/plot/diagramModel';
 import {placeLabels} from '../src/plot/labelPlace';
-import {axesFormValues, formatSettings, parseSettings, plainName, valuesFor} from '../src/store/autoSetup';
 import {branchesBefore, earlierCount, type DiagramRun} from '../src/store/diagram';
 import {initialState, reduce, type AppState} from '../src/store/state';
 import {isHotkeyTarget} from '../src/ui/hotkeys';
@@ -83,25 +82,7 @@ test('Clear hides the branches so far; new ones draw alone; the key shows them a
   assert.equal(s.diagram.earlier, 0);
 });
 
-test('the settings file: format, parse, fill the forms by name', () => {
-  const text = formatSettings({names: ['Ntst', 'Nmax', 'Ds'], values: ['15', '200', '0.02']}, 2,
-    {names: ['*1Y-axis', '*2Main Parm', 'Xmin'], values: ['V', 'iapp', '-0.1']});
-  const {settings, error} = parseSettings(text);
-  assert.equal(error, null);
-  assert.deepEqual(settings, {numerics: [['Ntst', '15'], ['Nmax', '200'], ['Ds', '0.02']], plot: 2,
-    axes: [['Y-axis', 'V'], ['Main Parm', 'iapp'], ['Xmin', '-0.1']]});
-  assert.equal(plainName('*2Secnd Parm'), 'Secnd Parm');
-  assert.deepEqual(valuesFor(['Ntst', 'NMAX', 'Dsmin'], ['1', '2', '3'], settings!.numerics), ['15', '200', '3']);
-  assert.match(parseSettings('{').error!, /not JSON/);
-  assert.match(parseSettings('{"xppautX":"other"}').error!, /auto-settings/);
-  assert.match(parseSettings('{"xppautX":"auto-settings","plot":7,"numerics":{"a":"1"}}').error!, /plot/);
-  assert.match(parseSettings('{"xppautX":"auto-settings","numerics":{"a":[1]}}').error!, /map names/);
-});
-
-test("the axis dialog: the AutoPlot form's values, the names shown, the spinner step, the range typed", () => {
-  const ranges = {x: {min: 0, max: 17500}, y: {min: -150, max: 90}};
-  assert.deepEqual(axesFormValues(['V', 'Iapp', 'C', '-1', '-2', '3', '4'], {yvar: 'h', ranges}),
-    ['h', 'Iapp', 'C', '0', '-150', '17500', '90']);
+test('the axis dialog: the names shown, the spinner step, the range typed', () => {
   assert.deepEqual(axesNames({...axes, plot: 11, ylabel: 'V_bar'}), {par1: 'iapp', yvar: 'V', par2: ''});
   assert.deepEqual(axesNames({...axes, plot: 4, ylabel: 'phi'}), {par1: 'iapp', yvar: '', par2: 'phi'});
   assert.deepEqual([yNeeds(0), yNeeds(2), yNeeds(1), yNeeds(4)], ['var', 'var', null, 'par2']);

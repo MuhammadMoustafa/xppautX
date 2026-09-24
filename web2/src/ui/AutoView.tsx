@@ -16,8 +16,13 @@
    after Axes and File/Load, so there is no reDraw); Clear is the view's:
    the branches so far become "earlier branches", hidden until their key
    entry shows them. A click on an axis name opens its dialog
-   (ui/AutoAxes.tsx). Save settings and Load settings keep AUTO's Numerics
-   and Axes in a file (store/autoSetup.ts).
+   (ui/AutoAxes.tsx). Save settings and Load settings keep AUTO's settings
+   in a file (store/autoSettings.ts).
+
+   T22: Parameter, Numerics and Mark values are the page's own forms on the
+   `autosettings` data (ui/AutoSettings.tsx), and so is what the axis dialog
+   plots: they work during a run too, their changes pending until it ends.
+   Only Run, Grab, Axes (its menu: zoom, fit, scroll ...) and File wait.
 
    The diagram: zoom, pan, reset and undo as on the plot (plot/interactions.ts,
    plot/plotKeys.ts), all in the client; the point under the mouse, a tap,
@@ -44,9 +49,11 @@ import {pickKey, toData} from '../plot/pick';
 import {plotKey} from '../plot/plotKeys';
 import type {Ranges} from '../plot/viewmath';
 import type {AutoOp, Session} from '../session';
+import {pendingFields} from '../store/autoSettings';
 import {pointCount, type DiagramHover} from '../store/diagram';
 import {branchesBefore, earlierCount} from '../store/diagram';
 import {AutoAxisDialog, type AxisName} from './AutoAxes';
+import {AutoSettingsDialog, type AutoSettingsDialogKind} from './AutoSettings';
 import {AutoInfo} from './AutoInfo';
 import {AutoOutput, AutoStatus} from './AutoStatus';
 import {BUSY_TITLE, useSession, useStore} from './context';
@@ -62,10 +69,17 @@ const BUTTONS: [string, AutoOp, string][] = [
 /** the view's own words for a button, over the core's hint */
 const TITLES: Partial<Record<AutoOp, string>> = {
   clear: 'Hide the branches computed so far: new runs draw alone (the key shows them again)',
+  param: 'The parameters AUTO can continue in',
+  numerics: "AUTO's numerical settings: mesh, steps, limits, tolerances",
   usr: "Label the points where a parameter or the period reaches a value (AUTO's user points, UZ)",
 };
+/** the buttons that open the page's own forms on AUTO's settings (T22), and the pending edits each shows */
+const SETTINGS_DIALOG: Partial<Record<AutoOp, AutoSettingsDialogKind>> = {param: 'pars', numerics: 'numerics', usr: 'marks'};
+const PENDING_OF: Record<AutoSettingsDialogKind, (field: string) => boolean> = {
+  pars: f => f === 'pars', numerics: f => f.startsWith('numerics.'), marks: f => f === 'marks',
+};
 /** the buttons that work while a command runs (the view's own) */
-const WHILE_BUSY = new Set<AutoOp>(['clear']);
+const WHILE_BUSY = new Set<AutoOp>(['clear', 'param', 'numerics', 'usr']);
 const OP_OF_KEY: Record<string, AutoOp> = Object.fromEntries(BUTTONS.map(([, op, k]) => [k, op]));
 /** the X11 window's buttons, whose order `hello.auto_hints` follows */
 const BUTTONS_X11: AutoOp[] = ['param', 'axes', 'numerics', 'run', 'grab', 'usr', 'clear', 'redraw', 'file'];
@@ -171,6 +185,14 @@ function AutoPanel({dark}: {dark: boolean}) {
   const earlier = useStore(s => earlierCount(s.diagram));
   const showEarlier = useStore(s => s.diagram.showEarlier);
   const [axisOpen, setAxisOpen] = useState<AxisName | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState<AutoSettingsDialogKind | null>(null);
+  const pending = pendingFields(useStore(s => s.autoSettings));
+  /* a button: its form (T22), else its command */
+  const act = (op: AutoOp) => {
+    const kind = SETTINGS_DIALOG[op];
+    if (kind) setSettingsOpen(kind);
+    else session.autoOp(op);
+  };
   /* the chart's area moved (a resize, a new model): the axis names follow */
   const [, setArea] = useState(0);
   const settingsInput = useRef<HTMLInputElement>(null);
@@ -359,7 +381,7 @@ function AutoPanel({dark}: {dark: boolean}) {
     if (op && (!running || WHILE_BUSY.has(op)) && !t.closest('input, select, textarea, [role="dialog"]')) {
       e.preventDefault();
       e.stopPropagation();
-      session.autoOp(op);
+      act(op);
     }
   };
 
@@ -408,17 +430,23 @@ function AutoPanel({dark}: {dark: boolean}) {
       </div>
       <AutoStatus />
       <div class="auto-tools" role="toolbar" aria-label="AUTO">
-        {BUTTONS.map(([text, op, k]) => (
-          <button key={op} disabled={busy && !WHILE_BUSY.has(op)} aria-keyshortcuts={k.toUpperCase()}
-            title={busy && !WHILE_BUSY.has(op) ? BUSY_TITLE : TITLES[op] ?? hints?.[BUTTONS_X11.indexOf(op)] ?? text}
-            onClick={() => session.autoOp(op)}>{text}</button>
-        ))}
-        <button disabled={busy} onClick={() => session.saveAutoSettings()}
-          title={busy ? BUSY_TITLE : "Save AUTO's Numerics and Axes as a file, to set up this model again in one step"}>
+        {BUTTONS.map(([text, op, k]) => {
+          const kind = SETTINGS_DIALOG[op];
+          const waits = !!kind && [...pending].some(PENDING_OF[kind]);
+          return (
+            <button key={op} disabled={busy && !WHILE_BUSY.has(op)} aria-keyshortcuts={k.toUpperCase()}
+              class={waits ? 'auto-pending' : undefined} data-op={op}
+              title={busy && !WHILE_BUSY.has(op) ? BUSY_TITLE
+                : (TITLES[op] ?? hints?.[BUTTONS_X11.indexOf(op)] ?? text) + (waits ? ' (changes wait for the run to end)' : '')}
+              onClick={() => act(op)}>{text}</button>
+          );
+        })}
+        <button onClick={() => session.saveAutoSettings()}
+          title="Save AUTO's Numerics, parameters, axes and Mark values as a file, to set up this model again in one step">
           Save settings
         </button>
-        <button disabled={busy} onClick={() => settingsInput.current?.click()}
-          title={busy ? BUSY_TITLE : "Load AUTO's Numerics and Axes from a saved settings file"}>Load settings</button>
+        <button onClick={() => settingsInput.current?.click()}
+          title="Load AUTO's settings from a saved file (while AUTO runs they apply when it stops)">Load settings</button>
         <input ref={settingsInput} id="auto-settings-load" type="file" accept=".json,application/json" hidden
           onChange={async e => {
             const el = e.target as HTMLInputElement, file = el.files?.[0];
@@ -492,6 +520,7 @@ function AutoPanel({dark}: {dark: boolean}) {
         </footer>
       </div>
       {axisOpen && <AutoAxisDialog key={axisOpen} axis={axisOpen} onClose={closeAxis} />}
+      {settingsOpen && <AutoSettingsDialog kind={settingsOpen} onClose={() => setSettingsOpen(null)} />}
       <AutoInfo />
       <AutoOutput />
       {stored && (

@@ -409,6 +409,8 @@ export type XppEvent =
   /* every other event (diagram: store/diagram.ts reads it by its op) */
   | {ev: 'diagram' | 'ping'; [k: string]: unknown}
   /* AUTO's info strip and stability circle (store/diagram.ts AutoInfoEvent) */
-  | {ev: 'autoinfo'; [k: string]: unknown};
+  | {ev: 'autoinfo'; [k: string]: unknown}
+  /* AUTO's settings (store/autoSettings.ts AutoSettings) */
+  | {ev: 'autosettings'; [k: string]: unknown};
 
 export type Command = {cmd: string; [k: string]: unknown};
