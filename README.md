@@ -114,7 +114,7 @@ browser and checks its state (docs/ui-v2.md).
 | Path | Contents |
 |---|---|
 | `core/` | All C sources and headers. |
-| `docs/` | Manuals (`xpp_doc.pdf`, `xpp_sum.pdf`), TeX sources, HTML help, man page, upstream `HISTORY` and `README`. |
+| `docs/` | `manual/` (the current manual, Markdown), `upstream/` (the original TeX/PDF/HTML manual, historical reference), man page, upstream `HISTORY` and `README`. |
 | `examples/` | `ode/` example models, `canonical/`, `tstauto/` AUTO tests. |
 | `build/legacy/` | The upstream Makefile variants, kept for reference. |
 | `tools/` | `animsvgwww`, `default.opt`. |
@@ -242,9 +242,11 @@ For the browser front end: [docs/using-the-panel.md](docs/using-the-panel.md)
 (the JSON protocol), [docs/front-end-gaps.md](docs/front-end-gaps.md) (the
 historical parity record) and [docs/vscode-extension.md](docs/vscode-extension.md).
 
-The original manual is `docs/xpp_doc.pdf`; the quick summary is
-`docs/xpp_sum.pdf`; the HTML help that the program's Help menu opens lives in
-`docs/help/`. Upstream's install notes are in `docs/README.upstream`.
+The manual (model language, numerics, AUTO, the current front end) is
+[docs/manual/](docs/manual/README.md), kept current with the code (W12). The
+original XPPAUT TeX/PDF manual and HTML help it was converted from live in
+`docs/upstream/` as historical reference. Upstream's install notes are in
+`docs/README.upstream`.
 
 ## How to cite
 

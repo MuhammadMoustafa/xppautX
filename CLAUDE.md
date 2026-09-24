@@ -172,7 +172,9 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   that calls them feeds the data modules, which are what the page sees.
   The `pixels` ask stays: web2 renders the picture from its data.
   docs/ui-v2.md has the protocol v2 events and the task list;
-  docs/front-end-gaps.md tracks parity.
+  docs/front-end-gaps.md tracks parity. A task that changes the UI
+  updates its section in docs/manual/ (the manual, W12), as it does
+  docs/protocol.md.
 - Pop-up menu arrays in menus.c (`main_menu` etc.) start with the title:
   item i is `main_menu[i+1]` with key `main_menu_keys[i]`.
 
