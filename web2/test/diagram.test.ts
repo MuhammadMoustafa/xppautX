@@ -324,7 +324,7 @@ test('infoRows orders the axes first, then Norm and the period, then the remaini
   assert.deepEqual(infoRows(hbInfo as never, {...axes, plot: 1}).slice(4),
     [['iapp', '0.26'], ['Norm', '0.29'], ['V', '-0.2'], ['phi', '0.2']]);
   /* a two-parameter diagram (axes.plot 4): both parameters in axis order, nothing left over for them */
-  assert.deepEqual(infoRows(hbInfo as never, {...axes, plot: 4}).slice(4),
+  assert.deepEqual(infoRows(hbInfo as never, {...axes, plot: 4, ylabel: 'phi'}).slice(4),
     [['iapp', '0.26'], ['phi', '0.2'], ['Norm', '0.29'], ['V', '-0.2']]);
   /* no axes data at all: still nothing dropped, the main parameter first */
   assert.deepEqual(infoRows(hbInfo as never, null).slice(4),

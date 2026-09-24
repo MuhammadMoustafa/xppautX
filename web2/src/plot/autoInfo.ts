@@ -2,10 +2,12 @@
    docs/protocol.md) as what the AUTO view shows: rows of the strip in
    words, and the circle's points placed and classified. Pure: no DOM. */
 import type {AutoInfo, AutoStab, DiagramAxes} from '../store/diagram';
-import {yNeeds} from './axisDialog';
+import {axesNames} from './axisDialog';
 import {fmt, symbolName} from './diagramModel';
 
 const TYPES = ['', 'Stable steady state', 'Unstable steady state', 'Stable periodic orbit', 'Unstable periodic orbit'];
+/* Axes' plot types whose y axis is the point's Norm or period (axisDialog.ts PLOT_TYPES) */
+const PLOT_NORM = 1, PLOT_PERIOD = 3;
 
 /** the strip's fields as [name, value] rows (A14: six significant digits), in order of importance:
     branch, point, type, label; what the diagram's axes show (the x axis's quantity, the main
@@ -23,39 +25,24 @@ export function infoRows(info: AutoInfo, axes: DiagramAxes | null): [string, str
   if (info.sym || info.lab)
     rows.push(['Label', `${info.sym ? info.sym + ' ' : ''}${info.lab}${symbolName(info.sym) ? ` (${symbolName(info.sym)})` : ''}`]);
 
-  const plot = axes?.plot;
-  /* what the y axis needs besides the plot type: the variable, the second parameter, or neither
-     (Norm, Period and Frequency plot the point's own quantities, not a second parameter) */
-  const need = yNeeds(plot ?? -1);
-  const [par1, par2] = info.par;
+  /* the axes' parameters by name (axesNames: the x axis's, and the y axis's in a two-parameter
+     diagram), the first parameter standing in for the x axis's until the axes are known */
+  const {par1, yvar, par2} = axesNames(axes);
+  const xPar = info.par.find(p => p.name === par1) ?? info.par[0];
+  const yPar = par2 ? info.par.find(p => p.name === par2) : undefined;
+  const parRow = (p: {name: string; value: number | null}): [string, string] => [p.name, n(p.value)];
   const varRow: [string, string] = [info.var, n(info.u)];
   const normRow: [string, string] = ['Norm', n(info.norm)];
   const periodRow: [string, string] | null = info.type === 3 || info.type === 4 ? ['Period', n(info.per)] : null;
 
-  if (par1) rows.push([par1.name, n(par1.value)]);
-  let varShown = false, normShown = false, periodShown = false;
-  if (need === 'var') {
-    rows.push(varRow);
-    varShown = true;
-  } else if (need === 'par2') {
-    if (par2) rows.push([par2.name, n(par2.value)]);
-  } else if (plot === 1) {
-    rows.push(normRow);
-    normShown = true;
-  } else if (plot === 3 && periodRow) {
-    rows.push(periodRow);
-    periodShown = true;
-  }
+  /* the y axis's quantity: the plotted variable, the second parameter, Norm or the period */
+  const plot = axes?.plot;
+  const yRow = yvar ? varRow : yPar ? parRow(yPar) : plot === PLOT_NORM ? normRow : plot === PLOT_PERIOD ? periodRow : null;
 
-  if (!normShown) rows.push(normRow);
-  if (!varShown) rows.push(varRow);
-  if (!periodShown && periodRow) rows.push(periodRow);
-
-  for (const p of info.par) {
-    if (p === par1) continue;
-    if (need === 'par2' && p === par2) continue;
-    rows.push([p.name, n(p.value)]);
-  }
+  if (xPar) rows.push(parRow(xPar));
+  if (yRow) rows.push(yRow);
+  for (const r of [normRow, varRow, periodRow]) if (r && r !== yRow) rows.push(r);
+  for (const p of info.par) if (p !== xPar && p !== yPar) rows.push(parRow(p));
   return rows;
 }
 
