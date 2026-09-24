@@ -69,7 +69,6 @@ extern int colorline[];
 extern int NODE, FIX_VAR, NMarkov;
 extern BROWSER my_browser;
 extern char this_file[XPP_MAX_NAME];
-extern int use_ani_file;
 }
 
 /***************  stuff for grabber  *******************/
@@ -88,6 +87,7 @@ ANI_GRAB ani_grab[MAX_ANI_GRAB];
 int n_ani_grab = 0;
 int show_grab_points = 0;
 int ani_grab_flag = 0;
+XppAniOptions ani_options = {0, "", 0};
 int who_was_grabbed;
 
 /************************  end grabber **********************/
@@ -321,8 +321,8 @@ void ani_zero(void)
     ani_speed = 10;
     aniflag = TRANSIENT;
     ani_grab_flag = 0;
-    if (use_ani_file)
-        XPP_FORMAT_TO_BUF(vcr.file,"{}", anifile);
+    if (ani_options.use_file)
+        XPP_FORMAT_TO_BUF(vcr.file,"{}", ani_options.file);
     else {
         XPP_FORMAT_TO_BUF(vcr.file,"{}", this_file);
         XPP_SPRINTF(vcr.file, "%s/", dirname(vcr.file));
@@ -1662,7 +1662,7 @@ void ani_view_created(void)
     mpeg.filter[0] = 0;
     mpeg.skip = 1;
     vcr.pos = 0;
-    if (use_ani_file) get_ani_file(vcr.file);
+    if (ani_options.use_file) get_ani_file(vcr.file);
 }
 
 /* Grab: show the first frame with the grab points and wait for the mouse */

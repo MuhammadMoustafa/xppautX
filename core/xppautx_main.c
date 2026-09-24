@@ -114,8 +114,6 @@ enum { MODE_WINDOW, MODE_BROWSER, MODE_SERVER };
 
 void set_colorization_stuff(void);
 extern char this_file[XPP_MAX_NAME];
-extern int use_ani_file;
-extern char anifile[];
 extern int RunImmediately;
 int SCALEX, SCALEY;
 
@@ -188,9 +186,9 @@ static void run_session(void)
     default_window();
 
     json_ui_hello(title);
-    if (use_ani_file) {
+    if (ani_options.use_file) {
         new_vcr();
-        get_ani_file(anifile);
+        get_ani_file(ani_options.file);
     }
     json_ui_handle("{\"cmd\":\"redraw\"}");
     /* -tutorial and -runnow, as main.c does after opening its window */

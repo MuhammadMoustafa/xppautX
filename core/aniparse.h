@@ -165,6 +165,15 @@ void draw_grab_points(void);
 void free_grabber(void);
 void redraw_ani_slider(void);
 
+/* The animator's options: the -anifile to load at the start, and whether
+   the animation follows an integration as it runs */
+typedef struct {
+    int use_file;             /* -anifile was given */
+    char file[XPP_MAX_NAME];  /* the .ani file it named */
+    int on_the_fly;           /* animate while integrating */
+} XppAniOptions;
+extern XppAniOptions ani_options;
+
 #ifdef __cplusplus
 }
 #endif

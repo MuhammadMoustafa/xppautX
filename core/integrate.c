@@ -116,7 +116,6 @@ static void row_stored(void)
 #define DP5 11
 #define DP83 12
 #define RB23 13
-extern int animation_on_the_fly;
 extern double ShootIC[8][MAXODE];
 extern int ShootType[8];
 extern int ShootICFlag;
@@ -1937,7 +1936,7 @@ if(Xup) cwidth=get_command_width();
   MSWTCH(xpv.x,x);
  xv[0]=(float)*t;
  for(ieqn=1;ieqn<=NEQ;ieqn++)xv[ieqn]=(float)x[ieqn-1];
- if(animation_on_the_fly)on_the_fly(1); 
+ if(ani_options.on_the_fly)on_the_fly(1); 
  /* if(POIMAP==4)
    pmapfold=get_map_value(x,*t); */
    
@@ -2405,7 +2404,7 @@ poi:    for(i=0;i<NEQ;i++)oldx[i]=x[i];
 
 	   if((STORFLAG==1)&&(count!=0)&&(storind<MAXSTOR)&&!(fabs(*t)<TRANS))
 	   {
-           if(animation_on_the_fly)on_the_fly(0);
+           if(ani_options.on_the_fly)on_the_fly(0);
            for(ieqn=0;ieqn<=NEQ;ieqn++)
 		 storage[ieqn][storind]=xv[ieqn];
 	    storind++;

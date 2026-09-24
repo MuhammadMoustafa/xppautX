@@ -20,7 +20,7 @@ extern "C" {
 extern BROWSER my_browser;
 extern int NODE, NMarkov;
 extern MPEG_SAVE mpeg;
-extern int n_anicom, ani_speed, ani_speed_inc, ani_grab_flag, animation_on_the_fly;
+extern int n_anicom, ani_speed, ani_speed_inc, ani_grab_flag;
 }
 
 namespace xpp::json {
@@ -33,7 +33,7 @@ void j_ani_slider(void)
     Buf b = {0};
     buf_printf(&b, "{\"ev\":\"ani\",\"pos\":%d,\"rows\":%d,\"fly\":%d,\"grab\":%d,\"skip\":%d,\"speed\":%d,"
                "\"loaded\":%d,\"open\":%d}",
-               vcr.pos, my_browser.maxrow, animation_on_the_fly, ani_grab_flag, vcr.inc, ani_speed, n_anicom > 0,
+               vcr.pos, my_browser.maxrow, ani_options.on_the_fly, ani_grab_flag, vcr.inc, ani_speed, n_anicom > 0,
                vcr.iexist);
     send_buf(&b);
     xpp_free(b.s);
@@ -155,7 +155,7 @@ void ani_command(const char *line)
     } else if (strcmp(o, "go") == 0) ani_go();
     else if (strcmp(o, "skip") == 0) ani_newskip();
     else if (strcmp(o, "mpeg") == 0) ani_create_mpeg();
-    else if (strcmp(o, "fly") == 0) animation_on_the_fly = 1 - animation_on_the_fly;
+    else if (strcmp(o, "fly") == 0) ani_options.on_the_fly = 1 - ani_options.on_the_fly;
     else if (strcmp(o, "grab") == 0) ani_grab_start();
     else if (strcmp(o, "seek") == 0 && my_browser.maxrow >= 2) {
         vcr.pos = 0;

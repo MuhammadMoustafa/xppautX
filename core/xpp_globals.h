@@ -15,21 +15,16 @@ extern "C" {
 
 /* run mode */
 extern int Xup;
-extern int use_ani_file;
 /* AUTO's scratch directory (fort.3/7/8/9, <model>.ode.b/.d/.s). NULL: HOME,
    as upstream (X11, -silent); xppautX sets a private one per session so
    concurrent sessions never share AUTO files (xppautx_main.c). */
 extern char *xpp_auto_dir;
-extern char anifile[XPP_MAX_NAME];
 extern float xppvermaj, xppvermin;
 extern int DoTutorial;
 extern OptionsSet notAlreadySet;
 
 extern int help_menu;
 extern int ks_ncycle, ks_speed;
-
-/* animation */
-extern int animation_on_the_fly;
 
 /* array plot */
 extern int aplot_range;

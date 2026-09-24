@@ -11,6 +11,7 @@
 /* command-line stuff for xpp */
 #include <stdio.h>
 #include "xpp_batch.h"
+#include "aniparse.h"
 #define NCMD 47 /* add new commands as needed  */
 
 #define MAKEC 0
@@ -84,10 +85,8 @@ char externaloptionsstring[1024];
 int NincludedFiles=0;
 /*extern char UserOUTFILE[256];
 */
-extern int use_ani_file;
 /*extern char anifile[256];
 */
-extern char anifile[XPP_MAX_NAME];
 int select_intern_sets=0;
 
 
@@ -392,8 +391,8 @@ int argc;
      i++;
    }
    if(k==22){
-     XPP_STRCPY(anifile,argv[i+1]);
-     use_ani_file=1;
+     XPP_STRCPY(ani_options.file,argv[i+1]);
+     ani_options.use_file=1;
      i++;
    }
    if(k==23){

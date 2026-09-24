@@ -3,8 +3,6 @@
 #include "xpp_globals.h"
 
 int Xup = 0;
-int use_ani_file = 0;
-char anifile[XPP_MAX_NAME];
 char *xpp_auto_dir = NULL;
 float xppvermaj, xppvermin;
 /* Set this to 1 if you want the tutorial to come up at start-up as default
@@ -15,8 +13,6 @@ OptionsSet notAlreadySet;
 int ks_ncycle = 1, ks_speed = 50; /* kinescope autoplay */
 int help_menu; /* which main-window menu keys go to: MAIN_MENU, FILE_MENU, NUM_MENU */
 
-
-int animation_on_the_fly = 0;
 
 int aplot_range;
 
