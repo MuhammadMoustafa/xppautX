@@ -251,9 +251,16 @@ def section_input():
 
 
 def cpu_seconds(pid):
-    with open('/proc/%d/stat' % pid) as f:
-        fields = f.read().rsplit(')', 1)[1].split()
-    return (int(fields[11]) + int(fields[12])) / os.sysconf('SC_CLK_TCK')
+    """user+system CPU seconds of pid: /proc on Linux, ps elsewhere (macOS)"""
+    if os.path.exists('/proc/%d/stat' % pid):
+        with open('/proc/%d/stat' % pid) as f:
+            fields = f.read().rsplit(')', 1)[1].split()
+        return (int(fields[11]) + int(fields[12])) / os.sysconf('SC_CLK_TCK')
+    out = subprocess.run(['ps', '-o', 'time=', '-p', str(pid)], capture_output=True, text=True).stdout.strip()
+    secs = 0.0
+    for part in out.replace('-', ':').split(':'):  # [[dd-]hh:]mm:ss.ss
+        secs = secs * 60 + float(part)
+    return secs
 
 
 # ---- abort: a long AUTO run stops at once, and can be continued ------------

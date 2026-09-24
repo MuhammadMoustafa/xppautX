@@ -2600,7 +2600,7 @@ async function helpCheck() {
   await until('s.core.menu === 0 && !s.busy', 'main menu after help');
 }
 
-/* tools/models/live.ode (about a second a run): edits while busy wait and go
+/* tools/models/live.ode (about two seconds a run): edits while busy wait and go
    out once; the IC fields do not move during a run, Now does */
 async function valuesLive() {
   await desktopMetrics();
@@ -2673,7 +2673,7 @@ async function valuesLive() {
     JSON.stringify({busyThen, during, shown, out}));
 }
 
-/* tools/models/live.ode: 20 001 rows in about a second */
+/* tools/models/live.ode: 20 001 rows in about two seconds */
 async function live(want) {
   await desktopMetrics();
   check('live: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
