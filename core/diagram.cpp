@@ -1,3 +1,7 @@
+/* xpp_io.h first: it pulls in <optional>/<string_view>/<format>, which
+   auto_f2c.h's own min/max macros (included transitively below, through
+   auto_nox.h) break if they are already defined first. */
+#include "xpp_io.h"
 #include "diagram.h"
 #include "xpp_mem.h"
 #include "autevd.h"
@@ -9,13 +13,18 @@
 #include "my_ps.h"
 #include "graphics.h"
 #include "auto_nox.h"
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <stdio.h>
 #include "autlim.h"
 #include "load_eqn.h"
-#include "xpp_io.h"
+#include "browse.h"
 #define DALLOC(a) (double *)xpp_malloc((a)*sizeof(double))
-int refresh_browser();
+namespace {
+/* err_msg/file_selector (xpp_ui.h) take char * and do not write through
+   it, the historical C dialog API shared far beyond this file; str()
+   (grobs.cpp-precedented) casts a literal for one of these calls. */
+char *str(const char *s) { return const_cast<char *>(s); }
+} // namespace
 extern int TypeOfCalc;
 extern ROTCHK blrtn;
 extern int PS_Color;  
@@ -31,8 +40,7 @@ int NBifs=0;
 extern int NAutoPar;
 DIAGRAM *bifd;
 
-void start_diagram(n)
-     int n;
+void start_diagram(int n)
 {
   NBifs=1;
   bifd=(DIAGRAM *)xpp_malloc(sizeof(DIAGRAM));
@@ -52,10 +60,7 @@ void start_diagram(n)
   DiagFlag=0;
 }
 
-int find_diagram(irs,n,index,ibr,ntot,itp,nfpar,a,uhi,ulo,u0,par,per,icp1,icp2,icp3,icp4)
-     int *index,*ibr,*ntot,*itp,*nfpar,*icp1,*icp2,*icp3,*icp4,irs,n;
-     double *par,*per,*a;
-     double *uhi,*ulo,*u0;
+int find_diagram(int irs, int n, int *index, int *ibr, int *ntot, int *itp, int *nfpar, double *a, double *uhi, double *ulo, double *u0, double *par, double *per, int *icp1, int *icp2, int *icp3, int *icp4)
 {
   int i,found=0;
   DIAGRAM *d;
@@ -91,25 +96,13 @@ int find_diagram(irs,n,index,ibr,ntot,itp,nfpar,a,uhi,ulo,u0,par,per,icp1,icp2,i
   return(0);
 }
     
-void edit_start(ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,
-		par,per,n,icp1,icp2,icp3,icp4,evr,evi)
-     int ibr,ntot,itp,lab,nfpar,n,icp1,icp2,icp3,icp4;
-     double *par,per,a;
-     double *evr,*evi;
-     double *uhi,*ulo,*u0,*ubar;
+void edit_start(int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, double *evr, double *evi)
 {
   edit_diagram(bifd,ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,
 	       par,per,n,icp1,icp2,icp3,icp4,AutoTwoParam,evr,evi,blrtn.torper);
 }
 
-void edit_diagram(d,ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,
-		  par,per,n,icp1,icp2,icp3,icp4,
-	     flag2,evr,evi,tp)
-     DIAGRAM *d;
-     int ibr,ntot,itp,lab,nfpar,n,icp1,icp2,icp3,icp4,flag2;
-     double *par,per,a;
-     double *uhi,*ulo,*u0,*ubar;
-     double *evr,*evi,tp;
+void edit_diagram(DIAGRAM *d, int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, int flag2, double *evr, double *evi, double tp)
 {
   int i;
   d->calc=TypeOfCalc;
@@ -142,12 +135,7 @@ void edit_diagram(d,ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,
   d->torper=tp;
 }
   
-void add_diagram(ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,
-		 par,per,n,icp1,icp2,icp3,icp4,flag2,evr,evi)
-     int ibr,ntot,itp,lab,n,icp1,icp2,icp3,icp4,flag2,nfpar;
-     double *par,per,a;
-     double *uhi,*ulo,*u0,*ubar;
-     double *evr,*evi;
+void add_diagram(int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, int flag2, double *evr, double *evi)
 {
  DIAGRAM *d,*dnew;
 
@@ -256,20 +244,21 @@ void write_info_out()
   double par1,par2=0,*uhigh,*ulow,per;
   /*double a,*ubar,*u0;*/
   FILE *fp;
+  XppWriter *w;
   XPP_SPRINTF(filename,"allinfo.dat");
   /* status=get_dialog("Write all info","Filename",filename,"Ok","Cancel",60);
    */
-  status=file_selector("Write all info",filename,"*.dat");
+  status=file_selector(str("Write all info"),filename,str("*.dat"));
 
   if(status==0)return;
-  fp=fopen(filename,"w");
-  if(fp==NULL){
-    err_msg("Can't open file");
+  d=bifd;
+  if(d->next==NULL)return; /* nothing recorded: leave any existing file alone */
+  w=xpp_writer_open(filename);
+  if(w==NULL){
+    err_msg(str("Can't open file"));
     return;
   }
-  
-  d=bifd;
-  if(d->next==NULL)return;
+  fp=xpp_writer_file(w);
  while(1){
     type=get_bif_type(d->ibr,d->ntot,d->lab);
     
@@ -298,16 +287,16 @@ void write_info_out()
     for(i=0;i<NODE;i++)
       fprintf(fp,"%g ",ulow[i]);
     for(i=0;i<NODE;i++)
-      fprintf(fp,"%g %g ",d->evr[i],d->evi[i]); 
+      fprintf(fp,"%g %g ",d->evr[i],d->evi[i]);
     fprintf(fp,"\n");
     d=d->next;
     if(d==NULL)break;
   }
-  fclose(fp);
+  xpp_writer_commit(w);
 
 }
 
-void load_browser_with_branch(int ibr,int pts,int pte)
+extern "C" void load_browser_with_branch(int ibr,int pts,int pte)
 {
    DIAGRAM *d;
    int i,j,pt;
@@ -362,20 +351,21 @@ void write_init_data_file()
   double par1,*u0;
   /*double a,*uhigh,*ulow,*ubar;*/
   FILE *fp;
+  XppWriter *w;
   XPP_SPRINTF(filename,"initdata.dat");
   /* status=get_dialog("Write all info","Filename",filename,"Ok","Cancel",60);
    */
-  status=file_selector("Write init data file",filename,"*.dat");
+  status=file_selector(str("Write init data file"),filename,str("*.dat"));
 
   if(status==0)return;
-  fp=fopen(filename,"w");
-  if(fp==NULL){
-    err_msg("Can't open file");
+  d=bifd;
+  if(d->next==NULL)return; /* nothing recorded: leave any existing file alone */
+  w=xpp_writer_open(filename);
+  if(w==NULL){
+    err_msg(str("Can't open file"));
     return;
   }
-  
-  d=bifd;
-  if(d->next==NULL)return;
+  fp=xpp_writer_file(w);
  while(1){
     /*if(d->ntot==1)flag=0;
     else flag=1;
@@ -407,7 +397,7 @@ void write_init_data_file()
     d=d->next;
     if(d==NULL)break;
   }
-  fclose(fp);
+  xpp_writer_commit(w);
 
 }
 
@@ -425,18 +415,19 @@ void write_pts()
   double *par;
   double x,y1,y2,par1,par2=0,a,*uhigh,*ulow,*ubar,per;
   FILE *fp;
+  XppWriter *w;
   XPP_SPRINTF(filename,"diagram.dat");
-  status=file_selector("Write points",filename,"*.dat");
+  status=file_selector(str("Write points"),filename,str("*.dat"));
   /* get_dialog("Write points","Filename",filename,"Ok","Cancel",60); */
   if(status==0)return;
-  fp=fopen(filename,"w");
-  if(fp==NULL){
-    err_msg("Can't open file");
+  d=bifd;
+  if(d->next==NULL)return; /* nothing recorded: leave any existing file alone */
+  w=xpp_writer_open(filename);
+  if(w==NULL){
+    err_msg(str("Can't open file"));
     return;
   }
-  
-  d=bifd;
-  if(d->next==NULL)return;
+  fp=xpp_writer_file(w);
   while(1){
     type=get_bif_type(d->ibr,d->ntot,d->lab);
     
@@ -468,7 +459,7 @@ void write_pts()
       d=d->next;
       if(d==NULL)break;
   }
-  fclose(fp);
+  xpp_writer_commit(w);
 }
 
 void post_auto()
@@ -480,7 +471,7 @@ void post_auto()
   int status;
   XPP_SPRINTF(filename,"auto.ps");
   /* status=get_dialog("Postscript","Filename",filename,"Ok","Cancel",60); */
-  status=file_selector("Postscript",filename,"*.ps");
+  status=file_selector(str("Postscript"),filename,str("*.ps"));
   if(status==0)return;
   if(!ps_init(filename,PS_Color))
     return;
@@ -514,7 +505,7 @@ void svg_auto()
   int status;
   XPP_SPRINTF(filename,"auto.svg");
   /* status=get_dialog("Postscript","Filename",filename,"Ok","Cancel",60); */
-  status=file_selector("SVG",filename,"*.svg");
+  status=file_selector(str("SVG"),filename,str("*.svg"));
   if(status==0)return;
   if(!svg_init(filename,PS_Color))
     return;
@@ -542,8 +533,7 @@ void svg_auto()
 
 
 
-void bound_diagram(xlo,xhi,ylo,yhi)
-     double *xlo,*xhi,*ylo,*yhi;
+void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi)
 {
   DIAGRAM *d;
   int type;
@@ -581,9 +571,7 @@ void bound_diagram(xlo,xhi,ylo,yhi)
 
 
 
-int save_diagram(fp,n)
-     FILE *fp;
-     int n;
+int save_diagram(FILE *fp, int n)
 {
   int i;
   DIAGRAM *d;
@@ -611,29 +599,33 @@ int save_diagram(fp,n)
 
 
  
-int load_diagram(fp,node)
-     FILE *fp;
-     int node;
+int load_diagram(FILE *fp, int node)
 {
   double u0[NAUTO],uhi[NAUTO],ulo[NAUTO],ubar[NAUTO],evr[NAUTO],evi[NAUTO],norm,par[8],per;
   int i,flag=0;
   int n;
   int calc,ibr,ntot,itp,lab,index,nfpar,icp1,icp2,icp3,icp4,flag2;
-  if (fscanf(fp,"%d",&n) != 1) return -1;
+  XppTokenReader *tr=xpp_token_reader_attach(fp);
+  if (xpp_token_reader_int(tr,&n) != 1) { xpp_token_reader_close(tr); return -1; }
   if(n==0){
 /*    start_diagram(NODE); */
+    xpp_token_reader_close(tr);
     return(-1);
   }
 
   while(1){
-    if (fscanf(fp,"%d %d %d %d %d %d %d %d %d %d %d %d",
-	   &calc,&ibr,&ntot,&itp,&lab,&index,&nfpar,
-	   &icp1,&icp2,&icp3,&icp4,&flag2) != 12) break;
-    for(i=0;i<8;i++) if (fscanf(fp,"%lg ",&par[i]) != 1) break;
+    if (xpp_token_reader_int(tr,&calc) != 1 || xpp_token_reader_int(tr,&ibr) != 1
+	|| xpp_token_reader_int(tr,&ntot) != 1 || xpp_token_reader_int(tr,&itp) != 1
+	|| xpp_token_reader_int(tr,&lab) != 1 || xpp_token_reader_int(tr,&index) != 1
+	|| xpp_token_reader_int(tr,&nfpar) != 1 || xpp_token_reader_int(tr,&icp1) != 1
+	|| xpp_token_reader_int(tr,&icp2) != 1 || xpp_token_reader_int(tr,&icp3) != 1
+	|| xpp_token_reader_int(tr,&icp4) != 1 || xpp_token_reader_int(tr,&flag2) != 1) break;
+    for(i=0;i<8;i++) if (xpp_token_reader_double(tr,&par[i]) != 1) break;
     if (i<8) break;
-    if (fscanf(fp,"%lg %lg ",&norm,&per) != 2) break;
-    for(i=0;i<node;i++) if (fscanf(fp,"%lg %lg %lg %lg %lg %lg",&u0[i],&uhi[i],&ulo[i],
-			      &ubar[i],&evr[i],&evi[i]) != 6) break;
+    if (xpp_token_reader_double(tr,&norm) != 1 || xpp_token_reader_double(tr,&per) != 1) break;
+    for(i=0;i<node;i++) if (xpp_token_reader_double(tr,&u0[i]) != 1 || xpp_token_reader_double(tr,&uhi[i]) != 1
+			      || xpp_token_reader_double(tr,&ulo[i]) != 1 || xpp_token_reader_double(tr,&ubar[i]) != 1
+			      || xpp_token_reader_double(tr,&evr[i]) != 1 || xpp_token_reader_double(tr,&evi[i]) != 1) break;
     if (i<node) break;
     if(flag==0){
       edit_start(ibr,ntot,itp,lab,nfpar,norm,uhi,ulo,u0,ubar,par,per,node,
@@ -646,6 +638,7 @@ int load_diagram(fp,node)
 		  icp1,icp2,icp3,icp4,flag2,evr,evi);
     if(index>=n)break;
   }
+    xpp_token_reader_close(tr);
     return(1);
 
 }
