@@ -157,10 +157,10 @@ test: $(TEST_BINS)
 $(TEST_BINS): %$(EXE): %.o $(CORELIB)
 	$(LINK_TESTS) $(SANITIZE) -o $@ $< $(CORELIB) -lm $(DLLIB)
 
-$(BUILDDIR)/tests/%.o: tests/%.c | $(BUILDDIR)/tests
+$(BUILDDIR)/tests/%.o: tests/%.c $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)/tests
 	$(CC) $(CFLAGS) -Itests -MMD -MP -c $< -o $@
 
-$(BUILDDIR)/tests/%.o: tests/%.cpp | $(BUILDDIR)/tests
+$(BUILDDIR)/tests/%.o: tests/%.cpp $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)/tests
 	$(CXX) $(CXXFLAGS) -Itests -MMD -MP -MF $(@:.o=.cpp.d) -c $< -o $@
 
 $(BUILDDIR)/tests:
@@ -175,10 +175,10 @@ $(BUILDDIR)/web_assets.c: $(BUILDDIR)/embed$(EXE) $(WEB2_FILES)
 $(BUILDDIR)/web_assets.o: $(BUILDDIR)/web_assets.c
 	$(CC) -O2 -c $< -o $@
 
-$(BUILDDIR)/%.o: $(SRCDIR)/%.c | $(BUILDDIR)
+$(BUILDDIR)/%.o: $(SRCDIR)/%.c $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
 	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
-$(BUILDDIR)/%.o: $(SRCDIR)/%.cpp | $(BUILDDIR)
+$(BUILDDIR)/%.o: $(SRCDIR)/%.cpp $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
 	$(CXX) $(CXXFLAGS) -MMD -MP -MF $(@:.o=.cpp.d) -c $< -o $@
 
 $(BUILDDIR):
@@ -186,6 +186,11 @@ $(BUILDDIR):
 
 $(BUILDDIR)/version.stamp: FORCE | $(BUILDDIR)
 	@echo '$(XPPAUTX_VERSION)' | cmp -s - $@ || echo '$(XPPAUTX_VERSION)' > $@
+
+# the compilers and flags are an input of every object: a new gcc (objects,
+# LTO bytecode) or a changed -std rebuilds them all instead of mixing
+$(BUILDDIR)/toolchain.stamp: FORCE | $(BUILDDIR)
+	@{ $(CC) --version | head -1; $(CXX) --version | head -1; echo '$(CFLAGS)'; echo '$(CXXFLAGS)'; } > $@.tmp; 	if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv $@.tmp $@; fi
 
 FORCE:
 
