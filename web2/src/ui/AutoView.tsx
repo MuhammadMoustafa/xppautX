@@ -46,7 +46,8 @@ import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {DiagramChart, paletteColor, setDiagramChart} from '../plot/diagramChart';
 import {stopPoint} from '../plot/autoStatus';
 import {
-  buildDiagramModel, describePoint, fmt, grabStep, labelTypes, stepLabel, symbolHelp, symbolName, vertexOf, type DiagramModel,
+  buildDiagramModel, describePoint, fmt, grabStep, labelShape, LABEL_GLYPH, labelTypes, stepLabel, symbolHelp,
+  symbolName, vertexOf, type DiagramModel,
 } from '../plot/diagramModel';
 import {download} from '../plot/export';
 import {attachGestures, type PickSink} from '../plot/interactions';
@@ -469,12 +470,15 @@ function AutoPanel({dark}: {dark: boolean}) {
                 {l.text}
               </li>
             ))}
-            {labelTypes(model.labels).map(sym => (
-              <li key={sym} class="auto-legend-label" data-sym={sym} title={symbolHelp(sym)}>
-                <span class="auto-label-mark" aria-hidden="true">×</span>
-                <b>{sym}</b> {symbolName(sym)}
-              </li>
-            ))}
+            {labelTypes(model.labels).map(sym => {
+              const shape = labelShape(sym);
+              return (
+                <li key={sym} class="auto-legend-label" data-sym={sym} data-shape={shape} title={symbolHelp(sym)}>
+                  <span class={`auto-label-mark auto-label-mark-${shape}`} aria-hidden="true">{LABEL_GLYPH[shape]}</span>
+                  <b>{sym}</b> {symbolName(sym)}
+                </li>
+              );
+            })}
             {earlier > 0 && (
               <li>
                 <button class={'small auto-earlier' + (showEarlier ? ' active' : '')} aria-pressed={showEarlier}

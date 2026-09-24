@@ -1740,10 +1740,19 @@ async function autoView(dir) {
   check('T23: ... and the reason as a line of its own',
     await until(`document.querySelector('.auto-output pre').textContent.split('\\n').includes(${JSON.stringify(reasonLine)})`,
       'reason in output'), (await cdp.eval(`document.querySelector('.auto-output pre').textContent`)).slice(-300));
-  const key23 = await cdp.eval(`[...document.querySelectorAll('.auto-legend-label')].map(l => [l.dataset.sym, l.textContent.trim(), l.title])`);
+  const key23 = await cdp.eval(`[...document.querySelectorAll('.auto-legend-label')].map(l => [l.dataset.sym, l.dataset.shape,
+    l.querySelector('.auto-label-mark').textContent, l.textContent.trim(), l.title])`);
   check('T23: the key spells out the label types the diagram has (EP End point, HB Hopf), each with its meaning as a tooltip',
-    key23.some(([s, t]) => s === 'EP' && /^×\s*EP End point$/.test(t)) && key23.some(([s, t]) => s === 'HB' && /HB Hopf$/.test(t))
-      && key23.every(([, , h]) => h.length > 30), JSON.stringify(key23));
+    key23.some(([s, , , t]) => s === 'EP' && /EP End point$/.test(t)) && key23.some(([s, , , t]) => s === 'HB' && /HB Hopf$/.test(t))
+      && key23.every(([, , , , h]) => h.length > 30), JSON.stringify(key23));
+  /* T29: one shape per label type (HB a filled circle, LP a triangle, ... a cross for a code this
+     diagram does not name), the key's glyph the same mapping the diagram itself draws with */
+  const SHAPE_OF = {EP: 'bar', MX: 'cross', LP: 'triangle', HB: 'circle', BP: 'diamond', PD: 'square', TR: 'star', UZ: 'invTriangle'};
+  const GLYPH_OF = {circle: '●', triangle: '△', diamond: '◇', square: '□', star: '☆',
+    invTriangle: '▽', cross: '×', bar: '❙'};
+  check('T29: the key\'s shape for each present code matches the type -> shape mapping, drawn with that shape\'s glyph',
+    key23.length > 0 && key23.every(([s, shape, mark]) => shape === (SHAPE_OF[s] ?? 'cross') && mark === GLYPH_OF[shape]),
+    JSON.stringify(key23));
   check('after the run the store holds its last point\'s stability circle (autoinfo)',
     await until('s.diagram.stab && s.diagram.stab.circle.length === 2 && s.diagram.stab.periodic === 0', 'run stab'),
     JSON.stringify(await DS('[d.info, d.stab]')));

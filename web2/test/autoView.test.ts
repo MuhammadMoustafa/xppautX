@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {axesNames, boundText, spinStep, typedRange, yNeeds} from '../src/plot/axisDialog';
 import {formatElapsed, kindOfPoint, runStatus, stopPoint} from '../src/plot/autoStatus';
-import {buildDiagramModel, labelTypes, symbolHelp, symbolName} from '../src/plot/diagramModel';
+import {buildDiagramModel, labelShape, labelTypes, symbolHelp, symbolName} from '../src/plot/diagramModel';
 import {placeLabels} from '../src/plot/labelPlace';
 import {branchesBefore, earlierCount, type DiagramRun} from '../src/store/diagram';
 import {classifyLogText, initialState, reduce, type AppState} from '../src/store/state';
@@ -96,6 +96,15 @@ test('T23: the key lists the label types the diagram has, spelled out', () => {
   assert.deepEqual(['EP', 'MX', 'LP', 'HB', 'BP', 'PD', 'TR', 'UZ'].map(symbolName), ['End point', 'No convergence',
     'Fold (limit point)', 'Hopf', 'Branch point', 'Period doubling', 'Torus', 'Marked value']);
   assert.ok(['EP', 'MX', 'LP', 'HB', 'BP', 'PD', 'TR', 'UZ'].every(k => symbolHelp(k).length > 20));
+});
+
+test('T29: one shape per label type, not a cross for every one; unknown codes and plain points fall back', () => {
+  assert.deepEqual(['HB', 'LP', 'BP', 'PD', 'TR', 'UZ', 'MX', 'EP'].map(labelShape),
+    ['circle', 'triangle', 'diamond', 'square', 'star', 'invTriangle', 'cross', 'bar']);
+  /* a plain numbered point (Npr's regular output, no type) reads lighter than the special shapes */
+  assert.equal(labelShape(''), 'tick');
+  /* a label type this diagram does not name yet falls back to a cross, like the classic mark */
+  assert.equal(labelShape('ZZ'), 'cross');
 });
 
 test('the kind of a point and the elapsed time in words', () => {

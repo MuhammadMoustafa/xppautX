@@ -305,6 +305,30 @@ export function symbolHelp(sym: string): string {
   return SYMBOL_HELP[sym] ?? '';
 }
 
+/** T29: one shape per label type, so a long run's plain numbered points no
+    longer read as a row of crosses. The single source of truth for both
+    the diagram (diagramChart.ts's drawLabels) and the key
+    (ui/AutoView.tsx): HB a filled circle, LP a triangle, BP a diamond, PD
+    a square, TR a star, UZ an inverted triangle, MX a bold cross, EP a
+    bar across the branch; a plain numbered point (no type) a small,
+    lighter tick; an unlisted code falls back to a cross. */
+export type LabelShape = 'circle' | 'triangle' | 'diamond' | 'square' | 'star' | 'invTriangle' | 'cross' | 'bar' | 'tick';
+
+const LABEL_SHAPES: Record<string, LabelShape> = {
+  HB: 'circle', LP: 'triangle', BP: 'diamond', PD: 'square', TR: 'star', UZ: 'invTriangle', MX: 'cross', EP: 'bar',
+};
+
+export function labelShape(sym: string): LabelShape {
+  return sym ? (LABEL_SHAPES[sym] ?? 'cross') : 'tick';
+}
+
+/** the key's glyph for a shape (a small Unicode mark, same shape the
+    canvas draws) */
+export const LABEL_GLYPH: Record<LabelShape, string> = {
+  circle: '●', triangle: '△', diamond: '◇', square: '□', star: '☆', invTriangle: '▽',
+  cross: '×', bar: '❙', tick: '·',
+};
+
 /** the label types the diagram has, in the key's order (EP, MX, LP, HB, BP, PD, TR, UZ) */
 export function labelTypes(labels: {sym: string}[]): string[] {
   const has = new Set(labels.map(l => l.sym));

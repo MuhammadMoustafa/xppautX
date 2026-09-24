@@ -15,11 +15,12 @@ back). It has:
 
 - the **diagram**, drawn from the `diagram` data event: a curve per branch
   and stability run (stable solid, unstable dashed, periodic branches as
-  their maximum and minimum), labelled points as crosses, and the segment
-  from a Hopf point to the first point of the periodic branch it started
-  (`from`, which XPP itself leaves blank); it zooms (wheel), pans
-  (Shift+drag or the middle button) and undoes (`Ctrl+Z`) in the client,
-  and a tooltip or the readout names the point under the mouse or cursor;
+  their maximum and minimum), labelled points each with a shape for its
+  type (below), and the segment from a Hopf point to the first point of
+  the periodic branch it started (`from`, which XPP itself leaves blank);
+  it zooms (wheel), pans (Shift+drag or the middle button) and undoes
+  (`Ctrl+Z`) in the client, and a tooltip or the readout names the point
+  under the mouse or cursor;
 - a **stability circle** (`ui/AutoInfo.tsx`) below it, and a **status
   strip** (`ui/AutoStatus.tsx`) along the window's bottom edge, in place of
   the small square and info windows of the X11 AUTO window, from the
@@ -44,9 +45,14 @@ back). It has:
   stopped" below), and AUTO's Output gets the same as a line for every
   branch that ends ("Branch 1 stopped at point 49: ...");
 - the diagram's **key** lists the label types it has, spelled out (EP End
-  point, HB Hopf, ...), each with its meaning as a tooltip, and hovering a
-  labelled point names its type; the point where the last run ended also
-  says why;
+  point, HB Hopf, ...), each with its meaning as a tooltip and the same
+  shape it is drawn with on the diagram (a filled circle at a Hopf point,
+  a triangle at a fold, a diamond at a branch point, a square at a period
+  doubling, a star at a torus, an inverted triangle at a user point, a
+  bold cross where AUTO could not converge, a bar at an end point, and a
+  small, lighter tick at a plain numbered point — so a long run's regular
+  output no longer reads as a row of crosses); hovering a labelled point
+  names its type; the point where the last run ended also says why;
 - an **Output** panel with AUTO's printed table (`xpp_log_auto()`, always
   written in browser mode);
 - Numerics as a dialog with Save/Load to a settings file, in place of the
@@ -241,7 +247,7 @@ At this point, you are probably ready to run. But before doing a run, here is a 
 
 Click on “Run” to run the bifurcation. Depending on the situation, a number of menus can come up. For initial exploration, there are three choices, starting at a new steady state, periodic, or boundary value solution. If you are running the example, click on the steady-state option and a nice diagram will show up and a bunch of points will move around in the stability circle. These indicate stability: for fixed points, they represent exponentials of the eigenvalues; for periodics, the Floquet multipliers. Thus those in the circle are stable and those out of the circle are unstable. Bifurcations occur on the circle. The outer ones are “clipped” so that they will always lie in the square, thus you can keep count of them.
 
-The diagram,itself, has two different lines and two different circles. Stable fixed points are thick lines, stable periodics are solid circles, unstable fixed points are thin lines, and unstable periodics are open circles. Additionally, there are crosses occasionally dispersed with numbers associated with them. These represent “special” points that AUTO wants to keep. There are several of them (web2 spells each out in the key, the readout and the info strip, with its meaning as the key's tooltip):
+The diagram,itself, has two different lines and two different circles. Stable fixed points are thick lines, stable periodics are solid circles, unstable fixed points are thin lines, and unstable periodics are open circles. Additionally, there are crosses occasionally dispersed with numbers associated with them. These represent “special” points that AUTO wants to keep. There are several of them (web2 draws each with a shape of its own instead of a plain cross, spells each out in the key, the readout and the info strip, with its meaning as the key's tooltip):
 
 ### EP End point
 

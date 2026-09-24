@@ -8,7 +8,7 @@
 import uPlot from 'uplot';
 import type {Range, Viewport} from '../store/plots';
 import {curveColor} from './colors';
-import {nearestVertex, type DiagramHit, type DiagramModel} from './diagramModel';
+import {labelShape, nearestVertex, type DiagramHit, type DiagramModel, type LabelShape} from './diagramModel';
 import {placeLabels} from './labelPlace';
 import type {Ranges} from './viewmath';
 
@@ -37,6 +37,68 @@ function cssVar(name: string): string {
 /** a palette colour of the core (0 the foreground, 20..29 red..purple) as a curve colour of the theme */
 export function paletteColor(c: number, dark: boolean): string {
   return curveColor(c >= 20 && c <= 29 ? c - 19 : 0, dark);
+}
+
+/** a labelled point's shape (T29), `r` canvas pixels from its centre; the
+    caller sets `ctx`'s stroke/fill style first. Outlines except HB's
+    filled circle, so a dense diagram still reads its lines through them. */
+function strokeShape(ctx: CanvasRenderingContext2D, shape: LabelShape, x: number, y: number, r: number): void {
+  switch (shape) {
+    case 'circle':
+      ctx.beginPath();
+      ctx.arc(x, y, r * 0.75, 0, 2 * Math.PI);
+      ctx.fill();
+      return;
+    case 'triangle':
+    case 'invTriangle': {
+      const up = shape === 'triangle' ? -1 : 1;
+      ctx.beginPath();
+      ctx.moveTo(x, y + up * r);
+      ctx.lineTo(x + r * 0.9, y - up * r * 0.65);
+      ctx.lineTo(x - r * 0.9, y - up * r * 0.65);
+      ctx.closePath();
+      ctx.stroke();
+      return;
+    }
+    case 'diamond':
+      ctx.beginPath();
+      ctx.moveTo(x, y - r);
+      ctx.lineTo(x + r, y);
+      ctx.lineTo(x, y + r);
+      ctx.lineTo(x - r, y);
+      ctx.closePath();
+      ctx.stroke();
+      return;
+    case 'square':
+      ctx.strokeRect(x - r * 0.8, y - r * 0.8, r * 1.6, r * 1.6);
+      return;
+    case 'star':
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const rad = i % 2 === 0 ? r : r * 0.45, a = -Math.PI / 2 + (Math.PI / 5) * i;
+        const px = x + rad * Math.cos(a), py = y + rad * Math.sin(a);
+        if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+      return;
+    case 'bar':
+    case 'tick':
+      ctx.beginPath();
+      ctx.moveTo(x, y - r);
+      ctx.lineTo(x, y + r);
+      ctx.stroke();
+      return;
+    case 'cross':
+    default:
+      ctx.beginPath();
+      ctx.moveTo(x - r, y);
+      ctx.lineTo(x + r, y);
+      ctx.moveTo(x, y - r);
+      ctx.lineTo(x, y + r);
+      ctx.stroke();
+      return;
+  }
 }
 
 /** the data's extent with a margin, for a diagram the core has no axes for yet */
@@ -153,7 +215,9 @@ export class DiagramChart {
     this.onArea(this.u.over);
   }
 
-  /* the labelled points: a cross at the value (and at the minimum), the name beside it */
+  /* the labelled points: a shape of its type at the value (and at the
+     minimum), the name beside it (T29: not every type a cross, so a long
+     run's plain numbered points do not read as a row of them) */
   private drawLabels(u: uPlot): void {
     this.draws++;
     const m = this.model;
@@ -163,13 +227,11 @@ export class DiagramChart {
     const shown = m.labels.map(l => ({l, px: u.valToPos(l.x, 'x', true), py: u.valToPos(l.y, 'y', true),
       py2: l.y2 === null ? null : u.valToPos(l.y2, 'y', true)})).filter(s => inside(s.px, s.py)
       || (s.py2 !== null && inside(s.px, s.py2)));
-    const fg = cssVar('--fg') || '#000';
+    const fg = cssVar('--fg') || '#000', fgMuted = cssVar('--fg-muted') || '#666';
     ctx.save();
     ctx.beginPath();
     ctx.rect(b.left, b.top, b.width, b.height);
     ctx.clip();
-    ctx.strokeStyle = fg;
-    ctx.fillStyle = fg;
     ctx.lineWidth = 1.25 * r;
     ctx.font = `${Math.round(11 * r)}px Inter, system-ui, sans-serif`;
     ctx.textBaseline = 'top';
@@ -180,15 +242,15 @@ export class DiagramChart {
       w: ctx.measureText(names[i]).width, h: 13 * r}))) : [];
     this.nameTops = tops.map(t => t / r);
     shown.forEach((s, i) => {
-      for (const y of s.py2 === null ? [s.py] : [s.py, s.py2]) {
-        ctx.beginPath();
-        ctx.moveTo(s.px - arm, y);
-        ctx.lineTo(s.px + arm, y);
-        ctx.moveTo(s.px, y - arm);
-        ctx.lineTo(s.px, y + arm);
-        ctx.stroke();
+      const shape = labelShape(s.l.sym), light = shape === 'tick';
+      ctx.strokeStyle = light ? fgMuted : fg;
+      ctx.fillStyle = light ? fgMuted : fg;
+      const rad = light ? arm * 0.55 : arm;
+      for (const y of s.py2 === null ? [s.py] : [s.py, s.py2]) strokeShape(ctx, shape, s.px, y, rad);
+      if (this.named) {
+        ctx.fillStyle = fg;
+        ctx.fillText(names[i], s.px + 5 * r, tops[i]);
       }
-      if (this.named) ctx.fillText(names[i], s.px + 5 * r, tops[i]);
     });
     ctx.restore();
   }
