@@ -1,13 +1,12 @@
-/* The AUTO view (ui/AutoView.tsx, docs/ui-v2.md T11a, R6): a full-screen
-   sheet under 48rem, a floating panel anchored to the right from there;
-   both end above the status bar (--auto-bottom, measured), whose Stop is
-   the one way to stop a run (A10). Sizes and colours are theme.css's tokens. */
+/* The AUTO view (ui/AutoView.tsx, docs/ui-v2.md T11a, T26): a full-screen
+   sheet at every width, over the main menu, the plot and the main status
+   bar (a plain background, no page showing through); its own status strip
+   (ui/AutoStatus.tsx) is then the only status line on screen and carries
+   the Stop, the one way to stop a run (A10). Sizes and colours are
+   theme.css's tokens. */
 .auto-panel {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: var(--auto-bottom, 0);
+  inset: 0;
   z-index: 155;
   display: flex;
   flex-direction: column;
@@ -75,7 +74,7 @@
   font-weight: 600;
 }
 @media (min-width: 48rem) {
-  .auto-panel { left: auto; width: min(60rem, 94vw); border-left: 1px solid var(--border); }
+  /* .auto-show sits beside the menu column, which the AUTO view itself covers */
   .auto-show { left: calc(var(--menu-width) + var(--space-4)); }
 }
 @container (max-width: 34rem) {
@@ -145,6 +144,8 @@
   min-width: 0;
 }
 .auto-status-text { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
+/* T26: the core's last message, as StatusBar.tsx's own .status-message */
+.auto-message { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .auto-output { border-top: 1px solid var(--border); padding: var(--space-1) var(--space-3); font-size: var(--text-xs); }
 .auto-output summary { cursor: pointer; min-height: var(--target); display: flex; align-items: center; }
 .auto-output-text {

@@ -54,9 +54,10 @@ mouse, on a tap, or by stepping with `[` `]` from the keyboard, curves can be
 hidden from the legend, and PNG and CSV export what is shown.
 
 The AUTO view (T11a) opens when the core opens AUTO's window (File/Auto)
-and closes when the core destroys it: a panel anchored to the right on
-screens from 48 rem, a full-screen sheet on phones, both ending above the
-status bar (whose Stop stops a run, A10). It draws the diagram from the
+and closes when the core destroys it: a full-screen sheet at every width
+(T26), over the main menu, the plot and the main status bar, whose own
+status strip is then the only status line on screen and carries the Stop
+(A10) and the core's last message. It draws the diagram from the
 `diagram` events (store/diagram.ts holds them exactly, full and `add`
 increments): a curve per branch and stability run (stable solid, unstable
 dashed, periodic branches as their maximum and minimum), the labelled
@@ -414,9 +415,11 @@ Rules (each checkable; `tools/web2check.mjs` checks R1, R3 and R5 at 390x844):
   plot takes one-finger pan, two-finger pinch zoom (about the fingers'
   midpoint) and tap to read a point; `touch-action: none` on the plot area
   only, so the page still scrolls elsewhere.
-- **R6** Panels still to come (values, AUTO, data table, animation) are
-  columns or floating panels on wide screens, tabs under the plot on medium
-  ones, and full-screen sheets with a Back button on phones.
+- **R6** Panels still to come (values, data table, animation) are columns
+  or floating panels on wide screens, tabs under the plot on medium ones,
+  and full-screen sheets with a Back button on phones. AUTO (T11a) is a
+  full-screen sheet at every width instead (T26): it is its own working
+  view, not something to keep the main plot or menu in view beside.
 - **R7** Dialogs fit the viewport (`max-height: 100%`, scroll inside), with
   a 1 rem margin.
 
@@ -622,4 +625,4 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T23 (**done**) | AUTO in plain words: a stop reason code set where autlib1.c/autlib2 end a branch (Par Min/Max, Norm Min/Max, Npts reached, Stop, a stopping Mark value, no convergence at Dsmin: fort.9's NOTE) and sent to the page, shown in the status strip ("Stopped: parameter reached Par Max (20)") and written as a line in the AUTO view's Output messages; label types spelled out on hover (EP End point, MX No convergence, LP Fold, HB Hopf, BP Branch point, PD Period doubling, TR Torus, UZ Marked value); every Numerics field named plainly with AUTO's short name kept (e.g. "Max points (NMX)"), a tooltip (what it does, valid values, what each option means), integer or float validation and ranges (Dsmin <= |Ds| <= Dsmax), also checked in the core; docs/manual/09-auto.md updated | T22 | yes | servercheck: each stop reason on a model built to hit it (Par Max, Norm Max, Npts, Stop, MX); saved .b/.d and verify.sh unchanged; web2check: status names the reason, a float in an integer field is refused with a message |
 | T24 (**done**) | From hands-on testing: AUTO's status line at the bottom of its window, where the main window has its status bar | T21 | no | web2check auto: the status line is the panel's last visible row |
 | T25 (ready) | From hands-on testing (bug): AUTO's Stop showed Stopping… and the run went on; reproduce (sandbox/PY_S1Bf.ode, the user's model: steady and periodic runs, Stop from the AUTO strip and the status bar, browser and desktop window) and fix; in the same session, check that a first steady-state run stopping at point 1 on its Norm Max (the model's normmax=60) is AUTO's own rule, and why the info strip listed all 8 eigenvalues as "none (below the smallest number)" | none | maybe | autocheck/web2check: Stop during an AUTO run ends it within 1 s with an EP label |
-| T26 (running) | From hands-on testing: AUTO takes the whole window while it is shown, in place of R6's floating panel over the page: the main menu, plot and status bar hidden behind a plain background (Back returns to them), its own status strip (T24) also carrying the core's last message | T24 | no | web2check auto: the panel covers the viewport; the main menu is not visible; the core's message shows in the AUTO strip |
+| T26 (**done**) | From hands-on testing: AUTO takes the whole window while it is shown, in place of R6's floating panel over the page: the main menu, plot and status bar hidden behind a plain background (Back returns to them), its own status strip (T24) also carrying the core's last message and, when it is not simply connected, the connection state | T24 | no | web2check auto: the panel covers the viewport; the main menu and status bar are not visible, and are again after Back; the core's message shows in the AUTO strip |

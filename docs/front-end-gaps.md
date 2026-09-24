@@ -21,7 +21,7 @@ row changes.
 | Data browser and all its buttons | Data tab (virtualized table, T10) |
 | Equilibrium window with Import | Text tab's Equilibrium view (T16) |
 | Equations window, source viewer with comment actions | Text tab (T16) |
-| AUTO window: every button, grab, hotkeys, scroll, close, point readout | A window of its own, floating over the page (T11a/T11b): drag its title bar, pull its corner to resize, and the main plot and the value panels stay in view beside it (a tab in the narrow layout) |
+| AUTO window: every button, grab, hotkeys, scroll, close, point readout | A view of its own, a full-screen sheet at every width (T11a/T11b, T26): it covers the main menu, plot and status bar while shown, Back returns to them, and its own status strip carries the Stop and what the main one says |
 | Animation window: Go, Pause, Fast, Slow, step, slider, Skip, File, Grab, Fly, frame saving, Close, resize | Animation tab (T13) |
 | Array plot: Redraw, Edit, Print, Fit, Range, GIF, Close, drag to scroll | Array tab (T12) |
 | Kinescope: capture, reset, playback, autoplay, save, animated GIF | Captured as data and replayed by the page; GIF and PNG made in the page (T15) |

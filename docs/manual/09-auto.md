@@ -8,9 +8,10 @@ Click on the `File Auto` menu item to bring up AUTO.
 
 ## The AUTO view
 
-**In web2**, AUTO opens as its own view (`ui/AutoView.tsx`), anchored to
-the right of the plot on screens from 48 rem wide and a full-screen sheet
-below that; both stop above the status bar. It has:
+**In web2**, AUTO opens as its own view (`ui/AutoView.tsx`), a full-screen
+sheet at every width, over the main menu, the plot and the main status bar
+(Back, or Escape, hides it and shows the page again; "Show AUTO" brings it
+back). It has:
 
 - the **diagram**, drawn from the `diagram` data event: a curve per branch
   and stability run (stable solid, unstable dashed, periodic branches as
@@ -20,11 +21,13 @@ below that; both stop above the status bar. It has:
   (Shift+drag or the middle button) and undoes (`Ctrl+Z`) in the client,
   and a tooltip or the readout names the point under the mouse or cursor;
 - a **stability circle** (`ui/AutoInfo.tsx`) below it, and a **status
-  strip** (`ui/AutoStatus.tsx`) along the window's bottom edge, where the
-  main window has its status bar, from the `autoinfo` event: branch, point,
-  type, label, parameters, norm, the plotted variable, the period, and
-  the eigenvalues/multipliers, in place of the small square and info
-  windows of the X11 AUTO window;
+  strip** (`ui/AutoStatus.tsx`) along the window's bottom edge, in place of
+  the small square and info windows of the X11 AUTO window, from the
+  `autoinfo` event: branch, point, type, label, parameters, norm, the
+  plotted variable, the period, and the eigenvalues/multipliers; it is the
+  only status line on screen while AUTO is shown, so it also carries the
+  core's last message and the connection state when it is not simply
+  connected, as the main window's status bar does;
 - an **axis dialog** (`ui/AutoAxes.tsx`), opened by clicking an axis name
   next to the diagram, for Axes' choices (Hi, Norm, Hi-lo, Period, Two
   par, Frequency, Average and their ranges) below — usable during a run,

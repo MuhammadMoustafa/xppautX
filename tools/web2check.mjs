@@ -1634,6 +1634,35 @@ async function autoView(dir) {
   check("T24: the status strip is the AUTO window's bottom line, as the main window's status bar",
     await cdp.eval(`(() => { const p = document.querySelector('.auto-panel').getBoundingClientRect(),
       t = document.querySelector('.auto-status').getBoundingClientRect(); return Math.abs(p.bottom - t.bottom) < 2; })()`));
+  check('T26: at 1280px the AUTO view covers the whole viewport',
+    await cdp.eval(`(() => { const r = document.querySelector('.auto-panel').getBoundingClientRect();
+      return r.top === 0 && r.left === 0 && Math.abs(r.right - innerWidth) < 1 && Math.abs(r.bottom - innerHeight) < 1; })()`));
+  const behind = await cdp.eval(`(() => { const at = sel => { const r = document.querySelector(sel).getBoundingClientRect();
+    return !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.auto-panel'); };
+    return {menu: at('.menu-panel'), bar: at('.status-bar')}; })()`);
+  check('T26: the main menu and the main status bar are behind it, not visible', behind.menu && behind.bar, JSON.stringify(behind));
+  await cdp.eval(`document.querySelector('.auto-back').click()`);
+  await until('!s.diagram.shown && s.diagram.open', 'auto back desktop');
+  const front = await cdp.eval(`(() => { const at = sel => { const r = document.querySelector(sel).getBoundingClientRect();
+    return !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest(sel); };
+    return {menu: at('.menu-panel'), bar: at('.status-bar'), gone: !document.querySelector('.auto-panel')}; })()`);
+  check('T26: Back shows the main menu and the main status bar again', front.menu && front.bar && front.gone, JSON.stringify(front));
+  await cdp.eval(`document.querySelector('.auto-show').click()`);
+  await until('s.diagram.shown', 'auto show desktop');
+  await until(`document.activeElement.closest('.auto-host')`, 'auto focus again');
+
+  /* T26: a core error also sets the main status bar's `bottom` (StatusBar.tsx); with the main
+     status bar hidden behind the AUTO view, its strip carries it instead. A bad %formula (not an
+     `auto` command, so it does not disturb the `sent()` checks below) fails in
+     json_state.cpp apply_value: "Bad formula" */
+  await cdp.eval(`__xpp.send({cmd: 'set', kind: 'par', name: 'iapp', text: '%('})`);
+  await until(`s.bottom === 'Bad formula'`, 'bottom message');
+  check("T26: the core's last message shows in the AUTO strip",
+    (await cdp.eval(`document.querySelector('.auto-message')?.textContent`)) === 'Bad formula');
+  /* an error toast stays until dismissed (Toasts.tsx): clear every one so none sits over a
+     later control (it floats above the AUTO view too, T26's dialog-backdrop note) */
+  await cdp.eval(`document.querySelectorAll('.toast .icon').forEach(b => b.click())`);
+  await until(`!s.toasts.length`, 'toasts dismissed');
 
   /* a dialog the view opens is on top of it, not behind (Numerics' form, T22: the page's own on the autosettings data) */
   check("T22: the store holds AUTO's settings (autosettings) before a run",
@@ -2028,12 +2057,11 @@ async function autoView(dir) {
   await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
   await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'pointer', value: 'coarse'}, {name: 'hover', value: 'none'}]}).catch(() => {});
   await sleep(400);
-  const sheet = await cdp.eval(`(() => { const r = document.querySelector('.auto-panel').getBoundingClientRect(),
-    b = document.querySelector('.status-bar').getBoundingClientRect();
-    return {l: r.left, t: r.top, w: r.width, bottom: r.bottom, bar: b.top, iw: innerWidth,
+  const sheet = await cdp.eval(`(() => { const r = document.querySelector('.auto-panel').getBoundingClientRect();
+    return {l: r.left, t: r.top, w: r.width, bottom: r.bottom, ih: innerHeight, iw: innerWidth,
       doc: document.documentElement.scrollWidth, body: document.body.scrollWidth}; })()`);
-  check('390x844: the AUTO view is a full-width sheet down to the status bar (its Stop stays in view), no sideways scroll',
-    sheet.l === 0 && sheet.t === 0 && sheet.w >= sheet.iw - 1 && Math.abs(sheet.bottom - sheet.bar) <= 1
+  check('390x844: the AUTO view is a full-screen sheet, over the main status bar too (its own Stop stays in view), no sideways scroll',
+    sheet.l === 0 && sheet.t === 0 && sheet.w >= sheet.iw - 1 && Math.abs(sheet.bottom - sheet.ih) <= 1
     && sheet.doc <= sheet.iw && sheet.body <= sheet.iw, JSON.stringify(sheet));
   const small = await cdp.eval(`[...document.querySelectorAll('.auto-panel button')].filter(b => b.getClientRects().length)
     .map(b => [b.textContent.trim(), b.getBoundingClientRect().height, b.getBoundingClientRect().width])

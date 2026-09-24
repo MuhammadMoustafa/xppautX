@@ -4,9 +4,14 @@
    to, the points the run added, the last label it found and the time it
    took, with the one Stop (A10: the status bar's Stop does the same), and
    once a run ended, why its last branch ended (T23: "Stopped: parameter
-   iapp reached Par Max (0.45)"; the core writes the same line in Output). The
-   Output panel shows AUTO's console table and messages (the `log` lines
-   store/state.ts classifies as AUTO's) as they arrive. */
+   iapp reached Par Max (0.45)"; the core writes the same line in Output).
+   T26: the AUTO view now covers the main status bar too, so this strip also
+   carries what it says that matters here: the core's last message
+   (store's `bottom`, StatusBar.tsx's own `.status-message`) and the
+   connection state when it is not simply connected (Connecting…, XPP has
+   stopped), with the dot to match. The Output panel shows AUTO's console
+   table and messages (the `log` lines store/state.ts classifies as AUTO's)
+   as they arrive. */
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {formatElapsed, runStatus} from '../plot/autoStatus';
 import {useSession, useStore} from './context';
@@ -20,6 +25,9 @@ export function AutoStatus() {
   const asking = useStore(s => !!s.ask);
   const stopping = useStore(s => s.stopping);
   const busy = useStore(s => s.busy);
+  const connected = useStore(s => s.connected);
+  const exited = useStore(s => s.exited);
+  const bottom = useStore(s => s.bottom);
   const [now, setNow] = useState(() => Date.now());
   const active = !!run?.active;
   /* the clock ticks while a run goes */
@@ -30,9 +38,12 @@ export function AutoStatus() {
     return () => clearInterval(t);
   }, [active]);
   const st = runStatus(run, points, labels, now, {asking, stopping}, stop);
+  /* as StatusBar.tsx's own `status` and `dot`, but only worth saying here when it is not simply connected */
+  const conn = exited !== null ? 'XPP has stopped' : !connected ? 'Connecting…' : null;
+  const dot = exited !== null ? 'down' : !connected ? '' : st.phase === 'running' || st.phase === 'stopping' ? 'busy' : 'up';
   return (
     <div class="auto-status" data-phase={st.phase}>
-      <span class={`status-dot ${st.phase === 'running' || st.phase === 'stopping' ? 'busy' : 'up'}`} aria-hidden="true" />
+      <span class={`status-dot ${dot}`} aria-hidden="true" />
       <span class="auto-status-text" role="status" data-testid="auto-status" data-why={st.why ?? undefined}>
         <b>{st.text}</b>
         {st.detail && <span> · {st.detail}</span>}
@@ -41,6 +52,8 @@ export function AutoStatus() {
         {st.label && <span> · last label {st.label}</span>}
         {st.elapsed !== null && <span> · {formatElapsed(st.elapsed)}</span>}
       </span>
+      {conn && <span class="auto-conn" role="status" data-testid="auto-conn">{conn}</span>}
+      {bottom && <span class="auto-message muted">{bottom}</span>}
       {busy && (
         <button class="small danger auto-stop" disabled={stopping} onClick={() => session.abort()}
           title="Stop the running command (AUTO keeps the points computed so far)">

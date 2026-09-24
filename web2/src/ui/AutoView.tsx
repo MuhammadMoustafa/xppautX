@@ -3,14 +3,19 @@
    window's buttons. It opens when the core opens window 101 (File/Auto) and
    goes when the core destroys it.
 
-   Layout (R6): a floating panel anchored to the right from 48rem, over the
-   plot, and a full-screen sheet under that; both stop above the status bar.
-   T21: the view's own status strip says what AUTO does and has the Stop
-   (ui/AutoStatus.tsx; the status bar's Stop is the same one, A10), and its
-   Output panel shows AUTO's table. Back (or Escape) hides the panel and
-   leaves AUTO open, "Show AUTO" brings it back; Close is "done with it": it
-   closes AUTO's window, stopping a running continuation first
-   (session.closeAuto).
+   Layout (T26): a full-screen sheet at every width (not R6's floating
+   panel from 48rem any more: from hands-on testing, half the window for no
+   reason, and a noisy background, were both unwanted while using AUTO). It
+   covers the main menu, the plot and the main status bar with a plain
+   background, so its own status strip is then the only status line on
+   screen and also carries what the main one says that matters there (T21:
+   what AUTO does and has the Stop, ui/AutoStatus.tsx; the status bar's Stop
+   is the same one, A10), and its Output panel shows AUTO's table. Back (or
+   Escape) hides the panel and leaves AUTO open, showing the page again;
+   "Show AUTO" brings it back; Close is "done with it": it closes AUTO's
+   window, stopping a running continuation first (session.closeAuto). The
+   core's asks/prompts/messages and any dialog AUTO opens stay on top of
+   this view (the dialog backdrop's z-index is above every panel's).
 
    T21: the diagram is always the current one (the core draws it again
    after Axes and File/Load, so there is no reDraw); Clear is the view's:
@@ -276,15 +281,6 @@ function AutoPanel({dark}: {dark: boolean}) {
   useEffect(() => {
     chart.current!.applyViewport(viewport);
   }, [viewport]);
-
-  /* the status bar stays visible below the panel: its Stop is how a run stops (A10) */
-  useEffect(() => {
-    const bar = document.querySelector<HTMLElement>('.status-bar'), el = panel.current;
-    if (!bar || !el) return;
-    const ro = new ResizeObserver(() => el.style.setProperty('--auto-bottom', `${bar.offsetHeight}px`));
-    ro.observe(bar);
-    return () => ro.disconnect();
-  }, []);
 
   /* the focus moves in when the panel appears, so AUTO's keys work at once */
   useEffect(() => {
