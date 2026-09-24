@@ -21,16 +21,6 @@ int help_menu; /* which main-window menu keys go to: MAIN_MENU, FILE_MENU, NUM_M
 char PlotFormat[100];
 int PS_Color = 1;
 
-char SLIDER1VAR[XPP_NAME_MAX+1];
-char SLIDER2VAR[XPP_NAME_MAX+1];
-char SLIDER3VAR[XPP_NAME_MAX+1];
-double SLIDER1LO = 0.0;
-double SLIDER2LO = 0.0;
-double SLIDER3LO = 0.0;
-double SLIDER1HI = 1.0;
-double SLIDER2HI = 1.0;
-double SLIDER3HI = 1.0;
-
 int color_min, color_total, COLOR, color_max;
 
 GRAPH graph[MAXPOP];

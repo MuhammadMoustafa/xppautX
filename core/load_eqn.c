@@ -63,21 +63,13 @@ int nsrand48(int seed);
 char *interopt[MAXOPT];
 int Nopts=0;
 int RunImmediately=0;
+XppSlider sliders[XPP_NSLIDERS] = {{"", 0.0, 1.0}, {"", 0.0, 1.0}, {"", 0.0, 1.0}};
 extern char dll_lib[256];
 extern char dll_fun[256];
 extern int dll_flag;
 
 
 
-extern char SLIDER1VAR[XPP_NAME_MAX+1];
-extern char SLIDER2VAR[XPP_NAME_MAX+1];
-extern char SLIDER3VAR[XPP_NAME_MAX+1];
-extern double SLIDER1LO;
-extern double SLIDER2LO;
-extern double SLIDER3LO;
-extern double SLIDER1HI;
-extern double SLIDER2HI;
-extern double SLIDER3HI;
 
 extern int NCBatch,DFBatch;
 extern int DF_GRID;
@@ -2053,7 +2045,7 @@ if(msc("TUTORIAL",s1)){
  if(msc("S1",s1)){
      if ((notAlreadySet.SLIDER1||force) || ((mask!=NULL)&&(mask->SLIDER1==1)))
      {
-	snprintf(SLIDER1VAR,sizeof(SLIDER1VAR),"%s",s2);
+	snprintf(sliders[0].var,sizeof(sliders[0].var),"%s",s2);
 	notAlreadySet.SLIDER1=0;
      }
     return;
@@ -2062,7 +2054,7 @@ if(msc("TUTORIAL",s1)){
 if(msc("S2",s1)){
      if ((notAlreadySet.SLIDER2||force) || ((mask!=NULL)&&(mask->SLIDER2==1)))
      {
-    	snprintf(SLIDER2VAR,sizeof(SLIDER2VAR),"%s",s2);
+    	snprintf(sliders[1].var,sizeof(sliders[1].var),"%s",s2);
 	notAlreadySet.SLIDER2=0;
      }
     return;
@@ -2070,7 +2062,7 @@ if(msc("S2",s1)){
  if(msc("S3",s1)){
      if ((notAlreadySet.SLIDER3||force) || ((mask!=NULL)&&(mask->SLIDER3==1)))
      {	
-     	snprintf(SLIDER3VAR,sizeof(SLIDER3VAR),"%s",s2);
+     	snprintf(sliders[2].var,sizeof(sliders[2].var),"%s",s2);
 	notAlreadySet.SLIDER3=0;
      }
     return;
@@ -2078,7 +2070,7 @@ if(msc("S2",s1)){
   if(msc("SLO1",s1)){
      if ((notAlreadySet.SLIDER1LO||force) || ((mask!=NULL)&&(mask->SLIDER1LO==1)))
      {
-    	SLIDER1LO=atof(s2);
+    	sliders[0].lo=atof(s2);
 	notAlreadySet.SLIDER1LO=0;
      }
     return;
@@ -2087,7 +2079,7 @@ if(msc("S2",s1)){
 if(msc("SLO2",s1)){
      if ((notAlreadySet.SLIDER2LO||force) || ((mask!=NULL)&&(mask->SLIDER2LO==1)))
      {
-    	SLIDER2LO=atof(s2);
+    	sliders[1].lo=atof(s2);
 	notAlreadySet.SLIDER2LO=0;
      }
     return;
@@ -2095,7 +2087,7 @@ if(msc("SLO2",s1)){
  if(msc("SLO3",s1)){
      if ((notAlreadySet.SLIDER3LO||force) || ((mask!=NULL)&&(mask->SLIDER3LO==1)))
      {
-    	SLIDER3LO=atof(s2);
+    	sliders[2].lo=atof(s2);
 	notAlreadySet.SLIDER3LO=0;
      }
     return;
@@ -2103,7 +2095,7 @@ if(msc("SLO2",s1)){
  if(msc("SHI1",s1)){
      if ((notAlreadySet.SLIDER1HI||force) || ((mask!=NULL)&&(mask->SLIDER1HI==1)))
      {
-    	SLIDER1HI=atof(s2);
+    	sliders[0].hi=atof(s2);
 	notAlreadySet.SLIDER1HI=0;
      }
     return;
@@ -2111,7 +2103,7 @@ if(msc("SLO2",s1)){
  if(msc("SHI2",s1)){
      if ((notAlreadySet.SLIDER2HI||force) || ((mask!=NULL)&&(mask->SLIDER2HI==1)))
      {
-    	SLIDER2HI=atof(s2);
+    	sliders[1].hi=atof(s2);
 	notAlreadySet.SLIDER2HI=0;
      }
     return;
@@ -2119,7 +2111,7 @@ if(msc("SLO2",s1)){
  if(msc("SHI3",s1)){
      if ((notAlreadySet.SLIDER3HI||force) || ((mask!=NULL)&&(mask->SLIDER3HI==1)))
      {
-    	SLIDER3HI=atof(s2);
+    	sliders[2].hi=atof(s2);
 	notAlreadySet.SLIDER3HI=0;
      }
     return;

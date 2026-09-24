@@ -548,15 +548,13 @@ void json_ui_hello(char *title)
     BUF_LIT(&b, "],\"sliders\":[");
     {
         int set[3] = {!notAlreadySet.SLIDER1, !notAlreadySet.SLIDER2, !notAlreadySet.SLIDER3};
-        char *var[3] = {SLIDER1VAR, SLIDER2VAR, SLIDER3VAR};
-        double lo[3] = {SLIDER1LO, SLIDER2LO, SLIDER3LO}, hi[3] = {SLIDER1HI, SLIDER2HI, SLIDER3HI};
         int k = 0;
-        for (i = 0; i < 3; i++) {
+        for (i = 0; i < XPP_NSLIDERS; i++) {
             if (!set[i]) continue;
             if (k++) BUF_LIT(&b, ",");
             BUF_LIT(&b, "{\"name\":");
-            buf_str(&b, var[i]);
-            buf_printf(&b, ",\"lo\":%.16g,\"hi\":%.16g}", lo[i], hi[i]);
+            buf_str(&b, sliders[i].var);
+            buf_printf(&b, ",\"lo\":%.16g,\"hi\":%.16g}", sliders[i].lo, sliders[i].hi);
         }
     }
     /* the model file's values, what `default` restores, in state's order */

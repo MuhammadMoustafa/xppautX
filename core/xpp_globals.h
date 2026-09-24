@@ -35,11 +35,6 @@ extern int AutoFreezeFlag;
 extern char PlotFormat[100];
 extern int PS_Color;
 
-/* sliders */
-extern char SLIDER1VAR[XPP_NAME_MAX+1], SLIDER2VAR[XPP_NAME_MAX+1], SLIDER3VAR[XPP_NAME_MAX+1];
-extern double SLIDER1LO, SLIDER2LO, SLIDER3LO;
-extern double SLIDER1HI, SLIDER2HI, SLIDER3HI;
-
 /* colour table bookkeeping (the X colormap itself stays in color.c) */
 extern int color_min, color_total, COLOR, color_max;
 
