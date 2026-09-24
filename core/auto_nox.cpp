@@ -2,6 +2,7 @@
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
+#include <string>
 #include "numerics.h"
 #include "xpp_globals.h"
 #include "xpp_ui.h"
@@ -76,7 +77,6 @@ char *str(const char *s) { return const_cast<char *>(s); }
 char **strs(const char **s) { return const_cast<char **>(s); }
 } // namespace
 
-#define MAXLINELENGTH 100000
 #define PACK_AUTO 0
 #define PACK_LBF 1
 #define PARAM_BOX 1
@@ -234,7 +234,6 @@ char fort3[200];
 char fort7[200];
 char fort8[200];
 char fort9[200];
-char TMPSWAP[200];
 
 
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
@@ -480,62 +479,44 @@ void renamef(char *old, char *new_name)
  remove(old);
 }
 
-void cat_fp(FILE *fo)
+/* the rest of from, byte for byte, into to */
+static void copy_bytes(FILE *from, FILE *to)
 {
-  int c;  
-  rewind(fo);
-  while((c=getc(fo))!=EOF){
-     xpp_log_auto("%c",c);
-
- }
-}
-void cat_file(char *f)
-{
-  FILE *fo;
-  int c;
-  xpp_log_auto(" cat %s \n", f);
-   fo=fopen(f,"r");
-   while((c=getc(fo))!=EOF){
-     xpp_log_auto("%c",c);
-
- }
-   fclose(fo);
+  char buf[1<<16];
+  size_t n;
+  while((n=fread(buf,1,sizeof buf,from))>0)
+    fwrite(buf,1,n,to);
 }
 
 void copyf(char *old, char *new_name)
 {
- FILE *fo,*fn;
- int c;
+ FILE *fo;
  /* Binary: these files carry AUTO's own line ends and text mode would
     rewrite them. Both opens are checked -- on Windows fopen fails while the
     file is still open elsewhere, and writing into a NULL FILE * left fort.3
-    empty, which AUTO then reported as "Restart label N not found". */
+    empty, which AUTO then reported as "Restart label N not found". The
+    copy goes through a temp file renamed into place (xpp::Writer), so
+    new_name is either the whole copy or left as it was. */
  fo=fopen(old,"rb");
  if(fo==NULL){
    plintf("Cannot read %s \n",old);
    return;
  }
- fn=fopen(new_name,"wb");
- if(fn==NULL){
+ xpp::Writer w=xpp::Writer::binary(new_name);
+ if(!w){
    plintf("Cannot write %s \n",new_name);
    fclose(fo);
    return;
  }
- while((c=getc(fo))!=EOF){
- 	putc(c,fn);
-
- }
+ copy_bytes(fo,w.file());
  fclose(fo);
- fclose(fn);
-
+ w.commit();
 }
 
+/* new_name becomes old's bytes followed by its own */
 void appendf(char *old, char *new_name)
 {
  FILE *fo,*fn;
- FILE *ft;
- int c;
- /*  printf("Appending old=%s new_name=%s\n",old,new_name); */
  fo=fopen(old,"rb");
  if(fo==NULL){
    plintf("Cannot read %s \n",old);
@@ -548,24 +529,20 @@ void appendf(char *old, char *new_name)
      copyf(old,new_name);
      return;
  }
- /* binary, like copyf(): text mode on Windows added a '\r' to every line */
- ft=fopen(TMPSWAP,"wb");
- if(ft==NULL){
-   xpp_log_auto("Can't open %s \n",TMPSWAP);
+ /* binary, like copyf(): text mode on Windows added a '\r' to every line;
+    written beside new_name and renamed over it once whole */
+ xpp::Writer w=xpp::Writer::binary(new_name);
+ if(!w){
+   xpp_log_auto("Can't write %s \n",new_name);
    fclose(fo);
    fclose(fn);
    return;
  }
- while((c=getc(fo))!= EOF)
- 	putc(c,ft);
+ copy_bytes(fo,w.file());
  fclose(fo);
- while((c=getc(fn))!=EOF)
-       putc(c,ft);
+ copy_bytes(fn,w.file());
  fclose(fn);
- fclose(ft);
- copyf(TMPSWAP,new_name);
- deletef(TMPSWAP);
-
+ w.commit();
 }
 void deletef(char *old)
 {
@@ -684,7 +661,6 @@ void open_auto(int flg) /* compatible with new auto */
   XPP_SPRINTF(fort7,"%s/%s",HOME,"fort.7");
   XPP_SPRINTF(fort8,"%s/%s",HOME,"fort.8");
   XPP_SPRINTF(fort9,"%s/%s",HOME,"fort.9");
-  XPP_SPRINTF(TMPSWAP,"%s/%s",HOME,"__tmp__");
   xpp_free(basec); /* HOME may point into dirc: freed after its last use */
   xpp_free(dirc);
   is_3_there=flg;
@@ -2936,8 +2912,6 @@ void load_auto_orbit()
 void save_auto()
 {
 
-  int ok;
-  FILE *fp;
   /*char filename[256];*/
   char filename[XPP_MAX_NAME];
   int status;
@@ -2949,15 +2923,22 @@ void save_auto()
   */
   status=file_selector(str("Save Auto"),filename,str("*.auto"));
   if(status==0)return;
-  open_write_file(&fp,filename,&ok);
-  if(!ok)return;
-  status=save_auto_file(fp);
-  fclose(fp);
+  if(!may_write_file(filename))return;
+  /* written beside filename and renamed over it once whole */
+  xpp::Writer w(filename);
+  if(!w){
+    err_msg(str("Cannot open file"));
+    return;
+  }
+  status=save_auto_file(w.file());
   if(status!=1){
-    /* an empty diagram: say so rather than leave a file without orbits */
+    /* an empty diagram: say so, and leave no file without orbits (nor
+       replace an existing one with it) */
+    w.abort();
     auto_err(str("Empty diagram -- nothing to save"));
     return;
   }
+  w.commit();
 }
 
 /* save_auto without its dialog (xpp_session.c): 1 written, else the
@@ -2992,25 +2973,30 @@ void save_auto_numerics(FILE *fp)
 void load_auto_numerics(FILE *fp)
 {
  int i,in;
- if (fscanf(fp,"%d ",&NAutoPar) != 1) return;
+ /* The fscanf formats this replaces ended in whitespace, which fscanf
+    skipped; the token reader leaves it in the stream, and every read that
+    follows (load_auto_graph, load_diagram) skips it first. */
+ xpp::TokenReader tr=xpp::TokenReader::attach(fp);
+ if (!tr.read(NAutoPar)) return;
  for(i=0;i<NAutoPar;i++){
-   if (fscanf(fp,"%d ",&AutoPar[i]) != 1) return;
+   if (!tr.read(AutoPar[i])) return;
    in=get_param_index(upar_names[AutoPar[i]]);
    Auto_index_to_array[i]=in;
  }
- if (fscanf(fp,"%d ",&NAutoUzr) != 1) return;
+ if (!tr.read(NAutoUzr)) return;
   for(i=0;i<9;i++){
     Auto.nper=NAutoUzr;
-    if (fscanf(fp,"%lg %ld\n",&outperiod[i],&UzrPar[i]) != 2) return;
+    if (!tr.read(outperiod[i]) || !tr.read(UzrPar[i])) return;
     Auto.period[i]=outperiod[i];
     Auto.uzrpar[i]=UzrPar[i];
     /*    printf("%g %d\n",Auto.period[i],Auto.uzrpar[i]); */
   }
 
- if (fscanf(fp,"%d %d %d \n",&Auto.ntst,&Auto.nmx,&Auto.npr) != 3) return;
- if (fscanf(fp,"%lg %lg %lg \n",&Auto.ds,&Auto.dsmin,&Auto.dsmax) != 3) return;
- if (fscanf(fp,"%lg %lg %lg %lg\n",&Auto.rl0,&Auto.rl1,&Auto.a0,&Auto.a1) != 4) return;
- if (fscanf(fp,"%d %d %d %d %d %d %d\n",&aauto.iad,&aauto.mxbf,&aauto.iid,&aauto.itmx,&aauto.itnw,&aauto.nwtn,&aauto.iads) != 7) return;
+ if (!tr.read(Auto.ntst) || !tr.read(Auto.nmx) || !tr.read(Auto.npr)) return;
+ if (!tr.read(Auto.ds) || !tr.read(Auto.dsmin) || !tr.read(Auto.dsmax)) return;
+ if (!tr.read(Auto.rl0) || !tr.read(Auto.rl1) || !tr.read(Auto.a0) || !tr.read(Auto.a1)) return;
+ if (!tr.read(aauto.iad) || !tr.read(aauto.mxbf) || !tr.read(aauto.iid) || !tr.read(aauto.itmx)
+     || !tr.read(aauto.itnw) || !tr.read(aauto.nwtn) || !tr.read(aauto.iads)) return;
 }
 
 void save_auto_graph(FILE *fp)
@@ -3021,46 +3007,47 @@ void save_auto_graph(FILE *fp)
 
 void load_auto_graph(FILE *fp)
 {
-  if (fscanf(fp,"%lg %lg %lg %lg %d %d \n",&Auto.xmin,&Auto.ymin,&Auto.xmax,&Auto.ymax,
-	&Auto.var,&Auto.plot) != 6) return;
+  xpp::TokenReader tr=xpp::TokenReader::attach(fp);
+  if (!tr.read(Auto.xmin) || !tr.read(Auto.ymin) || !tr.read(Auto.xmax) || !tr.read(Auto.ymax)
+      || !tr.read(Auto.var) || !tr.read(Auto.plot)) return;
 }
   
 void save_q_file(FILE *fp) /* I am keeping the name q_file even though they are s_files */
 {
   char string[500];
-  FILE *fq;
   XPP_SPRINTF(string,"%s.s",this_auto_file);
-  fq=fopen(string,"r");
-  if(fq==NULL){
+  xpp::LineReader lr(string);
+  if(!lr){
     auto_err(str("Couldnt open s-file"));
     return;
   }
-  /* while(!feof) wrote the last line twice */
-  while(fgets(string,500,fq)!=NULL){
-    fputs(string,fp);
+  while(auto line=lr.next()){
+    fwrite(line->data(),1,line->size(),fp);
+    fputc('\n',fp);
   }
-  fclose(fq);
 }
 
 void make_q_file(FILE *fp)
 {
   char string[500];
-  FILE *fq;
   XPP_SPRINTF(string,"%s.s",this_auto_file);
-  fq=fopen(string,"w");
-
-  if(fq==NULL){
+  /* written beside the .s and renamed over it once whole */
+  xpp::Writer w(string);
+  if(!w){
     auto_err(str("Couldnt open s-file"));
     return;
   }
 
-  /* while(!feof) read the last line twice */
-  while(fgets(string,500,fp)!=NULL){
-    if(!noinfo(string)){
-      fputs(string,fq);
+  /* the rest of fp, the .auto's copy of the .s, without its blank lines */
+  xpp::LineReader lr=xpp::LineReader::attach(fp);
+  while(auto line=lr.next()){
+    std::string l(*line);
+    if(!noinfo(l.data())){
+      l+='\n';
+      fwrite(l.data(),1,l.size(),w.file());
     }
   }
-  fclose(fq);
+  w.commit();
 }
   
 int noinfo(char *s) /* get rid of any blank lines  */
@@ -3116,12 +3103,14 @@ int load_auto_file(FILE *fp)
 
 int move_to_label(int mylab, int *nrow, int *ndim, FILE *fp)
 {
-  int ibr,ntot,itp,lab,nfpar,isw,ntpl,nar,nskip;
+  int ibr=0,ntot=0,itp=0,lab=0,nfpar=0,isw=0,ntpl=0,nar=0,nskip=0;
   int i;
-  char line[MAXLINELENGTH];
-  while(1){
-    if(fgets(line,MAXLINELENGTH,fp)==NULL)break;
-    sscanf(line,"%d%d %d %d %d %d %d %d %d",
+  /* attached to fp: the rows after the label line found are get_a_row()'s */
+  xpp::LineReader lr=xpp::LineReader::attach(fp);
+  while(auto line=lr.next()){
+    /* the label line's "%5ld" columns may touch: sscanf reads them apart */
+    std::string l(*line);
+    sscanf(l.c_str(),"%d%d %d %d %d %d %d %d %d",
 	   &ibr,&ntot,&itp,&lab,&nfpar,&isw,&ntpl,&nar,&nskip);
     if(mylab==lab){
       *nrow=ntpl;
@@ -3129,8 +3118,7 @@ int move_to_label(int mylab, int *nrow, int *ndim, FILE *fp)
       return(1);
     }
     for(i=0;i<nskip;i++)
-      if(fgets(line,MAXLINELENGTH,fp)==NULL)break;
-    if(feof(fp))break;
+      if(!lr.next())break;
   }
   return(0);
 }
@@ -3138,9 +3126,10 @@ int move_to_label(int mylab, int *nrow, int *ndim, FILE *fp)
 void get_a_row(double *u, double *t, int n, FILE *fp)
  {
    int i;
-   if (fscanf(fp,"%lg ",t) != 1) return;
+   xpp::TokenReader tr=xpp::TokenReader::attach(fp);
+   if (!tr.read(*t)) return;
    for(i=0;i<n;i++)
-     if (fscanf(fp,"%lg ",&u[i]) != 1) return;
+     if (!tr.read(u[i])) return;
  }
 
 

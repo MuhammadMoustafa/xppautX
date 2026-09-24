@@ -71,6 +71,9 @@ void data_unreplace(BROWSER *b);
 void data_table(BROWSER *b);
 void data_find(BROWSER *b);
 void open_write_file(FILE **fp, char *fil, int *ok);
+/* open_write_file's question alone, for a writer (xpp_io.h) that opens
+   the file itself: 1 when fil does not exist yet or may be overwritten */
+int may_write_file(const char *fil);
 void data_read(BROWSER *b);
 void data_write(BROWSER *b);
 void data_left(BROWSER *b);

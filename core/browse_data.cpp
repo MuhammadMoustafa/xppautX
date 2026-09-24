@@ -156,17 +156,20 @@ void init_browser()
 
 }
 
+int may_write_file(const char *fil)
+{
+ FILE *fp=fopen(fil,"r");
+ if(fp==NULL)return 1;
+ fclose(fp);
+ return (char)TwoChoice(str("Yes"),str("No"),
+		str("File Exists! Overwrite?"),str("yn"))=='y';
+}
+
 void open_write_file(FILE **fp, char *fil, int *ok)
 {
- char ans;
  *ok=0;
- *fp=fopen(fil,"r");
-	if(*fp!=NULL){
-		fclose(*fp);
-		ans=(char)TwoChoice(str("Yes"),str("No"),
-		str("File Exists! Overwrite?"),str("yn"));
-		if(ans!='y')return;
-		}
+ *fp=NULL;
+ if(!may_write_file(fil))return;
 
 			*fp=fopen(fil,"w");
 			if(*fp==NULL){
