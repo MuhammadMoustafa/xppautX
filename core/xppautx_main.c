@@ -132,7 +132,7 @@ static void init_main_graph(void)
         grob[i].use = 0;
     }
     init_bd();
-    for (i = 0; i < MAXFRZ; i++) frz[i].use = 0;
+    for (i = 0; i < MAXFRZ; i++) frozen_curves.curve[i].use = 0;
     for (i = 0; i < MAXPOP; i++) plot_windows.graph[i].Use = 0;
     plot_windows.open[0] = 0;
     init_all_graph();

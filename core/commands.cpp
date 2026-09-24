@@ -458,7 +458,7 @@ void add_a_curve(void)
   if (i < 0) return;
   switch (menu_curves.keys[i]) {
   case 'f':
-    j = menu_pick(AutoFreezeFlag == 0 ? &menu_freeze : &menu_freeze_off, 0);
+    j = menu_pick(frozen_curves.auto_freeze == 0 ? &menu_freeze : &menu_freeze_off, 0);
     if (j < 0) break;
     if (menu_freeze.keys[j] == 'k') {
       j = menu_pick(&menu_freeze_key, 0);

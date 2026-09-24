@@ -61,6 +61,7 @@ MOV3D mov3d = { "theta","N",45,45,7};
 
 
 BD my_bd;
+XppFrozenCurves frozen_curves;
 
 extern int DLeft,DRight,DTop,DBottom,VTic,HTic,VChar,HChar;
 
@@ -1018,7 +1019,7 @@ void freeze_com(int c)
    free_bd();
    break;
  case 7:
-   AutoFreezeFlag=1-AutoFreezeFlag;
+   frozen_curves.auto_freeze=1-frozen_curves.auto_freeze;
    break;
    
  }
@@ -1046,11 +1047,11 @@ void draw_freeze_key()
   ix2=ix+4*HChar;
   y0=iy;
   for(i=0;i<MAXFRZ;i++){
-    if(frz[i].use==1&&frz[i].w==plot_windows.draw_win&&strlen(frz[i].key)>0){
-      set_linestyle(abs(frz[i].color));
+    if(frozen_curves.curve[i].use==1&&frozen_curves.curve[i].w==plot_windows.draw_win&&strlen(frozen_curves.curve[i].key)>0){
+      set_linestyle(abs(frozen_curves.curve[i].color));
       line(ix,y0,ix2,y0);
       set_linestyle(0);
-      put_text(ix2+HChar,y0,frz[i].key);
+      put_text(ix2+HChar,y0,frozen_curves.curve[i].key);
       y0+=dy;
     }
   }
@@ -1085,14 +1086,14 @@ void edit_frz()
 void delete_frz_crv(i)
      int i;
 {
-  if(frz[i].use==0)return;
-  frz[i].use=0;
-  frz[i].name[0]=0;
-  frz[i].key[0]=0;
-  xpp_free(frz[i].xv);
-  xpp_free(frz[i].yv);
-  if(frz[i].type>0)
-    xpp_free(frz[i].zv);
+  if(frozen_curves.curve[i].use==0)return;
+  frozen_curves.curve[i].use=0;
+  frozen_curves.curve[i].name[0]=0;
+  frozen_curves.curve[i].key[0]=0;
+  xpp_free(frozen_curves.curve[i].xv);
+  xpp_free(frozen_curves.curve[i].yv);
+  if(frozen_curves.curve[i].type>0)
+    xpp_free(frozen_curves.curve[i].zv);
 }
 
 void delete_frz()
@@ -1108,7 +1109,7 @@ void kill_frz()
 {
   int i;
   for(i=0;i<MAXFRZ;i++){
-    if(frz[i].use==1&&frz[i].w==plot_windows.draw_win)
+    if(frozen_curves.curve[i].use==1&&frozen_curves.curve[i].w==plot_windows.draw_win)
       delete_frz_crv(i);
   }
 }
@@ -1125,7 +1126,7 @@ int freeze_crv(ind)
 
 void auto_freeze_it()
 {
-  if(AutoFreezeFlag==0)return;
+  if(frozen_curves.auto_freeze==0)return;
   create_crv(0);
 }
 
@@ -1136,7 +1137,7 @@ int ind;
   int ix,iy,iz;
 
   for(i=0;i<MAXFRZ;i++){
-    if(frz[i].use==0){
+    if(frozen_curves.curve[i].use==0){
       ix=plot_windows.current->xv[ind];
       iy=plot_windows.current->yv[ind];
       iz=plot_windows.current->zv[ind];
@@ -1144,26 +1145,26 @@ int ind;
 	err_msg("No Curve to freeze");
 	return(-1);
       }
-      frz[i].xv=(float *) xpp_malloc(sizeof(float)*my_browser.maxrow);
-      frz[i].yv=(float *) xpp_malloc(sizeof(float)*my_browser.maxrow);
+      frozen_curves.curve[i].xv=(float *) xpp_malloc(sizeof(float)*my_browser.maxrow);
+      frozen_curves.curve[i].yv=(float *) xpp_malloc(sizeof(float)*my_browser.maxrow);
       if((type=plot_windows.current->grtype)>0)
-	frz[i].zv=(float *)xpp_malloc(sizeof(float)*my_browser.maxrow);
-      if ((type>0&&frz[i].zv==NULL)|| (type==0&&frz[i].yv==NULL)){
+	frozen_curves.curve[i].zv=(float *)xpp_malloc(sizeof(float)*my_browser.maxrow);
+      if ((type>0&&frozen_curves.curve[i].zv==NULL)|| (type==0&&frozen_curves.curve[i].yv==NULL)){
 	err_msg("Cant allocate storage for curve");
 	return(-1);
       }
-      frz[i].use=1;
-      frz[i].len=my_browser.maxrow;
+      frozen_curves.curve[i].use=1;
+      frozen_curves.curve[i].len=my_browser.maxrow;
       for(j=0;j<my_browser.maxrow;j++){
-	frz[i].xv[j]=my_browser.data[ix][j];
-	frz[i].yv[j]=my_browser.data[iy][j];
+	frozen_curves.curve[i].xv[j]=my_browser.data[ix][j];
+	frozen_curves.curve[i].yv[j]=my_browser.data[iy][j];
 	if(type>0)
-	  frz[i].zv[j]=my_browser.data[iz][j];
+	  frozen_curves.curve[i].zv[j]=my_browser.data[iz][j];
       }
-      frz[i].type=type;
-      frz[i].w=plot_windows.draw_win;
-      XPP_SPRINTF(frz[i].name,"crv%c",'a'+i);
-      XPP_SPRINTF(frz[i].key,"crv%c",'a'+i);
+      frozen_curves.curve[i].type=type;
+      frozen_curves.curve[i].w=plot_windows.draw_win;
+      XPP_SPRINTF(frozen_curves.curve[i].name,"crv%c",'a'+i);
+      XPP_SPRINTF(frozen_curves.curve[i].key,"crv%c",'a'+i);
       marks_data_frozen_new(i); /* the window shows it: it is its current curve */
       return(i);
     }
@@ -1179,14 +1180,14 @@ void edit_frz_crv(i)
  static char *nn[]={"*4Color","Key","Name"};
  char values[3][MAX_LEN_SBOX];
  int status;
- XPP_SPRINTF(values[0],"%d",frz[i].color);
- XPP_SPRINTF(values[1],"%s",frz[i].key);
- XPP_SPRINTF(values[2],"%s",frz[i].name);
+ XPP_SPRINTF(values[0],"%d",frozen_curves.curve[i].color);
+ XPP_SPRINTF(values[1],"%s",frozen_curves.curve[i].key);
+ XPP_SPRINTF(values[2],"%s",frozen_curves.curve[i].name);
  status=do_string_box(3,3,1,"Edit Freeze",nn,values,25);
  if(status!=0){
-   frz[i].color=atoi(values[0]);
-   snprintf(frz[i].key,sizeof(frz[i].key),"%.19s",values[1]);
-   snprintf(frz[i].name,sizeof(frz[i].name),"%.9s",values[2]);
+   frozen_curves.curve[i].color=atoi(values[0]);
+   snprintf(frozen_curves.curve[i].key,sizeof(frozen_curves.curve[i].key),"%.19s",values[1]);
+   snprintf(frozen_curves.curve[i].name,sizeof(frozen_curves.curve[i].name),"%.9s",values[2]);
  }
 }
 
@@ -1207,22 +1208,22 @@ XppWinId w;
   for(i=0;i<MAXNCLINE;i++)
     draw_frozen_cline(i,w);
   for(i=0;i<MAXFRZ;i++){
-    if(frz[i].use==1&&frz[i].w==w&&frz[i].type==type){
+    if(frozen_curves.curve[i].use==1&&frozen_curves.curve[i].w==w&&frozen_curves.curve[i].type==type){
       if(type==0)marks_data_frozen(w,i); /* the curve as data */
-      if(frz[i].color<0){
-	set_linestyle(-frz[i].color);
+      if(frozen_curves.curve[i].color<0){
+	set_linestyle(-frozen_curves.curve[i].color);
 	lt=1;
       }
       else
-	set_linestyle(frz[i].color);
-      xv=frz[i].xv;
-      yv=frz[i].yv;
-      zv=frz[i].zv;
+	set_linestyle(frozen_curves.curve[i].color);
+      xv=frozen_curves.curve[i].xv;
+      yv=frozen_curves.curve[i].yv;
+      zv=frozen_curves.curve[i].zv;
       oldxpl=xv[0];
       oldypl=yv[0];
       if(type>0)
 	oldzpl=zv[0];
-      for(j=0;j<frz[i].len;j++){
+      for(j=0;j<frozen_curves.curve[i].len;j++){
 	xpl=xv[j];
 	ypl=yv[j];
 	if(type>0)
@@ -1388,10 +1389,10 @@ int get_frz_index(w)
   int i;
   int count=0;
   for(i=0;i<MAXFRZ;i++){
-    if(frz[i].use==1&&w==frz[i].w){
+    if(frozen_curves.curve[i].use==1&&w==frozen_curves.curve[i].w){
 	n[count]=(char *)xpp_malloc(20);
       /* n[count] is a pointer, allocated 20 bytes just above. */
-      xpp_snprintf(n[count],20,"%s",frz[i].name);
+      xpp_snprintf(n[count],20,"%s",frozen_curves.curve[i].name);
       key[count]='a'+i;
       
       count++;

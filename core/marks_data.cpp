@@ -23,6 +23,7 @@
 #include "xpp_globals.h"
 #include "xpp_mem.h"
 #include "many_pops.h"
+#include "graf_par.h"
 
 namespace {
 
@@ -51,7 +52,7 @@ struct Record {
     std::vector<Equilibrium> eqs;
     std::map<int, std::string> labels;    /* lb[] slot -> the text drawn */
     std::vector<bool> grobs;              /* grob[] slots drawn */
-    std::map<int, unsigned long> frozen;  /* frz[] slot -> its generation */
+    std::map<int, unsigned long> frozen;  /* frozen_curves.curve[] slot -> its generation */
 };
 
 struct Label {
@@ -76,7 +77,7 @@ struct Grob {
 };
 
 /* a frozen curve's values stay those of its generation: they are read
-   from frz[slot] when sent */
+   from frozen_curves.curve[slot] when sent */
 struct Frozen {
     int slot;
     unsigned long gen;
@@ -108,7 +109,7 @@ struct Window {
 };
 
 Window windows[MAXPOP];
-unsigned long generation[MAXFRZ]; /* bumped when frz[slot] is made */
+unsigned long generation[MAXFRZ]; /* bumped when frozen_curves.curve[slot] is made */
 unsigned long generations;
 
 /* the plot window drawn into as w, or -1 */
@@ -289,7 +290,7 @@ void send_marks(int pop, const Content &c)
     o += "],\"frozen\":[";
     for (std::size_t k = 0; k < c.frozen.size(); k++) {
         const Frozen &f = c.frozen[k];
-        const CURVE &z = frz[f.slot];
+        const CURVE &z = frozen_curves.curve[f.slot];
         o += k ? ",{\"key\":" : "{\"key\":";
         add_text(o, f.key.c_str());
         o += ",\"name\":";
@@ -323,7 +324,7 @@ Content content_of(int pop, const Record &r)
         if (r.grobs[i] && g.use == 1 && g.w == w) c.grobs.push_back({g.type, g.color, g.xs, g.ys, g.xe, g.ye, g.size});
     }
     for (const auto &e : r.frozen) {
-        const CURVE &z = frz[e.first];
+        const CURVE &z = frozen_curves.curve[e.first];
         if (z.use == 1 && z.w == w && z.type == 0 && e.second == generation[e.first] && z.xv && z.yv)
             c.frozen.push_back({e.first, e.second, z.color, z.len, z.key, z.name});
     }
@@ -425,5 +426,5 @@ extern "C" void marks_data_frozen_new(int slot)
 {
     if (!emit_line || slot < 0 || slot >= MAXFRZ) return;
     generation[slot] = ++generations;
-    marks_data_frozen(frz[slot].w, slot);
+    marks_data_frozen(frozen_curves.curve[slot].w, slot);
 }

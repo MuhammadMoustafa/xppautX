@@ -18,7 +18,7 @@ extern "C" {
    As phase_data.h does for nullclines, each window's record is what the
    core drew in it since it was last blanked: the drawing code reports what
    it draws, the front end reports a blanked window. Labels, graphic
-   objects and frozen curves are kept by their slot (lb[], grob[], frz[]),
+   objects and frozen curves are kept by their slot (lb[], grob[], frozen_curves.curve[]),
    so drawing one again changes nothing, and at the end of a command a slot
    no longer in use (deleted) or moved to another window is left out; their
    content is read from the slot then. Events go out only to a client that
@@ -53,7 +53,7 @@ void marks_data_label(XppWinId w, int slot, const char *text);
 /* window w shows graphic object grob[slot] */
 void marks_data_grob(XppWinId w, int slot);
 
-/* window w shows frozen curve frz[slot]; frozen_new: frz[slot] was just
+/* window w shows frozen curve frozen_curves.curve[slot]; frozen_new: it was just
    made (a new curve, even in a slot used before), in the window it names */
 void marks_data_frozen(XppWinId w, int slot);
 void marks_data_frozen_new(int slot);

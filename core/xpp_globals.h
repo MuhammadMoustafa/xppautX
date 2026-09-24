@@ -27,8 +27,6 @@ extern OptionsSet notAlreadySet;
 
 extern int help_menu;
 extern int ks_ncycle, ks_speed;
-extern CURVE frz[MAXFRZ];
-extern int AutoFreezeFlag;
 
 /* appearance options parsed from the ODE file / command line */
 extern char PlotFormat[100];

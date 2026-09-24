@@ -18,9 +18,17 @@
 
 #include <stdio.h>
 #include "xpp_types.h"
+#include "struct.h" /* CURVE, MAXFRZ */
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* The frozen curves of every plot window (Graphic stuff > Freeze) */
+typedef struct {
+    CURVE curve[MAXFRZ]; /* .use: the slot holds one; .w: its window */
+    int auto_freeze;     /* freeze the curve after every integration */
+} XppFrozenCurves;
+extern XppFrozenCurves frozen_curves;
 
 typedef struct {
   char angle[20];
