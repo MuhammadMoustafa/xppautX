@@ -13,6 +13,13 @@ case "$platform" in
 esac
 [ -f "xppautX$suffix" ] || { echo "package_release: xppautX$suffix has not been built" >&2; exit 1; }
 cp "xppautX$suffix" "build/$name/"
+# strip debug info from the archived copy only (the build itself, and any
+# local build, keeps -g); macOS's strip needs -x to keep it a valid,
+# re-signable Mach-O executable (it has no other symbol table to trim).
+case "$platform" in
+  macos-*) strip -x "build/$name/xppautX$suffix" ;;
+  *) strip "build/$name/xppautX$suffix" ;;
+esac
 cp LICENSE "build/$name/"
 [ -f CITATION.cff ] && cp CITATION.cff "build/$name/"
 mkdir -p "build/$name/examples" && cp examples/ode/lecar.ode "build/$name/examples/"

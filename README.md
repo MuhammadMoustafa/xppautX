@@ -284,7 +284,9 @@ Tagging `v*` runs `.github/workflows/release.yml`, which builds xppautX
 on Linux, Windows and macOS (arm64 and x64), checks each build with
 `tools/servercheck.py` and `tools/webcheck.py`, and attaches one archive per
 platform plus the source of those binaries to the GitHub release.
-`tools/package_release.sh PLATFORM` makes such an archive locally.
+`tools/package_release.sh PLATFORM` makes such an archive locally, stripping
+debug info from the binary it packages so the download is smaller (a local
+build with `make xppautx` keeps it: `OPT` defaults to `-g -O2`).
 
 The macOS and Windows binaries are not signed, so those systems ask the user
 to allow them the first time; "Installing a release" above says what to
