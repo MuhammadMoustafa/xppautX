@@ -86,6 +86,26 @@ Windows API code lives only in `core/xpp_win32.c` (windows.h macros clash
 with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
 `strupr`/`strlwr` are renamed on Windows in parserslow.h.
 
+## Task agents
+
+Work is run as a task board (docs/roadmap.md, docs/ui-v2.md). An agent
+(.claude/agents/task-easy, task, task-hard: the model and effort by
+difficulty) implements one card in the worktree its brief names:
+
+- Work only there, with every path in this file adapted to it; commit on
+  its branch and stop. Never merge, push, touch master, or write to GitHub.
+- Gates: the per-task tier above. Iterate with `web2check --only <your
+  sections>`; never run the full web2check or tools/asancheck.sh.
+- Keep token use low: read the parts of files you need (grep, `sed -n`
+  ranges), pipe check output through tail/grep, never paste full logs.
+- Leave no `until`/`while` sleep loops or background runs behind.
+- Final report: at most 15 lines: what changed, gate results as counts,
+  anything unfinished or doubtful.
+
+The reviewer (the main session) reviews, refactors, merges, runs the
+5-task tier, pushes when the user says so, and then closes the finished
+cards' issues (above). A new roadmap card gets its GitHub issue at once.
+
 ## Architecture of the split (phase 2)
 
 - `core/xpp_ui.h` is the seam: an `XppUi` table of callbacks. Core code
