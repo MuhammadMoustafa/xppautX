@@ -7,6 +7,7 @@
 #include "xpp_ui.h" /* err_msg() */
 #include "auto_nox.h" /* auto_screen_col() */
 #include "xpp_job.h" /* xppautX: cancel */
+#include "auto_stop.h" /* xppautX: why a branch ended (T23) */
 extern XAUTO xAuto;
 extern int NODE;
 extern int RestartLabel;
@@ -1536,6 +1537,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     fprintf(fp9,"%4li%6li NOTE:No convergence with fixed step size\n",ibr,ntop);
   }
   if (iads == 0) {
+    auto_stop_noconv(AUTO_STOP_NOCONV_FIXED, *rds, dsmin); /* xppautX: T23 */
     goto L5;
   }
 
@@ -1562,6 +1564,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   if (iap->mynode == 0) {
     fprintf(fp9,"%4li%6li NOTE:No convergence using minimum step size\n",ibr,ntop);
   }
+  auto_stop_noconv(AUTO_STOP_NOCONV_MIN, *rds, dsmin); /* xppautX: T23 */
  L5:
   rlcur[0] = rlold[0];
   par[icp[0]] = rlcur[0];
@@ -2428,9 +2431,10 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
   /* Maximum number of iterations reached. Reduce stepsize and try again. */
 
   if (iads == 0 && iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li NOTE:No convergence when switching branches with fixed step size\n",ibr,ntop);	
+    fprintf(fp9,"%4li%6li NOTE:No convergence when switching branches with fixed step size\n",ibr,ntop);
   }
   if (iads == 0) {
+    auto_stop_noconv(AUTO_STOP_NOCONV_SWITCH_FIXED, *rds, dsmin); /* xppautX: T23 */
     goto L5;
   }
 
@@ -2453,8 +2457,9 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
 
  L4:
   if (iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li NOTE:No convergence when switching branches with minimum step size\n",ibr,ntop);	
+    fprintf(fp9,"%4li%6li NOTE:No convergence when switching branches with minimum step size\n",ibr,ntop);
   }
+  auto_stop_noconv(AUTO_STOP_NOCONV_SWITCH_MIN, *rds, dsmin); /* xppautX: T23 */
  L5:
   rlcur[0] = rlold[0];
   par[icp[0]] = rlcur[0];
@@ -2732,6 +2737,7 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   doublereal amp;
   integer ips, itp, npr, isw, nmx;
   int iflag=0;
+  AutoStopAt stop_at = {0}; /* xppautX: T23 */
 
 
 
@@ -2823,16 +2829,18 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     amp = sqrt(ss);
   }
   rap->amp = amp;
-  byeauto_(&iflag); 
+  byeauto_(&iflag);
   istop = iap->istop;
   /* xppautX: cancel: a point the solve reached is stored as it is; the next
      solve sees the cancel and ends the branch with an EP repeating it, so a
      cancel always ends the same way, wherever it came (xpp_job.h, replay) */
   if (istop == 0 && xpp_job_cancelled()) iflag = 0;
+  stop_at.user = iflag == 1 || istop == 1; /* xppautX: T23, unless MX or UZR below */
   if (istop == 1 && !xpp_job_cancelled()) { /* xppautX: cancel: EP, not MX */
     /*        Maximum number of iterations reached somewhere. */
     itp = -9 - itpst * 10;
     iap->itp = itp;
+    stop_at.noconv = 1, stop_at.user = 0;
   } else if (istop == -1) {
     /*        ** UZR endpoint */
     itp = itpst * 10 + 9;
@@ -2865,10 +2873,17 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     }
   }
   addbif(iap,rap,ntots,iap->ibr,par,icp,labw,&amp, u, u, u, u);
-  /* addbif_(ibr, ntot, itp, labw, 
+  /* addbif_(ibr, ntot, itp, labw,
    npar,amp, u, u, u, u,ndim);  */
-  wrline(iap, rap, par, icp, &icp[NPARX], &ibr, &ntots, 
+  wrline(iap, rap, par, icp, &icp[NPARX], &ibr, &ntots,
 	 &labw, &amp, u);
+  if (iap->istop != 0) { /* xppautX: why the branch ended (auto_stop.h, T23) */
+    stop_at.br = ibr, stop_at.pt = ntot, stop_at.ipar = icp[0], stop_at.par = rlcur[0], stop_at.norm = amp;
+    stop_at.rl0 = rl0, stop_at.rl1 = rl1, stop_at.a0 = a0, stop_at.a1 = a1, stop_at.nmx = nmx;
+    stop_at.mark = iap->istop == -1;
+    if (stop_at.mark) stop_at.user = 0;
+    auto_stop_branch_end(&stop_at);
+  }
   
 
   /* Write restart information for multi-parameter analysis : */
@@ -5740,9 +5755,10 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
  L3:
   if (iads == 0 && iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li NOTE:No convergence with fixed step size\n",ibr,ntop);	
+    fprintf(fp9,"%4li%6li NOTE:No convergence with fixed step size\n",ibr,ntop);
   }
   if (iads == 0) {
+    auto_stop_noconv(AUTO_STOP_NOCONV_FIXED, *rds, dsmin); /* xppautX: T23 */
     goto L13;
   }
 
@@ -5773,9 +5789,10 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
  L12:
   if (iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li, NOTE:No convergence using minimum step size\n",ibr,ntop);	
+    fprintf(fp9,"%4li%6li, NOTE:No convergence using minimum step size\n",ibr,ntop);
 
   }
+  auto_stop_noconv(AUTO_STOP_NOCONV_MIN, *rds, dsmin); /* xppautX: T23 */
  L13:
   for (i = 0; i < nfpr; ++i) {
     rlcur[i] = rlold[i];
@@ -6996,6 +7013,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     /* Local variables */
   integer labw, ndim, ibrs, nins, iplt, itmp, jtmp, ntot;
   int iflag=0;
+  AutoStopAt stop_at = {0}; /* xppautX: T23 */
   integer i;
   double u_high[1000],u_low[1000],u_0[1000],u_bar[1000];
   doublereal a0, a1;
@@ -7100,10 +7118,12 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   byeauto_(&iflag);
   istop = iap->istop;
   if (istop == 0 && xpp_job_cancelled()) iflag = 0; /* xppautX: cancel: as in stplae */
+  stop_at.user = iflag == 1 || istop == 1; /* xppautX: T23, unless MX or UZR below */
   if (istop == 1 && !xpp_job_cancelled()) { /* xppautX: cancel: EP, not MX */
     /*        ** Maximum number of iterations reached somewhere. */
     itp = -9 - itpst * 10;
     iap->itp = itp;
+    stop_at.noconv = 1, stop_at.user = 0;
   } else if (istop == -1) {
     /*        ** UZR endpoint */
     itp = itpst * 10 + 9;
@@ -7169,6 +7189,13 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   
   wrline(iap, rap, par, icp, &icp[jtmp], &ibrs, &ntots,
 	 &labw, &amp, umx);
+  if (iap->istop != 0) { /* xppautX: why the branch ended (auto_stop.h, T23) */
+    stop_at.br = ibr, stop_at.pt = ntot, stop_at.ipar = icp[0], stop_at.par = par[icp[0]], stop_at.norm = amp;
+    stop_at.rl0 = rl0, stop_at.rl1 = rl1, stop_at.a0 = a0, stop_at.a1 = a1, stop_at.nmx = nmx;
+    stop_at.mark = iap->istop == -1;
+    if (stop_at.mark) stop_at.user = 0;
+    auto_stop_branch_end(&stop_at);
+  }
 
   /* Write plotting and restart data on unit 8. */
 

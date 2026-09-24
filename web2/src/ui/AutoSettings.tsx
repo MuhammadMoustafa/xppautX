@@ -7,11 +7,13 @@
    again and says why it refuses one (a notification, and the dialog's
    error when it is open). Follows the app's dialog pattern (AskDialog.tsx,
    SliderDialog.tsx): modal, focus in, Tab cycles and selects a field's
-   text, Escape cancels, the focus goes back where it was. */
+   text, Escape cancels, the focus goes back where it was. T23: each Numerics
+   field has a plain name with AUTO's short one, its help as a tooltip, and
+   its message beside it; OK waits until every value is AUTO's. */
 import type {ComponentChildren} from 'preact';
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {
-  fieldOf, NUM_FIELDS, NUM_GROUPS, numError, pairError, pendingFields, shownSettings, type AutoSettings, type NumKey,
+  fieldOf, NUM_FIELDS, NUM_GROUPS, numError, pairErrors, pendingFields, shownSettings, type AutoSettings, type NumKey,
 } from '../store/autoSettings';
 import {useSession, useStore} from './context';
 
@@ -108,7 +110,9 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
   const errors = Object.fromEntries(NUM_FIELDS.map(f => [f.key, numError(f.key, texts[f.key] ?? '')]));
   const anyError = NUM_FIELDS.some(f => errors[f.key]);
   const values = Object.fromEntries(NUM_FIELDS.map(f => [f.key, Number(texts[f.key])])) as Record<NumKey, number>;
-  const pairs = anyError ? null : pairError(values);
+  /* T23: the values that must agree (DSMIN <= |DS| <= DSMAX, the limits in order), each by its field */
+  const pairMessages: Partial<Record<NumKey, string>> = anyError ? {} : pairErrors(values);
+  const pairs = Object.keys(pairMessages).length > 0;
   const ok = () => {
     if (anyError || pairs) return;
     const changed = NUM_FIELDS.filter(f => values[f.key] !== shown.numerics[f.key]);
@@ -123,10 +127,11 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
           <fieldset key={g.title} class="form-grid auto-num-group">
             <legend>{g.title}</legend>
             {g.keys.map((k, i) => {
-              const f = fieldOf(k), err = errors[k], queued = pending.has(`numerics.${k}`);
+              const f = fieldOf(k), err = errors[k] ?? pairMessages[k], queued = pending.has(`numerics.${k}`);
               return (
-                <label key={k} class={queued ? 'queued' : undefined} title={queued ? 'Sent when the running command ends' : f.hint}>
-                  <span>{f.label}</span>
+                <label key={k} class={queued ? 'queued' : undefined}
+                  title={queued ? `${f.help} (Sent when the running command ends.)` : f.help}>
+                  <span>{f.name}</span>
                   <input type="text" inputMode={f.integer ? 'numeric' : 'decimal'} value={texts[k]} data-field={k}
                     data-queued={queued ? '1' : undefined} aria-invalid={err ? 'true' : undefined}
                     aria-describedby={err ? `auto-num-${k}-err` : undefined}
@@ -139,9 +144,8 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
           </fieldset>
         ))}
       </form>
-      {pairs && <p class="field-error" role="alert">{pairs}</p>}
       <Status pending={anyPending} />
-      <Actions onClose={onClose} ok={ok} disabled={anyError || !!pairs} />
+      <Actions onClose={onClose} ok={ok} disabled={anyError || pairs} />
     </Modal>
   );
 }

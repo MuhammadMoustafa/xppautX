@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {
-  formatSettings, mergePatch, NUM_FIELDS, numError, pairError, parseSettings, pendingFields, plainName, setCommand,
+  formatSettings, mergePatch, NUM_FIELDS, numError, pairError, pairErrors, parseSettings, pendingFields, plainName, setCommand,
   shownSettings, type AutoSettings,
 } from '../src/store/autoSettings';
 import {initialState, reduce, type AppState} from '../src/store/state';
@@ -60,16 +60,29 @@ test("a refused set: the core's error is the forms', until the next edit", () =>
 
 test("the core's rules, in the page", () => {
   assert.equal(NUM_FIELDS.length, 22);
-  assert.equal(numError('ncol', '8'), 'Ncol must be a whole number from 2 to 7');
-  assert.equal(numError('ntst', '2.5'), 'Ntst must be a whole number');
-  assert.equal(numError('ntst', '0'), 'Ntst must be a whole number of at least 1');
-  assert.equal(numError('ds', '0'), 'Ds must be a number other than 0');
-  assert.equal(numError('dsmin', '-1'), 'Dsmin must be a number above 0');
-  assert.equal(numError('rl0', 'x'), 'Par Min must be a number');
+  assert.equal(numError('ncol', '8'), 'Collocation points (NCOL) must be a whole number from 2 to 7');
+  assert.equal(numError('ntst', '2.5'), 'Mesh intervals (NTST) must be a whole number, not 2.5');
+  assert.equal(numError('nmx', '1e2'), null, 'an integer in any spelling');
+  assert.equal(numError('ntst', '0'), 'Mesh intervals (NTST) must be a whole number of at least 1');
+  assert.equal(numError('ds', '0'), 'First step (DS) must be a number other than 0');
+  assert.equal(numError('dsmin', '-1'), 'Smallest step (DSMIN) must be a number above 0');
+  assert.equal(numError('rl0', 'x'), 'Par Min (RL0) must be a number');
   assert.deepEqual([numError('ds', '-0.01'), numError('mxbf', '-3'), numError('suppbp', '1')], [null, null, null]);
   assert.equal(pairError({...settings.numerics, rl0: 3}), 'Par Min must be below Par Max');
-  assert.equal(pairError({...settings.numerics, dsmin: 1}), 'Dsmin must be at most Dsmax');
+  assert.equal(pairError({...settings.numerics, dsmin: 1}), 'DSMIN must be at most DSMAX');
   assert.equal(pairError(settings.numerics), null);
+  /* T23: DSMIN <= |DS| <= DSMAX, whatever the direction; each message by its field */
+  const n = settings.numerics;
+  assert.deepEqual(pairErrors({...n, ds: -n.dsmax}), {});
+  assert.deepEqual(pairErrors({...n, ds: -2 * n.dsmax}), {ds: 'DS must be from DSMIN to DSMAX in size'});
+  assert.deepEqual(pairErrors({...n, ds: n.dsmin / 2, a0: 5, a1: 1}),
+    {ds: 'DS must be from DSMIN to DSMAX in size', a0: 'Norm Min must be below Norm Max'});
+  /* every field is named plainly with AUTO's short name, and explained */
+  for (const f of NUM_FIELDS) {
+    assert.match(f.name, /\([A-Z0-9]+[a-zA-Z]*\)$/, f.key);
+    assert.ok(f.help.length > 40, f.key);
+  }
+  assert.equal(NUM_FIELDS.find(f => f.key === 'nmx')!.name, 'Max points (NMX)');
   assert.deepEqual(mergePatch({pars: ['a']}, {marks: [['a', 1]]}), {pars: ['a'], marks: [['a', 1]]});
 });
 

@@ -94,6 +94,20 @@ int main()
     CHECK(auto_settings_apply(&s, why, sizeof why) == -1 && Auto.rl1 == 2);
     CHECK_STR(why, "Par Min must be below Par Max");
 
+    /* Dsmin <= |Ds| <= Dsmax, checked when one of the three is given (T23) */
+    Auto.ds = 0.02;
+    auto_settings_set_init(&s);
+    s.has_num[AUTO_NUM_DS] = 1;
+    s.num[AUTO_NUM_DS] = -0.6;
+    CHECK(auto_settings_apply(&s, why, sizeof why) == -1 && Auto.ds == 0.02);
+    CHECK_STR(why, "Ds must be from Dsmin to Dsmax in size (its sign is the direction)");
+    s.num[AUTO_NUM_DS] = -0.5;
+    CHECK(auto_settings_apply(&s, why, sizeof why) == 0 && Auto.ds == -0.5);
+    auto_settings_set_init(&s);
+    s.has_num[AUTO_NUM_DSMIN] = 1;
+    s.num[AUTO_NUM_DSMIN] = 0.6; /* above |Ds| and Dsmax */
+    CHECK(auto_settings_apply(&s, why, sizeof why) == -1 && Auto.dsmin == 0.001);
+
     /* axes: names among AUTO's parameters, ranges in order */
     auto_settings_set_init(&s);
     std::strcpy(s.par1, "GCA");

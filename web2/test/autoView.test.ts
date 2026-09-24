@@ -4,11 +4,11 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {axesNames, boundText, spinStep, typedRange, yNeeds} from '../src/plot/axisDialog';
-import {formatElapsed, kindOfPoint, runStatus} from '../src/plot/autoStatus';
-import {buildDiagramModel} from '../src/plot/diagramModel';
+import {formatElapsed, kindOfPoint, runStatus, stopPoint} from '../src/plot/autoStatus';
+import {buildDiagramModel, labelTypes, symbolHelp, symbolName} from '../src/plot/diagramModel';
 import {placeLabels} from '../src/plot/labelPlace';
 import {branchesBefore, earlierCount, type DiagramRun} from '../src/store/diagram';
-import {initialState, reduce, type AppState} from '../src/store/state';
+import {classifyLogText, initialState, reduce, type AppState} from '../src/store/state';
 import {isHotkeyTarget} from '../src/ui/hotkeys';
 import {menuRows} from '../src/ui/menuLayout';
 
@@ -41,7 +41,7 @@ test('a run: its clock, what it computed, its last label, how it ended', () => {
   st = runStatus(s.diagram.run, s.diagram.points, s.diagram.labels, 2500, flags);
   assert.equal(st.phase, 'running');
   assert.equal(st.text, 'Running: steady states');
-  assert.deepEqual([st.branch, st.point, st.points, st.label, st.elapsed], [1, 5, 5, 'HB 2 at point 4', 500]);
+  assert.deepEqual([st.branch, st.point, st.points, st.label, st.elapsed], [1, 5, 5, 'HB 2 (Hopf) at point 4', 500]);
   assert.equal(runStatus(s.diagram.run, s.diagram.points, s.diagram.labels, 2500, {...flags, stopping: true}).text, 'Stopping…');
   s = act(s, {type: 'run', op: 'end', at: 4000});
   st = runStatus(s.diagram.run, s.diagram.points, s.diagram.labels, 9999, flags);
@@ -53,8 +53,49 @@ test('a run: its clock, what it computed, its last label, how it ended', () => {
   s = act(s, {type: 'run', op: 'end', at: 6000});
   st = runStatus(s.diagram.run, s.diagram.points, s.diagram.labels, 9999, flags);
   assert.deepEqual([st.phase, st.text, st.points, st.branch, st.label], ['stopped', 'Stopped: periodic orbits', 3, 2,
-    'LP 3 at point 3']);
+    'LP 3 (Fold (limit point)) at point 3']);
   assert.equal(runStatus(null, s.diagram.points, s.diagram.labels, 0, flags).text, 'Idle');
+});
+
+test('T23: an ended run says why its last branch ended, from autoinfo stop', () => {
+  let s = act(opened(), {type: 'run', op: 'start', at: 1000});
+  s = ev(s, add(0, steady));
+  const stop = {why: 'parmax', text: 'parameter iapp reached Par Max (0.3)', br: 1, pt: 5, value: 0.31, limit: 0.3};
+  s = ev(s, {ev: 'autoinfo', info: null, stab: null, stop});
+  assert.deepEqual(s.diagram.stop, stop);
+  const flags = {asking: false, stopping: false};
+  /* while it runs, the reason of a branch before is not the run's end */
+  let st = runStatus(s.diagram.run, s.diagram.points, s.diagram.labels, 1500, flags, s.diagram.stop);
+  assert.equal(st.text, 'Running: steady states');
+  s = act(s, {type: 'run', op: 'end', at: 2000});
+  st = runStatus(s.diagram.run, s.diagram.points, s.diagram.labels, 2500, flags, s.diagram.stop);
+  assert.deepEqual([st.phase, st.text, st.detail, st.why], ['done', 'Stopped: parameter iapp reached Par Max (0.3)',
+    'steady states', 'parmax']);
+  assert.equal(stopPoint(s.diagram.run, s.diagram.points, s.diagram.stop), 4);
+  /* a reason that names no point of this run (an older one) is not shown */
+  st = runStatus(s.diagram.run, s.diagram.points, s.diagram.labels, 2500, flags, {...stop, br: 3});
+  assert.equal(st.text, 'Done: steady states');
+  /* a run that computed nothing has no reason either */
+  s = act(s, {type: 'run', op: 'start', at: 3000});
+  s = act(s, {type: 'run', op: 'end', at: 3500});
+  assert.equal(runStatus(s.diagram.run, s.diagram.points, s.diagram.labels, 4000, flags, s.diagram.stop).text, 'Done');
+  /* the line the core writes in Output is AUTO's */
+  assert.equal(classifyLogText('Branch 1 stopped at point 5: parameter iapp reached Par Max (0.3)\n'), 'auto');
+  /* ... also when the core's stderr cuts it in two: the line joins, whole */
+  let t = ev(initialState, {ev: 'log', text: 'Branch 1 stopped at point 5: pa'});
+  t = ev(t, {ev: 'log', text: 'rameter iapp reached Par Max (0.3)\nnvar=2\n'});
+  assert.deepEqual(t.log.map(l => [l.kind, l.text]), [['auto', 'Branch 1 stopped at point 5: parameter iapp reached Par Max (0.3)\n'],
+    ['log', 'nvar=2\n']]);
+  t = ev(initialState, {ev: 'log', text: 'Branch 1 st'});
+  t = ev(t, {ev: 'log', text: 'opped at point 5: by the user (Stop)\n'});
+  assert.deepEqual(t.log.map(l => l.kind), ['auto']);
+});
+
+test('T23: the key lists the label types the diagram has, spelled out', () => {
+  assert.deepEqual(labelTypes([{sym: 'HB'}, {sym: 'EP'}, {sym: ''}, {sym: 'EP'}, {sym: 'MX'}]), ['EP', 'MX', 'HB']);
+  assert.deepEqual(['EP', 'MX', 'LP', 'HB', 'BP', 'PD', 'TR', 'UZ'].map(symbolName), ['End point', 'No convergence',
+    'Fold (limit point)', 'Hopf', 'Branch point', 'Period doubling', 'Torus', 'Marked value']);
+  assert.ok(['EP', 'MX', 'LP', 'HB', 'BP', 'PD', 'TR', 'UZ'].every(k => symbolHelp(k).length > 20));
 });
 
 test('the kind of a point and the elapsed time in words', () => {

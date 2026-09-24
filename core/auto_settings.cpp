@@ -271,6 +271,12 @@ int apply(const AutoSettingsSet *s, char *why, size_t n)
                                 num_fields[p.hi].label));
         return -1;
     }
+    /* the first step within the step sizes AUTO may take (T23) */
+    if ((s->has_num[AUTO_NUM_DS] || s->has_num[AUTO_NUM_DSMIN] || s->has_num[AUTO_NUM_DSMAX])
+        && !(std::fabs(num[AUTO_NUM_DS]) >= num[AUTO_NUM_DSMIN] && std::fabs(num[AUTO_NUM_DS]) <= num[AUTO_NUM_DSMAX])) {
+        say(why, n, "Ds must be from Dsmin to Dsmax in size (its sign is the direction)");
+        return -1;
+    }
 
     /* the Parameter form: AUTO's parameters by name */
     int pars[8];

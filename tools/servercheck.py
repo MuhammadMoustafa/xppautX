@@ -1836,6 +1836,8 @@ def check_autosettings():
         # refused: bad values change nothing, and say why
         for bad, why in (({'numerics': {'ncol': 9}}, 'Ncol'), ({'numerics': {'ntst': 1.5}}, 'Ntst'),
                          ({'numerics': {'nmx': 30, 'dsmin': 0}}, 'Dsmin'), ({'numerics': {'rl0': 5, 'rl1': 1}}, 'Par Min'),
+                         ({'numerics': {'ds': -0.9, 'dsmax': 0.5}}, 'Ds must be from Dsmin to Dsmax'),
+                         ({'numerics': {'dsmin': 0.5, 'dsmax': 1, 'ds': 0.1}}, 'Ds must be from Dsmin to Dsmax'),
                          ({'numerics': {'nmx': 'many'}}, 'Nmax'), ({'pars': ['nosuch']}, 'nosuch'),
                          ({'axes': {'var': 'nosuch'}}, 'nosuch'), ({'axes': {'plot': 7}}, 'plot'),
                          ({'axes': {'xmin': 1, 'xmax': 0}}, 'Xmin'), ({'marks': [['W', 1]]}, 'W')):
@@ -1863,6 +1865,71 @@ def check_autosettings():
 
 
 check_autosettings()
+
+
+# Why a branch ended (T23, docs/protocol.md "The AUTO diagram as data",
+# autoinfo's "stop"): tools/models/auto_stop.ode's line of steady states run
+# into each limit in turn, one fresh server each, and a Stop.
+STOP_ODE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'auto_stop.ode')
+
+
+def auto_stop_run(numerics, abort=False):
+    """a steady-state run of auto_stop.ode with these Numerics: (the last autoinfo's stop, the run's points)"""
+    p, r, snd, col, _ = launch_server(ode=STOP_ODE)
+    try:
+        col(is_idle)
+        snd(cmd='data', events=['autoinfo'])
+        col(is_idle)
+        for k in 'fa':
+            snd(cmd='key', key=k)
+            col(lambda e: is_idle(e) or e.get('ev') == 'ask')
+        snd(cmd='auto', op='set', numerics=numerics)
+        evs, _ = col(is_idle)
+        errs = [e['error'] for e in evs if e.get('ev') == 'message' and 'error' in e]
+        snd(cmd='auto', op='run')
+        evs, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e))
+        if errs or not ask or ask.get('ev') != 'ask':
+            return {'errors': errs, 'ask': ask}, 0
+        snd(cmd='answer', id=ask['id'], key='s')
+        evs = []
+        if abort:
+            evs, _ = col(lambda e: e.get('ev') == 'diagram' and e.get('op') == 'add', timeout=30)
+            snd(cmd='abort')
+        more, _ = col(is_idle, timeout=60)
+        evs += more
+        got = infos(evs)
+        return (got[-1].get('stop') if got else None), len(rebuild_diagram(evs, []))
+    finally:
+        stop_server(p, r, snd)
+
+
+def check_auto_stop():
+    wide = {'rl0': -1, 'rl1': 0.9, 'a0': -1, 'a1': 100, 'nmx': 200}
+    for numerics, why, text, abort in (
+            ({**wide, 'rl1': 0.5}, 'parmax', 'parameter a reached Par Max (0.5)', False),
+            ({**wide, 'rl0': -0.3, 'ds': -0.01}, 'parmin', 'parameter a reached Par Min (-0.3)', False),
+            ({**wide, 'a1': 0.3}, 'normmax', 'the norm reached Norm Max (0.3)', False),
+            ({**wide, 'nmx': 5}, 'npts', 'the branch reached Max points (NMX 5)', False),
+            ({**wide, 'rl1': 10}, 'noconv-min', 'no convergence even at the smallest step (Dsmin 0.001)', False),
+            ({**wide, 'rl1': 10, 'iads': 0}, 'noconv-fixed', 'no convergence with a fixed step size (IADS 0)', False),
+            ({**wide, 'nmx': 1000000, 'ds': 1e-7, 'dsmin': 1e-8, 'dsmax': 1e-7}, 'user', 'by the user (Stop)', True)):
+        stop, n = auto_stop_run(numerics, abort)
+        ok = isinstance(stop, dict) and stop.get('why') == why and stop.get('text') == text and stop.get('br') == 1
+        if ok and why in ('parmax', 'parmin', 'normmax'):
+            ok = abs(stop['limit'] - numerics[{'parmax': 'rl1', 'parmin': 'rl0', 'normmax': 'a1'}[why]]) < 1e-9 and (
+                stop['value'] < stop['limit'] if why == 'parmin' else stop['value'] > stop['limit'])
+        if ok and why == 'npts':
+            ok = stop['pt'] == 5 and n == 5
+        if ok and why == 'user':
+            ok = 1 < stop['pt'] < 1000000
+        check('autoinfo stop: %s ends the branch with "%s"' % (why, text), ok, '%s (%d points)' % (stop, n))
+    # a run that starts where the limit already is: Par Min below the start
+    stop, _ = auto_stop_run({**wide, 'rl0': 0.2, 'rl1': 0.9})
+    check('autoinfo stop: a start beyond Par Min ends at its first point',
+          isinstance(stop, dict) and stop.get('why') == 'parmin' and stop.get('pt') == 1, str(stop))
+
+
+check_auto_stop()
 
 # A HOME the process cannot write to used to make AUTO exit(1) under the
 # client when it opened fort.8 there; open_auto() now falls back to the

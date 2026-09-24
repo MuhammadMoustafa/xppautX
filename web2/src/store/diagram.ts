@@ -103,10 +103,26 @@ export interface AutoStab {
   eig?: [number | null, number | null][];
 }
 
+/** `autoinfo` `stop` (T23): why the run's last branch ended */
+export interface AutoStop {
+  /** parmin, parmax, normmin, normmax, npts, user, mark, noconv, noconv-fixed, noconv-min,
+      noconv-switch-fixed, noconv-switch-min (docs/protocol.md) */
+  why: string;
+  /** in words, to follow "Stopped: " ("parameter iapp reached Par Max (0.45)") */
+  text: string;
+  /** AUTO's branch and point number of the end */
+  br: number;
+  pt: number;
+  /** what reached the limit, and the limit (null when there is none) */
+  value: number | null;
+  limit: number | null;
+}
+
 export interface AutoInfoEvent {
   ev: 'autoinfo';
   info: AutoInfo | null;
   stab: AutoStab | null;
+  stop?: AutoStop | null;
 }
 
 export interface DiagramLabel {
@@ -142,6 +158,8 @@ export interface DiagramState {
   /** the info strip and the stability circle (`autoinfo`) */
   info: AutoInfo | null;
   stab: AutoStab | null;
+  /** why the last run's last branch ended (`autoinfo` `stop`, T23) */
+  stop: AutoStop | null;
   /** `autoinfo` events applied (tests wait on it) */
   infoEvents: number;
   /** the core is grabbing a point: from its `grab` ask to the command's end */
@@ -183,7 +201,7 @@ const HISTORY_KEEP = 50;
 
 export const initialDiagram: DiagramState = {
   open: false, shown: false, axes: null, points: noPoints(), labels: [], events: 0, outOfStep: false,
-  viewport: HOME, viewportHistory: [], hover: null, info: null, stab: null, infoEvents: 0, grabbing: false, stored: null,
+  viewport: HOME, viewportHistory: [], hover: null, info: null, stab: null, stop: null, infoEvents: 0, grabbing: false, stored: null,
   run: null, earlier: 0, showEarlier: false, setupSaved: null,
 };
 
@@ -326,7 +344,7 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
       return {...s, hover: h};
     }
     case 'info':
-      return {...s, info: a.ev.info ?? null, stab: a.ev.stab ?? null, infoEvents: s.infoEvents + 1};
+      return {...s, info: a.ev.info ?? null, stab: a.ev.stab ?? null, stop: a.ev.stop ?? null, infoEvents: s.infoEvents + 1};
     case 'grabbing':
       /* a grab shows the panel: the diagram is where the point is picked */
       return a.on === s.grabbing ? s : {...s, grabbing: a.on, shown: a.on && s.open ? true : s.shown};

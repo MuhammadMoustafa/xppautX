@@ -42,7 +42,10 @@
    on it. The info strip and the stability circle are ui/AutoInfo.tsx. */
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {DiagramChart, paletteColor, setDiagramChart} from '../plot/diagramChart';
-import {buildDiagramModel, describePoint, fmt, grabStep, stepLabel, vertexOf, type DiagramModel} from '../plot/diagramModel';
+import {stopPoint} from '../plot/autoStatus';
+import {
+  buildDiagramModel, describePoint, fmt, grabStep, labelTypes, stepLabel, symbolHelp, symbolName, vertexOf, type DiagramModel,
+} from '../plot/diagramModel';
 import {download} from '../plot/export';
 import {attachGestures, type PickSink} from '../plot/interactions';
 import {pickKey, toData} from '../plot/pick';
@@ -183,6 +186,8 @@ function AutoPanel({dark}: {dark: boolean}) {
   const stored = useStore(s => (s.diagram.axes?.plot === 4 ? s.diagram.stored : null));
   const pick = useStore(s => (s.pick?.win === WIN && !s.pick.waiting ? s.pick : null));
   const earlier = useStore(s => earlierCount(s.diagram));
+  const run = useStore(s => s.diagram.run);
+  const stop = useStore(s => s.diagram.stop);
   const showEarlier = useStore(s => s.diagram.showEarlier);
   const [axisOpen, setAxisOpen] = useState<AxisName | null>(null);
   const [settingsOpen, setSettingsOpen] = useState<AutoSettingsDialogKind | null>(null);
@@ -392,7 +397,10 @@ function AutoPanel({dark}: {dark: boolean}) {
   const storedAt = stored && chart.current ? chart.current.place(stored.x, stored.y) : null;
   const zoomed = viewport.x !== null || viewport.y !== null;
   const empty = !model.curves.length;
-  const said = hover && hover.point < points.x.length ? describePoint(points, labels, axes, hover.point) : null;
+  const stopAt = stopPoint(run, points, stop);
+  const said = hover && hover.point < points.x.length
+    ? describePoint(points, labels, axes, hover.point, stopAt >= 0 && stop && !run?.active ? {point: stopAt, text: stop.text} : null)
+    : null;
   const what = axes ? `${axes.ylabel} against ${axes.xlabel}` : '';
   const label = empty ? 'AUTO diagram, no branches yet'
     : `AUTO diagram of ${what}: ${new Set(model.curves.map(c => c.branch)).size} branches, ${points.x.length} points, `
@@ -464,6 +472,12 @@ function AutoPanel({dark}: {dark: boolean}) {
                 <span class={'auto-swatch' + (l.dashed ? ' dashed' : '')} aria-hidden="true"
                   style={{borderColor: paletteColor(l.color, dark)}} />
                 {l.text}
+              </li>
+            ))}
+            {labelTypes(model.labels).map(sym => (
+              <li key={sym} class="auto-legend-label" data-sym={sym} title={symbolHelp(sym)}>
+                <span class="auto-label-mark" aria-hidden="true">×</span>
+                <b>{sym}</b> {symbolName(sym)}
               </li>
             ))}
             {earlier > 0 && (

@@ -1650,6 +1650,28 @@ async function autoView(dir) {
   check('Tab into a form field and typing replaces its value (not appends to it)',
     await cdp.eval(`document.activeElement === document.querySelectorAll('.dialog input')[1] && document.activeElement.value === '77'`),
     JSON.stringify([second, await cdp.eval(`document.activeElement.value`)]));
+  /* T23: every field named plainly with AUTO's short name, its help a tooltip */
+  const named = await cdp.eval(`[...document.querySelectorAll('.auto-settings-dialog .auto-num-group label')]
+    .map(l => [l.querySelector('span').textContent, l.title, l.querySelector('input').dataset.field])`);
+  check('T23: each of the 22 Numerics fields has a plain name with its short name, e.g. "Max points (NMX)", and a tooltip',
+    named.length === 22 && named.every(([n, t]) => /^[A-Z][a-z].* \([A-Z0-9]+[A-Za-z]*\)$/.test(n) && t.length > 40)
+      && named.some(([n, , f]) => n === 'Max points (NMX)' && f === 'nmx'), JSON.stringify(named.filter(([n, t]) => t.length <= 40 || !/\(/.test(n))));
+  const typeInto = (field, text) => cdp.eval(`(() => { const i = document.querySelector('.auto-settings-dialog input[data-field=${field}]');
+    i.value = ${JSON.stringify(text)}; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  const fieldState = field => cdp.eval(`(() => { const i = document.querySelector('.auto-settings-dialog input[data-field=${field}]');
+    const e = i.closest('label').querySelector('.field-error');
+    return {invalid: i.getAttribute('aria-invalid'), error: e ? e.textContent : null,
+      ok: document.querySelector('.auto-settings-dialog .dialog-actions .primary').disabled}; })()`);
+  await typeInto('nmx', '12.5');
+  const floatNmx = await fieldState('nmx');
+  check('T23: a float in an integer field (Max points 12.5) is refused beside it, OK disabled',
+    floatNmx.invalid === 'true' && floatNmx.error === 'Max points (NMX) must be a whole number, not 12.5' && floatNmx.ok === true,
+    JSON.stringify(floatNmx));
+  await typeInto('nmx', '200');
+  await typeInto('ds', '9');
+  const bigDs = await fieldState('ds');
+  check('T23: a first step larger than DSMAX is refused beside DS, OK disabled',
+    bigDs.error === 'DS must be from DSMIN to DSMAX in size' && bigDs.ok === true, JSON.stringify(bigDs));
   await key('Escape');
   check('T22: Escape cancels it: nothing sent',
     await until(`!document.querySelector('.auto-settings-dialog')`, 'numerics cancelled')
@@ -1662,14 +1684,26 @@ async function autoView(dir) {
   await menuKey('s');
   check('the steady-state branch arrives', await until('!s.busy && s.diagram.points.x.length > 10', 'steady state', 60000));
   const nSteady = await DS('d.points.x.length');
-  check('T21: the status strip says the run is done: steady states, its branch and point, its points, its last label, the time',
+  const stop = await DS('d.stop');
+  check('T21, T23: the status strip says why the run stopped (the core\'s reason), steady states, its branch and point, its points, its last label, the time',
     await until(`document.querySelector('.auto-status').dataset.phase === 'done'`, 'strip done')
-    && new RegExp(`^Done: steady states · branch 1, point \\d+ · ${nSteady} points · last label EP \\d+ at point \\d+ · [\\d.:]+ s?`)
-      .test(await autoStatus()), await autoStatus());
+    && stop && stop.br === 1 && /^(parameter iapp reached Par (Min|Max)|the norm reached|the branch reached Max points)/.test(stop.text)
+    && new RegExp(`^Stopped: ${stop.text.replace(/[()]/g, '\\$&')} · steady states · branch 1, point ${stop.pt} · ${nSteady} points `
+      + `· last label EP \\d+ \\(End point\\) at point \\d+ · [\\d.:]+ s?`).test(await autoStatus())
+    && await cdp.eval(`document.querySelector('[data-testid=auto-status]').dataset.why`) === stop.why,
+    JSON.stringify([stop, await autoStatus()]));
   const out = await cdp.eval(`(() => { const d = document.querySelector('.auto-output'); d.open = true;
     return {sum: d.querySelector('summary').textContent, text: d.querySelector('pre') && d.querySelector('pre').textContent}; })()`);
   check("T21: the Output panel shows AUTO's table", /^Output \(\d+\)$/.test(out.sum) && out.sum !== 'Output (0)'
     && /BR\s+PT\s+TY/.test(out.text || ''), JSON.stringify(out).slice(0, 300));
+  const reasonLine = stop ? `Branch 1 stopped at point ${stop.pt}: ${stop.text}` : '?';
+  check('T23: ... and the reason as a line of its own',
+    await until(`document.querySelector('.auto-output pre').textContent.split('\\n').includes(${JSON.stringify(reasonLine)})`,
+      'reason in output'), (await cdp.eval(`document.querySelector('.auto-output pre').textContent`)).slice(-300));
+  const key23 = await cdp.eval(`[...document.querySelectorAll('.auto-legend-label')].map(l => [l.dataset.sym, l.textContent.trim(), l.title])`);
+  check('T23: the key spells out the label types the diagram has (EP End point, HB Hopf), each with its meaning as a tooltip',
+    key23.some(([s, t]) => s === 'EP' && /^×\s*EP End point$/.test(t)) && key23.some(([s, t]) => s === 'HB' && /HB Hopf$/.test(t))
+      && key23.every(([, , h]) => h.length > 30), JSON.stringify(key23));
   check('after the run the store holds its last point\'s stability circle (autoinfo)',
     await until('s.diagram.stab && s.diagram.stab.circle.length === 2 && s.diagram.stab.periodic === 0', 'run stab'),
     JSON.stringify(await DS('[d.info, d.stab]')));
@@ -2056,6 +2090,9 @@ async function autoView(dir) {
     && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', numerics: {nmx: 15}}])
     && !(await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)),
     JSON.stringify([await S('s.autoSettings'), await setsSent()]));
+  check('T23: after Stop the status strip says so: "Stopped: by the user (Stop)"',
+    await until(`/^Stopped: by the user \\(Stop\\) · periodic orbits/.test(document.querySelector('[data-testid=auto-status]').textContent)`,
+      'strip stopped by user') && (await DS('d.stop && d.stop.why')) === 'user', JSON.stringify([await DS('d.stop'), await autoStatus()]));
   const nMid = await DS('d.points.x.length');
   await periodicFromHopf('the run after');
   const ran = await until(`!s.busy && s.diagram.points.x.length > ${nMid}`, 'the run after', 60000);

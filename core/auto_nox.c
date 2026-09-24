@@ -11,6 +11,7 @@
 #include "autevd.h"
 #include "run_auto.h"
 #include "auto_nox.h"
+#include "auto_stop.h"
 #include "auto_x11.h"
 #include <libgen.h>
 /* #include "f2c.h" */
@@ -700,6 +701,7 @@ void open_auto(flg) /* compatible with new auto */
 }
 
 /* MAIN Running routine  Assumes that Auto structure is set up */
+static int auto_depth; /* do_auto's own follow-up runs (RestartLabel) are one run */
 
 void do_auto(iold,isave,itp)
      int iold,isave;
@@ -713,6 +715,7 @@ void do_auto(iold,isave,itp)
 		*/
  
     open_auto(iold); /* this copies the relevant files .s  to fort.3 */
+    if(auto_depth++==0)auto_stop_clear(); /* xppautX: T23: why this run's branches end */
     xpp_job_begin(0); /* Abort cancels it (xpp_job.h) */
     run_from=Auto.irs>0?Auto.irs:0; /* the diagram's data say where the run started */
     go_go_auto(); /* this complets the initialization and calls the 
@@ -734,6 +737,7 @@ void do_auto(iold,isave,itp)
       do_auto(iold,isave, Auto.itp);
       
     }
+    auto_depth--;
      ping();
       redraw_params();
 }

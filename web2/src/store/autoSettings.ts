@@ -18,38 +18,85 @@ export interface NumField {
   key: NumKey;
   /** the core's form label (and the settings file's name) */
   label: string;
+  /** the field's name in the page: plain words and AUTO's short name (T23), "Max points (NMX)" */
+  name: string;
   integer: boolean;
   rule: Rule;
-  /** what it does, for the field's title */
-  hint: string;
+  /** its tooltip: what it does, its valid values and what each option means (AUTO's manual) */
+  help: string;
 }
 
 const atLeast = (lo: number): Rule => ({kind: 'range', lo, hi: null});
 
 /** the Numerics form's fields in its order (core/auto_settings.cpp num_fields, the same rules) */
 export const NUM_FIELDS: NumField[] = [
-  {key: 'ntst', label: 'Ntst', integer: true, rule: atLeast(1), hint: 'mesh intervals of a periodic orbit'},
-  {key: 'nmx', label: 'Nmax', integer: true, rule: atLeast(1), hint: 'the most points a run computes'},
-  {key: 'npr', label: 'NPr', integer: true, rule: atLeast(1), hint: 'a label every this many points'},
-  {key: 'ncol', label: 'Ncol', integer: true, rule: {kind: 'range', lo: 2, hi: 7}, hint: 'collocation points per interval'},
-  {key: 'ds', label: 'Ds', integer: false, rule: {kind: 'nonzero'}, hint: 'the first step (its sign is the direction)'},
-  {key: 'dsmin', label: 'Dsmin', integer: false, rule: {kind: 'positive'}, hint: 'the smallest step'},
-  {key: 'dsmax', label: 'Dsmax', integer: false, rule: {kind: 'positive'}, hint: 'the largest step'},
-  {key: 'rl0', label: 'Par Min', integer: false, rule: {kind: 'any'}, hint: 'a run stops below it'},
-  {key: 'rl1', label: 'Par Max', integer: false, rule: {kind: 'any'}, hint: 'a run stops above it'},
-  {key: 'a0', label: 'Norm Min', integer: false, rule: {kind: 'any'}, hint: 'a run stops at a norm below it'},
-  {key: 'a1', label: 'Norm Max', integer: false, rule: {kind: 'any'}, hint: 'a run stops at a norm above it'},
-  {key: 'epsl', label: 'EPSL', integer: false, rule: {kind: 'positive'}, hint: "Newton's tolerance for the parameters"},
-  {key: 'epsu', label: 'EPSU', integer: false, rule: {kind: 'positive'}, hint: "Newton's tolerance for the solution"},
-  {key: 'epss', label: 'EPSS', integer: false, rule: {kind: 'positive'}, hint: 'the tolerance locating special points'},
-  {key: 'iad', label: 'IAD', integer: true, rule: atLeast(0), hint: 'adapt the mesh every this many steps (0 never)'},
-  {key: 'mxbf', label: 'MXBF', integer: true, rule: {kind: 'any'}, hint: 'branch switches at most (negative: one way)'},
-  {key: 'iid', label: 'IID', integer: true, rule: {kind: 'range', lo: 0, hi: 5}, hint: 'how much AUTO prints (0 to 5)'},
-  {key: 'itmx', label: 'ITMX', integer: true, rule: atLeast(1), hint: 'iterations locating a special point'},
-  {key: 'itnw', label: 'ITNW', integer: true, rule: atLeast(1), hint: 'Newton iterations'},
-  {key: 'nwtn', label: 'NWTN', integer: true, rule: atLeast(1), hint: 'Newton iterations before the Jacobian is frozen'},
-  {key: 'iads', label: 'IADS', integer: true, rule: atLeast(0), hint: 'adapt the step every this many steps (0 never)'},
-  {key: 'suppbp', label: 'SuppBP', integer: true, rule: {kind: 'range', lo: 0, hi: 1}, hint: '1: do not look for branch points'},
+  {key: 'ntst', label: 'Ntst', name: 'Mesh intervals (NTST)', integer: true, rule: atLeast(1),
+    help: 'The mesh intervals a periodic orbit (or a boundary value solution) is split into. More follow a sharp orbit '
+      + 'better but take longer: raise it when a periodic branch looks wrong or does not converge. Following a period '
+      + 'doubling doubles it, so set it back after. A whole number, at least 1.'},
+  {key: 'nmx', label: 'Nmax', name: 'Max points (NMX)', integer: true, rule: atLeast(1),
+    help: 'The most points a branch may have: it ends (EP, "reached Max points") when it has this many. '
+      + 'A whole number, at least 1.'},
+  {key: 'npr', label: 'NPr', name: 'Label every (NPR)', integer: true, rule: atLeast(1),
+    help: 'Besides the special points, label and save the whole solution every NPR points along a branch, so it can be '
+      + 'grabbed. A whole number, at least 1.'},
+  {key: 'ncol', label: 'Ncol', name: 'Collocation points (NCOL)', integer: true, rule: {kind: 'range', lo: 2, hi: 7},
+    help: 'The collocation points in each mesh interval of a periodic orbit or boundary value solution. '
+      + 'A whole number from 2 to 7; 4 is usual.'},
+  {key: 'ds', label: 'Ds', name: 'First step (DS)', integer: false, rule: {kind: 'nonzero'},
+    help: 'The first step along the branch. Its sign is the direction: positive makes the main parameter go up, '
+      + 'negative down. The step adapts after it, so it is a suggestion. A number other than 0, from DSMIN to DSMAX '
+      + 'in size.'},
+  {key: 'dsmin', label: 'Dsmin', name: 'Smallest step (DSMIN)', integer: false, rule: {kind: 'positive'},
+    help: 'The smallest step. When a point does not converge the step is halved and tried again; below this the '
+      + 'branch ends with MX (no convergence). A number above 0, at most DSMAX.'},
+  {key: 'dsmax', label: 'Dsmax', name: 'Largest step (DSMAX)', integer: false, rule: {kind: 'positive'},
+    help: 'The largest step. Too large a step can jump over folds and Hopf points; too small a one makes a long run. '
+      + 'A number above 0, at least DSMIN.'},
+  {key: 'rl0', label: 'Par Min', name: 'Par Min (RL0)', integer: false, rule: {kind: 'any'},
+    help: 'The lowest value of the main parameter: a branch that goes below it ends (EP, "parameter reached Par Min"). '
+      + 'A number below Par Max.'},
+  {key: 'rl1', label: 'Par Max', name: 'Par Max (RL1)', integer: false, rule: {kind: 'any'},
+    help: 'The highest value of the main parameter: a branch that goes above it ends (EP, "parameter reached Par Max"). '
+      + 'A number above Par Min.'},
+  {key: 'a0', label: 'Norm Min', name: 'Norm Min (A0)', integer: false, rule: {kind: 'any'},
+    help: 'The lowest norm of the solution (its L2 norm, what the Norm axes plot): a branch whose norm goes below it '
+      + 'ends (EP). A number below Norm Max.'},
+  {key: 'a1', label: 'Norm Max', name: 'Norm Max (A1)', integer: false, rule: {kind: 'any'},
+    help: 'The highest norm of the solution: a branch whose norm goes above it ends (EP). A number above Norm Min.'},
+  {key: 'epsl', label: 'EPSL', name: 'Parameter tolerance (EPSL)', integer: false, rule: {kind: 'positive'},
+    help: "Newton's convergence tolerance for the parameters, relative. Smaller is more accurate and fails sooner. "
+      + 'A number above 0, often 1e-4 to 1e-7.'},
+  {key: 'epsu', label: 'EPSU', name: 'Solution tolerance (EPSU)', integer: false, rule: {kind: 'positive'},
+    help: "Newton's convergence tolerance for the solution, relative. Smaller is more accurate and fails sooner. "
+      + 'A number above 0, often 1e-4 to 1e-7.'},
+  {key: 'epss', label: 'EPSS', name: 'Special point tolerance (EPSS)', integer: false, rule: {kind: 'positive'},
+    help: 'How closely special points (folds, Hopf and branch points, period doublings, tori) are located, relative '
+      + 'to the step; usually 100 to 1000 times EPSL and EPSU. A number above 0.'},
+  {key: 'iad', label: 'IAD', name: 'Adapt mesh every (IAD)', integer: true, rule: atLeast(0),
+    help: 'Adapt the mesh of a periodic orbit to its shape every IAD steps; 0 keeps the mesh fixed. 3 is usual. '
+      + 'A whole number, 0 or more.'},
+  {key: 'mxbf', label: 'MXBF', name: 'Branch switches (MXBF)', integer: true, rule: {kind: 'any'},
+    help: 'For steady states: at how many branch points AUTO follows the other branch by itself. Positive: in both '
+      + 'directions; negative: in one direction only; 0: none. A whole number.'},
+  {key: 'iid', label: 'IID', name: 'Output detail (IID)', integer: true, rule: {kind: 'range', lo: 0, hi: 5},
+    help: 'How much AUTO writes to its diagnostics (the .d file): 0 almost nothing, 1 a little, 2 the usual, '
+      + '3 also the Jacobian and residuals of the start, 4 and 5 very much (for debugging). A whole number from 0 to 5.'},
+  {key: 'itmx', label: 'ITMX', name: 'Locate iterations (ITMX)', integer: true, rule: atLeast(1),
+    help: 'The most iterations spent locating a special point (a fold, a Hopf or branch point ...). '
+      + 'A whole number, at least 1.'},
+  {key: 'itnw', label: 'ITNW', name: 'Newton iterations (ITNW)', integer: true, rule: atLeast(1),
+    help: 'The most Newton iterations for a point. When they do not converge the step is halved (with IADS above 0) '
+      + 'or the branch ends with MX. A whole number, at least 1.'},
+  {key: 'nwtn', label: 'NWTN', name: 'Full Newton steps (NWTN)', integer: true, rule: atLeast(1),
+    help: 'After this many Newton iterations the Jacobian is kept (the chord method), which is cheaper. '
+      + 'A whole number, at least 1.'},
+  {key: 'iads', label: 'IADS', name: 'Adapt step every (IADS)', integer: true, rule: atLeast(0),
+    help: 'Adapt the step size every IADS steps. 0 keeps it at DS, and then a point that does not converge ends the '
+      + 'branch with MX. 1 is usual. A whole number, 0 or more.'},
+  {key: 'suppbp', label: 'SuppBP', name: 'Skip branch points (SuppBP)', integer: true, rule: {kind: 'range', lo: 0, hi: 1},
+    help: '1: do not look for branch points (faster, and no false ones); for periodic orbits there are then no '
+      + 'Floquet multipliers, period doublings or tori either. 0: look for them. 0 or 1.'},
 ];
 
 /** the Numerics dialog's groups, as the core's form has its columns */
@@ -170,25 +217,33 @@ export function setCommand(p: AutoSettingsPatch): Command {
   return {cmd: 'auto', op: 'set', ...p};
 }
 
-/** the error a Numerics field's text has, as the core would refuse it, or null */
+/** the error a Numerics field's text has, as the core would refuse it, or null (named as the page names the field) */
 export function numError(key: NumKey, text: string): string | null {
   const f = fieldOf(key), v = Number(text);
   const whole = f.integer ? 'a whole number' : 'a number';
-  if (!text.trim() || !Number.isFinite(v) || (f.integer && !Number.isInteger(v))) return `${f.label} must be ${whole}`;
+  if (!text.trim() || !Number.isFinite(v)) return `${f.name} must be ${whole}`;
+  if (f.integer && !Number.isInteger(v)) return `${f.name} must be a whole number, not ${text.trim()}`;
   const r = f.rule;
-  if (r.kind === 'positive' && !(v > 0)) return `${f.label} must be a number above 0`;
-  if (r.kind === 'nonzero' && v === 0) return `${f.label} must be a number other than 0`;
+  if (r.kind === 'positive' && !(v > 0)) return `${f.name} must be a number above 0`;
+  if (r.kind === 'nonzero' && v === 0) return `${f.name} must be a number other than 0`;
   if (r.kind === 'range' && (v < r.lo || (r.hi !== null && v > r.hi)))
-    return r.hi === null ? `${f.label} must be ${whole} of at least ${r.lo}` : `${f.label} must be ${whole} from ${r.lo} to ${r.hi}`;
+    return r.hi === null ? `${f.name} must be ${whole} of at least ${r.lo}` : `${f.name} must be ${whole} from ${r.lo} to ${r.hi}`;
   return null;
 }
 
-/** the pairs that must be in order, as the core checks them: the first error, or null */
+/** the values that must agree with each other, as the core checks them, by the field whose message it is */
+export function pairErrors(v: Record<NumKey, number>): Partial<Record<NumKey, string>> {
+  const out: Partial<Record<NumKey, string>> = {};
+  if (v.dsmin > v.dsmax) out.dsmin = 'DSMIN must be at most DSMAX';
+  else if (!(Math.abs(v.ds) >= v.dsmin && Math.abs(v.ds) <= v.dsmax)) out.ds = 'DS must be from DSMIN to DSMAX in size';
+  if (!(v.rl0 < v.rl1)) out.rl0 = 'Par Min must be below Par Max';
+  if (!(v.a0 < v.a1)) out.a0 = 'Norm Min must be below Norm Max';
+  return out;
+}
+
+/** the first of pairErrors, or null */
 export function pairError(v: Record<NumKey, number>): string | null {
-  if (v.dsmin > v.dsmax) return 'Dsmin must be at most Dsmax';
-  if (!(v.rl0 < v.rl1)) return 'Par Min must be below Par Max';
-  if (!(v.a0 < v.a1)) return 'Norm Min must be below Norm Max';
-  return null;
+  return Object.values(pairErrors(v))[0] ?? null;
 }
 
 /* ---- the settings file (T21's, version 2 adds AUTO's parameters and the Mark values) ----

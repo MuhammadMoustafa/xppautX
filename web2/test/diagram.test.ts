@@ -215,7 +215,11 @@ test('stepping from label to label, and the readout of a point', () => {
   const r = describePoint(d.points, d.labels, d.axes, 4);
   assert.equal(r.head, 'Branch 1, point 5');
   assert.equal(r.kind, 'unstable steady state');
-  assert.equal(r.label, 'HB label 2 (Hopf bifurcation)');
+  assert.equal(r.label, 'HB label 2 (Hopf)');
+  /* T23: the point where the last run's branch ended says why */
+  const e = describePoint(d.points, d.labels, d.axes, 0, {point: 0, text: 'parameter iapp reached Par Max (0.45)'});
+  assert.equal(e.label, 'EP label 1 (End point: parameter iapp reached Par Max (0.45))');
+  assert.equal(describePoint(d.points, d.labels, d.axes, 4, {point: 0, text: 'x'}).label, 'HB label 2 (Hopf)');
   assert.deepEqual(r.values, ['iapp = 0.26', 'V = -0.2']);
   const q = describePoint(d.points, d.labels, d.axes, 10);
   assert.equal(q.kind, 'unstable periodic orbit');
@@ -295,7 +299,7 @@ test('a periodic branch whose run says it started from the Hopf label joins that
 test('the strip in words and the circle: inside is stable, the eigenvalues listed', () => {
   const rows = infoRows(hbInfo as never);
   assert.deepEqual(rows.slice(0, 4), [['Branch', '1'], ['Point', '5'], ['Type', 'Unstable steady state'],
-    ['Label', 'HB 2 (Hopf bifurcation)']]);
+    ['Label', 'HB 2 (Hopf)']]);
   assert.deepEqual(rows.slice(4), [['iapp', '0.26'], ['phi', '0.2'], ['Norm', '0.29'], ['V', '-0.2']], 'no period for a steady state');
   assert.deepEqual(infoRows({...hbInfo, type: 4, sym: '', lab: 0} as never).slice(-1), [['Period', '14.4']]);
   const pts = circlePoints(hbStab as never);

@@ -1,0 +1,9 @@
+# AUTO's stop reasons (tools/servercheck.py, docs/ui-v2.md T23): its
+# steady states are the line x = a while x < 1, with norm |x| = a; past
+# x = 1 the jump leaves none nearby, so a continuation from a = 0 ends
+# there without convergence (MX) unless a limit ends it before.
+par a=0
+init x=0
+x'=a-x-5*heav(x-1)
+@ total=20
+done

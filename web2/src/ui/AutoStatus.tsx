@@ -2,7 +2,9 @@
    AUTO is doing (idle, waiting for how to start, running steady states or
    periodic orbits, stopping, done or stopped), the branch and point it got
    to, the points the run added, the last label it found and the time it
-   took, with the one Stop (A10: the status bar's Stop does the same). The
+   took, with the one Stop (A10: the status bar's Stop does the same), and
+   once a run ended, why its last branch ended (T23: "Stopped: parameter
+   iapp reached Par Max (0.45)"; the core writes the same line in Output). The
    Output panel shows AUTO's console table and messages (the `log` lines
    store/state.ts classifies as AUTO's) as they arrive. */
 import {useEffect, useRef, useState} from 'preact/hooks';
@@ -14,6 +16,7 @@ export function AutoStatus() {
   const run = useStore(s => s.diagram.run);
   const points = useStore(s => s.diagram.points);
   const labels = useStore(s => s.diagram.labels);
+  const stop = useStore(s => s.diagram.stop);
   const asking = useStore(s => !!s.ask);
   const stopping = useStore(s => s.stopping);
   const busy = useStore(s => s.busy);
@@ -26,12 +29,13 @@ export function AutoStatus() {
     const t = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(t);
   }, [active]);
-  const st = runStatus(run, points, labels, now, {asking, stopping});
+  const st = runStatus(run, points, labels, now, {asking, stopping}, stop);
   return (
     <div class="auto-status" data-phase={st.phase}>
       <span class={`status-dot ${st.phase === 'running' || st.phase === 'stopping' ? 'busy' : 'up'}`} aria-hidden="true" />
-      <span class="auto-status-text" role="status" data-testid="auto-status">
+      <span class="auto-status-text" role="status" data-testid="auto-status" data-why={st.why ?? undefined}>
         <b>{st.text}</b>
+        {st.detail && <span> · {st.detail}</span>}
         {st.branch !== null && <span> · branch {st.branch}, point {st.point}</span>}
         {run && <span> · {st.points} point{st.points === 1 ? '' : 's'}</span>}
         {st.label && <span> · last label {st.label}</span>}

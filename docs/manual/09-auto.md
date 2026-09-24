@@ -28,10 +28,20 @@ below that; both stop above the status bar. It has:
   next to the diagram, for Axes' choices (Hi, Norm, Hi-lo, Period, Two
   par, Frequency, Average and their ranges) below — usable during a run,
   applied when idle;
+- once a run ends, the status strip says **why it stopped**, in words:
+  "Stopped: parameter iapp reached Par Max (0.5)" (see "Why a branch
+  stopped" below), and AUTO's Output gets the same as a line for every
+  branch that ends ("Branch 1 stopped at point 49: ...");
+- the diagram's **key** lists the label types it has, spelled out (EP End
+  point, HB Hopf, ...), each with its meaning as a tooltip, and hovering a
+  labelled point names its type; the point where the last run ended also
+  says why;
 - an **Output** panel with AUTO's printed table (`xpp_log_auto()`, always
   written in browser mode);
 - Numerics as a dialog with Save/Load to a settings file, in place of the
-  X11 Numerics window;
+  X11 Numerics window: every field has a plain name with AUTO's short name
+  kept ("Max points (NMX)"), its help as a tooltip, and a message beside it
+  when its value is not one AUTO takes (OK waits until every value is);
 - **Grab** as a mode of the diagram: arrows, `[` `]`, Tab to the labelled
   points, Enter takes the point, Escape cancels, a click or tap takes the
   nearest point (see "Points and labels" below for what grabbing does);
@@ -129,7 +139,36 @@ Once you press `OK` the axes will be redrawn and labeled. For the present model,
 
 ## Numerical parameters
 
-Next, set the NUMERICAL parameters. When you click on this, a new window appears with the following items:
+Next, set the NUMERICAL parameters. **In web2** the Numerics dialog names
+each field in plain words with AUTO's short name after it, in three
+groups; hovering a field shows its help. The page checks each value as you
+type (a message beside the field, OK disabled until all are good) and the
+core checks them again when they arrive:
+
+| Field | What it does | Valid values |
+|---|---|---|
+| Mesh intervals (NTST) | mesh intervals of a periodic orbit or boundary value solution; raise it when a periodic branch looks wrong or does not converge (doubled when following a period doubling) | whole number, at least 1 |
+| Max points (NMX) | the most points a branch may have; it ends (EP) at this many | whole number, at least 1 |
+| Label every (NPR) | label and save the whole solution every NPR points, besides the special points | whole number, at least 1 |
+| Collocation points (NCOL) | collocation points per mesh interval | whole number, 2 to 7 (4 is usual) |
+| First step (DS) | the first step; its sign is the direction the main parameter goes | not 0, from DSMIN to DSMAX in size |
+| Smallest step (DSMIN) | the smallest step: a point that does not converge is retried with half the step until it would go below this, then the branch ends (MX) | above 0, at most DSMAX |
+| Largest step (DSMAX) | the largest step; too large jumps over folds and Hopf points | above 0 |
+| Par Min (RL0), Par Max (RL1) | the main parameter's range: a branch that leaves it ends (EP) | Par Min below Par Max |
+| Norm Min (A0), Norm Max (A1) | the norm's range: a branch whose norm leaves it ends (EP) | Norm Min below Norm Max |
+| Parameter tolerance (EPSL), Solution tolerance (EPSU) | Newton's relative convergence tolerances for the parameters and the solution | above 0, often 1e-4 to 1e-7 |
+| Special point tolerance (EPSS) | how closely special points are located; usually 100 to 1000 times EPSL and EPSU | above 0 |
+| Adapt mesh every (IAD) | adapt a periodic orbit's mesh every IAD steps; 0 keeps it fixed | whole number, 0 or more (3 is usual) |
+| Branch switches (MXBF) | steady states: at how many branch points AUTO follows the other branch by itself; negative: in one direction only; 0: none | whole number |
+| Output detail (IID) | how much AUTO writes to its diagnostics (.d file): 0 almost nothing, 1 a little, 2 the usual, 3 also the Jacobian and residuals of the start, 4 and 5 very much (debugging) | 0 to 5 |
+| Locate iterations (ITMX) | the most iterations locating a special point | whole number, at least 1 |
+| Newton iterations (ITNW) | the most Newton iterations for a point, before the step is halved (IADS above 0) or the branch ends | whole number, at least 1 |
+| Full Newton steps (NWTN) | after this many iterations the Jacobian is kept (chord method) | whole number, at least 1 |
+| Adapt step every (IADS) | adapt the step every IADS steps; 0 keeps it at DS, and a point that does not converge then ends the branch (MX) | whole number, 0 or more (1 is usual) |
+| Skip branch points (SuppBP) | 1: do not look for branch points (and for periodic orbits no Floquet multipliers, period doublings or tori); 0: look for them | 0 or 1 |
+
+The settings file (Save/Load settings) keeps the core's form labels
+(`Nmax`, `Ntst`, ...). The original window had the following items:
 
 ### Ntst
 
@@ -191,36 +230,72 @@ At this point, you are probably ready to run. But before doing a run, here is a 
 
 Click on “Run” to run the bifurcation. Depending on the situation, a number of menus can come up. For initial exploration, there are three choices, starting at a new steady state, periodic, or boundary value solution. If you are running the example, click on the steady-state option and a nice diagram will show up and a bunch of points will move around in the stability circle. These indicate stability: for fixed points, they represent exponentials of the eigenvalues; for periodics, the Floquet multipliers. Thus those in the circle are stable and those out of the circle are unstable. Bifurcations occur on the circle. The outer ones are “clipped” so that they will always lie in the square, thus you can keep count of them.
 
-The diagram,itself, has two different lines and two different circles. Stable fixed points are thick lines, stable periodics are solid circles, unstable fixed points are thin lines, and unstable periodics are open circles. Additionally, there are crosses occasionally dispersed with numbers associated with them. These represent “special” points that AUTO wants to keep. There are several of them:
+The diagram,itself, has two different lines and two different circles. Stable fixed points are thick lines, stable periodics are solid circles, unstable fixed points are thin lines, and unstable periodics are open circles. Additionally, there are crosses occasionally dispersed with numbers associated with them. These represent “special” points that AUTO wants to keep. There are several of them (web2 spells each out in the key, the readout and the info strip, with its meaning as the key's tooltip):
 
-### EP
+### EP End point
 
-Endpoint of a branch
+Where a branch starts or ends normally: a limit (Par Min/Max, Norm
+Min/Max), Max points, Stop or a Mark value set to stop. The status strip
+and Output say which (see "Why a branch stopped").
 
-### LP
+### MX No convergence
 
-Limit point or turning point of a branch
+AUTO could not compute the next point, even at the smallest step, and
+ended the branch there (failure to converge).
 
-### TR
+### LP Fold (limit point)
 
-Torus bifurcation from a periodic
+Limit point or turning point of a branch: two solutions meet and
+disappear.
 
-### PD
+### HB Hopf
 
-Period doubling bifurcation
+Hopf bifurcation: a pair of eigenvalues crosses the imaginary axis, and a
+branch of periodic orbits starts here.
 
-### UZ
+### BP Branch point
 
-User defined function
+Bifurcation or branch point: another branch crosses this one.
 
-### MX
+### PD Period doubling
 
-Failure to converge
+Period doubling bifurcation: a Floquet multiplier crosses -1.
 
-### BP
+### TR Torus
 
-Bifurcation or branch point
+Torus bifurcation from a periodic orbit: a pair of Floquet multipliers
+crosses the unit circle.
+
+### UZ Marked value
+
+A point where a parameter, or the period T, reaches one of the Mark values
+(user functions).
+
 - : Output every $`Npr^{th}`$ point.
+
+## Why a branch stopped
+
+AUTO labels the end of a branch EP or MX but does not say why. xppautX
+records it where AUTO decides it (autlib1.c's stplae and stplbv, and the
+"No convergence" notes of its fort.9) and says it in plain words: in the
+AUTO view's status strip once the run ends ("Stopped: ..."), as a line in
+Output for every branch that ends ("Branch 1 stopped at point 49: ..."),
+next to the end point's label when you hover it, and as `autoinfo`'s
+`stop` for a client (docs/protocol.md). The reasons:
+
+| Stopped: | Why | What to change to go further |
+|---|---|---|
+| parameter *p* reached Par Min / Par Max (*value*) | the main parameter left the range in Numerics | Par Min / Par Max (RL0 / RL1) |
+| the norm reached Norm Min / Norm Max (*value*) | the solution's norm left its range | Norm Min / Norm Max (A0 / A1) |
+| the branch reached Max points (NMX *n*) | the branch has as many points as Max points allows | Max points (NMX), or a larger Largest step (DSMAX) |
+| by the user (Stop) | Stop (or the view's Close) during the run | Run again from the end point |
+| parameter *p* reached a Mark value set to stop | a user point marked as an end (AUTO's UZR endpoint) | the Mark values |
+| no convergence even at the smallest step (Dsmin *value*) | the solver failed and halving the step reached Smallest step (DSMIN): a sharp turn, a jump, or a singular point (MX) | a smaller DSMIN or DSMAX, a larger NTST, looser tolerances |
+| no convergence with a fixed step size (IADS 0) | the solver failed and Adapt step every (IADS) is 0, so the step is not reduced (MX) | IADS 1 |
+| no convergence switching branches, ... | the same while starting a bifurcating branch at a branch point | as above |
+
+Recording the reason changes nothing AUTO computes: the points, labels and
+saved diagrams are the same as before.
 
 ## Grabbing
 

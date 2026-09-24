@@ -20,9 +20,12 @@ extern "C" {
      draws it, so after a run it is the last point's, while grabbing the
      cursor's.
 
-   auto_nox.c reports both as it draws them; the front end sends the event
-   at the end of a command, before every prompt and at most ten times a
-   second while AUTO runs, and only when it differs from the one it sent
+   - Why the run's last branch ended (auto_stop.h, T23): "stop", null
+     until a branch ends; a run's start and a new AUTO window clear it.
+
+   auto_nox.c reports the strip and the circle as it draws them; the front
+   end sends the event at the end of a command, before every prompt and at
+   most ten times a second while AUTO runs, and only when it differs from the one it sent
    last. Nothing is recorded before auto_data_init(), so a program without
    such a front end (xppaut) pays nothing.
 
@@ -40,7 +43,7 @@ void auto_data_init(AutoDataEmit emit, AutoDataPointOf point_of);
    update whatever it holds */
 void auto_data_subscribe(int on);
 
-/* a new AUTO window, or none: nothing to show */
+/* a new AUTO window, or none: nothing to show (no stop reason either) */
 void auto_data_forget(void);
 
 /* the point the info strip shows; names are the model's, whole. p2name is

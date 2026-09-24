@@ -179,7 +179,7 @@ Run it with:
 | `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`), `title`, `file`, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows 1..10, AUTO 101, animation 104. `w`, `h` are the core's pixel size of the window: what the pixel fields of `state.view`, `state.auto` and pixel answers to asks refer to. |
 | `diagram` | `op` (`axes`, `reset`, `add`), ... | The AUTO diagram as data; see "The AUTO diagram as data". |
-| `autoinfo` | `info`, `stab` | AUTO's info strip and stability circle as data, for a client that asked (`data`); see "The AUTO diagram as data". |
+| `autoinfo` | `info`, `stab`, `stop` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`data`); see "The AUTO diagram as data". |
 | `autosettings` | `numerics`, `pars`, `axes`, `marks` | AUTO's settings as data, for a client that asked (`data`); see "AUTO's settings as data". |
 | `series` | `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`; or `op` `append`, `win`, `from`, `rows`, `enc`, `columns` | A plot window's curves as numbers, one event per window, for a client that asked (`data`), and during an integration the active window's rows as they are stored; see "The plot as data". |
 | `erase` | `win` | The Erase command blanked plot window `win`, for a client that asked for `series`: it shows nothing of that window's curves (nor the earlier runs it may keep) until the window's next series or `redraw`. Only Erase sends it: a slider's rerun or a zoom also redraw the window, and keep what a data client shows. See "The plot as data". |
@@ -271,7 +271,8 @@ command, and then whenever what it says changed: before every ask (so
 every step of a grab brings the point's strip and circle before the grab
 asks again), at the end of a command, and at most ten times a second while
 AUTO runs; a command that changes neither sends none. core/auto_data.cpp
-keeps it, from what auto_nox.c shows there.
+keeps it, from what auto_nox.c shows there; `stop` comes from
+core/auto_stop.cpp, which autlib1.c tells where it ends a branch (T23).
 
 ```
 {"ev":"autoinfo",
@@ -279,7 +280,9 @@ keeps it, from what auto_nox.c shows there.
          "par":[{"name":"iapp","value":0.2624638},{"name":"phi","value":0.2}],
          "norm":0.2891081,"var":"V","u":-0.1989438,"per":14.44537,"x":0.2624638,"y":-0.1989438,"y2":-0.1989438},
  "stab":{"periodic":0,"circle":[[0.9069413,0.4214016],[0.9069413,-0.4214016]],
-         "eig":[[6.093e-05,0.434962],[6.093e-05,-0.434962]]}}
+         "eig":[[6.093e-05,0.434962],[6.093e-05,-0.434962]]},
+ "stop":{"why":"parmax","text":"parameter iapp reached Par Max (0.5)","br":1,"pt":49,
+         "value":0.5048396225954056,"limit":0.5}}
 ```
 
 | field | meaning |
@@ -293,12 +296,20 @@ keeps it, from what auto_nox.c shows there.
 | `stab` | what the circle shows: the point AUTO computed or a redraw plotted last, or the grab's cursor; `null` before any |
 | `stab.periodic` | 1: `circle` holds the Floquet multipliers of a periodic orbit; 0: e^λ of each eigenvalue λ of a steady state (XPP keeps them so: inside the unit circle is stable) |
 | `stab.circle` | `[re,im]` per variable, the values themselves (the X11 circle clamps them to ±1.95) |
+| `stop` | why the run's last branch ended; `null` until one ends, and again when a run starts or AUTO's window is new. AUTO labels the end EP (a limit, Max points, Stop, a Mark value) or MX (no convergence); this says which |
+| `stop.why` | `parmin` / `parmax`: the continuation parameter went below Par Min (RL0) / above Par Max (RL1); `normmin` / `normmax`: the norm AUTO checks went below Norm Min (A0) / above Norm Max (A1); `npts`: the branch has Max points (NMX); `user`: Stop (an `abort`); `mark`: a Mark value set to stop (AUTO's UZR endpoint); `noconv-min`: no convergence even at the smallest step (Dsmin); `noconv-fixed`: no convergence with a fixed step (IADS 0); `noconv-switch-min`, `noconv-switch-fixed`: the same while switching to a bifurcating branch; `noconv`: no convergence, how not noted |
+| `stop.text` | the reason in words, to follow "Stopped: " (the page's status strip); AUTO's Output gets the line `Branch 1 stopped at point 49: parameter iapp reached Par Max (0.5)` for every branch that ends |
+| `stop.br`, `pt` | the branch and point number of the end (positive, as in `diagram`) |
+| `stop.value`, `limit` | what crossed the limit and the limit: the parameter and Par Min/Max, the norm and Norm Min/Max, the point count and NMX, the step size and Dsmin; `null` where there is none |
 | `stab.eig` | steady states only: the eigenvalues λ = log z of the `circle` values, `[null,null]` where z is 0 (Re λ below about -745); the imaginary part is only known modulo 2π, its principal value |
 
 Numbers are doubles in the shortest of 15 or 17 digits that reads back
 exactly, `null` when not finite. `tools/servercheck.py` checks that the
 point is the `diagram` data's point it names and that the circle holds
-what AUTO printed (its fort.9) for that point.
+what AUTO printed (its fort.9) for that point, and runs
+tools/models/auto_stop.ode into each `stop` reason (Par Min and Max, Norm
+Max, Max points, no convergence with a fixed and at the smallest step, and
+Stop).
 
 ### AUTO's settings as data
 
@@ -343,7 +354,8 @@ Axes/Fit afterwards, `marks` the whole list (0 to 9 pairs; `[]` for none).
 The core checks every value first and sets all or nothing: a whole number
 where the form's field is one; Ntst, Nmax, NPr, ITMX, ITNW, NWTN at least
 1; Ncol 2 to 7; IID 0 to 5; IAD and IADS at least 0; SuppBP 0 or 1; Ds not
-0; Dsmin, Dsmax and the EPS values above 0; Dsmin at most Dsmax, Par Min
+0; Dsmin, Dsmax and the EPS values above 0; Dsmin at most Dsmax, |Ds| from
+Dsmin to Dsmax (T23; checked when one of the three is given), Par Min
 below Par Max, Norm Min below Norm Max, Xmin below Xmax, Ymin below Ymax;
 names of parameters and variables the model has. A refusal is a `message`
 `error` naming the value (`AUTO settings: Ncol must be a whole number from

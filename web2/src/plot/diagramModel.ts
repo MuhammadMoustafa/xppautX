@@ -269,9 +269,23 @@ export function grabStep(key: string, shift: boolean, from: number, n: number, l
 const TYPES = ['', 'stable steady state', 'unstable steady state', 'stable periodic orbit', 'unstable periodic orbit'];
 const CURVES = ['', 'limit point', 'limit point of periodic orbits', 'Hopf', 'torus', 'branch point', 'period doubling',
   'fixed period'];
+/** AUTO's label types in words (T23), in the key's order */
 const SYMBOLS: Record<string, string> = {
-  EP: 'end point', LP: 'limit point', HB: 'Hopf bifurcation', BP: 'branch point', PD: 'period doubling',
-  TR: 'torus bifurcation', UZ: 'user point', MX: 'no convergence',
+  EP: 'End point', MX: 'No convergence', LP: 'Fold (limit point)', HB: 'Hopf', BP: 'Branch point',
+  PD: 'Period doubling', TR: 'Torus', UZ: 'Marked value',
+};
+
+/** what each label type means, for the key's tooltips (docs/manual/09-auto.md) */
+const SYMBOL_HELP: Record<string, string> = {
+  EP: 'End point: where a branch starts or ends normally (a limit, Max points or Stop); the status strip says why it ended',
+  MX: 'No convergence: AUTO could not compute the next point, even at the smallest step (Dsmin), and ended the branch; '
+    + 'a smaller Ds or Dsmax, a larger Ntst or looser tolerances may get past it',
+  LP: 'Fold (limit point): the branch turns back in the parameter; two solutions meet and disappear there',
+  HB: 'Hopf bifurcation: a pair of eigenvalues crosses the imaginary axis; a branch of periodic orbits starts here',
+  BP: 'Branch point: another branch of solutions crosses this one',
+  PD: 'Period doubling: a Floquet multiplier crosses -1; orbits of twice the period start here',
+  TR: 'Torus bifurcation: a pair of Floquet multipliers crosses the unit circle; an invariant torus starts here',
+  UZ: 'Marked value: a parameter, or the period T, reached one of the Mark values',
 };
 
 export function fmt(v: number): string {
@@ -287,9 +301,25 @@ export function symbolName(sym: string): string {
   return SYMBOLS[sym] ?? '';
 }
 
-/** the readout's parts for point `i` (A14: six significant digits) */
-export function describePoint(p: DiagramPoints, labels: DiagramLabel[], axes: DiagramAxes | null, i: number) {
+export function symbolHelp(sym: string): string {
+  return SYMBOL_HELP[sym] ?? '';
+}
+
+/** the label types the diagram has, in the key's order (EP, MX, LP, HB, BP, PD, TR, UZ) */
+export function labelTypes(labels: {sym: string}[]): string[] {
+  const has = new Set(labels.map(l => l.sym));
+  return Object.keys(SYMBOLS).filter(k => has.has(k));
+}
+
+/** the readout's parts for point `i` (A14: six significant digits); `stop`,
+    the point where the last run's branch ended and why (T23), adds the reason
+    to its label: "EP label 3 (End point: parameter iapp reached Par Max (0.45))" */
+export function describePoint(p: DiagramPoints, labels: DiagramLabel[], axes: DiagramAxes | null, i: number,
+  stop: {point: number; text: string} | null = null) {
   const l = labels.find(x => x.point === i);
+  const name = l ? symbolName(l.sym) : '';
+  const why = stop && stop.point === i ? stop.text : '';
+  const named = name && why ? `${name}: ${why}` : name || why;
   const xName = axes?.xlabel || 'x', yName = axes?.ylabel || 'y';
   const two = p.y2[i] !== p.y[i];
   const values = [`${xName} = ${fmt(p.x[i])}`,
@@ -298,7 +328,7 @@ export function describePoint(p: DiagramPoints, labels: DiagramLabel[], axes: Di
   return {
     head: `Branch ${p.br[i]}, point ${p.pt[i]}`,
     kind: pointKind(p, i),
-    label: l ? `${l.sym ? l.sym + ' ' : ''}label ${l.lab}${symbolName(l.sym) ? ` (${symbolName(l.sym)})` : ''}` : '',
+    label: l ? `${l.sym ? l.sym + ' ' : ''}label ${l.lab}${named ? ` (${named})` : ''}` : '',
     values,
   };
 }

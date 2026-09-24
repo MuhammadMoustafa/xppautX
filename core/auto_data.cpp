@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "auto_data.h"
+#include "auto_stop.h"
 #include "xpp_job.h"
 
 namespace {
@@ -153,6 +154,25 @@ void add_stab(std::string &o)
     o += '}';
 }
 
+/* why the run's last branch ended (auto_stop.h), or null */
+void add_stop(std::string &o)
+{
+    AutoStopInfo st;
+    auto_stop_last(&st);
+    if (st.why == AUTO_STOP_NONE) {
+        o += "null";
+        return;
+    }
+    o += "{\"why\":";
+    add_str(o, st.key);
+    o += ",\"text\":";
+    add_str(o, st.text);
+    o += ",\"br\":" + std::to_string(st.br) + ",\"pt\":" + std::to_string(st.pt);
+    add_field(o, "value", st.value);
+    add_field(o, "limit", st.limit);
+    o += '}';
+}
+
 std::string event()
 {
     std::string o = "{\"ev\":\"autoinfo\",\"info\":";
@@ -161,6 +181,8 @@ std::string event()
     o += ",\"stab\":";
     if (has_stab) add_stab(o);
     else o += "null";
+    o += ",\"stop\":";
+    add_stop(o);
     o += '}';
     return o;
 }
@@ -183,6 +205,7 @@ extern "C" void auto_data_subscribe(int on)
 extern "C" void auto_data_forget(void)
 {
     has_info = has_stab = false;
+    auto_stop_clear();
 }
 
 extern "C" void auto_data_info(const AutoDataInfo *v)

@@ -48,10 +48,11 @@ export interface LogEntry {
     distinguishable"), cheaply and without a protocol change: AUTO's table
     header and rows (core/autlib1.c xpp_log_auto, "  BR    PT  TY LAB " then
     "%4li%6li  %c%c%4li%14.6E..." rows) and its handful of fixed messages
-    ("Generating starting data", "Hopf point", ...). Anything else stays
+    ("Generating starting data", "Hopf point", ...) and why a branch ended
+    (core/auto_stop.cpp, "Branch 1 stopped at point 57: ..."). Anything else stays
     plain `log`; this never sees `message` `error` text (handled separately). */
 const AUTO_ROW = /^\s*-?\d+\s+-?\d+\s+\S\S\s+-?\d+(\s+-?\d+(\.\d+)?([eE][+-]?\d+)?){2,}\s*$/;
-const AUTO_PHRASE = /BR\s+PT\s+TY\s+LAB|Generating starting data|Restart at EP label|Hopf point|Limit point|Periodic point|Max point|End point|NPARX|NCOL=|DSMIN|DSMAX|Division by Zero|Initialization Error CRASH|Restart label/;
+const AUTO_PHRASE = /BR\s+PT\s+TY\s+LAB|Generating starting data|Restart at EP label|Hopf point|Limit point|Periodic point|Max point|End point|NPARX|NCOL=|DSMIN|DSMAX|Division by Zero|Initialization Error CRASH|Restart label|Branch \d+ stopped at point \d+:/;
 export function classifyLogText(text: string): 'log' | 'auto' {
   return AUTO_ROW.test(text) || AUTO_PHRASE.test(text) ? 'auto' : 'log';
 }
@@ -200,6 +201,22 @@ function addLog(state: AppState, entry: LogEntry): AppState {
   const log = state.log.length >= LOG_KEEP ? state.log.slice(1 - LOG_KEEP) : state.log.slice();
   log.push(entry);
   return {...state, log};
+}
+
+/* printed text as it arrives: the core's stderr comes in chunks cut
+   anywhere, so a chunk that ends a line the last entry began joins that
+   entry, and the line is classified whole ("Branch 1 stopped at point 5: pa"
+   + "rameter ..." is one AUTO line, T23) */
+function addLogText(state: AppState, text: string): AppState {
+  const prev = state.log[state.log.length - 1];
+  if (prev && (prev.kind === 'log' || prev.kind === 'auto') && !prev.text.endsWith('\n')) {
+    const nl = text.indexOf('\n'), head = nl < 0 ? text : text.slice(0, nl + 1), rest = nl < 0 ? '' : text.slice(nl + 1);
+    const joined = prev.text + head, line = joined.slice(joined.lastIndexOf('\n', joined.length - 2) + 1);
+    const kind = prev.kind === 'auto' || classifyLogText(line) === 'auto' ? 'auto' : 'log';
+    const next = {...state, log: [...state.log.slice(0, -1), {kind, text: joined} as LogEntry]};
+    return rest ? addLog(next, {kind: classifyLogText(rest), text: rest}) : next;
+  }
+  return addLog(state, {kind: classifyLogText(text), text});
 }
 
 function addToast(state: AppState, kind: Toast['kind'], text: string, action?: ToastAction): AppState {
@@ -374,7 +391,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     case 'diagram':
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'event', ev: ev as unknown as DiagramEvent})};
     case 'log':
-      return addLog(state, {kind: classifyLogText(ev.text), text: ev.text});
+      return addLogText(state, ev.text);
     case 'exit':
       return {...state, exited: ev.code, busy: false, stopping: false};
     case 'bye':
