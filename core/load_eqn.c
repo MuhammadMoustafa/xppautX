@@ -35,6 +35,7 @@
 #include "xpp_io.h"
 #include "xpp_batch.h"
 #include "xpp_log.h"
+#include "many_pops.h"
 
 #define PARAM 1
 #define IC 2
@@ -83,7 +84,6 @@ typedef struct {
 extern int XNullColor,YNullColor,StableManifoldColor,UnstableManifoldColor;
 int IX_PLT[10],IY_PLT[10],IZ_PLT[10],NPltV;
 int MultiWin=0;
-extern int SimulPlotFlag;
 double X_LO[10],Y_LO[10],X_HI[10],Y_HI[10];
 int START_LINE_TYPE=1;
 INTERN_SET intern_set[MAX_INTERN_SET];
@@ -1231,7 +1231,7 @@ if(msc("UMC",s1)){
    }
    /* can now initialize several plots */
    if(msc("SIMPLOT",s1)){
-     SimulPlotFlag=1;
+     plot_windows.simul=1;
      return;
    }
    if(msc("MULTIWIN",s1)){

@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include "many_pops.h"
 
 /* the core's own globals and functions that have no header of their own */
 extern "C" {
@@ -335,8 +336,8 @@ void answer_point(unsigned long win, int k, int *x, int *y)
         *y = data_to_pixel(js_num(jy, 0), Auto.ymin, Auto.ymax, Auto.y0 + Auto.hgt, Auto.y0);
     } else {
         get_draw_area();
-        *x = data_to_pixel(js_num(jx, 0), MyGraph->xlo, MyGraph->xhi, DLeft, DRight);
-        *y = data_to_pixel(js_num(jy, 0), MyGraph->ylo, MyGraph->yhi, DBottom, DTop);
+        *x = data_to_pixel(js_num(jx, 0), plot_windows.current->xlo, plot_windows.current->xhi, DLeft, DRight);
+        *y = data_to_pixel(js_num(jy, 0), plot_windows.current->ylo, plot_windows.current->yhi, DBottom, DTop);
     }
 }
 
@@ -353,7 +354,7 @@ int mouse_ask(unsigned long win, const char *kind, int flag, int *v, int nv)
 int j_get_mouse_xy(int *x, int *y)
 {
     int v[2];
-    if (!mouse_ask(draw_win, "mouse", 0, v, 2)) return 0;
+    if (!mouse_ask(plot_windows.draw_win, "mouse", 0, v, 2)) return 0;
     *x = v[0];
     *y = v[1];
     return 1;
@@ -362,7 +363,7 @@ int j_get_mouse_xy(int *x, int *y)
 int j_rubber_band(int *i1, int *j1, int *i2, int *j2, int flag)
 {
     int v[4];
-    if (!mouse_ask(draw_win, "rubber", flag, v, 4)) return 0;
+    if (!mouse_ask(plot_windows.draw_win, "rubber", flag, v, 4)) return 0;
     *i1 = v[0]; *j1 = v[1]; *i2 = v[2]; *j2 = v[3];
     return 1;
 }

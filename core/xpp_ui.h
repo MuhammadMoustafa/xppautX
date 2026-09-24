@@ -127,7 +127,7 @@ typedef struct XppUi {
     void (*browser_redraw)(int full); /* my_browser: 1 columns too, 0 data */
 
     /* plot windows */
-    void (*activate_graph)(int i, int flag); /* graph i became MyGraph */
+    void (*activate_graph)(int i, int flag); /* graph i became plot_windows.current */
     void (*create_plot_window)(void);
     void (*destroy_plot_window)(void); /* the active one; not the main window */
     void (*kill_plot_windows)(void);   /* all but the main window */

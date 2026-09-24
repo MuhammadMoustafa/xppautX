@@ -28,7 +28,6 @@ extern OptionsSet notAlreadySet;
 extern int help_menu;
 extern int ks_ncycle, ks_speed;
 extern CURVE frz[MAXFRZ];
-extern XppWinId draw_win;
 extern int AutoFreezeFlag;
 
 /* appearance options parsed from the ODE file / command line */
@@ -37,14 +36,6 @@ extern int PS_Color;
 
 /* colour table bookkeeping (the X colormap itself stays in color.c) */
 extern int color_min, color_total, COLOR, color_max;
-
-/* plot windows: the graph array and which one is active */
-extern GRAPH graph[MAXPOP];
-extern GRAPH *MyGraph;
-extern int SimulPlotFlag;
-extern int current_pop;
-extern int num_pops;
-extern int ActiveWinList[MAXPOP];
 
 /* animation */
 extern int animation_on_the_fly;

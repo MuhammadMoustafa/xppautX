@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include "xpp_io.h"
 #include "xpp_batch.h"
+#include "many_pops.h"
 
 
 #define DING ping
@@ -32,7 +33,6 @@
 
 int OutPutNC=0;
 extern int SuppressBounds;
-extern GRAPH *MyGraph;
 extern int PltFmtFlag;
 extern FILE *svgfile;
 
@@ -80,7 +80,7 @@ static void note_frozen(void)
   NCLINES *z;
   phase_data_frozen_begin();
   for(z=ncperm;n_nstore&&z!=NULL&&(z->nmx!=0||z->nmy!=0);z=z->n)
-    if(MyGraph->xv[0]==z->n_ix&&MyGraph->yv[0]==z->n_iy&&MyGraph->ThreeDFlag==0)
+    if(plot_windows.current->xv[0]==z->n_ix&&plot_windows.current->yv[0]==z->n_iy&&plot_windows.current->ThreeDFlag==0)
       phase_data_frozen(z->xn,z->nmx,z->yn,z->nmy);
 }
 
@@ -167,12 +167,12 @@ void do_range_clines()
     get_val(ncrange.rv,&zold);
     
     for(i=NODE;i<NODE+NMarkov;i++)set_ivar(i+1+FIX_VAR,last_ic[i]);
-    xmin=(float)MyGraph->xmin;
-    xmax=(float)MyGraph->xmax;
-    y_tp=(float)MyGraph->ymax;
-    y_bot=(float)MyGraph->ymin;
-    null_ix=MyGraph->xv[0];
-    null_iy=MyGraph->yv[0];
+    xmin=(float)plot_windows.current->xmin;
+    xmax=(float)plot_windows.current->xmax;
+    y_tp=(float)plot_windows.current->ymax;
+    y_bot=(float)plot_windows.current->ymin;
+    null_ix=plot_windows.current->xv[0];
+    null_iy=plot_windows.current->yv[0];
     
     
     for(i=0;i<=ncrange.nstep;i++){
@@ -347,8 +347,8 @@ void redraw_froz_cline(flag)
   /*  plintf(" %d %d  %d %d  %d \n",
 	   MyGraph->xv[0],z->n_ix, &MyGraph->yv[0],z->n_iy ,
 	  MyGraph->ThreeDFlag==0); */
-    if(MyGraph->xv[0]==z->n_ix&&MyGraph->yv[0]==z->n_iy
-       &&MyGraph->ThreeDFlag==0)
+    if(plot_windows.current->xv[0]==z->n_ix&&plot_windows.current->yv[0]==z->n_iy
+       &&plot_windows.current->ThreeDFlag==0)
       {
 	if(flag>0){
 	  waitasec(flag);
@@ -448,37 +448,37 @@ void do_batch_dfield()
   case 1:
     DF_FLAG=1;
     DFIELD_TYPE=1;
-    DF_IX=MyGraph->xv[0];
-    DF_IY=MyGraph->yv[0];
+    DF_IX=plot_windows.current->xv[0];
+    DF_IY=plot_windows.current->yv[0];
     redraw_dfield();
     return;
   case 2:
     DF_FLAG=1;
     DFIELD_TYPE=0;
-    DF_IX=MyGraph->xv[0];
-    DF_IY=MyGraph->yv[0];
+    DF_IX=plot_windows.current->xv[0];
+    DF_IY=plot_windows.current->yv[0];
     redraw_dfield();
     return;
   case 3:
     DF_FLAG=2;
     DFIELD_TYPE=0;
-    DF_IX=MyGraph->xv[0];
-    DF_IY=MyGraph->yv[0];
+    DF_IX=plot_windows.current->xv[0];
+    DF_IY=plot_windows.current->yv[0];
     redraw_dfield();
     return;
 
    case 4:
     DF_FLAG=1;
     DFIELD_TYPE=1;
-    DF_IX=MyGraph->xv[0];
-    DF_IY=MyGraph->yv[0];
+    DF_IX=plot_windows.current->xv[0];
+    DF_IY=plot_windows.current->yv[0];
     redraw_dfield();
     return;
   case 5:
     DF_FLAG=1;
     DFIELD_TYPE=0;
-    DF_IX=MyGraph->xv[0];
-    DF_IY=MyGraph->yv[0];
+    DF_IX=plot_windows.current->xv[0];
+    DF_IY=plot_windows.current->yv[0];
     redraw_dfield();
     return;
   }
@@ -486,8 +486,8 @@ void do_batch_dfield()
 void redraw_dfield()
 {
   int i,j,k;
-  int inx=MyGraph->xv[0]-1;
-  int iny=MyGraph->yv[0]-1;
+  int inx=plot_windows.current->xv[0]-1;
+  int iny=plot_windows.current->yv[0]-1;
   double y[MAXODE],ydot[MAXODE],xv1,xv2;
   float v1[MAXODE],v2[MAXODE];
   FILE *fp=NULL;
@@ -499,28 +499,28 @@ void redraw_dfield()
 
   int grid=DF_GRID;
   if(DF_FLAG==0|| 
-     MyGraph->TimeFlag||MyGraph->xv[0]==MyGraph->yv[0]||MyGraph->ThreeDFlag
-     || DF_IX!=MyGraph->xv[0]||DF_IY!=MyGraph->yv[0])
+     plot_windows.current->TimeFlag||plot_windows.current->xv[0]==plot_windows.current->yv[0]||plot_windows.current->ThreeDFlag
+     || DF_IX!=plot_windows.current->xv[0]||DF_IY!=plot_windows.current->yv[0])
     return;
   if(DFSuppress==1){
     fp=fopen("dirfields.dat","w");
     if(fp==NULL)return;
   }
 
-  du=(MyGraph->xhi-MyGraph->xlo)/(double)grid;
-  dv=(MyGraph->yhi-MyGraph->ylo)/(double)grid;
+  du=(plot_windows.current->xhi-plot_windows.current->xlo)/(double)grid;
+  dv=(plot_windows.current->yhi-plot_windows.current->ylo)/(double)grid;
   
   dup =(double)(DRight-DLeft)/(double)grid;
   dvp=(double)(DTop-DBottom)/(double)grid;
   /* printf("dup=%g dvp=  %g \n",dup,dvp); */
   dz=hypot(dup,dvp)*(.25+.75*DFIELD_TYPE);
-  u0=MyGraph->xlo;
-  v0=MyGraph->ylo;
-  if(!DFSuppress)set_linestyle(MyGraph->color[0]);
+  u0=plot_windows.current->xlo;
+  v0=plot_windows.current->ylo;
+  if(!DFSuppress)set_linestyle(plot_windows.current->color[0]);
   get_ic(2,y);
   get_max_dfield(y,ydot,u0,v0,du,dv,grid,inx,iny,&mdf);
   if(!DFSuppress&&(DF_FLAG==1||DF_FLAG==4))
-    phase_data_dfield_begin(grid+1,du,dv,DFIELD_TYPE==0,MyGraph->color[0]);
+    phase_data_dfield_begin(grid+1,du,dv,DFIELD_TYPE==0,plot_windows.current->color[0]);
      if (PltFmtFlag==SVGFMT)
      {
      	    DOING_DFIELD=1;
@@ -532,7 +532,7 @@ void redraw_dfield()
       y[iny]=v0+dv*j;
       rhs(0.0,y,ydot,NODE);
       extra(y,0.0,NODE,NEQ);
-      if(MyGraph->ColorFlag||DF_FLAG==2){
+      if(plot_windows.current->ColorFlag||DF_FLAG==2){
 	v1[0]=0.0;
 	v2[0]=0.0;
 	for(k=0;k<NEQ;k++){
@@ -588,8 +588,8 @@ void direct_field_com(int c)
 {
   
   int i,j,start,k;
-  int inx=MyGraph->xv[0]-1;
-  int iny=MyGraph->yv[0]-1;
+  int inx=plot_windows.current->xv[0]-1;
+  int iny=plot_windows.current->yv[0]-1;
   double y[MAXODE],ydot[MAXODE],xv1,xv2;
   double dtold=DELTA_T;
   float v1[MAXODE],v2[MAXODE];
@@ -604,7 +604,7 @@ void direct_field_com(int c)
   int grid=DF_GRID;
   
   
-  if(MyGraph->TimeFlag||MyGraph->xv[0]==MyGraph->yv[0]||MyGraph->ThreeDFlag)
+  if(plot_windows.current->TimeFlag||plot_windows.current->xv[0]==plot_windows.current->yv[0]||plot_windows.current->ThreeDFlag)
     return;
 
   if(c==2){
@@ -616,29 +616,29 @@ void direct_field_com(int c)
   new_int("Grid:",&grid);
   if(grid<=1)return;
   DF_GRID=grid;
-  du=(MyGraph->xhi-MyGraph->xlo)/(double)grid;
-  dv=(MyGraph->yhi-MyGraph->ylo)/(double)grid;
+  du=(plot_windows.current->xhi-plot_windows.current->xlo)/(double)grid;
+  dv=(plot_windows.current->yhi-plot_windows.current->ylo)/(double)grid;
   
   dup =(double)(DRight-DLeft)/(double)grid;
   dvp=(double)(DTop-DBottom)/(double)grid; 
   dz=hypot(dup,dvp)*(.25+.75*DFIELD_TYPE) ;
-  u0=MyGraph->xlo;
-  v0=MyGraph->ylo;
-  set_linestyle(MyGraph->color[0]);
+  u0=plot_windows.current->xlo;
+  v0=plot_windows.current->ylo;
+  set_linestyle(plot_windows.current->color[0]);
   if(c!=1){
 
     DF_FLAG=1;
     if(c==3){
       DF_FLAG=2;
-      du=(MyGraph->xhi-MyGraph->xlo)/(double)(grid+1);
-      dv=(MyGraph->yhi-MyGraph->ylo)/(double)(grid+1);
+      du=(plot_windows.current->xhi-plot_windows.current->xlo)/(double)(grid+1);
+      dv=(plot_windows.current->yhi-plot_windows.current->ylo)/(double)(grid+1);
     }
     DF_IX=inx+1;
     DF_IY=iny+1;
     get_ic(2,y);
      get_max_dfield(y,ydot,u0,v0,du,dv,grid,inx,iny,&mdf);
      if(DF_FLAG==1)
-       phase_data_dfield_begin(grid+1,du,dv,DFIELD_TYPE==0,MyGraph->color[0]);
+       phase_data_dfield_begin(grid+1,du,dv,DFIELD_TYPE==0,plot_windows.current->color[0]);
      if (PltFmtFlag==SVGFMT)
      {
      	    DOING_DFIELD=1;
@@ -652,7 +652,7 @@ void direct_field_com(int c)
        y[iny]=v0+dv*j;
        rhs(0.0,y,ydot,NODE);
        extra(y,0.0,NODE,NEQ);
-       if(MyGraph->ColorFlag||DF_FLAG==2){
+       if(plot_windows.current->ColorFlag||DF_FLAG==2){
 	 v1[0]=0.0;
          v2[0]=0.0;
 	 for(k=0;k<NEQ;k++){
@@ -772,7 +772,7 @@ void restore_nullclines()
    col2=9;
    } */
  if(NULL_HERE==0)return;
- if(MyGraph->xv[0]==null_ix&&MyGraph->yv[0]==null_iy&&MyGraph->ThreeDFlag==0)
+ if(plot_windows.current->xv[0]==null_ix&&plot_windows.current->yv[0]==null_iy&&plot_windows.current->ThreeDFlag==0)
    {
     set_linestyle(col1);
     restor_null(X_n,num_x_n,1);
@@ -881,18 +881,18 @@ void new_clines_com(int c)
   float xmin,xmax,y_tp,y_bot;
   int col1=XNullColor,col2=YNullColor;
   
-  if(MyGraph->ThreeDFlag||MyGraph->TimeFlag||MyGraph->xv[0]==MyGraph->yv[0])return;
+  if(plot_windows.current->ThreeDFlag||plot_windows.current->TimeFlag||plot_windows.current->xv[0]==plot_windows.current->yv[0])return;
 
   if(c==1){
     restore_nullclines();
     return;
   }
   if(c==2){
-    MyGraph->Nullrestore=1;
+    plot_windows.current->Nullrestore=1;
    return;
   }
   if(c==3){
-    MyGraph->Nullrestore=0;
+    plot_windows.current->Nullrestore=0;
     return;
   }
   if(c==4){
@@ -905,12 +905,12 @@ void new_clines_com(int c)
   }
   if(c==0){
     for(i=NODE;i<NODE+NMarkov;i++)set_ivar(i+1+FIX_VAR,last_ic[i]);
-    xmin=(float)MyGraph->xmin;
-    xmax=(float)MyGraph->xmax;
-    y_tp=(float)MyGraph->ymax;
-    y_bot=(float)MyGraph->ymin;
-  null_ix=MyGraph->xv[0];
-  null_iy=MyGraph->yv[0];
+    xmin=(float)plot_windows.current->xmin;
+    xmax=(float)plot_windows.current->xmax;
+    y_tp=(float)plot_windows.current->ymax;
+    y_bot=(float)plot_windows.current->ymin;
+  null_ix=plot_windows.current->xv[0];
+  null_iy=plot_windows.current->yv[0];
   if(NULL_HERE==0)
     {
       if((X_n=(float *)xpp_malloc(4*MAX_NULL*sizeof(float)))!=NULL

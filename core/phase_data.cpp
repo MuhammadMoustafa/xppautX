@@ -18,6 +18,7 @@
 #include "series_enc.h"
 #include "xpp_globals.h"
 #include "xpp_mem.h"
+#include "many_pops.h"
 
 extern "C" {
 extern char uvar_names[MAXODE][XPP_NAME_MAX + 1];
@@ -96,8 +97,8 @@ unsigned long trajectory;
 
 Window *current()
 {
-    if (!emit_line || current_pop < 0 || current_pop >= MAXPOP) return nullptr;
-    return &windows[current_pop];
+    if (!emit_line || plot_windows.active < 0 || plot_windows.active >= MAXPOP) return nullptr;
+    return &windows[plot_windows.active];
 }
 
 /* ---- flows ---- */
@@ -188,7 +189,7 @@ void begin_event(std::string &o, const char *ev, int pop)
     o = "{\"ev\":\"";
     o += ev;
     o += "\",\"win\":";
-    add_int(o, static_cast<long>(graph[pop].w));
+    add_int(o, static_cast<long>(plot_windows.graph[pop].w));
     if (values_f32) o += ",\"enc\":\"f32\"";
 }
 
@@ -255,9 +256,9 @@ void send_dfield(int pop, const Field &f)
 void update()
 {
     for (int k = 0; k < MAXPOP; k++) {
-        const int pop = k == 0 ? current_pop : (k == current_pop ? 0 : k); /* the active window first */
+        const int pop = k == 0 ? plot_windows.active : (k == plot_windows.active ? 0 : k); /* the active window first */
         Window &w = windows[pop];
-        if (!graph[pop].Use) {
+        if (!plot_windows.graph[pop].Use) {
             w = Window(); /* a window made again later starts afresh */
             continue;
         }
@@ -383,12 +384,12 @@ extern "C" void phase_data_flow_step(int ncurves, const float *ox, const float *
 {
     if (!flowing) return;
     Window *w = current();
-    if (!w || graph[current_pop].ThreeDFlag || ncurves <= 0) return;
+    if (!w || plot_windows.graph[plot_windows.active].ThreeDFlag || ncurves <= 0) return;
     try {
         Field &f = w->df;
         if (flow_values(f) > FLOW_MAX) return;
         if (f.flows.size() != static_cast<std::size_t>(ncurves)) f.flows.resize(ncurves);
-        const GRAPH &g = graph[current_pop];
+        const GRAPH &g = plot_windows.graph[plot_windows.active];
         const double ex = std::fabs(g.xhi - g.xlo) * FLOW_STEP, ey = std::fabs(g.yhi - g.ylo) * FLOW_STEP;
         const bool first = w->trajectory != trajectory;
         w->trajectory = trajectory;

@@ -117,14 +117,14 @@ void get_draw_area_flag(int flag)
   if(flag==1)
     {
       xpp_ui.get_draw_size(&w,&h);
-      MyGraph->x11Wid=w;
-      MyGraph->x11Hgt=h;
+      plot_windows.current->x11Wid=w;
+      plot_windows.current->x11Hgt=h;
     }
   else
     {
     
-    w=MyGraph->x11Wid;
-    h=MyGraph->x11Hgt;
+    w=plot_windows.current->x11Wid;
+    h=plot_windows.current->x11Hgt;
   }
   /* plintf(" geom:+%d+%d:%dx%d\n",x,y,w,h); */
   XDMax=w;
@@ -142,10 +142,10 @@ void get_draw_area_flag(int flag)
   w=DRight-DLeft;
   if(h>0&&w>0)D_FLAG=1;
  else D_FLAG=0;
- MyGraph->Width=w;
- MyGraph->Height=h;
- MyGraph->x0=DLeft;
- MyGraph->y0=DTop;
+ plot_windows.current->Width=w;
+ plot_windows.current->Height=h;
+ plot_windows.current->x0=DLeft;
+ plot_windows.current->y0=DTop;
  set_normal_scale();
 }
 
@@ -153,17 +153,17 @@ void get_draw_area_flag(int flag)
 void change_current_linestyle(new,old)
      int new,*old;
 {
- *old=MyGraph->color[0];
-  MyGraph->color[0]=new;
+ *old=plot_windows.current->color[0];
+  plot_windows.current->color[0]=new;
 }
      
 
 void set_normal_scale()
 {
-XMin=MyGraph->xlo;
- YMin=MyGraph->ylo;
- XMax=MyGraph->xhi;
- YMax=MyGraph->yhi;
+XMin=plot_windows.current->xlo;
+ YMin=plot_windows.current->ylo;
+ XMax=plot_windows.current->xhi;
+ YMax=plot_windows.current->yhi;
 }
 
 void point(x,y)
@@ -304,8 +304,8 @@ void scale_to_real(i,j,x,y) /* Not needed except for X */
   j1=j-DBottom;
   x1=(float)i1;
   y1=(float)j1;
-  *x=(MyGraph->xhi-MyGraph->xlo)*x1/((float)(DRight-DLeft))+MyGraph->xlo;
-  *y=(MyGraph->yhi-MyGraph->ylo)*y1/((float)(DTop-DBottom))+MyGraph->ylo;
+  *x=(plot_windows.current->xhi-plot_windows.current->xlo)*x1/((float)(DRight-DLeft))+plot_windows.current->xlo;
+  *y=(plot_windows.current->yhi-plot_windows.current->ylo)*y1/((float)(DTop-DBottom))+plot_windows.current->ylo;
   
  }
 
@@ -317,7 +317,7 @@ void reset_all_line_type()
 	{
 		for(k=0;k<MAXPERPLOT;k++)
 		{
-			graph[j].line[k]=START_LINE_TYPE;
+			plot_windows.graph[j].line[k]=START_LINE_TYPE;
 		}
 	}
 
@@ -329,7 +329,7 @@ void init_all_graph()
  int i;
  for(i=0;i<MAXPOP;i++)
  init_graph(i);
- MyGraph=&graph[0];
+ plot_windows.current=&plot_windows.graph[0];
  /*set_extra_graphs();*/
  set_normal_scale();
 
@@ -344,26 +344,26 @@ void set_extra_graphs()
     NPltV=8;
   }
   if(MultiWin==0){
-    MyGraph->nvars=NPltV;
+    plot_windows.current->nvars=NPltV;
     for(i=1;i<NPltV;i++){
-      MyGraph->xv[i]=IX_PLT[i+1];
-    MyGraph->yv[i]=IY_PLT[i+1];
-    MyGraph->zv[i]=IZ_PLT[i+1];
-    MyGraph->color[i]=i;
+      plot_windows.current->xv[i]=IX_PLT[i+1];
+    plot_windows.current->yv[i]=IY_PLT[i+1];
+    plot_windows.current->zv[i]=IZ_PLT[i+1];
+    plot_windows.current->color[i]=i;
     }
     return;
   }
   if(Xup){
   for(i=1;i<NPltV;i++){
     create_a_pop();
-    graph[i].xv[0]=IX_PLT[i+1];
-    graph[i].yv[0]=IY_PLT[i+1];
-    graph[i].zv[0]=IZ_PLT[i+1]; /* irrelevant probably */
-    graph[i].grtype=0; /* force 2D */
-    graph[i].xlo=X_LO[i+1];
-    graph[i].xhi=X_HI[i+1];
-    graph[i].ylo=Y_LO[i+1];
-    graph[i].yhi=Y_HI[i+1];
+    plot_windows.graph[i].xv[0]=IX_PLT[i+1];
+    plot_windows.graph[i].yv[0]=IY_PLT[i+1];
+    plot_windows.graph[i].zv[0]=IZ_PLT[i+1]; /* irrelevant probably */
+    plot_windows.graph[i].grtype=0; /* force 2D */
+    plot_windows.graph[i].xlo=X_LO[i+1];
+    plot_windows.graph[i].xhi=X_HI[i+1];
+    plot_windows.graph[i].ylo=Y_LO[i+1];
+    plot_windows.graph[i].yhi=Y_HI[i+1];
     /*  printf(" %g %g %g %g \n",X_LO[i+1],X_HI[i+1],Y_LO[i+1],Y_HI[i+1]); */
   }
   set_active_windows();
@@ -377,26 +377,26 @@ void reset_graph()
     PLOT_3D=1;
   else
     PLOT_3D=0;
-  MyGraph->xv[0]=IXPLT;
-  MyGraph->yv[0]=IYPLT;
-  MyGraph->zv[0]=IZPLT;
-   MyGraph->xmax=x_3d[1];
-    MyGraph->ymax=y_3d[1];
-    MyGraph->zmax=z_3d[1];
-    MyGraph->xbar=.5*(x_3d[1]+x_3d[0]);
-    MyGraph->ybar=.5*(y_3d[1]+y_3d[0]);
-    MyGraph->zbar=.5*(z_3d[1]+z_3d[0]);
-    MyGraph->dx=2./(x_3d[1]-x_3d[0]);
-    MyGraph->dy=2./(y_3d[1]-y_3d[0]);
-    MyGraph->dz=2./(z_3d[1]-z_3d[0]);
-    MyGraph->xmin=x_3d[0];
-    MyGraph->ymin=y_3d[0];
-    MyGraph->zmin=z_3d[0];
-    MyGraph->xlo=MY_XLO;
-    MyGraph->ylo=MY_YLO;
-    MyGraph->xhi=MY_XHI;
-    MyGraph->yhi=MY_YHI;
-    MyGraph->grtype=AXES;
+  plot_windows.current->xv[0]=IXPLT;
+  plot_windows.current->yv[0]=IYPLT;
+  plot_windows.current->zv[0]=IZPLT;
+   plot_windows.current->xmax=x_3d[1];
+    plot_windows.current->ymax=y_3d[1];
+    plot_windows.current->zmax=z_3d[1];
+    plot_windows.current->xbar=.5*(x_3d[1]+x_3d[0]);
+    plot_windows.current->ybar=.5*(y_3d[1]+y_3d[0]);
+    plot_windows.current->zbar=.5*(z_3d[1]+z_3d[0]);
+    plot_windows.current->dx=2./(x_3d[1]-x_3d[0]);
+    plot_windows.current->dy=2./(y_3d[1]-y_3d[0]);
+    plot_windows.current->dz=2./(z_3d[1]-z_3d[0]);
+    plot_windows.current->xmin=x_3d[0];
+    plot_windows.current->ymin=y_3d[0];
+    plot_windows.current->zmin=z_3d[0];
+    plot_windows.current->xlo=MY_XLO;
+    plot_windows.current->ylo=MY_YLO;
+    plot_windows.current->xhi=MY_XHI;
+    plot_windows.current->yhi=MY_YHI;
+    plot_windows.current->grtype=AXES;
     check_windows();
     set_normal_scale();
     xpp_ui.redraw_graph();
@@ -405,25 +405,25 @@ void reset_graph()
 
 void get_graph()
 {
- x_3d[0]=MyGraph->xmin;
- x_3d[1]=MyGraph->xmax;
-y_3d[0]=MyGraph->ymin;
- y_3d[1]=MyGraph->ymax;
-z_3d[0]=MyGraph->zmin;
- z_3d[1]=MyGraph->zmax;
-MY_XLO=MyGraph->xlo;
-MY_YLO=MyGraph->ylo;
-MY_XHI=MyGraph->xhi;
-MY_YHI=MyGraph->yhi;
-IXPLT=MyGraph->xv[0];
-IYPLT=MyGraph->yv[0];
-IZPLT=MyGraph->zv[0];
-PLOT_3D=MyGraph->ThreeDFlag;
+ x_3d[0]=plot_windows.current->xmin;
+ x_3d[1]=plot_windows.current->xmax;
+y_3d[0]=plot_windows.current->ymin;
+ y_3d[1]=plot_windows.current->ymax;
+z_3d[0]=plot_windows.current->zmin;
+ z_3d[1]=plot_windows.current->zmax;
+MY_XLO=plot_windows.current->xlo;
+MY_YLO=plot_windows.current->ylo;
+MY_XHI=plot_windows.current->xhi;
+MY_YHI=plot_windows.current->yhi;
+IXPLT=plot_windows.current->xv[0];
+IYPLT=plot_windows.current->yv[0];
+IZPLT=plot_windows.current->zv[0];
+PLOT_3D=plot_windows.current->ThreeDFlag;
 if(PLOT_3D)
   AXES=5;
 else
   AXES=0;
-AXES=MyGraph->grtype;  
+AXES=plot_windows.current->grtype;  
 }
 
 void init_graph(i)
@@ -433,71 +433,71 @@ int i;
  if(AXES<=3)AXES=0;
  for(j=0;j<3;j++)
   for(k=0;k<3;k++)
-        if(k==j)graph[i].rm[k][j]=1.0;
-	else graph[i].rm[k][j]=0.0;
- graph[i].nvars=1;
+        if(k==j)plot_windows.graph[i].rm[k][j]=1.0;
+	else plot_windows.graph[i].rm[k][j]=0.0;
+ plot_windows.graph[i].nvars=1;
   for(j=0;j<MAXPERPLOT;j++){
-        graph[i].xv[j]=IXPLT;
-	graph[i].yv[j]=IYPLT;
-	graph[i].zv[j]=IZPLT;
-        graph[i].line[j]=START_LINE_TYPE;
-	graph[i].color[j]=0;
+        plot_windows.graph[i].xv[j]=IXPLT;
+	plot_windows.graph[i].yv[j]=IYPLT;
+	plot_windows.graph[i].zv[j]=IZPLT;
+        plot_windows.graph[i].line[j]=START_LINE_TYPE;
+	plot_windows.graph[i].color[j]=0;
         }
      
     /*sprintf(graph[i].xlabel,"");
     sprintf(graph[i].ylabel,"");
     sprintf(graph[i].zlabel,"");
     */
-    graph[i].xlabel[0]='\0';
-    graph[i].ylabel[0]='\0';
-    graph[i].zlabel[0]='\0';
+    plot_windows.graph[i].xlabel[0]='\0';
+    plot_windows.graph[i].ylabel[0]='\0';
+    plot_windows.graph[i].zlabel[0]='\0';
     
-    graph[i].Use=0;
-    graph[i].state=0;
-    graph[i].Restore=1;
-    graph[i].Nullrestore=0;
-    graph[i].ZPlane=-1000.0;
-    graph[i].ZView=1000.0;
-    graph[i].PerspFlag=0;
-    graph[i].ThreeDFlag=PLOT_3D;
-    graph[i].TimeFlag=TIMPLOT;
-    graph[i].ColorFlag=0;
-    graph[i].grtype=AXES;
-    graph[i].color_scale=1.0;
-    graph[i].min_scale=0.0;
-    XPP_STRCPY(graph[i].gr_info,"");
-    graph[i].xmax=x_3d[1];
-    graph[i].ymax=y_3d[1];
-    graph[i].zmax=z_3d[1];
-    graph[i].xbar=.5*(x_3d[1]+x_3d[0]);
-    graph[i].ybar=.5*(y_3d[1]+y_3d[0]);
-    graph[i].zbar=.5*(z_3d[1]+z_3d[0]);
-    graph[i].dx=2./(x_3d[1]-x_3d[0]);
-    graph[i].dy=2./(y_3d[1]-y_3d[0]);
-    graph[i].dz=2./(z_3d[1]-z_3d[0]);
-    graph[i].xmin=x_3d[0];
-    graph[i].ymin=y_3d[0];
-    graph[i].zmin=z_3d[0];
-    graph[i].xorg=0.0;
-    graph[i].yorg=0.0;
-    graph[i].yorg=0.0;
-    graph[i].xorgflag=1;
-    graph[i].yorgflag=1;
-    graph[i].zorgflag=1;
-    graph[i].Theta=THETA0;
-    graph[i].Phi=PHI0;
-    graph[i].xshft=0;
-    graph[i].yshft=0;
-    graph[i].zshft=0;
-    graph[i].xlo=MY_XLO;
-    graph[i].ylo=MY_YLO;
-    graph[i].oldxlo=MY_XLO;
-    graph[i].oldylo=MY_YLO;
-    graph[i].xhi=MY_XHI;
-    graph[i].yhi=MY_YHI;
-    graph[i].oldxhi=MY_XHI;
-    graph[i].oldyhi=MY_YHI;
-    MyGraph=&graph[i];
+    plot_windows.graph[i].Use=0;
+    plot_windows.graph[i].state=0;
+    plot_windows.graph[i].Restore=1;
+    plot_windows.graph[i].Nullrestore=0;
+    plot_windows.graph[i].ZPlane=-1000.0;
+    plot_windows.graph[i].ZView=1000.0;
+    plot_windows.graph[i].PerspFlag=0;
+    plot_windows.graph[i].ThreeDFlag=PLOT_3D;
+    plot_windows.graph[i].TimeFlag=TIMPLOT;
+    plot_windows.graph[i].ColorFlag=0;
+    plot_windows.graph[i].grtype=AXES;
+    plot_windows.graph[i].color_scale=1.0;
+    plot_windows.graph[i].min_scale=0.0;
+    XPP_STRCPY(plot_windows.graph[i].gr_info,"");
+    plot_windows.graph[i].xmax=x_3d[1];
+    plot_windows.graph[i].ymax=y_3d[1];
+    plot_windows.graph[i].zmax=z_3d[1];
+    plot_windows.graph[i].xbar=.5*(x_3d[1]+x_3d[0]);
+    plot_windows.graph[i].ybar=.5*(y_3d[1]+y_3d[0]);
+    plot_windows.graph[i].zbar=.5*(z_3d[1]+z_3d[0]);
+    plot_windows.graph[i].dx=2./(x_3d[1]-x_3d[0]);
+    plot_windows.graph[i].dy=2./(y_3d[1]-y_3d[0]);
+    plot_windows.graph[i].dz=2./(z_3d[1]-z_3d[0]);
+    plot_windows.graph[i].xmin=x_3d[0];
+    plot_windows.graph[i].ymin=y_3d[0];
+    plot_windows.graph[i].zmin=z_3d[0];
+    plot_windows.graph[i].xorg=0.0;
+    plot_windows.graph[i].yorg=0.0;
+    plot_windows.graph[i].yorg=0.0;
+    plot_windows.graph[i].xorgflag=1;
+    plot_windows.graph[i].yorgflag=1;
+    plot_windows.graph[i].zorgflag=1;
+    plot_windows.graph[i].Theta=THETA0;
+    plot_windows.graph[i].Phi=PHI0;
+    plot_windows.graph[i].xshft=0;
+    plot_windows.graph[i].yshft=0;
+    plot_windows.graph[i].zshft=0;
+    plot_windows.graph[i].xlo=MY_XLO;
+    plot_windows.graph[i].ylo=MY_YLO;
+    plot_windows.graph[i].oldxlo=MY_XLO;
+    plot_windows.graph[i].oldylo=MY_YLO;
+    plot_windows.graph[i].xhi=MY_XHI;
+    plot_windows.graph[i].yhi=MY_YHI;
+    plot_windows.graph[i].oldxhi=MY_XHI;
+    plot_windows.graph[i].oldyhi=MY_YHI;
+    plot_windows.current=&plot_windows.graph[i];
     make_rot(THETA0,PHI0);
     
   }
@@ -508,57 +508,57 @@ void copy_graph(i,l)  /*  Graph[i]=Graph[l]  */
 int i,l;
 {
  int j,k;
- graph[i].Use=graph[l].Use;
- graph[i].Restore=graph[l].Restore;
- graph[i].Nullrestore=graph[l].Nullrestore;
+ plot_windows.graph[i].Use=plot_windows.graph[l].Use;
+ plot_windows.graph[i].Restore=plot_windows.graph[l].Restore;
+ plot_windows.graph[i].Nullrestore=plot_windows.graph[l].Nullrestore;
  for(j=0;j<3;j++)
   for(k=0;k<3;k++)
-        graph[i].rm[k][j]=graph[l].rm[k][j];
- graph[i].nvars=graph[l].nvars;
+        plot_windows.graph[i].rm[k][j]=plot_windows.graph[l].rm[k][j];
+ plot_windows.graph[i].nvars=plot_windows.graph[l].nvars;
   for(j=0;j<MAXPERPLOT;j++){
-        graph[i].xv[j]=graph[l].xv[j];
-	graph[i].yv[j]=graph[l].yv[j];
-	graph[i].zv[j]=graph[l].zv[j];
-        graph[i].line[j]=graph[l].line[j];
-	graph[i].color[j]=graph[l].color[j];
+        plot_windows.graph[i].xv[j]=plot_windows.graph[l].xv[j];
+	plot_windows.graph[i].yv[j]=plot_windows.graph[l].yv[j];
+	plot_windows.graph[i].zv[j]=plot_windows.graph[l].zv[j];
+        plot_windows.graph[i].line[j]=plot_windows.graph[l].line[j];
+	plot_windows.graph[i].color[j]=plot_windows.graph[l].color[j];
         }
 
-    graph[i].ZPlane=graph[l].ZPlane;
-    graph[i].ZView=graph[l].ZView;
-    graph[i].PerspFlag=graph[l].PerspFlag;
-    graph[i].ThreeDFlag=graph[l].ThreeDFlag;
-    graph[i].TimeFlag=graph[l].TimeFlag;
-    graph[i].ColorFlag=graph[l].ColorFlag;
-    graph[i].grtype=graph[l].grtype;
-    graph[i].color_scale=graph[l].color_scale;
-    graph[i].min_scale=graph[l].min_scale;
+    plot_windows.graph[i].ZPlane=plot_windows.graph[l].ZPlane;
+    plot_windows.graph[i].ZView=plot_windows.graph[l].ZView;
+    plot_windows.graph[i].PerspFlag=plot_windows.graph[l].PerspFlag;
+    plot_windows.graph[i].ThreeDFlag=plot_windows.graph[l].ThreeDFlag;
+    plot_windows.graph[i].TimeFlag=plot_windows.graph[l].TimeFlag;
+    plot_windows.graph[i].ColorFlag=plot_windows.graph[l].ColorFlag;
+    plot_windows.graph[i].grtype=plot_windows.graph[l].grtype;
+    plot_windows.graph[i].color_scale=plot_windows.graph[l].color_scale;
+    plot_windows.graph[i].min_scale=plot_windows.graph[l].min_scale;
 
-    graph[i].xmax=graph[l].xmax;
-    graph[i].xmin=graph[l].xmin;
-    graph[i].ymax=graph[l].ymax;
-    graph[i].ymin=graph[l].ymin;
-    graph[i].zmax=graph[l].zmax;
-    graph[i].zmin=graph[l].zmin;
-    graph[i].xbar=graph[l].xbar;
-    graph[i].dx  =graph[l].dx  ;
-    graph[i].ybar=graph[l].ybar;
-    graph[i].dy  =graph[l].dy  ;
-    graph[i].zbar=graph[l].zbar;
-    graph[i].dz  =graph[l].dz  ;
+    plot_windows.graph[i].xmax=plot_windows.graph[l].xmax;
+    plot_windows.graph[i].xmin=plot_windows.graph[l].xmin;
+    plot_windows.graph[i].ymax=plot_windows.graph[l].ymax;
+    plot_windows.graph[i].ymin=plot_windows.graph[l].ymin;
+    plot_windows.graph[i].zmax=plot_windows.graph[l].zmax;
+    plot_windows.graph[i].zmin=plot_windows.graph[l].zmin;
+    plot_windows.graph[i].xbar=plot_windows.graph[l].xbar;
+    plot_windows.graph[i].dx  =plot_windows.graph[l].dx  ;
+    plot_windows.graph[i].ybar=plot_windows.graph[l].ybar;
+    plot_windows.graph[i].dy  =plot_windows.graph[l].dy  ;
+    plot_windows.graph[i].zbar=plot_windows.graph[l].zbar;
+    plot_windows.graph[i].dz  =plot_windows.graph[l].dz  ;
 
-    graph[i].Theta=graph[l].Theta;
-    graph[i].Phi=graph[l].Phi;
-    graph[i].xshft=graph[l].xshft;
-    graph[i].yshft=graph[l].yshft;
-    graph[i].zshft=graph[l].zshft;
-    graph[i].xlo=graph[l].xlo;
-    graph[i].ylo=graph[l].ylo;
-    graph[i].oldxlo=graph[l].oldxlo;
-    graph[i].oldylo=graph[l].oldylo;
-    graph[i].xhi=graph[l].xhi;
-    graph[i].yhi=graph[l].yhi;
-    graph[i].oldxhi=graph[l].oldxhi;
-    graph[i].oldyhi=graph[l].oldyhi;
+    plot_windows.graph[i].Theta=plot_windows.graph[l].Theta;
+    plot_windows.graph[i].Phi=plot_windows.graph[l].Phi;
+    plot_windows.graph[i].xshft=plot_windows.graph[l].xshft;
+    plot_windows.graph[i].yshft=plot_windows.graph[l].yshft;
+    plot_windows.graph[i].zshft=plot_windows.graph[l].zshft;
+    plot_windows.graph[i].xlo=plot_windows.graph[l].xlo;
+    plot_windows.graph[i].ylo=plot_windows.graph[l].ylo;
+    plot_windows.graph[i].oldxlo=plot_windows.graph[l].oldxlo;
+    plot_windows.graph[i].oldylo=plot_windows.graph[l].oldylo;
+    plot_windows.graph[i].xhi=plot_windows.graph[l].xhi;
+    plot_windows.graph[i].yhi=plot_windows.graph[l].yhi;
+    plot_windows.graph[i].oldxhi=plot_windows.graph[l].oldxhi;
+    plot_windows.graph[i].oldyhi=plot_windows.graph[l].oldyhi;
   }
 
 
@@ -569,25 +569,25 @@ double theta,phi;
 {
  double ct=cos(DEGTORAD*theta),st=sin(DEGTORAD*theta);
  double sp=sin(DEGTORAD*phi),cp=cos(DEGTORAD*phi);
- MyGraph->Theta=theta;
- MyGraph->Phi=phi;
- MyGraph->rm[0][0]=ct;
- MyGraph->rm[0][1]=st;
- MyGraph->rm[0][2]=0.0;
- MyGraph->rm[1][0]=-cp*st;
- MyGraph->rm[1][1]=cp*ct;
- MyGraph->rm[1][2]=sp;
- MyGraph->rm[2][0]=st*sp;
- MyGraph->rm[2][1]=-sp*ct;
- MyGraph->rm[2][2]=cp;
+ plot_windows.current->Theta=theta;
+ plot_windows.current->Phi=phi;
+ plot_windows.current->rm[0][0]=ct;
+ plot_windows.current->rm[0][1]=st;
+ plot_windows.current->rm[0][2]=0.0;
+ plot_windows.current->rm[1][0]=-cp*st;
+ plot_windows.current->rm[1][1]=cp*ct;
+ plot_windows.current->rm[1][2]=sp;
+ plot_windows.current->rm[2][0]=st*sp;
+ plot_windows.current->rm[2][1]=-sp*ct;
+ plot_windows.current->rm[2][2]=cp;
 }
 
 void scale3d(x,y,z,xp,yp,zp)
 float x,y,z,*xp,*yp,*zp;
 {
- *xp=(x-MyGraph->xbar)*MyGraph->dx;
- *yp=(y-MyGraph->ybar)*MyGraph->dy;
- *zp=(z-MyGraph->zbar)*MyGraph->dz;
+ *xp=(x-plot_windows.current->xbar)*plot_windows.current->dx;
+ *yp=(y-plot_windows.current->ybar)*plot_windows.current->dy;
+ *zp=(z-plot_windows.current->zbar)*plot_windows.current->dz;
 }
 
 
@@ -626,13 +626,13 @@ float x2p,y2p,z2p,*xp,*yp;
  /*  if(fabs(x2p)>1||fabs(y2p)>1||fabs(z2p)>1)return(0); */
  rot_3dvec(x2p,y2p,z2p,&x1p,&y1p,&z1p);
 
- if(MyGraph->PerspFlag==0){
+ if(plot_windows.current->PerspFlag==0){
  *xp=x1p;
  *yp=y1p;
   return(1);
  }
-  if((z1p>=(float)(MyGraph->ZView))||(z1p<(float)(MyGraph->ZPlane)))return(0);
-  s=(float)(MyGraph->ZView-MyGraph->ZPlane)/((float)(MyGraph->ZView)-z1p);
+  if((z1p>=(float)(plot_windows.current->ZView))||(z1p<(float)(plot_windows.current->ZPlane)))return(0);
+  s=(float)(plot_windows.current->ZView-plot_windows.current->ZPlane)/((float)(plot_windows.current->ZView)-z1p);
   x1p=s*x1p;
   y1p=s*y1p;
   *xp=x1p;
@@ -670,13 +670,13 @@ float x,y,z,*xp,*yp;
  /* if(fabs(x2p)>1||fabs(y2p)>1||fabs(z2p)>1)return(0); */
  rot_3dvec(x2p,y2p,z2p,&x1p,&y1p,&z1p);
 
- if(MyGraph->PerspFlag==0){
+ if(plot_windows.current->PerspFlag==0){
  *xp=x1p;
  *yp=y1p;
   return(1);
  }
-  if((z1p>=(float)(MyGraph->ZView))||(z1p<(float)(MyGraph->ZPlane)))return(0);
-  s=(float)(MyGraph->ZView-MyGraph->ZPlane)/((float)(MyGraph->ZView)-z1p);
+  if((z1p>=(float)(plot_windows.current->ZView))||(z1p<(float)(plot_windows.current->ZPlane)))return(0);
+  s=(float)(plot_windows.current->ZView-plot_windows.current->ZPlane)/((float)(plot_windows.current->ZView)-z1p);
   x1p=s*x1p;
   y1p=s*y1p;
   *xp=x1p;
@@ -698,7 +698,7 @@ float xs1,ys1,zs1,xsp1,ysp1,zsp1;
  float xsp,ysp,zsp;
  rot_3dvec(xs1,ys1,zs1,&xs,&ys,&zs);   /* rotate the line */
  rot_3dvec(xsp1,ysp1,zsp1,&xsp,&ysp,&zsp);
- if(MyGraph->PerspFlag)pers_line(xs,ys,zs,xsp,ysp,zsp);
+ if(plot_windows.current->PerspFlag)pers_line(xs,ys,zs,xsp,ysp,zsp);
  else
      line_nabs(xs,ys,xsp,ysp);
  }
@@ -716,7 +716,7 @@ float x01,x02,y01,y02,z01,z02;
 if(!clip3d(x01,y01,z01,x02,y02,z02,&xs1,&ys1,&zs1,&xsp1,&ysp1,&zsp1))return;
  rot_3dvec(xs1,ys1,zs1,&xs,&ys,&zs);   /* rotate the line */
  rot_3dvec(xsp1,ysp1,zsp1,&xsp,&ysp,&zsp);
- if(MyGraph->PerspFlag)pers_line(xs,ys,zs,xsp,ysp,zsp);
+ if(plot_windows.current->PerspFlag)pers_line(xs,ys,zs,xsp,ysp,zsp);
  else
      line_abs(xs,ys,xsp,ysp);
  }
@@ -738,7 +738,7 @@ float xs1,ys1,zs1;
  if(!clip3d(x01,y01,z01,x02,y02,z02,&xs1,&ys1,&zs1,&xsp1,&ysp1,&zsp1))return;
  rot_3dvec(xs1,ys1,zs1,&xs,&ys,&zs);   /* rotate the line */
  rot_3dvec(xsp1,ysp1,zsp1,&xsp,&ysp,&zsp);
- if(MyGraph->PerspFlag)pers_line(xs,ys,zs,xsp,ysp,zsp);
+ if(plot_windows.current->PerspFlag)pers_line(xs,ys,zs,xsp,ysp,zsp);
  else
      line_abs(xs,ys,xsp,ysp);
  }
@@ -747,7 +747,7 @@ void pers_line(x,y,z,xp,yp,zp)
  float x,y,z,xp,yp,zp;
 
  {
- float Zv=(float)MyGraph->ZView,Zp=(float)MyGraph->ZPlane;
+ float Zv=(float)plot_windows.current->ZView,Zp=(float)plot_windows.current->ZPlane;
  float d=Zv-Zp,s;
  float eps=.005*d;
 
@@ -805,7 +805,7 @@ float x,y,z,*xp,*yp,*zp;
 
  for(i=0;i<3;i++){
 	vnew[i]=0.0;
-	for(j=0;j<3;j++)vnew[i]=vnew[i]+MyGraph->rm[i][j]*vt[j];
+	for(j=0;j<3;j++)vnew[i]=vnew[i]+plot_windows.current->rm[i][j]*vt[j];
 	}
 	*xp=vnew[0];
 	*yp=vnew[1];
@@ -1201,16 +1201,16 @@ double *x;
  int type;
 {
 
-  float dx=6.0*(float)(MyGraph->xhi-MyGraph->xlo)*SYMSIZE;
-  float dy=6.0*(float)(MyGraph->yhi-MyGraph->ylo)*SYMSIZE;
- int ix=MyGraph->xv[0]-1,iy=MyGraph->yv[0]-1,iz=MyGraph->zv[0]-1;
+  float dx=6.0*(float)(plot_windows.current->xhi-plot_windows.current->xlo)*SYMSIZE;
+  float dy=6.0*(float)(plot_windows.current->yhi-plot_windows.current->ylo)*SYMSIZE;
+ int ix=plot_windows.current->xv[0]-1,iy=plot_windows.current->yv[0]-1,iz=plot_windows.current->zv[0]-1;
  if(!Xup)return;
-  if(MyGraph->TimeFlag)return;
+  if(plot_windows.current->TimeFlag)return;
   set_color(0); 
-  if(MyGraph->ThreeDFlag)
+  if(plot_windows.current->ThreeDFlag)
   {
-   dx=6.0*SYMSIZE/MyGraph->dx;
-   dy=6.0*SYMSIZE/MyGraph->dy;
+   dx=6.0*SYMSIZE/plot_windows.current->dx;
+   dy=6.0*SYMSIZE/plot_windows.current->dy;
    line_3d((float)x[ix]+dx,(float)x[iy],(float)x[iz],
            (float)x[ix]-dx,(float)x[iy],(float)x[iz]);
    line_3d((float)x[ix],(float)x[iy]+dy,(float)x[iz],
@@ -1227,8 +1227,8 @@ void draw_symbol( x, y, size,my_symb)
 float x,y,size;
 int my_symb;
 {
- float dx=(float)(MyGraph->xhi-MyGraph->xlo)*size;
- float dy=(float)(MyGraph->yhi-MyGraph->ylo)*size;
+ float dx=(float)(plot_windows.current->xhi-plot_windows.current->xlo)*size;
+ float dy=(float)(plot_windows.current->yhi-plot_windows.current->ylo)*size;
  static int sym_dir[4][48] = {
  /*          box              */
     {0, -6, -6,1, 12,  0,1,  0, 12,1,-12,  0,

@@ -22,6 +22,7 @@
 #include "series_enc.h"
 #include "xpp_globals.h"
 #include "xpp_mem.h"
+#include "many_pops.h"
 
 namespace {
 
@@ -114,7 +115,7 @@ unsigned long generations;
 int pop_of(XppWinId w)
 {
     for (int i = 0; i < MAXPOP; i++)
-        if (graph[i].Use && graph[i].w == w) return i;
+        if (plot_windows.graph[i].Use && plot_windows.graph[i].w == w) return i;
     return -1;
 }
 
@@ -217,7 +218,7 @@ const char *eq_symbol(int symbol) { return symbol == 3 ? "circle" : symbol == 1 
 void send_marks(int pop, const Content &c)
 {
     std::string o = "{\"ev\":\"marks\",\"win\":";
-    add_int(o, static_cast<long>(graph[pop].w));
+    add_int(o, static_cast<long>(plot_windows.graph[pop].w));
     if (values_f32) o += ",\"enc\":\"f32\"";
     o += ",\"equilibria\":[";
     for (std::size_t k = 0; k < c.eqs.size(); k++) {
@@ -310,7 +311,7 @@ void send_marks(int pop, const Content &c)
 /* the window's record as it stands, each slot read from where it is kept */
 Content content_of(int pop, const Record &r)
 {
-    const XppWinId w = graph[pop].w;
+    const XppWinId w = plot_windows.graph[pop].w;
     Content c;
     c.eqs = r.eqs;
     for (const auto &e : r.labels) {
@@ -332,9 +333,9 @@ Content content_of(int pop, const Record &r)
 void update()
 {
     for (int k = 0; k < MAXPOP; k++) {
-        const int pop = k == 0 ? current_pop : (k == current_pop ? 0 : k); /* the active window first */
+        const int pop = k == 0 ? plot_windows.active : (k == plot_windows.active ? 0 : k); /* the active window first */
         Window &w = windows[pop];
-        if (!graph[pop].Use) {
+        if (!plot_windows.graph[pop].Use) {
             w = Window(); /* a window made again later starts afresh */
             continue;
         }
@@ -361,7 +362,7 @@ extern "C" void marks_data_subscribe(int on, int f32)
 
 extern "C" void marks_data_update(void)
 {
-    if (!emit_line || !marks_on || current_pop < 0 || current_pop >= MAXPOP) return;
+    if (!emit_line || !marks_on || plot_windows.active < 0 || plot_windows.active >= MAXPOP) return;
     try {
         update();
     } catch (...) {
@@ -376,8 +377,8 @@ extern "C" void marks_data_cleared(int pop)
 
 extern "C" void marks_data_equilibrium(double x, double y, int symbol)
 {
-    if (!emit_line || current_pop < 0 || current_pop >= MAXPOP) return;
-    Record &r = windows[current_pop].rec;
+    if (!emit_line || plot_windows.active < 0 || plot_windows.active >= MAXPOP) return;
+    Record &r = windows[plot_windows.active].rec;
     const Equilibrium e{x, y, symbol};
     try {
         for (const Equilibrium &o : r.eqs)

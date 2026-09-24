@@ -33,7 +33,6 @@
 #define CheckZero(x,tic) (fabs(x) < ((tic) * SIGNIF) ? 0.0 : (x))
 
 
-extern GRAPH *MyGraph;
 extern int DCURXs,DCURYs;
 extern int DX_0,DY_0,D_WID,D_HGT;
 extern int PltFmtFlag;
@@ -63,13 +62,13 @@ void get_title_str(s1,s2,s3)
  /* s1/s2/s3 are pointers here; the one caller (do_axes) passes
     char[XPP_NAME_MAX+1], matching uvar_names' own element size. */
  int i;
- if((i=MyGraph->xv[0])==0)xpp_strlcpy(s1,"T",XPP_NAME_MAX+1);
+ if((i=plot_windows.current->xv[0])==0)xpp_strlcpy(s1,"T",XPP_NAME_MAX+1);
  else xpp_strlcpy(s1,uvar_names[i-1],XPP_NAME_MAX+1);
 
-if((i=MyGraph->yv[0])==0)xpp_strlcpy(s2,"T",XPP_NAME_MAX+1);
+if((i=plot_windows.current->yv[0])==0)xpp_strlcpy(s2,"T",XPP_NAME_MAX+1);
  else xpp_strlcpy(s2,uvar_names[i-1],XPP_NAME_MAX+1);
  
-if((i=MyGraph->zv[0])==0)xpp_strlcpy(s3,"T",XPP_NAME_MAX+1);
+if((i=plot_windows.current->zv[0])==0)xpp_strlcpy(s3,"T",XPP_NAME_MAX+1);
  else xpp_strlcpy(s3,uvar_names[i-1],XPP_NAME_MAX+1);
 }
 
@@ -80,18 +79,18 @@ char *str;
  char name1[XPP_NAME_MAX+1];
  char name2[XPP_NAME_MAX+1];
  char name3[XPP_NAME_MAX+1];
- if((i=MyGraph->xv[0])==0)XPP_STRCPY(name1,"T");
+ if((i=plot_windows.current->xv[0])==0)XPP_STRCPY(name1,"T");
  else XPP_STRCPY(name1,uvar_names[i-1]);
 
-if((i=MyGraph->yv[0])==0)XPP_STRCPY(name2,"T");
+if((i=plot_windows.current->yv[0])==0)XPP_STRCPY(name2,"T");
  else XPP_STRCPY(name2,uvar_names[i-1]);
  
-if((i=MyGraph->zv[0])==0)XPP_STRCPY(name3,"T");
+if((i=plot_windows.current->zv[0])==0)XPP_STRCPY(name3,"T");
  else XPP_STRCPY(name3,uvar_names[i-1]);
 
  /* str is a pointer here; the one caller (re_title) passes
     char bob[3*XPP_NAME_MAX+16], sized for exactly this "z vs y vs x". */
- if(MyGraph->grtype>=5)
+ if(plot_windows.current->grtype>=5)
  xpp_snprintf(str,3*XPP_NAME_MAX+16,"%s vs %s vs %s",name3,name2,name1);
  else xpp_snprintf(str,3*XPP_NAME_MAX+16,"%s vs %s",name2,name1);
 }
@@ -161,11 +160,11 @@ void do_axes()
     SmallGr();
     }
 
-    switch(MyGraph->grtype)
+    switch(plot_windows.current->grtype)
     {
-    case 0: Box_axis(MyGraph->xlo,MyGraph->xhi,MyGraph->ylo,MyGraph->yhi,
-		       (MyGraph->xlabel[0]||!AxisVarLabels)?MyGraph->xlabel:s1,
-		       (MyGraph->ylabel[0]||!AxisVarLabels)?MyGraph->ylabel:s2,1); break; 
+    case 0: Box_axis(plot_windows.current->xlo,plot_windows.current->xhi,plot_windows.current->ylo,plot_windows.current->yhi,
+		       (plot_windows.current->xlabel[0]||!AxisVarLabels)?plot_windows.current->xlabel:s1,
+		       (plot_windows.current->ylabel[0]||!AxisVarLabels)?plot_windows.current->ylabel:s2,1); break; 
     case 5: Frame_3d(); break;
 
    }
@@ -207,11 +206,11 @@ void Frame_3d()
 	
   double tx,ty,tz;
   float x1,y1,z1,x2,y2,z2,dt=.03;
-  float x0=MyGraph->xorg,y0=MyGraph->yorg,z0=MyGraph->zorg;
+  float x0=plot_windows.current->xorg,y0=plot_windows.current->yorg,z0=plot_windows.current->zorg;
   char bob[20];
   
-  double xmin=MyGraph->xmin,xmax=MyGraph->xmax,ymin=MyGraph->ymin;
-  double ymax=MyGraph->ymax,zmin=MyGraph->zmin,zmax=MyGraph->zmax;
+  double xmin=plot_windows.current->xmin,xmax=plot_windows.current->xmax,ymin=plot_windows.current->ymin;
+  double ymax=plot_windows.current->ymax,zmin=plot_windows.current->zmin,zmax=plot_windows.current->zmax;
   float x4=xmin,y4=ymin,z4=zmin,x5=xmax,y5=ymax,z5=zmax;
   float x3,y3,z3,x6,y6,z6;
   
@@ -253,9 +252,9 @@ void Frame_3d()
     
   set_linestyle(-1);
   
-  if(MyGraph->zorgflag)line_3d(x0,y0,z4,x0,y0,z5);
-  if(MyGraph->yorgflag)line_3d(x0,y4,z0,x0,y5,z0);
-  if(MyGraph->xorgflag)line_3d(x4,y0,z0,x5,y0,z0);
+  if(plot_windows.current->zorgflag)line_3d(x0,y0,z4,x0,y0,z5);
+  if(plot_windows.current->yorgflag)line_3d(x0,y4,z0,x0,y5,z0);
+  if(plot_windows.current->xorgflag)line_3d(x4,y0,z0,x5,y0,z0);
 
   dt=.06;
   TextJustify=2;
@@ -263,7 +262,7 @@ void Frame_3d()
   text3d(x1,-1-2.*dt,-1.0,bob);
   XPP_SPRINTF(bob,"%g",xmax);
   text3d(x2,-1-2.*dt,-1.0,bob);
-  text3d(0.0,-1-dt,-1.0,MyGraph->xlabel);
+  text3d(0.0,-1-dt,-1.0,plot_windows.current->xlabel);
   TextJustify=0;
   XPP_SPRINTF(bob,"%g",ymin);
   /*sprintf(bob,"%g",ymin,bob);
@@ -273,13 +272,13 @@ void Frame_3d()
   /*sprintf(bob,"%g",ymax,bob);
   */
   text3d(1+dt,y2,-1.0,bob);
-  text3d(1+dt,0.0,-1.0,MyGraph->ylabel);
+  text3d(1+dt,0.0,-1.0,plot_windows.current->ylabel);
   TextJustify=2;
   XPP_SPRINTF(bob,"%g",zmin);
   text3d(-1.-dt,-1-dt,z1,bob);
   XPP_SPRINTF(bob,"%g",zmax);
   text3d(-1.-dt,-1-dt,z2,bob);
-  text3d(-1.-dt,-1.-dt,0.0,MyGraph->zlabel);
+  text3d(-1.-dt,-1.-dt,0.0,plot_windows.current->zlabel);
   TextJustify=0;
   
   DOING_AXES=0;
@@ -310,12 +309,12 @@ void Box_axis(x_min,x_max,y_min,y_max,sx,sy,flag)
  
   ytic=make_tics(y_min,y_max);
   xtic=make_tics(x_min,x_max);
- scale_to_screen((float)MyGraph->xorg,(float)MyGraph->yorg,&yaxis_x,&xaxis_y);
+ scale_to_screen((float)plot_windows.current->xorg,(float)plot_windows.current->yorg,&yaxis_x,&xaxis_y);
   set_linestyle(-1);
-  if(MyGraph->xorgflag&&flag)
+  if(plot_windows.current->xorgflag&&flag)
     if(xaxis_y>=ybot&&xaxis_y<=ytop)
       line(xleft,xaxis_y,xright,xaxis_y);
-  if(MyGraph->yorgflag&&flag)
+  if(plot_windows.current->yorgflag&&flag)
     if(yaxis_x>=xleft&&yaxis_x<=xright)
       line(yaxis_x,ybot,yaxis_x,ytop);
  set_linestyle(-2);

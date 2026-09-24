@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include "many_pops.h"
 
 /* the core's own globals and functions that have no header of their own */
 extern "C" {
@@ -117,18 +118,18 @@ void send_state(void)
     get_draw_area();
     buf_printf(&b, ",\"view\":{\"win\":%lu,\"left\":%d,\"right\":%d,\"top\":%d,\"bottom\":%d,"
                "\"xlo\":%g,\"xhi\":%g,\"ylo\":%g,\"yhi\":%g,\"three\":%d",
-               (unsigned long)draw_win, DLeft, DRight, DTop, DBottom, MyGraph->xlo, MyGraph->xhi,
-               MyGraph->ylo, MyGraph->yhi, MyGraph->ThreeDFlag);
+               (unsigned long)plot_windows.draw_win, DLeft, DRight, DTop, DBottom, plot_windows.current->xlo, plot_windows.current->xhi,
+               plot_windows.current->ylo, plot_windows.current->yhi, plot_windows.current->ThreeDFlag);
     /* a 3D window's angles (view3d); only then are they set at all */
-    if (MyGraph->ThreeDFlag && isfinite(MyGraph->Theta) && isfinite(MyGraph->Phi))
-        buf_printf(&b, ",\"theta\":%g,\"phi\":%g", MyGraph->Theta, MyGraph->Phi);
+    if (plot_windows.current->ThreeDFlag && isfinite(plot_windows.current->Theta) && isfinite(plot_windows.current->Phi))
+        buf_printf(&b, ",\"theta\":%g,\"phi\":%g", plot_windows.current->Theta, plot_windows.current->Phi);
     BUF_LIT(&b, "}");
     if (Auto.exist)
         buf_printf(&b, ",\"auto\":{\"x0\":%d,\"y0\":%d,\"wid\":%d,\"hgt\":%d,\"xmin\":%g,\"xmax\":%g,"
                    "\"ymin\":%g,\"ymax\":%g}", Auto.x0, Auto.y0, Auto.wid, Auto.hgt, Auto.xmin, Auto.xmax,
                    Auto.ymin, Auto.ymax);
     buf_printf(&b, ",\"rows\":%d,\"menu\":%d,\"win\":%lu", my_browser.maxrow, help_menu,
-               (unsigned long)draw_win);
+               (unsigned long)plot_windows.draw_win);
     if (xpp_session_set_file()[0]) {
         BUF_LIT(&b, ",\"session\":{\"set\":");
         buf_str(&b, xpp_session_set_file());

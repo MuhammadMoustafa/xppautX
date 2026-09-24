@@ -41,6 +41,7 @@
 #include <sys/wait.h>
 #endif
 #include <unistd.h>
+#include "many_pops.h"
 
 extern int DF_FLAG, NTable, POIMAP, TORUS;
 extern int Nintern_set;
@@ -435,7 +436,7 @@ void new_lookup(void)
 
 void do_windows(void)
 {
-  menu_run(SimulPlotFlag == 0 ? &menu_windows : &menu_windows_simoff, 0);
+  menu_run(plot_windows.simul == 0 ? &menu_windows : &menu_windows_simoff, 0);
 }
 
 void do_gr_objs(void)

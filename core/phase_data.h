@@ -18,7 +18,7 @@ extern "C" {
 
    Each window's record is what the core drew in it since the window was
    last blanked: nullcline.c and integrate.c report what they draw (the
-   window is current_pop), the front end reports a blanked window. So an
+   window is plot_windows.active), the front end reports a blanked window. So an
    Erase or a redraw that no longer draws them clears them, a redraw that
    draws them again changes nothing, and the events say exactly what
    XPP's window shows. Events go out only to a client that subscribed,

@@ -58,13 +58,15 @@ void do_axes(void);
 
 /* ---- graph bookkeeping (was many_pops.c / main.c) ----------------------- */
 
-void restore_off(void) { MyGraph->Restore = 0; }
-void restore_on(void) { MyGraph->Restore = 1; }
+XppPlotWindows plot_windows;
+
+void restore_off(void) { plot_windows.current->Restore = 0; }
+void restore_on(void) { plot_windows.current->Restore = 1; }
 
 void make_active(int i, int flag)
 {
-    current_pop = i;
-    MyGraph = &graph[current_pop];
+    plot_windows.active = i;
+    plot_windows.current = &plot_windows.graph[plot_windows.active];
     xpp_ui.activate_graph(i, flag);
 }
 
@@ -259,22 +261,22 @@ void set_active_windows()
 {
   int i,np=0;
    for(i=0;i<MAXPOP;i++){
-   if(graph[i].Use==1){
-     ActiveWinList[np]=i;
+   if(plot_windows.graph[i].Use==1){
+     plot_windows.open[np]=i;
      np++;
    }
  }
- num_pops=np;
+ plot_windows.count=np;
 }  
 
 void check_windows()
 {
  double zip,zap;
- check_val(&MyGraph->xmin,&MyGraph->xmax,&MyGraph->xbar,&MyGraph->dx);
- check_val(&MyGraph->ymin,&MyGraph->ymax,&MyGraph->ybar,&MyGraph->dy);
- check_val(&MyGraph->zmin,&MyGraph->zmax,&MyGraph->zbar,&MyGraph->dz);
- check_val(&MyGraph->xlo,&MyGraph->xhi,&zip,&zap);
- check_val(&MyGraph->ylo,&MyGraph->yhi,&zip,&zap);
+ check_val(&plot_windows.current->xmin,&plot_windows.current->xmax,&plot_windows.current->xbar,&plot_windows.current->dx);
+ check_val(&plot_windows.current->ymin,&plot_windows.current->ymax,&plot_windows.current->ybar,&plot_windows.current->dy);
+ check_val(&plot_windows.current->zmin,&plot_windows.current->zmax,&plot_windows.current->zbar,&plot_windows.current->dz);
+ check_val(&plot_windows.current->xlo,&plot_windows.current->xhi,&zip,&zap);
+ check_val(&plot_windows.current->ylo,&plot_windows.current->yhi,&zip,&zap);
 } 
 
 void check_val(x1,x2,xb,xd)
@@ -356,7 +358,7 @@ void ps_restore()
   if(Xup){
  redraw_dfield();
  ps_do_color(0);
- if(MyGraph->Nullrestore){restore_nullclines();ps_stroke();}
+ if(plot_windows.current->Nullrestore){restore_nullclines();ps_stroke();}
   }
  ps_last_pt_off(); 
 
@@ -368,7 +370,7 @@ void ps_restore()
   
  ps_do_color(0); 
  if(Xup){
- draw_label(draw_win);
+ draw_label(plot_windows.draw_win);
  xpp_ui.draw_freeze();
  }
  ps_end();
@@ -384,13 +386,13 @@ void svg_restore()
   */
   
   redraw_dfield();
- if(MyGraph->Nullrestore){restore_nullclines();}
+ if(plot_windows.current->Nullrestore){restore_nullclines();}
   svg_last_pt_off();
  /*ps_do_color(0);*/ 
  restore(0,my_browser.maxrow);
  do_axes();
  if(Xup){
- draw_label(draw_win);
+ draw_label(plot_windows.draw_win);
  xpp_ui.draw_freeze();
  }
   do_batch_nclines();
@@ -670,7 +672,7 @@ void slider_rerun(void)
   clr_all_scrns();
   redraw_dfield();
   create_new_cline();
-  draw_label(draw_win);
+  draw_label(plot_windows.draw_win);
   SuppressBounds=1;
   run_now();
   SuppressBounds=sp;

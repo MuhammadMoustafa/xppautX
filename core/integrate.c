@@ -80,7 +80,6 @@ NOTE: except for the structure MyGraph, it is "x-free" so it
 #include "xpplim.h"
 #include "struct.h"
 #include "phsplan.h"
-extern GRAPH *MyGraph;
 #include "menudrive.h"
 #include "arrayplot.h"
 #include "xpp_job.h"
@@ -121,7 +120,6 @@ extern double ShootIC[8][MAXODE];
 extern int ShootType[8];
 extern int ShootICFlag;
 extern int ShootIndex;
-extern int SimulPlotFlag,current_pop,num_pops,ActiveWinList[];
 extern int dryrun;
 extern int querysets;
 extern int querypars;
@@ -748,7 +746,7 @@ double *x;
 		   NODE,&ierr,&stabinfo);
       }
       if(eq_range.movie){
-	draw_label(draw_win);
+	draw_label(plot_windows.draw_win);
         xpp_ui.put_text(5,10,bob);
 	if(xpp_ui.film_clip()==0)err_msg("Out of film");
       }
@@ -770,15 +768,15 @@ double *x;
 void swap_color(col,rorw)
 int *col,rorw;
 {
- if(rorw)MyGraph->color[0]=*col;
- else *col=MyGraph->color[0];
+ if(rorw)plot_windows.current->color[0]=*col;
+ else *col=plot_windows.current->color[0];
 }
 
 void set_cycle(flag,icol)
 int flag,*icol;
 {
  if(flag==0)return;
- MyGraph->color[0]=*icol+1;
+ plot_windows.current->color[0]=*icol+1;
  *icol=*icol+1;
   if(*icol==10)*icol=0;
 } 
@@ -800,7 +798,7 @@ int flag; /* 0 for 1-param 1 for 2 parameter 2 for Auto range */
   char bob[256],parn[256];
  int ivar=0,ivar2=0,res=0,oldic=0;
  int nit=20,i=0,j=0,itype=0,itype2=0,cycle=0,icol=0,nit2=0,iii=0;
- int color=MyGraph->color[0];
+ int color=plot_windows.current->color[0];
  double t,dpar,plow=0.0,phigh=1.0,p=0.0,plow2=0.0,phigh2=0.0,p2=0.0,dpar2=0.0;
  double temp,temp2;
  int ierr=0;
@@ -857,7 +855,7 @@ if(range.type==PARAM)get_val(range.item,&temp);
  for(i=0;i<=nit;i++)
   {
     if(range.movie)clear_draw_window();
-   if(cycle)MyGraph->color[0]=icol+1;
+   if(cycle)plot_windows.current->color[0]=icol+1;
    icol++;
    if(icol==10)icol=0;
    t=T0;
@@ -934,7 +932,7 @@ if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
    xpp_ui.put_text(5,10,bob);
    redraw_dfield();
 	create_new_cline();
-   draw_label(draw_win);
+   draw_label(plot_windows.draw_win);
    if(xpp_ui.film_clip()==0){err_msg("Out of film");break;}
  }
  refresh_browser(storind);
@@ -970,7 +968,7 @@ if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
  if(range.rtype>0)
    if(range.type2==PARAM)set_val(range.item2,temp2);
  evaluate_derived();
-MyGraph->color[0]=color;
+plot_windows.current->color[0]=color;
  INFLAG=1;
  /* refresh_browser(storind); */
  
@@ -1031,9 +1029,9 @@ void find_equilib_com(int com)
    return;
   case 1:
     /*  Get mouse values  */
-        iv=MyGraph->xv[0]-1;
-        jv=MyGraph->yv[0]-1;
-    if(iv<0||iv>=NODE||jv<0||jv>=NODE||MyGraph->grtype>=5||jv==iv){
+        iv=plot_windows.current->xv[0]-1;
+        jv=plot_windows.current->yv[0]-1;
+    if(iv<0||iv>=NODE||jv<0||jv>=NODE||plot_windows.current->grtype>=5||jv==iv){
       err_msg("Not in useable 2D plane...");
       return;
     }
@@ -1321,9 +1319,9 @@ void do_init_data(int com)
     break;
   case M_IM:
   case M_II:
-        iv=MyGraph->xv[0]-1;
-        jv=MyGraph->yv[0]-1;
-    if(iv<0||iv>=NODE||jv<0||jv>=NODE||MyGraph->grtype>=5||jv==iv){
+        iv=plot_windows.current->xv[0]-1;
+        jv=plot_windows.current->yv[0]-1;
+    if(iv<0||iv>=NODE||jv<0||jv>=NODE||plot_windows.current->grtype>=5||jv==iv){
       err_msg("Not in useable 2D plane...");
       return;
     }
@@ -1335,8 +1333,8 @@ void do_init_data(int com)
 	MessageBox("Click on initial data");
 	if(GetMouseXY(&im,&jm)){
 	  scale_to_real(im,jm,&xm,&ym);
-	  im=MyGraph->xv[0]-1;
-	  jm=MyGraph->yv[0]-1;
+	  im=plot_windows.current->xv[0]-1;
+	  jm=plot_windows.current->yv[0]-1;
 	  x[iv]=(double)xm;
 	  x[jv]=(double)ym;
 	  last_ic[im]=x[im];
@@ -1362,8 +1360,8 @@ void do_init_data(int com)
 	  badmouse=GetMouseXY(&im,&jm);
 	  if(badmouse==0)break;
 	  scale_to_real(im,jm,&xm,&ym);
-	  im=MyGraph->xv[0]-1;
-	  jm=MyGraph->yv[0]-1;
+	  im=plot_windows.current->xv[0]-1;
+	  jm=plot_windows.current->yv[0]-1;
 	  x[iv]=(double)xm;
 	  x[jv]=(double)ym;
 	  last_ic[im]=x[im];
@@ -2456,24 +2454,24 @@ void send_output(double *y,double t)
   void  do_plot(oldxpl,oldypl, oldzpl,xpl,  ypl, zpl)
    float *oldxpl, *oldypl, *oldzpl,*xpl,  *ypl,*zpl;
 {
-	int ip,np=MyGraph->nvars;
+	int ip,np=plot_windows.current->nvars;
         
         for(ip=0;ip<np;ip++){
-           if(MyGraph->ColorFlag==0){
+           if(plot_windows.current->ColorFlag==0){
 
-	     set_linestyle(MyGraph->color[ip]);
+	     set_linestyle(plot_windows.current->color[ip]);
 	   }
 /*	   if(MyGraph->line[ip]<0)
 	     continue;  */
-           if(MyGraph->line[ip]<=0)
+           if(plot_windows.current->line[ip]<=0)
            {
-	    PointRadius=-MyGraph->line[ip];
-	   if(MyGraph->ThreeDFlag==0) point_abs(xpl[ip],ypl[ip]);
+	    PointRadius=-plot_windows.current->line[ip];
+	   if(plot_windows.current->ThreeDFlag==0) point_abs(xpl[ip],ypl[ip]);
 	   else point_3d(xpl[ip],ypl[ip],zpl[ip]);
            }
            else
 	   {
-	    if(MyGraph->ThreeDFlag==0){
+	    if(plot_windows.current->ThreeDFlag==0){
             
 	      line_abs(oldxpl[ip],oldypl[ip],xpl[ip],ypl[ip]);
 	    }
@@ -2494,7 +2492,7 @@ void export_data(fp)
 FILE *fp;
 {
 
-int ip,np=MyGraph->nvars;
+int ip,np=plot_windows.current->nvars;
   int ZSHFT,YSHFT,XSHFT;
   int j,kxoff,kyoff,kzoff;
   int iiXPLT,iiYPLT,iiZPLT;
@@ -2502,9 +2500,9 @@ int ip,np=MyGraph->nvars;
   int i1=0;  
   float **data;
   data=get_browser_data();
-  XSHFT=MyGraph->xshft;
-  YSHFT=MyGraph->yshft;
-  ZSHFT=MyGraph->zshft;
+  XSHFT=plot_windows.current->xshft;
+  YSHFT=plot_windows.current->yshft;
+  ZSHFT=plot_windows.current->zshft;
   if(i1<ZSHFT)i1=ZSHFT;
   if(i1<YSHFT)i1=YSHFT;
   if(i1<XSHFT)i1=XSHFT;
@@ -2513,11 +2511,11 @@ int ip,np=MyGraph->nvars;
      kzoff=i1-ZSHFT;
      kyoff=i1-YSHFT;
 
-    iiXPLT=MyGraph->xv[0];
-    iiYPLT=MyGraph->yv[0];
-    if(MyGraph->ThreeDFlag>0){
+    iiXPLT=plot_windows.current->xv[0];
+    iiYPLT=plot_windows.current->yv[0];
+    if(plot_windows.current->ThreeDFlag>0){
 
-       iiZPLT=MyGraph->zv[0];
+       iiZPLT=plot_windows.current->zv[0];
        for(j=i1;j<strind;j++){
 	 fprintf(fp,"%g %g %g \n",
 		 data[iiXPLT][kxoff],
@@ -2533,7 +2531,7 @@ int ip,np=MyGraph->nvars;
     for(j=i1;j<strind;j++){
       fprintf(fp,"%g ",data[iiXPLT][kxoff]);
       for(ip=0;ip<np;ip++){
-	 iiYPLT=MyGraph->yv[ip];
+	 iiYPLT=plot_windows.current->yv[ip];
 	 fprintf(fp,"%g ",data[iiYPLT][kyoff]);
       }
       fprintf(fp,"\n");
@@ -2548,15 +2546,15 @@ int ip,np=MyGraph->nvars;
 void plot_the_graphs(float *xv,float *xvold,int node,int neq,double ddt,int *tc,int flag)
 {
   int i;
-  int ic=current_pop;
- if(SimulPlotFlag==0){
+  int ic=plot_windows.active;
+ if(plot_windows.simul==0){
    plot_one_graph(xv,xvold,node,neq,ddt,tc);
    return;
  }
  
  
- for(i=0;i<num_pops;i++){
-   make_active(ActiveWinList[i],flag);
+ for(i=0;i<plot_windows.count;i++){
+   make_active(plot_windows.open[i],flag);
      plot_one_graph(xv,xvold,node,neq,ddt,tc);
  }
  make_active(ic,flag);
@@ -2568,10 +2566,10 @@ void plot_one_graph(float *xv,float *xvold,int node,int neq,double ddt,int *tc)
  int NPlots,ip;
  float oldxpl[MAXPERPLOT],oldypl[MAXPERPLOT],oldzpl[MAXPERPLOT];
  float xpl[MAXPERPLOT],ypl[MAXPERPLOT],zpl[MAXPERPLOT];
- NPlots=MyGraph->nvars;
- IXPLT=MyGraph->xv;
- IYPLT=MyGraph->yv;
- IZPLT=MyGraph->zv;
+ NPlots=plot_windows.current->nvars;
+ IXPLT=plot_windows.current->xv;
+ IYPLT=plot_windows.current->yv;
+ IZPLT=plot_windows.current->zv;
  for(ip=0;ip<NEQ;ip++){
    if(itor[ip]==1)
      xvold[ip+1]=xvold[ip+1]+tc[ip]*TOR_PERIOD;
@@ -2584,15 +2582,15 @@ void plot_one_graph(float *xv,float *xvold,int node,int neq,double ddt,int *tc)
  ypl[ip]=xv[IYPLT[ip]];
  zpl[ip]=xv[IZPLT[ip]];
  }
- if(MyGraph->ColorFlag)
+ if(plot_windows.current->ColorFlag)
    comp_color(xv,xvold,NODE,(float)ddt);
  do_plot(oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
- phase_data_flow_step(NPlots,oldxpl,oldypl,xpl,ypl,MyGraph->color); /* Dir.field/flow's Flow as data */
+ phase_data_flow_step(NPlots,oldxpl,oldypl,xpl,ypl,plot_windows.current->color); /* Dir.field/flow's Flow as data */
 }
 void restore(i1,i2)
      int i1,i2;
 {
-  int ip,np=MyGraph->nvars;
+  int ip,np=plot_windows.current->nvars;
   int ZSHFT,YSHFT,XSHFT;
   int i,j,kxoff,kyoff,kzoff;
   int iiXPLT,iiYPLT,iiZPLT;
@@ -2601,9 +2599,9 @@ void restore(i1,i2)
   float **data;
 
   data=get_browser_data();
-  XSHFT=MyGraph->xshft;
-  YSHFT=MyGraph->yshft;
-  ZSHFT=MyGraph->zshft;
+  XSHFT=plot_windows.current->xshft;
+  YSHFT=plot_windows.current->yshft;
+  ZSHFT=plot_windows.current->zshft;
   if(i1<ZSHFT)i1=ZSHFT;
   if(i1<YSHFT)i1=YSHFT;
   if(i1<XSHFT)i1=XSHFT;
@@ -2618,10 +2616,10 @@ void restore(i1,i2)
      kzoff=i1-ZSHFT;
      kyoff=i1-YSHFT;
 
-    iiXPLT=MyGraph->xv[ip];
-    iiYPLT=MyGraph->yv[ip];
-    iiZPLT=MyGraph->zv[ip];
-    set_linestyle(MyGraph->color[ip]);
+    iiXPLT=plot_windows.current->xv[ip];
+    iiYPLT=plot_windows.current->yv[ip];
+    iiZPLT=plot_windows.current->zv[ip];
+    set_linestyle(plot_windows.current->color[ip]);
     oldxpl=data[iiXPLT][kxoff];
     oldypl=data[iiYPLT][kyoff];
     oldzpl=data[iiZPLT][kzoff];
@@ -2638,7 +2636,7 @@ void restore(i1,i2)
 	if (fabs(oldypl-ypl)>(float)(.5*TOR_PERIOD))oldypl=ypl;
 	if (fabs(oldzpl-zpl)>(float)(.5*TOR_PERIOD))oldzpl=zpl;
       }
-      if(MyGraph->ColorFlag!=0&&i>i1){
+      if(plot_windows.current->ColorFlag!=0&&i>i1){
 	  for(j=0;j<=NEQ;j++){
 	    v1[j]=data[j][i];
 	    v2[j]=data[j][i-1];
@@ -2649,13 +2647,13 @@ void restore(i1,i2)
 	}     /* ignored by postscript */
      /* if(MyGraph->line[ip]<0)
 	goto noplot; */
-      if(MyGraph->line[ip]<=0){
-	PointRadius=-MyGraph->line[ip];
-	if(MyGraph->ThreeDFlag==0)point_abs(xpl,ypl);
+      if(plot_windows.current->line[ip]<=0){
+	PointRadius=-plot_windows.current->line[ip];
+	if(plot_windows.current->ThreeDFlag==0)point_abs(xpl,ypl);
 	else point_3d(xpl,ypl,zpl);
       }
       else {
-	if(MyGraph->ThreeDFlag==0)
+	if(plot_windows.current->ThreeDFlag==0)
 	  line_abs(oldxpl,oldypl,xpl,ypl);
 	else
 	  line_3d(oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
@@ -2686,10 +2684,10 @@ float dt;
 {
  int i,cur_color;
  float sum;
- float min_scale=(float)(MyGraph->min_scale);
- float color_scale=(float)(MyGraph->color_scale);
- if(MyGraph->ColorFlag==2){
-   sum=v1[MyGraph->ColorValue];
+ float min_scale=(float)(plot_windows.current->min_scale);
+ float color_scale=(float)(plot_windows.current->color_scale);
+ if(plot_windows.current->ColorFlag==2){
+   sum=v1[plot_windows.current->ColorValue];
    /* plintf(" %d:sum=%g \n",MyGraph->zv[0],sum); */
  }
  else

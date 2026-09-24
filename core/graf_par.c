@@ -27,10 +27,10 @@
 #include "load_eqn.h"
 #include <libgen.h>
 #include "xpp_io.h"
+#include "many_pops.h"
 
 double atof();
 NCLINE nclines[MAXNCLINE];
-extern GRAPH *MyGraph;
 extern int DCURY;
 extern int storind;
 extern int PS_FONTSIZE;
@@ -99,8 +99,8 @@ void change_view_com(int com)
    return;
  }
 
-  MyGraph->grtype=5*com; 
- if(MyGraph->grtype<5)get_2d_view(CurrentCurve);
+  plot_windows.current->grtype=5*com; 
+ if(plot_windows.current->grtype<5)get_2d_view(CurrentCurve);
  else get_3d_view(CurrentCurve);
  check_flags();
  redraw_the_graph();
@@ -110,11 +110,11 @@ void change_view_com(int com)
 
 void check_flags()
 {
-  if(MyGraph->grtype>4)MyGraph->ThreeDFlag=1;
-  else MyGraph->ThreeDFlag=0;
-  if((MyGraph->xv[0]==0)||(MyGraph->yv[0]==0)||
-     ((MyGraph->zv[0]==0)&&(MyGraph->ThreeDFlag==1)))MyGraph->TimeFlag=1;
-  else MyGraph->TimeFlag=0;
+  if(plot_windows.current->grtype>4)plot_windows.current->ThreeDFlag=1;
+  else plot_windows.current->ThreeDFlag=0;
+  if((plot_windows.current->xv[0]==0)||(plot_windows.current->yv[0]==0)||
+     ((plot_windows.current->zv[0]==0)&&(plot_windows.current->ThreeDFlag==1)))plot_windows.current->TimeFlag=1;
+  else plot_windows.current->TimeFlag=0;
 }
   
 
@@ -125,39 +125,39 @@ int ind;
 		   "Xmax", "Ymax", "Xlabel","Ylabel"};
  char values[8][MAX_LEN_SBOX];
  int  status,i; 
- int i1=MyGraph->xv[ind],i2=MyGraph->yv[ind];
+ int i1=plot_windows.current->xv[ind],i2=plot_windows.current->yv[ind];
  char n1[XPP_NAME_MAX+1],n2[XPP_NAME_MAX+1];
  ind_to_sym(i1,n1);
  ind_to_sym(i2,n2);
  XPP_SPRINTF(values[0],"%s",n1);
  XPP_SPRINTF(values[1],"%s",n2);
- XPP_SPRINTF(values[2],"%g",MyGraph->xmin);
- XPP_SPRINTF(values[3],"%g",MyGraph->ymin);
- XPP_SPRINTF(values[4],"%g",MyGraph->xmax);
- XPP_SPRINTF(values[5],"%g",MyGraph->ymax);
- snprintf(values[6],sizeof(values[6]),"%s",MyGraph->xlabel);
- snprintf(values[7],sizeof(values[7]),"%s",MyGraph->ylabel);
- MyGraph->ThreeDFlag=0;
+ XPP_SPRINTF(values[2],"%g",plot_windows.current->xmin);
+ XPP_SPRINTF(values[3],"%g",plot_windows.current->ymin);
+ XPP_SPRINTF(values[4],"%g",plot_windows.current->xmax);
+ XPP_SPRINTF(values[5],"%g",plot_windows.current->ymax);
+ snprintf(values[6],sizeof(values[6]),"%s",plot_windows.current->xlabel);
+ snprintf(values[7],sizeof(values[7]),"%s",plot_windows.current->ylabel);
+ plot_windows.current->ThreeDFlag=0;
  status=do_string_box(8,4,2,"2D View",n,values,31);
  if(status!=0){
 		/*  get variable names  */
              find_variable(values[0],&i);
               if(i>-1)
-		MyGraph->xv[ind]=i;
+		plot_windows.current->xv[ind]=i;
 	     find_variable(values[1],&i);
               if(i>-1)
-		MyGraph->yv[ind]=i;
+		plot_windows.current->yv[ind]=i;
 
-	      MyGraph->xmin=atof(values[2]);
-	      MyGraph->ymin=atof(values[3]);
-	      MyGraph->xmax=atof(values[4]);
-	      MyGraph->ymax=atof(values[5]);
-	      MyGraph->xlo=MyGraph->xmin;
-	      MyGraph->ylo=MyGraph->ymin;
-	      MyGraph->xhi=MyGraph->xmax;
-	      MyGraph->yhi=MyGraph->ymax;
-	     XPP_SPRINTF(MyGraph->xlabel,"%s",values[6]);
-	     XPP_SPRINTF(MyGraph->ylabel,"%s",values[7]);
+	      plot_windows.current->xmin=atof(values[2]);
+	      plot_windows.current->ymin=atof(values[3]);
+	      plot_windows.current->xmax=atof(values[4]);
+	      plot_windows.current->ymax=atof(values[5]);
+	      plot_windows.current->xlo=plot_windows.current->xmin;
+	      plot_windows.current->ylo=plot_windows.current->ymin;
+	      plot_windows.current->xhi=plot_windows.current->xmax;
+	      plot_windows.current->yhi=plot_windows.current->ymax;
+	     XPP_SPRINTF(plot_windows.current->xlabel,"%s",values[6]);
+	     XPP_SPRINTF(plot_windows.current->ylabel,"%s",values[7]);
 	      check_windows();
 /*	      plintf(" x=%d y=%d xlo=%f ylo=%f xhi=%f yhi=%f \n",
 		     MyGraph->xv[ind],MyGraph->yv[ind],MyGraph->xlo,
@@ -175,21 +175,21 @@ void axes_opts()
 		    "PSFontSize"};
   char values[7][MAX_LEN_SBOX];
   int status;
-  XPP_SPRINTF(values[0],"%g",MyGraph->xorg);
-  XPP_SPRINTF(values[1],"%g",MyGraph->yorg);
-  XPP_SPRINTF(values[2],"%g",MyGraph->zorg);
-  XPP_SPRINTF(values[3],"%d",MyGraph->xorgflag);
-  XPP_SPRINTF(values[4],"%d",MyGraph->yorgflag);
-  XPP_SPRINTF(values[5],"%d",MyGraph->zorgflag);
+  XPP_SPRINTF(values[0],"%g",plot_windows.current->xorg);
+  XPP_SPRINTF(values[1],"%g",plot_windows.current->yorg);
+  XPP_SPRINTF(values[2],"%g",plot_windows.current->zorg);
+  XPP_SPRINTF(values[3],"%d",plot_windows.current->xorgflag);
+  XPP_SPRINTF(values[4],"%d",plot_windows.current->yorgflag);
+  XPP_SPRINTF(values[5],"%d",plot_windows.current->zorgflag);
   XPP_SPRINTF(values[6],"%d",PS_FONTSIZE);
   status=do_string_box(7,7,1,"Axes options",n,values,25);
  if(status!=0){
-   MyGraph->xorg=atof(values[0]);
-   MyGraph->yorg=atof(values[1]);
-   MyGraph->zorg=atof(values[2]);
-   MyGraph->xorgflag=atoi(values[3]);
-   MyGraph->yorgflag=atoi(values[4]);
-   MyGraph->zorgflag=atoi(values[5]);
+   plot_windows.current->xorg=atof(values[0]);
+   plot_windows.current->yorg=atof(values[1]);
+   plot_windows.current->zorg=atof(values[2]);
+   plot_windows.current->xorgflag=atoi(values[3]);
+   plot_windows.current->yorgflag=atoi(values[4]);
+   plot_windows.current->zorgflag=atoi(values[5]);
    PS_FONTSIZE=atoi(values[6]);
    redraw_the_graph();
  }
@@ -205,7 +205,7 @@ int ind;
 		   "Ymax", "Zmin","Zmax",
 		   "XLo", "XHi", "YLo", "YHi","Xlabel","Ylabel","Zlabel"};
  char values[16][MAX_LEN_SBOX];
- int  status,i,i1=MyGraph->xv[ind],i2=MyGraph->yv[ind],i3=MyGraph->zv[ind];
+ int  status,i,i1=plot_windows.current->xv[ind],i2=plot_windows.current->yv[ind],i3=plot_windows.current->zv[ind];
  char n1[XPP_NAME_MAX+1],n2[XPP_NAME_MAX+1],n3[XPP_NAME_MAX+1];
  ind_to_sym(i1,n1);
  ind_to_sym(i2,n2);
@@ -213,47 +213,47 @@ int ind;
  XPP_SPRINTF(values[0],"%s",n1);
  XPP_SPRINTF(values[1],"%s",n2);
  XPP_SPRINTF(values[2],"%s",n3);
- XPP_SPRINTF(values[3],"%g",MyGraph->xmin);
- XPP_SPRINTF(values[5],"%g",MyGraph->ymin);
- XPP_SPRINTF(values[7],"%g",MyGraph->zmin);
- XPP_SPRINTF(values[4],"%g",MyGraph->xmax);
- XPP_SPRINTF(values[6],"%g",MyGraph->ymax);
- XPP_SPRINTF(values[8],"%g",MyGraph->zmax);
- XPP_SPRINTF(values[9],"%g",MyGraph->xlo);
- XPP_SPRINTF(values[11],"%g",MyGraph->ylo);
- XPP_SPRINTF(values[10],"%g",MyGraph->xhi);
- XPP_SPRINTF(values[12],"%g",MyGraph->yhi);
- snprintf(values[13],sizeof(values[13]),"%s",MyGraph->xlabel);
- snprintf(values[14],sizeof(values[14]),"%s",MyGraph->ylabel);
- snprintf(values[15],sizeof(values[15]),"%s",MyGraph->zlabel);
- MyGraph->ThreeDFlag=1;
+ XPP_SPRINTF(values[3],"%g",plot_windows.current->xmin);
+ XPP_SPRINTF(values[5],"%g",plot_windows.current->ymin);
+ XPP_SPRINTF(values[7],"%g",plot_windows.current->zmin);
+ XPP_SPRINTF(values[4],"%g",plot_windows.current->xmax);
+ XPP_SPRINTF(values[6],"%g",plot_windows.current->ymax);
+ XPP_SPRINTF(values[8],"%g",plot_windows.current->zmax);
+ XPP_SPRINTF(values[9],"%g",plot_windows.current->xlo);
+ XPP_SPRINTF(values[11],"%g",plot_windows.current->ylo);
+ XPP_SPRINTF(values[10],"%g",plot_windows.current->xhi);
+ XPP_SPRINTF(values[12],"%g",plot_windows.current->yhi);
+ snprintf(values[13],sizeof(values[13]),"%s",plot_windows.current->xlabel);
+ snprintf(values[14],sizeof(values[14]),"%s",plot_windows.current->ylabel);
+ snprintf(values[15],sizeof(values[15]),"%s",plot_windows.current->zlabel);
+ plot_windows.current->ThreeDFlag=1;
  status=do_string_box(16,6,3,"3D View",n,values,31);
  if(status!=0){
 		/*  get variable names  */
               find_variable(values[0],&i);
  	      if(i>-1)
-		MyGraph->xv[ind]=i;
+		plot_windows.current->xv[ind]=i;
               find_variable(values[1],&i);
               if(i>-1)
-		MyGraph->yv[ind]=i;
+		plot_windows.current->yv[ind]=i;
               find_variable(values[2],&i);
   		if(i>-1)
-		  MyGraph->zv[ind]=i;
-	      XPP_SPRINTF(MyGraph->xlabel,"%s",values[13]);
-	      XPP_SPRINTF(MyGraph->ylabel,"%s",values[14]);
-	      XPP_SPRINTF(MyGraph->zlabel,"%s",values[15]);
+		  plot_windows.current->zv[ind]=i;
+	      XPP_SPRINTF(plot_windows.current->xlabel,"%s",values[13]);
+	      XPP_SPRINTF(plot_windows.current->ylabel,"%s",values[14]);
+	      XPP_SPRINTF(plot_windows.current->zlabel,"%s",values[15]);
 
 
-	      MyGraph->xmin=atof(values[3]);
-	      MyGraph->ymin=atof(values[5]);
-	      MyGraph->zmin=atof(values[7]);
-	      MyGraph->xmax=atof(values[4]);
-	      MyGraph->ymax=atof(values[6]);
-	      MyGraph->zmax=atof(values[8]);
-	      MyGraph->xlo=atof(values[9]);
-	      MyGraph->ylo=atof(values[11]);
-	      MyGraph->xhi=atof(values[10]);
-	      MyGraph->yhi=atof(values[12]);
+	      plot_windows.current->xmin=atof(values[3]);
+	      plot_windows.current->ymin=atof(values[5]);
+	      plot_windows.current->zmin=atof(values[7]);
+	      plot_windows.current->xmax=atof(values[4]);
+	      plot_windows.current->ymax=atof(values[6]);
+	      plot_windows.current->zmax=atof(values[8]);
+	      plot_windows.current->xlo=atof(values[9]);
+	      plot_windows.current->ylo=atof(values[11]);
+	      plot_windows.current->xhi=atof(values[10]);
+	      plot_windows.current->yhi=atof(values[12]);
               check_windows();
 	/*      plintf("%f %f %f %f %f %f \n %f %f %f %f",
 		     MyGraph->xmin,MyGraph->xmax,
@@ -330,36 +330,36 @@ void corner_cube(xlo,xhi,ylo,yhi)
  
 void default_window()
 {
- 	if(MyGraph->ThreeDFlag){
-	      MyGraph->xmax=x_3d[1];
-    	      MyGraph->ymax=y_3d[1];
-    	      MyGraph->zmax=z_3d[1];
-              MyGraph->xmin=x_3d[0];
-              MyGraph->ymin=y_3d[0];
-              MyGraph->zmin=z_3d[0];  
+ 	if(plot_windows.current->ThreeDFlag){
+	      plot_windows.current->xmax=x_3d[1];
+    	      plot_windows.current->ymax=y_3d[1];
+    	      plot_windows.current->zmax=z_3d[1];
+              plot_windows.current->xmin=x_3d[0];
+              plot_windows.current->ymin=y_3d[0];
+              plot_windows.current->zmin=z_3d[0];  
 	      
-	      pretty(&(MyGraph->ymin),&(MyGraph->ymax));
-	      pretty(&(MyGraph->xmin),&(MyGraph->xmax));
-	      pretty(&(MyGraph->zmin),&(MyGraph->zmax));
-	      corner_cube(&(MyGraph->xlo),&(MyGraph->xhi),&(MyGraph->ylo),&(MyGraph->yhi));
-	      pretty(&(MyGraph->xlo),&(MyGraph->xhi));
-	      pretty(&(MyGraph->ylo),&(MyGraph->yhi));
+	      pretty(&(plot_windows.current->ymin),&(plot_windows.current->ymax));
+	      pretty(&(plot_windows.current->xmin),&(plot_windows.current->xmax));
+	      pretty(&(plot_windows.current->zmin),&(plot_windows.current->zmax));
+	      corner_cube(&(plot_windows.current->xlo),&(plot_windows.current->xhi),&(plot_windows.current->ylo),&(plot_windows.current->yhi));
+	      pretty(&(plot_windows.current->xlo),&(plot_windows.current->xhi));
+	      pretty(&(plot_windows.current->ylo),&(plot_windows.current->yhi));
 	      check_windows(); 
 	}
 	else  
     	{
-	      MyGraph->xmax=x_3d[1];
-    	      MyGraph->ymax=y_3d[1];
+	      plot_windows.current->xmax=x_3d[1];
+    	      plot_windows.current->ymax=y_3d[1];
     	      
-              MyGraph->xmin=x_3d[0];
-              MyGraph->ymin=y_3d[0];
+              plot_windows.current->xmin=x_3d[0];
+              plot_windows.current->ymin=y_3d[0];
 	      
-	      pretty(&(MyGraph->ymin),&(MyGraph->ymax)); 
-	      pretty(&(MyGraph->xmin),&(MyGraph->xmax));
-	      MyGraph->xlo=MyGraph->xmin;
-	      MyGraph->ylo=MyGraph->ymin;
-	      MyGraph->xhi=MyGraph->xmax;
-	      MyGraph->yhi=MyGraph->ymax;
+	      pretty(&(plot_windows.current->ymin),&(plot_windows.current->ymax)); 
+	      pretty(&(plot_windows.current->xmin),&(plot_windows.current->xmax));
+	      plot_windows.current->xlo=plot_windows.current->xmin;
+	      plot_windows.current->ylo=plot_windows.current->ymin;
+	      plot_windows.current->xhi=plot_windows.current->xmax;
+	      plot_windows.current->yhi=plot_windows.current->ymax;
 	      check_windows();
 	}
 	
@@ -371,65 +371,65 @@ void default_window()
 void fit_window()
 {
   double Mx=-1.e25,My=-1.e25,Mz=-1.e25,mx=-Mx,my=-My,mz=-Mz;
-  int i,n=MyGraph->nvars;
+  int i,n=plot_windows.current->nvars;
   if(storind<2)return;
-  if(MyGraph->ThreeDFlag){
+  if(plot_windows.current->ThreeDFlag){
     for(i=0;i<n;i++){
       
-      get_max(MyGraph->xv[i],&(MyGraph->xmin),&(MyGraph->xmax));
-      Mx=lmax(MyGraph->xmax,Mx);
-      mx=-lmax(-MyGraph->xmin,-mx);
+      get_max(plot_windows.current->xv[i],&(plot_windows.current->xmin),&(plot_windows.current->xmax));
+      Mx=lmax(plot_windows.current->xmax,Mx);
+      mx=-lmax(-plot_windows.current->xmin,-mx);
       
-      get_max(MyGraph->yv[i],&(MyGraph->ymin),&(MyGraph->ymax));
-      My=lmax(MyGraph->ymax,My);
-      my=-lmax(-MyGraph->ymin,-my);
+      get_max(plot_windows.current->yv[i],&(plot_windows.current->ymin),&(plot_windows.current->ymax));
+      My=lmax(plot_windows.current->ymax,My);
+      my=-lmax(-plot_windows.current->ymin,-my);
       
-      get_max(MyGraph->zv[i],&(MyGraph->zmin),&(MyGraph->zmax));
-      Mz=lmax(MyGraph->zmax,Mz);
-      mz=-lmax(-MyGraph->zmin,-mz);
+      get_max(plot_windows.current->zv[i],&(plot_windows.current->zmin),&(plot_windows.current->zmax));
+      Mz=lmax(plot_windows.current->zmax,Mz);
+      mz=-lmax(-plot_windows.current->zmin,-mz);
       
     }
-    MyGraph->xmax=Mx;
-    MyGraph->ymax=My;
-    MyGraph->zmax=Mz;
-    MyGraph->xmin=mx;
-    MyGraph->ymin=my;
-    MyGraph->zmin=mz;
+    plot_windows.current->xmax=Mx;
+    plot_windows.current->ymax=My;
+    plot_windows.current->zmax=Mz;
+    plot_windows.current->xmin=mx;
+    plot_windows.current->ymin=my;
+    plot_windows.current->zmin=mz;
     
     
-    pretty(&(MyGraph->ymin),&(MyGraph->ymax));
-    pretty(&(MyGraph->xmin),&(MyGraph->xmax));
-    pretty(&(MyGraph->zmin),&(MyGraph->zmax));
-    corner_cube(&(MyGraph->xlo),&(MyGraph->xhi),&(MyGraph->ylo),&(MyGraph->yhi));
-    pretty(&(MyGraph->xlo),&(MyGraph->xhi));
-    pretty(&(MyGraph->ylo),&(MyGraph->yhi));
+    pretty(&(plot_windows.current->ymin),&(plot_windows.current->ymax));
+    pretty(&(plot_windows.current->xmin),&(plot_windows.current->xmax));
+    pretty(&(plot_windows.current->zmin),&(plot_windows.current->zmax));
+    corner_cube(&(plot_windows.current->xlo),&(plot_windows.current->xhi),&(plot_windows.current->ylo),&(plot_windows.current->yhi));
+    pretty(&(plot_windows.current->xlo),&(plot_windows.current->xhi));
+    pretty(&(plot_windows.current->ylo),&(plot_windows.current->yhi));
     check_windows();
   }
   else  
     {
       for(i=0;i<n;i++){
-	get_max(MyGraph->xv[i],&(MyGraph->xmin),&(MyGraph->xmax));
-	Mx=lmax(MyGraph->xmax,Mx);
-	mx=-lmax(-MyGraph->xmin,-mx);
+	get_max(plot_windows.current->xv[i],&(plot_windows.current->xmin),&(plot_windows.current->xmax));
+	Mx=lmax(plot_windows.current->xmax,Mx);
+	mx=-lmax(-plot_windows.current->xmin,-mx);
 	
-       get_max(MyGraph->yv[i],&(MyGraph->ymin),&(MyGraph->ymax));
-	My=lmax(MyGraph->ymax,My);
-	my=-lmax(-MyGraph->ymin,-my);
+       get_max(plot_windows.current->yv[i],&(plot_windows.current->ymin),&(plot_windows.current->ymax));
+	My=lmax(plot_windows.current->ymax,My);
+	my=-lmax(-plot_windows.current->ymin,-my);
 	
       }
-      MyGraph->xmax=Mx;
-      MyGraph->ymax=My;
+      plot_windows.current->xmax=Mx;
+      plot_windows.current->ymax=My;
       
-      MyGraph->xmin=mx;
-      MyGraph->ymin=my;
+      plot_windows.current->xmin=mx;
+      plot_windows.current->ymin=my;
       
       
-      pretty(&(MyGraph->ymin),&(MyGraph->ymax)); 
-      pretty(&(MyGraph->xmin),&(MyGraph->xmax));
-      MyGraph->xlo=MyGraph->xmin;
-      MyGraph->ylo=MyGraph->ymin;
-      MyGraph->xhi=MyGraph->xmax;
-      MyGraph->yhi=MyGraph->ymax;
+      pretty(&(plot_windows.current->ymin),&(plot_windows.current->ymax)); 
+      pretty(&(plot_windows.current->xmin),&(plot_windows.current->xmax));
+      plot_windows.current->xlo=plot_windows.current->xmin;
+      plot_windows.current->ylo=plot_windows.current->ymin;
+      plot_windows.current->xhi=plot_windows.current->xmax;
+      plot_windows.current->yhi=plot_windows.current->ymax;
       check_windows();
     }
   redraw_the_graph();
@@ -446,22 +446,22 @@ void user_window()
  static char *n[]={"X Lo","X Hi","Y Lo","Y Hi"};
  char values[4][MAX_LEN_SBOX];
  int status;
- XPP_SPRINTF(values[0],"%g",MyGraph->xlo);
- XPP_SPRINTF(values[2],"%g",MyGraph->ylo);
- XPP_SPRINTF(values[1],"%g",MyGraph->xhi);
- XPP_SPRINTF(values[3],"%g",MyGraph->yhi);
+ XPP_SPRINTF(values[0],"%g",plot_windows.current->xlo);
+ XPP_SPRINTF(values[2],"%g",plot_windows.current->ylo);
+ XPP_SPRINTF(values[1],"%g",plot_windows.current->xhi);
+ XPP_SPRINTF(values[3],"%g",plot_windows.current->yhi);
  status=do_string_box(4,2,2,"Window",n,values,28);
  if(status!=0){
              
-	      MyGraph->xlo=atof(values[0]);
-	      MyGraph->ylo=atof(values[2]);
-	      MyGraph->xhi=atof(values[1]);
-	      MyGraph->yhi=atof(values[3]);
-	      if(MyGraph->grtype<5){
-	      MyGraph->xmin=MyGraph->xlo;
-	      MyGraph->xmax=MyGraph->xhi;
-	      MyGraph->ymin=MyGraph->ylo;
-	      MyGraph->ymax=MyGraph->yhi;
+	      plot_windows.current->xlo=atof(values[0]);
+	      plot_windows.current->ylo=atof(values[2]);
+	      plot_windows.current->xhi=atof(values[1]);
+	      plot_windows.current->yhi=atof(values[3]);
+	      if(plot_windows.current->grtype<5){
+	      plot_windows.current->xmin=plot_windows.current->xlo;
+	      plot_windows.current->xmax=plot_windows.current->xhi;
+	      plot_windows.current->ymin=plot_windows.current->ylo;
+	      plot_windows.current->ymax=plot_windows.current->yhi;
 	      }
 	      check_windows();
              }
@@ -471,7 +471,7 @@ void user_window()
 void xi_vs_t() /*  a short cut   */
 {
  char name[20],value[256]; /* new_string edits up to 255 characters */
- int i=MyGraph->yv[0];
+ int i=plot_windows.current->yv[0];
  
 
  ind_to_sym(i,value);
@@ -480,24 +480,24 @@ void xi_vs_t() /*  a short cut   */
  find_variable(value,&i);
  
  if(i>-1){
-   MyGraph->yv[0]=i;
-   MyGraph->grtype=0;
-   MyGraph->xv[0]=0;
+   plot_windows.current->yv[0]=i;
+   plot_windows.current->grtype=0;
+   plot_windows.current->xv[0]=0;
    if(storind>=2){
-      get_max(MyGraph->xv[0],&(MyGraph->xmin),&(MyGraph->xmax));
-   pretty(&(MyGraph->xmin),&(MyGraph->xmax));
-    get_max(MyGraph->yv[0],&(MyGraph->ymin),&(MyGraph->ymax));
-     pretty(&(MyGraph->ymin),&(MyGraph->ymax)); 
+      get_max(plot_windows.current->xv[0],&(plot_windows.current->xmin),&(plot_windows.current->xmax));
+   pretty(&(plot_windows.current->xmin),&(plot_windows.current->xmax));
+    get_max(plot_windows.current->yv[0],&(plot_windows.current->ymin),&(plot_windows.current->ymax));
+     pretty(&(plot_windows.current->ymin),&(plot_windows.current->ymax)); 
    
     }
    else {
-     MyGraph->xmin=T0;
-     MyGraph->xmax=TEND;
+     plot_windows.current->xmin=T0;
+     plot_windows.current->xmax=TEND;
         }
-    MyGraph->xlo=MyGraph->xmin;
-    MyGraph->ylo=MyGraph->ymin;
-    MyGraph->xhi=MyGraph->xmax;
-    MyGraph->yhi=MyGraph->ymax;
+    plot_windows.current->xlo=plot_windows.current->xmin;
+    plot_windows.current->ylo=plot_windows.current->ymin;
+    plot_windows.current->xhi=plot_windows.current->xmax;
+    plot_windows.current->yhi=plot_windows.current->ymax;
     check_windows();
     check_flags();
    set_normal_scale();
@@ -514,7 +514,7 @@ void movie_rot(start,increment,nclip,angle)
      double start,increment;
 {
   int i;
-  double thetaold=MyGraph->Theta,phiold=MyGraph->Phi;
+  double thetaold=plot_windows.current->Theta,phiold=plot_windows.current->Phi;
   reset_film();
   for(i=0;i<=nclip;i++){
    
@@ -525,8 +525,8 @@ void movie_rot(start,increment,nclip,angle)
     redraw_the_graph();
     xpp_ui.film_clip();
   }
-  MyGraph->Theta=thetaold;
-  MyGraph->Phi=phiold;
+  plot_windows.current->Theta=thetaold;
+  plot_windows.current->Phi=phiold;
 }
 
 void get_3d_par_com()
@@ -541,14 +541,14 @@ void get_3d_par_com()
  
  int nclip=8,angle=0;
  double start,increment=45; 
-  if(MyGraph->grtype<5)return;
+  if(plot_windows.current->grtype<5)return;
 
 
- XPP_SPRINTF(values[0],"%d",MyGraph->PerspFlag);
- XPP_SPRINTF(values[1],"%g",MyGraph->ZPlane);
- XPP_SPRINTF(values[2],"%g",MyGraph->ZView);
- XPP_SPRINTF(values[3],"%g",MyGraph->Theta);
- XPP_SPRINTF(values[4],"%g",MyGraph->Phi);
+ XPP_SPRINTF(values[0],"%d",plot_windows.current->PerspFlag);
+ XPP_SPRINTF(values[1],"%g",plot_windows.current->ZPlane);
+ XPP_SPRINTF(values[2],"%g",plot_windows.current->ZView);
+ XPP_SPRINTF(values[3],"%g",plot_windows.current->Theta);
+ XPP_SPRINTF(values[4],"%g",plot_windows.current->Phi);
  XPP_SPRINTF(values[5],"%s",mov3d.yes);
  XPP_SPRINTF(values[6],"%s",mov3d.angle);
  XPP_SPRINTF(values[7],"%g",mov3d.start);
@@ -557,11 +557,11 @@ void get_3d_par_com()
  
  status=do_string_box(10,5,2,"3D Parameters",n,values,28);
  if(status!=0){
-	      MyGraph->PerspFlag=atoi(values[0]);
-	      MyGraph->ZPlane=atof(values[1]);
-	      MyGraph->ZView=atof(values[2]);
-	      MyGraph->Theta=atof(values[3]);
-	      MyGraph->Phi=atof(values[4]);
+	      plot_windows.current->PerspFlag=atoi(values[0]);
+	      plot_windows.current->ZPlane=atof(values[1]);
+	      plot_windows.current->ZView=atof(values[2]);
+	      plot_windows.current->Theta=atof(values[3]);
+	      plot_windows.current->Phi=atof(values[4]);
              if(values[5][0]=='y'|| values[5][0]=='Y'){  
 	      snprintf(mov3d.yes,sizeof(mov3d.yes),"%.*s",(int)sizeof(mov3d.yes)-1,values[5]);
 	      snprintf(mov3d.angle,sizeof(mov3d.angle),"%.*s",(int)sizeof(mov3d.angle)-1,values[6]);
@@ -578,7 +578,7 @@ void get_3d_par_com()
 	      movie_rot(start,increment,nclip,angle);
 	     }
 	       
-                make_rot(MyGraph->Theta,MyGraph->Phi);   
+                make_rot(plot_windows.current->Theta,plot_windows.current->Phi);   
 	    /*  Redraw the picture   */	
 	       redraw_the_graph();
          
@@ -598,11 +598,11 @@ void get_3d_par_noper()
 
  int nclip=8,angle=0;
  double start,increment=45; 
-  if(MyGraph->grtype<5)return;
+  if(plot_windows.current->grtype<5)return;
 
 
- XPP_SPRINTF(values[0],"%g",MyGraph->Theta);
- XPP_SPRINTF(values[1],"%g",MyGraph->Phi);
+ XPP_SPRINTF(values[0],"%g",plot_windows.current->Theta);
+ XPP_SPRINTF(values[1],"%g",plot_windows.current->Phi);
  XPP_SPRINTF(values[2],"%s",mov3d.yes);
  XPP_SPRINTF(values[3],"%s",mov3d.angle);
  XPP_SPRINTF(values[4],"%g",mov3d.start);
@@ -614,8 +614,8 @@ void get_3d_par_noper()
    /* MyGraph->PerspFlag=atoi(values[0]);
 	      MyGraph->ZPlane=atof(values[1]);
 	      MyGraph->ZView=atof(values[2]); */
-	      MyGraph->Theta=atof(values[0]);
-	      MyGraph->Phi=atof(values[1]);
+	      plot_windows.current->Theta=atof(values[0]);
+	      plot_windows.current->Phi=atof(values[1]);
              if(values[2][0]=='y'|| values[2][0]=='Y'){  
 	      snprintf(mov3d.yes,sizeof(mov3d.yes),"%.*s",(int)sizeof(mov3d.yes)-1,values[2]);
 	      snprintf(mov3d.angle,sizeof(mov3d.angle),"%.*s",(int)sizeof(mov3d.angle)-1,values[3]);
@@ -632,7 +632,7 @@ void get_3d_par_noper()
 	      movie_rot(start,increment,nclip,angle);
 	     }
 	       
-                make_rot(MyGraph->Theta,MyGraph->Phi);   
+                make_rot(plot_windows.current->Theta,plot_windows.current->Phi);   
 	    /*  Redraw the picture   */	
 	       redraw_the_graph();
          
@@ -642,15 +642,15 @@ void get_3d_par_noper()
 
 void update_view(float xlo,float xhi, float ylo, float yhi)
 {
-              MyGraph->xlo=xlo;
-	      MyGraph->ylo=ylo;
-	      MyGraph->xhi=xhi;
-	      MyGraph->yhi=yhi;
-	      if(MyGraph->grtype<5){
-	      MyGraph->xmin=MyGraph->xlo;
-	      MyGraph->xmax=MyGraph->xhi;
-	      MyGraph->ymin=MyGraph->ylo;
-	      MyGraph->ymax=MyGraph->yhi;
+              plot_windows.current->xlo=xlo;
+	      plot_windows.current->ylo=ylo;
+	      plot_windows.current->xhi=xhi;
+	      plot_windows.current->yhi=yhi;
+	      if(plot_windows.current->grtype<5){
+	      plot_windows.current->xmin=plot_windows.current->xlo;
+	      plot_windows.current->xmax=plot_windows.current->xhi;
+	      plot_windows.current->ymin=plot_windows.current->ylo;
+	      plot_windows.current->ymax=plot_windows.current->yhi;
 	      }
 	      check_windows();
             
@@ -696,8 +696,8 @@ void zoom_in(i1,j1,i2,j2)
 int i1,j1,i2,j2;
 {
  float x1,y1,x2,y2;
- float dx=MyGraph->xhi-MyGraph->xlo;
- float dy=MyGraph->yhi-MyGraph->ylo;
+ float dx=plot_windows.current->xhi-plot_windows.current->xlo;
+ float dy=plot_windows.current->yhi-plot_windows.current->ylo;
  scale_to_real(i1,j1,&x1,&y1);
  scale_to_real(i2,j2,&x2,&y2);
    if(x1==x2||y1==y2)
@@ -709,26 +709,26 @@ int i1,j1,i2,j2;
 	dy = dy/2;
 	
 	/*Shrink by thirds and center (track) about the point clicked*/
-	MyGraph->xlo=x1-dx/2;
-	MyGraph->xhi=x1+dx/2;
+	plot_windows.current->xlo=x1-dx/2;
+	plot_windows.current->xhi=x1+dx/2;
 
-	MyGraph->ylo=y1-dy/2;
-	MyGraph->yhi=y1+dy/2;
+	plot_windows.current->ylo=y1-dy/2;
+	plot_windows.current->yhi=y1+dy/2;
  	
 
  }
  else
  {           
-	      MyGraph->xlo=x1;
-	      MyGraph->ylo=y1;
-	      MyGraph->xhi=x2;
-	      MyGraph->yhi=y2;
+	      plot_windows.current->xlo=x1;
+	      plot_windows.current->ylo=y1;
+	      plot_windows.current->xhi=x2;
+	      plot_windows.current->yhi=y2;
   }
-  	if(MyGraph->grtype<5){
-	      MyGraph->xmin=MyGraph->xlo;
-	      MyGraph->xmax=MyGraph->xhi;
-	      MyGraph->ymin=MyGraph->ylo;
-	      MyGraph->ymax=MyGraph->yhi;
+  	if(plot_windows.current->grtype<5){
+	      plot_windows.current->xmin=plot_windows.current->xlo;
+	      plot_windows.current->xmax=plot_windows.current->xhi;
+	      plot_windows.current->ymin=plot_windows.current->ylo;
+	      plot_windows.current->ymax=plot_windows.current->yhi;
 	      }
 	      check_windows();
               redraw_the_graph();
@@ -741,8 +741,8 @@ int i1,j1,i2,j2;
  
  float x1,y1,x2,y2;
  float bx,mux,by,muy;
- float dx=MyGraph->xhi-MyGraph->xlo;
- float dy=MyGraph->yhi-MyGraph->ylo;
+ float dx=plot_windows.current->xhi-plot_windows.current->xlo;
+ float dy=plot_windows.current->yhi-plot_windows.current->ylo;
  scale_to_real(i1,j1,&x1,&y1);
  scale_to_real(i2,j2,&x2,&y2);
 
@@ -762,11 +762,11 @@ int i1,j1,i2,j2;
 	dx = dx*2;
 	dy = dy*2;
 	
-	MyGraph->xlo=x1-dx/2;
-	MyGraph->xhi=x1+dx/2;
+	plot_windows.current->xlo=x1-dx/2;
+	plot_windows.current->xhi=x1+dx/2;
 
-	MyGraph->ylo=y1-dy/2;
-	MyGraph->yhi=y1+dy/2;
+	plot_windows.current->ylo=y1-dy/2;
+	plot_windows.current->yhi=y1+dy/2;
  }
  else
  {
@@ -774,22 +774,22 @@ int i1,j1,i2,j2;
  	if(y1>y2){by=y1;y1=y2;y2=by;}
 	
 	 bx=dx*dx/(x2-x1);
-	 mux=(x1-MyGraph->xlo)/dx;
-	 MyGraph->xlo=MyGraph->xlo-bx*mux;
-	 MyGraph->xhi=MyGraph->xlo+bx;
+	 mux=(x1-plot_windows.current->xlo)/dx;
+	 plot_windows.current->xlo=plot_windows.current->xlo-bx*mux;
+	 plot_windows.current->xhi=plot_windows.current->xlo+bx;
 
 	 by=dy*dy/(y2-y1);
-	 muy=(y1-MyGraph->ylo)/dy;
-	 MyGraph->ylo=MyGraph->ylo-by*muy;
-	 MyGraph->yhi=MyGraph->ylo+by;
+	 muy=(y1-plot_windows.current->ylo)/dy;
+	 plot_windows.current->ylo=plot_windows.current->ylo-by*muy;
+	 plot_windows.current->yhi=plot_windows.current->ylo+by;
 
 	    
 }
-	if(MyGraph->grtype<5){
-		      MyGraph->xmin=MyGraph->xlo;
-		      MyGraph->xmax=MyGraph->xhi;
-		      MyGraph->ymin=MyGraph->ylo;
-		      MyGraph->ymax=MyGraph->yhi;
+	if(plot_windows.current->grtype<5){
+		      plot_windows.current->xmin=plot_windows.current->xlo;
+		      plot_windows.current->xmax=plot_windows.current->xhi;
+		      plot_windows.current->ymin=plot_windows.current->ylo;
+		      plot_windows.current->ymax=plot_windows.current->yhi;
 		      }
 	      check_windows();
               redraw_the_graph();
@@ -805,25 +805,25 @@ void graph_all(list,n,type)
   int i;
   if(type==0){
     for(i=0;i<n;i++){
-      MyGraph->xv[i]=0;
-      MyGraph->yv[i]=list[i];
-      MyGraph->line[i]=MyGraph->line[0];
-      MyGraph->color[i]=i;
+      plot_windows.current->xv[i]=0;
+      plot_windows.current->yv[i]=list[i];
+      plot_windows.current->line[i]=plot_windows.current->line[0];
+      plot_windows.current->color[i]=i;
     }
-    MyGraph->nvars=n;
-    MyGraph->grtype=0;
-    MyGraph->ThreeDFlag=0;
+    plot_windows.current->nvars=n;
+    plot_windows.current->grtype=0;
+    plot_windows.current->ThreeDFlag=0;
   }
   if(type==1){
-   MyGraph->nvars=1;
-   MyGraph->xv[0]=list[0];
-   MyGraph->yv[0]=list[1];
-    MyGraph->grtype=0;
-    MyGraph->ThreeDFlag=0;
+   plot_windows.current->nvars=1;
+   plot_windows.current->xv[0]=list[0];
+   plot_windows.current->yv[0]=list[1];
+    plot_windows.current->grtype=0;
+    plot_windows.current->ThreeDFlag=0;
     if(n==3){
-      MyGraph->zv[0]=list[2];
-      MyGraph->grtype=5;
-      MyGraph->ThreeDFlag=1;
+      plot_windows.current->zv[0]=list[2];
+      plot_windows.current->grtype=5;
+      plot_windows.current->ThreeDFlag=1;
     }
   }
   check_flags();
@@ -848,7 +848,7 @@ int in_it,n;
  static char *nn[]={"*0X-axis","*0Y-axis","*0Z-axis","*4Color","Line type"};
  char values[5][MAX_LEN_SBOX];
  int status,i;
- int i1=MyGraph->xv[in_it],i2=MyGraph->yv[in_it],i3=MyGraph->zv[in_it];
+ int i1=plot_windows.current->xv[in_it],i2=plot_windows.current->yv[in_it],i3=plot_windows.current->zv[in_it];
  char n1[XPP_NAME_MAX+1],n2[XPP_NAME_MAX+1],n3[XPP_NAME_MAX+1];
 
 
@@ -858,24 +858,24 @@ int in_it,n;
  XPP_SPRINTF(values[0],"%s",n1);
  XPP_SPRINTF(values[1],"%s",n2);
  XPP_SPRINTF(values[2],"%s",n3);
- XPP_SPRINTF(values[3],"%d",MyGraph->color[in_it]);
- XPP_SPRINTF(values[4],"%d",MyGraph->line[in_it]);
+ XPP_SPRINTF(values[3],"%d",plot_windows.current->color[in_it]);
+ XPP_SPRINTF(values[4],"%d",plot_windows.current->line[in_it]);
  status=do_string_box(5,5,1,title,nn,values,25);
  if(status!=0){
 		    find_variable(values[0],&i);
  	      if(i>-1)
-		MyGraph->xv[n]=i;
+		plot_windows.current->xv[n]=i;
               find_variable(values[1],&i);
               if(i>-1)
-		MyGraph->yv[n]=i;
+		plot_windows.current->yv[n]=i;
               find_variable(values[2],&i);
   		if(i>-1)
-		  MyGraph->zv[n]=i;
+		  plot_windows.current->zv[n]=i;
 
-	       MyGraph->line[n]=atoi(values[4]);
+	       plot_windows.current->line[n]=atoi(values[4]);
                i=atoi(values[3]);
 		    if(i<0||i>10)i=0;
-		    MyGraph->color[n]=i;
+		    plot_windows.current->color[n]=i;
 		   
 		  return(1);
               
@@ -888,10 +888,10 @@ void edit_curve()
 {
  char bob[32];
  int crv=0;
- snprintf(bob,sizeof(bob),"Edit 0-%d :",MyGraph->nvars-1);
+ snprintf(bob,sizeof(bob),"Edit 0-%d :",plot_windows.current->nvars-1);
  ping();
  new_int(bob,&crv);
- if(crv>=0&&crv<MyGraph->nvars)
+ if(crv>=0&&crv<plot_windows.current->nvars)
    {
      snprintf(bob,sizeof(bob),"Edit curve %d",crv);
      alter_curve(bob,crv,crv);
@@ -900,8 +900,8 @@ void edit_curve()
 
 void new_curve()
 {
- if(alter_curve("New Curve",0,MyGraph->nvars))
-   MyGraph->nvars=MyGraph->nvars+1;
+ if(alter_curve("New Curve",0,plot_windows.current->nvars))
+   plot_windows.current->nvars=plot_windows.current->nvars+1;
   
  }  
 
@@ -1047,7 +1047,7 @@ void draw_freeze_key()
   ix2=ix+4*HChar;
   y0=iy;
   for(i=0;i<MAXFRZ;i++){
-    if(frz[i].use==1&&frz[i].w==draw_win&&strlen(frz[i].key)>0){
+    if(frz[i].use==1&&frz[i].w==plot_windows.draw_win&&strlen(frz[i].key)>0){
       set_linestyle(abs(frz[i].color));
       line(ix,y0,ix2,y0);
       set_linestyle(0);
@@ -1077,7 +1077,7 @@ void key_frz_com(int c)
 void edit_frz()
 {
  int i;
- i=get_frz_index(draw_win);
+ i=get_frz_index(plot_windows.draw_win);
  if(i<0)return;
  edit_frz_crv(i);
 }
@@ -1099,7 +1099,7 @@ void delete_frz_crv(i)
 void delete_frz()
 {
  int i;
- i=get_frz_index(draw_win);
+ i=get_frz_index(plot_windows.draw_win);
  if(i<0)return;
  delete_frz_crv(i);
 }
@@ -1109,7 +1109,7 @@ void kill_frz()
 {
   int i;
   for(i=0;i<MAXFRZ;i++){
-    if(frz[i].use==1&&frz[i].w==draw_win)
+    if(frz[i].use==1&&frz[i].w==plot_windows.draw_win)
       delete_frz_crv(i);
   }
 }
@@ -1138,16 +1138,16 @@ int ind;
 
   for(i=0;i<MAXFRZ;i++){
     if(frz[i].use==0){
-      ix=MyGraph->xv[ind];
-      iy=MyGraph->yv[ind];
-      iz=MyGraph->zv[ind];
+      ix=plot_windows.current->xv[ind];
+      iy=plot_windows.current->yv[ind];
+      iz=plot_windows.current->zv[ind];
       if(my_browser.maxrow<=2){
 	err_msg("No Curve to freeze");
 	return(-1);
       }
       frz[i].xv=(float *) xpp_malloc(sizeof(float)*my_browser.maxrow);
       frz[i].yv=(float *) xpp_malloc(sizeof(float)*my_browser.maxrow);
-      if((type=MyGraph->grtype)>0)
+      if((type=plot_windows.current->grtype)>0)
 	frz[i].zv=(float *)xpp_malloc(sizeof(float)*my_browser.maxrow);
       if ((type>0&&frz[i].zv==NULL)|| (type==0&&frz[i].yv==NULL)){
 	err_msg("Cant allocate storage for curve");
@@ -1162,7 +1162,7 @@ int ind;
 	  frz[i].zv[j]=my_browser.data[iz][j];
       }
       frz[i].type=type;
-      frz[i].w=draw_win;
+      frz[i].w=plot_windows.draw_win;
       XPP_SPRINTF(frz[i].name,"crv%c",'a'+i);
       XPP_SPRINTF(frz[i].key,"crv%c",'a'+i);
       marks_data_frozen_new(i); /* the window shows it: it is its current curve */
@@ -1202,7 +1202,7 @@ void draw_frozen_cline(index,w)
 void draw_freeze(w)
 XppWinId w;
 {
-  int i,j,type=MyGraph->grtype,lt=0;
+  int i,j,type=plot_windows.current->grtype,lt=0;
   float oldxpl,oldypl,oldzpl=0.0,xpl,ypl,zpl=0.0;
   float *xv,*yv,*zv;
   for(i=0;i<MAXNCLINE;i++)
@@ -1376,7 +1376,7 @@ void read_bd(fp)
   plintf( " got %d bifurcation curves\n",ncrv);
  fclose(fp);
  my_bd.nbifcrv=ncrv;
- my_bd.w=draw_win;
+ my_bd.w=plot_windows.draw_win;
 } 
 
 int get_frz_index(w)
@@ -1434,16 +1434,16 @@ void add_a_curve_com(int c)
 {
 
  switch(c){
- case 0: if(MyGraph->nvars>=MAXPERPLOT)
+ case 0: if(plot_windows.current->nvars>=MAXPERPLOT)
    {
      err_msg("Too many plots!");
      return;
    }
    new_curve();
    break;
- case 1:if(MyGraph->nvars>1)MyGraph->nvars=MyGraph->nvars-1;
+ case 1:if(plot_windows.current->nvars>1)plot_windows.current->nvars=plot_windows.current->nvars-1;
    break;
- case 2:MyGraph->nvars=1;
+ case 2:plot_windows.current->nvars=1;
    break;
  case 3: edit_curve();
    break;

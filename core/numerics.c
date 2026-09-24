@@ -25,7 +25,7 @@ extern int DCURY,NDELAYS;
 extern int RandSeed;
 #include "struct.h"
 #include "xpp_io.h"
-extern GRAPH *MyGraph;
+#include "many_pops.h"
 #define VOLTERRA 6
 #define BACKEUL 7
 #define RKQS 8
@@ -366,12 +366,12 @@ void set_delay()
 
 void ruelle()
 {
-   new_int("x-axis shift ",&(MyGraph->xshft));
-   new_int("y-axis shift ",&(MyGraph->yshft));
-   new_int("z-axis shift",&(MyGraph->zshft));
-   if(MyGraph->xshft<0)MyGraph->xshft=0;
-   if(MyGraph->yshft<0)MyGraph->yshft=0;
-   if(MyGraph->zshft<0)MyGraph->zshft=0;
+   new_int("x-axis shift ",&(plot_windows.current->xshft));
+   new_int("y-axis shift ",&(plot_windows.current->yshft));
+   new_int("z-axis shift",&(plot_windows.current->zshft));
+   if(plot_windows.current->xshft<0)plot_windows.current->xshft=0;
+   if(plot_windows.current->yshft<0)plot_windows.current->yshft=0;
+   if(plot_windows.current->zshft<0)plot_windows.current->zshft=0;
 }
 
 void init_numerics()
@@ -538,31 +538,31 @@ void get_method()
 void user_set_color_par(int flag,char *via,double lo,double hi)
 {
   int ivar;
-   MyGraph->min_scale=lo;
+   plot_windows.current->min_scale=lo;
   if(hi>lo)
-    MyGraph->color_scale=(hi-lo);
+    plot_windows.current->color_scale=(hi-lo);
   else
-    MyGraph->color_scale=1;
+    plot_windows.current->color_scale=1;
   
   if(strncasecmp("speed",via,5)==0)
     {
-      MyGraph->ColorFlag=1;
+      plot_windows.current->ColorFlag=1;
     }
   else
     {
       find_variable(via,&ivar);
       if(ivar>=0){
-	MyGraph->ColorValue=ivar;
-	MyGraph->ColorFlag=2;
+	plot_windows.current->ColorValue=ivar;
+	plot_windows.current->ColorFlag=2;
       }
       else
 	{
-	  MyGraph->ColorFlag=0; /* no valid colorizing */
+	  plot_windows.current->ColorFlag=0; /* no valid colorizing */
 
 	}
     }
   if(flag==0){ /* force overwrite  */
-    MyGraph->ColorFlag=0;
+    plot_windows.current->ColorFlag=0;
   
   }
   
@@ -576,23 +576,23 @@ void set_col_par_com(int i)
     double temp[2];
     float maxder=0.0,minder=0.0,sum=0.0;
     char ch,name[256]; /* new_string edits up to 255 characters */
-   MyGraph->ColorFlag=i;
-   if(MyGraph->ColorFlag==0){
+   plot_windows.current->ColorFlag=i;
+   if(plot_windows.current->ColorFlag==0){
    /* set color to black/white */
     return;
     }
-    if(MyGraph->ColorFlag==2){
-      ind_to_sym(MyGraph->ColorValue,name);
+    if(plot_windows.current->ColorFlag==2){
+      ind_to_sym(plot_windows.current->ColorValue,name);
       new_string("Color via:",name);
       find_variable(name,&ivar);
       
 
       if(ivar>=0)
-	MyGraph->ColorValue=ivar;
+	plot_windows.current->ColorValue=ivar;
       else{
 	
 	err_msg("No such quantity!");
-	MyGraph->ColorFlag=0;
+	plot_windows.current->ColorFlag=0;
 	return;
       }
     }
@@ -603,22 +603,22 @@ void set_col_par_com(int i)
  
     if(ch=='c')
     {
-     temp[0]=MyGraph->min_scale;
-     temp[1]=MyGraph->min_scale+MyGraph->color_scale;
+     temp[0]=plot_windows.current->min_scale;
+     temp[1]=plot_windows.current->min_scale+plot_windows.current->color_scale;
      new_float("Min :",&temp[0]);
      new_float("Max :",&temp[1]);
-     if(temp[1]>temp[0]&&((MyGraph->ColorFlag==2)
-     ||(MyGraph->ColorFlag==1&&temp[0]>=0.0)))
+     if(temp[1]>temp[0]&&((plot_windows.current->ColorFlag==2)
+     ||(plot_windows.current->ColorFlag==1&&temp[0]>=0.0)))
      {
-      MyGraph->min_scale=temp[0];
-      MyGraph->color_scale=(temp[1]-temp[0]);
+      plot_windows.current->min_scale=temp[0];
+      plot_windows.current->color_scale=(temp[1]-temp[0]);
      }
      else{
        err_msg("Min>=Max or Min<0 error");
      }
      return;
     }
-    if(MyGraph->ColorFlag==1)
+    if(plot_windows.current->ColorFlag==1)
     {
     if(storind<2)return;
     maxder=0.0;
@@ -633,16 +633,16 @@ void set_col_par_com(int i)
   }
   if(minder>=0.0&&maxder>minder)
   {
-   MyGraph->color_scale=(maxder-minder)/(fabs(DELTA_T*NJMP));
-   MyGraph->min_scale=minder/(fabs(DELTA_T*NJMP));
+   plot_windows.current->color_scale=(maxder-minder)/(fabs(DELTA_T*NJMP));
+   plot_windows.current->min_scale=minder/(fabs(DELTA_T*NJMP));
   }
  }
  else
  {
-  get_max(MyGraph->ColorValue,&temp[0],&temp[1]);
-  MyGraph->min_scale=temp[0];
-  MyGraph->color_scale=(temp[1]-temp[0]);
-  if(MyGraph->color_scale==0.0)MyGraph->color_scale=1.0;
+  get_max(plot_windows.current->ColorValue,&temp[0],&temp[1]);
+  plot_windows.current->min_scale=temp[0];
+  plot_windows.current->color_scale=(temp[1]-temp[0]);
+  if(plot_windows.current->color_scale==0.0)plot_windows.current->color_scale=1.0;
  }
   
 }

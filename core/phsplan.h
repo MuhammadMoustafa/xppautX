@@ -27,7 +27,6 @@ extern "C" {
 
  extern int ENDSING,PAUSER;
  
-/*  extern GRAPH *MyGraph; */
  
 
  extern int METHOD,NJMP;

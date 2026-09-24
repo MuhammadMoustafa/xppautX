@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include "many_pops.h"
 
 namespace {
 
@@ -50,7 +51,7 @@ int add_label(char *s, int x, int y, int size, int font)
             lb[i].use = 1;
             lb[i].x = xp;
             lb[i].y = yp;
-            lb[i].w = draw_win;
+            lb[i].w = plot_windows.draw_win;
             lb[i].font = font;
             lb[i].size = size;
             std::snprintf(lb[i].s, sizeof lb[i].s, "%s", s);
@@ -99,8 +100,8 @@ void draw_marker(double xd, double yd, double size, int type)
         1, 1, 3, 3, 0, 0, 3, 0, 0, 3, 0, 0,
     };
     float x1 = static_cast<float>(xd), y1 = static_cast<float>(yd), x2, y2;
-    const float dx = static_cast<float>((MyGraph->xhi - MyGraph->xlo) * WDMARK * size);
-    const float dy = static_cast<float>((MyGraph->yhi - MyGraph->ylo) * HTMARK * size);
+    const float dx = static_cast<float>((plot_windows.current->xhi - plot_windows.current->xlo) * WDMARK * size);
+    const float dy = static_cast<float>((plot_windows.current->yhi - plot_windows.current->ylo) * HTMARK * size);
     for (int ind = 0;; ind++) {
         const int offset = 48 * type + 3 * ind;
         const int pen = sym_dir[offset];
@@ -128,7 +129,7 @@ void arrow_head(double xsd, double ysd, double xed, double yed, double size)
     const float xs = static_cast<float>(xsd), ys = static_cast<float>(ysd);
     const float xe = static_cast<float>(xed), ye = static_cast<float>(yed);
     const float l = xe - xs, h = ye - ys;
-    const float ar = static_cast<float>((MyGraph->xhi - MyGraph->xlo) / (MyGraph->yhi - MyGraph->ylo));
+    const float ar = static_cast<float>((plot_windows.current->xhi - plot_windows.current->xlo) / (plot_windows.current->yhi - plot_windows.current->ylo));
     const float x0 = static_cast<float>(xs + size * l), y0 = static_cast<float>(ys + size * h);
     const float xp = static_cast<float>(x0 + .5 * size * h * ar), yp = static_cast<float>(y0 - .5 * size * l / ar);
     const float xm = static_cast<float>(x0 - .5 * size * h * ar), ym = static_cast<float>(y0 + .5 * size * l / ar);
@@ -187,7 +188,7 @@ void add_grob(double xs, double ys, double xe, double ye, double size, int type,
             grob[i].xe = static_cast<float>(xe);
             grob[i].ys = static_cast<float>(ys);
             grob[i].ye = static_cast<float>(ye);
-            grob[i].w = draw_win;
+            grob[i].w = plot_windows.draw_win;
             grob[i].size = size;
             grob[i].color = color;
             grob[i].type = type;
@@ -308,8 +309,8 @@ static void add_markers_at(int number, int start, int skip, double size, int typ
 {
     float xs, ys, x, y, z;
     for (int i = 0; i < number; i++) {
-        get_data_xyz(&x, &y, &z, MyGraph->xv[0], MyGraph->yv[0], MyGraph->zv[0], start + i * skip);
-        if (MyGraph->ThreeDFlag == 0) {
+        get_data_xyz(&x, &y, &z, plot_windows.current->xv[0], plot_windows.current->yv[0], plot_windows.current->zv[0], start + i * skip);
+        if (plot_windows.current->ThreeDFlag == 0) {
             xs = x;
             ys = y;
         } else {
@@ -379,7 +380,7 @@ void edit_object_com(int com)
     /* now search all labels to find the best */
     type = 0; /* label =  0, arrows, etc =1 */
     for (i = 0; i < MAXLAB; i++) {
-        if (lb[i].use == 1 && lb[i].w == draw_win) {
+        if (lb[i].use == 1 && lb[i].w == plot_windows.draw_win) {
             dd = (x - lb[i].x) * (x - lb[i].x) + (y - lb[i].y) * (y - lb[i].y);
             if (dd < dist) {
                 ilab = i;
@@ -388,7 +389,7 @@ void edit_object_com(int com)
         }
     }
     for (i = 0; i < MAXGROB; i++) {
-        if (grob[i].use == 1 && grob[i].w == draw_win) {
+        if (grob[i].use == 1 && grob[i].w == plot_windows.draw_win) {
             dd = (x - grob[i].xs) * (x - grob[i].xs) + (y - grob[i].ys) * (y - grob[i].ys);
             if (dd < dist) {
                 ilab = i;
@@ -505,8 +506,8 @@ void do_gr_objs_com(int com)
         add_markers();
         break;
     case 5:
-        destroy_label(draw_win);
-        destroy_grob(draw_win);
+        destroy_label(plot_windows.draw_win);
+        destroy_grob(plot_windows.draw_win);
         clr_scrn();
         redraw_all();
         break;
@@ -535,7 +536,7 @@ void do_windows_com(int c)
         set_restore(1);
         break;
     case 6:
-        SimulPlotFlag = 1 - SimulPlotFlag;
+        plot_windows.simul = 1 - plot_windows.simul;
         break;
     }
     set_active_windows();
@@ -544,9 +545,9 @@ void do_windows_com(int c)
 void set_restore(int flag)
 {
     for (int i = 0; i < MAXPOP; i++) {
-        if (graph[i].w == draw_win) {
-            graph[i].Restore = flag;
-            graph[i].Nullrestore = flag;
+        if (plot_windows.graph[i].w == plot_windows.draw_win) {
+            plot_windows.graph[i].Restore = flag;
+            plot_windows.graph[i].Nullrestore = flag;
             return;
         }
     }
@@ -555,10 +556,10 @@ void set_restore(int flag)
 int is_col_plotted(int nc)
 {
     for (int i = 0; i < MAXPOP; i++) {
-        if (graph[i].Use == 1) {
-            const int nv = graph[i].nvars;
+        if (plot_windows.graph[i].Use == 1) {
+            const int nv = plot_windows.graph[i].nvars;
             for (int j = 0; j < nv; j++) {
-                if (graph[i].xv[j] == nc || graph[i].yv[j] == nc || graph[i].zv[j] == nc) return 1;
+                if (plot_windows.graph[i].xv[j] == nc || plot_windows.graph[i].yv[j] == nc || plot_windows.graph[i].zv[j] == nc) return 1;
             }
         }
     }
@@ -568,12 +569,12 @@ int is_col_plotted(int nc)
 void change_plot_vars(int k)
 {
     for (int i = 0; i < MAXPOP; i++) {
-        if (graph[i].Use) {
-            const int np = graph[i].nvars;
+        if (plot_windows.graph[i].Use) {
+            const int np = plot_windows.graph[i].nvars;
             for (int ip = 0; ip < np; ip++) {
-                if (graph[i].xv[ip] > k) graph[i].xv[ip] = graph[i].xv[ip] - 1;
-                if (graph[i].yv[ip] > k) graph[i].yv[ip] = graph[i].yv[ip] - 1;
-                if (graph[i].zv[ip] > k) graph[i].zv[ip] = graph[i].zv[ip] - 1;
+                if (plot_windows.graph[i].xv[ip] > k) plot_windows.graph[i].xv[ip] = plot_windows.graph[i].xv[ip] - 1;
+                if (plot_windows.graph[i].yv[ip] > k) plot_windows.graph[i].yv[ip] = plot_windows.graph[i].yv[ip] - 1;
+                if (plot_windows.graph[i].zv[ip] > k) plot_windows.graph[i].zv[ip] = plot_windows.graph[i].zv[ip] - 1;
             }
         }
     }
@@ -582,14 +583,14 @@ void change_plot_vars(int k)
 int check_active_plot(int k)
 {
     for (int i = 0; i < MAXPOP; i++) {
-        if (graph[i].Use) {
-            const int np = graph[i].nvars;
+        if (plot_windows.graph[i].Use) {
+            const int np = plot_windows.graph[i].nvars;
             for (int ip = 0; ip < np; ip++) {
-                if (graph[i].xv[ip] == k || graph[i].yv[ip] == k || graph[i].zv[ip] == k) return 1;
+                if (plot_windows.graph[i].xv[ip] == k || plot_windows.graph[i].yv[ip] == k || plot_windows.graph[i].zv[ip] == k) return 1;
             }
         }
     }
     return 0;
 }
 
-int graph_used(int i) { return graph[i].Use; }
+int graph_used(int i) { return plot_windows.graph[i].Use; }

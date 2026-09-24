@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include "many_pops.h"
 
 /* the core's own globals and functions that have no header of their own */
 extern "C" {
@@ -50,7 +51,7 @@ int graph_of(unsigned long w)
 {
     int i;
     for (i = 0; i < MAXPOP; i++)
-        if (graph[i].Use && graph[i].w == w) return i;
+        if (plot_windows.graph[i].Use && plot_windows.graph[i].w == w) return i;
     return 0;
 }
 
@@ -70,7 +71,7 @@ void send_main_window(const char *title) { send_window("create", 1, win_w[0], wi
 
 void j_get_draw_size(unsigned int *w, unsigned int *h)
 {
-    int i = graph_of(draw_win);
+    int i = graph_of(plot_windows.draw_win);
     *w = win_w[i];
     *h = win_h[i];
 }
@@ -82,7 +83,7 @@ void j_blank_draw_window(void)
 {
     int i;
     for (i = 0; i < MAXPOP; i++)
-        if (graph[i].Use && graph[i].w == draw_win) {
+        if (plot_windows.graph[i].Use && plot_windows.graph[i].w == plot_windows.draw_win) {
             phase_data_cleared(i);
             marks_data_cleared(i);
         }
@@ -92,8 +93,8 @@ void j_redraw_all(void)
 {
     redraw_dfield();
     restore(0, my_browser.maxrow);
-    draw_label(draw_win);
-    draw_freeze(draw_win);
+    draw_label(plot_windows.draw_win);
+    draw_freeze(plot_windows.draw_win);
     restore_on();
 }
 
@@ -103,21 +104,21 @@ void j_redraw_graph(void)
     set_normal_scale();
     do_axes();
     restore(0, my_browser.maxrow);
-    draw_label(draw_win);
-    draw_freeze(draw_win);
+    draw_label(plot_windows.draw_win);
+    draw_freeze(plot_windows.draw_win);
     redraw_dfield();
-    if (MyGraph->Nullrestore) restore_nullclines();
+    if (plot_windows.current->Nullrestore) restore_nullclines();
 }
 
 void j_redraw_screens(void)
 {
-    int i, ic = current_pop;
-    if (SimulPlotFlag == 0) {
+    int i, ic = plot_windows.active;
+    if (plot_windows.simul == 0) {
         j_redraw_all();
         return;
     }
-    for (i = 0; i < num_pops; i++) {
-        make_active(ActiveWinList[i], 1);
+    for (i = 0; i < plot_windows.count; i++) {
+        make_active(plot_windows.open[i], 1);
         j_redraw_all();
     }
     make_active(ic, 1);
@@ -125,13 +126,13 @@ void j_redraw_screens(void)
 
 void j_clear_screens(void)
 {
-    int i, ic = current_pop;
-    if (SimulPlotFlag == 0) {
+    int i, ic = plot_windows.active;
+    if (plot_windows.simul == 0) {
         clr_scrn();
         return;
     }
-    for (i = 0; i < num_pops; i++) {
-        make_active(ActiveWinList[i], 1);
+    for (i = 0; i < plot_windows.count; i++) {
+        make_active(plot_windows.open[i], 1);
         clr_scrn();
     }
     make_active(ic, 1);
@@ -156,16 +157,16 @@ void send_window(const char *what, unsigned long id, int w, int h, const char *t
 
 void select_graph(int i)
 {
-    current_pop = i;
-    MyGraph = &graph[i];
-    draw_win = graph[i].w;
+    plot_windows.active = i;
+    plot_windows.current = &plot_windows.graph[i];
+    plot_windows.draw_win = plot_windows.graph[i].w;
     get_draw_area();
-    send_window("select", draw_win, win_w[i], win_h[i], NULL);
+    send_window("select", plot_windows.draw_win, win_w[i], win_h[i], NULL);
 }
 
 void j_activate_graph(int i, int flag)
 {
-    draw_win = graph[i].w;
+    plot_windows.draw_win = plot_windows.graph[i].w;
     get_draw_area_flag(flag);
 }
 
@@ -173,19 +174,19 @@ void j_create_plot_window(void)
 {
     int i;
     for (i = 1; i < MAXPOP; i++)
-        if (graph[i].Use == 0) break;
+        if (plot_windows.graph[i].Use == 0) break;
     if (i >= MAXPOP) {
         j_respond_box("Okay", "Too many windows!");
         return;
     }
-    copy_graph(i, current_pop);
-    graph[i].w = i + 1;
-    win_w[i] = graph[i].Width = 450;
-    win_h[i] = graph[i].Height = 350;
-    graph[i].x0 = 0;
-    graph[i].y0 = 0;
-    num_pops++;
-    send_window("create", graph[i].w, win_w[i], win_h[i], "");
+    copy_graph(i, plot_windows.active);
+    plot_windows.graph[i].w = i + 1;
+    win_w[i] = plot_windows.graph[i].Width = 450;
+    win_h[i] = plot_windows.graph[i].Height = 350;
+    plot_windows.graph[i].x0 = 0;
+    plot_windows.graph[i].y0 = 0;
+    plot_windows.count++;
+    send_window("create", plot_windows.graph[i].w, win_w[i], win_h[i], "");
     select_graph(i);
 }
 
@@ -193,11 +194,11 @@ namespace {
 
 void destroy_graph(int i)
 {
-    graph[i].Use = 0;
-    destroy_label(graph[i].w);
-    destroy_grob(graph[i].w);
-    send_window("destroy", graph[i].w, 0, 0, NULL);
-    num_pops--;
+    plot_windows.graph[i].Use = 0;
+    destroy_label(plot_windows.graph[i].w);
+    destroy_grob(plot_windows.graph[i].w);
+    send_window("destroy", plot_windows.graph[i].w, 0, 0, NULL);
+    plot_windows.count--;
 }
 
 } // namespace
@@ -205,11 +206,11 @@ void destroy_graph(int i)
 void j_destroy_plot_window(void)
 {
     int i;
-    if (draw_win == graph[0].w) {
+    if (plot_windows.draw_win == plot_windows.graph[0].w) {
         j_respond_box("Okay", "Can't destroy big window!");
         return;
     }
-    i = graph_of(draw_win);
+    i = graph_of(plot_windows.draw_win);
     if (i == 0) return;
     select_graph(0);
     destroy_graph(i);
@@ -220,8 +221,8 @@ void j_kill_plot_windows(void)
     int i;
     select_graph(0);
     for (i = 1; i < MAXPOP; i++)
-        if (graph[i].Use) destroy_graph(i);
-    num_pops = 1;
+        if (plot_windows.graph[i].Use) destroy_graph(i);
+    plot_windows.count = 1;
 }
 
 void j_cput_text(void)
@@ -240,18 +241,18 @@ void j_cput_text(void)
     j_message_box("Place text with mouse");
     if (j_get_mouse_xy(&x, &y)) {
         fillintext(string, text);
-        marks_data_label(draw_win, add_label(string, x, y, size, 0), text);
+        marks_data_label(plot_windows.draw_win, add_label(string, x, y, size, 0), text);
     }
     j_kill_message_box();
 }
 
-void j_draw_freeze(void) { draw_freeze(draw_win); }
+void j_draw_freeze(void) { draw_freeze(plot_windows.draw_win); }
 
 /* {"cmd":"click","win":w}: the user clicked in plot window w */
 void click_command(const char *line)
 {
     int win = (int)get_num(line, "win", 1) - 1;
-    if (win >= 0 && win < MAXPOP && graph[win].Use && current_pop != win) select_graph(win);
+    if (win >= 0 && win < MAXPOP && plot_windows.graph[win].Use && plot_windows.active != win) select_graph(win);
 }
 
 namespace {
@@ -261,7 +262,7 @@ namespace {
 int command_window(const char *line)
 {
     int i = (int)get_num(line, "win", -1) - 1;
-    if (i < 0 || i >= MAXPOP || !graph[i].Use) {
+    if (i < 0 || i >= MAXPOP || !plot_windows.graph[i].Use) {
         j_err_msg("No such window");
         return -1;
     }
@@ -287,7 +288,7 @@ void view_command(const char *line)
         j_err_msg("Bad view");
         return;
     }
-    if (i != current_pop) select_graph(i);
+    if (i != plot_windows.active) select_graph(i);
     update_view((float)xlo, (float)xhi, (float)ylo, (float)yhi);
 }
 
@@ -299,17 +300,17 @@ void rotate_command(const char *line)
     static double theta, phi;
     char what[8];
     int x = (int)get_num(line, "x", 0), y = (int)get_num(line, "y", 0);
-    if (!MyGraph->ThreeDFlag) return;
+    if (!plot_windows.current->ThreeDFlag) return;
     get_str(line, "what", what, sizeof what);
     if (strcmp(what, "down") == 0) {
         x0 = x;
         y0 = y;
-        phi = MyGraph->Phi;
-        theta = MyGraph->Theta;
+        phi = plot_windows.current->Phi;
+        theta = plot_windows.current->Theta;
     } else if (strcmp(what, "move") == 0) {
-        MyGraph->Phi = phi - (double)(y - y0);
-        MyGraph->Theta = theta - (double)(x - x0);
-        redraw_cube_pt(MyGraph->Theta, MyGraph->Phi);
+        plot_windows.current->Phi = phi - (double)(y - y0);
+        plot_windows.current->Theta = theta - (double)(x - x0);
+        redraw_cube_pt(plot_windows.current->Theta, plot_windows.current->Phi);
     } else if (strcmp(what, "up") == 0) {
         do_axes();
         j_redraw_all();
@@ -330,7 +331,7 @@ void view3d_command(const char *line)
     int i = command_window(line);
     double theta = get_num(line, "theta", 0), phi = get_num(line, "phi", 0);
     if (i < 0) return;
-    if (!graph[i].ThreeDFlag) {
+    if (!plot_windows.graph[i].ThreeDFlag) {
         j_err_msg("Not a 3D window");
         return;
     }
@@ -338,9 +339,9 @@ void view3d_command(const char *line)
         j_err_msg("Bad view");
         return;
     }
-    if (i != current_pop) select_graph(i);
-    MyGraph->Theta = theta;
-    MyGraph->Phi = phi;
+    if (i != plot_windows.active) select_graph(i);
+    plot_windows.current->Theta = theta;
+    plot_windows.current->Phi = phi;
     do_axes();
     j_redraw_all();
 }
@@ -350,9 +351,9 @@ void j_scroll_window(void)
 {
     int i, j, t, state = 0;
     float x, y, x0 = 0, y0 = 0, dx = 0, dy = 0;
-    float xlo = MyGraph->xlo, ylo = MyGraph->ylo, xhi = MyGraph->xhi, yhi = MyGraph->yhi;
+    float xlo = plot_windows.current->xlo, ylo = plot_windows.current->ylo, xhi = plot_windows.current->xhi, yhi = plot_windows.current->yhi;
     send_simple("message", "box", "Drag the plot to scroll it; any key ends");
-    while ((t = ask_drag((unsigned long)draw_win, &i, &j)) != 0) {
+    while ((t = ask_drag((unsigned long)plot_windows.draw_win, &i, &j)) != 0) {
         if (t == 1 && state == 0) {
             scale_to_real(i, j, &x0, &y0);
             state = 1;
@@ -473,7 +474,7 @@ void send_film(const char *what)
 {
     Buf b = {0};
     buf_printf(&b, "{\"ev\":\"film\",\"op\":\"%s\",\"count\":%d,\"win\":%lu,\"cycles\":%d,\"delay\":%d}",
-               what, film_count, (unsigned long)draw_win, ks_ncycle, ks_speed);
+               what, film_count, (unsigned long)plot_windows.draw_win, ks_ncycle, ks_speed);
     send_buf(&b);
     xpp_free(b.s);
 }

@@ -25,6 +25,7 @@
 #include "adj2.h"
 #include "integrate.h"
 #include "xpp_batch.h"
+#include "many_pops.h"
 
 #define READEM 1
 #define VOLTERRA 6
@@ -40,7 +41,6 @@ char *str(const char *s) { return const_cast<char *>(s); }
 } // namespace
 
 extern int Xup;
-extern GRAPH *MyGraph;
 
  extern BC_STRUCT my_bc[MAXODE];
 
@@ -622,51 +622,51 @@ if(f!=READEM)
   fprintf(fp,"# Graphics\n");
  for(j=0;j<3;j++)
    for(k=0;k<3;k++)
-     io_double(&(MyGraph->rm[k][j]),fp,f,"rm");
+     io_double(&(plot_windows.current->rm[k][j]),fp,f,"rm");
  for(j=0;j<MAXPERPLOT;j++){
-        io_int(&(MyGraph->xv[j]),fp,f," ");
-        io_int(&(MyGraph->yv[j]),fp,f," ");
-        io_int(&(MyGraph->zv[j]),fp,f," ");
-        io_int(&(MyGraph->line[j]),fp,f," ");
-        io_int(&(MyGraph->color[j]),fp,f," ");
+        io_int(&(plot_windows.current->xv[j]),fp,f," ");
+        io_int(&(plot_windows.current->yv[j]),fp,f," ");
+        io_int(&(plot_windows.current->zv[j]),fp,f," ");
+        io_int(&(plot_windows.current->line[j]),fp,f," ");
+        io_int(&(plot_windows.current->color[j]),fp,f," ");
         }
 
-    io_double(&(MyGraph->ZPlane),fp,f," ");
-    io_double(&(MyGraph->ZView),fp,f," ");
-    io_int(&(MyGraph->PerspFlag),fp,f," ");
-    io_int(&(MyGraph->ThreeDFlag),fp,f,"3DFlag");
-    io_int(&(MyGraph->TimeFlag),fp,f,"Timeflag");
-    io_int(&(MyGraph->ColorFlag),fp,f,"Colorflag");
-    io_int(&(MyGraph->grtype),fp,f,"Type");
-    io_double(&(MyGraph->color_scale),fp,f,"color scale");
-    io_double(&(MyGraph->min_scale),fp,f," minscale");
+    io_double(&(plot_windows.current->ZPlane),fp,f," ");
+    io_double(&(plot_windows.current->ZView),fp,f," ");
+    io_int(&(plot_windows.current->PerspFlag),fp,f," ");
+    io_int(&(plot_windows.current->ThreeDFlag),fp,f,"3DFlag");
+    io_int(&(plot_windows.current->TimeFlag),fp,f,"Timeflag");
+    io_int(&(plot_windows.current->ColorFlag),fp,f,"Colorflag");
+    io_int(&(plot_windows.current->grtype),fp,f,"Type");
+    io_double(&(plot_windows.current->color_scale),fp,f,"color scale");
+    io_double(&(plot_windows.current->min_scale),fp,f," minscale");
 
-    io_double(&(MyGraph->xmax),fp,f," xmax");
-    io_double(&(MyGraph->xmin),fp,f," xmin");
-    io_double(&(MyGraph->ymax),fp,f," ymax");
-    io_double(&(MyGraph->ymin),fp,f," ymin");
-    io_double(&(MyGraph->zmax),fp,f," zmax");
-    io_double(&(MyGraph->zmin),fp,f," zmin");
-    io_double(&(MyGraph->xbar),fp,f, " ");
-    io_double(&(MyGraph->dx  ),fp,f," ");
-    io_double(&(MyGraph->ybar),fp,f," ");
-    io_double(&(MyGraph->dy  ),fp,f," ");
-    io_double(&(MyGraph->zbar),fp,f," ");
-    io_double(&(MyGraph->dz  ),fp,f," ");
+    io_double(&(plot_windows.current->xmax),fp,f," xmax");
+    io_double(&(plot_windows.current->xmin),fp,f," xmin");
+    io_double(&(plot_windows.current->ymax),fp,f," ymax");
+    io_double(&(plot_windows.current->ymin),fp,f," ymin");
+    io_double(&(plot_windows.current->zmax),fp,f," zmax");
+    io_double(&(plot_windows.current->zmin),fp,f," zmin");
+    io_double(&(plot_windows.current->xbar),fp,f, " ");
+    io_double(&(plot_windows.current->dx  ),fp,f," ");
+    io_double(&(plot_windows.current->ybar),fp,f," ");
+    io_double(&(plot_windows.current->dy  ),fp,f," ");
+    io_double(&(plot_windows.current->zbar),fp,f," ");
+    io_double(&(plot_windows.current->dz  ),fp,f," ");
 
-    io_double(&(MyGraph->Theta),fp,f," Theta");
-    io_double(&(MyGraph->Phi),fp,f, " Phi");
-    io_int(&(MyGraph->xshft),fp,f," xshft");
-    io_int(&(MyGraph->yshft),fp,f," yshft");
-    io_int(&(MyGraph->zshft),fp,f," zshft");
-    io_double(&(MyGraph->xlo),fp,f," xlo");
-    io_double(&(MyGraph->ylo),fp,f," ylo");
-    io_double(&(MyGraph->oldxlo),fp,f," ");
-    io_double(&(MyGraph->oldylo),fp,f," ");
-    io_double(&(MyGraph->xhi),fp,f," xhi");
-    io_double(&(MyGraph->yhi),fp,f," yhi");
-    io_double(&(MyGraph->oldxhi),fp,f," ");
-    io_double(&(MyGraph->oldyhi),fp,f," ");
+    io_double(&(plot_windows.current->Theta),fp,f," Theta");
+    io_double(&(plot_windows.current->Phi),fp,f, " Phi");
+    io_int(&(plot_windows.current->xshft),fp,f," xshft");
+    io_int(&(plot_windows.current->yshft),fp,f," yshft");
+    io_int(&(plot_windows.current->zshft),fp,f," zshft");
+    io_double(&(plot_windows.current->xlo),fp,f," xlo");
+    io_double(&(plot_windows.current->ylo),fp,f," ylo");
+    io_double(&(plot_windows.current->oldxlo),fp,f," ");
+    io_double(&(plot_windows.current->oldylo),fp,f," ");
+    io_double(&(plot_windows.current->xhi),fp,f," xhi");
+    io_double(&(plot_windows.current->yhi),fp,f," yhi");
+    io_double(&(plot_windows.current->oldxhi),fp,f," ");
+    io_double(&(plot_windows.current->oldyhi),fp,f," ");
     if(f==READEM&&Xup)xpp_ui.redraw_graph();
 }
 

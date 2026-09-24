@@ -14,7 +14,6 @@ OptionsSet notAlreadySet;
 
 int AutoFreezeFlag = 0; /* freeze the curve after every integration */
 CURVE frz[MAXFRZ];  /* frozen curves of every plot window */
-XppWinId draw_win;  /* the plot window being drawn into (an X11 Window) */
 int ks_ncycle = 1, ks_speed = 50; /* kinescope autoplay */
 int help_menu; /* which main-window menu keys go to: MAIN_MENU, FILE_MENU, NUM_MENU */
 
@@ -22,13 +21,6 @@ char PlotFormat[100];
 int PS_Color = 1;
 
 int color_min, color_total, COLOR, color_max;
-
-GRAPH graph[MAXPOP];
-GRAPH *MyGraph;
-int SimulPlotFlag = 0;
-int current_pop;
-int num_pops;
-int ActiveWinList[MAXPOP];
 
 int animation_on_the_fly = 0;
 

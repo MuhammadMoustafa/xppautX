@@ -25,6 +25,7 @@
 #include "xpp_job.h"
 #include "xpp_mem.h"
 #include "browse.h"
+#include "many_pops.h"
 
 extern "C" {
 extern BROWSER my_browser;
@@ -110,7 +111,7 @@ SeriesSig series_sig(int pop)
 {
     SeriesSig s;
     std::memset(&s, 0, sizeof s); /* padding too: signatures are compared with memcmp */
-    const GRAPH &g = graph[pop];
+    const GRAPH &g = plot_windows.graph[pop];
     s.win = static_cast<unsigned long>(g.w);
     s.version = data_version;
     s.rows = my_browser.maxrow;
@@ -199,7 +200,7 @@ std::vector<int> used_columns(const SeriesSig &s)
 /* window pop's whole series: rows 0..rows of the columns its curves use */
 void send_series(int pop, const SeriesSig &s, int rows)
 {
-    const GRAPH &g = graph[pop];
+    const GRAPH &g = plot_windows.graph[pop];
     const std::vector<int> cols = used_columns(s);
     std::string o = "{\"ev\":\"series\",\"win\":";
     add_int(o, static_cast<long>(s.win));
@@ -242,7 +243,7 @@ void send_series(int pop, const SeriesSig &s, int rows)
 /* during a run: the active window's rows stored since what the client holds */
 void series_append(int rows)
 {
-    const int pop = current_pop;
+    const int pop = plot_windows.active;
     const SeriesSig s = series_sig(pop);
     Sent &w = sent[pop];
     appended = pop;
@@ -278,8 +279,8 @@ void series_append(int rows)
 void series_update()
 {
     for (int k = 0; k < MAXPOP; k++) {
-        const int pop = k == 0 ? current_pop : (k == current_pop ? 0 : k);
-        if (!graph[pop].Use) {
+        const int pop = k == 0 ? plot_windows.active : (k == plot_windows.active ? 0 : k);
+        if (!plot_windows.graph[pop].Use) {
             sent[pop].valid = false; /* a window made again later starts afresh */
             continue;
         }
@@ -311,11 +312,11 @@ void add_field(std::string &o, const char *name, double v)
 std::string plots_event()
 {
     std::string o = "{\"ev\":\"plots\",\"active\":";
-    add_int(o, static_cast<long>(graph[current_pop].w));
+    add_int(o, static_cast<long>(plot_windows.graph[plot_windows.active].w));
     o += ",\"windows\":[";
     bool first = true;
     for (int pop = 0; pop < MAXPOP; pop++) {
-        const GRAPH &g = graph[pop];
+        const GRAPH &g = plot_windows.graph[pop];
         if (!g.Use) continue;
         if (!first) o += ',';
         first = false;
@@ -389,13 +390,13 @@ extern "C" void plot_data_changed(void) { data_version++; }
 extern "C" void plot_data_picture(int redraw)
 {
     if (!series_on) return;
-    const int n = SimulPlotFlag ? num_pops : 1;
+    const int n = plot_windows.simul ? plot_windows.count : 1;
     try {
         for (int k = 0; k < n; k++) {
-            const int pop = SimulPlotFlag ? ActiveWinList[k] : current_pop;
-            if (pop < 0 || pop >= MAXPOP || !graph[pop].Use) continue;
+            const int pop = plot_windows.simul ? plot_windows.open[k] : plot_windows.active;
+            if (pop < 0 || pop >= MAXPOP || !plot_windows.graph[pop].Use) continue;
             std::string o = redraw ? "{\"ev\":\"redraw\",\"win\":" : "{\"ev\":\"erase\",\"win\":";
-            add_int(o, static_cast<long>(graph[pop].w));
+            add_int(o, static_cast<long>(plot_windows.graph[pop].w));
             o += '}';
             emit(o);
         }

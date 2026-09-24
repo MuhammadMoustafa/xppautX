@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "many_pops.h"
 
 int do_calc(char *temp, double *z); /* xpp_util.c */
 
@@ -49,8 +50,8 @@ static void hl_activate_graph(int i, int flag) { (void)i; (void)flag; }
 static void hl_get_draw_size(unsigned int *w, unsigned int *h)
 {
     /* whatever the graph last had, else a sensible canvas */
-    *w = MyGraph && MyGraph->x11Wid > 0 ? (unsigned int)MyGraph->x11Wid : 640;
-    *h = MyGraph && MyGraph->x11Hgt > 0 ? (unsigned int)MyGraph->x11Hgt : 480;
+    *w = plot_windows.current && plot_windows.current->x11Wid > 0 ? (unsigned int)plot_windows.current->x11Wid : 640;
+    *h = plot_windows.current && plot_windows.current->x11Hgt > 0 ? (unsigned int)plot_windows.current->x11Hgt : 480;
 }
 static void hl_put_text(int x, int y, char *s) { (void)x; (void)y; (void)s; }
 static int hl_film_clip(void) { return 1; }

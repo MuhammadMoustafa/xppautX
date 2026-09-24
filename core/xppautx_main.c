@@ -51,6 +51,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "many_pops.h"
 
 /* AUTO's files in a directory of this session's own, removed at exit
    (issue #11); -silent runs no AUTO */
@@ -132,20 +133,20 @@ static void init_main_graph(void)
     }
     init_bd();
     for (i = 0; i < MAXFRZ; i++) frz[i].use = 0;
-    for (i = 0; i < MAXPOP; i++) graph[i].Use = 0;
-    ActiveWinList[0] = 0;
+    for (i = 0; i < MAXPOP; i++) plot_windows.graph[i].Use = 0;
+    plot_windows.open[0] = 0;
     init_all_graph();
-    graph[0].w = 1;
-    graph[0].Use = 1;
-    graph[0].Restore = 1;
-    graph[0].Nullrestore = 1;
-    graph[0].x0 = 0;
-    graph[0].y0 = 0;
-    graph[0].Width = 640;
-    graph[0].Height = 480;
-    num_pops = 1;
-    draw_win = graph[0].w;
-    current_pop = 0;
+    plot_windows.graph[0].w = 1;
+    plot_windows.graph[0].Use = 1;
+    plot_windows.graph[0].Restore = 1;
+    plot_windows.graph[0].Nullrestore = 1;
+    plot_windows.graph[0].x0 = 0;
+    plot_windows.graph[0].y0 = 0;
+    plot_windows.graph[0].Width = 640;
+    plot_windows.graph[0].Height = 480;
+    plot_windows.count = 1;
+    plot_windows.draw_win = plot_windows.graph[0].w;
+    plot_windows.active = 0;
     get_draw_area();
 }
 
