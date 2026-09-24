@@ -9,6 +9,7 @@
 
 #include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <mutex>
 #include <string>
@@ -123,4 +124,12 @@ size_t xpp_strlcat_at(char *dst, const char *src, size_t size,
                    dstlen + srclen, size);
     }
     return dstlen + srclen;
+}
+
+namespace xpp {
+void format_failed(const char *file, int line) noexcept
+{
+    xpp_log(XPP_LOG_ERROR, "out of memory formatting a string at %s:%d\n", file, line);
+    std::exit(1);
+}
 }

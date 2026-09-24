@@ -115,14 +115,23 @@ size_t xpp_strlcat_at(char *dst, const char *src, size_t size,
 
 namespace xpp {
 
+/* std::format can throw (bad_alloc); no exception may cross into the C
+   code that calls these C++ functions (CLAUDE.md), so a failure is loud
+   and final like xpp_mem's: an ERROR naming the call site, exit 1 */
+[[noreturn]] void format_failed(const char *file, int line) noexcept;
+
 #ifdef XPP_IO_HAVE_STD_FORMAT
 /* Compile-time checked formatting: a bad "{}" against the argument
    types is a compile error, not a WARN at run time. No length limit
    (returns a std::string); for a fixed buffer use format_to_buf. */
 template <class... Args>
-std::string format(std::format_string<Args...> fmt, Args &&...args)
+std::string format(std::format_string<Args...> fmt, Args &&...args) noexcept
 {
-    return std::format(fmt, std::forward<Args>(args)...);
+    try {
+        return std::format(fmt, std::forward<Args>(args)...);
+    } catch (...) {
+        format_failed(__FILE__, __LINE__);
+    }
 }
 
 /* The array-destination counterpart of XPP_SPRINTF: dst must be a real
@@ -137,10 +146,14 @@ std::string format(std::format_string<Args...> fmt, Args &&...args)
    variadic Args&&...args this shares with std::format's own signature. */
 template <std::size_t N, class... Args>
 void format_to_buf(char (&buf)[N], const char *file, int line,
-                    std::format_string<Args...> fmt, Args &&...args)
+                    std::format_string<Args...> fmt, Args &&...args) noexcept
 {
-    std::string s = std::format(fmt, std::forward<Args>(args)...);
-    xpp_strlcpy_at(buf, s.c_str(), N, file, line);
+    try {
+        std::string s = std::format(fmt, std::forward<Args>(args)...);
+        xpp_strlcpy_at(buf, s.c_str(), N, file, line);
+    } catch (...) {
+        format_failed(file, line);
+    }
 }
 #endif
 
