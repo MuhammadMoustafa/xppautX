@@ -1,22 +1,22 @@
 # The new front end (web2)
 
-The browser front end in `web/` copies the X11 program pixel for pixel: the
-core sends drawing primitives in window pixels and the page replays them on
-canvases. The new front end in `web2/` replaces it with a modern interface:
+The first browser front end (`web/`, removed at T18) copied the X11 program
+pixel for pixel: the core sent drawing primitives in window pixels and the
+page replayed them on canvases. The front end in `web2/` replaced it with a
+modern interface:
 the core sends **data** (the numbers a view shows) and the page draws them
 itself, with modern type and rendering, zoom, pan, a point readout, legends,
 exports, the browser's own file dialogs, a layout that works from a phone to
 a wide desktop, and full keyboard and screen reader support.
 
-This document is the design and the plan. The first view (the main plot) is
-built: `xppautX model.ode` prints a second address, `.../v2/?t=...`, that
-serves it.
+This document is the design and the plan. `xppautX model.ode` serves web2
+at `/` (T17); protocol 2 (T18) carries data only.
 
 Decisions already taken (not revisited here): data-level plotting; TypeScript,
 a light framework and uPlot, bundled with esbuild into the files xppautX
 embeds; tests check data and UI state, never pixels; the C core stays C and
-the JSON protocol is the seam; `web/` keeps working until web2 covers it,
-then `web/` goes too (the X11 program already went, W8); upstream
+the JSON protocol is the seam; `web/` kept working until web2 covered it,
+then went too (T18; the X11 program already went, W8); upstream
 mergeability is not a goal.
 
 ## Contents
@@ -39,8 +39,8 @@ mergeability is not a goal.
 | `series` and `plots` events, `data` command | `core/plot_data.cpp` (C API in `plot_data.h`, called from `core/ui_json.cpp`), `core/series_enc.cpp`, docs/protocol.md "The plot as data" | Every plot window's curves as numbers, one `series` per window: T and every plotted column, float32 values printed with 9 digits or base64 float32 (`enc` `f32`), sent at the end of a command when the window's data or curves changed, and for the active window in `append` parts while an integration runs. `plots` lists the windows (axes, labels, 3D view, curves) and the active one. |
 | Page | `web2/src/` | Preact + TypeScript. A store fed by protocol events, a session that sends commands, the layout shell, the command menu, the plot (uPlot), prompts as dialogs, notifications, status bar. |
 | Build | `web2/build.mjs`, `web2/package.json` | esbuild bundles `src/` into `web2/dist/` (`app.js`, `app.css`, `index.html`, the Inter font and its licence). `dist/` is committed. |
-| Embedding | `Makefile` `WEB2_FILES`, `tools/embed.c --prefix=/v2/` | xppautX serves `web2/dist` at `/v2/` next to the classic page at `/`. |
-| Tests | `web2/test/`, `tools/web2check.mjs`, `tools/servercheck.py`, `tools/webcheck.py` | Reducer and plot-model unit tests; a browser session asserting store and plot state (desktop, keyboard only, 390x844 touch); the `series` numbers against `output.dat`; the `/v2/` assets. |
+| Embedding | `Makefile` `WEB2_FILES`, `tools/embed.c` | xppautX serves `web2/dist` at `/` (`/v1/` and `/v2/` redirect there). |
+| Tests | `web2/test/`, `tools/web2check.mjs`, `tools/servercheck.py`, `tools/webcheck.py` | Reducer and plot-model unit tests; a browser session asserting store and plot state (desktop, keyboard only, 390x844 touch); the `series` numbers against `output.dat`; the page's assets. |
 
 The plot windows are tabs (Makewindow's windows, the core's active one
 selected; picking a tab makes it active). Each shows its window's curves (a
@@ -101,7 +101,7 @@ npm run build          # web2/dist, commit it with the change
 npm run check          # fails when dist/ is not what src/ builds (CI runs this)
 npm test               # unit tests (store, plot model, keys)
 npm run typecheck
-npm run watch          # rebuild on save; `node web/serve.js model.ode` serves /v2/ from disk
+npm run watch          # rebuild on save; then make xppautx embeds it
 ```
 
 Why committed and not built by make: CI and users building from source must
@@ -115,9 +115,9 @@ bundle is ~95 KB of JS (Preact 4 KB, uPlot 50 KB), 11 KB of CSS, 48 KB of font.
 
 - **Data beside drawing, then instead of it.** Every view gets a data event
   that says what the view shows, in the model's own quantities (plot
-  coordinates, not pixels). The classic `draw` ops keep flowing while `web/`
-  exists; the data events are sent only to a client that asks for them, so
-  the classic page and the VS Code panel pay nothing.
+  coordinates, not pixels). The classic `draw` ops kept flowing while `web/`
+  existed (the data events went only to a client that asked for them);
+  protocol 2 (T18) dropped them.
 - **One subscription command.** `{"cmd":"data","events":["series", ...]}`
   declares the set of data events the client wants (`[]` stops them; a new
   command replaces the set). Each named event is sent at the end of that
@@ -151,7 +151,7 @@ bundle is ~95 KB of JS (Preact 4 KB, uPlot 50 KB), 11 KB of CSS, 48 KB of font.
 | 8 | `browser` (exists) | data table | rows and columns on request: already data | none |
 | 9 | `aplot` (exists) | array plot | cells as colour indices; add `values` (the numbers) so the client picks its colour map | small |
 | 10 | `ani` `frame` (**done**) | animation | the frame's primitives (line, rect, circle, ellipse, comet dot, text) in unit coordinates of the `.ani`'s `dimension` box (y up, not clamped), their colours (XPP index or `#rrggbb` of the colour map), widths and fonts; the frame's row, time, box and the classic window's size; thinned to 25 a second while Go plays | `core/aniparse.cpp` computes a frame in the `.ani`'s coordinates and gives each primitive to the pixel ops and to `core/ani_data.cpp` (docs/protocol.md "The animation as data") |
-| 11 | kinescope | kinescope | nothing new: the client keeps data snapshots (series + marks + viewport) as frames and renders or exports them itself | none (the `pixels` ask stays for `web/`) |
+| 11 | kinescope | kinescope | nothing new: the client keeps data snapshots (series + marks + viewport) as frames and renders or exports them itself | none (the `pixels` ask stays: web2 renders the picture from its data) |
 
 Equilibrium, equations, source, message, progress and state events are
 already data and stay as they are.
@@ -163,10 +163,16 @@ already data and stay as they are.
    can even be open at once.
 2. T17 makes web2 the page at `/` (classic at `/v1/`), and the VS Code panel
    switches to it.
-3. T18 removes `web/` and the `draw`, `palette`, `pixels` and window-size
-   paths that only it uses (the X11 program itself was already removed by
-   W8); the `XppUi` drawing callbacks become data producers only. The
-   protocol number goes to 2 then.
+3. T18 removes `web/` and the `draw`, `palette` and window-size (`size`)
+   paths that only it used (the X11 program itself was already removed by
+   W8), and `hello`'s `char`; the `XppUi` pixel primitives have no front-end
+   implementation any more (headless no-ops; the data modules are fed by
+   the code that calls them). `pixels` stays: the core's frame, GIF and
+   kinescope writers still ask for a window's picture, and web2 renders it
+   from its data. The protocol number is 2 (docs/protocol.md "Removed in
+   protocol 2"). State after T18: one page (web2 at `/`, `/v1/` and `/v2/`
+   redirect), no `web/`, no webtest.mjs; servercheck, autocheck, webcheck
+   and web2check check data events only.
 
 ## 3. Commands, prompts and components
 

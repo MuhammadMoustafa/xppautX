@@ -9,7 +9,7 @@ extern "C" {
    draws them itself: the "autoinfo" event (docs/protocol.md "The AUTO
    diagram as data", docs/ui-v2.md event 7).
 
-   - The info strip (window 103 of the classic front ends) is what
+   - The info strip (window 103 of the X11 program) is what
      traverse_out() in auto_nox.c shows for the point a grab's cursor is on:
      branch, point, type, label, the parameters, the norm, the plotted
      variable's value and the period.

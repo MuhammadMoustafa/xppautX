@@ -127,7 +127,7 @@ meet. In short:
 - The animation and array plot.
 
 ## W7: Core refactor for single responsibility
-- Split ui_json.cpp: protocol I/O, drawing ops, prompts, AUTO, browser.
+- Split ui_json.cpp: protocol I/O, prompts, AUTO, browser.
 - Split commands.c.
 - Move globals into structs.
 - Every file touched converts to C++.

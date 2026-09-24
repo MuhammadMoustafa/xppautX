@@ -20,8 +20,8 @@ extern "C" {
    last blanked: nullcline.c and integrate.c report what they draw (the
    window is current_pop), the front end reports a blanked window. So an
    Erase or a redraw that no longer draws them clears them, a redraw that
-   draws them again changes nothing, and the events say exactly what the
-   classic window shows. Events go out only to a client that subscribed,
+   draws them again changes nothing, and the events say exactly what
+   XPP's window shows. Events go out only to a client that subscribed,
    at the end of a command, one per window whose record changed since the
    one it last got.
 

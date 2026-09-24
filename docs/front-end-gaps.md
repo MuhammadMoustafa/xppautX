@@ -1,10 +1,9 @@
 # X11 front end vs web2
 
 What a user of the X11 windows (removed, issue #20) could do, and whether
-**web2** (`xppautX`, the default page at `/`; docs/ui-v2.md) does it now.
-The classic page (`web/xpp-client.js`, legacy, kept at `/v1/` until
-docs/ui-v2.md task T18 removes it) is the same JSON protocol front end
-this file used to track; it is no longer the subject of this file.
+**web2** (`xppautX`, the page at `/`; docs/ui-v2.md) does it now. web2
+is the only page: the classic one (`web/xpp-client.js`), which this file
+used to track, was removed at docs/ui-v2.md task T18.
 Checked against the X11 sources window by window; update this file when a
 row changes.
 

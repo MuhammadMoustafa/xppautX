@@ -56,7 +56,7 @@ typedef struct {
     double t;           /* the time of the frame */
     int speed, skip;    /* ms between frames of Go, rows per step */
     double xlo, ylo, xhi, yhi; /* the dimension box */
-    int w, h;           /* the pixel window the classic drawing has */
+    int w, h;           /* the core's pixel size of the window (vcr.wid, vcr.hgt) */
 } AniDataFrame;
 
 void ani_data_end(const AniDataFrame *f);

@@ -2,8 +2,8 @@
 
 `xppautX model.ode` starts XPP and opens the front end (**web2**) in your
 browser. Everything runs on your machine: the address it prints is only
-reachable from this computer and carries a one-time token. The classic
-page is legacy, kept at `/v1/` until docs/ui-v2.md task T18 removes it.
+reachable from this computer and carries a one-time token. (The classic
+page is gone; an old `/v1/` or `/v2/` bookmark opens web2.)
 
 ```bash
 xppautX examples/ode/lecar.ode      # prints http://127.0.0.1:8765/?t=... and opens it

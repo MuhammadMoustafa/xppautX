@@ -3,9 +3,9 @@
 
    A frame is computed in the animation's own coordinates (`dimension`,
    [0,1] x [0,1] by default, y up) and each primitive goes to two places
-   (the "frame sinks" below): the front end's pixel callbacks (xpp_ui
-   ani_*, scaled to the vcr.wid x vcr.hgt window exactly as XPP always
-   has, for the X11 program and the classic page) and ani_data.h, which
+   (the "frame sinks" below): the pixel callbacks (xpp_ui ani_*, scaled
+   to the vcr.wid x vcr.hgt window exactly as XPP always has; no front end
+   draws them since protocol 2) and ani_data.h, which
    keeps it in unit coordinates for a front end that draws it itself
    (docs/protocol.md "The animation as data"). */
 #include <cmath>

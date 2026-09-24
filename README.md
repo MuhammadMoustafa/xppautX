@@ -30,12 +30,10 @@ and covers every feature of classic XPPAUT
 record). The browser front end is **web2** (the plot drawn from data,
 zoom, pan, touch, keyboard, light and dark themes); `xppautX` prints and
 opens its address; [docs/ui-v2.md](docs/ui-v2.md) is its design and plan.
-The classic page is legacy, kept at `/v1/` until
-[docs/ui-v2.md](docs/ui-v2.md) task T18 removes it.
 [docs/using-the-panel.md](docs/using-the-panel.md) is the guide to the
 browser front end; [docs/vscode-extension.md](docs/vscode-extension.md)
-says how the VS Code extension uses the program. The web front end has its
-own behavioural regression test (`tools/webtest.mjs`).
+says how the VS Code extension uses the program. The browser front end has
+its own behavioural regression test (`tools/web2check.mjs`).
 
 ## Plan
 
@@ -71,16 +69,16 @@ own behavioural regression test (`tools/webtest.mjs`).
       (`auto_nox.c`), the GIF encoder (`scrngif.c`), user buttons
       (`userbut.c`) and the equilibrium import.
    3. *(done)* A protocol front end: `core/ui_json.cpp` is an `XppUi` table
-      that speaks line-delimited JSON (drawing, state and prompts out; keys,
-      answers, sizes and parameter edits in) and `make server` builds
+      that speaks line-delimited JSON (data, state and prompts out; keys,
+      answers and parameter edits in) and `make server` builds
       `xppautX --server` around it. The protocol is in
       [docs/protocol.md](docs/protocol.md); `tools/servercheck.py` drives a
       session through it in a few seconds without a display.
-   4. *(done)* The front end: `web/xpp-client.js` renders the protocol in any
-      browser page (canvas plots, menu column, parameter and IC panel,
-      dialogs for every prompt, AUTO and animation windows). `node
-      web/serve.js file.ode` runs it standalone at http://127.0.0.1:8765/.
-      `xppautX` without `--server` is the same program
+   4. *(done)* The front end: first a page that replayed the core's pixel
+      drawing (`web/`, removed at docs/ui-v2.md T18 with protocol 1's
+      `draw`, `palette` and `size`), now web2 (`web2/`), which draws plots,
+      the AUTO diagram and animations from data events. `xppautX` without
+      `--server` is the same program
       with the page compiled in and a small HTTP server (`core/xpp_http.cpp`,
       127.0.0.1 only, a random token in the address) instead of Node;
       options `--port N`, `--no-open` and `--version`. The XPP-ODE extension
@@ -93,8 +91,8 @@ own behavioural regression test (`tools/webtest.mjs`).
       the same protocol checks and writes the same `output.dat` as Linux
       apart from line endings. CI builds and checks both.
    6. *(done, issue #20)* Retire the legacy front end: its sources,
-      Makefile target and CI steps are gone; `tools/webtest.mjs` remains
-      the browser front end's own regression test.
+      Makefile target and CI steps are gone; `tools/web2check.mjs` is the
+      browser front end's own regression test.
 
 ### Metrics
 
@@ -108,19 +106,8 @@ them after a build and fails on any difference:
 | `tools/autocheck.py` | AUTO continuations over the protocol (diagrams, labels, grabs, long names) |
 | `tools/webcheck.py` | `xppautX` over HTTP: page, token, event stream, files, commands, exit |
 
-`node tools/web2check.mjs` drives the new front end (web2) in a headless
+`node tools/web2check.mjs` drives the front end (web2) in a headless
 browser and checks its state (docs/ui-v2.md).
-
-`node tools/webtest.mjs [--bin BIN]` guards the classic page (`web/`, frozen
-until web2 replaces it):
-it builds nothing, and plays `tools/web_steps.txt` (real key presses,
-clicks and drags: menus, prompts, side panel, data browser, text views,
-scrolling, windows, animation, kinescope, array plot, AUTO, 3D, file
-selector, calculator, errors, a narrow panel) against `./xppautX[.exe]` in
-a headless Chrome or Edge, checking what each step claims about the result
-(a dialog's kind and title, a value the server computed, a canvas actually
-drawn to, the files the session wrote) instead of comparing screenshots.
-It needs Node 22+ and a Chrome, Chromium or Edge, nothing else.
 
 ## Layout
 
