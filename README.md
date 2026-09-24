@@ -45,7 +45,7 @@ own behavioural regression test (`tools/webtest.mjs`).
    front end goes through the `XppUi` callback table in `core/xpp_ui.h`.
    The historical function names (`err_msg`, `new_int`, `redraw_params`,
    `ALINE`, ...) still exist as dispatchers. The headless defaults log
-   messages, decline prompts and draw nothing; `core/ui_json.c` installs
+   messages, decline prompts and draw nothing; `core/ui_json.cpp` installs
    the browser front end's table.
 3. **New front end.** Menus and hotkeys come from the menu tables in
    `core/menus.c` and are dispatched through the same `M_*` switch, so
@@ -70,7 +70,7 @@ own behavioural regression test (`tools/webtest.mjs`).
       settings and printing (`arrayplot.c`), AUTO diagram grabbing
       (`auto_nox.c`), the GIF encoder (`scrngif.c`), user buttons
       (`userbut.c`) and the equilibrium import.
-   3. *(done)* A protocol front end: `core/ui_json.c` is an `XppUi` table
+   3. *(done)* A protocol front end: `core/ui_json.cpp` is an `XppUi` table
       that speaks line-delimited JSON (drawing, state and prompts out; keys,
       answers, sizes and parameter edits in) and `make server` builds
       `xppautX --server` around it. The protocol is in

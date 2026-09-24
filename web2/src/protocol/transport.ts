@@ -10,7 +10,7 @@ export interface Transport {
   close(): void;
 }
 
-/** how the server starts a draw event (flush_ops in core/ui_json.c) */
+/** how the server starts a draw event (flush_ops in core/ui_json.cpp) */
 const DRAW = '{"ev":"draw",';
 
 export class HttpTransport implements Transport {

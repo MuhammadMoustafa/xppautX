@@ -3,7 +3,7 @@
    dependencies to a handful of small, deliberately chosen ones - Preact,
    uPlot - rather than pull one in for this, so this is a small module of
    our own instead). A fixed 6x6x6 "web safe" palette (the same 51-step
-   quantizing core/ui_json.c's web_safe_colors uses for the files it
+   quantizing core/ui_json.cpp's web_safe_colors uses for the files it
    writes) needs no per-frame palette search: a pixel's index is a plain
    formula. LZW is the standard GIF compressor: a trie of codes already
    seen, variable code width (up to 12 bits), packed LSB-first into

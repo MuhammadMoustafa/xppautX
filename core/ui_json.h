@@ -4,7 +4,7 @@
 extern "C" {
 #endif
 
-/* line-delimited JSON front end (ui_json.c, docs/protocol.md) */
+/* line-delimited JSON front end (ui_json.cpp, docs/protocol.md) */
 void json_ui_install(void);        /* protocol on the current stdout */
 void json_ui_hello(char *title);   /* hello, palette, main window, state */
 void json_ui_handle(const char *line);

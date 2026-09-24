@@ -56,7 +56,7 @@ void base64(const float *v, int n, std::string &s)
     s += '"';
 }
 
-/* as ui_json.c's buf_float(b, z, 9): the same text for the same number */
+/* as ui_json.cpp's buf_float(b, z, 9): the same text for the same number */
 void numbers(const float *v, int n, std::string &s)
 {
     s.reserve(s.size() + 2 + 13 * static_cast<std::size_t>(n));

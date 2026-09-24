@@ -1,7 +1,7 @@
 /* The array plot's time scroll (docs/ui-v2.md T12, docs/protocol.md `aplot`
    `scroll`): the classic page (web/xpp-client.js buildArrayPlot) sends a
    drag's raw pointer-Y delta as `dy`, which the core subtracts straight
-   from the first row shown (core/ui_json.c aplot_command: "aplot.nstart -=
+   from the first row shown (core/ui_json.cpp aplot_command: "aplot.nstart -=
    dy") -- not a real pixel-to-row conversion, just the number of rows to
    shift. This view keeps that convention for a drag, and picks comparable
    `dy` amounts for a wheel notch and the keyboard, so all three feel the

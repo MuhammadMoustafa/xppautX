@@ -233,7 +233,7 @@ function defaultsOf(hello: HelloEvent | null, st: StateEvent): ValuesAction {
   return {type: 'defaults', pars: zip(st.pars, d?.pars), ics: zip(st.ics, d?.ics)};
 }
 
-/** the array plot's window id (core/ui_json.c WIN_APLOT) */
+/** the array plot's window id (core/ui_json.cpp WIN_APLOT) */
 const WIN_APLOT = 105;
 
 function onEvent(state: AppState, ev: XppEvent): AppState {

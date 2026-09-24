@@ -5,7 +5,7 @@
                                     xpp_http.cpp serves the compiled-in page on
                                     127.0.0.1 and opens it
      xppautX --server model.ode     the same session over the line-delimited
-                                    JSON protocol of ui_json.c on stdin and
+                                    JSON protocol of ui_json.cpp on stdin and
                                     stdout, for a front end that embeds it
                                     (the VS Code webview, a test script)
      xppautX --script FILE model.ode  the same protocol, played from FILE

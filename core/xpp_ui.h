@@ -10,7 +10,7 @@
  * dispatchers in xpp_ui.c that go through the XppUi table below. The
  * default table is headless: messages go to the log, prompts are declined,
  * redraws and drawing do nothing. The browser front end installs its own
- * table (ui_json.c) before it serves a session.
+ * table (ui_json.cpp) before it serves a session.
  *
  * Conventions kept from the original code:
  *   new_string / file_selector / string_box return 0 when the user cancels.

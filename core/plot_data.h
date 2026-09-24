@@ -15,7 +15,7 @@ extern "C" {
 
    Each is sent only to a client that subscribed, at the end of a command
    and only when what it says changed. The events go out through the
-   function given to plot_data_init() (ui_json.c: after the pending drawing,
+   function given to plot_data_init() (ui_json.cpp: after the pending drawing,
    one line each).
 
    plot_data.cpp; C++ with a C API, nothing escapes it. */

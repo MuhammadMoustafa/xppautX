@@ -3,7 +3,7 @@
 `xppautX --server file.ode [xppaut options]` loads the model the way `xppaut`
 does and then talks line-delimited JSON: one object per line, UTF-8, on
 stdin (commands, `"cmd"`) and stdout (events, `"ev"`). stderr carries the
-core's own log output. The implementation is `core/ui_json.c`;
+core's own log output. The implementation is `core/ui_json.cpp`;
 `tools/servercheck.py` is a working client, `web/xpp-client.js` a full one.
 
 The core is single-threaded. A command runs to completion, then the server

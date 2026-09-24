@@ -688,7 +688,7 @@ static int ask_wait(Buf *b, int id)
     if (script_mode) snprintf(script_ask, sizeof script_ask, "%s", b->s);
     send_buf(b);
     xpp_free(b->s);
-    /* a script's next line is its answer to this ask (ui_json.c "Which
+    /* a script's next line is its answer to this ask (ui_json.cpp "Which
        queue" comment above, and docs/protocol.md "Scripts") */
     if (script_mode) script_next();
     for (;;) {

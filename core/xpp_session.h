@@ -20,7 +20,7 @@ extern "C" {
    Return 1 on success, 0 on failure (err_msg names the problem). After a
    successful save or load, xpp_session_set_file()/xpp_session_auto_file()
    name the files involved (xpp_session_auto_file() is "" when the session
-   has no diagram); core/ui_json.c reports them as the "session" member of
+   has no diagram); core/ui_json.cpp reports them as the "session" member of
    the "state" event (docs/protocol.md). */
 int xpp_session_save(const char *base);
 int xpp_session_load(const char *base);

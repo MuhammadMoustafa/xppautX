@@ -156,7 +156,7 @@ test('the delay (centiseconds) round-trips', () => {
 
 test('the pixels round-trip through the fixed 6x6x6 web-safe palette', () => {
   /* 51 is exact (a palette level); 130 and 4 round to the nearest level
-     (153 and 0), the same quantizing core/ui_json.c's web_safe_colors does
+     (153 and 0), the same quantizing core/ui_json.cpp's web_safe_colors does
      for the files it writes */
   const red = solid(3, 2, [255, 51, 4]), blue = solid(3, 2, [0, 130, 255]);
   const bytes = encodeGif([red, blue], 100);

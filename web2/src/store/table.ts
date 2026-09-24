@@ -75,7 +75,7 @@ export function reduceTable(state: TableState, action: TableAction): TableState 
 /* ---- paging: what to ask for so the visible rows are in `page` ---- */
 
 const ROW_BUFFER = 3; /* ask for 3x the visible window, like the classic browser: a small scroll needs nothing */
-export const MAX_COUNT = 2000; /* the core's own cap (core/ui_json.c browser_rows) */
+export const MAX_COUNT = 2000; /* the core's own cap (core/ui_json.cpp browser_rows) */
 export const MAX_NCOL = 500; /* the core's own cap; comfortably more than a model has, so every column is always asked for */
 
 /** the request to send so rows [visibleFrom, visibleFrom+visibleCount) are

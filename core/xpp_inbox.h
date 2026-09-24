@@ -58,7 +58,7 @@ int xpp_inbox_start_stdin(void);
    thread and nothing pushed yet, unlike xpp_inbox_start_stdin(). A script
    is one client talking to itself in order, so nothing needs to race the
    core to catch an Abort: the core thread pulls one line at a time, only
-   when it is ready for it (see core/ui_json.c: after a command's idle, and
+   when it is ready for it (see core/ui_json.cpp: after a command's idle, and
    when an ask is pending). Returns 0 when FILE cannot be opened. */
 int xpp_inbox_start_file(const char *path);
 
@@ -76,7 +76,7 @@ int xpp_inbox_script_line(void);
    pushing it, with its file line number in *line_no (when not NULL); NULL
    at the end of the file or when no file is open. Valid until the next
    advance or skip. The core looks at it to see what follows the line it is
-   about to run (a recorded interruption, core/ui_json.c). */
+   about to run (a recorded interruption, core/ui_json.cpp). */
 const char *xpp_inbox_script_peek(int *line_no);
 
 /* Drop the line peek() shows: the next advance pushes the one after it. */

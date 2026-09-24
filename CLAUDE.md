@@ -91,9 +91,9 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
 - `core/xpp_ui.h` is the seam: an `XppUi` table of callbacks. Core code
   calls the historical names (`err_msg`, `new_float`, `redraw_params`,
   `TwoChoice`, `ALINE`, `set_color`, ...); those are dispatchers in
-  `core/xpp_ui.c` with headless defaults. `core/ui_json.c` installs its
+  `core/xpp_ui.c` with headless defaults. `core/ui_json.cpp` installs its
   own table before it serves a session. Adding a UI call from core: add a
-  field, a headless default, a dispatcher, and a `j_` entry in ui_json.c.
+  field, a headless default, a dispatcher, and a `j_` entry in ui_json.cpp.
 - `core/xpp_globals.[ch]` holds shared state that used to live in main.c
   and the other X11 files (removed, issue #20). `core/xpp_util.c`,
   `core/browse_data.c`, `core/colormap.c`, `core/menus.c` hold pure code
@@ -108,7 +108,7 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   interaction primitives, window management and a few whole dialogs.
 - `core/xpp_batch.c` is the headless entry point; `xpp_load_model()` there
   is the start shared with the server.
-- `core/ui_json.c` + `core/xppautx_main.c` (`SERVER_SOURCES`) are the JSON
+- `core/ui_json.cpp` + `core/xppautx_main.c` (`SERVER_SOURCES`) are the JSON
   protocol front end (docs/protocol.md). When adding an `XppUi` field, give
   it a `j_` implementation too, and extend `tools/servercheck.py` for new
   protocol behaviour; `tools/verify.sh` runs it. Every command ends with
@@ -126,14 +126,14 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   protocol's `file` command both go through `core/xpp_files.cpp`, which
   owns the name rules (base names only, no links) and the temp-then-rename
   write; docs/protocol.md "Files" is the contract. The
-  protocol lines go through `out_line()` in ui_json.c, which switches to
+  protocol lines go through `out_line()` in ui_json.cpp, which switches to
   xpp_http.cpp in web mode. Input never touches the core thread: reader
   threads (xpp_http.cpp, or the --server stdin reader) push lines into
   `core/xpp_inbox.cpp` (control and normal queues) and `read_line()` takes
   them from there; `-silent` starts no reader. Abort and Quit cancel the
   running job from the reader thread (`core/xpp_job.{h,cpp}`, by sequence
   number); computations ask `xpp_job_cancelled()` or go through the
-  throttled checkpoints `my_abort()`/`byeauto_()`. ui_json.c's `classify()`
+  throttled checkpoints `my_abort()`/`byeauto_()`. ui_json.cpp's `classify()`
   says which lines are control lines; docs/protocol.md "Commands during a
   command" is the contract. Computations report how far they got to
   xpp_job (`xpp_job_rows_stored` per stored row in integrate.c's `row_stored()`,
@@ -141,7 +141,7 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   `xpp_job_point_stored` per AUTO point in autevd.c addbif): a cancelled
   command sends `stopped` with that, and `--script` replays a recorded
   `{"cmd":"abort","at":...}` by arming `xpp_job_stop_at_rows/point` for
-  the line before it (ui_json.c `script_arm_stop`). Rebuild after
+  the line before it (ui_json.cpp `script_arm_stop`). Rebuild after
   editing `web/` files; `node web/serve.js` still serves them from disk.
 - `core/xpp_log.[ch]` is the one logging module, quiet by default:
   `xpp_log(level, fmt, ...)` with ERROR/WARN/INFO/DEBUG, threshold WARN,
@@ -156,12 +156,12 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   for the handful of lines that are legitimately direct (the `-version`
   and `--version` text, the `XPP:` address lines).
 - The X11 front end was removed (issue #20, task W8); new UI work goes
-  into ui_json.c and `web2/` (the data-level front end: the core sends
+  into ui_json.cpp and `web2/` (the data-level front end: the core sends
   numbers, e.g. the `series` and `plots` events
   after `{"cmd":"data","events":["series","plots"]}`, built in
   `core/plot_data.cpp`, and the page draws them; `nullclines` and `dfield`
   come from `core/phase_data.cpp`, which records per window what
-  nullcline.c and the integrator (Flow) draw and forgets it when ui_json.c
+  nullcline.c and the integrator (Flow) draw and forgets it when ui_json.cpp
   blanks the window; `marks` likewise from `core/marks_data.cpp`: Sing pts'
   equilibrium symbols (graphics.c eq_symb), Text,etc's labels and objects
   (grobs.cpp draw_label) and frozen curves (graf_par.c) by their slot; the animation's frames, `ani` `frame`, come from

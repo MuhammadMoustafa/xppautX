@@ -103,7 +103,7 @@ export const BOX_EDGES: [number, number][] = (() => {
 })();
 
 /** turning by a mouse drag of (dxPixels, dyPixels) from the angles the
-    drag started at: core/many_pops.c rotate3dcheck and core/ui_json.c
+    drag started at: core/many_pops.c rotate3dcheck and core/ui_json.cpp
     rotate_command both use raw pixels, one degree each, so this stays in
     step with what `rotate` would have produced (docs/protocol.md). */
 export function rotateByDrag(theta0: number, phi0: number, dxPixels: number, dyPixels: number): {theta: number; phi: number} {

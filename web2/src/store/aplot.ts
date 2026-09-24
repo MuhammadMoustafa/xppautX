@@ -77,14 +77,14 @@ export function valueAt(state: AplotState, row: number, col: number): number {
 
 /** the row's approximate time: the event only gives the extremes (tlo at
     row 0, thi at row ny-1); the rows between are evenly spaced in the
-    stored data (core/ui_json.c send_aplot: nstart + nskip*row) */
+    stored data (core/ui_json.cpp send_aplot: nstart + nskip*row) */
 export function timeAt(ev: AplotEvent, row: number): number {
   if (ev.ny <= 1) return ev.tlo;
   return ev.tlo + (ev.thi - ev.tlo) * (row / (ev.ny - 1));
 }
 
 /** the variable name at grid column `col` (0-based), read from the title
-    the core sends ("root""lo".."hi", core/ui_json.c send_aplot/get_root):
+    the core sends ("root""lo".."hi", core/ui_json.cpp send_aplot/get_root):
     the same approximation the core's own label uses (unit stride; a custom
     column skip, ColSkip > 1, is not reflected in the title either). Empty
     when the title does not parse that way. */

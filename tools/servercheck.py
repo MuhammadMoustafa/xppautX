@@ -1201,7 +1201,7 @@ def check_view():
 
 # 3D plots turned by the client (docs/ui-v2.md T14, GitHub issue #18):
 # {"cmd":"view3d","win":w,"theta":..,"phi":..} sets window w's angles
-# directly and redraws (core/ui_json.c view3d_command), so "plots" and
+# directly and redraws (core/ui_json.cpp view3d_command), so "plots" and
 # state.view.theta/phi agree with whatever web2 settled on after
 # projecting the box itself and turning it locally (no need to replay
 # rotate's pixel deltas). lorenz.ode sets axes=3d and phi=60 (theta stays

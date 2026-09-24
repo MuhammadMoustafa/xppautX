@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-/* How the series event (core/ui_json.c, docs/protocol.md "The plot as
+/* How the series event (core/ui_json.cpp, docs/protocol.md "The plot as
    data") writes a column of stored values.
 
    The values v[0..n) as the text of one JSON value, in a malloc'd,

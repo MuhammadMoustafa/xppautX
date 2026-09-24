@@ -2368,7 +2368,7 @@ async function kinescope(dir) {
     && await until('s.kinescope.shown === 1', 'showing 1')
     && await until('!s.kinescope.playing && !s.busy', 'play done'));
 
-  /* Make Anigif (k, m): no prompt, so a plain menu pick; core/ui_json.c's
+  /* Make Anigif (k, m): no prompt, so a plain menu pick; core/ui_json.cpp's
      j_movie_make_anigif asks `pixels` for every captured frame and writes
      anim.gif in the model's folder itself */
   const animPath = path.join(dir, 'anim.gif');

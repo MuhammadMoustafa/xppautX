@@ -254,7 +254,7 @@ export interface BrowserEvent {
 
 /** File/Prt src (docs/ui-v2.md T16): the model's source, one array entry per
     line, and the comments with a `{par=value,...}` action (`aflag` > 0 in
-    core/ui_json.c j_make_txtview): [text, hasAction]. `text` already has
+    core/ui_json.cpp j_make_txtview): [text, hasAction]. `text` already has
     core's own "* " marker prepended for an action comment (X11's own
     convention); the `{...}` block itself is not sent, only what follows it. */
 export interface SourceEvent {
@@ -269,7 +269,7 @@ export interface EquationsEvent {
   lines: string[];
 }
 
-/** Sing pts result (docs/protocol.md `equilibrium`, core/ui_json.c j_show_eq_box):
+/** Sing pts result (docs/protocol.md `equilibrium`, core/ui_json.cpp j_show_eq_box):
     `type` is "STABLE", "UNSTABLE" or "NEUTRAL" (core/xpp_util.c eq_stability);
     cplus/cminus/rplus/rminus/im are eigenvalue counts (complex/real with
     positive/negative real part, purely imaginary); `eigenvalues` the
