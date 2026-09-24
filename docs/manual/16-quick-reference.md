@@ -418,8 +418,8 @@ Add a `.xpprc` file to set your favorite options, e.g
 xppautX adds its own front-end flags ahead of xpp's original ones (see
 [Using the interface](04-using-the-interface.md#starting-xppautx)):
 
-    xppautX [--server|--web|--script FILE] [--port N] [--no-open]
-            [--verbose|--debug] [--version] file.ode [xpp options]
+    xppautX [--browser|--server|--script FILE] [--port N] [--no-open]
+            [--verbose|--debug] [--version|--help] file.ode [xpp options]
 
 xpp's own options still apply after the file name (or anywhere, for the
 ones below that predate this ordering). Many of them provide an API:

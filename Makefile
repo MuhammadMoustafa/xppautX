@@ -1,7 +1,7 @@
 # xppautX — build xppautX from core/. No X11: the legacy X11 front end
-# was removed (issue #20); xppautX is the one program (browser mode,
-# --server or -silent).
-# Requires: gcc, make
+# was removed (issue #20); xppautX is the one program (its desktop window,
+# browser mode, --server or -silent).
+# Requires: gcc, make; for the window on Linux, WebKitGTK (optional, below)
 
 VERSION  = 8.0
 MAJORVER = 8.0
@@ -26,6 +26,8 @@ DEFS     = -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES -DHAVEDLL \
 # what `xppautX --version` prints: the release tag (release.yml sets
 # XPP_VERSION), else git describe
 XPPAUTX_VERSION ?= $(or $(XPP_VERSION),$(shell git describe --tags --always 2>/dev/null),dev)
+# and the commit, for the window's Help > About
+XPPAUTX_COMMIT ?= $(or $(shell git rev-parse --short HEAD 2>/dev/null),unknown)
 # -I. is needed because fftn.c does "#include __FILE__"
 INCS     = -I. -Icore
 CFLAGS  ?= $(CSTD) $(WARN) $(STRICT) $(OPT) $(DEFS) $(INCS) -fcommon
@@ -49,6 +51,7 @@ EXE      = .exe
 DLLIB    =
 LDSTATIC = -static
 NETLIBS  = -lpthread -lws2_32
+WINDRES ?= windres
 else
 EXE      =
 DLLIB    = -ldl
@@ -66,6 +69,9 @@ STRICT += $(WERROR_FLAGS)
 CXXSTRICT += $(WERROR_FLAGS)
 endif
 
+# (rules come before `all` below: it stays the default goal)
+.DEFAULT_GOAL := all
+
 SRCDIR   = core
 BUILDDIR = build/obj
 
@@ -81,15 +87,63 @@ obj = $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%.o,$(basename $(1)))
 link = $(if $(filter %.cpp,$(1)),$(CXX),$(CC))
 
 # sbml2xpp.c needs libsbml and is not part of the upstream build.
-SERVER_SOURCES := $(call src, ui_json xppautx_main xpp_http xpp_inbox)
+SERVER_SOURCES := $(call src, ui_json xppautx_main xpp_http xpp_inbox xpp_window)
 CORE_SOURCES := $(filter-out $(SERVER_SOURCES) $(SRCDIR)/sbml2xpp.%,$(ALL_SOURCES))
 # the page xppautX serves, compiled in: web2 (web2/dist, built from
 # web2/src and committed: web2/build.mjs)
 WEB2_FILES := web2/dist/index.html web2/dist/app.js web2/dist/app.css web2/dist/manual.json web2/dist/inter.woff2 \
   web2/dist/inter-greek.woff2 web2/dist/inter-OFL.txt
 SERVER_OBJECTS := $(call obj,$(SERVER_SOURCES)) $(BUILDDIR)/web_assets.o
-$(BUILDDIR)/xppautx_main.o: CFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'
-$(BUILDDIR)/xppautx_main.o: CXXFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'
+$(BUILDDIR)/xppautx_main.o: CFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"' -DXPPAUTX_COMMIT='"$(XPPAUTX_COMMIT)"'
+$(BUILDDIR)/xppautx_main.o: CXXFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"' -DXPPAUTX_COMMIT='"$(XPPAUTX_COMMIT)"'
+
+# The desktop window (core/xpp_window.cpp, docs/roadmap.md W13a): the
+# vendored third_party/webview, built as its own object, on WebView2
+# (Windows: the WebView2 SDK headers in third_party/webview2 and the
+# library's own loader, so no WebView2Loader.dll), WKWebView (macOS) or
+# WebKitGTK (Linux). On Linux only when pkg-config finds webkit2gtk-4.1:
+# building never requires it, and without it xppautX is browser-only.
+# WINDOW=0 builds browser-only anywhere; the sanitizer build always is (the web
+# view is not our code).
+WEBVIEW_DIR = third_party/webview
+ifeq ($(ASAN),1)
+WINDOW := 0
+endif
+ifeq ($(OS),Windows_NT)
+WINDOW ?= 1
+WINDOW_CFLAGS = -isystem third_party/webview2/include
+WINDOW_LIBS = -lole32 -lshell32 -lshlwapi -luser32 -lcomdlg32 -ladvapi32 -lversion
+else ifeq ($(shell uname -s 2>/dev/null),Darwin)
+WINDOW ?= 1
+WINDOW_LIBS = -framework Cocoa -framework WebKit
+else
+ifndef WINDOW
+WINDOW := $(shell pkg-config --exists webkit2gtk-4.1 gtk+-3.0 2>/dev/null && echo 1 || echo 0)
+endif
+ifeq ($(WINDOW),1)
+# -isystem: warnings in GTK's headers are not ours
+WINDOW_CFLAGS := $(patsubst -I%,-isystem %,$(shell pkg-config --cflags gtk+-3.0 webkit2gtk-4.1))
+WINDOW_LIBS := $(shell pkg-config --libs gtk+-3.0 webkit2gtk-4.1)
+endif
+endif
+ifeq ($(WINDOW),1)
+SERVER_OBJECTS += $(BUILDDIR)/webview.o
+$(BUILDDIR)/xpp_window.o: CXXFLAGS += -DXPP_WINDOW -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS)
+else
+WINDOW_LIBS =
+endif
+# the library, unchanged: its warnings are not ours (-isystem), nor is LTO
+$(BUILDDIR)/webview.o: $(WEBVIEW_DIR)/src/webview.cc $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
+	$(CXX) $(CXXSTD) $(filter-out -flto% -ffat-lto-objects,$(OPT)) -DWEBVIEW_STATIC -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS) -c $< -o $@
+
+# Windows: the icon (resource 32512, IDI_APPLICATION's number, which the
+# web view's window takes) and the version block, from assets/xppautx.rc
+ifeq ($(OS),Windows_NT)
+SERVER_OBJECTS += $(BUILDDIR)/xppautx_res.o
+$(BUILDDIR)/xppautx_res.o: assets/xppautx.rc assets/icon.ico $(BUILDDIR)/version.stamp | $(BUILDDIR)
+	@echo '#define XPPAUTX_VERSION_STR "$(XPPAUTX_VERSION)"' > $(BUILDDIR)/version_rc.h
+	$(WINDRES) -I$(BUILDDIR) -O coff -i $< -o $@
+endif
 # the version is an input of xppautx_main.o: the stamp is rewritten only when
 # it changes, so --version never names an older commit than the build's
 $(BUILDDIR)/xppautx_main.o: $(BUILDDIR)/version.stamp
@@ -113,7 +167,7 @@ objects: $(CORE_OBJECTS) $(SERVER_OBJECTS)
 ltocheck:
 	@$(MAKE) -s BUILDDIR=build/lto OPT="-O1 -flto=auto -ffat-lto-objects" lto-link
 lto-link: $(CORE_OBJECTS) $(SERVER_OBJECTS)
-	@$(LINK_X) -flto=auto -fcommon -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) -lm $(DLLIB) $(NETLIBS) 2> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
+	@$(LINK_X) -flto=auto -fcommon -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS) 2> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
 	@if grep -A4 'lto-type-mismatch' $(BUILDDIR)/lto.log; then echo "ltocheck: types differ across files"; exit 1; fi
 # AddressSanitizer + UndefinedBehaviorSanitizer (and LeakSanitizer, part of
 # ASan on Linux): built into build/asan, the program in the tree left
@@ -129,7 +183,7 @@ asan:
 	@$(MAKE) BUILDDIR=build/asan ASAN=1 asan-link
 asan-link: $(BUILDDIR)/xppautX$(EXE)
 $(BUILDDIR)/xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
-	$(LINK_X) $(SANITIZE) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS)
+	$(LINK_X) $(SANITIZE) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS)
 
 # the one X11-free program: browser front end, --server protocol and -silent batch
 xppautx: xppautX$(EXE)
@@ -138,7 +192,7 @@ $(CORELIB): $(CORE_OBJECTS)
 	ar rcs $@ $(CORE_OBJECTS)
 
 xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
-	$(LINK_X) $(LDSTATIC) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS)
+	$(LINK_X) $(LDSTATIC) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS)
 
 # unit tests over libxppcore, for pure code that an end-to-end run would only
 # report as a puzzling difference somewhere else. tests/README.md says more.
@@ -185,12 +239,12 @@ $(BUILDDIR):
 	mkdir -p $@
 
 $(BUILDDIR)/version.stamp: FORCE | $(BUILDDIR)
-	@echo '$(XPPAUTX_VERSION)' | cmp -s - $@ || echo '$(XPPAUTX_VERSION)' > $@
+	@echo '$(XPPAUTX_VERSION) $(XPPAUTX_COMMIT)' | cmp -s - $@ || echo '$(XPPAUTX_VERSION) $(XPPAUTX_COMMIT)' > $@
 
 # the compilers and flags are an input of every object: a new gcc (objects,
 # LTO bytecode) or a changed -std rebuilds them all instead of mixing
 $(BUILDDIR)/toolchain.stamp: FORCE | $(BUILDDIR)
-	@{ $(CC) --version | head -1; $(CXX) --version | head -1; echo '$(CFLAGS)'; echo '$(CXXFLAGS)'; } > $@.tmp; 	if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv $@.tmp $@; fi
+	@{ $(CC) --version | head -1; $(CXX) --version | head -1; echo '$(CFLAGS)'; echo '$(CXXFLAGS)'; echo 'WINDOW=$(WINDOW) $(WINDOW_CFLAGS)'; } > $@.tmp; 	if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv $@.tmp $@; fi
 
 FORCE:
 

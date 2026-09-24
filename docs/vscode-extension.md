@@ -10,7 +10,7 @@ on any release of either.
 **Open in XPP Interactive** runs
 
 ```
-xppautX --web --no-open --port 0 model.ode
+xppautX --browser --no-open --port 0 model.ode
 ```
 
 in the model's folder, reads the one line the program prints,
@@ -34,7 +34,8 @@ release tag and offers the newer one (a setting turns this off).
 
 ## What xppautX promises
 
-- `--web --no-open --port 0`: pick a free port, print the `XPP:` line
+- `--browser --no-open --port 0` (`--web` is the same as `--browser`;
+  without either, xppautX opens its own window): pick a free port, print the `XPP:` line
   above on stdout before anything else, then serve on 127.0.0.1 only.
 - `--version`: print `xppautX <tag>` and exit. The Makefile sets the tag
   from `XPP_VERSION`, which release.yml sets to the release tag

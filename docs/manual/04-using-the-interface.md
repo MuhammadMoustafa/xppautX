@@ -14,16 +14,18 @@ it says so plainly instead of describing the old window.
 
 ## Starting xppautX
 
-    xppautX examples/ode/lecar.ode      # prints http://127.0.0.1:8765/?t=... and opens it
+    xppautX examples/ode/lecar.ode      # the page in a window of its own
+    xppautX --browser model.ode         # in your browser: prints http://127.0.0.1:8765/?t=... and opens it
     xppautX --port 9000 model.ode       # another port
     xppautX --no-open model.ode         # print the address, open it yourself
     xppautX --verbose | --debug model.ode  # raise the log level (see "The log", below)
     xppautX --version                   # which release this is
 
-Everything runs on your machine: the address it prints is only reachable
-from this computer and carries a one-time token. Closing the browser tab
-does not stop xppautX; press `Ctrl+C` in the terminal, or use `File`
-`Quit` in the page. The VS Code extension
+Everything runs on your machine: the page is served on 127.0.0.1 only,
+at an address with a one-time token. Closing the window quits xppautX
+(see [Starting it](01-introduction.md#starting-it) for its menu bar). In
+browser mode, closing the tab does not stop xppautX at once; press
+`Ctrl+C` in the terminal, or use `File` `Quit` in the page. The VS Code extension
 (docs/vscode-extension.md) shows the same page in a panel and starts the
 program for you.
 

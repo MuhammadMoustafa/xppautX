@@ -81,7 +81,9 @@ its own behavioural regression test (`tools/web2check.mjs`).
       `--server` is the same program
       with the page compiled in and a small HTTP server (`core/xpp_http.cpp`,
       127.0.0.1 only, a random token in the address) instead of Node;
-      options `--port N`, `--no-open` and `--version`. The XPP-ODE extension
+      options `--port N`, `--no-open` and `--version`; since W13a it shows
+      that page in a desktop window of its own by default (`--browser` for
+      a browser tab). The XPP-ODE extension
       frames that page in a panel with **Open in XPP Interactive**
       ([docs/vscode-extension.md](docs/vscode-extension.md)).
    5. *(done for Windows; macOS in CI)* Native builds of the program:
@@ -130,7 +132,17 @@ program on a model:
 ```
 
 on Windows, `xppautX.exe examples\ode\lecar.ode`. Nothing else is needed:
-the front end opens in your browser and the program serves it itself.
+the front end opens in a window of its own (the system's web view:
+WebView2, which ships with Windows 10 and 11; WKWebView on macOS;
+WebKitGTK on Linux), served by the program itself. Its menu bar has File
+(Open model…, Quit) and Help (Manual, Keyboard shortcuts, About), and
+closing the window quits. `--browser` opens the same page in your
+browser instead and prints its address (`XPP: http://127.0.0.1:...`),
+for a remote machine or the VS Code extension; `xppautX --help` lists
+the modes. To check the window by hand: the title reads
+"xppautX — lecar.ode" with the xppautX icon, Help > Manual opens the
+page's Help, Help > About shows the version, and after File > Quit (or
+closing the window) no xppautX process is left.
 
 The binaries are not signed, because a signing identity costs money at both
 Apple and Microsoft, so each system asks once before running a program it
@@ -172,6 +184,11 @@ make -j8 xppautx
 ./xppautX examples/ode/lecar.ode
 ```
 
+The window needs WebKitGTK to build (`sudo apt install
+libwebkit2gtk-4.1-dev` on Debian and Ubuntu); the Makefile uses it when
+`pkg-config` finds `webkit2gtk-4.1`, and otherwise builds a browser-only
+xppautX (`WINDOW=0` asks for that anywhere).
+
 ### macOS
 
 ```bash
@@ -189,7 +206,10 @@ make -j8 xppautx
 ./xppautX.exe examples/ode/lecar.ode
 ```
 
-It opens the front end in your browser.
+It opens the front end in its own window (WebView2, with webview's own
+loader: no DLL to ship). The icon comes from `assets/icon.svg`, made
+into `assets/icon.ico` by `python3 tools/make_icons.py` (Pillow and a
+Chrome or Edge); swapping the icon is those two files.
 
 ### Headless smoke test
 

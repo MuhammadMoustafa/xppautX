@@ -42,6 +42,7 @@ typedef SOCKET sock_t;
 #define read _read
 #else
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <signal.h>
 #include <sys/socket.h>
@@ -98,6 +99,10 @@ static struct {
 static char *log_text; /* the last LOG_KEEP bytes printed */
 static size_t log_len;
 static int saw_bye, orig_stderr = -1;
+/* at_exit's wait after an error ends when this is set (xpp_http_release) */
+static int released;
+static pthread_cond_t released_cond = PTHREAD_COND_INITIALIZER;
+static char page_url[128];
 
 static char *copy_line(const char *s, size_t n)
 {
@@ -729,12 +734,35 @@ static void handle(sock_t s)
     xpp_free(q);
 }
 
+/* A process xppautX starts (the web view's own processes, a browser
+   opener, a second xppautX) must not inherit the listening socket, a
+   page's connection or the log pipe: it would keep the port, or the pipe,
+   after xppautX has gone. */
+static void no_inherit_sock(sock_t s)
+{
+#ifdef _WIN32
+    SetHandleInformation((HANDLE)s, HANDLE_FLAG_INHERIT, 0);
+#else
+    fcntl(s, F_SETFD, FD_CLOEXEC);
+#endif
+}
+
+static void no_inherit_fd(int fd)
+{
+#ifndef _WIN32
+    fcntl(fd, F_SETFD, FD_CLOEXEC);
+#else
+    (void)fd; /* the pipe is made _O_NOINHERIT; a second xppautX is started inheriting nothing */
+#endif
+}
+
 static void *http_main(void *arg)
 {
     (void)arg;
     for (;;) {
         sock_t s = accept(listener, NULL, NULL);
         if (s == INVALID_SOCKET) continue;
+        no_inherit_sock(s);
         set_recv_timeout(s, RECV_SECONDS);
         handle(s);
     }
@@ -746,6 +774,7 @@ static void *http_main(void *arg)
 static void at_exit(void)
 {
     char line[64];
+    int done;
     fflush(stdout);
     fflush(stderr);
 #ifdef _WIN32
@@ -758,13 +787,38 @@ static void at_exit(void)
     set_sticky(&exit_event, line, strlen(line));
     pthread_mutex_unlock(&lock);
     xpp_http_emit(line, strlen(line));
-    if (saw_bye) return;
+    pthread_mutex_lock(&lock);
+    done = saw_bye || released; /* released: the window showing the page is closed */
+    pthread_mutex_unlock(&lock);
+    if (done) return;
     if (orig_stderr >= 0) {
-        static const char msg[] = "xppautX: the model stopped; the page shows what it printed. Ctrl+C quits.\n";
+        static const char msg[] = "xppautX: the model stopped; the page shows what it printed. Ctrl+C (or closing its window) quits.\n";
         if (write(orig_stderr, msg, sizeof msg - 1) < 0) orig_stderr = -1;
     }
-    pthread_join(http_thread, NULL); /* until Ctrl+C */
+    /* until Ctrl+C, or until the window showing the page is closed */
+    pthread_mutex_lock(&lock);
+    while (!released) pthread_cond_wait(&released_cond, &lock);
+    pthread_mutex_unlock(&lock);
 }
+
+void xpp_http_release(void)
+{
+    pthread_mutex_lock(&lock);
+    released = 1;
+    pthread_cond_broadcast(&released_cond);
+    pthread_mutex_unlock(&lock);
+}
+
+int xpp_http_said_bye(void)
+{
+    int bye;
+    pthread_mutex_lock(&lock);
+    bye = saw_bye;
+    pthread_mutex_unlock(&lock);
+    return bye;
+}
+
+const char *xpp_http_url(void) { return page_url; }
 
 static void make_token(void)
 {
@@ -814,6 +868,7 @@ static int listen_on(int port)
     int one = 1;
     listener = socket(AF_INET, SOCK_STREAM, 0);
     if (listener == INVALID_SOCKET) return -1;
+    no_inherit_sock(listener);
 #ifndef _WIN32
     setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, (const char *)&one, sizeof one);
 #else
@@ -835,10 +890,16 @@ static int listen_on(int port)
     return ntohs(addr.sin_port);
 }
 
-int xpp_http_start(int port, int open_browser)
+void xpp_http_show(int open)
+{
+    printf("XPP: %s\n", page_url);
+    fflush(stdout);
+    if (open) open_in_browser(page_url);
+}
+
+int xpp_http_start(int port, int flags)
 {
     static int log_pipe[2];
-    char url[128];
     int got;
 #ifdef _WIN32
     WSADATA wsa;
@@ -853,17 +914,22 @@ int xpp_http_start(int port, int open_browser)
         return 0;
     }
     make_token();
-    snprintf(url, sizeof url, "http://127.0.0.1:%d/?t=%s", got, token);
-    printf("XPP: %s\n", url);
-    fflush(stdout);
+    snprintf(page_url, sizeof page_url, "http://127.0.0.1:%d/?t=%s", got, token);
+    if (flags & XPP_HTTP_SHOW) {
+        printf("XPP: %s\n", page_url);
+        fflush(stdout);
+    }
 
     /* what xppaut prints: to the terminal and the page */
     orig_stderr = dup(2);
+    no_inherit_fd(orig_stderr);
 #ifdef _WIN32
-    if (_pipe(log_pipe, 65536, _O_BINARY) == 0) {
+    if (_pipe(log_pipe, 65536, _O_BINARY | _O_NOINHERIT) == 0) {
 #else
     if (pipe(log_pipe) == 0) {
 #endif
+        no_inherit_fd(log_pipe[0]);
+        no_inherit_fd(log_pipe[1]);
         dup2(log_pipe[1], 1);
         dup2(log_pipe[1], 2);
         setvbuf(stdout, NULL, _IONBF, 0);
@@ -874,6 +940,6 @@ int xpp_http_start(int port, int open_browser)
     pthread_create(&http_thread, NULL, http_main, NULL);
     pthread_create(&watchdog_thread, NULL, watchdog_main, NULL);
     atexit(at_exit);
-    if (open_browser) open_in_browser(url);
+    if (flags & XPP_HTTP_OPEN) open_in_browser(page_url);
     return 1;
 }

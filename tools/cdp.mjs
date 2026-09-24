@@ -85,10 +85,10 @@ export async function startBrowser(browser, profile) {
   return {proc, cdp};
 }
 
-/* xppautX in browser mode in `dir` with `args` (the model and its options);
+/* xppautX in browser mode (--browser, not its desktop window) in `dir` with `args` (the model and its options);
    resolves with the process and the address it printed */
 export function startServer(bin, dir, args) {
-  const proc = spawn(bin, ['--no-open', '--port', '0', ...args],
+  const proc = spawn(bin, ['--browser', '--no-open', '--port', '0', ...args],
     {cwd: dir, stdio: ['ignore', 'pipe', 'pipe']});
   return new Promise((resolve, reject) => {
     let text = '';

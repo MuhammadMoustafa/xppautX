@@ -93,6 +93,13 @@ if command -v python3 >/dev/null; then
     echo "WEB CHECK FAILED"
     exit 1
   fi
+  if sh tools/modecheck.sh > build/modecheck.log 2>&1; then
+    echo "command-line modes ok: $(grep -c '^PASS' build/modecheck.log) checks"
+  else
+    grep -v '^PASS' build/modecheck.log
+    echo "MODE CHECK FAILED"
+    exit 1
+  fi
   if python3 tools/autocheck.py > build/autocheck.log 2>&1; then
     echo "auto checks ok: $(grep -c '^PASS' build/autocheck.log) checks"
   else

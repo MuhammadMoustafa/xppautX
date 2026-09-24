@@ -21,16 +21,19 @@ xppautX $version ($platform)
 
 One program, and like xppaut it takes what to do from the command line:
 
-  xppautX MODEL.ode            the front end in your browser (nothing else
-                               needed): it serves the page and opens it
+  xppautX MODEL.ode            the front end in a window of its own (the
+                               system's web view; nothing else needed)
+  xppautX --browser MODEL.ode  the same page in your browser, its address
+                               printed
   xppautX MODEL.ode -silent    a headless run that writes output.dat, the
                                same switch upstream xppaut uses
   xppautX --server MODEL.ode   the JSON protocol on stdin/stdout, for a
                                program that embeds it
 
 Try:  ./xppautX examples/lecar.ode
-Browser options: --port N (default 8765, 0 for any free port), --no-open (print the
-address only). xppautX --version prints this release's tag.
+Options: --port N (default 8765, 0 for any free port), --no-open (browser mode,
+printing the address only). xppautX --version prints this release's tag,
+xppautX --help the modes.
 Only this machine can reach it, and the address carries a one-time token.
 Every xppaut option still works; xppautX's own options have to come first.
 

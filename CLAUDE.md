@@ -28,7 +28,7 @@ md5 c281851de59ffd03b2a46428619a0c8f for lecar.ode):
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && ./xppautX examples/ode/lecar.ode -silent && md5sum output.dat"
 
-Run it (opens the browser front end):
+Run it (opens its desktop window; `--browser` for the browser front end):
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && ./xppautX examples/ode/lecar.ode"
 
@@ -84,7 +84,11 @@ native build, from Git Bash:
 
 Windows API code lives only in `core/xpp_win32.c` (windows.h macros clash
 with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
-`strupr`/`strlwr` are renamed on Windows in parserslow.h.
+`strupr`/`strlwr` are renamed on Windows in parserslow.h. The exceptions
+are the two files that include no core header but small C APIs:
+`core/xpp_http.cpp` (sockets) and `core/xpp_window.cpp` (the desktop
+window's menu bar, dialogs and icon, behind `_WIN32`); windows.h never
+reaches a header.
 
 ## Task agents
 
@@ -134,8 +138,35 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   protocol behaviour; `tools/verify.sh` runs it. Every command ends with
   `state` then `idle`; a client waits for `idle`.
 - `xppautX` (`make xppautx`) is one program: `core/xppautx_main.c` picks
-  browser mode (the default), `--server` (the protocol on stdin/stdout) or
-  `-silent` (xpp_batch_main, no interface at all). It carries
+  the desktop window (the default), browser mode (`--browser`/`--web`, or
+  `--no-open`), `--server` (the protocol on stdin/stdout) or `-silent`
+  (xpp_batch_main, no interface at all). The window (W13a) is
+  `core/xpp_window.cpp` (C API in xpp_window.h) over the vendored
+  `third_party/webview` (built as its own object, `webview.o`, from
+  `src/webview.cc`; WebView2 through the SDK headers in
+  `third_party/webview2` and webview's built-in loader on Windows,
+  WebKitGTK on Linux only when `pkg-config` finds webkit2gtk-4.1, else a
+  browser-only build; `WINDOW=0` forces that). It shows the page the HTTP
+  server below serves, navigated to the tokened URL itself (browser mode
+  prints it; the window shows it nowhere). Threads: the core keeps the
+  main thread and stays single-threaded; the web view runs its own UI
+  loop on a thread of its own (WebView2 wants an STA thread with a message
+  loop, GTK one thread that initialises and runs it), except on macOS,
+  where Cocoa needs the main thread and the session moves to a second
+  thread (untested). Closing the window pushes `{"cmd":"quit"}` into the
+  inbox (the protocol's Quit) and calls `xpp_http_release()`; the core's
+  exit closes the window after a bye, and after an error leaves it open
+  on the log until it is closed (xpp_http's at_exit waits for that, or
+  Ctrl+C). If the web view cannot start (no WebView2 runtime, no
+  display) xppautX logs it and falls back to browser mode. Its menu bar
+  (Win32 menu; GTK 3 menu bar on Linux; none yet on macOS): File > Open
+  model (a second xppautX process: the core cannot load a second model),
+  Quit; Help > Manual and Keyboard shortcuts (web2's
+  `window.__xppOpenHelp`, web2/src/desktop.ts, through webview_eval),
+  About (a native message box). The icon is `assets/icon.svg`, made into
+  `assets/icon.ico` by `tools/make_icons.py`, compiled into the Windows
+  exe by `assets/xppautx.rc`. `tools/modecheck.sh` (verify.sh) checks
+  `--help`, `--browser` and `--no-open`. It carries
   `core/xpp_http.cpp` (HTTP + Server-Sent Events on
   127.0.0.1, threads, sockets; it includes no core header but the small
   C APIs of xpp_mem.h, xpp_inbox.h and xpp_files.h) and

@@ -2507,6 +2507,20 @@ async function helpCheck() {
   check('help: F1 opens it again, where it was left', f1ok, JSON.stringify(await S('s.help')));
   await cdp.eval(`document.querySelector('.help-back').click()`);
   await until('!s.help.open', 'closed again');
+
+  /* W13a: the desktop window's Help > Keyboard shortcuts and Help > Manual
+     call this hook (core/xpp_window.cpp) */
+  await cdp.eval(`window.__xppOpenHelp('05-commands')`);
+  check('help: the desktop hook opens Help at a chapter (Help > Keyboard shortcuts)',
+    await until(`s.help.open && s.help.chapter === '05-commands' && s.help.anchor === null`, 'hook open'),
+    JSON.stringify(await S('s.help')));
+  await cdp.eval(`document.querySelector('.help-back').click()`);
+  await until('!s.help.open', 'closed by Back');
+  await cdp.eval(`window.__xppOpenHelp()`);
+  check('help: the desktop hook with no chapter reopens it where it was left (Help > Manual)',
+    await until(`s.help.open && s.help.chapter === '05-commands'`, 'hook reopen'), JSON.stringify(await S('s.help')));
+  await cdp.eval(`document.querySelector('.help-back').click()`);
+  await until('!s.help.open', 'closed at the end');
 }
 
 /* tools/models/live.ode (about a second a run): edits while busy wait and go

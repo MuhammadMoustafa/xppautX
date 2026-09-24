@@ -49,14 +49,42 @@ repeated here.
 
 ## Starting it
 
-`xppautX model.ode` loads the model and opens **web2** in your browser —
-a desktop app of its own is planned (docs/roadmap.md W13). Two other
-modes skip the browser entirely:
+`xppautX model.ode` loads the model and opens **web2** in a window of
+its own, titled "xppautX — model.ode", with the system's own web view
+(WebView2 on Windows, WebKitGTK on Linux, WKWebView on macOS). Its menu
+bar holds what belongs to the app rather than the model: **File** (Open
+model…, which starts a second xppautX with the model you pick, in its own
+window; Quit) and **Help** (Manual, Keyboard shortcuts, About: version,
+commit, compiler, protocol version and license). The model's own menus
+stay inside the page. Closing the window quits xppautX, as the page's
+File/Quit does; after an error that stops the model, the window stays
+open on the page's Messages until you close it.
+
+The other modes:
 
 ```bash
+./xppautX --browser model.ode         # web2 in your default browser; prints its address
+./xppautX --no-open model.ode         # the same, printing the address without opening it
 ./xppautX model.ode -silent           # batch run, writes output.dat, no interface
 ./xppautX --server model.ode          # the JSON protocol on stdin/stdout
 ```
+
+`--browser` (or `--web`) is the way to reach the page from somewhere
+else (a remote machine through an SSH tunnel, the VS Code extension, a
+test): it prints `XPP: http://127.0.0.1:PORT/?t=TOKEN`, the address with
+the session's token, and opens it. The window never shows that address.
+If the web view cannot start (no WebView2 runtime on Windows, no display
+on Linux), xppautX says so in its log and uses the browser instead. A
+Linux build made without WebKitGTK (`libwebkit2gtk-4.1-dev`) has no
+window at all and always uses the browser; `xppautX --help` says which
+you have.
+
+To try the window by hand: start `xppautX examples/ode/lecar.ode`; the
+window opens with the xppautX icon and title; Help > Manual and Help >
+Keyboard shortcuts open the Help view in the page, Help > About shows
+the version box; File > Open model… starts a second window with the
+model you choose; File > Quit, or closing the window, ends xppautX and
+leaves no process behind.
 
 `--server` is for a front end that embeds xppautX instead of opening a
 browser tab (the VS Code extension, a test script); the protocol itself
@@ -76,8 +104,9 @@ way has nothing in Messages. See
 
 ### Command-line options
 
-xppautX's own options (`--server`, `--script`, `--web`, `--port`,
-`--no-open`, `--version`, `--verbose`, `--debug`) must come first; every
+xppautX's own options (`--browser`, `--web`, `--server`, `--script`,
+`--port`, `--no-open`, `--version`, `--help`, `--verbose`, `--debug`)
+must come first; every
 other classic `xppaut` option (`core/comline.c`) still works and can
 follow in any order. The options below still do something in xppautX;
 a few classic options that only ever changed X11 window colours, fonts
