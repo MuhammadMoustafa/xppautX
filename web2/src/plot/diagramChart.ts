@@ -83,21 +83,30 @@ function strokeShape(ctx: CanvasRenderingContext2D, shape: LabelShape, x: number
       ctx.stroke();
       return;
     case 'bar':
+      ctx.beginPath();
+      ctx.moveTo(x, y - r);
+      ctx.lineTo(x, y + r);
+      ctx.stroke();
+      return;
     case 'tick':
       ctx.beginPath();
-      ctx.moveTo(x, y - r);
-      ctx.lineTo(x, y + r);
-      ctx.stroke();
+      ctx.arc(x, y, r * 0.35, 0, 2 * Math.PI);
+      ctx.fill();
       return;
     case 'cross':
-    default:
+    default: {
+      /* a bold diagonal cross, as the key's × */
+      const w = ctx.lineWidth, d = r * 0.8;
+      ctx.lineWidth = w * 1.8;
       ctx.beginPath();
-      ctx.moveTo(x - r, y);
-      ctx.lineTo(x + r, y);
-      ctx.moveTo(x, y - r);
-      ctx.lineTo(x, y + r);
+      ctx.moveTo(x - d, y - d);
+      ctx.lineTo(x + d, y + d);
+      ctx.moveTo(x + d, y - d);
+      ctx.lineTo(x - d, y + d);
       ctx.stroke();
+      ctx.lineWidth = w;
       return;
+    }
   }
 }
 

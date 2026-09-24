@@ -50,7 +50,7 @@ back). It has:
   a triangle at a fold, a diamond at a branch point, a square at a period
   doubling, a star at a torus, an inverted triangle at a user point, a
   bold cross where AUTO could not converge, a bar at an end point, and a
-  small, lighter tick at a plain numbered point — so a long run's regular
+  small, lighter dot at a plain numbered point — so a long run's regular
   output no longer reads as a row of crosses); hovering a labelled point
   names its type; the point where the last run ended also says why;
 - an **Output** panel with AUTO's printed table (`xpp_log_auto()`, always

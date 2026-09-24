@@ -311,7 +311,7 @@ export function symbolHelp(sym: string): string {
     (ui/AutoView.tsx): HB a filled circle, LP a triangle, BP a diamond, PD
     a square, TR a star, UZ an inverted triangle, MX a bold cross, EP a
     bar across the branch; a plain numbered point (no type) a small,
-    lighter tick; an unlisted code falls back to a cross. */
+    lighter dot; an unlisted code falls back to a cross. */
 export type LabelShape = 'circle' | 'triangle' | 'diamond' | 'square' | 'star' | 'invTriangle' | 'cross' | 'bar' | 'tick';
 
 const LABEL_SHAPES: Record<string, LabelShape> = {
