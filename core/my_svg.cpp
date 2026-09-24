@@ -23,6 +23,10 @@ extern int TextAngle;
 extern int PointType;
 extern int PointRadius;
 FILE *svgfile;
+/* svg_init opens this (temp file, renamed into place only on svg_end's
+   commit -- W11 step 3); svgfile is its FILE*, so every existing
+   fprintf(svgfile,...) call below keeps working unchanged. */
+static XppWriter *svg_writer;
 extern int PltFmtFlag,PSColorFlag;
 extern int PSLines;
 extern int LastPtLine;
@@ -38,21 +42,25 @@ extern int DOING_DFIELD;
 extern int Xup;
 
 
+namespace {
+char *lit(const char *s) { return const_cast<char *>(s); }
+} // namespace
+
 int svg_init(char *filename, int color)
-{ 
-	FILE *fp;
-    	
+{
+
 	init_svg();
 	char css[256];
-	
-	
+
+
 	LastPSX=-10000;
         LastPSY=-10000;
-	
-	if((svgfile=fopen(filename,"w"))==NULL){
-	  err_msg("Cannot open file ");
+
+	if((svg_writer=xpp_writer_open(filename))==NULL){
+	  err_msg(lit("Cannot open file "));
 	  return(0);
 	}
+	svgfile=xpp_writer_file(svg_writer);
 	PltFmtFlag=SVGFMT;
 
 	fprintf(svgfile,"<!-- Uncomment following when using your own custom external stylesheet.-->\n");
@@ -242,20 +250,20 @@ int svg_init(char *filename, int color)
 		fprintf(svgfile,"                 }\n");
 	
 		XPP_SPRINTF(css,"%s/xppaut-stylesheet.css",getenv("HOME"));
-		fp=fopen(css,"r");
-		if(fp!=NULL)
 		{
-			plintf("Styling svg image according to %s\n",css);
-			char bob[256];
-			while(!feof(fp))
-			{ 
-				bob[0]='\0';
-				if(fgets(bob,255,fp)==NULL)break;
-        			fprintf(svgfile,"%s",bob);
-
+			/* copied in whole lines (any length, not the 255-byte fgets
+			   cut this replaced); a trailing newline is put back on each
+			   one, so a css file that itself ends without one gains a
+			   final newline it did not have -- the one difference from
+			   the fgets loop, on an unwritten-in-the-wild edge case. */
+			xpp::LineReader lr(css);
+			if(lr)
+			{
+				plintf("Styling svg image according to %s\n",css);
+				std::optional<std::string_view> line;
+				while((line=lr.next()))
+					fprintf(svgfile,"%.*s\n",(int)line->size(),line->data());
 			}
-			
-			fclose(fp);
 		}
 	
 	
@@ -266,8 +274,7 @@ int svg_init(char *filename, int color)
 }
 
 	
-void svg_write(str)
-char *str;
+void svg_write(char *str)
 {
   fprintf(svgfile,"%s\n",str);
 }
@@ -297,11 +304,13 @@ void svg_setcolor(int color)
 
 void svg_end(void)
 {
- svg_write("</svg>");
- fclose(svgfile);
+ svg_write(lit("</svg>"));
+ xpp_writer_commit(svg_writer);
+ svg_writer=NULL;
+ svgfile=NULL;
  PltFmtFlag=SCRNFMT;
  DOING_SVG_COLOR=0;
- if(Xup)init_x11(); 
+ if(Xup)init_x11();
 }
 
 void svg_bead(int x, int y)
@@ -430,7 +439,7 @@ void chk_svg_lines(void)
 
 void svg_linetype(int linetype)
 {	
-	char *line = "ba0123456789c"; 
+	const char *line = "ba0123456789c";
 
 	SVGLINETYPE=line[(linetype%11)+2];
 	
@@ -454,7 +463,7 @@ void svg_point(int x, int y)
   svgcol[0]='\0';
 
   int number=PointType;
-  char *point="PDABCTSKF";
+  const char *point="PDABCTSKF";
   number %= POINT_TYPES;
   if(number < -1) 
     number = -1;
