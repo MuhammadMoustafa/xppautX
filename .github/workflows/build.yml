@@ -93,10 +93,12 @@ jobs:
             pid=$!
             ( sleep 300; kill -9 "$pid" 2>/dev/null ) &
             watcher=$!
-            wait "$pid"
-            st=$?
-            kill "$watcher" 2>/dev/null
-            wait "$watcher" 2>/dev/null
+            # the step runs under bash -e: statuses that are expected here
+            # (a model's own, the cancelled watcher's 143) must not end it
+            st=0
+            wait "$pid" || st=$?
+            kill "$watcher" 2>/dev/null || true
+            wait "$watcher" 2>/dev/null || true
             if [ "$st" -ne 0 ]; then
               echo "FAIL $f exit $st"; cat "$run/run.log"; fail=1
             fi
