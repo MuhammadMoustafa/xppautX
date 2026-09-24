@@ -47,15 +47,11 @@ extern "C" {
 
 extern int DisplayWidth,DisplayHeight;
 extern int screen;
-extern int DCURY,DCURX,CURY_OFF,DCURXs,DCURYs,CURY_OFFs,xor_flag;
+extern int DCURY,DCURX,DCURXs,DCURYs,xor_flag;
 extern unsigned int MyBackColor,MyForeColor;
 
-extern int TipsFlag;
 char *get_next(const char *src); /* form_ode.c */
 char *get_first(char *string, const char *src);
-extern char UserBlack[8];
-extern char UserWhite[8];
-extern int UserGradients;
 
 
 /*  This is a string box widget which handles a list of 

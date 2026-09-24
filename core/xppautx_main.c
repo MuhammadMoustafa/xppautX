@@ -158,9 +158,8 @@ static void run_session(void)
 {
     char title[128];
     /* a monospace font the client can match: small 7x13, big 9x15 */
-    DCURXs = 7; DCURYs = 13; CURY_OFFs = 10;
-    DCURXb = 9; DCURYb = 15; CURY_OFFb = 12;
-    DCURX = DCURXb; DCURY = DCURYb; CURY_OFF = CURY_OFFb;
+    DCURXs = 7; DCURYs = 13;
+    DCURX = 9; DCURY = 15;
     SCALEX = 640; SCALEY = 480;
 
     json_ui_install();

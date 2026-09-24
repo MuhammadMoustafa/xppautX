@@ -65,25 +65,12 @@ extern char dll_lib[256];
 extern char dll_fun[256];
 extern int dll_flag;
 
-extern char UserBlack[8];
-extern char UserWhite[8];
-extern char UserMainWinColor[8];
-extern char UserDrawWinColor[8];
-/*extern char UserBGBitmap[100];*/
-extern char UserBGBitmap[XPP_MAX_NAME];
-
-extern int UserGradients;
-extern int UserMinWidth;
-extern int UserMinHeight;
 extern int XPPVERBOSE;
 extern FILE *logfile;
 
 extern int OVERRIDE_QUIET;
 extern int OVERRIDE_LOGFILE;
 
-extern int SLIDER1;
-extern int SLIDER2;
-extern int SLIDER3;
 extern char SLIDER1VAR[XPP_NAME_MAX+1];
 extern char SLIDER2VAR[XPP_NAME_MAX+1];
 extern char SLIDER3VAR[XPP_NAME_MAX+1];
@@ -93,9 +80,6 @@ extern double SLIDER3LO;
 extern double SLIDER1HI;
 extern double SLIDER2HI;
 extern double SLIDER3HI;
-extern double SLIDER1INIT;
-extern double SLIDER2INIT;
-extern double SLIDER3INIT;
 
 extern int NCBatch,DFBatch;
 extern int DF_GRID;
@@ -128,7 +112,6 @@ extern int custom_color;
 extern int del_stab_flag;
 extern int MaxPoints;
 extern double THETA0,PHI0;
-extern int tfBell;
 extern int DoTutorial;
 /*void set_option(char *s1,char *s2);
 */
@@ -145,8 +128,6 @@ extern char batchout[256];
 extern int batch_range; 
  double last_ic[MAXODE];
 extern char PlotFormat[100];
- extern char big_font_name[100],small_font_name[100];
- extern int PaperWhite;
 
 extern int PSColorFlag,PS_FONTSIZE,PS_Color;
 extern char PS_FONT[100];
@@ -489,64 +470,6 @@ load_eqn()
 */
 
 
-void set_X_vals()
-{
-	/*
-	Set up the default look here.
-	*/
-	
-	tfBell=1;
- 	/*PaperWhite=0;*/
-	/*
-	No gradients tends to look cleaner but some
-	may prefer gradients improved contrast/readability.
-	*/
-	/*UserGradients=1;
-	*/
-	/*fixed is the new X11 default fixed font. 9x15 is dead and gone.
-	*/
-	if (strlen(big_font_name)==0)
- 	{
-		XPP_STRCPY(big_font_name,"fixed");
-	}
-	
-	if (strlen(small_font_name)==0)
- 	{
- 		XPP_STRCPY(small_font_name,"6x13");
-	}
-	
-	/* UserBlack/UserWhite/UserMainWinColor/UserDrawWinColor are
-	   char[8] (xpp_globals.h): exactly sizeof(char*) on a 64-bit
-	   build, so XPP_ARRAY_SIZE_CHECK's sizeof(dst)==sizeof(char*)
-	   heuristic false-triggers on them (documented in xpp_io.h). */
-	if (strlen(UserBlack)==0)
- 	{
-        	xpp_snprintf(UserBlack,8,"#%s","000000");
-	}
-	
-	if (strlen(UserWhite)==0)
- 	{
-		xpp_snprintf(UserWhite,8,"#%s","EDE9E3");
-	}
-	
-	if (strlen(UserMainWinColor)==0)
- 	{
-		xpp_snprintf(UserMainWinColor,8,"#%s","808080");
-	}
-	
-	if (strlen(UserDrawWinColor)==0)
- 	{
-		xpp_snprintf(UserDrawWinColor,8,"#%s","FFFFFF");
-	}
-	
-	if (UserGradients<0)
- 	{
-		UserGradients=1;
-	}
-}
-
-
-
 void set_all_vals()
 {
  int i;
@@ -713,22 +636,17 @@ void read_defaults(fp)
  char *ptr;
  if(fgets(bob,80,fp)==NULL)bob[0]=0;
  ptr=get_first(bob," ");
+ /* the X11 big font: read, not kept */
  if (notAlreadySet.BIG_FONT_NAME && ptr!=NULL)
- {
- 	XPP_STRCPY(big_font_name,ptr);
 	notAlreadySet.BIG_FONT_NAME=0;
- }
 
  if(fgets(bob,80,fp)==NULL)bob[0]=0;
  ptr=get_first(bob," ");
+ /* the X11 small font: read, not kept */
  if (notAlreadySet.SMALL_FONT_NAME && ptr!=NULL)
- {
-
- 	XPP_STRCPY(small_font_name,ptr);
 	notAlreadySet.SMALL_FONT_NAME=0;
- }
  
- if (notAlreadySet.PaperWhite){fil_int(fp,&PaperWhite);notAlreadySet.PaperWhite=0;};
+ if (notAlreadySet.PaperWhite){int paper_white; fil_int(fp,&paper_white);notAlreadySet.PaperWhite=0;}; /* X11 only: read, not kept */
  if (notAlreadySet.IXPLT){fil_int(fp,&IXPLT);notAlreadySet.IXPLT=0;};
  if (notAlreadySet.IYPLT){fil_int(fp,&IYPLT);notAlreadySet.IYPLT=0;};
  if (notAlreadySet.IZPLT){fil_int(fp,&IZPLT);notAlreadySet.IZPLT=0;};
@@ -907,63 +825,6 @@ void set_internopts(OptionsSet *mask)
       split_apart(mystring,name,value);
       if(strlen(name)>0&&strlen(value)>0)
       {
-        /*
-	if (strcmp("mwcolor",name)==0)
-	{
-		if (strlen(UserMainWinColor)!=0)
-		{
-		 	continue;
-		}
-	}
-	
-	if (strcmp("dwcolor",name)==0)
-	{
-		if (strlen(UserDrawWinColor)!=0)
-		{
-		 	continue;
-		}
-	}
-	
-	if (strcmp("forecolor",name)==0)
-	{
-		if (strlen(UserWhite)!=0)
-		{
-		 	continue;
-		}
-	}
-	
-	if (strcmp("backcolor",name)==0)
-	{
-		if (strlen(UserBlack)!=0)
-		{
-		 	continue;
-		}
-	}
-	
-	if (strcmp("backimage",name)==0)
-	{
-		if (strlen(UserBGBitmap)!=0)
-		{
-		 	continue;
-		}
-	}
-	
-	if (strcmp("smallfont",name)==0)
-	{
-		if (strlen(small_font_name)!=0)
-		{
-		 	continue;
-		}
-	}
-	
-	if (strcmp("bigfont",name)==0)
-	{
-		if (strlen(big_font_name)!=0)
-		{
-		 	continue;
-		}
-	}
-	*/
 	set_option(name,value,0,mask);
       }
     }
@@ -1159,17 +1020,18 @@ void set_option(s1,s2,force,mask)
    	plintf("BELL option must be 0 or 1.\n");
 	exit(-1);
    }
-   tfBell=atoi(s2);
-   return;
+   return; /* X11's bell: checked, not kept */
  }
  if(msc("BUT",s1)){
     add_user_button(s2);
     return;
   }
+ /* BIGFONT .. HEIGHT and BACK were the X11 window's fonts, colours, image,
+    size and paper: still accepted (old .ode and .xpprc files set them), no
+    longer stored */
  if((msc("BIGFONT",s1))||(msc("BIG",s1))){
     if ((notAlreadySet.BIG_FONT_NAME||force) || ((mask!=NULL)&&(mask->BIG_FONT_NAME==1)))
     {
-    	XPP_STRCPY(big_font_name,s2);
 	notAlreadySet.BIG_FONT_NAME=0;
     }
     return;
@@ -1177,7 +1039,6 @@ void set_option(s1,s2,force,mask)
   if((msc("SMALLFONT",s1))||(msc("SMALL",s1))){;
     if ((notAlreadySet.SMALL_FONT_NAME||force) || ((mask!=NULL)&&(mask->SMALL_FONT_NAME==1)))
     {
-    	XPP_STRCPY(small_font_name,s2);
 	notAlreadySet.SMALL_FONT_NAME=0;
     }
     return;
@@ -1185,7 +1046,6 @@ void set_option(s1,s2,force,mask)
   if(msc("FORECOLOR",s1)){
     if ((notAlreadySet.UserBlack||force) || ((mask!=NULL)&&(mask->UserBlack==1)))
     {
-    	xpp_snprintf(UserBlack,8,"#%s",s2);
 	notAlreadySet.UserBlack=0;
     }
     return;
@@ -1193,7 +1053,6 @@ void set_option(s1,s2,force,mask)
   if(msc("BACKCOLOR",s1)){
     if ((notAlreadySet.UserWhite||force) || ((mask!=NULL)&&(mask->UserWhite==1)))
     {
-    	xpp_snprintf(UserWhite,8,"#%s",s2);
 	notAlreadySet.UserWhite=0;
     }
     return;
@@ -1201,8 +1060,6 @@ void set_option(s1,s2,force,mask)
   if(msc("MWCOLOR",s1)){
     if ((notAlreadySet.UserMainWinColor||force) || ((mask!=NULL)&&(mask->UserMainWinColor==1)))
     {
-      /* printf("Setting MWCOLOR=%s\n",s2); */
-        xpp_snprintf(UserMainWinColor,8,"#%s",s2);
 	notAlreadySet.UserMainWinColor=0;
     }
     return;
@@ -1210,7 +1067,6 @@ void set_option(s1,s2,force,mask)
   if(msc("DWCOLOR",s1)){
     if ((notAlreadySet.UserDrawWinColor||force) || ((mask!=NULL)&&(mask->UserDrawWinColor==1)))
     {
-    	xpp_snprintf(UserDrawWinColor,8,"#%s",s2);
 	notAlreadySet.UserDrawWinColor=0;
     }
     return;
@@ -1223,7 +1079,6 @@ void set_option(s1,s2,force,mask)
    		 plintf("GRADS option must be 0 or 1.\n");
 		 exit(-1);
 	    }
-	    UserGradients=atoi(s2);
 	    notAlreadySet.UserGradients=0;
     }
     return;
@@ -1245,7 +1100,6 @@ void set_option(s1,s2,force,mask)
   if(msc("BACKIMAGE",s1)){
     if ((notAlreadySet.UserBGBitmap||force) || ((mask!=NULL)&&(mask->UserBGBitmap==1)))
     {
-    	XPP_STRCPY(UserBGBitmap,s2);
 	notAlreadySet.UserBGBitmap=0;
     }
     return;
@@ -1253,7 +1107,6 @@ void set_option(s1,s2,force,mask)
   if(msc("WIDTH",s1)){
     if ((notAlreadySet.UserMinWidth||force)|| ((mask!=NULL)&&(mask->UserMinWidth==1)))
     {
-       UserMinWidth=atoi(s2);
        notAlreadySet.UserMinWidth=0;
     }
     return;
@@ -1261,7 +1114,6 @@ void set_option(s1,s2,force,mask)
   if(msc("HEIGHT",s1)){
     if ((notAlreadySet.UserMinHeight||force) || ((mask!=NULL)&&(mask->UserMinHeight==1)))
     {
-         UserMinHeight=atoi(s2);
 	 notAlreadySet.UserMinHeight=0;
     }
     return;
@@ -1348,14 +1200,6 @@ if(msc("UMC",s1)){
  if(msc("BACK",s1)){
    if ((notAlreadySet.PaperWhite||force) || ((mask!=NULL)&&(mask->PaperWhite==1)))
    {
-	   if(s2[0]=='w'||s2[0]=='W')
-	   {
-	   	PaperWhite=1;
-	   }
-	   else 
-	   {  
-	   	PaperWhite=0;
-	   }
 	   notAlreadySet.PaperWhite=0;
    }
     return;

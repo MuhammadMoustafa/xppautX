@@ -722,12 +722,9 @@ void reset_graph(void);
 
 void do_txt_action(char *s)
 {
-  int tb=tfBell;
-  tfBell=1;
  get_graph();
  extract_action(s);
  ping();
- tfBell=tb;
   chk_delay();
   redraw_params();
   redraw_ics();

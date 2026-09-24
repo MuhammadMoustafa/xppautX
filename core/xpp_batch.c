@@ -88,7 +88,6 @@ int argc;
 
 void do_vis_env()
 {
-  set_X_vals();
   check_for_xpprc();
   set_internopts_xpprc_and_comline();
   

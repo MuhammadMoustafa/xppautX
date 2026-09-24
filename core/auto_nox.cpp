@@ -217,7 +217,6 @@ int Auto_index_to_array[8];
 int AutoPar[8];
 
 
-extern int TipsFlag;
 extern unsigned int MyBackColor,MyForeColor,GrFore,GrBack;
 
 
@@ -255,7 +254,7 @@ double HOMO_SHIFT=0.0;
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 
 extern int storind;
-extern int DCURX,DCURXs,DCURY,DCURYs,CURY_OFFs,CURY_OFF;
+extern int DCURX,DCURXs,DCURY,DCURYs;
 
 BIFUR Auto;
 ADVAUTO aauto;

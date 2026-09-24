@@ -198,7 +198,6 @@ typedef struct {
 
 void dump_torus(FILE *fp, int f);
 void load_eqn(void);
-void set_X_vals(void);
 void set_all_vals(void);
 void read_defaults(FILE *fp);
 void fil_flt(FILE *fpt, double *val);

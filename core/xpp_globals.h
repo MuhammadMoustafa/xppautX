@@ -14,11 +14,10 @@ extern "C" {
 #endif
 
 /* run mode */
-extern int Xup, TipsFlag;
+extern int Xup;
 extern int XPPBatch, batch_range, BatchEquil;
 extern char batchout[256];
 extern char UserOUTFILE[256];
-extern int allwinvis;
 extern int use_intern_sets;
 extern int use_ani_file;
 /* AUTO's scratch directory (fort.3/7/8/9, <model>.ode.b/.d/.s). NULL: HOME,
@@ -35,7 +34,6 @@ extern FILE *logfile;
 extern int XPPVERBOSE;
 extern int OVERRIDE_QUIET;
 extern int OVERRIDE_LOGFILE;
-extern int tfBell;
 extern int help_menu;
 extern int ks_ncycle, ks_speed;
 extern CURVE frz[MAXFRZ];
@@ -43,27 +41,16 @@ extern XppWinId draw_win;
 extern int AutoFreezeFlag;
 
 /* appearance options parsed from the ODE file / command line */
-extern char big_font_name[100], small_font_name[100];
 extern char PlotFormat[100];
-extern int PaperWhite;
-extern char UserBlack[8];
-extern char UserWhite[8];
-extern char UserMainWinColor[8];
-extern char UserDrawWinColor[8];
-extern char UserBGBitmap[XPP_MAX_NAME];
-extern int UserGradients;
-extern int UserMinWidth, UserMinHeight;
 extern int PS_Color;
 
 /* sliders */
-extern int SLIDER1, SLIDER2, SLIDER3;
 extern char SLIDER1VAR[XPP_NAME_MAX+1], SLIDER2VAR[XPP_NAME_MAX+1], SLIDER3VAR[XPP_NAME_MAX+1];
 extern double SLIDER1LO, SLIDER2LO, SLIDER3LO;
 extern double SLIDER1HI, SLIDER2HI, SLIDER3HI;
-extern double SLIDER1INIT, SLIDER2INIT, SLIDER3INIT;
 
 /* colour table bookkeeping (the X colormap itself stays in color.c) */
-extern int color_mode, color_min, color_total, COLOR, color_max;
+extern int color_min, color_total, COLOR, color_max;
 
 /* plot windows: the graph array and which one is active */
 extern GRAPH graph[MAXPOP];
@@ -77,10 +64,8 @@ extern int ActiveWinList[MAXPOP];
 extern int animation_on_the_fly;
 
 /* font metrics of the front end (0 when headless) */
-extern int DCURYb, DCURXb, CURY_OFFb;
-extern int DCURYs, DCURXs, CURY_OFFs;
-extern int DCURY, DCURX, CURY_OFF;
-extern int MSStyle;
+extern int DCURYs, DCURXs;
+extern int DCURY, DCURX;
 
 /* AUTO diagram window state read by auto_nox.c */
 extern int AutoRedrawFlag;

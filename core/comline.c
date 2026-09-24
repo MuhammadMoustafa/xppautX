@@ -62,13 +62,10 @@
 
 extern OptionsSet notAlreadySet;
 
-extern char big_font_name[100],small_font_name[100];
 extern FILE *logfile;
 extern int XPPVERBOSE;
 extern int SuppressOut;
 extern int RunImmediately;
-extern int PaperWhite;
-extern int MSStyle;
 extern int got_file;
 
 /*
@@ -86,21 +83,9 @@ char readsetfile[XPP_MAX_NAME];
 int externaloptionsflag=0;
 char externaloptionsstring[1024];
 int NincludedFiles=0;
-extern char UserBlack[8];
-extern char UserWhite[8];
-extern char UserMainWinColor[8];
-extern char UserDrawWinColor[8];
-/*extern char UserBGBitmap[100];*/
-extern char UserBGBitmap[XPP_MAX_NAME];
-
-extern int UserGradients;
-extern int UserMinWidth;
-extern int UserMinHeight;
-extern int UserMinHeight;
 /*extern char UserOUTFILE[256];
 */
 extern char UserOUTFILE[256]; /* xpp_globals.c */
-extern int tfBell;
 extern int use_intern_sets;
 extern int use_ani_file;
 /*extern char anifile[256];
@@ -138,7 +123,6 @@ extern int XPPBatch,MakePlotFlag,BatchEquil;
 extern int xorfix;
 extern int newseeed;
 extern int silent;
-extern int allwinvis;
 extern int ConvertStyle;
 int noicon=1;
 int newseed=0;
@@ -296,11 +280,13 @@ int argc;
      
    }
    if(k==2){
-     if (notAlreadySet.SMALL_FONT_NAME){XPP_STRCPY(small_font_name,argv[i+1]);notAlreadySet.SMALL_FONT_NAME=0;};
+     /* -smallfont: the X11 font, accepted and not kept */
+     if (notAlreadySet.SMALL_FONT_NAME){notAlreadySet.SMALL_FONT_NAME=0;};
      i++;
    }
    if(k==3){
-     if (notAlreadySet.BIG_FONT_NAME){XPP_STRCPY(big_font_name,argv[i+1]);notAlreadySet.BIG_FONT_NAME=0;};
+     /* -bigfont: the X11 font, accepted and not kept */
+     if (notAlreadySet.BIG_FONT_NAME){notAlreadySet.BIG_FONT_NAME=0;};
      i++;
    } 
    if(k==4){
@@ -598,11 +584,8 @@ int parse_it(com)
      plintf("Random number seed changed\n");
       newseed=1;
       break;  
-    case ALLWIN:
-      allwinvis=1;
-      break;
+    case ALLWIN:  /* X11 window options: accepted, nothing to do */
     case MSSTYLE:
-      MSStyle=1;
       break;
     case PWHITE:
       plintf("-white option is no longer part of this version. \n Sorry \n");

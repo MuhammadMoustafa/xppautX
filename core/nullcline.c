@@ -50,7 +50,7 @@ extern int STORFLAG;
 extern double last_ic[MAXODE];
 
 extern double DELTA_T,TEND,TRANS;
-extern int PaperWhite,DCURY;
+
 int XNullColor=2,YNullColor=7;
 extern int NULL_HERE;
 int num_x_n,num_y_n,num_index,

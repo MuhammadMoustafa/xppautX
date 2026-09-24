@@ -384,7 +384,7 @@ void do_file_com(int com)
   switch (com) {
   case M_FT: do_transpose(); break;
   case M_FG: get_intern_set(); break;
-  case M_FI: TipsFlag = 1 - TipsFlag; break;
+  case M_FI: break; /* tips: X11 tool tips, gone with it */
   case M_FP: make_txtview(); break;
   case M_FW: do_lunch(0); break;
   case M_FS: file_inf(); break;
@@ -395,7 +395,7 @@ void do_file_com(int com)
     break;
   case M_FC: q_calc(); break;
   case M_FR: do_lunch(1); break;
-  case M_FB: tfBell = 1 - tfBell; break;
+  case M_FB: break; /* bell: the page has none */
   case M_FH: break;
   case M_FX: edit_xpprc(); break;
   case M_FU: do_tutorial(); break;
@@ -528,7 +528,7 @@ void commander(int ch)
     switch (ch) {
     case 't': do_transpose(); break;
     case 'g': get_intern_set(); break;
-    case 'i': TipsFlag = 1 - TipsFlag; break;
+    case 'i': break;
     case 'p': flash(0); make_txtview(); flash(0); break;
     case 'w': flash(1); do_lunch(0); flash(1); break;
     case 's': flash(2); file_inf(); flash(2); break;
@@ -542,7 +542,7 @@ void commander(int ch)
     case 'c': flash(4); q_calc(); flash(4); break;
     case 'r': flash(5); do_lunch(1); flash(5); break;
     case 'e': flash(6); edit_menu(); flash(6); break;
-    case 'b': tfBell = 1 - tfBell; break;
+    case 'b': break;
     case 'h': xpp_hlp(); break;
     case 'q':
       flash(7);
