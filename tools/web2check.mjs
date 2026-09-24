@@ -2377,7 +2377,11 @@ async function runsCheck(dir) {
    out once; the IC fields do not move during a run, Now does */
 async function valuesLive() {
   await desktopMetrics();
-  check('values: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
+  /* the first run ends the wait: slow on a loaded machine, so the section's
+     long timeout, and nothing below means anything without it */
+  const connected = await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello', 60000);
+  check('values: the page connects', connected);
+  if (!connected) return;
   const ics0 = await S(icsOf), fields0 = await icFields();
   await cdp.eval(`window.__icSeen = []; window.__nowSeen = []; window.__sampling = true;
     (function tick() { const s = __xpp.state();
