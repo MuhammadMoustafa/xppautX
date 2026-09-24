@@ -133,11 +133,11 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   include the owner's header, never redeclare them `extern` in a .c file.
   The options that set the X11 window's fonts, colours and size are still
   accepted and no longer stored. `core/xpp_util.c`,
-  `core/browse_data.c`, `core/colormap.c`, `core/menus.c` hold pure code
+  `core/browse_data.cpp`, `core/colormap.cpp`, `core/menus.c` hold pure code
   moved out of those files.
 - Core structs that hold a window store an `XppWinId` (unsigned long); see
   `core/xpp_types.h`.
-- `core/commands.c` is the command layer (phase 3): `commander` (keys),
+- `core/commands.cpp` is the command layer (phase 3): `commander` (keys),
   `run_the_commands` (`M_*` ids), and every pop-up menu. Menus are
   `XppMenu` data in `core/menus.c`; front ends show them via
   `xpp_ui.menu_choose` and switch the main menu via `xpp_ui.show_menu`.
@@ -243,7 +243,7 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   `core/ani_data.cpp`, to which aniparse.cpp gives every primitive in the
   `.ani`'s unit coordinates;
   `autoinfo`, AUTO's info strip and stability circle,
-  from `core/auto_data.cpp`, which auto_nox.c tells what it draws there;
+  from `core/auto_data.cpp`, which auto_nox.cpp tells what it draws there;
   the AUTO diagram's points, `diagram`, from json_auto.cpp's `j_auto_diagram`).
   Protocol 2 (T18) has no pixel drawing: the classic page's `draw` ops,
   `palette` and `size` went with it. The `XppUi` pixel primitives

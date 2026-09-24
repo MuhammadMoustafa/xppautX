@@ -725,8 +725,7 @@ int parse_it(com)
      xpp_log(XPP_LOG_WARN, "\n");
 
      xpp_log(XPP_LOG_WARN, "Environment variables:\n");
-     xpp_log(XPP_LOG_WARN, "  XPPHELP                Path to XPPAUT documentation file <xpphelp.html>\n");
-     xpp_log(XPP_LOG_WARN, "  XPPBROWSER             Web browser (e.g. /usr/bin/firefox)\n");
+     xpp_log(XPP_LOG_WARN, "  XPPEDITOR              Editor File > .Xpprc opens\n");
      xpp_log(XPP_LOG_WARN, "  XPPSTART               Path to start looking for ODE files\n");
      xpp_log(XPP_LOG_WARN, "\n");
      exit(0);

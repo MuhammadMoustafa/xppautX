@@ -220,12 +220,11 @@ that library built for the machine that runs xppautX; the Windows build
 loads `.dll` files. Everything else in XPPAUT works without any
 compiler.
 
-`Help` and "Edit .xpprc" open a browser or an editor on the machine that
-runs the program, as in X11 (the `XPPHELP`, `XPPBROWSER`, `XPPEDITOR`
-environment variables, [Introduction](01-introduction.md)). If you ever
-run the server on another machine (a remote VS Code session, say), they
-appear there, not in front of you. A proper in-app Help view, searching
-this manual, is planned (docs/roadmap.md W12b) and will replace this.
+File > Help opens this manual in the page's Help view. "Edit .xpprc"
+opens an editor on the machine that runs the program, as in X11 (the
+`XPPEDITOR` environment variable, [Introduction](01-introduction.md)). If
+you ever run the server on another machine (a remote VS Code session,
+say), the editor appears there, not in front of you.
 
 ## The log
 

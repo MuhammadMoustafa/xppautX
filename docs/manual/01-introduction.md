@@ -182,12 +182,10 @@ xppautX still reads a few environment variables, all optional:
 
 | Variable | Purpose |
 |---|---|
-| `XPPHELP` | An HTML help file for the core's `File` `Help` command to open in a browser; the page's own **Help** (this manual, built in) does not need it |
-| `XPPBROWSER` | Browser that opens `XPPHELP` (Linux/macOS only; Windows uses the system default) |
 | `XPPEDITOR` | Editor "Edit your .xpprc preferences file" (menu shortcut `fx`) opens |
 | `XPPSTART` | Folder the file dialogs open to, e.g. a shared course directory |
 
-Set them the usual way for your shell (`export XPPHELP=...` in
+Set them the usual way for your shell (`export XPPSTART=...` in
 `.bashrc`, `setx XPPEDITOR ...` or a Windows Environment Variables
 dialog). Nothing else — no `DISPLAY`, no X resources, no font or window
 colour settings — is needed or read any more.

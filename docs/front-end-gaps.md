@@ -78,6 +78,5 @@ Nothing. Fixes from hands-on use are tracked in docs/ui-v2.md (T19).
   built for the machine that runs the server; the native Windows build
   loads `.dll` files.
 - `.xpprc` editing starts an editor on the machine that runs the server, as
-  X11 does; a remote server cannot show it to the user. (`xpp_hlp`'s own
-  help browser is replaced: web2 has its own in-page Help view instead,
-  docs/roadmap.md W12, docs/ui-v2.md "3. Commands, prompts and components".)
+  X11 does; a remote server cannot show it to the user. (File > Help no
+  longer starts a browser: it opens web2's in-page Help view, W7e.)

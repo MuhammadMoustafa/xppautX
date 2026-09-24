@@ -9,7 +9,7 @@ extern "C" {
 When adding items try to keep to the format of using a strong _verb_ to 
 start the help topic (e.g. "Press" or "Add") and keep it brief.
 */
-#define N_TUTORIAL 12
+#define N_TUTORIAL 11
 
 const char* tutorial[N_TUTORIAL]={"use captital letters on buttons as keyboard shortcuts. Press <n> or <d> now!",
      "use the <Esc> key to close any unwanted menus.",
@@ -19,8 +19,7 @@ const char* tutorial[N_TUTORIAL]={"use captital letters on buttons as keyboard s
      "add buttons for your favorite shortcuts in your .xpprc (e.g. @ BUT=Fit:wf)",
      "get continuous updating using the left mouse button on a Par/Var slider.",
      "use the mouse, arrows, <PgUp>, <PgDn> etc keys to quickly move around in AUTO.",
-     "link to the HTML manual by setting the environment variable XPPHELP on your computer.",
-     "view documentation using your favorite web browser by setting the environment variable XPPBROWSER on your computer.",
+     "open the manual with File > Help (shortcut='fh').",
      "edit files using your favorite text editor by setting the environment variable XPPEDITOR on your computer.",
      "have XPP open to a default starting directory by setting the environment variable XPPSTART on your computer."};
 
