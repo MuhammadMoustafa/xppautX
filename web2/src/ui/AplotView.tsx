@@ -1,7 +1,7 @@
 /* The array plot (docs/ui-v2.md T12, docs/protocol.md `aplot`): XPP's grid
    of cells over a range of stored columns and rows, each cell coloured by
    its value between the core's zmin and zmax. The core also sends `cells`
-   (its own colour indices, FIRSTCOLOR..+ncolors) for the classic page; this
+   (its own colour indices, FIRSTCOLOR..+ncolors, what its GIF writer paints); this
    view draws from `values` instead, so it can offer its own colour map
    (session.setAplotColorMap) without asking the core again -- store/aplot.ts
    is the truth for both, `plot/aplotColors.ts` the pure colour maths. A

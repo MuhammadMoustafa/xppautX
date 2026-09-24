@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Checks of the protocol front end's behaviour under load: how AUTO's drawing
-travels, how input is read, and how quickly a long computation stops.
+"""Checks of the protocol front end's behaviour under load: how AUTO's diagram
+travels as data, how input is read, and how quickly a long computation stops.
 
 usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [SECTION...]
 
-Sections: draw, input, abort, control, files, sessions, session, script,
+Sections: diagram, input, abort, control, files, sessions, session, script,
 replay, names (default: all; tools/verify.sh runs them all). files compares AUTO's
 saved diagram of lecar with a reference; sessions checks that concurrent servers
 keep their AUTO files apart; session is the "cmd":"session" save/load of
@@ -21,19 +21,18 @@ measurements without failing on the latency limits, for comparing builds.
 """
 import argparse, json, os, shutil, subprocess, sys, tempfile, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import Server, is_idle, is_ask, is_state, draws, draw_ops, last_picture
+from xppclient import Server, is_idle, is_ask, is_state
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
 ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
-ap.add_argument('sections', nargs='*', default=['draw', 'input', 'abort', 'control', 'files', 'sessions', 'session',
+ap.add_argument('sections', nargs='*', default=['diagram', 'input', 'abort', 'control', 'files', 'sessions', 'session',
                                                 'script', 'replay', 'names'])
 args = ap.parse_args()
 here = os.path.dirname(os.path.abspath(__file__))
 LECAR = 'examples/ode/lecar.ode'
 HEAVY = os.path.join(here, 'models', 'heavy.ode')
-PICTURES = os.path.join(here, 'models', 'lecar_auto_pictures.json')
 DIAGRAM = os.path.join(here, 'models', 'lecar_diagram.auto')
 SCRIPT = 'examples/scripts/lecar_auto.jsonl'
 failures = 0
@@ -102,45 +101,14 @@ class Diagram:
                                          'new': i == 0 and r.get('new', 0)})
         return self
 
-    def visible(self, a, b):
-        """whether auto_line draws some of the segment a-b (clipped to the axes)"""
-        ax, ay, bx, by = a['x'], a['y'], b['x'], b['y']
-        t0, t1 = 0.0, 1.0
-        for p, q in ((ax - bx, ax - self.axes['xmin']), (bx - ax, self.axes['xmax'] - ax),
-                     (ay - by, ay - self.axes['ymin']), (by - ay, self.axes['ymax'] - ay)):
-            if p == 0:
-                if q < 0:
-                    return False
-            elif p < 0:
-                t0 = max(t0, q / p)
-            else:
-                t1 = min(t1, q / p)
-        return t0 <= t1
-
-    def inside(self, x, y):
-        """chk_auto_bnds"""
-        i, j = self.pixel(x, y)
-        a = self.axes
-        return a['x0'] <= i < a['x0'] + a['wid'] and a['y0'] <= j < a['y0'] + a['hgt']
-
-    def pixel(self, x, y):
-        """auto_nox.c IXVal, IYVal"""
-        a = self.axes
-        return (int(a['wid'] * (x - a['xmin']) / (a['xmax'] - a['xmin'])) + a['x0'],
-                a['hgt'] - int(a['hgt'] * (y - a['ymin']) / (a['ymax'] - a['ymin'])) + a['y0'])
+def infos(evs):
+    """the autoinfo events (docs/protocol.md "The AUTO diagram as data")"""
+    return [e for e in evs if e.get('ev') == 'autoinfo']
 
 
-def segments_by_color(ops):
-    """the line segments of window 101's ops by colour, and their ends"""
-    n, ends, col = {}, set(), 0
-    for o in ops:
-        if o[0] == 'color':
-            col = o[1]
-        elif o[0] in ('poly', 'line'):
-            v = list(zip(o[1::2], o[2::2]))
-            n[col] = n.get(col, 0) + len(v) - 1
-            ends.update(v)
-    return n, ends
+def is_point(e):
+    """a diagram event with new points: AUTO computed some"""
+    return e.get('ev') == 'diagram' and e.get('op') == 'add'
 
 
 def diagram_ops(evs):
@@ -152,99 +120,78 @@ def same_axes(axes, st, keys=('xmin', 'xmax', 'ymin', 'ymax', 'x0', 'y0', 'wid',
     return all(abs(axes[k] - st[k]) <= 1e-5 * max(1, abs(st[k])) for k in keys)
 
 
-def ops_by_kind(ops):
-    n = {}
-    for o in ops:
-        n[o[0]] = n.get(o[0], 0) + 1
-    return n
+# ---- diagram: AUTO's diagram and info strip arrive as data, in few events ----
 
-
-# ---- draw: AUTO's drawing arrives in a few events, polylines join ----------
-
-def section_draw():
+def section_diagram():
     s = Server(args.server, LECAR, verbose=args.v)
     s.collect(is_idle)
+    s.send(cmd='data', events=['autoinfo'])
+    s.collect(is_idle)
     open_auto(s)
-    s.send(cmd='size', win=101, w=500, h=300)
+    s.send(cmd='auto', op='redraw')
     evs, _ = s.collect(is_idle)
     dg = Diagram().apply(evs)
     evs = run_menu(s, 's')
-    pts = sum(1 for o in draw_ops(evs, 101) if o[0] in ('line', 'poly'))
-    got = {'run': {w: last_picture(evs, w) for w in (102, 103)}}
 
-    # the diagram's data (docs/protocol.md "diagram") is what was drawn: a
-    # segment back to the point before for every line point, in the colour
-    # of its stability, and a cross of two segments at a label's y and y2,
-    # all where the axes show them
+    # the diagram's data (docs/protocol.md "diagram"): the steady branch,
+    # its points numbered in order, finite, its labels marked
     dg.apply(evs)
-    lines, branches = {}, {}
-    for k, p in enumerate(dg.pts):
-        branches[p['br']] = branches.get(p['br'], 0) + 1
-        if p['d'] == 1 and dg.visible(p, p if p['new'] or k == 0 else dg.pts[k - 1]):
-            lines[p['c']] = lines.get(p['c'], 0) + 1
-        if p['lab']:
-            lines[0] = lines.get(0, 0) + 2 * (dg.inside(p['x'], p['y']) + dg.inside(p['x'], p['y2']))
-    drawn, ends = segments_by_color(draw_ops(evs, 101))
-    print('INFO steady run: points by branch %s, data %d B, drawing %d B' % (
-        branches, sum(len(json.dumps(e)) for e in evs if e.get('ev') == 'diagram'),
-        sum(len(json.dumps(e)) for e in draws(evs, 101))))
-    check('the diagram data of a steady run has every point drawn (segments by colour)',
-          len(dg.pts) > 20 and lines == drawn, 'data %s drawing %s' % (lines, drawn))
-    off = [p for p in dg.pts if p['d'] == 1 and dg.inside(p['x'], p['y']) and not any(
-        abs(dg.pixel(p['x'], p['y'])[0] - x) <= 1 and abs(dg.pixel(p['x'], p['y'])[1] - y) <= 1 for x, y in ends)]
-    check('and every point is where the drawing has it', not off, str(off[:3]))
+    adds = [e for e in evs if is_point(e)]
+    runs = [r for e in adds for r in e['runs']]
+    print('INFO steady run: %d points, %d add events, %d runs, data %d B' % (
+        len(dg.pts), len(adds), len(runs), sum(len(json.dumps(e)) for e in evs if e.get('ev') == 'diagram')))
+    br = [p for p in dg.pts if abs(p['br']) == 1]
+    check('the diagram data of a steady run: one branch, its points in order, finite',
+          len(dg.pts) > 20 and len(br) == len(dg.pts)
+          and all(b['pt'] == a['pt'] + 1 for a, b in zip(br, br[1:]) if not b['new'])
+          and all(abs(p['x']) < 1e30 and abs(p['y']) < 1e30 for p in dg.pts),
+          '%d points, %d on branch 1' % (len(dg.pts), len(br)))
+    check('and its labels are marked', any(p['lab'] for p in dg.pts))
+    check('a steady run arrives in a few diagram events, runs of points joined', len(adds) <= 10
+          and max((len(r['x']) for r in runs), default=0) >= 10,
+          '%d events, longest run %d' % (len(adds), max((len(r['x']) for r in runs), default=0)))
     st = [e for e in evs if is_state(e)][-1]['auto']
     check('the diagram axes are the AUTO ranges', same_axes(dg.axes, st), 'axes %s state %s' % (dg.axes, st))
+    got = infos(evs)
+    check('the run ends with its last point\'s stability circle (autoinfo)',
+          bool(got) and got[-1]['stab'] is not None and got[-1]['info'] is None, str(got[-1:]))
 
     s.send(cmd='auto', op='redraw')
     evs, _ = s.collect(is_idle)
-    n101 = len(draws(evs, 101))
-    ops = draw_ops(evs, 101)
-    polys = [o for o in ops if o[0] == 'poly']
-    longest = max(((len(o) - 1) // 2 for o in polys), default=0)
-    print('INFO reDraw: %d draw events (101: %d, 102: %d), 101 ops %s, longest poly %d points'
-          % (len([e for e in evs if e.get('ev') == 'draw']), n101, len(draws(evs, 102)), ops_by_kind(ops), longest))
-    check('a reDraw arrives in a few draw events', len([e for e in evs if e.get('ev') == 'draw']) <= 10,
-          '%d events' % len([e for e in evs if e.get('ev') == 'draw']))
+    print('INFO reDraw: %d events %s' % (len(evs), sorted({e.get('ev') for e in evs})))
+    check('a reDraw arrives in a few events', len(evs) <= 10, '%d events' % len(evs))
     check('a reDraw of the same diagram sends its axes, not its points again', diagram_ops(evs) == ['axes'],
           str(diagram_ops(evs)))
-    check('a reDraw joins the branch into polylines', longest >= 10, 'longest poly %d points' % longest)
 
     s.send(cmd='auto', op='grab')
     evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='ArrowRight')
     evs, ask = s.collect(is_ask)
-    got['grab'] = {w: last_picture(evs, w) for w in (102, 103)}
-    check('a grab step shows the circle and the point at once',
-          got['grab'][102][:1] == [['clear']] and got['grab'][103][:1] == [['clear']],
-          str(got['grab'])[:200])
-    check('a grab step does not clear the diagram', ['clear'] not in draw_ops(evs, 101), str(draw_ops(evs, 101))[:200])
+    got = infos(evs)
+    check('a grab step shows the circle and the point at once (autoinfo before the next ask)',
+          len(got) == 1 and got[0]['info'] is not None and got[0]['info']['point'] == 1
+          and got[0]['stab'] is not None, str(got)[:200])
+    check('a grab step does not clear the diagram', not diagram_ops(evs), str(diagram_ops(evs)))
 
     # Enter (FINE) used to redraw_diagram() the whole thing just to be rid of
     # the XOR cursor (auto_grab_end, core/auto_nox.c traverse_diagram): the
-    # browser now hides a cursor overlay instead, so taking a point should be
-    # as cheap as any other grab step, not a full repaint.
+    # page keeps the cursor itself, so taking a point should be as cheap as
+    # any other grab step, not a full repaint.
     s.send(cmd='answer', id=ask['id'], key='Return')
     take_evs, _ = s.collect(is_idle)
-    n_draw = len(draws(take_evs, 101))
     check('taking a grab point (Enter) does not clear the diagram',
-          ['clear'] not in draw_ops(take_evs, 101), str(draw_ops(take_evs, 101))[:200])
-    check('taking a grab point (Enter) redraws in a few events', n_draw < 10, '%d draw events' % n_draw)
+          'reset' not in diagram_ops(take_evs) and 'add' not in diagram_ops(take_evs), str(diagram_ops(take_evs)))
+    check('taking a grab point (Enter) ends in a few events', len(take_evs) < 10, '%d events' % len(take_evs))
 
-    # Esc used to leave the XOR cursor on screen in the browser (it erases
-    # nothing on the way out, relying on X11's later full redraw to clean up
-    # a cursor that was drawn into the diagram - the browser's overlay has no
-    # such redraw to rely on, so auto_grab_end must hide it itself).
+    # Esc ends a grab without taking anything
     s.send(cmd='auto', op='grab')
     evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='ArrowRight')
     esc_evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='Escape')
-    more, _ = s.collect(is_idle)
-    esc_evs = esc_evs + more
-    cursor_ops = [o for o in draw_ops(esc_evs, 101) if o[0] == 'cursor']
-    check('Esc from a grab leaves the cursor hidden',
-          bool(cursor_ops) and cursor_ops[-1] == ['cursor'], str(cursor_ops))
+    more, end = s.collect(is_idle)
+    check('Esc from a grab ends it, the diagram untouched',
+          end is not None and not diagram_ops(more) and not any(is_ask(e) for e in more), str(more)[:200])
 
     # Axes/hI-lo plots another quantity: it clears the diagram (a reset that
     # keeps nothing), and its reDraw sends every point again; a Fit after
@@ -268,19 +215,6 @@ def section_draw():
     check('Axes/Fit sends the fitted axes only', diagram_ops(evs) == ['axes'] and same_axes(dg.axes, st),
           '%s axes %s state %s' % (diagram_ops(evs), dg.axes, st))
     s.close()
-
-    got = json.loads(json.dumps(got))  # window keys as strings, like the file
-    if not os.path.exists(PICTURES):
-        with open(PICTURES, 'w') as f:
-            json.dump(got, f, indent=0)
-        print('INFO wrote %s (the reference pictures of windows 102 and 103)' % PICTURES)
-        return
-    with open(PICTURES) as f:
-        want = json.load(f)
-    for phase in ('run', 'grab'):
-        for w in ('102', '103'):
-            check('the %s ends with the same picture in window %s' % (phase, w), got[phase][w] == want[phase][w],
-                  'got %s want %s' % (str(got[phase][w])[:120], str(want[phase][w])[:120]))
 
 
 # ---- input: end of input, pipelined commands, no polling -------------------
@@ -329,7 +263,9 @@ def cpu_seconds(pid):
 
 def periodic_run(s):
     """from the Hopf point of heavy.ode, start a periodic run; returns once
-    two points have been drawn, with the time between them"""
+    two points have been computed (diagram data), with the time between them"""
+    s.collect(is_idle)
+    s.send(cmd='data', events=['autoinfo'])
     s.collect(is_idle)
     open_auto(s)
     run_menu(s, 's')
@@ -339,9 +275,8 @@ def periodic_run(s):
     s.send(cmd='answer', id=ask['id'], key='p')
     stamps = []
     while len(stamps) < 2:
-        evs, e = s.collect(lambda e: (e.get('ev') == 'draw' and e.get('win') == 102) or is_idle(e) or is_ask(e),
-                           timeout=60)
-        if e is None or e.get('ev') != 'draw':
+        evs, e = s.collect(lambda e: is_point(e) or is_idle(e) or is_ask(e), timeout=60)
+        if e is None or not is_point(e):
             return None
         stamps.append(e['_t'])
     return stamps[1] - stamps[0]
@@ -359,7 +294,7 @@ def run_periodic(s):
 def section_abort():
     s = Server(args.server, HEAVY, verbose=args.v)
     gap = periodic_run(s)
-    check('the heavy periodic run is drawing points', gap is not None)
+    check('the heavy periodic run is computing points', gap is not None)
     if gap is None:
         s.close()
         return
@@ -378,10 +313,10 @@ def section_abort():
     evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='End')
     evs, ask = s.collect(is_ask)
-    info = [o[3] for o in draw_ops(evs, 103) if o[0] == 'rtext']
-    last = info[-1] if info else '?'
-    print('INFO last point after abort: %s' % last)
-    check('an aborted run ends on an EP point', last.split()[2:3] == ['EP'], last)
+    got = [e['info'] for e in infos(evs) if e['info']]
+    last = got[-1] if got else {}
+    print('INFO last point after abort: %s' % json.dumps(last)[:200])
+    check('an aborted run ends on an EP point', last.get('sym') == 'EP', str(last)[:200])
     s.send(cmd='answer', id=ask['id'], key='Return')
     s.collect(is_idle)
     check('the server is still alive after an abort', s.alive())
@@ -390,19 +325,18 @@ def section_abort():
     run_periodic(s)
     n = 0
     while n < 2:
-        evs, e = s.collect(lambda e: (e.get('ev') == 'draw' and e.get('win') == 102) or is_idle(e) or is_ask(e),
-                           timeout=60)
-        if e is None or e.get('ev') != 'draw':
+        evs, e = s.collect(lambda e: is_point(e) or is_idle(e) or is_ask(e), timeout=60)
+        if e is None or not is_point(e):
             break
         n += 1
-    check('a run from the end point of the aborted run draws new points', n == 2, '%d points' % n)
+    check('a run from the end point of the aborted run computes new points', n == 2, '%d points' % n)
     s.send(cmd='abort')
     s.collect(is_idle, timeout=120)
     check('the server is still alive after the second run', s.alive())
 
     # Close during a run: the AUTO window goes within a second
     run_periodic(s)
-    s.collect(lambda e: e.get('ev') == 'draw' and e.get('win') == 102, timeout=60)
+    s.collect(is_point, timeout=60)
     t = s.send(cmd='abort')
     s.send(cmd='auto', op='close')
     evs, e = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 101 and e.get('op') == 'destroy',
@@ -416,7 +350,7 @@ def section_abort():
     # Quit during a run: the process ends within a second
     open_auto(s)
     run_periodic(s)
-    s.collect(lambda e: e.get('ev') == 'draw' and e.get('win') == 102, timeout=60)
+    s.collect(is_point, timeout=60)
     t = s.send(cmd='quit')
     try:
         s.proc.wait(timeout=60)
@@ -567,7 +501,7 @@ def section_session():
           bool(pars1) and pars1 == pars2, 'saved %s loaded %s' % (pars1, pars2))
     check('session load opens the AUTO window',
           any(x.get('ev') == 'window' and x.get('win') == 101 for x in evs))
-    check('session load draws the diagram', bool(draw_ops(evs, 101)))
+    check('session load sends the diagram', any(is_point(e) for e in evs))
 
     # grab the first label and Run extending the branch, as section_sessions
     # does for a session's own orbit: new points, and no NaN
@@ -579,8 +513,8 @@ def section_session():
     s2.collect(is_idle)
     evs = run_menu(s2, 'e', timeout=60)
     msgs = ' '.join(str(e.get('text', '')) for e in evs if e.get('ev') == 'message')
-    check('extending the loaded branch draws new points',
-          any(e.get('ev') == 'draw' for e in evs) and s2.alive(), str(evs)[:200])
+    check('extending the loaded branch computes new points',
+          any(is_point(e) for e in evs) and s2.alive(), str(evs)[:200])
     check('extending the loaded branch draws no NaN message', 'nan' not in msgs.lower(), msgs[:200])
     s2.close()
     shutil.rmtree(home2, ignore_errors=True)

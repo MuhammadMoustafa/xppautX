@@ -78,13 +78,12 @@ check('refuses events without the token', get('/events?t=wrong')[0] == 403)
 check('refuses commands without the token', post({'cmd': 'state'}, 'wrong') == 403)
 
 events = queue.Queue()
-nodraw = queue.Queue()  # a page that draws from data (web2) asks for no drawing ops
 
 
-def stream(q, extra=''):
+def stream(q):
     try:
         c = http.client.HTTPConnection('127.0.0.1', port, timeout=60)
-        c.request('GET', '/events?t=' + token + extra)
+        c.request('GET', '/events?t=' + token)
         r = c.getresponse()
         for raw in r:
             line = raw.decode('utf-8').strip()
@@ -95,7 +94,6 @@ def stream(q, extra=''):
 
 
 threading.Thread(target=stream, args=(events,), daemon=True).start()
-threading.Thread(target=stream, args=(nodraw, '&draw=0'), daemon=True).start()
 
 
 def collect(until, timeout=15):
@@ -112,8 +110,10 @@ def collect(until, timeout=15):
 
 evs, _ = collect(lambda e: e['ev'] == 'idle')
 kinds = [e['ev'] for e in evs]
-check('a new page gets hello, palette, window and state', all(k in kinds for k in ('hello', 'palette', 'window', 'state')),
+check('a new page gets hello, window and state', all(k in kinds for k in ('hello', 'window', 'state')),
       str(kinds[:8]))
+check('and no drawing ops or palette (protocol 2)', not any(k in ('draw', 'palette') for k in kinds), str(kinds[:8]))
+check('hello says protocol 2', any(e['ev'] == 'hello' and e.get('protocol') == 2 for e in evs))
 check('what xppaut printed reaches the page', any(e['ev'] == 'log' for e in evs))
 post({'cmd': 'key', 'key': 'i'})
 _, ask = collect(lambda e: e['ev'] == 'ask')
@@ -123,18 +123,7 @@ if ask:
     evs, _ = collect(lambda e: e['ev'] == 'idle', 30)
     st = [e for e in evs if e['ev'] == 'state']
     check('integrating from the page', st and st[-1]['rows'] == 601, str(st[-1:])[:120])
-    check('the page gets the drawing', any(e['ev'] == 'draw' for e in evs))
-    got = []
-    while True:
-        try:
-            got.append(nodraw.get(timeout=15))
-        except queue.Empty:
-            break
-        if got[-1]['ev'] == 'state' and got[-1].get('rows') == 601:
-            break
-    check('a stream opened with draw=0 gets the events but no drawing',
-          any(e['ev'] == 'hello' for e in got) and any(e['ev'] == 'state' and e.get('rows') == 601 for e in got)
-          and not any(e['ev'] == 'draw' for e in got), str(sorted(set(e['ev'] for e in got))))
+    check('the stream carries no drawing ops', not any(e['ev'] == 'draw' for e in evs))
 
 # ---- the model's folder over HTTP (docs/protocol.md "Files", docs/ui-v2.md T5)
 

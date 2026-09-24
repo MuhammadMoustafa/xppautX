@@ -288,7 +288,7 @@ export interface EquilibriumEvent {
 
 /** the array plot (docs/ui-v2.md T12, docs/protocol.md `aplot`, window 105):
     `ny` rows of `nx` cells, row-major like `cells` (the core's own colour
-    indices, kept for the classic page). `values` is the same cells' stored
+    indices, what its GIF writer paints). `values` is the same cells' stored
     numbers before that mapping (float32, null/NaN off the stored rows or
     columns), so this view can pick its own colour scale from them and
     zmin/zmax; `enc` "f32" (the client's last `data` `enc`) sends it as
@@ -355,7 +355,7 @@ export interface AniFrameEvent {
   skip: number;
   /** the dimension box: xlo, ylo, xhi, yhi */
   dim: [number, number, number, number];
-  /** the classic window's size in pixels (what widths and dots are relative to) */
+  /** the animation window's size in pixels (what widths and dots are relative to) */
   w: number;
   h: number;
   /** numbers are null where the .ani evaluated to NaN */
@@ -404,8 +404,8 @@ export type XppEvent =
   | {ev: 'log'; text: string}
   | {ev: 'exit'; code: number}
   | {ev: 'bye'}
-  /* every other event: drawing ops, AUTO, ... (not used by this UI yet) */
-  | {ev: 'draw' | 'palette' | 'diagram' | 'ping'; [k: string]: unknown}
+  /* every other event (diagram: store/diagram.ts reads it by its op) */
+  | {ev: 'diagram' | 'ping'; [k: string]: unknown}
   /* AUTO's info strip and stability circle (store/diagram.ts AutoInfoEvent) */
   | {ev: 'autoinfo'; [k: string]: unknown};
 

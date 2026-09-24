@@ -1,5 +1,5 @@
 /* The top bar: the menu drawer's button (narrow screens), the model, the
-   most used command, the theme, and the way back to the classic interface. */
+   most used command, the theme, and the panels' toggles. */
 import type {Theme} from '../store/state';
 import {useSession, useStore} from './context';
 import {saveTheme} from './theme';
@@ -49,7 +49,6 @@ export function TitleBar() {
       <button class="ani-toggle" aria-controls="ani-panel" aria-expanded={aniOpen}
         onClick={() => (aniOpen ? session.closeAni() : session.openAni())}
         title="The animation (Viewaxes/Toon): play, step and seek its frames">Animation</button>
-      <a class="button classic" href={`/${location.search}`} title="The classic interface, with every window">Classic</a>
     </header>
   );
 }

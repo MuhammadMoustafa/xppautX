@@ -23,24 +23,6 @@ def is_state(e):
     return e.get('ev') == 'state'
 
 
-def draws(evs, win):
-    """the draw events for window win"""
-    return [e for e in evs if e.get('ev') == 'draw' and e.get('win') == win]
-
-
-def draw_ops(evs, win=1):
-    return [o for e in draws(evs, win) for o in e['ops']]
-
-
-def last_picture(evs, win):
-    """the ops drawn in win since its last clear: what the window shows"""
-    ops = draw_ops(evs, win)
-    for i in range(len(ops) - 1, -1, -1):
-        if ops[i][0] == 'clear':
-            return ops[i:]
-    return ops
-
-
 class Server:
     def __init__(self, binary, ode, env=None, verbose=False, stdin=subprocess.PIPE):
         self.verbose = verbose

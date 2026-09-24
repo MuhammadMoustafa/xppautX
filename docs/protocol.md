@@ -4,24 +4,25 @@
 does and then talks line-delimited JSON: one object per line, UTF-8, on
 stdin (commands, `"cmd"`) and stdout (events, `"ev"`). stderr carries the
 core's own log output. The implementation is `core/ui_json.cpp`;
-`tools/servercheck.py` is a working client, `web/xpp-client.js` a full one.
+`tools/servercheck.py` is a working client, the browser page (`web2/`,
+served by `xppautX` itself) a full one. This is protocol 2: see "Removed in
+protocol 2" at the end for what protocol 1 had besides.
 
 The core is single-threaded. A command runs to completion, then the server
 sends `state` and `idle`. While a command runs the server can stop and
 **ask** the client something (a menu, a prompt, a mouse click); it waits for
-the matching `answer` and ignores other commands except `size`, `state`,
+the matching `answer` and ignores other commands except `state`,
 `browser` with `from`, and `quit`. See "Commands during a command" for what
 reaches a running computation.
 
 ## Startup
 
-1. `hello`: protocol version, window title, font cell size, the three main
-   menus (`main`, `file`, `num` with `_keys` and `_hints`).
-2. `palette`: 256 colours; drawing ops refer to these indices.
-3. `window` `create` for window 1, the main plot.
-4. `state`, then the first drawing, then `idle`.
+1. `hello`: protocol version (2), window title, the three main menus
+   (`main`, `file`, `num` with `_keys` and `_hints`).
+2. `window` `create` for window 1, the main plot.
+3. `state`, then `idle`.
 
-Send `size` for window 1 as soon as the canvas size is known.
+A client that draws sends `data` next (see "The plot as data").
 
 ## Commands (client to server)
 
@@ -29,7 +30,6 @@ Send `size` for window 1 as soon as the canvas size is known.
 |---|---|---|
 | `key` | `key` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. |
 | `answer` | `id`, `ok` (0/1), plus the kind's fields | Reply to an `ask`. Omitting `ok` means ok. Omitting `id` answers whichever `ask` is currently pending (see "Scripts": a script cannot know the id an `ask` is handed at run time, and this equally lets a plain client skip tracking it). |
-| `size` | `win`, `w`, `h` | Canvas size in pixels; the plot is redrawn. For the AUTO diagram (`win` 101) the size includes the axis margins and applies when the current command ends; the server answers with `window` `create` for 101 and redraws the diagram. |
 | `set` | `kind` (`par`, `ic`, `bc`, `delay`), `name` or `index`, `value` or `text` | Change a value (no redraw or rerun). `name` is matched without regard to case, in full: names go up to 64 characters (`XPP_NAME_MAX`) and every event carries them unshortened. `text` is what the X11 box takes: a number or `%formula` for `par` and `ic`, an expression for `bc` and `delay`. BCs and delays go by `index` (BC names all read `0=`). A formula that does not evaluate gives `message` `error`. Several values in one command: `values` [{`kind`, `name` or `index`, `value` or `text`}...]. `rerun` 1: then clear and integrate again as `slide` does, once, and only when every value was set (the values panel's "run on change", Load). `kind` `ic` with `from` `last` and nothing else: every initial condition from where the last run ended (`state.now`, what Initialconds/Last starts from), without a run; `message` `error` "No prior solution" before any run. |
 | `default` | `kind` (`par` or `ic`), `rerun` (default 0) | The Default button: values from the ODE file (`hello.defaults`); `rerun` 1 integrates again afterwards, as `set` does. |
 | `slide` | `name`, `value`, `rerun` (default 1) | A parameter slider moved: set the parameter or variable, then clear and integrate again. |
@@ -50,7 +50,7 @@ Send `size` for window 1 as soon as the canvas size is known.
 | `aplot` | `op`: `redraw`, `edit`, `print`, `fit`, `range`, `gif`, `close`, `scroll` (`dy` pixels) | The array plot window buttons; dragging the plot scrolls through time. |
 | `rotate` | `what` (`down`, `move`, `up`), `x`, `y` | Dragging a 3D plot turns it (the active window, when `state.view.three`). |
 | `view3d` | `win`, `theta`, `phi` | Sets window `win`'s 3D angles (degrees) directly and redraws (docs/ui-v2.md T14): a client that projects the box itself (web2, dragging or arrow keys) reports where it settled, so the core's own state (`plots`, `state.view.theta/phi`) and a PostScript/SVG export all agree; simpler than replaying `rotate`'s pixel deltas outside the drag the core tracks. Refused (`message` `error`) and nothing changed when `win` names no open window, it is not a 3D plot, or `theta`/`phi` is not finite. |
-| `ani` | `op`: `go`, `pause`, `fast`, `slow`, `speed` (`ms`), `step` (`n`), `seek` (`pos`), `reset`, `skip`, `file`, `mpeg`, `grab`, `mouse` (`what` down/move/up, `x`, `y` or `u`, `v`), `fly`, `close` | The animation window buttons. `go` plays until the last frame; `pause`, `fast`, `slow` and `speed` sent while it plays reach its loop. `speed` sets the delay between two frames of `go` to `ms` (0..1000; `fast` and `slow` change it by 2 within 0..100). `step` moves `n` rows from the core's position (`ani` `pos`), `seek` goes to row `pos`. `file` loads an `.ani` file (a `file` ask) and, when there is data, shows its first frame. `mpeg` asks for frame saving (PPM files or `anim.gif`), done with `pixels` asks while playing. `mouse` drags a grab point after `grab`, at pixel `x`, `y`, or at `u`, `v` in the animation's unit coordinates (those of the `ani` `frame` event, y up). `size` for win 104 resizes the picture when the command ends. |
+| `ani` | `op`: `go`, `pause`, `fast`, `slow`, `speed` (`ms`), `step` (`n`), `seek` (`pos`), `reset`, `skip`, `file`, `mpeg`, `grab`, `mouse` (`what` down/move/up, `x`, `y` or `u`, `v`), `fly`, `close` | The animation window buttons. `go` plays until the last frame; `pause`, `fast`, `slow` and `speed` sent while it plays reach its loop. `speed` sets the delay between two frames of `go` to `ms` (0..1000; `fast` and `slow` change it by 2 within 0..100). `step` moves `n` rows from the core's position (`ani` `pos`), `seek` goes to row `pos`. `file` loads an `.ani` file (a `file` ask) and, when there is data, shows its first frame. `mpeg` asks for frame saving (PPM files or `anim.gif`), done with `pixels` asks while playing. `mouse` drags a grab point after `grab`, at pixel `x`, `y`, or at `u`, `v` in the animation's unit coordinates (those of the `ani` `frame` event, y up). |
 | `abort` | `at` (scripts only) | Stop the running command's computation, at once (see below). No reply of its own: the stopped command ends with `stopped`, `state` and `idle`; outside a command it does nothing. `at` is where a recorded session stopped (the `stopped` event's `at`); only a script's player reads it (see "Scripts"), anywhere else it is an ordinary `abort`. |
 | `file` | `op` (`list`, `get`, `put`), `name`, `data` | The model's folder (the working directory) for a client that cannot reach it: `put` writes `data` (base64, at most 64 MB decoded) as `name`, `get` reads `name` back, `list` lists the folder. Answered with a `file` event, then `state` and `idle`. Names are base names only (see "Files" below). |
 | `quit` | | Exit, at once even during a computation. |
@@ -69,10 +69,10 @@ in the input.
   command sent after the `abort` runs normally. An answer to a prompt sent
   after an `abort` counts as the user's last word: the rest of that command
   is not cancelled. `quit` then exits.
-- While a job runs, `key`, `set`, `size`, `state`, `browser` with `from`, and
+- While a job runs, `key`, `set`, `state`, `browser` with `from`, and
   `ani` `pause`/`fast`/`slow`/`speed` are *control* lines: the computation acts on
   them as they come (Escape stops it, a `set` changes a parameter under it,
-  `size` and `state` are answered at once). Other keys are consumed, as the
+  `state` is answered at once). Other keys are consumed, as the
   X11 program does. A control line the job does not get to runs after it
   as an ordinary command.
 - Every other command sent during a job is queued and runs, in order, after
@@ -174,14 +174,12 @@ Run it with:
 
 | ev | fields | meaning |
 |---|---|---|
-| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`), `title`, `file`, `char` {`w`,`h`,`bw`,`bh`}, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. Text is laid out on a `char.w` x `char.h` monospace cell. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
-| `palette` | `colors` (256 `#rrggbb`) | Colour table; sent again after a colormap change. |
-| `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows 1..10, AUTO 101 (stability circle 102, info strip 103), animation 104. |
-| `draw` | `win`, `ops` | Drawing, see below. |
-| `diagram` | `op` (`axes`, `reset`, `add`), ... | The AUTO diagram as data, beside its drawing; see "The AUTO diagram as data". |
+| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`), `title`, `file`, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
+| `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows 1..10, AUTO 101, animation 104. `w`, `h` are the core's pixel size of the window: what the pixel fields of `state.view`, `state.auto` and pixel answers to asks refer to. |
+| `diagram` | `op` (`axes`, `reset`, `add`), ... | The AUTO diagram as data; see "The AUTO diagram as data". |
 | `autoinfo` | `info`, `stab` | AUTO's info strip and stability circle as data, for a client that asked (`data`); see "The AUTO diagram as data". |
 | `series` | `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`; or `op` `append`, `win`, `from`, `rows`, `enc`, `columns` | A plot window's curves as numbers, one event per window, for a client that asked (`data`), and during an integration the active window's rows as they are stored; see "The plot as data". |
-| `erase` | `win` | The Erase command blanked plot window `win`, for a client that asked for `series`: it shows nothing of that window's curves (nor the earlier runs it may keep) until the window's next series or `redraw`. Only Erase sends it: a slider's rerun, a resize or a zoom also blank the window for the drawing ops, and keep what a data client shows. See "The plot as data". |
+| `erase` | `win` | The Erase command blanked plot window `win`, for a client that asked for `series`: it shows nothing of that window's curves (nor the earlier runs it may keep) until the window's next series or `redraw`. Only Erase sends it: a slider's rerun or a zoom also redraw the window, and keep what a data client shows. See "The plot as data". |
 | `redraw` | `win` | The Redraw command drew window `win` again, for a client that asked for `series`: it shows the window's current series again (no series follows: the data did not change), and no earlier runs. |
 | `plots` | `active`, `windows` [{`win`, `title`, `three`, `xlo`, `xhi`, `ylo`, `yhi`, `xlabel`, `ylabel`, `zlabel`, `box`, `theta`, `phi`, `persp`, `zplane`, `zview`, `curves`, `shift`}...] | Every plot window and the active one, for a client that asked (`data`); see "The plot as data". |
 | `nullclines` | `win`, `enc`, `xname`, `yname`, `xcolor`, `ycolor`, `x`, `y`, `frozen` [{`x`,`y`}...] | A plot window's nullclines as segments in plot coordinates, for a client that asked (`data`); see "The plot as data". |
@@ -198,7 +196,7 @@ Run it with:
 | `source` | `lines`, `comments` [[text, has action]...] | File/Prt src. |
 | `equations` | `lines` | One `dX/dT=...` line per equation. |
 | `ani` | `pos`, `rows`, `fly`, `grab`, `skip`, `speed`, `loaded`, `open`; or `op` `frame`, ... | Animation state for its slider and toggles, sent with every frame drawn and after every `ani` command: `pos` the row the next step starts from, `speed` the ms between frames of Go, `loaded` 1 when an `.ani` file is loaded, `open` 1 while the animation window exists. With `op` `frame`: a frame as data, for a client that asked (`data`); see "The animation as data". |
-| `aplot` | `title`, `nx`, `ny`, `cells` (ny rows of nx colour indices, -1 blank), `values`, `enc`, `first`, `ncolors`, `zmin`, `zmax`, `tlo`, `thi`, `tag` | The array plot (window 105): cell index k is palette colour `first`+k. `values` is the same `ny` rows of `nx` cells' stored numbers, before that mapping (float32, `null`/NaN off the stored rows or columns, same layout as `cells`), for a client that picks its own colour scale from them and `zmin`/`zmax`; `enc` `"f32"` (the client's last `data` `enc`, reused here since `aplot` is not itself in the `data` subscription list) sends `values` as base64 float32 like a series column (see "The plot as data"). |
+| `aplot` | `title`, `nx`, `ny`, `cells` (ny rows of nx colour indices, -1 blank), `values`, `enc`, `first`, `ncolors`, `zmin`, `zmax`, `tlo`, `thi`, `tag` | The array plot (window 105): cell index k is colour `first`+k of the core's colour table (what its GIF writer paints). `values` is the same `ny` rows of `nx` cells' stored numbers, before that mapping (float32, `null`/NaN off the stored rows or columns, same layout as `cells`), for a client that picks its own colour scale from them and `zmin`/`zmax`; `enc` `"f32"` (the client's last `data` `enc`, reused here since `aplot` is not itself in the `data` subscription list) sends `values` as base64 float32 like a series column (see "The plot as data"). |
 | `film` | `op` (`capture`, `reset`, `play`, `autoplay`), `count`, `win`, `cycles`, `delay` | Kinescope. The client keeps the frames: on `capture` it copies window `win` as it is drawn now; `play` shows them, `autoplay` plays `cycles` times `delay` ms apart. |
 | `browser` | `rows`, `cols` (names, `T` first), `row0` (selected row), `start`, `end` (the First..Last range), `from`, `col`, `data` | Rows `from`.. as [T, column `col`, `col`+1, ...]; `null` for NaN. Sent for a `browser` block request and after any command that changed the data while the client shows the browser. |
 | `ping` | | Beep. |
@@ -206,48 +204,22 @@ Run it with:
 | `file` | `op`, `name`, `ok`; `size`, `sha256` (`put`, `get`), `data` (`get`, base64), `files` (`list`: [{`name`,`size`,`mtime`,`sha256`}...]); `error` when `ok` is 0 | The answer to a `file` command (see "Files" below). |
 | `ask` | `id`, `kind`, ... | See below. |
 
-In browser mode (`xppautX model.ode`) events stream from `/events?t=TOKEN`;
-`/events?t=TOKEN&draw=0` is the same stream without the `draw` events, for
-a page that draws from data (web2): a long run's drawing is tens of
-megabytes it would only throw away.
+In browser mode (`xppautX model.ode`) events stream from `/events?t=TOKEN`.
 
 Two more events come from the host, not the server: `log` {`text`} carries what the
 server printed on stderr (xppaut reports model errors, such as a formula that does
-not parse, only there) and `exit` {`code`} says the process ended. `xpp-client.js`
+not parse, only there) and `exit` {`code`} says the process ended. The page
 shows one error at a time in a red box (the newest replaces it and the next
 command clears it; a load failure or crash stays with the output that explains it)
 and keeps everything under "Messages".
 
-### Drawing ops
-
-Each op is an array; coordinates are pixels from the top-left of the window.
-
-| op | arguments |
-|---|---|
-| `clear` | fill the window with the background |
-| `color` | index into the palette; 0 is the foreground, -1 the background |
-| `lw` | line width in pixels |
-| `dash` | dash pattern: 0 solid, 1-9 the xppaut patterns (`dashes[]` in `graphics_x11.c`: 1 is 1 on 6 off, 3 is 4/2, 4 is 1/3, 5 is 4/4, 6 is 1/5, 7 is 4/4/4/1) |
-| `line` | x1, y1, x2, y2 |
-| `point` | x, y, r; r 0 is one pixel, else a filled circle of radius r/1.414 |
-| `bead` | x, y (a filled circle of radius 2) |
-| `frect`, `rect` | x, y, w, h |
-| `circle`, `fcircle` | x, y, r |
-| `ellipse`, `fellipse` | x, y, w, h (bounding box) |
-| `cursor` | x, y, or no arguments (the AUTO grab cursor; drawn on its own overlay above the diagram, not into it - `x,y` shows it there, no arguments hides it) |
-| `text` | x, y, string; baseline at y, always in the foreground colour, small font |
-| `rtext` | x, y, string; baseline at y, current colour and `font` |
-| `stext` | x, y, string, size 0-4; XPP rich text in the foreground colour: backslash `1` symbol (Greek), `0` roman, `s` subscript, `S` superscript, `n` normal |
-| `font` | size 0-4, font (0 roman, 1 symbol), colour; for following `rtext` |
-
 ### The AUTO diagram as data
 
-Window 101 is drawn with the ops above like any other, and that stays what
-it shows (and what PostScript, SVG and the X11 program draw). Beside it the
-server sends the diagram's points as data, so that a client can zoom, pan
-and name the point under the mouse without a round trip. The data describe
-exactly what the drawing shows: after Clear it is empty, after File/Load or
-Reset diagram it is unchanged until reDraw, as the picture is.
+The server sends the AUTO diagram's points (window 101) as data, so that
+a client draws it and can zoom, pan and name the point under the mouse
+without a round trip. The data describe exactly what XPP's diagram shows
+(and what PostScript and SVG export draw): after Clear it is empty, after
+File/Load or Reset diagram it is unchanged until reDraw.
 
 A point is one `add_point()` of `core/auto_nox.c`, in the quantities the
 axes plot (`auto_xy_plot`: the parameter against the maximum, norm,
@@ -257,8 +229,8 @@ period, ... of the Axes setting), in the order it was plotted.
   the diagram was drawn again at these axes (`plot` is `Auto.plot`: 0 hi,
   1 norm, 2 hi and lo, 3 period, 4 two parameters, 10 frequency, 11
   average); the points are unchanged. Pixel `x0 + wid*(x-xmin)/(xmax-xmin)`,
-  `y0 + hgt - hgt*(y-ymin)/(ymax-ymin)` of window 101 is where the drawing
-  has (x, y).
+  `y0 + hgt - hgt*(y-ymin)/(ymax-ymin)` of window 101 is (x, y) in the
+  core's pixels (what a pixel answer to a `grab` or `rubber` ask means).
 - `{"ev":"diagram","op":"reset","keep":k, ...the axes fields}`: drop every
   point after the first `k` (all of them for 0), then the axes as above.
 - `{"ev":"diagram","op":"add","from":n,"runs":[...]}`: points `n`, `n+1`, ...
@@ -271,29 +243,29 @@ period, ... of the Axes setting), in the order it was plotted.
 | `ty` | 1 stable steady state, 2 unstable steady state, 3 stable periodic, 4 unstable periodic |
 | `f2` | two-parameter curve (1 limit point, 2 limit point of periodics, 3 Hopf, 4 torus, 5 branch point, 6 period doubling, 7 fixed period); absent for one parameter |
 | `d` | how it is drawn: 0 not at all (the next line starts from it), 1 a line back to the point before it, 2 filled circles of radius 3 at y and y2, 3 open circles |
-| `c`, `lw` | palette colour and line width |
+| `c`, `lw` | colour (the core's colour index: 0 the foreground, 20..29 red .. purple) and line width |
 | `new` | 1: the run's first point starts a new line (no line back) |
 | `from` | the label the continuation that computed the run's first point started from (Auto.irs: the point Grab took), on the first point of such a continuation only; absent otherwise, and for a diagram loaded from a file or computed before AUTO kept it. A periodic branch's `from` names the Hopf point it bifurcates from |
 | `x`, `y` | the values, one per point (`null` for NaN) |
 | `y2` | the second value (the minimum, for hi and lo), when it differs from `y` anywhere in the run |
-| `lab` | [[index in the run, label, type (`EP`, `LP`, `HB`, `BP`, `PD`, `TR`, `UZ`, `MX`)], ...] for the points whose label the drawing marks (a cross at y and y2, the number at x+8, y+8) |
+| `lab` | [[index in the run, label, type (`EP`, `LP`, `HB`, `BP`, `PD`, `TR`, `UZ`, `MX`)], ...] for the labelled points (XPP marks them with a cross at y and y2, the number beside it) |
 
 A run of AUTO sends `add` events as the points come, at most a few a
-second like the drawing. A redraw that plots the same points at other axes
-(reDraw, Fit, zoom, scroll, a resize) sends only `axes`: the server
+second. A redraw that plots the same points at other axes
+(reDraw, Fit, zoom, scroll) sends only `axes`: the server
 compares the points it plots again with what it sent, and only when they
 differ (another Axes quantity, new points) does it send `reset` with how
 many still agree and `add` for the rest. The points of a redraw go out
 when the redraw is over, not while it runs. A new AUTO window starts empty.
 
-**`autoinfo`**: what the AUTO window's info strip (window 103) and
-stability circle (window 102) show, as data, for a client that asked with
+**`autoinfo`**: what the AUTO window's info strip and stability circle
+show, as data, for a client that asked with
 `{"cmd":"data","events":["autoinfo"]}`. It is sent at the end of that
 command, and then whenever what it says changed: before every ask (so
 every step of a grab brings the point's strip and circle before the grab
 asks again), at the end of a command, and at most ten times a second while
 AUTO runs; a command that changes neither sends none. core/auto_data.cpp
-keeps it, from what auto_nox.c draws.
+keeps it, from what auto_nox.c shows there.
 
 ```
 {"ev":"autoinfo",
@@ -319,19 +291,12 @@ keeps it, from what auto_nox.c draws.
 
 Numbers are doubles in the shortest of 15 or 17 digits that reads back
 exactly, `null` when not finite. `tools/servercheck.py` checks that the
-fields are what the strip's text shows (its `rtext` ops) and that the
-circle holds what AUTO printed (its fort.9) for that point.
-
-`web/xpp-client.js` keeps the data and, over the diagram, zooms with the
-wheel and pans with Shift+drag or the middle button, drawing from the data;
-a tooltip names the point under the mouse. Anything that makes the core
-draw the diagram again (a `clear` op for window 101) shows the core's view
-again.
+point is the `diagram` data's point it names and that the circle holds
+what AUTO printed (its fort.9) for that point.
 
 ### The plot as data
 
-The new front end (docs/ui-v2.md) draws the plots itself from numbers
-instead of replaying drawing ops. Five events carry them, each sent only to
+The page (docs/ui-v2.md) draws the plots itself from numbers. Five events carry them, each sent only to
 a client that asked with
 `{"cmd":"data","events":["series","plots","nullclines","dfield","marks"]}` (any of
 the names alone works too), at the end of that command and then at the end
@@ -417,8 +382,8 @@ reads back exactly; `null` for a value that is not finite. Makewindow
 window 1) changes the list; `click` with a window's `win` makes it active.
 
 **`nullclines`** and **`dfield`**: what a phase plane shows besides its
-curves, one event per plot window, each saying what the classic window
-draws: Nullcline/New, Dir.field/flow and the redraws that draw them again
+curves, one event per plot window, each saying what XPP's window
+shows: Nullcline/New, Dir.field/flow and the redraws that draw them again
 fill them; anything that blanks the window empties them unless it draws them
 again (Erase; Viewaxes to other variables, which redraws without them). So after Erase both are
 empty, and a later redraw brings the nullclines back (they are redrawn
@@ -438,7 +403,7 @@ comes first.
 |---|---|
 | `xname`, `yname` | the variables of the x- and y-nullclines (where their derivative is 0): the window's x and y axes when they were computed; `""` before any |
 | `xcolor`, `ycolor` | their XPP colour indices (as `curves` `color`; 2 and 7 unless the model sets them) |
-| `x`, `y` | the x- and y-nullcline as line segments, 4 values each: `[x1,y1,x2,y2, x1,y1,x2,y2, ...]`, in plot coordinates, in the order XPP draws them (the same number as the classic `line` ops); empty when the window does not show them |
+| `x`, `y` | the x- and y-nullcline as line segments, 4 values each: `[x1,y1,x2,y2, x1,y1,x2,y2, ...]`, in plot coordinates, in the order XPP draws them; empty when the window does not show them |
 | `frozen` | the frozen nullclines (Nullcline/Freeze) the window shows, the same colours, each set's `x` and `y` as above |
 
 ```
@@ -461,13 +426,13 @@ Values in these arrays are float32 (9 digits in JSON). Dir.field/flow's
 Colorize (coloured cells) sends no arrows yet.
 
 **`marks`**: what a plot window shows on top of its curves, one event per
-window, saying what the classic window draws there: the equilibria Sing
+window, saying what XPP's window shows there: the equilibria Sing
 pts marked (its symbols), Text,etc's text, arrows, pointers and markers,
 and Graphic stuff/Freeze's frozen curves. As with `nullclines`, drawing
 fills it and anything that blanks the window empties it unless it draws
 the marks again: a redraw (Redraw, Window/Zoom, Viewaxes, ...) draws the
-text, objects and frozen curves again but not the equilibria, which the
-classic window loses too; Erase clears them all until the next redraw. A
+text, objects and frozen curves again but not the equilibria, which
+XPP's window loses too; Erase clears them all until the next redraw. A
 freeze adds its curve at once (the window already shows it: it is the
 current curve), and a deleted mark goes at the end of the command that
 deleted it (Freeze/Delete and Remove all do not redraw). Sent at the end
@@ -552,7 +517,7 @@ core/plot_data.cpp sends at most one append per 100 ms).
 | `rubber` | `win`, `flag` (0 box, 1 line) | `x`, `y`, `x2`, `y2`; or `xd`, `yd`, `xd2`, `yd2` |
 | `grab` | `win` | `key`; or `x`, `y` (or `xd`, `yd`) for a click on the diagram; or `point`, a point of the `diagram` data by its index (with `key`, that key after it) |
 | `drag` | `win` | `what` (`down`, `move`, `up`), `x`, `y` (or `xd`, `yd`) for each pointer event; cancel or a key ends. Window/Scroll and AUTO Axes/Scroll ask it again after every event. |
-| `pixels` | `win`, or `film` (a kinescope frame index) | `w`, `h`, `rgb` (base64 of w*h*3 bytes). Frame, GIF and kinescope writers use it: only the client has the picture. |
+| `pixels` | `win`, or `film` (a kinescope frame index) | `w`, `h`, `rgb` (base64 of w*h*3 bytes). Frame, GIF and kinescope writers use it: only the client has the picture, which web2 renders from the data it holds (the window's chart, or a kinescope frame's snapshot). |
 
 **Data coordinates.** A point of a `mouse`, `rubber`, `drag` or `grab`
 answer can be given in the plot's own quantities instead of pixels: `xd`,
@@ -581,7 +546,7 @@ that asked for it) and asks again. `{"point":i,"key":"Return"}` moves and
 takes in one answer. An index the data do not have (out of range) is
 ignored, and so is the key that came with it: the grab asks again. So is a
 point AUTO no longer has: after Reset diagram or a load the data are the
-old drawing until reDraw, like the picture.
+old diagram until reDraw.
 
 **The file ask's mode.** `mode` says whether the command opens the file
 (`read`: Read set, Load diagram, the browser's Load, Import, ...) or saves
@@ -626,24 +591,19 @@ it. The server listens on 127.0.0.1 only.
 
 ### The animation as data
 
-Window 104 is drawn with the drawing ops like any other, and that stays
-what the classic page and the X11 program show. Beside it, a client that
-asked with `{"cmd":"data","events":["ani"]}` gets each frame the core draws
-as data, in the animation's own coordinates, and draws it at any size
-itself (web2, docs/ui-v2.md T13). core/aniparse.cpp evaluates a frame in
-the `.ani` file's coordinates (its `dimension` box, [0,1] x [0,1] unless the
-file says otherwise, y up) and hands each primitive both to the pixel ops,
-scaled to the window as XPP always has, and to core/ani_data.cpp, which
-sends it in unit coordinates:
+A client that asked with `{"cmd":"data","events":["ani"]}` gets each frame
+of the animation (window 104) as data, in the animation's own coordinates,
+and draws it at any size itself (web2, docs/ui-v2.md T13).
+core/aniparse.cpp evaluates a frame in the `.ani` file's coordinates (its
+`dimension` box, [0,1] x [0,1] unless the file says otherwise, y up) and
+hands each primitive to core/ani_data.cpp, which sends it in unit
+coordinates:
 
     u = (x - xlo) / (xhi - xlo)      v = (y - ylo) / (yhi - ylo)
 
 so (0,0) is the box's bottom left and (1,1) its top right. They are not
 clamped: where the `.ani` puts something outside its box the value lies
-outside [0,1] (the pixel ops clamp such a point to the window's edge).
-The pixel op of the same primitive is at `u*w`, `h - v*h`, truncated to
-whole pixels (`tools/servercheck.py` checks every primitive of a frame
-against its op within a pixel, colour for colour).
+outside [0,1]. XPP's own window put a primitive at `u*w`, `h - v*h`.
 
 ```
 {"ev":"ani","op":"frame","pos":0,"rows":601,"t":0,"speed":5,"skip":1,
@@ -658,7 +618,7 @@ against its op within a pixel, colour for colour).
 | `t` | the frame's time (9 digits; `null` when not finite) |
 | `speed`, `skip` | ms between two frames of Go, rows per step |
 | `dim` | the `dimension` box: `xlo`, `ylo`, `xhi`, `yhi`. A client that keeps its aspect `(xhi-xlo)/(yhi-ylo)` has equal units along x and y |
-| `w`, `h` | the pixel window the classic drawing has: what line widths, dots and text sizes are relative to |
+| `w`, `h` | the core's pixel size of the animation window: what line widths, dots and text sizes are relative to |
 | `prims` | the primitives in drawing order, each an array (below); unit coordinates have 6 significant digits, `null` where the `.ani` evaluated to NaN |
 
 | primitive | arguments |
@@ -673,8 +633,7 @@ against its op within a pixel, colour for colour).
 A colour is an XPP colour index (0 the foreground, 1..10 red .. purple, as
 `curves` `color`) for the `.ani`'s named colours, or `"#rrggbb"` for a
 colour of the colour map (an expression's value, 0..1). A primitive's
-colour, width and text font are the ones the pixel ops have at that point
-(`color`, `lw`, `font`): the colour starts at 0 each frame, width and font
+colour, width and text font are the pen's at that point: the colour starts at 0 each frame, width and font
 carry over from the frame before, `settext` sets the font and colour for
 the text after it, and text takes the colour last set, as XPP draws it.
 Widths are in pixels (0 is a thin line of one pixel).
@@ -691,5 +650,25 @@ forgets the frame of the old one.
 
 ## Not yet implemented
 
-docs/front-end-gaps.md lists what the X11 front end still does that this
+docs/front-end-gaps.md lists what the X11 front end did that this
 protocol does not.
+
+## Removed in protocol 2
+
+Protocol 1 also drove the classic page (`web/`, removed with it, docs/ui-v2.md
+T18), which replayed the core's pixel drawing:
+
+- the `draw` event (`win`, `ops`: `clear`, `color`, `lw`, `dash`, `line`,
+  `poly`, `point`, `bead`, `rect`/`frect`, `circle`/`fcircle`,
+  `ellipse`/`fellipse`, `cursor`, `text`, `rtext`, `stext`, `font`) for
+  every window, the AUTO stability circle (102) and info strip (103)
+  included, and `/events?...&draw=0` to leave them out;
+- the `palette` event (the 256 colours the ops referred to);
+- the `size` command (a canvas size in pixels for windows 1..10, 101 and
+  104): the core keeps its default window sizes;
+- `hello`'s `char` (the font cell the ops laid text out on).
+
+Everything the page shows comes from the data events: `series`, `plots`,
+`nullclines`, `dfield`, `marks`, `diagram`, `autoinfo`, `ani` `frame`,
+`aplot`, `erase`, `redraw`. The `pixels` ask stays: web2 answers it from
+those.

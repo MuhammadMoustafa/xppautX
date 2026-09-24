@@ -156,8 +156,8 @@ function PendingAsk({ask}: {ask: AskEvent}) {
   return (
     <>
       <p>
-        XPP asks for {PENDING[ask.kind] ?? <b>{ask.kind}</b>}, which the new interface does not offer yet. Cancel
-        it here, or use the classic interface for this command.
+        XPP asks for {PENDING[ask.kind] ?? <b>{ask.kind}</b>}, which this interface does not offer yet. Cancel
+        it here.
       </p>
       <div class="dialog-actions">
         <button class="primary" onClick={() => session.cancel(ask)}>Cancel</button>

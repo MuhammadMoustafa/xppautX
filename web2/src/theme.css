@@ -882,7 +882,7 @@ kbd {
   }
   .menu-toggle, .values-toggle { display: inline-flex; }
   .title-bar { padding: var(--space-2); }
-  .title-bar .file, .title-bar .classic, .title-bar .wide-only { display: none; }
+  .title-bar .file, .title-bar .wide-only { display: none; }
   .menu-panel {
     position: fixed;
     top: 0;

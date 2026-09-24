@@ -116,10 +116,6 @@ def check(name, ok, detail=''):
 check_logging()
 
 
-def draw_ops(evs, win=1):
-    return [o for e in evs if e.get('ev') == 'draw' and e.get('win') == win for o in e['ops']]
-
-
 def is_state(e):
     return e.get('ev') == 'state'
 
@@ -137,12 +133,16 @@ evs, _ = collect(is_idle)
 st = last_state(evs)
 hello = next((e for e in evs if e.get('ev') == 'hello'), None)
 check('hello', hello is not None and len(hello['menus']['main']) == 20)
-check('palette', any(e.get('ev') == 'palette' and len(e['colors']) == 256 for e in evs))
+check('hello says protocol 2, and no draw ops or palette follow (removed in 2)',
+      hello is not None and hello.get('protocol') == 2 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
+      str(hello and hello.get('protocol')))
 check('state after hello', st is not None and any(p[0] == 'iapp' for p in st['pars']), str(st))
-check('axes drawn', len(draw_ops(evs)) > 10)
-
+check('window 1 is created', any(e.get('ev') == 'window' and e.get('op') == 'create' and e.get('win') == 1
+                                 for e in evs))
 send(cmd='size', win=1, w=800, h=600)
-collect(is_idle)
+evs, _ = collect(is_idle)
+check('size is no command any more (removed in protocol 2): nothing but state and idle',
+      [e.get('ev') for e in evs] == ['state', 'idle'], str(evs)[:200])
 check('hello lists the series feature', 'series' in hello.get('features', []), str(hello.get('features')))
 send(cmd='data', events=['series'])
 evs, _ = collect(is_idle)
@@ -155,8 +155,6 @@ check('Initialconds opens a menu', ask is not None and ask['kind'] == 'menu' and
 send(cmd='answer', id=ask['id'], key='g')
 evs, _ = collect(is_idle, timeout=30)
 st = last_state(evs)
-lines = [o for o in draw_ops(evs) if o[0] == 'line']
-check('integration draws the trajectory', len(lines) > 100, '%d lines' % len(lines))
 check('storage has 601 rows', st is not None and st['rows'] == 601, str(st and st['rows']))
 
 
@@ -251,11 +249,17 @@ check('browser Get sets the initial conditions from a row',
 send(cmd='browser', **{'from': 0, 'count': 0})
 collect(is_idle)
 
+send(cmd='data', events=['series'])
+collect(is_idle)
 send(cmd='slide', name='iapp', value=0.07, rerun=1)
 evs, _ = collect(is_idle, timeout=30)
 st = last_state(evs)
-check('slide sets the parameter and integrates again', st is not None and dict(st['pars'])['iapp'] == 0.07
-      and len([o for o in draw_ops(evs) if o[0] == 'line']) > 100, str(st and st['pars']))
+ser = [e for e in evs if e.get('ev') == 'series' and 'op' not in e]
+check('slide sets the parameter and integrates again (a new series of 601 rows)',
+      st is not None and dict(st['pars'])['iapp'] == 0.07 and ser and ser[-1]['rows'] == 601,
+      str(st and st['pars']) + str(ser)[:200])
+send(cmd='data', events=[])
+collect(is_idle)
 send(cmd='equations')
 evs, eqs = collect(lambda e: e.get('ev') == 'equations')
 collect(is_idle)
@@ -452,10 +456,8 @@ check('Kinescope/Save asks for the pixels and writes GIFs',
       all(os.path.exists(os.path.join(run, 'kin_%d.gif' % i)) for i in range(2)), str(os.listdir(run)))
 send(cmd='key', key='v')
 evs, _ = answer_asks(is_idle, {'menu': menu('t')})
-send(cmd='size', win=104, w=300, h=200)
-evs, _ = collect(is_idle)
-check('the animation window opens and resizes', any(e.get('ev') == 'window' and e.get('win') == 104
-      and e['w'] == 300 and e['h'] == 200 for e in evs), str([e for e in evs if e.get('ev') == 'window']))
+check('the animation window opens', any(e.get('ev') == 'window' and e.get('win') == 104
+      and e.get('op') == 'create' for e in evs), str([e for e in evs if e.get('ev') == 'window']))
 send(cmd='ani', op='close')
 evs, _ = collect(is_idle)
 check('the animation window closes', any(e.get('ev') == 'window' and e.get('op') == 'destroy' for e in evs))
@@ -528,11 +530,8 @@ send(cmd='key', key='a')
 evs, _ = collect(lambda e: e.get('ev') == 'window' and e.get('win') == 101)
 check('File/Auto opens the AUTO window', any(e.get('ev') == 'window' and e.get('win') == 101 for e in evs))
 collect(is_idle)
-send(cmd='size', win=101, w=500, h=300)
+send(cmd='auto', op='redraw')
 evs, _ = collect(is_idle)
-win = [e for e in evs if e.get('ev') == 'window' and e.get('win') == 101]
-check('size resizes the AUTO diagram', win and win[-1]['w'] == 500 and win[-1]['h'] == 300
-      and len(draw_ops(evs, 101)) > 5, str(win))
 axes = [e for e in evs if e.get('ev') == 'diagram' and e['op'] in ('axes', 'reset')]
 check('the AUTO diagram sends its axes as data', axes and axes[-1]['wid'] > 0 and axes[-1]['xlabel'], str(axes))
 
@@ -952,9 +951,7 @@ check_values_protocol()
 
 
 # Nullclines, direction fields and flows as data (docs/protocol.md "The
-# plot as data", docs/ui-v2.md T7): what the classic window draws, in plot
-# coordinates. The segments and arrows are compared with the draw ops of the
-# same command, mapped to pixels with state.view.
+# plot as data", docs/ui-v2.md T7), in plot coordinates.
 def check_phase_data():
     proc5, run5, send5, collect5, _ = launch_server()
 
@@ -974,52 +971,27 @@ def check_phase_data():
 
     of = lambda evs, name: [e for e in evs if e.get('ev') == name]
 
-    def runs(ops, stop=('lw', 'dash', 'color', 'clear')):
-        """the ops as runs of lines, split at style changes and clears: [[line op, ...], ...]"""
-        out, cur = [], None
-        for o in ops:
-            if o[0] in stop:
-                cur = None
-            elif o[0] == 'line':
-                if cur is None:
-                    cur = []
-                    out.append(cur)
-                cur.append(o)
-        return out
+    def segments_ok(segs, v):
+        """'' when segs [x1,y1,x2,y2,...] are whole segments inside the view (a little slack), else why"""
+        if not segs or len(segs) % 4:
+            return '%d values' % len(segs)
+        dx, dy = (v['xhi'] - v['xlo']) * 0.01, (v['yhi'] - v['ylo']) * 0.01
+        for k in range(0, len(segs), 2):
+            x, y = segs[k], segs[k + 1]
+            if not (v['xlo'] - dx <= x <= v['xhi'] + dx and v['ylo'] - dy <= y <= v['yhi'] + dy):
+                return 'point %s outside the view %s' % ((x, y), v)
+        return ''
 
-    def to_px(v, x, y):
-        return (v['left'] + (x - v['xlo']) * (v['right'] - v['left']) / (v['xhi'] - v['xlo']),
-                v['bottom'] + (y - v['ylo']) * (v['top'] - v['bottom']) / (v['yhi'] - v['ylo']))
-
-    def segs_match(segs, lines, v):
-        """the segments [x1,y1,x2,y2,...] drawn as these line ops, within a pixel and a half"""
-        if len(segs) != 4 * len(lines):
-            return False
-        for k, o in enumerate(lines):
-            a, b = to_px(v, segs[4 * k], segs[4 * k + 1]), to_px(v, segs[4 * k + 2], segs[4 * k + 3])
-            if max(abs(a[0] - o[1]), abs(a[1] - o[2]), abs(b[0] - o[3]), abs(b[1] - o[4])) > 1.5:
-                return False
-        return True
-
-    def arrows_match(grid, lines, v):
-        """each arrow starts at its grid point and points along its line (the line's
-        end within a pixel of the direction's ray), for lines long enough to tell"""
-        if len(grid) != 4 * len(lines):
-            return 'count %d arrows, %d lines' % (len(grid) // 4, len(lines))
-        sx = (v['right'] - v['left']) / (v['xhi'] - v['xlo'])
-        sy = (v['top'] - v['bottom']) / (v['yhi'] - v['ylo'])
-        for k, o in enumerate(lines):
-            x, y, ux, uy = grid[4 * k:4 * k + 4]
-            p = to_px(v, x, y)
-            if abs(p[0] - o[1]) > 1 or abs(p[1] - o[2]) > 1:
-                return 'arrow %d starts at %s, its line at %s' % (k, p, o[1:3])
-            dx, dy = o[3] - o[1], o[4] - o[2]
-            if dx * dx + dy * dy < 16:
-                continue
-            px, py = ux * sx, uy * sy
-            n = (px * px + py * py) ** 0.5
-            if n == 0 or (dx * px + dy * py) <= 0 or abs(dx * py - dy * px) / n > 1.5:
-                return 'arrow %d direction %s, its line %s' % (k, (ux, uy), o[1:])
+    def grid_ok(grid, n, v):
+        """'' when the arrows start on the n x n grid of the view, else why"""
+        if len(grid) != 4 * n * n:
+            return 'count %d arrows' % (len(grid) // 4)
+        xs = sorted({round(grid[k], 6) for k in range(0, len(grid), 4)})
+        ys = sorted({round(grid[k + 1], 6) for k in range(0, len(grid), 4)})
+        if len(xs) != n or len(ys) != n:
+            return '%d x %d distinct starts' % (len(xs), len(ys))
+        if abs(xs[0] - v['xlo']) > 1e-4 * (v['xhi'] - v['xlo']) or abs(ys[0] - v['ylo']) > 1e-4 * (v['yhi'] - v['ylo']):
+            return 'first start %s, view %s' % ((xs[0], ys[0]), v)
         return ''
 
     try:
@@ -1035,32 +1007,23 @@ def check_phase_data():
 
         evs = command('n', {'key': 'n'})
         nc, v = of(evs, 'nullclines'), last_state(evs)['view']
-        lr = runs(draw_ops(evs))
         n0 = nc[0] if nc else {}
         check('Nullcline/New: the event names V and W, colours 2 and 7',
               len(nc) == 1 and n0['xname'] == 'V' and n0['yname'] == 'W' and n0['xcolor'] == 2 and n0['ycolor'] == 7,
               str(nc)[:300])
-        check('... its x- and y-nullclines are the classic lines, segment for segment',
-              len(lr) == 2 and len(n0.get('x', [])) > 0 and segs_match(n0['x'], lr[0], v)
-              and segs_match(n0['y'], lr[1], v),
-              '%d/%d segments, lines %s' % (len(n0.get('x', [])) // 4, len(n0.get('y', [])) // 4,
-                                            [len(r) for r in lr]))
+        why = (segments_ok(n0.get('x', []), v) or segments_ok(n0.get('y', []), v)) if n0 else 'no event'
+        check('... its x- and y-nullclines are whole segments inside the view', not why, why)
         evs = after({'cmd': 'redraw'})
         check('a redraw draws them again and sends nothing', not of(evs, 'nullclines') and not of(evs, 'dfield'))
 
         evs = command('d', {'key': 's'}, {'value': '16'})
         df, v = of(evs, 'dfield'), last_state(evs)['view']
-        ops = draw_ops(evs)
-        first = ops[:ops.index(['clear'])] if ['clear'] in ops else ops
-        # direct_field_com's arrows (bead, line per grid point), then the nullclines drawn again
-        fr = runs(first)
-        arrow_lines = fr[0] if fr else []
         d0 = df[0] if df else {}
         check('Dir.field/Scaled: dfield has a 17 x 17 grid, scaled, in the curve\'s colour',
               len(df) == 1 and d0['n'] == 17 and d0['scaled'] == 1 and d0['color'] == 0
               and len(d0['grid']) == 4 * 289 and len(d0['speed']) == 289, str(df)[:300])
-        why = arrows_match(d0.get('grid', []), arrow_lines, v) if d0 else 'no event'
-        check('... its arrows are the classic ones: as many, from the same points, the same directions', not why, why)
+        why = grid_ok(d0.get('grid', []), 17, v) if d0 else 'no event'
+        check('... its arrows start on the 17 x 17 grid of the view', not why, why)
         check('... unit directions', all(abs(d0['grid'][k + 2] ** 2 + d0['grid'][k + 3] ** 2 - 1) < 1e-5
                                          for k in range(0, len(d0.get('grid', [])), 4)) if d0 else False)
 
@@ -1086,11 +1049,10 @@ def check_phase_data():
         fl = df[0]['flows'] if df else []
         xs = fl[0]['x'] if fl else []
         starts = [0] + [i + 1 for i, a in enumerate(xs) if a is None]
-        nlines = sum(1 for o in draw_ops(evs) if o[0] == 'line')
-        check('Dir.field/Flow: one curve of 72 trajectories (6 x 6, forward and back), no more points than lines',
+        check('Dir.field/Flow: one curve of 72 trajectories (6 x 6, forward and back), finite points',
               len(fl) == 1 and fl[0]['color'] == 0 and len(starts) == 72 and len(xs) == len(fl[0]['y'])
-              and len(xs) - 71 <= nlines + 72, '%d curves, %d trajectories, %d points, %d lines'
-              % (len(fl), len(starts), len(xs), nlines))
+              and all(a is None or abs(a) < 1e6 for a in xs), '%d curves, %d trajectories, %d points'
+              % (len(fl), len(starts), len(xs)))
         check('... each trajectory starts on the grid',
               bool(fl) and all(abs((xs[s] + 0.6) / 0.36 - round((xs[s] + 0.6) / 0.36)) < 1e-4 for s in starts),
               str([xs[s] for s in starts][:8]))
@@ -1418,10 +1380,9 @@ def check_ani_data():
     """The animation as data (docs/protocol.md "The animation as data",
     docs/ui-v2.md T13): tools/gui_test.ani (one of every command) on lecar.
     Each frame event's primitives are in unit coordinates of the dimension
-    box, and they are the classic pixel ops of the same frame divided by
-    the window's size (within a pixel), colour for colour; the player's
-    step, seek and Go send the frames they draw, Go at most 25 a second and
-    always its last one."""
+    box, colours as XPP indices or #rrggbb; the player's step, seek and Go
+    send the frames they show, Go at most 25 a second and always its last
+    one."""
     proc6, run6, send6, collect6, _ = launch_server()
     shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gui_test.ani'), run6)
     of = lambda evs, name: [e for e in evs if e.get('ev') == name]
@@ -1445,79 +1406,23 @@ def check_ani_data():
         send6(cmd='ani', op=op, **kw)
         return answered(list(answers))
 
-    def classic(evs):
-        """the geometry ops of window 104's last frame, each with the colour it is drawn in"""
-        out, col = [], 0
-        for o in draw_ops(evs, 104):
-            if o[0] == 'clear':
-                out, col = [], 0
-            elif o[0] == 'color':
-                col = o[1]
-            elif o[0] == 'font':
-                col = o[3]
-            elif o[0] in ('line', 'rect', 'frect', 'ellipse', 'fellipse', 'rtext'):
-                out.append((o, col))
-        return out
+    def colours_ok(f):
+        """'' when every primitive's colour is an XPP index (0..10) or a colour map's #rrggbb, else why"""
+        for p in f['prims']:
+            c = p[4] if p[0] in ('dot', 'text') else p[5]
+            if not ((isinstance(c, int) and 0 <= c <= 10) or (isinstance(c, str) and len(c) == 7 and c[0] == '#')):
+                return 'colour %r of %s' % (c, p)
+        return ''
 
-    def xpp_color(icol):
-        """a palette index as the frame event names it"""
-        return icol - 19 if 20 <= icol <= 29 else 0 if icol < 30 else 'map'
-
-    def matches(f, ops):
-        """None when frame f is the classic ops divided by the window size, else what differs"""
-        W, H = f['w'], f['h']
-        px = lambda u: min(max(int(u * W + 1e-9), 0), W - 1)
-        py = lambda v: min(max(int(H - v * H + 1e-9), 0), H - 1)
-        near = lambda a, b, tol=1.01: abs(a - b) <= tol
-        if len(f['prims']) != len(ops):
-            return '%d primitives, %d classic ops' % (len(f['prims']), len(ops))
-        for i, (p, (o, icol)) in enumerate(zip(f['prims'], ops)):
-            k = p[0]
-            if k == 'line':
-                ok = o[0] == 'line' and all(near(a, b) for a, b in zip(o[1:], (px(p[1]), py(p[2]), px(p[3]), py(p[4]))))
-                pc = p[5]
-            elif k == 'rect':
-                x1, x2, y1, y2 = px(p[1]), px(p[3]), py(p[2]), py(p[4])
-                ok = (o[0] == ('frect' if p[7] else 'rect') and near(o[1], min(x1, x2)) and near(o[2], min(y1, y2))
-                      and near(o[3], abs(x2 - x1), 2.01) and near(o[4], abs(y2 - y1), 2.01))
-                pc = p[5]
-            elif k in ('circle', 'ellipse'):
-                rx, ry = p[3] * W, p[4] * H
-                if k == 'circle':
-                    rx = ry = (rx + ry) / 2
-                ok = (o[0] == ('fellipse' if p[7] else 'ellipse') and near(o[1] + o[3] / 2, px(p[1]), 1.51)
-                      and near(o[2] + o[4] / 2, py(p[2]), 1.51) and near(o[3] / 2, rx) and near(o[4] / 2, ry))
-                pc = p[5]
-            elif k == 'dot':
-                ok = (o[0] == 'fellipse' and o[3] == 2 * p[3] and near(o[1] + p[3], px(p[1]))
-                      and near(o[2] + p[3], py(p[2])))
-                pc = p[4]
-            elif k == 'text':
-                ok = o[0] == 'rtext' and o[3] == p[3] and near(o[1], px(p[1])) and near(o[2], py(p[2]))
-                pc = p[4]
-            else:
-                return 'primitive %d: unknown kind %s' % (i, k)
-            want = xpp_color(icol)
-            ok = ok and (pc == want if want != 'map' else isinstance(pc, str) and pc.startswith('#'))
-            if not ok:
-                return 'primitive %d %s vs %s (colour %s)' % (i, p, o, icol)
-        return None
-
-    def in_unit(f, ops):
-        """every coordinate is in [0,1], or outside it only where the .ani leaves the box, and there
-        the classic drawing is clamped to the window's edge"""
-        W, H = f['w'], f['h']
-        for p, (o, _) in zip(f['prims'], ops):
-            pts = [(p[1], p[2])] + ([(p[3], p[4])] if p[0] in ('line', 'rect') else [])
-            for j, (u, v) in enumerate(pts):
-                if 0 <= u <= 1 and 0 <= v <= 1:
-                    continue
-                if o[0] != 'line':
+    def in_unit(f):
+        """None when every coordinate is in [0,1] but a line's (a line may leave the box), else what"""
+        for p in f['prims']:
+            if p[0] == 'line':
+                continue
+            pts = [(p[1], p[2])] + ([(p[3], p[4])] if p[0] == 'rect' else [])
+            for u, v in pts:
+                if not (0 <= u <= 1 and 0 <= v <= 1):
                     return '%s at %s' % (p, (u, v))
-                x, y = o[1 + 2 * j], o[2 + 2 * j]
-                if not ((u < 0 and x == 0) or (u > 1 and x == W - 1) or 0 <= u <= 1) or \
-                        not ((v < 0 and y == H - 1) or (v > 1 and y == 0) or 0 <= v <= 1):
-                    return '%s at %s, the classic op %s' % (p, (u, v), o)
         return None
 
     try:
@@ -1544,34 +1449,35 @@ def check_ani_data():
         kinds = sorted({p[0] for p in f0['prims']})
         check('ani data: every kind of primitive (line, rect, circle, ellipse, dot, text)',
               kinds == ['circle', 'dot', 'ellipse', 'line', 'rect', 'text'], str(kinds))
-        ops = classic(evs)
-        check('ani data: frame 0 is the classic pixel ops divided by the window size, colour for colour',
-              matches(f0, ops) is None, str(matches(f0, ops)))
-        check('ani data: its coordinates are in [0,1] (outside only where the .ani leaves the box)',
-              in_unit(f0, ops) is None, str(in_unit(f0, ops)))
+        check('ani data: frame 0 has a primitive per drawing command of the .ani, colours as indices or #rrggbb',
+              len(f0['prims']) == 13 and not colours_ok(f0), '%d primitives %s' % (len(f0['prims']), colours_ok(f0)))
+        check('ani data: its coordinates are in [0,1] (only a line may leave the box)',
+              in_unit(f0) is None, str(in_unit(f0)))
         spectral = [p for p in f0['prims'] if p[0] == 'circle' and isinstance(p[5], str)]
         check('ani data: a colour of the colour map is #rrggbb (fcircle ...;w)', len(spectral) == 1, str(spectral))
 
         evs = ani('step', n=1)
         fr = frames(evs)
-        check('ani data: step sends the next frame, equal to the classic one', len(fr) == 1 and fr[0]['pos'] == 1
-              and fr[0]['t'] > 0 and matches(fr[0], classic(evs)) is None, str(fr)[:300])
+        check('ani data: step sends the next frame, moved on from frame 0', len(fr) == 1 and fr[0]['pos'] == 1
+              and fr[0]['t'] > 0 and fr[0]['prims'] != f0['prims'] and not colours_ok(fr[0]), str(fr)[:300])
         evs = ani('seek', pos=300)
         fr = frames(evs)
-        bad = matches(fr[-1], classic(evs)) or in_unit(fr[-1], classic(evs)) if fr else 'no frame'
-        check('ani data: seek sends the frame it lands on, equal to the classic one',
+        bad = in_unit(fr[-1]) if fr else 'no frame'
+        check('ani data: seek sends the frame it lands on, in unit coordinates',
               bool(fr) and fr[-1]['pos'] == 300 and bad is None, str(bad))
         evs = ani('speed', ms=20)
         check('ani data: speed sets the delay between frames', bool(states(evs)) and states(evs)[-1]['speed'] == 20,
               str(states(evs)))
         evs = ani('go')
         fr = frames(evs)
-        drawn = sum(1 for o in draw_ops(evs, 104) if o[0] == 'clear')
+        # rows 300 to 600, 20 ms apart (6 s): at most 25 frames a second is far fewer than the 300 rows shown
         check('ani data: Go sends frames as it plays, at most 25 a second, and its last one',
-              3 <= len(fr) < drawn and fr[-1]['pos'] == 600 and all(a['pos'] < b['pos'] for a, b in zip(fr, fr[1:])),
-              '%d frames of %d drawn, last %s' % (len(fr), drawn, fr and fr[-1]['pos']))
-        check('ani data: the last frame of Go is its classic drawing',
-              bool(fr) and matches(fr[-1], classic(evs)) is None, str(fr and matches(fr[-1], classic(evs))))
+              3 <= len(fr) < 300 and fr[-1]['pos'] == 600 and all(a['pos'] < b['pos'] for a, b in zip(fr, fr[1:])),
+              '%d frames, last %s' % (len(fr), fr and fr[-1]['pos']))
+        check('ani data: the last frame of Go is whole: in unit coordinates, its colours, the comets grown',
+              bool(fr) and in_unit(fr[-1]) is None and not colours_ok(fr[-1])
+              and len(fr[-1]['prims']) > len(f0['prims']),
+              str(fr and (in_unit(fr[-1]), colours_ok(fr[-1]), len(fr[-1]['prims']))))
 
         # grab: the grab point's cross (the last two black lines), hit in unit coordinates
         evs = ani('grab')
@@ -1591,8 +1497,7 @@ def check_ani_data():
         send6(cmd='data', events=[])
         collect6(is_idle)
         evs = ani('step', n=1)
-        check('ani data: not asked for, no frame is sent (the classic drawing still is)',
-              not frames(evs) and bool(draw_ops(evs, 104)))
+        check('ani data: not asked for, no frame is sent', not frames(evs) and bool(states(evs)), str(evs)[:200])
     finally:
         stop_server(proc6, run6, send6)
 
@@ -1633,33 +1538,17 @@ def printed_stability(p):
     return out
 
 
-def strip_text(evs):
-    """the classic info strip (window 103) as its lines of text"""
-    pic = draw_ops(evs, 103)
-    for i in range(len(pic) - 1, -1, -1):
-        if pic[i][0] == 'clear':
-            pic = pic[i:]
-            break
-    return [o[3] for o in pic if o[0] == 'rtext']
-
-
-def strip_matches(info, evs):
-    """None when autoinfo's fields are what the strip's text shows, else why not"""
-    lines = strip_text(evs)
-    if len(lines) != 2:
-        return 'strip: %r' % lines
-    head, row = lines
-    par = info['par']
-    want_names = ['Br', 'Pt', 'Ty', 'Lab', par[0]['name']] + ([par[1]['name']] if len(par) > 1 else []) \
-        + ['norm', info['var'], 'period']
-    if head.split() != want_names:
-        return 'names %r vs %r' % (head.split(), want_names)
-    g = lambda v: '%10.4g' % v
-    values = ' '.join(g(v) for v in (par[0]['value'], par[1]['value'] if len(par) > 1 else 0, info['norm'], info['u'],
-                                     info['per']))
-    if abs(int(row[0:4])) != info['br'] or abs(int(row[5:9])) != info['pt'] or row[10:12].strip() != info['sym'] \
-            or int(row[13:17]) != info['lab'] or row[18:] != values:
-        return 'row %r vs %r (%s)' % (row, values, json.dumps(info))
+def strip_matches(info, diag):
+    """None when autoinfo's point is the diagram data's point it names (branch, point, the
+    parameter as the diagram's x), else why not"""
+    if not 0 <= info['point'] < len(diag):
+        return 'point %d of %d' % (info['point'], len(diag))
+    p = diag[info['point']]
+    if (abs(p[0]), p[1]) != (info['br'], info['pt']):
+        return 'br/pt %s vs %s' % (p[:2], (info['br'], info['pt']))
+    x = info['par'][0]['value']
+    if abs(p[3] - x) > 1e-6 * max(1, abs(x)):
+        return 'x %r vs %s %r' % (p[3], info['par'][0]['name'], x)
     return None
 
 
@@ -1738,15 +1627,15 @@ def check_autoinfo():
         evs, ask = cola(lambda e: e.get('ev') == 'ask')
         got = infos(evs)
         info = got[-1]['info'] if got else None
-        check('autoinfo: Grab sends the strip of the point under the cursor (the first), as the strip shows it',
+        check("autoinfo: Grab sends the strip of the point under the cursor (the first), the diagram data's point",
               info is not None and info['point'] == 0 and info['br'] == 1 and info['pt'] == 1
-              and strip_matches(info, evs) is None, info and strip_matches(info, evs) or str(got))
+              and strip_matches(info, diag_a) is None, info and strip_matches(info, diag_a) or str(got))
         snda(cmd='answer', id=ask['id'], key='Tab')
         evs, ask = cola(lambda e: e.get('ev') == 'ask')
         got = infos(evs)
         info, stab = (got[-1]['info'], got[-1]['stab']) if got else (None, None)
         check('autoinfo: Tab to the Hopf point: its strip', info is not None and info['sym'] == 'HB'
-              and info['lab'] > 0 and strip_matches(info, evs) is None, info and strip_matches(info, evs) or str(got))
+              and info['lab'] > 0 and strip_matches(info, diag_a) is None, info and strip_matches(info, diag_a) or str(got))
         hb = info
         printed = printed_stability(pa)
         pr = printed.get((1, hb['pt'])) if hb else None
@@ -1764,7 +1653,7 @@ def check_autoinfo():
         pr = printed.get((info['br'], info['pt'])) if info else None
         check('grab by point: the cursor goes to point 5 of the data, its strip and eigenvalues',
               info is not None and p5 is not None and info['point'] == 5 and (info['br'], info['pt']) == p5[:2]
-              and strip_matches(info, evs) is None and stab is not None and close_pairs(stab['eig'], pr, 2e-5),
+              and strip_matches(info, diag_a) is None and stab is not None and close_pairs(stab['eig'], pr, 2e-5),
               '%s %s %s' % (info, p5, pr))
         snda(cmd='answer', id=ask['id'], point=100000, key='Return')
         evs, ask = cola(lambda e: e.get('ev') == 'ask' or is_idle(e))

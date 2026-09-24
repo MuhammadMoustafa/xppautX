@@ -1,8 +1,9 @@
 /* The protocol front end: an XppUi table that talks line-delimited JSON.
 
-   One JSON object per line in each direction. Everything the core would
-   draw or show goes out as an event ("ev"); keys, sizes, parameter edits and
-   the answers to prompts come in as commands ("cmd"). A prompt (menu,
+   One JSON object per line in each direction. What the core shows goes out
+   as events ("ev"), as data (series, plots, nullclines, marks, the AUTO
+   diagram, animation frames: the page draws them); keys, parameter edits
+   and the answers to prompts come in as commands ("cmd"). A prompt (menu,
    string box, file name, mouse pick, ...) is an "ask" event with an id; the
    core blocks until the matching {"cmd":"answer","id":N,...} arrives, the
    same way the X11 front end runs a nested event loop. See docs/protocol.md.
@@ -108,8 +109,6 @@ void commander(int ch); /* commands.c */
 
 /* window ids the client draws into; plot windows are graph index + 1 */
 #define WIN_AUTO 101
-#define WIN_AUTO_STAB 102
-#define WIN_AUTO_INFO 103
 #define WIN_ANI 104
 #define WIN_APLOT 105
 
@@ -142,54 +141,7 @@ typedef struct {
 
 #define BUF_LIT(b, lit) buf_add(b, lit, sizeof(lit) - 1)
 
-/* pending drawing ops, one buffer per window: an op for window A no longer
-   has to flush window B's picture, so AUTO's diagram (101), the stability
-   circle (102) and the info strip (103) each keep accumulating between
-   flushes instead of interrupting each other every couple of ops. Windows
-   actually in use at once (the plot windows 1..MAXPOP, WIN_AUTO/_STAB/_INFO,
-   WIN_ANI) comfortably fit; if something unexpected exceeds it, flush_ops()
-   is called to make room rather than grow unboundedly. */
-#define MAX_OP_BUFS 40
-typedef struct {
-    unsigned long win;
-    Buf b;
-} OpBuf;
-static OpBuf op_bufs[MAX_OP_BUFS];
-static int n_op_bufs; /* buffers with content since the last flush, in first-use order */
 static int state_dirty;
-
-static void flush_ops(void); /* forward: get_op_buf() may need to make room */
-
-/* the buffer for win if it already has pending content, else NULL */
-static OpBuf *find_op_buf(unsigned long win)
-{
-    int i;
-    for (i = 0; i < n_op_bufs; i++)
-        if (op_bufs[i].win == win) return &op_bufs[i];
-    return NULL;
-}
-
-/* the buffer for win, taking a new one (in first-use order) if this is the
-   first op for it since the last flush */
-static OpBuf *get_op_buf(unsigned long win)
-{
-    OpBuf *ob = find_op_buf(win);
-    if (ob) return ob;
-    if (n_op_bufs >= MAX_OP_BUFS) flush_ops();
-    ob = &op_bufs[n_op_bufs++];
-    ob->win = win;
-    ob->b.len = 0;
-    return ob;
-}
-
-/* windows 102/103 (the stability circle, the info strip) only ever show
-   their latest picture: a clear should drop whatever of theirs is still
-   unsent rather than ship a picture the client will immediately overwrite */
-static void op_buf_discard(unsigned long win)
-{
-    OpBuf *ob = find_op_buf(win);
-    if (ob) ob->b.len = 0;
-}
 
 static void buf_add(Buf *b, const char *s, size_t n)
 {
@@ -262,63 +214,21 @@ static void out_flush(void)
     if (proto) fflush(proto);
 }
 
-/* AUTO draws a branch as a chain of one-segment lines, and one JSON op per
-   segment is what makes a redraw of a large diagram slow: the wire carries
-   tens of thousands of ops and the client strokes each one. Segments that
-   join up are gathered into a single ["poly",x0,y0,x1,y1,...] that the client
-   strokes as one path. The op stays open while it grows, so anything else
-   that writes an op closes it first. */
-static int poly_open, poly_x, poly_y;
-static void auto_reset_state(void); /* colour/width cache, below */
-static void auto_sync_state(void);
-
-/* the open poly, when there is one, is always the tail of WIN_AUTO's buffer */
-static void close_poly(void)
-{
-    if (!poly_open) return;
-    poly_open = 0;
-    BUF_LIT(&get_op_buf(WIN_AUTO)->b, "]");
-}
-
-/* one draw event per window with pending ops, in first-use order (windows
-   are separate canvases, so only the order within a window matters) */
+/* what is pending goes out before any other event: the AUTO diagram's
+   points (below) */
 static void diag_flush(int final); /* the AUTO diagram's data, below */
 static void diag_forget(void);
 static XppDiagPoint *dg;
 static int dg_n, dg_cap, dg_client, dg_dirty;
 
-static void flush_ops(void)
-{
-    int i;
-    close_poly();
-    diag_flush(0);
-    for (i = 0; i < n_op_bufs; i++) {
-        OpBuf *ob = &op_bufs[i];
-        char head[64];
-        size_t k;
-        if (ob->b.len == 0) continue;
-        k = (size_t)snprintf(head, sizeof head, "{\"ev\":\"draw\",\"win\":%lu,\"ops\":[", ob->win);
-        /* wrap the ops in place: {"ev":"draw",...,"ops":[ ... ]} */
-        if (ob->b.len + k + 3 > ob->b.cap) {
-            ob->b.cap = ob->b.len + k + 3 + 4096;
-            ob->b.s = static_cast<char *>(xpp_realloc(ob->b.s, ob->b.cap));
-        }
-        memmove(ob->b.s + k, ob->b.s, ob->b.len);
-        memcpy(ob->b.s, head, k);
-        memcpy(ob->b.s + k + ob->b.len, "]}", 3);
-        out_line(ob->b.s, ob->b.len + k + 2);
-        ob->b.len = 0;
-        ob->b.s[0] = 0;
-    }
-    n_op_bufs = 0;
-}
+static void flush_pending(void) { diag_flush(0); }
 
 static void send_state(void);
 
 /* one complete event line */
 static void send_buf(Buf *b)
 {
-    flush_ops();
+    flush_pending();
     out_line(b->s, b->len);
     out_flush();
     b->len = 0;
@@ -337,40 +247,9 @@ static void send_simple(const char *ev, const char *key, const char *text)
     xpp_free(b.s);
 }
 
-static void op(unsigned long win, const char *fmt, ...)
-{
-    OpBuf *ob;
-    char tmp[2048];
-    va_list ap;
-    int n;
-    /* the open poly is WIN_AUTO's: ops for 102/103 between two diagram
-       segments leave it open, which is what joins a branch into one poly */
-    if (win == WIN_AUTO) close_poly();
-    ob = get_op_buf(win);
-    va_start(ap, fmt);
-    n = vsnprintf(tmp, sizeof tmp, fmt, ap);
-    va_end(ap);
-    if (n < 0) return;
-    if (n >= (int)sizeof tmp) n = sizeof tmp - 1;
-    if (ob->b.len) BUF_LIT(&ob->b, ",");
-    buf_add(&ob->b, tmp, n);
-    if (ob->b.len > 60000) flush_ops(); /* guard is per buffer, action flushes all */
-}
-
-static void op_text(unsigned long win, const char *name, int x, int y, const char *s, int size)
-{
-    Buf b = {0};
-    buf_printf(&b, "[\"%s\",%d,%d,", name, x, y);
-    buf_str(&b, s);
-    if (size >= 0) buf_printf(&b, ",%d", size);
-    BUF_LIT(&b, "]");
-    op(win, "%s", b.s);
-    xpp_free(b.s);
-}
-
 static void json_flush(void)
 {
-    flush_ops();
+    flush_pending();
     if (state_dirty) send_state();
     out_flush();
 }
@@ -563,18 +442,12 @@ static int key_code(const char *k)
     return BADKEY;
 }
 
-static void apply_size(const char *line);
-static void apply_ani_size(void);
 static void apply_set(const char *line);
 static void browser_rows(const char *line);
 
 /* commands that make sense at any moment, even while a prompt is open */
 static int handle_async(const char *line)
 {
-    if (is_cmd(line, "size")) {
-        apply_size(line);
-        return 1;
-    }
     if (is_cmd(line, "quit")) exit(script_mode && script_error ? 1 : 0);
     if (is_cmd(line, "state")) {
         send_state();
@@ -595,7 +468,7 @@ static int handle_async(const char *line)
    computation sees xpp_job_cancelled() at its next check without reading
    input. Quit then exits when the engine takes the line.
 
-   key, set, size, state, browser with from, and ani pause/fast/slow are
+   key, set, state, browser with from, and ani pause/fast/slow are
    what a computation's checkpoint acts on (Escape stops it, a set changes
    a parameter under it, the animation loop changes speed): they go to the
    control queue only while a job runs, and are meant for that job; a set
@@ -618,7 +491,7 @@ static int classify(const char *line, unsigned long seq)
         return XPP_INBOX_CONTROL;
     }
     if (!xpp_job_running()) return XPP_INBOX_NORMAL;
-    if (strcmp(c, "key") == 0 || strcmp(c, "set") == 0 || strcmp(c, "size") == 0 || strcmp(c, "state") == 0)
+    if (strcmp(c, "key") == 0 || strcmp(c, "set") == 0 || strcmp(c, "state") == 0)
         return XPP_INBOX_CONTROL;
     if (strcmp(c, "browser") == 0 && js_find(line, "from")) return XPP_INBOX_CONTROL;
     if (strcmp(c, "ani") == 0 && get_str(line, "op", o, sizeof o) &&
@@ -695,7 +568,7 @@ static int ask_wait(Buf *b, int id)
         char *line = read_line(XPP_INBOX_ANY, -1);
         int lid;
         if (handle_async(line)) {
-            flush_ops();
+            flush_pending();
             out_flush();
             continue;
         }
@@ -1022,7 +895,7 @@ static int j_check_abort(void)
     static double last;
     /* let the client see the picture grow, a few frames a second */
     if (xpp_every(&last, 0.05)) {
-        flush_ops();
+        flush_pending();
         out_flush();
     }
     /* only the control queue: a command sent during the computation waits
@@ -1255,7 +1128,7 @@ static void plotvars_command(const char *line)
 /* a plots or series event: after the pending drawing, like any event */
 static void data_emit(const char *line, size_t n)
 {
-    flush_ops();
+    flush_pending();
     out_line(line, n);
     out_flush();
 }
@@ -1339,7 +1212,6 @@ static void j_get_draw_size(unsigned int *w, unsigned int *h)
 static void j_blank_draw_window(void)
 {
     int i;
-    op(draw_win, "[\"clear\"]");
     for (i = 0; i < MAXPOP; i++)
         if (graph[i].Use && graph[i].w == draw_win) {
             phase_data_cleared(i);
@@ -1495,20 +1367,17 @@ static void j_cput_text(void)
     j_message_box("Place text with mouse");
     if (j_get_mouse_xy(&x, &y)) {
         fillintext(string, text);
-        op_text(draw_win, "stext", x, y, text, size);
         marks_data_label(draw_win, add_label(string, x, y, size, 0), text);
     }
     j_kill_message_box();
 }
 
 static void j_draw_freeze(void) { draw_freeze(draw_win); }
-static void j_draw_text(int x, int y, char *s);
-static void j_put_text(int x, int y, char *s) { j_draw_text(x, y, s); }
 
 /* ---- pixels -------------------------------------------------------------------
-   Only the client has the rendered picture. Frame and GIF writers ask for
-   it: {"kind":"pixels","win":W} or {"film":i} (a kinescope frame), answered
-   with w, h and base64 RGB. */
+   Only the client has the rendered picture: it draws the window from the
+   data events. Frame and GIF writers ask for it: {"kind":"pixels","win":W}
+   or {"film":i} (a kinescope frame), answered with w, h and base64 RGB. */
 static int b64_value(int c)
 {
     if (c >= 'A' && c <= 'Z') return c - 'A';
@@ -1725,66 +1594,15 @@ static void j_auto_scroll_window(void)
     }
 }
 
-static void send_palette(void)
-{
-    Buf b = {0};
-    int i;
-    BUF_LIT(&b, "{\"ev\":\"palette\",\"colors\":[");
-    for (i = 0; i < XPP_MAX_COLORS; i++)
-        buf_printf(&b, i ? ",\"#%02x%02x%02x\"" : "\"#%02x%02x%02x\"", xpp_cmap_rgb[i][0] >> 8,
-                   xpp_cmap_rgb[i][1] >> 8, xpp_cmap_rgb[i][2] >> 8);
-    BUF_LIT(&b, "]}");
-    send_buf(&b);
-    xpp_free(b.s);
-}
-
 static void j_new_colormap(int type)
 {
     custom_color = type;
     xpp_build_colormap();
-    send_palette();
 }
-
-static void j_draw_point(int x, int y) { op(draw_win, "[\"point\",%d,%d,%d]", x, y, PointRadius); }
-static void j_draw_line(int x1, int y1, int x2, int y2) { op(draw_win, "[\"line\",%d,%d,%d,%d]", x1, y1, x2, y2); }
-static void j_draw_bead(int x, int y) { op(draw_win, "[\"bead\",%d,%d]", x, y); }
-static void j_draw_frect(int x, int y, int w, int h) { op(draw_win, "[\"frect\",%d,%d,%d,%d]", x, y, w, h); }
-/* put_text_x11: justified, baseline a third of a cell below y, foreground */
-static void j_draw_text(int x, int y, char *s)
-{
-    int sw = strlen(s) * DCURXs;
-    switch (TextJustify) {
-    case 0: sw = 0; break;
-    case 1: sw = -sw / 2; break;
-    case 2: sw = -sw; break;
-    }
-    op_text(draw_win, "text", x + sw, y + DCURYs / 3, s, -1);
-}
-static void j_draw_special_text(int x, int y, char *s, int size) { op_text(draw_win, "stext", x, y, s, size); }
-/* set_line_style_x11: -2 border, -1 dashed axis, else a curve colour */
-static void j_draw_linestyle(int ls)
-{
-    if (ls == -2) {
-        op(draw_win, "[\"color\",0],[\"lw\",2],[\"dash\",0]");
-        return;
-    }
-    if (ls == -1) {
-        op(draw_win, "[\"color\",0],[\"lw\",1],[\"dash\",1]");
-        return;
-    }
-    if (!COLOR) {
-        ls = (ls % 8) + 2;
-        op(draw_win, "[\"color\",0],[\"lw\",1],[\"dash\",%d]", ls == 2 ? 0 : ls);
-        return;
-    }
-    op(draw_win, "[\"lw\",1],[\"dash\",0],[\"color\",%d]", colorline[ls % 11]);
-}
-static void j_set_color(int col) { op(draw_win, "[\"color\",%d]", col); }
 
 /* ---- array plot ------------------------------------------------------------------
-   The picture is a grid of colour indices (aplotwin.c redraw_aplot): the
-   classic client paints them at the size of its window. `values` (added for
-   web2/, docs/ui-v2.md T12) carries the same cells' numbers before that
+   The picture is a grid of colour indices (aplotwin.c redraw_aplot).
+   `values` (docs/ui-v2.md T12) carries the same cells' numbers before that
    mapping, so a client can pick its own colour scale from them and zmin/zmax;
    encoded like a series column (series_enc.h), base64 float32 when the
    client last asked for that (data_command's "enc":"f32", reused here via
@@ -2020,139 +1838,21 @@ static void aplot_command(const char *line)
 
 /* ---- AUTO window --------------------------------------------------------------- */
 
-/* a size the client asked for while a command ran, applied when it ends */
-static int auto_size_w, auto_size_h;
-
 static void j_auto_make_window(char *wname, char *iname)
 {
     (void)iname;
-    Auto.hgt = auto_size_h ? auto_size_h - 4 * DCURYs : 20 * DCURY;
-    Auto.wid = auto_size_w ? auto_size_w - 12 * DCURXs : 67 * DCURX;
-    auto_size_w = auto_size_h = 0;
+    Auto.hgt = 20 * DCURY;
+    Auto.wid = 67 * DCURX;
     Auto.x0 = 10 * DCURXs;
     Auto.y0 = 2 * DCURYs;
     Auto.st_wid = 12 * DCURX;
     strcpy(Auto.hinttxt, "hint");
-    auto_reset_state(); /* a fresh canvas starts from the defaults */
-    diag_forget();      /* and a new window has no data */
+    diag_forget();      /* a new window has no data */
     auto_data_forget(); /* nor an info strip or a stability circle */
     send_window("create", WIN_AUTO, Auto.wid + 12 * DCURXs, Auto.hgt + 4 * DCURYs, wname);
     draw_bif_axes();
 }
 
-static void j_auto_line(int a, int b, int c, int d)
-{
-    char tmp[48];
-    int n;
-    auto_sync_state(); /* a change here closes the run, which is correct */
-    /* the diagram draws each segment as (this point, the previous one), so a
-       branch arrives end first: the run continues when the new segment's
-       second point is where the last one started. The path is stored in the
-       order it was walked, which strokes the same either way. */
-    if (poly_open && c == poly_x && d == poly_y) {
-        OpBuf *ob = get_op_buf(WIN_AUTO);
-        n = snprintf(tmp, sizeof tmp, ",%d,%d", a, b);
-        buf_add(&ob->b, tmp, (size_t)n);
-        poly_x = a;
-        poly_y = b;
-        if (ob->b.len > 60000) flush_ops();
-        return;
-    }
-    op(WIN_AUTO, "[\"poly\",%d,%d,%d,%d", c, d, a, b); /* left open to grow */
-    poly_open = 1;
-    poly_x = a;
-    poly_y = b;
-}
-static void j_auto_text(int a, int b, char *c) { auto_sync_state(); op_text(WIN_AUTO, "rtext", a, b, c, -1); }
-static void j_auto_circle(int x, int y, int r) { auto_sync_state(); op(WIN_AUTO, "[\"circle\",%d,%d,%d]", x, y, r); }
-static void j_auto_fill_circle(int x, int y, int r) { auto_sync_state(); op(WIN_AUTO, "[\"fcircle\",%d,%d,%d]", x, y, r); }
-/* The grab cursor lives on the client's overlay, not in the diagram.
-   XORCross toggles: a call where the cursor is shown hides it, a call
-   anywhere else shows it there. */
-static int auto_cross_shown;
-static int auto_cross_x, auto_cross_y;
-
-static void j_auto_xor_cross(int x, int y)
-{
-    if (DONT_XORCross) return;
-    if (auto_cross_shown && x == auto_cross_x && y == auto_cross_y) {
-        op(WIN_AUTO, "[\"cursor\"]");
-        auto_cross_shown = 0;
-        return;
-    }
-    op(WIN_AUTO, "[\"cursor\",%d,%d]", x, y);
-    auto_cross_shown = 1;
-    auto_cross_x = x;
-    auto_cross_y = y;
-}
-
-/* the grab is over: the diagram was never touched, so hiding the cursor
-   and putting back the branch marks is all a taken point needs */
-static void j_auto_grab_end(int done)
-{
-    if (auto_cross_shown) {
-        op(WIN_AUTO, "[\"cursor\"]");
-        auto_cross_shown = 0;
-    }
-    if (done == 1) RedrawMark();
-}
-/* For every point the diagram sets the width and the colour, draws one
-   segment, then sets the colour back to black. Sending each of those puts
-   two state ops between every pair of segments, which is both bandwidth and
-   a broken polyline run.
-
-   So the wanted state is only recorded, and goes out just before something
-   is actually drawn with it. The colour set back after the last segment
-   never reaches the client, and a run of same-coloured points sends the
-   colour once. auto_reset_state() is called wherever the client's canvas
-   goes back to its own defaults, so the two cannot drift apart. */
-static int auto_col_want, auto_lw_want = 1;
-static int auto_col_sent, auto_lw_sent = 1;
-
-/* The canvas keeps its colour across a clear, so after one the client is not
-   back at the default however much the core would like it to be: the axes
-   would be drawn in whatever colour the last branch left behind. Ask for the
-   default and mark what the client holds as unknown, so the next thing drawn
-   sends the colour rather than assuming it. */
-static void auto_reset_state(void)
-{
-    auto_col_want = 0;
-    auto_lw_want = 1;
-    auto_col_sent = auto_lw_sent = -1;
-    auto_cross_shown = 0; /* a fresh canvas has no cursor on it either */
-}
-
-/* emit what a drawing op is about to depend on; a change closes any open
-   polyline, which is right: it is no longer the same stroke */
-static void auto_sync_state(void)
-{
-    if (auto_lw_want != auto_lw_sent) {
-        auto_lw_sent = auto_lw_want;
-        op(WIN_AUTO, "[\"lw\",%d]", auto_lw_sent);
-    }
-    if (auto_col_want != auto_col_sent) {
-        auto_col_sent = auto_col_want;
-        op(WIN_AUTO, "[\"color\",%d]", auto_col_sent);
-    }
-}
-
-static void j_auto_line_width(int wid) { auto_lw_want = wid; }
-static void j_auto_col(int col) { auto_col_want = col; }
-static void j_auto_bw(void) { auto_col_want = 0; }
-static void j_auto_clr_stab(void)
-{
-    int r = Auto.st_wid / 4;
-    /* window 102 only ever shows its latest picture: drop whatever of it is
-       still unsent instead of shipping a circle the client immediately
-       overwrites */
-    op_buf_discard(WIN_AUTO_STAB);
-    op(WIN_AUTO_STAB, "[\"clear\"]");
-    op(WIN_AUTO_STAB, "[\"circle\",%d,%d,%d]", 2 * r, 2 * r, r);
-}
-static void j_auto_stab_line(int x, int y, int xp, int yp) { op(WIN_AUTO_STAB, "[\"line\",%d,%d,%d,%d]", x, y, xp, yp); }
-static void j_auto_clear_plot(void) { auto_reset_state(); op(WIN_AUTO, "[\"clear\"]"); }
-static void j_auto_clear_info(void) { op_buf_discard(WIN_AUTO_INFO); op(WIN_AUTO_INFO, "[\"clear\"]"); }
-static void j_auto_draw_info(char *s, int x, int y) { op_text(WIN_AUTO_INFO, "rtext", x, y, s, -1); }
 static int j_auto_check_abort(int *iflag)
 {
     *iflag = 0;
@@ -2221,7 +1921,7 @@ static int j_auto_grab_event(int *x, int *y)
 static void j_auto_show_hint(void) { send_simple("message", "auto", Auto.hinttxt); }
 
 /* ---- AUTO diagram data --------------------------------------------------------
-   Beside the primitives, the points of the diagram go out as data ("diagram"
+   The points of the diagram go out as data ("diagram"
    events, docs/protocol.md), so that the client can zoom, pan and show a
    point under the mouse without a round trip. dg[0..dg_n) is the list the
    client holds once the pending events are out: dg_client points of it
@@ -2408,7 +2108,7 @@ static void diag_flush(int final)
         b.len = 0;
         dg_axes = 0;
     }
-    /* the points in events of some 60 kB, like the drawing */
+    /* the points in events of some 60 kB */
     while (dg_client < dg_n) {
         int i = dg_client, j;
         buf_printf(&b, "{\"ev\":\"diagram\",\"op\":\"add\",\"from\":%d,\"runs\":[", dg_client);
@@ -2459,7 +2159,7 @@ static int ani_wait(int ms)
 {
     struct timeval start, now;
     gettimeofday(&start, NULL);
-    flush_ops();
+    flush_pending();
     out_flush();
     for (;;) {
         char *line;
@@ -2527,21 +2227,6 @@ static void ani_go(void)
     j_ani_slider();
 }
 
-/* a size the client asked for, applied when the running command ends */
-static int ani_size_w, ani_size_h;
-
-static void apply_ani_size(void)
-{
-    int w = 4 * (ani_size_w / 4), h = 5 * (ani_size_h / 5);
-    if (!ani_size_w || !vcr.iexist) return;
-    ani_size_w = ani_size_h = 0;
-    if (w < 40 || h < 40 || (w == vcr.wid && h == vcr.hgt)) return;
-    vcr.wid = w;
-    vcr.hgt = h;
-    send_window("create", WIN_ANI, w, h, "Animation");
-    if (n_anicom) ani_flip1(0);
-}
-
 static void ani_command(const char *line)
 {
     char o[16], what[8];
@@ -2598,15 +2283,11 @@ static void j_new_vcr(void)
     send_window("create", WIN_ANI, vcr.wid, vcr.hgt, "Animation");
     ani_view_created();
 }
-static void j_ani_clear(void) { op(WIN_ANI, "[\"clear\"]"); }
-static void j_ani_show(void) { flush_ops(); out_flush(); }
-static void j_ani_color(int icol) { op(WIN_ANI, "[\"color\",%d]", icol); }
-static void j_ani_thick(int t) { op(WIN_ANI, "[\"lw\",%d]", t); }
-static void j_ani_font(int size, int font, int color) { op(WIN_ANI, "[\"font\",%d,%d,%d]", size, font, color); }
-static void j_ani_line(int x1, int y1, int x2, int y2) { op(WIN_ANI, "[\"line\",%d,%d,%d,%d]", x1, y1, x2, y2); }
-static void j_ani_rect(int x, int y, int w, int h, int fill) { op(WIN_ANI, "[\"%s\",%d,%d,%d,%d]", fill ? "frect" : "rect", x, y, w, h); }
-static void j_ani_arc(int x, int y, int w, int h, int fill) { op(WIN_ANI, "[\"%s\",%d,%d,%d,%d]", fill ? "fellipse" : "ellipse", x, y, w, h); }
-static void j_ani_text(int x, int y, char *s) { op_text(WIN_ANI, "rtext", x, y, s, -1); }
+static void j_ani_show(void)
+{
+    flush_pending();
+    out_flush();
+}
 
 /* ---- misc ------------------------------------------------------------------------ */
 
@@ -2758,7 +2439,6 @@ static XppUi make_json_ui(void)
     u.get_draw_size = j_get_draw_size;
     u.draw_freeze = j_draw_freeze;
     u.blank_draw_window = j_blank_draw_window;
-    u.put_text = j_put_text;
     u.small_base = j_void;
     u.small_gr = j_void;
     u.film_clip = j_film_clip;
@@ -2770,33 +2450,12 @@ static XppUi make_json_ui(void)
     u.rubber_band = j_rubber_band;
     u.scroll_window = j_scroll_window;
     u.new_colormap = j_new_colormap;
-    u.draw_point = j_draw_point;
-    u.draw_line = j_draw_line;
-    u.draw_bead = j_draw_bead;
-    u.draw_frect = j_draw_frect;
-    u.draw_text = j_draw_text;
-    u.draw_special_text = j_draw_special_text;
-    u.draw_linestyle = j_draw_linestyle;
-    u.set_color = j_set_color;
     u.aplot_make = j_aplot_make;
     u.aplot_redraw = j_aplot_redraw;
     u.aplot_reset_axes = j_aplot_redraw;
     u.aplot_draw_one = j_aplot_draw_one;
     u.auto_make_window = j_auto_make_window;
-    u.auto_line = j_auto_line;
-    u.auto_text = j_auto_text;
-    u.auto_circle = j_auto_circle;
-    u.auto_fill_circle = j_auto_fill_circle;
-    u.auto_xor_cross = j_auto_xor_cross;
-    u.auto_line_width = j_auto_line_width;
-    u.auto_col = j_auto_col;
-    u.auto_bw = j_auto_bw;
-    u.auto_clr_stab = j_auto_clr_stab;
-    u.auto_stab_line = j_auto_stab_line;
-    u.auto_clear_plot = j_auto_clear_plot;
     u.auto_redraw_menus = j_void;
-    u.auto_clear_info = j_auto_clear_info;
-    u.auto_draw_info = j_auto_draw_info;
     u.auto_refresh = j_auto_refresh;
     u.auto_check_abort = j_auto_check_abort;
     u.auto_rubber = j_auto_rubber;
@@ -2804,18 +2463,9 @@ static XppUi make_json_ui(void)
     u.auto_scroll_window = j_auto_scroll_window;
     u.auto_grab_event = j_auto_grab_event;
     u.auto_show_hint = j_auto_show_hint;
-    u.auto_grab_end = j_auto_grab_end;
     u.auto_diagram = j_auto_diagram;
     u.new_vcr = j_new_vcr;
-    u.ani_clear = j_ani_clear;
     u.ani_show = j_ani_show;
-    u.ani_color = j_ani_color;
-    u.ani_thick = j_ani_thick;
-    u.ani_font = j_ani_font;
-    u.ani_line = j_ani_line;
-    u.ani_rect = j_ani_rect;
-    u.ani_arc = j_ani_arc;
-    u.ani_text = j_ani_text;
     u.ani_slider = j_ani_slider;
     u.init_txtview = j_void;
     u.show_eq_box = j_show_eq_box;
@@ -2828,50 +2478,6 @@ static XppUi make_json_ui(void)
 static const XppUi json_ui = make_json_ui();
 
 /* ---- commands from the client ------------------------------------------------------ */
-
-/* The AUTO diagram follows the size of the client's window. Resizing
-   redraws the diagram, so it waits until no command (a run, a grab) is
-   using it. */
-static void apply_auto_size(void)
-{
-    int w = auto_size_w, h = auto_size_h;
-    if (!w) return;
-    if (!Auto.exist) return; /* j_auto_make_window takes it */
-    auto_size_w = auto_size_h = 0;
-    if (w - 12 * DCURXs == Auto.wid && h - 4 * DCURYs == Auto.hgt) return;
-    Auto.wid = w - 12 * DCURXs;
-    Auto.hgt = h - 4 * DCURYs;
-    auto_reset_state();
-    send_window("create", WIN_AUTO, w, h, "It's AUTO man!");
-    redraw_diagram();
-}
-
-static void apply_size(const char *line)
-{
-    int win = (int)get_num(line, "win", 1);
-    int w = (int)get_num(line, "w", 640), h = (int)get_num(line, "h", 480);
-    int i = win - 1;
-    if (win == WIN_ANI) {
-        ani_size_w = w;
-        ani_size_h = h;
-        return;
-    }
-    if (win == WIN_AUTO) {
-        /* room for the axis labels around the diagram */
-        auto_size_w = w < 20 * DCURXs + 12 * DCURXs ? 32 * DCURXs : w;
-        auto_size_h = h < 8 * DCURYs + 4 * DCURYs ? 12 * DCURYs : h;
-        return;
-    }
-    if (i < 0 || i >= MAXPOP || w < 50 || h < 50) return;
-    win_w[i] = w;
-    win_h[i] = h;
-    graph[i].Width = w;
-    graph[i].Height = h;
-    if (graph[i].Use && (unsigned long)graph[i].w == (unsigned long)draw_win) {
-        get_draw_area();
-        j_redraw_graph();
-    }
-}
 
 /* one value of a "set": {"kind":"par|ic|bc|delay","name":...,"value":number
    or "text":...}. Text is what the user would type in the X11 box: a number
@@ -3105,8 +2711,6 @@ static void handle_line(const char *line, unsigned long seq)
         get_str(line, "op", o, sizeof o);
         xpp_files_command(o, js_find(line, "name"), js_find(line, "data"), data_emit);
     }
-    apply_auto_size();
-    apply_ani_size();
     if (aplot_dirty && aplot.alive && plot3d_auto_redraw == 1) send_aplot(NULL);
     aplot_dirty = 0;
     if (browser_dirty && br_count) send_browser();
@@ -3199,11 +2803,10 @@ void json_ui_hello(char *title)
 {
     Buf b = {0};
     int i;
-    BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":1,\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\"],\"title\":");
+    BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":2,\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\"],\"title\":");
     buf_str(&b, title);
     BUF_LIT(&b, ",\"file\":");
     buf_str(&b, this_file);
-    buf_printf(&b, ",\"char\":{\"w\":%d,\"h\":%d,\"bw\":%d,\"bh\":%d}", DCURXs, DCURYs, DCURXb, DCURYb);
     BUF_LIT(&b, ",\"menus\":{\"main\":");
     buf_str_array(&b, main_menu + 1, MAIN_ENTRIES); /* [0] is the title */
     BUF_LIT(&b, ",\"main_keys\":");
@@ -3286,7 +2889,6 @@ void json_ui_hello(char *title)
     BUF_LIT(&b, "]}}");
     send_buf(&b);
     xpp_free(b.s);
-    send_palette();
     send_window("create", 1, win_w[0], win_h[0], title);
     send_state();
 }

@@ -12,6 +12,13 @@
  * redraws and drawing do nothing. The browser front end installs its own
  * table (ui_json.cpp) before it serves a session.
  *
+ * The pixel primitives (draw_*, set_color, auto_line and the rest of the
+ * AUTO window's, ani_color ... ani_text) have no front end implementation
+ * since protocol 2 (docs/ui-v2.md T18): the page draws from data, which
+ * the code that calls them hands to the data modules (plot_data,
+ * phase_data, marks_data, auto_data through auto_diagram, ani_data). They
+ * stay as the headless no-ops below.
+ *
  * Conventions kept from the original code:
  *   new_string / file_selector / string_box return 0 when the user cancels.
  *   yes_no_box returns 1 for yes, 0 for no.
@@ -155,7 +162,8 @@ typedef struct XppUi {
     void (*new_colormap)(int type);
 
     /* raw drawing primitives used by graphics.c when the plot format is
-       the screen (PS and SVG are handled in graphics.c itself) */
+       the screen (PS and SVG are handled in graphics.c itself); no front
+       end draws them (see the top of this file) */
     void (*draw_point)(int x, int y);
     void (*draw_line)(int x1, int y1, int x2, int y2);
     void (*draw_bead)(int x, int y);

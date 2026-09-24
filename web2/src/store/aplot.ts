@@ -1,7 +1,7 @@
 /* The array plot (docs/ui-v2.md T12, docs/protocol.md `aplot`): a grid of
    cells the core computes from a range of stored columns and rows --
    `values`, the numbers before XPP maps them to a colour (`cells` stays
-   the core's own mapping, for the classic page only). This slice keeps the
+   the core's own mapping, what its GIF writer paints). This slice keeps the
    latest event decoded once, the colour map the client picked (its own
    choice, never sent to the core), whether the core's array plot window
    (105) exists, the panel's own open state (R6: a section under the plot
