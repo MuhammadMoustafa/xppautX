@@ -3,7 +3,7 @@
    beside the plot on wide screens, a drawer over it on narrow ones (the
    title bar's Menu button, Escape or a choice closes it). */
 import {useEffect, useRef} from 'preact/hooks';
-import {useSession, useStore} from './context';
+import {BUSY_TITLE, useSession, useStore} from './context';
 
 const WHICH = ['main', 'file', 'num'] as const;
 
@@ -12,6 +12,8 @@ export function MenuPanel() {
   const menus = useStore(s => s.hello?.menus);
   const which = useStore(s => s.core?.menu ?? 0);
   const open = useStore(s => s.drawerOpen);
+  /* the core runs one command at a time: its commands wait for the one running (T21) */
+  const busy = useStore(s => s.busy);
   const nav = useRef<HTMLElement>(null);
   const close = () => session.store.dispatch({type: 'drawer', open: false});
   useEffect(() => {
@@ -39,7 +41,7 @@ export function MenuPanel() {
         <ul>
           {items.map((item, i) => (
             <li key={`${name}${i}`}>
-              <button class="menu-item" title={hints[i]} aria-keyshortcuts={keys[i]}
+              <button class="menu-item" title={busy ? BUSY_TITLE : hints[i]} aria-keyshortcuts={keys[i]} disabled={busy}
                 onClick={() => { close(); session.key(keys[i]); }}>
                 <kbd aria-hidden="true">{keys[i]?.toUpperCase()}</kbd>
                 <span>{item}</span>

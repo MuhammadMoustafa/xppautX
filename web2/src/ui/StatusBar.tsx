@@ -1,4 +1,4 @@
-/* The bottom line: connection, work in progress (progress, Abort, then
+/* The bottom line: connection, work in progress (progress, Stop, then
    Stopping… until the run ends), the core's last message, stored rows. */
 import {useSession, useStore} from './context';
 
@@ -24,8 +24,9 @@ export function StatusBar() {
         </progress>
       )}
       {busy && (
-        <button class="small danger" disabled={stopping} onClick={() => session.abort()}>
-          {stopping ? 'Stopping…' : 'Abort'}
+        <button class="small danger" disabled={stopping} onClick={() => session.abort()}
+          title="Stop the running command (Escape does the same)">
+          {stopping ? 'Stopping…' : 'Stop'}
         </button>
       )}
       <span class="status-message">{bottom}</span>

@@ -148,6 +148,28 @@ export interface DiagramState {
   grabbing: boolean;
   /** the point a click stored in a two-parameter diagram (`auto point`) */
   stored: {x: number; y: number} | null;
+  /** the last Run (T21: the view's status strip), null before one */
+  run: AutoRun | null;
+  /** Clear (T21): the points before this index are earlier branches, hidden
+      unless `showEarlier` (the core keeps them; new runs draw alone) */
+  earlier: number;
+  showEarlier: boolean;
+  /** the last Numerics and axes file saved (T21, store/autoSetup.ts), for tests */
+  setupSaved: string | null;
+}
+
+/** a Run of AUTO, as the status strip tells it; what it computed so far is
+    read from the points from `first` on (runStatus) */
+export interface AutoRun {
+  /** its command has not ended */
+  active: boolean;
+  /** Date.now() when it started computing (the Start menu answered), and when it ended */
+  started: number;
+  ended: number | null;
+  /** the number of points the diagram held when it started */
+  first: number;
+  /** it was stopped (the `stopped` event), not finished */
+  stopped: boolean;
 }
 
 export const FIELDS = ['x', 'y', 'y2', 'br', 'pt', 'ty', 'd', 'c', 'lw', 'f2', 'nw', 'fr'] as const;
@@ -162,6 +184,7 @@ const HISTORY_KEEP = 50;
 export const initialDiagram: DiagramState = {
   open: false, shown: false, axes: null, points: noPoints(), labels: [], events: 0, outOfStep: false,
   viewport: HOME, viewportHistory: [], hover: null, info: null, stab: null, infoEvents: 0, grabbing: false, stored: null,
+  run: null, earlier: 0, showEarlier: false, setupSaved: null,
 };
 
 export type DiagramAction =
@@ -176,7 +199,14 @@ export type DiagramAction =
   | {type: 'info'; ev: AutoInfoEvent}
   /** the core's grab: its ask came (on), or its command ended */
   | {type: 'grabbing'; on: boolean}
-  | {type: 'stored'; at: {x: number; y: number} | null};
+  | {type: 'stored'; at: {x: number; y: number} | null}
+  /** Run pressed (start), its Start menu answered (clock), its command ended (end) */
+  | {type: 'run'; op: 'start' | 'clock' | 'end'; at: number}
+  | {type: 'runStopped'}
+  /** Clear: what is drawn now becomes the earlier branches */
+  | {type: 'clear'}
+  | {type: 'showEarlier'; show: boolean}
+  | {type: 'setupSaved'; text: string};
 
 export function pointCount(p: DiagramPoints): number {
   return p.x.length;
@@ -302,7 +332,45 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
       return a.on === s.grabbing ? s : {...s, grabbing: a.on, shown: a.on && s.open ? true : s.shown};
     case 'stored':
       return {...s, stored: a.at};
+    case 'run':
+      return onRun(s, a.op, a.at);
+    case 'runStopped':
+      return s.run?.active ? {...s, run: {...s.run, stopped: true}} : s;
+    case 'clear':
+      return {...s, earlier: pointCount(s.points), showEarlier: false, hover: null};
+    case 'showEarlier':
+      return a.show === s.showEarlier ? s : {...s, showEarlier: a.show};
+    case 'setupSaved':
+      return {...s, setupSaved: a.text};
   }
+}
+
+function onRun(s: DiagramState, op: 'start' | 'clock' | 'end', at: number): DiagramState {
+  if (op === 'start') return {...s, run: {active: true, started: at, ended: null, first: pointCount(s.points), stopped: false}};
+  if (!s.run?.active) return s;
+  if (op === 'clock') return {...s, run: {...s.run, started: at}};
+  return {...s, run: {...s.run, active: false, ended: at}};
+}
+
+/** a command ended: no grab any more, and a diagram that holds fewer points
+    than Clear hid (File/Reset diagram) has no earlier branches left (a
+    redraw in other quantities sends them all again before its end) */
+export function diagramSettled(s: DiagramState): DiagramState {
+  const t = reduceDiagram(s, {type: 'grabbing', on: false});
+  const n = pointCount(t.points);
+  return t.earlier > n ? {...t, earlier: n} : t;
+}
+
+/** the points Clear hid, and whether they are shown */
+export function earlierCount(s: Pick<DiagramState, 'earlier' | 'points'>): number {
+  return Math.min(s.earlier, pointCount(s.points));
+}
+
+/** the number of branches among the first `n` points */
+export function branchesBefore(p: DiagramPoints, n: number): number {
+  const seen = new Set<number>();
+  for (let i = 0; i < n && i < p.br.length; i++) seen.add(p.br[i]);
+  return seen.size;
 }
 
 /** the label of point `i`, if it has one */

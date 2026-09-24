@@ -10,6 +10,7 @@ import {useEffect, useRef, useState} from 'preact/hooks';
 import {fieldSpec, selectOptions} from '../protocol/lists';
 import type {AskEvent} from '../protocol/types';
 import {FileAsk} from './FileDialog';
+import {MENU_ONE_COLUMN, menuRows} from './menuLayout';
 import {useSession, useStore} from './context';
 
 const FOCUSABLE = 'button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -33,7 +34,8 @@ function MenuAsk({ask}: {ask: AskEvent}) {
   return (
     <>
       {ask.question && <p>{ask.question}</p>}
-      <ul class="menu-list" role="menu" aria-label={ask.title || ask.name || 'Choices'}>
+      <ul class={'menu-list' + (items.length > MENU_ONE_COLUMN ? ' menu-columns' : '')} role="menu"
+        aria-label={ask.title || ask.name || 'Choices'} style={{'--menu-rows': String(menuRows(items.length))}}>
         {items.map((item, i) => (
           <li key={i} role="none">
             <button role="menuitem" class="menu-item" title={ask.hints?.[i]}
@@ -190,7 +192,12 @@ function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
       const i = all.indexOf(document.activeElement as HTMLElement);
       const next = e.shiftKey ? (i <= 0 ? all.length - 1 : i - 1) : (i === all.length - 1 ? 0 : i + 1);
       e.preventDefault();
-      all[next].focus();
+      const to = all[next];
+      to.focus();
+      /* as a native Tab does: typing then replaces the field's text instead of adding to it */
+      if (to instanceof HTMLInputElement && /^(text|search|number|url|tel|email|password)?$/.test(to.getAttribute('type') ?? ''))
+        to.select();
+      else if (to instanceof HTMLTextAreaElement) to.select();
     }
   };
   const title = ask.title || ask.name || 'XPP';

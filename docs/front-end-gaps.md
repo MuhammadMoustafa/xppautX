@@ -55,6 +55,10 @@ Nothing. Fixes from hands-on use are tracked in docs/ui-v2.md (T19).
   do the same at 12 characters.
 - The AUTO diagram stores a point for 2-parameter work on click, not on
   every mouse move.
+- AUTO has no reDraw button: the diagram is always current (the core
+  draws it again after Axes and File/Load), and Clear hides the branches
+  so far behind a key entry ("Earlier branches") instead of blanking the
+  window until a reDraw.
 - The AUTO diagram also zooms (mouse wheel) and pans (Shift+drag, or the
   middle button) in the client, from the diagram's data, without asking the
   core; a tooltip names the point under the mouse (branch, point, type,

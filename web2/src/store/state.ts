@@ -14,7 +14,7 @@ import {initialAni, reduceAni, type AniAction, type AniState} from './ani';
 import {initialKinescope, reduceKinescope, snapshotWindow, type KinescopeAction, type KinescopeState} from './kinescope';
 import {initialFiles, missingFile, onSent, reduceFiles, type FilesAction, type FilesState, type RunRecord} from './files';
 import {
-  initialDiagram, reduceDiagram, type AutoInfoEvent, type DiagramAction, type DiagramEvent, type DiagramState,
+  diagramSettled, initialDiagram, reduceDiagram, type AutoInfoEvent, type DiagramAction, type DiagramEvent, type DiagramState,
 } from './diagram';
 import {initialTable, reduceTable, type TableAction, type TableState} from './table';
 import {initialText, reduceText, type TextAction, type TextState} from './text';
@@ -311,7 +311,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         ...state, busy: false, stopping: false, ask: null, pick: null, box: '', progress: null,
         values: reduceValues(state.values, {type: 'settled'}),
         ani: reduceAni(state.ani, {type: 'playing', playing: false}),
-        diagram: reduceDiagram(state.diagram, {type: 'grabbing', on: false}),
+        diagram: diagramSettled(state.diagram),
       };
     case 'ani':
       return {...state, ani: reduceAni(state.ani, ev.op === 'frame' ? {type: 'frame', ev} : {type: 'state', ev})};
@@ -325,6 +325,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       /* play/autoplay: the timing is noted here; session.ts's timer steps `shown` (impure, not this reducer) */
       return {...state, kinescope: reduceKinescope(state.kinescope, {type: 'playing', playing: true, cycles: ev.cycles, delay: ev.delay})};
     }
+    case 'stopped':
+      return {...state, diagram: reduceDiagram(state.diagram, {type: 'runStopped'})};
     case 'autoinfo':
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'info', ev: ev as unknown as AutoInfoEvent})};
     case 'progress':

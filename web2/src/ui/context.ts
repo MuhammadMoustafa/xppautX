@@ -4,6 +4,9 @@ import {useContext, useEffect, useReducer, useRef} from 'preact/hooks';
 import type {Session} from '../session';
 import type {AppState} from '../store/state';
 
+/** the title of a control that needs the core while it computes (T21: the core runs one command at a time) */
+export const BUSY_TITLE = 'Busy: available when the current run ends';
+
 export const SessionContext = createContext<Session | null>(null);
 
 export function useSession(): Session {

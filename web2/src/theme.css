@@ -195,6 +195,20 @@ kbd {
   padding: 0 var(--space-2);
 }
 .menu-item:hover { background: var(--surface-2); }
+/* a long menu in the prompt dialog (T21): columns of at most 8 items from
+   48rem, so it fits a laptop's screen without scrolling; one column on a phone */
+@media (min-width: 48rem) {
+  .dialog:has(.menu-columns) { width: min(52rem, 100%); }
+  .menu-list.menu-columns {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(var(--menu-rows, 8), auto);
+    grid-auto-columns: minmax(0, 1fr);
+    column-gap: var(--space-3);
+  }
+}
+.icon-button { display: inline-flex; align-items: center; justify-content: center; min-width: var(--target); padding: 0; }
+.icon-button .icon { display: block; }
 .drawer-scrim { display: none; }
 
 /* ---- values panel (docs/ui-v2.md T3): a section under the plot by default, ---- */

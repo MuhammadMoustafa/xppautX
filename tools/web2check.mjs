@@ -44,9 +44,18 @@
    per capture, Playback shows frame 1 then frame 2, Reset empties the
    frames, and the core's own Make Anigif (a `pixels` ask per frame) writes
    a real anim.gif into the model's folder.
+   T21: AUTO's status strip names the run and its point count, the axis
+   dialog sets the range during a run (its plot type waits), an Axes change
+   brings the diagram in the new quantities without reDraw, Clear hides the
+   branches so far, the Numerics and Axes settings round trip through a
+   file, grabbing a labelled periodic point plots its limit cycle, Tab in a
+   form replaces a field's text; `keys`: I then G typed at once integrate,
+   F acts from the plot and from a button, the theme switch is an icon, a
+   long menu is in columns; `busy`: during an integration the AUTO diagram
+   zooms and its core buttons say why they wait.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH]
-     [--only desktop,phase,marks,auto,view,three,aplot,files,live,million,ani,kinescope,runs,values] [-v]
+     [--only desktop,phase,marks,auto,keys,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values] [-v]
 
    Needs Node 22 or later and a browser, nothing else (tools/cdp.mjs). */
 import {spawnSync} from 'node:child_process';
@@ -1409,7 +1418,15 @@ async function menuKey(k) {
 const center = sel => cdp.eval(`(() => { const r = document.querySelector('${sel}').getBoundingClientRect();
   return {x: r.left + r.width / 2, y: r.top + r.height / 2, h: r.height}; })()`);
 
-async function autoView() {
+const autoStatus = () => cdp.eval(`document.querySelector('[data-testid=auto-status]').textContent`);
+/* the open axis dialog's minimum and maximum, typed */
+async function setAxisRange(lo, hi) {
+  await cdp.eval(`(() => { const d = document.querySelector('.auto-axis-dialog');
+    for (const [f, v] of [['min', ${lo}], ['max', ${hi}]]) { const i = d.querySelector('input[data-field=' + f + ']');
+      i.value = String(v); i.dispatchEvent(new Event('input', {bubbles: true})); } })()`);
+}
+
+async function autoView(dir) {
   await desktopMetrics();
   check('AUTO: the page connects', await until('s.hello && !s.busy', 'hello'));
   check('AUTO: no view before the core opens it', !(await cdp.eval(`!!document.querySelector('.auto-panel')`)));
@@ -1434,9 +1451,10 @@ async function autoView() {
     && await cdp.eval(`!!document.querySelector('.auto-panel .auto-host')`), JSON.stringify(await DS('d.axes')));
   check("the diagram has the focus, so AUTO's keys work", await until(`document.activeElement.closest('.auto-host')`, 'auto focus'));
   const words = await cdp.eval(`[...document.querySelectorAll('.auto-panel button')].map(b => b.textContent.trim())`);
-  check('the view has the AUTO buttons and no Abort of its own (A10)',
-    ['Parameter', 'Axes', 'Numerics', 'Run', 'Grab', 'Usr period', 'Clear', 'reDraw', 'File', 'Close'].every(w => words.includes(w))
-    && !words.some(w => /abort|stop/i.test(w)), JSON.stringify(words));
+  check('the view has the AUTO buttons, no reDraw (the diagram is always current) and no Stop while idle (A10, T21)',
+    ['Parameter', 'Axes', 'Numerics', 'Run', 'Grab', 'Mark values…', 'Clear', 'File', 'Save settings', 'Load settings', 'Close']
+      .every(w => words.includes(w)) && !words.some(w => /abort|stop|redraw/i.test(w)), JSON.stringify(words));
+  check('the status strip says AUTO is idle', /^Idle/.test(await autoStatus()), await autoStatus());
 
   /* a dialog the view opens is on top of it, not behind (Numerics' form) */
   await autoButton('N');
@@ -1447,6 +1465,14 @@ async function autoView() {
       return d.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2))
         && d.contains(document.elementFromPoint(f.left + f.width / 2, f.top + f.height / 2)); })()`));
   await until(`!!document.activeElement.closest('.dialog')`, 'dialog focus'); /* Escape goes to the focused dialog */
+  /* T21: Tab selects the next field's text, as a native Tab does, so typing replaces it */
+  const second = await cdp.eval(`document.querySelectorAll('.dialog input')[1].value`);
+  await key('Tab');
+  await key('7');
+  await key('7');
+  check('Tab into a form field and typing replaces its value (not appends to it)',
+    await cdp.eval(`document.activeElement === document.querySelectorAll('.dialog input')[1] && document.activeElement.value === '77'`),
+    JSON.stringify([second, await cdp.eval(`document.activeElement.value`)]));
   await key('Escape');
   await until('!s.busy && !s.ask', 'numerics cancelled');
 
@@ -1456,6 +1482,15 @@ async function autoView() {
     JSON.stringify(await S('s.ask')));
   await menuKey('s');
   check('the steady-state branch arrives', await until('!s.busy && s.diagram.points.x.length > 10', 'steady state', 60000));
+  const nSteady = await DS('d.points.x.length');
+  check('T21: the status strip says the run is done: steady states, its branch and point, its points, its last label, the time',
+    await until(`document.querySelector('.auto-status').dataset.phase === 'done'`, 'strip done')
+    && new RegExp(`^Done: steady states · branch 1, point \\d+ · ${nSteady} points · last label EP \\d+ at point \\d+ · [\\d.:]+ s?`)
+      .test(await autoStatus()), await autoStatus());
+  const out = await cdp.eval(`(() => { const d = document.querySelector('.auto-output'); d.open = true;
+    return {sum: d.querySelector('summary').textContent, text: d.querySelector('pre') && d.querySelector('pre').textContent}; })()`);
+  check("T21: the Output panel shows AUTO's table", /^Output \(\d+\)$/.test(out.sum) && out.sum !== 'Output (0)'
+    && /BR\s+PT\s+TY/.test(out.text || ''), JSON.stringify(out).slice(0, 300));
   check('after the run the store holds its last point\'s stability circle (autoinfo)',
     await until('s.diagram.stab && s.diagram.stab.circle.length === 2 && s.diagram.stab.periodic === 0', 'run stab'),
     JSON.stringify(await DS('[d.info, d.stab]')));
@@ -1494,7 +1529,28 @@ async function autoView() {
   check('R, from the Hopf point, offers the periodic branch',
     await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Hopf Pt'", 'hopf menu'), JSON.stringify(await S('s.ask')));
   await menuKey('p');
+  /* T21, during the run: the strip names it and has the Stop; the axis dialog changes the range, not the variable */
+  check('T21: while it runs the status strip says "Running: periodic orbits", with branch 2, its point count and a Stop',
+    await until(`/^Running: periodic orbits · branch 2, point \\d+ · \\d+ points/.test(document.querySelector('[data-testid=auto-status]').textContent)
+      && !!document.querySelector('.auto-status .auto-stop')`, 'strip running', 20000), await autoStatus());
+  await cdp.eval(`document.querySelector('.auto-axis-name[data-axis=y]').click()`);
+  const running = await until(`s.busy && document.querySelector('.auto-axis-dialog[data-axis=y]')`, 'axis dialog');
+  const dlg = await cdp.eval(`(() => { const d = document.querySelector('.auto-axis-dialog');
+    return {plot: d.querySelector('select[data-field=plot]').disabled, hint: !!d.querySelector('#auto-axis-busy'),
+      min: d.querySelector('input[data-field=min]').disabled}; })()`);
+  await setAxisRange(-0.6, 0.7);
+  check('T21: during the run the axis dialog\'s plot type is disabled with its hint, and min/max change the view at once',
+    running && dlg.plot && dlg.hint && !dlg.min && await until(`s.busy && s.diagram.viewport.y && s.diagram.viewport.y.min === -0.6
+      && s.diagram.viewport.y.max === 0.7`, 'axis range during run', 3000) && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'axes')`)),
+    JSON.stringify([running, dlg, await DS('d.viewport'), await S('s.busy')]));
   check('the periodic branch arrives', await until('!s.busy && s.diagram.points.br.includes(2)', 'periodic', 120000));
+  check('T21: when the run ends the plot type is enabled again',
+    await until(`!document.querySelector('.auto-axis-dialog select[data-field=plot]').disabled`, 'plot enabled'));
+  await key('Escape');
+  check('Escape closes the axis dialog, the focus back on the axis name',
+    await until(`!document.querySelector('.auto-axis-dialog') && document.activeElement.matches('.auto-axis-name[data-axis=y]')`, 'axis closed'));
+  await cdp.eval(`document.querySelector('.auto-panel .plot-tools button:nth-child(2)').click()`); /* Reset view */
+  await until('s.diagram.viewport.y === null', 'view reset');
   check('its first point says it started from the Hopf label; the circle holds Floquet multipliers',
     await DS(`d.points.fr[d.points.br.indexOf(2)] === ${hbLab}`) && await DS('d.stab.periodic === 1 && d.stab.circle.length === 2'),
     JSON.stringify(await DS('[d.points.fr.filter(f => f), d.stab]')));
@@ -1530,6 +1586,25 @@ async function autoView() {
     hb && joined.length === 2 && joined.every(c => c.hopf === hb.point && c.first[2] === hb.point && c.branch === 2
       && c.first[0] === want.pts[hb.point].x && c.first[1] === want.pts[hb.point].y), JSON.stringify({hb, joined}));
 
+  /* T21: grabbing a labelled periodic point plots its limit cycle in the main window (File/Import orbit) */
+  await cdp.eval(`document.querySelector('.auto-host').focus()`);
+  await key('g');
+  await until("s.ask && s.ask.kind === 'grab' && s.diagram.info", 'grab periodic');
+  for (let i = 0; i < 12 && !(await DS('d.info && d.info.type >= 3 && d.info.lab > 0')); i++) {
+    const n = await DS('d.infoEvents');
+    await key('Tab');
+    await until(`s.diagram.infoEvents > ${n} && s.ask`, 'grab tab periodic');
+  }
+  const grabbed = await DS('d.info');
+  const sentGrab = await cdp.eval('__xpp.sent().length');
+  await key('Enter');
+  check('T21: grabbing a labelled periodic point imports its orbit: the main plot shows the limit cycle',
+    grabbed && grabbed.type >= 3 && await until(`!s.busy && s.core.rows > 10 && w.series && w.series.rows === s.core.rows`, 'orbit', 20000)
+    && JSON.stringify((await cdp.eval(`__xpp.sent().slice(${sentGrab})`)).filter(c => c.cmd === 'auto' || c.key === 'i')
+      .map(c => c.op || c.key)) === JSON.stringify(['file', 'i']),
+    JSON.stringify([grabbed && [grabbed.br, grabbed.pt, grabbed.type, grabbed.lab], await S('[s.core.rows, w.series && w.series.rows]'),
+      await cdp.eval(`__xpp.sent().slice(${sentGrab})`)]));
+
   /* hover names the Hopf point */
   const hbAt = await autoScreen(want.pts[hb.point].x, want.pts[hb.point].y);
   await mouse('mouseMoved', hbAt.x, hbAt.y);
@@ -1553,7 +1628,7 @@ async function autoView() {
 
   /* zoom, pan, undo */
   const a = await autoArea(), cx = a.x + a.w / 2, cy = a.y + a.h / 2;
-  const axes = await DS('d.axes');
+  const axes = await DS('d.axes'), h0 = await DS('d.viewportHistory.length');
   await mouse('mouseWheel', cx, cy, {deltaX: 0, deltaY: -120});
   check('the wheel zooms the diagram', await until('s.diagram.viewport.x', 'auto wheel')
     && width((await DG()).x) < (axes.xmax - axes.xmin) * 0.9, JSON.stringify(await DS('d.viewport')));
@@ -1563,7 +1638,7 @@ async function autoView() {
   for (let st = 1; st <= 6; st++) await mouse('mouseMoved', cx - 60 + 20 * st, cy - 40 + 14 * st, {button: 'left', buttons: 1});
   await mouse('mouseReleased', cx + 60, cy + 44, {button: 'left', buttons: 0, clickCount: 1});
   check('a box zooms to it', await until(`s.diagram.viewport.x && s.diagram.viewport.x.max - s.diagram.viewport.x.min < ${width(z1.x) * 0.8}`, 'auto box')
-    && (await DS('d.viewportHistory.length')) === 2, JSON.stringify(await DS('d.viewport')));
+    && (await DS('d.viewportHistory.length')) === h0 + 2, JSON.stringify(await DS('d.viewport')));
   await cdp.eval(`[...document.querySelectorAll('.auto-panel button')].find(b => b.textContent === 'Undo zoom').click()`);
   check('Undo zoom goes back one step', await until(`s.diagram.viewport.x && Math.abs(s.diagram.viewport.x.min - ${z1.x.min}) < 1e-12`, 'auto undo'));
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
@@ -1612,6 +1687,86 @@ async function autoView() {
   await menuKey('f');
   await until('!s.busy', 'auto fit');
 
+  /* T21: an Axes change draws the diagram again in the new quantities by itself (no reDraw) */
+  const nAll = await DS('d.points.x.length'), y0 = await DS('d.points.y.slice(0, 50)');
+  const sentAxes = await cdp.eval('__xpp.sent().length');
+  await cdp.eval(`document.querySelector('.auto-host').focus()`);
+  await key('a');
+  await menuKey('n');
+  await until("s.ask && s.ask.kind === 'form'", 'autoplot form');
+  await until(`!!document.activeElement.closest('.dialog')`, 'autoplot focus');
+  await key('Enter');
+  check('T21: Axes/Norm, OK: the diagram holds all its points again, in norms, without a reDraw',
+    await until(`!s.busy && s.diagram.axes.plot === 1 && s.diagram.points.x.length === ${nAll}`, 'norm axes')
+    && JSON.stringify(await DS('d.points.y.slice(0, 50)')) !== JSON.stringify(y0)
+    && !(await cdp.eval(`__xpp.sent().slice(${sentAxes}).some(c => c.cmd === 'redraw' || c.op === 'redraw')`))
+    && (await DG()).curves.length > 0, JSON.stringify(await DS('[d.axes, d.points.x.length]')));
+  /* and the axis dialog does the same: hI-lo from its Plots select, then a Fit */
+  await cdp.eval(`document.querySelector('.auto-axis-name[data-axis=y]').click()`);
+  await until(`document.querySelector('.auto-axis-dialog select[data-field=plot]')`, 'y dialog');
+  await cdp.eval(`(() => { const s = document.querySelector('.auto-axis-dialog select[data-field=plot]'); s.value = '2';
+    s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  check('T21: the axis dialog\'s plot type goes to the core (Axes, then Fit): hI-lo, every point, periodic max and min',
+    await until(`!s.busy && s.diagram.axes.plot === 2 && s.diagram.points.x.length === ${nAll}
+      && document.querySelector('.auto-axis-dialog select[data-field=yvar]')`, 'hilo axes', 20000)
+    && (await DG()).curves.some(c => c.which === 'y2'), JSON.stringify(await DS('d.axes')));
+  const fitted = await DS('d.axes');
+  await setAxisRange(fitted.ymin - 0.1, fitted.ymax + 0.1);
+  check("T21: its min and max change the view at once, the core's axes stay",
+    await until(`s.diagram.viewport.y && Math.abs(s.diagram.viewport.y.min - ${fitted.ymin - 0.1}) < 1e-9`, 'y range')
+    && (await DS('d.axes.ymin')) === fitted.ymin, JSON.stringify(await DS('[d.viewport, d.axes]')));
+  await cdp.eval(`document.querySelector('.auto-axis-dialog .dialog-actions button').click()`);
+  await until('!document.querySelector(".auto-axis-dialog")', 'y dialog closed');
+  await cdp.eval(`document.querySelector('.auto-panel .plot-tools button:nth-child(2)').click()`);
+  await until('s.diagram.viewport.y === null', 'view reset 2');
+
+  /* T21: Clear hides the branches so far in the view, the key shows them again; nothing goes to the core */
+  const nCurvesAll = (await DG()).curves.length, sentClear = await cdp.eval('__xpp.sent().length');
+  await autoButton('C');
+  check('T21: Clear hides every branch so far; the key offers "Earlier branches (2)"',
+    await until(`__xpp.diagram().curves.length === 0 && s.diagram.earlier === ${nAll}`, 'cleared')
+    && /Earlier branches \(2\)/.test(await cdp.eval(`document.querySelector('.auto-earlier').textContent`))
+    && (await cdp.eval(`__xpp.sent().length`)) === sentClear, await cdp.eval(`document.querySelector('.auto-legend').textContent`));
+  await cdp.eval(`document.querySelector('.auto-earlier').click()`);
+  check('T21: "Earlier branches" shows them again', await until(`__xpp.diagram().curves.length === ${nCurvesAll}`, 'earlier shown'));
+
+  /* T21: Numerics and Axes saved to a file and loaded back */
+  await cdp.eval(`[...document.querySelectorAll('.auto-tools button')].find(b => b.textContent === 'Save settings').click()`);
+  check('T21: Save settings writes the Numerics (22 values) and the Axes (plot type and 7 values)',
+    await until('!s.busy && s.diagram.setupSaved', 'settings saved', 20000)
+    && await DS(`(() => { const o = JSON.parse(d.setupSaved); return o.xppautX === 'auto-settings' && Object.keys(o.numerics).length === 22
+      && o.plot === 2 && Object.keys(o.axes).length === 7 && o.axes['Main Parm'] === 'iapp'; })()`)
+    && !(await S('s.ask')), JSON.stringify([await DS('d.setupSaved'), await S('[s.busy, s.ask]'), await cdp.eval('__xpp.sent().slice(-6)')]));
+  const saved = JSON.parse(await DS('d.setupSaved'));
+  saved.numerics.Nmax = '321';
+  saved.plot = 1;
+  saved.axes.Xmin = '0.01';
+  saved.axes.Xmax = '0.4';
+  const setFile = path.join(dir, 'lecar-auto.json');
+  fs.writeFileSync(setFile, JSON.stringify(saved));
+  await pickFiles('#auto-settings-load', [setFile]);
+  check('T21: Load settings answers them into the Axes: norm plot at the file\'s x range',
+    await until(`!s.busy && !s.ask && s.diagram.axes.plot === 1 && s.diagram.axes.xmin === 0.01 && s.diagram.axes.xmax === 0.4
+      && s.diagram.points.x.length === ${nAll}`, 'settings loaded', 20000), JSON.stringify(await DS('d.axes')));
+  await autoButton('N');
+  await until("s.ask && s.ask.kind === 'form'", 'numerics again');
+  check('T21: ... and into the Numerics (Nmax 321)',
+    await S(`s.ask.values[s.ask.names.findIndex(n => /Nmax/.test(n))] === '321'`), JSON.stringify(await S('[s.ask.names, s.ask.values]')));
+  await until(`!!document.activeElement.closest('.dialog')`, 'numerics focus');
+  await key('Escape');
+  await until('!s.busy && !s.ask', 'numerics closed');
+  /* back to hI-lo, fitted, for what follows */
+  await cdp.eval(`document.querySelector('.auto-host').focus()`);
+  await key('a');
+  await menuKey('i');
+  await until("s.ask && s.ask.kind === 'form'", 'autoplot form 2');
+  await until(`!!document.activeElement.closest('.dialog')`, 'autoplot focus 2');
+  await key('Enter');
+  await until('!s.busy && s.diagram.axes.plot === 2', 'hilo again');
+  await key('a');
+  await menuKey('f');
+  await until('!s.busy', 'fit again');
+
   /* on a phone: a sheet with Back, 44 px targets, no sideways scroll */
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
   await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
@@ -1634,7 +1789,8 @@ async function autoView() {
   await touch('touchEnd', []);
   check('Back hides the sheet, AUTO stays open', await until('!s.diagram.shown && s.diagram.open', 'auto back')
     && await cdp.eval(`!document.querySelector('.auto-panel') && !!document.querySelector('.auto-show')`));
-  check('the focus goes to Show AUTO', await until(`document.activeElement.closest('.auto-show')`, 'show focus'));
+  check('T21: the focus goes back to the main plot (Show AUTO is a Tab away)',
+    await until(`document.activeElement.closest('.plot-host') && !document.activeElement.closest('.auto-panel')`, 'plot focus after back'));
   const show = await center('.auto-show');
   await touch('touchStart', [show]);
   await touch('touchEnd', []);
@@ -1655,6 +1811,114 @@ async function autoView() {
     && !(await cdp.eval(`!!document.querySelector('.auto-panel, .auto-show')`))
     && (await DS('d.points.x.length')) === 0, JSON.stringify(await DS('[d.open, d.shown]')));
   check('the focus goes back to the plot', await until(`document.activeElement.closest('.plot-host')`, 'plot focus'));
+  await key('i');
+  check('T21: after Close, I goes to the main window: the Initialconds menu, not an AUTO command',
+    await until(`s.ask && s.ask.kind === 'menu' && s.ask.name !== 'auto'`, 'main menu after close')
+    && (await cdp.eval(`__xpp.sent().filter(c => c.cmd !== 'answer').pop().key`)) === 'i', JSON.stringify(await S('s.ask')));
+  await key('Escape');
+  await until('!s.busy && !s.ask', 'menu closed after close');
+}
+
+/* T21: while the core computes (an integration here), the AUTO view's own
+   actions stay live and the buttons that need the core say why they wait */
+async function busyAuto() {
+  await desktopMetrics();
+  check('busy: the page connects', await until('s.hello && !s.busy', 'hello'));
+  /* nUmerics / Total 3000: an integration of about three seconds */
+  await focusPlot();
+  await key('u');
+  await until('!s.busy && s.core.menu === 2', 'numerics menu');
+  await key('t');
+  await until("s.ask && s.ask.kind === 'string'", 'total');
+  await answerAsk({ok: 1, value: '3000'});
+  await until('!s.busy', 'total set');
+  await key('Escape');
+  await until('!s.busy && s.core.menu === 0', 'main menu');
+  await key('f');
+  await until('!s.busy && s.core.menu === 1', 'file menu');
+  await key('a');
+  check('busy: File/Auto opens the AUTO view', await until('s.diagram.open && s.diagram.axes && !s.busy', 'auto open'));
+  await focusPlot();
+  await key('i');
+  await key('g');
+  const busy = await until('s.busy && !s.ask && s.core && (s.progress || w.series)', 'integration running', 5000);
+  const run = await cdp.eval(`(() => { const b = document.querySelector('.auto-tools button[aria-keyshortcuts=R]');
+    return {disabled: b.disabled, title: b.title}; })()`);
+  const menu = await cdp.eval(`(() => { const b = document.querySelector('.menu-panel .menu-item'); return b && [b.disabled, b.title]; })()`);
+  const a = await autoArea();
+  await mouse('mouseMoved', a.x + a.w / 2, a.y + a.h / 2);
+  await mouse('mouseWheel', a.x + a.w / 2, a.y + a.h / 2, {deltaX: 0, deltaY: -120});
+  check('busy: during an integration the AUTO diagram zooms, and Run is disabled with "Busy: available when the current run ends"',
+    busy && await until('s.busy && s.diagram.viewport.x', 'zoom while busy', 3000) && run.disabled
+    && run.title === 'Busy: available when the current run ends', JSON.stringify([busy, run, await DS('d.viewport')]));
+  check("busy: ... and the main window's menu waits the same way", !!menu && menu[0] === true
+    && menu[1] === 'Busy: available when the current run ends', JSON.stringify(menu));
+  await until('!s.busy', 'integration done', 30000);
+}
+
+/* ---- T21: where keys go, the theme switch, long menus in columns ---------------- */
+
+async function keysCheck() {
+  await desktopMetrics();
+  check('keys: the page connects', await until('s.hello && !s.busy', 'hello'));
+  const theme = await cdp.eval(`(() => { const b = document.querySelector('.theme-toggle');
+    return b && {label: b.getAttribute('aria-label'), text: b.textContent.trim(), icon: !!b.querySelector('svg')}; })()`);
+  check('keys: the theme switch is an icon named "Theme: follow system", no word "Auto" beside the feature buttons',
+    theme && theme.label === 'Theme: follow system' && theme.icon && !/auto/i.test(theme.text), JSON.stringify(theme));
+
+  /* I then G typed at once on the plot: the G waits for the menu I opens, and integrates */
+  await focusPlot();
+  const n0 = await S('s.seriesCount');
+  await key('i');
+  await key('g');
+  check('keys: I then G typed at once on the plot integrate',
+    await until(`s.seriesCount > ${n0} && w.series.rows === 601 && !s.busy`, 'typed integrate', 20000)
+    && await cdp.eval(`!!document.activeElement.closest('.plot-host')`), JSON.stringify(await S('[s.seriesCount, s.busy, s.ask]')));
+  await key('f');
+  check('keys: F on the plot opens the File menu and the focus stays on the plot',
+    await until('s.core.menu === 1 && !s.busy', 'file menu') && await cdp.eval(`!!document.activeElement.closest('.plot-host')`),
+    await cdp.eval(`document.activeElement.className`));
+  await key('Escape');
+  await until('s.core.menu === 0 && !s.busy', 'main menu');
+  /* a button that kept the focus after a click: letters typed on it are XPP's, Enter stays the button's */
+  await cdp.eval(`document.querySelector('.title-bar button.primary').focus()`);
+  await key('f');
+  check('keys: F typed while a button has the focus acts too (File menu), the focus stays',
+    await until('s.core.menu === 1 && !s.busy', 'file menu from button')
+    && await cdp.eval(`document.activeElement.matches('.title-bar button.primary')`), await cdp.eval(`document.activeElement.outerHTML.slice(0, 80)`));
+  await key('Escape');
+  await until('s.core.menu === 0 && !s.busy', 'main menu 2');
+  /* a letter typed into a field stays there */
+  const sent0 = await cdp.eval('__xpp.sent().length');
+  await cdp.eval(`(() => { const i = document.querySelector('.messages-search input'); i.closest('details').open = true; i.focus(); })()`);
+  await key('g');
+  check('keys: a letter typed into a text field stays in it',
+    await cdp.eval(`document.activeElement.value === 'g'`) && (await cdp.eval('__xpp.sent().length')) === sent0);
+  await cdp.eval(`(() => { const i = document.activeElement; i.value = ''; i.dispatchEvent(new Event('input', {bubbles: true})); i.blur(); })()`);
+
+  /* a long menu fits a laptop's screen in columns; one column on a phone */
+  await focusPlot();
+  await key('i');
+  await until(`s.ask && s.ask.kind === 'menu' && document.querySelector('[role=dialog] .menu-list')`, 'ic menu');
+  const cols = () => cdp.eval(`(() => { const d = document.querySelector('.dialog'), items = [...d.querySelectorAll('.menu-item')];
+    return {n: items.length, cols: new Set(items.map(b => Math.round(b.getBoundingClientRect().left))).size,
+      scroll: d.scrollHeight - d.clientHeight, sideways: document.documentElement.scrollWidth - innerWidth}; })()`);
+  const wide = await cols();
+  check('keys: a long menu (Initialconds) is in columns and fits without scrolling on 1280x860',
+    wide.n > 8 && wide.cols >= 2 && wide.scroll <= 1, JSON.stringify(wide));
+  await key('Escape');
+  await until('!s.busy && !s.ask', 'menu closed');
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
+  await sleep(300);
+  await focusPlot();
+  await key('i');
+  await until(`s.ask && s.ask.kind === 'menu' && document.querySelector('[role=dialog] .menu-list')`, 'ic menu phone');
+  const narrow = await cols();
+  check('keys: on a 390 px phone it is one column, no sideways scroll', narrow.cols === 1 && narrow.sideways <= 0,
+    JSON.stringify(narrow));
+  await key('Escape');
+  await until('!s.busy && !s.ask', 'menu closed phone');
+  await desktopMetrics();
 }
 
 /* ---- live plotting and long runs ------------------------------------------------ */
@@ -2433,6 +2697,8 @@ async function main() {
     });
     if (run('phase')) await session(ODE, phasePlane);
     if (run('auto')) await session(ODE, autoView);
+    if (run('keys')) await session(ODE, keysCheck);
+    if (run('busy')) await session(LIVE, busyAuto);
     if (run('view')) await session(ODE, viewCheck);
     if (run('three')) await session(LORENZ_ODE, threePlot);
     if (run('marks')) await session(ODE, marks);

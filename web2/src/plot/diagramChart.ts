@@ -9,6 +9,7 @@ import uPlot from 'uplot';
 import type {Range, Viewport} from '../store/plots';
 import {curveColor} from './colors';
 import {nearestVertex, type DiagramHit, type DiagramModel} from './diagramModel';
+import {placeLabels} from './labelPlace';
 import type {Ranges} from './viewmath';
 
 export interface DiagramChartInfo {
@@ -17,6 +18,7 @@ export interface DiagramChartInfo {
   labels: {point: number; lab: number; sym: string; x: number; y: number; y2: number | null}[];
   /** labels whose name is written beside the cross (all of them when few are in view) */
   named: number;
+  nameTops: number[];
   x: Range;
   y: Range;
   width: number;
@@ -62,6 +64,8 @@ export class DiagramChart {
   private base: Ranges = {x: {min: 0, max: 1}, y: {min: 0, max: 1}};
   private draws = 0;
   private named = 0;
+  /** where the names were written (their tops, CSS pixels of the canvas), for the test hook */
+  private nameTops: number[] = [];
   private styleKey = '';
   onArea: (area: HTMLElement) => void = () => {};
 
@@ -170,7 +174,12 @@ export class DiagramChart {
     ctx.font = `${Math.round(11 * r)}px Inter, system-ui, sans-serif`;
     ctx.textBaseline = 'top';
     this.named = shown.length <= NAMED_MAX ? shown.length : 0;
-    for (const s of shown) {
+    const names = shown.map(s => `${s.l.sym ? s.l.sym + ' ' : ''}${s.l.lab}`);
+    /* two names at one spot are written a line apart (plot/labelPlace.ts) */
+    const tops = this.named ? placeLabels(shown.map((s, i) => ({x: s.px + 5 * r, y: s.py + 3 * r,
+      w: ctx.measureText(names[i]).width, h: 13 * r}))) : [];
+    this.nameTops = tops.map(t => t / r);
+    shown.forEach((s, i) => {
       for (const y of s.py2 === null ? [s.py] : [s.py, s.py2]) {
         ctx.beginPath();
         ctx.moveTo(s.px - arm, y);
@@ -179,8 +188,8 @@ export class DiagramChart {
         ctx.lineTo(s.px, y + arm);
         ctx.stroke();
       }
-      if (this.named) ctx.fillText(`${s.l.sym ? s.l.sym + ' ' : ''}${s.l.lab}`, s.px + 5 * r, s.py + 3 * r);
-    }
+      if (this.named) ctx.fillText(names[i], s.px + 5 * r, tops[i]);
+    });
     ctx.restore();
   }
 
@@ -276,6 +285,7 @@ export class DiagramChart {
         first: [c.xs[0], c.ys[0], c.idx[0]]})),
       labels: m.labels.map(l => ({point: l.point, lab: l.lab, sym: l.sym, x: l.x, y: l.y, y2: l.y2})),
       named: this.named,
+      nameTops: this.nameTops,
       ...this.ranges(),
       width: u.over.clientWidth,
       height: u.over.clientHeight,

@@ -25,6 +25,7 @@ import {MAX_COUNT, MAX_NCOL, planRequest, tableCsv} from './store/table';
 import type {TextTab} from './store/text';
 import {fieldKey, setCommand, type ValueEdit, type ValueKind, type ValueSet} from './store/values';
 import {formatIcFile, formatParFile, parseValuesFile} from './store/valueFiles';
+import {axesFormValues, formatSettings, parseSettings, PLOT_KEYS, valuesFor} from './store/autoSetup';
 
 /** the data browser's buttons (docs/protocol.md `browser` op; web/xpp-client.js's BROWSER_BUTTONS) */
 export type BrowserOp = 'find' | 'get' | 'replace' | 'unreplace' | 'table' | 'load' | 'write' | 'first' | 'last'
@@ -32,6 +33,20 @@ export type BrowserOp = 'find' | 'get' | 'replace' | 'unreplace' | 'table' | 'lo
 
 /** the AUTO window's buttons (docs/protocol.md `auto` op); Close is session.closeAuto */
 export type AutoOp = 'param' | 'axes' | 'numerics' | 'run' | 'grab' | 'usr' | 'clear' | 'redraw' | 'file';
+
+/** one step of a planned dialogue: the answer to `ask`, or null when that ask is the user's */
+type PlanStep = (ask: AskEvent) => Record<string, unknown> | null;
+
+/** a change made in the AUTO view's axis dialog (T21) that goes to the core:
+    the plot type and the AutoPlot form's names, each only when it changes */
+export interface AutoAxesChange {
+  plot?: number;
+  yvar?: string;
+  par1?: string;
+  par2?: string;
+  /** the view's ranges, which become AUTO's axes before the Fit */
+  ranges: Ranges;
+}
 /** the array plot window's buttons (docs/protocol.md `aplot` op; web/xpp-client.js's buildArrayPlot) */
 export type AplotOp = 'redraw' | 'edit' | 'print' | 'fit' | 'range' | 'gif' | 'close';
 
@@ -41,6 +56,19 @@ export class Session {
   readonly store: Store<AppState, Action>;
   /** keys that answer the menus a key sequence opens ("i g": Initialconds, Go) */
   private pendingKeys: string[] = [];
+  /** keys typed while a key command waits for its first answer (T21): the
+      menu it opens takes the first, the others go out after its idle */
+  private typeahead: string[] = [];
+  private keyWaiting = false;
+  /** a planned dialogue (T21: the axis dialog, AUTO settings save and load):
+      the asks its commands open are answered by these steps in order, until
+      the commands' idles */
+  private plan: PlanStep[] = [];
+  private planIdles = 0;
+  private planCmds: Command[] = [];
+  private planDone: (() => void) | null = null;
+  /** the point a grab took, until its command's idle (a periodic one's orbit is then imported) */
+  private grabbed: number | null = null;
   /** pointer events of a drag made while the core was not asking (docs/protocol.md
       `drag`: it asks again after each one), and whether the drag has ended */
   private dragQueue: Record<string, unknown>[] = [];
@@ -85,6 +113,8 @@ export class Session {
   private receive(ev: XppEvent): void {
     this.store.dispatch({type: 'event', ev});
     if (ev.ev === 'hello') {
+      this.keyWaiting = false; /* a new connection: nothing is waiting any more */
+      this.typeahead = [];
       /* the plots as data (docs/protocol.md): asked for on every (re)connection,
          which also makes the server send the windows, their series, nullclines,
          direction fields and marks; values
@@ -95,6 +125,12 @@ export class Session {
     } else if (ev.ev === 'film') {
       this.onFilm(ev);
     } else if (ev.ev === 'ask') {
+      this.keyWaiting = false;
+      if (this.plan.length && ev.kind !== 'pixels' && ev.kind !== 'alert') {
+        this.continuePlan(ev);
+        this.checkDiagram(ev);
+        return;
+      }
       if (ev.kind === 'pixels') {
         this.answerPixels(ev);
       } else if (ev.kind === 'alert') {
@@ -107,8 +143,12 @@ export class Session {
         else this.cancel(ev);
       } else if (this.replayAnswers.length) this.continueReplay(ev);
       else this.continueKeys(ev);
+    } else if (ev.ev === 'progress') {
+      this.keyWaiting = false; /* a computation: the keys typed meanwhile go out after it */
     } else if (ev.ev === 'idle') {
       this.pendingKeys = [];
+      this.keyWaiting = false;
+      this.afterAuto();
       this.dragQueue = [];
       this.dragEnded = false;
       if (this.replayIdles > 0 && --this.replayIdles === 0) this.replayAnswers = [];
@@ -119,6 +159,8 @@ export class Session {
       this.afterIdle = null;
       if (next) this.send(next);
       else this.flushValues();
+      const typed = this.typeahead.shift();
+      if (typed !== undefined && !next && !this.planIdles) this.key(typed);
     }
     this.checkDiagram(ev);
   }
@@ -148,6 +190,13 @@ export class Session {
   }
 
   private continueKeys(ask: AskEvent): void {
+    if (!this.pendingKeys.length && this.typeahead.length && (ask.kind === 'menu' || ask.kind === 'choice')) {
+      /* a key typed before the menu was up: it answers it when it is one of its keys, else it is dropped */
+      const k = this.typeahead.shift()!, i = (ask.keys ?? '').toLowerCase().indexOf(k.toLowerCase());
+      if (i >= 0) this.answer(ask, {key: ask.keys![i]});
+      else this.typeahead = [];
+      return;
+    }
     if (!this.pendingKeys.length) return;
     if (ask.kind === 'menu' || ask.kind === 'choice') this.answer(ask, {key: this.pendingKeys.shift()});
     else this.pendingKeys = []; /* anything else is the user's to answer */
@@ -160,7 +209,25 @@ export class Session {
 
   /** an XPP hotkey, as typed in the X11 main window */
   key(key: string): void {
+    this.keyWaiting = true;
     this.send({cmd: 'key', key});
+  }
+
+  /** a hotkey typed on the page (ui/hotkeys.ts): it answers an open menu,
+      waits behind a key whose menu has not come yet (typing I then G
+      quickly integrates), or goes out */
+  typeKey(k: string): void {
+    const ask = this.store.getState().ask;
+    if (ask) {
+      const i = (ask.keys ?? '').toLowerCase().indexOf(k.toLowerCase());
+      if ((ask.kind === 'menu' || ask.kind === 'choice') && k.length === 1 && i >= 0) this.answer(ask, {key: ask.keys![i]});
+      return;
+    }
+    if (this.keyWaiting && k !== 'Escape') {
+      this.typeahead.push(k);
+      return;
+    }
+    this.key(k);
   }
 
   /** a key, then keys for the menus it opens: keys('i', 'g') integrates */
@@ -170,6 +237,10 @@ export class Session {
   }
 
   answer(ask: AskEvent, fields: Record<string, unknown>): void {
+    /* the Start menu of a Run answered: its clock starts now */
+    const {run, points} = this.store.getState().diagram;
+    if (run?.active && ask.kind === 'menu' && points.x.length === run.first)
+      this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'clock', at: Date.now()}});
     this.send({cmd: 'answer', id: ask.id, ...fields});
   }
 
@@ -290,9 +361,129 @@ export class Session {
 
   /* ---- the AUTO view (docs/ui-v2.md T11a, docs/protocol.md `auto`) ---- */
 
-  /** one of the AUTO window's buttons; its prompts come as ordinary asks */
+  /** one of the AUTO window's buttons; its prompts come as ordinary asks.
+      Clear is the view's own (T21): the branches so far become the earlier
+      ones, hidden until shown again, and the core keeps them */
   autoOp(op: AutoOp): void {
+    if (op === 'clear') {
+      this.store.dispatch({type: 'diagram', action: {type: 'clear'}});
+      return;
+    }
+    if (op === 'run') this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'start', at: Date.now()}});
     this.send({cmd: 'auto', op});
+  }
+
+  /* a planned dialogue: `cmds` go out one after the other's idle (a command
+     sent while the one before waits in a prompt would be taken as its
+     answer), the asks they open are answered by `steps` in order; `done`
+     runs after the last command's idle when every step answered (a step
+     that returns null leaves that ask to the user, and ends the plan) */
+  private runPlan(cmds: Command[], steps: PlanStep[], done?: () => void): void {
+    this.plan = steps;
+    this.planCmds = cmds.slice(1);
+    this.planIdles = cmds.length;
+    this.planDone = done ?? null;
+    this.send(cmds[0]);
+  }
+
+  private continuePlan(ask: AskEvent): void {
+    const fields = this.plan.shift()!(ask);
+    if (fields) {
+      this.answer(ask, fields);
+      return;
+    }
+    this.plan = [];
+    this.planCmds = [];
+    this.planDone = null;
+  }
+
+  /* after every idle: the run's clock stops, a plan ends, a grabbed periodic orbit is imported */
+  private afterAuto(): void {
+    if (this.store.getState().diagram.run?.active)
+      this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'end', at: Date.now()}});
+    if (this.planIdles > 0 && --this.planIdles === 0) {
+      const done = this.planDone;
+      this.plan = [];
+      this.planDone = null;
+      done?.();
+    } else if (this.planCmds.length) this.send(this.planCmds.shift()!);
+    else if (this.planIdles > 0 && !this.plan.length) this.planIdles = 0; /* a step left it to the user */
+    const g = this.grabbed;
+    this.grabbed = null;
+    if (g !== null) this.importOrbit(g);
+  }
+
+  /* a grab took point `point`: when it is a periodic orbit AUTO stored (a
+     labelled point), File/Import orbit loads it, so the main plot shows the
+     limit cycle (docs/ui-v2.md T21); AUTO keeps no orbit for other points */
+  private importOrbit(point: number): void {
+    const {points, labels} = this.store.getState().diagram;
+    const ty = points.ty[point];
+    if ((ty !== 3 && ty !== 4) || points.f2[point]) return;
+    if (!labels.some(l => l.point === point)) {
+      this.store.dispatch({type: 'toast', kind: 'info', text: 'AUTO keeps the orbits of labelled points only: grab a '
+        + 'labelled point of the periodic branch (Tab steps through them) to plot its limit cycle.'});
+      return;
+    }
+    this.runPlan([{cmd: 'auto', op: 'file'}], [ask => (ask.kind === 'menu' ? {key: 'i'} : null)]);
+  }
+
+  /** the axis dialog's plot type, variable or parameters (T21): Axes with
+      them and the view's ranges, then Axes/Fit */
+  autoAxes(change: AutoAxesChange): void {
+    const plot = change.plot ?? this.store.getState().diagram.axes?.plot ?? 0;
+    const key = PLOT_KEYS[plot] ?? 'h';
+    this.runPlan([{cmd: 'auto', op: 'axes'}, {cmd: 'auto', op: 'axes'}], [
+      ask => (ask.kind === 'menu' ? {key} : null),
+      ask => (ask.kind === 'form' ? {ok: 1, values: axesFormValues(ask.values ?? [], change)} : null),
+      ask => (ask.kind === 'menu' ? {key: 'f'} : null),
+    ]);
+  }
+
+  /** AUTO's Numerics and Axes saved as a file (store/autoSetup.ts): the two
+      forms are opened, read and cancelled, and the file is downloaded */
+  saveAutoSettings(): void {
+    const plot = this.store.getState().diagram.axes?.plot ?? 0;
+    let num = {names: [] as string[], values: [] as string[]}, axes = num;
+    const read = (ask: AskEvent) => ({names: ask.names ?? [], values: ask.values ?? []});
+    this.runPlan([{cmd: 'auto', op: 'numerics'}, {cmd: 'auto', op: 'axes'}], [
+      ask => (ask.kind === 'form' ? (num = read(ask), {ok: 0}) : null),
+      ask => (ask.kind === 'menu' ? {key: PLOT_KEYS[plot] ?? 'h'} : null),
+      ask => (ask.kind === 'form' ? (axes = read(ask), {ok: 0}) : null),
+    ], () => {
+      const text = formatSettings(num, plot, axes);
+      this.store.dispatch({type: 'diagram', action: {type: 'setupSaved', text}});
+      offerDownload(`${this.modelBase()}-auto.json`, new Blob([text], {type: 'application/json'}));
+    });
+  }
+
+  private modelBase(): string {
+    const file = this.store.getState().hello?.file ?? '';
+    return file.replace(/^.*[\\/]/, '').replace(/\.[^.]*$/, '') || 'model';
+  }
+
+  /** a saved settings file answered into the Numerics and Axes forms; null
+      when done, else what is wrong with the file (also a notification) */
+  loadAutoSettings(text: string): string | null {
+    const {settings, error} = parseSettings(text);
+    if (!settings) {
+      this.store.dispatch({type: 'toast', kind: 'error', text: error!});
+      return error;
+    }
+    const cmds: Command[] = [], steps: PlanStep[] = [];
+    const fill = (saved: [string, string][]): PlanStep => ask =>
+      (ask.kind === 'form' ? {ok: 1, values: valuesFor(ask.names ?? [], ask.values ?? [], saved)} : null);
+    if (settings.numerics.length) {
+      cmds.push({cmd: 'auto', op: 'numerics'});
+      steps.push(fill(settings.numerics));
+    }
+    if (settings.axes.length || settings.plot >= 0) {
+      const plot = settings.plot >= 0 ? settings.plot : this.store.getState().diagram.axes?.plot ?? 0;
+      cmds.push({cmd: 'auto', op: 'axes'});
+      steps.push(ask => (ask.kind === 'menu' ? {key: PLOT_KEYS[plot] ?? 'h'} : null), fill(settings.axes));
+    }
+    this.runPlan(cmds, steps);
+    return null;
   }
 
   /** the AUTO view's close: done with it (A10). A running job is stopped
@@ -312,13 +503,17 @@ export class Session {
       of the diagram's data, and with `take` the point is taken at once */
   grabPoint(point: number, take = false): void {
     const ask = this.store.getState().ask;
-    if (ask?.kind === 'grab') this.answer(ask, take ? {point, key: 'Return'} : {point});
+    if (ask?.kind !== 'grab') return;
+    if (take) this.grabbed = point;
+    this.answer(ask, take ? {point, key: 'Return'} : {point});
   }
 
   /** the grab takes the point under its cursor (Enter) */
   grabTake(): void {
-    const ask = this.store.getState().ask;
-    if (ask?.kind === 'grab') this.answer(ask, {key: 'Return'});
+    const {ask, diagram} = this.store.getState();
+    if (ask?.kind !== 'grab') return;
+    this.grabbed = diagram.info?.point ?? null;
+    this.answer(ask, {key: 'Return'});
   }
 
   /** a click on a two-parameter diagram: shown and kept as the point

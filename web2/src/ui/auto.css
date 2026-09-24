@@ -128,3 +128,79 @@
 .auto-stab-out { stroke: var(--danger); stroke-width: 0.08; fill: none; }
 .auto-stab figcaption { min-width: 0; }
 .auto-stab-list { margin: var(--space-1) 0 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
+/* T21: the status strip (ui/AutoStatus.tsx), its Output log, the axis names
+   a click opens the axis dialog from (over the names the chart draws, which
+   show through), the dialog itself and the key's earlier branches */
+.auto-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-xs);
+  min-width: 0;
+}
+.auto-status-text { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
+.auto-output { border-top: 1px solid var(--border); padding: var(--space-1) var(--space-3); font-size: var(--text-xs); }
+.auto-output summary { cursor: pointer; min-height: var(--target); display: flex; align-items: center; }
+.auto-output-text {
+  margin: 0;
+  max-height: 12rem;
+  overflow: auto;
+  font: var(--text-xs)/1.35 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  padding: var(--space-1) var(--space-2);
+}
+.auto-axis-name {
+  position: absolute;
+  z-index: 6;
+  background: transparent;
+  color: transparent;
+  border: 1px dashed transparent;
+  padding: 0 var(--space-2);
+  transform: translateX(-50%);
+}
+.auto-axis-name.auto-axis-y {
+  writing-mode: vertical-rl;
+  transform: translateY(-50%) rotate(180deg);
+  padding: var(--space-2) 0;
+}
+.auto-axis-name:hover, .auto-axis-name:focus-visible, .auto-axis-name[aria-expanded="true"] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.auto-axis-dialog {
+  position: absolute;
+  z-index: 20;
+  right: var(--space-3);
+  top: 6rem;
+  width: min(22rem, calc(100% - 2 * var(--space-3)));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow);
+  padding: var(--space-3);
+}
+.auto-axis-dialog h3 { margin: 0 0 var(--space-2); font-size: var(--text-sm); }
+.auto-axis-fields { display: grid; gap: var(--space-2); }
+.auto-axis-fields label { display: grid; grid-template-columns: 8rem minmax(0, 1fr); gap: var(--space-2); align-items: center; }
+.auto-axis-fields input, .auto-axis-fields select {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--field-border);
+  border-radius: 0.375rem;
+  min-height: var(--target);
+  padding: 0 var(--space-2);
+  min-width: 0;
+}
+.auto-axis-fields select:disabled { opacity: 0.55; }
+.auto-axis-dialog p { margin: var(--space-2) 0 0; font-size: var(--text-xs); }
+.auto-earlier { font-size: var(--text-xs); }
+.auto-earlier.active { border-color: var(--accent); }
+.auto-axis-dialog .error-text { color: var(--danger); }
+.auto-empty { pointer-events: none; } /* the diagram under it still zooms and pans */

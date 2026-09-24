@@ -4,11 +4,20 @@
    goes when the core destroys it.
 
    Layout (R6): a floating panel anchored to the right from 48rem, over the
-   plot, and a full-screen sheet under that; both stop above the status bar,
-   whose Stop is the one way to stop a run (A10: the view has no Abort of
-   its own). Back (or Escape) hides the panel and leaves AUTO open, "Show
-   AUTO" brings it back; Close is "done with it": it closes AUTO's window,
-   stopping a running continuation first (session.closeAuto).
+   plot, and a full-screen sheet under that; both stop above the status bar.
+   T21: the view's own status strip says what AUTO does and has the Stop
+   (ui/AutoStatus.tsx; the status bar's Stop is the same one, A10), and its
+   Output panel shows AUTO's table. Back (or Escape) hides the panel and
+   leaves AUTO open, "Show AUTO" brings it back; Close is "done with it": it
+   closes AUTO's window, stopping a running continuation first
+   (session.closeAuto).
+
+   T21: the diagram is always the current one (the core draws it again
+   after Axes and File/Load, so there is no reDraw); Clear is the view's:
+   the branches so far become "earlier branches", hidden until their key
+   entry shows them. A click on an axis name opens its dialog
+   (ui/AutoAxes.tsx). Save settings and Load settings keep AUTO's Numerics
+   and Axes in a file (store/autoSetup.ts).
 
    The diagram: zoom, pan, reset and undo as on the plot (plot/interactions.ts,
    plot/plotKeys.ts), all in the client; the point under the mouse, a tap,
@@ -26,7 +35,7 @@
    Axes/Scroll's drag are the plot's modes (plot/pick.ts) on the diagram. A
    click on a two-parameter diagram stores the point (`auto point`), marked
    on it. The info strip and the stability circle are ui/AutoInfo.tsx. */
-import {useEffect, useMemo, useRef} from 'preact/hooks';
+import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {DiagramChart, paletteColor, setDiagramChart} from '../plot/diagramChart';
 import {buildDiagramModel, describePoint, fmt, grabStep, stepLabel, vertexOf, type DiagramModel} from '../plot/diagramModel';
 import {download} from '../plot/export';
@@ -36,18 +45,30 @@ import {plotKey} from '../plot/plotKeys';
 import type {Ranges} from '../plot/viewmath';
 import type {AutoOp, Session} from '../session';
 import {pointCount, type DiagramHover} from '../store/diagram';
+import {branchesBefore, earlierCount} from '../store/diagram';
+import {AutoAxisDialog, type AxisName} from './AutoAxes';
 import {AutoInfo} from './AutoInfo';
-import {useSession, useStore} from './context';
+import {AutoOutput, AutoStatus} from './AutoStatus';
+import {BUSY_TITLE, useSession, useStore} from './context';
 import {PickBar, PickOverlay, pickSink} from './PlotView';
 import './auto.css';
 
-/** label, op, key (auto_x11.c auto_keypress), in the X11 window's order */
+/** label, op, key (auto_x11.c auto_keypress), in the X11 window's order; no
+    reDraw (T21): the diagram is always the current one */
 const BUTTONS: [string, AutoOp, string][] = [
   ['Parameter', 'param', 'p'], ['Axes', 'axes', 'a'], ['Numerics', 'numerics', 'n'], ['Run', 'run', 'r'],
-  ['Grab', 'grab', 'g'], ['Usr period', 'usr', 'u'], ['Clear', 'clear', 'c'], ['reDraw', 'redraw', 'd'],
-  ['File', 'file', 'f'],
+  ['Grab', 'grab', 'g'], ['Mark values…', 'usr', 'u'], ['Clear', 'clear', 'c'], ['File', 'file', 'f'],
 ];
+/** the view's own words for a button, over the core's hint */
+const TITLES: Partial<Record<AutoOp, string>> = {
+  clear: 'Hide the branches computed so far: new runs draw alone (the key shows them again)',
+  usr: "Label the points where a parameter or the period reaches a value (AUTO's user points, UZ)",
+};
+/** the buttons that work while a command runs (the view's own) */
+const WHILE_BUSY = new Set<AutoOp>(['clear']);
 const OP_OF_KEY: Record<string, AutoOp> = Object.fromEntries(BUTTONS.map(([, op, k]) => [k, op]));
+/** the X11 window's buttons, whose order `hello.auto_hints` follows */
+const BUTTONS_X11: AutoOp[] = ['param', 'axes', 'numerics', 'run', 'grab', 'usr', 'clear', 'redraw', 'file'];
 
 const KEYS_HELP = 'Arrow keys pan, plus and minus zoom, 0 resets, Control Z undoes a zoom, square brackets and Page Up '
   + 'or Down step through the points of a branch, braces change the branch, less than and greater than go from '
@@ -147,13 +168,20 @@ function AutoPanel({dark}: {dark: boolean}) {
   const info = useStore(s => s.diagram.info);
   const stored = useStore(s => (s.diagram.axes?.plot === 4 ? s.diagram.stored : null));
   const pick = useStore(s => (s.pick?.win === WIN && !s.pick.waiting ? s.pick : null));
+  const earlier = useStore(s => earlierCount(s.diagram));
+  const showEarlier = useStore(s => s.diagram.showEarlier);
+  const [axisOpen, setAxisOpen] = useState<AxisName | null>(null);
+  /* the chart's area moved (a resize, a new model): the axis names follow */
+  const [, setArea] = useState(0);
+  const settingsInput = useRef<HTMLInputElement>(null);
   const panel = useRef<HTMLElement>(null);
   const host = useRef<HTMLDivElement>(null);
   const chart = useRef<DiagramChart | null>(null);
   /** the curve the readout's point was last found on (a point can be on two) */
   const hint = useRef(-1);
 
-  const model = useMemo(() => buildDiagramModel(points, labels, axes), [points, labels, axes]);
+  const hidden = showEarlier ? 0 : earlier;
+  const model = useMemo(() => buildDiagramModel(points, labels, axes, hidden), [points, labels, axes, hidden]);
   const modelRef = useRef(model);
   modelRef.current = model;
   const core: Ranges | null = useMemo(() => (axes && axes.xmax > axes.xmin && axes.ymax > axes.ymin
@@ -200,6 +228,7 @@ function AutoPanel({dark}: {dark: boolean}) {
     setDiagramChart(c);
     const ro = new ResizeObserver(() => {
       if (host.current?.clientWidth) c.resize();
+      setArea(n => n + 1);
     });
     ro.observe(host.current!);
     return () => {
@@ -212,6 +241,7 @@ function AutoPanel({dark}: {dark: boolean}) {
 
   useEffect(() => {
     chart.current!.set(model, core, session.store.getState().diagram.viewport, dark);
+    setArea(n => n + 1);
   }, [model, core, dark]);
 
   useEffect(() => {
@@ -325,7 +355,8 @@ function AutoPanel({dark}: {dark: boolean}) {
       return;
     }
     const op = OP_OF_KEY[e.key.toLowerCase()];
-    if (op && !running && !t.closest('button, input, select, textarea')) {
+    /* a letter typed on a button is AUTO's too (T21): the focus stays on a button after a click */
+    if (op && (!running || WHILE_BUSY.has(op)) && !t.closest('input, select, textarea, [role="dialog"]')) {
       e.preventDefault();
       e.stopPropagation();
       session.autoOp(op);
@@ -345,6 +376,25 @@ function AutoPanel({dark}: {dark: boolean}) {
     : `AUTO diagram of ${what}: ${new Set(model.curves.map(c => c.branch)).size} branches, ${points.x.length} points, `
       + `${labels.length} labelled points`;
 
+  const area = chart.current?.areaBox() ?? null;
+  const axisButton = (which: AxisName, text: string) => (
+    <button class={`auto-axis-name auto-axis-${which}`} aria-haspopup="dialog" aria-expanded={axisOpen === which}
+      data-axis={which} title={`Change the ${which === 'x' ? 'horizontal' : 'vertical'} axis: what it plots and its range`}
+      onKeyDown={e => e.stopPropagation()}
+      onClick={() => setAxisOpen(axisOpen === which ? null : which)}
+      style={which === 'x'
+        ? {left: `${area!.left + area!.width / 2}px`, bottom: '0px'}
+        : {left: '0px', top: `${area!.top + area!.height / 2}px`}}>
+      {text || (which === 'x' ? 'x axis' : 'y axis')}
+    </button>
+  );
+  const closeAxis = () => {
+    const which = axisOpen;
+    setAxisOpen(null);
+    host.current?.querySelector<HTMLElement>(`.auto-axis-name[data-axis="${which}"]`)?.focus();
+  };
+  const nEarlier = earlier ? branchesBefore(points, earlier) : 0;
+
   return (
     <section id="auto-panel" ref={panel} class="auto-panel" aria-label="AUTO" onKeyDown={onPanelKey}>
       <div class="auto-header">
@@ -356,11 +406,25 @@ function AutoPanel({dark}: {dark: boolean}) {
           Close
         </button>
       </div>
+      <AutoStatus />
       <div class="auto-tools" role="toolbar" aria-label="AUTO">
-        {BUTTONS.map(([text, op, k], i) => (
-          <button key={op} disabled={busy} title={hints?.[i] ?? text} aria-keyshortcuts={k.toUpperCase()}
+        {BUTTONS.map(([text, op, k]) => (
+          <button key={op} disabled={busy && !WHILE_BUSY.has(op)} aria-keyshortcuts={k.toUpperCase()}
+            title={busy && !WHILE_BUSY.has(op) ? BUSY_TITLE : TITLES[op] ?? hints?.[BUTTONS_X11.indexOf(op)] ?? text}
             onClick={() => session.autoOp(op)}>{text}</button>
         ))}
+        <button disabled={busy} onClick={() => session.saveAutoSettings()}
+          title={busy ? BUSY_TITLE : "Save AUTO's Numerics and Axes as a file, to set up this model again in one step"}>
+          Save settings
+        </button>
+        <button disabled={busy} onClick={() => settingsInput.current?.click()}
+          title={busy ? BUSY_TITLE : "Load AUTO's Numerics and Axes from a saved settings file"}>Load settings</button>
+        <input ref={settingsInput} id="auto-settings-load" type="file" accept=".json,application/json" hidden
+          onChange={async e => {
+            const el = e.target as HTMLInputElement, file = el.files?.[0];
+            if (file) session.loadAutoSettings(await file.text());
+            el.value = '';
+          }} />
       </div>
       <div class="auto-view">
         {grabbing && <GrabBar />}
@@ -374,6 +438,15 @@ function AutoPanel({dark}: {dark: boolean}) {
                 {l.text}
               </li>
             ))}
+            {earlier > 0 && (
+              <li>
+                <button class={'small auto-earlier' + (showEarlier ? ' active' : '')} aria-pressed={showEarlier}
+                  title={showEarlier ? 'Hide the branches computed before Clear' : 'Show the branches computed before Clear'}
+                  onClick={() => session.store.dispatch({type: 'diagram', action: {type: 'showEarlier', show: !showEarlier}})}>
+                  Earlier branches ({nEarlier})
+                </button>
+              </li>
+            )}
           </ul>
           <div class="plot-tools">
             <button disabled={!canUndo} onClick={() => session.store.dispatch({type: 'diagram', action: {type: 'undoViewport'}})}
@@ -395,8 +468,10 @@ function AutoPanel({dark}: {dark: boolean}) {
               title={`Stored point: ${fmt(stored!.x)}, ${fmt(stored!.y)}`} />
           )}
           {pick && chart.current && <PickOverlay pick={pick} chart={chart.current} />}
+          {area && axes && axisButton('x', axes.xlabel)}
+          {area && axes && axisButton('y', axes.ylabel)}
           {empty && (
-            <div class="plot-empty">
+            <div class="plot-empty auto-empty">
               <p>{busy ? 'AUTO is running…' : 'No branches yet: Run starts a continuation from the current point.'}</p>
             </div>
           )}
@@ -416,7 +491,9 @@ function AutoPanel({dark}: {dark: boolean}) {
           )}
         </footer>
       </div>
+      {axisOpen && <AutoAxisDialog key={axisOpen} axis={axisOpen} onClose={closeAxis} />}
       <AutoInfo />
+      <AutoOutput />
       {stored && (
         <p class="auto-stored-text muted">Stored point for File/sElect 2par pt: {fmt(stored.x)}, {fmt(stored.y)}</p>
       )}
@@ -433,13 +510,12 @@ export function AutoView({dark}: {dark: boolean}) {
   const showButton = useRef<HTMLButtonElement>(null);
   const wasShown = useRef(false);
 
-  /* the focus follows the panel: to Show AUTO when it is hidden, to the plot when AUTO closes */
+  /* the focus goes back to the main plot when the panel is hidden or AUTO closes (T21):
+     the keys typed next are the main window's (Show AUTO is a Tab away) */
   useEffect(() => {
     const inPanel = !!document.activeElement?.closest?.('.auto-panel') || document.activeElement === document.body;
-    if (wasShown.current && !shown && inPanel) {
-      if (open) showButton.current?.focus();
-      else document.querySelector<HTMLElement>('.plot-view:not([hidden]) .plot-host')?.focus();
-    }
+    if (wasShown.current && (!shown || !open) && inPanel)
+      document.querySelector<HTMLElement>('.plot-view:not([hidden]) .plot-host')?.focus();
     wasShown.current = open && shown;
   }, [open, shown]);
 

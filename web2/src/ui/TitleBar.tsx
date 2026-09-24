@@ -1,11 +1,33 @@
 /* The top bar: the menu drawer's button (narrow screens), the model, the
    most used command, the theme, and the panels' toggles. */
 import type {Theme} from '../store/state';
-import {useSession, useStore} from './context';
+import {BUSY_TITLE, useSession, useStore} from './context';
 import {saveTheme} from './theme';
 
 const NEXT_THEME: Record<Theme, Theme> = {system: 'light', light: 'dark', dark: 'system'};
-const THEME_NAME: Record<Theme, string> = {system: 'Auto', light: 'Light', dark: 'Dark'};
+/* the theme is an icon, not a word: "Auto" beside the feature buttons read as AUTO (T21) */
+const THEME_NAME: Record<Theme, string> = {system: 'follow system', light: 'light', dark: 'dark'};
+
+function ThemeIcon({theme}: {theme: Theme}) {
+  const common = {width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2,
+    'stroke-linecap': 'round' as const, 'stroke-linejoin': 'round' as const, 'aria-hidden': 'true' as const, class: 'icon'};
+  if (theme === 'light') {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+      </svg>
+    );
+  }
+  if (theme === 'dark') return <svg {...common}><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>;
+  /* follow the system: a half-filled circle */
+  return (
+    <svg {...common}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" />
+    </svg>
+  );
+}
 
 export function TitleBar() {
   const session = useSession();
@@ -32,9 +54,10 @@ export function TitleBar() {
       <span class="muted file">{file}</span>
       <span class="spacer" />
       <button class="primary" disabled={busy} onClick={() => session.keys('i', 'g')}
-        title="Initialconds / Go (I, G)">Integrate</button>
-      <button onClick={setTheme} title="Theme: light, dark, or as the system">
-        <span class="wide-only">Theme:</span> {THEME_NAME[theme]}
+        title={busy ? BUSY_TITLE : 'Initialconds / Go (I, G)'}>Integrate</button>
+      <button class="theme-toggle icon-button" onClick={setTheme} data-theme-choice={theme}
+        aria-label={`Theme: ${THEME_NAME[theme]}`} title={`Theme: ${THEME_NAME[theme]} (click for ${THEME_NAME[NEXT_THEME[theme]]})`}>
+        <ThemeIcon theme={theme} />
       </button>
       <button class="values-toggle" aria-controls="values-panel" aria-expanded={valuesOpen}
         onClick={() => session.store.dispatch({type: 'valuesPanel', open: !valuesOpen})}>Values</button>

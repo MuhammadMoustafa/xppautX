@@ -125,12 +125,15 @@ function curve(p: DiagramPoints, s: number, verts: number[], which: 'y' | 'y2', 
     xs, ys, idx, hopf};
 }
 
-export function buildDiagramModel(p: DiagramPoints, labels: DiagramLabel[], axes: DiagramAxes | null): DiagramModel {
+export function buildDiagramModel(p: DiagramPoints, labels: DiagramLabel[], axes: DiagramAxes | null,
+  hideBefore = 0): DiagramModel {
   const n = p.x.length;
+  /* Clear (T21): the points before `hideBefore` are earlier branches, left out */
+  const first = Math.max(0, Math.min(hideBefore, n));
   const span = axes && axes.xmax > axes.xmin && axes.ymax > axes.ymin
     ? {x: axes.xmax - axes.xmin, y: axes.ymax - axes.ymin} : {x: extent(p.x), y: extent(p.y)};
   const curves: DiagramCurve[] = [], hopf: DiagramModel['hopf'] = [];
-  for (let s = 0; s < n;) {
+  for (let s = first; s < n;) {
     let e = s;
     while (e + 1 < n && follows(p, e, e + 1)) e++;
     if (p.d[s] !== 0) {
@@ -139,7 +142,7 @@ export function buildDiagramModel(p: DiagramPoints, labels: DiagramLabel[], axes
       const prev = s - 1;
       if (PERIODIC(p.d[s])) {
         /* the previous periodic point of the branch (a change of stability) */
-        if (prev >= 0 && !p.nw[s] && p.br[prev] === p.br[s] && PERIODIC(p.d[prev]) && !p.f2[prev]) verts.push(prev);
+        if (prev >= first && !p.nw[s] && p.br[prev] === p.br[s] && PERIODIC(p.d[prev]) && !p.f2[prev]) verts.push(prev);
         else if (!p.f2[s]) {
           from = hopfOf(p, labels, s, span);
           if (from >= 0) {
@@ -147,7 +150,7 @@ export function buildDiagramModel(p: DiagramPoints, labels: DiagramLabel[], axes
             hopf.push({point: s, from});
           }
         }
-      } else if (prev >= 0 && !p.nw[s]) {
+      } else if (prev >= first && !p.nw[s]) {
         verts.push(prev); /* the line back from the run's first point */
       }
       for (let i = s; i <= e; i++) verts.push(i);
@@ -158,7 +161,7 @@ export function buildDiagramModel(p: DiagramPoints, labels: DiagramLabel[], axes
     }
     s = e + 1;
   }
-  const marks = labels.map(l => ({...l, x: p.x[l.point], y: p.y[l.point],
+  const marks = labels.filter(l => l.point >= first).map(l => ({...l, x: p.x[l.point], y: p.y[l.point],
     y2: p.y2[l.point] !== p.y[l.point] ? p.y2[l.point] : null}));
   return {curves, labels: marks, hopf, xLabel: axes?.xlabel ?? '', yLabel: axes?.ylabel ?? ''};
 }

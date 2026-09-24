@@ -404,6 +404,8 @@ export type XppEvent =
   | {ev: 'log'; text: string}
   | {ev: 'exit'; code: number}
   | {ev: 'bye'}
+  /** the command's computation was cancelled: where it got to */
+  | {ev: 'stopped'; at: {what: string; [k: string]: unknown}}
   /* every other event (diagram: store/diagram.ts reads it by its op) */
   | {ev: 'diagram' | 'ping'; [k: string]: unknown}
   /* AUTO's info strip and stability circle (store/diagram.ts AutoInfoEvent) */
