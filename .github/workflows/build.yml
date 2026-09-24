@@ -9,17 +9,17 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build, smoke test, metrics
         run: tools/verify.sh
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
       - name: "New front end: dist/ built from src/, types, unit tests"
         run: cd web2 && npm ci && npm run check && npm run typecheck && npm test
       - name: "New front end in a browser (store and plot state)"
         run: node tools/web2check.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: xppaut-linux
           path: xppautX
@@ -29,7 +29,7 @@ jobs:
   sanitizers:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # gcc's ASan cannot map its shadow memory with the 32 bits of mmap
       # randomness recent runner kernels use
       - name: Allow ASan's memory layout
@@ -40,7 +40,7 @@ jobs:
   macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build xppautX (X11-free)
         run: make -j"$(sysctl -n hw.ncpu)" xppautx
       - name: "Unit tests (C and C++ objects linked with clang++)"
@@ -55,7 +55,7 @@ jobs:
           echo "md5 on this platform: $(md5 -q output.dat) (linux baseline c281851de59ffd03b2a46428619a0c8f)"
       - name: Server protocol and web front end
         run: python3 tools/servercheck.py && python3 tools/webcheck.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: xppaut-macos
           path: xppautX
@@ -66,7 +66,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
@@ -84,7 +84,7 @@ jobs:
           test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = c281851de59ffd03b2a46428619a0c8f
       - name: Server protocol and web front end
         run: python tools/servercheck.py --server ./xppautX.exe && python tools/webcheck.py --bin ./xppautX.exe
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: xppaut-windows
           path: xppautX.exe
