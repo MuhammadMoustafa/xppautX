@@ -85,8 +85,8 @@ SERVER_SOURCES := $(call src, ui_json xppautx_main xpp_http xpp_inbox)
 CORE_SOURCES := $(filter-out $(SERVER_SOURCES) $(SRCDIR)/sbml2xpp.%,$(ALL_SOURCES))
 # the page xppautX serves, compiled in: web2 (web2/dist, built from
 # web2/src and committed: web2/build.mjs)
-WEB2_FILES := web2/dist/index.html web2/dist/app.js web2/dist/app.css web2/dist/inter.woff2 web2/dist/inter-greek.woff2 \
-  web2/dist/inter-OFL.txt
+WEB2_FILES := web2/dist/index.html web2/dist/app.js web2/dist/app.css web2/dist/manual.json web2/dist/inter.woff2 \
+  web2/dist/inter-greek.woff2 web2/dist/inter-OFL.txt
 SERVER_OBJECTS := $(call obj,$(SERVER_SOURCES)) $(BUILDDIR)/web_assets.o
 $(BUILDDIR)/xppautx_main.o: CFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'
 $(BUILDDIR)/xppautx_main.o: CXXFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'

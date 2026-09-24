@@ -19,25 +19,6 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.join(here, 'dist');
 const mode = process.argv[2] ?? '--build';
 
-/* the manual (docs/manual/*.md, W12) as a virtual module: `import manual
-   from 'virtual:manual'` resolves to its data (web2/src/help/manual.d.ts is
-   its ambient type, so tsc does not need this plugin). Keeps the markdown
-   parser itself (marked, tools/manualBuild.mjs) out of app.js -- only its
-   HTML output ships. */
-const MANUAL_NS = 'xpp-manual';
-function manualPlugin() {
-  return {
-    name: 'manual',
-    setup(build) {
-      build.onResolve({filter: /^virtual:manual$/}, () => ({path: 'virtual:manual', namespace: MANUAL_NS}));
-      build.onLoad({filter: /.*/, namespace: MANUAL_NS}, () => {
-        const chapters = loadManual(path.join(here, '..', 'docs', 'manual'));
-        return {contents: `export default ${JSON.stringify(chapters)};`, loader: 'js'};
-      });
-    },
-  };
-}
-
 /* files copied as they are: dist name -> source */
 const COPIED = {
   'index.html': path.join(here, 'src/index.html'),
@@ -67,23 +48,33 @@ const options = {
   external: ['*.woff2'], /* the font is copied next to app.css */
   outdir: dist,
   logLevel: 'warning',
-  plugins: [manualPlugin()],
 };
 
 function copied() {
   return Object.entries(COPIED).map(([name, src]) => ({path: path.join(dist, name), contents: fs.readFileSync(src)}));
 }
 
+/* the manual (docs/manual/*.md, W12), rendered to HTML at build time
+   (tools/manualBuild.mjs; marked, a devDependency, runs only here, so it
+   never reaches app.js) and written as dist/manual.json, served like any
+   other web2/dist file (Makefile WEB2_FILES, tools/embed.c). Help.tsx
+   fetches it itself the first time Help opens, so a session that never
+   opens Help never downloads the manual's own ~270 KB. */
+function generated() {
+  const chapters = loadManual(path.join(here, '..', 'docs', 'manual'));
+  return [{path: path.join(dist, 'manual.json'), contents: Buffer.from(JSON.stringify(chapters))}];
+}
+
 async function build() {
   fs.mkdirSync(dist, {recursive: true});
   await esbuild.build(options);
-  for (const f of copied()) fs.writeFileSync(f.path, f.contents);
+  for (const f of [...copied(), ...generated()]) fs.writeFileSync(f.path, f.contents);
   console.log(`web2: built ${fs.readdirSync(dist).join(', ')}`);
 }
 
 async function check() {
   const r = await esbuild.build({...options, write: false});
-  const want = [...r.outputFiles.map(f => ({path: f.path, contents: Buffer.from(f.contents)})), ...copied()];
+  const want = [...r.outputFiles.map(f => ({path: f.path, contents: Buffer.from(f.contents)})), ...copied(), ...generated()];
   const stale = want.filter(f => !fs.existsSync(f.path) || !fs.readFileSync(f.path).equals(f.contents));
   const names = new Set(want.map(f => path.basename(f.path)));
   const extra = fs.existsSync(dist) ? fs.readdirSync(dist).filter(n => !names.has(n)) : [];
@@ -97,7 +88,7 @@ async function check() {
 }
 
 async function watch() {
-  for (const f of copied()) fs.writeFileSync(f.path, f.contents);
+  for (const f of [...copied(), ...generated()]) fs.writeFileSync(f.path, f.contents);
   const ctx = await esbuild.context(options);
   await ctx.watch();
   console.log('web2: watching src/ (Ctrl+C stops)');
@@ -110,7 +101,7 @@ async function test() {
   await esbuild.build({
     entryPoints: tests.map(n => path.join(here, 'test', n)),
     bundle: true, platform: 'node', format: 'esm', outdir: out, outExtension: {'.js': '.mjs'},
-    jsx: 'automatic', jsxImportSource: 'preact', logLevel: 'warning', plugins: [manualPlugin()],
+    jsx: 'automatic', jsxImportSource: 'preact', logLevel: 'warning',
   });
   const files = tests.map(n => path.join(out, n.replace(/\.ts$/, '.mjs')));
   const r = spawnSync(process.execPath, ['--test', ...files], {stdio: 'inherit', cwd: here}); /* tests read src/ */

@@ -13,6 +13,7 @@ static const char *type_of(const char *path)
     if (dot && strcmp(dot, ".js") == 0) return "text/javascript; charset=utf-8";
     if (dot && strcmp(dot, ".css") == 0) return "text/css; charset=utf-8";
     if (dot && strcmp(dot, ".txt") == 0) return "text/plain; charset=utf-8";
+    if (dot && strcmp(dot, ".json") == 0) return "application/json; charset=utf-8";
     if (dot && strcmp(dot, ".woff2") == 0) return "font/woff2";
     return "application/octet-stream";
 }

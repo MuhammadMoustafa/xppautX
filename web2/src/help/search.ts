@@ -3,7 +3,7 @@
    works the same in the browser and under `node build.mjs --test` (no
    DOMParser there). Built once per set of chapters and cached: the manual
    does not change while the page runs. */
-import type {ManualChapter} from 'virtual:manual';
+import type {ManualChapter} from './manual';
 
 export interface SearchHit {
   chapter: string;

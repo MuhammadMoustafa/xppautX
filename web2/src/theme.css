@@ -972,6 +972,8 @@ kbd {
 .help-result:hover { background: var(--surface-2); }
 .help-result-heading { font-size: var(--text-xs); color: var(--fg-muted); }
 .help-result-text { font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.help-loading { margin: 0; padding: var(--space-3); color: var(--fg-muted); }
+.help-error { margin: 0; padding: var(--space-3); color: var(--danger); }
 .help-body { display: flex; flex: 1; min-height: 0; }
 .help-toc { flex: 0 0 14rem; overflow: auto; border-right: 1px solid var(--border); padding: var(--space-2); }
 .help-toc ol { list-style: none; margin: 0; padding: 0; counter-reset: none; }

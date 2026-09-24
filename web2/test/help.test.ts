@@ -1,24 +1,32 @@
 /* The Help view's pure logic (docs/roadmap.md W12b): the reducer
    (store/help.ts), the manual's search index (help/search.ts) and the
    in-page link matcher (help/links.ts manualLinkTarget), without a browser
-   (npm test). virtual:manual resolves through build.mjs's esbuild plugin
-   even here (build.mjs --test uses the same plugin), so a real chapter's
-   HTML is what search runs against. */
+   (npm test). A small fixture stands in for the real manual (fetched at
+   runtime from dist/manual.json, not bundled): manualBuild.mjs's own
+   output is checked by `npm run build && npm run check` instead, which
+   regenerate and compare dist/manual.json against docs/manual/*.md. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import manual from 'virtual:manual';
 import {manualLinkTarget} from '../src/help/links';
+import type {ManualChapter} from '../src/help/manual';
 import {searchManual} from '../src/help/search';
 import {HELP_HOME, initialHelp, reduceHelp} from '../src/store/help';
 
-test('the manual has every chapter, each with a title and headings', () => {
-  assert.equal(manual.length, 16);
-  assert.equal(manual[0].id, '01-introduction');
-  assert.ok(manual.every(c => c.title.length > 0 && c.html.length > 0));
-  const auto = manual.find(c => c.id === '09-auto')!;
-  assert.ok(auto.headings.some(h => h.id === 'the-auto-view'));
-  assert.ok(auto.headings.some(h => h.id === 'diagram-axes'));
-});
+const MANUAL: ManualChapter[] = [
+  {
+    id: '01-introduction', title: 'Introduction',
+    html: '<p>What XPP is; Poincare maps are mentioned here, before any heading.</p>\n'
+      + '<h2 id="environment-variables">Environment variables</h2>\n<p>XPPRC and friends.</p>',
+    headings: [{id: 'environment-variables', text: 'Environment variables', level: 2}],
+  },
+  {
+    id: '09-auto', title: 'Auto interface',
+    html: '<p>AUTO was written by Doedel.</p>\n'
+      + '<h2 id="the-auto-view">The AUTO view</h2>\n<p>Its status strip and Output.</p>\n'
+      + '<h2 id="diagram-axes">Diagram axes</h2>\n<p>Choose what each axis plots.</p>',
+    headings: [{id: 'the-auto-view', text: 'The AUTO view', level: 2}, {id: 'diagram-axes', text: 'Diagram axes', level: 2}],
+  },
+];
 
 test('reduceHelp: open with a target shows it, closes, "open" with none keeps the place', () => {
   const opened = reduceHelp(initialHelp, {type: 'open', target: {chapter: '09-auto', anchor: 'diagram-axes'}});
@@ -36,22 +44,32 @@ test('reduceHelp: a target with no anchor goes to the chapter\'s top', () => {
   assert.equal(top.anchor, null);
 });
 
+test('reduceHelp: an empty-string anchor (a search hit above a heading) counts as none', () => {
+  const at = reduceHelp(initialHelp, {type: 'open', target: {chapter: '01-introduction', anchor: ''}});
+  assert.equal(at.anchor, null);
+});
+
 test('reduceHelp: the query is kept, and starts at the home chapter', () => {
   assert.equal(initialHelp.chapter, HELP_HOME);
   const q = reduceHelp(initialHelp, {type: 'query', query: 'poincare'});
   assert.equal(q.query, 'poincare');
 });
 
-test('searchManual finds a known term (Diagram axes, 09-auto.md) by heading and by body text', () => {
-  const byHeading = searchManual(manual, 'diagram axes');
+test('searchManual finds a known term by heading and by body text', () => {
+  const byHeading = searchManual(MANUAL, 'diagram axes');
   assert.ok(byHeading.some(h => h.chapter === '09-auto' && h.anchor === 'diagram-axes'));
-  const byText = searchManual(manual, 'Doedel'); /* AUTO's own preamble names its author */
+  const byText = searchManual(MANUAL, 'Doedel');
   assert.ok(byText.some(h => h.chapter === '09-auto'));
 });
 
+test('searchManual: a hit above the first heading has an empty anchor (the chapter\'s top)', () => {
+  const hits = searchManual(MANUAL, 'Poincare');
+  assert.ok(hits.some(h => h.chapter === '01-introduction' && h.anchor === ''));
+});
+
 test('searchManual is case-insensitive and matches nothing for a blank query', () => {
-  assert.deepEqual(searchManual(manual, '   '), []);
-  const hits = searchManual(manual, 'POINCARE');
+  assert.deepEqual(searchManual(MANUAL, '   '), []);
+  const hits = searchManual(MANUAL, 'POINCARE');
   assert.ok(hits.length > 0);
 });
 

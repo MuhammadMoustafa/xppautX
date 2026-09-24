@@ -53,11 +53,13 @@
    F acts from the plot and from a button, the theme switch is an icon, a
    long menu is in columns; `busy`: during an integration the AUTO diagram
    zooms and its core buttons say why they wait.
-   Help (docs/roadmap.md W12b, the manual bundled at build time): a "?" on
-   the values panel opens Help at its section with the heading in view,
-   search finds a known term, a result and a table-of-contents link
-   navigate, an in-chapter cross-reference link does too, and F1 reopens
-   it where it was left.
+   Help (docs/roadmap.md W12b, the manual rendered at build time into
+   dist/manual.json and fetched by the page itself, not bundled in
+   app.js): the fetch itself (served like app.js, no token), a "?" on the
+   values panel opening Help at its section with the heading in view once
+   loaded, search finding a known term, a result and a table-of-contents
+   link navigating, an in-chapter cross-reference link too, and F1
+   reopening it where it was left.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH]
      [--only desktop,phase,marks,auto,keys,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help] [-v]
@@ -2415,25 +2417,37 @@ async function runsCheck(dir) {
   await cdp.eval(`document.querySelector('[data-section="par"] .value-fold').click()`);
 }
 
-/* Help (docs/roadmap.md W12b): a "?" link on a dialog opens Help at that
-   section, with its heading in view; the search box finds a known term;
-   a search result and a table-of-contents link both navigate; F1 opens it
-   from anywhere that is not a text field. */
+/* Help (docs/roadmap.md W12b): the manual (dist/manual.json, ~270 KB) is
+   fetched lazily, not bundled in app.js: this checks that fetch too, not
+   just the view built from what it returns. A "?" link on a dialog opens
+   Help at that section, with its heading in view once loaded; the search
+   box finds a known term; a search result and a table-of-contents link
+   both navigate; F1 opens it from anywhere that is not a text field. */
 async function helpCheck() {
   await desktopMetrics();
   check('help: the page connects', await until('s.hello && !s.busy', 'hello'));
   check('help: starts closed', !(await S('s.help.open')));
+  check('help: the manual is not fetched before Help ever opens (no chapter rendered yet)',
+    !(await cdp.eval(`!!document.querySelector('.help-content')`)));
+
+  /* manual.json itself: served like any other web2/dist file (Makefile
+     WEB2_FILES, tools/embed.c), no token needed, same as app.js/app.css */
+  const manualFetch = await cdp.eval(`fetch('manual.json').then(r => ({status: r.status, type: r.headers.get('content-type')}))`);
+  check('help: manual.json is served with a JSON content type',
+    manualFetch.status === 200 && /application\/json/.test(manualFetch.type || ''), JSON.stringify(manualFetch));
 
   /* a "?" link on a dialog: the values panel's Parameters section has one (always inline at 1280px) */
   check('help: a "?" link is on the values panel',
     await cdp.eval(`!!document.querySelector('.value-group-head .help-link')`));
   await cdp.eval(`document.querySelector('.value-group-head .help-link').click()`);
-  check('help: it opens Help at the values panel section', await until(
+  check('help: it opens Help at the values panel section at once (the fetch is still pending or already done)', await until(
     `s.help.open && s.help.chapter === '04-using-the-interface' && s.help.anchor === 'the-values-panel'`, 'help open'),
     JSON.stringify(await S('s.help')));
   check('help: the panel becomes visible',
     await cdp.eval(`getComputedStyle(document.querySelector('.help-panel')).visibility === 'visible'`));
-  check('help: the section heading is scrolled into view', await until(`(() => {
+  check('help: it shows "Loading the manual…" or the chapter (a fast local fetch may beat this check)',
+    await cdp.eval(`!!document.querySelector('.help-loading') || !!document.querySelector('.help-content')`));
+  check('help: the section heading is scrolled into view once loaded', await until(`(() => {
     const h = document.querySelector('.help-content #the-values-panel'), c = document.querySelector('.help-content');
     if (!h || !c) return false;
     const hr = h.getBoundingClientRect(), cr = c.getBoundingClientRect();
