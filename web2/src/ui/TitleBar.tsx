@@ -40,6 +40,7 @@ export function TitleBar() {
   const textOpen = useStore(s => s.text.open);
   const aplotOpen = useStore(s => s.aplot.open);
   const aniOpen = useStore(s => s.ani.open);
+  const helpOpen = useStore(s => s.help.open);
   const busy = useStore(s => s.busy);
   const setTheme = () => {
     const t = NEXT_THEME[theme];
@@ -72,6 +73,9 @@ export function TitleBar() {
       <button class="ani-toggle" aria-controls="ani-panel" aria-expanded={aniOpen}
         onClick={() => (aniOpen ? session.closeAni() : session.openAni())}
         title="The animation (Viewaxes/Toon): play, step and seek its frames">Animation</button>
+      <button class="help-toggle" aria-controls="help-panel" aria-expanded={helpOpen}
+        onClick={() => session.store.dispatch({type: 'help', action: {type: 'open'}})}
+        title="The manual (F1)">Help</button>
     </header>
   );
 }

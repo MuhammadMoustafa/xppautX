@@ -211,6 +211,12 @@ A prompt never steals keys it does not use: the menu dialog takes only its
 own keys; everything else is ignored while a prompt is open, as the protocol
 requires.
 
+Every menu and dialog also has a small "?" (`ui/HelpButton.tsx`) that opens
+the Help view (`ui/Help.tsx`, docs/roadmap.md W12) at its section of the
+manual (docs/manual/, bundled at web2 build time): a table of contents,
+search, and chapter pages with working links; the title bar's Help button
+and F1 open it too.
+
 ## 4. Files: open and save with the browser's dialogs
 
 The core reads and writes files on its own machine, in its working directory

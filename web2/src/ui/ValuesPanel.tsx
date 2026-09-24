@@ -15,9 +15,11 @@
    viewer), and Parameters and State save and load XPP's own files. */
 import {useEffect, useRef, useState} from 'preact/hooks';
 import type {ComponentChildren} from 'preact';
+import {HELP} from '../help/links';
 import type {Session} from '../session';
 import {fieldKey, isQueued, sixSig, type ValueKind} from '../store/values';
 import {useSession, useStore} from './context';
+import {HelpButton} from './HelpButton';
 
 const NUMBER_HINT = 'A number, or %formula such as %2*pi';
 const FOCUSABLE = 'button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])';
@@ -65,6 +67,7 @@ function Section({id, title, hint, tools, children}: {
             <span class="value-fold-mark" aria-hidden="true">{folded ? '▸' : '▾'}</span>{title}
           </button>
         </h3>
+        <HelpButton target={HELP.valuesPanel} label={title} />
       </div>
       <div id={bodyId} hidden={folded}>
         {hint && <p class="value-hint">{hint}</p>}

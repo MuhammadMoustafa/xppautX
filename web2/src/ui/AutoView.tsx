@@ -51,6 +51,7 @@ import {attachGestures, type PickSink} from '../plot/interactions';
 import {pickKey, toData} from '../plot/pick';
 import {plotKey} from '../plot/plotKeys';
 import type {Ranges} from '../plot/viewmath';
+import {HELP} from '../help/links';
 import type {AutoOp, Session} from '../session';
 import {pendingFields} from '../store/autoSettings';
 import {pointCount, type DiagramHover} from '../store/diagram';
@@ -60,6 +61,7 @@ import {AutoSettingsDialog, type AutoSettingsDialogKind} from './AutoSettings';
 import {AutoInfo} from './AutoInfo';
 import {AutoOutput, AutoStatus} from './AutoStatus';
 import {BUSY_TITLE, useSession, useStore} from './context';
+import {HelpButton} from './HelpButton';
 import {PickBar, PickOverlay, pickSink} from './PlotView';
 import './auto.css';
 
@@ -431,6 +433,7 @@ function AutoPanel({dark}: {dark: boolean}) {
         <button class="auto-back" onClick={() => session.showAuto(false)}
           title="Hide the AUTO view (AUTO stays open; Show AUTO brings it back)">Back</button>
         <h2>AUTO <span class="muted auto-what">{what}</span></h2>
+        <HelpButton target={HELP.autoView} label="AUTO" />
         <button class="auto-close" onClick={() => session.closeAuto()}
           title="Done with AUTO: close its window (a running continuation is stopped first; File/Auto opens it again)">
           Close

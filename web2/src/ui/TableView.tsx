@@ -15,10 +15,12 @@
    own: the rows fetched so far (docs/ui-v2.md T10, "CSV export done in the
    client from fetched data"). */
 import {useEffect, useRef, useState} from 'preact/hooks';
+import {HELP} from '../help/links';
 import {download} from '../plot/export';
 import type {BrowserOp} from '../session';
 import {rowAt} from '../store/table';
 import {useSession, useStore} from './context';
+import {HelpButton} from './HelpButton';
 
 const FOCUSABLE = 'button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])';
 
@@ -183,6 +185,7 @@ export function TableView() {
       <div class="table-header">
         <button class="table-back" onClick={close}>Back</button>
         <h2>Data</h2>
+        <HelpButton target={HELP.dataTab} label="the Data tab" />
         <button class="small" onClick={exportCsv} disabled={!page?.data.length || exporting}
           title="Save every stored row as a CSV file">
           {exporting ? 'Exporting…' : 'Export CSV'}

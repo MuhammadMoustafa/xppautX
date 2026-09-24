@@ -10,9 +10,11 @@
    name. */
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {axesNames, boundText, PLOT_TYPES, spinStep, typedRange, yNeeds} from '../plot/axisDialog';
+import {HELP} from '../help/links';
 import {pendingFields, shownSettings} from '../store/autoSettings';
 import type {Range} from '../store/plots';
 import {useSession, useStore} from './context';
+import {HelpButton} from './HelpButton';
 
 export type AxisName = 'x' | 'y';
 
@@ -97,7 +99,10 @@ export function AutoAxisDialog({axis, onClose}: {axis: AxisName; onClose: () => 
   return (
     <div class="auto-axis-dialog" ref={box} role="dialog" aria-modal="false" aria-label={title} data-axis={axis}
       onKeyDown={onKeyDown}>
-      <h3>{title}</h3>
+      <div class="dialog-title-row">
+        <h3>{title}</h3>
+        <HelpButton target={HELP.autoAxes} label={title} />
+      </div>
       <div class="auto-axis-fields">
         {axis === 'x'
           ? select('Parameter', names.par1, listOf(pars), v => change({par1: v}), 'par1', 'par1')

@@ -7,9 +7,11 @@
    are not offered yet and offer Cancel (A13, docs/ui-v2.md). */
 import type {ComponentChildren} from 'preact';
 import {useEffect, useRef, useState} from 'preact/hooks';
+import {askHelp} from '../help/links';
 import {fieldSpec, selectOptions} from '../protocol/lists';
 import type {AskEvent} from '../protocol/types';
 import {FileAsk} from './FileDialog';
+import {HelpButton} from './HelpButton';
 import {MENU_ONE_COLUMN, menuRows} from './menuLayout';
 import {useSession, useStore} from './context';
 
@@ -172,6 +174,8 @@ function PendingAsk({ask}: {ask: AskEvent}) {
    open, back to where it was on close; Escape cancels */
 function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
   const session = useSession();
+  const table = useStore(s => s.table);
+  const core = useStore(s => s.core);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;
@@ -205,7 +209,10 @@ function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
     <div class="dialog-backdrop">
       <div class="dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="ask-title" data-ask={ask.kind}
         onKeyDown={onKeyDown}>
-        <h2 id="ask-title">{title}</h2>
+        <div class="dialog-title-row">
+          <h2 id="ask-title">{title}</h2>
+          <HelpButton target={askHelp({table, core}, ask.kind)} label={title} />
+        </div>
         {children}
       </div>
     </div>

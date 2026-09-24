@@ -3,7 +3,9 @@
    beside the plot on wide screens, a drawer over it on narrow ones (the
    title bar's Menu button, Escape or a choice closes it). */
 import {useEffect, useRef} from 'preact/hooks';
+import {menuHelp} from '../help/links';
 import {BUSY_TITLE, useSession, useStore} from './context';
+import {HelpButton} from './HelpButton';
 
 const WHICH = ['main', 'file', 'num'] as const;
 
@@ -37,7 +39,10 @@ export function MenuPanel() {
   return (
     <>
       <nav id="command-menu" ref={nav} class={'menu-panel' + (open ? ' open' : '')} aria-label="Commands">
-        <h2 class="menu-title">{name === 'main' ? 'Commands' : name === 'file' ? 'File' : 'Numerics'}</h2>
+        <div class="menu-title-row">
+          <h2 class="menu-title">{name === 'main' ? 'Commands' : name === 'file' ? 'File' : 'Numerics'}</h2>
+          <HelpButton target={menuHelp(which)} label={name === 'main' ? 'the main commands' : name === 'file' ? 'the File menu' : 'Numerics'} />
+        </div>
         <ul>
           {items.map((item, i) => (
             <li key={`${name}${i}`}>

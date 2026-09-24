@@ -14,8 +14,10 @@
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {fromCanvas} from '../ani/frame';
 import {drawAniFrame, frameBox} from '../ani/render';
+import {HELP} from '../help/links';
 import {sixSig} from '../store/values';
 import {useSession, useStore} from './context';
+import {HelpButton} from './HelpButton';
 import {useDark} from './theme';
 
 /** the delays offered, ms between two frames of Go */
@@ -132,6 +134,7 @@ export function AniView() {
       <div class="ani-header">
         <button class="ani-back" onClick={close}>Back</button>
         <h2>Animation</h2>
+        <HelpButton target={HELP.animation} label="the animation" />
         {!exists && <button onClick={() => session.openAni()} disabled={busy}>Open</button>}
         <button onClick={() => session.aniLoad()} disabled={busy || !exists} title="Load an animation (.ani) file">
           Load…

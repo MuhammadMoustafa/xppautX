@@ -13,10 +13,30 @@ import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {loadManual} from './tools/manualBuild.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.join(here, 'dist');
 const mode = process.argv[2] ?? '--build';
+
+/* the manual (docs/manual/*.md, W12) as a virtual module: `import manual
+   from 'virtual:manual'` resolves to its data (web2/src/help/manual.d.ts is
+   its ambient type, so tsc does not need this plugin). Keeps the markdown
+   parser itself (marked, tools/manualBuild.mjs) out of app.js -- only its
+   HTML output ships. */
+const MANUAL_NS = 'xpp-manual';
+function manualPlugin() {
+  return {
+    name: 'manual',
+    setup(build) {
+      build.onResolve({filter: /^virtual:manual$/}, () => ({path: 'virtual:manual', namespace: MANUAL_NS}));
+      build.onLoad({filter: /.*/, namespace: MANUAL_NS}, () => {
+        const chapters = loadManual(path.join(here, '..', 'docs', 'manual'));
+        return {contents: `export default ${JSON.stringify(chapters)};`, loader: 'js'};
+      });
+    },
+  };
+}
 
 /* files copied as they are: dist name -> source */
 const COPIED = {
@@ -47,6 +67,7 @@ const options = {
   external: ['*.woff2'], /* the font is copied next to app.css */
   outdir: dist,
   logLevel: 'warning',
+  plugins: [manualPlugin()],
 };
 
 function copied() {
@@ -89,7 +110,7 @@ async function test() {
   await esbuild.build({
     entryPoints: tests.map(n => path.join(here, 'test', n)),
     bundle: true, platform: 'node', format: 'esm', outdir: out, outExtension: {'.js': '.mjs'},
-    jsx: 'automatic', jsxImportSource: 'preact', logLevel: 'warning',
+    jsx: 'automatic', jsxImportSource: 'preact', logLevel: 'warning', plugins: [manualPlugin()],
   });
   const files = tests.map(n => path.join(out, n.replace(/\.ts$/, '.mjs')));
   const r = spawnSync(process.execPath, ['--test', ...files], {stdio: 'inherit', cwd: here}); /* tests read src/ */

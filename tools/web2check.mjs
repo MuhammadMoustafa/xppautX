@@ -53,9 +53,14 @@
    F acts from the plot and from a button, the theme switch is an icon, a
    long menu is in columns; `busy`: during an integration the AUTO diagram
    zooms and its core buttons say why they wait.
+   Help (docs/roadmap.md W12b, the manual bundled at build time): a "?" on
+   the values panel opens Help at its section with the heading in view,
+   search finds a known term, a result and a table-of-contents link
+   navigate, an in-chapter cross-reference link does too, and F1 reopens
+   it where it was left.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH]
-     [--only desktop,phase,marks,auto,keys,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values] [-v]
+     [--only desktop,phase,marks,auto,keys,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help] [-v]
 
    Needs Node 22 or later and a browser, nothing else (tools/cdp.mjs). */
 import {spawnSync} from 'node:child_process';
@@ -122,7 +127,7 @@ async function until(expr, what, ms = 15000) {
 }
 
 const NAMED = {Escape: 27, Enter: 13, Tab: 9, Home: 36, End: 35, PageUp: 33, PageDown: 34,
-  ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40};
+  ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, F1: 112};
 async function key(k, modifiers = 0) {
   if (NAMED[k]) {
     const code = NAMED[k];
@@ -2410,6 +2415,86 @@ async function runsCheck(dir) {
   await cdp.eval(`document.querySelector('[data-section="par"] .value-fold').click()`);
 }
 
+/* Help (docs/roadmap.md W12b): a "?" link on a dialog opens Help at that
+   section, with its heading in view; the search box finds a known term;
+   a search result and a table-of-contents link both navigate; F1 opens it
+   from anywhere that is not a text field. */
+async function helpCheck() {
+  await desktopMetrics();
+  check('help: the page connects', await until('s.hello && !s.busy', 'hello'));
+  check('help: starts closed', !(await S('s.help.open')));
+
+  /* a "?" link on a dialog: the values panel's Parameters section has one (always inline at 1280px) */
+  check('help: a "?" link is on the values panel',
+    await cdp.eval(`!!document.querySelector('.value-group-head .help-link')`));
+  await cdp.eval(`document.querySelector('.value-group-head .help-link').click()`);
+  check('help: it opens Help at the values panel section', await until(
+    `s.help.open && s.help.chapter === '04-using-the-interface' && s.help.anchor === 'the-values-panel'`, 'help open'),
+    JSON.stringify(await S('s.help')));
+  check('help: the panel becomes visible',
+    await cdp.eval(`getComputedStyle(document.querySelector('.help-panel')).visibility === 'visible'`));
+  check('help: the section heading is scrolled into view', await until(`(() => {
+    const h = document.querySelector('.help-content #the-values-panel'), c = document.querySelector('.help-content');
+    if (!h || !c) return false;
+    const hr = h.getBoundingClientRect(), cr = c.getBoundingClientRect();
+    return hr.top >= cr.top - 5 && hr.top <= cr.bottom;
+  })()`, 'heading in view'));
+
+  /* the search box finds a known term (across chapters, not just the one shown) */
+  await cdp.eval(`(() => { const el = document.querySelector('.help-search input'); el.focus();
+    el.value = 'Poincare'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  check('help: search finds results for a known term',
+    await until(`document.querySelectorAll('.help-result').length > 0`, 'search results'),
+    JSON.stringify(await S('s.help.query')));
+
+  /* picking a result opens its chapter (its anchor too, unless the match was
+     above the chapter's first heading, which counts as the chapter's top) */
+  const resultTarget = await S(`(() => {
+    const r = document.querySelector('.help-result');
+    return r ? r.querySelector('.help-result-heading').textContent : null; })()`);
+  await cdp.eval(`document.querySelector('.help-result').click()`);
+  check('help: picking a search result opens its chapter', await until('s.help.open && s.help.chapter', 'result nav'),
+    JSON.stringify({want: resultTarget, got: await S('s.help')}));
+
+  /* a table-of-contents (chapter) link navigates too, to a chapter with its
+     own cross-reference links (04-using-the-interface.md links to others) */
+  await cdp.eval(`(() => { const el = document.querySelector('.help-search input'); el.focus();
+    el.value = ''; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await cdp.eval(`[...document.querySelectorAll('.help-toc-item')].find(b => b.textContent.includes('Using the interface')).click()`);
+  check('help: a chapter link (the table of contents) navigates',
+    await until(`s.help.chapter === '04-using-the-interface' && s.help.anchor === null`, 'toc nav'),
+    JSON.stringify(await S('s.help')));
+
+  /* a cross-reference inside the chapter's own text navigates too */
+  const href = await cdp.eval(`(() => { const a = [...document.querySelectorAll('.help-content a[href]')]
+    .find(a => /^\\d\\d-[a-z0-9-]+\\.md/.test(a.getAttribute('href'))); return a ? a.getAttribute('href') : null; })()`);
+  check('help: the chapter has at least one cross-reference link to another chapter', !!href, String(href));
+  if (href) {
+    await cdp.eval(`[...document.querySelectorAll('.help-content a[href]')]
+      .find(a => a.getAttribute('href') === ${JSON.stringify(href)}).click()`);
+    const wantChapter = href.split('.md')[0].split('#')[0];
+    check('help: clicking a manual cross-reference navigates to it, without a page reload',
+      await until(`s.help.chapter === ${JSON.stringify(wantChapter)}`, 'link nav'), JSON.stringify(await S('s.help')));
+  }
+
+  /* Back closes it; F1 (focus away from any field) reopens it where it was left */
+  await cdp.eval(`document.querySelector('.help-back').click()`);
+  check('help: Back closes it', await until('!s.help.open', 'closed'));
+  const chapterLeftAt = await S('s.help.chapter');
+  await cdp.eval(`document.body.focus()`);
+  /* headless Chrome's synthetic F1 occasionally does not land the first
+     time (a browser-reserved key in many builds): press it again, a few
+     times, before giving up */
+  let f1ok = false;
+  for (let i = 0; i < 5 && !f1ok; i++) {
+    await key('F1');
+    f1ok = await until(`s.help.open && s.help.chapter === ${JSON.stringify(chapterLeftAt)}`, 'F1 open', 1000);
+  }
+  check('help: F1 opens it again, where it was left', f1ok, JSON.stringify(await S('s.help')));
+  await cdp.eval(`document.querySelector('.help-back').click()`);
+  await until('!s.help.open', 'closed again');
+}
+
 /* tools/models/live.ode (about a second a run): edits while busy wait and go
    out once; the IC fields do not move during a run, Now does */
 async function valuesLive() {
@@ -3033,6 +3118,7 @@ async function main() {
     if (run('kinescope')) await session(ODE, kinescope);
     if (run('runs')) await session(ODE, runsCheck);
     if (run('values')) await session(LIVE, valuesLive);
+    if (run('help')) await session(ODE, helpCheck);
   } finally {
     b.proc.kill();
     await sleep(500);

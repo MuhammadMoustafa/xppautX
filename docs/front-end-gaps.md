@@ -77,6 +77,7 @@ Nothing. Fixes from hands-on use are tracked in docs/ui-v2.md (T19).
 - User functions from a DLL/shared library (`load dll`) need the library
   built for the machine that runs the server; the native Windows build
   loads `.dll` files.
-- Help (`xpp_hlp`) and `.xpprc` editing start a browser or editor on the
-  machine that runs the server, as X11 does; a remote server cannot show
-  them to the user.
+- `.xpprc` editing starts an editor on the machine that runs the server, as
+  X11 does; a remote server cannot show it to the user. (`xpp_hlp`'s own
+  help browser is replaced: web2 has its own in-page Help view instead,
+  docs/roadmap.md W12, docs/ui-v2.md "3. Commands, prompts and components".)

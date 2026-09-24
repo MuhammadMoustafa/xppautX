@@ -7,6 +7,7 @@ import {AniView} from './AniView';
 import {AskDialog} from './AskDialog';
 import {AutoView} from './AutoView';
 import {SessionContext, useStore} from './context';
+import {HelpView} from './Help';
 import {useHotkeys} from './hotkeys';
 import {MenuPanel} from './MenuPanel';
 import {Messages} from './Messages';
@@ -57,6 +58,7 @@ function Shell() {
       <AutoView dark={dark} />
       <AplotView />
       <AniView />
+      <HelpView />
       <StatusBar />
       <Toasts />
       <AskDialog />

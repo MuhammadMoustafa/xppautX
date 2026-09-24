@@ -12,10 +12,15 @@
    its message beside it; OK waits until every value is AUTO's. */
 import type {ComponentChildren} from 'preact';
 import {useEffect, useRef, useState} from 'preact/hooks';
+import {HELP} from '../help/links';
 import {
   fieldOf, NUM_FIELDS, NUM_GROUPS, numError, pairErrors, pendingFields, shownSettings, type AutoSettings, type NumKey,
 } from '../store/autoSettings';
 import {useSession, useStore} from './context';
+import {HelpButton} from './HelpButton';
+
+/** the manual section each of this file's dialogs is (docs/manual/README.md's map, W12b) */
+const HELP_OF = {numerics: HELP.autoNumerics, pars: HELP.autoPars, marks: HELP.autoMarks} as const;
 
 const FOCUSABLE = 'button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])';
 
@@ -27,7 +32,9 @@ function useShown(): AutoSettings | null {
   return shownSettings(st);
 }
 
-function Modal({title, id, onClose, children}: {title: string; id: string; onClose: () => void; children: ComponentChildren}) {
+function Modal({title, id, kind, onClose, children}: {
+  title: string; id: string; kind: AutoSettingsDialogKind; onClose: () => void; children: ComponentChildren;
+}) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;
@@ -58,7 +65,10 @@ function Modal({title, id, onClose, children}: {title: string; id: string; onClo
     <div class="dialog-backdrop">
       <div class="dialog auto-settings-dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby={`${id}-title`}
         data-settings={id} onKeyDown={onKeyDown}>
-        <h2 id={`${id}-title`}>{title}</h2>
+        <div class="dialog-title-row">
+          <h2 id={`${id}-title`}>{title}</h2>
+          <HelpButton target={HELP_OF[kind]} label={title} />
+        </div>
         {children}
       </div>
     </div>
@@ -121,7 +131,7 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
   };
   const anyPending = NUM_FIELDS.some(f => pending.has(`numerics.${f.key}`));
   return (
-    <Modal title="AUTO Numerics" id="auto-numerics" onClose={onClose}>
+    <Modal title="AUTO Numerics" id="auto-numerics" kind="numerics" onClose={onClose}>
       <form class="auto-num-groups" onKeyDown={enterSubmits(ok)} onSubmit={e => { e.preventDefault(); ok(); }}>
         {NUM_GROUPS.map(g => (
           <fieldset key={g.title} class="form-grid auto-num-group">
@@ -162,7 +172,7 @@ export function AutoParsDialog({onClose}: {onClose: () => void}) {
     onClose();
   };
   return (
-    <Modal title="AUTO's parameters" id="auto-pars" onClose={onClose}>
+    <Modal title="AUTO's parameters" id="auto-pars" kind="pars" onClose={onClose}>
       <p class="muted auto-settings-note">The parameters AUTO can continue in; the axes and Mark values name them.</p>
       <form class="form-grid auto-pars" onKeyDown={enterSubmits(ok)} onSubmit={e => { e.preventDefault(); ok(); }}>
         {names.map((n, i) => (
@@ -200,7 +210,7 @@ export function AutoMarksDialog({onClose}: {onClose: () => void}) {
   };
   const set = (i: number, j: 0 | 1, v: string) => setRows(r => r.map((row, k) => (k === i ? (j ? [row[0], v] : [v, row[1]]) : row)));
   return (
-    <Modal title="Mark values" id="auto-marks" onClose={onClose}>
+    <Modal title="Mark values" id="auto-marks" kind="marks" onClose={onClose}>
       <p class="muted auto-settings-note">
         AUTO labels (UZ) the points where a parameter, or the period T, reaches one of these values.
       </p>

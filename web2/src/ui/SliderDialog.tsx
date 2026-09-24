@@ -7,11 +7,13 @@
    errors show inline. Follows the app's dialog pattern (AskDialog.tsx,
    theme.css .dialog) but is local state, not a core ask. */
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
+import {HELP} from '../help/links';
 import {
   defaultRange, defaultStep, filterCandidates, validateSliderFields, type SliderCandidate, type SliderDef,
 } from '../store/sliders';
 import {sixSig} from '../store/values';
 import {useSession, useStore} from './context';
+import {HelpButton} from './HelpButton';
 
 const FOCUSABLE = 'button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])';
 
@@ -107,7 +109,10 @@ export function SliderDialog({target, onClose}: SliderDialogProps) {
   return (
     <div class="dialog-backdrop">
       <div class="dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="slider-dialog-title" onKeyDown={onKeyDown}>
-        <h2 id="slider-dialog-title">{title}</h2>
+        <div class="dialog-title-row">
+          <h2 id="slider-dialog-title">{title}</h2>
+          <HelpButton target={HELP.valuesPanel} label={title} />
+        </div>
         <label class="slider-picker-search">
           <span class="visually-hidden">Search parameters and variables</span>
           <input type="text" placeholder="Search parameters and variables" value={query} data-autofocus=""

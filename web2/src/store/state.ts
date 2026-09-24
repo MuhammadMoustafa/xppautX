@@ -18,6 +18,7 @@ import {
 } from './diagram';
 import {initialTable, reduceTable, type TableAction, type TableState} from './table';
 import {initialText, reduceText, type TextAction, type TextState} from './text';
+import {initialHelp, reduceHelp, type HelpAction, type HelpState} from './help';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
 import {
   initialAutoSettings, reduceAutoSettings, type AutoSettings, type AutoSettingsAction, type AutoSettingsState,
@@ -123,6 +124,8 @@ export interface AppState {
   ani: AniState;
   /** the kinescope (T15): captured frames and playback, see store/kinescope.ts */
   kinescope: KinescopeState;
+  /** the Help view (W12b): open/closed, the chapter and anchor shown, the search query */
+  help: HelpState;
 }
 
 export type Action =
@@ -157,7 +160,8 @@ export type Action =
   | {type: 'autoSettings'; action: AutoSettingsAction}
   | {type: 'aplot'; action: AplotAction}
   | {type: 'ani'; action: AniAction}
-  | {type: 'kinescope'; action: KinescopeAction};
+  | {type: 'kinescope'; action: KinescopeAction}
+  | {type: 'help'; action: HelpAction};
 
 export const initialState: AppState = {
   connected: false,
@@ -191,6 +195,7 @@ export const initialState: AppState = {
   aplot: initialAplot,
   ani: initialAni,
   kinescope: initialKinescope,
+  help: initialHelp,
 };
 
 const LOG_KEEP = 200, TOASTS_KEEP = 4;
@@ -465,5 +470,7 @@ export function reduce(state: AppState, action: Action): AppState {
       return {...state, ani: reduceAni(state.ani, action.action)};
     case 'kinescope':
       return {...state, kinescope: reduceKinescope(state.kinescope, action.action)};
+    case 'help':
+      return {...state, help: reduceHelp(state.help, action.action)};
   }
 }
