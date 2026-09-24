@@ -47,7 +47,6 @@
 
 /* #define Set_ivar(a,b) variables[(a)]=(b) */
 
-extern int DCURY;
 extern int RANGE_FLAG;
 
 extern int INFLAG;

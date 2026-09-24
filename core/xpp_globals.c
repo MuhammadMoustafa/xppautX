@@ -22,9 +22,6 @@ int PS_Color = 1;
 
 int animation_on_the_fly = 0;
 
-int DCURYs, DCURXs;
-int DCURY, DCURX;
-
 int aplot_range;
 
 int AxisVarLabels = 0;

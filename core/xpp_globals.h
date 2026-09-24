@@ -37,10 +37,6 @@ extern int PS_Color;
 /* animation */
 extern int animation_on_the_fly;
 
-/* font metrics of the front end (0 when headless) */
-extern int DCURYs, DCURXs;
-extern int DCURY, DCURX;
-
 /* array plot */
 extern int aplot_range;
 

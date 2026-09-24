@@ -109,6 +109,8 @@ static int hl_checklist(char *title, char **names, int *flags, int n)
 static void hl_movie_save(char *basename, int fmat) { (void)basename; (void)fmat; }
 static void hl_exit_program(void) { exit(1); }
 
+XppTextMetrics text_metrics;
+
 XppUi xpp_ui = {
     .err_msg = hl_err_msg,
     .ping = hl_void,

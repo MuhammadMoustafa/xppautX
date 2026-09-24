@@ -263,7 +263,6 @@ double HOMO_SHIFT=0.0;
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 
 extern int storind;
-extern int DCURX,DCURXs,DCURY,DCURYs;
 
 BIFUR Auto;
 ADVAUTO aauto;
@@ -432,23 +431,23 @@ void draw_bif_axes()
  ALINE(x1,y1,x0,y1);
  ALINE(x0,y1,x0,y0);
  XPP_SPRINTF(junk,"%g",Auto.xmin);
- ATEXT(x0,y1+DCURYs+2,junk);
+ ATEXT(x0,y1+text_metrics.small_height+2,junk);
  XPP_SPRINTF(junk,"%g",Auto.xmax);
- ii=strlen(junk)*DCURXs;
- ATEXT(x1-ii,y1+DCURYs+2,junk);
+ ii=strlen(junk)*text_metrics.small_width;
+ ATEXT(x1-ii,y1+text_metrics.small_height+2,junk);
  XPP_SPRINTF(junk,"%g",Auto.ymin);
  ii=strlen(junk);
  i0=9-ii;
  if(i0<0)i0=0;
- ATEXT(i0*DCURXs,y1,junk);
+ ATEXT(i0*text_metrics.small_width,y1,junk);
  XPP_SPRINTF(junk,"%g",Auto.ymax);
  ii=strlen(junk);
  i0=9-ii;
  if(i0<0)i0=0;
- ATEXT(i0*DCURXs,y0+DCURYs,junk);
+ ATEXT(i0*text_metrics.small_width,y0+text_metrics.small_height,junk);
  get_auto_str(xlabel,ylabel);
- ATEXT((x0+x1)/2,y1+DCURYs+2,xlabel);
- ATEXT(10*DCURXs,DCURYs,ylabel);
+ ATEXT((x0+x1)/2,y1+text_metrics.small_height+2,xlabel);
+ ATEXT(10*text_metrics.small_width,text_metrics.small_height,ylabel);
  auto_diagram(NULL); /* the data of the diagram starts again too */
  refreshdisplay();
 }
@@ -1568,7 +1567,7 @@ void info_header(int flag2, int icp1, int icp2)
 	  p1name,
 	  p2name,
 	  vname);
-  draw_auto_info(bob,10,DCURYs+1);
+  draw_auto_info(bob,10,text_metrics.small_height+1);
   
 }
 	  
@@ -1582,7 +1581,7 @@ void new_info(int ibr, int pt, char *ty, int lab, double *par, double norm, doub
   if(icp2<NAutoPar)p2=par[icp2];
   XPP_SPRINTF(bob,"%4d %4d %2s %4d %10.4g %10.4g %10.4g %10.4g %10.4g",
 	  ibr,pt,ty,lab,p1,p2,norm,u0,per);
-  draw_auto_info(bob,10,2*DCURYs+2);
+  draw_auto_info(bob,10,2*text_metrics.small_height+2);
   /* SmallGr(); */
   refreshdisplay();
 }

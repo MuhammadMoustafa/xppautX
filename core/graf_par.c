@@ -31,7 +31,6 @@
 
 double atof();
 NCLINE nclines[MAXNCLINE];
-extern int DCURY;
 extern int storind;
 extern int PS_FONTSIZE;
 extern int PS_Port;

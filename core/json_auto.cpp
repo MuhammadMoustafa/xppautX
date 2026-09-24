@@ -275,15 +275,15 @@ void auto_redraw_for_client(void)
 void j_auto_make_window(char *wname, char *iname)
 {
     (void)iname;
-    Auto.hgt = 20 * DCURY;
-    Auto.wid = 67 * DCURX;
-    Auto.x0 = 10 * DCURXs;
-    Auto.y0 = 2 * DCURYs;
-    Auto.st_wid = 12 * DCURX;
+    Auto.hgt = 20 * text_metrics.big_height;
+    Auto.wid = 67 * text_metrics.big_width;
+    Auto.x0 = 10 * text_metrics.small_width;
+    Auto.y0 = 2 * text_metrics.small_height;
+    Auto.st_wid = 12 * text_metrics.big_width;
     XPP_STRCPY(Auto.hinttxt, "hint");
     diag_forget();      /* a new window has no data */
     auto_data_forget(); /* nor an info strip or a stability circle */
-    send_window("create", WIN_AUTO, Auto.wid + 12 * DCURXs, Auto.hgt + 4 * DCURYs, wname);
+    send_window("create", WIN_AUTO, Auto.wid + 12 * text_metrics.small_width, Auto.hgt + 4 * text_metrics.small_height, wname);
     draw_bif_axes();
 }
 

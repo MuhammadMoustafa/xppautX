@@ -646,7 +646,7 @@ void j_aplot_make(char *name)
 {
     if (aplot.alive) return;
     aplot.alive = 1;
-    aplot.plotw = aplot.width - 30 - 10 * DCURXs;
+    aplot.plotw = aplot.width - 30 - 10 * text_metrics.small_width;
     aplot.ploth = aplot.height - 55;
     send_window("create", WIN_APLOT, aplot.plotw, aplot.ploth, name);
 }

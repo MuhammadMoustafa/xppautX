@@ -47,7 +47,7 @@ extern "C" {
 
 extern int DisplayWidth,DisplayHeight;
 extern int screen;
-extern int DCURY,DCURX,DCURXs,DCURYs,xor_flag;
+extern int xor_flag;
 extern unsigned int MyBackColor,MyForeColor;
 
 char *get_next(const char *src); /* form_ode.c */

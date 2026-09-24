@@ -48,7 +48,6 @@ double atof();
 
 
 
-extern int DCURY;
 extern int *my_ode[];
 extern char *ode_names[MAXODE];
 extern int NMarkov,FIX_VAR,NODE,NEQ;

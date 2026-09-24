@@ -21,7 +21,7 @@ void data_back();
 void usual_integrate_stuff();
 void new_adjoint();
 void new_h_fun();
-extern int DCURY,NDELAYS;
+extern int NDELAYS;
 extern int RandSeed;
 #include "struct.h"
 #include "xpp_io.h"

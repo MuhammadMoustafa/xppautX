@@ -22,7 +22,7 @@ double ndrand48();
 
 void mycor(),mycor2();
 float *get_data_col();
-extern int DCURY,MAXSTOR;
+extern int MAXSTOR;
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 typedef struct {
   int nbins,nbins2,type,col,col2,fftc;

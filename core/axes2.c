@@ -33,7 +33,6 @@
 #define CheckZero(x,tic) (fabs(x) < ((tic) * SIGNIF) ? 0.0 : (x))
 
 
-extern int DCURXs,DCURYs;
 extern int DX_0,DY_0,D_WID,D_HGT;
 extern int PltFmtFlag;
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];

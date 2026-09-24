@@ -183,14 +183,14 @@ extern char *info_message,*ic_hint[],*sing_hint[];
 extern int Xup;
 double atof();
 extern int NMarkov,STOCH_FLAG;
-extern int SCALEY,DCURY,PltFmtFlag,PointRadius;
+extern int SCALEY,PltFmtFlag,PointRadius;
 int DelayErr;
 
 float **get_browser_data();
 double get_ivar();
 double  MyData[MAXODE],MyTime;
 int MyStart;
-extern int DelayFlag,DCURY,NKernel;
+extern int DelayFlag,NKernel;
 int RANGE_FLAG; 
 extern int PAR_FOL,SHOOT;
 extern char upar_names[MAXPAR][XPP_NAME_MAX+1];

@@ -335,6 +335,15 @@ void redraw_the_graph(void);
 void make_txtview(void);
 void q_calc(void);
 
+/* The front end's character cell in pixels, for laying out the AUTO and
+   array plot windows and text in plots: a big and a small monospace font.
+   0 when headless; xppautX sets them before it serves a session. */
+typedef struct {
+    int big_width, big_height;
+    int small_width, small_height;
+} XppTextMetrics;
+extern XppTextMetrics text_metrics;
+
 #ifdef __cplusplus
 }
 #endif

@@ -71,7 +71,6 @@ char *coup_string[MAXODE];
 extern int *my_ode[];
 extern int NSYM,NSYM_START,NCON,NCON_START;
 /* extern Window main_win; */
-extern int DCURY;
 
 void init_trans()
 {

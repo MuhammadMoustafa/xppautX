@@ -38,10 +38,9 @@ extern int START_LINE_TYPE;
 extern double MY_XLO,MY_YLO,MY_XHI,MY_YHI;
 extern int Xup;
 extern int colorline[]; 
-extern int DCURXs,DCURYs;
 extern int PltFmtFlag;
 extern unsigned int GrFore,GrBack;
-extern int SCALEX,SCALEY,DCURX,DCURY,xor_flag;
+extern int SCALEX,SCALEY,xor_flag;
 
 int PS_Port=0;
 int DX_0,DY_0,D_WID,D_HGT;
@@ -132,8 +131,8 @@ void get_draw_area_flag(int flag)
   YDMax=h;
   VTic=max(h/100,1);
   HTic=max(w/150,1);
-  VChar=DCURYs;  /*max(h/25,1);*/
-  HChar=DCURXs; /* max(w/80,1); */
+  VChar=text_metrics.small_height;  /*max(h/25,1);*/
+  HChar=text_metrics.small_width; /* max(w/80,1); */
   
   DLeft=12*HChar;
   DRight=XDMax-3*HChar-HTic;
