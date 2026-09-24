@@ -3,10 +3,7 @@
    window's buttons. It opens when the core opens window 101 (File/Auto) and
    goes when the core destroys it.
 
-   Layout (T26): a full-screen sheet at every width (not R6's floating
-   panel from 48rem any more: from hands-on testing, half the window for no
-   reason, and a noisy background, were both unwanted while using AUTO). It
-   covers the main menu, the plot and the main status bar with a plain
+   Layout (T26): a full-screen sheet at every width. It covers the main menu, the plot and the main status bar with a plain
    background, so its own status strip is then the only status line on
    screen and also carries what the main one says that matters there (T21:
    what AUTO does and has the Stop, ui/AutoStatus.tsx; the status bar's Stop

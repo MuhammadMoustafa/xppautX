@@ -74,7 +74,7 @@
   font-weight: 600;
 }
 @media (min-width: 48rem) {
-  /* .auto-show sits beside the menu column, which the AUTO view itself covers */
+  /* Show AUTO (the view hidden): beside the menu column */
   .auto-show { left: calc(var(--menu-width) + var(--space-4)); }
 }
 @container (max-width: 34rem) {

@@ -15,6 +15,7 @@
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {formatElapsed, runStatus} from '../plot/autoStatus';
 import {useSession, useStore} from './context';
+import {connectionText} from './StatusBar';
 
 export function AutoStatus() {
   const session = useSession();
@@ -38,8 +39,7 @@ export function AutoStatus() {
     return () => clearInterval(t);
   }, [active]);
   const st = runStatus(run, points, labels, now, {asking, stopping}, stop);
-  /* as StatusBar.tsx's own `status` and `dot`, but only worth saying here when it is not simply connected */
-  const conn = exited !== null ? 'XPP has stopped' : !connected ? 'Connecting…' : null;
+  const conn = connectionText(connected, exited);
   const dot = exited !== null ? 'down' : !connected ? '' : st.phase === 'running' || st.phase === 'stopping' ? 'busy' : 'up';
   return (
     <div class="auto-status" data-phase={st.phase}>

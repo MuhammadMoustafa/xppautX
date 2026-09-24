@@ -2,6 +2,11 @@
    Stopping… until the run ends), the core's last message, stored rows. */
 import {useSession, useStore} from './context';
 
+/* the connection, when it is not simply up (AutoStatus.tsx says it too) */
+export function connectionText(connected: boolean, exited: number | null): string | null {
+  return exited !== null ? 'XPP has stopped' : !connected ? 'Connecting…' : null;
+}
+
 export function StatusBar() {
   const session = useSession();
   const connected = useStore(s => s.connected);
@@ -11,8 +16,7 @@ export function StatusBar() {
   const progress = useStore(s => s.progress);
   const bottom = useStore(s => s.bottom);
   const rows = useStore(s => s.core?.rows ?? 0);
-  const status = exited !== null ? 'XPP has stopped' : !connected ? 'Connecting…'
-    : stopping ? 'Stopping…' : busy ? 'Working…' : 'Ready';
+  const status = connectionText(connected, exited) ?? (stopping ? 'Stopping…' : busy ? 'Working…' : 'Ready');
   const dot = exited !== null ? 'down' : !connected ? '' : busy ? 'busy' : 'up';
   return (
     <footer class="status-bar">
