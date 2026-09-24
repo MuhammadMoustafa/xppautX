@@ -93,17 +93,25 @@ char *xpp_make_temp_dir(void)
    handle regardless of subsystem: GetFileType says so, and it is left
    alone. Only a missing handle or one that is already a console (rare, but
    harmless to redo) is worth an AttachConsole call. */
+/* whether a standard handle is already a real pipe or file, which the
+   console must not replace (`cmds | xppautX --server` pipes stdin only) */
+static int redirected(DWORD which)
+{
+    HANDLE h = GetStdHandle(which);
+    DWORD type = h != NULL && h != INVALID_HANDLE_VALUE ? GetFileType(h) : FILE_TYPE_UNKNOWN;
+    return type != FILE_TYPE_UNKNOWN && type != FILE_TYPE_CHAR;
+}
+
 void xpp_win32_attach_console(void)
 {
-    HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD type = out != NULL && out != INVALID_HANDLE_VALUE ? GetFileType(out) : FILE_TYPE_UNKNOWN;
-    if (type != FILE_TYPE_UNKNOWN && type != FILE_TYPE_CHAR) return; /* a real pipe or file: keep it */
+    int in = redirected(STD_INPUT_HANDLE), out = redirected(STD_OUTPUT_HANDLE), err = redirected(STD_ERROR_HANDLE);
+    if (in && out && err) return;
     if (!AttachConsole(ATTACH_PARENT_PROCESS)) return; /* no console to attach to (Explorer): stay quiet */
     /* freopen can only fail here if the console itself is gone; there is no
        better fallback than leaving the stream as it was */
-    (void)freopen("CONOUT$", "w", stdout);
-    (void)freopen("CONOUT$", "w", stderr);
-    (void)freopen("CONIN$", "r", stdin);
+    if (!out) (void)freopen("CONOUT$", "w", stdout);
+    if (!err) (void)freopen("CONOUT$", "w", stderr);
+    if (!in) (void)freopen("CONIN$", "r", stdin);
 }
 
 void xpp_remove_temp_dir(const char *dir)
