@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "xpp_io.h"
+#include "xpp_log.h"
 
 XppBatchOptions batch_options = {0, 0, -1, 1, "", ""};
 
@@ -80,11 +81,11 @@ int argc;
 	*/
 	if (quiet_specified_once == 1)
 	{
-		OVERRIDE_QUIET=1;
+		log_settings.quiet_from_command_line=1;
 	}
 	if (logfile_specified_once == 1)
 	{
-		OVERRIDE_LOGFILE=1;
+		log_settings.file_from_command_line=1;
 	}
 }
 
@@ -266,7 +267,7 @@ void xpp_load_model(int argc, char **argv, int batch)
     Xup = 0;
     XPP_SPRINTF(batch_options.out_file, "output.dat");
     XPP_SPRINTF(PlotFormat, "ps");
-    logfile = stdout;
+    log_settings.file = stdout;
     check_for_quiet(argc, argv);
     do_comline(argc, argv);
     if (batch) batch_options.enabled = 1; /* headless: always batch, even without -silent */

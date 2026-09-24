@@ -29,6 +29,11 @@
 
 #include <stdarg.h>
 #ifdef __cplusplus
+#include <cstdio> /* first, so MinGW's libstdc++ picks its C99 printf */
+#else
+#include <stdio.h>
+#endif
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -38,6 +43,17 @@ typedef enum {
     XPP_LOG_INFO  = 2,
     XPP_LOG_DEBUG = 3
 } XppLogLevel;
+
+/* Where the log goes and whether the model may silence it. The model's
+   @ logfile= and @ quiet= options set file and verbose unless the command
+   line's -logfile / -quiet did first (they win over .xpprc and the model). */
+typedef struct {
+    FILE *file;                  /* -logfile's file; NULL or stdout: stderr */
+    int verbose;                 /* 0: plintf prints nothing (@ quiet=1) */
+    int quiet_from_command_line; /* -quiet was given: @ quiet= is ignored */
+    int file_from_command_line;  /* -logfile was given: @ logfile= is ignored */
+} XppLogSettings;
+extern XppLogSettings log_settings;
 
 /* Default is XPP_LOG_WARN. */
 void xpp_log_set_threshold(XppLogLevel level);

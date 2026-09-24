@@ -12,10 +12,6 @@ float xppvermaj, xppvermin;
 int DoTutorial = 0;
 OptionsSet notAlreadySet;
 
-FILE *logfile;
-int XPPVERBOSE = 1;
-int OVERRIDE_QUIET = 0;
-int OVERRIDE_LOGFILE = 0;
 int AutoFreezeFlag = 0; /* freeze the curve after every integration */
 CURVE frz[MAXFRZ];  /* frozen curves of every plot window */
 XppWinId draw_win;  /* the plot window being drawn into (an X11 Window) */

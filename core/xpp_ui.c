@@ -379,8 +379,8 @@ void q_calc(void) { xpp_ui.q_calc(); }
    plintf is now a thin wrapper around xpp_log() at INFO: the banner,
    "All formulas are valid!!", parser statistics, duplicate-name notes
    and the like, quiet by default and shown with --verbose/--debug (see
-   xpp_log.h). It still honours XPPVERBOSE, the ODE file's own QUIET
-   option (load_eqn.c) -- set XPPVERBOSE=0 there and plintf stays fully
+   xpp_log.h). It still honours log_settings.verbose, the ODE file's own QUIET
+   option (load_eqn.c) -- set it to 0 there and plintf stays fully
    silent regardless of the log threshold, same as before this module
    existed. A real error uses err_msg()/xpp_log(..., XPP_LOG_ERROR/WARN)
    instead, never plintf. */
@@ -389,7 +389,7 @@ int plintf(const char *fmt, ...)
 {
     va_list arglist;
 
-    if (!XPPVERBOSE) return 0; /* Don't print at all! */
+    if (!log_settings.verbose) return 0; /* Don't print at all! */
 
     va_start(arglist, fmt);
     xpp_log_v(XPP_LOG_INFO, fmt, arglist);

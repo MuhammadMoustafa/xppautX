@@ -25,11 +25,6 @@ extern float xppvermaj, xppvermin;
 extern int DoTutorial;
 extern OptionsSet notAlreadySet;
 
-/* logging */
-extern FILE *logfile;
-extern int XPPVERBOSE;
-extern int OVERRIDE_QUIET;
-extern int OVERRIDE_LOGFILE;
 extern int help_menu;
 extern int ks_ncycle, ks_speed;
 extern CURVE frz[MAXFRZ];

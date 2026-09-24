@@ -34,6 +34,7 @@
 #include "xpplim.h"
 #include "xpp_io.h"
 #include "xpp_batch.h"
+#include "xpp_log.h"
 
 #define PARAM 1
 #define IC 2
@@ -66,11 +67,7 @@ extern char dll_lib[256];
 extern char dll_fun[256];
 extern int dll_flag;
 
-extern int XPPVERBOSE;
-extern FILE *logfile;
 
-extern int OVERRIDE_QUIET;
-extern int OVERRIDE_LOGFILE;
 
 extern char SLIDER1VAR[XPP_NAME_MAX+1];
 extern char SLIDER2VAR[XPP_NAME_MAX+1];
@@ -996,20 +993,20 @@ void set_option(s1,s2,force,mask)
    	plintf("QUIET option must be 0 or 1.\n");
 	exit(-1);
    }
-   if (OVERRIDE_QUIET==0)/*Will be 1 if -quiet was specified on the command line.*/
+   if (log_settings.quiet_from_command_line==0)/*Will be 1 if -quiet was specified on the command line.*/
    {
-   	XPPVERBOSE=(atoi(s2)==0);
+   	log_settings.verbose=(atoi(s2)==0);
    }
    return;
  }
  if(msc("LOGFILE",s1)){
-   if (OVERRIDE_LOGFILE==0) /*Will be 1 if -logfile was specified on the command line.*/
+   if (log_settings.file_from_command_line==0) /*Will be 1 if -logfile was specified on the command line.*/
    {
-      if (logfile != NULL)       
+      if (log_settings.file != NULL)       
       { 		         
-     	  fclose(logfile);       
+     	  fclose(log_settings.file);       
       } 		         
-      logfile=fopen(s2,"w");     
+      log_settings.file=fopen(s2,"w");     
    }
    return;
  }

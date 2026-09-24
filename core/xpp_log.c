@@ -6,17 +6,17 @@
 static XppLogLevel threshold = XPP_LOG_WARN;
 static int auto_echo;
 
-extern FILE *logfile; /* xpp_globals.c: -logfile FILE or LOGFILE= in the model */
+XppLogSettings log_settings = {NULL, 1, 0, 0};
 
 void xpp_log_set_threshold(XppLogLevel level) { threshold = level; }
 XppLogLevel xpp_log_get_threshold(void) { return threshold; }
 void xpp_log_set_auto_echo(int on) { auto_echo = on; }
 
 /* where messages go: -logfile's file when one was given, else stderr
-   (stdout is the protocol's in --server mode; logfile's default is stdout) */
+   (stdout is the protocol's in --server mode; the file's default is stdout) */
 static FILE *sink(void)
 {
-    return logfile != NULL && logfile != stdout ? logfile : stderr;
+    return log_settings.file != NULL && log_settings.file != stdout ? log_settings.file : stderr;
 }
 
 /* printf semantics: the caller writes the newline, so a line can be built

@@ -63,8 +63,6 @@
 
 extern OptionsSet notAlreadySet;
 
-extern FILE *logfile;
-extern int XPPVERBOSE;
 extern int SuppressOut;
 extern int RunImmediately;
 extern int got_file;
