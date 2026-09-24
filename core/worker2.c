@@ -26,15 +26,10 @@ static double time_end(double start) {
 
 /* The memory for these are taken care of in autobv_, autoae_, and setubv for the
    mpi parallel case */
-extern struct {
-  doublereal *dfu, *dfp, *uu1, *uu2, *ff1, *ff2;
-} global_scratch;
+/* global_scratch: auto_c.h */
 
 /* The memory for these are taken care of in autobv_ and autoae_ */
-extern struct {
-  integer irtn;
-  integer *nrtn;
-} global_rotations;
+/* global_rotations: auto_c.h */
 
 
 

@@ -14,9 +14,7 @@ extern XAUTO xAuto;
    mpi parallel case.  These are global since the they are used many times
    in the wrapper functions in autlib3.c (and autlib5.c) and the cost
    of allocating and deallocating them is prohibitive. */
-extern struct {
-  doublereal *dfu, *dfp, *uu1, *uu2, *ff1, *ff2;
-} global_scratch;
+/* global_scratch: auto_c.h */
 
 
 /* All of these global structures correspond to common

@@ -3,6 +3,7 @@
 	-lf2c -lm   (in that order)
 */
 
+#include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
@@ -12,18 +13,13 @@
    mpi parallel case.  These are global since the they are used many times
    in the wrapper functions in autlib3.c (and autlib5.c) and the cost
    of allocating and deallocating them is prohibitive. */
-extern struct {
-  doublereal *dfu, *dfp, *uu1, *uu2, *ff1, *ff2;
-} global_scratch;
+/* global_scratch: auto_c.h */
 
 /* The memory for these are taken care of in main, and setubv for the
    mpi parallel case.  These are global since they only need to be
    computed once for an entire run, so we do them at the
    beginning to save the cost later on. */
-extern struct {
-  integer irtn;
-  integer *nrtn;
-} global_rotations;
+/* global_rotations: auto_c.h */
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
@@ -2515,18 +2511,19 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
      *ncolrs or nparr can be used as a garbage loop bound or array
      index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
-  if (fscanf(fp3,"%ld",&ibr) != 1) return 1;
-  if (fscanf(fp3,"%ld",&ntot1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&itp1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&lab1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nfpr1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&isw1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&ntpl1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nar1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nskip1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&(*ntsr)) != 1) return 1;
-  if (fscanf(fp3,"%ld",&(*ncolrs)) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nparr) != 1) return 1;
+  xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
+  if (!tr.read(ibr)) return 1;
+  if (!tr.read(ntot1)) return 1;
+  if (!tr.read(itp1)) return 1;
+  if (!tr.read(lab1)) return 1;
+  if (!tr.read(nfpr1)) return 1;
+  if (!tr.read(isw1)) return 1;
+  if (!tr.read(ntpl1)) return 1;
+  if (!tr.read(nar1)) return 1;
+  if (!tr.read(nskip1)) return 1;
+  if (!tr.read(*ntsr)) return 1;
+  if (!tr.read(*ncolrs)) return 1;
+  if (!tr.read(nparr)) return 1;
   iap->ibr = ibr;
   nrsp1 = *ntsr + 1;
 
@@ -2534,23 +2531,23 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     for (i = 0; i < *ncolrs; ++i) {
       k1 = i * ndim;
       k2 = k1 + ndm - 1;
-      if (fscanf(fp3,"%lf",&temp[i]) != 1) return 1;
+      if (!tr.read(temp[i])) return 1;
       for (k = k1; k <= k2; ++k) {
-	if (fscanf(fp3,"%lf",&ARRAY2D(ups, j, k)) != 1) return 1;
+	if (!tr.read(ARRAY2D(ups, j, k))) return 1;
       }
     }
     tm[j] = temp[0];
   }
 
-  if (fscanf(fp3,"%lf",&tm[-1 + nrsp1]) != 1) return 1;
+  if (!tr.read(tm[-1 + nrsp1])) return 1;
   for (k = 0; k < ndm; ++k) {
-    if (fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k)) != 1) return 1;
+    if (!tr.read(ARRAY2D(ups, *ntsr, k))) return 1;
   }
 
-  if (fscanf(fp3,"%ld",icprs) != 1) return 1;
-  if (fscanf(fp3,"%ld",&icprs[1]) != 1) return 1;
-  if (fscanf(fp3,"%lf",&rd1) != 1) return 1;
-  if (fscanf(fp3,"%lf",&rd2) != 1) return 1;
+  if (!tr.read(icprs[0])) return 1;
+  if (!tr.read(icprs[1])) return 1;
+  if (!tr.read(rd1)) return 1;
+  if (!tr.read(rd2)) return 1;
 
   /* Read U-dot (derivative with respect to arclength). */
 
@@ -2559,14 +2556,14 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
       k1 = i* ndim;
       k2 = k1 + ndm - 1;
       for (k = k1; k <= k2; ++k) {
-	if (fscanf(fp3,"%lf",&ARRAY2D(udotps, j, k)) != 1) return 1;
+	if (!tr.read(ARRAY2D(udotps, j, k))) return 1;
       }
     }
   }
 
 
   for (k = 0; k < ndm; ++k) {
-    if (fscanf(fp3,"%lf",&ARRAY2D(udotps, *ntsr, k)) != 1) return 1;
+    if (!tr.read(ARRAY2D(udotps, *ntsr, k))) return 1;
   }
 
   /* Read the parameter values. */
@@ -2577,7 +2574,7 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     xpp_log_auto("PAR(i) set to zero, fot i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
-    if (fscanf(fp3,"%lf",&par[i]) != 1) return 1;
+    if (!tr.read(par[i])) return 1;
   }
 
   /* Complement starting data */
@@ -2913,18 +2910,19 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
      *ncolrs or nparr can be used as a garbage loop bound or array
      index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
-  if (fscanf(fp3,"%ld",&ibr) != 1) return 1;
-  if (fscanf(fp3,"%ld",&ntot1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&itp1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&lab1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nfpr1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&isw1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&ntpl1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nar1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nskip1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&(*ntsr)) != 1) return 1;
-  if (fscanf(fp3,"%ld",&(*ncolrs)) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nparr) != 1) return 1;
+  xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
+  if (!tr.read(ibr)) return 1;
+  if (!tr.read(ntot1)) return 1;
+  if (!tr.read(itp1)) return 1;
+  if (!tr.read(lab1)) return 1;
+  if (!tr.read(nfpr1)) return 1;
+  if (!tr.read(isw1)) return 1;
+  if (!tr.read(ntpl1)) return 1;
+  if (!tr.read(nar1)) return 1;
+  if (!tr.read(nskip1)) return 1;
+  if (!tr.read(*ntsr)) return 1;
+  if (!tr.read(*ncolrs)) return 1;
+  if (!tr.read(nparr)) return 1;
   iap->ibr = ibr;
   nrsp1 = *ntsr + 1;
 
@@ -2932,22 +2930,22 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     for (i = 0; i < *ncolrs; ++i) {
       k1 = i * ndim;
       k2 = k1 + ndm - 1;
-      if (fscanf(fp3,"%lf",&temp[i]) != 1) return 1;
+      if (!tr.read(temp[i])) return 1;
       for (k = k1; k <= k2; ++k) {
-	if (fscanf(fp3,"%lf",&ARRAY2D(ups, j, k)) != 1) return 1;
+	if (!tr.read(ARRAY2D(ups, j, k))) return 1;
       }
     }
     tm[j] = temp[0];
   }
-  if (fscanf(fp3,"%lf",&tm[-1 + nrsp1]) != 1) return 1;
+  if (!tr.read(tm[-1 + nrsp1])) return 1;
   for (k = 0; k < ndm; ++k) {
-    if (fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k)) != 1) return 1;
+    if (!tr.read(ARRAY2D(ups, *ntsr, k))) return 1;
   }
 
-  if (fscanf(fp3,"%ld",icprs) != 1) return 1;
-  if (fscanf(fp3,"%ld",&icprs[1]) != 1) return 1;
-  if (fscanf(fp3,"%lf",rldot) != 1) return 1;
-  if (fscanf(fp3,"%lf",&rldot[1]) != 1) return 1;
+  if (!tr.read(icprs[0])) return 1;
+  if (!tr.read(icprs[1])) return 1;
+  if (!tr.read(rldot[0])) return 1;
+  if (!tr.read(rldot[1])) return 1;
 
   /* Read U-dot (derivative with respect to arclength). */
 
@@ -2956,14 +2954,14 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
       k1 = i* ndim;
       k2 = k1 + ndm - 1;
       for (k = k1; k <= k2; ++k) {
-	if (fscanf(fp3,"%lf",&ARRAY2D(udotps, j, k)) != 1) return 1;
+	if (!tr.read(ARRAY2D(udotps, j, k))) return 1;
       }
     }
   }
 
 
   for (k = 0; k < ndm; ++k) {
-    if (fscanf(fp3,"%lf",&ARRAY2D(udotps, *ntsr, k)) != 1) return 1;
+    if (!tr.read(ARRAY2D(udotps, *ntsr, k))) return 1;
   }
 
   /* Read the parameter values. */
@@ -2974,7 +2972,7 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     xpp_log_auto("PAR(i) set to zero, fot i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
-    if (fscanf(fp3,"%lf",&par[i]) != 1) return 1;
+    if (!tr.read(par[i])) return 1;
   }
 
   /* Complement starting data */
@@ -3322,27 +3320,28 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
      *ncolrs or nparr can be used as a garbage loop bound or array
      index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
-  if (fscanf(fp3,"%ld",&ibr) != 1) return 1;
-  if (fscanf(fp3,"%ld",&ntot1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&itp1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&lab1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nfpr1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&isw1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&ntpl1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nar1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nskip1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&(*ntsr)) != 1) return 1;
-  if (fscanf(fp3,"%ld",&(*ncolrs)) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nparr) != 1) return 1;
+  xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
+  if (!tr.read(ibr)) return 1;
+  if (!tr.read(ntot1)) return 1;
+  if (!tr.read(itp1)) return 1;
+  if (!tr.read(lab1)) return 1;
+  if (!tr.read(nfpr1)) return 1;
+  if (!tr.read(isw1)) return 1;
+  if (!tr.read(ntpl1)) return 1;
+  if (!tr.read(nar1)) return 1;
+  if (!tr.read(nskip1)) return 1;
+  if (!tr.read(*ntsr)) return 1;
+  if (!tr.read(*ncolrs)) return 1;
+  if (!tr.read(nparr)) return 1;
   iap->ibr = ibr;
 
   for (j = 0; j < *ntsr; ++j) {
     for (i = 0; i < *ncolrs; ++i) {
       k1 = i * ndim;
       k2 = k1 + ndm - 1;
-      if (fscanf(fp3,"%lf",&temp[i]) != 1) return 1;
+      if (!tr.read(temp[i])) return 1;
       for (k = k1; k <= k2; ++k) {
-	if (fscanf(fp3,"%lf",&ARRAY2D(ups, j, k)) != 1) return 1;
+	if (!tr.read(ARRAY2D(ups, j, k))) return 1;
       }
       k2p1 = k2 + 1;
       k3 = k2 + ndm;
@@ -3354,19 +3353,19 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     tm[j] = temp[0];
   }
 
-  if (fscanf(fp3,"%lf",&tm[*ntsr]) != 1) return 1;
+  if (!tr.read(tm[*ntsr])) return 1;
   for (k = 0; k < ndm; ++k) {
-    if (fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k)) != 1) return 1;
+    if (!tr.read(ARRAY2D(ups, *ntsr, k))) return 1;
   }
   for (i = 0; i < ndm; ++i) {
     ARRAY2D(ups, *ntsr, (ndm + i)) = 0.;
     ARRAY2D(ups, *ntsr, ((ndm * 2) + i)) = 0.;
   }
 
-  if (fscanf(fp3,"%ld",icprs) != 1) return 1;
-  if (fscanf(fp3,"%ld",&icprs[1]) != 1) return 1;
-  if (fscanf(fp3,"%lf",rldot) != 1) return 1;
-  if (fscanf(fp3,"%lf",&rldot[1]) != 1) return 1;
+  if (!tr.read(icprs[0])) return 1;
+  if (!tr.read(icprs[1])) return 1;
+  if (!tr.read(rldot[0])) return 1;
+  if (!tr.read(rldot[1])) return 1;
   rldot[2] = 0.;
   rldot[3] = 0.;
 
@@ -3377,7 +3376,7 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
       k1 = i * ndim;
       k2 = k1 + ndm - 1;
       for (k = k1; k <= k2; ++k) {
-	if (fscanf(fp3,"%lf",&ARRAY2D(udotps, j, k)) != 1) return 1;
+	if (!tr.read(ARRAY2D(udotps, j, k))) return 1;
       }
       k2p1 = k2 + 1;
       k3 = k2 + ndm;
@@ -3389,7 +3388,7 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   }
 
   for (k = 0; k < ndm; ++k) {
-    if (fscanf(fp3,"%lf",&ARRAY2D(udotps, *ntsr, k)) != 1) return 1;
+    if (!tr.read(ARRAY2D(udotps, *ntsr, k))) return 1;
   }
   for (i = 0; i < ndm; ++i) {
     ARRAY2D(udotps, *ntsr, (ndm + i)) = 0.;
@@ -3404,7 +3403,7 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     xpp_log_auto("PAR(i) set to zero, fot i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
-    if (fscanf(fp3,"%lf",&par[i]) != 1) return 1;
+    if (!tr.read(par[i])) return 1;
   }
 
   par[12] = 0.;
@@ -3856,43 +3855,44 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
      buffers allocated above) before *ntsr, *ncolrs or nparr can be
      used as a garbage loop bound or array index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
-  if (fscanf(fp3,"%ld",&ibr) != 1) goto read_failed;
-  if (fscanf(fp3,"%ld",&ntot1) != 1) goto read_failed;
-  if (fscanf(fp3,"%ld",&itp1) != 1) goto read_failed;
-  if (fscanf(fp3,"%ld",&lab1) != 1) goto read_failed;
-  if (fscanf(fp3,"%ld",&nfpr1) != 1) goto read_failed;
-  if (fscanf(fp3,"%ld",&isw1) != 1) goto read_failed;
-  if (fscanf(fp3,"%ld",&ntpl1) != 1) goto read_failed;
-  if (fscanf(fp3,"%ld",&nar1) != 1) goto read_failed;
-  if (fscanf(fp3,"%ld",&nskip1) != 1) goto read_failed;
-  if (fscanf(fp3,"%ld",&(*ntsr)) != 1) goto read_failed;
-  if (fscanf(fp3,"%ld",&(*ncolrs)) != 1) goto read_failed;
-  if (fscanf(fp3,"%ld",&nparr) != 1) goto read_failed;
+  xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
+  if (!tr.read(ibr)) goto read_failed;
+  if (!tr.read(ntot1)) goto read_failed;
+  if (!tr.read(itp1)) goto read_failed;
+  if (!tr.read(lab1)) goto read_failed;
+  if (!tr.read(nfpr1)) goto read_failed;
+  if (!tr.read(isw1)) goto read_failed;
+  if (!tr.read(ntpl1)) goto read_failed;
+  if (!tr.read(nar1)) goto read_failed;
+  if (!tr.read(nskip1)) goto read_failed;
+  if (!tr.read(*ntsr)) goto read_failed;
+  if (!tr.read(*ncolrs)) goto read_failed;
+  if (!tr.read(nparr)) goto read_failed;
   iap->ibr = ibr;
 
   for (j = 0; j < *ntsr; ++j) {
     for (i = 0; i < *ncolrs; ++i) {
       k1 = i * ndim;
       k2 = k1 + ndm - 1;
-      if (fscanf(fp3,"%lf",&temp[i]) != 1) goto read_failed;
+      if (!tr.read(temp[i])) goto read_failed;
       for (k = k1; k <= k2; ++k) {
-	if (fscanf(fp3,"%lf",&ARRAY2D(ups, j, k)) != 1) goto read_failed;
+	if (!tr.read(ARRAY2D(ups, j, k))) goto read_failed;
       }
     }
     tm[j] = temp[0];
   }
-  if (fscanf(fp3,"%lf",&tm[*ntsr]) != 1) goto read_failed;
+  if (!tr.read(tm[*ntsr])) goto read_failed;
   for (k = 0; k < ndm; ++k) {
-    if (fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k)) != 1) goto read_failed;
+    if (!tr.read(ARRAY2D(ups, *ntsr, k))) goto read_failed;
   }
   for (j = 0; j < *ntsr; ++j) {
     dtm[j] = tm[j + 1] - tm[j];
   }
 
-  if (fscanf(fp3,"%ld",icprs) != 1) goto read_failed;
-  if (fscanf(fp3,"%ld",&icprs[1]) != 1) goto read_failed;
-  if (fscanf(fp3,"%lf",&rld1) != 1) goto read_failed;
-  if (fscanf(fp3,"%lf",&rld2) != 1) goto read_failed;
+  if (!tr.read(icprs[0])) goto read_failed;
+  if (!tr.read(icprs[1])) goto read_failed;
+  if (!tr.read(rld1)) goto read_failed;
+  if (!tr.read(rld2)) goto read_failed;
 
   /* Read U-dot (derivative with respect to arclength). */
   for (j = 0; j < *ntsr; ++j) {
@@ -3900,12 +3900,12 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
       k1 = i* ndim;
       k2 = k1 + ndm - 1;
       for (k = k1; k <= k2; ++k) {
-	if (fscanf(fp3,"%lf",&ARRAY2D(udotps, j, k)) != 1) goto read_failed;
+	if (!tr.read(ARRAY2D(udotps, j, k))) goto read_failed;
       }
     }
   }
   for (k = 0; k < ndm; ++k) {
-    if (fscanf(fp3,"%lf",&ARRAY2D(udotps, *ntsr, k)) != 1) goto read_failed;
+    if (!tr.read(ARRAY2D(udotps, *ntsr, k))) goto read_failed;
   }
 
   /* Read the parameter values. */
@@ -3915,7 +3915,7 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     xpp_log_auto("PAR(i) set to zero, fot i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
-    if (fscanf(fp3,"%lf",&par[i]) != 1) goto read_failed;
+    if (!tr.read(par[i])) goto read_failed;
   }
 
   for (j = 0; j < *ntsr; ++j) {
@@ -4467,40 +4467,41 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
      *ncolrs or nparr can be used as a garbage loop bound or array
      index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
-  if (fscanf(fp3,"%ld",&ibr) != 1) return 1;
-  if (fscanf(fp3,"%ld",&ntot1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&itp1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&lab1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nfpr1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&isw1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&ntpl1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nar1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nskip1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&(*ntsr)) != 1) return 1;
-  if (fscanf(fp3,"%ld",&(*ncolrs)) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nparr) != 1) return 1;
+  xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
+  if (!tr.read(ibr)) return 1;
+  if (!tr.read(ntot1)) return 1;
+  if (!tr.read(itp1)) return 1;
+  if (!tr.read(lab1)) return 1;
+  if (!tr.read(nfpr1)) return 1;
+  if (!tr.read(isw1)) return 1;
+  if (!tr.read(ntpl1)) return 1;
+  if (!tr.read(nar1)) return 1;
+  if (!tr.read(nskip1)) return 1;
+  if (!tr.read(*ntsr)) return 1;
+  if (!tr.read(*ncolrs)) return 1;
+  if (!tr.read(nparr)) return 1;
   iap->ibr = ibr;
 
   for (j = 0; j < *ntsr; ++j) {
     for (i = 0; i < *ncolrs; ++i) {
       k1 = i * ndim;
       k2 = k1 + ndm - 1;
-      if (fscanf(fp3,"%lf",&temp[i]) != 1) return 1;
+      if (!tr.read(temp[i])) return 1;
       for (k = k1; k <= k2; ++k) {
-	if (fscanf(fp3,"%lf",&ARRAY2D(ups, j, k)) != 1) return 1;
+	if (!tr.read(ARRAY2D(ups, j, k))) return 1;
       }
     }
     tm[j] = temp[0];
   }
-  if (fscanf(fp3,"%lf",&tm[*ntsr]) != 1) return 1;
+  if (!tr.read(tm[*ntsr])) return 1;
   for (k = 0; k < ndm; ++k) {
-    if (fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k)) != 1) return 1;
+    if (!tr.read(ARRAY2D(ups, *ntsr, k))) return 1;
   }
 
   nfpr0 = nfpr / 2;
-  if (fscanf(fp3,"%ld",icprs) != 1) return 1;
+  if (!tr.read(icprs[0])) return 1;
   for (i = 0; i < nfpr0; ++i) {
-    if (fscanf(fp3,"%lf",&rldot[i]) != 1) return 1;
+    if (!tr.read(rldot[i])) return 1;
   }
 
   /* Read U-dot (Derivative with respect to arclength). */
@@ -4510,12 +4511,12 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
       k1 = i * ndim + ndm;
       k2 = (i + 1) * ndim - 1;
       for (k = k1; k <= k2; ++k) {
-	if (fscanf(fp3,"%lf",&ARRAY2D(ups, j, k)) != 1) return 1;
+	if (!tr.read(ARRAY2D(ups, j, k))) return 1;
       }
     }
   }
   for (k = ndm; k < ndim; ++k) {
-    if (fscanf(fp3,"%lf",&ARRAY2D(ups, *ntsr, k)) != 1) return 1;
+    if (!tr.read(ARRAY2D(ups, *ntsr, k))) return 1;
   }
 
   /* Read the parameter values. */
@@ -4526,7 +4527,7 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     xpp_log_auto("PAR(i) set to zero, for i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
-    if (fscanf(fp3,"%lf",&par[i]) != 1) return 1;
+    if (!tr.read(par[i])) return 1;
   }
 
   nfpx = nfpr / 2 - 1;
