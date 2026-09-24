@@ -35,8 +35,8 @@ issue; the card here is the one kept up to date.
 | W12a | #24 | The manual as Markdown (docs/manual/), current with web2; W12 steps 1, 2, 4 | T20, T21 | done |
 | W12b | #24 | web2's Help view from docs/manual/, linked from menus and dialogs; W12 step 3 | W12a, T22 | done |
 | W12c | #24 | Chapter 1 of the manual rewritten for xppautX (what it is, installing, starting it, how it relates to XPPAUT); the rest stays Bard Ermentrout's text, credited | W12a | done |
-| W13a | #25 | The desktop window: web2 in the OS web view, closing it ends xppautX, `--browser` keeps browser mode, the app name, the icon slot (placeholder until one is chosen), a menu bar with File (Open model, Quit) and Help (Manual, About); W13 steps 1-3 without updates | T21, W12b | review |
-| W13b | #25 | .ode files open with xppautX (Windows, Linux .desktop/MIME, macOS .app), a second .ode a second window, Check for updates; W13 steps 3 (updates) to 5 | W13a, a first release (#3) for updates | blocked |
+| W13a | #25 | The desktop window: web2 in the OS web view, closing it ends xppautX, `--browser` keeps browser mode, the app name, the icon slot (placeholder until one is chosen), a menu bar with File (Open model, Quit) and Help (Manual, About); W13 steps 1-3 without updates | T21, W12b | done |
+| W13b | #25 | .ode files open with xppautX (Windows, Linux .desktop/MIME, macOS .app), a second .ode a second window, Check for updates, no console window when started from Explorer (GUI subsystem, attaching to a parent console for the command-line modes); W13 steps 3 (updates) to 5 | W13a, a first release (#3) for updates | blocked |
 
 ## W0: C/C++ mixed build
 **Goal.** core/*.cpp builds next to core/*.c on Linux, Windows (MinGW,
