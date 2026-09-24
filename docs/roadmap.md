@@ -33,8 +33,8 @@ issue; the card here is the one kept up to date.
 | W10 | #22 | Replayable interruptions in scripts | none | done (539b300) |
 | W11 | #23 | One I/O module: logging only, safe formatting, file reading and writing | none (step 3 with W7) | running (steps 1-2 done; step 3 next) |
 | W12a | #24 | The manual as Markdown (docs/manual/), current with web2; W12 steps 1, 2, 4 | T20, T21 | done |
-| W12b | #24 | web2's Help view from docs/manual/, linked from menus and dialogs; W12 step 3 | W12a, T22 | in progress |
-| W12c | #24 | Chapter 1 of the manual rewritten for xppautX (what it is, installing, starting it, how it relates to XPPAUT); the rest stays Bard Ermentrout's text, credited | W12a | in progress |
+| W12b | #24 | web2's Help view from docs/manual/, linked from menus and dialogs; W12 step 3 | W12a, T22 | done |
+| W12c | #24 | Chapter 1 of the manual rewritten for xppautX (what it is, installing, starting it, how it relates to XPPAUT); the rest stays Bard Ermentrout's text, credited | W12a | done |
 | W13 | #25 | A desktop app: xppautX's own window, menu bar, icon, .ode files | T21 (the page it shows); Help waits for W12, updates for a first release | blocked |
 
 ## W0: C/C++ mixed build
