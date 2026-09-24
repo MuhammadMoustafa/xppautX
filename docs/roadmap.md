@@ -33,6 +33,7 @@ issue; the card here is the one kept up to date.
 | W10 | #22 | Replayable interruptions in scripts | none | done (539b300) |
 | W11 | - | One I/O module: logging only, safe formatting, file reading and writing | none (step 3 with W7) | running (steps 1-2 done; step 3 next) |
 | W12 | - | The manual as Markdown, current with web2, served in the app | T20, T21 | blocked |
+| W13 | - | A desktop app: xppautX's own window, menu bar, icon, .ode files | T21 (the page it shows); Help waits for W12, updates for a first release | blocked |
 
 ## W0: C/C++ mixed build
 **Goal.** core/*.cpp builds next to core/*.c on Linux, Windows (MinGW,
@@ -197,3 +198,28 @@ one click away in the app.
 **Done when.** No chapter describes an X11 window; every menu and dialog in
 web2 links to a section that describes it; web2check opens Help from a
 dialog and finds its section.
+
+## W13: A desktop app
+**Goal.** `xppautX model.ode` (or double-clicking a .ode file) opens a real
+application window, not a browser tab with a token URL.
+**Scope.**
+1. xppautX opens its own window with the OS web view (the `webview` C/C++
+   library: WebView2 on Windows, WKWebView on macOS, WebKitGTK on Linux),
+   showing web2; the token never appears. Closing the window ends the
+   process. Browser mode stays as `--browser` (VS Code extension, remote,
+   headless); `--server` and `-silent` are unchanged.
+2. The app's name and icon (window, taskbar/dock, executable).
+3. A native menu bar for what belongs to the app, not the model: File
+   (Open model..., Open recent, Close, Quit), Help (Manual from W12, keyboard
+   shortcuts, About: version, commit, compiler, protocol), Check for
+   updates (GitHub releases; asks before any download, and only when the
+   user chooses it or opts in). The model's own menus stay in web2.
+4. .ode files open with xppautX: Windows installer or registry script,
+   Linux .desktop file and MIME type, macOS .app bundle with Info.plist.
+   A second .ode opens a second window.
+5. web2check runs once in the native web view (WebView2) besides Chrome.
+**Needs.** The WebView2 SDK header (a download, maintainer's OK) and
+libwebkit2gtk-4.1-dev on Linux (installed by the maintainer); an icon.
+**Done when.** Double-clicking a .ode file on Windows opens its window with
+the app's name and icon; Help, About and Check for updates work; closing
+the window leaves no process; browser mode passes its checks as before.
