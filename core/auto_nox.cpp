@@ -137,7 +137,6 @@ extern XAUTO xAuto;
    first point: do_auto sets it, addbif takes it (auto_run_from_take) */
 static int run_from;
 extern int leng[MAXODE];
-extern int PS_Color;
 extern double TOR_PERIOD;
 extern float **storage;
 extern int storind;
@@ -1251,7 +1250,7 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     if(icp1!=Auto.icp1)break;
     if(flag2>0&&Auto.icp2!=icp2)break;
 
-    if(PS_Color){
+    if(plot_export.color){
       set_linestyle(1);
       if(flag2>0)pscolset2(flag2);
     }
@@ -1264,7 +1263,7 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     if(icp1!=Auto.icp1)break;
     if(flag2>0&&Auto.icp2!=icp2)break;
     if(Auto.plot!=P_P)
-      {if(PS_Color) set_linestyle(0);else set_linestyle(4);}
+      {if(plot_export.color) set_linestyle(0);else set_linestyle(4);}
     else
       {
 	pscolset2(flag2);
@@ -1273,7 +1272,7 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     line_abs((float)x,(float)y1,(float)Auto.lastx,(float)Auto.lasty);
     break;
   case UPER:
-    if(PS_Color) 
+    if(plot_export.color) 
       set_linestyle(9); 
     else 
       set_linestyle(0);
@@ -1285,7 +1284,7 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     point_abs((float)x,(float)y2);
     break;
   case SPER:
-    if(PS_Color)
+    if(plot_export.color)
       set_linestyle(7);
     else
       set_linestyle(0);

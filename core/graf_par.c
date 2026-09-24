@@ -41,7 +41,6 @@ extern BROWSER my_browser;
 extern double x_3d[2],y_3d[2],z_3d[2];
 /*Default is now color*/
 
-extern char PlotFormat[100];
 
 
 #define SPER 3
@@ -62,6 +61,7 @@ MOV3D mov3d = { "theta","N",45,45,7};
 
 BD my_bd;
 XppFrozenCurves frozen_curves;
+XppPlotExport plot_export = {"", 1};
 
 extern int DLeft,DRight,DTop,DBottom,VTic,HTic,VChar,HChar;
 
@@ -912,14 +912,14 @@ void create_ps()
  static char *nn[]={"BW-0/Color-1","Land(0)/Port(1)","Axes fontsize","Font","Linewidth"};
  int status;
  char values[5][MAX_LEN_SBOX];
- XPP_SPRINTF(values[0],"%d",PS_Color);
+ XPP_SPRINTF(values[0],"%d",plot_export.color);
  XPP_SPRINTF(values[1],"%d",PS_Port);
  XPP_SPRINTF(values[2],"%d",PS_FONTSIZE);
  snprintf(values[3],sizeof(values[3]),"%.24s",PS_FONT);
  XPP_SPRINTF(values[4],"%g",PS_LW);
  status=do_string_box(5,5,1,"Postscript parameters",nn,values,25);
  if(status!=0){
-         PS_Color=atoi(values[0]);
+         plot_export.color=atoi(values[0]);
 	 PS_Port=atoi(values[1]);
 	 PS_FONTSIZE=atoi(values[2]);
 	 PS_LW=atof(values[4]);
@@ -928,7 +928,7 @@ void create_ps()
 	 ping();
  
 	 if(!file_selector("Print postscript",filename,"*.ps"))return;
-	 if(ps_init(filename,PS_Color)){
+	 if(ps_init(filename,plot_export.color)){
 	   ps_restore(); 
 	   ping();
 	 }
@@ -966,7 +966,7 @@ void create_svg()
  strcat(filename,".svg");	
  /*sprintf(filename,"%s.svg",tmp);*/
  if(!file_selector("Print svg",filename,"*.svg"))return;
- if(svg_init(filename,PS_Color)){
+ if(svg_init(filename,plot_export.color)){
 	   svg_restore(); 
 	   ping();
 	 }

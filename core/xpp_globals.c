@@ -15,8 +15,6 @@ OptionsSet notAlreadySet;
 int ks_ncycle = 1, ks_speed = 50; /* kinescope autoplay */
 int help_menu; /* which main-window menu keys go to: MAIN_MENU, FILE_MENU, NUM_MENU */
 
-char PlotFormat[100];
-int PS_Color = 1;
 
 int animation_on_the_fly = 0;
 

@@ -18,6 +18,7 @@
 #include "autlim.h"
 #include "load_eqn.h"
 #include "browse.h"
+#include "graf_par.h"
 #define DALLOC(a) (double *)xpp_malloc((a)*sizeof(double))
 namespace {
 /* err_msg/file_selector (xpp_ui.h) take char * and do not write through
@@ -27,7 +28,6 @@ char *str(const char *s) { return const_cast<char *>(s); }
 } // namespace
 extern int TypeOfCalc;
 extern ROTCHK blrtn;
-extern int PS_Color;  
 
 extern float **storage;
 extern int storind;
@@ -473,7 +473,7 @@ void post_auto()
   /* status=get_dialog("Postscript","Filename",filename,"Ok","Cancel",60); */
   status=file_selector(str("Postscript"),filename,str("*.ps"));
   if(status==0)return;
-  if(!ps_init(filename,PS_Color))
+  if(!ps_init(filename,plot_export.color))
     return;
    draw_ps_axes();
   d=bifd;
@@ -507,7 +507,7 @@ void svg_auto()
   /* status=get_dialog("Postscript","Filename",filename,"Ok","Cancel",60); */
   status=file_selector(str("SVG"),filename,str("*.svg"));
   if(status==0)return;
-  if(!svg_init(filename,PS_Color))
+  if(!svg_init(filename,plot_export.color))
     return;
    draw_svg_axes();
   d=bifd;

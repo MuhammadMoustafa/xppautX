@@ -28,10 +28,6 @@ extern OptionsSet notAlreadySet;
 extern int help_menu;
 extern int ks_ncycle, ks_speed;
 
-/* appearance options parsed from the ODE file / command line */
-extern char PlotFormat[100];
-extern int PS_Color;
-
 /* animation */
 extern int animation_on_the_fly;
 

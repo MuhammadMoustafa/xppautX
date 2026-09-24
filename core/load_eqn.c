@@ -36,6 +36,7 @@
 #include "xpp_batch.h"
 #include "xpp_log.h"
 #include "many_pops.h"
+#include "graf_par.h"
 
 #define PARAM 1
 #define IC 2
@@ -115,9 +116,8 @@ char *get_next();
  */
 
  double last_ic[MAXODE];
-extern char PlotFormat[100];
 
-extern int PSColorFlag,PS_FONTSIZE,PS_Color;
+extern int PSColorFlag,PS_FONTSIZE;
 extern char PS_FONT[100];
 extern double PS_LW;
 
@@ -1077,7 +1077,7 @@ void set_option(s1,s2,force,mask)
   if(msc("PLOTFMT",s1)){
     if ((notAlreadySet.PLOTFORMAT||force) || ((mask!=NULL)&&(mask->PLOTFORMAT==1)))
     {
-    	XPP_STRCPY(PlotFormat,s2);
+    	XPP_STRCPY(plot_export.format,s2);
 	notAlreadySet.PLOTFORMAT=0;
     }
     return;
@@ -2024,7 +2024,7 @@ if(msc("PS_COLOR",s1)){
      if ((notAlreadySet.PS_COLOR||force)|| ((mask!=NULL)&&(mask->PS_COLOR==1)))
      {
   	PSColorFlag=atoi(s2);
-  	PS_Color=PSColorFlag;
+  	plot_export.color=PSColorFlag;
 	notAlreadySet.PS_COLOR=0;
      }
    return;

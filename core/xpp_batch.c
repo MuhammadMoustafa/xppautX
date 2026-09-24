@@ -28,6 +28,7 @@
 #include <string.h>
 #include "xpp_io.h"
 #include "xpp_log.h"
+#include "graf_par.h"
 
 XppBatchOptions batch_options = {0, 0, -1, 1, "", ""};
 
@@ -266,7 +267,7 @@ void xpp_load_model(int argc, char **argv, int batch)
     get_directory(myfile);
     Xup = 0;
     XPP_SPRINTF(batch_options.out_file, "output.dat");
-    XPP_SPRINTF(PlotFormat, "ps");
+    XPP_SPRINTF(plot_export.format, "ps");
     log_settings.file = stdout;
     check_for_quiet(argc, argv);
     do_comline(argc, argv);

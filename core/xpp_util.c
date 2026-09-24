@@ -309,24 +309,24 @@ void dump_ps(int i)
   char filename[XPP_MAX_NAME];
    if(i<0)
      {
-       snprintf(filename,sizeof(filename),"%.100s%.100s.%.10s",this_file,this_internset,PlotFormat);
+       snprintf(filename,sizeof(filename),"%.100s%.100s.%.10s",this_file,this_internset,plot_export.format);
      }
    else
      {
        /*   padnum(s,i,4); */
-       snprintf(filename,sizeof(filename),"%.100s%.100s_%04d.%.10s",this_file,this_internset,i,PlotFormat);
+       snprintf(filename,sizeof(filename),"%.100s%.100s_%04d.%.10s",this_file,this_internset,i,plot_export.format);
      }   
       
-   if (strcmp(PlotFormat,"ps")==0)
+   if (strcmp(plot_export.format,"ps")==0)
    {
-     if(ps_init(filename,PS_Color))
+     if(ps_init(filename,plot_export.color))
      {
        ps_restore();
      }
    }
-   else if (strcmp(PlotFormat,"svg")==0)
+   else if (strcmp(plot_export.format,"svg")==0)
    {
-     if(svg_init(filename,PS_Color))
+     if(svg_init(filename,plot_export.color))
      {
        svg_restore();
      }
