@@ -9,6 +9,7 @@ import {renderFrame} from './plot/kinescopeRender';
 import {pickAnswer, type PickState} from './plot/pick';
 import {chartOf} from './plot/registry';
 import type {Ranges} from './plot/viewmath';
+import {HOME, windowOf} from './store/plots';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
 import type {AskEvent, BrowserEvent, Command, FilmEvent, XppEvent} from './protocol/types';
@@ -20,7 +21,6 @@ import {createStore, type Store} from './store/store';
 import {initialState, reduce, type Action, type AppState} from './store/state';
 import {stepTarget} from './store/ani';
 import {snapshotWindow, type KinescopeFrame} from './store/kinescope';
-import {windowOf} from './store/plots';
 import {MAX_COUNT, MAX_NCOL, planRequest, tableCsv} from './store/table';
 import type {TextTab} from './store/text';
 import {fieldKey, setCommand, type ValueEdit, type ValueKind, type ValueSet} from './store/values';
@@ -317,7 +317,12 @@ export class Session {
   /** Window/Fit: the key sequence the classic page uses ('w' opens the
       Window submenu, 'f' is Fit) sets the active window's axes to the
       data's extent. */
+  /** Window/Fit, and the plot's own pan/zoom cleared at once (one Undo away): when the core's
+      axes were already fitted its state does not move them, so the plot would otherwise stay
+      where a scroll or zoom left it (T30) */
   fitView(): void {
+    const p = this.store.getState().plots, w = windowOf(p, p.active);
+    if (w && (w.viewport.x !== null || w.viewport.y !== null)) this.store.dispatch({type: 'viewport', viewport: HOME, push: true});
     this.keys('w', 'f');
   }
 

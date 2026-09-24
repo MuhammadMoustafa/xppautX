@@ -1149,10 +1149,9 @@ async function viewCheck() {
     JSON.stringify([await S('s.core.view'), extent]));
 
   /* T30: the corner Fit does what the toolbar's Fit does, after a scroll
-     or a zoom that has lost the data. First move the core's own axes off
-     the extent (a plain zoom + "Use this view", as above) so the coming
-     Fit is a real move the store's coreMoved (store/plots.ts) resets the
-     viewport for, not a same-axes no-op. */
+     or a zoom that has lost the data: first with the core's own axes
+     moved off the extent (a plain zoom + "Use this view", as above), so
+     Fit moves them, then with them already fitted. */
   check('the corner Fit sits over the plot while it has data',
     await cdp.eval(`!!document.querySelector('.plot-view:not([hidden]) .plot-host .plot-fit')`));
   await mouse('mouseWheel', cx, cy, {deltaX: 0, deltaY: -240});
@@ -1171,6 +1170,15 @@ async function viewCheck() {
       && s.core.view.ylo <= ${extent.ymin} + 1e-6 && s.core.view.yhi >= ${extent.ymax} - 1e-6
       && w.viewport.x === null && w.viewport.y === null`, 'corner fit'),
     JSON.stringify([await S('s.core.view'), extent]));
+  /* the user's case: the axes already fit, a scroll loses the data, Fit again. The core's
+     axes do not move this time, so it is the page that must drop its own pan (session.fitView) */
+  await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
+  for (let st = 0; st < 15; st++) await key('ArrowRight');
+  await until('w.viewport.x', 'panned away again');
+  await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host .plot-fit').click()`);
+  check('Fit again with the axes already fitted still brings the data back (the page drops its pan)',
+    await until('w.viewport.x === null && w.viewport.y === null && !s.busy', 'second corner fit'),
+    JSON.stringify(await S('w.viewport')));
 }
 
 /* the 3D plot host's box on screen (docs/ui-v2.md T14): Plot3DView.tsx's
