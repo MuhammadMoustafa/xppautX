@@ -177,7 +177,8 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   linked against GTK/WebKitGTK), embedded in xppautX by
   `tools/embed_bytes.c` and loaded from memory by
   `core/xpp_window_loader.cpp` only in window mode (`memfd_create`, then
-  `dlopen` of `/proc/self/fd/N`); it reaches the core only through the
+  `dlopen` of `/proc/self/fd/N`; a temp file when the kernel will not
+  map an executable memfd); it reaches the core only through the
   `XppWindowHost` table of `core/xpp_window_plugin.h` (linked `-z defs`,
   one export), so xppautX's NEEDED has no GTK and the one binary starts
   on any Linux. A failed load logs a WARN with the install command for
