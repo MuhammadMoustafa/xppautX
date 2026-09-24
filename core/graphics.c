@@ -15,6 +15,7 @@
 #include "calc.h"
 #include "many_pops.h"
 #include "xpp_io.h"
+#include "colormap.h"
 
 
 
@@ -36,7 +37,7 @@ extern int AXES,TIMPLOT,PLOT_3D;
 extern int START_LINE_TYPE;
 extern double MY_XLO,MY_YLO,MY_XHI,MY_YHI;
 extern int Xup;
-extern int COLOR,colorline[]; 
+extern int colorline[]; 
 extern int DCURXs,DCURYs;
 extern int PltFmtFlag;
 extern unsigned int GrFore,GrBack;

@@ -85,6 +85,7 @@ NOTE: except for the structure MyGraph, it is "x-free" so it
 #include "xpp_job.h"
 #include "phase_data.h"
 #include "xpp_batch.h"
+#include "colormap.h"
 
 /* a row was just stored (storage[.][storind-1]): a replayed script may stop
    the job here (xpp_job.h), and a front end may show the run growing */
@@ -182,7 +183,7 @@ extern char *info_message,*ic_hint[],*sing_hint[];
 extern int Xup;
 double atof();
 extern int NMarkov,STOCH_FLAG;
-extern int color_total,SCALEY,DCURY,PltFmtFlag,PointRadius;
+extern int SCALEY,DCURY,PltFmtFlag,PointRadius;
 int DelayErr;
 
 float **get_browser_data();
@@ -2695,11 +2696,11 @@ float dt;
      for(i=0,sum=0.0;i<n;i++)sum+=(float)fabs((double)(v1[i+1]-v2[i+1]));
      sum=sum/(dt);
    }
- cur_color=(int)((sum-min_scale)*(float)color_total/color_scale);
+ cur_color=(int)((sum-min_scale)*(float)color_table.count/color_scale);
 /*  plintf("min=%f max=%f col = %d val = %f \n",min_scale,color_scale,
 	cur_color,sum); */  
  if(cur_color<0)cur_color=0;
- if(cur_color>color_total)cur_color=color_total-1;
+ if(cur_color>color_table.count)cur_color=color_table.count-1;
   cur_color+=FIRSTCOLOR;
   if (Xup){set_color(cur_color);}
  if(PltFmtFlag==1){ps_do_color(cur_color);}

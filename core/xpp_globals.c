@@ -20,8 +20,6 @@ int help_menu; /* which main-window menu keys go to: MAIN_MENU, FILE_MENU, NUM_M
 char PlotFormat[100];
 int PS_Color = 1;
 
-int color_min, color_total, COLOR, color_max;
-
 int animation_on_the_fly = 0;
 
 int DCURYs, DCURXs;

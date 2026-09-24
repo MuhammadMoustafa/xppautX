@@ -32,6 +32,7 @@
 #include "xpplim.h"
 #include <sys/time.h>
 #include <libgen.h>
+#include "colormap.h"
 
 #define LINE 0
 #define RLINE 1
@@ -1246,7 +1247,7 @@ void set_ani_col(int j)
     if (c <= 0)
         icol = -c;
     else
-        icol = (int)(color_total * my_ani[j].zcol) + FIRSTCOLOR;
+        icol = (int)(color_table.count * my_ani[j].zcol) + FIRSTCOLOR;
     pen_color(icol);
     LastAniColor = icol;
 }

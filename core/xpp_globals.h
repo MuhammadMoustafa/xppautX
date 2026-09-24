@@ -34,9 +34,6 @@ extern int AutoFreezeFlag;
 extern char PlotFormat[100];
 extern int PS_Color;
 
-/* colour table bookkeeping (the X colormap itself stays in color.c) */
-extern int color_min, color_total, COLOR, color_max;
-
 /* animation */
 extern int animation_on_the_fly;
 

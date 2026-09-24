@@ -172,7 +172,7 @@ static void run_session(void)
     else
         XPP_SPRINTF(title, "XPP Version %g.%g", xppvermaj, xppvermin);
     Xup = 1;
-    COLOR = 1;     /* init_X on a colour display */
+    color_table.enabled = 1;     /* init_X on a colour display */
     periodic = 1;
     AxisVarLabels = 1; /* a plot without axis names is hard to read */
     xpp_build_colormap();

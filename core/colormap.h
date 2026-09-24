@@ -10,6 +10,16 @@ extern int periodic, spectral;
 extern int custom_color;
 extern unsigned short xpp_cmap_rgb[XPP_MAX_COLORS][3];
 
+/* The colour scale's slots in xpp_cmap_rgb (xpp_build_colormap sets them)
+   and whether the front end shows colour at all. */
+typedef struct {
+    int enabled; /* 0 headless: colour-by-variable is refused */
+    int first;   /* the scale's first slot */
+    int last;    /* its last slot */
+    int count;   /* its number of colours */
+} XppColorTable;
+extern XppColorTable color_table;
+
 int rfun(double y, int per);
 int gfun(double y, int per);
 int bfun(double y, int per);

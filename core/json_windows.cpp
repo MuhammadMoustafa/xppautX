@@ -587,7 +587,7 @@ void send_aplot(const char *tag)
         if (j >= 0) thi = my_browser.data[0][j];
     }
     buf_printf(&b, ",\"tlo\":%g,\"thi\":%g,\"zmin\":%g,\"zmax\":%g,\"first\":%d,\"ncolors\":%d,\"nx\":%d,\"ny\":%d",
-               tlo, thi, ap->zmin, ap->zmax, FIRSTCOLOR, color_total, nx, ny);
+               tlo, thi, ap->zmin, ap->zmax, FIRSTCOLOR, color_table.count, nx, ny);
     if (tag) {
         BUF_LIT(&b, ",\"tag\":");
         buf_str(&b, tag);
@@ -604,9 +604,9 @@ void send_aplot(const char *tag)
                 double z = my_browser.data[ib][jb];
                 v = (float)z;
                 if (ap->zmax > ap->zmin) {
-                    c = (int)(color_total * (z - ap->zmin) / (ap->zmax - ap->zmin));
+                    c = (int)(color_table.count * (z - ap->zmin) / (ap->zmax - ap->zmin));
                     if (c < 0) c = 0;
-                    if (c > color_total) c = color_total;
+                    if (c > color_table.count) c = color_table.count;
                 }
             }
             if (vals) vals[j * nx + i] = v;

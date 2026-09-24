@@ -26,6 +26,7 @@ extern int RandSeed;
 #include "struct.h"
 #include "xpp_io.h"
 #include "many_pops.h"
+#include "colormap.h"
 #define VOLTERRA 6
 #define BACKEUL 7
 #define RKQS 8
@@ -96,7 +97,6 @@ int  gear();
  int symplect3();
 
 int cv_bandflag=0,cv_bandupper=1,cv_bandlower=1;
-extern int COLOR,color_total,color_min;
 
 /*   This is the input for the various functions */
 
@@ -302,7 +302,7 @@ void  get_num_par(ch)
 			break;
 		case 'c': flash(10);
 			 /* color */
-			 if(COLOR==0)break;
+			 if(color_table.enabled==0)break;
 			  set_col_par();
 			flash(10);
 			break;

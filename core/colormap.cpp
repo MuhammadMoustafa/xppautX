@@ -34,6 +34,7 @@ int custom_color = 0;
 
 /* 16-bit RGB per colour index, same scale X11 uses */
 unsigned short xpp_cmap_rgb[XPP_MAX_COLORS][3];
+XppColorTable color_table;
 
 int rfun(double y, int per)
 {
@@ -180,18 +181,18 @@ int read_cmap_from_file(char *fname, int n, int *rr, int *gg, int *bb)
     return m;
 }
 
-/* Fill xpp_cmap_rgb and the color_min/max/total bookkeeping. This is the
+/* Fill xpp_cmap_rgb and color_table's first/last/count. This is the
    device-independent half of what MakeColormap() in color.c used to do. */
 void xpp_build_colormap(void)
 {
     int i;
     int r[256], g[256], b[256];
 
-    color_min = 30;
-    color_max = XPP_MAX_COLORS - 1;
-    color_total = color_max - color_min + 1;
-    if (color_total > COL_TOTAL) color_total = COL_TOTAL;
-    color_max = color_min + color_total;
+    color_table.first = 30;
+    color_table.last = XPP_MAX_COLORS - 1;
+    color_table.count = color_table.last - color_table.first + 1;
+    if (color_table.count > COL_TOTAL) color_table.count = COL_TOTAL;
+    color_table.last = color_table.first + color_table.count;
 
     for (i = 0; i < XPP_MAX_COLORS; i++)
         xpp_cmap_rgb[i][0] = xpp_cmap_rgb[i][1] = xpp_cmap_rgb[i][2] = 0;
@@ -222,11 +223,11 @@ void xpp_build_colormap(void)
         xpp_cmap_rgb[i][2] <<= 8;
     }
 
-    make_cmaps(r, g, b, color_total + 1, custom_color);
-    for (i = color_min; i <= color_max; i++) {
-        xpp_cmap_rgb[i][0] = r[i - color_min];
-        xpp_cmap_rgb[i][1] = g[i - color_min];
-        xpp_cmap_rgb[i][2] = b[i - color_min];
+    make_cmaps(r, g, b, color_table.count + 1, custom_color);
+    for (i = color_table.first; i <= color_table.last; i++) {
+        xpp_cmap_rgb[i][0] = r[i - color_table.first];
+        xpp_cmap_rgb[i][1] = g[i - color_table.first];
+        xpp_cmap_rgb[i][2] = b[i - color_table.first];
     }
 }
 
