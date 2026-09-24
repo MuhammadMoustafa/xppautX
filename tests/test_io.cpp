@@ -329,6 +329,48 @@ int main(void)
         std::remove("test_io_tok.tmp");
     }
 
+    /* long fields: fscanf "%ld" field by field, AUTO's "%5ld" columns
+       printed flush ("    2-1234" is 2 then -1234), the rest of the line
+       skipped, the stream left where fscanf leaves it */
+    {
+        write_raw("test_io_tok.tmp", "    2-1234  +7 x\n   1.5E+00 tail\nlast");
+        std::FILE *fp = std::fopen("test_io_tok.tmp", "r");
+        CHECK(fp != NULL);
+        long a = 0, b = 0, c = 0, d = 0;
+        xpp::TokenReader tr = xpp::TokenReader::attach(fp);
+        CHECK(tr.read(a) && a == 2);
+        CHECK(tr.read(b) && b == -1234);
+        CHECK(tr.read(c) && c == 7);
+        CHECK(!tr.read(d));                /* "x" is no number, left in the stream */
+        CHECK(std::fgetc(fp) == 'x');
+        CHECK(tr.skip_line());             /* the "\n" after x */
+        double x = 0;
+        CHECK(tr.read(x) && x == 1.5);
+        CHECK(tr.skip_line());             /* " tail\n" */
+        CHECK(!tr.skip_line());            /* "last" ends at end of file */
+        tr.close();
+        std::rewind(fp);
+        long s1, s2, s3;
+        CHECK(std::fscanf(fp, "%ld%ld%ld", &s1, &s2, &s3) == 3);
+        CHECK(s1 == a && s2 == b && s3 == c);
+        std::fclose(fp);
+        std::remove("test_io_tok.tmp");
+    }
+
+    /* the binary writer copies line ends as they are */
+    {
+        XppWriter *w = xpp_writer_open_binary("test_io_write.tmp");
+        CHECK(w != NULL);
+        std::fputs("a\r\nb\n", xpp_writer_file(w));
+        CHECK(xpp_writer_commit(w) == 0);
+        std::FILE *fp = std::fopen("test_io_write.tmp", "rb");
+        char buf[16] = {0};
+        CHECK(fp != NULL && std::fread(buf, 1, sizeof buf - 1, fp) == 5);
+        if (fp) std::fclose(fp);
+        CHECK(std::strcmp(buf, "a\r\nb\n") == 0);
+        std::remove("test_io_write.tmp");
+    }
+
     /* writer: commit renames the temp file into place, byte for byte */
     {
         XppWriter *w = xpp_writer_open("test_io_write.tmp");

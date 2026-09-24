@@ -339,6 +339,40 @@ int xpp_token_reader_int(XppTokenReader *r, int *out)
     return 1;
 }
 
+/* fscanf "%ld"'s own grammar, one character of lookahead pushed back as
+   fscanf pushes it back, so a field that follows with no space between
+   (AUTO's "%5ld" columns) is the next read's. */
+int xpp_token_reader_long(XppTokenReader *r, long *out)
+{
+    if (!r || !r->fp) return 0;
+    std::string num;
+    int c;
+    do {
+        c = std::fgetc(r->fp);
+    } while (c != EOF && std::isspace(static_cast<unsigned char>(c)));
+    if (c == '+' || c == '-') {
+        num.push_back(static_cast<char>(c));
+        c = std::fgetc(r->fp);
+    }
+    while (c != EOF && std::isdigit(static_cast<unsigned char>(c))) {
+        num.push_back(static_cast<char>(c));
+        c = std::fgetc(r->fp);
+    }
+    if (c != EOF) std::ungetc(c, r->fp);
+    if (num.empty() || !std::isdigit(static_cast<unsigned char>(num.back()))) return 0;
+    *out = std::strtol(num.c_str(), nullptr, 10);
+    return 1;
+}
+
+int xpp_token_reader_skip_line(XppTokenReader *r)
+{
+    if (!r || !r->fp) return 0;
+    int c;
+    while ((c = std::fgetc(r->fp)) != EOF)
+        if (c == '\n') return 1;
+    return 0;
+}
+
 int xpp_token_reader_string(XppTokenReader *r, char *buf, size_t bufsize)
 {
     std::string tok;
@@ -354,7 +388,9 @@ void xpp_token_reader_close(XppTokenReader *r)
     delete r;
 }
 
-XppWriter *xpp_writer_open(const char *path)
+namespace {
+
+XppWriter *writer_open(const char *path, const char *mode)
 {
     if (!path || !*path) {
         xpp_log(XPP_LOG_ERROR, "xpp_writer_open: no destination path given\n");
@@ -370,7 +406,7 @@ XppWriter *xpp_writer_open(const char *path)
         xpp_log(XPP_LOG_ERROR, "xpp_writer_open: path too long: %s\n", path);
         return nullptr;
     }
-    std::FILE *fp = std::fopen(name, "w");
+    std::FILE *fp = std::fopen(name, mode);
     if (!fp) {
         xpp_log(XPP_LOG_ERROR, "xpp_writer_open: cannot create a temp file for %s\n", path);
         return nullptr;
@@ -388,6 +424,12 @@ XppWriter *xpp_writer_open(const char *path)
         return nullptr;
     }
 }
+
+} // namespace
+
+XppWriter *xpp_writer_open(const char *path) { return writer_open(path, "w"); }
+
+XppWriter *xpp_writer_open_binary(const char *path) { return writer_open(path, "wb"); }
 
 FILE *xpp_writer_file(XppWriter *w) { return w ? w->fp : nullptr; }
 

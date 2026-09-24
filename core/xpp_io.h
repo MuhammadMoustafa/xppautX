@@ -127,6 +127,17 @@ int xpp_token_reader_double(XppTokenReader *r, double *out);
 int xpp_token_reader_float(XppTokenReader *r, float *out);   /* "%f"/"%g" */
 int xpp_token_reader_int(XppTokenReader *r, int *out);
 int xpp_token_reader_string(XppTokenReader *r, char *buf, size_t bufsize);
+/* fscanf "%ld" exactly, not a whole token: leading whitespace, an optional
+   sign and the digits, and no more; what follows stays in the stream. For
+   integer columns printed flush against each other, like the "%5ld"
+   label lines of AUTO's fort.8/.s files, where "    2-1234" is 2 then
+   -1234 and a whitespace-delimited token would swallow both. 0 when no
+   digit follows (the sign, if any, consumed as fscanf consumes it). */
+int xpp_token_reader_long(XppTokenReader *r, long *out);
+/* The rest of the current line, its \n included (the "go to the end of the
+   line" after reading a line's leading fields): 1 when a \n ended it, 0
+   when end of file came first. */
+int xpp_token_reader_skip_line(XppTokenReader *r);
 void xpp_token_reader_close(XppTokenReader *r);
 
 /* ---- writer: temp file, renamed into place only on commit --------------
@@ -149,6 +160,9 @@ void xpp_token_reader_close(XppTokenReader *r);
    automatically in its destructor when not committed. */
 typedef struct XppWriter XppWriter;
 XppWriter *xpp_writer_open(const char *path);
+/* the same in binary mode ("wb"): for a byte-for-byte copy, whose lines
+   end as the source's do on every platform */
+XppWriter *xpp_writer_open_binary(const char *path);
 FILE *xpp_writer_file(XppWriter *w);
 int xpp_writer_printf(XppWriter *w, const char *fmt, ...)
 #if defined(__GNUC__)
@@ -303,10 +317,61 @@ private:
     XppLineReader *r_ = nullptr;
 };
 
+/* The token reader, its conversion picked by the type read into:
+   read(double&) is fscanf "%lg" (also "%le"/"%lf"), read(float&) "%g",
+   read(int&) "%d" -- whole whitespace-delimited tokens -- and read(long&)
+   fscanf "%ld" field by field (xpp_token_reader_long). Each is true on
+   success, false where fscanf would not have returned 1. */
+class TokenReader {
+public:
+    TokenReader() = default;
+    explicit TokenReader(const char *path) noexcept : r_(xpp_token_reader_open(path)) {}
+    static TokenReader attach(FILE *fp) noexcept
+    {
+        TokenReader t;
+        t.r_ = xpp_token_reader_attach(fp);
+        return t;
+    }
+    ~TokenReader() { close(); }
+    TokenReader(const TokenReader &) = delete;
+    TokenReader &operator=(const TokenReader &) = delete;
+    TokenReader(TokenReader &&o) noexcept : r_(o.r_) { o.r_ = nullptr; }
+    TokenReader &operator=(TokenReader &&o) noexcept
+    {
+        if (this != &o) {
+            close();
+            r_ = o.r_;
+            o.r_ = nullptr;
+        }
+        return *this;
+    }
+    explicit operator bool() const noexcept { return r_ != nullptr; }
+    bool read(double &x) noexcept { return r_ && xpp_token_reader_double(r_, &x) == 1; }
+    bool read(float &x) noexcept { return r_ && xpp_token_reader_float(r_, &x) == 1; }
+    bool read(int &x) noexcept { return r_ && xpp_token_reader_int(r_, &x) == 1; }
+    bool read(long &x) noexcept { return r_ && xpp_token_reader_long(r_, &x) == 1; }
+    bool skip_line() noexcept { return r_ && xpp_token_reader_skip_line(r_) == 1; }
+    void close()
+    {
+        if (r_) {
+            xpp_token_reader_close(r_);
+            r_ = nullptr;
+        }
+    }
+private:
+    XppTokenReader *r_ = nullptr;
+};
+
 class Writer {
 public:
     Writer() = default;
     explicit Writer(const char *path) noexcept : w_(xpp_writer_open(path)) {}
+    static Writer binary(const char *path) noexcept
+    {
+        Writer w;
+        w.w_ = xpp_writer_open_binary(path);
+        return w;
+    }
     ~Writer()
     {
         if (w_) xpp_writer_abort(w_);
