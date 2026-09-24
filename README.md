@@ -144,6 +144,24 @@ the modes. To check the window by hand: the title reads
 page's Help, Help > About shows the version, and after File > Quit (or
 closing the window) no xppautX process is left.
 
+**Double-clicking a .ode file.** Each archive's `tools/associate/` sets
+xppautX as the opener, per user (no admin rights, and easy to undo):
+
+```bash
+# Windows (PowerShell)
+powershell -File tools\associate\xppautx-associate.ps1 -Register    # -WhatIf first, to see what it would write
+powershell -File tools\associate\xppautx-associate.ps1 -Unregister  # undo
+
+# Linux
+tools/associate/install-linux.sh                # installs into ~/.local/share; --prefix DIR for elsewhere
+tools/associate/install-linux.sh --uninstall     # undo
+```
+
+Run it once; after that, double-clicking a `.ode` file opens it in its own
+xppautX window (a second `.ode` opens a second window: the core cannot load
+a second model into a running session). macOS is `make app` from source
+(below) -- there is no release archive step for it yet.
+
 The binaries are not signed, because a signing identity costs money at both
 Apple and Microsoft, so each system asks once before running a program it
 downloaded. Neither warning means anything is wrong with the file.
@@ -195,6 +213,11 @@ xppautX (`WINDOW=0` asks for that anywhere).
 make -j8 xppautx
 ./xppautX examples/ode/lecar.ode
 ```
+
+`make app` assembles `xppautX.app` (the binary, `assets/icon.icns`, and
+`tools/associate/Info.plist.in`'s `.ode` document type, so Finder offers
+xppautX and double-clicking a `.ode` opens it); drag it to Applications by
+hand. Untested: no macOS machine has built or run the bundle yet.
 
 ### Windows
 

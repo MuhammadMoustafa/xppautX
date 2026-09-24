@@ -87,6 +87,16 @@ the version box; File > Open model… starts a second window with the
 model you choose; File > Quit, or closing the window, ends xppautX and
 leaves no process behind.
 
+**Double-clicking a .ode file** opens it the same way, once xppautX is
+registered as its opener: run the matching script in `tools/associate/`
+once (Windows: `xppautx-associate.ps1 -Register`, a per-user registry
+entry, no admin rights; Linux: `install-linux.sh`, a `.desktop` file and
+MIME type under `~/.local/share`; macOS: `make app` builds `xppautX.app`
+with the type declared in its `Info.plist`, untested). Each has an
+`-Unregister`/`--uninstall` counterpart. A second `.ode` opened this way
+starts a second xppautX, its own window, the same as File > Open model…
+does.
+
 `--server` is for a front end that embeds xppautX instead of opening a
 browser tab (the VS Code extension, a test script); the protocol itself
 is in [docs/protocol.md](../protocol.md). `--script FILE model.ode`

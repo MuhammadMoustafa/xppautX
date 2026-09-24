@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+
+<plist version="1.0">
+<!-- Template for xppautX.app/Contents/Info.plist ("make app", W13b, untested:
+     no macOS machine has built or run this bundle yet). The version tokens
+     below are substituted by the Makefile's app target from the same
+     XPPAUTX_VERSION that "xppautX --version" prints. Declares the .ode
+     document type so Finder offers xppautX to open one and double-clicking
+     one starts it (a second .ode a second process, as on Windows and Linux:
+     the core cannot load a second model into a running session). -->
+<dict>
+    <key>CFBundleName</key>
+    <string>xppautX</string>
+    <key>CFBundleDisplayName</key>
+    <string>xppautX</string>
+    <key>CFBundleIdentifier</key>
+    <string>io.github.MuhammadMoustafa.xppautX</string>
+    <key>CFBundleVersion</key>
+    <string>@XPPAUTX_VERSION@</string>
+    <key>CFBundleShortVersionString</key>
+    <string>@XPPAUTX_VERSION@</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleSignature</key>
+    <string>xppX</string>
+    <key>CFBundleExecutable</key>
+    <string>xppautX</string>
+    <key>CFBundleIconFile</key>
+    <string>icon</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.education</string>
+    <key>NSHumanReadableCopyright</key>
+    <string>GPL v2; XPPAUT is by Bard Ermentrout, xppautX is its modernised fork.</string>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>XPP ODE model</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>icon</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>io.github.MuhammadMoustafa.xppautX.ode</string>
+            </array>
+        </dict>
+    </array>
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>io.github.MuhammadMoustafa.xppautX.ode</string>
+            <key>UTTypeDescription</key>
+            <string>XPP ODE model</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.plain-text</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>ode</string>
+                </array>
+            </dict>
+        </dict>
+    </array>
+</dict>
+</plist>

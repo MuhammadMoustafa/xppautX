@@ -22,6 +22,7 @@ output.dat
 /build/*
 !/build/legacy/
 /xppautX
+/xppautX.app/
 /libxppcore.a
 /xppautX-*
 

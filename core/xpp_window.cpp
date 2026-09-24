@@ -51,6 +51,13 @@ void xpp_window_set_model(const char *path) { (void)path; }
 #else
 #include <gtk/gtk.h>
 #include <unistd.h>
+#ifdef XPP_ICON_ASSET
+/* build/obj/icon_assets.c (tools/embed_bytes.c), a plain C object: declared
+   at file scope, not inside the anonymous namespace below, so it keeps C
+   linkage instead of being mangled as one of its members */
+extern "C" const unsigned char xpp_icon_png[];
+extern "C" const unsigned long xpp_icon_png_len;
+#endif
 #endif
 
 namespace {
@@ -336,6 +343,33 @@ GtkWidget *top_menu(GtkWidget *bar, const char *label)
     return menu;
 }
 
+/* the window icon (item 4, W13b): the installed hicolor theme icon by name
+   (tools/associate/install-linux.sh put it there), else the PNG embedded at
+   build time (Makefile, XPP_ICON_ASSET) so an unpacked-but-not-installed
+   build still has one instead of GTK's generic default. */
+void set_window_icon(GtkWindow *win)
+{
+    if (gtk_icon_theme_has_icon(gtk_icon_theme_get_default(), "xppautx")) {
+        gtk_window_set_icon_name(win, "xppautx");
+        return;
+    }
+#ifdef XPP_ICON_ASSET
+    GdkPixbufLoader *loader = gdk_pixbuf_loader_new();
+    GError *err = nullptr;
+    if (gdk_pixbuf_loader_write(loader, xpp_icon_png, xpp_icon_png_len, &err) &&
+        gdk_pixbuf_loader_close(loader, &err)) {
+        GdkPixbuf *pix = gdk_pixbuf_loader_get_pixbuf(loader);
+        if (pix) gtk_window_set_icon(win, pix);
+    } else {
+        xpp_log(XPP_LOG_WARN, "xppautX: window icon: %s\n", err ? err->message : "unknown error");
+    }
+    if (err) g_error_free(err);
+    g_object_unref(loader);
+#else
+    (void)win;
+#endif
+}
+
 /* The library puts its web view straight into the window: move it into a
    box under a menu bar. */
 void add_menus(webview_t w)
@@ -343,6 +377,7 @@ void add_menus(webview_t w)
     GtkWidget *win = static_cast<GtkWidget *>(webview_get_window(w));
     GtkWidget *view = static_cast<GtkWidget *>(webview_get_native_handle(w, WEBVIEW_NATIVE_HANDLE_KIND_UI_WIDGET));
     if (!win || !view) return;
+    set_window_icon(GTK_WINDOW(win));
     GtkWidget *bar = gtk_menu_bar_new(), *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     GtkWidget *file = top_menu(bar, "_File"), *help = top_menu(bar, "_Help");
     menu_item(file, "_Open model\xe2\x80\xa6", ID_OPEN);

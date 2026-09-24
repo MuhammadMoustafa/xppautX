@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="text/x-xpp-ode">
+    <comment>XPP ODE model</comment>
+    <comment xml:lang="en">XPP ODE model</comment>
+    <icon name="xppautx"/>
+    <glob pattern="*.ode"/>
+  </mime-type>
+</mime-info>

@@ -50,7 +50,11 @@ CXXSTD   = -std=gnu++23
 EXE      = .exe
 DLLIB    =
 LDSTATIC = -static
-NETLIBS  = -lpthread -lws2_32
+# -mwindows: a GUI-subsystem exe, so Explorer and a file association start
+# it with no console window (xpp_win32.c's xpp_win32_attach_console()
+# reattaches to a real one for the command-line modes; --server's pipes are
+# untouched, W13b)
+NETLIBS  = -lpthread -lws2_32 -mwindows
 WINDRES ?= windres
 else
 EXE      =
@@ -125,6 +129,12 @@ ifeq ($(WINDOW),1)
 # -isystem: warnings in GTK's headers are not ours
 WINDOW_CFLAGS := $(patsubst -I%,-isystem %,$(shell pkg-config --cflags gtk+-3.0 webkit2gtk-4.1))
 WINDOW_LIBS := $(shell pkg-config --libs gtk+-3.0 webkit2gtk-4.1)
+# the GTK window's icon (xpp_window.cpp, W13b): the installed hicolor theme
+# icon by name when tools/associate/install-linux.sh has put one there, else
+# this fallback, embedded so an unpacked-but-not-installed build still has
+# one. assets/icons/hicolor/256x256/apps/xppautx.png is tools/make_icons.py's.
+SERVER_OBJECTS += $(BUILDDIR)/icon_assets.o
+$(BUILDDIR)/xpp_window.o: CXXFLAGS += -DXPP_ICON_ASSET
 endif
 endif
 ifeq ($(WINDOW),1)
@@ -195,6 +205,19 @@ $(CORELIB): $(CORE_OBJECTS)
 xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
 	$(LINK_X) $(LDSTATIC) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS)
 
+# macOS: xppautX.app, a bundle Finder and LaunchServices know as the .ode
+# opener (tools/associate/Info.plist.in's CFBundleDocumentTypes), from the
+# built binary, assets/icon.icns (tools/make_icons.py) and that template
+# (W13b; untested -- no macOS machine has built or run this bundle yet).
+.PHONY: app
+APP_DIR := xppautX.app
+app: xppautx assets/icon.icns
+	@mkdir -p $(APP_DIR)/Contents/MacOS $(APP_DIR)/Contents/Resources
+	cp xppautX $(APP_DIR)/Contents/MacOS/xppautX
+	cp assets/icon.icns $(APP_DIR)/Contents/Resources/icon.icns
+	sed 's/@XPPAUTX_VERSION@/$(XPPAUTX_VERSION)/g' tools/associate/Info.plist.in > $(APP_DIR)/Contents/Info.plist
+	@echo "app: wrote $(APP_DIR) (XPPAUTX_VERSION=$(XPPAUTX_VERSION))"
+
 # unit tests over libxppcore, for pure code that an end-to-end run would only
 # report as a puzzling difference somewhere else. tests/README.md says more.
 # a test is C or C++ (tests/test_x.c or .cpp)
@@ -228,6 +251,15 @@ $(BUILDDIR)/web_assets.c: $(BUILDDIR)/embed$(EXE) $(WEB2_FILES)
 	$(BUILDDIR)/embed$(EXE) $@ $(WEB2_FILES)
 
 $(BUILDDIR)/web_assets.o: $(BUILDDIR)/web_assets.c
+	$(CC) -O2 -c $< -o $@
+
+$(BUILDDIR)/embed_bytes$(EXE): tools/embed_bytes.c | $(BUILDDIR)
+	$(CC) -O2 -o $@ $<
+
+$(BUILDDIR)/icon_assets.c: $(BUILDDIR)/embed_bytes$(EXE) assets/icons/hicolor/256x256/apps/xppautx.png
+	$(BUILDDIR)/embed_bytes$(EXE) $@ xpp_icon_png assets/icons/hicolor/256x256/apps/xppautx.png
+
+$(BUILDDIR)/icon_assets.o: $(BUILDDIR)/icon_assets.c
 	$(CC) -O2 -c $< -o $@
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)

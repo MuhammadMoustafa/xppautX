@@ -86,6 +86,26 @@ char *xpp_make_temp_dir(void)
     return NULL;
 }
 
+/* W13b: xppautX links -mwindows, so no console appears when Explorer or a
+   file association starts it; a command-line mode reattaches to a real
+   parent console instead (xpp_win32.h). A handle that is already a pipe or
+   a file (piped --server, redirected output) is a real, working inherited
+   handle regardless of subsystem: GetFileType says so, and it is left
+   alone. Only a missing handle or one that is already a console (rare, but
+   harmless to redo) is worth an AttachConsole call. */
+void xpp_win32_attach_console(void)
+{
+    HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD type = out != NULL && out != INVALID_HANDLE_VALUE ? GetFileType(out) : FILE_TYPE_UNKNOWN;
+    if (type != FILE_TYPE_UNKNOWN && type != FILE_TYPE_CHAR) return; /* a real pipe or file: keep it */
+    if (!AttachConsole(ATTACH_PARENT_PROCESS)) return; /* no console to attach to (Explorer): stay quiet */
+    /* freopen can only fail here if the console itself is gone; there is no
+       better fallback than leaving the stream as it was */
+    (void)freopen("CONOUT$", "w", stdout);
+    (void)freopen("CONOUT$", "w", stderr);
+    (void)freopen("CONIN$", "r", stdin);
+}
+
 void xpp_remove_temp_dir(const char *dir)
 {
     WIN32_FIND_DATAA fd;

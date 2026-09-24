@@ -16,6 +16,17 @@ cp "xppautX$suffix" "build/$name/"
 cp LICENSE "build/$name/"
 [ -f CITATION.cff ] && cp CITATION.cff "build/$name/"
 mkdir -p "build/$name/examples" && cp examples/ode/lecar.ode "build/$name/examples/"
+# per-user .ode file association (tools/associate/, W13b): the Windows and
+# macOS pieces are plain text, small enough for every platform's archive;
+# Linux also needs the icons install-linux.sh installs into the hicolor
+# theme (tools/make_icons.py's assets/icons/hicolor/).
+mkdir -p "build/$name/tools/associate" && cp tools/associate/* "build/$name/tools/associate/"
+case "$platform" in
+  linux-*)
+    [ -d assets/icons/hicolor ] || { echo "package_release: no assets/icons/hicolor (run tools/make_icons.py)" >&2; exit 1; }
+    mkdir -p "build/$name/assets" && cp -r assets/icons "build/$name/assets/icons"
+    ;;
+esac
 cat > "build/$name/README.txt" <<EOF
 xppautX $version ($platform)
 
@@ -36,6 +47,11 @@ printing the address only). xppautX --version prints this release's tag,
 xppautX --help the modes.
 Only this machine can reach it, and the address carries a one-time token.
 Every xppaut option still works; xppautX's own options have to come first.
+
+To open a .ode file by double-clicking it, run the matching script in
+tools/associate/ once (per user, no admin rights): xppautx-associate.ps1
+-Register on Windows, install-linux.sh on Linux; each has an
+-Unregister/--uninstall counterpart.
 
 XPPAUT is by Bard Ermentrout; xppautX is a fork that runs without X11.
 GPL v2: see LICENSE. The source of these binaries is the

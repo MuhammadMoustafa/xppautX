@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=xppautX
+GenericName=ODE simulation and bifurcation analysis
+Comment=Simulate and analyze differential equations (XPPAUT, modernised)
+Exec=xppautX %f
+TryExec=xppautX
+Icon=xppautx
+Terminal=false
+Categories=Science;Math;Education;
+MimeType=text/x-xpp-ode;
+StartupNotify=true

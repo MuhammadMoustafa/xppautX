@@ -47,6 +47,7 @@
 #include "xpp_http.h"
 #include "xpp_util.h"
 #include "xpp_window.h"
+#include "xpp_win32.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -206,6 +207,13 @@ int main(int argc, char **argv)
 {
     int mode = MODE_WINDOW, batch = 0, port = 8765, open_browser = 1, i, k;
     char *script = NULL;
+#ifdef _WIN32
+    /* xppautX links -mwindows (no console from Explorer or a file
+       association): reattach to a real console before any output, for
+       --version/--help and every command-line mode; a no-op when stdio is
+       already a real pipe or file, or there is no parent console */
+    xpp_win32_attach_console();
+#endif
     /* our options come first; the rest are xppaut's */
     for (i = k = 1; i < argc; i++) {
         if (strcmp(argv[i], "--version") == 0) {

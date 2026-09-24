@@ -36,7 +36,7 @@ issue; the card here is the one kept up to date.
 | W12b | #24 | web2's Help view from docs/manual/, linked from menus and dialogs; W12 step 3 | W12a, T22 | done |
 | W12c | #24 | Chapter 1 of the manual rewritten for xppautX (what it is, installing, starting it, how it relates to XPPAUT); the rest stays Bard Ermentrout's text, credited | W12a | done |
 | W13a | #25 | The desktop window: web2 in the OS web view, closing it ends xppautX, `--browser` keeps browser mode, the app name, the icon slot (placeholder until one is chosen), a menu bar with File (Open model, Quit) and Help (Manual, About); W13 steps 1-3 without updates | T21, W12b | done |
-| W13b | #25 | .ode files open with xppautX (Windows per-user registry, Linux .desktop/MIME, macOS .app Info.plist), a second .ode a second window, no console window when started from Explorer (GUI subsystem, attaching to a parent console for the command-line modes), the Linux window icon; W13 step 4 | W13a | in progress |
+| W13b | #25 | .ode files open with xppautX (Windows per-user registry, Linux .desktop/MIME, macOS .app Info.plist), a second .ode a second window, no console window when started from Explorer (GUI subsystem, attaching to a parent console for the command-line modes), the Linux window icon; W13 step 4 | W13a | review |
 | W13c | #25 | Check for updates (GitHub releases; asks before any download, only when chosen or opted in) and web2check once in WebView2; W13 steps 3 (updates) and 5 | W13b, a first release (#3) | blocked |
 
 ## W0: C/C++ mixed build
