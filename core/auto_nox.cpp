@@ -155,11 +155,20 @@ extern FILE *fp8;
 /*extern char *strdup(const char *s);
 */
 
-extern int AutoRedrawFlag;
 extern int FLOWK;
-extern int mark_flag;
-extern int mark_ibrs,mark_ibre;
-extern int mark_ipts,mark_ipte;
+
+namespace {
+/* the diagram's marked stretch (the S and E keys in the Grab loop): the
+   branch and point numbers of its start and end, and where they are drawn */
+struct DiagramMark {
+    int state = 0;        /* 0 nothing, 1 start marked, 2 start and end */
+    int start_branch = 0, end_branch = 0;
+    int start_point = 0, end_point = 0;
+    int start_x = 0, start_y = 0, end_x = 0, end_y = 0;
+};
+DiagramMark diagram_mark;
+int auto_redraw = 1; /* AUTO's File menu Redraw toggle: only reported */
+} // namespace
 int SEc=20;
 int UEc=0;
 int SPc=26;
@@ -1838,7 +1847,7 @@ int yes_reset_auto()
     deletef(string);
     XPP_SPRINTF(string,"%s.s",this_auto_file);
     deletef(string);
-    mark_flag=0;
+    diagram_mark.state=0;
     return 1;
 }
 int reset_auto()
@@ -3182,18 +3191,18 @@ void auto_file()
     write_init_data_file();
   }
   if(ch=='t'){
-    AutoRedrawFlag=1-AutoRedrawFlag;
-    if(AutoRedrawFlag==1)err_msg(str("Redraw is ON"));
+    auto_redraw=1-auto_redraw;
+    if(auto_redraw==1)err_msg(str("Redraw is ON"));
     else err_msg(str("Redraw is OFF"));
   }
   if(ch=='o'){
-    if(mark_flag<2)
+    if(diagram_mark.state<2)
       err_msg(str("Mark a branch first using S and E"));
     else
-      load_browser_with_branch(mark_ibrs,mark_ipts,mark_ipte);
+      load_browser_with_branch(diagram_mark.start_branch,diagram_mark.start_point,diagram_mark.end_point);
 	}	
   if(ch=='n'){
-    if(mark_flag<2) 
+    if(diagram_mark.state<2) 
       err_msg(str("Mark a branch first using S and E"));
     else
       do_auto_range();
@@ -3244,10 +3253,10 @@ void  auto_get_info( int *n, char *pname )
   DIAGRAM *d,*dnew;
 
 
-  if(mark_flag==2){
-    i1=abs(mark_ipts);
-    ibr=mark_ibrs;
-    i2=abs(mark_ipte);
+  if(diagram_mark.state==2){
+    i1=abs(diagram_mark.start_point);
+    ibr=diagram_mark.start_branch;
+    i2=abs(diagram_mark.end_point);
     *n=abs(i2-i1);
     d=bifd;
     while(1){
@@ -3271,12 +3280,12 @@ void  auto_get_info( int *n, char *pname )
 void auto_set_mark(int i)
 {
   int pt,ibr;
-  if(mark_flag==2){
-    ibr=mark_ibrs;
-    if(abs(mark_ipts)<abs(mark_ipte))
-      pt=abs(mark_ipts)+i;
+  if(diagram_mark.state==2){
+    ibr=diagram_mark.start_branch;
+    if(abs(diagram_mark.start_point)<abs(diagram_mark.end_point))
+      pt=abs(diagram_mark.start_point)+i;
     else
-      pt=abs(mark_ipte)+i;
+      pt=abs(diagram_mark.end_point)+i;
     find_point(ibr,pt);
   }
 }
@@ -3318,7 +3327,7 @@ void do_auto_range()
 {
   double t=TEND;
   
-  if(mark_flag==2)
+  if(diagram_mark.state==2)
     do_auto_range_go();
   TEND=t;
 }
@@ -3390,7 +3399,7 @@ void traverse_diagram()
   int lalo;
   int kp;
   int xm,ym;
-  mark_flag=0;
+  diagram_mark.state=0;
   if(NBifs<2)return;
   
   d=bifd; 
@@ -3576,24 +3585,24 @@ void traverse_diagram()
        break;
 	/* New code */
       case 's': /* mark the start of a branch */
-	if(mark_flag==0) {
+	if(diagram_mark.state==0) {
 	  MarkAuto(ix,iy);
-	  mark_ibrs=d->ibr;
-	  mark_ipts=d->ntot;
-	  mark_flag=1;
-	  mark_ixs=ix;
-	  mark_iys=iy;
+	  diagram_mark.start_branch=d->ibr;
+	  diagram_mark.start_point=d->ntot;
+	  diagram_mark.state=1;
+	  diagram_mark.start_x=ix;
+	  diagram_mark.start_y=iy;
 
 	}
 	break;
       case 'e': /* mark end of branch */
-	if(mark_flag==1){
+	if(diagram_mark.state==1){
 	  MarkAuto(ix,iy);
-	  mark_ibre=d->ibr;
-	  mark_ipte=d->ntot;
-	  mark_flag=2;
-	  mark_ixe=ix;
-	  mark_iye=iy;
+	  diagram_mark.end_branch=d->ibr;
+	  diagram_mark.end_point=d->ntot;
+	  diagram_mark.state=2;
+	  diagram_mark.end_x=ix;
+	  diagram_mark.end_y=iy;
 
 	}
 	break;
@@ -3667,9 +3676,9 @@ void traverse_diagram()
   /*XORCross(ix,iy);
 */
   /* check mark_flag branch similarity */
-  if(mark_flag==2){
-    if(mark_ibrs!=mark_ibre)
-      mark_flag=0;
+  if(diagram_mark.state==2){
+    if(diagram_mark.start_branch!=diagram_mark.end_branch)
+      diagram_mark.state=0;
   }
   if(done==1){
     grabpt.ibr=d->ibr;
@@ -3704,9 +3713,9 @@ void traverse_diagram()
 
 void RedrawMark()
 {
-  if(mark_flag==2){
-    MarkAuto(mark_ixs,mark_iys);
-    MarkAuto(mark_ixe,mark_iye);
+  if(diagram_mark.state==2){
+    MarkAuto(diagram_mark.start_x,diagram_mark.start_y);
+    MarkAuto(diagram_mark.end_x,diagram_mark.end_y);
   }
 }
 

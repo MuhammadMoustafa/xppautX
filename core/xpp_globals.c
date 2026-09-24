@@ -27,12 +27,6 @@ int animation_on_the_fly = 0;
 int DCURYs, DCURXs;
 int DCURY, DCURX;
 
-int AutoRedrawFlag = 1;
-int mark_flag = 0;
-int mark_ibrs, mark_ibre;
-int mark_ipts, mark_ipte;
-int mark_ixs, mark_ixe, mark_iys, mark_iye;
-
 int aplot_range;
 
 int AxisVarLabels = 0;
