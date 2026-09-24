@@ -11,8 +11,11 @@ abstract: >-
 type: software
 authors:
   - given-names: Muhammad
-    family-names: Moustafa
+    family-names: Ahmad
     alias: MuhammadMoustafa
+    email: engmuhammadmoustafa@gmail.com
+    # orcid: "https://orcid.org/0000-0000-0000-0000"
+    # website: "https://www.linkedin.com/in/<profile>"
 repository-code: "https://github.com/MuhammadMoustafa/xppautX"
 license: GPL-2.0
 keywords:

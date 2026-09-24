@@ -1,5 +1,11 @@
 # The xppautX manual
 
+**Credit.** This manual is G. Bard Ermentrout's XPPAUT documentation, in
+his words: the notes, the examples and the first-person asides are his.
+xppautX changed only what the program changed: the interface chapters are
+rewritten for web2, and chapter 1 is being rewritten for xppautX
+(docs/roadmap.md W12c). XPPAUT and its manual are copyright Bard Ermentrout.
+
 XPP's manual, converted from the original LaTeX (`docs/upstream/xpp_doc.tex`,
 `docs/upstream/xpp_sum.tex`) to Markdown (docs/roadmap.md W12). The model
 language, numerics and AUTO chapters are kept faithful to the original; the
