@@ -182,6 +182,31 @@ with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
   with a reason per line. Memory kept for the program's life (a global set
   once) needs no free at exit: LSan sees it as reachable.
 
+## Strings and I/O
+
+- The core formats and copies text through `core/xpp_io.h`
+  (issue: W11 step 2), never `sprintf`/`strcpy`/`vsprintf` into a fixed
+  buffer: `tools/formatcheck.sh` (run by verify.sh) fails a new one. In a
+  C file, format with `xpp_snprintf`/`XPP_SPRINTF` and copy with
+  `xpp_strlcpy`/`XPP_STRCPY` (`xpp_strlcat`/`XPP_STRCAT` for append): the
+  `XPP_*` macros take the destination's size from `sizeof(dst)`, so `dst`
+  must be a real array (a struct member or an indexed element works too;
+  a pointer fails to *compile*, not silently take `sizeof(pointer)` --
+  find that call's real destination size, from its own allocation or its
+  callers' buffers, and call `xpp_snprintf`/`xpp_strlcpy` with it
+  directly). All three log a WARN, once per call site, when what they
+  wanted to write did not fit, instead of overflowing.
+- In a C++ file, prefer `xpp::format`/`xpp::number` (`core/xpp_io.h`,
+  `std::format`/`std::to_chars`, type-checked at compile time) and
+  `XPP_FORMAT_TO_BUF` (the `XPP_SPRINTF`-style array-destination form of
+  `xpp::format`) over the C wrappers, unless the original format string
+  has no mechanical `std::format` equivalent (`%*s`, `%.*s`, ...) or the
+  destination is a pointer (`XPP_FORMAT_TO_BUF`, like `XPP_SPRINTF`,
+  needs a real array): those stay on `xpp_snprintf`/`xpp_strlcpy`. The
+  build is `-std=c++23`/`gnu++23` for this (present and warning-clean on
+  WSL gcc 15 and MinGW gcc 13.2); avoid library parts newer than gcc 13
+  ships (e.g. `std::print`) until Windows' MinGW catches up.
+
 ## C and C++
 
 The core stays C and converts to C++ progressively (decision 2026-09-23;

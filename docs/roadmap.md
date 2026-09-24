@@ -31,7 +31,7 @@ issue; the card here is the one kept up to date.
 | W8  | #20 | Remove the X11 front end (pulled ahead of W6, 2026-09-23: the classic web page covers its features until T17) | none | done (4136541) |
 | W9  | #21 | WebAssembly build (proof of concept) | maintainer's OK to install emsdk | blocked |
 | W10 | #22 | Replayable interruptions in scripts | none | done (539b300) |
-| W11 | - | One I/O module: logging only, safe formatting, file reading and writing | none (step 3 with W7) | running (step 1 done; step 2 next) |
+| W11 | - | One I/O module: logging only, safe formatting, file reading and writing | none (step 3 with W7) | running (steps 1-2 done; step 3 next) |
 
 ## W0: C/C++ mixed build
 **Goal.** core/*.cpp builds next to core/*.c on Linux, Windows (MinGW,

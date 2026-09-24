@@ -58,6 +58,10 @@ if ! sh tools/stdoutcheck.sh; then
   echo "STDOUT CHECK FAILED"
   exit 1
 fi
+if ! sh tools/formatcheck.sh; then
+  echo "FORMAT CHECK FAILED"
+  exit 1
+fi
 if make ltocheck > build/ltocheck.log 2>&1; then
   echo "lto link ok: no types differ across files"
 else
