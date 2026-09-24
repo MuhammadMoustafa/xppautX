@@ -297,11 +297,11 @@ test('a periodic branch whose run says it started from the Hopf label joins that
 });
 
 test('the strip in words and the circle: inside is stable, the eigenvalues listed', () => {
-  const rows = infoRows(hbInfo as never);
+  const rows = infoRows(hbInfo as never, axes);
   assert.deepEqual(rows.slice(0, 4), [['Branch', '1'], ['Point', '5'], ['Type', 'Unstable steady state'],
     ['Label', 'HB 2 (Hopf)']]);
-  assert.deepEqual(rows.slice(4), [['iapp', '0.26'], ['phi', '0.2'], ['Norm', '0.29'], ['V', '-0.2']], 'no period for a steady state');
-  assert.deepEqual(infoRows({...hbInfo, type: 4, sym: '', lab: 0} as never).slice(-1), [['Period', '14.4']]);
+  assert.deepEqual(rows.slice(4), [['iapp', '0.26'], ['V', '-0.2'], ['Norm', '0.29'], ['phi', '0.2']],
+    'the axes (iapp, V), then Norm (no period for a steady state), then the second parameter, last');
   const pts = circlePoints(hbStab as never);
   assert.deepEqual(pts.map(p => [p.inside, p.text]), [[true, '0.00006 + 0.435i'], [true, '0.00006 − 0.435i']]);
   const mult = circlePoints({periodic: 1, circle: [[1, 0], [2.5, 0], [0.1, -3]]} as never);
@@ -309,6 +309,26 @@ test('the strip in words and the circle: inside is stable, the eigenvalues liste
     [0.1, -1.95, false, '0.1 − 3i']]);
   assert.equal(stabilitySummary({periodic: 1, circle: [[1, 0], [2.5, 0]]} as never), '2 Floquet multipliers, 1 inside the unit circle');
   assert.equal(complexText(null, null), 'none (below the smallest number)');
+});
+
+/* T28: the strip in order of importance -- the axes' quantities, then Norm/the plotted variable/the
+   period not already shown as an axis, then the remaining parameters (a second one last) */
+test('infoRows orders the axes first, then Norm and the period, then the remaining parameters', () => {
+  /* a one-parameter diagram, Iapp against V (axes.plot 2, hi-lo: the y axis is the variable) */
+  assert.deepEqual(infoRows(hbInfo as never, axes).slice(4),
+    [['iapp', '0.26'], ['V', '-0.2'], ['Norm', '0.29'], ['phi', '0.2']]);
+  /* a periodic orbit: the period is not an axis either, so it comes before the remaining parameter */
+  assert.deepEqual(infoRows({...hbInfo, type: 4} as never, axes).slice(4),
+    [['iapp', '0.26'], ['V', '-0.2'], ['Norm', '0.29'], ['Period', '14.4'], ['phi', '0.2']]);
+  /* a Norm y axis (axes.plot 1): Norm is the axis, the variable falls back with the remaining parameter */
+  assert.deepEqual(infoRows(hbInfo as never, {...axes, plot: 1}).slice(4),
+    [['iapp', '0.26'], ['Norm', '0.29'], ['V', '-0.2'], ['phi', '0.2']]);
+  /* a two-parameter diagram (axes.plot 4): both parameters in axis order, nothing left over for them */
+  assert.deepEqual(infoRows(hbInfo as never, {...axes, plot: 4}).slice(4),
+    [['iapp', '0.26'], ['phi', '0.2'], ['Norm', '0.29'], ['V', '-0.2']]);
+  /* no axes data at all: still nothing dropped, the main parameter first */
+  assert.deepEqual(infoRows(hbInfo as never, null).slice(4),
+    [['iapp', '0.26'], ['Norm', '0.29'], ['V', '-0.2'], ['phi', '0.2']]);
 });
 
 test("a first point's circle, all zeros, is not computed: no points, no zeros listed as eigenvalues (T25)", () => {

@@ -23,8 +23,13 @@ back). It has:
 - a **stability circle** (`ui/AutoInfo.tsx`) below it, and a **status
   strip** (`ui/AutoStatus.tsx`) along the window's bottom edge, in place of
   the small square and info windows of the X11 AUTO window, from the
-  `autoinfo` event: branch, point, type, label, parameters, norm, the
-  plotted variable, the period, and the eigenvalues/multipliers ("not
+  `autoinfo` event, in order of importance: branch, point, type, label,
+  then what the diagram's axes show (the x axis's quantity, then the y
+  axis's: the main parameter then the plotted variable, Norm or the
+  period, or both parameters of a two-parameter diagram), then Norm, the
+  plotted variable and the period that were not already shown as an axis,
+  then the remaining parameters, a second parameter not on an axis last,
+  and the eigenvalues/multipliers ("not
   computed at this point" for a branch's first point: AUTO computes them
   from its second point on); it is the
   only status line on screen while AUTO is shown, so it also carries the

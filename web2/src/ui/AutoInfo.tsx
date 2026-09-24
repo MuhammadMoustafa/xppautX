@@ -43,12 +43,13 @@ function StabilityCircle() {
 export function AutoInfo() {
   const info = useStore(s => s.diagram.info);
   const stab = useStore(s => s.diagram.stab);
+  const axes = useStore(s => s.diagram.axes);
   if (!info && !stab) return null;
   return (
     <aside class="auto-info" aria-label="Point information">
       {info ? (
         <dl class="auto-info-rows">
-          {infoRows(info).map(([k, v]) => (
+          {infoRows(info, axes).map(([k, v]) => (
             <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
           ))}
         </dl>
