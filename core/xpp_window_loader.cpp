@@ -32,6 +32,10 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#ifndef MFD_EXEC
+#define MFD_EXEC 0x0010U /* linux/memfd.h, Linux 6.3; glibc 2.35 lacks it */
+#endif
+
 /* build/.../window_lib.c: libxppwindow.so's bytes */
 extern "C" const unsigned char xpp_window_lib[];
 extern "C" const unsigned long xpp_window_lib_len;
@@ -58,13 +62,18 @@ bool write_all(int fd, const unsigned char *p, size_t n)
     return true;
 }
 
-/* The library, dlopen'ed from a memfd (nothing on disk), else from a temp
-   file removed at once (a kernel without memfd_create); on failure NULL
-   with what went wrong in err. */
-void *open_library(std::string &err)
+/* The library, dlopen'ed from a memfd (nothing on disk) when from_memory
+   and the kernel gives one, else from a temp file removed at once; on
+   failure NULL with what went wrong in err. */
+void *open_library(std::string &err, bool from_memory)
 {
     std::string path, temp;
-    int fd = memfd_create("xppautx-window", MFD_CLOEXEC);
+    /* executable asked for by name: with vm.memfd_noexec=1 (Linux 6.3+) a
+       memfd is otherwise sealed non-executable and dlopen cannot map it;
+       an older kernel refuses the unknown flag (then without it), and
+       vm.memfd_noexec=2 refuses executable ones (then a temp file) */
+    int fd = from_memory ? memfd_create("xppautx-window", MFD_CLOEXEC | MFD_EXEC) : -1;
+    if (from_memory && fd < 0 && errno == EINVAL) fd = memfd_create("xppautx-window", MFD_CLOEXEC);
     if (fd >= 0) {
         path = "/proc/self/fd/" + std::to_string(fd);
     } else {
@@ -112,7 +121,14 @@ std::string os_release()
 
 bool load(std::string &err)
 {
-    void *lib = open_library(err);
+    void *lib = open_library(err, true);
+    /* a memfd the system will not map executable: the same bytes through a
+       temp file; a missing WebKitGTK fails either way, so it is said once */
+    if (!lib && err.find(": cannot open shared object file") == std::string::npos) {
+        std::string again;
+        lib = open_library(again, false);
+        if (!lib) err = again;
+    }
     if (!lib) return false;
     auto init = reinterpret_cast<XppWindowPluginInit>(dlsym(lib, XPP_WINDOW_PLUGIN_INIT));
     if (!init || !init(&host, &api)) {
