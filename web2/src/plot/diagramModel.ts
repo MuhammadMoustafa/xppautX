@@ -20,6 +20,8 @@
    label's parameter (within a small part of the axes' width) and whose
    max..min spans the label's value is taken to start there. */
 import type {DiagramAxes, DiagramLabel, DiagramPoints} from '../store/diagram';
+import type {Range} from '../store/state';
+import type {Ranges} from './viewmath';
 
 export type CurveKind = 'steady' | 'periodic' | 'two-parameter';
 
@@ -164,6 +166,35 @@ export function buildDiagramModel(p: DiagramPoints, labels: DiagramLabel[], axes
   const marks = labels.filter(l => l.point >= first).map(l => ({...l, x: p.x[l.point], y: p.y[l.point],
     y2: p.y2[l.point] !== p.y[l.point] ? p.y2[l.point] : null}));
   return {curves, labels: marks, hopf, xLabel: axes?.xlabel ?? '', yLabel: axes?.ylabel ?? ''};
+}
+
+/* ---- Axes/Fit (T30, docs/ui-v2.md): the diagram's own fit, client-side ---- */
+
+/** one axis' extent across `m`'s curves, with a small margin (a dot when
+    they are a single point, [0, 1] when there are none yet) */
+function curveExtent(m: DiagramModel, axis: 'x' | 'y'): Range {
+  let min = Infinity, max = -Infinity;
+  for (const c of m.curves) {
+    const a = axis === 'x' ? c.xs : c.ys;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] < min) min = a[i];
+      if (a[i] > max) max = a[i];
+    }
+  }
+  if (!(min <= max)) return {min: 0, max: 1};
+  if (min === max) return {min: min - 1, max: max + 1};
+  const pad = (max - min) * 0.05;
+  return {min: min - pad, max: max + pad};
+}
+
+/** Axes/Fit's own ranges: the visible curves' extent with a small margin,
+    client-side (the core has no notion of the diagram's fit); `m`'s curves
+    already leave out whatever `buildDiagramModel`'s `hideBefore` hid, so a
+    hidden "earlier branches" key never widens this. DiagramChart.fit() (the
+    corner button and the AUTO tools' Fit) is the caller; this half is pure
+    for the unit test (test/diagram.test.ts). */
+export function fitRanges(m: DiagramModel): Ranges {
+  return {x: curveExtent(m, 'x'), y: curveExtent(m, 'y')};
 }
 
 /* ---- the point under the pointer ---- */

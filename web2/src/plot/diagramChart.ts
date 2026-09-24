@@ -8,7 +8,7 @@
 import uPlot from 'uplot';
 import type {Range, Viewport} from '../store/plots';
 import {curveColor} from './colors';
-import {labelShape, nearestVertex, type DiagramHit, type DiagramModel, type LabelShape} from './diagramModel';
+import {fitRanges, labelShape, nearestVertex, type DiagramHit, type DiagramModel, type LabelShape} from './diagramModel';
 import {placeLabels} from './labelPlace';
 import type {Ranges} from './viewmath';
 
@@ -110,22 +110,6 @@ function strokeShape(ctx: CanvasRenderingContext2D, shape: LabelShape, x: number
   }
 }
 
-/** the data's extent with a margin, for a diagram the core has no axes for yet */
-function extent(m: DiagramModel, axis: 'x' | 'y'): Range {
-  let min = Infinity, max = -Infinity;
-  for (const c of m.curves) {
-    const a = axis === 'x' ? c.xs : c.ys;
-    for (let i = 0; i < a.length; i++) {
-      if (a[i] < min) min = a[i];
-      if (a[i] > max) max = a[i];
-    }
-  }
-  if (!(min <= max)) return {min: 0, max: 1};
-  if (min === max) return {min: min - 1, max: max + 1};
-  const pad = (max - min) * 0.05;
-  return {min: min - pad, max: max + pad};
-}
-
 export class DiagramChart {
   private u: uPlot | null = null;
   private model: DiagramModel | null = null;
@@ -148,7 +132,7 @@ export class DiagramChart {
       model.curves.map(c => [c.color, c.width, c.dashed])]);
     this.model = model;
     this.dark = dark;
-    this.base = axes ?? {x: extent(model, 'x'), y: extent(model, 'y')};
+    this.base = axes ?? fitRanges(model);
     if (!this.u || key !== this.styleKey) {
       this.styleKey = key;
       this.create();
@@ -291,6 +275,14 @@ export class DiagramChart {
   /** back to the core's view */
   reset(): void {
     this.cb.onViewport({x: null, y: null}, true);
+  }
+
+  /** Axes/Fit (T30): the visible curves' own extent, as a zoom (undoable,
+      pushed like any other view change). A no-op with no branches yet. */
+  fit(): void {
+    if (!this.model || !this.model.curves.length) return;
+    const r = fitRanges(this.model);
+    this.cb.onViewport({x: r.x, y: r.y}, true);
   }
 
   private scaleChanged(): void {

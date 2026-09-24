@@ -1147,6 +1147,30 @@ async function viewCheck() {
     await until(`s.core.view && s.core.view.xlo <= ${extent.xmin} + 1e-6 && s.core.view.xhi >= ${extent.xmax} - 1e-6
       && s.core.view.ylo <= ${extent.ymin} + 1e-6 && s.core.view.yhi >= ${extent.ymax} - 1e-6`, 'fit'),
     JSON.stringify([await S('s.core.view'), extent]));
+
+  /* T30: the corner Fit does what the toolbar's Fit does, after a scroll
+     or a zoom that has lost the data. First move the core's own axes off
+     the extent (a plain zoom + "Use this view", as above) so the coming
+     Fit is a real move the store's coreMoved (store/plots.ts) resets the
+     viewport for, not a same-axes no-op. */
+  check('the corner Fit sits over the plot while it has data',
+    await cdp.eval(`!!document.querySelector('.plot-view:not([hidden]) .plot-host .plot-fit')`));
+  await mouse('mouseWheel', cx, cy, {deltaX: 0, deltaY: -240});
+  await until('w.viewport.x', 'zoom before corner fit');
+  await cdp.eval(`document.querySelector('.plot-tools button[title^="Make this zoom"]').click()`);
+  await until('w.viewport.x === null', 'use this view before corner fit');
+
+  await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
+  for (let st = 0; st < 15; st++) await key('ArrowRight'); /* pans well past the data */
+  await until('w.viewport.x', 'panned away');
+  const away = await P();
+  check('panned far from the data', away.x.min > extent.xmax, JSON.stringify([away.x, extent]));
+  await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host .plot-fit').click()`);
+  check('the corner Fit brings the data back into view, through the core as the toolbar\'s Fit does',
+    await until(`s.core.view && s.core.view.xlo <= ${extent.xmin} + 1e-6 && s.core.view.xhi >= ${extent.xmax} - 1e-6
+      && s.core.view.ylo <= ${extent.ymin} + 1e-6 && s.core.view.yhi >= ${extent.ymax} - 1e-6
+      && w.viewport.x === null && w.viewport.y === null`, 'corner fit'),
+    JSON.stringify([await S('s.core.view'), extent]));
 }
 
 /* the 3D plot host's box on screen (docs/ui-v2.md T14): Plot3DView.tsx's
@@ -1220,6 +1244,18 @@ async function threePlot() {
   check('Shift+arrow turns it by the coarse step (30 degrees)',
     afterShift && afterShift.phi === beforeShift.phi + 30 && afterShift.theta === beforeShift.theta,
     JSON.stringify([beforeShift, afterShift]));
+
+  /* T30: fit_window() handles ThreeDFlag (core/graf_par.c), so 3D plots
+     get the corner button too; it goes through the core like the main
+     plot's, there being no client-side zoom of a 3D plot to fit locally */
+  check('the corner Fit sits over the 3D plot too (Window/Fit fits its box the same way)',
+    await cdp.eval(`!!document.querySelector('.plot-view:not([hidden]) .plot-host .plot-fit')`));
+  const sentBeforeFit = await cdp.eval('__xpp.sent().length');
+  await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host .plot-fit').click()`);
+  check("the corner Fit sends the core's Window/Fit (w, f) as keys, as the 2D toolbar's Fit does",
+    await until('!s.busy', 'fit settled')
+      && (await cdp.eval(`__xpp.sent().slice(${sentBeforeFit}).some(c => c.cmd === 'key' && (c.key === 'w' || c.key === 'f'))`)),
+    JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sentBeforeFit})`)));
 }
 
 async function touch(type, points) {
@@ -1919,6 +1955,42 @@ async function autoView(dir) {
   await key('0');
   check("0 goes back to AUTO's axes", await until('s.diagram.viewport.x === null', 'auto reset')
     && Math.abs((await DG()).x.min - axes.xmin) < 1e-9);
+
+  /* T30: the corner Fit (and the AUTO tools' own Fit) fit the view to the
+     branches shown, client-side, undoable like any other zoom */
+  check('the corner Fit sits over the diagram while it has points',
+    await cdp.eval(`!!document.querySelector('.auto-host .plot-fit')`));
+  const dataExtent = await DS(`(() => {
+    let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
+    for (let i = 0; i < d.points.x.length; i++) {
+      if (d.points.x[i] < xmin) xmin = d.points.x[i]; if (d.points.x[i] > xmax) xmax = d.points.x[i];
+      if (d.points.y[i] < ymin) ymin = d.points.y[i]; if (d.points.y[i] > ymax) ymax = d.points.y[i];
+      if (d.points.y2[i] < ymin) ymin = d.points.y2[i]; if (d.points.y2[i] > ymax) ymax = d.points.y2[i];
+    }
+    return {xmin, xmax, ymin, ymax};
+  })()`);
+  await cdp.eval(`document.querySelector('.auto-host').focus()`);
+  for (let st = 0; st < 15; st++) await key('ArrowRight'); /* scrolled well past the data, wrong-corner style */
+  await until('s.diagram.viewport.x', 'panned away');
+  const away = await DG();
+  check('panned far from the data', away.x.min > dataExtent.xmax, JSON.stringify([away.x, dataExtent]));
+  const fitCondition = e => `(() => { const g = __xpp.diagram(); return !!g && g.x.min <= ${e.xmin} + 1e-6 && g.x.max >= ${e.xmax} - 1e-6
+    && g.y.min <= ${e.ymin} + 1e-6 && g.y.max >= ${e.ymax} - 1e-6; })()`;
+  await cdp.eval(`document.querySelector('.auto-host .plot-fit').click()`);
+  check('the corner Fit brings every curve back into view',
+    await until(fitCondition(dataExtent), 'fit applied'), JSON.stringify([await DG(), dataExtent]));
+  await cdp.eval(`[...document.querySelectorAll('.auto-panel button')].find(b => b.textContent === 'Undo zoom').click()`);
+  check('the corner Fit is an undoable zoom, like any other: Undo zoom goes back to the panned-away view',
+    await until(`s.diagram.viewport.x && Math.abs(s.diagram.viewport.x.min - ${away.x.min}) < 1e-6`, 'undo fit'));
+  await key('0');
+  await until('s.diagram.viewport.x === null', 'auto reset 2');
+  for (let st = 0; st < 15; st++) await key('ArrowLeft');
+  await until('s.diagram.viewport.x', 'panned away 2');
+  await cdp.eval(`[...document.querySelectorAll('.auto-panel .plot-tools button')].find(b => b.textContent === 'Fit').click()`);
+  check("the AUTO tools' own Fit does the same as the corner button",
+    await until(fitCondition(dataExtent), 'fit2 applied'), JSON.stringify([await DG(), dataExtent]));
+  await key('0');
+  await until('s.diagram.viewport.x === null', 'auto reset 3');
 
   /* Escape cancels a grab */
   await key('g');

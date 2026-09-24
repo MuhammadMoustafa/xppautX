@@ -14,6 +14,7 @@ import {KEY_STEP, KEY_STEP_FINE, rotateByDrag, rotateByKey} from '../plot/projec
 import {setChart} from '../plot/registry';
 import {windowOf} from '../store/plots';
 import {useSession, useStore} from './context';
+import {FitButton} from './PlotView';
 
 interface Props {
   win: number;
@@ -136,6 +137,9 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
         onPointerUp={endDrag}
         onPointerCancel={endDrag}>
         <canvas ref={canvas} class="plot-canvas-3d" aria-hidden="true" />
+        {!noCurves && (
+          <FitButton onClick={() => session.fitView()} title="Fit the window's axes to the data (Window/Fit)" />
+        )}
         {noCurves && (
           <div class="plot-empty">
             <p>{busy ? 'Integrating…' : 'No trajectory yet.'}</p>

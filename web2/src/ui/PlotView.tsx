@@ -125,6 +125,23 @@ export function PickOverlay({pick, chart}: {pick: PickState; chart: Pick<Chart, 
   );
 }
 
+/** the toolbar's Fit, in the plot's own corner (T30, docs/ui-v2.md): still
+    there after a scroll or a zoom gone astray, with no trip up to the
+    toolbar. `onClick` and `title` are the caller's (the main plot and a 3D
+    plot go through the core's Window/Fit; the AUTO diagram fits
+    client-side); the caller renders it only while the plot has data. */
+export function FitButton({onClick, title}: {onClick: () => void; title: string}) {
+  return (
+    <button class="plot-fit" onClick={onClick} title={title}>
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+      </svg>
+      Fit
+    </button>
+  );
+}
+
 /** what the plot mode wants, and Cancel (Done for a drag); Escape anywhere cancels too */
 export function PickBar({pick}: {pick: PickState}) {
   const session = useSession();
@@ -369,6 +386,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
         aria-label={label}
         aria-describedby={picking ? 'pick-instruction plot-keys-help' : 'plot-keys-help'}
         onKeyDown={onKeyDown}>
+        {!noCurves && <FitButton onClick={() => session.fitView()} title="Fit the window's axes to the data (Window/Fit)" />}
         {picking && chart.current && <PickOverlay pick={picking} chart={chart.current} />}
         {marker && <span class="hover-dot" style={{left: `${marker.left}px`, top: `${marker.top}px`}} />}
         {empty && (

@@ -20,7 +20,10 @@ back). It has:
   the periodic branch it started (`from`, which XPP itself leaves blank);
   it zooms (wheel), pans (Shift+drag or the middle button) and undoes
   (`Ctrl+Z`) in the client, and a tooltip or the readout names the point
-  under the mouse or cursor;
+  under the mouse or cursor; a **Fit** button in the diagram's own top-right
+  corner (also in the tools row, alongside Undo zoom and Reset view) fits
+  the view to the branches currently shown, client-side, like any other
+  zoom — earlier branches stay out of it unless "Earlier branches" is on;
 - a **stability circle** (`ui/AutoInfo.tsx`) below it, and a **status
   strip** (`ui/AutoStatus.tsx`) along the window's bottom edge, in place of
   the small square and info windows of the X11 AUTO window, from the

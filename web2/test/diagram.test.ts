@@ -4,7 +4,9 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {circlePoints, complexText, infoRows, stabComputed, stabilitySummary} from '../src/plot/autoInfo';
-import {buildDiagramModel, describePoint, grabStep, hopfOf, nearestVertex, stepLabel, vertexOf} from '../src/plot/diagramModel';
+import {
+  buildDiagramModel, describePoint, fitRanges, grabStep, hopfOf, nearestVertex, stepLabel, vertexOf,
+} from '../src/plot/diagramModel';
 import {initialDiagram, pointCount, type DiagramRun, type DiagramState} from '../src/store/diagram';
 import {initialState, reduce, type AppState} from '../src/store/state';
 
@@ -338,4 +340,37 @@ test("a first point's circle, all zeros, is not computed: no points, no zeros li
   assert.equal(stabilitySummary(zeros as never), '3 eigenvalues, not computed at this point');
   assert.equal(stabComputed({periodic: 0, circle: [[0, 0], [0.5, 0]]} as never), true);
   assert.equal(stabComputed({periodic: 0, circle: [[null, null]]} as never), true, 'not finite is a value, not "not computed"');
+});
+
+/* T30: the corner Fit (and the AUTO tools' own Fit) fits the view to the
+   branches shown, client-side; the earlier ones Clear hid never widen it. */
+test('fitRanges: every plotted point lies in range, with a small margin', () => {
+  const d = lecar().diagram, m = buildDiagramModel(d.points, d.labels, d.axes);
+  const r = fitRanges(m);
+  let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
+  for (const c of m.curves) {
+    for (const x of c.xs) { if (x < xmin) xmin = x; if (x > xmax) xmax = x; }
+    for (const y of c.ys) { if (y < ymin) ymin = y; if (y > ymax) ymax = y; }
+  }
+  assert.ok(r.x.min <= xmin && r.x.max >= xmax, 'every x in view');
+  assert.ok(r.y.min <= ymin && r.y.max >= ymax, 'every y in view');
+  /* a small margin: more than the bare data, not a wide zoomed-out view */
+  const xspan = xmax - xmin, yspan = ymax - ymin;
+  assert.ok(r.x.max - r.x.min > xspan && r.x.max - r.x.min < xspan * 1.2, 'x: a small margin');
+  assert.ok(r.y.max - r.y.min > yspan && r.y.max - r.y.min < yspan * 1.2, 'y: a small margin');
+});
+
+test('fitRanges: earlier branches Clear hid do not widen the fit', () => {
+  const d = lecar().diagram;
+  const shown = buildDiagramModel(d.points, d.labels, d.axes); /* Earlier branches on: everything */
+  const hidden = buildDiagramModel(d.points, d.labels, d.axes, 9); /* Clear at point 9: the steady branch hidden */
+  const all = fitRanges(shown), justPeriodic = fitRanges(hidden);
+  assert.ok(all.x.min < 0.05, 'the steady branch widens the fit when shown');
+  assert.ok(justPeriodic.x.min > 0.2, 'hidden, the periodic branch alone is a tighter fit');
+  assert.ok(justPeriodic.x.min >= all.x.min && justPeriodic.x.max <= all.x.max);
+});
+
+test('fitRanges: no branches yet is [0, 1], not NaN or an inverted range', () => {
+  const r = fitRanges(buildDiagramModel(opened().diagram.points, [], null));
+  assert.deepEqual(r, {x: {min: 0, max: 1}, y: {min: 0, max: 1}});
 });

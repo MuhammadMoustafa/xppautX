@@ -65,7 +65,7 @@ import {AutoInfo} from './AutoInfo';
 import {AutoOutput, AutoStatus} from './AutoStatus';
 import {BUSY_TITLE, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
-import {PickBar, PickOverlay, pickSink} from './PlotView';
+import {FitButton, PickBar, PickOverlay, pickSink} from './PlotView';
 import './auto.css';
 
 /** label, op, key (auto_x11.c auto_keypress), in the X11 window's order; no
@@ -494,6 +494,10 @@ function AutoPanel({dark}: {dark: boolean}) {
               title="Undo the last zoom or pan (Ctrl+Z on the diagram)">Undo zoom</button>
             <button disabled={!zoomed} onClick={() => chart.current!.reset()}
               title="Back to AUTO's axes (double click, or 0 on the diagram)">Reset view</button>
+            <button disabled={empty} onClick={() => chart.current!.fit()}
+              title="Fit the view to the branches shown (client-side; earlier branches only if Earlier branches is on)">
+              Fit
+            </button>
             <button disabled={empty} onClick={() => { const u = chart.current!.png(); if (u) download('xpp-auto.png', u); }}
               title="Save the diagram as a PNG picture">PNG</button>
           </div>
@@ -502,6 +506,10 @@ function AutoPanel({dark}: {dark: boolean}) {
           ref={host} tabIndex={0} role="application" aria-roledescription="diagram"
           aria-label={label} onKeyDown={onHostKey} aria-describedby={grabbing ? 'grab-instruction grab-keys-help'
             : pick ? 'pick-instruction auto-keys-help' : 'auto-keys-help'}>
+          {!empty && (
+            <FitButton onClick={() => chart.current!.fit()}
+              title="Fit the view to the branches shown (client-side; earlier branches only if Earlier branches is on)" />
+          )}
           {marker && <span class="hover-dot" style={{left: `${marker.left}px`, top: `${marker.top}px`}} />}
           {cursor && <span class="auto-cursor" aria-hidden="true" style={{left: `${cursor.left}px`, top: `${cursor.top}px`}} />}
           {storedAt && (

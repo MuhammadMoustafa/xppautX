@@ -132,9 +132,15 @@ one-finger drag on touch, a double click (or `0`) goes back to the
 window's axes, `Ctrl+Z` undoes a zoom step, the nearest point is named
 under the mouse, on a tap, or by stepping with `[` `]` from the keyboard,
 curves can be hidden from the legend, and PNG and CSV export what is
-shown. "Use this view" (`Window` `Fit`, or the plot's own control) makes
-the client's current zoom the window's axes, so PostScript/SVG export and
-Restore agree with what's on screen.
+shown. "Use this view" makes the client's current zoom the window's axes,
+so PostScript/SVG export and Restore agree with what's on screen.
+
+A **Fit** button sits in the plot's own top-right corner, over the chart
+itself, so it stays in reach after a scroll or a zoom that loses the data
+— not just in the toolbar above the plot, which keeps its own Fit too. It
+does what `Window` `Fit` does: sets the window's axes to the data's
+extent. 3D plots have the same corner button, since `Window` `Fit` fits
+their box the same way.
 
 Nullclines, direction fields, equilibria (Sing pts), Text/etc labels and
 markers, and frozen curves all draw on the same plot from data the core
