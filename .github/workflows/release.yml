@@ -88,8 +88,8 @@ jobs:
           path: xppautX-*.zip*
 
   macos:
-    # the window (WKWebView) is on by default since W13d (CI builds and runs
-    # it here); nobody has tried an archive from this job by hand yet. The
+    # the window (WKWebView) is on by default since W13d (CI builds
+    # it); nobody has tried an archive from this job by hand yet. The
     # binaries are unsigned, so macOS asks the user to allow them
     # (Gatekeeper). Signing and notarizing need an Apple account.
     strategy:

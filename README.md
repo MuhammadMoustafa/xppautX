@@ -296,8 +296,8 @@ signs from Linux), so only the certificates are missing.
 
 ## Trying the macOS build
 
-The macOS window builds and runs in CI (W13d), but nobody has tried it on
-real hardware yet -- if you have a Mac, this is the part that needs it.
+CI builds the macOS window, but nobody has opened it on a Mac yet: if
+you have one, this is the part that needs it.
 
 1. **Get a build.** Either a tagged [release](https://github.com/MuhammadMoustafa/xppautX/releases)
    archive (`xppautX-*-macos-arm64.tar.gz` for Apple silicon,
@@ -313,13 +313,13 @@ real hardware yet -- if you have a Mac, this is the part that needs it.
    `xppautX` in Finder and choose **Open** when Gatekeeper asks (then quit
    it and relaunch from Terminal with a model argument, since Finder
    cannot pass one).
-3. **Try it.** With the window open: File > Open model… and pick another
-   `.ode` from `examples/ode/`; run it (Initialconds > Go or `i g`); open
-   AUTO (`a`) and start a continuation; File > Quit, or close the window,
-   and check no xppautX process is left (`ps aux | grep xppautX`). There
-   is no menu bar of xppautX's own yet on macOS (W13d), so everything
-   above is driven from the model's own menus inside the page or from
-   Terminal.
+3. **Try it.** With the window open: run the model (Initialconds > Go,
+   or the keys `i g`); open AUTO (File > Auto) and start a continuation
+   (Run > Steady state); resize and move the window; then close it and
+   check that no xppautX process is left (`ps aux | grep xppautX`). The
+   macOS window has no menu bar of its own yet (Open model, Help and About
+   are in the Windows and Linux windows' menus only): everything is in the
+   page, and a second model is a second `./xppautX other.ode`.
 4. **Report it** on [issue #4](https://github.com/MuhammadMoustafa/xppautX/issues/4):
    your macOS version, Apple silicon or Intel, what happened at each step
    above, and if anything looked wrong, the Terminal output of the same
