@@ -219,7 +219,9 @@ its order sends the next one once the last was answered, as the page does.
 
 Two more events come from the host, not the server: `log` {`text`} carries what the
 server printed on stderr (xppaut reports model errors, such as a formula that does
-not parse, only there) and `exit` {`code`} says the process ended. The page
+not parse, only there; also when the Windows exe was started with no stderr
+at all, as from Explorer: the host gives the stream one, T27), in chunks cut
+anywhere, which the page joins into lines and classifies line by line, and `exit` {`code`} says the process ended. The page
 shows one error at a time in a red box (the newest replaces it and the next
 command clears it; a load failure or crash stays with the output that explains it)
 and keeps everything under "Messages".

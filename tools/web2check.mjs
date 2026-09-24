@@ -1831,6 +1831,15 @@ async function autoView(dir) {
   check(`the store's diagram equals the diagram events (${want.pts.length} points, ${want.labels.length} labels)`,
     !bad && want.pts.length > 1000 && JSON.stringify(want.labels) === JSON.stringify(labels), bad || JSON.stringify(labels.slice(0, 5)));
 
+  /* T27: AUTO's table in the Output panel: a row per label, the plain ones NPr prints (no type) too,
+     each line of the core's log classified alone however its chunks arrived */
+  const outRows = await cdp.eval(`__xpp.state().log.filter(l => l.kind === 'auto')
+    .map(l => /^\\s*-?\\d+\\s+-?\\d+\\s+(\\S\\S)?\\s+(-?\\d+)\\s/.exec(l.text)).filter(m => m).map(m => (m[1] || '') + m[2])`);
+  const labelRows = labels.map(l => l.sym + l.lab);
+  check(`T27: the Output panel has AUTO's row for each of the ${labels.length} labels, the ${labels.filter(l => !l.sym).length} plain ones (NPr's) too`,
+    labels.some(l => !l.sym) && labelRows.every(r => outRows.includes(r)),
+    JSON.stringify([labelRows.filter(r => !outRows.includes(r)), outRows.slice(0, 10)]));
+
   /* the chart: a curve per branch and stability run, the label marks */
   const dg = await DG();
   const nCurves = expectedCurves(got);

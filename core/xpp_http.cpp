@@ -925,6 +925,21 @@ void xpp_http_show(int open)
     if (open) open_in_browser(page_url);
 }
 
+/* the descriptor a standard stream writes through, given one if it has
+   none: the Windows exe is a GUI-subsystem program, and started with no
+   console (Explorer, a shortcut, Start-Process) the C library leaves stdout
+   and stderr without a descriptor (_fileno -2), where a dup2 onto 1 and 2
+   never reaches them and all the core prints, AUTO's table included, was
+   lost to the page (T27). The pipe goes onto the stream's own descriptor,
+   whichever it is (also a stream xpp_win32_attach_console reopened). */
+static int stream_fd(FILE *f)
+{
+#ifdef _WIN32
+    if (_fileno(f) < 0 && !freopen("NUL", "w", f)) return -1;
+#endif
+    return fileno(f);
+}
+
 int xpp_http_start(int port, int flags)
 {
     static int log_pipe[2];
@@ -949,8 +964,8 @@ int xpp_http_start(int port, int flags)
     }
 
     /* what xppaut prints: to the terminal and the page */
-    orig_stderr = dup(2);
-    no_inherit_fd(orig_stderr);
+    orig_stderr = fileno(stderr) >= 0 ? dup(fileno(stderr)) : -1;
+    if (orig_stderr >= 0) no_inherit_fd(orig_stderr);
 #ifdef _WIN32
     if (_pipe(log_pipe, 65536, _O_BINARY | _O_NOINHERIT) == 0) {
 #else
@@ -958,8 +973,8 @@ int xpp_http_start(int port, int flags)
 #endif
         no_inherit_fd(log_pipe[0]);
         no_inherit_fd(log_pipe[1]);
-        dup2(log_pipe[1], 1);
-        dup2(log_pipe[1], 2);
+        dup2(log_pipe[1], stream_fd(stdout));
+        dup2(log_pipe[1], stream_fd(stderr));
         setvbuf(stdout, NULL, _IONBF, 0);
         setvbuf(stderr, NULL, _IONBF, 0);
         pthread_create(&log_thread, NULL, log_main, &log_pipe[0]);

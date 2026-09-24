@@ -168,6 +168,17 @@ test('a log event is classified when it is added (Messages: AUTO output distingu
   assert.equal(s2.log[0].kind, 'log');
 });
 
+test('T27: the rows NPr prints (no type) are AUTO\'s, and a chunk of several lines is classified line by line', () => {
+  assert.equal(classifyLogText('   1    50       2  1.077149E-01  3.745827E-01 -3.658905E-01  8.022678E-02\n'), 'auto');
+  assert.equal(classifyLogText('   2  2250      47  3.129853E-01  1.000000E+00  2.500000E+01\n'), 'auto');
+  const chunk = 'nvar=2 naux=4\n   1     5       2  1.077149E-01  3.745827E-01\n   1    10       3  1.682993E-01  3.212211E-01\n'
+    + '   1    19  HB   4  2.624638E-01  2.891081E-01\n   1    2';
+  let s = ev(initialState, {ev: 'log', text: chunk});
+  s = ev(s, {ev: 'log', text: '0       5  2.725202E-01  2.911251E-01\nAll formulas are valid!!\n'});
+  assert.deepEqual(s.log.map(l => [l.kind, l.text.trim().slice(0, 12)]), [['log', 'nvar=2 naux='], ['auto', '1     5     '],
+    ['auto', '1    10     '], ['auto', '1    19  HB '], ['auto', '1    20     '], ['log', 'All formulas']]);
+});
+
 test('zoomAbout keeps the point under the pointer', () => {
   const r = zoomAbout({x: {min: 0, max: 10}, y: {min: 0, max: 10}}, 0.2, 0.5, 0.5);
   assert.deepEqual(r, {x: {min: 1, max: 6}, y: {min: 2.5, max: 7.5}});

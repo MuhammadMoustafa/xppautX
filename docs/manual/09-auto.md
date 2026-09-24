@@ -54,7 +54,9 @@ back). It has:
   output no longer reads as a row of crosses); hovering a labelled point
   names its type; the point where the last run ended also says why;
 - an **Output** panel with AUTO's printed table (`xpp_log_auto()`, always
-  written in browser mode);
+  written in the window and in browser mode): the header, a row for every
+  labelled point (the special ones and the plain ones Numerics' NPr prints
+  every NPr points) and why the branch stopped, one line each;
 - Numerics as a dialog with Save/Load to a settings file, in place of the
   X11 Numerics window: every field has a plain name with AUTO's short name
   kept ("Max points (NMX)"), its help as a tooltip, and a message beside it

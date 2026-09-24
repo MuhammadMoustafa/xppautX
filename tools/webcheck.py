@@ -269,5 +269,47 @@ except subprocess.TimeoutExpired:
     proc.kill()
     check('the program exits', False)
 shutil.rmtree(run, ignore_errors=True)
+
+# ---- T27: the Windows exe with no standard error handle ------------------------------
+# xppautX.exe is a GUI-subsystem program: started from Explorer, a shortcut,
+# Start-Process or a terminal it has no standard error, and its C library
+# gives stderr no descriptor at all; what the core prints (AUTO's table in
+# the AUTO window's Output) must still reach the page. Only stdout is a pipe
+# here, to read the address.
+if os.name == 'nt':
+    import _winapi, msvcrt
+    run = tempfile.mkdtemp(prefix='xppweb')
+    shutil.copy(args.ode, run)
+    rfd, wfd = os.pipe()
+    whandle = msvcrt.get_osfhandle(wfd)
+    os.set_handle_inheritable(whandle, True)
+    si = subprocess.STARTUPINFO(dwFlags=subprocess.STARTF_USESTDHANDLES, hStdOutput=whandle)  # stdin, stderr: none
+    exe = os.path.abspath(args.bin)
+    hproc, hthread, _, _ = _winapi.CreateProcess(
+        exe, subprocess.list2cmdline([exe, '--browser', '--no-open', '--port', '0', '--verbose', os.path.basename(args.ode)]),
+        None, None, True, 0, None, run, si)
+    _winapi.CloseHandle(hthread)
+    os.close(wfd)
+    out = os.fdopen(rfd, 'r')
+    m = re.search(r'http://127\.0\.0\.1:(\d+)/\?t=(\w+)', out.readline())
+    check('T27: with no standard error, it prints the address', m is not None)
+    if m:
+        port, token = int(m.group(1)), m.group(2)
+        threading.Thread(target=lambda: [None for _ in out], daemon=True).start()
+        events = queue.Queue()
+        threading.Thread(target=stream, args=(events,), daemon=True).start()
+        evs, _ = collect(lambda e: e['ev'] == 'idle')
+        check('T27: ... and what xppaut printed still reaches the page', any(e['ev'] == 'log' for e in evs),
+              str([e['ev'] for e in evs][:8]))
+        post({'cmd': 'key', 'key': 'f'}, token)
+        post({'cmd': 'key', 'key': 'q'}, token)
+        _, ask = collect(lambda e: e['ev'] == 'ask')
+        if ask:
+            post({'cmd': 'answer', 'id': ask['id'], 'key': 'y'}, token)
+    if _winapi.WaitForSingleObject(hproc, 10000) != 0:
+        _winapi.TerminateProcess(hproc, 1)
+        check('T27: ... and it exits', False)
+    _winapi.CloseHandle(hproc)
+    shutil.rmtree(run, ignore_errors=True)
 print('web checks: %s' % ('all passed' if failures == 0 else '%d failed' % failures))
 sys.exit(1 if failures else 0)
