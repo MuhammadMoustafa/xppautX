@@ -439,7 +439,6 @@ function AutoPanel({dark}: {dark: boolean}) {
           Close
         </button>
       </div>
-      <AutoStatus />
       <div class="auto-tools" role="toolbar" aria-label="AUTO">
         {BUTTONS.map(([text, op, k]) => {
           const kind = SETTINGS_DIALOG[op];
@@ -543,6 +542,8 @@ function AutoPanel({dark}: {dark: boolean}) {
       {stored && (
         <p class="auto-stored-text muted">Stored point for File/sElect 2par pt: {fmt(stored.x)}, {fmt(stored.y)}</p>
       )}
+      {/* at the bottom, as the main window's status bar (T24) */}
+      <AutoStatus />
       <p id="auto-keys-help" class="visually-hidden">{KEYS_HELP}</p>
       <p id="grab-keys-help" class="visually-hidden">{GRAB_HELP}</p>
     </section>

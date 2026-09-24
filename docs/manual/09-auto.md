@@ -19,8 +19,9 @@ below that; both stop above the status bar. It has:
   (`from`, which XPP itself leaves blank); it zooms (wheel), pans
   (Shift+drag or the middle button) and undoes (`Ctrl+Z`) in the client,
   and a tooltip or the readout names the point under the mouse or cursor;
-- a **status strip** and **stability circle** (`ui/AutoStatus.tsx`,
-  `ui/AutoInfo.tsx`) below it, from the `autoinfo` event: branch, point,
+- a **stability circle** (`ui/AutoInfo.tsx`) below it, and a **status
+  strip** (`ui/AutoStatus.tsx`) along the window's bottom edge, where the
+  main window has its status bar, from the `autoinfo` event: branch, point,
   type, label, parameters, norm, the plotted variable, the period, and
   the eigenvalues/multipliers, in place of the small square and info
   windows of the X11 AUTO window;

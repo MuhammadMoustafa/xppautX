@@ -1631,6 +1631,9 @@ async function autoView(dir) {
     ['Parameter', 'Axes', 'Numerics', 'Run', 'Grab', 'Mark values…', 'Clear', 'File', 'Save settings', 'Load settings', 'Close']
       .every(w => words.includes(w)) && !words.some(w => /abort|stop|redraw/i.test(w)), JSON.stringify(words));
   check('the status strip says AUTO is idle', /^Idle/.test(await autoStatus()), await autoStatus());
+  check("T24: the status strip is the AUTO window's bottom line, as the main window's status bar",
+    await cdp.eval(`(() => { const p = document.querySelector('.auto-panel').getBoundingClientRect(),
+      t = document.querySelector('.auto-status').getBoundingClientRect(); return Math.abs(p.bottom - t.bottom) < 2; })()`));
 
   /* a dialog the view opens is on top of it, not behind (Numerics' form, T22: the page's own on the autosettings data) */
   check("T22: the store holds AUTO's settings (autosettings) before a run",
