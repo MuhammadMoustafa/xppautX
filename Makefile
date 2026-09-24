@@ -114,7 +114,8 @@ WINDOW ?= 1
 WINDOW_CFLAGS = -isystem third_party/webview2/include
 WINDOW_LIBS = -lole32 -lshell32 -lshlwapi -luser32 -lcomdlg32 -ladvapi32 -lversion
 else ifeq ($(shell uname -s 2>/dev/null),Darwin)
-WINDOW ?= 1
+# opt-in (WINDOW=1) until CI's macOS job has built and run it
+WINDOW ?= 0
 WINDOW_LIBS = -framework Cocoa -framework WebKit
 else
 ifndef WINDOW

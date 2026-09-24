@@ -51,7 +51,8 @@ repeated here.
 
 `xppautX model.ode` loads the model and opens **web2** in a window of
 its own, titled "xppautX — model.ode", with the system's own web view
-(WebView2 on Windows, WebKitGTK on Linux, WKWebView on macOS). Its menu
+(WebView2 on Windows, WebKitGTK on Linux; on macOS the page opens in
+the browser until the window is tested there). Its menu
 bar holds what belongs to the app rather than the model: **File** (Open
 model…, which starts a second xppautX with the model you pick, in its own
 window; Quit) and **Help** (Manual, Keyboard shortcuts, About: version,

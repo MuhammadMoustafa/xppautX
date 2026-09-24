@@ -133,8 +133,8 @@ program on a model:
 
 on Windows, `xppautX.exe examples\ode\lecar.ode`. Nothing else is needed:
 the front end opens in a window of its own (the system's web view:
-WebView2, which ships with Windows 10 and 11; WKWebView on macOS;
-WebKitGTK on Linux), served by the program itself. Its menu bar has File
+WebView2, which ships with Windows 10 and 11; WebKitGTK on Linux; on
+macOS the browser for now), served by the program itself. Its menu bar has File
 (Open model…, Quit) and Help (Manual, Keyboard shortcuts, About), and
 closing the window quits. `--browser` opens the same page in your
 browser instead and prints its address (`XPP: http://127.0.0.1:...`),
