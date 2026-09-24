@@ -66,6 +66,14 @@ void write_raw(const char *path, const char *data)
     }
 }
 
+/* the line end xpp_writer_open writes: text mode, as the fopen "w" it
+   replaced, so CR LF on Windows */
+#ifdef _WIN32
+#define TEXT_NL "\r\n"
+#else
+#define TEXT_NL "\n"
+#endif
+
 std::string read_raw(const char *path)
 {
     std::string s;
@@ -377,7 +385,7 @@ int main(void)
         CHECK(w != NULL);
         xpp_writer_printf(w, "%d %s\n", 42, "answer");
         CHECK(xpp_writer_commit(w) == 0);
-        CHECK(read_raw("test_io_write.tmp") == "42 answer\n");
+        CHECK(read_raw("test_io_write.tmp") == "42 answer" TEXT_NL);
         std::remove("test_io_write.tmp");
     }
 
@@ -423,7 +431,7 @@ int main(void)
         xpp::Writer w2("test_io_cppw.tmp");
         std::fprintf(w2.file(), "replaced\n");
         CHECK(w2.commit());
-        CHECK(read_raw("test_io_cppw.tmp") == "replaced\n");
+        CHECK(read_raw("test_io_cppw.tmp") == "replaced" TEXT_NL);
         std::remove("test_io_cppw.tmp");
     }
 

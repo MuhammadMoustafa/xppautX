@@ -15,7 +15,8 @@ Gates come in two tiers. Every task: a clean build with 0 warnings, the
 unit tests and web2's typecheck, verify.sh (always: it guards the
 numerics), and `node tools/web2check.mjs --only <the task's sections>`
 when web2 changed. Every 5 merged tasks, and before any push: the full
-web2check, tools/asancheck.sh and the Windows servercheck (CI also runs
+web2check, tools/asancheck.sh, and the Windows unit tests (`make test`
+with MinGW) and servercheck (CI also runs
 everything on each push). A new request that comes up while a task is
 running gets its own task card rather than growing the running one.
 Pushing closes issues: every GitHub issue whose card or task the pushed

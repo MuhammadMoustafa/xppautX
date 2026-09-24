@@ -191,7 +191,7 @@ int main()
     xpp_files_command("get", "\"c.dat\"", nullptr, keep);
     CHECK(last_event.find("\"data\":\"AAEC/w0KgHg=\"") != std::string::npos);
     CHECK(last_event.find(sha_of(bin, 8)) != std::string::npos);
-    xpp_files_command("put", "\"..\\/x\"", "\"AA==\"", keep); /* ../x */
+    xpp_files_command("put", "\"..\\/xpp-escape-probe\"", "\"AA==\"", keep); /* ../xpp-escape-probe */
     CHECK(last_event.find("\"ok\":0") != std::string::npos);
     xpp_files_command("put", "\"a\\u0000b\"", "\"AA==\"", keep);
     CHECK(last_event.find("\"ok\":0") != std::string::npos);
@@ -204,7 +204,8 @@ int main()
     std::string names = " " + folder() + " ";
     CHECK(names.find(" x ") == std::string::npos && names.find(" d.dat ") == std::string::npos);
     CHECK(names.find(".part") == std::string::npos);
-    std::FILE *up = std::fopen("../x", "rb");
+    /* a name no other program leaves in the temp folder, unlike "x" */
+    std::FILE *up = std::fopen("../xpp-escape-probe", "rb");
     CHECK(up == nullptr);
     if (up) std::fclose(up);
 
