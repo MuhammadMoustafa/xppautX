@@ -11,6 +11,14 @@ print the metrics). This is the gate before committing:
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/verify.sh"
 
+Gates come in two tiers. Every task: a clean build with 0 warnings, the
+unit tests and web2's typecheck, verify.sh (always: it guards the
+numerics), and `node tools/web2check.mjs --only <the task's sections>`
+when web2 changed. Every 5 merged tasks, and before any push: the full
+web2check, tools/asancheck.sh and the Windows servercheck (CI also runs
+everything on each push). A new request that comes up while a task is
+running gets its own task card rather than growing the running one.
+
 Headless smoke test by hand (writes output.dat in cwd, expect 601 rows and
 md5 c281851de59ffd03b2a46428619a0c8f for lecar.ode):
 
