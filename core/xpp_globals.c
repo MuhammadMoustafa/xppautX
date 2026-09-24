@@ -8,11 +8,6 @@ float xppvermaj, xppvermin;
 /* Set this to 1 if you want the tutorial to come up at start-up as default
    behavior */
 int DoTutorial = 0;
-OptionsSet notAlreadySet;
-
-int help_menu; /* which main-window menu keys go to: MAIN_MENU, FILE_MENU, NUM_MENU */
 
 
-int aplot_range;
 
-int AxisVarLabels = 0;

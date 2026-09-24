@@ -21,6 +21,9 @@ void Box_axis(double x_min, double x_max, double y_min, double y_max, char *sx, 
 void draw_ytics(char *s1, double start, double incr, double end);
 void draw_xtics(char *s2, double start, double incr, double end);
 
+/* label unlabelled 2D axes with the plotted variables (front ends that ask) */
+extern int AxisVarLabels;
+
 #ifdef __cplusplus
 }
 #endif

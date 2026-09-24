@@ -46,6 +46,10 @@ void gif_aplot(void);
 void grab_aplot_screen(APLOT ap);
 void redraw_aplot(APLOT ap);
 
+/* 1: the next range integration saves the array plot at each step (the
+   array plot's range saving); integrate.c clears it when the range ends */
+extern int aplot_range;
+
 #ifdef __cplusplus
 }
 #endif

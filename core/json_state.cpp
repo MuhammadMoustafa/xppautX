@@ -28,6 +28,7 @@
 #include <string.h>
 #include <math.h>
 #include "many_pops.h"
+#include "menudrive.h"
 
 /* the core's own globals and functions that have no header of their own */
 extern "C" {

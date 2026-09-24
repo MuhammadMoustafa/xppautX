@@ -21,15 +21,6 @@ extern int Xup;
 extern char *xpp_auto_dir;
 extern float xppvermaj, xppvermin;
 extern int DoTutorial;
-extern OptionsSet notAlreadySet;
-
-extern int help_menu;
-
-/* array plot */
-extern int aplot_range;
-
-/* label unlabelled 2D axes with the plotted variables (front ends that ask) */
-extern int AxisVarLabels;
 
 #ifdef __cplusplus
 }

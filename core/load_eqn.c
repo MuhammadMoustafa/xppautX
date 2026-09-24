@@ -46,7 +46,7 @@
 #define MAXOPT 1000
 #define READEM 1
 
-extern OptionsSet notAlreadySet;
+OptionsSet notAlreadySet;
 
 typedef struct {
   int nbins,nbins2,type,col,col2,fftc;

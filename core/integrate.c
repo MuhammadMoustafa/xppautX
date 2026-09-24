@@ -124,7 +124,6 @@ extern int dryrun;
 extern int querysets;
 extern int querypars;
 extern int queryics;
-extern int aplot_range;
 extern int Nintern_2_use;
 extern int AdjRange;
 extern char this_internset[XPP_MAX_NAME];
@@ -134,7 +133,6 @@ int MakePlotFlag=0;
 int OnTheFly=1;
 extern FILE *svgfile;
 
-extern OptionsSet notAlreadySet;
 
 typedef struct {
   int index0,type;

@@ -196,6 +196,10 @@ typedef struct {
 
   } OptionsSet;
 
+/* 1 while an option may still be set: the command line and .xpprc set
+   theirs first, and the ODE file's may not override them */
+extern OptionsSet notAlreadySet;
+
 
 void dump_torus(FILE *fp, int f);
 void load_eqn(void);

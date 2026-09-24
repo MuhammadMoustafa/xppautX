@@ -263,6 +263,9 @@ void get_3d_par(void);
 void edit_xpprc();
 void do_tutorial();
 void commander(int ch);
+/* which menu the main window's keys go to: MAIN_MENU, FILE_MENU, NUM_MENU
+   (commands.cpp) */
+extern int help_menu;
 void draw_many_lines(void);
 void get_intern_set(void);
 

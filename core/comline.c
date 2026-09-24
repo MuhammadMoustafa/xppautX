@@ -62,7 +62,6 @@
 #define VERBOSEOPT 45
 #define DEBUGOPT 46
 
-extern OptionsSet notAlreadySet;
 
 extern int SuppressOut;
 extern int RunImmediately;

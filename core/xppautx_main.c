@@ -52,6 +52,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "many_pops.h"
+#include "axes2.h"
 
 /* AUTO's files in a directory of this session's own, removed at exit
    (issue #11); -silent runs no AUTO */

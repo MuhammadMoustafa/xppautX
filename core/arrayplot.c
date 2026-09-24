@@ -60,6 +60,7 @@ double atof();
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern BROWSER my_browser;
 int aplot_range_count=0;
+int aplot_range;
 char aplot_range_stem[256]="rangearray";
 int aplot_still=1,aplot_tag=0;
 APLOT aplot;

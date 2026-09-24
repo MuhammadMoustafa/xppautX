@@ -43,6 +43,7 @@ extern int Xup;
 
 
 int DOING_AXES=0;
+int AxisVarLabels = 0;
 int DOING_BOX_AXES=0;
 extern FILE *svgfile;
 

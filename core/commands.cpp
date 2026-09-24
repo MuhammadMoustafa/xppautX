@@ -197,6 +197,7 @@ void xpp_hlp(void)
 /* ---- commands that were in X11 files -------------------------------- */
 
 XppMovieAutoPlay movie_autoplay = {1, 50};
+int help_menu;
 
 void do_movie_com(int c)
 {
