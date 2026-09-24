@@ -284,13 +284,13 @@ aim: 70%+ C++ over time, verify.sh's `C++: N / M sources` is the metric).
   warning fixes across many files) do not convert anything.
 - Converting is `git mv core/x.c core/x.cpp` and nothing in the Makefile:
   source lists name files without an extension, core/*.cpp builds with
-  $(CXX) (-std=c++17, gnu++17 on Windows) and programs with any C++ object
+  $(CXX) (-std=c++23, gnu++23 on Windows) and programs with any C++ object
   link with $(CXX). Then fix what C++ rejects: K&R definitions and `f()`
   declarations (in C++ `()` means no arguments) become prototypes, casts
   from `void *` (malloc) become explicit, identifiers that are C++ keywords
   (`new`, `delete`, `class`, `this`, `template`, `or`, `and`, `not`, ...)
-  are renamed, designated initializers must follow member order (or wait
-  for C++20), string literals are `const char *`, and `int` is not an enum.
+  are renamed, designated initializers must follow member order
+  (C++20's rule), string literals are `const char *`, and `int` is not an enum.
 - The API stays C: core headers are `extern "C"` (`#ifdef __cplusplus`
   guards, added by tools/cxx_guard_headers.py; a new header that declares
   functions or variables gets the same guard by hand, after its
