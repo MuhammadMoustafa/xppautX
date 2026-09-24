@@ -6,8 +6,6 @@ extern "C" {
 
 
 /* my_rhs.c */
-int MAIN__(void);
-int main(int argc, char **argv);
 void extra(double *y__y, double t, int nod, int neq);
 void set_fix_rhs(double t, double *y);
 int my_rhs(double t, double *y, double *ydot, int neq);

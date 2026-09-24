@@ -180,9 +180,6 @@ typedef struct {
   autoae_function_list aelist;
 } function_list;
 
-/* main.c */
-int main();
-
 /* autlib1.c */
 double time_start(void);
 double time_end(double);

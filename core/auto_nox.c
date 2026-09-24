@@ -1179,6 +1179,9 @@ void auto_xy_plot(x,y1,y2,par1,par2,per,uhigh,ulow,ubar,a)
      double *x,*y1,*y2;
      double par1,par2,per,*uhigh,*ulow,*ubar,a;
 {
+ /* a plot type none of the cases know leaves the point at (par1, 0) */
+ *x=par1;
+ *y1=*y2=0.0;
  switch(Auto.plot){
   case HI_P:
     *x=par1;
