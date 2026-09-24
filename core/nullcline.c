@@ -24,6 +24,7 @@
 #include "menudrive.h"
 #include <stdio.h>
 #include "xpp_io.h"
+#include "xpp_batch.h"
 
 
 #define DING ping
@@ -39,7 +40,6 @@ int NCSuppress=0;
 int DFSuppress=0;
 int DFBatch=0;
 int NCBatch=0;
-extern int XPPBatch;
 
 int NullStyle=0; /* 1 is with little vertical/horizontal lines */
 extern int (*rhs)();
@@ -427,7 +427,7 @@ void get_max_dfield(y,ydot,u0,v0,du,dv,n,inx,iny,mdf)
 void do_batch_nclines()
 {
 
-  if(!XPPBatch)return;
+  if(!batch_options.enabled)return;
   if(!NCBatch)return;
   if(NCBatch==1){
     new_clines_com(0);
@@ -441,7 +441,7 @@ void set_colorization_stuff()
 }
 void do_batch_dfield()
 {
-  if(!XPPBatch)return;
+  if(!batch_options.enabled)return;
   switch(DFBatch){
   case 0: 
     return;

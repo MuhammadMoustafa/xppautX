@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include "xpplim.h"
 #include "xpp_io.h"
+#include "xpp_batch.h"
 
 #define PARAM 1
 #define IC 2
@@ -124,8 +125,6 @@ char *get_next();
     to use them. (Except eqn forming stuff)
  */
 
-extern char batchout[256];
-extern int batch_range; 
  double last_ic[MAXODE];
 extern char PlotFormat[100];
 
@@ -1671,7 +1670,7 @@ if(msc(yyl,s1)){
  if(msc("OUTPUT",s1)){
      if ((notAlreadySet.OUTPUT||force) || ((mask!=NULL)&&(mask->OUTPUT==1)))
      {
-   	XPP_STRCPY(batchout,s2);
+   	XPP_STRCPY(batch_options.out_file,s2);
 	notAlreadySet.OUTPUT=0;
      }
    return;
@@ -1788,7 +1787,7 @@ if(msc(yyl,s1)){
  if(msc("RANGE",s1)){
      if ((notAlreadySet.RANGE||force)|| ((mask!=NULL)&&(mask->RANGE==1)))
      {
-   	batch_range=atoi(s2);
+   	batch_options.range=atoi(s2);
 	notAlreadySet.RANGE=0;
      }
    return;

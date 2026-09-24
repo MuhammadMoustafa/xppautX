@@ -28,6 +28,8 @@
 #include <string.h>
 #include "xpp_io.h"
 
+XppBatchOptions batch_options = {0, 0, -1, 1, "", ""};
+
 #define cstringmaj MYSTR1
 #define cstringmin MYSTR2
 
@@ -262,12 +264,12 @@ void xpp_load_model(int argc, char **argv, int batch)
     xpp_reset_options();
     get_directory(myfile);
     Xup = 0;
-    XPP_SPRINTF(batchout, "output.dat");
+    XPP_SPRINTF(batch_options.out_file, "output.dat");
     XPP_SPRINTF(PlotFormat, "ps");
     logfile = stdout;
     check_for_quiet(argc, argv);
     do_comline(argc, argv);
-    if (batch) XPPBatch = 1; /* headless: always batch, even without -silent */
+    if (batch) batch_options.enabled = 1; /* headless: always batch, even without -silent */
 
     load_eqn();
 

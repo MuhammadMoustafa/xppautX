@@ -24,13 +24,13 @@
 #include "load_eqn.h"
 #include "adj2.h"
 #include "integrate.h"
+#include "xpp_batch.h"
 
 #define READEM 1
 #define VOLTERRA 6
 #define MAXUFUN 50
 #define PARAMBOX 1
 
-extern int XPPBatch;
 
 namespace {
 /* err_msg/file_selector/... (xpp_ui.h) take char * and do not write

@@ -44,6 +44,7 @@
 #include "my_pars.h"
 #include "shoot.h"
 #include "newpars.h"
+#include "xpp_batch.h"
 
 #define MAXONLY 1000
 
@@ -78,7 +79,6 @@ typedef struct {
 } ACTION;
 
 char errmsg[256];
-extern int XPPBatch;
 
 extern int loadincludefile;
 /*extern char includefilename[MaxIncludeFiles][100];*/
@@ -274,7 +274,7 @@ void format_list(char **s,int n)
 
 int get_a_filename(char *filename,char *wild)
 {
- if(XPPBatch)
+ if(batch_options.enabled)
  {
   char string[MAXEXPLEN];
    list_em(wild);

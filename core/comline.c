@@ -10,6 +10,7 @@
 #include <string.h>
 /* command-line stuff for xpp */
 #include <stdio.h>
+#include "xpp_batch.h"
 #define NCMD 47 /* add new commands as needed  */
 
 #define MAKEC 0
@@ -85,8 +86,6 @@ char externaloptionsstring[1024];
 int NincludedFiles=0;
 /*extern char UserOUTFILE[256];
 */
-extern char UserOUTFILE[256]; /* xpp_globals.c */
-extern int use_intern_sets;
 extern int use_ani_file;
 /*extern char anifile[256];
 */
@@ -106,7 +105,6 @@ extern INTERN_SET intern_set[MAX_INTERN_SET];
 
 /*extern char batchout[256];
 */
-extern char batchout[256]; /* xpp_globals.c */
 
 int loadsetfile=0;
 int loadparfile=0;
@@ -119,7 +117,7 @@ int dryrun=0;
 /*extern char this_file[100];
 */
 extern char this_file[XPP_MAX_NAME];
-extern int XPPBatch,MakePlotFlag,BatchEquil;
+extern int MakePlotFlag;
 extern int xorfix;
 extern int newseeed;
 extern int silent;
@@ -297,8 +295,8 @@ int argc;
    }
    if(k==5){
     plintf("%s",argv[i+1]);
-     snprintf(batchout,sizeof batchout,"%s",argv[i+1]);
-     snprintf(UserOUTFILE,sizeof UserOUTFILE,"%s",argv[i+1]);
+     snprintf(batch_options.out_file,sizeof batch_options.out_file,"%s",argv[i+1]);
+     snprintf(batch_options.user_out_file,sizeof batch_options.user_out_file,"%s",argv[i+1]);
      i++;
    }
    if(k==6){
@@ -363,7 +361,7 @@ int argc;
      i++;
    }
    if(k==16){
-     use_intern_sets=atoi(argv[i+1]);
+     batch_options.use_intern_sets=atoi(argv[i+1]);
      select_intern_sets=1;
      i++;
    }  
@@ -433,9 +431,9 @@ int argc;
      externaloptionsflag=2;
    }
    if(k==30){ /* -equil */
-     BatchEquil=atoi(argv[i+1]);
+     batch_options.equilibria=atoi(argv[i+1]);
      i++;
-     plintf(" Batch equilibria %d \n",BatchEquil);
+     plintf(" Batch equilibria %d \n",batch_options.equilibria);
    }
 	 
   
@@ -478,8 +476,8 @@ int if_needed_select_sets()
 	int j;
 	for(j=0;j<Nintern_set;j++)
   	{
-		intern_set[j].use=use_intern_sets;
-		Nintern_2_use+=use_intern_sets;
+		intern_set[j].use=batch_options.use_intern_sets;
+		Nintern_2_use+=batch_options.use_intern_sets;
 		
 		if (is_set_name(sets2use,intern_set[j].name))
 		{
@@ -569,7 +567,7 @@ int parse_it(com)
       MakePlotFlag=1;
       break;
     case SILENT:
-      XPPBatch=1;
+      batch_options.enabled=1;
       break;
     case XORFX:
       xorfix=0;
@@ -658,17 +656,17 @@ int parse_it(com)
     case EQUIL: 
       return 30;
     case QSETS:
-      XPPBatch=1;
+      batch_options.enabled=1;
       querysets=1;
       dryrun=1;
       break;
     case QPARS: 
-      XPPBatch=1;
+      batch_options.enabled=1;
       querypars=1;
       dryrun=1;
       break;
     case QICS:
-      XPPBatch=1;
+      batch_options.enabled=1;
       queryics=1;
       dryrun=1;
       break;

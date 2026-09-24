@@ -15,10 +15,6 @@ extern "C" {
 
 /* run mode */
 extern int Xup;
-extern int XPPBatch, batch_range, BatchEquil;
-extern char batchout[256];
-extern char UserOUTFILE[256];
-extern int use_intern_sets;
 extern int use_ani_file;
 /* AUTO's scratch directory (fort.3/7/8/9, <model>.ode.b/.d/.s). NULL: HOME,
    as upstream (X11, -silent); xppautX sets a private one per session so

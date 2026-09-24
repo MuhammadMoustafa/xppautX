@@ -3,10 +3,6 @@
 #include "xpp_globals.h"
 
 int Xup = 0;
-int XPPBatch = 0, batch_range = 0, BatchEquil = -1;
-char batchout[256];
-char UserOUTFILE[256];
-int use_intern_sets = 1;
 int use_ani_file = 0;
 char anifile[XPP_MAX_NAME];
 char *xpp_auto_dir = NULL;

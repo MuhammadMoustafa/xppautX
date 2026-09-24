@@ -85,6 +85,7 @@ extern GRAPH *MyGraph;
 #include "arrayplot.h"
 #include "xpp_job.h"
 #include "phase_data.h"
+#include "xpp_batch.h"
 
 /* a row was just stored (storage[.][storind-1]): a replayed script may stop
    the job here (xpp_job.h), and a front end may show the run growing */
@@ -121,7 +122,6 @@ extern int ShootType[8];
 extern int ShootICFlag;
 extern int ShootIndex;
 extern int SimulPlotFlag,current_pop,num_pops,ActiveWinList[];
-extern int use_intern_sets;
 extern int dryrun;
 extern int querysets;
 extern int querypars;
@@ -129,7 +129,6 @@ extern int queryics;
 extern int aplot_range;
 extern int Nintern_2_use;
 extern int AdjRange;
-extern int BatchEquil;
 extern char this_internset[XPP_MAX_NAME];
 
 int MakePlotFlag=0;
@@ -182,8 +181,7 @@ int SuppressBounds=0;
 extern int NUPAR;
 
 extern char *info_message,*ic_hint[],*sing_hint[];
-extern int Xup,batch_range;
-extern char batchout[256];
+extern int Xup;
 double atof();
 extern int NMarkov,STOCH_FLAG;
 extern int color_total,SCALEY,DCURY,PltFmtFlag,PointRadius;
@@ -201,7 +199,6 @@ extern double default_val[MAXPAR];
 extern double last_ic[MAXODE];
 double LastTime;
 
-extern char UserOUTFILE[256];
 
 extern double DELAY;
 extern int R_COL;
@@ -955,9 +952,9 @@ if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
  
  if(res==1||STOCH_FLAG)
    {
-     if(batch_range==1){
+     if(batch_options.range==1){
        post_process_stuff();
-       write_this_run(batchout,i);
+       write_this_run(batch_options.out_file,i);
      }
      storind=0;
    }
@@ -993,7 +990,7 @@ void silent_equilibria()
   double x[MAXODE],er[MAXODE],em[MAXODE];
   int ierr,i;
   FILE *fp;
-  if(BatchEquil<0)return;
+  if(batch_options.equilibria<0)return;
   for(i=0;i<NODE;i++)
     x[i]=last_ic[i];
    
@@ -1003,7 +1000,7 @@ void silent_equilibria()
     for(i=0;i<NODE;i++)
       fprintf(fp,"%g %g %g\n",x[i],er[i],em[i]);
     fclose(fp);
-    if(BatchEquil==1)
+    if(batch_options.equilibria==1)
       save_batch_shoot();
   }
       
@@ -1087,16 +1084,16 @@ void batch_integrate()
   {
   
   	  XPP_SPRINTF(this_internset,"_%s",intern_set[i].name);
-	  if (strlen(UserOUTFILE)==0) /*Use the set name for outfile name*/
+	  if (strlen(batch_options.user_out_file)==0) /*Use the set name for outfile name*/
 	  {
-	      XPP_SPRINTF(batchout,"%s.dat",intern_set[i].name);
+	      XPP_SPRINTF(batch_options.out_file,"%s.dat",intern_set[i].name);
 	  }
 	  else/*Use the command line supplied outfile name*/
 	  {
 	      /*Will get over-written each internal set*/
-	      XPP_SPRINTF(batchout,"%s",UserOUTFILE);
+	      XPP_SPRINTF(batch_options.out_file,"%s",batch_options.user_out_file);
 	  }
-	  plintf("out=%s\n",batchout);
+	  plintf("out=%s\n",batch_options.out_file);
 	  extract_internset(i);
 	  chk_delay();
 	  plintf(" Ok integrating now \n");
@@ -1117,9 +1114,9 @@ void do_batch_dry_run()
 	plintf("It's a dry run...\n");
 	
 	FILE *fp;
- 	fp=fopen(batchout,"w");
+ 	fp=fopen(batch_options.out_file,"w");
    	if(fp==NULL){
-     		xpp_log(XPP_LOG_WARN, " Unable to open %s to write \n",batchout);
+     		xpp_log(XPP_LOG_WARN, " Unable to open %s to write \n",batch_options.out_file);
      		return;
    	}
  	
@@ -1177,7 +1174,7 @@ void batch_integrate_once()
   storind=0;
   reset_browser();
   /*  plintf("batch_range=%d\n",batch_range); */
- if(batch_range==1||STOCH_FLAG>0){
+ if(batch_options.range==1||STOCH_FLAG>0){
    reset_dae();
    RANGE_FLAG=1;
 
@@ -1206,13 +1203,13 @@ void batch_integrate_once()
   refresh_browser(storind);
  }
  post_process_stuff();
- if(!batch_range || range.reset==0){
+ if(!batch_options.range || range.reset==0){
    if(STOCH_FLAG==1)mean_back();
    if(STOCH_FLAG==2)variance_back();
    if(!SuppressOut){ 
-  fp=fopen(batchout,"w");
+  fp=fopen(batch_options.out_file,"w");
    if(fp==NULL){
-     plintf(" Unable to open %s to write \n",batchout);
+     plintf(" Unable to open %s to write \n",batch_options.out_file);
      return;
    }
    write_mybrowser_data(fp);
