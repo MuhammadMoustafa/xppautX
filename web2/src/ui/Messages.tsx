@@ -11,21 +11,25 @@ import type {LogEntry} from '../store/state';
 import {useStore} from './context';
 
 const KIND_LABEL: Record<LogEntry['kind'], string> = {error: 'Error', auto: 'AUTO', log: 'Log', info: 'Info'};
+const SHOWN_MAX = 1000;
 const FILTERS: (LogEntry['kind'] | 'all')[] = ['all', 'error', 'auto', 'log', 'info'];
 
 export function Messages() {
   const log = useStore(s => s.log);
   const [filter, setFilter] = useState<LogEntry['kind'] | 'all'>('all');
   const [search, setSearch] = useState('');
+  /* the list is drawn only while open, and its newest SHOWN_MAX lines: the log keeps thousands (T27) */
+  const [open, setOpen] = useState(false);
   const counts = useMemo(() => {
     const c: Record<string, number> = {error: 0, auto: 0, log: 0, info: 0};
     for (const l of log) c[l.kind]++;
     return c;
   }, [log]);
   const needle = search.trim().toLowerCase();
-  const shown = log.filter(l => (filter === 'all' || l.kind === filter) && (!needle || l.text.toLowerCase().includes(needle)));
+  const matching = open ? log.filter(l => (filter === 'all' || l.kind === filter) && (!needle || l.text.toLowerCase().includes(needle))) : [];
+  const shown = matching.slice(-SHOWN_MAX);
   return (
-    <details class="messages">
+    <details class="messages" open={open} onToggle={e => setOpen((e.target as HTMLDetailsElement).open)}>
       <summary>
         Messages ({log.length}){counts.error > 0 && <span class="error-count"> · {counts.error} error{counts.error > 1 ? 's' : ''}</span>}
       </summary>
@@ -45,6 +49,8 @@ export function Messages() {
       {shown.length === 0 ? (
         <p class="text-empty">{log.length === 0 ? 'Nothing yet.' : 'No message matches.'}</p>
       ) : (
+        <>
+        {matching.length > shown.length && <p class="muted">The last {shown.length} of {matching.length}.</p>}
         <ul class="messages-list">
           {shown.map((l, i) => (
             <li key={i} class={'message-line message-' + l.kind}>
@@ -53,6 +59,7 @@ export function Messages() {
             </li>
           ))}
         </ul>
+        </>
       )}
     </details>
   );

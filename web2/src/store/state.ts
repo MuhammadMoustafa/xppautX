@@ -199,7 +199,8 @@ export const initialState: AppState = {
   help: initialHelp,
 };
 
-const LOG_KEEP = 200, TOASTS_KEEP = 4;
+/* lines kept (T27: one entry per line, so a long AUTO run's table in Output) */
+const LOG_KEEP = 5000, TOASTS_KEEP = 4;
 /** the core's animation window (docs/protocol.md `window`) */
 const ANI_WINDOW = 104;
 
