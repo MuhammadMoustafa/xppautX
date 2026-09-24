@@ -127,8 +127,9 @@ WINDOW ?= 1
 WINDOW_CFLAGS = -isystem third_party/webview2/include
 WINDOW_LIBS = -lole32 -lshell32 -lshlwapi -luser32 -lcomdlg32 -ladvapi32 -lversion
 else ifeq ($(shell uname -s 2>/dev/null),Darwin)
-# opt-in (WINDOW=1) until CI's macOS job has built and run it
-WINDOW ?= 0
+# the default since CI's macOS job built and ran it with WINDOW=1 (W13d,
+# 2026-09-24); WINDOW=0 still forces browser-only
+WINDOW ?= 1
 WINDOW_LIBS = -framework Cocoa -framework WebKit
 else
 ifndef WINDOW

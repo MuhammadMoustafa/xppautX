@@ -51,15 +51,16 @@ repeated here.
 
 `xppautX model.ode` loads the model and opens **web2** in a window of
 its own, titled "xppautX — model.ode", with the system's own web view
-(WebView2 on Windows, WebKitGTK on Linux; on macOS the page opens in
-the browser until the window is tested there). Its menu
+(WebView2 on Windows, the system's WKWebView on macOS, WebKitGTK on
+Linux). Its menu
 bar holds what belongs to the app rather than the model: **File** (Open
 model…, which starts a second xppautX with the model you pick, in its own
 window; Quit) and **Help** (Manual, Keyboard shortcuts, About: version,
-commit, compiler, protocol version and license). The model's own menus
-stay inside the page. Closing the window quits xppautX, as the page's
-File/Quit does; after an error that stops the model, the window stays
-open on the page's Messages until you close it.
+commit, compiler, protocol version and license) — except on macOS, which
+has no menu bar of its own yet (untested there beyond CI). The model's
+own menus stay inside the page. Closing the window quits xppautX, as the
+page's File/Quit does; after an error that stops the model, the window
+stays open on the page's Messages until you close it.
 
 The other modes:
 
@@ -76,6 +77,8 @@ test): it prints `XPP: http://127.0.0.1:PORT/?t=TOKEN`, the address with
 the session's token, and opens it. The window never shows that address.
 If the web view cannot start (no WebView2 runtime on Windows, no display
 on Linux), xppautX says so in its log and uses the browser instead. On
+macOS the window is always available (the system's own WKWebView);
+`WINDOW=0` at build time forces browser-only there. On
 Linux the window needs WebKitGTK 4.1 installed; without it xppautX still
 starts, says in its log (the terminal and the page's Messages) which
 command installs it on your system (for instance `sudo apt install
@@ -91,7 +94,9 @@ window opens with the xppautX icon and title; Help > Manual and Help >
 Keyboard shortcuts open the Help view in the page, Help > About shows
 the version box; File > Open model… starts a second window with the
 model you choose; File > Quit, or closing the window, ends xppautX and
-leaves no process behind.
+leaves no process behind. On macOS, which has no File/Help menu bar of
+its own yet, close the window instead to quit, and use the model's own
+menus inside the page.
 
 **Double-clicking a .ode file** opens it the same way, once xppautX is
 registered as its opener: run the matching script in `tools/associate/`

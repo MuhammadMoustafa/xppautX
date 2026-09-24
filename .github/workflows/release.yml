@@ -88,8 +88,10 @@ jobs:
           path: xppautX-*.zip*
 
   macos:
-    # not tried by hand yet: the binaries are unsigned, so macOS asks the user
-    # to allow them (Gatekeeper). Signing and notarizing need an Apple account.
+    # the window (WKWebView) is on by default since W13d (CI builds and runs
+    # it here); nobody has tried an archive from this job by hand yet. The
+    # binaries are unsigned, so macOS asks the user to allow them
+    # (Gatekeeper). Signing and notarizing need an Apple account.
     strategy:
       matrix:
         include:
@@ -130,14 +132,18 @@ jobs:
           body: |
             xppautX for Linux, Windows and macOS: one program, no X11.
 
-            `xppautX model.ode` opens the front end in a window of its own on
-            Windows, and on Linux where WebKitGTK 4.1 is installed (elsewhere
-            it says what to install and uses your browser; macOS uses the
-            browser, as `--browser` does everywhere); nothing else is needed.
-            `-silent` runs it headlessly and writes
-            output.dat, as upstream xppaut does; `--server` speaks the JSON
-            protocol on stdin/stdout. The macOS and Windows binaries are not
-            signed, so the system asks you to allow them the first time.
+            `xppautX model.ode` opens the front end in a window of its own:
+            on Windows (WebView2, part of Windows 10/11), on macOS (the
+            system's WKWebView) and on Linux where WebKitGTK 4.1 is
+            installed (elsewhere it says what to install and uses your
+            browser); nothing else is needed. `-silent` runs it headlessly
+            and writes output.dat, as upstream xppaut does; `--server`
+            speaks the JSON protocol on stdin/stdout. `macos-arm64` is for
+            Apple silicon Macs, `macos-x64` for Intel Macs. The macOS and
+            Windows binaries are not signed, so the system asks you to
+            allow them the first time (macOS: `xattr -dr
+            com.apple.quarantine` on the unpacked folder, or right-click >
+            Open; Windows: SmartScreen's "More info" > "Run anyway").
 
             GPL v2, as upstream XPPAUT (Bard Ermentrout). The source of these
             binaries is the attached `*-source.tar.gz`.

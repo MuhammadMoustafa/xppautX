@@ -34,10 +34,10 @@ One program, and like xppaut it takes what to do from the command line:
 
   xppautX MODEL.ode            the front end in a window of its own (the
                                system's web view): on Windows with nothing
-                               else needed, on Linux when WebKitGTK 4.1 is
-                               installed (without it xppautX says how to
-                               install it and uses your browser); in your
-                               browser on macOS
+                               else needed, on macOS the same (WKWebView),
+                               on Linux when WebKitGTK 4.1 is installed
+                               (without it xppautX says how to install it
+                               and uses your browser)
   xppautX --browser MODEL.ode  the same page in your browser, its address
                                printed
   xppautX MODEL.ode -silent    a headless run that writes output.dat, the
@@ -56,6 +56,12 @@ To open a .ode file by double-clicking it, run the matching script in
 tools/associate/ once (per user, no admin rights): xppautx-associate.ps1
 -Register on Windows, install-linux.sh on Linux; each has an
 -Unregister/--uninstall counterpart.
+
+The macOS and Windows binaries are not signed, so the system asks you to
+allow them the first time: on macOS, run "xattr -dr com.apple.quarantine"
+on this unpacked folder, or right-click xppautX and choose Open; on
+Windows, SmartScreen's "More info" then "Run anyway". Neither warning
+means anything is wrong with the file.
 
 XPPAUT is by Bard Ermentrout; xppautX is a fork that runs without X11.
 GPL v2: see LICENSE. The source of these binaries is the

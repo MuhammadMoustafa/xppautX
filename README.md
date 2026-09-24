@@ -86,12 +86,14 @@ its own behavioural regression test (`tools/web2check.mjs`).
       a browser tab). The XPP-ODE extension
       frames that page in a panel with **Open in XPP Interactive**
       ([docs/vscode-extension.md](docs/vscode-extension.md)).
-   5. *(done for Windows; macOS in CI)* Native builds of the program:
-      `make xppautx` works with MinGW-w64 gcc on Windows (`xppautX.exe`
-      needs only the system C runtime, and dll_lib models load `.dll`s)
-      and on macOS with nothing extra installed. The Windows build passes
-      the same protocol checks and writes the same `output.dat` as Linux
-      apart from line endings. CI builds and checks both.
+   5. *(done)* Native builds of the program: `make xppautx` works with
+      MinGW-w64 gcc on Windows (`xppautX.exe` needs only the system C
+      runtime, and dll_lib models load `.dll`s) and on macOS with nothing
+      extra installed; both build with their window on by default (W13a,
+      W13d). The Windows and macOS builds pass the same protocol checks
+      and write the same `output.dat` as Linux apart from line endings.
+      CI builds and checks all three; nobody has run the macOS window by
+      hand yet ("Trying the macOS build" below).
    6. *(done, issue #20)* Retire the legacy front end: its sources,
       Makefile target and CI steps are gone; `tools/web2check.mjs` is the
       browser front end's own regression test.
@@ -133,15 +135,16 @@ program on a model:
 
 on Windows, `xppautX.exe examples\ode\lecar.ode`. Nothing else is needed:
 the front end opens in a window of its own (the system's web view:
-WebView2, which ships with Windows 10 and 11; WebKitGTK 4.1 on Linux,
-where a system without it gets the browser and the command that installs
-it; on macOS the browser for now), served by the program itself. Its menu bar has File
-(Open model…, Quit) and Help (Manual, Keyboard shortcuts, About), and
-closing the window quits. `--browser` opens the same page in your
-browser instead and prints its address (`XPP: http://127.0.0.1:...`),
-for a remote machine or the VS Code extension; `xppautX --help` lists
-the modes. To check the window by hand: the title reads
-"xppautX — lecar.ode" with the xppautX icon, Help > Manual opens the
+WebView2 on Windows, which ships with Windows 10 and 11; the system's
+WKWebView on macOS; WebKitGTK 4.1 on Linux, where a system without it
+gets the browser and the command that installs it), served by the
+program itself. Its menu bar has File (Open model…, Quit) and Help
+(Manual, Keyboard shortcuts, About), and closing the window quits — except
+on macOS, which has no menu bar of its own yet (W13d). `--browser` opens
+the same page in your browser instead and prints its address (`XPP:
+http://127.0.0.1:...`), for a remote machine or the VS Code extension;
+`xppautX --help` lists the modes. To check the window by hand: the title
+reads "xppautX — lecar.ode" with the xppautX icon, Help > Manual opens the
 page's Help, Help > About shows the version, and after File > Quit (or
 closing the window) no xppautX process is left.
 
@@ -160,18 +163,21 @@ tools/associate/install-linux.sh --uninstall     # undo
 
 Run it once; after that, double-clicking a `.ode` file opens it in its own
 xppautX window (a second `.ode` opens a second window: the core cannot load
-a second model into a running session). macOS is `make app` from source
-(below) -- there is no release archive step for it yet.
+a second model into a running session). macOS double-click association is
+still `make app` from source (below); the release archive has no bundle yet.
 
-The binaries are not signed, because a signing identity costs money at both
-Apple and Microsoft, so each system asks once before running a program it
-downloaded. Neither warning means anything is wrong with the file.
+The binaries are not signed or notarized, because a signing identity costs
+money at both Apple and Microsoft, so each system asks once before running a
+program it downloaded. Neither warning means anything is wrong with the file.
 
-**macOS.** The download is quarantined. Clear the flag, then run it:
+**macOS.** The release picks `xppautX-*-macos-arm64.tar.gz` for Apple
+silicon Macs (M1 and later) and `xppautX-*-macos-x64.tar.gz` for Intel
+Macs. The download is quarantined; clear the flag on the unpacked folder,
+then run it:
 
 ```bash
-xattr -d com.apple.quarantine xppautX
-chmod +x xppautX
+xattr -dr com.apple.quarantine xppautX-*-macos-*/
+./xppautX-*-macos-*/xppautX examples/ode/lecar.ode
 ```
 
 For a program you double-click instead, right-click it, choose **Open**, and
@@ -218,6 +224,11 @@ to install and uses the browser.
 make -j8 xppautx
 ./xppautX examples/ode/lecar.ode
 ```
+
+The window (WKWebView) is on by default (W13d; `WINDOW=0` builds
+browser-only). It has no menu bar of its own yet, and CI is the only
+place it has run so far ("Trying the macOS build" below) -- report back
+if you try it.
 
 `make app` assembles `xppautX.app` (the binary, `assets/icon.icns`, and
 `tools/associate/Info.plist.in`'s `.ode` document type, so Finder offers
@@ -282,6 +293,37 @@ from the Apple Developer Program for macOS and a code-signing certificate
 for Windows, both paid and yearly. The tooling itself is free (`codesign`
 and `notarytool` come with the Xcode command line tools, and `rcodesign`
 signs from Linux), so only the certificates are missing.
+
+## Trying the macOS build
+
+The macOS window builds and runs in CI (W13d), but nobody has tried it on
+real hardware yet -- if you have a Mac, this is the part that needs it.
+
+1. **Get a build.** Either a tagged [release](https://github.com/MuhammadMoustafa/xppautX/releases)
+   archive (`xppautX-*-macos-arm64.tar.gz` for Apple silicon,
+   `xppautX-*-macos-x64.tar.gz` for Intel), or, for the latest commit, the
+   `macos-arm64`/`macos-x64` artifact from a run of the `release` workflow
+   in [Actions](https://github.com/MuhammadMoustafa/xppautX/actions), or
+   the `xppaut-macos` artifact from a `build` workflow run (the plain
+   binary, window included, not packaged with the README/examples/license
+   the release archive has).
+2. **Open it.** Unpack the archive, clear the quarantine flag
+   (`xattr -dr com.apple.quarantine` on the unpacked folder), then either
+   run `./xppautX examples/ode/lecar.ode` in Terminal, or double-click
+   `xppautX` in Finder and choose **Open** when Gatekeeper asks (then quit
+   it and relaunch from Terminal with a model argument, since Finder
+   cannot pass one).
+3. **Try it.** With the window open: File > Open model… and pick another
+   `.ode` from `examples/ode/`; run it (Initialconds > Go or `i g`); open
+   AUTO (`a`) and start a continuation; File > Quit, or close the window,
+   and check no xppautX process is left (`ps aux | grep xppautX`). There
+   is no menu bar of xppautX's own yet on macOS (W13d), so everything
+   above is driven from the model's own menus inside the page or from
+   Terminal.
+4. **Report it** on [issue #4](https://github.com/MuhammadMoustafa/xppautX/issues/4):
+   your macOS version, Apple silicon or Intel, what happened at each step
+   above, and if anything looked wrong, the Terminal output of the same
+   run with `--verbose` added.
 
 ## Documentation
 

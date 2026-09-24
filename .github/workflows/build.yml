@@ -45,13 +45,12 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Build xppautX (X11-free)
-        run: make -j"$(sysctl -n hw.ncpu)" xppautx
+      - name: "Build xppautX (WKWebView window on, the Darwin default since W13d)"
+        run: |
+          make -j"$(sysctl -n hw.ncpu)" xppautx
+          ./xppautX --help | head -5
       - name: "Unit tests (C and C++ objects linked with clang++)"
         run: make test
-      - name: "Desktop window (WKWebView), not yet the default: does it build?"
-        continue-on-error: true
-        run: make -j"$(sysctl -n hw.ncpu)" xppautx WINDOW=1 BUILDDIR=build/window && ./xppautX --help | head -5
       - name: Smoke test (headless)
         run: |
           cd /tmp && "$GITHUB_WORKSPACE/xppautX" "$GITHUB_WORKSPACE/examples/ode/lecar.ode" -silent
