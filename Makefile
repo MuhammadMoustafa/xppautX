@@ -119,6 +119,8 @@ $(BUILDDIR)/xppautx_main.o: CXXFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'
 # installed and in the browser elsewhere. tools/modecheck.sh checks that
 # xppautX's NEEDED names neither.
 WEBVIEW_DIR = third_party/webview
+# the vendored library's language standard: ours, except on macOS (below)
+WEBVIEW_STD = $(CXXSTD)
 ifeq ($(ASAN),1)
 WINDOW := 0
 endif
@@ -131,6 +133,10 @@ else ifeq ($(shell uname -s 2>/dev/null),Darwin)
 # 2026-09-24); WINDOW=0 still forces browser-only
 WINDOW ?= 1
 WINDOW_LIBS = -framework Cocoa -framework WebKit
+# libc++'s C++23 unique_ptr (a constexpr destructor) rejects webview's
+# user_script::impl, a member of incomplete type: its C++17, as upstream
+# builds it (our code sees only its C API, WEBVIEW_HEADER)
+WEBVIEW_STD = -std=c++17
 else
 ifndef WINDOW
 WINDOW := $(shell pkg-config --exists webkit2gtk-4.1 gtk+-3.0 2>/dev/null && echo 1 || echo 0)
@@ -158,7 +164,7 @@ SERVER_OBJECTS += $(call obj,$(call src,xpp_window_loader)) $(BUILDDIR)/window_l
 $(WINDOW_LIB_DIR)/xpp_window.o: $(SRCDIR)/xpp_window.cpp $(BUILDDIR)/toolchain.stamp | $(WINDOW_LIB_DIR)
 	$(CXX) $(call NOLTO,$(CXXFLAGS)) -fPIC -DXPP_WINDOW -DXPP_WINDOW_PLUGIN -DXPP_ICON_ASSET -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS) -MMD -MP -MF $(@:.o=.d) -c $< -o $@
 $(WINDOW_LIB_DIR)/webview.o: $(WEBVIEW_DIR)/src/webview.cc $(BUILDDIR)/toolchain.stamp | $(WINDOW_LIB_DIR)
-	$(CXX) $(CXXSTD) $(call NOLTO,$(OPT)) -fPIC -DWEBVIEW_STATIC -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS) -c $< -o $@
+	$(CXX) $(WEBVIEW_STD) $(call NOLTO,$(OPT)) -fPIC -DWEBVIEW_STATIC -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS) -c $< -o $@
 $(WINDOW_LIB_DIR)/icon_assets.o: $(BUILDDIR)/icon_assets.c | $(WINDOW_LIB_DIR)
 	$(CC) -O2 -fPIC -c $< -o $@
 # one export, xpp_window_plugin_init (every other symbol local); -z defs:
@@ -187,7 +193,7 @@ WINDOW_LIBS =
 endif
 # the library, unchanged: its warnings are not ours (-isystem), nor is LTO
 $(BUILDDIR)/webview.o: $(WEBVIEW_DIR)/src/webview.cc $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
-	$(CXX) $(CXXSTD) $(call NOLTO,$(OPT)) -DWEBVIEW_STATIC -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS) -c $< -o $@
+	$(CXX) $(WEBVIEW_STD) $(call NOLTO,$(OPT)) -DWEBVIEW_STATIC -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS) -c $< -o $@
 
 # Windows: the icon (resource 32512, IDI_APPLICATION's number, which the
 # web view's window takes) and the version block, from assets/xppautx.rc

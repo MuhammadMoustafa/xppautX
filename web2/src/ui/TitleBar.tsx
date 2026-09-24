@@ -54,7 +54,9 @@ export function TitleBar() {
       <h1>{title || 'XPP'}</h1>
       <span class="muted file">{file}</span>
       <span class="spacer" />
-      <button class="primary" disabled={busy} onClick={() => session.keys('i', 'g')}
+      {/* aria-disabled, not disabled: a disabled button loses the focus, and the
+          letters typed next (XPP's keys, which a focused button passes on) with it */}
+      <button class="primary" aria-disabled={busy} onClick={() => { if (!busy) session.keys('i', 'g'); }}
         title={busy ? BUSY_TITLE : 'Initialconds / Go (I, G)'}>Integrate</button>
       <button class="theme-toggle icon-button" onClick={setTheme} data-theme-choice={theme}
         aria-label={`Theme: ${THEME_NAME[theme]}`} title={`Theme: ${THEME_NAME[theme]} (click for ${THEME_NAME[NEXT_THEME[theme]]})`}>
