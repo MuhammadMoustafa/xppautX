@@ -307,7 +307,15 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   untouched on failure; `xpp_writer_abort` discards the temp file without
   touching `path` at all. C++ code may use the RAII wrappers
   `xpp::LineReader`/`xpp::Writer` instead of the C API's explicit
-  `_close`/`_commit`/`_abort`. Not every `fopen` in the core goes through
+  `_close`/`_commit`/`_abort`, and `xpp::TokenReader`, whose `read()`
+  overloads pick the conversion from the target's type. Integer columns
+  printed flush against each other (AUTO's `%5ld` label lines in
+  fort.8/.s) are read with `xpp_token_reader_long` (fscanf `%ld`'s own
+  grammar, not a whole token; `read(long&)`), and
+  `xpp_token_reader_skip_line` skips the rest of a line;
+  `xpp_writer_open_binary` (`xpp::Writer::binary`) is the writer for a
+  byte-for-byte copy (AUTO's copyf/appendf). Files AUTO streams into
+  during a run (fort.7/8/9) keep their FILE*. Not every `fopen` in the core goes through
   this yet: a write via the shared `open_write_file` (`browse_data.cpp`,
   used well beyond W7b's files) still opens its target directly, since
   giving it temp-then-rename needs every caller's `fclose` to become a
