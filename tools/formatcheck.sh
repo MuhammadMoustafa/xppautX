@@ -18,7 +18,7 @@ EXCLUDE="core/ui_json.cpp core/xpp_http.cpp core/xpp_io.cpp"
 # stays direct". The substring only has to be unique enough to identify
 # that one call; it is matched literally (grep -F), so a line-number
 # shift needs no edit here.
-ALLOW="core/browse_data.c|strcpy(ode_names[j-1],ode_names[j]);|ode_names[j-1]/[j] are both pointers allocated elsewhere at a length tied to that variable's own formula text, not visible here and not necessarily >= the other slot's; W11 report"
+ALLOW="core/browse_data.cpp|strcpy(ode_names[j-1],ode_names[j]);|ode_names[j-1]/[j] are both pointers allocated elsewhere at a length tied to that variable's own formula text, not visible here and not necessarily >= the other slot's; W11 report"
 
 PATTERN='(^|[^a-zA-Z_])(sprintf|strcpy|vsprintf)[ \t]*\('
 

@@ -18,11 +18,19 @@
 #include <sys/time.h>
 #include "xpp_io.h"
 
+namespace {
+/* err_msg/TwoChoice/respond_box/file_selector (xpp_ui.h) take char * and
+   do not write through it, the historical C dialog API shared far beyond
+   this file; str() (grobs.cpp-precedented) casts a literal for one of
+   these calls. */
+char *str(const char *s) { return const_cast<char *>(s); }
+} // namespace
+
 extern int *plotlist, N_plist;
 extern int NEQ;
 extern float **storage;
 
-int find_user_name(int type, char *oname); /* init_conds.c (pure) */
+extern "C" int find_user_name(int type, char *oname); /* init_conds.c (pure) */
 
 /*  The one and only primitive data browser   */
 BROWSER my_browser;
@@ -58,8 +66,7 @@ int gettimenow()
   return now.tv_usec;
 } 
 
-void waitasec(msec)
-     int msec;
+void waitasec(int msec)
 {
   struct timeval tim;
   /*struct timezone tz;*/
@@ -90,9 +97,7 @@ void write_mybrowser_data(FILE *fp)
   write_browser_data(fp,&my_browser);
 }
 
-void write_browser_data(fp,b)
-     FILE *fp;
-     BROWSER *b;
+void write_browser_data(FILE *fp, BROWSER *b)
 {
   int i,j,l;
   
@@ -111,9 +116,7 @@ void write_browser_data(fp,b)
  
 }
 
-void find_variable(s,col)
-char *s;
-int *col;
+void find_variable(char *s, int *col)
 {
  *col=-1;
   if(strcasecmp("T",s)==0){
@@ -124,8 +127,7 @@ int *col;
   if(*col>-1)*col=*col+1; 
  } 
 
-void  refresh_browser(length)
- int length;
+void  refresh_browser(int length)
 {
  my_browser.dataflag=1;
  my_browser.maxrow=length;
@@ -154,29 +156,26 @@ void init_browser()
 
 }
 
-void open_write_file(fp,fil,ok)
- FILE **fp;
-  char *fil;
-  int *ok;
+void open_write_file(FILE **fp, char *fil, int *ok)
 {
  char ans;
  *ok=0;
  *fp=fopen(fil,"r");
 	if(*fp!=NULL){
-		fclose(*fp); 
-		ans=(char)TwoChoice("Yes","No",
-		"File Exists! Overwrite?","yn");
+		fclose(*fp);
+		ans=(char)TwoChoice(str("Yes"),str("No"),
+		str("File Exists! Overwrite?"),str("yn"));
 		if(ans!='y')return;
-		}	 
+		}
 
 			*fp=fopen(fil,"w");
 			if(*fp==NULL){
-				      err_msg("Cannot open file");
+				      err_msg(str("Cannot open file"));
 				      *ok=0;
 				     }
 		         else *ok=1;
 			 return;
-		    
+
   }
 
 void  wipe_rep()
@@ -186,8 +185,7 @@ void  wipe_rep()
     REPLACE=0;
   }
 
-void data_get(b)
-BROWSER *b;
+void data_get(BROWSER *b)
 {
  int i,in=b->row0;
  set_ivar(0,(double)storage[0][in]);
@@ -207,15 +205,13 @@ BROWSER *b;
  redraw_ics();
 }
 
-void data_get_mybrowser(int row)
+extern "C" void data_get_mybrowser(int row)
 {
   my_browser.row0=row;
   data_get(&my_browser);
 }
 
-void get_data_xyz(x,y,z,i1,i2,i3,off)
-     int i1,i2,i3,off;
-     float *x,*y,*z;
+void get_data_xyz(float *x, float *y, float *z, int i1, int i2, int i3, int off)
 {
   int in=my_browser.row0+off;
   *x=my_browser.data[i1][in];
@@ -231,36 +227,33 @@ extern int MAXSTOR,NEQ_MIN,NJMP,storind;
 extern int NSYM,NSYM_START,NCON,NCON_START;
 extern double DELTA_T;
 
-int check_for_stor(data)
-     float **data;
+int check_for_stor(float **data)
 {
  if(data!=storage){
-   err_msg("Only data can be in browser");
+   err_msg(str("Only data can be in browser"));
    return(0);
  }
    else return(1);
- 
+
 }
 
-void del_stor_col(var,b)
-BROWSER *b;
-char *var;
+void del_stor_col(char *var, BROWSER *b)
 {
   int nc;
   int i,j;
- 
+
   find_variable(var,&nc);
-  
+
   if(nc<0) {
-    err_msg("No such column....");
+    err_msg(str("No such column...."));
     return;
   }
   if(nc<=NEQ_MIN){ /* NEQ_MIN = NODE+NAUX */
-    err_msg("Can't delete that column");
+    err_msg(str("Can't delete that column"));
     return;
   }
   if(check_active_plot(nc)==1){
-    err_msg("This variable is still actively plotted! - Cant delete!");
+    err_msg(str("This variable is still actively plotted! - Cant delete!"));
     return;
   }
 /*  plintf(" nc=%d NEQ= %d\n",nc,NEQ); */
@@ -289,60 +282,56 @@ char *var;
   xpp_ui.browser_redraw(1);  
 }
 
-void data_del_col(b)  /*  this only works with storage  */
- BROWSER *b;
+void data_del_col(BROWSER *b)  /*  this only works with storage  */
 { int status;
   char var[XPP_NAME_MAX+1];
     if(check_for_stor(b->data)==0)return;
-  err_msg("Sorry - not working very well yet...");
+  err_msg(str("Sorry - not working very well yet..."));
   return;
   XPP_STRCPY(var,"");
-  status=get_dialog("Delete","Name",var,"Ok","Cancel",XPP_NAME_MAX);
+  status=get_dialog(str("Delete"),str("Name"),var,str("Ok"),str("Cancel"),XPP_NAME_MAX);
    if(status!=0)
-    del_stor_col(var,b); 
+    del_stor_col(var,b);
 }
 
-void data_add_col(b)
-BROWSER *b;
-{ 
+void data_add_col(BROWSER *b)
+{
   int status;
   char var[XPP_NAME_MAX+1],form[80];
    if(check_for_stor(b->data)==0)return;
   XPP_STRCPY(var,"");
   XPP_STRCPY(form,"");
-  status=get_dialog("Add Column","Name",var,"Ok","Cancel",XPP_NAME_MAX);
+  status=get_dialog(str("Add Column"),str("Name"),var,str("Ok"),str("Cancel"),XPP_NAME_MAX);
   if(status!=0){
-    status=get_dialog("Add Column","Formula:",form,"Add it","Cancel",80);
+    status=get_dialog(str("Add Column"),str("Formula:"),form,str("Add it"),str("Cancel"),80);
      if(status!=0)
-      add_stor_col(var,form,b); 
+      add_stor_col(var,form,b);
   }
 }
 
-int add_stor_col(name,formula,b)
-     char *name,*formula;
-     BROWSER *b;
+int add_stor_col(char *name, char *formula, BROWSER *b)
 {
   int com[4000],i,j;
 
   if(strlen(name)>XPP_NAME_MAX){
-    err_msg("Name too long");
+    err_msg(str("Name too long"));
     return(0);
   }
   if(add_expr(formula,com,&i)){
-    err_msg("Bad Formula .... ");
+    err_msg(str("Bad Formula .... "));
     return(0);
   }
   if((my_ode[NEQ+FIX_VAR]=(int *)xpp_malloc((i+2)*sizeof(int)))==NULL){
-     err_msg("Cant allocate formula space");
+     err_msg(str("Cant allocate formula space"));
      return(0);
    }
   if((storage[NEQ+1]=(float *)xpp_malloc(MAXSTOR * sizeof(float)))==NULL){
-    err_msg("Cant allocate space ....");
+    err_msg(str("Cant allocate space ...."));
     xpp_free(my_ode[NEQ]);
     return(0);
   }
   if((ode_names[NEQ]=(char *)xpp_malloc(80))==NULL){
-    err_msg("Cannot allocate space ...");
+    err_msg(str("Cannot allocate space ..."));
     xpp_free(my_ode[NEQ]);
     xpp_free(storage[NEQ+1]);
     return(0);
@@ -401,10 +390,7 @@ void chk_seq(char *f,int *seq, double *a1, double *a2)
   /*      plintf("seq=%d a1=%g a2=%g\n",*seq,*a1,*a2); */
 }
 
-void replace_column(var,form,dat,n)
-char *form,*var;
-float **dat;
-int n;
+void replace_column(char *var, char *form, float **dat, int n)
 {
  int com[200],i,j;
  int intflag=0;
@@ -418,7 +404,7 @@ int n;
  dt=NJMP*DELTA_T;
 /* first check for derivative or integral symbol */
 i=0;
-while(i<strlen(form)){
+while(i<(int)strlen(form)){
   if(!isspace(form[i]))break;
   i++;
   }
@@ -427,12 +413,12 @@ while(i<strlen(form)){
    form[i]=' ';
    find_variable(form,&dif_var);
    if(dif_var<0){
-     err_msg("No such variable");
+     err_msg(str("No such variable"));
      return;
    }
-   
+
  }
-   
+
 if(dif_var<0)
   chk_seq(form,&seq,&a1,&a2);
  if(seq==1){
@@ -444,11 +430,11 @@ if(dif_var<0)
  if(seq==2)
    da=a2;
  if(seq==3){
-   err_msg("Illegal sequence");
+   err_msg(str("Illegal sequence"));
    return;
  }
-   
-   
+
+
 /*  first compile formula ... */
 
 
@@ -456,20 +442,20 @@ if(dif_var<0)
    if(add_expr(form,com,&i)){
      NCON=NCON_START;
      NSYM=NSYM_START;
-     err_msg("Illegal formula...");
+     err_msg(str("Illegal formula..."));
      return;
    }
  }
 /* next check to see if column is known ... */
- 
+
  find_variable(var,&i);
  if(i<0){
-   err_msg("No such column...");
+   err_msg(str("No such column..."));
    NCON=NCON_START;
    NSYM=NSYM_START;
    return;
  }
- R_COL=i;   
+ R_COL=i;
 
  /* Okay the formula is cool so lets allocate and replace  */
 
@@ -524,11 +510,7 @@ void unreplace_column()
  
  }
 
-void make_d_table(xlo,xhi,col,filename,b)
-     int col;
-     double xlo,xhi;
-     char *filename;
-     BROWSER b;
+void make_d_table(double xlo, double xhi, int col, char *filename, BROWSER b)
 {
   int i,npts,ok;
   FILE *fp;
@@ -545,18 +527,15 @@ void make_d_table(xlo,xhi,col,filename,b)
   ping();
 }
 
-void find_value(col,val,row,b)
-int col,*row;
-float val;
-BROWSER b;
+void find_value(int col, double val, int *row, BROWSER b)
 {
  int n=b.maxrow;
  int i;
  int ihot=0;
  float err,errm;
- errm=fabs(b.data[col][0]-val);
+ errm=(float)fabs(b.data[col][0]-val);
  for(i=b.row0;i<n;i++){
- err=fabs(b.data[col][i]-val);
+ err=(float)fabs(b.data[col][i]-val);
  if(err<errm){
 	ihot=i;
 	errm=err;
@@ -565,16 +544,15 @@ BROWSER b;
  *row=ihot;
 }
 
-void data_replace(b)
-BROWSER *b;
+void data_replace(BROWSER *b)
 {
  int status;
  char var[XPP_NAME_MAX+1],form[80];
 XPP_STRCPY(var,uvar_names[0]);
 XPP_STRCPY(form,uvar_names[0]);
-status=get_dialog("Replace","Variable:",var,"Ok","Cancel",XPP_NAME_MAX);
+status=get_dialog(str("Replace"),str("Variable:"),var,str("Ok"),str("Cancel"),XPP_NAME_MAX);
 if(status!=0){
- status=get_dialog("Replace","Formula:",form,"Replace","Cancel",80);
+ status=get_dialog(str("Replace"),str("Formula:"),form,str("Replace"),str("Cancel"),80);
  if(status!=0)replace_column(var,form,b->data,b->maxrow);
  xpp_ui.browser_redraw(0);
 }
@@ -583,19 +561,17 @@ if(status!=0){
 
  }
 
-void data_unreplace(b)
-BROWSER *b;
+void data_unreplace(BROWSER *b)
 {
  unreplace_column();
  xpp_ui.browser_redraw(0);
 }
 
-void data_table(b)
-BROWSER *b;
+void data_table(BROWSER *b)
 {
  int status;
- 
- static char *name[]={"Variable","Xlo","Xhi","File"};
+
+ static char *name[]={str("Variable"),str("Xlo"),str("Xhi"),str("File")};
  char value[4][MAX_LEN_SBOX];
 
  double xlo=0,xhi=1;
@@ -604,7 +580,7 @@ BROWSER *b;
  XPP_SPRINTF(value[1],"0.00");
  XPP_SPRINTF(value[2],"1.00");
  snprintf(value[3],sizeof(value[3]),"%.*s.tab",XPP_NAME_MAX,value[0]);
- status=do_string_box(4,4,1,"Tabulate",name,value,40);
+ status=do_string_box(4,4,1,str("Tabulate"),name,value,40);
  if(status==0)return;
  xlo=atof(value[1]);
  xhi=atof(value[2]);
@@ -613,25 +589,24 @@ BROWSER *b;
    make_d_table(xlo,xhi,col,value[3],*b);
 }
 
-void data_find(b)
-BROWSER *b;
+void data_find(BROWSER *b)
 {
  int status;
 
- static char *name[]={"*0Variable","Value"};
+ static char *name[]={str("*0Variable"),str("Value")};
  char value[2][MAX_LEN_SBOX];
  int col,row=-1;
 
- float val;
+ double val;
 
  XPP_SPRINTF(value[0],"%s",uvar_names[0]);
  XPP_SPRINTF(value[1],"0.00");
- status=do_string_box(2,2,1,"Find Data",name,value,40);
+ status=do_string_box(2,2,1,str("Find Data"),name,value,40);
  
   
 
  if(status==0)return;
- val=(float)atof(value[1]);
+ val=atof(value[1]);
  find_variable(value[0],&col);
  if(col>=0)find_value(col,val,&row,*b);
  if(row>=0){
@@ -643,63 +618,68 @@ BROWSER *b;
   
 }
 
-void data_read(b)
-BROWSER *b;
+void data_read(BROWSER *b)
 {
 
  int status;
  char fil[256];
- char ch;
  FILE *fp;
  int k;
- int len,count=0,white=1;
- float z;
- 
+ int len,count=0;
+ double z;
+
  XPP_STRCPY(fil,"test.dat");
  /*  XGetInputFocus(display,&w,&rev);
  status=get_dialog("Load","Filename:",fil,"Ok","Cancel",40);
  */
- status=file_selector("Load data",fil,"*.dat");
+ status=file_selector(str("Load data"),fil,str("*.dat"));
 if(status==0)return;
  fp=fopen(fil,"r");
  	if(fp==NULL){
-				      respond_box("Ok",
-					"Cannot open file");
+				      respond_box(str("Ok"),
+					str("Cannot open file"));
 				     return;
 				     }
- /*  Now we establish the width of the file and read it.
+ /*  Now we establish the width of the file (the whitespace-separated
+     fields of its first line -- xpp_line_reader reads that line whole,
+     however long, instead of the raw fscanf "%c" char-at-a-time loop
+     this replaced) and read it.
       If there are more columns than available we
       ignore them.
-     
+
      if there are fewer rows we read whats necessary
-     if there are more rows then read until we 
+     if there are more rows then read until we
      are done or MAX_STOR_ROW.
      This data can be plotted etc like anything else
     */
-    
- do
-   {
-    if(fscanf(fp,"%c",&ch)!=1){ch='\n';break;}
-    if( !isspace((int)ch)&&(white) )
-    {
-     white=0;
-     ++count;
+ {
+   xpp::LineReader lr = xpp::LineReader::attach(fp);
+   std::optional<std::string_view> line = lr.next();
+   if(line){
+     int white=1;
+     for(unsigned char c : *line){
+       if(!isspace(c)&&white){white=0;++count;}
+       if(isspace(c)&&!white)white=1;
      }
-     if( isspace((int)ch) &&(1-white)) white=1;
-   } while(ch != '\n');
+   }
+ }
  rewind(fp);
  len=0;
- while(!feof(fp))
  {
-  int gotrow=1;
-  for(k=0;k<count;k++)
-  {
-   if(fscanf(fp,"%f ",&z)!=1){gotrow=0;break;}
-   if(k<b->maxcol)b->data[k][len]=z;
-   }
-   if(!gotrow)break;
-   ++len;
-   if(len>=MAXSTOR)break;
+   XppTokenReader *tr=xpp_token_reader_attach(fp);
+   for(;;)
+   {
+    int gotrow=1;
+    for(k=0;k<count;k++)
+    {
+     if(xpp_token_reader_double(tr,&z)!=1){gotrow=0;break;}
+     if(k<b->maxcol)b->data[k][len]=(float)z;
+     }
+     if(!gotrow)break;
+     ++len;
+     if(len>=MAXSTOR)break;
+    }
+   xpp_token_reader_close(tr);
   }
   fclose(fp);
   refresh_browser(len);
@@ -708,19 +688,18 @@ if(status==0)return;
  xpp_ui.browser_redraw(0); */
 }
 
-void data_write(b)
-BROWSER *b;
+void data_write(BROWSER *b)
 {
-  
+
  int status;
  char fil[256];
  FILE *fp;
  int i,j;
  int ok;
- 
+
  XPP_STRCPY(fil,"test.dat");
 
-/* 
+/*
  XSetInputFocus(display,command_pop,RevertToParent,CurrentTime);
  strcpy(fil,"test.dat");
  new_string("Write to:",fil);
@@ -728,7 +707,7 @@ BROWSER *b;
  /* status=get_dialog("Write","Filename:",fil,"Ok","Cancel",40);
 
     XSetInputFocus(display,w,rev,CurrentTime); */
-  status=file_selector("Write data",fil,"*.dat");
+  status=file_selector(str("Write data"),fil,str("*.dat"));
 if(status==0)return;
  open_write_file(&fp,fil,&ok);
  if(!ok)return;
@@ -739,28 +718,23 @@ if(status==0)return;
  fclose(fp);
 }
 
-void  data_first(b)
-BROWSER *b;
+void  data_first(BROWSER *b)
 {
  b->istart=b->row0;
 }
 
-void  data_last(b)
-BROWSER *b;
+void  data_last(BROWSER *b)
 {
  b->iend=b->row0+1;
 }
 
-void  data_restore(b)
- BROWSER *b;
+void  data_restore(BROWSER *b)
  {
   restore(b->istart,b->iend);
-  
+
   }
 
-void get_col_list(s,cl,n)
-     int *n,*cl;
-     char *s;
+void get_col_list(char *s, int *cl, int *n)
 {
   int len,i;
   
