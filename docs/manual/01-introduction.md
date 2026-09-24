@@ -1,93 +1,181 @@
 # Introduction
 
-XPP (XPPAUT is another name; I will use the two interchangeably) is a tool for solving differential equations, difference equations, delay equations, functional equations, boundary value problems, and stochastic equations. It evolved from a chapter written by John Rinzel and myself on the qualitative theory of nerve membranes and eventually became a commercial product for MSDOS computers called PHASEPLANE. It is now available as a program running under X11 and UNIX.
+## What xppautX is
 
-The code brings together a number of useful algorithms and is extremely portable. Upstream XPPAUT's graphics and interface were written completely in Xlib, which explains the somewhat idiosyncratic and primitive widgets interface; this fork (xppautX) replaced that X11 front end with a modern browser page (**web2**, see [Using the interface](04-using-the-interface.md)) that keeps the same menus, hotkeys and numerics.
+XPPAUT (also called XPP; the two names are interchangeable) is
+G. Bard Ermentrout's tool for ordinary differential equations, difference
+equations, delay and functional equations, boundary value problems and
+stochastic equations, with the bifurcation program AUTO built in. It
+handles up to 5000 differential equations, has solvers for stiff and
+delay systems, computes equilibria, invariant sets, nullclines and
+Poincaré maps, and post-processes data with histograms, FFTs and a
+curve fitter. **xppautX** is XPPAUT with its X11 interface (Xlib menus and
+windows) replaced by a browser front end, **web2**
+([Using the interface](04-using-the-interface.md)): the same menus,
+sub-menus and single-letter hotkeys, running without an X server, on
+Linux, macOS and Windows. The numerics — the parser, the solvers, AUTO —
+are XPPAUT's own code, unchanged: every example model's output is
+compared against a saved checksum (`tools/verify.sh`) so a refactor
+cannot silently change a result.
 
-XPP contains the code for the popular bifurcation program, AUTO. Thus, you can switch back and forth between XPP and AUTO, using the values of one program in the other and vice-versa. I have put a “friendly” face on AUTO as well. You do not need to know much about it to play around with it.
+XPPAUT grew out of a program called PHASEPLANE and thirty years of
+development by Bard Ermentrout, with contributions credited in the
+source and upstream documentation. The full story, and a complete
+description of the model language and every command, is in his book,
+*Simulating, Analyzing, and Animating Dynamical Systems: A Guide to
+XPPAUT for Researchers and Students* (SIAM, 2002; see `CITATION.cff`).
+The original manual and its LaTeX/PDF sources are kept for reference in
+`docs/upstream/`; this manual (chapters 2 onward) is that text, updated
+only where the interface changed (see `docs/manual/README.md`'s
+"Credit").
 
-XPP has the capabilities for handling up to 5000 differential equations. There are solvers for delay and stiff differential equations a well as some code for boundary value problems. Difference equations are also handled. Up to 10 graphics windows can be visible at once and a variety of color combinations is supported. PostScript/SVG output is supported. Post processing is easy and includes the ability to make histograms, FFTs and applying functions to columns of your data. Equilibria and linear stability as well as one-dimensional invariant sets can be computed. Nullclines and flow fields aid in the qualitative understanding of two-dimensional models. Poincare maps and equations on cylinders and tori are also supported. Some useful averaging theory tricks and various methods for dealing with coupled oscillators are included primarily because that is what I do for a living. Equations with Dirac delta functions are allowable.
+## Getting it
 
-There is an animation package that allows you to create animated versions of your simulations, such as a little pendulum moving back and forth or lamprey swimming. The animation view is opened by invoking the `(V)iew axes` `(T)oon` menu item. See [Creating Animations](10-animations.md) for complete info.
+Each [release](https://github.com/MuhammadMoustafa/xppautX/releases) has
+one archive per platform (Linux, Windows, macOS). Unpack it and run the
+program on a model — nothing else needs installing, no X server, no
+Node:
 
-I will assume that you are well versed in the theory of ordinary differential equations although you need not be to use the program. There are a number of useful features designed for people who use dynamical systems to *model* their experiments. There is a curve-fitter based on the Marquardt-Levenberg algorithm which lets you fit data points to the solutions to dynamical systems. Gnuplot-like graphics and support for some graphics objects such as text, arrows, and pointers are part of the package. You can also import bifurcation curves as part of your graphs. It is possible to automatically generate “movies” of three-dimensional views of attractors or parametric changes in the attractor as some parameters vary. I have also included a small preprocessing utility that allows one to create files for large systems of coupled equations.
+```bash
+./xppautX examples/ode/lecar.ode          # Linux/macOS
+xppautX.exe examples\ode\lecar.ode        # Windows
+```
 
-There are a number of other such programs available, but they all seem to require that your problems be compiled before using them. XPP does not; I have devised a simple and fairly fast formula compiler that is based on the idea of the inner interpretor used in the language FORTH (which remains my first love as far as language is concerned) Fear not, the differential equations and boundary conditions and other formulae are written in usual algebraic notation. However, in order to run big problems very quickly, I have written the code so that it is possible to create a library that can be linked to your problem and thus create a binary with the right-hand sides compiled. This can run much faster than the parsed code. See [Creating C-files for faster simulations](11-dll-libraries.md) and [C Files](15-generated-c-files.md).
+macOS and Windows show an unsigned-binary warning the first time; the
+main [README](../../README.md#installing-a-release) explains it. To
+build from source instead, see the main
+[README's Building section](../../README.md#building); it is not
+repeated here.
 
-XPP has been compiled on most UNIX machines and works fine now on Windows, Macs, and Linux. Building XPP requires only the standard C compiler, and Xlib. Look at the any README files that come with the distribution for solutions to common compilation problems.
+## Starting it
 
-The basic unit for XPP is a single ASCII file (hereafter called an ODE file) that has the equations, parameters, variables, boundary conditions, and functions for your model. You can also include numerical parameters such as time step size and method of integration although these can also be changed within the program. The graphics and postprocessing are all done within the program using the mouse (or touch) and various menus and buttons. The impatient user should look at some sample `.ode` files instead of actually reading the documentation. There are many command line arguments and options that can be added to set up numerics ([Quick reference](16-quick-reference.md)). There is also a resource file `.xpprc` that you can add to your home directory (below). The documentation here is pretty incomplete, but covers much of the basics. There is a book from SIAM available, and `docs/upstream/tree.pdf` (the original manual's historical companion) gives a description of *every* command.
+`xppautX model.ode` loads the model and opens **web2** in your browser —
+a desktop app of its own is planned (docs/roadmap.md W13). Two other
+modes skip the browser entirely:
 
-## Notes on the Interface
+```bash
+./xppautX model.ode -silent           # batch run, writes output.dat, no interface
+./xppautX --server model.ode          # the JSON protocol on stdin/stdout
+```
 
-Upstream XPPAUT's X11 text fields had no cut and paste, and BackSpace and
-Delete behaved differently across systems; this no longer applies in
-web2's browser text fields, which behave like any other web form (full
-cut/paste, Home/End, arrow keys, selection). See
-[Using the interface](04-using-the-interface.md) for what's the same as
-X11 (the menus, the single-letter hotkeys) and what's different. Almost
-every command has a keyboard shortcut; these are given below.
+`--server` is for a front end that embeds xppautX instead of opening a
+browser tab (the VS Code extension, a test script); the protocol itself
+is in [docs/protocol.md](../protocol.md). `--script FILE model.ode`
+replays a recorded protocol session from FILE instead of reading
+commands from stdin (docs/protocol.md "Scripts"), which is how
+regression tests and recorded sessions are replayed without a live
+client.
 
-## Disclaimer
+`--verbose` and `--debug` raise how much xppautX logs (parser stats, the
+startup banner, AUTO's table, solver chatter); by default it logs only
+warnings and errors. Without `-logfile`, that log goes to the terminal,
+and the browser front end also shows it live in the page's Messages
+panel; `-logfile FILE` sends it to FILE instead, so a run started that
+way has nothing in Messages. See
+[Using the interface: the log](04-using-the-interface.md#the-log).
 
-XPP is distributed as is. The author makes no claims as to the performance of the program. Anyone is allowed to modify and distribute XPP as long as the original code is also made available. See the LICENSE file for the full caveats.
+### Command-line options
 
-## Acknowledgements
+xppautX's own options (`--server`, `--script`, `--web`, `--port`,
+`--no-open`, `--version`, `--verbose`, `--debug`) must come first; every
+other classic `xppaut` option (`core/comline.c`) still works and can
+follow in any order. The options below still do something in xppautX;
+a few classic options that only ever changed X11 window colours, fonts
+or icon state (`-forecolor`, `-backcolor`, `-backimage`, `-mwcolor`,
+`-dwcolor`, `-grads`, `-width`, `-height`, `-bigfont`, `-smallfont`,
+`-white`, `-allwin`, `-bell`, `-xorfix`, `-ee`, `-iconify`) are still
+accepted for compatibility but have nothing left to affect.
 
-Artie Sherman, John Rinzel for many suggestions. Daniel Dougherty and Robert McDougal for contribution actual code! Also Sebius Doedel for making AUTO available. I want to also thank Bart Oldmann for some pointers on the porting of the most recent AUTO version.
+| Option | Does |
+|---|---|
+| `-silent` | Batch run: no interface, integrates and exits |
+| `-runnow` | Runs the model immediately on startup (implied by `-silent`) |
+| `-outfile FILE` | Write batch output to FILE instead of `output.dat` |
+| `-noout` | Suppress writing rows to the output file |
+| `-parfile FILE` | Load parameter values from FILE before starting |
+| `-icfile FILE` | Load initial conditions from FILE before starting |
+| `-setfile FILE` | Load a set file before starting |
+| `-readset FILE` | Load a set file the way an internal set is loaded |
+| `-with "STRING"` | Apply STRING as if it were an internal set |
+| `-internset <0\|1>` | Run (1) or skip (0) the model's internal sets in batch |
+| `-uset NAME` | Include the named internal set in a batch run |
+| `-rset NAME` | Exclude the named internal set from a batch run |
+| `-include FILE` | Include FILE, as the ODE file's `#include` would |
+| `-qsets` / `-qpars` / `-qics` | Query internal sets, parameters or initial conditions to the output file, then exit |
+| `-equil <0\|1>` | Write equilibria to `equil.dat`, and with `1` the invariant manifolds too |
+| `-mkplot` | Produce a plot in batch mode |
+| `-plotfmt <svg\|ps>` | Batch plot format |
+| `-dfdraw N` / `-ncdraw N` | Draw the direction field / nullclines in batch, to screen or file |
+| `-newseed` | Randomize the random number generator's seed |
+| `-convert` | Convert an old-style (PHASEPLANE) ODE file to current syntax |
+| `-anifile FILE` | Load an animation script (`.ani`) at startup |
+| `-quiet <0\|1>` | Suppress the model's own console messages (independent of `-verbose`) |
+| `-logfile FILE` | Send console output to FILE |
+| `-verbose` / `-debug` | Raise the log level (`xppautX`'s `--verbose`/`--debug` do the same) |
+| `-version` | Print the version and exit |
 
-Please let me know of any bugs or other stuff that you’d like to see incorporated into XPP. I will usually fix them quickly.
+Running xppautX with an unrecognized option prints this same list.
 
-My EMAIL address is bard@pitt.edu.
+## What is different from XPPAUT
 
-## Note
+web2 keeps every menu, sub-menu and hotkey, but the interaction is a
+browser page, not X11 widgets: dialogs, the values panel, plots, the
+data browser, animations and the AUTO view all work differently in
+detail. [Using the interface](04-using-the-interface.md) describes the
+current front end; [docs/front-end-gaps.md](../front-end-gaps.md) is the
+row-by-row record of what changed and why.
 
-The easiest way to get a thorough understanding of the program as well as a short tutorial in dynamical systems is to use the World Wide Web tutorial which can be accessed from my home page at http://www.pitt.edu/$`\equiv`$phase. This tutorial is geared toward computational neuroscientists (in the choice of problems) but provides a fairly detailed introduction to the program.
+## The resource file and environment variables
 
-## Environment variables.
+A file named `.xpprc` in your home directory (`$HOME` on Linux/macOS,
+`%USERPROFILE%` on Windows) can hold options you always want, one `@`
+line per xppautX invocation's worth of settings, for example:
 
-While you can make a file in your home directory called `.xpprc` which contains a list of commonly used options, XPP also uses some environment variables. Note, on Windows computers the default home directory is taken to be a user’s Desktop folder.
+```
+# xpprc file
+@ but=quit:fq
+@ maxstor=50000,bell=0
+@ meth=qualrk,tol=1e-6,atol=1e-6
+```
 
-The environment variables which XPP uses are:
+xppautX still reads a few environment variables, all optional:
 
-- **XPPBROWSER**: Web browser to view documentation (e.g. /usr/bin/firefox)
-- **XPPEDITOR**: Text editor to view/edit documentation (e.g. /usr/bin/gedit)
-- **XPPHELP**: Path to the XPPAUT documentation file $`<`$xpphelp.html$`>`$ (e.g. /usr/share/doc/xppaut/html/xpphelp.html)
-- **XPPSTART**: File browser will open to the specified path. This may be useful in an instructional setting to point to a mapped drive containing course materials or an NFS file share.
+| Variable | Purpose |
+|---|---|
+| `XPPHELP` | Path to the help file that `Help` opens |
+| `XPPBROWSER` | Browser used to open `XPPHELP` (Linux/macOS only; Windows uses the system default) |
+| `XPPEDITOR` | Editor "Edit your .xpprc preferences file" (menu shortcut `fx`) opens |
+| `XPPSTART` | Folder the file dialogs open to, e.g. a shared course directory |
 
-On Mac/Linux/Unix systems, these environment variables are typically set within a user’s .bashrc file using export commands. For example:
+Set them the usual way for your shell (`export XPPHELP=...` in
+`.bashrc`, `setx XPPEDITOR ...` or a Windows Environment Variables
+dialog). Nothing else — no `DISPLAY`, no X resources, no font or window
+colour settings — is needed or read any more.
 
-            export XPPHELP=/usr/share/doc/xppaut/html/xpphelp.html
-            export XPPBROWSER=/usr/bin/firefox
-            export XPPEDITOR=/usr/bin/nedit
-            export XPPSTART=/usr/share/doc/xppaut/examples/ode
+## License
 
-When I run XPP on Windows, I run the following bat file (xppaut.bat) which serves to set various environment variables (the `DISPLAY` line is an X11 leftover; xppautX needs no X server and ignores it):
+xppautX is distributed as is, with no warranty of performance; see the
+`LICENSE` file for the full terms. Bugs and feature requests are welcome
+on the project's [issue tracker](https://github.com/MuhammadMoustafa/xppautX/issues).
 
-    :: Specify location of where you want your .xpprc to be.
-    :: For most Windows users their Desktop is probably a safe bet.
-    set HOME=%HOMEDRIVE%%HOMEPATH%\Desktop
-    :: Change path to your favorite browser
-    set XPPBROWSER=c:/Program Files/Netscape/Communicator/Program/netscape.exe
-    set XPPHELP=c:/xppall/help/xpphelp.html
-    set DISPLAY=127.0.0.1:0.0
+## Where to go next
 
-    :: Might want to change this to JEdit or whatever text editor you use.
-    :: set XPPEDITOR=c:/Windows/notepad
-    set XPPEDITOR=notepad++
+- [ODE Files](02-ode-files.md) and [Examples](03-examples.md) — the model
+  language and worked models
+- [Using the interface](04-using-the-interface.md) — web2 in detail:
+  starting xppautX, the page layout, plots, dialogs, files, the log
+- [The main commands](05-commands.md) and
+  [Numerical parameters](06-numerical-parameters.md) — every command and
+  every numerics setting
+- [The Data Browser](07-data-browser.md),
+  [Functional equations](08-functional-equations.md),
+  [Auto interface](09-auto.md) and
+  [Creating Animations](10-animations.md) — the specialized views
+- [Creating C-files for faster simulations](11-dll-libraries.md) and
+  [C Files](15-generated-c-files.md) — compiling a model's right-hand
+  sides for speed
+- [Quick reference](16-quick-reference.md) — the ODE file cheat sheet,
+  built-in functions and the full command-line option list
 
-    :: You may want to set XPPSTART to your research or course directory
-    set XPPSTART=c:/xppall/ode
-
-    set argC=0
-    for %%x in (%*) do Set /A argC+=1
-    IF %argC%==0 (c:/xppall/xppaut) ELSE (c:/xppall/xppaut %1 %2 %3)
-    pause
-
-Here is my `.xpprc` file:
-
-    # xpprc file
-    @ but=quit:fq
-    @ maxstor=50000,bell=0
-    @ meth=qualrk,tol=1e-6,atol=1e-6
-    # thats it
+See [docs/manual/README.md](README.md) for the complete chapter list and
+the menu/dialog-to-section map.
