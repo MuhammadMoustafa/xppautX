@@ -44,15 +44,21 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
       - name: Cache WebKitGTK apt packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
-          path: /var/cache/apt/archives
-          key: apt-webkit2gtk-4.1-dev-ubuntu-22.04-v1
-          restore-keys: apt-webkit2gtk-4.1-dev-ubuntu-22.04-
+          path: ~/apt-cache
+          key: apt-webkit2gtk-4.1-dev-${{ env.ImageOS }}-v1
+          restore-keys: apt-webkit2gtk-4.1-dev-${{ env.ImageOS }}-
       # the window's library is built against WebKitGTK and embedded;
       # xppautX itself does not need it to start (W13e)
       - name: WebKitGTK for the desktop window
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev
+        # apt downloads into ~/apt-cache (the runner's user can restore a cache
+        # there, not into /var/cache/apt), then leaves it readable for the save
+        run: |
+          mkdir -p ~/apt-cache/partial
+          sudo apt-get update
+          sudo apt-get install -y -o Dir::Cache::Archives="$HOME/apt-cache" libwebkit2gtk-4.1-dev
+          sudo chown -R "$(id -u):$(id -g)" ~/apt-cache
       - name: Build
         run: make -j4 xppautx WINDOW=1
       - name: Check
