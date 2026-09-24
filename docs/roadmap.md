@@ -32,6 +32,7 @@ issue; the card here is the one kept up to date.
 | W9  | #21 | WebAssembly build (proof of concept) | maintainer's OK to install emsdk | blocked |
 | W10 | #22 | Replayable interruptions in scripts | none | done (539b300) |
 | W11 | - | One I/O module: logging only, safe formatting, file reading and writing | none (step 3 with W7) | running (steps 1-2 done; step 3 next) |
+| W12 | - | The manual as Markdown, current with web2, served in the app | T20, T21 | blocked |
 
 ## W0: C/C++ mixed build
 **Goal.** core/*.cpp builds next to core/*.c on Linux, Windows (MinGW,
@@ -178,3 +179,21 @@ stdout) cannot come back.
 buffer, `fscanf`, or prints directly; the data files written are byte for
 byte the same (the lecar checksum, tests/examples.md5, the .set round
 trip).
+
+## W12: The manual
+**Goal.** XPP's manual (docs/xpp_doc.tex, docs/xpp_sum.tex, docs/help/*.html)
+describes xppautX as it is, lives next to the code it describes, and is
+one click away in the app.
+**Scope.**
+1. Convert the LaTeX to Markdown (pandoc), one file per chapter in
+   docs/manual/; the .tex, .pdf and help/*.html move to docs/upstream/ as
+   the historical reference.
+2. Keep the model language, numerics and AUTO chapters (the core); rewrite
+   the X11 window and keystroke chapters for web2 (values panel, sliders,
+   AUTO view, dialogs, exports, files).
+3. web2 gets a Help view (search, table of contents) built from
+   docs/manual/ at build time; menu items and dialogs link to their section.
+4. A task that changes the UI updates its manual section, as protocol.md.
+**Done when.** No chapter describes an X11 window; every menu and dialog in
+web2 links to a section that describes it; web2check opens Help from a
+dialog and finds its section.
