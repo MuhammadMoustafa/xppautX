@@ -60,6 +60,13 @@ void xpp_files_put_abort(XppFilePut *put);
    it saves one (the `mode` of the `file` ask) */
 const char *xpp_files_ask_mode(const char *title);
 
+/* Atomically replaces `to` with `from` (POSIX rename(), which already
+   replaces; xpp_replace_file on Windows, where rename() does not): 0 on
+   success. The one place that knows the platform difference; core/xpp_io.cpp's
+   writer (core/xpp_io.h) calls this for its own temp-then-rename commit
+   instead of duplicating it. */
+int xpp_files_replace_file(const char *from, const char *to);
+
 /* the protocol's {"cmd":"file","op":..,"name":..,"data":..}: op "list",
    "get" or "put"; name_json and data_json point at the JSON values of
    "name" and "data" in the command (NULL when absent). Sends one `file`

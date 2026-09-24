@@ -1,15 +1,20 @@
 /* xpp_io: the safe formatting/copying the whole core uses instead of
-   sprintf/strcpy into fixed buffers (issue: W11 step 2). Checks
-   truncation, NUL termination, the returned lengths, XPP_SPRINTF/
+   sprintf/strcpy into fixed buffers (issue: W11 step 2), and its file
+   half -- a line reader, a token reader and a writer (W11 step 3, W7b).
+   Checks truncation, NUL termination, the returned lengths, XPP_SPRINTF/
    XPP_STRCPY/XPP_STRCAT taking sizeof(dst) automatically, that a
    truncating call logs exactly one WARN (redirecting stderr, since
-   xpp_log's default threshold already prints WARN and up), and the
-   C++ API (xpp::format, XPP_FORMAT_TO_BUF, xpp::number). */
+   xpp_log's default threshold already prints WARN and up), the C++ API
+   (xpp::format, XPP_FORMAT_TO_BUF, xpp::number), and the file half: long
+   lines, no trailing newline, CRLF, an empty file, a failed open, and a
+   writer's commit vs. abandon (xpp_writer_abort/an uncommitted
+   xpp::Writer leave the original file untouched). */
 #include "xpptest.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 
@@ -46,6 +51,32 @@ private:
     const char *path_;
     FILE *saved_;
 };
+
+/* writes data (strlen(data) bytes) to path, no text-mode translation, for
+   tests that need control over the raw bytes (a CRLF line, a file with
+   no trailing newline, ...) */
+void write_raw(const char *path, const char *data)
+{
+    size_t n = std::strlen(data);
+    FILE *f = std::fopen(path, "wb");
+    CHECK(f != NULL);
+    if (f) {
+        CHECK(std::fwrite(data, 1, n, f) == n);
+        std::fclose(f);
+    }
+}
+
+std::string read_raw(const char *path)
+{
+    std::string s;
+    FILE *f = std::fopen(path, "rb");
+    if (!f) return s;
+    char buf[256];
+    size_t n;
+    while ((n = std::fread(buf, 1, sizeof buf, f)) > 0) s.append(buf, n);
+    std::fclose(f);
+    return s;
+}
 
 } // namespace
 
@@ -171,6 +202,168 @@ int main(void)
     CHECK_STR(xpp::number(3.5).c_str(), "3.5");
     CHECK_STR(xpp::number(100.0).c_str(), "100");
 #endif
+
+    /* ---- the file half: line reader, token reader, writer (W11 step 3) */
+
+    /* failed open: a path that cannot exist */
+    CHECK(xpp_line_reader_open("no/such/directory/file.txt") == NULL);
+    CHECK(xpp_token_reader_open("no/such/directory/file.txt") == NULL);
+
+    /* empty file: no lines at all */
+    {
+        write_raw("test_io_empty.tmp", "");
+        XppLineReader *r = xpp_line_reader_open("test_io_empty.tmp");
+        CHECK(r != NULL);
+        size_t len = 999;
+        CHECK(xpp_line_reader_next(r, &len) == NULL);
+        CHECK(len == 0);
+        xpp_line_reader_close(r);
+        std::remove("test_io_empty.tmp");
+    }
+
+    /* no trailing newline: the last, unterminated line still comes back
+       once (not read twice, not dropped) */
+    {
+        write_raw("test_io_notrail.tmp", "first\nsecond");
+        XppLineReader *r = xpp_line_reader_open("test_io_notrail.tmp");
+        CHECK(r != NULL);
+        size_t len;
+        const char *l1 = xpp_line_reader_next(r, &len);
+        CHECK(l1 != NULL);
+        CHECK_STR(l1, "first");
+        const char *l2 = xpp_line_reader_next(r, &len);
+        CHECK(l2 != NULL);
+        CHECK_STR(l2, "second");
+        CHECK(len == 6);
+        CHECK(xpp_line_reader_next(r, &len) == NULL);
+        xpp_line_reader_close(r);
+        std::remove("test_io_notrail.tmp");
+    }
+
+    /* CRLF tolerant: \r\n and a bare \n both end a line, no stray \r left */
+    {
+        write_raw("test_io_crlf.tmp", "one\r\ntwo\nthree\r\n");
+        XppLineReader *r = xpp_line_reader_open("test_io_crlf.tmp");
+        CHECK(r != NULL);
+        size_t len;
+        CHECK_STR(xpp_line_reader_next(r, &len), "one");
+        CHECK_STR(xpp_line_reader_next(r, &len), "two");
+        CHECK_STR(xpp_line_reader_next(r, &len), "three");
+        CHECK(xpp_line_reader_next(r, &len) == NULL);
+        xpp_line_reader_close(r);
+        std::remove("test_io_crlf.tmp");
+    }
+
+    /* a long line (well past any fixed fgets buffer this replaces): comes
+       back whole, not cut */
+    {
+        std::string big(5000, 'x');
+        std::string content = big + "\nshort\n";
+        write_raw("test_io_long.tmp", content.c_str());
+        XppLineReader *r = xpp_line_reader_open("test_io_long.tmp");
+        CHECK(r != NULL);
+        size_t len;
+        const char *l1 = xpp_line_reader_next(r, &len);
+        CHECK(l1 != NULL);
+        CHECK(len == big.size());
+        CHECK(big == l1);
+        CHECK_STR(xpp_line_reader_next(r, &len), "short");
+        xpp_line_reader_close(r);
+        std::remove("test_io_long.tmp");
+    }
+
+    /* attach: reads through a FILE* the caller keeps open and owns --
+       xpp_line_reader_close must not close it */
+    {
+        write_raw("test_io_attach.tmp", "only line\n");
+        FILE *fp = std::fopen("test_io_attach.tmp", "r");
+        CHECK(fp != NULL);
+        XppLineReader *r = xpp_line_reader_attach(fp);
+        size_t len;
+        CHECK_STR(xpp_line_reader_next(r, &len), "only line");
+        xpp_line_reader_close(r);
+        CHECK(std::feof(fp) == 0 || std::fgetc(fp) == EOF); /* fp still usable */
+        std::fclose(fp);
+        std::remove("test_io_attach.tmp");
+    }
+
+    /* token reader: fscanf "%lg"/"%d"/"%s" equivalents, whitespace
+       separated, strtod on the same token agreeing with the double read */
+    {
+        write_raw("test_io_tok.tmp", "  3.5 -7 hello   1e3\n");
+        XppTokenReader *r = xpp_token_reader_open("test_io_tok.tmp");
+        CHECK(r != NULL);
+        double d;
+        int i;
+        char s[16];
+        CHECK(xpp_token_reader_double(r, &d) == 1);
+        CHECK(d == strtod("3.5", NULL));
+        CHECK(xpp_token_reader_int(r, &i) == 1);
+        CHECK(i == -7);
+        CHECK(xpp_token_reader_string(r, s, sizeof s) == 1);
+        CHECK_STR(s, "hello");
+        CHECK(xpp_token_reader_double(r, &d) == 1);
+        CHECK(d == 1e3);
+        CHECK(xpp_token_reader_double(r, &d) == 0); /* end of file */
+        xpp_token_reader_close(r);
+        std::remove("test_io_tok.tmp");
+    }
+
+    /* writer: commit renames the temp file into place, byte for byte */
+    {
+        XppWriter *w = xpp_writer_open("test_io_write.tmp");
+        CHECK(w != NULL);
+        xpp_writer_printf(w, "%d %s\n", 42, "answer");
+        CHECK(xpp_writer_commit(w) == 0);
+        CHECK(read_raw("test_io_write.tmp") == "42 answer\n");
+        std::remove("test_io_write.tmp");
+    }
+
+    /* writer: abandoned (xpp_writer_abort) leaves an existing file
+       completely untouched */
+    {
+        write_raw("test_io_write.tmp", "original\n");
+        XppWriter *w = xpp_writer_open("test_io_write.tmp");
+        CHECK(w != NULL);
+        xpp_writer_printf(w, "clobber");
+        xpp_writer_abort(w);
+        CHECK(read_raw("test_io_write.tmp") == "original\n");
+        std::remove("test_io_write.tmp");
+    }
+
+    /* writer: failed open (no such directory) */
+    CHECK(xpp_writer_open("no/such/directory/file.txt") == NULL);
+
+    /* the C++ RAII wrappers: LineReader over a long/CRLF file, and Writer
+       whose destructor aborts (leaves the file untouched) when not
+       committed, commits when it is */
+    {
+        write_raw("test_io_cpp.tmp", "alpha\r\nbeta\n");
+        xpp::LineReader lr("test_io_cpp.tmp");
+        CHECK(static_cast<bool>(lr));
+        auto l1 = lr.next();
+        CHECK(l1.has_value() && *l1 == "alpha");
+        auto l2 = lr.next();
+        CHECK(l2.has_value() && *l2 == "beta");
+        CHECK(!lr.next().has_value());
+        std::remove("test_io_cpp.tmp");
+    }
+    {
+        write_raw("test_io_cppw.tmp", "kept\n");
+        {
+            xpp::Writer w("test_io_cppw.tmp");
+            CHECK(static_cast<bool>(w));
+            std::fprintf(w.file(), "not committed");
+            /* w destructed here without commit(): aborts */
+        }
+        CHECK(read_raw("test_io_cppw.tmp") == "kept\n");
+
+        xpp::Writer w2("test_io_cppw.tmp");
+        std::fprintf(w2.file(), "replaced\n");
+        CHECK(w2.commit());
+        CHECK(read_raw("test_io_cppw.tmp") == "replaced\n");
+        std::remove("test_io_cppw.tmp");
+    }
 
     TEST_REPORT("test_io");
 }

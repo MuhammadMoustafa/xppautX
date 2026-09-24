@@ -273,6 +273,31 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   build is `-std=c++23`/`gnu++23` for this (present and warning-clean on
   WSL gcc 15 and MinGW gcc 13.2); avoid library parts newer than gcc 13
   ships (e.g. `std::print`) until Windows' MinGW catches up.
+- New code that reads or writes a file (`core/xpp_io.h`, W11 step 3) uses
+  `xpp_line_reader_open`/`_attach` for a whole line of any length (no
+  fixed-buffer cut, no `while(!feof)` reading the last line twice; CR/LF
+  tolerant) and `xpp_token_reader_open`/`_attach` where the file is
+  whitespace-separated numbers read like `fscanf` (`_double`/`_int`
+  return 1/0 like `fscanf`'s own convention; `_string` is the safe,
+  never-overflowing `xpp_strlcpy`-style counterpart of `fscanf "%s"`),
+  over `fopen`/`fgets`/`fscanf`/`feof`. `_attach` wraps a `FILE *` the
+  caller already owns (never closes it) for a helper that takes a plain
+  `FILE *` from elsewhere, such as `lunch-new.cpp`'s `io_int`/`io_double`
+  or `diagram.cpp`'s `load_diagram`; `_open` owns a path it opens itself.
+  `xpp_writer_open(path)` opens a temp file next to `path` ("w" text
+  mode) for the writing to go through its `xpp_writer_file()` FILE* with
+  ordinary `fprintf` (or `xpp_writer_printf`); `xpp_writer_commit` closes
+  it and renames it into place (`xpp_files_replace_file`, the same
+  cross-platform rename `core/xpp_files.cpp`'s own uploads use, not
+  duplicated here), logging an ERROR and leaving the original file
+  untouched on failure; `xpp_writer_abort` discards the temp file without
+  touching `path` at all. C++ code may use the RAII wrappers
+  `xpp::LineReader`/`xpp::Writer` instead of the C API's explicit
+  `_close`/`_commit`/`_abort`. Not every `fopen` in the core goes through
+  this yet: a write via the shared `open_write_file` (`browse_data.cpp`,
+  used well beyond W7b's files) still opens its target directly, since
+  giving it temp-then-rename needs every caller's `fclose` to become a
+  commit too, across files outside a single task's scope.
 
 ## C and C++
 

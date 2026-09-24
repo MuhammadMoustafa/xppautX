@@ -457,6 +457,8 @@ int xpp_files_name_ok(const char *name)
     return !device_name(name);
 }
 
+int xpp_files_replace_file(const char *from, const char *to) { return replace_file(from, to); }
+
 const char *xpp_files_status_text(int status)
 {
     switch (status) {
