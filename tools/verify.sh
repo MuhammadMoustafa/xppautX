@@ -54,6 +54,15 @@ if ! python3 tools/utf8check.py; then
   echo "ENCODING CHECK FAILED"
   exit 1
 fi
+# a script committed from Windows loses its executable bit: CI's checkout
+# then cannot run it ("Permission denied"), which a Windows or WSL run on
+# /mnt/c never shows
+noexec=$(git ls-files -s -- '*.sh' 2>/dev/null | awk '$1 != "100755" {print $4}')
+if [ -n "$noexec" ]; then
+  echo "scripts not executable in git (git update-index --chmod=+x):" $noexec
+  echo "SCRIPT MODE CHECK FAILED"
+  exit 1
+fi
 if ! sh tools/stdoutcheck.sh; then
   echo "STDOUT CHECK FAILED"
   exit 1
