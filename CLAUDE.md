@@ -117,7 +117,9 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   `TwoChoice`, `ALINE`, `set_color`, ...); those are dispatchers in
   `core/xpp_ui.c` with headless defaults. `core/ui_json.cpp` installs its
   own table before it serves a session. Adding a UI call from core: add a
-  field, a headless default, a dispatcher, and a `j_` entry in ui_json.cpp.
+  field, a headless default, a dispatcher, and a `j_` function in the
+  `core/json_*.cpp` file of its responsibility (declared in
+  `core/ui_json_internal.h`) with its entry in ui_json.cpp's `make_json_ui`.
 - `core/xpp_globals.[ch]` holds shared state that used to live in main.c
   and the other X11 files (removed, issue #20). `core/xpp_util.c`,
   `core/browse_data.c`, `core/colormap.c`, `core/menus.c` hold pure code
@@ -133,7 +135,18 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
 - `core/xpp_batch.c` is the headless entry point; `xpp_load_model()` there
   is the start shared with the server.
 - `core/ui_json.cpp` + `core/xppautx_main.c` (`SERVER_SOURCES`) are the JSON
-  protocol front end (docs/protocol.md). When adding an `XppUi` field, give
+  protocol front end (docs/protocol.md). ui_json.cpp holds the `XppUi`
+  table, the command dispatch (`handle_line`), the input classifier,
+  script replay, install and hello; the rest is split by responsibility
+  into `core/json_io.cpp` (output lines, input lines, the JSON reader),
+  `json_prompts.cpp` (asks, messages, long loops), `json_state.cpp` (the
+  state event, the data browser, value edits, the data subscription),
+  `json_windows.cpp` (plot windows, pixels, kinescope, array plot),
+  `json_auto.cpp` (the AUTO window, its diagram data and settings) and
+  `json_ani.cpp` (the animation window), which share
+  `core/ui_json_internal.h` (C++ only, namespace `xpp::json`; shared
+  mutable state in one struct, `xpp::json::session`; file-local state in
+  anonymous namespaces). When adding an `XppUi` field, give
   it a `j_` implementation too, and extend `tools/servercheck.py` for new
   protocol behaviour; `tools/verify.sh` runs it. Every command ends with
   `state` then `idle`; a client waits for `idle`.
@@ -176,7 +189,7 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   protocol's `file` command both go through `core/xpp_files.cpp`, which
   owns the name rules (base names only, no links) and the temp-then-rename
   write; docs/protocol.md "Files" is the contract. The
-  protocol lines go through `out_line()` in ui_json.cpp, which switches to
+  protocol lines go through `out_line()` in json_io.cpp, which switches to
   xpp_http.cpp in web mode. Input never touches the core thread: reader
   threads (xpp_http.cpp, or the --server stdin reader) push lines into
   `core/xpp_inbox.cpp` (control and normal queues) and `read_line()` takes
@@ -206,12 +219,13 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   for the handful of lines that are legitimately direct (the `-version`
   and `--version` text, the `XPP:` address lines).
 - The X11 front end was removed (issue #20, task W8); new UI work goes
-  into ui_json.cpp and `web2/` (the data-level front end: the core sends
-  numbers, e.g. the `series` and `plots` events
+  into the JSON front end (ui_json.cpp, json_*.cpp) and `web2/` (the
+  data-level front end: the core sends numbers, e.g. the `series` and
+  `plots` events
   after `{"cmd":"data","events":["series","plots"]}`, built in
   `core/plot_data.cpp`, and the page draws them; `nullclines` and `dfield`
   come from `core/phase_data.cpp`, which records per window what
-  nullcline.c and the integrator (Flow) draw and forgets it when ui_json.cpp
+  nullcline.c and the integrator (Flow) draw and forgets it when json_windows.cpp
   blanks the window; `marks` likewise from `core/marks_data.cpp`: Sing pts'
   equilibrium symbols (graphics.c eq_symb), Text,etc's labels and objects
   (grobs.cpp draw_label) and frozen curves (graf_par.c) by their slot; the animation's frames, `ani` `frame`, come from
@@ -219,7 +233,7 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   `.ani`'s unit coordinates;
   `autoinfo`, AUTO's info strip and stability circle,
   from `core/auto_data.cpp`, which auto_nox.c tells what it draws there;
-  the AUTO diagram's points, `diagram`, from ui_json.cpp's `auto_diagram`).
+  the AUTO diagram's points, `diagram`, from json_auto.cpp's `j_auto_diagram`).
   Protocol 2 (T18) has no pixel drawing: the classic page's `draw` ops,
   `palette` and `size` went with it. The `XppUi` pixel primitives
   (`draw_*`, `set_color`, `auto_line` ..., `ani_line` ...) stay as seams

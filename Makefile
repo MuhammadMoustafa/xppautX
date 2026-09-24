@@ -91,7 +91,7 @@ obj = $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%.o,$(basename $(1)))
 link = $(if $(filter %.cpp,$(1)),$(CXX),$(CC))
 
 # sbml2xpp.c needs libsbml and is not part of the upstream build.
-SERVER_SOURCES := $(call src, ui_json xppautx_main xpp_http xpp_inbox xpp_window)
+SERVER_SOURCES := $(call src, ui_json json_io json_prompts json_state json_windows json_auto json_ani xppautx_main xpp_http xpp_inbox xpp_window)
 CORE_SOURCES := $(filter-out $(SERVER_SOURCES) $(SRCDIR)/sbml2xpp.%,$(ALL_SOURCES))
 # the page xppautX serves, compiled in: web2 (web2/dist, built from
 # web2/src and committed: web2/build.mjs)

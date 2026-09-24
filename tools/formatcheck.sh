@@ -7,10 +7,10 @@
 # never do. tools/verify.sh runs this. Usage: tools/formatcheck.sh
 cd "$(dirname "$0")/.." || exit 1
 
-# ui_json.cpp and xpp_http.cpp are excluded: T18/W7 convert them
-# separately (CLAUDE.md). xpp_io.cpp is the module itself -- the one
-# place allowed to call the C library's vsnprintf/memcpy directly.
-EXCLUDE="core/ui_json.cpp core/xpp_http.cpp core/xpp_io.cpp"
+# xpp_http.cpp is excluded: W7 converts it separately (CLAUDE.md).
+# xpp_io.cpp is the module itself -- the one place allowed to call the C
+# library's vsnprintf/memcpy directly.
+EXCLUDE="core/xpp_http.cpp core/xpp_io.cpp"
 
 # Comments are stripped (see strip_comments below) before matching, so a
 # sprintf/strcpy left inside dead/commented-out code does not need an

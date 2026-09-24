@@ -3,7 +3,8 @@
 `xppautX --server file.ode [xppaut options]` loads the model the way `xppaut`
 does and then talks line-delimited JSON: one object per line, UTF-8, on
 stdin (commands, `"cmd"`) and stdout (events, `"ev"`). stderr carries the
-core's own log output. The implementation is `core/ui_json.cpp`;
+core's own log output. The implementation is `core/ui_json.cpp` and the
+`core/json_*.cpp` files it is split into (`core/ui_json_internal.h`);
 `tools/servercheck.py` is a working client, the browser page (`web2/`,
 served by `xppautX` itself) a full one. This is protocol 2: see "Removed in
 protocol 2" at the end for what protocol 1 had besides.
