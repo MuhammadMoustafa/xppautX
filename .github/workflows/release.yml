@@ -125,8 +125,9 @@ jobs:
           body: |
             xppautX for Linux, Windows and macOS: one program, no X11.
 
-            `xppautX model.ode` opens the front end in your browser and needs
-            nothing else installed; `-silent` runs it headlessly and writes
+            `xppautX model.ode` opens the front end in a window of its own on
+            Windows (in your browser on Linux and macOS, or with `--browser`)
+            and needs nothing else installed; `-silent` runs it headlessly and writes
             output.dat, as upstream xppaut does; `--server` speaks the JSON
             protocol on stdin/stdout. The macOS and Windows binaries are not
             signed, so the system asks you to allow them the first time.

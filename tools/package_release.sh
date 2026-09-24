@@ -33,7 +33,9 @@ xppautX $version ($platform)
 One program, and like xppaut it takes what to do from the command line:
 
   xppautX MODEL.ode            the front end in a window of its own (the
-                               system's web view; nothing else needed)
+                               system's web view; nothing else needed) in
+                               the Windows build, in your browser in the
+                               Linux and macOS builds
   xppautX --browser MODEL.ode  the same page in your browser, its address
                                printed
   xppautX MODEL.ode -silent    a headless run that writes output.dat, the
