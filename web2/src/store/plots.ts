@@ -68,7 +68,8 @@ export const initialPlots: PlotsState = {windows: [], active: 1};
 
 const HISTORY_KEEP = 50;
 
-function blank(win: number): PlotWindow {
+/** a window the store has not heard anything about yet (exported for tests) */
+export function blank(win: number): PlotWindow {
   return {
     win, info: null, series: null, nullclines: null, dfield: null, marks: null, viewport: HOME, viewportHistory: [],
     view3d: null, history: emptyHistory, showRuns: true,

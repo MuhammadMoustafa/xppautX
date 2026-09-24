@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {PlotWindowInfo, SeriesEvent} from '../src/protocol/types';
 import {initialKinescope, reduceKinescope, snapshotWindow} from '../src/store/kinescope';
-import {windowOf} from '../src/store/plots';
+import {blank, windowOf} from '../src/store/plots';
 import {initialState, reduce, type AppState} from '../src/store/state';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
@@ -35,8 +35,7 @@ function oneCapturedFrame(v0: number): AppState {
 }
 
 test('reduceKinescope: capture appends, reset empties, show/playing update the player', () => {
-  const frame = snapshotWindow({win: 1, info: null, series: null, nullclines: null, dfield: null, marks: null,
-    viewport: {x: null, y: null}, viewportHistory: [], view3d: null});
+  const frame = snapshotWindow(blank(1));
   let s = reduceKinescope(initialKinescope, {type: 'capture', frame});
   assert.equal(s.frames.length, 1);
   s = reduceKinescope(s, {type: 'capture', frame});
@@ -89,8 +88,7 @@ test('a capture for a window the store does not know is left out (nothing to sna
 });
 
 test('snapshotWindow carries exactly what the chart draws from, not the viewport history', () => {
-  const w = {win: 3, info: info(3), series: null, nullclines: null, dfield: null, marks: null,
-    viewport: {x: {min: 0, max: 1}, y: null}, viewportHistory: [{x: null, y: null}], view3d: null};
+  const w = {...blank(3), info: info(3), viewport: {x: {min: 0, max: 1}, y: null}, viewportHistory: [{x: null, y: null}]};
   const f = snapshotWindow(w);
   assert.deepEqual(f, {win: 3, info: w.info, series: null, nullclines: null, dfield: null, marks: null, viewport: w.viewport});
   assert.ok(!('viewportHistory' in f));
