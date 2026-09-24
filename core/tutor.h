@@ -11,7 +11,7 @@ start the help topic (e.g. "Press" or "Add") and keep it brief.
 */
 #define N_TUTORIAL 12
 
-char* tutorial[N_TUTORIAL]={"use captital letters on buttons as keyboard shortcuts. Press <n> or <d> now!",
+const char* tutorial[N_TUTORIAL]={"use captital letters on buttons as keyboard shortcuts. Press <n> or <d> now!",
      "use the <Esc> key to close any unwanted menus.",
      "press the <Tab> key to match/limit directory listings in the file browser.",
      "zoom in/out using single clicks and/or dragging regions.",

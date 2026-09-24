@@ -10,6 +10,7 @@
 #include "xpp_globals.h"
 #include "xpp_util.h"
 #include "edit_rhs.h"
+#include "menu.h"
 #include "menus.h"
 #include "menudrive.h"
 #include "tutor.h"
@@ -47,6 +48,16 @@ extern INTERN_SET intern_set[MAX_INTERN_SET];
 extern char *no_hint[];
 
 int status;
+
+namespace {
+/* err_msg/respond_box/new_int/new_string/two_choice/XppMenu.title (xpp_ui.h,
+   menus.h) take char * and do not write through it; they are the historical
+   C dialog API, shared far beyond this file, so not changed here (CLAUDE.md,
+   "C and C++" -- string literals are const char*, but a literal argument to
+   one of these is only a warning, not the "char *x = literal" this file has
+   none of). str() is the grobs.cpp-precedented cast for passing one. */
+char *str(const char *s) { return const_cast<char *>(s); }
+} // namespace
 
 /* Pop up m and return the index of the chosen item, -1 if none. */
 static int menu_pick(const XppMenu *m, int def)
@@ -94,8 +105,8 @@ void do_tutorial(void)
   int tut = 0;
   xpp_log(XPP_LOG_INFO, "Running tutorial!\n");
   while (1) {
-    char ans = (char)xpp_ui.two_choice("Next", "Done", tutorial[tut], "nd",
-                                       "Did you know you can...");
+    char ans = (char)xpp_ui.two_choice(str("Next"), str("Done"), str(tutorial[tut]), str("nd"),
+                                       str("Did you know you can..."));
     if (ans != 'n') /* 'd', or a front end that cannot ask */
       break;
     tut++;
@@ -111,22 +122,22 @@ void edit_xpprc(void)
   char *ed = getenv("XPPEDITOR");
   char *home = getenv("USERPROFILE");
   if ((ed == NULL) || (strlen(ed) == 0)) {
-    err_msg("Environment variable XPPEDITOR needs to be set.");
+    err_msg(str("Environment variable XPPEDITOR needs to be set."));
     return;
   }
   snprintf(cmd, sizeof(cmd), "start \"\" \"%s\" \"%s\\.xpprc\"", ed, home ? home : ".");
-  if (system(cmd) != 0) err_msg("Unable to start the editor.");
+  if (system(cmd) != 0) err_msg(str("Unable to start the editor."));
 }
 
 void xpp_hlp(void)
 {
   char cmd[600];
   if (getenv("XPPHELP") == NULL) {
-    err_msg("Environment variable XPPHELP undefined.");
+    err_msg(str("Environment variable XPPHELP undefined."));
     return;
   }
   snprintf(cmd, sizeof(cmd), "start \"\" \"%s\"", getenv("XPPHELP"));
-  if (system(cmd) != 0) err_msg("Unable to open the help.");
+  if (system(cmd) != 0) err_msg(str("Unable to open the help."));
 }
 #else
 void edit_xpprc(void)
@@ -138,7 +149,7 @@ void edit_xpprc(void)
   char *ed = getenv("XPPEDITOR");
 
   if ((ed == NULL) || (strlen(ed) == 0)) {
-    err_msg("Environment variable XPPEDITOR needs to be set.");
+    err_msg(str("Environment variable XPPEDITOR needs to be set."));
     return;
   }
   snprintf(editor, sizeof(editor), "%s", ed);
@@ -154,7 +165,7 @@ void edit_xpprc(void)
     return;
   }
   if (child_pid == -1)
-    err_msg("Unable to fork process for editor.");
+    err_msg(str("Unable to fork process for editor."));
 }
 
 void xpp_hlp(void)
@@ -162,11 +173,11 @@ void xpp_hlp(void)
   char cmd[256];
 
   if (getenv("XPPHELP") == NULL) {
-    err_msg("Environment variable XPPHELP undefined.");
+    err_msg(str("Environment variable XPPHELP undefined."));
     return;
   }
   if (getenv("XPPBROWSER") == NULL) {
-    err_msg("Environment variable XPPBROWSER undefined.");
+    err_msg(str("Environment variable XPPBROWSER undefined."));
     return;
   }
   XPP_SPRINTF(cmd, "file:///%s", getenv("XPPHELP"));
@@ -189,20 +200,20 @@ void do_movie_com(int c)
   switch (c) {
   case 0:
     if (xpp_ui.film_clip() == 0)
-      respond_box("Okay", "Out of film!");
+      respond_box(str("Okay"), str("Out of film!"));
     break;
   case 1: reset_film(); break;
   case 2: xpp_ui.movie_play_back(); break;
   case 3:
-    new_int("Number of cycles", &ks_ncycle);
-    new_int("Msec between frames", &ks_speed);
+    new_int(str("Number of cycles"), &ks_ncycle);
+    new_int(str("Msec between frames"), &ks_speed);
     if (ks_speed < 0) ks_speed = 0;
     if (ks_ncycle <= 0) return;
     xpp_ui.movie_auto_play();
     break;
   case 4:
     XPP_SPRINTF(base, "frame");
-    new_string("Base file name", base);
+    new_string(str("Base file name"), base);
     if (strlen(base) > 0)
       xpp_ui.movie_save(base, 2);
     break;
@@ -226,7 +237,7 @@ void get_intern_set(void)
   char *n[MAX_INTERN_SET], key[MAX_INTERN_SET], ch;
   int i, j;
   int count = Nintern_set;
-  XppMenu m = {"param_set", "Param set", 0, NULL, NULL, NULL, -1, 12, -1};
+  XppMenu m = {"param_set", str("Param set"), 0, NULL, NULL, NULL, -1, 12, -1};
   if (count <= 0 || count >= MAX_INTERN_SET) return;
   for (i = 0; i < Nintern_set; i++) {
     n[i] = (char *)xpp_malloc(256);
@@ -240,7 +251,7 @@ void get_intern_set(void)
   for (i = 0; i < count; i++) xpp_free(n[i]);
   j = (int)(ch - 'a');
   if (j < 0 || j >= Nintern_set) {
-    err_msg("Not a valid set");
+    err_msg(str("Not a valid set"));
     return;
   }
   get_graph();
