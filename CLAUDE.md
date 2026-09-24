@@ -18,6 +18,10 @@ when web2 changed. Every 5 merged tasks, and before any push: the full
 web2check, tools/asancheck.sh and the Windows servercheck (CI also runs
 everything on each push). A new request that comes up while a task is
 running gets its own task card rather than growing the running one.
+Pushing closes issues: every GitHub issue whose card or task the pushed
+commits finish is closed right after the push, with a comment naming its
+commits (hash and subject); a card only partly done stays open, with a
+comment on what landed.
 
 Headless smoke test by hand (writes output.dat in cwd, expect 601 rows and
 md5 c281851de59ffd03b2a46428619a0c8f for lecar.ode):
