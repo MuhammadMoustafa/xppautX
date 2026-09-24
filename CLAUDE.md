@@ -198,7 +198,9 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   docs/ui-v2.md has the protocol v2 events and the task list;
   docs/front-end-gaps.md tracks parity. A task that changes the UI
   updates its section in docs/manual/ (the manual, W12), as it does
-  docs/protocol.md.
+  docs/protocol.md. web2 serves the manual as `web2/dist/manual.json`, built from
+  docs/manual/*.md (W12b), so an edit there also needs `npm run build` in
+  web2 and the new dist committed (`npm run check`, in CI, fails otherwise).
 - Pop-up menu arrays in menus.c (`main_menu` etc.) start with the title:
   item i is `main_menu[i+1]` with key `main_menu_keys[i]`.
 
