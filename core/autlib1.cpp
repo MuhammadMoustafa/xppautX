@@ -1,10 +1,11 @@
+#include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
 #include "auto_c.h"
+#include "autevd.h" /* send_eigen(), send_mult() */
 #include "xAuto.h"
-#include "xpp_ui.h" /* err_msg() */
+#include "xpp_ui.h" /* err_msg(), byeauto_() */
 #include "auto_nox.h" /* auto_screen_col() */
 #include "xpp_job.h" /* xppautX: cancel */
 #include "auto_stop.h" /* xppautX: why a branch ended (T23) */
@@ -44,9 +45,6 @@ struct {
 FILE *fp8;
 int fp8_is_open=0;
 extern char fort8[200],fort3[200];
-void send_eigen();
-void send_mult();
-int byeauto_();
 /* xppautX: cancel: 1 while lcspae/lcspbv locate a special point. Their
    solves run to the end, as stdrbv's does (xpp_job.h): contae/contbv have
    already made the new, unstored point the one a cancelled solve returns
@@ -4420,37 +4418,38 @@ newlab(iap_type *iap, rap_type *rap)
   mbr = 0;
   mlab = 0;
   rewind(fp3);
+  xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
 
  L1:
-  if (fscanf(fp3,"%ld",&ibrs) != 1) {
+  if (!tr.read(ibrs)) {
     goto L2;
   }
-  if (fscanf(fp3,"%ld",&ntotrs) != 1) {
+  if (!tr.read(ntotrs)) {
     goto L2;
   }
-  if (fscanf(fp3,"%ld",&itprs) != 1) {
+  if (!tr.read(itprs)) {
     goto L2;
   }
-  if (fscanf(fp3,"%ld",&labrs) != 1) {
+  if (!tr.read(labrs)) {
     goto L2;
   }
-  if (fscanf(fp3,"%ld",&nfprs) != 1) {
+  if (!tr.read(nfprs)) {
     goto L2;
   }
-  if (fscanf(fp3,"%ld",&iswrs) != 1) {
+  if (!tr.read(iswrs)) {
     goto L2;
   }
-  if (fscanf(fp3,"%ld",&ntplrs) != 1) {
+  if (!tr.read(ntplrs)) {
     goto L2;
   }
-  if (fscanf(fp3,"%ld",&nars) != 1) {
+  if (!tr.read(nars)) {
     goto L2;
   }
-  if (fscanf(fp3,"%ld",&nskip) != 1) {
+  if (!tr.read(nskip)) {
     goto L2;
   }
   /*go to the end of the line*/
-  while(fgetc(fp3)!='\n');
+  tr.skip_line();
 
   if (ibrs > mbr) {
     mbr = ibrs;
@@ -4499,40 +4498,41 @@ findlb(iap_type *iap, const rap_type *rap,
 
   *found = FALSE_;
   rewind(fp3);
+  xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
   isw = iap->isw;
 
   while(1) {
     /* where this label line starts: readlb() reads it again from here */
     line_start = ftell(fp3);
-    if (fscanf(fp3,"%ld",&ibr) != 1) {
+    if (!tr.read(ibr)) {
       break;
     }
-    if (fscanf(fp3,"%ld",&ntotrs) != 1) {
+    if (!tr.read(ntotrs)) {
       break;
     }
-    if (fscanf(fp3,"%ld",&itp) != 1) {
+    if (!tr.read(itp)) {
       break;
     }
-    if (fscanf(fp3,"%ld",&labrs) != 1) {
+    if (!tr.read(labrs)) {
       break;
     }
-    if (fscanf(fp3,"%ld",&(*nfpr)) != 1) {
+    if (!tr.read(*nfpr)) {
       break;
     }
-    if (fscanf(fp3,"%ld",&iswrs) != 1) {
+    if (!tr.read(iswrs)) {
       break;
     }
-    if (fscanf(fp3,"%ld",&ntplrs) != 1) {
+    if (!tr.read(ntplrs)) {
       break;
     }
-    if (fscanf(fp3,"%ld",&nars) != 1) {
+    if (!tr.read(nars)) {
       break;
     }
-    if (fscanf(fp3,"%ld",&nskip) != 1) {
+    if (!tr.read(nskip)) {
       break;
     }
     /*go to the end of the line*/
-    while(fgetc(fp3)!='\n');
+    tr.skip_line();
     iap->itp = itp;
     iap->ibr = ibr;
     if (labrs == irs) {
@@ -4582,29 +4582,30 @@ readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par)
      fail; still, bail out before ndim (read from nar) or nparr can be
      used as a garbage loop bound or array size if one ever does. */
 
-  if (fscanf(fp3,"%ld",&ibrr) != 1) return 1;
-  if (fscanf(fp3,"%ld",&ntotr) != 1) return 1;
-  if (fscanf(fp3,"%ld",&itpr) != 1) return 1;
-  if (fscanf(fp3,"%ld",&labr) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nfprr) != 1) return 1;
-  if (fscanf(fp3,"%ld",&iswr) != 1) return 1;
-  if (fscanf(fp3,"%ld",&ntplrs) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nar) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nskipr) != 1) return 1;
-  if (fscanf(fp3,"%ld",&n1) != 1) return 1;
-  if (fscanf(fp3,"%ld",&n2) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nparr) != 1) return 1;
+  xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
+  if (!tr.read(ibrr)) return 1;
+  if (!tr.read(ntotr)) return 1;
+  if (!tr.read(itpr)) return 1;
+  if (!tr.read(labr)) return 1;
+  if (!tr.read(nfprr)) return 1;
+  if (!tr.read(iswr)) return 1;
+  if (!tr.read(ntplrs)) return 1;
+  if (!tr.read(nar)) return 1;
+  if (!tr.read(nskipr)) return 1;
+  if (!tr.read(n1)) return 1;
+  if (!tr.read(n2)) return 1;
+  if (!tr.read(nparr)) return 1;
   ndim = nar - 1;
-  if (fscanf(fp3,"%le",&t) != 1) return 1;
+  if (!tr.read(t)) return 1;
   for (i = 0; i < ndim; ++i) {
-    if (fscanf(fp3,"%le",&u[i]) != 1) return 1;
+    if (!tr.read(u[i])) return 1;
   }
   if (nparr > NPARX) {
     nparr = NPARX;
     xpp_log_auto("Warning : NPARX too small for restart data :\n restart PAR(i) skipped for i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
-    if (fscanf(fp3,"%le",&par[i]) != 1) return 1;
+    if (!tr.read(par[i])) return 1;
   }
 
   return 0;
@@ -4624,18 +4625,13 @@ skip3(integer *nskip, logical *eof3)
 
 
   *eof3 = FALSE_;
+  xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
   for (i = 0; i < *nskip; ++i) {
-    /* NOTE from Randy:  I am not 100% happy with this.  I am 
+    /* NOTE from Randy:  I am not 100% happy with this.  I am
        not sure if this properly simulates the Fortran behavior */
-    while(1) {
-      int tmp = fgetc(fp3);
-      if(tmp==EOF) {
-	*eof3 = TRUE_;
-	return 0;
-      }
-      if((char)tmp=='\n') {
-	break;
-      }
+    if (!tr.skip_line()) { /* end of file before the line's \n */
+      *eof3 = TRUE_;
+      return 0;
     }
   }
   return 0;
@@ -5872,15 +5868,16 @@ rsptbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
        allocations below from whatever was left on the stack. */
     logical fort8_ok = TRUE_;
     findlb(iap, rap, iap->irs, &junk, &junk);
+    xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
     for (i = 0; i < 9; ++i) {
-      if (fscanf(fp3,"%ld",&junk) != 1) {
+      if (!tr.read(junk)) {
 	fort8_ok = FALSE_;
 	break;
       }
     }
     if (!fort8_ok ||
-	fscanf(fp3,"%ld",&ntst_fort8) != 1 ||
-	fscanf(fp3,"%ld",&ncol_fort8) != 1) {
+	!tr.read(ntst_fort8) ||
+	!tr.read(ncol_fort8)) {
       ntst_fort8 = iap->ntst;
       ncol_fort8 = iap->ncol;
     }
@@ -6041,18 +6038,19 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
      *ncolrs or nparr can be used as a garbage loop bound or array
      index below. */
   findlb(iap, rap, irs, &nfprs, &found);
-  if (fscanf(fp3,"%ld",&ibr) != 1) return 1;
-  if (fscanf(fp3,"%ld",&ntotrs) != 1) return 1;
-  if (fscanf(fp3,"%ld",&itprs) != 1) return 1;
-  if (fscanf(fp3,"%ld",&lab) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nfprs) != 1) return 1;
-  if (fscanf(fp3,"%ld",&iswrs) != 1) return 1;
-  if (fscanf(fp3,"%ld",&ntplrs) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nars) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nskip) != 1) return 1;
-  if (fscanf(fp3,"%ld",&(*ntsrs)) != 1) return 1;
-  if (fscanf(fp3,"%ld",&(*ncolrs)) != 1) return 1;
-  if (fscanf(fp3,"%ld",&nparr) != 1) return 1;
+  xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
+  if (!tr.read(ibr)) return 1;
+  if (!tr.read(ntotrs)) return 1;
+  if (!tr.read(itprs)) return 1;
+  if (!tr.read(lab)) return 1;
+  if (!tr.read(nfprs)) return 1;
+  if (!tr.read(iswrs)) return 1;
+  if (!tr.read(ntplrs)) return 1;
+  if (!tr.read(nars)) return 1;
+  if (!tr.read(nskip)) return 1;
+  if (!tr.read(*ntsrs)) return 1;
+  if (!tr.read(*ncolrs)) return 1;
+  if (!tr.read(nparr)) return 1;
   iap->ibr = ibr;
   iap->lab = lab;
 
@@ -6069,12 +6067,12 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     for (i = 0; i < *ncolrs; ++i) {
       k1 = i * ndim;
       k2 = k1 + ndimrd - 1;
-      if (fscanf(fp3,"%le",&temp[i]) != 1) return 1;
+      if (!tr.read(temp[i])) return 1;
       for (k = k1; k <= k2; ++k) {
-	if (fscanf(fp3,"%lf",&ARRAY2D(ups, j, k)) != 1) return 1;
+	if (!tr.read(ARRAY2D(ups, j, k))) return 1;
       }
       /*go to the end of the line*/
-      while(fgetc(fp3)!='\n');
+      tr.skip_line();
 	    
       if (nskip1 > 0) {
 	skip3(&nskip1, &eof3);
@@ -6082,21 +6080,21 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     }
     tm[j] = temp[0];
   }
-  if (fscanf(fp3,"%le",&tm[*ntsrs]) != 1) return 1;
+  if (!tr.read(tm[*ntsrs])) return 1;
   for (k = 0; k < ndimrd; ++k) {
-    if (fscanf(fp3,"%le",&ARRAY2D(ups, *ntsrs, k)) != 1) return 1;
+    if (!tr.read(ARRAY2D(ups, *ntsrs, k))) return 1;
   }
   /*go to the end of the line*/
-  while(fgetc(fp3)!='\n');
+  tr.skip_line();
   if (nskip1 > 0) {
     skip3(&nskip1, &eof3);
   }
 
   for (i = 0; i < nfprs; ++i) {
-    if (fscanf(fp3,"%ld",&icprs[i]) != 1) return 1;
+    if (!tr.read(icprs[i])) return 1;
   }
   for (i = 0; i < nfprs; ++i) {
-    if (fscanf(fp3,"%le",&rldot[i]) != 1) return 1;
+    if (!tr.read(rldot[i])) return 1;
   }
 
   /* Read U-dot (deriv. with respect to arclength along solution branch). */
@@ -6106,20 +6104,20 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
       k1 = i * ndim;
       k2 = k1 + ndimrd - 1;
       for (k = k1; k <= k2; ++k) {
-	if (fscanf(fp3,"%le",&ARRAY2D(udotps, j, k)) != 1) return 1;
+	if (!tr.read(ARRAY2D(udotps, j, k))) return 1;
       }
       /*go to the end of the line*/
-      while(fgetc(fp3)!='\n');
+      tr.skip_line();
       if (nskip2 > 0) {
 	skip3(&nskip2, &eof3);
       }
     }
   }
   for (k = 0; k < ndimrd; ++k) {
-    if (fscanf(fp3,"%le",&ARRAY2D(udotps, *ntsrs, k)) != 1) return 1;
+    if (!tr.read(ARRAY2D(udotps, *ntsrs, k))) return 1;
   }
   /*go to the end of the line*/
-  while(fgetc(fp3)!='\n');
+  tr.skip_line();
   if (nskip2 > 0) {
     skip3(&nskip2, &eof3);
   }
@@ -6131,7 +6129,7 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     xpp_log_auto("Warning : NPARX too small for restart data :\n restart PAR(i) skipped for i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
-    if (fscanf(fp3,"%le",&par[i]) != 1) return 1;
+    if (!tr.read(par[i])) return 1;
   }
   for (i = 0; i < nfpr; ++i) {
     rlcur[i] = par[icp[i]];
