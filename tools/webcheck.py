@@ -18,7 +18,7 @@ proc = subprocess.Popen([os.path.abspath(args.bin), '--no-open', '--port', '0', 
 # --verbose: core/xpp_log.h is quiet by default now, and this script's "what
 # xppaut printed reaches the page" check below wants the startup banner/
 # parser-stats chatter that used to always print, to exercise the log ->
-# page pipeline (xpp_http.cpp log thread -> the "log" event -> web/xpp-client.js).
+# page pipeline (xpp_http.cpp log thread -> the "log" event -> the page's log).
 failures = 0
 
 
@@ -67,15 +67,13 @@ c.request('GET', '/inter-greek.woff2')
 r = c.getresponse()
 check('and the font\'s Greek subset (T8: symbol-font labels as Greek text)',
       r.status == 200 and r.getheader('Content-Type') == 'font/woff2' and len(r.read()) > 10000)
-status, body = get('/v1/?t=' + token)
-check('serves the classic page at /v1/', status == 200 and 'xpp-client.js' in body)
-status, body = get('/v1/xpp-client.js')
-check('serves the classic client script', status == 200 and 'XppClient' in body)
-c = http.client.HTTPConnection('127.0.0.1', port, timeout=10)
-c.request('GET', '/v2/?t=' + token)
-r = c.getresponse()
-r.read()
-check('redirects the old /v2/ path to /', r.status == 302 and r.getheader('Location', '').startswith('/?'))
+for old in ('/v1/', '/v2/'):  # the classic page's path (removed at T18) and web2's before T17
+    c = http.client.HTTPConnection('127.0.0.1', port, timeout=10)
+    c.request('GET', old + '?t=' + token)
+    r = c.getresponse()
+    r.read()
+    check('redirects the old ' + old + ' path to /', r.status == 302 and r.getheader('Location', '').startswith('/?'))
+check('serves no classic page script any more', get('/v1/xpp-client.js')[0] in (302, 404) and get('/xpp-client.js')[0] == 404)
 check('refuses events without the token', get('/events?t=wrong')[0] == 403)
 check('refuses commands without the token', post({'cmd': 'state'}, 'wrong') == 403)
 

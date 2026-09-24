@@ -6,7 +6,7 @@
 
    node build.mjs           build dist/
    node build.mjs --check   exit 1 when dist/ is not what src/ builds (CI)
-   node build.mjs --watch   rebuild on every change (with node web/serve.js)
+   node build.mjs --watch   rebuild on every change (then make xppautx embeds it)
    node build.mjs --test    run the unit tests in test/ */
 import * as esbuild from 'esbuild';
 import {spawnSync} from 'node:child_process';

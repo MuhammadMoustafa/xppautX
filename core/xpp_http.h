@@ -9,7 +9,7 @@ extern "C" {
 /* The browser front end without Node: a small HTTP server inside
    xppautX (xpp_http.cpp). The page and its script are compiled in
    (web_assets.c); events reach the page by Server-Sent Events and commands
-   come back by POST, like web/serve.js. Only 127.0.0.1 is served, and the
+   come back by POST. Only 127.0.0.1 is served, and the
    event and command URLs need the random token printed with the address.
 
    xpp_http_start redirects stdout and stderr (what xppaut prints) into the

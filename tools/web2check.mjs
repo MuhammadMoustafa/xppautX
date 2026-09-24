@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-/* State-level check of the front end (web2/, served at /; the classic
-   page is legacy, at /v1/): drives a headless Chrome or Edge through real
+/* State-level check of the front end (web2/, served at /): drives a headless Chrome or Edge through real
    key presses, mouse and touch events
    and asserts what the page's store and plot hold (window.__xpp), never
    pixels. A desktop session (integrate from the keyboard, the plotted

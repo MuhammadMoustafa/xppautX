@@ -15,8 +15,7 @@ cd "$(dirname "$0")/.." || exit 1
 # here.
 ALLOW="core/comline.c|XPPAUT Version %g.%g|the -version flag's own text, like --help
 core/xppautx_main.c|printf(\"xppautX %s\\n\", XPPAUTX_VERSION)|--version text the VS Code extension reads
-core/xpp_http.cpp|printf(\"XPP: %s\\n\", url)|the XPP: address line xppautX prints at start
-core/xpp_http.cpp|XPP (classic interface, legacy)|the classic page's address line xppautX prints at start (until T18)"
+core/xpp_http.cpp|printf(\"XPP: %s\\n\", url)|the XPP: address line xppautX prints at start"
 
 PATTERN='(^|[^a-zA-Z_])(printf|puts|putchar|vprintf)[ \t]*\(|v?f(printf|puts|putc|write)[ \t]*\((stdout|stderr)|std::(cout|cerr)'
 
