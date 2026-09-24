@@ -6,7 +6,12 @@
 # (xdg-open, or open on macOS, first on PATH) that writes down what it was
 # given, so no browser starts. The window itself needs a display and a
 # person: docs/manual/01-introduction.md "Starting it" has the manual
-# steps. tools/verify.sh runs this. Usage: tools/modecheck.sh [./xppautX]
+# steps. On Linux with the window (W13e): xppautX links neither GTK nor
+# WebKitGTK (its embedded library does), a failed load of that library
+# (XPP_WINDOW_FAIL_LOAD=1, as if WebKitGTK were missing) says what to
+# install and opens the browser, and with no display the real library
+# loads, finds no display and opens the browser too.
+# tools/verify.sh runs this. Usage: tools/modecheck.sh [./xppautX]
 cd "$(dirname "$0")/.." || exit 1
 BIN=$(pwd)/${1:-xppautX}
 fail=0
@@ -19,13 +24,18 @@ for flag in --browser --web --no-open --server --script --port --verbose --debug
   case "$help" in *" $flag"*) ;; *) missing="$missing $flag" ;; esac
 done
 if [ -z "$missing" ]; then pass "--help lists the modes and options"; else bad "--help lists$missing"; fi
+linux_window=0
 if [ "$(uname -s)" = Linux ]; then
   if pkg-config --exists webkit2gtk-4.1 gtk+-3.0 2>/dev/null && [ "${WINDOW:-1}" != 0 ]; then
     want="a window of its own"
+    linux_window=1
   else
     want="has no window of its own"
   fi
   case "$help" in *"$want"*) pass "--help says: $want" ;; *) bad "--help says: $want" ;; esac
+  # the one binary starts on a Linux without GTK or WebKitGTK
+  needed=$(readelf -d "$BIN" 2>/dev/null | grep NEEDED | grep -Ei 'gtk|webkit|gdk|glib|gobject|soup')
+  if [ -z "$needed" ]; then pass "xppautX needs no GTK or WebKitGTK to start"; else bad "xppautX NEEDED: $needed"; fi
 fi
 
 tmp=$(mktemp -d) || exit 1
@@ -37,10 +47,10 @@ for opener in xdg-open open; do
 done
 cp examples/ode/lecar.ode "$tmp/"
 
-# start xppautX with $@ in $tmp, wait for its XPP: line (at most 10 s)
+# start xppautX with $@ in $tmp (and env's $ENVS), wait for its XPP: line (at most 10 s)
 start() {
   rm -f "$tmp/out" "$tmp/opened"
-  ( cd "$tmp" && exec env -u WSL_DISTRO_NAME PATH="$tmp/bin:$PATH" "$BIN" "$@" lecar.ode > out 2>&1 ) &
+  ( cd "$tmp" && exec env -u WSL_DISTRO_NAME $ENVS PATH="$tmp/bin:$PATH" "$BIN" "$@" lecar.ode > out 2>&1 ) &
   pid=$!
   i=0
   while [ $i -lt 100 ] && ! grep -q '^XPP: http' "$tmp/out" 2>/dev/null; do
@@ -75,6 +85,37 @@ case "$url" in
 esac
 if [ -e "$tmp/opened" ]; then bad "--no-open opens nothing"; else pass "--no-open opens nothing"; fi
 stop
+
+if [ $linux_window -eq 1 ]; then
+  # the window's library cannot load: the WARN names what to install, and
+  # the browser opens instead (the stand-in opener)
+  ENVS="XPP_WINDOW_FAIL_LOAD=1" start --port 0
+  sleep 1
+  if grep -q 'the window needs WebKitGTK, which is not installed (libwebkit2gtk-4.1.so.0 not found)' "$tmp/out" &&
+    grep -q 'Using the browser instead' "$tmp/out"; then
+    pass "no WebKitGTK: says what to install ($(sed -n 's/.*install it with: \(.*\)\. Using.*/\1/p' "$tmp/out"))"
+  else
+    bad "no WebKitGTK: says what to install: $(head -c 300 "$tmp/out")"
+  fi
+  if [ -n "$url" ] && [ "$(head -1 "$tmp/opened" 2>/dev/null)" = "$url" ]; then
+    pass "no WebKitGTK: opens the browser"
+  else
+    bad "no WebKitGTK: opens the browser (opened: $(cat "$tmp/opened" 2>/dev/null))"
+  fi
+  stop
+  # the library itself loads (memfd, dlopen, its table); no display (GTK
+  # would find a Wayland socket by its default name: X11 only) the browser
+  ENVS="-u DISPLAY -u WAYLAND_DISPLAY GDK_BACKEND=x11" start --port 0
+  sleep 1
+  if grep -q 'the window cannot open (no web view' "$tmp/out" && ! grep -q 'WebKitGTK' "$tmp/out" &&
+    [ -n "$url" ] && [ "$(head -1 "$tmp/opened" 2>/dev/null)" = "$url" ]; then
+    pass "no display: the window's library loads, then the browser opens"
+  else
+    bad "no display: the window's library loads, then the browser opens: $(head -c 300 "$tmp/out")"
+  fi
+  stop
+  ENVS=
+fi
 
 [ $fail -eq 0 ] && echo "modecheck: all passed"
 exit $fail

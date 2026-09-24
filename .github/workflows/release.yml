@@ -43,12 +43,17 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
+      # the window's library is built against WebKitGTK and embedded;
+      # xppautX itself does not need it to start (W13e)
+      - name: WebKitGTK for the desktop window
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev
       - name: Build
-        run: make -j4 xppautx
+        run: make -j4 xppautx WINDOW=1
       - name: Check
         run: |
           python3 tools/servercheck.py
           python3 tools/webcheck.py
+          sh tools/modecheck.sh
       - name: Package
         run: tools/package_release.sh linux-x64
       - uses: actions/upload-artifact@v7
@@ -126,8 +131,10 @@ jobs:
             xppautX for Linux, Windows and macOS: one program, no X11.
 
             `xppautX model.ode` opens the front end in a window of its own on
-            Windows (in your browser on Linux and macOS, or with `--browser`)
-            and needs nothing else installed; `-silent` runs it headlessly and writes
+            Windows, and on Linux where WebKitGTK 4.1 is installed (elsewhere
+            it says what to install and uses your browser; macOS uses the
+            browser, as `--browser` does everywhere); nothing else is needed.
+            `-silent` runs it headlessly and writes
             output.dat, as upstream xppaut does; `--server` speaks the JSON
             protocol on stdin/stdout. The macOS and Windows binaries are not
             signed, so the system asks you to allow them the first time.

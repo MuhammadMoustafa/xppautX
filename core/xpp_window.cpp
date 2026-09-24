@@ -6,11 +6,17 @@
    (xpp_http.h, xpp_inbox.h, xpp_log.h), so the platform headers it needs
    for the menu bar (<windows.h> on Windows, GTK on Linux) cannot clash
    with core names: the one exception to "Windows API code lives only in
-   xpp_win32.c", kept behind _WIN32 and out of every header.
+   xpp_win32.c", kept behind _WIN32 and out of every header. It calls them
+   through an XppWindowHost table (xpp_window_plugin.h).
 
    Built with XPP_WINDOW defined when the build has a web view (the
-   Makefile); without it every function says "no window". */
+   Makefile); without it every function says "no window". On Linux it is
+   also built with XPP_WINDOW_PLUGIN, into libxppwindow.so: then its one
+   export is xpp_window_plugin_init, which xpp_window_loader.cpp (in
+   xppautX) calls with the table, and xpp_window.h's functions are the
+   loader's. */
 #include "xpp_window.h"
+#include "xpp_window_plugin.h"
 #include "xpp_http.h"
 #include "xpp_inbox.h"
 #include "xpp_log.h"
@@ -61,6 +67,15 @@ extern "C" const unsigned long xpp_icon_png_len;
 #endif
 
 namespace {
+
+/* the core's functions the window calls */
+#ifdef XPP_WINDOW_PLUGIN
+const XppWindowHost *host; /* the loader's, kept for the process's life */
+#else
+const XppWindowHost host_table = {XPP_WINDOW_HOST_VERSION, xpp_http_url, xpp_http_release, xpp_http_said_bye,
+                                  xpp_inbox_push, xpp_log};
+const XppWindowHost *const host = &host_table;
+#endif
 
 /* what the window shows first: web2 needs room for its panels */
 constexpr int WIDTH = 1280, HEIGHT = 840;
@@ -124,12 +139,12 @@ void window_closed(webview_t w)
     webview_destroy(w);
     if (!by_core) {
         static const char quit[] = "{\"cmd\":\"quit\"}";
-        xpp_http_release();
-        xpp_inbox_push(quit, sizeof quit - 1);
+        host->http_release();
+        host->inbox_push(quit, sizeof quit - 1);
     }
     st->done.set_value();
     std::this_thread::sleep_for(EXIT_GRACE);
-    xpp_log(XPP_LOG_WARN, "xppautX: the session did not end after its window closed; ending it\n");
+    host->log(XPP_LOG_WARN, "xppautX: the session did not end after its window closed; ending it\n");
     std::_Exit(by_core ? 1 : 0);
 }
 
@@ -142,11 +157,11 @@ void on_exit()
     std::unique_lock<std::mutex> lk(st->mu);
     if (st->view == nullptr) {
         lk.unlock();
-        xpp_http_release();
+        host->http_release();
         st->done_f.wait_for(std::chrono::seconds(2));
         return;
     }
-    if (!xpp_http_said_bye()) return;
+    if (!host->http_said_bye()) return;
     st->core_closing = true;
     webview_dispatch(st->view, terminate_cb, nullptr);
     lk.unlock();
@@ -202,7 +217,7 @@ void open_model(HWND owner)
         CloseHandle(pi.hThread);
         CloseHandle(pi.hProcess);
     } else
-        xpp_log(XPP_LOG_ERROR, "xppautX: cannot start a second xppautX (error %lu)\n", GetLastError());
+        host->log(XPP_LOG_ERROR, "xppautX: cannot start a second xppautX (error %lu)\n", GetLastError());
 }
 
 WNDPROC webview_proc; /* the library's own window procedure */
@@ -297,7 +312,7 @@ void open_model(GtkWindow *parent)
     if (!exe || !g_spawn_async(dir, argv, nullptr,
                                static_cast<GSpawnFlags>(G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL),
                                nullptr, nullptr, nullptr, &err)) {
-        xpp_log(XPP_LOG_ERROR, "xppautX: cannot start a second xppautX: %s\n", err ? err->message : "no path");
+        host->log(XPP_LOG_ERROR, "xppautX: cannot start a second xppautX: %s\n", err ? err->message : "no path");
         if (err) g_error_free(err);
     }
     g_free(exe);
@@ -361,7 +376,7 @@ void set_window_icon(GtkWindow *win)
         GdkPixbuf *pix = gdk_pixbuf_loader_get_pixbuf(loader);
         if (pix) gtk_window_set_icon(win, pix);
     } else {
-        xpp_log(XPP_LOG_WARN, "xppautX: window icon: %s\n", err ? err->message : "unknown error");
+        host->log(XPP_LOG_WARN, "xppautX: window icon: %s\n", err ? err->message : "unknown error");
     }
     if (err) g_error_free(err);
     g_object_unref(loader);
@@ -413,7 +428,7 @@ webview_t open_view()
     webview_set_size(w, WIDTH, HEIGHT, WEBVIEW_HINT_NONE);
     add_menus(w);
     /* the token stays out of sight: the web view has no address bar */
-    webview_navigate(w, xpp_http_url());
+    webview_navigate(w, host->http_url());
     return w;
 }
 
@@ -430,11 +445,9 @@ void *session_main(void *)
 }
 #endif
 
-} /* namespace */
-
-int xpp_window_supported(void) { return 1; }
-
-void xpp_window_set_model(const char *path)
+/* xpp_window.h's set_model and run: the library's (XppWindowApi) in the
+   plugin, else the public functions below */
+void set_model(const char *path)
 {
     if (!st || !path) return;
     const char *base = path;
@@ -445,7 +458,7 @@ void xpp_window_set_model(const char *path)
     if (st->view) webview_dispatch(st->view, set_title_cb, nullptr);
 }
 
-int xpp_window_run(void (*session)(void), const char *about)
+int run(void (*session)(void), const char *about)
 {
     try {
         st = new State;
@@ -455,7 +468,7 @@ int xpp_window_run(void (*session)(void), const char *about)
            with the main thread's 8 MB of stack (a new thread gets 512 KB) */
         webview_t w = open_view();
         if (!w) {
-            xpp_log(XPP_LOG_WARN, "%s", NO_VIEW);
+            host->log(XPP_LOG_WARN, "%s", NO_VIEW);
             return 0;
         }
         {
@@ -487,17 +500,35 @@ int xpp_window_run(void (*session)(void), const char *about)
             window_closed(w);
         }).detach();
         if (!up.get()) {
-            xpp_log(XPP_LOG_WARN, "%s", NO_VIEW);
+            host->log(XPP_LOG_WARN, "%s", NO_VIEW);
             return 0;
         }
         std::atexit(on_exit);
 #endif
     } catch (const std::exception &e) {
-        xpp_log(XPP_LOG_WARN, "xppautX: the window cannot open (%s); using the browser instead\n", e.what());
+        host->log(XPP_LOG_WARN, "xppautX: the window cannot open (%s); using the browser instead\n", e.what());
         return 0;
     }
     session();
     return 1;
 }
+
+} /* namespace */
+
+#ifdef XPP_WINDOW_PLUGIN
+extern "C" __attribute__((visibility("default"))) int xpp_window_plugin_init(const XppWindowHost *h,
+                                                                             XppWindowApi *api)
+{
+    if (!h || h->version != XPP_WINDOW_HOST_VERSION || !api) return 0;
+    host = h;
+    api->run = run;
+    api->set_model = set_model;
+    return 1;
+}
+#else
+int xpp_window_supported(void) { return 1; }
+void xpp_window_set_model(const char *path) { set_model(path); }
+int xpp_window_run(void (*session)(void), const char *about) { return run(session, about); }
+#endif
 
 #endif /* XPP_WINDOW */

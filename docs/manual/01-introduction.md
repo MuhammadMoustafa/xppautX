@@ -75,10 +75,16 @@ else (a remote machine through an SSH tunnel, the VS Code extension, a
 test): it prints `XPP: http://127.0.0.1:PORT/?t=TOKEN`, the address with
 the session's token, and opens it. The window never shows that address.
 If the web view cannot start (no WebView2 runtime on Windows, no display
-on Linux), xppautX says so in its log and uses the browser instead. A
-Linux build made without WebKitGTK (`libwebkit2gtk-4.1-dev`) has no
-window at all and always uses the browser; `xppautX --help` says which
-you have.
+on Linux), xppautX says so in its log and uses the browser instead. On
+Linux the window needs WebKitGTK 4.1 installed; without it xppautX still
+starts, says in its log (the terminal and the page's Messages) which
+command installs it on your system (for instance `sudo apt install
+libwebkit2gtk-4.1-0` on Debian and Ubuntu, `sudo dnf install
+webkit2gtk4.1` on Fedora, `sudo pacman -S webkit2gtk-4.1` on Arch,
+`sudo zypper install libwebkit2gtk-4_1-0` on openSUSE) and uses the
+browser; the next start after installing it opens the window. A Linux
+build made without WebKitGTK (`libwebkit2gtk-4.1-dev`) has no window at
+all and always uses the browser; `xppautX --help` says which you have.
 
 To try the window by hand: start `xppautX examples/ode/lecar.ode`; the
 window opens with the xppautX icon and title; Help > Manual and Help >

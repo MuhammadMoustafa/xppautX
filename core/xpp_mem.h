@@ -19,6 +19,9 @@
    allocating call (malloc, calloc, realloc or strdup, counted together)
    fail, to show that a failure is loud and names its site:
        XPP_MEM_FAIL_AT=5 ./xppautX examples/ode/lecar.ode -silent
+   Its companion for the Linux window, XPP_WINDOW_FAIL_LOAD=1, makes the
+   window's library fail to load as if WebKitGTK were missing
+   (xpp_window_loader.cpp; tools/modecheck.sh).
 
    Every core file allocates through these. The exceptions are memory
    that crosses a boundary with a library, which keeps that library's

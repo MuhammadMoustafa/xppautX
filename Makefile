@@ -91,8 +91,10 @@ obj = $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%.o,$(basename $(1)))
 link = $(if $(filter %.cpp,$(1)),$(CXX),$(CC))
 
 # sbml2xpp.c needs libsbml and is not part of the upstream build.
-SERVER_SOURCES := $(call src, ui_json json_io json_prompts json_state json_windows json_auto json_ani xppautx_main xpp_http xpp_inbox xpp_window)
-CORE_SOURCES := $(filter-out $(SERVER_SOURCES) $(SRCDIR)/sbml2xpp.%,$(ALL_SOURCES))
+SERVER_SOURCES := $(call src, ui_json json_io json_prompts json_state json_windows json_auto json_ani xppautx_main xpp_http xpp_inbox)
+# the window's (below): xpp_window, or on Linux the loader of its library
+WINDOW_SOURCES_ALL := $(call src,xpp_window xpp_window_loader)
+CORE_SOURCES := $(filter-out $(SERVER_SOURCES) $(WINDOW_SOURCES_ALL) $(SRCDIR)/sbml2xpp.%,$(ALL_SOURCES))
 # the page xppautX serves, compiled in: web2 (web2/dist, built from
 # web2/src and committed: web2/build.mjs)
 WEB2_FILES := web2/dist/index.html web2/dist/app.js web2/dist/app.css web2/dist/manual.json web2/dist/inter.woff2 \
@@ -109,6 +111,13 @@ $(BUILDDIR)/xppautx_main.o: CXXFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'
 # building never requires it, and without it xppautX is browser-only.
 # WINDOW=0 builds browser-only anywhere; the sanitizer build always is (the web
 # view is not our code).
+# On Linux (W13e) the window is a shared library, libxppwindow.so, the only
+# thing linked against GTK and WebKitGTK, embedded in xppautX
+# (tools/embed_bytes.c) and loaded from memory only when the window opens
+# (core/xpp_window_loader.cpp): xppautX itself needs neither to start, so
+# the one binary runs on every Linux, with the window where WebKitGTK is
+# installed and in the browser elsewhere. tools/modecheck.sh checks that
+# xppautX's NEEDED names neither.
 WEBVIEW_DIR = third_party/webview
 ifeq ($(ASAN),1)
 WINDOW := 0
@@ -126,26 +135,58 @@ ifndef WINDOW
 WINDOW := $(shell pkg-config --exists webkit2gtk-4.1 gtk+-3.0 2>/dev/null && echo 1 || echo 0)
 endif
 ifeq ($(WINDOW),1)
+WINDOW_EMBED := 1
 # -isystem: warnings in GTK's headers are not ours
 WINDOW_CFLAGS := $(patsubst -I%,-isystem %,$(shell pkg-config --cflags gtk+-3.0 webkit2gtk-4.1))
-WINDOW_LIBS := $(shell pkg-config --libs gtk+-3.0 webkit2gtk-4.1)
+# the library's, not xppautX's
+WINDOW_LIB_LIBS := $(shell pkg-config --libs gtk+-3.0 webkit2gtk-4.1)
+endif
+endif
+NOLTO = $(filter-out -flto% -ffat-lto-objects,$(1))
+ifeq ($(WINDOW_EMBED),1)
+WINDOW_LIB_DIR := $(BUILDDIR)/window
+WINDOW_LIB := $(WINDOW_LIB_DIR)/libxppwindow.so
 # the GTK window's icon (xpp_window.cpp, W13b): the installed hicolor theme
 # icon by name when tools/associate/install-linux.sh has put one there, else
 # this fallback, embedded so an unpacked-but-not-installed build still has
 # one. assets/icons/hicolor/256x256/apps/xppautx.png is tools/make_icons.py's.
-SERVER_OBJECTS += $(BUILDDIR)/icon_assets.o
-$(BUILDDIR)/xpp_window.o: CXXFLAGS += -DXPP_ICON_ASSET
-endif
-endif
+WINDOW_LIB_OBJECTS := $(WINDOW_LIB_DIR)/xpp_window.o $(WINDOW_LIB_DIR)/webview.o $(WINDOW_LIB_DIR)/icon_assets.o
+SERVER_SOURCES += $(call src,xpp_window_loader)
+SERVER_OBJECTS += $(call obj,$(call src,xpp_window_loader)) $(BUILDDIR)/window_lib.o
+# position-independent and without LTO (a shared library of its own)
+$(WINDOW_LIB_DIR)/xpp_window.o: $(SRCDIR)/xpp_window.cpp $(BUILDDIR)/toolchain.stamp | $(WINDOW_LIB_DIR)
+	$(CXX) $(call NOLTO,$(CXXFLAGS)) -fPIC -DXPP_WINDOW -DXPP_WINDOW_PLUGIN -DXPP_ICON_ASSET -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS) -MMD -MP -MF $(@:.o=.d) -c $< -o $@
+$(WINDOW_LIB_DIR)/webview.o: $(WEBVIEW_DIR)/src/webview.cc $(BUILDDIR)/toolchain.stamp | $(WINDOW_LIB_DIR)
+	$(CXX) $(CXXSTD) $(call NOLTO,$(OPT)) -fPIC -DWEBVIEW_STATIC -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS) -c $< -o $@
+$(WINDOW_LIB_DIR)/icon_assets.o: $(BUILDDIR)/icon_assets.c | $(WINDOW_LIB_DIR)
+	$(CC) -O2 -fPIC -c $< -o $@
+# one export, xpp_window_plugin_init (every other symbol local); -z defs:
+# nothing of xppautX's is referenced but through the table it is handed
+# (xpp_window_plugin.h); stripped, as the bytes go into xppautX
+$(WINDOW_LIB): $(WINDOW_LIB_OBJECTS)
+	@printf '{ global: xpp_window_plugin_init; local: *; };' > $(WINDOW_LIB_DIR)/exports.map
+	$(CXX) -shared -Wl,-z,defs -Wl,--version-script=$(WINDOW_LIB_DIR)/exports.map -s -o $@ $(WINDOW_LIB_OBJECTS) $(WINDOW_LIB_LIBS) -lpthread
+$(BUILDDIR)/window_lib.c: $(BUILDDIR)/embed_bytes$(EXE) $(WINDOW_LIB)
+	$(BUILDDIR)/embed_bytes$(EXE) $@ xpp_window_lib $(WINDOW_LIB)
+$(BUILDDIR)/window_lib.o: $(BUILDDIR)/window_lib.c
+	$(CC) -O2 -c $< -o $@
+$(WINDOW_LIB_DIR):
+	mkdir -p $@
+-include $(WINDOW_LIB_DIR)/xpp_window.d
+else
+SERVER_SOURCES += $(call src,xpp_window)
+SERVER_OBJECTS += $(call obj,$(call src,xpp_window))
 ifeq ($(WINDOW),1)
 SERVER_OBJECTS += $(BUILDDIR)/webview.o
 $(BUILDDIR)/xpp_window.o: CXXFLAGS += -DXPP_WINDOW -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS)
-else
+endif
+endif
+ifneq ($(WINDOW),1)
 WINDOW_LIBS =
 endif
 # the library, unchanged: its warnings are not ours (-isystem), nor is LTO
 $(BUILDDIR)/webview.o: $(WEBVIEW_DIR)/src/webview.cc $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
-	$(CXX) $(CXXSTD) $(filter-out -flto% -ffat-lto-objects,$(OPT)) -DWEBVIEW_STATIC -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS) -c $< -o $@
+	$(CXX) $(CXXSTD) $(call NOLTO,$(OPT)) -DWEBVIEW_STATIC -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS) -c $< -o $@
 
 # Windows: the icon (resource 32512, IDI_APPLICATION's number, which the
 # web view's window takes) and the version block, from assets/xppautx.rc
@@ -169,7 +210,7 @@ all: xppautx
 lib: $(CORELIB)
 
 # every object, nothing linked (tools/warnings.sh)
-objects: $(CORE_OBJECTS) $(SERVER_OBJECTS)
+objects: $(CORE_OBJECTS) $(SERVER_OBJECTS) $(WINDOW_LIB_OBJECTS)
 
 # Types that disagree across files, such as an extern whose array bound is
 # not its definition's: an LTO link reports them (-Wlto-type-mismatch),

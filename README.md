@@ -133,8 +133,9 @@ program on a model:
 
 on Windows, `xppautX.exe examples\ode\lecar.ode`. Nothing else is needed:
 the front end opens in a window of its own (the system's web view:
-WebView2, which ships with Windows 10 and 11; WebKitGTK on Linux; on
-macOS the browser for now), served by the program itself. Its menu bar has File
+WebView2, which ships with Windows 10 and 11; WebKitGTK 4.1 on Linux,
+where a system without it gets the browser and the command that installs
+it; on macOS the browser for now), served by the program itself. Its menu bar has File
 (Open model…, Quit) and Help (Manual, Keyboard shortcuts, About), and
 closing the window quits. `--browser` opens the same page in your
 browser instead and prints its address (`XPP: http://127.0.0.1:...`),
@@ -205,7 +206,11 @@ make -j8 xppautx
 The window needs WebKitGTK to build (`sudo apt install
 libwebkit2gtk-4.1-dev` on Debian and Ubuntu); the Makefile uses it when
 `pkg-config` finds `webkit2gtk-4.1`, and otherwise builds a browser-only
-xppautX (`WINDOW=0` asks for that anywhere).
+xppautX (`WINDOW=0` asks for that anywhere). The window is a small library
+of its own, embedded in xppautX and loaded only when the window opens, so
+the same binary still starts on a system without WebKitGTK: `-silent`,
+`--server` and `--browser` never touch it, and the window mode says what
+to install and uses the browser.
 
 ### macOS
 

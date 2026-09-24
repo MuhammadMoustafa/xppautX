@@ -10,6 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # the Linux window (W13e): built into its embedded library, which
+      # tools/modecheck.sh loads (no display: then the browser)
+      - name: WebKitGTK for the desktop window
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev
       - name: Build, smoke test, metrics
         run: tools/verify.sh
       - uses: actions/setup-node@v7

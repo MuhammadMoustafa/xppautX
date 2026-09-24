@@ -171,7 +171,21 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   `src/webview.cc`; WebView2 through the SDK headers in
   `third_party/webview2` and webview's built-in loader on Windows,
   WebKitGTK on Linux only when `pkg-config` finds webkit2gtk-4.1, else a
-  browser-only build; `WINDOW=0` forces that). It shows the page the HTTP
+  browser-only build; `WINDOW=0` forces that). On Linux (W13e) the window
+  is a shared library, `libxppwindow.so` (xpp_window.cpp built with
+  `XPP_WINDOW_PLUGIN`, webview.o and the icon, -fPIC, the only thing
+  linked against GTK/WebKitGTK), embedded in xppautX by
+  `tools/embed_bytes.c` and loaded from memory by
+  `core/xpp_window_loader.cpp` only in window mode (`memfd_create`, then
+  `dlopen` of `/proc/self/fd/N`); it reaches the core only through the
+  `XppWindowHost` table of `core/xpp_window_plugin.h` (linked `-z defs`,
+  one export), so xppautX's NEEDED has no GTK and the one binary starts
+  on any Linux. A failed load logs a WARN with the install command for
+  the system (`core/xpp_window_hint.cpp`, from /etc/os-release; test:
+  tests/test_window_hint.cpp) and falls back to the browser;
+  `XPP_WINDOW_FAIL_LOAD=1` makes the load fail as if WebKitGTK were
+  missing (modecheck). Windows and macOS link the window statically, the
+  table filled at compile time. It shows the page the HTTP
   server below serves, navigated to the tokened URL itself (browser mode
   prints it; the window shows it nowhere). Threads: the core keeps the
   main thread and stays single-threaded; the web view runs its own UI
@@ -191,7 +205,8 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   About (a native message box). The icon is `assets/icon.svg`, made into
   `assets/icon.ico` by `tools/make_icons.py`, compiled into the Windows
   exe by `assets/xppautx.rc`. `tools/modecheck.sh` (verify.sh) checks
-  `--help`, `--browser` and `--no-open`. It carries
+  `--help`, `--browser` and `--no-open`, and on Linux with the window
+  xppautX's NEEDED, the failed load and a load with no display. It carries
   `core/xpp_http.cpp` (HTTP + Server-Sent Events on
   127.0.0.1, threads, sockets; it includes no core header but the small
   C APIs of xpp_mem.h, xpp_inbox.h and xpp_files.h) and
@@ -267,7 +282,9 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   `xpp_strdup` and frees with `xpp_free` (core/xpp_mem.h), never libc's
   directly. They never return NULL: a failure logs an ERROR naming the size
   and file:line and exits 1, so callers do not check. `XPP_MEM_FAIL_AT=N`
-  fails the N-th allocation (verify.sh checks the message); `--debug`
+  fails the N-th allocation (verify.sh checks the message;
+  `XPP_WINDOW_FAIL_LOAD=1`, xpp_window_loader.cpp, is the Linux window's
+  like hook); `--debug`
   prints the counts at exit. The exceptions (memory a library allocates or
   frees) are listed in xpp_mem.h's comment; add any new one there.
 - A leak or memory error LeakSanitizer/ASan/UBSan reports in our code is
