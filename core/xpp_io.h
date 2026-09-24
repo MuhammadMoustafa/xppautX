@@ -124,6 +124,7 @@ typedef struct XppTokenReader XppTokenReader;
 XppTokenReader *xpp_token_reader_open(const char *path);
 XppTokenReader *xpp_token_reader_attach(FILE *fp);
 int xpp_token_reader_double(XppTokenReader *r, double *out);
+int xpp_token_reader_float(XppTokenReader *r, float *out);   /* "%f"/"%g" */
 int xpp_token_reader_int(XppTokenReader *r, int *out);
 int xpp_token_reader_string(XppTokenReader *r, char *buf, size_t bufsize);
 void xpp_token_reader_close(XppTokenReader *r);

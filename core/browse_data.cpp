@@ -626,7 +626,7 @@ void data_read(BROWSER *b)
  FILE *fp;
  int k;
  int len,count=0;
- double z;
+ float z;
 
  XPP_STRCPY(fil,"test.dat");
  /*  XGetInputFocus(display,&w,&rev);
@@ -672,8 +672,8 @@ if(status==0)return;
     int gotrow=1;
     for(k=0;k<count;k++)
     {
-     if(xpp_token_reader_double(tr,&z)!=1){gotrow=0;break;}
-     if(k<b->maxcol)b->data[k][len]=(float)z;
+     if(xpp_token_reader_float(tr,&z)!=1){gotrow=0;break;}
+     if(k<b->maxcol)b->data[k][len]=z;
      }
      if(!gotrow)break;
      ++len;

@@ -181,7 +181,10 @@ bool read_line(std::FILE *fp, std::string &line)
 /* ---- tokens --------------------------------------------------------- */
 
 /* Skips leading whitespace, then collects the run of non-whitespace
-   characters into `tok`. False at end of file before any token starts. */
+   characters into `tok`. False at end of file before any token starts.
+   The whitespace that ends the token goes back to the stream, as fscanf
+   leaves it, so a line read after a token on an attached FILE* sees the
+   same rest of the line. */
 bool read_token(std::FILE *fp, std::string &tok)
 {
     tok.clear();
@@ -194,6 +197,7 @@ bool read_token(std::FILE *fp, std::string &tok)
         tok.push_back(static_cast<char>(c));
         c = std::fgetc(fp);
     }
+    if (c != EOF) std::ungetc(c, fp);
     return true;
 }
 
@@ -306,6 +310,19 @@ int xpp_token_reader_double(XppTokenReader *r, double *out)
     if (!r || !r->fp || !read_token(r->fp, tok)) return 0;
     char *end = nullptr;
     double v = std::strtod(tok.c_str(), &end);
+    if (end == tok.c_str()) return 0;
+    *out = v;
+    return 1;
+}
+
+/* strtof, not (float)strtod: fscanf "%f"/"%g" rounds the decimal
+   straight to float, and rounding through double first can differ. */
+int xpp_token_reader_float(XppTokenReader *r, float *out)
+{
+    std::string tok;
+    if (!r || !r->fp || !read_token(r->fp, tok)) return 0;
+    char *end = nullptr;
+    float v = std::strtof(tok.c_str(), &end);
     if (end == tok.c_str()) return 0;
     *out = v;
     return 1;

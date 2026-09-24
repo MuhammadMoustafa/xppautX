@@ -162,13 +162,10 @@ int read_cmap_from_file(char *fname, int n, int *rr, int *gg, int *bb)
     XppTokenReader *tr = xpp_token_reader_open(fname);
     if (tr == NULL) return 0;
     while (i < 1000) {
-        double dx, dr, dg, db;
-        if (xpp_token_reader_double(tr, &dx) != 1 || xpp_token_reader_double(tr, &dr) != 1
-            || xpp_token_reader_double(tr, &dg) != 1 || xpp_token_reader_double(tr, &db) != 1)
+        float x;
+        if (xpp_token_reader_float(tr, &x) != 1 || xpp_token_reader_float(tr, &r[i]) != 1
+            || xpp_token_reader_float(tr, &g[i]) != 1 || xpp_token_reader_float(tr, &b[i]) != 1)
             break;
-        r[i] = (float)dr;
-        g[i] = (float)dg;
-        b[i] = (float)db;
         i++;
     }
     xpp_token_reader_close(tr);

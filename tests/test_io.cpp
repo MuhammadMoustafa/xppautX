@@ -309,6 +309,26 @@ int main(void)
         std::remove("test_io_tok.tmp");
     }
 
+    /* a float token reads as fscanf "%g" reads it (rounded straight to
+       float), and the whitespace after a token stays in the stream */
+    {
+        write_raw("test_io_tok.tmp", "0.1 16777217 2.5\nnext\n");
+        std::FILE *fp = std::fopen("test_io_tok.tmp", "r");
+        CHECK(fp != NULL);
+        float a, b, sa, sb;
+        XppTokenReader *r = xpp_token_reader_attach(fp);
+        CHECK(xpp_token_reader_float(r, &a) == 1);
+        CHECK(xpp_token_reader_float(r, &b) == 1);
+        CHECK(xpp_token_reader_float(r, &sa) == 1);
+        CHECK(std::fgetc(fp) == '\n');
+        xpp_token_reader_close(r);
+        std::rewind(fp);
+        CHECK(std::fscanf(fp, "%g %g", &sa, &sb) == 2);
+        CHECK(a == sa && b == sb);
+        std::fclose(fp);
+        std::remove("test_io_tok.tmp");
+    }
+
     /* writer: commit renames the temp file into place, byte for byte */
     {
         XppWriter *w = xpp_writer_open("test_io_write.tmp");
