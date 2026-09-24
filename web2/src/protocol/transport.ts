@@ -12,11 +12,20 @@ export interface Transport {
 
 export class HttpTransport implements Transport {
   private source: EventSource | null = null;
+  /* the last command's POST: the next one goes out once it was answered */
+  private sending: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly token: string = location.search, private readonly base = '/') {}
 
+  /** commands reach the core in the order they were sent: each POST waits
+      for the one before it (xppautX answers each connection on a thread of
+      its own, so two in flight at once could be taken in either order); a
+      failed one does not hold up the next */
   send(cmd: Command): void {
-    void fetch(`${this.base}cmd${this.token}`, {method: 'POST', body: JSON.stringify(cmd)});
+    const body = JSON.stringify(cmd);
+    this.sending = this.sending
+      .then(() => fetch(`${this.base}cmd${this.token}`, {method: 'POST', body}))
+      .catch(() => undefined);
   }
 
   open(onEvent: (ev: XppEvent) => void, onStatus: (open: boolean) => void): void {

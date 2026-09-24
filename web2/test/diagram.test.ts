@@ -3,7 +3,7 @@
    and the segment from a Hopf point to its periodic branch. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {circlePoints, complexText, infoRows, stabilitySummary} from '../src/plot/autoInfo';
+import {circlePoints, complexText, infoRows, stabComputed, stabilitySummary} from '../src/plot/autoInfo';
 import {buildDiagramModel, describePoint, grabStep, hopfOf, nearestVertex, stepLabel, vertexOf} from '../src/plot/diagramModel';
 import {initialDiagram, pointCount, type DiagramRun, type DiagramState} from '../src/store/diagram';
 import {initialState, reduce, type AppState} from '../src/store/state';
@@ -309,4 +309,13 @@ test('the strip in words and the circle: inside is stable, the eigenvalues liste
     [0.1, -1.95, false, '0.1 − 3i']]);
   assert.equal(stabilitySummary({periodic: 1, circle: [[1, 0], [2.5, 0]]} as never), '2 Floquet multipliers, 1 inside the unit circle');
   assert.equal(complexText(null, null), 'none (below the smallest number)');
+});
+
+test("a first point's circle, all zeros, is not computed: no points, no zeros listed as eigenvalues (T25)", () => {
+  const zeros = {periodic: 0, circle: [[0, 0], [0, 0], [0, 0]], eig: [[null, null], [null, null], [null, null]]};
+  assert.equal(stabComputed(zeros as never), false);
+  assert.deepEqual(circlePoints(zeros as never), []);
+  assert.equal(stabilitySummary(zeros as never), '3 eigenvalues, not computed at this point');
+  assert.equal(stabComputed({periodic: 0, circle: [[0, 0], [0.5, 0]]} as never), true);
+  assert.equal(stabComputed({periodic: 0, circle: [[null, null]]} as never), true, 'not finite is a value, not "not computed"');
 });

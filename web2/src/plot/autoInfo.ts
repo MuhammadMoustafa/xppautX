@@ -41,8 +41,17 @@ export interface CirclePoint {
 const EDGE = 1.95;
 const clamp = (v: number) => Math.max(-EDGE, Math.min(EDGE, v));
 
-/** the circle's points: multipliers, or e^λ of a steady state's eigenvalues */
+/** whether AUTO computed the circle's values for the point: it computes a
+    steady state's eigenvalues and an orbit's multipliers from a branch's
+    second point on, and the first point's circle comes as all zeros (a run
+    that stops at point 1, T25), which is no e^λ or multiplier at all */
+export function stabComputed(stab: AutoStab): boolean {
+  return stab.circle.some(([re, im]) => re !== 0 || im !== 0);
+}
+
+/** the circle's points: multipliers, or e^λ of a steady state's eigenvalues; none when not computed */
 export function circlePoints(stab: AutoStab): CirclePoint[] {
+  if (!stabComputed(stab)) return [];
   return stab.circle.map(([re, im], i) => {
     const r = re ?? 0, m = im ?? 0;
     const e = stab.eig?.[i];
@@ -58,6 +67,7 @@ export function stabilitySummary(stab: AutoStab): string {
   const pts = circlePoints(stab);
   const inside = pts.filter(p => p.inside).length;
   const what = stab.periodic ? 'Floquet multipliers' : 'eigenvalues';
+  if (!stabComputed(stab)) return `${stab.circle.length} ${what}, not computed at this point`;
   const where = stab.periodic ? 'inside the unit circle' : 'with a negative real part (inside the circle)';
   return `${pts.length} ${what}, ${inside} ${where}`;
 }

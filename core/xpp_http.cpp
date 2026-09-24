@@ -4,9 +4,10 @@
    POST, and replay what a page that (re)connects needs to draw.
 
    Threads: the core runs on the main thread and calls xpp_http_emit; one
-   thread accepts and answers HTTP requests and pushes the page's commands
-   into the inbox (xpp_inbox.h), where the core takes them; one thread
-   copies what xppaut prints to the terminal and into the page's log. The
+   thread accepts connections, each answered on a thread of its own (see
+   handle()), which pushes the page's commands into the inbox (xpp_inbox.h),
+   where the core takes them; one thread copies what xppaut prints to the
+   terminal and into the page's log. The
    model's folder is served as /files (xpp_files.h: listing, reading, and
    uploads streamed to a temporary file). This file includes no core header
    but those small C APIs (xpp_mem.h, xpp_inbox.h, xpp_files.h, xpp_log.h),
@@ -23,6 +24,7 @@
 #include "xpp_log.h"
 #include <errno.h>
 #include <pthread.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -77,6 +79,8 @@ static int active;
 static char token[40];
 static sock_t listener = INVALID_SOCKET;
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+/* requests other than POST /cmd are answered one at a time (handle()) */
+static pthread_mutex_t serve_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t watchdog_thread;
 static pthread_t http_thread, log_thread;
 
@@ -665,8 +669,7 @@ static void serve_asset(Request *q)
     else reply_text(q->s, "404 Not Found", "not found");
 }
 
-/* a client that stops sending (a stalled upload) must not hold the one
-   thread that answers requests */
+/* a client that stops sending (a stalled upload) is dropped after a while */
 static void set_recv_timeout(sock_t s, int seconds)
 {
 #ifdef _WIN32
@@ -700,16 +703,28 @@ static void drain(Request *q)
     }
 }
 
+/* One connection, on its own thread (http_main): reading its head may
+   wait up to RECV_SECONDS, since a browser opens connections it sends
+   nothing on yet (a preconnect, a spare socket), and that wait must not
+   hold up the next request: with one thread doing it all, an Abort POSTed
+   meanwhile waited those 30 s while the run went on (T25). A command is
+   pushed as soon as it has arrived; everything else is answered one at a
+   time, as when a single thread answered them all (an upload, the event
+   streams' registration). The page keeps its commands in order by sending
+   the next one once the last was answered (web2's HttpTransport). */
 static void handle(sock_t s)
 {
     Request *q = static_cast<Request *>(xpp_calloc(1, sizeof *q));
     size_t n;
+    int serial;
     q->s = s;
     if (!read_head(q)) {
         close_sock(s);
         xpp_free(q);
         return;
     }
+    serial = !(strcmp(q->method, "POST") == 0 && strncmp(q->target, "/cmd", 4) == 0);
+    if (serial) pthread_mutex_lock(&serve_lock);
     n = path_len(q->target);
     if (strlen(q->target) >= sizeof q->target - 1) {
         reply_text(s, "414 URI Too Long", "address too long");
@@ -718,6 +733,7 @@ static void handle(sock_t s)
     } else if (strcmp(q->method, "GET") == 0 && strncmp(q->target, "/events", 7) == 0) {
         if (token_ok(q->target)) {
             open_events(s);
+            pthread_mutex_unlock(&serve_lock);
             xpp_free(q);
             return;
         }
@@ -730,8 +746,15 @@ static void handle(sock_t s)
         serve_asset(q);
     } else reply(s, "405 Method Not Allowed", "text/plain", NULL, 0);
     drain(q);
+    if (serial) pthread_mutex_unlock(&serve_lock);
     close_sock(s);
     xpp_free(q);
+}
+
+static void *connection_main(void *arg)
+{
+    handle(static_cast<sock_t>(reinterpret_cast<uintptr_t>(arg)));
+    return NULL;
 }
 
 /* A process xppautX starts (the web view's own processes, a browser
@@ -758,13 +781,18 @@ static void no_inherit_fd(int fd)
 
 static void *http_main(void *arg)
 {
+    pthread_attr_t detached;
+    pthread_t t;
     (void)arg;
+    pthread_attr_init(&detached);
+    pthread_attr_setdetachstate(&detached, PTHREAD_CREATE_DETACHED);
     for (;;) {
         sock_t s = accept(listener, NULL, NULL);
         if (s == INVALID_SOCKET) continue;
         no_inherit_sock(s);
         set_recv_timeout(s, RECV_SECONDS);
-        handle(s);
+        if (pthread_create(&t, &detached, connection_main, reinterpret_cast<void *>(static_cast<uintptr_t>(s))) != 0)
+            handle(s); /* no thread to spare: answered here, as it always was */
     }
     return NULL;
 }

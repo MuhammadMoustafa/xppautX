@@ -68,6 +68,7 @@
 import {spawnSync} from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -2121,7 +2122,21 @@ async function autoView(dir) {
       && s.autoSettings.core.numerics.nmx === 321`)
     && await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)
     && (await setsSent()).length === 0, JSON.stringify([long, await S('[s.busy, s.autoSettings]'), await setsSent()]));
+  /* T25: a connection the browser opened and sent nothing on yet (a
+     preconnect) held xppautX's one request thread for 30 s, and the Stop
+     with it, while the run went on */
+  const [host, port] = (await cdp.eval('location.host')).split(':');
+  const idle = net.connect(Number(port), host);
+  await new Promise(r => idle.once('connect', r));
+  await sleep(200);
+  const labsPre = await DS('d.labels.length'), tStop = Date.now();
   await cdp.eval(`document.querySelector('.auto-status .auto-stop').click()`);
+  const stopped = await until('!s.busy', 'stopped', 5000), tookStop = Date.now() - tStop;
+  const lastLab = await DS('d.labels.length > 0 && d.labels[d.labels.length - 1].sym');
+  idle.destroy();
+  check('T25: Stop ends the run within 1 s, with an idle connection open to xppautX, on an EP label',
+    stopped && tookStop < 1000 && (await DS('d.labels.length')) > labsPre && lastLab === 'EP',
+    JSON.stringify([stopped, tookStop, labsPre, lastLab]));
   check('T22: at the run\'s idle the edit goes out, one set, and applies: the core\'s Nmax is 15, nothing pending',
     await until(`!s.busy && s.autoSettings.core.numerics.nmx === 15 && !s.autoSettings.queued && !s.autoSettings.sent`,
       'applied at idle', 60000)

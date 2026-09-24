@@ -210,6 +210,12 @@ Run it with:
 | `ask` | `id`, `kind`, ... | See below. |
 
 In browser mode (`xppautX model.ode`) events stream from `/events?t=TOKEN`.
+Commands are POSTed to `/cmd?t=TOKEN`, one per request (a body of several
+lines gives several commands). xppautX answers each connection on a thread
+of its own, so a connection that sends nothing (a browser's preconnect) or a
+stalled upload holds up no command, `abort` above all; two POSTs in flight at
+once may therefore reach the core in either order, and a client that needs
+its order sends the next one once the last was answered, as the page does.
 
 Two more events come from the host, not the server: `log` {`text`} carries what the
 server printed on stderr (xppaut reports model errors, such as a formula that does
@@ -297,7 +303,7 @@ core/auto_stop.cpp, which autlib1.c tells where it ends a branch (T23).
 | `info.x`, `y`, `y2` | where the diagram plots the point, in the quantities of the Axes setting |
 | `stab` | what the circle shows: the point AUTO computed or a redraw plotted last, or the grab's cursor; `null` before any |
 | `stab.periodic` | 1: `circle` holds the Floquet multipliers of a periodic orbit; 0: e^λ of each eigenvalue λ of a steady state (XPP keeps them so: inside the unit circle is stable) |
-| `stab.circle` | `[re,im]` per variable, the values themselves (the X11 circle clamps them to ±1.95) |
+| `stab.circle` | `[re,im]` per variable, the values themselves (the X11 circle clamps them to ±1.95). All `[0,0]`: not computed. AUTO computes them from a branch's second point on, so the first point, and a run that stops there, has none; XPP stores the last ones computed with every point, so a branch's first point carries those of the point computed before it on another branch, or zeros when there was none |
 | `stop` | why the run's last branch ended; `null` until one ends, and again when a run starts or AUTO's window is new. AUTO labels the end EP (a limit, Max points, Stop, a Mark value) or MX (no convergence); this says which |
 | `stop.why` | `parmin` / `parmax`: the continuation parameter went below Par Min (RL0) / above Par Max (RL1); `normmin` / `normmax`: the norm AUTO checks went below Norm Min (A0) / above Norm Max (A1); `npts`: the branch has Max points (NMX); `user`: Stop (an `abort`); `mark`: a Mark value set to stop (AUTO's UZR endpoint); `noconv-min`: no convergence even at the smallest step (Dsmin); `noconv-fixed`: no convergence with a fixed step (IADS 0); `noconv-switch-min`, `noconv-switch-fixed`: the same while switching to a bifurcating branch; `noconv`: no convergence, how not noted |
 | `stop.text` | the reason in words, to follow "Stopped: " (the page's status strip); AUTO's Output gets the line `Branch 1 stopped at point 49: parameter iapp reached Par Max (0.5)` for every branch that ends |

@@ -24,7 +24,9 @@ back). It has:
   strip** (`ui/AutoStatus.tsx`) along the window's bottom edge, in place of
   the small square and info windows of the X11 AUTO window, from the
   `autoinfo` event: branch, point, type, label, parameters, norm, the
-  plotted variable, the period, and the eigenvalues/multipliers; it is the
+  plotted variable, the period, and the eigenvalues/multipliers ("not
+  computed at this point" for a branch's first point: AUTO computes them
+  from its second point on); it is the
   only status line on screen while AUTO is shown, so it also carries the
   core's last message and the connection state when it is not simply
   connected, as the main window's status bar does;

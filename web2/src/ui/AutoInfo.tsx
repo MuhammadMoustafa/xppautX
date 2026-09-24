@@ -2,8 +2,10 @@
    `autoinfo` data: the point the grab's cursor is on in words, and a small
    unit circle with the eigenvalues (as e^λ) or Floquet multipliers of the
    point AUTO last drew. A point inside the circle is a filled dot, one
-   outside a cross (A7: not colour alone), and the values are listed too. */
-import {circlePoints, infoRows, stabilitySummary} from '../plot/autoInfo';
+   outside a cross (A7: not colour alone), and the values are listed too.
+   AUTO computes them from a branch's second point on: the first point's
+   circle says so instead of listing zeros. */
+import {circlePoints, infoRows, stabComputed, stabilitySummary} from '../plot/autoInfo';
 import {useStore} from './context';
 
 const R = 2; /* the circle's view box: -2..2, as XPP's */
@@ -26,9 +28,13 @@ function StabilityCircle() {
       </svg>
       <figcaption>
         <span class="muted">{stab.periodic ? 'Multipliers' : 'Eigenvalues'}</span>
-        <ul class="auto-stab-list">
-          {pts.map((p, i) => <li key={i}>{p.inside ? '●' : '×'} {p.text}</li>)}
-        </ul>
+        {stabComputed(stab) ? (
+          <ul class="auto-stab-list">
+            {pts.map((p, i) => <li key={i}>{p.inside ? '●' : '×'} {p.text}</li>)}
+          </ul>
+        ) : (
+          <p class="muted auto-stab-none">Not computed at this point: AUTO computes them from the second point of a branch on.</p>
+        )}
       </figcaption>
     </figure>
   );

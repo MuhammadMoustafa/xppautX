@@ -4,7 +4,7 @@ the token protects the event and command URLs.
 
 usage: tools/webcheck.py [--bin ./xppautX] [--ode examples/ode/lecar.ode]
 """
-import argparse, hashlib, http.client, json, os, queue, re, shutil, socket, subprocess, sys, tempfile, threading
+import argparse, hashlib, http.client, json, os, queue, re, shutil, socket, subprocess, sys, tempfile, threading, time
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--bin', default='./xppautX')
@@ -232,6 +232,28 @@ if linked:
           and os.path.islink(os.path.join(run, 'link.txt')) and b'link.txt' not in body3, '%s %s %r' % (st, st2, kept))
     os.remove(os.path.join(run, 'link.txt'))
 shutil.rmtree(secret, ignore_errors=True)
+
+# ---- a connection that sends nothing, or a stalled upload, holds up no command:
+# one thread used to answer every request, and a browser's preconnect held it
+# (and an Abort behind it) for 30 s while an AUTO run went on (T25)
+idle = socket.create_connection(('127.0.0.1', port), timeout=20)
+stall = socket.create_connection(('127.0.0.1', port), timeout=20)
+stall.sendall(('PUT /files/stall.txt%s HTTP/1.1\r\nHost: x\r\nContent-Length: 1000\r\n\r\nhalf' % tok).encode())
+time.sleep(0.3)
+t = time.monotonic()
+try:
+    post({'cmd': 'key', 'key': 'i'})
+    _, ask = collect(lambda e: e['ev'] == 'ask', 10)
+except OSError:  # the POST timed out
+    ask = None
+took = time.monotonic() - t
+check('an idle connection (a preconnect) and a stalled upload hold up no command: its menu within 1 s',
+      ask is not None and took < 1, '%.2f s' % took)
+if ask:
+    post({'cmd': 'answer', 'id': ask['id'], 'key': 'Escape'})
+    collect(lambda e: e['ev'] == 'idle')
+idle.close()
+stall.close()
 
 post({'cmd': 'key', 'key': 'f'})
 post({'cmd': 'key', 'key': 'q'})
