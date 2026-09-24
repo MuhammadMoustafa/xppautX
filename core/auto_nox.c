@@ -836,7 +836,9 @@ void auto_per_par()
 		      "Uzr6","Uzr7","Uzr8","Uzr9"};
   int status,i,in;
   char ch;
-  ch=(char)auto_pop_up_list("Number",m,key,10,12,Auto.nper,10,10,no_hint,
+  /* "Mark values" (T21): AUTO labels (UZ) the points where a parameter or
+     the period reaches one of these values */
+  ch=(char)auto_pop_up_list("Mark values: how many?",m,key,10,12,Auto.nper,10,10,no_hint,
 		       Auto.hinttxt);
   for(i=0;i<10;i++)
     if(ch==key[i])Auto.nper=i;
@@ -848,7 +850,7 @@ void auto_per_par()
 
       XPP_SPRINTF(values[i],"%s=%g",bob,Auto.period[i]);
     }
-    status=do_string_box(9,5,2,"AutoPer",n,values,45);
+    status=do_string_box(9,5,2,"Mark values (UZ): parameter=value or per=value",n,values,45);
     if(status!=0)
       for(i=0;i<9;i++){
 	ptr=get_first(values[i],"=");
@@ -1004,15 +1006,17 @@ void auto_plot_par()
     return;
   }
 
+  /* a new plot type or axes: the diagram drawn again in its quantities
+     (it used to wait for reDraw, which a client drawing from data lacks) */
   if(ch==key[7]){
     load_last_plot(1);
-    draw_bif_axes();
+    redraw_diagram();
     return;
   }
 
   if(ch==key[8]){
     load_last_plot(2);
-    draw_bif_axes();
+    redraw_diagram();
     return;
   }
 
@@ -1069,9 +1073,9 @@ void auto_plot_par()
     Auto.ymin=atof(values[4]);
     Auto.xmax=atof(values[5]);
     Auto.ymax=atof(values[6]);
-    draw_bif_axes();
     if(Auto.plot<4)keep_last_plot(1);
     if(Auto.plot==4)keep_last_plot(2);
+    redraw_diagram();
     
 
     
@@ -3214,10 +3218,12 @@ void auto_file()
   }
   if(ch=='l'){
     load_auto();
+    redraw_diagram(); /* the loaded diagram, at once */
     return;
   }
   if(ch=='r'){
     reset_auto();
+    redraw_diagram(); /* now empty */
   }
   if(ch=='c'){
     grabpt.flag=0;

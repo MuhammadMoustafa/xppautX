@@ -566,6 +566,37 @@ if ask:
     check('Auto/Run after a Grab restarts from the label and the server survives',
           e is not None and proc.poll() is None, 'exit code %s' % proc.poll())
 
+    # T21: an Axes change draws the diagram again in the new quantities (no
+    # reDraw: a data client shows what the core sent), File/Reset diagram
+    # empties it at once, and Usr period's prompts say what it does
+    def auto_dialog(op, *answers):
+        send(cmd='auto', op=op)
+        evs = []
+        for a in answers:
+            ev, ask = collect(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=30)
+            evs += ev
+            if ask is None or ask.get('ev') != 'ask':
+                return evs, ask
+            send(cmd='answer', id=ask['id'], **(a(ask) if callable(a) else a))
+        ev, _ = collect(is_idle, timeout=30)
+        return evs + ev, None
+
+    evs, _ = auto_dialog('axes', {'key': 'n'}, lambda ask: {'ok': 1, 'values': ask['values']})
+    dg = [e for e in evs if e.get('ev') == 'diagram']
+    resets = [i for i, e in enumerate(dg) if e['op'] == 'reset']
+    added = sum(len(r['x']) for e in dg[resets[-1]:] if e['op'] == 'add' for r in e['runs']) if resets else 0
+    check('Axes/Norm, OK: the diagram comes again in norms (reset, then every point) without a reDraw',
+          resets and dg[resets[-1]]['plot'] == 1 and dg[resets[-1]]['keep'] == 0 and added > 0,
+          str([(e['op'], e.get('keep'), e.get('from'), added) for e in dg])[:300])
+    evs, ask = auto_dialog('usr', lambda ask: {'ok': 0})
+    titles = [e.get('title') for e in evs if e.get('ev') == 'ask']
+    check('Usr period asks "Mark values: how many?"', titles == ['Mark values: how many?'], str(titles))
+    evs, _ = auto_dialog('file', {'key': 'r'}, {'key': 'y'})
+    dg = [e for e in evs if e.get('ev') == 'diagram']
+    check('File/Reset diagram empties the diagram at once (reset 0, nothing added)',
+          dg and dg[-1]['op'] == 'reset' and dg[-1]['keep'] == 0 and not any(e['op'] == 'add' for e in dg),
+          str([(e['op'], e.get('keep')) for e in dg]))
+
 
 # Live plotting (docs/protocol.md "The plot as data"): while an integration
 # runs, a subscribed client gets the rows as they are stored, in "append"

@@ -193,21 +193,18 @@ def section_diagram():
     check('Esc from a grab ends it, the diagram untouched',
           end is not None and not diagram_ops(more) and not any(is_ask(e) for e in more), str(more)[:200])
 
-    # Axes/hI-lo plots another quantity: it clears the diagram (a reset that
-    # keeps nothing), and its reDraw sends every point again; a Fit after
-    # that only sends the new axes
+    # Axes/hI-lo draws the diagram again by itself (T21: no reDraw needed):
+    # the client ends up with every point in the new quantities (here the
+    # same values, a steady branch's max and min being one, so only the
+    # axes go out); a Fit after that only sends the new axes
     n = len(dg.pts)
     s.send(cmd='auto', op='axes')
     evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'i'},
                                      'form': lambda e: {'ok': 1, 'values': e['values']}})
-    s.send(cmd='auto', op='redraw')
-    more, _ = s.collect(is_idle)
-    evs += more
     dg.apply(evs)
-    resets = [e for e in evs if e.get('ev') == 'diagram' and e['op'] == 'reset']
-    check('Axes/hI-lo then reDraw: a reset, then every point again',
-          diagram_ops(evs)[:1] == ['reset'] and resets[0]['keep'] == 0 and 'add' in diagram_ops(evs) and
-          len(dg.pts) == n and dg.axes['plot'] == 2, '%s, %d points of %d' % (diagram_ops(evs), len(dg.pts), n))
+    check('Axes/hI-lo draws the diagram again at once: every point, the new plot type',
+          'axes' in diagram_ops(evs) and len(dg.pts) == n and dg.axes['plot'] == 2,
+          '%s, %d points of %d' % (diagram_ops(evs), len(dg.pts), n))
     s.send(cmd='auto', op='axes')
     evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'f'}})
     dg.apply(evs)

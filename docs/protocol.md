@@ -218,8 +218,11 @@ and keeps everything under "Messages".
 The server sends the AUTO diagram's points (window 101) as data, so that
 a client draws it and can zoom, pan and name the point under the mouse
 without a round trip. The data describe exactly what XPP's diagram shows
-(and what PostScript and SVG export draw): after Clear it is empty, after
-File/Load or Reset diagram it is unchanged until reDraw.
+(and what PostScript and SVG export draw): after the `auto` op `clear` it
+is empty (web2 does not send it: its Clear only hides the branches so far).
+An Axes change (the AutoPlot form, last 1 par, last 2 par), File/Load
+diagram and File/Reset diagram draw the diagram again at once, so a client
+always holds the diagram in the current quantities without a reDraw.
 
 A point is one `add_point()` of `core/auto_nox.c`, in the quantities the
 axes plot (`auto_xy_plot`: the parameter against the maximum, norm,
