@@ -32,7 +32,8 @@ issue; the card here is the one kept up to date.
 | W9  | #21 | WebAssembly build (proof of concept) | maintainer's OK to install emsdk | blocked |
 | W10 | #22 | Replayable interruptions in scripts | none | done (539b300) |
 | W11 | - | One I/O module: logging only, safe formatting, file reading and writing | none (step 3 with W7) | running (steps 1-2 done; step 3 next) |
-| W12 | - | The manual as Markdown, current with web2, served in the app | T20, T21 | blocked |
+| W12a | - | The manual as Markdown (docs/manual/), current with web2; W12 steps 1, 2, 4 | T20, T21 | in progress |
+| W12b | - | web2's Help view from docs/manual/, linked from menus and dialogs; W12 step 3 | W12a, T22 | blocked |
 | W13 | - | A desktop app: xppautX's own window, menu bar, icon, .ode files | T21 (the page it shows); Help waits for W12, updates for a first release | blocked |
 
 ## W0: C/C++ mixed build
@@ -195,6 +196,8 @@ one click away in the app.
 3. web2 gets a Help view (search, table of contents) built from
    docs/manual/ at build time; menu items and dialogs link to their section.
 4. A task that changes the UI updates its manual section, as protocol.md.
+**Split.** W12a: steps 1, 2 and 4 (docs only). W12b: step 3 (web2),
+after T22 so the AUTO chapter describes its settings as they end up.
 **Done when.** No chapter describes an X11 window; every menu and dialog in
 web2 links to a section that describes it; web2check opens Help from a
 dialog and finds its section.
