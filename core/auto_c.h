@@ -405,9 +405,9 @@ int daxpy(integer *n, doublereal *da, doublereal *dx, integer *incx, doublereal 
 int drot(integer *n, doublereal *dx, integer *incx, doublereal *dy, integer *incy, doublereal *c, doublereal *s);
 int dswap(integer *n, doublereal *dx, integer *incx, doublereal *dy, integer *incy);
 int dgemc(integer *m, integer *n, doublereal *a, integer *lda, doublereal *b, integer *ldb, logical *trans);
-int xerbla(char *srname, integer *info, integer srname_len);
-logical lsame(char *ca, char *cb, integer ca_len, integer cb_len);
-int dgemm(char *transa, char *transb, integer *m, integer *n, integer *k, doublereal *alpha, doublereal *a, integer *lda, doublereal *b, integer *ldb, doublereal *beta, doublereal *c, integer *ldc, integer transa_len, integer transb_len);
+int xerbla(const char *srname, integer *info, integer srname_len);
+logical lsame(const char *ca, const char *cb, integer ca_len, integer cb_len);
+int dgemm(const char *transa, const char *transb, integer *m, integer *n, integer *k, doublereal *alpha, doublereal *a, integer *lda, doublereal *b, integer *ldb, doublereal *beta, doublereal *c, integer *ldc, integer transa_len, integer transb_len);
 int ezsvd(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, doublereal *e, doublereal *u, integer *ldu, doublereal *v, integer *ldv, doublereal *work, integer *job, integer *info, doublereal *tol);
 int ndrotg(doublereal *f, doublereal *g, doublereal *cs, doublereal *sn);
 int ndsvd(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, doublereal *e, doublereal *u, integer *ldu, doublereal *v, integer *ldv, doublereal *work, integer *job, integer *info, integer *maxitr, doublereal *tol, integer *idbg, integer *ifull, integer *kount, integer *kount1, integer *kount2, integer *skip, integer *limshf, doublereal *maxsin, integer *iidir);

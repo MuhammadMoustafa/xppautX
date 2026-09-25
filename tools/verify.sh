@@ -40,6 +40,13 @@ if [ $st -ne 0 ] || grep -q ' error:' build/last-build.log; then
   exit 1
 fi
 echo "build ok, warnings: $(grep -c 'warning:' build/last-build.log), implicit decls: $(grep -c 'implicit declaration' build/last-build.log)"
+# the tree builds with 0 warnings (CLAUDE.md): any warning fails the gate
+# (W27b's conversion let 11 through while this only counted them)
+if grep -q 'warning:' build/last-build.log; then
+  grep 'warning:' build/last-build.log | sort -u | head -20
+  echo "WARNINGS: the build must have none"
+  exit 1
+fi
 # header dependencies: the core objects must depend on the headers they
 # include (their .d files, which a Makefile slip once stopped loading for
 # every core source, so incremental builds mixed old and new struct

@@ -80,6 +80,8 @@ WERROR_FLAGS := $(filter-out $(GCC_ONLY_WERROR),$(WERROR_FLAGS))
 endif
 STRICT += $(WERROR_FLAGS)
 CXXSTRICT += $(WERROR_FLAGS)
+# C++ only: a string literal given as char * (W27's conversions)
+CXXSTRICT += -Werror=write-strings
 endif
 
 # tools/deadcode.sh: every global in a section of its own, so a C tentative
@@ -277,8 +279,15 @@ $(BUILDDIR)/xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
 # the one X11-free program: browser front end, --server protocol and -silent batch
 xppautx: xppautX$(EXE)
 
-$(CORELIB): $(CORE_OBJECTS)
+# rebuilt whole, and when the list of objects changes too: ar only adds
+# and replaces members, so a removed source's object stayed in the
+# archive and clashed with its new home (W27b merged the f2c helpers)
+$(CORELIB): $(CORE_OBJECTS) $(BUILDDIR)/corelib.stamp
+	rm -f $@
 	ar rcs $@ $(CORE_OBJECTS)
+
+$(BUILDDIR)/corelib.stamp: FORCE | $(BUILDDIR)
+	@echo '$(CORE_OBJECTS)' > $@.tmp; if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv $@.tmp $@; fi
 
 xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
 	$(LINK_X) $(LDSTATIC) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS)

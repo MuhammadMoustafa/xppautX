@@ -3881,7 +3881,7 @@ L199:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-xerbla(char *srname, integer *info, integer srname_len)
+xerbla(const char *srname, integer *info, integer srname_len)
 {
     /* Format strings */
 
@@ -3935,7 +3935,7 @@ xerbla(char *srname, integer *info, integer srname_len)
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 logical 
-lsame(char *ca, char *cb, integer ca_len, integer cb_len)
+lsame(const char *ca, const char *cb, integer ca_len, integer cb_len)
 {
     /* System generated locals */
     logical ret_val;
@@ -4032,7 +4032,7 @@ lsame(char *ca, char *cb, integer ca_len, integer cb_len)
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-dgemm(char *transa, char *transb, integer *m, integer *n, integer *k, doublereal *alpha, doublereal *a, integer *lda, doublereal *b, integer *ldb, doublereal *beta, doublereal *c__, integer *ldc, integer transa_len, integer transb_len)
+dgemm(const char *transa, const char *transb, integer *m, integer *n, integer *k, doublereal *alpha, doublereal *a, integer *lda, doublereal *b, integer *ldb, doublereal *beta, doublereal *c__, integer *ldc, integer transa_len, integer transb_len)
 {
     /* System generated locals */
     integer a_dim1, a_offset, b_dim1, b_offset, c_dim1, c_offset, i__1, i__2, 
