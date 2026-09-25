@@ -93,7 +93,7 @@ if((i=plot_windows.current->zv[0])==0)XPP_STRCPY(name3,"T");
 
 double dbl_raise(double x, int y)
 {
-register int i;
+int i;
 double val;
 
 	val = 1.0;
@@ -106,7 +106,7 @@ double val;
 
 double make_tics(double tmin, double tmax)
 {
-  register double xr,xnorm,tics,tic,l10;
+  double xr,xnorm,tics,tic,l10;
   
   xr = fabs(tmin-tmax);
   

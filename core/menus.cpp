@@ -10,7 +10,7 @@
 #define NUM_MENU 2
 #define MAIN_ENTRIES 20
 #define NUM_ENTRIES 18
-char *main_menu[]={
+const char *main_menu[]={
  "XPP","Initialconds","Continue","Nullcline",
  "Dir.field/flow","Window/zoom","phAsespace",
  "Kinescope","Graphic stuff","nUmerics","File",
@@ -18,17 +18,17 @@ char *main_menu[]={
  "Sing pts","Viewaxes","Xi vs t","Restore","3d-params",
  "Bndryval"};
 
-char *num_menu[]={"NUMERICS","Total","Start time","tRansient",
+const char *num_menu[]={"NUMERICS","Total","Start time","tRansient",
 "Dt","Ncline ctrl","sIng pt ctrl","nOutput","Bounds","Method",
 "dElay","Color code","stocHast","Poincare map","rUelle plot",
 "looKup","bndVal","Averaging","[Esc]-exit"};
-char *file_menu[]={
+const char *file_menu[]={
 "FILE","Prt src","Write set","Read set",
 "Auto","Calculator","Edit","Save info",
 "Help","Quit","Transpose","Get par set","cLone",".Xpprc","tUtorial"};
 
 /* hints for the main menus */
-char *main_hint[]=
+const char *main_hint[]=
 { "Integrate the equations",
   "Continue integration for specified time",
   "Draw nullclines",
@@ -51,7 +51,7 @@ char *main_hint[]=
   "Run boundary value solver" };
 
 
-char *file_hint[]={
+const char *file_hint[]={
 "Display source and active comments",
 "Save information for restart",
 "Read information for restart",
@@ -69,7 +69,7 @@ char *file_hint[]={
 };
 
 
-char *num_hint[]={
+const char *num_hint[]={
 "Total time to integrate eqns",
 "Starting time -- T0",
 "Time to integrate before storing",
@@ -92,7 +92,7 @@ char *num_hint[]={
 
 /* other hints  */
 
-char *null_hint[]={
+const char *null_hint[]={
 "Compute new nullclines",
 "Redraw last nullclines",
 "Set automatic redraw -- X redraws when needed",
@@ -101,13 +101,13 @@ char *null_hint[]={
 "Save nullcline values to a file"
 };
 
-char *null_freeze[]={
+const char *null_freeze[]={
   "Freeze current clines",
   "Delete all frozen clines",
   "Range freeze a bunch of clines",
   "Animate nullclines"
 };
-char *ic_hint[]={
+const char *ic_hint[]={
 "Integrate over a range of parameters, init data, etc",
 "Integrate over range of 2 parameters,init data, etc",
 "Pick up from last step of previous solution",
@@ -123,7 +123,7 @@ char *ic_hint[]={
 "Integrate backwards"
 };
 
-char *wind_hint[]={
+const char *wind_hint[]={
 "Manually choose 2D view",
 "Zoom into with mouse",
 "Zoom out with mouse",
@@ -132,7 +132,7 @@ char *wind_hint[]={
 "Scroll around the view"
 };
 
-char *flow_hint[]={
+const char *flow_hint[]={
 "Draw vector field for 2D section",
 "Draw regular series of trajectories",
 " ",
@@ -140,13 +140,13 @@ char *flow_hint[]={
 "Draw only directions"
 };
 
-char *phas_hint[]={
+const char *phas_hint[]={
 "Each variable is on a circle",
 "No variable on circle",
 "Choose circle variables"
 };
 
-char *kin_hint[]={
+const char *kin_hint[]={
 "Grab a screen shot",
 "Clear all screen shots",
 "Manually cycle thru screenshots",
@@ -155,7 +155,7 @@ char *kin_hint[]={
 "Make animated gif file from screenshots"
 };
 
-char *graf_hint[]={
+const char *graf_hint[]={
 "Add another curve to the current plot",
 "Delete last added plot",
 "Remove all the added plots except the main one",
@@ -168,7 +168,7 @@ char *graf_hint[]={
 "Change colormap"
 };
 
-char *cmap_hint[]={
+const char *cmap_hint[]={
  " blue-green-red",
  "red-...-violet-red",
  "black-red-yellow-white",
@@ -177,7 +177,7 @@ char *cmap_hint[]={
  "black-white",
  "helical luminence corrected"
 };
-char *frz_hint[]={
+const char *frz_hint[]={
 "Permanently keep main curve -- even after reintegrating",
 "Delete specified frozen curve",
 "Edit specified frozen curve",
@@ -188,7 +188,7 @@ char *frz_hint[]={
 "Automatically freeze after each integration",
 };
 
-char *stoch_hint[]={
+const char *stoch_hint[]={
 "Seed random number generator",
 "Run many simulations to get average trajectory",
 "Get data from last simulation",
@@ -207,7 +207,7 @@ char *stoch_hint[]={
 "Compute two-variable histograms"
 };
 
-char *bvp_hint[]={
+const char *bvp_hint[]={
 "Solve BVP over range of parameters",
 "Don't show any but final step",
 "Show each step of iteration",
@@ -215,7 +215,7 @@ char *bvp_hint[]={
 "Set up special homoclinic stuff"
 }; 
 
-char *adj_hint[]={
+const char *adj_hint[]={
 "Compute a new adjoint function",
 "Compute averaging interaction function",
 "Load computed adjoint",
@@ -225,7 +225,7 @@ char *adj_hint[]={
 "Range over stuff to computte many adjoints"
 };
 
-char *map_hint[]={
+const char *map_hint[]={
 "Turn off Poincare map",
 "Define section for Poincare map",
 "Compute Poincare map on maximum/minimum of variable",
@@ -233,14 +233,14 @@ char *map_hint[]={
 };
 
 
-char *view_hint[]={
+const char *view_hint[]={
   "Two-dimensional view settings",
   "Three-dimensional view settings",
   "Plot array ",
   "Animation window"
 };
 
-char *half_hint[]={
+const char *half_hint[]={
 "Create new window",
 "Delete all but main window",
 "Delete last window",
@@ -249,7 +249,7 @@ char *half_hint[]={
 "Redraw only when requested",
 "Plot all graphs simultaneously -- slows you down"};
 
-char *text_hint[]={
+const char *text_hint[]={
 "Create text labels in different fonts ",
 "Add arrows to trajectories",
 "Create lines with arrowheads",
@@ -259,19 +259,19 @@ char *text_hint[]={
 "Create many markers based on browser data"
 };
 
-char *edit_hint[]={
+const char *edit_hint[]={
 "Move the selected item",
 "Change properties of selected item",
 "Delete selected item"
 };
 
-char *sing_hint[]={
+const char *sing_hint[]={
 "Find fixed points over range of parameter",
 " ",
 "Use mouse to guess fixed point",
 "Monte carlo search for fixed points"};
 
-char *meth_hint[]={
+const char *meth_hint[]={
 "Discrete time -- difference equations",
 "Euler method",
 "Heun method -- 2nd order Euler",
@@ -288,22 +288,22 @@ char *meth_hint[]={
 "Rosenbrock(2,3) - good with discontinuties",
 "Symplectic - x''=F(x)"};
 
-char *color_hint[]={
+const char *color_hint[]={
 " ",
 "Color according to magnitude of derivative",
 "Color according to height of Z-axis"
 };
 
-char *tab_hint[]={"Edit the lookup tables","View a table in the data browser"};
+const char *tab_hint[]={"Edit the lookup tables","View a table in the data browser"};
 
-char *edrh_hint[]={
+const char *edrh_hint[]={
 "Edit right-hand sides and auxiliaries",
 "Edit function definitions",
 "Save current file with new defs",
 "Load external C right-hand sides"
 };
 
-char *auto_hint[]={
+const char *auto_hint[]={
 "Tell AUTO the parameters you may vary",
 "What will be plotted on the axes and what parameter(s)",
 "Tell AUTO range, direction, and tolerance",
@@ -314,10 +314,10 @@ char *auto_hint[]={
 "Redraw the diagram",
 "Save and output options"};
 
-char *no_hint[]={ 
+const char *no_hint[]={ 
 " "," "," "," "," "," "," "," "," "," ", " "," "," "," "};
 
-char *aaxes_hint[]={
+const char *aaxes_hint[]={
 "Plot maximum of variable vs parameter",
 "Plot norm of solution vs parameter",
 "Plot max/min of variable vs parameter",
@@ -334,7 +334,7 @@ char *aaxes_hint[]={
 "Scroll around the plot"
 };
 
-char *afile_hint[]={
+const char *afile_hint[]={
 "Load a computed orbit into XPP",
 "Write diagram info to file for reuse",
 "Load previously saved file for restart",
@@ -352,7 +352,7 @@ char *afile_hint[]={
 "Put all data from branch into browser",
 };
 
-char *aspecial_hint[]={
+const char *aspecial_hint[]={
 "Bifurcation or branch point",
 "Endpoint of a branch",
 "Hopf bifurcation point",
@@ -363,7 +363,7 @@ char *aspecial_hint[]={
 "User defined function",
 };
 
-char *arun_hint[]={
+const char *arun_hint[]={
   "Start at fixed point",
   "Start at periodic orbit",
   "Start at solution to boundary value problem",
@@ -377,53 +377,53 @@ char num_menu_keys[]="tsrdniobmechpukva\033";
 char file_menu_keys[]="pwraceshqtglxu";
 
 /* pop-up menus, formerly static arrays inside the menudrive.c handlers */
-static char *ic_items[]={"(R)ange","(2)par range","(L)ast","(O)ld","(G)o",
+static const char *ic_items[]={"(R)ange","(2)par range","(L)ast","(O)ld","(G)o",
   "(M)ouse","(S)hift","(N)ew","s(H)oot","(F)ile","form(U)la","m(I)ce",
   "DAE guess","(B)ackward"};
-static char *null_items[]={"(N)ew","(R)estore","(A)uto","(M)anual",
+static const char *null_items[]={"(N)ew","(R)estore","(A)uto","(M)anual",
   "(F)reeze","(S)ave"};
-static char *frzcline_items[]={"(F)reeze","(D)elete all","(R)ange","(A)nimate"};
-static char *dfield_items[]={"(D)irect Field","(F)low","(N)o dir. fld.",
+static const char *frzcline_items[]={"(F)reeze","(D)elete all","(R)ange","(A)nimate"};
+static const char *dfield_items[]={"(D)irect Field","(F)low","(N)o dir. fld.",
   "(C)olorize","(S)caled Dir.Fld"};
-static char *window_items[]={"(W)indow","(Z)oom In","Zoom (O)ut","(F)it",
+static const char *window_items[]={"(W)indow","(Z)oom In","Zoom (O)ut","(F)it",
   "(D)efault","(S)croll"};
-static char *torus_items[]={"(A)ll","(N)one","(C)hoose"};
+static const char *torus_items[]={"(A)ll","(N)one","(C)hoose"};
 /* (X)tra is defined but not shown: the menu has 6 entries */
-static char *kin_items[]={"(C)apture","(R)eset","(P)layback","(A)utoplay",
+static const char *kin_items[]={"(C)apture","(R)eset","(P)layback","(A)utoplay",
   "(S)ave","(M)ake AniGif","(X)tra"};
-static char *curve_items[]={"(A)dd curve","(D)elete last","(R)emove all",
+static const char *curve_items[]={"(A)dd curve","(D)elete last","(R)emove all",
   "(E)dit curve","(P)ostscript","S(V)G","(F)reeze","a(X)es opts",
   "exp(O)rt data","(C)olormap"};
-static char *freeze_items[]={"(F)reeze","(D)elete","(E)dit","(R)emove all",
+static const char *freeze_items[]={"(F)reeze","(D)elete","(E)dit","(R)emove all",
   "(K)ey","(B)if.Diag","(C)lr. BD","(O)n freeze"};
-static char *freeze_off_items[]={"(F)reeze","(D)elete","(E)dit","(R)emove all",
+static const char *freeze_off_items[]={"(F)reeze","(D)elete","(E)dit","(R)emove all",
   "(K)ey","(B)if.Diag","(C)lr. BD","(O)ff freeze"};
-static char *key_items[]={"(N)o key","(K)ey"};
-static char *cmap_items[]={"(N)ormal","(P)eriodic","(H)ot","(C)ool",
+static const char *key_items[]={"(N)o key","(K)ey"};
+static const char *cmap_items[]={"(N)ormal","(P)eriodic","(H)ot","(C)ool",
   "(B)lue-red","(G)ray","c(U)behelix"};
-static char *windows_items[]={"(C)reate","(K)ill all","(D)estroy","(B)ottom",
+static const char *windows_items[]={"(C)reate","(K)ill all","(D)estroy","(B)ottom",
   "(A)uto","(M)anual","(S)imPlot On"};
-static char *windows_simoff_items[]={"(C)reate","(K)ill all","(D)estroy",
+static const char *windows_simoff_items[]={"(C)reate","(K)ill all","(D)estroy",
   "(B)ottom","(A)uto","(M)anual","(S)imPlot Off"};
-static char *text_items[]={"(T)ext","(A)rrow","(P)ointer","(M)arker",
+static const char *text_items[]={"(T)ext","(A)rrow","(P)ointer","(M)arker",
   "(E)dit","(D)elete all","marker(S)"};
-static char *text_edit_items[]={"(M)ove","(C)hange","(D)elete"};
-static char *sing_items[]={"(G)o","(M)ouse","(R)ange","monte(C)ar"};
-static char *view_items[]={"2D","3D","Array","Toon"};
-static char *bvp_items[]={"(R)ange","(N)o show","(S)how","(P)eriodic"};
-static char *stoch_items[]={"New seed","Compute","Data","Mean","Variance",
+static const char *text_edit_items[]={"(M)ove","(C)hange","(D)elete"};
+static const char *sing_items[]={"(G)o","(M)ouse","(R)ange","monte(C)ar"};
+static const char *view_items[]={"2D","3D","Array","Toon"};
+static const char *bvp_items[]={"(R)ange","(N)o show","(S)how","(P)eriodic"};
+static const char *stoch_items[]={"New seed","Compute","Data","Mean","Variance",
   "Histogram","Old hist","Fourier","Power","fIt data","Stat","Liapunov",
   "stAutocor","Xcorrel etc","spEc.dns","2D-hist"};
-static char *map_items[]={"(N)one","(S)ection","(M)ax/min","(P)eriod"};
-static char *color_items[]={"(N)o color","(V)elocity","(A)nother quantity"};
-static char *adj_items[]={"(N)ew adj","(M)ake H","(A)djoint","(O)rbit",
+static const char *map_items[]={"(N)one","(S)ection","(M)ax/min","(P)eriod"};
+static const char *color_items[]={"(N)o color","(V)elocity","(A)nother quantity"};
+static const char *adj_items[]={"(N)ew adj","(M)ake H","(A)djoint","(O)rbit",
   "(H)fun","(P)arameters","(R)ange"};
-static char *tab_items[]={"(E)dit","(V)iew"};
-static char *meth_items[]={"(D)iscrete","(E)uler","(M)od. Euler",
+static const char *tab_items[]={"(E)dit","(V)iew"};
+static const char *meth_items[]={"(D)iscrete","(E)uler","(M)od. Euler",
   "(R)unge-Kutta","(A)dams","(G)ear","(V)olterra","(B)ackEul",
   "(Q)ualst.RK4","(S)tiff","(C)Vode","DoPri(5)","DoPri(8)3",
   "Rosen(2)3","sYmplectic"};
-static char *edrh_items[]={"RHS's","Functions","Save as","Load DLL"};
+static const char *edrh_items[]={"RHS's","Functions","Save as","Load DLL"};
 
 /*                                 name  title  n  items  keys  hints  first_cmd  width  row */
 const XppMenu menu_integrate={"integrate","Integrate",14,ic_items,"r2logmsnhfuidb",ic_hint,M_IR,13,3};

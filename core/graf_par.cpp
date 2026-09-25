@@ -77,11 +77,11 @@ extern char this_internset[XPP_MAX_NAME];
 extern int PltFmtFlag;
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 
-extern char *no_hint[],*wind_hint[],*view_hint[],*frz_hint[];
-extern char *graf_hint[], *cmap_hint[]; 
+extern const char *no_hint[],*wind_hint[],*view_hint[],*frz_hint[];
+extern const char *graf_hint[], *cmap_hint[]; 
 
 int colorline[]={0,20,21,22,23,24,25,26,27,28,29,0};
-char *color_names[]={"WHITE","RED","REDORANGE","ORANGE","YELLOWORANGE",
+const char *color_names[]={"WHITE","RED","REDORANGE","ORANGE","YELLOWORANGE",
                     "YELLOW","YELLOWGREEN","GREEN","BLUEGREEN",
 		      "BLUE","PURPLE","BLACK"};
 
@@ -90,7 +90,7 @@ void change_view_com(int com)
 {
  
  if(com==2){
-   make_my_aplot("Array!");
+   make_my_aplot((char *)"Array!");
    edit_aplot(); 
    return;
  }
@@ -120,8 +120,8 @@ void check_flags()
 
 void get_2d_view(int ind)
 {
- static char *n[]={"*0X-axis","*0Y-axis","Xmin", "Ymin",
-		   "Xmax", "Ymax", "Xlabel","Ylabel"};
+ static char *n[]={(char *)"*0X-axis",(char *)"*0Y-axis",(char *)"Xmin", (char *)"Ymin",
+		   (char *)"Xmax", (char *)"Ymax", (char *)"Xlabel",(char *)"Ylabel"};
  char values[8][MAX_LEN_SBOX];
  int  status,i; 
  int i1=plot_windows.current->xv[ind],i2=plot_windows.current->yv[ind];
@@ -138,7 +138,7 @@ void get_2d_view(int ind)
  snprintf(values[7],sizeof(values[7]),"%s",plot_windows.current->ylabel);
  plot_windows.current->ThreeDFlag=0;
  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(8,4,2,"2D View",n,values,31,kinds);
+ status=do_string_box_of(8,4,2,(char *)"2D View",n,values,31,kinds);
  if(status!=0){
 		/*  get variable names  */
              find_variable(values[0],&i);
@@ -170,9 +170,9 @@ void get_2d_view(int ind)
 
 void axes_opts()
 {
-  static char *n[]={"X-origin","Y-origin","Z-origin",
-		   "X-org(1=on)","Y-org(1=on)","Z-org(1=on",
-		    "PSFontSize"};
+  static char *n[]={(char *)"X-origin",(char *)"Y-origin",(char *)"Z-origin",
+		   (char *)"X-org(1=on)",(char *)"Y-org(1=on)",(char *)"Z-org(1=on",
+		    (char *)"PSFontSize"};
   char values[7][MAX_LEN_SBOX];
   int status;
   XPP_SPRINTF(values[0],"%g",plot_windows.current->xorg);
@@ -184,7 +184,7 @@ void axes_opts()
   XPP_SPRINTF(values[6],"%d",PS_FONTSIZE);
   static const int kinds[]={XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
-  status=do_string_box_of(7,7,1,"Axes options",n,values,25,kinds);
+  status=do_string_box_of(7,7,1,(char *)"Axes options",n,values,25,kinds);
  if(status!=0){
    plot_windows.current->xorg=atof(values[0]);
    plot_windows.current->yorg=atof(values[1]);
@@ -201,10 +201,10 @@ void axes_opts()
 
 void get_3d_view(int ind)
 {
- static char *n[]={"*0X-axis","*0Y-axis", "*0Z-axis",
-		   "Xmin", "Xmax", "Ymin",
-		   "Ymax", "Zmin","Zmax",
-		   "XLo", "XHi", "YLo", "YHi","Xlabel","Ylabel","Zlabel"};
+ static char *n[]={(char *)"*0X-axis",(char *)"*0Y-axis", (char *)"*0Z-axis",
+		   (char *)"Xmin", (char *)"Xmax", (char *)"Ymin",
+		   (char *)"Ymax", (char *)"Zmin",(char *)"Zmax",
+		   (char *)"XLo", (char *)"XHi", (char *)"YLo", (char *)"YHi",(char *)"Xlabel",(char *)"Ylabel",(char *)"Zlabel"};
  char values[16][MAX_LEN_SBOX];
  int  status,i,i1=plot_windows.current->xv[ind],i2=plot_windows.current->yv[ind],i3=plot_windows.current->zv[ind];
  char n1[XPP_NAME_MAX+1],n2[XPP_NAME_MAX+1],n3[XPP_NAME_MAX+1];
@@ -232,7 +232,7 @@ void get_3d_view(int ind)
                            XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(16,6,3,"3D View",n,values,31,kinds);
+ status=do_string_box_of(16,6,3,(char *)"3D View",n,values,31,kinds);
  if(status!=0){
 		/*  get variable names  */
               find_variable(values[0],&i);
@@ -446,7 +446,7 @@ void fit_window()
 
 void user_window()
 {
- static char *n[]={"X Lo","X Hi","Y Lo","Y Hi"};
+ static char *n[]={(char *)"X Lo",(char *)"X Hi",(char *)"Y Lo",(char *)"Y Hi"};
  char values[4][MAX_LEN_SBOX];
  int status;
  XPP_SPRINTF(values[0],"%g",plot_windows.current->xlo);
@@ -454,7 +454,7 @@ void user_window()
  XPP_SPRINTF(values[1],"%g",plot_windows.current->xhi);
  XPP_SPRINTF(values[3],"%g",plot_windows.current->yhi);
  static const int kinds[]={XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
- status=do_string_box_of(4,2,2,"Window",n,values,28,kinds);
+ status=do_string_box_of(4,2,2,(char *)"Window",n,values,28,kinds);
  if(status!=0){
              
 	      plot_windows.current->xlo=atof(values[0]);
@@ -535,9 +535,9 @@ void get_3d_par_com()
 {
   
 
- static char *n[]={"Persp (1=On)","ZPlane","ZView","Theta","Phi","Movie(Y/N)",
-                   "Vary (theta/phi)","Start angle", "Increment",
-		   "Number increments"};
+ static char *n[]={(char *)"Persp (1=On)",(char *)"ZPlane",(char *)"ZView",(char *)"Theta",(char *)"Phi",(char *)"Movie(Y/N)",
+                   (char *)"Vary (theta/phi)",(char *)"Start angle", (char *)"Increment",
+		   (char *)"Number increments"};
  char values[10][MAX_LEN_SBOX];
  int status;
  
@@ -559,7 +559,7 @@ void get_3d_par_com()
  
  static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER};
- status=do_string_box_of(10,5,2,"3D Parameters",n,values,28,kinds);
+ status=do_string_box_of(10,5,2,(char *)"3D Parameters",n,values,28,kinds);
  if(status!=0){
 	      plot_windows.current->PerspFlag=atoi(values[0]);
 	      plot_windows.current->ZPlane=atof(values[1]);
@@ -782,7 +782,7 @@ void graph_all(int *list, int n, int type)
 
 int alter_curve(char *title, int in_it, int n)
 {
- static char *nn[]={"*0X-axis","*0Y-axis","*0Z-axis","*4Color","Line type"};
+ static char *nn[]={(char *)"*0X-axis",(char *)"*0Y-axis",(char *)"*0Z-axis",(char *)"*4Color",(char *)"Line type"};
  char values[5][MAX_LEN_SBOX];
  int status,i;
  int i1=plot_windows.current->xv[in_it],i2=plot_windows.current->yv[in_it],i3=plot_windows.current->zv[in_it];
@@ -839,7 +839,7 @@ void edit_curve()
 
 void new_curve()
 {
- if(alter_curve("New Curve",0,plot_windows.current->nvars))
+ if(alter_curve((char *)"New Curve",0,plot_windows.current->nvars))
    plot_windows.current->nvars=plot_windows.current->nvars+1;
   
  }  
@@ -848,7 +848,7 @@ void create_ps()
 {
  /*char filename[256];*/
  char filename[XPP_MAX_NAME];
- static char *nn[]={"BW-0/Color-1","Land(0)/Port(1)","Axes fontsize","Font","Linewidth"};
+ static char *nn[]={(char *)"BW-0/Color-1",(char *)"Land(0)/Port(1)",(char *)"Axes fontsize",(char *)"Font",(char *)"Linewidth"};
  int status;
  char values[5][MAX_LEN_SBOX];
  XPP_SPRINTF(values[0],"%d",plot_export.color);
@@ -857,7 +857,7 @@ void create_ps()
  snprintf(values[3],sizeof(values[3]),"%.24s",PS_FONT);
  XPP_SPRINTF(values[4],"%g",PS_LW);
  static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_NUMBER};
- status=do_string_box_of(5,5,1,"Postscript parameters",nn,values,25,kinds);
+ status=do_string_box_of(5,5,1,(char *)"Postscript parameters",nn,values,25,kinds);
  if(status!=0){
          plot_export.color=atoi(values[0]);
 	 PS_Port=atoi(values[1]);
@@ -867,7 +867,7 @@ void create_ps()
 	 snprintf(filename,sizeof(filename),"%.250s.ps",this_file);
 	 ping();
  
-	 if(!file_selector("Print postscript",filename,"*.ps"))return;
+	 if(!file_selector((char *)"Print postscript",filename,(char *)"*.ps"))return;
 	 if(ps_init(filename,plot_export.color)){
 	   ps_restore(); 
 	   ping();
@@ -883,7 +883,7 @@ void create_svg()
  filename[strlen(filename)-4]='\0';
  strcat(filename,".svg");	
  /*sprintf(filename,"%s.svg",tmp);*/
- if(!file_selector("Print svg",filename,"*.svg"))return;
+ if(!file_selector((char *)"Print svg",filename,(char *)"*.svg"))return;
  if(svg_init(filename,plot_export.color)){
 	   svg_restore(); 
 	   ping();
@@ -982,7 +982,7 @@ void key_frz_com(int c)
     FreezeKeyFlag=0;
     break;
   case 1:
-    MessageBox("Position with mouse");
+    MessageBox((char *)"Position with mouse");
     if(GetMouseXY(&x,&y)){
       set_key(x,y);
       draw_freeze_key();
@@ -1056,7 +1056,7 @@ int create_crv(int ind)
       iy=plot_windows.current->yv[ind];
       iz=plot_windows.current->zv[ind];
       if(my_browser.maxrow<=2){
-	err_msg("No Curve to freeze");
+	err_msg((char *)"No Curve to freeze");
 	return(-1);
       }
       frozen_curves.curve[i].xv=(float *) xpp_malloc(sizeof(float)*my_browser.maxrow);
@@ -1064,7 +1064,7 @@ int create_crv(int ind)
       if((type=plot_windows.current->grtype)>0)
 	frozen_curves.curve[i].zv=(float *)xpp_malloc(sizeof(float)*my_browser.maxrow);
       if ((type>0&&frozen_curves.curve[i].zv==NULL)|| (type==0&&frozen_curves.curve[i].yv==NULL)){
-	err_msg("Cant allocate storage for curve");
+	err_msg((char *)"Cant allocate storage for curve");
 	return(-1);
       }
       frozen_curves.curve[i].use=1;
@@ -1083,21 +1083,21 @@ int create_crv(int ind)
       return(i);
     }
   }
-    err_msg("All curves used");
+    err_msg((char *)"All curves used");
     return(-1);
 }	
 	
 
 void edit_frz_crv(int i)
 {
- static char *nn[]={"*4Color","Key","Name"};
+ static char *nn[]={(char *)"*4Color",(char *)"Key",(char *)"Name"};
  char values[3][MAX_LEN_SBOX];
  int status;
  XPP_SPRINTF(values[0],"%d",frozen_curves.curve[i].color);
  XPP_SPRINTF(values[1],"%s",frozen_curves.curve[i].key);
  XPP_SPRINTF(values[2],"%s",frozen_curves.curve[i].name);
  static const int kinds[]={XPP_FIELD_NAME_IN(4),XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(3,3,1,"Edit Freeze",nn,values,25,kinds);
+ status=do_string_box_of(3,3,1,(char *)"Edit Freeze",nn,values,25,kinds);
  if(status!=0){
    frozen_curves.curve[i].color=atoi(values[0]);
    snprintf(frozen_curves.curve[i].key,sizeof(frozen_curves.curve[i].key),"%.19s",values[1]);
@@ -1230,10 +1230,10 @@ void frz_bd()
   char filename[XPP_MAX_NAME];
   XPP_SPRINTF(filename,"diagram.dat");
   ping();
-  if(!file_selector("Import Diagram",filename,"*.dat"))return;
+  if(!file_selector((char *)"Import Diagram",filename,(char *)"*.dat"))return;
   /* if(new_string("Diagram to import: ",filename)==0)return; */
   if((fp=fopen(filename,"r"))==NULL){
-    err_msg("Couldn't open file");
+    err_msg((char *)"Couldn't open file");
     return;
   }
   read_bd(fp);
@@ -1326,10 +1326,10 @@ void export_graf_data()
  char filename[XPP_MAX_NAME];
  XPP_SPRINTF(filename,"curve.dat");
  ping();
-if(!file_selector("Export graph data",filename,"*.dat"))return;
+if(!file_selector((char *)"Export graph data",filename,(char *)"*.dat"))return;
 /* if(new_string("Data filename:",filename)==0)return; */
 if((fp=fopen(filename,"w"))==NULL){
-    err_msg("Couldn't open file");
+    err_msg((char *)"Couldn't open file");
     return;
   }
  export_data(fp);
@@ -1342,7 +1342,7 @@ void add_a_curve_com(int c)
  switch(c){
  case 0: if(plot_windows.current->nvars>=MAXPERPLOT)
    {
-     err_msg("Too many plots!");
+     err_msg((char *)"Too many plots!");
      return;
    }
    new_curve();

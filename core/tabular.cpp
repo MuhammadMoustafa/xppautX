@@ -501,8 +501,8 @@ int select_table(void)
  }
  key[NTable]=0;
  {
-   XppMenu m={"table",(char *)"Table",0,NULL,NULL,NULL,-1,0,1};
-   m.n=NTable; m.items=n; m.keys=key; m.hints=no_hint; m.width=NTable;
+   XppMenu m={"table","Table",0,NULL,NULL,NULL,-1,0,1};
+   m.n=NTable; m.items=(const char *const *)n; m.keys=key; m.hints=(const char *const *)no_hint; m.width=NTable;
    ch=(char)menu_choose(&m,0);
  }
  for(i=0;i<NTable;i++)xpp_free(n[i]);

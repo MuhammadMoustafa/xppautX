@@ -268,16 +268,16 @@ void init_rpn()
     NSYM = STDSYM;
     two_args();
     one_arg();
-    add_con("PI", M_PI);
+    add_con((char *)"PI", M_PI);
 
-        add_con("I'",0.0);
+        add_con((char *)"I'",0.0);
     /*   This is going to be for interacting with the
          animator */
     SumIndex=NCON-1;
-        add_con("mouse_x",0.0);
-        add_con("mouse_y",0.0);
-        add_con("mouse_vx",0.0);
-        add_con("mouse_vy",0.0);
+        add_con((char *)"mouse_x",0.0);
+        add_con((char *)"mouse_y",0.0);
+        add_con((char *)"mouse_vx",0.0);
+        add_con((char *)"mouse_vy",0.0);
 
     /* end animator stuff */
     /*  add_con("c___1",0.0);
@@ -417,9 +417,9 @@ int add_kernel(char *name, double mu, char *expr)
   kernel[NKernel].k_n=0.0;
   kernel[NKernel].k_n1=0.0;
   kernel[NKernel].flag=0;
-  for(i=0;i<strlen(expr);i++)
+  for(i=0;i<(int)strlen(expr);i++)
     if(expr[i]=='#')in=i;
-  if(in==0||in==(strlen(expr)-1)){
+  if(in==0||in==((int)strlen(expr)-1)){
     xpp_log(XPP_LOG_WARN, "Illegal use of convolution...\n");
     return(1);
   }
@@ -429,7 +429,7 @@ int add_kernel(char *name, double mu, char *expr)
     kernel[NKernel].kerexpr=(char *)xpp_malloc(in+1);
     for(i=0;i<in;i++)kernel[NKernel].kerexpr[i]=expr[i];
     kernel[NKernel].kerexpr[in]=0;
-    for(i=in+1;i<strlen(expr);i++)kernel[NKernel].expr[i-in-1]=expr[i];
+    for(i=in+1;i<(int)strlen(expr);i++)kernel[NKernel].expr[i-in-1]=expr[i];
     kernel[NKernel].expr[strlen(expr)-in-1]=0;
     xpp_log(XPP_LOG_INFO, "Convolving %s with %s\n",
 	   kernel[NKernel].kerexpr,kernel[NKernel].expr);

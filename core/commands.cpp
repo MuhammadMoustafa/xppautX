@@ -47,7 +47,7 @@
 extern int DF_FLAG, NTable, POIMAP, TORUS;
 extern int Nintern_set;
 extern INTERN_SET intern_set[MAX_INTERN_SET];
-extern char *no_hint[];
+extern const char *no_hint[];
 
 namespace {
 /* err_msg/respond_box/new_int/new_string/two_choice/XppMenu.title (xpp_ui.h,

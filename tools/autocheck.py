@@ -7,7 +7,7 @@ usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [SECTION...]
 Sections: diagram, input, abort, control, files, csv, stability, sessions,
 session, script, replay, names, scratch (default: all; tools/verify.sh runs
 them all).
-scratch checks that a start removes an xppautoX-<pid>-N folder (xpp_util.c's
+scratch checks that a start removes an xppautoX-<pid>-N folder (xpp_util.cpp's
 AUTO scratch directory) left by a dead pid, and leaves one alone whose pid is
 still running (issue #32). files compares
 AUTO's saved diagram of lecar with a reference; csv checks File/eXport CSV

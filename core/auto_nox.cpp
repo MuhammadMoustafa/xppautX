@@ -147,7 +147,7 @@ extern double constants[];
 extern int PointType;
 extern int xorfix;
 extern int NoBreakLine;
-extern char *auto_hint[],*aaxes_hint[],*afile_hint[],*arun_hint[],*no_hint[];
+extern const char *auto_hint[],*aaxes_hint[],*afile_hint[],*arun_hint[],*no_hint[];
 extern int BVP_FLAG;
 
 extern int fp8_is_open;
@@ -846,7 +846,7 @@ void auto_per_par()
   char ch;
   /* "Mark values" (T21): AUTO labels (UZ) the points where a parameter or
      the period reaches one of these values */
-  ch=(char)auto_pop_up_list(str("Mark values: how many?"),strs(m),key,10,12,Auto.nper,10,10,no_hint,
+  ch=(char)auto_pop_up_list(str("Mark values: how many?"),strs(m),key,10,12,Auto.nper,10,10,strs(no_hint),
 		       Auto.hinttxt);
   for(i=0;i<10;i++)
     if(ch==key[i])Auto.nper=i;
@@ -994,7 +994,7 @@ void auto_plot_par()
   int i1=Auto.var+1;
   char n1[XPP_NAME_MAX+1];
   ch=(char)auto_pop_up_list(str("Plot Type"),strs(m),key,14,10,Auto.plot,10,50,
-		       aaxes_hint,Auto.hinttxt);
+		       strs(aaxes_hint),Auto.hinttxt);
   if(ch==ESC) 
     return;
   for(i=0;i<5;i++){
@@ -1946,7 +1946,7 @@ void auto_start_choice()
     auto_new_discrete();
     return;
   }
-  ch=(char)auto_pop_up_list(str("Start"),strs(m),key,5,13,0,10,10,arun_hint,
+  ch=(char)auto_pop_up_list(str("Start"),strs(m),key,5,13,0,10,10,strs(arun_hint),
 		       Auto.hinttxt);
    if(ch=='s'){
     auto_new_ss();
@@ -1987,7 +1987,7 @@ void torus_choice()
   static  char key[]="tfe";
   char ch;
   ch=(char)auto_pop_up_list(str("Torus"),strs(m),key,3,10,0,10,10,
-		       no_hint,Auto.hinttxt);
+		       strs(no_hint),Auto.hinttxt);
    if(ch=='e'){
     auto_new_per();
     return;
@@ -2008,7 +2008,7 @@ void per_doub_choice()
   static const char *m[]={"Doubling","Two Param","Fixed period","Extend"};
   static  char key[]="dtfe";
   char ch;
-  ch=(char)auto_pop_up_list(str("Per. Doub."),strs(m),key,4,10,0,10,10,no_hint,Auto.hinttxt);
+  ch=(char)auto_pop_up_list(str("Per. Doub."),strs(m),key,4,10,0,10,10,strs(no_hint),Auto.hinttxt);
   if(ch=='d'){
     auto_period_double();
     return;
@@ -2034,7 +2034,7 @@ void periodic_choice()
   static  char key[]="ef";
   char ch;
   ch=(char)auto_pop_up_list(str("Periodic "),strs(m),key,2,14,0,10,10,
-		       no_hint,Auto.hinttxt);
+		       strs(no_hint),Auto.hinttxt);
   if(ch=='e'){
     auto_new_per();
     return;
@@ -2059,7 +2059,7 @@ void hopf_choice()
   }
 
   ch=(char)auto_pop_up_list(str("Hopf Pt"),strs(m),key,4,10,0,10,10,
-		       no_hint,Auto.hinttxt);
+		       strs(no_hint),Auto.hinttxt);
   if(ch=='p'){
     auto_new_per();
     return;
@@ -2177,7 +2177,7 @@ void auto_branch_choice(int ibr, int ips)
   char ch;
   int ipsuse;
   ch=(char)auto_pop_up_list(str("Branch Pt"),strs(m),key,4,10,0,10,10,
-		       no_hint,Auto.hinttxt);
+		       strs(no_hint),Auto.hinttxt);
 
 
   if(ch=='s'){
@@ -3315,7 +3315,7 @@ void DLINE(double a,double b,double c,double d)
 #undef LEFT
 #undef RIGHT
 #include "mykeydef.h"
-extern char *aspecial_hint[];
+extern const char *aspecial_hint[];
 DIAGRAM *CUR_DIAGRAM;
 
 int query_special(char* title,char *nsymb)
@@ -3326,7 +3326,7 @@ int query_special(char* title,char *nsymb)
         static const char *m[]={"BP","EP","HB","LP","MX","PD","TR","UZ"};
 	static  char key[]="behlmptu";
 	int ch=(char)auto_pop_up_list(title,strs(m),key,8,11,1,10,10,
-			     aspecial_hint,Auto.hinttxt);
+			     strs(aspecial_hint),Auto.hinttxt);
 	if(ch=='b'){
 	  xpp_snprintf(nsymb,3,"BP");
 	}

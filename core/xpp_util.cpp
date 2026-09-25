@@ -7,6 +7,10 @@
 #include "xpp_io.h"
 #include "xpp_ui.h"
 #include "grobs.h"
+#include "axes2.h"
+#include "graphics.h"
+#include "edit_rhs.h"
+#include "init_conds.h"
 #include "xpp_globals.h"
 #include "parserslow.h"
 #include "browse.h"
@@ -55,7 +59,6 @@ extern char ufun_names[MAXUFUN][XPP_NAME_MAX+1];
 extern int narg_fun[MAXUFUN];
 extern UFUN_ARG ufun_arg[MAXUFUN];
 extern int NFUN;
-void do_axes(void);
 
 /* ---- graph bookkeeping (was many_pops.c / main.c) ----------------------- */
 
@@ -151,7 +154,7 @@ int find_user_name(int type, char *oname)
 {
  char name[XPP_NAME_MAX+1];
  int j=0,k=0,i=-1;
- for(j=0;j<strlen(oname);j++){
+ for(j=0;j<(int)strlen(oname);j++){
  if(!isspace(oname[j])){
    if(k>=XPP_NAME_MAX)return(-1); /* longer than any name */
    name[k]=oname[j];k++;
@@ -195,7 +198,7 @@ int do_calc(char *temp, double *z)
   else {
     i=find_user_name(IC,val);
     if(i<0){
-      err_msg("No such name!");
+      err_msg((char *)"No such name!");
       return(-1);
     }
     set_val(val,newz);
@@ -216,9 +219,9 @@ int do_calc(char *temp, double *z)
 int has_eq(char *z, char *w, int *where)
 {
   int i;
-  for(i=0;i<strlen(z);i++)
+  for(i=0;i<(int)strlen(z);i++)
    if(z[i]==':')break;
-  if(i==strlen(z))return(0);
+  if(i==(int)strlen(z))return(0);
   if(i>255)return(0); /* w holds 256 bytes; no name is that long */
   strncpy(w,z,i);
   w[i]=0;
@@ -231,7 +234,7 @@ int has_eq(char *z, char *w, int *where)
   int com[400],i;
   double z=0.0;
     if(add_expr(expr,com,&i)){
-     err_msg("Illegal formula ..");
+     err_msg((char *)"Illegal formula ..");
      *ok=0;
       goto bye;
    }
@@ -396,9 +399,9 @@ void clone_ode()
   time_t ttt;
   double z;
   clone[0]=0;
-  if(!file_selector("Clone ODE file",clone,"*.ode"))return;
+  if(!file_selector((char *)"Clone ODE file",clone,(char *)"*.ode"))return;
   if((fp=fopen(clone,"w"))==NULL){
-      err_msg(" Cant open clone file");
+      err_msg((char *)" Cant open clone file");
       return;
     }
   ttt=time(0);
@@ -464,7 +467,7 @@ void new_parameter()
   char name[256],value[256],junk[256];
   while(1){
     name[0]=0;
-    done=new_string_of("Parameter:",name,XPP_FIELD_NAME_IN(2));
+    done=new_string_of((char *)"Parameter:",name,XPP_FIELD_NAME_IN(2));
     if(strlen(name)==0||done==0){redo_stuff(); return;}
     if(strncasecmp(name,"DEFAULT",7  )==0){
       set_default_params();
@@ -695,16 +698,14 @@ void eq_import(double *y,int n)
 /* cp/rp: complex/real eigenvalues with positive real part, im: imaginary */
 char *eq_stability(int cp,int rp,int im)
 {
- if(cp>0||rp>0)return "UNSTABLE";
- else if(im>0)return "NEUTRAL";
- else return "STABLE";
+ if(cp>0||rp>0)return (char *)"UNSTABLE";
+ else if(im>0)return (char *)"NEUTRAL";
+ else return (char *)"STABLE";
 }
 
 /* ---- a comment with an action in the ODE file was picked (logic from
    txtread.c): run its "name=value ..." settings ---- */
 void extract_action(char *ptr); /* load_eqn.c */
-void get_graph(void);           /* graphics.c */
-void reset_graph(void);
 
 void do_txt_action(char *s)
 {
@@ -736,7 +737,7 @@ char *xpp_make_temp_dir(void)
 
   if (base == NULL || base[0] == 0)
     base = "/tmp";
-  path = xpp_malloc(strlen(base) + 64);
+  path = (char *)xpp_malloc(strlen(base) + 64);
   if (path == NULL)
     return NULL;
   for (i = 0; i < 1000; i++) { /* a crashed run with our pid may have left one */

@@ -2,9 +2,20 @@
 #define _integrate_h_
 
 #include <stdio.h>
+#include "xpplim.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* Initialconds/Range's settings (integrate.cpp's, read by load_eqn.cpp's
+   options): one type for both, a C++ requirement since W27 */
+typedef struct RangeVars {
+  char item[MAX_LEN_SBOX], item2[MAX_LEN_SBOX];
+  int steps, steps2, reset, oldic, index, index2, cycle, type, type2, movie;
+  double plow, phigh, plow2, phigh2;
+  int rtype;
+} RangeVars;
+extern RangeVars range;
 
 /* the fixed-step integrator Integrate uses (numerics.c picks it) */
 extern int (*solver)(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work);

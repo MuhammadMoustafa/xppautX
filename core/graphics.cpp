@@ -145,10 +145,10 @@ void get_draw_area_flag(int flag)
 }
 
 
-void change_current_linestyle(int new, int *old)
+void change_current_linestyle(int newstyle, int *old)
 {
  *old=plot_windows.current->color[0];
-  plot_windows.current->color[0]=new;
+  plot_windows.current->color[0]=newstyle;
 }
      
 
@@ -820,7 +820,7 @@ void text_abs(float x, float y, char *text)
  put_text(xp,yp,text);
 }
 
-void fillintext(char *old,char *new)
+void fillintext(char *old,char *newname)
 {
  int i,l=strlen(old);
  int j,m,k,ans;
@@ -846,15 +846,15 @@ void fillintext(char *old,char *new)
 	   if(ans!=-1){
 	     XPP_SPRINTF(val,"%g",z);
 
-	     for(k=0;k<strlen(val);k++){
-	       new[j]=val[k];
+	     for(k=0;k<(int)strlen(val);k++){
+	       newname[j]=val[k];
 	       j++;
 	     }
 
 	     break;
 	   }
 	   else {
-	     new[j]='?';
+	     newname[j]='?';
 	     j++;
 	   }
 	 }
@@ -864,8 +864,8 @@ void fillintext(char *old,char *new)
 	 }
 	 i++;
 	 if(i>=l){ /* oops - end of string */
-	   new[j]='?';
-	   new[j+1]=0;
+	   newname[j]='?';
+	   newname[j+1]=0;
 	   return;
 	 }
        }
@@ -873,14 +873,14 @@ void fillintext(char *old,char *new)
      goto nc; /* sometimes its just easier to use the !#$$# goto */
    }
  na:
-   new[j]=c;
+   newname[j]=c;
    j++;
  nc:  /* normal characters */
    i++;
    if(i>=l)
      break;
  }
- new[j]=0;
+ newname[j]=0;
  return;
 }
 

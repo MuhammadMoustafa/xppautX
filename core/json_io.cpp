@@ -68,7 +68,7 @@ void buf_str(Buf *b, const char *s)
     BUF_LIT(b, "\"");
 }
 
-void buf_str_array(Buf *b, char **v, int n)
+void buf_str_array(Buf *b, const char *const *v, int n)
 {
     int i;
     BUF_LIT(b, "[");

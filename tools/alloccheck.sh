@@ -8,10 +8,9 @@
 # tools/sourcecheck.sh runs this. Usage: tools/alloccheck.sh
 cd "$(dirname "$0")/.." || exit 1
 
-# xpp_mem.cpp is the allocator itself. sbml2xpp.c is not built (it needs
-# libsbml). A new exception (memory a library allocates or frees) is listed
-# here and in xpp_mem.h's comment.
-EXCLUDE="core/xpp_mem.cpp core/sbml2xpp.c"
+# xpp_mem.cpp is the allocator itself. A new exception (memory a library
+# allocates or frees) is listed here and in xpp_mem.h's comment.
+EXCLUDE="core/xpp_mem.cpp"
 
 # a call, not a member (x.free(, p->free() or a longer name (xpp_free()
 PATTERN='(^|[^a-zA-Z0-9_.>])(malloc|calloc|realloc|strdup|free)[ \t]*\('

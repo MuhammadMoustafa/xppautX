@@ -49,7 +49,7 @@ int LastPSX,LastPSY;
     since Courier is an ugly font!!  
 */
 
-char *PS_header[]={
+static const char *PS_header[]={
 "/vpt2 vpt 2 mul def\n",
 "/hpt2 hpt 2 mul def\n",
 "/Romfnt {/Times-Roman findfont exch scalefont setfont} def ",
@@ -124,7 +124,7 @@ int ps_init(char *filename, int color)
 {
   int i;
  if((psfile=fopen(filename,"w"))==NULL){
-    err_msg("Cannot open file ");
+    err_msg((char *)"Cannot open file ");
     return(0);
   }
   init_ps();
@@ -194,10 +194,10 @@ void ps_do_color(int color)
 
 void ps_end()
 {
- ps_write("stroke");
- ps_write("grestore");
- ps_write("end");
- ps_write("showpage");
+ ps_write((char *)"stroke");
+ ps_write((char *)"grestore");
+ ps_write((char *)"end");
+ ps_write((char *)"showpage");
  ps_write_pars(psfile);
  fclose(psfile);
  PltFmtFlag=0;
@@ -261,7 +261,7 @@ void chk_ps_lines()
    
 void ps_linetype(int linetype)
 {
-char *line = "ba0123456789c"; 
+char *line = (char *)"ba0123456789c"; 
 
 	fprintf(psfile,"LT%c\n", line[(linetype%11)+2]);
 	PSLines=0;
@@ -274,7 +274,7 @@ char *line = "ba0123456789c";
 void ps_point(int x, int y)
 {
   int number=PointType;
-  char *point="PDABCTSKF";
+  char *point=(char *)"PDABCTSKF";
   number %= POINT_TYPES;
   if(number < -1) 
     number = -1;

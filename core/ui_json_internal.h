@@ -67,7 +67,7 @@ struct Buf {
 void buf_add(Buf *b, const char *s, size_t n);
 void buf_printf(Buf *b, const char *fmt, ...);
 void buf_str(Buf *b, const char *s); /* a JSON string */
-void buf_str_array(Buf *b, char **v, int n);
+void buf_str_array(Buf *b, const char *const *v, int n);
 
 void open_protocol_stdout(void); /* the protocol on the stdout of now */
 void out_line(const char *s, size_t n);

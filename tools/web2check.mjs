@@ -1274,7 +1274,7 @@ async function threePlot() {
     afterShift && afterShift.phi === beforeShift.phi + 30 && afterShift.theta === beforeShift.theta,
     JSON.stringify([beforeShift, afterShift]));
 
-  /* T30: fit_window() handles ThreeDFlag (core/graf_par.c), so 3D plots
+  /* T30: fit_window() handles ThreeDFlag (core/graf_par.cpp), so 3D plots
      get the corner button too; it goes through the core like the main
      plot's, there being no client-side zoom of a 3D plot to fit locally */
   check('the corner Fit sits over the 3D plot too (Window/Fit fits its box the same way)',

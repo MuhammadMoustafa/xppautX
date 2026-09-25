@@ -44,7 +44,8 @@ extern int NUPAR, NODE, NMarkov, NEQ;
 extern char upar_names[MAXPAR][XPP_NAME_MAX+1], uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern double default_val[MAXPAR], default_ic[MAXODE];
 extern char this_file[];
-extern char *color_names[], *auto_hint[];
+extern const char *color_names[];
+extern const char *auto_hint[];
 void commander(int ch); /* commands.c */
 }
 

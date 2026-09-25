@@ -64,7 +64,7 @@
 
 extern "C" {
 extern double last_ic[MAXODE], T0;
-extern char *color_names[12]; /* graf_par.c */
+extern const char *color_names[12]; /* graf_par.c */
 extern int colorline[];
 extern int NODE, FIX_VAR, NMarkov;
 extern BROWSER my_browser;

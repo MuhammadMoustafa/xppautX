@@ -203,12 +203,7 @@ int STOP_FLAG=0;
 	 double plow,phigh;
        } eq_range;
 
- struct xpp_range_struct {
-         char item[MAX_LEN_SBOX],item2[MAX_LEN_SBOX];
-	 int steps,steps2,reset,oldic,index,index2,cycle,type,type2,movie;
-	 double plow,phigh,plow2,phigh2;
-         int rtype;
-       } range;
+RangeVars range;
 
 
 typedef struct {

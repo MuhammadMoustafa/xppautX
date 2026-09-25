@@ -13,10 +13,10 @@ cd "$(dirname "$0")/.." || exit 1
 # The substring only has to be unique enough to identify that one call;
 # it is matched literally (grep -F), so a line-number shift needs no edit
 # here.
-ALLOW="core/comline.c|XPPAUT Version %g.%g|the -version flag's own text, like --help
-core/xppautx_main.c|printf(\"xppautX %s\\n\", XPPAUTX_VERSION)|--version text the VS Code extension reads
+ALLOW="core/comline.cpp|XPPAUT Version %g.%g|the -version flag's own text, like --help
+core/xppautx_main.cpp|printf(\"xppautX %s\\n\", XPPAUTX_VERSION)|--version text the VS Code extension reads
 core/xpp_http.cpp|printf(\"XPP: %s\\n\", page_url)|the XPP: address line xppautX prints in browser mode
-core/xppautx_main.c|printf(\"%s%s%s\", usage_head|the --help text"
+core/xppautx_main.cpp|printf(\"%s%s%s\", usage_head|the --help text"
 
 PATTERN='(^|[^a-zA-Z_])(printf|puts|putchar|vprintf)[ \t]*\(|v?f(printf|puts|putc|write)[ \t]*\((stdout|stderr)|std::(cout|cerr)'
 

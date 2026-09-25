@@ -55,7 +55,7 @@ int HIST_HERE,FOUR_HERE;
 
 extern int NEQ,NODE,NMarkov,FIX_VAR;
 
-extern char *no_hint[],*info_message;
+extern const char *no_hint[]; extern char *info_message;
 
 int twod_hist();
 int two_d_hist(int col1,int col2,int ndat,int n1,int n2,double xlo,double xhi,double ylo,double yhi)

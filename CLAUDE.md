@@ -198,27 +198,27 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   that owns it (W7c): `program` (xpp_globals.h: interactive, AUTO's
   scratch dir, version, tutorial), `batch_options` (xpp_batch.h),
   `log_settings` (xpp_log.h), `sliders[]` and `notAlreadySet`
-  (load_eqn.h), `plot_windows` (many_pops.h, defined in xpp_util.c: the
+  (load_eqn.h), `plot_windows` (many_pops.h, defined in xpp_util.cpp: the
   graphs, the active one, the Simulplot list, draw_win), `frozen_curves`
   and `plot_export` (graf_par.h), `color_table` (colormap.h),
   `text_metrics` (xpp_ui.h), `ani_options` (aniparse.h), `movie_autoplay`
   (kinescope.h). Use them through the instance (`plot_windows.current->xlo`),
   include the owner's header, never redeclare them `extern` in a .c file.
   The options that set the X11 window's fonts, colours and size are still
-  accepted and no longer stored. `core/xpp_util.c`,
-  `core/browse_data.cpp`, `core/colormap.cpp`, `core/menus.c` hold pure code
+  accepted and no longer stored. `core/xpp_util.cpp`,
+  `core/browse_data.cpp`, `core/colormap.cpp`, `core/menus.cpp` hold pure code
   moved out of those files.
 - Core structs that hold a window store an `XppWinId` (unsigned long); see
   `core/xpp_types.h`.
 - `core/commands.cpp` is the command layer (phase 3): `commander` (keys),
   `run_the_commands` (`M_*` ids), and every pop-up menu. Menus are
-  `XppMenu` data in `core/menus.c`; front ends show them via
+  `XppMenu` data in `core/menus.cpp`; front ends show them via
   `xpp_ui.menu_choose` and switch the main menu via `xpp_ui.show_menu`.
   Command logic is all core (phase 3 step 2); `XppUi` only holds
   interaction primitives, window management and a few whole dialogs.
-- `core/xpp_batch.c` is the headless entry point; `xpp_load_model()` there
+- `core/xpp_batch.cpp` is the headless entry point; `xpp_load_model()` there
   is the start shared with the server.
-- `core/ui_json.cpp` + `core/xppautx_main.c` (`SERVER_SOURCES`) are the JSON
+- `core/ui_json.cpp` + `core/xppautx_main.cpp` (`SERVER_SOURCES`) are the JSON
   protocol front end (docs/protocol.md). ui_json.cpp holds the `XppUi`
   table, the command dispatch (`handle_line`), the input classifier,
   script replay, install and hello; the rest is split by responsibility
@@ -234,7 +234,7 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   it a `j_` implementation too, and extend `tools/servercheck.py` for new
   protocol behaviour; `tools/verify.sh` runs it. Every command ends with
   `state` then `idle`; a client waits for `idle`.
-- `xppautX` (`make xppautx`) is one program: `core/xppautx_main.c` picks
+- `xppautX` (`make xppautx`) is one program: `core/xppautx_main.cpp` picks
   the desktop window (the default), browser mode (`--browser`/`--web`, or
   `--no-open`), `--server` (the protocol on stdin/stdout) or `-silent`
   (xpp_batch_main, no interface at all). The window (W13a) is
@@ -373,7 +373,7 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   docs/protocol.md. web2 serves the manual as `web2/dist/manual.json`, built from
   docs/manual/*.md (W12b), so an edit there also needs `npm run build` in
   web2 and the new dist committed (`npm run check`, in CI, fails otherwise).
-- Pop-up menu arrays in menus.c (`main_menu` etc.) start with the title:
+- Pop-up menu arrays in menus.cpp (`main_menu` etc.) start with the title:
   item i is `main_menu[i+1]` with key `main_menu_keys[i]`.
 
 ## Memory
@@ -500,11 +500,10 @@ aim: 70%+ C++ over time, verify.sh's `C++: N / M sources` is the metric).
   tables) go up to `XPP_NAME_MAX` (64, core/xpplim.h); arrays holding one
   are `[XPP_NAME_MAX+1]`, dialog values `[MAX_LEN_SBOX]`. The parser
   refuses a longer name (`name_too_long`) instead of cutting it. A display
-  of fixed width shortens with `short_name()` (xpp_util.c, ends in `~`);
+  of fixed width shortens with `short_name()` (xpp_util.cpp, ends in `~`);
   the JSON front end always sends names whole. tools/models/longnames.ode
   and autocheck's `names` section are the test.
 - `core/fftn.c` does `#include __FILE__`; the Makefile's `-I.` is required for it.
-- `core/sbml2xpp.c` needs libsbml and is not built, same as upstream.
 - The refactoring scripts under `tools/` (guard_x11_headers.py, move_funcs.py,
   ui_seam_refactor.py, phase2_step*.py, cxx_guard_headers.py) are one-shot and already applied;
   keep them for the record, do not re-run them.

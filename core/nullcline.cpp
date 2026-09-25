@@ -98,7 +98,7 @@ void froz_cline_stuff_com(int i)
     note_frozen();
     break;
   case 3:
-    new_int("Delay (msec)",&delay);
+    new_int((char *)"Delay (msec)",&delay);
     if(delay<=0)delay=0;
     redraw_froz_cline(delay);
     break;
@@ -139,7 +139,7 @@ void silent_nullclines()
 
 void do_range_clines()
 {
-  static char *n[]={"*2Range parameter","Steps","Low","High"};
+  static char *n[]={(char *)"*2Range parameter",(char *)"Steps",(char *)"Low",(char *)"High"};
   char values[4][MAX_LEN_SBOX];
   int status,i;
   double z,dz,zold;
@@ -155,7 +155,7 @@ void do_range_clines()
   XPP_SPRINTF(values[2],"%g",ncrange.xlo);
   XPP_SPRINTF(values[3],"%g",ncrange.xhi);
   static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
-  status=do_string_box_of(4,4,1,"Range Clines",n,values,45,kinds);
+  status=do_string_box_of(4,4,1,(char *)"Range Clines",n,values,45,kinds);
   if(status!=0){
     XPP_STRCPY(ncrange.rv,values[0]);
     ncrange.nstep=atoi(values[1]);
@@ -307,7 +307,7 @@ void save_frozen_clines(char *fn)
    char ch;
    int i=1;
    if(n_nstore==0)return;
-   ch=(char)TwoChoice("YES","NO","Save Frozen Clines?","yn");
+   ch=(char)TwoChoice((char *)"YES",(char *)"NO",(char *)"Save Frozen Clines?",(char *)"yn");
    if(ch=='n')return;
     z=ncperm;
     while(1){
@@ -315,7 +315,7 @@ void save_frozen_clines(char *fn)
     XPP_SPRINTF(fnx,"%s.%d",fn,i);
     fp=fopen(fnx,"w");
     if(fp==NULL){
-      err_msg("Cant open file!");
+      err_msg((char *)"Cant open file!");
       return;
     }
     dump_clines(fp,z->xn,z->nmx,z->yn,z->nmy);
@@ -607,7 +607,7 @@ void direct_field_com(int c)
   }
   if(c==0)DFIELD_TYPE=1;
   if(c==4)DFIELD_TYPE=0;
-  new_int("Grid:",&grid);
+  new_int((char *)"Grid:",&grid);
   if(grid<=1)return;
   DF_GRID=grid;
   du=(plot_windows.current->xhi-plot_windows.current->xlo)/(double)grid;
@@ -746,10 +746,10 @@ void save_the_nullclines()
   if(NULL_HERE==0)return;
   XPP_SPRINTF(filename,"nc.dat");
   ping();
-  if(!file_selector("Save nullclines",filename,"*.dat"))return;
+  if(!file_selector((char *)"Save nullclines",filename,(char *)"*.dat"))return;
   fp=fopen(filename,"w");
   if(fp==NULL){
-    err_msg("Cant open file!");
+    err_msg((char *)"Cant open file!");
     return;
   }
   dump_clines(fp,X_n,num_x_n,Y_n,num_y_n);

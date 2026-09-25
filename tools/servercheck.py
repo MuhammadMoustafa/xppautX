@@ -516,7 +516,7 @@ check('the IC arry button opens an array plot', ap and ap[-1]['nx'] == 2 and len
 
 # docs/ui-v2.md T12: `values`, the cells' numbers before XPP maps them to a
 # colour, equal the browser's own numbers for the same rows and columns.
-# optimize_aplot (core/graf_par.c) always starts at row 0 with ColSkip 1 and
+# optimize_aplot (core/graf_par.cpp) always starts at row 0 with ColSkip 1 and
 # picks RowSkip so `ny` rows span the run (ndown = min(201, nrows), nskip =
 # nrows // ndown, both integer division as the core computes them); the
 # columns are V, W (plotvars picked them, in that order).
@@ -1162,7 +1162,7 @@ check_phase_data()
 
 # "Use this view" (docs/ui-v2.md T9, GitHub issue #18): {"cmd":"view",
 # "win":w,"xlo":..,"xhi":..,"ylo":..,"yhi":..} sets window w's axes exactly
-# as Window/Window (graf_par.c update_view) would, so state.view, "plots"
+# as Window/Window (graf_par.cpp update_view) would, so state.view, "plots"
 # and a PostScript export all agree with it afterward. An invalid range
 # (inverted or non-finite) or a window that does not exist is refused
 # (message error) and changes nothing.
@@ -1213,7 +1213,7 @@ def check_view():
         # defaults), then a file to write; the written file's axes come
         # from the same MyGraph the view command set, so its tick labels
         # ("%g" of the boundary, Box_axis/draw_xtics/draw_ytics in
-        # axes2.c) are the boundary values themselves, -100 and 100 (a
+        # axes2.cpp) are the boundary values themselves, -100 and 100 (a
         # symmetric [-100,100] range makes make_tics() choose a 20-wide
         # tic, which lands exactly on the boundary).
         send6(cmd='key', key='g')

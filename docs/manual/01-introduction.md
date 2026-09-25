@@ -129,7 +129,7 @@ way has nothing in Messages. See
 xppautX's own options (`--browser`, `--web`, `--server`, `--script`,
 `--port`, `--no-open`, `--version`, `--help`, `--verbose`, `--debug`)
 must come first; every
-other classic `xppaut` option (`core/comline.c`) still works and can
+other classic `xppaut` option (`core/comline.cpp`) still works and can
 follow in any order. The options below still do something in xppautX;
 a few classic options that only ever changed X11 window colours, fonts
 or icon state (`-forecolor`, `-backcolor`, `-backimage`, `-mwcolor`,

@@ -149,16 +149,11 @@ including derived parameters but XPP takes care of this so start at 0
 #define PERIODIC 2
 #define MAXW 50
 extern int NODE,NDELAYS;
-extern double get_delay(int in,double td);
+#include "delay_handle.h"
+#include "fftn.h"
 
 #define IC 2
 int parse_import(char *s, char *soname, char *sofun, int *n, char *vname, int *m, char *tname[MAXW]);
- extern int fftn (int /* ndim */,
-		    const int /* dims */[],
-		    double /* Re */[],
-		    double /* Im */[],
-		    int /* isign */,
-		    double /* scaling */);
 
 
 /* simple network stuff */

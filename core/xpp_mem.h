@@ -36,7 +36,6 @@
    memory we allocate must not be freed by a library):
    - Xlib's own memory (XReadBitmapFileData's in main.c) goes back
      through XFree, as before.
-   - core/sbml2xpp.c is not built (it needs libsbml) and is left as is.
    That is all today: dirname() (auto_nox.c, aniparse.c) returns a pointer
    into its argument, getcwd() (read_dir.c) fills the caller's buffer, and
    no core file frees what the C library allocated. A new exception
