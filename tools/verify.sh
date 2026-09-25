@@ -40,6 +40,16 @@ if [ $st -ne 0 ] || grep -q ' error:' build/last-build.log; then
   exit 1
 fi
 echo "build ok, warnings: $(grep -c 'warning:' build/last-build.log), implicit decls: $(grep -c 'implicit declaration' build/last-build.log)"
+# header dependencies: the core objects must depend on the headers they
+# include (their .d files, which a Makefile slip once stopped loading for
+# every core source, so incremental builds mixed old and new struct
+# layouts); read from make's rule database, nothing is built or touched
+if make -pn WERROR=1 xppautx 2>/dev/null | grep -E '^build/obj/xpp_session\.o:' | grep -q 'core/xpp_ui\.h'; then
+  echo "header dependencies ok: core objects rebuild when a header they include changes"
+else
+  echo "HEADER DEPENDENCIES FAILED: build/obj/xpp_session.o does not depend on core/xpp_ui.h"
+  exit 1
+fi
 tmp=$(mktemp -d)
 ( cd "$tmp" && "$OLDPWD/xppautX" "$OLDPWD/examples/ode/lecar.ode" -silent >/dev/null 2>&1 )
 sum=$(md5sum "$tmp/output.dat" 2>/dev/null | cut -d' ' -f1)

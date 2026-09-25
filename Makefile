@@ -333,7 +333,12 @@ FORCE:
 # those of existing sources are read, so after `git mv x.c x.cpp` the
 # stale x.d, which names core/x.c, does not stop the build.
 depfiles = $(patsubst %.c,%.d,$(patsubst %.cpp,%.cpp.d,$(1)))
--include $(call depfiles,$(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES) $(SERVER_SOURCES)))
+# every core source's (ALL_SOURCES: core, server and window alike; a file
+# not built has no .d, which -include skips). It named SOURCES, which the
+# X11 removal (W8) deleted, so for months a changed header rebuilt no core
+# object: incremental builds mixed old and new struct layouts. verify.sh
+# now checks that a header change reaches the core's objects.
+-include $(call depfiles,$(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(ALL_SOURCES)))
 -include $(call depfiles,$(patsubst tests/%,$(BUILDDIR)/tests/%,$(TEST_SOURCES)))
 
 clean:
