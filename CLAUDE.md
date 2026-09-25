@@ -106,9 +106,11 @@ md5sum/`md5 -q`), same as tools/examples_check.sh.
 
 The sanitizers do not see a read of memory never written; valgrind's
 memcheck does. `make vg` builds xppautX at -O1 without sanitizers into
-build/vg; `tools/valgrindcheck.sh` (W21; Linux, ~20 min, not in CI or
-verify.sh) runs the smoke run, every example, the unit tests
-(`TEST_RUNNER`), servercheck and autocheck under memcheck and fails on
+build/vg; `tools/valgrindcheck.sh` (W21; Linux, ~25 min on 32 threads, not
+in CI or verify.sh) runs the smoke run, every example, the unit tests
+(`TEST_RUNNER`), then servercheck and autocheck's sections side by side
+under memcheck (`--origins`: also where a bad value came from, about
+twice as slow, for fixing a report) and fails on
 any report (build/vg/reports; tools/valgrind.supp only for code we do not
 own). It sets `XPP_CHECK_SLOW=30`, which multiplies every wait of the
 python checks (tools/xppclient.py), and `XPP_MEM_INIT=0` (core/xpp_mem.h).

@@ -32,9 +32,13 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
 ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
+ap.add_argument('--list', action='store_true', help='print the sections run by default and exit')
 ap.add_argument('sections', nargs='*', default=['diagram', 'input', 'abort', 'control', 'files', 'stability',
                                                 'sessions', 'session', 'script', 'replay', 'names', 'scratch'])
 args = ap.parse_args()
+if args.list:
+    print(' '.join(ap.get_default('sections')))
+    sys.exit(0)
 here = os.path.dirname(os.path.abspath(__file__))
 LECAR = 'examples/ode/lecar.ode'
 HEAVY = os.path.join(here, 'models', 'heavy.ode')

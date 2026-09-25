@@ -15,8 +15,18 @@
 #
 # Slow (memcheck runs the programs 20-50 times slower), so not part of
 # verify.sh. Linux only; valgrind is `apt install valgrind`.
-# Usage: tools/valgrindcheck.sh
+# The checks run side by side after the examples: servercheck and each of
+# autocheck's sections in a process of its own. About 25 minutes on 32
+# threads; --origins (memcheck's --track-origins, about twice as slow)
+# also says where an uninitialised value came from, for a report to fix.
+# Usage: tools/valgrindcheck.sh [--origins]
 cd "$(dirname "$0")/.." || exit 1
+origins=
+case $1 in
+  --origins) origins=--track-origins=yes ;;
+  "") ;;
+  *) echo "usage: tools/valgrindcheck.sh [--origins]"; exit 2 ;;
+esac
 top=$PWD
 BASELINE=c281851de59ffd03b2a46428619a0c8f
 if ! command -v valgrind > /dev/null; then
@@ -33,7 +43,7 @@ echo "valgrind build ok"
 reports=$top/build/vg/reports
 rm -rf "$reports" && mkdir -p "$reports" || exit 1
 # one report file per process (%p); an error also makes the process exit 99
-vg="valgrind -q --error-exitcode=99 --leak-check=no --track-origins=yes
+vg="valgrind -q --error-exitcode=99 --leak-check=no $origins
   --num-callers=30 --suppressions=$top/tools/valgrind.supp
   --log-file=$reports/vg.%p"
 # the checks start "xppautX": this runs it under memcheck
@@ -81,21 +91,29 @@ else
   fail=1
 fi
 
-# the name, then the command
-run_check() {
-  name=$1; shift
-  if "$@" > "build/vg-$name.log" 2>&1; then
-    echo "$name ok: $(grep -c '^PASS' "build/vg-$name.log") checks"
+# servercheck and autocheck's sections side by side, each logged to
+# build/vg-<name>.log; then each one's exit status
+python3 tools/servercheck.py --server "$wrap" > build/vg-servercheck.log 2>&1 &
+jobs="servercheck:$!"
+# --report: memcheck slows everything down, so the latency limits (which
+# verify.sh checks) only measure here
+for sec in $(python3 tools/autocheck.py --list); do
+  python3 tools/autocheck.py --server "$wrap" --report "$sec" > "build/vg-auto-$sec.log" 2>&1 &
+  jobs="$jobs auto-$sec:$!"
+done
+passes=0
+for job in $jobs; do
+  name=${job%:*}
+  log=build/vg-$name.log
+  if wait "${job#*:}"; then
+    passes=$((passes + $(grep -c '^PASS' "$log")))
   else
-    grep -v '^PASS' "build/vg-$name.log" | head -30
+    grep -v '^PASS' "$log" | head -30
     echo "$name FAILED"
     fail=1
   fi
-}
-run_check servercheck python3 tools/servercheck.py --server "$wrap"
-# --report: memcheck slows everything down, so the latency limits (which
-# verify.sh checks) only measure here
-run_check autocheck python3 tools/autocheck.py --server "$wrap" --report
+done
+echo "servercheck and autocheck: $passes checks passed"
 
 n=0
 for f in "$reports"/*; do
