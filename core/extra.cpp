@@ -85,7 +85,7 @@ void auto_load_dll(void)
 {
   if(dll_flag==3){
     get_directory(cur_dir);
-    xpp::log(XPP_LOG_INFO, "DLL lib {}/{} with function {} \n",cur_dir,dll_lib,dll_fun);
+    xpp_log(XPP_LOG_INFO, "DLL lib %s/%s with function %s \n",cur_dir,dll_lib,dll_fun);
     XPP_SPRINTF(dlf.libfile,"%s",dll_lib);
     XPP_SPRINTF(dlf.libname,"%s/%s",cur_dir,dlf.libfile);
     XPP_SPRINTF(dlf.fun,"%s",dll_fun);

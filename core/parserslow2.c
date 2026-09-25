@@ -298,7 +298,11 @@ int duplicate_name(char *junk)
   int i;
   find_name(junk,&i);
   if(i>=0){
-    if(ERROUT)xpp_log(XPP_LOG_WARN, "%s is a duplicate name\n",junk);
+    /* INFO, not WARN: a plain "name=expr" followed by "aux name=name" (a
+       common, intentional pattern -- lecar.ode does exactly this for ica)
+       hits this every time and is not a mistake the user needs to act on;
+       WARN would make --verbose-off runs noisy for a routine model shape. */
+    if(ERROUT)xpp_log(XPP_LOG_INFO, "%s is a duplicate name\n",junk);
     return(1);
   }
   return(0);

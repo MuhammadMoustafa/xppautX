@@ -35,8 +35,7 @@ core/xpp_io.cpp (anon)::bounded_len|xpp_strlcat_at's helper
 core/xpp_io.cpp xpp_token_reader_string|xpp_io.h's fscanf-%s counterpart CLAUDE.md prescribes; test_io
 core/xpp_io.cpp xpp_writer_printf|xpp_io.h's fprintf over a writer, named in CLAUDE.md; test_io
 core/auto_settings.cpp auto_settings_num_ok|test_auto_settings' view of the field check auto_settings_apply makes
-core/auto_stop.cpp auto_stop_key|test_auto_stop's view of the keys auto_stop_last hands the protocol
-core/xpp_log.c xpp_log_get_threshold|the level query beside xpp_log_set_threshold; W25 (message levels) may use it: drop it if not"
+core/auto_stop.cpp auto_stop_key|test_auto_stop's view of the keys auto_stop_last hands the protocol"
 
 check=0
 build=1

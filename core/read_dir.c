@@ -70,8 +70,6 @@ any strings that may hold a path name (e.g. dialog message etc.)*/
 
 #define SYSV
 
-#define put_msg plintf
-
 /*static int	file_entry_cnt, dir_entry_cnt;
 static char   **file_list, **dir_list;
 static char   **filelist, **dirlist;
@@ -213,7 +211,7 @@ int change_directory(char *path)
 	return (0);
     }
     if (chdir(path) == -1) {
-	put_msg("Can't go to directory %s\n", path);
+	xpp_log(XPP_LOG_WARN, "Can't go to directory %s\n", path);
 	return (1);
     }
     if (get_directory(cur_dir) != 0) /* get cwd */
@@ -233,10 +231,10 @@ int get_directory(char *direct)
 
 #if defined(SYSV) || defined(SVR4)
     if (getcwd(direct, 1024) == NULL) {	/* get current working dir */
-	put_msg("%s\n", "Can't get current directory");
+	xpp_log(XPP_LOG_WARN, "%s\n", "Can't get current directory");
 #else
     if (getwd(direct) == NULL) {/* get current working dir */
-	put_msg("%s\n", direct);	/* err msg is in directory */
+	xpp_log(XPP_LOG_WARN, "%s\n", direct);	/* err msg is in directory */
 #endif
 	*direct = '\0';
 	return 0;

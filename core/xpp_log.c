@@ -9,7 +9,6 @@ static int auto_echo;
 XppLogSettings log_settings = {NULL, 1, 0, 0};
 
 void xpp_log_set_threshold(XppLogLevel level) { threshold = level; }
-XppLogLevel xpp_log_get_threshold(void) { return threshold; }
 void xpp_log_set_auto_echo(int on) { auto_echo = on; }
 
 /* where messages go: -logfile's file when one was given, else stderr

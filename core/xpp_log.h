@@ -54,7 +54,7 @@ typedef enum {
    line's -logfile / -quiet did first (they win over .xpprc and the model). */
 typedef struct {
     FILE *file;                  /* -logfile's file; NULL or stdout: stderr */
-    int verbose;                 /* 0: plintf prints nothing (@ quiet=1) */
+    int verbose;                 /* 0: an INFO message prints nothing (@ quiet=1) */
     int quiet_from_command_line; /* -quiet was given: @ quiet= is ignored */
     int file_from_command_line;  /* -logfile was given: @ logfile= is ignored */
 } XppLogSettings;
@@ -62,7 +62,6 @@ extern XppLogSettings log_settings;
 
 /* Default is XPP_LOG_WARN. */
 void xpp_log_set_threshold(XppLogLevel level);
-XppLogLevel xpp_log_get_threshold(void);
 
 /* printf-style; a no-op when level is below the threshold. Adds a
    trailing '\n' only if fmt does not already end with one. */
