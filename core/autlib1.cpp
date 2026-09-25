@@ -3,7 +3,8 @@
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "auto_c.h"
-#include "autevd.h" /* send_eigen(), send_mult() */
+#include "autevd.h"
+#include "auto_stability.h"
 #include "xAuto.h"
 #include "xpp_ui.h" /* err_msg(), byeauto_() */
 #include "auto_nox.h" /* auto_screen_col() */
@@ -1911,8 +1912,8 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
       }
     }
   }
-  /* here is where to put send_eigenvalue   */
-  send_eigen(ibr,ntot+1,ndim,(doublecomplex*)&ev[0]);
+  /* xppautX: the point's eigenvalues (auto_stability.h; eig computed ndm) */
+  auto_stability_computed(ibr,ntot+1,ndm,&ev[0].r,AUTO_STABILITY_STEADY);
   /* Order the eigenvalues by real part. */
 
   for (i = 0; i < ndm - 1; ++i) {
@@ -6741,8 +6742,8 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   flowkm(&ndim, p0, p1, &iid, wrk, ev);
   xpp_free(wrk);
   /* Find the multiplier closest to z=1. */
-  /* send_mult here! */
-  send_mult(ibr,ntot+1,ndim,(doublecomplex *)&ev[0]);
+  /* xppautX: the orbit's Floquet multipliers (auto_stability.h) */
+  auto_stability_computed(ibr,ntot+1,ndim,&ev[0].r,AUTO_STABILITY_PERIODIC);
   amin = RLARGE;
   for (j = 0; j < ndim; ++j) {
     doublecomplex tmp;

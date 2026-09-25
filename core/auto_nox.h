@@ -23,7 +23,7 @@ typedef struct  {
   double ds,dsmax,dsmin,rl0,rl1,a0,a1;
   double xmin,xmax,ymin,ymax;
   double lastx,lasty;
-  int wid,hgt,x0,y0,st_wid;
+  int wid,hgt,x0,y0;
   int nfpar,nbc;
   int ips,irs,ilp,isp,isw,itp;
   int plot,var;
@@ -127,7 +127,6 @@ void do_auto_win(void);
 void load_last_plot(int flag);
 void keep_last_plot(int flag);
 void init_auto_win(void);
-void plot_stab(double *evr, double *evi, int n);
 int yes_reset_auto(void);
 int reset_auto(void);
 void auto_grab(void);

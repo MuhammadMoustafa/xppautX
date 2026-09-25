@@ -13,6 +13,7 @@
 #include "run_auto.h"
 #include "auto_nox.h"
 #include "auto_stop.h"
+#include "auto_stability.h"
 #include "auto_x11.h"
 #include <libgen.h>
 /* #include "f2c.h" */
@@ -678,6 +679,36 @@ void open_auto(int flg) /* compatible with new auto */
 
 }
 
+/* what a run continues, for auto_stability.h */
+static int run_stability_kind(void)
+{
+  if(AutoTwoParam!=0||Auto.isw==2)return AUTO_STABILITY_OTHER;
+  if(Auto.ips==2)return AUTO_STABILITY_PERIODIC;
+  if(Auto.ips==1||Auto.ips==-1)return AUTO_STABILITY_STEADY;
+  return AUTO_STABILITY_OTHER;
+}
+
+/* what a stored point is, for auto_stability.h: one-parameter periodic
+   orbits have a negative branch (autlib1.cpp stplbv) */
+static int point_stability_kind(const DIAGRAM *d)
+{
+  if(d->flag2!=0)return AUTO_STABILITY_OTHER;
+  return d->ibr<0?AUTO_STABILITY_PERIODIC:AUTO_STABILITY_STEADY;
+}
+
+/* a run starts from Auto.irs's label, or from initial data: its first
+   point takes the label's stored stability when it is the label's own
+   solution, else it is not computed (auto_stability.h) */
+static void stability_run_start(void)
+{
+  const DIAGRAM *d=Auto.irs>0?diagram_of_label(Auto.irs):NULL;
+  if(d==NULL){
+    auto_stability_run_start(run_stability_kind(),Auto.isw,AUTO_STABILITY_NONE,0,0,NULL,NULL);
+    return;
+  }
+  auto_stability_run_start(run_stability_kind(),Auto.isw,point_stability_kind(d),d->itp,NODE,d->evr,d->evi);
+}
+
 /* MAIN Running routine  Assumes that Auto structure is set up */
 static int auto_depth; /* do_auto's own follow-up runs (RestartLabel) are one run */
 
@@ -694,6 +725,7 @@ void do_auto(int iold, int isave, int itp)
     if(auto_depth++==0)auto_stop_clear(); /* xppautX: T23: why this run's branches end */
     xpp_job_begin(0); /* Abort cancels it (xpp_job.h) */
     run_from=Auto.irs>0?Auto.irs:0; /* the diagram's data say where the run started */
+    stability_run_start(); /* what its first point's stability is (auto_stability.h) */
     go_go_auto(); /* this complets the initialization and calls the 
                       main routines 
 		  */
@@ -1343,10 +1375,10 @@ int auto_run_from_take(void)
   return f;
 }
 
-/* the stability circle, and the same as data (auto_data.h) */
-static void show_stab(double *evr,double *evi,int n,int periodic)
+/* the stability circle as data (auto_data.h): a stored point's values
+   (auto_stability.h), whether AUTO is computing it or a grab is on it */
+static void show_stab(const double *evr,const double *evi,int n,int periodic)
 {
-  plot_stab(evr,evi,n);
   auto_data_stab(evr,evi,n,periodic);
 }
 
@@ -1804,32 +1836,6 @@ void init_auto_win()
   xAuto.nunstab=1;
   xAuto.nstab=NODE-1;
 }
-
-void plot_stab(double *evr, double *evi, int n)
-{
-  int i,ix,iy;
-  int r=Auto.st_wid;
-
-  double x,y;
-  LineWidth(0);
-  clr_stab();
-  for(i=0;i<n;i++){
-    x=evr[i];
-    if(x<-1.95)x=-1.95;
-    if(x>1.95)x=1.95;
-    y=evi[i];
-    if(y<-1.95)y=-1.95;
-    if(y>1.95)y=1.95;
-    x=r*(x+2.0)/4.0;
-    y=r-r*(y+2.0)/4.0;
-    ix=(int)x;
-    iy=(int)y;
-    auto_stab_line(ix-2,iy,ix+2,iy);
-    auto_stab_line(ix,iy-2,ix,iy+2);
-  }
-}
-    
-
 
 int yes_reset_auto()
 {

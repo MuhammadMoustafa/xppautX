@@ -3,8 +3,9 @@
    unit circle with the eigenvalues (as e^λ) or Floquet multipliers of the
    point AUTO last drew. A point inside the circle is a filled dot, one
    outside a cross (A7: not colour alone), and the values are listed too.
-   AUTO computes them from a branch's second point on: the first point's
-   circle says so instead of listing zeros. */
+   AUTO computes them from a run's second point on: a first point's
+   circle (unless the run restarts from a label of the same kind) says so
+   instead of listing zeros. */
 import {circlePoints, infoRows, stabComputed, stabilitySummary} from '../plot/autoInfo';
 import {useStore} from './context';
 

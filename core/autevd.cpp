@@ -1,19 +1,20 @@
-#include "autevd.h" 
-#include <stdlib.h> 
+#include "autevd.h"
+#include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
 
 
 #include "auto_nox.h"
 #include "diagram.h"
-#include "diagram.h"
 #include "gear.h"
 
 #include "auto_c.h"
 #include "auto_def2.h"
 #include "autlim.h"
+#include "auto_stability.h"
 #include "xAuto.h"
 #include "xpp_job.h"
+#include "xpp_mem.h"
 
 #define SPECIAL 5
 #define SPER 3
@@ -37,26 +38,13 @@ XAUTO xAuto;
 extern int AutoTwoParam;
 int DiagFlag=0;
 extern int NBifs; /* diagram.c: the index the next add_diagram() gives */
-/*typedef struct {double r,i;} ddoublecomplex;
-
-typedef struct {
-  int pt,br;
-  double evr[NAUTO],evi[NAUTO];
-} EIGVAL;
-*/
-EIGVAL my_ev;
-
-double sign();
-int imin();
-
-
-void init_auto(ndim,nicp,nbc,ips,irs,ilp,ntst,isp,isw,nmx,npr,
-	  ds,dsmin,dsmax,rl0,rl1,a0,a1,
-	  ip1,ip2,ip3,ip4,ip5,nuzr,epsl,epsu,epss,ncol)
-     int ndim,nicp,nbc,ips,irs,ilp,ntst,isp,isw,nmx,npr,ip1,ip2;
-     int nuzr,ncol,ip3,ip4,ip5;
-     double ds,dsmin,dsmax,rl0,rl1,a0,a1,epsl,epsu,epss;
+void init_auto(int ndim, int nicp, int nbc, int ips, int irs, int ilp, int ntst, int isp, int isw, int nmx,
+               int npr, double ds, double dsmin, double dsmax, double rl0, double rl1, double a0, double a1,
+               int ip1, int ip2, int ip3, int ip4, int ip5, int nuzr, double epsl, double epsu, double epss,
+               int ncol)
 {
+  (void)nbc;
+  (void)nuzr;
 
   /* here are the constants that we do not allow the user to change */
   int nnbc;
@@ -121,44 +109,12 @@ void init_auto(ndim,nicp,nbc,ips,irs,ilp,ntst,isp,isw,nmx,npr,
 
 
 
-void send_eigen(ibr,ntot,n,ev)
-     int ibr,ntot,n;
-     doublecomplex *ev;
-{
-  int i;
-  double er,cs,sn;
-  my_ev.pt=abs(ntot);
-  my_ev.br=abs(ibr);
-  for(i=0;i<n;i++){
-    er=exp((ev+i)->r);
-    cs=cos((ev+i)->i);
-    sn=sin((ev+i)->i);
-    my_ev.evr[i]=er*cs;
-    my_ev.evi[i]=er*sn;
-
-  }
-}
-
-void send_mult(ibr,ntot,n,ev)
-     int ibr,ntot,n;
-     doublecomplex *ev;
-{
-  int i;
-  my_ev.pt=abs(ntot);
-  my_ev.br=abs(ibr);
-  for(i=0;i<n;i++){
-    my_ev.evr[i]=(ev+i)->r;
-    my_ev.evi[i]=(ev+i)->i;
-  }
-}
-
-  
 /* Only unit 8,3 or q.prb is important; all others are unnecesary */
 
 
-int get_bif_type(ibr,ntot,lab)
-     int ibr,ntot,lab;
+int get_bif_type(int ibr, int ntot, int lab)
 {
+  (void)lab;
   int type=SEQ;
 
     if(ibr<0&&ntot<0)type=SPER;
@@ -170,60 +126,51 @@ int get_bif_type(ibr,ntot,lab)
 }
 void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *par,integer *icp,int lab, double *a, double *uhigh, double *ulow, double *u0, double *ubar)
 {
-  int type;
-  /*int evflag=0; Not used*/
+  (void)rap;
   int icp1=icp[0],icp2=icp[1],icp3=icp[2],icp4=icp[3];
-  double    per=par[10];
-  /* printf("In add bif \n"); */
+  double per=par[10];
+  int n=iap->ndim;
   int from=auto_run_from_take(); /* the run's first point says which label it started from */
-  type=get_bif_type(ibrs,ntots,lab);
+  int type=get_bif_type(ibrs,ntots,lab);
   /* its entry in the diagram list: the first one after start_diagram, else a new one */
-  auto_point_id(ibrs,ntots,iap->itp,DiagFlag==0?0:NBifs,from);
-
-  /*if(my_ev.br==abs(*ibr)&&my_ev.pt==abs(*ntot)){evflag=1;}*/
-  if(iap->ntot==1)
-  {
-    add_point(par,per,uhigh,ulow,ubar,*a,type,0,lab,
-	      iap->nfpr,icp1,icp2,icp3,icp4,AutoTwoParam,my_ev.evr,my_ev.evi);
-  }
-  else
-  {
-    add_point(par,per,uhigh,ulow,ubar,*a,type,1,lab,
-	      iap->nfpr,icp1,icp2,icp3,icp4,AutoTwoParam,my_ev.evr,my_ev.evi);
-  }  
+  int node=DiagFlag==0?0:NBifs;
+  /* xppautX: the point's stability, or zeros: not computed (auto_stability.h) */
+  double *ev=(double *)xpp_malloc(2*(size_t)n*sizeof(double));
+  auto_stability_for((int)ibrs,(int)ntots,n,ev,ev+n);
 
   if(DiagFlag==0){
-    /* start_diagram(*ndim); */
     edit_start(ibrs,ntots,iap->itp,lab,iap->nfpr,*a,uhigh,ulow,u0,ubar,
-	       par,per,iap->ndim,icp1,icp2,icp3,icp4,my_ev.evr,my_ev.evi);
+	       par,per,n,icp1,icp2,icp3,icp4,ev,ev+n);
     DiagFlag=1;
-    if(from)set_last_diagram_from(from);
-    xpp_job_point_stored((int)labs(ibrs),(int)labs(ntots)); /* xppautX: where it got to (xpp_job.h) */
-    return;
-  } 
-  add_diagram(ibrs,ntots,iap->itp,lab,iap->nfpr,*a,uhigh,ulow,u0,ubar,
-	      par,per,iap->ndim,icp1,icp2,icp3,icp4,AutoTwoParam,my_ev.evr,
-	      my_ev.evi);
+  } else {
+    add_diagram(ibrs,ntots,iap->itp,lab,iap->nfpr,*a,uhigh,ulow,u0,ubar,
+	        par,per,n,icp1,icp2,icp3,icp4,AutoTwoParam,ev,ev+n);
+  }
+  xpp_free(ev);
   if(from)set_last_diagram_from(from);
+
+  /* plotted, and its stability shown, from the stored point, as a redraw
+     or a grab shows it */
+  const DIAGRAM *d=last_diagram();
+  auto_point_id(ibrs,ntots,iap->itp,node,from);
+  add_point(par,per,uhigh,ulow,ubar,*a,type,iap->ntot==1?0:1,lab,
+	    iap->nfpr,icp1,icp2,icp3,icp4,AutoTwoParam,d->evr,d->evi);
   xpp_job_point_stored((int)labs(ibrs),(int)labs(ntots)); /* xppautX: where it got to (xpp_job.h) */
 }
-    
 
 
 
 
-double etime_(z)
-double *z;
+double etime_(double *z)
 {
+ (void)z;
  
  return(0.0);
  } 
 
-int eigrf_(a,n,m,ecv,work,ier)
-     double *a,*work;
-     int *n,*m,*ier;
-     doublecomplex *ecv;
+int eigrf_(double *a, int *n, int *m, doublecomplex *ecv, double *work, int *ier)
 {
+  (void)m;
   double ev[400];
   int i;
   eigen(*n,a,ev,work,ier);
@@ -233,14 +180,3 @@ int eigrf_(a,n,m,ecv,work,ier)
   }
 return 0;
 }
-
-
-
-
-
-
-
-
-
-
-

@@ -161,11 +161,24 @@ void add_diagram(int ibr, int ntot, int itp, int lab, int nfpar, double a, doubl
  
 }
 
-void set_last_diagram_from(int from)
+DIAGRAM *last_diagram(void)
 {
   DIAGRAM *d=bifd;
   while(d->next!=NULL)d=d->next;
-  d->from=from;
+  return d;
+}
+
+void set_last_diagram_from(int from)
+{
+  last_diagram()->from=from;
+}
+
+const DIAGRAM *diagram_of_label(int lab)
+{
+  if(lab<=0||DiagFlag==0)return NULL; /* DiagFlag 0: bifd holds no point yet */
+  for(const DIAGRAM *d=bifd;d!=NULL;d=d->next)
+    if(d->lab==lab)return d;
+  return NULL;
 }
 
 int diagram_has(int index,int ibr,int ntot)

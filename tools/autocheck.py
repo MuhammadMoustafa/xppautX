@@ -4,9 +4,11 @@ travels as data, how input is read, and how quickly a long computation stops.
 
 usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [SECTION...]
 
-Sections: diagram, input, abort, control, files, sessions, session, script,
-replay, names (default: all; tools/verify.sh runs them all). files compares AUTO's
-saved diagram of lecar with a reference; sessions checks that concurrent servers
+Sections: diagram, input, abort, control, files, stability, sessions, session,
+script, replay, names (default: all; tools/verify.sh runs them all). files compares
+AUTO's saved diagram of lecar with a reference; stability checks that a point's
+eigenvalues are its own (a run's first point is not computed unless it
+restarts from a label of the same kind: auto_stability.h); sessions checks that concurrent servers
 keep their AUTO files apart; session is the "cmd":"session" save/load of
 docs/protocol.md (issue #11): one name for the .set and .auto pair a long
 AUTO run is picked back up from; script plays
@@ -27,8 +29,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
 ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
-ap.add_argument('sections', nargs='*', default=['diagram', 'input', 'abort', 'control', 'files', 'sessions', 'session',
-                                                'script', 'replay', 'names'])
+ap.add_argument('sections', nargs='*', default=['diagram', 'input', 'abort', 'control', 'files', 'stability',
+                                                'sessions', 'session', 'script', 'replay', 'names'])
 args = ap.parse_args()
 here = os.path.dirname(os.path.abspath(__file__))
 LECAR = 'examples/ode/lecar.ode'
@@ -426,6 +428,134 @@ def section_files():
     check('the saved diagram of lecar is unchanged',
           len(lines) == len(want) and diff is None,
           'first difference at line %s; %d vs %d lines' % (diff, len(lines), len(want)))
+
+
+# ---- stability: a point's eigenvalues are its own (W15, auto_stability.h) --
+
+def step(s, **c):
+    s.send(**c)
+    return s.collect(lambda e: is_idle(e) or is_ask(e), timeout=30)
+
+
+def hopf_steady(s):
+    """lecar's "hopf" parameter set, its fixed point as the IC (as
+    examples/scripts/lecar_auto.jsonl does), AUTO; returns the events"""
+    evs = []
+    for c in ({'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'd'},
+              {'cmd': 'key', 'key': 's'}, {'cmd': 'answer', 'key': 'g'}, {'cmd': 'answer', 'key': 'n'},
+              {'cmd': 'eqimport'}, {'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'a'}):
+        evs += step(s, **c)[0]
+    return evs
+
+
+def run_any(s, key, timeout=120):
+    """Auto/Run, answering its menu with key if it asks; the events to idle"""
+    s.send(cmd='auto', op='run')
+    evs, e = s.collect(lambda e: is_idle(e) or is_ask(e), timeout=timeout)
+    if e is not None and is_ask(e):
+        s.send(cmd='answer', id=e['id'], key=key)
+        more, _ = s.collect(is_idle, timeout=timeout)
+        evs += more
+    return evs
+
+
+def grab_point(s, i, take=False):
+    """Grab, go to point i of the diagram data; take it (Return) or leave
+    (Escape); returns the autoinfo there"""
+    s.send(cmd='auto', op='grab')
+    evs, ask = s.collect(is_ask)  # the grab starts on the first point: its autoinfo is here
+    if take:
+        s.send(cmd='answer', id=ask['id'], point=i, key='Return')
+        more, _ = s.collect(is_idle)
+    else:
+        s.send(cmd='answer', id=ask['id'], point=i)
+        more, ask = s.collect(is_ask)
+        s.send(cmd='answer', id=ask['id'], key='Escape')
+        s.collect(is_idle)
+    got = [e for e in infos(evs + more) if e.get('info')]
+    return got[-1] if got else None
+
+
+def circle(info):
+    return info['stab']['circle'] if info and info.get('stab') else None
+
+
+def zeros(c):
+    return c is not None and all(v == 0 for pair in c for v in pair)
+
+
+def section_stability():
+    home = tempfile.mkdtemp(prefix='xpphome')
+    s = Server(args.server, LECAR, env={'HOME': home}, verbose=args.v)
+    s.collect(is_idle)
+    s.send(cmd='data', events=['autoinfo'])
+    s.collect(is_idle)
+    dg = Diagram().apply(hopf_steady(s))
+    syms = {}
+
+    def run(key):
+        """a run: its events into dg, its labels' symbols into syms; the index of its first point"""
+        n = len(dg.pts)
+        evs = run_any(s, key)
+        dg.apply(evs)
+        syms.update({lab: sym for e in evs if is_point(e) for r in e['runs'] for i, lab, sym in r.get('lab', [])})
+        return n
+
+    def label(sym, lo, hi):
+        return next((i for i in range(lo, hi) if syms.get(dg.pts[i]['lab']) == sym), None)
+
+    # 1: a steady state from initial data: the circle the page gets for a
+    # stored point is not computed at the first point, the next one's own
+    r1 = run('s')
+    first, second = grab_point(s, r1), grab_point(s, r1 + 1)
+    check('stability: a steady run\'s first point is not computed (autoinfo circle all zeros)',
+          first is not None and first['info']['pt'] == 1 and zeros(circle(first)), str(first)[:300])
+    check('stability: its second point has its own values',
+          second is not None and second['info']['pt'] == 2 and circle(second) and not zeros(circle(second)),
+          str(second)[:300])
+
+    # 2: a periodic branch from the Hopf point: a change of kind
+    hb = label('HB', r1, len(dg.pts))
+    check('stability: the steady branch has a Hopf point', hb is not None, str(syms))
+    if hb is None:
+        s.close()
+        return
+    hb_info = grab_point(s, hb, take=True)
+    r2 = run('p')
+    end2 = len(dg.pts) - 1
+    a, b = grab_point(s, r2), grab_point(s, r2 + 1)
+    check('stability: a periodic run from a Hopf point starts not computed',
+          a is not None and a['stab']['periodic'] == 1 and zeros(circle(a)), str(a)[:300])
+    check('stability: its second point has its own multipliers',
+          b is not None and b['stab']['periodic'] == 1 and circle(b) and not zeros(circle(b)), str(b)[:300])
+
+    # 3: the steady branch extended from the Hopf label: the same kind, its
+    # first point the label's solution, so the label's values
+    grab_point(s, hb, take=True)
+    r3 = run('e')
+    a = grab_point(s, r3)
+    check('stability: a steady restart from a label starts with the label\'s values',
+          a is not None and r3 < len(dg.pts) and circle(a) and not zeros(circle(a))
+          and circle(a) == circle(hb_info), '%s vs %s' % (circle(a), circle(hb_info)))
+
+    # 4: the periodic branch extended from its end point: the same kind
+    end_info = grab_point(s, end2, take=True)
+    r4 = run('e')
+    a = grab_point(s, r4)
+    check('stability: a periodic restart from a label starts with the label\'s values',
+          a is not None and end_info is not None and r4 < len(dg.pts) and a['stab']['periodic'] == 1
+          and circle(a) and not zeros(circle(a)) and circle(a) == circle(end_info),
+          '%s vs %s' % (circle(a), circle(end_info)))
+
+    # 5: a two-parameter curve from the Hopf point: a change of kind (a
+    # one-parameter diagram holds only its first point)
+    grab_point(s, hb, take=True)
+    r5 = run('t')
+    a = grab_point(s, r5)
+    check('stability: a two-parameter run from a Hopf point starts not computed',
+          a is not None and r5 < len(dg.pts) and a['info'].get('f2') and zeros(circle(a)), str(a)[:300])
+    s.close()
+    shutil.rmtree(home, ignore_errors=True)
 
 
 # ---- sessions: two servers on one model keep their AUTO files apart --------

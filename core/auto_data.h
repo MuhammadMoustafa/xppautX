@@ -13,12 +13,13 @@ extern "C" {
      traverse_out() in auto_nox.c shows for the point a grab's cursor is on:
      branch, point, type, label, the parameters, the norm, the plotted
      variable's value and the period.
-   - The stability circle (window 102) is what plot_stab() last drew: for a
-     steady state e^lambda of each eigenvalue lambda (AUTO's send_eigen
-     stores them so: inside the unit circle is stable), for a periodic orbit
-     its Floquet multipliers. Every point AUTO computes or a redraw plots
-     draws it, so after a run it is the last point's, while grabbing the
-     cursor's.
+   - The stability circle (window 102) holds a stored diagram point's
+     stability values (auto_stability.h): for a steady state e^lambda of
+     each eigenvalue lambda (inside the unit circle is stable), for a
+     periodic orbit its Floquet multipliers, all zeros where AUTO did not
+     compute them (a run's first point, unless it restarts from a label of
+     the same kind). Every point AUTO stores or a redraw plots shows it,
+     so after a run it is the last point's, while grabbing the cursor's.
 
    - Why the run's last branch ended (auto_stop.h, T23): "stop", null
      until a branch ends; a run's start and a new AUTO window clear it.

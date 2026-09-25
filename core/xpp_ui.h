@@ -189,8 +189,6 @@ typedef struct XppUi {
     void (*auto_line_width)(int wid);
     void (*auto_col)(int col);
     void (*auto_bw)(void);
-    void (*auto_clr_stab)(void);
-    void (*auto_stab_line)(int x, int y, int xp, int yp);
     void (*auto_clear_plot)(void);
     void (*auto_redraw_menus)(void);
     void (*auto_clear_info)(void);
@@ -309,8 +307,6 @@ void XORCross(int x, int y);
 void LineWidth(int wid);
 void autocol(int col);
 void autobw(void);
-void clr_stab(void);
-void auto_stab_line(int x, int y, int xp, int yp);
 void clear_auto_plot(void);
 void redraw_auto_menus(void);
 void clear_auto_info(void);

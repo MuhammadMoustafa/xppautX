@@ -202,8 +202,6 @@ XppUi xpp_ui = {
     .auto_line_width = hl_int,
     .auto_col = hl_int,
     .auto_bw = hl_void,
-    .auto_clr_stab = hl_void,
-    .auto_stab_line = hl_draw_line,
     .auto_clear_plot = hl_void,
     .auto_redraw_menus = hl_void,
     .auto_clear_info = hl_void,
@@ -328,8 +326,6 @@ void XORCross(int x, int y) { xpp_ui.auto_xor_cross(x, y); }
 void LineWidth(int wid) { xpp_ui.auto_line_width(wid); }
 void autocol(int col) { xpp_ui.auto_col(col); }
 void autobw(void) { xpp_ui.auto_bw(); }
-void clr_stab(void) { xpp_ui.auto_clr_stab(); }
-void auto_stab_line(int x, int y, int xp, int yp) { xpp_ui.auto_stab_line(x, y, xp, yp); }
 void clear_auto_plot(void) { xpp_ui.auto_clear_plot(); }
 void redraw_auto_menus(void) { xpp_ui.auto_redraw_menus(); }
 void clear_auto_info(void) { xpp_ui.auto_clear_info(); }

@@ -279,7 +279,6 @@ void j_auto_make_window(char *wname, char *iname)
     Auto.wid = 67 * text_metrics.big_width;
     Auto.x0 = 10 * text_metrics.small_width;
     Auto.y0 = 2 * text_metrics.small_height;
-    Auto.st_wid = 12 * text_metrics.big_width;
     XPP_STRCPY(Auto.hinttxt, "hint");
     diag_forget();      /* a new window has no data */
     auto_data_forget(); /* nor an info strip or a stability circle */

@@ -66,9 +66,10 @@ const EDGE = 1.95;
 const clamp = (v: number) => Math.max(-EDGE, Math.min(EDGE, v));
 
 /** whether AUTO computed the circle's values for the point: it computes a
-    steady state's eigenvalues and an orbit's multipliers from a branch's
-    second point on, and the first point's circle comes as all zeros (a run
-    that stops at point 1, T25), which is no e^λ or multiplier at all */
+    steady state's eigenvalues and an orbit's multipliers from a run's
+    second point on, and the first point's circle comes as all zeros (T25,
+    W15: unless the run restarts from a label of the same kind, whose values
+    it carries), which is no e^λ or multiplier at all */
 export function stabComputed(stab: AutoStab): boolean {
   return stab.circle.some(([re, im]) => re !== 0 || im !== 0);
 }

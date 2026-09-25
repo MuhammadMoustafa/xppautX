@@ -34,8 +34,16 @@ back). It has:
   plotted variable and the period that were not already shown as an axis,
   then the remaining parameters, a second parameter not on an axis last,
   and the eigenvalues/multipliers ("not
-  computed at this point" for a branch's first point: AUTO computes them
-  from its second point on); it is the
+  computed at this point" for a run's first point: AUTO computes them
+  from its second point on. The exception is a run that restarts from a
+  label of the same kind, a steady state extended from a steady label or
+  a periodic orbit from a periodic one: its first point is the label's
+  own solution and shows the label's values. A periodic branch started at
+  a Hopf point, or a two-parameter curve started at a Hopf or limit
+  point, starts "not computed", and a two-parameter curve of periodic
+  orbits has none at all (AUTO computes no multipliers along it). XPPAUT shows, and saves in `.auto`
+  files, the values of the last point computed before, often on another
+  branch; xppautX saves zeros there, which XPPAUT reads as before); it is the
   only status line on screen while AUTO is shown, so it also carries the
   core's last message and the connection state when it is not simply
   connected, as the main window's status bar does;

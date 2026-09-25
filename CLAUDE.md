@@ -230,7 +230,7 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   command" is the contract. Computations report how far they got to
   xpp_job (`xpp_job_rows_stored` per stored row in integrate.c's `row_stored()`,
   which also feeds `XppUi.rows_stored` (web2's live `series` appends),
-  `xpp_job_point_stored` per AUTO point in autevd.c addbif): a cancelled
+  `xpp_job_point_stored` per AUTO point in autevd.cpp addbif): a cancelled
   command sends `stopped` with that, and `--script` replays a recorded
   `{"cmd":"abort","at":...}` by arming `xpp_job_stop_at_rows/point` for
   the line before it (ui_json.cpp `script_arm_stop`). Rebuild xppautX
@@ -261,7 +261,13 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   `core/ani_data.cpp`, to which aniparse.cpp gives every primitive in the
   `.ani`'s unit coordinates;
   `autoinfo`, AUTO's info strip and stability circle,
-  from `core/auto_data.cpp`, which auto_nox.cpp tells what it draws there;
+  from `core/auto_data.cpp`, which auto_nox.cpp tells what it draws there
+  (the circle always a stored diagram point's values, running or grabbed;
+  those come from `core/auto_stability.cpp` (W15), the one source of a
+  point's eigenvalues/multipliers: autlib1.cpp's stability checks hand it
+  what they computed and autevd.cpp addbif stores what it says belongs to
+  the point, zeros meaning "not computed", a run's first point included
+  unless the run restarts from a label of the same kind);
   the AUTO diagram's points, `diagram`, from json_auto.cpp's `j_auto_diagram`).
   Protocol 2 (T18) has no pixel drawing: the classic page's `draw` ops,
   `palette` and `size` went with it. The `XppUi` pixel primitives

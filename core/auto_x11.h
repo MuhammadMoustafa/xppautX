@@ -8,8 +8,6 @@ extern "C" {
 void ALINE(int a, int b, int c, int d);
 void DLINE(double a, double b, double c, double d);
 void ATEXT(int a, int b, char *c);
-void clr_stab(void);
-void auto_stab_line(int x, int y, int xp, int yp);
 void clear_auto_plot(void);
 void redraw_auto_menus(void);
 void clear_auto_info(void);

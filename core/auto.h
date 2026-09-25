@@ -48,8 +48,6 @@ int do_auto_win(void);
 int load_last_plot(int flag);
 int keep_last_plot(int flag);
 int init_auto_win(void);
-int plot_stab(double *evr, double *evi, int n);
-int clr_stab(void);
 int make_auto(char *wname, char *iname);
 int yes_reset_auto(void);
 int reset_auto(void);
