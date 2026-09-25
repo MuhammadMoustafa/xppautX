@@ -40,8 +40,6 @@ jobs:
           node-version: 24
       - name: "New front end: dist/ built from src/, types, unit tests"
         run: cd web2 && npm ci && npm run check && npm run typecheck && npm test
-      - name: "New front end in a browser (store and plot state)"
-        run: node tools/web2check.mjs
       # strip the CI artifact only (verify.sh above already ran against
       # the -g build; the window's embedded library is already stripped
       # at link time, -Wl,-s, so this does not touch it twice)
@@ -51,6 +49,38 @@ jobs:
         with:
           name: xppaut-linux
           path: xppautX
+
+  # The new front end driven through a headless browser (docs/ui-v2.md):
+  # its own job beside linux's verify.sh, so the two run in parallel
+  # instead of one after the other (97 s on top of verify's own time).
+  # Needs its own build (plain, not the whole verify.sh) and the same
+  # WebKitGTK window the checks in verify.sh's build already carry.
+  linux-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Runner image
+        id: image
+        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+      - name: Cache WebKitGTK apt packages
+        uses: actions/cache@v6
+        with:
+          path: ~/apt-cache
+          key: apt-webkit2gtk-4.1-dev-${{ steps.image.outputs.os }}-v1
+          restore-keys: apt-webkit2gtk-4.1-dev-${{ steps.image.outputs.os }}-
+      - name: WebKitGTK for the desktop window
+        run: |
+          mkdir -p ~/apt-cache/partial
+          sudo apt-get update
+          sudo apt-get install -y -o Dir::Cache::Archives="$HOME/apt-cache" libwebkit2gtk-4.1-dev
+          sudo chown -R "$(id -u):$(id -g)" ~/apt-cache
+      - name: Build xppautX
+        run: make -j"$(nproc)" xppautx
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: "New front end in a browser (store and plot state)"
+        run: node tools/web2check.mjs
 
   # AddressSanitizer, LeakSanitizer and UBSan over the same checks, in
   # parallel with the job above (it takes a few minutes)
@@ -88,29 +118,18 @@ jobs:
         run: python3 tools/autocheck.py
       - name: "Every example runs without crashing (numerics not compared: that is Linux's job, examples_check.sh via verify.sh)"
         run: |
-          fail=0
-          n=0
-          for f in $(find examples -name '*.ode' | sort); do
-            n=$((n + 1))
-            run=$(mktemp -d)
-            cp "$(dirname "$f")"/* "$run"/ 2>/dev/null
-            ( cd "$run" && "$GITHUB_WORKSPACE/xppautX" "$(basename "$f")" -silent >run.log 2>&1 ) &
-            pid=$!
-            ( sleep 300; kill -9 "$pid" 2>/dev/null ) &
-            watcher=$!
-            # the step runs under bash -e: statuses that are expected here
-            # (a model's own, the cancelled watcher's 143) must not end it
-            st=0
-            wait "$pid" || st=$?
-            kill "$watcher" 2>/dev/null || true
-            wait "$watcher" 2>/dev/null || true
-            if [ "$st" -ne 0 ]; then
-              echo "FAIL $f exit $st"; cat "$run/run.log"; fail=1
-            fi
-            rm -rf "$run"
-          done
-          [ "$fail" -eq 0 ] && echo "examples: no crashes ($n models)"
-          exit "$fail"
+          n=$(find examples -name '*.ode' | wc -l | tr -d ' ')
+          # one tools/run_example.sh per model, up to hw.ncpu at once; the
+          # step runs under bash -e, so a nonzero status here (xargs's own
+          # 123 when any model failed) must only reach `exit` through the
+          # if, never end the step by itself (see commit d8cad8d)
+          if find examples -name '*.ode' | sort \
+              | xargs -P "$(sysctl -n hw.ncpu)" -I{} tools/run_example.sh {} "$GITHUB_WORKSPACE/xppautX" 300; then
+            echo "examples: no crashes ($n models)"
+          else
+            echo "examples: crashes reported above"
+            exit 1
+          fi
       - name: "Strip the CI artifact (-x: macOS keeps a minimal symbol table)"
         run: strip -x xppautX
       - uses: actions/upload-artifact@v7

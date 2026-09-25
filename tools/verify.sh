@@ -9,6 +9,17 @@
 # Usage: tools/verify.sh [--clean-warnings]
 cd "$(dirname "$0")/.." || exit 1
 BASELINE=c281851de59ffd03b2a46428619a0c8f
+# make test and make ltocheck each used to build on one core (60 s, 49 s on
+# CI); run them with the machine's core count instead (ltocheck's own
+# sub-make, invoked via $(MAKE), shares the jobserver this -j sets up, so
+# its own build/lto compile also parallelizes)
+if command -v nproc >/dev/null 2>&1; then
+  NPROC=$(nproc)
+elif command -v sysctl >/dev/null 2>&1; then
+  NPROC=$(sysctl -n hw.ncpu)
+else
+  NPROC=4
+fi
 mkdir -p build || exit 1
 make -j8 WERROR=1 xppautx > build/last-build.log 2>&1
 st=$?
@@ -43,7 +54,7 @@ else
   echo "ALLOCATION FAILURE NOT LOUD: exit $st, message \"$site\""
   exit 1
 fi
-if make test > build/unittest.log 2>&1; then
+if make -j"$NPROC" test > build/unittest.log 2>&1; then
   echo "unit tests ok: $(grep -c 'checks,' build/unittest.log) files"
 else
   grep -E 'FAIL|failed' build/unittest.log
@@ -71,7 +82,7 @@ if ! sh tools/formatcheck.sh; then
   echo "FORMAT CHECK FAILED"
   exit 1
 fi
-if make ltocheck > build/ltocheck.log 2>&1; then
+if make -j"$NPROC" ltocheck > build/ltocheck.log 2>&1; then
   echo "lto link ok: no types differ across files"
 else
   tail -30 build/ltocheck.log
