@@ -63,6 +63,7 @@ issue; the card here is the one kept up to date.
 | W27b | #44 | C to C++, AUTO: autlib4, autlib5, autpp, conpar2, setubv2, worker2, gogoauto, eispack and the f2c helpers (cabs, d_imag, d_lg10, d_sign, i_dnnt, i_nint, pow_dd, pow_di, pow_ii, r_lg10, z_abs, z_exp, z_log) | none | running |
 | W27c | #45 | C to C++, integrators and numerics: integrate, odesol2, stiff, gear, dormpri, adj2, del_stab, delay_handle, volterra2, dae_fun, markov, pp_shoot, numerics, histogram, fftn (its #include __FILE__), do_fit, torus, my_rhs, derived, storage, tabular | none | running |
 | W27d | #46 | C to C++, parser, model loading, front-end core and entry points: parserslow2, simplenet, load_eqn, flags, comline, read_dir, edit_rhs, menus, graf_par, graphics, axes2, nullcline, my_ps, scrngif, array_print, userbut, xpp_util, xpp_batch, xpp_session, xppautx_main; sbml2xpp.c (never built, needs libsbml) deleted as dead code | none | running |
+| W28 | #47 | A const-correct C API: the dialog and message functions (err_msg, do_string_box_of, new_string, file_selector, TwoChoice, pop-up lists, menus ...) and the other core functions that take text they only read take `const char *` (and `const char * const *` for lists), so the C++ files lose their `(char *)"..."` casts and the per-file str()/strs() helpers; tools/sourcecheck.sh fails a new cast of a string literal | W27d (the same files) | blocked |
 
 ## W0: C/C++ mixed build
 **Goal.** core/*.cpp builds next to core/*.c on Linux, Windows (MinGW,
