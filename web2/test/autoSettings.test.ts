@@ -62,7 +62,8 @@ test("the core's rules, in the page", () => {
   assert.equal(NUM_FIELDS.length, 22);
   assert.equal(numError('ncol', '8'), 'Collocation points (NCOL) must be a whole number from 2 to 7');
   assert.equal(numError('ntst', '2.5'), 'Mesh intervals (NTST) must be a whole number, not 2.5');
-  assert.equal(numError('nmx', '1e2'), null, 'an integer in any spelling');
+  assert.equal(numError('nmx', '1e2'), 'Max points (NMX) must be a whole number, not 1e2', 'digits only (T31)');
+  assert.equal(numError('nmx', 'ab'), 'Max points (NMX) must be a whole number');
   assert.equal(numError('ntst', '0'), 'Mesh intervals (NTST) must be a whole number of at least 1');
   assert.equal(numError('ds', '0'), 'First step (DS) must be a number other than 0');
   assert.equal(numError('dsmin', '-1'), 'Smallest step (DSMIN) must be a number above 0');

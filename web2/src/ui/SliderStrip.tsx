@@ -2,7 +2,7 @@
    any number of them (the model's `@ s1=..` presets first, then "Add
    slider"), each compact: the variable's name, a range track with its low
    and high end shown as small muted labels, the current value as a
-   spinner box (type=number, step = the slider's own step), a small edit
+   box (Field.tsx: a number; ArrowUp/ArrowDown step by the slider's own step), a small edit
    icon (opens SliderDialog.tsx prefilled) and a remove button. A drag
    sends `slide` while the core is idle, and only the latest position
    while it is busy (session.ts slide, sent in one `set` when the command
@@ -13,7 +13,9 @@
    .slider-strip): 3 per row at 1280px, 2 on tablets, 1 on phones. */
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {fromPosition, RANGE_STEPS, sliderRange, sliderStep, toPosition, type SliderDef} from '../store/sliders';
+import {NUMBER} from '../store/fieldKinds';
 import {fieldKey, sixSig} from '../store/values';
+import {Field} from './Field';
 import {SliderDialog} from './SliderDialog';
 import {useSession, useStore} from './context';
 
@@ -40,10 +42,7 @@ function Slider({def, index, onEdit}: {def: SliderDef; index: number; onEdit: ()
   const gesture = useRef<string | null>(null);
   /* the value box: the value undo should go back to, updated after each commit */
   const focusValue = useRef<string | null>(null);
-  const [draft, setDraft] = useState<string | null>(null);
-  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => { sent.current = null; }, [match]);
-  useEffect(() => () => { if (debounce.current) clearTimeout(debounce.current); }, []);
   const slideTo = (v: number) => {
     if (!match) return;
     const st = session.store.getState();
@@ -52,10 +51,10 @@ function Slider({def, index, onEdit}: {def: SliderDef; index: number; onEdit: ()
     if (!st.busy) sent.current = v;
     session.slide(kind, match, v);
   };
+  /* Field.tsx commits a number only, changed, after the pause, on Enter or on blur */
   const commitValue = (text: string) => {
-    if (debounce.current) { clearTimeout(debounce.current); debounce.current = null; }
     const v = Number(text);
-    if (!match || text.trim() === '' || !Number.isFinite(v)) return;
+    if (!match) return;
     const clamped = range ? Math.max(Math.min(range.lo, range.hi), Math.min(Math.max(range.lo, range.hi), v)) : v;
     const startedFrom = focusValue.current;
     /* unchanged from what this focus (or the last commit in it) started
@@ -75,27 +74,13 @@ function Slider({def, index, onEdit}: {def: SliderDef; index: number; onEdit: ()
       <div class="slider-card-head">
         <span class="slider-card-name" title={label}>{label}</span>
         <label class="visually-hidden" htmlFor={id('val')}>{label}: value</label>
-        <input id={id('val')} class="slider-card-value" type="number" inputMode="decimal" disabled={!match}
-          step={step ?? 'any'} min={range ? Math.min(range.lo, range.hi) : undefined}
+        <Field id={id('val')} class="slider-card-value" spec={NUMBER} disabled={!match}
+          step={step ?? null} min={range ? Math.min(range.lo, range.hi) : undefined}
           max={range ? Math.max(range.lo, range.hi) : undefined}
-          title="The value: type or spin it to set it (sends after a short pause, or at once on Enter/blur)"
-          value={draft ?? (value !== undefined ? sixSig(value) : '')}
-          onFocus={() => {
-            setDraft(core !== undefined ? String(core) : '');
-            focusValue.current = core !== undefined ? String(core) : null;
-          }}
-          onInput={e => {
-            const text = (e.target as HTMLInputElement).value;
-            setDraft(text);
-            if (debounce.current) clearTimeout(debounce.current);
-            debounce.current = setTimeout(() => { debounce.current = null; commitValue(text); }, VALUE_DEBOUNCE_MS);
-          }}
-          onKeyDown={e => {
-            if (e.key === 'Enter') { commitValue((e.target as HTMLInputElement).value); (e.target as HTMLInputElement).blur(); }
-            else if (e.key === 'Escape') { e.stopPropagation(); if (debounce.current) clearTimeout(debounce.current); setDraft(null); }
-          }}
-          onBlur={e => { commitValue((e.target as HTMLInputElement).value); setDraft(null); }}
-        />
+          title="The value: type it, or step it with the arrow keys (sends after a short pause, or at once on Enter/blur)"
+          value={value !== undefined ? sixSig(value) : ''} editValue={core !== undefined ? String(core) : ''}
+          commitAfter={VALUE_DEBOUNCE_MS} onCommit={commitValue}
+          onFocus={() => { focusValue.current = core !== undefined ? String(core) : null; }} />
         <button class="icon slider-card-edit" aria-label={`Edit slider ${label}`}
           title="Change the parameter or variable, min, max or step" onClick={onEdit}>&#9998;</button>
         <button class="icon slider-card-remove" aria-label={`Remove slider ${label}`} title="Remove this slider"

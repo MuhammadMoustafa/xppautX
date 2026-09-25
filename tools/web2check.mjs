@@ -1456,6 +1456,46 @@ async function prompts() {
   await pickX('V');
   check('and V again: W against V', await until('!s.busy && w.series.curves[0].x === 1 && w.series.curves[0].y === 2', 'W vs V'));
 
+  /* T31: the form's fields take what the core says they take (the ask's kinds): letters in a
+     number field are marked with a message, OK is disabled and Enter answers nothing */
+  await focusPlot();
+  await menuKeys('v', '2');
+  await until("s.ask && s.ask.kind === 'form' && document.querySelector('[role=dialog] input')", 'form');
+  const formId = await S('s.ask.id');
+  const answers = async () => (await cdp.eval('__xpp.sent()')).filter(c => c.cmd === 'answer').length;
+  const answers0 = await answers();
+  const numberBox = `document.querySelector('[role=dialog] input[data-kind=number]')`;
+  await cdp.eval(`(() => { const i = ${numberBox}; i.focus(); i.value = 'abc'; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await sleep(80);
+  await key('Enter');
+  await sleep(200);
+  const refused = await cdp.eval(`(() => { const i = ${numberBox}, m = i.closest('label').querySelector('.field-error');
+    return {invalid: i.getAttribute('aria-invalid'), message: m && m.textContent, mode: i.inputMode,
+      ok: document.querySelector('[role=dialog] .dialog-actions .primary').disabled}; })()`);
+  check('T31: letters in a number field of a form (Viewaxes/2D Xmin) are refused: marked, "A number", OK disabled, Enter answers nothing',
+    refused.invalid === 'true' && refused.message === 'A number' && refused.mode === 'decimal' && refused.ok === true
+    && (await answers()) === answers0 && await S(`!!s.ask && s.ask.id === ${formId}`), JSON.stringify(refused));
+  await key('Escape');
+  await until('!s.ask && !s.busy', 'form cancelled');
+  /* ... and a number-or-formula box (new_float: nUmerics/Total) takes a %formula, sent as typed */
+  await focusPlot();
+  await key('u');
+  await until('!s.busy && s.core.menu === 2', 'numerics menu');
+  await key('t');
+  await until("s.ask && s.ask.kind === 'string'", 'total');
+  const formula = `%${await S('s.ask.value')}*1`;
+  const formulaBox = `document.querySelector('[role=dialog] input')`;
+  const kindOf = await cdp.eval(`${formulaBox}.dataset.kind`);
+  await cdp.eval(`(() => { const i = ${formulaBox}; i.value = ${JSON.stringify(formula)}; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await sleep(80);
+  const taken = await cdp.eval(`${formulaBox}.getAttribute('aria-invalid')`);
+  await key('Enter');
+  await until('!s.ask && !s.busy', 'total set');
+  check(`T31: a %formula (${formula}) in nUmerics/Total is taken and sent as typed`,
+    kindOf === 'number' && taken === null && (await lastAnswer())?.value === formula, JSON.stringify([kindOf, taken, await lastAnswer()]));
+  await key('Escape');
+  await until('!s.busy && s.core.menu === 0', 'main menu');
+
   /* Window/Zoom by a box drawn with the mouse */
   await focusPlot();
   await menuKeys('w', 'z');
@@ -1751,6 +1791,14 @@ async function autoView(dir) {
   check('T23: a float in an integer field (Max points 12.5) is refused beside it, OK disabled',
     floatNmx.invalid === 'true' && floatNmx.error === 'Max points (NMX) must be a whole number, not 12.5' && floatNmx.ok === true,
     JSON.stringify(floatNmx));
+  /* T31: Enter in it keeps the form and its message, sends nothing; the box is a whole-number box */
+  await cdp.eval(`document.querySelector('.auto-settings-dialog input[data-field=nmx]').focus()`);
+  await key('Enter');
+  await sleep(200);
+  check('T31: Enter in an integer AUTO Numerics field holding 12.5 keeps the form open and sends nothing',
+    await cdp.eval(`!!document.querySelector('.auto-settings-dialog') && document.querySelector('.auto-settings-dialog input[data-field=nmx]').dataset.kind === 'integer'
+      && document.querySelector('.auto-settings-dialog input[data-field=nmx]').inputMode === 'numeric'`)
+    && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set')`)));
   await typeInto('nmx', '200');
   await typeInto('ds', '9');
   const bigDs = await fieldState('ds');
@@ -2751,6 +2799,32 @@ async function valuesLive() {
     busyThen && during === 0 && shown && out.length === 1 && out[0].cmd === 'set' && out[0].rerun === 1
     && Math.abs(Number(out[0].text) - (await S('s.core.pars.find(p => p[0] === "iapp")[1]'))) < 1e-12,
     JSON.stringify({busyThen, during, shown, out}));
+
+  /* T31: a parameter box takes a number or %formula only: letters are refused with a message and
+     stay in the box, marked (no silent revert); nothing is sent, Enter included; Escape drops them */
+  await until('!s.busy', 'idle', 60000);
+  const iapp0 = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
+  const sent2 = await cdp.eval('__xpp.sent().length');
+  await editField('par', 'iapp', 'abc');
+  await cdp.eval(`${fieldOf('par', 'iapp')}.querySelector('input').focus()`);
+  await key('Enter');
+  await sleep(300);
+  const box = await cdp.eval(`(() => { const f = ${fieldOf('par', 'iapp')}, i = f.querySelector('input'), m = f.querySelector('.field-error');
+    return {invalid: i.getAttribute('aria-invalid'), value: i.value, message: m && m.textContent, focused: document.activeElement === i}; })()`);
+  check('T31: letters in a parameter box are refused: marked, "A number, or %formula such as %2*pi", kept, nothing sent (Enter neither)',
+    box.invalid === 'true' && box.value === 'abc' && box.message === 'A number, or %formula such as %2*pi' && box.focused
+    && (await cdp.eval(`__xpp.sent().length`)) === sent2, JSON.stringify({box, sent: await cdp.eval(`__xpp.sent().slice(${sent2})`)}));
+  await key('Escape');
+  await sleep(100);
+  const dropped = await cdp.eval(`(() => { const i = ${fieldOf('par', 'iapp')}.querySelector('input'); return {invalid: i.getAttribute('aria-invalid'), value: i.value}; })()`);
+  check('T31: Escape drops the refused text: the box shows the value again, unmarked',
+    dropped.invalid === null && close6(Number(dropped.value), iapp0), JSON.stringify({dropped, iapp0}));
+  /* a %formula is taken and sent as typed; the core evaluates it */
+  await editField('par', 'iapp', '%0.01*6');
+  check('T31: a %formula in a parameter box is sent as typed and the core evaluates it',
+    await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.06) < 1e-12', 'iapp = %0.01*6', 60000)
+    && (await cdp.eval(`__xpp.sent().slice(${sent2})`)).some(c => c.cmd === 'set' && c.text === '%0.01*6'),
+    JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sent2})`)));
 }
 
 /* tools/models/live.ode: 20 001 rows in about two seconds */

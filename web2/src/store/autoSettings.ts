@@ -8,6 +8,7 @@
    Also the settings file (Save/Load settings, T21), now written from and
    read into these data. Pure: no DOM, no I/O. */
 import type {Command} from '../protocol/types';
+import {fieldError, type FieldSpec} from './fieldKinds';
 
 export type NumKey = 'ntst' | 'nmx' | 'npr' | 'ncol' | 'ds' | 'dsmin' | 'dsmax' | 'rl0' | 'rl1' | 'a0' | 'a1'
   | 'epsl' | 'epsu' | 'epss' | 'iad' | 'mxbf' | 'iid' | 'itmx' | 'itnw' | 'nwtn' | 'iads' | 'suppbp';
@@ -217,18 +218,21 @@ export function setCommand(p: AutoSettingsPatch): Command {
   return {cmd: 'auto', op: 'set', ...p};
 }
 
+/** what a Numerics field takes (store/fieldKinds.ts): a whole number or a number, and its rule */
+export function numSpec(key: NumKey): FieldSpec {
+  const f = fieldOf(key), r = f.rule;
+  const min = r.kind === 'range' ? r.lo : undefined, max = r.kind === 'range' && r.hi !== null ? r.hi : undefined;
+  if (f.integer) return {kind: 'integer', min, max};
+  return {kind: 'number', min, max, positive: r.kind === 'positive', nonzero: r.kind === 'nonzero'};
+}
+
 /** the error a Numerics field's text has, as the core would refuse it, or null (named as the page names the field) */
 export function numError(key: NumKey, text: string): string | null {
-  const f = fieldOf(key), v = Number(text);
-  const whole = f.integer ? 'a whole number' : 'a number';
-  if (!text.trim() || !Number.isFinite(v)) return `${f.name} must be ${whole}`;
-  if (f.integer && !Number.isInteger(v)) return `${f.name} must be a whole number, not ${text.trim()}`;
-  const r = f.rule;
-  if (r.kind === 'positive' && !(v > 0)) return `${f.name} must be a number above 0`;
-  if (r.kind === 'nonzero' && v === 0) return `${f.name} must be a number other than 0`;
-  if (r.kind === 'range' && (v < r.lo || (r.hi !== null && v > r.hi)))
-    return r.hi === null ? `${f.name} must be ${whole} of at least ${r.lo}` : `${f.name} must be ${whole} from ${r.lo} to ${r.hi}`;
-  return null;
+  const f = fieldOf(key), phrase = fieldError(numSpec(key), text);
+  if (!phrase) return null;
+  const t = text.trim();
+  if (f.integer && phrase === 'a whole number' && t && Number.isFinite(Number(t))) return `${f.name} must be a whole number, not ${t}`;
+  return `${f.name} must be ${phrase}`;
 }
 
 /** the values that must agree with each other, as the core checks them, by the field whose message it is */

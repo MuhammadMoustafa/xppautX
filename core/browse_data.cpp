@@ -306,7 +306,7 @@ void data_add_col(BROWSER *b)
   XPP_STRCPY(form,"");
   status=get_dialog(str("Add Column"),str("Name"),var,str("Ok"),str("Cancel"),XPP_NAME_MAX);
   if(status!=0){
-    status=get_dialog(str("Add Column"),str("Formula:"),form,str("Add it"),str("Cancel"),80);
+    status=get_dialog_of(str("Add Column"),str("Formula:"),form,str("Add it"),str("Cancel"),80,XPP_FIELD_EXPRESSION);
      if(status!=0)
       add_stor_col(var,form,b);
   }
@@ -553,9 +553,9 @@ void data_replace(BROWSER *b)
  char var[XPP_NAME_MAX+1],form[80];
 XPP_STRCPY(var,uvar_names[0]);
 XPP_STRCPY(form,uvar_names[0]);
-status=get_dialog(str("Replace"),str("Variable:"),var,str("Ok"),str("Cancel"),XPP_NAME_MAX);
+status=get_dialog_of(str("Replace"),str("Variable:"),var,str("Ok"),str("Cancel"),XPP_NAME_MAX,XPP_FIELD_NAME_IN(0));
 if(status!=0){
- status=get_dialog(str("Replace"),str("Formula:"),form,str("Replace"),str("Cancel"),80);
+ status=get_dialog_of(str("Replace"),str("Formula:"),form,str("Replace"),str("Cancel"),80,XPP_FIELD_EXPRESSION);
  if(status!=0)replace_column(var,form,b->data,b->maxrow);
  xpp_ui.browser_redraw(0);
 }
@@ -583,7 +583,8 @@ void data_table(BROWSER *b)
  XPP_SPRINTF(value[1],"0.00");
  XPP_SPRINTF(value[2],"1.00");
  snprintf(value[3],sizeof(value[3]),"%.*s.tab",XPP_NAME_MAX,value[0]);
- status=do_string_box(4,4,1,str("Tabulate"),name,value,40);
+ static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_FILE};
+ status=do_string_box_of(4,4,1,str("Tabulate"),name,value,40,kinds);
  if(status==0)return;
  xlo=atof(value[1]);
  xhi=atof(value[2]);
@@ -604,7 +605,8 @@ void data_find(BROWSER *b)
 
  XPP_SPRINTF(value[0],"%s",uvar_names[0]);
  XPP_SPRINTF(value[1],"0.00");
- status=do_string_box(2,2,1,str("Find Data"),name,value,40);
+ static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_NUMBER};
+ status=do_string_box_of(2,2,1,str("Find Data"),name,value,40,kinds);
  
   
 

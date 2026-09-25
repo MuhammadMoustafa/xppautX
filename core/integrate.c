@@ -457,7 +457,8 @@ int set_up_range()
  XPP_SPRINTF(values[6],"%s",yn[range.cycle]);
  XPP_SPRINTF(values[7],"%s",yn[range.movie]);
  
- status=do_string_box(8,8,1,"Range Integrate",n,values,45);
+ static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
+ status=do_string_box_of(8,8,1,"Range Integrate",n,values,45,kinds);
  if(status!=0){
    XPP_STRCPY(range.item,values[0]);
    /* i=find_user_name(PARAM,range.item);

@@ -11,9 +11,13 @@ import {HELP} from '../help/links';
 import {
   defaultRange, defaultStep, filterCandidates, validateSliderFields, type SliderCandidate, type SliderDef,
 } from '../store/sliders';
+import {NUMBER, TEXT, type FieldSpec} from '../store/fieldKinds';
 import {sixSig} from '../store/values';
 import {useSession, useStore} from './context';
+import {Field} from './Field';
 import {HelpButton} from './HelpButton';
+
+const STEP: FieldSpec = {kind: 'number', positive: true};
 
 const FOCUSABLE = 'button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])';
 
@@ -115,9 +119,8 @@ export function SliderDialog({target, onClose}: SliderDialogProps) {
         </div>
         <label class="slider-picker-search">
           <span class="visually-hidden">Search parameters and variables</span>
-          <input type="text" placeholder="Search parameters and variables" value={query} data-autofocus=""
-            onInput={e => { setQuery((e.target as HTMLInputElement).value); setActive(0); }}
-            onKeyDown={onListKeyDown} />
+          <Field spec={TEXT} placeholder="Search parameters and variables" value={query} data-autofocus=""
+            onInput={t => { setQuery(t); setActive(0); }} onKeyDown={onListKeyDown} />
         </label>
         <ul class="slider-picker-list" role="listbox" aria-label="Parameters and variables" tabIndex={-1}
           onKeyDown={onListKeyDown}>
@@ -138,21 +141,15 @@ export function SliderDialog({target, onClose}: SliderDialogProps) {
         <div class="form-grid slider-dialog-fields">
           <label>
             <span>Min</span>
-            <input type="number" inputMode="decimal" value={lo} aria-invalid={errors.lo ? 'true' : undefined}
-              aria-describedby={errors.lo ? 'slider-lo-err' : undefined} onInput={e => setLo((e.target as HTMLInputElement).value)} />
-            {errors.lo && <p class="field-error" id="slider-lo-err" role="alert">{errors.lo}</p>}
+            <Field id="slider-lo" spec={NUMBER} value={lo} error={errors.lo} onInput={setLo} />
           </label>
           <label>
             <span>Max</span>
-            <input type="number" inputMode="decimal" value={hi} aria-invalid={errors.hi ? 'true' : undefined}
-              aria-describedby={errors.hi ? 'slider-hi-err' : undefined} onInput={e => setHi((e.target as HTMLInputElement).value)} />
-            {errors.hi && <p class="field-error" id="slider-hi-err" role="alert">{errors.hi}</p>}
+            <Field id="slider-hi" spec={NUMBER} value={hi} error={errors.hi} onInput={setHi} />
           </label>
           <label>
             <span>Step</span>
-            <input type="number" inputMode="decimal" min="0" value={step} aria-invalid={errors.step ? 'true' : undefined}
-              aria-describedby={errors.step ? 'slider-step-err' : undefined} onInput={e => setStep((e.target as HTMLInputElement).value)} />
-            {errors.step && <p class="field-error" id="slider-step-err" role="alert">{errors.step}</p>}
+            <Field id="slider-step" spec={STEP} value={step} error={errors.step} onInput={setStep} />
           </label>
         </div>
         <div class="dialog-actions">

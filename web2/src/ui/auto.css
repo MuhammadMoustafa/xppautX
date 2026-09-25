@@ -209,7 +209,6 @@
 .auto-axis-dialog p { margin: var(--space-2) 0 0; font-size: var(--text-xs); }
 .auto-earlier { font-size: var(--text-xs); }
 .auto-earlier.active { border-color: var(--accent); }
-.auto-axis-dialog .error-text { color: var(--danger); }
 .auto-empty { pointer-events: none; } /* the diagram under it still zooms and pans */
 
 /* T22: AUTO's settings in the page's forms (ui/AutoSettings.tsx) */
@@ -219,7 +218,6 @@
 .auto-num-group legend { font-size: var(--text-xs); color: var(--fg-muted); padding: 0 var(--space-1); }
 .auto-num-group label { grid-template-columns: minmax(0, 1fr) 6.5rem; gap: var(--space-2); cursor: help; }
 .auto-num-group label > span { font-size: var(--text-sm); }
-.auto-num-group .field-error { grid-column: 1 / -1; }
 .auto-settings-dialog label.queued input, .auto-settings-dialog label.queued select,
 .auto-settings-dialog .auto-mark-row.queued input, .auto-settings-dialog .auto-mark-row.queued select,
 .auto-axis-fields label.queued select { border-style: dashed; background: var(--surface-2); }

@@ -277,7 +277,6 @@ kbd {
   align-items: center;
   gap: var(--space-2);
 }
-.value-field .field-error { grid-column: 1 / -1; }
 .value-reset {
   min-width: var(--target);
   min-height: var(--target);
@@ -306,7 +305,12 @@ kbd {
   padding: 0 var(--space-2);
   min-width: 0;
 }
-.value-field input[aria-invalid='true'] { border-color: var(--danger); }
+/* a box that does not take its text (ui/Field.tsx): a red border, its message under its row */
+input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--danger); }
+.value-field > .field-error, .form-grid label > .field-error, .auto-mark-row > .field-error,
+.auto-axis-fields label > .field-error { grid-column: 1 / -1; order: 1; }
+.slider-card-head { flex-wrap: wrap; }
+.slider-card-head > .field-error { order: 1; flex-basis: 100%; }
 .field-error { margin: var(--space-1) 0 0; color: var(--danger); font-size: var(--text-xs); }
 /* ---- sliders: a responsive grid under the plot (GitHub #18, T20) ----
    Each card is compact (name, track, value, edit, remove) so many fit:

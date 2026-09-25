@@ -138,7 +138,8 @@ int ind;
  snprintf(values[6],sizeof(values[6]),"%s",plot_windows.current->xlabel);
  snprintf(values[7],sizeof(values[7]),"%s",plot_windows.current->ylabel);
  plot_windows.current->ThreeDFlag=0;
- status=do_string_box(8,4,2,"2D View",n,values,31);
+ static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
+ status=do_string_box_of(8,4,2,"2D View",n,values,31,kinds);
  if(status!=0){
 		/*  get variable names  */
              find_variable(values[0],&i);
@@ -450,7 +451,8 @@ void user_window()
  XPP_SPRINTF(values[2],"%g",plot_windows.current->ylo);
  XPP_SPRINTF(values[1],"%g",plot_windows.current->xhi);
  XPP_SPRINTF(values[3],"%g",plot_windows.current->yhi);
- status=do_string_box(4,2,2,"Window",n,values,28);
+ static const int kinds[]={XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
+ status=do_string_box_of(4,2,2,"Window",n,values,28,kinds);
  if(status!=0){
              
 	      plot_windows.current->xlo=atof(values[0]);
@@ -476,7 +478,7 @@ void xi_vs_t() /*  a short cut   */
 
  ind_to_sym(i,value);
  XPP_SPRINTF(name,"Plot vs t: ");
- new_string(name,value);
+ new_string_of(name,value,XPP_FIELD_NAME_IN(0));
  find_variable(value,&i);
  
  if(i>-1){

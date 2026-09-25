@@ -9,7 +9,9 @@ import {useEffect, useRef, useState} from 'preact/hooks';
 import {canPickOpen, canPickSave, pickOpen, pickSave} from '../pickers';
 import type {AskEvent} from '../protocol/types';
 import {baseName, safeName} from '../store/files';
+import {FILE, TEXT} from '../store/fieldKinds';
 import {useSession, useStore} from './context';
+import {Field} from './Field';
 
 type Tab = 'computer' | 'folder';
 
@@ -124,16 +126,9 @@ function SaveToComputer({ask}: {ask: AskEvent}) {
       <div class="form-grid">
         <label>
           <span>File name</span>
-          <input value={name} data-autofocus="" data-file-name="" aria-invalid={!ok}
-            aria-describedby={ok ? undefined : 'file-name-error'}
-            onInput={e => setName((e.target as HTMLInputElement).value)} />
+          <Field id="file-name" spec={FILE} value={name} data-autofocus="" data-file-name="" onInput={setName} />
         </label>
       </div>
-      {!ok && (
-        <p id="file-name-error" class="field-error">
-          A name only: no folders, no leading dot, none of \ / : * ? " &lt; &gt; |.
-        </p>
-      )}
       <div class="dialog-actions">
         <button type="button" onClick={() => session.cancel(ask)}>Cancel</button>
         <button type="submit" class="primary" disabled={!ok}>{picker ? 'Save…' : 'Save'}</button>
@@ -157,12 +152,11 @@ function InTheFolder({ask}: {ask: AskEvent}) {
       <div class="form-grid">
         <label>
           <span>File</span>
-          <input value={file} data-folder-file="" onInput={e => setFile((e.target as HTMLInputElement).value)} />
+          <Field spec={TEXT} value={file} data-folder-file="" onInput={setFile} />
         </label>
         <label>
           <span>Show</span>
-          <input value={wild} title="Which files to list; Enter lists again"
-            onInput={e => setWild((e.target as HTMLInputElement).value)}
+          <Field spec={TEXT} value={wild} title="Which files to list; Enter lists again" onInput={setWild}
             onKeyDown={e => {
               if (e.key !== 'Enter') return;
               e.preventDefault();

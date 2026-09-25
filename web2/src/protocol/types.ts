@@ -201,6 +201,9 @@ export interface AskEvent {
   choices?: string[];
   names?: string[];
   values?: string[];
+  /** a `string` or `form` ask: what each field takes (`integer`, `number`, `formula`, `expression`,
+      `file`, `name:N`, `text`; none: text), store/fieldKinds.ts specOfKind */
+  kinds?: string[];
   message?: string;
   button?: string;
   /** a `file` ask: whether the command opens the file or saves one */

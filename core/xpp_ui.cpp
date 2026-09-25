@@ -10,8 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "many_pops.h"
+#include "xpp_util.h"
 
-int do_calc(char *temp, double *z); /* xpp_util.c */
 
 /* ---- headless defaults ------------------------------------------------ */
 
@@ -20,7 +20,7 @@ static void hl_void(void) {}
 static void hl_str(char *s) { (void)s; }
 static void hl_int(int v) { (void)v; }
 static void hl_bottom_msg(int line, char *msg) { (void)line; (void)msg; }
-static int hl_new_string(char *name, char *value) { (void)name; (void)value; return 0; }
+static int hl_new_string(char *name, char *value, int kind) { (void)name; (void)value; (void)kind; return 0; }
 static int hl_no(void) { return 0; }
 static int hl_two_choice(char *c1, char *c2, char *q, char *key, char *title)
 {
@@ -28,9 +28,9 @@ static int hl_two_choice(char *c1, char *c2, char *q, char *key, char *title)
     return 0;
 }
 static int hl_string_box(int n, int row, int col, char *title, char **names,
-                         char values[][MAX_LEN_SBOX], int maxchar)
+                         char values[][MAX_LEN_SBOX], int maxchar, const int *kinds)
 {
-    (void)n; (void)row; (void)col; (void)title; (void)names; (void)values; (void)maxchar;
+    (void)n; (void)row; (void)col; (void)title; (void)names; (void)values; (void)maxchar; (void)kinds;
     return 0;
 }
 static int hl_file_selector(char *title, char *file, char *wild)
@@ -87,9 +87,9 @@ static void hl_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
         else plintf("  y[%d]=%.8g\n", i, y[i]);
     }
 }
-static int hl_dialog(char *title, char *name, char *value, char *ok, char *cancel, int max)
+static int hl_dialog(char *title, char *name, char *value, char *ok, char *cancel, int max, int kind)
 {
-    (void)title; (void)name; (void)value; (void)ok; (void)cancel; (void)max;
+    (void)title; (void)name; (void)value; (void)ok; (void)cancel; (void)max; (void)kind;
     return 0;
 }
 static void hl_ani_font(int size, int font, int color) { (void)size; (void)font; (void)color; }
@@ -127,21 +127,12 @@ XppUi xpp_ui = {
     .checklist = hl_checklist,
     .string_box = hl_string_box,
     .file_selector = hl_file_selector,
-    .ani_clear = hl_void,
-    .ani_show = hl_void,
-    .ani_color = hl_int,
-    .ani_thick = hl_int,
-    .ani_font = hl_ani_font,
-    .ani_line = hl_draw_line,
-    .ani_rect = hl_ani_box,
-    .ani_arc = hl_ani_box,
-    .ani_text = hl_put_text,
-    .ani_slider = hl_void,
     .dialog = hl_dialog,
     .edit_box = hl_edit_box,
     .get_mouse_xy = hl_get_mouse_xy,
     .menu_flash = hl_int,
     .show_menu = hl_int,
+    .redraw_menu = hl_void,
     .menu_choose = hl_menu_choose,
     .check_abort = hl_check_abort,
     .progress_begin = hl_no,
@@ -161,9 +152,9 @@ XppUi xpp_ui = {
     .clear_screens = hl_void,
     .clear_draw_window = hl_void,
     .reset_graphics = hl_void,
-    .browser_redraw = hl_int,
     .data_changed = hl_int,
     .rows_stored = hl_int,
+    .browser_redraw = hl_int,
     .activate_graph = hl_activate_graph,
     .create_plot_window = hl_void,
     .destroy_plot_window = hl_void,
@@ -184,6 +175,9 @@ XppUi xpp_ui = {
     .movie_auto_play = hl_void,
     .movie_save = hl_movie_save,
     .movie_make_anigif = hl_void,
+    .rubber_band = hl_auto_rubber,
+    .scroll_window = hl_void,
+    .new_colormap = hl_int,
     .draw_point = hl_draw_point,
     .draw_line = hl_draw_line,
     .draw_bead = hl_draw_point,
@@ -192,6 +186,9 @@ XppUi xpp_ui = {
     .draw_special_text = hl_draw_special_text,
     .draw_linestyle = hl_int,
     .set_color = hl_int,
+    .aplot_make = hl_str,
+    .aplot_redraw = hl_void,
+    .aplot_reset_axes = hl_void,
     .aplot_draw_one = hl_str,
     .auto_make_window = hl_auto_make_window,
     .auto_line = hl_draw_line,
@@ -215,16 +212,19 @@ XppUi xpp_ui = {
     .auto_show_hint = hl_void,
     .auto_grab_end = hl_int,
     .auto_diagram = hl_auto_diagram,
+    .new_vcr = hl_void,
+    .ani_clear = hl_void,
+    .ani_show = hl_void,
+    .ani_color = hl_int,
+    .ani_thick = hl_int,
+    .ani_font = hl_ani_font,
+    .ani_line = hl_draw_line,
+    .ani_rect = hl_ani_box,
+    .ani_arc = hl_ani_box,
+    .ani_text = hl_put_text,
+    .ani_slider = hl_void,
     .init_txtview = hl_void,
     .show_eq_box = hl_show_eq_box,
-    .redraw_menu = hl_void,
-    .rubber_band = hl_auto_rubber,
-    .scroll_window = hl_void,
-    .new_colormap = hl_int,
-    .aplot_redraw = hl_void,
-    .aplot_reset_axes = hl_void,
-    .aplot_make = hl_str,
-    .new_vcr = hl_void,
     .make_txtview = hl_void,
     .q_calc = hl_void,
     .open_help = hl_open_help,
@@ -254,7 +254,8 @@ void MessageBox(char *m) { xpp_ui.message_box(m); }
 void KillMessageBox(void) { xpp_ui.kill_message_box(); }
 void title_text(char *s) { xpp_ui.title_text(s); }
 void canvas_xy(char *s) { xpp_ui.canvas_xy(s); }
-int new_string(char *name, char *value) { return xpp_ui.new_string(name, value); }
+int new_string(char *name, char *value) { return xpp_ui.new_string(name, value, XPP_FIELD_TEXT); }
+int new_string_of(char *name, char *value, int kind) { return xpp_ui.new_string(name, value, kind); }
 int yes_no_box(void) { return xpp_ui.yes_no_box(); }
 int TwoChoice(char *c1, char *c2, char *q, char *key)
 {
@@ -264,7 +265,12 @@ void respond_box(char *button, char *message) { xpp_ui.respond_box(button, messa
 int do_string_box(int n, int row, int col, char *title, char **names,
                   char values[][MAX_LEN_SBOX], int maxchar)
 {
-    return xpp_ui.string_box(n, row, col, title, names, values, maxchar);
+    return xpp_ui.string_box(n, row, col, title, names, values, maxchar, NULL);
+}
+int do_string_box_of(int n, int row, int col, char *title, char **names,
+                     char values[][MAX_LEN_SBOX], int maxchar, const int *kinds)
+{
+    return xpp_ui.string_box(n, row, col, title, names, values, maxchar, kinds);
 }
 int file_selector(char *title, char *file, char *wild)
 {
@@ -272,7 +278,11 @@ int file_selector(char *title, char *file, char *wild)
 }
 int get_dialog(char *wname, char *name, char *value, char *ok, char *cancel, int max)
 {
-    return xpp_ui.dialog(wname, name, value, ok, cancel, max);
+    return xpp_ui.dialog(wname, name, value, ok, cancel, max, XPP_FIELD_TEXT);
+}
+int get_dialog_of(char *wname, char *name, char *value, char *ok, char *cancel, int max, int kind)
+{
+    return xpp_ui.dialog(wname, name, value, ok, cancel, max, kind);
 }
 int do_edit_box(int n, char *title, char **names, char **values)
 {
@@ -404,7 +414,7 @@ int new_int(char *name, int *value)
 {
     char svalue[200];
     XPP_SPRINTF(svalue, "%d", *value);
-    if (new_string(name, svalue) == 0 || strlen(svalue) == 0) return -1;
+    if (new_string_of(name, svalue, XPP_FIELD_INTEGER) == 0 || strlen(svalue) == 0) return -1;
     *value = atoi(svalue);
     return 0;
 }
@@ -416,7 +426,7 @@ int new_float(char *name, double *value)
     double newz;
     char tvalue[200];
     XPP_SPRINTF(tvalue, "%.16g", *value);
-    done = new_string(name, tvalue);
+    done = new_string_of(name, tvalue, XPP_FIELD_FORMULA);
     if (done == 0 || strlen(tvalue) == 0) return -1;
 
     if (tvalue[0] == '%') {

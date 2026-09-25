@@ -100,8 +100,11 @@ beside the plot (a sheet on a phone):
   you typed — there is no `Ok`/`Cancel` for the whole box, as in the X11
   windows; `Escape` puts back the value that was there. Each changed
   field has a reset button whose tooltip shows the ODE file's value.
-- A field takes a number or a `%formula`, exactly as the X11 boxes did
-  (see "Formulas as values", below): `%2*pi`.
+- A parameter or initial condition takes a number or a `%formula`,
+  exactly as the X11 boxes did (see "Formulas as values", below):
+  `%2*pi`; a boundary condition or delay takes an expression. Anything
+  else (letters in a parameter box) is refused, not sent: see "What a box
+  accepts", below.
 - **Default** puts back the values from the ODE file, as the X11
   Parameter window's Default button did.
 - **The checkboxes** next to the variables pick what **x vs t**,
@@ -170,6 +173,29 @@ plot) is a mode of the plot itself, with an instruction bar and Cancel,
 answered by clicking, tapping or the keyboard (arrows move a crosshair or
 corner, Enter picks or fixes it) — never in raw pixels, so the same
 prompt works with a mouse, a trackpad or touch.
+
+## What a box accepts
+
+Every box checks what you type as you type it, by what it asks for:
+
+| the box asks for | it takes | for example |
+|---|---|---|
+| a whole number | digits, with a sign | Nmax, Ntst, a range's Steps, the animation's frame skip |
+| a number | `1e-3`, `-0.5`, `.5` | a window's limits, slider Min, Max and Step, AUTO's Ds, Mark values |
+| a number or %formula | a number, or `%` and a formula | parameters, initial conditions, nUmerics' Total, Dt, ... |
+| an expression | a formula, its brackets matched | boundary conditions, delays, a column's formula, the calculator |
+| a name | one of the model's names (it suggests them) | Xi vs t, the data browser's Replace and Tabulate |
+| a file name | a name only: no folder, no leading dot, none of `\ / : * ? " < > \|` | Save's file name, the frames' base name |
+| text | anything | labels, search boxes |
+
+Some also have a range (Ncol from 2 to 7, a Step above 0). A box that does
+not take its text has a red border and says what it wants under it ("A
+whole number", "A number, or %formula such as %2*pi"). Such a text is never
+sent: Enter does nothing, a dialog's OK is disabled, and leaving the box
+keeps the text there, still marked, until you correct it or press Escape,
+which puts back the value that was there. Nothing is silently changed
+back. The core's own asks say what each field wants (the protocol's
+`kinds`); a field they do not describe takes any text, as before.
 
 ## Long-running commands
 
@@ -243,7 +269,9 @@ Messages.
 
 ## Formulas as values
 
-You can enter a formula instead of a plain number in the values panel or
-almost any dialog field that asks for one: the first character must be
-`%`, e.g. `%2*pi` or `%sin(1.5)`; it is evaluated and converted to a
-number when the field takes effect.
+You can enter a formula instead of a plain number in the values panel and
+in the prompts that ask for one number (the "number or %formula" boxes
+above: nUmerics' Total, Dt, ...): the first character must be `%`, e.g.
+`%2*pi` or `%sin(1.5)`; it is evaluated and converted to a number when
+the field takes effect. A form's number fields (a window's limits, AUTO's
+Numerics) take plain numbers only.

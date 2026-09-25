@@ -3,6 +3,7 @@
    second parameter or none), the names the core's axes show now, the
    spinners' step and the range typed. Pure. */
 import type {DiagramAxes} from '../store/diagram';
+import {fieldError, NUMBER} from '../store/fieldKinds';
 
 /** Auto.plot values in the order of AUTO's Plot Type menu, with what they plot */
 export const PLOT_TYPES: {plot: number; text: string}[] = [
@@ -36,7 +37,7 @@ export function spinStep(width: number): number {
 
 /** the range typed, or null while it is not one (not numbers, min not below max) */
 export function typedRange(minText: string, maxText: string): {min: number; max: number} | null {
-  if (!minText.trim() || !maxText.trim()) return null;
+  if (fieldError(NUMBER, minText) !== null || fieldError(NUMBER, maxText) !== null) return null;
   const min = Number(minText), max = Number(maxText);
   return Number.isFinite(min) && Number.isFinite(max) && min < max ? {min, max} : null;
 }

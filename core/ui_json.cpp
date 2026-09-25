@@ -248,7 +248,7 @@ XppUi make_json_ui(void)
     u.checklist = j_checklist;
     u.string_box = j_string_box;
     u.file_selector = j_file_selector;
-    u.dialog = [](char *t, char *n, char *v, char *o, char *c, int m) { return j_dialog(t, n, v, o, c, m); };
+    u.dialog = [](char *t, char *n, char *v, char *o, char *c, int m, int k) { return j_dialog(t, n, v, o, c, m, k); };
     u.edit_box = j_edit_box;
     u.get_mouse_xy = j_get_mouse_xy;
     u.menu_flash = j_int;

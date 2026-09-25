@@ -3,6 +3,7 @@
    model's `@ s1=..` presets start the list; the Add slider dialog
    (SliderDialog.tsx) appends or edits one, picking the parameter or
    variable from a searchable list and setting Min, Max and Step. Pure. */
+import {fieldError, NUMBER} from './fieldKinds';
 
 export interface SliderDef {
   id: number;
@@ -79,15 +80,15 @@ export interface SliderErrors {
 export function validateSliderFields(lo: string, hi: string, step: string): SliderErrors {
   const errors: SliderErrors = {};
   const loN = Number(lo), hiN = Number(hi), stepN = Number(step);
-  const loOk = lo.trim() !== '' && Number.isFinite(loN);
-  const hiOk = hi.trim() !== '' && Number.isFinite(hiN);
+  const loOk = fieldError(NUMBER, lo) === null;
+  const hiOk = fieldError(NUMBER, hi) === null;
   if (!loOk) errors.lo = 'A number';
   if (!hiOk) errors.hi = 'A number';
   if (loOk && hiOk && !(loN < hiN)) {
     errors.lo = errors.lo ?? 'Min must be less than Max';
     errors.hi = errors.hi ?? 'Min must be less than Max';
   }
-  if (step.trim() === '' || !Number.isFinite(stepN)) errors.step = 'A number';
+  if (fieldError(NUMBER, step) !== null) errors.step = 'A number';
   else if (stepN <= 0) errors.step = 'Step must be greater than 0';
   else if (loOk && hiOk && loN < hiN && stepN > hiN - loN) errors.step = 'Step must not be more than Max − Min';
   return errors;

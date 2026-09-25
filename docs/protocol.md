@@ -595,8 +595,8 @@ core/plot_data.cpp sends at most one append per 100 ms).
 |---|---|---|
 | `menu` | `name`, `title`, `items`, `keys`, `hints`, `def` | `key` (empty or `ok:0` cancels) |
 | `choice` | `title`, `question`, `choices`, `keys` | `key` |
-| `string` | `title`, `name`, `value`, `ok`, `cancel`, `max` | `value` |
-| `form` | `title`, `names`, `values`, `max` | `values` (same length). A name starting with `*n` means the field picks from `hello.lists[n]`: a variable (`*0`), a parameter (`*2`), a colour (`*4`), a marker (`*5`), ...; for a list whose items start with a number (`2 Box`) the value is that number. |
+| `string` | `title`, `name`, `value`, `ok`, `cancel`, `max`, `kinds` | `value` |
+| `form` | `title`, `names`, `values`, `max`, `kinds` | `values` (same length). A name starting with `*n` means the field picks from `hello.lists[n]`: a variable (`*0`), a parameter (`*2`), a colour (`*4`), a marker (`*5`), ...; for a list whose items start with a number (`2 Box`) the value is that number. |
 | `checklist` | `title`, `names`, `flags` | `flags` |
 | `file` | `title`, `mode` (`read` or `write`), `file`, `wild`, `dir`, `dirs`, `files` | `file`; or `cd` (a folder name or `..`) or `wild` (a new pattern) to be asked again with that listing |
 | `alert` | `button`, `message` | nothing |
@@ -605,6 +605,25 @@ core/plot_data.cpp sends at most one append per 100 ms).
 | `grab` | `win` | `key`; or `x`, `y` (or `xd`, `yd`) for a click on the diagram; or `point`, a point of the `diagram` data by its index (with `key`, that key after it) |
 | `drag` | `win` | `what` (`down`, `move`, `up`), `x`, `y` (or `xd`, `yd`) for each pointer event; cancel or a key ends. Window/Scroll and AUTO Axes/Scroll ask it again after every event. |
 | `pixels` | `win`, or `film` (a kinescope frame index) | `w`, `h`, `rgb` (base64 of w*h*3 bytes). Frame, GIF and kinescope writers use it: only the client has the picture, which web2 renders from the data it holds (the window's chart, or a kinescope frame's snapshot). |
+
+**Field kinds.** A `string` or `form` ask says what each of its fields
+takes, in `kinds`: one entry per field (a `string` ask has one), from the
+call site that knows it (core/xpp_ui.h `XPP_FIELD_*`: `new_int`,
+`new_float`, `new_string_of`, `get_dialog_of`, `do_string_box_of`).
+`integer`: a whole number, digits with a sign (the core reads it with
+`atoi`; new_int). `number`: a decimal number (`atof`). `formula`: a number,
+or `%` and a formula the core evaluates (new_float). `expression`: a
+formula of the model's quantities (a column's formula, the calculator,
+edit_box's right-hand sides). `file`: a file's base name. `name:N`: a name
+from `hello.lists[N]` (`name:0` T or a variable). `text`: anything. Every
+field of a prompt whose call site says nothing is `text`, and a client
+reading an ask without `kinds` (an older core) treats every field as
+text. The kinds are a client's guide, not a check: the core reads what it
+is answered as it always did. A `*n` field (above) picks from its list
+whatever its kind. web2 marks a field whose text its kind does not take
+and does not answer until it is corrected (web2/src/store/fieldKinds.ts);
+`tools/servercheck.py` checks the kinds of a `formula`, a form of
+numbers, an `integer` and a `name:0` ask.
 
 **Data coordinates.** A point of a `mouse`, `rubber`, `drag` or `grab`
 answer can be given in the plot's own quantities instead of pixels: `xd`,

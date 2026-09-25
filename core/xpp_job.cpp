@@ -11,7 +11,7 @@
 #include <atomic>
 #include <chrono>
 
-extern "C" int my_abort(void); /* xpp_ui.c: polls the front end, cancels on Escape */
+extern "C" int my_abort(void); /* xpp_ui.cpp: polls the front end, cancels on Escape */
 
 namespace {
 

@@ -182,7 +182,7 @@ void do_movie_com(int c)
     break;
   case 4:
     XPP_SPRINTF(base, "frame");
-    new_string(str("Base file name"), base);
+    new_string_of(str("Base file name"), base, XPP_FIELD_FILE);
     if (strlen(base) > 0)
       xpp_ui.movie_save(base, 2);
     break;

@@ -14,6 +14,7 @@
 #include "fftn.h"
 #include "parserslow.h"
 #include "xpp_io.h"
+#include "xpp_ui.h"
 
 
 
@@ -433,7 +434,7 @@ int get_col_info(col,prompt)
    XPP_STRCPY(variable,"t");
  else
    XPP_STRCPY(variable,uvar_names[*col-1]);
- new_string(prompt,variable);
+ new_string_of(prompt,variable,XPP_FIELD_NAME_IN(0));
  find_variable(variable,col);
  if(*col<0){
    err_msg("No such variable...");

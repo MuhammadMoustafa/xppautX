@@ -354,6 +354,8 @@ send(cmd='key', key='u')  # nUmerics menu
 send(cmd='key', key='t')  # total
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 check('nUmerics/Total asks for a number', ask is not None and ask['kind'] == 'string', str(ask))
+check("T31: new_float's ask says its field takes a number or %formula (kinds formula)",
+      ask is not None and ask.get('kinds') == ['formula'], str(ask))
 if ask:
     send(cmd='answer', id=ask['id'], ok=1, value='40')
     collect(is_idle)
@@ -365,10 +367,33 @@ evs, ask = collect(lambda e: e.get('ev') == 'ask')
 send(cmd='answer', id=ask['id'], key='2')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 check('Viewaxes/2D opens a form', ask is not None and ask['kind'] == 'form' and 'Xmax' in ask['names'][4], str(ask))
+check("T31: the form's fields carry their kinds: the axes' pickers text, the ranges numbers, the labels text",
+      ask is not None and ask.get('kinds') == ['text', 'text', 'number', 'number', 'number', 'number', 'text', 'text'],
+      str(ask and ask.get('kinds')))
 if ask:
     vals = list(ask['values'])
     vals[4] = '40'
     send(cmd='answer', id=ask['id'], ok=1, values=vals)
+    collect(is_idle)
+
+# T31: an integer field (Initialconds/Range's Steps) and a name (Xi vs t: T or a variable, hello.lists[0])
+send(cmd='key', key='i')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+send(cmd='answer', id=ask['id'], key='r')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+kinds = ask.get('kinds') if ask else None
+check('T31: Range Integrate says Steps is an integer and Start and End numbers',
+      ask is not None and ask['kind'] == 'form' and kinds is not None and len(kinds) == len(ask['names'])
+      and kinds[1:4] == ['integer', 'number', 'number'], str(ask))
+if ask:
+    send(cmd='answer', id=ask['id'], ok=0)
+    collect(is_idle)
+send(cmd='key', key='x')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+check('T31: Xi vs t asks for a name from hello.lists[0] (kinds name:0)',
+      ask is not None and ask['kind'] == 'string' and ask.get('kinds') == ['name:0'], str(ask))
+if ask:
+    send(cmd='answer', id=ask['id'], ok=0)
     collect(is_idle)
 
 send(cmd='key', key='i')

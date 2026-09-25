@@ -13,7 +13,9 @@ import {axesNames, boundText, PLOT_TYPES, spinStep, typedRange, yNeeds} from '..
 import {HELP} from '../help/links';
 import {pendingFields, shownSettings} from '../store/autoSettings';
 import type {Range} from '../store/plots';
+import {fieldError, NUMBER} from '../store/fieldKinds';
 import {useSession, useStore} from './context';
+import {Field} from './Field';
 import {HelpButton} from './HelpButton';
 
 export type AxisName = 'x' | 'y';
@@ -63,6 +65,7 @@ export function AutoAxisDialog({axis, onClose}: {axis: AxisName; onClose: () => 
     edited.current = true;
   };
   const r = typedRange(minText, maxText);
+  const numbers = fieldError(NUMBER, minText) === null && fieldError(NUMBER, maxText) === null; /* else each box says so */
   const step = spinStep((r ?? shown() ?? {min: 0, max: 10}).max - (r ?? shown() ?? {min: 0, max: 10}).min);
 
   const names = settings
@@ -113,13 +116,14 @@ export function AutoAxisDialog({axis, onClose}: {axis: AxisName; onClose: () => 
           && select('Second parameter', names.par2, listOf(pars), v => change({par2: v}), 'par2', 'par2')}
         <label>
           <span>Minimum</span>
-          <input type="number" step={step} value={minText} data-field="min" aria-invalid={!r}
-            onInput={e => { const t = (e.target as HTMLInputElement).value; setMinText(t); apply(t, typed.current.max); }} />
+          <Field spec={NUMBER} step={step} value={minText} data-field="min" id={`auto-axis-${axis}-min`}
+            error={!r && numbers ? 'The minimum must be below the maximum' : null}
+            onInput={t => { setMinText(t); apply(t, typed.current.max); }} />
         </label>
         <label>
           <span>Maximum</span>
-          <input type="number" step={step} value={maxText} data-field="max" aria-invalid={!r}
-            onInput={e => { const t = (e.target as HTMLInputElement).value; setMaxText(t); apply(typed.current.min, t); }} />
+          <Field spec={NUMBER} step={step} value={maxText} data-field="max" id={`auto-axis-${axis}-max`}
+            onInput={t => { setMaxText(t); apply(typed.current.min, t); }} />
         </label>
       </div>
       {waiting && (
@@ -127,7 +131,6 @@ export function AutoAxisDialog({axis, onClose}: {axis: AxisName; onClose: () => 
           {busy ? 'What the axis plots changes when AUTO stops (dashed); the range changes now.' : 'Applying…'}
         </p>
       )}
-      {!r && <p class="error-text" role="alert">The minimum must be a number below the maximum.</p>}
       <div class="dialog-actions">
         <button onClick={onClose}>Close</button>
       </div>

@@ -8,7 +8,9 @@
    needs to be read by a test or survive a reload. */
 import {useMemo, useState} from 'preact/hooks';
 import type {LogEntry} from '../store/state';
+import {TEXT} from '../store/fieldKinds';
 import {useStore} from './context';
+import {Field} from './Field';
 
 const KIND_LABEL: Record<LogEntry['kind'], string> = {error: 'Error', auto: 'AUTO', log: 'Log', info: 'Info'};
 const SHOWN_MAX = 1000;
@@ -43,7 +45,7 @@ export function Messages() {
         </div>
         <label class="messages-search">
           <span class="visually-hidden">Search messages</span>
-          <input type="search" placeholder="Search…" value={search} onInput={e => setSearch((e.target as HTMLInputElement).value)} />
+          <Field type="search" spec={TEXT} placeholder="Search…" value={search} onInput={setSearch} />
         </label>
       </div>
       {shown.length === 0 ? (

@@ -9,7 +9,9 @@
    runs it waits, the latest per field, marked on the field, and goes out
    in one `set` when it ends (session.ts submit). Ctrl+Z (while the focus is
    inside) or the Undo button restores the previous value (A12). A rejected
-   value comes back as a `message` `error`, shown on its field (A11). Each
+   value comes back as a `message` `error`, shown on its field (A11); a text
+   the field does not take (Field.tsx: a number or %formula, an expression
+   for BCs and delays) is marked and never sent (T31). Each
    parameter and IC has a reset to the model file's value (its title names
    it) and is marked when it differs; each section folds (remembered per
    viewer), and Parameters and State save and load XPP's own files. */
@@ -17,11 +19,13 @@ import {useEffect, useRef, useState} from 'preact/hooks';
 import type {ComponentChildren} from 'preact';
 import {HELP} from '../help/links';
 import type {Session} from '../session';
+import {EXPRESSION, FORMULA, FORMULA_HINT, fieldMessage, type FieldSpec} from '../store/fieldKinds';
 import {fieldKey, isQueued, sixSig, type ValueKind} from '../store/values';
 import {useSession, useStore} from './context';
+import {Field} from './Field';
 import {HelpButton} from './HelpButton';
 
-const NUMBER_HINT = 'A number, or %formula such as %2*pi';
+const NUMBER_HINT = fieldMessage(FORMULA_HINT);
 const FOCUSABLE = 'button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])';
 const STATE_HINT = 'Go runs from Initial; Last copies Now into Initial, then runs.';
 
@@ -80,34 +84,20 @@ function Section({id, title, hint, tools, children}: {
 
 /* ---- one field: display precision until focused, full precision while editing (A14) ---- */
 
-function ValueField({kind, label, name, index, display, full, hint, numeric, extra}: {
+function ValueField({kind, label, name, index, display, full, hint, spec, extra}: {
   kind: ValueKind; label: string; name?: string; index?: number; display: string; full: string; hint: string;
-  numeric: boolean; extra?: ComponentChildren;
+  spec: FieldSpec; extra?: ComponentChildren;
 }) {
   const session = useSession();
   const field = fieldKey(kind, index ?? name!);
   const error = useStore(s => s.values.errors[field]);
   const queued = useStore(s => isQueued(s.values.queue, field));
   const def = useStore(s => (kind === 'par' || kind === 'ic' ? s.values.defaults?.[field] ?? null : null));
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(display);
-  useEffect(() => { if (!editing) setDraft(display); }, [display, editing]);
   const id = `value-${field}`.replace(/[^\w-]/g, '_');
-  const errId = error ? `${id}-err` : undefined;
-  /* Escape blurs the field too: its blur must not commit the draft it drops */
-  const dropped = useRef(false);
-  /* the value this focus started from: if something else changes the field
-     (Undo, a slider on the same name, a reconnection) while it is still
-     focused, `full` moves on but the untouched draft does not, and a blur
-     must not re-send that now-stale draft as if it were a fresh edit */
-  const focusFull = useRef(full);
-  const revert = () => setDraft(display);
-  const commit = () => {
-    setEditing(false);
-    if (dropped.current) { dropped.current = false; revert(); return; }
-    const text = draft.trim();
-    if (text === '' || text === focusFull.current) { revert(); return; }
-    if (numeric && !text.startsWith('%') && !Number.isFinite(Number(text))) { revert(); return; }
+  /* Field sends only a text it takes that differs from where this focus
+     started: a value that moved under a focused, untouched box (Undo, a
+     slider on the same name) is not sent back as if it were an edit */
+  const commit = (text: string) => {
     if (index !== undefined) session.setValueByIndex(kind as 'bc' | 'delay', index, text, full);
     else session.setValue(kind as 'par' | 'ic', name!, text, full);
   };
@@ -116,23 +106,14 @@ function ValueField({kind, label, name, index, display, full, hint, numeric, ext
   return (
     <div class={'value-field' + (queued ? ' queued' : '') + (changed ? ' changed' : '')}>
       <label htmlFor={id} class="value-name" title={label}>{label}</label>
-      <input id={id} value={editing ? draft : display} title={title} spellcheck={false} autocomplete="off"
-        aria-invalid={error ? 'true' : undefined} aria-describedby={errId} data-queued={queued ? '1' : undefined}
-        onFocus={() => { setEditing(true); setDraft(full); focusFull.current = full; }}
-        onInput={e => setDraft((e.target as HTMLInputElement).value)}
-        onBlur={commit}
-        onKeyDown={e => {
-          if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
-          else if (e.key === 'Escape') { e.stopPropagation(); dropped.current = true; (e.target as HTMLInputElement).blur(); }
-        }}
-      />
+      <Field id={id} spec={spec} value={display} editValue={full} onCommit={commit} error={error ?? null}
+        title={title} data-queued={queued ? '1' : undefined} />
       {extra}
       {def !== null && name !== undefined && (
         <button class="value-reset icon" title={`default: ${sixSig(def)}`} disabled={!changed}
           aria-label={`Reset ${label} to its default, ${sixSig(def)}`}
           onClick={() => session.resetValue(kind as 'par' | 'ic', name, full)}>↺</button>
       )}
-      {error && <p class="field-error" id={errId} role="alert">{error}</p>}
     </div>
   );
 }
@@ -182,7 +163,7 @@ function Parameters() {
     )}>
       <div class="value-list">
         {pars.map(([name, value]) => (
-          <ValueField key={name.toLowerCase()} kind="par" label={name} name={name} hint={NUMBER_HINT} numeric
+          <ValueField key={name.toLowerCase()} kind="par" label={name} name={name} hint={NUMBER_HINT} spec={FORMULA}
             {...fieldProps(value)} />
         ))}
       </div>
@@ -226,7 +207,7 @@ function StateSection() {
       <div class="value-cols" aria-hidden="true"><span /><span>Initial</span><span>Now</span></div>
       <div class="value-list value-state">
         {ics.map(([name, value], i) => (
-          <ValueField key={name.toLowerCase()} kind="ic" label={name} name={name} hint={NUMBER_HINT} numeric
+          <ValueField key={name.toLowerCase()} kind="ic" label={name} name={name} hint={NUMBER_HINT} spec={FORMULA}
             {...fieldProps(value)}
             extra={(
               <output class={'value-now' + (now[i] === null ? ' none' : '')} data-name={name}
@@ -248,7 +229,7 @@ function IndexedSection({id, title, kind, entries, hint}: {
     <Section id={id} title={title}>
       <div class="value-list">
         {entries.map(([, value], i) => (
-          <ValueField key={i} kind={kind} label={`${title} ${i + 1}`} index={i} hint={hint} numeric={false}
+          <ValueField key={i} kind={kind} label={`${title} ${i + 1}`} index={i} hint={hint} spec={EXPRESSION}
             {...fieldProps(value)} />
         ))}
       </div>

@@ -14,9 +14,11 @@ import type {ComponentChildren} from 'preact';
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {HELP} from '../help/links';
 import {
-  fieldOf, NUM_FIELDS, NUM_GROUPS, numError, pairErrors, pendingFields, shownSettings, type AutoSettings, type NumKey,
+  fieldOf, NUM_FIELDS, NUM_GROUPS, numError, numSpec, pairErrors, pendingFields, shownSettings, type AutoSettings, type NumKey,
 } from '../store/autoSettings';
+import {fieldError, NUMBER} from '../store/fieldKinds';
 import {useSession, useStore} from './context';
+import {Field} from './Field';
 import {HelpButton} from './HelpButton';
 
 /** the manual section each of this file's dialogs is (docs/manual/README.md's map, W12b) */
@@ -137,17 +139,15 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
           <fieldset key={g.title} class="form-grid auto-num-group">
             <legend>{g.title}</legend>
             {g.keys.map((k, i) => {
-              const f = fieldOf(k), err = errors[k] ?? pairMessages[k], queued = pending.has(`numerics.${k}`);
+              const f = fieldOf(k), queued = pending.has(`numerics.${k}`);
               return (
                 <label key={k} class={queued ? 'queued' : undefined}
                   title={queued ? `${f.help} (Sent when the running command ends.)` : f.help}>
                   <span>{f.name}</span>
-                  <input type="text" inputMode={f.integer ? 'numeric' : 'decimal'} value={texts[k]} data-field={k}
-                    data-queued={queued ? '1' : undefined} aria-invalid={err ? 'true' : undefined}
-                    aria-describedby={err ? `auto-num-${k}-err` : undefined}
+                  <Field spec={numSpec(k)} check={t => numError(k, t)} value={texts[k]} data-field={k}
+                    id={`auto-num-${k}`} data-queued={queued ? '1' : undefined} error={pairMessages[k] ?? null}
                     data-autofocus={g === NUM_GROUPS[0] && i === 0 ? '' : undefined}
-                    onInput={e => setTexts(t => ({...t, [k]: (e.target as HTMLInputElement).value}))} />
-                  {err && <p class="field-error" id={`auto-num-${k}-err`}>{err}</p>}
+                    onInput={t => setTexts(x => ({...x, [k]: t}))} />
                 </label>
               );
             })}
@@ -201,7 +201,7 @@ export function AutoMarksDialog({onClose}: {onClose: () => void}) {
   const [rows, setRows] = useState<[string, string][]>(() => (shown?.marks ?? []).map(([n, v]) => [n, String(v)]));
   if (!shown) return null;
   const names = [...shown.pars.filter((n): n is string => !!n), 'T'];
-  const bad = rows.map(([, v]) => !v.trim() || !Number.isFinite(Number(v)));
+  const bad = rows.map(([, v]) => fieldError(NUMBER, v) !== null);
   const ok = () => {
     if (bad.some(b => b)) return;
     const marks = rows.map(([n, v]): [string, number] => [n, Number(v)]);
@@ -224,8 +224,8 @@ export function AutoMarksDialog({onClose}: {onClose: () => void}) {
               {names.map(m => <option key={m} value={m}>{m === 'T' ? 'T (period)' : m}</option>)}
             </select>
             <span aria-hidden="true">=</span>
-            <input type="text" inputMode="decimal" value={v} aria-label={`Mark ${i + 1}: value`} data-field={`mark${i + 1}-value`}
-              aria-invalid={bad[i] ? 'true' : undefined} onInput={e => set(i, 1, (e.target as HTMLInputElement).value)} />
+            <Field spec={NUMBER} value={v} aria-label={`Mark ${i + 1}: value`} data-field={`mark${i + 1}-value`}
+              onInput={t => set(i, 1, t)} />
             <button type="button" class="small" aria-label={`Remove mark ${i + 1}`}
               onClick={() => setRows(r => r.filter((_, k) => k !== i))}>Remove</button>
           </div>
@@ -234,7 +234,6 @@ export function AutoMarksDialog({onClose}: {onClose: () => void}) {
           data-autofocus={rows.length === 0 ? '' : undefined}
           onClick={() => setRows(r => [...r, [names[0] ?? 'T', '0']])}>Add a value</button>
       </form>
-      {bad.some(b => b) && <p class="field-error" role="alert">Each value must be a number.</p>}
       <Status pending={pending} />
       <Actions onClose={onClose} ok={ok} disabled={bad.some(b => b)} />
     </Modal>

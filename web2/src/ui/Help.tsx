@@ -21,7 +21,9 @@ import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {manualLinkTarget, type HelpTarget} from '../help/links';
 import type {ManualChapter} from '../help/manual';
 import {searchManual} from '../help/search';
+import {TEXT} from '../store/fieldKinds';
 import {useSession, useStore} from './context';
+import {Field} from './Field';
 
 const FOCUSABLE = 'button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])';
 /** F1's own exclusion (narrower than hotkeys.ts's TYPING: a dialog or menu
@@ -125,9 +127,8 @@ export function HelpView() {
       </div>
       <label class="help-search">
         <span class="visually-hidden">Search the manual</span>
-        <input type="search" placeholder="Search the manual" value={help.query} disabled={!chapters}
-          onInput={e => session.store.dispatch(
-            {type: 'help', action: {type: 'query', query: (e.target as HTMLInputElement).value}})} />
+        <Field type="search" spec={TEXT} placeholder="Search the manual" value={help.query} disabled={!chapters}
+          onInput={query => session.store.dispatch({type: 'help', action: {type: 'query', query}})} />
       </label>
       {chapters && help.query.trim() !== '' && (
         <ul class="help-results" aria-label="Search results">

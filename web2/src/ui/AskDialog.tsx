@@ -1,7 +1,9 @@
 /* The core's prompts (docs/protocol.md "Asks") as a modal dialog: focus
    moves into it, stays in it (Tab cycles), Escape cancels, and focus goes
    back where it was when it closes. Menus, yes/no choices, string boxes,
-   forms (a field that picks from `hello.lists` is a select), checklists and
+   forms (a field that picks from `hello.lists` is a select, the others take
+   what the ask's `kinds` say, through Field.tsx: OK waits until each
+   does), checklists and
    files (FileDialog.tsx); alerts are notifications (session.ts); mouse,
    rubber and drag asks are plot modes (PlotView.tsx); other kinds say they
    are not offered yet and offer Cancel (A13, docs/ui-v2.md). */
@@ -9,7 +11,9 @@ import type {ComponentChildren} from 'preact';
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {askHelp} from '../help/links';
 import {fieldSpec, selectOptions} from '../protocol/lists';
+import {fieldsValid, specOfKind, TEXT, type FieldSpec} from '../store/fieldKinds';
 import type {AskEvent} from '../protocol/types';
+import {Field} from './Field';
 import {FileAsk} from './FileDialog';
 import {HelpButton} from './HelpButton';
 import {MENU_ONE_COLUMN, menuRows} from './menuLayout';
@@ -61,8 +65,13 @@ function FormAsk({ask}: {ask: AskEvent}) {
   const isString = ask.kind === 'string';
   const names = isString ? [ask.name ?? ''] : ask.names ?? [];
   const [values, setValues] = useState<string[]>(isString ? [ask.value ?? ''] : [...(ask.values ?? [])]);
+  /* what each typed field takes, as the core says (`kinds`; none: text); a list field picks, so takes its pick */
+  const specs = names.map((n, i): FieldSpec =>
+    (!isString && fieldSpec(n).list !== null ? TEXT : specOfKind(ask.kinds?.[i], lists)));
+  const valid = fieldsValid(specs, values);
   const submit = (e: Event) => {
     e.preventDefault();
+    if (!valid) return;
     session.answer(ask, isString ? {ok: 1, value: values[0]} : {ok: 1, values});
   };
   /* Enter submits from any field, a select included (A3) */
@@ -79,11 +88,12 @@ function FormAsk({ask}: {ask: AskEvent}) {
         {names.map((n, i) => {
           const spec = isString ? {label: n, list: null} : fieldSpec(n);
           const items = spec.list !== null ? lists?.[spec.list] : undefined;
-          const change = (e: Event) => {
+          const set = (text: string) => {
             const v = values.slice();
-            v[i] = (e.target as HTMLInputElement | HTMLSelectElement).value;
+            v[i] = text;
             setValues(v);
           };
+          const change = (e: Event) => set((e.target as HTMLSelectElement).value);
           if (items) {
             /* the X11 scroll list of variables, parameters, colours, markers or methods */
             const {options, selected} = selectOptions(items, values[i] ?? '');
@@ -99,14 +109,14 @@ function FormAsk({ask}: {ask: AskEvent}) {
           return (
             <label key={i}>
               <span>{spec.label}</span>
-              <input value={values[i]} data-autofocus={i === 0 ? '' : undefined} onInput={change} />
+              <Field spec={specs[i]} value={values[i] ?? ''} data-autofocus={i === 0 ? '' : undefined} onInput={set} />
             </label>
           );
         })}
       </div>
       <div class="dialog-actions">
         <button type="button" onClick={() => session.cancel(ask)}>{(ask.cancel as string) || 'Cancel'}</button>
-        <button type="submit" class="primary">{(ask.ok as string) || 'OK'}</button>
+        <button type="submit" class="primary" disabled={!valid}>{(ask.ok as string) || 'OK'}</button>
       </div>
     </form>
   );

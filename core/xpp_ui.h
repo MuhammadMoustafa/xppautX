@@ -7,7 +7,7 @@
  *
  * Core code keeps calling the historical names (err_msg, new_int, ping,
  * refresh_browser, TwoChoice, set_color, ALINE, ...). Those are thin
- * dispatchers in xpp_ui.c that go through the XppUi table below. The
+ * dispatchers in xpp_ui.cpp that go through the XppUi table below. The
  * default table is headless: messages go to the log, prompts are declined,
  * redraws and drawing do nothing. The browser front end installs its own
  * table (ui_json.cpp) before it serves a session.
@@ -33,6 +33,23 @@ extern "C" {
 #endif
 
 struct XppMenu; /* menus.h */
+
+/* What a prompt's field takes (T31): new_string_of, get_dialog_of and
+   do_string_box_of name it, new_int and new_float say it themselves, and
+   a front end checks the text while it is typed (docs/protocol.md "Asks",
+   `kinds`). Every other prompt's fields are text. */
+enum {
+    XPP_FIELD_TEXT = 0,
+    XPP_FIELD_INTEGER,    /* a whole number (read with atoi) */
+    XPP_FIELD_NUMBER,     /* a number (read with atof) */
+    XPP_FIELD_FORMULA,    /* a number, or %formula (new_float) */
+    XPP_FIELD_EXPRESSION, /* a formula of the model's quantities */
+    XPP_FIELD_FILE,       /* a file's base name */
+    XPP_FIELD_NAME = 16   /* + n: a name from the hello event's lists[n] */
+};
+/* a name from list n: 0 T and the variables, 1 the ODE variables,
+   2 the parameters, 3 both (ui_json.cpp hello) */
+#define XPP_FIELD_NAME_IN(n) (XPP_FIELD_NAME + (n))
 
 #define XPP_AUTO_CLICK 1000
 /* auto_grab_event: move the cursor to AUTO's diagram entry x (DIAGRAM.index) */
@@ -69,19 +86,20 @@ typedef struct XppUi {
     void (*canvas_xy)(char *s);
 
     /* prompts */
-    int (*new_string)(char *name, char *value);
+    int (*new_string)(char *name, char *value, int kind);
     int (*yes_no_box)(void);
     int (*two_choice)(char *c1, char *c2, char *q, char *key, char *title);
     void (*respond_box)(char *button, char *message); /* alert with one button */
     /* toggle a set of flags (1/0) by name; flags are edited in place and
        restored on cancel. Returns 1 for done, 0 for cancel. */
     int (*checklist)(char *title, char **names, int *flags, int n);
+    /* kinds: one XPP_FIELD_* per field, or NULL (all text) */
     int (*string_box)(int n, int row, int col, char *title, char **names,
-                      char values[][MAX_LEN_SBOX], int maxchar);
+                      char values[][MAX_LEN_SBOX], int maxchar, const int *kinds);
     int (*file_selector)(char *title, char *file, char *wild);
     /* one-line text entry with named buttons; returns 0 on cancel */
     int (*dialog)(char *title, char *name, char *value, char *ok, char *cancel,
-                  int max);
+                  int max, int kind);
     /* like string_box but for n long strings (MAX_LEN_EBOX); returns 0 on
        cancel */
     int (*edit_box)(int n, char *title, char **names, char **values);
@@ -260,6 +278,7 @@ void KillMessageBox(void);
 void title_text(char *s);
 void canvas_xy(char *s);
 int new_string(char *name, char *value);
+int new_string_of(char *name, char *value, int kind); /* kind: XPP_FIELD_* */
 int new_int(char *name, int *value);
 int new_float(char *name, double *value);
 int yes_no_box(void);
@@ -267,8 +286,11 @@ int TwoChoice(char *c1, char *c2, char *q, char *key);
 void respond_box(char *button, char *message);
 int do_string_box(int n, int row, int col, char *title, char **names,
                   char values[][MAX_LEN_SBOX], int maxchar);
+int do_string_box_of(int n, int row, int col, char *title, char **names,
+                     char values[][MAX_LEN_SBOX], int maxchar, const int *kinds);
 int file_selector(char *title, char *file, char *wild);
 int get_dialog(char *wname, char *name, char *value, char *ok, char *cancel, int max);
+int get_dialog_of(char *wname, char *name, char *value, char *ok, char *cancel, int max, int kind);
 int do_edit_box(int n, char *title, char **names, char **values);
 int GetMouseXY(int *x, int *y);
 void flash(int num);

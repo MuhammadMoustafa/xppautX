@@ -213,7 +213,8 @@ void ani_create_mpeg(void)
     XPP_SPRINTF(values[0], "%d", mpeg.flag);
     snprintf(values[1], sizeof(values[1]), "%.24s", mpeg.root);
     XPP_SPRINTF(values[2], "%d", mpeg.aviflag);
-    status = do_string_box(3, 3, 1, title, n, values, 28);
+    static const int kinds[] = {XPP_FIELD_INTEGER, XPP_FIELD_FILE, XPP_FIELD_INTEGER};
+    status = do_string_box_of(3, 3, 1, title, n, values, 28, kinds);
     if (status != 0) {
         mpeg.flag = atoi(values[0]);
         if (mpeg.flag > 0) mpeg.flag = 1;
@@ -230,7 +231,7 @@ void ani_newskip(void)
     char bob[20], title[] = "Frame skip", name[] = "Increment:", ok[] = "Ok", cancel[] = "Cancel";
     int status;
     XPP_SPRINTF(bob, "%d", vcr.inc);
-    status = get_dialog(title, name, bob, ok, cancel, 20);
+    status = get_dialog_of(title, name, bob, ok, cancel, 20, XPP_FIELD_INTEGER);
     if (status != 0) {
         vcr.inc = atoi(bob);
         if (vcr.inc <= 0) vcr.inc = 1;

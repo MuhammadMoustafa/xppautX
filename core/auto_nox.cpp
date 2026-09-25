@@ -940,7 +940,10 @@ void auto_num_par()
   XPP_SPRINTF(values[21],"%d",SuppressBP); 
 
   
-  status=do_string_box(22,7,4,str("AutoNum"),strs(n),values,25);
+  static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
+                            XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
+                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
+  status=do_string_box_of(22,7,4,str("AutoNum"),strs(n),values,25,kinds);
   if(status!=0){
     Auto.ntst=atoi(values[0]);
     Auto.nmx=atoi(values[1]);
@@ -1053,7 +1056,8 @@ void auto_plot_par()
   XPP_SPRINTF(values[4],"%g",Auto.ymin);
   XPP_SPRINTF(values[5],"%g",Auto.xmax);
   XPP_SPRINTF(values[6],"%g",Auto.ymax);
-  status=do_string_box(7,7,1,str("AutoPlot"),strs(n),values,31);
+  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
+  status=do_string_box_of(7,7,1,str("AutoPlot"),strs(n),values,31,kinds);
   if(status!=0){
     /*  get variable names  */
     find_variable(values[0],&i);

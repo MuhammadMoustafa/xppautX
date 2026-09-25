@@ -111,13 +111,14 @@ void j_message_box(const char *msg);
 void j_kill_message_box(void);
 void j_title_text(char *s);
 void j_canvas_xy(char *s);
-int j_dialog(const char *title, const char *name, char *value, const char *ok, const char *cancel, int max);
-int j_new_string(char *name, char *value);
+int j_dialog(const char *title, const char *name, char *value, const char *ok, const char *cancel, int max, int kind);
+int j_new_string(char *name, char *value, int kind);
 int j_yes_no_box(void);
 int j_two_choice(char *c1, char *c2, char *q, char *key, char *title);
 void j_respond_box(const char *button, const char *message);
 int j_checklist(char *title, char **names, int *flags, int n);
-int j_string_box(int n, int row, int col, char *title, char **names, char values[][MAX_LEN_SBOX], int maxchar);
+int j_string_box(int n, int row, int col, char *title, char **names, char values[][MAX_LEN_SBOX], int maxchar,
+                 const int *kinds);
 int j_edit_box(int n, char *title, char **names, char **values);
 int j_file_selector(char *title, char *file, char *wild);
 int j_get_mouse_xy(int *x, int *y);

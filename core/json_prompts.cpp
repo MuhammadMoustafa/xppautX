@@ -127,7 +127,30 @@ void j_kill_message_box(void) { send_simple("message", "box", ""); }
 void j_title_text(char *s) { send_simple("title", "text", s); }
 void j_canvas_xy(char *s) { send_simple("message", "xy", s); }
 
-int j_dialog(const char *title, const char *name, char *value, const char *ok, const char *cancel, int max)
+namespace {
+
+/* a field's kind as the protocol names it (docs/protocol.md "Asks", `kinds`) */
+void buf_kind(Buf *b, int kind)
+{
+    static const char *const names[] = {"text", "integer", "number", "formula", "expression", "file"};
+    if (kind >= XPP_FIELD_NAME) buf_printf(b, "\"name:%d\"", kind - XPP_FIELD_NAME);
+    else buf_str(b, kind > 0 && kind < (int)(sizeof names / sizeof *names) ? names[kind] : "text");
+}
+
+/* `kinds`, one per field: kinds[i], or `all` for each when kinds is NULL */
+void buf_kinds(Buf *b, const int *kinds, int all, int n)
+{
+    BUF_LIT(b, ",\"kinds\":[");
+    for (int i = 0; i < n; i++) {
+        if (i) BUF_LIT(b, ",");
+        buf_kind(b, kinds ? kinds[i] : all);
+    }
+    BUF_LIT(b, "]");
+}
+
+} // namespace
+
+int j_dialog(const char *title, const char *name, char *value, const char *ok, const char *cancel, int max, int kind)
 {
     Buf b;
     int id = ask_begin(&b, "string");
@@ -142,15 +165,16 @@ int j_dialog(const char *title, const char *name, char *value, const char *ok, c
     BUF_LIT(&b, ",\"cancel\":");
     buf_str(&b, cancel);
     buf_printf(&b, ",\"max\":%d", max);
+    buf_kinds(&b, &kind, kind, 1);
     if (!ask_wait(&b, id)) return 0;
     get_str(answer, "value", value, max + 1);
     return 1;
 }
 
-int j_new_string(char *name, char *value)
+int j_new_string(char *name, char *value, int kind)
 {
     /* the X11 prompt edits a 256-byte line in place */
-    return j_dialog("", name, value, "Ok", "Cancel", 255);
+    return j_dialog("", name, value, "Ok", "Cancel", 255, kind);
 }
 
 int j_yes_no_box(void)
@@ -222,8 +246,9 @@ const char *ask_answer(void) { return answer; }
 
 namespace {
 
-/* string_box and edit_box: a form of named fields */
-int form(char *title, char **names, int n, char **values, int size)
+/* string_box and edit_box: a form of named fields, each of kinds[i]
+   (every one `all` when kinds is NULL) */
+int form(char *title, char **names, int n, char **values, int size, const int *kinds, int all)
 {
     Buf b;
     int i, id = ask_begin(&b, "form");
@@ -235,6 +260,7 @@ int form(char *title, char **names, int n, char **values, int size)
     BUF_LIT(&b, ",\"values\":");
     buf_str_array(&b, values, n);
     buf_printf(&b, ",\"max\":%d", size - 1);
+    buf_kinds(&b, kinds, all, n);
     if (!ask_wait(&b, id)) return 0;
     arr = js_find(answer, "values");
     for (i = 0; i < n; i++) {
@@ -247,19 +273,20 @@ int form(char *title, char **names, int n, char **values, int size)
 } // namespace
 
 int j_string_box(int n, int row, int col, char *title, char **names,
-                        char values[][MAX_LEN_SBOX], int maxchar)
+                        char values[][MAX_LEN_SBOX], int maxchar, const int *kinds)
 {
     char *v[64];
     int i;
     (void)row; (void)col; (void)maxchar;
     if (n > 64) n = 64;
     for (i = 0; i < n; i++) v[i] = values[i];
-    return form(title, names, n, v, MAX_LEN_SBOX);
+    return form(title, names, n, v, MAX_LEN_SBOX, kinds, XPP_FIELD_TEXT);
 }
 
 int j_edit_box(int n, char *title, char **names, char **values)
 {
-    return form(title, names, n, values, MAX_LEN_EBOX);
+    /* edit_rhs.c's right-hand sides and functions: expressions */
+    return form(title, names, n, values, MAX_LEN_EBOX, NULL, XPP_FIELD_EXPRESSION);
 }
 
 /* the file selector lists the directory like the X11 one; an answer with
@@ -432,7 +459,7 @@ void j_q_calc(void)
     double z;
     char result[300] = "Formula:";
     /* the X11 calculator shows the answer in its window: here in the prompt */
-    while (new_string(result, expr)) {
+    while (new_string_of(result, expr, XPP_FIELD_EXPRESSION)) {
         if (do_calc(expr, &z) != -1) {
             snprintf(result, sizeof result, "%.200s = %.16g   Formula:", expr, z);
             send_simple("message", "calc", result);

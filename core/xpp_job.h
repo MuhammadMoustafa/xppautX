@@ -55,7 +55,7 @@ void xpp_job_resume(unsigned long seq);
 int xpp_every(double *last, double seconds);
 
 /* 1 at most every 50 ms (then the clock starts again): whether the front end
-   should be polled now. my_abort() and byeauto_() (xpp_ui.c) share it, so a
+   should be polled now. my_abort() and byeauto_() (xpp_ui.cpp) share it, so a
    tight loop calling them does not hammer the front end. */
 int xpp_job_poll_due(void);
 
