@@ -1970,7 +1970,7 @@ async function autoView(dir) {
     JSON.stringify([labelRows.filter(r => !outRows.includes(r)), outRows.slice(0, 10)]));
 
   /* the chart: a curve per branch and stability run, the label marks */
-  const dg = await DG();
+  const dg = await settled(DG);
   const nCurves = expectedCurves(got);
   check(`the chart draws one curve per branch and stability run (${nCurves}), every label marked`,
     dg && dg.curves.length === nCurves && dg.labels.length === want.labels.length
@@ -2037,7 +2037,7 @@ async function autoView(dir) {
   const axes = await DS('d.axes'), h0 = await DS('d.viewportHistory.length');
   await mouse('mouseWheel', cx, cy, {deltaX: 0, deltaY: -120});
   check('the wheel zooms the diagram', await until('s.diagram.viewport.x', 'auto wheel')
-    && width((await DG()).x) < (axes.xmax - axes.xmin) * 0.9, JSON.stringify(await DS('d.viewport')));
+    && width((await settled(DG)).x) < (axes.xmax - axes.xmin) * 0.9, JSON.stringify(await DS('d.viewport')));
   const z1 = await DS('d.viewport');
   await mouse('mouseMoved', cx - 60, cy - 40);
   await mouse('mousePressed', cx - 60, cy - 40, {button: 'left', buttons: 1, clickCount: 1});
@@ -2072,7 +2072,7 @@ async function autoView(dir) {
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
   for (let st = 0; st < 15; st++) await key('ArrowRight'); /* scrolled well past the data, wrong-corner style */
   await until('s.diagram.viewport.x', 'panned away');
-  const away = await DG();
+  const away = await settled(DG);
   check('panned far from the data', away.x.min > dataExtent.xmax, JSON.stringify([away.x, dataExtent]));
   const fitCondition = e => `(() => { const g = __xpp.diagram(); return !!g && g.x.min <= ${e.xmin} + 1e-6 && g.x.max >= ${e.xmax} - 1e-6
     && g.y.min <= ${e.ymin} + 1e-6 && g.y.max >= ${e.ymax} - 1e-6; })()`;
@@ -2088,6 +2088,7 @@ async function autoView(dir) {
   await until('s.diagram.viewport.x === null', 'auto reset 2');
   for (let st = 0; st < 15; st++) await key('ArrowLeft');
   await until('s.diagram.viewport.x', 'panned away 2');
+  await settled(DG); /* every arrow key's pan landed before the Fit */
   await cdp.eval(`[...document.querySelectorAll('.auto-panel .plot-tools button')].find(b => b.textContent === 'Fit').click()`);
   check("the AUTO tools' own Fit does the same as the corner button",
     await until(fitCondition(dataExtent), 'fit2 applied'), JSON.stringify([await DG(), dataExtent]));
@@ -2144,7 +2145,7 @@ async function autoView(dir) {
     await until(`!s.busy && s.diagram.axes.plot === 1 && s.diagram.points.x.length === ${nAll}`, 'norm axes')
     && JSON.stringify(await DS('d.points.y.slice(0, 50)')) !== JSON.stringify(y0)
     && !(await cdp.eval(`__xpp.sent().slice(${sentAxes}).some(c => c.cmd === 'redraw' || c.op === 'redraw')`))
-    && (await DG()).curves.length > 0, JSON.stringify(await DS('[d.axes, d.points.x.length]')));
+    && (await settled(DG)).curves.length > 0, JSON.stringify(await DS('[d.axes, d.points.x.length]')));
   /* and the axis dialog does the same: hI-lo from its Plots select, then a Fit */
   await cdp.eval(`document.querySelector('.auto-axis-name[data-axis=y]').click()`);
   await until(`document.querySelector('.auto-axis-dialog select[data-field=plot]')`, 'y dialog');
@@ -2153,7 +2154,7 @@ async function autoView(dir) {
   check('T22: the axis dialog\'s plot type goes to the core as an auto set with a Fit: hI-lo, every point, periodic max and min',
     await until(`!s.busy && s.diagram.axes.plot === 2 && s.diagram.points.x.length === ${nAll}
       && document.querySelector('.auto-axis-dialog select[data-field=yvar]')`, 'hilo axes', 20000)
-    && (await DG()).curves.some(c => c.which === 'y2')
+    && (await settled(DG)).curves.some(c => c.which === 'y2')
     && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set' && c.axes && c.axes.plot === 2 && c.axes.fit)`),
     JSON.stringify(await DS('d.axes')));
   const fitted = await DS('d.axes');
@@ -2167,7 +2168,7 @@ async function autoView(dir) {
   await until('s.diagram.viewport.y === null', 'view reset 2');
 
   /* T21: Clear hides the branches so far in the view, the key shows them again; nothing goes to the core */
-  const nCurvesAll = (await DG()).curves.length, sentClear = await cdp.eval('__xpp.sent().length');
+  const nCurvesAll = (await settled(DG)).curves.length, sentClear = await cdp.eval('__xpp.sent().length');
   await autoButton('C');
   check('T21: Clear hides every branch so far; the key offers "Earlier branches (2)"',
     await until(`__xpp.diagram().curves.length === 0 && s.diagram.earlier === ${nAll}`, 'cleared')
