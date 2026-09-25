@@ -14,6 +14,8 @@ ap.add_argument('--server', default='./xppautX')
 ap.add_argument('--ode', default='examples/ode/lecar.ode')
 ap.add_argument('-v', action='store_true')
 args = ap.parse_args()
+# XPP_CHECK_SLOW=F multiplies every wait by F (tools/xppclient.py)
+SLOW = float(os.environ.get('XPP_CHECK_SLOW', '1'))
 
 def check_logging():
     """core/xpp_log.h: -silent is quiet by default, --verbose shows the
@@ -27,11 +29,11 @@ def check_logging():
         odename = os.path.basename(args.ode)
 
         p = subprocess.run([os.path.abspath(args.server), odename, '-silent'],
-                            cwd=run_dir, capture_output=True, text=True, timeout=30)
+                            cwd=run_dir, capture_output=True, text=True, timeout=30 * SLOW)
         check('log: -silent is quiet by default', p.stderr.strip() == '', repr(p.stderr[:300]))
 
         p = subprocess.run([os.path.abspath(args.server), '--verbose', odename, '-silent'],
-                            cwd=run_dir, capture_output=True, text=True, timeout=30)
+                            cwd=run_dir, capture_output=True, text=True, timeout=30 * SLOW)
         check('log: --verbose shows the banner and parser stats',
               'Copyright' in p.stderr and 'nvar=' in p.stderr, repr(p.stderr[:300]))
 
@@ -41,7 +43,7 @@ def check_logging():
             with open(bad_ode, 'w') as f:
                 f.write("x'=(1+2\ndone\n")
             p = subprocess.run([os.path.abspath(args.server), 'bad.ode', '-silent'],
-                                cwd=bad_dir, capture_output=True, text=True, timeout=30)
+                                cwd=bad_dir, capture_output=True, text=True, timeout=30 * SLOW)
             check('log: a syntax error still reaches stderr at the default level',
                   p.stderr.strip() != '', repr(p.stderr[:300]))
         finally:
@@ -85,7 +87,7 @@ def launch_server(extra_env=None, ode=None):
         proc.stdin.write(json.dumps(cmd) + '\n')
         proc.stdin.flush()
 
-    def collect(until, timeout=10):
+    def collect(until, timeout=10 * SLOW):
         """events up to and including the first one for which until(ev) is true"""
         got = []
         while True:
@@ -153,7 +155,7 @@ send(cmd='key', key='i')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 check('Initialconds opens a menu', ask is not None and ask['kind'] == 'menu' and 'g' in ask['keys'], str(ask))
 send(cmd='answer', id=ask['id'], key='g')
-evs, _ = collect(is_idle, timeout=30)
+evs, _ = collect(is_idle, timeout=30 * SLOW)
 st = last_state(evs)
 check('storage has 601 rows', st is not None and st['rows'] == 601, str(st and st['rows']))
 
@@ -181,7 +183,7 @@ def series_matches_output_dat(ser, ode=None):
     silent = tempfile.mkdtemp(prefix='xppsilent')
     shutil.copy(ode, silent)
     subprocess.run([os.path.abspath(args.server), os.path.basename(ode), '-silent'], cwd=silent,
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60 * SLOW)
     with open(os.path.join(silent, 'output.dat')) as f:
         rows = [l.split() for l in f if l.strip()]
     shutil.rmtree(silent, ignore_errors=True)
@@ -217,7 +219,7 @@ collect(is_idle)
 send(cmd='key', key='i')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 send(cmd='answer', id=ask['id'], key='g')
-evs, _ = collect(is_idle, timeout=30)
+evs, _ = collect(is_idle, timeout=30 * SLOW)
 check('an empty data list stops the series', not any(e.get('ev') == 'series' for e in evs))
 
 send(cmd='set', kind='par', name='iapp', value=0.1)
@@ -252,7 +254,7 @@ collect(is_idle)
 send(cmd='data', events=['series'])
 collect(is_idle)
 send(cmd='slide', name='iapp', value=0.07, rerun=1)
-evs, _ = collect(is_idle, timeout=30)
+evs, _ = collect(is_idle, timeout=30 * SLOW)
 st = last_state(evs)
 ser = [e for e in evs if e.get('ev') == 'series' and 'op' not in e]
 check('slide sets the parameter and integrates again (a new series of 601 rows)',
@@ -410,7 +412,7 @@ if ask:
 send(cmd='key', key='i')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 send(cmd='answer', id=ask['id'], key='g')
-evs, _ = collect(is_idle, timeout=30)
+evs, _ = collect(is_idle, timeout=30 * SLOW)
 st = last_state(evs)
 check('total 40 gives 801 rows', st is not None and st['rows'] == 801, str(st and st['rows']))
 check('a run that is not cancelled sends no stopped', not any(e.get('ev') == 'stopped' for e in evs))
@@ -422,7 +424,7 @@ evs, ask = collect(lambda e: e.get('ev') == 'ask')
 proc.stdin.write(json.dumps({'cmd': 'answer', 'id': ask['id'], 'key': 'g'}) + '\n' +
                  json.dumps({'cmd': 'abort'}) + '\n')
 proc.stdin.flush()
-evs, _ = collect(is_idle, timeout=30)
+evs, _ = collect(is_idle, timeout=30 * SLOW)
 kinds = [e.get('ev') for e in evs]
 stopped = next((e for e in evs if e.get('ev') == 'stopped'), None)
 st = last_state(evs)
@@ -443,7 +445,7 @@ if stopped and st and st['rows'] > 0:
 send(cmd='key', key='i')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 send(cmd='answer', id=ask['id'], key='g')
-evs, _ = collect(is_idle, timeout=30)
+evs, _ = collect(is_idle, timeout=30 * SLOW)
 st = last_state(evs)
 check('the next run is whole again', st is not None and st['rows'] == 801 and
       not any(e.get('ev') == 'stopped' for e in evs), str(st and st['rows']))
@@ -453,7 +455,7 @@ evs, ask = collect(lambda e: e.get('ev') == 'ask')
 send(cmd='answer', id=ask['id'], key='g')
 eq = None
 for _ in range(6):
-    evs, e = collect(lambda e: e.get('ev') in ('ask', 'equilibrium'), timeout=10)
+    evs, e = collect(lambda e: e.get('ev') in ('ask', 'equilibrium'), timeout=10 * SLOW)
     if e is None:
         break
     if e['ev'] == 'equilibrium':
@@ -471,12 +473,12 @@ collect(is_idle)
 send(cmd='key', key='m')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 send(cmd='answer', id=ask['id'], key='c')
-evs, _ = collect(lambda e: e.get('ev') == 'window' and e['op'] == 'create', timeout=5)
+evs, _ = collect(lambda e: e.get('ev') == 'window' and e['op'] == 'create', timeout=5 * SLOW)
 check('Makewindow/Create opens window 2', any(e.get('ev') == 'window' and e.get('win') == 2 for e in evs))
 collect(is_idle)
 
 
-def answer_asks(until, replies, timeout=20):
+def answer_asks(until, replies, timeout=20 * SLOW):
     """collect up to until(ev), answering asks whose kind is in replies"""
     got = []
     while True:
@@ -596,7 +598,7 @@ evs, ask = collect(lambda e: e.get('ev') == 'ask')
 check('Auto/Run opens the start menu', ask is not None and ask['kind'] == 'menu' and 's' in ask['keys'], str(ask))
 if ask:
     send(cmd='answer', id=ask['id'], key='s')
-    evs, _ = collect(is_idle, timeout=30)
+    evs, _ = collect(is_idle, timeout=30 * SLOW)
     adds = [e for e in evs if e.get('ev') == 'diagram' and e['op'] == 'add']
     check('Auto/Run sends the points it draws as diagram data',
           adds and adds[0]['from'] == 0 and sum(len(r['x']) for e in adds for r in e['runs']) > 0, str(adds)[:200])
@@ -612,10 +614,10 @@ if ask:
             send(cmd='answer', id=ask['id'], ok=0)  # a confirmation is not expected; cancel it
             collect(is_idle)
     send(cmd='auto', op='run')
-    evs, e = collect(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=30)
+    evs, e = collect(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=30 * SLOW)
     if e is not None and e.get('ev') == 'ask':
         send(cmd='answer', id=e['id'], ok=0)
-        evs, e = collect(is_idle, timeout=30)
+        evs, e = collect(is_idle, timeout=30 * SLOW)
     check('Auto/Run after a Grab restarts from the label and the server survives',
           e is not None and proc.poll() is None, 'exit code %s' % proc.poll())
 
@@ -626,12 +628,12 @@ if ask:
         send(cmd='auto', op=op)
         evs = []
         for a in answers:
-            ev, ask = collect(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=30)
+            ev, ask = collect(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=30 * SLOW)
             evs += ev
             if ask is None or ask.get('ev') != 'ask':
                 return evs, ask
             send(cmd='answer', id=ask['id'], **(a(ask) if callable(a) else a))
-        ev, _ = collect(is_idle, timeout=30)
+        ev, _ = collect(is_idle, timeout=30 * SLOW)
         return evs + ev, None
 
     evs, _ = auto_dialog('axes', {'key': 'n'}, lambda ask: {'ok': 1, 'values': ask['values']})
@@ -661,10 +663,10 @@ LIVE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'live.
 def live_run(send, collect, key='i', answer=None):
     """integrate (Initialconds/Go, or Continue) and return the series events of the command"""
     send(cmd='key', key=key)
-    evs, ask = collect(lambda e: e.get('ev') == 'ask', timeout=20)
+    evs, ask = collect(lambda e: e.get('ev') == 'ask', timeout=20 * SLOW)
     if ask:
         send(cmd='answer', id=ask['id'], **(answer or {'key': 'g'}))
-    evs, _ = collect(is_idle, timeout=120)
+    evs, _ = collect(is_idle, timeout=120 * SLOW)
     return [e for e in evs if e.get('ev') == 'series']
 
 
@@ -740,7 +742,7 @@ def check_live_series():
     finally:
         send3(cmd='quit')
         try:
-            proc3.wait(timeout=5)
+            proc3.wait(timeout=5 * SLOW)
         except subprocess.TimeoutExpired:
             proc3.kill()
         shutil.rmtree(run3, ignore_errors=True)
@@ -782,7 +784,7 @@ def pixel_to_data(v, i, j):
 def stop_server(p, r, snd):
     snd(cmd='quit')
     try:
-        p.wait(timeout=5)
+        p.wait(timeout=5 * SLOW)
     except subprocess.TimeoutExpired:
         p.kill()
     shutil.rmtree(r, ignore_errors=True)
@@ -830,7 +832,7 @@ def check_data_coordinates():
             evs, ask = col(lambda e: e.get('ev') == 'ask')
             if ask is not None and ask['kind'] == 'mouse':
                 snd(cmd='answer', id=ask['id'], xd=xd, yd=yd)
-            evs, _ = col(is_idle, timeout=30)
+            evs, _ = col(is_idle, timeout=30 * SLOW)
             st = last_state(evs)
             ics = dict(st['ics']) if st else {}
             pxm = abs(v['xhi'] - v['xlo']) / (v['right'] - v['left'])
@@ -857,7 +859,7 @@ def check_plot_windows():
         send4(cmd='key', key=key)
         got, pending = [], list(answers)
         while True:
-            evs, e = collect4(lambda e: e.get('ev') in ('ask', 'idle'), timeout=120)
+            evs, e = collect4(lambda e: e.get('ev') in ('ask', 'idle'), timeout=120 * SLOW)
             got += evs
             if e is None or e['ev'] == 'idle':
                 return got
@@ -865,7 +867,7 @@ def check_plot_windows():
 
     def after(cmd):
         send4(**cmd)
-        return collect4(is_idle, timeout=30)[0]
+        return collect4(is_idle, timeout=30 * SLOW)[0]
 
     plots = lambda evs: [e for e in evs if e.get('ev') == 'plots']
     full = lambda evs: [e for e in evs if e.get('ev') == 'series' and 'op' not in e]
@@ -946,13 +948,13 @@ def check_values_protocol():
 
     def after(**cmd):
         sndv(**cmd)
-        return colv(is_idle, timeout=30)[0]
+        return colv(is_idle, timeout=30 * SLOW)[0]
 
     def keys(key, *answers):
         sndv(cmd='key', key=key)
         got, pending = [], list(answers)
         while True:
-            evs, e = colv(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60)
+            evs, e = colv(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
             got += evs
             if e is None or e['ev'] == 'idle':
                 return got
@@ -1043,7 +1045,7 @@ def check_phase_data():
         send5(cmd='key', key=key)
         got, pending = [], list(answers)
         while True:
-            evs, e = collect5(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60)
+            evs, e = collect5(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
             got += evs
             if e is None or e['ev'] == 'idle':
                 return got
@@ -1051,7 +1053,7 @@ def check_phase_data():
 
     def after(cmd):
         send5(**cmd)
-        return collect5(is_idle, timeout=30)[0]
+        return collect5(is_idle, timeout=30 * SLOW)[0]
 
     of = lambda evs, name: [e for e in evs if e.get('ev') == name]
 
@@ -1260,10 +1262,10 @@ def check_view3d():
     # only the load's, so keep collecting (a short timeout: nothing more
     # means the run's own idle already came) until the stored rows stop
     # growing, so what follows starts from the settled run.
-    evs0, _ = collect7(is_idle, timeout=30)
+    evs0, _ = collect7(is_idle, timeout=30 * SLOW)
     rows0 = last_state(evs0) and last_state(evs0).get('rows')
     for _ in range(9):
-        more, _ = collect7(is_idle, timeout=3)
+        more, _ = collect7(is_idle, timeout=3 * SLOW)
         if not more:
             break
         evs0 = more
@@ -1326,7 +1328,7 @@ def check_marks():
         send6(cmd='key', key=key)
         got, n = [], 0
         while True:
-            evs, e = collect6(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60)
+            evs, e = collect6(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
             got += evs
             if e is None or e['ev'] == 'idle':
                 return got
@@ -1344,7 +1346,7 @@ def check_marks():
 
     def after(cmd):
         send6(**cmd)
-        return collect6(is_idle, timeout=30)[0]
+        return collect6(is_idle, timeout=30 * SLOW)[0]
 
     def marks_of(evs):
         m = of(evs, 'marks')
@@ -1476,7 +1478,7 @@ def check_ani_data():
     def answered(pending):
         got = []
         while True:
-            evs, e = collect6(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60)
+            evs, e = collect6(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
             got += evs
             if e is None or e['ev'] == 'idle':
                 return got
@@ -1670,13 +1672,13 @@ def lecar_to_auto(snd, col):
     """the "hopf" set, its fixed point as the IC, File/Auto, Run a steady state: the events"""
     def step(**c):
         snd(**c)
-        return col(lambda e: is_idle(e) or e.get('ev') == 'ask', timeout=30)
+        return col(lambda e: is_idle(e) or e.get('ev') == 'ask', timeout=30 * SLOW)
     for c in ({'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'd'},
               {'cmd': 'key', 'key': 's'}, {'cmd': 'answer', 'key': 'g'}, {'cmd': 'answer', 'key': 'n'},
               {'cmd': 'eqimport'}, {'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'a'}, {'cmd': 'auto', 'op': 'run'}):
         step(**c)
     snd(cmd='answer', key='s')
-    evs, _ = col(is_idle, timeout=60)
+    evs, _ = col(is_idle, timeout=60 * SLOW)
     return evs
 
 
@@ -1756,9 +1758,9 @@ def check_autoinfo():
         run_evs = []
         for snd, col, diag in ((snda, cola, diag_a), (sndb, colb, diag_b)):
             snd(cmd='auto', op='run')
-            evs, ask = col(lambda e: e.get('ev') == 'ask', timeout=30)
+            evs, ask = col(lambda e: e.get('ev') == 'ask', timeout=30 * SLOW)
             snd(cmd='answer', id=ask['id'], key='p')
-            evs, _ = col(is_idle, timeout=120)
+            evs, _ = col(is_idle, timeout=120 * SLOW)
             rebuild_diagram(evs, diag)
             run_evs = run_evs or evs
         per = [p for p in diag_a if p[0] == 2]
@@ -1946,9 +1948,9 @@ def auto_stop_run(numerics, abort=False):
         snd(cmd='answer', id=ask['id'], key='s')
         evs = []
         if abort:
-            evs, _ = col(lambda e: e.get('ev') == 'diagram' and e.get('op') == 'add', timeout=30)
+            evs, _ = col(lambda e: e.get('ev') == 'diagram' and e.get('op') == 'add', timeout=30 * SLOW)
             snd(cmd='abort')
-        more, _ = col(is_idle, timeout=60)
+        more, _ = col(is_idle, timeout=60 * SLOW)
         evs += more
         got = infos(evs)
         return (got[-1].get('stop') if got else None), len(rebuild_diagram(evs, []))
@@ -2001,7 +2003,7 @@ check('bad-HOME server: Auto/Run opens the Start menu',
       ask is not None and ask['kind'] == 'menu' and 's' in ask['keys'], str(ask))
 if ask:
     send2(cmd='answer', id=ask['id'], key='s')
-evs, e = collect2(is_idle, timeout=20)
+evs, e = collect2(is_idle, timeout=20 * SLOW)
 st2 = [x for x in evs if x.get('ev') == 'state']
 alive = proc2.poll() is None
 check('bad-HOME server survives Run/Steady state (state then idle, still alive)',
@@ -2015,7 +2017,7 @@ if alive:
     if ask:
         send2(cmd='answer', id=ask['id'], key='y')
     try:
-        proc2.wait(timeout=5)
+        proc2.wait(timeout=5 * SLOW)
         check('bad-HOME server: File/Quit exits', True)
     except subprocess.TimeoutExpired:
         proc2.kill()
@@ -2031,7 +2033,7 @@ evs, ask = collect(lambda e: e.get('ev') == 'ask')
 if ask:
     send(cmd='answer', id=ask['id'], key='y')
 try:
-    proc.wait(timeout=5)
+    proc.wait(timeout=5 * SLOW)
     check('File/Quit exits', True)
 except subprocess.TimeoutExpired:
     proc.kill()

@@ -26,7 +26,7 @@ measurements without failing on the latency limits, for comparing builds.
 """
 import argparse, json, os, shutil, subprocess, sys, tempfile, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import Server, is_idle, is_ask, is_state
+from xppclient import SLOW, Server, is_idle, is_ask, is_state
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -60,7 +60,7 @@ def open_auto(s):
     s.collect(is_idle)
 
 
-def run_menu(s, key, timeout=60):
+def run_menu(s, key, timeout=60 * SLOW):
     """Auto/Run, answer the start menu with key; returns the events to idle"""
     s.send(cmd='auto', op='run')
     evs, ask = s.collect(is_ask)
@@ -237,7 +237,7 @@ def section_input():
             t = time.monotonic()
             try:
                 subprocess.run([os.path.abspath(args.server), '--server', os.path.abspath(LECAR)], stdin=stdin,
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10 * SLOW)
                 took = time.monotonic() - t
             except subprocess.TimeoutExpired:
                 took = None
@@ -255,7 +255,7 @@ def section_input():
     s.proc.stdin.flush()
     idles = 0
     while idles < n:
-        evs, e = s.collect(is_idle, timeout=20)
+        evs, e = s.collect(is_idle, timeout=20 * SLOW)
         if e is None:
             break
         idles += 1
@@ -304,7 +304,7 @@ def periodic_run(s):
     s.send(cmd='answer', id=ask['id'], key='p')
     stamps = []
     while len(stamps) < 2:
-        evs, e = s.collect(lambda e: is_point(e) or is_idle(e) or is_ask(e), timeout=60)
+        evs, e = s.collect(lambda e: is_point(e) or is_idle(e) or is_ask(e), timeout=60 * SLOW)
         if e is None or not is_point(e):
             return None
         stamps.append(e['_t'])
@@ -330,7 +330,7 @@ def section_abort():
     # a point takes a few Newton steps: land the Abort inside one of them
     time.sleep(0.25)
     t = s.send(cmd='abort')
-    evs, e = s.collect(is_idle, timeout=120)
+    evs, e = s.collect(is_idle, timeout=120 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
     check('Abort stops a periodic run within 0.5 s', e is not None and took < 0.5,
           'abort->idle %.2f s (a point takes %.2f s)' % (took, gap), limit=True)
@@ -354,22 +354,22 @@ def section_abort():
     run_periodic(s)
     n = 0
     while n < 2:
-        evs, e = s.collect(lambda e: is_point(e) or is_idle(e) or is_ask(e), timeout=60)
+        evs, e = s.collect(lambda e: is_point(e) or is_idle(e) or is_ask(e), timeout=60 * SLOW)
         if e is None or not is_point(e):
             break
         n += 1
     check('a run from the end point of the aborted run computes new points', n == 2, '%d points' % n)
     s.send(cmd='abort')
-    s.collect(is_idle, timeout=120)
+    s.collect(is_idle, timeout=120 * SLOW)
     check('the server is still alive after the second run', s.alive())
 
     # Close during a run: the AUTO window goes within a second
     run_periodic(s)
-    s.collect(is_point, timeout=60)
+    s.collect(is_point, timeout=60 * SLOW)
     t = s.send(cmd='abort')
     s.send(cmd='auto', op='close')
     evs, e = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 101 and e.get('op') == 'destroy',
-                       timeout=120)
+                       timeout=120 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
     check('Abort then Close during a run closes the AUTO window within 1 s', e is not None and took < 1,
           '%.2f s' % took, limit=True)
@@ -379,10 +379,10 @@ def section_abort():
     # Quit during a run: the process ends within a second
     open_auto(s)
     run_periodic(s)
-    s.collect(is_point, timeout=60)
+    s.collect(is_point, timeout=60 * SLOW)
     t = s.send(cmd='quit')
     try:
-        s.proc.wait(timeout=60)
+        s.proc.wait(timeout=60 * SLOW)
     except subprocess.TimeoutExpired:
         s.proc.kill()
     took = time.monotonic() - t
@@ -400,7 +400,7 @@ def lecar_diagram(s):
     open_auto(s)
     run_menu(s, 's')
     grab_hopf(s)
-    run_menu(s, 'p', timeout=120)
+    run_menu(s, 'p', timeout=120 * SLOW)
     s.send(cmd='auto', op='file')
     evs, e = s.answer_asks(is_idle, {'menu': lambda e: {'key': 's'},
                                      'file': lambda e: {'ok': 1, 'file': 'diagram.auto'},
@@ -457,7 +457,7 @@ def section_files():
 
 def step(s, **c):
     s.send(**c)
-    return s.collect(lambda e: is_idle(e) or is_ask(e), timeout=30)
+    return s.collect(lambda e: is_idle(e) or is_ask(e), timeout=30 * SLOW)
 
 
 def hopf_steady(s):
@@ -471,7 +471,7 @@ def hopf_steady(s):
     return evs
 
 
-def run_any(s, key, timeout=120):
+def run_any(s, key, timeout=120 * SLOW):
     """Auto/Run, answering its menu with key if it asks; the events to idle"""
     s.send(cmd='auto', op='run')
     evs, e = s.collect(lambda e: is_idle(e) or is_ask(e), timeout=timeout)
@@ -598,7 +598,7 @@ def section_sessions():
     evs, ask = a.collect(is_ask)
     a.send(cmd='answer', id=ask['id'], key='Return')
     a.collect(is_idle)
-    evs = run_menu(a, 'e', timeout=120)
+    evs = run_menu(a, 'e', timeout=120 * SLOW)
     msgs = ' '.join(str(e.get('text', '')) for e in evs if e.get('ev') == 'message')
     check('a session still extends from its own orbit', 'nan' not in msgs.lower() and a.alive(), msgs[:200])
     runs = [a.run, b.run]
@@ -623,10 +623,10 @@ def section_session():
     open_auto(s)
     run_menu(s, 's')
     grab_hopf(s)
-    run_menu(s, 'p', timeout=120)
+    run_menu(s, 'p', timeout=120 * SLOW)
 
     s.send(cmd='session', op='save', name='s1')
-    evs, e = s.collect(is_idle, timeout=20)
+    evs, e = s.collect(is_idle, timeout=20 * SLOW)
     st = [x for x in evs if x.get('ev') == 'state']
     saved = st[-1] if st else None
     sess = saved.get('session') if saved else None
@@ -648,7 +648,7 @@ def section_session():
     shutil.rmtree(home1, ignore_errors=True)
 
     s2.send(cmd='session', op='load', name='s1')
-    evs, e = s2.collect(is_idle, timeout=20)
+    evs, e = s2.collect(is_idle, timeout=20 * SLOW)
     st = [x for x in evs if x.get('ev') == 'state']
     loaded = st[-1] if st else None
     sess2 = loaded.get('session') if loaded else None
@@ -668,7 +668,7 @@ def section_session():
     evs, ask = s2.collect(is_ask)
     s2.send(cmd='answer', id=ask['id'], key='Return')
     s2.collect(is_idle)
-    evs = run_menu(s2, 'e', timeout=60)
+    evs = run_menu(s2, 'e', timeout=60 * SLOW)
     msgs = ' '.join(str(e.get('text', '')) for e in evs if e.get('ev') == 'message')
     check('extending the loaded branch computes new points',
           any(is_point(e) for e in evs) and s2.alive(), str(evs)[:200])
@@ -709,7 +709,7 @@ def section_control():
     s.proc.stdin.write(json.dumps(RERUN) + '\n' + json.dumps({'cmd': 'abort'}) + '\n')
     s.proc.stdin.flush()
     t = time.monotonic()
-    evs, e = s.collect(is_idle, timeout=60)
+    evs, e = s.collect(is_idle, timeout=60 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
     n = rows(evs)
     check('an Abort sent with the command still stops it', e is not None and n is not None and n < 40001,
@@ -718,24 +718,24 @@ def section_control():
           limit=True)
     print('INFO abort with the command -> idle %.2f s, %s rows' % (took, n))
     s.send(cmd='state')
-    evs, e = s.collect(is_idle, timeout=10)
+    evs, e = s.collect(is_idle, timeout=10 * SLOW)
     check('an Abort has no idle of its own', len([x for x in evs if is_idle(x)]) == 1 and
           any(x.get('ev') == 'state' for x in evs), str([x.get('ev') for x in evs]))
 
     # a command sent after an Abort is not cancelled by it
     set_total(s, 20)
     s.send(**RERUN)
-    evs, e = s.collect(is_idle, timeout=60)
+    evs, e = s.collect(is_idle, timeout=60 * SLOW)
     check('a command sent after an Abort runs in full', rows(evs) == 2001, 'rows %s' % rows(evs))
 
     # a normal command sent during a job waits for it and is not lost
     set_total(s, 400)
     open_auto(s)
     s.send(**RERUN)
-    s.collect(lambda e: e.get('ev') == 'progress', timeout=30)
+    s.collect(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
     s.send(cmd='auto', op='close')
     t = s.send(cmd='abort')
-    evs, e = s.collect(is_idle, timeout=60)
+    evs, e = s.collect(is_idle, timeout=60 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
     closed = [x for x in evs if x.get('ev') == 'window' and x.get('win') == 101 and x.get('op') == 'destroy']
     check('Abort stops an integration', e is not None and (rows(evs) or 0) < 40001, 'rows %s' % rows(evs))
@@ -743,16 +743,16 @@ def section_control():
     print('INFO abort during an integration -> idle %.2f s' % took)
     check('a command sent during a job waits for its idle', not closed)
     evs, e = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 101 and e.get('op') == 'destroy',
-                       timeout=10)
+                       timeout=10 * SLOW)
     check('a command sent during a job runs after it (Close)', e is not None)
     s.collect(is_idle)
 
     # Quit during an integration
     s.send(**RERUN)
-    s.collect(lambda e: e.get('ev') == 'progress', timeout=30)
+    s.collect(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
     t = s.send(cmd='quit')
     try:
-        s.proc.wait(timeout=30)
+        s.proc.wait(timeout=30 * SLOW)
     except subprocess.TimeoutExpired:
         s.proc.kill()
     took = time.monotonic() - t
@@ -774,7 +774,7 @@ def silent_output(ode):
     run = tempfile.mkdtemp(prefix='xppnames')
     shutil.copy(ode, run)
     subprocess.run([os.path.abspath(args.server), os.path.basename(ode), '-silent'], cwd=run,
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60 * SLOW)
     path = os.path.join(run, 'output.dat')
     text = open(path).read() if os.path.exists(path) else None
     shutil.rmtree(run, ignore_errors=True)
@@ -796,12 +796,12 @@ def names_diagram(ode):
         s.send(cmd='key', key='i')
         evs, ask = s.collect(is_ask)
         s.send(cmd='answer', id=ask['id'], key=key)
-        s.collect(is_idle, timeout=30)
+        s.collect(is_idle, timeout=30 * SLOW)
     s.send(cmd='key', key='f')
     s.send(cmd='key', key='a')
     evs, _ = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 101)
     more, _ = s.collect(is_idle)
-    evs += more + run_menu(s, 's', timeout=60)
+    evs += more + run_menu(s, 's', timeout=60 * SLOW)
     syms = [sym for e in evs if e.get('ev') == 'diagram' and e['op'] == 'add'
             for r in e['runs'] for i, lab, sym in r.get('lab', [])]
     s.close()
@@ -847,7 +847,7 @@ def section_names():
     s.send(cmd='key', key='i')
     evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='g')
-    s.collect(is_idle, timeout=30)
+    s.collect(is_idle, timeout=30 * SLOW)
     s.send(cmd='browser', **{'from': 0, 'count': 1, 'col': 1, 'ncol': 3})
     evs, br = s.collect(lambda e: e.get('ev') == 'browser')
     s.collect(is_idle)
@@ -857,7 +857,7 @@ def section_names():
 
     # the .set file of a session keeps the values under the long names
     s.send(cmd='session', op='save', name='ln')
-    s.collect(is_idle, timeout=20)
+    s.collect(is_idle, timeout=20 * SLOW)
     set_path = os.path.join(s.run, 'ln.set')
     text = open(set_path).read() if os.path.exists(set_path) else ''
     check('names: the .set file names the long parameter', LONG_B in text)
@@ -868,7 +868,7 @@ def section_names():
             shutil.copy(os.path.join(s.run, f), s2.run)
     s.close()
     s2.send(cmd='session', op='load', name='ln')
-    evs, _ = s2.collect(is_idle, timeout=20)
+    evs, _ = s2.collect(is_idle, timeout=20 * SLOW)
     st = last_state(evs)
     check('names: a .set round trip keeps the long-named values',
           st is not None and dict(st['pars']).get(LONG_B) == 0.9 and
@@ -897,7 +897,7 @@ def run_script(script_path, ode=LECAR):
     shutil.copy(ode, run)
     r = subprocess.run([os.path.abspath(args.server), '--script', os.path.abspath(script_path),
                         os.path.basename(ode)], cwd=run, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                       text=True, timeout=60)
+                       text=True, timeout=60 * SLOW)
     run_script.stderr = r.stderr
     return r.returncode, r.stdout, run
 
@@ -965,7 +965,7 @@ class Recording:
         the script's abort line"""
         time.sleep(after)
         self.s.send(cmd='abort')
-        evs, e = self.s.collect(is_idle, timeout=120)
+        evs, e = self.s.collect(is_idle, timeout=120 * SLOW)
         stopped = next((x for x in evs if x.get('ev') == 'stopped'), None)
         if stopped:
             self.script.append({'cmd': 'abort', 'at': stopped['at']})
@@ -1023,7 +1023,7 @@ def section_replay():
     r.send(cmd='browser', op='write')
     s.collect(is_ask)
     r.send(cmd='answer', file='run.dat')
-    s.collect(is_idle, timeout=60)
+    s.collect(is_idle, timeout=60 * SLOW)
     live_data = file_content(os.path.join(s.run, 'run.dat'), 'rb')
     path = os.path.join(here, 'replay_integrate.jsonl')
     r.write(path)
@@ -1048,7 +1048,7 @@ def section_replay():
     for i, c in enumerate(body):
         r.send(**c)
         if i + 1 < len(body):
-            r.s.collect(is_ask if body[i + 1]['cmd'] == 'answer' else is_idle, timeout=60)
+            r.s.collect(is_ask if body[i + 1]['cmd'] == 'answer' else is_idle, timeout=60 * SLOW)
     stopped, evs = r.interrupt(0.3)
     at = stopped['at'] if stopped else {}
     check('replay: an interrupted AUTO run says where it stopped',
@@ -1056,7 +1056,7 @@ def section_replay():
     print('INFO replay: AUTO stopped at %s' % at)
     for i, c in enumerate(save):
         r.send(**c)
-        r.s.collect(is_ask if i < 2 else is_idle, timeout=30)
+        r.s.collect(is_ask if i < 2 else is_idle, timeout=30 * SLOW)
     live_diagram = file_content(os.path.join(r.s.run, 'lecar.auto'))
     path = os.path.join(here, 'replay_auto.jsonl')
     r.write(path)

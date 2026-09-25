@@ -10,6 +10,10 @@ reads events on a thread and hands them out with collect().
 """
 import json, os, queue, shutil, subprocess, tempfile, threading, time
 
+# XPP_CHECK_SLOW=F multiplies every wait by F, for a server under a slow
+# tool (tools/valgrindcheck.sh: memcheck runs it some 30 times slower)
+SLOW = float(os.environ.get('XPP_CHECK_SLOW', '1'))
+
 
 def is_idle(e):
     return e.get('ev') == 'idle'
@@ -63,7 +67,7 @@ class Server:
         self.proc.stdin.flush()
         return time.monotonic()
 
-    def collect(self, until, timeout=10):
+    def collect(self, until, timeout=10 * SLOW):
         """events up to and including the first for which until(ev) is true;
         (events, None) on timeout or end of output"""
         got = []
@@ -81,7 +85,7 @@ class Server:
             if ev.get('ev') == 'eof':
                 return got, None
 
-    def answer_asks(self, until, replies, timeout=20):
+    def answer_asks(self, until, replies, timeout=20 * SLOW):
         """collect up to until(ev), answering asks whose kind is in replies
         (kind -> function of the ask returning the answer's fields)"""
         got = []
@@ -99,7 +103,7 @@ class Server:
         if self.alive():
             try:
                 self.proc.stdin.close()
-                self.proc.wait(timeout=5)
+                self.proc.wait(timeout=5 * SLOW)
             except (OSError, subprocess.TimeoutExpired):
                 self.proc.kill()
         shutil.rmtree(self.run, ignore_errors=True)

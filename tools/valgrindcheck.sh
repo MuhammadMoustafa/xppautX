@@ -40,6 +40,11 @@ vg="valgrind -q --error-exitcode=99 --leak-check=no --track-origins=yes
 wrap=$top/build/vg/xppautX-memcheck
 printf '#!/bin/sh\nexec %s "%s" "$@"\n' "$(echo $vg)" "$top/build/vg/xppautX" > "$wrap"
 chmod +x "$wrap"
+# the checks wait this many times longer for the slow server
+# (tools/xppclient.py); xpp_malloc leaves memory as the C library gives it
+# (core/xpp_mem.h), which is what memcheck needs to see a read of what was
+# never written
+export XPP_CHECK_SLOW=30 XPP_MEM_INIT=0
 fail=0
 
 tmp=$(mktemp -d)

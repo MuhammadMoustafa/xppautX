@@ -121,7 +121,7 @@ $(BUILDDIR)/xppautx_main.o: CXXFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'
 WEBVIEW_DIR = third_party/webview
 # the vendored library's language standard: ours, except on macOS (below)
 WEBVIEW_STD = $(CXXSTD)
-ifeq ($(ASAN),1)
+ifneq ($(ASAN)$(VALGRIND),)
 WINDOW := 0
 endif
 ifeq ($(OS),Windows_NT)
@@ -241,6 +241,14 @@ endif
 asan:
 	@$(MAKE) BUILDDIR=build/asan ASAN=1 asan-link
 asan-link: $(BUILDDIR)/xppautX$(EXE)
+# for valgrind's memcheck (tools/valgrindcheck.sh): no sanitizer, -O1 so
+# its reports point at the right lines, into build/vg
+ifeq ($(VALGRIND),1)
+OPT := -g -O1
+endif
+.PHONY: vg
+vg:
+	@$(MAKE) BUILDDIR=build/vg VALGRIND=1 asan-link
 $(BUILDDIR)/xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
 	$(LINK_X) $(SANITIZE) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS)
 
@@ -272,11 +280,13 @@ app: xppautx assets/icon.icns
 TEST_SOURCES := $(wildcard tests/test_*.c tests/test_*.cpp)
 TEST_OBJECTS := $(patsubst tests/%,$(BUILDDIR)/tests/%.o,$(basename $(TEST_SOURCES)))
 TEST_BINS := $(TEST_OBJECTS:.o=$(EXE))
+# what runs each test (tools/valgrindcheck.sh: valgrind)
+TEST_RUNNER ?=
 LINK_TESTS := $(call link,$(CORE_SOURCES) $(TEST_SOURCES))
 .SECONDARY: $(TEST_OBJECTS)
 
 test: $(TEST_BINS)
-	@fail=0; for t in $(TEST_BINS); do ./$$t || fail=1; done; \
+	@fail=0; for t in $(TEST_BINS); do $(TEST_RUNNER) ./$$t || fail=1; done; \
 	  if [ $$fail -eq 0 ]; then echo "unit tests: all passed"; \
 	  else echo "unit tests: FAILURES"; exit 1; fi
 
