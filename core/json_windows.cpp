@@ -31,9 +31,6 @@
 extern "C" {
 extern char this_file[];
 extern BROWSER my_browser;
-extern int aplot_range_count, aplot_still, aplot_tag, plot3d_auto_redraw;
-extern char aplot_range_stem[256];
-extern FILE *ap_fp;
 }
 
 namespace xpp::json {

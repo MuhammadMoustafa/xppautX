@@ -50,6 +50,12 @@ void redraw_aplot(APLOT ap);
    array plot's range saving); integrate.c clears it when the range ends */
 extern int aplot_range;
 
+/* the range saving's settings (Array range saving) and its open GIF file
+   (json_windows.cpp writes it); Autoplot: redraw after each integration */
+extern int aplot_range_count, aplot_still, aplot_tag, plot3d_auto_redraw;
+extern char aplot_range_stem[256];
+extern FILE *ap_fp;
+
 #ifdef __cplusplus
 }
 #endif
