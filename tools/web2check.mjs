@@ -221,7 +221,7 @@ async function desktop(want) {
   }
   check('the store holds the numbers of output.dat (T, V, W)',
     !bad && Object.values(cols.names).join() === 'T,V,W' && want.length === 601, bad || JSON.stringify(cols.names));
-  const p = await P();
+  const p = await settled(P);
   check('the plot draws W against V in xy mode, 601 points',
     p && p.mode === 2 && p.curves.length === 1 && p.curves[0].label === 'W vs V' && p.curves[0].points === 601, JSON.stringify(p));
   const view = await S('s.core.view');
@@ -1060,7 +1060,7 @@ async function windows() {
   await cdp.eval(`document.getElementById('plot-tab-1').click()`);
   check('clicking tab 1 shows window 1 and makes it the core\'s active window',
     await until('s.plots.active === 1 && !s.busy && s.core.win === 1', 'tab 1'), JSON.stringify(await S('[s.plots.active, s.core.win]')));
-  const back = await S('w.viewport'), p1 = await P();
+  const back = await S('w.viewport'), p1 = await settled(P);
   check("tab 1 keeps its zoom", JSON.stringify(back) === JSON.stringify(z1)
     && Math.abs(p1.x.min - z1.x.min) < 1e-9 && Math.abs(p1.x.max - z1.x.max) < 1e-9, JSON.stringify([back, p1 && p1.x]));
   check('its chart is the one shown', p1 && p1.curves[0].label === t1 && p1.width > 200, JSON.stringify(p1 && [p1.curves, p1.width]));
@@ -1133,7 +1133,7 @@ async function viewCheck() {
   await mouse('mouseMoved', cx, cy);
   await mouse('mouseWheel', cx, cy, {deltaX: 0, deltaY: -240});
   await until('w.viewport.x', 'wheel');
-  const zoomed = await P();
+  const zoomed = await settled(P);
   check('zoom by wheel', zoomed && zoomed.x && zoomed.y, JSON.stringify(zoomed));
 
   await cdp.eval(`document.querySelector('.plot-tools button[title^="Make this zoom"]').click()`);
@@ -1148,7 +1148,7 @@ async function viewCheck() {
     close(info.xlo, zoomed.x.min) && close(info.xhi, zoomed.x.max) && close(info.ylo, zoomed.y.min) && close(info.yhi, zoomed.y.max),
     JSON.stringify([info, zoomed.x, zoomed.y]));
   check('... and the client viewport is reset', await until('w.viewport.x === null && w.viewport.y === null', 'reset'));
-  const shown = await P();
+  const shown = await settled(P);
   check('... with no visible jump: the chart still shows the same range',
     close(shown.x.min, zoomed.x.min) && close(shown.x.max, zoomed.x.max) && close(shown.y.min, zoomed.y.min) && close(shown.y.max, zoomed.y.max),
     JSON.stringify([shown.x, shown.y, zoomed.x, zoomed.y]));
@@ -1183,7 +1183,7 @@ async function viewCheck() {
   await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
   for (let st = 0; st < 15; st++) await key('ArrowRight'); /* pans well past the data */
   await until('w.viewport.x', 'panned away');
-  const away = await P();
+  const away = await settled(P);
   check('panned far from the data', away.x.min > extent.xmax, JSON.stringify([away.x, extent]));
   await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host .plot-fit').click()`);
   check('the corner Fit brings the data back into view, through the core as the toolbar\'s Fit does',
@@ -1226,7 +1226,10 @@ async function threePlot() {
   check("state.view.theta/phi agrees too, from the start", await until(
     's.core.view && s.core.view.three === 1 && s.core.view.theta === 45 && s.core.view.phi === 60', 'state.view'));
 
-  const before = await P();
+  /* drawn once the run's data reached the chart (read at once, it was
+     still null on macOS CI, and the drag below then threw) */
+  await until('(() => { const g = __xpp.plot(); return !!g && !!g.box && g.box.length === 8; })()', 'projection drawn');
+  const before = await settled(P);
   check('it draws a projection: the box\'s 8 corners, at least one curve with points',
     before && before.box.length === 8 && before.curves.length >= 1 && before.curves[0].points > 0, JSON.stringify(before));
 
@@ -1550,7 +1553,7 @@ async function prompts() {
   let v1 = await S('s.core.view');
   check("the core's view is the box drawn, within a pixel", viewIsBox(v1, want[0], want[1], corePixel(v0)),
     JSON.stringify({v1, want}));
-  p = await P();
+  p = await settled(P);
   /* the window's axes: exact in `plots` (T6), 6 digits in state.view */
   const ax = await S('w.info || s.core.view');
   check('and the plot shows it', Math.abs(p.x.min - ax.xlo) < 1e-9 && Math.abs(p.y.max - ax.yhi) < 1e-9, JSON.stringify([p.x, p.y, ax]));
@@ -1568,7 +1571,7 @@ async function prompts() {
   check('arrow keys and Enter set the corners', pk && pk.anchor && Math.abs(pk.anchor.fx - 0.4) < 1e-9
     && Math.abs(pk.anchor.fy - 0.4) < 1e-9 && Math.abs(pk.cursor.fx - 0.6) < 1e-9 && Math.abs(pk.cursor.fy - 0.6) < 1e-9, JSON.stringify(pk));
   v0 = await S('s.core.view');
-  p = await P();
+  p = await settled(P);
   want = [dataAt(p, 0.4, 0.4), dataAt(p, 0.6, 0.6)];
   await key('Enter');
   await until('!s.busy && !s.pick', 'keyboard zoom');
@@ -2972,7 +2975,7 @@ async function million() {
   check('10^6: X plots x against T', await until(`s.seriesCount > ${n0} && !s.busy && w.series.curves[0].x === 0`, 'x vs t', 60000));
   await until('!__xpp.plot().tracing', 'tracing', 10000);
   await sleep(300);
-  const q = await P();
+  const q = await settled(P);
   const render2 = q.drawMs[q.drawMs.length - 1];
   check(`10^6: the time plot draws in ${ms(render2)}`, q.mode === 1 && q.curves[0].points === 1000001 && render2 < 50,
     JSON.stringify({mode: q.mode, points: q.curves[0].points, render2}));
