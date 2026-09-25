@@ -268,16 +268,16 @@ void init_rpn()
     NSYM = STDSYM;
     two_args();
     one_arg();
-    add_con((char *)"PI", M_PI);
+    add_con("PI", M_PI);
 
-        add_con((char *)"I'",0.0);
+        add_con("I'",0.0);
     /*   This is going to be for interacting with the
          animator */
     SumIndex=NCON-1;
-        add_con((char *)"mouse_x",0.0);
-        add_con((char *)"mouse_y",0.0);
-        add_con((char *)"mouse_vx",0.0);
-        add_con((char *)"mouse_vy",0.0);
+        add_con("mouse_x",0.0);
+        add_con("mouse_y",0.0);
+        add_con("mouse_vx",0.0);
+        add_con("mouse_vy",0.0);
 
     /* end animator stuff */
     /*  add_con("c___1",0.0);
@@ -293,7 +293,7 @@ void init_rpn()
  /*  FREE_UFUNS   */
 
 
-int duplicate_name(char *junk)
+int duplicate_name(const char *junk)
 {
   int i;
   find_name(junk,&i);
@@ -312,7 +312,7 @@ int duplicate_name(char *junk)
    Returns 1 (and says why) when it is empty or longer than XPP_NAME_MAX;
    with primed set, the primed name X' of a variable X (form_ode.c) may be
    one longer. */
-static int set_symbol_name(int k, char *name, int primed)
+static int set_symbol_name(int k, const char *name, int primed)
 {
   char string[MAXEXPLEN];
   int len;
@@ -332,7 +332,7 @@ static int set_symbol_name(int k, char *name, int primed)
 
 /* 1 (with a message) when name, blanks removed, is longer than
    XPP_NAME_MAX and so cannot be a symbol */
-int name_too_long(char *name)
+int name_too_long(const char *name)
 {
   char string[MAXEXPLEN];
   if(strlen(name)<sizeof(string)){
@@ -345,7 +345,7 @@ int name_too_long(char *name)
 
 /*  ADD_CONSTANT   */
 
-int add_constant(char *junk)
+int add_constant(const char *junk)
 {
  if(duplicate_name(junk)==1)return(1);
  if(NCON>=MAXPAR)
@@ -362,7 +362,7 @@ int add_constant(char *junk)
 }
 
 
-int get_var_index(char *name)
+int get_var_index(const char *name)
 {
 
   int type,com;
@@ -382,7 +382,7 @@ int get_var_index(char *name)
 
 /*   ADD_CON      */
 
-int add_con(char *name, double value)
+int add_con(const char *name, double value)
 {
 
   /*  printf("Adding constant %s # %d\n",name,NCON); */
@@ -396,7 +396,7 @@ int add_con(char *name, double value)
  return(add_constant(name));
 }
 
-int add_kernel(char *name, double mu, char *expr)
+int add_kernel(const char *name, double mu, const char *expr)
 {
   int i,in=-1;
   if(duplicate_name(name)==1)return(1);
@@ -449,7 +449,7 @@ int add_kernel(char *name, double mu, char *expr)
 
 /*  ADD_VAR          */
 
-int add_var(char *junk, double value)
+int add_var(const char *junk, double value)
 {
  /*   plintf(" variable - %s \n",junk); */
  if(duplicate_name(junk)==1)return(1);
@@ -470,7 +470,7 @@ int add_var(char *junk, double value)
 
 /* ADD_EXPR   */
 
-int add_expr(char *expr, int *command, int *length)
+int add_expr(const char *expr, int *command, int *length)
 {
  char dest[1024];
  int my_token[1024];
@@ -495,7 +495,7 @@ int add_expr(char *expr, int *command, int *length)
    return(0);
 }
 
-int add_vector_name(int index,char *name)
+int add_vector_name(int index,const char *name)
 {
   xpp_log(XPP_LOG_INFO, " Adding vectorizer %s %d \n",name,index);
   if(duplicate_name(name)==1)return(1);
@@ -511,7 +511,7 @@ int add_vector_name(int index,char *name)
 }
 
 
-int add_net_name(int index, char *name)
+int add_net_name(int index, const char *name)
 {
   xpp_log(XPP_LOG_INFO, " Adding net %s %d \n",name,index);
   if(duplicate_name(name)==1)return(1);
@@ -529,13 +529,13 @@ int add_net_name(int index, char *name)
 
 /* ADD LOOKUP TABLE   */
 
-int add_2d_table(char *name, char *file)
+int add_2d_table(const char *name, const char *file)
 {
  xpp_log(XPP_LOG_WARN, " TWO D NOT HERE YET \n");
  return(1);
 }
 
-int add_file_table(int index, char *file)
+int add_file_table(int index, const char *file)
 {
   char file2[1000];
   int i2=0,i1=0,n;
@@ -558,7 +558,7 @@ int add_file_table(int index, char *file)
     return(0);
 }
 
-int add_table_name(int index, char *name)
+int add_table_name(int index, const char *name)
 {
      if(duplicate_name(name)==1)return(1);
      if(set_symbol_name(NSYM,name,0))return 1;
@@ -572,7 +572,7 @@ int add_table_name(int index, char *name)
 /* ADD LOOKUP TABLE   */
 
 
-int add_form_table(int index, int nn, double xlo, double xhi, char *formula)
+int add_form_table(int index, int nn, double xlo, double xhi, const char *formula)
 {
  
  
@@ -606,7 +606,7 @@ void set_new_arg_names(int narg, char args[MAXARG][XPP_NAME_MAX+1])
 
 /* NEW ADD_FUN for new form_ode code  */
 
-int add_ufun_name(char *name, int index, int narg)
+int add_ufun_name(const char *name, int index, int narg)
 {
  if(duplicate_name(name)==1)return(1);
  if(index>=MAXUFUN)
@@ -632,7 +632,7 @@ void fixup_endfun(int *u, int l, int narg)
 }
 
 
-int add_ufun_new(int index, int narg, char *rhs, char args[MAXARG][XPP_NAME_MAX+1])
+int add_ufun_new(int index, int narg, const char *rhs, char args[MAXARG][XPP_NAME_MAX+1])
 {
   
   int i,l;
@@ -678,7 +678,7 @@ int add_ufun_new(int index, int narg, char *rhs, char args[MAXARG][XPP_NAME_MAX+
 
 /* ADD_UFUN   */
 
-int add_ufun(char *junk, char *expr, int narg)
+int add_ufun(const char *junk, const char *expr, int narg)
 {
  int i,l;
  int end;
@@ -776,7 +776,7 @@ int is_lookup(int x)
  else return(0);
 }
 
-int find_lookup(char *name)
+int find_lookup(const char *name)
 {
  int index,com;
  find_name(name,&index);
@@ -789,7 +789,7 @@ int find_lookup(char *name)
 
 /* FIND_NAME    */
 
-void find_name(char *string, int *index)
+void find_name(const char *string, int *index)
 {
   char junk[MAXEXPLEN];
   int i,len;
@@ -810,7 +810,7 @@ void find_name(char *string, int *index)
 }
 
 
-int get_param_index(char *name)
+int get_param_index(const char *name)
 {
  int type,com;
   find_name(name,&type);
@@ -826,7 +826,7 @@ int get_param_index(char *name)
 
 /* GET_VAL   */
 
-int get_val(char *name, double *value)
+int get_val(const char *name, double *value)
 {
   int type,com;
   *value=0.0;
@@ -848,7 +848,7 @@ int get_val(char *name, double *value)
 
 /* SET_VAL         */
 
-int set_val(char *name, double value)
+int set_val(const char *name, double value)
 {
   int type,com;
   find_name(name,&type);
@@ -1144,7 +1144,7 @@ int alg_to_rpn(int *toklist, int *command)
 
 
 
-void show_where(char *string, int index)
+void show_where(const char *string, int index)
 {
   char junk[MAXEXPLEN];
   int i;
@@ -1269,7 +1269,7 @@ int check_syntax(int oldtoken, int newtoken)  /* 1 is BAD!   */
 
 
 
-int make_toks(char *dest, int *my_token)
+int make_toks(const char *dest, int *my_token)
 {
  char num[40];
  double value;
@@ -1354,7 +1354,7 @@ void tokeninfo(int tok)
 }
 
 
-int do_num(char *source, char *num, double *value, int *ind)
+int do_num(const char *source, char *num, double *value, int *ind)
 {
  int j=0,i=*ind,error=0;
  int ndec=0,nexp=0,ndig=0;
@@ -1407,7 +1407,7 @@ err:
 
 
 
-void convert(char *source, char *dest)
+void convert(const char *source, char *dest)
 {
  char ch;
  int i=0,j=0;
@@ -1423,7 +1423,7 @@ void convert(char *source, char *dest)
 
 
 
-void find_tok(char *source, int *index, int *tok)
+void find_tok(const char *source, int *index, int *tok)
 {
  int i=*index,maxlen=0,symlen;
  int k,j,my_tok,match;

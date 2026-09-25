@@ -86,7 +86,7 @@ void edit_rhs()
    xpp_snprintf(names[i],MAX_LEN_EBOX+3*XPP_NAME_MAX,fstr,uvar_names[i]);
    xpp_strlcpy(values[i],ode_names[i],MAX_LEN_EBOX);
  }
- status=do_edit_box(n,(char *)"Right Hand Sides",names,values);
+ status=do_edit_box(n,"Right Hand Sides",names,values);
  if(status!=0){
   
    for(i=0;i<n;i++){
@@ -160,7 +160,7 @@ void edit_functions()
 			   
  }
 
- status=do_edit_box(n,(char *)"Functions",names,values);
+ status=do_edit_box(n,"Functions",names,values);
  if(status!=0){
   
    for(i=0;i<n;i++){
@@ -209,7 +209,7 @@ int save_as()
   snprintf(filename,sizeof(filename),"%.255s",this_file);
   ping();
   /* if(new_string("Filename: ",filename)==0)return; */
-  if(!file_selector((char *)"Save As",filename,(char *)"*.ode"))return(-1);
+  if(!file_selector("Save As",filename,"*.ode"))return(-1);
   open_write_file(&fp,filename,&ok); 
    if(!ok)return(-1);
   fp=fopen(filename,"w");

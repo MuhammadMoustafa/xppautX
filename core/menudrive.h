@@ -224,9 +224,9 @@ extern "C" {
 #define M_UC 410
 
 
-void MessageBox(char *m);
+void MessageBox(const char *m);
 void KillMessageBox(void);
-int TwoChoice(char *c1, char *c2, char *q, char *key);
+int TwoChoice(const char *c1, const char *c2, const char *q, const char *key);
 int GetMouseXY(int *x, int *y);
 void FlushDisplay(void);
 void clear_draw_window(void);

@@ -7,7 +7,7 @@ extern "C" {
 
 int compile_derived(void);
 void evaluate_derived(void);
-int add_derived(char *name, char *rhs);
+int add_derived(const char *name, const char *rhs);
 
  
 #ifdef __cplusplus

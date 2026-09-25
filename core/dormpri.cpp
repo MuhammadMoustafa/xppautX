@@ -31,13 +31,13 @@ void dp_err(int k)
 { 
   ping();
   switch(k){
-  case -1: err_msg((char *)"Input is not consistent");
+  case -1: err_msg("Input is not consistent");
     break;
-  case -2: err_msg((char *)"Larger nmax needed");
+  case -2: err_msg("Larger nmax needed");
     break;
-  case -3: err_msg((char *)"Step size too small");
+  case -3: err_msg("Step size too small");
     break;
-  case -4: err_msg((char *)"Problem became stiff");
+  case -4: err_msg("Problem became stiff");
     break;
   }
 }

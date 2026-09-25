@@ -7,22 +7,22 @@ extern "C" {
 
 void ALINE(int a, int b, int c, int d);
 void DLINE(double a, double b, double c, double d);
-void ATEXT(int a, int b, char *c);
+void ATEXT(int a, int b, const char *c);
 void clear_auto_plot(void);
 void redraw_auto_menus(void);
 void clear_auto_info(void);
-void draw_auto_info(char *bob, int x, int y);
+void draw_auto_info(const char *bob, int x, int y);
 void refreshdisplay(void);
 int byeauto_(int *iflag);
 void Circle(int x, int y, int r);
 void autocol(int col);
 void autobw(void);
 int auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag);
-int auto_pop_up_list(char *title, char **list, char *key, int n, int max, int def, int x, int y, char **hints, char *httxt);
+int auto_pop_up_list(const char *title, const char *const *list, const char *key, int n, int max, int def, int x, int y, const char *const *hints, const char *httxt);
 void XORCross(int x, int y);
 void FillCircle(int x, int y, int r);
 void LineWidth(int wid);
-void make_auto(char *wname, char *iname);
+void make_auto(const char *wname, const char *iname);
 void a_msg(int i, int v);
 void auto_kill(void);
 void find_point(int ibr,int pt);

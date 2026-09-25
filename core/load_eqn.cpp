@@ -1,3 +1,4 @@
+#include <string>
 #include "load_eqn.h"
 #include "markov.h"
 #include "xpp_mem.h"
@@ -99,7 +100,7 @@ extern int custom_color;
 extern int del_stab_flag;
 extern int MaxPoints;
 extern double THETA0,PHI0;
-/*void set_option(char *s1,char *s2);
+/*void set_option(char *s1,const char *s2);
 */
 
 /*   this file has all of the phaseplane parameters defined   
@@ -538,7 +539,7 @@ void fil_int(FILE *fpt, int *val)
 
 
 
-void add_intern_set(char *name, char *does)
+void add_intern_set(const char *name, const char *does)
 {
   char bob[1024],ch;
   int i,n,j=Nintern_set,k=0;
@@ -579,7 +580,7 @@ void add_intern_set(char *name, char *does)
 }
       
 
-void extract_action(char *ptr)
+void extract_action(const char *ptr)
 {
   char name[256],value[256];
  char tmp[2048];
@@ -604,7 +605,7 @@ void extract_internset(int j)
   extract_action(intern_set[j].does);
 }
 
-void do_intern_set(char *name1, char *value)
+void do_intern_set(const char *name1, const char *value)
 {
   int i;
   char name[256]; /* as in extract_action */
@@ -630,7 +631,7 @@ void do_intern_set(char *name1, char *value)
 }
 /*  ODE options stuff  here !!   */
 
-int msc(char *s1, char *s2)
+int msc(const char *s1, const char *s2)
 {
 
  int n=(int)strlen(s1),i;
@@ -744,7 +745,7 @@ void set_internopts_xpprc_and_comline()
 }
 
 
-void split_apart(char *bob, char *name, char *value)
+void split_apart(const char *bob, char *name, char *value)
 {
  /* name/value are pointers here; the smallest of split_apart's four
     callers pass char name[20],value[80] (the other passes [256],[256]),
@@ -795,7 +796,7 @@ void check_for_xpprc()
 }
 
 
-void stor_internopts(char *s1)
+void stor_internopts(const char *s1)
 {
   int n=strlen(s1);
   if(Nopts>MAXOPT){
@@ -811,16 +812,20 @@ void stor_internopts(char *s1)
   
 
 
-void set_option(char *s1, char *s2, int force, OptionsSet *mask)
+void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
 {
   int i,j,f;
  char xx[4],yy[4],zz[4];
  char xxl[6],xxh[6],yyl[6],yyh[6];
  static char mkey[]="demragvbqsc582y";
  static char Mkey[]="DEMRAGVBQSC582Y";
- strupr(s1);
- if(msc((char *)"QUIET",s1)){
-   if(!(msc(s2,(char *)"0")||msc(s2,(char *)"1")))
+ /* the option's name is matched upper case: upper-case a copy, not the
+    caller's text (a literal from the command line's options) */
+ std::string upper(name);
+ strupr(upper.data());
+ const char *s1=upper.c_str();
+ if(msc("QUIET",s1)){
+   if(!(msc(s2,"0")||msc(s2,"1")))
    {
    	xpp_log(XPP_LOG_ERROR, "QUIET option must be 0 or 1.\n");
 	exit(-1);
@@ -831,7 +836,7 @@ void set_option(char *s1, char *s2, int force, OptionsSet *mask)
    }
    return;
  }
- if(msc((char *)"LOGFILE",s1)){
+ if(msc("LOGFILE",s1)){
    if (log_settings.file_from_command_line==0) /*Will be 1 if -logfile was specified on the command line.*/
    {
       if (log_settings.file != NULL)       
@@ -842,67 +847,67 @@ void set_option(char *s1, char *s2, int force, OptionsSet *mask)
    }
    return;
  }
- if(msc((char *)"BELL",s1)){
-   if(!(msc(s2,(char *)"0")||msc(s2,(char *)"1")))
+ if(msc("BELL",s1)){
+   if(!(msc(s2,"0")||msc(s2,"1")))
    {
    	xpp_log(XPP_LOG_ERROR, "BELL option must be 0 or 1.\n");
 	exit(-1);
    }
    return; /* X11's bell: checked, not kept */
  }
- if(msc((char *)"BUT",s1)){
+ if(msc("BUT",s1)){
     add_user_button(s2);
     return;
   }
  /* BIGFONT .. HEIGHT and BACK were the X11 window's fonts, colours, image,
     size and paper: still accepted (old .ode and .xpprc files set them), no
     longer stored */
- if((msc((char *)"BIGFONT",s1))||(msc((char *)"BIG",s1))){
+ if((msc("BIGFONT",s1))||(msc("BIG",s1))){
     if ((notAlreadySet.BIG_FONT_NAME||force) || ((mask!=NULL)&&(mask->BIG_FONT_NAME==1)))
     {
 	notAlreadySet.BIG_FONT_NAME=0;
     }
     return;
   }
-  if((msc((char *)"SMALLFONT",s1))||(msc((char *)"SMALL",s1))){;
+  if((msc("SMALLFONT",s1))||(msc("SMALL",s1))){;
     if ((notAlreadySet.SMALL_FONT_NAME||force) || ((mask!=NULL)&&(mask->SMALL_FONT_NAME==1)))
     {
 	notAlreadySet.SMALL_FONT_NAME=0;
     }
     return;
   }
-  if(msc((char *)"FORECOLOR",s1)){
+  if(msc("FORECOLOR",s1)){
     if ((notAlreadySet.UserBlack||force) || ((mask!=NULL)&&(mask->UserBlack==1)))
     {
 	notAlreadySet.UserBlack=0;
     }
     return;
   }
-  if(msc((char *)"BACKCOLOR",s1)){
+  if(msc("BACKCOLOR",s1)){
     if ((notAlreadySet.UserWhite||force) || ((mask!=NULL)&&(mask->UserWhite==1)))
     {
 	notAlreadySet.UserWhite=0;
     }
     return;
   }
-  if(msc((char *)"MWCOLOR",s1)){
+  if(msc("MWCOLOR",s1)){
     if ((notAlreadySet.UserMainWinColor||force) || ((mask!=NULL)&&(mask->UserMainWinColor==1)))
     {
 	notAlreadySet.UserMainWinColor=0;
     }
     return;
   }
-  if(msc((char *)"DWCOLOR",s1)){
+  if(msc("DWCOLOR",s1)){
     if ((notAlreadySet.UserDrawWinColor||force) || ((mask!=NULL)&&(mask->UserDrawWinColor==1)))
     {
 	notAlreadySet.UserDrawWinColor=0;
     }
     return;
   }
-  if(msc((char *)"GRADS",s1)){
+  if(msc("GRADS",s1)){
     if ((notAlreadySet.UserGradients||force) || ((mask!=NULL)&&(mask->UserGradients==1)))
     {
-	    if(!(msc(s2,(char *)"0")||msc(s2,(char *)"1")))
+	    if(!(msc(s2,"0")||msc(s2,"1")))
 	    {
    		 xpp_log(XPP_LOG_ERROR, "GRADS option must be 0 or 1.\n");
 		 exit(-1);
@@ -914,7 +919,7 @@ void set_option(char *s1, char *s2, int force, OptionsSet *mask)
 
 
 
-  if(msc((char *)"PLOTFMT",s1)){
+  if(msc("PLOTFMT",s1)){
     if ((notAlreadySet.PLOTFORMAT||force) || ((mask!=NULL)&&(mask->PLOTFORMAT==1)))
     {
     	XPP_STRCPY(plot_export.format,s2);
@@ -925,28 +930,28 @@ void set_option(char *s1, char *s2, int force, OptionsSet *mask)
 
   
 
-  if(msc((char *)"BACKIMAGE",s1)){
+  if(msc("BACKIMAGE",s1)){
     if ((notAlreadySet.UserBGBitmap||force) || ((mask!=NULL)&&(mask->UserBGBitmap==1)))
     {
 	notAlreadySet.UserBGBitmap=0;
     }
     return;
   }
-  if(msc((char *)"WIDTH",s1)){
+  if(msc("WIDTH",s1)){
     if ((notAlreadySet.UserMinWidth||force)|| ((mask!=NULL)&&(mask->UserMinWidth==1)))
     {
        notAlreadySet.UserMinWidth=0;
     }
     return;
   }
-  if(msc((char *)"HEIGHT",s1)){
+  if(msc("HEIGHT",s1)){
     if ((notAlreadySet.UserMinHeight||force) || ((mask!=NULL)&&(mask->UserMinHeight==1)))
     {
 	 notAlreadySet.UserMinHeight=0;
     }
     return;
   }
-  if(msc((char *)"YNC",s1)){
+  if(msc("YNC",s1)){
     if ((notAlreadySet.YNullColor||force) || ((mask!=NULL)&&(mask->YNullColor==1)))
     {
 	  i=atoi(s2);
@@ -958,7 +963,7 @@ void set_option(char *s1, char *s2, int force, OptionsSet *mask)
     }
   return;
   }
-if(msc((char *)"XNC",s1)){
+if(msc("XNC",s1)){
     if ((notAlreadySet.XNullColor||force) || ((mask!=NULL)&&(mask->XNullColor==1)))
     {
 	    i=atoi(s2);
@@ -972,7 +977,7 @@ if(msc((char *)"XNC",s1)){
   return;
   }
 
-if(msc((char *)"SMC",s1)){
+if(msc("SMC",s1)){
 
     if ((notAlreadySet.StableManifoldColor||force) || ((mask!=NULL)&&(mask->StableManifoldColor==1)))
     {
@@ -986,7 +991,7 @@ if(msc((char *)"SMC",s1)){
     }
   return;
   }
-if(msc((char *)"UMC",s1)){
+if(msc("UMC",s1)){
     if ((notAlreadySet.UnstableManifoldColor||force) || ((mask!=NULL)&&(mask->UnstableManifoldColor==1)))
     {
 	    i=atoi(s2);
@@ -999,7 +1004,7 @@ if(msc((char *)"UMC",s1)){
    return;
   }
 
-  if(msc((char *)"LT",s1)){
+  if(msc("LT",s1)){
      if ((notAlreadySet.START_LINE_TYPE||force) || ((mask!=NULL)&&(mask->START_LINE_TYPE==1)))
      {
      	
@@ -1013,7 +1018,7 @@ if(msc((char *)"UMC",s1)){
      }
      return;
   }
-  if(msc((char *)"SEED",s1)){ 
+  if(msc("SEED",s1)){ 
      if ((notAlreadySet.RandSeed||force) || ((mask!=NULL)&&(mask->RandSeed==1)))
      {
 	    i=atoi(s2);
@@ -1025,14 +1030,14 @@ if(msc((char *)"UMC",s1)){
      }
     return;
   }
- if(msc((char *)"BACK",s1)){
+ if(msc("BACK",s1)){
    if ((notAlreadySet.PaperWhite||force) || ((mask!=NULL)&&(mask->PaperWhite==1)))
    {
 	   notAlreadySet.PaperWhite=0;
    }
     return;
   }
- if(msc((char *)"COLORMAP",s1)){
+ if(msc("COLORMAP",s1)){
      if ((notAlreadySet.COLORMAP||force) || ((mask!=NULL)&&(mask->COLORMAP==1)))
      {
    		i=atoi(s2);
@@ -1042,7 +1047,7 @@ if(msc((char *)"UMC",s1)){
      }
    return;
  }
-   if(msc((char *)"NPLOT",s1)){
+   if(msc("NPLOT",s1)){
      if ((notAlreadySet.NPLOT||force) || ((mask!=NULL)&&(mask->NPLOT==1)))
      {
     	NPltV=atoi(s2);
@@ -1051,7 +1056,7 @@ if(msc((char *)"UMC",s1)){
     return;
   }
 
-   if(msc((char *)"DLL_LIB",s1)){
+   if(msc("DLL_LIB",s1)){
       if ((notAlreadySet.DLL_LIB||force) || ((mask!=NULL)&&(mask->DLL_LIB==1)))
      {
      XPP_SPRINTF(dll_lib,"%s",s2);
@@ -1060,7 +1065,7 @@ if(msc((char *)"UMC",s1)){
      }
      return;
    }
-   if(msc((char *)"DLL_FUN",s1)){
+   if(msc("DLL_FUN",s1)){
      if ((notAlreadySet.DLL_FUN||force) || ((mask!=NULL)&&(mask->DLL_FUN==1)))
      {
      	XPP_SPRINTF(dll_fun,"%s",s2);
@@ -1070,11 +1075,11 @@ if(msc((char *)"UMC",s1)){
      return;
    }
    /* can now initialize several plots */
-   if(msc((char *)"SIMPLOT",s1)){
+   if(msc("SIMPLOT",s1)){
      plot_windows.simul=1;
      return;
    }
-   if(msc((char *)"MULTIWIN",s1)){
+   if(msc("MULTIWIN",s1)){
      MultiWin=1;
      return;
    }
@@ -1118,7 +1123,7 @@ if(msc(yyl,s1)){
      return;
    }
  }
-   if(msc((char *)"XP",s1)){
+   if(msc("XP",s1)){
      if ((notAlreadySet.XP||force) || ((mask!=NULL)&&(mask->XP==1)))
      {
     	find_variable(s2,&i);
@@ -1128,7 +1133,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"YP",s1)){
+   if(msc("YP",s1)){
      if ((notAlreadySet.YP||force) || ((mask!=NULL)&&(mask->YP==1)))
      {
      	find_variable(s2,&i);
@@ -1138,7 +1143,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"ZP",s1)){
+   if(msc("ZP",s1)){
      if ((notAlreadySet.ZP||force) || ((mask!=NULL)&&(mask->ZP==1)))
      {
      	find_variable(s2,&i);
@@ -1149,7 +1154,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"AXES",s1)){
+   if(msc("AXES",s1)){
      if ((notAlreadySet.AXES||force) || ((mask!=NULL)&&(mask->AXES==1)))
      {
 	 if(s2[0]=='3')
@@ -1166,7 +1171,7 @@ if(msc(yyl,s1)){
     return;
   }
 
-   if(msc((char *)"NJMP",s1)){
+   if(msc("NJMP",s1)){
      if ((notAlreadySet.NOUT||force) || ((mask!=NULL)&&(mask->NOUT==1)))
      {
     	NJMP=atoi(s2);
@@ -1174,7 +1179,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-  if(msc((char *)"NOUT",s1)){
+  if(msc("NOUT",s1)){
      if ((notAlreadySet.NOUT||force) || ((mask!=NULL)&&(mask->NOUT==1)))
      {
       NJMP=atoi(s2);
@@ -1182,7 +1187,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"NMESH",s1)){
+   if(msc("NMESH",s1)){
      if ((notAlreadySet.NMESH||force) || ((mask!=NULL)&&(mask->NMESH==1)))
      {
     	NMESH=atoi(s2);
@@ -1190,7 +1195,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"METH",s1)){
+   if(msc("METH",s1)){
      if ((notAlreadySet.METHOD||force) || ((mask!=NULL)&&(mask->METHOD==1)))
      {
     for(i=0;i<15;i++)
@@ -1201,7 +1206,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"VMAXPTS",s1)){
+   if(msc("VMAXPTS",s1)){
      if ((notAlreadySet.VMAXPTS||force) || ((mask!=NULL)&&(mask->VMAXPTS==1)))
      {
      	MaxPoints=atoi(s2);
@@ -1210,7 +1215,7 @@ if(msc(yyl,s1)){
      }
      return;
    }
-   if(msc((char *)"MAXSTOR",s1)){ 
+   if(msc("MAXSTOR",s1)){ 
      if ((notAlreadySet.MAXSTOR||force) || ((mask!=NULL)&&(mask->MAXSTOR==1)))
      {
     	MAXSTOR=atoi(s2);
@@ -1218,7 +1223,7 @@ if(msc(yyl,s1)){
      } 
     return;
   }
-   if(msc((char *)"TOR_PER",s1)){
+   if(msc("TOR_PER",s1)){
      if ((notAlreadySet.TOR_PER||force) || ((mask!=NULL)&&(mask->TOR_PER==1)))
      {
      	TOR_PERIOD=atof(s2);
@@ -1227,7 +1232,7 @@ if(msc(yyl,s1)){
      }
      return;
    }
-   if(msc((char *)"JAC_EPS",s1)){
+   if(msc("JAC_EPS",s1)){
      if ((notAlreadySet.JAC_EPS||force) || ((mask!=NULL)&&(mask->JAC_EPS==1)))
      {
      	NEWT_ERR=atof(s2);
@@ -1235,7 +1240,7 @@ if(msc(yyl,s1)){
      }
      return;
    }
-   if(msc((char *)"NEWT_TOL",s1)){
+   if(msc("NEWT_TOL",s1)){
      if ((notAlreadySet.NEWT_TOL||force) || ((mask!=NULL)&&(mask->NEWT_TOL==1)))
      {
      	EVEC_ERR=atof(s2);
@@ -1244,7 +1249,7 @@ if(msc(yyl,s1)){
      }
      return;
    }
-   if(msc((char *)"NEWT_ITER",s1)){
+   if(msc("NEWT_ITER",s1)){
      if ((notAlreadySet.NEWT_ITER||force) || ((mask!=NULL)&&(mask->NEWT_ITER==1)))
      {
      	EVEC_ITER=atoi(s2);
@@ -1252,7 +1257,7 @@ if(msc(yyl,s1)){
      }
      return;
    }
-  if(msc((char *)"FOLD",s1)){
+  if(msc("FOLD",s1)){
      if ((notAlreadySet.FOLD||force) || ((mask!=NULL)&&(mask->FOLD==1)))
      {
      find_variable(s2,&i);
@@ -1264,7 +1269,7 @@ if(msc(yyl,s1)){
      }
      return;
    }
-   if(msc((char *)"TOTAL",s1)){
+   if(msc("TOTAL",s1)){
     if ((notAlreadySet.TEND||force) || ((mask!=NULL)&&(mask->TEND==1)))
      {
     	TEND=atof(s2);
@@ -1272,7 +1277,7 @@ if(msc(yyl,s1)){
     }
     return;
   }
-  if(msc((char *)"DTMIN",s1)){
+  if(msc("DTMIN",s1)){
      if ((notAlreadySet.DTMIN||force) || ((mask!=NULL)&&(mask->DTMIN==1)))
      {
     	HMIN=atof(s2);
@@ -1280,7 +1285,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-  if(msc((char *)"DTMAX",s1)){
+  if(msc("DTMAX",s1)){
      if ((notAlreadySet.DTMAX||force) || ((mask!=NULL)&&(mask->DTMAX==1)))
      {
     	HMAX=atof(s2);
@@ -1288,7 +1293,7 @@ if(msc(yyl,s1)){
       }
     return;
   }
-   if(msc((char *)"DT",s1)){
+   if(msc("DT",s1)){
      if ((notAlreadySet.DT||force) || ((mask!=NULL)&&(mask->DT==1)))
      {
     	DELTA_T=atof(s2);
@@ -1296,7 +1301,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"T0",s1)){
+   if(msc("T0",s1)){
      if ((notAlreadySet.T0||force) || ((mask!=NULL)&&(mask->T0==1)))
      { 
     	T0=atof(s2);
@@ -1304,7 +1309,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"TRANS",s1)){
+   if(msc("TRANS",s1)){
      if ((notAlreadySet.TRANS||force) || ((mask!=NULL)&&(mask->TRANS==1)))
      {
      	TRANS=atof(s2);
@@ -1312,7 +1317,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"BOUND",s1)){
+   if(msc("BOUND",s1)){
      if ((notAlreadySet.BOUND||force) || ((mask!=NULL)&&(mask->BOUND==1)))
      {
        BOUND=atof(s2);
@@ -1320,7 +1325,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"ATOL",s1)){
+   if(msc("ATOL",s1)){
      if ((notAlreadySet.ATOLER||force) || ((mask!=NULL)&&(mask->ATOLER==1)))
      {
      	ATOLER=atof(s2);
@@ -1328,7 +1333,7 @@ if(msc(yyl,s1)){
      }
      return;
    }
-   if(msc((char *)"TOL",s1)){
+   if(msc("TOL",s1)){
      if ((notAlreadySet.TOLER||force) || ((mask!=NULL)&&(mask->TOLER==1)))
      {
 	TOLER=atof(s2);
@@ -1337,7 +1342,7 @@ if(msc(yyl,s1)){
     return;
   }
     
-   if(msc((char *)"DELAY",s1)){
+   if(msc("DELAY",s1)){
      if ((notAlreadySet.DELAY||force) || ((mask!=NULL)&&(mask->DELAY==1)))
      {
     	DELAY=atof(s2);
@@ -1345,7 +1350,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"BANDUP",s1)){
+   if(msc("BANDUP",s1)){
      if ((notAlreadySet.BANDUP||force) || ((mask!=NULL)&&(mask->BANDUP==1)))
      {
      	cv_bandflag=1;
@@ -1354,7 +1359,7 @@ if(msc(yyl,s1)){
      }
      return;
    }
-  if(msc((char *)"BANDLO",s1)){
+  if(msc("BANDLO",s1)){
      if ((notAlreadySet.BANDLO||force) || ((mask!=NULL)&&(mask->BANDLO==1)))
      {
      	cv_bandflag=1;
@@ -1364,7 +1369,7 @@ if(msc(yyl,s1)){
      return;
    }
   
-  if(msc((char *)"PHI",s1)){
+  if(msc("PHI",s1)){
      if ((notAlreadySet.PHI||force) || ((mask!=NULL)&&(mask->PHI==1)))
      {
     	PHI0=atof(s2);
@@ -1372,7 +1377,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"THETA",s1)){
+   if(msc("THETA",s1)){
      if ((notAlreadySet.THETA||force) || ((mask!=NULL)&&(mask->THETA==1)))
      {
     	THETA0=atof(s2);
@@ -1380,7 +1385,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"XLO",s1)){
+   if(msc("XLO",s1)){
      if ((notAlreadySet.XLO||force) || ((mask!=NULL)&&(mask->XLO==1)))
      {
     	MY_XLO=atof(s2);
@@ -1388,7 +1393,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"YLO",s1)){
+   if(msc("YLO",s1)){
     if ((notAlreadySet.YLO||force) || ((mask!=NULL)&&(mask->YLO==1)))
     {
     	MY_YLO=atof(s2);
@@ -1397,7 +1402,7 @@ if(msc(yyl,s1)){
     return;
   }
   
-   if(msc((char *)"XHI",s1)){
+   if(msc("XHI",s1)){
     if ((notAlreadySet.XHI||force) || ((mask!=NULL)&&(mask->XHI==1)))
     {
     	MY_XHI=atof(s2);
@@ -1405,7 +1410,7 @@ if(msc(yyl,s1)){
     }
     return;
   }
-   if(msc((char *)"YHI",s1)){
+   if(msc("YHI",s1)){
      if ((notAlreadySet.YHI||force) || ((mask!=NULL)&&(mask->YHI==1)))
      {
     	MY_YHI=atof(s2);
@@ -1413,7 +1418,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"XMAX",s1)){
+   if(msc("XMAX",s1)){
      if ((notAlreadySet.XMAX||force) || ((mask!=NULL)&&(mask->XMAX==1)))
      {
     	x_3d[1]=atof(s2);
@@ -1422,7 +1427,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"YMAX",s1)){
+   if(msc("YMAX",s1)){
      if ((notAlreadySet.YMAX||force) || ((mask!=NULL)&&(mask->YMAX==1)))
      {
         y_3d[1]=atof(s2);
@@ -1430,7 +1435,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"ZMAX",s1)){
+   if(msc("ZMAX",s1)){
      if ((notAlreadySet.ZMAX||force) || ((mask!=NULL)&&(mask->ZMAX==1)))
      {
         z_3d[1]=atof(s2);
@@ -1438,7 +1443,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"XMIN",s1)){
+   if(msc("XMIN",s1)){
      /*  printf("Trying to set XMIN %d =%s\n",notAlreadySet.XMIN,s2); */
      if ((notAlreadySet.XMIN||force) || ((mask!=NULL)&&(mask->XMIN==1)))
      {
@@ -1452,7 +1457,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
-   if(msc((char *)"YMIN",s1)){
+   if(msc("YMIN",s1)){
      if ((notAlreadySet.YMIN||force) || ((mask!=NULL)&&(mask->YMIN==1)))
      {
     	y_3d[0]=atof(s2);
@@ -1465,7 +1470,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
- if(msc((char *)"ZMIN",s1)){
+ if(msc("ZMIN",s1)){
      if ((notAlreadySet.ZMIN||force) || ((mask!=NULL)&&(mask->ZMIN==1)))
      {
     	z_3d[0]=atof(s2);
@@ -1474,7 +1479,7 @@ if(msc(yyl,s1)){
     return;
   }
 
- if(msc((char *)"POIMAP",s1)){
+ if(msc("POIMAP",s1)){
      if ((notAlreadySet.POIMAP||force) || ((mask!=NULL)&&(mask->POIMAP==1)))
      {
    	if(s2[0]=='m'||s2[0]=='M')POIMAP=2;
@@ -1485,7 +1490,7 @@ if(msc(yyl,s1)){
    return;
  }
 
- if(msc((char *)"POIVAR",s1)){
+ if(msc("POIVAR",s1)){
      if ((notAlreadySet.POIVAR||force) || ((mask!=NULL)&&(mask->POIVAR==1)))
      {
     	find_variable(s2,&i);
@@ -1496,7 +1501,7 @@ if(msc(yyl,s1)){
      }
     return;
   }
- if(msc((char *)"OUTPUT",s1)){
+ if(msc("OUTPUT",s1)){
      if ((notAlreadySet.OUTPUT||force) || ((mask!=NULL)&&(mask->OUTPUT==1)))
      {
    	XPP_STRCPY(batch_options.out_file,s2);
@@ -1505,7 +1510,7 @@ if(msc(yyl,s1)){
    return;
  }
   
- if(msc((char *)"POISGN",s1)){
+ if(msc("POISGN",s1)){
      if ((notAlreadySet.POISGN||force) || ((mask!=NULL)&&(mask->POISGN==1)))
      {
    	POISGN=atoi(s2);
@@ -1514,7 +1519,7 @@ if(msc(yyl,s1)){
    return;
  }
  
- if(msc((char *)"POISTOP",s1)){
+ if(msc("POISTOP",s1)){
      if ((notAlreadySet.POISTOP||force) || ((mask!=NULL)&&(mask->POISTOP==1)))
      {
    	SOS=atoi(s2);
@@ -1522,7 +1527,7 @@ if(msc(yyl,s1)){
      }
    return;
  }
- if(msc((char *)"STOCH",s1)){
+ if(msc("STOCH",s1)){
      if ((notAlreadySet.STOCH||force)|| ((mask!=NULL)&&(mask->STOCH==1)))
      {
    	STOCH_FLAG=atoi(s2);
@@ -1530,7 +1535,7 @@ if(msc(yyl,s1)){
      }
    return;
  }
- if(msc((char *)"POIPLN",s1)){
+ if(msc("POIPLN",s1)){
      if ((notAlreadySet.POIPLN||force)|| ((mask!=NULL)&&(mask->POIPLN==1)))
      {
    	POIPLN=atof(s2);
@@ -1541,7 +1546,7 @@ if(msc(yyl,s1)){
   
  
 
- if(msc((char *)"RANGEOVER",s1)){
+ if(msc("RANGEOVER",s1)){
      if ((notAlreadySet.RANGEOVER||force)|| ((mask!=NULL)&&(mask->RANGEOVER==1)))
      {
     	snprintf(range.item,sizeof(range.item),"%s",s2);
@@ -1550,7 +1555,7 @@ if(msc(yyl,s1)){
 
     return;
   }
- if(msc((char *)"RANGESTEP",s1)){
+ if(msc("RANGESTEP",s1)){
      if ((notAlreadySet.RANGESTEP||force)|| ((mask!=NULL)&&(mask->RANGESTEP==1)))
      {
         
@@ -1560,7 +1565,7 @@ if(msc(yyl,s1)){
    return;
  }
   
- if(msc((char *)"RANGELOW",s1)){
+ if(msc("RANGELOW",s1)){
      if ((notAlreadySet.RANGELOW||force)|| ((mask!=NULL)&&(mask->RANGELOW==1)))
      {
    	range.plow=atof(s2);
@@ -1570,7 +1575,7 @@ if(msc(yyl,s1)){
    return;
  }
 
- if(msc((char *)"RANGEHIGH",s1)){
+ if(msc("RANGEHIGH",s1)){
      if ((notAlreadySet.RANGEHIGH||force)|| ((mask!=NULL)&&(mask->RANGEHIGH==1)))
      {
    	range.phigh=atof(s2);
@@ -1579,7 +1584,7 @@ if(msc(yyl,s1)){
    return;
  }
  
- if(msc((char *)"RANGERESET",s1)){
+ if(msc("RANGERESET",s1)){
      if ((notAlreadySet.RANGERESET||force)|| ((mask!=NULL)&&(mask->RANGERESET==1)))
      {
 	 if(s2[0]=='y'||s2[0]=='Y')
@@ -1595,7 +1600,7 @@ if(msc(yyl,s1)){
   	return;
    }
 
- if(msc((char *)"RANGEOLDIC",s1)){
+ if(msc("RANGEOLDIC",s1)){
      if ((notAlreadySet.RANGEOLDIC||force)|| ((mask!=NULL)&&(mask->RANGEOLDIC==1)))
      {
   	if(s2[0]=='y'||s2[0]=='Y')
@@ -1613,7 +1618,7 @@ if(msc(yyl,s1)){
  }
  
    
- if(msc((char *)"RANGE",s1)){
+ if(msc("RANGE",s1)){
      if ((notAlreadySet.RANGE||force)|| ((mask!=NULL)&&(mask->RANGE==1)))
      {
    	batch_options.range=atoi(s2);
@@ -1622,7 +1627,7 @@ if(msc(yyl,s1)){
    return;
  }
  
- if(msc((char *)"NTST",s1)){
+ if(msc("NTST",s1)){
      if ((notAlreadySet.NTST||force)|| ((mask!=NULL)&&(mask->NTST==1)))
      {
    	auto_ntst=atoi(s2);
@@ -1630,7 +1635,7 @@ if(msc(yyl,s1)){
      }
    return;
  }
-if(msc((char *)"NMAX",s1)){
+if(msc("NMAX",s1)){
    if ((notAlreadySet.NMAX||force)|| ((mask!=NULL)&&(mask->NMAX==1)))
    {
    	auto_nmx=atoi(s2);
@@ -1638,7 +1643,7 @@ if(msc((char *)"NMAX",s1)){
    }
    return;
  }
-if(msc((char *)"NPR",s1)){
+if(msc("NPR",s1)){
    if ((notAlreadySet.NPR||force)|| ((mask!=NULL)&&(mask->NPR==1)))
    {
    	auto_npr=atoi(s2);
@@ -1646,7 +1651,7 @@ if(msc((char *)"NPR",s1)){
    }
    return;
  }
- if(msc((char *)"NCOL",s1)){
+ if(msc("NCOL",s1)){
    if ((notAlreadySet.NCOL||force)|| ((mask!=NULL)&&(mask->NCOL==1)))
    {
    	auto_ncol=atoi(s2);
@@ -1656,7 +1661,7 @@ if(msc((char *)"NPR",s1)){
  }
 
 
-if(msc((char *)"DSMIN",s1)){
+if(msc("DSMIN",s1)){
    if ((notAlreadySet.DSMIN||force)|| ((mask!=NULL)&&(mask->DSMIN==1)))
    {
    	auto_dsmin=atof(s2);
@@ -1664,7 +1669,7 @@ if(msc((char *)"DSMIN",s1)){
    }
    return;
  }
-if(msc((char *)"DSMAX",s1)){
+if(msc("DSMAX",s1)){
    if ((notAlreadySet.DSMAX||force)|| ((mask!=NULL)&&(mask->DSMAX==1)))
    {
    	auto_dsmax=atof(s2);
@@ -1672,7 +1677,7 @@ if(msc((char *)"DSMAX",s1)){
    }
    return;
  }
-if(msc((char *)"DS",s1)){
+if(msc("DS",s1)){
     if ((notAlreadySet.DS||force)|| ((mask!=NULL)&&(mask->DS==1)))
     {
    	auto_ds=atof(s2);
@@ -1681,7 +1686,7 @@ if(msc((char *)"DS",s1)){
  
    return;
  }
-if(msc((char *)"PARMIN",s1)){
+if(msc("PARMIN",s1)){
    if ((notAlreadySet.XMAX||force)|| ((mask!=NULL)&&(mask->XMAX==1)))
    {
    	auto_rl0=atof(s2);
@@ -1689,7 +1694,7 @@ if(msc((char *)"PARMIN",s1)){
    }
    return;
  }
-if(msc((char *)"PARMAX",s1)){
+if(msc("PARMAX",s1)){
     if ((notAlreadySet.PARMAX||force)|| ((mask!=NULL)&&(mask->PARMAX==1)))
     {
    	auto_rl1=atof(s2);
@@ -1697,7 +1702,7 @@ if(msc((char *)"PARMAX",s1)){
     }
    return;
  }
-if(msc((char *)"NORMMIN",s1)){
+if(msc("NORMMIN",s1)){
      if ((notAlreadySet.NORMMIN||force)|| ((mask!=NULL)&&(mask->NORMMIN==1)))
      {
    	auto_a0=atof(s2);
@@ -1705,7 +1710,7 @@ if(msc((char *)"NORMMIN",s1)){
      }
    return;
  }
-if(msc((char *)"NORMMAX",s1)){
+if(msc("NORMMAX",s1)){
      if ((notAlreadySet.NORMMAX||force)|| ((mask!=NULL)&&(mask->NORMMAX==1)))
      {
    	auto_a1=atof(s2);
@@ -1713,7 +1718,7 @@ if(msc((char *)"NORMMAX",s1)){
      }
    return;
  }
- if(msc((char *)"EPSL",s1)){
+ if(msc("EPSL",s1)){
      if ((notAlreadySet.EPSL||force)|| ((mask!=NULL)&&(mask->EPSL==1)))
      {
    	auto_epsl=atof(s2);
@@ -1722,7 +1727,7 @@ if(msc((char *)"NORMMAX",s1)){
    return;
  }
 
-if(msc((char *)"EPSU",s1)){
+if(msc("EPSU",s1)){
      if ((notAlreadySet.EPSU||force)|| ((mask!=NULL)&&(mask->EPSU==1)))
      {
    	auto_epsu=atof(s2);
@@ -1730,7 +1735,7 @@ if(msc((char *)"EPSU",s1)){
      }
    return;
  }
-if(msc((char *)"EPSS",s1)){
+if(msc("EPSS",s1)){
      if ((notAlreadySet.EPSS||force)|| ((mask!=NULL)&&(mask->EPSS==1)))
      {
    	auto_epss=atof(s2);
@@ -1738,7 +1743,7 @@ if(msc((char *)"EPSS",s1)){
      }
    return;
  }
- if(msc((char *)"RUNNOW",s1)){
+ if(msc("RUNNOW",s1)){
      if ((notAlreadySet.RUNNOW||force)|| ((mask!=NULL)&&(mask->RUNNOW==1)))
      {
    	RunImmediately=atoi(s2);
@@ -1747,7 +1752,7 @@ if(msc((char *)"EPSS",s1)){
    return;
  }
 
- if(msc((char *)"SEC",s1)){
+ if(msc("SEC",s1)){
      if ((notAlreadySet.SEC||force)|| ((mask!=NULL)&&(mask->SEC==1)))
      {
    	SEc=atoi(s2);
@@ -1755,7 +1760,7 @@ if(msc((char *)"EPSS",s1)){
      }
    return;
  }
- if(msc((char *)"UEC",s1)){
+ if(msc("UEC",s1)){
      if ((notAlreadySet.UEC||force)|| ((mask!=NULL)&&(mask->UEC==1)))
      {
    	UEc=atoi(s2);
@@ -1763,7 +1768,7 @@ if(msc((char *)"EPSS",s1)){
      }
    return;
  }
- if(msc((char *)"SPC",s1)){
+ if(msc("SPC",s1)){
      if ((notAlreadySet.SPC||force)|| ((mask!=NULL)&&(mask->SPC==1)))
      {
    	SPc=atoi(s2);
@@ -1771,7 +1776,7 @@ if(msc((char *)"EPSS",s1)){
      }
    return;
  }
- if(msc((char *)"UPC",s1)){
+ if(msc("UPC",s1)){
      if ((notAlreadySet.UPC||force)|| ((mask!=NULL)&&(mask->UPC==1)))
      {
    	UPc=atoi(s2);
@@ -1780,7 +1785,7 @@ if(msc((char *)"EPSS",s1)){
    return;
  }
 
- if(msc((char *)"AUTOEVAL",s1)){
+ if(msc("AUTOEVAL",s1)){
      if ((notAlreadySet.AUTOEVAL||force)|| ((mask!=NULL)&&(mask->AUTOEVAL==1)))
      {
    	f=atoi(s2);
@@ -1789,7 +1794,7 @@ if(msc((char *)"EPSS",s1)){
     }
    return;
  }
-if(msc((char *)"AUTOXMAX",s1)){
+if(msc("AUTOXMAX",s1)){
      if ((notAlreadySet.AUTOXMAX||force)|| ((mask!=NULL)&&(mask->AUTOXMAX==1)))
      {
  	auto_xmax=atof(s2);
@@ -1797,7 +1802,7 @@ if(msc((char *)"AUTOXMAX",s1)){
      }
  return;
 }
-if(msc((char *)"AUTOYMAX",s1)){
+if(msc("AUTOYMAX",s1)){
      if ((notAlreadySet.AUTOYMAX||force)|| ((mask!=NULL)&&(mask->AUTOYMAX==1)))
      {
  		auto_ymax=atof(s2);
@@ -1805,7 +1810,7 @@ if(msc((char *)"AUTOYMAX",s1)){
      }
  return;
 }
-if(msc((char *)"AUTOXMIN",s1)){
+if(msc("AUTOXMIN",s1)){
      if ((notAlreadySet.AUTOXMIN||force)|| ((mask!=NULL)&&(mask->AUTOXMIN==1)))
      {
  	auto_xmin=atof(s2);
@@ -1813,7 +1818,7 @@ if(msc((char *)"AUTOXMIN",s1)){
      }
  return;
 }
-if(msc((char *)"AUTOYMIN",s1)){
+if(msc("AUTOYMIN",s1)){
      if ((notAlreadySet.AUTOYMIN||force)|| ((mask!=NULL)&&(mask->AUTOYMIN==1)))
      {
  	auto_ymin=atof(s2);
@@ -1821,7 +1826,7 @@ if(msc((char *)"AUTOYMIN",s1)){
      }
  return;
 }
-if(msc((char *)"AUTOVAR",s1)){
+if(msc("AUTOVAR",s1)){
      if ((notAlreadySet.AUTOVAR||force)|| ((mask!=NULL)&&(mask->AUTOVAR==1)))
      {
      	find_variable(s2,&i);
@@ -1833,7 +1838,7 @@ if(msc((char *)"AUTOVAR",s1)){
 
 /* postscript options */
 
- if(msc((char *)"PS_FONT",s1)){
+ if(msc("PS_FONT",s1)){
      if ((notAlreadySet.PS_FONT||force)|| ((mask!=NULL)&&(mask->PS_FONT==1)))
      {
    	XPP_STRCPY(PS_FONT,s2);
@@ -1842,7 +1847,7 @@ if(msc((char *)"AUTOVAR",s1)){
    return;
  }
 
-if(msc((char *)"PS_LW",s1)){
+if(msc("PS_LW",s1)){
    if ((notAlreadySet.PS_LW||force)|| ((mask!=NULL)&&(mask->PS_LW==1)))
    {
   	PS_LW=atof(s2);
@@ -1851,7 +1856,7 @@ if(msc((char *)"PS_LW",s1)){
    return;
  }
 
-if(msc((char *)"PS_FSIZE",s1)){
+if(msc("PS_FSIZE",s1)){
      if ((notAlreadySet.PS_FSIZE||force)|| ((mask!=NULL)&&(mask->PS_FSIZE==1)))
      {
   	PS_FONTSIZE=atoi(s2);
@@ -1860,7 +1865,7 @@ if(msc((char *)"PS_FSIZE",s1)){
    return;
  }
 
-if(msc((char *)"PS_COLOR",s1)){
+if(msc("PS_COLOR",s1)){
      if ((notAlreadySet.PS_COLOR||force)|| ((mask!=NULL)&&(mask->PS_COLOR==1)))
      {
   	PSColorFlag=atoi(s2);
@@ -1869,8 +1874,8 @@ if(msc((char *)"PS_COLOR",s1)){
      }
    return;
  }
-if(msc((char *)"TUTORIAL",s1)){
-   if(!(msc(s2,(char *)"0")||msc(s2,(char *)"1")))
+if(msc("TUTORIAL",s1)){
+   if(!(msc(s2,"0")||msc(s2,"1")))
    {
    	xpp_log(XPP_LOG_ERROR, "TUTORIAL option must be 0 or 1.\n");
 	exit(-1);
@@ -1882,7 +1887,7 @@ if(msc((char *)"TUTORIAL",s1)){
    }
    return;
  }
- if(msc((char *)"S1",s1)){
+ if(msc("S1",s1)){
      if ((notAlreadySet.SLIDER1||force) || ((mask!=NULL)&&(mask->SLIDER1==1)))
      {
 	snprintf(sliders[0].var,sizeof(sliders[0].var),"%s",s2);
@@ -1891,7 +1896,7 @@ if(msc((char *)"TUTORIAL",s1)){
     return;
   }
 
-if(msc((char *)"S2",s1)){
+if(msc("S2",s1)){
      if ((notAlreadySet.SLIDER2||force) || ((mask!=NULL)&&(mask->SLIDER2==1)))
      {
     	snprintf(sliders[1].var,sizeof(sliders[1].var),"%s",s2);
@@ -1899,7 +1904,7 @@ if(msc((char *)"S2",s1)){
      }
     return;
    }
- if(msc((char *)"S3",s1)){
+ if(msc("S3",s1)){
      if ((notAlreadySet.SLIDER3||force) || ((mask!=NULL)&&(mask->SLIDER3==1)))
      {	
      	snprintf(sliders[2].var,sizeof(sliders[2].var),"%s",s2);
@@ -1907,7 +1912,7 @@ if(msc((char *)"S2",s1)){
      }
     return;
   }
-  if(msc((char *)"SLO1",s1)){
+  if(msc("SLO1",s1)){
      if ((notAlreadySet.SLIDER1LO||force) || ((mask!=NULL)&&(mask->SLIDER1LO==1)))
      {
     	sliders[0].lo=atof(s2);
@@ -1916,7 +1921,7 @@ if(msc((char *)"S2",s1)){
     return;
   }
 
-if(msc((char *)"SLO2",s1)){
+if(msc("SLO2",s1)){
      if ((notAlreadySet.SLIDER2LO||force) || ((mask!=NULL)&&(mask->SLIDER2LO==1)))
      {
     	sliders[1].lo=atof(s2);
@@ -1924,7 +1929,7 @@ if(msc((char *)"SLO2",s1)){
      }
     return;
    }
- if(msc((char *)"SLO3",s1)){
+ if(msc("SLO3",s1)){
      if ((notAlreadySet.SLIDER3LO||force) || ((mask!=NULL)&&(mask->SLIDER3LO==1)))
      {
     	sliders[2].lo=atof(s2);
@@ -1932,7 +1937,7 @@ if(msc((char *)"SLO2",s1)){
      }
     return;
   }
- if(msc((char *)"SHI1",s1)){
+ if(msc("SHI1",s1)){
      if ((notAlreadySet.SLIDER1HI||force) || ((mask!=NULL)&&(mask->SLIDER1HI==1)))
      {
     	sliders[0].hi=atof(s2);
@@ -1940,7 +1945,7 @@ if(msc((char *)"SLO2",s1)){
      }
     return;
   }
- if(msc((char *)"SHI2",s1)){
+ if(msc("SHI2",s1)){
      if ((notAlreadySet.SLIDER2HI||force) || ((mask!=NULL)&&(mask->SLIDER2HI==1)))
      {
     	sliders[1].hi=atof(s2);
@@ -1948,7 +1953,7 @@ if(msc((char *)"SLO2",s1)){
      }
     return;
    }
- if(msc((char *)"SHI3",s1)){
+ if(msc("SHI3",s1)){
      if ((notAlreadySet.SLIDER3HI||force) || ((mask!=NULL)&&(mask->SLIDER3HI==1)))
      {
     	sliders[2].hi=atof(s2);
@@ -1962,7 +1967,7 @@ if(msc((char *)"SLO2",s1)){
     writes files then
  */
 
- if(msc((char *)"POSTPROCESS",s1)){
+ if(msc("POSTPROCESS",s1)){
      if ((notAlreadySet.POSTPROCESS||force) || ((mask!=NULL)&&(mask->POSTPROCESS==1)))
      {
     	post_process=atoi(s2);
@@ -1971,7 +1976,7 @@ if(msc((char *)"SLO2",s1)){
     return;
    }
    
- if(msc((char *)"HISTLO",s1)){
+ if(msc("HISTLO",s1)){
      if ((notAlreadySet.HISTLO||force) || ((mask!=NULL)&&(mask->HISTLO==1)))
      {
     	hist_inf.xlo=atof(s2);
@@ -1980,7 +1985,7 @@ if(msc((char *)"SLO2",s1)){
     return;
   }
 
- if(msc((char *)"HISTHI",s1)){
+ if(msc("HISTHI",s1)){
      if ((notAlreadySet.HISTHI||force) || ((mask!=NULL)&&(mask->HISTHI==1)))
      {
     	hist_inf.xhi=atof(s2);
@@ -1989,7 +1994,7 @@ if(msc((char *)"SLO2",s1)){
     return;
   }
 
- if(msc((char *)"HISTBINS",s1)){
+ if(msc("HISTBINS",s1)){
      if ((notAlreadySet.HISTBINS||force) || ((mask!=NULL)&&(mask->HISTBINS==1)))
      {
     	hist_inf.nbins=atoi(s2);
@@ -1998,7 +2003,7 @@ if(msc((char *)"SLO2",s1)){
     return;
   }
 
- if(msc((char *)"HISTCOL",s1)){
+ if(msc("HISTCOL",s1)){
      if ((notAlreadySet.HISTCOL||force) || ((mask!=NULL)&&(mask->HISTCOL==1)))
      {
        find_variable(s2,&i);
@@ -2008,7 +2013,7 @@ if(msc((char *)"SLO2",s1)){
     return;
   }
 
- if(msc((char *)"HISTLO2",s1)){
+ if(msc("HISTLO2",s1)){
      if ((notAlreadySet.HISTLO2||force) || ((mask!=NULL)&&(mask->HISTLO2==1)))
      {
     	hist_inf.ylo=atof(s2);
@@ -2017,7 +2022,7 @@ if(msc((char *)"SLO2",s1)){
     return;
   }
 
- if(msc((char *)"HISTHI2",s1)){
+ if(msc("HISTHI2",s1)){
      if ((notAlreadySet.HISTHI2||force) || ((mask!=NULL)&&(mask->HISTHI2==1)))
      {
     	hist_inf.yhi=atof(s2);
@@ -2026,7 +2031,7 @@ if(msc((char *)"SLO2",s1)){
     return;
   }
 
- if(msc((char *)"HISTBINS2",s1)){
+ if(msc("HISTBINS2",s1)){
      if ((notAlreadySet.HISTBINS2||force) || ((mask!=NULL)&&(mask->HISTBINS2==1)))
      {
     	hist_inf.nbins2=atoi(s2);
@@ -2035,7 +2040,7 @@ if(msc((char *)"SLO2",s1)){
     return;
   }
 
- if(msc((char *)"HISTCOL2",s1)){
+ if(msc("HISTCOL2",s1)){
      if ((notAlreadySet.HISTCOL2||force) || ((mask!=NULL)&&(mask->HISTCOL2==1)))
      {
        find_variable(s2,&i);
@@ -2046,7 +2051,7 @@ if(msc((char *)"SLO2",s1)){
   }
 
 
- if(msc((char *)"SPECCOL",s1)){
+ if(msc("SPECCOL",s1)){
      if ((notAlreadySet.SPECCOL||force) || ((mask!=NULL)&&(mask->SPECCOL==1)))
      {
        find_variable(s2,&i);
@@ -2056,7 +2061,7 @@ if(msc((char *)"SLO2",s1)){
     return;
   }
 
- if(msc((char *)"SPECCOL2",s1)){
+ if(msc("SPECCOL2",s1)){
      if ((notAlreadySet.SPECCOL2||force) || ((mask!=NULL)&&(mask->SPECCOL2==1)))
      {
        find_variable(s2,&i);
@@ -2066,7 +2071,7 @@ if(msc((char *)"SLO2",s1)){
     return;
   }
 
- if(msc((char *)"SPECWIDTH",s1)){
+ if(msc("SPECWIDTH",s1)){
      if ((notAlreadySet.SPECWIDTH||force) || ((mask!=NULL)&&(mask->SPECWIDTH==1)))
      {
        spec_wid=atoi(s2);
@@ -2075,7 +2080,7 @@ if(msc((char *)"SLO2",s1)){
     return;
   }
 
- if(msc((char *)"SPECWIN",s1)){
+ if(msc("SPECWIN",s1)){
      if ((notAlreadySet.SPECWIN||force) || ((mask!=NULL)&&(mask->SPECWIN==1)))
      {
        spec_win=atoi(s2);
@@ -2085,7 +2090,7 @@ if(msc((char *)"SLO2",s1)){
   }
 
 
-  if(msc((char *)"DFGRID",s1)){
+  if(msc("DFGRID",s1)){
      if ((notAlreadySet.DFGRID||force)|| ((mask!=NULL)&&(mask->DFGRID==1)))
      { 
      	DF_GRID=atoi(s2);
@@ -2093,7 +2098,7 @@ if(msc((char *)"SLO2",s1)){
      }
    return;
  }
-  if(msc((char *)"DFDRAW",s1)){ 
+  if(msc("DFDRAW",s1)){ 
      if ((notAlreadySet.DFBATCH||force)|| ((mask!=NULL)&&(mask->DFBATCH==1)))
      { 
      	DFBatch=atoi(s2);
@@ -2101,7 +2106,7 @@ if(msc((char *)"SLO2",s1)){
      }
    return;
  }
-   if(msc((char *)"NCDRAW",s1)){
+   if(msc("NCDRAW",s1)){
      if ((notAlreadySet.NCBATCH||force)|| ((mask!=NULL)&&(mask->NCBATCH==1)))
      { 
      	NCBatch=atoi(s2);
@@ -2111,28 +2116,28 @@ if(msc((char *)"SLO2",s1)){
    }
 
    /* colorize customizing !! */
-   if(msc((char *)"COLORVIA",s1))
+   if(msc("COLORVIA",s1))
      {
        if ((notAlreadySet.COLORVIA||force)|| ((mask!=NULL)&&(mask->COLORVIA==1)))
        snprintf(ColorVia,sizeof(ColorVia),"%s",s2);
        	notAlreadySet.COLORVIA=0;
        return;
      }
-   if(msc((char *)"COLORIZE",s1))
+   if(msc("COLORIZE",s1))
      {
           if ((notAlreadySet.COLORIZE||force)|| ((mask!=NULL)&&(mask->COLORIZE==1)))
        ColorizeFlag=atoi(s2);
           	notAlreadySet.COLORIZE=0;
           return;
      }
-   if(msc((char *)"COLORLO",s1))
+   if(msc("COLORLO",s1))
      {
               if ((notAlreadySet.COLORLO||force)|| ((mask!=NULL)&&(mask->COLORLO==1)))
        ColorViaLo=atof(s2);
 	             	notAlreadySet.COLORLO=0;
           return;
      }
-   if(msc((char *)"COLORHI",s1))
+   if(msc("COLORHI",s1))
      {
               if ((notAlreadySet.COLORHI||force)|| ((mask!=NULL)&&(mask->COLORHI==1)))
        ColorViaHi=atof(s2);

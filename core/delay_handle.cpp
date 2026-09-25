@@ -69,7 +69,7 @@ int alloc_delay(double big)
  DelayFlag=0;
  DelayWork=(double *)xpp_calloc(n*(NODE ),sizeof(double));
  if(DelayWork==NULL){
-  err_msg((char *)"Could not allocate memory for Delay");
+  err_msg("Could not allocate memory for Delay");
   return(0);
  }
  DelayFlag=1;
@@ -141,7 +141,7 @@ double get_delay(int in, double tau)
  int i0,i1,i2,i3;
 
  if(tau<0.0||tau>DELAY){
-			 err_msg((char *)"Delay negative or too large");
+			 err_msg("Delay negative or too large");
 			stop_integration();
 			return(0.0);
   			}
@@ -184,7 +184,7 @@ int do_init_delay(double big)
  for(i=0;i<(NODE );i++){
 	del_form[i]=(int *)xpp_calloc(200,sizeof(int));
 	if(del_form[i]==NULL){
-		err_msg((char *)"Failed to allocate delay formula ...");
+		err_msg("Failed to allocate delay formula ...");
 		for(j=0;j<i;j++)xpp_free(del_form[j]);
                 NCON=NCON_START;
 		NSYM=NSYM_START;
@@ -192,7 +192,7 @@ int do_init_delay(double big)
 		}
 
 	 if(add_expr(delay_string[i],del_form[i],&len)){
-		err_msg((char *)"Illegal delay expression");
+		err_msg("Illegal delay expression");
                 for(j=0;j<=i;j++)xpp_free(del_form[j]);
 		 NCON=NCON_START;
 		NSYM=NSYM_START;
@@ -201,11 +201,11 @@ int do_init_delay(double big)
 	 }        /*  Okay all formulas are cool... */
   LatestDelay=1;
 
-  get_val((char *)"t",&old_t);
+  get_val("t",&old_t);
  
   for(i=nt;i>=0;i--){
 	t=T0-fabs(DELTA_T)*i;
-	set_val((char *)"t",t);
+	set_val("t",t);
 	for(j=0;j<(NODE );j++)
 		y[j]=evaluate(del_form[j]);
 	stor_delay(y);
@@ -213,7 +213,7 @@ int do_init_delay(double big)
    for(j=0;j<(NODE );j++)xpp_free(del_form[j]);
    NCON=NCON_START;
    NSYM=NSYM_START;
-  set_val((char *)"t",old_t);
+  set_val("t",old_t);
    return(1);
  }
 		

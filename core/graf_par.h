@@ -73,7 +73,7 @@ void window_zoom_com(int c);
 void zoom_in(int i1, int j1, int i2, int j2);
 void zoom_out(int i1, int j1, int i2, int j2);
 void graph_all(int *list, int n, int type);
-int alter_curve(char *title, int in_it, int n);
+int alter_curve(const char *title, int in_it, int n);
 void edit_curve(void);
 void new_curve(void);
 void create_ps(void);

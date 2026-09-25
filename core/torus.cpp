@@ -13,9 +13,9 @@ void do_torus_com(int c)
  int i;
  TORUS=0;
  if(c==0||c==2){
-   new_float((char *)"Period :",&TOR_PERIOD);
+   new_float("Period :",&TOR_PERIOD);
    if(TOR_PERIOD<=0.0){
-     err_msg((char *)"Choose positive period");
+     err_msg("Choose positive period");
      return;
    }
    if(c==0){
@@ -36,6 +36,6 @@ void choose_torus()
  int i;
  char *names[MAXODE];
  for(i=0;i<NEQ;i++)names[i]=uvar_names[i];
- xpp_ui.checklist((char *)"Fold which",names,itor,NEQ);
+ xpp_ui.checklist("Fold which",names,itor,NEQ);
  for(i=0;i<NEQ;i++)if(itor[i]==1)TORUS=1;
 }

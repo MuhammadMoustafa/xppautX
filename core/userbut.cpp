@@ -14,7 +14,7 @@ int nuserbut=0;
 USERBUT userbut[USERBUTMAX];
 
 
-int get_button_info(char *s,char *bname,char *sc)
+int get_button_info(const char *s,char *bname,char *sc)
 {
   int i=0,j=0,f=0,n=strlen(s);
   char c;
@@ -47,7 +47,7 @@ int get_button_info(char *s,char *bname,char *sc)
  return(1); 
 }
 
-int find_kbs(char *sc)
+int find_kbs(const char *sc)
 {
   int i=0;
   while(1){
@@ -58,7 +58,7 @@ int find_kbs(char *sc)
   }
 }
 
-void add_user_button(char *s)
+void add_user_button(const char *s)
 {
   char bname[10],sc[10];
   int z;

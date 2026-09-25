@@ -252,7 +252,7 @@ void Frame_3d()
 
 
 
-void Box_axis(double x_min, double x_max, double y_min, double y_max, char *sx, char *sy, int flag)
+void Box_axis(double x_min, double x_max, double y_min, double y_max, const char *sx, const char *sy, int flag)
 {
   double ytic,xtic;
   
@@ -294,7 +294,7 @@ void Box_axis(double x_min, double x_max, double y_min, double y_max, char *sx, 
 }
 
 
-void draw_ytics(char *s1, double start, double incr, double end)
+void draw_ytics(const char *s1, double start, double incr, double end)
 {
   double ticvalue,place;
   double y_min=YMin,y_max=YMax,
@@ -335,7 +335,7 @@ void draw_ytics(char *s1, double start, double incr, double end)
 }
 
 
-void draw_xtics(char *s2, double start, double incr, double end)
+void draw_xtics(const char *s2, double start, double incr, double end)
 {
   double ticvalue,place;
   double y_min=YMin,

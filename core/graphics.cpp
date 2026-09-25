@@ -190,7 +190,7 @@ void frect(int x1, int y1, int w, int h)
   else xpp_ui.draw_frect(x1,y1,w,h);
 }
 
-void put_text(int x, int y, char *str)
+void put_text(int x, int y, const char *str)
 {
   if(PltFmtFlag==PSFMT)ps_text(x,y,str);
   else if(PltFmtFlag==SVGFMT)svg_text(x,y,str);
@@ -589,7 +589,7 @@ int threedproj(float x2p, float y2p, float z2p, float *xp, float *yp)
 }
 
 
-void text3d(float x, float y, float z, char *s)
+void text3d(float x, float y, float z, const char *s)
 {
  float xp,yp;
 if(threedproj(x,y,z,&xp,&yp)) text_abs(xp,yp,s);
@@ -813,14 +813,14 @@ void line_abs(float x1, float y1, float x2, float y2)
   }
 }
 
-void text_abs(float x, float y, char *text)
+void text_abs(float x, float y, const char *text)
 {
  int xp,yp;
  scale_to_screen(x,y,&xp,&yp);
  put_text(xp,yp,text);
 }
 
-void fillintext(char *old,char *newname)
+void fillintext(const char *old,char *newname)
 {
  int i,l=strlen(old);
  int j,m,k,ans;
@@ -884,7 +884,7 @@ void fillintext(char *old,char *newname)
  return;
 }
 
-void fancy_text_abs(float x, float y, char *old, int size, int font)
+void fancy_text_abs(float x, float y, const char *old, int size, int font)
 {
   int xp,yp;
   char text[256];

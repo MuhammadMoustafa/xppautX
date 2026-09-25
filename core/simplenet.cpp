@@ -153,7 +153,7 @@ extern int NODE,NDELAYS;
 #include "fftn.h"
 
 #define IC 2
-int parse_import(char *s, char *soname, char *sofun, int *n, char *vname, int *m, char *tname[MAXW]);
+int parse_import(const char *s, char *soname, char *sofun, int *n, char *vname, int *m, char *tname[MAXW]);
 
 
 /* simple network stuff */
@@ -237,7 +237,7 @@ double net_interp(double x, int i)
 
 }
 
-int add_vectorizer(char *name,char *rhs)
+int add_vectorizer(const char *name,char *rhs)
 {
   int i,ivar,il,ir;
   int ind;
@@ -262,7 +262,7 @@ int add_vectorizer(char *name,char *rhs)
   return 1;
 
 }  
-void add_vectorizer_name(char *name, char *rhs)
+void add_vectorizer_name(const char *name, const char *rhs)
 {
   if(n_vector>=MAXVEC){
     xpp_log(XPP_LOG_ERROR, "Too many vectors \n");
@@ -313,7 +313,7 @@ void init_net(double *v,int n)
     v[i]=0.0;
 }
 
-int add_spec_fun(char *name, char *rhs)
+int add_spec_fun(const char *name, char *rhs)
 {
   int i,ind,elen,err;
   int type;
@@ -1092,7 +1092,7 @@ int add_spec_fun(char *name, char *rhs)
   }
   return 0;
 }
-void add_special_name(char *name, char *rhs)
+void add_special_name(const char *name, char *rhs)
 {
   if(is_network(rhs)){
     xpp_log(XPP_LOG_DEBUG, " netrhs = |%s| \n",rhs);
@@ -1515,7 +1515,7 @@ void fft_conv(int it,int n,double *values,double *yy,double *fftr,double *ffti,d
 
 /* parsing stuff to get gillespie code quickly */
 
-int gilparse(char *s,int *ind,int *nn)
+int gilparse(const char *s,int *ind,int *nn)
 {
   int i=0,n=strlen(s);
   char piece[1024],b[1024],bn[1036],c;
@@ -1576,7 +1576,7 @@ int gilparse(char *s,int *ind,int *nn)
 
 
 /* plucks info out of  xxx{aa-bb}  or returns string */
-int g_namelist(char *s,char *root,int *flag,int *i1,int*i2)
+int g_namelist(const char *s,char *root,int *flag,int *i1,int*i2)
 {
   int i,n=strlen(s),ir=-1,j=0;
   char c,num[20];
@@ -1621,7 +1621,7 @@ int g_namelist(char *s,char *root,int *flag,int *i1,int*i2)
 
 
 
-int getimpstr(char *in,int *i,char *out)
+int getimpstr(const char *in,int *i,char *out)
 {
   int j=0;
   int done=1;
@@ -1657,7 +1657,7 @@ int import_error()
   xpp_log(XPP_LOG_ERROR, "k=import(soname,sofun,nret,var0,w1,...,wm)\n");
   return 0;
 }
-int parse_import(char *s,  char *soname,char *sofun,int *n, char *vname,int *m, char *tname[MAXW])
+int parse_import(const char *s,  char *soname,char *sofun,int *n, char *vname,int *m, char *tname[MAXW])
 {
   /* soname/sofun/vname/tname[*] are pointers here; the one caller
      passes char soname[256],sofun[256],rootname[1024] (vname) and
@@ -1710,7 +1710,7 @@ int parse_import(char *s,  char *soname,char *sofun,int *n, char *vname,int *m, 
 }
 
 
-int get_vector_info(char *str, char *name,int *root, int *length, int *il, int *ir)
+int get_vector_info(char *str, const char *name,int *root, int *length, int *il, int *ir)
 {
 
   int i=0;

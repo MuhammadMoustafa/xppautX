@@ -10,7 +10,7 @@ extern "C" {
 #define JSON_UI_STR_(x) #x
 #define JSON_UI_STR(x) JSON_UI_STR_(x)
 void json_ui_install(void);        /* protocol on the current stdout */
-void json_ui_hello(char *title);   /* hello, palette, main window, state */
+void json_ui_hello(const char *title);   /* hello, palette, main window, state */
 void json_ui_handle(const char *line);
 void json_ui_loop(void);           /* read and run commands until EOF */
 

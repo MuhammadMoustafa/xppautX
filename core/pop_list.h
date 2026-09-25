@@ -83,8 +83,8 @@ extern SCRBOX_LIST scrbox_list[10];
 
 
 void make_scrbox_lists(void);
-int do_string_box(int n, int row, int col, char *title, char **names, char values[][MAX_LEN_SBOX], int maxchar);
-void respond_box(char *button, char *message);
+int do_string_box(int n, int row, int col, const char *title, const char *const *names, char values[][MAX_LEN_SBOX], int maxchar);
+void respond_box(const char *button, const char *message);
 int yes_no_box(void);
 
 #ifdef __cplusplus

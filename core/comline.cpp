@@ -178,7 +178,7 @@ VOCAB my_cmd[NCMD]=
  };
 
 
-int is_set_name(SET_NAME *set, char *nam)
+int is_set_name(SET_NAME *set, const char *nam)
 {
 	if (set==NULL){return(0);}
 	SET_NAME *curr;
@@ -197,13 +197,13 @@ int is_set_name(SET_NAME *set, char *nam)
 	return(0);
 }
 
-SET_NAME * add_set(SET_NAME *set, char *nam)
+SET_NAME * add_set(SET_NAME *set, const char *nam)
 {
 	if (!is_set_name(set,nam))
 	{
 		SET_NAME *curr;	
 		curr = (SET_NAME *)xpp_malloc(sizeof(SET_NAME));
-        	curr->name = (char *)nam;
+        	curr->name = nam;
 		curr->next  = (struct SET_NAME *)set;
 		set=curr;
 	}
@@ -267,7 +267,7 @@ void do_comline(int argc, char **argv)
        xpp_log(XPP_LOG_WARN, "Color must be given as hexadecimal string.\n");
 	exit(-1);
      }
-     set_option((char *)"FORECOLOR",argv[i+1],1,NULL);
+     set_option("FORECOLOR",argv[i+1],1,NULL);
      i++;
      
    }
@@ -277,24 +277,24 @@ void do_comline(int argc, char **argv)
        xpp_log(XPP_LOG_WARN, "Color must be given as hexadecimal string.\n");
 	exit(-1);
      }
-     set_option((char *)"BACKCOLOR",argv[i+1],1,NULL);
+     set_option("BACKCOLOR",argv[i+1],1,NULL);
      i++;
    }
    if(k==9){
      /*strcpy(UserBGBitmap,argv[i+1]);
      */
-     set_option((char *)"BACKIMAGE",argv[i+1],1,NULL);
+     set_option("BACKIMAGE",argv[i+1],1,NULL);
      i++;
    }
    if(k==10){
-     set_option((char *)"GRADS",argv[i+1],1,NULL);
+     set_option("GRADS",argv[i+1],1,NULL);
      i++;
    }
    if(k==11){
-     set_option((char *)"WIDTH",argv[i+1],1,NULL);
+     set_option("WIDTH",argv[i+1],1,NULL);
      i++;
    }if(k==12){
-     set_option((char *)"HEIGHT",argv[i+1],1,NULL);
+     set_option("HEIGHT",argv[i+1],1,NULL);
      i++;
    }if(k==13){
      if (strlen(argv[i+1]) != 6)
@@ -302,7 +302,7 @@ void do_comline(int argc, char **argv)
        xpp_log(XPP_LOG_WARN, "Color must be given as hexadecimal string.\n");
 	exit(-1);
      }
-     set_option((char *)"MWCOLOR",argv[i+1],1,NULL);
+     set_option("MWCOLOR",argv[i+1],1,NULL);
      i++;
    }if(k==14){
      if (strlen(argv[i+1]) != 6)
@@ -310,11 +310,11 @@ void do_comline(int argc, char **argv)
        xpp_log(XPP_LOG_WARN, "Color must be given as hexadecimal string.\n");
 	exit(-1);
      }
-     set_option((char *)"DWCOLOR",argv[i+1],1,NULL);
+     set_option("DWCOLOR",argv[i+1],1,NULL);
      i++;
    }
    if(k==15){
-     set_option((char *)"BELL",argv[i+1],1,NULL);
+     set_option("BELL",argv[i+1],1,NULL);
      i++;
    }
    if(k==16){
@@ -343,11 +343,11 @@ void do_comline(int argc, char **argv)
      loadincludefile=1;
    } 
    if(k==20){
-     set_option((char *)"QUIET",argv[i+1],1,NULL);
+     set_option("QUIET",argv[i+1],1,NULL);
      i++;
    }
    if(k==21){
-     set_option((char *)"LOGFILE",argv[i+1],1,NULL);
+     set_option("LOGFILE",argv[i+1],1,NULL);
      i++;
    }
    if(k==22){
@@ -360,7 +360,7 @@ void do_comline(int argc, char **argv)
      exit(0);
    }
    if(k==24){
-     set_option((char *)"PLOTFMT",argv[i+1],1,NULL);
+     set_option("PLOTFMT",argv[i+1],1,NULL);
      i++;
    }
    if(k==25){
@@ -368,12 +368,12 @@ void do_comline(int argc, char **argv)
      
    }
    if(k==26){
-     set_option((char *)"DFDRAW",argv[i+1],1,NULL);
+     set_option("DFDRAW",argv[i+1],1,NULL);
      i++;
    } 
    if(k==27){
     
-     set_option((char *)"NCDRAW",argv[i+1],1,NULL);
+     set_option("NCDRAW",argv[i+1],1,NULL);
      i++;
    }
    if(k==28){ /* -readset */
@@ -503,7 +503,7 @@ int if_needed_load_ic()
   return(1);
 }
 
-int parse_it(char *com)
+int parse_it(const char *com)
 {
   int j;
   for(j=0;j<NCMD;j++)

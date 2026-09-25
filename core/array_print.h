@@ -6,15 +6,15 @@ extern "C" {
 
 
 /* array_print.c */
-int array_print(char *filename, char *xtitle, char *ytitle, char *bottom, int nacross, int ndown, int col0, int row0, int nskip, int ncskip, int maxrow, int maxcol, float **data, double zmin, double zmax, double tlo, double thi, int type);
+int array_print(const char *filename, const char *xtitle, const char *ytitle, const char *bottom, int nacross, int ndown, int col0, int row0, int nskip, int ncskip, int maxrow, int maxcol, float **data, double zmin, double zmax, double tlo, double thi, int type);
 void ps_replot(float **z, int col0, int row0, int nskip, int ncskip, int maxrow, int maxcol, int nacross, int ndown, double zmin, double zmax, int type);
 void ps_begin(double xlo, double ylo, double xhi, double yhi, float sx, float sy);
 void ps_convert(float x, float y, float *xs, float *ys);
 void ps_col_scale(double y0, double x0, double dy, double dx, int n, double zlo, double zhi, int type, float mx);
-void ps_boxit(double tlo, double thi, double jlo, double jhi, double zlo, double zhi, char *sx, char *sy, char *sb, int type);
+void ps_boxit(double tlo, double thi, double jlo, double jhi, double zlo, double zhi, const char *sx, const char *sy, const char *sb, int type);
 void ps_close(void);
 void ps_setline(float fill, int thick);
-void ps_text2(char *str, float xr, float yr, int icent);
+void ps_text2(const char *str, float xr, float yr, int icent);
 void ps_set_text(float angle, float slant, float x_size, float y_size);
 void ps_rect(float x, float y, float wid, float len);
 void ps_bar(float x, float y, float wid, float len, float fill, int flag);

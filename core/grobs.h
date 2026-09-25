@@ -25,7 +25,7 @@ extern LABEL lb[MAXLAB];
 extern GROB grob[MAXGROB];
 
 /* a label at pixel (x, y) of the current window; its slot in lb[], -1 when full */
-int add_label(char *s, int x, int y, int size, int font);
+int add_label(const char *s, int x, int y, int size, int font);
 void draw_marker(double x, double y, double size, int type);
 void draw_grob(int i);
 void arrow_head(double xs, double ys, double xe, double ye, double size);

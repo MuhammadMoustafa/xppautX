@@ -13,21 +13,21 @@ typedef struct {
 
 
 typedef struct SET_NAME {
-   char *name;
+   const char *name;
    struct SET_NAME * next;
 } SET_NAME;
 
 
 
-int is_set_name(SET_NAME *set, char *nam);
-SET_NAME *add_set(SET_NAME *set, char *nam);
+int is_set_name(SET_NAME *set, const char *nam);
+SET_NAME *add_set(SET_NAME *set, const char *nam);
 void do_comline(int argc, char **argv);
 int if_needed_select_sets(void);
 int if_needed_load_set(void);
 int if_needed_load_par(void);
 int if_needed_load_ic(void);
 int if_needed_load_ext_options(void);
-int parse_it(char *com);
+int parse_it(const char *com);
 
 
 #ifdef __cplusplus

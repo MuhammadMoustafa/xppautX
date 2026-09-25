@@ -24,7 +24,7 @@ FILE *my_plot_file;
 
 DEVSCALE ps_scale;
 
-int array_print(char *filename, char *xtitle, char *ytitle, char *bottom, int nacross, int ndown, int col0, int row0, int nskip, int ncskip, int maxrow, int maxcol, float **data, double zmin, double zmax, double tlo, double thi, int type)
+int array_print(const char *filename, const char *xtitle, const char *ytitle, const char *bottom, int nacross, int ndown, int col0, int row0, int nskip, int ncskip, int maxrow, int maxcol, float **data, double zmin, double zmax, double tlo, double thi, int type)
 {
   float xx,yy;
   xx=(float)ndown;
@@ -147,7 +147,7 @@ for(i=0;i<n;i++){
   ps_text2(s,x0+.5*dx,y0-n*dy-dy/2,0);
 }
 
-void ps_boxit(double tlo, double thi, double jlo, double jhi, double zlo, double zhi, char *sx, char *sy, char *sb, int type)
+void ps_boxit(double tlo, double thi, double jlo, double jhi, double zlo, double zhi, const char *sx, const char *sy, const char *sb, int type)
 {
   char str[100];
   int i=ps_scale.linewid;
@@ -195,7 +195,7 @@ void ps_setline(float fill, int thick)
 
 
 
-void ps_text2(char *str, float xr, float yr, int icent)  /* ignores for now  */
+void ps_text2(const char *str, float xr, float yr, int icent)  /* ignores for now  */
 {
   double slant=.0174532*ps_scale.slant;
   float x,y;

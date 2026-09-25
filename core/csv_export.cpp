@@ -27,10 +27,6 @@ extern char upar_names[MAXPAR][XPP_NAME_MAX + 1];
 
 namespace {
 
-/* err_msg (xpp_ui.h) takes char * and does not write through it, the
-   historical C dialog API (diagram.cpp/browse_data.cpp precedent) */
-char *str(const char *s) { return const_cast<char *>(s); }
-
 /* a CSV field, quoted only if it needs it (a model name cannot contain a
    comma, quote or newline, but this is the one place that writes names a
    user typed, so it is safe rather than assuming) */
@@ -79,7 +75,7 @@ int csv_export_diagram(const char *filename)
     if (bifd == NULL || bifd->next == NULL) return 0; /* nothing recorded */
     xpp::Writer w(filename);
     if (!w) {
-        err_msg(str("Can't open file"));
+        err_msg("Can't open file");
         return 0;
     }
     FILE *fp = w.file();
@@ -108,7 +104,7 @@ int csv_export_diagram(const char *filename)
         fprintf(fp, "\n");
     }
     if (!w.commit()) {
-        err_msg(str("Can't open file"));
+        err_msg("Can't open file");
         return 0;
     }
     return 1;
@@ -119,7 +115,7 @@ int csv_export_diagram_eigenvalues(const char *filename)
     if (bifd == NULL || bifd->next == NULL) return 0;
     xpp::Writer w(filename);
     if (!w) {
-        err_msg(str("Can't open file"));
+        err_msg("Can't open file");
         return 0;
     }
     FILE *fp = w.file();
@@ -132,7 +128,7 @@ int csv_export_diagram_eigenvalues(const char *filename)
                     xpp::number(d->evi[i]).c_str(), kind);
     }
     if (!w.commit()) {
-        err_msg(str("Can't open file"));
+        err_msg("Can't open file");
         return 0;
     }
     return 1;

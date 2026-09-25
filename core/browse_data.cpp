@@ -18,19 +18,12 @@
 #include <sys/time.h>
 #include "xpp_io.h"
 
-namespace {
-/* err_msg/TwoChoice/respond_box/file_selector (xpp_ui.h) take char * and
-   do not write through it, the historical C dialog API shared far beyond
-   this file; str() (grobs.cpp-precedented) casts a literal for one of
-   these calls. */
-char *str(const char *s) { return const_cast<char *>(s); }
-} // namespace
 
 extern int *plotlist, N_plist;
 extern int NEQ;
 extern float **storage;
 
-extern "C" int find_user_name(int type, char *oname); /* init_conds.c (pure) */
+extern "C" int find_user_name(int type, const char *oname); /* init_conds.c (pure) */
 
 /*  The one and only primitive data browser   */
 BROWSER my_browser;
@@ -106,7 +99,7 @@ void write_browser_data(FILE *fp, BROWSER *b)
  
 }
 
-void find_variable(char *s, int *col)
+void find_variable(const char *s, int *col)
 {
  *col=-1;
   if(strcasecmp("T",s)==0){
@@ -151,11 +144,11 @@ int may_write_file(const char *fil)
  FILE *fp=fopen(fil,"r");
  if(fp==NULL)return 1;
  fclose(fp);
- return (char)TwoChoice(str("Yes"),str("No"),
-		str("File Exists! Overwrite?"),str("yn"))=='y';
+ return (char)TwoChoice("Yes","No",
+		"File Exists! Overwrite?","yn")=='y';
 }
 
-void open_write_file(FILE **fp, char *fil, int *ok)
+void open_write_file(FILE **fp, const char *fil, int *ok)
 {
  *ok=0;
  *fp=NULL;
@@ -163,7 +156,7 @@ void open_write_file(FILE **fp, char *fil, int *ok)
 
 			*fp=fopen(fil,"w");
 			if(*fp==NULL){
-				      err_msg(str("Cannot open file"));
+				      err_msg("Cannot open file");
 				      *ok=0;
 				     }
 		         else *ok=1;
@@ -223,7 +216,7 @@ extern double DELTA_T;
 int check_for_stor(float **data)
 {
  if(data!=storage){
-   err_msg(str("Only data can be in browser"));
+   err_msg("Only data can be in browser");
    return(0);
  }
    else return(1);
@@ -233,7 +226,7 @@ int check_for_stor(float **data)
 void data_del_col(BROWSER *b)  /*  this only works with storage  */
 {
     if(check_for_stor(b->data)==0)return;
-  err_msg(str("Sorry - not working very well yet..."));
+  err_msg("Sorry - not working very well yet...");
 }
 
 void data_add_col(BROWSER *b)
@@ -243,37 +236,37 @@ void data_add_col(BROWSER *b)
    if(check_for_stor(b->data)==0)return;
   XPP_STRCPY(var,"");
   XPP_STRCPY(form,"");
-  status=get_dialog(str("Add Column"),str("Name"),var,str("Ok"),str("Cancel"),XPP_NAME_MAX);
+  status=get_dialog("Add Column","Name",var,"Ok","Cancel",XPP_NAME_MAX);
   if(status!=0){
-    status=get_dialog_of(str("Add Column"),str("Formula:"),form,str("Add it"),str("Cancel"),80,XPP_FIELD_EXPRESSION);
+    status=get_dialog_of("Add Column","Formula:",form,"Add it","Cancel",80,XPP_FIELD_EXPRESSION);
      if(status!=0)
       add_stor_col(var,form,b);
   }
 }
 
-int add_stor_col(char *name, char *formula, BROWSER *b)
+int add_stor_col(const char *name, const char *formula, BROWSER *b)
 {
   int com[4000],i,j;
 
   if(strlen(name)>XPP_NAME_MAX){
-    err_msg(str("Name too long"));
+    err_msg("Name too long");
     return(0);
   }
   if(add_expr(formula,com,&i)){
-    err_msg(str("Bad Formula .... "));
+    err_msg("Bad Formula .... ");
     return(0);
   }
   if((my_ode[NEQ+FIX_VAR]=(int *)xpp_malloc((i+2)*sizeof(int)))==NULL){
-     err_msg(str("Cant allocate formula space"));
+     err_msg("Cant allocate formula space");
      return(0);
    }
   if((storage[NEQ+1]=(float *)xpp_malloc(MAXSTOR * sizeof(float)))==NULL){
-    err_msg(str("Cant allocate space ...."));
+    err_msg("Cant allocate space ....");
     xpp_free(my_ode[NEQ]);
     return(0);
   }
   if((ode_names[NEQ]=(char *)xpp_malloc(80))==NULL){
-    err_msg(str("Cannot allocate space ..."));
+    err_msg("Cannot allocate space ...");
     xpp_free(my_ode[NEQ]);
     xpp_free(storage[NEQ+1]);
     return(0);
@@ -299,7 +292,7 @@ int add_stor_col(char *name, char *formula, BROWSER *b)
   return(1);
 }
 
-void chk_seq(char *f,int *seq, double *a1, double *a2)
+void chk_seq(const char *f,int *seq, double *a1, double *a2)
 {
   int i,j=-1;
   char n1[256],n2[256];
@@ -332,7 +325,7 @@ void chk_seq(char *f,int *seq, double *a1, double *a2)
   /*      plintf("seq=%d a1=%g a2=%g\n",*seq,*a1,*a2); */
 }
 
-void replace_column(char *var, char *form, float **dat, int n)
+void replace_column(const char *var, char *form, float **dat, int n)
 {
  int com[200],i,j;
  int intflag=0;
@@ -355,7 +348,7 @@ while(i<(int)strlen(form)){
    form[i]=' ';
    find_variable(form,&dif_var);
    if(dif_var<0){
-     err_msg(str("No such variable"));
+     err_msg("No such variable");
      return;
    }
 
@@ -372,7 +365,7 @@ if(dif_var<0)
  if(seq==2)
    da=a2;
  if(seq==3){
-   err_msg(str("Illegal sequence"));
+   err_msg("Illegal sequence");
    return;
  }
 
@@ -384,7 +377,7 @@ if(dif_var<0)
    if(add_expr(form,com,&i)){
      NCON=NCON_START;
      NSYM=NSYM_START;
-     err_msg(str("Illegal formula..."));
+     err_msg("Illegal formula...");
      return;
    }
  }
@@ -392,7 +385,7 @@ if(dif_var<0)
 
  find_variable(var,&i);
  if(i<0){
-   err_msg(str("No such column..."));
+   err_msg("No such column...");
    NCON=NCON_START;
    NSYM=NSYM_START;
    return;
@@ -452,7 +445,7 @@ void unreplace_column()
  
  }
 
-void make_d_table(double xlo, double xhi, int col, char *filename, BROWSER b)
+void make_d_table(double xlo, double xhi, int col, const char *filename, BROWSER b)
 {
   int i,npts,ok;
   FILE *fp;
@@ -492,9 +485,9 @@ void data_replace(BROWSER *b)
  char var[XPP_NAME_MAX+1],form[80];
 XPP_STRCPY(var,uvar_names[0]);
 XPP_STRCPY(form,uvar_names[0]);
-status=get_dialog_of(str("Replace"),str("Variable:"),var,str("Ok"),str("Cancel"),XPP_NAME_MAX,XPP_FIELD_NAME_IN(0));
+status=get_dialog_of("Replace","Variable:",var,"Ok","Cancel",XPP_NAME_MAX,XPP_FIELD_NAME_IN(0));
 if(status!=0){
- status=get_dialog_of(str("Replace"),str("Formula:"),form,str("Replace"),str("Cancel"),80,XPP_FIELD_EXPRESSION);
+ status=get_dialog_of("Replace","Formula:",form,"Replace","Cancel",80,XPP_FIELD_EXPRESSION);
  if(status!=0)replace_column(var,form,b->data,b->maxrow);
  xpp_ui.browser_redraw(0);
 }
@@ -513,7 +506,7 @@ void data_table(BROWSER *b)
 {
  int status;
 
- static char *name[]={str("Variable"),str("Xlo"),str("Xhi"),str("File")};
+ static const char *name[]={"Variable","Xlo","Xhi","File"};
  char value[4][MAX_LEN_SBOX];
 
  double xlo=0,xhi=1;
@@ -523,7 +516,7 @@ void data_table(BROWSER *b)
  XPP_SPRINTF(value[2],"1.00");
  snprintf(value[3],sizeof(value[3]),"%.*s.tab",XPP_NAME_MAX,value[0]);
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_FILE};
- status=do_string_box_of(4,4,1,str("Tabulate"),name,value,40,kinds);
+ status=do_string_box_of(4,4,1,"Tabulate",name,value,40,kinds);
  if(status==0)return;
  xlo=atof(value[1]);
  xhi=atof(value[2]);
@@ -536,7 +529,7 @@ void data_find(BROWSER *b)
 {
  int status;
 
- static char *name[]={str("*0Variable"),str("Value")};
+ static const char *name[]={"*0Variable","Value"};
  char value[2][MAX_LEN_SBOX];
  int col,row=-1;
 
@@ -545,7 +538,7 @@ void data_find(BROWSER *b)
  XPP_SPRINTF(value[0],"%s",uvar_names[0]);
  XPP_SPRINTF(value[1],"0.00");
  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_NUMBER};
- status=do_string_box_of(2,2,1,str("Find Data"),name,value,40,kinds);
+ status=do_string_box_of(2,2,1,"Find Data",name,value,40,kinds);
  
   
 
@@ -576,12 +569,12 @@ void data_read(BROWSER *b)
  /*  XGetInputFocus(display,&w,&rev);
  status=get_dialog("Load","Filename:",fil,"Ok","Cancel",40);
  */
- status=file_selector(str("Load data"),fil,str("*.dat"));
+ status=file_selector("Load data",fil,"*.dat");
 if(status==0)return;
  fp=fopen(fil,"r");
  	if(fp==NULL){
-				      respond_box(str("Ok"),
-					str("Cannot open file"));
+				      respond_box("Ok",
+					"Cannot open file");
 				     return;
 				     }
  /*  Now we establish the width of the file (the whitespace-separated
@@ -651,7 +644,7 @@ void data_write(BROWSER *b)
  /* status=get_dialog("Write","Filename:",fil,"Ok","Cancel",40);
 
     XSetInputFocus(display,w,rev,CurrentTime); */
-  status=file_selector(str("Write data"),fil,str("*.dat"));
+  status=file_selector("Write data",fil,"*.dat");
 if(status==0)return;
  open_write_file(&fp,fil,&ok);
  if(!ok)return;

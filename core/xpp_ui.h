@@ -77,32 +77,32 @@ typedef struct XppDiagPoint {
 
 typedef struct XppUi {
     /* messages */
-    void (*err_msg)(char *msg);
+    void (*err_msg)(const char *msg);
     void (*ping)(void);
-    void (*bottom_msg)(int line, char *msg);
-    void (*message_box)(char *msg);
+    void (*bottom_msg)(int line, const char *msg);
+    void (*message_box)(const char *msg);
     void (*kill_message_box)(void);
-    void (*title_text)(char *s);
-    void (*canvas_xy)(char *s);
+    void (*title_text)(const char *s);
+    void (*canvas_xy)(const char *s);
 
     /* prompts */
-    int (*new_string)(char *name, char *value, int kind);
+    int (*new_string)(const char *name, char *value, int kind);
     int (*yes_no_box)(void);
-    int (*two_choice)(char *c1, char *c2, char *q, char *key, char *title);
-    void (*respond_box)(char *button, char *message); /* alert with one button */
+    int (*two_choice)(const char *c1, const char *c2, const char *q, const char *key, const char *title);
+    void (*respond_box)(const char *button, const char *message); /* alert with one button */
     /* toggle a set of flags (1/0) by name; flags are edited in place and
        restored on cancel. Returns 1 for done, 0 for cancel. */
-    int (*checklist)(char *title, char **names, int *flags, int n);
+    int (*checklist)(const char *title, const char *const *names, int *flags, int n);
     /* kinds: one XPP_FIELD_* per field, or NULL (all text) */
-    int (*string_box)(int n, int row, int col, char *title, char **names,
+    int (*string_box)(int n, int row, int col, const char *title, const char *const *names,
                       char values[][MAX_LEN_SBOX], int maxchar, const int *kinds);
-    int (*file_selector)(char *title, char *file, char *wild);
+    int (*file_selector)(const char *title, char *file, const char *wild);
     /* one-line text entry with named buttons; returns 0 on cancel */
-    int (*dialog)(char *title, char *name, char *value, char *ok, char *cancel,
+    int (*dialog)(const char *title, const char *name, char *value, const char *ok, const char *cancel,
                   int max, int kind);
     /* like string_box but for n long strings (MAX_LEN_EBOX); returns 0 on
        cancel */
-    int (*edit_box)(int n, char *title, char **names, char **values);
+    int (*edit_box)(int n, const char *title, const char *const *names, char **values);
     int (*get_mouse_xy)(int *x, int *y);
 
     /* menus. show_menu makes MAIN_MENU, FILE_MENU or NUM_MENU (menus.h) the
@@ -123,10 +123,10 @@ typedef struct XppUi {
     /* things changed, please redraw */
     void (*redraw_params)(void);
     /* parameter i now has text value s; redraw that one entry */
-    void (*param_box_set)(int i, char *s);
+    void (*param_box_set)(int i, const char *s);
     void (*param_box_redraw)(int i);
     /* the same for initial condition i */
-    void (*ic_box_set)(int i, char *s);
+    void (*ic_box_set)(int i, const char *s);
     void (*ic_box_redraw)(int i);
     void (*redraw_ics)(void);
     void (*redraw_all)(void);
@@ -158,7 +158,7 @@ typedef struct XppUi {
     void (*get_draw_size)(unsigned int *w, unsigned int *h);
     void (*draw_freeze)(void); /* frozen curves */
     void (*blank_draw_window)(void);
-    void (*put_text)(int x, int y, char *s);
+    void (*put_text)(int x, int y, const char *s);
     void (*small_base)(void);  /* pen selection for small text */
     void (*small_gr)(void);
     int (*film_clip)(void); /* returns 0 when the movie buffer is full */
@@ -166,7 +166,7 @@ typedef struct XppUi {
     /* kinescope: the captured frames live in the front end */
     void (*movie_play_back)(void);  /* step through frames with keys/mouse */
     void (*movie_auto_play)(void);  /* movie_autoplay's cycles, frame_ms apart */
-    void (*movie_save)(char *basename, int fmat); /* 1 ppm, 2 gif */
+    void (*movie_save)(const char *basename, int fmat); /* 1 ppm, 2 gif */
     void (*movie_make_anigif)(void);
 
     /* mouse interaction in the plot window. rubber_band returns 1 and the
@@ -186,21 +186,21 @@ typedef struct XppUi {
     void (*draw_line)(int x1, int y1, int x2, int y2);
     void (*draw_bead)(int x, int y);
     void (*draw_frect)(int x, int y, int w, int h);
-    void (*draw_text)(int x, int y, char *s);
-    void (*draw_special_text)(int x, int y, char *s, int size);
+    void (*draw_text)(int x, int y, const char *s);
+    void (*draw_special_text)(int x, int y, const char *s, int size);
     void (*draw_linestyle)(int ls);
     void (*set_color)(int col);
 
     /* array plot window (arrayplot.h: aplot) */
-    void (*aplot_make)(char *name); /* open the array plot window */
+    void (*aplot_make)(const char *name); /* open the array plot window */
     void (*aplot_redraw)(void);
     void (*aplot_reset_axes)(void);  /* its title and z range labels */
-    void (*aplot_draw_one)(char *tag); /* redraw, tag and save a range frame */
+    void (*aplot_draw_one)(const char *tag); /* redraw, tag and save a range frame */
 
     /* AUTO bifurcation window */
-    void (*auto_make_window)(char *wname, char *iname);
+    void (*auto_make_window)(const char *wname, const char *iname);
     void (*auto_line)(int a, int b, int c, int d);
-    void (*auto_text)(int a, int b, char *c);
+    void (*auto_text)(int a, int b, const char *c);
     void (*auto_circle)(int x, int y, int r);
     void (*auto_fill_circle)(int x, int y, int r);
     void (*auto_xor_cross)(int x, int y);
@@ -210,12 +210,12 @@ typedef struct XppUi {
     void (*auto_clear_plot)(void);
     void (*auto_redraw_menus)(void);
     void (*auto_clear_info)(void);
-    void (*auto_draw_info)(char *s, int x, int y);
+    void (*auto_draw_info)(const char *s, int x, int y);
     void (*auto_refresh)(void);
     int (*auto_check_abort)(int *iflag);
     int (*auto_rubber)(int *i1, int *j1, int *i2, int *j2, int flag);
-    int (*auto_choose_key)(char *title, char **list, char *key, int n, int max,
-                           int def, int x, int y, char **hints, char *httxt);
+    int (*auto_choose_key)(const char *title, const char *const *list, const char *key, int n, int max,
+                           int def, int x, int y, const char *const *hints, const char *httxt);
     void (*auto_scroll_window)(void);
     /* Grab: wait for a key (returns its code, mykeydef.h), a click on
        the diagram (returns XPP_AUTO_CLICK with the pixel in x,y) or a
@@ -240,7 +240,7 @@ typedef struct XppUi {
     void (*ani_line)(int x1, int y1, int x2, int y2);
     void (*ani_rect)(int x, int y, int w, int h, int fill);
     void (*ani_arc)(int x, int y, int w, int h, int fill); /* ellipse in box */
-    void (*ani_text)(int x, int y, char *s);
+    void (*ani_text)(int x, int y, const char *s);
     void (*ani_slider)(void);    /* vcr.pos changed */
 
     /* misc front-end hooks called while loading an ODE file */
@@ -269,28 +269,28 @@ void xpp_set_ui(const XppUi *ui); /* copies; missing entries keep defaults */
 
 /* Historical names, now dispatchers. Declared here so every core file sees
    one consistent prototype. */
-void err_msg(char *string);
+void err_msg(const char *string);
 void ping(void);
-void bottom_msg(int line, char *msg);
-void MessageBox(char *m);
+void bottom_msg(int line, const char *msg);
+void MessageBox(const char *m);
 void KillMessageBox(void);
-void title_text(char *s);
-void canvas_xy(char *s);
-int new_string(char *name, char *value);
-int new_string_of(char *name, char *value, int kind); /* kind: XPP_FIELD_* */
-int new_int(char *name, int *value);
-int new_float(char *name, double *value);
+void title_text(const char *s);
+void canvas_xy(const char *s);
+int new_string(const char *name, char *value);
+int new_string_of(const char *name, char *value, int kind); /* kind: XPP_FIELD_* */
+int new_int(const char *name, int *value);
+int new_float(const char *name, double *value);
 int yes_no_box(void);
-int TwoChoice(char *c1, char *c2, char *q, char *key);
-void respond_box(char *button, char *message);
-int do_string_box(int n, int row, int col, char *title, char **names,
+int TwoChoice(const char *c1, const char *c2, const char *q, const char *key);
+void respond_box(const char *button, const char *message);
+int do_string_box(int n, int row, int col, const char *title, const char *const *names,
                   char values[][MAX_LEN_SBOX], int maxchar);
-int do_string_box_of(int n, int row, int col, char *title, char **names,
+int do_string_box_of(int n, int row, int col, const char *title, const char *const *names,
                      char values[][MAX_LEN_SBOX], int maxchar, const int *kinds);
-int file_selector(char *title, char *file, char *wild);
-int get_dialog(char *wname, char *name, char *value, char *ok, char *cancel, int max);
-int get_dialog_of(char *wname, char *name, char *value, char *ok, char *cancel, int max, int kind);
-int do_edit_box(int n, char *title, char **names, char **values);
+int file_selector(const char *title, char *file, const char *wild);
+int get_dialog(const char *wname, const char *name, char *value, const char *ok, const char *cancel, int max);
+int get_dialog_of(const char *wname, const char *name, char *value, const char *ok, const char *cancel, int max, int kind);
+int do_edit_box(int n, const char *title, const char *const *names, char **values);
 int GetMouseXY(int *x, int *y);
 void flash(int num);
 int menu_choose(const struct XppMenu *m, int def);
@@ -316,10 +316,10 @@ void SmallBase(void);
 void SmallGr(void);
 void reset_film(void);
 void set_color(int col);
-void draw_one_array_plot(char *bob);
-void make_auto(char *wname, char *iname);
+void draw_one_array_plot(const char *bob);
+void make_auto(const char *wname, const char *iname);
 void ALINE(int a, int b, int c, int d);
-void ATEXT(int a, int b, char *c);
+void ATEXT(int a, int b, const char *c);
 void Circle(int x, int y, int r);
 void FillCircle(int x, int y, int r);
 void XORCross(int x, int y);
@@ -329,12 +329,12 @@ void autobw(void);
 void clear_auto_plot(void);
 void redraw_auto_menus(void);
 void clear_auto_info(void);
-void draw_auto_info(char *bob, int x, int y);
+void draw_auto_info(const char *bob, int x, int y);
 void refreshdisplay(void);
 int byeauto_(int *iflag);
 int auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag);
-int auto_pop_up_list(char *title, char **list, char *key, int n, int max,
-                     int def, int x, int y, char **hints, char *httxt);
+int auto_pop_up_list(const char *title, const char *const *list, const char *key, int n, int max,
+                     int def, int x, int y, const char *const *hints, const char *httxt);
 void auto_scroll_window(void);
 void auto_diagram(const XppDiagPoint *p);
 void init_txtview(void);
@@ -345,7 +345,7 @@ void draw_help(void);
 int rubber_band(int *i1, int *j1, int *i2, int *j2, int flag);
 void scroll_window(void);
 void NewColormap(int type);
-void make_my_aplot(char *name);
+void make_my_aplot(const char *name);
 void new_vcr(void);
 void redraw_the_graph(void);
 void make_txtview(void);

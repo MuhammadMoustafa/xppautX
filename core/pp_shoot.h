@@ -10,7 +10,7 @@ extern "C" {
 void do_bc(double *y__0, double t0, double *y__1, double t1, double *f, int n);
 void compile_bvp(void);
 void reset_bvp(void);
-void init_shoot_range(char *s);
+void init_shoot_range(const char *s);
 void dump_shoot_range(FILE *fp, int f);
 void bad_shoot(int iret);
 void do_sh_range(double *ystart, double *yend);

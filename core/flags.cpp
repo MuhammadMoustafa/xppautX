@@ -113,7 +113,7 @@ int NFlags=0;
 double STOL=1.e-10;
 extern double variables[];
 extern int NVAR;
-int add_global(char *cond, int sign, char *rest)
+int add_global(const char *cond, int sign, const char *rest)
 {
   char temp[256];
   int nevents,ii,k,l,lt,j=NFlags;

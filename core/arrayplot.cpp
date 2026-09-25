@@ -55,13 +55,6 @@
 #include "integrate.h"
 #define FIRSTCOLOR 30
 #define FIX_MIN_SIZE 2
-namespace {
-/* the dialog API (do_string_box_of, err_msg, make_my_aplot) takes char *
-   and char ** and writes through none of them; str() and strs() cast a
-   literal or a table of literals for it (auto_nox.cpp's) */
-char *str(const char *s) { return const_cast<char *>(s); }
-char **strs(const char **s) { return const_cast<char **>(s); }
-} // namespace
 
 /* the core's globals that have no header of their own */
 extern "C" {
@@ -92,7 +85,7 @@ void set_up_aplot_range(void)
  XPP_SPRINTF(values[1],"%d",aplot_still);
  XPP_SPRINTF(values[2],"%d",aplot_tag);
  static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
- status=do_string_box_of(3,3,1,str("Array range saving"),strs(n),values,28,kinds);
+ status=do_string_box_of(3,3,1,"Array range saving",n,values,28,kinds);
  if(status!=0){
    XPP_SPRINTF(aplot_range_stem,"%s",values[0]);
    aplot_still=atoi(values[1]);
@@ -121,7 +114,7 @@ void optimize_aplot(int *plist)
   int nrows=my_browser.maxrow;
   int ncol=i1+1-i0;
   if(ncol<2||nrows<2)return;
-  make_my_aplot(str("Array!"));
+  make_my_aplot("Array!");
 
   aplot.index0=i0+1;
   XPP_STRCPY(aplot.name,uvar_names[i0]);
@@ -227,7 +220,7 @@ void print_aplot(APLOT *ap)
     snprintf(values[3],sizeof(values[3]),"%.24s",ap->bottom);
   XPP_SPRINTF(values[4],"%d",ap->type);
   static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_INTEGER};
-  status=do_string_box_of(5,5,1,str("Print arrayplot"),strs(n),values,40,kinds);
+  status=do_string_box_of(5,5,1,"Print arrayplot",n,values,40,kinds);
  if(status!=0){
    XPP_STRCPY(ap->filename,values[0]);
    XPP_STRCPY(ap->xtitle,values[1]);
@@ -240,7 +233,7 @@ void print_aplot(APLOT *ap)
 		       ap->ndown,col0,row0,ap->nskip,ap->ncskip,
 		       nrows,my_browser.maxcol,
 		      my_browser.data,ap->zmin,ap->zmax,tlo,thi,ap->type);
-   if(errflag==-1)err_msg(str("Couldn't open file"));
+   if(errflag==-1)err_msg("Couldn't open file");
  }
 }
 
@@ -254,7 +247,7 @@ void edit_aplot(void)
    0. sroot holds 100 chars (the one caller, json_windows.cpp). The digits
    were copied with their terminator one byte past them, so atoi read one
    byte never written ("u10" could give 10x; valgrind, W21). */
-void get_root(char *s, char *sroot, int *num)
+void get_root(const char *s, char *sroot, int *num)
 {
   size_t n=strlen(s), i=n;
   while(i>0&&isdigit(static_cast<unsigned char>(s[i-1])))
@@ -305,7 +298,7 @@ int editaplot(APLOT *ap)
 XPP_SPRINTF(values[8],"%d",ap->ncskip);
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
                            XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
- status=do_string_box_of(9,9,1,str("Edit arrayplot"),strs(n),values,40,kinds);
+ status=do_string_box_of(9,9,1,"Edit arrayplot",n,values,40,kinds);
  if(status!=0){
    find_variable(values[0],&i);
    if(i>-1){
@@ -314,7 +307,7 @@ XPP_SPRINTF(values[8],"%d",ap->ncskip);
    }
    else
      {
-       err_msg(str("No such columns"));
+       err_msg("No such columns");
        ap->plotdef=0;
        return 0;
      }

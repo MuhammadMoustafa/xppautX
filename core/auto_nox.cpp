@@ -70,15 +70,6 @@
 #include "tabular.h"   /* redo_all_fun_tables() */
 #include "my_rhs.h"    /* extra() */
 
-namespace {
-/* The dialog API (auto_pop_up_list, do_string_box, TwoChoice, err_msg,
-   file_selector, ...: xpp_ui.h, pop_list.h) takes char * and char ** and
-   writes through none of them, the historical C API shared far beyond
-   this file; str() and strs() cast a literal or a table of literals for
-   one of these calls (diagram.cpp's str()). */
-char *str(const char *s) { return const_cast<char *>(s); }
-char **strs(const char **s) { return const_cast<char **>(s); }
-} // namespace
 
 #define PACK_AUTO 0
 #define PACK_LBF 1
@@ -474,7 +465,7 @@ int chk_auto_bnds(int ix,int iy)
   return 0;
 }
 /*   File manipulation stuff  */
-void renamef(char *old, char *new_name)
+void renamef(const char *old, const char *new_name)
 {
  /* POSIX rename() replaces an existing destination; on Windows it fails, so
     the old .s was silently kept and fort.8 left behind. */
@@ -494,7 +485,7 @@ static void copy_bytes(FILE *from, FILE *to)
     fwrite(buf,1,n,to);
 }
 
-void copyf(char *old, char *new_name)
+void copyf(const char *old, const char *new_name)
 {
  FILE *fo;
  /* Binary: these files carry AUTO's own line ends and text mode would
@@ -520,7 +511,7 @@ void copyf(char *old, char *new_name)
 }
 
 /* new_name becomes old's bytes followed by its own */
-void appendf(char *old, char *new_name)
+void appendf(const char *old, const char *new_name)
 {
  FILE *fo,*fn;
  fo=fopen(old,"rb");
@@ -550,7 +541,7 @@ void appendf(char *old, char *new_name)
  fclose(fn);
  w.commit();
 }
-void deletef(char *old)
+void deletef(const char *old)
 {
     remove(old);
 
@@ -759,7 +750,7 @@ void set_auto() /* Caution - need to include NICP here */
 	    Auto.icp2,Auto.icp3,Auto.icp4,Auto.icp5,Auto.nper,Auto.epsl,Auto.epsu,Auto.epss,Auto.ncol);
   
 }
-int auto_name_to_index(char *s)
+int auto_name_to_index(const char *s)
 {
   int i,in;
   find_variable(s,&in);
@@ -791,7 +782,7 @@ int auto_par_to_name(int index, char *s)
    fit (names go to XPP_NAME_MAX) is shortened with a '~' (short_name) and
    still leaves a blank between it and the next heading: the column stays
    14 wide so the numbers below stay under it. */
-static void auto_col_centre(char *out,char *s)
+static void auto_col_centre(char *out,const char *s)
 {
   /* out is a pointer here; its callers pass char scr[AUTO_COL_W+1]
      (autlib1.c) or auto_screen_col's own out parameter, itself
@@ -846,7 +837,7 @@ void auto_per_par()
   char ch;
   /* "Mark values" (T21): AUTO labels (UZ) the points where a parameter or
      the period reaches one of these values */
-  ch=(char)auto_pop_up_list(str("Mark values: how many?"),strs(m),key,10,12,Auto.nper,10,10,strs(no_hint),
+  ch=(char)auto_pop_up_list("Mark values: how many?",m,key,10,12,Auto.nper,10,10,no_hint,
 		       Auto.hinttxt);
   for(i=0;i<10;i++)
     if(ch==key[i])Auto.nper=i;
@@ -858,7 +849,7 @@ void auto_per_par()
 
       XPP_SPRINTF(values[i],"%s=%g",bob,Auto.period[i]);
     }
-    status=do_string_box(9,5,2,str("Mark values (UZ): parameter=value or per=value"),strs(n),values,45);
+    status=do_string_box(9,5,2,"Mark values (UZ): parameter=value or per=value",n,values,45);
     if(status!=0)
       for(i=0;i<9;i++){
 	ptr=get_first(values[i],"=");
@@ -891,7 +882,7 @@ void auto_params()
   }
   static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),
                             XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2)};
-  status=do_string_box_of(8,8,1,str("Parameters"),strs(n),values,38,kinds);
+  status=do_string_box_of(8,8,1,"Parameters",n,values,38,kinds);
   if(status!=0){
     for(i=0;i<8;i++){
       if(i<NAutoPar){
@@ -944,7 +935,7 @@ void auto_num_par()
   static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
-  status=do_string_box_of(22,7,4,str("AutoNum"),strs(n),values,25,kinds);
+  status=do_string_box_of(22,7,4,"AutoNum",n,values,25,kinds);
   if(status!=0){
     Auto.ntst=atoi(values[0]);
     Auto.nmx=atoi(values[1]);
@@ -993,8 +984,8 @@ void auto_plot_par()
   int ii1,ii2,ji1,ji2;
   int i1=Auto.var+1;
   char n1[XPP_NAME_MAX+1];
-  ch=(char)auto_pop_up_list(str("Plot Type"),strs(m),key,14,10,Auto.plot,10,50,
-		       strs(aaxes_hint),Auto.hinttxt);
+  ch=(char)auto_pop_up_list("Plot Type",m,key,14,10,Auto.plot,10,50,
+		       aaxes_hint,Auto.hinttxt);
   if(ch==ESC) 
     return;
   for(i=0;i<5;i++){
@@ -1058,7 +1049,7 @@ void auto_plot_par()
   XPP_SPRINTF(values[5],"%g",Auto.xmax);
   XPP_SPRINTF(values[6],"%g",Auto.ymax);
   static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
-  status=do_string_box_of(7,7,1,str("AutoPlot"),strs(n),values,31,kinds);
+  status=do_string_box_of(7,7,1,"AutoPlot",n,values,31,kinds);
   if(status!=0){
     /*  get variable names  */
     find_variable(values[0],&i);
@@ -1599,7 +1590,7 @@ void info_header(int flag2, int icp1, int icp2)
   
 }
 	  
-void new_info(int ibr, int pt, char *ty, int lab, double *par, double norm, double u0, double per, int flag2, int icp1, int icp2)
+void new_info(int ibr, int pt, const char *ty, int lab, double *par, double norm, double u0, double per, int flag2, int icp1, int icp2)
 {
   char bob[80];
   double p1,p2=0.0;
@@ -1623,7 +1614,7 @@ void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw)
   char symb[3];
   if (d==NULL)
   {
-  	/*err_msg(str("Can not traverse to NULL diagram."));*/
+  	/*err_msg("Can not traverse to NULL diagram.");*/
 	return;
   }
   norm=d->norm;
@@ -1698,7 +1689,7 @@ void do_auto_win()
       err_msg(bob);
       return;
     }
-    make_auto(str("It's AUTO man!"),str("AUTO"));
+    make_auto("It's AUTO man!","AUTO");
     Auto.exist=1;
     
   }
@@ -1859,7 +1850,7 @@ int reset_auto()
 {
   char ch;
     if(NBifs<=1)return(0);
-    ch=(char)TwoChoice(str("YES"),str("NO"),str("Destroy AUTO diagram & files"),str("yn"));
+    ch=(char)TwoChoice("YES","NO","Destroy AUTO diagram & files","yn");
     if(ch!='y')return(0);
    
   return(yes_reset_auto());
@@ -1946,7 +1937,7 @@ void auto_start_choice()
     auto_new_discrete();
     return;
   }
-  ch=(char)auto_pop_up_list(str("Start"),strs(m),key,5,13,0,10,10,strs(arun_hint),
+  ch=(char)auto_pop_up_list("Start",m,key,5,13,0,10,10,arun_hint,
 		       Auto.hinttxt);
    if(ch=='s'){
     auto_new_ss();
@@ -1986,8 +1977,8 @@ void torus_choice()
   /*static const char *m[]={"Fixed period","Extend"}; */
   static  char key[]="tfe";
   char ch;
-  ch=(char)auto_pop_up_list(str("Torus"),strs(m),key,3,10,0,10,10,
-		       strs(no_hint),Auto.hinttxt);
+  ch=(char)auto_pop_up_list("Torus",m,key,3,10,0,10,10,
+		       no_hint,Auto.hinttxt);
    if(ch=='e'){
     auto_new_per();
     return;
@@ -2008,7 +1999,7 @@ void per_doub_choice()
   static const char *m[]={"Doubling","Two Param","Fixed period","Extend"};
   static  char key[]="dtfe";
   char ch;
-  ch=(char)auto_pop_up_list(str("Per. Doub."),strs(m),key,4,10,0,10,10,strs(no_hint),Auto.hinttxt);
+  ch=(char)auto_pop_up_list("Per. Doub.",m,key,4,10,0,10,10,no_hint,Auto.hinttxt);
   if(ch=='d'){
     auto_period_double();
     return;
@@ -2033,8 +2024,8 @@ void periodic_choice()
   static const char *m[]={"Extend","Fixed Period"};
   static  char key[]="ef";
   char ch;
-  ch=(char)auto_pop_up_list(str("Periodic "),strs(m),key,2,14,0,10,10,
-		       strs(no_hint),Auto.hinttxt);
+  ch=(char)auto_pop_up_list("Periodic ",m,key,2,14,0,10,10,
+		       no_hint,Auto.hinttxt);
   if(ch=='e'){
     auto_new_per();
     return;
@@ -2058,8 +2049,8 @@ void hopf_choice()
     return;
   }
 
-  ch=(char)auto_pop_up_list(str("Hopf Pt"),strs(m),key,4,10,0,10,10,
-		       strs(no_hint),Auto.hinttxt);
+  ch=(char)auto_pop_up_list("Hopf Pt",m,key,4,10,0,10,10,
+		       no_hint,Auto.hinttxt);
   if(ch=='p'){
     auto_new_per();
     return;
@@ -2089,7 +2080,7 @@ void auto_run()
     ping();return;
   }
   if(grabpt.lab==0){
-    ch=(char)TwoChoice(str("YES"),str("NO"),str("Not Labeled Pt: New Start?"),str("y"));
+    ch=(char)TwoChoice("YES","NO","Not Labeled Pt: New Start?","y");
     if(ch=='y')auto_start_diff_ss();
     ping();return;
   }
@@ -2176,8 +2167,8 @@ void auto_branch_choice(int ibr, int ips)
   static  char key[]="sent";
   char ch;
   int ipsuse;
-  ch=(char)auto_pop_up_list(str("Branch Pt"),strs(m),key,4,10,0,10,10,
-		       strs(no_hint),Auto.hinttxt);
+  ch=(char)auto_pop_up_list("Branch Pt",m,key,4,10,0,10,10,
+		       no_hint,Auto.hinttxt);
 
 
   if(ch=='s'){
@@ -2384,7 +2375,7 @@ void auto_extend_ss()
   
   if (isinf(grabpt.per))
   {
-  	err_msg(str("Can't continue infinite period Hopf!"));
+  	err_msg("Can't continue infinite period Hopf!");
   	return;
   } 
   
@@ -2432,7 +2423,7 @@ int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
     std::vector<int> kinds(n, XPP_FIELD_NUMBER);
     kinds[0]=XPP_FIELD_INTEGER;
     kinds[NODE+1]=XPP_FIELD_INTEGER;
-    flag=do_string_box_of(n,n/2,2,str("Homoclinic info"),s,v,16,kinds.data());
+    flag=do_string_box_of(n,n/2,2,"Homoclinic info",s,v,16,kinds.data());
   }
   if(flag!=0){
     *nun=atoi(v[0]);
@@ -2536,7 +2527,7 @@ void auto_new_per() /* same for extending periodic  */
   
   if (isinf(grabpt.per))
   {
-  	err_msg(str("Can't continue infinite period Hopf."));
+  	err_msg("Can't continue infinite period Hopf.");
   	return;
   } 	
       TypeOfCalc=PE1;
@@ -2747,7 +2738,7 @@ void auto_2p_hopf()
   
   if (isinf(grabpt.per))
   {
-  	err_msg(str("Can't continue infinite period Hopf."));
+  	err_msg("Can't continue infinite period Hopf.");
   	return;
   } 
   
@@ -2787,7 +2778,7 @@ void auto_period_double()
 
 /**********   END RUN AUTO *********************/
 
-void auto_err(char *s)
+void auto_err(const char *s)
 {
   err_msg(s);
 }
@@ -2812,7 +2803,7 @@ void load_auto_orbit()
   XPP_SPRINTF(string,"%s.s",this_auto_file);
   fp=fopen(string,"r");
   if(fp==NULL){
-    auto_err(str("No such file"));
+    auto_err("No such file");
     return;
   }
   label=lab;
@@ -2822,7 +2813,7 @@ void load_auto_orbit()
   if(ndim>NODE)nstor=NODE;
   if(flg==0){
     xpp_log_auto("Could not find label %d in file %s \n",label,string);
-    auto_err(str("Cant find labeled pt"));
+    auto_err("Cant find labeled pt");
     fclose(fp);
     return;
   }
@@ -2866,13 +2857,13 @@ void save_auto()
   /* status=get_dialog("Save Auto","Filename",filename,"Ok","Cancel",60);
   XSetInputFocus(display,w,rev,CurrentTime);
   */
-  status=file_selector(str("Save Auto"),filename,str("*.auto"));
+  status=file_selector("Save Auto",filename,"*.auto");
   if(status==0)return;
   if(!may_write_file(filename))return;
   /* written beside filename and renamed over it once whole */
   xpp::Writer w(filename);
   if(!w){
-    err_msg(str("Cannot open file"));
+    err_msg("Cannot open file");
     return;
   }
   status=save_auto_file(w.file());
@@ -2880,7 +2871,7 @@ void save_auto()
     /* an empty diagram: say so, and leave no file without orbits (nor
        replace an existing one with it) */
     w.abort();
-    auto_err(str("Empty diagram -- nothing to save"));
+    auto_err("Empty diagram -- nothing to save");
     return;
   }
   w.commit();
@@ -2963,7 +2954,7 @@ void save_q_file(FILE *fp) /* I am keeping the name q_file even though they are 
   XPP_SPRINTF(string,"%s.s",this_auto_file);
   xpp::LineReader lr(string);
   if(!lr){
-    auto_err(str("Couldnt open s-file"));
+    auto_err("Couldnt open s-file");
     return;
   }
   while(auto line=lr.next()){
@@ -2979,7 +2970,7 @@ void make_q_file(FILE *fp)
   /* written beside the .s and renamed over it once whole */
   xpp::Writer w(string);
   if(!w){
-    auto_err(str("Couldnt open s-file"));
+    auto_err("Couldnt open s-file");
     return;
   }
 
@@ -2995,7 +2986,7 @@ void make_q_file(FILE *fp)
   w.commit();
 }
   
-int noinfo(char *s) /* get rid of any blank lines  */
+int noinfo(const char *s) /* get rid of any blank lines  */
 {
   int n=strlen(s);
   int i;
@@ -3021,11 +3012,11 @@ void load_auto()
 
   XPP_SPRINTF(filename,"%s.auto",basename(this_auto_file));
  
-  status=file_selector(str("Load Auto"),filename,str("*.auto"));
+  status=file_selector("Load Auto",filename,"*.auto");
   if(status==0)return;
   fp=fopen(filename,"r");
   if(fp==NULL){
-    auto_err(str("Cannot open file"));
+    auto_err("Cannot open file");
     return;
   }
   
@@ -3103,9 +3094,9 @@ void export_auto_csv()
 {
   char filename[XPP_MAX_NAME];
   XPP_SPRINTF(filename,"diagram.csv");
-  if(!file_selector(str("Export CSV"),filename,str("*.csv")))return;
+  if(!file_selector("Export CSV",filename,"*.csv"))return;
   if(!csv_export_diagram_pair(filename))
-    err_msg(str("Nothing to export: run or load a diagram first"));
+    err_msg("Nothing to export: run or load a diagram first");
 }
 
 void auto_file()
@@ -3115,7 +3106,7 @@ void auto_file()
 		    "Reset diagram","Clear grab","Write pts","All info","init Data","Toggle redraw","auto raNge","sElect 2par pt","draw laBled","lOad branch","eXport CSV"};
   static  char key[]="islpvrcwadtnebox";
   char ch;
-  ch=(char)auto_pop_up_list(str("File"),strs(m),key,16,16,0,10,10,strs(afile_hint_csv()),
+  ch=(char)auto_pop_up_list("File",m,key,16,16,0,10,10,afile_hint_csv(),
 		       Auto.hinttxt);
   if(ch=='i'){
     load_auto_orbit();
@@ -3158,12 +3149,12 @@ void auto_file()
   }
   if(ch=='t'){
     auto_redraw=1-auto_redraw;
-    if(auto_redraw==1)err_msg(str("Redraw is ON"));
-    else err_msg(str("Redraw is OFF"));
+    if(auto_redraw==1)err_msg("Redraw is ON");
+    else err_msg("Redraw is OFF");
   }
   if(ch=='o'){
     if(diagram_mark.state<2)
-      err_msg(str("Mark a branch first using S and E"));
+      err_msg("Mark a branch first using S and E");
     else
       load_browser_with_branch(diagram_mark.start_branch,diagram_mark.start_point,diagram_mark.end_point);
 	}
@@ -3172,13 +3163,13 @@ void auto_file()
   }
   if(ch=='n'){
     if(diagram_mark.state<2) 
-      err_msg(str("Mark a branch first using S and E"));
+      err_msg("Mark a branch first using S and E");
     else
       do_auto_range();
   }
   if(ch=='e'){
     if(Auto.plot!=P_P){
-      err_msg(str("Must be in 2 parameter plot"));
+      err_msg("Must be in 2 parameter plot");
       return;
     }
     setautopoint();
@@ -3187,17 +3178,17 @@ void auto_file()
   if(ch=='b'){
     if(load_all_labeled_orbits==0){
       load_all_labeled_orbits=1;
-      err_msg(str("Draw orbits - no erase"));
+      err_msg("Draw orbits - no erase");
       return;
     }
      if(load_all_labeled_orbits==1){
       load_all_labeled_orbits=2;
-      err_msg(str("Draw orbits - erase first"));
+      err_msg("Draw orbits - erase first");
       return;
     }
       if(load_all_labeled_orbits==2){
       load_all_labeled_orbits=0;
-      err_msg(str("Draw orbits off"));
+      err_msg("Draw orbits off");
       return;
     }
   }
@@ -3318,15 +3309,15 @@ void DLINE(double a,double b,double c,double d)
 extern const char *aspecial_hint[];
 DIAGRAM *CUR_DIAGRAM;
 
-int query_special(char* title,char *nsymb)
+int query_special(const char * title,char *nsymb)
 {
         /* nsymb is a pointer here; both callers pass a char[3] (symb/
            nsymb below), matching the longest label written below. */
         int status=1;
         static const char *m[]={"BP","EP","HB","LP","MX","PD","TR","UZ"};
 	static  char key[]="behlmptu";
-	int ch=(char)auto_pop_up_list(title,strs(m),key,8,11,1,10,10,
-			     strs(aspecial_hint),Auto.hinttxt);
+	int ch=(char)auto_pop_up_list(title,m,key,8,11,1,10,10,
+			     aspecial_hint,Auto.hinttxt);
 	if(ch=='b'){
 	  xpp_snprintf(nsymb,3,"BP");
 	}
@@ -3490,7 +3481,7 @@ void traverse_diagram()
 	traverse_out(d,&ix,&iy,1);
 	break;
       case UP:
-       if (!query_special(str("Next..."),nsymb)){break;}
+       if (!query_special("Next...",nsymb)){break;}
        XORCross(ix,iy);
        found=0;
        dold=d;
@@ -3516,7 +3507,7 @@ void traverse_diagram()
        traverse_out(d,&ix,&iy,1);
        break;
       case DOWN:
-       if (!query_special(str("Previous..."),nsymb)){break;}
+       if (!query_special("Previous...",nsymb)){break;}
        XORCross(ix,iy);
        found=0;
        dold=d;

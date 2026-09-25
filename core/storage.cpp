@@ -71,7 +71,7 @@ int reallocstor(int ncol,int nrow)
    i++;
    if(i==ncol)return 1;
    }  
-   err_msg((char *)"Cannot allocate sufficient storage");
+   err_msg("Cannot allocate sufficient storage");
    return 0;
 }
   
@@ -94,7 +94,7 @@ WORK=NULL;
  }
  /*  } */
  /*  plintf("col=%d\n",i); */
-err_msg((char *)"Cannot allocate sufficient storage");
+err_msg("Cannot allocate sufficient storage");
    exit(0);
 }
 

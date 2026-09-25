@@ -15,25 +15,25 @@
 
 /* ---- headless defaults ------------------------------------------------ */
 
-static void hl_err_msg(char *msg) { xpp_log(XPP_LOG_ERROR, "%s\n", msg); }
+static void hl_err_msg(const char *msg) { xpp_log(XPP_LOG_ERROR, "%s\n", msg); }
 static void hl_void(void) {}
-static void hl_str(char *s) { (void)s; }
+static void hl_str(const char *s) { (void)s; }
 static void hl_int(int v) { (void)v; }
-static void hl_bottom_msg(int line, char *msg) { (void)line; (void)msg; }
-static int hl_new_string(char *name, char *value, int kind) { (void)name; (void)value; (void)kind; return 0; }
+static void hl_bottom_msg(int line, const char *msg) { (void)line; (void)msg; }
+static int hl_new_string(const char *name, char *value, int kind) { (void)name; (void)value; (void)kind; return 0; }
 static int hl_no(void) { return 0; }
-static int hl_two_choice(char *c1, char *c2, char *q, char *key, char *title)
+static int hl_two_choice(const char *c1, const char *c2, const char *q, const char *key, const char *title)
 {
     (void)c1; (void)c2; (void)q; (void)key; (void)title;
     return 0;
 }
-static int hl_string_box(int n, int row, int col, char *title, char **names,
+static int hl_string_box(int n, int row, int col, const char *title, const char *const *names,
                          char values[][MAX_LEN_SBOX], int maxchar, const int *kinds)
 {
     (void)n; (void)row; (void)col; (void)title; (void)names; (void)values; (void)maxchar; (void)kinds;
     return 0;
 }
-static int hl_file_selector(char *title, char *file, char *wild)
+static int hl_file_selector(const char *title, char *file, const char *wild)
 {
     (void)title; (void)file; (void)wild;
     return 0;
@@ -53,16 +53,16 @@ static void hl_get_draw_size(unsigned int *w, unsigned int *h)
     *w = plot_windows.current && plot_windows.current->x11Wid > 0 ? (unsigned int)plot_windows.current->x11Wid : 640;
     *h = plot_windows.current && plot_windows.current->x11Hgt > 0 ? (unsigned int)plot_windows.current->x11Hgt : 480;
 }
-static void hl_put_text(int x, int y, char *s) { (void)x; (void)y; (void)s; }
+static void hl_put_text(int x, int y, const char *s) { (void)x; (void)y; (void)s; }
 static int hl_film_clip(void) { return 1; }
 static void hl_draw_point(int x, int y) { (void)x; (void)y; }
 static void hl_draw_line(int x1, int y1, int x2, int y2) { (void)x1; (void)y1; (void)x2; (void)y2; }
 static void hl_draw_frect(int x, int y, int w, int h) { (void)x; (void)y; (void)w; (void)h; }
-static void hl_draw_special_text(int x, int y, char *s, int size) { (void)x; (void)y; (void)s; (void)size; }
-static void hl_auto_make_window(char *w, char *i) { (void)w; (void)i; }
+static void hl_draw_special_text(int x, int y, const char *s, int size) { (void)x; (void)y; (void)s; (void)size; }
+static void hl_auto_make_window(const char *w, const char *i) { (void)w; (void)i; }
 static void hl_auto_circle(int x, int y, int r) { (void)x; (void)y; (void)r; }
 static void hl_auto_diagram(const XppDiagPoint *p) { (void)p; }
-static void hl_auto_draw_info(char *s, int x, int y) { (void)s; (void)x; (void)y; }
+static void hl_auto_draw_info(const char *s, int x, int y) { (void)s; (void)x; (void)y; }
 static int hl_auto_grab_event(int *x, int *y) { (void)x; (void)y; return 27; }
 static int hl_auto_check_abort(int *iflag) { *iflag = 0; return 0; }
 static int hl_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag)
@@ -70,8 +70,8 @@ static int hl_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag)
     (void)i1; (void)j1; (void)i2; (void)j2; (void)flag;
     return 0;
 }
-static int hl_auto_choose_key(char *title, char **list, char *key, int n, int max,
-                              int def, int x, int y, char **hints, char *httxt)
+static int hl_auto_choose_key(const char *title, const char *const *list, const char *key, int n, int max,
+                              int def, int x, int y, const char *const *hints, const char *httxt)
 {
     (void)title; (void)list; (void)max; (void)x; (void)y; (void)hints; (void)httxt;
     if (def >= 0 && def < n) return key[def];
@@ -87,26 +87,26 @@ static void hl_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
         else xpp::log(XPP_LOG_DEBUG, "  y[{}]={:.8g}\n", i, y[i]);
     }
 }
-static int hl_dialog(char *title, char *name, char *value, char *ok, char *cancel, int max, int kind)
+static int hl_dialog(const char *title, const char *name, char *value, const char *ok, const char *cancel, int max, int kind)
 {
     (void)title; (void)name; (void)value; (void)ok; (void)cancel; (void)max; (void)kind;
     return 0;
 }
 static void hl_ani_font(int size, int font, int color) { (void)size; (void)font; (void)color; }
 static void hl_ani_box(int x, int y, int w, int h, int fill) { (void)x; (void)y; (void)w; (void)h; (void)fill; }
-static int hl_edit_box(int n, char *title, char **names, char **values)
+static int hl_edit_box(int n, const char *title, const char *const *names, char **values)
 {
     (void)n; (void)title; (void)names; (void)values;
     return 0;
 }
-static void hl_param_box_set(int i, char *s) { (void)i; (void)s; }
-static void hl_respond_box(char *button, char *message) { (void)button; xpp::log(XPP_LOG_WARN, "{}\n", message); }
-static int hl_checklist(char *title, char **names, int *flags, int n)
+static void hl_param_box_set(int i, const char *s) { (void)i; (void)s; }
+static void hl_respond_box(const char *button, const char *message) { (void)button; xpp::log(XPP_LOG_WARN, "{}\n", message); }
+static int hl_checklist(const char *title, const char *const *names, int *flags, int n)
 {
     (void)title; (void)names; (void)flags; (void)n;
     return 0;
 }
-static void hl_movie_save(char *basename, int fmat) { (void)basename; (void)fmat; }
+static void hl_movie_save(const char *basename, int fmat) { (void)basename; (void)fmat; }
 static void hl_open_help(const char *chapter, const char *anchor) { (void)chapter; (void)anchor; }
 static void hl_exit_program(void) { exit(1); }
 
@@ -247,44 +247,44 @@ void xpp_set_ui(const XppUi *ui)
 
 /* ---- dispatchers with the historical names ---------------------------- */
 
-void err_msg(char *string) { xpp_ui.err_msg(string); }
+void err_msg(const char *string) { xpp_ui.err_msg(string); }
 void ping(void) { xpp_ui.ping(); }
-void bottom_msg(int line, char *msg) { xpp_ui.bottom_msg(line, msg); }
-void MessageBox(char *m) { xpp_ui.message_box(m); }
+void bottom_msg(int line, const char *msg) { xpp_ui.bottom_msg(line, msg); }
+void MessageBox(const char *m) { xpp_ui.message_box(m); }
 void KillMessageBox(void) { xpp_ui.kill_message_box(); }
-void title_text(char *s) { xpp_ui.title_text(s); }
-void canvas_xy(char *s) { xpp_ui.canvas_xy(s); }
-int new_string(char *name, char *value) { return xpp_ui.new_string(name, value, XPP_FIELD_TEXT); }
-int new_string_of(char *name, char *value, int kind) { return xpp_ui.new_string(name, value, kind); }
+void title_text(const char *s) { xpp_ui.title_text(s); }
+void canvas_xy(const char *s) { xpp_ui.canvas_xy(s); }
+int new_string(const char *name, char *value) { return xpp_ui.new_string(name, value, XPP_FIELD_TEXT); }
+int new_string_of(const char *name, char *value, int kind) { return xpp_ui.new_string(name, value, kind); }
 int yes_no_box(void) { return xpp_ui.yes_no_box(); }
-int TwoChoice(char *c1, char *c2, char *q, char *key)
+int TwoChoice(const char *c1, const char *c2, const char *q, const char *key)
 {
     return xpp_ui.two_choice(c1, c2, q, key, NULL);
 }
-void respond_box(char *button, char *message) { xpp_ui.respond_box(button, message); }
-int do_string_box(int n, int row, int col, char *title, char **names,
+void respond_box(const char *button, const char *message) { xpp_ui.respond_box(button, message); }
+int do_string_box(int n, int row, int col, const char *title, const char *const *names,
                   char values[][MAX_LEN_SBOX], int maxchar)
 {
     return xpp_ui.string_box(n, row, col, title, names, values, maxchar, NULL);
 }
-int do_string_box_of(int n, int row, int col, char *title, char **names,
+int do_string_box_of(int n, int row, int col, const char *title, const char *const *names,
                      char values[][MAX_LEN_SBOX], int maxchar, const int *kinds)
 {
     return xpp_ui.string_box(n, row, col, title, names, values, maxchar, kinds);
 }
-int file_selector(char *title, char *file, char *wild)
+int file_selector(const char *title, char *file, const char *wild)
 {
     return xpp_ui.file_selector(title, file, wild);
 }
-int get_dialog(char *wname, char *name, char *value, char *ok, char *cancel, int max)
+int get_dialog(const char *wname, const char *name, char *value, const char *ok, const char *cancel, int max)
 {
     return xpp_ui.dialog(wname, name, value, ok, cancel, max, XPP_FIELD_TEXT);
 }
-int get_dialog_of(char *wname, char *name, char *value, char *ok, char *cancel, int max, int kind)
+int get_dialog_of(const char *wname, const char *name, char *value, const char *ok, const char *cancel, int max, int kind)
 {
     return xpp_ui.dialog(wname, name, value, ok, cancel, max, kind);
 }
-int do_edit_box(int n, char *title, char **names, char **values)
+int do_edit_box(int n, const char *title, const char *const *names, char **values)
 {
     return xpp_ui.edit_box(n, title, names, values);
 }
@@ -324,10 +324,10 @@ void SmallBase(void) { xpp_ui.small_base(); }
 void SmallGr(void) { xpp_ui.small_gr(); }
 void reset_film(void) { xpp_ui.reset_film(); }
 void set_color(int col) { xpp_ui.set_color(col); }
-void draw_one_array_plot(char *bob) { xpp_ui.aplot_draw_one(bob); }
-void make_auto(char *wname, char *iname) { xpp_ui.auto_make_window(wname, iname); }
+void draw_one_array_plot(const char *bob) { xpp_ui.aplot_draw_one(bob); }
+void make_auto(const char *wname, const char *iname) { xpp_ui.auto_make_window(wname, iname); }
 void ALINE(int a, int b, int c, int d) { xpp_ui.auto_line(a, b, c, d); }
-void ATEXT(int a, int b, char *c) { xpp_ui.auto_text(a, b, c); }
+void ATEXT(int a, int b, const char *c) { xpp_ui.auto_text(a, b, c); }
 void Circle(int x, int y, int r) { xpp_ui.auto_circle(x, y, r); }
 void FillCircle(int x, int y, int r) { xpp_ui.auto_fill_circle(x, y, r); }
 void XORCross(int x, int y) { xpp_ui.auto_xor_cross(x, y); }
@@ -337,7 +337,7 @@ void autobw(void) { xpp_ui.auto_bw(); }
 void clear_auto_plot(void) { xpp_ui.auto_clear_plot(); }
 void redraw_auto_menus(void) { xpp_ui.auto_redraw_menus(); }
 void clear_auto_info(void) { xpp_ui.auto_clear_info(); }
-void draw_auto_info(char *bob, int x, int y) { xpp_ui.auto_draw_info(bob, x, y); }
+void draw_auto_info(const char *bob, int x, int y) { xpp_ui.auto_draw_info(bob, x, y); }
 void refreshdisplay(void) { xpp_ui.auto_refresh(); }
 int byeauto_(int *iflag) /* AUTO's checkpoint, as my_abort() */
 {
@@ -356,8 +356,8 @@ int auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag)
 {
     return xpp_ui.auto_rubber(i1, j1, i2, j2, flag);
 }
-int auto_pop_up_list(char *title, char **list, char *key, int n, int max,
-                     int def, int x, int y, char **hints, char *httxt)
+int auto_pop_up_list(const char *title, const char *const *list, const char *key, int n, int max,
+                     int def, int x, int y, const char *const *hints, const char *httxt)
 {
     return xpp_ui.auto_choose_key(title, list, key, n, max, def, x, y, hints, httxt);
 }
@@ -377,7 +377,7 @@ int rubber_band(int *i1, int *j1, int *i2, int *j2, int flag)
 }
 void scroll_window(void) { xpp_ui.scroll_window(); }
 void NewColormap(int type) { xpp_ui.new_colormap(type); }
-void make_my_aplot(char *name) { xpp_ui.aplot_make(name); }
+void make_my_aplot(const char *name) { xpp_ui.aplot_make(name); }
 void new_vcr(void) { xpp_ui.new_vcr(); }
 void redraw_the_graph(void) { xpp_ui.redraw_graph(); }
 void make_txtview(void) { xpp_ui.make_txtview(); }
@@ -393,7 +393,7 @@ void open_help(const char *chapter, const char *anchor) { xpp_ui.open_help(chapt
    same gating plintf() used to do itself (see xpp_log.c/xpp_log.h). A
    real error uses err_msg()/xpp_log(..., XPP_LOG_ERROR/WARN) instead. */
 
-int new_int(char *name, int *value)
+int new_int(const char *name, int *value)
 {
     char svalue[200];
     XPP_SPRINTF(svalue, "%d", *value);
@@ -402,7 +402,7 @@ int new_int(char *name, int *value)
     return 0;
 }
 
-int new_float(char *name, double *value)
+int new_float(const char *name, double *value)
 {
     int done;
     int flag;

@@ -235,21 +235,21 @@ void j_int(int i) { (void)i; }
 XppUi make_json_ui(void)
 {
     XppUi u{};
-    u.err_msg = [](char *m) { j_err_msg(m); };
+    u.err_msg = j_err_msg;
     u.ping = j_ping;
     u.bottom_msg = j_bottom_msg;
-    u.message_box = [](char *m) { j_message_box(m); };
+    u.message_box = j_message_box;
     u.kill_message_box = j_kill_message_box;
     u.title_text = j_title_text;
     u.canvas_xy = j_canvas_xy;
     u.new_string = j_new_string;
     u.yes_no_box = j_yes_no_box;
     u.two_choice = j_two_choice;
-    u.respond_box = [](char *b, char *m) { j_respond_box(b, m); };
+    u.respond_box = j_respond_box;
     u.checklist = j_checklist;
     u.string_box = j_string_box;
     u.file_selector = j_file_selector;
-    u.dialog = [](char *t, char *n, char *v, char *o, char *c, int m, int k) { return j_dialog(t, n, v, o, c, m, k); };
+    u.dialog = j_dialog;
     u.edit_box = j_edit_box;
     u.get_mouse_xy = j_get_mouse_xy;
     u.menu_flash = j_int;
@@ -479,7 +479,7 @@ void json_ui_install(void)
 }
 
 /* the first events a client sees */
-void json_ui_hello(char *title)
+void json_ui_hello(const char *title)
 {
     Buf b = {0};
     int i;

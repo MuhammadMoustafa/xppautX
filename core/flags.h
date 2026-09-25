@@ -6,7 +6,7 @@ extern "C" {
 
 
 /* flags.c */
-int add_global(char *cond, int sign, char *rest);
+int add_global(const char *cond, int sign, const char *rest);
 void show_flags(void);
 int compile_flags(void);
 int one_flag_step(double *yold, double *ynew, int *istart, double told, double *tnew, int neq, double *s);

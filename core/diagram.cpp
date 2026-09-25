@@ -21,12 +21,6 @@
 #include "browse.h"
 #include "graf_par.h"
 #define DALLOC(a) (double *)xpp_malloc((a)*sizeof(double))
-namespace {
-/* err_msg/file_selector (xpp_ui.h) take char * and do not write through
-   it, the historical C dialog API shared far beyond this file; str()
-   (grobs.cpp-precedented) casts a literal for one of these calls. */
-char *str(const char *s) { return const_cast<char *>(s); }
-} // namespace
 extern int TypeOfCalc;
 extern ROTCHK blrtn;
 
@@ -226,14 +220,14 @@ void write_info_out()
   XPP_SPRINTF(filename,"allinfo.dat");
   /* status=get_dialog("Write all info","Filename",filename,"Ok","Cancel",60);
    */
-  status=file_selector(str("Write all info"),filename,str("*.dat"));
+  status=file_selector("Write all info",filename,"*.dat");
 
   if(status==0)return;
   d=bifd;
   if(d->next==NULL)return; /* nothing recorded: leave any existing file alone */
   w=xpp_writer_open(filename);
   if(w==NULL){
-    err_msg(str("Can't open file"));
+    err_msg("Can't open file");
     return;
   }
   fp=xpp_writer_file(w);
@@ -333,14 +327,14 @@ void write_init_data_file()
   XPP_SPRINTF(filename,"initdata.dat");
   /* status=get_dialog("Write all info","Filename",filename,"Ok","Cancel",60);
    */
-  status=file_selector(str("Write init data file"),filename,str("*.dat"));
+  status=file_selector("Write init data file",filename,"*.dat");
 
   if(status==0)return;
   d=bifd;
   if(d->next==NULL)return; /* nothing recorded: leave any existing file alone */
   w=xpp_writer_open(filename);
   if(w==NULL){
-    err_msg(str("Can't open file"));
+    err_msg("Can't open file");
     return;
   }
   fp=xpp_writer_file(w);
@@ -395,14 +389,14 @@ void write_pts()
   FILE *fp;
   XppWriter *w;
   XPP_SPRINTF(filename,"diagram.dat");
-  status=file_selector(str("Write points"),filename,str("*.dat"));
+  status=file_selector("Write points",filename,"*.dat");
   /* get_dialog("Write points","Filename",filename,"Ok","Cancel",60); */
   if(status==0)return;
   d=bifd;
   if(d->next==NULL)return; /* nothing recorded: leave any existing file alone */
   w=xpp_writer_open(filename);
   if(w==NULL){
-    err_msg(str("Can't open file"));
+    err_msg("Can't open file");
     return;
   }
   fp=xpp_writer_file(w);
@@ -449,7 +443,7 @@ void post_auto()
   int status;
   XPP_SPRINTF(filename,"auto.ps");
   /* status=get_dialog("Postscript","Filename",filename,"Ok","Cancel",60); */
-  status=file_selector(str("Postscript"),filename,str("*.ps"));
+  status=file_selector("Postscript",filename,"*.ps");
   if(status==0)return;
   if(!ps_init(filename,plot_export.color))
     return;
@@ -483,7 +477,7 @@ void svg_auto()
   int status;
   XPP_SPRINTF(filename,"auto.svg");
   /* status=get_dialog("Postscript","Filename",filename,"Ok","Cancel",60); */
-  status=file_selector(str("SVG"),filename,str("*.svg"));
+  status=file_selector("SVG",filename,"*.svg");
   if(status==0)return;
   if(!svg_init(filename,plot_export.color))
     return;

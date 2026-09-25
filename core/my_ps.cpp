@@ -120,11 +120,11 @@ NULL
 
   
 		   
-int ps_init(char *filename, int color)
+int ps_init(const char *filename, int color)
 {
   int i;
  if((psfile=fopen(filename,"w"))==NULL){
-    err_msg((char *)"Cannot open file ");
+    err_msg("Cannot open file ");
     return(0);
   }
   init_ps();
@@ -194,10 +194,10 @@ void ps_do_color(int color)
 
 void ps_end()
 {
- ps_write((char *)"stroke");
- ps_write((char *)"grestore");
- ps_write((char *)"end");
- ps_write((char *)"showpage");
+ ps_write("stroke");
+ ps_write("grestore");
+ ps_write("end");
+ ps_write("showpage");
  ps_write_pars(psfile);
  fclose(psfile);
  PltFmtFlag=0;
@@ -261,7 +261,7 @@ void chk_ps_lines()
    
 void ps_linetype(int linetype)
 {
-char *line = (char *)"ba0123456789c"; 
+const char *line = "ba0123456789c"; 
 
 	fprintf(psfile,"LT%c\n", line[(linetype%11)+2]);
 	PSLines=0;
@@ -274,7 +274,7 @@ char *line = (char *)"ba0123456789c";
 void ps_point(int x, int y)
 {
   int number=PointType;
-  char *point=(char *)"PDABCTSKF";
+  const char *point="PDABCTSKF";
   number %= POINT_TYPES;
   if(number < -1) 
     number = -1;
@@ -285,7 +285,7 @@ void ps_point(int x, int y)
 }
 
 
-void ps_write(char *str)
+void ps_write(const char *str)
 {
   fprintf(psfile,"%s\n",str);
 }
@@ -299,7 +299,7 @@ void ps_fnt(int cf,int scale)
 }
 
 
-void ps_show(char *str,int type)
+void ps_show(const char *str,int type)
 {
   char ch;
   putc('(',psfile);
@@ -327,7 +327,7 @@ void ps_rel(int x, int y)
   fprintf(psfile,"%d %d rmoveto \n",x,y);
 }
 
-void special_put_text_ps(int x, int y, char *str, int size)
+void special_put_text_ps(int x, int y, const char *str, int size)
 {
   int i=0,j=0,type=1;
   int cf=0;
@@ -408,7 +408,7 @@ void special_put_text_ps(int x, int y, char *str, int size)
       
       
 
-void ps_text(int x, int y, char *str)
+void ps_text(int x, int y, const char *str)
 {
  char ch;
   fprintf(psfile, "0 0 0 setrgbcolor \n");

@@ -330,7 +330,7 @@ void ani_zero(void)
     }
 }
 
-int get_ani_file(char *fname)
+int get_ani_file(const char *fname)
 {
     int status;
     int err;
@@ -350,7 +350,7 @@ int get_ani_file(char *fname)
     return 1;
 }
 
-int ani_new_file(char *filename)
+int ani_new_file(const char *filename)
 {
     FILE *fp;
     char bob[100];
@@ -614,7 +614,7 @@ int parse_ani_string(char *s, FILE *fp)
     return (add_ani_com(type, x1, x2, x3, x4, col, thick));
 }
 
-void set_ani_dimension(char *x1, char *y1, char *x2, char *y2)
+void set_ani_dimension(const char *x1, const char *y1, const char *x2, const char *y2)
 {
     double xx1, yy1, xx2, yy2;
     xx1 = atof(x1);
@@ -630,7 +630,7 @@ void set_ani_dimension(char *x1, char *y1, char *x2, char *y2)
     }
 }
 
-int add_ani_com(int type, char *x1, char *y1, char *x2, char *y2, char *col, char *thick)
+int add_ani_com(int type, const char *x1, char *y1, const char *x2, const char *y2, char *col, const char *thick)
 {
     int err = 0;
     if (type == COMNT || type == DIMENSION || type == PERMANENT || type == TRANSIENT || type == END || type == SPEED)
@@ -765,7 +765,7 @@ int chk_ani_color(char *s, int *index)
     return 0;
 }
 
-int add_ani_expr(char *x, int *c)
+int add_ani_expr(const char *x, int *c)
 {
     int i, n;
     int com[300];
@@ -792,7 +792,7 @@ static int add_ani_color(ANI_COM *a, char *col)
 
 /*  the commands  */
 
-int add_ani_rline(ANI_COM *a, char *x1, char *y1, char *col, char *thick)
+int add_ani_rline(ANI_COM *a, const char *x1, const char *y1, char *col, const char *thick)
 {
     int err;
     /* a named colour is -index like every other command's (it was +index,
@@ -840,7 +840,7 @@ void roll_comet(ANI_COM *a, double xn, double yn, int col)
     a->c.col[n - 1] = col;
 }
 
-int add_ani_comet(ANI_COM *a, char *x1, char *y1, char *x2, char *y2, char *col, char *thick)
+int add_ani_comet(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *y2, char *col, const char *thick)
 {
     int err, n;
     (void)y2;
@@ -863,7 +863,7 @@ int add_ani_comet(ANI_COM *a, char *x1, char *y1, char *x2, char *y2, char *col,
     return 1;
 }
 
-int add_ani_line(ANI_COM *a, char *x1, char *y1, char *x2, char *y2, char *col, char *thick)
+int add_ani_line(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *y2, char *col, const char *thick)
 {
     int err;
     if (add_ani_color(a, col) < 0) return -1;
@@ -881,7 +881,7 @@ int add_ani_line(ANI_COM *a, char *x1, char *y1, char *x2, char *y2, char *col, 
     return 0;
 }
 
-int add_ani_null(ANI_COM *a, char *x1, char *y1, char *x2, char *y2, char *col, char *who)
+int add_ani_null(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *y2, char *col, const char *who)
 {
     int err;
     if (add_ani_color(a, col) < 0) return -1;
@@ -899,27 +899,27 @@ int add_ani_null(ANI_COM *a, char *x1, char *y1, char *x2, char *y2, char *col, 
     return 0;
 }
 
-int add_ani_rect(ANI_COM *a, char *x1, char *y1, char *x2, char *y2, char *col, char *thick)
+int add_ani_rect(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *y2, char *col, const char *thick)
 {
     return (add_ani_line(a, x1, y1, x2, y2, col, thick));
 }
 
-int add_ani_frect(ANI_COM *a, char *x1, char *y1, char *x2, char *y2, char *col, char *thick)
+int add_ani_frect(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *y2, char *col, const char *thick)
 {
     return (add_ani_line(a, x1, y1, x2, y2, col, thick));
 }
 
-int add_ani_ellip(ANI_COM *a, char *x1, char *y1, char *x2, char *y2, char *col, char *thick)
+int add_ani_ellip(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *y2, char *col, const char *thick)
 {
     return (add_ani_line(a, x1, y1, x2, y2, col, thick));
 }
 
-int add_ani_fellip(ANI_COM *a, char *x1, char *y1, char *x2, char *y2, char *col, char *thick)
+int add_ani_fellip(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *y2, char *col, const char *thick)
 {
     return (add_ani_line(a, x1, y1, x2, y2, col, thick));
 }
 
-int add_ani_circle(ANI_COM *a, char *x1, char *y1, char *x2, char *col, char *thick)
+int add_ani_circle(ANI_COM *a, const char *x1, const char *y1, const char *x2, char *col, const char *thick)
 {
     int err;
     if (add_ani_color(a, col) < 0) return -1;
@@ -935,7 +935,7 @@ int add_ani_circle(ANI_COM *a, char *x1, char *y1, char *x2, char *col, char *th
     return 0;
 }
 
-int add_ani_text(ANI_COM *a, char *x1, char *y1, char *y2)
+int add_ani_text(ANI_COM *a, const char *x1, const char *y1, const char *y2)
 {
     int err;
     char *s;
@@ -948,7 +948,7 @@ int add_ani_text(ANI_COM *a, char *x1, char *y1, char *y2)
     return 0;
 }
 
-int add_ani_vtext(ANI_COM *a, char *x1, char *y1, char *x2, char *y2)
+int add_ani_vtext(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *y2)
 {
     int err;
     char *s;
@@ -963,7 +963,7 @@ int add_ani_vtext(ANI_COM *a, char *x1, char *y1, char *x2, char *y2)
     return 0;
 }
 
-int add_ani_settext(ANI_COM *a, char *x1, char *y1, char *col)
+int add_ani_settext(ANI_COM *a, const char *x1, char *y1, char *col)
 {
     int size = atoi(x1);
     int font = 0;
@@ -1080,7 +1080,7 @@ void put_dot(double x, double y, int r)
 }
 
 /* text from its baseline's left end */
-void put_text(double x, double y, char *s)
+void put_text(double x, double y, const char *s)
 {
     int i, j;
     ani_xyscale(x, y, &i, &j);
@@ -1439,7 +1439,7 @@ void read_ani_line(FILE *fp, char *s)
 
 /*************************  GRABBER CODE *****************************/
 
-int add_grab_command(char *xs, char *ys, char *ts, FILE *fp)
+int add_grab_command(const char *xs, const char *ys, const char *ts, FILE *fp)
 {
     char start[256], end[256];
     int com[256];
@@ -1476,7 +1476,7 @@ int add_grab_command(char *xs, char *ys, char *ts, FILE *fp)
     return (1);
 }
 
-int ani_grab_tasks(char *line, int igrab, int which)
+int ani_grab_tasks(const char *line, int igrab, int which)
 {
     int i, k;
     int n = strlen(line);
@@ -1554,7 +1554,7 @@ void do_grab_tasks(int which) /* which=1 for start, 2 for end */
     }
 }
 
-int add_grab_task(char *lhs, char *rhs, int igrab, int which)
+int add_grab_task(const char *lhs, const char *rhs, int igrab, int which)
 {
     int com[256];
     int i, nc, k;

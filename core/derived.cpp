@@ -58,7 +58,7 @@ void evaluate_derived()
 }
 
 /* this adds a derived quantity  */
-int add_derived(char *name, char *rhs)
+int add_derived(const char *name, const char *rhs)
 {
   int n=strlen(rhs)+2;
   int i0;

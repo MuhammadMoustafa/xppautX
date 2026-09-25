@@ -53,8 +53,8 @@ MinGW build (gcc 13.2) matched 179 of Linux's 195 at W17:
 Bash.
 
 verify.sh's checks about the source rather than the build (UTF-8, the
-scripts' executable bit, stdoutcheck, formatcheck, the LTO type check,
-the dead-code check) are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
+scripts' executable bit, stdoutcheck, formatcheck, literalcheck, the LTO
+type check, the dead-code check) are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
 `--warnings`: tools/warnings.sh's count, and web2's dist/types/unit
 tests), and its linux-core job runs `verify.sh --no-source-checks`. Every
 platform runs the same behaviour checks against its own build (`<platform>-core`)
@@ -503,6 +503,10 @@ change. Plain `tools/unsafecheck.sh` prints the per-file table.
   (`new`, `delete`, `class`, `this`, `template`, `or`, `and`, `not`, ...)
   are renamed, designated initializers must follow member order
   (C++20's rule), string literals are `const char *`, and `int` is not an enum.
+- Text a function only reads is `const char *` (a list of them
+  `const char *const *`), the dialog API (xpp_ui.h) included (W28); `char *`
+  says the function writes into it. A string literal is never cast to
+  `char *`: `tools/literalcheck.sh` (sourcecheck.sh) fails one.
 - The API stays C: core headers are `extern "C"` (`#ifdef __cplusplus`
   guards, added by tools/cxx_guard_headers.py; a new header that declares
   functions or variables gets the same guard by hand, after its

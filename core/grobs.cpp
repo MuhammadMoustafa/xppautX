@@ -33,16 +33,12 @@ struct MarkInfo {
 
 MarkInfo markinfo = {2, 0, 1, 0, 1, 1.0};
 
-/* the prompts and titles of the C dialogs, which take char * and do not
-   write to them */
-char *str(const char *s) { return const_cast<char *>(s); }
-
 } // namespace
 
 LABEL lb[MAXLAB];
 GROB grob[MAXGROB];
 
-int add_label(char *s, int x, int y, int size, int font)
+int add_label(const char *s, int x, int y, int size, int font)
 {
     float xp, yp;
     scale_to_real(x, y, &xp, &yp);
@@ -217,13 +213,13 @@ int select_marker_type(int *type)
 
 int get_marker_info(void)
 {
-    static char *n[] = {str("*5Type"), str("*4Color"), str("Size")};
+    static const char *n[] = {"*5Type", "*4Color", "Size"};
     char values[3][MAX_LEN_SBOX];
     std::snprintf(values[0], sizeof values[0], "%d", markinfo.type);
     std::snprintf(values[1], sizeof values[1], "%d", markinfo.color);
     std::snprintf(values[2], sizeof values[2], "%g", markinfo.size);
     static const int kinds[] = {XPP_FIELD_NAME_IN(5), XPP_FIELD_NAME_IN(4), XPP_FIELD_NUMBER};
-    const int status = do_string_box_of(3, 3, 1, str("Add Marker"), n, values, 25, kinds);
+    const int status = do_string_box_of(3, 3, 1, "Add Marker", n, values, 25, kinds);
     if (status != 0) {
         markinfo.type = std::atoi(values[0]);
         markinfo.size = std::atof(values[2]);
@@ -235,7 +231,7 @@ int get_marker_info(void)
 
 int get_markers_info(void)
 {
-    static char *n[] = {str("*5Type"), str("*4Color"), str("Size"), str("Number"), str("Row1"), str("Skip")};
+    static const char *n[] = {"*5Type", "*4Color", "Size", "Number", "Row1", "Skip"};
     char values[6][MAX_LEN_SBOX];
     std::snprintf(values[0], sizeof values[0], "%d", markinfo.type);
     std::snprintf(values[1], sizeof values[1], "%d", markinfo.color);
@@ -245,7 +241,7 @@ int get_markers_info(void)
     std::snprintf(values[5], sizeof values[5], "%d", markinfo.skip);
     static const int kinds[] = {XPP_FIELD_NAME_IN(5), XPP_FIELD_NAME_IN(4), XPP_FIELD_NUMBER,
                                 XPP_FIELD_INTEGER, XPP_FIELD_INTEGER, XPP_FIELD_INTEGER};
-    const int status = do_string_box_of(6, 6, 1, str("Add Markers"), n, values, 25, kinds);
+    const int status = do_string_box_of(6, 6, 1, "Add Markers", n, values, 25, kinds);
     if (status != 0) {
         markinfo.type = std::atoi(values[0]);
         markinfo.size = std::atof(values[2]);
@@ -263,7 +259,7 @@ void add_marker(void)
     int i1, j1;
     float xs, ys;
     if (get_marker_info() == 0) return;
-    MessageBox(str("Position"));
+    MessageBox("Position");
     const int flag = GetMouseXY(&i1, &j1);
     KillMessageBox();
     FlushDisplay();
@@ -301,9 +297,9 @@ void add_pntarr(int type)
     double size = .1;
     int i1, j1, i2, j2, color = 0;
     float xe, ye, xs, ys;
-    if (new_float(str("Size: "), &size)) return;
-    if (new_int(str("Color: "), &color)) return;
-    MessageBox(str("Choose start/end"));
+    if (new_float("Size: ", &size)) return;
+    if (new_int("Color: ", &color)) return;
+    MessageBox("Choose start/end");
     const int flag = rubber_band(&i1, &j1, &i2, &j2, 1);
     KillMessageBox();
     FlushDisplay();
@@ -325,7 +321,7 @@ void edit_object_com(int com)
     float x, y;
     float dist = 1e20f, dd;
 
-    MessageBox(str("Choose Object"));
+    MessageBox("Choose Object");
     flag = GetMouseXY(&i, &j);
     KillMessageBox();
     FlushDisplay();
@@ -356,9 +352,9 @@ void edit_object_com(int com)
         switch (com) {
         case 0:
             std::snprintf(s, sizeof s, "Move %s ?", lb[ilab].s);
-            ans = static_cast<char>(TwoChoice(str("Yes"), str("No"), s, str("yn")));
+            ans = static_cast<char>(TwoChoice("Yes", "No", s, "yn"));
             if (ans == 'y') {
-                MessageBox(str("Click on new position"));
+                MessageBox("Click on new position");
                 flag = GetMouseXY(&i, &j);
                 KillMessageBox();
                 FlushDisplay();
@@ -373,10 +369,10 @@ void edit_object_com(int com)
             break;
         case 1:
             std::snprintf(s, sizeof s, "Change %s ?", lb[ilab].s);
-            ans = static_cast<char>(TwoChoice(str("Yes"), str("No"), s, str("yn")));
+            ans = static_cast<char>(TwoChoice("Yes", "No", s, "yn"));
             if (ans == 'y') {
-                new_string(str("Text: "), lb[ilab].s);
-                new_int(str("Size 0-4 :"), &lb[ilab].size);
+                new_string("Text: ", lb[ilab].s);
+                new_int("Size 0-4 :", &lb[ilab].size);
                 if (lb[ilab].size > 4) lb[ilab].size = 4;
                 if (lb[ilab].size < 0) lb[ilab].size = 0;
                 clr_scrn();
@@ -385,7 +381,7 @@ void edit_object_com(int com)
             break;
         case 2:
             std::snprintf(s, sizeof s, "Delete %s ?", lb[ilab].s);
-            ans = static_cast<char>(TwoChoice(str("Yes"), str("No"), s, str("yn")));
+            ans = static_cast<char>(TwoChoice("Yes", "No", s, "yn"));
             if (ans == 'y') {
                 lb[ilab].w = 0;
                 lb[ilab].use = 0;
@@ -399,9 +395,9 @@ void edit_object_com(int com)
         switch (com) {
         case 0:
             std::snprintf(s, sizeof s, "Move graphic at (%f,%f)", grob[ilab].xs, grob[ilab].ys);
-            ans = static_cast<char>(TwoChoice(str("Yes"), str("No"), s, str("yn")));
+            ans = static_cast<char>(TwoChoice("Yes", "No", s, "yn"));
             if (ans == 'y') {
-                MessageBox(str("Reposition"));
+                MessageBox("Reposition");
                 flag = GetMouseXY(&i, &j);
                 KillMessageBox();
                 FlushDisplay();
@@ -418,18 +414,18 @@ void edit_object_com(int com)
             break;
         case 1:
             std::snprintf(s, sizeof s, "Change graphic at (%f,%f)", grob[ilab].xs, grob[ilab].ys);
-            ans = static_cast<char>(TwoChoice(str("Yes"), str("No"), s, str("yn")));
+            ans = static_cast<char>(TwoChoice("Yes", "No", s, "yn"));
             if (ans == 'y') {
                 if (grob[ilab].type >= MARKER) select_marker_type(&grob[ilab].type);
-                new_float(str("Size "), &grob[ilab].size);
-                new_int(str("Color :"), &grob[ilab].color);
+                new_float("Size ", &grob[ilab].size);
+                new_int("Color :", &grob[ilab].color);
                 clr_scrn();
                 redraw_all();
             }
             break;
         case 2:
             std::snprintf(s, sizeof s, "Delete graphic at (%f,%f)", grob[ilab].xs, grob[ilab].ys);
-            ans = static_cast<char>(TwoChoice(str("Yes"), str("No"), s, str("yn")));
+            ans = static_cast<char>(TwoChoice("Yes", "No", s, "yn"));
             if (ans == 'y') {
                 grob[ilab].w = 0;
                 grob[ilab].use = 0;

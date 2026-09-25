@@ -160,7 +160,7 @@ reset_bvp()
  
 */
 
-void init_shoot_range(char *s)
+void init_shoot_range(const char *s)
 {
  snprintf(shoot_range.item,sizeof(shoot_range.item),"%s",s);
  shoot_range.phigh=1.0;
@@ -186,19 +186,19 @@ void bad_shoot(int iret)
 {
  switch(iret){
  case NOCHANGE:
-   err_msg((char *)"No change from last point. Saving anyway");
+   err_msg("No change from last point. Saving anyway");
    break;
  case NUMICS:
-   err_msg((char *)"Number BCS not equal number ICs");
+   err_msg("Number BCS not equal number ICs");
    break;
  case BADINT:
-   err_msg((char *)"Unable to complete integration");
+   err_msg("Unable to complete integration");
    break;
  case TOOMANY:
-   err_msg((char *)"Maximum iterates exceeded");
+   err_msg("Maximum iterates exceeded");
    break;
  case BADJAC:
-   err_msg((char *)"Bad Jacobian -- uninvertable");
+   err_msg("Bad Jacobian -- uninvertable");
    break;
  }
 }
@@ -265,30 +265,30 @@ void do_sh_range(double *ystart, double *yend)
 
 int set_up_periodic(int *ipar, int *ivar, double *sect, int *ishow)
 {
- static char *n[]={(char *)"Freq. Par.",(char *)"*1Sect. Var",(char *)"Section",(char *)"Show(Y/N)"};
+ static const char *n[]={"Freq. Par.","*1Sect. Var","Section","Show(Y/N)"};
  char values[4][MAX_LEN_SBOX];
  int status,i;
- static char *yn[]={(char *)"N",(char *)"Y"};
+ static const char *yn[]={"N","Y"};
  XPP_SPRINTF(values[0],"%s",upar_names[*ipar]);
  XPP_SPRINTF(values[1],"%s",uvar_names[*ivar]);
  XPP_SPRINTF(values[2],"%g",*sect);
  XPP_SPRINTF(values[3],"%s",yn[*ishow]);
  
  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(1),XPP_FIELD_NUMBER,XPP_FIELD_TEXT};
- status=do_string_box_of(4,4,1,(char *)"Periodic BCs",n,values,45,kinds);
+ status=do_string_box_of(4,4,1,"Periodic BCs",n,values,45,kinds);
  if(status!=0){
                i=find_user_name(PARAM,values[0]);
 	       if(i>-1)
 		 *ipar=i;
 	       else {
-		 err_msg((char *)"No such parameter");
+		 err_msg("No such parameter");
 		 return(0);
 	       }
 	       i=find_user_name(IC,values[1]);
 	       if(i>-1)
 		 *ivar=i;
 	       else {
-		 err_msg((char *)"No such variable");
+		 err_msg("No such variable");
 		 return(0);
 	       }
 	       *sect=atof(values[2]);
@@ -315,7 +315,7 @@ void find_bvp_com(int com)
  double yend[MAXODE];
  /*  Window temp=main_win; */
  if(NMarkov>0||NKernel>0){
-   err_msg((char *)"Can't do BVP with integral or markov eqns");
+   err_msg("Can't do BVP with integral or markov eqns");
    return;
  }
  wipe_rep();
@@ -401,12 +401,12 @@ void last_shot(int flag)
 
 int set_up_sh_range()
 {
-static char *n[]={(char *)"*2Range over",(char *)"Steps",(char *)"Start",(char *)"End",
-		     (char *)"Cycle color(Y/N)",
-		       (char *)"Side(0/1)", (char *)"Movie(Y/N)" };
+static const char *n[]={"*2Range over","Steps","Start","End",
+		     "Cycle color(Y/N)",
+		       "Side(0/1)", "Movie(Y/N)" };
  char values[7][MAX_LEN_SBOX];
  int status,i;
- static  char *yn[]={(char *)"N",(char *)"Y"};
+ static  const char *yn[]={"N","Y"};
  snprintf(values[0],sizeof(values[0]),"%s",shoot_range.item);
  XPP_SPRINTF(values[1],"%d",shoot_range.steps);
  XPP_SPRINTF(values[2],"%g",shoot_range.plow);
@@ -417,12 +417,12 @@ static char *n[]={(char *)"*2Range over",(char *)"Steps",(char *)"Start",(char *
 
  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
- status=do_string_box_of(7,7,1,(char *)"Range Shoot",n,values,45,kinds);
+ status=do_string_box_of(7,7,1,"Range Shoot",n,values,45,kinds);
  if(status!=0){
    XPP_STRCPY(shoot_range.item,values[0]);
    i=find_user_name(PARAM,shoot_range.item);
    if(i<0){
-        err_msg((char *)"No such parameter");
+        err_msg("No such parameter");
        return(0);
      }
    

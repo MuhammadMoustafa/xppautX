@@ -228,12 +228,12 @@ void j_cput_text(void)
     char string[256], text[256];
     int x, y, size = 2;
     XPP_STRCPY(string, "");
-    if (new_string(const_cast<char *>("Text: "), string) == 0) return;
+    if (new_string("Text: ", string) == 0) return;
     if (string[0] == '%') {
         fillintext(&string[1], text);
         XPP_STRCPY(string, text);
     }
-    new_int(const_cast<char *>("Size 0-4 :"), &size);
+    new_int("Size 0-4 :", &size);
     if (size > 4) size = 4;
     if (size < 0) size = 0;
     j_message_box("Place text with mouse");
@@ -503,7 +503,7 @@ void j_movie_auto_play(void)
     if (film_count) send_film("autoplay");
 }
 
-void j_movie_save(char *basename, int fmat)
+void j_movie_save(const char *basename, int fmat)
 {
     char file[XPP_MAX_NAME + 32];
     int i, w, h;
@@ -640,7 +640,7 @@ void aplot_update(void)
     aplot_dirty = 0;
 }
 
-void j_aplot_make(char *name)
+void j_aplot_make(const char *name)
 {
     if (aplot.alive) return;
     aplot.alive = 1;
@@ -677,7 +677,7 @@ void aplot_gif(const char *file, int still)
 
 } // namespace
 
-void j_aplot_draw_one(char *tag)
+void j_aplot_draw_one(const char *tag)
 {
     char file[300];
     send_aplot(aplot_tag ? tag : NULL);
@@ -702,7 +702,7 @@ void aplot_command(const char *line)
     else if (strcmp(o, "gif") == 0) {
         char file[XPP_MAX_NAME];
         snprintf(file, sizeof file, "%s.gif", this_file);
-        if (file_selector(const_cast<char *>("GIF plot"), file, const_cast<char *>("*.gif"))) aplot_gif(file, 1);
+        if (file_selector("GIF plot", file, "*.gif")) aplot_gif(file, 1);
     } else if (strcmp(o, "scroll") == 0) {
         /* dragging the plot by dy pixels moves the first row, as in X11 */
         aplot.nstart -= (int)get_num(line, "dy", 0);

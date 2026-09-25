@@ -6,7 +6,7 @@ extern "C" {
 
 
 /* my_ps.c */
-int ps_init(char *filename, int color);
+int ps_init(const char *filename, int color);
 void ps_stroke(void);
 void ps_do_color(int color);
 void ps_end(void);
@@ -17,13 +17,13 @@ void ps_line(int xp1, int yp1, int xp2, int yp2);
 void chk_ps_lines(void);
 void ps_linetype(int linetype);
 void ps_point(int x, int y);
-void ps_write(char *str);
+void ps_write(const char *str);
 void ps_fnt(int cf, int scale);
-void ps_show(char *str, int type);
+void ps_show(const char *str, int type);
 void ps_abs(int x, int y);
 void ps_rel(int x, int y);
-void special_put_text_ps(int x, int y, char *str, int size);
-void ps_text(int x, int y, char *str);
+void special_put_text_ps(int x, int y, const char *str, int size);
+void ps_text(int x, int y, const char *str);
 
 
 #ifdef __cplusplus

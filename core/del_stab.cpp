@@ -54,7 +54,7 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
    {
      del_stab_flag=1;
      xpp_free(work);
-     err_msg((char *)"Could not converge to root");
+     err_msg("Could not converge to root");
      for(i=0;i<n;i++)x[i]=old_x[i];
      return;
    }

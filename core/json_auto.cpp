@@ -272,7 +272,7 @@ void auto_redraw_for_client(void)
 
 /* ---- AUTO window --------------------------------------------------------------- */
 
-void j_auto_make_window(char *wname, char *iname)
+void j_auto_make_window(const char *wname, const char *iname)
 {
     (void)iname;
     Auto.hgt = 20 * text_metrics.big_height;
@@ -302,8 +302,8 @@ int j_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag)
     *i1 = v[0]; *j1 = v[1]; *i2 = v[2]; *j2 = v[3];
     return 1;
 }
-int j_auto_choose_key(char *title, char **list, char *key, int n, int max, int def,
-                             int x, int y, char **hints, char *httxt)
+int j_auto_choose_key(const char *title, const char *const *list, const char *key, int n, int max, int def,
+                             int x, int y, const char *const *hints, const char *httxt)
 {
     XppMenu m;
     (void)max; (void)x; (void)y; (void)httxt;

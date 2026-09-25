@@ -98,14 +98,14 @@ void load_new_dll(void)
   int status;
   if(dlf.loaded!=0&&dlhandle!=nullptr)
     dlclose(dlhandle);
-  status=file_selector((char *)"Library:",dlf.libfile,(char *)"*.so");
+  status=file_selector("Library:",dlf.libfile,"*.so");
   if(status==0)return;
   XPP_SPRINTF(dlf.libname,"%s/%s",cur_dir,dlf.libfile);
-  new_string((char *)"Function name:",dlf.fun);
+  new_string("Function name:",dlf.fun);
   dlf.loaded=0;
 }
 
-void get_import_values(int n, double *ydot, char *soname, char *sofun,
+void get_import_values(int n, double *ydot, const char *soname, const char *sofun,
 		       int ivar, double **wgt,
 		       double *var, double *con)
 {
@@ -167,7 +167,7 @@ int my_fun(double *in, double *out, int nin,int nout,double *v,double *c)
 }
 #else
 
-void get_import_values(int, double *, char *, char *, int, double **, double *, double *)
+void get_import_values(int, double *, const char *, const char *, int, double **, double *, double *)
 {
 }
 
@@ -208,7 +208,7 @@ void do_in_out(void)
   }
 }
 
-void add_export_list(char *in,char *out)
+void add_export_list(const char *in,const char *out)
 {
   int i;
   /* a model loaded before this one had its own list */
@@ -234,7 +234,7 @@ void add_export_list(char *in,char *out)
   in_out.nout=i;
 }
 
-int get_export_count(char *s)
+int get_export_count(const char *s)
 {
   int i=0;
   for(const char *p=s;*p;p++)
@@ -250,7 +250,7 @@ void do_export_list(void)
  parse_inout(in_out.lout,1);
 }
 
-void parse_inout(char *l,int flag)
+void parse_inout(const char *l,int flag)
 {
   size_t i=0;
   int j=0;

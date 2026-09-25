@@ -43,11 +43,8 @@ extern int DOING_DFIELD;
 
 
 
-namespace {
-char *lit(const char *s) { return const_cast<char *>(s); }
-} // namespace
 
-int svg_init(char *filename, int color)
+int svg_init(const char *filename, int color)
 {
 
 	init_svg();
@@ -58,7 +55,7 @@ int svg_init(char *filename, int color)
         LastPSY=-10000;
 
 	if((svg_writer=xpp_writer_open(filename))==NULL){
-	  err_msg(lit("Cannot open file "));
+	  err_msg("Cannot open file ");
 	  return(0);
 	}
 	svgfile=xpp_writer_file(svg_writer);
@@ -275,7 +272,7 @@ int svg_init(char *filename, int color)
 }
 
 	
-void svg_write(char *str)
+void svg_write(const char *str)
 {
   fprintf(svgfile,"%s\n",str);
 }
@@ -295,7 +292,7 @@ void svg_do_color(int color)
 
 void svg_end(void)
 {
- svg_write(lit("</svg>"));
+ svg_write("</svg>");
  xpp_writer_commit(svg_writer);
  svg_writer=NULL;
  svgfile=NULL;
@@ -479,7 +476,7 @@ void svg_point(int x, int y)
 }
 
 
-void special_put_text_svg(int x, int y, char *str, int size)
+void special_put_text_svg(int x, int y, const char *str, int size)
 {
   /*int i=0,j=0,type=1;
   int cf=0;
@@ -575,7 +572,7 @@ void special_put_text_svg(int x, int y, char *str, int size)
 	
 }
 
-void svg_text(int x, int y, char *str)
+void svg_text(int x, int y, const char *str)
 {
 	char anchor[7];
 	

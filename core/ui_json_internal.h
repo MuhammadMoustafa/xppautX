@@ -106,21 +106,21 @@ int ask_drag(unsigned long win, int *x, int *y);
 
 void j_err_msg(const char *msg);
 void j_ping(void);
-void j_bottom_msg(int line, char *msg);
+void j_bottom_msg(int line, const char *msg);
 void j_message_box(const char *msg);
 void j_kill_message_box(void);
-void j_title_text(char *s);
-void j_canvas_xy(char *s);
+void j_title_text(const char *s);
+void j_canvas_xy(const char *s);
 int j_dialog(const char *title, const char *name, char *value, const char *ok, const char *cancel, int max, int kind);
-int j_new_string(char *name, char *value, int kind);
+int j_new_string(const char *name, char *value, int kind);
 int j_yes_no_box(void);
-int j_two_choice(char *c1, char *c2, char *q, char *key, char *title);
+int j_two_choice(const char *c1, const char *c2, const char *q, const char *key, const char *title);
 void j_respond_box(const char *button, const char *message);
-int j_checklist(char *title, char **names, int *flags, int n);
-int j_string_box(int n, int row, int col, char *title, char **names, char values[][MAX_LEN_SBOX], int maxchar,
+int j_checklist(const char *title, const char *const *names, int *flags, int n);
+int j_string_box(int n, int row, int col, const char *title, const char *const *names, char values[][MAX_LEN_SBOX], int maxchar,
                  const int *kinds);
-int j_edit_box(int n, char *title, char **names, char **values);
-int j_file_selector(char *title, char *file, char *wild);
+int j_edit_box(int n, const char *title, const char *const *names, char **values);
+int j_file_selector(const char *title, char *file, const char *wild);
 int j_get_mouse_xy(int *x, int *y);
 int j_rubber_band(int *i1, int *j1, int *i2, int *j2, int flag);
 int j_menu_choose(const struct XppMenu *m, int def);
@@ -137,7 +137,7 @@ void send_state(void);
 void send_state_if_dirty(void);
 void j_state_dirty(void);
 void j_state_dirty_i(int i);
-void j_state_dirty_is(int i, char *s);
+void j_state_dirty_is(int i, const char *s);
 void browser_rows(const char *line);
 void browser_command(const char *line);
 void browser_update(void); /* at a command's end */
@@ -188,15 +188,15 @@ int j_film_clip(void);
 void j_reset_film(void);
 void j_movie_play_back(void);
 void j_movie_auto_play(void);
-void j_movie_save(char *basename, int fmat);
+void j_movie_save(const char *basename, int fmat);
 void j_movie_make_anigif(void);
 
 void aplot_changed(void); /* the data behind an array plot changed */
 void aplot_update(void);  /* at a command's end */
 void aplot_command(const char *line);
-void j_aplot_make(char *name);
+void j_aplot_make(const char *name);
 void j_aplot_redraw(void);
-void j_aplot_draw_one(char *tag);
+void j_aplot_draw_one(const char *tag);
 
 /* ---- json_auto.cpp ---- */
 
@@ -207,11 +207,11 @@ void auto_redraw_for_client(void);
 int is_auto_set(const char *line);
 void defer_auto_set(const char *line);
 void apply_deferred_sets(void);
-void j_auto_make_window(char *wname, char *iname);
+void j_auto_make_window(const char *wname, const char *iname);
 int j_auto_check_abort(int *iflag);
 int j_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag);
-int j_auto_choose_key(char *title, char **list, char *key, int n, int max, int def, int x, int y, char **hints,
-                      char *httxt);
+int j_auto_choose_key(const char *title, const char *const *list, const char *key, int n, int max, int def, int x, int y, const char *const *hints,
+                      const char *httxt);
 int j_auto_grab_event(int *x, int *y);
 void j_auto_show_hint(void);
 void j_auto_scroll_window(void);

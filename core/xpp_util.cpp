@@ -150,7 +150,7 @@ void de_space(char *s)
   s[j]=0;
 }
 
-int find_user_name(int type, char *oname)
+int find_user_name(int type, const char *oname)
 {
  char name[XPP_NAME_MAX+1];
  int j=0,k=0,i=-1;
@@ -172,7 +172,7 @@ int find_user_name(int type, char *oname)
 	return(-1);
  }
 
-int do_calc(char *temp, double *z)
+int do_calc(const char *temp, double *z)
 {
  char val[256];
  int ok; 
@@ -198,7 +198,7 @@ int do_calc(char *temp, double *z)
   else {
     i=find_user_name(IC,val);
     if(i<0){
-      err_msg((char *)"No such name!");
+      err_msg("No such name!");
       return(-1);
     }
     set_val(val,newz);
@@ -216,7 +216,7 @@ int do_calc(char *temp, double *z)
  return(1);
 }
 
-int has_eq(char *z, char *w, int *where)
+int has_eq(const char *z, char *w, int *where)
 {
   int i;
   for(i=0;i<(int)strlen(z);i++)
@@ -229,12 +229,12 @@ int has_eq(char *z, char *w, int *where)
   return(1);
  }
 
- double calculate(char *expr, int *ok)
+ double calculate(const char *expr, int *ok)
 {
   int com[400],i;
   double z=0.0;
     if(add_expr(expr,com,&i)){
-     err_msg((char *)"Illegal formula ..");
+     err_msg("Illegal formula ..");
      *ok=0;
       goto bye;
    }
@@ -399,9 +399,9 @@ void clone_ode()
   time_t ttt;
   double z;
   clone[0]=0;
-  if(!file_selector((char *)"Clone ODE file",clone,(char *)"*.ode"))return;
+  if(!file_selector("Clone ODE file",clone,"*.ode"))return;
   if((fp=fopen(clone,"w"))==NULL){
-      err_msg((char *)" Cant open clone file");
+      err_msg(" Cant open clone file");
       return;
     }
   ttt=time(0);
@@ -467,7 +467,7 @@ void new_parameter()
   char name[256],value[256],junk[256];
   while(1){
     name[0]=0;
-    done=new_string_of((char *)"Parameter:",name,XPP_FIELD_NAME_IN(2));
+    done=new_string_of("Parameter:",name,XPP_FIELD_NAME_IN(2));
     if(strlen(name)==0||done==0){redo_stuff(); return;}
     if(strncasecmp(name,"DEFAULT",7  )==0){
       set_default_params();
@@ -535,7 +535,7 @@ void   set_default_ics()
    redraw_ics();
 }
 
-int to_float(char *s, double *z)
+int to_float(const char *s, double *z)
 {
   int flag;
   *z=0.0;
@@ -573,7 +573,7 @@ void man_ic()
 /* store the text s typed for entry i of a box of the given type. Numbers
    (ICs, parameters) come back in *z and the result is 1; BCs and delays are
    strings (0); -1 when a %formula does not evaluate. */
-int box_set_value(int type,int i,char *s,double *z)
+int box_set_value(int type,int i,const char *s,double *z)
 {
   *z=0.0;
   switch(type){
@@ -632,7 +632,7 @@ void plot_checked_vars(int how,int *isck,int n)
 
 /* a slider names a parameter (PARAMBOX) or a variable (ICBOX); 0 if
    neither */
-int find_par_or_var(char *name,int *type,int *index)
+int find_par_or_var(const char *name,int *type,int *index)
 {
   int status=find_user_name(PARAMBOX,name);
   if(status==-1){
@@ -645,7 +645,7 @@ int find_par_or_var(char *name,int *type,int *index)
   return 1;
 }
 
-void set_par_or_var(char *name,int type,int index,double val)
+void set_par_or_var(const char *name,int type,int index,double val)
 {
   set_val(name,val);
   if(type==ICBOX)
@@ -696,18 +696,18 @@ void eq_import(double *y,int n)
 }
 
 /* cp/rp: complex/real eigenvalues with positive real part, im: imaginary */
-char *eq_stability(int cp,int rp,int im)
+const char *eq_stability(int cp, int rp, int im)
 {
- if(cp>0||rp>0)return (char *)"UNSTABLE";
- else if(im>0)return (char *)"NEUTRAL";
- else return (char *)"STABLE";
+ if(cp>0||rp>0)return "UNSTABLE";
+ else if(im>0)return "NEUTRAL";
+ else return "STABLE";
 }
 
 /* ---- a comment with an action in the ODE file was picked (logic from
    txtread.c): run its "name=value ..." settings ---- */
-void extract_action(char *ptr); /* load_eqn.c */
+void extract_action(const char *ptr); /* load_eqn.c */
 
-void do_txt_action(char *s)
+void do_txt_action(const char *s)
 {
  get_graph();
  extract_action(s);

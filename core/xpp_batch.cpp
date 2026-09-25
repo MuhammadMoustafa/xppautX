@@ -63,13 +63,13 @@ void check_for_quiet(int argc, char **argv)
 	{
  	       if (strcmp(argv[i],"-quiet")==0)
 	       {
-	       	       set_option((char *)"QUIET",argv[i+1],1,NULL);
+	       	       set_option("QUIET",argv[i+1],1,NULL);
 		       quiet_specified_once=1;
      		       i++;
 	       }
 	       else if (strcmp(argv[i],"-logfile")==0)
 	       {
-		       set_option((char *)"LOGFILE",argv[i+1],1,NULL);
+		       set_option("LOGFILE",argv[i+1],1,NULL);
 		       logfile_specified_once = 1;
      		       i++;
 	       }

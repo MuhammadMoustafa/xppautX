@@ -57,7 +57,7 @@ int nsvar=0,naeqn=0;
 /* this adds an algebraically defined variable  and a formula
    for the first guess */
 
-int add_svar(char *name, char *rhs)
+int add_svar(const char *name, const char *rhs)
 {
   if(nsvar>=MAXDAE){
     xpp_log(XPP_LOG_ERROR, " Too many variables\n");
@@ -89,7 +89,7 @@ int add_svar_names()
 
 /* adds a right-hand side to slove for zero */
 
-int add_aeqn(char *rhs)
+int add_aeqn(const char *rhs)
 {
   if(naeqn>=MAXDAE){
     xpp_log(XPP_LOG_ERROR, " Too many equations\n");
@@ -158,18 +158,18 @@ void err_dae()
   
   switch(dae_work.status){
   case 2: 
-    err_msg((char *)" Warning - no change in Iterates");
+    err_msg(" Warning - no change in Iterates");
     break;
   case -1:
-    err_msg((char *)" Singular jacobian for dae\n");
+    err_msg(" Singular jacobian for dae\n");
     
     break;
   case -2:
-    err_msg((char *)" Maximum iterates exceeded for dae\n");
+    err_msg(" Maximum iterates exceeded for dae\n");
     
     break;
   case -3:
-    err_msg((char *)" Newton update out of bounds\n");
+    err_msg(" Newton update out of bounds\n");
     break;
   }
   dae_work.status=1;
@@ -304,7 +304,7 @@ void get_new_guesses()
     snprintf(name,sizeof(name),"Initial %.*s(%g):",XPP_NAME_MAX,svar[i].name,z);
     new_string_of(name,svar[i].rhs,XPP_FIELD_EXPRESSION);
     if(add_expr(svar[i].rhs,svar[i].form,&n)){
-      err_msg((char *)"Illegal formula");
+      err_msg("Illegal formula");
       return;
     }
     z=evaluate(svar[i].form);

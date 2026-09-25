@@ -31,8 +31,8 @@ void get_method(void);
 void set_col_par_com(int i);
 void do_meth(void);
 void set_total(double total);
-void user_set_color_par(int flag,char *via,double lo,double hi);
-void compute_one_period(double period,double *x, char *name);
+void user_set_color_par(int flag,const char *via,double lo,double hi);
+void compute_one_period(double period,double *x, const char *name);
 
 #ifdef __cplusplus
 }

@@ -6,7 +6,7 @@ extern "C" {
 
 
 
-void do_txt_action(char *s);
+void do_txt_action(const char *s);
 void resize_txtview(int w, int h);
 void redraw_txtview_text(void);
 void init_txtview(void);

@@ -118,7 +118,7 @@ int cmpstringp(const void *p1, const void *p2)
 
 
 
-int get_fileinfo(char *wild, char *direct, FILEINFO *ff)
+int get_fileinfo(const char *wild, const char *direct, FILEINFO *ff)
 {
   int i,ans;
   DIR *dirp;
@@ -168,7 +168,7 @@ int get_fileinfo(char *wild, char *direct, FILEINFO *ff)
 
 
 
-int fil_count(char *direct, int *ndir, int *nfil, char *wild, int *mld, int *mlf)
+int fil_count(const char *direct, int *ndir, int *nfil, const char *wild, int *mld, int *mlf)
 {
   DIR *dirp;
   int l;
@@ -204,7 +204,7 @@ int fil_count(char *direct, int *ndir, int *nfil, char *wild, int *mld, int *mlf
 }
 
 
-int change_directory(char *path)
+int change_directory(const char *path)
 {
     if (path == NULL) {
 	*cur_dir = '\0';
@@ -245,7 +245,7 @@ int get_directory(char *direct)
 
 
 
-int IsDirectory(char *root, char *path)
+int IsDirectory(const char *root, const char *path)
 {
     char	    fullpath[MAXPATHLEN];
     struct stat	    statbuf;
@@ -270,7 +270,7 @@ int IsDirectory(char *root, char *path)
  */
 
 
-void MakeFullPath(char *root, char *filename, char *pathname)
+void MakeFullPath(const char *root, const char *filename, char *pathname)
 {
     /* pathname is a pointer here; the one caller (IsDirectory) passes
        char fullpath[MAXPATHLEN]. strcat below is unconverted (out of
@@ -320,12 +320,12 @@ void MakeFullPath(char *root, char *filename, char *pathname)
 #define INVERT '!'
 
 
-static int star(char *string, char *pattern);
+static int star(const char *string, const char *pattern);
 
 /* Return nonzero if `string' matches Unix-style wildcard pattern
    `pattern'; zero if not. */
 
-int wild_match(char *string, char *pattern)
+int wild_match(const char *string, const char *pattern)
 {
     int		    prev;	/* Previous character in character class. */
     int		    matched;	/* If 1, character class has been matched. */
@@ -368,7 +368,7 @@ int wild_match(char *string, char *pattern)
 }
 
 static int
-star(char *string, char *pattern)
+star(const char *string, const char *pattern)
 {
     while (wild_match(string, pattern) == 0)
 	if (*++string == '\0')

@@ -94,7 +94,7 @@ void set_wieners(double dt, double *x, double t)
 }
 
 
-void add_markov(int nstate, char *name)
+void add_markov(int nstate, const char *name)
 {
   double st[50];
   int i;
@@ -103,7 +103,7 @@ void add_markov(int nstate, char *name)
 }
 
 
-int build_markov(char **ma, char *name)  /*   FILE *fptr; */
+int build_markov(const char *const *ma, const char *name)  /*   FILE *fptr; */
 {
  /*int nn;
  */
@@ -156,7 +156,7 @@ int build_markov(char **ma, char *name)  /*   FILE *fptr; */
 }
 
 
-int old_build_markov(FILE *fptr, char *name)
+int old_build_markov(FILE *fptr, const char *name)
 {
  /*int nn;*/
  int len=0,ll;
@@ -209,7 +209,7 @@ int old_build_markov(FILE *fptr, char *name)
  return index;
 }
   
-void extract_expr(char *source, char *dest, int *i0)
+void extract_expr(const char *source, char *dest, int *i0)
 {
  char ch;
  int len=0;
@@ -236,7 +236,7 @@ void extract_expr(char *source, char *dest, int *i0)
 
 
 
-void create_markov(int nstates, double *st, int type, char *name)
+void create_markov(int nstates, double *st, int type, const char *name)
 {
   int i;
   int n2=nstates*nstates;
@@ -264,7 +264,7 @@ void create_markov(int nstates, double *st, int type, char *name)
   
 }
 
-void add_markov_entry(int index, int j, int k, char *expr)
+void add_markov_entry(int index, int j, int k, const char *expr)
 {
   
   int l0=markov[index].nstates*j+k;
@@ -484,7 +484,7 @@ void do_stochast_com(int i)
   if(ch==27)return;
   switch(ch){
   case 'n': 
-    new_int((char *)"Seed:",&RandSeed);
+    new_int("Seed:",&RandSeed);
     nsrand48(RandSeed);
     break;
   case 'd':

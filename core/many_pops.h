@@ -7,7 +7,7 @@ extern "C" {
 
 int select_table(void);
 void get_intern_set(void);
-void title_text(char *string);
+void title_text(const char *string);
 void restore_off(void);
 void restore_on(void);
 #ifdef __cplusplus
@@ -44,7 +44,7 @@ void SmallBase(void);
 void make_active(int i,int flag);
 void set_gr_fore(void);
 void set_gr_back(void);
-void canvas_xy(char *buf);
+void canvas_xy(const char *buf);
 void set_active_windows();
 
 

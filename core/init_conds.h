@@ -12,17 +12,17 @@ extern "C" {
 #define FILESELNWIN 10
 void c_hints(void);
 void clone_ode(void);
-int find_user_name(int type, char *oname);
+int find_user_name(int type, const char *oname);
 void resize_par_slides(int h);
 void redraw_directory(void);
 void redraw_file_list(void);
 void new_wild(void);
 void fs_scroll(int i);
 int do_file_select_events(void);
-void create_file_selector(char *title, char *file, char *wild);
-void stringintersect(char *target, char *sother);
+void create_file_selector(const char *title, const char *file, const char *wild);
+void stringintersect(const char *target, const char *sother);
 void destroy_selector(void);
-int file_selector(char *title, char *file, char *wild);
+int file_selector(const char *title, char *file, const char *wild);
 void reset_sliders(void);
 void make_new_ic_box(void);
 void make_new_bc_box(void);

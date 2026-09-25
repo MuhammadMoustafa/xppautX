@@ -312,12 +312,12 @@ void init_range()
 
 int set_up_eq_range()
 {
-static char *n[]={(char *)"*2Range over",(char *)"Steps",(char *)"Start",(char *)"End",
-		     (char *)"Shoot (Y/N)",
-		  (char *)"Stability col",(char *)"Movie (Y/N)",(char *)"Monte Carlo (Y/N)"};
+static const char *n[]={"*2Range over","Steps","Start","End",
+		     "Shoot (Y/N)",
+		  "Stability col","Movie (Y/N)","Monte Carlo (Y/N)"};
  char values[8][MAX_LEN_SBOX];
  int status,i;
- static  char *yn[]={(char *)"N",(char *)"Y"};
+ static  const char *yn[]={"N","Y"};
  snprintf(values[0],sizeof(values[0]),"%s",eq_range.item);
  XPP_SPRINTF(values[1],"%d",eq_range.steps);
  XPP_SPRINTF(values[2],"%.16g",eq_range.plow);
@@ -330,12 +330,12 @@ XPP_SPRINTF(values[7],"%s",yn[eq_range.mc]);
  
  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(8,8,1,(char *)"Range Equilibria",n,values,45,kinds);
+ status=do_string_box_of(8,8,1,"Range Equilibria",n,values,45,kinds);
  if(status!=0){
    XPP_STRCPY(eq_range.item,values[0]);
    i=find_user_name(PARAM,eq_range.item);
    if(i<0){
-        err_msg((char *)"No such parameter");
+        err_msg("No such parameter");
        return(0);
      }
    
@@ -367,7 +367,7 @@ void cont_integ()
   tetemp=TEND;
   wipe_rep();
   data_back();
-  if(new_float((char *)"Continue until:",&tetemp)==-1)return;
+  if(new_float("Continue until:",&tetemp)==-1)return;
   x=&MyData[0];
   tetemp=fabs(tetemp);
   if(fabs(MyTime)>=tetemp)return;
@@ -426,12 +426,12 @@ int range_item2()
 
 int set_up_range()
 {
- static char *n[]={(char *)"*3Range over",(char *)"Steps",(char *)"Start",(char *)"End",
-		     (char *)"Reset storage (Y/N)",
-		     (char *)"Use old ic's (Y/N)",(char *)"Cycle color (Y/N)",(char *)"Movie(Y/N)"};
+ static const char *n[]={"*3Range over","Steps","Start","End",
+		     "Reset storage (Y/N)",
+		     "Use old ic's (Y/N)","Cycle color (Y/N)","Movie(Y/N)"};
  char values[8][MAX_LEN_SBOX];
  int status;
- static  char *yn[]={(char *)"N",(char *)"Y"};
+ static  const char *yn[]={"N","Y"};
  if(!program.interactive){
    return(range_item());
  }
@@ -446,7 +446,7 @@ int set_up_range()
  XPP_SPRINTF(values[7],"%s",yn[range.movie]);
  
  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(8,8,1,(char *)"Range Integrate",n,values,45,kinds);
+ status=do_string_box_of(8,8,1,"Range Integrate",n,values,45,kinds);
  if(status!=0){
    XPP_STRCPY(range.item,values[0]);
    /* i=find_user_name(PARAM,range.item);
@@ -489,14 +489,14 @@ int set_up_range()
 
 int set_up_range2()
 {
- static char *n[]={(char *)"*3Vary1",(char *)"Start1",(char *)"End1",
-                   (char *)"*3Vary2",(char *)"Start2",(char *)"End2",(char *)"Steps",
-		     (char *)"Reset storage (Y/N)",
-		     (char *)"Use old ic's (Y/N)",(char *)"Cycle color (Y/N)",(char *)"Movie(Y/N)",
-                      (char *)"Crv(1) Array(2)",(char *)"Steps2"};
+ static const char *n[]={"*3Vary1","Start1","End1",
+                   "*3Vary2","Start2","End2","Steps",
+		     "Reset storage (Y/N)",
+		     "Use old ic's (Y/N)","Cycle color (Y/N)","Movie(Y/N)",
+                      "Crv(1) Array(2)","Steps2"};
  char values[13][MAX_LEN_SBOX];
  int status;
- static  char *yn[]={(char *)"N",(char *)"Y"};
+ static  const char *yn[]={"N","Y"};
  if(!program.interactive){
    return(range_item());
  }
@@ -520,7 +520,7 @@ XPP_SPRINTF(values[6],"%d",range.steps);
                            XPP_FIELD_NAME_IN(3),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,
                            XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,
                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
- status=do_string_box_of(13,7,2,(char *)"Double Range Integrate",n,values,45,kinds);
+ status=do_string_box_of(13,7,2,"Double Range Integrate",n,values,45,kinds);
  if(status!=0){
    XPP_STRCPY(range.item,values[0]);
    
@@ -572,10 +572,10 @@ void monte_carlo()
   int i=0,done=0,ishoot=0;
   double z;
   char name[256];
-  new_int((char *)"Append(1/0",&append);
-  new_int((char *)"Shoot (1/0)",&ishoot);
-  new_int((char *)"# Guesses:",&fixptguess.n);
-  new_float((char *)"Tolerance:",&fixptguess.tol);
+  new_int("Append(1/0",&append);
+  new_int("Shoot (1/0)",&ishoot);
+  new_int("# Guesses:",&fixptguess.n);
+  new_float("Tolerance:",&fixptguess.tol);
   while(1){
     snprintf(name,sizeof(name),"%.*s_lo :",XPP_NAME_MAX,uvar_names[i]);
     z=fixptguess.xlo[i];
@@ -737,7 +737,7 @@ void do_eq_range(double *x)
       if(eq_range.movie){
 	draw_label(plot_windows.draw_win);
         xpp_ui.put_text(5,10,bob);
-	if(xpp_ui.film_clip()==0)err_msg((char *)"Out of film");
+	if(xpp_ui.film_clip()==0)err_msg("Out of film");
       }
       if(mc==0){
       storage[0][storind]=temp;
@@ -918,7 +918,7 @@ if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
    redraw_dfield();
 	create_new_cline();
    draw_label(plot_windows.draw_win);
-   if(xpp_ui.film_clip()==0){err_msg((char *)"Out of film");break;}
+   if(xpp_ui.film_clip()==0){err_msg("Out of film");break;}
  }
  refresh_browser(storind);
  if(AdjRange==1){
@@ -1017,14 +1017,14 @@ void find_equilib_com(int com)
         iv=plot_windows.current->xv[0]-1;
         jv=plot_windows.current->yv[0]-1;
     if(iv<0||iv>=NODE||jv<0||jv>=NODE||plot_windows.current->grtype>=5||jv==iv){
-      err_msg((char *)"Not in useable 2D plane...");
+      err_msg("Not in useable 2D plane...");
       return;
     }
 	     
    
 	 /* get mouse click x,y  */
          get_ic(1,x);
-	 MessageBox((char *)"Click on guess");
+	 MessageBox("Click on guess");
 	 if(GetMouseXY(&im,&jm)){
 	   scale_to_real(im,jm,&xm,&ym);
 	   x[iv]=(double)xm;
@@ -1211,7 +1211,7 @@ void batch_integrate_once()
   */
 }
 
-int write_this_run(char *file, int i)
+int write_this_run(const char *file, int i)
 {
   /*char outfile[256];*/
   char outfile[XPP_MAX_NAME];
@@ -1278,7 +1278,7 @@ void do_init_data(int com)
   case M_IL:
     if(INFLAG==0){
       ping();
-      err_msg((char *)"No prior solution");
+      err_msg("No prior solution");
       return;
     }
     get_ic(0,x);
@@ -1287,7 +1287,7 @@ void do_init_data(int com)
       MyTime=T0;
     }
     if(METHOD==VOLTERRA&&oldstart==0){
-      ch=(char)TwoChoice((char *)"No",(char *)"Yes",(char *)"Reset integrals?",(char *)"ny");
+      ch=(char)TwoChoice("No","Yes","Reset integrals?","ny");
       if(ch=='n')MyStart=oldstart;
     }
     break;
@@ -1304,7 +1304,7 @@ void do_init_data(int com)
         iv=plot_windows.current->xv[0]-1;
         jv=plot_windows.current->yv[0]-1;
     if(iv<0||iv>=NODE||jv<0||jv>=NODE||plot_windows.current->grtype>=5||jv==iv){
-      err_msg((char *)"Not in useable 2D plane...");
+      err_msg("Not in useable 2D plane...");
       return;
     }
 
@@ -1312,7 +1312,7 @@ void do_init_data(int com)
     /*  Get mouse values  */
     if(com==M_IM){
         get_ic(1,x);
-	MessageBox((char *)"Click on initial data");
+	MessageBox("Click on initial data");
 	if(GetMouseXY(&im,&jm)){
 	  scale_to_real(im,jm,&xm,&ym);
 	  im=plot_windows.current->xv[0]-1;
@@ -1336,7 +1336,7 @@ void do_init_data(int com)
     else {
       SuppressBounds=1;
 
-	MessageBox((char *)"Click on initial data -- ESC to quit");
+	MessageBox("Click on initial data -- ESC to quit");
 	while(1){
           get_ic(1,x);
 	  badmouse=GetMouseXY(&im,&jm);
@@ -1372,7 +1372,7 @@ void do_init_data(int com)
     break;
   case M_IH:
     if(ShootICFlag==0){
-      err_msg((char *)"No shooting data available");
+      err_msg("No shooting data available");
       break;
     }
     XPP_SPRINTF(sr,"Which? (1-%d)",ShootIndex);
@@ -1385,19 +1385,19 @@ void do_init_data(int com)
       get_ic(2,x);
     }
     else
-      err_msg((char *)"Out of range");
+      err_msg("Out of range");
     break;
   case M_IF:
     icfile[0]=0;
-    if(!file_selector((char *)"Read initial data",icfile,(char *)"*.dat"))return;
+    if(!file_selector("Read initial data",icfile,"*.dat"))return;
     /* if(new_string("Filename: ",icfile)==0)return; */
     if((fp=fopen(icfile,"r"))==NULL){
-      err_msg((char *)" Cant open IC file");
+      err_msg(" Cant open IC file");
       return;
     }
     for(i=0;i<NODE;i++)
       if(fscanf(fp,"%lg",&last_ic[i])!=1){
-	err_msg((char *)" IC file too short");
+	err_msg(" IC file too short");
 	break;
       }
     fclose(fp);
@@ -1487,7 +1487,7 @@ void usual_integrate_stuff(double *x)
     u[5..20]=f([j]) 
 */
 
-void do_new_array_ic(char *newic, int j1, int j2)
+void do_new_array_ic(const char *newic, int j1, int j2)
 {
   int i;
   int ihot=-1;
@@ -1514,7 +1514,7 @@ void do_new_array_ic(char *newic, int j1, int j2)
     ar_ic[ihot].j1=j1;
     ar_ic[ihot].j2=j2;
   }
-  new_string_of((char *)"Formula:",ar_ic[ihot].formula,XPP_FIELD_EXPRESSION);
+  new_string_of("Formula:",ar_ic[ihot].formula,XPP_FIELD_EXPRESSION);
   /* now we have everything we need */
   evaluate_ar_ic(ar_ic[ihot].var,ar_ic[ihot].formula,
 		 ar_ic[ihot].j1,ar_ic[ihot].j2);
@@ -1522,7 +1522,7 @@ void do_new_array_ic(char *newic, int j1, int j2)
 
 }
 
-void store_new_array_ic(char *newic, int j1, int j2, char *formula)
+void store_new_array_ic(const char *newic, int j1, int j2, const char *formula)
 {
   int i;
   int ihot=-1;
@@ -1552,7 +1552,7 @@ void store_new_array_ic(char *newic, int j1, int j2, char *formula)
   XPP_STRCPY(ar_ic[ihot].formula,formula);
 }
 
-void evaluate_ar_ic(char *v, char *f, int j1, int j2)
+void evaluate_ar_ic(const char *v, const char *f, int j1, int j2)
 {
   int j;
   int i,flag;
@@ -1638,7 +1638,7 @@ int set_array_ic()
  double z;
  int flag;
  junk[0]=0;
- if(new_string((char *)"Variable: ",junk)==0)return 0;
+ if(new_string("Variable: ",junk)==0)return 0;
  search_array(junk,newic,&j1,&j2,&flag2);
  if(flag2==1)
    {
@@ -1670,17 +1670,17 @@ int set_array_ic()
    /* Now we have an element in the array index */
    ar_ic[myar].index0=index0;
    ar_ic[myar].type=0;
-   new_int((char *)"Number elements:",&ar_ic[myar].n);
-   new_string_of((char *)"u=F(t-i0):",ar_ic[myar].formula,XPP_FIELD_EXPRESSION);
+   new_int("Number elements:",&ar_ic[myar].n);
+   new_string_of("u=F(t-i0):",ar_ic[myar].formula,XPP_FIELD_EXPRESSION);
    i1=index0-1;
    in=i1+ar_ic[myar].n;
    /* plintf("i1=%d in=%d \n",i1,in); */
    if(i1>NODE||in>NODE)return 0; /* out of bounds */
    for(i=i1;i<in;i++){
-     set_val((char *)"t",(double)(i-i1));
+     set_val("t",(double)(i-i1));
      flag=do_calc(ar_ic[myar].formula,&z);
      if(flag==-1){
-       err_msg((char *)"Bad formula");
+       err_msg("Bad formula");
        return 1;
      }
      last_ic[i]=z;
@@ -1747,8 +1747,8 @@ int ode_int(double *y, double *t, int *istart, int ishow)
      if(RANGE_FLAG)return(0);
      switch(kflag)
 	    {
-	     case -1: err_msg((char *)" Singular Jacobian "); break;
-	     case -2: err_msg((char *)"Too many iterates");break;
+	     case -1: err_msg(" Singular Jacobian "); break;
+	     case -2: err_msg("Too many iterates");break;
 	      }
            
             return(0);
@@ -1769,10 +1769,10 @@ int ode_int(double *y, double *t, int *istart, int ishow)
 		 if(RANGE_FLAG)return(0);
 		 switch(kflag)
 		   {
-		   case -1: err_msg((char *)"kflag=-1: minimum step too big"); break;
-		   case -2: err_msg((char *)"kflag=-2: required order too big");break;
-		   case -3: err_msg((char *)"kflag=-3: minimum step too big");break;
-		   case -4: err_msg((char *)"kflag=-4: tolerance too small");break;
+		   case -1: err_msg("kflag=-1: minimum step too big"); break;
+		   case -2: err_msg("kflag=-2: required order too big");break;
+		   case -3: err_msg("kflag=-3: minimum step too big");break;
+		   case -4: err_msg("kflag=-4: tolerance too small");break;
 		   }
 		 
 		 return(0);
@@ -1806,7 +1806,7 @@ int ode_int(double *y, double *t, int *istart, int ishow)
 	     if(kflag<0){
 	       ping();
 	       if(RANGE_FLAG)return(0);
-	       err_msg((char *)"Step size too small");
+	       err_msg("Step size too small");
 	       return 0;
 	     }
 	     break;
@@ -1819,11 +1819,11 @@ int ode_int(double *y, double *t, int *istart, int ishow)
 	       ping();
 	       if(RANGE_FLAG)return(0);
 	       switch(kflag){
-	       case 2: err_msg((char *)"Step size too small"); break;
-	       case 3: err_msg((char *)"Too many steps"); break;	 
-	       case -1: err_msg((char *)"singular jacobian encountered"); break;
-	       case 1: err_msg((char *)"stepsize is close to 0"); break;
-	       case 4: 	err_msg((char *)"exceeded MAXTRY in stiff"); break;
+	       case 2: err_msg("Step size too small"); break;
+	       case 3: err_msg("Too many steps"); break;	 
+	       case -1: err_msg("singular jacobian encountered"); break;
+	       case 1: err_msg("stepsize is close to 0"); break;
+	       case 4: 	err_msg("exceeded MAXTRY in stiff"); break;
 	       }
 	       return(0);
 	     }
@@ -1939,10 +1939,10 @@ if(program.interactive) cwidth=get_command_width();
 		   }
 		   switch(kflag)
 		     {
-		     case -1: err_msg((char *)"kflag=-1: minimum step too big"); break;
-		     case -2: err_msg((char *)"kflag=-2: required order too big");break;
-		     case -3: err_msg((char *)"kflag=-3: minimum step too big");break;
-		     case -4: err_msg((char *)"kflag=-4: tolerance too small");break;
+		     case -1: err_msg("kflag=-1: minimum step too big"); break;
+		     case -2: err_msg("kflag=-2: required order too big");break;
+		     case -3: err_msg("kflag=-3: minimum step too big");break;
+		     case -4: err_msg("kflag=-4: tolerance too small");break;
 		     }
 		   
 		   LastTime=*t;
@@ -2039,7 +2039,7 @@ if(program.interactive) cwidth=get_command_width();
 		 LastTime=*t;
 		 return(1);
 	       }
-	       err_msg((char *)"Step size too small");
+	       err_msg("Step size too small");
 	       LastTime=*t;
 	       return(1);
 	     }
@@ -2072,11 +2072,11 @@ if(program.interactive) cwidth=get_command_width();
 		 return(1);
 	       }
 	       switch(kflag){
-	       case 2: err_msg((char *)"Step size too small"); break;
-	       case 3: err_msg((char *)"Too many steps"); break;	 
-	       case -1: err_msg((char *)"singular jacobian encountered"); break;
-	       case 1: err_msg((char *)"stepsize is close to 0"); break;
-	       case 4: 	err_msg((char *)"exceeded MAXTRY in stiff"); break;
+	       case 2: err_msg("Step size too small"); break;
+	       case 3: err_msg("Too many steps"); break;	 
+	       case -1: err_msg("singular jacobian encountered"); break;
+	       case 1: err_msg("stepsize is close to 0"); break;
+	       case 4: 	err_msg("exceeded MAXTRY in stiff"); break;
 	       }
 	       LastTime=*t;
 	       return(1);
@@ -2097,8 +2097,8 @@ if(program.interactive) cwidth=get_command_width();
 		 if(RANGE_FLAG||SuppressBounds)break;
 		 switch(kflag)
 		   {
-		   case -1: err_msg((char *)"Singular Jacobian "); break;
-		   case -2: err_msg((char *)"Too many iterates ");break;
+		   case -1: err_msg("Singular Jacobian "); break;
+		   case -2: err_msg("Too many iterates ");break;
 		   }
            
 		 LastTime=*t;
@@ -2252,7 +2252,7 @@ if(program.interactive) cwidth=get_command_width();
 	rhs(oldt,oldx,oldxprime,NEQ);
         dxp=xprime[POIVAR-1]-oldxprime[POIVAR-1];
         if(dxp==0.0){
-	  err_msg((char *)"Cannot zero RHS for max/min - use a variable");
+	  err_msg("Cannot zero RHS for max/min - use a variable");
 	  return(1); 
 	}
 	dint=xprime[POIVAR-1]/dxp;
@@ -2681,7 +2681,7 @@ void stop_integration()
 {
  /*  set some global error here... */
   if(DelayErr==0)
-    err_msg((char *)"Delay too large or negative");
+    err_msg("Delay too large or negative");
  DelayErr=1;
 }
 
@@ -2705,8 +2705,8 @@ int stor_full()
  }
  if(FOREVER)goto ov;
  ping();
- ch=(char)TwoChoice((char *)"YES",(char *)"NO",(char *)"Storage full: Overwrite?",
-		     (char *)"yn");
+ ch=(char)TwoChoice("YES","NO","Storage full: Overwrite?",
+		     "yn");
  if(ch=='y')
  {
 ov:

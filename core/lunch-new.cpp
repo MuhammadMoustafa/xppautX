@@ -34,12 +34,6 @@
 #define PARAMBOX 1
 
 
-namespace {
-/* err_msg/file_selector/... (xpp_ui.h) take char * and do not write
-   through it, the historical C dialog API shared far beyond this file;
-   str() (grobs.cpp-precedented) casts a literal for one of these calls. */
-char *str(const char *s) { return const_cast<char *>(s); }
-} // namespace
 
 
  extern BC_STRUCT my_bc[MAXODE];
@@ -70,7 +64,7 @@ void file_inf()
  char filename[XPP_MAX_NAME+10];
  snprintf(filename,sizeof filename,"%s.pars",this_file);
  ping();
- if(!file_selector(str("Save info"),filename,str("*.pars*")))return;
+ if(!file_selector("Save info",filename,"*.pars*"))return;
  /* if(new_string("Filename: ",filename)==0)return; */
   open_write_file(&fp,filename,&ok); 
    if(!ok)return;
@@ -266,18 +260,18 @@ void do_lunch(int f) /* f=1 to read and 0 to write */
 
  if(f==READEM){
    ping();
-  if(!file_selector(str("Load SET File"),filename,str("*.set")))return;
+  if(!file_selector("Load SET File",filename,"*.set"))return;
   
    fp=fopen(filename,"r");
    if(fp==NULL){
-     err_msg(str("Cannot open file"));
+     err_msg("Cannot open file");
      return;
    }
    {
      xpp::LineReader lr = xpp::LineReader::attach(fp);
      std::optional<std::string_view> line = lr.next();
      if(!line){
-       err_msg(str("Cannot read file"));
+       err_msg("Cannot read file");
        fclose(fp);
        return;
      }
@@ -285,16 +279,16 @@ void do_lunch(int f) /* f=1 to read and 0 to write */
    }
    if(bob[0]=='#'){
      set_type=1;
-     io_int(&ne,fp,f,str(" "));
+     io_int(&ne,fp,f," ");
    }
    else {
      ne=atoi(bob);
      set_type=0;
    }
    /* io_int(&ne,fp,f); */
-   io_int(&np,fp,f,str(" "));
+   io_int(&np,fp,f," ");
    if(ne!=NEQ||np!=NUPAR){
-     err_msg(str("Incompatible parameters"));
+     err_msg("Incompatible parameters");
      fclose(fp);
      return;
    }
@@ -317,7 +311,7 @@ void do_lunch(int f) /* f=1 to read and 0 to write */
    fclose(fp);
    return;
  }
-  if(!file_selector(str("Save SET File"),filename,str("*.set")))return;
+  if(!file_selector("Save SET File",filename,"*.set"))return;
   open_write_file(&fp,filename,&ok); 
    if(!ok)return;
  redraw_params();
@@ -416,7 +410,7 @@ io_int(&MyStart,fp,f,"MyStart");
 io_int(&INFLAG,fp,f,"INFLAG");
 }
 
-void io_parameter_file(char *fn,int flag)
+void io_parameter_file(const char *fn,int flag)
 {
   char fnx[256],c;
   int i,j=0;
@@ -434,14 +428,14 @@ void io_parameter_file(char *fn,int flag)
   if(flag==READEM) {
     fp=fopen(fnx,"r");
       if(fp==NULL){
-	err_msg(str("Cannot open file"));
+	err_msg("Cannot open file");
 	return;
       }
-      io_int(&np,fp,flag,str(" "));
+      io_int(&np,fp,flag," ");
       if(np!=NUPAR){
       	xpp::log(XPP_LOG_DEBUG, "{}\n",np);
 	xpp::log(XPP_LOG_DEBUG, "{}\n",NUPAR);
-	err_msg(str("Incompatible parameters"));
+	err_msg("Incompatible parameters");
      fclose(fp);
      return;
       }
@@ -454,7 +448,7 @@ void io_parameter_file(char *fn,int flag)
   {
     xpp::Writer w(fnx);
     if(!w){
-	err_msg(str("Cannot open file"));
+	err_msg("Cannot open file");
 	return;
       }
     fp=w.file();
@@ -467,7 +461,7 @@ void io_parameter_file(char *fn,int flag)
 }
 
 
-void io_ic_file(char *fn,int flag)
+void io_ic_file(const char *fn,int flag)
 {
   char fnx[256],c;
   int i,j=0;
@@ -485,7 +479,7 @@ void io_ic_file(char *fn,int flag)
   if(flag==READEM) {
     XppTokenReader *tr=xpp_token_reader_open(fnx);
       if(tr==NULL){
-	err_msg(str("Cannot open file"));
+	err_msg("Cannot open file");
 	return;
       }
       for(i=0;i<NODE;i++)

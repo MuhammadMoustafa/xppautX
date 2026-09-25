@@ -116,7 +116,7 @@ void j_err_msg(const char *msg)
 
 void j_ping(void) { send_simple("ping", NULL, NULL); }
 
-void j_bottom_msg(int line, char *msg)
+void j_bottom_msg(int line, const char *msg)
 {
     (void)line;
     send_simple("message", "bottom", msg);
@@ -124,8 +124,8 @@ void j_bottom_msg(int line, char *msg)
 
 void j_message_box(const char *msg) { send_simple("message", "box", msg); }
 void j_kill_message_box(void) { send_simple("message", "box", ""); }
-void j_title_text(char *s) { send_simple("title", "text", s); }
-void j_canvas_xy(char *s) { send_simple("message", "xy", s); }
+void j_title_text(const char *s) { send_simple("title", "text", s); }
+void j_canvas_xy(const char *s) { send_simple("message", "xy", s); }
 
 namespace {
 
@@ -171,7 +171,7 @@ int j_dialog(const char *title, const char *name, char *value, const char *ok, c
     return 1;
 }
 
-int j_new_string(char *name, char *value, int kind)
+int j_new_string(const char *name, char *value, int kind)
 {
     /* the X11 prompt edits a 256-byte line in place */
     return j_dialog("", name, value, "Ok", "Cancel", 255, kind);
@@ -190,7 +190,7 @@ int j_yes_no_box(void)
     }
 }
 
-int j_two_choice(char *c1, char *c2, char *q, char *key, char *title)
+int j_two_choice(const char *c1, const char *c2, const char *q, const char *key, const char *title)
 {
     Buf b;
     char k[8];
@@ -221,7 +221,7 @@ void j_respond_box(const char *button, const char *message)
     ask_wait(&b, id);
 }
 
-int j_checklist(char *title, char **names, int *flags, int n)
+int j_checklist(const char *title, const char *const *names, int *flags, int n)
 {
     Buf b;
     int i, id = ask_begin(&b, "checklist");
@@ -248,7 +248,7 @@ namespace {
 
 /* string_box and edit_box: a form of named fields, each of kinds[i]
    (every one `all` when kinds is NULL) */
-int form(char *title, char **names, int n, char **values, int size, const int *kinds, int all)
+int form(const char *title, const char *const *names, int n, char **values, int size, const int *kinds, int all)
 {
     Buf b;
     int i, id = ask_begin(&b, "form");
@@ -272,7 +272,7 @@ int form(char *title, char **names, int n, char **values, int size, const int *k
 
 } // namespace
 
-int j_string_box(int n, int row, int col, char *title, char **names,
+int j_string_box(int n, int row, int col, const char *title, const char *const *names,
                         char values[][MAX_LEN_SBOX], int maxchar, const int *kinds)
 {
     char *v[64];
@@ -283,7 +283,7 @@ int j_string_box(int n, int row, int col, char *title, char **names,
     return form(title, names, n, v, MAX_LEN_SBOX, kinds, XPP_FIELD_TEXT);
 }
 
-int j_edit_box(int n, char *title, char **names, char **values)
+int j_edit_box(int n, const char *title, const char *const *names, char **values)
 {
     /* edit_rhs.c's right-hand sides and functions: expressions */
     return form(title, names, n, values, MAX_LEN_EBOX, NULL, XPP_FIELD_EXPRESSION);
@@ -293,7 +293,7 @@ int j_edit_box(int n, char *title, char **names, char **values)
    "cd" changes directory (as X11 does, for good) and asks again. "mode"
    says whether the command reads the file or writes it, so a client can
    show an open or a save dialog (docs/ui-v2.md section 4). */
-int j_file_selector(char *title, char *file, char *wild)
+int j_file_selector(const char *title, char *file, const char *wild)
 {
     char pattern[256], cd[1024];
     snprintf(pattern, sizeof pattern, "%s", wild);

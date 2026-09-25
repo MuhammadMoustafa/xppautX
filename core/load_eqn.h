@@ -207,17 +207,17 @@ void set_all_vals(void);
 void read_defaults(FILE *fp);
 void fil_flt(FILE *fpt, double *val);
 void fil_int(FILE *fpt, int *val);
-void add_intern_set(char *name, char *does);
-void extract_action(char *ptr);
+void add_intern_set(const char *name, const char *does);
+void extract_action(const char *ptr);
 void extract_internset(int j);
-void do_intern_set(char *name1, char *value);
-int msc(char *s1, char *s2);
+void do_intern_set(const char *name1, const char *value);
+int msc(const char *s1, const char *s2);
 void set_internopts(OptionsSet *mask);
 void set_internopts_xpprc_and_comline(void);
-void split_apart(char *bob, char *name, char *value);
+void split_apart(const char *bob, char *name, char *value);
 void check_for_xpprc(void);
-void stor_internopts(char *s1);
-void set_option(char *s1, char *s2,int force,OptionsSet *mask);
+void stor_internopts(const char *s1);
+void set_option(const char *name, const char *s2, int force, OptionsSet *mask);
 
 /* The parameter sliders the ODE file sets up (@ s1=name, slo1=, shi1=,
    likewise 2 and 3); notAlreadySet.SLIDERn is 0 once slider n was set. */

@@ -335,7 +335,7 @@ void send_equations(void)
     xpp_free(line.s);
 }
 void j_state_dirty_i(int i) { (void)i; state_dirty = 1; }
-void j_state_dirty_is(int i, char *s) { (void)i; (void)s; state_dirty = 1; }
+void j_state_dirty_is(int i, const char *s) { (void)i; (void)s; state_dirty = 1; }
 
 /* ---- values ---------------------------------------------------------------- */
 

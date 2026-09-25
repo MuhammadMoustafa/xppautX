@@ -176,7 +176,7 @@ void strip_saveqn()
   }
 }
 
-int disc(char *string)
+int disc(const char *string)
 {
   char c;
   int i=0,l=strlen(string),j=0,flag=0;
@@ -226,7 +226,7 @@ getfile:
  }
 */
 
-void format_list(char **s,int n)
+void format_list(const char *const *s,int n)
 {
  int i,ip;
  int ncol;
@@ -309,7 +309,7 @@ int get_a_filename(char *filename,char *wild)
 }
 
 
-void list_em(char *wild)
+void list_em(const char *wild)
 { 
   get_directory(cur_dir);
   xpp_log(XPP_LOG_INFO, "%s: \n",cur_dir);
@@ -1037,7 +1037,7 @@ void show_syms()
 }
 
 /* ram: do I need to strip the name of any whitespace? */
-void take_apart(char *bob, double *value, char *name)
+void take_apart(const char *bob, double *value, char *name)
 {
  int k,i,l;
  char number[40];
@@ -1231,7 +1231,7 @@ u(0) = value >---  initial data (replaces v, init is also OK )
 
 */
 
-int if_include_file(char *old,char *nf)
+int if_include_file(const char *old,char *nf)
 {
   int i=0,j=0;
   int n=strlen(old);
@@ -1255,7 +1255,7 @@ int if_include_file(char *old,char *nf)
 
 }
 
-int if_end_include(char *old)
+int if_end_include(const char *old)
 {
   if (IN_INCLUDED_FILE>0)
   {
@@ -1299,12 +1299,12 @@ void count_object(int type)
 
 }
 
-static int parse_model(FILE *fp, char *first, int nnn);
+static int parse_model(FILE *fp, const char *first, int nnn);
 
 /* no exception crosses into C: the only one parse_model() can throw is
    std::bad_alloc, and running out of memory ends the program, as
    xpp_malloc() does */
-int do_new_parser(FILE *fp, char *first, int nnn)
+int do_new_parser(FILE *fp, const char *first, int nnn)
 {
   try {
     return parse_model(fp, first, nnn);
@@ -1314,7 +1314,7 @@ int do_new_parser(FILE *fp, char *first, int nnn)
   }
 }
 
-static int parse_model(FILE *fp, char *first, int nnn)
+static int parse_model(FILE *fp, const char *first, int nnn)
 {
  VAR_INFO v;
  char **markovarrays=NULL;
@@ -1668,7 +1668,7 @@ void create_plot_list()
     
 }
 
-void add_only(char *s)
+void add_only(const char *s)
 {
   if(strlen(s)<1)return;
   if(N_only>=MAXONLY)return;
@@ -1679,7 +1679,7 @@ void add_only(char *s)
   N_only++;
 }
 
-void break_up_list(char *rhs)
+void break_up_list(const char *rhs)
 {
   int i=0,j=0,l=strlen(rhs);
   char s[MAXEXPLEN],c;
@@ -1701,7 +1701,7 @@ void break_up_list(char *rhs)
 }
 
 
-int find_the_name(char list[][MAXVNAM], int n, char *name)
+int find_the_name(char list[][MAXVNAM], int n, const char *name)
 {
   int i;
 
@@ -2165,7 +2165,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 /* this code checks if the right-hand side for an initial
    condition is a formula (for delays) or a number
 */
-int formula_or_number(char *expr,double *z)
+int formula_or_number(const char *expr,double *z)
 {
   char num[80],form[80];
   int flag,i=0;
@@ -2180,7 +2180,7 @@ int formula_or_number(char *expr,double *z)
     return 0; /* 0 is a number */
   return 1; /* 1 is a formula */
 }
-void strpiece(char *dest, char *src, int i0, int ie)
+void strpiece(char *dest, const char *src, int i0, int ie)
 {
   int i;
   for(i=i0;i<=ie;i++)
@@ -2358,7 +2358,7 @@ void init_varinfo()
   model_lines.clear();
 }
 
-void add_varinfo(int type, char *lhs, char *rhs, int nargs, char args[MAXARG][NAMLEN+1])
+void add_varinfo(int type, const char *lhs, const char *rhs, int nargs, char args[MAXARG][NAMLEN+1])
 {
   VAR_INFO v{};
   int i;
@@ -2383,7 +2383,7 @@ void free_varinfo()
 }
 
 
-int extract_ode(char *s1, int *ie, int i1)  /* name is char 1-i1  ie is start of rhs */
+int extract_ode(const char *s1, int *ie, int i1)  /* name is char 1-i1  ie is start of rhs */
 {
   int i=0,n=strlen(s1);
   
@@ -2398,7 +2398,7 @@ int extract_ode(char *s1, int *ie, int i1)  /* name is char 1-i1  ie is start of
   return 0;
 }
 
-int strparse(char *s1, const char *s2, int i0, int *i1)
+int strparse(const char *s1, const char *s2, int i0, int *i1)
 {
   int i=i0;
   int n=strlen(s1);
@@ -2445,7 +2445,7 @@ int strparse(char *s1, const char *s2, int i0, int *i1)
   return(0);
 }
 
-int extract_args(char *s1, int i0, int *ie, int *narg, char args[MAXARG][NAMLEN+1])
+int extract_args(const char *s1, int i0, int *ie, int *narg, char args[MAXARG][NAMLEN+1])
 {
   int k,i=i0,n=strlen(s1);
   int type,na=0,i1;
@@ -2484,7 +2484,7 @@ int extract_args(char *s1, int i0, int *ie, int *narg, char args[MAXARG][NAMLEN+
       
     
     
-int find_char(char *s1, const char *s2, int i0, int *i1)
+int find_char(const char *s1, const char *s2, int i0, int *i1)
 {
   int m=strlen(s2),n=strlen(s1);
   int i=i0;
@@ -2503,7 +2503,7 @@ int find_char(char *s1, const char *s2, int i0, int *i1)
   return(-1);
 }
 
-int next_nonspace(char *s1, int i0, int *i1)
+int next_nonspace(const char *s1, int i0, int *i1)
 {
   int i=i0;
   int n=strlen(s1);
@@ -2707,7 +2707,7 @@ int search_array(char *old, char *newstr, int *i1, int *i2, int *flag)
 
 }
 
-int check_if_ic(char *big)
+int check_if_ic(const char *big)
 {
   char c;
   int n=strlen(big);
@@ -2728,14 +2728,14 @@ int check_if_ic(char *big)
   return 0;
 }
 
-int not_ker(char *s, int i) /* returns 1 if string is not 'int[' */
+int not_ker(const char *s, int i) /* returns 1 if string is not 'int[' */
 {
   if(i<3)return 1;
   if(s[i-3]=='i'&&s[i-2]=='n'&&s[i-1]=='t')return 0;
   return 1;
 }
 
-int is_comment(char *s)
+int is_comment(const char *s)
 {
   int n=strlen(s);
   int i=0;
@@ -2754,7 +2754,7 @@ int is_comment(char *s)
 }
  
   
-void subsk(char *big, char *newstr, int k, int flag)
+void subsk(const char *big, char *newstr, int k, int flag)
 {
   /* big/newstr are pointers here; the smallest of subsk's callers pass
      char[256] (integrate.c's vp/fp) -- others use [300] or
@@ -2877,7 +2877,7 @@ void subsk(char *big, char *newstr, int k, int flag)
 }
 
 
-void add_comment(char *s)
+void add_comment(const char *s)
 {
   char text[256],action[256],ch;
   int n=strlen(s);
@@ -2947,7 +2947,7 @@ void advance_past_first_word(char** sptr) {
     (*sptr) += len + 1;
 }
 
-char* new_string2(char* old, int length) {
+char* new_string2(const char * old, int length) {
     /*cout << "new_string2(\"" << old << "\", " << length << ")\n"; */
     char* s = (char*) xpp_malloc((length + 1) * sizeof(char));
     memcpy(s, old, length);
@@ -3055,7 +3055,7 @@ char* get_next2(char** tokens_ptr) {
     return new_string2(tokens, i);
 }
 
-void strcpy_trim(char* dest, char* source) {
+void strcpy_trim(char * dest, const char * source) {
     /* like strcpy, except removes leading and trailing whitespace */
     while (*source && isspace(*source)) {
         source++;
@@ -3067,7 +3067,7 @@ void strcpy_trim(char* dest, char* source) {
     strncpy(dest, source, i + 1);
     dest[i + 1] = '\0';
 }
-void strncpy_trim(char* dest, char* source, int n) {
+void strncpy_trim(char * dest, const char * source, int n) {
     /* like strncpy, except removes leading and trailing whitespace (and always ends with a \0) */
     while (*source && isspace(*source)) {
         source++;
