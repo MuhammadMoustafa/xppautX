@@ -39,7 +39,7 @@ compares each output.dat's md5 (CRs removed) with tests/examples.md5
 fails it too. A difference means the numerics changed: rewrite the
 baseline with `tools/examples_check.sh --update` only when the change is
 intended, and say which models changed in the commit. Other platforms
-(W17): CI's windows and macos jobs run `examples_check.sh --platform
+(W17): CI's windows-core and macos-core jobs run `examples_check.sh --platform
 <windows|macos> --write examples.<platform>.md5`, which compares with
 tests/examples.<platform>.md5 when it exists, else with Linux's in a
 first-run mode that reports the differing models without failing (a
@@ -56,8 +56,10 @@ verify.sh's checks about the source rather than the build (UTF-8, the
 scripts' executable bit, stdoutcheck, formatcheck, the LTO type check)
 are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
 `--warnings`: tools/warnings.sh's count, and web2's dist/types/unit
-tests), and its linux job runs `verify.sh --no-source-checks`. Every
-platform's job runs the same behaviour checks against its own build.
+tests), and its linux-core job runs `verify.sh --no-source-checks`. Every
+platform runs the same behaviour checks against its own build (`<platform>-core`)
+and web2check against it (`<platform>-ui`), for linux, windows and macos;
+a check step runs even after another one failed (only a failed build stops them).
 
 The front end (`web2/`, the page at `/`; a `/v1/` or `/v2/` bookmark
 redirects to `/`; design and plan in docs/ui-v2.md). The classic page
@@ -82,7 +84,7 @@ and fails on `-Wlto-type-mismatch`: an extern whose type or array bound
 differs from its definition, which a normal build cannot see.
 
 `make asan` builds xppautX with AddressSanitizer, LeakSanitizer and
-UBSan into build/asan; `tools/asancheck.sh` (CI's `sanitizers` job, not
+UBSan into build/asan; `tools/asancheck.sh` (CI's `linux-sanitizers` job, not
 verify.sh: it takes a few minutes) builds it and runs the smoke run,
 every example, the unit tests, servercheck, webcheck and autocheck under
 it, and fails on any report (written to build/asan/reports):
@@ -103,7 +105,7 @@ native build, from Git Bash:
     python3 tools/servercheck.py --server ./xppautX.exe
     python3 tools/webcheck.py --bin ./xppautX.exe
 
-Windows API code lives only in `core/xpp_win32.c` (windows.h macros clash
+Windows API code lives only in `core/xpp_win32.cpp` (windows.h macros clash
 with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
 `strupr`/`strlwr` are renamed on Windows in parserslow.h. The exceptions
 are the two files that include no core header but small C APIs:
