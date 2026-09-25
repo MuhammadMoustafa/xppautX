@@ -1694,8 +1694,11 @@ const autoButton = k => cdp.eval(`document.querySelector('.auto-tools button[ari
 /* the diagram's plotting area and the screen position of (x, y) in it */
 const autoArea = () => cdp.eval(`(() => { const r = document.querySelector('.auto-panel .u-over').getBoundingClientRect();
   return {x: r.left, y: r.top, w: r.width, h: r.height}; })()`);
+/* the screen position of diagram point (x, y), once the view has settled (a
+   grab's import just before may still be moving it: the mouse then landed
+   on a neighbour, macOS CI) */
 async function autoScreen(x, y) {
-  const [a, d] = [await autoArea(), await DG()];
+  const [a, d] = [await settled(autoArea), await settled(DG)];
   return {x: a.x + (x - d.x.min) / (d.x.max - d.x.min) * a.w, y: a.y + (d.y.max - y) / (d.y.max - d.y.min) * a.h};
 }
 const readout = () => cdp.eval(`document.querySelector('.auto-readout').textContent`);
