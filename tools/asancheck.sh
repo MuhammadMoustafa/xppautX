@@ -122,7 +122,7 @@ if [ "$n" -ne 0 ]; then
   echo "SANITIZER REPORTS: $n (in $reports)"
   fail=1
 else
-  echo "sanitizers ok: no error or leak report"
+  if [ $detect_leaks -eq 1 ]; then echo "sanitizers ok: no error or leak report"; else echo "sanitizers ok: no error report (leaks not checked)"; fi
 fi
 if [ $fail -ne 0 ]; then
   echo "ASAN CHECK FAILED"
