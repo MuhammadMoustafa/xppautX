@@ -2921,7 +2921,8 @@ async function zoomFrames() {
    same run against time */
 async function million() {
   await desktopMetrics();
-  check('10^6: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
+  check('10^6: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello')
+    && await until('!!__xpp.plot()', 'the chart'));
   const t0 = Date.now(), p0 = await cdp.eval('performance.now()'), d0 = (await P()).draws;
   const a0 = await S('s.seriesAppends');
   const done = await integrate(1000001, 300000);
