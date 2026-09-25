@@ -16,7 +16,8 @@ EXCLUDE="core/xpp_mem.cpp"
 PATTERN='(^|[^a-zA-Z0-9_.>])(malloc|calloc|realloc|strdup|free)[ \t]*\('
 
 bad=0
-for f in core/*.c core/*.cpp core/*.h; do
+for f in core/*.cpp core/*.h; do
+  [ -f "$f" ] || continue
   case " $EXCLUDE " in *" $f "*) continue ;; esac
   hits=$(awk -f tools/strip_comments.awk "$f" | grep -nE "$PATTERN")
   [ -n "$hits" ] || continue

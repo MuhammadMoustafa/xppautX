@@ -455,8 +455,12 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
 
 ## C and C++
 
-The core stays C and converts to C++ progressively (decision 2026-09-23;
-aim: 70%+ C++ over time, verify.sh's `C++: N / M sources` is the metric).
+Every core source is C++ since W27 (2026-09-25; decided 2026-09-23,
+converted file by file, then the remaining 71 at once): tools/sourcecheck.sh
+fails a new core/*.c. The API between the files stays C (below), so the
+headers read the same from C and C++. verify.sh's `C++: N / M sources` is
+N = M. What follows is how the files were converted, kept for a file
+brought in from outside.
 
 - The rule: a task that changes a core C file converts that file to .cpp
   as part of the task, whatever the change, sweeps included (logging
