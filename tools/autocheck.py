@@ -154,7 +154,8 @@ def section_diagram():
     check('and its labels are marked', any(p['lab'] for p in dg.pts))
     check('a steady run arrives in a few diagram events, runs of points joined', len(adds) <= 10
           and max((len(r['x']) for r in runs), default=0) >= 10,
-          '%d events, longest run %d' % (len(adds), max((len(r['x']) for r in runs), default=0)))
+          '%d events, longest run %d' % (len(adds), max((len(r['x']) for r in runs), default=0)),
+          limit=True)  # the events follow the refresh's clock (50 ms): more when the run is slower
     st = [e for e in evs if is_state(e)][-1]['auto']
     check('the diagram axes are the AUTO ranges', same_axes(dg.axes, st), 'axes %s state %s' % (dg.axes, st))
     got = infos(evs)
@@ -243,7 +244,7 @@ def section_input():
                 took = None
             if how == 'closed pipe':
                 os.close(rfd)
-            if took is None or took >= 3:
+            if took is None or took >= 3 * SLOW:
                 slow.append('%s: %s' % (how, 'no exit in 10 s' if took is None else '%.1fs' % took))
     check('--server exits at end of input (null device, closed pipe, empty file)', not slow, '; '.join(slow))
 

@@ -1662,7 +1662,6 @@ void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw)
     {
       AutoDataInfo ai;
     	XORCross(*ix,*iy);
-  	show_stab(evr,evi,NODE,ibr<0);
   	new_info(ibr,pt,symb,lab,par,norm,d->u0[Auto.var],per,flag2,icp1,icp2);
       /* what the strip shows, as data */
       ai.ibr=ibr;
@@ -1684,7 +1683,12 @@ void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw)
       ai.x=x;
       ai.y=y1;
       ai.y2=y2;
+      /* the point and its circle together, after new_info (whose drawing
+         may flush the autoinfo event): a flush between them sent the new
+         circle with the old point when a step took over 0.1 s (autocheck
+         under valgrind, W21) */
       auto_data_info(&ai);
+      show_stab(evr,evi,NODE,ibr<0);
     }
     if(lab>0 && load_all_labeled_orbits>0)
       load_auto_orbitx(ibr,1,lab,per);
