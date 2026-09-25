@@ -462,6 +462,25 @@ headers read the same from C and C++. verify.sh's `C++: N / M sources` is
 N = M. What follows is how the files were converted, kept for a file
 brought in from outside.
 
+The extension was only the first step. The goal (maintainer, 2026-09-25)
+is safe C++ in place of the unsafe C idioms, file by file (the W29 cards):
+- memory: `std::vector`, `std::string`, `std::unique_ptr` (RAII) instead of
+  hand-paired `xpp_malloc`/`xpp_free` (xpp_mem stays for what must stay a
+  raw block, with a reason);
+- text: `std::string` for text that is kept, `std::string_view` for a
+  parameter that only reads it, instead of fixed `char` buffers and
+  `xpp_strlcpy`/`xpp_snprintf`/`XPP_SPRINTF`; `const char *` only where a
+  C function needs a NUL-terminated string or across an `extern "C"` API;
+- formatting: `xpp::format`/`xpp::log` (type-checked) instead of printf
+  formats;
+- files: `xpp::LineReader`/`TokenReader`/`Writer` instead of
+  `fopen`/`fscanf`/`fgets`;
+- arrays: `std::array`, `std::vector`, `std::span` instead of raw arrays
+  and pointer-plus-length pairs; `static_cast` instead of C casts.
+Numerics do not change (the md5s). A task that touches a file moves what it
+touches to these; `tools/unsafecheck.sh` (verify.sh) counts the unsafe
+idioms per file and fails when a file's count grows.
+
 - The rule: a task that changes a core C file converts that file to .cpp
   as part of the task, whatever the change, sweeps included (logging
   calls, renames, warning fixes, dead code removal; maintainer's decision
