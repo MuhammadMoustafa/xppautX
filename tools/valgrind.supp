@@ -1,0 +1,3 @@
+# memcheck errors tolerated by tools/valgrindcheck.sh: only in code we do
+# not own, each with its reason. An error in our code is fixed, never
+# listed here.
