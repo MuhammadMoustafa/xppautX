@@ -61,7 +61,7 @@ core/browse_data.cpp memory 8
 core/browse_data.cpp text 22
 core/colormap.cpp casts 29
 core/comline.cpp buffers 10
-core/comline.cpp casts 3
+core/comline.cpp casts 2
 core/comline.cpp files 5
 core/comline.cpp memory 1
 core/comline.cpp text 11
@@ -304,7 +304,6 @@ core/xpp_mem.cpp casts 1
 core/xpp_mem.cpp memory 1
 core/xpp_mem.h memory 5
 core/xpp_session.cpp buffers 5
-core/xpp_session.cpp casts 1
 core/xpp_session.cpp files 11
 core/xpp_sha256.cpp buffers 3
 core/xpp_sha256.h buffers 2
