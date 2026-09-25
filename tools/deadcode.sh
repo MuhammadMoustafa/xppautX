@@ -78,9 +78,12 @@ cat $B/gc-*.log | sed -n "s/.*removing unused section '\([^']*\)' in file '\($(e
   sed -E 's/ \.(rodata|data\.rel\.ro\.local|data\.rel\.ro)[.$]/ ro /; s/ \.(text|data|bss|tbss|tdata|data\.rel\.local|data\.rel)(\.(unlikely|startup|hot|exit))?[.$]/ x /' |
   awk 'NF == 3 && $3 !~ /[.]/ {print $1, $3, $2}' | sort -u > $B/dropped.txt
 
-# the symbols each object defines, but the standard library's: "object symbol type"
+# the symbols each object defines, but the standard library's: "object
+# symbol type". A name starting with __ is the compiler's or the library's
+# (reserved), e.g. libstdc++'s __gthread_active_p, which gcc 13 emits into
+# an object and gcc 15 does not (CI's source job, 2026-09-25)
 for o in $(cut -d' ' -f1 $B/dropped.txt | sort -u); do
-  nm --defined-only "$o" | awk -v o="$o" '$2 ~ /^[TtDdBbRr]$/ && $3 !~ /[.]/ && $3 !~ /^_ZN?K?(St|9__gnu_cxx)/ {print o, $3, $2}'
+  nm --defined-only "$o" | awk -v o="$o" '$2 ~ /^[TtDdBbRr]$/ && $3 !~ /[.]/ && $3 !~ /^_ZN?K?(St|9__gnu_cxx)/ && $3 !~ /^__/ {print o, $3, $2}'
 done | sort -u > $B/defined.txt
 # what a unit test keeps
 for t in $B/tests/test_*; do
