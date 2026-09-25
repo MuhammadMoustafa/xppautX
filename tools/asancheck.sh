@@ -13,11 +13,22 @@
 # we do not own.
 #
 # Slow (the checks run several times slower than in verify.sh), so not part
-# of verify.sh; CI runs it. Linux only (LeakSanitizer).
-# Usage: tools/asancheck.sh
+# of verify.sh; CI runs it (linux-sanitizers). --no-leaks (CI's
+# macos-sanitizers) turns off LeakSanitizer's detect_leaks, which Apple
+# Silicon runners cannot run (no LSan support in Apple clang's runtime on
+# arm64 macOS); ASan and UBSan still run there.
+# Usage: tools/asancheck.sh [--no-leaks]
 cd "$(dirname "$0")/.." || exit 1
 top=$PWD
 BASELINE=c281851de59ffd03b2a46428619a0c8f
+detect_leaks=1
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --no-leaks) detect_leaks=0 ;;
+    *) echo "asancheck.sh: unknown option $1"; exit 2 ;;
+  esac
+  shift
+done
 mkdir -p build || exit 1
 if ! make -j8 asan > build/asan-build.log 2>&1; then
   grep -E ' error:' build/asan-build.log | head -20
@@ -27,16 +38,35 @@ fi
 echo "asan build ok"
 reports=$top/build/asan/reports
 rm -rf "$reports" && mkdir -p "$reports" || exit 1
-export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1:log_path=$reports/asan"
+export ASAN_OPTIONS="detect_leaks=$detect_leaks:abort_on_error=1:log_path=$reports/asan"
 export UBSAN_OPTIONS="halt_on_error=1:print_stacktrace=1:log_path=$reports/ubsan"
-export LSAN_OPTIONS="suppressions=$top/tools/lsan.supp:print_suppressions=0"
+if [ $detect_leaks -eq 1 ]; then
+  export LSAN_OPTIONS="suppressions=$top/tools/lsan.supp:print_suppressions=0"
+fi
+if command -v nproc >/dev/null 2>&1; then
+  NPROC=$(nproc)
+elif command -v sysctl >/dev/null 2>&1; then
+  NPROC=$(sysctl -n hw.ncpu)
+else
+  NPROC=4
+fi
+if command -v timeout >/dev/null 2>&1; then
+  TMO=timeout
+elif command -v gtimeout >/dev/null 2>&1; then
+  TMO=gtimeout
+else
+  TMO=
+fi
+md5() {
+  if command -v md5sum >/dev/null 2>&1; then md5sum | cut -d' ' -f1; else md5 -q; fi
+}
 fail=0
 
 bin=xppautX
 tmp=$(mktemp -d)
 ( cd "$tmp" && "$top/build/asan/$bin" "$top/examples/ode/lecar.ode" -silent > run.log 2>&1 )
 st=$?
-sum=$(md5sum "$tmp/output.dat" 2>/dev/null | cut -d' ' -f1)
+sum=$( [ -e "$tmp/output.dat" ] && md5 < "$tmp/output.dat" )
 if [ $st -eq 0 ] && [ "$sum" = "$BASELINE" ]; then
   echo "$bin -silent ok: checksum matches baseline"
 else
@@ -50,11 +80,11 @@ rm -rf "$tmp"
 # comparison, just their verdict); a model that does not run by itself
 # exits non-zero without a report
 ex=$(mktemp -d)
-find examples -name '*.ode' | sort | xargs -P"$(nproc 2>/dev/null || echo 4)" -I{} sh -c '
+find examples -name '*.ode' | sort | xargs -P"$NPROC" -I{} sh -c '
   f=$1; run=$2/$(echo "$f" | tr / _); mkdir -p "$run"
   cp "$(dirname "$f")"/* "$run"/ 2>/dev/null
-  cd "$run" && timeout 120 "$3" "$(basename "$f")" -silent > run.log 2>&1
-  echo "$? $f" >> "$2/status"' sh {} "$ex" "$top/build/asan/xppautX"
+  cd "$run" && ${4:+$4 120} "$3" "$(basename "$f")" -silent > run.log 2>&1
+  echo "$? $f" >> "$2/status"' sh {} "$ex" "$top/build/asan/xppautX" "$TMO"
 echo "examples run: $(wc -l < "$ex/status"), exit codes: $(cut -d' ' -f1 "$ex/status" | sort -n | uniq -c | tr -s ' \n' ' ')"
 rm -rf "$ex"
 

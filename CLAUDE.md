@@ -91,6 +91,12 @@ it, and fails on any report (written to build/asan/reports):
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/asancheck.sh"
 
+`tools/asancheck.sh --no-leaks` (CI's `macos-sanitizers` job, Apple clang
+on macos-latest) runs the same checks with LeakSanitizer's detect_leaks
+off, since Apple Silicon runners do not support it; ASan and UBSan still
+run there. The script is portable to macOS (nproc/sysctl, timeout/gtimeout,
+md5sum/`md5 -q`), same as tools/examples_check.sh.
+
 The sanitizers do not see a read of memory never written; valgrind's
 memcheck does. `make vg` builds xppautX at -O1 without sanitizers into
 build/vg; `tools/valgrindcheck.sh` (W21; Linux, ~20 min, not in CI or

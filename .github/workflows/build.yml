@@ -12,7 +12,8 @@ on:
 # wall time is the longest job's. Jobs are named for what they test: a
 # platform's `-core` job (build, unit tests, protocol, modes, AUTO,
 # examples), its `-ui` job (the front end in a headless browser),
-# `linux-sanitizers`, and `source`.
+# `linux-sanitizers` and `macos-sanitizers` (the latter without
+# LeakSanitizer, unsupported on Apple Silicon runners), and `source`.
 #
 # Every check runs even when an earlier check of its job failed (W18), so
 # one run reports every failure (and still uploads the examples' md5s);
@@ -143,6 +144,31 @@ jobs:
         run: sudo sysctl vm.mmap_rnd_bits=28
       - name: "Sanitizers: no error or leak report"
         run: tools/asancheck.sh
+      - name: Upload sanitizer reports
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: asan-reports-linux
+          path: build/asan/reports
+          if-no-files-found: ignore
+
+  # AddressSanitizer + UBSan (Apple clang) over the same checks as
+  # linux-sanitizers, without LeakSanitizer: unsupported on Apple Silicon
+  # runners (asancheck.sh --no-leaks turns off ASAN_OPTIONS'
+  # detect_leaks).
+  macos-sanitizers:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: "Sanitizers: no error report (no leak detection on macOS)"
+        run: tools/asancheck.sh --no-leaks
+      - name: Upload sanitizer reports
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: asan-reports-macos
+          path: build/asan/reports
+          if-no-files-found: ignore
 
   macos-core:
     runs-on: macos-latest
