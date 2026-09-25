@@ -34,10 +34,30 @@ Run it (opens its desktop window; `--browser` for the browser front end):
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && ./xppautX examples/ode/lecar.ode"
 
 verify.sh also runs every example model through `xppautX -silent` and
-compares each output.dat's md5 with tests/examples.md5
-(`tools/examples_check.sh`, ~30 s). A difference means the numerics
-changed: rewrite the baseline with `tools/examples_check.sh --update` only
-when the change is intended, and say which models changed in the commit.
+compares each output.dat's md5 (CRs removed) with tests/examples.md5
+(`tools/examples_check.sh`, ~30 s); a model that crashes or times out
+fails it too. A difference means the numerics changed: rewrite the
+baseline with `tools/examples_check.sh --update` only when the change is
+intended, and say which models changed in the commit. Other platforms
+(W17): CI's windows and macos jobs run `examples_check.sh --platform
+<windows|macos> --write examples.<platform>.md5`, which compares with
+tests/examples.<platform>.md5 when it exists, else with Linux's in a
+first-run mode that reports the differing models without failing (a
+crash still fails), and upload the md5s they computed as the artifact
+`examples-md5-<platform>`. A platform that differs from Linux gets its
+own baseline by committing that artifact's file as
+tests/examples.<platform>.md5; when numerics change on purpose, commit
+the new Linux baseline and the artifacts of that push's CI run. The local
+MinGW build (gcc 13.2) matched 179 of Linux's 195 at W17:
+`tools/examples_check.sh --bin xppautX.exe --platform windows` from Git
+Bash.
+
+verify.sh's checks about the source rather than the build (UTF-8, the
+scripts' executable bit, stdoutcheck, formatcheck, the LTO type check)
+are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
+`--warnings`: tools/warnings.sh's count, and web2's dist/types/unit
+tests), and its linux job runs `verify.sh --no-source-checks`. Every
+platform's job runs the same behaviour checks against its own build.
 
 The front end (`web2/`, the page at `/`; a `/v1/` or `/v2/` bookmark
 redirects to `/`; design and plan in docs/ui-v2.md). The classic page
@@ -57,7 +77,7 @@ web2check.mjs's headless-browser driver; web2check.mjs runs from Git Bash,
 where Node and Chrome are (not WSL), and builds nothing: it drives
 `./xppautX[.exe]` (`--bin` to point elsewhere).
 
-`make ltocheck` (run by verify.sh) links xppautX with LTO into build/lto
+`make ltocheck` (run by tools/sourcecheck.sh, which verify.sh runs) links xppautX with LTO into build/lto
 and fails on `-Wlto-type-mismatch`: an extern whose type or array bound
 differs from its definition, which a normal build cannot see.
 

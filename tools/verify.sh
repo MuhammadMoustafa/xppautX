@@ -3,16 +3,26 @@
 # drive xppautX --server through its protocol (tools/servercheck.py) and
 # its browser mode through HTTP (tools/webcheck.py), and print
 # the C++ metric. Run from repo root (WSL/Linux/macOS).
-# It also links with LTO (make ltocheck), which reports types
-# that differ across files, and checks that a failed allocation is loud.
+# It also runs the checks about the source (tools/sourcecheck.sh: the LTO
+# type check among them) and checks that a failed allocation is loud.
 # The sanitizer build (tools/asancheck.sh) is slower and runs apart, in CI.
-# Usage: tools/verify.sh [--clean-warnings]
+# Usage: tools/verify.sh [--clean-warnings] [--no-source-checks]
+#   --no-source-checks  skip tools/sourcecheck.sh (encoding, script modes,
+#                       stdoutcheck, formatcheck, the LTO type check): CI's
+#                       linux job, whose source job runs them once
 cd "$(dirname "$0")/.." || exit 1
+clean_warnings=0
+source_checks=1
+for arg in "$@"; do
+  case "$arg" in
+    --clean-warnings) clean_warnings=1 ;;
+    --no-source-checks) source_checks=0 ;;
+    *) echo "verify.sh: unknown option $arg"; exit 2 ;;
+  esac
+done
 BASELINE=c281851de59ffd03b2a46428619a0c8f
-# make test and make ltocheck each used to build on one core (60 s, 49 s on
-# CI); run them with the machine's core count instead (ltocheck's own
-# sub-make, invoked via $(MAKE), shares the jobserver this -j sets up, so
-# its own build/lto compile also parallelizes)
+# make test used to build on one core (60 s on CI); run it with the
+# machine's core count instead
 if command -v nproc >/dev/null 2>&1; then
   NPROC=$(nproc)
 elif command -v sysctl >/dev/null 2>&1; then
@@ -61,32 +71,9 @@ else
   echo "UNIT TESTS FAILED"
   exit 1
 fi
-if ! python3 tools/utf8check.py; then
-  echo "ENCODING CHECK FAILED"
-  exit 1
-fi
-# a script committed from Windows loses its executable bit: CI's checkout
-# then cannot run it ("Permission denied"), which a Windows or WSL run on
-# /mnt/c never shows
-noexec=$(git ls-files -s -- '*.sh' 2>/dev/null | awk '$1 != "100755" {print $4}')
-if [ -n "$noexec" ]; then
-  echo "scripts not executable in git (git update-index --chmod=+x):" $noexec
-  echo "SCRIPT MODE CHECK FAILED"
-  exit 1
-fi
-if ! sh tools/stdoutcheck.sh; then
-  echo "STDOUT CHECK FAILED"
-  exit 1
-fi
-if ! sh tools/formatcheck.sh; then
-  echo "FORMAT CHECK FAILED"
-  exit 1
-fi
-if make -j"$NPROC" ltocheck > build/ltocheck.log 2>&1; then
-  echo "lto link ok: no types differ across files"
-else
-  tail -30 build/ltocheck.log
-  echo "LTO CHECK FAILED"
+# checks about the source, not the build: once per push in CI (its
+# `source` job, tools/sourcecheck.sh), every time in the local gate
+if [ $source_checks -eq 1 ] && ! sh tools/sourcecheck.sh; then
   exit 1
 fi
 if command -v python3 >/dev/null; then
@@ -129,4 +116,4 @@ else
 fi
 # the conversion of the core to C++ (CLAUDE.md, "C and C++")
 echo "C++: $(( $(ls core/*.cpp 2>/dev/null | wc -l) )) / $(( $(ls core/*.c core/*.cpp 2>/dev/null | wc -l) )) sources"
-if [ "$1" = --clean-warnings ]; then tools/warnings.sh; fi
+if [ $clean_warnings -eq 1 ]; then tools/warnings.sh; fi

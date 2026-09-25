@@ -28,3 +28,6 @@ output.dat
 
 # Python bytecode from the check scripts
 __pycache__/
+
+# the md5s tools/examples_check.sh --write leaves (CI uploads them)
+/examples.*.md5

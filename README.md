@@ -105,7 +105,7 @@ them after a build and fails on any difference:
 
 | Script | Checks |
 |---|---|
-| `tools/examples_check.sh` | every `examples/**/*.ode` through `xppautX -silent`, each output's md5 against `tests/examples.md5` |
+| `tools/examples_check.sh` | every `examples/**/*.ode` through `xppautX -silent`, each output's md5 against `tests/examples.md5` (`--platform windows`/`macos`: against `tests/examples.<platform>.md5` when committed, CI-generated) |
 | `tools/servercheck.py` | protocol session against `xppautX --server` (menus, prompts, integration, equilibria, windows, browser, animation, kinescope, array plot, the data events) |
 | `tools/autocheck.py` | AUTO continuations over the protocol (diagrams, labels, grabs, long names) |
 | `tools/webcheck.py` | `xppautX` over HTTP: page, token, event stream, files, commands, exit |

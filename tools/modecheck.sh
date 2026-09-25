@@ -11,9 +11,20 @@
 # (XPP_WINDOW_FAIL_LOAD=1, as if WebKitGTK were missing) says what to
 # install and opens the browser, and with no display the real library
 # loads, finds no display and opens the browser too.
+# On Windows (Git Bash; CI's windows job) --browser opens the page with
+# ShellExecute, which no stand-in on PATH can catch: that run is skipped
+# there rather than open a real browser; --help and --no-open are checked.
 # tools/verify.sh runs this. Usage: tools/modecheck.sh [./xppautX]
+# (default ./xppautX, or ./xppautX.exe where only that exists)
 cd "$(dirname "$0")/.." || exit 1
-BIN=$(pwd)/${1:-xppautX}
+default=xppautX
+[ ! -e xppautX ] && [ -e xppautX.exe ] && default=xppautX.exe
+case "${1:-$default}" in
+  /*) BIN=${1:-$default} ;;
+  *) BIN=$(pwd)/${1:-$default} ;;
+esac
+windows=0
+case "$(uname -s)" in MINGW* | MSYS* | CYGWIN*) windows=1 ;; esac
 fail=0
 pass() { echo "PASS $1"; }
 bad() { echo "FAIL $1"; fail=1; }
@@ -64,18 +75,22 @@ stop() {
   wait $pid 2>/dev/null
 }
 
-start --browser --port 0
-sleep 1 # the opener runs in the background
-case "$url" in
-  http://127.0.0.1:*/?t=*) pass "--browser prints the address ($(echo "$url" | cut -c1-30)...)" ;;
-  *) bad "--browser prints the address: $(head -c 300 "$tmp/out")" ;;
-esac
-if [ -n "$url" ] && [ "$(head -1 "$tmp/opened" 2>/dev/null)" = "$url" ]; then
-  pass "--browser opens that same address"
+if [ $windows -eq 1 ]; then
+  echo "SKIP --browser: Windows opens it with ShellExecute, not a stand-in on PATH"
 else
-  bad "--browser opens that same address (opened: $(cat "$tmp/opened" 2>/dev/null))"
+  start --browser --port 0
+  sleep 1 # the opener runs in the background
+  case "$url" in
+    http://127.0.0.1:*/?t=*) pass "--browser prints the address ($(echo "$url" | cut -c1-30)...)" ;;
+    *) bad "--browser prints the address: $(head -c 300 "$tmp/out")" ;;
+  esac
+  if [ -n "$url" ] && [ "$(head -1 "$tmp/opened" 2>/dev/null)" = "$url" ]; then
+    pass "--browser opens that same address"
+  else
+    bad "--browser opens that same address (opened: $(cat "$tmp/opened" 2>/dev/null))"
+  fi
+  stop
 fi
-stop
 
 start --no-open --port 0
 sleep 1
