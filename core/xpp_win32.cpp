@@ -86,6 +86,63 @@ char *xpp_make_temp_dir(void)
     return NULL;
 }
 
+static int scratch_pid_running(unsigned long pid)
+{
+    HANDLE h = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, (DWORD)pid);
+    DWORD code;
+    int running;
+
+    if (h == NULL) return 0; /* no such process */
+    running = !GetExitCodeProcess(h, &code) || code == STILL_ACTIVE;
+    CloseHandle(h);
+    return running;
+}
+
+/* issue #32: see xpp_util.c's POSIX twin for why. Windows names by the
+   same "xppautoX-<pid>-N" pattern; OpenProcess fails when pid no longer
+   names a process (or GetExitCodeProcess says it already exited). */
+void xpp_cleanup_stale_scratch_dirs(void)
+{
+    char base[MAX_PATH];
+    char pattern[MAX_PATH + 16];
+    char path[2 * MAX_PATH];
+    WIN32_FIND_DATAA fd;
+    HANDLE h;
+    DWORD n = GetTempPathA(sizeof(base), base);
+
+    if (n == 0 || n >= sizeof(base)) return;
+    if (n > 0 && base[n - 1] == '\\') base[--n] = 0;
+    snprintf(pattern, sizeof(pattern), "%s\\xppautoX-*", base);
+    h = FindFirstFileA(pattern, &fd);
+    if (h == INVALID_HANDLE_VALUE) return;
+    do {
+        unsigned long pid;
+        int idx, consumed = -1;
+        if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
+        if (sscanf(fd.cFileName, "xppautoX-%lu-%d%n", &pid, &idx, &consumed) != 2) continue;
+        if (consumed < 0 || fd.cFileName[consumed] != '\0') continue;
+        if (scratch_pid_running(pid)) continue;
+        snprintf(path, sizeof(path), "%s\\%s", base, fd.cFileName);
+        xpp_remove_temp_dir(path);
+    } while (FindNextFileA(h, &fd));
+    FindClose(h);
+}
+
+/* Ctrl+C, Ctrl+Break, the console window closing, a logoff or a shutdown:
+   none of these run atexit(). Clean up this run's own folder, then let the
+   default handler (returning FALSE) terminate the process as usual. */
+static BOOL WINAPI console_ctrl_handler(DWORD type)
+{
+    (void)type;
+    xpp_cleanup_auto_dir();
+    return FALSE;
+}
+
+void xpp_install_terminate_handler(void)
+{
+    SetConsoleCtrlHandler(console_ctrl_handler, TRUE);
+}
+
 /* W13b: xppautX links -mwindows, so no console appears when Explorer or a
    file association starts it; a command-line mode reattaches to a real
    parent console instead (xpp_win32.h). A handle that is already a pipe,

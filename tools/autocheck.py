@@ -5,7 +5,10 @@ travels as data, how input is read, and how quickly a long computation stops.
 usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [SECTION...]
 
 Sections: diagram, input, abort, control, files, stability, sessions, session,
-script, replay, names (default: all; tools/verify.sh runs them all). files compares
+script, replay, names, scratch (default: all; tools/verify.sh runs them all).
+scratch checks that a start removes an xppautoX-<pid>-N folder (xpp_util.c's
+AUTO scratch directory) left by a dead pid, and leaves one alone whose pid is
+still running (issue #32). files compares
 AUTO's saved diagram of lecar with a reference; stability checks that a point's
 eigenvalues are its own (a run's first point is not computed unless it
 restarts from a label of the same kind: auto_stability.h); sessions checks that concurrent servers
@@ -30,7 +33,7 @@ ap.add_argument('--server', default='./xppautX')
 ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
 ap.add_argument('sections', nargs='*', default=['diagram', 'input', 'abort', 'control', 'files', 'stability',
-                                                'sessions', 'session', 'script', 'replay', 'names'])
+                                                'sessions', 'session', 'script', 'replay', 'names', 'scratch'])
 args = ap.parse_args()
 here = os.path.dirname(os.path.abspath(__file__))
 LECAR = 'examples/ode/lecar.ode'
@@ -1093,6 +1096,38 @@ def section_replay():
           'exit %d, rows %s, %s' % (code, last_rows(out), run_script.stderr[-300:]))
     os.unlink(path)
     shutil.rmtree(run, ignore_errors=True)
+
+
+# ---- scratch: a start sweeps a dead pid's leftover AUTO folder, but never a
+# live pid's (issue #32) ------------------------------------------------------
+
+def section_scratch():
+    tmp = tempfile.gettempdir() if os.name == 'nt' else (os.environ.get('TMPDIR') or '/tmp')
+
+    # a pid that is definitely not running any more: a child reaped before
+    # xppautX starts (pid reuse in that instant is not realistic here)
+    dead = subprocess.Popen([sys.executable, '-c', 'pass'])
+    dead.wait()
+    dead_dir = os.path.join(tmp, 'xppautoX-%d-0' % dead.pid)
+    os.makedirs(dead_dir, exist_ok=True)
+    with open(os.path.join(dead_dir, 'fort.7'), 'w') as f:
+        f.write('a leftover from a killed run')
+
+    # a pid that is still running: this test process itself
+    live_dir = os.path.join(tmp, 'xppautoX-%d-0' % os.getpid())
+    os.makedirs(live_dir, exist_ok=True)
+    with open(os.path.join(live_dir, 'fort.7'), 'w') as f:
+        f.write('a live session, not to be touched')
+
+    try:
+        s = Server(args.server, LECAR, verbose=args.v)
+        s.collect(is_idle)
+        check('a dead pid\'s leftover scratch folder is gone after a start', not os.path.isdir(dead_dir))
+        check('a live pid\'s scratch folder is left alone', os.path.isdir(live_dir))
+        s.close()
+    finally:
+        shutil.rmtree(live_dir, ignore_errors=True)
+        shutil.rmtree(dead_dir, ignore_errors=True)
 
 
 for name in args.sections:

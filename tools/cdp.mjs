@@ -4,6 +4,7 @@
    no npm packages), and start xppautX in browser mode. */
 import {spawn, spawnSync} from 'node:child_process';
 import fs from 'node:fs';
+import http from 'node:http';
 import path from 'node:path';
 
 const win = process.platform === 'win32';
@@ -100,5 +101,28 @@ export function startServer(bin, dir, args) {
     proc.stdout.on('data', look);
     proc.stderr.on('data', d => { text += d; });
     proc.on('exit', code => reject(new Error(`${bin} exited (${code}):\n${text}`)));
+  });
+}
+
+/* Ends a startServer() session: {"cmd":"quit"} over its own /cmd (as
+   File/Quit does), so it removes its AUTO scratch folder and exits on its
+   own (issue #32 -- a kill leaves the folder behind); a kill is only the
+   fallback when quitting does not make it exit in time, or the request
+   itself fails (a wedged server). */
+export function stopServer(server, timeoutMs = 2000) {
+  return new Promise(resolve => {
+    if (server.proc.exitCode !== null) { resolve(); return; }
+    const done = () => { server.proc.off('exit', done); clearTimeout(timer); resolve(); };
+    server.proc.on('exit', done);
+    const timer = setTimeout(() => { if (server.proc.exitCode === null) server.proc.kill(); }, timeoutMs);
+    try {
+      const u = new URL(server.url);
+      const req = http.request({host: u.hostname, port: u.port, path: '/cmd' + u.search, method: 'POST',
+        headers: {'Content-Type': 'application/json'}}, res => res.resume());
+      req.on('error', () => { if (server.proc.exitCode === null) server.proc.kill(); });
+      req.end(JSON.stringify({cmd: 'quit'}));
+    } catch {
+      if (server.proc.exitCode === null) server.proc.kill();
+    }
   });
 }

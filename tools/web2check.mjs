@@ -72,7 +72,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {findBrowser, sleep, startBrowser, startServer} from './cdp.mjs';
+import {findBrowser, sleep, startBrowser, startServer, stopServer} from './cdp.mjs';
 
 const top = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const opt = {bin: `xppautX${process.platform === 'win32' ? '.exe' : ''}`};
@@ -3341,7 +3341,7 @@ async function session(ode, fn, expected = []) {
     const errors = (await S('s.log.filter(l => l.kind === "error").map(l => l.text)')).filter(e => !expected.includes(e));
     check(`${path.basename(ode)}: no errors reported by the core`, errors.length === 0, JSON.stringify(errors));
   } finally {
-    server.proc.kill();
+    await stopServer(server);
     await sleep(300);
     fs.rmSync(dir, {recursive: true, force: true, maxRetries: 5});
   }

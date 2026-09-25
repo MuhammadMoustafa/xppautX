@@ -50,6 +50,17 @@ void xpp_remove_temp_dir(const char *dir);
 /* atexit hook: removes program.auto_dir (xpp_globals.h) if it is set, and
    clears it. Registered by xppautx_main.c, not the X11 front end. */
 void xpp_cleanup_auto_dir(void);
+/* issue #32: called once at start, before xpp_make_temp_dir, removes the
+   xppautoX-<pid>-N folders (xpp_make_temp_dir's own naming) left by a run
+   that was killed before it could clean up after itself; a folder whose
+   pid still names a running process is never touched. xpp_util.c (POSIX)
+   and xpp_win32.c (Windows). */
+void xpp_cleanup_stale_scratch_dirs(void);
+/* issue #32: installs cleanup for this run's own folder on a Ctrl+C, a
+   kill, or (Windows) the console closing/logoff/shutdown -- ends the
+   process before atexit() gets a chance to run xpp_cleanup_auto_dir.
+   xpp_util.c (POSIX signal handler) and xpp_win32.c (SetConsoleCtrlHandler). */
+void xpp_install_terminate_handler(void);
 
 #ifdef __cplusplus
 }

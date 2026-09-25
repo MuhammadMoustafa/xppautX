@@ -740,6 +740,7 @@ void do_txt_action(char *s)
 #ifndef _WIN32
 #include <dirent.h>
 #include <errno.h>
+#include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -786,6 +787,52 @@ void xpp_remove_temp_dir(const char *dir)
     closedir(d);
   }
   rmdir(dir);
+}
+
+/* issue #32: a killed run's folder is never removed (xpp_cleanup_auto_dir
+   only runs at a normal exit), and this machine had about 1400 of them.
+   Sweep them before making this run's own: only a name matching the exact
+   "xppautoX-<pid>-N" pattern, and only when kill(pid,0) says ESRCH (no
+   such process); a live pid, or one this user has no permission to signal,
+   is left alone. */
+void xpp_cleanup_stale_scratch_dirs(void)
+{
+  const char *base = getenv("TMPDIR");
+  DIR *d;
+  struct dirent *e;
+
+  if (base == NULL || base[0] == 0) base = "/tmp";
+  d = opendir(base);
+  if (d == NULL) return;
+  while ((e = readdir(d)) != NULL) {
+    long pid;
+    int idx, n = -1;
+    char path[1024];
+    if (sscanf(e->d_name, "xppautoX-%ld-%d%n", &pid, &idx, &n) != 2) continue;
+    if (n < 0 || e->d_name[n] != '\0') continue;
+    if (kill((pid_t)pid, 0) == 0) continue; /* still running */
+    if (errno != ESRCH) continue;           /* can't tell: leave it alone */
+    snprintf(path, sizeof(path), "%s/%s", base, e->d_name);
+    xpp_remove_temp_dir(path);
+  }
+  closedir(d);
+}
+
+/* Ctrl+C or a kill ends the process before atexit() gets a chance (that is
+   the only place xpp_cleanup_auto_dir is registered): remove this run's
+   own folder here, then restore the default disposition and re-raise, for
+   the usual termination behaviour and exit status. */
+static void handle_terminate_signal(int sig)
+{
+  xpp_cleanup_auto_dir();
+  signal(sig, SIG_DFL);
+  raise(sig);
+}
+
+void xpp_install_terminate_handler(void)
+{
+  signal(SIGINT, handle_terminate_signal);
+  signal(SIGTERM, handle_terminate_signal);
 }
 #endif
 
