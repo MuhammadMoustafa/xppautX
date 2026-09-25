@@ -1110,11 +1110,13 @@ void find_ker(char *string, int *alt)   /* this extracts the integral operators 
       in=in-3;
       inum=0;
       i++;
-      while((ch=string[i])!=']'){
-	num[inum]=ch;
-	inum++;
+      while((ch=string[i])!=']'&&ch!=0){
+	if(inum<MAXEXPLEN-1)num[inum++]=ch;
 	i++;
       }
+      /* was never terminated: atof read on into whatever the stack held
+         after mu's digits (valgrind, W21) */
+      num[inum]=0;
       mu=atof(num);
       fflag=1;
       *alt=1;
