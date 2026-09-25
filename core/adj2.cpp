@@ -1,4 +1,5 @@
 #include "adj2.h"
+#include "markov.h"
 #include "odesol2.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
@@ -34,7 +35,6 @@
 
 #define READEM 1
 
-double ndrand48();
 
 extern double MyData[MAXODE];
 extern float **storage;
@@ -104,7 +104,7 @@ void dump_transpose_info(FILE *fp, int f)
 int do_transpose()
 {
  int i,status;
- static char *n[]={"*0Column 1","NCols","ColSkip","Row 1","NRows","RowSkip"};
+ static char *n[]={(char *)"*0Column 1",(char *)"NCols",(char *)"ColSkip",(char *)"Row 1",(char *)"NRows",(char *)"RowSkip"};
  char values[6][MAX_LEN_SBOX];
  XPP_SPRINTF(values[0],"%s",my_trans.firstcol);
  XPP_SPRINTF(values[1],"%d",my_trans.ncol);
@@ -121,14 +121,14 @@ int do_transpose()
  }
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
- status=do_string_box_of(6,6,1,"Transpose Data",n,values,33,kinds);
+ status=do_string_box_of(6,6,1,(char *)"Transpose Data",n,values,33,kinds);
  if(status!=0){
    find_variable(values[0],&i);
    if(i>-1)
      my_trans.col0=i+1;
    else
      {
-       err_msg("No such columns");
+       err_msg((char *)"No such columns");
        return 0;
      }
    snprintf(my_trans.firstcol,sizeof(my_trans.firstcol),"%.*s",XPP_NAME_MAX,values[0]);
@@ -272,8 +272,8 @@ static char key[]="nmaohpr";
 
 void adjoint_parameters()
 {
-  new_int("Maximum iterates :",&ADJ_MAXIT);
-  new_float("Adjoint error tolerance :",&ADJ_ERR);
+  new_int((char *)"Maximum iterates :",&ADJ_MAXIT);
+  new_float((char *)"Adjoint error tolerance :",&ADJ_ERR);
 }
 
 void new_h_fun(int silent)
@@ -281,11 +281,11 @@ void new_h_fun(int silent)
 
  int i,n=2;
  if(!ADJ_HERE){
-   err_msg("Must compute adjoint first!");
+   err_msg((char *)"Must compute adjoint first!");
    return;
  }
   if(storind!=adj_len){
-     err_msg("incompatible data and adjoint");
+     err_msg((char *)"incompatible data and adjoint");
      return;
    }
  if(H_HERE){
@@ -344,7 +344,7 @@ int make_h(float **orb, float **adj, float **h, int nt, double dt, int node, int
      snprintf(name,sizeof(name),"Coupling for %.*s eqn:",XPP_NAME_MAX,uvar_names[i]);
      new_string_of(name,coup_string[i],XPP_FIELD_EXPRESSION);
      if(add_expr(coup_string[i],coup_fun[i],&j)){
-       err_msg("Illegal formula");
+       err_msg((char *)"Illegal formula");
        goto bye;
      }
    }
@@ -464,7 +464,7 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
   {
    jac[i]=(double *)xpp_malloc(nt*sizeof(double));
        if(jac[i]==NULL){
-       err_msg("Insufficient storage");
+       err_msg((char *)"Insufficient storage");
 	return(0);
 	}
    }
@@ -521,7 +521,7 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
 	  if(fabs(yold[i])>BOUND){
 	    
 	     rval=0;
-	  err_msg("Out of bounds");
+	  err_msg((char *)"Out of bounds");
 	  goto bye;
 	  }
 	error+=fabs(yold[i]-fdev[i]);
@@ -605,7 +605,7 @@ mat=work+node;
   sgefa(mat,node,node,ipvt,&info);
 if(info!=-1){
   
-  err_msg("Univertible Jacobian");
+  err_msg((char *)"Univertible Jacobian");
   return(0);
 }
 sgesl(mat,node,node,ipvt,yold,0);
@@ -630,7 +630,7 @@ void do_liapunov()
   double z;
   int i;
   double *x;
-  new_int("Range over parameters?(0/1)",&LIAP_FLAG);
+  new_int((char *)"Range over parameters?(0/1)",&LIAP_FLAG);
   if(LIAP_FLAG!=1){
     hrw_liapunov(&z,0,NEWT_ERR);
     return;
@@ -695,7 +695,7 @@ int hrw_liapunov(double *liap,int batch,double eps)
  int istart=1;
  int i,j;
   if(storind<2){
-   if(batch==0)err_msg("You need to compute an orbit first");
+   if(batch==0)err_msg((char *)"You need to compute an orbit first");
    return(0);
  }
 
@@ -716,7 +716,7 @@ int hrw_liapunov(double *liap,int batch,double eps)
      norm_vec(yp,&nrm,NODE);
      nrm=nrm/eps;
      if(nrm==0.0){
-       if(batch==0)err_msg("Liapunov:-infinity exponent!");
+       if(batch==0)err_msg((char *)"Liapunov:-infinity exponent!");
        return 0; /* something wrong here */
      }
      sum=sum+log(nrm);

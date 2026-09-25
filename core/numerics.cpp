@@ -13,6 +13,8 @@
 #include "browse.h"
 #include "pop_list.h"
 #include "volterra2.h"
+#include "odesol2.h"
+#include "gear.h"
 #include "menu.h"
 #include "ggets.h"
 #include "pp_shoot.h"
@@ -81,15 +83,6 @@ extern double EulTol;
 
 extern int AutoEvaluate;
 
-int  gear();
- int discrete();
- int euler();
- int mod_euler();
- int rung_kut();
- int adams();
- int bak_euler();
- int symplect3();
-
 int cv_bandflag=0,cv_bandupper=1,cv_bandlower=1;
 
 /*   This is the input for the various functions */
@@ -138,7 +131,7 @@ void  get_num_par(char ch)
 
 		case 't': flash(0);
 			 /* total */
-			 new_float("total :",&TEND);
+			 new_float((char *)"total :",&TEND);
 			  FOREVER=0;
 			  if(TEND<0)
 			  {
@@ -151,18 +144,18 @@ void  get_num_par(char ch)
 			break;
 		case 's': flash(1);
 			 /* start */
-			 new_float("start time :",&T0);
+			 new_float((char *)"start time :",&T0);
 			flash(1);
 			break;
 		case 'r': flash(2);
 			 /* transient */
-			 new_float("transient :",&TRANS);
+			 new_float((char *)"transient :",&TRANS);
 			flash(2);
 			break;
 		case 'd': flash(3);
 			 /* DT */
 		         temp=DELTA_T;
-			 new_float("Delta t :",&DELTA_T);
+			 new_float((char *)"Delta t :",&DELTA_T);
 		         if(DELTA_T==0.0)DELTA_T=temp;
 		         if(DELAY>0.0) {
 			  free_delay();
@@ -186,7 +179,7 @@ void  get_num_par(char ch)
 			break;
 		case 'n': flash(4);
 			 /* ncline */
-			 new_int("ncline mesh :",&NMESH);
+			 new_int((char *)"ncline mesh :",&NMESH);
 			/* new_float("Error :",&NULL_ERR); */
                           check_pos(&NMESH);
 
@@ -196,33 +189,33 @@ void  get_num_par(char ch)
 		      /*   new_int("Number Left :", &BVP_NL);
 		         new_int("Number Right :", &BVP_NR); */
 		        
-		         new_int("Maximum iterates :",&BVP_MAXIT);
+		         new_int((char *)"Maximum iterates :",&BVP_MAXIT);
 		         check_pos(&BVP_MAXIT);
-		         new_float("Tolerance :",&BVP_TOL);
-		         new_float("Epsilon :",&BVP_EPS);
+		         new_float((char *)"Tolerance :",&BVP_TOL);
+		         new_float((char *)"Epsilon :",&BVP_EPS);
 		         reset_bvp();
 		         break;
 		case 'i': flash(5);
 			 /* sing pt */
-			 new_int("Maximum iterates :",&EVEC_ITER);
+			 new_int((char *)"Maximum iterates :",&EVEC_ITER);
 			 check_pos(&EVEC_ITER);
-			 new_float("Newton tolerance :",&EVEC_ERR);
-			 new_float("Jacobian epsilon :",&NEWT_ERR);
+			 new_float((char *)"Newton tolerance :",&EVEC_ERR);
+			 new_float((char *)"Jacobian epsilon :",&NEWT_ERR);
 		       if(NFlags>0)
-			 new_float("SMIN :",&STOL);
+			 new_float((char *)"SMIN :",&STOL);
 		       
 			flash(5);
 			break;
 		case 'o': flash(6);
 			 /* noutput */
-			new_int("n_out :",&NJMP);
+			new_int((char *)"n_out :",&NJMP);
 			 check_pos(&NJMP);
 
 			flash(6);
 			break;
 		case 'b': flash(7);
 			 /* bounds */
-			new_float("Bounds :",&BOUND); BOUND=fabs(BOUND);
+			new_float((char *)"Bounds :",&BOUND); BOUND=fabs(BOUND);
 
 			flash(7);
 			break;
@@ -230,44 +223,44 @@ void  get_num_par(char ch)
 			 /* method */
 			 get_method();
 			 if(METHOD==VOLTERRA&&NKernel==0){
-			   err_msg("Volterra only for integral eqns");
+			   err_msg((char *)"Volterra only for integral eqns");
 			   METHOD=4; 
 			 }
 		       if(NKernel>0)METHOD=VOLTERRA;
 			if(METHOD==GEAR||METHOD==RKQS||METHOD==STIFF)
 		{
-		 new_float("Tolerance :",&TOLER);
-		 new_float("minimum step :",&HMIN);
-		 new_float("maximum step :",&HMAX);
+		 new_float((char *)"Tolerance :",&TOLER);
+		 new_float((char *)"minimum step :",&HMIN);
+		 new_float((char *)"maximum step :",&HMAX);
 		}
 			if(METHOD==CVODE||METHOD==DP5||METHOD==DP83||METHOD==RB23)
 			  {
-			    new_float("Relative tol:",&TOLER);
-			    new_float("Abs. Toler:",&ATOLER);
+			    new_float((char *)"Relative tol:",&TOLER);
+			    new_float((char *)"Abs. Toler:",&ATOLER);
 			  }
 
 		       if(METHOD==BACKEUL||METHOD==VOLTERRA){
-			 new_float("Tolerance :",&EulTol);
-			 new_int("MaxIter :",&MaxEulIter);
+			 new_float((char *)"Tolerance :",&EulTol);
+			 new_int((char *)"MaxIter :",&MaxEulIter);
 		       }
 		       if(METHOD==VOLTERRA){
 			 tmp=MaxPoints;
-			 new_int("MaxPoints:",&tmp);
-			 new_int("AutoEval(1=yes) :",&AutoEvaluate);
+			 new_int((char *)"MaxPoints:",&tmp);
+			 new_int((char *)"AutoEval(1=yes) :",&AutoEvaluate);
 			 allocate_volterra(tmp,1);
 		       }
 			 
 		       if(METHOD==CVODE||METHOD==RB23)
 			 {
-			   new_int("Banded system(0/1)?",&cv_bandflag);
+			   new_int((char *)"Banded system(0/1)?",&cv_bandflag);
 			   if(cv_bandflag==1){
-			     new_int("Lower band:",&cv_bandlower);
-			     new_int("Upper band:",&cv_bandupper);
+			     new_int((char *)"Lower band:",&cv_bandlower);
+			     new_int((char *)"Upper band:",&cv_bandupper);
 			   }
 			 }
 		       if(METHOD==SYMPLECT){
 			 if((NODE%2)!=0){
-			   err_msg("Symplectic is only for even dimensions");
+			   err_msg((char *)"Symplectic is only for even dimensions");
 			   METHOD=4;
 			 }
 		       }
@@ -276,10 +269,10 @@ void  get_num_par(char ch)
 		case 'e': flash(9);
 			 /* delay */
                         if(NDELAYS==0)break;
-			new_float("Maximal delay :",&DELAY);
-                        new_float("real guess :", &AlphaMax);
-			   new_float("imag guess :", &OmegaMax); 
-		        new_int("DelayGrid :",&DelayGrid);
+			new_float((char *)"Maximal delay :",&DELAY);
+                        new_float((char *)"real guess :", &AlphaMax);
+			   new_float((char *)"imag guess :", &OmegaMax); 
+		        new_int((char *)"DelayGrid :",&DelayGrid);
 		        if(DELAY>0.0) {
 			  free_delay();
 			  if(alloc_delay(DELAY)){
@@ -357,9 +350,9 @@ void set_delay()
 
 void ruelle()
 {
-   new_int("x-axis shift ",&(plot_windows.current->xshft));
-   new_int("y-axis shift ",&(plot_windows.current->yshft));
-   new_int("z-axis shift",&(plot_windows.current->zshft));
+   new_int((char *)"x-axis shift ",&(plot_windows.current->xshft));
+   new_int((char *)"y-axis shift ",&(plot_windows.current->yshft));
+   new_int((char *)"z-axis shift",&(plot_windows.current->zshft));
    if(plot_windows.current->xshft<0)plot_windows.current->xshft=0;
    if(plot_windows.current->yshft<0)plot_windows.current->yshft=0;
    if(plot_windows.current->zshft<0)plot_windows.current->zshft=0;
@@ -424,9 +417,9 @@ void get_pmap_pars_com(int l)
 {
  static char mkey[]="nsmp";
  char ch;
- static char *n[]={"*0Variable","Section","Direction (+1,-1,0)","Stop on sect(y/n)"};
+ static char *n[]={(char *)"*0Variable",(char *)"Section",(char *)"Direction (+1,-1,0)",(char *)"Stop on sect(y/n)"};
  char values[4][MAX_LEN_SBOX];
- static char *yn[]={"N","Y"};
+ static char *yn[]={(char *)"N",(char *)"Y"};
  int status;
  char n1[XPP_NAME_MAX+1];
  int i1=POIVAR;
@@ -447,11 +440,11 @@ void get_pmap_pars_com(int l)
  XPP_SPRINTF(values[2],"%d",POISGN);
  XPP_SPRINTF(values[3],"%s",yn[SOS]);
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
- status=do_string_box_of(4,4,1,"Poincare map",n,values,45,kinds);
+ status=do_string_box_of(4,4,1,(char *)"Poincare map",n,values,45,kinds);
  if(status!=0){
               find_variable(values[0],&i1);
 	      if(i1<0) { POIMAP=0;
-                         err_msg("No such section");
+                         err_msg((char *)"No such section");
 			 return;
 		       }
 	      POIVAR=i1;
@@ -525,7 +518,7 @@ void set_col_par_com(int i)
     }
     if(plot_windows.current->ColorFlag==2){
       ind_to_sym(plot_windows.current->ColorValue,name);
-      new_string_of("Color via:",name,XPP_FIELD_NAME_IN(0));
+      new_string_of((char *)"Color via:",name,XPP_FIELD_NAME_IN(0));
       find_variable(name,&ivar);
       
 
@@ -533,7 +526,7 @@ void set_col_par_com(int i)
 	plot_windows.current->ColorValue=ivar;
       else{
 	
-	err_msg("No such quantity!");
+	err_msg((char *)"No such quantity!");
 	plot_windows.current->ColorFlag=0;
 	return;
       }
@@ -541,14 +534,14 @@ void set_col_par_com(int i)
       
     
    /*   This will be uncommented    ..... */
-    ch=TwoChoice("(O)ptimize","(C)hoose","Color","oc");
+    ch=TwoChoice((char *)"(O)ptimize",(char *)"(C)hoose",(char *)"Color",(char *)"oc");
  
     if(ch=='c')
     {
      temp[0]=plot_windows.current->min_scale;
      temp[1]=plot_windows.current->min_scale+plot_windows.current->color_scale;
-     new_float("Min :",&temp[0]);
-     new_float("Max :",&temp[1]);
+     new_float((char *)"Min :",&temp[0]);
+     new_float((char *)"Max :",&temp[1]);
      if(temp[1]>temp[0]&&((plot_windows.current->ColorFlag==2)
      ||(plot_windows.current->ColorFlag==1&&temp[0]>=0.0)))
      {
@@ -556,7 +549,7 @@ void set_col_par_com(int i)
       plot_windows.current->color_scale=(temp[1]-temp[0]);
      }
      else{
-       err_msg("Min>=Max or Min<0 error");
+       err_msg((char *)"Min>=Max or Min<0 error");
      }
      return;
     }

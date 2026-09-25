@@ -122,7 +122,7 @@ void allocate_volterra(int npts, int flag)
     for(j=0;j<i;j++)xpp_free(Memory[j]);
     for(i=0;i<ntot;i++)
       Memory[i]=(double *)xpp_malloc(sizeof(double)*MaxPoints);
-    err_msg("Not enough memory...resetting");
+    err_msg((char *)"Not enough memory...resetting");
   } 
   CurrentPoint=0;
   KnFlag=1;

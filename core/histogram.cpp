@@ -1,4 +1,5 @@
 #include "histogram.h"
+#include "markov.h"
 #include "xpp_mem.h"
 
 #include <stdlib.h> 
@@ -19,7 +20,6 @@
 
 
 
-double ndrand48();
 
 extern int MAXSTOR;
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
@@ -144,7 +144,7 @@ void new_four(int nmodes, int col)
   if(my_four[2]==NULL){
    xpp_free(my_four[1]);
    xpp_free(my_four[2]);
-   err_msg("Cant allocate enough memory...");
+   err_msg((char *)"Cant allocate enough memory...");
    return;
  }
  FOUR_HERE=1;
@@ -173,7 +173,7 @@ void post_process_stuff()
       return;
     }
     if(post_process==1){
-      new_hist(hist_inf.nbins,hist_inf.xlo,hist_inf.xhi,hist_inf.col,0,"",0);
+      new_hist(hist_inf.nbins,hist_inf.xlo,hist_inf.xhi,hist_inf.col,0,(char *)"",0);
       return;
     }
     if(post_process==2){
@@ -221,7 +221,7 @@ int twod_hist()
   if(my_hist[2]==NULL){
     xpp_free(my_hist[0]);
     xpp_free(my_hist[1]);
-    err_msg("Cannot allocate enough...");
+    err_msg((char *)"Cannot allocate enough...");
     return(-1);
   }
   HIST_HERE=2;
@@ -244,33 +244,33 @@ int new_2d_hist()
   
   
   if((NEQ<2)||(storind<3)){
-    err_msg("Need more data and at least 3 columns");
+    err_msg((char *)"Need more data and at least 3 columns");
     return 0;
   }
-  if(get_col_info(&hist_inf.col,"Variable 1 ")==0)return(-1);  
-  new_int("Number of bins ",&hist_inf.nbins);
-  new_float("Low ",&hist_inf.xlo);
-  new_float("Hi ",&hist_inf.xhi);
+  if(get_col_info(&hist_inf.col,(char *)"Variable 1 ")==0)return(-1);  
+  new_int((char *)"Number of bins ",&hist_inf.nbins);
+  new_float((char *)"Low ",&hist_inf.xlo);
+  new_float((char *)"Hi ",&hist_inf.xhi);
   if(hist_inf.nbins<2){
-    err_msg("At least 2 bins\n");
+    err_msg((char *)"At least 2 bins\n");
     return(0);
   }
   if(hist_inf.xlo>=hist_inf.xhi){
-    err_msg("Low must be less than hi");
+    err_msg((char *)"Low must be less than hi");
     return(0);
   }
   
-  if(get_col_info(&hist_inf.col2,"Variable 2 ")==0)return(-1);  
-  new_int("Number of bins ",&hist_inf.nbins2);
-  new_float("Low ",&hist_inf.ylo);
-  new_float("Hi ",&hist_inf.yhi);
+  if(get_col_info(&hist_inf.col2,(char *)"Variable 2 ")==0)return(-1);  
+  new_int((char *)"Number of bins ",&hist_inf.nbins2);
+  new_float((char *)"Low ",&hist_inf.ylo);
+  new_float((char *)"Hi ",&hist_inf.yhi);
 
 if(hist_inf.nbins2<2){
-    err_msg("At least 2 bins\n");
+    err_msg((char *)"At least 2 bins\n");
     return(0);
   }
   if(hist_inf.ylo>=hist_inf.yhi){
-    err_msg("Low must be less than hi");
+    err_msg((char *)"Low must be less than hi");
     return(0);
   }
 
@@ -301,7 +301,7 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, char *condit
   my_hist[1]=(float *)xpp_malloc(sizeof(float)*length);
   if(my_hist[1]==NULL){
     xpp_free(my_hist[0]);
-    err_msg("Cannot allocate enough...");
+    err_msg((char *)"Cannot allocate enough...");
     return;
   }
   HIST_HERE=1;
@@ -315,7 +315,7 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, char *condit
     else
       {
 	if(add_expr(condition,command,&i)){
-	  err_msg("Bad condition. Ignoring...");
+	  err_msg((char *)"Bad condition. Ignoring...");
 	  
 	}
 	else {
@@ -391,10 +391,10 @@ void column_mean()
  double sum,sum2,ss;
  double mean,sdev;
  if(storind<=1){
-   err_msg("Need at least 2 data points!");
+   err_msg((char *)"Need at least 2 data points!");
    return;
  }
- if(get_col_info(&hist_inf.col,"Variable ")==0)return;
+ if(get_col_info(&hist_inf.col,(char *)"Variable ")==0)return;
  sum=0.0;
  sum2=0.0;
  for(i=0;i<storind;i++){
@@ -418,7 +418,7 @@ int get_col_info(int *col, char *prompt)
  new_string_of(prompt,variable,XPP_FIELD_NAME_IN(0));
  find_variable(variable,col);
  if(*col<0){
-   err_msg("No such variable...");
+   err_msg((char *)"No such variable...");
    return(0);
  }
  return(1);
@@ -649,7 +649,7 @@ void just_sd(int flag)
    my_hist[1]=(float *)xpp_malloc(sizeof(float)*length);
   if(my_hist[1]==NULL){
     xpp_free(my_hist[0]);
-    err_msg("Cannot allocate enough...");
+    err_msg((char *)"Cannot allocate enough...");
     return;
   }
   HIST_HERE=1;
@@ -666,13 +666,13 @@ void compute_sd()
 {
   int length,i,j;
   float total=storage[0][storind-1]-storage[0][0];
-  new_int("(0) PSDx, (1) PSDxy, (2) COHxy:",&spec_type);
+  new_int((char *)"(0) PSDx, (1) PSDxy, (2) COHxy:",&spec_type);
   
-  if(get_col_info(&spec_col,"Variable ")==0)return;
+  if(get_col_info(&spec_col,(char *)"Variable ")==0)return;
   if(spec_type>0)
-      if(get_col_info(&spec_col2,"Variable 2 ")==0)return;
-  new_int("Window length ",&spec_wid);
-  new_int("0:sqr 1:par 2:ham 3:bart 4:han ",&spec_win);
+      if(get_col_info(&spec_col2,(char *)"Variable 2 ")==0)return;
+  new_int((char *)"Window length ",&spec_wid);
+  new_int((char *)"0:sqr 1:par 2:ham 3:bart 4:han ",&spec_win);
    if(HIST_HERE){
     data_back();
     xpp_free(my_hist[0]);
@@ -687,7 +687,7 @@ void compute_sd()
    my_hist[1]=(float *)xpp_malloc(sizeof(float)*length);
   if(my_hist[1]==NULL){
     xpp_free(my_hist[0]);
-    err_msg("Cannot allocate enough...");
+    err_msg((char *)"Cannot allocate enough...");
     return;
   }
   HIST_HERE=1;
@@ -729,15 +729,15 @@ void compute_fourier()
 {
   int nmodes=10;
   if(NEQ<2){
-    err_msg("Need at least three data columns");
+    err_msg((char *)"Need at least three data columns");
     return;
   }
   /* new_int("Number of modes ",&nmodes); */
   if(storind<=1){
-    err_msg("No data!");
+    err_msg((char *)"No data!");
     return;
   }
-  if(get_col_info(&spec_col,"Variable ")==1){
+  if(get_col_info(&spec_col,(char *)"Variable ")==1){
     nmodes=storind/2-1;
     new_four(nmodes,spec_col);
   }
@@ -757,8 +757,8 @@ void compute_correl()
   }
   */  
   
-  new_int("Number of bins ",&hist_inf.nbins);
-  new_int("(0)Direct or (1) FFT ", &hist_inf.fftc);
+  new_int((char *)"Number of bins ",&hist_inf.nbins);
+  new_int((char *)"(0)Direct or (1) FFT ", &hist_inf.fftc);
   if(hist_inf.nbins>(storind/2-1))
     hist_inf.nbins=storind/2-2;
   
@@ -772,17 +772,17 @@ void compute_correl()
   hist_inf.xlo=-lag*dta;
   hist_inf.xhi=lag*dta;
   
-  if(get_col_info(&hist_inf.col,"Variable 1 ")==0)return;
-  if(get_col_info(&hist_inf.col2,"Variable 2 ")==0)return;
+  if(get_col_info(&hist_inf.col,(char *)"Variable 1 ")==0)return;
+  if(get_col_info(&hist_inf.col2,(char *)"Variable 2 ")==0)return;
   new_hist(hist_inf.nbins,hist_inf.xlo,
 	   hist_inf.xhi,hist_inf.col,hist_inf.col2,hist_inf.cond,2+hist_inf.fftc);
 }
 void compute_stacor()
 {
-  new_int("Number of bins ",&hist_inf.nbins);
-  new_float("Low ",&hist_inf.xlo);
-  new_float("Hi ",&hist_inf.xhi);
-  if(get_col_info(&hist_inf.col,"Variable ")==0)return;
+  new_int((char *)"Number of bins ",&hist_inf.nbins);
+  new_float((char *)"Low ",&hist_inf.xlo);
+  new_float((char *)"Hi ",&hist_inf.xhi);
+  if(get_col_info(&hist_inf.col,(char *)"Variable ")==0)return;
    new_hist(hist_inf.nbins,hist_inf.xlo,
 	   hist_inf.xhi,hist_inf.col,0,hist_inf.cond,1);
 }
@@ -820,11 +820,11 @@ void mycor2(float *x,float *y, int n, int nbins, float *z, int flag)
 void compute_hist()
 {
   
-  new_int("Number of bins ",&hist_inf.nbins);
-  new_float("Low ",&hist_inf.xlo);
-  new_float("Hi ",&hist_inf.xhi);
-  if(get_col_info(&hist_inf.col,"Variable ")==0)return;
-  new_string_of("Condition ",hist_inf.cond,XPP_FIELD_EXPRESSION);
+  new_int((char *)"Number of bins ",&hist_inf.nbins);
+  new_float((char *)"Low ",&hist_inf.xlo);
+  new_float((char *)"Hi ",&hist_inf.xhi);
+  if(get_col_info(&hist_inf.col,(char *)"Variable ")==0)return;
+  new_string_of((char *)"Condition ",hist_inf.cond,XPP_FIELD_EXPRESSION);
   new_hist(hist_inf.nbins,hist_inf.xlo,
 	   hist_inf.xhi,hist_inf.col,0,hist_inf.cond,0);
 }

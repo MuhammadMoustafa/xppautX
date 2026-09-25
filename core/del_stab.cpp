@@ -54,7 +54,7 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
    {
      del_stab_flag=1;
      xpp_free(work);
-     err_msg("Could not converge to root");
+     err_msg((char *)"Could not converge to root");
      for(i=0;i<n;i++)x[i]=old_x[i];
      return;
    }
@@ -375,14 +375,14 @@ double get_arg(double *delay, double *coef, int m, int n, COMPLEX lambda)
   return(arg);
 }   
 
-int test_sign(double old, double new)
+int test_sign(double old, double newval)
 {
-  if(old>0.0&&new<0.0){
-    if(old>2.9&&new<-2.9)return 1;
+  if(old>0.0&&newval<0.0){
+    if(old>2.9&&newval<-2.9)return 1;
     return(0); /* doesnt pass threshold */
   }
-  if(old<0.0&&new>0.0){
-    if(old<-2.9&&new>2.9)return -1;
+  if(old<0.0&&newval>0.0){
+    if(old<-2.9&&newval>2.9)return -1;
     return 0;
   }
   return 0;

@@ -44,7 +44,6 @@ extern int METHOD;
 void set_colorization_stuff(void);
 void silent_nullclines(void);
 void silent_dfields(void);
-void silent_equilibria(void);
 
 /* ---- moved from main.c (appended by tools/move_funcs.py) --------------- */
 

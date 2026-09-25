@@ -219,7 +219,7 @@ int one_step_int(double *y, double t0, double t1, int *istart)
   if(METHOD==RB23){
     rb23(y,&t,t1,istart,NODE,WORK,&kflag);
     if(kflag<0){
-       err_msg("Step size too small");
+       err_msg((char *)"Step size too small");
        return(0);
     }
         stor_delay(y);
@@ -231,11 +231,11 @@ if(METHOD==RKQS||METHOD==STIFF){
       if(kflag){
 	ping();
 	 switch(kflag){
-	       case 2: err_msg("Step size too small"); break;
-	       case 3: err_msg("Too many steps"); break;	 
-	       case -1: err_msg("singular jacobian encountered"); break;
-	       case 1: err_msg("stepsize is close to 0"); break;
-	       case 4: 	err_msg("exceeded MAXTRY in stiff"); break;
+	       case 2: err_msg((char *)"Step size too small"); break;
+	       case 3: err_msg((char *)"Too many steps"); break;	 
+	       case -1: err_msg((char *)"singular jacobian encountered"); break;
+	       case 1: err_msg((char *)"stepsize is close to 0"); break;
+	       case 4: 	err_msg((char *)"exceeded MAXTRY in stiff"); break;
 	       }
 	return(0);
       }
@@ -251,10 +251,10 @@ if(METHOD==RKQS||METHOD==STIFF){
 	ping();
 	switch(kflag)
 	  {
-	  case -1: err_msg("kflag=-1: minimum step too big"); break;
-	  case -2: err_msg("kflag=-2: required order too big");break;
-	  case -3: err_msg("kflag=-3: minimum step too big");break;
-	  case -4: err_msg("kflag=-4: tolerance too small");break;
+	  case -1: err_msg((char *)"kflag=-1: minimum step too big"); break;
+	  case -2: err_msg((char *)"kflag=-2: required order too big");break;
+	  case -3: err_msg((char *)"kflag=-3: minimum step too big");break;
+	  case -4: err_msg((char *)"kflag=-4: tolerance too small");break;
 	  }
 	
 	return(0);
@@ -317,7 +317,7 @@ void test_fit()
  parse_collist(collist,fin.icols,&nvars);
  
  if(nvars<=0){
-   err_msg("No columns...");
+   err_msg((char *)"No columns...");
    return;
  }
  fin.nvars=nvars;
@@ -325,7 +325,7 @@ void test_fit()
  parse_varlist(varlist, fin.ivar, &nvars);
  
  if(fin.nvars!=nvars){
-   err_msg(" # columns != # fitted variables");
+   err_msg((char *)" # columns != # fitted variables");
    return;
  }
  npars=0;
@@ -334,7 +334,7 @@ void test_fit()
  parse_parlist(parlist2,fin.ipar,&npars);
 
  if(npars<=0){
-   err_msg(" No parameters!");
+   err_msg((char *)" No parameters!");
    return;
  }
  fin.npars=npars;
@@ -342,17 +342,17 @@ void test_fit()
    if(fin.ipar[i]>=0)
      {
        if(fin.ipar[i]>=NODE){
-	 err_msg(" Cant vary auxiliary/markov variables! ");
+	 err_msg((char *)" Cant vary auxiliary/markov variables! ");
 	 return;
        }
      }
  for(i=0;i<nvars;i++){
    if(fin.icols[i]<2){
-     err_msg(" Illegal column must be >= 2");
+     err_msg((char *)" Illegal column must be >= 2");
      return;
    }
    if(fin.ivar[i]<0||fin.ivar[i]>=NODE){
-     err_msg(" Fit only to variables! ");
+     err_msg((char *)" Fit only to variables! ");
      return;
    }
  }
@@ -414,7 +414,7 @@ int run_fit(char *filename, int npts, int npars, int nvars, int maxiter, int ndi
 
 
   if((fp=fopen(filename,"r"))==NULL){
-    err_msg("No such file...");
+    err_msg((char *)"No such file...");
     return(0);
   }
   t0=(double *)xpp_malloc((npts+1)*sizeof(double));
@@ -423,14 +423,14 @@ int run_fit(char *filename, int npts, int npars, int nvars, int maxiter, int ndi
 
   for(i=0;i<npts;i++){
     if(fscanf(fp,"%lg ",&t)!=1){
-      err_msg("Data file too short...");
+      err_msg((char *)"Data file too short...");
       xpp_free(t0);xpp_free(y);fclose(fp);
       return(0);
     }
 
     for(j=0;j<ndim-1;j++)
       if(fscanf(fp,"%lg ",&ytemp[j])!=1){
-	err_msg("Data file too short...");
+	err_msg((char *)"Data file too short...");
 	xpp_free(t0);xpp_free(y);fclose(fp);
 	return(0);
       }
@@ -487,7 +487,7 @@ int run_fit(char *filename, int npts, int npars, int nvars, int maxiter, int ndi
   }
   
   if(ok==0){
-    err_msg("Error in step...");
+    err_msg((char *)"Error in step...");
 
  xpp_free(work);
   for(i=0;i<npars;i++)
@@ -501,7 +501,7 @@ int run_fit(char *filename, int npts, int npars, int nvars, int maxiter, int ndi
     return(0);
   }
   if(niter>=maxiter){
-    err_msg("Max iterations exceeded...");
+    err_msg((char *)"Max iterations exceeded...");
 
  xpp_free(work);
   for(i=0;i<npars;i++)
@@ -519,7 +519,7 @@ int run_fit(char *filename, int npts, int npars, int nvars, int maxiter, int ndi
   marlevstep(t0,y0,y,sig,a,npts,nvars,npars,
 	       ivar,ipar,covar,alpha,&chisq,&alambda,work,
 	       yderv,yfit,&ochisq,ictrl,eps);
-  err_msg(" Success! ");
+  err_msg((char *)" Success! ");
   /* have the covariance matrix -- so what?   */
   xpp_log(XPP_LOG_INFO, " covariance: \n");
   for(i=0;i<npars;i++){
@@ -591,7 +591,7 @@ sigma  weights on nvars
   }
   sgefa(covar,npars,npars,ipivot,&ierr);
     if(ierr!=-1){
-      err_msg(" Singular matrix encountered...");
+      err_msg((char *)" Singular matrix encountered...");
       return(0);
     }
   
@@ -644,7 +644,7 @@ sigma  weights on nvars
        get_fit_info(y0,a,t0,&flag,eps,yfit,yderv,npts,npars,nvars,ivar,ipar);
        if(flag==0)
 	 {
-	   err_msg(" Integration error ...\n");
+	   err_msg((char *)" Integration error ...\n");
 	   return(0);
 	 }
        for(i=0;i<npars;i++){
@@ -688,8 +688,8 @@ sigma  weights on nvars
 
 int get_fit_params()
 {
-  static char *n[]={"File", "Fitvar","Params","Tolerance","Npts",
-		    "NCols","To Col","Params","Epsilon","Max iter"};
+  static char *n[]={(char *)"File", (char *)"Fitvar",(char *)"Params",(char *)"Tolerance",(char *)"Npts",
+		    (char *)"NCols",(char *)"To Col",(char *)"Params",(char *)"Epsilon",(char *)"Max iter"};
   int status;
   char values[10][MAX_LEN_SBOX];
   XPP_SPRINTF(values[0],"%s",fin.file);
@@ -704,7 +704,7 @@ int get_fit_params()
   XPP_SPRINTF(values[9],"%d",fin.maxiter);
   static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,
                             XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER};
-  status=do_string_box_of(10,5,2,"Fit",n,values,45,kinds);
+  status=do_string_box_of(10,5,2,(char *)"Fit",n,values,45,kinds);
   if(status!=0){
     fin.tol=atof(values[3]);
     fin.npts=atoi(values[4]);
@@ -771,7 +771,7 @@ void parse_parlist(char *parlist, int *ipars, int *n)
 {  
   char *item;
   int v,i=0;
-  int j;
+  size_t j;
   for(j=0;j<strlen(parlist);j++){
     if(parlist[j]!=' ')break;
   }

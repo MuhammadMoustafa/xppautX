@@ -138,7 +138,7 @@ void new_lookup_com(int i)
   }
    if(my_table[index].flag==1){
      XPP_STRCPY(file,my_table[index].filename);
-     status=file_selector("Load table",file,"*.tab");
+     status=file_selector((char *)"Load table",file,(char *)"*.tab");
      if(status==0)return;
      ok=load_table(file,index);
      if(ok==1)XPP_STRCPY(my_table[index].filename,file);
@@ -150,11 +150,11 @@ void new_lookup_com(int i)
      xlo=my_table[index].xlo;
        xhi=my_table[index].xhi;
        XPP_STRCPY(newform,my_table[index].filename);
-       new_int("Auto-evaluate? (1/0)",&my_table[index].autoeval);
-       new_int("NPts: ",&npts);
-       new_float("Xlo: ",&xlo);
-       new_float("Xhi: ",&xhi);
-       new_string_of("Formula :",newform,XPP_FIELD_EXPRESSION);
+       new_int((char *)"Auto-evaluate? (1/0)",&my_table[index].autoeval);
+       new_int((char *)"NPts: ",&npts);
+       new_float((char *)"Xlo: ",&xlo);
+       new_float((char *)"Xhi: ",&xhi);
+       new_string_of((char *)"Formula :",newform,XPP_FIELD_EXPRESSION);
        create_fun_table(npts,xlo,xhi,newform,index);
 
    }
@@ -269,7 +269,7 @@ int eval_fun_table(int n, double xlo, double xhi, char *formula, double *y)
   double oldt;
   int command[200],ncold=NCON,nsym=NSYM;
   if(add_expr(formula,command,&i)){
-    err_msg("Illegal formula...");
+    err_msg((char *)"Illegal formula...");
     NCON=ncold;
     NSYM=nsym;
     return(0);
@@ -292,15 +292,15 @@ int create_fun_table(int npts, double xlo, double xhi, char *formula, int index)
   int length=npts;
 
    if(my_table[index].flag==1){
-    err_msg("Not a function table...");
+    err_msg((char *)"Not a function table...");
     return(0);
   }
   if(xlo>xhi){
-    err_msg("Xlo > Xhi ???");
+    err_msg((char *)"Xlo > Xhi ???");
     return(0);
   }
   if(npts<2){
-    err_msg("Too few points...");
+    err_msg((char *)"Too few points...");
     return(0);
   }
   if(my_table[index].flag==0){
@@ -311,7 +311,7 @@ int create_fun_table(int npts, double xlo, double xhi, char *formula, int index)
       (double *)xpp_realloc((void *)my_table[index].y,length*sizeof(double));
   }
   if(my_table[index].y==NULL){
-     err_msg("Unable to allocate table");
+     err_msg((char *)"Unable to allocate table");
      return(0);
    }
   my_table[index].flag=2;
@@ -359,7 +359,7 @@ int load_table(char *filename, int index)
   bob = bobtab;
 
   if(my_table[index].flag==2){
-    err_msg("Not a file table...");
+    err_msg((char *)"Not a file table...");
     return(0);
   }
   fp=fopen(filename2,"r");
@@ -371,7 +371,7 @@ int load_table(char *filename, int index)
   }
  my_table[index].interp=0;
   if(fgets(bob,100,fp)==NULL){
-    err_msg("Table file too short");
+    err_msg((char *)"Table file too short");
     fclose(fp);
     return(0);
   }
@@ -387,37 +387,37 @@ int load_table(char *filename, int index)
     };
   length=atoi(bob);
   if(length<2){
-    err_msg("Length too small");
+    err_msg((char *)"Length too small");
     fclose(fp);
     return(0);
   }
   if(fgets(bob,100,fp)==NULL){
-    err_msg("Table file too short");
+    err_msg((char *)"Table file too short");
     fclose(fp);
     return(0);
   }
   xlo=atof(bob);
   if(fgets(bob,100,fp)==NULL){
-    err_msg("Table file too short");
+    err_msg((char *)"Table file too short");
     fclose(fp);
     return(0);
   }
   xhi=atof(bob);
   if(xlo>=xhi){
-    err_msg("xlo >= xhi ??? ");
+    err_msg((char *)"xlo >= xhi ??? ");
     fclose(fp); 
     return(0);
   }
   if(my_table[index].flag==0){
    my_table[index].y=(double *)xpp_malloc(length*sizeof(double));
    if(my_table[index].y==NULL){
-     err_msg("Unable to allocate table");
+     err_msg((char *)"Unable to allocate table");
      fclose(fp); 
      return(0);
    }
    for(i=0;i<length;i++){
      if(fgets(bob,100,fp)==NULL){
-       err_msg("Table file too short");
+       err_msg((char *)"Table file too short");
        xpp_free(my_table[index].y);
        my_table[index].y=NULL;
        fclose(fp);
@@ -437,13 +437,13 @@ int load_table(char *filename, int index)
   my_table[index].y=
     (double *)xpp_realloc((void *)my_table[index].y,length*sizeof(double));
   if(my_table[index].y==NULL){
-     err_msg("Unable to reallocate table");
+     err_msg((char *)"Unable to reallocate table");
      fclose(fp);
      return(0);
    }
   for(i=0;i<length;i++){
      if(fgets(bob,100,fp)==NULL){
-       err_msg("Table file too short");
+       err_msg((char *)"Table file too short");
        xpp_free(my_table[index].y);
        my_table[index].y=NULL;
        my_table[index].flag=0;
@@ -501,14 +501,14 @@ int select_table(void)
  }
  key[NTable]=0;
  {
-   XppMenu m={"table","Table",0,NULL,NULL,NULL,-1,0,1};
+   XppMenu m={"table",(char *)"Table",0,NULL,NULL,NULL,-1,0,1};
    m.n=NTable; m.items=n; m.keys=key; m.hints=no_hint; m.width=NTable;
    ch=(char)menu_choose(&m,0);
  }
  for(i=0;i<NTable;i++)xpp_free(n[i]);
  j=(int)(ch-'a');
  if(j<0||j>=NTable){
-   err_msg("Not a valid table");
+   err_msg((char *)"Not a valid table");
    return -1;
  }
  return j;

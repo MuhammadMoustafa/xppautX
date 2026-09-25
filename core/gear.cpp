@@ -1,4 +1,5 @@
 #include "xpp_ui.h"
+#include "markov.h"
 #include "odesol2.h"
 #include "browse.h"
 #include "xpp_mem.h"
@@ -21,7 +22,6 @@
 #define DING ping()
 int UnstableManifoldColor=5;
 int StableManifoldColor=8;
-double ndrand48();
 
 extern double DELTA_T;
 extern int METHOD;
@@ -71,7 +71,7 @@ void do_sing(double *x, double eps, double err, double big, int maxit, int n, in
  kmem=n*(2*n+5)+50;
  if((work=(double *)xpp_malloc(sizeof(double)*kmem))==NULL)
  {
-  err_msg("Insufficient core ");
+  err_msg((char *)"Insufficient core ");
   return;
  }
  ShootICFlag=0;
@@ -86,7 +86,7 @@ void do_sing(double *x, double eps, double err, double big, int maxit, int n, in
  if(*ierr!=0)
  {
   xpp_free(work);
-  err_msg("Could not converge to root");
+  err_msg((char *)"Could not converge to root");
   for(i=0;i<n;i++)x[i]=old_x[i];
   return;
  }
@@ -110,7 +110,7 @@ void do_sing(double *x, double eps, double err, double big, int maxit, int n, in
  eigen(n,work,eval,ework,ierr);
  if(*ierr!=0)
  {
-  err_msg("Could not compute eigenvalues");
+  err_msg((char *)"Could not compute eigenvalues");
   xpp_free(work);
   return;
  }
@@ -118,7 +118,7 @@ void do_sing(double *x, double eps, double err, double big, int maxit, int n, in
 ch='n';
 if(!PAR_FOL)
 {
- ch=(char)TwoChoice("YES","NO","Print eigenvalues?","yn");
+ ch=(char)TwoChoice((char *)"YES",(char *)"NO",(char *)"Print eigenvalues?",(char *)"yn");
  
 }
  pr=0;
@@ -192,7 +192,7 @@ if(!PAR_FOL)
  ch='n';
  if(!PAR_FOL)
  {
-  ch=(char)TwoChoice("YES","NO","Draw Invariant Sets?","yn");
+  ch=(char)TwoChoice((char *)"YES",(char *)"NO",(char *)"Draw Invariant Sets?",(char *)"yn");
    }
   if((ch=='y')||(PAR_FOL&&SHOOT))
   {
@@ -214,7 +214,7 @@ if(!PAR_FOL)
 
      }
      else
-     err_msg("Failed to compute eigenvector");
+     err_msg((char *)"Failed to compute eigenvector");
    }
    if(rn==1)
    {
@@ -230,7 +230,7 @@ if(!PAR_FOL)
         change_current_linestyle(oldcol,&dummy);
      }
      else
-     err_msg("Failed to compute eigenvector");
+     err_msg((char *)"Failed to compute eigenvector");
    }
     DELTA_T=oldt;
   }
@@ -243,7 +243,7 @@ if(!PAR_FOL)
    ch='n';
    if(!PAR_FOL)
      {
-       ch=(char)TwoChoice("YES","NO","Draw Strong Sets?","yn");
+       ch=(char)TwoChoice((char *)"YES",(char *)"NO",(char *)"Draw Strong Sets?",(char *)"yn");
      }
 
    if((ch=='y')||(PAR_FOL&&SHOOT))
@@ -266,7 +266,7 @@ if(!PAR_FOL)
 	       
 	     }
 	   else
-	     err_msg("Failed to compute eigenvector");   
+	     err_msg((char *)"Failed to compute eigenvector");   
 	 }
 	 
      if((rn>1)&&(bneg>=0)) /* then there is a strong stable */
@@ -283,7 +283,7 @@ if(!PAR_FOL)
 	       change_current_linestyle(oldcol,&dummy);
 	     }
 	   else
-	     err_msg("Failed to compute eigenvector");
+	     err_msg((char *)"Failed to compute eigenvector");
     
 
 	 }

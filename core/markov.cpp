@@ -484,7 +484,7 @@ void do_stochast_com(int i)
   if(ch==27)return;
   switch(ch){
   case 'n': 
-    new_int("Seed:",&RandSeed);
+    new_int((char *)"Seed:",&RandSeed);
     nsrand48(RandSeed);
     break;
   case 'd':

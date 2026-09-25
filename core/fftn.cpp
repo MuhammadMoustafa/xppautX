@@ -447,7 +447,7 @@ FFTN (int ndim,
 	if (scaling < 0.0)
 	  scaling = (scaling < -1.0) ? sqrt (nTotal) : nTotal;
 	scaling = 1.0 / scaling;	/* multiply is often faster */
-	for (i = 0; i < nTotal; i += iSign)
+	for (i = 0; (size_t) i < nTotal; i += iSign)
 	  {
 	     Re_Data (i) *= scaling;
 	     Im_Data (i) *= scaling;
@@ -548,14 +548,14 @@ FFTRADIX (REAL Re [],
 	/* allow full use of alloc'd space */
 	maxFactors = SpaceAlloced / sizeof (REAL);
      }
-   if (MaxPermAlloced < maxPerm)
+   if (MaxPermAlloced < (size_t) maxPerm)
      {
 #ifdef SUN_BROKEN_REALLOC
 	if (!MaxPermAlloced)	/* first time */
-	  Perm = xpp_malloc (maxPerm * sizeof(int));
+	  Perm = (int *) xpp_malloc (maxPerm * sizeof(int));
 	else
 #endif
-	  Perm = xpp_realloc (Perm, maxPerm * sizeof(int));
+	  Perm = (int *) xpp_realloc (Perm, maxPerm * sizeof(int));
 	MaxPermAlloced = maxPerm;
      }
    else

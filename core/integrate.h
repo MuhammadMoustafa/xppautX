@@ -8,6 +8,7 @@ extern "C" {
 
 /* the fixed-step integrator Integrate uses (numerics.c picks it) */
 extern int (*solver)(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work);
+void silent_equilibria(void);
 void init_ar_ic(void);
 void dump_range(FILE *fp, int f);
 void init_range(void);

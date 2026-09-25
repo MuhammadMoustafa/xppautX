@@ -298,7 +298,7 @@ int mod_euler(double *y, double *tim, double dt, int nt, int neq, int *istart, d
 
 int rung_kut(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
- register int j;
+ int j;
  double *yval[3];
  
  yval[0]=work;
