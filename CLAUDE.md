@@ -483,9 +483,8 @@ aim: 70%+ C++ over time, verify.sh's `C++: N / M sources` is the metric).
   std::unique_ptr) for allocations the task touches, std::atomic,
   std::chrono, anonymous namespaces for file-local state. No behaviour
   change: verify.sh's checksums still guard the numerics.
-- llnltyps.h makes `bool` a macro for int (CVODE's structs, which C and
-  C++ must lay out alike): convert the CVODE files together, and include
-  C++ standard headers before it.
+- CVODE is C++ (W27a): llnltyps.h's `bool` is C++'s own, and the header
+  refuses to be included from C (`#error`).
 - `core/xpp_job.cpp` was the first file converted (std::atomic,
   std::chrono).
 
