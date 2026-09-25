@@ -479,7 +479,7 @@ void new_parameter()
   char name[256],value[256],junk[256];
   while(1){
     name[0]=0;
-    done=new_string("Parameter:",name);
+    done=new_string_of("Parameter:",name,XPP_FIELD_NAME_IN(2));
     if(strlen(name)==0||done==0){redo_stuff(); return;}
     if(strncasecmp(name,"DEFAULT",7  )==0){
       set_default_params();

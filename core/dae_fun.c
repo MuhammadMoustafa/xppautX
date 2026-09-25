@@ -12,6 +12,7 @@
 #include "xpplim.h"
 #include "getvar.h"
 #include "xpp_io.h"
+#include "xpp_ui.h"
 #define MAXDAE 400
 
 extern double variables[];
@@ -305,7 +306,7 @@ void get_new_guesses()
   for(i=0;i<nsvar;i++){
     z=svar[i].last;
     snprintf(name,sizeof(name),"Initial %.*s(%g):",XPP_NAME_MAX,svar[i].name,z);
-    new_string(name,svar[i].rhs);
+    new_string_of(name,svar[i].rhs,XPP_FIELD_EXPRESSION);
     if(add_expr(svar[i].rhs,svar[i].form,&n)){
       err_msg("Illegal formula");
       return;

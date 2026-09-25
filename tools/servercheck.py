@@ -311,6 +311,17 @@ if ask:
     send(cmd='answer', id=ask['id'], ok=0)
 collect(is_idle)
 
+send(cmd='key', key='f')
+send(cmd='key', key='t')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+check("T32: File/Transpose's Column 1 is a name (hello.lists[0]), the rest integers",
+      ask is not None and ask['kind'] == 'form'
+      and ask.get('kinds') == ['name:0', 'integer', 'integer', 'integer', 'integer', 'integer'],
+      str(ask and ask.get('kinds')))
+if ask:
+    send(cmd='answer', id=ask['id'], ok=0)
+collect(is_idle)
+
 
 # The model's folder for a client that cannot reach it (docs/protocol.md
 # "Files"): the `file` command puts, gets and lists files there, base names
@@ -535,6 +546,15 @@ check('aplot values as base64 float32 when the client asked for it',
       ap2 and ap2[-1].get('enc') == 'f32' and isinstance(ap2[-1]['values'], str)
       and same_floats(values({'data': ap2[-1]['values']}, 'f32'), got), str(ap2[-1:])[:200])
 send(cmd='data', events=[])
+collect(is_idle)
+
+send(cmd='aplot', op='range')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+check("T32: array plot Range saving's Basename is a file, Still/Tag integers",
+      ask is not None and ask['kind'] == 'form'
+      and ask.get('kinds') == ['file', 'integer', 'integer'], str(ask and ask.get('kinds')))
+if ask:
+    send(cmd='answer', id=ask['id'], ok=0)
 collect(is_idle)
 
 send(cmd='aplot', op='close')

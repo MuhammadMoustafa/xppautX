@@ -183,7 +183,9 @@ void axes_opts()
   XPP_SPRINTF(values[4],"%d",plot_windows.current->yorgflag);
   XPP_SPRINTF(values[5],"%d",plot_windows.current->zorgflag);
   XPP_SPRINTF(values[6],"%d",PS_FONTSIZE);
-  status=do_string_box(7,7,1,"Axes options",n,values,25);
+  static const int kinds[]={XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
+                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
+  status=do_string_box_of(7,7,1,"Axes options",n,values,25,kinds);
  if(status!=0){
    plot_windows.current->xorg=atof(values[0]);
    plot_windows.current->yorg=atof(values[1]);
@@ -228,7 +230,11 @@ int ind;
  snprintf(values[14],sizeof(values[14]),"%s",plot_windows.current->ylabel);
  snprintf(values[15],sizeof(values[15]),"%s",plot_windows.current->zlabel);
  plot_windows.current->ThreeDFlag=1;
- status=do_string_box(16,6,3,"3D View",n,values,31);
+ static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),
+                           XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
+                           XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
+                           XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
+ status=do_string_box_of(16,6,3,"3D View",n,values,31,kinds);
  if(status!=0){
 		/*  get variable names  */
               find_variable(values[0],&i);
@@ -557,7 +563,9 @@ void get_3d_par_com()
  XPP_SPRINTF(values[8],"%g",mov3d.incr);
  XPP_SPRINTF(values[9],"%d",mov3d.nclip);
  
- status=do_string_box(10,5,2,"3D Parameters",n,values,28);
+ static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
+                           XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER};
+ status=do_string_box_of(10,5,2,"3D Parameters",n,values,28,kinds);
  if(status!=0){
 	      plot_windows.current->PerspFlag=atoi(values[0]);
 	      plot_windows.current->ZPlane=atof(values[1]);
@@ -611,7 +619,9 @@ void get_3d_par_noper()
  XPP_SPRINTF(values[5],"%g",mov3d.incr);
  XPP_SPRINTF(values[6],"%d",mov3d.nclip);
  
- status=do_string_box(7,7,1,"3D Parameters",n,values,28);
+ static const int kinds[]={XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,
+                           XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER};
+ status=do_string_box_of(7,7,1,"3D Parameters",n,values,28,kinds);
  if(status!=0){
    /* MyGraph->PerspFlag=atoi(values[0]);
 	      MyGraph->ZPlane=atof(values[1]);
@@ -862,7 +872,9 @@ int in_it,n;
  XPP_SPRINTF(values[2],"%s",n3);
  XPP_SPRINTF(values[3],"%d",plot_windows.current->color[in_it]);
  XPP_SPRINTF(values[4],"%d",plot_windows.current->line[in_it]);
- status=do_string_box(5,5,1,title,nn,values,25);
+ static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),
+                           XPP_FIELD_NAME_IN(4),XPP_FIELD_INTEGER};
+ status=do_string_box_of(5,5,1,title,nn,values,25,kinds);
  if(status!=0){
 		    find_variable(values[0],&i);
  	      if(i>-1)
@@ -919,7 +931,8 @@ void create_ps()
  XPP_SPRINTF(values[2],"%d",PS_FONTSIZE);
  snprintf(values[3],sizeof(values[3]),"%.24s",PS_FONT);
  XPP_SPRINTF(values[4],"%g",PS_LW);
- status=do_string_box(5,5,1,"Postscript parameters",nn,values,25);
+ static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_NUMBER};
+ status=do_string_box_of(5,5,1,"Postscript parameters",nn,values,25,kinds);
  if(status!=0){
          plot_export.color=atoi(values[0]);
 	 PS_Port=atoi(values[1]);
@@ -1185,7 +1198,8 @@ void edit_frz_crv(i)
  XPP_SPRINTF(values[0],"%d",frozen_curves.curve[i].color);
  XPP_SPRINTF(values[1],"%s",frozen_curves.curve[i].key);
  XPP_SPRINTF(values[2],"%s",frozen_curves.curve[i].name);
- status=do_string_box(3,3,1,"Edit Freeze",nn,values,25);
+ static const int kinds[]={XPP_FIELD_NAME_IN(4),XPP_FIELD_TEXT,XPP_FIELD_TEXT};
+ status=do_string_box_of(3,3,1,"Edit Freeze",nn,values,25,kinds);
  if(status!=0){
    frozen_curves.curve[i].color=atoi(values[0]);
    snprintf(frozen_curves.curve[i].key,sizeof(frozen_curves.curve[i].key),"%.19s",values[1]);

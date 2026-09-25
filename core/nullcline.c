@@ -13,6 +13,7 @@
 
 #include "parserslow.h"
 #include "pop_list.h"
+#include "xpp_ui.h"
 
 #include <stdlib.h> 
 #include <string.h>
@@ -155,7 +156,8 @@ void do_range_clines()
   XPP_SPRINTF(values[1],"%d",ncrange.nstep);
   XPP_SPRINTF(values[2],"%g",ncrange.xlo);
   XPP_SPRINTF(values[3],"%g",ncrange.xhi);
-  status=do_string_box(4,4,1,"Range Clines",n,values,45);
+  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
+  status=do_string_box_of(4,4,1,"Range Clines",n,values,45,kinds);
   if(status!=0){
     XPP_STRCPY(ncrange.rv,values[0]);
     ncrange.nstep=atoi(values[1]);

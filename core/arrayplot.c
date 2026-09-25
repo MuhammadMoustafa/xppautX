@@ -82,7 +82,8 @@ void set_up_aplot_range()
  snprintf(values[0],sizeof(values[0]),"%.24s",aplot_range_stem);
  XPP_SPRINTF(values[1],"%d",aplot_still);
  XPP_SPRINTF(values[2],"%d",aplot_tag);
- status=do_string_box(3,3,1,"Array range saving",n,values,28); 
+ static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
+ status=do_string_box_of(3,3,1,"Array range saving",n,values,28,kinds);
  if(status!=0){
    XPP_SPRINTF(aplot_range_stem,"%s",values[0]);
    aplot_still=atoi(values[1]);
@@ -220,7 +221,8 @@ void print_aplot(ap)
   snprintf(values[2],sizeof(values[2]),"%.24s",ap->ytitle);
     snprintf(values[3],sizeof(values[3]),"%.24s",ap->bottom);
   XPP_SPRINTF(values[4],"%d",ap->type);
-  status=do_string_box(5,5,1,"Print arrayplot",n,values,40);
+  static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_INTEGER};
+  status=do_string_box_of(5,5,1,"Print arrayplot",n,values,40,kinds);
  if(status!=0){
    XPP_STRCPY(ap->filename,values[0]);
    XPP_STRCPY(ap->xtitle,values[1]);
@@ -315,7 +317,9 @@ int editaplot(ap)
  XPP_SPRINTF(values[6],"%g",ap->zmax);
  XPP_SPRINTF(values[7],"%d",plot3d_auto_redraw);
 XPP_SPRINTF(values[8],"%d",ap->ncskip);
- status=do_string_box(9,9,1,"Edit arrayplot",n,values,40);
+ static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
+                           XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
+ status=do_string_box_of(9,9,1,"Edit arrayplot",n,values,40,kinds);
  if(status!=0){
    find_variable(values[0],&i);
    if(i>-1){

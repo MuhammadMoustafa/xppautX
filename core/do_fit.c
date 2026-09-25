@@ -19,6 +19,7 @@
 #include "pop_list.h"
 #include "gear.h"
 #include "browse.h"
+#include "xpp_ui.h"
 
 
 #include "phsplan.h"
@@ -747,7 +748,9 @@ int get_fit_params()
   XPP_SPRINTF(values[7],"%s",fin.parlist2);
   XPP_SPRINTF(values[8],"%g",fin.eps);
   XPP_SPRINTF(values[9],"%d",fin.maxiter);
-  status=do_string_box(10,5,2,"Fit",n,values,45);
+  static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,
+                            XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER};
+  status=do_string_box_of(10,5,2,"Fit",n,values,45,kinds);
   if(status!=0){
     fin.tol=atof(values[3]);
     fin.npts=atoi(values[4]);

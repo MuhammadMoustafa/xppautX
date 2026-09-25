@@ -232,7 +232,8 @@ int get_marker_info(void)
     std::snprintf(values[0], sizeof values[0], "%d", markinfo.type);
     std::snprintf(values[1], sizeof values[1], "%d", markinfo.color);
     std::snprintf(values[2], sizeof values[2], "%g", markinfo.size);
-    const int status = do_string_box(3, 3, 1, str("Add Marker"), n, values, 25);
+    static const int kinds[] = {XPP_FIELD_NAME_IN(5), XPP_FIELD_NAME_IN(4), XPP_FIELD_NUMBER};
+    const int status = do_string_box_of(3, 3, 1, str("Add Marker"), n, values, 25, kinds);
     if (status != 0) {
         markinfo.type = std::atoi(values[0]);
         markinfo.size = std::atof(values[2]);
@@ -252,7 +253,9 @@ int get_markers_info(void)
     std::snprintf(values[3], sizeof values[3], "%d", markinfo.number);
     std::snprintf(values[4], sizeof values[4], "%d", markinfo.start);
     std::snprintf(values[5], sizeof values[5], "%d", markinfo.skip);
-    const int status = do_string_box(6, 6, 1, str("Add Markers"), n, values, 25);
+    static const int kinds[] = {XPP_FIELD_NAME_IN(5), XPP_FIELD_NAME_IN(4), XPP_FIELD_NUMBER,
+                                XPP_FIELD_INTEGER, XPP_FIELD_INTEGER, XPP_FIELD_INTEGER};
+    const int status = do_string_box_of(6, 6, 1, str("Add Markers"), n, values, 25, kinds);
     if (status != 0) {
         markinfo.type = std::atoi(values[0]);
         markinfo.size = std::atof(values[2]);

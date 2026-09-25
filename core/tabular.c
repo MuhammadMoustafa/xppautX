@@ -1,6 +1,7 @@
 #include "tabular.h"
 #include "xpp_mem.h"
 #include "xpp_io.h"
+#include "xpp_ui.h"
 
 #include "browse.h"
 #include "ggets.h"
@@ -157,11 +158,11 @@ void new_lookup_com(int i)
        new_int("NPts: ",&npts);
        new_float("Xlo: ",&xlo);
        new_float("Xhi: ",&xhi);
-       new_string("Formula :",newform);
+       new_string_of("Formula :",newform,XPP_FIELD_EXPRESSION);
        create_fun_table(npts,xlo,xhi,newform,index);
-       
+
    }
-   
+
 }
     
 void new_lookup_ok()
@@ -182,7 +183,7 @@ void new_lookup_ok()
    if(index!=-1){
      if(my_table[index].flag==1){
        XPP_STRCPY(file,my_table[index].filename);
-       if(new_string("Filename:",file)){
+       if(new_string_of("Filename:",file,XPP_FIELD_FILE)){
 	 ok=load_table(file,index);
 	 if(ok==1)XPP_STRCPY(my_table[index].filename,file);
        }
@@ -197,9 +198,9 @@ void new_lookup_ok()
        new_int("NPts: ",&npts);
        new_float("Xlo: ",&xlo);
        new_float("Xhi: ",&xhi);
-       new_string("Formula :",newform);
+       new_string_of("Formula :",newform,XPP_FIELD_EXPRESSION);
        create_fun_table(npts,xlo,xhi,newform,index);
-       
+
      }
    }
    else err_msg("Not a Table function");
@@ -545,9 +546,8 @@ sparse:
 for npts lines
  name(i) = sum(j=1,ncon_i) w_j name(i_j)
 
-*/  
+*/
 
-#include "xpp_ui.h"
 #include "menus.h"
 int select_table(void)
 {

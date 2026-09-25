@@ -505,7 +505,8 @@ void get_pmap_pars_com(int l)
  XPP_SPRINTF(values[1],"%.16g",POIPLN);
  XPP_SPRINTF(values[2],"%d",POISGN);
  XPP_SPRINTF(values[3],"%s",yn[SOS]);
- status=do_string_box(4,4,1,"Poincare map",n,values,45);
+ static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
+ status=do_string_box_of(4,4,1,"Poincare map",n,values,45,kinds);
  if(status!=0){
               find_variable(values[0],&i1);
 	      if(i1<0) { POIMAP=0;
@@ -583,7 +584,7 @@ void set_col_par_com(int i)
     }
     if(plot_windows.current->ColorFlag==2){
       ind_to_sym(plot_windows.current->ColorValue,name);
-      new_string("Color via:",name);
+      new_string_of("Color via:",name,XPP_FIELD_NAME_IN(0));
       find_variable(name,&ivar);
       
 

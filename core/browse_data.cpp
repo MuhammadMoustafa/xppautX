@@ -292,7 +292,7 @@ void data_del_col(BROWSER *b)  /*  this only works with storage  */
   err_msg(str("Sorry - not working very well yet..."));
   return;
   XPP_STRCPY(var,"");
-  status=get_dialog(str("Delete"),str("Name"),var,str("Ok"),str("Cancel"),XPP_NAME_MAX);
+  status=get_dialog_of(str("Delete"),str("Name"),var,str("Ok"),str("Cancel"),XPP_NAME_MAX,XPP_FIELD_NAME_IN(0));
    if(status!=0)
     del_stor_col(var,b);
 }

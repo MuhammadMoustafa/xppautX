@@ -286,7 +286,8 @@ double *sect;
  XPP_SPRINTF(values[2],"%g",*sect);
  XPP_SPRINTF(values[3],"%s",yn[*ishow]);
  
- status=do_string_box(4,4,1,"Periodic BCs",n,values,45);
+ static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(1),XPP_FIELD_NUMBER,XPP_FIELD_TEXT};
+ status=do_string_box_of(4,4,1,"Periodic BCs",n,values,45,kinds);
  if(status!=0){
                i=find_user_name(PARAM,values[0]);
 	       if(i>-1)
@@ -426,7 +427,9 @@ static char *n[]={"*2Range over","Steps","Start","End",
  XPP_SPRINTF(values[5],"%d",shoot_range.side);
  XPP_SPRINTF(values[6],"%s",yn[shoot_range.movie]);
 
- status=do_string_box(7,7,1,"Range Shoot",n,values,45);
+ static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
+                           XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
+ status=do_string_box_of(7,7,1,"Range Shoot",n,values,45,kinds);
  if(status!=0){
    XPP_STRCPY(shoot_range.item,values[0]);
    i=find_user_name(PARAM,shoot_range.item);

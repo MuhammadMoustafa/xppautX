@@ -11,6 +11,7 @@
 #include "gear.h"
 #include "integrate.h"
 #include "parserslow.h"
+#include "xpp_ui.h"
 
 
 #include <stdlib.h> 
@@ -122,7 +123,9 @@ int do_transpose()
    my_trans.here=0;
    data_back();
  }
- status=do_string_box(6,6,1,"Transpose Data",n,values,33);
+ static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
+                           XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
+ status=do_string_box_of(6,6,1,"Transpose Data",n,values,33,kinds);
  if(status!=0){
    find_variable(values[0],&i);
    if(i>-1)
@@ -349,7 +352,7 @@ int node,nt,silent;
  if(silent==0){
    for(i=0;i<NODE ;i++){
      snprintf(name,sizeof(name),"Coupling for %.*s eqn:",XPP_NAME_MAX,uvar_names[i]);
-     new_string(name,coup_string[i]);
+     new_string_of(name,coup_string[i],XPP_FIELD_EXPRESSION);
      if(add_expr(coup_string[i],coup_fun[i],&j)){
        err_msg("Illegal formula");
        goto bye;

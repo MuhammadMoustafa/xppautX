@@ -874,7 +874,7 @@ void compute_hist()
   new_float("Low ",&hist_inf.xlo);
   new_float("Hi ",&hist_inf.xhi);
   if(get_col_info(&hist_inf.col,"Variable ")==0)return;
-  new_string("Condition ",hist_inf.cond);
+  new_string_of("Condition ",hist_inf.cond,XPP_FIELD_EXPRESSION);
   new_hist(hist_inf.nbins,hist_inf.xlo,
 	   hist_inf.xhi,hist_inf.col,0,hist_inf.cond,0);
 }

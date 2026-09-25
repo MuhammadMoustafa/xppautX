@@ -3,6 +3,7 @@
 #include "xpp_log.h"
 #include "xpp_io.h"
 #include <string>
+#include <vector>
 #include "numerics.h"
 #include "xpp_globals.h"
 #include "xpp_ui.h"
@@ -890,7 +891,9 @@ void auto_params()
     if(i<NAutoPar)  XPP_SPRINTF(values[i],"%s",upar_names[AutoPar[i]]);
     else values[i][0]='\0';/*sprintf(values[i],"");*/
   }
-  status=do_string_box(8,8,1,str("Parameters"),strs(n),values,38);
+  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),
+                            XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2)};
+  status=do_string_box_of(8,8,1,str("Parameters"),strs(n),values,38,kinds);
   if(status!=0){
     for(i=0;i<8;i++){
       if(i<NAutoPar){
@@ -2475,7 +2478,12 @@ int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
     XPP_SPRINTF(v[i+2+NODE],"%g",ur[i]);
   }
  
-  flag=do_string_box(n,n/2,2,str("Homoclinic info"),s,v,16); 
+  {
+    std::vector<int> kinds(n, XPP_FIELD_NUMBER);
+    kinds[0]=XPP_FIELD_INTEGER;
+    kinds[NODE+1]=XPP_FIELD_INTEGER;
+    flag=do_string_box_of(n,n/2,2,str("Homoclinic info"),s,v,16,kinds.data());
+  }
   if(flag!=0){
     *nun=atoi(v[0]);
     *nst=atoi(v[NODE+1]);

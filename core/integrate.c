@@ -342,7 +342,9 @@ static char *n[]={"*2Range over","Steps","Start","End",
 XPP_SPRINTF(values[7],"%s",yn[eq_range.mc]);
 
  
- status=do_string_box(8,8,1,"Range Equilibria",n,values,45);
+ static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
+                           XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
+ status=do_string_box_of(8,8,1,"Range Equilibria",n,values,45,kinds);
  if(status!=0){
    XPP_STRCPY(eq_range.item,values[0]);
    i=find_user_name(PARAM,eq_range.item);
@@ -528,7 +530,11 @@ XPP_SPRINTF(values[6],"%d",range.steps);
  else
    XPP_SPRINTF(values[11],"1");
  XPP_SPRINTF(values[12],"%d",range.steps2);
- status=do_string_box(13,7,2,"Double Range Integrate",n,values,45);
+ static const int kinds[]={XPP_FIELD_NAME_IN(3),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
+                           XPP_FIELD_NAME_IN(3),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,
+                           XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,
+                           XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
+ status=do_string_box_of(13,7,2,"Double Range Integrate",n,values,45,kinds);
  if(status!=0){
    XPP_STRCPY(range.item,values[0]);
    
@@ -1549,7 +1555,7 @@ void do_new_array_ic(new,j1,j2)
     ar_ic[ihot].j1=j1;
     ar_ic[ihot].j2=j2;
   }
-  new_string("Formula:",ar_ic[ihot].formula);
+  new_string_of("Formula:",ar_ic[ihot].formula,XPP_FIELD_EXPRESSION);
   /* now we have everything we need */
   evaluate_ar_ic(ar_ic[ihot].var,ar_ic[ihot].formula,
 		 ar_ic[ihot].j1,ar_ic[ihot].j2);
@@ -1710,7 +1716,7 @@ int set_array_ic()
    ar_ic[myar].index0=index0;
    ar_ic[myar].type=0;
    new_int("Number elements:",&ar_ic[myar].n);
-   new_string("u=F(t-i0):",ar_ic[myar].formula);
+   new_string_of("u=F(t-i0):",ar_ic[myar].formula,XPP_FIELD_EXPRESSION);
    i1=index0-1;
    in=i1+ar_ic[myar].n;
    /* plintf("i1=%d in=%d \n",i1,in); */
