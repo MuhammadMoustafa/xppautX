@@ -6,6 +6,8 @@
 extern "C" {
 #endif
 
+/* the fixed-step integrator Integrate uses (numerics.c picks it) */
+extern int (*solver)(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work);
 void init_ar_ic(void);
 void dump_range(FILE *fp, int f);
 void init_range(void);
@@ -49,7 +51,7 @@ void export_data(FILE *fp);
 void plot_the_graphs(float *xv, float *xvold, int node, int neq, double ddt, int *tc,int flag);
 void plot_one_graph(float *xv, float *xvold, int node, int neq, double ddt, int *tc);
 void restore(int i1, int i2);
-void comp_color(float *v1, float *v2, int n, double dt);
+void comp_color(float *v1, float *v2, int n, float dt);
 void shoot(double *x, double *xg, double *evec, int sgn);
 void shoot_easy(double *x);
 void stop_integration(void);

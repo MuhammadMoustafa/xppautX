@@ -96,8 +96,7 @@ main()
   free_finfo(&my_ff);
 }
 */
-void free_finfo(ff)
-     FILEINFO *ff;
+void free_finfo(FILEINFO *ff)
 {
   int i;
   for(i=0;i<ff->ndirs;i++)
@@ -119,9 +118,7 @@ int cmpstringp(const void *p1, const void *p2)
 }
 
 
-int get_fileinfo_tab(wild,direct,ff,wild2)
-     char *wild,*direct,*wild2;
-     FILEINFO *ff;
+int get_fileinfo_tab(char *wild, char *direct, FILEINFO *ff, char *wild2)
 {
   int i,ans;
   DIR *dirp;
@@ -177,9 +174,7 @@ int get_fileinfo_tab(wild,direct,ff,wild2)
 }
 
 
-int get_fileinfo(wild,direct,ff)
-     char *wild,*direct;
-     FILEINFO *ff;
+int get_fileinfo(char *wild, char *direct, FILEINFO *ff)
 {
   int i,ans;
   DIR *dirp;
@@ -229,9 +224,7 @@ int get_fileinfo(wild,direct,ff)
 
 
 
-int fil_count(direct,ndir,nfil,wild,mld,mlf)
-     char *wild,*direct;
-     int *ndir,*nfil,*mld,*mlf;
+int fil_count(char *direct, int *ndir, int *nfil, char *wild, int *mld, int *mlf)
 {
   DIR *dirp;
   int l;
@@ -267,8 +260,7 @@ int fil_count(direct,ndir,nfil,wild,mld,mlf)
 }
 
 
-int change_directory(path)
-    char	   *path;
+int change_directory(char *path)
 {
     if (path == NULL) {
 	*cur_dir = '\0';
@@ -284,11 +276,9 @@ int change_directory(path)
 	return (1);
 }
 
-int get_directory(direct)
-    char	   *direct;
+int get_directory(char *direct)
 {
 #if defined(SYSV) || defined(SVR4)
-    extern char	   *getcwd();
 
 #else
     extern char	   *getwd();
@@ -311,9 +301,7 @@ int get_directory(direct)
 
 
 
-int IsDirectory(root, path)
-    char	   *root;
-    char	   *path;
+int IsDirectory(char *root, char *path)
 {
     char	    fullpath[MAXPATHLEN];
     struct stat	    statbuf;
@@ -338,10 +326,7 @@ int IsDirectory(root, path)
  */
 
 
-void MakeFullPath(root, filename, pathname)
-    char	   *root;
-    char	   *filename;
-    char	   *pathname;
+void MakeFullPath(char *root, char *filename, char *pathname)
 {
     /* pathname is a pointer here; the one caller (IsDirectory) passes
        char fullpath[MAXPATHLEN]. strcat below is unconverted (out of
@@ -390,13 +375,13 @@ void MakeFullPath(root, filename, pathname)
 /* The character that inverts a character class; '!' or '^'. */
 #define INVERT '!'
 
-static int	star();
+
+static int star(char *string, char *pattern);
 
 /* Return nonzero if `string' matches Unix-style wildcard pattern
    `pattern'; zero if not. */
 
-int wild_match(string, pattern)
-    char	   *string, *pattern;
+int wild_match(char *string, char *pattern)
 {
     int		    prev;	/* Previous character in character class. */
     int		    matched;	/* If 1, character class has been matched. */
@@ -439,8 +424,7 @@ int wild_match(string, pattern)
 }
 
 static int
-star(string, pattern)
-    char	   *string, *pattern;
+star(char *string, char *pattern)
 {
     while (wild_match(string, pattern) == 0)
 	if (*++string == '\0')

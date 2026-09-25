@@ -23,7 +23,6 @@ int NDelay,del_stab_flag,WhichDelay,DelayGrid=1000;
 double variable_shift[2][MAXODE];
 double delay_list[MAXDELAY];
 
-double evaluate();
 extern double DELTA_T,T0,DELAY;
 extern int NODE,NCON,NSYM,NSYM_START,NCON_START,NMarkov;
  
@@ -32,10 +31,7 @@ extern double variables[];
 extern int NVAR;
 
 
-double delay_stab_eval(delay,var)  
-/* this returns appropriate values for delay jacobian */ 
-     double delay;
-     int var;
+double delay_stab_eval(double delay, int var)  /* this returns appropriate values for delay jacobian */
 {
   int i;
 
@@ -61,8 +57,7 @@ double delay_stab_eval(delay,var)
 
 
 
-int alloc_delay(big)
-double big;
+int alloc_delay(double big)
 {
  int n,i;
 
@@ -91,8 +86,7 @@ void free_delay()
  DelayFlag=0;
 }
 
-void stor_delay(y)
-double *y;
+void stor_delay(double *y)
 {
  int i,in;
  int nodes=NODE;
@@ -104,9 +98,7 @@ double *y;
 
 }
 
-double get_delay_old(in,tau)
-int in;
-double tau;
+double get_delay_old(int in, double tau)
 {
  double x=tau/fabs(DELTA_T);
  int n1=(int)x;
@@ -126,9 +118,7 @@ double tau;
   return(x1+(x-n1)*(x2-x1));
  }
 
-void polint(xa,ya,n,x,y,dy)
-     double *ya,*xa,*y,*dy,x;
-     int n;
+void polint(double *xa, double *ya, int n, double x, double *y, double *dy)
 {
   int i,m,ns=1;
   double den,dif,dift,h0,hp,w;
@@ -158,9 +148,7 @@ void polint(xa,ya,n,x,y,dy)
 }
 
 /* this is like get_delay but uses cubic interpolation */
-double get_delay(in,tau)
-int in;
-double tau;
+double get_delay(int in, double tau)
 {
  double x=tau/fabs(DELTA_T);
  double dd=fabs(DELTA_T);
@@ -203,8 +191,7 @@ double tau;
  }
 
 /*  Handling of the initial data  */
-int do_init_delay(big)
-double big;
+int do_init_delay(double big)
 {
  double t=T0,old_t,y[MAXODE];
  int i,nt,j;

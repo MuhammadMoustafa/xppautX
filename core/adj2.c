@@ -1,4 +1,5 @@
 #include "adj2.h"
+#include "odesol2.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
@@ -33,11 +34,9 @@
 
 #define READEM 1
 
-double evaluate();
 double ndrand48();
 
 extern double MyData[MAXODE];
-extern int (*rhs)();
 extern float **storage;
 extern int storind,FOUR_HERE;
 extern int NODE,INFLAG,NEQ,NJMP,FIX_VAR,NMarkov,nvec;
@@ -85,9 +84,7 @@ void init_trans()
   my_trans.col0=2;
 }
 
-void dump_transpose_info(fp,f)
-     FILE *fp;
-     int f;
+void dump_transpose_info(FILE *fp, int f)
 {
   char bob[256];
   if(f==READEM){
@@ -280,8 +277,7 @@ void adjoint_parameters()
   new_float("Adjoint error tolerance :",&ADJ_ERR);
 }
 
-void new_h_fun(silent)
-     int silent;
+void new_h_fun(int silent)
 {
 
  int i,n=2;
@@ -321,9 +317,7 @@ void new_h_fun(silent)
   
 }
 
-void dump_h_stuff(fp,f)
-     FILE *fp;
-     int f;
+void dump_h_stuff(FILE *fp, int f)
 {
   char bob[256];
   int i;
@@ -338,10 +332,7 @@ void dump_h_stuff(fp,f)
 }
 
 
-int make_h(orb,adj,h,nt,dt,node,silent)
-float **orb,**adj,**h;
-double dt;
-int node,nt,silent;
+int make_h(float **orb, float **adj, float **h, int nt, double dt, int node, int silent)
 {
 
  int i,j,rval=0;
@@ -473,11 +464,8 @@ void compute_one_orbit(double *ic,double per)
     t in the first column.
   */
 
-int adjoint(orbit,adjnt,nt,dt,eps,minerr,maxit,node)
- float **orbit,**adjnt;
- double dt,eps,minerr;
- int nt,node,maxit;
- {
+int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double minerr, int maxit, int node)
+{
   double **jac,*yold,ytemp,*fold,*fdev;
   double *yprime,*work;
   double t,prod,del;
@@ -616,9 +604,7 @@ int adjoint(orbit,adjnt,nt,dt,eps,minerr,maxit,node)
  
  
 
-void eval_rhs(jac,k1,k2,t,y,yp,node)
-     double t,**jac,*y,*yp;
-     int node,k1,k2;
+void eval_rhs(double **jac, int k1, int k2, double t, double *y, double *yp, int node)
 {
   int i;
   int j;
@@ -629,9 +615,7 @@ void eval_rhs(jac,k1,k2,t,y,yp,node)
   }
 }
 
-int rk_interp(jac,k1,k2,y,work,neq,del,nstep)
-double *y,del,*work,**jac;
-int neq,k1,k2,nstep;
+int rk_interp(double **jac, int k1, int k2, double *y, double *work, int neq, double del, int nstep)
 {
  int i,j;
  double *yval[3],dt=del/nstep;
@@ -669,9 +653,7 @@ return(1);
 }
  
 	 
-int step_eul(jac,k,k2,yold,work,node,dt)
-double *work,*yold,**jac,dt;
-int k,k2,node;
+int step_eul(double **jac, int k, int k2, double *yold, double *work, int node, double dt)
 {
 
 int j,i,n2=node*node,info;
@@ -756,9 +738,7 @@ void do_this_liaprun(int i,double p)
 }
 
 
-void norm_vec(v,mu,n) /* returns the length of the vector and the unit vector */
-     double *v,*mu;
-     int n;
+void norm_vec(double *v, double *mu, int n)  /* returns the length of the vector and the unit vector */
 {
   int i;
   double sum=0.0;

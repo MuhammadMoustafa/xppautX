@@ -4,6 +4,8 @@
 extern "C" {
 #endif
 
+/* the right-hand side the integrators call (my_rhs) */
+extern int (*rhs)(double t, double *y, double *ydot, int neq);
 
 
 int symplect3(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work);

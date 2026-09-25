@@ -120,9 +120,7 @@ NULL
 
   
 		   
-int ps_init(filename,color)
-char *filename;
-int color;
+int ps_init(char *filename, int color)
 {
   int i;
  if((psfile=fopen(filename,"w"))==NULL){
@@ -194,8 +192,7 @@ void ps_do_color(int color)
  
 }
 
-void ps_setcolor(color)
-     int color;
+void ps_setcolor(int color)
 {
   int i;
  static float pscolor[]={    0.0, 0.0, 0.0, /* BLACK */
@@ -230,14 +227,12 @@ void ps_end()
  if(program.interactive)init_x11(); 
 }
 
-void ps_bead(x,y)
-int x,y;
+void ps_bead(int x, int y)
 {
 	/*fprintf(psfile,"%d %d F\n",x,y);*/
 }
 
-void ps_frect(x,y,w,h)
-     int x,y,w,h;
+void ps_frect(int x, int y, int w, int h)
 {
 	
 	fprintf(psfile," newpath %d %d M %d %d R %d %d R %d %d R closepath fill\n",x,y,0,-h,w,0,0,h);	
@@ -248,8 +243,7 @@ void ps_last_pt_off()
   LastPtLine=0;
 }
 
-void ps_line(xp1,yp1,xp2,yp2)
-int xp1,yp1,xp2,yp2;
+void ps_line(int xp1, int yp1, int xp2, int yp2)
 {
  LastPtLine=1;
  if(NoBreakLine==1){
@@ -288,8 +282,7 @@ void chk_ps_lines()
   }
 }
    
-void ps_linetype(linetype)
-int linetype;
+void ps_linetype(int linetype)
 {
 char *line = "ba0123456789c"; 
 
@@ -301,9 +294,7 @@ char *line = "ba0123456789c";
 
  
  
-void ps_point(x,y)
-     int x,y;
- 
+void ps_point(int x, int y)
 {
   int number=PointType;
   char *point="PDABCTSKF";
@@ -317,8 +308,7 @@ void ps_point(x,y)
 }
 
 
-void ps_write(str)
-char *str;
+void ps_write(char *str)
 {
   fprintf(psfile,"%s\n",str);
 }
@@ -350,21 +340,17 @@ void ps_show(char *str,int type)
  PSLines=0;
 }
 
-void ps_abs(x,y)
-     int x,y;
+void ps_abs(int x, int y)
 {
   fprintf(psfile,"%d %d moveto \n",x,y);
 }
 
-void ps_rel(x,y)
-     int x,y;
+void ps_rel(int x, int y)
 {
   fprintf(psfile,"%d %d rmoveto \n",x,y);
 }
 
-void special_put_text_ps(x,y,str,size)
-     int x,y,size;
-     char *str;
+void special_put_text_ps(int x, int y, char *str, int size)
 {
   int i=0,j=0,type=1;
   int cf=0;
@@ -444,9 +430,7 @@ void special_put_text_ps(x,y,str,size)
     
       
       
-void fancy_ps_text(x,y,str,size,font)
-     int x,y,font,size;
-     char *str;
+void fancy_ps_text(int x, int y, char *str, int size, int font)
 {
 
   static int sz[]={8,10,14,18,24};
@@ -476,9 +460,7 @@ void fancy_ps_text(x,y,str,size,font)
  PSLines=0;
 }
 
-void ps_text(x,y,str)
-int x,y;
-char *str;
+void ps_text(int x, int y, char *str)
 {
  char ch;
   fprintf(psfile, "0 0 0 setrgbcolor \n");

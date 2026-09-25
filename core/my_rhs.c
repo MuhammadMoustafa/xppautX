@@ -1,4 +1,5 @@
 #include "my_rhs.h"
+#include "parserslow.h"
 #include "dae_fun.h"
 #include "main.h"
 #include "extra.h"
@@ -19,7 +20,6 @@ extern int *my_ode[];
 extern double variables[];
 extern int NVAR,NODE;
 
-double evaluate(/* int *ar */);
 
 /* int MAIN__()
 {
@@ -27,10 +27,8 @@ double evaluate(/* int *ar */);
 }
 */
 
-void extra(y__y, t,nod,neq)
- double *y__y,t;
- int nod,neq;
- {
+void extra(double *y__y, double t, int nod, int neq)
+{
   int i;
   if(nod>=neq)return;
   SETVAR(0,t);
@@ -60,8 +58,7 @@ void extra(y__y, t,nod,neq)
   eval_all_nets();
   do_in_out(); 
   } */
-void set_fix_rhs(t,y)
-     double t,*y;
+void set_fix_rhs(double t, double *y)
 {
   int i;
   SETVAR(0,t);
@@ -77,9 +74,7 @@ void set_fix_rhs(t,y)
 }
 
 
-int my_rhs( t,y,ydot,neq)
-double t,*y,*ydot;
-int neq;
+int my_rhs(double t, double *y, double *ydot, int neq)
 {
   int i;
   SETVAR(0,t);
@@ -132,9 +127,7 @@ void rhs_only(double *y,double *ydot)
   }
 }
  
-void vec_rhs( t,y,ydot,neq)
-double t,*y,*ydot;
-int neq;
+void vec_rhs(double t, double *y, double *ydot, int neq)
 {
 
 

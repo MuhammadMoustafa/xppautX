@@ -89,9 +89,7 @@ extern int NLINES, NMarkov, NODE, NUPAR;
 extern BC_STRUCT my_bc[MAXODE];
 
 
-void ind_to_sym(ind,str)
- char *str;
- int ind;
+void ind_to_sym(int ind, char *str)
 {
  /* str is a pointer here; every caller passes at least
     char[XPP_NAME_MAX+1] (some larger), matching uvar_names' own
@@ -100,10 +98,8 @@ void ind_to_sym(ind,str)
  else xpp_strlcpy(str,uvar_names[ind-1],XPP_NAME_MAX+1);
 }
 
-void  get_max(index, vmin,vmax)
-  double *vmax,*vmin;
-  int index;
-  {
+void  get_max(int index, double *vmin, double *vmax)
+{
    float x0,x1,z;
    double temp;
    int i;
@@ -136,8 +132,7 @@ void short_name(char *out, const char *name, int width)
     snprintf(out,width+1,"%.*s~",width-1,name);
 }
 
-void de_space(s)
-     char *s;
+void de_space(char *s)
 {
   int n=strlen(s);
   int i,j=0;
@@ -152,9 +147,7 @@ void de_space(s)
   s[j]=0;
 }
 
-int find_user_name(type,oname)
-int type;
-char *oname;
+int find_user_name(int type, char *oname)
 {
  char name[XPP_NAME_MAX+1];
  int j=0,k=0,i=-1;
@@ -176,10 +169,8 @@ char *oname;
 	return(-1);
  }
 
-int do_calc(temp,z)
-char *temp;
-double *z;
- {
+int do_calc(char *temp, double *z)
+{
  char val[256];
  int ok; 
  int i;
@@ -222,10 +213,8 @@ double *z;
  return(1);
 }
 
-int has_eq(z, w, where)
- int *where;
- char *z,*w;
- {
+int has_eq(char *z, char *w, int *where)
+{
   int i;
   for(i=0;i<strlen(z);i++)
    if(z[i]==':')break;
@@ -237,10 +226,8 @@ int has_eq(z, w, where)
   return(1);
  }
 
- double calculate(expr,ok)
- char *expr;
- int *ok;
- {
+ double calculate(char *expr, int *ok)
+{
   int com[400],i;
   double z=0.0;
     if(add_expr(expr,com,&i)){
@@ -280,8 +267,7 @@ void check_windows()
  check_val(&plot_windows.current->ylo,&plot_windows.current->yhi,&zip,&zap);
 } 
 
-void check_val(x1,x2,xb,xd)
- double *x1,*x2,*xb,*xd;
+void check_val(double *x1, double *x2, double *xb, double *xd)
 {
  double temp;
 
@@ -342,8 +328,7 @@ void   redo_stuff()
         evaluate_derived();
 }
 
-void user_fun_info(fp)
-     FILE *fp;
+void user_fun_info(FILE *fp)
 {
   int i,j;
   for(j=0;j<NFUN;j++){
@@ -547,9 +532,7 @@ void   set_default_ics()
    redraw_ics();
 }
 
-int to_float(s,z)
-     char *s;
-     double *z;
+int to_float(char *s, double *z)
 {
   int flag;
   *z=0.0;

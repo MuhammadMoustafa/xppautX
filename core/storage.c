@@ -75,8 +75,7 @@ int reallocstor(int ncol,int nrow)
    return 0;
 }
   
-void init_stor(nrow,ncol)
-int nrow,ncol;
+void init_stor(int nrow, int ncol)
 {
  int i;
  /* WORK=(double *)malloc(WORKSIZE*sizeof(double));
@@ -100,8 +99,7 @@ err_msg("Cannot allocate sufficient storage");
 }
 
 
-void free_storage(ncol)
-int ncol;
+void free_storage(int ncol)
 {
   int i;
   for(i=0;i<ncol;i++)xpp_free(storage[i]);

@@ -7,8 +7,8 @@
  */
 
 
-extern int (*rhs)();
 #include "auto_f2c.h"
+#include "odesol2.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "math.h"

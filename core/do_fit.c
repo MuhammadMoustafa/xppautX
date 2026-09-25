@@ -1,5 +1,6 @@
 
 #include "do_fit.h"
+#include "integrate.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
@@ -36,17 +37,13 @@
 #define MAX(a,b) ((a)>(b)?(a):(b))
 extern double constants[];
 extern double last_ic[MAXODE];
-double atof();
 
 extern double DELAY;
 extern int DelayFlag;
 FITINFO fin;
 
-char *get_first();
-char *get_next();
 
 
-extern int (*solver)();
 
 void init_fit_info()
 {
@@ -64,9 +61,7 @@ void init_fit_info()
   fin.file[0]=0;
 }
 
-void get_fit_info(y,a,t0,flag,eps,yfit,yderv,npts,npars,nvars,ivar,ipar)
-     int *flag,*ivar,*ipar,npts,npars,nvars;
-     double *y,*a,eps,**yderv,*yfit,*t0;
+void get_fit_info(double *y, double *a, double *t0, int *flag, double eps, double *yfit, double **yderv, int npts, int npars, int nvars, int *ivar, int *ipar)
 /*  
   y     initial condition
   a     initial guesses for the parameters
@@ -193,9 +188,7 @@ if(METHOD==CVODE)
 
 
 
-void printem(yderv,yfit,t0,npars,nvars,npts)
-     double **yderv,*yfit,*t0;
-     int npars,nvars,npts;
+void printem(double **yderv, double *yfit, double *t0, int npars, int nvars, int npts)
 {
   int i,j,k;
   int ioff;
@@ -211,9 +204,7 @@ void printem(yderv,yfit,t0,npars,nvars,npts)
   }
 }
 
-int one_step_int(y,t0,t1,istart)
-     int *istart;
-     double *y,t0,t1;
+int one_step_int(double *y, double t0, double t1, int *istart)
 {
   int nit;
    int kflag;
@@ -414,18 +405,7 @@ void test_fit()
 
 
 
-int run_fit( filename,  /* string */
-	npts,npars,nvars,maxiter,ndim,  /* ints */
-	eps,tol, /* doubles */
-	ipar,ivar,icols, /* int arrays */
-	y0,a,yfit) /* double arrays */
-
-     char *filename;
-     int npts,npars,nvars,ndim,maxiter;
-     int *ipar,*ivar,*icols;
-     double eps,tol;
-     double *a,*y0,*yfit;
-
+int run_fit(char *filename, int npts, int npars, int nvars, int maxiter, int ndim, double eps, double tol, int *ipar, int *ivar, int *icols, double *y0, double *a, double *yfit)
 /* 
    filename is where the data file is -- it is of the form:
    t1 y11 y12 .... y1m
@@ -437,7 +417,6 @@ int run_fit( filename,  /* string */
    ndim is the number of y-pts in the a row  
    
 */
-
 {
   double *t0,*y,sig[MAXODE],*covar,*alpha,chisq,ochisq,alambda,**yderv,*work;
   int i,j,k,ioff,ictrl=0,ok;
@@ -578,12 +557,7 @@ int run_fit( filename,  /* string */
   return(1);
 }  
 
-int marlevstep(t0,y0,y,sig,a,npts,nvars,npars,
-	   ivar,ipar,covar,alpha,chisq,alambda,work,
-	   yderv,yfit,ochisq,ictrl,eps)
-     double *t0,*y0,*y,*sig,*a,*covar,*alpha,*chisq,*alambda,*work,
-       *yfit,**yderv,*ochisq,eps;
-     int npts,nvars,npars,*ivar,*ipar,ictrl;
+int marlevstep(double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *covar, double *alpha, double *chisq, double *alambda, double *work, double **yderv, double *yfit, double *ochisq, int ictrl, double eps)
 /*   One step of Levenberg-Marquardt  
      
 nvars  the number of variables to fit
@@ -678,12 +652,8 @@ sigma  weights on nvars
   return(1);
 }
 
- int mrqcof(t0,y0,y,sig,a,npts,nvars,npars,
-	 ivar,ipar,alpha,chisq,beta,
-	 yderv,yfit,eps)
-    double *t0,*y0,*y,*sig,*a,*alpha,*chisq,*beta,**yderv,*yfit,eps;
-    int nvars,npars,npts,*ivar,*ipar;
-      {
+ int mrqcof(double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *alpha, double *chisq, double *beta, double **yderv, double *yfit, double eps)
+{
        int flag,i,j,k,l,k0;
        double sig2i,dy,wt;
       
@@ -769,9 +739,7 @@ int get_fit_params()
 
 /* gets a list of the data columns to use ... */
 
-void parse_collist(collist,icols,n)
-     int *icols,*n;
-     char *collist;
+void parse_collist(char *collist, int *icols, int *n)
 {
   char *item;
   int v,i=0;
@@ -792,9 +760,7 @@ void parse_collist(collist,icols,n)
   *n=i;
 }
 
-void parse_varlist(varlist,ivars,n)
-     int *n,*ivars;
-     char *varlist;
+void parse_varlist(char *varlist, int *ivars, int *n)
 {  
   char *item;
   int v,i=0;
@@ -817,9 +783,7 @@ void parse_varlist(varlist,ivars,n)
 }
 
 
-void parse_parlist(parlist,ipars,n)
-     int *n,*ipars;
-     char *parlist;
+void parse_parlist(char *parlist, int *ipars, int *n)
 {  
   char *item;
   int v,i=0;

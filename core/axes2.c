@@ -55,8 +55,7 @@ void re_title()
  title_text(bob);
 }
 
-void get_title_str(s1,s2,s3)
-     char *s1,*s2,*s3;
+void get_title_str(char *s1, char *s2, char *s3)
 {
  /* s1/s2/s3 are pointers here; the one caller (do_axes) passes
     char[XPP_NAME_MAX+1], matching uvar_names' own element size. */
@@ -71,8 +70,7 @@ if((i=plot_windows.current->zv[0])==0)xpp_strlcpy(s3,"T",XPP_NAME_MAX+1);
  else xpp_strlcpy(s3,uvar_names[i-1],XPP_NAME_MAX+1);
 }
 
-void make_title(str)
-char *str;
+void make_title(char *str)
 {
  int i;
  char name1[XPP_NAME_MAX+1];
@@ -94,9 +92,7 @@ if((i=plot_windows.current->zv[0])==0)XPP_STRCPY(name3,"T");
  else xpp_snprintf(str,3*XPP_NAME_MAX+16,"%s vs %s",name2,name1);
 }
 
-double dbl_raise(x,y)
-double x;
-int y;
+double dbl_raise(double x, int y)
 {
 register int i;
 double val;
@@ -109,8 +105,7 @@ double val;
 }
 
 
-double make_tics(tmin,tmax)
-double tmin,tmax;
+double make_tics(double tmin, double tmax)
 {
   register double xr,xnorm,tics,tic,l10;
   
@@ -127,8 +122,7 @@ double tmin,tmax;
   return(tic);
 }
 
-void find_max_min_tic(tmin,tmax,tic)
-     double *tmin,*tmax,tic;
+void find_max_min_tic(double *tmin, double *tmax, double tic)
 {
   double t1=*tmin;
   t1=tic*floor(*tmin/tic);
@@ -287,10 +281,7 @@ void Frame_3d()
 
 
 
-void Box_axis(x_min,x_max,y_min,y_max,sx,sy,flag)
-     double x_min,x_max,y_min,y_max;
-     int flag;
-     char *sx,*sy;
+void Box_axis(double x_min, double x_max, double y_min, double y_max, char *sx, char *sy, int flag)
 {
   double ytic,xtic;
   
@@ -332,10 +323,7 @@ void Box_axis(x_min,x_max,y_min,y_max,sx,sy,flag)
 }
 
 
-void draw_ytics(s1,start, incr, end)
-     double start, incr, end;
-     char *s1;
-		
+void draw_ytics(char *s1, double start, double incr, double end)
 {
   double ticvalue,place;
   double y_min=YMin,y_max=YMax,
@@ -376,10 +364,7 @@ void draw_ytics(s1,start, incr, end)
 }
 
 
-void draw_xtics(s2,start, incr, end)
-     double start, incr, end;
-     char *s2;
-		
+void draw_xtics(char *s2, double start, double incr, double end)
 {
   double ticvalue,place;
   double y_min=YMin,

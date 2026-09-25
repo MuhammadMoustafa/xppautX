@@ -1,5 +1,6 @@
 #include <stdlib.h> 
 #include "auto_f2c.h" 
+#include "odesol2.h"
 #include "auto_nox.h"
 #include "autlim.h"
 #include "derived.h"
@@ -12,7 +13,6 @@ extern XAUTO xAuto;
 
 /*    Hooks to xpp RHS     */
 
-extern int (*rhs)();
 extern double constants[],last_ic[];
 
 extern int Auto_index_to_array[8];
@@ -25,9 +25,7 @@ extern double outperiod[];
 extern int UzrPar[],NAutoUzr;
 
 extern double NEWT_ERR;
-int func(ndim, u, icp, par, ijac, f, dfdu, dfdp)
-integer ndim,*icp,ijac;
-double  *u,*par,*f,*dfdu,*dfdp;
+int func(integer ndim, double *u, integer *icp, double *par, integer ijac, double *f, double *dfdu, double *dfdp)
 {
    int i,j;
    double zz[NAUTO];
@@ -58,9 +56,7 @@ double  *u,*par,*f,*dfdu,*dfdp;
 } /* func_ */
 
 
-int stpnt(ndim,t,u,par)
-integer ndim;
-doublereal *u, *par,t;
+int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
 {
   int i;
 
@@ -105,13 +101,7 @@ doublereal *u, *par,t;
 
 
 
-/* Subroutine */ int bcnd(ndim, par, icp, nbc, u0, u1, ijac, fb, dbc)
-integer ndim;
-double *par;
-integer *icp, nbc;
-double *u0, *u1, *fb;
-integer ijac;
-double *dbc;
+/* Subroutine */ int bcnd(integer ndim, double *par, integer *icp, integer nbc, double *u0, double *u1, integer ijac, double *fb, double *dbc)
 {
  int i;
 /* Hooks to the XPP bc parser!! */
@@ -128,14 +118,12 @@ double *dbc;
     return 0;
 } /* bcnd_ */
 
-/* Subroutine */ int icnd(ndim, par, icp, nint, u, uold, udot, upold, fi, 
-	ijac, dint)
-integer *ndim;
-double *par;
-integer *icp, *nint;
-double *u, *uold, *udot, *upold, *fi;
-integer *ijac;
-double *dint;
+/* AUTO's user routines that xppautX does not supply: stubs, with
+   auto_c.h's prototypes (which AUTO calls them through) */
+/* Subroutine */ int icnd(integer ndim, const doublereal *par, const integer *icp, integer nint,
+	 const doublereal *u, const doublereal *uold, const doublereal *udot,
+	 const doublereal *upold, integer ijac,
+	 doublereal *fi, doublereal *dint)
 {
    /*
    int i;
@@ -147,13 +135,9 @@ double *dint;
     return 0;
 } /* icnd_ */
 
-/* Subroutine */ int fopt(ndim, u, icp, par, ijac, fs, dfdu, dfdp)
-integer *ndim;
-double *u;
-integer *icp;
-double *par;
-integer *ijac;
-double *fs, *dfdu, *dfdp;
+/* Subroutine */ int fopt(integer ndim, const doublereal *u, const integer *icp,
+	 const doublereal *par, integer ijac,
+	 doublereal *fs, doublereal *dfdu, doublereal *dfdp)
 {
 /*     ---------- ---- */
     return 0;

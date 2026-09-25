@@ -1,4 +1,5 @@
 #include "load_eqn.h"
+#include "markov.h"
 #include "xpp_mem.h"
 #include "parserslow.h"
 
@@ -61,7 +62,6 @@ extern int spec_col,spec_wid,spec_win,spec_col2,post_process;
 
 
 
-int nsrand48(int seed);
 
 char *interopt[MAXOPT];
 int Nopts=0;
@@ -107,9 +107,6 @@ extern double THETA0,PHI0;
 /*void set_option(char *s1,char *s2);
 */
 
-double atof();
-char *get_first();
-char *get_next();
 /*   this file has all of the phaseplane parameters defined   
      and created.  All other files should use external stuff
     to use them. (Except eqn forming stuff)
@@ -122,7 +119,6 @@ extern char PS_FONT[100];
 extern double PS_LW;
 
 extern int SEc,UEc,SPc,UPc;
-extern int (*solver)();
 
  int rung_kut();
  char delay_string[MAXODE][80];
@@ -321,9 +317,7 @@ void notBothOptions(OptionsSet nasA,OptionsSet nasB)
 
    
 
-void dump_torus(fp,f)
-     FILE *fp;
-     int f;
+void dump_torus(FILE *fp, int f)
 {
   int i;
   char bob[256];
@@ -617,9 +611,8 @@ if(MY_YLO>=MY_YHI){
 }
 
 
-void read_defaults(fp)
- FILE *fp;
- {
+void read_defaults(FILE *fp)
+{
  char bob[100];
  char *ptr;
  if(fgets(bob,80,fp)==NULL)bob[0]=0;
@@ -662,18 +655,14 @@ void read_defaults(fp)
  
 }
 
-void fil_flt(fpt,val)
-FILE *fpt;
-double *val;
+void fil_flt(FILE *fpt, double *val)
 {
  char bob[80];
  if(fgets(bob,80,fpt)==NULL)bob[0]=0;
  *val=atof(bob);
 }
 
-void fil_int(fpt,val)
-int *val;
-FILE *fpt;
+void fil_int(FILE *fpt, int *val)
 {
  char bob[80];
  if(fgets(bob,80,fpt)==NULL)bob[0]=0;
@@ -689,8 +678,7 @@ FILE *fpt;
 
 
 
-void add_intern_set(name,does)
-     char *name,*does;
+void add_intern_set(char *name, char *does)
 {
   char bob[1024],ch;
   int i,n,j=Nintern_set,k=0;
@@ -751,14 +739,12 @@ void extract_action(char *ptr)
     } 
 }
 
-void extract_internset(j)
-     int j;
+void extract_internset(int j)
 {
   extract_action(intern_set[j].does);
 }
 
-void do_intern_set(name1,value)
-     char *name1,*value;
+void do_intern_set(char *name1, char *value)
 {
   int i;
   char name[256]; /* as in extract_action */
@@ -784,8 +770,7 @@ void do_intern_set(name1,value)
 }
 /*  ODE options stuff  here !!   */
 
-int msc(s1,s2)
-     char *s1,*s2;
+int msc(char *s1, char *s2)
 {
 
  int n=strlen(s1),i;
@@ -899,8 +884,7 @@ void set_internopts_xpprc_and_comline()
 }
 
 
-void split_apart(bob, name,value)
-char *bob,*name,*value;
+void split_apart(char *bob, char *name, char *value)
 {
  /* name/value are pointers here; the smallest of split_apart's four
     callers pass char name[20],value[80] (the other passes [256],[256]),
@@ -951,8 +935,7 @@ void check_for_xpprc()
 }
 
 
-void stor_internopts(s1)
-     char *s1;
+void stor_internopts(char *s1)
 {
   int n=strlen(s1);
   if(Nopts>MAXOPT){
@@ -968,10 +951,7 @@ void stor_internopts(s1)
   
 
 
-void set_option(s1,s2,force,mask)
-     char *s1,*s2;
-     int force;
-     OptionsSet *mask;
+void set_option(char *s1, char *s2, int force, OptionsSet *mask)
 {
   int i,j,f;
  char xx[4],yy[4],zz[4];

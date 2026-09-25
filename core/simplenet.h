@@ -4,9 +4,10 @@
 extern "C" {
 #endif
 
-int get_vector_info();
 double net_interp(double x, int i);
 double network_value(double x, int i);
+double vector_value(double x, int i);
+int get_vector_info(char *str, char *name, int *root, int *length, int *il, int *ir);
 void init_net(double *v, int n);
 int add_spec_fun(char *name, char *rhs);
 void add_special_name(char *name, char *rhs);

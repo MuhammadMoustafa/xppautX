@@ -1,4 +1,6 @@
 #include "nullcline.h"
+#include "odesol2.h"
+#include "numerics.h"
 #include "xpp_mem.h"
 #include "my_rhs.h"
 #include "abort.h"
@@ -43,9 +45,6 @@ int DFBatch=0;
 int NCBatch=0;
 
 int NullStyle=0; /* 1 is with little vertical/horizontal lines */
-extern int (*rhs)();
-int user_set_color_par();
-double atof();
 extern int DRight,DLeft,DTop,DBottom;
 extern int STORFLAG;
 extern double last_ic[MAXODE];
@@ -58,7 +57,6 @@ int num_x_n,num_y_n,num_index,
 	null_ix,null_iy,WHICH_CRV;
 float null_dist,*X_n,*Y_n,*saver,*NTop,*NBot;
 extern int NMESH,NODE,NJMP,NMarkov,FIX_VAR,NEQ;
-float fnull();
 int DF_GRID=16,DF_FLAG=0,DF_IX=-1,DF_IY=-1;
 int DFIELD_TYPE=0;
 
@@ -301,8 +299,7 @@ int get_nullcline_floats(float **v,int *n,int who,int type) /* type=0,1 */
     return 0;
 }   
 
-void save_frozen_clines(fn)
-     char *fn;
+void save_frozen_clines(char *fn)
 {
    NCLINES *z;
    FILE *fp;
@@ -331,8 +328,7 @@ void save_frozen_clines(fn)
   
 }
 
-void redraw_froz_cline(flag)
-     int flag;
+void redraw_froz_cline(int flag)
 {
   NCLINES *z;
   int col1=XNullColor,col2=YNullColor;
@@ -371,9 +367,7 @@ void redraw_froz_cline(flag)
   }
 }
 
-void add_froz_cline(xn,nmx,n_ix,yn,nmy,n_iy)
-     float *xn,*yn;
-     int nmx,nmy,n_ix,n_iy;
+void add_froz_cline(float *xn, int nmx, int n_ix, float *yn, int nmy, int n_iy)
 {
   NCLINES *z,*znew;
   int i;
@@ -404,9 +398,7 @@ void add_froz_cline(xn,nmx,n_ix,yn,nmy,n_iy)
 }
 
                 
-void get_max_dfield(y,ydot,u0,v0,du,dv,n,inx,iny,mdf)
-     double *y,*ydot,du,dv,u0,v0,*mdf;
-     int n,inx,iny;
+void get_max_dfield(double *y, double *ydot, double u0, double v0, double du, double dv, int n, int inx, int iny, double *mdf)
 {
   int i,j;
   double amp,dxp,dyp;
@@ -785,10 +777,7 @@ void restore_nullclines()
  redraw_froz_cline(0);
 }
 
-void dump_clines(fp,x,nx,y,ny) /* gnuplot format */
-     FILE *fp;
-     float *x,*y;
-     int nx,ny;
+void dump_clines(FILE *fp, float *x, int nx, float *y, int ny)  /* gnuplot format */
 {
     int i;
     fprintf(fp,"# X-nullcline\n");
@@ -807,10 +796,7 @@ void dump_clines(fp,x,nx,y,ny) /* gnuplot format */
 
 }
 
-void dump_clines_old(fp,x,nx,y,ny)
-     FILE *fp;
-     float *x,*y;
-     int nx,ny;
+void dump_clines_old(FILE *fp, float *x, int nx, float *y, int ny)
 {
     int i,ix,iy;
     int n;
@@ -833,9 +819,7 @@ void dump_clines_old(fp,x,nx,y,ny)
 
 }
 
-void restor_null(v,n,d) /* d=1 for x and 2 for y  */
-     float *v;
-     int n,d;
+void restor_null(float *v, int n, int d)  /* d=1 for x and 2 for y  */
 {
   
   int i,i4;
@@ -948,11 +932,7 @@ void new_clines_com(int c)
 }
 
 
-void new_nullcline(course,xlo,ylo,xhi,yhi,stor,npts)
-     int course;
-     float xlo,ylo,xhi,yhi;
-     int *npts;
-     float *stor;
+void new_nullcline(int course, float xlo, float ylo, float xhi, float yhi, float *stor, int *npts)
 {
  num_index=0;
  saver=stor;
@@ -962,8 +942,7 @@ void new_nullcline(course,xlo,ylo,xhi,yhi,stor,npts)
 
 
 
-void stor_null(x1,y1,x2,y2)
-float x1,y1,x2,y2;
+void stor_null(float x1, float y1, float x2, float y2)
 {
  int i;
  if(num_index>=MAX_NULL)return;
@@ -975,9 +954,8 @@ float x1,y1,x2,y2;
  num_index++;
 } 
 
-float fnull( x, y)
- float x,y;
- {
+float fnull(float x, float y)
+{
   double y1[MAXODE],ydot[MAXODE];
   int i;
   for(i=0;i<NODE;i++)y1[i]=last_ic[i];
@@ -990,9 +968,7 @@ float fnull( x, y)
  }
 
 
-int interpolate(p1,p2,z,x,y)
- Pt p1,p2;
- float z,*x,*y;
+int interpolate(Pt p1, Pt p2, float z, float *x, float *y)
 {
  float scale;
   if(p1.z==p2.z)return(0);
@@ -1002,8 +978,7 @@ int interpolate(p1,p2,z,x,y)
    return(1);
  }
 
-void quad_contour(p1,p2,p3,p4)
-Pt p1,p2,p3,p4;
+void quad_contour(Pt p1, Pt p2, Pt p3, Pt p4)
 {
  float x[4],y[4];
  int count=0;
@@ -1026,9 +1001,7 @@ Pt p1,p2,p3,p4;
 }
 
 
-void triangle_contour(p1,p2,p3)
-
-Pt p1,p2,p3;
+void triangle_contour(Pt p1, Pt p2, Pt p3)
 {
  float x[3],y[3];
  int count=0;
@@ -1057,9 +1030,7 @@ if(p2.z*p3.z<=0.0)
 
 
 
-void do_cline(ngrid,x1,y1,x2,y2)
-int ngrid;
-float x1,y1,x2,y2;
+void do_cline(int ngrid, float x1, float y1, float x2, float y2)
 {
  float dx=(x2-x1)/(float)ngrid;
  float dy=(y2-y1)/(float)ngrid;

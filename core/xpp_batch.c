@@ -3,6 +3,7 @@
    the historical do_main(), with no front end setup, so it links against
    libxppcore alone. */
 #include "xpp_batch.h"
+#include "odesol2.h"
 #include "xpp_mem.h"
 #include "xpp_globals.h"
 #include "xpp_ui.h"
@@ -38,7 +39,6 @@ XppBatchOptions batch_options = {0, 0, -1, 1, "", ""};
 extern int NCBatch, DFBatch;
 extern char this_file[XPP_MAX_NAME];
 extern int METHOD;
-extern int (*rhs)();
 
 /* nullcline.c / integrate.c batch helpers without a header prototype */
 void set_colorization_stuff(void);
@@ -48,9 +48,7 @@ void silent_equilibria(void);
 
 /* ---- moved from main.c (appended by tools/move_funcs.py) --------------- */
 
-void check_for_quiet(argc,argv)
-char **argv;
-int argc;
+void check_for_quiet(int argc, char **argv)
 {
 	/*First scan, check for any QUIET option set...*/
 	int i = 0;

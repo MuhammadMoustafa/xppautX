@@ -13,7 +13,6 @@
 #define MAXDERIVED 200
 extern double constants[];
 extern int NCON;
-double evaluate();
 typedef struct {
   int index,*form;
   char *rhs;
@@ -69,8 +68,7 @@ void evaluate_derived()
 }
 
 /* this adds a derived quantity  */
-int add_derived(name,rhs)
-     char *name,*rhs;
+int add_derived(char *name, char *rhs)
 {
   int n=strlen(rhs)+2;
   int i0;

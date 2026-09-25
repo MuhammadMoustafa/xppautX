@@ -1,5 +1,7 @@
 
 #include "xpp_ui.h"
+#include "adj2.h"
+#include "integrate.h"
 #include "numerics.h"
 #include <strings.h>
 
@@ -18,9 +20,7 @@
 #include "delay_handle.h"
 #include "graf_par.h"
 void data_back();
-void usual_integrate_stuff();
 void new_adjoint();
-void new_h_fun();
 extern int NDELAYS;
 extern int RandSeed;
 #include "struct.h"
@@ -45,7 +45,6 @@ extern double MyTime;
 extern char *info_message,*meth_hint[];
 extern int DelayGrid;
 extern double OmegaMax,AlphaMax;
-double atof();
 extern BROWSER my_browser;
 
 /*   This is numerics.c    
@@ -64,7 +63,6 @@ typedef struct {
 POINCARE_MAP my_pmap;
 
 
-extern int (*solver)();
 extern  double DELTA_T,TEND,T0,TRANS,
 	NULL_ERR,EVEC_ERR,NEWT_ERR;
 extern double BOUND,DELAY,TOLER,ATOLER,HMIN,HMAX;
@@ -92,7 +90,6 @@ int  gear();
  int mod_euler();
  int rung_kut();
  int adams();
- int volterra();
  int bak_euler();
  int symplect3();
 
@@ -112,9 +109,8 @@ void chk_volterra()
   if (NKernel>0)METHOD=VOLTERRA;
 }
 
-void  check_pos(j)
- int *j;
- {
+void  check_pos(int *j)
+{
   if(*j<=0)*j=1;
  }
 
@@ -134,9 +130,7 @@ void set_total(double total)
   TEND=n*fabs(DELTA_T);
 }
 
-void  get_num_par(ch)
- char ch;
-
+void  get_num_par(char ch)
 {
   double temp;
   int tmp;

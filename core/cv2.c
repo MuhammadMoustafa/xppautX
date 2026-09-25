@@ -21,14 +21,12 @@
 double cv_ropt[OPT_SIZE];
   int cv_iopt[OPT_SIZE];
 extern int cv_bandflag,cv_bandupper,cv_bandlower;
-static void cvf();
 void *cvode_mem;
 N_Vector ycv;
+static void cvf(int n, double t, N_Vector y, N_Vector ydot, void *fdata);
 extern int NFlags;
 extern double TOLER,ATOLER;
-void start_cv(y,t,n,tout,atol,rtol)
-     double *y,t,tout,*atol,*rtol;
-     int n;
+void start_cv(double *y, double t, int n, double tout, double *atol, double *rtol)
 {
  int i;
 
@@ -49,19 +47,14 @@ void end_cv()
   CVodeFree(cvode_mem);
 }
  
-static void cvf(n,t,y,ydot,fdata)
-     void *fdata;
-     double t;
-     int n;
-     N_Vector y,ydot;
+static void cvf(int n, double t, N_Vector y, N_Vector ydot, void *fdata)
 {
   my_rhs(t,y->data,ydot->data,n);
   
 }
      
  
-void cvode_err_msg(kflag)
-     int kflag;
+void cvode_err_msg(int kflag)
 {
   char s[256];
   XPP_STRCPY(s,"");
@@ -93,13 +86,7 @@ void cvode_err_msg(kflag)
 }
     
 
-int cvode(command,y,t,n,tout,kflag,atol,rtol) 
-/* command =0 continue, 1 is start 2 finish */
-     int *command,*kflag;
-     double *y,*atol,*rtol;
-     double *t;
-     double tout;
-     int n;
+int cvode(int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
 {
  int err=0;
  if(NFlags==0)
@@ -109,13 +96,7 @@ int cvode(command,y,t,n,tout,kflag,atol,rtol)
  return 1;
 }
 /* rtol is like our TOLER and atol is something else ?? */
-int ccvode(command,y,t,n,tout,kflag,atol,rtol) 
-/* command =0 continue, 1 is start 2 finish */
-     int *command,*kflag;
-     double *y,*atol,*rtol;
-     double *t;
-     double tout;
-     int n;
+int ccvode(int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
 {
   int i,flag;
   *kflag=0;

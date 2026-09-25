@@ -22,11 +22,9 @@ extern int DelayErr;
 
 extern double EVEC_ERR,NEWT_ERR,BOUND;
 extern int EVEC_ITER;
-double evaluate();
 
 extern int NODE,FIX_VAR;
 extern int *my_ode[];
-double sdot();
 
 /*    will have more stuff someday */
 
@@ -58,8 +56,7 @@ int nsvar=0,naeqn=0;
 /* this adds an algebraically defined variable  and a formula
    for the first guess */
 
-int add_svar(name,rhs)
-     char *name,*rhs;
+int add_svar(char *name, char *rhs)
 {
   if(nsvar>=MAXDAE){
     plintf(" Too many variables\n");
@@ -91,8 +88,7 @@ int add_svar_names()
 
 /* adds a right-hand side to slove for zero */
 
-int add_aeqn(rhs)
-     char *rhs;
+int add_aeqn(char *rhs)
 {
   if(naeqn>=MAXDAE){
     plintf(" Too many equations\n");
@@ -186,8 +182,7 @@ void init_dae_work()
   dae_work.status=1;
 }
 
-void get_dae_fun(y,f)
-     double *f,*y;
+void get_dae_fun(double *y, double *f)
 {
   int i;
   /* better do this in case fixed variables depend on sol_var */

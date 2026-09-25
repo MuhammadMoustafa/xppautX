@@ -113,11 +113,7 @@ int NFlags=0;
 double STOL=1.e-10;
 extern double variables[];
 extern int NVAR;
-double evaluate(); 
-int add_global(cond,sign,rest)
-     char *cond;
-     int sign;
-     char *rest;
+int add_global(char *cond, int sign, char *rest)
 {
   char temp[256];
   int nevents,ii,k,l,lt,j=NFlags;
@@ -275,9 +271,7 @@ int compile_flags()
 
 /*  here is the shell code for a loop around  integration step  */
 
-int one_flag_step(yold,ynew,istart,told,tnew,neq,s )
-     double *yold,*ynew,*tnew,*s,told;
-     int *istart,neq;
+int one_flag_step(double *yold, double *ynew, int *istart, double told, double *tnew, int neq, double *s)
 {
   double dt=*tnew-told;
   double f0,f1,tol,tolmin=1e-10;
@@ -463,10 +457,7 @@ int one_flag_step(yold,ynew,istart,told,tnew,neq,s )
     
 /*  here are the ODE drivers */
 
-int one_flag_step_symp(y,dt,work,neq,tim,istart)
-     double dt,*tim;
-     double *y,*work;
-     int neq,*istart;   
+int one_flag_step_symp(double *y, double dt, double *work, int neq, double *tim, int *istart)
 {
   double yold[MAXODE],told;
   int i,hit;
@@ -492,10 +483,7 @@ int one_flag_step_symp(y,dt,work,neq,tim,istart)
   return(1);
 }
  
-int one_flag_step_euler(y,dt,work,neq,tim,istart)
-     double dt,*tim;
-     double *y,*work;
-     int neq,*istart;   
+int one_flag_step_euler(double *y, double dt, double *work, int neq, double *tim, int *istart)
 {
   double yold[MAXODE],told;
   int i,hit;
@@ -521,10 +509,7 @@ int one_flag_step_euler(y,dt,work,neq,tim,istart)
   return(1);
 }
     
-int one_flag_step_discrete(y,dt,work,neq,tim,istart)
-     double dt,*tim;
-     double *y,*work;
-     int neq,*istart;   
+int one_flag_step_discrete(double *y, double dt, double *work, int neq, double *tim, int *istart)
 {
   double yold[MAXODE],told;
   int i,hit;
@@ -549,10 +534,7 @@ int one_flag_step_discrete(y,dt,work,neq,tim,istart)
   return(1);
 }
      
-int one_flag_step_heun(y,dt,yval,neq,tim,istart)
-     double dt,*tim,*yval[2];
-     double *y;
-     int neq,*istart;   
+int one_flag_step_heun(double *y, double dt, double *yval[2], int neq, double *tim, int *istart)
 {
   double yold[MAXODE],told;
   int i,hit;
@@ -577,10 +559,7 @@ int one_flag_step_heun(y,dt,yval,neq,tim,istart)
   return(1);
 }
     
-int one_flag_step_rk4(y,dt,yval,neq,tim,istart)
-     double dt,*tim;
-     double *y,*yval[3];
-     int neq,*istart;   
+int one_flag_step_rk4(double *y, double dt, double *yval[3], int neq, double *tim, int *istart)
 {
   double yold[MAXODE],told;
   int i,hit;
@@ -615,10 +594,7 @@ void printflaginfo()
   }
 }
     
-int one_flag_step_gear(neq,t, tout,y, hmin, 
-		   hmax,eps,mf,error,kflag,jstart,work,iwork)
-     int neq,mf,*kflag,*jstart,*iwork;
-     double *t, tout, *y, hmin, hmax, eps,*work,*error;
+int one_flag_step_gear(int neq, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
 {
     double yold[MAXODE],told;
   int i,hit;
@@ -678,9 +654,7 @@ int *istart,int n,double *work,int *ierr)
 
 }
 
-int one_flag_step_dp(istart,y,t,n,tout,tol,atol,flag,kflag)
-   double *y,*t,tout,*tol,*atol;
-     int flag,*istart,*kflag,n;
+int one_flag_step_dp(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag)
 {
    double yold[MAXODE],told;
   int i,hit;
@@ -711,13 +685,7 @@ int one_flag_step_dp(istart,y,t,n,tout,tol,atol,flag,kflag)
 }
 
 #ifdef CVODE_YES
-int one_flag_step_cvode(command,y,t,n,tout,kflag,atol,rtol) 
-/* command =0 continue, 1 is start 2 finish */
-     int *command,*kflag;
-     double *y,*atol,*rtol;
-     double *t;
-     double tout;
-     int n;
+int one_flag_step_cvode(int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
 {
     double yold[MAXODE],told;
   int i,hit,neq=n;
@@ -748,9 +716,7 @@ int one_flag_step_cvode(command,y,t,n,tout,kflag,atol,rtol)
 }
 
 #endif
-int one_flag_step_adap(y,neq,t,tout,eps,hguess,hmin,work,ier,epjac,iflag,jstart)
-     double *y,*t,tout,eps,*hguess,hmin,*work,epjac;
-     int neq,*ier,iflag,*jstart;
+int one_flag_step_adap(double *y, int neq, double *t, double tout, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart)
 {
     double yold[MAXODE],told;
   int i,hit;
@@ -780,9 +746,7 @@ int one_flag_step_adap(y,neq,t,tout,eps,hguess,hmin,work,ier,epjac,iflag,jstart)
 
 }
 
-int one_flag_step_backeul(y,t,dt,neq,yg,yp,yp2,ytemp,errvec,jac,istart)
-     double *y,*t,dt,*yg,*yp,*yp2,*ytemp,*errvec,*jac;
-     int neq,*istart;
+int one_flag_step_backeul(double *y, double *t, double dt, int neq, double *yg, double *yp, double *yp2, double *ytemp, double *errvec, double *jac, int *istart)
 {
   double yold[MAXODE],told;
   int i,hit,j;

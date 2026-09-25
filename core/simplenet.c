@@ -1,4 +1,5 @@
 #include "simplenet.h"
+#include "form_ode.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
@@ -150,8 +151,8 @@ including derived parameters but XPP takes care of this so start at 0
 extern int NODE,NDELAYS;
 extern double get_delay(int in,double td);
 
-int parse_import();
 #define IC 2
+int parse_import(char *s, char *soname, char *sofun, int *n, char *vname, int *m, char *tname[MAXW]);
  extern int fftn (int /* ndim */,
 		    const int /* dims */[],
 		    double /* Re */[],
@@ -223,10 +224,7 @@ typedef struct {
 
 extern double variables[],constants[];
 
-char *get_first(/* char *string,char *src */);
-char *get_next(/* char *src */);
 
-double evaluate();
 
 
 NETWORK my_net[MAXNET];
@@ -282,9 +280,7 @@ void add_vectorizer_name(char *name, char *rhs)
   n_vector++;
 
 }
-double vector_value(x,i)
-     double x;
-     int i;
+double vector_value(double x, int i)
 {
   int il=my_vec[i].il,ir=my_vec[i].ir,n=my_vec[i].length,k=(int)x;
   int root=my_vec[i].root;
@@ -303,9 +299,7 @@ double vector_value(x,i)
 
 
 }  
-double network_value(x, i)
-    double x;
-    int i;
+double network_value(double x, int i)
 {
   int j=(int)x;
   if(my_net[i].type==INTERP){
@@ -324,9 +318,7 @@ void init_net(double *v,int n)
     v[i]=0.0;
 }
 
-int add_spec_fun(name,rhs)
-     char *name;
-     char *rhs;
+int add_spec_fun(char *name, char *rhs)
 {
   int i,ind,elen,err;
   int type;
@@ -1105,9 +1097,7 @@ int add_spec_fun(name,rhs)
   }
   return 0;
 }
-void add_special_name(name,rhs)
-     char *name;
-     char *rhs;
+void add_special_name(char *name, char *rhs)
 {
   if(is_network(rhs)){
     plintf(" netrhs = |%s| \n",rhs);
@@ -1123,8 +1113,7 @@ void add_special_name(name,rhs)
     plintf(" No such special type ...\n");
 }
 
-int is_network(s)
-     char *s;
+int is_network(char *s)
 {
   /*int n;
   */
@@ -1156,8 +1145,7 @@ void eval_all_nets()
     evaluate_network(i);
 }
 
-void evaluate_network(ind)
-int ind;
+void evaluate_network(int ind)
 {
    int i,j,k,ij;
    int imin,imax;

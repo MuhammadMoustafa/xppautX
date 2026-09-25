@@ -11,12 +11,7 @@
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
 
-int (*rhs)(); 
-int mod_euler(/* double *,double *,double,int,int,int *,double * */);
-int rung_kut(/* double *,double *,double,int,int,int *,double * */);
-int adams(/* double *,double *,double,int,int, int*,double * */);
-int abmpc(/* double *,double *,double,int */);
-double pow(),sqrt();
+int (*rhs)(double t, double *y, double *ydot, int neq);
 
 double coefp[]={ 6.875/3.00,-7.375/3.00,4.625/3.00,-.375},
        coefc[]={ .375,2.375/3.00,-.625/3.00,0.125/3.00 };
@@ -32,9 +27,7 @@ extern double TOLER,ATOLER;
 extern int  cv_bandflag,cv_bandupper,cv_bandlower;
 /* my first symplectic integrator */
 
-int symplect3(y,tim,dt,nt,neq,istart,work)
-double *y,*tim,dt,*work;
-int nt,neq,*istart;
+int symplect3(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  int i;
  if(NFlags==0){ 
@@ -61,9 +54,7 @@ int nt,neq,*istart;
 
 /*   DISCRETE    */
 
-int discrete(y,tim,dt,nt,neq,istart,work)
-double *y,*tim,dt,*work;
-int nt,neq,*istart;
+int discrete(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
 int i;
  if(NFlags==0){ 
@@ -85,9 +76,7 @@ int i;
 
 /* Backward Euler  */
 
-int bak_euler(y,tim,dt,nt,neq,istart,work)
-double *y,*tim,dt,*work;
-int nt,neq,*istart;
+int bak_euler(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  int i,j;
   double *jac,*yg,*yp,*yp2,*ytemp,*errvec;
@@ -118,9 +107,7 @@ int nt,neq,*istart;
     return(0);
 }
 
-int one_bak_step(y,t,dt,neq,yg,yp,yp2,ytemp,errvec,jac,istart)
-     double *y,*t,dt,*yg,*yp,*yp2,*ytemp,*errvec,*jac;
-     int neq,*istart;
+int one_bak_step(double *y, double *t, double dt, int neq, double *yg, double *yp, double *yp2, double *ytemp, double *errvec, double *jac, int *istart)
 {
   int i;
   double err=0.0,err1=0.0;
@@ -172,10 +159,7 @@ int one_bak_step(y,t,dt,neq,yg,yp,yp2,ytemp,errvec,jac,istart)
 }
 	
   
-void one_step_discrete(y,dt,yp,neq,t)
-     double dt,*t;
-     double *y,*yp;
-     int neq;
+void one_step_discrete(double *y, double dt, double *yp, int neq, double *t)
 {
   int j;
    set_wieners(dt,y,*t);
@@ -190,9 +174,7 @@ void one_step_discrete(y,dt,yp,neq,t)
 
 
 
-void one_step_symp(y,h,f,n,t)
-     double h,*t,*y,*f;
-     int n;
+void one_step_symp(double *y, double h, double *f, int n, double *t)
 {
   int s,j;
   for(s=0;s<3;s++){
@@ -210,10 +192,7 @@ void one_step_symp(y,h,f,n,t)
 
 
 
-void one_step_euler(y,dt,yp,neq,t)
-     double dt,*t;
-     double *y,*yp;
-     int neq;
+void one_step_euler(double *y, double dt, double *yp, int neq, double *t)
 {
    
  int j;
@@ -225,9 +204,7 @@ void one_step_euler(y,dt,yp,neq,t)
    for(j=0;j<neq;j++)y[j]=y[j]+dt*yp[j];
 }
 
-void one_step_rk4(y,dt,yval,neq,tim)
-     double dt,*tim,*yval[3],*y;
-     int neq;
+void one_step_rk4(double *y, double dt, double *yval[3], int neq, double *tim)
 {
  int i;
  double t=*tim,t1,t2;
@@ -257,9 +234,7 @@ void one_step_rk4(y,dt,yval,neq,tim)
  *tim=t2;
 }
 
-void one_step_heun(y,dt,yval,neq,tim)
-     double dt,*tim,*yval[2],*y;
-     int neq;
+void one_step_heun(double *y, double dt, double *yval[2], int neq, double *tim)
 {
  int i;
  double t=*tim,t1;
@@ -275,9 +250,7 @@ void one_step_heun(y,dt,yval,neq,tim)
 /*  Euler  */
 
 
-int euler(y,tim,dt,nt,neq,istart,work)
-double *y,*tim,dt,*work;
-int nt,neq,*istart;
+int euler(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
   int i;
   if(NFlags==0){ 
@@ -298,9 +271,7 @@ int nt,neq,*istart;
 
 /* Modified Euler  */
 
-int mod_euler(y,tim,dt,nt,neq,istart,work)
-double *y,*tim,dt,*work;
-int nt,neq,*istart;
+int mod_euler(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  double *yval[2];
  int j;
@@ -325,9 +296,7 @@ int nt,neq,*istart;
 
 /*  Runge Kutta    */
 
-int rung_kut(y,tim,dt,nt,neq,istart,work)
-double *y,*tim,dt,*work;
-int nt,neq, *istart;
+int rung_kut(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  register int j;
  double *yval[3];
@@ -356,10 +325,7 @@ int nt,neq, *istart;
 
 /*   ABM   */
 
-int adams(y,tim,dt,nstep,neq,ist,work)
-double *y,*tim,dt,*work;
-int nstep,neq,*ist;
-
+int adams(double *y, double *tim, double dt, int nstep, int neq, int *ist, double *work)
 {
   int istart=*ist,i,istpst,k,ik,n;
   int irk;
@@ -434,9 +400,7 @@ n1000:
  return(0);
 }
 
-int abmpc(y,t,dt,neq)
-double *t,*y,dt;
-int neq;
+int abmpc(double *y, double *t, double dt, int neq)
 {
  double x1,x0=*t;
  int i,k;
@@ -656,9 +620,7 @@ void get_the_jac(double t,double *y,double *yp,
 
 
 
-void get_band_jac(a,y,t,ypnew,ypold,n,eps,scal)
-     double *a,*y,*ypnew,*ypold,eps,t,scal;
-     int n;
+void get_band_jac(double *a, double *y, double t, double *ypnew, double *ypold, int n, double eps, double scal)
 {
   int ml=cv_bandlower,mr=cv_bandupper;
   int i,j,k,n1=n-1,mt=ml+mr+1;
@@ -685,9 +647,7 @@ void get_band_jac(a,y,t,ypnew,ypold,n,eps,scal)
 }
 
 
-int bandfac(a,ml,mr,n)   /*   factors the matrix    */
-     int ml,mr,n;
-     double *a;
+int bandfac(double *a, int ml, int mr, int n)  /*   factors the matrix    */
 {
   int i,j,k;
   int n1=n-1,mt=ml+mr+1,row,rowi,m,r0,ri0;
@@ -716,9 +676,7 @@ int bandfac(a,ml,mr,n)   /*   factors the matrix    */
 	return(0);
 }
 
-void bandsol(a,b,ml,mr,n)  /* requires that the matrix be factored   */
-     double *a,*b;
-     int ml,mr,n;
+void bandsol(double *a, double *b, int ml, int mr, int n)  /* requires that the matrix be factored   */
 {
   int i,j,k,r0;
   int mt=ml+mr+1;

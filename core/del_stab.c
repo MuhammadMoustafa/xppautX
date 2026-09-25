@@ -1,4 +1,5 @@
 #include "xpp_ui.h"
+#include "odesol2.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include <stdlib.h>
@@ -21,8 +22,6 @@ extern double variable_shift[2][MAXODE],AlphaMax,OmegaMax;
 
 extern double delay_list[MAXDELAY];
 extern int NDelay,del_stab_flag,WhichDelay,DelayGrid;
-extern int (*rhs)();
-double amax();
 
 /*typedef struct{
   double r,i;
@@ -34,10 +33,7 @@ double amax();
    a delay differential equation. 
 */
 
-void do_delay_sing(x,eps,err,big,maxit,n,ierr,stabinfo)
-     double *x,eps,err,big;
-     int *ierr,n,maxit;
-     float *stabinfo;
+void do_delay_sing(double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo)
 {
       double rr[2];
 
@@ -146,8 +142,7 @@ if(i==0&&okroot==1&&AlphaMax>0)
 
 
 
-COMPLEX csum(z,w)
-     COMPLEX z,w;
+COMPLEX csum(COMPLEX z, COMPLEX w)
 {
   COMPLEX sum;
   sum.r=z.r+w.r;
@@ -155,8 +150,7 @@ COMPLEX csum(z,w)
   return sum;
 }
 
-COMPLEX cdif(z,w)
-     COMPLEX z,w;
+COMPLEX cdif(COMPLEX z, COMPLEX w)
 {
    COMPLEX sum;
   sum.r=z.r-w.r;
@@ -164,8 +158,7 @@ COMPLEX cdif(z,w)
   return sum;
  }
 
-COMPLEX cmlt(z,w)
-     COMPLEX z,w;
+COMPLEX cmlt(COMPLEX z, COMPLEX w)
 {
    COMPLEX sum;
   sum.r=z.r*w.r-z.i*w.i;
@@ -173,8 +166,7 @@ COMPLEX cmlt(z,w)
   return sum;
 }
 
-COMPLEX cdivv(z,w)
-     COMPLEX z,w;
+COMPLEX cdivv(COMPLEX z, COMPLEX w)
 {
   COMPLEX sum;
   double amp=w.r*w.r+w.i*w.i;
@@ -183,8 +175,7 @@ COMPLEX cdivv(z,w)
   return sum;
 }
 
-COMPLEX cexp2(z)
-     COMPLEX z;
+COMPLEX cexp2(COMPLEX z)
 {
   COMPLEX sum;
   double ex=exp(z.r);
@@ -193,9 +184,7 @@ COMPLEX cexp2(z)
   return sum;
 }
 
-void switch_rows(z,i1,i2,n)
-     COMPLEX *z;
-     int i1,i2,n;
+void switch_rows(COMPLEX *z, int i1, int i2, int n)
 {
   COMPLEX zt;
   int j;
@@ -206,8 +195,7 @@ void switch_rows(z,i1,i2,n)
   }
 }
 
-COMPLEX rtoc(x,y)
-     double x,y;
+COMPLEX rtoc(double x, double y)
 {
   COMPLEX sum;
   sum.i=y;
@@ -215,21 +203,17 @@ COMPLEX rtoc(x,y)
   return sum;
 }
 
-void cprintn(z)
-     COMPLEX z;
+void cprintn(COMPLEX z)
 {
   plintf(" %g + i %g \n",z.r,z.i);
 }
 
-void cprint(z)
-     COMPLEX z;
+void cprint(COMPLEX z)
 {
 xpp_log(XPP_LOG_INFO, "(%g,%g) ",z.r,z.i);
 }
 
-void cprintarr(z,n,m)
-     COMPLEX *z;
-     int n,m;
+void cprintarr(COMPLEX *z, int n, int m)
 {
   int i,j;
   for(i=0;i<m;i++){
@@ -239,15 +223,12 @@ void cprintarr(z,n,m)
   }
 }
 
-double c_abs(z)
-     COMPLEX z;
+double c_abs(COMPLEX z)
 {
  return(sqrt(z.i*z.i+z.r*z.r));
 }
 
-COMPLEX cdeterm(z,n)
-     COMPLEX *z;
-     int n;
+COMPLEX cdeterm(COMPLEX *z, int n)
 {
   int i,j,imax=0,k;
   double q,qmax;
@@ -277,9 +258,7 @@ COMPLEX cdeterm(z,n)
     sum=cmlt(sum,Z(j,j));
   return sum;
 }
-COMPLEX cxdeterm(z,n)
-     COMPLEX *z;
-     int n;
+COMPLEX cxdeterm(COMPLEX *z, int n)
 {
   int i,j,k;
   COMPLEX ajj,sum,mult;
@@ -300,11 +279,7 @@ COMPLEX cxdeterm(z,n)
   return sum;
 }
 	 
-void make_z(z,delay,n,m,coef,lambda)
-     COMPLEX lambda;
-     COMPLEX *z;
-     double *coef,*delay;
-     int n,m;
+void make_z(COMPLEX *z, double *delay, int n, int m, double *coef, COMPLEX lambda)
 {
   int i,j,k,km;
   COMPLEX temp,eld;
@@ -327,11 +302,7 @@ void make_z(z,delay,n,m,coef,lambda)
   }
 }
 
-int find_positive_root(coef,delay,n,m,rad,err,eps,big,maxit,rr)
-     double *coef,*delay,*rr;
-     int n,m,maxit;
-     double rad;
-     double eps,err,big;
+int find_positive_root(double *coef, double *delay, int n, int m, double rad, double err, double eps, double big, int maxit, double *rr)
 {
   COMPLEX lambda,lambdap;
   COMPLEX det,*z,detp;
@@ -412,16 +383,11 @@ int find_positive_root(coef,delay,n,m,rad,err,eps,big,maxit,rr)
   plintf("Max iterates exceeded \n");
   return -1;
 }
-void process_root(real,im)
-     double real,im;
+void process_root(double real, double im)
 {
   plintf("Root: %g + I %g \n",real,im); 
 }
-double get_arg(delay,coef,m,n,lambda)  
-     COMPLEX lambda;
-     double *coef;
-     double *delay;
-     int m,n;
+double get_arg(double *delay, double *coef, int m, int n, COMPLEX lambda)
 {
   int i,j,k,km;
   COMPLEX *z;
@@ -457,8 +423,7 @@ double get_arg(delay,coef,m,n,lambda)
   return(arg);
 }   
 
-int test_sign(old,new)
-     double old,new;
+int test_sign(double old, double new)
 {
   if(old>0.0&&new<0.0){
     if(old>2.9&&new<-2.9)return 1;
@@ -489,10 +454,7 @@ int test_sign(old,new)
      principle
 */  
 
-int plot_args(coef,delay,n,m,npts,almax,wmax)
-     double *coef;
-     int n,m,npts;
-     double almax,wmax,*delay;
+int plot_args(double *coef, double *delay, int n, int m, int npts, double almax, double wmax)
 {
   int i;
   int sign=0;

@@ -25,7 +25,6 @@
 
 extern int ConvertStyle;
 extern FILE *convertf;
-double get_ivar();
 #define IA 16807
 #define IM 2147483647
 #define AM (1.0/IM)
@@ -39,10 +38,6 @@ double get_ivar();
 
 long int myrandomseed=-1;
 double ndrand48();
-double ran1();
-double evaluate();
-double new_state();
-double atof();
 
 
 
@@ -79,21 +74,17 @@ int stoch_len;
 int STOCH_FLAG,STOCH_HERE,N_TRIALS;
 int Wiener[MAXPAR];
 int NWiener;
-double normal();
 extern double constants[];
 
 
 
-void add_wiener(index)
-     int index;
+void add_wiener(int index)
 {
   Wiener[NWiener]=index;
   NWiener++;
 }
 
-void set_wieners(dt,x,t)
-     double dt;
-     double *x,t;
+void set_wieners(double dt, double *x, double t)
 {
   int i;
   update_markov(x,t,fabs(dt));
@@ -102,9 +93,7 @@ void set_wieners(dt,x,t)
 }
 
 
-void add_markov(nstate,name)
-     int nstate;
-     char *name;
+void add_markov(int nstate, char *name)
 {
   double st[50];
   int i;
@@ -113,10 +102,7 @@ void add_markov(nstate,name)
 }
 
 
-int build_markov(ma,name)
-  /*   FILE *fptr; */
-     char **ma;
-     char *name;
+int build_markov(char **ma, char *name)  /*   FILE *fptr; */
 {
  /*int nn;
  */
@@ -169,10 +155,7 @@ int build_markov(ma,name)
 }
   
 
-int old_build_markov(fptr,name)
-     FILE *fptr; 
-
-     char *name;
+int old_build_markov(FILE *fptr, char *name)
 {
  /*int nn;*/
  int len=0,ll;
@@ -225,9 +208,7 @@ int old_build_markov(fptr,name)
  return index;
 }
   
-void extract_expr(source,dest,i0)
-     char *source,*dest;
-     int *i0;
+void extract_expr(char *source, char *dest, int *i0)
 {
  char ch;
  int len=0;
@@ -254,10 +235,7 @@ void extract_expr(source,dest,i0)
 
 
 
-void create_markov(nstates,st,type,name)
-     int nstates,type;
-     double *st;
-     char *name;
+void create_markov(int nstates, double *st, int type, char *name)
 {
   int i;
   int n2=nstates*nstates;
@@ -285,9 +263,7 @@ void create_markov(nstates,st,type,name)
   
 }
 
-void add_markov_entry(index,j,k,expr)
-     int index,j,k;
-     char *expr;
+void add_markov_entry(int index, int j, int k, char *expr)
 {
   
   int l0=markov[index].nstates*j+k;
@@ -337,8 +313,7 @@ void compile_all_markov()
   }
 }
 
-int compile_markov(index,j,k)
-     int index,j,k;
+int compile_markov(int index, int j, int k)
 {
   char *expr;
   int l0=markov[index].nstates*j+k,leng;
@@ -358,8 +333,7 @@ int compile_markov(index,j,k)
 }
 
 
-void update_markov(x,t,dt)
-     double *x,t,dt;
+void update_markov(double *x, double t, double dt)
 {
   int i;
   double yp[MAXODE];
@@ -380,9 +354,7 @@ void update_markov(x,t,dt)
   
   
 
-double new_state(old,index,dt)
-     double old,dt;
-     int index;
+double new_state(double old, int index, double dt)
 {
   double prob,sum;
   double coin=ndrand48();
@@ -615,8 +587,7 @@ void free_stoch()
 }
   
 
-void init_stoch(len)
-     int len;
+void init_stoch(int len)
 {
   int i,j;
   N_TRIALS=0;
@@ -638,8 +609,7 @@ void init_stoch(len)
     
 
 
-void append_stoch(first,length)
-     int first,length;
+void append_stoch(int first, int length)
 {
   int i,j;
   float z;
@@ -655,8 +625,7 @@ void append_stoch(first,length)
   N_TRIALS++;
 }
 
-void do_stats(ierr)
-     int ierr;
+void do_stats(int ierr)
 {
   int i,j;
   float ninv,mean;
@@ -738,8 +707,7 @@ void nsrand48(int seed)
 }
 
 
-double ran1(idum)
-long *idum;
+double ran1(long *idum)
 {
 	int j;
 	long k;

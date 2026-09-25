@@ -82,19 +82,14 @@ struct {
 
 extern char upar_names[MAXPAR][XPP_NAME_MAX+1];
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
-double atof();
 
-double evaluate();
 
 
 
 
 /*   more general mixed boundary types   */
 
-void do_bc(y__0,t0,y__1,t1,f,n)
- double *y__0,*y__1,*f;
- double t0,t1;
- int n;
+void do_bc(double *y__0, double t0, double *y__1, double t1, double *f, int n)
 {
  int n0=PrimeStart;
  int i;
@@ -165,8 +160,7 @@ reset_bvp()
  
 */
 
-void init_shoot_range(s)
-char *s;
+void init_shoot_range(char *s)
 {
  snprintf(shoot_range.item,sizeof(shoot_range.item),"%s",s);
  shoot_range.phigh=1.0;
@@ -177,9 +171,7 @@ char *s;
  shoot_range.movie=0;
 }
   
-void dump_shoot_range(fp,f)
-     FILE *fp;
-     int f;
+void dump_shoot_range(FILE *fp, int f)
 {
   io_string(shoot_range.item,sizeof(shoot_range.item),fp,f);
   io_int(&shoot_range.side,fp,f,"BVP side");
@@ -190,8 +182,7 @@ void dump_shoot_range(fp,f)
 
 }
 
-void bad_shoot(iret)
-int iret;
+void bad_shoot(int iret)
 {
  switch(iret){
  case NOCHANGE:
@@ -212,8 +203,7 @@ int iret;
  }
 }
 
-void do_sh_range(ystart,yend)
-double *ystart,*yend;
+void do_sh_range(double *ystart, double *yend)
 {
  double parlo,parhi,dpar,temp;
  int npar,i,j,ierr;
@@ -273,9 +263,7 @@ double *ystart,*yend;
 
 
 
-int set_up_periodic(ipar,ivar,sect,ishow)
-int *ipar,*ivar,*ishow;
-double *sect;
+int set_up_periodic(int *ipar, int *ivar, double *sect, int *ishow)
 {
  static char *n[]={"Freq. Par.","*1Sect. Var","Section","Show(Y/N)"};
  char values[4][MAX_LEN_SBOX];
@@ -458,9 +446,7 @@ static char *n[]={"*2Range over","Steps","Start","End",
 
 
 
-void bvshoot(y,yend,err,eps,maxit,iret,n,ishow,iper,ipar,ivar,sect)
- double *y,*yend,err,eps,sect;
- int *iret,maxit,n,ishow,iper,ipar,ivar;
+void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *iret, int n, int ishow, int iper, int ipar, int ivar, double sect)
 {
  double *jac,*f,*fdev,*y0,*y1;
  double dev,error,ytemp;

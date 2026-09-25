@@ -177,13 +177,11 @@ int SuppressBounds=0;
 extern int NUPAR;
 
 extern char *info_message,*ic_hint[],*sing_hint[];
-double atof();
 extern int NMarkov,STOCH_FLAG;
 extern int SCALEY,PltFmtFlag,PointRadius;
 int DelayErr;
 
 float **get_browser_data();
-double get_ivar();
 double  MyData[MAXODE],MyTime;
 int MyStart;
 extern int DelayFlag,NKernel;
@@ -198,7 +196,6 @@ double LastTime;
 extern double DELAY;
 extern int R_COL;
 extern int colorline[11];
-extern int (*rhs)();
 int STOP_FLAG=0;
 int PSLineStyle;
  struct {
@@ -226,10 +223,9 @@ extern int Nintern_set;
 
 void redraw_dfield();
 void create_new_cline();
-void data_get_mybrowser();
 void save_batch_shoot();
 
-int (*solver)();
+int (*solver)(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work);
 
 void init_ar_ic()
 {
@@ -243,9 +239,7 @@ void init_ar_ic()
   }
 }
     
-void dump_range(fp,f)
-     FILE *fp;
-     int f;
+void dump_range(FILE *fp, int f)
 {
   char bob[256];
   if(f==READEM){
@@ -696,8 +690,7 @@ void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
 	
 
 
-void do_eq_range(x)
-double *x;
+void do_eq_range(double *x)
 {
  double parlo,parhi,dpar,temp;
  int npar,stabcol,i,j,ierr;
@@ -769,15 +762,13 @@ double *x;
 }
 		                    
 
-void swap_color(col,rorw)
-int *col,rorw;
+void swap_color(int *col, int rorw)
 {
  if(rorw)plot_windows.current->color[0]=*col;
  else *col=plot_windows.current->color[0];
 }
 
-void set_cycle(flag,icol)
-int flag,*icol;
+void set_cycle(int flag, int *icol)
 {
  if(flag==0)return;
  plot_windows.current->color[0]=*icol+1;
@@ -794,9 +785,7 @@ int do_auto_range_go()
   return(do_range(x,2));
 }
 
-int do_range(x,flag)
-double *x;
-int flag; /* 0 for 1-param 1 for 2 parameter 2 for Auto range */
+int do_range(double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto range */
 {
 
   char bob[256],parn[256];
@@ -1231,9 +1220,7 @@ void batch_integrate_once()
   */
 }
 
-int write_this_run(file,i)
-     char *file;
-     int i;
+int write_this_run(char *file, int i)
 {
   /*char outfile[256];*/
   char outfile[XPP_MAX_NAME];
@@ -1495,8 +1482,7 @@ void do_start_flags(double *x,double *t)
 
 
 }
-void usual_integrate_stuff(x)
-     double *x;
+void usual_integrate_stuff(double *x)
 {
   int i;
 
@@ -1526,9 +1512,7 @@ void usual_integrate_stuff(x)
     u[5..20]=f([j]) 
 */
 
-void do_new_array_ic(new,j1,j2)
-     char *new;
-     int j1,j2;
+void do_new_array_ic(char *new, int j1, int j2)
 {
   int i;
   int ihot=-1;
@@ -1563,9 +1547,7 @@ void do_new_array_ic(new,j1,j2)
 
 }
 
-void store_new_array_ic(new,j1,j2,formula)
-     char *new,*formula;
-     int j1,j2;
+void store_new_array_ic(char *new, int j1, int j2, char *formula)
 {
   int i;
   int ihot=-1;
@@ -1595,9 +1577,7 @@ void store_new_array_ic(new,j1,j2,formula)
   XPP_STRCPY(ar_ic[ihot].formula,formula);
 }
 
-void evaluate_ar_ic(v,f,j1,j2)
-     char *v,*f;
-     int j1,j2;
+void evaluate_ar_ic(char *v, char *f, int j1, int j2)
 {
   int j;
   int i,flag;
@@ -1745,9 +1725,7 @@ int form_ic()
 }
 
 
-void get_ic(it,x)
-int it;
-double *x;
+void get_ic(int it, double *x)
 {
   int i;
   switch(it){
@@ -1762,9 +1740,7 @@ double *x;
 }
 
 
-int ode_int(y,t,istart,ishow)
-double *y,*t;
-int *istart,ishow;
+int ode_int(double *y, double *t, int *istart, int ishow)
 {
  double error[MAXODE];
 
@@ -1885,9 +1861,7 @@ int *istart,ishow;
 
 
 
-int integrate(t,x,tend,dt, count, nout,start)
-double *t, *x, tend,dt;
-int count,nout, *start;
+int integrate(double *t, double *x, double tend, double dt, int count, int nout, int *start)
 {
 
  float xv[MAXODE+1],xvold[MAXODE+1];
@@ -2455,8 +2429,7 @@ void send_output(double *y,double t)
   }
 }
 
-  void  do_plot(oldxpl,oldypl, oldzpl,xpl,  ypl, zpl)
-   float *oldxpl, *oldypl, *oldzpl,*xpl,  *ypl,*zpl;
+  void  do_plot(float *oldxpl, float *oldypl, float *oldzpl, float *xpl, float *ypl, float *zpl)
 {
 	int ip,np=plot_windows.current->nvars;
         
@@ -2492,8 +2465,7 @@ void send_output(double *y,double t)
 
 */
 
-void export_data(fp)
-FILE *fp;
+void export_data(FILE *fp)
 {
 
 int ip,np=plot_windows.current->nvars;
@@ -2591,8 +2563,7 @@ void plot_one_graph(float *xv,float *xvold,int node,int neq,double ddt,int *tc)
  do_plot(oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
  phase_data_flow_step(NPlots,oldxpl,oldypl,xpl,ypl,plot_windows.current->color); /* Dir.field/flow's Flow as data */
 }
-void restore(i1,i2)
-     int i1,i2;
+void restore(int i1, int i2)
 {
   int ip,np=plot_windows.current->nvars;
   int ZSHFT,YSHFT,XSHFT;
@@ -2681,10 +2652,7 @@ void restore(i1,i2)
 
 
 /*  Sets the color according to the velocity or z-value */
-void comp_color( v1,v2,n, dt)
- float *v1, *v2;
-int n;
-float dt;
+void comp_color(float *v1, float *v2, int n, float dt)
 {
  int i,cur_color;
  float sum;
@@ -2710,8 +2678,7 @@ float dt;
  else if(PltFmtFlag==SVGFMT){svg_do_color(cur_color);}
 }
 
-void shoot_easy(x)
-     double *x;
+void shoot_easy(double *x)
 {
   double t=0.0;
   int i;
@@ -2721,9 +2688,7 @@ void shoot_easy(x)
   SuppressBounds=0;
 }
 
-void shoot(x,xg,evec,sgn)
-double *x,*xg,*evec;
-int sgn;
+void shoot(double *x, double *xg, double *evec, int sgn)
 {
  int i;
  double t=0.0;

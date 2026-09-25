@@ -178,9 +178,7 @@ VOCAB my_cmd[NCMD]=
  };
 
 
-int is_set_name(set,nam)
-SET_NAME *set;
-char * nam;
+int is_set_name(SET_NAME *set, char *nam)
 {
 	if (set==NULL){return(0);}
 	SET_NAME *curr;
@@ -199,9 +197,7 @@ char * nam;
 	return(0);
 }
 
-SET_NAME * add_set(set,nam)
-SET_NAME *set;
-char * nam;
+SET_NAME * add_set(SET_NAME *set, char *nam)
 {
 	if (!is_set_name(set,nam))
 	{
@@ -215,9 +211,7 @@ char * nam;
 	return(set);
 }
 
-SET_NAME * rm_set(set,nam)
-SET_NAME *set;
-char *nam;
+SET_NAME * rm_set(SET_NAME *set, char *nam)
 {
 	SET_NAME *curr;
 	SET_NAME *prev=NULL;	
@@ -249,9 +243,7 @@ char *nam;
 }
 
 
-void do_comline(argc,argv)
-char **argv;
-int argc;
+void do_comline(int argc, char **argv)
 { 
  int i,k;
 
@@ -542,8 +534,7 @@ int if_needed_load_ic()
   return(1);
 }
 
-int parse_it(com)
-     char *com;
+int parse_it(char *com)
 {
   int j;
   for(j=0;j<NCMD;j++)

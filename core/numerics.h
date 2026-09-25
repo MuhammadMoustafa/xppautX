@@ -23,7 +23,7 @@ extern int XSHFT,YSHFT,ZSHFT;
 void chk_volterra(void);
 void check_pos(int *j);
 void quick_num(int com);
-void get_num_par(int ch);
+void get_num_par(char ch);
 void chk_delay(void);
 void set_delay(void);
 void ruelle(void);

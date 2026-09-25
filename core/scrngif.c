@@ -24,7 +24,6 @@
 
  unsigned char *AddCodeToBuffer(int, short, unsigned char *);
  void ClearTree(int, GifTree *);
- int GifEncode();
  unsigned int debugFlag;
  int UseGlobalMap=0; 
  int GifFrameDelay=5,GifFrameLoop=1000;

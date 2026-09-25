@@ -18,11 +18,8 @@
 
 
 
-double evaluate();
 double ndrand48();
 
-void mycor(),mycor2();
-float *get_data_col();
 extern int MAXSTOR;
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 typedef struct {
@@ -133,8 +130,7 @@ void hist_back()
  }
 }
 
-void new_four(nmodes,col)
-     int nmodes,col;
+void new_four(int nmodes, int col)
 {
   int i;
   int length=nmodes+1;
@@ -287,12 +283,7 @@ if(hist_inf.nbins2<2){
   return(twod_hist());
 }
   
-void new_hist(nbins,zlo,zhi,col,col2,condition,which)
-     int nbins;
-     int col,col2,which;
-     double zlo,zhi;
-     char *condition;
-     
+void new_hist(int nbins, double zlo, double zhi, int col, int col2, char *condition, int which)
 {
   int i,j,index;
   int command[256];
@@ -423,9 +414,7 @@ void column_mean()
  err_msg(bob);
 }
 
-int get_col_info(col,prompt)
- int *col;
- char *prompt;
+int get_col_info(int *col, char *prompt)
 {
  char variable[256]; /* new_string edits up to 255 characters */
  if(*col==0)
@@ -879,9 +868,7 @@ void compute_hist()
   
   
 
-void sft(data,ct,st,nmodes,grid)
-int grid,nmodes;
-float *data,*ct,*st;
+void sft(float *data, float *ct, float *st, int nmodes, int grid)
 {
  int i,j;
  double sums,sumc;
@@ -968,9 +955,7 @@ void fftxcorr(float *data1,float *data2,int length,int nlag,float *cr,int flag)
 
 
 
-void fft(data,ct,st,nmodes,length)
-     float *data,*ct,*st;
-     int nmodes,length;
+void fft(float *data, float *ct, float *st, int nmodes, int length)
 {
   double *im,*re;
   int dim[2],i;

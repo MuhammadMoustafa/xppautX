@@ -29,7 +29,6 @@
 #include "xpp_io.h"
 #include "many_pops.h"
 
-double atof();
 NCLINE nclines[MAXNCLINE];
 extern int storind;
 extern int PS_FONTSIZE;
@@ -118,8 +117,7 @@ void check_flags()
 }
   
 
-void get_2d_view(ind)
-int ind;
+void get_2d_view(int ind)
 {
  static char *n[]={"*0X-axis","*0Y-axis","Xmin", "Ymin",
 		   "Xmax", "Ymax", "Xlabel","Ylabel"};
@@ -200,8 +198,7 @@ void axes_opts()
 }
 
 
-void get_3d_view(ind)
-int ind;
+void get_3d_view(int ind)
 {
  static char *n[]={"*0X-axis","*0Y-axis", "*0Z-axis",
 		   "Xmin", "Xmax", "Ymin",
@@ -275,15 +272,13 @@ int ind;
 	      
 
 
-void pretty(x1,x2)   /* this was always pretty ugly */
- double *x1,*x2;
+void pretty(double *x1, double *x2)  /* this was always pretty ugly */
 {
 /* if(fabs(*x1-*x2)<1.e-12)
  *x2=*x1+max(.1*fabs(*x2),1.0); */
 }
 
-void corner_cube(xlo,xhi,ylo,yhi)
- double *xlo,*ylo,*xhi,*yhi;
+void corner_cube(double *xlo, double *xhi, double *ylo, double *yhi)
 {
  float x,y;
  float x1,x2,y1,y2;
@@ -517,9 +512,7 @@ void xi_vs_t() /*  a short cut   */
 
 
 
-void movie_rot(start,increment,nclip,angle)
-     int nclip,angle;
-     double start,increment;
+void movie_rot(double start, double increment, int nclip, int angle)
 {
   int i;
   double thetaold=plot_windows.current->Theta,phiold=plot_windows.current->Phi;
@@ -704,8 +697,7 @@ void window_zoom_com(int c)
 
 
 
-void zoom_in(i1,j1,i2,j2)
-int i1,j1,i2,j2;
+void zoom_in(int i1, int j1, int i2, int j2)
 {
  float x1,y1,x2,y2;
  float dx=plot_windows.current->xhi-plot_windows.current->xlo;
@@ -747,8 +739,7 @@ int i1,j1,i2,j2;
 	      draw_help(); 
 }
 
-void zoom_out(i1,j1,i2,j2)
-int i1,j1,i2,j2;
+void zoom_out(int i1, int j1, int i2, int j2)
 {
  
  float x1,y1,x2,y2;
@@ -811,8 +802,7 @@ int i1,j1,i2,j2;
 
 
 
-void graph_all(list,n,type)
-     int *list,n,type;
+void graph_all(int *list, int n, int type)
 {
   int i;
   if(type==0){
@@ -844,8 +834,7 @@ void graph_all(list,n,type)
 }
 
 
-int find_color(in)
-int in;
+int find_color(int in)
 {
  int i;
  for(i=0;i<=10;i++)
@@ -853,9 +842,7 @@ int in;
  return(0);
 }
 
-int alter_curve(title,in_it,n)
-char *title;
-int in_it,n;
+int alter_curve(char *title, int in_it, int n)
 {
  static char *nn[]={"*0X-axis","*0Y-axis","*0Z-axis","*4Color","Line type"};
  char values[5][MAX_LEN_SBOX];
@@ -1040,8 +1027,7 @@ void freeze_com(int c)
  }
 }
 
-void set_key(x,y)
-     int x,y;
+void set_key(int x, int y)
 {
   float xp,yp;
   scale_to_real(x,y,&xp,&yp);
@@ -1098,8 +1084,7 @@ void edit_frz()
 }
 
 
-void delete_frz_crv(i)
-     int i;
+void delete_frz_crv(int i)
 {
   if(frozen_curves.curve[i].use==0)return;
   frozen_curves.curve[i].use=0;
@@ -1129,8 +1114,7 @@ void kill_frz()
   }
 }
 
-int freeze_crv(ind)
-     int ind;
+int freeze_crv(int ind)
 {
  int i;
  i=create_crv(ind);
@@ -1145,8 +1129,7 @@ void auto_freeze_it()
   create_crv(0);
 }
 
-int create_crv(ind)
-int ind;
+int create_crv(int ind)
 {
   int i,type,j;
   int ix,iy,iz;
@@ -1189,8 +1172,7 @@ int ind;
 }	
 	
 
-void edit_frz_crv(i)
-     int i;
+void edit_frz_crv(int i)
 {
  static char *nn[]={"*4Color","Key","Name"};
  char values[3][MAX_LEN_SBOX];
@@ -1207,16 +1189,13 @@ void edit_frz_crv(i)
  }
 }
 
-void draw_frozen_cline(index,w)
-     int index;
-     XppWinId w;
+void draw_frozen_cline(int index, XppWinId w)
 {
   if(nclines[index].use==0||nclines[index].w!=w)
     return;
 }
 
-void draw_freeze(w)
-XppWinId w;
+void draw_freeze(XppWinId w)
 {
   int i,j,type=plot_windows.current->grtype,lt=0;
   float oldxpl,oldypl,oldzpl=0.0,xpl,ypl,zpl=0.0;
@@ -1274,8 +1253,7 @@ void init_bd()
  my_bd.nbifcrv=0;
 }
 
-void draw_bd(w)
-     XppWinId w;
+void draw_bd(XppWinId w)
 {
  int i,j,len;
  float oldxpl,oldypl,xpl,ypl,*x,*y;
@@ -1311,9 +1289,7 @@ void free_bd()
 }
 
 
-void add_bd_crv(x,y,len,type,ncrv)
-     float *x,*y;
-     int len,ncrv,type;
+void add_bd_crv(float *x, float *y, int len, int type, int ncrv)
 {
   int i;
   if(ncrv>=MAXBIFCRV)return;
@@ -1346,8 +1322,7 @@ void frz_bd()
   }
   read_bd(fp);
 }
-void read_bd(fp)
-     FILE *fp;
+void read_bd(FILE *fp)
 {
   int oldtype,type,oldbr,br,ncrv=0,len,f2;
   float x[8000],ylo[8000],yhi[8000];
@@ -1395,8 +1370,7 @@ void read_bd(fp)
  my_bd.w=plot_windows.draw_win;
 } 
 
-int get_frz_index(w)
-     XppWinId w;
+int get_frz_index(XppWinId w)
 {
   char *n[MAXFRZ];
   char key[MAXFRZ],ch;
