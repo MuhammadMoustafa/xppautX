@@ -13,6 +13,8 @@ void check_inout(void);
 int get_export_count(char *s);
 void do_export_list(void);
 void parse_inout(char *l, int flag);
+/* a network's import(soname,sofun,...) (simplenet.c): the library function's values into ydot */
+void get_import_values(int n, double *ydot, char *soname, char *sofun, int ivar, double **wgt, double *var, double *con);
 
 #ifdef __cplusplus
 }

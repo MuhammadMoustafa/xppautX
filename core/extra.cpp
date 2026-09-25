@@ -2,15 +2,13 @@
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
-
 #include "init_conds.h"
 #include "ggets.h"
 #include "read_dir.h"
 #include "parserslow.h"
-#include <stdlib.h> 
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 /* this is a way to communicate XPP with other stuff
-
 # complex right-hand sides
 # let xpp know about the names
 xp=0
@@ -19,56 +17,71 @@ x'=xp
 y'=yp
 # tell xpp input info and output info
 export {x,y} {xp,yp}
- 
 */
-
-
-
-
-
-#include <math.h>
-#include <stdio.h>
 #define PAR 0
 #define VAR 1
+#define MAXW 50
+
+extern "C" {
+/* set by load_eqn.c from the file's dll_lib= and dll_fun= */
 char dll_lib[256];
 char dll_fun[256];
 int dll_flag=0;
-
-typedef struct
-{
-  char *lin,*lout;
-  int *in,*intype;
-  int *out,*outtype;
-  int nin,nout;
-  double *vin,*vout;
-} IN_OUT;
-
-
-IN_OUT in_out;
-
 extern double variables[], constants[];
-
 extern char cur_dir[];
+}
 
-typedef struct {
+namespace {
+
+struct InOut {
+  char *lin = nullptr, *lout = nullptr;
+  int *in = nullptr, *intype = nullptr;
+  int *out = nullptr, *outtype = nullptr;
+  int nin = 0, nout = 0;
+  double *vin = nullptr, *vout = nullptr;
+};
+InOut in_out;
+
+struct DlFun {
   char libname[1024];
   char libfile[256];
   char fun[256];
   int loaded;
-} DLFUN;
+};
+DlFun dlf;
 
-DLFUN dlf;
-#ifdef HAVEDLL 
-/* this loads a dynamically linked library of the 
+}  // namespace
+
+#ifdef HAVEDLL
+/* this loads a dynamically linked library of the
    users choice
 */
-
 #include "xpp_dlfcn.h"
 
-void *dlhandle;
-double (*fun)();
+namespace {
+
+/* export's function (dll_fun=): the exported inputs in, the outputs out */
+using ExportFun = void (*)(double *in, double *out, int nin, int nout, double *v, double *c);
+/* a network's import(...) function (simplenet.c) */
+using ImportFun = void (*)(int n, int ivar, double *con, double *var, double **wgt, double *ydot);
+void *dlhandle = nullptr;
+ExportFun export_fun = nullptr;
+void *import_handle = nullptr;
+ImportFun import_fun = nullptr;
 int dll_loaded=0;
-void auto_load_dll()
+
+/* dlsym's object pointer as a function pointer, without the cast C++ only conditionally allows */
+template <typename F> F symbol(void *handle, const char *name)
+{
+  void *sym=dlsym(handle,name);
+  F f;
+  std::memcpy(&f,&sym,sizeof f);
+  return f;
+}
+
+}  // namespace
+
+void auto_load_dll(void)
 {
   if(dll_flag==3){
     get_directory(cur_dir);
@@ -79,29 +92,27 @@ void auto_load_dll()
     dlf.loaded=0;
   }
 }
- 
-void load_new_dll()
+
+void load_new_dll(void)
 {
   int status;
-  if(dlf.loaded!=0&&dlhandle!=NULL)
+  if(dlf.loaded!=0&&dlhandle!=nullptr)
     dlclose(dlhandle);
-  status=file_selector("Library:",dlf.libfile,"*.so");
+  status=file_selector((char *)"Library:",dlf.libfile,(char *)"*.so");
   if(status==0)return;
   XPP_SPRINTF(dlf.libname,"%s/%s",cur_dir,dlf.libfile);
-  new_string("Function name:",dlf.fun);
+  new_string((char *)"Function name:",dlf.fun);
   dlf.loaded=0;
 }
 
-#define MAXW 50
-
 void get_import_values(int n, double *ydot, char *soname, char *sofun,
-		       int ivar, double *wgt[MAXW],
+		       int ivar, double **wgt,
 		       double *var, double *con)
 {
   char sofullname[256];
-  char *error;
+  const char *error;
   if(dll_loaded==1){
-    fun(n,ivar,con,var,wgt,ydot);
+    import_fun(n,ivar,con,var,wgt,ydot);
     return;
   }
   if(dll_loaded==-1)
@@ -109,89 +120,72 @@ void get_import_values(int n, double *ydot, char *soname, char *sofun,
   xpp_log(XPP_LOG_INFO, "soname = %s  sofun = %s \n",soname,sofun);
   get_directory(cur_dir);
   XPP_SPRINTF(sofullname,"%s/%s",cur_dir,soname);
-  dlhandle=dlopen (sofullname, RTLD_LAZY);
-  if(!dlhandle){
+  import_handle=dlopen(sofullname, RTLD_LAZY);
+  if(!import_handle){
     plintf(" Cant find the library %s\n",soname);
-      dll_loaded=-1;
-      return;
-    }
+    dll_loaded=-1;
+    return;
+  }
   dlerror();
-  *(void **) (&fun)=dlsym(dlhandle,sofun);
+  import_fun=symbol<ImportFun>(import_handle,sofun);
   error=dlerror();
-  if(error!= NULL){
+  if(error!=nullptr){
     plintf("Problem with function.. %s\n",sofun);
-       dlf.loaded=-1;
-       return;
-     }
-     dll_loaded=1;
-     fun(n,ivar,con,var,wgt,ydot);
-
+    dll_loaded=-1;
+    return;
+  }
+  dll_loaded=1;
+  import_fun(n,ivar,con,var,wgt,ydot);
 }
+
+/* 1 when the library's function ran (and wrote `out`), 0 when there is none */
 int my_fun(double *in, double *out, int nin,int nout,double *v,double *c)
 {
-  char *error;
+  const char *error;
   if(dlf.loaded==-1)return(0);
   if(dlf.loaded==0){
-    dlhandle=dlopen (dlf.libname, RTLD_LAZY);  
+    dlhandle=dlopen(dlf.libname, RTLD_LAZY);
     if(!dlhandle){
       plintf(" Cant find the library \n");
       dlf.loaded=-1;
       return 0;
-    }  
-       /*From the man pages:
-       ...the correct way to test
-       for  an  error  is  to call dlerror() to clear any old error conditions, then
-       call dlsym(), and then call dlerror() again, saving its return value  into  a
-       variable, and check whether this saved value is not NULL.
-       */
-     dlerror();
-     /*fun=dlsym(dlhandle,dlf.fun);*/
-     /*Following is the new C99 standard way to do this.  
-     See the Example in the dlsym man page
-     for detailed explanation...*/
-     *(void **) (&fun)=dlsym(dlhandle,dlf.fun);
-     error=dlerror();
-     if(error!= NULL){
-       plintf("Problem with function..\n");
-       dlf.loaded=-1;
-       return 0;
-     }
-     dlf.loaded=1;
-    
+    }
+    /* dlerror() clears any old error, dlsym(), then dlerror() again says
+       whether dlsym failed (a symbol may be NULL) */
+    dlerror();
+    export_fun=symbol<ExportFun>(dlhandle,dlf.fun);
+    error=dlerror();
+    if(error!=nullptr){
+      plintf("Problem with function..\n");
+      dlf.loaded=-1;
+      return 0;
+    }
+    dlf.loaded=1;
   }  /* Ok we have a nice function */
-  fun(in,out,nin,nout,v,c);
+  export_fun(in,out,nin,nout,v,c);
   return(1);
-}  
+}
 #else
 
-void get_import_values(int n, double *ydot, char *soname, char *sofun,
-		       int ivar, double *wgt[MAXW],
-		       double *var, double *con)
+void get_import_values(int, double *, char *, char *, int, double **, double *, double *)
 {
-
-}
-load_new_dll()
-{
-
-}
-my_fun(double *in, double *out, int nin,int nout,double *v,double *c)
-{
-
-
-
 }
 
-auto_load_dll()
+void load_new_dll(void)
 {
+}
 
+int my_fun(double *, double *, int, int, double *, double *)
+{
+  return 0;
+}
+
+void auto_load_dll(void)
+{
 }
 #endif
 
-
-
-
-
-void do_in_out()
+void do_in_out(void)
 {
   int i;
   if(in_out.nin==0||in_out.nout==0)return;
@@ -201,14 +195,17 @@ void do_in_out()
     else
       in_out.vin[i]=variables[in_out.in[i]];
   }
-  my_fun(in_out.vin,in_out.vout,in_out.nin,in_out.nout,variables,constants); 
+  /* no library (none named, or it did not load): the outputs keep their own
+     values; they took whatever the never-written buffer held before, which
+     differed between runs on Windows (W20) */
+  if(!my_fun(in_out.vin,in_out.vout,in_out.nin,in_out.nout,variables,constants))
+    return;
   for(i=0;i<in_out.nout;i++){
     if(in_out.outtype[i]==PAR)
       constants[in_out.out[i]]=in_out.vout[i];
     else
       variables[in_out.out[i]]=in_out.vout[i];
-     
-  }  
+  }
 }
 
 void add_export_list(char *in,char *out)
@@ -226,52 +223,50 @@ void add_export_list(char *in,char *out)
   in_out.lin=xpp_strdup(in); /* was malloc(strlen(in)): one byte short */
   in_out.lout=xpp_strdup(out);
   i=get_export_count(in);
-  in_out.in=(int *)xpp_malloc((i+1)*sizeof(int));
-  in_out.intype=(int *)xpp_malloc((i+1)*sizeof(int));
-  in_out.vin=(double *)xpp_malloc((i+1)*sizeof(double));
+  in_out.in=(int *)xpp_calloc(i+1,sizeof(int));
+  in_out.intype=(int *)xpp_calloc(i+1,sizeof(int));
+  in_out.vin=(double *)xpp_calloc(i+1,sizeof(double));
   in_out.nin=i;
   i=get_export_count(out);
-  in_out.out=(int *)xpp_malloc((i+1)*sizeof(int));
-  in_out.outtype=(int *)xpp_malloc((i+1)*sizeof(int));
-  in_out.vout=(double *)xpp_malloc((i+1)*sizeof(double));
+  in_out.out=(int *)xpp_calloc(i+1,sizeof(int));
+  in_out.outtype=(int *)xpp_calloc(i+1,sizeof(int));
+  in_out.vout=(double *)xpp_calloc(i+1,sizeof(double));
   in_out.nout=i;
-  /* plintf(" in %d out %d \n",in_out.nin,in_out.nout); */
-
 }
-  
-void check_inout()
+
+void check_inout(void)
 {
   int i;
   for(i=0;i<in_out.nin;i++)
     plintf(" type=%d index=%d \n",in_out.intype[i],in_out.in[i]);
   for(i=0;i<in_out.nout;i++)
-  plintf(" type=%d index=%d \n",in_out.outtype[i],in_out.out[i]);  
+    plintf(" type=%d index=%d \n",in_out.outtype[i],in_out.out[i]);
 }
+
 int get_export_count(char *s)
 {
   int i=0;
-  int j;
-  int l=strlen(s);
-  for(j=0;j<l;j++)
-    if(s[j]==',')i++;
+  for(const char *p=s;*p;p++)
+    if(*p==',')i++;
   i++;
   return(i);
 }
 
-void do_export_list()
+void do_export_list(void)
 {
  if(in_out.nin==0||in_out.nout==0)return;
  parse_inout(in_out.lin,0);
  parse_inout(in_out.lout,1);
- /* check_inout(); */
 }
 
 void parse_inout(char *l,int flag)
 {
-  int i=0,j=0;
+  size_t i=0;
+  int j=0;
   int k=0,index;
-  char new[XPP_NAME_MAX+1],c;
+  char name[XPP_NAME_MAX+1],c;
   int done=1;
+  size_t len=strlen(l);
   while(done)
     {
       c=l[i];
@@ -285,14 +280,14 @@ void parse_inout(char *l,int flag)
       case ',':
       case '}':
 	i++;
-	new[j]=0;
-	index=get_param_index(new);
+	name[j]=0;
+	index=get_param_index(name);
 	if(index<0) /* not a parameter */
 	  {
-	    index=get_var_index(new);
+	    index=get_var_index(name);
 	    if(index<0)
 	      {
-		xpp_log(XPP_LOG_INFO, "Cant export %s - non existent!\n",new);
+		xpp_log(XPP_LOG_INFO, "Cant export %s - non existent!\n",name);
 		exit(0);
 	      }
 	    else /* it is a variable */
@@ -305,25 +300,22 @@ void parse_inout(char *l,int flag)
 		  in_out.out[k]=index;
 		  in_out.outtype[k]=VAR;
 		}
-		/*  plintf(" variable %s =%d k=%d \n",new,index,k); */ 
 		k++;
 	      }
 	  } /* it is a parameter */
-	else 
+	else
 	  {
 	    if(flag==0)
 	      {
 		in_out.in[k]=index;
 		in_out.intype[k]=PAR;
 	      }
-	  else 
+	  else
 	    {
 	      in_out.out[k]=index;
 	      in_out.outtype[k]=PAR;
 	    }
-	    /* plintf(" parameter %s =%d k=%d \n",new,index,k); */ 
 	    k++;
-
 	  }
 	if(c=='}')
 	  done=0;
@@ -332,22 +324,14 @@ void parse_inout(char *l,int flag)
 
       default:
 	if(j>=XPP_NAME_MAX){
-	  xpp_log(XPP_LOG_WARN, "Cant export %.*s... - name too long!\n",XPP_NAME_MAX,new);
+	  xpp_log(XPP_LOG_WARN, "Cant export %.*s... - name too long!\n",XPP_NAME_MAX,name);
 	  exit(0);
 	}
-	new[j]=c;
+	name[j]=c;
 	j++;
 	i++;
       }
-      if(i>strlen(l))
+      if(i>len)
 	done=0;
     }
 }
-      
-
-
-
-
-
-
-

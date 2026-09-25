@@ -4,6 +4,7 @@
 #include "xpp_io.h"
 
 #include "aniparse.h"
+#include "extra.h"
 #include "ggets.h"
 #include "markov.h"
 #include "parserslow.h"
@@ -149,7 +150,6 @@ including derived parameters but XPP takes care of this so start at 0
 extern int NODE,NDELAYS;
 extern double get_delay(int in,double td);
 
-void get_import_values();
 int parse_import();
 #define IC 2
  extern int fftn (int /* ndim */,
