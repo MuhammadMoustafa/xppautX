@@ -32,16 +32,28 @@ namespace {
    Not std::filesystem: the test binaries link libstdc++ dynamically, and
    on Windows CI an older libstdc++-6.dll ahead on PATH lacks its symbols,
    so test_io.exe did not even load (exit 127). */
+struct ScratchDir {
+    std::string path;
+    bool made;
+    ScratchDir()
+    {
+        char *d = xpp_make_temp_dir();
+        made = d != nullptr;
+        path = made ? d : ".";
+        xpp_free(d);
+    }
+    /* at exit, with the path still alive (an atexit handler registered
+       while this was being built ran after its destructor: ASan) */
+    ~ScratchDir()
+    {
+        if (made) xpp_remove_temp_dir(path.c_str());
+    }
+};
+
 const std::string &scratch_dir()
 {
-    static const std::string dir = [] {
-        char *d = xpp_make_temp_dir();
-        std::string s = d != nullptr ? d : ".";
-        xpp_free(d);
-        if (d != nullptr) std::atexit([] { xpp_remove_temp_dir(scratch_dir().c_str()); });
-        return s;
-    }();
-    return dir;
+    static const ScratchDir dir;
+    return dir.path;
 }
 
 /* a scratch file there, removed when it goes out of scope (the caller
