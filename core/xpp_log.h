@@ -62,9 +62,12 @@ extern XppLogSettings log_settings;
 
 /* Default is XPP_LOG_WARN. */
 void xpp_log_set_threshold(XppLogLevel level);
+/* 1 when a message at level would be printed now (the threshold, and
+   "@ quiet=1" for INFO) */
+int xpp_log_enabled(XppLogLevel level);
 
-/* printf-style; a no-op when level is below the threshold. Adds a
-   trailing '\n' only if fmt does not already end with one. */
+/* printf-style; a no-op when !xpp_log_enabled(level). The caller writes
+   the newline. */
 void xpp_log(XppLogLevel level, const char *fmt, ...);
 void xpp_log_v(XppLogLevel level, const char *fmt, va_list ap);
 
@@ -105,6 +108,7 @@ namespace xpp {
 template <class... Args>
 void log(XppLogLevel level, std::format_string<Args...> fmt, Args &&...args) noexcept
 {
+    if (!xpp_log_enabled(level)) return; /* no formatting for a filtered message */
     try {
         std::string s = std::format(fmt, std::forward<Args>(args)...);
         xpp_log(level, "%s", s.c_str());

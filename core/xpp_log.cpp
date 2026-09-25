@@ -1,34 +1,40 @@
 /* See xpp_log.h. */
 #include "xpp_log.h"
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 
-static XppLogLevel threshold = XPP_LOG_WARN;
-static int auto_echo;
+namespace {
+XppLogLevel threshold = XPP_LOG_WARN;
+int auto_echo;
+
+/* where messages go: -logfile's file when one was given, else stderr
+   (stdout is the protocol's in --server mode; the file's default is stdout) */
+FILE *sink()
+{
+    return log_settings.file != nullptr && log_settings.file != stdout ? log_settings.file : stderr;
+}
+} // namespace
 
 XppLogSettings log_settings = {NULL, 1, 0, 0};
 
 void xpp_log_set_threshold(XppLogLevel level) { threshold = level; }
 void xpp_log_set_auto_echo(int on) { auto_echo = on; }
 
-/* where messages go: -logfile's file when one was given, else stderr
-   (stdout is the protocol's in --server mode; the file's default is stdout) */
-static FILE *sink(void)
-{
-    return log_settings.file != NULL && log_settings.file != stdout ? log_settings.file : stderr;
-}
-
 /* printf semantics: the caller writes the newline, so a line can be built
    in pieces */
+int xpp_log_enabled(XppLogLevel level)
+{
+    /* the model's own "@ quiet=1" (log_settings.verbose==0) silences just
+       its INFO-level messages, as plintf() did; WARN/ERROR/DEBUG are
+       unaffected */
+    return level <= threshold && (level != XPP_LOG_INFO || log_settings.verbose);
+}
+
 void xpp_log_v(XppLogLevel level, const char *fmt, va_list ap)
 {
     FILE *out = sink();
-    if (level > threshold) return;
-    /* The model's own "@ quiet=1" (log_settings.verbose==0) silences just
-       its INFO-level confirmations, same as plintf() used to gate itself
-       before it was folded into xpp_log(); WARN/ERROR/DEBUG are unaffected. */
-    if (level == XPP_LOG_INFO && !log_settings.verbose) return;
-    vfprintf(out, fmt, ap);
+    if (!xpp_log_enabled(level)) return;
+    std::vfprintf(out, fmt, ap);
     fflush(out);
 }
 
