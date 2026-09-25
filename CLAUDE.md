@@ -167,6 +167,10 @@ difficulty) implements one card in the worktree its brief names:
 
 - Work only there, with every path in this file adapted to it; commit on
   its branch and stop. Never merge, push, touch master, or write to GitHub.
+- Every core C file you change becomes C++ in the same task (`git mv
+  core/x.c core/x.cpp`, then "C and C++" below), however small the
+  change: a logging call, a rename, one line. No exemption for sweeps.
+  Report verify.sh's `C++: N / M` before and after.
 - Gates: the per-task tier above. Iterate with `web2check --only <your
   sections>`; never run the full web2check or tools/asancheck.sh.
 - Keep token use low: read the parts of files you need (grep, `sed -n`
