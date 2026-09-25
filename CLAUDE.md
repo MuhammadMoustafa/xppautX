@@ -434,9 +434,10 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
 The core stays C and converts to C++ progressively (decision 2026-09-23;
 aim: 70%+ C++ over time, verify.sh's `C++: N / M sources` is the metric).
 
-- The rule: a task that fixes or refactors a core file converts that file
-  to .cpp as part of the task. Mechanical sweeps (renames, logging calls,
-  warning fixes across many files) do not convert anything.
+- The rule: a task that changes a core C file converts that file to .cpp
+  as part of the task, whatever the change, sweeps included (logging
+  calls, renames, warning fixes, dead code removal; maintainer's decision
+  2026-09-25, replacing the sweep exemption).
 - Converting is `git mv core/x.c core/x.cpp` and nothing in the Makefile:
   source lists name files without an extension, core/*.cpp builds with
   $(CXX) (-std=c++23, gnu++23 on Windows) and programs with any C++ object
