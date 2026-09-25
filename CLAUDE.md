@@ -326,7 +326,9 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
 - The core allocates with `xpp_malloc`, `xpp_calloc`, `xpp_realloc`,
   `xpp_strdup` and frees with `xpp_free` (core/xpp_mem.h), never libc's
   directly. They never return NULL: a failure logs an ERROR naming the size
-  and file:line and exits 1, so callers do not check. `XPP_MEM_FAIL_AT=N`
+  and file:line and exits 1, so callers do not check. Memory comes zeroed
+  (xpp_malloc's too, and what xpp_realloc adds); `XPP_MEM_INIT=0` leaves
+  it as the C library gives it, for valgrind (tools/valgrindcheck.sh). `XPP_MEM_FAIL_AT=N`
   fails the N-th allocation (verify.sh checks the message;
   `XPP_WINDOW_FAIL_LOAD=1`, xpp_window_loader.cpp, is the Linux window's
   like hook); `--debug`
