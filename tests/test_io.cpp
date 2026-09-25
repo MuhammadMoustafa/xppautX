@@ -12,42 +12,47 @@
 #include "xpptest.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
+#include "xpp_util.h"
+#include "xpp_mem.h"
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
-#include <filesystem>
 #ifdef _WIN32
 #include <io.h>
-#include <process.h>
-#define getpid _getpid
 #else
 #include <unistd.h>
 #endif
 
 namespace {
 
-/* a scratch file in the system's temp folder, named after this process so
-   two test runs never share one, removed when it goes out of scope (the
-   caller closes it first: Windows cannot remove an open file) */
+/* this run's private scratch folder (xpp_make_temp_dir, the core's own,
+   so two runs never share one), removed with what is left in it at exit.
+   Not std::filesystem: the test binaries link libstdc++ dynamically, and
+   on Windows CI an older libstdc++-6.dll ahead on PATH lacks its symbols,
+   so test_io.exe did not even load (exit 127). */
+const std::string &scratch_dir()
+{
+    static const std::string dir = [] {
+        char *d = xpp_make_temp_dir();
+        std::string s = d != nullptr ? d : ".";
+        xpp_free(d);
+        if (d != nullptr) std::atexit([] { xpp_remove_temp_dir(scratch_dir().c_str()); });
+        return s;
+    }();
+    return dir;
+}
+
+/* a scratch file there, removed when it goes out of scope (the caller
+   closes it first: Windows cannot remove an open file) */
 class TempFile {
 public:
-    explicit TempFile(const std::string &name)
-        : path_(std::filesystem::temp_directory_path() / (std::to_string(getpid()) + "_" + name)),
-          path_str_(path_.string())
-    {
-    }
-    const std::filesystem::path &path() const { return path_; }
-    const char *c_str() const { return path_str_.c_str(); }
-    ~TempFile()
-    {
-        std::error_code ec;
-        std::filesystem::remove(path_, ec);
-    }
+    explicit TempFile(const std::string &name) : path_(scratch_dir() + "/" + name) {}
+    const char *c_str() const { return path_.c_str(); }
+    ~TempFile() { std::remove(path_.c_str()); }
 private:
-    std::filesystem::path path_;
-    std::string path_str_;
+    std::string path_;
 };
 
 /* Captures everything written to stderr between begin() and end() by
