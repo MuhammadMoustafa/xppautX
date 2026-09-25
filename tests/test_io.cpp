@@ -17,26 +17,63 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <filesystem>
+#ifdef _WIN32
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 
 namespace {
+
+/* Helper to manage temporary files in a temp directory */
+class TempFile {
+public:
+    explicit TempFile(const std::string &name)
+        : path_(std::filesystem::temp_directory_path() / name),
+          path_str_(path_.string())
+    {
+    }
+    const std::filesystem::path &path() const { return path_; }
+    const char *c_str() const { return path_str_.c_str(); }
+    ~TempFile()
+    {
+        std::error_code ec;
+        std::filesystem::remove(path_, ec);
+    }
+private:
+    std::filesystem::path path_;
+    std::string path_str_;
+};
 
 /* Captures everything written to stderr between begin() and end() by
    redirecting the process's stderr to a scratch file and reading it
    back; good enough for one test binary that exits right after. */
 class StderrCapture {
 public:
+    StderrCapture() : tempfile_("test_io_stderr.tmp"), saved_stderr_fd_(-1) {}
+
     void begin()
     {
         std::fflush(stderr);
-        path_ = "test_io_stderr.tmp";
-        saved_ = freopen(path_, "w", stderr);
-        CHECK(saved_ != NULL);
+        // Save the current stderr file descriptor
+        saved_stderr_fd_ = dup(fileno(stderr));
+        CHECK(saved_stderr_fd_ >= 0);
+        // Redirect stderr to the temp file
+        FILE *f = freopen(tempfile_.c_str(), "w", stderr);
+        CHECK(f != NULL);
     }
     std::string end()
     {
         std::fflush(stderr);
+        // Restore stderr from saved file descriptor
+        if (saved_stderr_fd_ >= 0) {
+            dup2(saved_stderr_fd_, fileno(stderr));
+            close(saved_stderr_fd_);
+            saved_stderr_fd_ = -1;
+        }
         std::string text;
-        FILE *f = std::fopen(path_, "r");
+        FILE *f = std::fopen(tempfile_.c_str(), "r");
         if (f) {
             char buf[4096];
             size_t n;
@@ -44,12 +81,18 @@ public:
                 text.append(buf, n);
             std::fclose(f);
         }
-        std::remove(path_);
         return text;
     }
+    ~StderrCapture()
+    {
+        if (saved_stderr_fd_ >= 0) {
+            dup2(saved_stderr_fd_, fileno(stderr));
+            close(saved_stderr_fd_);
+        }
+    }
 private:
-    const char *path_;
-    FILE *saved_;
+    TempFile tempfile_;
+    int saved_stderr_fd_;
 };
 
 /* writes data (strlen(data) bytes) to path, no text-mode translation, for
@@ -219,21 +262,22 @@ int main(void)
 
     /* empty file: no lines at all */
     {
-        write_raw("test_io_empty.tmp", "");
-        XppLineReader *r = xpp_line_reader_open("test_io_empty.tmp");
+        TempFile tf("test_io_empty.tmp");
+        write_raw(tf.c_str(), "");
+        XppLineReader *r = xpp_line_reader_open(tf.c_str());
         CHECK(r != NULL);
         size_t len = 999;
         CHECK(xpp_line_reader_next(r, &len) == NULL);
         CHECK(len == 0);
         xpp_line_reader_close(r);
-        std::remove("test_io_empty.tmp");
     }
 
     /* no trailing newline: the last, unterminated line still comes back
        once (not read twice, not dropped) */
     {
-        write_raw("test_io_notrail.tmp", "first\nsecond");
-        XppLineReader *r = xpp_line_reader_open("test_io_notrail.tmp");
+        TempFile tf("test_io_notrail.tmp");
+        write_raw(tf.c_str(), "first\nsecond");
+        XppLineReader *r = xpp_line_reader_open(tf.c_str());
         CHECK(r != NULL);
         size_t len;
         const char *l1 = xpp_line_reader_next(r, &len);
@@ -245,13 +289,13 @@ int main(void)
         CHECK(len == 6);
         CHECK(xpp_line_reader_next(r, &len) == NULL);
         xpp_line_reader_close(r);
-        std::remove("test_io_notrail.tmp");
     }
 
     /* CRLF tolerant: \r\n and a bare \n both end a line, no stray \r left */
     {
-        write_raw("test_io_crlf.tmp", "one\r\ntwo\nthree\r\n");
-        XppLineReader *r = xpp_line_reader_open("test_io_crlf.tmp");
+        TempFile tf("test_io_crlf.tmp");
+        write_raw(tf.c_str(), "one\r\ntwo\nthree\r\n");
+        XppLineReader *r = xpp_line_reader_open(tf.c_str());
         CHECK(r != NULL);
         size_t len;
         CHECK_STR(xpp_line_reader_next(r, &len), "one");
@@ -259,16 +303,16 @@ int main(void)
         CHECK_STR(xpp_line_reader_next(r, &len), "three");
         CHECK(xpp_line_reader_next(r, &len) == NULL);
         xpp_line_reader_close(r);
-        std::remove("test_io_crlf.tmp");
     }
 
     /* a long line (well past any fixed fgets buffer this replaces): comes
        back whole, not cut */
     {
+        TempFile tf("test_io_long.tmp");
         std::string big(5000, 'x');
         std::string content = big + "\nshort\n";
-        write_raw("test_io_long.tmp", content.c_str());
-        XppLineReader *r = xpp_line_reader_open("test_io_long.tmp");
+        write_raw(tf.c_str(), content.c_str());
+        XppLineReader *r = xpp_line_reader_open(tf.c_str());
         CHECK(r != NULL);
         size_t len;
         const char *l1 = xpp_line_reader_next(r, &len);
@@ -277,14 +321,14 @@ int main(void)
         CHECK(big == l1);
         CHECK_STR(xpp_line_reader_next(r, &len), "short");
         xpp_line_reader_close(r);
-        std::remove("test_io_long.tmp");
     }
 
     /* attach: reads through a FILE* the caller keeps open and owns --
        xpp_line_reader_close must not close it */
     {
-        write_raw("test_io_attach.tmp", "only line\n");
-        FILE *fp = std::fopen("test_io_attach.tmp", "r");
+        TempFile tf("test_io_attach.tmp");
+        write_raw(tf.c_str(), "only line\n");
+        FILE *fp = std::fopen(tf.c_str(), "r");
         CHECK(fp != NULL);
         XppLineReader *r = xpp_line_reader_attach(fp);
         size_t len;
@@ -292,14 +336,14 @@ int main(void)
         xpp_line_reader_close(r);
         CHECK(std::feof(fp) == 0 || std::fgetc(fp) == EOF); /* fp still usable */
         std::fclose(fp);
-        std::remove("test_io_attach.tmp");
     }
 
     /* token reader: fscanf "%lg"/"%d"/"%s" equivalents, whitespace
        separated, strtod on the same token agreeing with the double read */
     {
-        write_raw("test_io_tok.tmp", "  3.5 -7 hello   1e3\n");
-        XppTokenReader *r = xpp_token_reader_open("test_io_tok.tmp");
+        TempFile tf("test_io_tok.tmp");
+        write_raw(tf.c_str(), "  3.5 -7 hello   1e3\n");
+        XppTokenReader *r = xpp_token_reader_open(tf.c_str());
         CHECK(r != NULL);
         double d;
         int i;
@@ -314,14 +358,14 @@ int main(void)
         CHECK(d == 1e3);
         CHECK(xpp_token_reader_double(r, &d) == 0); /* end of file */
         xpp_token_reader_close(r);
-        std::remove("test_io_tok.tmp");
     }
 
     /* a float token reads as fscanf "%g" reads it (rounded straight to
        float), and the whitespace after a token stays in the stream */
     {
-        write_raw("test_io_tok.tmp", "0.1 16777217 2.5\nnext\n");
-        std::FILE *fp = std::fopen("test_io_tok.tmp", "r");
+        TempFile tf("test_io_tok.tmp");
+        write_raw(tf.c_str(), "0.1 16777217 2.5\nnext\n");
+        std::FILE *fp = std::fopen(tf.c_str(), "r");
         CHECK(fp != NULL);
         float a, b, sa, sb;
         XppTokenReader *r = xpp_token_reader_attach(fp);
@@ -334,15 +378,15 @@ int main(void)
         CHECK(std::fscanf(fp, "%g %g", &sa, &sb) == 2);
         CHECK(a == sa && b == sb);
         std::fclose(fp);
-        std::remove("test_io_tok.tmp");
     }
 
     /* long fields: fscanf "%ld" field by field, AUTO's "%5ld" columns
        printed flush ("    2-1234" is 2 then -1234), the rest of the line
        skipped, the stream left where fscanf leaves it */
     {
-        write_raw("test_io_tok.tmp", "    2-1234  +7 x\n   1.5E+00 tail\nlast");
-        std::FILE *fp = std::fopen("test_io_tok.tmp", "r");
+        TempFile tf("test_io_tok.tmp");
+        write_raw(tf.c_str(), "    2-1234  +7 x\n   1.5E+00 tail\nlast");
+        std::FILE *fp = std::fopen(tf.c_str(), "r");
         CHECK(fp != NULL);
         long a = 0, b = 0, c = 0, d = 0;
         xpp::TokenReader tr = xpp::TokenReader::attach(fp);
@@ -362,43 +406,42 @@ int main(void)
         CHECK(std::fscanf(fp, "%ld%ld%ld", &s1, &s2, &s3) == 3);
         CHECK(s1 == a && s2 == b && s3 == c);
         std::fclose(fp);
-        std::remove("test_io_tok.tmp");
     }
 
     /* the binary writer copies line ends as they are */
     {
-        XppWriter *w = xpp_writer_open_binary("test_io_write.tmp");
+        TempFile tf("test_io_write.tmp");
+        XppWriter *w = xpp_writer_open_binary(tf.c_str());
         CHECK(w != NULL);
         std::fputs("a\r\nb\n", xpp_writer_file(w));
         CHECK(xpp_writer_commit(w) == 0);
-        std::FILE *fp = std::fopen("test_io_write.tmp", "rb");
+        std::FILE *fp = std::fopen(tf.c_str(), "rb");
         char buf[16] = {0};
         CHECK(fp != NULL && std::fread(buf, 1, sizeof buf - 1, fp) == 5);
         if (fp) std::fclose(fp);
         CHECK(std::strcmp(buf, "a\r\nb\n") == 0);
-        std::remove("test_io_write.tmp");
     }
 
     /* writer: commit renames the temp file into place, byte for byte */
     {
-        XppWriter *w = xpp_writer_open("test_io_write.tmp");
+        TempFile tf("test_io_write.tmp");
+        XppWriter *w = xpp_writer_open(tf.c_str());
         CHECK(w != NULL);
         xpp_writer_printf(w, "%d %s\n", 42, "answer");
         CHECK(xpp_writer_commit(w) == 0);
-        CHECK(read_raw("test_io_write.tmp") == "42 answer" TEXT_NL);
-        std::remove("test_io_write.tmp");
+        CHECK(read_raw(tf.c_str()) == "42 answer" TEXT_NL);
     }
 
     /* writer: abandoned (xpp_writer_abort) leaves an existing file
        completely untouched */
     {
-        write_raw("test_io_write.tmp", "original\n");
-        XppWriter *w = xpp_writer_open("test_io_write.tmp");
+        TempFile tf("test_io_write.tmp");
+        write_raw(tf.c_str(), "original\n");
+        XppWriter *w = xpp_writer_open(tf.c_str());
         CHECK(w != NULL);
         xpp_writer_printf(w, "clobber");
         xpp_writer_abort(w);
-        CHECK(read_raw("test_io_write.tmp") == "original\n");
-        std::remove("test_io_write.tmp");
+        CHECK(read_raw(tf.c_str()) == "original\n");
     }
 
     /* writer: failed open (no such directory) */
@@ -408,31 +451,31 @@ int main(void)
        whose destructor aborts (leaves the file untouched) when not
        committed, commits when it is */
     {
-        write_raw("test_io_cpp.tmp", "alpha\r\nbeta\n");
-        xpp::LineReader lr("test_io_cpp.tmp");
+        TempFile tf("test_io_cpp.tmp");
+        write_raw(tf.c_str(), "alpha\r\nbeta\n");
+        xpp::LineReader lr(tf.c_str());
         CHECK(static_cast<bool>(lr));
         auto l1 = lr.next();
         CHECK(l1.has_value() && *l1 == "alpha");
         auto l2 = lr.next();
         CHECK(l2.has_value() && *l2 == "beta");
         CHECK(!lr.next().has_value());
-        std::remove("test_io_cpp.tmp");
     }
     {
-        write_raw("test_io_cppw.tmp", "kept\n");
+        TempFile tf("test_io_cppw.tmp");
+        write_raw(tf.c_str(), "kept\n");
         {
-            xpp::Writer w("test_io_cppw.tmp");
+            xpp::Writer w(tf.c_str());
             CHECK(static_cast<bool>(w));
             std::fprintf(w.file(), "not committed");
             /* w destructed here without commit(): aborts */
         }
-        CHECK(read_raw("test_io_cppw.tmp") == "kept\n");
+        CHECK(read_raw(tf.c_str()) == "kept\n");
 
-        xpp::Writer w2("test_io_cppw.tmp");
+        xpp::Writer w2(tf.c_str());
         std::fprintf(w2.file(), "replaced\n");
         CHECK(w2.commit());
-        CHECK(read_raw("test_io_cppw.tmp") == "replaced" TEXT_NL);
-        std::remove("test_io_cppw.tmp");
+        CHECK(read_raw(tf.c_str()) == "replaced" TEXT_NL);
     }
 
     TEST_REPORT("test_io");
