@@ -11,7 +11,7 @@
    field has a plain name with AUTO's short one, its help as a tooltip, and
    its message beside it; OK waits until every value is AUTO's. */
 import type {ComponentChildren} from 'preact';
-import {useEffect, useRef, useState} from 'preact/hooks';
+import {useRef, useState} from 'preact/hooks';
 import {HELP} from '../help/links';
 import {
   fieldOf, NUM_FIELDS, NUM_GROUPS, numError, numSpec, pairErrors, pendingFields, shownSettings, type AutoSettings, type NumKey,
@@ -20,11 +20,11 @@ import {fieldError, NUMBER} from '../store/fieldKinds';
 import {useSession, useStore} from './context';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
+import {FOCUSABLE, useDialogFocus} from './dialogFocus';
 
 /** the manual section each of this file's dialogs is (docs/manual/README.md's map, W12b) */
 const HELP_OF = {numerics: HELP.autoNumerics, pars: HELP.autoPars, marks: HELP.autoMarks} as const;
 
-const FOCUSABLE = 'button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])';
 
 export type AutoSettingsDialogKind = 'numerics' | 'pars' | 'marks';
 
@@ -38,13 +38,7 @@ function Modal({title, id, kind, onClose, children}: {
   title: string; id: string; kind: AutoSettingsDialogKind; onClose: () => void; children: ComponentChildren;
 }) {
   const box = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const before = document.activeElement as HTMLElement | null;
-    const first = box.current?.querySelector<HTMLElement>('[data-autofocus]') ?? box.current?.querySelector<HTMLElement>(FOCUSABLE);
-    first?.focus();
-    if (first instanceof HTMLInputElement) first.select();
-    return () => before?.focus?.();
-  }, []);
+  useDialogFocus(box, []);
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();

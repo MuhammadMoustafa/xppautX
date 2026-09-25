@@ -8,7 +8,7 @@
    rubber and drag asks are plot modes (PlotView.tsx); other kinds say they
    are not offered yet and offer Cancel (A13, docs/ui-v2.md). */
 import type {ComponentChildren} from 'preact';
-import {useEffect, useRef, useState} from 'preact/hooks';
+import {useLayoutEffect, useRef, useState} from 'preact/hooks';
 import {askHelp} from '../help/links';
 import {fieldSpec, selectOptions} from '../protocol/lists';
 import {fieldsValid, specOfKind, TEXT, type FieldSpec} from '../store/fieldKinds';
@@ -18,13 +18,14 @@ import {FileAsk} from './FileDialog';
 import {HelpButton} from './HelpButton';
 import {MENU_ONE_COLUMN, menuRows} from './menuLayout';
 import {useSession, useStore} from './context';
+import {FOCUSABLE, useDialogFocus} from './dialogFocus';
 
-const FOCUSABLE = 'button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 function MenuAsk({ask}: {ask: AskEvent}) {
   const session = useSession();
   const keys = ask.keys ?? '';
-  useEffect(() => {
+  /* a layout effect, like the dialog's focus: a key typed the moment the menu is there finds it */
+  useLayoutEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1) return;
       const i = keys.toLowerCase().indexOf(e.key.toLowerCase());
@@ -187,14 +188,7 @@ function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
   const table = useStore(s => s.table);
   const core = useStore(s => s.core);
   const box = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const before = document.activeElement as HTMLElement | null;
-    const el = box.current!;
-    const first = el.querySelector<HTMLElement>('[data-autofocus]') ?? el.querySelector<HTMLElement>(FOCUSABLE);
-    first?.focus();
-    if (first instanceof HTMLInputElement) first.select();
-    return () => before?.focus?.();
-  }, [ask.id]);
+  useDialogFocus(box, [ask.id]);
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();

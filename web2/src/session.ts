@@ -18,7 +18,7 @@ import {
   answerName, keepBothName, menuKeys, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type Upload,
 } from './store/files';
 import {createStore, type Store} from './store/store';
-import {initialState, reduce, type Action, type AppState} from './store/state';
+import {initialState, noIdle, reduce, type Action, type AppState} from './store/state';
 import {stepTarget} from './store/ani';
 import {snapshotWindow, type KinescopeFrame} from './store/kinescope';
 import {MAX_COUNT, MAX_NCOL, planRequest, tableCsv} from './store/table';
@@ -50,6 +50,11 @@ export class Session {
       menu it opens takes the first, the others go out after its idle */
   private typeahead: string[] = [];
   private keyWaiting = false;
+  /* the idles owed for the commands sent (an answer continues its command, a control line has
+     none), and how many of them belong to commands sent before the waiting key: an earlier
+     command's idle must not end the wait (W20: I then G typed on a busy page went out as G) */
+  private idlesOwed = 0;
+  private keyIdlesAhead = 0;
   /** a planned dialogue (T21: the axis dialog, AUTO settings save and load):
       the asks its commands open are answered by these steps in order, until
       the commands' idles */
@@ -104,6 +109,7 @@ export class Session {
     this.store.dispatch({type: 'event', ev});
     if (ev.ev === 'hello') {
       this.keyWaiting = false; /* a new connection: nothing is waiting any more */
+      this.idlesOwed = this.keyIdlesAhead = 0;
       this.typeahead = [];
       /* the plots as data (docs/protocol.md): asked for on every (re)connection,
          which also makes the server send the windows, their series, nullclines,
@@ -135,10 +141,14 @@ export class Session {
       } else if (this.replayAnswers.length) this.continueReplay(ev);
       else this.continueKeys(ev);
     } else if (ev.ev === 'progress') {
-      this.keyWaiting = false; /* a computation: the keys typed meanwhile go out after it */
+      if (!this.keyIdlesAhead) this.keyWaiting = false; /* a computation: the keys typed meanwhile go out after it */
     } else if (ev.ev === 'idle') {
-      this.pendingKeys = [];
-      this.keyWaiting = false;
+      if (this.idlesOwed > 0) this.idlesOwed--;
+      /* an earlier command's idle: the key still waits for its own */
+      const earlier = this.keyWaiting && this.keyIdlesAhead > 0;
+      if (earlier) this.keyIdlesAhead--;
+      else this.keyWaiting = false;
+      if (!earlier) this.pendingKeys = [];
       this.afterAuto();
       this.dragQueue = [];
       this.dragEnded = false;
@@ -153,7 +163,7 @@ export class Session {
         this.flushValues();
         this.flushAutoSettings();
       }
-      const typed = this.typeahead.shift();
+      const typed = this.keyWaiting ? undefined : this.typeahead.shift();
       if (typed !== undefined && !next && !this.planIdles) this.key(typed);
     }
     this.checkDiagram(ev);
@@ -197,6 +207,7 @@ export class Session {
   }
 
   send(cmd: Command): void {
+    if (cmd.cmd !== 'answer' && !noIdle(cmd)) this.idlesOwed++;
     this.store.dispatch({type: 'sent', cmd});
     this.transport.send(cmd);
   }
@@ -204,6 +215,7 @@ export class Session {
   /** an XPP hotkey, as typed in the X11 main window */
   key(key: string): void {
     this.keyWaiting = true;
+    this.keyIdlesAhead = this.idlesOwed;
     this.send({cmd: 'key', key});
   }
 

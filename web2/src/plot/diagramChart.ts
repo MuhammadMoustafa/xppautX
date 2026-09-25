@@ -115,6 +115,8 @@ export class DiagramChart {
   private model: DiagramModel | null = null;
   private dark = false;
   private applying = false;
+  /* the view last asked for (setView, fit), until applyViewport draws it */
+  private requested: Ranges | null = null;
   private reportPending = false;
   private base: Ranges = {x: {min: 0, max: 1}, y: {min: 0, max: 1}};
   private draws = 0;
@@ -266,14 +268,17 @@ export class DiagramChart {
       u.setScale('y', v.y ?? this.base.y);
     });
     this.applying = false;
+    this.requested = null; /* drawn: the scales are the view now */
   }
 
   setView(r: Ranges, push: boolean): void {
+    this.requested = r;
     this.cb.onViewport({x: r.x, y: r.y}, push);
   }
 
   /** back to the core's view */
   reset(): void {
+    this.requested = null;
     this.cb.onViewport({x: null, y: null}, true);
   }
 
@@ -282,6 +287,7 @@ export class DiagramChart {
   fit(): void {
     if (!this.model || !this.model.curves.length) return;
     const r = fitRanges(this.model);
+    this.requested = r;
     this.cb.onViewport({x: r.x, y: r.y}, true);
   }
 
@@ -298,7 +304,11 @@ export class DiagramChart {
     });
   }
 
+  /** the view: the last one asked for until it is drawn, then the drawn one. A gesture that
+      follows another before the next frame (a key and the next, key repeat, a slow machine)
+      starts from what the first one asked for rather than undoing it (W20) */
   ranges(): Ranges {
+    if (this.requested) return this.requested;
     const u = this.u!;
     return {x: {min: u.scales.x.min!, max: u.scales.x.max!}, y: {min: u.scales.y.min!, max: u.scales.y.max!}};
   }

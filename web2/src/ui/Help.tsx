@@ -25,8 +25,8 @@ import {searchManual} from '../help/search';
 import {TEXT} from '../store/fieldKinds';
 import {useSession, useStore} from './context';
 import {Field} from './Field';
+import {FOCUSABLE} from './dialogFocus';
 
-const FOCUSABLE = 'button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])';
 /** F1's own exclusion (narrower than hotkeys.ts's TYPING: a dialog or menu
     being open must not block Help -- only a field that might have its own
     F1 meaning does) */

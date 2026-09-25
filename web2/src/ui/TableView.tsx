@@ -22,8 +22,8 @@ import type {BrowserOp} from '../session';
 import {rowAt} from '../store/table';
 import {useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
+import {FOCUSABLE} from './dialogFocus';
 
-const FOCUSABLE = 'button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])';
 
 /** label, op, hint (web/xpp-client.js's BROWSER_BUTTONS, the same protocol) */
 const BUTTONS: [string, BrowserOp, string][] = [

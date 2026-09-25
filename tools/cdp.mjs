@@ -62,7 +62,11 @@ export const sleep = ms => new Promise(r => setTimeout(r, ms));
 export async function startBrowser(browser, profile) {
   const proc = spawn(browser, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
     '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--hide-scrollbars', '--mute-audio',
-    '--force-device-scale-factor=1', '--font-render-hinting=none', '--disable-lcd-text', 'about:blank'],
+    '--force-device-scale-factor=1', '--font-render-hinting=none', '--disable-lcd-text',
+    /* a headless window is never in front: without these Chrome throttles its timers and animation frames
+       (macOS treats it as occluded), and the chart draws frames behind the page's state (W20) */
+    '--disable-background-timer-throttling', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
+    'about:blank'],
   {stdio: ['ignore', 'ignore', 'pipe']});
   const wsUrl = await new Promise((resolve, reject) => {
     let text = '';

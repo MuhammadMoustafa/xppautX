@@ -24,8 +24,8 @@ import type {AplotColorMap} from '../store/aplot';
 import {columnName, timeAt, valueAt} from '../store/aplot';
 import type {AplotOp} from '../session';
 import {useSession, useStore} from './context';
+import {FOCUSABLE} from './dialogFocus';
 
-const FOCUSABLE = 'button:not([disabled]), select, [tabindex]:not([tabindex="-1"])';
 
 const BUTTONS: [string, AplotOp, string][] = [
   ['Redraw', 'redraw', 'Draw again from the data'],

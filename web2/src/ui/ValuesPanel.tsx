@@ -25,9 +25,9 @@ import {fieldKey, isQueued, sixSig, type ValueKind} from '../store/values';
 import {useSession, useStore} from './context';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
+import {FOCUSABLE} from './dialogFocus';
 
 const NUMBER_HINT = fieldMessage(FORMULA_HINT);
-const FOCUSABLE = 'button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])';
 const STATE_HINT = 'Go runs from Initial; Last copies Now into Initial, then runs.';
 
 /* ---- folded sections, remembered per viewer ---- */

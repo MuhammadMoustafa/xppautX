@@ -100,6 +100,8 @@ export class Chart {
   private model: PlotModel | null = null;
   private visible: boolean[] = [];
   private applying = false;
+  /* the view last asked for (setView, fit), until applyViewport draws it */
+  private requested: Ranges | null = null;
   private reportPending = false;
   private dark = false;
   private base: Ranges = {x: {min: 0, max: 1}, y: {min: 0, max: 1}};
@@ -512,15 +514,18 @@ export class Chart {
       u.setScale('y', v.y ?? this.base.y);
     });
     this.applying = false;
+    this.requested = null; /* drawn: the scales are the view now */
   }
 
   /** a new view from a gesture */
   setView(r: Ranges, push: boolean): void {
+    this.requested = r;
     this.cb.onViewport({x: r.x, y: r.y}, push);
   }
 
   /** back to the core's view */
   reset(): void {
+    this.requested = null;
     this.cb.onViewport({x: null, y: null}, true);
   }
 
@@ -538,7 +543,11 @@ export class Chart {
     });
   }
 
+  /** the view: the last one asked for until it is drawn, then the drawn one. A gesture that
+      follows another before the next frame (a key and the next, key repeat, a slow machine)
+      starts from what the first one asked for rather than undoing it (W20) */
   ranges(): Ranges {
+    if (this.requested) return this.requested;
     const u = this.u!;
     return {x: {min: u.scales.x.min!, max: u.scales.x.max!}, y: {min: u.scales.y.min!, max: u.scales.y.max!}};
   }

@@ -20,8 +20,8 @@ import type {Session} from '../session';
 import {sixSig} from '../store/values';
 import type {SourceLine, TextTab} from '../store/text';
 import {useSession, useStore} from './context';
+import {FOCUSABLE} from './dialogFocus';
 
-const FOCUSABLE = 'button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])';
 
 const TABS: {id: TextTab; label: string}[] = [
   {id: 'equations', label: 'Equations'},

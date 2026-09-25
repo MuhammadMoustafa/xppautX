@@ -6,7 +6,7 @@
    candidate is picked and the fields validate (validateSliderFields);
    errors show inline. Follows the app's dialog pattern (AskDialog.tsx,
    theme.css .dialog) but is local state, not a core ask. */
-import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
+import {useMemo, useRef, useState} from 'preact/hooks';
 import {HELP} from '../help/links';
 import {
   defaultRange, defaultStep, filterCandidates, validateSliderFields, type SliderCandidate, type SliderDef,
@@ -16,10 +16,10 @@ import {sixSig} from '../store/values';
 import {useSession, useStore} from './context';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
+import {FOCUSABLE, useDialogFocus} from './dialogFocus';
 
 const STEP: FieldSpec = {kind: 'number', positive: true};
 
-const FOCUSABLE = 'button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])';
 
 export interface SliderDialogProps {
   /** an existing slider to edit, or 'new' to add one */
@@ -66,13 +66,7 @@ export function SliderDialog({target, onClose}: SliderDialogProps) {
   const valid = !!picked && !errors.lo && !errors.hi && !errors.step;
 
   const box = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const before = document.activeElement as HTMLElement | null;
-    const first = box.current?.querySelector<HTMLElement>('[data-autofocus]');
-    first?.focus();
-    if (first instanceof HTMLInputElement) first.select();
-    return () => before?.focus?.();
-  }, []);
+  useDialogFocus(box, []);
 
   const submit = () => {
     if (!valid || !picked) return;

@@ -242,7 +242,8 @@ function addToast(state: AppState, kind: Toast['kind'], text: string, action?: T
    paging (store/table.ts planRequest) never leaves the status bar stuck
    showing Working */
 const NO_IDLE = new Set(['abort', 'quit']);
-function noIdle(cmd: Command): boolean {
+/** whether a command ends without an idle of its own (a control line) */
+export function noIdle(cmd: Command): boolean {
   return NO_IDLE.has(cmd.cmd) || (cmd.cmd === 'browser' && 'from' in cmd);
 }
 

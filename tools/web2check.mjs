@@ -112,6 +112,20 @@ let cdp;
 const ACTIVE = 's.plots.windows.find(x => x.win === s.plots.active) || {}';
 const S = expr => cdp.eval(`(() => { const s = __xpp.state(), w = ${ACTIVE}; return ${expr}; })()`);
 const P = () => cdp.eval('__xpp.plot()');
+/* a measurement once it stops changing: a slow machine draws a step's view, or lays out the bar a
+   plot mode brings, a frame or more after the store has it, and a measurement taken in between is
+   of the page before (W20) */
+async function settled(read) {
+  let a = JSON.stringify(await read());
+  for (let i = 0; i < 40; i++) {
+    await sleep(50);
+    const b = JSON.stringify(await read());
+    if (b === a) return JSON.parse(b);
+    a = b;
+  }
+  return JSON.parse(a);
+}
+const steadyP = () => settled(P);
 
 async function until(expr, what, ms = 15000) {
   const t0 = Date.now();
@@ -241,7 +255,8 @@ async function desktop(want) {
     JSON.stringify({z1, z2, depth}));
   await cdp.eval(`[...document.querySelectorAll('button')].find(b => b.textContent === 'Undo zoom').click()`);
   check('Undo zoom goes back one step', await until(`Math.abs(w.viewport.x.min - ${z1.x.min}) < 1e-12`, 'undo'));
-  /* pan */
+  /* pan, once Undo's view is drawn: a press before that frame pans the view drawn, the box's */
+  await until(`(() => { const r = __xpp.plot(); return r && Math.abs(r.x.min - ${z1.x.min}) < 1e-9 * Math.abs(${z1.x.max} - ${z1.x.min}); })()`, 'undo drawn');
   const before = await S('w.viewport.x');
   await mouse('mousePressed', cx, cy, {button: 'left', buttons: 1, clickCount: 1, modifiers: 8});
   for (let s = 1; s <= 4; s++) await mouse('mouseMoved', cx + 20 * s, cy, {button: 'left', buttons: 1, modifiers: 8});
@@ -1396,7 +1411,9 @@ async function phone() {
   /* a point well inside the plot */
   const box = await area();
   let row = 100, pt = await screenOf(0, row);
-  while (row < 600 && (pt.x < box.x + 30 || pt.x > box.x + box.w - 30 || pt.y < box.y + 30 || pt.y > box.y + box.h - 30)) {
+  /* ... and not under anything drawn over the plot (the corner Fit, T30) */
+  const bare = q => cdp.eval(`(() => { const e = document.elementFromPoint(${q.x}, ${q.y}); return !!e && e.classList.contains('u-over'); })()`);
+  while (row < 600 && (pt.x < box.x + 30 || pt.x > box.x + box.w - 30 || pt.y < box.y + 30 || pt.y > box.y + box.h - 30 || !(await bare(pt)))) {
     row += 10;
     pt = await screenOf(0, row);
   }
@@ -1514,7 +1531,7 @@ async function prompts() {
     && await cdp.eval(`!!document.querySelector('.pick-bar button') && !document.querySelector('[role=dialog]')`),
     JSON.stringify(await S('[s.ask, s.pick]')));
   check('the plot has the focus', await until(`document.activeElement.closest('.plot-host')`, 'plot focus'));
-  let v0 = await S('s.core.view'), p = await P(), a = await area();
+  let v0 = await S('s.core.view'), p = await steadyP(), a = await area();
   const from = {x: Math.round(a.x + 0.25 * a.w), y: Math.round(a.y + 0.3 * a.h)};
   const to = {x: Math.round(a.x + 0.7 * a.w), y: Math.round(a.y + 0.8 * a.h)};
   await mouse('mouseMoved', from.x, from.y);
@@ -1573,8 +1590,8 @@ async function prompts() {
   await menuKeys('i', 'm');
   check('Initialconds/Mouse puts the plot in point mode', await until("s.pick && s.pick.mode === 'point'", 'point mode'));
   v0 = await S('s.core.view');
-  p = await P();
-  a = await area();
+  a = await settled(area);
+  p = await steadyP();
   const at = {x: Math.round(a.x + 0.3 * a.w), y: Math.round(a.y + 0.35 * a.h)};
   await mouse('mouseMoved', at.x, at.y);
   await mouse('mousePressed', at.x, at.y, {button: 'left', buttons: 1, clickCount: 1});
@@ -1612,7 +1629,7 @@ async function prompts() {
   check('phAsespace/Choose opens a checklist of the variables', await until("s.ask && s.ask.kind === 'checklist'", 'checklist')
     && await cdp.eval(`document.querySelectorAll('[role=dialog] input[type=checkbox]').length`) === lists[0].length - 1,
     JSON.stringify(await S('s.ask')));
-  check('its first box has the focus', await cdp.eval(`document.activeElement.type === 'checkbox'`));
+  check('its first box has the focus', await until(`document.activeElement.type === 'checkbox'`, 'checklist focus'));
   await cdp.eval(`document.querySelector('[role=dialog] input[type=checkbox]').click()`);
   await sleep(80);
   await cdp.eval(`[...document.querySelectorAll('[role=dialog] button')].find(b => b.textContent === 'OK').click()`);
@@ -2020,7 +2037,7 @@ async function autoView(dir) {
   check('the arrow keys pan it', await until('s.diagram.viewport.x', 'auto pan'));
   await key('0');
   check("0 goes back to AUTO's axes", await until('s.diagram.viewport.x === null', 'auto reset')
-    && Math.abs((await DG()).x.min - axes.xmin) < 1e-9);
+    && await until(`(() => { const d = __xpp.diagram(); return !!d && Math.abs(d.x.min - ${axes.xmin}) < 1e-9; })()`, 'auto reset drawn'));
 
   /* T30: the corner Fit (and the AUTO tools' own Fit) fit the view to the
      branches shown, client-side, undoable like any other zoom */
@@ -2074,7 +2091,7 @@ async function autoView(dir) {
     await until("s.pick && s.pick.win === 101 && s.pick.mode === 'box'", 'auto box mode')
     && await cdp.eval(`!document.querySelector('[role=dialog]') && !!document.querySelector('.auto-panel .pick-bar')`),
     JSON.stringify(await S('[s.ask, s.pick]')));
-  const za = await autoArea(), zd = await DG();
+  const za = await settled(autoArea), zd = await settled(DG);
   const zx = f => zd.x.min + f * (zd.x.max - zd.x.min), zy = f => zd.y.max - f * (zd.y.max - zd.y.min);
   await mouse('mouseMoved', za.x + 0.3 * za.w, za.y + 0.2 * za.h);
   await mouse('mousePressed', za.x + 0.3 * za.w, za.y + 0.2 * za.h, {button: 'left', buttons: 1, clickCount: 1});
@@ -3336,7 +3353,11 @@ async function session(ode, fn, expected = []) {
   fs.copyFileSync(ode, path.join(dir, path.basename(ode)));
   const server = await startServer(bin, dir, [path.basename(ode)]);
   try {
+    /* the new page, connected and idle, before `fn`: a check run between the navigation and the
+       new document's first state read the last page's store, and a key typed then was lost (W20) */
+    await cdp.eval('window.__left = true').catch(() => {});
     await cdp.send('Page.navigate', {url: server.url});
+    await until('!window.__left && s.hello && s.core && !s.busy', 'the new page', 60000);
     await fn(dir);
     const errors = (await S('s.log.filter(l => l.kind === "error").map(l => l.text)')).filter(e => !expected.includes(e));
     check(`${path.basename(ode)}: no errors reported by the core`, errors.length === 0, JSON.stringify(errors));
