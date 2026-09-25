@@ -20,17 +20,21 @@
 #include <filesystem>
 #ifdef _WIN32
 #include <io.h>
+#include <process.h>
+#define getpid _getpid
 #else
 #include <unistd.h>
 #endif
 
 namespace {
 
-/* Helper to manage temporary files in a temp directory */
+/* a scratch file in the system's temp folder, named after this process so
+   two test runs never share one, removed when it goes out of scope (the
+   caller closes it first: Windows cannot remove an open file) */
 class TempFile {
 public:
     explicit TempFile(const std::string &name)
-        : path_(std::filesystem::temp_directory_path() / name),
+        : path_(std::filesystem::temp_directory_path() / (std::to_string(getpid()) + "_" + name)),
           path_str_(path_.string())
     {
     }
