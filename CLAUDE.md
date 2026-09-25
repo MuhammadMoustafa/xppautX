@@ -478,8 +478,17 @@ is safe C++ in place of the unsafe C idioms, file by file (the W29 cards):
 - arrays: `std::array`, `std::vector`, `std::span` instead of raw arrays
   and pointer-plus-length pairs; `static_cast` instead of C casts.
 Numerics do not change (the md5s). A task that touches a file moves what it
-touches to these; `tools/unsafecheck.sh` (verify.sh) counts the unsafe
-idioms per file and fails when a file's count grows.
+touches to these. `tools/unsafecheck.sh` (comments stripped first, like
+tools/formatcheck.sh) counts every core/*.cpp and core/*.h's unsafe C
+idioms per file, in five categories (memory: xpp_malloc/xpp_calloc/
+xpp_realloc/xpp_free/xpp_strdup and new[]/delete[]; buffers: fixed
+`char name[N]` declarations; text: xpp_strlcpy/xpp_snprintf/XPP_SPRINTF
+and the raw strcpy/sprintf/fprintf family; files: fopen/fscanf/fgets and
+the rest of stdio; casts: a heuristic match on a C-style cast). `--check`
+(verify.sh runs this) compares against the committed `tests/unsafe.baseline`
+and fails naming any file/category whose count grew past it (a count that
+dropped is fine); `--update` rewrites the baseline after an intended
+change. Plain `tools/unsafecheck.sh` prints the per-file table.
 
 - The rule: a task that changes a core C file converts that file to .cpp
   as part of the task, whatever the change, sweeps included (logging

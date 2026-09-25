@@ -133,4 +133,12 @@ else
 fi
 # the conversion of the core to C++ (CLAUDE.md, "C and C++")
 echo "C++: $(( $(ls core/*.cpp 2>/dev/null | wc -l) )) / $(( $(ls core/*.c core/*.cpp 2>/dev/null | wc -l) )) sources"
+# the move from C++ to safe C++ (CLAUDE.md, "C and C++"; the W29 cards)
+if sh tools/unsafecheck.sh --check > build/unsafecheck.log 2>&1; then
+  grep '^unsafe C idioms:' build/unsafecheck.log
+else
+  cat build/unsafecheck.log
+  echo "UNSAFECHECK FAILED"
+  exit 1
+fi
 if [ $clean_warnings -eq 1 ]; then tools/warnings.sh; fi
