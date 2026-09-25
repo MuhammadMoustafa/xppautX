@@ -1533,7 +1533,9 @@ async function prompts() {
     && await cdp.eval(`!!document.querySelector('.pick-bar button') && !document.querySelector('[role=dialog]')`),
     JSON.stringify(await S('[s.ask, s.pick]')));
   check('the plot has the focus', await until(`document.activeElement.closest('.plot-host')`, 'plot focus'));
-  let v0 = await S('s.core.view'), p = await steadyP(), a = await area();
+  /* the area once the pick bar has settled it (read at once, it was a
+     pixel off on macOS CI) */
+  let v0 = await S('s.core.view'), p = await steadyP(), a = await settled(area);
   const from = {x: Math.round(a.x + 0.25 * a.w), y: Math.round(a.y + 0.3 * a.h)};
   const to = {x: Math.round(a.x + 0.7 * a.w), y: Math.round(a.y + 0.8 * a.h)};
   await mouse('mouseMoved', from.x, from.y);
@@ -2000,11 +2002,18 @@ async function autoView(dir) {
       await cdp.eval(`__xpp.sent().slice(${sentGrab})`)]));
 
   /* hover names the Hopf point */
-  const hbAt = await autoScreen(want.pts[hb.point].x, want.pts[hb.point].y);
-  await mouse('mouseMoved', hbAt.x, hbAt.y);
+  /* the Hopf point's position read again on each try: the view can still
+     move after the T21 import (macOS CI hovered a periodic point) */
+  let hovered = false, hbAt = null;
+  for (let tries = 0; tries < 3 && !hovered; tries++) {
+    await mouse('mouseMoved', 5, 5);
+    hbAt = await autoScreen(want.pts[hb.point].x, want.pts[hb.point].y);
+    await mouse('mouseMoved', hbAt.x, hbAt.y);
+    hovered = await until(`s.diagram.hover && s.diagram.hover.point === ${hb.point}`, 'hover hb', 3000);
+  }
   check('hovering the Hopf point names it in the readout',
-    await until(`s.diagram.hover && s.diagram.hover.point === ${hb.point}`, 'hover hb') && /HB label \d+/.test(await readout()),
-    JSON.stringify([await DS('d.hover'), await readout()]));
+    hovered && /HB label \d+/.test(await readout()),
+    JSON.stringify([await DS('d.hover'), await readout(), hbAt, await DG(), await autoArea()]));
   await mouse('mouseMoved', 5, 5);
   /* and so does stepping from label to label with the keyboard */
   await until('!s.diagram.hover', 'hover gone');
@@ -2067,9 +2076,11 @@ async function autoView(dir) {
   await cdp.eval(`document.querySelector('.auto-host .plot-fit').click()`);
   check('the corner Fit brings every curve back into view',
     await until(fitCondition(dataExtent), 'fit applied'), JSON.stringify([await DG(), dataExtent]));
+  await settled(DG); /* the Fit fully applied before it is undone */
   await cdp.eval(`[...document.querySelectorAll('.auto-panel button')].find(b => b.textContent === 'Undo zoom').click()`);
   check('the corner Fit is an undoable zoom, like any other: Undo zoom goes back to the panned-away view',
-    await until(`s.diagram.viewport.x && Math.abs(s.diagram.viewport.x.min - ${away.x.min}) < 1e-6`, 'undo fit'));
+    await until(`s.diagram.viewport.x && Math.abs(s.diagram.viewport.x.min - ${away.x.min}) < 1e-6`, 'undo fit'),
+    JSON.stringify([await DS('d.viewport'), away.x]));
   await key('0');
   await until('s.diagram.viewport.x === null', 'auto reset 2');
   for (let st = 0; st < 15; st++) await key('ArrowLeft');
