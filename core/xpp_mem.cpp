@@ -54,6 +54,47 @@ unsigned long long fail_at()
     return n;
 }
 
+/* XPP_MEM_INIT=0: memory from xpp_malloc/xpp_realloc is left as the C
+   library gives it, for valgrind (tools/valgrindcheck.sh) to see a read of
+   what was never written; otherwise it is zeroed */
+bool zero_init()
+{
+    static const bool z = [] {
+        const char *s = std::getenv("XPP_MEM_INIT");
+        return s == nullptr || std::strcmp(s, "0") != 0;
+    }();
+    return z;
+}
+
+/* p, which was given *size bytes, grown to all the C library holds for it
+   (its usable size; realloc to that size stays in place), and *size set to
+   that: every byte of it is then the program's to zero. Zeroing only what
+   was asked for would leave the rest to a later xpp_realloc growing in
+   place, and writing past what was asked for is undefined (glibc's
+   _FORTIFY_SOURCE aborts on it). */
+void *whole(void *p, size_t *size)
+{
+#ifdef USABLE_SIZE
+    size_t u = USABLE_SIZE(p);
+    if (u > *size) {
+        void *q = std::realloc(p, u);
+        if (q != nullptr) {
+            p = q;
+            *size = u;
+        }
+    }
+#endif
+    return p;
+}
+
+/* zeroes bytes from..size of p, grown first to its usable size */
+void *zeroed(void *p, size_t from, size_t size)
+{
+    p = whole(p, &size);
+    if (size > from) std::memset(static_cast<char *>(p) + from, 0, size - from);
+    return p;
+}
+
 /* counts the call and says whether the test hook fails it */
 bool injected_failure(size_t n)
 {
@@ -107,6 +148,7 @@ void *xpp_malloc_at(size_t n, const char *file, int line)
     if (injected_failure(n)) die("malloc", n, 0, file, line);
     void *p = std::malloc(n != 0 ? n : 1);
     if (p == nullptr) die("malloc", n, 0, file, line);
+    if (zero_init()) p = zeroed(p, 0, n != 0 ? n : 1);
     n_allocs.fetch_add(1, relaxed);
     return got(p);
 }
@@ -117,6 +159,7 @@ void *xpp_calloc_at(size_t n, size_t size, const char *file, int line)
     if (injected_failure(n * size)) die("calloc", n, size, file, line);
     void *p = n != 0 && size != 0 ? std::calloc(n, size) : std::calloc(1, 1);
     if (p == nullptr) die("calloc", n, size, file, line);
+    if (zero_init()) p = zeroed(p, n * size, n != 0 && size != 0 ? n * size : 1);
     n_allocs.fetch_add(1, relaxed);
     return got(p);
 }
@@ -127,6 +170,8 @@ void *xpp_realloc_at(void *p, size_t n, const char *file, int line)
     long long before = usable(p);
     void *q = std::realloc(p, n != 0 ? n : 1);
     if (q == nullptr) die("realloc", n, 0, file, line);
+    /* the old block was zeroed to its usable size, so what grows is new */
+    if (zero_init()) q = zeroed(q, static_cast<size_t>(before), n != 0 ? n : 1);
     (p != nullptr ? n_reallocs : n_allocs).fetch_add(1, relaxed);
     n_live.fetch_sub(before, relaxed);
     return got(q);

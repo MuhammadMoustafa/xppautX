@@ -6,6 +6,42 @@
    naming the call site. */
 #include "xpptest.h"
 #include "xpp_mem.h"
+#include <stdlib.h>
+#include <string.h>
+
+/* 1 when n bytes from p are all 0 */
+static int all_zero(const char *p, size_t n)
+{
+    size_t i;
+    for (i = 0; i < n; i++)
+        if (p[i] != 0) return 0;
+    return 1;
+}
+
+/* memory comes zeroed (W21): malloc's, and what a realloc adds, even when
+   the C library hands back a block it had before or grows one in place;
+   XPP_MEM_INIT=0 (tools/valgrindcheck.sh) turns that off */
+static void check_zeroed(void)
+{
+    const char *init = getenv("XPP_MEM_INIT");
+    char *p;
+    int k;
+    if (init != NULL && strcmp(init, "0") == 0) return;
+    for (k = 0; k < 20; k++) {
+        p = xpp_malloc(64);
+        CHECK(all_zero(p, 64));
+        memset(p, 0xAB, 64);
+        xpp_free(p);
+    }
+    p = xpp_malloc(24);
+    CHECK(all_zero(p, 24));
+    memset(p, 'x', 24);
+    p = xpp_realloc(p, 40); /* in place, into the block's own slack */
+    CHECK(p[23] == 'x' && all_zero(p + 24, 16));
+    p = xpp_realloc(p, 5000); /* moved */
+    CHECK(p[23] == 'x' && all_zero(p + 24, 5000 - 24));
+    xpp_free(p);
+}
 
 int main(void)
 {
@@ -52,5 +88,6 @@ int main(void)
     /* everything above was freed */
     CHECK(s1.live_bytes == s0.live_bytes);
 
+    check_zeroed();
     TEST_REPORT("memory");
 }

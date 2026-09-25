@@ -11,6 +11,13 @@
    not fit a size_t is a failure too. xpp_strdup(NULL) is NULL. xpp_free
    is free(): it takes NULL and any pointer these functions returned.
 
+   Memory comes zeroed: xpp_malloc's like xpp_calloc's, and the part a
+   xpp_realloc adds (W21). A read of memory never written then reads 0 on
+   every platform, where it read whatever the heap held, which differed
+   between runs and systems. XPP_MEM_INIT=0 turns that off, for valgrind
+   to report such a read (tools/valgrindcheck.sh sets it): a bug still,
+   fixed where valgrind finds it.
+
    Everything is counted (xpp_mem_stats()); the counts are logged at exit
    at XPP_LOG_DEBUG (--debug). The counters are atomics: the protocol's
    reader threads allocate too.
