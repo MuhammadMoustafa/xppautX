@@ -19,7 +19,9 @@ difference somewhere else rather than as a failure of the thing that broke:
 the parser, name and format helpers, file round trips. Whole-session
 behaviour is already covered, and better covered, by `tools/servercheck.py`
 (the protocol), `tools/webcheck.py` (HTTP), `tools/web2check.mjs` (the web front end)
-and `tools/examples_check.sh` (every example's output).
+and `tools/examples_check.sh` (every example's output, compared with
+`tests/examples.md5`, or with `tests/examples.<platform>.md5` on a platform
+whose outputs differ from Linux's: CLAUDE.md says how CI makes those).
 
 ## What the tests pin
 
