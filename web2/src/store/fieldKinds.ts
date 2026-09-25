@@ -126,6 +126,20 @@ export function fieldError(spec: FieldSpec, text: string): string | null {
   return entry(spec).check(text, spec as never);
 }
 
+/* the start of a number still being typed: a sign, a point, an exponent's e and sign */
+const INTEGER_START = /^[+-]?$/;
+const DECIMAL_START = /^[+-]?\d*\.?\d*([eE][+-]?)?$/;
+
+/** whether `text` is the start of what the box takes rather than a wrong entry ("-" on the way
+    to "-0.5", "1e-" to "1e-3", "%" to a formula): a box does not flag it while it is typed,
+    only when it is committed as it is */
+export function fieldIncomplete(spec: FieldSpec, text: string): boolean {
+  const t = text.trim();
+  if (spec.kind === 'integer') return INTEGER_START.test(t);
+  if (spec.kind === 'number') return (!!spec.formula && t === '%') || (DECIMAL_START.test(t) && !DECIMAL.test(t));
+  return false;
+}
+
 /** whether every text is what its box takes */
 export function fieldsValid(specs: readonly FieldSpec[], texts: readonly string[]): boolean {
   return specs.every((s, i) => fieldError(s, texts[i] ?? '') === null);

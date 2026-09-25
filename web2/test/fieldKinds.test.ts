@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {
-  EXPRESSION, FILE, FORMULA, fieldError, fieldInputMode, fieldMessage, fieldsValid, NUMBER, specOfKind, TEXT,
+  EXPRESSION, FILE, FORMULA, fieldError, fieldIncomplete, fieldInputMode, fieldMessage, fieldsValid, NUMBER, specOfKind, TEXT,
   type FieldSpec,
 } from '../src/store/fieldKinds';
 
@@ -100,4 +100,13 @@ test('a form is valid when every field is', () => {
 
 test('a message starts with a capital', () => {
   assert.equal(fieldMessage('a whole number'), 'A whole number');
+});
+
+test('the start of a number is not a wrong entry while typed; a complete wrong one is', () => {
+  for (const t of ['', '-', '+', '.', '-.', '1e', '1e-', '2.5E+']) assert.equal(fieldIncomplete(NUMBER, t), true, t);
+  assert.equal(fieldIncomplete(FORMULA, '%'), true);
+  for (const t of ['abc', '1.5', '5', '1e3', '--1']) assert.equal(fieldIncomplete(NUMBER, t), false, t);
+  assert.equal(fieldIncomplete({kind: 'integer'}, '-'), true);
+  assert.equal(fieldIncomplete({kind: 'integer'}, '2.5'), false);
+  assert.equal(fieldIncomplete(TEXT, ''), false);
 });

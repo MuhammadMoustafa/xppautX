@@ -21,7 +21,7 @@
    spinner does; a name box suggests its names (a datalist). */
 import type {InputHTMLAttributes} from 'preact';
 import {useEffect, useId, useRef, useState} from 'preact/hooks';
-import {fieldError, fieldInputMode, fieldMessage, type FieldSpec} from '../store/fieldKinds';
+import {fieldError, fieldIncomplete, fieldInputMode, fieldMessage, type FieldSpec} from '../store/fieldKinds';
 
 type InputAttrs = Omit<InputHTMLAttributes<HTMLInputElement>,
   'value' | 'onInput' | 'onChange' | 'type' | 'step' | 'inputMode' | 'list' | 'onBlur' | 'onFocus'>;
@@ -67,6 +67,10 @@ export function Field(props: FieldProps) {
   const [draft, setDraft] = useState<string | null>(null);
   const started = useRef<string>('');
   const dropped = useRef(false);
+  /* focused, and whether Enter was refused since the last keystroke: the start of a number is
+     flagged only then, or once the box is left (fieldIncomplete) */
+  const [focused, setFocused] = useState(false);
+  const [refused, setRefused] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
@@ -77,7 +81,8 @@ export function Field(props: FieldProps) {
     return phrase ? fieldMessage(phrase) : null;
   };
   /* a box on its own checks only what is typed into it, not the value it is given */
-  const typed = standalone && draft === null ? null : messageOf(text);
+  const typing = focused && !refused && fieldIncomplete(spec, text);
+  const typed = (standalone && draft === null) || typing ? null : messageOf(text);
   const message = typed ?? error ?? null;
   const msgId = `${baseId}-msg`;
   const listId = spec.kind === 'name' ? `${baseId}-names` : undefined;
@@ -97,6 +102,7 @@ export function Field(props: FieldProps) {
     return true;
   };
   const change = (t: string) => {
+    setRefused(false);
     if (!standalone) { onInput?.(t); return; }
     setDraft(t);
     clearTimer();
@@ -123,6 +129,7 @@ export function Field(props: FieldProps) {
         aria-invalid={message ? 'true' : undefined}
         aria-describedby={message ? msgId : undefined} data-kind={spec.kind}
         onFocus={e => {
+          setFocused(true);
           if (standalone && draft === null) {
             const from = editValue ?? value;
             started.current = from.trim();
@@ -132,6 +139,7 @@ export function Field(props: FieldProps) {
         }}
         onInput={e => change((e.target as HTMLInputElement).value)}
         onBlur={e => {
+          setFocused(false);
           if (standalone) {
             if (dropped.current) { dropped.current = false; clearTimer(); setDraft(null); }
             else if (draft !== null && commit(draft)) setDraft(null);
@@ -143,6 +151,7 @@ export function Field(props: FieldProps) {
           if (e.key === 'Enter') {
             if (messageOf(el.value) !== null) {
               /* a text the box does not take is not committed: it stays, with its message */
+              setRefused(true);
               e.preventDefault();
               e.stopPropagation();
               return;

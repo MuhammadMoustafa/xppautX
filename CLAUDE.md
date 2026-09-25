@@ -136,7 +136,7 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
 - `core/xpp_ui.h` is the seam: an `XppUi` table of callbacks. Core code
   calls the historical names (`err_msg`, `new_float`, `redraw_params`,
   `TwoChoice`, `ALINE`, `set_color`, ...); those are dispatchers in
-  `core/xpp_ui.c` with headless defaults. `core/ui_json.cpp` installs its
+  `core/xpp_ui.cpp` with headless defaults. `core/ui_json.cpp` installs its
   own table before it serves a session. Adding a UI call from core: add a
   field, a headless default, a dispatcher, and a `j_` function in the
   `core/json_*.cpp` file of its responsibility (declared in
