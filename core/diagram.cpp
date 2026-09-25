@@ -60,42 +60,6 @@ void start_diagram(int n)
   DiagFlag=0;
 }
 
-int find_diagram(int irs, int n, int *index, int *ibr, int *ntot, int *itp, int *nfpar, double *a, double *uhi, double *ulo, double *u0, double *par, double *per, int *icp1, int *icp2, int *icp3, int *icp4)
-{
-  int i,found=0;
-  DIAGRAM *d;
-  d=bifd;
-
-  while(d->next!=NULL){
-    if(d->lab==irs){
-      found=1;
-      break;
-    }
-    d=d->next;
-  }
-  if(found){
-    *ibr=d->ibr;
-    *ntot=d->ntot;
-    *index=d->index;
-    *itp=d->itp;
-    *nfpar=d->nfpar;
-    *a=d->norm;
-    par=d->par;
-    *icp1=d->icp1;
-    *icp2=d->icp2;
-    *icp3=d->icp3;
-    *icp4=d->icp4;
-    *per=d->per;
-    for(i=0;i<n;i++){
-      u0[i]=d->u0[i];
-      ulo[i]=d->ulo[i];
-      uhi[i]=d->uhi[i];
-    }
-    return(1);
-  }
-  return(0);
-}
-    
 void edit_start(int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, double *evr, double *evi)
 {
   edit_diagram(bifd,ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,
