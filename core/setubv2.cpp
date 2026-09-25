@@ -1,3 +1,4 @@
+#include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h"
 #include "xpp_mem.h"
 #include "auto_c.h"

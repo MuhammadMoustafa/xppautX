@@ -1,4 +1,5 @@
 #include <stdlib.h> 
+#include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h" 
 #include "odesol2.h"
 #include "auto_nox.h"
@@ -6,9 +7,9 @@
 #include "derived.h"
 #include "pp_shoot.h"
 #include "xAuto.h"
+#include "tabular.h"  /* redo_all_fun_tables() */
+#include "gear.h"     /* getjactrans() */
 
-void redo_all_fun_tables();
-void getjactrans(double *x,double *y,double *yp,double *xp, double eps, double *d, int n);
 extern XAUTO xAuto;
 
 /*    Hooks to xpp RHS     */
@@ -25,7 +26,13 @@ extern double outperiod[];
 extern int UzrPar[],NAutoUzr;
 
 extern double NEWT_ERR;
-int func(integer ndim, double *u, integer *icp, double *par, integer ijac, double *f, double *dfdu, double *dfdp)
+
+/* AUTO calls these through auto_c.h's "problem defined functions"
+   prototypes; give them C linkage so the callers (autlib3.cpp,
+   autlib5.cpp) find the unmangled symbol regardless of which
+   translation unit's (differently const-qualified) prototype is in
+   scope where each is called from. */
+extern "C" int func(integer ndim, double *u, integer *icp, double *par, integer ijac, double *f, double *dfdu, double *dfdp)
 {
    int i,j;
    double zz[NAUTO];
@@ -56,7 +63,7 @@ int func(integer ndim, double *u, integer *icp, double *par, integer ijac, doubl
 } /* func_ */
 
 
-int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
+extern "C" int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
 {
   int i;
 
@@ -101,7 +108,7 @@ int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
 
 
 
-/* Subroutine */ int bcnd(integer ndim, double *par, integer *icp, integer nbc, double *u0, double *u1, integer ijac, double *fb, double *dbc)
+/* Subroutine */ extern "C" int bcnd(integer ndim, double *par, integer *icp, integer nbc, double *u0, double *u1, integer ijac, double *fb, double *dbc)
 {
  int i;
 /* Hooks to the XPP bc parser!! */
@@ -120,7 +127,7 @@ int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
 
 /* AUTO's user routines that xppautX does not supply: stubs, with
    auto_c.h's prototypes (which AUTO calls them through) */
-/* Subroutine */ int icnd(integer ndim, const doublereal *par, const integer *icp, integer nint,
+/* Subroutine */ extern "C" int icnd(integer ndim, const doublereal *par, const integer *icp, integer nint,
 	 const doublereal *u, const doublereal *uold, const doublereal *udot,
 	 const doublereal *upold, integer ijac,
 	 doublereal *fi, doublereal *dint)
@@ -135,7 +142,7 @@ int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
     return 0;
 } /* icnd_ */
 
-/* Subroutine */ int fopt(integer ndim, const doublereal *u, const integer *icp,
+/* Subroutine */ extern "C" int fopt(integer ndim, const doublereal *u, const integer *icp,
 	 const doublereal *par, integer ijac,
 	 doublereal *fs, doublereal *dfdu, doublereal *dfdp)
 {
@@ -146,7 +153,7 @@ int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
 /*  Not sure what to do here; I think  do nothing  since IEQUIB is always
     -2 
 */
-int pvls (integer ndim, const doublereal *u,
+extern "C" int pvls (integer ndim, const doublereal *u,
           doublereal *par)
 {
   return 0;

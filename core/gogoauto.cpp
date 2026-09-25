@@ -1,4 +1,5 @@
 
+#include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
@@ -18,7 +19,7 @@ extern char fort3[200], fort7[200], fort8[200],fort9[200];
 
 
 
-int go_go_auto() /* this is the entry  at this point, xAuto has been set */
+extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been set */
 {
   integer icp[NPARX2];
   doublereal par[NPARX2], thl[NPARX];
