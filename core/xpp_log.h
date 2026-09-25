@@ -12,7 +12,12 @@
 
    The default threshold is XPP_LOG_WARN, so a clean run prints nothing;
    --verbose / -verbose raises it to INFO, --debug / -debug to DEBUG.
-   plintf() is xpp_log at INFO; err_msg()'s headless default logs at ERROR.
+   err_msg()'s headless default logs at ERROR. There is no plintf() any
+   more (retired at W25): call xpp_log(level, fmt, ...) directly from a
+   .c file, or xpp::log(level, fmt, args...) (below, .cpp files, a
+   std::format-checked wrapper) where the format string converts
+   mechanically. An INFO message additionally honours the model's own
+   "@ quiet=1" (log_settings.verbose), same as plintf() used to.
 
    Messages follow printf: the caller writes the newline, so a line can be
    built in pieces. They go to -logfile's file when one was given, else to
@@ -75,6 +80,42 @@ void xpp_log_set_auto_echo(int on);
 int xpp_log_parse_arg(const char *arg);
 
 #ifdef __cplusplus
+} /* extern "C" */
+
+#include <cstdlib>
+#include <string>
+#include <utility>
+#if defined(__cpp_lib_format) || (defined(__has_include) && __has_include(<format>))
+#include <format>
+#define XPP_LOG_HAVE_STD_FORMAT 1
+#endif
+
+namespace xpp {
+#ifdef XPP_LOG_HAVE_STD_FORMAT
+/* Compile-time checked counterpart of xpp_log() for the .cpp files (see
+   core/xpp_io.h's xpp::format, same idea): a bad "{}" against the
+   argument types is a compile error, not a run-time surprise. Formats
+   with std::format, then calls the C xpp_log() with "%s" so the sink,
+   threshold and log_settings.verbose gating stay in the one place. No
+   exception may cross into C: a formatting failure (out of memory) is
+   loud and final, like xpp::format_failed. Prefer this over plain
+   xpp_log() in .cpp files whenever the format string converts
+   mechanically (most do); a dynamic width/precision (`%*s`, `%.*s`) or a
+   pointer destination stay on xpp_log, same as xpp::format vs
+   xpp_snprintf in xpp_io.h. */
+template <class... Args>
+void log(XppLogLevel level, std::format_string<Args...> fmt, Args &&...args) noexcept
+{
+    try {
+        std::string s = std::format(fmt, std::forward<Args>(args)...);
+        xpp_log(level, "%s", s.c_str());
+    } catch (...) {
+        xpp_log(XPP_LOG_ERROR, "out of memory formatting a log message\n");
+        std::exit(1);
+    }
 }
 #endif
+} // namespace xpp
+
+#endif /* __cplusplus */
 #endif

@@ -1,5 +1,6 @@
 #include "graf_par.h"
 #include "xpp_mem.h"
+#include "xpp_log.h"
 #include "arrayplot.h"
 #include "xpp_globals.h"
 #include "marks_data.h"
@@ -1279,7 +1280,7 @@ void read_bd(FILE *fp)
        ncrv++;
      }
    }
-  plintf( " got %d bifurcation curves\n",ncrv);
+  xpp_log(XPP_LOG_INFO, " got %d bifurcation curves\n",ncrv);
  fclose(fp);
  my_bd.nbifcrv=ncrv;
  my_bd.w=plot_windows.draw_win;

@@ -14,6 +14,7 @@
 #include "fftn.h"
 #include "parserslow.h"
 #include "xpp_io.h"
+#include "xpp_log.h"
 #include "xpp_ui.h"
 
 
@@ -440,7 +441,7 @@ void compute_power()
     daty[i]=atan2(s,c);
     ptot+=(datx[i]*datx[i]);
   }
-  plintf("a0=%g L2norm= %g  \n",datx[0],sqrt(ptot));
+  xpp_log(XPP_LOG_INFO, "a0=%g L2norm= %g  \n",datx[0],sqrt(ptot));
 }
 /* short-term fft 
    first apply a window
@@ -885,7 +886,7 @@ void fftxcorr(float *data1,float *data2,int length,int nlag,float *cr,int flag)
    xpp_free(re2);
    xpp_free(im1);
    xpp_free(im2);
-   plintf("residual = %g\n",sum);  
+   xpp_log(XPP_LOG_INFO, "residual = %g\n",sum);
    
 }
 

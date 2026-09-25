@@ -288,14 +288,14 @@ if(METHOD==RKQS||METHOD==STIFF){
 void print_fit_info()
 {
   int i;
-  plintf("dim=%d maxiter=%d npts=%d file=%s tol=%g eps=%g\n",
+  xpp_log(XPP_LOG_INFO, "dim=%d maxiter=%d npts=%d file=%s tol=%g eps=%g\n",
 	 fin.dim,fin.maxiter,fin.npts,fin.file,fin.tol,fin.eps);
-  
+
   for(i=0;i<fin.nvars;i++)
-    plintf(" variable %d to col %d \n",
+    xpp_log(XPP_LOG_INFO, " variable %d to col %d \n",
 	   fin.ivar[i],fin.icols[i]);
   for(i=0;i<fin.npars;i++)
-    plintf(" P[%d]=%d \n",i,fin.ipar[i]);
+    xpp_log(XPP_LOG_INFO, " P[%d]=%d \n",i,fin.ipar[i]);
 }
 
 
@@ -367,7 +367,7 @@ void test_fit()
   }
 
  print_fit_info();
- plintf(" Running the fit...\n");
+ xpp_log(XPP_LOG_INFO, " Running the fit...\n");
  ok=run_fit(fin.file, fin.npts,fin.npars,fin.nvars,fin.maxiter,fin.dim,
          fin.eps,fin.tol,
 	 fin.ipar,fin.ivar,fin.icols,
@@ -443,7 +443,7 @@ int run_fit(char *filename, int npts, int npars, int nvars, int maxiter, int ndi
     }
 
   }
-  plintf(" Data loaded ... %f %f ...  %f %f \n",
+  xpp_log(XPP_LOG_INFO, " Data loaded ... %f %f ...  %f %f \n",
 	 y[0],y[1],y[npts*nvars-2],y[npts*nvars-1]);
 
   
@@ -464,12 +464,12 @@ int run_fit(char *filename, int npts, int npars, int nvars, int maxiter, int ndi
 	       ivar,ipar,covar,alpha,&chisq,&alambda,work,
 	       yderv,yfit,&ochisq,ictrl,eps);
     niter++;
-    plintf(" step %d is %d  -- lambda= %g  chisq= %g oldchi= %g\n",
+    xpp_log(XPP_LOG_INFO, " step %d is %d  -- lambda= %g  chisq= %g oldchi= %g\n",
 	   niter,ok,alambda,chisq,ochisq);
-    plintf(" params: ");
+    xpp_log(XPP_LOG_INFO, " params: ");
     for(i=0;i<npars;i++)
-      plintf(" %g ",a[i]);
-    plintf("\n");
+      xpp_log(XPP_LOG_INFO, " %g ",a[i]);
+    xpp_log(XPP_LOG_INFO, "\n");
     if((ok==0)||(niter>=maxiter))break;
     if(ochisq>chisq){
       if(((ochisq-chisq)<tol10)||(((ochisq-chisq)/MAX(1.0,chisq))<tol))
@@ -521,11 +521,11 @@ int run_fit(char *filename, int npts, int npars, int nvars, int maxiter, int ndi
 	       yderv,yfit,&ochisq,ictrl,eps);
   err_msg(" Success! ");
   /* have the covariance matrix -- so what?   */
-  plintf(" covariance: \n");
+  xpp_log(XPP_LOG_INFO, " covariance: \n");
   for(i=0;i<npars;i++){
     for(j=0;j<npars;j++)
-      plintf(" %g ",covar[i+npars*j]);
-    plintf("\n");
+      xpp_log(XPP_LOG_INFO, " %g ",covar[i+npars*j]);
+    xpp_log(XPP_LOG_INFO, "\n");
   }
 
 

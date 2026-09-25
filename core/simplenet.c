@@ -261,7 +261,7 @@ int add_vectorizer(char *name,char *rhs)
     my_vec[ind].length=len;
     my_vec[ind].il=il;
     my_vec[ind].ir=ir;
-    plintf("adding vector %s based on variable %d of length %d ends %d %d\n",
+    xpp_log(XPP_LOG_INFO, "adding vector %s based on variable %d of length %d ends %d %d\n",
 	   name,ivar,len,il,ir);
  
   return 1;
@@ -270,7 +270,7 @@ int add_vectorizer(char *name,char *rhs)
 void add_vectorizer_name(char *name, char *rhs)
 {
   if(n_vector>=MAXVEC){
-    plintf("Too many vectors \n");
+    xpp_log(XPP_LOG_ERROR, "Too many vectors \n");
     exit(0);
   }
   if(name_too_long(name))exit(0);
@@ -332,12 +332,12 @@ int add_spec_fun(char *name, char *rhs)
   char sofun[256],soname[256],*tname[MAXW];
   type=is_network(rhs);
     if(type==0)return 0;
-  plintf("type=%d \n",type);
+  xpp_log(XPP_LOG_DEBUG, "type=%d \n",type);
   for(i=0;i<n_network;i++)
     if(strcmp(name,my_net[i].name)==0)break;
   ind=i;
   if(ind>=n_network){
-    plintf(" No such name %s ?? \n",name);
+    xpp_log(XPP_LOG_ERROR, " No such name %s ?? \n",name);
     return 0;
   }
   switch(type){
@@ -349,26 +349,26 @@ int add_spec_fun(char *name, char *rhs)
     if(str[0]=='0'||str[0]=='Z')ntype=CONV0;
     if(str[0]=='P')ntype=CONVP;
     if(ntype==-1){
-      plintf(" No such convolution type %s \n",str);
+      xpp_log(XPP_LOG_ERROR, " No such convolution type %s \n",str);
       return 0;
     }
     str=get_next(",");
     ntot=atoi(str);
     if(ntot<=0){
-      plintf(" %s must be positive int \n",str);
+      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
       return 0;
     }
     str=get_next(",");
     ncon=atoi(str);
     if(ncon<=0){
-       plintf(" %s must be positive int \n",str);
+       xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
       return 0;
     }
     str=get_next(",");
     XPP_STRCPY(wgtname,str);
     iwgt=find_lookup(wgtname);
     if(iwgt<0){
-      plintf("in network %s,  %s is not a table \n",
+      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
 	     name,wgtname);
       return 0;
     }
@@ -376,7 +376,7 @@ int add_spec_fun(char *name, char *rhs)
     XPP_STRCPY(rootname,str);
     ivar=get_var_index(rootname);
     if(ivar<0){
-      plintf(" In %s , %s is not valid variable\n",
+      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
 	     name,rootname);
       return 0;
     }
@@ -387,7 +387,7 @@ int add_spec_fun(char *name, char *rhs)
     my_net[ind].root=ivar;
     my_net[ind].n=ntot;
     my_net[ind].ncon=ncon;
-    plintf(" Added net %s type %d len=%d x %d using %s var[%d] \n",
+    xpp_log(XPP_LOG_INFO, " Added net %s type %d len=%d x %d using %s var[%d] \n",
 	   name,ntype,ntot,ncon,wgtname,ivar);
     
     return 1;   
@@ -399,14 +399,14 @@ int add_spec_fun(char *name, char *rhs)
     ntot=atoi(str);
     
     if(ntot<=0){
-      plintf(" %s must be positive int \n",str);
+      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
       return 0;
     }
     str=get_next(",");
     ncon=atoi(str);
     
     if(ncon<=0){
-       plintf(" %s must be positive int \n",str);
+       xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
       return 0;
     }
     str=get_next(",");
@@ -414,7 +414,7 @@ int add_spec_fun(char *name, char *rhs)
     iwgt=find_lookup(wgtname);
     
     if(iwgt<0){
-      plintf("in network %s,  %s is not a table \n",
+      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
 	     name,wgtname);
       return 0;
     }
@@ -424,7 +424,7 @@ int add_spec_fun(char *name, char *rhs)
     iind=find_lookup(indname);
     
     if(iind<0){
-      plintf("in network %s,  %s is not a table \n",
+      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
 	     name,indname);
       return 0;
     }
@@ -434,7 +434,7 @@ int add_spec_fun(char *name, char *rhs)
   
 
    if(ivar<0){
-      plintf(" In %s , %s is not valid variable\n",
+      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
 	     name,rootname);
       return 0;
     }
@@ -448,7 +448,7 @@ int add_spec_fun(char *name, char *rhs)
     my_net[ind].root=ivar;
     my_net[ind].n=ntot;
     my_net[ind].ncon=ncon;
-    plintf(" Added sparse %s len=%d x %d using %s var[%d]  and %s\n",
+    xpp_log(XPP_LOG_INFO, " Added sparse %s len=%d x %d using %s var[%d]  and %s\n",
 	   name,ntot,ncon,wgtname,ivar,indname );
     return 1;   
     break;
@@ -460,26 +460,26 @@ int add_spec_fun(char *name, char *rhs)
     if(str[0]=='0'||str[0]=='Z')ntype=FCONV0;
     if(str[0]=='P')ntype=FCONVP;
     if(ntype==-1){
-      plintf(" No such convolution type %s \n",str);
+      xpp_log(XPP_LOG_ERROR, " No such convolution type %s \n",str);
       return 0;
     }
     str=get_next(",");
     ntot=atoi(str);
     if(ntot<=0){
-      plintf(" %s must be positive int \n",str);
+      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
       return 0;
     }
     str=get_next(",");
     ncon=atoi(str);
     if(ncon<=0){
-       plintf(" %s must be positive int \n",str);
+       xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
       return 0;
     }
     str=get_next(",");
     XPP_STRCPY(wgtname,str);
     iwgt=find_lookup(wgtname);
     if(iwgt<0){
-      plintf("in network %s,  %s is not a table \n",
+      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
 	     name,wgtname);
       return 0;
     }
@@ -489,7 +489,7 @@ int add_spec_fun(char *name, char *rhs)
     XPP_STRCPY(rootname,str);
     ivar=get_var_index(rootname);
     if(ivar<0){
-      plintf(" In %s , %s is not valid variable\n",
+      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
 	     name,rootname);
       return 0;
     }
@@ -498,7 +498,7 @@ int add_spec_fun(char *name, char *rhs)
     XPP_STRCPY(root2name,str);
     ivar2=get_var_index(root2name);
     if(ivar2<0){
-      plintf(" In %s , %s is not valid variable\n",
+      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
 	     name,root2name);
       return 0;
     }
@@ -506,7 +506,7 @@ int add_spec_fun(char *name, char *rhs)
     XPP_STRCPY(fname,str);
     snprintf(junk,sizeof(junk),"%s(%s,%s)",fname,rootname,root2name);
     if(add_expr(junk,my_net[ind].f,&elen)){
-      plintf(" bad function %s \n",fname);
+      xpp_log(XPP_LOG_ERROR, " bad function %s \n",fname);
       return 0;
     }
     my_net[ind].values=(double *)xpp_malloc((ntot+1)*sizeof(double));
@@ -517,7 +517,7 @@ int add_spec_fun(char *name, char *rhs)
     my_net[ind].root2=my_net[ind].f[1];
     my_net[ind].n=ntot;
     my_net[ind].ncon=ncon;
-    plintf(" Added net %s type %d len=%d x %d using %s %s(var[%d],var[%d]) \n",
+    xpp_log(XPP_LOG_INFO, " Added net %s type %d len=%d x %d using %s %s(var[%d],var[%d]) \n",
 	   name,ntype,ntot,ncon,wgtname,fname,ivar,ivar2);
     return 1;   
     break;
@@ -528,14 +528,14 @@ int add_spec_fun(char *name, char *rhs)
     ntot=atoi(str);
     
     if(ntot<=0){
-      plintf(" %s must be positive int \n",str);
+      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
       return 0;
     }
     str=get_next(",");
     ncon=atoi(str);
     
     if(ncon<=0){
-       plintf(" %s must be positive int \n",str);
+       xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
       return 0;
     }
     str=get_next(",");
@@ -543,7 +543,7 @@ int add_spec_fun(char *name, char *rhs)
     iwgt=find_lookup(wgtname);
     
     if(iwgt<0){
-      plintf("in network %s,  %s is not a table \n",
+      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
 	     name,wgtname);
       return 0;
     }
@@ -553,7 +553,7 @@ int add_spec_fun(char *name, char *rhs)
     iind=find_lookup(indname);
     
     if(iind<0){
-      plintf("in network %s,  %s is not a table \n",
+      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
 	     name,indname);
       return 0;
     }
@@ -565,7 +565,7 @@ int add_spec_fun(char *name, char *rhs)
   
 
    if(ivar<0){
-      plintf(" In %s , %s is not valid variable\n",
+      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
 	     name,rootname);
       return 0;
     }
@@ -575,7 +575,7 @@ int add_spec_fun(char *name, char *rhs)
     XPP_STRCPY(root2name,str);
     ivar2=get_var_index(root2name);
     if(ivar2<0){
-      plintf(" In %s , %s is not valid variable\n",
+      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
 	     name,root2name);
       return 0;
     }
@@ -583,7 +583,7 @@ int add_spec_fun(char *name, char *rhs)
     XPP_STRCPY(fname,str);
     snprintf(junk,sizeof(junk),"%s(%s,%s)",fname,rootname,root2name);
     if(add_expr(junk,my_net[ind].f,&elen)){
-      plintf(" bad function %s \n",fname);
+      xpp_log(XPP_LOG_ERROR, " bad function %s \n",fname);
       return 0;
     }
 
@@ -597,7 +597,7 @@ int add_spec_fun(char *name, char *rhs)
     my_net[ind].root2=my_net[ind].f[1];
     my_net[ind].n=ntot;
     my_net[ind].ncon=ncon;
-    plintf(" Sparse %s len=%d x %d using %s %s(var[%d],var[%d]) and %s\n",
+    xpp_log(XPP_LOG_INFO, " Sparse %s len=%d x %d using %s %s(var[%d],var[%d]) and %s\n",
 	   name,ntot,ncon,wgtname,fname,ivar,ivar2,indname );
     return 1;   
     break;
@@ -610,13 +610,13 @@ int add_spec_fun(char *name, char *rhs)
     if(str[0]=='0'||str[0]=='Z')ntype=FFTCON0;
     if(str[0]=='P')ntype=FFTCONP;
     if(ntype==-1){
-      plintf(" No such fft convolution type %s \n",str);
+      xpp_log(XPP_LOG_ERROR, " No such fft convolution type %s \n",str);
       return 0;
     }
     str=get_next(",");
     ntot=atoi(str);
     if(ntot<=0){
-      plintf(" %s must be positive int \n",str);
+      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
       return 0;
     }
    
@@ -624,24 +624,24 @@ int add_spec_fun(char *name, char *rhs)
     XPP_STRCPY(wgtname,str);
     iwgt=find_lookup(wgtname);
     if(iwgt<0){
-      plintf("in network %s,  %s is not a table \n",
+      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
 	     name,wgtname);
       return 0;
     }
     ntab=get_lookup_len(iwgt);
     if(type==FFTCONP&&ntab<ntot){
-     plintf(" In %s, weight is length %d < %d \n",name,ntab,ntot);
+     xpp_log(XPP_LOG_ERROR, " In %s, weight is length %d < %d \n",name,ntab,ntot);
      return 0;
     }
     if(type==FFTCON0&&ntab<(2*ntot)){
-     plintf(" In %s, weight is length %d < %d \n",name,ntab,2*ntot);
+     xpp_log(XPP_LOG_ERROR, " In %s, weight is length %d < %d \n",name,ntab,2*ntot);
      return 0;
     }
     str=get_next(")");
     XPP_STRCPY(rootname,str);
     ivar=get_var_index(rootname);
     if(ivar<0){
-      plintf(" In %s , %s is not valid variable\n",
+      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
 	     name,rootname);
       return 0;
     }
@@ -663,7 +663,7 @@ int add_spec_fun(char *name, char *rhs)
     my_net[ind].ncon=ncon;
     update_fft(ind);
 
-    plintf(" Added net %s type %d len=%d x %d using %s var[%d] \n",
+    xpp_log(XPP_LOG_INFO, " Added net %s type %d len=%d x %d using %s var[%d] \n",
 	   name,ntype,ntot,ncon,wgtname,ivar);
     return 1;   
     break;
@@ -674,14 +674,14 @@ int add_spec_fun(char *name, char *rhs)
     ntot=atoi(str);
     
     if(ntot<=0){
-      plintf(" %s must be positive int \n",str);
+      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
       return 0;
     }
     str=get_next(",");
     ncon=atoi(str);
     
     if(ncon<=0){
-       plintf(" %s must be positive int \n",str);
+       xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
       return 0;
     }
     str=get_next(",");
@@ -689,7 +689,7 @@ int add_spec_fun(char *name, char *rhs)
     iwgt=find_lookup(wgtname);
     
     if(iwgt<0){
-      plintf("in network %s,  %s is not a table \n",
+      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
 	     name,wgtname);
       return 0;
     }
@@ -700,7 +700,7 @@ int add_spec_fun(char *name, char *rhs)
   
 
    if(ivar<0){
-      plintf(" In %s , %s is not valid variable\n",
+      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
 	     name,rootname);
       return 0;
     }
@@ -713,7 +713,7 @@ int add_spec_fun(char *name, char *rhs)
     my_net[ind].root=ivar;
     my_net[ind].n=ncon;
     my_net[ind].ncon=ntot;
-    plintf(" Added mmult %s len=%d x %d using %s var[%d]\n",
+    xpp_log(XPP_LOG_INFO, " Added mmult %s len=%d x %d using %s var[%d]\n",
 	   name,ntot,ncon,wgtname,ivar,indname );
     return 1;   
     break;
@@ -724,14 +724,14 @@ int add_spec_fun(char *name, char *rhs)
     ntot=atoi(str);
     
     if(ntot<=0){
-      plintf(" %s must be positive int \n",str);
+      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
       return 0;
     }
     str=get_next(",");
     ncon=atoi(str);
     
     if(ncon<=0){
-       plintf(" %s must be positive int \n",str);
+       xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
       return 0;
     }
     str=get_next(",");
@@ -739,7 +739,7 @@ int add_spec_fun(char *name, char *rhs)
     iwgt=find_lookup(wgtname);
     
     if(iwgt<0){
-      plintf("in network %s,  %s is not a table \n",
+      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
 	     name,wgtname);
       return 0;
     }
@@ -750,7 +750,7 @@ int add_spec_fun(char *name, char *rhs)
   
 
    if(ivar<0){
-      plintf(" In %s , %s is not valid variable\n",
+      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
 	     name,rootname);
       return 0;
     }
@@ -758,7 +758,7 @@ int add_spec_fun(char *name, char *rhs)
     XPP_STRCPY(root2name,str);
     ivar2=get_var_index(root2name);
     if(ivar2<0){
-      plintf(" In %s , %s is not valid variable\n",
+      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
 	     name,root2name);
       return 0;
     }
@@ -766,7 +766,7 @@ int add_spec_fun(char *name, char *rhs)
     XPP_STRCPY(fname,str);
     snprintf(junk,sizeof(junk),"%s(%s,%s)",fname,rootname,root2name);
     if(add_expr(junk,my_net[ind].f,&elen)){
-      plintf(" bad function %s \n",fname);
+      xpp_log(XPP_LOG_ERROR, " bad function %s \n",fname);
       return 0;
     }
     /*for(i=0;i<elen;i++)
@@ -781,7 +781,7 @@ int add_spec_fun(char *name, char *rhs)
     my_net[ind].root2=my_net[ind].f[1];
     my_net[ind].n=ncon;
     my_net[ind].ncon=ntot;
-    plintf(" Added fmmult %s len=%d x %d using %s %s(var[%d],var[%d])\n",
+    xpp_log(XPP_LOG_INFO, " Added fmmult %s len=%d x %d using %s %s(var[%d],var[%d])\n",
 	   name,ntot,ncon,wgtname,fname,ivar,ivar2);
     return 1; 
 
@@ -790,14 +790,14 @@ int add_spec_fun(char *name, char *rhs)
     str=get_next(",");
     ntype=atoi(str);
     if(ntype>1||ntype<(-1)){
-      plintf("In %s,  type =-1,0,1 not %s \n",
+      xpp_log(XPP_LOG_ERROR, "In %s,  type =-1,0,1 not %s \n",
 	     name,ntype);
       return 0;
     }
     str=get_next(",");
     ntot=atoi(str);
     if(ntot<=0){
-      plintf("In %s,  n>0 not %s \n",
+      xpp_log(XPP_LOG_ERROR, "In %s,  n>0 not %s \n",
 	     name,ntot);
       return 0;
     }
@@ -805,7 +805,7 @@ int add_spec_fun(char *name, char *rhs)
     str=get_next(",");
     ncon=atoi(str);
     if(ncon<=0){
-      plintf("In %s,  skip>=1 not %s \n",
+      xpp_log(XPP_LOG_ERROR, "In %s,  skip>=1 not %s \n",
 	     name,ncon);
       return 0;
     }
@@ -813,7 +813,7 @@ int add_spec_fun(char *name, char *rhs)
     XPP_STRCPY(rootname,str);
     ivar=get_var_index(rootname);
     if(ivar<0){
-      plintf(" In %s , %s is not valid variable\n",
+      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
 	     name,rootname);
       return 0;
     }
@@ -823,7 +823,7 @@ int add_spec_fun(char *name, char *rhs)
     my_net[ind].n=ntot;
     my_net[ind].ncon=ncon;
     my_net[ind].iwgt=ntype;
-    plintf(" Added findextr %s: type=%d len=%d  skip= %d using var[%d] \n",
+    xpp_log(XPP_LOG_INFO, " Added findextr %s: type=%d len=%d  skip= %d using var[%d] \n",
 	   name,ntype,ntot,ncon,ivar);
     return 1; 
 
@@ -839,7 +839,7 @@ int add_spec_fun(char *name, char *rhs)
     str=get_next(",");
     ivar=atoi(str);
     if(ivar<1){
-      plintf("Need more than 1 entry for interpolate\n");
+      xpp_log(XPP_LOG_ERROR, "Need more than 1 entry for interpolate\n");
       return 0;
     }
     my_net[ind].n=ivar; /* # entries in array */
@@ -847,12 +847,12 @@ int add_spec_fun(char *name, char *rhs)
     XPP_STRCPY(rootname,str);
     ivar=get_var_index(rootname);
     if(ivar<0){
-      plintf(" In %s , %s is not valid variable\n",
+      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
 	     name,rootname);
       return 0;
     }
     my_net[ind].root=ivar;
-    plintf("Added interpolator %s length %d on %s \n",name,my_net[ind].n,rootname); 
+    xpp_log(XPP_LOG_INFO, "Added interpolator %s length %d on %s \n",name,my_net[ind].n,rootname); 
     return 1;
 
    case IMPORT:
@@ -866,7 +866,7 @@ int add_spec_fun(char *name, char *rhs)
      my_net[ind].n=ncon;
      ivar=get_var_index(rootname);
      if(ivar<0){
-      plintf(" In %s , %s is not valid variable\n",
+      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
 	     name,rootname);
       return 0;
     }
@@ -877,9 +877,9 @@ int add_spec_fun(char *name, char *rhs)
      my_net[ind].ncon=0;
      for(i=0;i<ntab;i++){
        iwgt=find_lookup(tname[i]);
-       plintf("Found %s\n",tname[i]);
+       xpp_log(XPP_LOG_DEBUG, "Found %s\n",tname[i]);
        if(iwgt<0){
-	 plintf("in network %s,  %s is not a table \n",
+	 xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
 		name,wgtname);
 	 return 0;
        }
@@ -887,7 +887,7 @@ int add_spec_fun(char *name, char *rhs)
      }
      for(i=0;i<MAXW;i++)
        xpp_free(tname[i]);
-     plintf(" Added import %s len=%d  with %s %s var[%d] %d weights\n",
+     xpp_log(XPP_LOG_INFO, " Added import %s len=%d  with %s %s var[%d] %d weights\n",
 	    name,my_net[ind].n,soname,sofun,ivar,ntab );
      
      return 1;
@@ -899,14 +899,14 @@ int add_spec_fun(char *name, char *rhs)
     ntot=atoi(str);
     
     if(ntot<=0){
-      plintf(" %s must be positive int \n",str);
+      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
       return 0;
     }
     str=get_next(",");
     ncon=atoi(str);
     
     if(ncon<=0){
-       plintf(" %s must be positive int \n",str);
+       xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
       return 0;
     }
     str=get_next(",");
@@ -914,7 +914,7 @@ int add_spec_fun(char *name, char *rhs)
     iwgt=find_lookup(wgtname);
     
     if(iwgt<0){
-      plintf("in network %s,  %s is not a table \n",
+      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
 	     name,wgtname);
       return 0;
     }
@@ -923,7 +923,7 @@ int add_spec_fun(char *name, char *rhs)
     itau=find_lookup(tauname);
     
     if(itau<0){
-      plintf("in network %s,  %s is not a table \n",
+      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
 	     name,tauname);
       return 0;
     }
@@ -936,7 +936,7 @@ int add_spec_fun(char *name, char *rhs)
   
 
    if(ivar<0){
-      plintf(" In %s , %s is not valid variable\n",
+      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
 	     name,rootname);
       return 0;
     }
@@ -950,7 +950,7 @@ int add_spec_fun(char *name, char *rhs)
     my_net[ind].root=ivar;
     my_net[ind].n=ncon;
     my_net[ind].ncon=ntot;
-    plintf(" Added del_mul %s len=%d x %d using %s var[%d] with delay %s\n",
+    xpp_log(XPP_LOG_INFO, " Added del_mul %s len=%d x %d using %s var[%d] with delay %s\n",
 	   name,ntot,ncon,wgtname,ivar,indname,tauname );
     NDELAYS=1;
     return 1;   
@@ -963,14 +963,14 @@ int add_spec_fun(char *name, char *rhs)
     ntot=atoi(str);
     
     if(ntot<=0){
-      plintf(" %s must be positive int \n",str);
+      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
       return 0;
     }
     str=get_next(",");
     ncon=atoi(str);
     
     if(ncon<=0){
-       plintf(" %s must be positive int \n",str);
+       xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
       return 0;
     }
     str=get_next(",");
@@ -978,7 +978,7 @@ int add_spec_fun(char *name, char *rhs)
     iwgt=find_lookup(wgtname);
     
     if(iwgt<0){
-      plintf("in network %s,  %s is not a table \n",
+      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
 	     name,wgtname);
       return 0;
     }
@@ -988,7 +988,7 @@ int add_spec_fun(char *name, char *rhs)
     iind=find_lookup(indname);
     
     if(iind<0){
-      plintf("in network %s,  %s is not a table \n",
+      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
 	     name,indname);
       return 0;
     }
@@ -999,7 +999,7 @@ int add_spec_fun(char *name, char *rhs)
     itau=find_lookup(tauname);
     
     if(itau<0){
-      plintf("in network %s,  %s is not a table \n",
+      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
 	     name,tauname);
       return 0;
     }
@@ -1011,7 +1011,7 @@ int add_spec_fun(char *name, char *rhs)
   
 
    if(ivar<0){
-      plintf(" In %s , %s is not valid variable\n",
+      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
 	     name,rootname);
       return 0;
     }
@@ -1025,7 +1025,7 @@ int add_spec_fun(char *name, char *rhs)
     my_net[ind].root=ivar;
     my_net[ind].n=ntot;
     my_net[ind].ncon=ncon;
-    plintf(" Added sparse %s len=%d x %d using %s var[%d]  and %s with dely %s\n",
+    xpp_log(XPP_LOG_INFO, " Added sparse %s len=%d x %d using %s var[%d]  and %s with dely %s\n",
 	   name,ntot,ncon,wgtname,ivar,indname,tauname );
     NDELAYS=1;
     return 1;   
@@ -1053,7 +1053,7 @@ int add_spec_fun(char *name, char *rhs)
     str=get_next(")");
     my_net[ind].type=GILLTYPE;
     if(ivar>0){
-      plintf(" Tau leaping not implemented yet. Changing to 0\n");
+      xpp_log(XPP_LOG_WARN, " Tau leaping not implemented yet. Changing to 0\n");
       ivar=0;
     }
     my_net[ind].iwgt=ivar;
@@ -1065,7 +1065,7 @@ int add_spec_fun(char *name, char *rhs)
     my_net[ind].ncon=-1;
     /* zeroed: the first output row reads them before the first step */
     my_net[ind].values=(double *)xpp_calloc(ivar2+2,sizeof(double));
-    plintf("Added gillespie chain with %d reactions \n",ivar2);
+    xpp_log(XPP_LOG_INFO, "Added gillespie chain with %d reactions \n",ivar2);
     return 1;
 
     /*  case 8:  
@@ -1100,7 +1100,7 @@ int add_spec_fun(char *name, char *rhs)
 void add_special_name(char *name, char *rhs)
 {
   if(is_network(rhs)){
-    plintf(" netrhs = |%s| \n",rhs);
+    xpp_log(XPP_LOG_DEBUG, " netrhs = |%s| \n",rhs);
     if(n_network>=MAXNET){
       return;
     }
@@ -1110,7 +1110,7 @@ void add_special_name(char *name, char *rhs)
     n_network++;
   }
   else
-    plintf(" No such special type ...\n");
+    xpp_log(XPP_LOG_WARN, " No such special type ...\n");
 }
 
 int is_network(char *s)
@@ -1527,7 +1527,7 @@ int gilparse(char *s,int *ind,int *nn)
   int i1,i2,jp=0,f;
   int k=0,iv;
   int id,m;
-  plintf("s=|%s|",s);
+  xpp_log(XPP_LOG_DEBUG, "s=|%s|",s);
   while(1){
     c=s[i];
     if(c==','||i>(n-1)){
@@ -1538,10 +1538,10 @@ int gilparse(char *s,int *ind,int *nn)
       }
       if(f==0)
 	{
-	  plintf("added %s\n",b);
+	  xpp_log(XPP_LOG_DEBUG, "added %s\n",b);
 	  iv=get_var_index(b);
 	  if(iv<0){
-	    plintf("No such name %s\n",b);
+	    xpp_log(XPP_LOG_ERROR, "No such name %s\n",b);
 	    return 0;
 	  }
 	  ind[k]=iv;
@@ -1549,13 +1549,13 @@ int gilparse(char *s,int *ind,int *nn)
 	}
       else 
 	{
-	  plintf("added %s{%d-%d}\n",b,i1,i2);
+	  xpp_log(XPP_LOG_DEBUG, "added %s{%d-%d}\n",b,i1,i2);
 	  m=i2-i1+1;
 	  for(id=0;id<m;id++){
 	    XPP_SPRINTF(bn,"%s%d",b,id+i1);
 	     iv=get_var_index(bn);
 	     if(iv<0){
-	       plintf("No such name %s\n",bn);
+	       xpp_log(XPP_LOG_ERROR, "No such name %s\n",bn);
 	       return 0;
 	     }
 	     ind[k]=iv;
@@ -1605,7 +1605,7 @@ int g_namelist(char *s,char *root,int *flag,int *i1,int*i2)
     j++;
   }
   if(i==n){
-    plintf("Illegal syntax %s\n",s);
+    xpp_log(XPP_LOG_DEBUG, "Illegal syntax %s\n",s);
     return 0;
   }
   num[j]=0;
@@ -1659,7 +1659,7 @@ int getimpstr(char *in,int *i,char *out)
 
 int import_error()
 {
-  xpp_log(XPP_LOG_INFO, "k=import(soname,sofun,nret,var0,w1,...,wm)\n");
+  xpp_log(XPP_LOG_ERROR, "k=import(soname,sofun,nret,var0,w1,...,wm)\n");
   return 0;
 }
 int parse_import(char *s,  char *soname,char *sofun,int *n, char *vname,int *m, char *tname[MAXW])
@@ -1744,7 +1744,7 @@ int get_vector_info(char *str, char *name,int *root, int *length, int *il, int *
   
    
   if(ivar<0){
-    plintf(" In vector %s , %s is not valid variable\n",
+    xpp_log(XPP_LOG_ERROR, " In vector %s , %s is not valid variable\n",
 	     name,temp);
     return 0;
     }

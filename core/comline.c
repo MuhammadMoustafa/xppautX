@@ -251,7 +251,7 @@ void do_comline(int argc, char **argv)
      loadparfile=1;
    }
    if(k==5){
-    plintf("%s",argv[i+1]);
+    xpp_log(XPP_LOG_INFO, "%s",argv[i+1]);
      snprintf(batch_options.out_file,sizeof batch_options.out_file,"%s",argv[i+1]);
      snprintf(batch_options.user_out_file,sizeof batch_options.user_out_file,"%s",argv[i+1]);
      i++;
@@ -390,7 +390,7 @@ void do_comline(int argc, char **argv)
    if(k==30){ /* -equil */
      batch_options.equilibria=atoi(argv[i+1]);
      i++;
-     plintf(" Batch equilibria %d \n",batch_options.equilibria);
+     xpp_log(XPP_LOG_INFO, " Batch equilibria %d \n",batch_options.equilibria);
    }
 	 
   
@@ -414,7 +414,7 @@ int if_needed_load_ext_options()
     }
     if(fgets(myopts,1024,fp)==NULL)myopts[0]=0;
     XPP_SPRINTF(myoptsx,"$ %s",myopts);
-    plintf("Got this string: {%s}\n",myopts);
+    xpp_log(XPP_LOG_DEBUG, "Got this string: {%s}\n",myopts);
     extract_action(myoptsx);
     fclose(fp);
     return 1;
@@ -438,7 +438,7 @@ int if_needed_select_sets()
 		
 		if (is_set_name(sets2use,intern_set[j].name))
 		{
-		plintf("Internal set %s was included\n",intern_set[j].name);
+		xpp_log(XPP_LOG_INFO, "Internal set %s was included\n",intern_set[j].name);
 			if (intern_set[j].use==0){Nintern_2_use++;}
 			intern_set[j].use=1;
 			
@@ -446,13 +446,13 @@ int if_needed_select_sets()
 		
 		if (is_set_name(setsNOTuse,intern_set[j].name))
 		{
-		plintf("Internal set %s was excluded\n",intern_set[j].name);
+		xpp_log(XPP_LOG_INFO, "Internal set %s was excluded\n",intern_set[j].name);
 			if (intern_set[j].use==1){Nintern_2_use--;}
 			intern_set[j].use=0;
 		}
 	}
 	
-	plintf("A total of %d internal sets will be used\n",Nintern_2_use);
+	xpp_log(XPP_LOG_INFO, "A total of %d internal sets will be used\n",Nintern_2_use);
 	
 	return 1;
 }
@@ -485,7 +485,7 @@ int if_needed_load_par()
   {
     return 1;
   }
-  plintf("Loading external parameter file: %s\n",parfilename);
+  xpp_log(XPP_LOG_INFO, "Loading external parameter file: %s\n",parfilename);
   io_parameter_file(parfilename,1);
   return 1;
 }
@@ -498,7 +498,7 @@ int if_needed_load_ic()
   {
   	return 1;
   }
-  plintf("Loading external initial condition file: %s\n",icfilename);
+  xpp_log(XPP_LOG_INFO, "Loading external initial condition file: %s\n",icfilename);
   io_ic_file(icfilename,1);
   return(1);
 }
@@ -517,7 +517,7 @@ int parse_it(char *com)
   if(j<NCMD){
     switch(j){
     case MAKEC:
-     plintf(" C files are no longer part of this version. \n Sorry \n");
+     xpp_log(XPP_LOG_WARN, " C files are no longer part of this version. \n Sorry \n");
       break;
     case MKPLOT:
       MakePlotFlag=1;
@@ -535,14 +535,14 @@ int parse_it(char *com)
       noicon=0;
       break;
     case NEWSEED:
-     plintf("Random number seed changed\n");
+     xpp_log(XPP_LOG_INFO, "Random number seed changed\n");
       newseed=1;
       break;  
     case ALLWIN:  /* X11 window options: accepted, nothing to do */
     case MSSTYLE:
       break;
     case PWHITE:
-      plintf("-white option is no longer part of this version. \n Sorry \n");
+      xpp_log(XPP_LOG_WARN, "-white option is no longer part of this version. \n Sorry \n");
       break;
       /*PaperWhite=1;
       notAlreadySet.PaperWhite=0;

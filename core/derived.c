@@ -1,5 +1,6 @@
 #include "derived.h"
 #include "xpp_mem.h"
+#include "xpp_log.h"
 
 #include <stdlib.h> 
 #include <stdio.h>
@@ -31,7 +32,7 @@ int compile_derived()
   int f[256],n;
   for(i=0;i<nderived;i++){
     if(add_expr(derived[i].rhs,f,&n)==1){
-    plintf(" Bad right-hand side for derived parameters \n");
+    xpp_log(XPP_LOG_ERROR, " Bad right-hand side for derived parameters \n");
     return(1);
     }
     derived[i].form=(int *)xpp_malloc(sizeof(int)*(n+2));
@@ -62,7 +63,7 @@ int add_derived(char *name, char *rhs)
   int n=strlen(rhs)+2;
   int i0;
   if(nderived>=MAXDERIVED){
-    plintf(" Too many derived constants! \n");
+    xpp_log(XPP_LOG_ERROR, " Too many derived constants! \n");
     return(1);
   }
   i0=nderived;
@@ -73,7 +74,7 @@ int add_derived(char *name, char *rhs)
   /* this is the constant to which it addresses */
   derived[i0].index=NCON;
   /* add the name to the recognized symbols */
-  plintf(" derived constant[%d] is %s = %s\n",NCON,name,rhs);
+  xpp_log(XPP_LOG_INFO, " derived constant[%d] is %s = %s\n",NCON,name,rhs);
   nderived++;
   return(add_con(name,0.0));
 }

@@ -48,6 +48,11 @@ strip_comments() {
 tmp=$(mktemp -d) || exit 1
 trap 'rm -rf "$tmp"' EXIT
 
+# plintf() was retired at W25 (folded into xpp_log()/xpp::log(),
+# core/xpp_log.h): a new call must not creep back in. Matched the same
+# comment/string-stripped way as PATTERN above.
+PLINTF_PATTERN='(^|[^a-zA-Z_])plintf[ \t]*\('
+
 bad=0
 for f in core/*.c core/*.cpp; do
   [ -f "$f" ] || continue
@@ -73,10 +78,19 @@ for f in core/*.c core/*.cpp; do
       echo 1 >> "$tmp/bad"
     fi
   done
+  grep -nE "$PLINTF_PATTERN" "$tmp/stripped" | while IFS=: read -r lineno _; do
+    text=$(sed -n "${lineno}p" "$f")
+    printf '%s:%s: %s\n' "$f" "$lineno" "$text"
+    echo 1 >> "$tmp/badplintf"
+  done
 done
 
 if [ -s "$tmp/bad" ]; then
   echo "stdoutcheck: direct stdout/stderr output not in the allowlist (see tools/stdoutcheck.sh)"
   exit 1
 fi
-echo "stdoutcheck ok: no un-allowlisted direct stdout/stderr output in core/"
+if [ -s "$tmp/badplintf" ]; then
+  echo "stdoutcheck: plintf() was retired at W25 -- use xpp_log()/xpp::log() (core/xpp_log.h) instead"
+  exit 1
+fi
+echo "stdoutcheck ok: no un-allowlisted direct stdout/stderr output in core/, no plintf()"

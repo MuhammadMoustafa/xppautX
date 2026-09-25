@@ -1,4 +1,5 @@
 #include "nullcline.h"
+#include "xpp_log.h"
 #include "odesol2.h"
 #include "numerics.h"
 #include "xpp_mem.h"
@@ -127,7 +128,7 @@ void silent_nullclines()
   new_clines_com(0);
   fp=fopen("nullclines.dat","w");
   if(fp==NULL){
-    plintf("Cannot open nullcline file\n");
+    xpp_log(XPP_LOG_WARN, "Cannot open nullcline file\n");
     return;
   }
   dump_clines(fp,X_n,num_x_n,Y_n,num_y_n);

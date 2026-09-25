@@ -81,10 +81,10 @@ static void hl_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                            double *ev, int n)
 {
     int i;
-    plintf("Equilibrium: c+=%d c-=%d r+=%d r-=%d im=%d\n", cp, cm, rp, rm, im);
+    xpp::log(XPP_LOG_DEBUG, "Equilibrium: c+={} c-={} r+={} r-={} im={}\n", cp, cm, rp, rm, im);
     for (i = 0; i < n; i++) {
-        if (ev) plintf("  y[%d]=%.8g  eig=%.8g%+.8gi\n", i, y[i], ev[2 * i], ev[2 * i + 1]);
-        else plintf("  y[%d]=%.8g\n", i, y[i]);
+        if (ev) xpp::log(XPP_LOG_DEBUG, "  y[{}]={:.8g}  eig={:.8g}{:+.8g}i\n", i, y[i], ev[2 * i], ev[2 * i + 1]);
+        else xpp::log(XPP_LOG_DEBUG, "  y[{}]={:.8g}\n", i, y[i]);
     }
 }
 static int hl_dialog(char *title, char *name, char *value, char *ok, char *cancel, int max, int kind)
@@ -100,7 +100,7 @@ static int hl_edit_box(int n, char *title, char **names, char **values)
     return 0;
 }
 static void hl_param_box_set(int i, char *s) { (void)i; (void)s; }
-static void hl_respond_box(char *button, char *message) { (void)button; plintf("%s\n", message); }
+static void hl_respond_box(char *button, char *message) { (void)button; xpp::log(XPP_LOG_WARN, "{}\n", message); }
 static int hl_checklist(char *title, char **names, int *flags, int n)
 {
     (void)title; (void)names; (void)flags; (void)n;
@@ -384,29 +384,14 @@ void make_txtview(void) { xpp_ui.make_txtview(); }
 void q_calc(void) { xpp_ui.q_calc(); }
 void open_help(const char *chapter, const char *anchor) { xpp_ui.open_help(chapter, anchor); }
 
-/* plintf, new_int and new_float were in ggets.c; they never touched X.
-
-   plintf is now a thin wrapper around xpp_log() at INFO: the banner,
-   "All formulas are valid!!", parser statistics, duplicate-name notes
-   and the like, quiet by default and shown with --verbose/--debug (see
-   xpp_log.h). It still honours log_settings.verbose, the ODE file's own QUIET
-   option (load_eqn.c) -- set it to 0 there and plintf stays fully
-   silent regardless of the log threshold, same as before this module
-   existed. A real error uses err_msg()/xpp_log(..., XPP_LOG_ERROR/WARN)
-   instead, never plintf. */
-
-int plintf(const char *fmt, ...)
-{
-    va_list arglist;
-
-    if (!log_settings.verbose) return 0; /* Don't print at all! */
-
-    va_start(arglist, fmt);
-    xpp_log_v(XPP_LOG_INFO, fmt, arglist);
-    va_end(arglist);
-
-    return 0;
-}
+/* new_int and new_float were in ggets.c; they never touched X. plintf()
+   was a thin wrapper around xpp_log() at INFO (the banner, "All formulas
+   are valid!!", parser statistics, duplicate-name notes) and was retired
+   at W25: call xpp_log(XPP_LOG_INFO, ...) / xpp::log(XPP_LOG_INFO, ...)
+   directly -- xpp_log_v() itself now honours log_settings.verbose (the
+   ODE file's own QUIET option, load_eqn.c) for INFO-level messages, the
+   same gating plintf() used to do itself (see xpp_log.c/xpp_log.h). A
+   real error uses err_msg()/xpp_log(..., XPP_LOG_ERROR/WARN) instead. */
 
 int new_int(char *name, int *value)
 {

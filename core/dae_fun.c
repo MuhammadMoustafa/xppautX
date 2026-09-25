@@ -12,6 +12,7 @@
 #include "xpplim.h"
 #include "getvar.h"
 #include "xpp_io.h"
+#include "xpp_log.h"
 #include "xpp_ui.h"
 #define MAXDAE 400
 
@@ -59,7 +60,7 @@ int nsvar=0,naeqn=0;
 int add_svar(char *name, char *rhs)
 {
   if(nsvar>=MAXDAE){
-    plintf(" Too many variables\n");
+    xpp_log(XPP_LOG_ERROR, " Too many variables\n");
     return 1;
   }
   if(name_too_long(name))return 1;
@@ -67,7 +68,7 @@ int add_svar(char *name, char *rhs)
   svar[nsvar].rhs=(char *) xpp_malloc(80);
   /* svar[nsvar].rhs is a pointer, allocated 80 bytes just above. */
   xpp_strlcpy(svar[nsvar].rhs,rhs,80);
-  plintf(" Added sol-var[%d] %s = %s \n",
+  xpp_log(XPP_LOG_INFO, " Added sol-var[%d] %s = %s \n",
 	 nsvar,svar[nsvar].name,svar[nsvar].rhs);
   nsvar++;
 return 0;
@@ -91,7 +92,7 @@ int add_svar_names()
 int add_aeqn(char *rhs)
 {
   if(naeqn>=MAXDAE){
-    plintf(" Too many equations\n");
+    xpp_log(XPP_LOG_ERROR, " Too many equations\n");
     return 1;
   }
   aeqn[naeqn].rhs=(char *) xpp_malloc(strlen(rhs)+5);
@@ -107,13 +108,13 @@ int compile_svars()
 {
   int i,f[256],n,k;
   if(nsvar!=naeqn){
-    plintf(" #SOL_VAR(%d) must equal #ALG_EQN(%d) ! \n",nsvar,naeqn);
+    xpp_log(XPP_LOG_ERROR, " #SOL_VAR(%d) must equal #ALG_EQN(%d) ! \n",nsvar,naeqn);
     return 1;
   }
   
   for(i=0;i<naeqn;i++){
     if(add_expr(aeqn[i].rhs,f,&n)==1){
-    plintf(" Bad right-hand side for alg-eqn \n");
+    xpp_log(XPP_LOG_ERROR, " Bad right-hand side for alg-eqn \n");
     return(1);
     }
     aeqn[i].form=(int *)xpp_malloc(sizeof(int)*(n+2));
@@ -123,7 +124,7 @@ int compile_svars()
 
    for(i=0;i<nsvar;i++){
     if(add_expr(svar[i].rhs,f,&n)==1){
-    plintf(" Bad initial guess for sol-var \n");
+    xpp_log(XPP_LOG_ERROR, " Bad initial guess for sol-var \n");
     return(1);
     }
     svar[i].form=(int *)xpp_malloc(100*sizeof(int));

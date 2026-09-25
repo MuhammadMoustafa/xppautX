@@ -18,7 +18,6 @@ void set_gcurs(int y, int x);
 void clr_command(void);
 void bottom_msg(int line, char *msg);
 void err_msg(char *string);
-int plintf(const char *fmt, ...);
 void gpos_prn(char *string, int row, int col);
 void put_command(char *string);
 void cput_text(void);

@@ -1,5 +1,6 @@
 #include "volterra2.h"
 #include "xpp_mem.h"
+#include "xpp_log.h"
 #include "delay_handle.h"
 #include "gear.h"
 #include "ggets.h"
@@ -75,7 +76,7 @@ void alloc_v_memory()  /* allocate stuff for volterra equations */
   for(i=0;i<NKernel;i++){
      kernel[i].k_n=0.0;
      if(add_expr(kernel[i].expr,formula,&len)){
-    plintf("Illegal kernel %s=%s\n",kernel[i].name,kernel[i].expr);
+    xpp_log(XPP_LOG_ERROR, "Illegal kernel %s=%s\n",kernel[i].name,kernel[i].expr);
     exit(0); /* fatal error ... */
   }
      kernel[i].formula=(int *)xpp_malloc((len+2)*sizeof(int));
@@ -85,7 +86,7 @@ void alloc_v_memory()  /* allocate stuff for volterra equations */
      }
      if(kernel[i].flag==CONV){
        if(add_expr(kernel[i].kerexpr,formula,&len)){
-	 plintf("Illegal convolution %s=%s\n",
+	 xpp_log(XPP_LOG_ERROR, "Illegal convolution %s=%s\n",
 		kernel[i].name,kernel[i].kerexpr);
 	 exit(0); /* fatal error ... */
        }
@@ -113,7 +114,7 @@ void allocate_volterra(int npts, int flag)
   }
  
   if(i<ntot&&flag==0){
-      plintf("Not enough memory... make Maxpts smaller \n");
+      xpp_log(XPP_LOG_ERROR, "Not enough memory... make Maxpts smaller \n");
       exit(0);
     }
   if(i<ntot){

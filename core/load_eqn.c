@@ -294,12 +294,9 @@ load_eqn()
 	else
 	{
 		if (fptr=fopen(this_file,"r")!=NULL)
-  		{ 
-		plintf("Here we are 2\n");
+  		{
 			if(std==1)sprintf(this_file,"console");
-   		plintf("Here we are 4\n");
    			okay=get_eqn(fptr);
-		plintf("Here we are 3\n");
 			if(std==0)
      			  fclose(fptr); 
 			  
@@ -552,7 +549,7 @@ void add_intern_set(char *name, char *does)
   char bob[1024],ch;
   int i,n,j=Nintern_set,k=0;
   if(Nintern_set>=MAX_INTERN_SET){
-   plintf(" %s not added -- too many must be less than %d \n",
+   xpp_log(XPP_LOG_WARN, " %s not added -- too many must be less than %d \n",
 	   name,MAX_INTERN_SET);
     return;
   }
@@ -582,7 +579,7 @@ void add_intern_set(char *name, char *does)
   intern_set[j].does=(char *)xpp_malloc(n+3);
   /* intern_set[j].does is a pointer, allocated n+3 bytes just above. */
   xpp_strlcpy(intern_set[j].does,bob,n+3);
- plintf(" added %s doing %s \n",
+ xpp_log(XPP_LOG_INFO, " added %s doing %s \n",
 	 intern_set[j].name,intern_set[j].does);
   Nintern_set++;
 }
@@ -808,7 +805,7 @@ void stor_internopts(char *s1)
 {
   int n=strlen(s1);
   if(Nopts>MAXOPT){
-   plintf("WARNING -- to many options set %s ignored\n",s1);
+   xpp_log(XPP_LOG_WARN, "to many options set %s ignored\n",s1);
     return;
   }
   interopt[Nopts]=(char *)xpp_malloc(n+1);
@@ -831,7 +828,7 @@ void set_option(char *s1, char *s2, int force, OptionsSet *mask)
  if(msc("QUIET",s1)){
    if(!(msc(s2,"0")||msc(s2,"1")))
    {
-   	plintf("QUIET option must be 0 or 1.\n");
+   	xpp_log(XPP_LOG_ERROR, "QUIET option must be 0 or 1.\n");
 	exit(-1);
    }
    if (log_settings.quiet_from_command_line==0)/*Will be 1 if -quiet was specified on the command line.*/
@@ -854,7 +851,7 @@ void set_option(char *s1, char *s2, int force, OptionsSet *mask)
  if(msc("BELL",s1)){
    if(!(msc(s2,"0")||msc(s2,"1")))
    {
-   	plintf("BELL option must be 0 or 1.\n");
+   	xpp_log(XPP_LOG_ERROR, "BELL option must be 0 or 1.\n");
 	exit(-1);
    }
    return; /* X11's bell: checked, not kept */
@@ -913,7 +910,7 @@ void set_option(char *s1, char *s2, int force, OptionsSet *mask)
     {
 	    if(!(msc(s2,"0")||msc(s2,"1")))
 	    {
-   		 plintf("GRADS option must be 0 or 1.\n");
+   		 xpp_log(XPP_LOG_ERROR, "GRADS option must be 0 or 1.\n");
 		 exit(-1);
 	    }
 	    notAlreadySet.UserGradients=0;
@@ -1881,7 +1878,7 @@ if(msc("PS_COLOR",s1)){
 if(msc("TUTORIAL",s1)){
    if(!(msc(s2,"0")||msc(s2,"1")))
    {
-   	plintf("TUTORIAL option must be 0 or 1.\n");
+   	xpp_log(XPP_LOG_ERROR, "TUTORIAL option must be 0 or 1.\n");
 	exit(-1);
    }
    if ((notAlreadySet.TUTORIAL||force) || ((mask!=NULL)&&(mask->TUTORIAL==1)))
@@ -2149,7 +2146,7 @@ if(msc("SLO2",s1)){
        return;
      }
 
-plintf("!! Option %s not recognized\n",s1); 
+xpp_log(XPP_LOG_WARN, "Option %s not recognized\n",s1);
   
 }
 

@@ -1,5 +1,6 @@
 #include "read_dir.h"
 #include "xpp_mem.h"
+#include "xpp_log.h"
 
 #include <unistd.h>
 #include "ggets.h"
@@ -178,7 +179,7 @@ int fil_count(char *direct, int *ndir, int *nfil, char *wild, int *mld, int *mlf
   *mlf=0;
   dirp=opendir(direct);
   if(dirp==NULL){
-    plintf(" % is not a directory \n",direct);
+    xpp_log(XPP_LOG_WARN, " % is not a directory \n",direct);
     return 0;
   }
   dp=readdir(dirp);

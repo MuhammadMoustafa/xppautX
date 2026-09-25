@@ -271,7 +271,6 @@ void xpp_set_ui(const XppUi *ui); /* copies; missing entries keep defaults */
    one consistent prototype. */
 void err_msg(char *string);
 void ping(void);
-int plintf(const char *fmt, ...);
 void bottom_msg(int line, char *msg);
 void MessageBox(char *m);
 void KillMessageBox(void);

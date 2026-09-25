@@ -638,13 +638,13 @@ void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
       m=fixptlist.n;
       if(m==0){ /* first fixed point found */
 	fixptlist.n=1;
-	plintf("Found: %d\n",m);
+	xpp_log(XPP_LOG_INFO, "Found: %d\n",m);
 	for(j=0;j<NODE;j++){
 	  fixptlist.x[0][j]=x[j];
 	  fixptlist.er[0][j]=er[j];
 	  fixptlist.em[0][j]=em[j];
           if(ishoot)shoot_this_now();
-	  plintf(" x[%d]= %g   eval= %g + I %g \n",j,x[j],er[j],em[j]);
+	  xpp_log(XPP_LOG_INFO, " x[%d]= %g   eval= %g + I %g \n",j,x[j],er[j],em[j]);
 	}
       }
       else { /* there are others  better compare them */
@@ -660,13 +660,13 @@ void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
 	  m=fixptlist.n;
 	  fixptlist.n++;
 	  if(m<MAXFP){
-	    plintf("Found: %d\n",m);
+	    xpp_log(XPP_LOG_INFO, "Found: %d\n",m);
 	    for(j=0;j<NODE;j++){
 	      fixptlist.x[m][j]=x[j];
 	      fixptlist.er[m][j]=er[j];
 	      fixptlist.em[m][j]=em[j];
 	      if(ishoot)shoot_this_now();
-	      plintf(" x[%d]= %g   eval= %g + I %g \n",j,x[j],er[j],em[j]);
+	      xpp_log(XPP_LOG_INFO, " x[%d]= %g   eval= %g + I %g \n",j,x[j],er[j],em[j]);
 	    }
 	  }
 	}
@@ -1083,10 +1083,9 @@ void batch_integrate()
 	      /*Will get over-written each internal set*/
 	      XPP_SPRINTF(batch_options.out_file,"%s",batch_options.user_out_file);
 	  }
-	  plintf("out=%s\n",batch_options.out_file);
+	  xpp_log(XPP_LOG_INFO, "out=%s\n",batch_options.out_file);
 	  extract_internset(i);
 	  chk_delay();
-	  plintf(" Ok integrating now \n");
 	  do_batch_dry_run();
 	  if (intern_set[i].use)
 	  {
@@ -1100,8 +1099,8 @@ void batch_integrate()
 void do_batch_dry_run()
 {
 	if (!dryrun){return;}
-	
-	plintf("It's a dry run...\n");
+
+	xpp_log(XPP_LOG_INFO, "It's a dry run...\n");
 	
 	FILE *fp;
  	fp=fopen(batch_options.out_file,"w");
@@ -1169,7 +1168,7 @@ void batch_integrate_once()
    RANGE_FLAG=1;
 
   if(do_range(x,0)!=0)
-    plintf(" Errors occured in range integration \n"); 
+    xpp_log(XPP_LOG_WARN, " Errors occured in range integration \n");
  }
  else {
    get_ic(2,x);
@@ -1187,7 +1186,7 @@ void batch_integrate_once()
     }
 
   if(integrate(&MyTime,x,TEND,DELTA_T,1,NJMP,&MyStart)!=0)
-    plintf(" Integration not completed -- will write anyway...\n");
+    xpp_log(XPP_LOG_WARN, " Integration not completed -- will write anyway...\n");
 
    INFLAG=1;
   refresh_browser(storind);
@@ -1199,16 +1198,16 @@ void batch_integrate_once()
    if(!SuppressOut){ 
   fp=fopen(batch_options.out_file,"w");
    if(fp==NULL){
-     plintf(" Unable to open %s to write \n",batch_options.out_file);
+     xpp_log(XPP_LOG_WARN, " Unable to open %s to write \n",batch_options.out_file);
      return;
    }
    write_mybrowser_data(fp);
-  
+
    fclose(fp);
    }
-    if(MakePlotFlag)dump_ps(-1); 
+    if(MakePlotFlag)dump_ps(-1);
  }
-  plintf(" Run complete ... \n");
+  xpp_log(XPP_LOG_INFO, " Run complete ... \n");
   /*   fp=fopen("run.gpl","w");
 
   fprintf(fp,"set term pdf \n");
@@ -1228,7 +1227,7 @@ int write_this_run(char *file, int i)
   XPP_SPRINTF(outfile,"%s.%d",file,i);
   fp=fopen(outfile,"w");
   if(fp==NULL){
-    plintf("Couldnt open %s\n",outfile);
+    xpp_log(XPP_LOG_WARN, "Couldnt open %s\n",outfile);
     return -1;
   }
   write_mybrowser_data(fp);
@@ -2708,7 +2707,7 @@ int stor_full()
  
  
  if(!program.interactive){
-   plintf(" Storage full -- increase maxstor \n");
+   xpp_log(XPP_LOG_WARN, " Storage full -- increase maxstor \n");
    return(0);
  }
  if(FOREVER)goto ov;

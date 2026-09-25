@@ -1,5 +1,6 @@
 #include "markov.h"
 #include "xpp_mem.h"
+#include "xpp_log.h"
 
 #include "integrate.h"
 #include "browse.h"
@@ -126,14 +127,14 @@ int build_markov(char **ma, char *name)  /*   FILE *fptr; */
       }
   }
   if(index==-1){
-    plintf(" Markov variable |%s| not found \n",name);
+    xpp_log(XPP_LOG_ERROR, " Markov variable |%s| not found \n",name);
     exit(0);
   }
  /* get number of states  */
  nstates=markov[index].nstates;
  if(ConvertStyle)
    fprintf(convertf,"markov %s %d\n",name,nstates);
- plintf(" Building %s %d states...\n",name,nstates);
+ xpp_log(XPP_LOG_INFO, " Building %s %d states...\n",name,nstates);
  for(i=0;i<nstates;i++){
    /* fgets(line,256,fptr); */
    XPP_SPRINTF(line,"%s",ma[i]);
@@ -146,14 +147,14 @@ int build_markov(char **ma, char *name)  /*   FILE *fptr; */
    istart=0;
      for(j=0;j<nstates;j++){
        extract_expr(line,expr,&istart);
-       plintf("%s ",expr);
+       xpp_log(XPP_LOG_INFO, "%s ",expr);
        add_markov_entry(index,i,j,expr);
      }
-   plintf("\n");   
+   xpp_log(XPP_LOG_INFO, "\n");
  }
  return index;
 }
-  
+
 
 int old_build_markov(FILE *fptr, char *name)
 {
@@ -178,17 +179,17 @@ int old_build_markov(FILE *fptr, char *name)
       }
   }
   if(index==-1){
-    plintf(" Markov variable |%s| not found \n",name);
+    xpp_log(XPP_LOG_ERROR, " Markov variable |%s| not found \n",name);
     exit(0);
   }
  /* get number of states  */
  nstates=markov[index].nstates;
  if(ConvertStyle)
    fprintf(convertf,"markov %s %d\n",name,nstates);
- plintf(" Building %s ...\n",name);
+ xpp_log(XPP_LOG_INFO, " Building %s ...\n",name);
  for(i=0;i<nstates;i++){
     if(fgets(line,256,fptr)==NULL){
-      plintf(" Unexpected end of file building markov variable |%s|\n",name);
+      xpp_log(XPP_LOG_ERROR, " Unexpected end of file building markov variable |%s|\n",name);
       exit(0);
     }
 
@@ -200,10 +201,10 @@ int old_build_markov(FILE *fptr, char *name)
    istart=0;
      for(j=0;j<nstates;j++){
        extract_expr(line,expr,&istart);
-       plintf("%s ",expr);
+       xpp_log(XPP_LOG_INFO, "%s ",expr);
        add_markov_entry(index,i,j,expr);
      }
-   plintf("\n");   
+   xpp_log(XPP_LOG_INFO, "\n");
  }
  return index;
 }
@@ -241,7 +242,7 @@ void create_markov(int nstates, double *st, int type, char *name)
   int n2=nstates*nstates;
   int j=NMarkov;
   if(j>=MAXMARK){
-    plintf("Too many Markov chains...\n");
+    xpp_log(XPP_LOG_ERROR, "Too many Markov chains...\n");
     exit(0);
   }
 
@@ -304,7 +305,7 @@ void compile_all_markov()
       for(k=0;k<ns;k++){
 	l0=ns*j+k;
 	if(compile_markov(index,j,k)==-1){
-	  plintf("Bad expression %s[%d][%d] = %s \n",
+	  xpp_log(XPP_LOG_ERROR, "Bad expression %s[%d][%d] = %s \n",
 		 markov[index].name, j,k,markov[index].trans[l0]);
 	  exit(0);
 	}
@@ -420,7 +421,7 @@ void make_gill_nu(double *nu,int n,int m,double *v)
     rhs_only(y,yp);
     for(iy=0;iy<n;iy++){
       nu[ir+m*iy]=yp[iy];
-      plintf("ir=%d iy=%d nu=%g\n",ir+1,iy,yp[iy]-yold[iy]);  
+      xpp_log(XPP_LOG_DEBUG, "ir=%d iy=%d nu=%g\n",ir+1,iy,yp[iy]-yold[iy]);
     }
     v[ir+1]=0;
   }

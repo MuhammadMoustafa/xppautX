@@ -119,7 +119,7 @@ int add_global(char *cond, int sign, char *rest)
   int nevents,ii,k,l,lt,j=NFlags;
   char ch;
   if(NFlags>=MAXFLAG){
-    plintf("Too many global conditions\n");
+    xpp_log(XPP_LOG_WARN, "Too many global conditions\n");
     return(1);
   }
   l=strlen(cond);
@@ -141,7 +141,7 @@ int add_global(char *cond, int sign, char *rest)
       temp[k]=0;
       lt=strlen(temp);
       if(flag[j].lhsname[nevents][0]==0){
-	xpp_log(XPP_LOG_INFO, " No event variable named for %s \n",temp);
+	xpp_log(XPP_LOG_WARN, " No event variable named for %s \n",temp);
 	return(1);
       }
       flag[j].rhs[nevents]=(char *)xpp_malloc(lt+1);
@@ -155,7 +155,7 @@ int add_global(char *cond, int sign, char *rest)
     if(ch=='='){
       temp[k]=0;
       if(k>XPP_NAME_MAX){
-	plintf(" Event variable %s is too long\n",temp);
+	xpp_log(XPP_LOG_WARN, " Event variable %s is too long\n",temp);
 	return(1);
       }
       XPP_STRCPY(flag[j].lhsname[nevents],temp);
@@ -170,7 +170,7 @@ int add_global(char *cond, int sign, char *rest)
     k++;
   }
   if(nevents==0){
-    plintf(" No events for condition %s \n",cond);
+    xpp_log(XPP_LOG_WARN, " No events for condition %s \n",cond);
     return(1);
   }
  /*  we now have the condition, the names, and the formulae */
@@ -203,7 +203,7 @@ int compile_flags()
   if(NFlags==0)return(0);
   for(j=0;j<NFlags;j++){
     if(add_expr(flag[j].cond,command,&nc)){
-      plintf("Illegal global condition:  %s\n",flag[j].cond);
+      xpp_log(XPP_LOG_WARN, "Illegal global condition:  %s\n",flag[j].cond);
       return(1);
     }
     flag[j].anypars=0;
@@ -237,7 +237,7 @@ int compile_flags()
 		}
 	  
 	    else {
-	      plintf(" <%s> is not a valid variable/parameter name \n",
+	      xpp_log(XPP_LOG_WARN, " <%s> is not a valid variable/parameter name \n",
 		     flag[j].lhsname[i]);
 	      return(1);
 	    }
@@ -474,8 +474,8 @@ int one_flag_step_symp(double *y, double dt, double *work, int neq, double *tim,
     nstep++;
     dtt=(1-s)*dt;
     if(nstep>(NFlags+2)){
-      plintf(" Working too hard?? ");
-      plintf("smin=%g\n",s);
+      xpp_log(XPP_LOG_WARN, " Working too hard?? ");
+      xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       break;
     }
   }
@@ -500,8 +500,8 @@ int one_flag_step_euler(double *y, double dt, double *work, int neq, double *tim
     nstep++;
     dtt=(1-s)*dt;
     if(nstep>(NFlags+2)){
-      plintf(" Working too hard?? ");
-      plintf("smin=%g\n",s);
+      xpp_log(XPP_LOG_WARN, " Working too hard?? ");
+      xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       break;
     }
   }
@@ -526,8 +526,8 @@ int one_flag_step_discrete(double *y, double dt, double *work, int neq, double *
     nstep++;
     dtt=(1-s)*dt;
     if(nstep>(NFlags+2)){
-      plintf(" Working too hard?? ");
-      plintf("smin=%g\n",s);
+      xpp_log(XPP_LOG_WARN, " Working too hard?? ");
+      xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       break;
     }
   }
@@ -551,8 +551,8 @@ int one_flag_step_heun(double *y, double dt, double *yval[2], int neq, double *t
     nstep++;
     dtt=(1-s)*dt;
     if(nstep>(NFlags+2)){
-      plintf(" Working too hard? ");
-      plintf(" smin=%g\n",s);
+      xpp_log(XPP_LOG_WARN, " Working too hard? ");
+      xpp_log(XPP_LOG_WARN, " smin=%g\n",s);
       break;
     }
   }
@@ -576,8 +576,8 @@ int one_flag_step_rk4(double *y, double dt, double *yval[3], int neq, double *ti
     nstep++;
     dtt=(1-s)*dt;
     if(nstep>(NFlags+2)){
-      plintf(" Working too hard?");
-            plintf("smin=%g\n",s);
+      xpp_log(XPP_LOG_WARN, " Working too hard?");
+            xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
 	    /* plintflaginfo(); */
       break;
     }
@@ -604,8 +604,8 @@ int one_flag_step_gear(int neq, double *t, double tout, double *y, double hmin, 
     *jstart=0; /* for gear always reset  */
     if(*t==tout)break;
     if(nstep>(NFlags+2)){
-      plintf(" Working too hard? ");
-            plintf("smin=%g\n",s);
+      xpp_log(XPP_LOG_WARN, " Working too hard? ");
+            xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       break;
     }
   }
@@ -633,8 +633,8 @@ int *istart,int n,double *work,int *ierr)
     
     if(*tstart==tfinal)break;
     if(nstep>(NFlags+2)){
-      plintf(" Working too hard? ");
-            plintf("smin=%g\n",s);
+      xpp_log(XPP_LOG_WARN, " Working too hard? ");
+            xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       *ierr=-2;
       return 1;
       break;
@@ -664,8 +664,8 @@ int one_flag_step_dp(int *istart, double *y, double *t, int n, double tout, doub
     
     if(*t==tout)break;
     if(nstep>(NFlags+2)){
-      plintf(" Working too hard? ");
-            plintf("smin=%g\n",s);
+      xpp_log(XPP_LOG_WARN, " Working too hard? ");
+            xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       return 1;
       break;
     }
@@ -696,8 +696,8 @@ int one_flag_step_cvode(int *command, double *y, double *t, int n, double tout, 
     *command=1; /* for cvode always reset  */
     if(*t==tout)break;
     if(nstep>(NFlags+2)){
-      plintf(" Working too hard? ");
-            plintf("smin=%g\n",s);
+      xpp_log(XPP_LOG_WARN, " Working too hard? ");
+            xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       return 1;
     }
   }
@@ -727,8 +727,8 @@ int one_flag_step_adap(double *y, int neq, double *t, double tout, double eps, d
     
     if(*t==tout)break;
     if(nstep>(NFlags+2)){
-      plintf(" Working too hard? ");
-            plintf("smin=%g\n",s);
+      xpp_log(XPP_LOG_WARN, " Working too hard? ");
+            xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       break;
     }
   }
@@ -756,8 +756,8 @@ int one_flag_step_backeul(double *y, double *t, double dt, int neq, double *yg, 
     nstep++;
     dtt=(1-s)*dt;  
     if(nstep>(NFlags+2)){
-      plintf(" Working too hard?");
-            plintf("smin=%g\n",s);
+      xpp_log(XPP_LOG_WARN, " Working too hard?");
+            xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       break;
     }
   }

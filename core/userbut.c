@@ -1,6 +1,7 @@
 #include "userbut.h"
+#include "xpp_log.h"
 
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include "kbs.h"
@@ -67,7 +68,7 @@ void add_user_button(char *s)
   if(strlen(bname)==0||strlen(sc)==0)return;
   z=find_kbs(sc);
   if(z==-1){
-    plintf("%s - not implemented\n",sc);
+    xpp_log(XPP_LOG_WARN, "%s - not implemented\n",sc);
     return;
   }
   /*Don't add buttons with same functionality twice*/
@@ -82,7 +83,7 @@ void add_user_button(char *s)
   }
   userbut[nuserbut].com=z;
   XPP_STRCPY(userbut[nuserbut].bname,bname);
-  plintf(" added button(%d)  -- %s %d\n",
+  xpp_log(XPP_LOG_INFO, " added button(%d)  -- %s %d\n",
 	 nuserbut,userbut[nuserbut].bname,userbut[nuserbut].com); 
   nuserbut++;
 }

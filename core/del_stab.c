@@ -307,7 +307,7 @@ int find_positive_root(double *coef, double *delay, int n, int m, double rad, do
     jac[3]=(detp.i-det.i)/r;
     r=jac[0]*jac[3]-jac[1]*jac[2];
     if(r==0){
-      plintf(" singular jacobian \n");
+      xpp_log(XPP_LOG_WARN, " singular jacobian \n");
       return -1;
     }
    xlp=(jac[3]*det.r-jac[1]*det.i)/r;
@@ -327,17 +327,17 @@ int find_positive_root(double *coef, double *delay, int n, int m, double rad, do
       return 1;
     }
     if(r>big){
-      plintf("Failed to converge \n");
+      xpp_log(XPP_LOG_WARN, "Failed to converge \n");
       return -1;
     }
   }
-      
-  plintf("Max iterates exceeded \n");
+
+  xpp_log(XPP_LOG_WARN, "Max iterates exceeded \n");
   return -1;
 }
 void process_root(double real, double im)
 {
-  plintf("Root: %g + I %g \n",real,im); 
+  xpp_log(XPP_LOG_INFO, "Root: %g + I %g \n",real,im);
 }
 double get_arg(double *delay, double *coef, int m, int n, COMPLEX lambda)
 {

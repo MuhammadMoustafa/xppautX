@@ -61,7 +61,7 @@ int ppmtopix(unsigned char r,unsigned char g, unsigned char b,int *n)
     if(r==gifcol[i].r&&g==gifcol[i].g&&b==gifcol[i].b)
       return i;
   if(nc>255){
-    plintf("Too many colors \n");
+    xpp_log(XPP_LOG_WARN, "Too many colors \n");
     return -1;
   }
   gifcol[nc].r=r;
@@ -126,7 +126,7 @@ int i,j,k=0,l=0;
      l++;
    }
  }
- plintf("Got %d colors\n",ncol);
+ xpp_log(XPP_LOG_INFO, "Got %d colors\n",ncol);
  for(i=ncol;i<256;i++){
    gifcol[i].r=255;
    gifcol[i].g=255;

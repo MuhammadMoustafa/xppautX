@@ -245,12 +245,12 @@ void format_list(char **s,int n)
  XPP_SPRINTF(fmat,"%s%d%s","%",lmax+2,"s");
  for(ip=0;ip<k;ip++){
    for(i=0;i<ncol;i++)
-     plintf(fmat,s[ip*ncol+i]);
-   plintf("\n");
+     xpp_log(XPP_LOG_INFO, fmat,s[ip*ncol+i]);
+   xpp_log(XPP_LOG_INFO, "\n");
  }
   for(i=0;i<j;i++)
-     plintf(fmat,s[k*ncol+i]);
-  plintf("\n");
+     xpp_log(XPP_LOG_INFO, fmat,s[k*ncol+i]);
+  xpp_log(XPP_LOG_INFO, "\n");
 }
 
 int get_a_filename(char *filename,char *wild)
@@ -260,25 +260,25 @@ int get_a_filename(char *filename,char *wild)
   char string[MAXEXPLEN];
    list_em(wild);
   while(1){
-  plintf("(r)un (c)d (l)ist ");
+  xpp_log(XPP_LOG_INFO, "(r)un (c)d (l)ist ");
   if(scanf("%s",string)!=1)return 0;
   if(string[0]=='r'){
-    plintf("Run file: ");
+    xpp_log(XPP_LOG_INFO, "Run file: ");
     if(scanf("%s",filename)!=1)return 0;
-    plintf("Loading %s\n ",filename);
+    xpp_log(XPP_LOG_INFO, "Loading %s\n ",filename);
     return 1;
   }
   else 
     {
       if(string[0]=='l'){
-        plintf("List files of type: ");
+        xpp_log(XPP_LOG_INFO, "List files of type: ");
         if(scanf("%s",wild)!=1)return 0;
         list_em(wild);
       }
       else
         {
  	 if(string[0]=='c'){
-	   plintf("Change to directory: ");
+	   xpp_log(XPP_LOG_INFO, "Change to directory: ");
 	   if(scanf("%s",string)!=1)return 0;
 	   change_directory(string);
 	   list_em(wild);
@@ -312,11 +312,11 @@ int get_a_filename(char *filename,char *wild)
 void list_em(char *wild)
 { 
   get_directory(cur_dir);
-  plintf("%s: \n",cur_dir);
+  xpp_log(XPP_LOG_INFO, "%s: \n",cur_dir);
   get_fileinfo(wild,cur_dir,&my_ff);
-  plintf("DIRECTORIES:\n");
+  xpp_log(XPP_LOG_INFO, "DIRECTORIES:\n");
   format_list(my_ff.dirnames,my_ff.ndirs);
-  plintf("FILES OF TYPE %s:\n",wild);
+  xpp_log(XPP_LOG_INFO, "FILES OF TYPE %s:\n",wild);
   format_list(my_ff.filenames,my_ff.nfiles);
 
   free_finfo(&my_ff);
@@ -331,7 +331,7 @@ int read_eqn()
   get_a_filename(string,wild);
   if((fptr=fopen(string,"r"))==NULL)
    {
-    plintf("\n Cannot open %s \n",string);
+    xpp_log(XPP_LOG_WARN, "\n Cannot open %s \n",string);
     return(0);
    }
    XPP_FORMAT_TO_BUF(this_file,"{}",string);
@@ -393,7 +393,7 @@ int get_eqn(FILE *fptr)
     exit(1);
   };
   if((save_eqn[NLINES]=(char *)xpp_malloc(nn))==NULL){
-    plintf("Out of memory...");
+    xpp_log(XPP_LOG_ERROR, "Out of memory...");
     exit(0);
   }
 
@@ -410,7 +410,7 @@ int get_eqn(FILE *fptr)
   else{
     OldStyle=1;
     NEQ=i;
-    plintf("NEQ=%d\n",NEQ);
+    xpp_log(XPP_LOG_INFO, "NEQ=%d\n",NEQ);
     if(ConvertStyle){
       if(strlen(this_file)==0)
 	XPP_SPRINTF(filename,"convert.ode");
@@ -437,11 +437,11 @@ int get_eqn(FILE *fptr)
     }
   }
  if((NODE+NMarkov)==0){
-   plintf(" Must have at least one equation! \n Probably not an ODE file.\n");
+   xpp_log(XPP_LOG_ERROR, " Must have at least one equation! \n Probably not an ODE file.\n");
    exit(0);
  }
   if(BVP_N>IN_VARS ){
-    plintf("Too many boundary conditions\n");
+    xpp_log(XPP_LOG_ERROR, "Too many boundary conditions\n");
     exit(0);
   }
   /* plintf("BVP_N=%d NODE=%d NVAR=%d IN_VARS=%d\n",BVP_N,NODE,NVAR,IN_VARS); */
@@ -460,12 +460,12 @@ int get_eqn(FILE *fptr)
   
   if(NODE!=NEQ+FIX_VAR-NMarkov)
     {
-      plintf(" Too many/few equations\n");
+      xpp_log(XPP_LOG_ERROR, " Too many/few equations\n");
       exit(0);
     }
   if(IN_VARS>NEQ)
     {
-      plintf(" Too many variables\n");
+      xpp_log(XPP_LOG_ERROR, " Too many variables\n");
 	exit(0);
     }
   NODE=IN_VARS;
@@ -496,14 +496,14 @@ int get_eqn(FILE *fptr)
   }
 }
   else {
-    plintf(" Warning: primed variables not added must have < %d variables\n",
+    xpp_log(XPP_LOG_WARN, " Warning: primed variables not added must have < %d variables\n",
      MAXPRIMEVAR);
-    plintf(" Averaging and boundary value problems cannot be done\n");
+    xpp_log(XPP_LOG_WARN, " Averaging and boundary value problems cannot be done\n");
   }
   if(NMarkov>0)
     compile_all_markov();
   if(compile_flags()==1){
-    plintf(" Error in compiling a flag \n");
+    xpp_log(XPP_LOG_ERROR, " Error in compiling a flag \n");
     exit(0);
   }
   show_flags();
@@ -516,8 +516,8 @@ int get_eqn(FILE *fptr)
   NEQ_MIN=NEQ;
   program.version_major=(float)cstringmaj;
   program.version_minor=(float)cstringmin;
-  plintf("Used %d constants and %d symbols \n",NCON,NSYM);
-  plintf("XPPAUT %g.%g Copyright (C) 2002-now  Bard Ermentrout \n",program.version_major,program.version_minor);
+  xpp_log(XPP_LOG_INFO, "Used %d constants and %d symbols \n",NCON,NSYM);
+  xpp_log(XPP_LOG_INFO, "XPPAUT %g.%g Copyright (C) 2002-now  Bard Ermentrout \n",program.version_major,program.version_minor);
     return(1);
 }
 /*
@@ -612,7 +612,7 @@ int compiler(char *bob, FILE *fptr)
       add_intern_set(condition,formula);
       break;
     case 'w':  /*  Make a Wiener (heh heh) constants  */
-      plintf("Wiener constants\n");
+      xpp_log(XPP_LOG_INFO, "Wiener constants\n");
       if(ConvertStyle)
 	fprintf(convertf,"wiener ");
       advance_past_first_word(&ptr);
@@ -620,11 +620,11 @@ int compiler(char *bob, FILE *fptr)
 	{
 	  take_apart(my_string,&value,name);
 	  xpp_free(my_string);
-	  plintf("|%s|=%f ",name,value);
+	  xpp_log(XPP_LOG_DEBUG, "|%s|=%f ",name,value);
 	  if(ConvertStyle)
 	    fprintf(convertf,"%s  ",name);
 	  if(add_con(name,value)){
-	    plintf("ERROR at line %d\n",NLINES);
+	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	    exit(0);
 	  }
 	  add_wiener(NCON-1);
@@ -632,10 +632,10 @@ int compiler(char *bob, FILE *fptr)
 	}
       if(ConvertStyle)
 	fprintf(convertf,"\n");
-      plintf("\n");
+      xpp_log(XPP_LOG_DEBUG, "\n");
            break;
     case 'n':    
-      plintf(" Hidden params:\n");
+      xpp_log(XPP_LOG_INFO, " Hidden params:\n");
       if(ConvertStyle)
 	fprintf(convertf,"number ");
 	
@@ -647,27 +647,27 @@ int compiler(char *bob, FILE *fptr)
 	  if(ConvertStyle)
 	    fprintf(convertf,"%s=%g  ",name,value);
           
-	  plintf("|%s|=%f ",name,value);
+	  xpp_log(XPP_LOG_DEBUG, "|%s|=%f ",name,value);
 	  if(add_con(name,value)){
-	    plintf("ERROR at line %d\n",NLINES);
+	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	    exit(0);
 	  }
 
 	}
        if(ConvertStyle)
 	fprintf(convertf,"\n");
-      plintf("\n");
+      xpp_log(XPP_LOG_DEBUG, "\n");
       break; 
     case 'g': /* global */
       my_string=get_next("{ ");
       sign=atoi(my_string);
-      plintf(" GLOBAL: sign =%d \n",sign);
+      xpp_log(XPP_LOG_DEBUG, " GLOBAL: sign =%d \n",sign);
       my_string=get_next("{}");
       XPP_FORMAT_TO_BUF(condition,"{}",my_string);
-      plintf(" condition = %s \n",condition);
+      xpp_log(XPP_LOG_DEBUG, " condition = %s \n",condition);
       my_string=get_next("\n");
       XPP_FORMAT_TO_BUF(formula,"{}",my_string);
-      plintf(" events=%s \n",formula);
+      xpp_log(XPP_LOG_DEBUG, " events=%s \n",formula);
       if(add_global(condition,sign,formula)){
 	xpp_log(XPP_LOG_WARN, "Bad global !! \n");
 	exit(0);
@@ -677,7 +677,7 @@ int compiler(char *bob, FILE *fptr)
       }
       break;
     case 'p':
-      plintf("Parameters:\n");
+      xpp_log(XPP_LOG_INFO, "Parameters:\n");
       if(ConvertStyle)
 	fprintf(convertf,"par ");
 
@@ -689,28 +689,28 @@ int compiler(char *bob, FILE *fptr)
 	  take_apart(my_string,&value,name);
 	  xpp_free(my_string);
 	  if(add_con(name,value)){
-	    plintf("ERROR at line %d\n",NLINES);
+	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	    exit(0);
 	  }
 	  default_val[NUPAR]=value;
 	  XPP_FORMAT_TO_BUF(upar_names[NUPAR++],"{}",name);
 	  if(ConvertStyle)
 	    fprintf(convertf,"%s=%g  ",name,value);
-	  plintf("|%s|=%f ",name,value);
-    
+	  xpp_log(XPP_LOG_DEBUG, "|%s|=%f ",name,value);
+
 	}
       if(ConvertStyle)
 	fprintf(convertf,"\n");
-      plintf("\n");
+      xpp_log(XPP_LOG_DEBUG, "\n");
       break;
     case 'c': my_string=get_next(" \n");
       XPP_FORMAT_TO_BUF(options,"{}",my_string);
-      plintf(" Loading new options file:<%s>\n",my_string);
+      xpp_log(XPP_LOG_INFO, " Loading new options file:<%s>\n",my_string);
       if(ConvertStyle)
 	fprintf(convertf,"option %s\n",options);
       break;
     case 'f':iflg=0;
-      plintf("\nFixed variables:\n");
+      xpp_log(XPP_LOG_INFO, "\nFixed variables:\n");
       goto vrs;
     case 'm': /* Markov variable  */
       my_string=get_next(" ");
@@ -720,13 +720,13 @@ int compiler(char *bob, FILE *fptr)
       my_string=get_next(" \n");
       nstates=atoi(my_string);
       if(name_too_long(name)||add_var(name,value)){
-	plintf("ERROR at line %d\n",NLINES);
+	xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	exit(0);
       }
       XPP_FORMAT_TO_BUF(uvar_names[IN_VARS+NMarkov],"{}",name);
       last_ic[IN_VARS+NMarkov]=value;
       default_ic[IN_VARS+NMarkov]=value;
-      plintf(" Markov variable %s=%f has %d states \n",name,value,nstates);
+      xpp_log(XPP_LOG_INFO, " Markov variable %s=%f has %d states \n",name,value,nstates);
       if(OldStyle)add_markov(nstates,name);
       if(ConvertStyle)
 	fprintf(convertf,"%s(0)=%g\n",name,value);
@@ -745,7 +745,7 @@ int compiler(char *bob, FILE *fptr)
       break;
     case 'v':      
       iflg=1;
-      plintf("\nVariables:\n");
+      xpp_log(XPP_LOG_INFO, "\nVariables:\n");
       if(ConvertStyle)
 	fprintf(convertf,"init ");
     vrs:
@@ -758,13 +758,13 @@ int compiler(char *bob, FILE *fptr)
 	{
 	  if((IN_VARS>NEQ)||(IN_VARS==MAXODE))
 	    {
-	      plintf(" too many variables at line %d\n",NLINES);
+	      xpp_log(XPP_LOG_ERROR, " too many variables at line %d\n",NLINES);
 	      exit(0);
 	    }
 	  take_apart(my_string,&value,name);
 	  xpp_free(my_string);
 	  if(name_too_long(name)||add_var(name,value)){
-	    plintf("ERROR at line %d\n",NLINES);
+	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	    exit(0);
 	  }
 	  if(iflg)
@@ -782,10 +782,10 @@ int compiler(char *bob, FILE *fptr)
 	    FIX_VAR++;
 
 	  }
-	  plintf("|%s| ",name);
+	  xpp_log(XPP_LOG_DEBUG, "|%s| ",name);
 	  
 	}
-      plintf(" \n");
+      xpp_log(XPP_LOG_DEBUG, " \n");
       if(iflg&&ConvertStyle)
 	fprintf(convertf,"\n");
       break;
@@ -804,7 +804,7 @@ int compiler(char *bob, FILE *fptr)
       
       
       
-      plintf("|%s| |%s| \n",my_bc[BVP_N].name,my_bc[BVP_N].string);
+      xpp_log(XPP_LOG_DEBUG, "|%s| |%s| \n",my_bc[BVP_N].name,my_bc[BVP_N].string);
       BVP_N++;
       break;
     case 'k':
@@ -816,7 +816,7 @@ int compiler(char *bob, FILE *fptr)
       value=atof(my_string);
       my_string=get_next("$");
       XPP_FORMAT_TO_BUF(formula,"{}",my_string);
-      plintf("Kernel mu=%f %s = %s \n",value,name,formula);
+      xpp_log(XPP_LOG_DEBUG, "Kernel mu=%f %s = %s \n",value,name,formula);
       if(add_kernel(name,value,formula)){
 	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",NLINES);
 	exit(0);
@@ -846,7 +846,7 @@ int compiler(char *bob, FILE *fptr)
 	add_table_name(NTable,name);
 
 	if(add_form_table(NTable,nn,xlo,xhi,formula)){
-	  plintf("ERROR at line %d\n",NLINES);
+	  xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	  exit(0);
 	}
 
@@ -861,22 +861,22 @@ int compiler(char *bob, FILE *fptr)
       }
       else 
 	if(my_string[0]=='@'){
-	  plintf(" Two-dimensional array: \n ");
+	  xpp_log(XPP_LOG_INFO, " Two-dimensional array: \n ");
 	  my_string=get_next(" ");
 	  XPP_FORMAT_TO_BUF(formula,"{}",my_string);
-	  plintf(" %s = %s \n",name,formula);
+	  xpp_log(XPP_LOG_INFO, " %s = %s \n",name,formula);
 	  if(add_2d_table(name,formula)){
-	    plintf("ERROR at line %d\n",NLINES);
+	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	    exit(0);
 	  }
 	}
 	else
 	  {
 	    XPP_FORMAT_TO_BUF(formula,"{}",my_string);
-	    plintf("Lookup table %s = %s \n",name,formula);
+	    xpp_log(XPP_LOG_INFO, "Lookup table %s = %s \n",name,formula);
             add_table_name(NTable,name);
 	    if(add_file_table(NTable,formula)){
-	      plintf("ERROR at line %d\n",NLINES);
+	      xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	      exit(0);
 	    }
 	    if(ConvertStyle)
@@ -893,7 +893,7 @@ int compiler(char *bob, FILE *fptr)
       narg=atoi(my_string);
       my_string=get_next("$");
       XPP_FORMAT_TO_BUF(formula,"{}",my_string);
-      plintf("%s %d :\n",name,narg);
+      xpp_log(XPP_LOG_INFO, "%s %d :\n",name,narg);
       if(ConvertStyle){
 	fprintf(convertf,"%s(",name);
 	for(i=0;i<narg;i++){
@@ -908,7 +908,7 @@ int compiler(char *bob, FILE *fptr)
 	exit(0);
       }
 
-      plintf("user %s = %s\n",name,formula);
+      xpp_log(XPP_LOG_INFO, "user %s = %s\n",name,formula);
       break;
     case 'i': VFlag=1;
     case 'o':
@@ -929,7 +929,7 @@ int compiler(char *bob, FILE *fptr)
       if(NODE<IN_VARS)
 	{
 	  if((ode_names[NODE]=(char *)xpp_malloc(nn+5))==NULL){
-	    plintf("Out of memory at line %d\n",NLINES);
+	    xpp_log(XPP_LOG_ERROR, "Out of memory at line %d\n",NLINES);
 	    exit(0);
 	  }
           xpp_strlcpy(ode_names[NODE],formula,nn+5);
@@ -960,7 +960,7 @@ int compiler(char *bob, FILE *fptr)
 	{
 	  i=NODE-(IN_VARS+FIX_VAR);
 	  if((ode_names[NODE-FIX_VAR+NMarkov]=(char *)xpp_malloc(nn))==NULL){
-	    plintf("Out of memory at line %d\n",NLINES);
+	    xpp_log(XPP_LOG_ERROR, "Out of memory at line %d\n",NLINES);
 	    exit(0);
 	  }
           xpp_strlcpy(ode_names[NODE-FIX_VAR+NMarkov],formula,nn);
@@ -972,7 +972,7 @@ int compiler(char *bob, FILE *fptr)
 	      fprintf(convertf,"aux aux%d=%s\n",i+1,formula);
 	  }
 	}
-      plintf("RHS(%d)=%s\n",NODE,formula);
+      xpp_log(XPP_LOG_INFO, "RHS(%d)=%s\n",NODE,formula);
       if(add_expr(formula,my_ode[NODE],&leng[NODE])){
 	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",NLINES);
 	exit(0);
@@ -982,15 +982,15 @@ int compiler(char *bob, FILE *fptr)
       break;
       
     case 'a':   /* name auxiliary variables */
-      plintf("Auxiliary variables:\n");
+      xpp_log(XPP_LOG_INFO, "Auxiliary variables:\n");
       while((my_string=get_next(" ,\n"))!=NULL)
 	{
 	  if(name_too_long(my_string))exit(0);
 	  XPP_FORMAT_TO_BUF(aux_names[Naux],"{}",my_string);   
-	  plintf("|%s| ",aux_names[Naux]);
+	  xpp_log(XPP_LOG_DEBUG, "|%s| ",aux_names[Naux]);
 	  Naux++;
 	};
-      plintf("\n");
+      xpp_log(XPP_LOG_DEBUG, "\n");
       break;
      
     default:
@@ -1006,34 +1006,34 @@ int compiler(char *bob, FILE *fptr)
 
 void welcome()
 {
- plintf("\n The commands are: \n");
- plintf(" P(arameter) -- declare parameters <name1>=<value1>,<name2>=<value2>,...\n");
- plintf(" F(ixed)     -- declare fixed variables\n");
- plintf(" V(ariables) -- declare ode variables \n");
- plintf(" U(ser)      -- declare user functions <name> <nargs> <formula>\n");
- plintf(" C(hange)    -- change option file   <filename>\n");
- plintf(" O(de)       -- declare RHS for equations\n");
- plintf(" D(one)      -- finished compiling formula\n");
- plintf(" H(elp)      -- this menu                 \n");
- plintf(" S(ymbols)   -- Valid functions and symbols\n");
- plintf(" I(ntegral)  -- rhs for integral eqn\n");
- plintf(" K(ernel)    -- declare kernel for integral eqns\n");
- plintf(" T(able)     -- lookup table\n");
- plintf(" A(ux)       -- name auxiliary variable\n");
- plintf(" N(umbers)   --  hidden parameters\n");
- plintf(" M(arkov)    --  Markov variables \n");
- plintf(" W(iener)    -- Wiener parameter \n");
- plintf("_________________________________________________________________________\n");
+ xpp_log(XPP_LOG_INFO, "\n The commands are: \n");
+ xpp_log(XPP_LOG_INFO, " P(arameter) -- declare parameters <name1>=<value1>,<name2>=<value2>,...\n");
+ xpp_log(XPP_LOG_INFO, " F(ixed)     -- declare fixed variables\n");
+ xpp_log(XPP_LOG_INFO, " V(ariables) -- declare ode variables \n");
+ xpp_log(XPP_LOG_INFO, " U(ser)      -- declare user functions <name> <nargs> <formula>\n");
+ xpp_log(XPP_LOG_INFO, " C(hange)    -- change option file   <filename>\n");
+ xpp_log(XPP_LOG_INFO, " O(de)       -- declare RHS for equations\n");
+ xpp_log(XPP_LOG_INFO, " D(one)      -- finished compiling formula\n");
+ xpp_log(XPP_LOG_INFO, " H(elp)      -- this menu                 \n");
+ xpp_log(XPP_LOG_INFO, " S(ymbols)   -- Valid functions and symbols\n");
+ xpp_log(XPP_LOG_INFO, " I(ntegral)  -- rhs for integral eqn\n");
+ xpp_log(XPP_LOG_INFO, " K(ernel)    -- declare kernel for integral eqns\n");
+ xpp_log(XPP_LOG_INFO, " T(able)     -- lookup table\n");
+ xpp_log(XPP_LOG_INFO, " A(ux)       -- name auxiliary variable\n");
+ xpp_log(XPP_LOG_INFO, " N(umbers)   --  hidden parameters\n");
+ xpp_log(XPP_LOG_INFO, " M(arkov)    --  Markov variables \n");
+ xpp_log(XPP_LOG_INFO, " W(iener)    -- Wiener parameter \n");
+ xpp_log(XPP_LOG_INFO, "_________________________________________________________________________\n");
 
 }
 
 void show_syms()
 {
- plintf("(    ,    )    +    -      *    ^    **    / \n");
- plintf("sin  cos  tan  atan  atan2 acos asin\n");
- plintf("exp  ln   log  log10 tanh  cosh sinh \n");
- plintf("max  min  heav flr   mod   sign sqrt \n");
- plintf("t    pi   ran  \n");
+ xpp_log(XPP_LOG_INFO, "(    ,    )    +    -      *    ^    **    / \n");
+ xpp_log(XPP_LOG_INFO, "sin  cos  tan  atan  atan2 acos asin\n");
+ xpp_log(XPP_LOG_INFO, "exp  ln   log  log10 tanh  cosh sinh \n");
+ xpp_log(XPP_LOG_INFO, "max  min  heav flr   mod   sign sqrt \n");
+ xpp_log(XPP_LOG_INFO, "t    pi   ran  \n");
 }
 
 /* ram: do I need to strip the name of any whitespace? */
@@ -1110,7 +1110,7 @@ void find_ker(char *string, int *alt)   /* this extracts the integral operators 
     if(ch=='}'){
       form[ifr]=0;
       XPP_SPRINTF(name,"K##%d",NKernel);
-      plintf("Kernel mu=%f %s = %s \n",mu,name,form);
+      xpp_log(XPP_LOG_DEBUG, "Kernel mu=%f %s = %s \n",mu,name,form);
       if(add_kernel(name,mu,form))exit(0);
       for(j=0;j<(int)strlen(name);j++){
 	newstr[in]=name[j];
@@ -1347,14 +1347,13 @@ static int parse_model(FILE *fp, char *first, int nnn)
 		int j=0;
 		for (j=0;j<NincludedFiles;j++)
 		{
-			xpp_log(XPP_LOG_INFO, "Trying to open %d %s\n",NincludedFiles,includefilename[j]);
 			fnew=fopen(includefilename[j],"r");
       			if(fnew==NULL){
-         		  plintf("Can't open include file <%s>\n",includefilename[j]);
+         		  xpp_log(XPP_LOG_ERROR, "Can't open include file <%s>\n",includefilename[j]);
 			  exit(-1);
 			  /*continue;*/
        			} 
-      			plintf("Including %s \n",includefilename[j]); 
+      			xpp_log(XPP_LOG_INFO, "Including %s \n",includefilename[j]); 
 			IN_INCLUDED_FILE++;
        			do_new_parser(fnew,includefilename[j],1);
        			fclose(fnew);
@@ -1369,7 +1368,7 @@ static int parse_model(FILE *fp, char *first, int nnn)
     {
 	    if (if_end_include(old) || feof(fp))
 	    {
-	    	plintf("Completed include of file %s\n",first);
+	    	xpp_log(XPP_LOG_INFO, "Completed include of file %s\n",first);
 	    	IN_INCLUDED_FILE--;
 	    	return 1; 
 	    }
@@ -1377,10 +1376,10 @@ static int parse_model(FILE *fp, char *first, int nnn)
     if(if_include_file(old,newfile)){
       fnew=fopen(newfile,"r");
       if(fnew==NULL){
-         plintf("Cant open include file <%s>\n",newfile);
+         xpp_log(XPP_LOG_WARN, "Cant open include file <%s>\n",newfile);
          continue;
        } 
-       plintf("Including %s...\n",newfile); 
+       xpp_log(XPP_LOG_INFO, "Including %s...\n",newfile); 
        IN_INCLUDED_FILE++;
        do_new_parser(fnew,newfile,1);
        fclose(fnew);
@@ -1433,7 +1432,7 @@ static int parse_model(FILE *fp, char *first, int nnn)
    done=parse_a_string(big,&v);
 
    if(done==-1){
-     plintf(" Error in parsing %s \n",big);
+     xpp_log(XPP_LOG_ERROR, " Error in parsing %s \n",big);
      return -1;
    }
    if(done==1){
@@ -1447,13 +1446,13 @@ static int parse_model(FILE *fp, char *first, int nnn)
        else
 	 nstates=atoi(my_string);
        if(nstates<1){
-	 plintf("Group %s  must have at least 1 part \n",name);
+	 xpp_log(XPP_LOG_ERROR, "Group %s  must have at least 1 part \n",name);
 	 return -1;
        }
-       plintf("Group %s has %d parts\n",name,nstates);
+       xpp_log(XPP_LOG_INFO, "Group %s has %d parts\n",name,nstates);
        for(istates=0;istates<nstates;istates++){
 	 read_a_line(fp,old);
-	 plintf("part %d is %s \n",istates,old);
+	 xpp_log(XPP_LOG_DEBUG, "part %d is %s \n",istates,old);
        }
  
        v.type=GROUP;
@@ -1469,7 +1468,7 @@ static int parse_model(FILE *fp, char *first, int nnn)
        else
 	 nstates=atoi(my_string);
        if(nstates<2){
-	 plintf("Markov variable %s  must have at least 2 states \n",name);
+	 xpp_log(XPP_LOG_ERROR, "Markov variable %s  must have at least 2 states \n",name);
 	 return -1;
        }
        if(name_too_long(name))return -1;
@@ -1777,7 +1776,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
       }
       else
 	{
-	  plintf(" %s is a duplicate name \n",tmp);
+	  xpp_log(XPP_LOG_ERROR, " %s is a duplicate name \n",tmp);
 	  exit(0);
 	}
       
@@ -1815,7 +1814,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
       if(name_too_long(tmp))exit(0);
       XPP_FORMAT_TO_BUF(anames[naux],"{}",tmp);
       naux++;
-      plintf("%s = %s \n",anames[naux-1],v->rhs); 
+      xpp_log(XPP_LOG_INFO, "%s = %s \n",anames[naux-1],v->rhs); 
     }
     if(v->type==DERIVE_PAR){
       if(add_derived(v->lhs,v->rhs)==1)
@@ -1831,23 +1830,23 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
       if(name_too_long(tmp))exit(0);
       XPP_FORMAT_TO_BUF(fnames[nfix],"{}",tmp);
       nfix++;
-     plintf("%s = %s \n",fnames[nfix-1],v->rhs); 
+     xpp_log(XPP_LOG_INFO, "%s = %s \n",fnames[nfix-1],v->rhs); 
     }
 
     if(v->type==TABLE){
       convert(v->lhs,tmp);
       if(add_table_name(ntab,tmp)==1){
-	xpp_log(XPP_LOG_INFO, " %s is duplicate name \n", tmp);
+	xpp_log(XPP_LOG_ERROR, " %s is duplicate name \n", tmp);
 	exit(0);
       }
-      plintf("added name %d\n",ntab);
+      xpp_log(XPP_LOG_DEBUG, "added name %d\n",ntab);
       ntab++;
     }
     
     if(v->type==FUNCTION){
       convert(v->lhs,tmp);
       if(add_ufun_name(tmp,nufun,v->nargs)==1){
-	xpp_log(XPP_LOG_INFO, "Duplicate name or too many functions for %s \n",tmp);
+	xpp_log(XPP_LOG_ERROR, "Duplicate name or too many functions for %s \n",tmp);
 	exit(0);
       }
     
@@ -1864,7 +1863,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
  */
  for(i=0;i<nvar;i++){
       if(add_var(vnames[i],0.0)){
-	xpp_log(XPP_LOG_INFO, " Duplicate name %s \n",vnames[i]);
+	xpp_log(XPP_LOG_ERROR, " Duplicate name %s \n",vnames[i]);
 	exit(0);
       }
       XPP_FORMAT_TO_BUF(uvar_names[i],"{}",vnames[i]);
@@ -1873,13 +1872,13 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
     }
  for(i=0;i<nfix;i++){
    if(add_var(fnames[i],0.0)){
-	xpp_log(XPP_LOG_INFO, " Duplicate name %s \n",fnames[i]);
+	xpp_log(XPP_LOG_ERROR, " Duplicate name %s \n",fnames[i]);
 	exit(0);
       }
  }
  for(i=0;i<nmark;i++){
    if(add_var(mnames[i],0.0)){
-	xpp_log(XPP_LOG_INFO, " Duplicate name %s \n",mnames[i]);
+	xpp_log(XPP_LOG_ERROR, " Duplicate name %s \n",mnames[i]);
 	exit(0);
       }
    XPP_FORMAT_TO_BUF(uvar_names[i+nvar],"{}",mnames[i]);
@@ -1934,7 +1933,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	     last_ic[in]=z;
 	     default_ic[in]=z;
 	     set_val(tmp,z);
-	     plintf(" Initial %s(0)=%g\n",tmp,z);
+	     xpp_log(XPP_LOG_INFO, " Initial %s(0)=%g\n",tmp,z);
 	   }
 	   else {
 	     in=find_the_name(mnames,NMarkov,tmp);
@@ -1942,11 +1941,11 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	       last_ic[in+IN_VARS]=z;
                default_ic[in+IN_VARS]=z;
 	       set_val(tmp,z);
-	       plintf(" Markov %s(0)=%g\n",tmp,z);
+	       xpp_log(XPP_LOG_INFO, " Markov %s(0)=%g\n",tmp,z);
 	     }
 	     else
 	       {
-		 plintf("In initial value statement no variable %s \n",
+		 xpp_log(XPP_LOG_ERROR, "In initial value statement no variable %s \n",
 			tmp);
 		 exit(0);
 	       }
@@ -1975,7 +1974,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	 /* if(fon==1) */
 	   XPP_FORMAT_TO_BUF(delay_string[in],"{}",v->rhs);
 	   
-	 plintf(" Initial %s(0)=%s\n",tmp,v->rhs);
+	 xpp_log(XPP_LOG_INFO, " Initial %s(0)=%s\n",tmp,v->rhs);
        }
        else {
 	 in=find_the_name(mnames,NMarkov,tmp);
@@ -1983,11 +1982,11 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	   last_ic[in+IN_VARS]=z;
            default_ic[in+IN_VARS]=z;
 	   set_val(tmp,z);
-	   plintf(" Markov %s(0)=%g\n",tmp,z);
+	   xpp_log(XPP_LOG_INFO, " Markov %s(0)=%g\n",tmp,z);
 	 }
 	 else
 	   {
-	     plintf("In initial value statement no variable %s \n",
+	     xpp_log(XPP_LOG_ERROR, "In initial value statement no variable %s \n",
 		    tmp);
 	     exit(0);
 	   }
@@ -2005,7 +2004,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        nn=strlen(v->rhs)+1;
        if((ode_names[nvar]=(char *)xpp_malloc(nn+2))==NULL||
 	  (my_ode[nvar]=(int *)xpp_malloc(MAXEXPLEN*sizeof(int)))==NULL){
-	 plintf("could not allocate space for %s \n",v->lhs);
+	 xpp_log(XPP_LOG_ERROR, "could not allocate space for %s \n",v->lhs);
 	 exit(0);
        }
        
@@ -2013,35 +2012,34 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        find_ker(v->rhs,&alt);
        /*       ode_names[nvar][nn-1]=0; */
        if(add_expr(v->rhs,my_ode[nvar],&leng[nvar])){
-         xpp_log(XPP_LOG_INFO, "A\n");
-	 plintf("ERROR compiling %s' \n",v->lhs);
+	 xpp_log(XPP_LOG_ERROR, "ERROR compiling %s' \n",v->lhs);
 	 exit(0);
        }
        /* fpr_command(my_ode[nvar]); */
        if(v->type==MAP){
-	 plintf("%s(t+1)=%s\n",v->lhs,v->rhs);
+	 xpp_log(XPP_LOG_INFO, "%s(t+1)=%s\n",v->lhs,v->rhs);
 	 is_a_map=1;
        }
        if(v->type==VEQ)
-	 plintf("%s(t)=%s\n",v->lhs,v->rhs);
+	 xpp_log(XPP_LOG_INFO, "%s(t)=%s\n",v->lhs,v->rhs);
        if(v->type==ODE)
-	 plintf("%d:d%s/dt=%s\n",nvar,v->lhs,v->rhs);
+	 xpp_log(XPP_LOG_INFO, "%d:d%s/dt=%s\n",nvar,v->lhs,v->rhs);
        nvar++;
        break;
       case FIXED:
        find_ker(v->rhs,&alt);
        if((my_ode[nfix+IN_VARS]=(int *)xpp_malloc(MAXEXPLEN*sizeof(int)))==NULL ||
 	  add_expr(v->rhs,my_ode[nfix+IN_VARS],&leng[IN_VARS+nfix])!=0){
-	 plintf(" Error allocating or compiling %s\n",v->lhs);
+	 xpp_log(XPP_LOG_ERROR, " Error allocating or compiling %s\n",v->lhs);
 	 exit(0);
        }
        nfix++;
-       plintf("%s=%s\n",v->lhs,v->rhs);
+       xpp_log(XPP_LOG_INFO, "%s=%s\n",v->lhs,v->rhs);
        break;
      case DAE:
        if(add_aeqn(v->rhs)==1)
 	 exit(0);
-       plintf(" DAE eqn: %s=0 \n",v->rhs);
+       xpp_log(XPP_LOG_INFO, " DAE eqn: %s=0 \n",v->rhs);
        break;
 	 
      case  AUX_VAR:
@@ -2050,7 +2048,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
               nn=strlen(v->rhs)+1;
 	 if((ode_names[in1]=(char *)xpp_malloc(nn+2))==NULL||
 	    (my_ode[in2]=(int *)xpp_malloc(MAXEXPLEN*sizeof(int)))==NULL){
-	   plintf("could not allocate space for %s \n",v->lhs);
+	   xpp_log(XPP_LOG_ERROR, "could not allocate space for %s \n",v->lhs);
 	   exit(0);
 	 }
 
@@ -2058,23 +2056,22 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        xpp_strlcpy(ode_names[in1],v->rhs,nn+2);
        /* ode_names[in1][nn]=0; */
        if(add_expr(v->rhs,my_ode[in2],&leng[in2])){
-         xpp_log(XPP_LOG_INFO, "B\n");
-	 plintf("ERROR compiling %s \n",v->lhs);
+	 xpp_log(XPP_LOG_ERROR, "ERROR compiling %s \n",v->lhs);
 	 exit(0);
        }
        naux++;
-       plintf("%s=%s\n",v->lhs,v->rhs);
+       xpp_log(XPP_LOG_INFO, "%s=%s\n",v->lhs,v->rhs);
        break;
      case VECTOR:
        if(add_vectorizer(v->lhs,v->rhs)==0){
-	 plintf(" Illegal vector  %s \n",v->rhs);
+	 xpp_log(XPP_LOG_ERROR, " Illegal vector  %s \n",v->rhs);
 	 exit(0);
        }
 
        break;
      case SPEC_FUN:
        if(add_spec_fun(v->lhs,v->rhs)==0){
-	 plintf(" Illegal special function %s \n",v->rhs);
+	 xpp_log(XPP_LOG_ERROR, " Illegal special function %s \n",v->rhs);
 	 exit(0);
        }
        break;
@@ -2082,24 +2079,24 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        nn=strlen(v->rhs)+1;
 
        if((ode_names[IN_VARS+nmark]=(char *)xpp_malloc(nn+2))==NULL){
-	 plintf(" Out of memory for  %s \n",v->lhs);
+	 xpp_log(XPP_LOG_ERROR, " Out of memory for  %s \n",v->lhs);
 	 exit(0);
        }
        strncpy(ode_names[IN_VARS+nmark],v->rhs,nn);
        ode_names[IN_VARS+nmark][nn]=0;
        nmark++;
-       plintf("%s: %s",v->lhs,v->rhs);
+       xpp_log(XPP_LOG_INFO, "%s: %s",v->lhs,v->rhs);
        break;
      case  FUNCTION:
        if(add_ufun_new(nufun,v->nargs,v->rhs,v->args)!=0){
-	 plintf(" Function %s messed up \n",v->lhs);
+	 xpp_log(XPP_LOG_ERROR, " Function %s messed up \n",v->lhs);
 	 exit(0);
        }
        nufun++;
-       plintf("%s(%s",v->lhs,v->args[0]);
+       xpp_log(XPP_LOG_INFO, "%s(%s",v->lhs,v->args[0]);
        for(in=1;in<v->nargs;in++)
-	 plintf(",%s",v->args[in]);
-       plintf(")=%s\n",v->rhs);
+	 xpp_log(XPP_LOG_INFO, ",%s",v->args[in]);
+       xpp_log(XPP_LOG_INFO, ")=%s\n",v->rhs);
        break;
      
      case TABLE:
@@ -2109,7 +2106,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        my_string=get_next(" ");
        my_string=get_next(" \n");
        if(my_string[0]=='%') {
-	 plintf(" Function form of table....\n");
+	 xpp_log(XPP_LOG_INFO, " Function form of table....\n");
 	 my_string=get_next(" ");
 	 nn=atoi(my_string);
 	 my_string=get_next(" ");
@@ -2118,33 +2115,33 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	 xhi=atof(my_string);
 	 my_string=get_next("\n");
 	 XPP_FORMAT_TO_BUF(formula,"{}",my_string);
-	 plintf(" %s has %d pts from %f to %f = %s\n",
+	 xpp_log(XPP_LOG_INFO, " %s has %d pts from %f to %f = %s\n",
 		v->lhs,nn,xlo,xhi,formula);
 	 /* plintf(" ntab = %d\n",ntab); */
 	 if(add_form_table(ntab,nn,xlo,xhi,formula)){
-	   plintf("ERROR computing %s\n",v->lhs);
+	   xpp_log(XPP_LOG_ERROR, "ERROR computing %s\n",v->lhs);
 	   exit(0);
 	 }
 	 ntab++;
        }
        else 
 	 if(my_string[0]=='@'){
-	   plintf(" Two-dimensional array: \n ");
+	   xpp_log(XPP_LOG_INFO, " Two-dimensional array: \n ");
 	   my_string=get_next(" ");
 	   XPP_FORMAT_TO_BUF(formula,"{}",my_string);
-	   plintf(" %s = %s \n",name,formula);
+	   xpp_log(XPP_LOG_INFO, " %s = %s \n",name,formula);
 	   if(add_2d_table(name,formula)){
-	     plintf("ERROR at line %d\n",NLINES);
+	     xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	     exit(0);
 	   }
 	 }
 	 else
 	   {
 	     XPP_FORMAT_TO_BUF(formula,"{}",my_string);
-	     plintf("Lookup table %s = %s \n",v->lhs,formula);
+	     xpp_log(XPP_LOG_INFO, "Lookup table %s = %s \n",v->lhs,formula);
 	     
 	     if(add_file_table(ntab,formula)){
-	       plintf("ERROR computing %s",v->lhs);
+	       xpp_log(XPP_LOG_ERROR, "ERROR computing %s",v->lhs);
 	       exit(0);
 	     }
 	     ntab++;
@@ -2158,9 +2155,9 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
    exit(0);
  evaluate_derived();
  do_export_list();  
- plintf(" All formulas are valid!!\n");
+ xpp_log(XPP_LOG_INFO, " All formulas are valid!!\n");
  NODE=nvar+naux+nfix;
- plintf(" nvar=%d naux=%d nfix=%d nmark=%d NEQ=%d NODE=%d \n",
+ xpp_log(XPP_LOG_INFO, " nvar=%d naux=%d nfix=%d nmark=%d NEQ=%d NODE=%d \n",
 	nvar,naux,nfix,nmark,NEQ,NODE);
  
 }
@@ -2456,11 +2453,11 @@ int extract_args(char *s1, int i0, int *ie, int *narg, char args[MAXARG][NAMLEN+
     type=find_char(s1,",)",i,&i1);
     if(type<0)break;
     if(na>=MAXARG){
-      plintf("More than %d arguments\n",MAXARG);
+      xpp_log(XPP_LOG_ERROR, "More than %d arguments\n",MAXARG);
       return 0;
     }
     if(i1-i>NAMLEN){
-      plintf("Argument name longer than %d characters\n",NAMLEN);
+      xpp_log(XPP_LOG_ERROR, "Argument name longer than %d characters\n",NAMLEN);
       return 0;
     }
     if(type==0){
@@ -2659,7 +2656,7 @@ int search_array(char *old, char *newstr, int *i1, int *i2, int *flag)
 	  *i1=0;
           *i2=0;
 	  xpp_strlcpy(newstr,old,256);
-          plintf(" Possible error in array %s -- ignoring it \n",old);
+          xpp_log(XPP_LOG_WARN, " Possible error in array %s -- ignoring it \n",old);
 	  return(0); /* error in array  */
 	}
       }
@@ -2681,7 +2678,7 @@ int search_array(char *old, char *newstr, int *i1, int *i2, int *flag)
 	  *i1=0;
           *i2=0;
 	  xpp_strlcpy(newstr,old,256);
-          plintf(" Possible error in array  %s -- ignoring it \n",old);
+          xpp_log(XPP_LOG_WARN, " Possible error in array  %s -- ignoring it \n",old);
 	  return(0); /* error again   */
 	}
       }
@@ -2820,7 +2817,7 @@ void subsk(char *big, char *newstr, int k, int flag)
 	  while(ok){
 	    if(i>=n){
 	      newstr[inew]=0;
-	      plintf("Error in %s The expression does not terminate. Perhaps a ] is missing.\n",big);
+	      xpp_log(XPP_LOG_ERROR, "Error in %s The expression does not terminate. Perhaps a ] is missing.\n",big);
 	      exit(0);
 	    }
 	    ch=big[i];
@@ -2934,9 +2931,9 @@ void add_comment(char *s)
     comments[n_comments].aflag=1;
 
   }
- plintf("text=%s \n",comments[n_comments].text);
+ xpp_log(XPP_LOG_DEBUG, "text=%s \n",comments[n_comments].text);
  if(comments[n_comments].aflag==1)
-   plintf("action=%s \n",comments[n_comments].action);
+   xpp_log(XPP_LOG_DEBUG, "action=%s \n",comments[n_comments].action);
  n_comments++;
  
 }

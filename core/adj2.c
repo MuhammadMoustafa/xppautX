@@ -502,8 +502,8 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
     fdev[i]=yold[i];
   }
 	
-  plintf("%f %f \n",yold[0],yold[1]);
-      
+  xpp_log(XPP_LOG_DEBUG, "%f %f \n",yold[0],yold[1]);
+
  for(l=0;l<maxit;l++){
 	for(k=0;k<nt-1;k++){
 		k2=k+1;
@@ -534,8 +534,8 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
         for(i=0;i<node;i++){ yold[i]=yold[i]/ytemp;
 			     fdev[i]=yold[i];
 			   }
-	xpp_log(XPP_LOG_INFO, "%f %f \n",yold[0],yold[1]);
-        plintf("err=%f \n",error);
+	xpp_log(XPP_LOG_DEBUG, "%f %f \n",yold[0],yold[1]);
+        xpp_log(XPP_LOG_DEBUG, "err=%f \n",error);
 	if(error<minerr)break; /*  exit if error small   */
  }
  /*  onelast time to compute the adjoint  */
@@ -563,7 +563,7 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
 
         	 
 	prod=prod/t;
-  plintf(" Multiplying the adjoint by 1/%g to normalize\n",prod);
+  xpp_log(XPP_LOG_INFO, " Multiplying the adjoint by 1/%g to normalize\n",prod);
   for(k=0;k<nt;k++){
      for(j=0;j<node;j++)adjnt[j+1][k]=adjnt[j+1][k]/(float)prod;
      adjnt[0][k]=orbit[0][k];

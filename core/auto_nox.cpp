@@ -504,12 +504,12 @@ void copyf(char *old, char *new_name)
     new_name is either the whole copy or left as it was. */
  fo=fopen(old,"rb");
  if(fo==NULL){
-   plintf("Cannot read %s \n",old);
+   xpp::log(XPP_LOG_WARN, "Cannot read {} \n",old);
    return;
  }
  xpp::Writer w=xpp::Writer::binary(new_name);
  if(!w){
-   plintf("Cannot write %s \n",new_name);
+   xpp::log(XPP_LOG_WARN, "Cannot write {} \n",new_name);
    fclose(fo);
    return;
  }
@@ -524,7 +524,7 @@ void appendf(char *old, char *new_name)
  FILE *fo,*fn;
  fo=fopen(old,"rb");
  if(fo==NULL){
-   plintf("Cannot read %s \n",old);
+   xpp::log(XPP_LOG_WARN, "Cannot read {} \n",old);
    return;
  }
  fn=fopen(new_name,"rb");
@@ -2317,7 +2317,7 @@ void auto_new_ss()
     ans=reset_auto();
     if ((ans!=0) && (ans!=1))
     {
-       plintf("Boolean response expected.\n");	
+       xpp::log(XPP_LOG_WARN, "Boolean response expected.\n");
     }
    /* if(ans==0){
       opn=OPEN_3;
@@ -2347,7 +2347,7 @@ void auto_new_discrete()
     ans=reset_auto();
     if ((ans!=0) && (ans!=1))
     {
-       plintf("Boolean response expected.\n");	
+       xpp::log(XPP_LOG_WARN, "Boolean response expected.\n");
     }
    /* if(ans==0){
       opn=OPEN_3;

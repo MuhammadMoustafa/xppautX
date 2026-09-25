@@ -2,6 +2,7 @@
    auto_f2c.h's own min/max macros (included transitively below, through
    auto_nox.h) break if they are already defined first. */
 #include "xpp_io.h"
+#include "xpp_log.h"
 #include "diagram.h"
 #include "xpp_mem.h"
 #include "autevd.h"
@@ -459,7 +460,7 @@ void post_auto()
     type=get_bif_type(d->ibr,d->ntot,d->lab);
     if (type < 0)
     {	
-    	plintf("Unable to get bifurcation type.\n");
+    	xpp::log(XPP_LOG_WARN, "Unable to get bifurcation type.\n");
     }
     if(d->ntot==1)flag=0;
     else flag=1;
@@ -493,7 +494,7 @@ void svg_auto()
     type=get_bif_type(d->ibr,d->ntot,d->lab);
     if (type < 0)
     {	
-    	plintf("Unable to get bifurcation type.\n");
+    	xpp::log(XPP_LOG_WARN, "Unable to get bifurcation type.\n");
     }
     if(d->ntot==1)flag=0;
     else flag=1;
@@ -528,7 +529,7 @@ void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi)
     type=get_bif_type(d->ibr,d->ntot,d->lab);
     if (type <1)
     {
-        plintf("Unable to get bifurcation type.\n");
+        xpp::log(XPP_LOG_WARN, "Unable to get bifurcation type.\n");
     }
     /*if(d->ntot==1)flag=0;
     else flag=1;

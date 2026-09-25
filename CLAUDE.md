@@ -312,7 +312,27 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   raised by `--verbose`/`--debug`. printf semantics (the caller writes the
   newline); output goes to
   `-logfile`'s file if given, else stderr, which browser mode shows in the
-  page's log. `plintf()` is INFO, `err_msg()`'s headless default ERROR.
+  page's log. There is no `plintf()` any more (retired at W25, ~620
+  call sites): a C file calls `xpp_log(level, fmt, ...)` directly; a
+  .cpp file prefers `xpp::log(level, fmt, args...)` (xpp_log.h's C++
+  section, a std::format-checked wrapper over xpp_log, same idea as
+  xpp::format in xpp_io.h) whenever the format string converts
+  mechanically, and falls back to plain `xpp_log` for a dynamic
+  width/precision (`%*s`, `%.*s`) or a pointer destination.
+  `err_msg()`'s headless default is ERROR. An INFO message additionally
+  honours the model's own `@ quiet=1` (`log_settings.verbose`), what
+  plintf() used to gate itself on. Picking a level for a new message:
+  ERROR stops the action (a model that does not parse, a file that
+  cannot be opened — usually via err_msg); WARN is a real problem that
+  is not fatal (a duplicate name, a CLI usage mistake, a numerical
+  warning); INFO is progress or a result a user reading `--verbose`
+  output or the browser page's log panel wants (the startup banner,
+  parser stats, a confirmation); DEBUG (`xpp_log(XPP_LOG_DEBUG, ...)`
+  or `xpp::log(XPP_LOG_DEBUG, ...)`) is developer tracing, dumps and
+  internal chatter nobody reads by default — when a message carries
+  nothing at all (a bare "here", an unused value dump), remove it rather
+  than downgrading it. `tools/stdoutcheck.sh` also fails a new `plintf(`
+  call so it cannot creep back in.
   AUTO's table goes through `xpp_log_auto()`: INFO on the console, always
   written in browser mode, where the AUTO window's Output panel shows it.
   The core never prints to stdout or stderr directly; `tools/stdoutcheck.sh`

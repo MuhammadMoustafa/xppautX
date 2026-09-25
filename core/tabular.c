@@ -1,5 +1,6 @@
 #include "tabular.h"
 #include "xpp_mem.h"
+#include "xpp_log.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
 
@@ -226,7 +227,7 @@ double lookup(double x, int index)
     else
       {
 #ifdef DEBUG
-   	  plintf("index=%d; x=%lg; i1=%d; i2=%d; x1=%lg; y1=%lg; y2=%lg\n",index,x,i1,i2,x1,y1,y2);
+   	  xpp_log(XPP_LOG_DEBUG, "index=%d; x=%lg; i1=%d; i2=%d; x1=%lg; y1=%lg; y2=%lg\n",index,x,i1,i2,x1,y1,y2);
 #endif
 	    return(y1);
 	};

@@ -298,7 +298,7 @@ int duplicate_name(char *junk)
   int i;
   find_name(junk,&i);
   if(i>=0){
-    if(ERROUT)xpp_log(XPP_LOG_INFO, "%s is a duplicate name\n",junk);
+    if(ERROUT)xpp_log(XPP_LOG_WARN, "%s is a duplicate name\n",junk);
     return(1);
   }
   return(0);
@@ -316,7 +316,7 @@ static int set_symbol_name(int k, char *name, int primed)
   convert(name,string);
   len=strlen(string);
   if(len<1){
-    plintf("Empty name - remove spaces\n");
+    xpp_log(XPP_LOG_WARN, "Empty name - remove spaces\n");
     return 1;
   }
   if(len>XPP_NAME_MAX&&!(primed&&len==MXLEN&&string[len-1]=='\''))
@@ -335,7 +335,7 @@ int name_too_long(char *name)
     convert(name,string);
     if(strlen(string)<=XPP_NAME_MAX)return 0;
   }
-  plintf("Name %.40s... is longer than %d characters\n",name,XPP_NAME_MAX);
+  xpp_log(XPP_LOG_WARN, "Name %.40s... is longer than %d characters\n",name,XPP_NAME_MAX);
   return 1;
 }
 
@@ -397,11 +397,11 @@ int add_kernel(char *name, double mu, char *expr)
   int i,in=-1;
   if(duplicate_name(name)==1)return(1);
   if(NKernel==MAXKER){
-    plintf("Too many kernels..\n");
+    xpp_log(XPP_LOG_WARN, "Too many kernels..\n");
     return(1);
   }
   if(mu<0||mu>=1.0){
-    plintf(" mu must lie in [0,1.0) \n");
+    xpp_log(XPP_LOG_WARN, " mu must lie in [0,1.0) \n");
     return(1);
   }
   if(set_symbol_name(NSYM,name,0))return 1;
@@ -416,7 +416,7 @@ int add_kernel(char *name, double mu, char *expr)
   for(i=0;i<strlen(expr);i++)
     if(expr[i]=='#')in=i;
   if(in==0||in==(strlen(expr)-1)){
-    plintf("Illegal use of convolution...\n");
+    xpp_log(XPP_LOG_WARN, "Illegal use of convolution...\n");
     return(1);
   }
   if(in>0){
@@ -427,7 +427,7 @@ int add_kernel(char *name, double mu, char *expr)
     kernel[NKernel].kerexpr[in]=0;
     for(i=in+1;i<strlen(expr);i++)kernel[NKernel].expr[i-in-1]=expr[i];
     kernel[NKernel].expr[strlen(expr)-in-1]=0;
-    plintf("Convolving %s with %s\n",
+    xpp_log(XPP_LOG_INFO, "Convolving %s with %s\n",
 	   kernel[NKernel].kerexpr,kernel[NKernel].expr);
   }
   else {
@@ -493,7 +493,7 @@ int add_expr(char *expr, int *command, int *length)
 
 int add_vector_name(int index,char *name)
 {
-  plintf(" Adding vectorizer %s %d \n",name,index);
+  xpp_log(XPP_LOG_INFO, " Adding vectorizer %s %d \n",name,index);
   if(duplicate_name(name)==1)return(1);
   xpp_log(XPP_LOG_DEBUG, " 1\n");
   if(set_symbol_name(NSYM,name,0))return 1;
@@ -509,7 +509,7 @@ int add_vector_name(int index,char *name)
 
 int add_net_name(int index, char *name)
 {
-  plintf(" Adding net %s %d \n",name,index);
+  xpp_log(XPP_LOG_INFO, " Adding net %s %d \n",name,index);
   if(duplicate_name(name)==1)return(1);
   if(set_symbol_name(NSYM,name,0))return 1;
   my_symb[NSYM].pri=10;
@@ -527,7 +527,7 @@ int add_net_name(int index, char *name)
 
 int add_2d_table(char *name, char *file)
 {
- plintf(" TWO D NOT HERE YET \n");
+ xpp_log(XPP_LOG_WARN, " TWO D NOT HERE YET \n");
  return(1);
 }
 
@@ -610,7 +610,7 @@ int add_ufun_name(char *name, int index, int narg)
   if(ERROUT)xpp_log(XPP_LOG_WARN, "too many functions !!\n");
   return(1);
  }
-  plintf(" Added user fun %s \n",name);
+  xpp_log(XPP_LOG_INFO, " Added user fun %s \n",name);
   if(set_symbol_name(NSYM,name,0))return 1;
   my_symb[NSYM].pri=10;
   my_symb[NSYM].arg=narg;
@@ -634,7 +634,7 @@ int add_ufun_new(int index, int narg, char *rhs, char args[MAXARG][XPP_NAME_MAX+
   int i,l;
   int end;
    if(narg>MAXARG){
-    plintf("Maximal arguments exceeded \n");
+    xpp_log(XPP_LOG_WARN, "Maximal arguments exceeded \n");
     return(1);
   }
   if((ufun[index]=(int *)xpp_malloc(1024))==NULL)
@@ -1124,11 +1124,11 @@ int alg_to_rpn(int *toklist, int *command)
           goto getnew;
        }
         if(ncomma!=0){
-        plintf("Illegal number of arguments\n");
+        xpp_log(XPP_LOG_WARN, "Illegal number of arguments\n");
 	return(1);
         }
 	if((nif!=nelse)||(nif!=nthen)){
-	  plintf("If statement missing ELSE or THEN \n");
+	  xpp_log(XPP_LOG_WARN, "If statement missing ELSE or THEN \n");
 	  return(1);
 	    }
         command[comptr]=my_symb[ENDTOK].com;
@@ -1148,7 +1148,7 @@ void show_where(char *string, int index)
   for(i=0;i<index;i++)junk[i]=' ';
   junk[index]='^';
   junk[index+1]=0;
-  plintf("%s\n%s\n",string,junk);
+  xpp_log(XPP_LOG_WARN, "%s\n%s\n",string,junk);
 }
 
 int function_sym(int token) /* functions should have ( after them  */
@@ -1252,7 +1252,7 @@ int check_syntax(int oldtoken, int newtoken)  /* 1 is BAD!   */
    return(1);
  }
 
-  plintf("Bad token %d \n",oldtoken);
+  xpp_log(XPP_LOG_WARN, "Bad token %d \n",oldtoken);
   return(1);
     
 }
@@ -1304,7 +1304,7 @@ int make_toks(char *dest, int *my_token)
       my_token[tok_in++]=encoder.pieces.int1;
       my_token[tok_in++]=encoder.pieces.int2;
       if(check_syntax(old_tok,NUMTOK)==1){
-	 plintf("Illegal syntax \n");
+	 xpp_log(XPP_LOG_WARN, "Illegal syntax \n");
 	 show_where(dest,lastindex);
 	 return(1);
        }
@@ -1316,7 +1316,7 @@ int make_toks(char *dest, int *my_token)
      {
        my_token[tok_in++]=token;
        if(check_syntax(old_tok,token)==1){
-	 plintf("Illegal syntax (Ref:%d %d) \n",old_tok,token);
+	 xpp_log(XPP_LOG_WARN, "Illegal syntax (Ref:%d %d) \n",old_tok,token);
 	 show_where(dest,lastindex);
          tokeninfo(old_tok);
          tokeninfo(token);
@@ -1329,7 +1329,7 @@ int make_toks(char *dest, int *my_token)
 
 my_token[tok_in++]=ENDTOK;
 if(check_syntax(old_tok,ENDTOK)==1){
-  plintf("Premature end of expression \n");
+  xpp_log(XPP_LOG_WARN, "Premature end of expression \n");
   show_where(dest,lastindex);
   return(1);
 }
@@ -1344,7 +1344,7 @@ return(0);
 
 void tokeninfo(int tok)
 {
- plintf(" %s %d %d %d %d \n",
+ xpp_log(XPP_LOG_DEBUG, " %s %d %d %d %d \n",
 	my_symb[tok].name,my_symb[tok].len,my_symb[tok].com,
         my_symb[tok].arg,my_symb[tok].pri);
 }
@@ -1702,7 +1702,7 @@ double do_shift(double shift, double variable)
 	else 
 	  return variables[in];  
   default:
-    plintf("This can't happen: Invalid symbol index for SHIFT: i = %d\n", i);
+    xpp_log(XPP_LOG_WARN, "This can't happen: Invalid symbol index for SHIFT: i = %d\n", i);
     return 0.0;
   }
 }

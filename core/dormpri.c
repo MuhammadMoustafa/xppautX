@@ -8,6 +8,7 @@
 #include "dormpri.h"
 #include "flags.h"
 #include "ggets.h"
+#include "xpp_log.h"
 
 extern double *WORK;
 

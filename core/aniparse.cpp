@@ -345,7 +345,7 @@ int get_ani_file(char *fname)
     err = ani_new_file(vcr.file);
     if (err < 0) return 0;
     vcr.ok = 1; /* loaded and compiled */
-    plintf("Loaded %d lines successfully!\n", n_anicom);
+    xpp::log(XPP_LOG_INFO, "Loaded {} lines successfully!\n", n_anicom);
     ani_grab_flag = 0;
     return 1;
 }
@@ -389,7 +389,7 @@ int load_ani_file(FILE *fp)
 
         if (ans == 0 || feof(fp)) break;
         if (ans < 0) { /* error occurred !! */
-            plintf(" error at line %d\n", ani_line);
+            xpp::log(XPP_LOG_DEBUG, " error at line {}\n", ani_line);
             free_ani();
             return 0;
         }
@@ -848,7 +848,7 @@ int add_ani_comet(ANI_COM *a, char *x1, char *y1, char *x2, char *y2, char *col,
     a->zthick = atoi(thick);
     n = atoi(x2);
     if (n <= 0) {
-        plintf("4th argument of comet must be positive integer!\n");
+        xpp::log(XPP_LOG_WARN, "4th argument of comet must be positive integer!\n");
         return (-1);
     }
     err = add_ani_expr(x1, a->x1);
@@ -1449,7 +1449,7 @@ int add_grab_command(char *xs, char *ys, char *ts, FILE *fp)
     read_ani_line(fp, end);
 
     if (n_ani_grab >= MAX_ANI_GRAB) {
-        plintf("Too many grabbables! \n");
+        xpp::log(XPP_LOG_WARN, "Too many grabbables! \n");
         return (-1);
     }
     j = n_ani_grab;
@@ -1457,14 +1457,14 @@ int add_grab_command(char *xs, char *ys, char *ts, FILE *fp)
     if (z <= 0.0) z = .02;
     ani_grab[j].tol = z;
     if (add_expr(xs, com, &nc)) {
-        plintf("Bad grab x %s \n", xs);
+        xpp::log(XPP_LOG_WARN, "Bad grab x {} \n", xs);
         return (-1);
     }
     ani_grab[j].x = (int *)xpp_malloc(sizeof(int) * (nc + 1));
     for (k = 0; k <= nc; k++) ani_grab[j].x[k] = com[k];
 
     if (add_expr(ys, com, &nc)) {
-        plintf("Bad grab y %s \n", ys);
+        xpp::log(XPP_LOG_WARN, "Bad grab y {} \n", ys);
         return (-1);
     }
     ani_grab[j].y = (int *)xpp_malloc(sizeof(int) * (nc + 1));
@@ -1560,7 +1560,7 @@ int add_grab_task(char *lhs, char *rhs, int igrab, int which)
     int i, nc, k;
     int rn;
     if (strlen(lhs) > XPP_NAME_MAX) {
-        plintf("Grab event variable %s is too long\n", lhs);
+        xpp::log(XPP_LOG_WARN, "Grab event variable {} is too long\n", lhs);
         return (-1);
     }
     if (which == 1) {
@@ -1568,7 +1568,7 @@ int add_grab_task(char *lhs, char *rhs, int igrab, int which)
         if (i >= MAX_GEVENTS) return (-1); /* too many events */
         XPP_FORMAT_TO_BUF(ani_grab[igrab].start.lhsname[i],"{}", lhs);
         if (add_expr(rhs, com, &nc)) {
-            plintf("Bad right-hand side for grab event %s\n", rhs);
+            xpp::log(XPP_LOG_WARN, "Bad right-hand side for grab event {}\n", rhs);
             return (-1);
         }
         ani_grab[igrab].start.comrhs[i] = (int *)xpp_malloc(sizeof(int) * (nc + 1));
@@ -1588,7 +1588,7 @@ int add_grab_task(char *lhs, char *rhs, int igrab, int which)
 
         XPP_FORMAT_TO_BUF(ani_grab[igrab].end.lhsname[i],"{}", lhs);
         if (add_expr(rhs, com, &nc)) {
-            plintf("Bad right-hand side for grab event %s\n", rhs);
+            xpp::log(XPP_LOG_WARN, "Bad right-hand side for grab event {}\n", rhs);
             return (-1);
         }
         ani_grab[igrab].end.comrhs[i] = (int *)xpp_malloc(sizeof(int) * (nc + 1));
@@ -1681,7 +1681,7 @@ void ani_grab_mouse(int flag, int ix, int iy)
         ami.x0 = ami.x;
         ami.y0 = ami.y;
         who_was_grabbed = search_for_grab(ami.x, ami.y);
-        if (who_was_grabbed < 0) xpp_log(XPP_LOG_INFO, "Nothing grabbed\n");
+        if (who_was_grabbed < 0) xpp::log(XPP_LOG_INFO, "Nothing grabbed\n");
     }
     if (flag == 0) { /* This is BUTTON RELEASE  */
         if (who_was_grabbed < 0) return;

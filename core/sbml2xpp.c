@@ -200,7 +200,7 @@ int main (int argc, char *argv[])
 
   if (argc != 2)
   {
-    plintf("\n  usage: s2x <filename>\n\n");
+    xpp_log(XPP_LOG_WARN, "\n  usage: s2x <filename>\n\n");
     return 1;
   }
 
@@ -259,14 +259,14 @@ add_parameter(char *name, char *id,double z,int f)
   if(!is_blank(name)){
     for(i=0;i<Npar;i++)
       if(strcmp(name,par[i].name)==0){
-	xpp_log(XPP_LOG_INFO, "Hmm  par %d(%s) and %d(%s) are the same\n",Npar,name,i,par[i].name);
+	xpp_log(XPP_LOG_WARN, "Hmm  par %d(%s) and %d(%s) are the same\n",Npar,name,i,par[i].name);
 	return;
       }
   }
   if(!is_blank(id)){
     for(i=0;i<Npar;i++)
       if(strcmp(id,par[i].id)==0){
-	xpp_log(XPP_LOG_INFO, "Hmm  par %d(%s) and %d(%s) are the same\n",Npar,id,i,par[i].id);
+	xpp_log(XPP_LOG_WARN, "Hmm  par %d(%s) and %d(%s) are the same\n",Npar,id,i,par[i].id);
 	return;
       }
   }
@@ -315,7 +315,7 @@ void GetEvents(Model_t *m)
       }
     na=Event_getNumEventAssignments(e);
     x->na=na;
-    plintf("na=%d\n",na);
+    xpp_log(XPP_LOG_DEBUG, "na=%d\n",na);
     for(j=0;j<na;j++){
       ea=Event_getEventAssignment(e, j);
       if ( EventAssignment_isSetMath(ea) ){
@@ -473,19 +473,19 @@ dump_reactions()
 {
   int i,j;  int npr,nre;
   RXN *r;
-  plintf("REACTIONS:\n");
+  xpp_log(XPP_LOG_INFO, "REACTIONS:\n");
   for(i=0;i<Nrxn;i++){
     r=rxn+i;
-    plintf("rxn %d: %s \n",i,r->formula);
-    plintf("reactants: ");
+    xpp_log(XPP_LOG_INFO, "rxn %d: %s \n",i,r->formula);
+    xpp_log(XPP_LOG_INFO, "reactants: ");
     npr=r->npr;
     nre=r->nre;
     for(j=0;j<nre;j++)
-      plintf("%s(%g), ",r->re[j],r->sre[j]);
-    plintf("\nproducts: ");
+      xpp_log(XPP_LOG_INFO, "%s(%g), ",r->re[j],r->sre[j]);
+    xpp_log(XPP_LOG_INFO, "\nproducts: ");
     for(j=0;j<npr;j++)
-      plintf("%s(%g), ",r->pr[j],r->spr[j]);
-    plintf("\n");
+      xpp_log(XPP_LOG_INFO, "%s(%g), ",r->pr[j],r->spr[j]);
+    xpp_log(XPP_LOG_INFO, "\n");
   }
 }
 dump_events()
@@ -495,11 +495,11 @@ dump_events()
   if(Nevent==0)return;
   for(i=0;i<Nevent;i++){
     ev=event+i;
-    plintf("global 1 %s {",ev->ev);
+    xpp_log(XPP_LOG_INFO, "global 1 %s {",ev->ev);
     na=ev->na;
     for(j=0;j<na-1;j++)
-      plintf("%s;",ev->a[j]);
-    plintf("%s}\n",ev->a[na-1]);
+      xpp_log(XPP_LOG_INFO, "%s;",ev->a[j]);
+    xpp_log(XPP_LOG_INFO, "%s}\n",ev->a[na-1]);
   }
 }
 dump_funs()
@@ -508,10 +508,10 @@ dump_funs()
   FUN_DEF *f;
   for(i=0;i<Nfuns;i++){
     f=funs+i;
-    plintf("%s(",f->name);
+    xpp_log(XPP_LOG_INFO, "%s(",f->name);
     for(j=0;j<f->nargs;j++)
-      plintf("%s,",f->arg[j]);
-    plintf(")=%s\n",f->formula);
+      xpp_log(XPP_LOG_INFO, "%s,",f->arg[j]);
+    xpp_log(XPP_LOG_INFO, ")=%s\n",f->formula);
   }
 }
 dump_rules()
@@ -519,29 +519,29 @@ dump_rules()
   RULE *r;
   int i;
   if(Nrule>0)
-    plintf("RULES:\n");
+    xpp_log(XPP_LOG_INFO, "RULES:\n");
   for(i=0;i<Nrule;i++){
     r=rule+i;
-    plintf("%s=%s\n",r->v,r->f);
+    xpp_log(XPP_LOG_INFO, "%s=%s\n",r->v,r->f);
   }
 }
 dump_species()
 {
   SPECIES *x;
   int i;
-  plintf("SPECIES: n i t\n");
+  xpp_log(XPP_LOG_INFO, "SPECIES: n i t\n");
   for(i=0;i<N_spec;i++){
     x=X_spec+i;
-    plintf("%s %s %s %g %d %d \n",x->name,x->id,x->tc,x->x0,x->bc,x->c);
+    xpp_log(XPP_LOG_INFO, "%s %s %s %g %d %d \n",x->name,x->id,x->tc,x->x0,x->bc,x->c);
   }
 }
 
 dump_parameters()
 {
   int i;
-  plintf("PARAMETERS:\n");
+  xpp_log(XPP_LOG_INFO, "PARAMETERS:\n");
   for(i=0;i<Npar;i++)
-    plintf("%d %s %s = %g \n",par[i].fixed,par[i].name,par[i].id,par[i].z);
+    xpp_log(XPP_LOG_INFO, "%d %s %s = %g \n",par[i].fixed,par[i].name,par[i].id,par[i].z);
 }
 add_species(int i,char *name,char *id,double x0,int bc,int c,char *tc)
 {
@@ -888,12 +888,12 @@ mark_rule_pars()
     j=find_parameter(r->v);
     if(j>-1){
       par[j].fixed=-2;
-      plintf("found %s as %d \n",r->v,j);
+      xpp_log(XPP_LOG_DEBUG, "found %s as %d \n",r->v,j);
     }
     j=find_species(r->v);
     if(j>-1){
       (X_spec+j)->rule=1;
-      plintf("found %s as %d \n",r->v,j);
+      xpp_log(XPP_LOG_DEBUG, "found %s as %d \n",r->v,j);
     }
   }
 }
@@ -960,7 +960,7 @@ check_name_len(char *s)
     strncpy(x,s,4);
     x[4]=0;
     XPP_SPRINTF(long_names[lnum].rep,"%s.%d",x,lnum);
-    plintf("long name: %s -> %s \n",long_names[lnum].src,long_names[lnum].rep);
+    xpp_log(XPP_LOG_WARN, "long name: %s -> %s \n",long_names[lnum].src,long_names[lnum].rep);
     lnum++;
   }
 }
@@ -1046,7 +1046,7 @@ sort_long_names()
   if(lnum<2)return; /* nothing to sort ! */
   qsort(long_names,lnum,sizeof(LONG_NAMES),z_sort);
   for(i=0;i<lnum;i++)
-    plintf("%d: %s -> %s \n",i,long_names[i].src,long_names[i].rep);
+    xpp_log(XPP_LOG_WARN, "%d: %s -> %s \n",i,long_names[i].src,long_names[i].rep);
   
 }
 

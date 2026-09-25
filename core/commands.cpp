@@ -198,7 +198,7 @@ void draw_many_lines(void)
   int i;
   for (i = 0; i < NLINE; i++)
     xpp_ui.draw_line(rand() % 200, rand() % 200, rand() % 200, rand() % 200);
-  xpp_log(XPP_LOG_INFO, "Done\n");
+  xpp_log(XPP_LOG_DEBUG, "Done\n");
 }
 
 void get_intern_set(void)

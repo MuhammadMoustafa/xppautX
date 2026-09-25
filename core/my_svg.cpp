@@ -1,4 +1,5 @@
 #include "my_svg.h"
+#include "xpp_log.h"
 #include "lunch-new.h"
 #include "ggets.h"
 #include "graphics.h"
@@ -259,7 +260,7 @@ int svg_init(char *filename, int color)
 			xpp::LineReader lr(css);
 			if(lr)
 			{
-				plintf("Styling svg image according to %s\n",css);
+				xpp::log(XPP_LOG_INFO, "Styling svg image according to {}\n",css);
 				std::optional<std::string_view> line;
 				while((line=lr.next()))
 					fprintf(svgfile,"%.*s\n",(int)line->size(),line->data());

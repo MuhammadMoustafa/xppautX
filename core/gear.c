@@ -2,6 +2,7 @@
 #include "odesol2.h"
 #include "browse.h"
 #include "xpp_mem.h"
+#include "xpp_log.h"
 #include "gear.h"
 #include "ggets.h"
 #include "menudrive.h"
@@ -124,7 +125,7 @@ if(!PAR_FOL)
 
  if(ch=='y')
  {
-  plintf("\n Eigenvalues:\n");
+  xpp_log(XPP_LOG_INFO, "\n Eigenvalues:\n");
   pr=1;
 }
  for(i=0;i<n;i++)
@@ -133,7 +134,7 @@ if(!PAR_FOL)
   imag=eval[2*i+1];
   if(pr==1)
   {
-   plintf(" %f  +  i  %f \n",real,imag);
+   xpp_log(XPP_LOG_INFO, " %f  +  i  %f \n",real,imag);
 
   }
   if(METHOD==0)real=real*real+imag*imag-1.00;
@@ -252,7 +253,7 @@ if(!PAR_FOL)
       
 	 if((rp>1)&&(bpos>=0)) /* then there is a strong unstable */
 	 {
-	   plintf("strong unstable %g \n",bigpos);
+	   xpp_log(XPP_LOG_INFO, "strong unstable %g \n",bigpos);
 	   get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,bigpos,ierr);
 	   if(*ierr==0)
 	     {
@@ -270,7 +271,7 @@ if(!PAR_FOL)
 	 
      if((rn>1)&&(bneg>=0)) /* then there is a strong stable */
 	 {
-	   plintf("strong stable %g \n",bigneg);
+	   xpp_log(XPP_LOG_INFO, "strong stable %g \n",bigneg);
 	   get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,bigneg,ierr);
 	   if(*ierr==0)
 	     {
@@ -573,7 +574,7 @@ void get_evec(double *a, double *anew, double *b, double *bp, int n, int maxit, 
 
     sgefa(anew,n,n,ipivot,ierr);
     if(*ierr!=-1) {
-      plintf(" Pivot failed\n");
+      xpp_log(XPP_LOG_WARN, " Pivot failed\n");
       return;
     }
     for(j=0;j<n;j++)
@@ -612,7 +613,7 @@ void get_evec(double *a, double *anew, double *b, double *bp, int n, int maxit, 
       iter++;
       if(iter>maxit)
       {
-       plintf(" max iterates exceeded\n");
+       xpp_log(XPP_LOG_WARN, " max iterates exceeded\n");
 
        *ierr=1;
        break;

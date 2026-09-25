@@ -25,6 +25,10 @@ void xpp_log_v(XppLogLevel level, const char *fmt, va_list ap)
 {
     FILE *out = sink();
     if (level > threshold) return;
+    /* The model's own "@ quiet=1" (log_settings.verbose==0) silences just
+       its INFO-level confirmations, same as plintf() used to gate itself
+       before it was folded into xpp_log(); WARN/ERROR/DEBUG are unaffected. */
+    if (level == XPP_LOG_INFO && !log_settings.verbose) return;
     vfprintf(out, fmt, ap);
     fflush(out);
 }

@@ -85,7 +85,7 @@ void auto_load_dll(void)
 {
   if(dll_flag==3){
     get_directory(cur_dir);
-    plintf("DLL lib %s/%s with function %s \n",cur_dir,dll_lib,dll_fun);
+    xpp::log(XPP_LOG_INFO, "DLL lib {}/{} with function {} \n",cur_dir,dll_lib,dll_fun);
     XPP_SPRINTF(dlf.libfile,"%s",dll_lib);
     XPP_SPRINTF(dlf.libname,"%s/%s",cur_dir,dlf.libfile);
     XPP_SPRINTF(dlf.fun,"%s",dll_fun);
@@ -117,12 +117,12 @@ void get_import_values(int n, double *ydot, char *soname, char *sofun,
   }
   if(dll_loaded==-1)
     return;
-  xpp_log(XPP_LOG_INFO, "soname = %s  sofun = %s \n",soname,sofun);
+  xpp::log(XPP_LOG_INFO, "soname = {}  sofun = {} \n",soname,sofun);
   get_directory(cur_dir);
   XPP_SPRINTF(sofullname,"%s/%s",cur_dir,soname);
   import_handle=dlopen(sofullname, RTLD_LAZY);
   if(!import_handle){
-    plintf(" Cant find the library %s\n",soname);
+    xpp::log(XPP_LOG_WARN, " Cant find the library {}\n",soname);
     dll_loaded=-1;
     return;
   }
@@ -130,7 +130,7 @@ void get_import_values(int n, double *ydot, char *soname, char *sofun,
   import_fun=symbol<ImportFun>(import_handle,sofun);
   error=dlerror();
   if(error!=nullptr){
-    plintf("Problem with function.. %s\n",sofun);
+    xpp::log(XPP_LOG_WARN, "Problem with function.. {}\n",sofun);
     dll_loaded=-1;
     return;
   }
@@ -146,7 +146,7 @@ int my_fun(double *in, double *out, int nin,int nout,double *v,double *c)
   if(dlf.loaded==0){
     dlhandle=dlopen(dlf.libname, RTLD_LAZY);
     if(!dlhandle){
-      plintf(" Cant find the library \n");
+      xpp::log(XPP_LOG_WARN, " Cant find the library \n");
       dlf.loaded=-1;
       return 0;
     }
@@ -156,7 +156,7 @@ int my_fun(double *in, double *out, int nin,int nout,double *v,double *c)
     export_fun=symbol<ExportFun>(dlhandle,dlf.fun);
     error=dlerror();
     if(error!=nullptr){
-      plintf("Problem with function..\n");
+      xpp::log(XPP_LOG_WARN, "Problem with function..\n");
       dlf.loaded=-1;
       return 0;
     }
@@ -278,7 +278,7 @@ void parse_inout(char *l,int flag)
 	    index=get_var_index(name);
 	    if(index<0)
 	      {
-		xpp_log(XPP_LOG_INFO, "Cant export %s - non existent!\n",name);
+		xpp::log(XPP_LOG_ERROR, "Cant export {} - non existent!\n",name);
 		exit(0);
 	      }
 	    else /* it is a variable */

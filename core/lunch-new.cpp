@@ -192,7 +192,7 @@ int read_lunch(FILE *fp)
    xpp::LineReader lr = xpp::LineReader::attach(fp);
    std::optional<std::string_view> line = lr.next();
    if(!line){
-     plintf("Set file read failed\n");
+     xpp::log(XPP_LOG_WARN, "Set file read failed\n");
      return 0;
    }
    XPP_STRCPY(bob, std::string(*line).c_str());
@@ -208,7 +208,7 @@ int read_lunch(FILE *fp)
    /* io_int(&ne,fp,f); */
    io_int(&np,fp,f," ");
    if(ne!=NEQ||np!=NUPAR){
-     plintf("Set file has incompatible parameters\n");
+     xpp::log(XPP_LOG_WARN, "Set file has incompatible parameters\n");
      return 0;
    }
    io_numerics(f,fp);
@@ -439,8 +439,8 @@ void io_parameter_file(char *fn,int flag)
       }
       io_int(&np,fp,flag,str(" "));
       if(np!=NUPAR){
-      	xpp_log(XPP_LOG_INFO, "%d\n",np);
-	xpp_log(XPP_LOG_INFO, "%d\n",NUPAR);
+      	xpp::log(XPP_LOG_DEBUG, "{}\n",np);
+	xpp::log(XPP_LOG_DEBUG, "{}\n",NUPAR);
 	err_msg(str("Incompatible parameters"));
      fclose(fp);
      return;

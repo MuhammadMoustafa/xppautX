@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include "xpp_mem.h"
+#include "xpp_log.h"
 #include <stdlib.h>
 #include "band.h"
 #include "llnltyps.h"
