@@ -58,8 +58,10 @@
    (issue #11); -silent runs no AUTO */
 static void start_auto_dir(void)
 {
-    xpp_cleanup_stale_scratch_dirs(); /* issue #32: a killed prior run's leftovers */
-    xpp_install_terminate_handler();  /* Ctrl+C / a kill cleans up this run's own */
+    /* issue #32: the folders of runs that ended without their atexit (a
+       kill, Ctrl+C, the watchdog's _exit) go at the next start: cleaning up
+       in a signal handler or from another thread is neither safe nor needed */
+    xpp_cleanup_stale_scratch_dirs();
     program.auto_dir = xpp_make_temp_dir();
     if (program.auto_dir != NULL) atexit(xpp_cleanup_auto_dir);
 }

@@ -56,11 +56,6 @@ void xpp_cleanup_auto_dir(void);
    pid still names a running process is never touched. xpp_util.c (POSIX)
    and xpp_win32.c (Windows). */
 void xpp_cleanup_stale_scratch_dirs(void);
-/* issue #32: installs cleanup for this run's own folder on a Ctrl+C, a
-   kill, or (Windows) the console closing/logoff/shutdown -- ends the
-   process before atexit() gets a chance to run xpp_cleanup_auto_dir.
-   xpp_util.c (POSIX signal handler) and xpp_win32.c (SetConsoleCtrlHandler). */
-void xpp_install_terminate_handler(void);
 
 #ifdef __cplusplus
 }

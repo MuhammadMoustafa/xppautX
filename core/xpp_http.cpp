@@ -59,11 +59,6 @@ typedef int sock_t;
 extern "C" errno_t rand_s(unsigned int *); /* the C library's; stdlib.h declares it only with _CRT_RAND_S */
 #endif
 
-/* xpp_util.c/xpp_win32.c (issue #32): the watchdog below ends an abandoned
-   session with _exit(), which skips atexit(); it removes this run's AUTO
-   scratch folder itself first instead. */
-extern "C" void xpp_cleanup_auto_dir(void);
-
 /* BSD and macOS have no MSG_NOSIGNAL; SIGPIPE is ignored in xpp_http_start */
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0
@@ -186,7 +181,6 @@ static void *watchdog_main(void *arg)
                there is no page left to tell anyway. Flush what the core wrote,
                then go. */
             fflush(NULL);
-            xpp_cleanup_auto_dir();
             _exit(0);
         }
         pthread_mutex_unlock(&lock);

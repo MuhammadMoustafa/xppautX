@@ -128,21 +128,6 @@ void xpp_cleanup_stale_scratch_dirs(void)
     FindClose(h);
 }
 
-/* Ctrl+C, Ctrl+Break, the console window closing, a logoff or a shutdown:
-   none of these run atexit(). Clean up this run's own folder, then let the
-   default handler (returning FALSE) terminate the process as usual. */
-static BOOL WINAPI console_ctrl_handler(DWORD type)
-{
-    (void)type;
-    xpp_cleanup_auto_dir();
-    return FALSE;
-}
-
-void xpp_install_terminate_handler(void)
-{
-    SetConsoleCtrlHandler(console_ctrl_handler, TRUE);
-}
-
 /* W13b: xppautX links -mwindows, so no console appears when Explorer or a
    file association starts it; a command-line mode reattaches to a real
    parent console instead (xpp_win32.h). A handle that is already a pipe,

@@ -818,22 +818,6 @@ void xpp_cleanup_stale_scratch_dirs(void)
   closedir(d);
 }
 
-/* Ctrl+C or a kill ends the process before atexit() gets a chance (that is
-   the only place xpp_cleanup_auto_dir is registered): remove this run's
-   own folder here, then restore the default disposition and re-raise, for
-   the usual termination behaviour and exit status. */
-static void handle_terminate_signal(int sig)
-{
-  xpp_cleanup_auto_dir();
-  signal(sig, SIG_DFL);
-  raise(sig);
-}
-
-void xpp_install_terminate_handler(void)
-{
-  signal(SIGINT, handle_terminate_signal);
-  signal(SIGTERM, handle_terminate_signal);
-}
 #endif
 
 void xpp_cleanup_auto_dir(void)
