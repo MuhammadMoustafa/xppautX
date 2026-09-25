@@ -300,7 +300,6 @@ void new_hist(nbins,zlo,zhi,col,col2,condition,which)
   double z,y;
   double dz;
   int length=nbins+1;
-  int count=0;
   if(length>=MAXSTOR)
     length=MAXSTOR-1;
   dz=(zhi-zlo)/(double)(length-1);
@@ -355,7 +354,6 @@ void new_hist(nbins,zlo,zhi,col,col2,condition,which)
 	index=(int)z;
 	if(index>=0&&index<length&&flag==1){
 	  my_hist[1][index]+=1.0;
-	  count++;
 	}
       }
     NCON=NCON_START;

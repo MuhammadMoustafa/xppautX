@@ -72,7 +72,7 @@ extern "C" {
  *                                                             *
  ***************************************************************/
 
-typedef struct {
+typedef struct N_VectorContent {  /* a tag: -fsanitize=function tells unnamed structs apart by file */
   integer length;
   real   *data;
 } *N_Vector;

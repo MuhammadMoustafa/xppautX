@@ -442,7 +442,7 @@ void do_sing_info(x,eps, err,big,maxit, n,er,em,ierr)
 {
  int kmem,i,j,ipivot[MAXODE];
 
- int rp=0,rn=0,cp=0,cn=0,im=0;
+ int rp=0,rn=0,cp=0,cn=0;
  int pose=0,nege=0,pr=0;
  double *work,*eval,*b,*bp,*oldwork,*ework;
  double temp,old_x[MAXODE];
@@ -537,7 +537,6 @@ void do_sing_info(x,eps, err,big,maxit, n,er,em,ierr)
       if(real>bigpos){bigpos=real;/*bpos=i;Not used*/}
     }
   }
-  if((real==0.0)&&(imag!=0.0))im++;
  }     /* eigenvalue count */
  if(((rp+cp)!=0)&&((rn+cn)!=0))eq_symb(x,1);
  else

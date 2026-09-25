@@ -1752,7 +1752,7 @@ void break_up_list(char *rhs)
 }
 
 
-int find_the_name(char list[MAXODE1][MAXVNAM], int n, char *name)
+int find_the_name(char list[][MAXVNAM], int n, char *name)
 {
   int i;
 

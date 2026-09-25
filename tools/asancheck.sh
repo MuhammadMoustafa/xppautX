@@ -13,34 +13,53 @@
 # we do not own.
 #
 # Slow (the checks run several times slower than in verify.sh), so not part
-# of verify.sh; CI runs it (linux-sanitizers). --no-leaks (CI's
-# macos-sanitizers) turns off LeakSanitizer's detect_leaks, which Apple
-# Silicon runners cannot run (no LSan support in Apple clang's runtime on
-# arm64 macOS); ASan and UBSan still run there.
-# Usage: tools/asancheck.sh [--no-leaks]
+# of verify.sh; CI runs it: on Linux with gcc (LeakSanitizer too), on
+# macOS with Apple clang (macos-sanitizers, --no-leaks: Apple Silicon
+# runners have no LeakSanitizer) and on Windows with MSYS2's CLANG64 clang
+# (W23: --no-leaks, no LeakSanitizer there), from its shell or Git Bash
+# with C:\msys64\clang64\bin first on PATH:
+#   MAKE=mingw32-make tools/asancheck.sh --no-leaks --builddir build/clang-asan CC=clang CXX=clang++
+# Usage: tools/asancheck.sh [--no-leaks] [--builddir DIR] [VAR=value ...]
+#   --no-leaks      no LeakSanitizer (detect_leaks=0), where it does not exist
+#   --builddir DIR  build into and run from DIR (default build/asan)
+#   VAR=value       passed to make (the compilers, say)
+#   $MAKE, $PYTHON  the make and python programs (default make, python3)
 cd "$(dirname "$0")/.." || exit 1
 top=$PWD
 BASELINE=c281851de59ffd03b2a46428619a0c8f
-detect_leaks=1
+leaks=1
+bdir=build/asan
 while [ $# -gt 0 ]; do
-  case "$1" in
-    --no-leaks) detect_leaks=0 ;;
-    *) echo "asancheck.sh: unknown option $1"; exit 2 ;;
+  case $1 in
+    --no-leaks) leaks=0 ;;
+    --builddir) bdir=$2; shift ;;
+    *=*) break ;;
+    *) echo "usage: tools/asancheck.sh [--no-leaks] [--builddir DIR] [VAR=value ...]"; exit 2 ;;
   esac
   shift
 done
+make=${MAKE:-make}
+python=${PYTHON:-python3}
+# the logs: build/asan-*.log for build/asan
+log=build/$(basename "$bdir")
 mkdir -p build || exit 1
-if ! make -j8 asan > build/asan-build.log 2>&1; then
-  grep -E ' error:' build/asan-build.log | head -20
+if ! "$make" -j8 BUILDDIR="$bdir" ASAN=1 "$@" asan-link > "$log-build.log" 2>&1; then
+  grep -E ' error:' "$log-build.log" | head -20
   echo "ASAN BUILD FAILED"
   exit 1
 fi
 echo "asan build ok"
-reports=$top/build/asan/reports
+bin=$bdir/xppautX
+[ -e "$bin.exe" ] && bin=$bin.exe
+reports=$top/$bdir/reports
 rm -rf "$reports" && mkdir -p "$reports" || exit 1
-export ASAN_OPTIONS="detect_leaks=$detect_leaks:abort_on_error=1:log_path=$reports/asan"
-export UBSAN_OPTIONS="halt_on_error=1:print_stacktrace=1:log_path=$reports/ubsan"
-if [ $detect_leaks -eq 1 ]; then
+# the path as the program sees it (C:/... on Windows), quoted: its colon
+# would end the option
+rpath=$reports
+command -v cygpath > /dev/null 2>&1 && rpath=$(cygpath -m "$reports")
+export ASAN_OPTIONS="detect_leaks=$leaks:abort_on_error=1:log_path='$rpath/asan'"
+export UBSAN_OPTIONS="halt_on_error=1:print_stacktrace=1:log_path='$rpath/ubsan'"
+if [ $leaks -eq 1 ]; then
   export LSAN_OPTIONS="suppressions=$top/tools/lsan.supp:print_suppressions=0"
 fi
 if command -v nproc >/dev/null 2>&1; then
@@ -62,11 +81,11 @@ md5() {
 }
 fail=0
 
-bin=xppautX
 tmp=$(mktemp -d)
-( cd "$tmp" && "$top/build/asan/$bin" "$top/examples/ode/lecar.ode" -silent > run.log 2>&1 )
+( cd "$tmp" && "$top/$bin" "$top/examples/ode/lecar.ode" -silent > run.log 2>&1 )
 st=$?
-sum=$( [ -e "$tmp/output.dat" ] && md5 < "$tmp/output.dat" )
+# (CRs removed: Windows writes CRLF)
+sum=$( [ -e "$tmp/output.dat" ] && tr -d '\r' < "$tmp/output.dat" | md5 )
 if [ $st -eq 0 ] && [ "$sum" = "$BASELINE" ]; then
   echo "$bin -silent ok: checksum matches baseline"
 else
@@ -84,14 +103,14 @@ find examples -name '*.ode' | sort | xargs -P"$NPROC" -I{} sh -c '
   f=$1; run=$2/$(echo "$f" | tr / _); mkdir -p "$run"
   cp "$(dirname "$f")"/* "$run"/ 2>/dev/null
   cd "$run" && ${4:+$4 120} "$3" "$(basename "$f")" -silent > run.log 2>&1
-  echo "$? $f" >> "$2/status"' sh {} "$ex" "$top/build/asan/xppautX" "$TMO"
+  echo "$? $f" >> "$2/status"' sh {} "$ex" "$top/$bin" "$TMO"
 echo "examples run: $(wc -l < "$ex/status"), exit codes: $(cut -d' ' -f1 "$ex/status" | sort -n | uniq -c | tr -s ' \n' ' ')"
 rm -rf "$ex"
 
-if make BUILDDIR=build/asan ASAN=1 test > build/asan-unittest.log 2>&1; then
+if "$make" BUILDDIR="$bdir" ASAN=1 "$@" test > "$log-unittest.log" 2>&1; then
   echo "unit tests ok"
 else
-  grep -E 'FAIL|failed|ERROR' build/asan-unittest.log | head -20
+  grep -E 'FAIL|failed|ERROR' "$log-unittest.log" | head -20
   echo "UNIT TESTS FAILED"
   fail=1
 fi
@@ -99,19 +118,19 @@ fi
 # the name, then the command
 run_check() {
   name=$1; shift
-  if "$@" > "build/asan-$name.log" 2>&1; then
-    echo "$name ok: $(grep -c '^PASS' "build/asan-$name.log") checks"
+  if "$@" > "$log-$name.log" 2>&1; then
+    echo "$name ok: $(grep -c '^PASS' "$log-$name.log") checks"
   else
-    grep -v '^PASS' "build/asan-$name.log" | head -30
+    grep -v '^PASS' "$log-$name.log" | head -30
     echo "$name FAILED"
     fail=1
   fi
 }
-run_check servercheck python3 tools/servercheck.py --server build/asan/xppautX
-run_check webcheck python3 tools/webcheck.py --bin build/asan/xppautX
+run_check servercheck "$python" tools/servercheck.py --server "$bin"
+run_check webcheck "$python" tools/webcheck.py --bin "$bin"
 # --report: the sanitizers slow everything down, so the latency limits
 # (which verify.sh checks) only measure here
-run_check autocheck python3 tools/autocheck.py --server build/asan/xppautX --report
+run_check autocheck "$python" tools/autocheck.py --server "$bin" --report
 
 n=$(ls "$reports" | wc -l)
 if [ "$n" -ne 0 ]; then
@@ -122,7 +141,8 @@ if [ "$n" -ne 0 ]; then
   echo "SANITIZER REPORTS: $n (in $reports)"
   fail=1
 else
-  if [ $detect_leaks -eq 1 ]; then echo "sanitizers ok: no error or leak report"; else echo "sanitizers ok: no error report (leaks not checked)"; fi
+  if [ $leaks -eq 1 ]; then echo "sanitizers ok: no error or leak report"
+  else echo "sanitizers ok: no error report (leaks not checked)"; fi
 fi
 if [ $fail -ne 0 ]; then
   echo "ASAN CHECK FAILED"

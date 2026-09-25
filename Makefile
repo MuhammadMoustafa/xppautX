@@ -63,12 +63,21 @@ LDSTATIC =
 NETLIBS  = -lpthread
 endif
 
+# clang (Apple's on macOS; MSYS2's CLANG64 toolchain on Windows, W23:
+# clang, libc++, lld, compiler-rt): the -Werror names below it does not
+# know are gcc's alone, and libc++ wants webview in C++17 (below)
+CLANG := $(if $(findstring clang,$(shell $(CC) --version 2>/dev/null)),1)
+GCC_ONLY_WERROR := -Werror=maybe-uninitialized -Werror=stringop-truncation -Werror=restrict   -Werror=stringop-overflow -Werror=aggressive-loop-optimizations -Werror=use-after-free
+
 # Every warning category gcc 13 ever reported here is fixed; WERROR=1 (what
 # tools/verify.sh builds with) makes them errors so none comes back. Not the
 # default: another compiler (clang on macOS, a newer gcc) may not know these
 # names or may warn where gcc 13 does not, and must still build.
 ifeq ($(WERROR),1)
 WERROR_FLAGS = -Werror=unused-result -Werror=format-overflow -Werror=unused-variable   -Werror=misleading-indentation -Werror=unused-but-set-variable -Werror=format-security   -Werror=maybe-uninitialized -Werror=stringop-truncation -Werror=restrict -Werror=format   -Werror=tautological-compare -Werror=stringop-overflow   -Werror=aggressive-loop-optimizations -Werror=use-after-free -Werror=array-bounds   -Werror=format-truncation
+ifeq ($(CLANG),1)
+WERROR_FLAGS := $(filter-out $(GCC_ONLY_WERROR),$(WERROR_FLAGS))
+endif
 STRICT += $(WERROR_FLAGS)
 CXXSTRICT += $(WERROR_FLAGS)
 endif
@@ -120,7 +129,8 @@ $(BUILDDIR)/xppautx_main.o: CXXFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"'
 # xppautX's NEEDED names neither.
 WEBVIEW_DIR = third_party/webview
 # the vendored library's language standard: ours, except on macOS (below)
-WEBVIEW_STD = $(CXXSTD)
+# and with clang's libc++ anywhere, for the macOS reason: C++17
+WEBVIEW_STD = $(if $(CLANG),$(subst ++23,++17,$(CXXSTD)),$(CXXSTD))
 ifneq ($(ASAN)$(VALGRIND),)
 WINDOW := 0
 endif
@@ -239,13 +249,9 @@ lto-link: $(CORE_OBJECTS) $(SERVER_OBJECTS)
 ifeq ($(ASAN),1)
 SANITIZE := -fsanitize=address,undefined -fno-omit-frame-pointer
 # -O1 and the instrumentation blur gcc's value ranges: these two then warn
-# about code the normal (WERROR) build proves safe; both are gcc-only
-# warnings (unknown to Apple clang, macOS's sanitizer build)
-ifeq ($(findstring clang,$(shell $(CC) --version 2>/dev/null)),)
-OPT := -g -O1 $(SANITIZE) -Wno-format-overflow -Wno-restrict
-else
-OPT := -g -O1 $(SANITIZE)
-endif
+# about code the normal (WERROR) build proves safe; -Wno-restrict is
+# gcc's only
+OPT := -g -O1 $(SANITIZE) -Wno-format-overflow $(if $(CLANG),,-Wno-restrict)
 endif
 .PHONY: asan asan-link
 asan:

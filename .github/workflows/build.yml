@@ -324,3 +324,77 @@ jobs:
       - name: "New front end in a browser (store and plot state)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: node tools/web2check.mjs --bin ./xppautX.exe
+
+  # MSYS2's CLANG64 toolchain (W23: clang, libc++, lld, compiler-rt), a
+  # third compiler on Windows beside windows-core's MinGW gcc, which stays
+  # the default build: windows-core's checks against a clang build (into
+  # build/clang, dynamically linked: the shell's PATH has libc++'s DLLs),
+  # then asancheck.sh with AddressSanitizer + UBSan (--no-leaks: no
+  # LeakSanitizer on Windows)
+  windows-clang:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          update: false
+          cache: true
+          pacboy: >-
+            toolchain:p
+            make:p
+            python:p
+      - name: "Build xppautX with clang (WERROR=1)"
+        id: build
+        run: |
+          clang --version | head -1
+          mingw32-make -j4 build/clang/xppautX.exe BUILDDIR=build/clang CC=clang CXX=clang++ WERROR=1
+      - name: "Unit tests (linked with clang++ and libc++)"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: mingw32-make -j4 test BUILDDIR=build/clang CC=clang CXX=clang++ WERROR=1
+      - name: Headless run matches Linux (ignoring line ends)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          top=$PWD
+          cd "$(mktemp -d)" && "$top/build/clang/xppautX.exe" "$top/examples/ode/lecar.ode" -silent
+          test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = c281851de59ffd03b2a46428619a0c8f
+      - name: Server protocol and web front end
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: python tools/servercheck.py --server ./build/clang/xppautX.exe && python tools/webcheck.py --bin ./build/clang/xppautX.exe
+      - name: "Command-line modes (--help, --no-open; --browser's ShellExecute skipped)"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: sh tools/modecheck.sh build/clang/xppautX.exe
+      - name: "AUTO over the protocol (tolerant of libm's last-digit ULP differences, autocheck.py's lines_close)"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: python tools/autocheck.py --server ./build/clang/xppautX.exe
+      # tests/examples.windows-clang.md5 when committed, else Linux's in
+      # first-run mode (differences reported, not failed); a crash or
+      # timeout always fails
+      - name: "Every example: no crash, output md5s against this platform's baseline"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: tools/examples_check.sh --bin build/clang/xppautX.exe --platform windows-clang --write examples.windows-clang.md5 --keep examples-differ
+      - name: Upload the examples' md5s
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: examples-md5-windows-clang
+          path: |
+            examples.windows-clang.md5
+            examples-differ/
+          if-no-files-found: ignore
+      - name: "Sanitizers (ASan + UBSan, no leaks): no error report"
+        id: asan
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: MAKE=mingw32-make tools/asancheck.sh --no-leaks --builddir build/clang-asan CC=clang CXX=clang++
+      - name: Upload the sanitizer reports
+        if: ${{ !cancelled() && steps.asan.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: sanitizer-reports-windows-clang
+          path: |
+            build/clang-asan/reports/
+            build/clang-asan-*.log
+          if-no-files-found: ignore

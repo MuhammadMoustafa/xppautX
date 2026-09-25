@@ -59,6 +59,8 @@ are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
 tests), and its linux-core job runs `verify.sh --no-source-checks`. Every
 platform runs the same behaviour checks against its own build (`<platform>-core`)
 and web2check against it (`<platform>-ui`), for linux, windows and macos;
+`windows-clang` runs windows-core's checks against a clang build and then
+asancheck (below);
 a check step runs even after another one failed (only a failed build stops them).
 
 The front end (`web2/`, the page at `/`; a `/v1/` or `/v2/` bookmark
@@ -91,6 +93,11 @@ it, and fails on any report (written to build/asan/reports):
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/asancheck.sh"
 
+On Windows it runs with clang (below; `--no-leaks`: no LeakSanitizer
+there), about 9 minutes:
+
+    PATH=/c/msys64/clang64/bin:$PATH MAKE=mingw32-make tools/asancheck.sh --no-leaks --builddir build/clang-asan CC=clang CXX=clang++
+
 `tools/asancheck.sh --no-leaks` (CI's `macos-sanitizers` job, Apple clang
 on macos-latest) runs the same checks with LeakSanitizer's detect_leaks
 off, since Apple Silicon runners do not support it; ASan and UBSan still
@@ -107,7 +114,8 @@ own). It sets `XPP_CHECK_SLOW=30`, which multiplies every wait of the
 python checks (tools/xppclient.py), and `XPP_MEM_INIT=0` (core/xpp_mem.h).
 
 Metrics: verify.sh's `C++: N / M sources` (core/*.cpp over all core
-sources). The tree builds with 0 warnings (gcc 13 and MinGW gcc 13):
+sources). The tree builds with 0 warnings (gcc 13, MinGW gcc 13 and
+MSYS2 clang 22):
 verify.sh builds with `make WERROR=1`, which makes every category ever
 reported an error; `tools/warnings.sh` counts a clean build's warnings by
 flag and file.
@@ -119,6 +127,15 @@ native build, from Git Bash:
     PATH=/c/Strawberry/c/bin:$PATH mingw32-make -j8 xppautx BUILDDIR=build/win
     python3 tools/servercheck.py --server ./xppautX.exe
     python3 tools/webcheck.py --bin ./xppautX.exe
+
+MSYS2's CLANG64 toolchain (C:\msys64\clang64\bin: clang, libc++, lld,
+compiler-rt; W23) is a second Windows compiler, never the default: CI's
+`windows-clang` job. The Makefile knows clang (`CLANG`: gcc-only
+`-Werror=` names dropped, webview in C++17 for libc++). Build it into its
+own directory, the binary at build/clang/xppautX.exe (dynamically linked:
+run it with clang64/bin on PATH):
+
+    PATH=/c/msys64/clang64/bin:$PATH mingw32-make -j8 build/clang/xppautX.exe BUILDDIR=build/clang CC=clang CXX=clang++ WERROR=1
 
 Windows API code lives only in `core/xpp_win32.cpp` (windows.h macros clash
 with core names like `max`, `MessageBox`, `VARTYPE`); the core's own

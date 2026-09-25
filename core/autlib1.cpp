@@ -2269,7 +2269,6 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
   doublereal det;
   integer nit, mxt;
   doublereal umx, rlm1;
-  integer nit1;
 
   u1 = (double *)xpp_malloc(sizeof(doublereal)*(iap->ndim + 1));
 
@@ -2349,7 +2348,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
     u1[i] = u[i];
   }
 
-  for (nit = 0; nit < itnw; ++nit1) {
+  for (nit = 0; nit < itnw; ++nit) {
 
     iap->nit = nit + 1;
     par[icp[0]] = rlcur[0];

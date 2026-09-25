@@ -153,7 +153,7 @@ stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   /* Local variables */
   integer ndim;
 
-  doublereal uold;
+  doublereal uold = 0.; /* funi/fnds take it, unread */
   integer nfpr1;
   doublereal *f;
   integer i;
@@ -448,7 +448,7 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   /* Local variables */
   integer ndim;
 
-  doublereal uold;
+  doublereal uold = 0.; /* funi/fnds take it, unread */
   integer nfpr;
   doublereal *f;
   integer i, j;
@@ -776,7 +776,7 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   integer ndim;
   doublereal thta;
 
-  doublereal uold, *smat;
+  doublereal uold = 0., *smat;
 
   integer nfpr1;
   doublereal *f;
@@ -1006,7 +1006,7 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   /* Local variables */
   integer ndim;
 
-  doublereal uold, *smat;
+  doublereal uold = 0., *smat;
   integer nfpr1;
   doublereal *f;
   integer i, j;
@@ -1230,7 +1230,7 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   /* Local variables */
   integer ijac, ndim;
 
-  doublereal uold, *smat;
+  doublereal uold = 0., *smat;
 
   integer nfpr1;
   doublereal *f;
@@ -1554,7 +1554,7 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     /* Local variables */
   integer ndim, ncol;
 
-  doublereal uold, *smat;
+  doublereal uold = 0., *smat;
   integer nfpr, ntst, ndim2, nfpr1;
   doublereal c, *f;
   integer i, j, k;
@@ -1882,7 +1882,7 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     /* Local variables */
   integer ndim, ncol;
 
-  doublereal uold, *smat;
+  doublereal uold = 0., *smat;
   integer nfpr;
 
   integer ntst, ndim2, nfpr1;
