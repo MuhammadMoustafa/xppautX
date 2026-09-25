@@ -4,12 +4,16 @@ travels as data, how input is read, and how quickly a long computation stops.
 
 usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [SECTION...]
 
-Sections: diagram, input, abort, control, files, stability, sessions, session,
-script, replay, names, scratch (default: all; tools/verify.sh runs them all).
+Sections: diagram, input, abort, control, files, csv, stability, sessions,
+session, script, replay, names, scratch (default: all; tools/verify.sh runs
+them all).
 scratch checks that a start removes an xppautoX-<pid>-N folder (xpp_util.c's
 AUTO scratch directory) left by a dead pid, and leaves one alone whose pid is
 still running (issue #32). files compares
-AUTO's saved diagram of lecar with a reference; stability checks that a point's
+AUTO's saved diagram of lecar with a reference; csv checks File/eXport CSV
+(core/csv_export.cpp, W26, issue #42): the diagram and eigenvalues CSVs have
+a header of names, the right row counts, and the eigenvalues file's keys
+join the diagram file's; stability checks that a point's
 eigenvalues are its own (a run's first point is not computed unless it
 restarts from a label of the same kind: auto_stability.h); sessions checks that concurrent servers
 keep their AUTO files apart; session is the "cmd":"session" save/load of
@@ -33,7 +37,7 @@ ap.add_argument('--server', default='./xppautX')
 ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
 ap.add_argument('--list', action='store_true', help='print the sections run by default and exit')
-ap.add_argument('sections', nargs='*', default=['diagram', 'input', 'abort', 'control', 'files', 'stability',
+ap.add_argument('sections', nargs='*', default=['diagram', 'input', 'abort', 'control', 'files', 'csv', 'stability',
                                                 'sessions', 'session', 'script', 'replay', 'names', 'scratch'])
 args = ap.parse_args()
 if args.list:
@@ -456,6 +460,63 @@ def section_files():
     check('the saved diagram of lecar is unchanged',
           len(lines) == len(want) and diff is None,
           'first difference at line %s; %d vs %d lines' % (diff, len(lines), len(want)))
+
+
+# ---- csv: File/eXport CSV (W26, issue #42, core/csv_export.cpp) ----------
+
+def lecar_csv(s):
+    """steady state, grab the first label, a periodic branch, File/eXport
+    CSV; returns (diagram csv text, eigenvalues csv text), either None if
+    not written"""
+    s.collect(is_idle)
+    open_auto(s)
+    run_menu(s, 's')
+    grab_hopf(s)
+    run_menu(s, 'p', timeout=120 * SLOW)
+    s.send(cmd='auto', op='file')
+    s.answer_asks(is_idle, {'menu': lambda e: {'key': 'x'},
+                            'file': lambda e: {'ok': 1, 'file': 'lecar.csv'}})
+    dpath = os.path.join(s.run, 'lecar.csv')
+    epath = os.path.join(s.run, 'lecar_eig.csv')
+    if not os.path.exists(dpath) or not os.path.exists(epath):
+        return None, None
+    with open(dpath, newline='') as f:
+        d = f.read()
+    with open(epath, newline='') as f:
+        e = f.read()
+    return d, e
+
+
+def section_csv():
+    import csv, io
+    from collections import Counter
+    home = tempfile.mkdtemp(prefix='xpphome')
+    s = Server(args.server, LECAR, env={'HOME': home}, verbose=args.v)
+    d, e = lecar_csv(s)
+    s.close()
+    shutil.rmtree(home, ignore_errors=True)
+    check('File/eXport CSV writes the diagram and eigenvalues files', d is not None and e is not None)
+    if d is None or e is None:
+        return
+    drows = list(csv.DictReader(io.StringIO(d)))
+    erows = list(csv.DictReader(io.StringIO(e)))
+    check('the diagram CSV has a header of names',
+          bool(drows) and {'branch', 'point', 'type', 'label', 'stability', 'period'} <= set(drows[0].keys()),
+          str(list(drows[0].keys()) if drows else []))
+    check('the diagram CSV has one row per stored point', len(drows) > 5, '%d rows' % len(drows))
+    check('the eigenvalues CSV has a header of names',
+          bool(erows) and set(erows[0].keys()) == {'branch', 'point', 'index', 're', 'im', 'kind'},
+          str(list(erows[0].keys()) if erows else []))
+    dkeys = {(r['branch'], r['point']) for r in drows}
+    ekeys = {(r['branch'], r['point']) for r in erows}
+    check('the eigenvalues CSV is keyed by branch and point, joining the diagram CSV', ekeys and ekeys <= dkeys,
+          '%d of %d point keys unmatched' % (len(ekeys - dkeys), len(ekeys)))
+    counts = Counter((r['branch'], r['point']) for r in erows)
+    node_n = next(iter(counts.values()), 0)
+    check('every diagram point has the same number of eigenvalues/multipliers (NODE)',
+          node_n > 0 and all(v == node_n for v in counts.values()), 'node=%d' % node_n)
+    kinds = {r['kind'] for r in erows}
+    check('kind marks eigenvalue vs multiplier', kinds <= {'eigenvalue', 'multiplier'} and kinds, str(kinds))
 
 
 # ---- stability: a point's eigenvalues are its own (W15, auto_stability.h) --

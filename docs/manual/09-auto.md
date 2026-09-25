@@ -405,6 +405,10 @@ This clears the whole thing.
 
 This writes a file specified by the user which has 5 columns and describes the currently visible bifurcation diagram. The first column has the coordinates of the x-axis, the second and third columns hold the contents of the y-axis, (e.g. max and min of the orbit). The fourth column is one of 1-4 meaning stable fixed point, unstable fixed point, stable periodic, unstable periodic, respectively. The fifth column is the branch number. The main window of XPP can import files in this format and plot them
 
+### Export CSV
+
+Writes the whole stored diagram as two CSV files that `pandas.read_csv` and MATLAB's `readtable` read with no options (a header row of names, one row per point). The file named is the diagram itself: branch, point, type (`EP`, `HB`, `LP`, ...), label, stability, the point's curve kind, the active parameter(s) by name and value, the period, and every variable's max and min over the point (named), the same values `All info` writes. A second file, its name with `_eig` inserted before the extension, has the eigenvalues (a steady state) or Floquet multipliers (a periodic orbit) of every point, one row each, keyed by branch and point (`branch`, `point`, `index`, `re`, `im`, `kind`) rather than packed into a diagram row's cells. This is a new export beside `Write pts` and `All info`, not a replacement: the old whitespace files stay as they were.
+
 ## Homoclinics and heteroclinics
 
 A recent version of AUTO includes a library of routines called HOMCONT which allow the user to track homoclinic and heteroclinic orbits. XPP incorporates some aspects of this package. The hardest part of computing a branch of homoclinics is finding a starting point. Consider a differential equation:

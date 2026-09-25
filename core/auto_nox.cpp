@@ -16,6 +16,7 @@
 #include "auto_stop.h"
 #include "auto_stability.h"
 #include "auto_x11.h"
+#include "csv_export.h"
 #include <libgen.h>
 /* #include "f2c.h" */
 #include "auto_f2c.h"
@@ -3078,14 +3079,43 @@ void get_a_row(double *u, double *t, int n, FILE *fp)
 
 
 
+/* W26 (issue #42): a File entry beside afile_hint's 15 (menus.c), not
+   inside it -- afile_hint's own 15 hints plus one more, built lazily (well
+   after menus.c's static data is initialised) so afile_hint stays the one
+   copy of its own text and stays reached. */
+static const char **afile_hint_csv()
+{
+  static const char *h[16];
+  static int done=0;
+  if(!done){
+    int i;
+    for(i=0;i<15;i++)h[i]=afile_hint[i];
+    h[15]="Write the diagram, and its eigenvalues/multipliers, as CSV";
+    done=1;
+  }
+  return h;
+}
+
+/* the diagram and its eigenvalues/multipliers as CSV (csv_export.h),
+   pandas.read_csv/MATLAB readtable read with no options; one file dialog
+   answer names both files (csv_export_diagram_pair derives the second) */
+void export_auto_csv()
+{
+  char filename[XPP_MAX_NAME];
+  XPP_SPRINTF(filename,"diagram.csv");
+  if(!file_selector(str("Export CSV"),filename,str("*.csv")))return;
+  if(!csv_export_diagram_pair(filename))
+    err_msg(str("Nothing to export: run or load a diagram first"));
+}
+
 void auto_file()
 {
- 
+
   static const char *m[]={"Import orbit","Save diagram","Load diagram","Postscript","SVG",
-		    "Reset diagram","Clear grab","Write pts","All info","init Data","Toggle redraw","auto raNge","sElect 2par pt","draw laBled","lOad branch"};
-  static  char key[]="islpvrcwadtnebo";
+		    "Reset diagram","Clear grab","Write pts","All info","init Data","Toggle redraw","auto raNge","sElect 2par pt","draw laBled","lOad branch","eXport CSV"};
+  static  char key[]="islpvrcwadtnebox";
   char ch;
-  ch=(char)auto_pop_up_list(str("File"),strs(m),key,15,15,0,10,10,afile_hint,
+  ch=(char)auto_pop_up_list(str("File"),strs(m),key,16,16,0,10,10,strs(afile_hint_csv()),
 		       Auto.hinttxt);
   if(ch=='i'){
     load_auto_orbit();
@@ -3136,7 +3166,10 @@ void auto_file()
       err_msg(str("Mark a branch first using S and E"));
     else
       load_browser_with_branch(diagram_mark.start_branch,diagram_mark.start_point,diagram_mark.end_point);
-	}	
+	}
+  if(ch=='x'){
+    export_auto_csv();
+  }
   if(ch=='n'){
     if(diagram_mark.state<2) 
       err_msg(str("Mark a branch first using S and E"));

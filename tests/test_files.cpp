@@ -102,7 +102,7 @@ int main()
     const char *writes[] = {"Save SET File", "Save Auto", "Write data", "Write all info", "Write init data file",
                             "Write points", "Postscript", "SVG", "Save As", "Print postscript", "Print svg",
                             "Export graph data", "Save info", "Save nullclines", "Clone ODE file", "GIF plot",
-                            "Save session"};
+                            "Save session", "Export CSV"};
     for (const char *t : reads) CHECK_STR(xpp_files_ask_mode(t), "read");
     for (const char *t : writes) CHECK_STR(xpp_files_ask_mode(t), "write");
 
