@@ -219,10 +219,30 @@ def section_diagram():
 # ---- input: end of input, pipelined commands, no polling -------------------
 
 def section_input():
-    t = time.monotonic()
-    r = subprocess.run([os.path.abspath(args.server), '--server', os.path.abspath(LECAR)], stdin=subprocess.DEVNULL,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20)
-    check('--server exits at end of input', time.monotonic() - t < 3, '%.1fs' % (time.monotonic() - t))
+    # stdin from the null device (NUL on Windows, which GetFileType calls a
+    # character device like a console: W18), a closed pipe and an empty file;
+    # a few runs each, since a wrong console attach hung only some of them
+    slow = []
+    with tempfile.TemporaryFile() as empty:
+        for how in ['null device'] * 3 + ['closed pipe'] * 2 + ['empty file'] * 2:
+            if how == 'closed pipe':
+                rfd, wfd = os.pipe()
+                os.close(wfd)
+                stdin = rfd
+            else:
+                stdin = subprocess.DEVNULL if how == 'null device' else empty
+            t = time.monotonic()
+            try:
+                subprocess.run([os.path.abspath(args.server), '--server', os.path.abspath(LECAR)], stdin=stdin,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+                took = time.monotonic() - t
+            except subprocess.TimeoutExpired:
+                took = None
+            if how == 'closed pipe':
+                os.close(rfd)
+            if took is None or took >= 3:
+                slow.append('%s: %s' % (how, 'no exit in 10 s' if took is None else '%.1fs' % took))
+    check('--server exits at end of input (null device, closed pipe, empty file)', not slow, '; '.join(slow))
 
     s = Server(args.server, LECAR, verbose=False)
     s.collect(is_idle)

@@ -18,6 +18,7 @@
    they set the chapter and anchor to show, which the fetch (once it
    settles) renders and scrolls to, same as if it had already loaded. */
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
+import {useFocusBackOnClose} from './focusBack';
 import {manualLinkTarget, type HelpTarget} from '../help/links';
 import type {ManualChapter} from '../help/manual';
 import {searchManual} from '../help/search';
@@ -76,11 +77,9 @@ export function HelpView() {
 
   /* focus in on open, back to the toggle on close; Escape closes it,
      wherever the focus is inside (narrow only: CSS keeps it open elsewhere) */
+  useFocusBackOnClose(help.open, panel, '.help-toggle');
   useEffect(() => {
-    if (!help.open) {
-      if (panel.current?.contains(document.activeElement)) document.querySelector<HTMLElement>('.help-toggle')?.focus();
-      return;
-    }
+    if (!help.open) return;
     panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || session.store.getState().ask) return;

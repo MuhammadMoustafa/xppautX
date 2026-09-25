@@ -3,6 +3,7 @@
    beside the plot on wide screens, a drawer over it on narrow ones (the
    title bar's Menu button, Escape or a choice closes it). */
 import {useEffect, useRef} from 'preact/hooks';
+import {useFocusBackOnClose} from './focusBack';
 import {menuHelp} from '../help/links';
 import {BUSY_TITLE, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
@@ -18,11 +19,9 @@ export function MenuPanel() {
   const busy = useStore(s => s.busy);
   const nav = useRef<HTMLElement>(null);
   const close = () => session.store.dispatch({type: 'drawer', open: false});
+  useFocusBackOnClose(open, nav, '.menu-toggle');
   useEffect(() => {
-    if (!open) {
-      if (nav.current?.contains(document.activeElement)) document.querySelector<HTMLElement>('.menu-toggle')?.focus();
-      return;
-    }
+    if (!open) return;
     nav.current?.querySelector<HTMLElement>('button')?.focus();
     /* Escape closes the open drawer wherever the focus is */
     const onKey = (e: KeyboardEvent) => {

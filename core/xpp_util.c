@@ -735,7 +735,7 @@ void do_txt_action(char *s)
 }
 
 /* ---- AUTO's private scratch directory (xpp_globals.h: xpp_auto_dir) ----
-   POSIX here, Windows in xpp_win32.c. Named by the pid, so unique while the
+   POSIX here, Windows in xpp_win32.cpp. Named by the pid, so unique while the
    process lives (mkdtemp needs _XOPEN_SOURCE 700; the build uses 600). */
 #ifndef _WIN32
 #include <dirent.h>

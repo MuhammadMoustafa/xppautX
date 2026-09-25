@@ -9,7 +9,7 @@
 # Usage: tools/verify.sh [--clean-warnings] [--no-source-checks]
 #   --no-source-checks  skip tools/sourcecheck.sh (encoding, script modes,
 #                       stdoutcheck, formatcheck, the LTO type check): CI's
-#                       linux job, whose source job runs them once
+#                       linux-core job, whose source job runs them once
 cd "$(dirname "$0")/.." || exit 1
 clean_warnings=0
 source_checks=1

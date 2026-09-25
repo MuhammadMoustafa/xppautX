@@ -17,6 +17,7 @@
    under the pointer: its variable (from the title, store/aplot.ts
    columnName), its row's approximate time and its value. */
 import {useEffect, useRef} from 'preact/hooks';
+import {useFocusBackOnClose} from './focusBack';
 import {cellColor, legendStops} from '../plot/aplotColors';
 import {dragScroll, wheelScroll} from '../plot/aplotScroll';
 import type {AplotColorMap} from '../store/aplot';
@@ -59,11 +60,9 @@ export function AplotView() {
   const close = () => session.closeAplot();
 
   /* focus in on open, back to the toggle on close; Escape closes it */
+  useFocusBackOnClose(open, panel, '.aplot-toggle');
   useEffect(() => {
-    if (!open) {
-      if (panel.current?.contains(document.activeElement)) document.querySelector<HTMLElement>('.aplot-toggle')?.focus();
-      return;
-    }
+    if (!open) return;
     panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || session.store.getState().ask) return;

@@ -305,11 +305,17 @@ async function values() {
   }
   const whileTyping = await S(`__xpp.sent().slice(${preType})`);
   check('typing into a field sends nothing until it commits', whileTyping.length === 0, JSON.stringify(whileTyping));
+  const typed = await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)});
+    return {focused: document.activeElement === el, value: el.value}; })()`);
   await cdp.eval(`document.getElementById(${JSON.stringify(field)}).blur()`);
-  await sleep(300);
+  /* the set goes out at once, or at the idle of a command still running
+     (queued): wait for it, not a fixed time (W18: CI's windows runner read
+     nothing 300 ms after the blur) */
+  await until(`__xpp.sent().length > ${preType} && !s.busy && !s.values.queue.length`, "the blur's set");
   const afterCommit = await S(`__xpp.sent().slice(${preType})`);
   check('blurring after typing sends exactly one set',
-    afterCommit.length === 1 && afterCommit[0].cmd === 'set' && afterCommit[0].text === '165', JSON.stringify(afterCommit));
+    afterCommit.length === 1 && afterCommit[0].cmd === 'set' && afterCommit[0].text === '165',
+    JSON.stringify([afterCommit, typed, await S('[s.busy, s.values.queue, s.values.history.length]')]));
   /* undo this probe edit so the history below is exactly what it expects (one edit: 0.2) */
   await cdp.eval(`document.getElementById(${JSON.stringify(field)}).focus()`);
   await key('z', 2);
@@ -1274,7 +1280,11 @@ async function touch(type, points) {
 async function phone() {
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
   await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
-  await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'pointer', value: 'coarse'}, {name: 'hover', value: 'none'}]}).catch(() => {});
+  /* reduced motion too, on every platform: the sheets then close with no
+     transition, which is when their focus went to <body> instead of back to
+     the toggle (W18: CI's Windows Server runner has reduced motion on) */
+  await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'pointer', value: 'coarse'}, {name: 'hover', value: 'none'},
+    {name: 'prefers-reduced-motion', value: 'reduce'}]}).catch(() => {});
   await sleep(400);
   const scroll = await cdp.eval(`({doc: document.documentElement.scrollWidth, body: document.body.scrollWidth, w: innerWidth})`);
   check('390x844: no sideways scroll', scroll.doc <= scroll.w && scroll.body <= scroll.w, JSON.stringify(scroll));
@@ -2141,7 +2151,11 @@ async function autoView(dir) {
     && !(await S('s.ask')) && (await cdp.eval('__xpp.sent().length')) === sentSave,
     JSON.stringify([await DS('d.setupSaved'), await S('[s.busy, s.ask]'), await cdp.eval('__xpp.sent().slice(-6)')]));
   const saved = JSON.parse(await DS('d.setupSaved'));
-  saved.numerics.Nmax = '321';
+  /* Nmax 20000: the long run below must still be going when Stop is
+     clicked, a few round trips after it starts (W18: at 321 points it ran
+     0.8 s on CI's Windows runner and ended before Stop; lecar's periodic
+     branch goes on to 20000 points, a minute's run, and Stop ends it) */
+  saved.numerics.Nmax = '20000';
   saved.plot = 1;
   saved.axes.Xmin = '0.01';
   saved.axes.Xmax = '0.4';
@@ -2153,9 +2167,9 @@ async function autoView(dir) {
       && s.diagram.points.x.length === ${nAll}`, 'settings loaded', 20000), JSON.stringify(await DS('d.axes')));
   await autoButton('N');
   await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-numerics]')`, 'numerics again');
-  check("T22: ... and the Numerics (Nmax 321): the core's settings and the form",
-    await S(`s.autoSettings.core.numerics.nmx === 321
-      && document.querySelector('.auto-settings-dialog input[data-field=nmx]').value === '321'`)
+  check("T22: ... and the Numerics (Nmax 20000): the core's settings and the form",
+    await S(`s.autoSettings.core.numerics.nmx === 20000
+      && document.querySelector('.auto-settings-dialog input[data-field=nmx]').value === '20000'`)
     && (await cdp.eval(`__xpp.sent().filter(c => c.cmd === 'auto' && c.op === 'set').length`)) === 2,
     JSON.stringify([await S('s.autoSettings.core.numerics'), await cdp.eval(`__xpp.sent().filter(c => c.cmd === 'auto')`)]));
   await until(`!!document.activeElement.closest('.dialog')`, 'numerics focus');
@@ -2265,7 +2279,7 @@ async function autoView(dir) {
   const setsSent = () => cdp.eval(`__xpp.sent().slice(${sentPre}).filter(c => c.cmd === 'auto' && c.op === 'set')`);
   check('T22: Numerics during a run: Nmax 15 waits, pending (the button dashed, the store\'s queue), nothing sent',
     long && await S(`s.busy && s.autoSettings.queued && s.autoSettings.queued.numerics.nmx === 15
-      && s.autoSettings.core.numerics.nmx === 321`)
+      && s.autoSettings.core.numerics.nmx === 20000`)
     && await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)
     && (await setsSent()).length === 0, JSON.stringify([long, await S('[s.busy, s.autoSettings]'), await setsSent()]));
   /* T25: a connection the browser opened and sent nothing on yet (a
@@ -2275,14 +2289,14 @@ async function autoView(dir) {
   const idle = net.connect(Number(port), host);
   await new Promise(r => idle.once('connect', r));
   await sleep(200);
-  const labsPre = await DS('d.labels.length'), tStop = Date.now();
+  const labsPre = await DS('d.labels.length'), runningAtStop = await S('s.busy'), tStop = Date.now();
   await cdp.eval(`document.querySelector('.auto-status .auto-stop').click()`);
   const stopped = await until('!s.busy', 'stopped', 5000), tookStop = Date.now() - tStop;
   const lastLab = await DS('d.labels.length > 0 && d.labels[d.labels.length - 1].sym');
   idle.destroy();
   check('T25: Stop ends the run within 1 s, with an idle connection open to xppautX, on an EP label',
-    stopped && tookStop < 1000 && (await DS('d.labels.length')) > labsPre && lastLab === 'EP',
-    JSON.stringify([stopped, tookStop, labsPre, lastLab]));
+    runningAtStop && stopped && tookStop < 1000 && (await DS('d.labels.length')) > labsPre && lastLab === 'EP',
+    JSON.stringify([runningAtStop, stopped, tookStop, labsPre, lastLab]));
   check('T22: at the run\'s idle the edit goes out, one set, and applies: the core\'s Nmax is 15, nothing pending',
     await until(`!s.busy && s.autoSettings.core.numerics.nmx === 15 && !s.autoSettings.queued && !s.autoSettings.sent`,
       'applied at idle', 60000)

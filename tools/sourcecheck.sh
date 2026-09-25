@@ -2,7 +2,7 @@
 # The checks about the source rather than about a platform's build (W17):
 # the same on every platform, so CI runs them once, in its `source` job,
 # and tools/verify.sh (the local gate) runs them every time unless given
-# --no-source-checks (CI's linux job). Run from anywhere (WSL/Linux).
+# --no-source-checks (CI's linux-core job). Run from anywhere (WSL/Linux).
 #   - every text file is UTF-8 (tools/utf8check.py)
 #   - every committed .sh is executable in git
 #   - the core never prints to stdout/stderr directly (tools/stdoutcheck.sh)

@@ -6,7 +6,7 @@
    (xpp_http.h, xpp_inbox.h, xpp_log.h), so the platform headers it needs
    for the menu bar (<windows.h> on Windows, GTK on Linux) cannot clash
    with core names: the one exception to "Windows API code lives only in
-   xpp_win32.c", kept behind _WIN32 and out of every header. It calls them
+   xpp_win32.cpp", kept behind _WIN32 and out of every header. It calls them
    through an XppWindowHost table (xpp_window_plugin.h).
 
    Built with XPP_WINDOW defined when the build has a web view (the

@@ -91,7 +91,7 @@ jobs:
           ref: ${{ inputs.tag || github.ref }}
       # zip has no pre-installed equivalent on the runner (7zip's -tzip
       # differs from package_release.sh's `zip`), so this job keeps MSYS2
-      # rather than the bare runner toolchain build.yml's windows job
+      # rather than the bare runner toolchain build.yml's windows-core job
       # uses; release: false reuses the image's own MSYS2 install
       # (C:\msys64) instead of downloading one
       - uses: msys2/setup-msys2@v2

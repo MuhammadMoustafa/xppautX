@@ -15,6 +15,7 @@
    own: the rows fetched so far (docs/ui-v2.md T10, "CSV export done in the
    client from fetched data"). */
 import {useEffect, useRef, useState} from 'preact/hooks';
+import {useFocusBackOnClose} from './focusBack';
 import {HELP} from '../help/links';
 import {download} from '../plot/export';
 import type {BrowserOp} from '../session';
@@ -90,11 +91,9 @@ export function TableView() {
 
   /* focus in on open, back to the toggle on close; Escape closes it,
      wherever the focus is inside (narrow only: CSS keeps it open elsewhere) */
+  useFocusBackOnClose(open, panel, '.table-toggle');
   useEffect(() => {
-    if (!open) {
-      if (panel.current?.contains(document.activeElement)) document.querySelector<HTMLElement>('.table-toggle')?.focus();
-      return;
-    }
+    if (!open) return;
     panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || session.store.getState().ask) return;

@@ -12,6 +12,7 @@
    frame, Escape closes the panel. Nothing plays by itself (A6): Go is only
    ever the user's. */
 import {useEffect, useRef, useState} from 'preact/hooks';
+import {useFocusBackOnClose} from './focusBack';
 import {fromCanvas} from '../ani/frame';
 import {drawAniFrame, frameBox} from '../ani/render';
 import {HELP} from '../help/links';
@@ -51,11 +52,9 @@ export function AniView() {
   const close = () => session.closeAni();
 
   /* focus to the picture on open, back to the toggle on close; Escape inside closes */
+  useFocusBackOnClose(open, panel, '.ani-toggle');
   useEffect(() => {
-    if (!open) {
-      if (panel.current?.contains(document.activeElement)) document.querySelector<HTMLElement>('.ani-toggle')?.focus();
-      return;
-    }
+    if (!open) return;
     stage.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || session.store.getState().ask) return;

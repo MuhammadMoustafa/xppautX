@@ -9,7 +9,16 @@ on:
 # (build, unit tests, protocol, web, command-line modes, AUTO, every
 # example, the browser checks); the checks about the source, the same
 # everywhere, run once in `source` (W17). Every job runs in parallel: the
-# wall time is the longest job's.
+# wall time is the longest job's. Jobs are named for what they test: a
+# platform's `-core` job (build, unit tests, protocol, modes, AUTO,
+# examples), its `-ui` job (the front end in a headless browser),
+# `linux-sanitizers`, and `source`.
+#
+# Every check runs even when an earlier check of its job failed (W18), so
+# one run reports every failure (and still uploads the examples' md5s);
+# the job still fails if any step did. Setup steps (checkout, toolchain,
+# build) keep the default condition: a failed build stops its job's
+# checks, which test the build (`steps.build.outcome`).
 jobs:
   # the source, not a build: encoding, script modes, stdoutcheck,
   # formatcheck, the LTO type check and the warning count
@@ -19,8 +28,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        id: node
+        with:
+          node-version: 24
       # WebKitGTK: the LTO link and the warning count compile the same
-      # sources as the linux job's build, the window's included
+      # sources as linux-core's build, the window's included
       - name: Runner image
         id: image
         run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
@@ -38,13 +51,11 @@ jobs:
           sudo chown -R "$(id -u):$(id -g)" ~/apt-cache
       - name: "Source checks: encoding, script modes, stdout, formats, LTO types, warning count"
         run: tools/sourcecheck.sh --warnings
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
       - name: "New front end: dist/ built from src/, types, unit tests"
+        if: ${{ !cancelled() && steps.node.outcome == 'success' }}
         run: cd web2 && npm ci && npm run check && npm run typecheck && npm test
 
-  linux:
+  linux-core:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -71,7 +82,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y -o Dir::Cache::Archives="$HOME/apt-cache" libwebkit2gtk-4.1-dev
           sudo chown -R "$(id -u):$(id -g)" ~/apt-cache
-      # everything verify.sh checks but the source checks (the source job's)
+      # everything verify.sh checks but the source checks (the source job's);
+      # one step: verify.sh runs every check itself and reports each
       - name: Build, smoke test, protocol, modes, AUTO, examples, metrics
         run: tools/verify.sh --no-source-checks
       # strip the CI artifact only (verify.sh above already ran against
@@ -85,11 +97,11 @@ jobs:
           path: xppautX
 
   # The new front end driven through a headless browser (docs/ui-v2.md):
-  # its own job beside linux's verify.sh, so the two run in parallel
+  # its own job beside linux-core's verify.sh, so the two run in parallel
   # instead of one after the other (97 s on top of verify's own time).
   # Needs its own build (plain, not the whole verify.sh) and the same
   # WebKitGTK window the checks in verify.sh's build already carry.
-  linux-browser:
+  linux-ui:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -109,16 +121,19 @@ jobs:
           sudo apt-get install -y -o Dir::Cache::Archives="$HOME/apt-cache" libwebkit2gtk-4.1-dev
           sudo chown -R "$(id -u):$(id -g)" ~/apt-cache
       - name: Build xppautX
+        id: build
         run: make -j"$(nproc)" xppautx
       - uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: "New front end in a browser (store and plot state)"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: node tools/web2check.mjs
 
   # AddressSanitizer, LeakSanitizer and UBSan over the same checks, in
-  # parallel with the job above (it takes a few minutes)
-  sanitizers:
+  # parallel with the jobs above (it takes a few minutes); one step:
+  # asancheck.sh builds and runs every check itself
+  linux-sanitizers:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -129,36 +144,43 @@ jobs:
       - name: "Sanitizers: no error or leak report"
         run: tools/asancheck.sh
 
-  macos:
+  macos-core:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
       - name: "Build xppautX (WKWebView window on, the Darwin default since W13d)"
+        id: build
         run: |
           make -j"$(sysctl -n hw.ncpu)" xppautx
           ./xppautX --help | head -5
       - name: "Unit tests (C and C++ objects linked with clang++)"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: make test
       - name: Smoke test (headless)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           cd /tmp && "$GITHUB_WORKSPACE/xppautX" "$GITHUB_WORKSPACE/examples/ode/lecar.ode" -silent
           test "$(wc -l < output.dat)" -eq 601
           echo "md5 on this platform: $(md5 -q output.dat) (linux baseline c281851de59ffd03b2a46428619a0c8f)"
       - name: Server protocol and web front end
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: python3 tools/servercheck.py && python3 tools/webcheck.py
       - name: Command-line modes (--help, --browser, --no-open)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sh tools/modecheck.sh
       - name: "AUTO over the protocol (tolerant of libm's last-digit ULP differences, autocheck.py's lines_close)"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: python3 tools/autocheck.py
       # tests/examples.macos.md5 when committed, else Linux's
       # tests/examples.md5 in first-run mode (differences reported, not
       # failed); a crash or timeout always fails (tools/examples_check.sh)
       - name: "Every example: no crash, output md5s against this platform's baseline"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: tools/examples_check.sh --platform macos --write examples.macos.md5
       # what this run computed, to commit as tests/examples.macos.md5
       # (when macOS differs from Linux, or its numerics change on purpose)
       - name: Upload the examples' md5s
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
           name: examples-md5-macos
@@ -171,7 +193,24 @@ jobs:
           name: xppaut-macos
           path: xppautX
 
-  windows:
+  # web2check against the macOS build, beside macos-core (as linux-ui and
+  # windows-ui are beside theirs): its own build, the runner's Google
+  # Chrome (tools/cdp.mjs findBrowser: /Applications/Google Chrome.app)
+  macos-ui:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build xppautX
+        id: build
+        run: make -j"$(sysctl -n hw.ncpu)" xppautx
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: "New front end in a browser (store and plot state)"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: node tools/web2check.mjs
+
+  windows-core:
     runs-on: windows-latest
     defaults:
       run:
@@ -191,29 +230,36 @@ jobs:
       - name: Use the runner's own MinGW-w64 (C:\mingw64); no toolchain install
         run: echo 'C:\mingw64\bin' >> "$GITHUB_PATH"
       - name: Build the X11-free binaries natively
+        id: build
         run: make -j4 xppautx
       - name: "Unit tests (C and C++ objects linked with g++), test binaries linked in parallel"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: make -j4 test
       - name: Headless run matches Linux (ignoring line ends)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           cd /tmp && "$GITHUB_WORKSPACE/xppautX.exe" "$GITHUB_WORKSPACE/examples/ode/lecar.ode" -silent
           test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = c281851de59ffd03b2a46428619a0c8f
       - name: Server protocol and web front end
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: python tools/servercheck.py --server ./xppautX.exe && python tools/webcheck.py --bin ./xppautX.exe
       - name: "Command-line modes (--help, --no-open; --browser's ShellExecute skipped)"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sh tools/modecheck.sh xppautX.exe
       - name: "AUTO over the protocol (tolerant of libm's last-digit ULP differences, autocheck.py's lines_close)"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: python tools/autocheck.py --server ./xppautX.exe
       # tests/examples.windows.md5 when committed, else Linux's
       # tests/examples.md5 in first-run mode (differences reported, not
       # failed); a crash or timeout always fails; output.dat's CRs are
       # removed before hashing (tools/examples_check.sh)
       - name: "Every example: no crash, output md5s against this platform's baseline"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: tools/examples_check.sh --bin xppautX.exe --platform windows --write examples.windows.md5
       # what this run computed, to commit as tests/examples.windows.md5
       # (when Windows differs from Linux, or its numerics change on purpose)
       - name: Upload the examples' md5s
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
           name: examples-md5-windows
@@ -226,11 +272,11 @@ jobs:
           name: xppaut-windows
           path: xppautX.exe
 
-  # web2check against the Windows build, beside the windows job (as
-  # linux-browser is beside linux): its own build, the runner's Chrome
+  # web2check against the Windows build, beside windows-core (as
+  # linux-ui is beside linux-core): its own build, the runner's Chrome
   # (tools/cdp.mjs findBrowser; runner-images lists Google Chrome and
   # Microsoft Edge on windows-2025)
-  windows-browser:
+  windows-ui:
     runs-on: windows-latest
     defaults:
       run:
@@ -240,9 +286,11 @@ jobs:
       - name: Use the runner's own MinGW-w64 (C:\mingw64); no toolchain install
         run: echo 'C:\mingw64\bin' >> "$GITHUB_PATH"
       - name: Build xppautX.exe
+        id: build
         run: make -j4 xppautx
       - uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: "New front end in a browser (store and plot state)"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: node tools/web2check.mjs --bin ./xppautX.exe

@@ -4,7 +4,7 @@
 extern "C" {
 #endif
 
-/* xpp_win32.c, Windows only */
+/* xpp_win32.cpp, Windows only */
 #ifdef _WIN32
 /* up to n bytes of stdin, blocking; -1 at end of input or on an error */
 int xpp_read_stdin(char *buf, int n);
@@ -17,7 +17,7 @@ int xpp_replace_file(const char *from, const char *to);
    Explorer or a file association starts it) so a command-line mode
    (--server, -silent, --script, --version, --help, --browser, or any log to
    stderr) needs this before its first output: when stdout/stderr/stdin are
-   not already a real pipe or file (an inherited handle, e.g. --server piped
+   not already a real pipe, file or null device (an inherited handle, e.g. --server piped
    by the VS Code extension or a test script, which is left alone), it
    attaches to a console-subsystem parent's console (AttachConsole) and
    reopens the three standard streams on it, so a plain terminal run (or

@@ -51,7 +51,7 @@ EXE      = .exe
 DLLIB    =
 LDSTATIC = -static
 # -mwindows: a GUI-subsystem exe, so Explorer and a file association start
-# it with no console window (xpp_win32.c's xpp_win32_attach_console()
+# it with no console window (xpp_win32.cpp's xpp_win32_attach_console()
 # reattaches to a real one for the command-line modes; --server's pipes are
 # untouched, W13b)
 NETLIBS  = -lpthread -lws2_32 -mwindows

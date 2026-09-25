@@ -11,7 +11,7 @@
 # (XPP_WINDOW_FAIL_LOAD=1, as if WebKitGTK were missing) says what to
 # install and opens the browser, and with no display the real library
 # loads, finds no display and opens the browser too.
-# On Windows (Git Bash; CI's windows job) --browser opens the page with
+# On Windows (Git Bash; CI's windows-core job) --browser opens the page with
 # ShellExecute, which no stand-in on PATH can catch: that run is skipped
 # there rather than open a real browser; --help and --no-open are checked.
 # tools/verify.sh runs this. Usage: tools/modecheck.sh [./xppautX]

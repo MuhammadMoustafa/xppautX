@@ -88,23 +88,38 @@ char *xpp_make_temp_dir(void)
 
 /* W13b: xppautX links -mwindows, so no console appears when Explorer or a
    file association starts it; a command-line mode reattaches to a real
-   parent console instead (xpp_win32.h). A handle that is already a pipe or
-   a file (piped --server, redirected output) is a real, working inherited
-   handle regardless of subsystem: GetFileType says so, and it is left
+   parent console instead (xpp_win32.h). A handle that is already a pipe,
+   a file or NUL (piped --server, redirected output, `< NUL`) is a real inherited
+   handle regardless of subsystem (redirected() below), and it is left
    alone. Only a missing handle or one that is already a console (rare, but
    harmless to redo) is worth an AttachConsole call. */
-/* whether a standard handle is already a real pipe or file, which the
-   console must not replace (`cmds | xppautX --server` pipes stdin only) */
-static int redirected(DWORD which)
+namespace {
+
+/* whether a standard handle is already real input or output that the
+   console must not replace (`cmds | xppautX --server` pipes stdin only):
+   a pipe, a file, or a character device that is not a console. The last is
+   NUL above all (W18): a test's stdin=DEVNULL, `< NUL`, a CI runner's
+   stdin. GetFileType calls NUL a character device like a console; taking
+   it for "no stdin" reopened stdin on the parent's console (CONIN$), and
+   --server waited at that console instead of seeing the end of input.
+   GetConsoleMode tells the two apart: it succeeds only on a console. */
+bool redirected(DWORD which)
 {
     HANDLE h = GetStdHandle(which);
-    DWORD type = h != NULL && h != INVALID_HANDLE_VALUE ? GetFileType(h) : FILE_TYPE_UNKNOWN;
-    return type != FILE_TYPE_UNKNOWN && type != FILE_TYPE_CHAR;
+    if (h == NULL || h == INVALID_HANDLE_VALUE) return false;
+    DWORD mode;
+    switch (GetFileType(h)) {
+    case FILE_TYPE_UNKNOWN: return false;
+    case FILE_TYPE_CHAR: return !GetConsoleMode(h, &mode);
+    default: return true;
+    }
 }
+
+} // namespace
 
 void xpp_win32_attach_console(void)
 {
-    int in = redirected(STD_INPUT_HANDLE), out = redirected(STD_OUTPUT_HANDLE), err = redirected(STD_ERROR_HANDLE);
+    bool in = redirected(STD_INPUT_HANDLE), out = redirected(STD_OUTPUT_HANDLE), err = redirected(STD_ERROR_HANDLE);
     if (in && out && err) return;
     if (!AttachConsole(ATTACH_PARENT_PROCESS)) return; /* no console to attach to (Explorer): stay quiet */
     /* freopen can only fail here if the console itself is gone; there is no

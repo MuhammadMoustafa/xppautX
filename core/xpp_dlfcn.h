@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 /* dlopen/dlsym for extra.c (dll_lib= and dll_fun= in an .ode file). On
-   Windows xpp_win32.c maps them to LoadLibrary/GetProcAddress, so a model
+   Windows xpp_win32.cpp maps them to LoadLibrary/GetProcAddress, so a model
    can load a .dll the way it loads a .so elsewhere. */
 #ifdef _WIN32
 #define RTLD_LAZY 1

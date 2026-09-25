@@ -15,6 +15,7 @@
    digits (A14) with the full value on hover/title; Import
    (docs/protocol.md `eqimport`) makes it the initial conditions. */
 import {useEffect, useRef} from 'preact/hooks';
+import {useFocusBackOnClose} from './focusBack';
 import type {Session} from '../session';
 import {sixSig} from '../store/values';
 import type {SourceLine, TextTab} from '../store/text';
@@ -142,11 +143,9 @@ export function TextViews() {
   const panel = useRef<HTMLElement>(null);
   const close = () => session.closeText();
 
+  useFocusBackOnClose(open, panel, '.text-toggle');
   useEffect(() => {
-    if (!open) {
-      if (panel.current?.contains(document.activeElement)) document.querySelector<HTMLElement>('.text-toggle')?.focus();
-      return;
-    }
+    if (!open) return;
     panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
     /* Escape closes the sheet wherever the focus is inside it (narrow only: CSS keeps it open elsewhere) */
     const onKey = (e: KeyboardEvent) => {
