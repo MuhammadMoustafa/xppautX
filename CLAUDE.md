@@ -91,6 +91,12 @@ it, and fails on any report (written to build/asan/reports):
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/asancheck.sh"
 
+`tools/asancheck.sh --no-leaks` (CI's `macos-sanitizers` job, Apple clang
+on macos-latest) runs the same checks with LeakSanitizer's detect_leaks
+off, since Apple Silicon runners do not support it; ASan and UBSan still
+run there. The script is portable to macOS (nproc/sysctl, timeout/gtimeout,
+md5sum/`md5 -q`), same as tools/examples_check.sh.
+
 Metrics: verify.sh's `C++: N / M sources` (core/*.cpp over all core
 sources). The tree builds with 0 warnings (gcc 13 and MinGW gcc 13):
 verify.sh builds with `make WERROR=1`, which makes every category ever

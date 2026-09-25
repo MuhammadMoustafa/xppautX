@@ -229,13 +229,23 @@ lto-link: $(CORE_OBJECTS) $(SERVER_OBJECTS)
 	@$(LINK_X) -flto=auto -fcommon -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS) 2> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
 	@if grep -A4 'lto-type-mismatch' $(BUILDDIR)/lto.log; then echo "ltocheck: types differ across files"; exit 1; fi
 # AddressSanitizer + UndefinedBehaviorSanitizer (and LeakSanitizer, part of
-# ASan on Linux): built into build/asan, the program in the tree left
-# alone. tools/asancheck.sh builds it and runs the checks.
+# ASan on Linux, off on macOS: tools/asancheck.sh --no-leaks, CI's
+# macos-sanitizers, since Apple Silicon runners have no LSan support):
+# built into build/asan, the program in the tree left alone.
+# tools/asancheck.sh builds it and runs the checks. The sanitizer runtime
+# itself just needs -fsanitize=... on the link line (already in SANITIZE,
+# below): gcc statically links it, and Apple clang's dynamic runtime is
+# found through the rpath clang adds automatically for the same flag.
 ifeq ($(ASAN),1)
 SANITIZE := -fsanitize=address,undefined -fno-omit-frame-pointer
 # -O1 and the instrumentation blur gcc's value ranges: these two then warn
-# about code the normal (WERROR) build proves safe
+# about code the normal (WERROR) build proves safe; both are gcc-only
+# warnings (unknown to Apple clang, macOS's sanitizer build)
+ifeq ($(findstring clang,$(shell $(CC) --version 2>/dev/null)),)
 OPT := -g -O1 $(SANITIZE) -Wno-format-overflow -Wno-restrict
+else
+OPT := -g -O1 $(SANITIZE)
+endif
 endif
 .PHONY: asan asan-link
 asan:
