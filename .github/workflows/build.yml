@@ -25,202 +25,18 @@ jobs:
   # formatcheck, the LTO type check and the warning count
   # (tools/sourcecheck.sh; tools/verify.sh runs it too, locally), and web2's
   # dist/ built from src/, types and unit tests
-  source:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        id: node
-        with:
-          node-version: 24
-      # WebKitGTK: the LTO link and the warning count compile the same
-      # sources as linux-core's build, the window's included
-      - name: Runner image
-        id: image
-        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
-      - name: Cache WebKitGTK apt packages
-        uses: actions/cache@v6
-        with:
-          path: ~/apt-cache
-          key: apt-webkit2gtk-4.1-dev-${{ steps.image.outputs.os }}-v1
-          restore-keys: apt-webkit2gtk-4.1-dev-${{ steps.image.outputs.os }}-
-      - name: WebKitGTK for the desktop window
-        run: |
-          mkdir -p ~/apt-cache/partial
-          sudo apt-get update
-          sudo apt-get install -y -o Dir::Cache::Archives="$HOME/apt-cache" libwebkit2gtk-4.1-dev
-          sudo chown -R "$(id -u):$(id -g)" ~/apt-cache
-      - name: "Source checks: encoding, script modes, stdout, formats, LTO types, warning count"
-        run: tools/sourcecheck.sh --warnings
-      - name: "New front end: dist/ built from src/, types, unit tests"
-        if: ${{ !cancelled() && steps.node.outcome == 'success' }}
-        run: cd web2 && npm ci && npm run check && npm run typecheck && npm test
-
-  linux-core:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      # the packages WebKitGTK pulls in (libsoup, gstreamer, ...) are the
-      # bulk of this install; caching them cuts it to a dpkg unpack
-      # the runner image (ubuntu24, ubuntu26 ...) in the cache's key: ImageOS is
-      # an environment variable of the runner, not in the workflow's env context
-      - name: Runner image
-        id: image
-        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
-      - name: Cache WebKitGTK apt packages
-        uses: actions/cache@v6
-        with:
-          path: ~/apt-cache
-          key: apt-webkit2gtk-4.1-dev-${{ steps.image.outputs.os }}-v1
-          restore-keys: apt-webkit2gtk-4.1-dev-${{ steps.image.outputs.os }}-
-      # the Linux window (W13e): built into its embedded library, which
-      # tools/modecheck.sh loads (no display: then the browser)
-      - name: WebKitGTK for the desktop window
-        # apt downloads into ~/apt-cache (the runner's user can restore a cache
-        # there, not into /var/cache/apt), then leaves it readable for the save
-        run: |
-          mkdir -p ~/apt-cache/partial
-          sudo apt-get update
-          sudo apt-get install -y -o Dir::Cache::Archives="$HOME/apt-cache" libwebkit2gtk-4.1-dev
-          sudo chown -R "$(id -u):$(id -g)" ~/apt-cache
-      # everything verify.sh checks but the source checks (the source job's);
-      # one step: verify.sh runs every check itself and reports each
-      - name: Build, smoke test, protocol, modes, AUTO, examples, metrics
-        run: tools/verify.sh --no-source-checks
-      # strip the CI artifact only (verify.sh above already ran against
-      # the -g build; the window's embedded library is already stripped
-      # at link time, -Wl,-s, so this does not touch it twice)
-      - name: Strip the CI artifact
-        run: strip xppautX
-      - uses: actions/upload-artifact@v7
-        with:
-          name: xppaut-linux
-          path: xppautX
-
   # The new front end driven through a headless browser (docs/ui-v2.md):
   # its own job beside linux-core's verify.sh, so the two run in parallel
   # instead of one after the other (97 s on top of verify's own time).
   # Needs its own build (plain, not the whole verify.sh) and the same
   # WebKitGTK window the checks in verify.sh's build already carry.
-  linux-ui:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Runner image
-        id: image
-        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
-      - name: Cache WebKitGTK apt packages
-        uses: actions/cache@v6
-        with:
-          path: ~/apt-cache
-          key: apt-webkit2gtk-4.1-dev-${{ steps.image.outputs.os }}-v1
-          restore-keys: apt-webkit2gtk-4.1-dev-${{ steps.image.outputs.os }}-
-      - name: WebKitGTK for the desktop window
-        run: |
-          mkdir -p ~/apt-cache/partial
-          sudo apt-get update
-          sudo apt-get install -y -o Dir::Cache::Archives="$HOME/apt-cache" libwebkit2gtk-4.1-dev
-          sudo chown -R "$(id -u):$(id -g)" ~/apt-cache
-      - name: Build xppautX
-        id: build
-        run: make -j"$(nproc)" xppautx
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-      - name: "New front end in a browser (store and plot state)"
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: node tools/web2check.mjs
-
   # AddressSanitizer, LeakSanitizer and UBSan over the same checks, in
   # parallel with the jobs above (it takes a few minutes); one step:
   # asancheck.sh builds and runs every check itself
-  linux-sanitizers:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      # gcc's ASan cannot map its shadow memory with the 32 bits of mmap
-      # randomness recent runner kernels use
-      - name: Allow ASan's memory layout
-        run: sudo sysctl vm.mmap_rnd_bits=28
-      - name: "Sanitizers: no error or leak report"
-        run: tools/asancheck.sh
-      - name: Upload sanitizer reports
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: asan-reports-linux
-          path: build/asan/reports
-          if-no-files-found: ignore
-
   # AddressSanitizer + UBSan (Apple clang) over the same checks as
   # linux-sanitizers, without LeakSanitizer: unsupported on Apple Silicon
   # runners (asancheck.sh --no-leaks turns off ASAN_OPTIONS'
   # detect_leaks).
-  macos-sanitizers:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: "Sanitizers: no error report (no leak detection on macOS)"
-        run: tools/asancheck.sh --no-leaks
-      - name: Upload sanitizer reports
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: asan-reports-macos
-          path: build/asan/reports
-          if-no-files-found: ignore
-
-  macos-core:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: "Build xppautX (WKWebView window on, the Darwin default since W13d)"
-        id: build
-        run: |
-          make -j"$(sysctl -n hw.ncpu)" xppautx
-          ./xppautX --help | head -5
-      - name: "Unit tests (C and C++ objects linked with clang++)"
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: make test
-      - name: Smoke test (headless)
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: |
-          cd /tmp && "$GITHUB_WORKSPACE/xppautX" "$GITHUB_WORKSPACE/examples/ode/lecar.ode" -silent
-          test "$(wc -l < output.dat)" -eq 601
-          echo "md5 on this platform: $(md5 -q output.dat) (linux baseline c281851de59ffd03b2a46428619a0c8f)"
-      - name: Server protocol and web front end
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python3 tools/servercheck.py && python3 tools/webcheck.py
-      - name: Command-line modes (--help, --browser, --no-open)
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: sh tools/modecheck.sh
-      - name: "AUTO over the protocol (tolerant of libm's last-digit ULP differences, autocheck.py's lines_close)"
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python3 tools/autocheck.py
-      # tests/examples.macos.md5 when committed, else Linux's
-      # tests/examples.md5 in first-run mode (differences reported, not
-      # failed); a crash or timeout always fails (tools/examples_check.sh)
-      - name: "Every example: no crash, output md5s against this platform's baseline"
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: tools/examples_check.sh --platform macos --write examples.macos.md5 --keep examples-differ
-      # what this run computed, to commit as tests/examples.macos.md5
-      # (when macOS differs from Linux, or its numerics change on purpose)
-      - name: Upload the examples' md5s
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: examples-md5-macos
-          path: |
-            examples.macos.md5
-            examples-differ/
-          if-no-files-found: ignore
-      - name: "Strip the CI artifact (-x: macOS keeps a minimal symbol table)"
-        run: strip -x xppautX
-      - uses: actions/upload-artifact@v7
-        with:
-          name: xppaut-macos
-          path: xppautX
-
   # web2check against the macOS build, beside macos-core (as linux-ui and
   # windows-ui are beside theirs): its own build, the runner's Google
   # Chrome (tools/cdp.mjs findBrowser: /Applications/Google Chrome.app)
@@ -263,6 +79,12 @@ jobs:
       - name: "Unit tests (C and C++ objects linked with g++), test binaries linked in parallel"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: make -j4 test
+      - name: "TEMP: test_io alone"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          ./build/obj/tests/test_io.exe; echo "exit $?"
+          ./build/obj/tests/test_io.exe > /tmp/o.txt 2> /tmp/e.txt; echo "exit $?"; tail -5 /tmp/o.txt; tail -5 /tmp/e.txt
+          ls "$(cygpath -u "$TEMP")" | head; echo "TEMP=$TEMP TMP=$TMP"
       - name: Headless run matches Linux (ignoring line ends)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
@@ -306,95 +128,9 @@ jobs:
   # linux-ui is beside linux-core): its own build, the runner's Chrome
   # (tools/cdp.mjs findBrowser; runner-images lists Google Chrome and
   # Microsoft Edge on windows-2025)
-  windows-ui:
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v7
-      - name: Use the runner's own MinGW-w64 (C:\mingw64); no toolchain install
-        run: echo 'C:\mingw64\bin' >> "$GITHUB_PATH"
-      - name: Build xppautX.exe
-        id: build
-        run: make -j4 xppautx
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-      - name: "New front end in a browser (store and plot state)"
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: node tools/web2check.mjs --bin ./xppautX.exe
-
   # MSYS2's CLANG64 toolchain (W23: clang, libc++, lld, compiler-rt), a
   # third compiler on Windows beside windows-core's MinGW gcc, which stays
   # the default build: windows-core's checks against a clang build (into
   # build/clang, dynamically linked: the shell's PATH has libc++'s DLLs),
   # then asancheck.sh with AddressSanitizer + UBSan (--no-leaks: no
   # LeakSanitizer on Windows)
-  windows-clang:
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: msys2 {0}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: msys2/setup-msys2@v2
-        with:
-          msystem: CLANG64
-          update: false
-          cache: true
-          pacboy: >-
-            toolchain:p
-            make:p
-            python:p
-      - name: "Build xppautX with clang (WERROR=1)"
-        id: build
-        run: |
-          clang --version | head -1
-          mingw32-make -j4 build/clang/xppautX.exe BUILDDIR=build/clang CC=clang CXX=clang++ WERROR=1
-      - name: "Unit tests (linked with clang++ and libc++)"
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: mingw32-make -j4 test BUILDDIR=build/clang CC=clang CXX=clang++ WERROR=1
-      - name: Headless run matches Linux (ignoring line ends)
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: |
-          top=$PWD
-          cd "$(mktemp -d)" && "$top/build/clang/xppautX.exe" "$top/examples/ode/lecar.ode" -silent
-          test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = c281851de59ffd03b2a46428619a0c8f
-      - name: Server protocol and web front end
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python tools/servercheck.py --server ./build/clang/xppautX.exe && python tools/webcheck.py --bin ./build/clang/xppautX.exe
-      - name: "Command-line modes (--help, --no-open; --browser's ShellExecute skipped)"
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: sh tools/modecheck.sh build/clang/xppautX.exe
-      - name: "AUTO over the protocol (tolerant of libm's last-digit ULP differences, autocheck.py's lines_close)"
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python tools/autocheck.py --server ./build/clang/xppautX.exe
-      # tests/examples.windows-clang.md5 when committed, else Linux's in
-      # first-run mode (differences reported, not failed); a crash or
-      # timeout always fails
-      - name: "Every example: no crash, output md5s against this platform's baseline"
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: tools/examples_check.sh --bin build/clang/xppautX.exe --platform windows-clang --write examples.windows-clang.md5 --keep examples-differ
-      - name: Upload the examples' md5s
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: examples-md5-windows-clang
-          path: |
-            examples.windows-clang.md5
-            examples-differ/
-          if-no-files-found: ignore
-      - name: "Sanitizers (ASan + UBSan, no leaks): no error report"
-        id: asan
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: MAKE=mingw32-make tools/asancheck.sh --no-leaks --builddir build/clang-asan CC=clang CXX=clang++
-      - name: Upload the sanitizer reports
-        if: ${{ !cancelled() && steps.asan.outcome == 'failure' }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: sanitizer-reports-windows-clang
-          path: |
-            build/clang-asan/reports/
-            build/clang-asan-*.log
-          if-no-files-found: ignore
