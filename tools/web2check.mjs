@@ -111,21 +111,28 @@ let cdp;
    (store/plots.ts: series, viewport, viewportHistory) */
 const ACTIVE = 's.plots.windows.find(x => x.win === s.plots.active) || {}';
 const S = expr => cdp.eval(`(() => { const s = __xpp.state(), w = ${ACTIVE}; return ${expr}; })()`);
-const P = () => cdp.eval('__xpp.plot()');
+/* the page as drawn is read settled (settled(), below): the chart and the layout follow a
+   state change a frame or more later, so a read right after an action saw the page before it
+   (the W20 lesson, and every CI flake since W27); rawP is the one read that must be immediate,
+   mid-drag */
+const rawP = () => cdp.eval('__xpp.plot()');
+const P = () => settled(rawP);
 /* a measurement once it stops changing: a slow machine draws a step's view, or lays out the bar a
    plot mode brings, a frame or more after the store has it, and a measurement taken in between is
    of the page before (W20) */
 async function settled(read) {
-  let a = JSON.stringify(await read());
-  for (let i = 0; i < 40; i++) {
-    await sleep(50);
+  /* unchanged over 200 ms (three reads 100 ms apart): one 50 ms gap let a slow runner's
+     next redraw through (CI, after W27); gives up after 4 s with the last reading */
+  let a = JSON.stringify(await read()), same = 0;
+  for (let i = 0; i < 40 && same < 2; i++) {
+    await sleep(100);
     const b = JSON.stringify(await read());
-    if (b === a) return JSON.parse(b);
+    same = b === a ? same + 1 : 0;
     a = b;
   }
   return JSON.parse(a);
 }
-const steadyP = () => settled(P);
+const steadyP = P;
 
 async function until(expr, what, ms = 15000) {
   const t0 = Date.now();
@@ -177,8 +184,9 @@ async function clickSendsNothing(name, x, y) {
 }
 
 /* the plotting area's box and the screen position of point i of curve c */
-const area = () => cdp.eval(`(() => { const r = document.querySelector('.plot-view:not([hidden]) .u-over').getBoundingClientRect();
+const rawArea = () => cdp.eval(`(() => { const r = document.querySelector('.plot-view:not([hidden]) .u-over').getBoundingClientRect();
   return {x: r.left, y: r.top, w: r.width, h: r.height}; })()`);
+const area = () => settled(rawArea);
 async function screenOf(curve, i) {
   const [a, p, s] = [await area(), await P(), await cdp.eval(`(() => { const s = __xpp.state(), m = (${ACTIVE}).series;
     const c = m.curves[${curve}]; return {x: m.columns.get(c.x)[${i}], y: m.columns.get(c.y)[${i}]}; })()`)];
@@ -221,7 +229,7 @@ async function desktop(want) {
   }
   check('the store holds the numbers of output.dat (T, V, W)',
     !bad && Object.values(cols.names).join() === 'T,V,W' && want.length === 601, bad || JSON.stringify(cols.names));
-  const p = await settled(P);
+  const p = await P();
   check('the plot draws W against V in xy mode, 601 points',
     p && p.mode === 2 && p.curves.length === 1 && p.curves[0].label === 'W vs V' && p.curves[0].points === 601, JSON.stringify(p));
   const view = await S('s.core.view');
@@ -1060,7 +1068,7 @@ async function windows() {
   await cdp.eval(`document.getElementById('plot-tab-1').click()`);
   check('clicking tab 1 shows window 1 and makes it the core\'s active window',
     await until('s.plots.active === 1 && !s.busy && s.core.win === 1', 'tab 1'), JSON.stringify(await S('[s.plots.active, s.core.win]')));
-  const back = await S('w.viewport'), p1 = await settled(P);
+  const back = await S('w.viewport'), p1 = await P();
   check("tab 1 keeps its zoom", JSON.stringify(back) === JSON.stringify(z1)
     && Math.abs(p1.x.min - z1.x.min) < 1e-9 && Math.abs(p1.x.max - z1.x.max) < 1e-9, JSON.stringify([back, p1 && p1.x]));
   check('its chart is the one shown', p1 && p1.curves[0].label === t1 && p1.width > 200, JSON.stringify(p1 && [p1.curves, p1.width]));
@@ -1133,7 +1141,7 @@ async function viewCheck() {
   await mouse('mouseMoved', cx, cy);
   await mouse('mouseWheel', cx, cy, {deltaX: 0, deltaY: -240});
   await until('w.viewport.x', 'wheel');
-  const zoomed = await settled(P);
+  const zoomed = await P();
   check('zoom by wheel', zoomed && zoomed.x && zoomed.y, JSON.stringify(zoomed));
 
   await cdp.eval(`document.querySelector('.plot-tools button[title^="Make this zoom"]').click()`);
@@ -1148,7 +1156,7 @@ async function viewCheck() {
     close(info.xlo, zoomed.x.min) && close(info.xhi, zoomed.x.max) && close(info.ylo, zoomed.y.min) && close(info.yhi, zoomed.y.max),
     JSON.stringify([info, zoomed.x, zoomed.y]));
   check('... and the client viewport is reset', await until('w.viewport.x === null && w.viewport.y === null', 'reset'));
-  const shown = await settled(P);
+  const shown = await P();
   check('... with no visible jump: the chart still shows the same range',
     close(shown.x.min, zoomed.x.min) && close(shown.x.max, zoomed.x.max) && close(shown.y.min, zoomed.y.min) && close(shown.y.max, zoomed.y.max),
     JSON.stringify([shown.x, shown.y, zoomed.x, zoomed.y]));
@@ -1183,7 +1191,7 @@ async function viewCheck() {
   await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
   for (let st = 0; st < 15; st++) await key('ArrowRight'); /* pans well past the data */
   await until('w.viewport.x', 'panned away');
-  const away = await settled(P);
+  const away = await P();
   check('panned far from the data', away.x.min > extent.xmax, JSON.stringify([away.x, extent]));
   await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host .plot-fit').click()`);
   check('the corner Fit brings the data back into view, through the core as the toolbar\'s Fit does',
@@ -1204,8 +1212,9 @@ async function viewCheck() {
 
 /* the 3D plot host's box on screen (docs/ui-v2.md T14): Plot3DView.tsx's
    canvas fills it, and drag/key events go to the host div itself */
-const area3d = () => cdp.eval(`(() => { const r = document.querySelector('.plot-view:not([hidden]) .plot-host').getBoundingClientRect();
+const rawArea3d = () => cdp.eval(`(() => { const r = document.querySelector('.plot-view:not([hidden]) .plot-host').getBoundingClientRect();
   return {x: r.left, y: r.top, w: r.width, h: r.height}; })()`);
+const area3d = () => settled(rawArea3d);
 const sentView3d = () => cdp.eval("__xpp.sent().filter(c => c.cmd === 'view3d').length");
 
 /* 3D plots (docs/ui-v2.md T14, GitHub issue #18): lorenz.ode sets axes=3d
@@ -1229,7 +1238,7 @@ async function threePlot() {
   /* drawn once the run's data reached the chart (read at once, it was
      still null on macOS CI, and the drag below then threw) */
   await until('(() => { const g = __xpp.plot(); return !!g && !!g.box && g.box.length === 8; })()', 'projection drawn');
-  const before = await settled(P);
+  const before = await P();
   check('it draws a projection: the box\'s 8 corners, at least one curve with points',
     before && before.box.length === 8 && before.curves.length >= 1 && before.curves[0].points > 0, JSON.stringify(before));
 
@@ -1243,7 +1252,7 @@ async function threePlot() {
   check('drag: theta/phi changed at once, by the drag\'s pixels (core/many_pops.c rotate3dcheck: 1 pixel, 1 degree, subtracted)',
     dragged && dragged.theta === angles0.theta - 3 * steps && dragged.phi === angles0.phi + 2 * steps,
     JSON.stringify([angles0, dragged]));
-  const during = await P();
+  const during = await rawP(); /* mid-drag: at once */
   check('... and the drawn projection changed too (still dragging, no round trip needed)',
     during && JSON.stringify(during.box) !== JSON.stringify(before.box), '');
   const sentDuring = (await sentView3d()) - sentBefore;
@@ -1538,7 +1547,7 @@ async function prompts() {
   check('the plot has the focus', await until(`document.activeElement.closest('.plot-host')`, 'plot focus'));
   /* the area once the pick bar has settled it (read at once, it was a
      pixel off on macOS CI) */
-  let v0 = await S('s.core.view'), p = await steadyP(), a = await settled(area);
+  let v0 = await S('s.core.view'), p = await steadyP(), a = await area();
   const from = {x: Math.round(a.x + 0.25 * a.w), y: Math.round(a.y + 0.3 * a.h)};
   const to = {x: Math.round(a.x + 0.7 * a.w), y: Math.round(a.y + 0.8 * a.h)};
   await mouse('mouseMoved', from.x, from.y);
@@ -1553,7 +1562,7 @@ async function prompts() {
   let v1 = await S('s.core.view');
   check("the core's view is the box drawn, within a pixel", viewIsBox(v1, want[0], want[1], corePixel(v0)),
     JSON.stringify({v1, want}));
-  p = await settled(P);
+  p = await P();
   /* the window's axes: exact in `plots` (T6), 6 digits in state.view */
   const ax = await S('w.info || s.core.view');
   check('and the plot shows it', Math.abs(p.x.min - ax.xlo) < 1e-9 && Math.abs(p.y.max - ax.yhi) < 1e-9, JSON.stringify([p.x, p.y, ax]));
@@ -1571,7 +1580,7 @@ async function prompts() {
   check('arrow keys and Enter set the corners', pk && pk.anchor && Math.abs(pk.anchor.fx - 0.4) < 1e-9
     && Math.abs(pk.anchor.fy - 0.4) < 1e-9 && Math.abs(pk.cursor.fx - 0.6) < 1e-9 && Math.abs(pk.cursor.fy - 0.6) < 1e-9, JSON.stringify(pk));
   v0 = await S('s.core.view');
-  p = await settled(P);
+  p = await P();
   want = [dataAt(p, 0.4, 0.4), dataAt(p, 0.6, 0.6)];
   await key('Enter');
   await until('!s.busy && !s.pick', 'keyboard zoom');
@@ -1597,7 +1606,7 @@ async function prompts() {
   await menuKeys('i', 'm');
   check('Initialconds/Mouse puts the plot in point mode', await until("s.pick && s.pick.mode === 'point'", 'point mode'));
   v0 = await S('s.core.view');
-  a = await settled(area);
+  a = await area();
   p = await steadyP();
   const at = {x: Math.round(a.x + 0.3 * a.w), y: Math.round(a.y + 0.35 * a.h)};
   await mouse('mouseMoved', at.x, at.y);
@@ -1693,17 +1702,19 @@ function expectedCurves(p) {
   return n;
 }
 
-const DG = () => cdp.eval('__xpp.diagram()');
+const rawDG = () => cdp.eval('__xpp.diagram()');
+const DG = () => settled(rawDG);
 const DS = expr => cdp.eval(`(() => { const d = __xpp.state().diagram; return ${expr}; })()`);
 const autoButton = k => cdp.eval(`document.querySelector('.auto-tools button[aria-keyshortcuts=${k}]').click()`);
 /* the diagram's plotting area and the screen position of (x, y) in it */
-const autoArea = () => cdp.eval(`(() => { const r = document.querySelector('.auto-panel .u-over').getBoundingClientRect();
+const rawAutoArea = () => cdp.eval(`(() => { const r = document.querySelector('.auto-panel .u-over').getBoundingClientRect();
   return {x: r.left, y: r.top, w: r.width, h: r.height}; })()`);
+const autoArea = () => settled(rawAutoArea);
 /* the screen position of diagram point (x, y), once the view has settled (a
    grab's import just before may still be moving it: the mouse then landed
    on a neighbour, macOS CI) */
 async function autoScreen(x, y) {
-  const [a, d] = [await settled(autoArea), await settled(DG)];
+  const [a, d] = [await autoArea(), await DG()];
   return {x: a.x + (x - d.x.min) / (d.x.max - d.x.min) * a.w, y: a.y + (d.y.max - y) / (d.y.max - d.y.min) * a.h};
 }
 const readout = () => cdp.eval(`document.querySelector('.auto-readout').textContent`);
@@ -1970,7 +1981,7 @@ async function autoView(dir) {
     JSON.stringify([labelRows.filter(r => !outRows.includes(r)), outRows.slice(0, 10)]));
 
   /* the chart: a curve per branch and stability run, the label marks */
-  const dg = await settled(DG);
+  const dg = await DG();
   const nCurves = expectedCurves(got);
   check(`the chart draws one curve per branch and stability run (${nCurves}), every label marked`,
     dg && dg.curves.length === nCurves && dg.labels.length === want.labels.length
@@ -2037,7 +2048,7 @@ async function autoView(dir) {
   const axes = await DS('d.axes'), h0 = await DS('d.viewportHistory.length');
   await mouse('mouseWheel', cx, cy, {deltaX: 0, deltaY: -120});
   check('the wheel zooms the diagram', await until('s.diagram.viewport.x', 'auto wheel')
-    && width((await settled(DG)).x) < (axes.xmax - axes.xmin) * 0.9, JSON.stringify(await DS('d.viewport')));
+    && width((await DG()).x) < (axes.xmax - axes.xmin) * 0.9, JSON.stringify(await DS('d.viewport')));
   const z1 = await DS('d.viewport');
   await mouse('mouseMoved', cx - 60, cy - 40);
   await mouse('mousePressed', cx - 60, cy - 40, {button: 'left', buttons: 1, clickCount: 1});
@@ -2072,14 +2083,14 @@ async function autoView(dir) {
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
   for (let st = 0; st < 15; st++) await key('ArrowRight'); /* scrolled well past the data, wrong-corner style */
   await until('s.diagram.viewport.x', 'panned away');
-  const away = await settled(DG);
+  const away = await DG();
   check('panned far from the data', away.x.min > dataExtent.xmax, JSON.stringify([away.x, dataExtent]));
   const fitCondition = e => `(() => { const g = __xpp.diagram(); return !!g && g.x.min <= ${e.xmin} + 1e-6 && g.x.max >= ${e.xmax} - 1e-6
     && g.y.min <= ${e.ymin} + 1e-6 && g.y.max >= ${e.ymax} - 1e-6; })()`;
   await cdp.eval(`document.querySelector('.auto-host .plot-fit').click()`);
   check('the corner Fit brings every curve back into view',
     await until(fitCondition(dataExtent), 'fit applied'), JSON.stringify([await DG(), dataExtent]));
-  await settled(DG); /* the Fit fully applied before it is undone */
+  await DG(); /* the Fit fully applied before it is undone */
   await cdp.eval(`[...document.querySelectorAll('.auto-panel button')].find(b => b.textContent === 'Undo zoom').click()`);
   check('the corner Fit is an undoable zoom, like any other: Undo zoom goes back to the panned-away view',
     await until(`s.diagram.viewport.x && Math.abs(s.diagram.viewport.x.min - ${away.x.min}) < 1e-6`, 'undo fit'),
@@ -2088,7 +2099,7 @@ async function autoView(dir) {
   await until('s.diagram.viewport.x === null', 'auto reset 2');
   for (let st = 0; st < 15; st++) await key('ArrowLeft');
   await until('s.diagram.viewport.x', 'panned away 2');
-  await settled(DG); /* every arrow key's pan landed before the Fit */
+  await DG(); /* every arrow key's pan landed before the Fit */
   await cdp.eval(`[...document.querySelectorAll('.auto-panel .plot-tools button')].find(b => b.textContent === 'Fit').click()`);
   check("the AUTO tools' own Fit does the same as the corner button",
     await until(fitCondition(dataExtent), 'fit2 applied'), JSON.stringify([await DG(), dataExtent]));
@@ -2111,7 +2122,7 @@ async function autoView(dir) {
     await until("s.pick && s.pick.win === 101 && s.pick.mode === 'box'", 'auto box mode')
     && await cdp.eval(`!document.querySelector('[role=dialog]') && !!document.querySelector('.auto-panel .pick-bar')`),
     JSON.stringify(await S('[s.ask, s.pick]')));
-  const za = await settled(autoArea), zd = await settled(DG);
+  const za = await autoArea(), zd = await DG();
   const zx = f => zd.x.min + f * (zd.x.max - zd.x.min), zy = f => zd.y.max - f * (zd.y.max - zd.y.min);
   await mouse('mouseMoved', za.x + 0.3 * za.w, za.y + 0.2 * za.h);
   await mouse('mousePressed', za.x + 0.3 * za.w, za.y + 0.2 * za.h, {button: 'left', buttons: 1, clickCount: 1});
@@ -2145,7 +2156,7 @@ async function autoView(dir) {
     await until(`!s.busy && s.diagram.axes.plot === 1 && s.diagram.points.x.length === ${nAll}`, 'norm axes')
     && JSON.stringify(await DS('d.points.y.slice(0, 50)')) !== JSON.stringify(y0)
     && !(await cdp.eval(`__xpp.sent().slice(${sentAxes}).some(c => c.cmd === 'redraw' || c.op === 'redraw')`))
-    && (await settled(DG)).curves.length > 0, JSON.stringify(await DS('[d.axes, d.points.x.length]')));
+    && (await DG()).curves.length > 0, JSON.stringify(await DS('[d.axes, d.points.x.length]')));
   /* and the axis dialog does the same: hI-lo from its Plots select, then a Fit */
   await cdp.eval(`document.querySelector('.auto-axis-name[data-axis=y]').click()`);
   await until(`document.querySelector('.auto-axis-dialog select[data-field=plot]')`, 'y dialog');
@@ -2154,7 +2165,7 @@ async function autoView(dir) {
   check('T22: the axis dialog\'s plot type goes to the core as an auto set with a Fit: hI-lo, every point, periodic max and min',
     await until(`!s.busy && s.diagram.axes.plot === 2 && s.diagram.points.x.length === ${nAll}
       && document.querySelector('.auto-axis-dialog select[data-field=yvar]')`, 'hilo axes', 20000)
-    && (await settled(DG)).curves.some(c => c.which === 'y2')
+    && (await DG()).curves.some(c => c.which === 'y2')
     && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set' && c.axes && c.axes.plot === 2 && c.axes.fit)`),
     JSON.stringify(await DS('d.axes')));
   const fitted = await DS('d.axes');
@@ -2168,7 +2179,7 @@ async function autoView(dir) {
   await until('s.diagram.viewport.y === null', 'view reset 2');
 
   /* T21: Clear hides the branches so far in the view, the key shows them again; nothing goes to the core */
-  const nCurvesAll = (await settled(DG)).curves.length, sentClear = await cdp.eval('__xpp.sent().length');
+  const nCurvesAll = (await DG()).curves.length, sentClear = await cdp.eval('__xpp.sent().length');
   await autoButton('C');
   check('T21: Clear hides every branch so far; the key offers "Earlier branches (2)"',
     await until(`__xpp.diagram().curves.length === 0 && s.diagram.earlier === ${nAll}`, 'cleared')
@@ -2976,7 +2987,7 @@ async function million() {
   check('10^6: X plots x against T', await until(`s.seriesCount > ${n0} && !s.busy && w.series.curves[0].x === 0`, 'x vs t', 60000));
   await until('!__xpp.plot().tracing', 'tracing', 10000);
   await sleep(300);
-  const q = await settled(P);
+  const q = await P();
   const render2 = q.drawMs[q.drawMs.length - 1];
   check(`10^6: the time plot draws in ${ms(render2)}`, q.mode === 1 && q.curves[0].points === 1000001 && render2 < 50,
     JSON.stringify({mode: q.mode, points: q.curves[0].points, render2}));
