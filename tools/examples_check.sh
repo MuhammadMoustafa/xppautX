@@ -21,13 +21,16 @@
 # numerics change on purpose.
 #
 # Usage: tools/examples_check.sh [--update] [--bin PATH] [--baseline FILE]
-#                                [--platform NAME] [--write FILE]
+#                                [--platform NAME] [--write FILE] [--keep DIR]
 #   --bin PATH       the binary (default ./xppautX, or ./xppautX.exe)
 #   --baseline FILE  compare with FILE (default tests/examples.md5)
 #   --platform NAME  compare with tests/examples.NAME.md5 when it exists,
 #                    else with tests/examples.md5 in first-run mode
 #   --write FILE     also write the md5s computed here to FILE
 #   --update         write the md5s computed here as the baseline
+#   --keep DIR       put the output.dat of each model that differs from the
+#                    baseline in DIR (as <path with / made _>.dat), to see
+#                    what changed (CI uploads it with the md5s)
 # TIMEOUT=seconds per run (default 300: the slowest model takes ~12 s
 # alone, several times that while other checks share the machine).
 # JOBS=models run at once (default: the machine's core count).
@@ -36,6 +39,7 @@ top=$PWD
 base=tests/examples.md5
 platform=
 write=
+keep=
 update=0
 bin=
 while [ $# -gt 0 ]; do
@@ -45,6 +49,7 @@ while [ $# -gt 0 ]; do
     --baseline) base=$2; shift ;;
     --platform) platform=$2; shift ;;
     --write) write=$2; shift ;;
+    --keep) keep=$2; shift ;;
     *) echo "examples_check.sh: unknown option $1"; exit 2 ;;
   esac
   shift
@@ -63,6 +68,7 @@ if [ -n "$platform" ]; then
 fi
 jobs=${JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}
 out=$(mktemp -d)
+[ -n "$keep" ] && export KEEP_OUTPUT=1
 find examples -name '*.ode' | sort \
   | xargs -P"$jobs" -I{} tools/run_example.sh {} "$bin" "${TIMEOUT:-300}" "$out" > "$out/failures" 2>&1
 cat "$out"/*.sum | LC_ALL=C sort -k2 > "$out/all"
@@ -83,6 +89,14 @@ if [ $update -eq 1 ]; then
   exit 0
 fi
 bad=$(LC_ALL=C sort -k2 "$base" | diff - "$out/all" | grep '^[<>]')
+if [ -n "$keep" ] && [ -n "$bad" ]; then
+  mkdir -p "$keep"
+  echo "$bad" | sed -n 's/^> [^ ]* //p' | while read -r f; do
+    name=$(echo "$f" | tr / _)
+    [ -e "$out/$name.dat" ] && cp "$out/$name.dat" "$keep/"
+  done
+  echo "the differing models' output.dat: $keep"
+fi
 rm -rf "$out"
 if [ -n "$bad" ]; then
   echo "$bad"

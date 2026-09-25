@@ -12,7 +12,8 @@
 # "<md5> <model>" (the md5 of output.dat with its CRs removed, so a
 # Windows build's text-mode line ends hash like Linux's; "none" when the
 # model writes nothing by itself: AUTO tests, includes; "timeout") and a
-# .st file holding the exit status (or "timeout").
+# .st file holding the exit status (or "timeout"), and with KEEP_OUTPUT=1
+# the output.dat itself as a .dat file (examples_check.sh --keep).
 # The timeout is coreutils' timeout where there is one (Linux, Git Bash),
 # else (macOS) a watcher that kills the run.
 set -u
@@ -61,6 +62,7 @@ if [ -n "$result" ]; then
   name=$(echo "$f" | tr / _)
   echo "$sum $f" > "$result/$name.sum"
   echo "$st" > "$result/$name.st"
+  if [ "${KEEP_OUTPUT:-0}" = 1 ] && [ -s "$run/output.dat" ]; then cp "$run/output.dat" "$result/$name.dat"; fi
 fi
 if [ "$st" != 0 ]; then
   if [ "$st" = timeout ]; then echo "FAIL $f timeout ($timeout_s s)"; else echo "FAIL $f exit $st"; fi
