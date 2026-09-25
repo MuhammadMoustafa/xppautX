@@ -4,8 +4,8 @@
  * Programmers   : Scott D. Cohen and Alan C. Hindmarsh @ LLNL    *
  * Last Modified : 1 September 1994                               *
  *----------------------------------------------------------------*
- * This header file exports three types: real, integer, and bool  *
- * (short for boolean), as well as the constants TRUE and FALSE.  *
+ * This header file exports two types, real and integer, as well  *
+ * as the constants TRUE and FALSE.                               *
  *                                                                *
  * Users should #include "llnltyps.h" in any file that should     *
  * be easily modifiable to work with different real or integer    *
@@ -97,18 +97,14 @@ typedef int integer;
  * Type : bool                                                    *
  * Constants : FALSE, TRUE                                        *
  *----------------------------------------------------------------*
- * ANSI C does not have a built-in boolean type. Below is the     *
- * definition for a new type bool. The advantage of using the     *
- * name bool (instead of int) is an increase in code readability. *
- * It allows the programmer to make a distinction between int and *
- * boolean data. Variables of type bool are intended to have only *
- * the two values FALSE and TRUE which are defined below to be    *
- * equal to 0 and 1, respectively.                                *
+ * CVODE used to define bool as a macro for int, since ANSI C had *
+ * none. Every file that includes this header is C++ (W27a), so   *
+ * bool is C++'s own type; FALSE and TRUE stay 0 and 1.           *
  *                                                                *
  ******************************************************************/
 
-#ifndef bool
-#define bool int
+#ifndef __cplusplus
+#error "llnltyps.h is included only from C++ (CVODE's files)"
 #endif
 
 #ifndef FALSE
