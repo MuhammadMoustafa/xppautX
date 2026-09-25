@@ -49,67 +49,6 @@ double pertst[7][2][3]={{{2,3,1},{2,12,1}},
 
 
 
-void silent_fixpt(double *x,double eps,double err,double big,int maxit,int n,
-	     double *er,double *em,int *ierr)
-{
-  int kmem,i,j;
-
-
- 
- double *work,*eval,*b,*bp,*oldwork,*ework;
- double temp,old_x[MAXODE];
-
- 
- kmem=n*(2*n+5)+50;
- *ierr=0;
- if((work=(double *)xpp_malloc(sizeof(double)*kmem))==NULL)
- {
-  err_msg("Insufficient core ");
-  *ierr=1;
-  return;
- }
-
- for(i=0;i<n;i++)old_x[i]=x[i];
- oldwork=work+n*n;
- eval=oldwork+n*n;
- b=eval+2*n;
- bp=b+n;
- ework=bp+n;
- rooter(x,err,eps,big,work,ierr,maxit,n);
- if(*ierr!=0)
- {
-  xpp_free(work);
-  for(i=0;i<n;i++)x[i]=old_x[i];
-  return;
- }
-
- for(i=0;i<n*n;i++){
-  oldwork[i]=work[i];
-  
- }
-/* Transpose for Eigen        */
-  for(i=0;i<n;i++)
- {
-  for(j=i+1;j<n;j++)
-  {
-   temp=work[i+j*n];
-   work[i+j*n]=work[i*n+j];
-   work[i*n+j]=temp;
-  }
- }
- eigen(n,work,eval,ework,ierr);
- if(*ierr!=0)
- {
-    xpp_free(work);
-  return;
- }
-  for(i=0;i<n;i++)
- {
-  er[i]=eval[2*i];
-  em[i]=eval[2*i+1];
- }
-} /* end silent fixed point  */
-
 
 
 
@@ -616,44 +555,6 @@ void pr_evec(double *x, double *ev, int n, int pr, double eval, int type)
 
  }
  */
-}
-
-void get_complex_evec(double *m, double evr, double evm, double *br, double *bm, int n, int maxit, double err, int *ierr)
-{
-  double *a,*anew;
-  int *ipivot;
-  double *b,*bp;
-  int nn=2*n;
-  int i,j,k;
-  a=(double *)xpp_malloc(nn*nn*sizeof(double));
-  anew=(double *)xpp_malloc(nn*nn*sizeof(double));
-  b=(double *)xpp_malloc(nn*sizeof(double));
-  bp=(double *)xpp_malloc(nn*sizeof(double));
-  ipivot=(int *)xpp_malloc(nn*sizeof(int));
-  for(i=0;i<nn;i++){
-    for(j=0;j<nn;j++){
-      k=j*nn+i;
-      a[k]=0.0;
-      if((j<n) && (i<n))a[k]=m[k];
-      if((j>=n)&&(i>=n))a[k]=m[(j-n)*nn+(i-n)];
-      if(i==j)a[k]=a[k]-evr;
-      if((i-n)==j)a[k]=evm;
-      if((j-n)==i)a[k]=-evm;
-    }
-  }
-  /* print_mat(a,6,6); */
-  get_evec(a,anew,b,bp,nn,maxit,err,ipivot,0.0,ierr);
-  if(*ierr==0){
-    for(i=0;i<n;i++){
-      br[i]=b[i];
-      bm[i]=b[i+n];
-    }
-  }
-  xpp_free(a);
-  xpp_free(anew);
-  xpp_free(b);
-  xpp_free(bp);
-  xpp_free(ipivot);
 }
 
 void get_evec(double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval, int *ierr)

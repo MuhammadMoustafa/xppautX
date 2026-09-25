@@ -99,15 +99,6 @@ err_msg("Cannot allocate sufficient storage");
 }
 
 
-void free_storage(int ncol)
-{
-  int i;
-  for(i=0;i<ncol;i++)xpp_free(storage[i]);
-  xpp_free(storage);
-  if(WORK)xpp_free(WORK);
-  
-}
-
  
 
 

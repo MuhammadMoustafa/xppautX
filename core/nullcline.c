@@ -34,7 +34,6 @@
 #define DING ping
 #define MAX_NULL 10000
 
-int OutPutNC=0;
 extern int SuppressBounds;
 extern int PltFmtFlag;
 extern FILE *svgfile;
@@ -55,7 +54,7 @@ int XNullColor=2,YNullColor=7;
 extern int NULL_HERE;
 int num_x_n,num_y_n,num_index,
 	null_ix,null_iy,WHICH_CRV;
-float null_dist,*X_n,*Y_n,*saver,*NTop,*NBot;
+float *X_n,*Y_n,*saver,*NTop,*NBot;
 extern int NMESH,NODE,NJMP,NMarkov,FIX_VAR,NEQ;
 int DF_GRID=16,DF_FLAG=0,DF_IX=-1,DF_IY=-1;
 int DFIELD_TYPE=0;
@@ -796,29 +795,6 @@ void dump_clines(FILE *fp, float *x, int nx, float *y, int ny)  /* gnuplot forma
 
 }
 
-void dump_clines_old(FILE *fp, float *x, int nx, float *y, int ny)
-{
-    int i,ix,iy;
-    int n;
-    n=nx;
-    if(n<ny)n=ny;
-    for(i=0;i<n;i++){
-      if(i>=nx)
-	ix=nx-1;
-      else 
-	ix=i;
-      if(i>=ny)
-	iy=ny-1;
-      else
-	iy=i;
-      fprintf(fp,"%g %g %g %g \n",x[4*ix],x[4*ix+1],y[4*iy],y[4*iy+1]);
-      fprintf(fp,"%g %g %g %g \n",x[4*ix+2],x[4*ix+3],y[4*iy+2],y[4*iy+3]);
-      
-      
-    }
-
-}
-
 void restor_null(float *v, int n, int d)  /* d=1 for x and 2 for y  */
 {
   
@@ -1000,32 +976,6 @@ void quad_contour(Pt p1, Pt p2, Pt p3, Pt p4)
 
 }
 
-
-void triangle_contour(Pt p1, Pt p2, Pt p3)
-{
- float x[3],y[3];
- int count=0;
- if(p1.z*p2.z<=0.0)
- /* if(((0.0<=p1.z)&&(0.0>=p2.z))||
-	((0.0>=p1.z)&&(0.0<=p2.z))) */
-	if(interpolate(p1,p2,0.0,&x[count],&y[count]))count++;
-if( p1.z*p3.z<=0.0)
-/*  if(((0.0<=p1.z)&&(0.0>=p3.z))||
-	((0.0>=p1.z)&&(0.0<=p3.z))) */
-
-	if(interpolate(p1,p3,0.0,&x[count],&y[count]))count++;
-if(p2.z*p3.z<=0.0) 
-  /* if(((0.0<=p3.z)&&(0.0>=p2.z))||
-	((0.0>=p3.z)&&(0.0<=p2.z))) */
-	if(interpolate(p3,p2,0.0,&x[count],&y[count]))count++;
- 
- if(count==2){
-   line_abs(x[0],y[0],x[1],y[1]);
-   stor_null(x[0],y[0],x[1],y[1]);
- }
- 
-
- }
 
 
 

@@ -35,7 +35,6 @@ int auto_plot_par(void);
 int auto_fit(void);
 int auto_zoom(int i1, int j1, int i2, int j2);
 int auto_xy_plot(double *x, double *y1, double *y2, double par1, double par2, double per, double *uhigh, double *ulow, double *ubar, double a);
-int plot_point(int flag2, int icp1, int icp2);
 int add_ps_point(double *par, double per, double *uhigh, double *ulow, double *ubar, double a, int type, int flag, int lab, int npar, int icp1, int icp2, int flag2, double *evr, double *evi);
 int add_point(double *par, double per, double *uhigh, double *ulow, double *ubar, double a, int type, int flag, int lab, int npar, int icp1, int icp2, int flag2, double *evr, double *evi);
 int redraw_auto_menus(void);

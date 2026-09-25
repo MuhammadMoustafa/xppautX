@@ -46,7 +46,6 @@ extern char *aaxes_hint[];
 extern char *afile_hint[];
 extern char *aspecial_hint[];
 extern char *arun_hint[];
-extern char *browse_hint[];
 
 /* key strings for the three main-window menus, one key per entry */
 extern char main_menu_keys[];
@@ -76,9 +75,6 @@ extern const XppMenu menu_integrate, menu_nullclines, menu_freeze_cline,
   menu_equilibria, menu_view, menu_bvp, menu_stochastic, menu_poincare,
   menu_color_code, menu_adjoint, menu_lookup, menu_method, menu_edit_rhs;
 
-/* every menu above, for front ends that build their menus up front */
-extern const XppMenu *const xpp_menus[];
-extern const int xpp_menu_count;
 
 
 #ifdef __cplusplus

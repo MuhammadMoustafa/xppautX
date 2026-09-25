@@ -98,26 +98,6 @@ void stor_delay(double *y)
 
 }
 
-double get_delay_old(int in, double tau)
-{
- double x=tau/fabs(DELTA_T);
- int n1=(int)x;
- int n2=n1+1;
- int nodes=NODE;
- int i1,i2;
- double x1,x2;
- if(tau<0.0||tau>DELAY){
-			 err_msg("Delay negative or too large");
-			stop_integration();
-			return(0.0);
-			}
-  i1=(n1+LatestDelay)%MaxDelay;
-  i2=(n2+LatestDelay)%MaxDelay;
-  x1=DelayWork[in+(nodes )*i1];
-  x2=DelayWork[in+(nodes )*i2];
-  return(x1+(x-n1)*(x2-x1));
- }
-
 void polint(double *xa, double *ya, int n, double x, double *y, double *dy)
 {
   int i,m,ns=1;

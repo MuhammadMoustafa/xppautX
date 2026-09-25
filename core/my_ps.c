@@ -192,29 +192,6 @@ void ps_do_color(int color)
  
 }
 
-void ps_setcolor(int color)
-{
-  int i;
- static float pscolor[]={    0.0, 0.0, 0.0, /* BLACK */
-                    1.,   0.,  0.,  /*RED*/
-		   .94, .39,  0.0, /*REDORANGE*/
-		   1.0, .647, 0.0, /*ORANGE*/
-                   1.0, .803, 0.0, /*YELLOWORANGE*/
-                   1.0, 1.0 , 0.0, /*YELLOW*/
-		   .60, .80,  .196, /*YELLOWGREEN*/
-                   0.0, 1.0, 0.0,   /*GREEN*/
-		   0.0, 1.0, 1.0,  /*BLUEGREEN*/
-		   0.0, 0.0, 1.0, /*BLUE */
-                   .627, .125, .94 /*VIOLET*/
-		   };
-  char bob[100];
-  if(color==0)i=0;
-  else i=3*(color-19);
- 
-   XPP_SPRINTF(bob," %.3f %.3f %.3f setrgbcolor", pscolor[i],pscolor[i+1],pscolor[i+2]);
-  ps_write(bob);
-}
-
 void ps_end()
 {
  ps_write("stroke");
@@ -430,35 +407,6 @@ void special_put_text_ps(int x, int y, char *str, int size)
     
       
       
-void fancy_ps_text(int x, int y, char *str, int size, int font)
-{
-
-  static int sz[]={8,10,14,18,24};
-  char ch;
-    fprintf(psfile, "0 0 0 setrgbcolor \n");
-  switch(font){
- 
-   case 1:
-     fprintf(psfile,"/Symbol findfont %d ",sz[size]*PS_SC);
-     fprintf(psfile,"scalefont setfont\n");
-     break;
-    default:
-     fprintf(psfile,"/%s findfont %d ",PS_FONT,sz[size]*PS_SC);
-     fprintf(psfile,"scalefont setfont\n");
-     break;
-   }
-  fprintf(psfile,"%d %d moveto\n",x,y);
-  putc('(',psfile);
-  ch = *str++;
-  while(ch!='\0') {
-    if ( (ch=='(') || (ch==')') || (ch=='\\') )
-      putc('\\',psfile);
-    putc(ch,psfile);
-    ch = *str++;
-  }
-  fprintf(psfile,") Lshow\n");
- PSLines=0;
-}
 
 void ps_text(int x, int y, char *str)
 {

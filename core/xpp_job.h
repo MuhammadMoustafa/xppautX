@@ -59,13 +59,6 @@ int xpp_every(double *last, double seconds);
    tight loop calling them does not hammer the front end. */
 int xpp_job_poll_due(void);
 
-/* 1 when the running job is cancelled; otherwise, at most every 50 ms, lets
-   the front end look for Escape or Abort (my_abort(), which cancels the job
-   when it sees one) and returns 1 when it saw one. Other keys the poll
-   returns are dropped. Inside AUTO, byeauto_() is the same checkpoint
-   polling through the AUTO window (its Abort button). */
-int xpp_job_checkpoint(void);
-
 /* ---- where a job got to, and replaying an interruption ----------------
 
    Computations report their progress as they store results: an integration

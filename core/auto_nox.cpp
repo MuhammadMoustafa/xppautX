@@ -174,8 +174,6 @@ int SEc=20;
 int UEc=0;
 int SPc=26;
 int UPc=28;
-int HBc=0;
-int LPc=20;
 /*  two parameter colors  need to do this
     LP is 20 (red)
     HB  is  28 blue
@@ -192,7 +190,6 @@ int TR_color=26;
 int PD_color=23;
 int BR_color=27;
 int FP_color=25;
-int HO_color=29;
 
 int RestartLabel=0;
 int auto_ntst=15,auto_nmx=200,auto_npr=50,auto_ncol=4;
@@ -1246,14 +1243,6 @@ void auto_xy_plot(double *x, double *y1, double *y2, double par1, double par2, d
   }
 }
 
-int plot_point(int flag2, int icp1, int icp2)
-{
-  int j=1;
-  if(icp1!=Auto.icp1)j=0;
-  if(flag2>0&&icp2!=Auto.icp2)j=0;
-  return(j);
-}
-
 
 
 
@@ -1882,50 +1871,6 @@ void auto_grab()
    */ 
 } 
 
-void auto_next()
-{
-
-  static const char *m[]={"EP","HB","LP","PD","MX"};
-  /*static const char *m[]={"Fixed period","Extend"}; */
-  static  char key[]="ehlpm";
-  char ch;
-  ch=(char)auto_pop_up_list(str("Special Point"),strs(m),key,5,13,0,10,10,
-		       no_hint,Auto.hinttxt);
-   if(ch=='e'){
-    /*auto_new_per();*/
-    xpp_log_auto("End point\n");
-    return;
-  }
-  if(ch=='h'){
-     xpp_log_auto("Hopf point\n");
-     /* auto_2p_fixper();*/
-     
-    return;
-  }
-  if(ch=='l'){ 
-     xpp_log_auto("Limit point\n");
-     /* auto_2p_fixper();*/
-     
-    return;
-  }
-  if(ch=='p'){
-     xpp_log_auto("Periodic point\n");
-     /* auto_2p_fixper();*/
-     
-    return;
-  }
-  if(ch=='m'){ 
-     xpp_log_auto("Max point\n");
-     /* auto_2p_fixper();*/
-     
-    return;
-  }
-  /*traverse_diagram();
-  */
- /* redraw_auto_menus();
-   */ 
-} 
-
 void get_start_period(double *p)
 {
  *p=storage[0][storind-1];
@@ -2504,35 +2449,6 @@ int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
   xpp_free(s);
 
   return flag;
-}
-
-void three_parameter_homoclinic()
-{
-Auto.irs=grabpt.lab;
-  Auto.itp=grabpt.itp;
-
-      TypeOfCalc=HO2;
-  AutoTwoParam=HO2;
-  NewPeriodFlag=1;
-  Auto.ips=9;
-
-  Auto.nfpar=3;
-  Auto.ilp=0;
-  Auto.isw=1;
-  Auto.isp=0;
-  Auto.nbc=0;
-  
-  if(HomoFlag==1)
-    xAuto.iequib=1;
-  if(HomoFlag==2)
-    xAuto.iequib=-2;
-
-  
-  
-  do_auto(OPEN_3,APPEND,Auto.itp);
-
-
-  
 }
 
 
@@ -3729,14 +3645,6 @@ void traverse_diagram()
   redo_all_fun_tables();
   redraw_params();
   redraw_ics();
-}
-
-void RedrawMark()
-{
-  if(diagram_mark.state==2){
-    MarkAuto(diagram_mark.start_x,diagram_mark.start_y);
-    MarkAuto(diagram_mark.end_x,diagram_mark.end_y);
-  }
 }
 
 void MarkAuto(int x, int y)

@@ -19,7 +19,6 @@ typedef struct {
 
 void init_fit_info(void);
 void get_fit_info(double *y, double *a, double *t0, int *flag, double eps, double *yfit, double **yderv, int npts, int npars, int nvars, int *ivar, int *ipar);
-void printem(double **yderv, double *yfit, double *t0, int npars, int nvars, int npts);
 int one_step_int(double *y, double t0, double t1, int *istart);
 void print_fit_info(void);
 void test_fit(void);

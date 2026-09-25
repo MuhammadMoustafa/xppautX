@@ -57,7 +57,6 @@ struct {
   char firstcol[XPP_NAME_MAX+1];
 } my_trans;
    
-int TRANPOSE_HERE=0;
 int LIAP_FLAG=0;
 int LIAP_N,LIAP_I;
 extern double NEWT_ERR;
@@ -422,25 +421,6 @@ void new_adjoint()
   
 
 
-void test_test()
-{
-  double x[2];
-  x[0]=.35249;
-  x[1]=.2536;
-  compute_one_orbit(x,14.6);
- 
-}
-
-void compute_one_orbit(double *ic,double per)
-{
-  double oldtotal=TEND;
-  TEND=per;
-  /*   plintf(" %g %g \n",ic[0],ic[1]); */
-  run_from_x(ic);
-  new_adjoint();
-  TEND=oldtotal;
-}
-  
 
 
 
@@ -604,54 +584,6 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
  
  
 
-void eval_rhs(double **jac, int k1, int k2, double t, double *y, double *yp, int node)
-{
-  int i;
-  int j;
-  for(j=0;j<node;j++){
-    yp[j]=0.0;
-    for(i=0;i<node;i++)
- yp[j]=yp[j]+(jac[i+j*node][k1]*(1.0-t)+jac[i+j*node][k2]*t)*y[i];
-  }
-}
-
-int rk_interp(double **jac, int k1, int k2, double *y, double *work, int neq, double del, int nstep)
-{
- int i,j;
- double *yval[3],dt=del/nstep;
- double t=0.0,t1,t2;
- yval[0]=work;
- yval[1]=work+neq;
- yval[2]=work+neq+neq;
- for(j=0;j<nstep;j++)
- {
-  eval_rhs(jac,k1,k2,t/del,y,yval[1],neq);
-  for(i=0;i<neq;i++)
-  {
-   yval[0][i]=y[i]+dt*yval[1][i]/6.00;
-   yval[2][i]=y[i]+dt*yval[1][i]*0.5;
-  }
-  t1=t+.5*dt;
-  eval_rhs(jac,k1,k2,t1/del,yval[2],yval[1],neq);
-  for(i=0;i<neq;i++)
-  {
-   yval[0][i]=yval[0][i]+dt*yval[1][i]/3.00;
-   yval[2][i]=y[i]+.5*dt*yval[1][i];
-  }
-  eval_rhs(jac,k1,k2,t1/del,yval[2],yval[1],neq);
-  for(i=0;i<neq;i++)
-  {
-   yval[0][i]=yval[0][i]+dt*yval[1][i]/3.000;
-   yval[2][i]=y[i]+dt*yval[1][i];
-  }
-  t2=t+dt;
-  eval_rhs(jac,k1,k2,t2/del,yval[2],yval[1],neq);
-  for(i=0;i<neq;i++)y[i]=yval[0][i]+dt*yval[1][i]/6.00;
-  t=t2;
- }
-return(1);  
-}
- 
 	 
 int step_eul(double **jac, int k, int k2, double *yold, double *work, int node, double dt)
 {

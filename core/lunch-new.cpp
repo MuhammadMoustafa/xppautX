@@ -704,16 +704,6 @@ void io_double(double *z, FILE *fp, int f, const char *ss)
  fprintf(fp,"%.16g  %s\n",*z,ss);
 }
 
-void io_float(float *z, FILE *fp, int f, const char *ss)
-{
-if(f==READEM){
-   std::optional<std::string> bob=next_line(fp);
-   if(!bob){*z=0.0f;return;}
-   *z=(float)atof(bob->c_str());
- }
- else
- fprintf(fp,"%.16g   %s\n",*z,ss);
-}
 /*
 io_int_array(k,n,fp,f)
 int n,f,*k;

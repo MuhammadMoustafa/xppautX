@@ -56,16 +56,6 @@ float *get_data_col(int c)
   return my_browser.data[c];
 }
 
-int gettimenow()
-{
-  struct timeval now;
-  /*struct timezone tz;
-  gettimeofday(&now,&tz);
-  */
-  gettimeofday(&now,NULL);
-  return now.tv_usec;
-} 
-
 void waitasec(int msec)
 {
   struct timeval tim;
@@ -240,61 +230,10 @@ int check_for_stor(float **data)
 
 }
 
-void del_stor_col(char *var, BROWSER *b)
-{
-  int nc;
-  int i,j;
-
-  find_variable(var,&nc);
-
-  if(nc<0) {
-    err_msg(str("No such column...."));
-    return;
-  }
-  if(nc<=NEQ_MIN){ /* NEQ_MIN = NODE+NAUX */
-    err_msg(str("Can't delete that column"));
-    return;
-  }
-  if(check_active_plot(nc)==1){
-    err_msg(str("This variable is still actively plotted! - Cant delete!"));
-    return;
-  }
-/*  plintf(" nc=%d NEQ= %d\n",nc,NEQ); */
-  change_plot_vars(nc);
-  if(nc<NEQ){
-    for(j=nc;j<NEQ;j++){
-      for(i=0;i<b->maxrow;i++)
-	storage[j][i]=storage[j+1][i];
-      for(i=0;i<400;i++)
-	my_ode[j-1+FIX_VAR][i]=my_ode[j+FIX_VAR][i];
-      XPP_STRCPY(uvar_names[j-1],uvar_names[j]);
-      /* ode_names[j-1] is a pointer allocated at a variable's creation
-         (edit_rhs.c, form_ode.cpp), by a size that depends on that
-         formula's own length there -- not knowable from here, and not
-         necessarily >= ode_names[j]'s length. Left as strcpy() (W11
-         report: genuine unknown-size site); tools/formatcheck.sh
-         allowlists it. */
-      strcpy(ode_names[j-1],ode_names[j]);
-    }
-  }
-  xpp_free(storage[NEQ+1]);
-  xpp_free(ode_names[NEQ]);
-  xpp_free(my_ode[NEQ+FIX_VAR]);
-  NEQ--;
-  b->maxcol=NEQ+1;
-  xpp_ui.browser_redraw(1);  
-}
-
 void data_del_col(BROWSER *b)  /*  this only works with storage  */
-{ int status;
-  char var[XPP_NAME_MAX+1];
+{
     if(check_for_stor(b->data)==0)return;
   err_msg(str("Sorry - not working very well yet..."));
-  return;
-  XPP_STRCPY(var,"");
-  status=get_dialog_of(str("Delete"),str("Name"),var,str("Ok"),str("Cancel"),XPP_NAME_MAX,XPP_FIELD_NAME_IN(0));
-   if(status!=0)
-    del_stor_col(var,b);
 }
 
 void data_add_col(BROWSER *b)
@@ -739,17 +678,3 @@ void  data_restore(BROWSER *b)
 
   }
 
-void get_col_list(char *s, int *cl, int *n)
-{
-  int len,i;
-  
-  char sp[256];
-  convert(s,sp);
-  len=strlen(sp);
-  if(len==0){
-    for(i=0;i<*n;i++)
-      cl[i]=i;
-    return;
-  }
-  
-}

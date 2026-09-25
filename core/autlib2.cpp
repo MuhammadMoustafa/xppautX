@@ -47,103 +47,6 @@ typedef struct {
 						   NULL,NULL,NULL,NULL,
 						   NULL,NULL,NULL};
 
-void print_jacobian(iap_type iap,main_auto_storage_type data) {
-  int i,j,k,l;
-  int num_rows_A = iap.ndim * iap.ncol;
-  int num_columns_A = iap.ndim * (iap.ncol + 1);
-  int num_columns_B = iap.nfpr;
-  int num_rows_C = iap.nbc + iap.nint + 1;
-  int numblocks = iap.ntst;
-  FILE *fp;
-  static int num_calls=0;
-  char filename[80];
-
-  XPP_SPRINTF(filename,"jacobian%03d",num_calls);
-  xpp::Writer w(filename);
-  num_calls++;
-  if (!w) return;
-  fp = w.file();
-
-  for(i=0;i<numblocks;i++){
-    for(j=0;j<num_rows_A;j++){
-      /* Print zeros in front first */
-      for(k=0;k<i*(num_columns_A-iap.ndim);k++)
-	fprintf(fp,"%18.10e ",0.0);
-      /* Now print line from block */
-      for(k=0;k<num_columns_A;k++)
-	fprintf(fp,"%18.10e ",data.a[k + j*num_columns_A + i*num_rows_A*num_columns_A]);
-      /* Now put zeros at end of line */
-      for(k=i*(num_columns_A-iap.ndim)+num_columns_A;k<(num_columns_A-iap.ndim)*numblocks+iap.ndim;k++)
-	fprintf(fp,"%18.10e ",0.0);
-      /* Put in B */
-      for(k=0;k<num_columns_B;k++)
-	fprintf(fp,"%18.10e ",data.b[k + j*num_columns_B + i*num_rows_A*num_columns_B]);
-      fprintf(fp,"\n");
-    }
-  }
-
-  /*For printing out C there needs to be a summation of the edge guys*/
-  for(j=0;j<num_rows_C;j++) {
-    /*The first num_rows_A columns are ok as the are*/
-    for(k=0;k<(num_columns_A-iap.ndim);k++)
-      fprintf(fp,"%18.10e ",data.c[k + j*num_columns_A + 0*num_rows_C*num_columns_A]);
-    /* Now print out the rest of the blocks, doing a summation at the beginning of each */
-    for(i=1;i<numblocks;i++) {
-      for(k=0;k<iap.ndim;k++)
-	fprintf(fp,"%18.10e ",data.c[k+ num_columns_A-iap.ndim + j*num_columns_A + (i-1)*num_rows_C*num_columns_A] +
-		data.c[k + j*num_columns_A + i*num_rows_C*num_columns_A]);
-      for(k=iap.ndim;k<num_columns_A-iap.ndim;k++)
-	fprintf(fp,"%18.10e ",data.c[k + j*num_columns_A + i*num_rows_C*num_columns_A]);
-    }
-    /*Now print out last column*/
-    for(k=num_columns_A-iap.ndim;k<num_columns_A;k++)
-      fprintf(fp,"%18.10e ",data.c[k + j*num_columns_A + (numblocks-1)*num_rows_C*num_columns_A]);
-    for(l=0;l<num_columns_B;l++)
-      fprintf(fp,"%18.10e ",data.d[l + j*num_columns_B]);
-    fprintf(fp,"\n");
-  }
-
-  w.commit();
-}
-
-void print_ups_rlcur(iap_type iap,doublereal *ups,doublereal *rlcur) {
-  FILE *fp;
-  static int num_calls=0;
-  char filename[80];
-  int i;
-  
-  XPP_SPRINTF(filename,"ups_rlcur%03d",num_calls);
-  xpp::Writer w(filename);
-  num_calls++;
-  if (!w) return;
-  fp = w.file();
-  for(i=0;i<(iap.ndim)*(iap.ncol)*(iap.ntst) + iap.ndim;i++)
-    fprintf(fp,"%18.10e\n",ups[i]);
-  for(i=0;i<iap.nfpr;i++)
-    fprintf(fp,"%18.10e\n",rlcur[i]);
-
-  w.commit();
-}
-
-void print_fa_fc(iap_type iap,doublereal *fa,doublereal *fc,char *filename) {
-  FILE *fp;
-  int i,j;
-  int num_rows_A = iap.ndim * iap.ncol;
-  int numblocks = iap.ntst;
-
-  xpp::Writer w(filename);
-  if (!w) return;
-  fp = w.file();
-
-  for(i=0;i<numblocks;i++)
-    for(j=0;j<num_rows_A;j++)
-      fprintf(fp,"%18.10e\n",fa[j+i*num_rows_A]);
-  for(i=0;i<iap.nfpr+iap.ndim;i++)
-    fprintf(fp,"%10.10e\n",fc[i]);
-
-  w.commit();
-}
-
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*           Setting up of the Jacobian and right hand side */
@@ -348,16 +251,6 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
     setfcdd(ifst, main_auto_storage.d, fc, &nfpr, &nrc);
   }
 
-#ifdef MATLAB_OUTPUT
-  print_jacobian(*iap,main_auto_storage);
-  {
-    static int num_calls = 0;
-    char filename[80];
-    XPP_SPRINTF(filename,"before%03d",num_calls);
-    num_calls++;
-    print_fa_fc(*iap,ft,fc,filename);
-  }
-#endif
   brbd(main_auto_storage.a, main_auto_storage.b, main_auto_storage.c, main_auto_storage.d, ft, fc, p0, p1, 
        ifst, &iid, nllv, &det, &ndim, &ntst, &nbc, &nrow, &nclm, &nfpr, &
        nrc, &iam, &kwt, &ipar, main_auto_storage.a1, main_auto_storage.a2, main_auto_storage.bb, 
@@ -386,15 +279,6 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   } else {
     faft(ft, fa, &ntst0, &nrow, ndxloc);
   }
-#ifdef MATLAB_OUTPUT
-  {
-    static int num_calls = 0;
-    char filename[80];
-    XPP_SPRINTF(filename,"after%03d",num_calls);
-    num_calls++;
-    print_fa_fc(*iap,ft,fc,filename);
-  }
-#endif  
 
   rap->det = det;
   xpp_free(ff);
@@ -2629,21 +2513,6 @@ numnodes(void)
 }
 
 
-/* Subroutine */ int 
-gsync(void)
-{
-  return 0;
-} /* gsync_ */
-
-doublereal 
-dclock(void)
-{
-  real ret_val;
-
-  ret_val = (double)0.;
-  return ret_val;
-} 
-
 
 /* Subroutine */ int 
 csend(void)
@@ -2680,18 +2549,6 @@ gcol(void)
 } /* gcol_ */
 
 
-/* Subroutine */ int 
-led(void)
-{
-  return 0;
-} /* led_ */
-
-
-/* Subroutine */ int 
-setiomode(void)
-{
-  return 0;
-} /* setiomode_ */
 
 
 

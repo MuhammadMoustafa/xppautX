@@ -161,22 +161,3 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
 
 
 
-double etime_(double *z)
-{
- (void)z;
- 
- return(0.0);
- } 
-
-int eigrf_(double *a, int *n, int *m, doublecomplex *ecv, double *work, int *ier)
-{
-  (void)m;
-  double ev[400];
-  int i;
-  eigen(*n,a,ev,work,ier);
-  for(i=0;i<*n;i++){
-    (ecv+i)->r=ev[2*i];
-    (ecv+i)->i=ev[2*i+1];
-  }
-return 0;
-}

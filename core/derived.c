@@ -22,17 +22,6 @@ typedef struct {
 DERIVED derived[MAXDERIVED];
 int nderived=0; 
 
-/* clean up derived stuff */
-void free_derived()
-{
-  int i;
-  for(i=0;i<nderived;i++){
-      xpp_free(derived[i].form);
-      xpp_free(derived[i].rhs);
-  }
-  nderived=0;
-}
-
 /* This compiles all of the formulae 
 It is called only once during the session
 */

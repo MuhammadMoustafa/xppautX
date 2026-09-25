@@ -142,14 +142,6 @@ if(i==0&&okroot==1&&AlphaMax>0)
 
 
 
-COMPLEX csum(COMPLEX z, COMPLEX w)
-{
-  COMPLEX sum;
-  sum.r=z.r+w.r;
-  sum.i=z.i+w.i;
-  return sum;
-}
-
 COMPLEX cdif(COMPLEX z, COMPLEX w)
 {
    COMPLEX sum;
@@ -203,26 +195,6 @@ COMPLEX rtoc(double x, double y)
   return sum;
 }
 
-void cprintn(COMPLEX z)
-{
-  plintf(" %g + i %g \n",z.r,z.i);
-}
-
-void cprint(COMPLEX z)
-{
-xpp_log(XPP_LOG_INFO, "(%g,%g) ",z.r,z.i);
-}
-
-void cprintarr(COMPLEX *z, int n, int m)
-{
-  int i,j;
-  for(i=0;i<m;i++){
-    for(j=0;j<n;j++)
-      cprint(z[i+m*j]);
-    plintf("\n");
-  }
-}
-
 double c_abs(COMPLEX z)
 {
  return(sqrt(z.i*z.i+z.r*z.r));
@@ -256,26 +228,6 @@ COMPLEX cdeterm(COMPLEX *z, int n)
   sum=sign;
   for(j=0;j<n;j++)
     sum=cmlt(sum,Z(j,j));
-  return sum;
-}
-COMPLEX cxdeterm(COMPLEX *z, int n)
-{
-  int i,j,k;
-  COMPLEX ajj,sum,mult;
-  for(j=0;j<n;j++){
-    ajj=Z(j,j);
-    for(i=j+1;i<n;i++){
-      mult=cdivv(Z(i,j),ajj);
-      for(k=j+1;k<n;k++){
-        Z(i,k)=cdif(Z(i,k),cmlt(mult,Z(j,k)));
-      }
-    }
-  }
- /* now it should be diagonalized */
-  sum=rtoc(1.0,0.0);
-  for(j=0;j<n;j++){
-    sum=cmlt(sum,Z(j,j));
-  }
   return sum;
 }
 	 

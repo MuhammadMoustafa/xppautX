@@ -100,11 +100,6 @@ void BandFreePiv(integer *p)
   xpp_free(p);
 }
 
-void BandPrint(BandMat A)
-{
-  bandprint(A->data, A->size, A->mu, A->ml, A->smu);
-}
-
 
 real **bandalloc(integer n, integer smu, integer ml)
 {
@@ -125,13 +120,6 @@ real **bandalloc(integer n, integer smu, integer ml)
   for (j=1; j < n; j++) a[j] = a[0] + j * colSize;
 
   return(a);
-}
-
-integer *bandallocpiv(integer n)
-{
-  if (n <= 0) return(NULL);
-
-  return((integer *) xpp_malloc(n * sizeof(integer)));
 }
 
 
@@ -327,30 +315,9 @@ void bandaddI(real **a, integer n, integer smu)
     a[j][smu] += ONE;
 }
 
-void bandfreepiv(integer *p)
-{
-  xpp_free(p);
-}
-
 void bandfree(real **a)
 {
   xpp_free(a[0]);
   xpp_free(a);
 }
 
-void bandprint(real **a, integer n, integer mu, integer ml, integer smu)
-{
-  integer i, j, start, finish;
- 
-  plintf("\n");
-  for (i=0; i < n; i++) {
-    start = MAX(0,i-ml);
-    finish = MIN(n-1,i+mu);
-    for (j=0; j < start; j++) plintf("%10s","");
-    for (j=start; j <= finish; j++) {
-      plintf("%10g", a[j][i-j+smu]);
-    }
-    plintf("\n");
-  }
-  plintf("\n");
-}

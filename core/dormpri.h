@@ -68,14 +68,6 @@ solout   A pointer to the output function called during integration.
 	 previous grid point and irtrn serves to interrupt the integration
 	 (if set to a negative value).
 
-	 Continuous output : during the calls to solout, a continuous solution
-	 for the interval (xold,x) is available through the function
-
-	   contd8(i,s)
-
-	 which provides an approximation to the i-th component of the solution
-	 at the point s (s must lie in the interval (xold,x)).
-
 iout     Switch for calling solout :
 	   iout=0 : no call,
 	   iout=1 : solout only used for output,
@@ -142,7 +134,7 @@ Memory requirements
 OUTPUT PARAMETERS
 -----------------
 
-y       numerical solution at x=xRead() (see below).
+y       numerical solution at xend.
 
 dopri5 returns the following values
 
@@ -153,19 +145,6 @@ dopri5 returns the following values
 	-3 : step size becomes too small,
 	-4 : the problem is probably stff (interrupted).
 
-
-Several functions provide access to different values :
-
-xRead   x value for which the solution has been computed (x=xend after
-	successful return).
-
-hRead   Predicted step size of the last accepted step (useful for a subsequent
-	call to dop853).
-
-nstepRead   Number of used steps.
-naccptRead  Number of accepted steps.
-nrejctRead  Number of rejected steps.
-nfcnRead    Number of function calls.
 
 
 */
@@ -240,14 +219,6 @@ solout   A pointer to the output function called during integration.
 	 previous grid point and irtrn serves to interrupt the integration
 	 (if set to a negative value).
 
-	 Continuous output : during the calls to solout, a continuous solution
-	 for the interval (xold,x) is available through the function
-
-	   contd5(i,s)
-
-	 which provides an approximation to the i-th component of the solution
-	 at the point s (s must lie in the interval (xold,x)).
-
 iout     Switch for calling solout :
 	   iout=0 : no call,
 	   iout=1 : solout only used for output,
@@ -316,7 +287,7 @@ Memory requirements
 OUTPUT PARAMETERS
 -----------------
 
-y       numerical solution at x=xRead() (see below).
+y       numerical solution at xend.
 
 dopri5 returns the following values
 
@@ -327,19 +298,6 @@ dopri5 returns the following values
 	-3 : step size becomes too small,
 	-4 : the problem is probably stff (interrupted).
 
-
-Several functions provide access to different values :
-
-xRead   x value for which the solution has been computed (x=xend after
-	successful return).
-
-hRead   Predicted step size of the last accepted step (useful for a
-	subsequent call to dopri5).
-
-nstepRead   Number of used steps.
-naccptRead  Number of accepted steps.
-nrejctRead  Number of rejected steps.
-nfcnRead    Number of function calls.
 
 
 */
@@ -384,11 +342,6 @@ extern int dop853
   double *work
  );
 
-extern double contd8
- (unsigned ii,     /* index of desired component */
-  double x         /* approximation at x */
- );
-
 
 
 
@@ -420,11 +373,6 @@ extern int dopri5
   double *work
  );
 
-extern double contd5
- (unsigned ii,     /* index of desired component */
-  double x         /* approximation at x */
- );
-
 
 
 
@@ -433,26 +381,12 @@ void dprhs(unsigned n, double t, double *y, double *f);
 void dp_err(int k);
 int dp(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag);
 int dormprin(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag);
-long nfcnRead(void);
-long nstepRead(void);
-long naccptRead(void);
-long nrejctRead(void);
-double hRead(void);
-double xRead(void);
 int dop853(unsigned n, FcnEqDiff fcn, double x, double *y, double xend, double *rtoler, double *atoler, int itoler, SolTrait solout, int iout, FILE *fileout, double uround, double safe, double fac1, double fac2, double beta, double hmax, double h, long nmax, int meth, long nstiff, unsigned nrdens, unsigned *icont, unsigned licont, double *work);
-double contd8(unsigned ii, double x);
 int dopri5(unsigned n, FcnEqDiff fcn, double x, double *y, double xend, double *rtoler, double *atoler, int itoler, SolTrait solout, int iout, FILE *fileout, double uround, double safe, double fac1, double fac2, double beta, double hmax, double h, long nmax, int meth, long nstiff, unsigned nrdens, unsigned *icont, unsigned licont, double *work);
-double contd5(unsigned ii, double x);
 
 
 
 
-extern long nfcnRead (void);   /* encapsulation of statistical data */
-extern long nstepRead (void);
-extern long naccptRead (void);
-extern long nrejctRead (void);
-extern double hRead (void);
-extern double xRead (void);
 
 
 

@@ -38,19 +38,12 @@ extern FILE *fp7;
 extern FILE *fp8;
 extern FILE *fp9;
 extern FILE *fp10;
-extern FILE *fp12;
 
 #define CONPAR_DEFAULT  0
 #define CONPAR_PTHREADS 1
 #define CONPAR_MPI      2
-#define SETUBV_DEFAULT  0
-#define SETUBV_PTHREADS 1
-#define SETUBV_MPI      2
 
 extern int global_conpar_type;
-extern int global_setubv_type;
-extern int global_num_procs;
-extern int global_verbose_flag;
 
 /* AUTO's work arrays, defined in autlib1 and shared with autlib3, autlib5
    and worker2 (see there). Named types: a C++ file cannot share a
@@ -194,8 +187,6 @@ typedef struct {
 } function_list;
 
 /* autlib1.c */
-double time_start(void);
-double time_end(double);
 void allocate_global_memory(const iap_type);
 int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, doublereal **thu_pointer, integer *iuz, doublereal *vuz);
 int chdim(iap_type *iap);
@@ -278,11 +269,8 @@ int wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublere
 int wrtbv9(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rlcur, integer *ndxloc, doublereal *ups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu);
 PVLI_TYPE_AE(pvlsae);
 PVLI_TYPE_BVP(pvlsbv);
-int setpae(iap_type *iap, rap_type *rap);
-int setpbv(iap_type *iap, rap_type *rap, doublereal *dtm);
 int autim0(doublereal *t);
 int autim1(doublereal *t);
-doublereal getp(char *code, integer *ic, doublereal *ups, integer code_len);
 /* autlib2.c */
 int solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *rds, integer *nllv, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dtm, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, doublereal *thl, doublereal *thu);
 int setfcdd(integer *ifst, doublereal *dd, doublereal *fc, integer *ncb, integer *nrc);
@@ -304,15 +292,11 @@ int rd0(integer *iam, integer *kwt, doublereal *d, integer *nrc);
 int print1(integer *nov, integer *na, integer *nra, integer *nca, integer *ncb, integer *nrc, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc);
 integer mynode(void);
 integer numnodes(void);
-int gsync(void);
-doublereal dclock(void);
 int csend(void);
 int crecv(void);
 int gdsum(void);
 int gsendx(void);
 int gcol(void);
-int led(void);
-int setiomode(void);
 /* autlib3.c */
 FUNI_TYPE(fnlp);
 int fflp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp);
@@ -473,7 +457,6 @@ int setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, int
 	   doublereal rds, doublereal *aa, doublereal *bb, doublereal *cc, doublereal *dd, doublereal *fa, doublereal *fc, doublereal *rlcur, 
 	   doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, 
 	   doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1);
-void setubv_parallel_arglist_copy(setubv_parallel_arglist *output, const setubv_parallel_arglist input);
 void setubv_parallel_arglist_constructor(integer ndim, integer ips, integer na, integer ncol, 
 					 integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
 					 FUNI_TYPE((*funi)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, 

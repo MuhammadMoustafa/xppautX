@@ -118,61 +118,6 @@ int cmpstringp(const void *p1, const void *p2)
 }
 
 
-int get_fileinfo_tab(char *wild, char *direct, FILEINFO *ff, char *wild2)
-{
-  int i,ans;
-  DIR *dirp;
-  int mlf,mld;
-  int nf,nd;
-  struct dirent *dp;
-  ans=fil_count(direct,&nd,&nf,wild,&mld,&mlf);
-  if(ans==0)return 0;
-  ff->nfiles=nf;
-  ff->ndirs=nd;
-  ff->dirnames=(char **)xpp_malloc(nd*sizeof(char *));
-  ff->filenames=(char **)xpp_malloc(nf*sizeof(char *));
-  for(i=0;i<nd;i++)
-    ff->dirnames[i]=(char *)xpp_malloc(mld+2);
-  for(i=0;i<nf;i++)
-    ff->filenames[i]=(char *)xpp_malloc(mlf+2);
-  dirp=opendir(direct);
-  dp=readdir(dirp);
-  nf=0;
-  nd=0;
-  while(dp != NULL){
-     if(IsDirectory(direct,dp->d_name)){
-      if(wild_match(dp->d_name,wild)){
-	 xpp_strlcpy(ff->dirnames[nd],dp->d_name,mld+2);
-         nd++;
-       }
-     }
-     else {
-       if(wild_match(dp->d_name,wild)){
-       	/*printf("Matched leading (tab-completion) pattern:%s wild=%s\n",dp->d_name,wild);*/
-       	if(wild_match(dp->d_name,wild2)){
-       	/* printf("Also matched usual filename wild:%s wild=%s\n",dp->d_name,wild2);*/
-	 xpp_strlcpy(ff->filenames[nf],dp->d_name,mlf+2);
-	 nf++;
-	 }
-       }
-     }
-     dp=readdir(dirp);
-   }
-   ff->nfiles=nf;
-   ff->ndirs=nd;
-   if (nd > 0)
-   {	
-   	qsort(&(ff->dirnames[0]),nd, sizeof(char *), cmpstringp);
-   }
-   
-   if (nf > 0)
-   {
-   	qsort(&(ff->filenames[0]),nf, sizeof(char *), cmpstringp);
-   }
-   closedir(dirp);
-  return 1;
-}
-
 
 int get_fileinfo(char *wild, char *direct, FILEINFO *ff)
 {

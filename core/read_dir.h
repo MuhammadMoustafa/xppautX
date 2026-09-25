@@ -13,7 +13,6 @@ typedef struct {
 
 void free_finfo(FILEINFO *ff);
 int cmpstringp(const void *p1, const void *p2);
-int get_fileinfo_tab(char *wild, char *direct, FILEINFO *ff,char *wild2);
 int get_fileinfo(char *wild, char *direct, FILEINFO *ff);
 int fil_count(char *direct, int *ndir, int *nfil, char *wild, int *mld, int *mlf);
 int change_directory(char *path);

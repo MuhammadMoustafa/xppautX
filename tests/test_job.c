@@ -17,7 +17,6 @@ int main(void)
     CHECK(!xpp_job_cancelled());
     xpp_job_cancel(6);
     CHECK(xpp_job_cancelled());
-    CHECK(xpp_job_checkpoint());
     /* nested jobs are one job */
     xpp_job_begin(0);
     CHECK(xpp_job_cancelled());

@@ -11,8 +11,6 @@
 #include <atomic>
 #include <chrono>
 
-extern "C" int my_abort(void); /* xpp_ui.cpp: polls the front end, cancels on Escape */
-
 namespace {
 
 std::atomic<unsigned long> cancel_upto{0};
@@ -134,8 +132,3 @@ int xpp_job_poll_due(void)
     return xpp_every(&last, 0.05);
 }
 
-int xpp_job_checkpoint(void)
-{
-    if (xpp_job_cancelled()) return 1;
-    return my_abort() == 27;
-}

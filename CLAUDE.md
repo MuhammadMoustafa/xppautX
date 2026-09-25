@@ -53,8 +53,8 @@ MinGW build (gcc 13.2) matched 179 of Linux's 195 at W17:
 Bash.
 
 verify.sh's checks about the source rather than the build (UTF-8, the
-scripts' executable bit, stdoutcheck, formatcheck, the LTO type check)
-are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
+scripts' executable bit, stdoutcheck, formatcheck, the LTO type check,
+the dead-code check) are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
 `--warnings`: tools/warnings.sh's count, and web2's dist/types/unit
 tests), and its linux-core job runs `verify.sh --no-source-checks`. Every
 platform runs the same behaviour checks against its own build (`<platform>-core`)
@@ -80,6 +80,18 @@ and commit `web2/dist` with the source. Tests read `window.__xpp`
 web2check.mjs's headless-browser driver; web2check.mjs runs from Git Bash,
 where Node and Chrome are (not WSL), and builds nothing: it drives
 `./xppautX[.exe]` (`--bin` to point elsewhere).
+
+`tools/deadcode.sh` (W24; sourcecheck runs it with `--check`, about a
+minute) builds every object at -O0 with -ffunction-sections
+-fdata-sections -fno-common into build/deadcode (`make deadcode`), links
+xppautX from the objects, the Linux window library and each unit test
+with --gc-sections, and lists by file the functions and file-scope data
+no link keeps (reached through a pointer table counts as reached). A
+function only a unit test reaches is listed too. `--check` fails on
+anything not in the allowlist inside the script, each entry with its
+reason: delete dead code rather than add an entry. Linux only (MinGW's
+linker keeps every function, macOS's cannot print what it drops); a
+function Windows alone calls is caught by the Windows build's link.
 
 `make ltocheck` (run by tools/sourcecheck.sh, which verify.sh runs) links xppautX with LTO into build/lto
 and fails on `-Wlto-type-mismatch`: an extern whose type or array bound

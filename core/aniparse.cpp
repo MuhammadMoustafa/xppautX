@@ -935,11 +935,6 @@ int add_ani_circle(ANI_COM *a, char *x1, char *y1, char *x2, char *col, char *th
     return 0;
 }
 
-int add_ani_fcircle(ANI_COM *a, char *x1, char *y1, char *x2, char *col, char *thick)
-{
-    return (add_ani_circle(a, x1, y1, x2, col, thick));
-}
-
 int add_ani_text(ANI_COM *a, char *x1, char *y1, char *y2)
 {
     int err;
@@ -1236,8 +1231,6 @@ void eval_ani_com(int j)
     if (my_ani[j].type == AXNULL || my_ani[j].type == AYNULL) my_ani[j].zval = evaluate(my_ani[j].who);
 }
 
-void set_ani_thick(int t) { pen_thick(t); }
-
 void set_ani_font_stuff(int size, int font, int color) { pen_font(size, font, color); }
 
 void set_ani_col(int j)
@@ -1481,17 +1474,6 @@ int add_grab_command(char *xs, char *ys, char *ts, FILE *fp)
     if (ani_grab_tasks(end, j, 2) == (-1)) return (-1);
     n_ani_grab++;
     return (1);
-}
-
-void info_grab_stuff(void)
-{
-    int i, n;
-    for (i = 0; i < n_ani_grab; i++) {
-        n = ani_grab[i].start.n;
-        plintf("start n=%d\n", n);
-        n = ani_grab[i].end.n;
-        plintf("end n=%d\n", n);
-    }
 }
 
 int ani_grab_tasks(char *line, int igrab, int which)

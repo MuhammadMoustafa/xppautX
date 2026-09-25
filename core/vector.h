@@ -23,9 +23,7 @@
  * are fixed for all implementations of the vector package. The *
  * definitions of the types real and integer are in the header  *
  * file llnltyps.h and these may be changed according to the    *
- * user's needs. The llnltyps.h file also contains the          *
- * definition for the type bool (short for boolean) that is the *
- * return type for the routine N_VInvTest.                      *
+ * user's needs.                                                *
  *                                                              *
  * Important Note: N_Vector arguments to arithmetic kernels     *
  * need not be distinct. Thus, for example, the call            *
@@ -300,27 +298,9 @@ void N_VAddConst(N_Vector x, real b, N_Vector z);
  
 /***************************************************************
  *                                                             *
- * N_Vector Measures: N_VDotProd, N_VMaxNorm, VWrmsNorm,       *
- *                    N_VMin                                   *
+ * N_Vector Measures: N_VMaxNorm, N_VWrmsNorm, N_VMin          *
  *                                                             *
  ***************************************************************/
-
-
-/***************************************************************
- *                                                             *
- * Function : N_VDotProd                                       *
- * Usage    : dotprod = N_VDotProd(x, y);                      *
- *-------------------------------------------------------------*
- *                                                             *
- * Returns the value of the ordinary dot product of x and y:   *
- *                                                             *
- * -> sum (i=0 to N-1) {x[i] * y[i]}                           *
- *                                                             *
- * Returns 0.0 if N <= 0.                                      *
- *                                                             *
- ***************************************************************/
-
-real N_VDotProd(N_Vector x, N_Vector y);
 
 
 /***************************************************************
@@ -372,62 +352,6 @@ real N_VWrmsNorm(N_Vector x, N_Vector w);
 real N_VMin(N_Vector x);
  
  
-/***************************************************************
- *                                                             *
- * Miscellaneous : N_VCompare, N_VInvTest                      *
- *                                                             *
- ***************************************************************/
-
-
-/***************************************************************
- *                                                             *
- * Function  : N_VCompare                                      *
- * Operation : z[i] = 1.0 if |x[i]| >= c   i = 0, 1, ..., N-1  *
- *                    0.0 otherwise                            *
- *                                                             *
- ***************************************************************/
-
-void N_VCompare(real c, N_Vector x, N_Vector z);
-
-
-/***************************************************************
- *                                                             *
- * Function  : N_VInvTest                                      *
- * Operation : z[i] = 1.0 / x[i] with a test for x[i]==0.0     *
- *             before inverting x[i].                          *
- *-------------------------------------------------------------*
- *                                                             *
- * This routine returns TRUE if all components of x are        *
- * non-zero (successful inversion) and returns FALSE           *
- * otherwise.                                                  *
- *                                                             *
- ***************************************************************/
-
-bool N_VInvTest(N_Vector x, N_Vector z);
- 
- 
-/***************************************************************
- *                                                             *
- * Debugging Tools : N_VPrint                                  *
- *                                                             *
- ***************************************************************/
-
-/***************************************************************
- *                                                             *
- * Function : N_VPrint                                         *
- * Usage    : N_VPrint(x);                                     *
- *-------------------------------------------------------------*
- *                                                             *
- * Prints the N_Vector x to stdout. Each component of x is     *
- * printed on a separate line using the %g specification. This *
- * routine is provided as an aid in debugging code which uses  *
- * this vector package.                                        *
- *                                                             *
- ***************************************************************/
-
-void N_VPrint(N_Vector x);
- 
-
 #ifdef __cplusplus
 }
 #endif

@@ -110,7 +110,6 @@ void auto_default(void);
 void auto_zoom_in(int i1, int j1, int i2, int j2);
 void auto_zoom_out(int i1, int j1, int i2, int j2);
 void auto_xy_plot(double *x, double *y1, double *y2, double par1, double par2, double per, double *uhigh, double *ulow, double *ubar, double a);
-int plot_point(int flag2, int icp1, int icp2);
 void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *ubar, double a, int type, int flag, int lab, int npar, int icp1, int icp2, int flag2, double *evr, double *evi);
 void auto_line(double x1i, double y1i, double x2i, double y2i);
 /* who the next add_point() is: AUTO's branch, point and type, its entry in
@@ -186,7 +185,6 @@ int check_plot_type(int flag2,int icp1, int icp2);
 /* grabbing and marking points on the diagram (from auto_x11.c) */
 void traverse_diagram(void);
 int query_special(char *title, char *nsymb);
-void RedrawMark(void);
 void MarkAuto(int x, int y);
 void clear_msg(void);
 void auto_update_view(float xlo, float xhi, float ylo, float yhi);

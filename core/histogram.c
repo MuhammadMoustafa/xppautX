@@ -52,18 +52,11 @@ float *my_hist[MAXODE+1];
 float *my_four[MAXODE+1];
 int HIST_HERE,FOUR_HERE;
 
-float total_time;
 extern int NEQ,NODE,NMarkov,FIX_VAR;
 
 extern char *no_hint[],*info_message;
 
 int twod_hist();
-void new_2dhist()
-{
-
-
-
-}  
 int two_d_hist(int col1,int col2,int ndat,int n1,int n2,double xlo,double xhi,double ylo,double yhi)
      /*
        col1,2 are the data you want to histogram
@@ -793,37 +786,6 @@ void compute_stacor()
 	   hist_inf.xhi,hist_inf.col,0,hist_inf.cond,1);
 }
 
-void mycor(float *x,float *y, int n,  double zlo, double zhi, int nbins, float *z, int flag)
-{
-  int i,j;
-  int k,count=0;
-  float sum,avx=0.0,avy=0.0;
-  double dz=(zhi-zlo)/(double)nbins,jz;
-  if(flag){
-    for(i=0;i<n;i++){
-      avx+=x[i];
-      avy+=y[i];
-    }
-    avx=avx/(float)n;
-    avy=avy/(float)n;
-  }
-  for(j=0;j<=nbins;j++){
-    sum=0.0;
-    count=0;
-    jz=dz*j+zlo;
-    for(i=0;i<n;i++){
-      k=i+(int)jz;
-      if((k>=0)&&(k<n)){
-	count++;
-	sum+=(x[i]-avx)*(y[k]-avy);
-      }
-    }
-    if(count>0)
-      sum=sum/count; 
-    z[j]=sum;
-  }
-}
-
 void mycor2(float *x,float *y, int n, int nbins, float *z, int flag)
 {
   int i,j;
@@ -868,32 +830,6 @@ void compute_hist()
   
   
 
-void sft(float *data, float *ct, float *st, int nmodes, int grid)
-{
- int i,j;
- double sums,sumc;
- double tpi=6.28318530717959;
- double dx,xi,x;
- dx=tpi/(grid);
- for(j=0;j<nmodes;j++){
-   sums=0.0;
-   sumc=0.0;
-   xi=j*dx;
-   for(i=0;i<grid;i++){
-    x=i*xi;
-     sumc+=(cos(x)*data[i]);
-     sums+=(sin(x)*data[i]);
-   }
-   if(j==0){
-   ct[j]=sumc/(float)grid;
-   st[j]=sums/(float)grid;
- }
-   else{
-     ct[j]=2.*sumc/(float)grid;
-   st[j]=2.*sums/(float)grid;
-   }
- }
-}
 /* experimental -- does it work */
 /* nlag should be less than length/2 */
 void fftxcorr(float *data1,float *data2,int length,int nlag,float *cr,int flag)

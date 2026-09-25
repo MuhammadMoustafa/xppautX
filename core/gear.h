@@ -4,14 +4,12 @@
 extern "C" {
 #endif
 
-void silent_fixpt(double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr);
 void do_sing(double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo);
 void do_sing_info(double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr);
 
 
 void shoot_this_now();
 void pr_evec(double *x, double *ev, int n, int pr, double eval,int type);
-void get_complex_evec(double *m, double evr, double evm, double *br, double *bm, int n, int maxit, double err, int *ierr);
 void get_evec(double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval, int *ierr);
 void eigen(int n, double *a, double *ev, double *work, int *ierr);
 void hqrx(int n, int low, int igh, double *h, double *ev, int *ierr);

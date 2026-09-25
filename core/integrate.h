@@ -30,7 +30,6 @@ void do_batch_dry_run(void);
 void batch_integrate_once(void);
 int write_this_run(char *file, int i);
 void do_init_data(int com);
-void run_from_x(double *x);
 void run_now(void);
 void do_start_flags(double *x, double *t);
 void usual_integrate_stuff(double *x);

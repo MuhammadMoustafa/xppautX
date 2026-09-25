@@ -33,7 +33,6 @@
 #define CheckZero(x,tic) (fabs(x) < ((tic) * SIGNIF) ? 0.0 : (x))
 
 
-extern int DX_0,DY_0,D_WID,D_HGT;
 extern int PltFmtFlag;
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern int DLeft,DRight,DTop,DBottom,VTic,HTic,VChar,HChar;
@@ -164,34 +163,6 @@ void do_axes()
     if(program.interactive)SmallBase();
  
  }
-
-void redraw_cube(double theta,double phi)
-{
-  char bob[50];
-  set_linestyle(0);
-  make_rot(theta,phi); 
-  xpp_ui.blank_draw_window();
-  draw_unit_cube();
-  XPP_SPRINTF(bob,"theta=%g phi=%g",theta,phi);
-  canvas_xy(bob);
-}
-
-void draw_unit_cube()
-{
-  line3d(-1.,-1.,-1.,1.,-1.,-1.);
-  line3d(1.,-1.,-1.,1.,1.,-1.);
-  line3d(1.,1.,-1.,-1.,1.,-1.);
-  line3d(-1.,1.,-1.,-1.,-1.,-1.);
-  line3d(-1.,-1.,1.,1.,-1.,1.);
-  line3d(1.,-1.,1.,1.,1.,1.);
-  line3d(1.,1.,1.,-1.,1.,1.);
-  line3d(-1.,1.,1.,-1.,-1.,1.);
-  line3d(1.,1.,1.,1.,1.,-1.);
-  line3d(-1.,1.,1.,-1.,1.,-1.);
-  line3d(-1.,-1.,1.,-1.,-1.,-1.);
-  line3d(1.,-1.,1.,1.,-1.,-1.);
-    
-}
 
 void Frame_3d()
 {

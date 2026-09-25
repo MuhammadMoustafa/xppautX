@@ -82,6 +82,12 @@ STRICT += $(WERROR_FLAGS)
 CXXSTRICT += $(WERROR_FLAGS)
 endif
 
+# tools/deadcode.sh: every global in a section of its own, so a C tentative
+# definition nothing reaches is reported too
+ifeq ($(DEADCODE),1)
+CFLAGS := $(filter-out -fcommon,$(CFLAGS)) -fno-common
+endif
+
 # (rules come before `all` below: it stays the default goal)
 .DEFAULT_GOAL := all
 
@@ -308,6 +314,24 @@ test: $(TEST_BINS)
 
 $(TEST_BINS): %$(EXE): %.o $(CORELIB)
 	$(LINK_TESTS) $(SANITIZE) -o $@ $< $(CORELIB) -lm $(DLLIB)
+
+# Code nothing reaches (tools/deadcode.sh reads what this leaves; Linux):
+# every function and datum in a section of its own, at -O0 (no inlining),
+# into build/deadcode; xppautX
+# linked from the objects themselves (the archive would hide a file nothing
+# reaches), the window library and every unit test linked with
+# --gc-sections, the first two printing what they drop.
+DEADCODE_GC := -Wl,--gc-sections -Wl,--print-gc-sections
+.PHONY: deadcode deadcode-link
+deadcode:
+	@$(MAKE) -s BUILDDIR=build/deadcode DEADCODE=1 OPT="-O0 -ffunction-sections -fdata-sections" deadcode-link
+deadcode-link: $(CORE_OBJECTS) $(SERVER_OBJECTS) $(TEST_OBJECTS) $(CORELIB) $(WINDOW_LIB_OBJECTS)
+	@rm -f $(BUILDDIR)/gc-*.log
+	@$(LINK_X) $(DEADCODE_GC) -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS) 2> $(BUILDDIR)/gc-xppautX.log || { cat $(BUILDDIR)/gc-xppautX.log; exit 1; }
+	@for t in $(TEST_OBJECTS); do $(LINK_TESTS) -Wl,--gc-sections -o $${t%.o}$(EXE) $$t $(CORELIB) -lm $(DLLIB) || exit 1; done
+ifeq ($(WINDOW_EMBED),1)
+	@$(CXX) -shared -Wl,-z,defs -Wl,--version-script=$(WINDOW_LIB_DIR)/exports.map $(DEADCODE_GC) -o $(WINDOW_LIB_DIR)/libxppwindow-gc.so $(WINDOW_LIB_OBJECTS) $(WINDOW_LIB_LIBS) -lpthread 2> $(BUILDDIR)/gc-window.log || { cat $(BUILDDIR)/gc-window.log; exit 1; }
+endif
 
 $(BUILDDIR)/tests/%.o: tests/%.c $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)/tests
 	$(CC) $(CFLAGS) -Itests -MMD -MP -c $< -o $@

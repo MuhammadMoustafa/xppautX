@@ -32,19 +32,17 @@ extern "C" {
  extern int METHOD,NJMP;
  extern double HMIN,HMAX,TOLER,ATOLER,BOUND,DELAY;
  extern double  NULL_ERR,EVEC_ERR,NEWT_ERR;
- extern int EVEC_ITER,NMESH,NC_ITER;
+ extern int EVEC_ITER,NMESH;
 
 
  
 
- extern float *fft_data;
  extern int FFT;
 
 
 
 
-extern float *hist_data;
-extern int HIST,HVAR,hist_ind;
+extern int HIST;
 
 
  extern double TEND,DELTA_T,T0,TRANS;

@@ -585,15 +585,6 @@ int one_flag_step_rk4(double *y, double dt, double *yval[3], int neq, double *ti
   return(1);
 }
 
-void printflaginfo()
-{
-  int i;
-  for(i=0;i<NFlags;i++){
-    plintf(" flag %d: tstart=%g f0=%g f1=%g hit=%d tol=%g\n",
-	   i, flag[i].tstar,flag[i].f0,flag[i].f1,flag[i].hit,fabs(flag[i].f0-flag[i].f1));
-  }
-}
-    
 int one_flag_step_gear(int neq, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
 {
     double yold[MAXODE],told;

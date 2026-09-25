@@ -279,11 +279,6 @@ void svg_write(char *str)
   fprintf(svgfile,"%s\n",str);
 }
 
-void svg_stroke(void)
-{
-
-}
-
 void svg_do_color(int color)
 {
    int r,g,b;
@@ -295,11 +290,6 @@ void svg_do_color(int color)
    cur_RGB[0]=r;cur_RGB[1]=g;cur_RGB[2]=b;
    
    DOING_SVG_COLOR=1;
-}
-
-void svg_setcolor(int color)
-{
-
 }
 
 void svg_end(void)
@@ -428,15 +418,6 @@ void svg_line(int xp1, int yp1, int xp2, int yp2)
 }
 
 
-void chk_svg_lines(void)
-{
-  /*PSLines++;
-  if(PSLines>=MAXPSLINE){
-    fprintf(psfile,"currentpoint stroke moveto\n");
-    PSLines=0;
-  } */  
-}
-
 void svg_linetype(int linetype)
 {	
 	const char *line = "ba0123456789c";
@@ -496,26 +477,6 @@ void svg_point(int x, int y)
   DOING_SVG_COLOR=0;
 }
 
-
-void svg_fnt(int cf, int scale)
-{
-
-}
-
-void svg_show(char *str, int type)
-{
-
-}
-
-void svg_abs(int x, int y)
-{
-
-}
-
-void svg_rel(int x, int y)
-{
-
-}
 
 void special_put_text_svg(int x, int y, char *str, int size)
 {
@@ -611,11 +572,6 @@ void special_put_text_svg(int x, int y, char *str, int size)
         
         fprintf(svgfile,"      >%s</text>\n",str);
 	
-}
-
-void fancy_svg_text(int x, int y, char *str, int size, int font)
-{
-
 }
 
 void svg_text(int x, int y, char *str)

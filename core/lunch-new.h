@@ -25,7 +25,6 @@ void io_exprs(int f, FILE *fp);
 void io_graph(int f, FILE *fp);
 void io_int(int *i, FILE *fp, int f, const char *ss);
 void io_double(double *z, FILE *fp, int f, const char *ss);
-void io_float(float *z, FILE *fp, int f, const char *ss);
 void io_string(char *s, int len, FILE *fp, int f);
 
 

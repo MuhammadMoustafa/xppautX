@@ -360,24 +360,6 @@ void BandFreeMat(BandMat A);
 void BandFreePiv(integer *p);
 
 
-/******************************************************************
- *                                                                *
- * Function : BandPrint                                           *
- * Usage    : BandPrint(A);                                       *
- *----------------------------------------------------------------*
- * This routine prints the N by N band matrix A (upper and lower  *
- * bandwidths A->mu and A->ml, respectively) to standard output   *
- * as it would normally appear on paper. It is intended as a      *
- * debugging tool with small values of N. The elements are        *
- * printed using the %g option. A blank line is printed before    *
- * and after the matrix.                                          *
- *                                                                *
- ******************************************************************/
-
-void BandPrint(BandMat A);
- 
-
-
 /* Functions that use the real ** representation for a band matrix */
 
  
@@ -419,22 +401,6 @@ void BandPrint(BandMat A);
  ******************************************************************/
 
 real **bandalloc(integer n, integer smu, integer ml);
-
-
-/******************************************************************
- *                                                                *
- * Function : bandallocpiv                                        *
- * Usage    : integer *pivot;                                     *
- *            pivot = bandallocpiv(n);                            *
- *            if (pivot == NULL) ... memory request failed        *
- *----------------------------------------------------------------*
- * bandallocpiv(n) allocates an array of n integers. It returns a *
- * pointer to the first element in the array if successful. It    *
- * returns NULL if the memory request could not be satisfied.     *
- *                                                                *
- ******************************************************************/
-
-integer *bandallocpiv(integer n);
 
 
 /******************************************************************
@@ -563,19 +529,6 @@ void bandaddI(real **a, integer n, integer smu);
 
 /******************************************************************
  *                                                                *
- * Function : bandfreepiv                                         *
- * Usage    : bandfreepiv(p);                                     *
- *----------------------------------------------------------------*
- * bandfreepiv(p) frees the pivot array p allocated by            *
- * bandallocpiv.                                                  *
- *                                                                *
- ******************************************************************/
-
-void bandfreepiv(integer *p);
-
-
-/******************************************************************
- *                                                                *
  * Function : bandfree                                            *
  * Usage    : bandfree(a);                                        *
  *----------------------------------------------------------------*
@@ -585,23 +538,6 @@ void bandfreepiv(integer *p);
 
 void bandfree(real **a);
 
-
-/******************************************************************
- *                                                                *
- * Function : bandprint                                           *
- * Usage    : bandprint(a,n,mu,ml,smu);                           *
- *----------------------------------------------------------------*
- * bandprint(a,n,mu,ml,smu) prints the n by n band matrix stored  *
- * in a (with upper bandwidth mu and lower bandwidth ml) to       *
- * standard output as it would normally appear on paper. It is    *
- * intended as a debugging tool with small values of n. The       *
- * elements are printed using the %g option. A blank line is      *
- * printed before and after the matrix.                           *
- *                                                                *
- ******************************************************************/
-
-void bandprint(real **a, integer n, integer mu, integer ml, integer smu);
- 
 
 #ifdef __cplusplus
 }

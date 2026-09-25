@@ -160,47 +160,6 @@ void new_lookup_com(int i)
 
 }
     
-void new_lookup_ok()
-{
- char file[128];
- char name[256]; /* new_string edits up to 255 characters */
- int index,ok;
- double xlo,xhi;
- int npts;
- char newform[80];
- if(NTable==0)return;
- while(1){
-   name[0]=0;
-   new_string("Lookup name ",name);
-   if(strlen(name)==0)return;
-   index=find_lookup(name);
-   index=select_table();
-   if(index!=-1){
-     if(my_table[index].flag==1){
-       XPP_STRCPY(file,my_table[index].filename);
-       if(new_string_of("Filename:",file,XPP_FIELD_FILE)){
-	 ok=load_table(file,index);
-	 if(ok==1)XPP_STRCPY(my_table[index].filename,file);
-       }
-     }
-     if(my_table[index].flag==2){
-       npts=my_table[index].n;
-
-       xlo=my_table[index].xlo;
-       xhi=my_table[index].xhi;
-       XPP_STRCPY(newform,my_table[index].filename);
-       new_int("Auto-evaluate? (1/0)",&my_table[index].autoeval);
-       new_int("NPts: ",&npts);
-       new_float("Xlo: ",&xlo);
-       new_float("Xhi: ",&xhi);
-       new_string_of("Formula :",newform,XPP_FIELD_EXPRESSION);
-       create_fun_table(npts,xlo,xhi,newform,index);
-
-     }
-   }
-   else err_msg("Not a Table function");
- }
-}
    
 double lookupxy(double x, int n, double *xv, double *yv)
 {

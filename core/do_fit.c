@@ -188,22 +188,6 @@ if(METHOD==CVODE)
 
 
 
-void printem(double **yderv, double *yfit, double *t0, int npars, int nvars, int npts)
-{
-  int i,j,k;
-  int ioff;
-  for(i=0;i<npts;i++){
-    plintf(" %8.5g ",t0[i]);
-    ioff=nvars*i;
-    for(j=0;j<nvars;j++){
-      plintf(" %g ",yfit[ioff+j]);
-      for(k=0;k<npars;k++)
-	xpp_log(XPP_LOG_INFO, " %g ",yderv[k][ioff+j]);
-    }
-    plintf(" \n");
-  }
-}
-
 int one_step_int(double *y, double t0, double t1, int *istart)
 {
   int nit;

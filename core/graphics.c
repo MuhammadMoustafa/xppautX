@@ -42,7 +42,6 @@ extern unsigned int GrFore,GrBack;
 extern int SCALEX,SCALEY,xor_flag;
 
 int PS_Port=0;
-int DX_0,DY_0,D_WID,D_HGT;
 int D_FLAG;
 int PointRadius=0;
 extern float **storage;
@@ -82,7 +81,7 @@ extern int MultiWin;
 
 int DLeft,DRight,DTop,DBottom,VTic,HTic,VChar,HChar,XDMax,YDMax;
 double XMin,YMin,XMax,YMax;
-int LineType=0,PointType=-1,TextJustify,TextAngle;
+int PointType=-1,TextJustify,TextAngle;
 
 void get_scale(double *x1, double *y1, double *x2, double *y2)
 {
@@ -569,34 +568,6 @@ void scale3d(float x, float y, float z, float *xp, float *yp, float *zp)
 }
 
 
-double proj3d(double theta,double phi,double x,double y,double z,int in)
-{
-  double ct=cos(DEGTORAD*theta),st=sin(DEGTORAD*theta);
- double sp=sin(DEGTORAD*phi),cp=cos(DEGTORAD*phi);
- double rm[3][3];
- double vt[3],vnew[3];
- int i,j;
- rm[0][0]=ct;
- rm[0][1]=st;
- rm[0][2]=0.0;
- rm[1][0]=-cp*st;
- rm[1][1]=cp*ct;
- rm[1][2]=sp;
- rm[2][0]=st*sp;
- rm[2][1]=-sp*ct;
- rm[2][2]=cp;
- vt[0]=x;
- vt[1]=y;
- vt[2]=z;
-
- for(i=0;i<3;i++){
-	vnew[i]=0.0;
-	for(j=0;j<3;j++)vnew[i]=vnew[i]+rm[i][j]*vt[j];
-	}
-  
- return vnew[in];
-}
-
 int threedproj(float x2p, float y2p, float z2p, float *xp, float *yp)
 {
   float x1p,y1p,z1p,s;
@@ -626,12 +597,6 @@ if(threedproj(x,y,z,&xp,&yp)) text_abs(xp,yp,s);
 
 
 
-
-void text_3d(float x, float y, float z, char *s)
-{
- float xp,yp;
-if(threed_proj(x,y,z,&xp,&yp)) text_abs(xp,yp,s);
-}
 
 
 int threed_proj(float x, float y, float z, float *xp, float *yp)

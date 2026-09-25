@@ -29,7 +29,7 @@
 
 #define COL_TOTAL 150
 
-int periodic = 0, spectral;
+int periodic = 0;
 int custom_color = 0;
 
 /* 16-bit RGB per colour index, same scale X11 uses */
@@ -147,38 +147,6 @@ void make_cmaps(int *r, int *g, int *b, int n, int type)
         }
         break;
     }
-}
-
-/* this loads a color_map file and counts the entries. It then does a simple
-   interpolation to fill n copies of rr,gg,bb */
-int read_cmap_from_file(char *fname, int n, int *rr, int *gg, int *bb)
-{
-    /* each line is 4 numbers: an x that no caller of read_cmap_from_file
-       ever used (kept only so the file's own column count reads right)
-       and the r/g/b this fills in. */
-    float r[1000], g[1000], b[1000];
-    int i = 0;
-    int m;
-    int j;
-    XppTokenReader *tr = xpp_token_reader_open(fname);
-    if (tr == NULL) return 0;
-    while (i < 1000) {
-        float x;
-        if (xpp_token_reader_float(tr, &x) != 1 || xpp_token_reader_float(tr, &r[i]) != 1
-            || xpp_token_reader_float(tr, &g[i]) != 1 || xpp_token_reader_float(tr, &b[i]) != 1)
-            break;
-        i++;
-    }
-    xpp_token_reader_close(tr);
-    m = i;
-    xpp_log(XPP_LOG_INFO, " read %d entries \n", m);
-    for (i = 0; i < n; i++) {
-        j = i * m / n;
-        rr[i] = 256 * 255 * r[j];
-        bb[i] = 256 * 255 * b[j];
-        gg[i] = 256 * 255 * g[j];
-    }
-    return m;
 }
 
 /* Fill xpp_cmap_rgb and color_table's first/last/count. This is the

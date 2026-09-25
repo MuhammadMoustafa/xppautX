@@ -44,7 +44,7 @@
    library's malloc/free and is listed here and in tools/alloccheck.sh,
    which fails any other direct call (tools/sourcecheck.sh runs it).
 
-   CVODE (cv*.c, dense.c, band.c, spgmr.c, iterativ.c, llnlmath.c,
+   CVODE (cv*.c, dense.c, band.c, llnlmath.c,
    vector.c) and AUTO (autlib*.c, setubv2.c, ...) are ours: they allocate
    and free their own memory and hand none of it to anyone else, so they
    use these functions like the rest.

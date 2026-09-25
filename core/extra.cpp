@@ -234,15 +234,6 @@ void add_export_list(char *in,char *out)
   in_out.nout=i;
 }
 
-void check_inout(void)
-{
-  int i;
-  for(i=0;i<in_out.nin;i++)
-    plintf(" type=%d index=%d \n",in_out.intype[i],in_out.in[i]);
-  for(i=0;i<in_out.nout;i++)
-    plintf(" type=%d index=%d \n",in_out.outtype[i],in_out.out[i]);
-}
-
 int get_export_count(char *s)
 {
   int i=0;

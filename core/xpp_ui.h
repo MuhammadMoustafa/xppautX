@@ -303,8 +303,6 @@ void FlushDisplay(void);
 void redraw_params(void);
 void redraw_ics(void);
 void redraw_all(void);
-void redraw_bcs(void);
-void redraw_delays(void);
 void drw_all_scrns(void);
 void clr_all_scrns(void);
 void clear_draw_window(void);

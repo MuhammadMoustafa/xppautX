@@ -135,7 +135,6 @@ void j_q_calc(void);
 
 void send_state(void);
 void send_state_if_dirty(void);
-void mark_state_dirty(void);
 void j_state_dirty(void);
 void j_state_dirty_i(int i);
 void j_state_dirty_is(int i, char *s);

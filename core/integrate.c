@@ -197,7 +197,6 @@ extern double DELAY;
 extern int R_COL;
 extern int colorline[11];
 int STOP_FLAG=0;
-int PSLineStyle;
  struct {
          char item[MAX_LEN_SBOX];
    int steps,shoot,col,movie,mc;
@@ -1438,22 +1437,6 @@ void do_init_data(int com)
 usual_integrate_stuff(x);
 DELTA_T=old_dt;
 }	
-void run_from_x(double *x)
-{
-
-  plintf(" %g %g \n",x[0],x[1]); 
- MyStart=1;
- RANGE_FLAG=0;
- DelayErr=0;
- reset_dae();
- MyTime=T0;
- /* get_ic(2,x); */ 
-  STORFLAG=1;
-  POIEXT=0;
-  storind=0;
-  reset_browser();
-  usual_integrate_stuff(x); 
-}
 void run_now()
 {
  

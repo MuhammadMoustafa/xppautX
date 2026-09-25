@@ -79,46 +79,10 @@ int dormprin(int *istart, double *y, double *t, int n, double tout, double *tol,
 }
 
 
-long nfcnRead (void)
-{
-  return nfcn;
-
-} /* nfcnRead */
 
 
-long nstepRead (void)
-{
-  return nstep;
-
-} /* stepRead */
 
 
-long naccptRead (void)
-{
-  return naccpt;
-
-} /* naccptRead */
-
-
-long nrejctRead (void)
-{
-  return nrejct;
-
-} /* nrejct */
-
-
-double hRead (void)
-{
-  return hout;
-
-} /* hRead */
-
-
-double xRead (void)
-{
-  return xout;
-
-} /* xRead */
 
 
 static double sign (double a, double b)
@@ -929,33 +893,6 @@ int dop853
 
 
 
-/* dense output function */
-double contd8 (unsigned ii, double x)
-{
-  unsigned i;
-  double   s, s1;
-
-  i = UINT_MAX;
-
-  if (!indir)
-    i = ii;
-  else
-    i = indir[ii];
-
-  if (i == UINT_MAX)
-  {
-    plintf ("No dense output available for %uth component", ii);
-    return 0.0;
-  }
-
-  s = (x - xold) / hout;
-  s1 = 1.0 - s;
-
-  return rcont1[i]+s*(rcont2[i]+s1*(rcont3[i]+s*(rcont4[i]+s1*(rcont5[i]+
-	 s*(rcont6[i]+s1*(rcont7[i]+s*rcont8[i]))))));
-
-} /* contd8 */
-
 /************    dopri5  ***************************/
 static double hinit5 (unsigned n, FcnEqDiff fcn, double x, double* y,
 	      double posneg, double* f0, double* f1, double* yy1, int iord,
@@ -1494,32 +1431,6 @@ int dopri5
 
 
 } /* dopri5 */
-
-/* dense output function */
-double contd5 (unsigned ii, double x)
-{
-  unsigned i;
-  double   theta, theta1;
-
-  i = UINT_MAX;
-
-  if (!indir)
-    i = ii;
-  else
-    i = indir[ii];
-
-  if (i == UINT_MAX)
-  {
-    plintf ("No dense output available for %uth component", ii);
-    return 0.0;
-  }
-
-  theta = (x - xold) / hout;
-  theta1 = 1.0 - theta;
-
-  return rcont1[i] + theta*(rcont2[i] + theta1*(rcont3[i] + theta*(rcont4[i] + theta1*rcont5[i])));
-
-} /* contd5 */
 
 
 

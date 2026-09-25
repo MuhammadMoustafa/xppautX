@@ -32,14 +32,12 @@ typedef struct {
 float **get_browser_data(void);
 void set_browser_data(float **data, int col0);
 float *get_data_col(int c);
-int gettimenow(void);
 void waitasec(int msec);
 int get_maxrow_browser(void);
 void write_mybrowser_data(FILE *fp);
 void data_get_mybrowser(int row);
 void write_browser_data(FILE *fp, BROWSER *b);
 int check_for_stor(float **data);
-void del_stor_col(char *var, BROWSER *b);
 void data_del_col(BROWSER *b);
 void data_add_col(BROWSER *b);
 int add_stor_col(char *name, char *formula, BROWSER *b);
@@ -82,7 +80,6 @@ void data_right(BROWSER *b);
 void data_first(BROWSER *b);
 void data_last(BROWSER *b);
 void data_restore(BROWSER *b);
-void get_col_list(char *s, int *cl, int *n);
 
 #ifdef __cplusplus
 }

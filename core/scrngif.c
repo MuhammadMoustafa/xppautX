@@ -27,7 +27,7 @@
  unsigned int debugFlag;
  int UseGlobalMap=0; 
  int GifFrameDelay=5,GifFrameLoop=1000;
- int chainlen = 0, maxchainlen = 0, nodecount = 0, lookuptypes = 0, nbits;
+ int chainlen = 0, maxchainlen = 0, nodecount = 0, lookuptypes = 0;
  short need = 8;
  GifTree *empty[256], GifRoot = {LOOKUP, 0, 0, empty, NULL, NULL},
          *topNode, *baseNode, **nodeArray, **lastArray;

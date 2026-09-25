@@ -79,8 +79,6 @@ typedef struct {
   int aflag;
 } ACTION;
 
-char errmsg[256];
-
 extern int loadincludefile;
 /*extern char includefilename[MaxIncludeFiles][100];*/
 extern char includefilename[MaxIncludeFiles][XPP_MAX_NAME];
@@ -90,8 +88,6 @@ int *plotlist;
 int N_only=0,N_plist;
 
 ACTION comments[MAXCOMMENTS];
-ACTION *orig_comments;
-int orig_ncomments=0;
 int is_a_map=0;
 int n_comments=0;
  extern char delay_string[MAXODE][80];
@@ -120,7 +116,6 @@ int NMarkov;
 
 int FIX_VAR;
 
-int ICREATE=0;
 extern int NEQ,NVAR,NKernel;
 extern int NFUN;
 int NEQ_MIN;
@@ -134,7 +129,7 @@ int EqType[MAXODE];
 int Naux=0;
 char aux_names[MAXODE][XPP_NAME_MAX+1];
 
-int NUMODES=0,NUMFIX=0,NUMPARAM=0,NUMMARK=0,NUMAUX=0,NUMVOLT=0,NUMSOL=0;
+int NUMODES=0,NUMFIX=0,NUMPARAM=0,NUMMARK=0,NUMVOLT=0,NUMSOL=0;
 
 
 FIXINFO fixinfo[MAXODE];
@@ -201,20 +196,6 @@ int disc(char *string)
    if(strcmp(end,"dis")==0||strcmp(end,"dif")==0)return(1);
    return(0);
   }
-
-void dump_src()
-{
-  int i;
-  for(i=0;i<NLINES;i++)
-    plintf("%s",save_eqn[i]);
-}
-
-void dump_comments()
-{
-  int i;
-  for(i=0;i<n_comments;i++)
-    plintf("%s\n",comments[i].text);
-}
 
 /*
   read_eqn()
@@ -1023,12 +1004,6 @@ int compiler(char *bob, FILE *fptr)
   return(done);
 }
 
-void list_upar()
-{
- int i;
- for(i=0;i<NUPAR;i++)xpp_log(XPP_LOG_INFO, " %s",upar_names[i]);
-}
-
 void welcome()
 {
  plintf("\n The commands are: \n");
@@ -1167,11 +1142,6 @@ void find_ker(char *string, int *alt)   /* this extracts the integral operators 
   
 }
 
-void pos_prn(char *s, int x, int y)
-{
- plintf("%s\n",s);
- }
-
 void clrscr()
 {
  if(system("clear")){}
@@ -1179,21 +1149,8 @@ void clrscr()
 
 
 
-int getuch()
-{
-  int ch;
-  ch=getchi();
-  if(ch>64&&ch<96)ch+=32;
-  return(ch);
-}
-
 
 /***   remove this for full PP   ***/
-
-int getchi()
- {
-   return(getchar());
- }
 
 
 
@@ -1340,13 +1297,6 @@ void count_object(int type)
 
 
 
-}
-
-void print_count_of_object()
-{
-  xpp_log(XPP_LOG_INFO, 
-"NUMODES=%d \n NUMFIX=%d \n NUMPARAM=%d \n NUMMARK=%d \n NUMVOLT=%d \n NUMAUX=%d \n NUMSOL=%d \n",
-NUMODES,NUMFIX,NUMPARAM,NUMMARK,NUMVOLT,NUMAUX,NUMSOL);
 }
 
 static int parse_model(FILE *fp, char *first, int nnn);
@@ -2928,68 +2878,6 @@ void subsk(char *big, char *newstr, int k, int flag)
   newstr[inew]=0;
 
 }
-
-void keep_orig_comments()
-{
-  int i;
-  
-  if(orig_ncomments>0)return; /* already stored these so return */
-  if(n_comments==0)return; /* nothing to keep ! */
-  orig_comments=(ACTION *)xpp_malloc(sizeof(ACTION)*n_comments);
-  for(i=0;i<n_comments;i++){
-    orig_comments[i].text=(char *)xpp_malloc(strlen(comments[i].text)+1);
-    if(comments[i].aflag)
-      orig_comments[i].action=(char *)xpp_malloc(strlen(comments[i].action)+1);
-    xpp_strlcpy(orig_comments[i].text,comments[i].text,strlen(comments[i].text)+1);
-    if(comments[i].aflag)
-      xpp_strlcpy(orig_comments[i].action,comments[i].action,strlen(comments[i].action)+1);
-    orig_comments[i].aflag=comments[i].aflag;
-  }
-  
-}
-
-void default_comments()
-{
-  int i;
-  if(orig_ncomments==0)return;
-  /* first free up the comments */
-  free_comments();
-  for(i=0;i<orig_ncomments;i++){ 
-    comments[i].text=(char *)xpp_malloc(strlen(orig_comments[i].text)+1);
-    xpp_strlcpy(comments[i].text,orig_comments[i].text,strlen(orig_comments[i].text)+1);
-    if(orig_comments[i].aflag){
-      comments[i].action=(char *)xpp_malloc(strlen(orig_comments[i].action)+1);
-      xpp_strlcpy(comments[i].action,orig_comments[i].action,strlen(orig_comments[i].action)+1);
-    }
-    comments[i].aflag=orig_comments[i].aflag;
-  }
-}
-
-void free_comments()
-{
-  int i;
-  for(i=0;i<n_comments;i++){
-     xpp_free(comments[i].text);
-      if(comments[i].aflag)
-	xpp_free(comments[i].action);
-  }
-  n_comments=0;
-}
-
-void new_comment(FILE *f)
-{
-  char bob[256];
-  char ted[257];
-  keep_orig_comments();
-  free_comments();
-  while(!feof(f)){
-    if(fgets(bob,256,f)==NULL)break;
-    XPP_SPRINTF(ted,"@%s",bob);
-    add_comment(ted);
-  }
-
-    
-}  
 
 
 void add_comment(char *s)

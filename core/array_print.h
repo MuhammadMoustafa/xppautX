@@ -14,9 +14,7 @@ void ps_col_scale(double y0, double x0, double dy, double dx, int n, double zlo,
 void ps_boxit(double tlo, double thi, double jlo, double jhi, double zlo, double zhi, char *sx, char *sy, char *sb, int type);
 void ps_close(void);
 void ps_setline(float fill, int thick);
-void ps_put_char(char ch, float *x, float *y);
 void ps_text2(char *str, float xr, float yr, int icent);
-void ps_line2(float x1r, float y1r, float x2r, float y2r);
 void ps_set_text(float angle, float slant, float x_size, float y_size);
 void ps_rect(float x, float y, float wid, float len);
 void ps_bar(float x, float y, float wid, float len, float fill, int flag);

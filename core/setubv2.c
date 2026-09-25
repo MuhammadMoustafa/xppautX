@@ -365,13 +365,7 @@ setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer
 					uoldps, udotps, upoldp, dtm, wp, wt, wi, 
 					thu, thl, rldot, bcni, &arglist);
   
-    switch(global_setubv_type) {
-
-
-    default:
-      setubv_default_wrapper(arglist);
-      break;
-    }
+    setubv_default_wrapper(arglist);
     setubv_make_fa(arglist);
     setubv_make_fc_dd(arglist,dups,rlcur,rlold,rds);
   }
@@ -579,12 +573,6 @@ void setubv_make_fc_dd(setubv_parallel_arglist larg, doublereal *dups, doublerea
   xpp_free(uid);
   xpp_free(uip);
 
-}
-
-/* Copy a setubv_parallel_arglist */
-void setubv_parallel_arglist_copy(setubv_parallel_arglist *output,
-				  const setubv_parallel_arglist input) {
-  memcpy(output,&input,sizeof(setubv_parallel_arglist));
 }
 
 

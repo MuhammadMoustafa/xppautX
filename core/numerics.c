@@ -60,25 +60,22 @@ typedef struct {
   int formula[256];
 } POINCARE_MAP;
 
-POINCARE_MAP my_pmap;
-
 
 extern  double DELTA_T,TEND,T0,TRANS,
 	NULL_ERR,EVEC_ERR,NEWT_ERR;
 extern double BOUND,DELAY,TOLER,ATOLER,HMIN,HMAX;
-float *fft_data,*hist_data,color_scale,min_scale;
 extern double POIPLN;
 
 extern double BVP_TOL,BVP_EPS;
 
 
-extern int NMESH,NJMP,METHOD,NC_ITER;
+extern int NMESH,NJMP,METHOD;
 extern int EVEC_ITER;
 extern int BVP_MAXIT,BVP_NL,BVP_NR;
 
 extern int POIMAP,POIVAR,POISGN,SOS;
 
- extern int HIST,HVAR,hist_ind,FOREVER,INFLAG;
+ extern int HIST,FOREVER,INFLAG;
 extern int MaxEulIter;
 extern double EulTol;
 
@@ -366,56 +363,6 @@ void ruelle()
    if(plot_windows.current->xshft<0)plot_windows.current->xshft=0;
    if(plot_windows.current->yshft<0)plot_windows.current->yshft=0;
    if(plot_windows.current->zshft<0)plot_windows.current->zshft=0;
-}
-
-void init_numerics()
-/*    these are the default values of the numerical parameters   */
-{
-
-  DELTA_T=.05;
-TEND=20.0;
-T0=0.0;
-TRANS=0.0;
- NULL_ERR=.001;
- EVEC_ERR=.001;
- NEWT_ERR=.001;
- BOUND=100.0;
- DELAY=0.0;
-TOLER=.00001;
-HMIN=.001;
-HMAX=1.0;
-
-POIPLN=0.0;
- NMESH=50;
-NJMP=1;
- METHOD=4;
-NC_ITER=100;
-EVEC_ITER=100;
-
-/* new improved poincare map */
-
-my_pmap.maxvar=1;
-my_pmap.type=0;
-my_pmap.sos=0;
-my_pmap.sign=1;
-my_pmap.tmod=8.*atan(1.0);
-XPP_SPRINTF(my_pmap.section," ");
-
-POIMAP=0;
-POIVAR=1;
-POISGN=1;
-SOS=0;
-
-}
-
-void meth_dialog()
-{
-  /*static char *n[]={"*6Method","Abs tol","Rel Tol","DtMin","DtMax",
-		    "Banded(y/n)","UpperBand","LowerBand"};*/
-   char values[8][MAX_LEN_SBOX];
-   XPP_SPRINTF(values[0],"%d",METHOD);
-   XPP_SPRINTF(values[1],"%g",ATOLER);
-   XPP_SPRINTF(values[2],"%g",TOLER);
 }
 
 

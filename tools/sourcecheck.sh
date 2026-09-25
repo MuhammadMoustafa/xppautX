@@ -9,6 +9,8 @@
 #   - no sprintf/strcpy into a fixed buffer (tools/formatcheck.sh)
 #   - no malloc/free but through xpp_mem.h (tools/alloccheck.sh)
 #   - no extern whose type differs from its definition (make ltocheck)
+#   - no function or file-scope datum nothing reaches (tools/deadcode.sh;
+#     Linux: elsewhere it says so and passes)
 # Usage: tools/sourcecheck.sh [--warnings]
 #   --warnings  also count a clean build's warnings by flag and file
 #               (tools/warnings.sh; a count, it fails only if the build does)
@@ -55,6 +57,12 @@ else
   echo "LTO CHECK FAILED"
   exit 1
 fi
+if ! sh tools/deadcode.sh --check > build/deadcode.out 2>&1; then
+  tail -40 build/deadcode.out
+  echo "DEAD CODE CHECK FAILED"
+  exit 1
+fi
+tail -1 build/deadcode.out
 if [ "$1" = --warnings ]; then
   sh tools/warnings.sh || exit 1
 fi

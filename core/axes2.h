@@ -14,8 +14,6 @@ double make_tics(double tmin, double tmax);
 void find_max_min_tic(double *tmin, double *tmax, double tic);
 void redraw_cube_pt(double theta, double phi);
 void do_axes(void);
-void redraw_cube(double theta, double phi);
-void draw_unit_cube(void);
 void Frame_3d(void);
 void Box_axis(double x_min, double x_max, double y_min, double y_max, char *sx, char *sy, int flag);
 void draw_ytics(char *s1, double start, double incr, double end);

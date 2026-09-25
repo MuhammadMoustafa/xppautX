@@ -310,8 +310,6 @@ void FlushDisplay(void) { xpp_ui.flush(); }
 void redraw_params(void) { xpp_ui.redraw_params(); }
 void redraw_ics(void) { xpp_ui.redraw_ics(); }
 void redraw_all(void) { xpp_ui.redraw_all(); }
-void redraw_bcs(void) { xpp_ui.redraw_bcs(); }
-void redraw_delays(void) { xpp_ui.redraw_delays(); }
 void drw_all_scrns(void) { xpp_ui.redraw_screens(); }
 void clr_all_scrns(void) { xpp_ui.clear_screens(); }
 void clear_draw_window(void) { xpp_ui.clear_draw_window(); }

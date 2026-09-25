@@ -286,23 +286,6 @@ void DenseFreeMat(DenseMat A);
 void DenseFreePiv(integer *p);
 
 
-/******************************************************************
- *                                                                *
- * Function : DensePrint                                          *
- * Usage    : DensePrint(A);                                      *
- *----------------------------------------------------------------*
- * This routine prints the N by N dense matrix A to standard      *
- * output as it would normally appear on paper. It is intended    *
- * as a debugging tool with small values of N. The elements are   *
- * printed using the %g option. A blank line is printed before    *
- * and after the matrix.                                          *
- *                                                                *
- ******************************************************************/
-
-void DensePrint(DenseMat A);
- 
-
-
 /* Functions that use the real ** representation for a dense matrix */
 
  
@@ -327,22 +310,6 @@ void DensePrint(DenseMat A);
  ******************************************************************/
 
 real **denalloc(integer n);
-
-
-/******************************************************************
- *                                                                *
- * Function : denallocpiv                                         *
- * Usage    : integer *pivot;                                     *
- *            pivot = denallocpiv(n);                             *
- *            if (pivot == NULL) ... memory request failed        *
- *----------------------------------------------------------------*
- * denallocpiv(n) allocates an array of n integers. It returns a  *
- * pointer to the first element in the array if successful. It    *
- * returns NULL if the memory request could not be satisfied.     *
- *                                                                *
- ******************************************************************/
-
-integer *denallocpiv(integer n);
 
 
 /******************************************************************
@@ -451,19 +418,6 @@ void denaddI(real **a, integer n);
 
 /******************************************************************
  *                                                                *
- * Function : denfreepiv                                          *
- * Usage    : denfreepiv(p);                                      *
- *----------------------------------------------------------------*
- * denfreepiv(p) frees the pivot array p allocated by             *
- * denallocpiv.                                                   *
- *                                                                *
- ******************************************************************/
-
-void denfreepiv(integer *p);
-
-
-/******************************************************************
- *                                                                *
  * Function : denfree                                             *
  * Usage    : denfree(a);                                         *
  *----------------------------------------------------------------*
@@ -473,22 +427,6 @@ void denfreepiv(integer *p);
 
 void denfree(real **a);
 
-
-/******************************************************************
- *                                                                *
- * Function : denprint                                            *
- * Usage    : denprint(a,n);                                      *
- *----------------------------------------------------------------*
- * denprint(a,n) prints the n by n dense matrix a to standard     *
- * output as it would normally appear on paper. It is intended as *
- * a debugging tool with small values of n. The elements are      *
- * printed using the %g option. A blank line is printed before    *
- * and after the matrix.                                          *
- *                                                                *
- ******************************************************************/
-
-void denprint(real **a, integer n);
- 
 
 #ifdef __cplusplus
 }

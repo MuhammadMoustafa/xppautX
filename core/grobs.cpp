@@ -215,16 +215,6 @@ int select_marker_type(int *type)
     return 1;
 }
 
-int man_xy(float *xe, float *ye)
-{
-    double x = 0, y = 0;
-    if (new_float(str("x: "), &x)) return 0;
-    if (new_float(str("y: "), &y)) return 0;
-    *xe = static_cast<float>(x);
-    *ye = static_cast<float>(y);
-    return 1;
-}
-
 int get_marker_info(void)
 {
     static char *n[] = {str("*5Type"), str("*4Color"), str("Size")};
@@ -283,30 +273,6 @@ void add_marker(void)
     redraw_all();
 }
 
-void add_marker_old(void)
-{
-    double size = 1;
-    int i1, j1, color = 0;
-    float xs, ys;
-    int type = MARKER;
-    if (select_marker_type(&type) == 0) return;
-    if (new_float(str("Size: "), &size)) return;
-    if (new_int(str("Color: "), &color)) return;
-    MessageBox(str("Position"));
-    const int flag = GetMouseXY(&i1, &j1);
-    KillMessageBox();
-    FlushDisplay();
-    if (flag == 0) return;
-    if (flag == -3) {
-        if (man_xy(&xs, &ys)) add_grob(xs, ys, 0.0f, 0.0f, size, type, color);
-        redraw_all();
-        return;
-    }
-    scale_to_real(i1, j1, &xs, &ys);
-    add_grob(xs, ys, 0.0f, 0.0f, size, type, color);
-    redraw_all();
-}
-
 /* markers at every skip-th row of the window's first curve */
 static void add_markers_at(int number, int start, int skip, double size, int type, int color)
 {
@@ -328,21 +294,6 @@ void add_markers(void)
 {
     if (get_markers_info() == 0) return;
     add_markers_at(markinfo.number, markinfo.start, markinfo.skip, markinfo.size, markinfo.type, markinfo.color);
-}
-
-void add_markers_old(void)
-{
-    double size = 1;
-    int color = 0;
-    int nm = 1, nskip = 1, nstart = 0;
-    int type = MARKER;
-    if (select_marker_type(&type) == 0) return;
-    if (new_float(str("Size: "), &size)) return;
-    if (new_int(str("Color: "), &color)) return;
-    if (new_int(str("Number of markers: "), &nm)) return;
-    if (new_int(str("Starting at: "), &nstart)) return;
-    if (new_int(str("Skip between: "), &nskip)) return;
-    add_markers_at(nm, nstart, nskip, size, type, color);
 }
 
 void add_pntarr(int type)
@@ -556,44 +507,3 @@ void set_restore(int flag)
     }
 }
 
-int is_col_plotted(int nc)
-{
-    for (int i = 0; i < MAXPOP; i++) {
-        if (plot_windows.graph[i].Use == 1) {
-            const int nv = plot_windows.graph[i].nvars;
-            for (int j = 0; j < nv; j++) {
-                if (plot_windows.graph[i].xv[j] == nc || plot_windows.graph[i].yv[j] == nc || plot_windows.graph[i].zv[j] == nc) return 1;
-            }
-        }
-    }
-    return 0;
-}
-
-void change_plot_vars(int k)
-{
-    for (int i = 0; i < MAXPOP; i++) {
-        if (plot_windows.graph[i].Use) {
-            const int np = plot_windows.graph[i].nvars;
-            for (int ip = 0; ip < np; ip++) {
-                if (plot_windows.graph[i].xv[ip] > k) plot_windows.graph[i].xv[ip] = plot_windows.graph[i].xv[ip] - 1;
-                if (plot_windows.graph[i].yv[ip] > k) plot_windows.graph[i].yv[ip] = plot_windows.graph[i].yv[ip] - 1;
-                if (plot_windows.graph[i].zv[ip] > k) plot_windows.graph[i].zv[ip] = plot_windows.graph[i].zv[ip] - 1;
-            }
-        }
-    }
-}
-
-int check_active_plot(int k)
-{
-    for (int i = 0; i < MAXPOP; i++) {
-        if (plot_windows.graph[i].Use) {
-            const int np = plot_windows.graph[i].nvars;
-            for (int ip = 0; ip < np; ip++) {
-                if (plot_windows.graph[i].xv[ip] == k || plot_windows.graph[i].yv[ip] == k || plot_windows.graph[i].zv[ip] == k) return 1;
-            }
-        }
-    }
-    return 0;
-}
-
-int graph_used(int i) { return plot_windows.graph[i].Use; }

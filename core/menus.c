@@ -371,30 +371,6 @@ char *arun_hint[]={
   "Start at a heteroclinic",
 }; 
 
-char *browse_hint[]={
- "Find closest data point to given value",
- "Scroll up",
- "Scroll down",
- "Scroll up a page",
- "Scroll down a page",
- "Scroll left",
- "Scroll right",
- "First plotted point",
- "Last plotted point",
- "Mark first point for plotting",
- "Mark last point for plotting",
- "Redraw data",
- "Write data to ascii file",
- "Load first line of BROWSER to initial data",
- "Replace column by formula",
- "Unreplace last replacement",
- "Write a column of data in tabular format",
- "Load data from a file into BROWSER",
- " ",
- "Add a new column to BROWSER",
- "Delete a column from BROWSER"
-};
-
 /* keys of the main-window menus; the numerics menu ends with Esc */
 char main_menu_keys[]="icndwakgufpemtsvxr3b";
 char num_menu_keys[]="tsrdniobmechpukva\033";
@@ -480,11 +456,3 @@ const XppMenu menu_lookup={"lookup","Tables",2,tab_items,"ev",tab_hint,M_UKE,12,
 const XppMenu menu_method={"method","Method",15,meth_items,"demragvbqsc582y",meth_hint,-1,15,1};
 const XppMenu menu_edit_rhs={"edit_rhs","Edit Stuff",4,edrh_items,"rfsl",edrh_hint,M_FER,11,13};
 
-const XppMenu *const xpp_menus[]={
-  &menu_integrate,&menu_nullclines,&menu_freeze_cline,&menu_dirfield,
-  &menu_window,&menu_torus,&menu_kinescope,&menu_curves,&menu_freeze,
-  &menu_freeze_off,&menu_freeze_key,&menu_colormap,&menu_windows,
-  &menu_windows_simoff,&menu_text,&menu_text_edit,&menu_equilibria,
-  &menu_view,&menu_bvp,&menu_stochastic,&menu_poincare,&menu_color_code,
-  &menu_adjoint,&menu_lookup,&menu_method,&menu_edit_rhs};
-const int xpp_menu_count=sizeof(xpp_menus)/sizeof(xpp_menus[0]);

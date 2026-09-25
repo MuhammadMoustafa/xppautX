@@ -36,25 +36,19 @@ typedef struct {
 int make_eqn(void);
 void strip_saveqn(void);
 int disc(char *string);
-void dump_src(void);
-void dump_comments(void);
 void format_list(char **s, int n);
 int get_a_filename(char *filename, char *wild);
 void list_em(char *wild);
 int read_eqn(void);
 int get_eqn(FILE *fptr);
 int compiler(char *bob, FILE *fptr);
-void list_upar(void);
 void welcome(void);
 void show_syms(void);
 void take_apart(char *bob, double *value, char *name);
 char *get_first(char *string, const char *src);
 char *get_next(const char *src);
 void find_ker(char *string, int *alt);
-void pos_prn(char *s, int x, int y);
 void clrscr(void);
-int getuch(void);
-int getchi(void);
 int if_include_file(char *old, char *nf);
 int if_end_include(char *old);
 int do_new_parser(FILE *fp, char *first, int nnn);
@@ -81,10 +75,6 @@ int check_if_ic(char *big);
 int not_ker(char *s, int i);
 int is_comment(char *s);
 void subsk(char *big, char *newstr, int k, int flag);
-void keep_orig_comments(void);
-void default_comments(void);
-void free_comments(void);
-void new_comment(FILE *f);
 void add_comment(char *s);
 
 /* for parsing par, init with whitespace correctly */

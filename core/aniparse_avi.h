@@ -67,7 +67,6 @@ int add_ani_frect(ANI_COM *a, char *x1, char *y1, char *x2, char *y2, char *col,
 int add_ani_ellip(ANI_COM *a, char *x1, char *y1, char *x2, char *y2, char *col, char *thick);
 int add_ani_fellip(ANI_COM *a, char *x1, char *y1, char *x2, char *y2, char *col, char *thick);
 int add_ani_circle(ANI_COM *a, char *x1, char *y1, char *x2, char *col, char *thick);
-int add_ani_fcircle(ANI_COM *a, char *x1, char *y1, char *x2, char *col, char *thick);
 int add_ani_text(ANI_COM *a, char *x1, char *y1, char *y2);
 int add_ani_vtext(ANI_COM *a, char *x1, char *y1, char *x2, char *y2);
 int add_ani_settext(ANI_COM *a, char *x1, char *y1, char *col);
@@ -75,7 +74,6 @@ int render_ani(void);
 int set_ani_perm(void);
 int eval_ani_color(int j);
 int eval_ani_com(int j);
-int set_ani_thick(int t);
 int set_ani_font_stuff(int size, int font, int color);
 int set_ani_col(int j);
 int xset_ani_col(int icol);

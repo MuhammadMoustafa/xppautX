@@ -26,18 +26,6 @@ AutoGlobalScratch global_scratch={NULL,NULL,NULL,NULL,NULL,NULL};
    beginning to save the cost later on. */
 AutoGlobalRotations global_rotations = {0,NULL};
 
-/* There are used to short circuit the code.  getp is a user callable function
-   that allows certain parameters to be returned.  Unfortunately, the
-   data that this function works on is NOT user accessible, so cannot
-   be part of its calling sequence.  Accordingly, this global structure is
-   filled in with the necessary data so that getp has access to it when the
-   user calls that routine. */
-struct {
-  rap_type *rav;
-  iap_type *iav;
-  doublereal *dtv;
-} global_parameters = {NULL,NULL,NULL};
-
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*                    Initialization */
@@ -7489,7 +7477,6 @@ pvlsae(iap_type *iap, rap_type *rap, doublereal *u, doublereal *par)
   integer ndm;
 
   
-  setpae(iap, rap);
   ndm = iap->ndm;
   pvls(ndm, u, par);
 
@@ -7503,188 +7490,12 @@ pvlsbv(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
 {
   integer ndm;
 
-  setpbv(iap, rap, dtm);
   ndm = iap->jac;
   pvls(ndm, ups, par);
 
   return 0;
 } /* pvlsbv_ */
 
-
-/*     ---------- ------ */
-/* Subroutine */ int 
-setpae(iap_type *iap, rap_type *rap)
-{
-  global_parameters.iav = iap;
-  global_parameters.rav = rap;
-
-  return 0;
-} /* setpae_ */
-
-
-/*     ---------- ------ */
-/* Subroutine */ int 
-setpbv(iap_type *iap, rap_type *rap, doublereal *dtm)
-{
-  global_parameters.iav = iap;
-  global_parameters.rav = rap;
-
-  global_parameters.dtv = dtm;
-  return 0;
-} /* setpbv_ */
-
-
-/* ----------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------- */
-/*          System Dependent Subroutines for Timing AUTO */
-/* ----------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------- */
-#include <unistd.h>
-#include <sys/time.h>
-#ifndef _WIN32
-#include <sys/resource.h>
-#endif
-
-double time_start(void) {
-  struct timeval time;
-  double seconds,microseconds;
-  gettimeofday(&time,NULL);
-  seconds = (double)time.tv_sec;
-  microseconds = (double)time.tv_usec;
-  return seconds + microseconds/1e6;
-}
-double time_end(double start) {
-  struct timeval time;
-  double seconds,microseconds;
-  gettimeofday(&time,NULL);
-  seconds = (double)time.tv_sec;
-  microseconds = (double)time.tv_usec;
-  return (seconds + microseconds/1e6)-start;
-}
-
-
-doublereal 
-getp(char *code, integer *ic, doublereal *ups, integer code_len)
-{
-  /* System generated locals */
-  doublereal ret_val=0.0;
-
-    /* Local variables */
-  integer ntst;
-
-  integer nxloc;
-
-  integer ips;
-
-
-
-  
-  nxloc = global_parameters.iav->ntst + 1;
-
-  ips = global_parameters.iav->ips;
-
-  ntst = global_parameters.iav->ntst;
-
-
-  if (abs(ips) <= 1 || ips == 5) {
-
-    if (strcmp(code, "NRM") == 0 || strcmp(code, "nrm") == 0) {
-      ret_val = fabs(ups[*ic - 1]);
-    } else if (strcmp(code, "INT") == 0 || strcmp(code, "int") == 0) {
-      ret_val = ups[*ic - 1];
-
-    } else if (strcmp(code, "MAX") == 0 || strcmp(code, "max") == 0) {
-
-      ret_val = ups[*ic - 1];
-
-    } else if (strcmp(code, "MIN") == 0 || strcmp(code, "min") == 0) {
-
-      ret_val = ups[*ic - 1];
-
-    } else if (strcmp(code, "BV0") == 0 || strcmp(code, "bv0") == 0) {
-
-      ret_val = ups[*ic - 1];
-
-    } else if (strcmp(code, "BV1") == 0 || strcmp(code, "bv1") == 0) {
-
-      ret_val = ups[*ic - 1];
-
-    } else if (strcmp(code, "STP") == 0 || strcmp(code, "stp") == 0) {
-
-      ret_val = global_parameters.rav->dsold;
-
-    } else if (strcmp(code, "FLD") == 0 || strcmp(code, "fld") == 0) {
-
-      ret_val = global_parameters.rav->fldf;
-
-    } else if (strcmp(code, "HBF") == 0 || strcmp(code, "hbf") == 0) {
-
-      ret_val = global_parameters.rav->hbff;
-
-    } else if (strcmp(code, "BIF") == 0 || strcmp(code, "bif") == 0) {
-
-      ret_val = global_parameters.rav->biff;
-
-    } else if (strcmp(code, "SPB") == 0 || strcmp(code, "spb") == 0) {
-
-      ret_val = (double)0.0;
-
-    }
-
-  } else {
-
-    if (strcmp(code, "NRM") == 0 || strcmp(code, "nrm") == 0) {
-
-      ret_val = rnrm2(global_parameters.iav, &nxloc, ic, ups, global_parameters.dtv);
-
-    } else if (strcmp(code, "INT") == 0 || strcmp(code, "int") == 0) {
-
-      ret_val = rintg(global_parameters.iav, &nxloc, *ic, ups, global_parameters.dtv);
-
-    } else if (strcmp(code, "MAX") == 0 || strcmp(code, "max") == 0) {
-
-      ret_val = rmxups(global_parameters.iav, &nxloc, ic, ups);
-
-    } else if (strcmp(code, "MIN") == 0 || strcmp(code, "min") == 0) {
-
-      ret_val = rmnups(global_parameters.iav, &nxloc, ic, ups);
-
-    } else if (strcmp(code, "BV0") == 0 || strcmp(code, "bv0") == 0) {
-
-      ret_val = ups[(*ic-1) * (global_parameters.iav->ntst + 1)];
-
-    } else if (strcmp(code, "BV1") == 0 || strcmp(code, "bv1") == 0) {
-
-      ret_val = ups[ntst + (*ic-1) * (global_parameters.iav->ntst + 1)];
-
-    } else if (strcmp(code, "STP") == 0 || strcmp(code, "stp") == 0) {
-
-      ret_val = global_parameters.rav->dsold;
-
-    } else if (strcmp(code, "FLD") == 0 || strcmp(code, "fld") == 0) {
-
-      ret_val = global_parameters.rav->fldf;
-
-    } else if (strcmp(code, "HBF") == 0 || strcmp(code, "hbf") == 0) {
-
-      ret_val = (double)0.;
-
-    } else if (strcmp(code, "BIF") == 0 || strcmp(code, "bif") == 0) {
-
-      ret_val = global_parameters.rav->biff;
-
-    } else if (strcmp(code, "SPB") == 0 || strcmp(code, "spb") == 0) {
-
-      ret_val = global_parameters.rav->spbf;
-
-    }
-
-  }
-
-
-  return ret_val;
-
-}
 
 void allocate_global_memory(const iap_type iap) {
     xpp_free(global_scratch.dfu);

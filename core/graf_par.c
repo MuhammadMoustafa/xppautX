@@ -590,61 +590,6 @@ void get_3d_par_com()
 }
 
 
-void get_3d_par_noper()
-{
-  
- static char *n[]={"Theta","Phi","Movie(Y/N)",
-                   "Vary (theta/phi)","Start angle", "Increment",
-		   "Number increments"};
- char values[10][MAX_LEN_SBOX];
- int status;
-
- int nclip=8,angle=0;
- double start,increment=45; 
-  if(plot_windows.current->grtype<5)return;
-
-
- XPP_SPRINTF(values[0],"%g",plot_windows.current->Theta);
- XPP_SPRINTF(values[1],"%g",plot_windows.current->Phi);
- XPP_SPRINTF(values[2],"%s",mov3d.yes);
- XPP_SPRINTF(values[3],"%s",mov3d.angle);
- XPP_SPRINTF(values[4],"%g",mov3d.start);
- XPP_SPRINTF(values[5],"%g",mov3d.incr);
- XPP_SPRINTF(values[6],"%d",mov3d.nclip);
- 
- static const int kinds[]={XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,
-                           XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER};
- status=do_string_box_of(7,7,1,"3D Parameters",n,values,28,kinds);
- if(status!=0){
-   /* MyGraph->PerspFlag=atoi(values[0]);
-	      MyGraph->ZPlane=atof(values[1]);
-	      MyGraph->ZView=atof(values[2]); */
-	      plot_windows.current->Theta=atof(values[0]);
-	      plot_windows.current->Phi=atof(values[1]);
-             if(values[2][0]=='y'|| values[2][0]=='Y'){  
-	      snprintf(mov3d.yes,sizeof(mov3d.yes),"%.*s",(int)sizeof(mov3d.yes)-1,values[2]);
-	      snprintf(mov3d.angle,sizeof(mov3d.angle),"%.*s",(int)sizeof(mov3d.angle)-1,values[3]);
-              start=atof(values[4]);
-	      increment=atof(values[5]);
-	      nclip=atoi(values[6]);
-	      mov3d.start=start;
-	      mov3d.incr=increment;
-	      mov3d.nclip=nclip;
-	      angle=0;
-              if(mov3d.angle[0]=='p'||mov3d.angle[0]=='P')
-		angle=1;
-	      /*     XRaiseWindow(display,MyGraph->w); */
-	      movie_rot(start,increment,nclip,angle);
-	     }
-	       
-                make_rot(plot_windows.current->Theta,plot_windows.current->Phi);   
-	    /*  Redraw the picture   */	
-	       redraw_the_graph();
-         
-	     }
-	     
-}
-
 void update_view(float xlo,float xhi, float ylo, float yhi)
 {
               plot_windows.current->xlo=xlo;
@@ -834,14 +779,6 @@ void graph_all(int *list, int n, int type)
 }
 
 
-int find_color(int in)
-{
- int i;
- for(i=0;i<=10;i++)
- if(in==colorline[i])return(i);
- return(0);
-}
-
 int alter_curve(char *title, int in_it, int n)
 {
  static char *nn[]={"*0X-axis","*0Y-axis","*0Z-axis","*4Color","Line type"};
@@ -935,28 +872,6 @@ void create_ps()
 	   ping();
 	 }
  }
-}
-
-void padnum(char *s,int i,int m)
-{
-  /* s is a pointer here; padnum has no active caller (xpp_util.c's is
-     commented out) to size it from, so use tmp's own bound (25) -- the
-     most this function could ever try to copy into s. */
-  char tmp[25];
-  int k,q;
-  XPP_SPRINTF(tmp,"%d",i);
-  if(strlen(tmp)>=m){
-    xpp_strlcpy(s,tmp,25);
-    return;
-  }
-  q=m-strlen(tmp);
-  for(k=0;k<m;k++){
-    if(k<q)
-      s[k]='0';
-    else
-      s[k]=tmp[k-q];
-  }
-  s[m]=0;
 }
 
 void create_svg()

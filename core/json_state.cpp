@@ -147,8 +147,6 @@ void send_state(void)
 
 void j_state_dirty(void) { state_dirty = 1; }
 
-void mark_state_dirty(void) { state_dirty = 1; }
-
 void send_state_if_dirty(void)
 {
     if (state_dirty) send_state();

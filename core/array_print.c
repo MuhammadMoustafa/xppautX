@@ -191,14 +191,6 @@ void ps_setline(float fill, int thick)
   ps_scale.linecol=fill;
 }
  
-void ps_put_char(char ch, float *x, float *y)
-{
-  float xp=*x,yp=*y;
-  char str[4];
-  str[0]=ch;
-  str[1]='\0';
-  ps_text2(str,xp,yp,0);
- }
 
 
 
@@ -229,15 +221,6 @@ void ps_text2(char *str, float xr, float yr, int icent)  /* ignores for now  */
      fprintf(my_plot_file,"(%s) dup stringwidth pop  0 rmoveto show \n grestore\n", str); 
      break;
    }
-}
-
-void ps_line2(float x1r, float y1r, float x2r, float y2r)
-{
-  float x1,y1,x2,y2;
-  ps_convert(x1r,y1r,&x1,&y1);
-  ps_convert(x2r,y2r,&x2,&y2);
-  fprintf(my_plot_file,"%d %d m \n %d %d l S\n",
-	  (int)x1,(int)y1,(int)x2,(int)y2);
 }
 
 void ps_set_text(float angle, float slant, float x_size, float y_size)

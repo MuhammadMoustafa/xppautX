@@ -21,7 +21,6 @@ typedef struct SET_NAME {
 
 int is_set_name(SET_NAME *set, char *nam);
 SET_NAME *add_set(SET_NAME *set, char *nam);
-SET_NAME *rm_set(SET_NAME *set, char *nam);
 void do_comline(int argc, char **argv);
 int if_needed_select_sets(void);
 int if_needed_load_set(void);

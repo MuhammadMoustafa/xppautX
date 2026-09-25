@@ -262,21 +262,6 @@ void N_VAddConst(N_Vector x, real b, N_Vector z)
 }
 
 
-real N_VDotProd(N_Vector x, N_Vector y)
-{
-  integer i, N;
-  real sum = ZERO, *xd, *yd;
-
-  N = x->length;
-  xd = x->data;
-  yd = y->data;
-  
-  for (i=0; i < N; i++)
-    sum += (*xd++) * (*yd++);
-  
-  return(sum);
-}
-
 
 real N_VMaxNorm(N_Vector x)
 {
@@ -329,51 +314,8 @@ real N_VMin(N_Vector x)
 }
 
 
-void N_VCompare(real c, N_Vector x, N_Vector z)
-{
-  integer i, N;
-  real *xd, *zd;
-  
-  N = x->length;
-  xd = x->data;
-  zd = z->data;
-  
-  for (i=0; i < N; i++, xd++, zd++) {
-    *zd = (ABS(*xd) >= c) ? ONE : ZERO;
-  }
-}
-
-
-bool N_VInvTest(N_Vector x, N_Vector z)
-{
-  integer i, N;
-  real *xd, *zd;
-
-  N = x->length;
-  xd = x->data;
-  zd = z->data;
-
-  for (i=0; i < N; i++) {
-    if (*xd == ZERO) return(FALSE);
-    *zd++ = ONE / (*xd++);
-  }
-
-  return(TRUE);
-}
 
  
-void N_VPrint(N_Vector x)
-{
-  integer i, N;
-  real *xd;
-
-  N = x->length;
-  xd = x->data;
-
-  for (i=0; i < N; i++) plintf("%g\n", *xd++);
-
-  plintf("\n");
-}
 
 
 /***************** Private Helper Functions **********************/

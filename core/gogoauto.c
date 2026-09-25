@@ -11,11 +11,7 @@ extern XAUTO xAuto;
 FILE *fp3;
 FILE *fp7;
 FILE *fp9;
-FILE *fp12;
 int global_conpar_type=CONPAR_DEFAULT;
-int global_setubv_type=SETUBV_DEFAULT;
-int global_num_procs=1;
-int global_verbose_flag=0;
 extern int fp8_is_open;
 extern char fort3[200], fort7[200], fort8[200],fort9[200];
 
@@ -510,24 +506,5 @@ int set_function_pointers(const iap_type iap,function_list *data) {
 
 
   return 0;
-}
-
-void dump_params(iap_type iap, rap_type rap,int *icp, double *thl)
-{
-  int i;
-  xpp_log_auto("%ld %ld %ld %ld  \n", iap.ndim,iap.ips,iap.irs,iap.ilp);
-  xpp_log_auto("%ld ",iap.nicp);
-  for(i=0;i<iap.nicp;i++)
-    xpp_log_auto("%d ",icp[i]);
-  xpp_log_auto("\n");
-  xpp_log_auto("%ld %ld %ld %ld %ld %ld %ld %ld\n",iap.ntst,iap.ncol,iap.iad,iap.isp,iap.isw,iap.iplt,iap.nbc,iap.nint);
-  xpp_log_auto("%ld %g %g %g %g\n",iap.nmx,rap.rl0,rap.rl1,rap.a0,rap.a1);
-  xpp_log_auto("%ld %ld %ld %ld %ld %ld %ld\n",iap.npr,iap.mxbf,iap.iid,iap.itmx,iap.itnw,iap.nwtn,iap.jac);
-  xpp_log_auto("%g %g %g\n",rap.epsl,rap.epsu,rap.epss);
-  xpp_log_auto("%g %g %g %ld\n",rap.ds,rap.dsmin,rap.dsmax,iap.iads);
-  for(i=0;i<5;i++)
-    xpp_log_auto("%g ",thl[icp[i]]);
-  xpp_log_auto("\n");
-  
 }
 

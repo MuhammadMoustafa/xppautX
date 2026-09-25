@@ -211,37 +211,6 @@ SET_NAME * add_set(SET_NAME *set, char *nam)
 	return(set);
 }
 
-SET_NAME * rm_set(SET_NAME *set, char *nam)
-{
-	SET_NAME *curr;
-	SET_NAME *prev=NULL;	
-	
-	if (set==NULL){return(NULL);}
-	
-	curr=set;
-	int i=1;
-	while(curr)
-	{
-		if (strcmp(curr->name,nam)==0)
-		{
-			if (i==1)
-			{
-				set=(SET_NAME*)curr->next;
-			}
-			else
-			{
-				prev->next=curr->next;
-			}
-			break;
-		}
-		prev = curr;
-		i++;
-	}
-	
-	
-	return(set);
-}
-
 
 void do_comline(int argc, char **argv)
 { 

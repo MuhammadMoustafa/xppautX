@@ -34,22 +34,15 @@ void destroy_label(XppWinId w);
 void draw_label(XppWinId w);
 void add_grob(double xs, double ys, double xe, double ye, double size, int type, int color);
 int select_marker_type(int *type);
-int man_xy(float *xe, float *ye);
 int get_marker_info(void);
 int get_markers_info(void);
 void add_marker(void);
-void add_marker_old(void);
 void add_markers(void);
-void add_markers_old(void);
 void add_pntarr(int type);
 void edit_object_com(int com);
 void do_gr_objs_com(int com);
 void do_windows_com(int c);
 void set_restore(int flag);
-int is_col_plotted(int nc);
-void change_plot_vars(int k);
-int check_active_plot(int k);
-int graph_used(int i);
 
 #ifdef __cplusplus
 }

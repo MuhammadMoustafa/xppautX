@@ -293,16 +293,6 @@ void init_rpn()
  /*  FREE_UFUNS   */
 
 
-void free_ufuns()
-{
- int i;
- for(i=0;i<NFUN;i++)
- {
-  xpp_free(ufun[i]);
-  xpp_free(ufun_def[i]);
- }
-}
-
 int duplicate_name(char *junk)
 {
   int i;
@@ -385,11 +375,6 @@ int get_var_index(char *name)
 
 /* GET_TYPE   */
 
-
-int get_type(int index)
-{
-return(my_symb[index].com);
-}
 
 /*   ADD_CON      */
 
@@ -739,25 +724,6 @@ int add_ufun(char *junk, char *expr, int narg)
 }
 
 
-int check_num(int *tok, double value)
-{
- int bob,in,i;
- /*int m;*/
- for(i=0;i<NSYM;i++){
-	
-	if(strncmp(my_symb[i].name,"NUM##",5)==0){
-	bob=my_symb[i].com;
-	in=bob%MAXTYPE;
-	/*m=bob/MAXTYPE;*/
-	if(constants[in]==value){
-	*tok=i;
-	return(1);
-	}
-	}
- }
- return(0);
-}
-	
 
 
 
@@ -799,12 +765,6 @@ int isker(int y)
   return (y == KERTYPE);
 }
 
-
-int is_kernel(int x)
-{
-  if((x/MAXTYPE)==KERTYPE)return(1);
-  else return(0);
-}
 
 int is_lookup(int x)
 {
@@ -1176,18 +1136,6 @@ int alg_to_rpn(int *toklist, int *command)
 	/* pr_command(command);  */
         return(0);
     }
-
-void pr_command(int *command)
-{
- int i=0;
- int token;
- while(1){
-  token=command[i];
-  plintf("%d %d \n",i,token);
-  if(token==ENDEXP)return;
-   i++;
-  }
-}
 
 
 
@@ -1729,16 +1677,6 @@ double z,w;
           FANCY DELAY HERE                   *-------------------------<<<
 *********************************************/
 
-char *com_name(int com)
-{
-    int i;
-    for( i=0;i<NSYM;i++)
-	if( my_symb[i].com == com ) break;
-    if( i < NSYM )
-	return my_symb[i].name;
-    else
-	return "";
-}
 double do_shift(double shift, double variable)
 {
   int it, in;

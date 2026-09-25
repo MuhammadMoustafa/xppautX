@@ -97,11 +97,6 @@ void DenseFreePiv(integer *p)
   xpp_free(p);
 }
 
-void DensePrint(DenseMat A)
-{
-  denprint(A->data, A->size);
-}
-
 
 real **denalloc(integer n)
 {
@@ -121,13 +116,6 @@ real **denalloc(integer n)
   for (j=1; j < n; j++) a[j] = a[0] + j * n;
 
   return(a);
-}
-
-integer *denallocpiv(integer n)
-{
-  if (n <= 0) return(NULL);
-
-  return((integer *) xpp_malloc(n * sizeof(integer)));
 }
 
 integer gefa(real **a, integer n, integer *p)
@@ -285,29 +273,10 @@ void denaddI(real **a, integer n)
   for (i=0; i < n; i++) a[i][i] += ONE;
 }
 
-void denfreepiv(integer *p)
-{
-  xpp_free(p);
-}
-
 void denfree(real **a)
 {
   xpp_free(a[0]);
   xpp_free(a);
-}
-
-void denprint(real **a, integer n)
-{
-  integer i, j;
-
-  plintf("\n");
-  for (i=0; i < n; i++) {
-    for (j=0; j < n; j++) {
-      plintf("%10g", a[j][i]);
-    }
-    plintf("\n");
-  }
-  plintf("\n");
 }
 
 
