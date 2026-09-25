@@ -1408,6 +1408,8 @@ async function phone() {
   await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
   await key('0');
   await until('w.viewport.x === null', 'reset');
+  /* ... drawn: the points are placed on the view the chart shows (W20) */
+  await until(`(() => { const r = __xpp.plot(); return !!r && r.x.max - r.x.min > 1.5 * ${width(z2.x)}; })()`, 'reset drawn');
   /* a point well inside the plot */
   const box = await area();
   let row = 100, pt = await screenOf(0, row);
