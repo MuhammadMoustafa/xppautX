@@ -22,29 +22,10 @@ ALLOW="core/browse_data.cpp|strcpy(ode_names[j-1],ode_names[j]);|ode_names[j-1]/
 
 PATTERN='(^|[^a-zA-Z_])(sprintf|strcpy|vsprintf)[ \t]*\('
 
-# Strip // and /* */ comments (tracking block comments across lines) and
-# the contents of "..." string literals, but keep line numbers aligned
-# with the source so grep -n below reports real line numbers.
+# Comments blanked, line numbers kept
+# (tools/strip_comments.awk)
 strip_comments() {
-  awk '
-    BEGIN { in_comment = 0 }
-    {
-      line = $0; out = ""; n = length(line); in_str = 0; i = 1
-      while (i <= n) {
-        c = substr(line, i, 1); c2 = substr(line, i, 2)
-        if (in_comment) {
-          if (c2 == "*/") { in_comment = 0; out = out "  "; i += 2; continue }
-          out = out " "; i += 1; continue
-        }
-        if (!in_str && c2 == "/*") { in_comment = 1; out = out "  "; i += 2; continue }
-        if (!in_str && c2 == "//") { i = n + 1; continue }
-        if (c == "\"") { in_str = !in_str; out = out c; i += 1; continue }
-        if (in_str && c == "\\") { out = out c substr(line, i+1, 1); i += 2; continue }
-        out = out c; i += 1
-      }
-      print out
-    }
-  ' "$1"
+  awk -f tools/strip_comments.awk "$1"
 }
 
 is_excluded() {

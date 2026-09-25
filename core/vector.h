@@ -131,8 +131,8 @@ typedef struct {
  *                                                             *
  * Notes..                                                     *
  *                                                             *
- * Users who use the macros (1) must #include<stdlib.h>        *
- * since these macros expand to calls to malloc and free.      *
+ * Users who use the macros (1) must #include "xpp_mem.h"      *
+ * since these macros expand to xpp_malloc and xpp_free.      *
  *                                                             *
  * When looping over the components of an N_Vector v, it is    *
  * more efficient to first obtain the component array via      *
@@ -149,11 +149,11 @@ typedef struct {
  *                                                             *
  ***************************************************************/ 
 
-#define N_VMAKE(v, v_data, v_len) v = (N_Vector) malloc(sizeof(*v)); \
+#define N_VMAKE(v, v_data, v_len) v = (N_Vector) xpp_malloc(sizeof(*v)); \
                                   v->data   = v_data; \
                                   v->length = v_len
 
-#define N_VDISPOSE(v) free(v)
+#define N_VDISPOSE(v) xpp_free(v)
 
 #define N_VDATA(v) (v->data)
 

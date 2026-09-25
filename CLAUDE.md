@@ -91,6 +91,15 @@ it, and fails on any report (written to build/asan/reports):
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/asancheck.sh"
 
+The sanitizers do not see a read of memory never written; valgrind's
+memcheck does. `make vg` builds xppautX at -O1 without sanitizers into
+build/vg; `tools/valgrindcheck.sh` (W21; Linux, ~20 min, not in CI or
+verify.sh) runs the smoke run, every example, the unit tests
+(`TEST_RUNNER`), servercheck and autocheck under memcheck and fails on
+any report (build/vg/reports; tools/valgrind.supp only for code we do not
+own). It sets `XPP_CHECK_SLOW=30`, which multiplies every wait of the
+python checks (tools/xppclient.py), and `XPP_MEM_INIT=0` (core/xpp_mem.h).
+
 Metrics: verify.sh's `C++: N / M sources` (core/*.cpp over all core
 sources). The tree builds with 0 warnings (gcc 13 and MinGW gcc 13):
 verify.sh builds with `make WERROR=1`, which makes every category ever
@@ -316,7 +325,8 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   `XPP_WINDOW_FAIL_LOAD=1`, xpp_window_loader.cpp, is the Linux window's
   like hook); `--debug`
   prints the counts at exit. The exceptions (memory a library allocates or
-  frees) are listed in xpp_mem.h's comment; add any new one there.
+  frees) are listed in xpp_mem.h's comment; add any new one there and in
+  `tools/alloccheck.sh` (sourcecheck.sh), which fails any other direct call.
 - A leak or memory error LeakSanitizer/ASan/UBSan reports in our code is
   fixed, never suppressed; tools/lsan.supp is only for code we do not own,
   with a reason per line. Memory kept for the program's life (a global set

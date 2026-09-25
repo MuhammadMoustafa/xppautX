@@ -34,7 +34,8 @@
    into its argument, getcwd() (read_dir.c) fills the caller's buffer, and
    no core file frees what the C library allocated. A new exception
    (getline, scandir, realpath(p, NULL), asprintf ...) stays on the C
-   library's malloc/free and is listed here.
+   library's malloc/free and is listed here and in tools/alloccheck.sh,
+   which fails any other direct call (tools/sourcecheck.sh runs it).
 
    CVODE (cv*.c, dense.c, band.c, spgmr.c, iterativ.c, llnlmath.c,
    vector.c) and AUTO (autlib*.c, setubv2.c, ...) are ours: they allocate

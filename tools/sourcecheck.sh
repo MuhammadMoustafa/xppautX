@@ -7,6 +7,7 @@
 #   - every committed .sh is executable in git
 #   - the core never prints to stdout/stderr directly (tools/stdoutcheck.sh)
 #   - no sprintf/strcpy into a fixed buffer (tools/formatcheck.sh)
+#   - no malloc/free but through xpp_mem.h (tools/alloccheck.sh)
 #   - no extern whose type differs from its definition (make ltocheck)
 # Usage: tools/sourcecheck.sh [--warnings]
 #   --warnings  also count a clean build's warnings by flag and file
@@ -39,6 +40,10 @@ if ! sh tools/stdoutcheck.sh; then
 fi
 if ! sh tools/formatcheck.sh; then
   echo "FORMAT CHECK FAILED"
+  exit 1
+fi
+if ! sh tools/alloccheck.sh; then
+  echo "ALLOC CHECK FAILED"
   exit 1
 fi
 # make ltocheck's own sub-make, invoked via $(MAKE), shares the jobserver
