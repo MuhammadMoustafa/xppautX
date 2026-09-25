@@ -466,25 +466,28 @@ def section_files():
 
 def lecar_csv(s):
     """steady state, grab the first label, a periodic branch, File/eXport
-    CSV; returns (diagram csv text, eigenvalues csv text), either None if
-    not written"""
+    CSV; returns (diagram csv text, eigenvalues csv text, the diagram's
+    data as the page gets it), the texts None if not written"""
+    s.collect(is_idle)
+    s.send(cmd='data', events=['autoinfo'])
     s.collect(is_idle)
     open_auto(s)
-    run_menu(s, 's')
+    evs = run_menu(s, 's')
     grab_hopf(s)
-    run_menu(s, 'p', timeout=120 * SLOW)
+    evs += run_menu(s, 'p', timeout=120 * SLOW)
+    dg = Diagram().apply(evs)
     s.send(cmd='auto', op='file')
     s.answer_asks(is_idle, {'menu': lambda e: {'key': 'x'},
                             'file': lambda e: {'ok': 1, 'file': 'lecar.csv'}})
     dpath = os.path.join(s.run, 'lecar.csv')
     epath = os.path.join(s.run, 'lecar_eig.csv')
     if not os.path.exists(dpath) or not os.path.exists(epath):
-        return None, None
+        return None, None, dg
     with open(dpath, newline='') as f:
         d = f.read()
     with open(epath, newline='') as f:
         e = f.read()
-    return d, e
+    return d, e, dg
 
 
 def section_csv():
@@ -492,7 +495,7 @@ def section_csv():
     from collections import Counter
     home = tempfile.mkdtemp(prefix='xpphome')
     s = Server(args.server, LECAR, env={'HOME': home}, verbose=args.v)
-    d, e = lecar_csv(s)
+    d, e, dg = lecar_csv(s)
     s.close()
     shutil.rmtree(home, ignore_errors=True)
     check('File/eXport CSV writes the diagram and eigenvalues files', d is not None and e is not None)
@@ -503,7 +506,18 @@ def section_csv():
     check('the diagram CSV has a header of names',
           bool(drows) and {'branch', 'point', 'type', 'label', 'stability', 'period'} <= set(drows[0].keys()),
           str(list(drows[0].keys()) if drows else []))
-    check('the diagram CSV has one row per stored point', len(drows) > 5, '%d rows' % len(drows))
+    # the steady branch against the diagram data the page gets (the periodic
+    # run's points may repeat, which the page's data draws once): the same
+    # points, each row's param1 (lecar's AUTO x axis) its point's x
+    csv1 = [(int(r['branch']), int(r['point']), float(r['param1'])) for r in drows if r['branch'] == '1']
+    dg1 = [(p['br'], p['pt'], p['x']) for p in dg.pts if abs(p['br']) == 1]
+    close = lambda a, b: a[1] == b[1] and abs(a[2] - b[2]) <= 1e-6 * max(1, abs(b[2]))
+    check('the diagram CSV has the steady branch as the diagram data has it',
+          len(csv1) == len(dg1) > 5 and all(close(a, b) for a, b in zip(csv1, dg1)),
+          '%d rows, %d points; first difference %s' % (
+              len(csv1), len(dg1), next(((a, b) for a, b in zip(csv1, dg1) if not close(a, b)), None)))
+    check('branch and point numbers are positive (the stability column holds what AUTO signs them by)',
+          all(int(r['branch']) > 0 and int(r['point']) > 0 for r in drows))
     check('the eigenvalues CSV has a header of names',
           bool(erows) and set(erows[0].keys()) == {'branch', 'point', 'index', 're', 'im', 'kind'},
           str(list(erows[0].keys()) if erows else []))

@@ -66,6 +66,9 @@ std::string par_name(int icp)
 /* get_bif_type's SEQ/UEQ/SPER/UPER (autevd.cpp; also a run's "ty" in
    docs/protocol.md's `info`): 1/2 a steady state's eigenvalues, 3/4 a
    periodic orbit's Floquet multipliers; odd stable, even unstable */
+/* AUTO's ibr and ntot without their sign (auto_f2c.h's abs macro rules
+   out std::abs here) */
+int unsigned_of(int v) { return v < 0 ? -v : v; }
 bool point_is_periodic(int type) { return type == 3 || type == 4; }
 bool point_is_stable(int type) { return type == 1 || type == 3; }
 
@@ -95,7 +98,8 @@ int csv_export_diagram(const char *filename)
         while (*sym == ' ') sym++;
         double par1 = d->par[d->icp1];
         double par2 = d->icp2 < NAutoPar ? d->par[d->icp2] : par1;
-        fprintf(fp, "%d,%d,%s,%d,%s,%d,%s,%s,%s,%s,%s", d->ibr, d->ntot, csv_field(sym).c_str(), d->lab,
+        /* AUTO signs ibr and ntot by stability, which has its own column */
+        fprintf(fp, "%d,%d,%s,%d,%s,%d,%s,%s,%s,%s,%s", unsigned_of(d->ibr), unsigned_of(d->ntot), csv_field(sym).c_str(), d->lab,
                 point_is_stable(type) ? "stable" : "unstable", d->flag2, csv_field(par_name(d->icp1).c_str()).c_str(),
                 xpp::number(par1).c_str(), csv_field(par_name(d->icp2).c_str()).c_str(), xpp::number(par2).c_str(),
                 xpp::number(d->per).c_str());
@@ -124,7 +128,7 @@ int csv_export_diagram_eigenvalues(const char *filename)
         int type = get_bif_type(d->ibr, d->ntot, d->lab);
         const char *kind = point_is_periodic(type) ? "multiplier" : "eigenvalue";
         for (int i = 0; i < NODE; i++)
-            fprintf(fp, "%d,%d,%d,%s,%s,%s\n", d->ibr, d->ntot, i, xpp::number(d->evr[i]).c_str(),
+            fprintf(fp, "%d,%d,%d,%s,%s,%s\n", unsigned_of(d->ibr), unsigned_of(d->ntot), i, xpp::number(d->evr[i]).c_str(),
                     xpp::number(d->evi[i]).c_str(), kind);
     }
     if (!w.commit()) {
