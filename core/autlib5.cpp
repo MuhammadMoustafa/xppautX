@@ -3,6 +3,7 @@
 	-lf2c -lm   (in that order)
 */
 
+#include <vector>
 #include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h"
 #include "xpp_mem.h"
@@ -22,17 +23,18 @@ extern XAUTO xAuto;
    blocks in the original code.  They are ONLY used within
    the Homcont code.
 */
+namespace {
 struct {
   integer itwist, istart, iequib, nfixed, npsi, nunstab, nstab, nrev;
 } blhom_1;
 
 struct {
-  integer *ipsi, *ifixed, *irev;
-} blhmp_1 = {NULL,NULL,NULL};
+  std::vector<integer> ipsi, ifixed, irev;
+} blhmp_1;
 
 struct {
-  doublereal *pu0, *pu1;
-} blhmu_1 = {NULL,NULL};
+  std::vector<doublereal> pu0, pu1;
+} blhmu_1;
 
 struct {
   integer nbcn;
@@ -43,19 +45,20 @@ struct {
 } blhma_1;
 
 struct {
-  doublereal *rr, *ri, *v, *vt, *xequib;
-  integer ineig;
-} bleig_1 = {NULL,NULL,NULL,NULL,NULL,0};
+  std::vector<doublereal> rr, ri, v, vt, xequib;
+  integer ineig = 0;
+} bleig_1;
 
 struct {
-  doublereal *vrprev;
-  integer *ieigc;
-} blhme_1 = {NULL,NULL};
+  std::vector<doublereal> vrprev;
+  std::vector<integer> ieigc;
+} blhme_1;
 
 struct {
-  doublereal *cprev;
-  integer *iflag;
-} beyn_1 = {NULL,NULL};
+  std::vector<doublereal> cprev;
+  std::vector<integer> iflag;
+} beyn_1;
+} // namespace
 
 
 /* ----------------------------------------------------------------------- */
@@ -224,14 +227,14 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   integer nfpr;
   doublereal rtmp;
   integer i, j;
-  doublereal ep, *ff1, *ff2, *uu1, *uu2, *dfu, umx;
+  doublereal ep, umx;
   integer nbc0;
 
-  ff1=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc));
-  ff2=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc));
-  uu1=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  uu2=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  dfu=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc)*(2*iap->ndim+NPARX));
+  std::vector<doublereal> ff1(iap->nbc);
+  std::vector<doublereal> ff2(iap->nbc);
+  std::vector<doublereal> uu1(iap->ndim);
+  std::vector<doublereal> uu2(iap->ndim);
+  std::vector<doublereal> dfu((iap->nbc)*(2*iap->ndim+NPARX));
 		     
 
 
@@ -257,14 +260,9 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 /* Generate the function. */
 
   fbho(iap, rap, ndim, par, icp, nbc, nbc0, &u0[0], &u1[0], &
-       f[0], dfu);
+       f[0], dfu.data());
 
   if (ijac == 0) {
-    xpp_free(ff1);
-    xpp_free(ff2);
-    xpp_free(uu1);
-    xpp_free(uu2);
-    xpp_free(dfu);
     return 0;
   }
 
@@ -285,10 +283,10 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     uu1[i] -= ep;
     uu2[i] += ep;
-    fbho(iap, rap, ndim, par, icp, nbc, nbc0, uu1, u1, 
-	 ff1, dfu);
-    fbho(iap, rap, ndim, par, icp, nbc, nbc0, uu2, u1, 
-	 ff2, dfu);
+    fbho(iap, rap, ndim, par, icp, nbc, nbc0, uu1.data(), u1, 
+	 ff1.data(), dfu.data());
+    fbho(iap, rap, ndim, par, icp, nbc, nbc0, uu2.data(), u1, 
+	 ff2.data(), dfu.data());
     for (j = 0; j < nbc; ++j) {
       ARRAY2D(dbc, j, i) = (ff2[j] - ff1[j]) / (ep * 2);
     }
@@ -311,10 +309,10 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     uu1[i] -= ep;
     uu2[i] += ep;
-    fbho(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu1, 
-	 ff1, dfu);
-    fbho(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu2, 
-	 ff2, dfu);
+    fbho(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu1.data(), 
+	 ff1.data(), dfu.data());
+    fbho(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu2.data(), 
+	 ff2.data(), dfu.data());
     for (j = 0; j < nbc; ++j) {
       ARRAY2D(dbc, j, (ndim + i)) = (ff2[j] - ff1[j]) / (ep * 2);
     }
@@ -323,17 +321,12 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
     fbho(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1
-	 , ff2, dfu);
+	 , ff2.data(), dfu.data());
     for (j = 0; j < nbc; ++j) {
       ARRAY2D(dbc, j, (ndim * 2) + icp[i]) = (ff2[j] - f[j]) / ep;
     }
     par[icp[i]] -= ep;
   }
-  xpp_free(ff1);
-  xpp_free(ff2);
-  xpp_free(uu1);
-  xpp_free(uu2);
-  xpp_free(dfu);
 
   return 0;
 } /* bcho_ */
@@ -362,12 +355,6 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   integer ijc = 0, ndm;
   doublereal dum, dum1, dum2;
 
-  doublereal *f;
-  doublereal *bound;
-  doublereal *fj;
-  doublereal *ri;
-  doublereal *rr, *vr, *vt;
-  doublereal *xequib1, *xequib2;
 
     /* I am not 100% sure if this is supposed to be iap->ndm or iap->ndim,
        but it appears from looking at the code that it should be iap->ndm.
@@ -378,15 +365,15 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
        also depend on these arrays, and more importantly the algorithm,
        having N X.  So, they all need to be changed at once.
     */
-  f       = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
-  bound   = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm)*(iap->ndm));
-  fj      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
-  ri      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
-  rr      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
-  vr      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm)*(iap->ndm));
-  vt      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm)*(iap->ndm));
-  xequib1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
-  xequib2 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
+  std::vector<doublereal> f(iap->ndm);
+  std::vector<doublereal> bound((iap->ndm)*(iap->ndm));
+  std::vector<doublereal> fj(iap->ndm);
+  std::vector<doublereal> ri(iap->ndm);
+  std::vector<doublereal> rr(iap->ndm);
+  std::vector<doublereal> vr((iap->ndm)*(iap->ndm));
+  std::vector<doublereal> vt((iap->ndm)*(iap->ndm));
+  std::vector<doublereal> xequib1(iap->ndm);
+  std::vector<doublereal> xequib2(iap->ndm);
 
 
   /* Generates the boundary conditions for homoclinic orbits. */
@@ -436,7 +423,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   if (blhom_1.istart != 3) {
     /*        *Projection boundary conditions for the homoclinic orbit */
     /*        *NSTAB boundary conditions at t=0 */
-    prjcti(bound, xequib1, icp, par, -1, 1, 1, &ndm);
+    prjcti(bound.data(), xequib1.data(), icp, par, -1, 1, 1, &ndm);
     for (i = 0; i < blhom_1.nstab; ++i) {
       for (k = 0; k < ndm; ++k) {
 	fb[-1 + jb] += (u0[k] - xequib1[k]) * bound[i + k * (iap->ndm)];
@@ -446,7 +433,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     /*        *NUNSTAB boundary conditions at t=1 */
     if (blhom_1.nrev == 0) {
-      prjcti(bound, xequib2, icp, par, 1, 2, 1, &
+      prjcti(bound.data(), xequib2.data(), icp, par, 1, 2, 1, &
 	     ndm);
       for (i = ndm - blhom_1.nunstab; i < ndm; ++i) {
 	for (k = 0; k < ndm; ++k) {
@@ -477,23 +464,23 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
      */
     if (blhom_1.nfixed > 0) {
       if (ieig == 0) {
-	eighi(1, 2, rr, ri, vr, xequib1, icp, par, &
+	eighi(1, 2, rr.data(), ri.data(), vr.data(), xequib1.data(), icp, par, &
 	      ndm);
 	ieig = 1;
       }
       for (i = 0; i < blhom_1.nfixed; ++i) {
 	if (blhmp_1.ifixed[i] > 10 && ineig == 0) {
-	  eighi(1, 1, rr, ri, vt, xequib1, icp, par, &ndm);
+	  eighi(1, 1, rr.data(), ri.data(), vt.data(), xequib1.data(), icp, par, &ndm);
 	  ineig = 1;
 	}
-	fb[-1 + jb] = psiho(iap, blhmp_1.ifixed[i], rr, ri, vr,vt, icp, par);
+	fb[-1 + jb] = psiho(iap, blhmp_1.ifixed[i], rr.data(), ri.data(), vr.data(),vt.data(), icp, par);
 	++jb;
       }
     }
     /*        *NDM initial conditions for the equilibrium if IEQUIB=1,2,-2
      */
     if (blhom_1.iequib != 0 && blhom_1.iequib != -1) {
-      func(ndm, xequib1, icp, par, 0, f, &dum1, &dum2);
+      func(ndm, xequib1.data(), icp, par, 0, f.data(), &dum1, &dum2);
       for (i = 0; i < ndm; ++i) {
 	fb[-1 + jb] = f[i];
 	++jb;
@@ -501,7 +488,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
       /*        *NDM extra initial conditions for the equilibrium if IEQ
 		UIB=-2 */
       if (blhom_1.iequib == -2) {
-	func(ndm, xequib2, icp, par, 0, f, &dum1, &dum2);
+	func(ndm, xequib2.data(), icp, par, 0, f.data(), &dum1, &dum2);
 	for (i = 0; i < ndm; ++i) {
 	  fb[-1 + jb] = f[i];
 	  ++jb;
@@ -512,7 +499,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 	     inic*/
     if (blhom_1.iequib == 2) {
       if (ineig == 0) {
-	eighi(1, 1, rr, ri, vt, xequib1, icp, par, &ndm);
+	eighi(1, 1, rr.data(), ri.data(), vt.data(), xequib1.data(), icp, par, &ndm);
 	ineig = 1;
       }
       fb[-1 + jb] = rr[blhom_1.nstab];
@@ -522,7 +509,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     if (blhom_1.itwist == 1) {
       /*           *-orthogonal to the unstable directions of A  at t=0 
        */
-      prjcti(bound, xequib1, icp, par, 1, 1, 2, &ndm);
+      prjcti(bound.data(), xequib1.data(), icp, par, 1, 1, 2, &ndm);
       for (i = ndm - blhom_1.nunstab; i < ndm; ++i) {
 	dum = 0.;
 	for (k = 0; k < ndm; ++k) {
@@ -532,7 +519,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 	++jb;
       }
       /*           *-orthogonal to the stable directions of A  at t=1 */
-      prjcti(bound, xequib2, icp, par, -1, 2, 2, &ndm);
+      prjcti(bound.data(), xequib2.data(), icp, par, -1, 2, 2, &ndm);
       for (i = 0; i < blhom_1.nstab; ++i) {
 	dum = 0.;
 	for (k = 0; k < ndm; ++k) {
@@ -541,15 +528,6 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 	fb[-1 + jb] = dum;
 	++jb;
       }
-      xpp_free(f    );
-      xpp_free(bound);
-      xpp_free(fj   );
-      xpp_free(ri   );
-      xpp_free(rr   );
-      xpp_free(vr   );
-      xpp_free(vt   );
-      xpp_free(xequib1);
-      xpp_free(xequib2);
       return 0;
     }
   } else {
@@ -567,7 +545,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     kp = ip;
     /*        *Explicit boundary conditions for homoclinic orbit at t=0 */
-    eighi(1, 2, rr, ri, vr, xequib1, icp, par, &ndm);
+    eighi(1, 2, rr.data(), ri.data(), vr.data(), xequib1.data(), icp, par, &ndm);
     ieig = 1;
     if (blhom_1.nunstab > 1) {
       dum = 0.;
@@ -595,7 +573,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     /*        *Projection boundary conditions for the homoclinic orbit at 
 t=1 */
     if (ineig == 0) {
-      eighi(1, 1, rr, ri, vt, xequib2, icp, par, &ndm);
+      eighi(1, 1, rr.data(), ri.data(), vt.data(), xequib2.data(), icp, par, &ndm);
       ineig = 1;
     }
     for (i = 0; i < blhom_1.nunstab; ++i) {
@@ -611,7 +589,7 @@ t=1 */
     /*        *NDM initial conditions for the equilibrium if IEQUIB=1,2,-2
  */
     if (blhom_1.iequib != 0 && blhom_1.iequib != -1) {
-      func(ndm, xequib1, icp, par, 0, f, &dum1, &dum2);
+      func(ndm, xequib1.data(), icp, par, 0, f.data(), &dum1, &dum2);
       for (i = 0; i < ndm; ++i) {
 	fb[-1 + jb] = f[i];
 	++jb;
@@ -619,7 +597,7 @@ t=1 */
       /*        *NDM extra initial conditions for the equilibrium if IEQ
 		UIB=-2 */
       if (blhom_1.iequib == -2) {
-	func(ndm, xequib2, icp, par, 0, f, &dum1, &dum2)
+	func(ndm, xequib2.data(), icp, par, 0, f.data(), &dum1, &dum2)
 	  ;
 	for (i = 0; i < ndm; ++i) {
 	  fb[-1 + jb] = f[i];
@@ -632,7 +610,7 @@ t=1 */
   /*      write(9,*) NBCN,NBC */
   /* *user defined extra boundary conditions */
   if (bcnn_1.nbcn > 0) {
-    bcnd(ndim, par, icp, bcnn_1.nbcn, u0, u1, ijc, fj, dbc);
+    bcnd(ndim, par, icp, bcnn_1.nbcn, u0, u1, ijc, fj.data(), dbc);
     for (k = 0; k < bcnn_1.nbcn; ++k) {
       fb[-1 + jb] = fj[k];
       /*            write(9,*),fb(jb),par(30) */
@@ -640,15 +618,6 @@ t=1 */
     }
   }
 
-  xpp_free(f    );
-  xpp_free(bound);
-  xpp_free(fj   );
-  xpp_free(ri   );
-  xpp_free(rr   );
-  xpp_free(vr   );
-  xpp_free(vt   );
-  xpp_free(xequib1);
-  xpp_free(xequib2);
 
   return 0;
 } /* fbho_ */
@@ -666,14 +635,14 @@ icho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   integer nfpr;
   doublereal rtmp;
   integer i, j;
-  doublereal ep, *ff1, *ff2, *uu1, *uu2, *dfu, umx;
+  doublereal ep, umx;
   integer nnt0;
 
-  ff1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint));
-  ff2 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint));
-  uu1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  uu2 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  dfu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim + NPARX));
+  std::vector<doublereal> ff1(iap->nint);
+  std::vector<doublereal> ff2(iap->nint);
+  std::vector<doublereal> uu1(iap->ndim);
+  std::vector<doublereal> uu2(iap->ndim);
+  std::vector<doublereal> dfu((iap->ndim)*(iap->ndim + NPARX));
 
 
 /* Generates integral conditions for homoclinic bifurcation analysis */
@@ -696,14 +665,9 @@ icho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 /* Generate the function. */
 
   fiho(iap, rap, ndim, par, icp, nint, nnt0, u, uold, 
-       udot, upold, f, dfu);
+       udot, upold, f, dfu.data());
 
   if (ijac == 0) {
-    xpp_free(ff1);
-    xpp_free(ff2);
-    xpp_free(uu1);
-    xpp_free(uu2);
-    xpp_free(dfu);
     return 0;
   }
 
@@ -726,10 +690,10 @@ icho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     uu1[i] -= ep;
     uu2[i] += ep;
-    fiho(iap, rap, ndim, par, icp, nint, nnt0, uu1, uold
-	 , udot, upold, ff1, dfu);
-    fiho(iap, rap, ndim, par, icp, nint, nnt0, uu2, uold
-	 , udot, upold, ff2, dfu);
+    fiho(iap, rap, ndim, par, icp, nint, nnt0, uu1.data(), uold
+	 , udot, upold, ff1.data(), dfu.data());
+    fiho(iap, rap, ndim, par, icp, nint, nnt0, uu2.data(), uold
+	 , udot, upold, ff2.data(), dfu.data());
     for (j = 0; j < nint; ++j) {
       ARRAY2D(dint, j, i) = (ff2[j] - ff1[j]) / (ep * 2);
     }
@@ -738,18 +702,13 @@ icho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
     fiho(iap, rap, ndim, par, icp, nint, nnt0, u, 
-	 uold, udot, upold, ff1, dfu);
+	 uold, udot, upold, ff1.data(), dfu.data());
     for (j = 0; j < nint; ++j) {
       ARRAY2D(dint, j, ndim + icp[i]) = (ff1[j] - f[j]) / ep;
     }
     par[icp[i]] -= ep;
   }
 
-  xpp_free(ff1);
-  xpp_free(ff2);
-  xpp_free(uu1);
-  xpp_free(uu2);
-  xpp_free(dfu);
   return 0;
 } /* icho_ */
 
@@ -763,12 +722,11 @@ fiho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   integer ijac = 0;
 
   integer i, jb;
-  doublereal *fj;
   integer ndm;
   doublereal dum;
 
 
-  fj = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  std::vector<doublereal> fj(iap->ndim);
   /* Generates the integral conditions for homoclinic orbits. */
 
 
@@ -811,12 +769,11 @@ fiho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   if (jb < nint) {
     icnd(ndm, par, icp, nint, u, uold, udot, 
-	 upold, ijac, fj, dint);
+	 upold, ijac, fj.data(), dint);
     for (i = 0; i < nint - jb; ++i) {
       fi[i + jb] = fj[i];
     }
   }
-  xpp_free(fj);
   return 0;
 } /* fiho_ */
 
@@ -830,32 +787,18 @@ inho(iap_type *iap, integer *icp, doublereal *par)
   integer ndim, nint, nuzr, i, nfree, icorr, nbc, ndm, isw;
 
   /* Allocate memory for global structures. */
-  xpp_free(blhmp_1.ipsi);
-  xpp_free(blhmp_1.ifixed);
-  xpp_free(blhmp_1.irev);
 
-  xpp_free(blhmu_1.pu0);
-  xpp_free(blhmu_1.pu1);
 
-  xpp_free(bleig_1.rr);
-  xpp_free(bleig_1.ri);
-  xpp_free(bleig_1.v);
-  xpp_free(bleig_1.vt);
-  xpp_free(bleig_1.xequib);
     
-  xpp_free(blhme_1.vrprev);
-  xpp_free(blhme_1.ieigc);
 
-  xpp_free(beyn_1.cprev);
-  xpp_free(beyn_1.iflag);
 
-  blhmp_1.ipsi   = (integer *)xpp_malloc(sizeof(integer)*NPARX);
-  blhmp_1.ifixed = (integer *)xpp_malloc(sizeof(integer)*NPARX);
-  blhmp_1.irev   = (integer *)xpp_malloc(sizeof(integer)*(iap->ndim));
+  blhmp_1.ipsi.assign(NPARX, 0);
+  blhmp_1.ifixed.assign(NPARX, 0);
+  blhmp_1.irev.assign((iap->ndim), 0);
 
-  blhme_1.ieigc  = (integer *)xpp_malloc(sizeof(integer)*2);
+  blhme_1.ieigc.assign(2, 0);
 
-  beyn_1.iflag   = (integer *)xpp_malloc(sizeof(integer)*4);
+  beyn_1.iflag.assign(4, 0);
 
   /* the prjctn_ function uses this array to test if this is
        the first time the prjctn_ function has been called.
@@ -903,18 +846,18 @@ inho(iap_type *iap, integer *icp, doublereal *par)
   /* Allocate memory for global structures.  We didn't know the
      size for these until ndim was computed. */
 
-  blhmu_1.pu0    = (doublereal *)xpp_malloc(sizeof(doublereal)*(ndim));
-  blhmu_1.pu1    = (doublereal *)xpp_malloc(sizeof(doublereal)*(ndim));
+  blhmu_1.pu0.assign((ndim), 0.);
+  blhmu_1.pu1.assign((ndim), 0.);
 
-  bleig_1.rr     = (doublereal *)xpp_malloc(sizeof(doublereal)*(ndim));
-  bleig_1.ri     = (doublereal *)xpp_malloc(sizeof(doublereal)*(ndim));
-  bleig_1.v      = (doublereal *)xpp_malloc(sizeof(doublereal)*(ndim)*(ndim));
-  bleig_1.vt     = (doublereal *)xpp_malloc(sizeof(doublereal)*(ndim)*(ndim));
-  bleig_1.xequib = (doublereal *)xpp_malloc(sizeof(doublereal)*(ndim));
+  bleig_1.rr.assign((ndim), 0.);
+  bleig_1.ri.assign((ndim), 0.);
+  bleig_1.v.assign((ndim)*(ndim), 0.);
+  bleig_1.vt.assign((ndim)*(ndim), 0.);
+  bleig_1.xequib.assign((ndim), 0.);
 
-  blhme_1.vrprev = (doublereal *)xpp_malloc(sizeof(doublereal)*2*(ndim)*(ndim));
+  blhme_1.vrprev.assign(2*(ndim)*(ndim), 0.);
 
-  beyn_1.cprev   = (doublereal *)xpp_malloc(sizeof(doublereal)*2*2*(ndim)*(ndim));
+  beyn_1.cprev.assign(2*2*(ndim)*(ndim), 0.);
 
  
  
@@ -1111,13 +1054,13 @@ stpnho(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Local variables */
   integer ndim, ncol, nfpr, ntst, ncol1, i, j, k;
-  doublereal t, *u;
+  doublereal t;
   integer k1, k2;
 
   doublereal dt;
   integer lab, ibr;
 
-  u = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  std::vector<doublereal> u(iap->ndim);
   /* Generates a starting point for the continuation of a branch of */
   /* of solutions to general boundary value problems by calling the user */
   /* supplied subroutine STPNT where an analytical solution is given. */
@@ -1153,7 +1096,7 @@ stpnho(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
       t = tm[j] + i * dt;
       k1 = i * ndim;
       k2 = (i + 1) * ndim - 1;
-      stpho(iap, icp, u, par, &t);
+      stpho(iap, icp, u.data(), par, &t);
       for (k = k1; k <= k2; ++k) {
 	ARRAY2D(ups, j, k) = u[k - k1];
       }
@@ -1172,7 +1115,6 @@ stpnho(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   }
 
   *nodir = 1;
-  xpp_free(u);
   return 0;
 } /* stpnho_ */
 
@@ -1189,14 +1131,12 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
   integer kp;
   integer ndm;
 
-  doublereal *ri;
-  doublereal *rr, *vr, *vt, *xequib;
 
-  ri      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
-  rr      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
-  vr      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm)*(iap->ndm));
-  vt      = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm)*(iap->ndm));
-  xequib  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
+  std::vector<doublereal> ri(iap->ndm);
+  std::vector<doublereal> rr(iap->ndm);
+  std::vector<doublereal> vr((iap->ndm)*(iap->ndm));
+  std::vector<doublereal> vt((iap->ndm)*(iap->ndm));
+  std::vector<doublereal> xequib(iap->ndm);
 
 
   /* Generates a starting point for homoclinic continuation */
@@ -1221,7 +1161,7 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
 
   /* Initialize solution and additional parameters */
 
-  switch ((int)blhom_1.istart) {
+  switch (static_cast<int>(blhom_1.istart)) {
   case 1:  goto L1;
   case 2:  goto L2;
   case 3:  goto L3;
@@ -1232,11 +1172,6 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
  L1:
   /* Obsolete option */
 
-  xpp_free(ri      );
-  xpp_free(rr      );
-  xpp_free(vr      );
-  xpp_free(vt      );
-  xpp_free(xequib  );
   return 0;
 
 /* -----------------------------------------------------------------------
@@ -1244,11 +1179,6 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
  L2:
   /*     *Regular continuation (explicit solution in STHO) */
 
-  xpp_free(ri      );
-  xpp_free(rr      );
-  xpp_free(vr      );
-  xpp_free(vt      );
-  xpp_free(xequib  );
   return 0;
 
 /* -----------------------------------------------------------------------
@@ -1260,8 +1190,8 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
   for (i = 0; i < ndm; ++i) {
     xequib[i] = par[i + 11];
   }
-  eighi(1, 1, rr, ri, vt, xequib, icp, par, &ndm);
-  eighi(1, 2, rr, ri, vr, xequib, icp, par, &ndm);
+  eighi(1, 1, rr.data(), ri.data(), vt.data(), xequib.data(), icp, par, &ndm);
+  eighi(1, 2, rr.data(), ri.data(), vr.data(), xequib.data(), icp, par, &ndm);
 
   /* Set up artificial parameters at the left-hand end point of orbit */
 
@@ -1306,11 +1236,6 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
     }
   }
   ip += blhom_1.nunstab;
-  xpp_free(ri      );
-  xpp_free(rr      );
-  xpp_free(vr      );
-  xpp_free(vt      );
-  xpp_free(xequib  );
   return 0;
   /* -----------------------------------------------------------------------
    */
@@ -1347,7 +1272,7 @@ pvlsho(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
   for (i = 0; i < ndm; ++i) {
     bleig_1.xequib[i] = par[i + 11];
   }
-  eighi(1, 2, bleig_1.rr, bleig_1.ri, bleig_1.v, bleig_1.xequib, 
+  eighi(1, 2, bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.v.data(), bleig_1.xequib.data(), 
 	icp, par, &ndm);
   if (iid >= 3) {
     fprintf(fp9,"EIGENVALUES\n");	
@@ -1356,11 +1281,11 @@ pvlsho(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
     }
   }
   if (blhom_1.itwist == 1) {
-    eighi(1, 1, bleig_1.rr, bleig_1.ri, bleig_1.vt, 
-	  bleig_1.xequib, icp, par, &ndm);
+    eighi(1, 1, bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.vt.data(), 
+	  bleig_1.xequib.data(), icp, par, &ndm);
     bleig_1.ineig = 1;
-    orient = psiho(iap, 0, bleig_1.rr, bleig_1.ri, bleig_1.v, 
-		   bleig_1.vt, icp, par);
+    orient = psiho(iap, 0, bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.v.data(), 
+		   bleig_1.vt.data(), icp, par);
     if (iid >= 3) {
       if (orient < 0.) {
 	fprintf(fp9," Non-orientable, (%20.10f)\n",orient);	
@@ -1372,11 +1297,11 @@ pvlsho(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
 
   for (i = 0; i < blhom_1.npsi; ++i) {
     if (blhmp_1.ipsi[i] > 10 && bleig_1.ineig == 0) {
-      eighi(1, 1, bleig_1.rr, bleig_1.ri, bleig_1.vt, 
-	    bleig_1.xequib, icp, par, &ndm);
+      eighi(1, 1, bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.vt.data(), 
+	    bleig_1.xequib.data(), icp, par, &ndm);
       bleig_1.ineig = 1;
     }
-    par[blhmp_1.ipsi[i] + 19] = psiho(iap, blhmp_1.ipsi[i], bleig_1.rr, bleig_1.ri, bleig_1.v, bleig_1.vt, icp, par);
+    par[blhmp_1.ipsi[i] + 19] = psiho(iap, blhmp_1.ipsi[i], bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.v.data(), bleig_1.vt.data(), icp, par);
     if (iid >= 3) {
       fprintf(fp9," PSI(%2ld)=%20.10f\n",blhmp_1.ipsi[i],par[blhmp_1.ipsi[i] + 19]);	
 
@@ -1399,12 +1324,12 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
     /* Local variables */
 
   integer i, j;
-  doublereal *f0, *f1, droot, s1, s2, f0norm, f1norm, u0norm, u1norm;
+  doublereal droot, s1, s2, f0norm, f1norm, u0norm, u1norm;
   integer ndm;
   doublereal dum1, dum2;
 
-  f0 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));    
-  f1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndm));
+  std::vector<doublereal> f0(iap->ndm);
+  std::vector<doublereal> f1(iap->ndm);
 
 /* The conditions for degenerate homoclinic orbits are given by PSI(IS)=0.
  */
@@ -1434,8 +1359,8 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
     
   ndm = iap->ndm;
 
-  func(ndm, blhmu_1.pu0, icp, par, 0, f0, &dum1, &dum2);
-  func(ndm, blhmu_1.pu1, icp, par, 0, f1, &dum1, &dum2);
+  func(ndm, blhmu_1.pu0.data(), icp, par, 0, f0.data(), &dum1, &dum2);
+  func(ndm, blhmu_1.pu1.data(), icp, par, 0, f1.data(), &dum1, &dum2);
 
   ret_val = 0.;
 
@@ -1466,21 +1391,15 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
     } else {
       ret_val = 0.;
     }
-    xpp_free(f0);
-    xpp_free(f1);
     return ret_val;
   } else if (is == 11) {
     /* L11 below still reads f1[]; free it there instead. */
-    xpp_free(f0);
   } else if (is == 12) {
     /* L12 below still reads f0[]; free it there instead. */
-    xpp_free(f1);
   } else {
-    xpp_free(f0);
-    xpp_free(f1);
   }
 
-  switch ((int)is) {
+  switch (static_cast<int>(is)) {
   case 1:  goto L1;
   case 2:  goto L2;
   case 3:  goto L3;
@@ -1587,7 +1506,6 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
     ret_val += f1[j] * vt[blhom_1.nstab + (j + 1) * (iap->ndm)];
   }
   ret_val *= exp(-par[10] * rr[-1 + blhom_1.nstab] / 2.);
-  xpp_free(f1);
   return ret_val;
 
   /* Orbit flip (with respect to leading unstable direction) */
@@ -1598,7 +1516,6 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
     ret_val += f0[j] * vt[blhom_1.nstab + 1 + (j + 1) * (iap->ndm)];
   }
   ret_val *= exp(par[10] * rr[blhom_1.nstab] / 2.);
-  xpp_free(f0);
   return ret_val;
 
   /* Inclination flip (critically twisted) with respect to stable manifold 
@@ -1647,18 +1564,13 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 /* Subroutine */ int 
 eighi(integer isign, integer itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm)
 {
-  doublereal *dfdp, *dfdu;
-  doublereal *zz;
 
-  dfdp = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*NPARX);
-  dfdu = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  zz   = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
+  std::vector<doublereal> dfdp((*ndm)*NPARX);
+  std::vector<doublereal> dfdu((*ndm)*(*ndm));
+  std::vector<doublereal> zz((*ndm)*(*ndm));
 
-  eigho(&isign, &itrans, rr, ri, vret, xequib, icp, par, ndm, dfdu, dfdp, zz);
+  eigho(&isign, &itrans, rr, ri, vret, xequib, icp, par, ndm, dfdu.data(), dfdp.data(), zz.data());
 
-  xpp_free(dfdp);
-  xpp_free(dfdu);
-  xpp_free(zz);
 
   return 0;
 } /* eighi */
@@ -1676,21 +1588,17 @@ eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublerea
   integer i, j, k, ifail;
   doublereal vdot;
 
-  doublereal *f;
-  doublereal *ridum, *vidum, *rrdum, *vrdum;
 
-  doublereal *vi, *vr, *fv1;
-  integer *iv1;
 
-  f     = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm));
-  ridum = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm));
-  vidum = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  rrdum = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm));
-  vrdum = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  vi    = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  vr    = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  fv1   = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm));
-  iv1   = (integer *)xpp_malloc(sizeof(integer)*(*ndm));
+  std::vector<doublereal> f(*ndm);
+  std::vector<doublereal> ridum(*ndm);
+  std::vector<doublereal> vidum((*ndm)*(*ndm));
+  std::vector<doublereal> rrdum(*ndm);
+  std::vector<doublereal> vrdum((*ndm)*(*ndm));
+  std::vector<doublereal> vi((*ndm)*(*ndm));
+  std::vector<doublereal> vr((*ndm)*(*ndm));
+  std::vector<doublereal> fv1(*ndm);
+  std::vector<integer> iv1(*ndm);
 
   /* Uses EISPACK routine RG to calculate the eigenvalues/eigenvectors */
   /* of the linearization matrix a (obtained from DFHO) and orders them */
@@ -1726,7 +1634,7 @@ eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublerea
     
   ifail = 0;
 
-  func(*ndm, xequib, icp, par, 1, f, dfdu, 
+  func(*ndm, xequib, icp, par, 1, f.data(), dfdu, 
        dfdp);
 
   if (*itrans == 1) {
@@ -1744,7 +1652,7 @@ eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublerea
 
   /* EISPACK call for eigenvalues and eigenvectors */
   rg(*ndm, *ndm, dfdu, rr, ri, 1, zz, 
-     iv1, fv1, &ifail);
+     iv1.data(), fv1.data(), &ifail);
 
   if (ifail != 0) {
     fprintf(fp9,"EISPACK EIGENVALUE ROUTINE FAILED !\n");	
@@ -1839,15 +1747,6 @@ eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublerea
     }
   }
 
-  xpp_free(f    );
-  xpp_free(ridum);
-  xpp_free(vidum);
-  xpp_free(rrdum);
-  xpp_free(vrdum);
-  xpp_free(vi   );
-  xpp_free(vr   );
-  xpp_free(fv1  );
-  xpp_free(iv1  );
   return 0;
 } /* eigho_ */
 
@@ -1856,15 +1755,12 @@ eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublerea
 /* Subroutine */ int 
 prjcti(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, integer imfd, integer is, integer itrans, integer *ndm)
 {
-  doublereal *dfdp, *dfdu;
   
-  dfdp = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*NPARX);
-  dfdu = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
+  std::vector<doublereal> dfdp((*ndm)*NPARX);
+  std::vector<doublereal> dfdu((*ndm)*(*ndm));
   
-  prjctn(bound, xequib, icp, par, &imfd, &is, &itrans, ndm, dfdu, dfdp);
+  prjctn(bound, xequib, icp, par, &imfd, &is, &itrans, ndm, dfdu.data(), dfdp.data());
   
-  xpp_free(dfdp);
-  xpp_free(dfdu);
   return 0;
 } /* prjcti */
 
@@ -1884,25 +1780,18 @@ prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *pa
 
   doublereal det, eps;
 
-  doublereal *fdum;
-  doublereal *cnow;
-  integer *type__;
-  doublereal *a, *d;
-  doublereal *v;
-  doublereal *ei, *er;
-  doublereal *ort, *dum1, *dum2;
     
-  fdum   = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm));
-  cnow   = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  type__ = (integer *)xpp_malloc(sizeof(integer)*(*ndm));
-  a      = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  d    = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  v      = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  ei     = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm));
-  er     = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm));
-  ort    = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm));
-  dum1   = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
-  dum2   = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndm)*(*ndm));
+  std::vector<doublereal> fdum(*ndm);
+  std::vector<doublereal> cnow((*ndm)*(*ndm));
+  std::vector<integer> type__(*ndm);
+  std::vector<doublereal> a((*ndm)*(*ndm));
+  std::vector<doublereal> d((*ndm)*(*ndm));
+  std::vector<doublereal> v((*ndm)*(*ndm));
+  std::vector<doublereal> ei(*ndm);
+  std::vector<doublereal> er(*ndm);
+  std::vector<doublereal> ort(*ndm);
+  std::vector<doublereal> dum1((*ndm)*(*ndm));
+  std::vector<doublereal> dum2((*ndm)*(*ndm));
 
   /* Compute NUNSTAB (or NSTAB) projection boundary condition functions */
   /*onto to the UNSTABLE (or STABLE) manifold of the appropriate equilibrium
@@ -1932,7 +1821,7 @@ prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *pa
   bound -= ((*ndm)+1);
   dfdu_dim1 = *ndm;
   
-  func(*ndm, xequib, icp, par, 1, fdum, dfdu, dfdp);
+  func(*ndm, xequib, icp, par, 1, fdum.data(), dfdu, dfdp);
 
   /* Compute transpose of A if ITRANS=1 */
   if (*itrans == 1) {
@@ -1954,8 +1843,8 @@ prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *pa
     /* This is here since I don't want to change the calling sequence of the
        BLAS routines. */
     integer tmp = 1;
-    orthes((ndm), ndm, &tmp, ndm, a, ort);
-    ortran((ndm), ndm, &tmp, ndm, a, ort, v);
+    orthes((ndm), ndm, &tmp, ndm, a.data(), ort.data());
+    ortran((ndm), ndm, &tmp, ndm, a.data(), ort.data(), v.data());
   }
 
   /* Force A to be upper Hessenberg */
@@ -1974,7 +1863,7 @@ prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *pa
     /* This is here since I don't want to change the calling sequence of the
        BLAS routines. */
     integer tmp = 1;
-    hqr3lc(a, v, ndm, &tmp, ndm, &eps, er, ei, type__, (ndm), (ndm),
+    hqr3lc(a.data(), v.data(), ndm, &tmp, ndm, &eps, er.data(), ei.data(), type__.data(), (ndm), (ndm),
 	   imfd);
   }
   /* Put the basis in the appropriate part of the matrix CNOW */
@@ -2009,17 +1898,6 @@ prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *pa
       }
     }
     beyn_1.iflag[*is + (*itrans * 2) - 3] = 1;
-    xpp_free(fdum  );
-    xpp_free(cnow  );
-    xpp_free(type__);
-    xpp_free(a    );
-    xpp_free(d  );
-    xpp_free(v    );
-    xpp_free(ei   );
-    xpp_free(er   );
-    xpp_free(ort  );
-    xpp_free(dum1 );
-    xpp_free(dum2 );
     return 0;
   }
 
@@ -2052,8 +1930,8 @@ prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *pa
   }
 
   if (mcond > 0) {
-    ge(mcond, *ndm, dum1, mcond, *ndm, d, *ndm,
-       dum2, &det);
+    ge(mcond, *ndm, dum1.data(), mcond, *ndm, d.data(), *ndm,
+       dum2.data(), &det);
   }
 
   for (i = 0; i < mcond; ++i) {
@@ -2072,17 +1950,6 @@ prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *pa
     }
   }
 
-  xpp_free(fdum  );
-  xpp_free(cnow  );
-  xpp_free(type__);
-  xpp_free(a    );
-  xpp_free(d  );
-  xpp_free(v    );
-  xpp_free(ei   );
-  xpp_free(er   );
-  xpp_free(ort  );
-  xpp_free(dum1 );
-  xpp_free(dum2 );
 
   return 0;
 } /* prjctn_ */
