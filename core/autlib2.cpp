@@ -96,9 +96,6 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
        N ROWX =	(iap->ndim * iap->ncol )                        
     */
     
-    /* Free floating point arrays */
-    
-    /* Free integer arrays */
 
     /*(M 1AAR*M 2AA*N AX) */
     main_auto_storage.a.assign(((((iap->ndim * iap->ncol ) + iap->ndim ) ) * 
