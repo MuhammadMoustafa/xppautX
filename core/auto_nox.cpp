@@ -4,6 +4,7 @@
 #include "xpp_io.h"
 #include <string>
 #include <vector>
+#include <array>
 #include "numerics.h"
 #include "xpp_globals.h"
 #include "xpp_ui.h"
@@ -731,12 +732,12 @@ void do_auto(int iold, int isave, int itp)
     run_from=Auto.irs>0?Auto.irs:0; /* the diagram's data say where the run started */
     stability_run_start(); /* what its first point's stability is (auto_stability.h) */
     {
-        double before[8];
+        std::array<double, 8> before{}; /* AutoPar's size */
         for (int i = 0; i < NAutoPar; i++) before[i] = constants[Auto_index_to_array[i]];
         go_go_auto(); /* this complets the initialization and calls the
                           main routines
                        */
-        auto_restore_finite_pars(before); /* leave no NaN parameter behind (QA SCI-001) */
+        auto_restore_finite_pars(before.data()); /* leave no NaN parameter behind (QA SCI-001) */
     }
     run_from=0;
     if(xpp_job_cancelled())RestartLabel=0; /* xppautX: cancel: no follow-up run */
