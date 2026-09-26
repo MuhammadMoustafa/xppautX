@@ -247,7 +247,8 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   (xpp_batch_main, no interface at all). The window (W13a) is
   `core/xpp_window.cpp` (C API in xpp_window.h) over the vendored
   `third_party/webview` (built as its own object, `webview.o`, from
-  `src/webview.cc`; WebView2 through the SDK headers in
+  `core/xpp_webview.cpp`, which includes it and adds `xpp_webview_create`:
+  webview_create with the error it failed with, W35e; WebView2 through the SDK headers in
   `third_party/webview2` and webview's built-in loader on Windows,
   WebKitGTK on Linux only when `pkg-config` finds webkit2gtk-4.1, else a
   browser-only build; `WINDOW=0` forces that). On Linux (W13e) the window
