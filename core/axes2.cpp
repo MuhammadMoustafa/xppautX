@@ -111,13 +111,13 @@ double make_tics(double tmin, double tmax)
   xr = fabs(tmin-tmax);
   
   l10 = log10(xr);
-  xnorm = pow(10.0,l10-(double)((l10 >= 0.0 ) ? (int)l10 : ((int)l10-1)));
+  xnorm = pow(10.0,l10-static_cast<double>((l10 >= 0.0 ) ? static_cast<int>(l10) : (static_cast<int>(l10)-1)));
   if (xnorm <= 2)
     tics = 0.2;
   else if (xnorm <= 5)
     tics = 0.5;
   else tics = 1.0;	
-  tic = tics * dbl_raise(10.0,(l10 >= 0.0 ) ? (int)l10 : ((int)l10-1));
+  tic = tics * dbl_raise(10.0,(l10 >= 0.0 ) ? static_cast<int>(l10) : (static_cast<int>(l10)-1));
   return(tic);
 }
 
@@ -186,8 +186,8 @@ void Frame_3d()
   find_max_min_tic(&xmin,&xmax,tx);
   find_max_min_tic(&zmin,&zmax,tz);
   find_max_min_tic(&ymin,&ymax,ty);
-  scale3d((float)xmin,(float)ymin,(float)zmin,&x1,&y1,&z1);
-  scale3d((float)xmax,(float)ymax,(float)zmax,&x2,&y2,&z2);
+  scale3d(static_cast<float>(xmin),static_cast<float>(ymin),static_cast<float>(zmin),&x1,&y1,&z1);
+  scale3d(static_cast<float>(xmax),static_cast<float>(ymax),static_cast<float>(zmax),&x2,&y2,&z2);
  
   scale3d(x4,y4,z4,&x3,&y3,&z3);
   scale3d(x5,y5,z5,&x6,&y6,&z6);
@@ -270,7 +270,7 @@ void Box_axis(double x_min, double x_max, double y_min, double y_max, const char
  
   ytic=make_tics(y_min,y_max);
   xtic=make_tics(x_min,x_max);
- scale_to_screen((float)plot_windows.current->xorg,(float)plot_windows.current->yorg,&yaxis_x,&xaxis_y);
+ scale_to_screen(static_cast<float>(plot_windows.current->xorg),static_cast<float>(plot_windows.current->yorg),&yaxis_x,&xaxis_y);
   set_linestyle(-1);
   if(plot_windows.current->xorgflag&&flag)
     if(xaxis_y>=ybot&&xaxis_y<=ytop)
@@ -306,15 +306,15 @@ void draw_ytics(const char *s1, double start, double incr, double end)
     place=CheckZero(ticvalue,incr);
     if(ticvalue<y_min||ticvalue>y_max)continue;
     XPP_SPRINTF(bob,"%g",place);
-    scale_to_screen((float)x_min,(float)place,&xt,&yt);
+    scale_to_screen(static_cast<float>(x_min),static_cast<float>(place),&xt,&yt);
     DOING_BOX_AXES=0;
     line(DLeft,yt,DLeft+HTic,yt);
     DOING_BOX_AXES=1;
     line(DRight,yt,DRight-HTic,yt);
     DOING_BOX_AXES=0;
-    put_text(DLeft-(int)(1.25*HChar),yt,bob);
+    put_text(DLeft-static_cast<int>(1.25*HChar),yt,bob);
   }
-   scale_to_screen((float)x_min,(float)y_max,&xt,&yt);
+   scale_to_screen(static_cast<float>(x_min),static_cast<float>(y_max),&xt,&yt);
    if(DTop<DBottom)s=-1;
    if (PltFmtFlag==SVGFMT)
    {
@@ -350,15 +350,15 @@ void draw_xtics(const char *s2, double start, double incr, double end)
     place=CheckZero(ticvalue,incr);
     if(ticvalue<x_min||ticvalue>x_max)continue;
     XPP_SPRINTF(bob,"%g",place);
-    scale_to_screen((float)place,y_min,&xt,&yt);
+    scale_to_screen(static_cast<float>(place),y_min,&xt,&yt);
     DOING_BOX_AXES=0;
     line(xt,DBottom,xt,DBottom+s*VTic); 
     DOING_BOX_AXES=1;
     line(xt,DTop,xt,DTop-s*VTic);
     DOING_BOX_AXES=0;
-    put_text(xt,yt-(int)(1.25*VChar*s),bob);
+    put_text(xt,yt-static_cast<int>(1.25*VChar*s),bob);
   }
-  put_text((DLeft+DRight)/2,yt-(int)(2.5*VChar*s),s2);    
+  put_text((DLeft+DRight)/2,yt-static_cast<int>(2.5*VChar*s),s2);    
 
 
 }
