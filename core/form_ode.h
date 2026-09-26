@@ -13,20 +13,6 @@ extern "C" {
 #define MAXLINES 5000
 
 
-/*void break_up_list(char *rhs);
-void compile_em();
-void free_varinfo();
-void remove_blanks(char *s1);
-void read_a_line(FILE *fp,char *s);
-
-void subsk(char *big,char *newstr,int k,int flag);
-void free_comments();
-
-void add_comment(char *s);
-void init_varinfo();
-void add_varinfo(int type,char *lhs,char *rhs,int nargs,char args[MAXARG][NAMLEN+1]);
-*/
-
 typedef struct {
   char *name,*value;} FIXINFO;
   
@@ -36,7 +22,6 @@ int make_eqn(void);
 void strip_saveqn(void);
 int disc(const char *string);
 void format_list(const char *const *s, int n);
-int get_a_filename(char *filename, char *wild);
 void list_em(const char *wild);
 int read_eqn(void);
 int get_eqn(FILE *fptr);
@@ -48,7 +33,6 @@ char *get_first(char *string, const char *src);
 char *get_next(const char *src);
 void find_ker(char *string, int *alt);
 void clrscr(void);
-int if_include_file(const char *old, char *nf);
 int if_end_include(const char *old);
 int do_new_parser(FILE *fp, const char *first, int nnn);
 void create_plot_list(void);
@@ -68,7 +52,6 @@ int extract_args(const char *s1, int i0, int *ie, int *narg, char args[MAXARG][N
 int find_char(const char *s1, const char *s2, int i0, int *i1);
 int next_nonspace(const char *s1, int i0, int *i1);
 void remove_blanks(char *s1);
-void read_a_line(FILE *fp, char *s);
 int search_array(char *old, char *newname, int *i1, int *i2, int *flag);
 int check_if_ic(const char *big);
 int not_ker(const char *s, int i);
@@ -85,5 +68,12 @@ void strncpy_trim(char * dest, const char * source, int n);
 
 #ifdef __cplusplus
 }
+
+#include <string>
+/* the parser's lines of any length (the char * forms above write at most
+   256 bytes) */
+void read_a_line(FILE *fp, std::string &s);
+int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag);
+void subsk(const char *big, std::string &newstr, int k, int flag);
 #endif
-#endif 
+#endif

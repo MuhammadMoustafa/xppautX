@@ -1,6 +1,9 @@
 #include <new>
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <array>
+#include <string_view>
 
 #include "form_ode.h"
 #include "xpp_mem.h"
@@ -172,62 +175,35 @@ void strip_saveqn()
   }
 }
 
+static void save_line(const std::string &line);
+
+namespace {
+
+/* fprintf's type-checked counterpart: std::format (xpp::format) into fp */
+template <class... Args>
+void put(FILE *fp, std::format_string<Args...> fmt, Args &&...args)
+{
+  std::string text = xpp::format(fmt, std::forward<Args>(args)...);
+  std::fwrite(text.data(), 1, text.size(), fp);
+}
+
+} // namespace
+
 int disc(const char *string)
 {
-  char c;
-  int i=0,l=strlen(string),j=0,flag=0;
-  char end[256];
   if(is_a_map==1)return(1);
-  while(i<l){
-    c=string[i];
-    if(flag==1){
-      end[j]=c;
-      j++;
-    }
-    if(c=='.')flag=1;
-    i++;
-  }
-  end[j]=0;
-	   
-   if(strcmp(end,"dis")==0||strcmp(end,"dif")==0)return(1);
-   return(0);
-  }
-
-/*
-  read_eqn()
-  {
-   char string[200];
-   FILE *fptr;
-   int okay,i;
-   okay=0;
-getfile:
-   pos_prn("File to read or <Enter> for directory:",0,0);
-   getsi(string);
-   if(strlen(string)==0)
-   {
-    get_dir();
-    goto getfile;
-   }
-   if((fptr=fopen(string,"r"))==NULL)
-   {
-    plintf("\n Cannot open %s \n",string);
-    return(0);
-   }
-   strcpy(this_file,string);
-   clrscr();
-   okay=get_eqn(fptr);
-   close(fptr);
-   for(i=0;i<NLINES;i++)free(save_eqn[i]);
-   return(okay);
- }
-*/
+  /* what follows the first '.' */
+  std::string_view s(string);
+  size_t dot=s.find('.');
+  std::string_view end=dot==std::string_view::npos?std::string_view():s.substr(dot+1);
+  return end=="dis"||end=="dif";
+}
 
 void format_list(const char *const *s,int n)
 {
  int i,ip;
  int ncol;
  int k,j;
- char fmat[30];
  int lmax=0,l=0;
  for(i=0;i<n;i++){
    l=strlen(s[i]);
@@ -238,46 +214,61 @@ void format_list(const char *const *s,int n)
  if(ncol>8)ncol=8;
  k=n/ncol;
  j=n-ncol*k;
- XPP_SPRINTF(fmat,"%s%d%s","%",lmax+2,"s");
+ /* each name right-aligned in lmax+2 columns */
  for(ip=0;ip<k;ip++){
    for(i=0;i<ncol;i++)
-     xpp_log(XPP_LOG_INFO, fmat,s[ip*ncol+i]);
+     xpp::log(XPP_LOG_INFO, "{:>{}}",s[ip*ncol+i],lmax+2);
    xpp_log(XPP_LOG_INFO, "\n");
  }
   for(i=0;i<j;i++)
-     xpp_log(XPP_LOG_INFO, fmat,s[k*ncol+i]);
+     xpp::log(XPP_LOG_INFO, "{:>{}}",s[k*ncol+i],lmax+2);
   xpp_log(XPP_LOG_INFO, "\n");
 }
 
-int get_a_filename(char *filename,char *wild)
+/* the next whitespace-separated word typed on stdin (what scanf("%s")
+   read, of any length); false at the end of input */
+static bool read_word(std::string &word)
+{
+  int c;
+  word.clear();
+  while((c=getchar())!=EOF&&isspace(c)){}
+  if(c==EOF)return false;
+  do word+=static_cast<char>(c);
+  while((c=getchar())!=EOF&&!isspace(c));
+  return true;
+}
+
+/* The ODE file to read: asked on the console in batch mode ((r)un,
+   (c)d, (l)ist wild), else with the file selector. 0 on cancel. */
+static int get_a_filename(std::string &filename,std::string &wild)
 {
  if(batch_options.enabled)
  {
-  char string[MAXEXPLEN];
-   list_em(wild);
+  std::string string;
+  list_em(wild.c_str());
   while(1){
   xpp_log(XPP_LOG_INFO, "(r)un (c)d (l)ist ");
-  if(scanf("%s",string)!=1)return 0;
+  if(!read_word(string))return 0;
   if(string[0]=='r'){
     xpp_log(XPP_LOG_INFO, "Run file: ");
-    if(scanf("%s",filename)!=1)return 0;
-    xpp_log(XPP_LOG_INFO, "Loading %s\n ",filename);
+    if(!read_word(filename))return 0;
+    xpp::log(XPP_LOG_INFO, "Loading {}\n ",filename);
     return 1;
   }
-  else 
+  else
     {
       if(string[0]=='l'){
         xpp_log(XPP_LOG_INFO, "List files of type: ");
-        if(scanf("%s",wild)!=1)return 0;
-        list_em(wild);
+        if(!read_word(wild))return 0;
+        list_em(wild.c_str());
       }
       else
         {
  	 if(string[0]=='c'){
 	   xpp_log(XPP_LOG_INFO, "Change to directory: ");
-	   if(scanf("%s",string)!=1)return 0;
-	   change_directory(string);
-	   list_em(wild);
+	   if(!read_word(string))return 0;
+	   change_directory(string.c_str());
+	   list_em(wild.c_str());
 	 }
         }
     }
@@ -285,28 +276,26 @@ int get_a_filename(char *filename,char *wild)
   }
   else
   {
-    int status;
-    /*strcpy (filename, "lecar.ode");
-    */
-    get_directory(filename);
-    int m = strlen(filename);
-    if (filename[m-1] != '/')
-    {
-	    strcat(filename,"/");
-    }
-    char title[]="Select an ODE file";
-    status = file_selector (title, filename, wild);
-    if (status == 0)
+    /* get_directory fills XPP_MAX_NAME bytes, file_selector up to 256 */
+    std::array<char, XPP_MAX_NAME+10> buf{};
+    get_directory(buf.data());
+    std::string dir(buf.data());
+    if (dir.empty() || dir.back() != '/')
+      dir += '/';
+    dir.copy(buf.data(), std::min(dir.size(), buf.size()-1));
+    if (file_selector ("Select an ODE file", buf.data(), wild.c_str()) == 0) {
       bye_bye ();
-    else
-      return 1;
+      return 0;
+    }
+    filename = buf.data();
+    return 1;
   }
   return(0);
 }
 
 
 void list_em(const char *wild)
-{ 
+{
   get_directory(cur_dir);
   xpp_log(XPP_LOG_INFO, "%s: \n",cur_dir);
   FILEINFO ff{};
@@ -319,52 +308,27 @@ void list_em(const char *wild)
 }
 int read_eqn()
 {
-  char wild[256],string[256];
-    FILE *fptr;
-   int okay;
-   okay=0;
-  XPP_SPRINTF(wild,"*.ode");
+  std::string wild="*.ode",string;
   get_a_filename(string,wild);
-  if((fptr=fopen(string,"r"))==NULL)
+  FILE *fptr=fopen(string.c_str(),"r");
+  if(fptr==NULL)
    {
-    xpp_log(XPP_LOG_WARN, "\n Cannot open %s \n",string);
+    xpp::log(XPP_LOG_WARN, "\n Cannot open {} \n",string);
     return(0);
    }
    XPP_FORMAT_TO_BUF(this_file,"{}",string);
    clrscr();
-   okay=get_eqn(fptr);
-   /*close(fptr);*/
+   int okay=get_eqn(fptr);
    fclose(fptr);
-   /* for(i=0;i<NLINES;i++)free(save_eqn[i]); */
    return(okay);
  }
-
-/*
-get_dir()
-
-{
- FILE *fptr;
- char path[100];
- char commd[200];
- plintf("Path <*.ode>");
- getsi(path);
- if(strlen(path)==0)strcpy(path,"*.ode");
-  sprintf(commd,"ls %s",path);
-  system(commd);
- }
-
- */
-
- 
 
 
 
 int get_eqn(FILE *fptr)
 {
   char bob[MAXEXPLEN];
-  /*char filename[256];*/
-  char filename[XPP_MAX_NAME];
-  int done=1,nn,i;
+  int done=1,i;
   int flag;
   char prim[XPP_NAME_MAX+2];
   char t_name[]="t",t_prime[]="t'"; /* add_var takes a char * */
@@ -383,17 +347,7 @@ int get_eqn(FILE *fptr)
   add_var(t_name,0.0);
   /* plintf(" NEQ: "); */
   if(fgets(bob,MAXEXPLEN,fptr)==NULL)bob[0]=0;
-  nn=strlen(bob)+1;
-  if (NLINES>MAXLINES) {
-    xpp_log(XPP_LOG_WARN, "whoops! NLINES>MAXLINES in form_ode.c ...\n");
-    exit(1);
-  };
-  if((save_eqn[NLINES]=(char *)xpp_malloc(nn))==NULL){
-    xpp_log(XPP_LOG_ERROR, "Out of memory...");
-    exit(0);
-  }
-
-  strncpy(save_eqn[NLINES++],bob,nn);
+  save_line(bob);
   /* plintf("incr NLINE in geteqn  %s \n",bob); */
   i=atoi(bob);
   if(i<=0) { /* New parser ---   */
@@ -408,27 +362,22 @@ int get_eqn(FILE *fptr)
     NEQ=i;
     xpp_log(XPP_LOG_INFO, "NEQ=%d\n",NEQ);
     if(ConvertStyle){
-      if(strlen(this_file)==0)
-	XPP_SPRINTF(filename,"convert.ode");
-      else
-	snprintf(filename,sizeof(filename),"%.250s.new",this_file);
-      if((convertf=fopen(filename,"w"))==NULL){
-	xpp_log(XPP_LOG_WARN, " Cannot open %s - no conversion done \n",filename);
+      std::string filename=this_file[0]==0?std::string("convert.ode"):std::string(this_file)+".new";
+      if((convertf=fopen(filename.c_str(),"w"))==NULL){
+	xpp::log(XPP_LOG_WARN, " Cannot open {} - no conversion done \n",filename);
 	ConvertStyle=0;
       }
-      fprintf(convertf,"# converted %s \n",this_file);
+      put(convertf,"# converted {} \n",this_file);
     }
     while(done)
       {
 	if(fgets(bob,MAXEXPLEN,fptr)==NULL)break;
-	nn=strlen(bob)+1;
-	save_eqn[NLINES]=(char *)xpp_malloc(nn);
-	strncpy(save_eqn[NLINES++],bob,nn);
+	save_line(bob);
 	/* plintf("inc NLINES in geteqn2 %s \n",bob); */
 	done=compiler(bob,fptr);
       }
     if(ConvertStyle){
-      fprintf(convertf,"done\n");
+      put(convertf,"done\n");
       fclose(convertf);
     }
   }
@@ -509,67 +458,12 @@ int get_eqn(FILE *fptr)
   NCON_ORIG=NCON;
   NSYM_ORIG=NSYM;
   NEQ_MIN=NEQ;
-  program.version_major=(float)cstringmaj;
-  program.version_minor=(float)cstringmin;
+  program.version_major=static_cast<float>(cstringmaj);
+  program.version_minor=static_cast<float>(cstringmin);
   xpp_log(XPP_LOG_INFO, "Used %d constants and %d symbols \n",NCON,NSYM);
   xpp_log(XPP_LOG_INFO, "XPPAUT %g.%g Copyright (C) 2002-now  Bard Ermentrout \n",program.version_major,program.version_minor);
     return(1);
 }
-/*
-write_eqn()
-{
-    char string[100];
-    FILE *fptr;
-    int i;
-    if(NLINES==0)
-    {
-     plintf(" There is no current equation!\n");
-     exit(0);
-    }
-    wipe_out();
-    pos_prn("Name of file to save:",0,0);
-    getsi(string);
-    if((fptr=fopen(string,"w"))==NULL)
-    {
-     plintf("\nCannot open %s\n",string);
-     return;
-    }
-    strcpy(this_file,string);
-    for(i=0;i<NLINES;i++)
-    {
-     fputs(save_eqn[i],fptr);
-     free(save_eqn[i]);
-    }
-    fclose(fptr);
-   }
-
-
-  create_eqn()
-  {
-    int okay;
-    FILE *fptr;
-    char junk[10];
-    wipe_out();
-     fptr=stdin;
-   welcome();
-   fgets(junk,10,fptr);
-   okay=get_eqn(fptr);
-   if(okay==1)write_eqn();
-   return(okay);
-  }
-
-  wipe_out()
-{
-   clrscr();
-  }
-
-  char *getsi( bob)
-  char *bob;
-  {
-   return(gets(bob));
-  }
-
-*/
 int compiler(char *bob, FILE *fptr)
 {
   double value,xlo,xhi;
@@ -585,7 +479,7 @@ int compiler(char *bob, FILE *fptr)
     /* printf("Storing opts from formode \n"); */
     stor_internopts(bob);
     if(ConvertStyle)
-      fprintf(convertf,"%s\n",bob);
+      put(convertf,"{}\n",bob);
     return(done);
   }
   command=get_first(ptr," ,");
@@ -609,7 +503,7 @@ int compiler(char *bob, FILE *fptr)
     case 'w':  /*  Make a Wiener (heh heh) constants  */
       xpp_log(XPP_LOG_INFO, "Wiener constants\n");
       if(ConvertStyle)
-	fprintf(convertf,"wiener ");
+	put(convertf,"wiener ");
       advance_past_first_word(&ptr);
       while((my_string=get_next2(&ptr))!=NULL)
 	{
@@ -617,7 +511,7 @@ int compiler(char *bob, FILE *fptr)
 	  xpp_free(my_string);
 	  xpp_log(XPP_LOG_DEBUG, "|%s|=%f ",name,value);
 	  if(ConvertStyle)
-	    fprintf(convertf,"%s  ",name);
+	    put(convertf,"{}  ",name);
 	  if(add_con(name,value)){
 	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	    exit(0);
@@ -626,13 +520,13 @@ int compiler(char *bob, FILE *fptr)
 	 
 	}
       if(ConvertStyle)
-	fprintf(convertf,"\n");
+	put(convertf,"\n");
       xpp_log(XPP_LOG_DEBUG, "\n");
            break;
     case 'n':    
       xpp_log(XPP_LOG_INFO, " Hidden params:\n");
       if(ConvertStyle)
-	fprintf(convertf,"number ");
+	put(convertf,"number ");
 	
       advance_past_first_word(&ptr);
       while((my_string=get_next2(&ptr))!=NULL)
@@ -640,7 +534,7 @@ int compiler(char *bob, FILE *fptr)
 	  take_apart(my_string,&value,name);
 	  xpp_free(my_string);
 	  if(ConvertStyle)
-	    fprintf(convertf,"%s=%g  ",name,value);
+	    put(convertf,"{}={:g}  ",name,value);
           
 	  xpp_log(XPP_LOG_DEBUG, "|%s|=%f ",name,value);
 	  if(add_con(name,value)){
@@ -650,7 +544,7 @@ int compiler(char *bob, FILE *fptr)
 
 	}
        if(ConvertStyle)
-	fprintf(convertf,"\n");
+	put(convertf,"\n");
       xpp_log(XPP_LOG_DEBUG, "\n");
       break; 
     case 'g': /* global */
@@ -668,13 +562,13 @@ int compiler(char *bob, FILE *fptr)
 	exit(0);
       }
       if(ConvertStyle){
-	fprintf(convertf,"global %d {%s} %s\n",sign,condition,formula);
+	put(convertf,"global {} {{{}}} {}\n",sign,condition,formula);
       }
       break;
     case 'p':
       xpp_log(XPP_LOG_INFO, "Parameters:\n");
       if(ConvertStyle)
-	fprintf(convertf,"par ");
+	put(convertf,"par ");
 
       advance_past_first_word(&ptr);
 
@@ -690,19 +584,19 @@ int compiler(char *bob, FILE *fptr)
 	  default_val[NUPAR]=value;
 	  XPP_FORMAT_TO_BUF(upar_names[NUPAR++],"{}",name);
 	  if(ConvertStyle)
-	    fprintf(convertf,"%s=%g  ",name,value);
+	    put(convertf,"{}={:g}  ",name,value);
 	  xpp_log(XPP_LOG_DEBUG, "|%s|=%f ",name,value);
 
 	}
       if(ConvertStyle)
-	fprintf(convertf,"\n");
+	put(convertf,"\n");
       xpp_log(XPP_LOG_DEBUG, "\n");
       break;
     case 'c': my_string=get_next(" \n");
       options_file=my_string;
       xpp_log(XPP_LOG_INFO, " Loading new options file:<%s>\n",my_string);
       if(ConvertStyle)
-	fprintf(convertf,"option %s\n",options_file.c_str());
+	put(convertf,"option {}\n",options_file.c_str());
       break;
     case 'f':iflg=0;
       xpp_log(XPP_LOG_INFO, "\nFixed variables:\n");
@@ -724,7 +618,7 @@ int compiler(char *bob, FILE *fptr)
       xpp_log(XPP_LOG_INFO, " Markov variable %s=%f has %d states \n",name,value,nstates);
       if(OldStyle)add_markov(nstates,name);
       if(ConvertStyle)
-	fprintf(convertf,"%s(0)=%g\n",name,value);
+	put(convertf,"{}(0)={:g}\n",name,value);
       break;
     case 'r': /* state table for Markov variables  */
       my_string=get_next("\n");
@@ -742,7 +636,7 @@ int compiler(char *bob, FILE *fptr)
       iflg=1;
       xpp_log(XPP_LOG_INFO, "\nVariables:\n");
       if(ConvertStyle)
-	fprintf(convertf,"init ");
+	put(convertf,"init ");
     vrs:
       if(NMarkov>0&&OldStyle) {
 	xpp_log(XPP_LOG_WARN, " Error at line %d \n Must declare Markov variables after fixed and regular variables\n",NLINES);
@@ -769,7 +663,7 @@ int compiler(char *bob, FILE *fptr)
               default_ic[IN_VARS]=value;   
 	      IN_VARS++;
 	      if(ConvertStyle)
-		fprintf(convertf,"%s=%g  ",name,value);
+		put(convertf,"{}={:g}  ",name,value);
 	    }
 	  else {
 	    if(ConvertStyle)
@@ -782,7 +676,7 @@ int compiler(char *bob, FILE *fptr)
 	}
       xpp_log(XPP_LOG_DEBUG, " \n");
       if(iflg&&ConvertStyle)
-	fprintf(convertf,"\n");
+	put(convertf,"\n");
       break;
     case 'b':
             my_string=get_next("\n");
@@ -794,7 +688,7 @@ int compiler(char *bob, FILE *fptr)
       xpp_strlcpy(my_bc[BVP_N].string,my_string,256);
       xpp_strlcpy(my_bc[BVP_N].name,"0=",10);
       if(ConvertStyle)
-	fprintf(convertf,"bndry %s\n",my_bc[BVP_N].string);
+	put(convertf,"bndry {}\n",my_bc[BVP_N].string);
       
       
       
@@ -846,7 +740,7 @@ int compiler(char *bob, FILE *fptr)
 	}
 
 	if(ConvertStyle)
-	  fprintf(convertf,"table %s %% %d %g %g %s\n",
+	  put(convertf,"table {} % {} {:g} {:g} {}\n",
 		  name,nn,xlo,xhi,formula);
 	NTable++;
 	xpp_log(XPP_LOG_INFO, " NTable = %d \n",NTable);
@@ -875,7 +769,7 @@ int compiler(char *bob, FILE *fptr)
 	      exit(0);
 	    }
 	    if(ConvertStyle)
-	      fprintf(convertf,"table %s %s\n",
+	      put(convertf,"table {} {}\n",
 		      name,formula);
 	    NTable++;
 	  }
@@ -890,13 +784,13 @@ int compiler(char *bob, FILE *fptr)
       XPP_FORMAT_TO_BUF(formula,"{}",my_string);
       xpp_log(XPP_LOG_INFO, "%s %d :\n",name,narg);
       if(ConvertStyle){
-	fprintf(convertf,"%s(",name);
+	put(convertf,"{}(",name);
 	for(i=0;i<narg;i++){
-	  fprintf(convertf,"arg%d",i+1);
+	  put(convertf,"arg{}",i+1);
 	  if(i<(narg-1))
-	    fprintf(convertf,",");
+	    put(convertf,",");
 	}
-	fprintf(convertf,")=%s",formula);
+	put(convertf,")={}",formula);
       }
       if(add_ufun(name,formula,narg)){
 	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",NLINES);
@@ -930,9 +824,9 @@ int compiler(char *bob, FILE *fptr)
           xpp_strlcpy(ode_names[NODE],formula,nn+5);
 	  if(ConvertStyle){
 	    if(VFlag)
-	      fprintf(convertf,"volt %s=%s\n",uvar_names[NODE],formula);
+	      put(convertf,"volt {}={}\n",uvar_names[NODE],formula);
 	    else
-	      fprintf(convertf,"%s'=%s\n",uvar_names[NODE],formula);
+	      put(convertf,"{}'={}\n",uvar_names[NODE],formula);
 	  }
 	  find_ker(formula,&alt);
 	  
@@ -945,7 +839,7 @@ int compiler(char *bob, FILE *fptr)
       if(NODE>=IN_VARS&&NODE<(IN_VARS+FIX_VAR))
 	{
 	  if(ConvertStyle)
-	    fprintf(convertf,"%s=%s\n",fixname[NODE-IN_VARS],formula);
+	    put(convertf,"{}={}\n",fixname[NODE-IN_VARS],formula);
 	  find_ker(formula,&alt);
 	  
 	}
@@ -962,9 +856,9 @@ int compiler(char *bob, FILE *fptr)
 	  /* ode_names[NODE-FIX_VAR+NMarkov][nn]='\0'; */
 	  if(ConvertStyle){
 	    if(i<Naux)
-	      fprintf(convertf,"aux %s=%s\n",aux_names[i],formula);
+	      put(convertf,"aux {}={}\n",aux_names[i],formula);
 	    else
-	      fprintf(convertf,"aux aux%d=%s\n",i+1,formula);
+	      put(convertf,"aux aux{}={}\n",i+1,formula);
 	  }
 	}
       xpp_log(XPP_LOG_INFO, "RHS(%d)=%s\n",NODE,formula);
@@ -991,7 +885,7 @@ int compiler(char *bob, FILE *fptr)
     default:
       if(ConvertStyle) {
 	my_string=get_next("\n");
-	fprintf(convertf,"%s %s\n",command,my_string);
+	put(convertf,"{} {}\n",command,my_string?my_string:"");
       }
       break;
     }
@@ -1226,28 +1120,17 @@ u(0) = value >---  initial data (replaces v, init is also OK )
 
 */
 
-int if_include_file(const char *old,char *nf)
+/* "#include file": the file's name, blanks removed, into nf */
+static bool if_include_file(const char *old, std::string &nf)
 {
-  int i=0,j=0;
-  int n=strlen(old);
-  char c;
-  if(strncmp(old,"#include",8)==0){
-  while(1){
-     c=old[i];
-     if(c==' ')
-       break;
-     i++;
-     if(i==n)return 0;
-     }
-  for(j=i+1;j<n;j++)
-    nf[j-i-1]=old[j];
-  nf[n-i-1]=0;
-  de_space(nf);
-  return 1;
-  }
-  return 0;    
-  
-
+  std::string_view s(old);
+  if(!s.starts_with("#include"))return false;
+  size_t blank=s.find(' ');
+  if(blank==std::string_view::npos)return false;
+  nf=s.substr(blank+1);
+  de_space(nf.data());
+  nf.resize(strlen(nf.c_str()));
+  return true;
 }
 
 int if_end_include(const char *old)
@@ -1312,19 +1195,20 @@ int do_new_parser(FILE *fp, const char *first, int nnn)
 static int parse_model(FILE *fp, const char *first, int nnn)
 {
  VAR_INFO v;
- char **markovarrays=NULL;
  std::vector<std::string> strings; /* this line, or a for loop's lines */
  int ns;
- char **markovarrays2=NULL;
  int done=0,start=0,i0,i1,i2,istates;
  int jj1=0,jj2=0,jj,notdone=1,jjsgn=1;
- char name[MAXEXPLEN],nstates=0;
- /*char newfile[256];*/
- char newfile[XPP_MAX_NAME];
+ std::string name;
+ int nstates=0;
+ std::string newfile;
  FILE *fnew;
- /*int nlin;
- */
- char big[MAXEXPLEN],old[MAXEXPLEN],newstr[MAXEXPLEN];
+ /* the line read, with its array range worked out, and one of its
+    strings with its subscripts worked out (parse_a_string edits it in
+    place, never longer) */
+ std::string old,newstr,big;
+ /* a Markov line's states as read and with their subscripts worked out */
+ std::vector<std::string> markov_states,markov_states2;
  char *my_string;
  int is_array=0;
  if(nnn==0){init_varinfo();}
@@ -1355,27 +1239,27 @@ static int parse_model(FILE *fp, const char *first, int nnn)
        		/*continue;*/
 	}
     	
-     XPP_FORMAT_TO_BUF(old,"{}",first); /* pass the first line ....  */
+     old=first; /* pass the first line ....  */
      start=1;
    }
    if (IN_INCLUDED_FILE > 0) 
     {
-	    if (if_end_include(old) || feof(fp))
+	    if (if_end_include(old.c_str()) || feof(fp))
 	    {
 	    	xpp_log(XPP_LOG_INFO, "Completed include of file %s\n",first);
 	    	IN_INCLUDED_FILE--;
 	    	return 1; 
 	    }
     }
-    if(if_include_file(old,newfile)){
-      fnew=fopen(newfile,"r");
+    if(if_include_file(old.c_str(),newfile)){
+      fnew=fopen(newfile.c_str(),"r");
       if(fnew==NULL){
-         xpp_log(XPP_LOG_WARN, "Cant open include file <%s>\n",newfile);
+         xpp::log(XPP_LOG_WARN, "Cant open include file <{}>\n",newfile);
          continue;
-       } 
-       xpp_log(XPP_LOG_INFO, "Including %s...\n",newfile); 
+       }
+       xpp::log(XPP_LOG_INFO, "Including {}...\n",newfile);
        IN_INCLUDED_FILE++;
-       do_new_parser(fnew,newfile,1);
+       do_new_parser(fnew,newfile.c_str(),1);
        fclose(fnew);
        if (IN_INCLUDED_FILE > 0) 
        {
@@ -1391,7 +1275,7 @@ static int parse_model(FILE *fp, const char *first, int nnn)
     }
      
     /*    printf("calling search %s \n",old); */
-    search_array(old,newstr,&jj1,&jj2,&is_array);
+    search_array(old.data(),newstr,&jj1,&jj2,&is_array);
    jj=jj1;
    jjsgn=1;
    if(jj2<jj1)jjsgn=-1;
@@ -1419,34 +1303,33 @@ static int parse_model(FILE *fp, const char *first, int nnn)
   
    while(1){
       for(ns=0;ns<(int)strings.size();ns++){
-      XPP_FORMAT_TO_BUF(newstr,"{}",strings[ns].c_str());
-      subsk(newstr,big,jj,is_array); 
+      subsk(strings[ns].c_str(),big,jj,is_array);
      
  
-   done=parse_a_string(big,&v);
+   done=parse_a_string(big.data(),&v);
 
    if(done==-1){
-     xpp_log(XPP_LOG_ERROR, " Error in parsing %s \n",big);
+     xpp::log(XPP_LOG_ERROR, " Error in parsing {} \n",big.c_str());
      return -1;
    }
    if(done==1){
      if(v.type==COMMAND)strupr(v.lhs);
      if(v.type==COMMAND && v.lhs[0]=='G' && v.lhs[1]=='R') {
         my_string=get_first(v.rhs," ");
-       XPP_FORMAT_TO_BUF(name,"{}",my_string);
+       name=my_string?my_string:"";
        my_string=get_next(" \n");
        if(my_string==NULL)
 	 nstates=0;
        else
 	 nstates=atoi(my_string);
        if(nstates<1){
-	 xpp_log(XPP_LOG_ERROR, "Group %s  must have at least 1 part \n",name);
+	 xpp::log(XPP_LOG_ERROR, "Group {}  must have at least 1 part \n",name);
 	 return -1;
        }
-       xpp_log(XPP_LOG_INFO, "Group %s has %d parts\n",name,nstates);
+       xpp::log(XPP_LOG_INFO, "Group {} has {} parts\n",name,nstates);
        for(istates=0;istates<nstates;istates++){
 	 read_a_line(fp,old);
-	 xpp_log(XPP_LOG_DEBUG, "part %d is %s \n",istates,old);
+	 xpp::log(XPP_LOG_DEBUG, "part {} is {} \n",istates,old);
        }
  
        v.type=GROUP;
@@ -1455,47 +1338,37 @@ static int parse_model(FILE *fp, const char *first, int nnn)
 
      if(v.type==COMMAND && v.lhs[0]=='M' && v.lhs[1]=='A'){
        my_string=get_first(v.rhs," ");
-       XPP_FORMAT_TO_BUF(name,"{}",my_string);
+       name=my_string?my_string:"";
        my_string=get_next(" \n");
        if(my_string==NULL)
 	 nstates=0;
        else
 	 nstates=atoi(my_string);
        if(nstates<2){
-	 xpp_log(XPP_LOG_ERROR, "Markov variable %s  must have at least 2 states \n",name);
+	 xpp::log(XPP_LOG_ERROR, "Markov variable {}  must have at least 2 states \n",name);
 	 return -1;
        }
-       if(name_too_long(name))return -1;
-       /*nlin=NLINES;
-       */
-       add_markov(nstates,name);
+       if(name_too_long(name.c_str()))return -1;
+       add_markov(nstates,name.c_str());
        if(jj==jj1) {  /* test to see if this is the first one */
-	 markovarrays=(char **)xpp_malloc(nstates*sizeof(char *));
-	  markovarrays2=(char **)xpp_malloc(nstates*sizeof(char *));
-
+	 markov_states.assign(nstates,std::string());
 	 for(istates=0;istates<nstates;istates++){
-	   markovarrays[istates]=(char *)xpp_malloc(MAXEXPLEN);
-	   markovarrays2[istates]=(char *)xpp_malloc(MAXEXPLEN);
-	   /* fgets(markovarrays[istates],MAXEXPLEN,fp); */
-
            if(is_array==2)
-	     {
-               
-	       /* markovarrays[istates] is a pointer, allocated MAXEXPLEN
-	          bytes just above. */
-	       xpp_strlcpy(markovarrays[istates],strings[ns+1+istates].c_str(),MAXEXPLEN);
-		     
-	     }
-	   else 
-	     read_a_line(fp,markovarrays[istates]);
+	     markov_states[istates]=strings[ns+1+istates];
+	   else
+	     read_a_line(fp,markov_states[istates]);
 	 }
        }
 
        /*  now we clean up these arrays */
-       for(istates=0;istates<nstates;istates++)
-	 subsk(markovarrays[istates],markovarrays2[istates],jj,is_array);
+       markov_states2.assign(nstates,std::string());
+       std::vector<const char *> states(nstates);
+       for(istates=0;istates<nstates;istates++){
+	 subsk(markov_states[istates].c_str(),markov_states2[istates],jj,is_array);
+	 states[istates]=markov_states2[istates].c_str();
+       }
 
-       build_markov(markovarrays2,name);
+       build_markov(states.data(),name.c_str());
        v.type=MARKOV_VAR;
        XPP_FORMAT_TO_BUF(v.lhs,"{}",name);
        /* strcpy(v.rhs,save_eqn[nlin]); */
@@ -1513,8 +1386,8 @@ static int parse_model(FILE *fp, const char *first, int nnn)
           else{
 	  	
           strpiece(v.lhs,v.rhs,0,i1-1);
-          XPP_FORMAT_TO_BUF(big,"{}",v.rhs);
-          strpiece(v.rhs,big,i1+1,strlen(big));
+          big=v.rhs;
+          strpiece(v.rhs,big.c_str(),i1+1,static_cast<int>(big.size()));
           }
           v.type=SOL_VAR;
           /*    plintf(" Its a sol-var! \n"); */
@@ -1525,8 +1398,8 @@ static int parse_model(FILE *fp, const char *first, int nnn)
      if(v.type==COMMAND && v.lhs[0]=='A' && v.lhs[1]=='U'){
        if(find_char(v.rhs,"=",0,&i1)>=0){
        strpiece(v.lhs,v.rhs,0,i1-1);
-       XPP_FORMAT_TO_BUF(big,"{}",v.rhs);
-       strpiece(v.rhs,big,i1+1,strlen(big));
+       big=v.rhs;
+       strpiece(v.rhs,big.c_str(),i1+1,static_cast<int>(big.size()));
        }
        v.type=AUX_VAR;
      }
@@ -1536,8 +1409,8 @@ static int parse_model(FILE *fp, const char *first, int nnn)
      {
       if(find_char(v.rhs,"=",0,&i1)>=0){
        strpiece(v.lhs,v.rhs,0,i1-1);
-       XPP_FORMAT_TO_BUF(big,"{}",v.rhs);
-       strpiece(v.rhs,big,i1+1,strlen(big));
+       big=v.rhs;
+       strpiece(v.rhs,big.c_str(),i1+1,static_cast<int>(big.size()));
        }
        v.type=VECTOR;
 
@@ -1547,8 +1420,8 @@ static int parse_model(FILE *fp, const char *first, int nnn)
      if(v.type==COMMAND && v.lhs[0]=='S'&&v.lhs[1]=='P'&&v.lhs[5]=='A'){
        if(find_char(v.rhs,"=",0,&i1)>=0){
        strpiece(v.lhs,v.rhs,0,i1-1);
-       XPP_FORMAT_TO_BUF(big,"{}",v.rhs);
-       strpiece(v.rhs,big,i1+1,strlen(big));
+       big=v.rhs;
+       strpiece(v.rhs,big.c_str(),i1+1,static_cast<int>(big.size()));
        }
        v.type=SPEC_FUN;
      }
@@ -1558,8 +1431,8 @@ static int parse_model(FILE *fp, const char *first, int nnn)
        v.type=EXPORT;
        if(find_char(v.rhs,"}",0,&i1)>=0){
        strpiece(v.lhs,v.rhs,0,i1);
-       XPP_FORMAT_TO_BUF(big,"{}",v.rhs);
-       strpiece(v.rhs,big,i1+1,strlen(big));
+       big=v.rhs;
+       strpiece(v.rhs,big.c_str(),i1+1,static_cast<int>(big.size()));
        }
 
     }
@@ -1577,8 +1450,8 @@ static int parse_model(FILE *fp, const char *first, int nnn)
      if(v.type==COMMAND && v.lhs[0]=='V'){
        if(find_char(v.rhs,"=",0,&i1)>=0){
        strpiece(v.lhs,v.rhs,0,i1-1);
-       XPP_FORMAT_TO_BUF(big,"{}",v.rhs);
-       strpiece(v.rhs,big,i1+1,strlen(big));
+       big=v.rhs;
+       strpiece(v.rhs,big.c_str(),i1+1,static_cast<int>(big.size()));
        }
        v.type=VEQ;
      }
@@ -1594,8 +1467,8 @@ static int parse_model(FILE *fp, const char *first, int nnn)
 	exit(0);
       }
       strpiece(v.lhs,v.rhs,i0,i1-1);
-      XPP_FORMAT_TO_BUF(big,"{}",v.rhs);
-      strpiece(v.rhs,big,i1+1,strlen(big));
+      big=v.rhs;
+      strpiece(v.rhs,big.c_str(),i1+1,static_cast<int>(big.size()));
       v.type=TABLE;
     }
   
@@ -1624,17 +1497,9 @@ static int parse_model(FILE *fp, const char *first, int nnn)
 
    }
 
-   /* a Markov line's states (build_markov copied them); v.type is
-      MARKOV_VAR by now, so the upstream test on COMMAND never freed them */
-   if(markovarrays!=NULL){
-    for(istates=0;istates<nstates;istates++){
-      xpp_free(markovarrays[istates]);
-      xpp_free(markovarrays2[istates]);
-    }
-    xpp_free(markovarrays);
-    xpp_free(markovarrays2);
-    markovarrays=markovarrays2=NULL;
-  }
+   /* a Markov line's states (build_markov copied them) */
+   markov_states.clear();
+   markov_states2.clear();
  
      
  }
@@ -1666,32 +1531,24 @@ void add_only(const char *s)
 {
   if(strlen(s)<1)return;
   if(N_only>=MAXONLY)return;
-  onlylist[N_only]=(char *)xpp_malloc(strlen(s)+1);
-  /* onlylist[N_only] is a pointer, allocated strlen(s)+1 bytes above. */
-  xpp_strlcpy(onlylist[N_only],s,strlen(s)+1);
+  onlylist[N_only]=xpp_strdup(s);
 
   N_only++;
 }
 
 void break_up_list(const char *rhs)
 {
-  int i=0,j=0,l=strlen(rhs);
-  char s[MAXEXPLEN],c;
-  while(i<l){
-    c=rhs[i];
-    if(c==' '||c==','){
-      s[j]=0;
-      add_only(s);
-      j=0;
+  /* the names between blanks and commas */
+  std::string s;
+  for(const char *c=rhs;*c;c++){
+    if(*c==' '||*c==','){
+      add_only(s.c_str());
+      s.clear();
     }
-    else {
-      s[j]=c;
-      j++;
-    }
-    i++;
+    else
+      s+=*c;
   }
-  s[j]=0;
-  add_only(s);
+  add_only(s.c_str());
 }
 
 
@@ -1815,11 +1672,8 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	exit(0);
     }
     if(v->type==FIXED){
-      fixinfo[nfix].name=(char *)xpp_malloc(strlen(v->lhs)+2);
-      fixinfo[nfix].value=(char *)xpp_malloc(strlen(v->rhs)+2);
-      /* fixinfo[nfix].name/.value are pointers, allocated just above. */
-      xpp_strlcpy(fixinfo[nfix].name,v->lhs,strlen(v->lhs)+2);
-      xpp_strlcpy(fixinfo[nfix].value,v->rhs,strlen(v->rhs)+2);
+      fixinfo[nfix].name=xpp_strdup(v->lhs);
+      fixinfo[nfix].value=xpp_strdup(v->rhs);
       convert(v->lhs,tmp);
       if(name_too_long(tmp))exit(0);
       XPP_FORMAT_TO_BUF(fnames[nfix],"{}",tmp);
@@ -1995,14 +1849,8 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
      case ODE:
      case MAP:
        EqType[nvar]=iflag;
-       nn=strlen(v->rhs)+1;
-       if((ode_names[nvar]=(char *)xpp_malloc(nn+2))==NULL||
-	  (my_ode[nvar]=(int *)xpp_malloc(MAXEXPLEN*sizeof(int)))==NULL){
-	 xpp_log(XPP_LOG_ERROR, "could not allocate space for %s \n",v->lhs);
-	 exit(0);
-       }
-       
-       xpp_strlcpy(ode_names[nvar],v->rhs,nn+2);
+       ode_names[nvar]=xpp_strdup(v->rhs);
+       my_ode[nvar]=static_cast<int *>(xpp_malloc(MAXEXPLEN*sizeof(int)));
        find_ker(v->rhs,&alt);
        /*       ode_names[nvar][nn-1]=0; */
        if(add_expr(v->rhs,my_ode[nvar],&leng[nvar])){
@@ -2022,8 +1870,8 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        break;
       case FIXED:
        find_ker(v->rhs,&alt);
-       if((my_ode[nfix+IN_VARS]=(int *)xpp_malloc(MAXEXPLEN*sizeof(int)))==NULL ||
-	  add_expr(v->rhs,my_ode[nfix+IN_VARS],&leng[IN_VARS+nfix])!=0){
+       my_ode[nfix+IN_VARS]=static_cast<int *>(xpp_malloc(MAXEXPLEN*sizeof(int)));
+       if(add_expr(v->rhs,my_ode[nfix+IN_VARS],&leng[IN_VARS+nfix])!=0){
 	 xpp_log(XPP_LOG_ERROR, " Error allocating or compiling %s\n",v->lhs);
 	 exit(0);
        }
@@ -2039,15 +1887,8 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
      case  AUX_VAR:
        in1=IN_VARS+NMarkov+naux;
        in2=IN_VARS+FIX_VAR+naux;
-              nn=strlen(v->rhs)+1;
-	 if((ode_names[in1]=(char *)xpp_malloc(nn+2))==NULL||
-	    (my_ode[in2]=(int *)xpp_malloc(MAXEXPLEN*sizeof(int)))==NULL){
-	   xpp_log(XPP_LOG_ERROR, "could not allocate space for %s \n",v->lhs);
-	   exit(0);
-	 }
-
-
-       xpp_strlcpy(ode_names[in1],v->rhs,nn+2);
+       ode_names[in1]=xpp_strdup(v->rhs);
+       my_ode[in2]=static_cast<int *>(xpp_malloc(MAXEXPLEN*sizeof(int)));
        /* ode_names[in1][nn]=0; */
        if(add_expr(v->rhs,my_ode[in2],&leng[in2])){
 	 xpp_log(XPP_LOG_ERROR, "ERROR compiling %s \n",v->lhs);
@@ -2070,14 +1911,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        }
        break;
      case MARKOV_VAR:
-       nn=strlen(v->rhs)+1;
-
-       if((ode_names[IN_VARS+nmark]=(char *)xpp_malloc(nn+2))==NULL){
-	 xpp_log(XPP_LOG_ERROR, " Out of memory for  %s \n",v->lhs);
-	 exit(0);
-       }
-       strncpy(ode_names[IN_VARS+nmark],v->rhs,nn);
-       ode_names[IN_VARS+nmark][nn]=0;
+       ode_names[IN_VARS+nmark]=xpp_strdup(v->rhs);
        nmark++;
        xpp_log(XPP_LOG_INFO, "%s: %s",v->lhs,v->rhs);
        break;
@@ -2538,90 +2372,73 @@ void remove_blanks(char *s1)
 }
       
 
-void read_a_line(FILE *fp, char *s)
+/* fgets without its size: the next line of fp with its '\n', whatever
+   its length ("" at the end of the file) */
+static std::string read_raw_line(FILE *fp)
 {
-  char temp[MAXEXPLEN];
-  int i,n,nn,ok,ihat=0;
-  s[0]=0;
-  ok=1;
-
-  while(ok){
-    ok=0;
-    if(fgets(temp,MAXEXPLEN,fp)==NULL){temp[0]=0;}
-
-     nn=strlen(temp)+1;
-     save_eqn[NLINES]=(char *)xpp_malloc(nn);
-     strncpy(save_eqn[NLINES++],temp,nn);
-     /* plintf("inc NLINES in readaline %s \n",temp); */
-     /* plintf(" NLINES = %d \n",NLINES); */
-    n=strlen(temp);
-    for(i=n-1;i>=0;i--){
-
-      if(temp[i]=='\\'){
-	ok=1;
-	ihat=i;
-
-      }
-    }
-    if(ok==1)
-      temp[ihat]=0;
-    strcat(s,temp);
+  std::string line;
+  int c;
+  while((c=getc(fp))!=EOF){
+    line+=static_cast<char>(c);
+    if(c=='\n')break;
   }
-  n=strlen(s);
-  /*  if((s[n-1]=='\n')||(s[n-1]=='\r'))
-    {
-      s[n-1]=0;
-      n=strlen(s);
-    }
-  if((s[n-1]=='\n')||(s[n-1]=='\r'))
-    {
-      s[n-1]=0;
-      n=strlen(s);
-    }
-  */
-      
-  if(n>0&&(s[n-1]=='\n'||s[n-1]=='\r'))s[n-1]=' '; /* n is 0 at the end of the file */
-  s[n]=' ';
-  s[n+1]=0;
-  
-
+  return line;
 }
-  
 
-
-
-
-
- 
-
-int search_array(char *old, char *newstr, int *i1, int *i2, int *flag)
+/* keeps one line of the model's source in save_eqn (C text: strip_saveqn
+   and the front ends read it) */
+static void save_line(const std::string &line)
 {
-  /* old/newstr are pointers here; the smallest of search_array's four
-     callers pass char[256] (integrate.c's junk/new) -- the others use
-     [300] or [MAXEXPLEN] -- so 256 is the real, safe size for a write
-     into newstr. */
-  int i,j,k,l;
+  if (NLINES>=MAXLINES) {
+    xpp_log(XPP_LOG_ERROR, "The model has more than %d lines\n", MAXLINES);
+    exit(1);
+  }
+  save_eqn[NLINES++]=xpp_strdup(line.c_str());
+}
+
+/* The next logical line: a line ending in a backslash goes on in the
+   next one (the text from the first backslash on is dropped); the
+   line's end becomes a blank and one more blank follows it. */
+void read_a_line(FILE *fp, std::string &s)
+{
+  bool more=true;
+  s.clear();
+  while(more){
+    std::string temp=read_raw_line(fp);
+    save_line(temp);
+    size_t hat=temp.find('\\');
+    more=hat!=std::string::npos;
+    if(more)temp.resize(hat);
+    s+=temp;
+  }
+  if(!s.empty()&&(s.back()=='\n'||s.back()=='\r'))s.back()=' '; /* empty at the end of the file */
+  s+=' ';
+}
+
+
+/* old with its array range x[i..j] made x[j] (i1, i2 the range; flag 1,
+   or 2 for a %[i..j] for loop): newstr. 0 (newstr old) when the range
+   is malformed. A line of initial data x[..](0)=... goes to
+   extract_ic_data, which may rewrite old. */
+int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag)
+{
+  int i,j;
   int ileft,iright;
   int n=strlen(old);
-  char num1[20],num2[20];
+  std::string num1="0",num2="0";
   char ch,chp;
   ileft=n-1;
   iright=-1;
   *i1=0;
   *i2=0;
   *flag=0;
-  XPP_FORMAT_TO_BUF(num1,"{}","0");
-  XPP_FORMAT_TO_BUF(num2,"{}","0");
-  if(old[0]=='#'||old[1]=='#') {  /* check for comments */
-
-    xpp_strlcpy(newstr,old,256);
-        
+  if(old[0]=='#'||(n>0&&old[1]=='#')) {  /* check for comments */
+    newstr=old;
     return 1;
   }
   if(check_if_ic(old)==1){
-
     extract_ic_data(old);
-    xpp_strlcpy(newstr,old,256);
+    newstr=old;
     return 1;
   }
   for(i=0;i<n;i++){
@@ -2634,22 +2451,16 @@ int search_array(char *old, char *newstr, int *i1, int *i2, int *flag)
 	*flag=2;   /*   FOR LOOP CONSTRUCTION  */
       while(1){
 	ch=old[i+j];
-/*        plintf(" %d %c \n",j,ch); */
 	if(ch=='['){
 	  ileft=i+j;
-	  l=0;
-	  for(k=i+j+1;k<i;k++){
-	    num1[l]=old[k];
-	    l++;
-	  }
-	  num1[l]=0;
+	  num1.assign(old+i+j+1,old+i);
 	  break;
 	}
 	j--;
 	if((i+j)<=0){
 	  *i1=0;
           *i2=0;
-	  xpp_strlcpy(newstr,old,256);
+	  newstr=old;
           xpp_log(XPP_LOG_WARN, " Possible error in array %s -- ignoring it \n",old);
 	  return(0); /* error in array  */
 	}
@@ -2659,46 +2470,39 @@ int search_array(char *old, char *newstr, int *i1, int *i2, int *flag)
 	ch=old[i+j];
 	if(ch==']'){
 	  iright=i+j;
-	  l=0;
-	  for(k=2;k<j;k++){
-	    num2[l]=old[i+k];
-	    l++;
-	  }
-	  num2[l]=0;
+	  num2.assign(old+i+2,old+i+j);
 	  break;
 	}
 	j++;
 	if((i+j)>=n) {
 	  *i1=0;
           *i2=0;
-	  xpp_strlcpy(newstr,old,256);
+	  newstr=old;
           xpp_log(XPP_LOG_WARN, " Possible error in array  %s -- ignoring it \n",old);
 	  return(0); /* error again   */
 	}
       }
     }
-    
   }
-  /*  printf(" I have extracted [%s] and [%s] \n",num1,num2); */
-    *i1=atoi(num1);
-    *i2=atoi(num2); 
-     /* now we have the numbers and will get rid of the junk inbetween */
-  l=0;
-  for(i=0;i<=ileft;i++){
-    newstr[l]=old[i];
-    l++;
-  }
+  *i1=atoi(num1.c_str());
+  *i2=atoi(num2.c_str());
+  /* now we have the numbers and will get rid of the junk inbetween */
+  newstr.assign(old,old+ileft+1);
   if(iright>0){
-    newstr[l]='j';
-    l++;
-    for(i=iright;i<n;i++){
-      newstr[l]=old[i];
-      l++;
-    }
+    newstr+='j';
+    newstr.append(old+iright,old+n);
   }
-  newstr[l]=0;
   return 1;
+}
 
+/* search_array for a caller's fixed buffer: newname holds 256 bytes (the
+   smallest callers', integrate.cpp's) */
+int search_array(char *old, char *newname, int *i1, int *i2, int *flag)
+{
+  std::string s;
+  int r=search_array(old,s,i1,i2,flag);
+  xpp_strlcpy(newname,s.c_str(),256);
+  return r;
 }
 
 int check_if_ic(const char *big)
@@ -2748,188 +2552,144 @@ int is_comment(const char *s)
 }
  
   
-void subsk(const char *big, char *newstr, int k, int flag)
+/* big with its subscripts worked out for index k: [n] becomes n, [j+n]
+   k+n, [j-n] k-n, [j*n] k*n ([j] only in an array line, flag nonzero) */
+void subsk(const char *big, std::string &newstr, int k, int flag)
 {
-  /* big/newstr are pointers here; the smallest of subsk's callers pass
-     char[256] (integrate.c's vp/fp) -- others use [300] or
-     [MAXEXPLEN] -- so 256 is the real, safe size for a write into
-     newstr (same reasoning as search_array above). */
-  int i,n=strlen(big),inew,add,inum,j,m,isign,ok,multflag=0;
-  char ch,chp,num[20];
-  inew=0;
-  i=0;
-  /*  if(big[0]=='#'){   */
+  int n=strlen(big),i=0,add,isign,multflag=0;
+  bool ok;
+  char ch,chp;
+  std::string num;
+  newstr.clear();
   if(is_comment(big)){
-
-    xpp_strlcpy(newstr,big,256);
+    newstr=big;
     return;
   }
-  
-  while(1){
+  /* the subscript's text runs to its ']' */
+  auto unterminated=[big](){
+    xpp_log(XPP_LOG_ERROR, "Error in %s The expression does not terminate. Perhaps a ] is missing.\n",big);
+    exit(0);
+  };
+  while(i<n){
     ch=big[i];
     chp=big[i+1];
     if(ch=='['&&chp != 'j'&&not_ker(big,i)){
-      ok=1;
-      add=0;
-      inum=0;
-      isign=1;
+      ok=true;
+      num.clear();
       i++;
       while(ok){
+	if(i>=n)unterminated();
 	ch=big[i];
+	i++;
 	if(ch==']'){
-	  i++;
-          num[inum]=0;
-          add=atoi(num);
-	  XPP_SPRINTF(num,"%d",add);
-	  m=strlen(num);
-	  for(j=0;j<m;j++){
-	    newstr[inew]=num[j];
-	    inew++;
-	  }
-	  ok=0;
+	  add=atoi(num.c_str());
+	  newstr+=std::to_string(add);
+	  ok=false;
 	}
-	else {
-	  i++;
-	  num[inum]=ch;
-	  inum++;
-	}
+	else
+	  num+=ch;
       }
     }
-    else 
-      
-      if(ch=='['&&chp=='j')
-	{
-           if(flag==0){
+    else if(ch=='['&&chp=='j'){
+      if(flag==0){
 	xpp_log(XPP_LOG_WARN, " Illegal use of [j] at %s \n",big);
 	exit(0);
       }
-	  add=0;
-	  inum=0;
+      num.clear();
+      isign=1;
+      i+=2;
+      ok=true;
+      while(ok){
+	if(i>=n)unterminated();
+	ch=big[i];
+	switch(ch){
+	case '+':
 	  isign=1;
-	  i+=2;
-	  ok=1;
-	  while(ok){
-	    if(i>=n){
-	      newstr[inew]=0;
-	      xpp_log(XPP_LOG_ERROR, "Error in %s The expression does not terminate. Perhaps a ] is missing.\n",big);
-	      exit(0);
-	    }
-	    ch=big[i];
-	    /*        plintf("i=%d inew=%d new ch= %c \n",i,inew,ch); */
-	    switch(ch){
-	    case '+':
-	      isign=1;
-	      i++;
-	      break;
-	    case '-':
-	      isign=-1;
-	      i++;
-	      break;
-	    case '*':
-	      i++;
-	      isign=1;
-	      multflag=1;
-	      break;
-	    case ']':
-	      i++;
-	      num[inum]=0;
-	      if(multflag==0){
-		add=atoi(num)*isign+k;
-	      }
-	      else {
-		add=atoi(num)*k;
-		multflag=0;
-	      }
-	      XPP_SPRINTF(num,"%d",add);
-		m=strlen(num);
-		for(j=0;j<m;j++){
-		  newstr[inew]=num[j];
-		  inew++;
-		}
-		ok=0;
-		break;
-	      default:
-		i++;
-		num[inum]=ch;
-		inum++;
-		break;
-	      }
-	    }
-	}
-	else
-	  {
-	    newstr[inew]=ch;
-
-	    i++;
-	    inew++;
+	  i++;
+	  break;
+	case '-':
+	  isign=-1;
+	  i++;
+	  break;
+	case '*':
+	  i++;
+	  isign=1;
+	  multflag=1;
+	  break;
+	case ']':
+	  i++;
+	  if(multflag==0){
+	    add=atoi(num.c_str())*isign+k;
 	  }
-  
-    if(i>=n)break;
+	  else {
+	    add=atoi(num.c_str())*k;
+	    multflag=0;
+	  }
+	  newstr+=std::to_string(add);
+	  ok=false;
+	  break;
+	default:
+	  i++;
+	  num+=ch;
+	  break;
+	}
+      }
+    }
+    else {
+      newstr+=ch;
+      i++;
+    }
   }
-  newstr[inew]=0;
+}
 
+/* subsk for a caller's fixed buffer: newstr holds 256 bytes (the
+   smallest callers', integrate.cpp's) */
+void subsk(const char *big, char *newstr, int k, int flag)
+{
+  std::string s;
+  subsk(big,s,k,flag);
+  xpp_strlcpy(newstr,s.c_str(),256);
 }
 
 
+/* A " line: its text, or with {name=value,...} an action ("$ name=value
+   ...") and the text after the braces ("* text") */
 void add_comment(const char *s)
 {
-  char text[256],action[256],ch;
-  int n=strlen(s);
-  int i,j1=0,ja=0,noact=1;
   if(n_comments>=MAXCOMMENTS)return;
-  for(i=0;i<n;i++){
-    if(s[i]=='{'){
-      j1=i+1;
-      noact=0;
-      break;
-    }
-  }
-  if(noact){
-    comments[n_comments].text=(char *)xpp_malloc(strlen(s)+1);
-    xpp_strlcpy(comments[n_comments].text,s+1,strlen(s)+1);
+  std::string_view line(s);
+  size_t open=line.find('{');
+  if(open==std::string_view::npos){
+    comments[n_comments].text=xpp_strdup(line.empty()?"":s+1);
     comments[n_comments].aflag=0;
   }
   else {
-    text[0]='*';
-    text[1]=' ';
-    action[0]='$';
-    action[1]=' ';
-    ja=2;
-    for(i=j1;i<n;i++){
-     ch=s[i];
-     if(ch==','){
-       action[ja]=' ';
-       ja++;
-     }
-     if(ch=='}'){
-       action[ja]=' ';
-       action[ja+1]=0;
-       j1=i+1;
-       break;
-     }
-     if(ch!=','){
-       action[ja]=ch;
-       ja++;
-     }
+    std::string action="$ ";
+    size_t j1=open+1;
+    for(size_t i=open+1;i<line.size();i++){
+      char ch=line[i];
+      if(ch==','){
+        action+=' ';
+        continue;
+      }
+      if(ch=='}'){
+        action+=' ';
+        j1=i+1;
+        break;
+      }
+      action+=ch;
     }
-    ja=2;
-    for(i=j1;i<n;i++){
-      text[ja]=s[i];
-      ja++;
-    }
-    text[ja]=0;
-    comments[n_comments].text=(char *)xpp_malloc(strlen(text)+1);
-    xpp_strlcpy(comments[n_comments].text,text,strlen(text)+1);
-    comments[n_comments].action=(char *)xpp_malloc(strlen(action)+1);
-    xpp_strlcpy(comments[n_comments].action,action,strlen(action)+1);
+    std::string text="* ";
+    text+=line.substr(j1);
+    /* COMMENT is C API: xpp_strdup'd text */
+    comments[n_comments].text=xpp_strdup(text.c_str());
+    comments[n_comments].action=xpp_strdup(action.c_str());
     comments[n_comments].aflag=1;
-
   }
  xpp_log(XPP_LOG_DEBUG, "text=%s \n",comments[n_comments].text);
  if(comments[n_comments].aflag==1)
    xpp_log(XPP_LOG_DEBUG, "action=%s \n",comments[n_comments].action);
  n_comments++;
- 
 }
 
 
