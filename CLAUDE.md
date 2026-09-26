@@ -562,7 +562,9 @@ change. Plain `tools/unsafecheck.sh` prints the per-file table.
 - Single source (maintainer, 2026-09-26): every kind of operation lives
   in one module, so a bug in it is fixed in one place. Memory is
   xpp_mem, logging xpp_log, text formatting and reading/writing text
-  xpp_io, files and folders xpp_files, dialogs xpp_ui. A new helper
+  xpp_io, files and folders xpp_files, dialogs xpp_ui, numerics (the
+  Fourier transform, random numbers, linear solves, special functions)
+  xpp_math (core/xpp_math.h says which copies stay elsewhere and why). A new helper
   goes into the module that owns its kind of operation, never a local
   copy in the file that needs it (no per-file `put`/`print`/`str`
   wrappers, no second typedef of a struct, no platform code outside its
@@ -583,7 +585,6 @@ change. Plain `tools/unsafecheck.sh` prints the per-file table.
   of fixed width shortens with `short_name()` (xpp_util.cpp, ends in `~`);
   the JSON front end always sends names whole. tools/models/longnames.ode
   and autocheck's `names` section are the test.
-- `core/fftn.c` does `#include __FILE__`; the Makefile's `-I.` is required for it.
 - The refactoring scripts under `tools/` (guard_x11_headers.py, move_funcs.py,
   ui_seam_refactor.py, phase2_step*.py, cxx_guard_headers.py) are one-shot and already applied;
   keep them for the record, do not re-run them.
