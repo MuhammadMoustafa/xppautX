@@ -3,6 +3,7 @@
 #include "integrate.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_math.h"
 #include "xpp_io.h"
 
 #include "cv2.h"
@@ -573,7 +574,7 @@ sigma  weights on nvars
       return(0);
     }
   
-  sgesl(covar,npars,npars,ipivot,oneda,0);
+  sgesl(covar,npars,npars,ipivot,oneda);
   for(j=0;j<npars;j++){
     da[j]=oneda[j];
    /* plintf(" da[%d]=%g \n",j,da[j]); */
@@ -584,7 +585,7 @@ sigma  weights on nvars
     for(j=0;j<npars;j++){
       for(k=0;k<npars;k++)oneda[k]=0.0;
       oneda[j]=1.0;
-      sgesl(alpha,npars,npars,ipivot,oneda,0);
+      sgesl(alpha,npars,npars,ipivot,oneda);
       for(k=0;k<npars;k++)covar[j+k*npars]=oneda[k];
     }
     return(1);

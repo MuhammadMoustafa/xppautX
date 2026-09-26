@@ -26,11 +26,11 @@ Most are standard.
 
 12. The Volterra solver uses essentially an integrator (second order) based on the implicit product scheme described in Peter Linz’s book on Volterra equations (SIAM,1985). For ODEs implicit schemes take considerably more time than explicit ones, but since most of the compute time for Volterra equations is in approximating the integral, this time penalty is minimal. Performance is gained primarily by taking advantage of convolution type equations.
 
-13. Normally distributed noise is computed by the Box-Muller transformation of uniform noise.
+13. Uniform random numbers come from the 64-bit Mersenne Twister (std::mt19937_64), which gives the same numbers for the same seed on every platform (not the numbers earlier XPP versions drew). Normally distributed noise is computed from them by the polar Box-Muller transformation, and Poisson deviates by the method of Numerical Recipes.
 
 14. The curve-fitting is done by using a heavily customized version of the Marquardt-Levenberg algorithm taken from Numerical Recipes in C.
 
-15. The FFT is through the usual means
+15. The FFT is Martin Reinecke's pocketfft, which transforms data of any length.
 
 16. The algorithms in the bifurcation package are described in the AUTO manual available from Eusebius Doedel. I just wrote the interface.
 

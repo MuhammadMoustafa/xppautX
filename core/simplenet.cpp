@@ -146,6 +146,7 @@ including derived parameters but XPP takes care of this so start at 0
 
 
 #include <math.h>
+#include <cmath>
 #include <stdio.h>
 
 #define EVEN 0
@@ -154,7 +155,7 @@ including derived parameters but XPP takes care of this so start at 0
 #define MAXW 50
 extern int NODE,NDELAYS;
 #include "delay_handle.h"
-#include "fftn.h"
+#include "xpp_math.h"
 
 #define IC 2
 
@@ -1418,7 +1419,6 @@ void update_all_ffts()
 void update_fft(int ind)
 {
   int i;
-  int dims[2];
   double *w=my_net[ind].weight;
   double *fftr=my_net[ind].fftr.data();
   double *ffti=my_net[ind].ffti.data();
@@ -1432,8 +1432,7 @@ void update_fft(int ind)
       fftr[i]=w[i+n2];
     for(i=0;i<n2;i++)
       fftr[n2+i+1]=w[i];
-    dims[0]=n;
-    fftn(1,dims,fftr,ffti,1,1.);
+    xpp_fft(n,fftr,ffti,1,1.0);
     /* plintf("index=%d n=%d n2=%d \n",ind,n,n2); 
     for(i=0;i<n;i++)
     plintf("(%g , %g)\n",fftr[i],ffti[i]); */
@@ -1446,8 +1445,7 @@ void update_fft(int ind)
       fftr[i]=w[i+n2];
     for(i=1;i<n2;i++)
       fftr[n2+i]=w[i];
-    dims[0]=n;
-    fftn(1,dims,fftr,ffti,1,1.);
+    xpp_fft(n,fftr,ffti,1,1.0);
   }
   /* for(i=0;i<10;i++)printf("fftr,i=%g %g %g %g\n",fftr[i],ffti[i],fftr[n-1-i],ffti[n-1-i]); */
 }
@@ -1456,19 +1454,17 @@ void update_fft(int ind)
 void fft_conv(int it,int n,double *values,double *yy,double *fftr,double *ffti,double *dr,double *di)
 {
   int i;
- int dims[2];
  double x,y;
  int n2=2*n;
   switch(it){
   case 0:
-    dims[0]=n;
     for(i=0;i<n;i++){
       di[i]=0.0;
       dr[i]=yy[i];
 
     }
     
-    fftn(1,dims,dr,di,1,-2.0);
+    xpp_fft(n,dr,di,1,1.0/std::sqrt(static_cast<double>(n)));
 
 
 
@@ -1479,13 +1475,12 @@ void fft_conv(int it,int n,double *values,double *yy,double *fftr,double *ffti,d
       di[i]=y;
     } 
    
-    fftn(1,dims,dr,di,-1,-2.0);
+    xpp_fft(n,dr,di,-1,1.0/std::sqrt(static_cast<double>(n)));
     for(i=0;i<n;i++)
       values[i]=dr[i];
    
     return;
   case 1:
-     dims[0]=n2;
     for(i=0;i<n2;i++){
       di[i]=0.0;
       if(i<n)
@@ -1493,14 +1488,14 @@ void fft_conv(int it,int n,double *values,double *yy,double *fftr,double *ffti,d
       else
 	dr[i]=0.0;
     }
-    fftn(1,dims,dr,di,1,-2.0);
+    xpp_fft(n2,dr,di,1,1.0/std::sqrt(static_cast<double>(n2)));
     for(i=0;i<n2;i++){
       x=dr[i]*fftr[i]-di[i]*ffti[i];
       y=dr[i]*ffti[i]+di[i]*fftr[i];
       dr[i]=x;
       di[i]=y;
     } 
-    fftn(1,dims,dr,di,-1,-2.0);
+    xpp_fft(n2,dr,di,-1,1.0/std::sqrt(static_cast<double>(n2)));
     for(i=0;i<n;i++)
       values[i]=dr[i];
     return;

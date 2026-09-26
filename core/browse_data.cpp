@@ -44,6 +44,14 @@ void set_browser_data(float **data,int col0)
   my_browser.col0=col0;
 }
 
+/* show another data set in the browser: its columns from new_dat[1] on,
+   dat_len rows (the adjoint, the Fourier modes, a histogram, ...) */
+void new_browse_dat(float **new_dat, int dat_len)
+{
+  set_browser_data(new_dat,1);
+  refresh_browser(dat_len);
+}
+
 float *get_data_col(int c)
 {
   return my_browser.data[c];

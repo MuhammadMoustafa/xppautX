@@ -3,6 +3,7 @@
 #include "odesol2.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_math.h"
 #include "xpp_io.h"
 #include "my_rhs.h"
 #include "pop_list.h"
@@ -172,10 +173,7 @@ int create_transpose()
     }
   }
   
-  set_browser_data(my_trans.data,1);
-  /*  my_browser.data=my_trans.data;
-      my_browser.col0=1; */
-   refresh_browser(my_trans.ncol);
+  new_browse_dat(my_trans.data,my_trans.ncol);
    my_trans.here=1;
    return 1;
 }
@@ -197,33 +195,17 @@ void alloc_h_stuff()
 void data_back()
 {
  FOUR_HERE=0;
- set_browser_data(storage,1); 
- /*  my_browser.data=storage;
-     my_browser.col0=1; */
- refresh_browser(storind); 
+ new_browse_dat(storage,storind);
 }
 
 void adj_back()
 {
- if(ADJ_HERE){
-   set_browser_data(my_adj,1);
-   /*   my_browser.data=my_adj;
-
-	my_browser.col0=1; */
-   refresh_browser(adj_len);
- }
+ if(ADJ_HERE)new_browse_dat(my_adj,adj_len);
 }
 
 void h_back()
 {
- if(H_HERE){
-   set_browser_data(my_h,1);
-   /*
-   my_browser.data=my_h;
-
-   my_browser.col0=1; */
-   refresh_browser(h_len);
- }
+ if(H_HERE)new_browse_dat(my_h,h_len);
 }
 /*  Here is how to do the range over adjoints and h functions
     unfortunately, h functions are always computed even if you dont want them 
@@ -599,7 +581,7 @@ if(info!=-1){
   err_msg("Univertible Jacobian");
   return(0);
 }
-sgesl(mat,node,node,ipvt,yold,0);
+sgesl(mat,node,node,ipvt,yold);
 return(1);
 }
 		

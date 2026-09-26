@@ -2,6 +2,7 @@
 #include "markov.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_math.h"
 
 #include "integrate.h"
 #include "browse.h"
@@ -29,19 +30,7 @@
 
 extern int ConvertStyle;
 extern FILE *convertf;
-#define IA 16807
-#define IM 2147483647
-#define AM (1.0/IM)
-#define IQ 127773
-#define IR 2836
-#define NTAB 32
-#define NDIV (1+(IM-1)/NTAB)
-#define EPS 1.2e-12
-#define RNMX (1.0-EPS)
-#define PI 3.1415926
 
-long int myrandomseed=-1;
-double ndrand48();
 
 
 
@@ -112,38 +101,40 @@ void add_markov(int nstate, const char *name)
    only by build_markov/old_build_markov below */
 static std::string extract_expr(const char *source, int *i0);
 
-int build_markov(const char *const *ma, const char *name)  /*   FILE *fptr; */
+/* the Markov variable a transition table names (the longest name that
+   is a prefix of it); a model naming none fails to load. Writes the
+   table's header line when converting. */
+static int markov_named(const char *name)
 {
- /*int nn;
- */
- int len=0,ll;
-  int istart;
-
-
- int i,j,nstates,index;
- index=-1;
-  /* find it -- if not defined, then abort  */
-  for(i=0;i<NMarkov;i++){
-    ll=static_cast<int>(markov[i].name.size());
-    if(strncasecmp(name,markov[i].name.c_str(),ll)==0)
-      {
-
-	if(len<ll){
-	  index=i;
-	  len=ll;
-	}
-      }
+  int len=0,index=-1;
+  for(int i=0;i<NMarkov;i++){
+    int ll=static_cast<int>(markov[i].name.size());
+    if(strncasecmp(name,markov[i].name.c_str(),ll)==0&&len<ll){
+      index=i;
+      len=ll;
+    }
   }
   if(index==-1){
     xpp_log(XPP_LOG_ERROR, " Markov variable |%s| not found \n",name);
     xpp_model_failed();
   }
- /* get number of states  */
- nstates=markov[index].nstates;
- if(ConvertStyle){
-   std::string _cvt = xpp::format("markov {} {}\n", name, nstates);
-   fwrite(_cvt.data(), 1, _cvt.size(), convertf);
- }
+  if(ConvertStyle){
+    std::string _cvt = xpp::format("markov {} {}\n", name, markov[index].nstates);
+    fwrite(_cvt.data(), 1, _cvt.size(), convertf);
+  }
+  return index;
+}
+
+int build_markov(const char *const *ma, const char *name)  /*   FILE *fptr; */
+{
+ /*int nn;
+ */
+  int istart;
+
+
+ int i,j;
+ int index=markov_named(name);
+ int nstates=markov[index].nstates;
  xpp_log(XPP_LOG_INFO, " Building %s %d states...\n",name,nstates);
  for(i=0;i<nstates;i++){
    /* fgets(line,256,fptr); */
@@ -169,34 +160,12 @@ int build_markov(const char *const *ma, const char *name)  /*   FILE *fptr; */
 int old_build_markov(FILE *fptr, const char *name)
 {
  /*int nn;*/
- int len=0,ll;
   int istart;
 
 
- int i,j,nstates,index;
- index=-1;
-  /* find it -- if not defined, then abort  */
-  for(i=0;i<NMarkov;i++){
-    ll=static_cast<int>(markov[i].name.size());
-    if(strncasecmp(name,markov[i].name.c_str(),ll)==0)
-      {
-
-	if(len<ll){
-	  index=i;
-	  len=ll;
-	}
-      }
-  }
-  if(index==-1){
-    xpp_log(XPP_LOG_ERROR, " Markov variable |%s| not found \n",name);
-    xpp_model_failed();
-  }
- /* get number of states  */
- nstates=markov[index].nstates;
- if(ConvertStyle){
-   std::string _cvt = xpp::format("markov {} {}\n", name, nstates);
-   fwrite(_cvt.data(), 1, _cvt.size(), convertf);
- }
+ int i,j;
+ int index=markov_named(name);
+ int nstates=markov[index].nstates;
  xpp_log(XPP_LOG_INFO, " Building %s ...\n",name);
  {
    /* a whole line at a time, no 256-byte fgets cut, wrapping the FILE*
@@ -546,27 +515,23 @@ void do_stochast_com(int i)
 }
   
 
-void mean_back()
+/* show the mean or the variance of the runs in the browser */
+static void stats_back(float **stats)
 {
   if(STOCH_HERE){
-    set_browser_data(my_mean,1);
-    /*    my_browser.data=my_mean;
-	  my_browser.col0=1; */
-    refresh_browser(stoch_len);
+    new_browse_dat(stats,stoch_len);
     storind=stoch_len;
   }
 }
 
+void mean_back()
+{
+  stats_back(my_mean);
+}
 
 void variance_back()
 {
-  if(STOCH_HERE){
-    set_browser_data(my_variance,1);
-    /*    my_browser.data=my_variance;
-	  my_browser.col0=1; */
-    refresh_browser(stoch_len);
-       storind=stoch_len;
-  }
+  stats_back(my_variance);
 }
   
 
@@ -649,116 +614,3 @@ void do_stats(int ierr)
  
   }
 }
-double gammln(double xx)
-{
-	double x,y,tmp,ser;
-	static double cof[6]={76.18009172947146,-86.50532032941677,
-		24.01409824083091,-1.231739572450155,
-		0.1208650973866179e-2,-0.5395239384953e-5};
-	int j;
-
-	y=x=xx;
-	tmp=x+5.5;
-	tmp -= (x+0.5)*log(tmp);
-	ser=1.000000000190015;
-	for (j=0;j<=5;j++) ser += cof[j]/++y;
-	return -tmp+log(2.5066282746310005*ser/x);
-}
-
-double poidev(double xm)
-{
-	static double sq,alxm,g,oldm=(-1.0);
-	
-	double em,t,y;
-
-	if (xm < 12.0) {
-		if (xm != oldm) {
-			oldm=xm;
-			g=exp(-xm);
-		}
-		em = -1;
-		t=1.0;
-		do {
-			++em;
-			t *= ndrand48();
-		} while (t > g);
-	} else {
-		if (xm != oldm) {
-			oldm=xm;
-			sq=sqrt(2.0*xm);
-			alxm=log(xm);
-			g=xm*alxm-gammln(xm+1.0);
-		}
-		do {
-			do {
-				y=tan(PI*ndrand48());
-				em=sq*y+xm;
-			} while (em < 0.0);
-			em=floor(em);
-			t=0.9*(1.0+y*y)*exp(em*alxm-gammln(em+1.0)-g);
-		} while (ndrand48() > t);
-	}
-	return em;
-}
-
-
-    
-double ndrand48()
-{
- return ran1(&myrandomseed);
-}
-
-void nsrand48(int seed)
-{
- myrandomseed=-seed;
-}
-
-
-double ran1(long *idum)
-{
-	int j;
-	long k;
-	static long iy=0;
-	static long iv[NTAB];
-	double temp;
-
-	if (*idum <= 0 || !iy) {
-		if (-(*idum) < 1) *idum=1;
-		else *idum = -(*idum);
-		for (j=NTAB+7;j>=0;j--) {
-			k=(*idum)/IQ;
-			*idum=IA*(*idum-k*IQ)-IR*k;
-			if (*idum < 0) *idum += IM;
-			if (j < NTAB) iv[j] = *idum;
-		}
-		iy=iv[0];
-	}
-	k=(*idum)/IQ;
-	*idum=IA*(*idum-k*IQ)-IR*k;
-	if (*idum < 0) *idum += IM;
-	j=iy/NDIV;
-	iy=iv[j];
-	iv[j] = *idum;
-	if ((temp=AM*iy) > RNMX) return RNMX;
-	else return temp;
-}
-#undef IA
-#undef IM
-#undef AM
-#undef IQ
-#undef IR
-#undef NTAB
-#undef NDIV
-#undef EPS
-#undef RNMX
-
-
-
-
-
-
-
-
-
-
-

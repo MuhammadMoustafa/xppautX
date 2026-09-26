@@ -14,10 +14,10 @@
 #include "browse.h"
 #include "ggets.h"
 
-#include "fftn.h"
 #include "parserslow.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
+#include "xpp_math.h"
 #include "xpp_ui.h"
 
 
@@ -110,23 +110,12 @@ int two_d_hist(int col1,int col2,int ndat,int n1,int n2,double xlo,double xhi,do
 
 void four_back()
 {
- if(FOUR_HERE){
-   set_browser_data(my_four,1);
-   /*   my_browser.data=my_four;
-	my_browser.col0=1; */
-   refresh_browser(four_len);
- }
+ if(FOUR_HERE)new_browse_dat(my_four,four_len);
 }
 
 void hist_back()
 {
- if(HIST_HERE){
-   set_browser_data(my_hist,1);
-   /*
-   my_browser.data=my_hist;
-   my_browser.col0=1; */
-   refresh_browser(hist_len);
- }
+ if(HIST_HERE)new_browse_dat(my_hist,hist_len);
 }
 
 void new_four(int nmodes, int col)
@@ -643,8 +632,6 @@ void just_sd(int flag)
 }
 void compute_sd()
 {
-  int length,i,j;
-  float total=storage[0][storind-1]-storage[0][0];
   new_int("(0) PSDx, (1) PSDxy, (2) COHxy:",&spec_type);
   
   if(get_col_info(&spec_col,"Variable ")==0)return;
@@ -652,32 +639,7 @@ void compute_sd()
       if(get_col_info(&spec_col2,"Variable 2 ")==0)return;
   new_int("Window length ",&spec_wid);
   new_int("0:sqr 1:par 2:ham 3:bart 4:han ",&spec_win);
-   if(HIST_HERE){
-    data_back();
-    xpp_free(my_hist[0]);
-    xpp_free(my_hist[1]);
-    if(HIST_HERE==2)
-      xpp_free(my_hist[2]);
-    HIST_HERE=0;
-  }  
-   hist_len=spec_wid/2;
-   length=hist_len+2;
-   my_hist[0]=static_cast<float *>(xpp_malloc(sizeof(float)*length));
-   my_hist[1]=static_cast<float *>(xpp_malloc(sizeof(float)*length));
-  if(my_hist[1]==NULL){
-    xpp_free(my_hist[0]);
-    err_msg("Cannot allocate enough...");
-    return;
-  }
-  HIST_HERE=1;
-  for(i=2;i<=NEQ;i++)my_hist[i]=storage[i];
-  for(j=0;j<hist_len;j++)my_hist[0][j]=(static_cast<float>(j)*storind/spec_wid)/total;
-  if(spec_type==0)
-    spectrum(storage[spec_col],storind,spec_wid,spec_win,my_hist[1]);
-  else
-    cross_spectrum(storage[spec_col],storage[spec_col2],storind,spec_wid,spec_win,my_hist[1],spec_type);
-  hist_back();
-  ping();
+  just_sd(spec_type);
 }
  
 void just_fourier(int flag)
@@ -816,8 +778,7 @@ void fftxcorr(float *data1,float *data2,int length,int nlag,float *cr,int flag)
 {
   double x,y,sum;
   float av1=0.0,av2=0.0;
-  int dim[2],i;
-  /*int n2; Not used anywhere*/
+  int i;
   if(flag){
     for(i=0;i<length;i++){
       av1+=data1[i];
@@ -826,29 +787,25 @@ void fftxcorr(float *data1,float *data2,int length,int nlag,float *cr,int flag)
     av1=av1/static_cast<float>(length);
     av2=av2/static_cast<float>(length);
   }
- /* n2=length/2;*/
 
-  dim[0]=length;
   std::vector<double> re1_v(length), im1_v(length), re2_v(length), im2_v(length);
   double *re1=re1_v.data(), *im1=im1_v.data(), *re2=re2_v.data(), *im2=im2_v.data();
 
   for(i=0;i<length;i++){
-    im1[i]=0.0;
     re1[i]=(data1[i]-av1);
-    im2[i]=0.0;
     re2[i]=(data2[i]-av2);
-
   }
 
-   fftn(1,dim,re1,im1,1,-1);
-   fftn(1,dim,re2,im2,1,-1);
+   /* both transforms and the inverse divided by the length */
+   xpp_fft(length,re1,im1,1,1.0/length);
+   xpp_fft(length,re2,im2,1,1.0/length);
    for(i=0;i<length;i++){
      x=re1[i]*re2[i]+im1[i]*im2[i];
      y=im1[i]*re2[i]-im2[i]*re1[i];
      re1[i]=x;
      im1[i]=-y;
    }
-   fftn(1,dim,re1,im1,-1,-1);
+   xpp_fft(length,re1,im1,-1,1.0/length);
    /* now lets order these
       I think!  */
    sum=0.0;
@@ -865,25 +822,25 @@ void fftxcorr(float *data1,float *data2,int length,int nlag,float *cr,int flag)
 
 
 
+/* the Fourier modes 0..nmodes-1 of data[0..length-1]: ct[i] and st[i]
+   are twice the real and imaginary parts of the transform
+   (1/length) sum_j data[j] exp(+2 pi i j k/length), ct[0] once */
 void fft(float *data, float *ct, float *st, int nmodes, int length)
 {
-  int dim[2],i;
-  dim[0]=length;
-  std::vector<double> re_v(length), im_v(length);
-  double *re=re_v.data(), *im=im_v.data();
-  for(i=0;i<length;i++){
-    im[i]=0.0;
-    re[i]=data[i];
-
+  if(length<=0)return;
+  std::vector<double> in(data,data+length);
+  const int half=length/2+1;
+  std::vector<double> re(half), im(half);
+  xpp_fft_real(length,in.data(),re.data(),im.data(),1,1.0/length);
+  ct[0]=static_cast<float>(re[0]);
+  st[0]=0.0;
+  for(int i=1;i<nmodes;i++){
+    /* past the half the real transform stores, X[n-k] = conj(X[k]) */
+    const bool mirror=i>=half;
+    const int k=mirror?length-i:i;
+    ct[i]=static_cast<float>(re[k]*2.0);
+    st[i]=static_cast<float>((mirror?-im[k]:im[k])*2.0);
   }
-
-   fftn(1,dim,re,im,1,-1);
-   ct[0]=re[0];
-   st[0]=0.0;
-   for(i=1;i<nmodes;i++){
-     ct[i]=re[i]*2.0;
-     st[i]=im[i]*2.0;
-   }
 }
 
    

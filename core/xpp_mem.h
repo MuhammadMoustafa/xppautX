@@ -43,6 +43,10 @@
    library's malloc/free and is listed here and in tools/alloccheck.sh,
    which fails any other direct call (tools/sourcecheck.sh runs it).
 
+   pocketfft (third_party/pocketfft, compiled into xpp_math.cpp) allocates
+   its scratch memory with the C library's malloc/free inside its own
+   header and hands none of it out; alloccheck reads core/ only.
+
    CVODE (cv*.c, dense.c, band.c, llnlmath.c,
    vector.c) and AUTO (autlib*.c, setubv2.c, ...) are ours: they allocate
    and free their own memory and hand none of it to anyone else, so they

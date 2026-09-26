@@ -2,6 +2,7 @@
 #define _markov_h_
 
 #include <stdio.h>
+#include "xpp_math.h" /* nsrand48/ndrand48, the generator stocHast seeds */
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -28,11 +29,6 @@ void  free_stoch(void);
 void  init_stoch(int len);
 void  append_stoch(int first, int length);
 void  do_stats(int ierr);
-double gammln(double xx);
-double poidev(double xm);
-double ndrand48(void);
-void nsrand48(int seed);
-double ran1(long *idum);
 
 /* stocHast's many-runs state (markov.cpp): whether a Compute is running,
    whether its mean and variance exist, the number of trials and the

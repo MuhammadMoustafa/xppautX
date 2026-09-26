@@ -47,10 +47,6 @@ core/xpp_util.h do_calc|W32c dialog API: declared in both calc.h and xpp_util.h,
 core/xpp_util.cpp scratch_dir_pid|W32b xpp_files: the POSIX and Windows sides of the scratch-dir-name parser (one of the "two temp-folder implementations"), merge into one xpp_files helper
 core/xpp_win32.cpp scratch_dir_pid|W32b xpp_files: see core/xpp_util.cpp scratch_dir_pid; merge into one xpp_files helper
 
-core/adj2.cpp adj_back|W32a xpp_math: adj2.cpp's/histogram.cpp's four near-identical linear-interpolation-in-a-ring-buffer helpers, merge into one xpp_math helper
-core/adj2.cpp h_back|W32a xpp_math: see core/adj2.cpp adj_back
-core/histogram.cpp four_back|W32a xpp_math: see core/adj2.cpp adj_back
-core/histogram.cpp hist_back|W32a xpp_math: see core/adj2.cpp adj_back
 core/aniparse.cpp draw_ani_circ|keep: per-primitive-type dispatch wrappers (circle/filled circle/rect/filled rect/ellipse/filled ellipse), same shape by design; no W32a-d card owns aniparse.cpp yet
 core/aniparse.cpp draw_ani_fcirc|keep: see core/aniparse.cpp draw_ani_circ
 core/aniparse.cpp draw_ani_rect|keep: see core/aniparse.cpp draw_ani_circ
@@ -105,10 +101,6 @@ core/flags.cpp one_flag_step_euler|keep: see core/flags.cpp one_flag_step_symp
 core/flags.cpp one_flag_step_discrete|keep: see core/flags.cpp one_flag_step_symp
 core/flags.cpp one_flag_step_heun|keep: see core/flags.cpp one_flag_step_symp
 core/flags.cpp one_flag_step_rk4|keep: see core/flags.cpp one_flag_step_symp
-core/gear.cpp imin|W32a xpp_math: gear.cpp's own imin/Min and amax/Max are the same int/double min and max helper written twice, merge into xpp_math's std helpers
-core/gear.cpp Min|W32a xpp_math: see core/gear.cpp imin
-core/gear.cpp amax|W32a xpp_math: see core/gear.cpp imin
-core/gear.cpp Max|W32a xpp_math: see core/gear.cpp imin
 core/graf_par.cpp edit_frz|W32d shared data: frozen_curves' own edit/delete pair (graf_par.h's frozen_curves, per CLAUDE.md's Architecture section), merge into the frozen_curves module
 core/graf_par.cpp delete_frz|W32d shared data: see core/graf_par.cpp edit_frz
 core/graphics.cpp point|keep: pixel-primitive pairs behind the XppUi seam (point/bead, line/frect, point_abs/bead_abs), same shape by design; no W32a-d card owns graphics.cpp yet
@@ -133,16 +125,10 @@ core/json_windows.cpp b64_value|W32b xpp_files: json_windows.cpp's and xpp_files
 core/xpp_files.cpp b64_value|W32b xpp_files: see core/json_windows.cpp b64_value
 core/lunch-new.cpp io_int|keep: fscanf-style int/double token readers over a plain FILE * (xpp_io.h's xpp::TokenReader is the owner going forward, per CLAUDE.md's Strings and I/O section); not yet moved, no new copy added
 core/lunch-new.cpp io_double|keep: see core/lunch-new.cpp io_int
-core/markov.cpp mean_back|W32a xpp_math: markov.cpp's own running-mean/variance helper pair, merge into xpp_math's std helpers
-core/markov.cpp variance_back|W32a xpp_math: see core/markov.cpp mean_back
 core/marks_data.cpp add_num|W32d shared data: marks_data.cpp's and phase_data.cpp's identical small array-append helper, merge into one shared-data helper
 core/phase_data.cpp add_num|W32d shared data: see core/marks_data.cpp add_num
 core/odesol2.cpp discrete|keep: discrete/euler are two of odesol2.cpp's per-method step dispatchers, same shape by design; no W32a-d card owns odesol2.cpp yet
 core/odesol2.cpp euler|keep: see core/odesol2.cpp discrete
-core/parserslow2.cpp bessel_j|W32a xpp_math: Bessel J/Y and I/I-scaled wrapper pairs over the underlying series, merge into xpp_math's std helpers
-core/parserslow2.cpp bessel_y|W32a xpp_math: see core/parserslow2.cpp bessel_j
-core/parserslow2.cpp bessi|W32a xpp_math: see core/parserslow2.cpp bessel_j
-core/parserslow2.cpp bessis|W32a xpp_math: see core/parserslow2.cpp bessel_j
 core/xpp_files.cpp xpp_files_put_abort|W32b xpp_files: xpp_files_put_abort and xpp_writer_abort both discard a temp file without touching the target path (CLAUDE.md's Strings and I/O section); merge into the one xpp_writer_abort
 core/xpp_io.cpp xpp_writer_abort|W32b xpp_files: see core/xpp_files.cpp xpp_files_put_abort
 core/xpp_io.cpp xpp_line_reader_open|keep: xpp_io.h's own two reader kinds (whole-line vs whitespace-token), open/attach pairs of the same shape by design (CLAUDE.md's Strings and I/O section); not a copy to merge
@@ -163,9 +149,7 @@ core/dormpri.cpp *block*|vendored/numerical, keep: Hairer's dop853/dopri5, two i
 core/dormpri.h *block*|vendored/numerical, keep: see core/dormpri.cpp *block*
 core/eispack.cpp *block*|vendored/numerical, keep: EISPACK, translated Fortran eigenvalue routines
 core/diagram.cpp *block*|W32b xpp_files: post_auto's/svg_auto's PS/SVG bodies share a 16-line block; merge with the print-helper cleanup above
-core/histogram.cpp *block*|W32a xpp_math: histogram.cpp's two bin-accumulation loops (24 lines); merge into xpp_math's std helpers
 core/integrate.cpp *block*|keep: integrate.cpp's two similar range-stepping loops (17 lines); no W32a-d card owns integrate.cpp yet
-core/markov.cpp *block*|W32a xpp_math: markov.cpp's two Markov-chain-step blocks (17 lines); merge into xpp_math's std helpers
 core/nullcline.cpp *block*|keep: nullcline.cpp's two nullcline-branch blocks (16 lines); no W32a-d card owns nullcline.cpp yet
 core/simplenet.cpp *block*|W32d shared data: simplenet.cpp's per-connectivity-type blocks (16-34 lines), the same TABULAR-driven connectivity code repeated per network type; merge with the TABULAR cleanup above
 
@@ -218,13 +202,13 @@ core/xpp_util.h *|W32c dialog API: duplicated by calc.h/init_conds.h/main.h/graf
 """
 
 # The tool compares normalised text, so it cannot see two implementations
-# of the same algorithm written differently: core/gear.cpp's LINPACK-style
-# sgefa/sgesl, core/autlib1.cpp's own Gaussian elimination ge(), and
-# core/odesol2.cpp's bandfac/bandsol are three LU solves; core/gear.cpp's
-# eigen() and core/autlib1.cpp's eig() are two eigenvalue routines. Found
-# by hand for docs/roadmap.md's W30 audit note (W32a xpp_math absorbs
-# both), not by this script, so nothing above allowlists them: no finding
-# would ever match such an entry.
+# of the same algorithm written differently. The W30 audit found by hand
+# three LU solves and two eigenvalue routines; W32a moved LINPACK's
+# sgefa/sgesl, the banded bandfac/bandsol and the equilibria's eigenvalues
+# into core/xpp_math.cpp and left AUTO's complete-pivoting ge() and
+# EISPACK's hqr (autlib1.cpp's eig()) where they are, since merging either
+# would change results (core/xpp_math.h says why). Nothing above
+# allowlists them: no finding would ever match such an entry.
 
 
 BLOCK_MIN = 16  # duplicated-block threshold, in normalised lines

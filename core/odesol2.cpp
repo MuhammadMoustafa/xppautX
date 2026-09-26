@@ -1,4 +1,5 @@
 #include "odesol2.h"
+#include "xpp_math.h"
 #include "gear.h"
 #include <stdlib.h> 
 #include <stdio.h>
@@ -143,7 +144,7 @@ int one_bak_step(double *y, double *t, double dt, int neq, double *yg, double *y
 	 
 	  return(-1);
 	}
-      sgesl(jac,neq,neq,ipivot,errvec,0);
+      sgesl(jac,neq,neq,ipivot,errvec);
       }
       for(i=0;i<neq;i++){
 	err+=fabs(errvec[i]);
@@ -515,7 +516,7 @@ int *istart,int n,double *work,int *ierr)
 	 dfdy[i*n+i]+=1;
 	
 	 sgefa(dfdy,n,n,ipivot,&info);
-	 sgesl(dfdy,n,n,ipivot,k1,0);
+	 sgesl(dfdy,n,n,ipivot,k1);
        }
        for(i=0;i<n;i++)
 	 ynew[i]=y[i]+.5*h*k1[i];
@@ -525,7 +526,7 @@ int *istart,int n,double *work,int *ierr)
        if(cv_bandflag)
 	 bandsol(dfdy,k2,ml,mr,n);
        else
-	 sgesl(dfdy,n,n,ipivot,k2,0);
+	 sgesl(dfdy,n,n,ipivot,k2);
        for(i=0;i<n;i++){
 	 k2[i]=k2[i]+k1[i];
 	 ynew[i]=y[i]+h*k2[i];
@@ -537,7 +538,7 @@ int *istart,int n,double *work,int *ierr)
        if(cv_bandflag)
 	 bandsol(dfdy,k3,ml,mr,n);
        else
-	 sgesl(dfdy,n,n,ipivot,k3,0);
+	 sgesl(dfdy,n,n,ipivot,k3);
        /*ninf=0;  This is not used anywhere?
        */
        err=0.0;
@@ -645,67 +646,3 @@ void get_band_jac(double *a, double *y, double t, double *ypnew, double *ypold, 
   } 
  
 }
-
-
-int bandfac(double *a, int ml, int mr, int n)  /*   factors the matrix    */
-{
-  int i,j,k;
-  int n1=n-1,mt=ml+mr+1,row,rowi,m,r0,ri0;
-  double al;
-  for(row=0;row<n;row++){
-    r0=row*mt+ml;
-    if((al=a[r0])==0.0)return(-1-row);
-    al=1.0/al;
-    m=MIN(mr,n1-row);
-    for(j=1;j<=m;j++)a[r0+j]=a[r0+j]*al;
-    a[r0]=al;
-    for(i=1;i<=ml;i++){
-      rowi=row+i;
-      if(rowi>n1)break;
-      ri0=rowi*mt+ml;
-      al=a[ri0-i];
-      if(al==0.0)continue;
-      for(k=1;k<=m;k++)
-	a[ri0-i+k]=a[ri0-i+k]-(al*a[r0+k]);
-      a[ri0-i]=-al;
-    }
-
-
-
-  }
-	return(0);
-}
-
-void bandsol(double *a, double *b, int ml, int mr, int n)  /* requires that the matrix be factored   */
-{
-  int i,j,k,r0;
-  int mt=ml+mr+1;
-  int m,n1=n-1,row;
-  for(i=0;i<n;i++){
-    r0=i*mt+ml;
-    m=MAX(-ml,-i);
-    for(j=m;j<0;j++)b[i] += a[r0+j]*b[i+j];
-    b[i] *= a[r0];
-  }
-  for(row=n1-1;row>=0;row--){
-    m=MIN(mr,n1-row);
-    r0=row*mt+ml;
-    for(k=1;k<=m;k++)
-      b[row]=b[row]-a[r0+k]*b[row+k];
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

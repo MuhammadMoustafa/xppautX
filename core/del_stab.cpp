@@ -2,6 +2,7 @@
 #include "odesol2.h"
 #include "xpp_log.h"
 #include <stdlib.h>
+#include <algorithm>
 #include <vector>
 
 #include "eig_list.h"
@@ -74,7 +75,7 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
    {
      colsum=0.0;
      for(j=0;j<n;j++)xp[j]=x[j];
-     dx=eps*amax(eps,fabs(x[i]));
+     dx=eps*std::max(eps,fabs(x[i]));
      xp[i]=xp[i]+dx;
      rhs(0.0,xp,yp,n);
      for(j=0;j<n;j++){
@@ -95,7 +96,7 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
      colsum=0.0;
      for(j=0;j<n;j++)
        variable_shift[1][j]=variable_shift[0][j];
-     dx=eps*amax(eps,fabs(x[i]));
+     dx=eps*std::max(eps,fabs(x[i]));
      variable_shift[1][i]=x[i]+dx;
      rhs(0.0,x,yp,n);
      variable_shift[1][i]=x[i];

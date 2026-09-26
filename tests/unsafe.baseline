@@ -58,8 +58,6 @@ core/edit_rhs.cpp buffers 3
 core/edit_rhs.cpp memory 2
 core/edit_rhs.cpp text 1
 core/extra.cpp buffers 1
-core/fftn.cpp casts 7
-core/fftn.cpp memory 15
 core/flags.cpp buffers 1
 core/form_ode.cpp buffers 20
 core/form_ode.cpp files 13
@@ -77,7 +75,7 @@ core/graphics.cpp buffers 3
 core/graphics.cpp text 2
 core/grobs.cpp buffers 6
 core/histogram.cpp buffers 2
-core/histogram.cpp memory 35
+core/histogram.cpp memory 29
 core/histogram.cpp text 2
 core/integrate.cpp buffers 5
 core/integrate.cpp memory 3

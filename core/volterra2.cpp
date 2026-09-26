@@ -2,6 +2,7 @@
 #include "volterra2.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_math.h"
 #include "delay_handle.h"
 #include "gear.h"
 #include "ggets.h"
@@ -389,7 +390,7 @@ int volt_step(double *y, double t, double dt, int neq, double *yg, double *yp, d
        return(-1); /* Jacobian is singular   */
      }
    err=0.0;
-   sgesl(jac,NODE,NODE,ipivot,errvec,0);
+   sgesl(jac,NODE,NODE,ipivot,errvec);
    for(i=0;i<NODE;i++){
 	err=MAX(fabs(errvec[i]),err);
 	yg[i]-=errvec[i];

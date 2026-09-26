@@ -13,6 +13,7 @@
 #include "getvar.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
+#include "xpp_math.h"
 #include "xpp_ui.h"
 #include <string>
 #include <vector>
@@ -258,7 +259,7 @@ int solve_dae()
 	SETVAR(svar[i].index,ynew[i]);
       return -1; /* singular jacobian */
     }
-    sgesl(jac,n,n,dae_work.iwork.data(),errvec,0); /* get x=J^(-1) f */
+    sgesl(jac,n,n,dae_work.iwork.data(),errvec); /* get x=J^(-1) f */
     err=0.0;
     for(i=0;i<n;i++){
       y[i]-=errvec[i];

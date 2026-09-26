@@ -1,5 +1,6 @@
 #include <stdlib.h> 
 #include "xpp_mem.h"
+#include "xpp_math.h"
 #include <math.h>
 #include <stdio.h>
 /* #include <malloc.h> */
@@ -97,11 +98,6 @@ int dormprin(int *istart, double *y, double *t, int n, double tout, double *tol,
 
 
 
-static double sign (double a, double b)
-{
-  return (b < 0.0)? -fabs(a) : fabs(a);
-
-} /* sign */
 
 
 static double min_d (double a, double b)
@@ -155,7 +151,7 @@ static double hinit (unsigned n, FcnEqDiff fcn, double x, double* y,
     h = sqrt (dny/dnf) * 0.01;
 
   h = min_d (h, hmax);
-  h = sign (h, posneg);
+  h = xpp_sign (h, posneg);
 
   /* perform an explicit Euler step */
   for (i = 0; i < n; i++)
@@ -188,7 +184,7 @@ static double hinit (unsigned n, FcnEqDiff fcn, double x, double* y,
     h1 = pow (0.01/der12, 1.0/static_cast<double>(iord));
   h = min_d (100.0 * h, min_d (h1, hmax));
 
-  return sign (h, posneg);
+  return xpp_sign (h, posneg);
 
 } /* hinit */
 
@@ -400,7 +396,7 @@ static int dopcor (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
   expo1 = 1.0/8.0 - beta * 0.2;
   facc1 = 1.0 / fac1;
   facc2 = 1.0 / fac2;
-  posneg = sign (1.0, xend-x);
+  posneg = xpp_sign (1.0, xend-x);
 
   /* initial preparations */
   atoli = atoler[0];
@@ -948,7 +944,7 @@ static double hinit5 (unsigned n, FcnEqDiff fcn, double x, double* y,
     h = sqrt (dny/dnf) * 0.01;
 
   h = min_d (h, hmax);
-  h = sign (h, posneg);
+  h = xpp_sign (h, posneg);
 
   /* perform an explicit Euler step */
   for (i = 0; i < n; i++)
@@ -981,7 +977,7 @@ static double hinit5 (unsigned n, FcnEqDiff fcn, double x, double* y,
     h1 = pow (0.01/der12, 1.0/static_cast<double>(iord));
   h = min_d (100.0 * h, min_d (h1, hmax));
 
-  return sign (h, posneg);
+  return xpp_sign (h, posneg);
 
 } /* hinit */
 
@@ -1029,7 +1025,7 @@ static int dopcor5 (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
   expo1 = 0.2 - beta * 0.75;
   facc1 = 1.0 / fac1;
   facc2 = 1.0 / fac2;
-  posneg = sign (1.0, xend-x);
+  posneg = xpp_sign (1.0, xend-x);
 
   /* initial preparations */
   atoli = atoler[0];

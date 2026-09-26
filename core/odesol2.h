@@ -26,8 +26,6 @@ int rb23(double *y, double *tstart, double tfinal, int *istart, int n, double *w
 int rosen(double *y, double *tstart, double tfinal, int *istart, int n, double *work, int *ierr);
 void get_the_jac(double t, double *y, double *yp, double *ypnew, double *dfdy, int neq, double eps, double scal);
 void get_band_jac(double *a, double *y, double t, double *ypnew, double *ypold, int n, double eps, double scal);
-int bandfac(double *a, int ml, int mr, int n);
-void bandsol(double *a, double *b, int ml, int mr, int n);
 
 #ifdef __cplusplus
 }

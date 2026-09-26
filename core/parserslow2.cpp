@@ -4,6 +4,7 @@
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
+#include "xpp_math.h"
 
 #include <time.h>
 #include "ggets.h"
@@ -39,9 +40,6 @@
 double zippy;
 #define PUSH(a) zippy=(a); stack[stack_pointer++]=zippy;
 
-#ifdef NOLGAMMA
-double lgamma();
-#endif
 
 
 extern int NODE;
@@ -57,9 +55,6 @@ int             ERROUT;
 extern int DelayFlag;
 int NDELAYS=0;
 /*double pow2(); */
-double ndrand48();
-double BoxMuller;
-int BoxMullerFlag=0;
 int RandSeed=12345678;
 
 #ifndef M_PI
@@ -1420,185 +1415,16 @@ void two_args()
  fun2[15]=dle;
  fun2[16]=dne;
  fun2[17]=normal;
- fun2[18]=bessel_j;
- fun2[19]=bessel_y;
- fun2[20]=bessi;
- fun2[21]=bessis;
+ fun2[18]=xpp_bessel_j;
+ fun2[19]=xpp_bessel_y;
+ fun2[20]=xpp_bessel_i;
+ fun2[21]=xpp_bessel_i_scaled;
  
 
 
 
 
 }
-
-/*   These are the Bessel Functions; if you dont have them then
-     return some sort of dummy value or else write a program 
-     to compute them
-*/
-
-double bessel_j(double x, double y)
-{
- int n=static_cast<int>(x);
- return(jn(n,y));
-}
-
-double bessel_y(double x, double y)
-{
- int n=static_cast<int>(x);
- return(yn(n,y));
-}
-
-#define ACC 40.0
-#define BIGNO 1.0e10
-#define BIGNI 1.0e-10
-
-
-double bessi(double nn, double x)
-{
-  int j,n;
-	double  bi,bim,bip,tox,ans;
-	n=static_cast<int>(nn);
-	if(n==0)return bessi0(x);
-	if(n==1)return bessi1(x);
-	if (x == 0.0)
-		return 0.0;
-	else {
-		tox=2.0/fabs(x);
-		bip=ans=0.0;
-		bi=1.0;
-		for (j=2*(n+static_cast<int>(sqrt(ACC*n)));j>0;j--) {
-			bim=bip+j*tox*bi;
-			bip=bi;
-			bi=bim;
-			if (fabs(bi) > BIGNO) {
-				ans *= BIGNI;
-				bi *= BIGNI;
-				bip *= BIGNI;
-			}
-			if (j == n) ans=bip;
-		}
-		ans *= bessi0(x)/bi;
-		return x < 0.0 && (n & 1) ? -ans : ans;
-	}
-}
-
-double bessi0(double x)
-{
-	double  ax,ans;
-	double y;
-
-	if ((ax=fabs(x)) < 3.75) {
-		y=x/3.75;
-		y*=y;
-		ans=1.0+y*(3.5156229+y*(3.0899424+y*(1.2067492
-			+y*(0.2659732+y*(0.360768e-1+y*0.45813e-2)))));
-	} else {
-		y=3.75/ax;
-		ans=(exp(ax)/sqrt(ax))*(0.39894228+y*(0.1328592e-1
-			+y*(0.225319e-2+y*(-0.157565e-2+y*(0.916281e-2
-			+y*(-0.2057706e-1+y*(0.2635537e-1+y*(-0.1647633e-1
-			+y*0.392377e-2))))))));
-	}
-	return ans;
-}
-
-double bessi1(double x)
-{
-	double ax,ans;
-	double y;
-
-	if ((ax=fabs(x)) < 3.75) {
-		y=x/3.75;
-		y*=y;
-		ans=ax*(0.5+y*(0.87890594+y*(0.51498869+y*(0.15084934
-			+y*(0.2658733e-1+y*(0.301532e-2+y*0.32411e-3))))));
-	} else {
-		y=3.75/ax;
-		ans=0.2282967e-1+y*(-0.2895312e-1+y*(0.1787654e-1
-			-y*0.420059e-2));
-		ans=0.39894228+y*(-0.3988024e-1+y*(-0.362018e-2
-			+y*(0.163801e-2+y*(-0.1031555e-1+y*ans))));
-		ans *= (exp(ax)/sqrt(ax));
-	}
-	return x < 0.0 ? -ans : ans;
-}
-
-
-double bessis(double nn, double x)
-{
-  int j,n;
-	double  bi,bim,bip,tox,ans;
-	n=static_cast<int>(nn);
-	if(n==0)return bessis0(x);
-	if(n==1)return bessis1(x);
-	if (x == 0.0)
-		return 0.0;
-	else {
-		tox=2.0/fabs(x);
-		bip=ans=0.0;
-		bi=1.0;
-		for (j=2*(n+static_cast<int>(sqrt(ACC*n)));j>0;j--) {
-			bim=bip+j*tox*bi;
-			bip=bi;
-			bi=bim;
-			if (fabs(bi) > BIGNO) {
-				ans *= BIGNI;
-				bi *= BIGNI;
-				bip *= BIGNI;
-			}
-			if (j == n) ans=bip;
-		}
-		ans *= bessis0(x)/bi;
-		return x < 0.0 && (n & 1) ? -ans : ans;
-	}
-}
-
-double bessis0(double x)
-{
-	double  ax,ans;
-	double y;
-
-	if ((ax=fabs(x)) < 3.75) {
-		y=x/3.75;
-		y*=y;
-		ans=(1.0+y*(3.5156229+y*(3.0899424+y*(1.2067492
-						      +y*(0.2659732+y*(0.360768e-1+y*0.45813e-2))))))*exp(-ax);
-	} else {
-		y=3.75/ax;
-		ans=(1.0/sqrt(ax))*(0.39894228+y*(0.1328592e-1
-			+y*(0.225319e-2+y*(-0.157565e-2+y*(0.916281e-2
-			+y*(-0.2057706e-1+y*(0.2635537e-1+y*(-0.1647633e-1
-			+y*0.392377e-2))))))));
-	}
-	return ans;
-}
-
-double bessis1(double x)
-{
-	double ax,ans;
-	double y;
-
-	if ((ax=fabs(x)) < 3.75) {
-		y=x/3.75;
-		y*=y;
-		ans=exp(-ax)*ax*(0.5+y*(0.87890594+y*(0.51498869+y*(0.15084934
-			+y*(0.2658733e-1+y*(0.301532e-2+y*0.32411e-3))))));
-	} else {
-		y=3.75/ax;
-		ans=0.2282967e-1+y*(-0.2895312e-1+y*(0.1787654e-1
-			-y*0.420059e-2));
-		ans=0.39894228+y*(-0.3988024e-1+y*(-0.362018e-2
-			+y*(0.163801e-2+y*(-0.1031555e-1+y*ans))));
-		ans *= (1./sqrt(ax));
-	}
-	return x < 0.0 ? -ans : ans;
-}
-
-#undef ACC
-#undef BIGNO
-#undef BIGNI
-
-
 
 /*
 double pow2(z,w)
@@ -1764,27 +1590,6 @@ void one_arg()
 }
 
 
-
-
-double normal(double mean, double std)
-{
- double fac,r,v1,v2;
- if(BoxMullerFlag==0){ 
-   do {
-     v1=2.0*ndrand48()-1.0;
-     v2=2.0*ndrand48()-1.0;
-     r=v1*v1+v2*v2;
-   } while(r>=1.0);
-   fac=sqrt(-2.0*log(r)/r);
-   BoxMuller=v1*fac;
-   BoxMullerFlag=1;
-   return(v2*fac*std+mean);
- }
- else {
-   BoxMullerFlag=0;
-   return(BoxMuller*std+mean);
- }
-}
 
 
 double max(double x, double y)
@@ -2049,28 +1854,7 @@ bye: j=0;
 }
 
 
-/* code for log-gamma if you dont have it */
 
-#ifdef NOLGAMMA
-double lgamma(xx)
-double xx;
-{
-	double x,y,tmp,ser;
-	static double cof[6]={76.18009172947146,-86.50532032941677,
-		24.01409824083091,-1.231739572450155,
-		0.1208650973866179e-2,-0.5395239384953e-5};
-	int j;
-
-	y=x=xx;
-	tmp=x+5.5;
-	tmp -= (x+0.5)*log(tmp);
-	ser=1.000000000190015;
-	for (j=0;j<=5;j++) ser += cof[j]/++y;
-	return -tmp+log(2.5066282746310005*ser/x);
-}
-
-
-#endif
 
 
 

@@ -22,8 +22,6 @@ static integer c__1 = 1;
 static doublereal c_b367 = -1.;
 static integer c__2 = 2;
 
-void sgefa(double *a,int n,int m,int *ip, int *ier);
-void sgesl(double *a,int n,int m,int *ip, double *b,int );  
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*          Eigenvalue solver from EISPACK */

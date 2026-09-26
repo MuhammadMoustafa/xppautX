@@ -1,4 +1,5 @@
 #include "xpp_ui.h"
+#include "xpp_math.h"
 #include "xpp_mem.h"
 #include "pp_shoot.h"
 
@@ -565,7 +566,7 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
     goto bye;
   }
   for(i=0;i<ntot;i++)fdev[i]=f[i];
-  sgesl(jac,ntot,ntot,ipvt,fdev,0);
+  sgesl(jac,ntot,ntot,ipvt,fdev);
   error=0.0;
   for(i=0;i<ntot;i++){
     y0[i]=y0[i]-fdev[i];
