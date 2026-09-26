@@ -78,6 +78,8 @@ NOTE: except for the structure MyGraph, it is "x-free" so it
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include <array>
+#include <string>
 #include "xpplim.h"
 #include "struct.h"
 #include "phsplan.h"
@@ -95,7 +97,7 @@ static void row_stored(void)
   xpp_job_rows_stored(storind, storage[0][storind-1]);
   rows_stored(storind);
 }
-#define MSWTCH(u,v) memcpy((void *)(u),(void *)(v),xpv.node*sizeof(double))
+#define MSWTCH(u,v) memcpy(static_cast<void *>((u)),static_cast<void *>((v)),xpv.node*sizeof(double))
 
 #define READEM 1
 
@@ -137,9 +139,9 @@ extern FILE *svgfile;
 
 typedef struct {
   int index0,type;
-  char formula[256];
+  std::array<char, 256> formula{};
   int n;
-  char var[1024];
+  std::array<char, 1024> var{};
   int j1,j2;
 } ARRAY_IC;
 int ar_ic_defined=0;
@@ -198,7 +200,7 @@ extern int R_COL;
 extern int colorline[11];
 int STOP_FLAG=0;
  struct {
-         char item[MAX_LEN_SBOX];
+         std::array<char, MAX_LEN_SBOX> item{};
    int steps,shoot,col,movie,mc;
 	 double plow,phigh;
        } eq_range;
@@ -233,13 +235,13 @@ void init_ar_ic()
     
 void dump_range(FILE *fp, int f)
 {
-  char bob[256];
   if(f==READEM){
-    if(fgets(bob,255,fp)==NULL)return;
+    auto reader=xpp::LineReader::attach(fp);
+    if(!reader.next())return;
   }
   else
     fprintf(fp,"# Range information\n");
-  io_string(eq_range.item,sizeof(eq_range.item),fp,f);
+  io_string(eq_range.item.data(),eq_range.item.size(),fp,f);
   io_int(&eq_range.col,fp,f,"eq-range stab col");
   io_int(&eq_range.shoot,fp,f,"shoot flag 1=on");
   io_int(&eq_range.steps,fp,f,"eq-range steps");
@@ -267,7 +269,7 @@ void init_range()
  eq_range.plow=0.0;
  eq_range.phigh=1.0;
  eq_range.movie=0;
- XPP_SPRINTF(eq_range.item,"%s",upar_names[0]);
+ xpp_strlcpy(eq_range.item.data(),upar_names[0],eq_range.item.size());
  range.type=0;
  range.rtype=0;
  range.index=range.index2=0;
@@ -302,10 +304,10 @@ void init_range()
  range.movie=0;
  if (notAlreadySet.RANGEOVER)
  {
- 	XPP_SPRINTF(range.item,"%s",uvar_names[0]);
+ 	XPP_FORMAT_TO_BUF(range.item,"{}",static_cast<const char *>(uvar_names[0]));
 	notAlreadySet.RANGEOVER=0;
  }
- XPP_SPRINTF(range.item2,"%s",uvar_names[0]);
+ XPP_FORMAT_TO_BUF(range.item2,"{}",static_cast<const char *>(uvar_names[0]));
  init_shoot_range(upar_names[0]); 
  init_monte_carlo();
 }
@@ -318,22 +320,22 @@ static const char *n[]={"*2Range over","Steps","Start","End",
  char values[8][MAX_LEN_SBOX];
  int status,i;
  static  const char *yn[]={"N","Y"};
- snprintf(values[0],sizeof(values[0]),"%s",eq_range.item);
- XPP_SPRINTF(values[1],"%d",eq_range.steps);
- XPP_SPRINTF(values[2],"%.16g",eq_range.plow);
- XPP_SPRINTF(values[3],"%.16g",eq_range.phigh);
- XPP_SPRINTF(values[4],"%s",yn[eq_range.shoot]);
- XPP_SPRINTF(values[5],"%d",eq_range.col);
- XPP_SPRINTF(values[6],"%s",yn[eq_range.movie]);
-XPP_SPRINTF(values[7],"%s",yn[eq_range.mc]);
+ snprintf(values[0],sizeof(values[0]),"%s",eq_range.item.data());
+ XPP_FORMAT_TO_BUF(values[1],"{}",eq_range.steps);
+ XPP_FORMAT_TO_BUF(values[2],"{:.16g}",eq_range.plow);
+ XPP_FORMAT_TO_BUF(values[3],"{:.16g}",eq_range.phigh);
+ XPP_FORMAT_TO_BUF(values[4],"{}",yn[eq_range.shoot]);
+ XPP_FORMAT_TO_BUF(values[5],"{}",eq_range.col);
+ XPP_FORMAT_TO_BUF(values[6],"{}",yn[eq_range.movie]);
+XPP_FORMAT_TO_BUF(values[7],"{}",yn[eq_range.mc]);
 
  
  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
  status=do_string_box_of(8,8,1,"Range Equilibria",n,values,45,kinds);
  if(status!=0){
-   XPP_STRCPY(eq_range.item,values[0]);
-   i=find_user_name(PARAM,eq_range.item);
+   xpp_strlcpy(eq_range.item.data(),values[0],eq_range.item.size());
+   i=find_user_name(PARAM,eq_range.item.data());
    if(i<0){
         err_msg("No such parameter");
        return(0);
@@ -383,7 +385,6 @@ void cont_integ()
 int range_item()
 {
  int i;
- char bob[256];
  i=find_user_name(PARAM,range.item);
  if(i>-1){
    range.type=PARAM;
@@ -392,8 +393,7 @@ int range_item()
  else {
    i=find_user_name(IC,range.item);
    if(i<=-1){
-     XPP_SPRINTF(bob," %s is not a parameter or variable !",range.item);
-     err_msg(bob);
+     err_msg(xpp::format(" {} is not a parameter or variable !",static_cast<const char *>(range.item)).c_str());
      return(0);
    }
    range.type=IC;
@@ -405,7 +405,6 @@ int range_item()
 int range_item2()
 {
  int i;
- char bob[256];
  i=find_user_name(PARAM,range.item2);
  if(i>-1){
    range.type2=PARAM;
@@ -414,8 +413,7 @@ int range_item2()
  else {
    i=find_user_name(IC,range.item2);
    if(i<=-1){
-     XPP_SPRINTF(bob," %s is not a parameter or variable !",range.item2);
-     err_msg(bob);
+     err_msg(xpp::format(" {} is not a parameter or variable !",static_cast<const char *>(range.item2)).c_str());
      return(0);
    }
    range.type2=IC;
@@ -437,13 +435,13 @@ int set_up_range()
  }
  
  snprintf(values[0],sizeof(values[0]),"%s",range.item);
- XPP_SPRINTF(values[1],"%d",range.steps);
- XPP_SPRINTF(values[2],"%.16g",range.plow);
- XPP_SPRINTF(values[3],"%.16g",range.phigh);
- XPP_SPRINTF(values[4],"%s",yn[range.reset]);
- XPP_SPRINTF(values[5],"%s",yn[range.oldic]);
- XPP_SPRINTF(values[6],"%s",yn[range.cycle]);
- XPP_SPRINTF(values[7],"%s",yn[range.movie]);
+ XPP_FORMAT_TO_BUF(values[1],"{}",range.steps);
+ XPP_FORMAT_TO_BUF(values[2],"{:.16g}",range.plow);
+ XPP_FORMAT_TO_BUF(values[3],"{:.16g}",range.phigh);
+ XPP_FORMAT_TO_BUF(values[4],"{}",yn[range.reset]);
+ XPP_FORMAT_TO_BUF(values[5],"{}",yn[range.oldic]);
+ XPP_FORMAT_TO_BUF(values[6],"{}",yn[range.cycle]);
+ XPP_FORMAT_TO_BUF(values[7],"{}",yn[range.movie]);
  
  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
  status=do_string_box_of(8,8,1,"Range Integrate",n,values,45,kinds);
@@ -501,21 +499,21 @@ int set_up_range2()
    return(range_item());
  }
  snprintf(values[0],sizeof(values[0]),"%s",range.item);
-  XPP_SPRINTF(values[1],"%.16g",range.plow);
- XPP_SPRINTF(values[2],"%.16g",range.phigh);
+  XPP_FORMAT_TO_BUF(values[1],"{:.16g}",range.plow);
+ XPP_FORMAT_TO_BUF(values[2],"{:.16g}",range.phigh);
  snprintf(values[3],sizeof(values[3]),"%s",range.item2);
-  XPP_SPRINTF(values[4],"%.16g",range.plow2);
- XPP_SPRINTF(values[5],"%.16g",range.phigh2);
-XPP_SPRINTF(values[6],"%d",range.steps);
- XPP_SPRINTF(values[7],"%s",yn[range.reset]);
- XPP_SPRINTF(values[8],"%s",yn[range.oldic]);
- XPP_SPRINTF(values[9],"%s",yn[range.cycle]);
- XPP_SPRINTF(values[10],"%s",yn[range.movie]);
+  XPP_FORMAT_TO_BUF(values[4],"{:.16g}",range.plow2);
+ XPP_FORMAT_TO_BUF(values[5],"{:.16g}",range.phigh2);
+XPP_FORMAT_TO_BUF(values[6],"{}",range.steps);
+ XPP_FORMAT_TO_BUF(values[7],"{}",yn[range.reset]);
+ XPP_FORMAT_TO_BUF(values[8],"{}",yn[range.oldic]);
+ XPP_FORMAT_TO_BUF(values[9],"{}",yn[range.cycle]);
+ XPP_FORMAT_TO_BUF(values[10],"{}",yn[range.movie]);
  if(range.rtype==2)
-  XPP_SPRINTF(values[11],"2");
+  XPP_FORMAT_TO_BUF(values[11],"2");
  else
-   XPP_SPRINTF(values[11],"1");
- XPP_SPRINTF(values[12],"%d",range.steps2);
+   XPP_FORMAT_TO_BUF(values[11],"1");
+ XPP_FORMAT_TO_BUF(values[12],"{}",range.steps2);
  static const int kinds[]={XPP_FIELD_NAME_IN(3),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_NAME_IN(3),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,
                            XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,
@@ -571,21 +569,18 @@ void monte_carlo()
   int append=0;
   int i=0,done=0,ishoot=0;
   double z;
-  char name[256];
   new_int("Append(1/0",&append);
   new_int("Shoot (1/0)",&ishoot);
   new_int("# Guesses:",&fixptguess.n);
   new_float("Tolerance:",&fixptguess.tol);
   while(1){
-    snprintf(name,sizeof(name),"%.*s_lo :",XPP_NAME_MAX,uvar_names[i]);
     z=fixptguess.xlo[i];
-    done=new_float(name,&z);
+    done=new_float(xpp::format("{}_lo :",static_cast<const char *>(uvar_names[i])).c_str(),&z);
     if(done==0)
       fixptguess.xlo[i]=z;
     if(done==-1)break;
-    snprintf(name,sizeof(name),"%.*s_hi :",XPP_NAME_MAX,uvar_names[i]);
     z=fixptguess.xhi[i];
-    done=new_float(name,&z);
+    done=new_float(xpp::format("{}_hi :",static_cast<const char *>(uvar_names[i])).c_str(),&z);
     if(done==0)
       fixptguess.xhi[i]=z;
     if(done==-1)break;
@@ -610,13 +605,13 @@ void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
 
   if(fixptlist.flag==0){
     for(i=0;i<MAXFP;i++){
-      fixptlist.x[i]=(double *)xpp_malloc(NODE*sizeof(double));
-      fixptlist.er[i]=(double *)xpp_malloc(NODE*sizeof(double));
-      fixptlist.em[i]=(double *)xpp_malloc(NODE*sizeof(double));
-      /* fixptlist.x1[i]=(double *)malloc(NODE*sizeof(double));
-      fixptlist.x2[i]=(double *)malloc(NODE*sizeof(double));
-      fixptlist.x3[i]=(double *)malloc(NODE*sizeof(double));
-      fixptlist.x4[i]=(double *)malloc(NODE*sizeof(double)); */
+      fixptlist.x[i]=static_cast<double *>(xpp_malloc(NODE*sizeof(double)));
+      fixptlist.er[i]=static_cast<double *>(xpp_malloc(NODE*sizeof(double)));
+      fixptlist.em[i]=static_cast<double *>(xpp_malloc(NODE*sizeof(double)));
+      /* fixptlist.x1[i]=static_cast<double *>(malloc(NODE*sizeof(double)));
+      fixptlist.x2[i]=static_cast<double *>(malloc(NODE*sizeof(double)));
+      fixptlist.x3[i]=static_cast<double *>(malloc(NODE*sizeof(double)));
+      fixptlist.x4[i]=static_cast<double *>(malloc(NODE*sizeof(double))); */
     }
     fixptlist.flag=1;
   }
@@ -671,8 +666,8 @@ void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
     storind=0;
     m=fixptlist.n;
     for(i=0;i<m;i++){
-      storage[0][storind]=(float)i;
-      for(j=0;j<NODE;j++)storage[j+1][storind]=(float)fixptlist.x[i][j];
+      storage[0][storind]=static_cast<float>(i);
+      for(j=0;j<NODE;j++)storage[j+1][storind]=static_cast<float>(fixptlist.x[i][j]);
       storind++;
     }
     refresh_browser(storind);
@@ -687,7 +682,6 @@ void do_eq_range(double *x)
  double parlo,parhi,dpar,temp;
  int npar,stabcol,i,j,ierr;
  int mc;
- char bob[256];
  float stabinfo;
 
  if(set_up_eq_range()==0)return;
@@ -698,7 +692,7 @@ void do_eq_range(double *x)
  parhi=eq_range.phigh;
  
  npar=eq_range.steps;
- dpar=(parhi-parlo)/(double)npar;
+ dpar=(parhi-parlo)/static_cast<double>(npar);
  stabcol=eq_range.col;
  mc=eq_range.mc;
  storind=0;
@@ -717,31 +711,33 @@ void do_eq_range(double *x)
    {
      if(eq_range.movie)
        clear_draw_window();
-      temp=parlo+dpar*(double)i;
-      set_val(eq_range.item,temp);
+      temp=parlo+dpar*static_cast<double>(i);
+      set_val(eq_range.item.data(),temp);
       PAR_FOL=1;
-      XPP_SPRINTF(bob,"%s=%.16g",eq_range.item,temp);
-      bottom_msg(2,bob);
-      evaluate_derived();
-      /*  I think  */ redo_all_fun_tables(); 
-      if(mc) {
-	do_monte_carlo_search(0,0,1);
-      }
-      else {
-      if(DelayFlag)
-	do_delay_sing(x,NEWT_ERR,EVEC_ERR,BOUND,EVEC_ITER,
-		      NODE,&ierr,&stabinfo);
-      else do_sing(x,NEWT_ERR,EVEC_ERR,BOUND,EVEC_ITER,
-		   NODE,&ierr,&stabinfo);
-      }
-      if(eq_range.movie){
-	draw_label(plot_windows.draw_win);
-        xpp_ui.put_text(5,10,bob);
-	if(xpp_ui.film_clip()==0)err_msg("Out of film");
+      {
+        std::string bob=xpp::format("{}={:.16g}",static_cast<const char *>(eq_range.item.data()),temp);
+        bottom_msg(2,bob.c_str());
+        evaluate_derived();
+        /*  I think  */ redo_all_fun_tables();
+        if(mc) {
+	  do_monte_carlo_search(0,0,1);
+        }
+        else {
+        if(DelayFlag)
+	  do_delay_sing(x,NEWT_ERR,EVEC_ERR,BOUND,EVEC_ITER,
+		        NODE,&ierr,&stabinfo);
+        else do_sing(x,NEWT_ERR,EVEC_ERR,BOUND,EVEC_ITER,
+		     NODE,&ierr,&stabinfo);
+        }
+        if(eq_range.movie){
+	  draw_label(plot_windows.draw_win);
+          xpp_ui.put_text(5,10,bob.c_str());
+	  if(xpp_ui.film_clip()==0)err_msg("Out of film");
+        }
       }
       if(mc==0){
       storage[0][storind]=temp;
-      for(j=0;j<NODE;j++)storage[j+1][storind]=(float)x[j];
+      for(j=0;j<NODE;j++)storage[j+1][storind]=static_cast<float>(x[j]);
       for(j=NODE;j<NODE+NMarkov;j++)storage[j+1][storind]=0.0;
       if(stabcol>0)storage[stabcol-1][storind]=stabinfo;
 
@@ -780,7 +776,7 @@ int do_auto_range_go()
 int do_range(double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto range */
 {
 
-  char bob[256],parn[256];
+  std::array<char, 256> bob{}, parn{};
  int ivar=0,ivar2=0,res=0,oldic=0;
  int nit=20,i=0,j=0,itype=0,itype2=0,cycle=0,icol=0,nit2=0,iii=0;
  int color=plot_windows.current->color[0];
@@ -809,7 +805,7 @@ int do_range(double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto
  phigh=range.phigh;
  
  cycle=range.cycle;
- dpar=(phigh-plow)/(double)nit;
+ dpar=(phigh-plow)/static_cast<double>(nit);
 
  get_ic(2,x);
  storind=0;
@@ -824,8 +820,8 @@ if(range.type==PARAM)get_val(range.item,&temp);
  ivar2=range.index2;
  plow2=range.plow2;
  phigh2=range.phigh2;
-  if(range.rtype==2)dpar2=(phigh2-plow2)/(double)nit2;
-  else dpar2=(phigh2-plow2)/(double)nit;
+  if(range.rtype==2)dpar2=(phigh2-plow2)/static_cast<double>(nit2);
+  else dpar2=(phigh2-plow2)/static_cast<double>(nit);
   if(range.type2==PARAM)get_val(range.item2,&temp2);
  
  }
@@ -833,7 +829,7 @@ if(range.type==PARAM)get_val(range.item,&temp);
  
  if(range.movie)reset_film();
  if(flag==2){
-   auto_get_info(&nit,parn);
+   auto_get_info(&nit,parn.data());
    nit2=0;
  }
  for(j=0;j<=nit2;j++){
@@ -848,11 +844,11 @@ if(range.type==PARAM)get_val(range.item,&temp);
    POIEXT=0;
 
    if(flag!=2){
-     p=plow+dpar*(double)i;
+     p=plow+dpar*static_cast<double>(i);
      if(range.rtype==1)
-       p2=plow2+dpar2*(double)i;
+       p2=plow2+dpar2*static_cast<double>(i);
      if(range.rtype==2)
-       p2=plow2+dpar2*(double)j;
+       p2=plow2+dpar2*static_cast<double>(j);
    
      if(oldic==1){
        get_ic(1,x);
@@ -882,25 +878,25 @@ if(range.type==PARAM)get_val(range.item,&temp);
      }
      if(program.interactive){   
        if(range.rtype>0)
-	 XPP_SPRINTF(bob,"%s=%.16g  %s=%.16g",range.item,p,range.item2,p2);
+	 xpp_strlcpy(bob.data(),xpp::format("{}={:.16g}  {}={:.16g}",static_cast<const char *>(range.item),p,static_cast<const char *>(range.item2),p2).c_str(),bob.size());
        else
-	 XPP_SPRINTF(bob,"%s=%.16g  i=%d",range.item,p,i);
-       bottom_msg(2,bob);
+	 xpp_strlcpy(bob.data(),xpp::format("{}={:.16g}  i={}",static_cast<const char *>(range.item),p,i).c_str(),bob.size());
+       bottom_msg(2,bob.data());
      }
    }  /* normal range stuff   */ 
    else {  /* auto range stuff */
      auto_set_mark(i);
      get_ic(2,x);
-     get_val(parn,&temp);
-     snprintf(bob,sizeof(bob),"%.230s=%.16g",parn,temp);
-     bottom_msg(2,bob);
+     get_val(parn.data(),&temp);
+     snprintf(bob.data(),bob.size(),"%.230s=%.16g",parn.data(),temp);
+     bottom_msg(2,bob.data());
    }
    do_start_flags(x,&MyTime);
 if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
   {
-    storage[0][storind]=(float)MyTime;
+    storage[0][storind]=static_cast<float>(MyTime);
     extra(x,MyTime,NODE,NEQ);
-    for(iii=0;iii<NEQ;iii++)storage[1+iii][storind]=(float)x[iii];
+    for(iii=0;iii<NEQ;iii++)storage[1+iii][storind]=static_cast<float>(x[iii]);
     storind++;
   }
 
@@ -914,7 +910,7 @@ if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
 
 
  if(range.movie){
-   xpp_ui.put_text(5,10,bob);
+   xpp_ui.put_text(5,10,bob.data());
    redraw_dfield();
 	create_new_cline();
    draw_label(plot_windows.draw_win);
@@ -922,16 +918,16 @@ if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
  }
  refresh_browser(storind);
  if(AdjRange==1){
-   XPP_SPRINTF(bob,"%s_%g",range.item,p);
+   xpp_strlcpy(bob.data(),xpp::format("{}_{:g}",static_cast<const char *>(range.item),p).c_str(),bob.size());
    data_get_mybrowser(storind-1);
-   compute_one_period((double)storage[0][storind-1],last_ic,bob);
+   compute_one_period(static_cast<double>(storage[0][storind-1]),last_ic,bob.data());
  }
  
  
  do_this_liaprun(i,p);  /* sends parameter and index back */
  if(storind>2)auto_freeze_it();
  if(aplot_range==1)
-   draw_one_array_plot(bob);
+   draw_one_array_plot(bob.data());
  
  if(res==1||STOCH_FLAG)
    {
@@ -972,21 +968,22 @@ void silent_equilibria()
 {
   double x[MAXODE],er[MAXODE],em[MAXODE];
   int ierr,i;
-  FILE *fp;
   if(batch_options.equilibria<0)return;
   for(i=0;i<NODE;i++)
     x[i]=last_ic[i];
-   
+
   do_sing_info(x,NEWT_ERR,EVEC_ERR,BOUND,EVEC_ITER,NODE,er,em,&ierr);
   if(ierr==0){
-    fp=fopen("equil.dat","w");
-    for(i=0;i<NODE;i++)
-      fprintf(fp,"%g %g %g\n",x[i],er[i],em[i]);
-    fclose(fp);
+    xpp::Writer w("equil.dat");
+    if(w){
+      for(i=0;i<NODE;i++)
+        fprintf(w.file(),"%g %g %g\n",x[i],er[i],em[i]);
+      w.commit();
+    }
     if(batch_options.equilibria==1)
       save_batch_shoot();
   }
-      
+
 }
   
 void find_equilib_com(int com)
@@ -1027,8 +1024,8 @@ void find_equilib_com(int com)
 	 MessageBox("Click on guess");
 	 if(GetMouseXY(&im,&jm)){
 	   scale_to_real(im,jm,&xm,&ym);
-	   x[iv]=(double)xm;
-	   x[jv]=(double)ym;
+	   x[iv]=static_cast<double>(xm);
+	   x[jv]=static_cast<double>(ym);
 	 }
          
         KillMessageBox();
@@ -1066,15 +1063,15 @@ void batch_integrate()
   for(i=0;i<Nintern_set;i++)
   {
   
-  	  XPP_SPRINTF(this_internset,"_%s",intern_set[i].name);
+  	  XPP_FORMAT_TO_BUF(this_internset,"_{}",intern_set[i].name);
 	  if (strlen(batch_options.user_out_file)==0) /*Use the set name for outfile name*/
 	  {
-	      XPP_SPRINTF(batch_options.out_file,"%s.dat",intern_set[i].name);
+	      XPP_FORMAT_TO_BUF(batch_options.out_file,"{}.dat",intern_set[i].name);
 	  }
 	  else/*Use the command line supplied outfile name*/
 	  {
 	      /*Will get over-written each internal set*/
-	      XPP_SPRINTF(batch_options.out_file,"%s",batch_options.user_out_file);
+	      XPP_FORMAT_TO_BUF(batch_options.out_file,"{}",static_cast<const char *>(batch_options.user_out_file));
 	  }
 	  xpp_log(XPP_LOG_INFO, "out=%s\n",batch_options.out_file);
 	  extract_internset(i);
@@ -1095,13 +1092,12 @@ void do_batch_dry_run()
 
 	xpp_log(XPP_LOG_INFO, "It's a dry run...\n");
 	
-	FILE *fp;
- 	fp=fopen(batch_options.out_file,"w");
-   	if(fp==NULL){
+	xpp::Writer w(batch_options.out_file);
+   	if(!w){
      		xpp_log(XPP_LOG_WARN, " Unable to open %s to write \n",batch_options.out_file);
      		return;
    	}
- 	
+ 	FILE *fp=w.file();
 	if (querysets)
 	{
 		fprintf(fp,"#Internal sets query:\n");
@@ -1111,7 +1107,7 @@ void do_batch_dry_run()
 			fprintf(fp,"%s %d %s\n",intern_set[i].name,intern_set[i].use,intern_set[i].does);
 		}
 	}
-	
+
 	if (querypars)
 	{
 		fprintf(fp,"#Parameters query:\n");
@@ -1121,7 +1117,7 @@ void do_batch_dry_run()
 			fprintf(fp,"%s %f\n",upar_names[i],default_val[i]);
 		}
 	}
-	
+
 	if (queryics)
 	{
 		fprintf(fp,"#Initial conditions query:\n");
@@ -1131,8 +1127,8 @@ void do_batch_dry_run()
 			fprintf(fp,"%s %f\n",uvar_names[i],last_ic[i]);
 		}
 	}
-	
-	fclose(fp);
+
+	w.commit();
  	return;
 
 }
@@ -1142,7 +1138,6 @@ void do_batch_dry_run()
 void batch_integrate_once()
 {
  if (dryrun){return;}
- FILE *fp;
  double *x;
  int i;
   MyStart=1;
@@ -1172,9 +1167,9 @@ void batch_integrate_once()
    do_start_flags(x,&MyTime); 
   if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
     {
-      storage[0][0]=(float)MyTime;
+      storage[0][0]=static_cast<float>(MyTime);
       extra(x,MyTime,NODE,NEQ);
-      for(i=0;i<NEQ;i++)storage[1+i][0]=(float)x[i];
+      for(i=0;i<NEQ;i++)storage[1+i][0]=static_cast<float>(x[i]);
       storind=1;
     }
 
@@ -1188,15 +1183,15 @@ void batch_integrate_once()
  if(!batch_options.range || range.reset==0){
    if(STOCH_FLAG==1)mean_back();
    if(STOCH_FLAG==2)variance_back();
-   if(!SuppressOut){ 
-  fp=fopen(batch_options.out_file,"w");
-   if(fp==NULL){
+   if(!SuppressOut){
+  xpp::Writer w(batch_options.out_file);
+   if(!w){
      xpp_log(XPP_LOG_WARN, " Unable to open %s to write \n",batch_options.out_file);
      return;
    }
-   write_mybrowser_data(fp);
+   write_mybrowser_data(w.file());
 
-   fclose(fp);
+   w.commit();
    }
     if(MakePlotFlag)dump_ps(-1);
  }
@@ -1213,32 +1208,27 @@ void batch_integrate_once()
 
 int write_this_run(const char *file, int i)
 {
-  /*char outfile[256];*/
-  char outfile[XPP_MAX_NAME];
-  FILE *fp;
   if(!SuppressOut){
-  XPP_SPRINTF(outfile,"%s.%d",file,i);
-  fp=fopen(outfile,"w");
-  if(fp==NULL){
-    xpp_log(XPP_LOG_WARN, "Couldnt open %s\n",outfile);
+  std::string outfile=xpp::format("{}.{}",file,i);
+  xpp::Writer w(outfile.c_str());
+  if(!w){
+    xpp_log(XPP_LOG_WARN, "Couldnt open %s\n",outfile.c_str());
     return -1;
   }
-  write_mybrowser_data(fp);
-  fclose(fp);
+  write_mybrowser_data(w.file());
+  w.commit();
   }
-   if(MakePlotFlag)dump_ps(i); 
+   if(MakePlotFlag)dump_ps(i);
   return(1);
 }
   
 void do_init_data(int com)
 {
-  char sr[20],ch;
+  char ch;
   int i,si;
   double *x;
   double old_dt=DELTA_T;
-  FILE *fp;
-  /*char icfile[256];*/
-  char icfile[XPP_MAX_NAME];
+  std::array<char, XPP_MAX_NAME> icfile{};
   float xm,ym;
   int im,jm,oldstart,iv,jv,badmouse;
 
@@ -1287,7 +1277,7 @@ void do_init_data(int com)
       MyTime=T0;
     }
     if(METHOD==VOLTERRA&&oldstart==0){
-      ch=(char)TwoChoice("No","Yes","Reset integrals?","ny");
+      ch=static_cast<char>(TwoChoice("No","Yes","Reset integrals?","ny"));
       if(ch=='n')MyStart=oldstart;
     }
     break;
@@ -1317,8 +1307,8 @@ void do_init_data(int com)
 	  scale_to_real(im,jm,&xm,&ym);
 	  im=plot_windows.current->xv[0]-1;
 	  jm=plot_windows.current->yv[0]-1;
-	  x[iv]=(double)xm;
-	  x[jv]=(double)ym;
+	  x[iv]=static_cast<double>(xm);
+	  x[jv]=static_cast<double>(ym);
 	  last_ic[im]=x[im];
 	  last_ic[jm]=x[jm];
 	  KillMessageBox();
@@ -1344,8 +1334,8 @@ void do_init_data(int com)
 	  scale_to_real(im,jm,&xm,&ym);
 	  im=plot_windows.current->xv[0]-1;
 	  jm=plot_windows.current->yv[0]-1;
-	  x[iv]=(double)xm;
-	  x[jv]=(double)ym;
+	  x[iv]=static_cast<double>(xm);
+	  x[jv]=static_cast<double>(ym);
 	  last_ic[im]=x[im];
 	  last_ic[jm]=x[jm];
 	  if(DelayFlag){
@@ -1375,9 +1365,8 @@ void do_init_data(int com)
       err_msg("No shooting data available");
       break;
     }
-    XPP_SPRINTF(sr,"Which? (1-%d)",ShootIndex);
     si=1;
-    new_int(sr,&si);
+    new_int(xpp::format("Which? (1-{})",ShootIndex).c_str(),&si);
     si--;
     if(si<ShootIndex&&si>=0){
       for(i=0;i<NODE;i++)
@@ -1389,18 +1378,19 @@ void do_init_data(int com)
     break;
   case M_IF:
     icfile[0]=0;
-    if(!file_selector("Read initial data",icfile,"*.dat"))return;
-    /* if(new_string("Filename: ",icfile)==0)return; */
-    if((fp=fopen(icfile,"r"))==NULL){
-      err_msg(" Cant open IC file");
-      return;
-    }
-    for(i=0;i<NODE;i++)
-      if(fscanf(fp,"%lg",&last_ic[i])!=1){
-	err_msg(" IC file too short");
-	break;
+    if(!file_selector("Read initial data",icfile.data(),"*.dat"))return;
+    {
+      xpp::TokenReader reader(icfile.data());
+      if(!reader){
+        err_msg(" Cant open IC file");
+        return;
       }
-    fclose(fp);
+      for(i=0;i<NODE;i++)
+        if(!reader.read(last_ic[i])){
+          err_msg(" IC file too short");
+          break;
+        }
+    }
     get_ic(2,x);
     break;
       
@@ -1464,9 +1454,9 @@ void usual_integrate_stuff(double *x)
   do_start_flags(x,&MyTime);
    if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
     {
-      storage[0][0]=(float)MyTime;
+      storage[0][0]=static_cast<float>(MyTime);
       extra(x,MyTime,NODE,NEQ);
-      for(i=0;i<NEQ;i++)storage[1+i][0]=(float)x[i];
+      for(i=0;i<NEQ;i++)storage[1+i][0]=static_cast<float>(x[i]);
       storind=1;
     }
  
@@ -1498,7 +1488,7 @@ void do_new_array_ic(const char *newic, int j1, int j2)
   for(i=0;i<NAR_IC;i++){
     if(ar_ic[i].index0==-1&&ifree==-1&&ar_ic[i].type==0)
       ifree=i;
-    if(strcmp(ar_ic[i].var,newic)==0&&ar_ic[i].j1==j1&&ar_ic[i].j2==j2)
+    if(strcmp(ar_ic[i].var.data(),newic)==0&&ar_ic[i].j1==j1&&ar_ic[i].j2==j2)
       ihot=i;
   }
   if(ihot==-1){
@@ -1509,14 +1499,14 @@ void do_new_array_ic(const char *newic, int j1, int j2)
       ihot=ifree;
     }
     /* copy relevant stuff */
-    XPP_STRCPY(ar_ic[ihot].var,newic);
+    xpp_strlcpy(ar_ic[ihot].var.data(),newic,ar_ic[ihot].var.size());
     ar_ic[ihot].type=2;
     ar_ic[ihot].j1=j1;
     ar_ic[ihot].j2=j2;
   }
-  new_string_of("Formula:",ar_ic[ihot].formula,XPP_FIELD_EXPRESSION);
+  new_string_of("Formula:",ar_ic[ihot].formula.data(),XPP_FIELD_EXPRESSION);
   /* now we have everything we need */
-  evaluate_ar_ic(ar_ic[ihot].var,ar_ic[ihot].formula,
+  evaluate_ar_ic(ar_ic[ihot].var.data(),ar_ic[ihot].formula.data(),
 		 ar_ic[ihot].j1,ar_ic[ihot].j2);
   
 
@@ -1533,7 +1523,7 @@ void store_new_array_ic(const char *newic, int j1, int j2, const char *formula)
   for(i=0;i<NAR_IC;i++){
     if(ar_ic[i].index0==-1&&ifree==-1&&ar_ic[i].type==0)
       ifree=i;
-    if(strcmp(ar_ic[i].var,newic)==0&&ar_ic[i].j1==j1&&ar_ic[i].j2==j2)
+    if(strcmp(ar_ic[i].var.data(),newic)==0&&ar_ic[i].j1==j1&&ar_ic[i].j2==j2)
       ihot=i;
   }
   if(ihot==-1){
@@ -1544,12 +1534,12 @@ void store_new_array_ic(const char *newic, int j1, int j2, const char *formula)
       ihot=ifree;
     }
     /* copy relevant stuff */
-    XPP_STRCPY(ar_ic[ihot].var,newic);
+    xpp_strlcpy(ar_ic[ihot].var.data(),newic,ar_ic[ihot].var.size());
     ar_ic[ihot].type=2;
     ar_ic[ihot].j1=j1;
     ar_ic[ihot].j2=j2;
   }
-  XPP_STRCPY(ar_ic[ihot].formula,formula);
+  xpp_strlcpy(ar_ic[ihot].formula.data(),formula,ar_ic[ihot].formula.size());
 }
 
 void evaluate_ar_ic(const char *v, const char *f, int j1, int j2)
@@ -1557,14 +1547,14 @@ void evaluate_ar_ic(const char *v, const char *f, int j1, int j2)
   int j;
   int i,flag;
   double z;
-  char vp[256],fp[256];
+  std::array<char, 256> vp{}, fp{};
   for(j=j1;j<=j2;j++){
     i=-1;
-    subsk(v,vp,j,1);
-    find_variable(vp,&i);
+    subsk(v,vp.data(),j,1);
+    find_variable(vp.data(),&i);
     if(i>0){
-      subsk(f,fp,j,1);
-      flag=do_calc(fp,&z);
+      subsk(f,fp.data(),j,1);
+      flag=do_calc(fp.data(),&z);
       if(flag!=-1)
 	last_ic[i-1]=z;
       else 
@@ -1579,12 +1569,12 @@ int extract_ic_data(char *big)
   int i,n,j;
   int j1,j2,flag2;
   /* a whole line of the file fits in each (MAXEXPLEN, form_ode.c) */
-  char front[1024],newic[1024],c;
-  char back[1024];
+  std::array<char, 1024> front{}, newic{}, back{};
+  char c;
   de_space(big);
   i=0;
   n=strlen(big);
-  if(n>=(int)sizeof(front))return(-1);
+  if(n>=static_cast<int>(front.size()))return(-1);
 
   while(1){
     c=big[i];
@@ -1606,9 +1596,9 @@ int extract_ic_data(char *big)
   /* now fix it up */
   big[0]='#';
   big[1]=' ';
-  search_array(front,newic,&j1,&j2,&flag2);
+  search_array(front.data(),newic.data(),&j1,&j2,&flag2);
   if(flag2==1){
-    store_new_array_ic(newic,j1,j2,back);
+    store_new_array_ic(newic.data(),j1,j2,back.data());
     ar_ic_defined=1;
   }
   return(1);
@@ -1621,7 +1611,7 @@ void arr_ic_start()
   if(ar_ic_defined==0) return;
   for(i=0;i<NAR_IC;i++){
     if(ar_ic[i].type==2){
-      evaluate_ar_ic(ar_ic[i].var,ar_ic[i].formula,
+      evaluate_ar_ic(ar_ic[i].var.data(),ar_ic[i].formula.data(),
 		     ar_ic[i].j1,ar_ic[i].j2);
     }
   }
@@ -1630,22 +1620,22 @@ void arr_ic_start()
 
 int set_array_ic()
 {
- char junk[256]; /* new_string edits up to 255 characters */
- char newic[256];
+ std::array<char, 256> junk{}; /* new_string edits up to 255 characters */
+ std::array<char, 256> newic{};
  int i,index0,myar=-1;
  int i1,in;
  int j1,j2,flag2;
  double z;
  int flag;
  junk[0]=0;
- if(new_string("Variable: ",junk)==0)return 0;
- search_array(junk,newic,&j1,&j2,&flag2);
+ if(new_string("Variable: ",junk.data())==0)return 0;
+ search_array(junk.data(),newic.data(),&j1,&j2,&flag2);
  if(flag2==1)
    {
-     do_new_array_ic(newic,j1,j2);
+     do_new_array_ic(newic.data(),j1,j2);
    }
  else {
-   find_variable(junk,&i);
+   find_variable(junk.data(),&i);
    if(i<=-1)
      return 0;
    index0=i;
@@ -1671,14 +1661,14 @@ int set_array_ic()
    ar_ic[myar].index0=index0;
    ar_ic[myar].type=0;
    new_int("Number elements:",&ar_ic[myar].n);
-   new_string_of("u=F(t-i0):",ar_ic[myar].formula,XPP_FIELD_EXPRESSION);
+   new_string_of("u=F(t-i0):",ar_ic[myar].formula.data(),XPP_FIELD_EXPRESSION);
    i1=index0-1;
    in=i1+ar_ic[myar].n;
    /* plintf("i1=%d in=%d \n",i1,in); */
    if(i1>NODE||in>NODE)return 0; /* out of bounds */
    for(i=i1;i<in;i++){
-     set_val("t",(double)(i-i1));
-     flag=do_calc(ar_ic[myar].formula,&z);
+     set_val("t",static_cast<double>((i-i1)));
+     flag=do_calc(ar_ic[myar].formula.data(),&z);
      if(flag==-1){
        err_msg("Bad formula");
        return 1;
@@ -1857,7 +1847,6 @@ int integrate(double *t, double *x, double tend, double dt, int count, int nout,
  float tscal=tend,tv;
  
  char esc;
- char error_message[50];
  int ieqn,i,pflag=0;
  int icount=0;
  int nit;
@@ -1887,8 +1876,8 @@ if(program.interactive) cwidth=get_command_width();
  MSWTCH(x,xpv.x);
  extra(x,*t,NODE,NEQ); /* Note this takes care of initializing Markov variables */
   MSWTCH(xpv.x,x);
- xv[0]=(float)*t;
- for(ieqn=1;ieqn<=NEQ;ieqn++)xv[ieqn]=(float)x[ieqn-1];
+ xv[0]=static_cast<float>(*t);
+ for(ieqn=1;ieqn<=NEQ;ieqn++)xv[ieqn]=static_cast<float>(x[ieqn-1]);
  if(ani_options.on_the_fly)on_the_fly(1); 
  /* if(POIMAP==4)
    pmapfold=get_map_value(x,*t); */
@@ -2122,11 +2111,11 @@ if(program.interactive) cwidth=get_command_width();
                                 torcross[ieqn]=-1;
 				/* for (ip = 0; ip < NPlots; ip++) {
 					if (ieqn == IYPLT[ip]-1)
-					oldypl[ip] -= (float) TOR_PERIOD;
+					oldypl[ip] -= static_cast<float>(TOR_PERIOD);
 					if (ieqn == IXPLT[ip]-1)
-					oldxpl[ip] -= (float) TOR_PERIOD;
+					oldxpl[ip] -= static_cast<float>(TOR_PERIOD);
 				if ((ieqn == IZPLT[ip]-1) && (PLOT_3D == 1))
-					oldzpl[ip] -= (float) TOR_PERIOD;
+					oldzpl[ip] -= static_cast<float>(TOR_PERIOD);
 					} */
 			}
 			if (x[ieqn] < 0) {
@@ -2134,12 +2123,12 @@ if(program.interactive) cwidth=get_command_width();
                                 torcross[ieqn]=1;
 				/* for (ip = 0; ip < NPlots; ip++) {
 					if (ieqn == IYPLT[ip]-1)
-					oldypl[ip] += (float) TOR_PERIOD;
+					oldypl[ip] += static_cast<float>(TOR_PERIOD);
 					if (ieqn == IXPLT[ip]-1)
-					oldxpl[ip] += (float) TOR_PERIOD;
+					oldxpl[ip] += static_cast<float>(TOR_PERIOD);
 				if ((ieqn == IZPLT[ip]-1) &&
 				    (MyGraph->ThreeDFlag == 1))
-					oldzpl[ip] += (float) TOR_PERIOD;
+					oldzpl[ip] += static_cast<float>(TOR_PERIOD);
 					} */
 			}
 		      }
@@ -2149,7 +2138,7 @@ if(program.interactive) cwidth=get_command_width();
            for(ieqn=1;ieqn<(NEQ+1);ieqn++)
            {
 	    xvold[ieqn]=xv[ieqn];
-	    xv[ieqn]=(float)x[ieqn-1];
+	    xv[ieqn]=static_cast<float>(x[ieqn-1]);
 	/* trap NaN using isnan() in math.h 
 	   modified the out of bounds message as well
 	   print all the variables on the terminal window, haven't decide
@@ -2158,8 +2147,8 @@ if(program.interactive) cwidth=get_command_width();
 	*/	    
 	    if(isnan(x[ieqn-1])!=0)
             {
-             XPP_SPRINTF(error_message," %s is NaN at t = %f ",
-             uvar_names[ieqn-1],*t);
+             std::string error_message=xpp::format(" {} is NaN at t = {} ",
+             static_cast<const char *>(uvar_names[ieqn-1]),*t);
           /* if((STORFLAG==1)&&(storind<MAXSTOR))
 	     { */ i_nan=0;
 	         xpp_log(XPP_LOG_DEBUG, "variable\tf(t-1)\tf(t) \n");
@@ -2171,16 +2160,16 @@ if(program.interactive) cwidth=get_command_width();
 		 }
 		for(;i_nan<=NEQ;i_nan++) 
 		 {
-		 /*storage[i_nan][storind]=(float)x[i_nan-1];*/
+		 /*storage[i_nan][storind]=static_cast<float>(x[i_nan-1]);*/
  		 xpp_log(XPP_LOG_DEBUG, " %s\t%g\t%g\n",
-             		uvar_names[i_nan-1],xv[i_nan],(float)x[i_nan-1]);
+             		uvar_names[i_nan-1],xv[i_nan],static_cast<float>(x[i_nan-1]));
 		 }	
 	     /* storind++;
 	      if(!(storind<MAXSTOR))
               if(stor_full()==0)break;
 	     }
 	     */
-     	     err_msg(error_message);
+     	     err_msg(error_message.c_str());
              rval=1;
              break;
              }
@@ -2188,8 +2177,8 @@ if(program.interactive) cwidth=get_command_width();
             if(fabs(x[ieqn-1])>BOUND)
             {
 	     if(RANGE_FLAG||SuppressBounds)break;
-             XPP_SPRINTF(error_message," %s out of bounds at t = %f ",
-             uvar_names[ieqn-1],*t);
+             std::string error_message=xpp::format(" {} out of bounds at t = {} ",
+             static_cast<const char *>(uvar_names[ieqn-1]),*t);
          /* if((STORFLAG==1)&&(storind<MAXSTOR))
 	     { */ i_nan=0;
 	         xpp_log(XPP_LOG_DEBUG, "variable\tf(t-1)\tf(t) \n");
@@ -2201,16 +2190,16 @@ if(program.interactive) cwidth=get_command_width();
 		 }
 		for(;i_nan<=NEQ;i_nan++) 
 		 {
-		 /*storage[i_nan][storind]=(float)x[i_nan-1];*/
+		 /*storage[i_nan][storind]=static_cast<float>(x[i_nan-1]);*/
  		 xpp_log(XPP_LOG_DEBUG, " %s\t%g\t%g\n",
-             		uvar_names[i_nan-1],xv[i_nan],(float)x[i_nan-1]);
+             		uvar_names[i_nan-1],xv[i_nan],static_cast<float>(x[i_nan-1]));
 		 }	
 	     /* storind++;
 	      if(!(storind<MAXSTOR))
               if(stor_full()==0)break;
 	     }
 	     */
-	     err_msg(error_message);
+	     err_msg(error_message.c_str());
              rval=1;
 
              break;
@@ -2233,7 +2222,7 @@ if(program.interactive) cwidth=get_command_width();
            if(DelayErr){err_dae();rval=1;ENDSING=1;DelayErr=0;break;}
          /*  plintf(" NEQ=%d ieqn = %d \n",NEQ,ieqn); */
            if(ieqn<(NEQ+1))break;
-           tv=(float)*t;
+           tv=static_cast<float>(*t);
 	   xv[0]=tv;
  if((POIMAP==2)&&!(POIVAR==0))
  {
@@ -2292,10 +2281,10 @@ if(program.interactive) cwidth=get_command_width();
      if(sect<sect1)
      {
      dint=sect/(POIPLN+sect-sect1);
-     i=(int)(fabs(*t)/fabs(POIPLN));
-     tv=(float)POIPLN*i;
+     i=static_cast<int>((fabs(*t)/fabs(POIPLN)));
+     tv=static_cast<float>(POIPLN)*i;
      xv[0]=tv;
-     for(i=1;i<=NEQ;i++)xv[i]=(float)(dint*oldx[i-1]+(1-dint)*x[i-1]);
+     for(i=1;i<=NEQ;i++)xv[i]=static_cast<float>((dint*oldx[i-1]+(1-dint)*x[i-1]));
      pflag=1;
      }
      else pflag=0;
@@ -2397,8 +2386,8 @@ void send_output(double *y,double t)
   if((STORFLAG==1)&&(storind<MAXSTOR)){
     
     for(i=0;i<NEQ;i++)
-      storage[i+1][storind]=(float)yy[i];
-    storage[0][storind]=(float)t;
+      storage[i+1][storind]=static_cast<float>(yy[i]);
+    storage[0][storind]=static_cast<float>(t);
     storind++;
     row_stored();
   }
@@ -2534,7 +2523,7 @@ void plot_one_graph(float *xv,float *xvold,int node,int neq,double ddt,int *tc)
  zpl[ip]=xv[IZPLT[ip]];
  }
  if(plot_windows.current->ColorFlag)
-   comp_color(xv,xvold,NODE,(float)ddt);
+   comp_color(xv,xvold,NODE,static_cast<float>(ddt));
  do_plot(oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
  phase_data_flow_step(NPlots,oldxpl,oldypl,xpl,ypl,plot_windows.current->color); /* Dir.field/flow's Flow as data */
 }
@@ -2582,9 +2571,9 @@ void restore(int i1, int i2)
       
       if(TORUS==1)
       {
-	if (fabs(oldxpl-xpl)>(float)(.5*TOR_PERIOD))oldxpl=xpl;
-	if (fabs(oldypl-ypl)>(float)(.5*TOR_PERIOD))oldypl=ypl;
-	if (fabs(oldzpl-zpl)>(float)(.5*TOR_PERIOD))oldzpl=zpl;
+	if (fabs(oldxpl-xpl)>static_cast<float>((.5*TOR_PERIOD)))oldxpl=xpl;
+	if (fabs(oldypl-ypl)>static_cast<float>((.5*TOR_PERIOD)))oldypl=ypl;
+	if (fabs(oldzpl-zpl)>static_cast<float>((.5*TOR_PERIOD)))oldzpl=zpl;
       }
       if(plot_windows.current->ColorFlag!=0&&i>i1){
 	  for(j=0;j<=NEQ;j++){
@@ -2593,7 +2582,7 @@ void restore(int i1, int i2)
 	  }
 
 	  comp_color(v1,v2,NODE,
-		     (float)fabs(data[0][i]-data[0][i+1]));
+		     static_cast<float>(fabs(data[0][i]-data[0][i+1])));
 	}     /* ignored by postscript */
      /* if(MyGraph->line[ip]<0)
 	goto noplot; */
@@ -2631,18 +2620,18 @@ void comp_color(float *v1, float *v2, int n, float dt)
 {
  int i,cur_color;
  float sum;
- float min_scale=(float)(plot_windows.current->min_scale);
- float color_scale=(float)(plot_windows.current->color_scale);
+ float min_scale=static_cast<float>((plot_windows.current->min_scale));
+ float color_scale=static_cast<float>((plot_windows.current->color_scale));
  if(plot_windows.current->ColorFlag==2){
    sum=v1[plot_windows.current->ColorValue];
    /* plintf(" %d:sum=%g \n",MyGraph->zv[0],sum); */
  }
  else
    {
-     for(i=0,sum=0.0;i<n;i++)sum+=(float)fabs((double)(v1[i+1]-v2[i+1]));
+     for(i=0,sum=0.0;i<n;i++)sum+=static_cast<float>(fabs(static_cast<double>((v1[i+1]-v2[i+1]))));
      sum=sum/(dt);
    }
- cur_color=(int)((sum-min_scale)*(float)color_table.count/color_scale);
+ cur_color=static_cast<int>(((sum-min_scale)*static_cast<float>(color_table.count)/color_scale));
 /*  plintf("min=%f max=%f col = %d val = %f \n",min_scale,color_scale,
 	cur_color,sum); */  
  if(cur_color<0)cur_color=0;
@@ -2705,8 +2694,8 @@ int stor_full()
  }
  if(FOREVER)goto ov;
  ping();
- ch=(char)TwoChoice("YES","NO","Storage full: Overwrite?",
-		     "yn");
+ ch=static_cast<char>(TwoChoice("YES","NO","Storage full: Overwrite?",
+		     "yn"));
  if(ch=='y')
  {
 ov:
