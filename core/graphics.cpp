@@ -272,8 +272,8 @@ void scale_to_screen(float x, float y, int *i, int *j)  /* not really the screen
 {
   float dx=(DRight-DLeft)/(XMax-XMin);
   float dy=(DTop-DBottom)/(YMax-YMin);
-  *i=(int)((x-XMin)*dx)+DLeft;
-  *j=(int)((y-YMin)*dy)+DBottom;
+  *i=static_cast<int>((x-XMin)*dx)+DLeft;
+  *j=static_cast<int>((y-YMin)*dy)+DBottom;
 }
 
 void scale_to_real(int i, int j, float *x, float *y)  /* Not needed except for X */
@@ -283,10 +283,10 @@ void scale_to_real(int i, int j, float *x, float *y)  /* Not needed except for X
   get_draw_area();
   i1=i-DLeft;
   j1=j-DBottom;
-  x1=(float)i1;
-  y1=(float)j1;
-  *x=(plot_windows.current->xhi-plot_windows.current->xlo)*x1/((float)(DRight-DLeft))+plot_windows.current->xlo;
-  *y=(plot_windows.current->yhi-plot_windows.current->ylo)*y1/((float)(DTop-DBottom))+plot_windows.current->ylo;
+  x1=static_cast<float>(i1);
+  y1=static_cast<float>(j1);
+  *x=(plot_windows.current->xhi-plot_windows.current->xlo)*x1/static_cast<float>(DRight-DLeft)+plot_windows.current->xlo;
+  *y=(plot_windows.current->yhi-plot_windows.current->ylo)*y1/static_cast<float>(DTop-DBottom)+plot_windows.current->ylo;
   
  }
 
@@ -579,8 +579,8 @@ int threedproj(float x2p, float y2p, float z2p, float *xp, float *yp)
  *yp=y1p;
   return(1);
  }
-  if((z1p>=(float)(plot_windows.current->ZView))||(z1p<(float)(plot_windows.current->ZPlane)))return(0);
-  s=(float)(plot_windows.current->ZView-plot_windows.current->ZPlane)/((float)(plot_windows.current->ZView)-z1p);
+  if((z1p>=static_cast<float>(plot_windows.current->ZView))||(z1p<static_cast<float>(plot_windows.current->ZPlane)))return(0);
+  s=static_cast<float>(plot_windows.current->ZView-plot_windows.current->ZPlane)/(static_cast<float>(plot_windows.current->ZView)-z1p);
   x1p=s*x1p;
   y1p=s*y1p;
   *xp=x1p;
@@ -612,8 +612,8 @@ int threed_proj(float x, float y, float z, float *xp, float *yp)
  *yp=y1p;
   return(1);
  }
-  if((z1p>=(float)(plot_windows.current->ZView))||(z1p<(float)(plot_windows.current->ZPlane)))return(0);
-  s=(float)(plot_windows.current->ZView-plot_windows.current->ZPlane)/((float)(plot_windows.current->ZView)-z1p);
+  if((z1p>=static_cast<float>(plot_windows.current->ZView))||(z1p<static_cast<float>(plot_windows.current->ZPlane)))return(0);
+  s=static_cast<float>(plot_windows.current->ZView-plot_windows.current->ZPlane)/(static_cast<float>(plot_windows.current->ZView)-z1p);
   x1p=s*x1p;
   y1p=s*y1p;
   *xp=x1p;
@@ -677,7 +677,7 @@ float xs1,ys1,zs1;
 
 void pers_line(float x, float y, float z, float xp, float yp, float zp)
 {
- float Zv=(float)plot_windows.current->ZView,Zp=(float)plot_windows.current->ZPlane;
+ float Zv=static_cast<float>(plot_windows.current->ZView),Zp=static_cast<float>(plot_windows.current->ZPlane);
  float d=Zv-Zp,s;
  float eps=.005*d;
 
@@ -846,7 +846,7 @@ void fillintext(const char *old,char *newname)
 	   if(ans!=-1){
 	     XPP_SPRINTF(val,"%g",z);
 
-	     for(k=0;k<(int)strlen(val);k++){
+	     for(k=0;k<static_cast<int>(strlen(val));k++){
 	       newname[j]=val[k];
 	       j++;
 	     }
@@ -1108,8 +1108,8 @@ C4:
 void eq_symb(double *x, int type)
 {
 
-  float dx=6.0*(float)(plot_windows.current->xhi-plot_windows.current->xlo)*SYMSIZE;
-  float dy=6.0*(float)(plot_windows.current->yhi-plot_windows.current->ylo)*SYMSIZE;
+  float dx=6.0*static_cast<float>(plot_windows.current->xhi-plot_windows.current->xlo)*SYMSIZE;
+  float dy=6.0*static_cast<float>(plot_windows.current->yhi-plot_windows.current->ylo)*SYMSIZE;
  int ix=plot_windows.current->xv[0]-1,iy=plot_windows.current->yv[0]-1,iz=plot_windows.current->zv[0]-1;
  if(!program.interactive)return;
   if(plot_windows.current->TimeFlag)return;
@@ -1118,22 +1118,22 @@ void eq_symb(double *x, int type)
   {
    dx=6.0*SYMSIZE/plot_windows.current->dx;
    dy=6.0*SYMSIZE/plot_windows.current->dy;
-   line_3d((float)x[ix]+dx,(float)x[iy],(float)x[iz],
-           (float)x[ix]-dx,(float)x[iy],(float)x[iz]);
-   line_3d((float)x[ix],(float)x[iy]+dy,(float)x[iz],
-           (float)x[ix],(float)x[iy]-dy,(float)x[iz]);
+   line_3d(static_cast<float>(x[ix])+dx,static_cast<float>(x[iy]),static_cast<float>(x[iz]),
+           static_cast<float>(x[ix])-dx,static_cast<float>(x[iy]),static_cast<float>(x[iz]));
+   line_3d(static_cast<float>(x[ix]),static_cast<float>(x[iy])+dy,static_cast<float>(x[iz]),
+           static_cast<float>(x[ix]),static_cast<float>(x[iy])-dy,static_cast<float>(x[iz]));
   return;
   }
-  draw_symbol((float)x[ix],(float)x[iy],SYMSIZE,type);
-  point_abs((float)x[ix],(float)x[iy]);
+  draw_symbol(static_cast<float>(x[ix]),static_cast<float>(x[iy]),SYMSIZE,type);
+  point_abs(static_cast<float>(x[ix]),static_cast<float>(x[iy]));
   if(ix>=0&&iy>=0)marks_data_equilibrium(x[ix],x[iy],type); /* the mark as data */
  
 }
 
 void draw_symbol(float x, float y, float size, int my_symb)
 {
- float dx=(float)(plot_windows.current->xhi-plot_windows.current->xlo)*size;
- float dy=(float)(plot_windows.current->yhi-plot_windows.current->ylo)*size;
+ float dx=static_cast<float>(plot_windows.current->xhi-plot_windows.current->xlo)*size;
+ float dy=static_cast<float>(plot_windows.current->yhi-plot_windows.current->ylo)*size;
  static int sym_dir[4][48] = {
  /*          box              */
     {0, -6, -6,1, 12,  0,1,  0, 12,1,-12,  0,
