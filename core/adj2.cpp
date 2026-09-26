@@ -16,8 +16,10 @@
 #include "xpp_ui.h"
 
 
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <string.h>
+#include <array>
+#include <vector>
 /*
   this has a bunch of numerical routines
   averaging
@@ -85,9 +87,9 @@ void init_trans()
 
 void dump_transpose_info(FILE *fp, int f)
 {
-  char bob[256];
   if(f==READEM){
-    if(fgets(bob,255,fp)==NULL)return;
+    auto reader=xpp::LineReader::attach(fp);
+    if(!reader.next())return;
   }
   else
     fprintf(fp,"# Transpose variables etc\n");
@@ -150,9 +152,9 @@ int create_transpose()
 {
   int i,j;
   int inrow,incol;
-  my_trans.data=(float **)xpp_malloc(sizeof(float *)*(NEQ+1));
+  my_trans.data=static_cast<float **>(xpp_malloc(sizeof(float *)*(NEQ+1)));
   for(i=0;i<=my_trans.nrow;i++)
-    my_trans.data[i]=(float *)xpp_malloc(sizeof(float)*my_trans.ncol);
+    my_trans.data[i]=static_cast<float *>(xpp_malloc(sizeof(float)*my_trans.ncol));
   for(i=my_trans.nrow+1;i<=NEQ;i++)my_trans.data[i]=storage[i];
   for(j=0;j<my_trans.ncol;j++)
     my_trans.data[0][j]=j+1;
@@ -183,8 +185,8 @@ void alloc_h_stuff()
 {
   int i;
  for(i=0;i<NODE ;i++){
-   coup_fun[i]=(int *)xpp_malloc(100*sizeof(int));
-   coup_string[i]=(char *)xpp_malloc(80);
+   coup_fun[i]=static_cast<int *>(xpp_malloc(100*sizeof(int)));
+   coup_string[i]=static_cast<char *>(xpp_malloc(80));
    /* coup_string[i] is a pointer (xpp_malloc(80) above), so XPP_STRCPY's
       sizeof(dst) trick does not apply: pass the real allocation size. */
    xpp_strlcpy(coup_string[i],"0",80);
@@ -242,7 +244,7 @@ void h_back()
 */
 void make_adj_com(int com)
 {
-static char key[]="nmaohpr";
+static const char *const key="nmaohpr";
  switch(key[com]){
  case 'n': 
    new_adjoint();
@@ -305,8 +307,8 @@ void new_h_fun(int silent)
    }
    h_len=storind;
    data_back(); 
-   my_h=(float **)xpp_malloc(sizeof(float*)*(NEQ+1));
-   for(i=0;i<n;i++)my_h[i]=(float *)xpp_malloc(sizeof(float)*h_len);
+   my_h=static_cast<float **>(xpp_malloc(sizeof(float*)*(NEQ+1)));
+   for(i=0;i<n;i++)my_h[i]=static_cast<float *>(xpp_malloc(sizeof(float)*h_len));
    for(i=n;i<=NEQ;i++)my_h[i]=storage[i];
    if(make_h(storage,my_adj,my_h,h_len,DELTA_T*NJMP,NODE,silent )){
      H_HERE=1;
@@ -318,10 +320,10 @@ void new_h_fun(int silent)
 
 void dump_h_stuff(FILE *fp, int f)
 {
-  char bob[256];
   int i;
   if(f==READEM){
-    if(fgets(bob,255,fp)==NULL)return;
+    auto reader=xpp::LineReader::attach(fp);
+    if(!reader.next())return;
   }
   else
     fprintf(fp,"# Coupling stuff for H funs\n");
@@ -338,11 +340,11 @@ int make_h(float **orb, float **adj, float **h, int nt, double dt, int node, int
  float sum;
  double z;
  int n0=node+1+FIX_VAR,k2,k;
- char name[XPP_NAME_MAX+32];
+ std::array<char, XPP_NAME_MAX+32> name{};
  if(silent==0){
    for(i=0;i<NODE ;i++){
-     snprintf(name,sizeof(name),"Coupling for %.*s eqn:",XPP_NAME_MAX,uvar_names[i]);
-     new_string_of(name,coup_string[i],XPP_FIELD_EXPRESSION);
+     snprintf(name.data(),name.size(),"Coupling for %.*s eqn:",XPP_NAME_MAX,uvar_names[i]);
+     new_string_of(name.data(),coup_string[i],XPP_FIELD_EXPRESSION);
      if(add_expr(coup_string[i],coup_fun[i],&j)){
        err_msg("Illegal formula");
        goto bye;
@@ -358,8 +360,8 @@ int make_h(float **orb, float **adj, float **h, int nt, double dt, int node, int
          k2=k+j;
        if(k2>=nt)k2=k2-nt+1;
        for(i=0;i<node;i++){
-	 set_ivar(i+1,(double)orb[i+1][k]);
-         set_ivar(i+n0+1,(double)orb[i+1][k2]);
+	 set_ivar(i+1,static_cast<double>(orb[i+1][k]));
+         set_ivar(i+n0+1,static_cast<double>(orb[i+1][k2]));
        }
        z=0.0;
        update_based_on_current(); 
@@ -368,12 +370,12 @@ int make_h(float **orb, float **adj, float **h, int nt, double dt, int node, int
 	
 	 z=evaluate(coup_fun[i]);
 	
-	 sum=sum+(float)z*adj[i+1][k];
+	 sum=sum+static_cast<float>(z)*adj[i+1][k];
        }
 	
      }
      my_h[0][j]=orb[0][j];
-     my_h[1][j]=sum/(double)nt;
+     my_h[1][j]=sum/static_cast<double>(nt);
    }
    if(HODD_EV){
      for(k=0;k<nt;k++){
@@ -407,8 +409,8 @@ void new_adjoint()
    ADJ_HERE=0;
  }
  adj_len=storind;
- my_adj=(float **)xpp_malloc((NEQ+1)*sizeof(float *));
- for(i=0;i<n;i++)my_adj[i]=(float *)xpp_malloc(sizeof(float)*adj_len);
+ my_adj=static_cast<float **>(xpp_malloc((NEQ+1)*sizeof(float *)));
+ for(i=0;i<n;i++)my_adj[i]=static_cast<float *>(xpp_malloc(sizeof(float)*adj_len));
  for(i=n;i<=NEQ;i++)my_adj[i]=storage[i];
  if(adjoint(storage,my_adj,adj_len,DELTA_T*NJMP,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,NODE )){
    ADJ_HERE=1;;
@@ -446,34 +448,31 @@ void new_adjoint()
 
 int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double minerr, int maxit, int node)
 {
-  double **jac,*yold,ytemp,*fold,*fdev;
-  double *yprime,*work;
+  double ytemp;
   double t,prod,del;
   int i,j,k,l,k2,rval=0;
   int n2=node*node;
   double error;
-   
-   work = (double *)xpp_malloc((n2+4*node)*sizeof(double));
-   yprime = (double *)xpp_malloc(node*sizeof(double));
-   yold=(double *)xpp_malloc(node*sizeof(double));
-   fold=(double *)xpp_malloc(node*sizeof(double));
-   fdev=(double *)xpp_malloc(node*sizeof(double));
-  jac = (double **)xpp_malloc(n2*sizeof(double *));
-  
+
+   std::vector<double> work_v(static_cast<size_t>(n2)+4*node);
+   std::vector<double> yprime_v(node), yold_v(node), fold_v(node), fdev_v(node);
+   double *work=work_v.data();
+   double *yprime=yprime_v.data(), *yold=yold_v.data(), *fold=fold_v.data(), *fdev=fdev_v.data();
+  std::vector<std::vector<double>> jac_store(n2);
+  std::vector<double *> jac_v(n2);
+
   for(i=0;i<n2;i++)
   {
-   jac[i]=(double *)xpp_malloc(nt*sizeof(double));
-       if(jac[i]==NULL){
-       err_msg("Insufficient storage");
-	return(0);
-	}
+   jac_store[i].assign(nt, 0.0);
+   jac_v[i]=jac_store[i].data();
    }
-  
+  double **jac=jac_v.data();
+
   /*  Now we compute the
 	transpose time reversed jacobian  --  this is complex !! */
   for(k=0;k<nt;k++){
 	l=nt-1-k;  /* reverse the limit cycle  */
-	for(i=0;i<node;i++)yold[i]=(double)orbit[i+1][l];
+	for(i=0;i<node;i++)yold[i]=static_cast<double>(orbit[i+1][l]);
         rhs(0.0,yold,fold,node);
 	for(j=0;j<node;j++){
 		ytemp=yold[j];
@@ -544,10 +543,10 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
  for(k=0;k<nt;k++){
         l=nt-k-1;
 	t+=dt; 
-        for(i=0;i<node;i++)fdev[i]=(double)orbit[i+1][l];
+        for(i=0;i<node;i++)fdev[i]=static_cast<double>(orbit[i+1][l]);
 	rhs(0.0,fdev,yprime,node);
 	for(j=0;j<node;j++){
-	adjnt[j+1][l]=(float)yold[j];
+	adjnt[j+1][l]=static_cast<float>(yold[j]);
 	prod+=yold[j]*yprime[j]*dt;
       }
 	k2=k+1;
@@ -565,20 +564,12 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
 	prod=prod/t;
   xpp_log(XPP_LOG_INFO, " Multiplying the adjoint by 1/%g to normalize\n",prod);
   for(k=0;k<nt;k++){
-     for(j=0;j<node;j++)adjnt[j+1][k]=adjnt[j+1][k]/(float)prod;
+     for(j=0;j<node;j++)adjnt[j+1][k]=adjnt[j+1][k]/static_cast<float>(prod);
      adjnt[0][k]=orbit[0][k];
    }
   rval=1;
 
- bye: 
-   xpp_free(work);  
-   xpp_free(yprime);
-   xpp_free(yold);
-   xpp_free(fold);
-   xpp_free(fdev);
-   for(i=0;i<n2;i++)
-   xpp_free(jac[i]);
-   xpp_free(jac); 
+ bye:
    return(rval);
  }
  
@@ -652,8 +643,8 @@ void do_liapunov()
 void alloc_liap(int n)
 {
   if(LIAP_FLAG==0)return;
-  my_liap[0]=(float *)xpp_malloc(sizeof(float)*(n+1));
-  my_liap[1]=(float *)xpp_malloc(sizeof(float)*(n+1));
+  my_liap[0]=static_cast<float *>(xpp_malloc(sizeof(float)*(n+1)));
+  my_liap[1]=static_cast<float *>(xpp_malloc(sizeof(float)*(n+1)));
   LIAP_N=(n+1);
   LIAP_I=0;
 }
@@ -691,7 +682,6 @@ int hrw_liapunov(double *liap,int batch,double eps)
  double yp[MAXODE],nrm,dy[MAXODE];
  double t0,t1;
  double sum=0.0;
- char bob[256];
  int istart=1;
  int i,j;
   if(storind<2){
@@ -731,8 +721,7 @@ int hrw_liapunov(double *liap,int batch,double eps)
      sum=sum/t1;
    *liap=sum;
    if(batch==0){
-     XPP_SPRINTF(bob,"Maximal exponent is %g",sum);
-     err_msg(bob);
+     err_msg(xpp::format("Maximal exponent is {:g}",sum).c_str());
    }
 
  return 1; /*  success !! */
