@@ -126,6 +126,9 @@ export function Field(props: FieldProps) {
   const typing = focused && !refused && fieldIncomplete(spec, text);
   const typed = (standalone && draft === null) || typing ? null : shownMessageOf(text);
   const message = typed ?? error ?? null;
+  /* something Escape drops: a changed draft, or the core's refusal of one (a panel's own Escape
+     waits for it: data-own-escape) */
+  const edited = standalone && (!!error || (draft !== null && draft.trim() !== started.current));
   const msgId = `${baseId}-msg`;
   const listId = spec.kind === 'name' ? `${baseId}-names` : undefined;
 
@@ -191,6 +194,7 @@ export function Field(props: FieldProps) {
         autocomplete={spec.kind === 'text' || spec.kind === 'file' ? undefined : 'off'}
         aria-invalid={message ? 'true' : undefined}
         aria-describedby={message || hint ? msgId : undefined} data-kind={spec.kind}
+        data-own-escape={edited ? '1' : undefined}
         onFocus={e => {
           setFocused(true);
           if (standalone && draft === null) {

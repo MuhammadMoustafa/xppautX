@@ -284,17 +284,17 @@ export function ValuesPanel() {
     if (!open) return;
     panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
     /* Escape closes the sheet wherever the focus is inside it (narrow only: CSS keeps it open
-       elsewhere) -- but a field with a draft, half-typed text or a core refusal handles its own
-       Escape first (Field.tsx: it stops the key there) and the sheet stays open (UX-001); only a
-       focused control with no Escape of its own (a button, ...) falls through to close it. Not
-       capture: it must run after the field's own bubble-phase handler, not before it. */
+       elsewhere), before the page's hotkeys see it -- except in a box with an edit to drop
+       (Field's data-own-escape, UX-001): there Escape drops the edit, and a second one closes. */
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || session.store.getState().ask) return;
+      if ((e.target as Element | null)?.closest?.('[data-own-escape]')) return;
       e.preventDefault();
+      e.stopPropagation();
       close();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [open]);
 
   const last = history[history.length - 1];
