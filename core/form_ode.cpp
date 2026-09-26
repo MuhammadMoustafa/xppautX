@@ -122,7 +122,6 @@ extern int NWiener;
 /*extern char this_file[100];
 */
 extern char this_file[XPP_MAX_NAME];
-extern char options[100];
 int EqType[MAXODE];
 int Naux=0;
 char aux_names[MAXODE][XPP_NAME_MAX+1];
@@ -380,7 +379,7 @@ int get_eqn(FILE *fptr)
   NWiener=0;
   /*check_for_xpprc();  This is now done just once and in do_vis_env()
   */
-  XPP_FORMAT_TO_BUF(options,"{}","default.opt");
+  options_file="default.opt";
   add_var(t_name,0.0);
   /* plintf(" NEQ: "); */
   if(fgets(bob,MAXEXPLEN,fptr)==NULL)bob[0]=0;
@@ -700,10 +699,10 @@ int compiler(char *bob, FILE *fptr)
       xpp_log(XPP_LOG_DEBUG, "\n");
       break;
     case 'c': my_string=get_next(" \n");
-      XPP_FORMAT_TO_BUF(options,"{}",my_string);
+      options_file=my_string;
       xpp_log(XPP_LOG_INFO, " Loading new options file:<%s>\n",my_string);
       if(ConvertStyle)
-	fprintf(convertf,"option %s\n",options);
+	fprintf(convertf,"option %s\n",options_file.c_str());
       break;
     case 'f':iflg=0;
       xpp_log(XPP_LOG_INFO, "\nFixed variables:\n");

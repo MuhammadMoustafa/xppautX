@@ -1,4 +1,10 @@
+#include <algorithm>
+#include <cctype>
+#include <cstdio>
 #include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 #include "load_eqn.h"
 #include "markov.h"
 #include "xpp_mem.h"
@@ -65,8 +71,89 @@ extern int spec_col,spec_wid,spec_win,spec_col2,post_process;
 
 
 
-char *interopt[MAXOPT];
-int Nopts=0;
+namespace {
+
+/* the @ option lines .xpprc and the command line stored for
+   set_internopts, each whole */
+std::vector<std::string> interopt;
+
+/* strtok's tokens (get_first/get_next) over a copy of the text, each
+   call naming its own delimiters as strtok's did */
+class Tokenizer {
+public:
+  explicit Tokenizer(std::string_view text) : text_(text) {}
+  /* the next token, or false at the end */
+  bool next(std::string_view delims, std::string_view &token)
+  {
+    size_t start = text_.find_first_not_of(delims, pos_);
+    if (start == std::string_view::npos) {
+      pos_ = text_.size();
+      return false;
+    }
+    size_t end = text_.find_first_of(delims, start);
+    if (end == std::string_view::npos) end = text_.size();
+    token = text_.substr(start, end - start);
+    pos_ = end < text_.size() ? end + 1 : end;
+    return true;
+  }
+private:
+  std::string_view text_;
+  size_t pos_ = 0;
+};
+
+/* "name=value" split at its first '='; value "" when there is none */
+void split_apart(std::string_view bob, std::string &name, std::string &value)
+{
+  size_t k = bob.find('=');
+  if (k == std::string_view::npos) {
+    name = bob;
+    value.clear();
+  } else {
+    name = bob.substr(0, k);
+    value = bob.substr(k + 1);
+  }
+}
+
+/* every name=value of an option line (its first token, the @ or $,
+   skipped; then tokens split at delims) to set(name, value), those with
+   an empty name or value left out */
+template <class F>
+void each_option(std::string_view line, std::string_view delims, F set)
+{
+  Tokenizer tok(line);
+  std::string_view t;
+  if (!tok.next(" ,", t)) return;
+  std::string name, value;
+  while (tok.next(delims, t)) {
+    split_apart(t, name, value);
+    if (!name.empty() && !value.empty()) set(name, value);
+  }
+}
+
+std::string upper_case(std::string s)
+{
+  std::transform(s.begin(), s.end(), s.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+  return s;
+}
+
+/* one line of fp, whatever its length ("" at the end) */
+std::string read_line(FILE *fp)
+{
+  xpp::LineReader lr = xpp::LineReader::attach(fp);
+  return std::string(lr.next().value_or(std::string_view()));
+}
+
+bool is_directory(const char *path)
+{
+  DIR *dir = opendir(path);
+  if (dir == nullptr) return false;
+  closedir(dir);
+  return true;
+}
+
+} // namespace
+
 int RunImmediately=0;
 XppSlider sliders[XPP_NSLIDERS] = {{"", 0.0, 1.0}, {"", 0.0, 1.0}, {"", 0.0, 1.0}};
 
@@ -129,7 +216,7 @@ extern int SEc,UEc,SPc,UPc;
  double TOR_PERIOD=6.2831853071795864770;
  int TORUS=0;
  int NEQ;
- char options[100];  
+ std::string options_file;
 
 /*   Numerical stuff ....   */
 
@@ -181,12 +268,12 @@ extern double auto_xmin,auto_xmax,auto_ymin,auto_ymax;
 void dump_torus(FILE *fp, int f)
 {
   int i;
-  char bob[256];
   if(f==READEM){
-    if(fgets(bob,255,fp)==NULL)return;
+    xpp::LineReader lr = xpp::LineReader::attach(fp);
+    if(!lr.next())return;
   }
   else
-    fprintf(fp,"# Torus information \n");
+    std::fputs("# Torus information \n",fp);
   io_int(&TORUS,fp,f," Torus flag 1=ON");
   io_double(&TOR_PERIOD,fp,f,"Torus period");
   if(TORUS){
@@ -198,123 +285,45 @@ void dump_torus(FILE *fp, int f)
 
 void load_eqn()
 {
- int no_eqn=1,okay=0;
- int i;
+ int okay=0;
  int std=0;
- FILE *fptr;
-  init_ar_ic();
-  for(i=0;i<MAXODE;i++)
- {
-  itor[i]=0;
-/*  last_ic[i]=0.0; */
-  XPP_STRCPY(delay_string[i],"0.0");
- }
-/* Moved to main
- do_comline(argc,argv); */
- if(strcmp(this_file,"/dev/stdin")==0)std=1;
- struct dirent *dp;
- if (got_file==1&&(std==0) &&(dp=(struct dirent*)opendir(this_file))!=NULL)
-  {
-
-  	no_eqn = 1;
-	okay=0; 	
-	       change_directory(this_file);
-	       okay=make_eqn();
-	       return;
-	
-  }
-  else
-  {
-  if(got_file==1&&(fptr=fopen(this_file,"r"))!=NULL)
-  {
-    if(std==1)XPP_SPRINTF(this_file,"console");
-   okay=get_eqn(fptr);
-   if(std==0)
-     fclose(fptr);
-  
-   if(okay==1)no_eqn=0;
-  }
- }
- if(no_eqn)
-   {
-     while(okay==0)
-       {
-       	 struct dirent *dp;
-	 char odeclassrm[256];
-	 if (getenv("XPPSTART")!=NULL)
-	 {
-	      
-	 	XPP_SPRINTF(odeclassrm,"%s",getenv("XPPSTART"));
-	
-		if ((dp=(struct dirent*)opendir(odeclassrm))!=NULL)
-		{
-	 	       change_directory(odeclassrm);
-		}
-	 }
-	 
-	 okay=make_eqn();
-       } 
-   }   
-}
-
-/*
-load_eqn()
-{
- int no_eqn=1,okay=0;
- int i;
- int std=0;
- FILE *fptr;
-
  init_ar_ic();
-  for(i=0;i<MAXODE;i++)
+ for(int i=0;i<MAXODE;i++)
  {
   itor[i]=0;
-  strcpy(delay_string[i],"0.0");
+  XPP_FORMAT_TO_BUF(delay_string[i],"0.0");
  }
-
  if(strcmp(this_file,"/dev/stdin")==0)std=1;
-
-  struct dirent *dp;
-  if(got_file==1)
-  {
-  	if ((dp=opendir(this_file))!=NULL)
-	{
-		
-		change_directory(this_file);
-		no_eqn=1;
-	}
-	else
-	{
-		if (fptr=fopen(this_file,"r")!=NULL)
-  		{
-			if(std==1)sprintf(this_file,"console");
-   			okay=get_eqn(fptr);
-			if(std==0)
-     			  fclose(fptr); 
-			  
-		        if(okay==1)no_eqn=0;
-		}
-	}
-  }
-  if(no_eqn)
+ if (got_file==1&&(std==0)&&is_directory(this_file))
+ {
+   change_directory(this_file);
+   make_eqn();
+   return;
+ }
+ if(got_file==1)
+ {
+   FILE *fptr=std::fopen(this_file,"r");
+   if(fptr!=NULL)
    {
-     while(okay==0)
-       {
-	 okay=make_eqn();
-       }
-     
+     if(std==1)XPP_FORMAT_TO_BUF(this_file,"console");
+     okay=get_eqn(fptr);
+     if(std==0)
+       std::fclose(fptr);
+     if(okay==1)return;
    }
-   
+ }
+ while(okay==0)
+ {
+   const char *start=getenv("XPPSTART");
+   if (start!=NULL && is_directory(start))
+     change_directory(start);
+   okay=make_eqn();
+ }
 }
-
-*/
-
 
 void set_all_vals()
 {
  int i;
- 
- FILE *fp;
  
  if (notAlreadySet.TIMEPLOT){TIMPLOT=1;notAlreadySet.TIMEPLOT=0;};
  if (notAlreadySet.FOREVER){FOREVER=0;notAlreadySet.FOREVER=0;};
@@ -408,11 +417,11 @@ void set_all_vals()
  set_internopts(NULL);
  
 
- if((fp=fopen(options,"r"))!=NULL)
+ if(FILE *fp=std::fopen(options_file.c_str(),"r"))
  {
   read_defaults(fp);
-  fclose(fp);
- } 
+  std::fclose(fp);
+ }
 
 
  init_range();
@@ -471,20 +480,18 @@ if(MY_YLO>=MY_YHI){
 
 void read_defaults(FILE *fp)
 {
- char bob[100];
- char *ptr;
- if(fgets(bob,80,fp)==NULL)bob[0]=0;
- ptr=get_first(bob," ");
- /* the X11 big font: read, not kept */
- if (notAlreadySet.BIG_FONT_NAME && ptr!=NULL)
+ /* the X11 big and small fonts: read, not kept */
+ std::string bob=read_line(fp);
+ Tokenizer font(bob);
+ std::string_view name;
+ if (notAlreadySet.BIG_FONT_NAME && font.next(" ",name))
 	notAlreadySet.BIG_FONT_NAME=0;
 
- if(fgets(bob,80,fp)==NULL)bob[0]=0;
- ptr=get_first(bob," ");
- /* the X11 small font: read, not kept */
- if (notAlreadySet.SMALL_FONT_NAME && ptr!=NULL)
+ bob=read_line(fp);
+ Tokenizer small_font(bob);
+ if (notAlreadySet.SMALL_FONT_NAME && small_font.next(" ",name))
 	notAlreadySet.SMALL_FONT_NAME=0;
- 
+
  if (notAlreadySet.PaperWhite){int paper_white; fil_int(fp,&paper_white);notAlreadySet.PaperWhite=0;}; /* X11 only: read, not kept */
  if (notAlreadySet.IXPLT){fil_int(fp,&IXPLT);notAlreadySet.IXPLT=0;};
  if (notAlreadySet.IYPLT){fil_int(fp,&IYPLT);notAlreadySet.IYPLT=0;};
@@ -515,16 +522,12 @@ void read_defaults(FILE *fp)
 
 void fil_flt(FILE *fpt, double *val)
 {
- char bob[80];
- if(fgets(bob,80,fpt)==NULL)bob[0]=0;
- *val=atof(bob);
+ *val=atof(read_line(fpt).c_str());
 }
 
 void fil_int(FILE *fpt, int *val)
 {
- char bob[80];
- if(fgets(bob,80,fpt)==NULL)bob[0]=0;
- *val=atoi(bob);
+ *val=atoi(read_line(fpt).c_str());
 }
 
 
@@ -538,63 +541,40 @@ void fil_int(FILE *fpt, int *val)
 
 void add_intern_set(const char *name, const char *does)
 {
-  char bob[1024],ch;
-  int i,n,j=Nintern_set,k=0;
+  int j=Nintern_set;
   if(Nintern_set>=MAX_INTERN_SET){
    xpp_log(XPP_LOG_WARN, " %s not added -- too many must be less than %d \n",
 	   name,MAX_INTERN_SET);
     return;
   }
   intern_set[j].use=1;
-  n=strlen(name);
-  intern_set[j].name=(char *)xpp_malloc((n+1));
-  /* intern_set[j].name is a pointer, allocated n+1 bytes just above. */
-  xpp_strlcpy(intern_set[j].name,name,n+1);
-  n=strlen(does);
-  bob[0]='$';
-  bob[1]=' ';
-  k=2;
-  for(i=0;i<n;i++){
-    ch=does[i];
-    if(ch==','){
-      bob[k]=' ';
-      k++;
-    }
-    if(ch=='}'||ch=='{')
+  /* "$ " then does without its braces, commas as spaces */
+  std::string bob="$ ";
+  for(const char *p=does;*p;p++){
+    if(*p=='}'||*p=='{')
       continue;
-    if(ch!=','){
-      bob[k]=ch;
-      k++;
-    }
+    bob+=*p==','?' ':*p;
   }
-  bob[k]=0;
-  intern_set[j].does=(char *)xpp_malloc(n+3);
-  /* intern_set[j].does is a pointer, allocated n+3 bytes just above. */
-  xpp_strlcpy(intern_set[j].does,bob,n+3);
+  /* INTERN_SET is C API (comline.h): xpp_strdup'd text */
+  intern_set[j].name=xpp_strdup(name);
+  intern_set[j].does=xpp_strdup(bob.c_str());
  xpp_log(XPP_LOG_INFO, " added %s doing %s \n",
 	 intern_set[j].name,intern_set[j].does);
   Nintern_set++;
 }
-      
+
 
 void extract_action(const char *ptr)
 {
-  char name[256],value[256];
- char tmp[2048];
-  char *junk,*mystring;
-  /* plintf("ptr=%s \n",ptr);  */
-  XPP_STRCPY(tmp,ptr);
-  junk=get_first(tmp," ");
-  if (junk == NULL)
-  {
-  	/*No more tokens--should this throw an error?*/
+  Tokenizer tok(ptr);
+  std::string_view t;
+  if(!tok.next(" ",t))return;
+  std::string name,value;
+  while(tok.next(" ,;\n",t)){
+    split_apart(t,name,value);
+    if(!name.empty()&&!value.empty())
+      do_intern_set(name.c_str(),value.c_str());
   }
-  
-  while((mystring=get_next(" ,;\n"))!=NULL){
-   split_apart(mystring,name,value);
-      if(strlen(name)>0&&strlen(value)>0)
-       do_intern_set(name,value);
-    } 
 }
 
 void extract_internset(int j)
@@ -605,9 +585,10 @@ void extract_internset(int j)
 void do_intern_set(const char *name1, const char *value)
 {
   int i;
-  char name[256]; /* as in extract_action */
-  if(strlen(name1)>=sizeof(name))return;
-  convert(name1,name);
+  /* convert only drops white space: the name fits name1's length */
+  std::string buf(name1);
+  convert(name1,buf.data());
+  const char *name=buf.c_str();
 
   i=find_user_name(IC,name);
   if(i>-1){
@@ -630,192 +611,82 @@ void do_intern_set(const char *name1, const char *value)
 
 int msc(const char *s1, const char *s2)
 {
-
- int n=(int)strlen(s1),i;
- if((int)strlen(s2)<n)return(0);
- for(i=0;i<n;i++)
-   if(s1[i]!=s2[i])return(0);
- return(1);
+ /* s2 starts with s1 */
+ return std::string_view(s2).starts_with(s1);
 }  
   
 void set_internopts(OptionsSet *mask)
 {
-  int i;
-  char *ptr,name[20],value[80],*junk,*mystring;
-  if(Nopts==0)return;
- /*  parsem here   */
-  for(i=0;i<Nopts;i++){
-    ptr=interopt[i];
-    junk=get_first(ptr," ,");
-    if (junk == NULL)
-    {
-    	/*No more tokens.  Should this throw an error?*/
-    }	
-    while((mystring=get_next(" ,\n\r"))!=NULL)
-    {
-      split_apart(mystring,name,value);
-      if(strlen(name)>0&&strlen(value)>0)
-      {
-	set_option(name,value,0,mask);
-      }
-    }
-  }
- 
-  for(i=0;i<Nopts;i++)
-  {
-    xpp_free(interopt[i]);
-  }  
-  Nopts = 0;  
+  for(const std::string &opt : interopt)
+    each_option(opt," ,\n\r",[mask](const std::string &name,const std::string &value){
+      set_option(name.c_str(),value.c_str(),0,mask);
+    });
+  interopt.clear();
 }
 
 void set_internopts_xpprc_and_comline()
 {
-  int i;
-  char *ptr,name[20],value[80],*junk,*mystring;
-  if(Nopts==0)return;
- /*  parsem here   */
- /*Check for QUIET and LOGFILE options first...*/
-  char intrnoptcpy[255]; /*Must use copy to avoid side effects of strtok used in get_first below*/
-  for(i=0;i<Nopts;i++){
-    XPP_STRCPY(intrnoptcpy,interopt[i]);
-    ptr=intrnoptcpy;
-    junk=get_first(ptr," ,");  
-    if (junk == NULL)
-    {
-    	/*No more tokens.  Should this throw an error?*/
-    }	
-    while((mystring=get_next(" ,\n\r"))!=NULL)
-    {
-      split_apart(mystring,name,value);
-      strupr(name); 
-      
-      if (strlen(name)==5)
-      {
-      	      strupr(name);
-	      if(strcmp(name,"QUIET")==0)
-	      {
-		set_option(name,value,0,NULL);
-	      }
-      }
-      else if (strlen(name)==7)
-      {	
-	      strupr(name);
-	      
-	      if(strcmp(name,"LOGFILE")==0)
-	      {
-	      	      set_option(name,value,0,NULL);
-	      }
+  if(interopt.empty())return;
+  /* QUIET and LOGFILE first */
+  for(const std::string &opt : interopt){
+    Tokenizer tok(opt);
+    std::string_view t;
+    if(!tok.next(" ,",t))continue;
+    std::string name,value;
+    while(tok.next(" ,\n\r",t)){
+      split_apart(t,name,value);
+      name=upper_case(name);
+      if(name=="QUIET"||name=="LOGFILE")
+        set_option(name.c_str(),value.c_str(),0,NULL);
     }
   }
-  }
-  
+
   /*We make a BOOLEAN MASK using the current OptionsSet*/
   /*This allows options to be overwritten multiple times within .xpprc
   but prevents overwriting across comline, .xpprc etc.
-  */ 
-  OptionsSet *tempNAS = (OptionsSet*)xpp_malloc(sizeof(OptionsSet));
-  *tempNAS = notAlreadySet;
-  
-  for(i=0;i<Nopts;i++){
-    ptr=interopt[i];
-    junk=get_first(ptr," ,");
-    while((mystring=get_next(" ,\n\r"))!=NULL)
-    {
-      split_apart(mystring,name,value);
-      if(strlen(name)>0&&strlen(value)>0)
-      {
-        set_option(name,value,0,tempNAS);
-      }	
-    }
-  }
-  xpp_free(tempNAS);
-   
+  */
+  OptionsSet mask = notAlreadySet;
+  for(const std::string &opt : interopt)
+    each_option(opt," ,\n\r",[&mask](const std::string &name,const std::string &value){
+      set_option(name.c_str(),value.c_str(),0,&mask);
+    });
+
   /*
   We leave a fresh start for options specified in the ODE file.
   */
-  for(i=0;i<Nopts;i++)
-  {
-  	xpp_free(interopt[i]);
-  } 
-  
-  Nopts=0;
+  interopt.clear();
 }
-
-
-void split_apart(const char *bob, char *name, char *value)
-{
- /* name/value are pointers here; the smallest of split_apart's four
-    callers pass char name[20],value[80] (the other passes [256],[256]),
-    so 20/80 are the real, safe sizes. */
- int k,i,l;
-
-
- l=strlen(bob);
- k=strcspn(bob,"=");
- if(k==l)
- {
-  value[0]=0;
-  xpp_strlcpy(name,bob,20);
-  }
-  else
-  {
-  strncpy(name,bob,k);
-  name[k]='\0';
-  for(i=k+1;i<l;i++)value[i-k-1]=bob[i];
-  value[l-k-1]='\0';
-    }
-
-}
-
-
 
 
 void check_for_xpprc()
 {
-  FILE *fp;
-  char rc[256];
-  char bob[256];
-  XPP_SPRINTF(rc,"%s/.xpprc",getenv("HOME"));
-  fp=fopen(rc,"r");
-  if(fp==NULL){
-    /*   plintf("Didnt find rc \n"); */
-    return;
+  const char *home=getenv("HOME");
+  if(home==NULL)return;
+  xpp::LineReader lr((std::string(home)+"/.xpprc").c_str());
+  if(!lr)return;
+  while(std::optional<std::string_view> line=lr.next()){
+    if(!line->empty()&&(*line)[0]=='@')
+      stor_internopts(std::string(*line).c_str());
   }
-  while(!feof(fp)){
-    bob[0]='\0';
-    if(fgets(bob,255,fp)==NULL)break;
-    if(bob[0]=='@'){
-      stor_internopts(bob);
-
-    }
-  }
-  fclose(fp);
 }
 
 
 void stor_internopts(const char *s1)
 {
-  int n=strlen(s1);
-  if(Nopts>MAXOPT){
+  if(interopt.size()>=MAXOPT){
    xpp_log(XPP_LOG_WARN, "to many options set %s ignored\n",s1);
     return;
   }
-  interopt[Nopts]=(char *)xpp_malloc(n+1);
-  /* interopt[Nopts] is a pointer, allocated n+1 bytes just above. */
-  xpp_snprintf(interopt[Nopts],n+1,"%s",s1);
-  Nopts++;
-
+  interopt.emplace_back(s1);
 }
-  
+
 
 
 void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
 {
   int i,j,f;
- char xx[4],yy[4],zz[4];
- char xxl[6],xxh[6],yyl[6],yyh[6];
- static char mkey[]="demragvbqsc582y";
- static char Mkey[]="DEMRAGVBQSC582Y";
+ static constexpr std::string_view mkey="demragvbqsc582y";
+ static constexpr std::string_view Mkey="DEMRAGVBQSC582Y";
  /* the option's name is matched upper case: upper-case a copy, not the
     caller's text (a literal from the command line's options) */
  std::string upper(name);
@@ -919,7 +790,7 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
   if(msc("PLOTFMT",s1)){
     if ((notAlreadySet.PLOTFORMAT||force) || ((mask!=NULL)&&(mask->PLOTFORMAT==1)))
     {
-    	XPP_STRCPY(plot_export.format,s2);
+    	XPP_FORMAT_TO_BUF(plot_export.format,"{}",s2);
 	notAlreadySet.PLOTFORMAT=0;
     }
     return;
@@ -1079,41 +950,41 @@ if(msc("UMC",s1)){
      return;
    }
  for(j=2;j<=8;j++){
-      XPP_SPRINTF(xx,"XP%d",j);
-      XPP_SPRINTF(yy,"YP%d",j);
-      XPP_SPRINTF(zz,"ZP%d",j);
-      XPP_SPRINTF(xxh,"XHI%d",j);    
-      XPP_SPRINTF(xxl,"XLO%d",j);    
-      XPP_SPRINTF(yyh,"YHI%d",j);    
-      XPP_SPRINTF(yyl,"YLO%d",j);    
-    if(msc(xx,s1)){
+      std::string xx=xpp::format("XP{}",j);
+      std::string yy=xpp::format("YP{}",j);
+      std::string zz=xpp::format("ZP{}",j);
+      std::string xxh=xpp::format("XHI{}",j);
+      std::string xxl=xpp::format("XLO{}",j);
+      std::string yyh=xpp::format("YHI{}",j);
+      std::string yyl=xpp::format("YLO{}",j);
+    if(msc(xx.c_str(),s1)){
     find_variable(s2,&i);
     if(i>-1)IX_PLT[j]=i;
     return;
   }
-   if(msc(yy,s1)){
+   if(msc(yy.c_str(),s1)){
      find_variable(s2,&i);
     if(i>-1)IY_PLT[j]=i;
     return;
   }
-   if(msc(zz,s1)){
+   if(msc(zz.c_str(),s1)){
      find_variable(s2,&i);
     if(i>-1)IZ_PLT[j]=i;
     return;
   }
-   if(msc(xxh,s1)){
+   if(msc(xxh.c_str(),s1)){
      X_HI[j]=atof(s2);
      return;
    }
-   if(msc(xxl,s1)){
+   if(msc(xxl.c_str(),s1)){
      X_LO[j]=atof(s2);
      return;
    }
-if(msc(yyh,s1)){
+if(msc(yyh.c_str(),s1)){
      Y_HI[j]=atof(s2);
      return;
    }
-if(msc(yyl,s1)){
+if(msc(yyl.c_str(),s1)){
      Y_LO[j]=atof(s2);
      return;
    }
@@ -1499,7 +1370,7 @@ if(msc(yyl,s1)){
  if(msc("OUTPUT",s1)){
      if ((notAlreadySet.OUTPUT||force) || ((mask!=NULL)&&(mask->OUTPUT==1)))
      {
-   	XPP_STRCPY(batch_options.out_file,s2);
+   	XPP_FORMAT_TO_BUF(batch_options.out_file,"{}",s2);
 	notAlreadySet.OUTPUT=0;
      }
    return;
@@ -1836,7 +1707,7 @@ if(msc("AUTOVAR",s1)){
  if(msc("PS_FONT",s1)){
      if ((notAlreadySet.PS_FONT||force)|| ((mask!=NULL)&&(mask->PS_FONT==1)))
      {
-   	XPP_STRCPY(PS_FONT,s2);
+   	XPP_FORMAT_TO_BUF(PS_FONT,"{}",s2);
 	notAlreadySet.PS_FONT=0;
      }
    return;

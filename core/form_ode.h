@@ -25,7 +25,6 @@ void free_comments();
 void add_comment(char *s);
 void init_varinfo();
 void add_varinfo(int type,char *lhs,char *rhs,int nargs,char args[MAXARG][NAMLEN+1]);
-void stor_internopts(char *s1);
 */
 
 typedef struct {

@@ -214,7 +214,6 @@ void do_intern_set(const char *name1, const char *value);
 int msc(const char *s1, const char *s2);
 void set_internopts(OptionsSet *mask);
 void set_internopts_xpprc_and_comline(void);
-void split_apart(const char *bob, char *name, char *value);
 void check_for_xpprc(void);
 void stor_internopts(const char *s1);
 void set_option(const char *name, const char *s2, int force, OptionsSet *mask);
@@ -232,5 +231,10 @@ extern XppSlider sliders[XPP_NSLIDERS];
 
 #ifdef __cplusplus
 }
+
+#include <string>
+/* the options file (the model's "options" line, else default.opt) that
+   set_all_vals reads */
+extern std::string options_file;
 #endif
 #endif
