@@ -142,7 +142,7 @@ void write_global_header(int cols,int rows, FILE *dst)
   unsigned char    *pos,*buffer;
 
 
-  buffer = (unsigned char *)xpp_malloc((BUFLEN+1)*sizeof(unsigned char))+1;
+  buffer = static_cast<unsigned char *>(xpp_malloc((BUFLEN+1)*sizeof(unsigned char)))+1;
 
   pos = buffer;
 
@@ -227,7 +227,7 @@ void make_gif(unsigned char *pixels,int cols,int rows,FILE *dst)
   unsigned char    *pos,*buffer;
 
 
-  buffer = (unsigned char *)xpp_malloc((BUFLEN+1)*sizeof(unsigned char))+1;
+  buffer = static_cast<unsigned char *>(xpp_malloc((BUFLEN+1)*sizeof(unsigned char)))+1;
 
 
   
@@ -290,7 +290,7 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
 
   nodeArray = empty;
   memmove(++nodeArray, empty, 255*sizeof(GifTree **));
-  if (( buffer = (unsigned char *)xpp_malloc((BUFLEN+1)*sizeof(unsigned char))) == NULL )
+  if (( buffer = static_cast<unsigned char *>(xpp_malloc((BUFLEN+1)*sizeof(unsigned char)))) == NULL )
 	 return 0;
   buffer++;
 
@@ -513,7 +513,7 @@ void gif_stuff_ppm(unsigned char *ppm,int w,int h,FILE *fp,int task)
  int ncol=0;
 
  int ok;
- pixels=(unsigned char *)xpp_malloc(h*w);
+ pixels=static_cast<unsigned char *>(xpp_malloc(h*w));
  switch(task){
  case GET_GLOBAL_CMAP:
     ncol=make_local_map(pixels,ppm,h,w);
