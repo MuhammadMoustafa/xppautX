@@ -26,13 +26,8 @@
 #ifndef XPP_WINDOW
 
 int xpp_window_supported(void) { return 0; }
-int xpp_window_run(void (*session)(void), const char *about)
-{
-    (void)session;
-    (void)about;
-    return 0;
-}
-void xpp_window_set_model(const char *path) { (void)path; }
+int xpp_window_run(void (*)(void), const char *) { return 0; }
+void xpp_window_set_model(const char *) {}
 
 #else /* XPP_WINDOW */
 
@@ -154,9 +149,9 @@ void window_closed(webview_t w)
     }
     webview_destroy(w);
     if (!by_core) {
-        static const char quit[] = "{\"cmd\":\"quit\"}";
+        static constexpr std::string_view quit = "{\"cmd\":\"quit\"}";
         host->http_release();
-        host->inbox_push(quit, sizeof quit - 1);
+        host->inbox_push(quit.data(), quit.size());
     }
     st->done.set_value();
     std::this_thread::sleep_for(EXIT_GRACE);
@@ -199,7 +194,7 @@ enum MenuId { ID_OPEN = 101, ID_QUIT, ID_MANUAL, ID_KEYS, ID_ABOUT };
 std::wstring wide(const std::string &s)
 {
     int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
-    std::wstring w(n > 0 ? (size_t)n : 1, L'\0');
+    std::wstring w(n > 0 ? static_cast<size_t>(n) : 1, L'\0');
     if (n > 0) MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, &w[0], n);
     w.resize(w.size() - 1);
     return w;
@@ -415,8 +410,6 @@ void set_window_icon(GtkWindow *win)
     }
     if (err) g_error_free(err);
     g_object_unref(loader);
-#else
-    (void)win;
 #endif
 }
 
@@ -487,7 +480,7 @@ webview_t open_view()
     return w;
 }
 
-const char NO_VIEW[] = "xppautX: the window cannot open (no web view: on Windows the WebView2 runtime, on Linux a "
+const char *const NO_VIEW = "xppautX: the window cannot open (no web view: on Windows the WebView2 runtime, on Linux a "
                        "display); using the browser instead\n";
 
 #ifdef __APPLE__

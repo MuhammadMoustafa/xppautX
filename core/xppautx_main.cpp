@@ -85,7 +85,7 @@ static void start_auto_dir(void)
 #endif
 
 /* the desktop window's Help > About */
-static const char about_text[] =
+static const char *const about_text =
     "xppautX " XPPAUTX_VERSION "\n"
     "Commit " XPPAUTX_COMMIT "\n"
     "Compiler: " XPPAUTX_COMPILER "\n"
@@ -95,15 +95,15 @@ static const char about_text[] =
     "https://github.com/MuhammadMoustafa/xppautX";
 
 /* --help: the modes, then the options that go with them */
-static const char usage_head[] =
+static const char *const usage_head =
     "usage: xppautX [MODE] [--port N] [--no-open] [--verbose|--debug] file.ode [xppaut options]\n"
     "       xppautX --version | --help\n"
     "Our options come first; every xppaut option still applies after them.\n"
     "Modes:\n"
     "  (none)           ";
-static const char usage_window[] = "a window of its own: the page in the system's web view\n";
-static const char usage_no_window[] = "the browser, as --browser (this build has no window of its own)\n";
-static const char usage_tail[] =
+static const char *const usage_window = "a window of its own: the page in the system's web view\n";
+static const char *const usage_no_window = "the browser, as --browser (this build has no window of its own)\n";
+static const char *const usage_tail =
     "  --browser        the page in the default browser; prints its address (XPP: http://...)\n"
     "  --web            the same as --browser\n"
     "  --no-open        browser mode, printing the address without opening a browser\n"
@@ -160,7 +160,6 @@ static char **session_argv;
 
 static void run_session(void)
 {
-    char title[128];
     /* a monospace font the client can match: small 7x13, big 9x15 */
     text_metrics.small_width = 7; text_metrics.small_height = 13;
     text_metrics.big_width = 9; text_metrics.big_height = 15;
@@ -170,10 +169,10 @@ static void run_session(void)
     xpp_load_model(session_argc, session_argv, 0);
     xpp_window_set_model(this_file);
 
-    if (strlen(this_file) < 60)
-        XPP_SPRINTF(title, "XPP Ver %g.%g >> %s", program.version_major, program.version_minor, this_file);
-    else
-        XPP_SPRINTF(title, "XPP Version %g.%g", program.version_major, program.version_minor);
+    const char *file = this_file;
+    std::string title = strlen(file) < 60
+                            ? xpp::format("XPP Ver {:g}.{:g} >> {}", program.version_major, program.version_minor, file)
+                            : xpp::format("XPP Version {:g}.{:g}", program.version_major, program.version_minor);
     program.interactive = 1;
     color_table.enabled = 1;     /* init_X on a colour display */
     periodic = 1;
@@ -190,7 +189,7 @@ static void run_session(void)
     if_needed_load_ext_options();
     default_window();
 
-    json_ui_hello(title);
+    json_ui_hello(title.c_str());
     if (ani_options.use_file) {
         new_vcr();
         get_ani_file(ani_options.file);

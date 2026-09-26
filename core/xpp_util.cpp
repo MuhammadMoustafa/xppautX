@@ -30,6 +30,11 @@
 #include "delay_handle.h"
 #include "txtread.h"
 #include "numerics.h"
+#include "pop_list.h" /* NUPAR, NEQ, upar_names, uvar_names */
+#include <array>
+#include <charconv>
+#include <string>
+#include <string_view>
 #include <time.h>
 #include <ctype.h>
 #include <math.h>
@@ -47,8 +52,6 @@
 #define IC 2
 #define REAL_SMALL 1.e-6
 
-extern int NUPAR, NEQ;
-extern char upar_names[MAXPAR][XPP_NAME_MAX+1], uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern double last_ic[MAXODE];
 extern int NCON, NSYM, NCON_START, NSYM_START;
 extern BROWSER my_browser;
@@ -114,8 +117,8 @@ void  get_max(int index, double *vmin, double *vmax)
     if(z<x0)x0=z;
     if(z>x1)x1=z;
    }
-   *vmin=(double)x0;
-   *vmax=(double)x1;
+   *vmin=static_cast<double>(x0);
+   *vmax=static_cast<double>(x1);
     if(fabs(*vmin-*vmax)<REAL_SMALL){
       temp=.05*lmax(fabs(*vmin),1.0);
      *vmin=*vmin-temp;
@@ -129,7 +132,7 @@ void  get_max(int index, double *vmin, double *vmax)
    out holds width+1 bytes. */
 void short_name(char *out, const char *name, int width)
 {
-  if((int)strlen(name)<=width)
+  if(static_cast<int>(strlen(name))<=width)
     snprintf(out,width+1,"%s",name);
   else
     snprintf(out,width+1,"%.*s~",width-1,name);
@@ -152,29 +155,31 @@ void de_space(char *s)
 
 int find_user_name(int type, const char *oname)
 {
- char name[XPP_NAME_MAX+1];
- int j=0,k=0,i=-1;
- for(j=0;j<(int)strlen(oname);j++){
- if(!isspace(oname[j])){
-   if(k>=XPP_NAME_MAX)return(-1); /* longer than any name */
-   name[k]=oname[j];k++;
+ std::string name; /* at most XPP_NAME_MAX: no allocation past the string's own room */
+ int i=-1;
+ for(const char *p=oname;*p;p++){
+   if(!isspace(*p)){
+     if(name.size()>=XPP_NAME_MAX)return(-1); /* longer than any name */
+     try{
+       name+=*p;
+     }catch(...){
+       return(-1); /* out of memory: no name matches */
+     }
+   }
  }
-}
- name[k]=0;
-  
- 
+
  for(i=0;i<NUPAR;i++)
-         if((type==PARAMBOX)&&(strcasecmp(upar_names[i],name)==0))break;
+         if((type==PARAMBOX)&&(strcasecmp(upar_names[i],name.c_str())==0))break;
  if(i<NUPAR)return(i);
  for(i=0;i<NEQ;i++)
-	 if((type==ICBOX)&&(strcasecmp(uvar_names[i],name)==0))break;	
+	 if((type==ICBOX)&&(strcasecmp(uvar_names[i],name.c_str())==0))break;
    if(i<NEQ)return(i);
 	return(-1);
  }
 
 int do_calc(const char *temp, double *z)
 {
- char val[256];
+ std::array<char, 256> val; /* has_eq writes the name there */
  int ok; 
  int i;
  double newz;
@@ -182,26 +187,26 @@ int do_calc(const char *temp, double *z)
 	*z=0.0;
 	return(1);
 	}
- if(has_eq(temp,val,&i))
+ if(has_eq(temp,val.data(),&i))
  {
  
  
   newz=calculate(&temp[i],&ok);  /*  calculate quantity  */
  
   if(ok==0)return(-1);
-  i=find_user_name(PARAM,val);
+  i=find_user_name(PARAM,val.data());
   if(i>-1){
-    set_val(val,newz); /* a parameter set to value  */
+    set_val(val.data(),newz); /* a parameter set to value  */
     *z=newz;
     redraw_params();
   }
   else {
-    i=find_user_name(IC,val);
+    i=find_user_name(IC,val.data());
     if(i<0){
       err_msg("No such name!");
       return(-1);
     }
-    set_val(val,newz);
+    set_val(val.data(),newz);
 
     last_ic[i]=newz;
     *z=newz;
@@ -218,14 +223,13 @@ int do_calc(const char *temp, double *z)
 
 int has_eq(const char *z, char *w, int *where)
 {
-  int i;
-  for(i=0;i<(int)strlen(z);i++)
-   if(z[i]==':')break;
-  if(i==(int)strlen(z))return(0);
+  std::string_view s(z);
+  size_t i=s.find(':');
+  if(i==std::string_view::npos)return(0);
   if(i>255)return(0); /* w holds 256 bytes; no name is that long */
-  strncpy(w,z,i);
+  s.copy(w,i);
   w[i]=0;
-  *where=i+1;
+  *where=static_cast<int>(i)+1;
   return(1);
  }
 
@@ -295,28 +299,21 @@ void check_val(double *x1, double *x2, double *xb, double *xd)
 }
 
 void dump_ps(int i)
-{  
-  char filename[XPP_MAX_NAME];
-   if(i<0)
-     {
-       snprintf(filename,sizeof(filename),"%.100s%.100s.%.10s",this_file,this_internset,plot_export.format);
-     }
-   else
-     {
-       /*   padnum(s,i,4); */
-       snprintf(filename,sizeof(filename),"%.100s%.100s_%04d.%.10s",this_file,this_internset,i,plot_export.format);
-     }   
-      
+{
+  const char *file=this_file,*set=this_internset,*format=plot_export.format;
+  std::string filename=i<0?xpp::format("{:.100}{:.100}.{:.10}",file,set,format)
+                          :xpp::format("{:.100}{:.100}_{:04d}.{:.10}",file,set,i,format);
+
    if (strcmp(plot_export.format,"ps")==0)
    {
-     if(ps_init(filename,plot_export.color))
+     if(ps_init(filename.c_str(),plot_export.color))
      {
        ps_restore();
      }
    }
    else if (strcmp(plot_export.format,"svg")==0)
    {
-     if(svg_init(filename,plot_export.color))
+     if(svg_init(filename.c_str(),plot_export.color))
      {
        svg_restore();
      }
@@ -333,12 +330,12 @@ void   redo_stuff()
 
 void user_fun_info(FILE *fp)
 {
-  int i,j;
-  for(j=0;j<NFUN;j++){
-    fprintf(fp,"%s(",ufun_names[j]);
-    for(i=0;i<narg_fun[j];i++)
-      fprintf(fp,"%s%s",ufun_arg[j].args[i],i<narg_fun[j]-1?",":"");
-    fprintf(fp,") = %s\n",ufun_def[j]);
+  for(int j=0;j<NFUN;j++){
+    std::string line=xpp::format("{}(",static_cast<const char *>(ufun_names[j]));
+    for(int i=0;i<narg_fun[j];i++)
+      line+=xpp::format("{}{}",static_cast<const char *>(ufun_arg[j].args[i]),i<narg_fun[j]-1?",":"");
+    line+=xpp::format(") = {}\n",ufun_def[j]);
+    fwrite(line.data(),1,line.size(),fp);
   }
 }
 
@@ -392,107 +389,101 @@ void svg_restore()
 void clone_ode()
 {
   int i,j,x,y;
-  FILE *fp;
-  char clone[256];
-  
+  std::array<char,256> clone{}; /* the file selector edits it in place */
   char *s;
   time_t ttt;
   double z;
-  clone[0]=0;
-  if(!file_selector("Clone ODE file",clone,"*.ode"))return;
-  if((fp=fopen(clone,"w"))==NULL){
+  if(!file_selector("Clone ODE file",clone.data(),"*.ode"))return;
+  xpp::Writer fp(clone.data());
+  if(!fp){
       err_msg(" Cant open clone file");
       return;
     }
   ttt=time(0);
-  fprintf(fp,"# clone of %s on %s",this_file,ctime(&ttt));
+  fp.write("# clone of {} on {}",static_cast<const char *>(this_file),ctime(&ttt));
   for(i=0;i<NLINES;i++){
     s=save_eqn[i];
-    
+
     if(s[0]=='p'||s[0]=='P'||s[0]=='b'||s[0]=='B'){
       x=find_char(s,"'",0,&j);
       y=find_char(s,"=",0,&j);
 
       if(x!=0||y!=0){
-	fprintf(fp,"# original\n# %s\n",s);
+	fp.write("# original\n# {}\n",s);
 	continue;
       }
     }
     if(strncasecmp("done",s,4)==0)continue;
-    fprintf(fp,"%s\n",s);
+    fp.write("{}\n",s);
   }
-  fprintf(fp,"# Cloned parameters etc here\n");
+  fp.write("# Cloned parameters etc here\n");
   /* now we do parameters boundary conds and ICs */
   j=0;
-  fprintf(fp,"init ");
+  fp.write("init ");
   for(i=0;i<(NODE+NMarkov);i++){
     if(j==8){
-      fprintf(fp,"\ninit ");
+      fp.write("\ninit ");
       j=0;
     }
-    
-    fprintf(fp,"%s=%g ",uvar_names[i],last_ic[i]);
+    fp.write("{}={:g} ",static_cast<const char *>(uvar_names[i]),last_ic[i]);
     j++;
   }
-  fprintf(fp,"\n");
+  fp.write("\n");
 
   /* BDRY conds */
   if(my_bc[0].string[0]!='0'){
     for(i=0;i<NODE;i++)
-      fprintf(fp,"bdry %s\n",my_bc[i].string);
+      fp.write("bdry {}\n",my_bc[i].string);
   }
   j=0;
   if(NUPAR>0){
-    
-    fprintf(fp,"par ");
+    fp.write("par ");
     for(i=0;i<NUPAR;i++){
       if(j==8){
-	fprintf(fp,"\npar ");
-      j=0;
-    }
-      get_val(upar_names[i],&z); 
-      fprintf(fp,"%s=%g ",upar_names[i],z);
-    j++;
+	fp.write("\npar ");
+        j=0;
+      }
+      get_val(upar_names[i],&z);
+      fp.write("{}={:g} ",static_cast<const char *>(upar_names[i]),z);
+      j++;
     }
   }
-    fprintf(fp,"\n");
-  fprintf(fp,"done \n");
-  fclose(fp);
+  fp.write("\n");
+  fp.write("done \n");
+  fp.commit();
 }
 
 void new_parameter()
 {
   int done,index;
   double z;
-  char name[256],value[256],junk[256];
+  std::array<char,256> name; /* new_string_of edits it in place */
   while(1){
     name[0]=0;
-    done=new_string_of("Parameter:",name,XPP_FIELD_NAME_IN(2));
-    if(strlen(name)==0||done==0){redo_stuff(); return;}
-    if(strncasecmp(name,"DEFAULT",7  )==0){
+    done=new_string_of("Parameter:",name.data(),XPP_FIELD_NAME_IN(2));
+    if(strlen(name.data())==0||done==0){redo_stuff(); return;}
+    if(strncasecmp(name.data(),"DEFAULT",7  )==0){
       set_default_params();
       continue;
     }
 
-    if(strncasecmp(name,"!LOAD", 5 )==0){
-      io_parameter_file(name,READEM);
+    if(strncasecmp(name.data(),"!LOAD", 5 )==0){
+      io_parameter_file(name.data(),READEM);
       continue;
     }
-    if(strncasecmp(name,"!SAVE", 5 )==0){
-      io_parameter_file(name,WRITEM);
+    if(strncasecmp(name.data(),"!SAVE", 5 )==0){
+      io_parameter_file(name.data(),WRITEM);
       continue;
     }
-    
+
     else {
-      index=find_user_name(PARAMBOX,name);
+      index=find_user_name(PARAMBOX,name.data());
       if(index>=0){
 	get_val(upar_names[index],&z);
-	XPP_SPRINTF(value,"%s :",name);
-	done=new_float(value,&z);
+	done=new_float(xpp::format("{} :",name.data()).c_str(),&z);
 	if(done==0){
 	  set_val(upar_names[index],z);
-	  XPP_SPRINTF(junk,"%.16g",z);
-	  xpp_ui.param_box_set(index,junk);
+	  xpp_ui.param_box_set(index,xpp::format("{:.16g}",z).c_str());
 	  xpp_ui.param_box_redraw(index);
 	}
         if(done==-1){
@@ -507,12 +498,9 @@ void new_parameter()
 void   set_default_params()
  {
 
- int i;
- char junk[256];
- for(i=0;i<NUPAR;i++){
+ for(int i=0;i<NUPAR;i++){
    set_val(upar_names[i],default_val[i]);
-   XPP_SPRINTF(junk,"%.16g",default_val[i]);
-   xpp_ui.param_box_set(i,junk);
+   xpp_ui.param_box_set(i,xpp::format("{:.16g}",default_val[i]).c_str());
  }
  
  redraw_params();
@@ -553,15 +541,12 @@ void man_ic()
 {
   int done,index=0;
   double z;
-  char name[256],junk[256];
   while(1){
-    XPP_SPRINTF(name,"%s :",uvar_names[index]);
     z=last_ic[index];
-    done=new_float(name,&z);
+    done=new_float(xpp::format("{} :",static_cast<const char *>(uvar_names[index])).c_str(),&z);
     if(done==0){
       last_ic[index]=z;
-      XPP_SPRINTF(junk,"%.16g",z);
-      xpp_ui.ic_box_set(index,junk);
+      xpp_ui.ic_box_set(index,xpp::format("{:.16g}",z).c_str());
       xpp_ui.ic_box_redraw(index);
       index++;
       if(index>=NODE+NMarkov)return;
@@ -732,23 +717,16 @@ void do_txt_action(const char *s)
 char *xpp_make_temp_dir(void)
 {
   const char *base = getenv("TMPDIR");
-  char *path;
-  int i;
 
   if (base == NULL || base[0] == 0)
     base = "/tmp";
-  path = (char *)xpp_malloc(strlen(base) + 64);
-  if (path == NULL)
-    return NULL;
-  for (i = 0; i < 1000; i++) { /* a crashed run with our pid may have left one */
-    /* path is a pointer, allocated strlen(base)+64 bytes just above. */
-    xpp_snprintf(path, strlen(base)+64, "%s/xppautoX-%ld-%d", base, (long)getpid(), i);
-    if (mkdir(path, 0700) == 0)
-      return path;
+  for (int i = 0; i < 1000; i++) { /* a crashed run with our pid may have left one */
+    std::string path = xpp::format("{}/xppautoX-{}-{}", base, static_cast<long>(getpid()), i);
+    if (mkdir(path.c_str(), 0700) == 0)
+      return xpp_strdup(path.c_str()); /* program.auto_dir: a C string, freed by xpp_cleanup_auto_dir */
     if (errno != EEXIST)
       break;
   }
-  xpp_free(path);
   return NULL;
 }
 
@@ -756,7 +734,6 @@ void xpp_remove_temp_dir(const char *dir)
 {
   DIR *d;
   struct dirent *e;
-  char path[1024];
 
   if (dir == NULL)
     return;
@@ -765,8 +742,7 @@ void xpp_remove_temp_dir(const char *dir)
     while ((e = readdir(d)) != NULL) {
       if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0)
         continue;
-      snprintf(path, sizeof(path), "%s/%s", dir, e->d_name);
-      remove(path);
+      remove(xpp::format("{}/{}", dir, static_cast<const char *>(e->d_name)).c_str());
     }
     closedir(d);
   }
@@ -779,6 +755,24 @@ void xpp_remove_temp_dir(const char *dir)
    "xppautoX-<pid>-N" pattern, and only when kill(pid,0) says ESRCH (no
    such process); a live pid, or one this user has no permission to signal,
    is left alone. */
+namespace {
+
+/* name is exactly "xppautoX-<pid>-<N>" (digits, the pid may be negative as
+   %ld reads it): *pid */
+bool scratch_dir_pid(std::string_view name, long *pid)
+{
+  constexpr std::string_view prefix = "xppautoX-";
+  if (!name.starts_with(prefix)) return false;
+  const char *p = name.data() + prefix.size(), *end = name.data() + name.size();
+  std::from_chars_result r = std::from_chars(p, end, *pid);
+  if (r.ec != std::errc() || r.ptr == end || *r.ptr != '-') return false;
+  int idx;
+  r = std::from_chars(r.ptr + 1, end, idx);
+  return r.ec == std::errc() && r.ptr == end;
+}
+
+} // namespace
+
 void xpp_cleanup_stale_scratch_dirs(void)
 {
   const char *base = getenv("TMPDIR");
@@ -790,14 +784,10 @@ void xpp_cleanup_stale_scratch_dirs(void)
   if (d == NULL) return;
   while ((e = readdir(d)) != NULL) {
     long pid;
-    int idx, n = -1;
-    char path[1024];
-    if (sscanf(e->d_name, "xppautoX-%ld-%d%n", &pid, &idx, &n) != 2) continue;
-    if (n < 0 || e->d_name[n] != '\0') continue;
-    if (kill((pid_t)pid, 0) == 0) continue; /* still running */
-    if (errno != ESRCH) continue;           /* can't tell: leave it alone */
-    snprintf(path, sizeof(path), "%s/%s", base, e->d_name);
-    xpp_remove_temp_dir(path);
+    if (!scratch_dir_pid(e->d_name, &pid)) continue;
+    if (kill(static_cast<pid_t>(pid), 0) == 0) continue; /* still running */
+    if (errno != ESRCH) continue;                       /* can't tell: leave it alone */
+    xpp_remove_temp_dir(xpp::format("{}/{}", base, static_cast<const char *>(e->d_name)).c_str());
   }
   closedir(d);
 }

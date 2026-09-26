@@ -16,39 +16,42 @@
 #include "xpp_util.h"
 #include "xpp_mem.h"
 #include "xpp_io.h"
+#include <array>
+#include <charconv>
+#include <string>
+#include <string_view>
 
 static const char *dl_error;
 
-void *dlopen(const char *name, int flag)
+void *dlopen(const char *name, int)
 {
     HMODULE h = LoadLibraryA(name);
-    (void)flag;
     dl_error = h ? NULL : "LoadLibrary failed";
-    return (void *)h;
+    return reinterpret_cast<void *>(h);
 }
 
 void *dlsym(void *handle, const char *name)
 {
-    FARPROC f = GetProcAddress((HMODULE)handle, name);
+    FARPROC f = GetProcAddress(static_cast<HMODULE>(handle), name);
     dl_error = f ? NULL : "GetProcAddress failed";
-    return (void *)f;
+    return reinterpret_cast<void *>(f);
 }
 
-int dlclose(void *handle) { return FreeLibrary((HMODULE)handle) ? 0 : -1; }
+int dlclose(void *handle) { return FreeLibrary(static_cast<HMODULE>(handle)) ? 0 : -1; }
 
 char *dlerror(void)
 {
     const char *e = dl_error;
     dl_error = NULL;
-    return (char *)e;
+    return const_cast<char *>(e); /* POSIX's type; the text is never written */
 }
 
 /* blocks until stdin has data: xpp_inbox.cpp calls it on its reader thread */
 int xpp_read_stdin(char *buf, int n)
 {
     DWORD got = 0;
-    if (!ReadFile(GetStdHandle(STD_INPUT_HANDLE), buf, (DWORD)n, &got, NULL) || got == 0) return -1;
-    return (int)got;
+    if (!ReadFile(GetStdHandle(STD_INPUT_HANDLE), buf, static_cast<DWORD>(n), &got, NULL) || got == 0) return -1;
+    return static_cast<int>(got);
 }
 
 void xpp_binary_mode(int fd) { _setmode(fd, _O_BINARY); }
@@ -65,30 +68,51 @@ int xpp_replace_file(const char *from, const char *to)
     return MoveFileExA(from, to, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) ? 0 : -1;
 }
 
+namespace {
+
+/* the temp folder, without its trailing backslash; empty when there is none */
+std::string temp_folder()
+{
+    std::array<char, MAX_PATH> base; /* GetTempPathA writes it */
+    DWORD n = GetTempPathA(static_cast<DWORD>(base.size()), base.data());
+    if (n == 0 || n >= base.size()) return std::string();
+    if (base[n - 1] == '\\') n--;
+    return std::string(base.data(), n);
+}
+
+/* name is exactly "xppautoX-<pid>-<N>" (digits): *pid */
+bool scratch_dir_pid(std::string_view name, unsigned long *pid)
+{
+    constexpr std::string_view prefix = "xppautoX-";
+    if (!name.starts_with(prefix)) return false;
+    const char *p = name.data() + prefix.size(), *end = name.data() + name.size();
+    std::from_chars_result r = std::from_chars(p, end, *pid);
+    if (r.ec != std::errc() || r.ptr == end || *r.ptr != '-') return false;
+    int idx;
+    r = std::from_chars(r.ptr + 1, end, idx);
+    return r.ec == std::errc() && r.ptr == end;
+}
+
+} // namespace
+
 /* the Windows side of xpp_util.c's AUTO scratch directory */
 char *xpp_make_temp_dir(void)
 {
-    char base[MAX_PATH];
-    char *path;
-    DWORD n;
-    int i;
-
-    n = GetTempPathA(sizeof(base), base);
-    if (n == 0 || n >= sizeof(base)) return NULL;
-    if (n > 0 && base[n - 1] == '\\') base[--n] = 0;
-    path = (char *)xpp_malloc((size_t)n + 64);
-    for (i = 0; i < 1000; i++) {
-        /* path is a pointer, allocated n+64 bytes just above. */
-        xpp_snprintf(path, (size_t)n + 64, "%s\\xppautoX-%lu-%d", base, (unsigned long)GetCurrentProcessId(), i);
-        if (_mkdir(path) == 0) return path;
+    try {
+        std::string base = temp_folder();
+        if (base.empty()) return NULL;
+        for (int i = 0; i < 1000; i++) {
+            std::string path = xpp::format("{}\\xppautoX-{}-{}", base, static_cast<unsigned long>(GetCurrentProcessId()), i);
+            if (_mkdir(path.c_str()) == 0) return xpp_strdup(path.c_str()); /* program.auto_dir: a C string */
+        }
+    } catch (...) {
     }
-    xpp_free(path);
     return NULL;
 }
 
 static int scratch_pid_running(unsigned long pid)
 {
-    HANDLE h = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, (DWORD)pid);
+    HANDLE h = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, static_cast<DWORD>(pid));
     DWORD code;
     int running;
 
@@ -103,29 +127,22 @@ static int scratch_pid_running(unsigned long pid)
    names a process (or GetExitCodeProcess says it already exited). */
 void xpp_cleanup_stale_scratch_dirs(void)
 {
-    char base[MAX_PATH];
-    char pattern[MAX_PATH + 16];
-    char path[2 * MAX_PATH];
     WIN32_FIND_DATAA fd;
-    HANDLE h;
-    DWORD n = GetTempPathA(sizeof(base), base);
-
-    if (n == 0 || n >= sizeof(base)) return;
-    if (n > 0 && base[n - 1] == '\\') base[--n] = 0;
-    snprintf(pattern, sizeof(pattern), "%s\\xppautoX-*", base);
-    h = FindFirstFileA(pattern, &fd);
-    if (h == INVALID_HANDLE_VALUE) return;
-    do {
-        unsigned long pid;
-        int idx, consumed = -1;
-        if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
-        if (sscanf(fd.cFileName, "xppautoX-%lu-%d%n", &pid, &idx, &consumed) != 2) continue;
-        if (consumed < 0 || fd.cFileName[consumed] != '\0') continue;
-        if (scratch_pid_running(pid)) continue;
-        snprintf(path, sizeof(path), "%s\\%s", base, fd.cFileName);
-        xpp_remove_temp_dir(path);
-    } while (FindNextFileA(h, &fd));
-    FindClose(h);
+    try {
+        std::string base = temp_folder();
+        if (base.empty()) return;
+        HANDLE h = FindFirstFileA(xpp::format("{}\\xppautoX-*", base).c_str(), &fd);
+        if (h == INVALID_HANDLE_VALUE) return;
+        do {
+            unsigned long pid;
+            if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
+            if (!scratch_dir_pid(fd.cFileName, &pid)) continue;
+            if (scratch_pid_running(pid)) continue;
+            xpp_remove_temp_dir(xpp::format("{}\\{}", base, static_cast<const char *>(fd.cFileName)).c_str());
+        } while (FindNextFileA(h, &fd));
+        FindClose(h);
+    } catch (...) {
+    }
 }
 
 /* W13b: xppautX links -mwindows, so no console appears when Explorer or a
@@ -166,26 +183,22 @@ void xpp_win32_attach_console(void)
     if (!AttachConsole(ATTACH_PARENT_PROCESS)) return; /* no console to attach to (Explorer): stay quiet */
     /* freopen can only fail here if the console itself is gone; there is no
        better fallback than leaving the stream as it was */
-    if (!out) (void)freopen("CONOUT$", "w", stdout);
-    if (!err) (void)freopen("CONOUT$", "w", stderr);
-    if (!in) (void)freopen("CONIN$", "r", stdin);
+    auto reopen = [](const char *name, const char *mode, FILE *f) { return freopen(name, mode, f) != nullptr; };
+    if (!out) reopen("CONOUT$", "w", stdout);
+    if (!err) reopen("CONOUT$", "w", stderr);
+    if (!in) reopen("CONIN$", "r", stdin);
 }
 
 void xpp_remove_temp_dir(const char *dir)
 {
     WIN32_FIND_DATAA fd;
-    HANDLE h;
-    char pattern[2 * MAX_PATH];
-    char path[2 * MAX_PATH];
 
     if (dir == NULL) return;
-    snprintf(pattern, sizeof(pattern), "%s\\*", dir);
-    h = FindFirstFileA(pattern, &fd);
+    HANDLE h = FindFirstFileA(xpp::format("{}\\*", dir).c_str(), &fd);
     if (h != INVALID_HANDLE_VALUE) {
         do {
             if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0) continue;
-            snprintf(path, sizeof(path), "%s\\%s", dir, fd.cFileName);
-            DeleteFileA(path);
+            DeleteFileA(xpp::format("{}\\{}", dir, static_cast<const char *>(fd.cFileName)).c_str());
         } while (FindNextFileA(h, &fd));
         FindClose(h);
     }
