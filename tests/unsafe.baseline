@@ -103,11 +103,9 @@ core/marks_data.cpp memory 1
 core/menus.cpp buffers 3
 core/menus.h buffers 3
 core/my_ps.cpp buffers 2
-core/my_ps.cpp casts 3
 core/my_ps.cpp files 2
 core/my_ps.cpp text 51
 core/my_svg.cpp buffers 5
-core/my_svg.cpp casts 7
 core/my_svg.cpp text 224
 core/newpars.h buffers 1
 core/nullcline.cpp buffers 4
@@ -130,7 +128,6 @@ core/pp_shoot.cpp text 1
 core/read_dir.cpp buffers 1
 core/read_dir.cpp memory 6
 core/read_dir.cpp text 1
-core/scrngif.cpp casts 4
 core/scrngif.cpp memory 12
 core/series_enc.cpp buffers 5
 core/series_enc.cpp memory 1
