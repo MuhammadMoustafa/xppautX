@@ -1,9 +1,17 @@
 /* Every input box of the page (T31): one component, its text checked by
-   the validator of its kind (store/fieldKinds.ts) while typed. A text the
-   box does not take is marked (aria-invalid, a short message under it,
-   "A whole number") and is never committed: Enter keeps it and its
-   message, and so does leaving the box, which holds the text, marked,
-   until it is corrected or Escape drops it (never a silent revert).
+   the validator of its kind (store/fieldKinds.ts) while typed. A keystroke,
+   paste or drop that would leave a text the kind does not take, and is not
+   an incomplete prefix of one it does, is refused outright (T35d,
+   fieldAcceptsEdit): the box is left exactly as it was, and a brief
+   aria-live hint names what was wrong (fieldCharMessage/fieldPasteMessage);
+   the box itself is not marked invalid, since its actual text is still
+   fine. A text the box does take but that is left half-typed when the box
+   loses focus ("-", "1e-", a lone "%") is marked (aria-invalid, a message
+   saying what is missing, fieldIncompleteReason) and never committed: it
+   stays, marked, until it is corrected or Escape drops it (never a silent
+   revert). A formula (`%...`) the core itself refuses (WF-001) is marked
+   the same way, from the `error` prop, until it is corrected or Escape
+   drops it back to the value the core has.
 
    Two ways to use it:
    - in a form (`onInput`): the form holds the text and commits the whole
@@ -14,14 +22,23 @@
      Enter or when it loses the focus, only a text it takes and only when
      it differs from what the edit started from (so a value that moved
      under a focused, untouched box is not sent back); `commitAfter` ms
-     after the last keystroke too (the slider's box). Escape drops the
-     draft.
+     after the last keystroke too (the slider's box). The draft is kept,
+     not cleared, until the commit is known to have settled (`settling`
+     false) with no `error`: while the core is still judging a sent
+     formula, or has refused it, the box goes on showing what was sent.
+     Escape drops the draft, whether it is being typed, half-typed, or
+     waiting on (or refused by) the core, and never reaches anything else
+     (the page's hotkeys, a panel's own Escape) while it does: the box
+     handles its own Escape before any of that sees the key.
 
    Number boxes with a `step` step by it with ArrowUp/ArrowDown, as a
    spinner does; a name box suggests its names (a datalist). */
 import type {InputHTMLAttributes} from 'preact';
 import {useEffect, useId, useRef, useState} from 'preact/hooks';
-import {fieldError, fieldIncomplete, fieldInputMode, fieldMessage, type FieldSpec} from '../store/fieldKinds';
+import {
+  fieldAcceptsEdit, fieldCharMessage, fieldError, fieldIncomplete, fieldIncompleteReason, fieldInputMode, fieldMessage,
+  fieldPasteMessage, fieldPasteOffender, type FieldSpec,
+} from '../store/fieldKinds';
 
 type InputAttrs = Omit<InputHTMLAttributes<HTMLInputElement>,
   'value' | 'onInput' | 'onChange' | 'type' | 'step' | 'inputMode' | 'list' | 'onBlur' | 'onFocus'>;
@@ -42,6 +59,12 @@ export interface FieldProps extends InputAttrs {
   check?: (text: string) => string | null;
   /** a message from elsewhere (the core's refusal, a rule between boxes), after the box's own */
   error?: string | null;
+  /** a box on its own: a sent edit is still waiting for the core (the field's own draft is kept,
+      not cleared, until this is false and `error` is not set: WF-001) */
+  settling?: boolean;
+  /** a box on its own: Escape dropped a draft that carried the core's `error` (WF-001) -- the
+      owner's turn to forget that error too, since Field does not hold it */
+  onDropError?: () => void;
   /** number boxes: what ArrowUp/ArrowDown add */
   step?: number | null;
   type?: 'text' | 'search';
@@ -57,8 +80,8 @@ function stepped(v: number, step: number): string {
 
 export function Field(props: FieldProps) {
   const {
-    spec, value, onInput, onCommit, editValue, commitAfter, check, error, step, type = 'text', id, onKeyDown,
-    onFocus, onBlur, ...rest
+    spec, value, onInput, onCommit, editValue, commitAfter, check, error, settling, onDropError, step, type = 'text', id,
+    onKeyDown, onFocus, onBlur, ...rest
   } = props;
   const own = useId();
   const baseId = id ?? `field-${own}`;
@@ -71,8 +94,22 @@ export function Field(props: FieldProps) {
      flagged only then, or once the box is left (fieldIncomplete) */
   const [focused, setFocused] = useState(false);
   const [refused, setRefused] = useState(false);
+  /* a brief note on a keystroke, paste or drop fieldAcceptsEdit turned away (T35d): the box's
+     text did not change, so this never marks the box invalid, and clears on the next accepted
+     edit, a focus change, or Escape */
+  const [hint, setHint] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  /* a sent edit the core refuses (WF-001) arrives after Enter already moved the focus on (a
+     standalone box blurs once its own rules take the text): without this, the box would sit
+     there marked but unfocused, and Escape -- which is the box's own key -- would have nothing
+     to reach it through, so it would fall to the page's hotkeys instead (sent to the core) or a
+     panel's own Escape. Taking the focus back when the refusal lands keeps Escape (and any
+     correction) working on the box the core is actually complaining about. */
+  useEffect(() => {
+    if (standalone && error && !focused) inputRef.current?.focus();
+  }, [standalone, error, focused]);
 
   const text = standalone ? (draft ?? value) : value;
   const messageOf = (t: string): string | null => {
@@ -80,12 +117,26 @@ export function Field(props: FieldProps) {
     const phrase = fieldError(spec, t);
     return phrase ? fieldMessage(phrase) : null;
   };
+  /* the message shown for a text left as it is (typed, or held after Enter/blur): a half-typed
+     text (fieldIncompleteReason) says what is missing, unless this box has its own rules beyond
+     its kind's (`check`, e.g. AutoSettings' "Max points (NMX) must be..."), which say more and
+     always have the last word; anything else falls back to the kind's ordinary message */
+  const shownMessageOf = (t: string): string | null => (check ? null : fieldIncompleteReason(spec, t)) ?? messageOf(t);
   /* a box on its own checks only what is typed into it, not the value it is given */
   const typing = focused && !refused && fieldIncomplete(spec, text);
-  const typed = (standalone && draft === null) || typing ? null : messageOf(text);
+  const typed = (standalone && draft === null) || typing ? null : shownMessageOf(text);
   const message = typed ?? error ?? null;
   const msgId = `${baseId}-msg`;
   const listId = spec.kind === 'name' ? `${baseId}-names` : undefined;
+
+  /* a commit that took (client-side): once it is no longer settling and the core sent back no
+     error, the draft has done its job and the plain value (now the same text) takes over; while
+     it is settling, or the core refused it, the draft (what was sent) stays on screen (WF-001) */
+  useEffect(() => {
+    if (!standalone || draft === null || focused || settling || error) return;
+    if (messageOf(draft.trim()) !== null) return; /* still not what the box takes: stays, marked */
+    setDraft(null);
+  }, [standalone, draft, focused, settling, error]);
 
   const clearTimer = () => {
     if (timer.current) { clearTimeout(timer.current); timer.current = null; }
@@ -103,11 +154,23 @@ export function Field(props: FieldProps) {
   };
   const change = (t: string) => {
     setRefused(false);
+    setHint(null);
     if (!standalone) { onInput?.(t); return; }
     setDraft(t);
     clearTimer();
     if (commitAfter !== undefined && messageOf(t.trim()) === null)
       timer.current = setTimeout(() => { timer.current = null; commit(t); }, commitAfter);
+  };
+  /* the common prefix/suffix of `before` and `after`: `added` is what changed in the middle (a
+     keystroke, a paste, a drop, an IME commit) so it can be checked and named on its own; empty
+     when nothing was inserted (a plain deletion, always let through) */
+  const diffAdded = (before: string, after: string): {prefix: string; added: string; suffix: string} => {
+    let p = 0;
+    while (p < before.length && p < after.length && before[p] === after[p]) p++;
+    let s = 0;
+    while (s < before.length - p && s < after.length - p
+      && before[before.length - 1 - s] === after[after.length - 1 - s]) s++;
+    return {prefix: before.slice(0, p), added: after.slice(p, after.length - s), suffix: before.slice(before.length - s)};
   };
   const spin = (dir: 1 | -1, el: HTMLInputElement) => {
     if (!step || !(step > 0) || (spec.kind !== 'number' && spec.kind !== 'integer')) return false;
@@ -123,11 +186,11 @@ export function Field(props: FieldProps) {
 
   return (
     <>
-      <input {...rest} id={baseId} type={type} value={text} step={step ?? undefined} inputMode={fieldInputMode(spec)}
+      <input {...rest} ref={inputRef} id={baseId} type={type} value={text} step={step ?? undefined} inputMode={fieldInputMode(spec)}
         list={listId} spellcheck={spec.kind === 'text' ? undefined : false}
         autocomplete={spec.kind === 'text' || spec.kind === 'file' ? undefined : 'off'}
         aria-invalid={message ? 'true' : undefined}
-        aria-describedby={message ? msgId : undefined} data-kind={spec.kind}
+        aria-describedby={message || hint ? msgId : undefined} data-kind={spec.kind}
         onFocus={e => {
           setFocused(true);
           if (standalone && draft === null) {
@@ -137,12 +200,35 @@ export function Field(props: FieldProps) {
           }
           onFocus?.(e);
         }}
-        onInput={e => change((e.target as HTMLInputElement).value)}
+        onInput={e => {
+          const el = e.target as HTMLInputElement;
+          const attempted = el.value;
+          const {prefix, added, suffix} = diffAdded(text, attempted);
+          /* nothing inserted (a deletion): always let it through; an insertion the kind never
+             takes, and is not on the way to something it does, is refused outright (T35d): the
+             box's text does not change, only a brief hint says why */
+          if (added && !fieldAcceptsEdit(spec, attempted)) {
+            el.value = text;
+            const at = Math.max(0, Math.min(prefix.length, text.length));
+            try { el.setSelectionRange(at, at); } catch { /* not every input type supports it */ }
+            if (added.length === 1) setHint(fieldCharMessage(spec, prefix, added));
+            else {
+              const offender = fieldPasteOffender(spec, prefix, added, suffix) ?? {ch: added[0], index: 1};
+              setHint(fieldPasteMessage(spec, added, offender));
+            }
+            return;
+          }
+          change(attempted);
+        }}
         onBlur={e => {
           setFocused(false);
+          setHint(null);
           if (standalone) {
             if (dropped.current) { dropped.current = false; clearTimer(); setDraft(null); }
-            else if (draft !== null && commit(draft)) setDraft(null);
+            /* the draft is kept, marked, when it is not what the box takes (half-typed) or the
+               commit is still settling or the core refused it (WF-001); the effect above drops
+               it once a commit is known to have settled cleanly */
+            else if (draft !== null) commit(draft);
           }
           onBlur?.(e);
         }}
@@ -158,8 +244,12 @@ export function Field(props: FieldProps) {
             }
             if (standalone) { e.preventDefault(); el.blur(); }
           } else if (e.key === 'Escape' && standalone) {
+            /* the box's own key: it drops the draft (typed, half-typed, settling or refused by
+               the core) and never reaches the page's hotkeys or a panel's own Escape (UX-001) */
             e.stopPropagation();
+            setHint(null);
             dropped.current = true;
+            if (error) onDropError?.();
             el.blur();
           } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.altKey && !e.ctrlKey && !e.metaKey) {
             if (spin(e.key === 'ArrowUp' ? 1 : -1, el)) e.preventDefault();
@@ -170,7 +260,10 @@ export function Field(props: FieldProps) {
       {listId && spec.kind === 'name' && (
         <datalist id={listId}>{spec.names.map(n => <option key={n} value={n} />)}</datalist>
       )}
-      {message && <p class="field-error" id={msgId} aria-live="polite">{message}</p>}
+      {/* a refused keystroke/paste/drop (hint) never marks the box invalid: its text did not
+          change. It takes priority only while nothing else is shown (a marked box's own message
+          says more). */}
+      {(hint || message) && <p class="field-error" id={msgId} aria-live="polite">{message || hint}</p>}
     </>
   );
 }

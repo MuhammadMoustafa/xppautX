@@ -40,8 +40,22 @@ initial conditions it can import into.
 - **Initial conditions and parameters** are always visible. A value takes
   effect when you leave the field (Tab, Enter or a click elsewhere), so
   typing a value and clicking Integrate uses the value you typed. There is
-  no Ok/Cancel for the whole box; Escape puts back the value that was there.
-- A field takes a number or a `%formula`, as the X11 boxes do: `%2*pi`.
+  no Ok/Cancel for the whole box; Escape puts back the value that was there
+  -- always the field's own key first, wherever the focus is, even while a
+  panel that opens as a full-screen sheet on a narrow screen would
+  otherwise close on Escape too: the first Escape belongs to the field, a
+  second one (with nothing left to drop) closes the sheet.
+- A field takes a number or a `%formula`, as the X11 boxes do: `%2*pi`. A
+  keystroke, a paste or a drop that would leave text the field never takes,
+  and is not on the way to one it does, is refused outright: the field's
+  text does not change, only a brief message says why (typing `0.05abc`
+  into a number field types `0.05` and no more). A `%formula` is judged by
+  XPP itself once you leave the field or press Enter; one it refuses (an
+  unknown name, say) stays in the field, marked, with XPP's own message,
+  until you fix it or Escape drops it back to the field's last good value.
+  A number left half-typed when you leave the field (`-`, `1e-`, a lone
+  `%`) is marked the same way, saying what is missing, and is never
+  reverted for you.
 - **Default** puts back the values from the ODE file.
 - **The checkboxes** next to the variables pick what **x vs t**, **Phase**
   and **Array** plot, like xvst, pp and arry in X11.

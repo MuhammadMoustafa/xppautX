@@ -76,6 +76,10 @@ export type ValuesAction =
   | {type: 'edit'; edit: ValueEdit}
   | {type: 'undo'}
   | {type: 'error'; text: string}
+  /** Escape dropped a draft that carried the core's refusal for `field` (WF-001, ui/Field.tsx
+      onDropError): the box goes back to what the core has, so its error is forgotten too,
+      without sending anything */
+  | {type: 'clearError'; field: string}
   | {type: 'settled'}
   /** the Default button: values from the ODE file (docs/protocol.md `default`); not itself undoable (A12) */
   | {type: 'defaulted'; kind: ValueKind}
@@ -110,6 +114,10 @@ export function reduceValues(state: ValuesState, action: ValuesAction): ValuesSt
     }
     case 'error':
       return state.pending ? {...state, errors: {...state.errors, [state.pending]: action.text}} : state;
+    case 'clearError': {
+      const errors = omit(state.errors, action.field);
+      return errors === state.errors ? state : {...state, errors};
+    }
     case 'settled':
       return state.pending ? {...state, pending: null} : state;
     case 'defaulted': {

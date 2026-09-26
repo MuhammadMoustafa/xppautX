@@ -40,6 +40,18 @@ test('a new edit on a field clears its stale error', () => {
   assert.equal(s.errors['par:iapp'], undefined);
 });
 
+test('clearError (Escape dropping a core refusal, WF-001) forgets one field\'s error and nothing else', () => {
+  let s = reduceValues(initialValues, {type: 'edit', edit: edit({kind: 'par', name: 'iapp', previous: '0.05'})});
+  s = reduceValues(s, {type: 'error', text: 'Bad formula'});
+  s = reduceValues(s, {type: 'edit', edit: edit({kind: 'ic', name: 'v', previous: '-0.2'})});
+  s = reduceValues(s, {type: 'error', text: 'Bad formula'});
+  assert.deepEqual(s.errors, {'par:iapp': 'Bad formula', 'ic:v': 'Bad formula'});
+  s = reduceValues(s, {type: 'clearError', field: 'par:iapp'});
+  assert.deepEqual(s.errors, {'ic:v': 'Bad formula'});
+  const s2 = reduceValues(s, {type: 'clearError', field: 'par:iapp'});
+  assert.equal(s2, s, 'nothing to clear: the same state');
+});
+
 test('undo pops the last edit, re-pends its field, and clears its error', () => {
   let s = reduceValues(initialValues, {type: 'edit', edit: edit({kind: 'par', name: 'iapp', previous: '0.05'})});
   s = reduceValues(s, {type: 'edit', edit: edit({kind: 'ic', name: 'v', previous: '-0.2'})});

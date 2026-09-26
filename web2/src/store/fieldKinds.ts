@@ -145,6 +145,86 @@ export function fieldsValid(specs: readonly FieldSpec[], texts: readonly string[
   return specs.every((s, i) => fieldError(s, texts[i] ?? '') === null);
 }
 
+/* ---- what a box lets through while it is typed (T35d): a keystroke, a paste or a drop is
+   taken only when the resulting text is what the kind takes, or an incomplete prefix of it
+   (fieldError/fieldIncomplete above); a number with a formula lets anything through once it
+   starts with '%', since the core judges it (WF-001). expression/name/file/text are never
+   filtered here: their check runs only on commit. Nothing is ever stripped or silently
+   changed; a refused edit leaves the box exactly as it was, with a message (below). */
+export function fieldAcceptsEdit(spec: FieldSpec, text: string): boolean {
+  const t = text.trim();
+  if (spec.kind === 'number' && spec.formula && t.startsWith('%')) return true;
+  if (spec.kind === 'integer') return INTEGER_START.test(t) || INTEGER.test(t);
+  if (spec.kind === 'number') return DECIMAL_START.test(t) || DECIMAL.test(t);
+  return true;
+}
+
+/** "a number", "a whole number", ... the noun a kind's messages name it by */
+function kindNoun(spec: FieldSpec): string {
+  if (spec.kind === 'integer') return 'a whole number';
+  if (spec.kind === 'number') return spec.formula ? 'a number or formula' : 'a number';
+  return 'that';
+}
+
+/** a number/integer-only reason for refusing `ch` right after `before`, more specific than
+    "can't go in": a second decimal point, one after the exponent, or a second e */
+function numberCharReason(before: string, ch: string): string | null {
+  const b = before.trim();
+  if (ch === '.') {
+    if (/e/i.test(b)) return "A number's exponent takes no decimal point";
+    if (b.includes('.')) return 'A number has one decimal point';
+  }
+  if ((ch === 'e' || ch === 'E') && /e/i.test(b)) return 'A number has one e';
+  return null;
+}
+
+/** the message for one refused character typed after `before` (a keystroke fieldAcceptsEdit
+    turned away): names the character, or a more specific reason when there is one */
+export function fieldCharMessage(spec: FieldSpec, before: string, ch: string): string {
+  if (spec.kind === 'number') {
+    const specific = numberCharReason(before, ch);
+    if (specific) return specific;
+  }
+  return `"${ch}" can't go in ${kindNoun(spec)}`;
+}
+
+function shorten(text: string): string {
+  return text.length > 24 ? `${text.slice(0, 21)}...` : text;
+}
+
+/** the first character of `added` (inserted between `before` and `after`, a paste or a drop)
+    that a keystroke-by-keystroke typing of it would have refused, or null when all of it is
+    taken */
+export function fieldPasteOffender(spec: FieldSpec, before: string, added: string, after: string):
+  {ch: string; index: number} | null {
+  let acc = before;
+  for (let i = 0; i < added.length; i++) {
+    const next = acc + added[i];
+    if (!fieldAcceptsEdit(spec, next + after)) return {ch: added[i], index: i + 1};
+    acc = next;
+  }
+  return null;
+}
+
+/** the message for a refused paste or drop: the text pasted (shortened), what kind it is not,
+    and where in it the first bad character is */
+export function fieldPasteMessage(spec: FieldSpec, pasted: string, offender: {ch: string; index: number}): string {
+  return `Pasted "${shorten(pasted)}" is not ${kindNoun(spec)} ("${offender.ch}" at character ${offender.index})`;
+}
+
+/** why `text` is left marked and uncommitted when the box it is in loses focus half-typed
+    (fieldIncomplete: "-", "1e-", a lone "%", ...): what finishing it needs, or null to fall
+    back to the kind's ordinary message (fieldError) */
+export function fieldIncompleteReason(spec: FieldSpec, text: string): string | null {
+  const t = text.trim();
+  if (!fieldIncomplete(spec, t)) return null;
+  if (spec.kind === 'number' && spec.formula && t === '%') return '"%" needs a formula';
+  if (/e[+-]?$/i.test(t)) return `"${t}" needs an exponent's digits`;
+  if (t === '-' || t === '+') return `"${t}" needs ${kindNoun(spec)}`;
+  if (t === '.' || t === '-.' || t === '+.') return `"${t}" needs digits`;
+  return null;
+}
+
 /** the input mode the box asks the on-screen keyboard for */
 export function fieldInputMode(spec: FieldSpec): 'numeric' | 'decimal' | 'text' {
   return entry(spec).inputMode(spec as never);

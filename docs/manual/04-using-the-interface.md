@@ -188,14 +188,30 @@ Every box checks what you type as you type it, by what it asks for:
 | a file name | a name only: no folder, no leading dot, none of `\ / : * ? " < > \|` | Save's file name, the frames' base name |
 | text | anything | labels, search boxes |
 
-Some also have a range (Ncol from 2 to 7, a Step above 0). A box that does
-not take its text has a red border and says what it wants under it ("A
-whole number", "A number, or %formula such as %2*pi"). Such a text is never
+Some also have a range (Ncol from 2 to 7, a Step above 0). A keystroke, a
+paste or a drop that would leave a box with text it never takes, and that
+is not on the way to text it does (a stray letter in a number box, say,
+or a second decimal point), is refused outright: the box's text does not
+change, and a brief message under it names what was wrong (typing
+`0.05abc` into a number box types `0.05` and no more; pasting `0.05abc`
+over a box leaves it as it was and names the pasted text and where in it
+the trouble starts). The box is not marked invalid for this, since its
+actual text is still fine.
+
+A box that is left with text that is not what it takes once you leave it
+or press Enter — a half-typed number (`-`, `1e-`, a lone `%`) has a red
+border and says what is missing ("`1e-` needs an exponent's digits"); a
+`%formula` XPP itself refuses once you leave the field (an unknown name,
+say) is marked the same way, with XPP's own message. Such a text is never
 sent: Enter does nothing, a dialog's OK is disabled, and leaving the box
 keeps the text there, still marked, until you correct it or press Escape,
-which puts back the value that was there. Nothing is silently changed
-back. The core's own asks say what each field wants (the protocol's
-`kinds`); a field they do not describe takes any text, as before.
+which puts back the value that was there — always the box's own key
+first, wherever the focus is: even a panel that closes on Escape (the
+values panel as a narrow-screen sheet, say) lets a marked box inside it
+drop its own text on the first Escape before a second one closes the
+panel. Nothing is silently changed back. The core's own asks say what
+each field wants (the protocol's `kinds`); a field they do not describe
+takes any text, as before.
 
 ## Long-running commands
 

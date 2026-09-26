@@ -689,6 +689,40 @@ async function textViews() {
   check('Back closes the text panel', await until('!s.text.open', 'close text'));
 }
 
+/* UX-001 (GitHub #76): at a narrow viewport the values panel is a full-screen sheet, and Escape
+   also closes it (ValuesPanel.tsx) -- but a field with something of its own to drop (a
+   half-typed or core-refused draft, Field.tsx) must get the key first: the first Escape belongs
+   to the field, and only a second one (nothing left to drop) closes the sheet. */
+async function valuesNarrowEscape() {
+  await editField('par', 'iapp', '0.05');
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 546, height: 900, deviceScaleFactor: 1, mobile: false});
+  await sleep(200);
+  await cdp.eval(`document.querySelector('.values-toggle').click()`);
+  await until('s.valuesOpen', 'the sheet opens (546px)');
+  await sleep(150);
+  await cdp.eval(`${fieldOf('par', 'iapp')}.querySelector('input').focus()`);
+  await typeIntoField('par', 'iapp', '1e');
+  await key('Enter');
+  await sleep(80);
+  let box = await fieldState('par', 'iapp');
+  check('UX-001: Enter on "1e" refuses it and keeps the box focused, marked',
+    box.invalid === 'true' && box.value === '1e' && box.focused && box.message === '"1e" needs an exponent\'s digits',
+    JSON.stringify(box));
+  await key('Escape');
+  await sleep(120);
+  box = await fieldState('par', 'iapp');
+  const open1 = await cdp.eval(`document.querySelector('.values-panel').classList.contains('open')`);
+  check('UX-001: the first Escape belongs to the field: it drops the draft and the sheet stays open',
+    box.invalid === null && close6(Number(box.value), 0.05) && open1, JSON.stringify({box, open1}));
+  await key('Escape');
+  await sleep(300);
+  const open2 = await cdp.eval(`document.querySelector('.values-panel').classList.contains('open')`);
+  check('UX-001: a second Escape, with nothing left to drop, closes the sheet',
+    open2 === false && !(await S('s.valuesOpen')), JSON.stringify({open2}));
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+  await sleep(150);
+}
+
 async function keyboardOnly() {
   /* Tab from the top of the page to the plot */
   await cdp.eval('document.activeElement && document.activeElement.blur()');
@@ -1499,8 +1533,9 @@ async function prompts() {
   await pickX('V');
   check('and V again: W against V', await until('!s.busy && w.series.curves[0].x === 1 && w.series.curves[0].y === 2', 'W vs V'));
 
-  /* T31: the form's fields take what the core says they take (the ask's kinds): letters in a
-     number field are marked with a message, OK is disabled and Enter answers nothing */
+  /* T35d/T31: the form's fields take what the core says they take (the ask's kinds): a keystroke
+     a number field never takes (a letter) is refused outright and never lands (T35d); one left
+     half-typed ("1e") is marked with a message, OK is disabled and Enter answers nothing */
   await focusPlot();
   await menuKeys('v', '2');
   await until("s.ask && s.ask.kind === 'form' && document.querySelector('[role=dialog] input')", 'form');
@@ -1508,16 +1543,24 @@ async function prompts() {
   const answers = async () => (await cdp.eval('__xpp.sent()')).filter(c => c.cmd === 'answer').length;
   const answers0 = await answers();
   const numberBox = `document.querySelector('[role=dialog] input[data-kind=number]')`;
+  const numberBoxState = () => cdp.eval(`(() => { const i = ${numberBox}, m = i.closest('label').querySelector('.field-error');
+    return {invalid: i.getAttribute('aria-invalid'), value: i.value, message: m && m.textContent, mode: i.inputMode}; })()`);
+  const before = await numberBoxState();
   await cdp.eval(`(() => { const i = ${numberBox}; i.focus(); i.value = 'abc'; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await sleep(80);
+  const keystroke = await numberBoxState();
+  check('T35d: a letter a number field never takes is refused outright: the box keeps its own text, unmarked',
+    keystroke.value === before.value && keystroke.invalid === null && !!keystroke.message, JSON.stringify(keystroke));
+  await cdp.eval(`(() => { const i = ${numberBox}; i.value = '1e'; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   await sleep(80);
   await key('Enter');
   await sleep(200);
   const refused = await cdp.eval(`(() => { const i = ${numberBox}, m = i.closest('label').querySelector('.field-error');
     return {invalid: i.getAttribute('aria-invalid'), message: m && m.textContent, mode: i.inputMode,
       ok: document.querySelector('[role=dialog] .dialog-actions .primary').disabled}; })()`);
-  check('T31: letters in a number field of a form (Viewaxes/2D Xmin) are refused: marked, "A number", OK disabled, Enter answers nothing',
-    refused.invalid === 'true' && refused.message === 'A number' && refused.mode === 'decimal' && refused.ok === true
-    && (await answers()) === answers0 && await S(`!!s.ask && s.ask.id === ${formId}`), JSON.stringify(refused));
+  check('T31: "1e" left half-typed in a number field (Viewaxes/2D Xmin) is refused: marked, says what is missing, OK disabled, Enter answers nothing',
+    refused.invalid === 'true' && refused.message === '"1e" needs an exponent\'s digits' && refused.mode === 'decimal'
+    && refused.ok === true && (await answers()) === answers0 && await S(`!!s.ask && s.ask.id === ${formId}`), JSON.stringify(refused));
   await key('Escape');
   await until('!s.ask && !s.busy', 'form cancelled');
   /* ... and a number-or-formula box (new_float: nUmerics/Total) takes a %formula, sent as typed */
@@ -1836,19 +1879,27 @@ async function autoView(dir) {
     const e = i.closest('label').querySelector('.field-error');
     return {invalid: i.getAttribute('aria-invalid'), error: e ? e.textContent : null,
       ok: document.querySelector('.auto-settings-dialog .dialog-actions .primary').disabled}; })()`);
+  /* T35d: a decimal point never lands in an integer field: refused outright, named, nothing
+     commits, so "12.5" can never actually reach the field (the point at issue for T23's message
+     below, "must be a whole number", stays reachable only for a text the filter cannot see,
+     such as a lone sign) */
+  await typeInto('nmx', '12');
   await typeInto('nmx', '12.5');
-  const floatNmx = await fieldState('nmx');
-  check('T23: a float in an integer field (Max points 12.5) is refused beside it, OK disabled',
-    floatNmx.invalid === 'true' && floatNmx.error === 'Max points (NMX) must be a whole number, not 12.5' && floatNmx.ok === true,
-    JSON.stringify(floatNmx));
-  /* T31: Enter in it keeps the form and its message, sends nothing; the box is a whole-number box */
+  const dottedNmx = await fieldState('nmx');
+  check('T35d: a decimal point in an integer field (Max points) is refused outright: unmarked, kept at 12',
+    dottedNmx.invalid === null && dottedNmx.error === 'Pasted ".5" is not a whole number ("." at character 1)'
+    && dottedNmx.ok === false, JSON.stringify(dottedNmx));
+  /* T31: a lone sign is on the way to a whole number while typed (fieldIncomplete), so it lands;
+     Enter on it keeps the form and its message (numError's own wording), sends nothing */
+  await typeInto('nmx', '-');
   await cdp.eval(`document.querySelector('.auto-settings-dialog input[data-field=nmx]').focus()`);
   await key('Enter');
   await sleep(200);
-  check('T31: Enter in an integer AUTO Numerics field holding 12.5 keeps the form open and sends nothing',
-    await cdp.eval(`!!document.querySelector('.auto-settings-dialog') && document.querySelector('.auto-settings-dialog input[data-field=nmx]').dataset.kind === 'integer'
-      && document.querySelector('.auto-settings-dialog input[data-field=nmx]').inputMode === 'numeric'`)
-    && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set')`)));
+  const signNmx = await fieldState('nmx');
+  check('T31: Enter on a lone "-" in an integer AUTO Numerics field keeps the form open, marked, and sends nothing',
+    signNmx.invalid === 'true' && signNmx.error === 'Max points (NMX) must be a whole number' && signNmx.ok === true
+    && await cdp.eval(`!!document.querySelector('.auto-settings-dialog')`)
+    && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set')`)), JSON.stringify(signNmx));
   await typeInto('nmx', '200');
   await typeInto('ds', '9');
   const bigDs = await fieldState('ds');
@@ -2555,6 +2606,21 @@ async function editField(sec, name, text) {
   await cdp.eval(`${fieldOf(sec, name)}.querySelector('input').blur()`);
   await sleep(20);
 }
+/** one `input` event carrying the whole new text, as a keystroke, a paste or a drop would (T35d):
+    focuses the field first (unless already focused) but does not blur, so a refused edit's brief
+    hint can still be read afterward */
+async function typeIntoField(sec, name, text) {
+  await cdp.eval(`(() => { const el = ${fieldOf(sec, name)}.querySelector('input');
+    if (document.activeElement !== el) el.focus();
+    el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await sleep(60);
+}
+/** a field's box as the page shows it: its aria-invalid, its text, its message (if any) and
+    whether it still has the focus */
+const fieldState = (sec, name) => cdp.eval(`(() => { const f = ${fieldOf(sec, name)}, i = f.querySelector('input'),
+    m = f.querySelector('.field-error');
+  return {invalid: i.getAttribute('aria-invalid'), value: i.value, message: m ? m.textContent : null,
+    focused: document.activeElement === i}; })()`);
 const icsOf = 'JSON.stringify(s.core.ics.map(p => p[1]))';
 const icFields = () => cdp.eval(`JSON.stringify([...document.querySelectorAll('[data-section="ic"] .value-field input')].map(i => i.value))`);
 const nowCells = () => cdp.eval(`JSON.stringify([...document.querySelectorAll('.value-now')].map(o => o.textContent))`);
@@ -2864,31 +2930,84 @@ async function valuesLive() {
     && Math.abs(Number(out[0].text) - (await S('s.core.pars.find(p => p[0] === "iapp")[1]'))) < 1e-12,
     JSON.stringify({busyThen, during, shown, out}));
 
-  /* T31: a parameter box takes a number or %formula only: letters are refused with a message and
-     stay in the box, marked (no silent revert); nothing is sent, Enter included; Escape drops them */
+  /* T35d: a parameter box takes a number or %formula only, and refuses outright, while typed, a
+     keystroke or a paste that would leave a text it does not take and is not on the way to one
+     it does (fieldAcceptsEdit): the box's own text never changes, so it is not marked invalid,
+     only a brief hint says why; nothing is sent. */
   await until('!s.busy', 'idle', 60000);
+  await editField('par', 'iapp', '1');
   const iapp0 = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
   const sent2 = await cdp.eval('__xpp.sent().length');
-  await editField('par', 'iapp', 'abc');
-  await cdp.eval(`${fieldOf('par', 'iapp')}.querySelector('input').focus()`);
-  await key('Enter');
-  await sleep(300);
-  const box = await cdp.eval(`(() => { const f = ${fieldOf('par', 'iapp')}, i = f.querySelector('input'), m = f.querySelector('.field-error');
-    return {invalid: i.getAttribute('aria-invalid'), value: i.value, message: m && m.textContent, focused: document.activeElement === i}; })()`);
-  check('T31: letters in a parameter box are refused: marked, "A number, or %formula such as %2*pi", kept, nothing sent (Enter neither)',
-    box.invalid === 'true' && box.value === 'abc' && box.message === 'A number, or %formula such as %2*pi' && box.focused
-    && (await cdp.eval(`__xpp.sent().length`)) === sent2, JSON.stringify({box, sent: await cdp.eval(`__xpp.sent().slice(${sent2})`)}));
-  await key('Escape');
-  await sleep(100);
-  const dropped = await cdp.eval(`(() => { const i = ${fieldOf('par', 'iapp')}.querySelector('input'); return {invalid: i.getAttribute('aria-invalid'), value: i.value}; })()`);
-  check('T31: Escape drops the refused text: the box shows the value again, unmarked',
-    dropped.invalid === null && close6(Number(dropped.value), iapp0), JSON.stringify({dropped, iapp0}));
-  /* a %formula is taken and sent as typed; the core evaluates it */
-  await editField('par', 'iapp', '%0.01*6');
-  check('T31: a %formula in a parameter box is sent as typed and the core evaluates it',
-    await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.06) < 1e-12', 'iapp = %0.01*6', 60000)
-    && (await cdp.eval(`__xpp.sent().slice(${sent2})`)).some(c => c.cmd === 'set' && c.text === '%0.01*6'),
+  /* a whole paste over a selection, none of it sharing a prefix with what was there: "0.05abc"
+     itself is named, since all of it is what was pasted */
+  await typeIntoField('par', 'iapp', '0.05abc');
+  let box = await fieldState('par', 'iapp');
+  check('T35d: pasting "0.05abc" over the box\'s text lands none of it: the box reads 1, unmarked, and names it whole',
+    box.value === '1' && box.invalid === null
+    && box.message === 'Pasted "0.05abc" is not a number or formula ("a" at character 5)', JSON.stringify(box));
+  await editField('par', 'iapp', '0.05');
+  await typeIntoField('par', 'iapp', '0.05a');
+  box = await fieldState('par', 'iapp');
+  check('T35d: a refused keystroke ("a" after 0.05) never lands: the box still reads 0.05, unmarked, with a hint',
+    box.value === '0.05' && box.invalid === null && box.message === '"a" can\'t go in a number or formula', JSON.stringify(box));
+  /* the box already reads "0.05": only "abc" is new, so that is what is named (not the whole
+     resulting text, which was never actually typed or pasted) */
+  await typeIntoField('par', 'iapp', '0.05abc');
+  box = await fieldState('par', 'iapp');
+  check('T35d: a refused paste ("abc" appended at once) lands none of it: the box reads 0.05, unmarked, and names the offender',
+    box.value === '0.05' && box.invalid === null
+    && box.message === 'Pasted "abc" is not a number or formula ("a" at character 1)', JSON.stringify(box));
+  check('T35d: a refused keystroke/paste sends nothing', (await cdp.eval('__xpp.sent().length')) === sent2,
     JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sent2})`)));
+
+  /* half-typed and left ("1e-" is on the way to a number while typed, so no message while it is
+     focused): a blur marks it, keeps it (never reverted, never sent) and says what is missing */
+  await typeIntoField('par', 'iapp', '1e-');
+  await cdp.eval(`${fieldOf('par', 'iapp')}.querySelector('input').blur()`);
+  await sleep(80);
+  box = await fieldState('par', 'iapp');
+  check('T35d: "1e-" left half-typed is marked, kept, and says what is missing',
+    box.value === '1e-' && box.invalid === 'true' && box.message === '"1e-" needs an exponent\'s digits', JSON.stringify(box));
+  check('T35d: a half-typed number is never sent', (await cdp.eval('__xpp.sent().length')) === sent2);
+
+  /* Escape belongs to the field: it drops the half-typed text, wherever the focus went */
+  await cdp.eval(`${fieldOf('par', 'iapp')}.querySelector('input').focus()`);
+  await key('Escape');
+  await sleep(80);
+  let dropped = await fieldState('par', 'iapp');
+  check('T35d: Escape drops the half-typed text: the box shows the value again, unmarked',
+    dropped.invalid === null && close6(Number(dropped.value), iapp0), JSON.stringify({dropped, iapp0}));
+
+  /* WF-001: a %formula the box takes (its own rules say nothing against it) can still be one the
+     core refuses (an unknown symbol): the box keeps showing what was sent, marked, with the
+     core's own message, while it is still waiting and after it is refused -- never reverted to
+     the old value behind the user's back. Escape then drops it, back to what the core has. */
+  await editField('par', 'iapp', '%0.02');
+  await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.02) < 1e-12', 'iapp = %0.02', 60000);
+  const sent3 = await cdp.eval('__xpp.sent().length');
+  await cdp.eval(`(() => { const el = ${fieldOf('par', 'iapp')}.querySelector('input');
+    el.focus(); el.value = '%bogus_symbol_zzz'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await key('Enter');
+  await until(`!s.busy && s.values.errors['par:iapp']`, 'the core refuses %bogus_symbol_zzz');
+  box = await fieldState('par', 'iapp');
+  check('WF-001: a formula the core refuses keeps its draft, marked, with the core\'s message, and takes the focus back',
+    box.value === '%bogus_symbol_zzz' && box.invalid === 'true' && !!box.message && box.focused
+    && Math.abs((await S('s.core.pars.find(p => p[0] === "iapp")[1]')) - 0.02) < 1e-12, JSON.stringify(box));
+  await key('Escape');
+  await sleep(80);
+  dropped = await fieldState('par', 'iapp');
+  check('WF-001: Escape drops the refused formula: the field is valid again and shows what the core has',
+    dropped.invalid === null && close6(Number(dropped.value), 0.02) && !(await S(`s.values.errors['par:iapp']`)),
+    JSON.stringify(dropped));
+  check('WF-001: only the one formula the core refused was sent', (await cdp.eval('__xpp.sent().length')) === sent3 + 1,
+    JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sent3})`)));
+
+  /* a %formula the core takes is sent as typed and evaluated */
+  await editField('par', 'iapp', '%0.01*6');
+  check('a %formula in a parameter box is sent as typed and the core evaluates it',
+    await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.06) < 1e-12', 'iapp = %0.01*6', 60000)
+    && (await cdp.eval(`__xpp.sent().slice(${sent3})`)).some(c => c.cmd === 'set' && c.text === '%0.01*6'),
+    JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sent3})`)));
 }
 
 /* tools/models/live.ode: 20 001 rows in about two seconds */
@@ -3425,6 +3544,7 @@ async function main() {
          defaults */
       await dataTable(want);
       await values();
+      await valuesNarrowEscape();
       await keyboardOnly();
       await phone();
       await prompts();
@@ -3445,7 +3565,9 @@ async function main() {
     if (run('ani')) await session(ODE, animation);
     if (run('kinescope')) await session(ODE, kinescope);
     if (run('runs')) await session(ODE, runsCheck);
-    if (run('values')) await session(LIVE, valuesLive);
+    /* WF-001: %bogus_symbol_zzz is refused on purpose, logging the core's own "Illegal formula
+       .." (xpp_util.cpp) and "Bad formula" (json_state.cpp apply_value) */
+    if (run('values')) await session(LIVE, valuesLive, ['Illegal formula ..', 'Bad formula']);
     if (run('help')) await session(ODE, helpCheck);
   } finally {
     b.proc.kill();

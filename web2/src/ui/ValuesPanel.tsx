@@ -92,6 +92,9 @@ function ValueField({kind, label, name, index, display, full, hint, spec, extra}
   const session = useSession();
   const field = fieldKey(kind, index ?? name!);
   const error = useStore(s => s.values.errors[field]);
+  /* a sent edit still awaiting the core's reply (values.pending): the field's draft stays put
+     until this clears with no error, so a formula the core refuses keeps showing it (WF-001) */
+  const settling = useStore(s => s.values.pending === field);
   const queued = useStore(s => isQueued(s.values.queue, field));
   const def = useStore(s => (kind === 'par' || kind === 'ic' ? s.values.defaults?.[field] ?? null : null));
   const id = `value-${field}`.replace(/[^\w-]/g, '_');
@@ -108,6 +111,7 @@ function ValueField({kind, label, name, index, display, full, hint, spec, extra}
     <div class={'value-field' + (queued ? ' queued' : '') + (changed ? ' changed' : '')}>
       <label htmlFor={id} class="value-name" title={label}>{label}</label>
       <Field id={id} spec={spec} value={display} editValue={full} onCommit={commit} error={error ?? null}
+        settling={settling} onDropError={() => session.store.dispatch({type: 'values', action: {type: 'clearError', field}})}
         title={title} data-queued={queued ? '1' : undefined} />
       {extra}
       {def !== null && name !== undefined && (
@@ -279,15 +283,18 @@ export function ValuesPanel() {
   useEffect(() => {
     if (!open) return;
     panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
-    /* Escape closes the sheet wherever the focus is inside it (narrow only: CSS keeps it open elsewhere) */
+    /* Escape closes the sheet wherever the focus is inside it (narrow only: CSS keeps it open
+       elsewhere) -- but a field with a draft, half-typed text or a core refusal handles its own
+       Escape first (Field.tsx: it stops the key there) and the sheet stays open (UX-001); only a
+       focused control with no Escape of its own (a button, ...) falls through to close it. Not
+       capture: it must run after the field's own bubble-phase handler, not before it. */
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || session.store.getState().ask) return;
       e.preventDefault();
-      e.stopPropagation();
       close();
     };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
   const last = history[history.length - 1];
