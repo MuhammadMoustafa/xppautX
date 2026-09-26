@@ -11,16 +11,16 @@ static double time_start (void) {
   struct rusage time;
   double seconds,microseconds;
   getrusage(RUSAGE_SELF,&time);
-  seconds = (double)time.ru_utime.tv_sec;
-  microseconds = (double)time.ru_utime.tv_usec;
+  seconds = static_cast<double>(time.ru_utime.tv_sec);
+  microseconds = static_cast<double>(time.ru_utime.tv_usec);
   return seconds + microseconds/1e6;
 }
 static double time_end(double start) {
   struct rusage time;
   double seconds,microseconds;
   getrusage(RUSAGE_SELF,&time);
-  seconds = (double)time.ru_utime.tv_sec;
-  microseconds = (double)time.ru_utime.tv_usec;
+  seconds = static_cast<double>(time.ru_utime.tv_sec);
+  microseconds = static_cast<double>(time.ru_utime.tv_usec);
   return (seconds + microseconds/1e6)-start;
 }
 #endif
@@ -154,7 +154,7 @@ void *conpar_process(void * arg)
 	  int b_offset1 = b_dim1*(-1 + irf_ir_i + b_dim2*i);
 	  rm = a[-1 + icf_ic_i + a_dim1*(-1 + irf_ir_i + a_dim2*i)]/a[-1 + icf_ic_i + a_dim1*(-1 + irf_irp_i + a_dim2*i)];
 	  a[-1 + icf_ic_i + a_dim1*(-1 + irf_ir_i + a_dim2*i)] = rm;
-	  if (rm != (double)0.) {
+	  if (rm != 0.) {
 	    for (l = 0; l < *nov; ++l) {
 	      a[l + a_offset1] -= rm * a[l + a_offset2];
 	    }
@@ -172,7 +172,7 @@ void *conpar_process(void * arg)
 	  int d_offset1 = (-1 + ir)*d_dim1;
 	  rm = c[-1 + icf_ic_i + c_dim1*(-1 + ir + c_dim2*i)]/a[-1 + icf_ic_i + a_dim1*(-1 + irf_irp_i + a_dim2*i)];
 	  c[-1 + icf_ic_i + c_dim1*(-1 + ir + c_dim2*i)]=rm;
-	  if (rm != (double)0.) {
+	  if (rm != 0.) {
 	    for (l = 0; l < *nov; ++l) {
 	      c[l + c_offset1] -= rm * a[l + a_offset2];
 	    }

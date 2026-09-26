@@ -1295,7 +1295,7 @@ balanc(integer *nm, integer *n, doublereal *a, integer *low, integer *igh, doubl
 /*     .......... IN-LINE PROCEDURE FOR ROW AND */
 /*                COLUMN EXCHANGE .......... */
 L20:
-    scale[m] = (doublereal) j;
+    scale[m] = static_cast<doublereal>(j);
     if (j == m) {
 	goto L50;
     }
@@ -1317,7 +1317,7 @@ L20:
     }
 
 L50:
-    switch ((int)iexc) {
+    switch (static_cast<int>(iexc)) {
 	case 1:  goto L80;
 	case 2:  goto L130;
     }
@@ -1560,7 +1560,7 @@ L120:
 	if (i__ < *low) {
 	    i__ = *low - ii;
 	}
-	k = (integer) scale[i__];
+	k = static_cast<integer>(scale[i__]);
 	if (k == i__) {
 	    goto L140;
 	}
@@ -3188,7 +3188,7 @@ L10:
 /*                                                 BEGIN MAIN LOOP */
     i__ = 1;
 L20:
-    switch ((int)next) {
+    switch (static_cast<int>(next)) {
 	case 0: goto L30;
 	case 1: goto L50;
 	case 2: goto L70;
@@ -3264,7 +3264,7 @@ L75:
 /*     FOR COMPLEX      SET HITEST = CUTHI/(2*N) */
 
 L85:
-    hitest = cuthi / (real) (*n);
+    hitest = cuthi / static_cast<real>(*n);
 
 /*                   PHASE 3.  SUM IS MID-RANGE.  NO SCALING. */
 
@@ -3978,12 +3978,12 @@ lsame(const char *ca, const char *cb, integer ca_len, integer cb_len)
 
 /*     Test if the characters are equal */
 
-    ret_val = *(unsigned char *)ca == *(unsigned char *)cb;
+    ret_val = static_cast<unsigned char>(*ca) == static_cast<unsigned char>(*cb);
 
 /*     Now test for equivalence */
 
     if (! ret_val) {
-	ret_val = *(unsigned char *)ca - 32 == *(unsigned char *)cb;
+	ret_val = static_cast<unsigned char>(*ca) - 32 == static_cast<unsigned char>(*cb);
     }
 
     return ret_val;
@@ -4764,7 +4764,7 @@ ndsvd(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, double
     *kount1 = 0;
     *kount2 = 0;
     *limshf = 0;
-    *maxsin = (double)0.;
+    *maxsin = 0.;
 
 /*     determine what is to be computed. */
 
@@ -5077,7 +5077,7 @@ L350:
 /* L351: */
 	}
 	if (*n < *p) {
-	    s[*n + 1] = (double)0.;
+	    s[*n + 1] = 0.;
 	}
 	e[m] = 0.;
 	if (wantu) {
@@ -5085,7 +5085,7 @@ L350:
 	    for (j = 1; j <= i__1; ++j) {
 		i__2 = *n;
 		for (i__ = 1; i__ <= i__2; ++i__) {
-		    u[i__ + j * u_dim1] = (double)0.;
+		    u[i__ + j * u_dim1] = 0.;
 /* L353: */
 		}
 		u[j + j * u_dim1] = 1.;
@@ -5097,7 +5097,7 @@ L350:
 	    for (j = 1; j <= i__1; ++j) {
 		i__2 = *p;
 		for (i__ = 1; i__ <= i__2; ++i__) {
-		    v[i__ + j * v_dim1] = (double)0.;
+		    v[i__ + j * v_dim1] = 0.;
 /* L355: */
 		}
 		v[j + j * v_dim1] = 1.;
@@ -5115,7 +5115,7 @@ L350:
     oldll = -1;
     oldm = -1;
     oldacc = -1;
-    if (*tol > (double)0.) {
+    if (*tol > 0.) {
 /*       relative accuracy desired */
 	thresh = 0.;
     } else {
@@ -5153,14 +5153,14 @@ L999:
     }
 
 /*     compute minimum s(i) and max of all s(i),e(i) */
-    if (*tol <= (double)0. && (d__1 = s[m], fabs(d__1)) <= thresh) {
-	s[m] = (double)0.;
+    if (*tol <= 0. && (d__1 = s[m], fabs(d__1)) <= thresh) {
+	s[m] = 0.;
     }
     smax = (d__1 = s[m], fabs(d__1));
     smin = smax;
 
 /*     reset convergence threshold if starting new part of matrix */
-    if (m <= oldll && *tol > (double)0.) {
+    if (m <= oldll && *tol > 0.) {
 	thresh = 0.;
     }
     if (*idbg > 0) {
@@ -5172,8 +5172,8 @@ L999:
 	if (ll == 0) {
 	    goto L1003;
 	}
-	if (*tol <= (double)0. && (d__1 = s[ll], fabs(d__1)) <= thresh) {
-	    s[ll] = (double)0.;
+	if (*tol <= 0. && (d__1 = s[ll], fabs(d__1)) <= thresh) {
+	    s[ll] = 0.;
 	}
 	if ((d__1 = e[ll], fabs(d__1)) <= thresh) {
 	    goto L1002;
@@ -5246,7 +5246,7 @@ L1003:
 	sig22(&s[m - 1], &e[m - 1], &s[m], &sigmn, &sigmx, &sinr, &cosr, 
 	       &sinl, &cosl);
 	s[m - 1] = sigmx;
-	e[m - 1] = (double)0.;
+	e[m - 1] = 0.;
 	s[m] = sigmn;
 	if (wantv) {
 	    drot(p, &v[ll * v_dim1 + 1], &c__1, &v[m * v_dim1 + 1], &c__1, &
@@ -5331,8 +5331,8 @@ L1003:
 /*     if (iconv.eq.1) goto 999 */
 
 /*     Kahan's convergence test */
-    sminl = (double)0.;
-    if (*tol > (double)0.) {
+    sminl = 0.;
+    if (*tol > 0.) {
 	if (idir == 1) {
 /*         forward direction */
 /*         apply test on bottom 2 by 2 only */
@@ -5398,7 +5398,7 @@ L1003:
 
 /*     test for zero shift */
     test = nct * *tol * (sminl / smax) + 1.;
-    if ((test == 1. && *ifull != 1 && *tol > (double)0.) || *ifull == 2) {
+    if ((test == 1. && *ifull != 1 && *tol > 0.) || *ifull == 2) {
 /*       do a zero shift so that roundoff does not contaminate */
 /*       smallest singular value */
 	shift = 0.;
@@ -5426,7 +5426,7 @@ L1003:
 	if (*idbg > 0) {
 	  xpp_log(XPP_LOG_DEBUG, "sigma-min of 2 by 2 corner=%f\n",shift);
 	}
-	if (*tol > (double)0.) {
+	if (*tol > 0.) {
 	    if (shift > nct * smin) {
 		++(*limshf);
 		shift = nct * smin;
@@ -5458,7 +5458,7 @@ s case */
 		if (test + 1. == 1.) {
 		    ++(*limshf);
 		    if (*ifull != 1) {
-			shift = (double)0.;
+			shift = 0.;
 		    }
 		    if (*idbg > 0 && *ifull != 1) {
 		            xpp_log(XPP_LOG_DEBUG, "shift limited\n");
@@ -5467,7 +5467,7 @@ s case */
 	    }
 	    test = smax + smin;
 	    if (test == smax && *ifull != 1) {
-		shift = (double)0.;
+		shift = 0.;
 	    }
 	}
 	if (*idbg > 0) {
@@ -5965,7 +5965,7 @@ sig22(doublereal *a, doublereal *b, doublereal *c__, doublereal *sigmin, doubler
 /*     either at=0 or eps/2 <= at <= 1 */
 /*     if no or gradual underflow, at nearly correctly rounded */
     at = acmx - acmn;
-    if (at != (double)0.) {
+    if (at != 0.) {
 	at /= acmx;
     }
 
@@ -5990,12 +5990,12 @@ sig22(doublereal *a, doublereal *b, doublereal *c__, doublereal *sigmin, doubler
 	temp = temp1 + temp2;
 	*sigmin = acmn / temp;
 	*sigmin += *sigmin;
-	*sigmax = acmx * (temp / (double)2.);
+	*sigmax = acmx * (temp / 2.);
     } else {
-	if (absb == (double)0.) {
+	if (absb == 0.) {
 /*             matrix identically zero */
-	    *sigmin = (double)0.;
-	    *sigmax = (double)0.;
+	    *sigmin = 0.;
+	    *sigmax = 0.;
 	} else {
 /*             0 <= au <= 1, underflow possible */
 	    au = acmx / absb;
@@ -6083,7 +6083,7 @@ eps */
 		sinl = *c__ * sinl;
 		cosl = *b;
 		sgnmn = sgna * sgnc;
-		sgnmx = (double)1.;
+		sgnmx = 1.;
 	    } else {
 /*                 fabs(ca) <= 1 */
 		ca = *c__ / *a;
@@ -6099,7 +6099,7 @@ eps */
 		d__1 = as * at + au;
 		cosl = sqrt(d__1 * d__1 + ca * 4. * ca * au) + as * at + au;
 		sgnmn = sgna * sgnc;
-		sgnmx = (double)1.;
+		sgnmx = 1.;
 	    }
 	}
     } else {
@@ -6132,14 +6132,14 @@ y */
 	    ib = 1;
 	}
 	if (ia == 0 && ib == 0) {
-	    sgnmn = (double)1.;
+	    sgnmn = 1.;
 	    sgnmx = sgnb;
 	} else if (ia == 0 && ib == 1) {
-	    sgnmn = (double)1.;
-	    sgnmx = (double)1.;
+	    sgnmn = 1.;
+	    sgnmx = 1.;
 	} else if (ia == 1 && ib == 0) {
 	    sgnmn = sgna * sgnc;
-	    sgnmx = (double)1.;
+	    sgnmx = 1.;
 	} else {
 	    sgnmn = sgna * sgnb * sgnc;
 	    sgnmx = sgnb;

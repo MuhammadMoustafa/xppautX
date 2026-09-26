@@ -11,16 +11,16 @@ static double time_start (void) {
   struct rusage time;
   double seconds,microseconds;
   getrusage(RUSAGE_SELF,&time);
-  seconds = (double)time.ru_utime.tv_sec;
-  microseconds = (double)time.ru_utime.tv_usec;
+  seconds = static_cast<double>(time.ru_utime.tv_sec);
+  microseconds = static_cast<double>(time.ru_utime.tv_usec);
   return seconds + microseconds/1e6;
 }
 static double time_end(double start) {
   struct rusage time;
   double seconds,microseconds;
   getrusage(RUSAGE_SELF,&time);
-  seconds = (double)time.ru_utime.tv_sec;
-  microseconds = (double)time.ru_utime.tv_usec;
+  seconds = static_cast<double>(time.ru_utime.tv_sec);
+  microseconds = static_cast<double>(time.ru_utime.tv_usec);
   return (seconds + microseconds/1e6)-start;
 }
 #endif
