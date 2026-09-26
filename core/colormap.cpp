@@ -45,16 +45,14 @@ int rfun(double y, int per)
     return static_cast<int>(3. * 255 * sqrt((.333334 - x) * (x + .33334)));
 }
 
-int gfun(double y, int per)
+int gfun(double y, int)
 {
-    (void)per;
     if (y > .666666) return 0;
     return static_cast<int>(3. * 255 * sqrt((.6666667 - y) * (y)));
 }
 
-int bfun(double y, int per)
+int bfun(double y, int)
 {
-    (void)per;
     if (y < .333334) return 0;
     return static_cast<int>(2.79 * 255 * sqrt((1.05 - y) * (y - .333333333)));
 }
