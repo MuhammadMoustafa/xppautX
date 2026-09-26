@@ -1,8 +1,9 @@
 #!/bin/sh
 # Run every example ODE through xppautX -silent (tools/run_example.sh, one
 # per model, several at once) and compare what each writes (output.dat's
-# md5 with CRs removed, or "none" when the model does not run by itself:
-# AUTO tests, includes) with a baseline. A model that exits nonzero or
+# md5 with CRs removed, "none" when the model writes nothing by itself,
+# "noload" when it does not load by itself: includes, DLLs) with a
+# baseline. A model that crashes (another nonzero exit) or
 # times out fails the check whatever the baseline says.
 #
 # A difference means the numerics changed: find why, and only when the

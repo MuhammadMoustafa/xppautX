@@ -26,9 +26,9 @@ f2ba8bb541b1433bf7b44cc3790b0b70 examples/ode/atcoaster.ode
 bb1743f40d2f2a996d45533e06042da0 examples/ode/bob.ode
 52bb25cb7305736f17cbff9ead2c67a5 examples/ode/borcol.ode
 14446a99cee7eb66d3bc1adb6021c6a0 examples/ode/cable.ode
-none examples/ode/candelator.ode
+noload examples/ode/candelator.ode
 bc9922f6723839257a6b251ca75c47f9 examples/ode/chemotax.ode
-none examples/ode/clustor.ode
+noload examples/ode/clustor.ode
 dad380965e47854139fde99dc8dd82fb examples/ode/coaster2D.ode
 3989da722c07edde4b0e99cf67724fe5 examples/ode/cobweb2.ode
 bb1743f40d2f2a996d45533e06042da0 examples/ode/crazy.ode
@@ -69,7 +69,7 @@ f36735f1f0ac5827c23f4d96c22f4f30 examples/ode/gausvolt.ode
 be9c54ce1515e075cef5fb0a38ec4156 examples/ode/getfrefm.ode
 cb8ed4b0cde7705b1c966018e2bc27cc examples/ode/gill_bruss.ode
 36583e5b3e7e7ed625a6bddee23c033b examples/ode/greg.ode
-none examples/ode/hedge.ode
+noload examples/ode/hedge.ode
 1c6d35891c64c2370d06ec6944c09f17 examples/ode/henhei.ode
 5c343186271bf9ca1a4e466778b468ae examples/ode/hhred.ode
 54c0547f991fd47910f83ac3b15eb862 examples/ode/iaf.ode
@@ -119,9 +119,9 @@ c7d3d273aa4c446a0ef5571df043a374 examples/ode/nnet.ode
 21ffe483965d28a0f102140f7ae52203 examples/ode/nochaos.ode
 5d0c7f68c2eafb472c0f8188257c8b43 examples/ode/nthet.ode
 8696c9608dcac7c8ef4b003c60305046 examples/ode/osc.ode
-none examples/ode/pHtools_ml.ode
-none examples/ode/pHtools_sillen.ode
-none examples/ode/pHtools_simple.ode
+noload examples/ode/pHtools_ml.ode
+noload examples/ode/pHtools_sillen.ode
+noload examples/ode/pHtools_simple.ode
 0d9354bf038a8950be68e36f83be5d68 examples/ode/pend-cart1-kick.ode
 c9da78996bc27279ad3731104cdc5e66 examples/ode/pend-cart1.ode
 e23fe570cf36af23ef6d617d3f5d56d9 examples/ode/pend.ode
@@ -142,11 +142,11 @@ df3c08819e4d0a3df1221d1aa29cb725 examples/ode/torus.ode
 898e5133ab752f643c757c39b7d24a02 examples/ode/transient.ode
 2cb16a65847d76e3132689f6f80d0d9a examples/ode/triple.ode
 30a7260f3b416f9edaf00ab47d078ce9 examples/ode/tst.ode
-none examples/ode/tstar.ode
+noload examples/ode/tstar.ode
 78824ad5b2194b35963bfed4d3b323bc examples/ode/tstdel.ode
 208ff1dad0b2e002b5aca638184f7f17 examples/ode/tstdelsp.ode
 24c08996e1ac91bcee3bf3ca7dd520b4 examples/ode/tstdll.ode
-none examples/ode/tstdll2.ode
+noload examples/ode/tstdll2.ode
 93beaf7aa86a32aafc3bc6ccfd58887e examples/ode/tstheti.ode
 4d7afb9dd15acb7818ba28f3e552b485 examples/ode/tsthomi.ode
 be55ed47574e3c7ce401bcb101dfe6d7 examples/ode/tstset.ode
@@ -191,5 +191,5 @@ b5b8a7598c55e3c8c1b062d54bad7d5e examples/tstauto/simplefold.ode
 2cb16a65847d76e3132689f6f80d0d9a examples/tstauto/torx.ode
 bb1743f40d2f2a996d45533e06042da0 examples/tstauto/tsthom.ode
 8fdfa6ac584ff3630e20ce45f36617ed examples/tstauto/tsthom2.ode
-none examples/tstauto/tsthom3.ode
+noload examples/tstauto/tsthom3.ode
 d968d1336f3a806a05866b613d10df84 examples/tstauto/wcbiwave.ode

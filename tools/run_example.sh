@@ -5,13 +5,14 @@
 #
 # Usage: tools/run_example.sh <model.ode> <xppautX-binary> [timeout-seconds] [result-dir]
 #
-# Exit status: 0 if the model ran to completion (exit 0) within the
-# timeout, 1 otherwise (prints "FAIL <model> exit <status>" or "FAIL
+# Exit status: 0 if the model ran to completion (exit 0), or did not
+# load (exit 1, "noload"), within the timeout, 1 otherwise (prints "FAIL <model> exit <status>" or "FAIL
 # <model> timeout" and the model's log). With a result dir it also writes
 # there, under the model's path with / made _, a .sum file holding
 # "<md5> <model>" (the md5 of output.dat with its CRs removed, so a
 # Windows build's text-mode line ends hash like Linux's; "none" when the
-# model writes nothing by itself: AUTO tests, includes; "timeout") and a
+# model writes nothing by itself: AUTO tests; "noload" when it exits 1,
+# not loading by itself: includes, DLLs; "timeout") and a
 # .st file holding the exit status (or "timeout"), and with KEEP_OUTPUT=1
 # the output.dat itself as a .dat file (examples_check.sh --keep).
 # The timeout is coreutils' timeout where there is one (Linux, Git Bash),
@@ -53,6 +54,11 @@ fi
 if [ $timed_out -eq 1 ]; then
   sum=timeout
   st=timeout
+elif [ "$st" -eq 1 ]; then
+  # the model does not load by itself (xpp_model_failed: an include, a
+  # DLL, a fragment): a result the baseline records, not a crash
+  sum=noload
+  st=0
 elif [ -s "$run/output.dat" ]; then
   sum=$(tr -d '\r' < "$run/output.dat" | md5)
 else
