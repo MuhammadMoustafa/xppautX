@@ -14,6 +14,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
+#include <string_view>
+#include <vector>
 
 /* 
   n is the number of values to return
@@ -153,7 +156,6 @@ extern int NODE,NDELAYS;
 #include "fftn.h"
 
 #define IC 2
-int parse_import(const char *s, char *soname, char *sofun, int *n, char *vname, int *m, char *tname[MAXW]);
 
 
 /* simple network stuff */
@@ -161,7 +163,7 @@ int parse_import(const char *s, char *soname, char *sofun, int *n, char *vname, 
 #define MAXVEC 100
 
 typedef struct {
-  char name[XPP_NAME_MAX+1];
+  std::string name;
   int root,length,il,ir;
 } VECTORIZER;
 
@@ -185,16 +187,20 @@ extern TABULAR my_table[MAX_TAB];
 
 typedef struct {
   int type,ncon,n;
-  char name[XPP_NAME_MAX+1];
-  char soname[256],sofun[256];
-  
+  std::string name;
+  std::string soname,sofun;
+
   int root,root2;
   int f[20];
   int iwgt;
-  int *gcom; /* for group commands */
+  std::vector<int> gcom; /* for group commands */
 
-  double *values,*weight,*index,*taud; /* for delays  */
-  double *fftr,*ffti,*dr,*di;
+  std::vector<double> values;
+  /* weight, index and taud (for delays) are tables' values (my_table),
+     but a gillespie chain's weight is its own gill_nu */
+  double *weight,*index,*taud;
+  std::vector<double> gill_nu;
+  std::vector<double> fftr,ffti,dr,di;
   double *wgtlist[MAXW];
 } NETWORK;
 
@@ -216,6 +222,14 @@ typedef struct {
 #define DEL_MUL 40  /* for delayed coupled networks  - global coupling */
 #define DEL_SPAR 41 /* sparse with unequal in degree and delays  */
 #define IMPORT  50 /* not really a network type   */
+
+namespace {
+/* a strtok token's text ("" for none) */
+std::string token(const char *s) { return s ? s : ""; }
+bool gilparse(std::string_view s, std::vector<int> &ind);
+bool parse_import(std::string_view s, std::string &soname, std::string &sofun, int *n,
+                  std::string &vname, std::vector<std::string> &tname);
+} // namespace
 
 extern double variables[],constants[];
 
@@ -245,7 +259,7 @@ int add_vectorizer(const char *name,char *rhs)
   int flag;
 
   for(i=0;i<n_vector;i++)
-       if(strcmp(name,my_vec[i].name)==0)break;  
+       if(my_vec[i].name==name)break;
 
   ind=i;
   flag=get_vector_info(rhs,name,&ivar,&len,&il,&ir);
@@ -269,7 +283,7 @@ void add_vectorizer_name(const char *name, const char *rhs)
     exit(0);
   }
   if(name_too_long(name))exit(0);
-  XPP_STRCPY(my_vec[n_vector].name,name);
+  my_vec[n_vector].name=name;
   if(add_vector_name( n_vector,name))
     exit(0);
   n_vector++;
@@ -306,13 +320,6 @@ double network_value(double x, int i)
 }
  
 
-void init_net(double *v,int n)
-{
-  int i;
-  for(i=0;i<n;i++)
-    v[i]=0.0;
-}
-
 int add_spec_fun(const char *name, char *rhs)
 {
   int i,ind,elen,err;
@@ -320,16 +327,15 @@ int add_spec_fun(const char *name, char *rhs)
   int iwgt,itau,iind,ivar,ivar2;
   int ntype,ntot,ncon,ntab;
   char *str;
-  char junk[3*1024+8]; /* "fname(rootname,root2name)" */
   /* tokens of the right-hand side, checked as names after the copy */
-  char rootname[1024],wgtname[1024],tauname[1024],indname[1024];
-  char root2name[1024],fname[1024];
-  char sofun[256],soname[256],*tname[MAXW];
+  std::string rootname,wgtname,tauname,indname,root2name,fname,junk;
+  std::string sofun,soname;
+  std::vector<std::string> tname;
   type=is_network(rhs);
     if(type==0)return 0;
   xpp_log(XPP_LOG_DEBUG, "type=%d \n",type);
   for(i=0;i<n_network;i++)
-    if(strcmp(name,my_net[i].name)==0)break;
+    if(my_net[i].name==name)break;
   ind=i;
   if(ind>=n_network){
     xpp_log(XPP_LOG_ERROR, " No such name %s ?? \n",name);
@@ -360,30 +366,29 @@ int add_spec_fun(const char *name, char *rhs)
       return 0;
     }
     str=get_next(",");
-    XPP_STRCPY(wgtname,str);
-    iwgt=find_lookup(wgtname);
+    wgtname=token(str);
+    iwgt=find_lookup(wgtname.c_str());
     if(iwgt<0){
       xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname);
+	     name,wgtname.c_str());
       return 0;
     }
     str=get_next(")");
-    XPP_STRCPY(rootname,str);
-    ivar=get_var_index(rootname);
+    rootname=token(str);
+    ivar=get_var_index(rootname.c_str());
     if(ivar<0){
       xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname);
+	     name,rootname.c_str());
       return 0;
     }
-    my_net[ind].values=(double *)xpp_malloc((ntot+1)*sizeof(double));
-    init_net(my_net[ind].values,ntot);
+    my_net[ind].values.assign((ntot+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
     my_net[ind].type=ntype;
     my_net[ind].root=ivar;
     my_net[ind].n=ntot;
     my_net[ind].ncon=ncon;
     xpp_log(XPP_LOG_INFO, " Added net %s type %d len=%d x %d using %s var[%d] \n",
-	   name,ntype,ntot,ncon,wgtname,ivar);
+	   name,ntype,ntot,ncon,wgtname.c_str(),ivar);
     
     return 1;   
     break;
@@ -405,37 +410,36 @@ int add_spec_fun(const char *name, char *rhs)
       return 0;
     }
     str=get_next(",");
-    XPP_STRCPY(wgtname,str);
-    iwgt=find_lookup(wgtname);
+    wgtname=token(str);
+    iwgt=find_lookup(wgtname.c_str());
     
     if(iwgt<0){
       xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname);
+	     name,wgtname.c_str());
       return 0;
     }
 
      str=get_next(",");
-    XPP_STRCPY(indname,str);
-    iind=find_lookup(indname);
+    indname=token(str);
+    iind=find_lookup(indname.c_str());
     
     if(iind<0){
       xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,indname);
+	     name,indname.c_str());
       return 0;
     }
     str=get_next(")");
-    XPP_STRCPY(rootname,str);
-       ivar=get_var_index(rootname);
+    rootname=token(str);
+       ivar=get_var_index(rootname.c_str());
   
 
    if(ivar<0){
       xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname);
+	     name,rootname.c_str());
       return 0;
     }
  
-    my_net[ind].values=(double *)xpp_malloc((ntot+1)*sizeof(double));
-       init_net(my_net[ind].values,ntot);
+    my_net[ind].values.assign((ntot+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
     my_net[ind].index=my_table[iind].y;
 
@@ -444,7 +448,7 @@ int add_spec_fun(const char *name, char *rhs)
     my_net[ind].n=ntot;
     my_net[ind].ncon=ncon;
     xpp_log(XPP_LOG_INFO, " Added sparse %s len=%d x %d using %s var[%d]  and %s\n",
-	   name,ntot,ncon,wgtname,ivar,indname );
+	   name,ntot,ncon,wgtname.c_str(),ivar,indname.c_str() );
     return 1;   
     break;
  case 3: /* convolution */
@@ -471,41 +475,40 @@ int add_spec_fun(const char *name, char *rhs)
       return 0;
     }
     str=get_next(",");
-    XPP_STRCPY(wgtname,str);
-    iwgt=find_lookup(wgtname);
+    wgtname=token(str);
+    iwgt=find_lookup(wgtname.c_str());
     if(iwgt<0){
       xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname);
+	     name,wgtname.c_str());
       return 0;
     }
 
 
     str=get_next(",");
-    XPP_STRCPY(rootname,str);
-    ivar=get_var_index(rootname);
+    rootname=token(str);
+    ivar=get_var_index(rootname.c_str());
     if(ivar<0){
       xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname);
+	     name,rootname.c_str());
       return 0;
     }
 
     str=get_next(",");
-    XPP_STRCPY(root2name,str);
-    ivar2=get_var_index(root2name);
+    root2name=token(str);
+    ivar2=get_var_index(root2name.c_str());
     if(ivar2<0){
       xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,root2name);
+	     name,root2name.c_str());
       return 0;
     }
     str=get_next(")");
-    XPP_STRCPY(fname,str);
-    snprintf(junk,sizeof(junk),"%s(%s,%s)",fname,rootname,root2name);
-    if(add_expr(junk,my_net[ind].f,&elen)){
-      xpp_log(XPP_LOG_ERROR, " bad function %s \n",fname);
+    fname=token(str);
+    junk=xpp::format("{}({},{})",fname,rootname,root2name);
+    if(add_expr(junk.c_str(),my_net[ind].f,&elen)){
+      xpp_log(XPP_LOG_ERROR, " bad function %s \n",fname.c_str());
       return 0;
     }
-    my_net[ind].values=(double *)xpp_malloc((ntot+1)*sizeof(double));
-       init_net(my_net[ind].values,ntot);
+    my_net[ind].values.assign((ntot+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
     my_net[ind].type=ntype;
     my_net[ind].root=my_net[ind].f[0]; /* this is strange - I am adding the compiled names */
@@ -513,7 +516,7 @@ int add_spec_fun(const char *name, char *rhs)
     my_net[ind].n=ntot;
     my_net[ind].ncon=ncon;
     xpp_log(XPP_LOG_INFO, " Added net %s type %d len=%d x %d using %s %s(var[%d],var[%d]) \n",
-	   name,ntype,ntot,ncon,wgtname,fname,ivar,ivar2);
+	   name,ntype,ntot,ncon,wgtname.c_str(),fname.c_str(),ivar,ivar2);
     return 1;   
     break;
   case 4: /* sparse */
@@ -534,56 +537,55 @@ int add_spec_fun(const char *name, char *rhs)
       return 0;
     }
     str=get_next(",");
-    XPP_STRCPY(wgtname,str);
-    iwgt=find_lookup(wgtname);
+    wgtname=token(str);
+    iwgt=find_lookup(wgtname.c_str());
     
     if(iwgt<0){
       xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname);
+	     name,wgtname.c_str());
       return 0;
     }
 
      str=get_next(",");
-    XPP_STRCPY(indname,str);
-    iind=find_lookup(indname);
+    indname=token(str);
+    iind=find_lookup(indname.c_str());
     
     if(iind<0){
       xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,indname);
+	     name,indname.c_str());
       return 0;
     }
 
 
     str=get_next(",");
-    XPP_STRCPY(rootname,str);
-       ivar=get_var_index(rootname);
+    rootname=token(str);
+       ivar=get_var_index(rootname.c_str());
   
 
    if(ivar<0){
       xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname);
+	     name,rootname.c_str());
       return 0;
     }
  
 
     str=get_next(",");
-    XPP_STRCPY(root2name,str);
-    ivar2=get_var_index(root2name);
+    root2name=token(str);
+    ivar2=get_var_index(root2name.c_str());
     if(ivar2<0){
       xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,root2name);
+	     name,root2name.c_str());
       return 0;
     }
     str=get_next(")");
-    XPP_STRCPY(fname,str);
-    snprintf(junk,sizeof(junk),"%s(%s,%s)",fname,rootname,root2name);
-    if(add_expr(junk,my_net[ind].f,&elen)){
-      xpp_log(XPP_LOG_ERROR, " bad function %s \n",fname);
+    fname=token(str);
+    junk=xpp::format("{}({},{})",fname,rootname,root2name);
+    if(add_expr(junk.c_str(),my_net[ind].f,&elen)){
+      xpp_log(XPP_LOG_ERROR, " bad function %s \n",fname.c_str());
       return 0;
     }
 
-    my_net[ind].values=(double *)xpp_malloc((ntot+1)*sizeof(double));
-      init_net(my_net[ind].values,ntot);
+    my_net[ind].values.assign((ntot+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
     my_net[ind].index=my_table[iind].y;
 
@@ -593,7 +595,7 @@ int add_spec_fun(const char *name, char *rhs)
     my_net[ind].n=ntot;
     my_net[ind].ncon=ncon;
     xpp_log(XPP_LOG_INFO, " Sparse %s len=%d x %d using %s %s(var[%d],var[%d]) and %s\n",
-	   name,ntot,ncon,wgtname,fname,ivar,ivar2,indname );
+	   name,ntot,ncon,wgtname.c_str(),fname.c_str(),ivar,ivar2,indname.c_str() );
     return 1;   
     break;
 
@@ -616,11 +618,11 @@ int add_spec_fun(const char *name, char *rhs)
     }
    
     str=get_next(",");
-    XPP_STRCPY(wgtname,str);
-    iwgt=find_lookup(wgtname);
+    wgtname=token(str);
+    iwgt=find_lookup(wgtname.c_str());
     if(iwgt<0){
       xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname);
+	     name,wgtname.c_str());
       return 0;
     }
     ntab=get_lookup_len(iwgt);
@@ -633,24 +635,23 @@ int add_spec_fun(const char *name, char *rhs)
      return 0;
     }
     str=get_next(")");
-    XPP_STRCPY(rootname,str);
-    ivar=get_var_index(rootname);
+    rootname=token(str);
+    ivar=get_var_index(rootname.c_str());
     if(ivar<0){
       xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname);
+	     name,rootname.c_str());
       return 0;
     }
     if(ntype==FFTCON0)
       ncon=2*ntot;
     else
       ncon=ntot;
-    my_net[ind].fftr=(double *)xpp_malloc((ncon+2)*sizeof(double));
-    my_net[ind].ffti=(double *)xpp_malloc((ncon+2)*sizeof(double));
-    my_net[ind].dr=(double *)xpp_malloc((ncon+2)*sizeof(double));
-    my_net[ind].di=(double *)xpp_malloc((ncon+2)*sizeof(double));
+    my_net[ind].fftr.assign(ncon+2,0.0);
+    my_net[ind].ffti.assign(ncon+2,0.0);
+    my_net[ind].dr.assign(ncon+2,0.0);
+    my_net[ind].di.assign(ncon+2,0.0);
     my_net[ind].iwgt=iwgt;
-    my_net[ind].values=(double *)xpp_malloc((ntot+1)*sizeof(double));
-       init_net(my_net[ind].values,ntot);
+    my_net[ind].values.assign((ntot+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
     my_net[ind].type=ntype;
     my_net[ind].root=ivar;
@@ -659,7 +660,7 @@ int add_spec_fun(const char *name, char *rhs)
     update_fft(ind);
 
     xpp_log(XPP_LOG_INFO, " Added net %s type %d len=%d x %d using %s var[%d] \n",
-	   name,ntype,ntot,ncon,wgtname,ivar);
+	   name,ntype,ntot,ncon,wgtname.c_str(),ivar);
     return 1;   
     break;
   case 6:   /* MMULT    ntot=n,ncon=m  */
@@ -680,28 +681,27 @@ int add_spec_fun(const char *name, char *rhs)
       return 0;
     }
     str=get_next(",");
-    XPP_STRCPY(wgtname,str);
-    iwgt=find_lookup(wgtname);
+    wgtname=token(str);
+    iwgt=find_lookup(wgtname.c_str());
     
     if(iwgt<0){
       xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname);
+	     name,wgtname.c_str());
       return 0;
     }
 
     str=get_next(")");
-    XPP_STRCPY(rootname,str);
-       ivar=get_var_index(rootname);
+    rootname=token(str);
+       ivar=get_var_index(rootname.c_str());
   
 
    if(ivar<0){
       xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname);
+	     name,rootname.c_str());
       return 0;
     }
  
-    my_net[ind].values=(double *)xpp_malloc((ncon+1)*sizeof(double));
-       init_net(my_net[ind].values,ncon);
+    my_net[ind].values.assign((ncon+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
 
     my_net[ind].type=ntype;
@@ -709,7 +709,7 @@ int add_spec_fun(const char *name, char *rhs)
     my_net[ind].n=ncon;
     my_net[ind].ncon=ntot;
     xpp_log(XPP_LOG_INFO, " Added mmult %s len=%d x %d using %s var[%d]\n",
-	   name,ntot,ncon,wgtname,ivar,indname );
+	   name,ntot,ncon,wgtname.c_str(),ivar,indname.c_str() );
     return 1;   
     break;
   case 7:  /* FMMULT */
@@ -730,45 +730,44 @@ int add_spec_fun(const char *name, char *rhs)
       return 0;
     }
     str=get_next(",");
-    XPP_STRCPY(wgtname,str);
-    iwgt=find_lookup(wgtname);
+    wgtname=token(str);
+    iwgt=find_lookup(wgtname.c_str());
     
     if(iwgt<0){
       xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname);
+	     name,wgtname.c_str());
       return 0;
     }
 
     str=get_next(",");
-    XPP_STRCPY(rootname,str);
-       ivar=get_var_index(rootname);
+    rootname=token(str);
+       ivar=get_var_index(rootname.c_str());
   
 
    if(ivar<0){
       xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname);
+	     name,rootname.c_str());
       return 0;
     }
   str=get_next(",");
-    XPP_STRCPY(root2name,str);
-    ivar2=get_var_index(root2name);
+    root2name=token(str);
+    ivar2=get_var_index(root2name.c_str());
     if(ivar2<0){
       xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,root2name);
+	     name,root2name.c_str());
       return 0;
     }
     str=get_next(")");
-    XPP_STRCPY(fname,str);
-    snprintf(junk,sizeof(junk),"%s(%s,%s)",fname,rootname,root2name);
-    if(add_expr(junk,my_net[ind].f,&elen)){
-      xpp_log(XPP_LOG_ERROR, " bad function %s \n",fname);
+    fname=token(str);
+    junk=xpp::format("{}({},{})",fname,rootname,root2name);
+    if(add_expr(junk.c_str(),my_net[ind].f,&elen)){
+      xpp_log(XPP_LOG_ERROR, " bad function %s \n",fname.c_str());
       return 0;
     }
     /*for(i=0;i<elen;i++)
       printf("%d %d \n",i,my_net[ind].f[i]);
     */
-    my_net[ind].values=(double *)xpp_malloc((ncon+1)*sizeof(double));
-    init_net(my_net[ind].values,ncon);
+    my_net[ind].values.assign((ncon+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
 
     my_net[ind].type=ntype;
@@ -777,7 +776,7 @@ int add_spec_fun(const char *name, char *rhs)
     my_net[ind].n=ncon;
     my_net[ind].ncon=ntot;
     xpp_log(XPP_LOG_INFO, " Added fmmult %s len=%d x %d using %s %s(var[%d],var[%d])\n",
-	   name,ntot,ncon,wgtname,fname,ivar,ivar2);
+	   name,ntot,ncon,wgtname.c_str(),fname.c_str(),ivar,ivar2);
     return 1; 
 
   case FINDEXT:
@@ -805,14 +804,14 @@ int add_spec_fun(const char *name, char *rhs)
       return 0;
     }
     str=get_next(")");
-    XPP_STRCPY(rootname,str);
-    ivar=get_var_index(rootname);
+    rootname=token(str);
+    ivar=get_var_index(rootname.c_str());
     if(ivar<0){
       xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname);
+	     name,rootname.c_str());
       return 0;
     }
-    my_net[ind].values=(double *)xpp_malloc(6*sizeof(double));
+    my_net[ind].values.assign(6,0.0);
     my_net[ind].type=FINDEXT;
     my_net[ind].root=ivar;
     my_net[ind].n=ntot;
@@ -839,51 +838,47 @@ int add_spec_fun(const char *name, char *rhs)
     }
     my_net[ind].n=ivar; /* # entries in array */
     str=get_next(")");
-    XPP_STRCPY(rootname,str);
-    ivar=get_var_index(rootname);
+    rootname=token(str);
+    ivar=get_var_index(rootname.c_str());
     if(ivar<0){
       xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname);
+	     name,rootname.c_str());
       return 0;
     }
     my_net[ind].root=ivar;
-    xpp_log(XPP_LOG_INFO, "Added interpolator %s length %d on %s \n",name,my_net[ind].n,rootname); 
+    xpp_log(XPP_LOG_INFO, "Added interpolator %s length %d on %s \n",name,my_net[ind].n,rootname.c_str()); 
     return 1;
 
    case IMPORT:
      ntype=IMPORT;
-     for(i=0;i<MAXW;i++)
-       tname[i]=(char *)xpp_malloc(25);
-     err=parse_import(rhs,soname,sofun,&ncon,rootname,&ntab,tname);
+     err=parse_import(rhs,soname,sofun,&ncon,rootname,tname);
+     ntab=static_cast<int>(tname.size());
      if(err==0)return 0;
-     my_net[ind].values=(double *)xpp_malloc((ncon+1)*sizeof(double));
-     init_net(my_net[ind].values,ncon);
+     my_net[ind].values.assign((ncon+1),0.0);
      my_net[ind].n=ncon;
-     ivar=get_var_index(rootname);
+     ivar=get_var_index(rootname.c_str());
      if(ivar<0){
       xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname);
+	     name,rootname.c_str());
       return 0;
     }
-     XPP_STRCPY(my_net[ind].soname,soname);
-     XPP_STRCPY(my_net[ind].sofun,sofun);
+     my_net[ind].soname=soname;
+     my_net[ind].sofun=sofun;
      my_net[ind].root=ivar;
      my_net[ind].type=ntype;
      my_net[ind].ncon=0;
      for(i=0;i<ntab;i++){
-       iwgt=find_lookup(tname[i]);
-       xpp_log(XPP_LOG_DEBUG, "Found %s\n",tname[i]);
+       iwgt=find_lookup(tname[i].c_str());
+       xpp::log(XPP_LOG_DEBUG, "Found {}\n",tname[i]);
        if(iwgt<0){
-	 xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-		name,wgtname);
+	 xpp::log(XPP_LOG_ERROR, "in network {},  {} is not a table \n",
+		name,tname[i]);
 	 return 0;
        }
        my_net[ind].wgtlist[i]=my_table[iwgt].y;
      }
-     for(i=0;i<MAXW;i++)
-       xpp_free(tname[i]);
      xpp_log(XPP_LOG_INFO, " Added import %s len=%d  with %s %s var[%d] %d weights\n",
-	    name,my_net[ind].n,soname,sofun,ivar,ntab );
+	    name,my_net[ind].n,soname.c_str(),sofun.c_str(),ivar,ntab );
      
      return 1;
    case DEL_MUL:
@@ -905,39 +900,38 @@ int add_spec_fun(const char *name, char *rhs)
       return 0;
     }
     str=get_next(",");
-    XPP_STRCPY(wgtname,str);
-    iwgt=find_lookup(wgtname);
+    wgtname=token(str);
+    iwgt=find_lookup(wgtname.c_str());
     
     if(iwgt<0){
       xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname);
+	     name,wgtname.c_str());
       return 0;
     }
     str=get_next(",");
-    XPP_STRCPY(tauname,str);
-    itau=find_lookup(tauname);
+    tauname=token(str);
+    itau=find_lookup(tauname.c_str());
     
     if(itau<0){
       xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,tauname);
+	     name,tauname.c_str());
       return 0;
     }
 
      
 
     str=get_next(")");
-    XPP_STRCPY(rootname,str);
-       ivar=get_var_index(rootname);
+    rootname=token(str);
+       ivar=get_var_index(rootname.c_str());
   
 
    if(ivar<0){
       xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname);
+	     name,rootname.c_str());
       return 0;
     }
  
-    my_net[ind].values=(double *)xpp_malloc((ncon+1)*sizeof(double));
-       init_net(my_net[ind].values,ncon);
+    my_net[ind].values.assign((ncon+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
     my_net[ind].taud=my_table[itau].y;
 
@@ -946,7 +940,7 @@ int add_spec_fun(const char *name, char *rhs)
     my_net[ind].n=ncon;
     my_net[ind].ncon=ntot;
     xpp_log(XPP_LOG_INFO, " Added del_mul %s len=%d x %d using %s var[%d] with delay %s\n",
-	   name,ntot,ncon,wgtname,ivar,indname,tauname );
+	   name,ntot,ncon,wgtname.c_str(),ivar,indname.c_str(),tauname.c_str() );
     NDELAYS=1;
     return 1;   
     break;
@@ -969,50 +963,49 @@ int add_spec_fun(const char *name, char *rhs)
       return 0;
     }
     str=get_next(",");
-    XPP_STRCPY(wgtname,str);
-    iwgt=find_lookup(wgtname);
+    wgtname=token(str);
+    iwgt=find_lookup(wgtname.c_str());
     
     if(iwgt<0){
       xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname);
+	     name,wgtname.c_str());
       return 0;
     }
 
      str=get_next(",");
-    XPP_STRCPY(indname,str);
-    iind=find_lookup(indname);
+    indname=token(str);
+    iind=find_lookup(indname.c_str());
     
     if(iind<0){
       xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,indname);
+	     name,indname.c_str());
       return 0;
     }
 
 
      str=get_next(",");
-    XPP_STRCPY(tauname,str);
-    itau=find_lookup(tauname);
+    tauname=token(str);
+    itau=find_lookup(tauname.c_str());
     
     if(itau<0){
       xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,tauname);
+	     name,tauname.c_str());
       return 0;
     }
 
     
     str=get_next(")");
-    XPP_STRCPY(rootname,str);
-       ivar=get_var_index(rootname);
+    rootname=token(str);
+       ivar=get_var_index(rootname.c_str());
   
 
    if(ivar<0){
       xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname);
+	     name,rootname.c_str());
       return 0;
     }
  
-    my_net[ind].values=(double *)xpp_malloc((ntot+1)*sizeof(double));
-       init_net(my_net[ind].values,ntot);
+    my_net[ind].values.assign((ntot+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
     my_net[ind].index=my_table[iind].y;
     my_net[ind].taud=my_table[itau].y;
@@ -1021,7 +1014,7 @@ int add_spec_fun(const char *name, char *rhs)
     my_net[ind].n=ntot;
     my_net[ind].ncon=ncon;
     xpp_log(XPP_LOG_INFO, " Added sparse %s len=%d x %d using %s var[%d]  and %s with dely %s\n",
-	   name,ntot,ncon,wgtname,ivar,indname,tauname );
+	   name,ntot,ncon,wgtname.c_str(),ivar,indname.c_str(),tauname.c_str() );
     NDELAYS=1;
     return 1;   
     break;
@@ -1052,14 +1045,14 @@ int add_spec_fun(const char *name, char *rhs)
       ivar=0;
     }
     my_net[ind].iwgt=ivar;
-    my_net[ind].gcom=(int *)xpp_malloc(1000*sizeof(int));
-    if(gilparse(str,my_net[ind].gcom,&ivar2)==0)
+    if(gilparse(str,my_net[ind].gcom)==0)
       return 0;
+    ivar2=static_cast<int>(my_net[ind].gcom.size());
     my_net[ind].root=ivar2;
     my_net[ind].n=ivar2+1;
     my_net[ind].ncon=-1;
     /* zeroed: the first output row reads them before the first step */
-    my_net[ind].values=(double *)xpp_calloc(ivar2+2,sizeof(double));
+    my_net[ind].values.assign(ivar2+2,0.0);
     xpp_log(XPP_LOG_INFO, "Added gillespie chain with %d reactions \n",ivar2);
     return 1;
 
@@ -1100,7 +1093,7 @@ void add_special_name(const char *name, char *rhs)
       return;
     }
     if(name_too_long(name))exit(0);
-    XPP_STRCPY(my_net[n_network].name,name);
+    my_net[n_network].name=name;
     add_net_name(n_network,name);
     n_network++;
   }
@@ -1155,7 +1148,7 @@ void evaluate_network(int ind)
    int twon=2*n,root=my_net[ind].root,root2=my_net[ind].root2;
    cc=my_net[ind].index;
    w=my_net[ind].weight;
-   values=my_net[ind].values;
+   values=my_net[ind].values.data();
    /*  y=&variables[my_net[ind].root]; */
    switch(my_net[ind].type){
    case FINDEXT:
@@ -1200,11 +1193,12 @@ void evaluate_network(int ind)
      break;
    case GILLTYPE:
      if(my_net[ind].ncon==-1&&my_net[ind].iwgt>0){
-       my_net[ind].weight=(double *)xpp_malloc(my_net[ind].root*NODE*sizeof(double));
-       make_gill_nu(my_net[ind].weight,NODE,my_net[ind].root,my_net[ind].values);
+       my_net[ind].gill_nu.assign(static_cast<size_t>(my_net[ind].root)*NODE,0.0);
+       my_net[ind].weight=my_net[ind].gill_nu.data();
+       make_gill_nu(my_net[ind].weight,NODE,my_net[ind].root,my_net[ind].values.data());
        my_net[ind].ncon=0;
      }
-     one_gill_step(my_net[ind].iwgt,my_net[ind].root,my_net[ind].gcom,my_net[ind].values);
+     one_gill_step(my_net[ind].iwgt,my_net[ind].root,my_net[ind].gcom.data(),my_net[ind].values.data());
      break;
    case CONVE:
      y=&variables[root];
@@ -1245,16 +1239,16 @@ void evaluate_network(int ind)
      break;
    case FFTCONP:
      y=&variables[root];
-    fft_conv(0,n,values,y,my_net[ind].fftr,my_net[ind].ffti,my_net[ind].dr,my_net[ind].di);
+    fft_conv(0,n,values,y,my_net[ind].fftr.data(),my_net[ind].ffti.data(),my_net[ind].dr.data(),my_net[ind].di.data());
     break;
    
    case FFTCON0:
      y=&variables[root];           
-      fft_conv(1,n,values,y,my_net[ind].fftr,my_net[ind].ffti,my_net[ind].dr,my_net[ind].di);
+      fft_conv(1,n,values,y,my_net[ind].fftr.data(),my_net[ind].ffti.data(),my_net[ind].dr.data(),my_net[ind].di.data());
     break;
 
    case IMPORT:
-     get_import_values(n,values,my_net[ind].soname,my_net[ind].sofun,my_net[ind].root,my_net[ind].wgtlist,variables,&constants[6]);
+     get_import_values(n,values,my_net[ind].soname.c_str(),my_net[ind].sofun.c_str(),my_net[ind].root,my_net[ind].wgtlist,variables,&constants[6]);
      break;
    case DEL_MUL:
      tau=my_net[ind].taud;
@@ -1425,8 +1419,8 @@ void update_fft(int ind)
   int i;
   int dims[2];
   double *w=my_net[ind].weight;
-  double *fftr=my_net[ind].fftr;
-  double *ffti=my_net[ind].ffti;
+  double *fftr=my_net[ind].fftr.data();
+  double *ffti=my_net[ind].ffti.data();
   int n,n2;
   int type=my_net[ind].type;
   if(type==FFTCONP){
@@ -1515,275 +1509,170 @@ void fft_conv(int it,int n,double *values,double *yy,double *fftr,double *ffti,d
 
 /* parsing stuff to get gillespie code quickly */
 
-int gilparse(const char *s,int *ind,int *nn)
+namespace {
+
+/* plucks info out of  xxx{aa-bb}  or returns string: root xxx, flag 1
+   and the range aa..bb, or root the whole of s and flag 0. false when
+   the range has no '-'. */
+bool g_namelist(std::string_view s, std::string &root, int &flag, int &i1, int &i2)
 {
-  int i=0,n=strlen(s);
-  char piece[1024],b[1024],bn[1036],c;
-  int i1,i2,jp=0,f;
-  int k=0,iv;
-  int id,m;
-  xpp_log(XPP_LOG_DEBUG, "s=|%s|",s);
-  while(1){
-    c=s[i];
-    if(c==','||i>(n-1)){
-      piece[jp]=0;
-      if(g_namelist(piece,b,&f,&i1,&i2)==0){
-	xpp_log(XPP_LOG_WARN, "Bad gillespie list %s\n",s);
-	return 0;
-      }
-      if(f==0)
-	{
-	  xpp_log(XPP_LOG_DEBUG, "added %s\n",b);
-	  iv=get_var_index(b);
-	  if(iv<0){
-	    xpp_log(XPP_LOG_ERROR, "No such name %s\n",b);
-	    return 0;
-	  }
-	  ind[k]=iv;
-	  k++;
-	}
-      else 
-	{
-	  xpp_log(XPP_LOG_DEBUG, "added %s{%d-%d}\n",b,i1,i2);
-	  m=i2-i1+1;
-	  for(id=0;id<m;id++){
-	    XPP_SPRINTF(bn,"%s%d",b,id+i1);
-	     iv=get_var_index(bn);
-	     if(iv<0){
-	       xpp_log(XPP_LOG_ERROR, "No such name %s\n",bn);
-	       return 0;
-	     }
-	     ind[k]=iv;
-	    k++;
-	  }
-	}
-      if(i>(n-1)){
-	*nn=k;
-	return 1;
-      }
-      jp=0;
-    }
-    else 
-      {
-	piece[jp]=c;
-	jp++;
-      }
-    i++;
+  size_t ir = s.rfind('{');
+  flag = 0;
+  if (ir == std::string_view::npos) {
+    root = s;
+    return true;
   }
-  *nn=k;
-  return 1;
+  root = s.substr(0, ir);
+  flag = 1;
+  size_t dash = s.find('-', ir + 1);
+  if (dash == std::string_view::npos) {
+    xpp::log(XPP_LOG_DEBUG, "Illegal syntax {}\n", s);
+    return false;
+  }
+  i1 = atoi(std::string(s.substr(ir + 1, dash - ir - 1)).c_str());
+  size_t close = s.find('}', dash + 1);
+  if (close == std::string_view::npos) close = s.size();
+  i2 = atoi(std::string(s.substr(dash + 1, close - dash - 1)).c_str());
+  return true;
 }
 
-
-/* plucks info out of  xxx{aa-bb}  or returns string */
-int g_namelist(const char *s,char *root,int *flag,int *i1,int*i2)
+/* the reactions a gillespie chain lists, "x,y{1-3},...", as variable
+   indices into ind */
+bool gilparse(std::string_view s, std::vector<int> &ind)
 {
-  int i,n=strlen(s),ir=-1,j=0;
-  char c,num[20];
-  *flag=0;
-  for(i=0;i<n;i++)
-    if(s[i]=='{')ir=i;
-  if(ir<0){
-    /* root is a pointer here; the one caller passes char b[1024]. */
-    xpp_strlcpy(root,s,1024);
-    return 1;
-  }
-  for(i=0;i<ir;i++)
-    root[i]=s[i];
-  root[ir]=0;
-  *flag=1;
-  j=0;
-  for(i=ir+1;i<n;i++){
-    c=s[i];
-    if(c=='-')break;
-    num[j]=c;
-    j++;
-  }
-  if(i==n){
-    xpp_log(XPP_LOG_DEBUG, "Illegal syntax %s\n",s);
-    return 0;
-  }
-  num[j]=0;
-  *i1=atoi(num);
-  ir=i+1;
-  j=0;
-  for(i=ir;i<n;i++){
-    c=s[i];
-    if(c=='}')break;
-    num[j]=c;
-    j++;
-  }
-  num[j]=0;
-  *i2=atoi(num);
-  return 1;
-}
- 
-
-
-
-int getimpstr(const char *in,int *i,char *out)
-{
-  int j=0;
-  int done=1;
-  char c;
-  int k=0;
-  while(done>0)
-    {
-      c=in[*i];
-
-      if((c==',')||(c==')'))
-	{
-	  out[j]=0;
-	  *i=*i+1;
-	  done=0;
-	  if(c==')')k=1;
-	  else k=0;
-
-
-	}
-      else {
-	out[j]=c;
-        j++;
-        *i=*i+1;
-      }
-      
+  /* markov.cpp's one_gill_step holds a rate per reaction in r[1000] */
+  const size_t max_reactions = 1000;
+  xpp::log(XPP_LOG_DEBUG, "s=|{}|", s);
+  ind.clear();
+  size_t start = 0;
+  for (;;) {
+    size_t comma = s.find(',', start);
+    std::string_view piece = s.substr(start, comma == std::string_view::npos ? std::string_view::npos : comma - start);
+    std::string b;
+    int f, i1 = 0, i2 = 0;
+    if (!g_namelist(piece, b, f, i1, i2)) {
+      xpp::log(XPP_LOG_WARN, "Bad gillespie list {}\n", s);
+      return false;
     }
+    std::vector<std::string> names;
+    if (f == 0) {
+      xpp::log(XPP_LOG_DEBUG, "added {}\n", b);
+      names.push_back(b);
+    } else {
+      xpp::log(XPP_LOG_DEBUG, "added {}{{{}-{}}}\n", b, i1, i2);
+      for (int id = i1; id <= i2; id++)
+        names.push_back(xpp::format("{}{}", b, id));
+    }
+    for (const std::string &bn : names) {
+      int iv = get_var_index(bn.c_str());
+      if (iv < 0) {
+        xpp::log(XPP_LOG_ERROR, "No such name {}\n", bn);
+        return false;
+      }
+      if (ind.size() >= max_reactions) {
+        xpp::log(XPP_LOG_ERROR, "Too many reactions in {} (at most {})\n", s, max_reactions);
+        return false;
+      }
+      ind.push_back(iv);
+    }
+    if (comma == std::string_view::npos) return true;
+    start = comma + 1;
+  }
+}
 
+/* the next argument of import(...) from i: up to its ',' (0) or ')' (1);
+   -1 when s ends first */
+int getimpstr(std::string_view s, size_t &i, std::string &out)
+{
+  size_t end = s.find_first_of(",)", i);
+  if (end == std::string_view::npos) return -1;
+  out = s.substr(i, end - i);
+  int k = s[end] == ')' ? 1 : 0;
+  i = end + 1;
   return k;
 }
 
-int import_error()
+bool import_error()
 {
   xpp_log(XPP_LOG_ERROR, "k=import(soname,sofun,nret,var0,w1,...,wm)\n");
-  return 0;
+  return false;
 }
-int parse_import(const char *s,  char *soname,char *sofun,int *n, char *vname,int *m, char *tname[MAXW])
+
+/* import(soname,sofun,nret,var0,w1,...,wm): its library, function,
+   number of values, first variable and weight tables */
+bool parse_import(std::string_view s, std::string &soname, std::string &sofun, int *n,
+                  std::string &vname, std::vector<std::string> &tname)
 {
-  /* soname/sofun/vname/tname[*] are pointers here; the one caller
-     passes char soname[256],sofun[256],rootname[1024] (vname) and
-     tname[i]=xpp_malloc(25) each. */
-  char temp[256];
-  int j;
-  char c;
-  
-  int i=0;
-  int done=1;
-  
-  
-  while(done>0){
-    c=s[i];
-    i++;
-    if(c=='(')
-      done=0;
-  }
+  std::string temp;
+  size_t i = s.find('(');
+  if (i == std::string_view::npos) return import_error();
+  i++;
 
-  j=getimpstr(s,&i,temp);
-  xpp_strlcpy(soname,temp,256);
-  if(j==1)return(import_error());
+  if (getimpstr(s, i, soname) != 0) return import_error();
+  if (getimpstr(s, i, sofun) != 0) return import_error();
+  if (getimpstr(s, i, temp) != 0) return import_error();
+  *n = atoi(temp.c_str());
+  if (*n <= 0) return import_error();
 
-  j=getimpstr(s,&i,temp);
-  xpp_strlcpy(sofun,temp,256);
-  if(j==1)return(import_error());
-
-  j=getimpstr(s,&i,temp);
-  *n=atoi(temp);
-  if(j==1||*n<=0)return(import_error());
-
-  j=getimpstr(s,&i,temp);
-  xpp_strlcpy(vname,temp,1024);
-  /*  plintf("%s %s %d %s\n",soname,sofun,*n,vname); */
-  *m=0;
-  if(j==1){
+  int j = getimpstr(s, i, vname);
+  if (j < 0) return import_error();
+  tname.clear();
+  if (j == 1) {
     xpp_log(XPP_LOG_INFO, "No weights....\n");
-    return(1);
-  } 
-
-    done=1;
-   
-  while(done>0){
-    j=getimpstr(s,&i,temp);
-    xpp_strlcpy(tname[*m],temp,25);
-    *m=*m+1;
-    if(j==1)done=0;
+    return true;
   }
-  return 1;
+  do {
+    j = getimpstr(s, i, temp);
+    if (j < 0) return import_error();
+    if (tname.size() >= MAXW) {
+      xpp::log(XPP_LOG_ERROR, "import: at most {} weights\n", MAXW);
+      return false;
+    }
+    tname.push_back(temp);
+  } while (j == 0);
+  return true;
 }
 
+} // namespace
 
+
+/* vector(var,length,e|z|p,e|z|p) (spaces removed from str first): the
+   first variable, the length and the two ends' kinds */
 int get_vector_info(char *str, const char *name,int *root, int *length, int *il, int *ir)
 {
-
-  int i=0;
-  int ivar;
-  int n=strlen(str);
-  char c;
-  int j;
-  char temp[100];
   de_space(str);
-  for(i=0;i<n;i++)
-    if(str[i]=='(')break;
-  i++;
-  j=0;
-  while(1){
-    c=str[i];
-    if(c==','){
-      i++;
-      break;
-    }
-    temp[j]=c;
-    i++;
-    j++;
-  }
-  temp[j]=0;
-  ivar=get_var_index(temp);
-  
-   
-  if(ivar<0){
-    xpp_log(XPP_LOG_ERROR, " In vector %s , %s is not valid variable\n",
+  std::string_view s(str);
+  size_t i=s.find('(');
+  i=i==std::string_view::npos?s.size():i+1;
+  size_t comma=s.find(',',i);
+  std::string temp(s.substr(i,comma==std::string_view::npos?std::string_view::npos:comma-i));
+  int ivar=get_var_index(temp.c_str());
+  if(ivar<0||comma==std::string_view::npos){
+    xpp::log(XPP_LOG_ERROR, " In vector {} , {} is not valid variable\n",
 	     name,temp);
     return 0;
-    }
-  *root=ivar; 
-  j=0;
-  while(1){
-    c=str[i];
-    if(c==','){
-      i++;
-      break;
-    }
-    temp[j]=c;
-    i++;
-    j++;
   }
-    temp[j]=0;
-  n=atoi(temp);
-
-  *length=n;
+  *root=ivar;
+  i=comma+1;
+  comma=s.find(',',i);
+  if(comma==std::string_view::npos){
+    xpp::log(XPP_LOG_ERROR, " In vector {} , no ends given\n",name);
+    return 0;
+  }
+  *length=atoi(std::string(s.substr(i,comma-i)).c_str());
+  i=comma+1;
+  /* the character at k, or 0 past the end */
+  auto at=[&s](size_t k){ return k<s.size()?s[k]:'\0'; };
   *il=PERIODIC;
-  if(str[i]=='e'|| str[i]=='E')
+  if(at(i)=='e'|| at(i)=='E')
     *il=EVEN;
-  if(str[i]=='z'|| str[i]=='Z')
+  if(at(i)=='z'|| at(i)=='Z')
     *il=ZERO;
-  i++;
-  i++;
+  i+=2;
   *ir=PERIODIC;
-   
-  if(str[i]=='e'|| str[i]=='E')
+  if(at(i)=='e'|| at(i)=='E')
     *ir=EVEN;
-  if(str[i]=='z'|| str[i]=='Z')
+  if(at(i)=='z'|| at(i)=='Z')
     *ir=ZERO;
-
-
   return 1;
 }
-
-
-
-
-
-
-
-
-
-
-
