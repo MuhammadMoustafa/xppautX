@@ -162,38 +162,38 @@ void do_range_clines()
     ncrange.xlo=atof(values[2]);
     ncrange.xhi=atof(values[3]);
     if(ncrange.nstep<=0)return;
-    dz=(ncrange.xhi-ncrange.xlo)/(double)ncrange.nstep;
+    dz=(ncrange.xhi-ncrange.xlo)/static_cast<double>(ncrange.nstep);
     if(dz<=0.0)return;
     get_val(ncrange.rv,&zold);
     
     for(i=NODE;i<NODE+NMarkov;i++)set_ivar(i+1+FIX_VAR,last_ic[i]);
-    xmin=(float)plot_windows.current->xmin;
-    xmax=(float)plot_windows.current->xmax;
-    y_tp=(float)plot_windows.current->ymax;
-    y_bot=(float)plot_windows.current->ymin;
+    xmin=static_cast<float>(plot_windows.current->xmin);
+    xmax=static_cast<float>(plot_windows.current->xmax);
+    y_tp=static_cast<float>(plot_windows.current->ymax);
+    y_bot=static_cast<float>(plot_windows.current->ymin);
     null_ix=plot_windows.current->xv[0];
     null_iy=plot_windows.current->yv[0];
     
     
     for(i=0;i<=ncrange.nstep;i++){
-      z=(double)i*dz+ncrange.xlo;
+      z=static_cast<double>(i)*dz+ncrange.xlo;
       set_val(ncrange.rv,z);
       if(NULL_HERE==0)
 	{
-	  if((X_n=(float *)xpp_malloc(4*MAX_NULL*sizeof(float)))!=NULL
-	     && (Y_n=(float *)xpp_malloc(4*MAX_NULL*sizeof(float)))!=NULL)
+	  if((X_n=static_cast<float *>(xpp_malloc(4*MAX_NULL*sizeof(float))))!=NULL
+	     && (Y_n=static_cast<float *>(xpp_malloc(4*MAX_NULL*sizeof(float))))!=NULL)
 	    
 	    
 	    NULL_HERE=1;
-	  NTop=(float *)xpp_malloc((course+1)*sizeof(float));
-	  NBot=(float *)xpp_malloc((course+1)*sizeof(float));
+	  NTop=static_cast<float *>(xpp_malloc((course+1)*sizeof(float)));
+	  NBot=static_cast<float *>(xpp_malloc((course+1)*sizeof(float)));
 	  if(NTop==NULL||NBot==NULL)NULL_HERE=0;
 	}
       else {
 	xpp_free(NTop);
 	xpp_free(NBot);
-	NTop=(float *)xpp_malloc((course+1)*sizeof(float));
-	NBot=(float *)xpp_malloc((course+1)*sizeof(float));
+	NTop=static_cast<float *>(xpp_malloc((course+1)*sizeof(float)));
+	NBot=static_cast<float *>(xpp_malloc((course+1)*sizeof(float)));
 	if(NTop==NULL||NBot==NULL){NULL_HERE=0;
 	return;}
       }
@@ -307,7 +307,7 @@ void save_frozen_clines(const char *fn)
    char ch;
    int i=1;
    if(n_nstore==0)return;
-   ch=(char)TwoChoice("YES","NO","Save Frozen Clines?","yn");
+   ch=static_cast<char>(TwoChoice("YES","NO","Save Frozen Clines?","yn"));
    if(ch=='n')return;
     z=ncperm;
     while(1){
@@ -376,10 +376,10 @@ void add_froz_cline(float *xn, int nmx, int n_ix, float *yn, int nmy, int n_iy)
   while(z->n!=NULL){
     z=(z->n); 
   }
-  z->xn=(float *)xpp_malloc(4*nmx*sizeof(float));
+  z->xn=static_cast<float *>(xpp_malloc(4*nmx*sizeof(float)));
   for(i=0;i<4*nmx;i++)
     z->xn[i]=xn[i];
-  z->yn=(float *)xpp_malloc(4*nmy*sizeof(float));
+  z->yn=static_cast<float *>(xpp_malloc(4*nmy*sizeof(float)));
   for(i=0;i<4*nmy;i++)
     z->yn[i]=yn[i]; 
   z->nmx=nmx;
@@ -501,11 +501,11 @@ void redraw_dfield()
     if(fp==NULL)return;
   }
 
-  du=(plot_windows.current->xhi-plot_windows.current->xlo)/(double)grid;
-  dv=(plot_windows.current->yhi-plot_windows.current->ylo)/(double)grid;
+  du=(plot_windows.current->xhi-plot_windows.current->xlo)/static_cast<double>(grid);
+  dv=(plot_windows.current->yhi-plot_windows.current->ylo)/static_cast<double>(grid);
   
-  dup =(double)(DRight-DLeft)/(double)grid;
-  dvp=(double)(DTop-DBottom)/(double)grid;
+  dup =static_cast<double>(DRight-DLeft)/static_cast<double>(grid);
+  dvp=static_cast<double>(DTop-DBottom)/static_cast<double>(grid);
   /* printf("dup=%g dvp=  %g \n",dup,dvp); */
   dz=hypot(dup,dvp)*(.25+.75*DFIELD_TYPE);
   u0=plot_windows.current->xlo;
@@ -530,8 +530,8 @@ void redraw_dfield()
 	v1[0]=0.0;
 	v2[0]=0.0;
 	for(k=0;k<NEQ;k++){
-	  v1[k+1]=(float)y[k];
-	  v2[k+1]=v1[k+1]+(float)ydot[k];
+	  v1[k+1]=static_cast<float>(y[k]);
+	  v2[k+1]=v1[k+1]+static_cast<float>(ydot[k]);
 	}
 	if(!DFSuppress)comp_color(v1,v2,NODE,1.0);
       }
@@ -553,8 +553,8 @@ void redraw_dfield()
 	xv1=y[inx]+ydot[inx]*dz;
 	xv2=y[iny]+ydot[iny]*dz;
         if(!DFSuppress){
-	  bead_abs((float)xv1,(float)xv2);
-	  line_abs((float)y[inx],(float)y[iny],(float)xv1,(float)xv2);
+	  bead_abs(static_cast<float>(xv1),static_cast<float>(xv2));
+	  line_abs(static_cast<float>(y[inx]),static_cast<float>(y[iny]),static_cast<float>(xv1),static_cast<float>(xv2));
 	}
 	else{
           /*  printf("dz=%g x0=%g y0=%g\n",dz,ydot[inx],ydot[iny]); */
@@ -563,7 +563,7 @@ void redraw_dfield()
 	}
       }
       if(DF_FLAG==2&&j>0&&i<grid){
-	frect_abs((float)y[inx],(float)y[iny],(float)du,(float)dv);
+	frect_abs(static_cast<float>(y[inx]),static_cast<float>(y[iny]),static_cast<float>(du),static_cast<float>(dv));
       }
     }
   }
@@ -610,11 +610,11 @@ void direct_field_com(int c)
   new_int("Grid:",&grid);
   if(grid<=1)return;
   DF_GRID=grid;
-  du=(plot_windows.current->xhi-plot_windows.current->xlo)/(double)grid;
-  dv=(plot_windows.current->yhi-plot_windows.current->ylo)/(double)grid;
+  du=(plot_windows.current->xhi-plot_windows.current->xlo)/static_cast<double>(grid);
+  dv=(plot_windows.current->yhi-plot_windows.current->ylo)/static_cast<double>(grid);
   
-  dup =(double)(DRight-DLeft)/(double)grid;
-  dvp=(double)(DTop-DBottom)/(double)grid; 
+  dup =static_cast<double>(DRight-DLeft)/static_cast<double>(grid);
+  dvp=static_cast<double>(DTop-DBottom)/static_cast<double>(grid); 
   dz=hypot(dup,dvp)*(.25+.75*DFIELD_TYPE) ;
   u0=plot_windows.current->xlo;
   v0=plot_windows.current->ylo;
@@ -624,8 +624,8 @@ void direct_field_com(int c)
     DF_FLAG=1;
     if(c==3){
       DF_FLAG=2;
-      du=(plot_windows.current->xhi-plot_windows.current->xlo)/(double)(grid+1);
-      dv=(plot_windows.current->yhi-plot_windows.current->ylo)/(double)(grid+1);
+      du=(plot_windows.current->xhi-plot_windows.current->xlo)/static_cast<double>(grid+1);
+      dv=(plot_windows.current->yhi-plot_windows.current->ylo)/static_cast<double>(grid+1);
     }
     DF_IX=inx+1;
     DF_IY=iny+1;
@@ -650,8 +650,8 @@ void direct_field_com(int c)
 	 v1[0]=0.0;
          v2[0]=0.0;
 	 for(k=0;k<NEQ;k++){
-	   v1[k+1]=(float)y[k];
-	   v2[k+1]=v1[k+1]+(float)ydot[k];
+	   v1[k+1]=static_cast<float>(y[k]);
+	   v2[k+1]=v1[k+1]+static_cast<float>(ydot[k]);
 	 }
 	 comp_color(v1,v2,NODE,1.0);
        }
@@ -671,11 +671,11 @@ void direct_field_com(int c)
 	 }
 	   xv1=y[inx]+ydot[inx]*dz;
 	 xv2=y[iny]+ydot[iny]*dz;
-         bead_abs((float)xv1,(float)xv2);
-	 line_abs((float)y[inx],(float)y[iny],(float)xv1,(float)xv2);
+         bead_abs(static_cast<float>(xv1),static_cast<float>(xv2));
+	 line_abs(static_cast<float>(y[inx]),static_cast<float>(y[iny]),static_cast<float>(xv1),static_cast<float>(xv2));
        }
        if(DF_FLAG==2&&j>0&&i<grid){
-	 frect_abs((float)y[inx],(float)y[iny],(float)du,(float)dv);
+	 frect_abs(static_cast<float>(y[inx]),static_cast<float>(y[iny]),static_cast<float>(du),static_cast<float>(dv));
        }
        
      }
@@ -868,28 +868,28 @@ void new_clines_com(int c)
   }
   if(c==0){
     for(i=NODE;i<NODE+NMarkov;i++)set_ivar(i+1+FIX_VAR,last_ic[i]);
-    xmin=(float)plot_windows.current->xmin;
-    xmax=(float)plot_windows.current->xmax;
-    y_tp=(float)plot_windows.current->ymax;
-    y_bot=(float)plot_windows.current->ymin;
+    xmin=static_cast<float>(plot_windows.current->xmin);
+    xmax=static_cast<float>(plot_windows.current->xmax);
+    y_tp=static_cast<float>(plot_windows.current->ymax);
+    y_bot=static_cast<float>(plot_windows.current->ymin);
   null_ix=plot_windows.current->xv[0];
   null_iy=plot_windows.current->yv[0];
   if(NULL_HERE==0)
     {
-      if((X_n=(float *)xpp_malloc(4*MAX_NULL*sizeof(float)))!=NULL
-	 && (Y_n=(float *)xpp_malloc(4*MAX_NULL*sizeof(float)))!=NULL)
+      if((X_n=static_cast<float *>(xpp_malloc(4*MAX_NULL*sizeof(float))))!=NULL
+	 && (Y_n=static_cast<float *>(xpp_malloc(4*MAX_NULL*sizeof(float))))!=NULL)
 	
 	
 	NULL_HERE=1;
-      NTop=(float *)xpp_malloc((course+1)*sizeof(float));
-      NBot=(float *)xpp_malloc((course+1)*sizeof(float));
+      NTop=static_cast<float *>(xpp_malloc((course+1)*sizeof(float)));
+      NBot=static_cast<float *>(xpp_malloc((course+1)*sizeof(float)));
       if(NTop==NULL||NBot==NULL)NULL_HERE=0;
     }
   else {
     xpp_free(NTop);
     xpp_free(NBot);
-    NTop=(float *)xpp_malloc((course+1)*sizeof(float));
-   NBot=(float *)xpp_malloc((course+1)*sizeof(float));
+    NTop=static_cast<float *>(xpp_malloc((course+1)*sizeof(float)));
+   NBot=static_cast<float *>(xpp_malloc((course+1)*sizeof(float)));
    if(NTop==NULL||NBot==NULL){NULL_HERE=0;
    return;}
   }
@@ -937,11 +937,11 @@ float fnull(float x, float y)
   int i;
   for(i=0;i<NODE;i++)y1[i]=last_ic[i];
  
-  y1[null_ix-1]=(double)x;
-  y1[null_iy-1]=(double)y;
+  y1[null_ix-1]=static_cast<double>(x);
+  y1[null_iy-1]=static_cast<double>(y);
   rhs(0.0,y1,ydot,NODE);
   /*  plintf(" %f  %f %f \n ", x,y,ydot[WHICH_CRV-1]); */
-  return((float)ydot[WHICH_CRV-1]);
+  return(static_cast<float>(ydot[WHICH_CRV-1]));
  }
 
 
@@ -983,8 +983,8 @@ void quad_contour(Pt p1, Pt p2, Pt p3, Pt p4)
 
 void do_cline(int ngrid, float x1, float y1, float x2, float y2)
 {
- float dx=(x2-x1)/(float)ngrid;
- float dy=(y2-y1)/(float)ngrid;
+ float dx=(x2-x1)/static_cast<float>(ngrid);
+ float dy=(y2-y1)/static_cast<float>(ngrid);
  float x,y;
  Pt p[5];
  int i,j;
