@@ -464,31 +464,6 @@ void place_window(webview_t w)
 
 #endif /* platform */
 
-/* Translate WebView error code to user message (W35e) */
-std::string xpp_webview_error_message(int code, const char *msg)
-{
-    /* WEBVIEW_ERROR_MISSING_DEPENDENCY is -5; only show the runtime hint for it */
-    if (code == -5) {
-        return "xppautX: the window cannot open (no web view: on Windows the WebView2 runtime, on Linux a "
-               "display); using the browser instead\n";
-    }
-    /* For other errors, report the code and the message from the exception */
-    const char *code_name;
-    switch (code) {
-    case 0: code_name = "OK"; break;
-    case -1: code_name = "UNSPECIFIED"; break;
-    case -2: code_name = "INVALID_ARGUMENT"; break;
-    case -3: code_name = "INVALID_STATE"; break;
-    case -4: code_name = "CANCELED"; break;
-    case 1: code_name = "DUPLICATE"; break;
-    case 2: code_name = "NOT_FOUND"; break;
-    default: code_name = "unknown"; break;
-    }
-    std::string actual_msg = msg && msg[0] ? std::string(msg) : "(no details)";
-    return "xppautX: the window cannot open (webview " + std::string(code_name) + ": " +
-           actual_msg + "); using the browser instead\n";
-}
-
 /* the window, on the thread that runs it; NULL when it cannot open.
    Calls xpp_webview_create which captures exception details (W35e). */
 webview_t open_view()
