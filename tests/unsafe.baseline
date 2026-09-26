@@ -120,7 +120,7 @@ core/parserslow2.cpp text 2
 core/phase_data.cpp buffers 2
 core/phase_data.cpp memory 1
 core/phsplan.h buffers 1
-core/plot_data.cpp buffers 3
+core/plot_data.cpp buffers 2
 core/plot_data.cpp memory 1
 core/pop_list.h buffers 2
 core/pp_shoot.cpp buffers 5
@@ -129,7 +129,7 @@ core/read_dir.cpp buffers 1
 core/read_dir.cpp memory 6
 core/read_dir.cpp text 1
 core/scrngif.cpp memory 12
-core/series_enc.cpp buffers 5
+core/series_enc.cpp buffers 4
 core/series_enc.cpp memory 1
 core/simplenet.cpp buffers 1
 core/storage.cpp memory 7
