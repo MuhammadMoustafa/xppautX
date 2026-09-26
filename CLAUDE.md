@@ -64,7 +64,7 @@ calls (W32b, W33).
 
 verify.sh's checks about the source rather than the build (UTF-8, the
 scripts' executable bit, stdoutcheck, formatcheck, literalcheck, the LTO
-type check, the dead-code check) are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
+type check, the dead-code check, the duplication check) are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
 `--warnings`: tools/warnings.sh's count, and web2's dist/types/unit
 tests), and its linux-core job runs `verify.sh --no-source-checks`. Every
 platform runs the same behaviour checks against its own build (`<platform>-core`)
@@ -102,6 +102,22 @@ anything not in the allowlist inside the script, each entry with its
 reason: delete dead code rather than add an entry. Linux only (MinGW's
 linker keeps every function, macOS's cannot print what it drops); a
 function Windows alone calls is caught by the Windows build's link.
+
+`tools/dupcheck.sh` (W30; sourcecheck runs it with `--check`, a few
+seconds; `tools/dupcheck.py` does the work, `python3 tools/dupcheck.py`
+with no wrapper also runs) is a duplication audit of core/: normalising
+whitespace, comments and (for functions) identifiers, it lists duplicated
+functions, runs of >= 16 duplicated lines, a struct/typedef defined more
+than once, and a function declared in more than one header. `--check`
+fails on anything not in the allowlist inside the script, each entry
+naming which W32 card (docs/roadmap.md) absorbs the copy, or "vendored/
+numerical, keep" for a translated-Fortran/CVODE routine whose repeated
+shape is the original source's own; merge into the owner rather than add
+an entry. Heuristic and line-based (not a real C++ parser), so it cannot
+see two implementations of the same algorithm written differently
+(sgefa/sgesl vs. ge() vs. bandfac/bandsol, the three LU solves; gear.cpp's
+eigen() vs. autlib1.cpp's eig()): those were found by hand for the W30
+audit note, not by this script.
 
 `make ltocheck` (run by tools/sourcecheck.sh, which verify.sh runs) links xppautX with LTO into build/lto
 and fails on `-Wlto-type-mismatch`: an extern whose type or array bound

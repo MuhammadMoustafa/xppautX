@@ -72,11 +72,11 @@ issue; the card here is the one kept up to date.
 | W29e | #53 | Safe C++, the parser and model loading: parserslow2, form_ode, simplenet, load_eqn, flags, comline, read_dir, edit_rhs, extra, lunch-new, xpp_batch, xpp_session: safe C++ in place of the unsafe C idioms (CLAUDE.md "C and C++"): RAII containers instead of hand-paired xpp_malloc/xpp_free, std::string/std::string_view instead of char buffers and xpp_strlcpy/xpp_snprintf, xpp::format/xpp::log, xpp::LineReader/TokenReader/Writer instead of fopen/fscanf/fgets, std::array/std::vector/std::span instead of raw arrays, static_cast instead of C casts; numerics unchanged (md5s); tools/unsafecheck.sh's count for these files drops to what is left with a reason | W28, W29-0 | done (rest in W33) |
 | W29f | #54 | Safe C++, the UI core and plot data: menus, commands, graphics, graf_par, axes2, nullcline, my_ps, my_svg, scrngif, array_print, arrayplot, aniparse, ani_data, browse_data, grobs, userbut, colormap, xpp_ui, plot_data, phase_data, marks_data, series_enc: safe C++ in place of the unsafe C idioms (CLAUDE.md "C and C++"): RAII containers instead of hand-paired xpp_malloc/xpp_free, std::string/std::string_view instead of char buffers and xpp_strlcpy/xpp_snprintf, xpp::format/xpp::log, xpp::LineReader/TokenReader/Writer instead of fopen/fscanf/fgets, std::array/std::vector/std::span instead of raw arrays, static_cast instead of C casts; numerics unchanged (md5s); tools/unsafecheck.sh's count for these files drops to what is left with a reason | W28, W29-0 | done (rest in W33) |
 | W29g | #55 | Safe C++, the protocol, platform and base modules: ui_json, json_ani, json_auto, json_io, json_prompts, json_state, json_windows, xpp_http, xpp_inbox, xpp_files, xpp_io, xpp_mem, xpp_log, xpp_job, xpp_util, xpp_globals, xpp_sha256, xpp_win32, xpp_window, xpp_window_hint, xpp_window_loader, xppautx_main: safe C++ in place of the unsafe C idioms (CLAUDE.md "C and C++"): RAII containers instead of hand-paired xpp_malloc/xpp_free, std::string/std::string_view instead of char buffers and xpp_strlcpy/xpp_snprintf, xpp::format/xpp::log, xpp::LineReader/TokenReader/Writer instead of fopen/fscanf/fgets, std::array/std::vector/std::span instead of raw arrays, static_cast instead of C casts; numerics unchanged (md5s); tools/unsafecheck.sh's count for these files drops to what is left with a reason | W28, W29-0 | done (rest in W33) |
-| W30 | #57 | Duplication audit: tools/dupcheck.sh (sourcecheck --check, allowlist with reasons) lists duplicated functions, blocks and struct definitions in core/; its first report completes the list of copies W32 absorbs | none | in-progress |
-| W31a | #58 | Tests for the Fourier features: stocHast's Fourier series, power spectrum, correlations, windowed spectral density, and fftcon against a direct convolution, by known answers | none | in-progress |
-| W31b | #59 | Tests for the stochastic menu's random-number features, checking statistics with tolerances (they must survive W32a's new generator) | none | in-progress |
+| W30 | #57 | Duplication audit: tools/dupcheck.sh (sourcecheck --check, allowlist with reasons) lists duplicated functions, blocks and struct definitions in core/; its first report completes the list of copies W32 absorbs | none | done |
+| W31a | #58 | Tests for the Fourier features: stocHast's Fourier series, power spectrum, correlations, windowed spectral density, and fftcon against a direct convolution, by known answers | none | done |
+| W31b | #59 | Tests for the stochastic menu's random-number features, checking statistics with tolerances (they must survive W32a's new generator) | none | done |
 | W31c | #60 | Golden-file tests for the PostScript, SVG, GIF and array-print outputs (W29f's byte-compare harness, committed, run by verify.sh) | none | done |
-| W32a | #61 | xpp_math: pocketfft replaces fftn and histogram's FFT wrappers; std::mt19937_64 plus our own distributions replace the Numerical Recipes generator; one LU solve; gear uses EISPACK's eigenvalues; std helpers. Stochastic models' checksums rebaselined once | W30, W31a, W31b | blocked |
+| W32a | #61 | xpp_math: pocketfft replaces fftn and histogram's FFT wrappers; std::mt19937_64 plus our own distributions replace the Numerical Recipes generator; one LU solve; gear uses EISPACK's eigenvalues; std helpers. Stochastic models' checksums rebaselined once | W30, W31a, W31b | ready |
 | W32b | #62 | xpp_files: every file operation (open handles with print, safe replace, copy/append/rename/delete, temp folders) in one module; open_write_file, AUTO's file helpers and the five print copies go; tools/filecheck.sh enforces it | W30, W31c, W32a | blocked |
 | W32c | #63 | The dialog API (xpp_ui.h) returns std::string instead of filling char[MAX_LEN_SBOX] buffers; callers changed only as the signatures require | W32b | blocked |
 | W32d | #64 | One definition of the shared data: HIST_INFO and TABULAR once, the data store as a class (histogram's aliasing explicit), the AUTO diagram's list as a container | W32c | blocked |
@@ -97,6 +97,92 @@ issue; the card here is the one kept up to date.
 | W36 | #79 | CI's windows-clang faster: its sanitizers a job of their own (windows-clang-sanitizers); asancheck builds the unit tests with -j and runs servercheck, webcheck and autocheck side by side | none | done |
 | W37 | #80 | Compile the formatting once: xpp::format, format_to_buf, xpp::log and buf_format check the format at the call and format in xpp::vformat (xpp_io.cpp), not std::format inline in every file (clang: 278 to 170 CPU-s for the core) | none | done |
 | W38 | #81 | fftcon reads one past its weight table (simplenet.cpp update_fft: FFTCONP reads w[n] and skips w[n2-1], FFTCON0 w[2N]; the load check allows exactly n/2N points): decide the layout, make the check and update_fft agree, say the length in the manual | W32a | blocked |
+
+## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
+that absorbs them (the allowlist inside tools/dupcheck.py has the full
+list with a reason per entry; this is the summary).
+
+**W32a xpp_math** (LU, eigen, FFT/RNG, std helpers): the three LU solves
+(core/gear.cpp's LINPACK-style sgefa/sgesl, core/autlib1.cpp's own
+Gaussian elimination `ge()`, core/odesol2.cpp's bandfac/bandsol) and the
+two eigenvalue routines (core/gear.cpp's `eigen()`, core/autlib1.cpp's
+`eig()`) are the same algorithm written three (or two) times differently
+enough that dupcheck's text/structure match cannot see it -- found by
+hand, not by the tool. What the tool did find: core/gear.cpp's own
+imin/Min and amax/Max (the same int/double min and max helper written
+twice); core/adj2.cpp's adj_back/h_back and core/histogram.cpp's
+four_back/hist_back (four near-identical ring-buffer interpolation
+helpers); core/markov.cpp's mean_back/variance_back; core/parserslow2.cpp's
+bessel_j/bessel_y and bessi/bessis; core/histogram.cpp's and
+core/markov.cpp's own repeated 17-24 line blocks.
+
+**W32b xpp_files** (file ops, print helpers, temp folders): the five
+print-helper copies (core/edit_rhs.cpp, core/form_ode.cpp and
+core/lunch-new.cpp's `put()`, core/auto_print.h's `xpp::auto_out::print`,
+all the same fprintf-to-xpp::format-then-fwrite helper) plus
+core/array_print.cpp's ps_bar/ps_hsb_bar, core/auto_nox.cpp's
+draw_ps_axes/draw_svg_axes and save_auto_file/load_auto_file,
+core/diagram.cpp's post_auto/svg_auto (and its own repeated 16-line PS/SVG
+block); core/json_io.cpp's and core/xpp_files.cpp's identical
+out_of_memory and b64_value helpers; core/xpp_files.cpp's
+xpp_files_put_abort and core/xpp_io.cpp's xpp_writer_abort (both "discard
+a temp file, leave the target alone"); the two temp-folder implementations,
+core/xpp_util.cpp's and core/xpp_win32.cpp's identical scratch_dir_pid
+(POSIX and Windows sides of the same scratch-dir-name parser); the
+triplicated FileCloser RAII struct (core/lunch-new.cpp, core/xpp_session.cpp,
+core/xpp_io.h's own).
+
+**W32c dialog API** (xpp_ui.h, the seam): by far the largest group, 228
+names declared in more than one header. Two headers are dead weight --
+core/auto.h and core/aniparse_avi.h are never `#include`d anywhere and
+duplicate core/auto_nox.h and core/aniparse.h respectively (delete both
+files outright, along with their ANI_COM/Comet/MPEG_SAVE struct copies).
+The rest are pre-XppUi-seam declarations still sitting in their old
+headers (core/auto_x11.h, core/menudrive.h, core/ggets.h, core/color.h,
+core/abort.h, core/calc.h, core/kinescope.h, core/txtread.h,
+core/edit_rhs.h, core/graf_par.h, core/main.h, core/menu.h,
+core/arrayplot.h, core/pop_list.h, core/many_pops.h, core/init_conds.h,
+core/xpp_util.h) alongside xpp_ui.h's own dispatcher declarations of the
+same historical names -- drop the old copy, keep xpp_ui.h's. Also here:
+core/commands.cpp's help/help_num/help_file; core/json_ani.cpp,
+core/json_windows.cpp, core/ui_json.cpp and core/xpp_batch.cpp's small
+same-shape dispatch helpers (j_ani_show/j_reset_graphics/script_next/
+do_vis_env) and core/json_windows.cpp's j_redraw_screens/j_clear_screens.
+
+**W32d shared data** (HIST_INFO, TABULAR, the data store, the AUTO
+diagram list): HIST_INFO (core/histogram.cpp, core/load_eqn.cpp) and
+TABULAR (core/simplenet.cpp, core/tabular.cpp) defined twice, each file's
+own comment already admitting it reads the other's layout directly.
+Also: ACTION (core/form_ode.cpp, core/json_state.cpp), INTERN_SET
+(core/integrate.cpp, core/load_eqn.cpp, core/comline.h) and XPPVEC
+(core/integrate.cpp, core/storage.cpp) each defined more than once;
+core/auto_data.cpp's and core/plot_data.cpp's identical add_str,
+core/marks_data.cpp's and core/phase_data.cpp's identical add_num;
+core/graf_par.cpp's edit_frz/delete_frz (frozen_curves); core/grobs.cpp's
+destroy_grob/destroy_label; core/simplenet.cpp's per-connectivity-type
+16-34 line blocks (the same TABULAR-driven code repeated per network type).
+
+**Not owned by any W32 card, left as "keep" in the allowlist; the W33 sweep of each file looks at them again, merging or keeping each with its reason** (same-shape
+per-variant dispatch that is a design pattern, not a copy to merge, or a
+possible coincidental structural match worth a human's second look before
+touching): core/aniparse.cpp's per-primitive draw_ani_* wrappers,
+core/flags.cpp's one_flag_step_* dispatch, core/graphics.cpp's
+point/bead, line/frect, point_abs/bead_abs pairs, core/extra.cpp's
+set_dll_library/set_dll_function, core/odesol2.cpp's discrete/euler,
+core/auto_nox.cpp's auto_twopar_double/auto_torus, core/integrate.cpp's
+range_item/range_item2 and its own repeated block, core/nullcline.cpp's
+repeated block, core/arrayplot.cpp's init_my_aplot/edit_aplot,
+core/lunch-new.cpp's io_int/io_double and core/xpp_io.cpp's/xpp_io.h's own
+intentional API pairs (line vs. token reader, RAII close()/abort()).
+
+**Vendored/numerical, keep** (a translated-Fortran or CVODE routine whose
+repeated shape is the algorithm's own): AUTO (Doedel)'s autlib1/2/3/5.cpp
+(stub MPI functions, per-branch-type blocks, fnuzae/fnuzbv,
+fnhd/fnhb/fnhw/fnsp/fnpe/fnpl/fnpd/fntr/fnbl/fnho, mynode/numnodes),
+conpar2.cpp/worker2.cpp's shared time_start/time_end and startup block,
+EISPACK's eispack.cpp, CVODE's band.cpp/dense.cpp and
+cvband.cpp/cvdense.cpp, and Hairer's dormpri.cpp/dormpri.h
+(hinit/hinit5 and their parallel dop853/dopri5 blocks).
 
 ## W0: C/C++ mixed build
 **Goal.** core/*.cpp builds next to core/*.c on Linux, Windows (MinGW,

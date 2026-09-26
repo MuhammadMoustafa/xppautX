@@ -12,6 +12,8 @@
 #   - no extern whose type differs from its definition (make ltocheck)
 #   - no function or file-scope datum nothing reaches (tools/deadcode.sh;
 #     Linux: elsewhere it says so and passes)
+#   - no new duplicated function/block/struct or header declared twice
+#     (tools/dupcheck.sh)
 # Usage: tools/sourcecheck.sh [--warnings]
 #   --warnings  also count a clean build's warnings by flag and file
 #               (tools/warnings.sh; a count, it fails only if the build does)
@@ -75,6 +77,12 @@ if ! sh tools/deadcode.sh --check > build/deadcode.out 2>&1; then
   exit 1
 fi
 tail -1 build/deadcode.out
+if ! sh tools/dupcheck.sh --check > build/dupcheck.out 2>&1; then
+  tail -60 build/dupcheck.out
+  echo "DUPLICATION CHECK FAILED"
+  exit 1
+fi
+tail -1 build/dupcheck.out
 if [ "$1" = --warnings ]; then
   sh tools/warnings.sh || exit 1
 fi
