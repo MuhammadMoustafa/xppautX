@@ -12,8 +12,11 @@
 
 #include "parserslow.h"
 
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <string.h>
+#include <array>
+#include <optional>
+#include <string>
 
 
 /*********************************************************
@@ -123,13 +126,13 @@ void view_table(int index)
 
 void new_lookup_com(int i)
 {
-  char file[128];
+  std::array<char, 128> file{};
  int index,ok,status;
  double xlo,xhi;
  int npts;
- char newform[80];
+ std::array<char, 80> newform{};
 
-  
+
   index=select_table();
   if(index==-1)return;
   if(i==1){
@@ -137,25 +140,25 @@ void new_lookup_com(int i)
     return;
   }
    if(my_table[index].flag==1){
-     XPP_STRCPY(file,my_table[index].filename);
-     status=file_selector("Load table",file,"*.tab");
+     xpp_strlcpy(file.data(),my_table[index].filename,file.size());
+     status=file_selector("Load table",file.data(),"*.tab");
      if(status==0)return;
-     ok=load_table(file,index);
-     if(ok==1)XPP_STRCPY(my_table[index].filename,file);
-     
+     ok=load_table(file.data(),index);
+     if(ok==1)XPP_STRCPY(my_table[index].filename,file.data());
+
    }
    if(my_table[index].flag==2){
      npts=my_table[index].n;
-     
+
      xlo=my_table[index].xlo;
        xhi=my_table[index].xhi;
-       XPP_STRCPY(newform,my_table[index].filename);
+       xpp_strlcpy(newform.data(),my_table[index].filename,newform.size());
        new_int("Auto-evaluate? (1/0)",&my_table[index].autoeval);
        new_int("NPts: ",&npts);
        new_float("Xlo: ",&xlo);
        new_float("Xhi: ",&xhi);
-       new_string_of("Formula :",newform,XPP_FIELD_EXPRESSION);
-       create_fun_table(npts,xlo,xhi,newform,index);
+       new_string_of("Formula :",newform.data(),XPP_FIELD_EXPRESSION);
+       create_fun_table(npts,xlo,xhi,newform.data(),index);
 
    }
 
@@ -214,7 +217,7 @@ double lookup(double x, int index)
    if(my_table[index].xyvals==1)
     return(lookupxy(x,n,my_table[index].x,y));
   
-  i1=(int)((x-xlo)/dx);   /* (int)floor(x) instead of (int)x ??? */
+  i1=static_cast<int>((x-xlo)/dx);   /* (int)floor(x) instead of (int)x ??? */
   if(my_table[index].interp==2&&i1>0&&i1<(n-2))
     return tab_interp(xlo,dx,x,y,n,i1); /* if it is on the edge - use linear */
   i2=i1+1;
@@ -275,7 +278,7 @@ int eval_fun_table(int n, double xlo, double xhi, const char *formula, double *y
     return(0);
   }
   oldt=get_ivar(0);
-  dx=(xhi-xlo)/((double)(n-1));
+  dx=(xhi-xlo)/(static_cast<double>(n-1));
   for(i=0;i<n;i++){
     set_ivar(0,dx*i+xlo);
     y[i]=evaluate(command);
@@ -304,11 +307,11 @@ int create_fun_table(int npts, double xlo, double xhi, const char *formula, int 
     return(0);
   }
   if(my_table[index].flag==0){
-   my_table[index].y=(double *)xpp_malloc(length*sizeof(double));
+   my_table[index].y=static_cast<double *>(xpp_malloc(length*sizeof(double)));
    }
   else {
     my_table[index].y=
-      (double *)xpp_realloc((void *)my_table[index].y,length*sizeof(double));
+      static_cast<double *>(xpp_realloc(my_table[index].y,length*sizeof(double)));
   }
   if(my_table[index].y==NULL){
      err_msg("Unable to allocate table");
@@ -319,7 +322,7 @@ int create_fun_table(int npts, double xlo, double xhi, const char *formula, int 
     my_table[index].xlo=xlo;
     my_table[index].xhi=xhi;
     my_table[index].n=npts;
-    my_table[index].dx=(xhi-xlo)/((double)(npts-1));
+    my_table[index].dx=(xhi-xlo)/(static_cast<double>(npts-1));
     XPP_STRCPY(my_table[index].filename,formula);
     return(1);
   }
@@ -333,13 +336,10 @@ int create_fun_table(int npts, double xlo, double xhi, const char *formula, int 
 int load_table(const char *filename, int index)
 {
   int i;
-  char bobtab[100];
-  char * bob;
-  char error[512];
   int length;
   double xlo,xhi;
-  FILE *fp;
-  char filename2[512],ch;
+  std::array<char, 512> filename2{};
+  char ch;
   int n=strlen(filename);
   int j=0,flag=0;
   for(i=0;i<n;i++){
@@ -356,108 +356,95 @@ int load_table(const char *filename, int index)
   }
   filename2[j]=0;
 
-  bob = bobtab;
-
   if(my_table[index].flag==2){
     err_msg("Not a file table...");
     return(0);
   }
-  fp=fopen(filename2,"r");
-  if(fp==NULL){
+
+  xpp::LineReader reader(filename2.data());
+  if(!reader){
      get_directory(cur_dir);
-    snprintf(error,sizeof(error),"File<%.245s> not found in %.245s",filename2,cur_dir);
-    err_msg(error);
+    err_msg(xpp::format("File<{:.245}> not found in {:.245}",filename2.data(),static_cast<const char *>(cur_dir)).c_str());
     return(0);
   }
+  auto next_line=[&reader]() -> std::optional<std::string> {
+    auto line=reader.next();
+    if(!line) return std::nullopt;
+    return std::string(*line);
+  };
+
  my_table[index].interp=0;
-  if(fgets(bob,100,fp)==NULL){
+  auto line0=next_line();
+  if(!line0){
     err_msg("Table file too short");
-    fclose(fp);
     return(0);
   }
-  if (bob[0]=='i') /* closest step value */
-    {
-      my_table[index].interp=1;
-      bob++;  /* skip past initial "i" to length */
-    };
-  if (bob[0]=='s') /* cubic spline  */
-    {
-      my_table[index].interp=2;
-      bob++;  /* skip past initial "i" to length */
-    };
-  length=atoi(bob);
+  {
+    const char *bob=line0->c_str();
+    if (bob[0]=='i') /* closest step value */
+      {
+        my_table[index].interp=1;
+        bob++;  /* skip past initial "i" to length */
+      };
+    if (bob[0]=='s') /* cubic spline  */
+      {
+        my_table[index].interp=2;
+        bob++;  /* skip past initial "i" to length */
+      };
+    length=atoi(bob);
+  }
   if(length<2){
     err_msg("Length too small");
-    fclose(fp);
     return(0);
   }
-  if(fgets(bob,100,fp)==NULL){
+  auto line1=next_line();
+  if(!line1){
     err_msg("Table file too short");
-    fclose(fp);
     return(0);
   }
-  xlo=atof(bob);
-  if(fgets(bob,100,fp)==NULL){
+  xlo=atof(line1->c_str());
+  auto line2=next_line();
+  if(!line2){
     err_msg("Table file too short");
-    fclose(fp);
     return(0);
   }
-  xhi=atof(bob);
+  xhi=atof(line2->c_str());
   if(xlo>=xhi){
     err_msg("xlo >= xhi ??? ");
-    fclose(fp); 
     return(0);
   }
-  if(my_table[index].flag==0){
-   my_table[index].y=(double *)xpp_malloc(length*sizeof(double));
-   if(my_table[index].y==NULL){
-     err_msg("Unable to allocate table");
-     fclose(fp); 
-     return(0);
-   }
-   for(i=0;i<length;i++){
-     if(fgets(bob,100,fp)==NULL){
-       err_msg("Table file too short");
-       xpp_free(my_table[index].y);
-       my_table[index].y=NULL;
-       fclose(fp);
-       return(0);
-     }
-     my_table[index].y[i]=atof(bob);
-   }
-   my_table[index].xlo=xlo;
-   my_table[index].xhi=xhi;
-   my_table[index].n=length;
-   my_table[index].dx=(xhi-xlo)/(length-1);
-   my_table[index].flag=1;
-   XPP_STRCPY(my_table[index].filename,filename2);
-   fclose(fp); 
-   return(1);
+  /* my_table[index].y is a shared raw block: simplenet.cpp keeps its own
+     duplicate TABULAR typedef and reads this field's layout directly, so
+     it stays xpp_malloc/xpp_realloc/xpp_free rather than std::vector. */
+  bool fresh=(my_table[index].flag==0);
+  if(fresh){
+   my_table[index].y=static_cast<double *>(xpp_malloc(length*sizeof(double)));
  }
-  my_table[index].y=
-    (double *)xpp_realloc((void *)my_table[index].y,length*sizeof(double));
+  else {
+    my_table[index].y=
+      static_cast<double *>(xpp_realloc(my_table[index].y,length*sizeof(double)));
+  }
   if(my_table[index].y==NULL){
-     err_msg("Unable to reallocate table");
-     fclose(fp);
+     err_msg(fresh ? "Unable to allocate table" : "Unable to reallocate table");
      return(0);
    }
   for(i=0;i<length;i++){
-     if(fgets(bob,100,fp)==NULL){
+    auto line=next_line();
+    if(!line){
        err_msg("Table file too short");
        xpp_free(my_table[index].y);
        my_table[index].y=NULL;
        my_table[index].flag=0;
-       fclose(fp);
        return(0);
      }
-     my_table[index].y[i]=atof(bob);
+     my_table[index].y[i]=atof(line->c_str());
    }
   my_table[index].xlo=xlo;
   my_table[index].xhi=xhi;
   my_table[index].n=length;
   my_table[index].dx=(xhi-xlo)/(length-1);
   my_table[index].flag=1;
-  fclose(fp);
+  if(fresh) XPP_STRCPY(my_table[index].filename,filename2.data());
   return(1);
 }
    
@@ -494,7 +481,7 @@ int select_table(void)
  int i,j;
  char *n[MAX_TAB],key[MAX_TAB],ch;
  for(i=0;i<NTable;i++){
-   n[i]=(char *)xpp_malloc(XPP_NAME_MAX+4);
+   n[i]=static_cast<char *>(xpp_malloc(XPP_NAME_MAX+4));
    key[i]='a'+i;
    /* n[i] is a pointer, allocated XPP_NAME_MAX+4 bytes just above. */
    xpp_snprintf(n[i],XPP_NAME_MAX+4,"%c: %s",key[i],my_table[i].name);
@@ -502,11 +489,11 @@ int select_table(void)
  key[NTable]=0;
  {
    XppMenu m={"table","Table",0,NULL,NULL,NULL,-1,0,1};
-   m.n=NTable; m.items=(const char *const *)n; m.keys=key; m.hints=(const char *const *)no_hint; m.width=NTable;
-   ch=(char)menu_choose(&m,0);
+   m.n=NTable; m.items=const_cast<const char *const *>(n); m.keys=key; m.hints=const_cast<const char *const *>(no_hint); m.width=NTable;
+   ch=static_cast<char>(menu_choose(&m,0));
  }
  for(i=0;i<NTable;i++)xpp_free(n[i]);
- j=(int)(ch-'a');
+ j=static_cast<int>(ch-'a');
  if(j<0||j>=NTable){
    err_msg("Not a valid table");
    return -1;
