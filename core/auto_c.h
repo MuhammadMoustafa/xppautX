@@ -45,7 +45,8 @@ extern FILE *fp10;
 
 extern int global_conpar_type;
 
-/* AUTO's work arrays, defined in autlib1 and shared with autlib3, autlib5
+/* AUTO's work arrays, defined in autlib1 (allocate_global_memory, which
+   owns their storage) and shared with autlib3, autlib5
    and worker2 (see there). Named types: a C++ file cannot share a
    variable of an unnamed struct type with another file. */
 typedef struct {

@@ -1,3 +1,4 @@
+#include <vector>
 #include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h"
 #include "xpp_mem.h"
@@ -82,7 +83,7 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
   irs=xAuto.irs;
   ilp=xAuto.ilp;
 
-  thu = *thu_pointer = (doublereal *)xpp_malloc(sizeof(doublereal)*8*ndim);
+  thu = *thu_pointer = static_cast<doublereal *>(xpp_malloc(sizeof(doublereal)*8*ndim));
 
   for (i = 0; i < ndim * 8; ++i) {
     thu[i] = 1.;
@@ -454,7 +455,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
   /* (Perturbed to avoid exact computation of certain singular points). */
 
   if (ds == 0.) {
-    ds = (double).1;
+    ds = .1;
   }
   if (dsmin == 0.) {
     dsmin = fabs(ds) * 1e-4;
@@ -785,52 +786,44 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
     /* Local variables */
   integer nbfc;
-  doublereal *dfdp;
   integer nbif, iads;
-  doublereal *dfdu;
   integer mxbf;
 
-  doublereal *uold, stla[NBIFX], stld[NBIFX];
+  doublereal stla[NBIFX], stld[NBIFX];
   integer nins;
-  doublereal *udot;
   integer ipos;
-  doublereal *stud;	
   integer ntot, iuzr, nuzr;
-  doublereal *f;
   integer i, k;
-  doublereal *u, dsold;
+  doublereal dsold;
 
   doublereal rlold[NPARX], rldot[NPARX], rlcur[NPARX];
   integer istop, itpst;
 
-  doublereal *aa;
 
-  doublereal ds, *du;
+  doublereal ds;
 
   integer lab, ibr;
   doublereal rbp, rds;
   integer ips;
-  doublereal *rhs;
   integer irs, isp;
   doublereal rev;
   doublereal rlp;
   integer nit, itp;
-  doublereal *stu, *uzr;
 
   integer aa_first_dimension = iap->ndim + 1;
 
-  dfdp = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*NPARX);
-  dfdu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
-  uold = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  udot = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  stud =  (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*NBIFX);
-  f = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  u = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  aa = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim+1)*(iap->ndim+1));
-  du = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim+1));
-  rhs = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim+1));
-  stu =  (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*NBIFX);
-  uzr =  (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nuzr));
+  std::vector<doublereal> dfdp((iap->ndim)*NPARX);
+  std::vector<doublereal> dfdu((iap->ndim)*(iap->ndim));
+  std::vector<doublereal> uold(iap->ndim);
+  std::vector<doublereal> udot(iap->ndim);
+  std::vector<doublereal> stud((iap->ndim)*NBIFX);
+  std::vector<doublereal> f(iap->ndim);
+  std::vector<doublereal> u(iap->ndim);
+  std::vector<doublereal> aa((iap->ndim+1)*(iap->ndim+1));
+  std::vector<doublereal> du(iap->ndim+1);
+  std::vector<doublereal> rhs(iap->ndim+1);
+  std::vector<doublereal> stu((iap->ndim)*NBIFX);
+  std::vector<doublereal> uzr(iap->nuzr);
     
   /* Controls the bifurcation analysis of algebraic problems */
 
@@ -885,8 +878,8 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   /* Generate the starting point */
 
-  (*stpnt)(iap, rap, par, icp, u);
-  (*pvli)(iap, rap, u, par);
+  (*stpnt)(iap, rap, par, icp, u.data());
+  (*pvli)(iap, rap, u.data(), par);
 
 /* Determine a suitable starting label and branch number */
 
@@ -907,7 +900,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   }
   iap->itp = itp;
   rlcur[0] = par[icp[0]];
-  stplae(iap, rap, par, icp, rlcur, u);
+  stplae(iap, rap, par, icp, rlcur, u.data());
   istop = iap->istop;
   if (istop == 1) {
     goto L6;
@@ -915,8 +908,8 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   /* Starting procedure  (to get second point on first branch) : */
 
-  stprae(iap, rap, par, icp, funi, &rds, &aa_first_dimension, aa, 
-	 rhs, rlcur, rlold, rldot, u, du, uold, udot, f, dfdu, dfdp, thl, 
+  stprae(iap, rap, par, icp, funi, &rds, &aa_first_dimension, aa.data(), 
+	 rhs.data(), rlcur, rlold, rldot, u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(), thl, 
 	 thu);
   istop = iap->istop;
   if (istop == 1) {
@@ -929,8 +922,8 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 /* Initialize computation of the next bifurcating branch. */
 
  L2:
-  swpnt(iap, rap, par, icp, &rds, NBIFX, stud, stu, 
-	stla, stld, rlcur, rlold, rldot, u, udot);
+  swpnt(iap, rap, par, icp, &rds, NBIFX, stud.data(), stu.data(), 
+	stla, stld, rlcur, rlold, rldot, u.data(), udot.data());
 
   ipos = iap->ipos;
   if (ipos == 1) {
@@ -965,7 +958,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
 /* Store plotting data for first point on the bifurcating branch */
 
-  stplae(iap, rap, par, icp, rlcur, u);
+  stplae(iap, rap, par, icp, rlcur, u.data());
   istop = iap->istop;
   if (istop == 1) {
     goto L6;
@@ -973,8 +966,8 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   /* Determine the second point on the bifurcating branch */
 
-  swprc(iap, rap, par, icp, funi, &aa_first_dimension, aa, rhs, 
-	rlcur, rlold, rldot, u, du, uold, udot, f, dfdu, dfdp, &rds, thl, 
+  swprc(iap, rap, par, icp, funi, &aa_first_dimension, aa.data(), rhs.data(), 
+	rlcur, rlold, rldot, u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(), &rds, thl, 
 	thu);
   istop = iap->istop;
   if (istop == 1) {
@@ -983,7 +976,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   /* Store plotting data for second point : */
 
-  stplae(iap, rap, par, icp, rlcur, u);
+  stplae(iap, rap, par, icp, rlcur, u.data());
   istop = iap->istop;
   if (istop == 1) {
     goto L6;
@@ -995,12 +988,12 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 /* Provide initial approximation to the next point on the branch */
 
  L3:
-  contae(iap, rap, &rds, rlcur, rlold, rldot, u, uold, udot);
+  contae(iap, rap, &rds, rlcur, rlold, rldot, u.data(), uold.data(), udot.data());
 
 /* Find the next solution point on the branch */
 
-  solvae(iap, rap, par, icp, funi, &rds, &aa_first_dimension, aa, 
-	 rhs, rlcur, rlold, rldot, u, du, uold, udot, f, dfdu, dfdp, thl, 
+  solvae(iap, rap, par, icp, funi, &rds, &aa_first_dimension, aa.data(), 
+	 rhs.data(), rlcur, rlold, rldot, u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(), thl, 
 	 thu);
   istop = iap->istop;
   if (istop == 1) {
@@ -1013,8 +1006,8 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     for (iuzr = 0; iuzr < nuzr; ++iuzr) {
       iap->iuzr = iuzr;
       lcspae(iap, rap, par, icp, 
-	     fnuzae, funi, &aa_first_dimension, aa, rhs, rlcur, rlold, rldot, u, du, uold, udot,
-	     f, dfdu, dfdp, &uzr[iuzr], thl, thu, iuz, vuz);
+	     fnuzae, funi, &aa_first_dimension, aa.data(), rhs.data(), rlcur, rlold, rldot, u.data(), du.data(), uold.data(), udot.data(),
+	     f.data(), dfdu.data(), dfdp.data(), &uzr[iuzr], thl, thu, iuz, vuz);
       istop = iap->istop;
       if (istop == 1) {
 	goto L5;
@@ -1041,8 +1034,8 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   if (iap->ilp == 1) {
     lcspae(iap, rap, par, icp, fnlpae, 
 	   funi, &aa_first_dimension, 
-	   aa, rhs, rlcur, rlold, rldot, u, du, uold, udot, f, dfdu, 
-	   dfdp, &rlp, thl, thu, iuz, vuz);
+	   aa.data(), rhs.data(), rlcur, rlold, rldot, u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), 
+	   dfdp.data(), &rlp, thl, thu, iuz, vuz);
     itp = iap->itp;
     if (itp == -1) {
       itp = itpst * 10 + 2;
@@ -1058,8 +1051,8 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   if (isp != 0) {
     lcspae(iap, rap, par, icp, 
 	   fnbpae, funi, &aa_first_dimension, 
-	   aa, rhs, rlcur, rlold, rldot, u, du, uold, udot, f, dfdu, 
-	   dfdp, &rbp, thl, thu, iuz, vuz);
+	   aa.data(), rhs.data(), rlcur, rlold, rldot, u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), 
+	   dfdp.data(), &rbp, thl, thu, iuz, vuz);
     istop = iap->istop;
     if (istop == 1) {
       goto L5;
@@ -1070,9 +1063,9 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       iap->itp = itp;
       ++nbif;
       iap->nbif = nbif;
-      stbif(iap, rap, par, icp, &aa_first_dimension, aa,
-	    NBIFX, stud, stu, stla, stld, rlcur, rlold, rldot, u, 
-	    du, udot, dfdu, dfdp, thl, thu);
+      stbif(iap, rap, par, icp, &aa_first_dimension, aa.data(),
+	    NBIFX, stud.data(), stu.data(), stla, stld, rlcur, rlold, rldot, u.data(), 
+	    du.data(), udot.data(), dfdu.data(), dfdp.data(), thl, thu);
       rlp = 0.;
       rbp = 0.;
       rev = 0.;
@@ -1084,8 +1077,8 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   if (abs(ips) == 1) {
     lcspae(iap, rap, par, icp, fnhbae, 
 	   funi, &aa_first_dimension, 
-	   aa, rhs, rlcur, rlold, rldot, u, du, uold, udot, f, dfdu, 
-	   dfdp, &rev, thl, thu, iuz, vuz);
+	   aa.data(), rhs.data(), rlcur, rlold, rldot, u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), 
+	   dfdp.data(), &rev, thl, thu, iuz, vuz);
     istop = iap->istop;
     if (istop == 1) {
 
@@ -1104,7 +1097,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   /* Store plotting data on unit 7 : */
 
  L5:
-  stplae(iap, rap, par, icp, rlcur, u);
+  stplae(iap, rap, par, icp, rlcur, u.data());
 
 /* Adapt the stepsize along the branch */
 
@@ -1127,18 +1120,6 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     goto L2;
   }
 
-  xpp_free(dfdp);    
-  xpp_free(dfdu);
-  xpp_free(uold);
-  xpp_free(udot);
-  xpp_free(stud);
-  xpp_free(f);
-  xpp_free(u);
-  xpp_free(aa);
-  xpp_free(du);
-  xpp_free(rhs);
-  xpp_free(stu);
-  xpp_free(uzr);
 
   return 0;
 } /* cnrlae_ */
@@ -1769,11 +1750,10 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   integer ndim, ntop, ntot, i, k;
 
 
-  doublereal *ud;
   integer iid, ibr;
   doublereal det;
 
-  ud = (double *)xpp_malloc(sizeof(doublereal)*(iap->ndim + 1));
+  std::vector<doublereal> ud(iap->ndim + 1);
 
 
   /* Local */
@@ -1816,11 +1796,11 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   ARRAY2D(aa, ndim, ndim) = rldot[0];
   rhs[ndim] = 1.;
 
-  ge(ndim + 1, *m1aaloc, aa, 1, ndim + 1, ud, ndim + 1, rhs, &det);
+  ge(ndim + 1, *m1aaloc, aa, 1, ndim + 1, ud.data(), ndim + 1, rhs, &det);
   rap->det = det;
   {
     integer tmp = ndim + 1;
-    nrmlz(&tmp, ud);
+    nrmlz(&tmp, ud.data());
   }
   ret_val = ud[ndim];
   rap->fldf = ret_val;
@@ -1831,7 +1811,6 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   if (iid >= 2 && iap->mynode == 0) {
     fprintf(fp9,"%4li%6li        Fold Function %14.6E\n",abs(ibr),ntop,ret_val);
   }
-  xpp_free(ud);
   return ret_val;
 } /* fnlpae_ */
 
@@ -1852,14 +1831,13 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   doublereal rimhb, ar;
   integer ntotp1;
 
-  doublecomplex *ev;
   doublereal rp;
 
   integer iid, ibr, ndm, ier, loc=0, ips;
   doublereal rev;
   integer isw;
 
-  ev = (doublecomplex *)xpp_malloc(sizeof(doublecomplex)*(iap->ndim));
+  std::vector<doublecomplex> ev(iap->ndim);
 
 
   /* Local */
@@ -1887,7 +1865,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   /* Compute the eigenvalues of the Jacobian */
 
-  eig(iap, &ndm, &ndim, dfdu, ev, &ier);
+  eig(iap, &ndm, &ndim, dfdu, ev.data(), &ier);
   if (ips == -1) {
     for (i = 0; i < ndm; ++i) {
       if (ev[i].r != -1. || d_imag(&ev[i]) != 0.) {
@@ -1993,7 +1971,6 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     }
   }
 
-  xpp_free(ev);
   return ret_val;
 } /* fnhbae_ */
 
@@ -2246,7 +2223,6 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
 
   doublereal rdrlm, rdumx;
   integer istop;
-  doublereal *u1;
 
   doublereal au;
   doublereal ss;
@@ -2258,7 +2234,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
   integer nit, mxt;
   doublereal umx, rlm1;
 
-  u1 = (double *)xpp_malloc(sizeof(doublereal)*(iap->ndim + 1));
+  std::vector<doublereal> u1(iap->ndim + 1);
 
   
 
@@ -2450,7 +2426,6 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
   istop = 1;
   iap->istop = istop;
 
-  xpp_free(u1);
 
   return 0;
 	
@@ -2618,7 +2593,7 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
   j = 0;
   for (i = 0; i < *n1; ++i) {
     ++j;
-    if ((double) j == (double)2.) {
+    if (static_cast<double>(j) == 2.) {
       j = j + 1 + *n2;
     }   
     if (icp[i] > 9) {
@@ -3244,12 +3219,12 @@ genwts(const integer ncol, const integer n1, doublereal *wt, doublereal *wp)
   doublereal p, denom;
 
   integer ib, ic;
-  doublereal *xm, *zm, sum;
+  doublereal sum;
   integer ncp1;
 
 
-  xm = (doublereal *)xpp_malloc(sizeof(doublereal)*(ncol + 1));
-  zm = (doublereal *)xpp_malloc(sizeof(doublereal)*(ncol));
+  std::vector<doublereal> xm(ncol + 1);
+  std::vector<doublereal> zm(ncol);
 
 /* Generates weights of the collocation method. The user selected */
 /* number of collocation points (ncol) must be one of { 2,...,7 }. */
@@ -3266,7 +3241,7 @@ genwts(const integer ncol, const integer n1, doublereal *wt, doublereal *wp)
   wp_dim1 = n1;
   wt_dim1 = n1;
     
-  cpnts(ncol, zm);
+  cpnts(ncol, zm.data());
 
   ncp1 = ncol + 1;
   d = 1. / ncol;
@@ -3308,8 +3283,6 @@ genwts(const integer ncol, const integer n1, doublereal *wt, doublereal *wp)
       ARRAY2D(wp, ib, ic) = sum / denom;
     }
   }
-  xpp_free(xm);
-  xpp_free(zm);
 
   return 0;
 } /* genwts_ */
@@ -3331,7 +3304,7 @@ cpnts(const integer ncol, doublereal *zm)
     exit(1);
   }
 
-  switch ((int)(ncol - 1)) {
+  switch (static_cast<int>(ncol - 1)) {
   case 1:  goto L2;
   case 2:  goto L3;
   case 3:  goto L4;
@@ -3437,7 +3410,7 @@ cntdif(integer *n, doublereal *d)
 
   /* Scale to [0,1]  : */
 
-  sc = (doublereal) pow_ii(*n, *n);
+  sc = static_cast<doublereal>(pow_ii(*n, *n));
   for (i = 0; i < *n + 1; ++i) {
     d[i] = sc * d[i];
   }
@@ -3455,7 +3428,7 @@ wint(const integer n, doublereal *wi)
   /* Generates the weights for the integration formula based on polynomial */
   /* interpolation at N equally spaced points in [0,1]. */
   
-  switch ((int)(n - 2)) {
+  switch (static_cast<int>(n - 2)) {
   case 1:  goto L3;
   case 2:  goto L4;
   case 3:  goto L5;
@@ -3562,9 +3535,9 @@ adptds(iap_type *iap, rap_type *rap, doublereal *rds)
   if (nit <= 1) {
     *rds *= 2.;
   } else if (nit == 2) {
-    *rds *= (double)1.5;
+    *rds *= 1.5;
   } else if (nit > 2 && nit <= n1) {
-    *rds *= (double)1.1;
+    *rds *= 1.1;
   } else if (nit >= itnw) {
     *rds *= .5;
   }
@@ -3595,15 +3568,12 @@ adapt(iap_type *iap, rap_type *rap, integer *nold, integer *ncold, integer *nnew
   integer nrwnew;
   integer ips, isw;
     
-  doublereal *tint, *uint;
-  doublereal *tm2;
-  integer *itm;
 
 
-  uint = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndxloc)*(iap->ndim * iap->ncol));
-  tint = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndxloc));
-  tm2 = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndxloc));
-  itm = (integer *)xpp_malloc(sizeof(integer)*(*ndxloc));
+  std::vector<doublereal> uint((*ndxloc)*(iap->ndim * iap->ncol));
+  std::vector<doublereal> tint(*ndxloc);
+  std::vector<doublereal> tm2(*ndxloc);
+  std::vector<integer> itm(*ndxloc);
 
   /* Adapts the distribution of the mesh points so that the increase of the */
   /* monotone function EQDF becomes approximately equidistributed over the */
@@ -3642,11 +3612,11 @@ adapt(iap_type *iap, rap_type *rap, integer *nold, integer *ncold, integer *nnew
   /* Generate the new mesh : */
 
   newmsh(iap, rap, ndxloc, ups, nold, 
-	 ncold, tm, dtm, nnew, tint, &iper);
+	 ncold, tm, dtm, nnew, tint.data(), &iper);
 
   /* Replace UPS by its interpolant on the new mesh : */
 
-  interp(iap, rap, &ndim, &noldp1, ncold, tm, ndxloc, ups, &nnewp1, ncnew, tint, uint, tm2, itm);
+  interp(iap, rap, &ndim, &noldp1, ncold, tm, ndxloc, ups, &nnewp1, ncnew, tint.data(), uint.data(), tm2.data(), itm.data());
   for (j = 0; j < nnewp1; ++j) {
     for (i = 0; i < nrwnew; ++i) {
       ARRAY2D(ups, j, i) = uint[j + i * (*ndxloc)];
@@ -3656,7 +3626,7 @@ adapt(iap_type *iap, rap_type *rap, integer *nold, integer *ncold, integer *nnew
   /* Replace VPS by its interpolant on the new mesh : */
 
   interp(iap, rap, &ndim, &noldp1, ncold, tm, ndxloc, 
-	 vps, &nnewp1, ncnew, tint, uint, tm2, itm);
+	 vps, &nnewp1, ncnew, tint.data(), uint.data(), tm2.data(), itm.data());
   for (j = 0; j < nnewp1; ++j) {
     for (i = 0; i < nrwnew; ++i) {
       ARRAY2D(vps, j, i) = uint[j + i * (*ndxloc)];
@@ -3671,10 +3641,6 @@ adapt(iap_type *iap, rap_type *rap, integer *nold, integer *ncold, integer *nnew
     tm[j + 1] = tint[j+1];
   }
 
-  xpp_free(uint);
-  xpp_free(tint);
-  xpp_free(tm2);
-  xpp_free(itm);
 
   return 0;
 } /* adapt_ */
@@ -3691,14 +3657,14 @@ interp(iap_type *iap, rap_type *rap, integer *ndim, integer *n, integer *nc, dou
 
   doublereal d;
   integer i, j, k, l;
-  doublereal *w, *x, z__;
+  doublereal z__;
   integer j1, k1, l1;
   doublereal ri;
 
   integer n1m1, ncp1;
 
-  w = (doublereal *)xpp_malloc(sizeof(doublereal)*(*nc+1));
-  x = (doublereal *)xpp_malloc(sizeof(doublereal)*(*nc+1));
+  std::vector<doublereal> w(*nc+1);
+  std::vector<doublereal> x(*nc+1);
 
 
 /* Finds interpolant (TM(.) , UPS(.) ) on new mesh TM1. */
@@ -3717,7 +3683,7 @@ interp(iap_type *iap, rap_type *rap, integer *ndim, integer *n, integer *nc, dou
   n1m1 = *n1 - 1;
 
   for (i = 0; i < *nc1; ++i) {
-    ri = (doublereal) (i);
+    ri = static_cast<doublereal>(i);
     d = ri / *nc1;
     for (j1 = 0; j1 < n1m1; ++j1) {
       tm2[j1] = tm1[j1] + d * (tm1[j1 + 1] - tm1[j1]);
@@ -3730,7 +3696,7 @@ interp(iap_type *iap, rap_type *rap, integer *ndim, integer *n, integer *nc, dou
       for (l = 0; l < ncp1; ++l) {
 	x[l] = tm[-1 + j] + l * d;
       }
-      intwts(iap, rap, &ncp1, &z__, x, w);
+      intwts(iap, rap, &ncp1, &z__, x.data(), w.data());
       for (k = 0; k < *ndim; ++k) {
 	k1 = i * *ndim + k;
 	ARRAY2D(ups1, j1, k1) = w[ncp1 - 1] * ARRAY2D(ups, j, k);
@@ -3745,8 +3711,6 @@ interp(iap_type *iap, rap_type *rap, integer *ndim, integer *n, integer *nc, dou
   for (i = 0; i < *ndim; ++i) {
     ARRAY2D(ups1, (*n1 - 1), i) = ARRAY2D(ups, (*n - 1), i);
   }
-  xpp_free(w);
-  xpp_free(x);
 
   return 0;
 } /* interp_ */
@@ -3765,13 +3729,10 @@ newmsh(iap_type *iap, rap_type *rap, integer *ndxloc, doublereal *ups, integer *
   integer j1, noldp1, nnewp1;
   doublereal dal;
 
-  doublereal *uneq;
-  doublereal *eqf;
-  integer *ial;
 
-  uneq=(doublereal *)xpp_malloc(sizeof(doublereal)*(*nnew + 1));
-  eqf=(doublereal *)xpp_malloc(sizeof(doublereal)*(*nold + 1));
-  ial=(integer *)xpp_malloc(sizeof(integer)*(*nnew + 1));
+  std::vector<doublereal> uneq(*nnew + 1);
+  std::vector<doublereal> eqf(*nold + 1);
+  std::vector<integer> ial(*nnew + 1);
 
   /* Redistributes the mesh according to the function EQDF. */
 
@@ -3788,7 +3749,7 @@ newmsh(iap_type *iap, rap_type *rap, integer *ndxloc, doublereal *ups, integer *
 
   /* Put the values of the monotonely increasing function EQDF in EQF. */
 
-  eqdf(iap, rap, nold, &ndim, ncold, dtmold, ndxloc, ups, eqf, 
+  eqdf(iap, rap, nold, &ndim, ncold, dtmold, ndxloc, ups, eqf.data(), 
        iper);
 
   /* Uniformly divide the range of EQDF : */
@@ -3800,7 +3761,7 @@ newmsh(iap_type *iap, rap_type *rap, integer *ndxloc, doublereal *ups, integer *
     uneq[j] = (j) * dal;
   }
 
-  ordr(iap, rap, &noldp1, eqf, &nnewp1, uneq, ial);
+  ordr(iap, rap, &noldp1, eqf.data(), &nnewp1, uneq.data(), ial.data());
 
 /* Generate the new mesh in TMNEW : */
 
@@ -3810,9 +3771,6 @@ newmsh(iap_type *iap, rap_type *rap, integer *ndxloc, doublereal *ups, integer *
     tmnew[j1] = (1. - x) * tmold[-1 + j] + x * tmold[j];
   }
 
-  xpp_free(uneq);
-  xpp_free(eqf);
-  xpp_free(ial);
   return 0;
 } /* newmsh_ */
 
@@ -3906,13 +3864,13 @@ eqdf(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, 
   integer i, j, k;
   logical small;
   integer k1;
-  doublereal *hd, sc, *wh;
+  doublereal sc;
 
   integer jp1;
   doublereal pwr;
 
-  hd = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ntst + 1)*(*ndim * *ncol));
-  wh = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ncol + 1));
+  std::vector<doublereal> hd((*ntst + 1)*(*ndim * *ncol));
+  std::vector<doublereal> wh(*ncol + 1);
 
   /* Compute approximation to NCOL-th derivative : */
   /* Parameter adjustments */
@@ -3920,7 +3878,7 @@ eqdf(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, 
   /*--eqf;*/
   ups_dim1 = *ndxloc;
 
-  cntdif(ncol, wh);
+  cntdif(ncol, wh.data());
 
   small = TRUE_;
   for (j = 0; j < *ntst; ++j) {
@@ -3943,10 +3901,8 @@ eqdf(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, 
 
   if (small) {
     for (i = 0; i < *ntst + 1; ++i) {
-      eqf[i] = (doublereal) (i);
+      eqf[i] = static_cast<doublereal>(i);
     }
-    xpp_free(hd);
-    xpp_free(wh);
     return 0;
   }
 
@@ -3987,8 +3943,6 @@ eqdf(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, 
     }
     eqf[j + 1] = eqf[j] + dtm[j] * e;
   }
-  xpp_free(hd);
-  xpp_free(wh);
   return 0;
 } /* eqdf_ */
 
@@ -4005,16 +3959,14 @@ eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev
 {
     /* Local variables */
   integer matz, ntop, ntot, i;
-  doublereal *z__;
 
-  doublereal *wi, *wr, *fv1;
-  integer *iv1, ibr;
+  integer ibr;
 
-  z__ = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
-  wi  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  wr  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  fv1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  iv1 = (integer *)xpp_malloc(sizeof(integer)*(iap->ndim));
+  std::vector<doublereal> z__((iap->ndim)*(iap->ndim));
+  std::vector<doublereal> wi(iap->ndim);
+  std::vector<doublereal> wr(iap->ndim);
+  std::vector<doublereal> fv1(iap->ndim);
+  std::vector<integer> iv1(iap->ndim);
 
   /* This subroutine uses the EISPACK subroutine RG to compute the */
   /* eigenvalues of the general real matrix A. */
@@ -4035,7 +3987,7 @@ eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev
   *ier = 0;
   matz = 0;
 
-  rg(*m1a, *ndim, a, wr, wi, matz, z__, iv1, fv1, ier);
+  rg(*m1a, *ndim, a, wr.data(), wi.data(), matz, z__.data(), iv1.data(), fv1.data(), ier);
 
   for (i = 0; i < *ndim; ++i) {
     ev[i].r = wr[i], ev[i].i = wi[i];
@@ -4048,11 +4000,6 @@ eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev
     fprintf(fp9,"%4li%6li NOTE:Error return from EISPACK routine RG\n",ibr,ntop);	
   }
 
-  xpp_free(z__);
-  xpp_free(wi );
-  xpp_free(wr );
-  xpp_free(fv1);
-  xpp_free(iv1);
   return 0;
 } /* eig_ */
 
@@ -4073,9 +4020,8 @@ nlvc(integer n, integer m, integer k, doublereal *a, doublereal *u)
   doublereal piv;
   integer jjp1;
 
-  integer *ir,*ic;
-  ir=(integer *)xpp_malloc(sizeof(integer)*(n));
-  ic=(integer *)xpp_malloc(sizeof(integer)*(n));
+  std::vector<integer> ir(n);
+  std::vector<integer> ic(n);
 
 /* Finds a null-vector of a singular matrix A. */
 /* The null space of A is assumed to be K-dimensional. */
@@ -4164,8 +4110,6 @@ nlvc(integer n, integer m, integer k, doublereal *a, doublereal *u)
        back here. */
   /*ir \+= 1;*/
   /*ic \+= 1;*/
-  xpp_free(ir);
-  xpp_free(ic);
   return 0;
 } /* nlvc_ */
 
@@ -4237,9 +4181,8 @@ ge(integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublere
   doublereal piv;
   integer jjp1;
 
-  integer *ic,*ir;
-  ic=(integer *)xpp_malloc(sizeof(integer)*(n));
-  ir=(integer *)xpp_malloc(sizeof(integer)*(n));
+  std::vector<integer> ic(n);
+  std::vector<integer> ir(n);
 
 
 /* Solves the linear system  A U = F by Gauss elimination */
@@ -4344,8 +4287,6 @@ ge(integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublere
        back here. */
     /*ir \+= 1;*/
     /*ic \+= 1;*/
-    xpp_free(ir);
-    xpp_free(ic);
     return 0;
   }
 
@@ -4374,8 +4315,6 @@ ge(integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublere
        back here. */
   /*ir \+= 1;*/
   /*ic \+= 1;*/
-  xpp_free(ir);
-  xpp_free(ic);
 
   return 0;
 } /* ge_ */
@@ -4640,10 +4579,10 @@ rinpr(iap_type *iap, integer *ndim1, integer *ndxloc, doublereal *ups, doublerea
   integer ntst, i, j, k;
   doublereal s;
   integer k1;
-  doublereal sj, *wi;
+  doublereal sj;
   integer jp1;
 
-  wi = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ncol+1));
+  std::vector<doublereal> wi(iap->ncol+1);
 
   /* Computes the L2 inner product of UPS and VPS. */
   /* (Using the first NDIM1 components only.) */
@@ -4661,7 +4600,7 @@ rinpr(iap_type *iap, integer *ndim1, integer *ndxloc, doublereal *ups, doublerea
   ncol = iap->ncol;
 
   /* Weights for the integration formulae : */
-  wint(ncol + 1, wi);
+  wint(ncol + 1, wi.data());
 
   s = 0.;
   for (j = 0; j < ntst; ++j) {
@@ -4678,7 +4617,6 @@ rinpr(iap_type *iap, integer *ndim1, integer *ndxloc, doublereal *ups, doublerea
   }
 
   ret_val = s;
-  xpp_free(wi);
 
   return ret_val;
 } /* rinpr_ */
@@ -4724,10 +4662,10 @@ rintg(iap_type *iap, integer *ndxloc, integer ic, doublereal *ups, doublereal *d
   integer ntst, j, k;
   doublereal s;
   integer k1;
-  doublereal sj, *wi;
+  doublereal sj;
   integer jp1;
 
-  wi = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ncol+1));
+  std::vector<doublereal> wi(iap->ncol+1);
 
   /* Computes the integral of the IC'th component of UPS. */
 
@@ -4742,7 +4680,7 @@ rintg(iap_type *iap, integer *ndxloc, integer ic, doublereal *ups, doublereal *d
   ncol = iap->ncol;
 
   /* Weights for the integration formulae : */
-  wint(ncol + 1, wi);
+  wint(ncol + 1, wi.data());
   s = 0.;
   for (j = 0; j < ntst; ++j) {
     jp1 = j + 1;
@@ -4757,7 +4695,6 @@ rintg(iap_type *iap, integer *ndxloc, integer ic, doublereal *ups, doublereal *d
 
   ret_val = s;
 
-  xpp_free(wi);
   return ret_val;
 } /* rintg_ */
 
@@ -4779,10 +4716,10 @@ rnrm2(iap_type *iap, integer *ndxloc, integer *ic, doublereal *ups, doublereal *
   integer ntst, j, k;
   doublereal s;
   integer k1;
-  doublereal sj, *wi;
+  doublereal sj;
   integer jp1;
 
-  wi = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ncol+1));
+  std::vector<doublereal> wi(iap->ncol+1);
 
   /* Computes the L2-norm of the IC'th component of UPS. */
 
@@ -4797,7 +4734,7 @@ rnrm2(iap_type *iap, integer *ndxloc, integer *ic, doublereal *ups, doublereal *
   ncol = iap->ncol;
 
   /* Weights for the integration formulae : */
-  wint(ncol + 1, wi);
+  wint(ncol + 1, wi.data());
   s = 0.;
   for (j = 0; j < ntst; ++j) {
     jp1 = j + 1;
@@ -4813,7 +4750,6 @@ rnrm2(iap_type *iap, integer *ndxloc, integer *ic, doublereal *ups, doublereal *
   }
 
   ret_val = sqrt(s);
-  xpp_free(wi);
 
   return ret_val;
 } /* rnrm2_ */
@@ -4982,35 +4918,22 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer ilp, ips, isp, irs;
   doublereal rds, rlp;
   integer isw, itp;
-  doublereal *uzr;
     
   integer ntst_plus_one=iap->ntst + 1;
 
-  doublereal *ups;
-  doublereal *upoldp;
-  doublereal *uoldps;
-  doublereal *udotps;
-  doublereal *dups;
-  doublereal *fa;
-  doublereal *dtm;
-  doublereal *tm;
-  doublereal *fc;
-  doublereal *p0;
-  doublereal *p1;
-  doublecomplex *ev;
-  ups=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ntst + 1)*(iap->ndim * iap->ncol)); 
-  upoldp=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ntst + 1)*(iap->ndim * iap->ncol)); 
-  uoldps=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ntst + 1)*(iap->ndim * iap->ncol)); 
-  udotps=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ntst + 1)*(iap->ndim * iap->ncol)); 
-  dups=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ntst + 1)*(iap->ndim * iap->ncol)); 
-  fa=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ntst + 1)*(iap->ndim * iap->ncol)); 
-  dtm=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ntst + 1)); 
-  tm=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ntst + 1)); 
-  fc=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc+iap->nint+1)); 
-  p0=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
-  p1=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
-  ev=(doublecomplex *)xpp_malloc(sizeof(doublecomplex)*(iap->ndim));
-  uzr=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nuzr));
+  std::vector<doublereal> ups((iap->ntst + 1)*(iap->ndim * iap->ncol));
+  std::vector<doublereal> upoldp((iap->ntst + 1)*(iap->ndim * iap->ncol));
+  std::vector<doublereal> uoldps((iap->ntst + 1)*(iap->ndim * iap->ncol));
+  std::vector<doublereal> udotps((iap->ntst + 1)*(iap->ndim * iap->ncol));
+  std::vector<doublereal> dups((iap->ntst + 1)*(iap->ndim * iap->ncol));
+  std::vector<doublereal> fa((iap->ntst + 1)*(iap->ndim * iap->ncol));
+  std::vector<doublereal> dtm(iap->ntst + 1);
+  std::vector<doublereal> tm(iap->ntst + 1);
+  std::vector<doublereal> fc(iap->nbc+iap->nint+1);
+  std::vector<doublereal> p0((iap->ndim)*(iap->ndim));
+  std::vector<doublereal> p1((iap->ndim)*(iap->ndim));
+  std::vector<doublecomplex> ev(iap->ndim);
+  std::vector<doublereal> uzr(iap->nuzr);
     
 
   /* INITIALIZE COMPUTATION OF BRANCH */
@@ -5078,20 +5001,20 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   }
 
   rsptbv(iap, rap, par, icp, funi, stpnt, &rds, rlcur, 
-	 rlold, rldot, &ntst_plus_one, ups, uoldps, udotps, upoldp, dups, tm, 
-	 dtm, ev, &nodir, thl, thu);
-  (*pvli)(iap, rap, icp, dtm, &ntst_plus_one, ups, &ndim, p0, p1, par);
+	 rlold, rldot, &ntst_plus_one, ups.data(), uoldps.data(), udotps.data(), upoldp.data(), dups.data(), tm.data(), 
+	 dtm.data(), ev.data(), &nodir, thl, thu);
+  (*pvli)(iap, rap, icp, dtm.data(), &ntst_plus_one, ups.data(), &ndim, p0.data(), p1.data(), par);
 
-  setrtn(iap, &ntst, &ntst_plus_one, ups, par);
+  setrtn(iap, &ntst, &ntst_plus_one, ups.data(), par);
 
   if (nodir == 1 && isw > 0) {
     stdrbv(iap, rap, par, icp, funi, bcni, icni, rlcur, 
-	   rlold, rldot, iap->ntst+1, ups, dups, uoldps, udotps, upoldp, 
-	   fa, fc, dtm, 0, p0, p1, thl, thu);
+	   rlold, rldot, iap->ntst+1, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(), 
+	   fa.data(), fc.data(), dtm.data(), 0, p0.data(), p1.data(), thl, thu);
   } else if (irs != 0 && isw < 0) {
     stdrbv(iap, rap, par, icp, funi, bcni, icni, rlcur, 
-	   rlold, rldot, iap->ntst+1, ups, dups, uoldps, udotps, upoldp, 
-	   fa, fc, dtm, 1, p0, p1, thl, thu);
+	   rlold, rldot, iap->ntst+1, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(), 
+	   fa.data(), fc.data(), dtm.data(), 1, p0.data(), p1.data(), thl, thu);
   }
 
   /* Store plotting data for restart point : */
@@ -5105,29 +5028,16 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   iap->itp = itp;
   istop = 0;
   iap->istop = istop;
-  (*pvli)(iap, rap, icp, dtm, &ntst_plus_one, ups, &ndim, p0, p1, par);
-  stplbv(iap, rap, par, icp, rldot, &ntst_plus_one, ups, udotps,
-	 tm, dtm, thl, thu);
+  (*pvli)(iap, rap, icp, dtm.data(), &ntst_plus_one, ups.data(), &ndim, p0.data(), p1.data(), par);
+  stplbv(iap, rap, par, icp, rldot, &ntst_plus_one, ups.data(), udotps.data(),
+	 tm.data(), dtm.data(), thl, thu);
   istop = iap->istop;
   if (istop == 1) {
-    xpp_free(ups);
-    xpp_free(upoldp);
-    xpp_free(uoldps);
-    xpp_free(udotps);
-    xpp_free(dups);
-    xpp_free(fa);
-    xpp_free(dtm);
-    xpp_free(tm);
-    xpp_free(fc);
-    xpp_free(p0);
-    xpp_free(p1);
-    xpp_free(ev);
-    xpp_free(uzr);
     return 0;
   }
 
-  extrbv(iap, rap, funi, &rds, rlcur, rlold, rldot, &ntst_plus_one, ups,
-	 uoldps, udotps);
+  extrbv(iap, rap, funi, &rds, rlcur, rlold, rldot, &ntst_plus_one, ups.data(),
+	 uoldps.data(), udotps.data());
 
   itp = 0;
   iap->itp = itp;
@@ -5142,8 +5052,8 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   if (iad != 0) {
     if (ntot % iad == 0) {
-      adapt(iap, rap, &ntst, &ncol, &ntst, &ncol, tm, dtm, &
-	    ntst_plus_one, ups, uoldps);
+      adapt(iap, rap, &ntst, &ncol, &ntst, &ncol, tm.data(), dtm.data(), &
+	    ntst_plus_one, ups.data(), uoldps.data());
     }
   }
 
@@ -5160,12 +5070,11 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 #define SECANT_GUESS
 #ifdef SECANT_GUESS
   contbv(iap, rap, par, icp, funi, &rds, rlcur, rlold, 
-	 rldot, &ntst_plus_one, ups, uoldps, udotps, upoldp, dtm, thl, thu);
+	 rldot, &ntst_plus_one, ups.data(), uoldps.data(), udotps.data(), upoldp.data(), dtm.data(), thl, thu);
 #else
   {
-    doublereal *uolddotps,*rlolddot;
-    uolddotps = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ntst+1)*(iap->ndim)*(iap->ncol));
-    rlolddot = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nfpr));
+    std::vector<doublereal> uolddotps((iap->ntst+1)*(iap->ndim)*(iap->ncol));
+    std::vector<doublereal> rlolddot(iap->nfpr);
 
     for (i = 0; i < iap->nfpr; ++i) {
       rlolddot[i] = rldot[i];
@@ -5180,11 +5089,11 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     }
     
     stdrbv(iap, rap, par, icp, funi, bcni, icni, rlcur, 
-	   rlold, rldot, iap->ntst+1, ups, dups, uoldps, udotps, upoldp, 
-	   fa, fc, dtm, 0, p0, p1, thl, thu);
+	   rlold, rldot, iap->ntst+1, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(), 
+	   fa.data(), fc.data(), dtm.data(), 0, p0.data(), p1.data(), thl, thu);
 	
     {
-      doublereal dot_product = rinpr(iap,&(iap->ndim),&ntst_plus_one,udotps,uolddotps,dtm,thu);
+      doublereal dot_product = rinpr(iap,&(iap->ndim),&ntst_plus_one,udotps.data(),uolddotps.data(),dtm.data(),thu);
       
       for (i = 0; i < iap->nfpr; ++i) {
 	/* Computing 2nd power */
@@ -5208,20 +5117,18 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 	}
       }
     }
-    xpp_free(uolddotps);
-    xpp_free(rlolddot);
   }	  
-  extrbv(iap, rap, funi, &rds, rlcur, rlold, rldot, &ntst_plus_one, ups,
-	 uoldps, udotps);
+  extrbv(iap, rap, funi, &rds, rlcur, rlold, rldot, &ntst_plus_one, ups.data(),
+	 uoldps.data(), udotps.data());
 
   stupbv(iap, rap, par, icp, funi, rlcur, rlold, rldot,
-	 &ntst_plus_one, ups, uoldps, upoldp);
+	 &ntst_plus_one, ups.data(), uoldps.data(), upoldp.data());
 #endif
   
  L2:
   stepbv(iap, rap, par, icp, funi, bcni, icni, pvli, &rds, 
-	 rlcur, rlold, rldot, &ntst_plus_one, ups, dups, uoldps, udotps, upoldp,
-	 fa, fc, tm, dtm, p0, p1, thl, thu);
+	 rlcur, rlold, rldot, &ntst_plus_one, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(),
+	 fa.data(), fc.data(), tm.data(), dtm.data(), p0.data(), p1.data(), thl, thu);
   istop = iap->istop;
   if (istop == 1) {
     goto L3;
@@ -5234,8 +5141,8 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       iap->iuzr = iuzr;
       lcspbv(iap, rap, par, icp, fnuzbv, funi, bcni, 
 	     icni, pvli, &uzr[iuzr], rlcur, rlold, rldot, &
-	     ntst_plus_one, ups, dups, uoldps, udotps, upoldp, fa, fc, tm, 
-	     dtm, p0, p1, ev, thl, thu, iuz, vuz);
+	     ntst_plus_one, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(), fa.data(), fc.data(), tm.data(), 
+	     dtm.data(), p0.data(), p1.data(), ev.data(), thl, thu, iuz, vuz);
       istop = iap->istop;
       if (istop == 1) {
 	goto L3;
@@ -5260,8 +5167,8 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   if (ilp == 1) {
     lcspbv(iap, rap, par, icp, fnlpbv, funi, bcni, icni,
-	   pvli, &rlp, rlcur, rlold, rldot, &ntst_plus_one, ups, dups, 
-	   uoldps, udotps, upoldp, fa, fc, tm, dtm, p0, p1, ev, thl, thu,
+	   pvli, &rlp, rlcur, rlold, rldot, &ntst_plus_one, ups.data(), dups.data(), 
+	   uoldps.data(), udotps.data(), upoldp.data(), fa.data(), fc.data(), tm.data(), dtm.data(), p0.data(), p1.data(), ev.data(), thl, thu,
 	   iuz, vuz);
     istop = iap->istop;
     if (istop == 1) {
@@ -5281,8 +5188,8 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   if (isp >= 2) {
     lcspbv(iap, rap, par, icp, fnbpbv, funi, bcni, icni,
-	   pvli, &bp1, rlcur, rlold, rldot, &ntst_plus_one, ups, dups, 
-	   uoldps, udotps, upoldp, fa, fc, tm, dtm, p0, p1, ev, thl, thu,
+	   pvli, &bp1, rlcur, rlold, rldot, &ntst_plus_one, ups.data(), dups.data(), 
+	   uoldps.data(), udotps.data(), upoldp.data(), fa.data(), fc.data(), tm.data(), dtm.data(), p0.data(), p1.data(), ev.data(), thl, thu,
 	   iuz, vuz);
     istop = iap->istop;
     if (istop == 1) {
@@ -5302,8 +5209,8 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   if ((isp == 1 || isp == 2) && (ips == 2 || ips == 7 || ips == 12)) {
     lcspbv(iap, rap, par, icp, fnspbv, funi, bcni, icni,
-	   pvli, &sp1, rlcur, rlold, rldot, &ntst_plus_one, ups, dups, 
-	   uoldps, udotps, upoldp, fa, fc, tm, dtm, p0, p1, ev, thl, thu,
+	   pvli, &sp1, rlcur, rlold, rldot, &ntst_plus_one, ups.data(), dups.data(), 
+	   uoldps.data(), udotps.data(), upoldp.data(), fa.data(), fc.data(), tm.data(), dtm.data(), p0.data(), p1.data(), ev.data(), thl, thu,
 	   iuz, vuz);
     istop = iap->istop;
     if (istop == 1) {
@@ -5312,7 +5219,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     itp = iap->itp;
     if (itp == -1) {
       /*          **Secondary periodic bifurcation: determine type */
-      tpspbv(iap, rap, par, icp, ev);
+      tpspbv(iap, rap, par, icp, ev.data());
       rlp = 0.;
       bp1 = 0.;
       sp1 = 0.;
@@ -5322,27 +5229,14 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   /* Store plotting data. */
 
  L3:
-  (*pvli)(iap, rap, icp, dtm, &ntst_plus_one, ups, &ndim, p0, p1, par);
-  stplbv(iap, rap, par, icp, rldot, &ntst_plus_one, ups, udotps,
-	 tm, dtm, thl, thu);
+  (*pvli)(iap, rap, icp, dtm.data(), &ntst_plus_one, ups.data(), &ndim, p0.data(), p1.data(), par);
+  stplbv(iap, rap, par, icp, rldot, &ntst_plus_one, ups.data(), udotps.data(),
+	 tm.data(), dtm.data(), thl, thu);
 
   istop = iap->istop;
   if (istop == 0) {
     goto L1;
   } else {
-    xpp_free(ups);
-    xpp_free(upoldp);
-    xpp_free(uoldps);
-    xpp_free(udotps);
-    xpp_free(dups);
-    xpp_free(fa);
-    xpp_free(dtm);
-    xpp_free(tm);
-    xpp_free(fc);
-    xpp_free(p0);
-    xpp_free(p1);
-    xpp_free(ev);
-    xpp_free(uzr);
     return 0;
   }
     
@@ -5478,13 +5372,12 @@ stupbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer nfpr, ntst;
   integer i, j, k;
   integer n1, ips;
-  doublereal *dfdp,*dfdu,*uold,*f,*u;
 
-  dfdp = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*NPARX);
-  dfdu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
-  uold = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  f    = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  u    = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  std::vector<doublereal> dfdp((iap->ndim)*NPARX);
+  std::vector<doublereal> dfdu((iap->ndim)*(iap->ndim));
+  std::vector<doublereal> uold(iap->ndim);
+  std::vector<doublereal> f(iap->ndim);
+  std::vector<doublereal> u(iap->ndim);
 
 
 /* Stores U-prime (derivative with respect to T) in UPOLDP. */
@@ -5521,8 +5414,8 @@ stupbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 	uold[i] = ARRAY2D(uoldps, j, i);
       }
     }
-    (*funi)(iap, rap, ndim, u, uold, icp, par, 0, f, 
-	    dfdu, dfdp);
+    (*funi)(iap, rap, ndim, u.data(), uold.data(), icp, par, 0, f.data(), 
+	    dfdu.data(), dfdp.data());
     for (i = 0; i < ndim; ++i) {
       ARRAY2D(upoldp, j, i) = f[i];
     }
@@ -5540,7 +5433,7 @@ stupbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 	  uold[i] = ARRAY2D(uoldps, j, (n1 + i));
 	}
       }
-      (*funi)(iap, rap, ndim, u, uold, icp, par, 0, f, dfdu, dfdp);
+      (*funi)(iap, rap, ndim, u.data(), uold.data(), icp, par, 0, f.data(), dfdu.data(), dfdp.data());
       for (i = 0; i < ndim; ++i) {
 	ARRAY2D(upoldp, j, (n1 + i)) = f[i];
       }
@@ -5550,11 +5443,6 @@ stupbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] = rlcur[i];
   }
-  xpp_free(dfdp);
-  xpp_free(dfdu);
-  xpp_free(uold);
-  xpp_free(f   );
-  xpp_free(u   );
 
 
   return 0;
@@ -5876,11 +5764,6 @@ rsptbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   {
     integer ntst_used,ncol_used;
-    doublereal *ups_new;
-    doublereal *upoldp_new;
-    doublereal *udotps_new;
-    doublereal *tm_new;
-    doublereal *dtm_new;
     integer ndxloc_orig=*ndxloc;
 
     /* use the bigger of the size defined in fort.2 and the one defined in fort.8 */
@@ -5895,11 +5778,11 @@ rsptbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       ncol_used=ncol;
       
     *ndxloc=(ntst_used + 1)*4;
-    ups_new    = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndxloc)*(iap->ndim * ncol_used));
-    upoldp_new    = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndxloc)*(iap->ndim * ncol_used));
-    udotps_new = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndxloc)*(iap->ndim * ncol_used));
-    tm_new     = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndxloc));
-    dtm_new    = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndxloc));
+    std::vector<doublereal> ups_new((*ndxloc)*(iap->ndim * ncol_used));
+    std::vector<doublereal> upoldp_new((*ndxloc)*(iap->ndim * ncol_used));
+    std::vector<doublereal> udotps_new((*ndxloc)*(iap->ndim * ncol_used));
+    std::vector<doublereal> tm_new(*ndxloc);
+    std::vector<doublereal> dtm_new(*ndxloc);
 
     /*initialize arrays*/
     for(i=0;i<*ndxloc;i++) {
@@ -5912,8 +5795,8 @@ rsptbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       }
     }
     (*stpnt)(iap, rap, par, icp, &ntsrs, &ncolrs, rlcur, 
-	     rldot, ndxloc, ups_new, udotps_new, upoldp_new, tm_new, 
-	     dtm_new, nodir, thl, thu);
+	     rldot, ndxloc, ups_new.data(), udotps_new.data(), upoldp_new.data(), tm_new.data(), 
+	     dtm_new.data(), nodir, thl, thu);
     /* Determine a suitable starting label and branch number. */
       
     newlab(iap, rap);
@@ -5925,8 +5808,8 @@ rsptbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     /* Adapt mesh if necessary : */
       
     if (ntst != ntsrs || ncol != ncolrs) {
-      adapt(iap, rap, &ntsrs, &ncolrs, &ntst, &ncol, tm_new, dtm_new, 
-	    ndxloc, ups_new, udotps_new);
+      adapt(iap, rap, &ntsrs, &ncolrs, &ntst, &ncol, tm_new.data(), dtm_new.data(), 
+	    ndxloc, ups_new.data(), udotps_new.data());
     }
     /* Copy from the temporary large arrays into the normal arrays. */
     for(i=0;i<ntst+1;i++) {
@@ -5939,11 +5822,6 @@ rsptbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       }
     }
     *ndxloc=ndxloc_orig;
-    xpp_free(ups_new);
-    xpp_free(upoldp_new);
-    xpp_free(udotps_new);
-    xpp_free(tm_new);
-    xpp_free(dtm_new);
   }
 
   /* Set UOLDPS, RLOLD. */
@@ -6165,13 +6043,13 @@ stpnub(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Local variables */
   integer ndim, ncol, nfpr, ntst, ncol1, i, j, k;
-  doublereal t, *u;
+  doublereal t;
   integer k1, k2;
 
   doublereal dt;
   integer lab, ibr;
 
-  u = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  std::vector<doublereal> u(iap->ndim);
 
 /* Generates a starting point for the continuation of a branch of */
 /* of solutions to general boundary value problems by calling the user */
@@ -6208,7 +6086,7 @@ stpnub(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
       t = tm[j] + i * dt;
       k1 = i * ndim;
       k2 = (i + 1) * ndim;
-      stpnt(ndim, t, u, par);
+      stpnt(ndim, t, u.data(), par);
       for (k = k1; k < k2; ++k) {
 	ARRAY2D(ups, j, k) = u[k - k1];
       }
@@ -6228,7 +6106,6 @@ stpnub(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   *nodir = 1;
 
-  xpp_free(u);
   return 0;
 } /* stpnub_ */
 
@@ -6619,13 +6496,12 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   integer i;
   doublereal u;
 
-  doublereal *pp;
   integer iid;
   doublereal det;
   integer ibr;
   doublereal det0;
 
-  pp = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
+  std::vector<doublereal> pp((iap->ndim)*(iap->ndim));
 
 
     
@@ -6646,7 +6522,7 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   for (i = 0; i < ndim * ndim; ++i) {
     pp[i] = p1[i];
   }
-  ge(ndim, ndim, pp, 0, 1, &u, 1, &f, &det);
+  ge(ndim, ndim, pp.data(), 0, 1, &u, 1, &f, &det);
   rap->det = det;
 
   /* Set the determinant of the normalized reduced system. */
@@ -6661,7 +6537,6 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   rap->biff = ret_val;
 
   if (iap->mynode > 0) {
-    xpp_free(pp);
     return ret_val;
   }
 
@@ -6669,7 +6544,6 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     fprintf(fp9,"%4li%6li        BP   Function %14.6E\n",abs(ibr),ntop,ret_val);	
 
   }
-  xpp_free(pp);
   return ret_val;
 } /* fnbpbv_ */
 
@@ -6690,9 +6564,9 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   integer i, j;
 
   integer iid,ibr,loc=0,isp,isw;
-  doublereal *wrk, azm1;
+  doublereal azm1;
 
-  wrk = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
+  std::vector<doublereal> wrk((iap->ndim)*(iap->ndim));
 
   /* This function returns a quantity that changes sign when a complex */
   /* pair of eigenvalues of the linearized Poincare map moves in or out */
@@ -6726,8 +6600,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
 /*  Compute the Floquet multipliers */
 
-  flowkm(&ndim, p0, p1, &iid, wrk, ev);
-  xpp_free(wrk);
+  flowkm(&ndim, p0, p1, &iid, wrk.data(), ev);
   /* Find the multiplier closest to z=1. */
   /* xppautX: the orbit's Floquet multipliers (auto_stability.h) */
   auto_stability_computed(ibr,ntot+1,ndim,&ev[0].r,AUTO_STABILITY_PERIODIC);
@@ -6777,7 +6650,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     tmp.r = ev[0].r - 1., tmp.i = ev[0].i;
     amin = z_abs(&tmp);
   }
-  if (amin > (double).05 && isp == 2) {
+  if (amin > .05 && isp == 2) {
     if (iap->mynode == 0) {
       if (iid >= 2) {
 	fprintf(fp9,"%4li%6li NOTE:Multiplier inaccurate\n",abs(ibr),ntop);	
@@ -6801,7 +6674,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   /* sufficiently accurate again. */
 
   if (isp < 0) {
-    if (amin < (double).01) {
+    if (amin < .01) {
       if (iap->mynode == 0) {
 	fprintf(fp9,"%4li%6li NOTE:Multiplier accurate again\n",abs(ibr),ntop);	
       }
@@ -7497,22 +7370,32 @@ pvlsbv(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
 } /* pvlsbv_ */
 
 
-void allocate_global_memory(const iap_type iap) {
-    xpp_free(global_scratch.dfu);
-    xpp_free(global_scratch.dfp);
-    xpp_free(global_scratch.uu1);
-    xpp_free(global_scratch.uu2);
-    xpp_free(global_scratch.ff1);
-    xpp_free(global_scratch.ff2);
-    global_scratch.dfu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap.ndim)*(iap.ndim));
-    global_scratch.dfp = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap.ndim)*NPARX);
-    global_scratch.uu1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap.ndim));
-    global_scratch.uu2 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap.ndim));
-    global_scratch.ff1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap.ndim));
-    global_scratch.ff2 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap.ndim));
+namespace {
+/* The storage behind global_scratch's and global_rotations' pointers
+   (auto_c.h keeps them plain pointers for its C-shaped API). */
+struct {
+  std::vector<doublereal> dfu, dfp, uu1, uu2, ff1, ff2;
+  std::vector<integer> nrtn;
+} global_store;
+} // namespace
 
-    xpp_free(global_rotations.nrtn);
-    global_rotations.nrtn = (integer *)xpp_malloc(sizeof(integer)*(iap.nbc));
+void allocate_global_memory(const iap_type iap) {
+    /* assign: zeroed, like the xpp_malloc it replaces */
+    global_store.dfu.assign(iap.ndim * iap.ndim, 0.);
+    global_store.dfp.assign(iap.ndim * NPARX, 0.);
+    global_store.uu1.assign(iap.ndim, 0.);
+    global_store.uu2.assign(iap.ndim, 0.);
+    global_store.ff1.assign(iap.ndim, 0.);
+    global_store.ff2.assign(iap.ndim, 0.);
+    global_scratch.dfu = global_store.dfu.data();
+    global_scratch.dfp = global_store.dfp.data();
+    global_scratch.uu1 = global_store.uu1.data();
+    global_scratch.uu2 = global_store.uu2.data();
+    global_scratch.ff1 = global_store.ff1.data();
+    global_scratch.ff2 = global_store.ff2.data();
+
+    global_store.nrtn.assign(iap.nbc, 0);
+    global_rotations.nrtn = global_store.nrtn.data();
 }
 
 
