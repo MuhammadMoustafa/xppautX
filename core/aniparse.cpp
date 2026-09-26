@@ -291,8 +291,8 @@ void ani_flip1(int n)
     if (vcr.pos < 0) vcr.pos = 0;
     row = vcr.pos;
 
-    t = (double)ss[0][row];
-    for (i = 0; i < NODE + NMarkov; i++) y[i] = (double)ss[i + 1][row];
+    t = static_cast<double>(ss[0][row]);
+    for (i = 0; i < NODE + NMarkov; i++) y[i] = static_cast<double>(ss[i + 1][row]);
     set_fix_rhs(t, y);
 
     render_ani();
@@ -307,7 +307,7 @@ void ani_disk_warn(void)
     total = total / (1024 * 1024);
     if (total > 10) {
         XPP_SPRINTF(junk, " %u Mb disk space needed! Continue?", total);
-        ans = (char)TwoChoice(yes, no, junk, keys);
+        ans = static_cast<char>(TwoChoice(yes, no, junk, keys));
         if (ans != 'y') mpeg.flag = 0;
     }
 }
@@ -637,12 +637,12 @@ int add_ani_com(int type, const char *x1, char *y1, const char *x2, const char *
         return 1;
     my_ani[n_anicom].type = type;
     my_ani[n_anicom].flag = aniflag;
-    my_ani[n_anicom].x1 = (int *)xpp_malloc(256 * sizeof(int));
-    my_ani[n_anicom].y1 = (int *)xpp_malloc(256 * sizeof(int));
-    my_ani[n_anicom].x2 = (int *)xpp_malloc(256 * sizeof(int));
-    my_ani[n_anicom].y2 = (int *)xpp_malloc(256 * sizeof(int));
-    my_ani[n_anicom].col = (int *)xpp_malloc(256 * sizeof(int));
-    my_ani[n_anicom].who = (int *)xpp_malloc(256 * sizeof(int));
+    my_ani[n_anicom].x1 = static_cast<int *>(xpp_malloc(256 * sizeof(int)));
+    my_ani[n_anicom].y1 = static_cast<int *>(xpp_malloc(256 * sizeof(int)));
+    my_ani[n_anicom].x2 = static_cast<int *>(xpp_malloc(256 * sizeof(int)));
+    my_ani[n_anicom].y2 = static_cast<int *>(xpp_malloc(256 * sizeof(int)));
+    my_ani[n_anicom].col = static_cast<int *>(xpp_malloc(256 * sizeof(int)));
+    my_ani[n_anicom].who = static_cast<int *>(xpp_malloc(256 * sizeof(int)));
     switch (type) {
     case AXNULL:
     case AYNULL:
@@ -840,10 +840,9 @@ void roll_comet(ANI_COM *a, double xn, double yn, int col)
     a->c.col[n - 1] = col;
 }
 
-int add_ani_comet(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *y2, char *col, const char *thick)
+int add_ani_comet(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *, char *col, const char *thick)
 {
     int err, n;
-    (void)y2;
     if (add_ani_color(a, col) < 0) return -1;
     a->zthick = atoi(thick);
     n = atoi(x2);
@@ -856,9 +855,9 @@ int add_ani_comet(ANI_COM *a, const char *x1, const char *y1, const char *x2, co
     err = add_ani_expr(y1, a->y1);
     if (err) return -1;
     a->c.n = n;
-    a->c.x = (double *)xpp_malloc(n * sizeof(double));
-    a->c.y = (double *)xpp_malloc(n * sizeof(double));
-    a->c.col = (int *)xpp_malloc(n * sizeof(int));
+    a->c.x = static_cast<double *>(xpp_malloc(n * sizeof(double)));
+    a->c.y = static_cast<double *>(xpp_malloc(n * sizeof(double)));
+    a->c.col = static_cast<int *>(xpp_malloc(n * sizeof(int)));
     a->c.i = 0;
     return 1;
 }
@@ -943,7 +942,7 @@ int add_ani_text(ANI_COM *a, const char *x1, const char *y1, const char *y2)
     if (err) return -1;
     err = add_ani_expr(y1, a->y1);
     if (err) return -1;
-    s = (char *)(a->y2);
+    s = reinterpret_cast<char *>(a->y2);
     snprintf(s, 256 * sizeof(int), "%s", y2);
     return 0;
 }
@@ -958,7 +957,7 @@ int add_ani_vtext(ANI_COM *a, const char *x1, const char *y1, const char *x2, co
     if (err) return -1;
     err = add_ani_expr(x2, a->x2);
     if (err) return -1;
-    s = (char *)(a->y2);
+    s = reinterpret_cast<char *>(a->y2);
     snprintf(s, 256 * sizeof(int), "%s", y2);
     return 0;
 }
@@ -1241,7 +1240,7 @@ void set_ani_col(int j)
     if (c <= 0)
         icol = -c;
     else
-        icol = (int)(color_table.count * my_ani[j].zcol) + FIRSTCOLOR;
+        icol = static_cast<int>(color_table.count * my_ani[j].zcol) + FIRSTCOLOR;
     pen_color(icol);
     LastAniColor = icol;
 }
@@ -1252,35 +1251,35 @@ void xset_ani_col(int icol) { pen_color(icol); }
 
 void ani_rad2scale(double rx, double ry, int *ix, int *iy)
 {
-    double dx = (double)vcr.wid / (ani_xhi - ani_xlo), dy = (double)vcr.hgt / (ani_yhi - ani_ylo);
+    double dx = static_cast<double>(vcr.wid) / (ani_xhi - ani_xlo), dy = static_cast<double>(vcr.hgt) / (ani_yhi - ani_ylo);
     double r1 = rx * dx, r2 = ry * dy;
-    *ix = (int)r1;
-    *iy = (int)r2;
+    *ix = static_cast<int>(r1);
+    *iy = static_cast<int>(r2);
 }
 
 void ani_radscale(double rad, int *ix, int *iy)
 {
-    double dx = (double)vcr.wid / (ani_xhi - ani_xlo), dy = (double)vcr.hgt / (ani_yhi - ani_ylo);
+    double dx = static_cast<double>(vcr.wid) / (ani_xhi - ani_xlo), dy = static_cast<double>(vcr.hgt) / (ani_yhi - ani_ylo);
     double r1 = rad * dx, r2 = rad * dy;
-    *ix = (int)r1;
-    *iy = (int)r2;
+    *ix = static_cast<int>(r1);
+    *iy = static_cast<int>(r2);
 }
 
 void ani_ij_to_xy(int ix, int iy, double *x, double *y)
 {
-    double dx = (ani_xhi - ani_xlo) / (double)vcr.wid;
-    double dy = (ani_yhi - ani_ylo) / (double)vcr.hgt;
-    *x = ani_xlo + (double)ix * dx;
-    *y = ani_ylo + (double)(vcr.hgt - iy) * dy;
+    double dx = (ani_xhi - ani_xlo) / static_cast<double>(vcr.wid);
+    double dy = (ani_yhi - ani_ylo) / static_cast<double>(vcr.hgt);
+    *x = ani_xlo + static_cast<double>(ix) * dx;
+    *y = ani_ylo + static_cast<double>(vcr.hgt - iy) * dy;
 }
 
 void ani_xyscale(double x, double y, int *ix, int *iy)
 {
-    double dx = (double)vcr.wid / (ani_xhi - ani_xlo), dy = (double)vcr.hgt / (ani_yhi - ani_ylo);
+    double dx = static_cast<double>(vcr.wid) / (ani_xhi - ani_xlo), dy = static_cast<double>(vcr.hgt) / (ani_yhi - ani_ylo);
     double xx = (x - ani_xlo) * dx;
     double yy = vcr.hgt - dy * (y - ani_ylo);
-    *ix = (int)xx;
-    *iy = (int)yy;
+    *ix = static_cast<int>(xx);
+    *iy = static_cast<int>(yy);
     if (*ix < 0) *ix = 0;
     if (*ix >= vcr.wid) *ix = vcr.wid - 1;
     if (*iy < 0) *iy = 0;
@@ -1325,7 +1324,7 @@ void draw_ani_null(int j, int id)
     if (dx == 0.0 || dy == 0.0) return;
 
     set_ani_col(j);
-    who = (int)z; /* the nullcline that you want  -1 is the default cline */
+    who = static_cast<int>(z); /* the nullcline that you want  -1 is the default cline */
     err = get_nullcline_floats(&v, &n, who, id);
     if (err == 1) return;
     for (i = 0; i < n; i++) {
@@ -1400,12 +1399,12 @@ void draw_ani_fellip(int j)
     put_ellipse(my_ani[j].zx1, my_ani[j].zy1, my_ani[j].zx2, my_ani[j].zy2, 1);
 }
 
-void draw_ani_text(int j) { put_text(my_ani[j].zx1, my_ani[j].zy1, (char *)my_ani[j].y2); }
+void draw_ani_text(int j) { put_text(my_ani[j].zx1, my_ani[j].zy1, reinterpret_cast<char *>(my_ani[j].y2)); }
 
 void draw_ani_vtext(int j)
 {
     char s2[256];
-    snprintf(s2, sizeof s2, "%s%g", (char *)my_ani[j].y2, my_ani[j].zval);
+    snprintf(s2, sizeof s2, "%s%g", reinterpret_cast<char *>(my_ani[j].y2), my_ani[j].zval);
     put_text(my_ani[j].zx1, my_ani[j].zy1, s2);
 }
 
@@ -1460,14 +1459,14 @@ int add_grab_command(const char *xs, const char *ys, const char *ts, FILE *fp)
         xpp::log(XPP_LOG_WARN, "Bad grab x {} \n", xs);
         return (-1);
     }
-    ani_grab[j].x = (int *)xpp_malloc(sizeof(int) * (nc + 1));
+    ani_grab[j].x = static_cast<int *>(xpp_malloc(sizeof(int) * (nc + 1)));
     for (k = 0; k <= nc; k++) ani_grab[j].x[k] = com[k];
 
     if (add_expr(ys, com, &nc)) {
         xpp::log(XPP_LOG_WARN, "Bad grab y {} \n", ys);
         return (-1);
     }
-    ani_grab[j].y = (int *)xpp_malloc(sizeof(int) * (nc + 1));
+    ani_grab[j].y = static_cast<int *>(xpp_malloc(sizeof(int) * (nc + 1)));
     for (k = 0; k <= nc; k++) ani_grab[j].y[k] = com[k];
     ans = ani_grab_tasks(start, j, 1);
     if (ans < 0) return (-1);
@@ -1571,7 +1570,7 @@ int add_grab_task(const char *lhs, const char *rhs, int igrab, int which)
             xpp::log(XPP_LOG_WARN, "Bad right-hand side for grab event {}\n", rhs);
             return (-1);
         }
-        ani_grab[igrab].start.comrhs[i] = (int *)xpp_malloc(sizeof(int) * (nc + 1));
+        ani_grab[igrab].start.comrhs[i] = static_cast<int *>(xpp_malloc(sizeof(int) * (nc + 1)));
         for (k = 0; k <= nc; k++) ani_grab[igrab].start.comrhs[i][k] = com[k];
 
         ani_grab[igrab].start.n = ani_grab[igrab].start.n + 1;
@@ -1591,7 +1590,7 @@ int add_grab_task(const char *lhs, const char *rhs, int igrab, int which)
             xpp::log(XPP_LOG_WARN, "Bad right-hand side for grab event {}\n", rhs);
             return (-1);
         }
-        ani_grab[igrab].end.comrhs[i] = (int *)xpp_malloc(sizeof(int) * (nc + 1));
+        ani_grab[igrab].end.comrhs[i] = static_cast<int *>(xpp_malloc(sizeof(int) * (nc + 1)));
         for (k = 0; k <= nc; k++) ani_grab[igrab].end.comrhs[i][k] = com[k];
         ani_grab[igrab].end.n = ani_grab[igrab].end.n + 1;
         return (1);
