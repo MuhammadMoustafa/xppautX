@@ -107,7 +107,7 @@ find examples -name '*.ode' | sort | xargs -P"$NPROC" -I{} sh -c '
 echo "examples run: $(wc -l < "$ex/status"), exit codes: $(cut -d' ' -f1 "$ex/status" | sort -n | uniq -c | tr -s ' \n' ' ')"
 rm -rf "$ex"
 
-if "$make" BUILDDIR="$bdir" ASAN=1 "$@" test > "$log-unittest.log" 2>&1; then
+if "$make" -j"$NPROC" BUILDDIR="$bdir" ASAN=1 "$@" test > "$log-unittest.log" 2>&1; then
   echo "unit tests ok"
 else
   grep -E 'FAIL|failed|ERROR' "$log-unittest.log" | head -20
@@ -115,22 +115,28 @@ else
   fail=1
 fi
 
-# the name, then the command
+# the name, then the command: run side by side (each logged to its own
+# file, its verdict printed in order once all are done), their waits
+# doubled for a machine shared by three sanitized servers
 run_check() {
   name=$1; shift
-  if "$@" > "$log-$name.log" 2>&1; then
+  if XPP_CHECK_SLOW=${XPP_CHECK_SLOW:-2} "$@" > "$log-$name.log" 2>&1; then
     echo "$name ok: $(grep -c '^PASS' "$log-$name.log") checks"
   else
     grep -v '^PASS' "$log-$name.log" | head -30
     echo "$name FAILED"
-    fail=1
-  fi
+  fi > "$log-$name.verdict"
 }
-run_check servercheck "$python" tools/servercheck.py --server "$bin"
-run_check webcheck "$python" tools/webcheck.py --bin "$bin"
+run_check servercheck "$python" tools/servercheck.py --server "$bin" &
+run_check webcheck "$python" tools/webcheck.py --bin "$bin" &
 # --report: the sanitizers slow everything down, so the latency limits
 # (which verify.sh checks) only measure here
-run_check autocheck "$python" tools/autocheck.py --server "$bin" --report
+run_check autocheck "$python" tools/autocheck.py --server "$bin" --report &
+wait
+for name in servercheck webcheck autocheck; do
+  cat "$log-$name.verdict"
+  grep -q ' FAILED$' "$log-$name.verdict" && fail=1
+done
 
 n=$(ls "$reports" | wc -l)
 if [ "$n" -ne 0 ]; then

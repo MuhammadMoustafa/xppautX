@@ -94,6 +94,7 @@ issue; the card here is the one kept up to date.
 | W35d | #76 | QA 2026-09-26 UX-001, WF-001: a box refuses a keystroke or paste that could not become a valid text of its kind (a %formula excepted: the core judges it); Escape in a Values field drops its edit (the narrow sheet's Escape no longer takes it first); a formula the core refuses keeps its draft and message | none | done |
 | W35e | #77 | QA 2026-09-26 DESK-001: the web view's start error (code, message) in the fallback warning, the runtime hint only when the runtime is missing | none | done |
 | W35f | #78 | The example models that do not load by themselves ("noload" since W35c): clustor.ode (a `\` continued array line cut before its `[j]`) and candelator.ode (M1' does not compile) look like parser bugs; the other seven, model or parser, each decided | none | ready |
+| W36 | #79 | CI's windows-clang faster: its sanitizers a job of their own (windows-clang-sanitizers); asancheck builds the unit tests with -j and runs servercheck, webcheck and autocheck side by side | none | done |
 
 ## W0: C/C++ mixed build
 **Goal.** core/*.cpp builds next to core/*.c on Linux, Windows (MinGW,

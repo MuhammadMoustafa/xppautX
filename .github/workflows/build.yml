@@ -12,8 +12,9 @@ on:
 # wall time is the longest job's. Jobs are named for what they test: a
 # platform's `-core` job (build, unit tests, protocol, modes, AUTO,
 # examples), its `-ui` job (the front end in a headless browser),
-# `linux-sanitizers` and `macos-sanitizers` (the latter without
-# LeakSanitizer, unsupported on Apple Silicon runners), and `source`.
+# `linux-sanitizers`, `macos-sanitizers` and `windows-clang-sanitizers`
+# (the last two without LeakSanitizer, unsupported on Apple Silicon
+# runners and on Windows), and `source`.
 #
 # Every check runs even when an earlier check of its job failed (W18), so
 # one run reports every failure (and still uploads the examples' md5s);
@@ -385,9 +386,27 @@ jobs:
             examples.windows-clang.md5
             examples-differ/
           if-no-files-found: ignore
+
+  # windows-clang's sanitizer run, a job of its own so it runs beside
+  # windows-clang's checks instead of after them (W36)
+  windows-clang-sanitizers:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          update: false
+          cache: true
+          pacboy: >-
+            toolchain:p
+            make:p
+            python:p
       - name: "Sanitizers (ASan + UBSan, no leaks): no error report"
         id: asan
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: MAKE=mingw32-make tools/asancheck.sh --no-leaks --builddir build/clang-asan CC=clang CXX=clang++
       - name: Upload the sanitizer reports
         if: ${{ !cancelled() && steps.asan.outcome == 'failure' }}

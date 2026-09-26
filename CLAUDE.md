@@ -61,8 +61,8 @@ type check, the dead-code check) are `tools/sourcecheck.sh`; CI runs them once, 
 tests), and its linux-core job runs `verify.sh --no-source-checks`. Every
 platform runs the same behaviour checks against its own build (`<platform>-core`)
 and web2check against it (`<platform>-ui`), for linux, windows and macos;
-`windows-clang` runs windows-core's checks against a clang build and then
-asancheck (below);
+`windows-clang` runs windows-core's checks against a clang build, and
+`windows-clang-sanitizers` asancheck with clang (below), beside it;
 a check step runs even after another one failed (only a failed build stops them).
 
 The front end (`web2/`, the page at `/`; a `/v1/` or `/v2/` bookmark
@@ -103,7 +103,8 @@ differs from its definition, which a normal build cannot see.
 UBSan into build/asan; `tools/asancheck.sh` (CI's `linux-sanitizers` job, not
 verify.sh: it takes a few minutes) builds it and runs the smoke run,
 every example, the unit tests, servercheck, webcheck and autocheck under
-it, and fails on any report (written to build/asan/reports):
+it (servercheck, webcheck and autocheck side by side, their waits doubled
+by `XPP_CHECK_SLOW=2`), and fails on any report (written to build/asan/reports):
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/asancheck.sh"
 
