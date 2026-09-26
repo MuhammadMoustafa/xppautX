@@ -1,20 +1,16 @@
 #ifndef XPP_WEBVIEW_H
 #define XPP_WEBVIEW_H
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Glue for the vendored webview library (W35e): creates a webview with
-   detailed error information. Unlike webview_create (which returns NULL
-   and loses the error), this captures the webview::exception's code and
-   message when construction fails, allowing xpp_window.cpp to report the
-   actual error instead of a generic "WebView2 runtime missing" message. */
-
-typedef void *webview_t;
-
-webview_t xpp_webview_create(int debug, void *window, int *code,
-                             char *msg, size_t msg_size);
+/* webview_create, but saying why it failed (W35e): the web view (a
+   webview_t), or NULL with webview's error code (webview_error_t) in *code
+   and its message in msg (msg_size bytes). webview_create itself catches
+   the exception and drops both. */
+void *xpp_webview_create(int debug, void *window, int *code, char *msg, size_t msg_size);
 
 #ifdef __cplusplus
 }

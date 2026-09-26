@@ -1,17 +1,12 @@
-/* Glue for the vendored webview library (W35e): the implementation of
-   xpp_webview_create, which wraps webview::webview with exception handling.
-   This replaces third_party/webview/src/webview.cc as the source of webview.o
-   in all builds, ensuring consistent C++17 compilation across platforms
-   (macOS and Windows clang need C++17 for libc++ compatibility).
-   The glue file catches webview::exception to extract detailed error
-   information (code, message) when window creation fails, preventing the
-   loss of error details that the C API webview_create normally discards.
-   WEBVIEW_STATIC is defined in compiler flags (-DWEBVIEW_STATIC). */
+/* The vendored webview library, compiled here instead of
+   third_party/webview/src/webview.cc (which only includes webview.h), plus
+   xpp_webview_create (xpp_webview.h, W35e). The Makefile builds this file
+   only as webview.o, with the library's standard (WEBVIEW_STD: C++17 with
+   libc++, whose C++23 rejects webview), never as a core object. */
 #include "webview/webview.h"
 #include "xpp_webview.h"
 
-webview_t xpp_webview_create(int debug, void *window, int *code,
-                             char *msg, size_t msg_size)
+void *xpp_webview_create(int debug, void *window, int *code, char *msg, size_t msg_size)
 {
     if (!code || !msg || msg_size == 0) return nullptr;
 

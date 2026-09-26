@@ -76,10 +76,10 @@ int main()
     CHECK_STR(xpp_webview_error_message(-5, "").c_str(),
               "xppautX: the window cannot open (no web view: on Windows the WebView2 runtime, on Linux a "
               "display); using the browser instead\n");
-    CHECK(xpp_webview_error_message(-1, "bad display").find("UNSPECIFIED") != std::string::npos);
-    CHECK(xpp_webview_error_message(-1, "bad display").find("bad display") != std::string::npos);
-    CHECK(xpp_webview_error_message(-2, "").find("INVALID_ARGUMENT") != std::string::npos);
-    CHECK(xpp_webview_error_message(-2, "").find("(no details)") != std::string::npos);
+    CHECK_STR(xpp_webview_error_message(-1, "bad display").c_str(),
+              "xppautX: the window cannot open (webview error -1: bad display); using the browser instead\n");
+    CHECK_STR(xpp_webview_error_message(-2, "").c_str(),
+              "xppautX: the window cannot open (webview error -2: no details); using the browser instead\n");
 
     TEST_REPORT("window_hint");
 }

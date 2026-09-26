@@ -108,7 +108,8 @@ obj = $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%.o,$(basename $(1)))
 link = $(if $(filter %.cpp,$(1)),$(CXX),$(CC))
 
 SERVER_SOURCES := $(call src, ui_json json_io json_prompts json_state json_windows json_auto json_ani xppautx_main xpp_http xpp_inbox)
-# the window's (below): xpp_window, or on Linux the loader of its library
+# the window's (below): xpp_window, or on Linux the loader of its library;
+# xpp_webview is the web view library's own object (webview.o, below)
 WINDOW_SOURCES_ALL := $(call src,xpp_window xpp_window_loader xpp_webview)
 CORE_SOURCES := $(filter-out $(SERVER_SOURCES) $(WINDOW_SOURCES_ALL),$(ALL_SOURCES))
 # the page xppautX serves, compiled in: web2 (web2/dist, built from
