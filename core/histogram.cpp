@@ -2,10 +2,12 @@
 #include "markov.h"
 #include "xpp_mem.h"
 
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include <array>
+#include <vector>
 #include "xpplim.h"
 
 #include "adj2.h"
@@ -23,6 +25,9 @@
 
 extern int MAXSTOR;
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
+/* load_eqn.cpp keeps its own duplicate HIST_INFO typedef and reads
+   hist_inf's fields (including cond) by that layout, so this struct's
+   field types stay raw C types rather than std::string/std::array. */
 typedef struct {
   int nbins,nbins2,type,col,col2,fftc;
   double xlo,xhi;
@@ -80,9 +85,9 @@ int two_d_hist(int col1,int col2,int ndat,int n1,int n2,double xlo,double xhi,do
   int i,j,k;
   double dx,dy,norm;
   double x,y;
-  dx=(xhi-xlo)/(double) n1;
-  dy=(yhi-ylo)/(double) n2;
-  norm=1./(double)ndat;
+  dx=(xhi-xlo)/static_cast<double>(n1);
+  dy=(yhi-ylo)/static_cast<double>(n2);
+  norm=1./static_cast<double>(ndat);
   /* now fill the data with the bin values - take the midpoints of 
      each bin
   */
@@ -95,8 +100,8 @@ int two_d_hist(int col1,int col2,int ndat,int n1,int n2,double xlo,double xhi,do
   for(k=0;k<ndat;k++){
     x=(storage[col1][k]-xlo)/dx;
     y=(storage[col2][k]-ylo)/dy;
-    i=(int)x;
-    j=(int)y;
+    i=static_cast<int>(x);
+    j=static_cast<int>(y);
     if((i>=0)&&(i<n1)&&(j>=0)&&(j<n2))
       my_hist[2][i+j*n1]+=norm;
    }  
@@ -138,9 +143,9 @@ void new_four(int nmodes, int col)
    FOUR_HERE=0;
  }
   four_len=nmodes;
-  my_four[0]=(float *)xpp_malloc(sizeof(float)*length);
-  my_four[1]=(float *)xpp_malloc(sizeof(float)*length);
-  my_four[2]=(float *)xpp_malloc(sizeof(float)*length);
+  my_four[0]=static_cast<float *>(xpp_malloc(sizeof(float)*length));
+  my_four[1]=static_cast<float *>(xpp_malloc(sizeof(float)*length));
+  my_four[2]=static_cast<float *>(xpp_malloc(sizeof(float)*length));
   if(my_four[2]==NULL){
    xpp_free(my_four[1]);
    xpp_free(my_four[2]);
@@ -149,8 +154,8 @@ void new_four(int nmodes, int col)
  }
  FOUR_HERE=1;
  for(i=3;i<=NEQ;i++)my_four[i]=storage[i];
-for(i=0;i<length;i++)my_four[0][i]=(float)i/total; 
-/* for(i=0;i<length;i++)my_four[0][i]=(float)i; */
+for(i=0;i<length;i++)my_four[0][i]=static_cast<float>(i)/total; 
+/* for(i=0;i<length;i++)my_four[0][i]=static_cast<float>(i); */
  /*  sft(my_browser.data[col],my_four[1],my_four[2],length,storind);
   */
  bob=get_data_col(col);
@@ -164,7 +169,7 @@ void post_process_stuff()
   
 
   if(post_process==0)return;
-    if(N_plist<1)plotlist=(int *)xpp_malloc(sizeof(int)*10);
+    if(N_plist<1)plotlist=static_cast<int *>(xpp_malloc(sizeof(int)*10));
     N_plist=2;
     plotlist[0]=0;
     plotlist[1]=1;
@@ -215,9 +220,9 @@ int twod_hist()
   }
 
    hist_len=length;
-  my_hist[0]=(float *)xpp_malloc(sizeof(float)*length);
-  my_hist[1]=(float *)xpp_malloc(sizeof(float)*length);
-  my_hist[2]=(float *)xpp_malloc(sizeof(float)*length);
+  my_hist[0]=static_cast<float *>(xpp_malloc(sizeof(float)*length));
+  my_hist[1]=static_cast<float *>(xpp_malloc(sizeof(float)*length));
+  my_hist[2]=static_cast<float *>(xpp_malloc(sizeof(float)*length));
   if(my_hist[2]==NULL){
     xpp_free(my_hist[0]);
     xpp_free(my_hist[1]);
@@ -287,7 +292,7 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
   int length=nbins+1;
   if(length>=MAXSTOR)
     length=MAXSTOR-1;
-  dz=(zhi-zlo)/(double)(length-1);
+  dz=(zhi-zlo)/static_cast<double>((length-1));
   if(HIST_HERE){
     data_back();
     xpp_free(my_hist[0]);
@@ -297,8 +302,8 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
     HIST_HERE=0;
   }
   hist_len=length;
-  my_hist[0]=(float *)xpp_malloc(sizeof(float)*length);
-  my_hist[1]=(float *)xpp_malloc(sizeof(float)*length);
+  my_hist[0]=static_cast<float *>(xpp_malloc(sizeof(float)*length));
+  my_hist[1]=static_cast<float *>(xpp_malloc(sizeof(float)*length));
   if(my_hist[1]==NULL){
     xpp_free(my_hist[0]);
     err_msg("Cannot allocate enough...");
@@ -307,7 +312,7 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
   HIST_HERE=1;
   for(i=2;i<=NEQ;i++)my_hist[i]=storage[i];
   for(i=0;i<length;i++){
-    my_hist[0][i]=(float)(zlo+dz*i);
+    my_hist[0][i]=static_cast<float>((zlo+dz*i));
     my_hist[1][i]=0.0;
   }
   if(which==0){
@@ -328,15 +333,15 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
       {
 	flag=1;
 	if(cond){
-	  for(j=0;j<NODE+1;j++)set_ivar(j,(double)storage[j][i]);
+	  for(j=0;j<NODE+1;j++)set_ivar(j,static_cast<double>(storage[j][i]));
 	  for(j=0;j<NMarkov;j++)
-	    set_ivar(j+NODE+1+FIX_VAR,(double)storage[j+NODE+1][i]);
+	    set_ivar(j+NODE+1+FIX_VAR,static_cast<double>(storage[j+NODE+1][i]));
 	  z=evaluate(command);
 	  if(fabs(z)>0.0)flag=1;
 	  else flag=0;
 	}
 	z=(storage[col][i]-zlo)/dz;
-	index=(int)z;
+	index=static_cast<int>(z);
 	if(index>=0&&index<length&&flag==1){
 	  my_hist[1][index]+=1.0;
 	}
@@ -352,7 +357,7 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
       for(j=0;j<storind;j++){
 	y=storage[col][i]-storage[col][j];
 	z=(y-zlo)/dz;
-	index=(int)z;
+	index=static_cast<int>(z);
 	if(index>=0&&index<length)
 	  my_hist[1][index]+=1.0;
       }
@@ -387,7 +392,6 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
 void column_mean()
 {
  int i;
- char bob[100];
  double sum,sum2,ss;
  double mean,sdev;
  if(storind<=1){
@@ -402,21 +406,20 @@ void column_mean()
    sum+=ss;
    sum2+=(ss*ss);
  }
- mean=sum/(double)storind;
- sdev=sqrt(sum2/(double)storind-mean*mean);
- XPP_SPRINTF(bob,"Mean=%g Std. Dev. = %g ",mean,sdev);
- err_msg(bob);
+ mean=sum/static_cast<double>(storind);
+ sdev=sqrt(sum2/static_cast<double>(storind)-mean*mean);
+ err_msg(xpp::format("Mean={:g} Std. Dev. = {:g} ",mean,sdev).c_str());
 }
 
 int get_col_info(int *col, const char *prompt)
 {
- char variable[256]; /* new_string edits up to 255 characters */
+ std::array<char, 256> variable{}; /* new_string edits up to 255 characters */
  if(*col==0)
-   XPP_STRCPY(variable,"t");
+   xpp_strlcpy(variable.data(),"t",variable.size());
  else
-   XPP_STRCPY(variable,uvar_names[*col-1]);
- new_string_of(prompt,variable,XPP_FIELD_NAME_IN(0));
- find_variable(variable,col);
+   xpp_strlcpy(variable.data(),uvar_names[*col-1],variable.size());
+ new_string_of(prompt,variable.data(),XPP_FIELD_NAME_IN(0));
+ find_variable(variable.data(),col);
  if(*col<0){
    err_msg("No such variable...");
    return(0);
@@ -465,20 +468,18 @@ int spectrum(float *data,int nr,int win,int w_type,float *pow)
   int shift=win/2;
   int kwin=(nr-win+1)/shift;
  int i,j,kk;
- float *ct,*st,*f,*d,x,nrmf;
+ float x,nrmf;
  /*float sum;
  */
  if(nr<2)return(0);
  if(kwin<1)return(0);
- ct=(float *)xpp_malloc(sizeof(float)*win);
- d=(float *)xpp_malloc(sizeof(float)*win);
- st=(float *)xpp_malloc(sizeof(float)*win);
- f=(float *)xpp_malloc(sizeof(float)*win);
+ std::vector<float> ct_v(win), d_v(win), st_v(win), f_v(win);
+ float *ct=ct_v.data(), *d=d_v.data(), *st=st_v.data(), *f=f_v.data();
  /*  plintf("nr=%d,win=%d,type=%d,data[10]=%g,kwin=%d\n",
      nr,win,w_type,data[10],kwin); */
  nrmf=0.0;
  for(i=0;i<win;i++){
-   x=(float)i/((float)win);
+   x=static_cast<float>(i)/(static_cast<float>(win));
    switch(w_type){
    case 0: f[i]=1; break;
    case 1: f[i]=x*(1-x)*4.0; break;
@@ -511,11 +512,7 @@ int spectrum(float *data,int nr,int win,int w_type,float *pow)
  for(i=0;i<shift;i++)
    /*  pow[i]=log(pow[i]/((kwin)*nrmf)); */
    pow[i]=pow[i]/((kwin)*sqrt(nrmf));
- xpp_free(f);
- xpp_free(ct);
- xpp_free(st);
- xpp_free(d);
- 
+
  return(1);
 }
 
@@ -542,29 +539,22 @@ int cross_spectrum(float *data,float *data2,int nr,int win,int w_type,float *pow
   int kwin=(nr-win+1)/shift; 
   /*  int kwin=nr/shift; */
   int i,j,kk;
- float *ct,*st,*f,*d,x,nrmwin;
+ float x,nrmwin;
  /*float sum; Not used anywhere*/
- float *ct2,*st2,*d2;
- float *pxx,*pyy;
- float *pxyr,*pxym;
  if(nr<2)return(0);
  if(kwin<1)return(0);
- ct=(float *)xpp_malloc(sizeof(float)*win);
- d=(float *)xpp_malloc(sizeof(float)*win);
- st=(float *)xpp_malloc(sizeof(float)*win);
- f=(float *)xpp_malloc(sizeof(float)*win);
- ct2=(float *)xpp_malloc(sizeof(float)*win);
- d2=(float *)xpp_malloc(sizeof(float)*win);
- st2=(float *)xpp_malloc(sizeof(float)*win);
-  pxx=(float *)xpp_malloc(sizeof(float)*win);
-  pyy=(float *)xpp_malloc(sizeof(float)*win);
-pxyr=(float *)xpp_malloc(sizeof(float)*win);
-pxym=(float *)xpp_malloc(sizeof(float)*win);
+ std::vector<float> ct_v(win), d_v(win), st_v(win), f_v(win);
+ std::vector<float> ct2_v(win), d2_v(win), st2_v(win);
+ std::vector<float> pxx_v(win), pyy_v(win), pxyr_v(win), pxym_v(win);
+ float *ct=ct_v.data(), *st=st_v.data(), *f=f_v.data(), *d=d_v.data();
+ float *ct2=ct2_v.data(), *st2=st2_v.data(), *d2=d2_v.data();
+ float *pxx=pxx_v.data(), *pyy=pyy_v.data();
+ float *pxyr=pxyr_v.data(), *pxym=pxym_v.data();
  /*  plintf("nr=%d,win=%d,type=%d,data[10]=%g,kwin=%d\n",
      nr,win,w_type,data[10],kwin); */
  nrmwin=0.0;
  for(i=0;i<win;i++){
-   x=(float)i/((float)win);
+   x=static_cast<float>(i)/(static_cast<float>(win));
    switch(w_type){
    case 0: f[i]=1; break;
    case 1: f[i]=x*(1-x)*4.0; break;
@@ -615,18 +605,7 @@ pxym=(float *)xpp_malloc(sizeof(float)*win);
    else
      pow[i]=pxyr[i]/(pxx[i]*pyy[i]);
  }
- xpp_free(f);
- xpp_free(ct);
- xpp_free(st);
- xpp_free(d);
- xpp_free(ct2);
- xpp_free(st2);
- xpp_free(d2);
- xpp_free(pxx);
- xpp_free(pyy);
- xpp_free(pxyr);
- xpp_free(pxym);
- 
+
  return(1);
 }
 
@@ -645,8 +624,8 @@ void just_sd(int flag)
   }  
    hist_len=spec_wid/2;
    length=hist_len+2;
-   my_hist[0]=(float *)xpp_malloc(sizeof(float)*length);
-   my_hist[1]=(float *)xpp_malloc(sizeof(float)*length);
+   my_hist[0]=static_cast<float *>(xpp_malloc(sizeof(float)*length));
+   my_hist[1]=static_cast<float *>(xpp_malloc(sizeof(float)*length));
   if(my_hist[1]==NULL){
     xpp_free(my_hist[0]);
     err_msg("Cannot allocate enough...");
@@ -654,7 +633,7 @@ void just_sd(int flag)
   }
   HIST_HERE=1;
   for(i=2;i<=NEQ;i++)my_hist[i]=storage[i];
-  for(j=0;j<hist_len;j++)my_hist[0][j]=((float)j*storind/spec_wid)/total;
+  for(j=0;j<hist_len;j++)my_hist[0][j]=(static_cast<float>(j)*storind/spec_wid)/total;
   if(spec_type==0)
     spectrum(storage[spec_col],storind,spec_wid,spec_win,my_hist[1]);
   else
@@ -683,8 +662,8 @@ void compute_sd()
   }  
    hist_len=spec_wid/2;
    length=hist_len+2;
-   my_hist[0]=(float *)xpp_malloc(sizeof(float)*length);
-   my_hist[1]=(float *)xpp_malloc(sizeof(float)*length);
+   my_hist[0]=static_cast<float *>(xpp_malloc(sizeof(float)*length));
+   my_hist[1]=static_cast<float *>(xpp_malloc(sizeof(float)*length));
   if(my_hist[1]==NULL){
     xpp_free(my_hist[0]);
     err_msg("Cannot allocate enough...");
@@ -692,7 +671,7 @@ void compute_sd()
   }
   HIST_HERE=1;
   for(i=2;i<=NEQ;i++)my_hist[i]=storage[i];
-  for(j=0;j<hist_len;j++)my_hist[0][j]=((float)j*storind/spec_wid)/total;
+  for(j=0;j<hist_len;j++)my_hist[0][j]=(static_cast<float>(j)*storind/spec_wid)/total;
   if(spec_type==0)
     spectrum(storage[spec_col],storind,spec_wid,spec_win,my_hist[1]);
   else
@@ -749,7 +728,7 @@ void compute_correl()
 {
   int lag;
   float total=storage[0][storind-1]-storage[0][0],dta;
-  dta=total/(float)(storind-1);
+  dta=total/static_cast<float>((storind-1));
   /*  new_int("(0) Xcor (1) Xspec (2) Coher ",&flag);
   if(flag>0){
     compute_cross(flag-1);
@@ -797,8 +776,8 @@ void mycor2(float *x,float *y, int n, int nbins, float *z, int flag)
       avx+=x[i];
       avy+=y[i];
     }
-    avx=avx/(float)n;
-    avy=avy/(float)n;
+    avx=avx/static_cast<float>(n);
+    avy=avy/static_cast<float>(n);
   }
   for(j=0;j<=nbins;j++){
     sum=0.0;
@@ -835,7 +814,7 @@ void compute_hist()
 /* nlag should be less than length/2 */
 void fftxcorr(float *data1,float *data2,int length,int nlag,float *cr,int flag)
 {
-  double *re1,*re2,*im1,*im2,x,y,sum;
+  double x,y,sum;
   float av1=0.0,av2=0.0;
   int dim[2],i;
   /*int n2; Not used anywhere*/
@@ -844,16 +823,14 @@ void fftxcorr(float *data1,float *data2,int length,int nlag,float *cr,int flag)
       av1+=data1[i];
       av2+=data2[i];
     }
-    av1=av1/(float)length;
-    av2=av2/(float)length;
+    av1=av1/static_cast<float>(length);
+    av2=av2/static_cast<float>(length);
   }
  /* n2=length/2;*/
- 
+
   dim[0]=length;
-    re1=(double *)xpp_malloc(length*sizeof(double));
-  im1=(double *)xpp_malloc(length*sizeof(double));
-      re2=(double *)xpp_malloc(length*sizeof(double));
-  im2=(double *)xpp_malloc(length*sizeof(double));
+  std::vector<double> re1_v(length), im1_v(length), re2_v(length), im2_v(length);
+  double *re1=re1_v.data(), *im1=im1_v.data(), *re2=re2_v.data(), *im2=im2_v.data();
 
   for(i=0;i<length;i++){
     im1[i]=0.0;
@@ -877,15 +854,11 @@ void fftxcorr(float *data1,float *data2,int length,int nlag,float *cr,int flag)
    sum=0.0;
    for(i=0;i<nlag;i++){
      sum+=fabs(im1[i]);
-     cr[nlag+i]=(float) re1[i]*length; /* positive part of the correlation */
+     cr[nlag+i]=static_cast<float>(re1[i])*length; /* positive part of the correlation */
    }
    for(i=0;i<nlag;i++){
      sum+=fabs(im1[length-nlag+i]);
-     cr[i]=(float) re1[length-nlag+i]*length;}
-   xpp_free(re1);
-   xpp_free(re2);
-   xpp_free(im1);
-   xpp_free(im2);
+     cr[i]=static_cast<float>(re1[length-nlag+i])*length;}
    xpp_log(XPP_LOG_INFO, "residual = %g\n",sum);
    
 }
@@ -894,11 +867,10 @@ void fftxcorr(float *data1,float *data2,int length,int nlag,float *cr,int flag)
 
 void fft(float *data, float *ct, float *st, int nmodes, int length)
 {
-  double *im,*re;
   int dim[2],i;
   dim[0]=length;
-  re=(double *)xpp_malloc(length*sizeof(double));
-  im=(double *)xpp_malloc(length*sizeof(double));
+  std::vector<double> re_v(length), im_v(length);
+  double *re=re_v.data(), *im=im_v.data();
   for(i=0;i<length;i++){
     im[i]=0.0;
     re[i]=data[i];
@@ -912,8 +884,6 @@ void fft(float *data, float *ct, float *st, int nmodes, int length)
      ct[i]=re[i]*2.0;
      st[i]=im[i]*2.0;
    }
-   xpp_free(im);
-   xpp_free(re);
 }
 
    
