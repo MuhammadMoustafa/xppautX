@@ -132,14 +132,17 @@ export function Field(props: FieldProps) {
   const msgId = `${baseId}-msg`;
   const listId = spec.kind === 'name' ? `${baseId}-names` : undefined;
 
-  /* a commit that took (client-side): once it is no longer settling and the core sent back no
-     error, the draft has done its job and the plain value (now the same text) takes over; while
-     it is settling, or the core refused it, the draft (what was sent) stays on screen (WF-001) */
+  /* a draft the box committed (on leaving it): once the commit is no longer settling and the
+     core sent back no error, the draft has done its job and the plain value (now the same text)
+     takes over; while it is settling, or the core refused it, the draft (what was sent) stays on
+     screen (WF-001). Only a committed draft: not one being typed, whatever the focus events say
+     (a focus the browser never reported must not drop what is typed). */
+  const [committed, setCommitted] = useState(false);
   useEffect(() => {
-    if (!standalone || draft === null || focused || settling || error) return;
-    if (messageOf(draft.trim()) !== null) return; /* still not what the box takes: stays, marked */
+    if (!standalone || !committed || draft === null || settling || error) return;
+    setCommitted(false);
     setDraft(null);
-  }, [standalone, draft, focused, settling, error]);
+  }, [standalone, committed, draft, settling, error]);
 
   const clearTimer = () => {
     if (timer.current) { clearTimeout(timer.current); timer.current = null; }
@@ -157,6 +160,7 @@ export function Field(props: FieldProps) {
   };
   const change = (t: string) => {
     setRefused(false);
+    setCommitted(false);
     setHint(null);
     if (!standalone) { onInput?.(t); return; }
     setDraft(t);
@@ -197,6 +201,7 @@ export function Field(props: FieldProps) {
         data-own-escape={edited ? '1' : undefined}
         onFocus={e => {
           setFocused(true);
+          setCommitted(false);
           if (standalone && draft === null) {
             const from = editValue ?? value;
             started.current = from.trim();
@@ -228,11 +233,11 @@ export function Field(props: FieldProps) {
           setFocused(false);
           setHint(null);
           if (standalone) {
-            if (dropped.current) { dropped.current = false; clearTimer(); setDraft(null); }
+            if (dropped.current) { dropped.current = false; clearTimer(); setCommitted(false); setDraft(null); }
             /* the draft is kept, marked, when it is not what the box takes (half-typed) or the
                commit is still settling or the core refused it (WF-001); the effect above drops
                it once a commit is known to have settled cleanly */
-            else if (draft !== null) commit(draft);
+            else if (draft !== null && commit(draft)) setCommitted(true);
           }
           onBlur?.(e);
         }}

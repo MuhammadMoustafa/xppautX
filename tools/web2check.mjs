@@ -317,6 +317,19 @@ async function values() {
     await until(`Math.abs((s.core.pars.find(p => p[0].toLowerCase() === "iapp") || [])[1] - 0.2) < 1e-9 && !s.busy`, 'iapp=0.2'),
     JSON.stringify(await S('s.core.pars')));
 
+  /* text typed into a box whose focus event the browser never delivered (CI's Linux Chrome, a
+     window without the OS focus) stays as typed: only a committed draft is dropped (W35d) */
+  await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)});
+    el.value = '0.25'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await sleep(150);
+  check('text typed without a focus event stays in the box, unsent',
+    await cdp.eval(`document.getElementById(${JSON.stringify(field)}).value`) === '0.25'
+      && !(await S('s.values.pending')),
+    await cdp.eval(`document.getElementById(${JSON.stringify(field)}).value`));
+  await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)});
+    el.focus(); el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})); })()`);
+  await sleep(150);
+
   /* "Run on change" must fire on commit only (Enter/Tab/blur), never per keystroke */
   await cdp.eval(`document.getElementById(${JSON.stringify(field)}).focus()`);
   await sleep(100);
