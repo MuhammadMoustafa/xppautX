@@ -5,6 +5,7 @@
 
 #include <vector>
 #include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
+#include "auto_print.h"
 #include "auto_f2c.h"
 #include "xpp_mem.h"
 #include "auto_c.h"
@@ -912,7 +913,7 @@ inho(iap_type *iap, integer *icp, doublereal *par)
       nbc = ndm * (blhom_1.iequib + 1) + blhom_1.nunstab + 1;
     }
     if (blhom_1.iequib == 2) {
-      fprintf(fp9,"WARNING: IEQUIB=2 NOT ALLOWED WITH ISTART=3\n");	
+      xpp::auto_out::print(fp9,"WARNING: IEQUIB=2 NOT ALLOWED WITH ISTART=3\n");	
     }
     if (blhom_1.iequib < 0) {
       nbc -= ndm * (blhom_1.iequib * 3 + 2);
@@ -1221,9 +1222,9 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
       * par[-1 + kp] * par[kp] * exp(rr[blhom_1.nstab] * *t * par[10]);
   }
   for (i = 0; i < ndm; ++i) {
-    fprintf(fp9,"stpho %20.10f\n",u[i]);	
+    xpp::auto_out::print(fp9,"stpho {:20.10f}\n",u[i]);	
   }
-  fprintf(fp9,"\n");	
+  xpp::auto_out::print(fp9,"\n");	
 
 /* Artificial parameters at the right-hand end point of the orbit */
 /* omega_i=<x(1)-x_o,w_i^*> */
@@ -1275,9 +1276,9 @@ pvlsho(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
   eighi(1, 2, bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.v.data(), bleig_1.xequib.data(), 
 	icp, par, &ndm);
   if (iid >= 3) {
-    fprintf(fp9,"EIGENVALUES\n");	
+    xpp::auto_out::print(fp9,"EIGENVALUES\n");	
     for (j = 0; j < ndm; ++j) {
-      fprintf(fp9," (%12.7f %12.7f)\n",bleig_1.rr[j],bleig_1.ri[j]);	
+      xpp::auto_out::print(fp9," ({:12.7f} {:12.7f})\n",bleig_1.rr[j],bleig_1.ri[j]);	
     }
   }
   if (blhom_1.itwist == 1) {
@@ -1288,9 +1289,9 @@ pvlsho(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
 		   bleig_1.vt.data(), icp, par);
     if (iid >= 3) {
       if (orient < 0.) {
-	fprintf(fp9," Non-orientable, (%20.10f)\n",orient);	
+	xpp::auto_out::print(fp9," Non-orientable, ({:20.10f})\n",orient);	
       } else {
-	fprintf(fp9," Orientable (%20.10f)\n",orient);	
+	xpp::auto_out::print(fp9," Orientable ({:20.10f})\n",orient);	
       }
     }
   }
@@ -1303,7 +1304,7 @@ pvlsho(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
     }
     par[blhmp_1.ipsi[i] + 19] = psiho(iap, blhmp_1.ipsi[i], bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.v.data(), bleig_1.vt.data(), icp, par);
     if (iid >= 3) {
-      fprintf(fp9," PSI(%2ld)=%20.10f\n",blhmp_1.ipsi[i],par[blhmp_1.ipsi[i] + 19]);	
+      xpp::auto_out::print(fp9," PSI({:2})={:20.10f}\n",blhmp_1.ipsi[i],par[blhmp_1.ipsi[i] + 19]);	
 
     }
   }
@@ -1655,7 +1656,7 @@ eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublerea
      iv1.data(), fv1.data(), &ifail);
 
   if (ifail != 0) {
-    fprintf(fp9,"EISPACK EIGENVALUE ROUTINE FAILED !\n");	
+    xpp::auto_out::print(fp9,"EISPACK EIGENVALUE ROUTINE FAILED !\n");	
   }
 
   for (j = 0; j < *ndm; ++j) {

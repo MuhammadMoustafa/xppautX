@@ -1,5 +1,8 @@
+#include <array>
+#include <string>
 #include <vector>
 #include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
+#include "auto_print.h"
 #include "auto_f2c.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
@@ -34,7 +37,7 @@ AutoGlobalRotations global_rotations = {0,NULL};
 /* ----------------------------------------------------------------------- */
 FILE *fp8;
 int fp8_is_open=0;
-extern char fort8[200],fort3[200];
+extern char fort8[200];
 /* xppautX: cancel: 1 while lcspae/lcspbv locate a special point. Their
    solves run to the end, as stdrbv's does (xpp_job.h): contae/contbv have
    already made the new, unstored point the one a cancelled solve returns
@@ -1375,20 +1378,20 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   }
   if (iid >= 2 && iap->mynode == 0) {
     if(last_ntop != ntop) {
-      fprintf(fp9,"========================================");
-      fprintf(fp9,"========================================\n");
+      xpp::auto_out::print(fp9,"========================================");
+      xpp::auto_out::print(fp9,"========================================\n");
       last_ntop = ntop;
     }
     if (nit == 0) {
-      fprintf(fp9,"  BR    PT  IT\n");
+      xpp::auto_out::print(fp9,"  BR    PT  IT\n");
     }
 
-    fprintf(fp9,"%4li%6li%4li    %14.6E              ",ibr,ntop,
+    xpp::auto_out::print(fp9,"{:4}{:6}{:4}    {:14.6E}              ",ibr,ntop,
 	    nit,rlcur[0]);
     for (i = 0; i < ndmr; ++i) {
-      fprintf(fp9,"%14.6E",u[i]);
+      xpp::auto_out::print(fp9,"{:14.6E}",u[i]);
     }
-    fprintf(fp9,"\n");
+    xpp::auto_out::print(fp9,"\n");
   }
 
   /* Call user-supplied FUNC to evaluate the right hand side of the */
@@ -1459,12 +1462,12 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     if (iid >= 2 && iap->mynode == 0) {
       if (iap->mynode == 0) {
 
-	fprintf(fp9,"%4li%6li%4li    %14.6E              ",ibr,ntop,
+	xpp::auto_out::print(fp9,"{:4}{:6}{:4}    {:14.6E}              ",ibr,ntop,
 		nit,rlcur[0]);
 	for (i = 0; i < ndmr; ++i) {
-	  fprintf(fp9,"%14.6E",u[i]);
+	  xpp::auto_out::print(fp9,"{:14.6E}",u[i]);
 	}
-	fprintf(fp9,"\n");
+	xpp::auto_out::print(fp9,"\n");
       }
     }
 
@@ -1473,7 +1476,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     if (rdrlm <= epsl && rdumx <= epsu) {
       pvlsae(iap, rap, u, par);
       if (iid >= 2) {
-	fprintf(fp9,"\n");
+	xpp::auto_out::print(fp9,"\n");
       }
       return 0;
     }
@@ -1497,7 +1500,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
  L3:
   if (iads == 0 && iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li NOTE:No convergence with fixed step size\n",ibr,ntop);
+    xpp::auto_out::print(fp9,"{:4}{:6} NOTE:No convergence with fixed step size\n",ibr,ntop);
   }
   if (iads == 0) {
     auto_stop_noconv(AUTO_STOP_NOCONV_FIXED, *rds, dsmin); /* xppautX: T23 */
@@ -1517,7 +1520,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     u[i] = uold[i] + *rds * udot[i];
   }
   if (iid >= 2 && iap->mynode == 0) {
-    fprintf(fp9," NOTE:Retrying step\n");
+    xpp::auto_out::print(fp9," NOTE:Retrying step\n");
   }
   goto L1;
 
@@ -1525,7 +1528,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
  L4:
   if (iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li NOTE:No convergence using minimum step size\n",ibr,ntop);
+    xpp::auto_out::print(fp9,"{:4}{:6} NOTE:No convergence using minimum step size\n",ibr,ntop);
   }
   auto_stop_noconv(AUTO_STOP_NOCONV_MIN, *rds, dsmin); /* xppautX: T23 */
  L5:
@@ -1617,14 +1620,14 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
     itp = -1;
     iap->itp = itp;
     *q = 0.;
-    fprintf(fp9," ==> Location of special point :  Convergence.    Stepsize =%11.3E\n",rds);
+    xpp::auto_out::print(fp9," ==> Location of special point :  Convergence.    Stepsize ={:11.3E}\n",rds);
     return 0;
   }
 
   /* If requested write additional output on unit 9 : */
 
   if (iid >= 2 && iap->mynode == 0) {
-    fprintf(fp9," ==> Location of special point :  Iteration %3li   Stepsize =%11.3E\n",itlcsp,rds);	
+    xpp::auto_out::print(fp9," ==> Location of special point :  Iteration {:3}   Stepsize ={:11.3E}\n",itlcsp,rds);	
   }
 
   contae(iap, rap, &rds, rlcur, rlold, rldot, u, uold,
@@ -1650,7 +1653,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
     goto L1;
   } else {
     if (iap->mynode == 0) {
-      fprintf(fp9,"%4li%6li NOTE:Possible special point\n",ibr,(ntot + 1) % 10000);	
+      xpp::auto_out::print(fp9,"{:4}{:6} NOTE:Possible special point\n",ibr,(ntot + 1) % 10000);	
     }
     *q = 0.;
     return 0;
@@ -1729,7 +1732,7 @@ fnbpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   /* If requested write additional output on unit 9 : */
 
   if (iid >= 2 && iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li        BP   Function %14.6E\n",ibr,ntop,ret_val);
+    xpp::auto_out::print(fp9,"{:4}{:6}        BP   Function {:14.6E}\n",ibr,ntop,ret_val);
   }
 
   return ret_val;
@@ -1809,7 +1812,7 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   /* If requested write additional output on unit 9 : */
 
   if (iid >= 2 && iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li        Fold Function %14.6E\n",abs(ibr),ntop,ret_val);
+    xpp::auto_out::print(fp9,"{:4}{:6}        Fold Function {:14.6E}\n",abs(ibr),ntop,ret_val);
   }
   return ret_val;
 } /* fnlpae_ */
@@ -1950,23 +1953,23 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   ntot = iap->ntot;
   ntotp1 = ntot + 1;
   if (iid >= 2 && iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li        Hopf Function %14.6E\n",abs(ibr),ntop,ret_val);	
+    xpp::auto_out::print(fp9,"{:4}{:6}        Hopf Function {:14.6E}\n",abs(ibr),ntop,ret_val);	
   }
   if (nins1 == ndm) {
     ntotp1 = -ntotp1;
   }
 
   if (iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li        Eigenvalues:                                 Stable:%3li\n",abs(ibr),ntop,nins);	
+    xpp::auto_out::print(fp9,"{:4}{:6}        Eigenvalues:                                 Stable:{:3}\n",abs(ibr),ntop,nins);	
     if (ips == -1) {
       for (i = 0; i < ndm; ++i) {
 	doublecomplex tmp;
 	z_exp(&tmp, &ev[i]);
-	fprintf(fp9,"%4li%6li        Eigenvalue%3li %14.6E%14.6E\n",abs(ibr),ntop,i+1,tmp.r,tmp.i);	
+	xpp::auto_out::print(fp9,"{:4}{:6}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",abs(ibr),ntop,i+1,tmp.r,tmp.i);	
       }
     } else {
       for (i = 0; i < ndm; ++i) {
-	fprintf(fp9,"%4li%6li        Eigenvalue%3li %14.6E%14.6E\n",abs(ibr),ntop,i+1,ev[i].r,ev[i].i);
+	xpp::auto_out::print(fp9,"{:4}{:6}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",abs(ibr),ntop,i+1,ev[i].r,ev[i].i);
       }
     }
   }
@@ -2011,7 +2014,7 @@ fnuzae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   *chng = TRUE_;
 
   if (iid >= 3) {
-    fprintf(fp9,"%4li%6li        User Func. %3li %16.6E\n",abs(ibr),ntop,iuzr,ret_val);	
+    xpp::auto_out::print(fp9,"{:4}{:6}        User Func. {:3} {:16.6E}\n",abs(ibr),ntop,iuzr,ret_val);	
   }
 
   return ret_val;
@@ -2081,7 +2084,7 @@ stbif(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *m1aa
   /* Keep track of the number of branch points stored. */
 
   if (nbif == NBIFX && iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li NOTE:No more branch points can be stored\n",ibr,ntop);	
+    xpp::auto_out::print(fp9,"{:4}{:6} NOTE:No more branch points can be stored\n",ibr,ntop);	
   }
   if (nbif > NBIFX) {
     nbif = NBIFX;
@@ -2298,12 +2301,12 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
     ndmr = 6;
   }
   if (iid >= 2 && iap->mynode == 0) {
-    fprintf(fp9," Branch %2ld N=%5ld IT=%2ld PAR(%2ld)=%11.3E U=",ibr,ntop,
+    xpp::auto_out::print(fp9," Branch {:2} N={:5} IT={:2} PAR({:2})={:11.3E} U=",ibr,ntop,
 	    nit,icp[0],rlcur[0]);	
     for (i = 0; i < ndmr; ++i) {
-      fprintf(fp9,"%11.3E",u[i]);	
+      xpp::auto_out::print(fp9,"{:11.3E}",u[i]);	
     }
-    fprintf(fp9,"\n");	
+    xpp::auto_out::print(fp9,"\n");	
 
   }
 
@@ -2366,12 +2369,12 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
     }
 
     if (iid >= 2 && iap->mynode == 0) {
-      fprintf(fp9," Branch %2ld N=%5ld IT=%2ld PAR(%2ld)=%11.3E U=",ibr,ntop,
+      xpp::auto_out::print(fp9," Branch {:2} N={:5} IT={:2} PAR({:2})={:11.3E} U=",ibr,ntop,
 	      nit+1,icp[0],rlcur[0]);	
       for (i = 0; i < ndmr; ++i) {
-	fprintf(fp9,"%11.3E",u[i]);	
+	xpp::auto_out::print(fp9,"{:11.3E}",u[i]);	
       }
-      fprintf(fp9,"\n");	
+      xpp::auto_out::print(fp9,"\n");	
     }
 
     /* Check whether relative error has reached user-supplied tolerance : 
@@ -2388,7 +2391,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
   /* Maximum number of iterations reached. Reduce stepsize and try again. */
 
   if (iads == 0 && iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li NOTE:No convergence when switching branches with fixed step size\n",ibr,ntop);
+    xpp::auto_out::print(fp9,"{:4}{:6} NOTE:No convergence when switching branches with fixed step size\n",ibr,ntop);
   }
   if (iads == 0) {
     auto_stop_noconv(AUTO_STOP_NOCONV_SWITCH_FIXED, *rds, dsmin); /* xppautX: T23 */
@@ -2406,7 +2409,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
     u[i] = uold[i] + *rds * udot[i];
   }
   if (iid >= 2 && iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li NOTE:Retrying step\n",ibr,ntop);	
+    xpp::auto_out::print(fp9,"{:4}{:6} NOTE:Retrying step\n",ibr,ntop);	
   }
   goto L2;
 
@@ -2414,7 +2417,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
 
  L4:
   if (iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li NOTE:No convergence when switching branches with minimum step size\n",ibr,ntop);
+    xpp::auto_out::print(fp9,"{:4}{:6} NOTE:No convergence when switching branches with minimum step size\n",ibr,ntop);
   }
   auto_stop_noconv(AUTO_STOP_NOCONV_SWITCH_MIN, *rds, dsmin); /* xppautX: T23 */
  L5:
@@ -2503,44 +2506,44 @@ sthd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *th
   }
   
 
-  fprintf(fp7,"   0 %12.4E%12.4E%12.4E%12.4E\n",rl0,rl1,a0,a1);
-  fprintf(fp7,"   0   EPSL=%11.4E  EPSU =%11.4E  EPSS =%11.4E\n",epsl,epsu,epss);
-  fprintf(fp7,"   0   DS  =%11.4E  DSMIN=%11.4E  DSMAX=%11.4E\n",ds,dsmin,dsmax);
-  fprintf(fp7,"   0   NDIM=%4li   IPS =%4li   IRS =%4li   ILP =%4li\n",ndim,ips,irs,ilp); 
-  fprintf(fp7,"   0   NTST=%4li   NCOL=%4li   IAD =%4li   ISP =%4li\n",ntst,ncol,iad,isp);
-  fprintf(fp7,"   0   ISW =%4li   IPLT=%4li   NBC =%4li   NINT=%4li\n",isw,iplt,nbc,nint);
-  fprintf(fp7,"   0   NMX=%5ld   NPR =%4li   MXBF=%4li   IID =%4li\n",nmx,npr,mxbf,iid);
-  fprintf(fp7,"   0   ITMX=%4li   ITNW=%4li   NWTN=%4li   JAC=%4li  NUZR=%4li\n",itmx,itnw,nwtn,jac,nuzr);
+  xpp::auto_out::print(fp7,"   0 {:12.4E}{:12.4E}{:12.4E}{:12.4E}\n",rl0,rl1,a0,a1);
+  xpp::auto_out::print(fp7,"   0   EPSL={:11.4E}  EPSU ={:11.4E}  EPSS ={:11.4E}\n",epsl,epsu,epss);
+  xpp::auto_out::print(fp7,"   0   DS  ={:11.4E}  DSMIN={:11.4E}  DSMAX={:11.4E}\n",ds,dsmin,dsmax);
+  xpp::auto_out::print(fp7,"   0   NDIM={:4}   IPS ={:4}   IRS ={:4}   ILP ={:4}\n",ndim,ips,irs,ilp); 
+  xpp::auto_out::print(fp7,"   0   NTST={:4}   NCOL={:4}   IAD ={:4}   ISP ={:4}\n",ntst,ncol,iad,isp);
+  xpp::auto_out::print(fp7,"   0   ISW ={:4}   IPLT={:4}   NBC ={:4}   NINT={:4}\n",isw,iplt,nbc,nint);
+  xpp::auto_out::print(fp7,"   0   NMX={:5}   NPR ={:4}   MXBF={:4}   IID ={:4}\n",nmx,npr,mxbf,iid);
+  xpp::auto_out::print(fp7,"   0   ITMX={:4}   ITNW={:4}   NWTN={:4}   JAC={:4}  NUZR={:4}\n",itmx,itnw,nwtn,jac,nuzr);
 
   if (nicp == 1) {
     jtmp = NPARX;
-    fprintf(fp7,"   0   User-specified parameter:       ");
+    xpp::auto_out::print(fp7,"   0   User-specified parameter:       ");
     for (i = 0; i < nicp; ++i) {
-      fprintf(fp7,"%4li",icp[jtmp + i]);
+      xpp::auto_out::print(fp7,"{:4}",icp[jtmp + i]);
     }
-    fprintf(fp7,"\n");
+    xpp::auto_out::print(fp7,"\n");
   } else {
     jtmp = NPARX;
-    fprintf(fp7,"   0   User-specified parameters:      ");
+    xpp::auto_out::print(fp7,"   0   User-specified parameters:      ");
     for (i = 0; i < nicp; ++i) {
-      fprintf(fp7,"%4li",icp[jtmp + i]);
+      xpp::auto_out::print(fp7,"{:4}",icp[jtmp + i]);
     }
-    fprintf(fp7,"\n");
+    xpp::auto_out::print(fp7,"\n");
   }
 
   if (nfpr == 1) {
-    fprintf(fp7,"   0   Active continuation parameter:  ");
+    xpp::auto_out::print(fp7,"   0   Active continuation parameter:  ");
 	
     for (i = 0; i < nfpr; ++i) {
-      fprintf(fp7,"%4li",icp[i]);
+      xpp::auto_out::print(fp7,"{:4}",icp[i]);
     }
-    fprintf(fp7,"\n");
+    xpp::auto_out::print(fp7,"\n");
   } else {
-    fprintf(fp7,"   0   Active continuation parameters:  ");
+    xpp::auto_out::print(fp7,"   0   Active continuation parameters:  ");
     for (i = 0; i < nfpr; ++i) {
-      fprintf(fp7,"%4li",icp[i]);
+      xpp::auto_out::print(fp7,"{:4}",icp[i]);
     }
-    fprintf(fp7,"\n");
+    xpp::auto_out::print(fp7,"\n");
   }
 
 
@@ -2554,11 +2557,8 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
 {
   /* Local variables */
   integer iplt, i, j;
-  /* Column text is normally the 14-char fixed-width fields printed
-     below, but the %ld values are `integer` (a long): size the
-     buffer for the worst case (sign + 19 digits) instead of assuming
-     they stay small, so a large index can never overflow it. */
-  char col[9][14+21];
+  /* The 14-char fixed-width column headings printed below. */
+  std::array<std::string, 9> col;
   integer ndm, ips;
 
   /* Prints headings above columns on unit 6 and 7. */
@@ -2575,7 +2575,7 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
 
   /*initialize strings*/
   for (i = 0; i < 9; ++i) {
-    XPP_SPRINTF(col[i], "              ");
+    col[i] = "              ";
   }
 
   if (iap->mynode == 0) {
@@ -2583,10 +2583,10 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
       xpp_log_auto(" \n");
     }
     if (iunit == 7) {
-      fprintf(fp7,"   0\n");
+      xpp::auto_out::print(fp7,"   0\n");
     }
     if (iunit == 9) {
-      fprintf(fp9," \n");	
+      xpp::auto_out::print(fp9," \n");	
     }
   }
 
@@ -2597,36 +2597,36 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
       j = j + 1 + *n2;
     }   
     if (icp[i] > 9) {
-      XPP_SPRINTF(col[j-1],"   PAR(%ld)    ",icp[i]);
+      col[j-1] = xpp::format("   PAR({})    ",icp[i]);
     } else {
-      XPP_SPRINTF(col[j-1],"   PAR(%ld)     ",icp[i]);
+      col[j-1] = xpp::format("   PAR({})     ",icp[i]);
     }
 	
   }
 
   if (iplt > ndm && iplt <= ndm << 1) {
-    XPP_SPRINTF(col[1]," INTEGRAL U(%ld)",iplt-ndm);
+    col[1] = xpp::format(" INTEGRAL U({})",iplt-ndm);
   } else if (iplt > ndm << 1 && iplt <= ndm * 3) {
-    XPP_SPRINTF(col[1]," L2-NORM U(%ld) ",iplt - (ndm * 2));
+    col[1] = xpp::format(" L2-NORM U({}) ",iplt - (ndm * 2));
   } else if (iplt > 0 && iplt <= ndm) {
     if (abs(ips) <= 1 || ips == 5) {
-      XPP_SPRINTF(col[1],"     U(%ld)     ",-iplt);
+      col[1] = xpp::format("     U({})     ",-iplt);
     } else {
-      XPP_SPRINTF(col[1],"   MAX U(%ld)   ",iplt);
+      col[1] = xpp::format("   MAX U({})   ",iplt);
     }
   } else if (iplt < 0 && iplt >= -ndm) {
     if (abs(ips) <= 1 || ips == 5) {
-      XPP_SPRINTF(col[1],"     U(%ld)     ",-iplt);
+      col[1] = xpp::format("     U({})     ",-iplt);
     } else {
-      XPP_SPRINTF(col[1],"   MIN U(%ld)   ",-iplt);
+      col[1] = xpp::format("   MIN U({})   ",-iplt);
     }
   } else {
-    XPP_SPRINTF(col[1],"   L2-NORM    ");
+    col[1] = "   L2-NORM    ";
   }
 
   if (*n2 > 0) {
     for (i = 0; i < *n2; ++i) {
-      XPP_SPRINTF(col[i+2],"     U(%ld)     ",i + 1);
+      col[i+2] = xpp::format("     U({})     ",i + 1);
     }
     if ((ips >= 2 && ips <= 4) || (ips >= 6 && ips <= 9) || (ips >= 12 && ips <= 17)) {
       for (i = 3; i <= *n2 + 2; ++i) {
@@ -2638,12 +2638,12 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
   }
 
   for (i = 0; i < *n1 + *n2 + 1; ++i) {
-    if (strcmp(col[i],"   PAR(10)    ") == 0 && ips > 0 && ips != 4) {
-      XPP_SPRINTF(col[i],"    PERIOD    ");
-    } else if (strcmp(col[i],"   PAR(9)    ") == 0 && (ips == 5 || ips == 15)) {
-      XPP_SPRINTF(col[i],"     FOPT     ");
-    } else if (strcmp(col[i],"   PAR(13)    ") == 0 && (ips == 14 || ips == 16)) {
-      XPP_SPRINTF(col[i],"     TIME     ");
+    if (col[i] == "   PAR(10)    " && ips > 0 && ips != 4) {
+      col[i] = "    PERIOD    ";
+    } else if (col[i] == "   PAR(9)    " && (ips == 5 || ips == 15)) {
+      col[i] = "     FOPT     ";
+    } else if (col[i] == "   PAR(13)    " && (ips == 14 || ips == 16)) {
+      col[i] = "     TIME     ";
     }
   }
 
@@ -2652,23 +2652,23 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
       xpp_log_auto("  BR    PT  TY LAB ");
       for (i = 0; i < *n1 + *n2 + 1; ++i) {
 	char scr[AUTO_COL_W+1]; /* PAR(n)/U(n) as the user named them */
-	auto_screen_col(col[i],scr);
+	auto_screen_col(col[i].data(),scr);
 	xpp_log_auto("%s",scr);
       }
       xpp_log_auto("\n");
       fflush(stdout);
     } else if (iunit == 7) {
-      fprintf(fp7,"   0    PT  TY LAB ");
+      xpp::auto_out::print(fp7,"   0    PT  TY LAB ");
       for (i = 0; i < *n1 + *n2 + 1; ++i) {
-	fprintf(fp7,"%s",col[i]);
+	xpp::auto_out::print(fp7,"{}",col[i]);
       }
-      fprintf(fp7,"\n");
+      xpp::auto_out::print(fp7,"\n");
     } else if (iunit == 9) {
-      fprintf(fp9,"  BR    PT  TY LAB ");	
+      xpp::auto_out::print(fp9,"  BR    PT  TY LAB ");	
       for (i = 0; i < *n1 + *n2 + 1; ++i) {
-	fprintf(fp9,"%s",col[i]);
+	xpp::auto_out::print(fp9,"{}",col[i]);
       }
-      fprintf(fp9,"\n");	
+      xpp::auto_out::print(fp9,"\n");	
 
     }
   }
@@ -2859,7 +2859,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 
   /* Local variables */
   integer nicp, mtot, i;
-  char atype[3];
+  const char *atype = "  ";
   integer n1, n2;
 
   integer nt, ndm, itp, lb;
@@ -2913,29 +2913,29 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   headng(iap, rap, par, icu, 9, &n1, &n2);
 
   if (itp % 10 == 1) {
-    XPP_STRCPY(atype,"BP");
+    atype = "BP";
   } else if (itp % 10 == 2) {
-    XPP_STRCPY(atype, "LP");
+    atype = "LP";
   } else if (itp % 10 == 3) {
-    XPP_STRCPY(atype, "HB");
+    atype = "HB";
   } else if (itp % 10 == 4) {
-    XPP_STRCPY(atype, "  ");
+    atype = "  ";
   } else if (itp % 10 == -4) {
-    XPP_STRCPY(atype, "UZ");
+    atype = "UZ";
   } else if (itp % 10 == 5) {
-    XPP_STRCPY(atype, "LP");
+    atype = "LP";
   } else if (itp % 10 == 6) {
-    XPP_STRCPY(atype, "BP");
+    atype = "BP";
   } else if (itp % 10 == 7) {
-    XPP_STRCPY(atype, "PD");
+    atype = "PD";
   } else if (itp % 10 == 8) {
-    XPP_STRCPY(atype, "TR");
+    atype = "TR";
   } else if (itp % 10 == 9) {
-    XPP_STRCPY(atype, "EP");
+    atype = "EP";
   } else if (itp % 10 == -9) {
-    XPP_STRCPY(atype, "MX");
+    atype = "MX";
   } else {
-    XPP_STRCPY(atype, "  ");
+    atype = "  ";
   }
 
   if (iap->mynode > 0) {
@@ -2954,20 +2954,20 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
       xpp_log_auto("\n");
       fflush(stdout);
     }
-    fprintf(fp7,"%4li%6li%4li%4li",(*ibr),mtot,itp,(*lab));
-    fprintf(fp7,"%14.5E",par[icu[0]]);
-    fprintf(fp7,"%14.5E",(*vaxis));
+    xpp::auto_out::print(fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,itp,(*lab));
+    xpp::auto_out::print(fp7,"{:14.5E}",par[icu[0]]);
+    xpp::auto_out::print(fp7,"{:14.5E}",(*vaxis));
     for (i = 1; i < n1; ++i) {
-      fprintf(fp7,"%14.5E",par[icu[i]]);
+      xpp::auto_out::print(fp7,"{:14.5E}",par[icu[i]]);
     }
-    fprintf(fp7,"\n");
-    fprintf(fp9,"%4li%6li  %c%c%4li",(*ibr),mtot,atype[0],atype[1],*(lab));	
-    fprintf(fp9,"%14.6E",par[icu[0]]);
-    fprintf(fp9,"%14.6E",(*vaxis));
+    xpp::auto_out::print(fp7,"\n");
+    xpp::auto_out::print(fp9,"{:4}{:6}  {:c}{:c}{:4}",(*ibr),mtot,atype[0],atype[1],*(lab));	
+    xpp::auto_out::print(fp9,"{:14.6E}",par[icu[0]]);
+    xpp::auto_out::print(fp9,"{:14.6E}",(*vaxis));
     for (i = 1; i < n1; ++i) {
-      fprintf(fp9,"%14.6E",par[icu[i]]);
+      xpp::auto_out::print(fp9,"{:14.6E}",par[icu[i]]);
     }
-    fprintf(fp9,"\n");
+    xpp::auto_out::print(fp9,"\n");
   } else {
     if (n1 == 1) {
       if (itp % 10 != 0) {
@@ -2980,20 +2980,20 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 	xpp_log_auto("\n");
 	fflush(stdout);
       }
-      fprintf(fp7,"%4li%6li%4li%4li",(*ibr),mtot,itp,(*lab));
-      fprintf(fp7,"%14.5E",par[icu[0]]);
-      fprintf(fp7,"%14.5E",(*vaxis));
+      xpp::auto_out::print(fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,itp,(*lab));
+      xpp::auto_out::print(fp7,"{:14.5E}",par[icu[0]]);
+      xpp::auto_out::print(fp7,"{:14.5E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
-	fprintf(fp7,"%14.5E",u[i]);
+	xpp::auto_out::print(fp7,"{:14.5E}",u[i]);
       }
-      fprintf(fp7,"\n");
-      fprintf(fp9,"%4li%6li  %c%c%4li",(*ibr),mtot,atype[0],atype[1],*(lab));
-      fprintf(fp9,"%14.6E",par[icu[0]]);
-      fprintf(fp9,"%14.6E",(*vaxis));
+      xpp::auto_out::print(fp7,"\n");
+      xpp::auto_out::print(fp9,"{:4}{:6}  {:c}{:c}{:4}",(*ibr),mtot,atype[0],atype[1],*(lab));
+      xpp::auto_out::print(fp9,"{:14.6E}",par[icu[0]]);
+      xpp::auto_out::print(fp9,"{:14.6E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
-	fprintf(fp9,"%14.6E",u[i]);
+	xpp::auto_out::print(fp9,"{:14.6E}",u[i]);
       }
-      fprintf(fp9,"\n");	
+      xpp::auto_out::print(fp9,"\n");	
 
     } else {
       if (itp % 10 != 0) {
@@ -3009,26 +3009,26 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 	xpp_log_auto("\n");
 	fflush(stdout);      
       }
-      fprintf(fp7,"%4li%6li%4li%4li",(*ibr),mtot,itp,(*lab));
-      fprintf(fp7,"%14.5E",par[icu[0]]);
-      fprintf(fp7,"%14.5E",(*vaxis));
+      xpp::auto_out::print(fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,itp,(*lab));
+      xpp::auto_out::print(fp7,"{:14.5E}",par[icu[0]]);
+      xpp::auto_out::print(fp7,"{:14.5E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
-	fprintf(fp7,"%14.5E",u[i]);
+	xpp::auto_out::print(fp7,"{:14.5E}",u[i]);
       }
       for (i = 1; i < n1; ++i) {
-	fprintf(fp7,"%14.5E",par[icu[i]]);
+	xpp::auto_out::print(fp7,"{:14.5E}",par[icu[i]]);
       }
-      fprintf(fp7,"\n");
-      fprintf(fp9,"%4li%6li  %c%c%4li",(*ibr),mtot,atype[0],atype[1],*(lab));
-      fprintf(fp9,"%14.6E",par[icu[0]]);
-      fprintf(fp9,"%14.6E",(*vaxis));
+      xpp::auto_out::print(fp7,"\n");
+      xpp::auto_out::print(fp9,"{:4}{:6}  {:c}{:c}{:4}",(*ibr),mtot,atype[0],atype[1],*(lab));
+      xpp::auto_out::print(fp9,"{:14.6E}",par[icu[0]]);
+      xpp::auto_out::print(fp9,"{:14.6E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
-	fprintf(fp9,"%14.6E",u[i]);
+	xpp::auto_out::print(fp9,"{:14.6E}",u[i]);
       }
       for (i = 1; i < n1; ++i) {
-	fprintf(fp9,"%14.6E",par[icu[i]]);
+	xpp::auto_out::print(fp9,"{:14.6E}",par[icu[i]]);
       }
-      fprintf(fp9,"\n");	
+      xpp::auto_out::print(fp9,"\n");	
     }
   }
 
@@ -3054,9 +3054,7 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
     if(fp8 == NULL) {
       /* Report instead of exit(1): a server must outlive a bad HOME. fp8_is_open
 	 stays 0 so later calls retry the open instead of using a NULL fp8. */
-      char msg[256];
-      XPP_SPRINTF(msg,"Could not open %.200s",fort8);
-      err_msg(msg);
+      err_msg(xpp::format("Could not open {:.200}", fort8).c_str());
       return 0;
     }
     fp8_is_open=1;
@@ -3098,33 +3096,33 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   }
 
   mtot = ntot % 10000;
-  fprintf(fp8,"%5ld",ibr);
-  fprintf(fp8,"%5ld",mtot);
-  fprintf(fp8,"%5ld",itp);
-  fprintf(fp8,"%5ld",(*lab));
-  fprintf(fp8,"%5ld",nfpr);
-  fprintf(fp8,"%5ld",isw);
-  fprintf(fp8,"%5ld",ntpl);
-  fprintf(fp8,"%5ld",nar);
-  fprintf(fp8,"%5ld",nrowpr);
-  fprintf(fp8,"%5d",0);
-  fprintf(fp8,"%5d",0);
-  fprintf(fp8,"%5d\n",NPARX);
-  fprintf(fp8,"    %19.10E",t);
+  xpp::auto_out::print(fp8,"{:5}",ibr);
+  xpp::auto_out::print(fp8,"{:5}",mtot);
+  xpp::auto_out::print(fp8,"{:5}",itp);
+  xpp::auto_out::print(fp8,"{:5}",(*lab));
+  xpp::auto_out::print(fp8,"{:5}",nfpr);
+  xpp::auto_out::print(fp8,"{:5}",isw);
+  xpp::auto_out::print(fp8,"{:5}",ntpl);
+  xpp::auto_out::print(fp8,"{:5}",nar);
+  xpp::auto_out::print(fp8,"{:5}",nrowpr);
+  xpp::auto_out::print(fp8,"{:5}",0);
+  xpp::auto_out::print(fp8,"{:5}",0);
+  xpp::auto_out::print(fp8,"{:5}\n",NPARX);
+  xpp::auto_out::print(fp8,"    {:19.10E}",t);
   for (i = 0; i < ndim; ++i) {
     if((i>0)&&((i+1)%7==0))
-      fprintf(fp8,"\n    ");
-    fprintf(fp8,"%19.10E",u[i]);
+      xpp::auto_out::print(fp8,"\n    ");
+    xpp::auto_out::print(fp8,"{:19.10E}",u[i]);
   }
-  fprintf(fp8,"\n");
+  xpp::auto_out::print(fp8,"\n");
   for (i = 0; i < NPARX; ++i) {
     if(i==0)
-      fprintf(fp8,"    ");
+      xpp::auto_out::print(fp8,"    ");
     if((i>0)&&(i%7==0))
-      fprintf(fp8,"\n    ");
-    fprintf(fp8,"%19.10E",par[i]);
+      xpp::auto_out::print(fp8,"\n    ");
+    xpp::auto_out::print(fp8,"{:19.10E}",par[i]);
   }
-  fprintf(fp8,"\n");    
+  xpp::auto_out::print(fp8,"\n");    
   fflush(fp8);
 
   return 0;
@@ -3148,18 +3146,18 @@ wrjac(iap_type *iap, integer *n, integer *m1aaloc, doublereal *aa, doublereal *r
   if (iap->mynode > 0) {
     return 0;
   }
-  fprintf(fp9," Residual vector :\n");	
+  xpp::auto_out::print(fp9," Residual vector :\n");	
 
   for (i = 0; i < *n; ++i) {
-    fprintf(fp9," %10.3E",rhs[i]);	
+    xpp::auto_out::print(fp9," {:10.3E}",rhs[i]);	
   }
-  fprintf(fp9,"\n");	
-  fprintf(fp9," Jacobian matrix :\n");	
+  xpp::auto_out::print(fp9,"\n");	
+  xpp::auto_out::print(fp9," Jacobian matrix :\n");	
   for (i = 0; i < *n; ++i) {
     for (j = 0; j < *n; ++j) {
-      fprintf(fp9," %10.3E",ARRAY2D(aa, i, j));	
+      xpp::auto_out::print(fp9," {:10.3E}",ARRAY2D(aa, i, j));	
     }
-    fprintf(fp9,"\n");	
+    xpp::auto_out::print(fp9,"\n");	
 
   }
 
@@ -3547,8 +3545,8 @@ adptds(iap_type *iap, rap_type *rap, doublereal *rds)
     *rds = *rds * dsmax / ards;
   }
 
-  fprintf(fp9,"%4li%6li        Iterations     %3li\n",abs(ibr),ntop - 1,nit);	
-  fprintf(fp9,"%4li%6li        Stepsize      %14.6E\n",abs(ibr),ntop,(*rds));	
+  xpp::auto_out::print(fp9,"{:4}{:6}        Iterations     {:3}\n",abs(ibr),ntop - 1,nit);	
+  xpp::auto_out::print(fp9,"{:4}{:6}        Stepsize      {:14.6E}\n",abs(ibr),ntop,(*rds));	
 
   return 0;
 } /* adptds_ */
@@ -3997,7 +3995,7 @@ eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev
     *ier = 1;
   }
   if (*ier == 1) {
-    fprintf(fp9,"%4li%6li NOTE:Error return from EISPACK routine RG\n",ibr,ntop);	
+    xpp::auto_out::print(fp9,"{:4}{:6} NOTE:Error return from EISPACK routine RG\n",ibr,ntop);	
   }
 
   return 0;
@@ -4067,7 +4065,7 @@ nlvc(integer n, integer m, integer k, doublereal *a, doublereal *u)
       }
     }
     if (piv < RSMALL) {
-      fprintf(fp9,"        NOTE:Pivot %3li < %10.3E  in NLVC : A null space may be multi-dimensional\n",jj,RSMALL);	
+      xpp::auto_out::print(fp9,"        NOTE:Pivot {:3} < {:10.3E}  in NLVC : A null space may be multi-dimensional\n",jj,RSMALL);	
 
     }
 
@@ -4237,9 +4235,9 @@ ge(integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublere
     *det *= ARRAY2D(a, ir[ipiv], ic[jpiv]);
 #define GE_PIVOTS_DEBUG
 #ifdef GE_PIVOTS_DEBUG
-    if(jj==0)  fprintf(fp9,"\n Pivots in GE");
-    if((jj%6)==0) fprintf(fp9,"\n");
-    fprintf(fp9," %4ld %12.3e ",jj,fabs(ARRAY2D(a, ir[ipiv], ic[jpiv])));
+    if(jj==0)  xpp::auto_out::print(fp9,"\n Pivots in GE");
+    if((jj%6)==0) xpp::auto_out::print(fp9,"\n");
+    xpp::auto_out::print(fp9," {:4} {:12.3e} ",jj,fabs(ARRAY2D(a, ir[ipiv], ic[jpiv])));
 #endif
     if (ipiv != jj) {
       *det = -(*det);
@@ -4249,7 +4247,7 @@ ge(integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublere
     }
 
     if (piv < RSMALL) {
-      fprintf(fp9,"         NOTE:Pivot %3li < %10.3E, in GE\n",jj,RSMALL);	
+      xpp::auto_out::print(fp9,"         NOTE:Pivot {:3} < {:10.3E}, in GE\n",jj,RSMALL);	
     }
 
     k = ir[jj];
@@ -4278,8 +4276,8 @@ ge(integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublere
   }
   *det *= ARRAY2D(a, ir[n - 1], ic[n - 1]);
 #ifdef GE_PIVOTS_DEBUG
-     if((jj%6)==0) fprintf(fp9,"\n");
-     fprintf(fp9," %4ld %12.3e \n",n-1,ARRAY2D(a, ir[n - 1], ic[n - 1]));
+     if((jj%6)==0) xpp::auto_out::print(fp9,"\n");
+     xpp::auto_out::print(fp9," {:4} {:12.3e} \n",n-1,ARRAY2D(a, ir[n - 1], ic[n - 1]));
 #endif
 
   if (nrhs == 0) {
@@ -5601,7 +5599,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     if (done && rdumx < epsu) {
       (*pvli)(iap, rap, icp, dtm, ndxloc, ups, &ndim, p0, p1, par);
       if (iid >= 2) {
-	fprintf(fp9," \n");	
+	xpp::auto_out::print(fp9," \n");	
       }
       return 0;
     }
@@ -5622,7 +5620,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
  L3:
   if (iads == 0 && iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li NOTE:No convergence with fixed step size\n",ibr,ntop);
+    xpp::auto_out::print(fp9,"{:4}{:6} NOTE:No convergence with fixed step size\n",ibr,ntop);
   }
   if (iads == 0) {
     auto_stop_noconv(AUTO_STOP_NOCONV_FIXED, *rds, dsmin); /* xppautX: T23 */
@@ -5647,7 +5645,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     }
   }
   if (iid >= 2 && iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li NOTE:Retrying step\n",ibr,ntop);	
+    xpp::auto_out::print(fp9,"{:4}{:6} NOTE:Retrying step\n",ibr,ntop);	
 
   }
   goto L1;
@@ -5656,7 +5654,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
  L12:
   if (iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li, NOTE:No convergence using minimum step size\n",ibr,ntop);
+    xpp::auto_out::print(fp9,"{:4}{:6}, NOTE:No convergence using minimum step size\n",ibr,ntop);
 
   }
   auto_stop_noconv(AUTO_STOP_NOCONV_MIN, *rds, dsmin); /* xppautX: T23 */
@@ -6254,10 +6252,10 @@ stdrbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   }
 
   if (iid >= 2) {
-    fprintf(fp9,"Starting direction of the free parameter(s) :\n");	
+    xpp::auto_out::print(fp9,"Starting direction of the free parameter(s) :\n");	
 
     for (i = 0; i < nfpr; ++i) {
-      fprintf(fp9," PAR(%3ld) :%11.3E\n",icp[i],rldot[i]);	
+      xpp::auto_out::print(fp9," PAR({:3}) :{:11.3E}\n",icp[i],rldot[i]);	
     }
   }
 
@@ -6357,7 +6355,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
     itp = -1;
     iap->itp = itp;
     /* xx???   Q=0.d0 */
-    fprintf(fp9,"==> Location of special point : Convergence.    Stepsize =%11.3E\n",rds);	
+    xpp::auto_out::print(fp9,"==> Location of special point : Convergence.    Stepsize ={:11.3E}\n",rds);	
 
     return 0;
   }
@@ -6365,7 +6363,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   /* If requested write additional output on unit 9 : */
 
   if (iid >= 2 && iap->mynode == 0) {
-    fprintf(fp9," ==> Location of special point :  Iteration %3ld   Stepsize =%11.3E\n",nitsp1,rds);	
+    xpp::auto_out::print(fp9," ==> Location of special point :  Iteration {:3}   Stepsize ={:11.3E}\n",nitsp1,rds);	
   }
 
   contbv(iap, rap, par, icp, funi, &rds, rlcur, rlold, &
@@ -6399,7 +6397,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
     return 0;
   }
 
-  fprintf(fp9,"%4li%6li NOTE:Possible special point\n",ibr,ntop);	
+  xpp::auto_out::print(fp9,"{:4}{:6} NOTE:Possible special point\n",ibr,ntop);	
   *q = 0.;
 
   return 0;
@@ -6469,7 +6467,7 @@ fnlpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   scaleb(iap, icp, ndxloc, udotps, rldot, dtm, 
 	 thl, thu);
   if (iid >= 2 && iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li        Fold Function %14.6E\n",abs(ibr),ntop,rldot[0]);	
+    xpp::auto_out::print(fp9,"{:4}{:6}        Fold Function {:14.6E}\n",abs(ibr),ntop,rldot[0]);	
   }
 
   /* Set the quantity to be returned. */
@@ -6541,7 +6539,7 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   }
 
   if (iid >= 2) {
-    fprintf(fp9,"%4li%6li        BP   Function %14.6E\n",abs(ibr),ntop,ret_val);	
+    xpp::auto_out::print(fp9,"{:4}{:6}        BP   Function {:14.6E}\n",abs(ibr),ntop,ret_val);	
 
   }
   return ret_val;
@@ -6653,17 +6651,17 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   if (amin > .05 && isp == 2) {
     if (iap->mynode == 0) {
       if (iid >= 2) {
-	fprintf(fp9,"%4li%6li NOTE:Multiplier inaccurate\n",abs(ibr),ntop);	
+	xpp::auto_out::print(fp9,"{:4}{:6} NOTE:Multiplier inaccurate\n",abs(ibr),ntop);	
 
       }
       for (i = 0; i < ndim; ++i) {
-	fprintf(fp9,"%4li%6li        Multiplier %3li %14.6E %14.6E\n",abs(ibr),ntop,i,ev[i].r,ev[i].i);	
+	xpp::auto_out::print(fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",abs(ibr),ntop,i,ev[i].r,ev[i].i);	
       }
     }
     nins = 0;
     iap->nins = nins;
     if (iap->mynode == 0) {
-      fprintf(fp9,"%4li%6li        Multipliers:   Stable: %3li\n",abs(ibr),ntop,nins);	
+      xpp::auto_out::print(fp9,"{:4}{:6}        Multipliers:   Stable: {:3}\n",abs(ibr),ntop,nins);	
     }
     isp = -isp;
     iap->isp = isp;
@@ -6676,14 +6674,14 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   if (isp < 0) {
     if (amin < .01) {
       if (iap->mynode == 0) {
-	fprintf(fp9,"%4li%6li NOTE:Multiplier accurate again\n",abs(ibr),ntop);	
+	xpp::auto_out::print(fp9,"{:4}{:6} NOTE:Multiplier accurate again\n",abs(ibr),ntop);	
       }
       isp = -isp;
       iap->isp = isp;
     } else {
       if (iap->mynode == 0) {
 	for (i = 0; i < ndim; ++i) {
-	  fprintf(fp9,"%4li%6li        Multiplier %3li %14.6E %14.6E\n",abs(ibr),ntop,i,ev[i].r,ev[i].i);	
+	  xpp::auto_out::print(fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",abs(ibr),ntop,i,ev[i].r,ev[i].i);	
 	}
       }
       return ret_val;
@@ -6727,7 +6725,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   iap->nins = nins;
   if (iid >= 2 && (isp == 1 || isp == 2)) {
     if (iap->mynode == 0) {
-      fprintf(fp9,"%4li%6li        SPB  Function %14.6E\n",abs(ibr),ntop,d);	
+      xpp::auto_out::print(fp9,"{:4}{:6}        SPB  Function {:14.6E}\n",abs(ibr),ntop,d);	
 
     }
   }
@@ -6736,10 +6734,10 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   nins = iap->nins;
   if (iap->mynode == 0) {
-    fprintf(fp9,"%4li%6li        Multipliers:   Stable: %3li\n",abs(ibr),ntop,nins);	
+    xpp::auto_out::print(fp9,"{:4}{:6}        Multipliers:   Stable: {:3}\n",abs(ibr),ntop,nins);	
 
     for (i = 0; i < ndim; ++i) {
-      fprintf(fp9,"%4li%6li        Multiplier %3li %14.6E %14.6E\n",abs(ibr),ntop,i,ev[i].r,ev[i].i);	
+      xpp::auto_out::print(fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",abs(ibr),ntop,i,ev[i].r,ev[i].i);	
 
     }
   }
@@ -6772,7 +6770,7 @@ fnuzbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   *chng = TRUE_;
 
   if (iid >= 3) {
-    fprintf(fp9,"%4li%6li        User Func. %3li %14.6E\n",abs(ibr),ntop,iuzr,ret_val);	
+    xpp::auto_out::print(fp9,"{:4}{:6}        User Func. {:3} {:14.6E}\n",abs(ibr),ntop,iuzr,ret_val);	
   }
 
   return ret_val;
@@ -7082,9 +7080,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     fp8 = fopen(fort8,"w");
     if(fp8 == NULL) {
       /* as in wrtsp8() */
-      char msg[256];
-      XPP_SPRINTF(msg,"Could not open %.200s",fort8);
-      err_msg(msg);
+      err_msg(xpp::format("Could not open {:.200}", fort8).c_str());
       return 0;
     }
     fp8_is_open=1;
@@ -7161,18 +7157,18 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   }
 
   mtot = ntot % 10000;
-  fprintf(fp8,"%5ld",ibr);
-  fprintf(fp8,"%5ld",mtot);
-  fprintf(fp8,"%5ld",itp);
-  fprintf(fp8,"%5ld",lab);
-  fprintf(fp8,"%5ld",nfpr);
-  fprintf(fp8,"%5ld",isw);
-  fprintf(fp8,"%5ld",ntpl);
-  fprintf(fp8,"%5ld",nar);
-  fprintf(fp8,"%5ld",nrowpr);
-  fprintf(fp8,"%5ld",ntst);
-  fprintf(fp8,"%5ld",ncol);
-  fprintf(fp8,"%5d\n",NPARX);
+  xpp::auto_out::print(fp8,"{:5}",ibr);
+  xpp::auto_out::print(fp8,"{:5}",mtot);
+  xpp::auto_out::print(fp8,"{:5}",itp);
+  xpp::auto_out::print(fp8,"{:5}",lab);
+  xpp::auto_out::print(fp8,"{:5}",nfpr);
+  xpp::auto_out::print(fp8,"{:5}",isw);
+  xpp::auto_out::print(fp8,"{:5}",ntpl);
+  xpp::auto_out::print(fp8,"{:5}",nar);
+  xpp::auto_out::print(fp8,"{:5}",nrowpr);
+  xpp::auto_out::print(fp8,"{:5}",ntst);
+  xpp::auto_out::print(fp8,"{:5}",ncol);
+  xpp::auto_out::print(fp8,"{:5}\n",NPARX);
 
 /* Write the entire solution on unit 8 : */
 
@@ -7182,72 +7178,72 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
       k1 = i * ndim;
       k2 = (i + 1) * ndim;
       t = tm[j] + i * rn * dtm[j];
-      fprintf(fp8,"    %19.10E",t);
+      xpp::auto_out::print(fp8,"    {:19.10E}",t);
       for (k = k1; k < k2; ++k) {
 	if((k+1-k1)%7==0)
-	  fprintf(fp8,"\n    ");
-	fprintf(fp8,"%19.10E",ARRAY2D(ups, j, k));
+	  xpp::auto_out::print(fp8,"\n    ");
+	xpp::auto_out::print(fp8,"{:19.10E}",ARRAY2D(ups, j, k));
       }
-      fprintf(fp8,"\n");	 
+      xpp::auto_out::print(fp8,"\n");	 
 
     }
   }
-  fprintf(fp8,"    %19.10E",tm[ntst]);
+  xpp::auto_out::print(fp8,"    {:19.10E}",tm[ntst]);
   for (i = 0; i < ndim; ++i) {
     if((i+1)%7==0)
-      fprintf(fp8,"\n    ");
-    fprintf(fp8,"%19.10E",ARRAY2D(ups, ntst, i));
+      xpp::auto_out::print(fp8,"\n    ");
+    xpp::auto_out::print(fp8,"{:19.10E}",ARRAY2D(ups, ntst, i));
   }
-  fprintf(fp8,"\n");  
+  xpp::auto_out::print(fp8,"\n");  
 
 /* Write the free parameter indices: */
   for (i = 0; i < nfpr; ++i) {
-    fprintf(fp8,"%5ld",icp[i]);
+    xpp::auto_out::print(fp8,"{:5}",icp[i]);
   }
-  fprintf(fp8,"\n");  
+  xpp::auto_out::print(fp8,"\n");  
     
 
 /* Write the direction of the branch: */
-  fprintf(fp8,"    ");
+  xpp::auto_out::print(fp8,"    ");
   for (i = 0; i < nfpr; ++i) {
     if((i>0)&&((i)%7==0))
-      fprintf(fp8,"\n    ");
-    fprintf(fp8,"%19.10E",rldot[i]);
+      xpp::auto_out::print(fp8,"\n    ");
+    xpp::auto_out::print(fp8,"{:19.10E}",rldot[i]);
   }
-  fprintf(fp8,"\n");  
+  xpp::auto_out::print(fp8,"\n");  
 
   for (j = 0; j < ntst; ++j) {
     for (i = 0; i < ncol; ++i) {
       k1 = i * ndim;
       k2 = (i + 1)* ndim;
 
-      fprintf(fp8,"    ");
+      xpp::auto_out::print(fp8,"    ");
       for (k = k1; k < k2; ++k) {
 	if((k!=k1)&&((k-k1)%7==0))
-	  fprintf(fp8,"\n    ");
-	fprintf(fp8,"%19.10E",ARRAY2D(udotps, j, k));
+	  xpp::auto_out::print(fp8,"\n    ");
+	xpp::auto_out::print(fp8,"{:19.10E}",ARRAY2D(udotps, j, k));
       }
-      fprintf(fp8,"\n");
+      xpp::auto_out::print(fp8,"\n");
     }
   }
-  fprintf(fp8,"    ");
+  xpp::auto_out::print(fp8,"    ");
 
   for (k = 0; k < ndim; ++k) {
     if((k!=0)&&(k%7==0))
-      fprintf(fp8,"\n    ");
-    fprintf(fp8,"%19.10E",ARRAY2D(udotps, ntst, k));
+      xpp::auto_out::print(fp8,"\n    ");
+    xpp::auto_out::print(fp8,"{:19.10E}",ARRAY2D(udotps, ntst, k));
   }
-  fprintf(fp8,"\n");
+  xpp::auto_out::print(fp8,"\n");
 
 /* Write the parameter values. */
 
-  fprintf(fp8,"    ");
+  xpp::auto_out::print(fp8,"    ");
   for (i = 0; i < NPARX; ++i) {
     if((i>0)&&(i%7==0))
-      fprintf(fp8,"\n    ");
-    fprintf(fp8,"%19.10E",par[i]);
+      xpp::auto_out::print(fp8,"\n    ");
+    xpp::auto_out::print(fp8,"{:19.10E}",par[i]);
   }
-  fprintf(fp8,"\n");
+  xpp::auto_out::print(fp8,"\n");
   fflush(fp8);
   return 0;
 } /* wrtbv8_ */
@@ -7301,42 +7297,42 @@ wrtbv9(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   if (iid >= 2) {
     if (iap->mynode == 0) {
       if (nitps == 0 || iid >= 3) {
-	fprintf(fp9,"========================================");
-	fprintf(fp9,"========================================\n");
-	fprintf(fp9,"  BR    PT  IT\n");	
+	xpp::auto_out::print(fp9,"========================================");
+	xpp::auto_out::print(fp9,"========================================\n");
+	xpp::auto_out::print(fp9,"  BR    PT  IT\n");	
 	
       }
       mtot = (ntot + 1) % 10000;
-      fprintf(fp9,"%4li%6li%4li    %14.6E%14.6E\n",ibr,mtot,nitps,rlcur[0],amp);	
+      xpp::auto_out::print(fp9,"{:4}{:6}{:4}    {:14.6E}{:14.6E}\n",ibr,mtot,nitps,rlcur[0],amp);	
       
     }
   }
   
   if (iid >= 5 && iap->mynode == 0) {
-    fprintf(fp9," UPS :\n");	
+    xpp::auto_out::print(fp9," UPS :\n");	
     for (j = 0; j < ntst; ++j) {
       rn = 1. / ncol;
       for (i = 0; i < ncol; ++i) {
 	t = tm[j] + i * rn * dtm[j];
 	k1 = i * ndim;
 	k2 = (i + 1) * ndim;
-	fprintf(fp9," %14.6E",t);	
+	xpp::auto_out::print(fp9," {:14.6E}",t);	
 	for (k = k1; k < k2; ++k) {
 	  if((k+1-k1)%7==0)
-	    fprintf(fp9,"\n ");
-	  fprintf(fp9," %14.6E",ARRAY2D(ups, j, k));	
+	    xpp::auto_out::print(fp9,"\n ");
+	  xpp::auto_out::print(fp9," {:14.6E}",ARRAY2D(ups, j, k));	
 	}
-	fprintf(fp9,"\n");	
+	xpp::auto_out::print(fp9,"\n");	
 	
       }
     }
-    fprintf(fp9," %14.6E",tm[ntst]);	
+    xpp::auto_out::print(fp9," {:14.6E}",tm[ntst]);	
     for (i = 0; i < ndim; ++i) {
       if((i+1)%7==0)
-	fprintf(fp9,"\n ");
-      fprintf(fp9," %14.6E",ARRAY2D(ups, ntst, i));	
+	xpp::auto_out::print(fp9,"\n ");
+      xpp::auto_out::print(fp9," {:14.6E}",ARRAY2D(ups, ntst, i));	
     }
-    fprintf(fp9,"\n");	
+    xpp::auto_out::print(fp9,"\n");	
   }
   return 0;
 } /* wrtbv9_ */
