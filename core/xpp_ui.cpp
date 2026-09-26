@@ -17,63 +17,57 @@
 
 static void hl_err_msg(const char *msg) { xpp_log(XPP_LOG_ERROR, "%s\n", msg); }
 static void hl_void(void) {}
-static void hl_str(const char *s) { (void)s; }
-static void hl_int(int v) { (void)v; }
-static void hl_bottom_msg(int line, const char *msg) { (void)line; (void)msg; }
-static int hl_new_string(const char *name, char *value, int kind) { (void)name; (void)value; (void)kind; return 0; }
+static void hl_str(const char *) {}
+static void hl_int(int) {}
+static void hl_bottom_msg(int, const char *) {}
+static int hl_new_string(const char *, char *, int) { return 0; }
 static int hl_no(void) { return 0; }
-static int hl_two_choice(const char *c1, const char *c2, const char *q, const char *key, const char *title)
+static int hl_two_choice(const char *, const char *, const char *, const char *, const char *)
 {
-    (void)c1; (void)c2; (void)q; (void)key; (void)title;
     return 0;
 }
-static int hl_string_box(int n, int row, int col, const char *title, const char *const *names,
-                         char values[][MAX_LEN_SBOX], int maxchar, const int *kinds)
+static int hl_string_box(int, int, int, const char *, const char *const *,
+                         char [][MAX_LEN_SBOX], int, const int *)
 {
-    (void)n; (void)row; (void)col; (void)title; (void)names; (void)values; (void)maxchar; (void)kinds;
     return 0;
 }
-static int hl_file_selector(const char *title, char *file, const char *wild)
+static int hl_file_selector(const char *, char *, const char *)
 {
-    (void)title; (void)file; (void)wild;
     return 0;
 }
-static int hl_menu_choose(const struct XppMenu *m, int def)
+static int hl_menu_choose(const struct XppMenu *, int)
 {
-    (void)m; (void)def;
     return 0;
 }
-static int hl_get_mouse_xy(int *x, int *y) { (void)x; (void)y; return 0; }
+static int hl_get_mouse_xy(int *, int *) { return 0; }
 static int hl_check_abort(void) { return 64; }
-static void hl_progress(int nit, int icount, int cwidth) { (void)nit; (void)icount; (void)cwidth; }
-static void hl_activate_graph(int i, int flag) { (void)i; (void)flag; }
+static void hl_progress(int, int, int) {}
+static void hl_activate_graph(int, int) {}
 static void hl_get_draw_size(unsigned int *w, unsigned int *h)
 {
     /* whatever the graph last had, else a sensible canvas */
-    *w = plot_windows.current && plot_windows.current->x11Wid > 0 ? (unsigned int)plot_windows.current->x11Wid : 640;
-    *h = plot_windows.current && plot_windows.current->x11Hgt > 0 ? (unsigned int)plot_windows.current->x11Hgt : 480;
+    *w = plot_windows.current && plot_windows.current->x11Wid > 0 ? static_cast<unsigned int>(plot_windows.current->x11Wid) : 640;
+    *h = plot_windows.current && plot_windows.current->x11Hgt > 0 ? static_cast<unsigned int>(plot_windows.current->x11Hgt) : 480;
 }
-static void hl_put_text(int x, int y, const char *s) { (void)x; (void)y; (void)s; }
+static void hl_put_text(int, int, const char *) {}
 static int hl_film_clip(void) { return 1; }
-static void hl_draw_point(int x, int y) { (void)x; (void)y; }
-static void hl_draw_line(int x1, int y1, int x2, int y2) { (void)x1; (void)y1; (void)x2; (void)y2; }
-static void hl_draw_frect(int x, int y, int w, int h) { (void)x; (void)y; (void)w; (void)h; }
-static void hl_draw_special_text(int x, int y, const char *s, int size) { (void)x; (void)y; (void)s; (void)size; }
-static void hl_auto_make_window(const char *w, const char *i) { (void)w; (void)i; }
-static void hl_auto_circle(int x, int y, int r) { (void)x; (void)y; (void)r; }
-static void hl_auto_diagram(const XppDiagPoint *p) { (void)p; }
-static void hl_auto_draw_info(const char *s, int x, int y) { (void)s; (void)x; (void)y; }
-static int hl_auto_grab_event(int *x, int *y) { (void)x; (void)y; return 27; }
+static void hl_draw_point(int, int) {}
+static void hl_draw_line(int, int, int, int) {}
+static void hl_draw_frect(int, int, int, int) {}
+static void hl_draw_special_text(int, int, const char *, int) {}
+static void hl_auto_make_window(const char *, const char *) {}
+static void hl_auto_circle(int, int, int) {}
+static void hl_auto_diagram(const XppDiagPoint *) {}
+static void hl_auto_draw_info(const char *, int, int) {}
+static int hl_auto_grab_event(int *, int *) { return 27; }
 static int hl_auto_check_abort(int *iflag) { *iflag = 0; return 0; }
-static int hl_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag)
+static int hl_auto_rubber(int *, int *, int *, int *, int)
 {
-    (void)i1; (void)j1; (void)i2; (void)j2; (void)flag;
     return 0;
 }
-static int hl_auto_choose_key(const char *title, const char *const *list, const char *key, int n, int max,
-                              int def, int x, int y, const char *const *hints, const char *httxt)
+static int hl_auto_choose_key(const char *, const char *const *, const char *key, int n, int,
+                              int def, int, int, const char *const *, const char *)
 {
-    (void)title; (void)list; (void)max; (void)x; (void)y; (void)hints; (void)httxt;
     if (def >= 0 && def < n) return key[def];
     return 0;
 }
@@ -87,27 +81,24 @@ static void hl_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
         else xpp::log(XPP_LOG_DEBUG, "  y[{}]={:.8g}\n", i, y[i]);
     }
 }
-static int hl_dialog(const char *title, const char *name, char *value, const char *ok, const char *cancel, int max, int kind)
+static int hl_dialog(const char *, const char *, char *, const char *, const char *, int, int)
 {
-    (void)title; (void)name; (void)value; (void)ok; (void)cancel; (void)max; (void)kind;
     return 0;
 }
-static void hl_ani_font(int size, int font, int color) { (void)size; (void)font; (void)color; }
-static void hl_ani_box(int x, int y, int w, int h, int fill) { (void)x; (void)y; (void)w; (void)h; (void)fill; }
-static int hl_edit_box(int n, const char *title, const char *const *names, char **values)
+static void hl_ani_font(int, int, int) {}
+static void hl_ani_box(int, int, int, int, int) {}
+static int hl_edit_box(int, const char *, const char *const *, char **)
 {
-    (void)n; (void)title; (void)names; (void)values;
     return 0;
 }
-static void hl_param_box_set(int i, const char *s) { (void)i; (void)s; }
-static void hl_respond_box(const char *button, const char *message) { (void)button; xpp::log(XPP_LOG_WARN, "{}\n", message); }
-static int hl_checklist(const char *title, const char *const *names, int *flags, int n)
+static void hl_param_box_set(int, const char *) {}
+static void hl_respond_box(const char *, const char *message) { xpp::log(XPP_LOG_WARN, "{}\n", message); }
+static int hl_checklist(const char *, const char *const *, int *, int)
 {
-    (void)title; (void)names; (void)flags; (void)n;
     return 0;
 }
-static void hl_movie_save(const char *basename, int fmat) { (void)basename; (void)fmat; }
-static void hl_open_help(const char *chapter, const char *anchor) { (void)chapter; (void)anchor; }
+static void hl_movie_save(const char *, int) {}
+static void hl_open_help(const char *, const char *) {}
 static void hl_exit_program(void) { exit(1); }
 
 XppTextMetrics text_metrics;
@@ -236,8 +227,8 @@ void xpp_set_ui(const XppUi *ui)
     /* every non-NULL entry of *ui replaces the current one; NULL keeps the
        default. Done field by field via the pointer table trick below. */
     XppUi d = xpp_ui;
-    const void *const *src = (const void *const *)ui;
-    const void **dst = (const void **)&d;
+    const void *const *src = reinterpret_cast<const void *const *>(ui);
+    const void **dst = reinterpret_cast<const void **>(&d);
     size_t n = sizeof(XppUi) / sizeof(void *);
     size_t i;
     for (i = 0; i < n; i++)
