@@ -1,0 +1,9 @@
+# W31b: a linear system's maximal Liapunov exponent is exactly its rate
+# constant a, since every perturbation grows/shrinks as e^(a t) regardless
+# of size. tests/test_stochast_liap.cpp checks hrw_liapunov() against a
+# with a small tolerance.
+par a=-0.7
+x'=a*x
+x(0)=1
+@ total=20,dt=.01,meth=rk4
+done

@@ -1,0 +1,12 @@
+# W31b: exercises stocHast's model-level RNG features -- ran(), normal()
+# and wiener -- for tests/test_stochast_rng.cpp. x never moves, so every
+# stored row is an independent sample of the three RNG expressions with a
+# fixed seed; the test checks their mean/variance against known values
+# (uniform[0,1), normal(2,3), N(0,1) from the wiener) within a few sigma.
+wiener n
+x' = 0
+aux rsamp=ran(1)
+aux nsamp=normal(2,3)
+aux wsamp=n
+@ total=4000,dt=1,meth=euler,seed=1234
+done
