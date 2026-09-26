@@ -4,123 +4,123 @@
    Save diagram, orbits included). */
 #include "xpp_session.h"
 #include "xpp_ui.h"
+#include "xpp_io.h"
 #include "lunch-new.h"
 #include "diagram.h"    /* redraw_diagram; pulls in auto_nox.h */
 #include "load_eqn.h"   /* XPP_MAX_NAME */
-#include <stdio.h>
-#include <string.h>
+#include <algorithm>
+#include <array>
+#include <cstdio>
+#include <memory>
+#include <string>
 
 extern int NBifs;       /* diagram.c: >1 once a diagram has a point in it */
 extern BIFUR Auto;
 extern char this_file[XPP_MAX_NAME];
 
-static char session_set[XPP_MAX_NAME];
-static char session_auto[XPP_MAX_NAME];
+namespace {
 
-const char *xpp_session_set_file(void) { return session_set; }
+std::string session_set;
+std::string session_auto;
 
-static void keep(char *dst, const char *name)
+struct FileCloser {
+    void operator()(FILE *fp) const noexcept { std::fclose(fp); }
+};
+using FilePtr = std::unique_ptr<FILE, FileCloser>;
+
+/* base may be empty: ask for one the way do_lunch's Write/Read set does
+   (file_selector writes up to 256 bytes into its buffer), returning it
+   without its .set. false on cancel. */
+bool ask_base(const char *title, std::string &base)
 {
-    size_t len = strlen(name);
-    if (len >= XPP_MAX_NAME) len = XPP_MAX_NAME - 1;
-    memcpy(dst, name, len);
-    dst[len] = 0;
-}
-const char *xpp_session_auto_file(void) { return session_auto; }
-
-/* base may be NULL: ask for one the way do_lunch's Write/Read set does,
-   returning it (without its .set) in buf. Returns 0 on cancel. */
-static int ask_base(const char *title, char *buf, size_t n)
-{
-    char *dot;
-    snprintf(buf, n, "%s.set", this_file);
+    std::array<char, XPP_MAX_NAME + 10> buf{};
+    std::string def = std::string(this_file) + ".set";
+    def.copy(buf.data(), std::min(def.size(), buf.size() - 1));
     ping();
-    if (!file_selector(title, buf, "*.set")) return 0;
-    dot = strrchr(buf, '.');
-    if (dot && strcmp(dot, ".set") == 0) *dot = 0;
-    return 1;
+    if (!file_selector(title, buf.data(), "*.set")) return false;
+    base = buf.data();
+    if (base.size() >= 4 && base.ends_with(".set")) base.resize(base.size() - 4);
+    return true;
 }
 
-int xpp_session_save(const char *base)
+/* base, or when it is NULL/empty the one the user picks */
+bool base_name(const char *title, const char *base, std::string &out)
 {
-    /* +10/+20 headroom so snprintf can provably never truncate the
-       ".set"/".auto" suffix appended to a name up to XPP_MAX_NAME-1
-       long. */
-    char basebuf[XPP_MAX_NAME+10], set_name[XPP_MAX_NAME+20], auto_name[XPP_MAX_NAME+20];
-    FILE *fp;
+    if (base == nullptr || base[0] == 0) return ask_base(title, out);
+    out = base;
+    return true;
+}
 
-    if (base == NULL || base[0] == 0) {
-        if (!ask_base("Save session", basebuf, sizeof basebuf)) return 0;
-        base = basebuf;
-    }
+} // namespace
 
-    snprintf(set_name, sizeof set_name, "%s.set", base);
-    fp = fopen(set_name, "w");
-    if (fp == NULL) {
-        err_msg("Cannot open file");
-        return 0;
+const char *xpp_session_set_file(void) { return session_set.c_str(); }
+const char *xpp_session_auto_file(void) { return session_auto.c_str(); }
+
+int xpp_session_save(const char *base_arg)
+{
+    std::string base;
+    if (!base_name("Save session", base_arg, base)) return 0;
+
+    std::string set_name = base + ".set";
+    {
+        xpp::Writer w(set_name.c_str());
+        if (!w) {
+            err_msg("Cannot open file");
+            return 0;
+        }
+        redraw_params(); /* as do_lunch's Write set does, before write_lunch */
+        write_lunch(w.file());
+        if (!w.commit()) return 0;
     }
-    redraw_params(); /* as do_lunch's Write set does, before write_lunch */
-    write_lunch(fp);
-    fclose(fp);
-    keep(session_set, set_name);
-    session_auto[0] = 0;
+    session_set = set_name;
+    session_auto.clear();
 
     if (NBifs > 1) { /* a diagram exists (save_diagram's own empty check) */
-        snprintf(auto_name, sizeof auto_name, "%s.auto", base);
-        fp = fopen(auto_name, "w");
-        if (fp == NULL) {
+        std::string auto_name = base + ".auto";
+        xpp::Writer w(auto_name.c_str());
+        if (!w) {
             err_msg("Cannot open AUTO file");
             return 0;
         }
-        if (save_auto_file(fp) != 1) {
-            fclose(fp);
+        if (save_auto_file(w.file()) != 1) {
             err_msg("Empty diagram -- nothing to save");
             return 0;
         }
-        fclose(fp);
-        keep(session_auto, auto_name);
+        if (!w.commit()) return 0;
+        session_auto = auto_name;
     }
     return 1;
 }
 
-int xpp_session_load(const char *base)
+int xpp_session_load(const char *base_arg)
 {
-    char basebuf[XPP_MAX_NAME+10], set_name[XPP_MAX_NAME+20], auto_name[XPP_MAX_NAME+20];
-    FILE *fp;
+    std::string base;
+    if (!base_name("Load session", base_arg, base)) return 0;
 
-    if (base == NULL || base[0] == 0) {
-        if (!ask_base("Load session", basebuf, sizeof basebuf)) return 0;
-        base = basebuf;
+    std::string set_name = base + ".set";
+    {
+        FilePtr fp(std::fopen(set_name.c_str(), "r"));
+        if (!fp) {
+            err_msg("Cannot open file");
+            return 0;
+        }
+        if (!read_lunch(fp.get())) return 0;
     }
+    session_set = set_name;
+    session_auto.clear();
 
-    snprintf(set_name, sizeof set_name, "%s.set", base);
-    fp = fopen(set_name, "r");
-    if (fp == NULL) {
-        err_msg("Cannot open file");
-        return 0;
-    }
-    if (!read_lunch(fp)) {
-        fclose(fp);
-        return 0;
-    }
-    fclose(fp);
-    keep(session_set, set_name);
-    session_auto[0] = 0;
-
-    snprintf(auto_name, sizeof auto_name, "%s.auto", base);
-    fp = fopen(auto_name, "r");
-    if (fp != NULL) {
+    std::string auto_name = base + ".auto";
+    FilePtr fp(std::fopen(auto_name.c_str(), "r"));
+    if (fp) {
         if (NBifs > 1) yes_reset_auto(); /* as load_auto does, without its confirmation ask */
         if (!Auto.exist) do_auto_win(); /* the diagram needs a window to draw into */
-        if (load_auto_file(fp) != 1) {
-            fclose(fp);
+        if (load_auto_file(fp.get()) != 1) {
             err_msg("Bad AUTO file");
             return 0;
         }
-        fclose(fp);
+        fp.reset();
         if (Auto.exist) redraw_diagram(); /* load_auto leaves this to the caller */
-        keep(session_auto, auto_name);
+        session_auto = auto_name;
     }
     return 1;
 }

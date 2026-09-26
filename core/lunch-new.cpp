@@ -27,6 +27,12 @@
 #include "xpp_batch.h"
 #include "many_pops.h"
 #include "xpp_globals.h"
+#include <algorithm>
+#include <array>
+#include <memory>
+#include <optional>
+#include <string>
+#include <string_view>
 
 #define READEM 1
 #define VOLTERRA 6
@@ -54,175 +60,212 @@ extern int MaxPoints;
  extern char upar_names[MAXPAR][XPP_NAME_MAX+1],this_file[XPP_MAX_NAME],delay_string[MAXODE][80];
  extern char uvar_names[MAXODE][XPP_NAME_MAX+1]; 
  extern char *ode_names[MAXODE],*fix_names[MAXODE];
+namespace {
 
+/* fprintf's type-checked counterpart: std::format (xpp::format) into fp */
+template <class... Args>
+void put(FILE *fp, std::format_string<Args...> fmt, Args &&...args)
+{
+  std::string s = xpp::format(fmt, std::forward<Args>(args)...);
+  std::fwrite(s.data(), 1, s.size(), fp);
+}
+
+struct FileCloser {
+  void operator()(FILE *fp) const noexcept { std::fclose(fp); }
+};
+using FilePtr = std::unique_ptr<FILE, FileCloser>;
+
+/* file_selector's dialog writes up to 256 bytes into the buffer it is
+   given: ask with name as the default, name the answer on OK */
+bool choose_file(const char *title, std::string &name, const char *wild)
+{
+  std::array<char, XPP_MAX_NAME+10> buf{};
+  name.copy(buf.data(), std::min(name.size(), buf.size()-1));
+  if(!file_selector(title, buf.data(), wild)) return false;
+  name = buf.data();
+  return true;
+}
+
+/* open_write_file's ask (overwrite?) and error, through a writer that
+   replaces fil only on commit */
+bool open_writer(xpp::Writer &w, const std::string &fil)
+{
+  if(!may_write_file(fil.c_str())) return false;
+  w = xpp::Writer(fil.c_str());
+  if(!w){
+    err_msg("Cannot open file");
+    return false;
+  }
+  return true;
+}
+
+/* An equation line of do_info/dump_eqn: dX/dT=..., X(n+1)=... or X=... */
+void put_equation(FILE *fp, int i)
+{
+  if(i>=NODE)
+    put(fp,"{}={}\n",uvar_names[i],ode_names[i]);
+  else if(METHOD>0)
+    put(fp,"d{}/dT={}\n",uvar_names[i],ode_names[i]);
+  else
+    put(fp,"{}(n+1)={}\n",uvar_names[i],ode_names[i]);
+}
+
+/* do_info/dump_eqn's equations, fixed variables and functions */
+void put_equations(FILE *fp)
+{
+  for(int i=0;i<NEQ;i++)put_equation(fp,i);
+  if(FIX_VAR>0){
+    put(fp,"\nwhere ...\n");
+    for(int i=0;i<FIX_VAR;i++)
+      put(fp,"{} = {} \n",fixinfo[i].name,fixinfo[i].value);
+  }
+  if(NFUN>0){
+    put(fp,"\nUser-defined functions:\n");
+    user_fun_info(fp);
+  }
+}
+
+/* The parameters four to a line, each after prefix ("" or "%% ") */
+void put_parameters(FILE *fp, const char *prefix)
+{
+  double z;
+  for(int i=0;i<NUPAR;i++){
+    get_val(upar_names[i],&z);
+    put(fp,"{}{}={:.16g}   ",prefix,upar_names[i],z);
+    if(i%4==3) put(fp,"\n");
+  }
+  put(fp,"\n");
+}
+
+/* fn with its spaces removed, from index skip on */
+std::string file_name_of(std::string_view fn, size_t skip)
+{
+  std::string name;
+  for(size_t i=skip;i<fn.size();i++)
+    if(fn[i]!=' ')name+=fn[i];
+  return name;
+}
+
+/* f==READEM&&set_type==1: skip one line (a "# ..." heading write_lunch
+   put there, read but discarded), of any length. */
+void skip_heading_line(FILE *fp)
+{
+  xpp::LineReader lr = xpp::LineReader::attach(fp);
+  lr.next();
+}
+
+/* the next whole line from fp (any length -- a line longer than a fixed
+   buffer is not cut, leaving the rest of it to desync every read after
+   it), or nullopt at end of file */
+std::optional<std::string> next_line(FILE *fp)
+{
+  xpp::LineReader lr = xpp::LineReader::attach(fp);
+  std::optional<std::string_view> line = lr.next();
+  if(!line) return std::nullopt;
+  return std::string(*line);
+}
+
+/* Reads a set file's settings from fp. ask: report a problem with
+   err_msg (File/Read set) rather than a WARN (read_lunch: a session, the
+   command line's -setfile). 1 when read. */
+int read_set(FILE *fp, bool ask)
+{
+  int f=READEM,ne,np,temp;
+  std::optional<std::string> first=next_line(fp);
+  if(!first){
+    if(ask) err_msg("Cannot read file");
+    else xpp::log(XPP_LOG_WARN, "Set file read failed\n");
+    return 0;
+  }
+  if(!first->empty() && (*first)[0]=='#'){
+    set_type=1;
+    io_int(&ne,fp,f," ");
+  }
+  else {
+    ne=atoi(first->c_str());
+    set_type=0;
+  }
+  io_int(&np,fp,f," ");
+  if(ne!=NEQ||np!=NUPAR){
+    if(ask) err_msg("Incompatible parameters");
+    else xpp::log(XPP_LOG_WARN, "Set file has incompatible parameters\n");
+    return 0;
+  }
+  io_numerics(f,fp);
+  if(METHOD==VOLTERRA){
+    io_int(&temp,fp,f," ");
+    allocate_volterra(temp,1);
+    MyStart=1;
+  }
+  chk_delay();
+  io_exprs(f,fp);
+  io_graph(f,fp);
+  if(set_type==1){
+    dump_transpose_info(fp,f);
+    dump_h_stuff(fp,f);
+    dump_aplot(fp,f);
+    dump_torus(fp,f);
+    dump_range(fp,f);
+  }
+  return 1;
+}
+
+} // namespace
 
 void file_inf()
 {
-  int ok;
-  FILE *fp;
- /*char filename[256];*/
- char filename[XPP_MAX_NAME+10];
- snprintf(filename,sizeof filename,"%s.pars",this_file);
- ping();
- if(!file_selector("Save info",filename,"*.pars*"))return;
- /* if(new_string("Filename: ",filename)==0)return; */
-  open_write_file(&fp,filename,&ok); 
-   if(!ok)return;
-    redraw_params();
-    do_info(fp);
-    fclose(fp);
+  std::string filename=std::string(this_file)+".pars";
+  ping();
+  if(!choose_file("Save info",filename,"*.pars*"))return;
+  xpp::Writer w;
+  if(!open_writer(w,filename))return;
+  redraw_params();
+  do_info(w.file());
+  w.commit();
 }
 
 
 void ps_write_pars(FILE *fp)
-{ int div,rem,i,j;
-  double z;
-
-  fprintf(fp,"\n %%%% %s \n %%%% Parameters ...\n",this_file);
- div=NUPAR/4;
- rem=NUPAR%4;
- for(j=0;j<div;j++){
-   for(i=0;i<4;i++)
-     {
-       get_val(upar_names[i+4*j],&z);
-       fprintf(fp,"%%%% %s=%.16g   ",upar_names[i+4*j],z);
-     }
-   fprintf(fp,"\n");
- }
-    for(i=0;i<rem;i++){
-      get_val(upar_names[i+4*div],&z);
-      fprintf(fp,"%%%% %s=%.16g   ",upar_names[i+4*div],z);
-    }
-   
- fprintf(fp,"\n");
-} 
+{
+  put(fp,"\n %% {} \n %% Parameters ...\n",this_file);
+  put_parameters(fp,"%% ");
+}
 
 void do_info(FILE *fp)
 {
- int i;
- static const char *method[]={"Discrete","Euler","Mod. Euler",
+  static const char *method[]={"Discrete","Euler","Mod. Euler",
 	"Runge-Kutta","Adams","Gear","Volterra","BackEul","QualRK",
          "Stiff","CVode","DoPri5","DoPri8(3)","Rosenbrock","Symplectic"};
- int div,rem;
- int j;
- double z;
- char bob[200];
- char fstr[15];
- fprintf(fp,"File: %s \n\n Equations... \n",this_file);
- for(i=0;i<NEQ;i++){
-   if(i<NODE&&METHOD>0)XPP_STRCPY(fstr,"d%s/dT=%s\n");
-    if(i<NODE&&METHOD==0)XPP_STRCPY(fstr,"%s(n+1)=%s\n");
-     if(i>=NODE)XPP_STRCPY(fstr,"%s=%s\n");
-     fprintf(fp,fstr,uvar_names[i],ode_names[i]);
- }
+  put(fp,"File: {} \n\n Equations... \n",this_file);
+  put_equations(fp);
 
- if(FIX_VAR>0){
-   fprintf(fp,"\nwhere ...\n");
-   for(i=0;i<FIX_VAR;i++)
-     fprintf(fp,"%s = %s \n",fixinfo[i].name,fixinfo[i].value);
- }
-  if(NFUN>0){
-   fprintf(fp, "\nUser-defined functions:\n"); 
-   user_fun_info(fp);
- }
- 
- 
- fprintf(fp,"\n\n Numerical parameters ...\n");
-
-
-    
-     
- fprintf(fp,"NJMP=%d  NMESH=%d METHOD=%s EVEC_ITER=%d \n",
+  put(fp,"\n\n Numerical parameters ...\n");
+  put(fp,"NJMP={}  NMESH={} METHOD={} EVEC_ITER={} \n",
 	 NJMP,NMESH,method[METHOD],EVEC_ITER);
- fprintf(fp,"BVP_EPS=%g,BVP_TOL=%g,BVP_MAXIT=%d \n",
+  put(fp,"BVP_EPS={:g},BVP_TOL={:g},BVP_MAXIT={} \n",
 	 BVP_EPS,BVP_TOL,BVP_MAXIT);
- fprintf(fp,"DT=%g T0=%g TRANS=%g TEND=%g BOUND=%g DELAY=%g MaxPts=%d\n",
+  put(fp,"DT={:g} T0={:g} TRANS={:g} TEND={:g} BOUND={:g} DELAY={:g} MaxPts={}\n",
 	 DELTA_T,T0,TRANS,TEND,BOUND,DELAY,MaxPoints);
- fprintf(fp,"EVEC_ERR=%g, NEWT_ERR=%g HMIN=%g HMAX=%g TOLER=%g \n",
+  put(fp,"EVEC_ERR={:g}, NEWT_ERR={:g} HMIN={:g} HMAX={:g} TOLER={:g} \n",
 	 EVEC_ERR,NEWT_ERR,HMIN,HMAX,TOLER);
-         if(POIVAR==0)XPP_STRCPY(bob,"T");
-	   else XPP_STRCPY(bob,uvar_names[POIVAR-1]);
- fprintf(fp,"POIMAP=%d POIVAR=%s POIPLN=%g POISGN=%d \n",
-        POIMAP,bob,POIPLN,POISGN);
- 
- fprintf(fp,"\n\n Delay strings ...\n");
- 
- for(i=0;i<NODE;i++)fprintf(fp,"%s\n",delay_string[i]);
-  fprintf(fp,"\n\n BCs ...\n");
- 
- for(i=0;i<NODE;i++)fprintf(fp,"0=%s\n",my_bc[i].string);
- fprintf(fp,"\n\n ICs ...\n");
- 
- for(i=0;i<NODE+NMarkov;i++)fprintf(fp,"%s=%.16g\n",uvar_names[i],last_ic[i]);
- fprintf(fp,"\n\n Parameters ...\n");
- div=NUPAR/4;
- rem=NUPAR%4;
- for(j=0;j<div;j++){
-   for(i=0;i<4;i++)
-     {
-       get_val(upar_names[i+4*j],&z);
-       fprintf(fp,"%s=%.16g   ",upar_names[i+4*j],z);
-     }
-   fprintf(fp,"\n");
- }
-    for(i=0;i<rem;i++){
-      get_val(upar_names[i+4*div],&z);
-      fprintf(fp,"%s=%.16g   ",upar_names[i+4*div],z);
-    }
-   
- fprintf(fp,"\n");
+  const char *poivar=POIVAR==0?"T":uvar_names[POIVAR-1];
+  put(fp,"POIMAP={} POIVAR={} POIPLN={:g} POISGN={} \n",
+        POIMAP,poivar,POIPLN,POISGN);
+
+  put(fp,"\n\n Delay strings ...\n");
+  for(int i=0;i<NODE;i++)put(fp,"{}\n",delay_string[i]);
+  put(fp,"\n\n BCs ...\n");
+  for(int i=0;i<NODE;i++)put(fp,"0={}\n",my_bc[i].string);
+  put(fp,"\n\n ICs ...\n");
+  for(int i=0;i<NODE+NMarkov;i++)put(fp,"{}={:.16g}\n",uvar_names[i],last_ic[i]);
+  put(fp,"\n\n Parameters ...\n");
+  put_parameters(fp,"");
 }
-  
+
 
 int read_lunch(FILE *fp)
 {
-  int f=READEM,ne,np,temp;
-  char bob[256];
-
- {
-   /* an unbounded line: a set file's first line is never longer than the
-      256-byte bob a fixed fgets would have used, but xpp_line_reader
-      reads it correctly whatever its length instead of assuming that. */
-   xpp::LineReader lr = xpp::LineReader::attach(fp);
-   std::optional<std::string_view> line = lr.next();
-   if(!line){
-     xpp::log(XPP_LOG_WARN, "Set file read failed\n");
-     return 0;
-   }
-   XPP_STRCPY(bob, std::string(*line).c_str());
- }
-   if(bob[0]=='#'){
-     set_type=1;
-     io_int(&ne,fp,f," ");
-   }
-   else {
-     ne=atoi(bob);
-     set_type=0;
-   }
-   /* io_int(&ne,fp,f); */
-   io_int(&np,fp,f," ");
-   if(ne!=NEQ||np!=NUPAR){
-     xpp::log(XPP_LOG_WARN, "Set file has incompatible parameters\n");
-     return 0;
-   }
-   io_numerics(f,fp);
-   if(METHOD==VOLTERRA){
-     io_int(&temp,fp,f," ");
-     allocate_volterra(temp,1);
-     MyStart=1;
-   }
-   chk_delay();
-   io_exprs(f,fp);
-   io_graph(f,fp);
-   if(set_type==1){
-   dump_transpose_info(fp,f);
-   dump_h_stuff(fp,f);
-   dump_aplot(fp,f);
-   dump_torus(fp,f);
-   dump_range(fp,f);
-   }
-  
-   return 1;
+  return read_set(fp,false);
 }
 
 void write_lunch(FILE *fp)
@@ -231,7 +274,7 @@ void write_lunch(FILE *fp)
  time_t ttt;
 
  ttt=time(0);
- fprintf(fp,"## Set file for %s on %s",this_file,ctime(&ttt));
+ put(fp,"## Set file for {} on {}",this_file,ctime(&ttt));
  io_int(&NEQ,fp,f,"Number of equations and auxiliaries");
  io_int(&NUPAR,fp,f,"Number of parameters");
  io_numerics(f,fp);
@@ -250,124 +293,48 @@ void write_lunch(FILE *fp)
 
 void do_lunch(int f) /* f=1 to read and 0 to write */
 {
- int ne,np,ok,temp;
- char bob[256];
- FILE *fp;
- /*char filename[256];*/
- char filename[XPP_MAX_NAME+10];
- snprintf(filename,sizeof filename,"%s.set",this_file);
- 
+  std::string filename=std::string(this_file)+".set";
 
- if(f==READEM){
-   ping();
-  if(!file_selector("Load SET File",filename,"*.set"))return;
-  
-   fp=fopen(filename,"r");
-   if(fp==NULL){
-     err_msg("Cannot open file");
-     return;
-   }
-   {
-     xpp::LineReader lr = xpp::LineReader::attach(fp);
-     std::optional<std::string_view> line = lr.next();
-     if(!line){
-       err_msg("Cannot read file");
-       fclose(fp);
-       return;
-     }
-     XPP_STRCPY(bob, std::string(*line).c_str());
-   }
-   if(bob[0]=='#'){
-     set_type=1;
-     io_int(&ne,fp,f," ");
-   }
-   else {
-     ne=atoi(bob);
-     set_type=0;
-   }
-   /* io_int(&ne,fp,f); */
-   io_int(&np,fp,f," ");
-   if(ne!=NEQ||np!=NUPAR){
-     err_msg("Incompatible parameters");
-     fclose(fp);
-     return;
-   }
-   io_numerics(f,fp);
-   if(METHOD==VOLTERRA){
-     io_int(&temp,fp,f," ");
-     allocate_volterra(temp,1);
-     MyStart=1;
-   }
-   chk_delay();
-   io_exprs(f,fp);
-   io_graph(f,fp);
-   if(set_type==1){
-   dump_transpose_info(fp,f);
-   dump_h_stuff(fp,f);
-   dump_aplot(fp,f);
-   dump_torus(fp,f);
-   dump_range(fp,f);
-   }
-   fclose(fp);
-   return;
- }
-  if(!file_selector("Save SET File",filename,"*.set"))return;
-  open_write_file(&fp,filename,&ok); 
-   if(!ok)return;
- redraw_params();
- write_lunch(fp);
- fclose(fp);
+  if(f==READEM){
+    ping();
+    if(!choose_file("Load SET File",filename,"*.set"))return;
+    FilePtr fp(std::fopen(filename.c_str(),"r"));
+    if(!fp){
+      err_msg("Cannot open file");
+      return;
+    }
+    read_set(fp.get(),true);
+    return;
+  }
+  if(!choose_file("Save SET File",filename,"*.set"))return;
+  xpp::Writer w;
+  if(!open_writer(w,filename))return;
+  redraw_params();
+  write_lunch(w.file());
+  w.commit();
 }
- 
- 
+
+
 
 void dump_eqn(FILE *fp)
 {
- int i;
- 
-
- char fstr[15];
- fprintf(fp,"RHS etc ...\n");
- for(i=0;i<NEQ;i++){
-   if(i<NODE&&METHOD>0)XPP_STRCPY(fstr,"d%s/dT=%s\n");
-    if(i<NODE&&METHOD==0)XPP_STRCPY(fstr,"%s(n+1)=%s\n");
-     if(i>=NODE)XPP_STRCPY(fstr,"%s=%s\n");
-     fprintf(fp,fstr,uvar_names[i],ode_names[i]);
- }
-
- if(FIX_VAR>0){
-   fprintf(fp,"\nwhere ...\n");
-   for(i=0;i<FIX_VAR;i++)
-     fprintf(fp,"%s = %s \n",fixinfo[i].name,fixinfo[i].value);
- }
-  if(NFUN>0){
-   fprintf(fp, "\nUser-defined functions:\n"); 
-   user_fun_info(fp);
- }
- 
+  put(fp,"RHS etc ...\n");
+  put_equations(fp);
 }
-    
 
-/* f==READEM&&set_type==1: skip one line (a "# ..." heading write_lunch
-   put there, read but discarded) -- of any length, not just the 255
-   bytes a fixed fgets buffer would have covered. */
-static void skip_heading_line(FILE *fp)
-{
- xpp::LineReader lr = xpp::LineReader::attach(fp);
- lr.next();
-}
 
 void io_numerics(int f, FILE *fp)
 {
 const char *method[]={"Discrete","Euler","Mod. Euler",
         "Runge-Kutta","Adams","Gear","Volterra","BackEul",
-                      "Qual RK","Stiff","CVode","DorPrin5","DorPri8(3)"};
+                      "Qual RK","Stiff","CVode","DorPrin5","DorPri8(3)",
+                      "Rosenbrock","Symplectic"};
 const char *pmap[]={"Poincare None","Poincare Section","Poincare Max","Period"};
 if(f==READEM&&set_type==1){
   skip_heading_line(fp);
 }
 if(f!=READEM)
-  fprintf(fp,"# Numerical stuff\n");
+  put(fp,"# Numerical stuff\n");
 io_int(&NJMP,fp,f," nout");
 io_int(&NMESH,fp,f," nullcline mesh");
 io_int(&METHOD,fp,f,method[METHOD]);
@@ -409,130 +376,65 @@ io_double(&LastTime,fp,f,"Last Time");
 io_int(&MyStart,fp,f,"MyStart");
 io_int(&INFLAG,fp,f,"INFLAG");
 }
-
 void io_parameter_file(const char *fn,int flag)
 {
-  char fnx[256],c;
-  int i,j=0;
-  int np;
-  FILE *fp;
-  time_t ttt;
-  for(i=6;i<(int)strlen(fn);i++){
-    c=fn[i];
-    if(c!=' '){
-      fnx[j]=c;
-      j++;
-    }
-  }
-  fnx[j]=0;
+  /* fn is the command ("!load " and the like, 6 characters) then the
+     file name */
+  std::string fnx=file_name_of(fn,6);
   if(flag==READEM) {
-    fp=fopen(fnx,"r");
-      if(fp==NULL){
-	err_msg("Cannot open file");
-	return;
-      }
-      io_int(&np,fp,flag," ");
-      if(np!=NUPAR){
-      	xpp::log(XPP_LOG_DEBUG, "{}\n",np);
-	xpp::log(XPP_LOG_DEBUG, "{}\n",NUPAR);
-	err_msg("Incompatible parameters");
-     fclose(fp);
-     return;
-      }
-      io_parameters(flag,fp);
-      fclose(fp);
-      redo_stuff();
-
+    FilePtr fp(std::fopen(fnx.c_str(),"r"));
+    if(!fp){
+      err_msg("Cannot open file");
       return;
+    }
+    int np;
+    io_int(&np,fp.get(),flag," ");
+    if(np!=NUPAR){
+      xpp::log(XPP_LOG_DEBUG, "{}\n",np);
+      xpp::log(XPP_LOG_DEBUG, "{}\n",NUPAR);
+      err_msg("Incompatible parameters");
+      return;
+    }
+    io_parameters(flag,fp.get());
+    fp.reset();
+    redo_stuff();
+    return;
   }
-  {
-    xpp::Writer w(fnx);
-    if(!w){
-	err_msg("Cannot open file");
-	return;
-      }
-    fp=w.file();
-    io_int(&NUPAR,fp,flag,"Number params");
-    io_parameters(flag,fp);
-    ttt=time(0);
-    fprintf(fp,"\n\nFile:%s\n%s",this_file, ctime(&ttt));
-    w.commit();
+  xpp::Writer w(fnx.c_str());
+  if(!w){
+    err_msg("Cannot open file");
+    return;
   }
+  FILE *fp=w.file();
+  io_int(&NUPAR,fp,flag,"Number params");
+  io_parameters(flag,fp);
+  time_t ttt=time(0);
+  put(fp,"\n\nFile:{}\n{}",this_file,ctime(&ttt));
+  w.commit();
 }
 
 
 void io_ic_file(const char *fn,int flag)
 {
-  char fnx[256],c;
-  int i,j=0;
-  int chk=0;
-  char msg[256];
-
-  for(i=0;i<(int)strlen(fn);i++){
-    c=fn[i];
-    if(c!=' '){
-      fnx[j]=c;
-      j++;
-    }
+  if(flag!=READEM) return;
+  std::string fnx=file_name_of(fn,0);
+  xpp::TokenReader tr(fnx.c_str());
+  if(!tr){
+    err_msg("Cannot open file");
+    return;
   }
-  fnx[j]=0;
-  if(flag==READEM) {
-    XppTokenReader *tr=xpp_token_reader_open(fnx);
-      if(tr==NULL){
-	err_msg("Cannot open file");
-	return;
-      }
-      for(i=0;i<NODE;i++)
-      {
-      	chk=xpp_token_reader_double(tr,&last_ic[i]);
-	if (chk!=1)
-	{
-		XPP_SPRINTF(msg,"Expected %d initial conditions but only found %d in %s.",NODE,i,fn);
-		err_msg(msg);
-		xpp_token_reader_close(tr);
-		return;
-	}
-      	/*printf("chk=%d\n",chk);*/
-      }
-
-      while (chk != 0)
-      {
-      	chk=xpp_token_reader_double(tr,&last_ic[i]);
-	if (chk!=0)
-	{
-		XPP_SPRINTF(msg,"Found more than %d initial conditions in %s.",NODE,fn);
-		err_msg(msg);
-		xpp_token_reader_close(tr);
-		return;
-	}
-      }
-    xpp_token_reader_close(tr);
-    }
-      
-     /* io_int(&np,fp,flag," ");
-      if(np!=NUPAR){
-	err_msg("Incompatible parameters");
-     fclose(fp);
-     return;
-      }
-      io_parameters(flag,fp);
-      fclose(fp);
-      redo_stuff();
-
+  for(int i=0;i<NODE;i++){
+    if(!tr.read(last_ic[i])){
+      err_msg(xpp::format("Expected {} initial conditions but only found {} in {}.",
+                          NODE,i,fn).c_str());
       return;
+    }
   }
-  fp=fopen(fnx,"w");
-  if(fp==NULL){
-	err_msg("Cannot open file");
-	return;
-      }
-  io_int(&NUPAR,fp,flag,"Number params");
-  io_parameters(flag,fp);
-  ttt=time(0);
-  fprintf(fp,"\n\nFile:%s\n%s",this_file, ctime(&ttt));
-  fclose(fp);
-  */
-} 
+  /* one number more is one too many */
+  double extra;
+  if(NODE>0 && tr.read(extra))
+    err_msg(xpp::format("Found more than {} initial conditions in {}.",NODE,fn).c_str());
+}
 
 
 
@@ -548,41 +450,37 @@ void io_parameters(int f, FILE *fp)
   else {
     io_double(&z,fp,f," ");
     set_val(upar_names[i],z);
-    
+
     }
   }
   if(f==READEM) redraw_params();
  }
 
 
+/* A "# ..." heading: skipped on reading a new-style set file, written
+   on writing one */
+static void io_heading(int f, FILE *fp, const char *heading)
+{
+  if(f==READEM){
+    if(set_type==1)skip_heading_line(fp);
+  }
+  else
+    put(fp,"{}\n",heading);
+}
+
 void io_exprs(int f, FILE *fp)
 {
  int i;
  double z;
- if(f==READEM&&set_type==1){
-  skip_heading_line(fp);}
-if(f!=READEM)
-  fprintf(fp,"# Delays\n");
+ io_heading(f,fp,"# Delays");
  for(i=0;i<NODE;i++)io_string(delay_string[i],sizeof(delay_string[i]),fp,f);
- if(f==READEM&&set_type==1){
-  skip_heading_line(fp);}
-if(f!=READEM)
-  fprintf(fp,"# Bndry conds\n");
+ io_heading(f,fp,"# Bndry conds");
  for(i=0;i<NODE;i++)io_string(my_bc[i].string,256,fp,f);
- if(f==READEM&&set_type==1){
-  skip_heading_line(fp);}
-if(f!=READEM)
-  fprintf(fp,"# Old ICs\n");
+ io_heading(f,fp,"# Old ICs");
  for(i=0;i<NODE+NMarkov;i++)io_double(&last_ic[i],fp,f,uvar_names[i]);
-if(f==READEM&&set_type==1){
-  skip_heading_line(fp);}
-if(f!=READEM)
-  fprintf(fp,"# Ending  ICs\n");
+ io_heading(f,fp,"# Ending  ICs");
  for(i=0;i<NODE+NMarkov;i++)io_double(&MyData[i],fp,f,uvar_names[i]);
- if(f==READEM&&set_type==1){
-  skip_heading_line(fp);}
-if(f!=READEM)
-  fprintf(fp,"# Parameters\n");
+ io_heading(f,fp,"# Parameters");
  for(i=0;i<NUPAR;i++){
   if(f!=READEM){
     get_val(upar_names[i],&z);
@@ -593,8 +491,8 @@ if(f!=READEM)
     set_val(upar_names[i],z);
   }
 }
-  
-   
+
+
  if(f==READEM&&program.interactive){
    xpp_ui.redraw_bcs();
    redraw_ics();
@@ -602,18 +500,15 @@ if(f!=READEM)
    redraw_params();
  }
 }
-   
- 
+
+
 
 
 
 void io_graph(int f, FILE *fp)
 {
  int j,k;
- if(f==READEM&&set_type==1){
-  skip_heading_line(fp);}
-if(f!=READEM)
-  fprintf(fp,"# Graphics\n");
+ io_heading(f,fp,"# Graphics");
  for(j=0;j<3;j++)
    for(k=0;k<3;k++)
      io_double(&(plot_windows.current->rm[k][j]),fp,f,"rm");
@@ -664,18 +559,6 @@ if(f!=READEM)
     if(f==READEM&&program.interactive)xpp_ui.redraw_graph();
 }
 
- 
-/* the next whole line from fp (any length -- unlike the fgets(bob,255,fp)
-   this replaces, a line over 255 bytes is not silently cut, leaving the
-   rest of it to desync every read after it), or nullopt at end of file */
-static std::optional<std::string> next_line(FILE *fp)
-{
- xpp::LineReader lr = xpp::LineReader::attach(fp);
- std::optional<std::string_view> line = lr.next();
- if(!line) return std::nullopt;
- return std::string(*line);
-}
-
 void io_int(int *i, FILE *fp, int f, const char *ss)
 {
  if(f==READEM){
@@ -684,7 +567,7 @@ void io_int(int *i, FILE *fp, int f, const char *ss)
    *i=atoi(bob->c_str());
  }
  else
- fprintf(fp,"%d   %s\n",*i,ss);
+ put(fp,"{}   {}\n",*i,ss);
 }
 
 void io_double(double *z, FILE *fp, int f, const char *ss)
@@ -695,42 +578,23 @@ void io_double(double *z, FILE *fp, int f, const char *ss)
    *z=atof(bob->c_str());
  }
  else
- fprintf(fp,"%.16g  %s\n",*z,ss);
+ put(fp,"{:.16g}  {}\n",*z,ss);
 }
 
-/*
-io_int_array(k,n,fp,f)
-int n,f,*k;
-FILE *fp;
-{
-int i;
- for(i=0;i<n;i++)io_int(fp,&k[i],f);
-}
-
-io_double_array(z,n,fp,f)
-double *z;
-int n,f;
-FILE *fp;
-{
- int i;
- for(i=0;i<n;i++)io_double(fp,&z[i],f);
-
-}
-*/
 void io_string(char *s, int len, FILE *fp, int f)
 {
  /* One line per string. xpp_line_reader reads the whole line whatever its
     length (CR/LF tolerant), so the lines after it stay in step even when
     it is longer than s (len bytes) holds; s gets its start, safely cut
-    (xpp_strlcpy, inside XPP_STRCPY) rather than overflowing. Files
+    (xpp_strlcpy: s is the caller's, of len bytes) rather than overflowing. Files
     written with the old 10-character names read the same. */
  if(f==READEM){
    std::optional<std::string> line=next_line(fp);
    if(!line){s[0]=0;return;}
-   xpp_strlcpy(s,line->c_str(),(size_t)len);
+   xpp_strlcpy(s,line->c_str(),static_cast<size_t>(len));
  }
  else
-   fprintf(fp,"%s\n",s);
+   put(fp,"{}\n",s);
 }
 
 
