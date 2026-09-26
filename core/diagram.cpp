@@ -252,15 +252,18 @@ void write_info_out()
     else 
       par2=par1;
      
-    fprintf(fp,"%d %d %d %g %g %g ",
-	    type,d->ibr,d->flag2,par1,par2,per);
-    for(i=0;i<NODE;i++)
-      fprintf(fp,"%g ",uhigh[i]);
-    for(i=0;i<NODE;i++)
-      fprintf(fp,"%g ",ulow[i]);
-    for(i=0;i<NODE;i++)
-      fprintf(fp,"%g %g ",d->evr[i],d->evi[i]);
-    fprintf(fp,"\n");
+    {
+      std::string line=xpp::format("{} {} {} {:g} {:g} {:g} ",
+	      type,d->ibr,d->flag2,par1,par2,per);
+      for(i=0;i<NODE;i++)
+        line+=xpp::format("{:g} ",uhigh[i]);
+      for(i=0;i<NODE;i++)
+        line+=xpp::format("{:g} ",ulow[i]);
+      for(i=0;i<NODE;i++)
+        line+=xpp::format("{:g} {:g} ",d->evr[i],d->evi[i]);
+      line+='\n';
+      fputs(line.c_str(),fp);
+    }
     d=d->next;
     if(d==NULL)break;
   }
@@ -362,10 +365,13 @@ void write_init_data_file()
 
     /* fprintf(fp,"%d %d %g %g %g ",
        type,d->ibr,par1,par2,per); */
-    fprintf(fp,"%g ",par1);
-    for(i=0;i<NODE;i++)
-      fprintf(fp,"%g ",u0[i]);
-    fprintf(fp,"\n");
+    {
+      std::string line=xpp::format("{:g} ",par1);
+      for(i=0;i<NODE;i++)
+        line+=xpp::format("{:g} ",u0[i]);
+      line+='\n';
+      fputs(line.c_str(),fp);
+    }
     d=d->next;
     if(d==NULL)break;
   }
@@ -424,9 +430,9 @@ void write_pts()
        current view 
     */
     if(check_plot_type(d->flag2,icp1,icp2)==1){
-      auto_xy_plot(&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a); 
-      fprintf(fp,"%g %g %g %d %d %d\n",
-	      x,y1,y2,type,abs(d->ibr),d->flag2);
+      auto_xy_plot(&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a);
+      fputs(xpp::format("{:g} {:g} {:g} {} {} {}\n",
+	      x,y1,y2,type,abs(d->ibr),d->flag2).c_str(),fp);
     }
       d=d->next;
       if(d==NULL)break;
@@ -547,19 +553,21 @@ int save_diagram(FILE *fp, int n)
 {
   int i;
   DIAGRAM *d;
-  fprintf(fp,"%d\n",NBifs-1);
+  fputs(xpp::format("{}\n",NBifs-1).c_str(),fp);
   if(NBifs==1)
     return(-1);
   d=bifd;
   while(1){
-    fprintf(fp,"%d %d %d %d %d %d %d %d %d %d %d %d\n", 
+    std::string line=xpp::format("{} {} {} {} {} {} {} {} {} {} {} {}\n",
 	    d->calc,d->ibr,d->ntot,d->itp,d->lab,d->index,d->nfpar,
 	    d->icp1,d->icp2,d->icp3,d->icp4,d->flag2);
-    for(i=0;i<8;i++)fprintf(fp,"%g ",d->par[i]);
-    fprintf(fp,"%g %g \n",d->norm,d->per);
-    
-    for(i=0;i<n;i++)fprintf(fp,"%f %f %f %f %f %f\n",d->u0[i],d->uhi[i],d->ulo[i],
-			    d->ubar[i],d->evr[i],d->evi[i]);
+    for(i=0;i<8;i++)line+=xpp::format("{:g} ",d->par[i]);
+    line+=xpp::format("{:g} {:g} \n",d->norm,d->per);
+    fputs(line.c_str(),fp);
+
+    for(i=0;i<n;i++)
+      fputs(xpp::format("{:f} {:f} {:f} {:f} {:f} {:f}\n",d->u0[i],d->uhi[i],d->ulo[i],
+			    d->ubar[i],d->evr[i],d->evi[i]).c_str(),fp);
     d=d->next;
     if(d==NULL)break;
   }

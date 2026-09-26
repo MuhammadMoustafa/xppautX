@@ -227,7 +227,7 @@ int NAutoUzr;
 /*extern char this_file[100];*/
 extern char this_file[XPP_MAX_NAME];
 
-char this_auto_file[200];
+std::string this_auto_file;
 char fort3[200];
 char fort7[200];
 char fort8[200];
@@ -414,27 +414,28 @@ void draw_bif_axes()
 {
  int x0=Auto.x0,y0=Auto.y0,ii,i0;
  int x1=x0+Auto.wid,y1=y0+Auto.hgt;
- char junk[20],xlabel[AUTO_LABEL_LEN],ylabel[AUTO_LABEL_LEN];
+ std::string junk;
+ char xlabel[AUTO_LABEL_LEN],ylabel[AUTO_LABEL_LEN];
  clear_auto_plot();
  ALINE(x0,y0,x1,y0);
  ALINE(x1,y0,x1,y1);
  ALINE(x1,y1,x0,y1);
  ALINE(x0,y1,x0,y0);
- XPP_SPRINTF(junk,"%g",Auto.xmin);
- ATEXT(x0,y1+text_metrics.small_height+2,junk);
- XPP_SPRINTF(junk,"%g",Auto.xmax);
- ii=strlen(junk)*text_metrics.small_width;
- ATEXT(x1-ii,y1+text_metrics.small_height+2,junk);
- XPP_SPRINTF(junk,"%g",Auto.ymin);
- ii=strlen(junk);
+ junk=xpp::format("{:g}",Auto.xmin);
+ ATEXT(x0,y1+text_metrics.small_height+2,junk.c_str());
+ junk=xpp::format("{:g}",Auto.xmax);
+ ii=static_cast<int>(junk.size())*text_metrics.small_width;
+ ATEXT(x1-ii,y1+text_metrics.small_height+2,junk.c_str());
+ junk=xpp::format("{:g}",Auto.ymin);
+ ii=static_cast<int>(junk.size());
  i0=9-ii;
  if(i0<0)i0=0;
- ATEXT(i0*text_metrics.small_width,y1,junk);
- XPP_SPRINTF(junk,"%g",Auto.ymax);
- ii=strlen(junk);
+ ATEXT(i0*text_metrics.small_width,y1,junk.c_str());
+ junk=xpp::format("{:g}",Auto.ymax);
+ ii=static_cast<int>(junk.size());
  i0=9-ii;
  if(i0<0)i0=0;
- ATEXT(i0*text_metrics.small_width,y0+text_metrics.small_height,junk);
+ ATEXT(i0*text_metrics.small_width,y0+text_metrics.small_height,junk.c_str());
  get_auto_str(xlabel,ylabel);
  ATEXT((x0+x1)/2,y1+text_metrics.small_height+2,xlabel);
  ATEXT(10*text_metrics.small_width,text_metrics.small_height,ylabel);
@@ -479,10 +480,10 @@ void renamef(const char *old, const char *new_name)
 /* the rest of from, byte for byte, into to */
 static void copy_bytes(FILE *from, FILE *to)
 {
-  char buf[1<<16];
+  std::vector<char> buf(1<<16);
   size_t n;
-  while((n=fread(buf,1,sizeof buf,from))>0)
-    fwrite(buf,1,n,to);
+  while((n=fread(buf.data(),1,buf.size(),from))>0)
+    fwrite(buf.data(),1,n,to);
 }
 
 void copyf(const char *old, const char *new_name)
@@ -551,7 +552,6 @@ void deletef(const char *old)
 
 void close_auto(int flg) /* labels compatible with A2K  */
 {
-  char string[1000];
   /* Close fp8 before the renames below: Windows refuses rename()/remove()
      on a file that is still open (see renamef/deletef), which left
      fort.8 behind next to <model>.s with the handle leaked. Linux allows
@@ -563,21 +563,14 @@ void close_auto(int flg) /* labels compatible with A2K  */
       fp8_is_open=0;
   }
   if(flg==0) {/*Overwrite*/
-    XPP_SPRINTF(string,"%s.b",this_auto_file);
-    renamef(fort7,string);
-    XPP_SPRINTF(string,"%s.d",this_auto_file);
-    renamef(fort9,string);
-
-    XPP_SPRINTF(string,"%s.s",this_auto_file);
-    renamef(fort8,string);
+    renamef(fort7,(this_auto_file+".b").c_str());
+    renamef(fort9,(this_auto_file+".d").c_str());
+    renamef(fort8,(this_auto_file+".s").c_str());
   }
   else {/*APPEND*/
-    XPP_SPRINTF(string,"%s.b",this_auto_file);
-    appendf(fort7,string);
-    XPP_SPRINTF(string,"%s.d",this_auto_file); 
-    appendf(fort9,string);  
-    XPP_SPRINTF(string,"%s.s",this_auto_file);
-    appendf(fort8,string);
+    appendf(fort7,(this_auto_file+".b").c_str());
+    appendf(fort9,(this_auto_file+".d").c_str());
+    appendf(fort8,(this_auto_file+".s").c_str());
   }
 
     deletef(fort8);
@@ -597,17 +590,16 @@ void close_auto(int flg) /* labels compatible with A2K  */
    writable. */
 static int dir_is_writable(const char *dir)
 {
-  char probe[300];
   FILE *fp;
 
   if (dir == NULL || dir[0] == 0)
     return 0;
-  snprintf(probe, sizeof(probe), "%s/.xppautx_homecheck", dir);
-  fp = fopen(probe, "w");
+  std::string probe = xpp::format("{}/.xppautx_homecheck", dir);
+  fp = fopen(probe.c_str(), "w");
   if (fp == NULL)
     return 0;
   fclose(fp);
-  remove(probe);
+  remove(probe.c_str());
   return 1;
 }
 
@@ -636,20 +628,18 @@ void create_auto_file_name()
 
   char* HOME = auto_home_dir(dname);
 
-  XPP_SPRINTF(this_auto_file,"%s/%s",HOME,bname);
+  this_auto_file=xpp::format("{}/{}",HOME,bname);
 }
 
 void open_auto(int flg) /* compatible with new auto */
 {
-  char string[210];
-
   std::string basec = this_file, dirc = this_file;
   char *bname = static_cast<char*>(basename(basec.data()));
   char *dname = static_cast<char*>(dirname(dirc.data()));
 
   char* HOME = auto_home_dir(dname);
 
-  XPP_SPRINTF(this_auto_file,"%s/%s",HOME,bname);
+  this_auto_file=xpp::format("{}/{}",HOME,bname);
   XPP_SPRINTF(fort3,"%s/%s",HOME,"fort.3");
   XPP_SPRINTF(fort7,"%s/%s",HOME,"fort.7");
   XPP_SPRINTF(fort8,"%s/%s",HOME,"fort.8");
@@ -657,8 +647,7 @@ void open_auto(int flg) /* compatible with new auto */
   is_3_there=flg;
 
   if(flg==1){
-    snprintf(string,sizeof string,"%s.s",this_auto_file);
-    copyf(string,fort3);
+    copyf((this_auto_file+".s").c_str(),fort3);
   }
 
 }
@@ -822,7 +811,7 @@ void auto_per_par()
 {
   
   static const char *m[]={"0","1","2","3","4","5","6","7","8","9"};
-  static char key[]="0123456789";
+  static const char *const key="0123456789";
   char values[10][MAX_LEN_SBOX];
   char bob[100],*ptr;
   static const char *n[]={"Uzr1","Uzr2","Uzr3","Uzr4","Uzr5",
@@ -967,7 +956,7 @@ void auto_plot_par()
   static const char *m[]={"Hi","Norm","hI-lo","Period","Two par","(Z)oom in","Zoom (O)ut",
 		      "last 1 par", "last 2 par","Fit",
 		    "fRequency","Average","Default","Scroll"};
-  static char key[]="hniptzo12frads";
+  static const char *const key="hniptzo12frads";
   char ch;
 
 
@@ -1411,9 +1400,8 @@ void add_point(double *par, double per, double *uhigh, double *ulow, double *uba
 {
   double x,y1,y2,par1,par2=0;
   int ix,iy1,iy2,type1=type;
-  char bob[5];
+  std::string bob=xpp::format("{}",lab);
   XppDiagPoint dp;
-  XPP_SPRINTF(bob,"%d",lab);
   par1=par[icp1];
   if(icp2<NAutoPar)par2=par[icp2];
 auto_xy_plot(&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a); /* figure out who sits on axes */
@@ -1513,7 +1501,7 @@ if(flag2>0&&Auto.plot!=P_P){ /* two parameter and not in two parameter plot, jus
 	if(chk_auto_bnds(ix,iy2)){
 	ALINE(ix-4,iy2,ix+4,iy2);
 	ALINE(ix,iy2-4,ix,iy2+4);}
-	if(chk_auto_bnds(ix,iy1))ATEXT(ix+8,iy1+8,bob); 
+	if(chk_auto_bnds(ix,iy1))ATEXT(ix+8,iy1+8,bob.c_str()); 
       }
     }
   }
@@ -1567,7 +1555,6 @@ void get_bif_sym(char *at, int itp)
     
 void info_header(int flag2, int icp1, int icp2)
 {
-  char bob[80];
   /* the names head 10-wide columns of new_info's numbers */
   char p1name[11],p2name[11],vname[11];
 
@@ -1576,25 +1563,24 @@ void info_header(int flag2, int icp1, int icp2)
   else XPP_SPRINTF(p2name,"   ");
   short_name(vname,uvar_names[Auto.var],10);
   SmallBase();
-  XPP_SPRINTF(bob,"  Br  Pt Ty  Lab %10s %10s       norm %10s     period",
+  std::string bob=xpp::format("  Br  Pt Ty  Lab {:>10} {:>10}       norm {:>10}     period",
 	  p1name,
 	  p2name,
 	  vname);
-  draw_auto_info(bob,10,text_metrics.small_height+1);
-  
+  draw_auto_info(bob.c_str(),10,text_metrics.small_height+1);
+
 }
-	  
+
 void new_info(int ibr, int pt, const char *ty, int lab, double *par, double norm, double u0, double per, int flag2, int icp1, int icp2)
 {
-  char bob[80];
   double p1,p2=0.0;
   clear_auto_info();
   info_header(flag2,icp1,icp2);
   p1=par[icp1];
   if(icp2<NAutoPar)p2=par[icp2];
-  XPP_SPRINTF(bob,"%4d %4d %2s %4d %10.4g %10.4g %10.4g %10.4g %10.4g",
+  std::string bob=xpp::format("{:4} {:4} {:>2} {:4} {:10.4g} {:10.4g} {:10.4g} {:10.4g} {:10.4g}",
 	  ibr,pt,ty,lab,p1,p2,norm,u0,per);
-  draw_auto_info(bob,10,2*text_metrics.small_height+2);
+  draw_auto_info(bob.c_str(),10,2*text_metrics.small_height+2);
   /* SmallGr(); */
   refreshdisplay();
 }
@@ -1676,11 +1662,9 @@ void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw)
 
 void do_auto_win()
 {
-  char bob[256];
   if(Auto.exist==0){
     if(NODE>NAUTO){
-   XPP_SPRINTF(bob,"Auto restricted to less than %d variables",NAUTO);
-      err_msg(bob);
+      err_msg(xpp::format("Auto restricted to less than {} variables",NAUTO).c_str());
       return;
     }
     make_auto("It's AUTO man!","AUTO");
@@ -1825,18 +1809,14 @@ void init_auto_win()
 
 int yes_reset_auto()
 {
-  char string[256];
   if(NBifs<=1)return(0);
  kill_diagrams();
  FromAutoFlag=0;
     NBifs=1;
     grabpt.flag=0;
-    XPP_SPRINTF(string,"%s.b",this_auto_file);
-    deletef(string);
-    XPP_SPRINTF(string,"%s.d",this_auto_file);
-    deletef(string);
-    XPP_SPRINTF(string,"%s.s",this_auto_file);
-    deletef(string);
+    deletef((this_auto_file+".b").c_str());
+    deletef((this_auto_file+".d").c_str());
+    deletef((this_auto_file+".s").c_str());
     diagram_mark.state=0;
     return 1;
 }
@@ -1924,7 +1904,7 @@ void get_start_orbit(double *u, double t, double p, int n)
 void auto_start_choice()
 {
   static const char *m[]={"Steady state","Periodic","Bdry Value","Homoclinic","hEteroclinic"};
-  static  char key[]="spbhe";
+  static const char *const key="spbhe";
   char ch;
   HomoFlag=0;
   if(METHOD==DISCRETE){
@@ -1969,7 +1949,7 @@ void torus_choice()
 {
   static const char *m[]={"Two Param","Fixed period","Extend"};
   /*static const char *m[]={"Fixed period","Extend"}; */
-  static  char key[]="tfe";
+  static const char *const key="tfe";
   char ch;
   ch=static_cast<char>(auto_pop_up_list("Torus",m,key,3,10,0,10,10,
 		       no_hint,Auto.hinttxt));
@@ -1991,7 +1971,7 @@ void torus_choice()
 void per_doub_choice()
 {
   static const char *m[]={"Doubling","Two Param","Fixed period","Extend"};
-  static  char key[]="dtfe";
+  static const char *const key="dtfe";
   char ch;
   ch=static_cast<char>(auto_pop_up_list("Per. Doub.",m,key,4,10,0,10,10,no_hint,Auto.hinttxt));
   if(ch=='d'){
@@ -2016,7 +1996,7 @@ void per_doub_choice()
 void periodic_choice()
 {
   static const char *m[]={"Extend","Fixed Period"};
-  static  char key[]="ef";
+  static const char *const key="ef";
   char ch;
   ch=static_cast<char>(auto_pop_up_list("Periodic ",m,key,2,14,0,10,10,
 		       no_hint,Auto.hinttxt));
@@ -2036,7 +2016,7 @@ void periodic_choice()
 void hopf_choice()
 {
   static const char *m[]={"Periodic","Extend","New Point","Two Param"};
-  static  char key[]="pent";
+  static const char *const key="pent";
   char ch;
   if(METHOD==DISCRETE){
     auto_2p_hopf();
@@ -2158,7 +2138,7 @@ void auto_branch_choice(int ibr, int ips)
 {
 
   static const char *m[]={"Switch","Extend","New Point","Two Param"};
-  static  char key[]="sent";
+  static const char *const key="sent";
   char ch;
   int ipsuse;
   ch=static_cast<char>(auto_pop_up_list("Branch Pt",m,key,4,10,0,10,10,
@@ -2780,14 +2760,14 @@ void load_auto_orbit()
   int i,j,nstor;
   double u[NAUTO],t;
   double period;
-  char string[256];
+  std::string string;
   int nrow,ndim,label,flg;
   /* printf("Loading orbit ibr=%d ips=%d flag=%d\n",grabpt.ibr,Auto.ips, grabpt.flag);  */
-   
-  if((ibr>0&&(Auto.ips!=4)&&(Auto.ips!=3)&&(Auto.ips!=9))||flag==0)return; 
+
+  if((ibr>0&&(Auto.ips!=4)&&(Auto.ips!=3)&&(Auto.ips!=9))||flag==0)return;
    /* either nothing grabbed or just a fixed point and that is already loaded */
-  XPP_SPRINTF(string,"%s.s",this_auto_file);
-  fp=fopen(string,"r");
+  string=this_auto_file+".s";
+  fp=fopen(string.c_str(),"r");
   if(fp==NULL){
     auto_err("No such file");
     return;
@@ -2798,7 +2778,7 @@ void load_auto_orbit()
   nstor=ndim;
   if(ndim>NODE)nstor=NODE;
   if(flg==0){
-    xpp_log_auto("Could not find label %d in file %s \n",label,string);
+    xpp_log_auto("Could not find label %d in file %s \n",label,string.c_str());
     auto_err("Cant find labeled pt");
     fclose(fp);
     return;
@@ -2839,7 +2819,7 @@ void save_auto()
   int status;
   /* XGetInputFocus(display,&w,&rev); */
   
-  XPP_SPRINTF(filename,"%s.auto",basename(this_auto_file));
+  XPP_SPRINTF(filename,"%s.auto",basename(this_auto_file.data()));
   /* status=get_dialog("Save Auto","Filename",filename,"Ok","Cancel",60);
   XSetInputFocus(display,w,rev,CurrentTime);
   */
@@ -2879,16 +2859,17 @@ int save_auto_file(FILE *fp)
 void save_auto_numerics(FILE *fp)
 {
   int i;
- fprintf(fp,"%d ",NAutoPar);
- for(i=0;i<NAutoPar;i++)
-   fprintf(fp,"%d ",AutoPar[i]);
-  fprintf(fp,"%d\n",NAutoUzr);
+  std::string line=xpp::format("{} ",NAutoPar);
+  for(i=0;i<NAutoPar;i++)
+    line+=xpp::format("{} ",AutoPar[i]);
+  line+=xpp::format("{}\n",NAutoUzr);
   for(i=0;i<9;i++)
-    fprintf(fp,"%g %ld\n",outperiod[i],UzrPar[i]);
- fprintf(fp,"%d %d %d \n",Auto.ntst,Auto.nmx,Auto.npr);
- fprintf(fp,"%g %g %g \n",Auto.ds,Auto.dsmin,Auto.dsmax);
- fprintf(fp,"%g %g %g %g\n",Auto.rl0,Auto.rl1,Auto.a0,Auto.a1);
- fprintf(fp,"%d %d %d %d %d %d %d\n",aauto.iad,aauto.mxbf,aauto.iid,aauto.itmx,aauto.itnw,aauto.nwtn,aauto.iads);
+    line+=xpp::format("{:g} {}\n",outperiod[i],UzrPar[i]);
+  line+=xpp::format("{} {} {} \n",Auto.ntst,Auto.nmx,Auto.npr);
+  line+=xpp::format("{:g} {:g} {:g} \n",Auto.ds,Auto.dsmin,Auto.dsmax);
+  line+=xpp::format("{:g} {:g} {:g} {:g}\n",Auto.rl0,Auto.rl1,Auto.a0,Auto.a1);
+  line+=xpp::format("{} {} {} {} {} {} {}\n",aauto.iad,aauto.mxbf,aauto.iid,aauto.itmx,aauto.itnw,aauto.nwtn,aauto.iads);
+  fputs(line.c_str(),fp);
 }
 
 
@@ -2923,8 +2904,8 @@ void load_auto_numerics(FILE *fp)
 
 void save_auto_graph(FILE *fp)
 {
-  fprintf(fp,"%g %g %g %g %d %d \n",Auto.xmin,Auto.ymin,Auto.xmax,Auto.ymax,
-	Auto.var,Auto.plot);
+  fputs(xpp::format("{:g} {:g} {:g} {:g} {} {} \n",Auto.xmin,Auto.ymin,Auto.xmax,Auto.ymax,
+	Auto.var,Auto.plot).c_str(),fp);
 }
 
 void load_auto_graph(FILE *fp)
@@ -2936,9 +2917,8 @@ void load_auto_graph(FILE *fp)
   
 void save_q_file(FILE *fp) /* I am keeping the name q_file even though they are s_files */
 {
-  char string[500];
-  XPP_SPRINTF(string,"%s.s",this_auto_file);
-  xpp::LineReader lr(string);
+  std::string string=this_auto_file+".s";
+  xpp::LineReader lr(string.c_str());
   if(!lr){
     auto_err("Couldnt open s-file");
     return;
@@ -2951,10 +2931,9 @@ void save_q_file(FILE *fp) /* I am keeping the name q_file even though they are 
 
 void make_q_file(FILE *fp)
 {
-  char string[500];
-  XPP_SPRINTF(string,"%s.s",this_auto_file);
+  std::string string=this_auto_file+".s";
   /* written beside the .s and renamed over it once whole */
-  xpp::Writer w(string);
+  xpp::Writer w(string.c_str());
   if(!w){
     auto_err("Couldnt open s-file");
     return;
@@ -2996,7 +2975,7 @@ void load_auto()
     if(ok==0)return;
   }
 
-  XPP_SPRINTF(filename,"%s.auto",basename(this_auto_file));
+  XPP_SPRINTF(filename,"%s.auto",basename(this_auto_file.data()));
  
   status=file_selector("Load Auto",filename,"*.auto");
   if(status==0)return;
@@ -3090,7 +3069,7 @@ void auto_file()
 
   static const char *m[]={"Import orbit","Save diagram","Load diagram","Postscript","SVG",
 		    "Reset diagram","Clear grab","Write pts","All info","init Data","Toggle redraw","auto raNge","sElect 2par pt","draw laBled","lOad branch","eXport CSV"};
-  static  char key[]="islpvrcwadtnebox";
+  static const char *const key="islpvrcwadtnebox";
   char ch;
   ch=static_cast<char>(auto_pop_up_list("File",m,key,16,16,0,10,10,afile_hint_csv(),
 		       Auto.hinttxt));
@@ -3301,7 +3280,7 @@ int query_special(const char * title,char *nsymb)
            nsymb below), matching the longest label written below. */
         int status=1;
         static const char *m[]={"BP","EP","HB","LP","MX","PD","TR","UZ"};
-	static  char key[]="behlmptu";
+	static const char *const key="behlmptu";
 	int ch=static_cast<char>(auto_pop_up_list(title,m,key,8,11,1,10,10,
 			     aspecial_hint,Auto.hinttxt));
 	if(ch=='b'){
