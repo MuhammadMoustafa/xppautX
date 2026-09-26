@@ -53,7 +53,7 @@ void waitasec(int msec)
 {
   struct timeval tim;
   /*struct timezone tz;*/
-  double sec=(double)msec/1000;
+  double sec=static_cast<double>(msec)/1000;
   double t1,t2;
   gettimeofday(&tim,NULL);
   t1=tim.tv_sec+(tim.tv_usec/1000000.0);
@@ -144,8 +144,8 @@ int may_write_file(const char *fil)
  FILE *fp=fopen(fil,"r");
  if(fp==NULL)return 1;
  fclose(fp);
- return (char)TwoChoice("Yes","No",
-		"File Exists! Overwrite?","yn")=='y';
+ return static_cast<char>(TwoChoice("Yes","No",
+		"File Exists! Overwrite?","yn"))=='y';
 }
 
 void open_write_file(FILE **fp, const char *fil, int *ok)
@@ -174,14 +174,14 @@ void  wipe_rep()
 void data_get(BROWSER *b)
 {
  int i,in=b->row0;
- set_ivar(0,(double)storage[0][in]);
+ set_ivar(0,static_cast<double>(storage[0][in]));
  for(i=0;i<NODE;i++)
  {
-  last_ic[i]=(double)storage[i+1][in];
+  last_ic[i]=static_cast<double>(storage[i+1][in]);
   set_ivar(i+1,last_ic[i]);
  } 
  for(i=0;i<NMarkov;i++){
-   last_ic[i+NODE]=(double)storage[i+NODE+1][in];
+   last_ic[i+NODE]=static_cast<double>(storage[i+NODE+1][in]);
    set_ivar(i+1+NODE+FIX_VAR,last_ic[i+NODE]);
  }
  for(i=NODE+NMarkov;i<NEQ;i++)
@@ -256,16 +256,16 @@ int add_stor_col(const char *name, const char *formula, BROWSER *b)
     err_msg("Bad Formula .... ");
     return(0);
   }
-  if((my_ode[NEQ+FIX_VAR]=(int *)xpp_malloc((i+2)*sizeof(int)))==NULL){
+  if((my_ode[NEQ+FIX_VAR]=static_cast<int *>(xpp_malloc((i+2)*sizeof(int))))==NULL){
      err_msg("Cant allocate formula space");
      return(0);
    }
-  if((storage[NEQ+1]=(float *)xpp_malloc(MAXSTOR * sizeof(float)))==NULL){
+  if((storage[NEQ+1]=static_cast<float *>(xpp_malloc(MAXSTOR * sizeof(float))))==NULL){
     err_msg("Cant allocate space ....");
     xpp_free(my_ode[NEQ]);
     return(0);
   }
-  if((ode_names[NEQ]=(char *)xpp_malloc(80))==NULL){
+  if((ode_names[NEQ]=static_cast<char *>(xpp_malloc(80)))==NULL){
     err_msg("Cannot allocate space ...");
     xpp_free(my_ode[NEQ]);
     xpp_free(storage[NEQ+1]);
@@ -281,9 +281,9 @@ int add_stor_col(const char *name, const char *formula, BROWSER *b)
   for(i=0;i<b->maxrow;i++)
     storage[NEQ+1][i]=0.0;   /*  zero it all   */
   for(i=0;i<b->maxrow;i++){
-    for(j=0;j<NODE+1;j++)set_ivar(j,(double)storage[j][i]);
-    for(j=NODE;j<NEQ;j++)set_val(uvar_names[j],(double)storage[j+1][i]); 
-    storage[NEQ+1][i]=(float)evaluate(com);
+    for(j=0;j<NODE+1;j++)set_ivar(j,static_cast<double>(storage[j][i]));
+    for(j=NODE;j<NEQ;j++)set_val(uvar_names[j],static_cast<double>(storage[j+1][i])); 
+    storage[NEQ+1][i]=static_cast<float>(evaluate(com));
   }
   add_var(uvar_names[NEQ],0.0);  /*  this could be trouble .... */
   NEQ++;
@@ -339,7 +339,7 @@ void replace_column(const char *var, char *form, float **dat, int n)
  dt=NJMP*DELTA_T;
 /* first check for derivative or integral symbol */
 i=0;
-while(i<(int)strlen(form)){
+while(i<static_cast<int>(strlen(form))){
   if(!isspace(form[i]))break;
   i++;
   }
@@ -360,7 +360,7 @@ if(dif_var<0)
    if(a1==a2)
      seq=3;
    else
-     da=(a2-a1)/((double)(n-1));
+     da=(a2-a1)/static_cast<double>(n-1);
  }
  if(seq==2)
    da=a2;
@@ -395,7 +395,7 @@ if(dif_var<0)
  /* Okay the formula is cool so lets allocate and replace  */
 
  wipe_rep();
- old_rep=(float *)xpp_malloc(sizeof(float)*n);
+ old_rep=static_cast<float *>(xpp_malloc(sizeof(float)*n));
  REPLACE=1;
  for(i=0;i<n;i++)
  {
@@ -404,19 +404,19 @@ if(dif_var<0)
      {
        if(seq==0)
 	 {
-	   for(j=0;j<NODE+1;j++)set_ivar(j,(double)dat[j][i]);
-	   for(j=NODE;j<NEQ;j++)set_val(uvar_names[j],(double)dat[j+1][i]);
+	   for(j=0;j<NODE+1;j++)set_ivar(j,static_cast<double>(dat[j][i]));
+	   for(j=NODE;j<NEQ;j++)set_val(uvar_names[j],static_cast<double>(dat[j+1][i]));
 	   if(intflag)
 	     {
-	       sum+=(float)evaluate(com);
+	       sum+=static_cast<float>(evaluate(com));
 	       dat[R_COL][i]=sum*dt;
 	     }
 	   else 
-	     dat[R_COL][i]=(float)evaluate(com);
+	     dat[R_COL][i]=static_cast<float>(evaluate(com));
 	 }
        else 
 	 {
-	   dat[R_COL][i]=(float)(a1+i*da);
+	   dat[R_COL][i]=static_cast<float>(a1+i*da);
 	 }
      }
    else 
@@ -468,9 +468,9 @@ void find_value(int col, double val, int *row, BROWSER b)
  int i;
  int ihot=0;
  float err,errm;
- errm=(float)fabs(b.data[col][0]-val);
+ errm=static_cast<float>(fabs(b.data[col][0]-val));
  for(i=b.row0;i<n;i++){
- err=(float)fabs(b.data[col][i]-val);
+ err=static_cast<float>(fabs(b.data[col][i]-val));
  if(err<errm){
 	ihot=i;
 	errm=err;
