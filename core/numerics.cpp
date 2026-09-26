@@ -4,6 +4,7 @@
 #include "integrate.h"
 #include "numerics.h"
 #include <strings.h>
+#include <array>
 
 #include "menudrive.h"
 #include "menus.h"
@@ -56,14 +57,6 @@ extern BROWSER my_browser;
 	For now, I just will let it remain command driven
 */
 
-typedef struct {
-  double tmod;
-  int maxvar,sos,type,sign;
-  char section[256];
-  int formula[256];
-} POINCARE_MAP;
-
-
 extern  double DELTA_T,TEND,T0,TRANS,
 	NULL_ERR,EVEC_ERR,NEWT_ERR;
 extern double BOUND,DELAY,TOLER,ATOLER,HMIN,HMAX;
@@ -107,7 +100,7 @@ void  check_pos(int *j)
 
 void quick_num(int com)
 {
-  char key[]="tsrdnviobec";
+  static const char *const key="tsrdnviobec";
   if(com>=0&&com<11)
     get_num_par(key[com]);
 }
@@ -363,9 +356,7 @@ void ruelle()
 void compute_one_period(double period,double *x,const char *name)
 {
   int opm=POIMAP;
-  char filename[256];
   double ot=TRANS,ote=TEND;
-  FILE *fp;
   TRANS=0;
   T0=0;
   MyTime=0;
@@ -374,38 +365,40 @@ void compute_one_period(double period,double *x,const char *name)
   reset_browser();
 
   usual_integrate_stuff(x);
-  XPP_SPRINTF(filename,"orbit.%s.dat",name);
-  fp=fopen(filename,"w");
-  if(fp!=NULL){
-    write_mybrowser_data(fp);
-    fclose(fp);
-  }
-  else{
-    TRANS=ot;
-  POIMAP=opm;
-  TEND=ote;
-   
-    return;
+  {
+    xpp::Writer w(xpp::format("orbit.{}.dat",name).c_str());
+    if(w){
+      write_mybrowser_data(w.file());
+      w.commit();
+    }
+    else{
+      TRANS=ot;
+      POIMAP=opm;
+      TEND=ote;
+      return;
+    }
   }
   new_adjoint();
-  XPP_SPRINTF(filename,"adjoint.%s.dat",name);
-  fp=fopen(filename,"w");
-  if(fp!=NULL){
-    write_mybrowser_data(fp);
-    fclose(fp);
-    data_back();
+  {
+    xpp::Writer w(xpp::format("adjoint.{}.dat",name).c_str());
+    if(w){
+      write_mybrowser_data(w.file());
+      w.commit();
+      data_back();
+    }
   }
   new_h_fun(1);
-  XPP_SPRINTF(filename,"hfun.%s.dat",name);
-  fp=fopen(filename,"w");
-  if(fp!=NULL){
-    write_mybrowser_data(fp);
-    fclose(fp);
-    data_back();
+  {
+    xpp::Writer w(xpp::format("hfun.{}.dat",name).c_str());
+    if(w){
+      write_mybrowser_data(w.file());
+      w.commit();
+      data_back();
+    }
   }
-  
+
   reset_browser();
-  
+
 
   TRANS=ot;
   POIMAP=opm;
@@ -416,30 +409,30 @@ void compute_one_period(double period,double *x,const char *name)
 }
 void get_pmap_pars_com(int l)
 {
- static char mkey[]="nsmp";
+ static const char *const mkey="nsmp";
  char ch;
  static const char *n[]={"*0Variable","Section","Direction (+1,-1,0)","Stop on sect(y/n)"};
  char values[4][MAX_LEN_SBOX];
  static const char *yn[]={"N","Y"};
  int status;
- char n1[XPP_NAME_MAX+1];
+ std::array<char, XPP_NAME_MAX+1> n1;
  int i1=POIVAR;
- 
+
  ch=mkey[l];
 
- 
+
  POIMAP=0;
  if(ch=='s')POIMAP=1;
  if(ch=='m')POIMAP=2;
  if(ch=='p')POIMAP=3;
- 
+
  if(POIMAP==0)return;
-   
- ind_to_sym(i1,n1);
- XPP_SPRINTF(values[0],"%s",n1);
- XPP_SPRINTF(values[1],"%.16g",POIPLN);
- XPP_SPRINTF(values[2],"%d",POISGN);
- XPP_SPRINTF(values[3],"%s",yn[SOS]);
+
+ ind_to_sym(i1,n1.data());
+ XPP_FORMAT_TO_BUF(values[0],"{}",n1.data());
+ XPP_FORMAT_TO_BUF(values[1],"{:.16g}",POIPLN);
+ XPP_FORMAT_TO_BUF(values[2],"{}",POISGN);
+ XPP_FORMAT_TO_BUF(values[3],"{}",yn[SOS]);
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
  status=do_string_box_of(4,4,1,"Poincare map",n,values,45,kinds);
  if(status!=0){
@@ -465,7 +458,7 @@ void get_method()
 {
  char ch;
  int i;
- ch = (char)menu_choose(&menu_method,METHOD);
+ ch = static_cast<char>(menu_choose(&menu_method,METHOD));
  for(i=0;i<menu_method.n;i++)
  if(ch==menu_method.keys[i])METHOD=i;
  }
@@ -511,16 +504,17 @@ void set_col_par_com(int i)
     int j,ivar;
     double temp[2];
     float maxder=0.0,minder=0.0,sum=0.0;
-    char ch,name[256]; /* new_string edits up to 255 characters */
+    char ch;
+    std::array<char, 256> name; /* new_string edits up to 255 characters */
    plot_windows.current->ColorFlag=i;
    if(plot_windows.current->ColorFlag==0){
    /* set color to black/white */
     return;
     }
     if(plot_windows.current->ColorFlag==2){
-      ind_to_sym(plot_windows.current->ColorValue,name);
-      new_string_of("Color via:",name,XPP_FIELD_NAME_IN(0));
-      find_variable(name,&ivar);
+      ind_to_sym(plot_windows.current->ColorValue,name.data());
+      new_string_of("Color via:",name.data(),XPP_FIELD_NAME_IN(0));
+      find_variable(name.data(),&ivar);
       
 
       if(ivar>=0)
@@ -563,7 +557,7 @@ void set_col_par_com(int i)
   {
    sum=0.0;
    for(j=0;j<NODE;j++)
-   sum+=(float)fabs((double)(my_browser.data[1+j][i]-my_browser.data[1+j][i-1]));
+   sum+=static_cast<float>(fabs(static_cast<double>(my_browser.data[1+j][i]-my_browser.data[1+j][i-1])));
    if(sum<minder)minder=sum;
    if(sum>maxder)maxder=sum;
   }

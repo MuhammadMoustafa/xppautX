@@ -22,9 +22,12 @@
 
 
 
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <array>
+#include <string>
+#include <vector>
 #include "shoot.h"
 #include "kinescope.h"
 #include <math.h>
@@ -74,11 +77,13 @@ extern int color_line[11],MyStart;
 extern int NKernel;
 
 extern double MyData[MAXODE],MyTime;
+namespace {
 struct {
-  char item[MAX_LEN_SBOX];
+  std::array<char, MAX_LEN_SBOX> item{};
   int steps,side,cycle,movie;
   double plow,phigh;
 } shoot_range;
+}  // namespace
 
 extern char upar_names[MAXPAR][XPP_NAME_MAX+1];
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
@@ -112,7 +117,6 @@ void compile_bvp()
 {
  int i;
  int len;
- char badcom[50];
  reset_bvp();
  if(BVP_FLAG==0)return;
 
@@ -120,10 +124,9 @@ void compile_bvp()
  NSYM=NSYM_START;
  BVP_FLAG=0;
  for(i=0;i<NODE;i++){
- 
+
    if(add_expr(my_bc[i].string,my_bc[i].com,&len)){
-     XPP_SPRINTF(badcom,"Bad syntax on %d th BC",i+1);
-     err_msg(badcom);
+     err_msg(xpp::format("Bad syntax on {} th BC",i+1).c_str());
      return;
    }
  }
@@ -162,7 +165,7 @@ reset_bvp()
 
 void init_shoot_range(const char *s)
 {
- snprintf(shoot_range.item,sizeof(shoot_range.item),"%s",s);
+ snprintf(shoot_range.item.data(),shoot_range.item.size(),"%s",s);
  shoot_range.phigh=1.0;
  shoot_range.plow=0.0;
  shoot_range.side=0;
@@ -173,7 +176,7 @@ void init_shoot_range(const char *s)
   
 void dump_shoot_range(FILE *fp, int f)
 {
-  io_string(shoot_range.item,sizeof(shoot_range.item),fp,f);
+  io_string(shoot_range.item.data(),shoot_range.item.size(),fp,f);
   io_int(&shoot_range.side,fp,f,"BVP side");
   io_int(&shoot_range.cycle,fp,f,"color cycle flag 1=on");
   io_int(&shoot_range.steps,fp,f,"BVP range steps");
@@ -217,7 +220,7 @@ void do_sh_range(double *ystart, double *yend)
  parhi=shoot_range.phigh;
  parlo=shoot_range.plow;
  npar=shoot_range.steps;
- dpar=(parhi-parlo)/(double)npar;
+ dpar=(parhi-parlo)/static_cast<double>(npar);
  side=shoot_range.side;
  cycle=shoot_range.cycle;
  storind=0;
@@ -226,9 +229,9 @@ void do_sh_range(double *ystart, double *yend)
    reset_film();
  for(i=0;i<=npar;i++)
    {
-     temp=parlo+dpar*(double)i;
-     set_val(shoot_range.item,temp);
-     snprintf(bob,sizeof(bob),"%s=%.16g",shoot_range.item,temp);
+     temp=parlo+dpar*static_cast<double>(i);
+     set_val(shoot_range.item.data(),temp);
+     snprintf(bob,sizeof(bob),"%s=%.16g",shoot_range.item.data(),temp);
      bottom_msg(2,bob);
      if(shoot_range.movie==1)
        clr_scrn();
@@ -269,10 +272,10 @@ int set_up_periodic(int *ipar, int *ivar, double *sect, int *ishow)
  char values[4][MAX_LEN_SBOX];
  int status,i;
  static const char *yn[]={"N","Y"};
- XPP_SPRINTF(values[0],"%s",upar_names[*ipar]);
- XPP_SPRINTF(values[1],"%s",uvar_names[*ivar]);
- XPP_SPRINTF(values[2],"%g",*sect);
- XPP_SPRINTF(values[3],"%s",yn[*ishow]);
+ XPP_FORMAT_TO_BUF(values[0],"{}",upar_names[*ipar]);
+ XPP_FORMAT_TO_BUF(values[1],"{}",uvar_names[*ivar]);
+ XPP_FORMAT_TO_BUF(values[2],"{:g}",*sect);
+ XPP_FORMAT_TO_BUF(values[3],"{}",yn[*ishow]);
  
  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(1),XPP_FIELD_NUMBER,XPP_FIELD_TEXT};
  status=do_string_box_of(4,4,1,"Periodic BCs",n,values,45,kinds);
@@ -383,9 +386,9 @@ void last_shot(int flag)
  STORFLAG=flag;
  MyTime=T0;
  if(flag){
-  storage[0][0]=(float)T0;
+  storage[0][0]=static_cast<float>(T0);
   extra(x,T0,NODE,NEQ);
-  for(i=0;i<NEQ;i++)storage[1+i][0]=(float)x[i];
+  for(i=0;i<NEQ;i++)storage[1+i][0]=static_cast<float>(x[i]);
   storind=1;
 
 }
@@ -407,20 +410,20 @@ static const char *n[]={"*2Range over","Steps","Start","End",
  char values[7][MAX_LEN_SBOX];
  int status,i;
  static  const char *yn[]={"N","Y"};
- snprintf(values[0],sizeof(values[0]),"%s",shoot_range.item);
- XPP_SPRINTF(values[1],"%d",shoot_range.steps);
- XPP_SPRINTF(values[2],"%g",shoot_range.plow);
- XPP_SPRINTF(values[3],"%g",shoot_range.phigh);
- XPP_SPRINTF(values[4],"%s",yn[shoot_range.cycle]);
- XPP_SPRINTF(values[5],"%d",shoot_range.side);
- XPP_SPRINTF(values[6],"%s",yn[shoot_range.movie]);
+ snprintf(values[0],sizeof(values[0]),"%s",shoot_range.item.data());
+ XPP_FORMAT_TO_BUF(values[1],"{}",shoot_range.steps);
+ XPP_FORMAT_TO_BUF(values[2],"{:g}",shoot_range.plow);
+ XPP_FORMAT_TO_BUF(values[3],"{:g}",shoot_range.phigh);
+ XPP_FORMAT_TO_BUF(values[4],"{}",yn[shoot_range.cycle]);
+ XPP_FORMAT_TO_BUF(values[5],"{}",shoot_range.side);
+ XPP_FORMAT_TO_BUF(values[6],"{}",yn[shoot_range.movie]);
 
  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
  status=do_string_box_of(7,7,1,"Range Shoot",n,values,45,kinds);
  if(status!=0){
-   XPP_STRCPY(shoot_range.item,values[0]);
-   i=find_user_name(PARAM,shoot_range.item);
+   xpp_strlcpy(shoot_range.item.data(),values[0],shoot_range.item.size());
+   i=find_user_name(PARAM,shoot_range.item.data());
    if(i<0){
         err_msg("No such parameter");
        return(0);
@@ -448,7 +451,6 @@ static const char *n[]={"*2Range over","Steps","Start","End",
 
 void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *iret, int n, int ishow, int iper, int ipar, int ivar, double sect)
 {
- double *jac,*f,*fdev,*y0,*y1;
  double dev,error,ytemp;
 
   int ntot=n;
@@ -459,14 +461,12 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
  double dt=DELTA_T,t;
  double t0=T0;
  double t1=T0+TEND*dt/fabs(dt);
- 
+
  if(iper)ntot=n+1;
- jac=(double *)xpp_malloc(ntot*ntot*sizeof(double));
- f=(double *)xpp_malloc(ntot*sizeof(double));
- fdev=(double *)xpp_malloc(ntot*sizeof(double));
- y0=(double *)xpp_malloc(ntot*sizeof(double));
- y1=(double *)xpp_malloc(ntot*sizeof(double));
-  
+ std::vector<double> jac_v(static_cast<size_t>(ntot)*ntot);
+ std::vector<double> f_v(ntot), fdev_v(ntot), y0_v(ntot), y1_v(ntot);
+ double *jac=jac_v.data(), *f=f_v.data(), *fdev=fdev_v.data(), *y0=y0_v.data(), *y1=y1_v.data();
+
  for(i=0;i<n;i++)
    y0[i]=y[i];
  if(iper)  get_val(upar_names[ipar],&y0[n]);
@@ -582,12 +582,6 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
 }
   
  bye:
-
-      xpp_free(f);
-   xpp_free(y1);
-   xpp_free(y0);
-   xpp_free(jac);
-   xpp_free(fdev);
    return;
 }
 
