@@ -54,6 +54,14 @@ MinGW build (gcc 13.2) matched 179 of Linux's 195 at W17:
 `tools/examples_check.sh --bin xppautX.exe --platform windows` from Git
 Bash.
 
+`tools/goldencheck.py` (W31c, run by verify.sh) drives `xppautX --server`
+through lecar.ode and vanderpol.ode to write PostScript (with a nullcline
+and a direction field), SVG, kinescope GIFs and an array-print PostScript,
+and compares each byte for byte (CRs removed) with tests/golden/
+(`--update` rewrites them); a difference names the file and its first
+differing line. They guard the conversion of the output code's fprintf
+calls (W32b, W33).
+
 verify.sh's checks about the source rather than the build (UTF-8, the
 scripts' executable bit, stdoutcheck, formatcheck, literalcheck, the LTO
 type check, the dead-code check) are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with

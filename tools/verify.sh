@@ -122,6 +122,13 @@ if command -v python3 >/dev/null; then
     echo "AUTO CHECK FAILED"
     exit 1
   fi
+  if python3 tools/goldencheck.py > build/goldencheck.log 2>&1; then
+    echo "golden outputs ok: $(grep -c '^PASS' build/goldencheck.log) files"
+  else
+    grep -v '^PASS' build/goldencheck.log
+    echo "GOLDEN CHECK FAILED"
+    exit 1
+  fi
 fi
 # every example's output against tests/examples.md5: the numerics
 if tools/examples_check.sh > build/examples.log 2>&1; then
