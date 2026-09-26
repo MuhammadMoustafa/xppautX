@@ -1,10 +1,10 @@
 #include "xpp_ui.h"
 #include "odesol2.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
 #include <stdlib.h>
+#include <vector>
 
-#include "eig_list.h" 
+#include "eig_list.h"
 #include "gear.h"
 #include "ggets.h"
 
@@ -38,22 +38,19 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
       double rr[2];
 
  double colnorm=0,colmax,colsum;
- double *work,old_x[MAXODE],sign;
- double *coef,yp[MAXODE],y[MAXODE],xp[MAXODE],dx;
+ double old_x[MAXODE],sign;
+ double yp[MAXODE],y[MAXODE],xp[MAXODE],dx;
  int kmem=n*(2*n+5)+50,i,j,k,okroot;
 
- double *ev;
- ev=(double *)xpp_malloc(2*n*sizeof(double));
- for(i=0;i<(2*n);i++)ev[i]=0.0;
+ std::vector<double> ev(2*n, 0.0);
  /* first we establish how many delays there are */
  del_stab_flag=0;
  for(i=0;i<n;i++)old_x[i]=x[i];
- work=(double *)xpp_malloc(kmem*sizeof(double));
- rooter(x,err,eps,big,work,ierr,maxit,n);
+ std::vector<double> work(kmem);
+ rooter(x,err,eps,big,work.data(),ierr,maxit,n);
  if(*ierr!=0)
    {
      del_stab_flag=1;
-     xpp_free(work);
      err_msg("Could not converge to root");
      for(i=0;i<n;i++)x[i]=old_x[i];
      return;
@@ -65,10 +62,8 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
    variable_shift[0][i]=x[i];  /* unshifted  */
    variable_shift[1][i]=x[i];
  }
- xpp_free(work);
- /*  plintf(" Found %d delays \n",NDelay); */ 
- coef=(double *)xpp_malloc(n*n*(NDelay+1)*sizeof(double));
- 
+ std::vector<double> coef(static_cast<size_t>(n)*n*(NDelay+1));
+
  /* now we must compute a bunch of jacobians  */
  /* first the normal one   */
  del_stab_flag=-1;
@@ -115,17 +110,15 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
  }
  /* plintf("Norm= %g \n",colnorm); */
  /* sign=plot_args(coef,delay_list,n,NDelay,DelayGrid,AlphaMax,OmegaMax); */
- sign=plot_args(coef,delay_list,n,NDelay,DelayGrid,colnorm,colnorm);
+ sign=plot_args(coef.data(),delay_list,n,NDelay,DelayGrid,colnorm,colnorm);
 
- okroot=find_positive_root(coef,delay_list,n,NDelay,colnorm,err,eps,big,maxit,rr);
+ okroot=find_positive_root(coef.data(),delay_list,n,NDelay,colnorm,err,eps,big,maxit,rr);
  if(okroot>0){
    ev[0]=rr[0];
    ev[1]=rr[1];
  }
- xpp_free(coef);  
- *stabinfo=(float)fabs(sign);
- /* if(*stabinfo>0) */
- i=(int)sign;
+ *stabinfo=static_cast<float>(fabs(sign));
+ i=static_cast<int>(sign);
 if(i==0&&okroot==1&&AlphaMax>0)
   i=2;
 
@@ -134,7 +127,6 @@ if(i==0&&okroot==1&&AlphaMax>0)
  create_eq_box(abs(i),2,0,0,0,x,NULL,n);
  /* DING; */
  del_stab_flag=1;
- xpp_free(ev);
  if(okroot==1)*stabinfo=AlphaMax;
 }
 
@@ -257,22 +249,22 @@ void make_z(COMPLEX *z, double *delay, int n, int m, double *coef, COMPLEX lambd
 int find_positive_root(double *coef, double *delay, int n, int m, double rad, double err, double eps, double big, int maxit, double *rr)
 {
   COMPLEX lambda,lambdap;
-  COMPLEX det,*z,detp;
+  COMPLEX det,detp;
   double jac[4];
   double xl,yl,r,xlp,ylp;
 
   int k;
-  
+
     lambda.r=AlphaMax;
     lambda.i=OmegaMax;
- 
-   z=(COMPLEX *)xpp_malloc(sizeof(COMPLEX)*n*n); 
- 
+
+   std::vector<COMPLEX> z(static_cast<size_t>(n)*n);
+
   /* now Newtons Method for maxit times */
   for(k=0;k<maxit;k++){
-      
-    make_z(z,delay,n,m,coef,lambda);
-    det=cdeterm(z,n);
+
+    make_z(z.data(),delay,n,m,coef,lambda);
+    det=cdeterm(z.data(),n);
 
     r=c_abs(det);
     if(r<err){ /* within the tolerance */
@@ -291,8 +283,8 @@ int find_positive_root(double *coef, double *delay, int n, int m, double rad, do
       r=eps*eps;
     xlp=xl+r;
     lambdap=rtoc(xlp,yl);
-    make_z(z,delay,n,m,coef,lambdap);
-    detp=cdeterm(z,n);
+    make_z(z.data(),delay,n,m,coef,lambdap);
+    detp=cdeterm(z.data(),n);
    jac[0]=(detp.r-det.r)/r;
    jac[2]=(detp.i-det.i)/r;
     if(fabs(yl)>eps)
@@ -301,8 +293,8 @@ int find_positive_root(double *coef, double *delay, int n, int m, double rad, do
       r=eps*eps;
     ylp=yl+r;
     lambdap=rtoc(xl,ylp);
-    make_z(z,delay,n,m,coef,lambdap);
-    detp=cdeterm(z,n);
+    make_z(z.data(),delay,n,m,coef,lambdap);
+    detp=cdeterm(z.data(),n);
     jac[1]=(detp.r-det.r)/r;
     jac[3]=(detp.i-det.i)/r;
     r=jac[0]*jac[3]-jac[1]*jac[2];
@@ -342,11 +334,10 @@ void process_root(double real, double im)
 double get_arg(double *delay, double *coef, int m, int n, COMPLEX lambda)
 {
   int i,j,k,km;
-  COMPLEX *z;
   COMPLEX temp,eld;
   double arg;
   if(m==0)return(0);  /* no delays so don't use this! */
-  z=(COMPLEX *)xpp_malloc(sizeof(COMPLEX)*n*n); 
+  std::vector<COMPLEX> z(static_cast<size_t>(n)*n);
   for(j=0;j<n;j++)
     for(i=0;i<n;i++){
       if(i==j)temp=lambda;
@@ -364,12 +355,7 @@ double get_arg(double *delay, double *coef, int m, int n, COMPLEX lambda)
 	z[i+j*n]=cdif(z[i+j*n],cmlt(eld,rtoc(coef[km+i+n*j],0.0)));
   }
   /*  the array is done  */
- /* cprintarr(z,n,n); */ 
-  temp=cdeterm(z,n);
-  /* cprint(lambda); 
-  cprint(temp); 
-  plintf(" \n"); */
-   xpp_free(z); 
+  temp=cdeterm(z.data(),n);
   arg=atan2(temp.i,temp.r);
   /*   plintf("%g %g %g \n",lambda.r,lambda.i,arg); */ 
   return(arg);

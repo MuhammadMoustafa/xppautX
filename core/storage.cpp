@@ -28,13 +28,13 @@ extern XPPVEC xpv;
 
 void init_alloc_info()
 {
-  int i;
   xpv.node=NODE+NMarkov;
   xpv.nvec=0; /* this is just for now */
   xpp_free(xpv.x); /* called again once the model's options are read */
-  xpv.x=(double *)xpp_malloc((xpv.nvec+xpv.node)*sizeof(double));
-  /* plintf(" node=%d nvec=%d \n",xpv.node,xpv.nvec); */
-  for(i=xpv.node;i<(xpv.nvec+xpv.node);i++)
+  /* xpv.x is a shared raw block (xpp_types.h XPPVEC) read across the
+     numerics code by pointer; it stays xpp_malloc/xpp_free. */
+  xpv.x=static_cast<double *>(xpp_malloc((xpv.nvec+xpv.node)*sizeof(double)));
+  for(int i=xpv.node;i<(xpv.nvec+xpv.node);i++)
     xpv.x[i]=0.0;
 }
 
@@ -45,7 +45,7 @@ void alloc_meth()
   switch(METHOD){
   case STIFF:
      sz=2*nn*nn+13*nn+100;
-    
+
      break;
   case GEAR:
     sz=30*nn+nn*nn+100;
@@ -60,40 +60,39 @@ void alloc_meth()
   }
   if(WORK)
     xpp_free(WORK);
-  WORK=(double *)xpp_malloc(sz*sizeof(double));
-  /* plintf(" I have allocated %d doubles \n",sz); */
+  /* WORK is the shared scratch block the ODE solvers index directly;
+     it stays xpp_malloc/xpp_free. */
+  WORK=static_cast<double *>(xpp_malloc(sz*sizeof(double)));
 }
-    
+
 int reallocstor(int ncol,int nrow)
 {
   int i=0;
-  while((storage[i]=(float *)xpp_realloc(storage[i],nrow*sizeof(float)))!=NULL){
+  while((storage[i]=static_cast<float *>(xpp_realloc(storage[i],nrow*sizeof(float))))!=NULL){
    i++;
    if(i==ncol)return 1;
-   }  
+   }
    err_msg("Cannot allocate sufficient storage");
    return 0;
 }
-  
+
 void init_stor(int nrow, int ncol)
 {
  int i;
- /* WORK=(double *)malloc(WORKSIZE*sizeof(double));
-    if(WORK!=NULL){ */
 WORK=NULL;
- storage=(float **)xpp_malloc((MAXODE+1)*sizeof(float *));
+ /* storage is the shared per-column data array indexed as storage[col][row]
+    throughout browse_data.cpp and elsewhere; it stays xpp_malloc/xpp_free. */
+ storage=static_cast<float **>(xpp_malloc((MAXODE+1)*sizeof(float *)));
  MAXSTOR=nrow;
  storind=0;
  if(storage!=NULL){
    i=0;
-   while((storage[i]=(float *)xpp_malloc(nrow*sizeof(float)))!=NULL){
+   while((storage[i]=static_cast<float *>(xpp_malloc(nrow*sizeof(float))))!=NULL){
    i++;
    if(i==ncol)return;
    }
- 
+
  }
- /*  } */
- /*  plintf("col=%d\n",i); */
 err_msg("Cannot allocate sufficient storage");
    exit(0);
 }
