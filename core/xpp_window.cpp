@@ -20,6 +20,8 @@
 #include "xpp_http.h"
 #include "xpp_inbox.h"
 #include "xpp_log.h"
+#include "xpp_webview.h"
+#include "xpp_window_hint.h"
 #include <cstring>
 #include <string>
 
@@ -101,6 +103,7 @@ struct State {
     bool core_closing = false; /* the core's exit closes it (no quit to send) */
     std::string model;         /* the title's file name */
     std::string about;         /* Help > About's text */
+    std::string error_msg;     /* why the window failed to open (W35e) */
     std::promise<void> done;   /* the window has closed and let go */
     std::shared_future<void> done_f = done.get_future().share();
 };
@@ -461,11 +464,17 @@ void place_window(webview_t w)
 
 #endif /* platform */
 
-/* the window, on the thread that runs it; NULL when it cannot open */
+/* the window, on the thread that runs it; NULL when it cannot open.
+   Calls xpp_webview_create which captures exception details (W35e). */
 webview_t open_view()
 {
-    webview_t w = webview_create(0, nullptr);
-    if (!w) return nullptr;
+    int error_code = 0;
+    char error_msg[256] = "";
+    webview_t w = xpp_webview_create(0, nullptr, &error_code, error_msg, sizeof(error_msg));
+    if (!w) {
+        st->error_msg = xpp_webview_error_message(error_code, error_msg);
+        return nullptr;
+    }
     std::string t;
     {
         std::lock_guard<std::mutex> lk(st->mu);
@@ -479,9 +488,6 @@ webview_t open_view()
     webview_navigate(w, host->http_url());
     return w;
 }
-
-const char *const NO_VIEW = "xppautX: the window cannot open (no web view: on Windows the WebView2 runtime, on Linux a "
-                       "display); using the browser instead\n";
 
 #ifdef __APPLE__
 void (*session_fn)(void);
@@ -516,7 +522,7 @@ int run(void (*session)(void), const char *about)
            with the main thread's 8 MB of stack (a new thread gets 512 KB) */
         webview_t w = open_view();
         if (!w) {
-            host->log(XPP_LOG_WARN, "%s", NO_VIEW);
+            host->log(XPP_LOG_WARN, "%s", st->error_msg.empty() ? "xppautX: the window cannot open; using the browser instead\n" : st->error_msg.c_str());
             return 0;
         }
         {
@@ -548,7 +554,7 @@ int run(void (*session)(void), const char *about)
             window_closed(w);
         }).detach();
         if (!up.get()) {
-            host->log(XPP_LOG_WARN, "%s", NO_VIEW);
+            host->log(XPP_LOG_WARN, "%s", st->error_msg.empty() ? "xppautX: the window cannot open; using the browser instead\n" : st->error_msg.c_str());
             return 0;
         }
         std::atexit(on_exit);

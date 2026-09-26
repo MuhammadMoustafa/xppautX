@@ -180,7 +180,7 @@ SERVER_OBJECTS += $(call obj,$(call src,xpp_window_loader)) $(BUILDDIR)/window_l
 # position-independent and without LTO (a shared library of its own)
 $(WINDOW_LIB_DIR)/xpp_window.o: $(SRCDIR)/xpp_window.cpp $(BUILDDIR)/toolchain.stamp | $(WINDOW_LIB_DIR)
 	$(CXX) $(call NOLTO,$(CXXFLAGS)) -fPIC -DXPP_WINDOW -DXPP_WINDOW_PLUGIN -DXPP_ICON_ASSET -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS) -MMD -MP -MF $(@:.o=.d) -c $< -o $@
-$(WINDOW_LIB_DIR)/webview.o: $(WEBVIEW_DIR)/src/webview.cc $(BUILDDIR)/toolchain.stamp | $(WINDOW_LIB_DIR)
+$(WINDOW_LIB_DIR)/webview.o: $(SRCDIR)/xpp_webview.cpp $(BUILDDIR)/toolchain.stamp | $(WINDOW_LIB_DIR)
 	$(CXX) $(WEBVIEW_STD) $(call NOLTO,$(OPT)) -fPIC -DWEBVIEW_STATIC -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS) -c $< -o $@
 $(WINDOW_LIB_DIR)/icon_assets.o: $(BUILDDIR)/icon_assets.c | $(WINDOW_LIB_DIR)
 	$(CC) -O2 -fPIC -c $< -o $@
@@ -209,7 +209,7 @@ ifneq ($(WINDOW),1)
 WINDOW_LIBS =
 endif
 # the library, unchanged: its warnings are not ours (-isystem), nor is LTO
-$(BUILDDIR)/webview.o: $(WEBVIEW_DIR)/src/webview.cc $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
+$(BUILDDIR)/webview.o: $(SRCDIR)/xpp_webview.cpp $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
 	$(CXX) $(WEBVIEW_STD) $(call NOLTO,$(OPT)) -DWEBVIEW_STATIC -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS) -c $< -o $@
 
 # Windows: the icon (resource 32512, IDI_APPLICATION's number, which the

@@ -20,5 +20,13 @@ void xpp_window_load_message(char *out, size_t size, const char *os_release, con
 
 #ifdef __cplusplus
 }
+
+#include <string>
+
+/* Translate a webview error into user-friendly message (W35e). Only show
+   the "install WebView2 runtime" hint for error code -5 (MISSING_DEPENDENCY);
+   other errors report the actual code name and webview's message. */
+std::string xpp_webview_error_message(int code, const char *msg);
+
 #endif
 #endif

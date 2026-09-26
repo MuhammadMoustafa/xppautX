@@ -72,5 +72,14 @@ int main()
     xpp_window_load_message(small, sizeof small, "ID=ubuntu\n", MISSING);
     CHECK_STR(small, "xppautX: the wi");
 
+    /* xpp_webview_error_message (W35e): translate webview error codes */
+    CHECK_STR(xpp_webview_error_message(-5, "").c_str(),
+              "xppautX: the window cannot open (no web view: on Windows the WebView2 runtime, on Linux a "
+              "display); using the browser instead\n");
+    CHECK(xpp_webview_error_message(-1, "bad display").find("UNSPECIFIED") != std::string::npos);
+    CHECK(xpp_webview_error_message(-1, "bad display").find("bad display") != std::string::npos);
+    CHECK(xpp_webview_error_message(-2, "").find("INVALID_ARGUMENT") != std::string::npos);
+    CHECK(xpp_webview_error_message(-2, "").find("(no details)") != std::string::npos);
+
     TEST_REPORT("window_hint");
 }
