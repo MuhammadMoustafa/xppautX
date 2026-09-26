@@ -18,8 +18,6 @@ typedef struct {
 extern int nuserbut;
 extern USERBUT userbut[USERBUTMAX];
 
-int get_button_info(const char *s, char *bname, char *sc);
-int find_kbs(const char *sc);
 void add_user_button(const char *s); /* parse "name:keys" from an @ button line */
 
 #ifdef __cplusplus

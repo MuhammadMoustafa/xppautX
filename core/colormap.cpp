@@ -42,21 +42,21 @@ int rfun(double y, int per)
     x = y;
     if ((y > .666666) && (per == 1)) x = 1. - y;
     if (x > .33333333333) return 0;
-    return (int)(3. * 255 * sqrt((.333334 - x) * (x + .33334)));
+    return static_cast<int>(3. * 255 * sqrt((.333334 - x) * (x + .33334)));
 }
 
 int gfun(double y, int per)
 {
     (void)per;
     if (y > .666666) return 0;
-    return (int)(3. * 255 * sqrt((.6666667 - y) * (y)));
+    return static_cast<int>(3. * 255 * sqrt((.6666667 - y) * (y)));
 }
 
 int bfun(double y, int per)
 {
     (void)per;
     if (y < .333334) return 0;
-    return (int)(2.79 * 255 * sqrt((1.05 - y) * (y - .333333333)));
+    return static_cast<int>(2.79 * 255 * sqrt((1.05 - y) * (y - .333333333)));
 }
 
 void make_cmaps(int *r, int *g, int *b, int n, int type)
@@ -70,7 +70,7 @@ void make_cmaps(int *r, int *g, int *b, int n, int type)
     switch (type) {
     case C_NORM:
         for (i = 0; i < n; i++) {
-            x = (double)i / ((double)n);
+            x = static_cast<double>(i) / static_cast<double>(n);
             r[i] = rfun(1 - x, 0) << 8;
             g[i] = gfun(1 - x, 0) << 8;
             b[i] = bfun(1 - x, 0) << 8;
@@ -78,7 +78,7 @@ void make_cmaps(int *r, int *g, int *b, int n, int type)
         break;
     case C_PERIODIC:
         for (i = 0; i < n; i++) {
-            x = (double)i / ((double)n);
+            x = static_cast<double>(i) / static_cast<double>(n);
             r[i] = rfun(x, 1) << 8;
             g[i] = gfun(x, 1) << 8;
             b[i] = bfun(x, 1) << 8;
@@ -89,33 +89,33 @@ void make_cmaps(int *r, int *g, int *b, int n, int type)
         i2 = 2 * i1;
         i3 = n - i2;
         for (i = 0; i < i1; i++) {
-            x = 256 * 255 * (double)i / ((double)i1);
-            r[i] = (int)x;
+            x = 256 * 255 * static_cast<double>(i) / static_cast<double>(i1);
+            r[i] = static_cast<int>(x);
             g[i] = 0;
             b[i] = 0;
-            g[i + i1] = (int)x;
+            g[i + i1] = static_cast<int>(x);
             b[i + i1] = 0;
         }
         for (i = i1; i < n; i++) r[i] = 256 * 255;
         for (i = i2; i < n; i++) {
-            x = 256 * 255 * (double)(i - i2) / ((double)i3);
+            x = 256 * 255 * static_cast<double>(i - i2) / static_cast<double>(i3);
             g[i] = 256 * 255;
-            b[i] = (int)x;
+            b[i] = static_cast<int>(x);
         }
         break;
     case C_COOL:
         for (i = 0; i < n; i++) {
-            x = (double)i / ((double)n);
-            r[i] = (int)(256 * 255 * x);
-            b[i] = (int)(256 * 255 * (1 - x));
+            x = static_cast<double>(i) / static_cast<double>(n);
+            r[i] = static_cast<int>(256 * 255 * x);
+            b[i] = static_cast<int>(256 * 255 * (1 - x));
             g[i] = 256 * 255;
         }
         break;
     case C_REDBLUE:
         for (i = 0; i < n; i++) {
-            x = (double)i / ((double)n);
-            r[i] = (int)(256 * 255 * x);
-            b[i] = (int)(256 * 255 * (1 - x));
+            x = static_cast<double>(i) / static_cast<double>(n);
+            r[i] = static_cast<int>(256 * 255 * x);
+            b[i] = static_cast<int>(256 * 255 * (1 - x));
             g[i] = 0;
         }
         break;
@@ -128,7 +128,7 @@ void make_cmaps(int *r, int *g, int *b, int n, int type)
         break;
     case C_CUBHLX:
         for (i = 0; i < n; i++) {
-            x = (double)i / ((double)n);
+            x = static_cast<double>(i) / static_cast<double>(n);
             angle = 2 * pii * (start / 3.0 + 1 + rots * x);
             x = pow(x, gamma);
             amp = hue * x * (1 - x) / 2.0;
@@ -202,9 +202,9 @@ void xpp_build_colormap(void)
 void get_ps_color(int i, float *r, float *g, float *b)
 {
     float z = 1. / (65535);
-    *r = z * (float)xpp_cmap_rgb[i][0];
-    *g = z * (float)xpp_cmap_rgb[i][1];
-    *b = z * (float)xpp_cmap_rgb[i][2];
+    *r = z * static_cast<float>(xpp_cmap_rgb[i][0]);
+    *g = z * static_cast<float>(xpp_cmap_rgb[i][1]);
+    *b = z * static_cast<float>(xpp_cmap_rgb[i][2]);
 }
 
 void get_svg_color(int i, int *r, int *g, int *b)

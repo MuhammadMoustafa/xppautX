@@ -36,6 +36,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
+#include <vector>
 #include <sys/types.h>
 #ifndef _WIN32
 #include <sys/wait.h>
@@ -54,7 +56,7 @@ extern const char *no_hint[];
 static int menu_pick(const XppMenu *m, int def)
 {
   int i;
-  char ch = (char)menu_choose(m, def);
+  char ch = static_cast<char>(menu_choose(m, def));
   for (i = 0; i < m->n; i++)
     if (ch == m->keys[i])
       return i;
@@ -96,8 +98,8 @@ void do_tutorial(void)
   int tut = 0;
   xpp_log(XPP_LOG_INFO, "Running tutorial!\n");
   while (1) {
-    char ans = (char)xpp_ui.two_choice("Next", "Done", tutorial[tut], "nd",
-                                       "Did you know you can...");
+    char ans = static_cast<char>(xpp_ui.two_choice("Next", "Done", tutorial[tut], "nd",
+                                       "Did you know you can..."));
     if (ans != 'n') /* 'd', or a front end that cannot ask */
       break;
     tut++;
@@ -109,38 +111,33 @@ void do_tutorial(void)
 /* no fork on Windows: start the editor/browser and let it run on its own */
 void edit_xpprc(void)
 {
-  char cmd[600];
-  char *ed = getenv("XPPEDITOR");
-  char *home = getenv("USERPROFILE");
-  if ((ed == NULL) || (strlen(ed) == 0)) {
+  const char *ed = getenv("XPPEDITOR");
+  const char *home = getenv("USERPROFILE");
+  if (ed == NULL || ed[0] == '\0') {
     err_msg("Environment variable XPPEDITOR needs to be set.");
     return;
   }
-  snprintf(cmd, sizeof(cmd), "start \"\" \"%s\" \"%s\\.xpprc\"", ed, home ? home : ".");
-  if (system(cmd) != 0) err_msg("Unable to start the editor.");
+  std::string cmd = xpp::format("start \"\" \"{}\" \"{}\\.xpprc\"", ed, home ? home : ".");
+  if (system(cmd.c_str()) != 0) err_msg("Unable to start the editor.");
 }
 #else
 void edit_xpprc(void)
 {
-  pid_t child_pid;
-  char rc[256];
-  char editor[256];
-  int child_status;
-  char *ed = getenv("XPPEDITOR");
+  const char *ed = getenv("XPPEDITOR");
 
-  if ((ed == NULL) || (strlen(ed) == 0)) {
+  if (ed == NULL || ed[0] == '\0') {
     err_msg("Environment variable XPPEDITOR needs to be set.");
     return;
   }
-  snprintf(editor, sizeof(editor), "%s", ed);
+  std::string editor = ed;
 
-  child_pid = fork();
+  pid_t child_pid = fork();
   if (child_pid == 0) {
-    XPP_SPRINTF(rc, "%s/.xpprc", getenv("HOME"));
-    {
-      char *const args[] = {editor, rc, NULL};
-      execvp(editor, args);
-    }
+    const char *home = getenv("HOME");
+    std::string rc = xpp::format("{}/.xpprc", home ? home : "");
+    char *const args[] = {editor.data(), rc.data(), NULL};
+    execvp(editor.c_str(), args);
+    int child_status;
     wait(&child_status);
     return;
   }
@@ -194,22 +191,25 @@ void draw_many_lines(void)
 
 void get_intern_set(void)
 {
-  char *n[MAX_INTERN_SET], key[MAX_INTERN_SET], ch;
-  int i, j;
   int count = Nintern_set;
-  XppMenu m = {"param_set", "Param set", 0, NULL, NULL, NULL, -1, 12, -1};
   if (count <= 0 || count >= MAX_INTERN_SET) return;
-  for (i = 0; i < Nintern_set; i++) {
-    n[i] = (char *)xpp_malloc(256);
-    key[i] = 'a' + i;
-    /* n[i] is a pointer, allocated 256 bytes just above. */
-    xpp_snprintf(n[i], 256, "%c: %s", key[i], intern_set[i].name);
+
+  std::vector<std::string> labels;
+  std::vector<const char *> items;
+  std::string keys;
+  labels.reserve(static_cast<std::size_t>(count));
+  items.reserve(static_cast<std::size_t>(count));
+  for (int i = 0; i < count; i++) {
+    char key = static_cast<char>('a' + i);
+    labels.push_back(xpp::format("{}: {}", key, intern_set[i].name));
+    keys.push_back(key);
   }
-  key[count] = 0;
-  m.n = count; m.items = n; m.keys = key; m.hints = no_hint;
-  ch = (char)menu_choose(&m, 0);
-  for (i = 0; i < count; i++) xpp_free(n[i]);
-  j = (int)(ch - 'a');
+  for (const auto &s : labels) items.push_back(s.c_str());
+
+  XppMenu m = {"param_set", "Param set", count, items.data(), keys.c_str(),
+               no_hint, -1, 12, -1};
+  char ch = static_cast<char>(menu_choose(&m, 0));
+  int j = ch - 'a';
   if (j < 0 || j >= Nintern_set) {
     err_msg("Not a valid set");
     return;
@@ -479,7 +479,7 @@ void commander(int ch)
     break;
 
   case NUM_MENU:
-    get_num_par((char)ch);
+    get_num_par(static_cast<char>(ch));
     break;
 
   case FILE_MENU:

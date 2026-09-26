@@ -11,6 +11,7 @@
 #include "browse.h"
 #include "graf_par.h"
 #include "marks_data.h"
+#include "xpp_io.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -316,7 +317,7 @@ void add_pntarr(int type)
    object nearest to a click */
 void edit_object_com(int com)
 {
-    char ans, s[80];
+    char ans;
     int i, j, ilab = -1, flag, type;
     float x, y;
     float dist = 1e20f, dd;
@@ -351,8 +352,7 @@ void edit_object_com(int com)
     if (ilab >= 0 && type == 0) {
         switch (com) {
         case 0:
-            std::snprintf(s, sizeof s, "Move %s ?", lb[ilab].s);
-            ans = static_cast<char>(TwoChoice("Yes", "No", s, "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Move {} ?", lb[ilab].s).c_str(), "yn"));
             if (ans == 'y') {
                 MessageBox("Click on new position");
                 flag = GetMouseXY(&i, &j);
@@ -368,8 +368,7 @@ void edit_object_com(int com)
             }
             break;
         case 1:
-            std::snprintf(s, sizeof s, "Change %s ?", lb[ilab].s);
-            ans = static_cast<char>(TwoChoice("Yes", "No", s, "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Change {} ?", lb[ilab].s).c_str(), "yn"));
             if (ans == 'y') {
                 new_string("Text: ", lb[ilab].s);
                 new_int("Size 0-4 :", &lb[ilab].size);
@@ -380,8 +379,7 @@ void edit_object_com(int com)
             }
             break;
         case 2:
-            std::snprintf(s, sizeof s, "Delete %s ?", lb[ilab].s);
-            ans = static_cast<char>(TwoChoice("Yes", "No", s, "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Delete {} ?", lb[ilab].s).c_str(), "yn"));
             if (ans == 'y') {
                 lb[ilab].w = 0;
                 lb[ilab].use = 0;
@@ -394,8 +392,7 @@ void edit_object_com(int com)
     if (ilab >= 0 && type == 1) {
         switch (com) {
         case 0:
-            std::snprintf(s, sizeof s, "Move graphic at (%f,%f)", grob[ilab].xs, grob[ilab].ys);
-            ans = static_cast<char>(TwoChoice("Yes", "No", s, "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Move graphic at ({:f},{:f})", static_cast<double>(grob[ilab].xs), static_cast<double>(grob[ilab].ys)).c_str(), "yn"));
             if (ans == 'y') {
                 MessageBox("Reposition");
                 flag = GetMouseXY(&i, &j);
@@ -413,8 +410,7 @@ void edit_object_com(int com)
             }
             break;
         case 1:
-            std::snprintf(s, sizeof s, "Change graphic at (%f,%f)", grob[ilab].xs, grob[ilab].ys);
-            ans = static_cast<char>(TwoChoice("Yes", "No", s, "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Change graphic at ({:f},{:f})", static_cast<double>(grob[ilab].xs), static_cast<double>(grob[ilab].ys)).c_str(), "yn"));
             if (ans == 'y') {
                 if (grob[ilab].type >= MARKER) select_marker_type(&grob[ilab].type);
                 new_float("Size ", &grob[ilab].size);
@@ -424,8 +420,7 @@ void edit_object_com(int com)
             }
             break;
         case 2:
-            std::snprintf(s, sizeof s, "Delete graphic at (%f,%f)", grob[ilab].xs, grob[ilab].ys);
-            ans = static_cast<char>(TwoChoice("Yes", "No", s, "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Delete graphic at ({:f},{:f})", static_cast<double>(grob[ilab].xs), static_cast<double>(grob[ilab].ys)).c_str(), "yn"));
             if (ans == 'y') {
                 grob[ilab].w = 0;
                 grob[ilab].use = 0;

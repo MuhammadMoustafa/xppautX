@@ -40,13 +40,11 @@ core/browse_data.cpp casts 21
 core/browse_data.cpp files 7
 core/browse_data.cpp memory 8
 core/browse_data.cpp text 22
-core/colormap.cpp casts 29
+core/colormap.cpp casts 2
 core/comline.cpp buffers 1
 core/comline.cpp files 2
-core/commands.cpp buffers 4
-core/commands.cpp casts 6
-core/commands.cpp memory 2
-core/commands.cpp text 3
+core/commands.cpp buffers 1
+core/commands.cpp text 1
 core/csv_export.cpp buffers 2
 core/csv_export.cpp text 10
 core/cvband.cpp memory 2
@@ -153,7 +151,6 @@ core/tabular.cpp text 6
 core/torus.cpp buffers 1
 core/ui_json.cpp buffers 1
 core/ui_json_internal.h buffers 1
-core/userbut.cpp buffers 1
 core/userbut.cpp text 1
 core/userbut.h buffers 1
 core/vector.cpp memory 4
