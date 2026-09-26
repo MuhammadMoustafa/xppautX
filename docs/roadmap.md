@@ -88,11 +88,12 @@ issue; the card here is the one kept up to date.
 | W33f | #70 | Sweep, the UI core and plot data (W29f's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | blocked |
 | W33g | #71 | Sweep, the protocol, platform and base modules (W29g's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | blocked |
 | W34 | #72 | Evaluate SUNDIALS CVODE in place of the vendored CVODE (later; changes every CVODE result) | W33a | later |
-| W35a | #73 | QA 2026-09-26 SCI-001: one JSON number writer in json_io (not finite: null) for every event, the three copies merged; AUTO never writes a non-finite point's parameters into the model; servercheck parses strictly | none | running |
-| W35b | #74 | QA 2026-09-26 MI-001, WF-002: the core's text is UTF-8: one JSON string writer and reader (json_io's and xpp_files' merged) that keep UTF-8; the Windows manifest's activeCodePage UTF-8 for the narrow file APIs and argv | none | running |
-| W35c | #75 | QA 2026-09-26 INPUT-001: a model that fails to load exits non-zero in every mode | none | running |
-| W35d | #76 | QA 2026-09-26 UX-001, WF-001: a box refuses a keystroke or paste that could not become a valid text of its kind (a %formula excepted: the core judges it); Escape in a Values field drops its edit (the narrow sheet's Escape no longer takes it first); a formula the core refuses keeps its draft and message | none | running |
-| W35e | #77 | QA 2026-09-26 DESK-001: the web view's start error (code, message) in the fallback warning, the runtime hint only when the runtime is missing | none | running |
+| W35a | #73 | QA 2026-09-26 SCI-001: one JSON number writer in json_io (not finite: null) for every event, the three copies merged; AUTO never writes a non-finite point's parameters into the model; servercheck parses strictly | none | done |
+| W35b | #74 | QA 2026-09-26 MI-001, WF-002: the core's text is UTF-8: one JSON string writer and reader (json_io's and xpp_files' merged) that keep UTF-8; the Windows manifest's activeCodePage UTF-8 for the narrow file APIs and argv | none | done |
+| W35c | #75 | QA 2026-09-26 INPUT-001: a model that fails to load exits non-zero in every mode | none | done |
+| W35d | #76 | QA 2026-09-26 UX-001, WF-001: a box refuses a keystroke or paste that could not become a valid text of its kind (a %formula excepted: the core judges it); Escape in a Values field drops its edit (the narrow sheet's Escape no longer takes it first); a formula the core refuses keeps its draft and message | none | done |
+| W35e | #77 | QA 2026-09-26 DESK-001: the web view's start error (code, message) in the fallback warning, the runtime hint only when the runtime is missing | none | done |
+| W35f | #78 | The example models that do not load by themselves ("noload" since W35c): clustor.ode (a `\` continued array line cut before its `[j]`) and candelator.ode (M1' does not compile) look like parser bugs; the other seven, model or parser, each decided | none | ready |
 
 ## W0: C/C++ mixed build
 **Goal.** core/*.cpp builds next to core/*.c on Linux, Windows (MinGW,
