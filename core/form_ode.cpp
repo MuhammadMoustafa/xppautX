@@ -2459,15 +2459,6 @@ int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag)
   return 1;
 }
 
-/* search_array for a caller's fixed buffer: newname holds 256 bytes (the
-   smallest callers', integrate.cpp's) */
-int search_array(char *old, char *newname, int *i1, int *i2, int *flag)
-{
-  std::string s;
-  int r=search_array(old,s,i1,i2,flag);
-  xpp_strlcpy(newname,s.c_str(),256);
-  return r;
-}
 
 int check_if_ic(const char *big)
 {
@@ -2606,14 +2597,6 @@ void subsk(const char *big, std::string &newstr, int k, int flag)
   }
 }
 
-/* subsk for a caller's fixed buffer: newstr holds 256 bytes (the
-   smallest callers', integrate.cpp's) */
-void subsk(const char *big, char *newstr, int k, int flag)
-{
-  std::string s;
-  subsk(big,s,k,flag);
-  xpp_strlcpy(newstr,s.c_str(),256);
-}
 
 
 /* A " line: its text, or with {name=value,...} an action ("$ name=value

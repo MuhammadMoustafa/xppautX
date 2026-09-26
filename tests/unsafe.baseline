@@ -64,7 +64,7 @@ core/flags.cpp buffers 1
 core/form_ode.cpp buffers 20
 core/form_ode.cpp files 13
 core/form_ode.cpp memory 24
-core/form_ode.cpp text 12
+core/form_ode.cpp text 10
 core/form_ode.h buffers 3
 core/gogoauto.cpp buffers 1
 core/gogoauto.cpp files 10
@@ -97,7 +97,7 @@ core/lunch-new.cpp buffers 2
 core/lunch-new.cpp files 3
 core/lunch-new.cpp text 1
 core/macsysdirent.h buffers 2
-core/markov.cpp memory 5
+core/markov.cpp memory 4
 core/marks_data.cpp buffers 3
 core/marks_data.cpp memory 1
 core/menus.cpp buffers 3

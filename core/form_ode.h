@@ -52,11 +52,9 @@ int extract_args(const char *s1, int i0, int *ie, int *narg, char args[MAXARG][N
 int find_char(const char *s1, const char *s2, int i0, int *i1);
 int next_nonspace(const char *s1, int i0, int *i1);
 void remove_blanks(char *s1);
-int search_array(char *old, char *newname, int *i1, int *i2, int *flag);
 int check_if_ic(const char *big);
 int not_ker(const char *s, int i);
 int is_comment(const char *s);
-void subsk(const char *big, char *newstr, int k, int flag);
 void add_comment(const char *s);
 
 /* for parsing par, init with whitespace correctly */

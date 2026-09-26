@@ -375,7 +375,8 @@ int ani_new_file(const char *filename)
 
 int load_ani_file(FILE *fp)
 {
-    char old[300], expanded[300], big[300];
+    char old[300];
+    std::string expanded, big;
     int notdone = 1, jj1, jj2, jj;
     int ans = 0, flag;
     ani_line = 1;
@@ -383,8 +384,8 @@ int load_ani_file(FILE *fp)
         read_ani_line(fp, old);
         search_array(old, expanded, &jj1, &jj2, &flag);
         for (jj = jj1; jj <= jj2; jj++) {
-            subsk(expanded, big, jj, flag);
-            ans = parse_ani_string(big, fp);
+            subsk(expanded.c_str(), big, jj, flag);
+            ans = parse_ani_string(big.data(), fp);
         }
 
         if (ans == 0 || feof(fp)) break;

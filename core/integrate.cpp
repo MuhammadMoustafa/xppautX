@@ -1547,14 +1547,14 @@ void evaluate_ar_ic(const char *v, const char *f, int j1, int j2)
   int j;
   int i,flag;
   double z;
-  std::array<char, 256> vp{}, fp{};
+  std::string vp, fp;
   for(j=j1;j<=j2;j++){
     i=-1;
-    subsk(v,vp.data(),j,1);
-    find_variable(vp.data(),&i);
+    subsk(v,vp,j,1);
+    find_variable(vp.c_str(),&i);
     if(i>0){
-      subsk(f,fp.data(),j,1);
-      flag=do_calc(fp.data(),&z);
+      subsk(f,fp,j,1);
+      flag=do_calc(fp.c_str(),&z);
       if(flag!=-1)
 	last_ic[i-1]=z;
       else 
@@ -1569,7 +1569,7 @@ int extract_ic_data(char *big)
   int i,n,j;
   int j1,j2,flag2;
   /* a whole line of the file fits in each (MAXEXPLEN, form_ode.c) */
-  std::array<char, 1024> front{}, newic{}, back{};
+  std::array<char, 1024> front{}, back{};
   char c;
   de_space(big);
   i=0;
@@ -1596,9 +1596,10 @@ int extract_ic_data(char *big)
   /* now fix it up */
   big[0]='#';
   big[1]=' ';
-  search_array(front.data(),newic.data(),&j1,&j2,&flag2);
+  std::string newic;
+  search_array(front.data(),newic,&j1,&j2,&flag2);
   if(flag2==1){
-    store_new_array_ic(newic.data(),j1,j2,back.data());
+    store_new_array_ic(newic.c_str(),j1,j2,back.data());
     ar_ic_defined=1;
   }
   return(1);
@@ -1621,7 +1622,7 @@ void arr_ic_start()
 int set_array_ic()
 {
  std::array<char, 256> junk{}; /* new_string edits up to 255 characters */
- std::array<char, 256> newic{};
+ std::string newic;
  int i,index0,myar=-1;
  int i1,in;
  int j1,j2,flag2;
@@ -1629,10 +1630,10 @@ int set_array_ic()
  int flag;
  junk[0]=0;
  if(new_string("Variable: ",junk.data())==0)return 0;
- search_array(junk.data(),newic.data(),&j1,&j2,&flag2);
+ search_array(junk.data(),newic,&j1,&j2,&flag2);
  if(flag2==1)
    {
-     do_new_array_ic(newic.data(),j1,j2);
+     do_new_array_ic(newic.c_str(),j1,j2);
    }
  else {
    find_variable(junk.data(),&i);
