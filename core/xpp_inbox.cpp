@@ -9,20 +9,27 @@
    enqueue happen as one step, so sequence order is queue order) and is
    never taken by the core; lock guards the queues and is held only briefly.
    Waiting is on a condition variable, never a polling loop. This file
-   includes no core header but xpp_mem.h.
+   includes no core header but the small C APIs of xpp_mem.h, xpp_log.h
+   and xpp_io.h.
 
    C++ with a C API (xpp_inbox.h is extern "C"). The lines handed out are
-   xpp_malloc'd C strings the caller frees with xpp_free; nothing here
-   throws into C (xpp_mem.h: an allocation that fails ends the program). */
+   xpp_malloc'd C strings the caller frees with xpp_free (a raw block: its
+   ownership passes to C callers); nothing here throws into C (an
+   allocation that fails ends the program, as xpp_mem.h's do). */
 #include "xpp_inbox.h"
+#include "xpp_io.h"
+#include "xpp_log.h"
 #include "xpp_mem.h"
 
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <array>
 #include <cstring>
+#include <deque>
 #include <new>
 #include <string>
+#include <vector>
 
 #include <pthread.h>
 #include <sys/time.h>
@@ -36,19 +43,16 @@
 namespace {
 
 struct Item {
-    Item *next;
     unsigned long seq;
-    char *line;
-};
-
-struct Queue {
-    Item *head, *tail;
+    char *line; /* xpp_malloc'd: handed to the caller as it is */
 };
 
 pthread_mutex_t push_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t ready = PTHREAD_COND_INITIALIZER;
-Queue queues[2]; /* [XPP_INBOX_NORMAL], [XPP_INBOX_CONTROL] */
+/* [XPP_INBOX_NORMAL], [XPP_INBOX_CONTROL]. Never destroyed: a reader
+   thread may still push while exit() destroys statics. */
+std::array<std::deque<Item>, 2> &queues = *new std::array<std::deque<Item>, 2>;
 int closed;
 unsigned long next_seq = 1;
 int (*classify)(const char *line, unsigned long seq);
@@ -57,13 +61,21 @@ int (*classify)(const char *line, unsigned long seq);
 int pick(int which)
 {
     if (which == XPP_INBOX_ARRIVAL) {
-        Item *n = queues[XPP_INBOX_NORMAL].head, *c = queues[XPP_INBOX_CONTROL].head;
-        if (!n || !c) return c ? XPP_INBOX_CONTROL : n ? XPP_INBOX_NORMAL : -1;
-        return c->seq < n->seq ? XPP_INBOX_CONTROL : XPP_INBOX_NORMAL;
+        const std::deque<Item> &n = queues[XPP_INBOX_NORMAL], &c = queues[XPP_INBOX_CONTROL];
+        if (n.empty() || c.empty()) return !c.empty() ? XPP_INBOX_CONTROL : !n.empty() ? XPP_INBOX_NORMAL : -1;
+        return c.front().seq < n.front().seq ? XPP_INBOX_CONTROL : XPP_INBOX_NORMAL;
     }
-    if (which != XPP_INBOX_NORMAL && queues[XPP_INBOX_CONTROL].head) return XPP_INBOX_CONTROL;
-    if (which != XPP_INBOX_CONTROL && queues[XPP_INBOX_NORMAL].head) return XPP_INBOX_NORMAL;
+    if (which != XPP_INBOX_NORMAL && !queues[XPP_INBOX_CONTROL].empty()) return XPP_INBOX_CONTROL;
+    if (which != XPP_INBOX_CONTROL && !queues[XPP_INBOX_NORMAL].empty()) return XPP_INBOX_NORMAL;
     return -1;
+}
+
+/* No exception may reach the C callers or leave a thread: a failed
+   allocation ends the program, as xpp_mem's do. */
+[[noreturn]] void out_of_memory(const char *what)
+{
+    xpp_log(XPP_LOG_ERROR, "xppautX: out of memory %s\n", what);
+    std::abort();
 }
 
 } // namespace
@@ -77,19 +89,19 @@ void xpp_inbox_set_classifier(int (*cls)(const char *line, unsigned long seq))
 
 void xpp_inbox_push(const char *line, size_t n)
 {
-    Item *it = static_cast<Item *>(xpp_malloc(sizeof *it));
+    Item it{0, static_cast<char *>(xpp_malloc(n + 1))};
     int q = XPP_INBOX_NORMAL;
-    it->next = nullptr;
-    it->line = static_cast<char *>(xpp_malloc(n + 1));
-    std::memcpy(it->line, line, n);
-    it->line[n] = 0;
+    std::memcpy(it.line, line, n);
+    it.line[n] = 0;
     pthread_mutex_lock(&push_lock);
-    it->seq = next_seq++;
-    if (classify && classify(it->line, it->seq) == XPP_INBOX_CONTROL) q = XPP_INBOX_CONTROL;
+    it.seq = next_seq++;
+    if (classify && classify(it.line, it.seq) == XPP_INBOX_CONTROL) q = XPP_INBOX_CONTROL;
     pthread_mutex_lock(&lock);
-    if (queues[q].tail) queues[q].tail->next = it;
-    else queues[q].head = it;
-    queues[q].tail = it;
+    try {
+        queues[q].push_back(it);
+    } catch (...) {
+        out_of_memory("queueing a line");
+    }
     /* broadcast: the core may wait on one queue while a line lands in the other */
     pthread_cond_broadcast(&ready);
     pthread_mutex_unlock(&lock);
@@ -125,13 +137,12 @@ int xpp_inbox_next(int which, int wait_ms, char **line, unsigned long *seq)
     }
     if (q < 0) q = pick(which); /* a line may have come with the timeout */
     if (q >= 0) {
-        Item *it = queues[q].head;
-        if (!(queues[q].head = it->next)) queues[q].tail = nullptr;
-        *line = it->line;
-        if (seq) *seq = it->seq;
-        xpp_free(it);
+        const Item &it = queues[q].front();
+        *line = it.line;
+        if (seq) *seq = it.seq;
+        queues[q].pop_front();
         r = 1;
-    } else if (closed && !queues[0].head && !queues[1].head) {
+    } else if (closed && queues[0].empty() && queues[1].empty()) {
         r = -1;
     }
     pthread_mutex_unlock(&lock);
@@ -151,42 +162,39 @@ constexpr size_t CHUNK = 65536;
 long read_stdin(char *buf, size_t n)
 {
 #ifdef _WIN32
-    return xpp_read_stdin(buf, (int)n);
+    return xpp_read_stdin(buf, static_cast<int>(n));
 #else
     for (;;) {
         ssize_t r = read(0, buf, n);
         if (r < 0 && errno == EINTR) continue;
-        return (long)r;
+        return static_cast<long>(r);
     }
 #endif
 }
 
-void *stdin_main(void *)
+void read_stdin_lines()
 {
-    char *buf = nullptr;
-    size_t len = 0, cap = 0, scanned = 0;
+    std::vector<char> buf;
+    size_t len = 0, scanned = 0;
     bool skipping = false; /* inside an overlong line, until its newline */
     for (;;) {
-        if (cap - len < CHUNK) {
-            cap = cap * 2 + CHUNK;
-            buf = static_cast<char *>(xpp_realloc(buf, cap));
-        }
-        long r = read_stdin(buf + len, cap - len);
+        if (buf.size() - len < CHUNK) buf.resize(buf.size() * 2 + CHUNK);
+        long r = read_stdin(buf.data() + len, buf.size() - len);
         if (r <= 0) break;
-        len += (size_t)r;
+        len += static_cast<size_t>(r);
         /* push every complete line; search only the bytes not searched yet */
-        char *start = buf, *nl;
-        while ((nl = static_cast<char *>(std::memchr(buf + scanned, '\n', len - scanned))) != nullptr) {
-            size_t n = (size_t)(nl - start);
+        char *base = buf.data(), *start = base, *nl;
+        while ((nl = static_cast<char *>(std::memchr(base + scanned, '\n', len - scanned))) != nullptr) {
+            size_t n = static_cast<size_t>(nl - start);
             if (n > 0 && start[n - 1] == '\r') n--;
             if (!skipping) xpp_inbox_push(start, n);
             skipping = false;
             start = nl + 1;
-            scanned = (size_t)(start - buf);
+            scanned = static_cast<size_t>(start - base);
         }
-        if (start != buf) {
-            len -= (size_t)(start - buf);
-            std::memmove(buf, start, len);
+        if (start != base) {
+            len -= static_cast<size_t>(start - base);
+            std::memmove(base, start, len);
         }
         scanned = len;
         if (len > MAX_LINE) {
@@ -194,7 +202,15 @@ void *stdin_main(void *)
             len = scanned = 0;
         }
     }
-    xpp_free(buf);
+}
+
+void *stdin_main(void *)
+{
+    try {
+        read_stdin_lines();
+    } catch (...) {
+        out_of_memory("reading stdin");
+    }
     xpp_inbox_close();
     return nullptr;
 }
@@ -217,7 +233,7 @@ int xpp_inbox_start_stdin(void)
 
 namespace {
 
-FILE *script_fp;
+xpp::UniqueFile script_fp;
 int script_line; /* of the line last pushed, for error messages */
 
 struct Ahead {
@@ -237,19 +253,17 @@ void read_ahead()
         std::string s;
         int c;
         file_line++;
-        while ((c = std::fgetc(script_fp)) != EOF && c != '\n')
-            if (c != '\r') s += (char)c; /* CRLF script files */
+        while ((c = std::fgetc(script_fp.get())) != EOF && c != '\n')
+            if (c != '\r') s += static_cast<char>(c); /* CRLF script files */
         if (c == EOF && s.empty()) { /* nothing left to skip past */
-            std::fclose(script_fp);
-            script_fp = nullptr;
+            script_fp.reset();
             ahead.eof = true;
             return;
         }
         size_t p = s.find_first_not_of(" \t");
         if (p == std::string::npos || s[p] == '#') { /* blank or a comment line */
             if (c == EOF) {
-                std::fclose(script_fp);
-                script_fp = nullptr;
+                script_fp.reset();
                 ahead.eof = true;
                 return;
             }
@@ -270,7 +284,7 @@ int xpp_inbox_script_line(void) { return script_line; }
 
 int xpp_inbox_start_file(const char *path)
 {
-    script_fp = std::fopen(path, "rb");
+    script_fp.reset(std::fopen(path, "rb"));
     return script_fp != nullptr;
 }
 
@@ -280,8 +294,7 @@ void xpp_inbox_script_advance(void)
     try {
         read_ahead();
     } catch (const std::bad_alloc &) {
-        std::fputs("xppautX: out of memory reading the script\n", stderr);
-        std::abort();
+        out_of_memory("reading the script");
     }
     if (ahead.valid) {
         ahead.valid = false;
@@ -301,8 +314,7 @@ const char *xpp_inbox_script_peek(int *line_no)
     try {
         read_ahead();
     } catch (const std::bad_alloc &) {
-        std::fputs("xppautX: out of memory reading the script\n", stderr);
-        std::abort();
+        out_of_memory("reading the script");
     }
     if (!ahead.valid) return nullptr;
     if (line_no) *line_no = ahead.line;

@@ -6,6 +6,7 @@
 #include "xpp_mem.h"
 #include "xpp_log.h"
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <cstdio>
@@ -34,12 +35,11 @@ std::atomic<long long> n_live{0};
 
 constexpr auto relaxed = std::memory_order_relaxed;
 
-long long usable(void *p)
+long long usable([[maybe_unused]] void *p)
 {
 #ifdef USABLE_SIZE
     return p != nullptr ? static_cast<long long>(USABLE_SIZE(p)) : 0;
 #else
-    (void)p;
     return 0;
 #endif
 }
@@ -103,19 +103,21 @@ bool injected_failure(size_t n)
     return seq == fail_at();
 }
 
-/* Messages are formatted here and logged with "%s": xpp_log.c is C, and
-   MinGW's C printf may not know %zu or %llu, where C++'s snprintf does. */
+/* The message is formatted here, into a buffer on the stack: out of
+   memory, a std::string (xpp::log) could fail to allocate in turn. It is
+   logged with "%s": MinGW's C printf may not know %zu, where C++'s
+   snprintf does. */
 [[noreturn]] void die(const char *what, size_t n, size_t size, const char *file, int line)
 {
-    char msg[256];
+    std::array<char, 256> msg;
     const char *why = fail_at() != 0 ? " (XPP_MEM_FAIL_AT)" : "";
     if (size != 0)
-        std::snprintf(msg, sizeof msg, "out of memory: %s(%zu x %zu bytes) at %s:%d%s\n", what, n,
+        std::snprintf(msg.data(), msg.size(), "out of memory: %s(%zu x %zu bytes) at %s:%d%s\n", what, n,
                       size, file, line, why);
     else
-        std::snprintf(msg, sizeof msg, "out of memory: %s(%zu bytes) at %s:%d%s\n", what, n, file,
+        std::snprintf(msg.data(), msg.size(), "out of memory: %s(%zu bytes) at %s:%d%s\n", what, n, file,
                       line, why);
-    xpp_log(XPP_LOG_ERROR, "%s", msg);
+    xpp_log(XPP_LOG_ERROR, "%s", msg.data());
     std::exit(1);
 }
 
@@ -131,12 +133,10 @@ struct ExitReport {
     ~ExitReport()
     {
         XppMemStats s = xpp_mem_stats();
-        char msg[256];
-        std::snprintf(msg, sizeof msg,
-                      "memory: %llu allocations, %llu reallocations, %llu frees, "
-                      "%llu bytes requested, %lld bytes still held\n",
-                      s.allocs, s.reallocs, s.frees, s.bytes, s.live_bytes);
-        xpp_log(XPP_LOG_DEBUG, "%s", msg);
+        xpp::log(XPP_LOG_DEBUG,
+                 "memory: {} allocations, {} reallocations, {} frees, "
+                 "{} bytes requested, {} bytes still held\n",
+                 s.allocs, s.reallocs, s.frees, s.bytes, s.live_bytes);
     }
 };
 ExitReport exit_report;

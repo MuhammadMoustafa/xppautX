@@ -21,6 +21,7 @@
 #include <mutex>
 #include <new>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <dirent.h>
@@ -231,7 +232,7 @@ bool json_string(const char *v, std::string &out)
 
 /* ---- base64 ----------------------------------------------------------------------- */
 
-const char B64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+constexpr std::string_view B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 int b64_value(int c)
 {

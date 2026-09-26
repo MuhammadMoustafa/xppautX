@@ -27,6 +27,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <string_view>
 
 #include <dlfcn.h>
 #include <sys/mman.h>
@@ -48,7 +49,7 @@ XppWindowApi api; /* the library's, once it is loaded */
 bool loaded;
 
 /* what dlerror says for a library that is not installed */
-const char SIMULATED_MISSING[] = "libwebkit2gtk-4.1.so.0: cannot open shared object file: No such file or directory";
+constexpr std::string_view SIMULATED_MISSING = "libwebkit2gtk-4.1.so.0: cannot open shared object file: No such file or directory";
 
 bool write_all(int fd, const unsigned char *p, size_t n)
 {
@@ -91,7 +92,7 @@ void *open_library(std::string &err, bool from_memory)
     if (!write_all(fd, xpp_window_lib, xpp_window_lib_len))
         err = "cannot write the window's library: " + std::string(std::strerror(errno));
     else if (fail && *fail && std::strcmp(fail, "0") != 0)
-        err = path + ": " + SIMULATED_MISSING;
+        err = path + ": " + std::string(SIMULATED_MISSING);
     else if (!(lib = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL))) {
         const char *e = dlerror();
         err = e ? e : "dlopen failed";
@@ -148,9 +149,7 @@ int xpp_window_run(void (*session)(void), const char *about)
         std::string err;
         loaded = load(err);
         if (!loaded) {
-            char msg[1024];
-            xpp_window_load_message(msg, sizeof msg, os_release().c_str(), err.c_str());
-            xpp_log(XPP_LOG_WARN, "%s", msg);
+            xpp::log(XPP_LOG_WARN, "{}", xpp::window_load_message(os_release(), err));
             return 0;
         }
     } catch (const std::exception &e) {

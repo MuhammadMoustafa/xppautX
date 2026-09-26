@@ -78,6 +78,11 @@ std::string message(std::string_view os_release, std::string_view err)
 
 } /* namespace */
 
+std::string xpp::window_load_message(std::string_view os_release, std::string_view dl_error)
+{
+    return message(os_release, dl_error);
+}
+
 void xpp_window_load_message(char *out, size_t size, const char *os_release, const char *dl_error)
 {
     if (!out || size == 0) return;

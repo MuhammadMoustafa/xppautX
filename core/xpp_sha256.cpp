@@ -1,8 +1,10 @@
 /* SHA-256 (FIPS 180-4), see xpp_sha256.h. */
 #include "xpp_sha256.h"
 
+#include <array>
 #include <cstdint>
 #include <cstring>
+#include <string_view>
 
 namespace {
 
@@ -84,13 +86,13 @@ void xpp_sha256_update(XppSha256 *c, const void *data, size_t n)
 
 void xpp_sha256_hex(XppSha256 *c, char out[65])
 {
-    static const char hex[] = "0123456789abcdef";
+    static constexpr std::string_view hex = "0123456789abcdef";
     const unsigned long long bits = c->bytes * 8;
-    unsigned char pad[72] = {0x80};
+    std::array<unsigned char, 72> pad{0x80};
     size_t npad = (c->fill < 56 ? 56 : 120) - c->fill;
     for (int i = 0; i < 8; i++) pad[npad + i] = static_cast<unsigned char>(bits >> (56 - 8 * i));
     const unsigned long long keep = c->bytes;
-    xpp_sha256_update(c, pad, npad + 8);
+    xpp_sha256_update(c, pad.data(), npad + 8);
     c->bytes = keep;
     for (int i = 0; i < 32; i++) {
         unsigned char b = static_cast<unsigned char>(c->h[i / 4] >> (24 - 8 * (i % 4)));

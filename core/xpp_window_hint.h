@@ -20,5 +20,13 @@ void xpp_window_load_message(char *out, size_t size, const char *os_release, con
 
 #ifdef __cplusplus
 }
+
+#include <string>
+#include <string_view>
+namespace xpp {
+/* xpp_window_load_message's line, whole, for C++ callers (it may throw
+   std::bad_alloc) */
+std::string window_load_message(std::string_view os_release, std::string_view dl_error);
+} // namespace xpp
 #endif
 #endif
