@@ -1,6 +1,9 @@
 #include "graf_par.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
+#include <string>
+#include <vector>
 #include "arrayplot.h"
 #include "xpp_globals.h"
 #include "marks_data.h"
@@ -567,8 +570,8 @@ void get_3d_par_com()
 	      plot_windows.current->Theta=atof(values[3]);
 	      plot_windows.current->Phi=atof(values[4]);
              if(values[5][0]=='y'|| values[5][0]=='Y'){  
-	      snprintf(mov3d.yes,sizeof(mov3d.yes),"%.*s",(int)sizeof(mov3d.yes)-1,values[5]);
-	      snprintf(mov3d.angle,sizeof(mov3d.angle),"%.*s",(int)sizeof(mov3d.angle)-1,values[6]);
+	      snprintf(mov3d.yes,sizeof(mov3d.yes),"%.*s",static_cast<int>(sizeof(mov3d.yes))-1,values[5]);
+	      snprintf(mov3d.angle,sizeof(mov3d.angle),"%.*s",static_cast<int>(sizeof(mov3d.angle))-1,values[6]);
               start=atof(values[7]);
 	      increment=atof(values[8]);
 	      nclip=atoi(values[9]);
@@ -895,10 +898,10 @@ void create_svg()
 ps_test()
 {
  double xlo=MyGraph->xlo,xhi=MyGraph->xhi,ylo=MyGraph->ylo,yhi=MyGraph->yhi;
- text_abs((float)xlo,(float)ylo,"lolo");
- text_abs((float)xlo,(float)yhi,"lohi");
- text_abs((float)xhi,(float)ylo,"hilo");
- text_abs((float)xhi,(float)yhi,"hihi");
+ text_abs(static_cast<float>(xlo),static_cast<float>(ylo),"lolo");
+ text_abs(static_cast<float>(xlo),static_cast<float>(yhi),"lohi");
+ text_abs(static_cast<float>(xhi),static_cast<float>(ylo),"hilo");
+ text_abs(static_cast<float>(xhi),static_cast<float>(yhi),"hihi");
  ps_end();
 }
  
@@ -960,7 +963,7 @@ void draw_freeze_key()
   int dy=2*HChar;
   if(FreezeKeyFlag==SCRNFMT)return;
   if(PltFmtFlag==PSFMT)dy=-dy;
-  scale_to_screen((float)FreezeKeyX,(float)FreezeKeyY,&ix,&iy);
+  scale_to_screen(static_cast<float>(FreezeKeyX),static_cast<float>(FreezeKeyY),&ix,&iy);
   ix2=ix+4*HChar;
   y0=iy;
   for(i=0;i<MAXFRZ;i++){
@@ -1059,10 +1062,10 @@ int create_crv(int ind)
 	err_msg("No Curve to freeze");
 	return(-1);
       }
-      frozen_curves.curve[i].xv=(float *) xpp_malloc(sizeof(float)*my_browser.maxrow);
-      frozen_curves.curve[i].yv=(float *) xpp_malloc(sizeof(float)*my_browser.maxrow);
+      frozen_curves.curve[i].xv=static_cast<float *>(xpp_malloc(sizeof(float)*my_browser.maxrow));
+      frozen_curves.curve[i].yv=static_cast<float *>(xpp_malloc(sizeof(float)*my_browser.maxrow));
       if((type=plot_windows.current->grtype)>0)
-	frozen_curves.curve[i].zv=(float *)xpp_malloc(sizeof(float)*my_browser.maxrow);
+	frozen_curves.curve[i].zv=static_cast<float *>(xpp_malloc(sizeof(float)*my_browser.maxrow));
       if ((type>0&&frozen_curves.curve[i].zv==NULL)|| (type==0&&frozen_curves.curve[i].yv==NULL)){
 	err_msg("Cant allocate storage for curve");
 	return(-1);
@@ -1209,8 +1212,8 @@ void add_bd_crv(float *x, float *y, int len, int type, int ncrv)
 {
   int i;
   if(ncrv>=MAXBIFCRV)return;
-  my_bd.x[ncrv]=(float *)xpp_malloc(sizeof(float)*len);
-  my_bd.y[ncrv]=(float *)xpp_malloc(sizeof(float)*len);
+  my_bd.x[ncrv]=static_cast<float *>(xpp_malloc(sizeof(float)*len));
+  my_bd.y[ncrv]=static_cast<float *>(xpp_malloc(sizeof(float)*len));
   for(i=0;i<len;i++){
     my_bd.x[ncrv][i]=x[i];
     my_bd.y[ncrv][i]=y[i];
@@ -1288,30 +1291,23 @@ void read_bd(FILE *fp)
 
 int get_frz_index(XppWinId w)
 {
-  char *n[MAXFRZ];
-  char key[MAXFRZ],ch;
-  XppMenu m={"freeze_curves","Curves",0,NULL,NULL,NULL,-1,12,8};
-  
+  std::vector<std::string> labels;
+  std::vector<const char *> items;
+  std::string key;
   int i;
   int count=0;
   for(i=0;i<MAXFRZ;i++){
     if(frozen_curves.curve[i].use==1&&w==frozen_curves.curve[i].w){
-	n[count]=(char *)xpp_malloc(20);
-      /* n[count] is a pointer, allocated 20 bytes just above. */
-      xpp_snprintf(n[count],20,"%s",frozen_curves.curve[i].name);
-      key[count]='a'+i;
-      
+      labels.push_back(xpp::format("{}", frozen_curves.curve[i].name));
+      key.push_back(static_cast<char>('a'+i));
       count++;
     }
-    
   }
   if(count==0)return(-1);
-  key[count]=0;
-   m.n=count; m.items=n; m.keys=key; m.hints=no_hint;
-   ch=(char)menu_choose(&m,0);
-   for(i=0;i<count;i++)xpp_free(n[i]);
-  return((int)(ch-'a'));
-       
+  for(const auto &s : labels) items.push_back(s.c_str());
+  XppMenu m={"freeze_curves","Curves",count,items.data(),key.c_str(),no_hint,-1,12,8};
+  char ch=static_cast<char>(menu_choose(&m,0));
+  return(static_cast<int>(ch-'a'));
 }
       
 
