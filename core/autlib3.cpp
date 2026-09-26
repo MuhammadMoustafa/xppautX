@@ -3,6 +3,7 @@
 	-lf2c -lm   (in that order)
 */
 
+#include <vector>
 #include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h"
 #include "xpp_mem.h"
@@ -155,16 +156,14 @@ stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   doublereal uold = 0.; /* funi/fnds take it, unread */
   integer nfpr1;
-  doublereal *f;
   integer i;
-  doublereal *v;
   logical found;
 
 
   integer ndm, ips, irs;
 
-  f = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  v = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  std::vector<doublereal> f(iap->ndim);
+  std::vector<doublereal> v(iap->ndim);
   /* Generates starting data for the continuation of folds. */
 
   /* Local */
@@ -181,21 +180,19 @@ stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   readlb(iap, rap, u, par);
 
   if (ips == -1) {
-    fnds(iap, rap, ndm, u, &uold, icp, par, 1, f, 
+    fnds(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
 	 global_scratch.dfu, global_scratch.dfp);
   } else {
-    funi(iap, rap, ndm, u, &uold, icp, par, 1, f, 
+    funi(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
 	 global_scratch.dfu, global_scratch.dfp);
   }
-  nlvc(ndm, ndm, 1, global_scratch.dfu, v);
-  nrmlz(&ndm, v);
+  nlvc(ndm, ndm, 1, global_scratch.dfu, v.data());
+  nrmlz(&ndm, v.data());
   for (i = 0; i < ndm; ++i) {
     u[ndm + i] = v[i];
   }
   u[-1 + ndim] = par[icp[1]];
 
-  xpp_free(f);
-  xpp_free(v);
   return 0;
 } /* stpnlp_ */
 
@@ -216,10 +213,10 @@ fnc1(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     /* Local variables */
 
   integer i, j;
-  doublereal ddp[NPARX], *ddu;
+  doublereal ddp[NPARX];
   integer ndm;
 
-  ddu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  std::vector<doublereal> ddu(iap->ndim);
   /* Generate the equations for the continuation scheme used for */
   /* the optimization of algebraic systems (one parameter). */
 
@@ -250,7 +247,7 @@ fnc1(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     }
   }
 
-  fopi(iap, rap, ndm, u, icp, par, ijac, &f[-1 + ndim], ddu, 
+  fopi(iap, rap, ndm, u, icp, par, ijac, &f[-1 + ndim], ddu.data(), 
        ddp);
   f[-1 + ndim] = par[icp[0]] - f[-1 + ndim];
 
@@ -263,7 +260,6 @@ fnc1(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     ARRAY2D(dfdu, (ndim - 1), (ndim - 1)) = -ddp[icp[1]];
     ARRAY2D(dfdp, (ndim - 1), (icp[0])) = 1.;
   }
-  xpp_free(ddu);
   return 0;
 } /* fnc1_ */
 
@@ -391,11 +387,11 @@ ffc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   integer icpm;
 
   integer nfpr, i, j;
-  doublereal ddp[NPARX], *ddu, fop;
+  doublereal ddp[NPARX], fop;
   integer ndm2;
 
 
-  ddu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  std::vector<doublereal> ddu(iap->ndim);
   /* Local */
 
     /* Parameter adjustments */
@@ -408,7 +404,7 @@ ffc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     par[icp[i]] = u[(ndm * 2) + i];
   }
   funi(iap, rap, ndm, u, uold, icp, par, 2, f, dfdu, dfdp);
-  fopi(iap, rap, ndm, u, icp, par, 2, &fop, ddu, ddp);
+  fopi(iap, rap, ndm, u, icp, par, 2, &fop, ddu.data(), ddp);
 
   for (i = 0; i < ndm; ++i) {
     f[ndm + i] = ddu[i] * u[(ndm * 2)];
@@ -435,7 +431,6 @@ ffc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   }
   f[-1 + ndim] = par[icp[0]] - fop;
 
-  xpp_free(ddu);
   return 0;
 } /* ffc2_ */
 
@@ -450,22 +445,19 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   doublereal uold = 0.; /* funi/fnds take it, unread */
   integer nfpr;
-  doublereal *f;
   integer i, j;
-  doublereal *v;
   logical found;
 
-  doublereal *dd;
-  doublereal dp[NPARX], *du;
+  doublereal dp[NPARX];
 
   integer ndm;
   doublereal fop;
   integer irs;
 
-  f  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  v  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  dd = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
-  du = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  std::vector<doublereal> f(iap->ndim);
+  std::vector<doublereal> v(iap->ndim);
+  std::vector<doublereal> dd((iap->ndim)*(iap->ndim));
+  std::vector<doublereal> du(iap->ndim);
   /* Generates starting data for the continuation equations for */
   /* optimization of algebraic systems (More than one parameter). */
 
@@ -482,9 +474,9 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   readlb(iap, rap, u, par);
 
   if (nfpr == 3) {
-    funi(iap, rap, ndm, u, &uold, icp, par, 2, f, 
+    funi(iap, rap, ndm, u, &uold, icp, par, 2, f.data(), 
 	 global_scratch.dfu, global_scratch.dfp);
-    fopi(iap, rap, ndm, u, icp, par, 2, &fop, du, 
+    fopi(iap, rap, ndm, u, icp, par, 2, &fop, du.data(), 
 	 dp);
     /*       TRANSPOSE */
     for (i = 0; i < ndm; ++i) {
@@ -497,10 +489,10 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
       dd[ndm + i * ndim] = global_scratch.dfp[(icp[1]) * ndm + i];
     }
     dd[ndm + ndm * ndim] = dp[icp[1]];
-    nlvc(ndm + 1, ndim, 1, dd, v);
+    nlvc(ndm + 1, ndim, 1, dd.data(), v.data());
     {
       integer tmp = ndm + 1;
-      nrmlz(&tmp, v);
+      nrmlz(&tmp, v.data());
     }
     for (i = 0; i < ndm + 1; ++i) {
       u[ndm + i] = v[i];
@@ -512,10 +504,6 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     u[ndim - nfpr + 1 + i] = par[icp[i + 1]];
   }
 
-  xpp_free(f  );
-  xpp_free(v  );
-  xpp_free(dd );
-  xpp_free(du );
   return 0;
 } /* stpnc2_ */
 
@@ -776,12 +764,10 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   integer ndim;
   doublereal thta;
 
-  doublereal uold = 0., *smat;
+  doublereal uold = 0.;
 
   integer nfpr1;
-  doublereal *f;
   integer i, j;
-  doublereal *v;
   logical found;
   doublereal c1;
 
@@ -789,9 +775,9 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   integer ndm, irs, ndm2;
 
-  f = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  v = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  smat = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim * 2)*(iap->ndim * 2));
+  std::vector<doublereal> f(iap->ndim);
+  std::vector<doublereal> v(iap->ndim);
+  std::vector<doublereal> smat((iap->ndim * 2)*(iap->ndim * 2));
   /* Generates starting data for the continuation of Hopf bifurcation */
   /* points for maps. */
 
@@ -809,7 +795,7 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   thta = pi(2.0) / par[10];
   s1 = sin(thta);
   c1 = cos(thta);
-  funi(iap, rap, ndm, u, &uold, icp, par, 1, f, 
+  funi(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
        global_scratch.dfu, global_scratch.dfp);
 
   ndm2 = ndm * 2;
@@ -837,9 +823,9 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   }
   {
     integer tmp=(ndim*2);
-    nlvc(ndm2, tmp, 2, smat, v);
+    nlvc(ndm2, tmp, 2, smat.data(), v.data());
   }
-  nrmlz(&ndm2, v);
+  nrmlz(&ndm2, v.data());
 
   for (i = 0; i < ndm2; ++i) {
     u[ndm + i] = v[i];
@@ -848,9 +834,6 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   u[-1 + ndim - 1] = thta;
   u[-1 + ndim] = par[icp[1]];
 
-  xpp_free(smat);
-  xpp_free(f);
-  xpp_free(v);
   return 0;
 } /* stpnhd_ */
 
@@ -1006,11 +989,9 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   /* Local variables */
   integer ndim;
 
-  doublereal uold = 0., *smat;
+  doublereal uold = 0.;
   integer nfpr1;
-  doublereal *f;
   integer i, j;
-  doublereal *v;
   logical found;
 
 
@@ -1018,9 +999,9 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   integer ndm, irs;
   doublereal rom;
   integer ndm2;
-  smat = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim * 2)*(iap->ndim * 2));
-  f = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  v = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  std::vector<doublereal> smat((iap->ndim * 2)*(iap->ndim * 2));
+  std::vector<doublereal> f(iap->ndim);
+  std::vector<doublereal> v(iap->ndim);
   /* Generates starting data for the 2-parameter continuation of */
   /* Hopf bifurcation point (ODE). */
 
@@ -1037,7 +1018,7 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   period = par[10];
   rom = period / pi(2.0);
-  funi(iap, rap, ndm, u, &uold, icp, par, 1, f, 
+  funi(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
        global_scratch.dfu, global_scratch.dfp);
 
   ndm2 = ndm * 2;
@@ -1063,9 +1044,9 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   }
   {
     integer tmp=(ndim*2);
-    nlvc(ndm2, tmp, 2, smat, v);
+    nlvc(ndm2, tmp, 2, smat.data(), v.data());
   }
-  nrmlz(&ndm2, v);
+  nrmlz(&ndm2, v.data());
 
   for (i = 0; i < ndm2; ++i) {
     u[ndm + i] = v[i];
@@ -1073,9 +1054,6 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   u[ndim - 2] = rom;
   u[-1 + ndim] = par[icp[1]];
-  xpp_free(smat);
-  xpp_free(f);
-  xpp_free(v);
   return 0;
 } /* stpnhb_ */
 
@@ -1230,25 +1208,23 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   /* Local variables */
   integer ijac, ndim;
 
-  doublereal uold = 0., *smat;
+  doublereal uold = 0.;
 
   integer nfpr1;
-  doublereal *f;
   integer i, j;
-  doublereal *v;
   logical found;
 
 
-  doublereal period, *dfp, *dfu;
+  doublereal period;
   integer ndm, irs;
   doublereal rom;
   integer ndm2;
 
-  smat= (doublereal *)xpp_malloc(sizeof(doublereal)*(2*iap->ndim)*(2*iap->ndim));
-  f   = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  v   = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  dfp = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*NPARX);
-  dfu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
+  std::vector<doublereal> smat((2*iap->ndim)*(2*iap->ndim));
+  std::vector<doublereal> f(iap->ndim);
+  std::vector<doublereal> v(iap->ndim);
+  std::vector<doublereal> dfp((iap->ndim)*NPARX);
+  std::vector<doublereal> dfu((iap->ndim)*(iap->ndim));
 
 
   /* Generates starting data for the continuation of a bifurcation to a */
@@ -1267,8 +1243,8 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   ijac = 1;
   period = par[10];
   rom = period / pi(2.0);
-  fnws(iap, rap, ndm, u, &uold, icp, par, ijac, f, dfu, 
-       dfp);
+  fnws(iap, rap, ndm, u, &uold, icp, par, ijac, f.data(), dfu.data(), 
+       dfp.data());
 
   ndm2 = ndm * 2;
   for (i = 0; i < ndm2; ++i) {
@@ -1293,9 +1269,9 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   }
   {
     integer tmp=(ndim*2);
-    nlvc(ndm2, tmp, 2, smat, v);
+    nlvc(ndm2, tmp, 2, smat.data(), v.data());
   }
-  nrmlz(&ndm2, v);
+  nrmlz(&ndm2, v.data());
 
   for (i = 0; i < ndm2; ++i) {
     u[ndm + i] = v[i];
@@ -1304,11 +1280,6 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   u[ndim - 2] = rom;
   u[-1 + ndim] = par[icp[1]];
 
-  xpp_free(smat);
-  xpp_free(f   );
-  xpp_free(v   );
-  xpp_free(dfp );
-  xpp_free(dfu ); 
 
   return 0;
 } /* stpnhw_ */
@@ -1554,14 +1525,13 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     /* Local variables */
   integer ndim, ncol;
 
-  doublereal uold = 0., *smat;
+  doublereal uold = 0.;
   integer nfpr, ntst, ndim2, nfpr1;
-  doublereal c, *f;
+  doublereal c;
   integer i, j, k;
-  doublereal s, t, *u, rimhb;
+  doublereal s, t, rimhb;
   logical found;
   integer k1;
-  doublereal *rnllv;
 
   doublereal dt;
 
@@ -1571,10 +1541,10 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   doublereal tpi;
   integer irs;
 
-  smat = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim * 2)*(iap->ndim * 2));
-  rnllv = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim * 2)*(iap->ndim * 2));
-  f = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  u = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  std::vector<doublereal> smat((iap->ndim * 2)*(iap->ndim * 2));
+  std::vector<doublereal> rnllv((iap->ndim * 2)*(iap->ndim * 2));
+  std::vector<doublereal> f(iap->ndim);
+  std::vector<doublereal> u(iap->ndim);
   /* Generates starting data for the continuation of a branch of periodic */
   /* solutions from a Hopf bifurcation point. */
 
@@ -1593,7 +1563,7 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   nfpr = iap->nfpr;
 
   findlb(iap, rap, irs, &nfpr1, &found);
-  readlb(iap, rap, u, par);
+  readlb(iap, rap, u.data(), par);
 
   for (i = 0; i < nfpr; ++i) {
     rlcur[i] = par[icp[i]];
@@ -1617,7 +1587,7 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     smat[ndim + i + (ndim + i) * (ndim*2)] = rimhb;
   }
 
-  funi(iap, rap, ndim, u, &uold, icp, par, 1, f, 
+  funi(iap, rap, ndim, u.data(), &uold, icp, par, 1, f.data(), 
        global_scratch.dfu, global_scratch.dfp);
 
   for (i = 0; i < ndim; ++i) {
@@ -1629,9 +1599,9 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   {
     integer tmp=(ndim*2);
-    nlvc(ndim2, tmp, 2, smat, rnllv);
+    nlvc(ndim2, tmp, 2, smat.data(), rnllv.data());
   }
-  nrmlz(&ndim2, rnllv);
+  nrmlz(&ndim2, rnllv.data());
 
 /* Generate the (initially uniform) mesh. */
 
@@ -1673,10 +1643,6 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   scaleb(iap, icp, ndxloc, udotps, rldot, dtm, thl, thu);
 
   *nodir = -1;
-  xpp_free(smat);
-  xpp_free(rnllv);
-  xpp_free(f);
-  xpp_free(u);
 
   return 0;
 } /* stpnps_ */
@@ -1882,30 +1848,29 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     /* Local variables */
   integer ndim, ncol;
 
-  doublereal uold = 0., *smat;
+  doublereal uold = 0.;
   integer nfpr;
 
   integer ntst, ndim2, nfpr1;
-  doublereal c, *f;
+  doublereal c;
   integer i, j, k;
-  doublereal s, t, *u, rimhb;
+  doublereal s, t, rimhb;
   logical found;
   integer k1;
-  doublereal *rnllv;
 
   doublereal dt;
 
-  doublereal period, *dfp, *dfu;
+  doublereal period;
 
   doublereal tpi;
   integer irs;
 
-  smat = (doublereal *)xpp_malloc(sizeof(doublereal)*(2*iap->ndim)*(2*iap->ndim));
-  f    = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  u    = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  rnllv= (doublereal *)xpp_malloc(sizeof(doublereal)*2*(iap->ndim));
-  dfp  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*NPARX);
-  dfu  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim));
+  std::vector<doublereal> smat((2*iap->ndim)*(2*iap->ndim));
+  std::vector<doublereal> f(iap->ndim);
+  std::vector<doublereal> u(iap->ndim);
+  std::vector<doublereal> rnllv(2*(iap->ndim));
+  std::vector<doublereal> dfp((iap->ndim)*NPARX);
+  std::vector<doublereal> dfu((iap->ndim)*(iap->ndim));
 
 
 /* Generates starting data for the continuation of a branch of periodic */
@@ -1926,7 +1891,7 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   nfpr = iap->nfpr;
 
   findlb(iap, rap, irs, &nfpr1, &found);
-  readlb(iap, rap, u, par);
+  readlb(iap, rap, u.data(), par);
 
   for (i = 0; i < nfpr; ++i) {
     rlcur[i] = par[icp[i]];
@@ -1950,7 +1915,7 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     smat[ndim + i + (ndim + i) * (ndim*2)] = rimhb;
   }
 
-  fnws(iap, rap, ndim, u, &uold, icp, par, 1, f, dfu, dfp);
+  fnws(iap, rap, ndim, u.data(), &uold, icp, par, 1, f.data(), dfu.data(), dfp.data());
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
@@ -1959,8 +1924,8 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     }
   }
 
-  nlvc(ndim2, ndim*2, 2, smat, rnllv);
-  nrmlz(&ndim2, rnllv);
+  nlvc(ndim2, ndim*2, 2, smat.data(), rnllv.data());
+  nrmlz(&ndim2, rnllv.data());
 
   /* Generate the (initially uniform) mesh. */
 
@@ -2003,12 +1968,6 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   *nodir = -1;
 
-  xpp_free(smat );
-  xpp_free(f    );
-  xpp_free(u    );
-  xpp_free(rnllv);
-  xpp_free(dfp  );
-  xpp_free(dfu  );
 
   return 0;
 } /* stpnwp_ */
@@ -3346,8 +3305,8 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
       k2p1 = k2 + 1;
       k3 = k2 + ndm;
       for (k = k2p1; k <= k3; ++k) {
-	ARRAY2D(ups, j, k) = sin(temp[i]) * (double)1e-4;
-	ARRAY2D(ups, j, (k + ndm)) = cos(temp[i]) * (double)1e-4;
+	ARRAY2D(ups, j, k) = sin(temp[i]) * 1e-4;
+	ARRAY2D(ups, j, (k + ndm)) = cos(temp[i]) * 1e-4;
       }
     }
     tm[j] = temp[0];
@@ -3437,11 +3396,11 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   integer nfpr;
   doublereal rtmp;
   integer i, j;
-  doublereal *upold, ep, period;
+  doublereal ep, period;
   integer ndm;
   doublereal umx;
 
-  upold = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  std::vector<doublereal> upold(iap->ndim);
 
   /* Generates the equations for periodic optimization problems. */
 
@@ -3457,7 +3416,7 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Generate F(UOLD) */
 
   funi(iap, rap, ndm, uold, uold, icp, par, 0, 
-       upold, dfdu, dfdp);
+       upold.data(), dfdu, dfdp);
   period = par[10];
   for (i = 0; i < ndm; ++i) {
     upold[i] = period * upold[i];
@@ -3465,11 +3424,10 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Generate the function. */
 
-  ffpo(iap, rap, ndim, u, uold, upold, icp, par, f,
+  ffpo(iap, rap, ndim, u, uold, upold.data(), icp, par, f,
        ndm, global_scratch.dfu, global_scratch.dfp);
 
   if (ijac == 0) {
-    xpp_free(upold);
     return 0;
   }
 
@@ -3492,9 +3450,9 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     }
     global_scratch.uu1[i] -= ep;
     global_scratch.uu2[i] += ep;
-    ffpo(iap, rap, ndim, global_scratch.uu1, uold, upold, icp, par, 
+    ffpo(iap, rap, ndim, global_scratch.uu1, uold, upold.data(), icp, par, 
 	 global_scratch.ff1, ndm, global_scratch.dfu, global_scratch.dfp);
-    ffpo(iap, rap, ndim, global_scratch.uu2, uold, upold, icp, par, 
+    ffpo(iap, rap, ndim, global_scratch.uu2, uold, upold.data(), icp, par, 
 	 global_scratch.ff2, ndm, global_scratch.dfu, global_scratch.dfp);
     for (j = 0; j < ndim; ++j) {
       ARRAY2D(dfdu, j, i) = (global_scratch.ff2[j] - global_scratch.ff1[j]) / (ep * 2);
@@ -3503,7 +3461,7 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
-    ffpo(iap, rap, ndim, u, uold, upold, icp, par, 
+    ffpo(iap, rap, ndim, u, uold, upold.data(), icp, par, 
 	 global_scratch.ff1, ndm, global_scratch.dfu, global_scratch.dfp);
     for (j = 0; j < ndim; ++j) {
       ARRAY2D(dfdp, j, icp[i]) = (global_scratch.ff1[j] - f[j]) / ep;
@@ -3511,7 +3469,6 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     par[icp[i]] -= ep;
   }
 
-  xpp_free(upold);
   return 0;
 } /* fnpo_ */
 
@@ -3526,10 +3483,10 @@ ffpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     /* Local variables */
 
   integer i, j;
-  doublereal gamma, rkappa, period, dfp[NPARX], *dfu, fop;
+  doublereal gamma, rkappa, period, dfp[NPARX], fop;
 
 
-  dfu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  std::vector<doublereal> dfu(iap->ndim);
   /* Local */
 
     /* Parameter adjustments */
@@ -3550,7 +3507,7 @@ ffpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   for (i = 0; i < NPARX; ++i) {
     dfp[i] = 0.;
   }
-  fopi(iap, rap, ndm, u, icp, par, 1, &fop, dfu, dfp);
+  fopi(iap, rap, ndm, u, icp, par, 1, &fop, dfu.data(), dfp);
 
   for (i = 0; i < ndm; ++i) {
     f[ndm + i] = 0.;
@@ -3561,7 +3518,6 @@ ffpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     f[ndm + i] = period * f[ndm + i] + rkappa * upold[i] + gamma *dfu[i];
   }
 
-  xpp_free(dfu);
   return 0;
 } /* ffpo_ */
 
@@ -3633,14 +3589,14 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   integer nfpr;
   doublereal rtmp;
   integer i, j;
-  doublereal *f1, *f2, ep;
+  doublereal ep;
   integer ndm;
-  doublereal *dnt, umx;
+  doublereal umx;
   integer nnt0;
 
-  f1  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint));
-  f2  = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint));
-  dnt = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint)*(iap->ndim + NPARX));
+  std::vector<doublereal> f1(iap->nint);
+  std::vector<doublereal> f2(iap->nint);
+  std::vector<doublereal> dnt((iap->nint)*(iap->ndim + NPARX));
 
 
 /* Generates integral conditions for periodic optimization problems. */
@@ -3657,12 +3613,9 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Generate the function. */
 
   fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, 
-       udot, upold, f, dnt, ndm, global_scratch.dfu, global_scratch.dfp);
+       udot, upold, f, dnt.data(), ndm, global_scratch.dfu, global_scratch.dfp);
 
   if (ijac == 0) {
-    xpp_free(f1);
-    xpp_free(f2);
-    xpp_free(dnt);
     return 0;
   }
 
@@ -3686,10 +3639,10 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     global_scratch.uu1[i] -= ep;
     global_scratch.uu2[i] += ep;
     fipo(iap, rap, ndim, par, icp, nint, nnt0, global_scratch.uu1, 
-	 uold, udot, upold, f1, dnt, ndm, global_scratch.dfu, 
+	 uold, udot, upold, f1.data(), dnt.data(), ndm, global_scratch.dfu, 
 	 global_scratch.dfp);
     fipo(iap, rap, ndim, par, icp, nint, nnt0, global_scratch.uu2, 
-	 uold, udot, upold, f2, dnt, ndm, global_scratch.dfu, 
+	 uold, udot, upold, f2.data(), dnt.data(), ndm, global_scratch.dfu, 
 	 global_scratch.dfp);
     for (j = 0; j < nint; ++j) {
       ARRAY2D(dint, j, i) = (f2[j] - f1[j]) / (ep * 2);
@@ -3698,16 +3651,13 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
-    fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, f1, dnt, ndm, global_scratch.dfu, 
+    fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, f1.data(), dnt.data(), ndm, global_scratch.dfu, 
 	 global_scratch.dfp);
     for (j = 0; j < nint; ++j) {
       ARRAY2D(dint, j, ndim + icp[i]) = (f1[j] - f[j]) / ep;
     }
     par[icp[i]] -= ep;
   }
-  xpp_free(f1);
-  xpp_free(f2);
-  xpp_free(dnt);
 
   return 0;
 } /* icpo_ */
@@ -3723,14 +3673,13 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     /* Local variables */
 
   integer nfpr, indx;
-  doublereal *f;
   integer i, j, l;
-  doublereal dfp[NPARX], *dfu;
+  doublereal dfp[NPARX];
   integer ndm;
   doublereal fop;
 
-  f = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  dfu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  std::vector<doublereal> f(iap->ndim);
+  std::vector<doublereal> dfu(iap->ndim);
   /* Local */
 
   /* Parameter adjustments */
@@ -3750,7 +3699,7 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   for (i = 0; i < NPARX; ++i) {
     dfp[i] = 0.;
   }
-  fopi(iap, rap, ndm, u, icp, par, 2, &fop, dfu, dfp);
+  fopi(iap, rap, ndm, u, icp, par, 2, &fop, dfu.data(), dfp);
   fi[1] = par[9] - fop;
 
   /* Computing 2nd power */
@@ -3765,7 +3714,7 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
       ARRAY2D(dfdp, i, j) = 0.;
     }
   }
-  funi(iap, rap, ndm, u, uold, icp, par, 2, f, dfdu, dfdp);
+  funi(iap, rap, ndm, u, uold, icp, par, 2, f.data(), dfdu, dfdp);
 
   for (l = 3; l < nint; ++l) {
     indx = icp[nfpr + l - 3];
@@ -3782,8 +3731,6 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
       }
     }
   }
-  xpp_free(f);
-  xpp_free(dfu);
 
   return 0;
 } /* fipo_ */
@@ -3808,7 +3755,6 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   doublereal dumu;
   integer nfpr1, ntpl1, ntot1, i, j, k;
-  doublereal *u;
   logical found;
   integer icprs[NPARX], nparr;
 
@@ -3819,7 +3765,6 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   doublereal rld1, rld2;
   integer itp1, isw1;
 
-  doublereal *temporary_storage;
   integer temporary_storage_dim1;
   /* This is a little funky.  In the older version, upoldp was used for some
      temporary storage in a loop later on.  I wanted to get rid of that
@@ -3830,8 +3775,8 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
      like 4 to take into account the increase in size for certain calculations).
      So, that is why I use ndxloc here.  Also, iap->ncol MAY BE tool small, 
      but I am not sure how to get value from the fort.8 file into here. */
-  temporary_storage = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndxloc)*(iap->ndim * iap->ncol));;
-  u = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  std::vector<doublereal> temporary_storage((*ndxloc)*(iap->ndim * iap->ncol));
+  std::vector<doublereal> u(iap->ndim);
 
   /* Generates starting data for optimization of periodic solutions. */
 
@@ -3925,7 +3870,7 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
       for (k = k1; k <= k2; ++k) {
 	u[k - k1] = ARRAY2D(ups, j, k);
       }
-      fopt(ndm, u, icp, par, 0, &fs, &dumu, &dump);
+      fopt(ndm, u.data(), icp, par, 0, &fs, &dumu, &dump);
 #define TEMPORARY_STORAGE
 #ifdef TEMPORARY_STORAGE
       ARRAY2D(temporary_storage, j, k1) = fs;
@@ -3937,10 +3882,10 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   for (k = 0; k < ndm; ++k) {
     u[k] = ARRAY2D(ups, *ntsr, k);
   }
-  fopt(ndm, u, icp, par, 0, &fs, &dumu, &dump);
+  fopt(ndm, u.data(), icp, par, 0, &fs, &dumu, &dump);
 #ifdef TEMPORARY_STORAGE
   temporary_storage[*ntsr] = fs;
-  par[9] = rintg(iap, ndxloc, 1, temporary_storage, dtm);
+  par[9] = rintg(iap, ndxloc, 1, temporary_storage.data(), dtm);
 #else
   upoldp[*ntsr] = fs;
   par[9] = rintg(iap, ndxloc, 1, upoldp, dtm);
@@ -3971,13 +3916,9 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   *nodir = 1;
 
-  xpp_free(u);
-  xpp_free(temporary_storage);
   return 0;
 
  read_failed:
-  xpp_free(u);
-  xpp_free(temporary_storage);
   return 1;
 } /* stpnpo_ */
 
@@ -4123,14 +4064,14 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   integer nfpr;
   doublereal rtmp;
   integer i, j;
-  doublereal ep, *ff1, *ff2, *uu1, *uu2, *dfu, umx;
+  doublereal ep, umx;
   integer nbc0;
 
-  ff1=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc));
-  ff2=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc));
-  uu1=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  uu2=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  dfu=(doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc)*(2*iap->ndim+NPARX));
+  std::vector<doublereal> ff1(iap->nbc);
+  std::vector<doublereal> ff2(iap->nbc);
+  std::vector<doublereal> uu1(iap->ndim);
+  std::vector<doublereal> uu2(iap->ndim);
+  std::vector<doublereal> dfu((iap->nbc)*(2*iap->ndim+NPARX));
 		     
 
 
@@ -4149,14 +4090,9 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   /* Generate the function. */
 
-  fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1, f, dfu);
+  fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1, f, dfu.data());
 
   if (ijac == 0) {
-    xpp_free(ff1);
-    xpp_free(ff2);
-    xpp_free(uu1);
-    xpp_free(uu2);
-    xpp_free(dfu);
     return 0;
   }
 
@@ -4177,10 +4113,10 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     uu1[i] -= ep;
     uu2[i] += ep;
-    fbbl(iap, rap, ndim, par, icp, nbc, nbc0, uu1, u1, 
-	 ff1, dfu);
-    fbbl(iap, rap, ndim, par, icp, nbc, nbc0, uu2, u1, 
-	 ff2, dfu);
+    fbbl(iap, rap, ndim, par, icp, nbc, nbc0, uu1.data(), u1, 
+	 ff1.data(), dfu.data());
+    fbbl(iap, rap, ndim, par, icp, nbc, nbc0, uu2.data(), u1, 
+	 ff2.data(), dfu.data());
     for (j = 0; j < nbc; ++j) {
       ARRAY2D(dbc, j, i) = (ff2[j] - ff1[j]) / (ep * 2);
     }
@@ -4203,10 +4139,10 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     uu1[i] -= ep;
     uu2[i] += ep;
-    fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu1, 
-	 ff1, dfu);
-    fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu2, 
-	 ff2, dfu);
+    fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu1.data(), 
+	 ff1.data(), dfu.data());
+    fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu2.data(), 
+	 ff2.data(), dfu.data());
     for (j = 0; j < nbc; ++j) {
       ARRAY2D(dbc, j, (ndim + i)) = (ff2[j] - ff1[j]) / ( ep * 2);
     }
@@ -4214,17 +4150,12 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
-    fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1, ff2, dfu);
+    fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1, ff2.data(), dfu.data());
     for (j = 0; j < nbc; ++j) {
       ARRAY2D(dbc, j, (ndim * 2) + icp[i]) = (ff2[j] - f[j]) / ep;
     }
     par[icp[i]] -= ep;
   }
-  xpp_free(ff1);
-  xpp_free(ff2);
-  xpp_free(uu1);
-  xpp_free(uu2);
-  xpp_free(dfu);
 
   return 0;
 } /* bcbl_ */
@@ -4283,14 +4214,14 @@ icbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   integer nfpr;
   doublereal rtmp;
   integer i, j;
-  doublereal ep, *ff1, *ff2, *uu1, *uu2, *dfu, umx;
+  doublereal ep, umx;
   integer nnt0;
 
-  ff1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint));
-  ff2 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint));
-  uu1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  uu2 = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  dfu = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim)*(iap->ndim + NPARX));
+  std::vector<doublereal> ff1(iap->nint);
+  std::vector<doublereal> ff2(iap->nint);
+  std::vector<doublereal> uu1(iap->ndim);
+  std::vector<doublereal> uu2(iap->ndim);
+  std::vector<doublereal> dfu((iap->ndim)*(iap->ndim + NPARX));
 
 
 
@@ -4309,14 +4240,9 @@ icbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Generate the function. */
 
   fibl(iap, rap, ndim, par, icp, nint, nnt0, u, uold, 
-       udot, upold, f, dfu);
+       udot, upold, f, dfu.data());
 
   if (ijac == 0) {
-    xpp_free(ff1);
-    xpp_free(ff2);
-    xpp_free(uu1);
-    xpp_free(uu2);
-    xpp_free(dfu);
     return 0;
   }
 
@@ -4339,10 +4265,10 @@ icbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     uu1[i] -= ep;
     uu2[i] += ep;
-    fibl(iap, rap, ndim, par, icp, nint, nnt0, uu1, uold
-	 , udot, upold, ff1, dfu);
-    fibl(iap, rap, ndim, par, icp, nint, nnt0, uu2, uold
-	 , udot, upold, ff2, dfu);
+    fibl(iap, rap, ndim, par, icp, nint, nnt0, uu1.data(), uold
+	 , udot, upold, ff1.data(), dfu.data());
+    fibl(iap, rap, ndim, par, icp, nint, nnt0, uu2.data(), uold
+	 , udot, upold, ff2.data(), dfu.data());
     for (j = 0; j < nint; ++j) {
       ARRAY2D(dint, j, i) = (ff2[j] - ff1[j]) / (ep * 2);
     }
@@ -4350,18 +4276,13 @@ icbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
-    fibl(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, ff1, dfu);
+    fibl(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, ff1.data(), dfu.data());
     for (j = 0; j < nint; ++j) {
       ARRAY2D(dint, j, ndim + icp[i]) = (ff1[j] - f[j]) / ep;
     }
     par[icp[i]] -= ep;
   }
 
-  xpp_free(ff1);
-  xpp_free(ff2);
-  xpp_free(uu1);
-  xpp_free(uu2);
-  xpp_free(dfu);
   return 0;
 } /* icbl_ */
 
@@ -4537,7 +4458,7 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     }
   }
   /* Initialize the norm of the null vector */
-  par[-1 + nfpr / 2 + 11] = (double)0.;
+  par[-1 + nfpr / 2 + 11] = 0.;
 
   for (i = 0; i < nfpr; ++i) {
     rlcur[i] = par[icp[i]];
@@ -4565,20 +4486,19 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   integer dfdu_dim1, dfdp_dim1;
 
   /* Local variables */
-  doublereal *u1zz, *u2zz;
 
   integer nfpr;
   doublereal rtmp;
   integer i, j;
   doublereal ep;
   integer jac, ijc;
-  doublereal umx, *f1zz, *f2zz;
+  doublereal umx;
 
 
-  u1zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  u2zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  f1zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  f2zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  std::vector<doublereal> u1zz(iap->ndim);
+  std::vector<doublereal> u2zz(iap->ndim);
+  std::vector<doublereal> f1zz(iap->ndim);
+  std::vector<doublereal> f2zz(iap->ndim);
 
   /* Interface subroutine to user supplied FUNC. */
 
@@ -4602,10 +4522,6 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
        dfdp);
 
   if (jac == 1 || ijac == 0) {
-    xpp_free(u1zz);
-    xpp_free(u2zz);
-    xpp_free(f1zz);
-    xpp_free(f2zz);
     return 0;
   }
 
@@ -4628,18 +4544,14 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     }
     u1zz[i] -= ep;
     u2zz[i] += ep;
-    func(ndim, u1zz, icp, par, 0, f1zz, dfdu, dfdp);
-    func(ndim, u2zz, icp, par, 0, f2zz, dfdu, dfdp);
+    func(ndim, u1zz.data(), icp, par, 0, f1zz.data(), dfdu, dfdp);
+    func(ndim, u2zz.data(), icp, par, 0, f2zz.data(), dfdu, dfdp);
     for (j = 0; j < ndim; ++j) {
       ARRAY2D(dfdu, j, i) = (f2zz[j] - f1zz[j]) / (ep * 2);
     }
   }
 
   if (ijac == 1) {
-    xpp_free(u1zz);
-    xpp_free(u2zz);
-    xpp_free(f1zz);
-    xpp_free(f2zz);
     return 0;
   }
 
@@ -4647,7 +4559,7 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     rtmp = HMACH;
     ep = rtmp * (fabs(par[icp[i]]) + 1);
     par[icp[i]] += ep;
-    func(ndim, u, icp, par, 0, f1zz, dfdu, 
+    func(ndim, u, icp, par, 0, f1zz.data(), dfdu, 
 	 dfdp);
     for (j = 0; j < ndim; ++j) {
       ARRAY2D(dfdp, j, icp[i]) = (f1zz[j] - f[j]) / ep;
@@ -4655,10 +4567,6 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     par[icp[i]] -= ep;
   }
 
-  xpp_free(u1zz);
-  xpp_free(u2zz);
-  xpp_free(f1zz);
-  xpp_free(f2zz);
   return 0;
 } /* funi */
 
@@ -4672,18 +4580,17 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   /* Local variables */
 
-  doublereal *u1zz, *u2zz;
   integer nfpr;
   doublereal rtmp;
   integer i, j;
   doublereal ep;
   integer jac, ijc;
-  doublereal umx, *f1zz, *f2zz;
+  doublereal umx;
 
-  u1zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  u2zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  f1zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc));
-  f2zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nbc));
+  std::vector<doublereal> u1zz(iap->ndim);
+  std::vector<doublereal> u2zz(iap->ndim);
+  std::vector<doublereal> f1zz(iap->nbc);
+  std::vector<doublereal> f2zz(iap->nbc);
 
   
 
@@ -4730,8 +4637,8 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     u1zz[i] -= ep;
     u2zz[i] += ep;
-    bcnd(ndim, par, icp, nbc, u1zz, u1, 0, f1zz, dbc);
-    bcnd(ndim, par, icp, nbc, u2zz, u1, 0, f2zz, dbc);
+    bcnd(ndim, par, icp, nbc, u1zz.data(), u1, 0, f1zz.data(), dbc);
+    bcnd(ndim, par, icp, nbc, u2zz.data(), u1, 0, f2zz.data(), dbc);
     for (j = 0; j < nbc; ++j) {
       ARRAY2D(dbc, j, i) = (f2zz[j] - f1zz[j]) / (ep * 2);
     }
@@ -4754,18 +4661,14 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     u1zz[i] -= ep;
     u2zz[i] += ep;
-    bcnd(ndim, par, icp, nbc, u0, u1zz, 0, f1zz, dbc);
-    bcnd(ndim, par, icp, nbc, u0, u2zz, 0, f2zz, dbc);
+    bcnd(ndim, par, icp, nbc, u0, u1zz.data(), 0, f1zz.data(), dbc);
+    bcnd(ndim, par, icp, nbc, u0, u2zz.data(), 0, f2zz.data(), dbc);
     for (j = 0; j < nbc; ++j) {
       ARRAY2D(dbc, j, (ndim + i)) = (f2zz[j] - f1zz[j]) / (ep * 2);
     }
   }
 
   if (ijac == 1) {
-    xpp_free(u1zz);
-    xpp_free(u2zz);
-    xpp_free(f1zz);
-    xpp_free(f2zz);
     return 0;
   }
 
@@ -4773,16 +4676,12 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     rtmp = HMACH;
     ep = rtmp * (fabs(par[icp[i]]) + 1);
     par[icp[i]] += ep;
-    bcnd(ndim, par, icp, nbc, u0, u1, 0, f1zz, dbc);
+    bcnd(ndim, par, icp, nbc, u0, u1, 0, f1zz.data(), dbc);
     for (j = 0; j < nbc; ++j) {
       ARRAY2D(dbc, j, (ndim * 2) + icp[i]) = (f1zz[j] - f[j]) / ep;
     }
     par[icp[i]] -= ep;
   }
-  xpp_free(u1zz);
-  xpp_free(u2zz);
-  xpp_free(f1zz);
-  xpp_free(f2zz);
 
   return 0;
 } /* bcni */
@@ -4796,20 +4695,19 @@ icni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   integer dint_dim1;
 
   /* Local variables */
-  doublereal *u1zz, *u2zz;
 
   integer nfpr;
   doublereal rtmp;
   integer i, j;
   doublereal ep;
   integer jac, ijc;
-  doublereal umx, *f1zz, *f2zz;
+  doublereal umx;
 
     
-  f1zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint));
-  f2zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->nint));
-  u1zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  u2zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  std::vector<doublereal> f1zz(iap->nint);
+  std::vector<doublereal> f2zz(iap->nint);
+  std::vector<doublereal> u1zz(iap->ndim);
+  std::vector<doublereal> u2zz(iap->ndim);
   /* Interface subroutine to user supplied ICND. */
 
 /* Local */
@@ -4854,18 +4752,14 @@ icni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     u1zz[i] -= ep;
     u2zz[i] += ep;
-    icnd(ndim, par, icp, nint, u1zz, uold, udot, upold, 0, f1zz, dint);
-    icnd(ndim, par, icp, nint, u2zz, uold, udot, upold, 0, f2zz, dint);
+    icnd(ndim, par, icp, nint, u1zz.data(), uold, udot, upold, 0, f1zz.data(), dint);
+    icnd(ndim, par, icp, nint, u2zz.data(), uold, udot, upold, 0, f2zz.data(), dint);
     for (j = 0; j < nint; ++j) {
       ARRAY2D(dint, j, i) = (f2zz[j] - f1zz[j]) / (ep * 2);
     }
   }
 
   if (ijac == 1) {
-    xpp_free(f1zz);
-    xpp_free(f2zz);
-    xpp_free(u1zz);
-    xpp_free(u2zz);
     return 0;
   }
 
@@ -4873,16 +4767,12 @@ icni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     rtmp = HMACH;
     ep = rtmp * (fabs(par[icp[i]]) + 1);
     par[icp[i]] += ep;
-    icnd(ndim, par, icp, nint, u, uold, udot, upold, 0, f1zz, dint);
+    icnd(ndim, par, icp, nint, u, uold, udot, upold, 0, f1zz.data(), dint);
     for (j = 0; j < nint; ++j) {
       ARRAY2D(dint, j, ndim + icp[i]) = (f1zz[j] - f[j]) / ep;
     }
     par[icp[i]] -= ep;
   }
-  xpp_free(f1zz);
-  xpp_free(f2zz);
-  xpp_free(u1zz);
-  xpp_free(u2zz);
 
   return 0;
 } /* icni */
@@ -4894,7 +4784,6 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 {
 
   /* Local variables */
-  doublereal *u1zz, *u2zz;
   integer nfpr;
 
   doublereal rtmp;
@@ -4903,8 +4792,8 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   integer jac, ijc;
   doublereal umx;
 
-  u1zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
-  u2zz = (doublereal *)xpp_malloc(sizeof(doublereal)*(iap->ndim));
+  std::vector<doublereal> u1zz(iap->ndim);
+  std::vector<doublereal> u2zz(iap->ndim);
 
   /* Interface subroutine to user supplied FOPT. */
 
@@ -4925,8 +4814,6 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   fopt(ndim, u, icp, par, ijc, f, dfdu, dfdp);
 
   if (jac == 1 || ijac == 0) {
-    xpp_free(u1zz);
-    xpp_free(u2zz);
     return 0;
   }
 
@@ -4949,14 +4836,12 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     }
     u1zz[i] -= ep;
     u2zz[i] += ep;
-    fopt(ndim, u1zz, icp, par, 0, &f1, dfdu, dfdp);
-    fopt(ndim, u2zz, icp, par, 0, &f2, dfdu, dfdp);
+    fopt(ndim, u1zz.data(), icp, par, 0, &f1, dfdu, dfdp);
+    fopt(ndim, u2zz.data(), icp, par, 0, &f2, dfdu, dfdp);
     dfdu[i] = (f2 - f1) / (ep * 2);
   }
 
   if (ijac == 1) {
-    xpp_free(u1zz);
-    xpp_free(u2zz);
     return 0;
   }
 
@@ -4969,8 +4854,6 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     par[icp[i]] -= ep;
   }
 
-  xpp_free(u1zz);
-  xpp_free(u2zz);
   return 0;
 } /* fopi */
 
