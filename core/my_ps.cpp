@@ -135,7 +135,7 @@ int ps_init(const char *filename, int color)
  fprintf(psfile,"%%!PS-Adobe-2.0\n");
  fprintf(psfile,"%%Creator: xppaut\n");
  fprintf(psfile,"%%%%BoundingBox: %d %d %d %d\n",PS_XOFF,PS_YOFF,
-	 (int)(PS_YMAX/PS_SC+.5+PS_YOFF+0.1*PS_VCHAR),(int)(PS_XMAX/PS_SC+.5+PS_XOFF+0.1*PS_VCHAR));
+	 static_cast<int>(PS_YMAX/PS_SC+.5+PS_YOFF+0.1*PS_VCHAR),static_cast<int>(PS_XMAX/PS_SC+.5+PS_XOFF+0.1*PS_VCHAR));
  fprintf(psfile,"/xppdict 40 dict def\nxppdict begin\n");
  if(color==0){
    fprintf(psfile, "/Color false def \n");
@@ -148,7 +148,7 @@ int ps_init(const char *filename, int color)
    PSColorFlag=1;
  }
  fprintf(psfile,"/xpplinewidth %.3f def\n",PS_LW);
- fprintf(psfile,"/vshift %d def\n", (int)(PS_VCHAR)/(-3));
+ fprintf(psfile,"/vshift %d def\n", static_cast<int>(PS_VCHAR)/(-3));
  fprintf(psfile,"/dl {%d mul} def\n",PS_SC); /* dash length */
  fprintf(psfile,"/hpt %.1f def\n",PS_HTIC/2.0);
  fprintf(psfile,"/vpt %.1f def\n",PS_VTIC/2.0);
