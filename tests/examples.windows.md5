@@ -10,7 +10,7 @@ ae9f5494d3bc654eb3e4a34c5c5147c9 examples/canonical/lecar.ode
 4a28a1ade03d36daed747119a5f50d6f examples/canonical/mackey.ode
 5e11c9322f0e2e700effa75e422f1d53 examples/canonical/qif-noise.ode
 667cc4ce5dbe9ba5bdd6b2102f4a8cc9 examples/canonical/ratchet.ode
-e44513246f2037cf8b4463ad43851a33 examples/canonical/sine-circle.ode
+1c79c1e6190fb57941c00b4ee04f9a40 examples/canonical/sine-circle.ode
 aaef52e244c55bd87c7dcb203d2c7cee examples/canonical/swindale.ode
 e0505e7fc192353f098deb27f81ad892 examples/canonical/tyson.ode
 4048ac6d52067b4a2d7387ff9103ec40 examples/canonical/wcfun.ode
@@ -134,7 +134,7 @@ fc76295472f5495b4e013156d89cb362 examples/ode/rosscmpliap.ode
 42b2d2b7ade018c5f5a4c3176d4e9754 examples/ode/rossler-pecora.ode
 71d93153bf4f0fcfeb3fbae88971c1f2 examples/ode/rossler.ode
 1a09445d5f3e32aa7053397a20f3dec6 examples/ode/simplecube.ode
-e44513246f2037cf8b4463ad43851a33 examples/ode/sine-circel.ode
+1c79c1e6190fb57941c00b4ee04f9a40 examples/ode/sine-circel.ode
 30a7260f3b416f9edaf00ab47d078ce9 examples/ode/test.ode
 3d95b5a6d757f07c1c906c609cbdea06 examples/ode/testdll.ode
 df3c08819e4d0a3df1221d1aa29cb725 examples/ode/torus.ode
