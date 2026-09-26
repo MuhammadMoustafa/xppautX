@@ -56,7 +56,7 @@ extern int NLINES;
 extern char *save_eqn[1000];
 extern int RandSeed;
 typedef struct {
-  std::vector<int *> command;
+  std::vector<std::vector<int>> command; /* compiled transition formulas */
   std::vector<std::string> trans;
   std::vector<double> fixed;
   int nstates;
@@ -269,7 +269,7 @@ void create_markov(int nstates, double *st, int type, const char *name)
   markov[j].states.assign(st, st+nstates);
   if(type==0){
     markov[j].trans.assign(n2, std::string());
-    markov[j].command.assign(n2, nullptr);
+    markov[j].command.assign(n2, std::vector<int>());
   }
   else {
     markov[j].fixed.assign(n2, 0.0);
@@ -333,21 +333,14 @@ int compile_markov(int index, int j, int k)
 {
   const char *expr;
   int l0=markov[index].nstates*j+k,leng;
-  int i;
   int com[256];
   expr=markov[index].trans[l0].c_str();
 
   if(add_expr(expr,com,&leng))
     return -1;
-  /* command[l0] is a raw xpp_malloc block: a per-transition compiled
-     formula kept for the program's life (never freed until exit,
-     reachable through the file-scope markov[] array), same as the
-     other compiled-formula arrays elsewhere in the core. */
-  markov[index].command[l0]=static_cast<int *>(xpp_malloc(sizeof(int)*(leng+2)));
-  for(i=0;i<leng;i++){
-    markov[index].command[l0][i]=com[i];
-
-  }
+  /* zero-padded by two, like the xpp_malloc block it replaces */
+  markov[index].command[l0].assign(com, com+leng);
+  markov[index].command[l0].resize(leng+2, 0);
   
   return 1;
 }
@@ -395,7 +388,7 @@ double new_state(double old, int index, double dt)
    if(type==0){
      for(i=0;i<ns;i++){
        if(i!=row){
-	 prob=evaluate(markov[index].command[rns+i])*dt;
+	 prob=evaluate(markov[index].command[rns+i].data())*dt;
 	 sum=sum+prob;
 	 if(coin<=sum){
 	   /*	   plintf("index %d switched state to %d \n",index,i); */
