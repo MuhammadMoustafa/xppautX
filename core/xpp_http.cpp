@@ -10,25 +10,34 @@
    terminal and into the page's log. The
    model's folder is served as /files (xpp_files.h: listing, reading, and
    uploads streamed to a temporary file). This file includes no core header
-   but those small C APIs (xpp_mem.h, xpp_inbox.h, xpp_files.h, xpp_log.h),
-   so the socket and Windows headers cannot clash with core names. */
+   but those small C APIs (xpp_inbox.h, xpp_files.h, xpp_log.h, xpp_io.h),
+   so the socket and Windows headers cannot clash with core
+   names. */
 /* macOS hides the BSD names (INADDR_LOOPBACK) under _XOPEN_SOURCE=600;
    this must come before any system header. */
 #ifdef __APPLE__
 #define _DARWIN_C_SOURCE 1
 #endif
 #include "xpp_http.h"
-#include "xpp_mem.h"
 #include "xpp_inbox.h"
 #include "xpp_files.h"
+#include "xpp_io.h"
 #include "xpp_log.h"
-#include <errno.h>
+#include <algorithm>
+#include <array>
+#include <cctype>
+#include <cerrno>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+#include <memory>
+#include <optional>
 #include <pthread.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include <string>
+#include <string_view>
+#include <vector>
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -45,6 +54,7 @@ typedef SOCKET sock_t;
 #else
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <fstream>
 #include <netinet/in.h>
 #include <signal.h>
 #include <sys/socket.h>
@@ -71,75 +81,82 @@ typedef struct {
 } XppWebAsset;
 extern "C" const XppWebAsset xpp_web_assets[]; /* web_assets.c (C): web2/dist/ at / */
 
-#define MAX_CLIENTS 16
-#define MAX_WINDOWS 32
-#define LOG_KEEP 100000
+namespace {
 
-static int active;
-static char token[40];
-static sock_t listener = INVALID_SOCKET;
-static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+constexpr int MAX_CLIENTS = 16;
+constexpr int MAX_WINDOWS = 32;
+constexpr size_t LOG_KEEP = 100000;
+
+/* a window's create event, replayed to a page that (re)connects */
+struct WindowLine {
+    int win = 0;
+    std::string line; /* empty: a free slot */
+};
+
+/* What the threads share, under `lock` unless said otherwise. Never
+   destroyed: the connection, log and watchdog threads still run while
+   exit() destroys statics (after at_exit), so it must outlive them. */
+struct Server {
+    std::string token;    /* set once before the threads start */
+    std::string page_url; /* likewise */
+    /* event streams and what a new one gets first (an empty line: none) */
+    std::array<sock_t, MAX_CLIENTS> clients{};
+    int nclients = 0;
+    std::string sticky_hello, sticky_state, sticky_ask, exit_event;
+    std::array<WindowLine, MAX_WINDOWS> windows;
+    std::string log_text; /* the last LOG_KEEP bytes printed */
+};
+Server &srv = *new Server;
+
+int active;
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 /* requests other than POST /cmd are answered one at a time (handle()) */
-static pthread_mutex_t serve_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_t watchdog_thread;
-static pthread_t http_thread, log_thread;
+pthread_mutex_t serve_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_t watchdog_thread;
+pthread_t http_thread, log_thread;
+int saw_bye, orig_stderr = -1;
+/* at_exit's wait after an error ends when this is set (xpp_http_release) */
+int released;
+pthread_cond_t released_cond = PTHREAD_COND_INITIALIZER;
 
-/* event streams and what a new one gets first */
-static sock_t clients[MAX_CLIENTS];
-static int nclients;
+/* No exception may leave a thread or reach the C code that calls in: a
+   failed allocation ends the program, as xpp_mem's do. _exit, not exit:
+   at_exit would wait on the lock this thread may hold. */
+[[noreturn]] void out_of_memory()
+{
+    xpp_log(XPP_LOG_ERROR, "xppautX: out of memory in the HTTP server\n");
+    std::fflush(nullptr);
+    _exit(1);
+}
 
 /* stream i is gone (the lock is held) */
-static void drop_client(int i)
+void drop_client(int i)
 {
-    close_sock(clients[i]);
-    clients[i] = clients[nclients - 1];
-    nclients--;
-}
-static char *sticky_hello, *sticky_state, *sticky_ask, *exit_event;
-static struct {
-    int win;
-    char *line;
-} windows[MAX_WINDOWS];
-static char *log_text; /* the last LOG_KEEP bytes printed */
-static size_t log_len;
-static int saw_bye, orig_stderr = -1;
-/* at_exit's wait after an error ends when this is set (xpp_http_release) */
-static int released;
-static pthread_cond_t released_cond = PTHREAD_COND_INITIALIZER;
-static char page_url[128];
-
-static char *copy_line(const char *s, size_t n)
-{
-    char *c = static_cast<char *>(xpp_malloc(n + 1));
-    memcpy(c, s, n);
-    c[n] = 0;
-    return c;
+    close_sock(srv.clients[i]);
+    srv.clients[i] = srv.clients[srv.nclients - 1];
+    srv.nclients--;
 }
 
-static void set_sticky(char **slot, const char *s, size_t n)
+bool send_all(sock_t s, std::string_view data)
 {
-    xpp_free(*slot);
-    *slot = s ? copy_line(s, n) : NULL;
-}
-
-static int send_all(sock_t s, const char *p, size_t n)
-{
+    const char *p = data.data();
+    size_t n = data.size();
     while (n > 0) {
 #ifdef _WIN32
-        int r = send(s, p, (int)(n > 65536 ? 65536 : n), 0);
+        int r = send(s, p, static_cast<int>(n > 65536 ? 65536 : n), 0);
 #else
         ssize_t r = send(s, p, n, MSG_NOSIGNAL);
 #endif
-        if (r <= 0) return 0;
+        if (r <= 0) return false;
         p += r;
-        n -= (size_t)r;
+        n -= static_cast<size_t>(r);
     }
-    return 1;
+    return true;
 }
 
-static int send_event(sock_t s, const char *line, size_t n)
+bool send_event(sock_t s, std::string_view line)
 {
-    return send_all(s, "data: ", 6) && send_all(s, line, n) && send_all(s, "\n\n", 2);
+    return send_all(s, "data: ") && send_all(s, line) && send_all(s, "\n\n");
 }
 
 /* Closing the page used to leave the program running with its port held and
@@ -152,15 +169,13 @@ static int send_event(sock_t s, const char *line, size_t n)
    moment and the page comes back, and serve_events() then pushes a redraw.
    Only a session that has had a page at all can time out, so a slow browser
    start is not mistaken for a closed one. */
-#define ALONE_SECONDS 10
+constexpr int ALONE_SECONDS = 10;
 
-static int had_client;
-static time_t alone_since;
+int had_client;
+time_t alone_since;
 
-static void *watchdog_main(void *arg)
+void *watchdog_main(void *)
 {
-    int i;
-    (void)arg;
     for (;;) {
 #ifdef _WIN32
         Sleep(2000);
@@ -168,75 +183,74 @@ static void *watchdog_main(void *arg)
         sleep(2);
 #endif
         pthread_mutex_lock(&lock);
-        for (i = 0; i < nclients; i++) {
-            if (!send_all(clients[i], ":\n\n", 3)) drop_client(i--); /* a comment: the page ignores it */
+        for (int i = 0; i < srv.nclients; i++) {
+            if (!send_all(srv.clients[i], ":\n\n")) drop_client(i--); /* a comment: the page ignores it */
         }
-        if (nclients > 0) alone_since = 0;
-        else if (had_client && !alone_since) alone_since = time(NULL);
-        if (had_client && nclients == 0 && alone_since
-            && time(NULL) - alone_since >= ALONE_SECONDS) {
+        if (srv.nclients > 0) alone_since = 0;
+        else if (had_client && !alone_since) alone_since = time(nullptr);
+        if (had_client && srv.nclients == 0 && alone_since
+            && time(nullptr) - alone_since >= ALONE_SECONDS) {
             pthread_mutex_unlock(&lock);
             /* exit() would run at_exit(), which tells the page the program is
                going and waits on the same lock from this thread: it hangs, and
                there is no page left to tell anyway. Flush what the core wrote,
                then go. */
-            fflush(NULL);
+            std::fflush(nullptr);
             _exit(0);
         }
         pthread_mutex_unlock(&lock);
     }
-    return NULL;
+    return nullptr;
 }
 
-/* the value of "key":"..." or "key":number in a flat event line */
-static int field(const char *line, size_t n, const char *key, char *out, size_t max)
+/* the value of "key":"..." or "key":number in a flat event line (the
+   events put these keys first, before any user text) */
+std::optional<std::string_view> field(std::string_view line, std::string_view key)
 {
-    char pat[32];
-    const char *p, *end = line + n;
-    size_t k = 0;
-    snprintf(pat, sizeof pat, "\"%s\":", key);
-    p = strstr(line, pat); /* the events put these keys first, before any user text */
-    if (!p || p >= end) return 0;
-    p += strlen(pat);
-    if (*p == '"') p++;
-    while (p < end && *p != '"' && *p != ',' && *p != '}' && k + 1 < max) out[k++] = *p++;
-    out[k] = 0;
-    return 1;
+    std::string pat = xpp::format("\"{}\":", key);
+    size_t p = line.find(pat);
+    if (p == std::string_view::npos) return std::nullopt;
+    p += pat.size();
+    if (p < line.size() && line[p] == '"') p++;
+    size_t e = p;
+    while (e < line.size() && line[e] != '"' && line[e] != ',' && line[e] != '}') e++;
+    return line.substr(p, e - p);
 }
 
-/* ---- the core's side ---------------------------------------------------------- */
-
-int xpp_http_active(void) { return active; }
-
-void xpp_http_emit(const char *line, size_t n)
+/* the window table's side of a `window` event (the lock is held) */
+void track_window(std::string_view line, std::string_view op, std::string_view win)
 {
-    char ev[16], op[16], win[16];
-    int i;
+    int w = std::atoi(std::string(win).c_str()), slot = -1;
+    for (int i = 0; i < MAX_WINDOWS; i++)
+        if (!srv.windows[i].line.empty() && srv.windows[i].win == w) slot = i;
+    if (op == "create") {
+        for (int i = 0; slot < 0 && i < MAX_WINDOWS; i++)
+            if (srv.windows[i].line.empty()) slot = i;
+        if (slot >= 0) {
+            srv.windows[slot].win = w;
+            srv.windows[slot].line = line;
+        }
+    } else if (op == "destroy" && slot >= 0) {
+        srv.windows[slot].line.clear();
+    }
+}
+
+void emit(std::string_view line)
+{
     pthread_mutex_lock(&lock);
-    if (field(line, n > 40 ? 40 : n, "ev", ev, sizeof ev)) {
-        if (strcmp(ev, "hello") == 0) set_sticky(&sticky_hello, line, n);
-        else if (strcmp(ev, "state") == 0) set_sticky(&sticky_state, line, n);
-        else if (strcmp(ev, "ask") == 0) set_sticky(&sticky_ask, line, n);
-        else if (strcmp(ev, "idle") == 0) set_sticky(&sticky_ask, NULL, 0);
-        else if (strcmp(ev, "bye") == 0) saw_bye = 1;
-        else if (strcmp(ev, "window") == 0 && field(line, n, "op", op, sizeof op) && field(line, n, "win", win, sizeof win)) {
-            int w = atoi(win), slot = -1;
-            for (i = 0; i < MAX_WINDOWS; i++)
-                if (windows[i].line && windows[i].win == w) slot = i;
-            if (strcmp(op, "create") == 0) {
-                for (i = 0; slot < 0 && i < MAX_WINDOWS; i++)
-                    if (!windows[i].line) slot = i;
-                if (slot >= 0) {
-                    windows[slot].win = w;
-                    set_sticky(&windows[slot].line, line, n);
-                }
-            } else if (strcmp(op, "destroy") == 0 && slot >= 0) {
-                set_sticky(&windows[slot].line, NULL, 0);
-            }
+    if (std::optional<std::string_view> ev = field(line.substr(0, 40), "ev")) {
+        if (*ev == "hello") srv.sticky_hello = line;
+        else if (*ev == "state") srv.sticky_state = line;
+        else if (*ev == "ask") srv.sticky_ask = line;
+        else if (*ev == "idle") srv.sticky_ask.clear();
+        else if (*ev == "bye") saw_bye = 1;
+        else if (*ev == "window") {
+            std::optional<std::string_view> op = field(line, "op"), win = field(line, "win");
+            if (op && win) track_window(line, *op, *win);
         }
     }
-    for (i = 0; i < nclients; i++)
-        if (!send_event(clients[i], line, n)) drop_client(i--);
+    for (int i = 0; i < srv.nclients; i++)
+        if (!send_event(srv.clients[i], line)) drop_client(i--);
     pthread_mutex_unlock(&lock);
 }
 
@@ -244,278 +258,280 @@ void xpp_http_emit(const char *line, size_t n)
    body is ignored; a body of several lines gives several lines (a CR before
    a newline dropped), as when the core split this text itself. Called with
    the lock held: the inbox's locks nest inside it, never the other way. */
-static void push_command(const char *s, size_t n)
+void push_command(std::string_view s)
 {
-    while (n > 0 && (s[n - 1] == '\n' || s[n - 1] == '\r' || s[n - 1] == ' ')) n--;
-    while (n > 0) {
-        const char *nl = static_cast<const char *>(memchr(s, '\n', n));
-        size_t k = nl ? (size_t)(nl - s) : n;
-        xpp_inbox_push(s, k > 0 && s[k - 1] == '\r' ? k - 1 : k);
-        if (!nl) break;
-        s += k + 1;
-        n -= k + 1;
+    while (!s.empty() && (s.back() == '\n' || s.back() == '\r' || s.back() == ' ')) s.remove_suffix(1);
+    while (!s.empty()) {
+        size_t nl = s.find('\n');
+        std::string_view one = s.substr(0, nl);
+        if (!one.empty() && one.back() == '\r') one.remove_suffix(1);
+        xpp_inbox_push(one.data(), one.size());
+        if (nl == std::string_view::npos) break;
+        s.remove_prefix(nl + 1);
     }
 }
 
 /* ---- what xppaut prints ----------------------------------------------------------- */
 
-/* {"ev":"log","text":"..."} for n bytes of printed text; malloc'd, length in *len */
-static char *log_event(const char *text, size_t n, size_t *len)
+/* {"ev":"log","text":"..."} for printed text */
+std::string log_event(std::string_view text)
 {
-    char *line = static_cast<char *>(xpp_malloc(6 * n + 32));
-    size_t i, k = (size_t)sprintf(line, "{\"ev\":\"log\",\"text\":\"");
-    for (i = 0; i < n; i++) {
-        unsigned char c = (unsigned char)text[i];
+    static constexpr std::string_view hex = "0123456789abcdef";
+    std::string line;
+    line.reserve(6 * text.size() + 32);
+    line = "{\"ev\":\"log\",\"text\":\"";
+    for (char ch : text) {
+        unsigned char c = static_cast<unsigned char>(ch);
         if (c == '"' || c == '\\') {
-            line[k++] = '\\';
-            line[k++] = (char)c;
+            line += '\\';
+            line += ch;
         } else if (c == '\n') {
-            line[k++] = '\\';
-            line[k++] = 'n';
+            line += "\\n";
         } else if (c < 0x20 || c >= 0x80) {
-            k += (size_t)sprintf(line + k, "\\u%04x", c);
-        } else line[k++] = (char)c;
+            line += "\\u00";
+            line += hex[c >> 4];
+            line += hex[c & 15];
+        } else line += ch;
     }
-    k += (size_t)sprintf(line + k, "\"}");
-    *len = k;
+    line += "\"}";
     return line;
 }
 
-static void *log_main(void *arg)
+void *log_main(void *arg)
 {
-    int fd = *(int *)arg;
-    char chunk[4096];
-    for (;;) {
-        size_t k;
-        char *line;
-        int r = read(fd, chunk, sizeof chunk);
-        if (r <= 0) break;
-        if (orig_stderr >= 0 && write(orig_stderr, chunk, (unsigned)r) < 0) orig_stderr = -1;
-        pthread_mutex_lock(&lock);
-        log_text = static_cast<char *>(xpp_realloc(log_text, log_len + (size_t)r));
-        memcpy(log_text + log_len, chunk, (size_t)r);
-        log_len += (size_t)r;
-        if (log_len > LOG_KEEP) { /* keep the last lines */
-            size_t cut = log_len - LOG_KEEP;
-            while (cut < log_len && log_text[cut - 1] != '\n') cut++;
-            memmove(log_text, log_text + cut, log_len - cut);
-            log_len -= cut;
+    int fd = *static_cast<int *>(arg);
+    std::array<char, 4096> chunk;
+    try {
+        for (;;) {
+            int r = read(fd, chunk.data(), chunk.size());
+            if (r <= 0) break;
+            if (orig_stderr >= 0 && write(orig_stderr, chunk.data(), static_cast<unsigned>(r)) < 0) orig_stderr = -1;
+            std::string_view got(chunk.data(), static_cast<size_t>(r));
+            pthread_mutex_lock(&lock);
+            srv.log_text += got;
+            size_t len = srv.log_text.size();
+            if (len > LOG_KEEP) { /* keep the last lines */
+                size_t cut = len - LOG_KEEP;
+                while (cut < len && srv.log_text[cut - 1] != '\n') cut++;
+                srv.log_text.erase(0, cut);
+            }
+            pthread_mutex_unlock(&lock);
+            emit(log_event(got));
         }
-        pthread_mutex_unlock(&lock);
-        line = log_event(chunk, (size_t)r, &k);
-        xpp_http_emit(line, k);
-        xpp_free(line);
+    } catch (...) {
+        out_of_memory();
     }
-    return NULL;
+    return nullptr;
 }
 
 /* ---- HTTP ---------------------------------------------------------------------------- */
 
-static void reply(sock_t s, const char *status, const char *type, const unsigned char *body, size_t len)
+void reply(sock_t s, const char *status, const char *type, std::string_view body)
 {
-    char head[256];
-    int n = snprintf(head, sizeof head,
-                     "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %lu\r\nCache-Control: no-store\r\n"
-                     "X-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n", status, type, (unsigned long)len);
-    if (send_all(s, head, (size_t)n) && len) send_all(s, (const char *)body, len);
+    std::string head = xpp::format("HTTP/1.1 {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nCache-Control: no-store\r\n"
+                                   "X-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n",
+                                   status, type, body.size());
+    if (send_all(s, head) && !body.empty()) send_all(s, body);
 }
 
-static void reply_text(sock_t s, const char *status, const char *text)
-{
-    reply(s, status, "text/plain", (const unsigned char *)text, strlen(text));
-}
+void reply_text(sock_t s, const char *status, const char *text) { reply(s, status, "text/plain", text); }
 
 /* the query's t= is the token, compared in full and in constant time */
-static int token_ok(const char *target)
+bool token_ok(std::string_view target)
 {
-    size_t n = strlen(token), i;
-    const char *q = strchr(target, '?');
-    for (; q; q = strchr(q + 1, '&')) {
-        const char *v = q + 1;
+    const std::string &token = srv.token;
+    size_t n = token.size();
+    for (size_t q = target.find('?'); q != std::string_view::npos; q = target.find('&', q + 1)) {
+        std::string_view v = target.substr(q + 1);
         unsigned diff = 0;
-        if (strncmp(v, "t=", 2) != 0) continue;
-        v += 2;
-        if (n == 0 || strcspn(v, "&") != n) continue;
-        for (i = 0; i < n; i++) diff |= (unsigned char)(v[i] ^ token[i]);
-        if (!diff) return 1;
+        if (!v.starts_with("t=")) continue;
+        v.remove_prefix(2);
+        if (n == 0 || std::min(v.find('&'), v.size()) != n) continue;
+        for (size_t i = 0; i < n; i++) diff |= static_cast<unsigned char>(v[i] ^ token[i]);
+        if (!diff) return true;
     }
-    return 0;
+    return false;
 }
 
-static void open_events(sock_t s)
+void open_events(sock_t s)
 {
-    static const char head[] = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\n\r\n";
-    int i, ok;
+    static constexpr std::string_view head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\n\r\n";
     pthread_mutex_lock(&lock);
-    ok = send_all(s, head, sizeof head - 1);
-    if (ok && log_len) {
-        size_t k;
-        char *line = log_event(log_text, log_len, &k);
-        ok = send_event(s, line, k);
-        xpp_free(line);
-    }
-    if (ok && sticky_hello) ok = send_event(s, sticky_hello, strlen(sticky_hello));
-    for (i = 0; ok && i < MAX_WINDOWS; i++)
-        if (windows[i].line) ok = send_event(s, windows[i].line, strlen(windows[i].line));
-    if (ok && sticky_state) ok = send_event(s, sticky_state, strlen(sticky_state));
-    if (ok && sticky_ask) ok = send_event(s, sticky_ask, strlen(sticky_ask));
-    if (ok && exit_event) ok = send_event(s, exit_event, strlen(exit_event));
-    if (ok && nclients < MAX_CLIENTS) {
+    bool ok = send_all(s, head);
+    if (ok && !srv.log_text.empty()) ok = send_event(s, log_event(srv.log_text));
+    if (ok && !srv.sticky_hello.empty()) ok = send_event(s, srv.sticky_hello);
+    for (int i = 0; ok && i < MAX_WINDOWS; i++)
+        if (!srv.windows[i].line.empty()) ok = send_event(s, srv.windows[i].line);
+    if (ok && !srv.sticky_state.empty()) ok = send_event(s, srv.sticky_state);
+    if (ok && !srv.sticky_ask.empty()) ok = send_event(s, srv.sticky_ask);
+    if (ok && !srv.exit_event.empty()) ok = send_event(s, srv.exit_event);
+    if (ok && srv.nclients < MAX_CLIENTS) {
         had_client = 1;
         alone_since = 0;
-        clients[nclients++] = s;
+        srv.clients[srv.nclients++] = s;
         /* the page draws from scratch; a redraw would wait behind an open prompt */
-        if (sticky_hello && !sticky_ask && !exit_event) push_command("{\"cmd\":\"redraw\"}", 16);
+        if (!srv.sticky_hello.empty() && srv.sticky_ask.empty() && srv.exit_event.empty())
+            push_command("{\"cmd\":\"redraw\"}");
     } else close_sock(s);
     pthread_mutex_unlock(&lock);
 }
 
 /* ---- a request: its head, then a body read as it comes -------------------------------- */
 
-#define HEAD_MAX 8192       /* request line and headers */
-#define CMD_MAX (1UL << 20) /* a POST /cmd body */
-#define RECV_SECONDS 30     /* a client that stops sending mid-request is dropped */
-#define CHUNK 65536
+constexpr size_t HEAD_MAX = 8192;                   /* request line and headers */
+constexpr unsigned long long CMD_MAX = 1ULL << 20;  /* a POST /cmd body */
+constexpr int RECV_SECONDS = 30;                    /* a client that stops sending mid-request is dropped */
+constexpr size_t CHUNK = 65536;
+constexpr size_t METHOD_MAX = 7, TARGET_MAX = 1023; /* longer is cut, as sscanf's %7s %1023s did */
 
-typedef struct {
-    sock_t s;
-    char head[HEAD_MAX + 1];
-    char method[8], target[1024];
-    size_t head_len;   /* the head, up to and with its blank line */
-    const char *body0; /* body bytes that arrived with the head */
-    size_t have;       /* how many */
-    int has_length;    /* a Content-Length was sent */
-    unsigned long long length;
-    unsigned long long consumed; /* body bytes read so far */
-} Request;
+struct Request {
+    sock_t s = INVALID_SOCKET;
+    std::array<char, HEAD_MAX + 1> head{};
+    std::string method, target;
+    size_t head_len = 0;           /* the head, up to and with its blank line */
+    const char *body0 = nullptr;   /* body bytes that arrived with the head */
+    size_t have = 0;               /* how many */
+    bool has_length = false;       /* a Content-Length was sent */
+    unsigned long long length = 0;
+    unsigned long long consumed = 0; /* body bytes read so far */
+};
 
-static int lower(int c) { return c >= 'A' && c <= 'Z' ? c + 32 : c; }
+int lower(int c) { return c >= 'A' && c <= 'Z' ? c + 32 : c; }
 
 /* header `name` (lower case) of the head: its value, blanks trimmed */
-static int header(const Request *q, const char *name, char *out, size_t max)
+std::optional<std::string> header(const Request &q, std::string_view name)
 {
-    size_t n = strlen(name), i;
-    const char *p = q->head, *end = q->head + q->head_len;
-    while ((p = static_cast<const char *>(memchr(p, '\n', (size_t)(end - p)))) != NULL) {
-        size_t k = 0;
+    size_t n = name.size(), i;
+    const char *p = q.head.data(), *end = q.head.data() + q.head_len;
+    while ((p = static_cast<const char *>(std::memchr(p, '\n', static_cast<size_t>(end - p)))) != nullptr) {
         p++;
-        if ((size_t)(end - p) <= n || p[n] != ':') continue;
-        for (i = 0; i < n && lower((unsigned char)p[i]) == name[i]; i++) {}
+        if (static_cast<size_t>(end - p) <= n || p[n] != ':') continue;
+        for (i = 0; i < n && lower(static_cast<unsigned char>(p[i])) == name[i]; i++) {}
         if (i < n) continue;
         p += n + 1;
         while (p < end && (*p == ' ' || *p == '\t')) p++;
-        while (p < end && *p != '\r' && *p != '\n' && k + 1 < max) out[k++] = *p++;
-        while (k > 0 && (out[k - 1] == ' ' || out[k - 1] == '\t')) k--;
-        out[k] = 0;
-        return 1;
+        const char *v = p;
+        while (p < end && *p != '\r' && *p != '\n') p++;
+        std::string_view value(v, static_cast<size_t>(p - v));
+        while (!value.empty() && (value.back() == ' ' || value.back() == '\t')) value.remove_suffix(1);
+        return std::string(value);
     }
-    return 0;
+    return std::nullopt;
 }
 
-/* reads the head; 0 when the connection is not a request worth an answer */
-static int read_head(Request *q)
+/* the next blank-separated word of `rest`, at most `max` characters (what
+   sscanf's %Ns reads); false when there is none */
+bool scan_word(std::string_view &rest, size_t max, std::string &out)
+{
+    size_t i = 0;
+    while (i < rest.size() && std::isspace(static_cast<unsigned char>(rest[i]))) i++;
+    size_t k = i;
+    while (k < rest.size() && k - i < max && !std::isspace(static_cast<unsigned char>(rest[k]))) k++;
+    if (k == i) return false;
+    out.assign(rest.substr(i, k - i));
+    rest.remove_prefix(k);
+    return true;
+}
+
+/* reads the head; false when the connection is not a request worth an answer */
+bool read_head(Request &q)
 {
     size_t got = 0, i = 0;
-    char v[32];
     while (got < HEAD_MAX) {
-        int r = recv(q->s, q->head + got, (int)(HEAD_MAX - got), 0);
-        if (r <= 0) return 0;
-        got += (size_t)r;
-        for (i = got >= (size_t)r + 3 ? got - (size_t)r - 3 : 0; i + 4 <= got; i++)
-            if (memcmp(q->head + i, "\r\n\r\n", 4) == 0) break;
+        int r = recv(q.s, q.head.data() + got, static_cast<int>(HEAD_MAX - got), 0);
+        if (r <= 0) return false;
+        got += static_cast<size_t>(r);
+        for (i = got >= static_cast<size_t>(r) + 3 ? got - static_cast<size_t>(r) - 3 : 0; i + 4 <= got; i++)
+            if (std::memcmp(q.head.data() + i, "\r\n\r\n", 4) == 0) break;
         if (i + 4 <= got) {
-            q->head_len = i + 4;
+            q.head_len = i + 4;
             break;
         }
     }
-    if (!q->head_len) return 0;
-    q->body0 = q->head + q->head_len;
-    q->have = got - q->head_len;
-    q->head[q->head_len - 2] = 0; /* the head as a string, for sscanf (the body starts after it) */
-    if (sscanf(q->head, "%7s %1023s", q->method, q->target) != 2) return 0;
-    q->has_length = header(q, "content-length", v, sizeof v);
-    if (q->has_length) {
-        if (!v[0] || strspn(v, "0123456789") != strlen(v) || strlen(v) > 18) q->length = ~0ULL;
-        else q->length = strtoull(v, NULL, 10);
-        q->consumed = q->have < q->length ? q->have : q->length;
+    if (!q.head_len) return false;
+    q.body0 = q.head.data() + q.head_len;
+    q.have = got - q.head_len;
+    q.head[q.head_len - 2] = 0; /* the head as a string (the body starts after it) */
+    std::string_view line(q.head.data());
+    if (!scan_word(line, METHOD_MAX, q.method) || !scan_word(line, TARGET_MAX, q.target)) return false;
+    std::optional<std::string> v = header(q, "content-length");
+    q.has_length = v.has_value();
+    if (q.has_length) {
+        if (v->empty() || v->find_first_not_of("0123456789") != std::string::npos || v->size() > 18) q.length = ~0ULL;
+        else q.length = std::strtoull(v->c_str(), nullptr, 10);
+        q.consumed = q.have < q.length ? q.have : q.length;
     }
-    return 1;
+    return true;
 }
 
 /* up to n more bytes of the body */
-static int take(Request *q, char *buf, size_t n)
+int take(Request &q, char *buf, size_t n)
 {
-    int r = recv(q->s, buf, (int)n, 0);
-    if (r > 0) q->consumed += (unsigned long long)r;
+    int r = recv(q.s, buf, static_cast<int>(n), 0);
+    if (r > 0) q.consumed += static_cast<unsigned long long>(r);
     return r;
 }
 
 /* the query-less path of the target */
-static size_t path_len(const char *target) { return strcspn(target, "?"); }
+size_t path_len(std::string_view target) { return std::min(target.find('?'), target.size()); }
 
-/* a %-encoded name; 0 for a bad escape, a NUL or no room */
-static int url_decode(const char *s, size_t n, char *out, size_t max)
+/* a %-encoded name; nullopt for a bad escape or a NUL */
+std::optional<std::string> url_decode(std::string_view s)
 {
-    size_t i, k = 0;
-    for (i = 0; i < n; i++) {
-        int c = (unsigned char)s[i];
+    std::string out;
+    for (size_t i = 0; i < s.size(); i++) {
+        int c = static_cast<unsigned char>(s[i]);
         if (c == '%') {
-            int h = 0, j;
-            for (j = 1; j <= 2; j++) {
-                int d;
-                if (i + (size_t)j >= n) return 0;
-                d = lower((unsigned char)s[i + (size_t)j]);
+            int h = 0;
+            for (size_t j = 1; j <= 2; j++) {
+                if (i + j >= s.size()) return std::nullopt;
+                int d = lower(static_cast<unsigned char>(s[i + j]));
                 d = d >= '0' && d <= '9' ? d - '0' : d >= 'a' && d <= 'f' ? d - 'a' + 10 : -1;
-                if (d < 0) return 0;
+                if (d < 0) return std::nullopt;
                 h = h * 16 + d;
             }
-            if (h == 0) return 0;
+            if (h == 0) return std::nullopt;
             c = h;
             i += 2;
         }
-        if (k + 1 >= max) return 0;
-        out[k++] = (char)c;
+        out += static_cast<char>(c);
     }
-    out[k] = 0;
-    return 1;
+    return out;
 }
 
 /* POST /cmd: the whole body, then into the inbox */
-static void serve_cmd(Request *q)
+void serve_cmd(Request &q)
 {
-    unsigned long long n = q->has_length ? q->length : q->have;
-    char *body;
-    size_t got;
-    if (!token_ok(q->target)) {
-        reply_text(q->s, "403 Forbidden", "bad token");
+    unsigned long long n = q.has_length ? q.length : q.have;
+    if (!token_ok(q.target)) {
+        reply_text(q.s, "403 Forbidden", "bad token");
         return;
     }
     if (n > CMD_MAX) {
-        reply_text(q->s, "413 Payload Too Large", "command too long");
+        reply_text(q.s, "413 Payload Too Large", "command too long");
         return;
     }
-    body = static_cast<char *>(xpp_malloc((size_t)n + 1));
-    got = q->have < n ? q->have : (size_t)n;
-    memcpy(body, q->body0, got);
+    std::string body(static_cast<size_t>(n), '\0');
+    size_t got = q.have < n ? q.have : static_cast<size_t>(n);
+    std::memcpy(body.data(), q.body0, got);
     while (got < n) {
-        int r = take(q, body + got, (size_t)n - got);
+        int r = take(q, body.data() + got, static_cast<size_t>(n) - got);
         if (r <= 0) break;
-        got += (size_t)r;
+        got += static_cast<size_t>(r);
     }
-    body[got] = 0;
     if (got < n) {
-        reply_text(q->s, "400 Bad Request", "incomplete body");
-    } else {
-        pthread_mutex_lock(&lock);
-        if (strstr(body, "\"cmd\":\"answer\"")) set_sticky(&sticky_ask, NULL, 0);
-        if (!exit_event) push_command(body, strlen(body));
-        pthread_mutex_unlock(&lock);
-        reply(q->s, "204 No Content", "text/plain", NULL, 0);
+        reply_text(q.s, "400 Bad Request", "incomplete body");
+        return;
     }
-    xpp_free(body);
+    std::string_view cmd(body.c_str()); /* up to a NUL, as the C string it was */
+    pthread_mutex_lock(&lock);
+    if (cmd.find("\"cmd\":\"answer\"") != std::string_view::npos) srv.sticky_ask.clear();
+    if (srv.exit_event.empty()) push_command(cmd);
+    pthread_mutex_unlock(&lock);
+    reply(q.s, "204 No Content", "text/plain", {});
 }
 
-static const char *files_status(int st)
+const char *files_status(int st)
 {
     switch (st) {
     case XPP_FILES_BAD_NAME: return "400 Bad Request";
@@ -526,160 +542,144 @@ static const char *files_status(int st)
     }
 }
 
-static void get_file(sock_t s, const char *name)
+void get_file(sock_t s, const std::string &name)
 {
-    FILE *fp;
+    FILE *raw = nullptr;
     unsigned long long size;
-    char head[256], *buf;
-    size_t n;
-    int ok, st = xpp_files_open(name, &fp, &size);
+    int st = xpp_files_open(name.c_str(), &raw, &size);
     if (st != XPP_FILES_OK) {
         reply_text(s, files_status(st), xpp_files_status_text(st));
         return;
     }
-    n = (size_t)snprintf(head, sizeof head,
-                         "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %llu\r\n"
-                         "Cache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n",
-                         size);
-    ok = send_all(s, head, n);
-    buf = static_cast<char *>(xpp_malloc(CHUNK));
-    while (ok && (n = fread(buf, 1, CHUNK, fp)) > 0) ok = send_all(s, buf, n);
-    xpp_free(buf);
-    fclose(fp);
+    xpp::UniqueFile fp(raw);
+    std::string head = xpp::format("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {}\r\n"
+                                   "Cache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n",
+                                   size);
+    bool ok = send_all(s, head);
+    std::vector<char> buf(CHUNK);
+    size_t n;
+    while (ok && (n = std::fread(buf.data(), 1, buf.size(), fp.get())) > 0) ok = send_all(s, {buf.data(), n});
 }
 
 /* PUT /files/NAME: the body streams into a temporary file that becomes
    NAME only once all of it arrived (xpp_files.h) */
-static void put_file(Request *q, const char *name)
+void put_file(Request &q, const std::string &name)
 {
     XppFilePut *put;
     unsigned long long left, size;
-    char sha[65], v[32], *buf;
-    int st;
-    if (!q->has_length) {
-        reply_text(q->s, "411 Length Required", "a Content-Length is required");
+    std::array<char, 65> sha;
+    if (!q.has_length) {
+        reply_text(q.s, "411 Length Required", "a Content-Length is required");
         return;
     }
-    if (q->length > XPP_FILES_CAP) { /* refused before a byte of the body is read */
-        reply_text(q->s, "413 Payload Too Large", xpp_files_status_text(XPP_FILES_TOO_LARGE));
+    if (q.length > XPP_FILES_CAP) { /* refused before a byte of the body is read */
+        reply_text(q.s, "413 Payload Too Large", xpp_files_status_text(XPP_FILES_TOO_LARGE));
         return;
     }
-    st = xpp_files_put_begin(name, XPP_FILES_CAP, &put);
+    int st = xpp_files_put_begin(name.c_str(), XPP_FILES_CAP, &put);
     if (st != XPP_FILES_OK) {
-        reply_text(q->s, files_status(st), xpp_files_status_text(st));
+        reply_text(q.s, files_status(st), xpp_files_status_text(st));
         return;
     }
-    if (header(q, "expect", v, sizeof v) && strcmp(v, "100-continue") == 0)
-        send_all(q->s, "HTTP/1.1 100 Continue\r\n\r\n", 25);
-    left = q->length;
+    if (std::optional<std::string> v = header(q, "expect"); v && *v == "100-continue")
+        send_all(q.s, "HTTP/1.1 100 Continue\r\n\r\n");
+    left = q.length;
     {
-        size_t first = q->have < left ? q->have : (size_t)left;
-        st = xpp_files_put_write(put, q->body0, first);
+        size_t first = q.have < left ? q.have : static_cast<size_t>(left);
+        st = xpp_files_put_write(put, q.body0, first);
         left -= first;
     }
-    buf = static_cast<char *>(xpp_malloc(CHUNK));
+    std::vector<char> buf(CHUNK);
     while (st == XPP_FILES_OK && left > 0) {
-        int r = take(q, buf, (size_t)(left < CHUNK ? left : CHUNK));
+        int r = take(q, buf.data(), static_cast<size_t>(left < CHUNK ? left : CHUNK));
         if (r <= 0) break; /* cut short, or the client stopped sending */
-        st = xpp_files_put_write(put, buf, (size_t)r);
-        left -= (unsigned long long)r;
+        st = xpp_files_put_write(put, buf.data(), static_cast<size_t>(r));
+        left -= static_cast<unsigned long long>(r);
     }
-    xpp_free(buf);
     if (st != XPP_FILES_OK || left > 0) {
         xpp_files_put_abort(put);
-        if (st != XPP_FILES_OK) reply_text(q->s, files_status(st), xpp_files_status_text(st));
-        else reply_text(q->s, "400 Bad Request", "incomplete body");
+        if (st != XPP_FILES_OK) reply_text(q.s, files_status(st), xpp_files_status_text(st));
+        else reply_text(q.s, "400 Bad Request", "incomplete body");
         return;
     }
-    st = xpp_files_put_commit(put, &size, sha);
+    st = xpp_files_put_commit(put, &size, sha.data());
     if (st != XPP_FILES_OK) {
-        reply_text(q->s, files_status(st), xpp_files_status_text(st));
+        reply_text(q.s, files_status(st), xpp_files_status_text(st));
         return;
     }
-    {
-        /* the name passed xpp_files_name_ok: no quote, backslash or control character */
-        size_t n = strlen(name) + 160;
-        char *json = static_cast<char *>(xpp_malloc(n));
-        snprintf(json, n, "{\"name\":\"%s\",\"size\":%llu,\"sha256\":\"%s\"}", name, size, sha);
-        reply(q->s, "200 OK", "application/json", (const unsigned char *)json, strlen(json));
-        xpp_free(json);
-    }
+    /* the name passed xpp_files_name_ok: no quote, backslash or control character */
+    reply(q.s, "200 OK", "application/json",
+          xpp::format("{{\"name\":\"{}\",\"size\":{},\"sha256\":\"{}\"}}", name, size, sha.data()));
 }
 
 /* /files (the listing), /files/NAME (GET, PUT): docs/protocol.md "Files" */
-static void serve_files(Request *q)
+void serve_files(Request &q)
 {
-    size_t n = path_len(q->target);
-    char name[1024];
-    if (!token_ok(q->target)) {
-        reply_text(q->s, "403 Forbidden", "bad token");
+    size_t n = path_len(q.target);
+    if (!token_ok(q.target)) {
+        reply_text(q.s, "403 Forbidden", "bad token");
         return;
     }
-    if (n == 6 || (n == 7 && q->target[6] == '/')) {
-        if (strcmp(q->method, "GET") == 0) {
-            size_t len;
-            char *json = xpp_files_list_json(&len);
-            reply(q->s, "200 OK", "application/json", (const unsigned char *)json, len);
-            xpp_free(json);
-        } else reply_text(q->s, "405 Method Not Allowed", "GET only");
+    if (n == 6 || (n == 7 && q.target[6] == '/')) {
+        if (q.method == "GET") reply(q.s, "200 OK", "application/json", xpp::files_list_json());
+        else reply_text(q.s, "405 Method Not Allowed", "GET only");
         return;
     }
-    if (!url_decode(q->target + 7, n - 7, name, sizeof name) || !xpp_files_name_ok(name)) {
-        reply_text(q->s, files_status(XPP_FILES_BAD_NAME), xpp_files_status_text(XPP_FILES_BAD_NAME));
+    std::optional<std::string> name = url_decode(std::string_view(q.target).substr(7, n - 7));
+    if (!name || !xpp_files_name_ok(name->c_str())) {
+        reply_text(q.s, files_status(XPP_FILES_BAD_NAME), xpp_files_status_text(XPP_FILES_BAD_NAME));
         return;
     }
-    if (strcmp(q->method, "GET") == 0) get_file(q->s, name);
-    else if (strcmp(q->method, "PUT") == 0) put_file(q, name);
-    else reply_text(q->s, "405 Method Not Allowed", "GET or PUT");
+    if (q.method == "GET") get_file(q.s, *name);
+    else if (q.method == "PUT") put_file(q, *name);
+    else reply_text(q.s, "405 Method Not Allowed", "GET or PUT");
 }
 
 /* a bookmark of an old path, /v2/ (web2 moved to / at T17) or /v1/ (the
    classic page, removed at T18): redirect it to the same path under /,
    keeping the query string (the token). */
-static void redirect(sock_t s, const char *location)
+void redirect(sock_t s, std::string_view location)
 {
-    char head[700]; /* the location (under 560, see its caller) and the fixed lines */
-    int n = snprintf(head, sizeof head,
-                     "HTTP/1.1 302 Found\r\nLocation: %s\r\nContent-Length: 0\r\nCache-Control: no-store\r\n"
-                     "Connection: close\r\n\r\n", location);
-    if (n < 0) return;
-    send_all(s, head, n < (int)sizeof head ? (size_t)n : sizeof head - 1); /* cut, never past the buffer */
+    send_all(s, xpp::format("HTTP/1.1 302 Found\r\nLocation: {}\r\nContent-Length: 0\r\nCache-Control: no-store\r\n"
+                            "Connection: close\r\n\r\n",
+                            location));
 }
 
-static void serve_asset(Request *q)
+constexpr size_t ASSET_PATH_MAX = 511; /* a longer path is cut, and found nowhere */
+constexpr size_t LOCATION_MAX = 559;
+
+void serve_asset(Request &q)
 {
-    char path[512];
-    const XppWebAsset *a;
-    int i;
-    for (i = 0; q->target[i] && q->target[i] != '?' && i < (int)sizeof path - 1; i++) path[i] = q->target[i];
-    path[i] = 0;
-    if (strcmp(path, "/v1") == 0 || strncmp(path, "/v1/", 4) == 0 || strcmp(path, "/v2") == 0 ||
-        strncmp(path, "/v2/", 4) == 0) {
-        char location[560];
-        const char *rest = path[3] == '/' ? path + 4 : "";
-        const char *query = strchr(q->target, '?');
-        snprintf(location, sizeof location, "/%s%s", rest, query ? query : "");
-        redirect(q->s, location);
+    std::string_view target = q.target;
+    size_t query = target.find('?');
+    std::string path(target.substr(0, std::min(query, ASSET_PATH_MAX)));
+    if (path == "/v1" || path.starts_with("/v1/") || path == "/v2" || path.starts_with("/v2/")) {
+        std::string_view rest = path.size() > 3 && path[3] == '/' ? std::string_view(path).substr(4) : "";
+        std::string location =
+            xpp::format("/{}{}", rest, query == std::string_view::npos ? std::string_view() : target.substr(query));
+        if (location.size() > LOCATION_MAX) location.resize(LOCATION_MAX);
+        redirect(q.s, location);
         return;
     }
-    if (strcmp(path, "/index.html") == 0) strcpy(path, "/");
+    if (path == "/index.html") path = "/";
+    const XppWebAsset *a;
     for (a = xpp_web_assets; a->path; a++)
-        if (strcmp(a->path, path) == 0) break;
-    if (a->path) reply(q->s, "200 OK", a->type, a->data, a->len);
-    else reply_text(q->s, "404 Not Found", "not found");
+        if (path == a->path) break;
+    if (a->path) reply(q.s, "200 OK", a->type, {reinterpret_cast<const char *>(a->data), a->len});
+    else reply_text(q.s, "404 Not Found", "not found");
 }
 
 /* a client that stops sending (a stalled upload) is dropped after a while */
-static void set_recv_timeout(sock_t s, int seconds)
+void set_recv_timeout(sock_t s, int seconds)
 {
 #ifdef _WIN32
-    DWORD ms = (DWORD)seconds * 1000;
-    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char *)&ms, sizeof ms);
+    DWORD ms = static_cast<DWORD>(seconds) * 1000;
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char *>(&ms), sizeof ms);
 #else
     struct timeval tv;
     tv.tv_sec = seconds;
     tv.tv_usec = 0;
-    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char *>(&tv), sizeof tv);
 #endif
 }
 
@@ -687,19 +687,18 @@ static void set_recv_timeout(sock_t s, int seconds)
    still has the body coming: closing on unread data resets the connection,
    and the client may lose the answer. A small rest is read and dropped
    first; a large one (an upload over the cap) is not waited for. */
-#define DRAIN_MAX (1ULL << 20)
-static void drain(Request *q)
+constexpr unsigned long long DRAIN_MAX = 1ULL << 20;
+void drain(Request &q)
 {
-    char buf[4096];
-    unsigned long long left;
-    if (!q->has_length || q->length == ~0ULL || q->consumed >= q->length) return;
-    left = q->length - q->consumed;
+    std::array<char, 4096> buf;
+    if (!q.has_length || q.length == ~0ULL || q.consumed >= q.length) return;
+    unsigned long long left = q.length - q.consumed;
     if (left > DRAIN_MAX) return;
-    set_recv_timeout(q->s, 2);
+    set_recv_timeout(q.s, 2);
     while (left > 0) {
-        int r = take(q, buf, left < sizeof buf ? (size_t)left : sizeof buf);
+        int r = take(q, buf.data(), left < buf.size() ? static_cast<size_t>(left) : buf.size());
         if (r <= 0) break;
-        left -= (unsigned long long)r;
+        left -= static_cast<unsigned long long>(r);
     }
 }
 
@@ -712,121 +711,253 @@ static void drain(Request *q)
    time, as when a single thread answered them all (an upload, the event
    streams' registration). The page keeps its commands in order by sending
    the next one once the last was answered (web2's HttpTransport). */
-static void handle(sock_t s)
+void handle(sock_t s)
 {
-    Request *q = static_cast<Request *>(xpp_calloc(1, sizeof *q));
-    size_t n;
-    int serial;
+    std::unique_ptr<Request> q = std::make_unique<Request>();
     q->s = s;
-    if (!read_head(q)) {
+    if (!read_head(*q)) {
         close_sock(s);
-        xpp_free(q);
         return;
     }
-    serial = !(strcmp(q->method, "POST") == 0 && strncmp(q->target, "/cmd", 4) == 0);
+    const bool command = q->method == "POST" && q->target.starts_with("/cmd");
+    const bool serial = !command;
     if (serial) pthread_mutex_lock(&serve_lock);
-    n = path_len(q->target);
-    if (strlen(q->target) >= sizeof q->target - 1) {
+    size_t n = path_len(q->target);
+    if (q->target.size() >= TARGET_MAX) {
         reply_text(s, "414 URI Too Long", "address too long");
     } else if (q->has_length && q->length == ~0ULL) {
         reply_text(s, "400 Bad Request", "bad Content-Length");
-    } else if (strcmp(q->method, "GET") == 0 && strncmp(q->target, "/events", 7) == 0) {
+    } else if (q->method == "GET" && q->target.starts_with("/events")) {
         if (token_ok(q->target)) {
             open_events(s);
             pthread_mutex_unlock(&serve_lock);
-            xpp_free(q);
             return;
         }
         reply_text(s, "403 Forbidden", "bad token");
-    } else if (strcmp(q->method, "POST") == 0 && strncmp(q->target, "/cmd", 4) == 0) {
-        serve_cmd(q);
-    } else if (n >= 6 && strncmp(q->target, "/files", 6) == 0 && (n == 6 || q->target[6] == '/')) {
-        serve_files(q);
-    } else if (strcmp(q->method, "GET") == 0) {
-        serve_asset(q);
-    } else reply(s, "405 Method Not Allowed", "text/plain", NULL, 0);
-    drain(q);
+    } else if (command) {
+        serve_cmd(*q);
+    } else if (n >= 6 && q->target.starts_with("/files") && (n == 6 || q->target[6] == '/')) {
+        serve_files(*q);
+    } else if (q->method == "GET") {
+        serve_asset(*q);
+    } else reply(s, "405 Method Not Allowed", "text/plain", {});
+    drain(*q);
     if (serial) pthread_mutex_unlock(&serve_lock);
     close_sock(s);
-    xpp_free(q);
 }
 
-static void *connection_main(void *arg)
+void *connection_main(void *arg)
 {
-    handle(static_cast<sock_t>(reinterpret_cast<uintptr_t>(arg)));
-    return NULL;
+    try {
+        handle(static_cast<sock_t>(reinterpret_cast<uintptr_t>(arg)));
+    } catch (...) {
+        out_of_memory();
+    }
+    return nullptr;
 }
 
 /* A process xppautX starts (the web view's own processes, a browser
    opener, a second xppautX) must not inherit the listening socket, a
    page's connection or the log pipe: it would keep the port, or the pipe,
    after xppautX has gone. */
-static void no_inherit_sock(sock_t s)
+void no_inherit_sock(sock_t s)
 {
 #ifdef _WIN32
-    SetHandleInformation((HANDLE)s, HANDLE_FLAG_INHERIT, 0);
+    SetHandleInformation(reinterpret_cast<HANDLE>(s), HANDLE_FLAG_INHERIT, 0);
 #else
     fcntl(s, F_SETFD, FD_CLOEXEC);
 #endif
 }
 
-static void no_inherit_fd(int fd)
-{
 #ifndef _WIN32
-    fcntl(fd, F_SETFD, FD_CLOEXEC);
+void no_inherit_fd(int fd) { fcntl(fd, F_SETFD, FD_CLOEXEC); }
 #else
-    (void)fd; /* the pipe is made _O_NOINHERIT; a second xppautX is started inheriting nothing */
+void no_inherit_fd(int) {} /* the pipe is made _O_NOINHERIT; a second xppautX is started inheriting nothing */
 #endif
-}
 
-static void *http_main(void *arg)
+sock_t listener = INVALID_SOCKET;
+
+void *http_main(void *)
 {
     pthread_attr_t detached;
     pthread_t t;
-    (void)arg;
     pthread_attr_init(&detached);
     pthread_attr_setdetachstate(&detached, PTHREAD_CREATE_DETACHED);
     for (;;) {
-        sock_t s = accept(listener, NULL, NULL);
+        sock_t s = accept(listener, nullptr, nullptr);
         if (s == INVALID_SOCKET) continue;
         no_inherit_sock(s);
         set_recv_timeout(s, RECV_SECONDS);
         if (pthread_create(&t, &detached, connection_main, reinterpret_cast<void *>(static_cast<uintptr_t>(s))) != 0)
-            handle(s); /* no thread to spare: answered here, as it always was */
+            connection_main(reinterpret_cast<void *>(static_cast<uintptr_t>(s))); /* no thread to spare: answered here, as it always was */
     }
-    return NULL;
+    return nullptr;
 }
 
 /* the model stopped: say so in the page. After an error (no bye) keep
    serving so the page can show what xppaut printed. */
-static void at_exit(void)
+void at_exit()
 {
-    char line[64];
-    int done;
-    fflush(stdout);
-    fflush(stderr);
+    std::fflush(stdout);
+    std::fflush(stderr);
 #ifdef _WIN32
     Sleep(200);
 #else
     usleep(200000);
 #endif
-    snprintf(line, sizeof line, "{\"ev\":\"exit\",\"code\":%d}", saw_bye ? 0 : 1);
+    try {
+        std::string line = xpp::format("{{\"ev\":\"exit\",\"code\":{}}}", saw_bye ? 0 : 1);
+        pthread_mutex_lock(&lock);
+        srv.exit_event = line;
+        pthread_mutex_unlock(&lock);
+        emit(line);
+    } catch (...) {
+        out_of_memory();
+    }
     pthread_mutex_lock(&lock);
-    set_sticky(&exit_event, line, strlen(line));
-    pthread_mutex_unlock(&lock);
-    xpp_http_emit(line, strlen(line));
-    pthread_mutex_lock(&lock);
-    done = saw_bye || released; /* released: the window showing the page is closed */
+    bool done = saw_bye || released; /* released: the window showing the page is closed */
     pthread_mutex_unlock(&lock);
     if (done) return;
     if (orig_stderr >= 0) {
-        static const char msg[] = "xppautX: the model stopped; the page shows what it printed. Ctrl+C (or closing its window) quits.\n";
-        if (write(orig_stderr, msg, sizeof msg - 1) < 0) orig_stderr = -1;
+        static constexpr std::string_view msg =
+            "xppautX: the model stopped; the page shows what it printed. Ctrl+C (or closing its window) quits.\n";
+        if (write(orig_stderr, msg.data(), static_cast<unsigned>(msg.size())) < 0) orig_stderr = -1;
     }
     /* until Ctrl+C, or until the window showing the page is closed */
     pthread_mutex_lock(&lock);
     while (!released) pthread_cond_wait(&released_cond, &lock);
     pthread_mutex_unlock(&lock);
+}
+
+void make_token()
+{
+    static constexpr std::string_view hex = "0123456789abcdef";
+    std::array<unsigned char, 16> bytes{};
+#ifdef _WIN32
+    for (unsigned char &b : bytes) {
+        unsigned int v = 0;
+        rand_s(&v);
+        b = static_cast<unsigned char>(v);
+    }
+#else
+    std::ifstream f("/dev/urandom", std::ios::binary);
+    if (!f.read(reinterpret_cast<char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()))) {
+        srand(static_cast<unsigned>(time(nullptr)) ^ static_cast<unsigned>(getpid()));
+        for (unsigned char &b : bytes) b = static_cast<unsigned char>(rand());
+    }
+#endif
+    std::string token;
+    for (unsigned char b : bytes) {
+        token += hex[b >> 4];
+        token += hex[b & 15];
+    }
+    srv.token = token;
+}
+
+void open_in_browser(const std::string &url)
+{
+#ifdef _WIN32
+    ShellExecuteA(nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+#else
+    const char *opener = "xdg-open";
+#ifdef __APPLE__
+    opener = "open";
+#endif
+    if (getenv("WSL_DISTRO_NAME")) opener = "cmd.exe /c start";
+    std::string cmd = xpp::format("{} '{}' >/dev/null 2>&1 &", opener, url);
+    if (system(cmd.c_str()) != 0) xpp::log(XPP_LOG_WARN, "open {} in a browser\n", url);
+#endif
+}
+
+int listen_on(int port)
+{
+    struct sockaddr_in addr{};
+    listener = socket(AF_INET, SOCK_STREAM, 0);
+    if (listener == INVALID_SOCKET) return -1;
+    no_inherit_sock(listener);
+#ifndef _WIN32
+    int one = 1;
+    setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&one), sizeof one);
+#endif
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); /* this machine only */
+    addr.sin_port = htons(static_cast<unsigned short>(port));
+    if (bind(listener, reinterpret_cast<struct sockaddr *>(&addr), sizeof addr) != 0 || listen(listener, 16) != 0) {
+        close_sock(listener);
+        listener = INVALID_SOCKET;
+        return -1;
+    }
+    socklen_t len = sizeof addr;
+    getsockname(listener, reinterpret_cast<struct sockaddr *>(&addr), &len);
+    return ntohs(addr.sin_port);
+}
+
+/* the "XPP: http://..." line tools and the VS Code extension read */
+void print_address(const char *page_url)
+{
+    printf("XPP: %s\n", page_url);
+    std::fflush(stdout);
+}
+
+/* the descriptor a standard stream writes through, given one if it has
+   none: the Windows exe is a GUI-subsystem program, and started with no
+   console (Explorer, a shortcut, Start-Process) the C library leaves stdout
+   and stderr without a descriptor (_fileno -2), where a dup2 onto 1 and 2
+   never reaches them and all the core prints, AUTO's table included, was
+   lost to the page (T27). The pipe goes onto the stream's own descriptor,
+   whichever it is (also a stream xpp_win32_attach_console reopened). */
+int stream_fd(FILE *f)
+{
+#ifdef _WIN32
+    if (_fileno(f) < 0 && !freopen("NUL", "w", f)) return -1;
+#endif
+    return fileno(f);
+}
+
+std::array<int, 2> log_pipe;
+
+void start(int got, int flags)
+{
+    make_token();
+    srv.page_url = xpp::format("http://127.0.0.1:{}/?t={}", got, srv.token);
+    if (flags & XPP_HTTP_SHOW) print_address(srv.page_url.c_str());
+
+    /* what xppaut prints: to the terminal and the page */
+    orig_stderr = fileno(stderr) >= 0 ? dup(fileno(stderr)) : -1;
+    if (orig_stderr >= 0) no_inherit_fd(orig_stderr);
+#ifdef _WIN32
+    if (_pipe(log_pipe.data(), 65536, _O_BINARY | _O_NOINHERIT) == 0) {
+#else
+    if (pipe(log_pipe.data()) == 0) {
+#endif
+        no_inherit_fd(log_pipe[0]);
+        no_inherit_fd(log_pipe[1]);
+        dup2(log_pipe[1], stream_fd(stdout));
+        dup2(log_pipe[1], stream_fd(stderr));
+        setvbuf(stdout, nullptr, _IONBF, 0);
+        setvbuf(stderr, nullptr, _IONBF, 0);
+        pthread_create(&log_thread, nullptr, log_main, &log_pipe[0]);
+    }
+    active = 1;
+    pthread_create(&http_thread, nullptr, http_main, nullptr);
+    pthread_create(&watchdog_thread, nullptr, watchdog_main, nullptr);
+    atexit(at_exit);
+    if (flags & XPP_HTTP_OPEN) open_in_browser(srv.page_url);
+}
+
+} // namespace
+
+/* ---- the C API ------------------------------------------------------------------- */
+
+int xpp_http_active(void) { return active; }
+
+void xpp_http_emit(const char *line, size_t n)
+{
+    try {
+        emit(std::string_view(line, n));
+    } catch (...) {
+        out_of_memory();
+    }
 }
 
 void xpp_http_release(void)
@@ -839,150 +970,44 @@ void xpp_http_release(void)
 
 int xpp_http_said_bye(void)
 {
-    int bye;
     pthread_mutex_lock(&lock);
-    bye = saw_bye;
+    int bye = saw_bye;
     pthread_mutex_unlock(&lock);
     return bye;
 }
 
-const char *xpp_http_url(void) { return page_url; }
-
-static void make_token(void)
-{
-    static const char hex[] = "0123456789abcdef";
-    unsigned char bytes[16];
-    int i;
-#ifdef _WIN32
-    for (i = 0; i < 16; i++) {
-        unsigned int v = 0;
-        rand_s(&v);
-        bytes[i] = (unsigned char)v;
-    }
-#else
-    FILE *f = fopen("/dev/urandom", "rb");
-    if (!f || fread(bytes, 1, 16, f) != 16) {
-        srand((unsigned)time(NULL) ^ (unsigned)getpid());
-        for (i = 0; i < 16; i++) bytes[i] = (unsigned char)rand();
-    }
-    if (f) fclose(f);
-#endif
-    for (i = 0; i < 16; i++) {
-        token[2 * i] = hex[bytes[i] >> 4];
-        token[2 * i + 1] = hex[bytes[i] & 15];
-    }
-    token[32] = 0;
-}
-
-static void open_in_browser(const char *url)
-{
-#ifdef _WIN32
-    ShellExecuteA(NULL, "open", url, NULL, NULL, SW_SHOWNORMAL);
-#else
-    char cmd[600];
-    const char *opener = "xdg-open";
-#ifdef __APPLE__
-    opener = "open";
-#endif
-    if (getenv("WSL_DISTRO_NAME")) opener = "cmd.exe /c start";
-    snprintf(cmd, sizeof cmd, "%s '%s' >/dev/null 2>&1 &", opener, url);
-    if (system(cmd) != 0) xpp_log(XPP_LOG_WARN, "open %s in a browser\n", url);
-#endif
-}
-
-static int listen_on(int port)
-{
-    struct sockaddr_in addr;
-    int one = 1;
-    listener = socket(AF_INET, SOCK_STREAM, 0);
-    if (listener == INVALID_SOCKET) return -1;
-    no_inherit_sock(listener);
-#ifndef _WIN32
-    setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, (const char *)&one, sizeof one);
-#else
-    (void)one;
-#endif
-    memset(&addr, 0, sizeof addr);
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); /* this machine only */
-    addr.sin_port = htons((unsigned short)port);
-    if (bind(listener, (struct sockaddr *)&addr, sizeof addr) != 0 || listen(listener, 16) != 0) {
-        close_sock(listener);
-        listener = INVALID_SOCKET;
-        return -1;
-    }
-    {
-        socklen_t len = sizeof addr;
-        getsockname(listener, (struct sockaddr *)&addr, &len);
-    }
-    return ntohs(addr.sin_port);
-}
+const char *xpp_http_url(void) { return srv.page_url.c_str(); }
 
 void xpp_http_show(int open)
 {
-    printf("XPP: %s\n", page_url);
-    fflush(stdout);
-    if (open) open_in_browser(page_url);
-}
-
-/* the descriptor a standard stream writes through, given one if it has
-   none: the Windows exe is a GUI-subsystem program, and started with no
-   console (Explorer, a shortcut, Start-Process) the C library leaves stdout
-   and stderr without a descriptor (_fileno -2), where a dup2 onto 1 and 2
-   never reaches them and all the core prints, AUTO's table included, was
-   lost to the page (T27). The pipe goes onto the stream's own descriptor,
-   whichever it is (also a stream xpp_win32_attach_console reopened). */
-static int stream_fd(FILE *f)
-{
-#ifdef _WIN32
-    if (_fileno(f) < 0 && !freopen("NUL", "w", f)) return -1;
-#endif
-    return fileno(f);
+    print_address(srv.page_url.c_str());
+    if (open) {
+        try {
+            open_in_browser(srv.page_url);
+        } catch (...) {
+            out_of_memory();
+        }
+    }
 }
 
 int xpp_http_start(int port, int flags)
 {
-    static int log_pipe[2];
-    int got;
 #ifdef _WIN32
     WSADATA wsa;
     if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return 0;
 #else
     signal(SIGPIPE, SIG_IGN);
 #endif
-    got = listen_on(port);
+    int got = listen_on(port);
     if (got < 0 && port != 0) got = listen_on(0); /* taken: any free port */
     if (got < 0) {
         xpp_log(XPP_LOG_ERROR, "xppautX: cannot open a port on 127.0.0.1\n");
         return 0;
     }
-    make_token();
-    snprintf(page_url, sizeof page_url, "http://127.0.0.1:%d/?t=%s", got, token);
-    if (flags & XPP_HTTP_SHOW) {
-        printf("XPP: %s\n", page_url);
-        fflush(stdout);
+    try {
+        start(got, flags);
+    } catch (...) {
+        out_of_memory();
     }
-
-    /* what xppaut prints: to the terminal and the page */
-    orig_stderr = fileno(stderr) >= 0 ? dup(fileno(stderr)) : -1;
-    if (orig_stderr >= 0) no_inherit_fd(orig_stderr);
-#ifdef _WIN32
-    if (_pipe(log_pipe, 65536, _O_BINARY | _O_NOINHERIT) == 0) {
-#else
-    if (pipe(log_pipe) == 0) {
-#endif
-        no_inherit_fd(log_pipe[0]);
-        no_inherit_fd(log_pipe[1]);
-        dup2(log_pipe[1], stream_fd(stdout));
-        dup2(log_pipe[1], stream_fd(stderr));
-        setvbuf(stdout, NULL, _IONBF, 0);
-        setvbuf(stderr, NULL, _IONBF, 0);
-        pthread_create(&log_thread, NULL, log_main, &log_pipe[0]);
-    }
-    active = 1;
-    pthread_create(&http_thread, NULL, http_main, NULL);
-    pthread_create(&watchdog_thread, NULL, watchdog_main, NULL);
-    atexit(at_exit);
-    if (flags & XPP_HTTP_OPEN) open_in_browser(page_url);
     return 1;
 }

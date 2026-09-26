@@ -1,5 +1,6 @@
 /* The model's folder as the page's workspace: see xpp_files.h. */
 #include "xpp_files.h"
+#include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_mem.h"
 #include "xpp_sha256.h"
@@ -8,6 +9,7 @@
 #endif
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cctype>
 #include <cerrno>
@@ -43,7 +45,7 @@
 #endif
 
 struct XppFilePut {
-    std::FILE *fp = nullptr;
+    xpp::UniqueFile fp;
     std::string name, tmp;
     unsigned long long cap = 0, bytes = 0;
     XppSha256 sha{};
@@ -94,7 +96,7 @@ int kind_of(const char *name, Stat *st)
     return S_ISREG(st->st_mode) ? XPP_FILES_OK : XPP_FILES_REFUSED;
 }
 
-int open_plain(const char *name, std::FILE **fp, unsigned long long *size)
+int open_plain(const char *name, xpp::UniqueFile &fp, unsigned long long *size)
 {
     Stat st;
     int k = kind_of(name, &st);
@@ -111,8 +113,8 @@ int open_plain(const char *name, std::FILE **fp, unsigned long long *size)
     fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK);
     st.st_size = fst.st_size;
 #endif
-    *fp = fdopen(fd, "rb");
-    if (!*fp) {
+    fp.reset(fdopen(fd, "rb"));
+    if (!fp) {
         close(fd);
         return XPP_FILES_IO;
     }
@@ -122,6 +124,9 @@ int open_plain(const char *name, std::FILE **fp, unsigned long long *size)
 
 /* ---- the listing's digests, kept while a file does not change ----------------- */
 
+/* a SHA-256 as 64 hex digits and a NUL (xpp_sha256_hex) */
+using Hex = std::array<char, 65>;
+
 struct Digest {
     unsigned long long size;
     long long mtime;
@@ -130,19 +135,19 @@ struct Digest {
 std::mutex cache_lock;
 std::map<std::string, Digest> cache;
 
-bool file_sha(const char *name, char out[65])
+bool file_sha(const char *name, Hex &out)
 {
-    std::FILE *fp;
+    xpp::UniqueFile fp;
     unsigned long long size;
-    if (open_plain(name, &fp, &size) != XPP_FILES_OK) return false;
+    if (open_plain(name, fp, &size) != XPP_FILES_OK) return false;
     XppSha256 c;
     xpp_sha256_init(&c);
     std::vector<unsigned char> buf(1 << 16);
     size_t n;
-    while ((n = std::fread(buf.data(), 1, buf.size(), fp)) > 0) xpp_sha256_update(&c, buf.data(), n);
-    bool ok = !std::ferror(fp);
-    std::fclose(fp);
-    xpp_sha256_hex(&c, out);
+    while ((n = std::fread(buf.data(), 1, buf.size(), fp.get())) > 0) xpp_sha256_update(&c, buf.data(), n);
+    bool ok = !std::ferror(fp.get());
+    fp.reset();
+    xpp_sha256_hex(&c, out.data());
     return ok;
 }
 
@@ -156,12 +161,12 @@ void remember(const std::string &name, unsigned long long size, long long mtime,
     cache[name] = Digest{size, mtime, sha};
 }
 
-bool cached(const std::string &name, unsigned long long size, long long mtime, char out[65])
+bool cached(const std::string &name, unsigned long long size, long long mtime, Hex &out)
 {
     std::lock_guard<std::mutex> g(cache_lock);
     auto it = cache.find(name);
     if (it == cache.end() || it->second.size != size || it->second.mtime != mtime) return false;
-    std::memcpy(out, it->second.sha.c_str(), 65);
+    std::memcpy(out.data(), it->second.sha.c_str(), out.size());
     return true;
 }
 
@@ -175,9 +180,7 @@ void json_str(std::string &s, const std::string &v)
             s += '\\';
             s += static_cast<char>(c);
         } else if (c < 0x20) {
-            char u[8];
-            std::snprintf(u, sizeof u, "\\u%04x", c);
-            s += u;
+            s += xpp::format("\\u{:04x}", static_cast<unsigned>(c));
         } else s += static_cast<char>(c);
     }
     s += '"';
@@ -268,7 +271,7 @@ const int NOT_BASE64 = -1;
 int put_base64(XppFilePut *put, const char *v)
 {
     if (!v || *v != '"') return NOT_BASE64;
-    unsigned char out[3 * 1024];
+    std::array<unsigned char, 3 * 1024> out;
     size_t k = 0;
     int q[4], nq = 0, pad = 0;
     for (v++; *v != '"'; v++) {
@@ -285,8 +288,8 @@ int put_base64(XppFilePut *put, const char *v)
             out[k++] = static_cast<unsigned char>(q[1] << 4 | q[2] >> 2);
             out[k++] = static_cast<unsigned char>(q[2] << 6 | q[3]);
             nq = 0;
-            if (k == sizeof out) {
-                int st = xpp_files_put_write(put, out, k);
+            if (k == out.size()) {
+                int st = xpp_files_put_write(put, out.data(), k);
                 if (st != XPP_FILES_OK) return st;
                 k = 0;
             }
@@ -295,7 +298,7 @@ int put_base64(XppFilePut *put, const char *v)
     if (nq == 1 || pad > 2) return NOT_BASE64;
     if (nq >= 2) out[k++] = static_cast<unsigned char>(q[0] << 2 | q[1] >> 4);
     if (nq == 3) out[k++] = static_cast<unsigned char>(q[1] << 4 | q[2] >> 2);
-    return k ? xpp_files_put_write(put, out, k) : XPP_FILES_OK;
+    return k ? xpp_files_put_write(put, out.data(), k) : XPP_FILES_OK;
 }
 
 std::atomic<unsigned> put_serial{0};
@@ -318,12 +321,12 @@ std::string listing()
             Stat st;
             if (kind_of(e->d_name, &st) != XPP_FILES_OK) continue;
             Entry f{e->d_name, static_cast<unsigned long long>(st.st_size), static_cast<long long>(st.st_mtime), ""};
-            char sha[65];
+            Hex sha;
             if (!cached(f.name, f.size, f.mtime, sha)) {
                 if (!file_sha(e->d_name, sha)) continue;
-                remember(f.name, f.size, f.mtime, sha);
+                remember(f.name, f.size, f.mtime, sha.data());
             }
-            f.sha = sha;
+            f.sha = sha.data();
             files.push_back(std::move(f));
         }
         closedir(d);
@@ -331,12 +334,10 @@ std::string listing()
     std::sort(files.begin(), files.end(), [](const Entry &a, const Entry &b) { return a.name < b.name; });
     std::string s = "{\"files\":[";
     for (size_t i = 0; i < files.size(); i++) {
-        char num[64];
         if (i) s += ',';
         s += "{\"name\":";
         json_str(s, files[i].name);
-        std::snprintf(num, sizeof num, ",\"size\":%llu,\"mtime\":%lld,\"sha256\":", files[i].size, files[i].mtime);
-        s += num;
+        s += xpp::format(",\"size\":{},\"mtime\":{},\"sha256\":", files[i].size, files[i].mtime);
         json_str(s, files[i].sha);
         s += '}';
     }
@@ -382,14 +383,14 @@ std::string command(const char *op, const char *name_json, const char *data_json
         fail_event(s, XPP_FILES_BAD_NAME);
         return s;
     }
-    char sha[65], num[192];
+    Hex sha;
     unsigned long long size = 0;
     if (op[0] == 'p') {
         XppFilePut *put;
         int st = xpp_files_put_begin(name.c_str(), XPP_FILES_CAP, &put);
         if (st == XPP_FILES_OK) {
             st = put_base64(put, data_json);
-            if (st == XPP_FILES_OK) st = xpp_files_put_commit(put, &size, sha);
+            if (st == XPP_FILES_OK) st = xpp_files_put_commit(put, &size, sha.data());
             else xpp_files_put_abort(put);
         }
         if (st == NOT_BASE64) {
@@ -400,14 +401,13 @@ std::string command(const char *op, const char *name_json, const char *data_json
             fail_event(s, st);
             return s;
         }
-        std::snprintf(num, sizeof num, ",\"ok\":1,\"size\":%llu,\"sha256\":\"%s\"}", size, sha);
-        s += num;
+        s += xpp::format(",\"ok\":1,\"size\":{},\"sha256\":\"{}\"}}", size, sha.data());
         return s;
     }
-    std::FILE *fp;
-    int st = open_plain(name.c_str(), &fp, &size);
+    xpp::UniqueFile fp;
+    int st = open_plain(name.c_str(), fp, &size);
     if (st == XPP_FILES_OK && size > XPP_FILES_CAP) {
-        std::fclose(fp);
+        fp.reset();
         st = XPP_FILES_TOO_LARGE;
     }
     if (st != XPP_FILES_OK) {
@@ -415,8 +415,8 @@ std::string command(const char *op, const char *name_json, const char *data_json
         return s;
     }
     std::vector<unsigned char> buf(size ? static_cast<size_t>(size) : 1);
-    size_t got = std::fread(buf.data(), 1, static_cast<size_t>(size), fp);
-    std::fclose(fp);
+    size_t got = std::fread(buf.data(), 1, static_cast<size_t>(size), fp.get());
+    fp.reset();
     if (got != size) {
         fail_event(s, XPP_FILES_IO);
         return s;
@@ -424,9 +424,8 @@ std::string command(const char *op, const char *name_json, const char *data_json
     XppSha256 c;
     xpp_sha256_init(&c);
     xpp_sha256_update(&c, buf.data(), got);
-    xpp_sha256_hex(&c, sha);
-    std::snprintf(num, sizeof num, ",\"ok\":1,\"size\":%llu,\"sha256\":\"%s\",\"data\":\"", size, sha);
-    s += num;
+    xpp_sha256_hex(&c, sha.data());
+    s += xpp::format(",\"ok\":1,\"size\":{},\"sha256\":\"{}\",\"data\":\"", size, sha.data());
     s.reserve(s.size() + (got + 2) / 3 * 4 + 4);
     base64_append(s, buf.data(), got);
     s += "\"}";
@@ -471,10 +470,14 @@ const char *xpp_files_status_text(int status)
     }
 }
 
+std::string xpp::files_list_json() { return listing(); }
+
 char *xpp_files_list_json(size_t *len)
 {
     try {
         std::string s = listing();
+        /* a raw block: the C API hands it to a caller that frees it (C++
+           callers take xpp::files_list_json's std::string instead) */
         char *out = static_cast<char *>(xpp_malloc(s.size() + 1));
         std::memcpy(out, s.c_str(), s.size() + 1);
         *len = s.size();
@@ -487,7 +490,10 @@ char *xpp_files_list_json(size_t *len)
 int xpp_files_open(const char *name, FILE **fp, unsigned long long *size)
 {
     if (!xpp_files_name_ok(name)) return XPP_FILES_BAD_NAME;
-    return open_plain(name, fp, size);
+    xpp::UniqueFile f;
+    int st = open_plain(name, f, size);
+    *fp = f.release();
+    return st;
 }
 
 int xpp_files_put_begin(const char *name, unsigned long long cap, XppFilePut **put)
@@ -498,32 +504,28 @@ int xpp_files_put_begin(const char *name, unsigned long long cap, XppFilePut **p
     int k = kind_of(name, &st);
     if (k != XPP_FILES_OK && k != XPP_FILES_NOT_FOUND) return k;
     try {
-        XppFilePut *p = new XppFilePut;
+        std::unique_ptr<XppFilePut> p = std::make_unique<XppFilePut>();
         p->name = name;
         p->cap = cap;
         xpp_sha256_init(&p->sha);
         /* hidden (a leading dot), so neither listed nor reachable by name */
         for (int tries = 0; tries < 100 && !p->fp; tries++) {
-            char tmp[64];
-            std::snprintf(tmp, sizeof tmp, ".xpp-put-%lld-%u.part", pid(), put_serial++);
-            int fd = open(tmp, O_WRONLY | O_CREAT | O_EXCL | O_BINARY | O_NOFOLLOW, 0644);
+            std::string tmp = xpp::format(".xpp-put-{}-{}.part", pid(), put_serial++);
+            int fd = open(tmp.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_BINARY | O_NOFOLLOW, 0644);
             if (fd < 0) {
                 if (errno == EEXIST) continue;
                 break;
             }
-            p->fp = fdopen(fd, "wb");
+            p->fp.reset(fdopen(fd, "wb"));
             if (!p->fp) {
                 close(fd);
-                std::remove(tmp);
+                std::remove(tmp.c_str());
                 break;
             }
             p->tmp = tmp;
         }
-        if (!p->fp) {
-            delete p;
-            return XPP_FILES_IO;
-        }
-        *put = p;
+        if (!p->fp) return XPP_FILES_IO;
+        *put = p.release();
         return XPP_FILES_OK;
     } catch (const std::bad_alloc &) {
         out_of_memory("starting an upload");
@@ -533,7 +535,7 @@ int xpp_files_put_begin(const char *name, unsigned long long cap, XppFilePut **p
 int xpp_files_put_write(XppFilePut *put, const void *data, size_t n)
 {
     if (n > put->cap - put->bytes) return XPP_FILES_TOO_LARGE;
-    if (n && std::fwrite(data, 1, n, put->fp) != n) return XPP_FILES_IO;
+    if (n && std::fwrite(data, 1, n, put->fp.get()) != n) return XPP_FILES_IO;
     put->bytes += n;
     xpp_sha256_update(&put->sha, data, n);
     return XPP_FILES_OK;
@@ -542,15 +544,14 @@ int xpp_files_put_write(XppFilePut *put, const void *data, size_t n)
 void xpp_files_put_abort(XppFilePut *put)
 {
     if (!put) return;
-    if (put->fp) std::fclose(put->fp);
+    put->fp.reset(); /* closed before the remove: Windows cannot remove an open file */
     std::remove(put->tmp.c_str());
     delete put;
 }
 
 int xpp_files_put_commit(XppFilePut *put, unsigned long long *size, char sha256[65])
 {
-    int closed = std::fclose(put->fp);
-    put->fp = nullptr;
+    int closed = std::fclose(put->fp.release()); /* its result: a write that failed at the flush */
     Stat st;
     int k = kind_of(put->name.c_str(), &st);
     int status = closed != 0 ? XPP_FILES_IO
@@ -580,16 +581,12 @@ const char *xpp_files_ask_mode(const char *title)
        "Library:" open a file; "Save ...", "Write ...", "Postscript",
        "GIF plot", "Clone ODE file", ... write one */
     static const char *const reads[] = {"load", "read", "import", "open", "select", "library"};
-    char word[16];
-    size_t n = 0;
+    std::string word; /* at most 15 letters: kept in the string itself, no allocation */
     while (title && *title == ' ') title++;
-    while (title && std::isalpha(static_cast<unsigned char>(title[n])) && n + 1 < sizeof word) {
-        word[n] = static_cast<char>(std::tolower(static_cast<unsigned char>(title[n])));
-        n++;
-    }
-    word[n] = 0;
+    for (const char *p = title; p && word.size() < 15 && std::isalpha(static_cast<unsigned char>(*p)); p++)
+        word += static_cast<char>(std::tolower(static_cast<unsigned char>(*p)));
     for (const char *r : reads)
-        if (std::strcmp(word, r) == 0) return "read";
+        if (word == r) return "read";
     return "write";
 }
 

@@ -190,7 +190,10 @@ void xpp_writer_abort(XppWriter *w);
    dynamic width/precision (%*s, %.*s) that would need re-expressing in
    std::format's syntax -- not a mechanical, behaviour-preserving change,
    so those stay on the C wrappers (documented at each such call site). */
+#include <array>
 #include <cstddef>
+#include <cstdio>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -256,13 +259,24 @@ void format_to_buf(char (&buf)[N], const char *file, int line,
    more digits than usually needed; prefer this in new C++ code. */
 inline std::string number(double v)
 {
-    char buf[32];
-    std::to_chars_result r = std::to_chars(buf, buf + sizeof buf, v);
+    std::array<char, 32> buf;
+    std::to_chars_result r = std::to_chars(buf.data(), buf.data() + buf.size(), v);
     if (r.ec == std::errc())
-        return std::string(buf, r.ptr);
+        return std::string(buf.data(), r.ptr);
     return std::to_string(v); /* unreachable for a finite double in 32 bytes */
 }
 #endif
+
+/* A FILE * that closes itself: for a stream the core gets from an API
+   that hands out a FILE * (xpp_files_open, fdopen, ...) rather than a
+   path the readers/writer below could open. */
+struct FileCloser {
+    void operator()(FILE *fp) const noexcept
+    {
+        if (fp) std::fclose(fp);
+    }
+};
+using UniqueFile = std::unique_ptr<FILE, FileCloser>;
 
 /* ---- RAII wrappers over the C file API above --------------------------
    Thin move-only handles: a LineReader closes (if it opened the file
