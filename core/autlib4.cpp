@@ -3,6 +3,7 @@
 	-lf2c -lm   (in that order)
 */
 
+#include <vector>
 #include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h"
 #include "xpp_mem.h"
@@ -71,33 +72,31 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
   integer c0_dim1, c1_dim1, rwork_dim1;
 
   /* Local variables */
-  doublereal beta, *svde, *svds, svdu[1], *svdv;
+  doublereal beta, svdu[1];
 
 
   integer i, j;
 
-  doublereal *v, *x;
 
   logical infev;
 
   doublereal const__;
 
   integer ndimm1;
-  doublereal nrmc0x, nrmc1x, *qzalfi, *qzbeta;
+  doublereal nrmc0x, nrmc1x;
   integer svdinf;
-  doublereal *qzalfr;
   integer qzierr;
-  doublereal *svdwrk, qzz[1];
+  doublereal qzz[1];
 
-  svde = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim));
-  svds = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim+1));
-  svdv = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim)*(*ndim));
-  v = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim));
-  x = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim));
-  qzalfi = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim));
-  qzbeta = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim));
-  qzalfr = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim));
-  svdwrk = (doublereal *)xpp_malloc(sizeof(doublereal)*(*ndim));
+  std::vector<doublereal> svde(*ndim);
+  std::vector<doublereal> svds(*ndim+1);
+  std::vector<doublereal> svdv((*ndim)*(*ndim));
+  std::vector<doublereal> v(*ndim);
+  std::vector<doublereal> x(*ndim);
+  std::vector<doublereal> qzalfi(*ndim);
+  std::vector<doublereal> qzbeta(*ndim);
+  std::vector<doublereal> qzalfr(*ndim);
+  std::vector<doublereal> svdwrk(*ndim);
 
   /*  Subroutine to compute Floquet multipliers via the "deflated circuit */
   /*  pencil" method. This routine is called by the AUTO routine FNSPBV */
@@ -211,8 +210,8 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
        BLAS routines. */
     integer tmp = 1;
     doublereal tmp_tol = 1.0E-16;
-    ezsvd(rwork, ndim, ndim, ndim, svds, svde, svdu, &tmp, 
-	  svdv, ndim, svdwrk, &tmp, &svdinf, &tmp_tol);
+    ezsvd(rwork, ndim, ndim, ndim, svds.data(), svde.data(), svdu, &tmp, 
+	  svdv.data(), ndim, svdwrk.data(), &tmp, &svdinf, &tmp_tol);
   }
   if (svdinf != 0) {
     fprintf(fp9," NOTE : Warning from subroutine FLOWKM SVD routine returned SVDINF = %4ld        Floquet multiplier calculations may be wrong\n",svdinf);	
@@ -230,10 +229,10 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
     doublereal tmp0 = 0.0;
     logical tmp_false = FALSE_;
 
-    dgemm("n", "n", ndim, ndim, ndim, &tmp1, c0, ndim, svdv, 
+    dgemm("n", "n", ndim, ndim, ndim, &tmp1, c0, ndim, svdv.data(), 
 	  ndim, &tmp0, rwork, ndim, 1L, 1L);
     dgemc(ndim, ndim, rwork, ndim, c0, ndim, &tmp_false);
-    dgemm("n", "n", ndim, ndim, ndim, &tmp1, c1, ndim, svdv, 
+    dgemm("n", "n", ndim, ndim, ndim, &tmp1, c1, ndim, svdv.data(), 
 	  ndim, &tmp0, rwork, ndim, 1L, 1L);
     dgemc(ndim, ndim, rwork, ndim, c1, ndim, &tmp_false);
   }
@@ -256,9 +255,9 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
        BLAS routines. */
     integer tmp = 1;
     integer tmp_left = LEFT; 
-    dhhpr(&tmp, ndim, ndim, x, &tmp, &beta, v);
-    dhhap(&tmp, ndim, ndim, ndim, &beta, v, &tmp_left, c0, ndim);
-    dhhap(&tmp, ndim, ndim, ndim, &beta, v, &tmp_left, c1, ndim);
+    dhhpr(&tmp, ndim, ndim, x.data(), &tmp, &beta, v.data());
+    dhhap(&tmp, ndim, ndim, ndim, &beta, v.data(), &tmp_left, c0, ndim);
+    dhhap(&tmp, ndim, ndim, ndim, &beta, v.data(), &tmp_left, c1, ndim);
   }
 
   /* Rescale so that (H2^T)*C0*(H1)(1,NDIM) ~= (H2^T)*C1*(H1)(1,NDIM) ~= 1.0
@@ -339,8 +338,8 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
 
   /*  compute the generalized eigenvalues */
 
-  qzval(*ndim, ndimm1, &c0[1], &c1[1], qzalfr, qzalfi, 
-	qzbeta, FALSE_, qzz);
+  qzval(*ndim, ndimm1, &c0[1], &c1[1], qzalfr.data(), qzalfi.data(), 
+	qzbeta.data(), FALSE_, qzz);
 
   /*  Pack the eigenvalues into complex form. */
   ev[0].r = ARRAY2D(c0, 0, (*ndim - 1)) / ARRAY2D(c1, 0, (*ndim - 1));
@@ -360,15 +359,6 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
 
   }
 
-  xpp_free(svde); 
-  xpp_free(svds); 
-  xpp_free(svdv); 
-  xpp_free(v); 
-  xpp_free(x); 
-  xpp_free(qzalfi); 
-  xpp_free(qzbeta); 
-  xpp_free(qzalfr); 
-  xpp_free(svdwrk); 
 
   return 0;
 
