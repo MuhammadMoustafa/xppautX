@@ -30,7 +30,8 @@
 #   --update         write the md5s computed here as the baseline
 #   --keep DIR       put the output.dat of each model that differs from the
 #                    baseline in DIR (as <path with / made _>.dat), to see
-#                    what changed (CI uploads it with the md5s)
+#                    what changed, and the diff as DIR/differs.txt (CI
+#                    uploads DIR and the md5s only when DIR exists)
 # TIMEOUT=seconds per run (default 300: the slowest model takes ~12 s
 # alone, several times that while other checks share the machine).
 # JOBS=models run at once (default: the machine's core count).
@@ -91,6 +92,7 @@ fi
 bad=$(LC_ALL=C sort -k2 "$base" | diff - "$out/all" | grep '^[<>]')
 if [ -n "$keep" ] && [ -n "$bad" ]; then
   mkdir -p "$keep"
+  echo "$bad" > "$keep/differs.txt"   # the diff itself: CI uploads when it exists
   echo "$bad" | sed -n 's/^> [^ ]* //p' | while read -r f; do
     name=$(echo "$f" | tr / _)
     [ -e "$out/$name.dat" ] && cp "$out/$name.dat" "$keep/"

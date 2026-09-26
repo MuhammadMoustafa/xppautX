@@ -43,8 +43,10 @@ intended, and say which models changed in the commit. Other platforms
 <windows|macos> --write examples.<platform>.md5`, which compares with
 tests/examples.<platform>.md5 when it exists, else with Linux's in a
 first-run mode that reports the differing models without failing (a
-crash still fails), and upload the md5s they computed as the artifact
-`examples-md5-<platform>`. A platform that differs from Linux gets its
+crash still fails), and, only when some model differs from that
+baseline, upload the md5s they computed (and the differing outputs) as
+the artifact `examples-md5-<platform>`; the programs are the artifacts
+`xppautX-<platform>`. A platform that differs from Linux gets its
 own baseline by committing that artifact's file as
 tests/examples.<platform>.md5; when numerics change on purpose, commit
 the new Linux baseline and the artifacts of that push's CI run. The local

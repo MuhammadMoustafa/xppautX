@@ -306,7 +306,7 @@ you have one, this is the part that needs it.
    `xppautX-*-macos-x64.tar.gz` for Intel), or, for the latest commit, the
    `macos-arm64`/`macos-x64` artifact from a run of the `release` workflow
    in [Actions](https://github.com/MuhammadMoustafa/xppautX/actions), or
-   the `xppaut-macos` artifact from a `build` workflow run (the plain
+   the `xppautX-macos` artifact from a `build` workflow run (the plain
    binary, window included, not packaged with the README/examples/license
    the release archive has).
 2. **Open it.** Unpack the archive, clear the quarantine flag
