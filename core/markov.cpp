@@ -22,6 +22,8 @@
 #include "xpplim.h"
 #include "parserslow.h"
 #include "xpp_io.h"
+#include <string>
+#include <vector>
 /* #include "browse.h" */
 
 extern int ConvertStyle;
@@ -54,13 +56,13 @@ extern int NLINES;
 extern char *save_eqn[1000];
 extern int RandSeed;
 typedef struct {
-  int  **command;
-  char **trans;
-  double *fixed;
+  std::vector<int *> command;
+  std::vector<std::string> trans;
+  std::vector<double> fixed;
   int nstates;
-  double *states;
+  std::vector<double> states;
   int type;   /* 0 is default and state dependent.  1 is fixed for all time  */
-  char name[XPP_NAME_MAX+1];
+  std::string name;
 } MARKOV;
 
 MARKOV markov[MAXMARK];
@@ -69,6 +71,9 @@ MARKOV markov[MAXMARK];
 extern float **storage;
 
 extern int storind;
+/* raw xpp_malloc blocks per row, not std::vector<std::vector<float>>:
+   set_browser_data (browse.h) takes a plain float** and expects these
+   MAXODE pointers contiguous, so my_mean/my_variance stay this shape. */
 float *my_mean[MAXODE],*my_variance[MAXODE];
 int stoch_len;
 
@@ -98,7 +103,7 @@ void add_markov(int nstate, const char *name)
 {
   double st[50];
   int i;
-  for(i=0;i<50;i++)st[i]=(double)i;
+  for(i=0;i<50;i++)st[i]=static_cast<double>(i);
   create_markov(nstate,st,0,name);
 }
 
@@ -108,7 +113,7 @@ int build_markov(const char *const *ma, const char *name)  /*   FILE *fptr; */
  /*int nn;
  */
  int len=0,ll;
- char line[256],expr[256];
+ char expr[256];
   int istart;
  
 
@@ -116,8 +121,8 @@ int build_markov(const char *const *ma, const char *name)  /*   FILE *fptr; */
  index=-1;
   /* find it -- if not defined, then abort  */
   for(i=0;i<NMarkov;i++){
-    ll=strlen(markov[i].name);
-    if(strncasecmp(name,markov[i].name,ll)==0)
+    ll=static_cast<int>(markov[i].name.size());
+    if(strncasecmp(name,markov[i].name.c_str(),ll)==0)
       {
 
 	if(len<ll){
@@ -132,21 +137,23 @@ int build_markov(const char *const *ma, const char *name)  /*   FILE *fptr; */
   }
  /* get number of states  */
  nstates=markov[index].nstates;
- if(ConvertStyle)
-   fprintf(convertf,"markov %s %d\n",name,nstates);
+ if(ConvertStyle){
+   std::string _cvt = xpp::format("markov {} {}\n", name, nstates);
+   fwrite(_cvt.data(), 1, _cvt.size(), convertf);
+ }
  xpp_log(XPP_LOG_INFO, " Building %s %d states...\n",name,nstates);
  for(i=0;i<nstates;i++){
    /* fgets(line,256,fptr); */
-   XPP_SPRINTF(line,"%s",ma[i]);
+   std::string line = ma[i];
    if(ConvertStyle)
-     fprintf(convertf,"%s",line);
+     fputs(line.c_str(),convertf);
    /*nn=strlen(line)+1;*/
    /* if((save_eqn[NLINES]=(char *)malloc(nn))==NULL){
      plintf("saveeqn-prob\n");exit(0);}
      strncpy(save_eqn[NLINES++],line,nn); */
    istart=0;
      for(j=0;j<nstates;j++){
-       extract_expr(line,expr,&istart);
+       extract_expr(line.c_str(),expr,&istart);
        xpp_log(XPP_LOG_INFO, "%s ",expr);
        add_markov_entry(index,i,j,expr);
      }
@@ -160,7 +167,7 @@ int old_build_markov(FILE *fptr, const char *name)
 {
  /*int nn;*/
  int len=0,ll;
- char line[256],expr[256];
+ char expr[256];
   int istart;
  
 
@@ -168,8 +175,8 @@ int old_build_markov(FILE *fptr, const char *name)
  index=-1;
   /* find it -- if not defined, then abort  */
   for(i=0;i<NMarkov;i++){
-    ll=strlen(markov[i].name);
-    if(strncasecmp(name,markov[i].name,ll)==0)
+    ll=static_cast<int>(markov[i].name.size());
+    if(strncasecmp(name,markov[i].name.c_str(),ll)==0)
       {
 
 	if(len<ll){
@@ -184,27 +191,40 @@ int old_build_markov(FILE *fptr, const char *name)
   }
  /* get number of states  */
  nstates=markov[index].nstates;
- if(ConvertStyle)
-   fprintf(convertf,"markov %s %d\n",name,nstates);
+ if(ConvertStyle){
+   std::string _cvt = xpp::format("markov {} {}\n", name, nstates);
+   fwrite(_cvt.data(), 1, _cvt.size(), convertf);
+ }
  xpp_log(XPP_LOG_INFO, " Building %s ...\n",name);
- for(i=0;i<nstates;i++){
-    if(fgets(line,256,fptr)==NULL){
+ {
+   /* a whole line at a time, no 256-byte fgets cut, wrapping the FILE*
+      the caller keeps owning */
+   xpp::LineReader reader = xpp::LineReader::attach(fptr);
+   for(i=0;i<nstates;i++){
+    auto line_view = reader.next();
+    if(!line_view){
       xpp_log(XPP_LOG_ERROR, " Unexpected end of file building markov variable |%s|\n",name);
       exit(0);
     }
+    std::string line(*line_view);
 
-   if(ConvertStyle)
-     fprintf(convertf,"%s",line);
+   if(ConvertStyle){
+     /* LineReader strips the terminator fgets used to keep; restore it
+        so the converted file's line breaks match exactly. */
+     fputs(line.c_str(),convertf);
+     fputc('\n',convertf);
+   }
    /*nn=strlen(line)+1;*/
    /* if((save_eqn[NLINES]=(char *)malloc(nn))==NULL)exit(0);
       strncpy(save_eqn[NLINES++],line,nn); */
    istart=0;
      for(j=0;j<nstates;j++){
-       extract_expr(line,expr,&istart);
+       extract_expr(line.c_str(),expr,&istart);
        xpp_log(XPP_LOG_INFO, "%s ",expr);
        add_markov_entry(index,i,j,expr);
      }
    xpp_log(XPP_LOG_INFO, "\n");
+   }
  }
  return index;
 }
@@ -238,7 +258,6 @@ void extract_expr(const char *source, char *dest, int *i0)
 
 void create_markov(int nstates, double *st, int type, const char *name)
 {
-  int i;
   int n2=nstates*nstates;
   int j=NMarkov;
   if(j>=MAXMARK){
@@ -247,18 +266,17 @@ void create_markov(int nstates, double *st, int type, const char *name)
   }
 
   markov[j].nstates=nstates;
-  markov[j].states=(double *)xpp_malloc(nstates*sizeof(double));
+  markov[j].states.assign(st, st+nstates);
   if(type==0){
-    markov[j].trans=(char **)xpp_malloc(n2*sizeof(char*));
-    markov[j].command = (int **)xpp_malloc(n2*sizeof(int*));
+    markov[j].trans.assign(n2, std::string());
+    markov[j].command.assign(n2, nullptr);
   }
   else {
-    markov[j].fixed=(double *)xpp_malloc(n2*sizeof(double));
-    
+    markov[j].fixed.assign(n2, 0.0);
   }
-    
-  for(i=0;i<nstates;i++)markov[j].states[i]=st[i];
-  snprintf(markov[j].name,sizeof(markov[j].name),"%s",name);
+  /* std::string::substr keeps the same XPP_NAME_MAX truncation the old
+     fixed char[XPP_NAME_MAX+1] buffer's snprintf enforced. */
+  markov[j].name = std::string(name).substr(0, XPP_NAME_MAX);
   NMarkov++;
 
   
@@ -270,10 +288,7 @@ void add_markov_entry(int index, int j, int k, const char *expr)
   int l0=markov[index].nstates*j+k;
   int type=markov[index].type;
   if(type==0){
-  markov[index].trans[l0]=(char *)xpp_malloc(sizeof(char)*(strlen(expr)+1));
-  /* markov[index].trans[l0] is a pointer, allocated strlen(expr)+1
-     bytes just above. */
-  xpp_strlcpy(markov[index].trans[l0],expr,strlen(expr)+1);
+  markov[index].trans[l0]=expr;
   /*  compilation step -- can be delayed */
  /*
   if(add_expr(expr,com,&leng)){ 
@@ -306,7 +321,7 @@ void compile_all_markov()
 	l0=ns*j+k;
 	if(compile_markov(index,j,k)==-1){
 	  xpp_log(XPP_LOG_ERROR, "Bad expression %s[%d][%d] = %s \n",
-		 markov[index].name, j,k,markov[index].trans[l0]);
+		 markov[index].name.c_str(), j,k,markov[index].trans[l0].c_str());
 	  exit(0);
 	}
       }
@@ -316,18 +331,22 @@ void compile_all_markov()
 
 int compile_markov(int index, int j, int k)
 {
-  char *expr;
+  const char *expr;
   int l0=markov[index].nstates*j+k,leng;
   int i;
   int com[256];
-  expr=markov[index].trans[l0];
-  
+  expr=markov[index].trans[l0].c_str();
+
   if(add_expr(expr,com,&leng))
     return -1;
-  markov[index].command[l0]=(int *)xpp_malloc(sizeof(int)*(leng+2));
+  /* command[l0] is a raw xpp_malloc block: a per-transition compiled
+     formula kept for the program's life (never freed until exit,
+     reachable through the file-scope markov[] array), same as the
+     other compiled-formula arrays elsewhere in the core. */
+  markov[index].command[l0]=static_cast<int *>(xpp_malloc(sizeof(int)*(leng+2)));
   for(i=0;i<leng;i++){
     markov[index].command[l0][i]=com[i];
-    
+
   }
   
   return 1;
@@ -363,7 +382,7 @@ double new_state(double old, int index, double dt)
   double *st;
   int i,ns=markov[index].nstates;
   int type=markov[index].type;
-  st=markov[index].states;
+  st=markov[index].states.data();
   /*  plintf(" old=%g i=%d st=%g\n",old,index,st); */
   for(i=0;i<ns;i++)
     if(fabs(st[i]-old)<.0001){
@@ -407,12 +426,10 @@ void make_gill_nu(double *nu,int n,int m,double *v)
      i species j reaction
     need this for improved tau stepper
    */
-  double *y,*yp,*yold;
   int ir,iy;
 
-  y=(double *)xpp_malloc(n*sizeof(double));
-  yold=(double *)xpp_malloc(n*sizeof(double));
-  yp=(double *)xpp_malloc(n*sizeof(double));
+  std::vector<double> y_buf(n, 0.0), yold_buf(n, 0.0), yp_buf(n, 0.0);
+  double *y=y_buf.data(), *yp=yp_buf.data(), *yold=yold_buf.data();
   for(ir=0;ir<m;ir++)
     v[ir+1]=0;
   rhs_only(y,yold);
@@ -425,11 +442,6 @@ void make_gill_nu(double *nu,int n,int m,double *v)
     }
     v[ir+1]=0;
   }
-
-  xpp_free(y);
-  xpp_free(yp);
-  xpp_free(yold);
-
 }
 
 
@@ -478,7 +490,7 @@ void one_gill_step(int meth,int nrxn,int *rxn,double *v)
     
 void do_stochast_com(int i)
 {
-  static char key[]="ncdmvhofpislaxe2";
+  static const char *const key="ncdmvhofpislaxe2";
   char ch=key[i];
   
   if(ch==27)return;
@@ -594,8 +606,8 @@ void init_stoch(int len)
   N_TRIALS=0;
   stoch_len=len;
   for(i=0;i<(NEQ+1);i++){
-    my_mean[i]=(float *)xpp_malloc(sizeof(float)*stoch_len);
-    my_variance[i]=(float *)xpp_malloc(sizeof(float)*stoch_len);
+    my_mean[i]=static_cast<float *>(xpp_malloc(sizeof(float)*stoch_len));
+    my_variance[i]=static_cast<float *>(xpp_malloc(sizeof(float)*stoch_len));
     for(j=0;j<stoch_len;j++){
       my_mean[i][j]=0.0;
       my_variance[i][j]=0.0;
@@ -632,7 +644,7 @@ void do_stats(int ierr)
   float ninv,mean;
   /*  STOCH_FLAG=0; */
   if(ierr!=-1&&N_TRIALS>0){
-    ninv=1./(float)(N_TRIALS);
+    ninv=1./static_cast<float>(N_TRIALS);
     for(i=0;i<stoch_len;i++){
       for(j=1;j<=NEQ;j++){
 	mean=my_mean[j][i]*ninv;

@@ -50,13 +50,15 @@ N_Vector N_VNew(integer N, void *machEnv)
 
   if (N <= 0) return(NULL);
 
-  v = (N_Vector) xpp_malloc(sizeof *v);
-  
-  v->data = (real *) xpp_malloc(N * sizeof(real));
-  if (v->data == NULL) {
-    xpp_free(v);
-    return(NULL);
-  }
+  /* N_Vector is a C-API handle other modules hold as a raw pointer
+     (nvector consumers across the CVODE/dense/band code reach it via
+     N_VDATA/N_VLENGTH), so its storage stays an xpp_malloc block rather
+     than becoming a std::vector-backed RAII type. */
+  v = static_cast<N_Vector>(xpp_malloc(sizeof *v));
+
+  /* xpp_malloc never returns NULL (it exits on failure), so there is no
+     allocation-failure branch to handle here. */
+  v->data = static_cast<real *>(xpp_malloc(N * sizeof(real)));
 
   v->length = N;
   

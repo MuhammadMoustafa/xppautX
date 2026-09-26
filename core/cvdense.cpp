@@ -202,9 +202,12 @@ void CVDense(void *cvode_mem, CVDenseJacFn djac, void *jac_data)
   lsolve = CVDenseSolve;
   lfree  = CVDenseFree;
 
-  /* Get memory for CVDenseMemRec */
-  lmem = cvdense_mem = (CVDenseMem) xpp_malloc(sizeof(CVDenseMemRec));
-  if (cvdense_mem == NULL) return;  /* CVDenseInit reports this error */
+  /* Get memory for CVDenseMemRec. xpp_malloc never returns NULL (it exits
+     on failure). lmem is a void* handle shared with cv_mem (cvode.h) and
+     freed only by CVDenseFree below, so it stays an xpp_malloc block
+     rather than a smart pointer: cv_mem's struct field is a plain
+     void *, the same opaque-handle pattern as N_Vector. */
+  lmem = cvdense_mem = static_cast<CVDenseMem>(xpp_malloc(sizeof(CVDenseMemRec)));
 
   /* Set Jacobian routine field to user's djac or CVDenseDQJac */
   if (djac == NULL) {
@@ -231,7 +234,7 @@ static int CVDenseInit(CVodeMem cv_mem, bool *setupNonNull)
 
   /* Print error message and return if cvdense_mem is NULL */  
   if (cvdense_mem == NULL) {
-    fprintf(errfp, MSG_MEM_FAIL);
+    fputs(MSG_MEM_FAIL, errfp);
     return(LINIT_ERR);
   }
 
@@ -242,18 +245,18 @@ static int CVDenseInit(CVodeMem cv_mem, bool *setupNonNull)
   
   M = DenseAllocMat(N);
   if (M == NULL) {
-    fprintf(errfp, MSG_MEM_FAIL);
+    fputs(MSG_MEM_FAIL, errfp);
     return(LINIT_ERR);
   }
   savedJ = DenseAllocMat(N);
   if (savedJ == NULL) {
-    fprintf(errfp, MSG_MEM_FAIL);
+    fputs(MSG_MEM_FAIL, errfp);
     DenseFreeMat(M);
     return(LINIT_ERR);
   }
   pivots = DenseAllocPiv(N);
   if (pivots == NULL) {
-    fprintf(errfp, MSG_MEM_FAIL);
+    fputs(MSG_MEM_FAIL, errfp);
     DenseFreeMat(M);
     DenseFreeMat(savedJ);
     return(LINIT_ERR);

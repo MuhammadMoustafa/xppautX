@@ -79,7 +79,7 @@ void alloc_v_memory()  /* allocate stuff for volterra equations */
     xpp_log(XPP_LOG_ERROR, "Illegal kernel %s=%s\n",kernel[i].name,kernel[i].expr);
     exit(0); /* fatal error ... */
   }
-     kernel[i].formula=(int *)xpp_malloc((len+2)*sizeof(int));
+     kernel[i].formula=static_cast<int *>(xpp_malloc((len+2)*sizeof(int)));
      for(j=0;j<len;j++){
 
        kernel[i].formula[j]=formula[j];
@@ -90,7 +90,7 @@ void alloc_v_memory()  /* allocate stuff for volterra equations */
 		kernel[i].name,kernel[i].kerexpr);
 	 exit(0); /* fatal error ... */
        }
-       kernel[i].kerform=(int *)xpp_malloc((len+2)*sizeof(int));
+       kernel[i].kerform=static_cast<int *>(xpp_malloc((len+2)*sizeof(int)));
        for(j=0;j<len;j++){
 	 kernel[i].kerform[j]=formula[j];
        }
@@ -101,29 +101,21 @@ void alloc_v_memory()  /* allocate stuff for volterra equations */
 
 void allocate_volterra(int npts, int flag)
 {
-  int i,oldmem=MaxPoints,j;
+  int i;
   int ntot=NODE+FIX_VAR+NMarkov;
   npts=abs(npts);
   MaxPoints=npts;
   /* now allocate the memory   */
   if(NKernel==0)return;
   if(flag==1)for(i=0;i<ntot;i++)xpp_free(Memory[i]);
-  for(i=0;i<ntot;i++){
-    Memory[i]=(double *)xpp_malloc(sizeof(double)*MaxPoints);
-    if(Memory[i]==NULL)break; 
-  }
- 
-  if(i<ntot&&flag==0){
-      xpp_log(XPP_LOG_ERROR, "Not enough memory... make Maxpts smaller \n");
-      exit(0);
-    }
-  if(i<ntot){
-    MaxPoints=oldmem;
-    for(j=0;j<i;j++)xpp_free(Memory[j]);
-    for(i=0;i<ntot;i++)
-      Memory[i]=(double *)xpp_malloc(sizeof(double)*MaxPoints);
-    err_msg("Not enough memory...resetting");
-  } 
+  /* xpp_malloc never returns NULL (it exits on failure), so the
+     smaller-than-requested retry that used to follow a short allocation
+     here is unreachable and has been removed. Memory[] is a raw
+     xpp_malloc block per node because it is a global array shared with
+     other translation units (GETVAR/SETVAR's Memory[i][j] access). */
+  for(i=0;i<ntot;i++)
+    Memory[i]=static_cast<double *>(xpp_malloc(sizeof(double)*MaxPoints));
+
   CurrentPoint=0;
   KnFlag=1;
   alloc_kernels(flag);
@@ -152,7 +144,7 @@ void alloc_kernels(int flag)
   for(i=0;i<NKernel;i++){
     if(kernel[i].flag==CONV){
       if(flag==1)xpp_free(kernel[i].cnv);
-      kernel[i].cnv=(double *)xpp_malloc((n+1)*sizeof(double));
+      kernel[i].cnv=static_cast<double *>(xpp_malloc((n+1)*sizeof(double)));
       for(j=0;j<=n;j++){
 	SETVAR(0,T0+DELTA_T*j);
 	kernel[i].cnv[j]=evaluate(kernel[i].kerform);
@@ -162,7 +154,7 @@ void alloc_kernels(int flag)
    if(kernel[i].mu>0.0){
      mu=kernel[i].mu;
      if(flag==1)xpp_free(kernel[i].al);
-     kernel[i].al=(double *)xpp_malloc((n+1)*sizeof(double));
+     kernel[i].al=static_cast<double *>(xpp_malloc((n+1)*sizeof(double)));
      for(j=0;j<=n;j++)kernel[i].al[j]=alpbetjn(mu,DELTA_T,j);
    }
   }

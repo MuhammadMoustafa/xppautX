@@ -14,6 +14,8 @@
 #include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"
+#include <string>
+#include <vector>
 #define MAXDAE 400
 
 extern double variables[];
@@ -30,22 +32,22 @@ extern int *my_ode[];
 /*    will have more stuff someday */
 
 typedef struct {
-  double *work;
-  int *iwork;
+  std::vector<double> work;
+  std::vector<int> iwork;
   int status;
 } DAEWORK;
 DAEWORK dae_work;
 
 typedef struct {
-  char name[XPP_NAME_MAX+1],*rhs;
-  int *form;
+  std::string name, rhs;
+  std::vector<int> form;
   int index;
   double value,last;
 }SOL_VAR;
 
 typedef struct {
-  char *rhs;
-  int *form;
+  std::string rhs;
+  std::vector<int> form;
 } DAE_EQN;
 
 SOL_VAR svar[MAXDAE];
@@ -64,12 +66,10 @@ int add_svar(const char *name, const char *rhs)
     return 1;
   }
   if(name_too_long(name))return 1;
-  XPP_STRCPY(svar[nsvar].name,name);
-  svar[nsvar].rhs=(char *) xpp_malloc(80);
-  /* svar[nsvar].rhs is a pointer, allocated 80 bytes just above. */
-  xpp_strlcpy(svar[nsvar].rhs,rhs,80);
+  svar[nsvar].name=name;
+  svar[nsvar].rhs=rhs;
   xpp_log(XPP_LOG_INFO, " Added sol-var[%d] %s = %s \n",
-	 nsvar,svar[nsvar].name,svar[nsvar].rhs);
+	 nsvar,svar[nsvar].name.c_str(),svar[nsvar].rhs.c_str());
   nsvar++;
 return 0;
  }
@@ -81,7 +81,7 @@ int add_svar_names()
   int i;
   for(i=0;i<nsvar;i++){
      svar[i].index=NVAR;
-    if(add_var(svar[i].name,0.0)==1)
+    if(add_var(svar[i].name.c_str(),0.0)==1)
       return 1;
   }
   return 0;
@@ -95,9 +95,7 @@ int add_aeqn(const char *rhs)
     xpp_log(XPP_LOG_ERROR, " Too many equations\n");
     return 1;
   }
-  aeqn[naeqn].rhs=(char *) xpp_malloc(strlen(rhs)+5);
-  /* aeqn[naeqn].rhs is a pointer, allocated strlen(rhs)+5 bytes above. */
-  xpp_strlcpy(aeqn[naeqn].rhs,rhs,strlen(rhs)+5);
+  aeqn[naeqn].rhs=rhs;
   naeqn++;
  return 0;
 }
@@ -106,30 +104,30 @@ int add_aeqn(const char *rhs)
 /* this compiles formulas to set to zero */
 int compile_svars()
 {
-  int i,f[256],n,k;
+  int i,f[256],n;
   if(nsvar!=naeqn){
     xpp_log(XPP_LOG_ERROR, " #SOL_VAR(%d) must equal #ALG_EQN(%d) ! \n",nsvar,naeqn);
     return 1;
   }
   
   for(i=0;i<naeqn;i++){
-    if(add_expr(aeqn[i].rhs,f,&n)==1){
+    if(add_expr(aeqn[i].rhs.c_str(),f,&n)==1){
     xpp_log(XPP_LOG_ERROR, " Bad right-hand side for alg-eqn \n");
     return(1);
     }
-    aeqn[i].form=(int *)xpp_malloc(sizeof(int)*(n+2));
-    for(k=0;k<n;k++)
-      aeqn[i].form[k]=f[k];
+    /* n+2, zero-padded like the xpp_malloc block this replaces: evaluate()
+       may read a couple of entries past the parsed length. */
+    aeqn[i].form.assign(f, f+n);
+    aeqn[i].form.resize(n+2, 0);
   }
 
    for(i=0;i<nsvar;i++){
-    if(add_expr(svar[i].rhs,f,&n)==1){
+    if(add_expr(svar[i].rhs.c_str(),f,&n)==1){
     xpp_log(XPP_LOG_ERROR, " Bad initial guess for sol-var \n");
     return(1);
     }
-    svar[i].form=(int *)xpp_malloc(100*sizeof(int));
-    for(k=0;k<n;k++)
-      svar[i].form[k]=f[k];
+    svar[i].form.assign(f, f+n);
+    svar[i].form.resize(100, 0);
    }
      init_dae_work();
    return 0;
@@ -147,7 +145,7 @@ void set_init_guess()
     dae_work.status=1;
   if(nsvar==0)return;
   for(i=0;i<nsvar;i++){
-   z=evaluate(svar[i].form);
+   z=evaluate(svar[i].form.data());
     SETVAR(svar[i].index,z);
     svar[i].value=z;
     svar[i].last=z;
@@ -178,8 +176,8 @@ void err_dae()
 void init_dae_work()
 {
 
-  dae_work.work=(double *)xpp_malloc(sizeof(double)*(nsvar*nsvar+10*nsvar));
-  dae_work.iwork=(int *)xpp_malloc(sizeof(int)*nsvar);
+  dae_work.work.assign(nsvar*nsvar+10*nsvar, 0.0);
+  dae_work.iwork.assign(nsvar, 0);
   dae_work.status=1;
 }
 
@@ -192,7 +190,7 @@ void get_dae_fun(double *y, double *f)
   for(i=NODE;i<NODE+FIX_VAR;i++)
     SETVAR(i+1,evaluate(my_ode[i]));
   for(i=0;i<naeqn;i++)
-    f[i]=evaluate(aeqn[i].form);
+    f[i]=evaluate(aeqn[i].form.data());
 }
 
 void do_daes()
@@ -218,7 +216,7 @@ int solve_dae()
   n=nsvar;
   if(nsvar==0)return 1;
   if(dae_work.status<0)return dae_work.status; /* accepts no change error */
-  y=dae_work.work;
+  y=dae_work.work.data();
   f=y+nsvar;
   fnew=f+nsvar;
   ynew=fnew+nsvar;
@@ -254,13 +252,13 @@ int solve_dae()
 	jac[j*n+i]=(fnew[j]-f[j])/del;
       y[i]=yold;
     }
-    sgefa(jac,n,n,dae_work.iwork,&info);
+    sgefa(jac,n,n,dae_work.iwork.data(),&info);
     if(info!=-1){
       for(i=0;i<n;i++)
 	SETVAR(svar[i].index,ynew[i]);
       return -1; /* singular jacobian */
     }
-    sgesl(jac,n,n,dae_work.iwork,errvec,0); /* get x=J^(-1) f */
+    sgesl(jac,n,n,dae_work.iwork.data(),errvec,0); /* get x=J^(-1) f */
     err=0.0;
     for(i=0;i<n;i++){
       y[i]-=errvec[i];
@@ -297,17 +295,23 @@ void get_new_guesses()
 {
   int i,n;
   char name[XPP_NAME_MAX+40];
+  /* new_string_of edits a fixed dialog buffer in place; svar[i].rhs keeps
+     its old 80-byte editable capacity (add_svar's original allocation)
+     via this local buffer, then takes the edited text back. */
+  char rhs_buf[80];
   double z;
   if(nsvar<1)return;
   for(i=0;i<nsvar;i++){
     z=svar[i].last;
-    snprintf(name,sizeof(name),"Initial %.*s(%g):",XPP_NAME_MAX,svar[i].name,z);
-    new_string_of(name,svar[i].rhs,XPP_FIELD_EXPRESSION);
-    if(add_expr(svar[i].rhs,svar[i].form,&n)){
+    snprintf(name,sizeof(name),"Initial %.*s(%g):",XPP_NAME_MAX,svar[i].name.c_str(),z);
+    xpp_strlcpy(rhs_buf,svar[i].rhs.c_str(),sizeof(rhs_buf));
+    new_string_of(name,rhs_buf,XPP_FIELD_EXPRESSION);
+    svar[i].rhs=rhs_buf;
+    if(add_expr(svar[i].rhs.c_str(),svar[i].form.data(),&n)){
       err_msg("Illegal formula");
       return;
     }
-    z=evaluate(svar[i].form);
+    z=evaluate(svar[i].form.data());
     SETVAR(svar[i].index,z);
     svar[i].value=z;
     svar[i].last=z;

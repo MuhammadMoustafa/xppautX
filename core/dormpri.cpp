@@ -5,6 +5,7 @@
 /* #include <malloc.h> */
 #include <limits.h>
 #include <memory.h>
+#include <vector>
 #include "dormpri.h"
 #include "flags.h"
 #include "ggets.h"
@@ -174,7 +175,7 @@ static double hinit (unsigned n, FcnEqDiff fcn, double x, double* y,
   if (der12 <= 1.0E-15)
     h1 = max_d (1.0E-6, fabs(h)*1.0E-3);
   else
-    h1 = pow (0.01/der12, 1.0/(double)iord);
+    h1 = pow (0.01/der12, 1.0/static_cast<double>(iord));
   h = min_d (100.0 * h, min_d (h1, hmax));
 
   return sign (h, posneg);
@@ -528,7 +529,7 @@ static int dopcor (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
     deno = err + 0.01 * err2;
     if (deno <= 0.0)
       deno = 1.0;
-    err = fabs(h) * err * sqrt (1.0 / (deno*(double)n));
+    err = fabs(h) * err * sqrt (1.0 / (deno*static_cast<double>(n)));
 
     /* computation of hnew */
     fac11 = pow (err, expo1);
@@ -732,6 +733,10 @@ int dop853
 {
   int       arret, idid;
   unsigned  i;
+  /* indir (file-static, like rcont1..8 above) is only ever read back
+     within this same call; RAII here still frees it on every return
+     path without a manual xpp_free. */
+  std::vector<unsigned> indir_buf;
 
   /* initialisations */
   nfcn = nstep = naccpt = nrejct = arret = 0;
@@ -799,8 +804,10 @@ int dop853
     rcont6 = rcont5+nrdens;
     rcont7 = rcont6+nrdens;
     rcont8 = rcont7+nrdens;
-    if (nrdens < n)
-      indir = (unsigned*) xpp_malloc (n*sizeof(unsigned));
+    if (nrdens < n) {
+      indir_buf.assign(n, 0);
+      indir = indir_buf.data();
+    }
 
     /* control of length of icont */
     if (nrdens == n)
@@ -886,7 +893,6 @@ int dop853
   
     idid = dopcor (n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler, fileout,
 		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont);
-  if(indir)xpp_free(indir);
     return idid;
   
 
@@ -962,7 +968,7 @@ static double hinit5 (unsigned n, FcnEqDiff fcn, double x, double* y,
   if (der12 <= 1.0E-15)
     h1 = max_d (1.0E-6, fabs(h)*1.0E-3);
   else
-    h1 = pow (0.01/der12, 1.0/(double)iord);
+    h1 = pow (0.01/der12, 1.0/static_cast<double>(iord));
   h = min_d (100.0 * h, min_d (h1, hmax));
 
   return sign (h, posneg);
@@ -1130,7 +1136,7 @@ static int dopcor5 (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 	sqr = k4[i] / sk;
 	err += sqr*sqr;
       }
-    err = sqrt (err / (double)n);
+    err = sqrt (err / static_cast<double>(n));
 
     /* computation of hnew */
     fac11 = pow (err, expo1);
@@ -1276,6 +1282,10 @@ int dopri5
 {
   int       arret, idid;
   unsigned  i;
+  /* indir (file-static, like rcont1..5 above) is only ever read back
+     within this same call; RAII here still frees it on every return
+     path without a manual xpp_free. */
+  std::vector<unsigned> indir_buf;
 
   /* initialisations */
   nfcn = nstep = naccpt = nrejct = arret = 0;
@@ -1339,8 +1349,10 @@ int dopri5
     rcont3 = rcont2+nrdens;
     rcont4 = rcont3+nrdens;
     rcont5 = rcont4+nrdens;
-    if (nrdens < n)
-      indir = (unsigned*) xpp_malloc (n*sizeof(unsigned));
+    if (nrdens < n) {
+      indir_buf.assign(n, 0);
+      indir = indir_buf.data();
+    }
 
 
 
@@ -1424,9 +1436,6 @@ int dopri5
 
     idid = dopcor5 (n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler, fileout,
 		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont);
-
-    if (indir)
-      xpp_free (indir);
 
     return idid;
 

@@ -18,6 +18,7 @@
 #include "cvband.h"
 #include "band.h"
 #include "xpp_io.h"
+#include <string>
 double cv_ropt[OPT_SIZE];
   int cv_iopt[OPT_SIZE];
 extern int cv_bandflag,cv_bandupper,cv_bandlower;
@@ -56,33 +57,31 @@ static void cvf(int n, double t, N_Vector y, N_Vector ydot, void *fdata)
  
 void cvode_err_msg(int kflag)
 {
-  char s[256];
-  XPP_STRCPY(s,"");
+  std::string s;
   switch(kflag){
-  case 0: XPP_STRCPY(s,"");
+  case 0: break;
+  case -1: s = "No memory allocated";
     break;
-  case -1: XPP_STRCPY(s,"No memory allocated");
+  case -2: s = "Bad input to CVode";
     break;
-  case -2: XPP_STRCPY(s,"Bad input to CVode");
+  case -3: s = "Too much work -- try smaller DT";
     break;
-  case -3: XPP_STRCPY(s,"Too much work -- try smaller DT");
+  case -4: s = xpp::format("Tolerance too low-- try TOL={} ATOL={}",
+	TOLER*cv_ropt[TOLSF], ATOLER*cv_ropt[TOLSF]);
     break;
-  case -4: XPP_SPRINTF(s,"Tolerance too low-- try TOL=%g ATOL=%g",
-	TOLER*cv_ropt[TOLSF],ATOLER*cv_ropt[TOLSF]);
+  case -5: s = "Error test failure too frequent ??";
     break;
-  case -5: XPP_STRCPY(s,"Error test failure too frequent ??");
+  case -6: s = "Converg. failure -- oh well!";
     break;
-  case -6: XPP_STRCPY(s,"Converg. failure -- oh well!");
+  case -7: s = "Setup failed for linsolver in CVODE ???";
     break;
-  case -7: XPP_STRCPY(s,"Setup failed for linsolver in CVODE ???");
+  case -8: s = "Singular matrix encountered. Hmmm?";
     break;
-  case -8: XPP_STRCPY(s,"Singular matrix encountered. Hmmm?");
-    break;
-  case -9: XPP_STRCPY(s,"Flags error...");
+  case -9: s = "Flags error...";
     break;
   }
-  if(strlen(s)>0)
-    err_msg(s);
+  if(!s.empty())
+    err_msg(s.c_str());
 }
     
 

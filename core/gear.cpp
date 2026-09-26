@@ -13,9 +13,10 @@
 #include "integrate.h"
 #include "abort.h"
 
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
+#include <vector>
 #include "xpplim.h"
 #include "xpp_io.h"
 #include "xpp_globals.h"
@@ -69,11 +70,10 @@ void do_sing(double *x, double eps, double err, double big, int maxit, int n, in
  int bpos=0,bneg=0;
  /* float xl[MAXODE]; */
  kmem=n*(2*n+5)+50;
- if((work=(double *)xpp_malloc(sizeof(double)*kmem))==NULL)
- {
-  err_msg("Insufficient core ");
-  return;
- }
+ /* xpp_malloc never returns NULL (it exits on failure); work is RAII now
+    (std::vector) so every return path below frees it automatically. */
+ std::vector<double> work_buf(kmem, 0.0);
+ work=work_buf.data();
  ShootICFlag=0;
  ShootIndex=0;
  for(i=0;i<n;i++)old_x[i]=x[i];
@@ -85,7 +85,6 @@ void do_sing(double *x, double eps, double err, double big, int maxit, int n, in
  rooter(x,err,eps,big,work,ierr,maxit,n);
  if(*ierr!=0)
  {
-  xpp_free(work);
   err_msg("Could not converge to root");
   for(i=0;i<n;i++)x[i]=old_x[i];
   return;
@@ -111,14 +110,13 @@ void do_sing(double *x, double eps, double err, double big, int maxit, int n, in
  if(*ierr!=0)
  {
   err_msg("Could not compute eigenvalues");
-  xpp_free(work);
   return;
  }
 /* succesfully computed evals now lets work with them */
 ch='n';
 if(!PAR_FOL)
 {
- ch=(char)TwoChoice("YES","NO","Print eigenvalues?","yn");
+ ch=static_cast<char>(TwoChoice("YES","NO","Print eigenvalues?","yn"));
  
 }
  pr=0;
@@ -174,7 +172,7 @@ if(!PAR_FOL)
    else eq_symb(x,3);
  }
  
- *stabinfo=(float)(cp+rp)+(float)(cn+rn)/1000.0;
+ *stabinfo=static_cast<float>(cp+rp)+static_cast<float>(cn+rn)/1000.0;
  
  /* Lets change Work back to transposed oldwork */
    for(i=0;i<n;i++)
@@ -192,7 +190,7 @@ if(!PAR_FOL)
  ch='n';
  if(!PAR_FOL)
  {
-  ch=(char)TwoChoice("YES","NO","Draw Invariant Sets?","yn");
+  ch=static_cast<char>(TwoChoice("YES","NO","Draw Invariant Sets?","yn"));
    }
   if((ch=='y')||(PAR_FOL&&SHOOT))
   {
@@ -243,7 +241,7 @@ if(!PAR_FOL)
    ch='n';
    if(!PAR_FOL)
      {
-       ch=(char)TwoChoice("YES","NO","Draw Strong Sets?","yn");
+       ch=static_cast<char>(TwoChoice("YES","NO","Draw Strong Sets?","yn"));
      }
 
    if((ch=='y')||(PAR_FOL&&SHOOT))
@@ -288,12 +286,11 @@ if(!PAR_FOL)
 
 	 }
      }
-        DELTA_T=oldt;   
+        DELTA_T=oldt;
  }
-  
 
- 
- xpp_free(work);
+
+
  return;
 }
 
@@ -301,36 +298,32 @@ void save_batch_shoot()
 {
 int i,k,type;
   double x[MAXODE],olddt;
-  char name[256];
-  FILE *fp;
   if(ShootIndex<1)return;
   olddt=DELTA_T;
   STORFLAG=1;
   for(k=0;k<ShootIndex;k++){
     for(i=0;i<NODE;i++)
       x[i]=ShootIC[k][i];
-      
+
     type=ShootType[k];
     if(type>0){
- 
+
        DELTA_T=fabs(DELTA_T);
        usual_integrate_stuff(x);
-       XPP_SPRINTF(name,"UM%d.dat",k);
-
-       fp=fopen(name,"w");
-       write_mybrowser_data(fp);
-       fclose(fp);
+       {
+         xpp::Writer w(xpp::format("UM{}.dat",k).c_str());
+         if(w){ write_mybrowser_data(w.file()); w.commit(); }
+       }
     }
     if(type<0){
- 
+
        DELTA_T=-fabs(DELTA_T);
        usual_integrate_stuff(x);
-       XPP_SPRINTF(name,"SM%d.dat",k);
+       {
+         xpp::Writer w(xpp::format("SM{}.dat",k).c_str());
+         if(w){ write_mybrowser_data(w.file()); w.commit(); }
+       }
 
-       fp=fopen(name,"w");
-       write_mybrowser_data(fp);
-       fclose(fp);
- 
     }
   }
   DELTA_T=olddt;
@@ -383,11 +376,10 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
 
  /* float xl[MAXODE]; */
  kmem=n*(2*n+5)+50;
- if((work=(double *)xpp_malloc(sizeof(double)*kmem))==NULL)
- {
-   /* printf("Insufficient core \n");  */
-  return;
- }
+ /* xpp_malloc never returns NULL (it exits on failure); work is RAII now
+    (std::vector) so every return path below frees it automatically. */
+ std::vector<double> work_buf(kmem, 0.0);
+ work=work_buf.data();
 
  ShootICFlag=0;
  ShootIndex=0;
@@ -400,7 +392,6 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
  rooter(x,err,eps,big,work,ierr,maxit,n);
  if(*ierr!=0)
  {
-  xpp_free(work);
   /* err_msg("Could not converge to root"); */
   for(i=0;i<n;i++)x[i]=old_x[i];
   return;
@@ -425,8 +416,6 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
  eigen(n,work,eval,ework,ierr);
  if(*ierr!=0)
  {
- 
-  xpp_free(work);
   return;
  }
 /* succesfully computed evals now lets work with them */
@@ -523,10 +512,9 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
 
  }
 
-  
 
- 
- xpp_free(work);
+
+
  return;
 }
 
@@ -986,7 +974,7 @@ void rooter(double *x, double err, double eps, double big, double *work, int *ie
      /* for(i=0;i<n*n;i++)printf("dm=%g \n",dermat[i]); */
      return; /* success !! */
   }
-  if((r/(double)n)>big)
+  if((r/static_cast<double>(n))>big)
   {
    *ierr=1;
    return;
@@ -1189,15 +1177,15 @@ L150:
     k=nq+1;
     idoub=k;
     mtyp=(4-mf)/2;
-    enq2=.5/(double)(nq+1);
-    enq3=.5/(double)(nq+2);
-    enq1=.5/(double)nq;
+    enq2=.5/static_cast<double>(nq+1);
+    enq3=.5/static_cast<double>(nq+2);
+    enq1=.5/static_cast<double>(nq);
     pepsh=eps;
     eup=sqr2(pertst[nq-1][0][1]*pepsh);
     e=sqr2(pertst[nq-1][0][0]*pepsh);
     edwn=sqr2(pertst[nq-1][0][2]*pepsh);
     if(edwn==0.0)goto L850;
-    bnd=eps*enq3/(double)n;
+    bnd=eps*enq3/static_cast<double>(n);
 
 /*L320:*/
 	
@@ -1347,7 +1335,7 @@ L680:
     if((*kflag==1)&&(r<1.1))goto L770;
     if(newq<=nq) goto L700;
     for(i=0;i<n;i++)
-    ytable[newq][i]=error[i]*a[k-1]/(double)k;
+    ytable[newq][i]=error[i]*a[k-1]/static_cast<double>(k);
 
 L700:
 

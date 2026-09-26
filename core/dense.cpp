@@ -33,13 +33,10 @@ DenseMat DenseAllocMat(integer N)
 
   if (N <= 0) return(NULL);
 
-  A = (DenseMat) xpp_malloc(sizeof *A);
-  
+  A = static_cast<DenseMat>(xpp_malloc(sizeof *A));
+
+  /* denalloc only returns NULL for n <= 0, already ruled out above. */
   A->data = denalloc(N);
-  if (A->data == NULL) {
-    xpp_free(A);
-    return(NULL);
-  }
 
   A->size = N;
 
@@ -51,7 +48,7 @@ integer *DenseAllocPiv(integer N)
 {
   if (N <= 0) return(NULL);
 
-  return((integer *) xpp_malloc(N * sizeof(integer)));
+  return(static_cast<integer *>(xpp_malloc(N * sizeof(integer))));
 }
 
 
@@ -106,13 +103,11 @@ real **denalloc(integer n)
 
   if (n <= 0) return(NULL);
 
-  a = (real **) xpp_malloc(n * sizeof(real *));
+  a = static_cast<real **>(xpp_malloc(n * sizeof(real *)));
 
-  a[0] = (real *) xpp_malloc(n * n * sizeof(real));
-  if (a[0] == NULL) {
-    xpp_free(a);
-    return(NULL);
-  }
+  /* xpp_malloc never returns NULL (it exits on failure), so there is no
+     allocation-failure branch to unwind here. */
+  a[0] = static_cast<real *>(xpp_malloc(n * n * sizeof(real)));
 
   for (j=1; j < n; j++) a[j] = a[0] + j * n;
 

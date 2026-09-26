@@ -147,7 +147,7 @@ typedef struct N_VectorContent {  /* a tag: -fsanitize=function tells unnamed st
  *                                                             *
  ***************************************************************/ 
 
-#define N_VMAKE(v, v_data, v_len) v = (N_Vector) xpp_malloc(sizeof(*v)); \
+#define N_VMAKE(v, v_data, v_len) v = static_cast<N_Vector>(xpp_malloc(sizeof(*v))); \
                                   v->data   = v_data; \
                                   v->length = v_len
 

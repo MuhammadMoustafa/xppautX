@@ -4,11 +4,12 @@
 #include "ggets.h"
 #include "integrate.h"
 
-#include <stdlib.h> 
+#include <stdlib.h>
 /*   This handles the delay stuff    */
 
 #include <stdio.h>
 #include <math.h>
+#include <vector>
 #include "xpplim.h"
 #include "getvar.h"
 
@@ -62,16 +63,14 @@ int alloc_delay(double big)
  int n,i;
 
  
- n=(int)(big/fabs(DELTA_T))+1;
+ n=static_cast<int>(big/fabs(DELTA_T))+1;
 
  MaxDelay=n;
  LatestDelay=1;
  DelayFlag=0;
- DelayWork=(double *)xpp_calloc(n*(NODE ),sizeof(double));
- if(DelayWork==NULL){
-  err_msg("Could not allocate memory for Delay");
-  return(0);
- }
+ /* xpp_calloc never returns NULL (it exits on failure), so there is no
+    allocation-failure branch to handle here. */
+ DelayWork=static_cast<double *>(xpp_calloc(n*(NODE ),sizeof(double)));
  DelayFlag=1;
  NDelay=0;
  WhichDelay=-1;
@@ -133,7 +132,7 @@ double get_delay(int in, double tau)
  double x=tau/fabs(DELTA_T);
  double dd=fabs(DELTA_T);
  double y,ya[4],xa[4],dy;
- int n1=(int)x;
+ int n1=static_cast<int>(x);
  int n2=n1+1;
  int nodes=NODE;
  int n0=n1;
@@ -176,24 +175,17 @@ int do_init_delay(double big)
  double t=T0,old_t,y[MAXODE];
  int i,nt,j;
  int len;
- 
- int *del_form[MAXODE];
- nt=(int)(big/fabs(DELTA_T));
+
+ /* del_form's per-node formula buffers are RAII now (std::vector), so
+    every return path below frees them automatically -- no more manual
+    xpp_free loops paired to each early-exit. */
+ std::vector<std::vector<int>> del_form(NODE, std::vector<int>(200, 0));
+ nt=static_cast<int>(big/fabs(DELTA_T));
  NCON=NCON_START;
  NSYM=NSYM_START;
  for(i=0;i<(NODE );i++){
-	del_form[i]=(int *)xpp_calloc(200,sizeof(int));
-	if(del_form[i]==NULL){
-		err_msg("Failed to allocate delay formula ...");
-		for(j=0;j<i;j++)xpp_free(del_form[j]);
-                NCON=NCON_START;
-		NSYM=NSYM_START;
-		return(0);
-		}
-
-	 if(add_expr(delay_string[i],del_form[i],&len)){
+	 if(add_expr(delay_string[i],del_form[i].data(),&len)){
 		err_msg("Illegal delay expression");
-                for(j=0;j<=i;j++)xpp_free(del_form[j]);
 		 NCON=NCON_START;
 		NSYM=NSYM_START;
 		return(0);
@@ -202,15 +194,14 @@ int do_init_delay(double big)
   LatestDelay=1;
 
   get_val("t",&old_t);
- 
+
   for(i=nt;i>=0;i--){
 	t=T0-fabs(DELTA_T)*i;
 	set_val("t",t);
 	for(j=0;j<(NODE );j++)
-		y[j]=evaluate(del_form[j]);
+		y[j]=evaluate(del_form[j].data());
 	stor_delay(y);
   }
-   for(j=0;j<(NODE );j++)xpp_free(del_form[j]);
    NCON=NCON_START;
    NSYM=NSYM_START;
   set_val("t",old_t);

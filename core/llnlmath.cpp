@@ -55,7 +55,7 @@ real RPowerR(real base, real exponent)
  
   if (base <= ZERO) return(ZERO);
 
-  return((real)pow((double)base,(double)exponent));
+  return(static_cast<real>(pow(static_cast<double>(base), static_cast<double>(exponent))));
 }
 
 
@@ -63,5 +63,5 @@ real RSqrt(real x)
 {
   if (x <= ZERO) return(ZERO);
 
-  return((real) sqrt((double) x));
+  return(static_cast<real>(sqrt(static_cast<double>(x))));
 }

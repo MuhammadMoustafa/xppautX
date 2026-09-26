@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 #include "xpp_mem.h"
+#include "xpp_io.h"
 #include <stdlib.h>
 #include "cvband.h"
 #include "cvode.h"
@@ -28,8 +29,8 @@
 #define MSG_MEM_FAIL     CVBAND_INIT "A memory request failed.\n\n"
 
 #define MSG_BAD_SIZES_1  CVBAND_INIT "Illegal bandwidth parameter(s) "
-#define MSG_BAD_SIZES_2  "ml = %ld, mu = %ld.\n"
-#define MSG_BAD_SIZES_3  "Must have 0 <=  ml, mu <= N-1=%ld.\n\n"
+#define MSG_BAD_SIZES_2  "ml = {}, mu = {}.\n"
+#define MSG_BAD_SIZES_3  "Must have 0 <=  ml, mu <= N-1={}.\n\n"
 #define MSG_BAD_SIZES    MSG_BAD_SIZES_1 MSG_BAD_SIZES_2 MSG_BAD_SIZES_3
 
 
@@ -225,7 +226,7 @@ void CVBand(void *cvode_mem, integer mupper, integer mlower, CVBandJacFn bjac,
   CVBandMem cvband_mem;
   
   /* Return immediately if cvode_mem is NULL */
-  cv_mem = (CVodeMem) cvode_mem;
+  cv_mem = static_cast<CVodeMem>(cvode_mem);
   if (cv_mem == NULL) return;  /* CVode reports this error */
 
   /* Set four main function fields in cv_mem */  
@@ -234,10 +235,13 @@ void CVBand(void *cvode_mem, integer mupper, integer mlower, CVBandJacFn bjac,
   lsolve = CVBandSolve;
   lfree  = CVBandFree;
   
-  /* Get memory for CVBandMemRec */
-  lmem = cvband_mem = (CVBandMem) xpp_malloc(sizeof(CVBandMemRec));
-  if (cvband_mem == NULL) return;  /* CVBandInit reports this error */
-  
+  /* Get memory for CVBandMemRec. xpp_malloc never returns NULL (it exits
+     on failure). lmem is a void* handle shared with cv_mem (cvode.h) and
+     freed only by CVBandFree below, so it stays an xpp_malloc block
+     rather than a smart pointer: cv_mem's struct field is a plain
+     void *, the same opaque-handle pattern as N_Vector. */
+  lmem = cvband_mem = static_cast<CVBandMem>(xpp_malloc(sizeof(CVBandMemRec)));
+
   /* Set Jacobian routine field to user's bjac or CVBandDQJac */
   if (bjac == NULL) {
     jac = CVBandDQJac;
@@ -263,11 +267,11 @@ static int CVBandInit(CVodeMem cv_mem, bool *setupNonNull)
 {
   CVBandMem cvband_mem;
   
-  cvband_mem = (CVBandMem) lmem;
+  cvband_mem = static_cast<CVBandMem>(lmem);
 
   /* Print error message and return if cvband_mem is NULL */
   if (cvband_mem == NULL) {
-    fprintf(errfp, MSG_MEM_FAIL);
+    fputs(MSG_MEM_FAIL, errfp);
     return(LINIT_ERR);
   }
 
@@ -276,7 +280,7 @@ static int CVBandInit(CVodeMem cv_mem, bool *setupNonNull)
 
   /* Test ml and mu for legality */
   if ((ml < 0) || (mu < 0) || (ml >= N) || (mu >= N)) {
-    fprintf(errfp, MSG_BAD_SIZES, (long int)ml, (long int)mu, (long int)(N-1));
+    fputs(xpp::format(MSG_BAD_SIZES, static_cast<long>(ml), static_cast<long>(mu), static_cast<long>(N-1)).c_str(), errfp);
     return(LINIT_ERR);
   }
 
@@ -286,18 +290,18 @@ static int CVBandInit(CVodeMem cv_mem, bool *setupNonNull)
   /* Allocate memory for M, savedJ, and pivot arrays */
   M = BandAllocMat(N, mu, ml, storage_mu);
   if (M == NULL) {
-    fprintf(errfp, MSG_MEM_FAIL);
+    fputs(MSG_MEM_FAIL, errfp);
     return(LINIT_ERR);
   }
   savedJ = BandAllocMat(N, mu, ml, mu);
   if (savedJ == NULL) {
-    fprintf(errfp, MSG_MEM_FAIL);
+    fputs(MSG_MEM_FAIL, errfp);
     BandFreeMat(M);
     return(LINIT_ERR);
   }
   pivots = BandAllocPiv(N);
   if (pivots == NULL) {
-    fprintf(errfp, MSG_MEM_FAIL);
+    fputs(MSG_MEM_FAIL, errfp);
     BandFreeMat(M);
     BandFreeMat(savedJ);
     return(LINIT_ERR);
@@ -335,7 +339,7 @@ static int CVBandSetup(CVodeMem cv_mem, int convfail, N_Vector ypred,
   integer ier;
   CVBandMem   cvband_mem;
   
-  cvband_mem = (CVBandMem) lmem;
+  cvband_mem = static_cast<CVBandMem>(lmem);
 
   /* Use nst, gamma/gammap, and convfail to set J eval. flag jok */
 
@@ -385,7 +389,7 @@ static int CVBandSolve(CVodeMem cv_mem, N_Vector b, N_Vector ycur,
 {
   CVBandMem cvband_mem;
   
-  cvband_mem = (CVBandMem) lmem;
+  cvband_mem = static_cast<CVBandMem>(lmem);
 
   BandBacksolve(M, pivots, b);
 
@@ -407,7 +411,7 @@ static void CVBandFree(CVodeMem cv_mem)
 {
   CVBandMem cvband_mem;
 
-  cvband_mem = (CVBandMem) lmem;
+  cvband_mem = static_cast<CVBandMem>(lmem);
 
   BandFreeMat(M);
   BandFreeMat(savedJ);

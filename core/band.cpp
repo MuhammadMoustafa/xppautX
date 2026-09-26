@@ -34,14 +34,11 @@ BandMat BandAllocMat(integer N, integer mu, integer ml, integer smu)
 
   if (N <= 0) return(NULL);
   
-  A = (BandMat) xpp_malloc(sizeof *A);
+  A = static_cast<BandMat>(xpp_malloc(sizeof *A));
 
+  /* bandalloc only returns NULL for n <= 0, already ruled out above. */
   A->data = bandalloc(N, smu, ml);
-  if (A->data == NULL) {
-    xpp_free(A);
-    return(NULL);
-  }
-  
+
   A->size = N;
   A->mu = mu;
   A->ml = ml;
@@ -55,7 +52,7 @@ integer *BandAllocPiv(integer N)
 {
   if (N <= 0) return(NULL);
   
-  return((integer *) xpp_malloc(N * sizeof(integer)));
+  return(static_cast<integer *>(xpp_malloc(N * sizeof(integer))));
 }
 
 
@@ -109,14 +106,12 @@ real **bandalloc(integer n, integer smu, integer ml)
 
   if (n <= 0) return(NULL);
 
-  a = (real **) xpp_malloc(n * sizeof(real *));
+  a = static_cast<real **>(xpp_malloc(n * sizeof(real *)));
 
+  /* xpp_malloc never returns NULL (it exits on failure), so there is no
+     allocation-failure branch to unwind here. */
   colSize = smu + ml + 1;
-  a[0] = (real *) xpp_malloc(n * colSize * sizeof(real));
-  if (a[0] == NULL) {
-    xpp_free(a);
-    return(NULL);
-  }
+  a[0] = static_cast<real *>(xpp_malloc(n * colSize * sizeof(real)));
 
   for (j=1; j < n; j++) a[j] = a[0] + j * colSize;
 

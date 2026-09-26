@@ -491,7 +491,7 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
   }
   
   if (N <= 0) {
-    fprintf(fp, MSG_BAD_N, (long int)N);
+    fprintf(fp, MSG_BAD_N, static_cast<long>(N));
     return(NULL);
   }
 
@@ -531,9 +531,9 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
   }
 
   if (itol == SS) {
-    neg_abstol = (*((real *)abstol) < ZERO);
+    neg_abstol = (*(static_cast<real *>(abstol)) < ZERO);
   } else {
-    neg_abstol = (N_VMin((N_Vector)abstol) < ZERO);
+    neg_abstol = (N_VMin(static_cast<N_Vector>(abstol)) < ZERO);
   }
   if (neg_abstol) {
     fprintf(fp, MSG_BAD_ABSTOL);
@@ -568,12 +568,13 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
     if (iopt[MAXORD] > 0)  maxord = MIN(maxord, iopt[MAXORD]);
   }
 
-  cv_mem = (CVodeMem) xpp_malloc(sizeof(struct CVodeMemRec));
-  if (cv_mem == NULL) {
-    fprintf(fp, MSG_MEM_FAIL);
-    return(NULL);
-  }
- 
+  /* cv_mem is returned to the caller as the opaque void *cvode_mem handle
+     (cv2.cpp keeps it for the lifetime of the solver, freed by
+     CVodeFree), so it stays an xpp_malloc block rather than a smart
+     pointer: the C API contract is a raw handle. xpp_malloc never
+     returns NULL (it exits on failure). */
+  cv_mem = static_cast<CVodeMem>(xpp_malloc(sizeof(struct CVodeMemRec)));
+
   /* Allocate the vectors */
 
   allocOK = CVAllocVectors(cv_mem, N, maxord, machEnv);
@@ -691,7 +692,7 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
       
   /* Problem has been successfully initialized */
 
-  return((void *)cv_mem);
+  return(static_cast<void *>(cv_mem));
 }
 
 
@@ -906,7 +907,7 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
     if ((tn-tout)*h >= ZERO) {
       istate = SUCCESS;
       *t = tout;
-      (void) CVodeDky(cv_mem, tout, 0, yout);
+      static_cast<void>(CVodeDky(cv_mem, tout, 0, yout));
       next_q = qprime;
       next_h = hprime;
       break;
@@ -1139,8 +1140,8 @@ static bool CVEwtSet(CVodeMem cv_mem, real *rtol, void *atol, int tol_type,
 		     N_Vector ycur, N_Vector ewtvec, integer neq)
 {
   switch(tol_type) {
-  case SS: return(CVEwtSetSS(cv_mem, rtol, (real *)atol, ycur, ewtvec, neq));
-  case SV: return(CVEwtSetSV(cv_mem, rtol, (N_Vector)atol, ycur, ewtvec, neq));
+  case SS: return(CVEwtSetSS(cv_mem, rtol, static_cast<real *>(atol), ycur, ewtvec, neq));
+  case SV: return(CVEwtSetSV(cv_mem, rtol, static_cast<N_Vector>(atol), ycur, ewtvec, neq));
   }
   return(0);
 }
@@ -1278,13 +1279,13 @@ static real CVUpperBoundH0(CVodeMem cv_mem, real tdist)
   N_Vector temp1, temp2;
 
   vectorAtol = (itol == SV);
-  if (!vectorAtol) atoli = *((real *) abstol);
+  if (!vectorAtol) atoli = *(static_cast<real *>(abstol));
   temp1 = tempv;
   temp2 = acor;
   N_VAbs(zn[0], temp1);
   N_VAbs(zn[1], temp2);
   if (vectorAtol) {
-    N_VLinearSum(HUB_FACTOR, temp1, ONE, (N_Vector)abstol, temp1);
+    N_VLinearSum(HUB_FACTOR, temp1, ONE, static_cast<N_Vector>(abstol), temp1);
   } else {
     N_VScale(HUB_FACTOR, temp1, temp1);
     N_VAddConst(temp1, atoli, temp1);
