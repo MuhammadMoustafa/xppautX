@@ -122,7 +122,7 @@ if [ $linux_window -eq 1 ]; then
   # would find a Wayland socket by its default name: X11 only) the browser
   ENVS="-u DISPLAY -u WAYLAND_DISPLAY GDK_BACKEND=x11" start --port 0
   sleep 1
-  if grep -q 'the window cannot open (no web view' "$tmp/out" && ! grep -q 'WebKitGTK' "$tmp/out" &&
+  if grep -q 'the window cannot open (webview error -1: GTK init failed' "$tmp/out" && ! grep -q 'WebKitGTK' "$tmp/out" &&
     [ -n "$url" ] && [ "$(head -1 "$tmp/opened" 2>/dev/null)" = "$url" ]; then
     pass "no display: the window's library loads, then the browser opens"
   else
