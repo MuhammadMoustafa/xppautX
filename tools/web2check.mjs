@@ -631,8 +631,10 @@ async function textViews() {
   check('Find equilibrium (Sing pts/Go) computes one: type, counts and values from the equilibrium event',
     await until(`s.text.equilibrium && /STABLE|UNSTABLE|NEUTRAL/.test(s.text.equilibrium.type)
       && s.text.equilibrium.values.length === 2 && !s.busy`, 'equilibrium', 20000),
-    JSON.stringify(await S('s.text.equilibrium')));
+    JSON.stringify(await S(`({equilibrium: s.text.equilibrium, busy: s.busy, ask: s.ask,
+      sent: __xpp.sent().slice(-4), log: s.log.slice(-6)})`)));
   const eq = await S('s.text.equilibrium');
+  if (!eq) return;   /* reported above; the checks below need it */
   check('the view shows the type and the values (six significant digits)',
     await cdp.eval(`document.querySelector('.text-equilibrium .eq-type').textContent === ${JSON.stringify(eq.type)}
       && document.querySelectorAll('.text-equilibrium .eq-values tbody tr').length >= 2`));
