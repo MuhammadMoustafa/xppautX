@@ -12,7 +12,6 @@ void set_wieners(double dt, double *x, double t);
 void add_markov(int nstate, const char *name);
 int build_markov(const char *const *ma, const char *name);
 int old_build_markov(FILE *fptr, const char *name);
-void extract_expr(const char *source, char *dest, int *i0);
 void create_markov(int nstates, double *st, int type, const char *name);
 void add_markov_entry(int index, int j, int k, const char *expr);
 void compile_all_markov(void);

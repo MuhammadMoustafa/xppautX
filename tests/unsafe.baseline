@@ -57,9 +57,8 @@ core/csv_export.cpp text 10
 core/cvband.cpp memory 2
 core/cvdense.cpp memory 2
 core/cvode.cpp memory 4
-core/cvode.cpp text 37
 core/dae_fun.cpp buffers 2
-core/dae_fun.cpp text 1
+core/dae_fun.cpp text 2
 core/del_stab.cpp casts 5
 core/del_stab.cpp memory 10
 core/delay_handle.cpp buffers 1
@@ -77,7 +76,6 @@ core/do_fit.cpp files 5
 core/do_fit.cpp memory 34
 core/do_fit.cpp text 19
 core/do_fit.h buffers 3
-core/dormpri.cpp text 32
 core/edit_rhs.cpp buffers 6
 core/edit_rhs.cpp casts 13
 core/edit_rhs.cpp files 2
@@ -155,7 +153,6 @@ core/lunch-new.cpp casts 3
 core/lunch-new.cpp files 9
 core/lunch-new.cpp text 57
 core/macsysdirent.h buffers 2
-core/markov.cpp buffers 2
 core/markov.cpp memory 5
 core/marks_data.cpp buffers 3
 core/marks_data.cpp memory 1

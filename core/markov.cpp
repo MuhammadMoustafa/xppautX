@@ -107,15 +107,17 @@ void add_markov(int nstate, const char *name)
   create_markov(nstate,st,0,name);
 }
 
+/* file-local: builds the "{...}" substring extracted from a line, used
+   only by build_markov/old_build_markov below */
+static std::string extract_expr(const char *source, int *i0);
 
 int build_markov(const char *const *ma, const char *name)  /*   FILE *fptr; */
 {
  /*int nn;
  */
  int len=0,ll;
- char expr[256];
   int istart;
- 
+
 
  int i,j,nstates,index;
  index=-1;
@@ -153,9 +155,9 @@ int build_markov(const char *const *ma, const char *name)  /*   FILE *fptr; */
      strncpy(save_eqn[NLINES++],line,nn); */
    istart=0;
      for(j=0;j<nstates;j++){
-       extract_expr(line.c_str(),expr,&istart);
-       xpp_log(XPP_LOG_INFO, "%s ",expr);
-       add_markov_entry(index,i,j,expr);
+       std::string expr = extract_expr(line.c_str(),&istart);
+       xpp_log(XPP_LOG_INFO, "%s ",expr.c_str());
+       add_markov_entry(index,i,j,expr.c_str());
      }
    xpp_log(XPP_LOG_INFO, "\n");
  }
@@ -167,9 +169,8 @@ int old_build_markov(FILE *fptr, const char *name)
 {
  /*int nn;*/
  int len=0,ll;
- char expr[256];
   int istart;
- 
+
 
  int i,j,nstates,index;
  index=-1;
@@ -219,9 +220,9 @@ int old_build_markov(FILE *fptr, const char *name)
       strncpy(save_eqn[NLINES++],line,nn); */
    istart=0;
      for(j=0;j<nstates;j++){
-       extract_expr(line.c_str(),expr,&istart);
-       xpp_log(XPP_LOG_INFO, "%s ",expr);
-       add_markov_entry(index,i,j,expr);
+       std::string expr = extract_expr(line.c_str(),&istart);
+       xpp_log(XPP_LOG_INFO, "%s ",expr.c_str());
+       add_markov_entry(index,i,j,expr.c_str());
      }
    xpp_log(XPP_LOG_INFO, "\n");
    }
@@ -229,10 +230,10 @@ int old_build_markov(FILE *fptr, const char *name)
  return index;
 }
   
-void extract_expr(const char *source, char *dest, int *i0)
+static std::string extract_expr(const char *source, int *i0)
 {
+ std::string dest;
  char ch;
- int len=0;
  int flag=0;
  while(1)
    {
@@ -242,12 +243,11 @@ void extract_expr(const char *source, char *dest, int *i0)
      if(ch=='{')flag=1;
      else {
        if(flag){
-	 dest[len]=ch;
-	 len++;
+	 dest.push_back(ch);
        }
      }
    }
-   dest[len]=0;
+   return dest;
 }
 
      

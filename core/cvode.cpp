@@ -177,39 +177,39 @@
 
 #define MSG_Y0_NULL     CVM "y0=NULL illegal.\n\n"
 
-#define MSG_BAD_N       CVM "N=%ld < 1 illegal.\n\n"
+#define MSG_BAD_N       CVM "N={} < 1 illegal.\n\n"
 
-#define MSG_BAD_LMM_1   CVM "lmm=%d illegal.\n"
-#define MSG_BAD_LMM_2   "The legal values are ADAMS=%d and BDF=%d.\n\n"
+#define MSG_BAD_LMM_1   CVM "lmm={} illegal.\n"
+#define MSG_BAD_LMM_2   "The legal values are ADAMS={} and BDF={}.\n\n"
 #define MSG_BAD_LMM     MSG_BAD_LMM_1 MSG_BAD_LMM_2
 
-#define MSG_BAD_ITER_1  CVM "iter=%d illegal.\n"
-#define MSG_BAD_ITER_2  "The legal values are FUNCTIONAL=%d "
-#define MSG_BAD_ITER_3  "and NEWTON=%d.\n\n"
+#define MSG_BAD_ITER_1  CVM "iter={} illegal.\n"
+#define MSG_BAD_ITER_2  "The legal values are FUNCTIONAL={} "
+#define MSG_BAD_ITER_3  "and NEWTON={}.\n\n"
 #define MSG_BAD_ITER    MSG_BAD_ITER_1 MSG_BAD_ITER_2 MSG_BAD_ITER_3
 
-#define MSG_BAD_ITOL_1  CVM "itol=%d illegal.\n"
-#define MSG_BAD_ITOL_2  "The legal values are SS=%d and SV=%d.\n\n"
+#define MSG_BAD_ITOL_1  CVM "itol={} illegal.\n"
+#define MSG_BAD_ITOL_2  "The legal values are SS={} and SV={}.\n\n"
 #define MSG_BAD_ITOL    MSG_BAD_ITOL_1 MSG_BAD_ITOL_2
 
 #define MSG_F_NULL       CVM "f=NULL illegal.\n\n"
 
 #define MSG_RELTOL_NULL  CVM "reltol=NULL illegal.\n\n"
  
-#define MSG_BAD_RELTOL   CVM "*reltol=%g < 0 illegal.\n\n"
+#define MSG_BAD_RELTOL   CVM "*reltol={:g} < 0 illegal.\n\n"
 
 #define MSG_ABSTOL_NULL  CVM "abstol=NULL illegal.\n\n"
 
 #define MSG_BAD_ABSTOL   CVM "Some abstol component < 0.0 illegal.\n\n"
 
-#define MSG_BAD_OPTIN_1  CVM "optIn=%d illegal.\n"
-#define MSG_BAD_OPTIN_2  "The legal values are FALSE=%d and TRUE=%d.\n\n"
+#define MSG_BAD_OPTIN_1  CVM "optIn={} illegal.\n"
+#define MSG_BAD_OPTIN_2  "The legal values are FALSE={} and TRUE={}.\n\n"
 #define MSG_BAD_OPTIN    MSG_BAD_OPTIN_1 MSG_BAD_OPTIN_2
 
 #define MSG_BAD_OPT     CVM "optIn=TRUE, but iopt=ropt=NULL.\n\n"
 
 #define MSG_BAD_HMIN_HMAX_1 CVM "Inconsistent step size limits:\n"
-#define MSG_BAD_HMIN_HMAX_2 "ropt[HMIN]=%g > ropt[HMAX]=%g.\n\n"
+#define MSG_BAD_HMIN_HMAX_2 "ropt[HMIN]={:g} > ropt[HMAX]={:g}.\n\n"
 #define MSG_BAD_HMIN_HMAX   MSG_BAD_HMIN_HMAX_1 MSG_BAD_HMIN_HMAX_2
 
 #define MSG_MEM_FAIL    CVM "A memory request failed.\n\n"
@@ -239,53 +239,53 @@
 
 #define MSG_T_NULL       CVODE "t=NULL illegal.\n\n"
 
-#define MSG_BAD_ITASK_1   CVODE "itask=%d illegal.\nThe legal values are"
-#define MSG_BAD_ITASK_2   " NORMAL=%d and ONE_STEP=%d.\n\n"
+#define MSG_BAD_ITASK_1   CVODE "itask={} illegal.\nThe legal values are"
+#define MSG_BAD_ITASK_2   " NORMAL={} and ONE_STEP={}.\n\n"
 #define MSG_BAD_ITASK     MSG_BAD_ITASK_1 MSG_BAD_ITASK_2
 
-#define MSG_BAD_H0        CVODE "h0=%g and tout-t0=%g inconsistent.\n\n"
+#define MSG_BAD_H0        CVODE "h0={:g} and tout-t0={:g} inconsistent.\n\n"
 
-#define MSG_BAD_TOUT_1    CVODE "Trouble interpolating at tout = %g.\n"
+#define MSG_BAD_TOUT_1    CVODE "Trouble interpolating at tout = {:g}.\n"
 #define MSG_BAD_TOUT_2    "tout too far back in direction of integration.\n\n"
 #define MSG_BAD_TOUT      MSG_BAD_TOUT_1 MSG_BAD_TOUT_2
 
-#define MSG_MAX_STEPS_1   CVODE "At t=%g, mxstep=%d steps taken on "
-#define MSG_MAX_STEPS_2   "this call before\nreaching tout=%g.\n\n"
+#define MSG_MAX_STEPS_1   CVODE "At t={:g}, mxstep={} steps taken on "
+#define MSG_MAX_STEPS_2   "this call before\nreaching tout={:g}.\n\n"
 #define MSG_MAX_STEPS     MSG_MAX_STEPS_1 MSG_MAX_STEPS_2
 
-#define MSG_EWT_NOW_BAD_1  CVODE "At t=%g, "
+#define MSG_EWT_NOW_BAD_1  CVODE "At t={:g}, "
 #define MSG_EWT_NOW_BAD_2  "some ewt component has become <= 0.0.\n\n"
 #define MSG_EWT_NOW_BAD    MSG_EWT_NOW_BAD_1 MSG_EWT_NOW_BAD_2
 
-#define MSG_TOO_MUCH_ACC  CVODE "At t=%g, too much accuracy requested.\n\n"
+#define MSG_TOO_MUCH_ACC  CVODE "At t={:g}, too much accuracy requested.\n\n"
 
-#define MSG_HNIL_1  CVODE "Warning.. internal t=%g and step size h=%g\n"
+#define MSG_HNIL_1  CVODE "Warning.. internal t={:g} and step size h={:g}\n"
 #define MSG_HNIL_2  "are such that t + h == t on the next step.\n"
 #define MSG_HNIL_3  "The solver will continue anyway.\n\n"
 #define MSG_HNIL    MSG_HNIL_1 MSG_HNIL_2 MSG_HNIL_3
 
-#define MSG_HNIL_DONE_1   CVODE "The above warning has been issued %d times "
+#define MSG_HNIL_DONE_1   CVODE "The above warning has been issued {} times "
 #define MSG_HNIL_DONE_2   "and will not be\nissued again for this problem.\n\n"
 #define MSG_HNIL_DONE     MSG_HNIL_DONE_1 MSG_HNIL_DONE_2
 
-#define MSG_ERR_FAILS_1   CVODE "At t=%g and step size h=%g, the error test\n"
+#define MSG_ERR_FAILS_1   CVODE "At t={:g} and step size h={:g}, the error test\n"
 #define MSG_ERR_FAILS_2   "failed repeatedly or with |h| = hmin.\n\n"
 #define MSG_ERR_FAILS     MSG_ERR_FAILS_1 MSG_ERR_FAILS_2
 
-#define MSG_CONV_FAILS_1  CVODE "At t=%g and step size h=%g, the corrector\n"
+#define MSG_CONV_FAILS_1  CVODE "At t={:g} and step size h={:g}, the corrector\n"
 #define MSG_CONV_FAILS_2  "convergence failed repeatedly or "
 #define MSG_CONV_FAILS_3  "with |h| = hmin.\n\n"
 #define MSG_CONV_FAILS    MSG_CONV_FAILS_1 MSG_CONV_FAILS_2 MSG_CONV_FAILS_3
 
-#define MSG_SETUP_FAILED_1 CVODE "At t=%g, the setup routine failed in an "
+#define MSG_SETUP_FAILED_1 CVODE "At t={:g}, the setup routine failed in an "
 #define MSG_SETUP_FAILED_2 "unrecoverable manner.\n\n"
 #define MSG_SETUP_FAILED   MSG_SETUP_FAILED_1 MSG_SETUP_FAILED_2
 
-#define MSG_SOLVE_FAILED_1 CVODE "At t=%g, the solve routine failed in an "
+#define MSG_SOLVE_FAILED_1 CVODE "At t={:g}, the solve routine failed in an "
 #define MSG_SOLVE_FAILED_2 "unrecoverable manner.\n\n"
 #define MSG_SOLVE_FAILED   MSG_SOLVE_FAILED_1 MSG_SOLVE_FAILED_2
 
-#define MSG_TOO_CLOSE_1    CVODE "tout=%g too close to t0=%g to start"
+#define MSG_TOO_CLOSE_1    CVODE "tout={:g} too close to t0={:g} to start"
 #define MSG_TOO_CLOSE_2    " integration.\n\n"
 #define MSG_TOO_CLOSE      MSG_TOO_CLOSE_1 MSG_TOO_CLOSE_2
 
@@ -296,10 +296,10 @@
 
 #define MSG_DKY_NO_MEM  DKY NO_MEM
 
-#define MSG_BAD_K   DKY "k=%d illegal.\n\n"
+#define MSG_BAD_K   DKY "k={} illegal.\n\n"
 
-#define MSG_BAD_T_1 DKY "t=%g illegal.\n"
-#define MSG_BAD_T_2 "t not in interval tcur-hu=%g to tcur=%g.\n\n"
+#define MSG_BAD_T_1 DKY "t={:g} illegal.\n"
+#define MSG_BAD_T_2 "t not in interval tcur-hu={:g} to tcur={:g}.\n\n"
 #define MSG_BAD_T   MSG_BAD_T_1 MSG_BAD_T_2
 
 #define MSG_BAD_DKY DKY "dky=NULL illegal.\n\n"
@@ -486,47 +486,47 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
   fp = (errfp == NULL) ? stdout : errfp;
 
   if (y0==NULL) {
-    fprintf(fp, MSG_Y0_NULL);
+    xpp::log(XPP_LOG_ERROR, MSG_Y0_NULL);
     return(NULL);
   }
   
   if (N <= 0) {
-    fprintf(fp, MSG_BAD_N, static_cast<long>(N));
+    xpp::log(XPP_LOG_ERROR, MSG_BAD_N, static_cast<long>(N));
     return(NULL);
   }
 
   if ((lmm != ADAMS) && (lmm != BDF)) {
-    fprintf(fp, MSG_BAD_LMM, lmm, ADAMS, BDF);
+    xpp::log(XPP_LOG_ERROR, MSG_BAD_LMM, lmm, static_cast<int>(ADAMS), static_cast<int>(BDF));
     return(NULL);
   }
 
   if ((iter != FUNCTIONAL) && (iter != NEWTON)) {
-    fprintf(fp, MSG_BAD_ITER, iter, FUNCTIONAL, NEWTON);
+    xpp::log(XPP_LOG_ERROR, MSG_BAD_ITER, iter, static_cast<int>(FUNCTIONAL), static_cast<int>(NEWTON));
     return(NULL);
   }
 
   if ((itol != SS) && (itol != SV)) {
-    fprintf(fp, MSG_BAD_ITOL, itol, SS, SV);
+    xpp::log(XPP_LOG_ERROR, MSG_BAD_ITOL, itol, static_cast<int>(SS), static_cast<int>(SV));
     return(NULL);
   }
 
   if (f == NULL) {
-    fprintf(fp, MSG_F_NULL);
+    xpp::log(XPP_LOG_ERROR, MSG_F_NULL);
     return(NULL);
   }
 
   if (reltol == NULL) {
-    fprintf(fp, MSG_RELTOL_NULL);
+    xpp::log(XPP_LOG_ERROR, MSG_RELTOL_NULL);
     return(NULL);
   }
 
   if (*reltol < ZERO) {
-    fprintf(fp, MSG_BAD_RELTOL, *reltol);
+    xpp::log(XPP_LOG_ERROR, MSG_BAD_RELTOL, *reltol);
     return(NULL);
   }
    
   if (abstol == NULL) {
-    fprintf(fp, MSG_ABSTOL_NULL);
+    xpp::log(XPP_LOG_ERROR, MSG_ABSTOL_NULL);
     return(NULL);
   }
 
@@ -536,17 +536,17 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
     neg_abstol = (N_VMin(static_cast<N_Vector>(abstol)) < ZERO);
   }
   if (neg_abstol) {
-    fprintf(fp, MSG_BAD_ABSTOL);
+    xpp::log(XPP_LOG_ERROR, MSG_BAD_ABSTOL);
     return(NULL);
   }
 
   if ((optIn != FALSE) && (optIn != TRUE)) {
-    fprintf(fp, MSG_BAD_OPTIN, optIn, FALSE, TRUE);
+    xpp::log(XPP_LOG_ERROR, MSG_BAD_OPTIN, static_cast<int>(optIn), FALSE, TRUE);
     return(NULL);
   }
 
   if ((optIn) && (iopt == NULL) && (ropt == NULL)) {
-    fprintf(fp, MSG_BAD_OPT);
+    xpp::log(XPP_LOG_ERROR, MSG_BAD_OPT);
     return(NULL);
   } 
 
@@ -555,7 +555,7 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
 
   if (optIn && roptExists) {
     if ((ropt[HMAX] > ZERO) && (ropt[HMIN] > ropt[HMAX])) {
-      fprintf(fp, MSG_BAD_HMIN_HMAX, ropt[HMIN], ropt[HMAX]);
+      xpp::log(XPP_LOG_ERROR, MSG_BAD_HMIN_HMAX, ropt[HMIN], ropt[HMAX]);
       return(NULL);
     }
   }
@@ -579,7 +579,7 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
 
   allocOK = CVAllocVectors(cv_mem, N, maxord, machEnv);
   if (!allocOK) {
-    fprintf(fp, MSG_MEM_FAIL);
+    xpp::log(XPP_LOG_ERROR, MSG_MEM_FAIL);
     xpp_free(cv_mem);
     return(NULL);
   }
@@ -588,7 +588,7 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
 
   ewtsetOK = CVEwtSet(cv_mem, reltol, abstol, itol, y0, ewt, N);
   if (!ewtsetOK) {
-    fprintf(fp, MSG_BAD_EWT);
+    xpp::log(XPP_LOG_ERROR, MSG_BAD_EWT);
     CVFreeVectors(cv_mem, maxord);
     xpp_free(cv_mem);
     return(NULL);
@@ -750,18 +750,18 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
   }
   
   if ((y = yout) == NULL) {
-    fprintf(errfp, MSG_YOUT_NULL);       
+    xpp::log(XPP_LOG_ERROR, MSG_YOUT_NULL);       
     return(ILL_INPUT);
   }
   
   if (t == NULL) {
-    fprintf(errfp, MSG_T_NULL);
+    xpp::log(XPP_LOG_ERROR, MSG_T_NULL);
     return(ILL_INPUT);
   }
   *t = tn;
 
   if ((itask != NORMAL) && (itask != ONE_STEP)) {
-    fprintf(errfp, MSG_BAD_ITASK, itask, NORMAL, ONE_STEP);
+    xpp::log(XPP_LOG_ERROR, MSG_BAD_ITASK, itask, static_cast<int>(NORMAL), static_cast<int>(ONE_STEP));
     return(ILL_INPUT);
   }
 
@@ -770,24 +770,24 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
   if (nst == 0) {
     if (iter == NEWTON) {
       if (linit == NULL) {
-	fprintf(errfp, MSG_LINIT_NULL);
+	xpp::log(XPP_LOG_ERROR, MSG_LINIT_NULL);
 	return(ILL_INPUT);
       }
       if (lsetup == NULL) {
-	fprintf(errfp, MSG_LSETUP_NULL);
+	xpp::log(XPP_LOG_ERROR, MSG_LSETUP_NULL);
 	return(ILL_INPUT);
       }
       if (lsolve == NULL) {
-	fprintf(errfp, MSG_LSOLVE_NULL);
+	xpp::log(XPP_LOG_ERROR, MSG_LSOLVE_NULL);
 	return(ILL_INPUT);
       }
       if (lfree == NULL) {
-	fprintf(errfp, MSG_LFREE_NULL);
+	xpp::log(XPP_LOG_ERROR, MSG_LFREE_NULL);
 	return(ILL_INPUT);
       }
       linitOK = (linit(cv_mem, &(setupNonNull)) == LINIT_OK);
       if (!linitOK) {
-	fprintf(errfp, MSG_LINIT_FAIL);
+	xpp::log(XPP_LOG_ERROR, MSG_LINIT_FAIL);
 	return(ILL_INPUT);
       }
     }
@@ -797,13 +797,13 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
     h = ZERO;
     if (ropt != NULL) h = ropt[H0];
     if ( (h != ZERO) && ((tout-tn)*h < ZERO) ) {
-      fprintf(errfp, MSG_BAD_H0, h, tout-tn);
+      xpp::log(XPP_LOG_ERROR, MSG_BAD_H0, h, tout-tn);
       return(ILL_INPUT);
     }
     if (h == ZERO) {
       hOK = CVHin(cv_mem, tout);
       if (!hOK) {
-	fprintf(errfp, MSG_TOO_CLOSE, tout, tn);
+	xpp::log(XPP_LOG_ERROR, MSG_TOO_CLOSE, tout, tn);
 	return(ILL_INPUT);
       }
     }
@@ -820,7 +820,7 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
     *t = tout;
     ier =  CVodeDky(cv_mem, tout, 0, yout);
     if (ier != OKAY) {  /* ier must be == BAD_T */
-      fprintf(errfp, MSG_BAD_TOUT, tout);
+      xpp::log(XPP_LOG_ERROR, MSG_BAD_TOUT, tout);
       return(ILL_INPUT);
     }
     return(SUCCESS);
@@ -839,7 +839,7 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
     if (nst > 0) {
       ewtsetOK = CVEwtSet(cv_mem, reltol, abstol, itol, zn[0], ewt, N);
       if (!ewtsetOK) {
-	fprintf(errfp, MSG_EWT_NOW_BAD, tn);
+	xpp::log(XPP_LOG_ERROR, MSG_EWT_NOW_BAD, tn);
 	istate = ILL_INPUT;
 	*t = tn;
 	N_VScale(ONE, zn[0], yout);
@@ -850,7 +850,7 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
     /* Check for too many steps */
     
     if (nstloc >= mxstep) {
-      fprintf(errfp, MSG_MAX_STEPS, tn, mxstep, tout);
+      xpp::log(XPP_LOG_ERROR, MSG_MAX_STEPS, tn, mxstep, tout);
       istate = TOO_MUCH_WORK;
       *t = tn;
       N_VScale(ONE, zn[0], yout);
@@ -860,7 +860,7 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
     /* Check for too much accuracy requested */
 
     if ((tolsf = uround * N_VWrmsNorm(zn[0], ewt)) > ONE) {
-      fprintf(errfp, MSG_TOO_MUCH_ACC, tn);
+      xpp::log(XPP_LOG_ERROR, MSG_TOO_MUCH_ACC, tn);
       istate = TOO_MUCH_ACC;
       *t = tn;
       N_VScale(ONE, zn[0], yout);
@@ -872,8 +872,8 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
 
     if (tn + h == tn) {
       nhnil++;
-      if (nhnil <= mxhnil) fprintf(errfp, MSG_HNIL, tn, h);
-      if (nhnil == mxhnil) fprintf(errfp, MSG_HNIL_DONE, mxhnil);
+      if (nhnil <= mxhnil) xpp::log(XPP_LOG_WARN, MSG_HNIL, tn, h);
+      if (nhnil == mxhnil) xpp::log(XPP_LOG_WARN, MSG_HNIL_DONE, mxhnil);
     }
 
     /* Call CVStep to take a step */
@@ -975,7 +975,7 @@ int CVodeDky(void *cvode_mem, real t, int k, N_Vector dky)
   }
 
   if ((k < 0) || (k > q)) {
-    fprintf(errfp, MSG_BAD_K, k);
+    xpp::log(XPP_LOG_ERROR, MSG_BAD_K, k);
     return(BAD_K);
   }
   
@@ -983,7 +983,7 @@ int CVodeDky(void *cvode_mem, real t, int k, N_Vector dky)
   tp = tn - hu - tfuzz;
   tn1 = tn + tfuzz;
   if ((t-tp)*(t-tn1) > ZERO) {
-    fprintf(errfp, MSG_BAD_T, t, tn-hu, tn);
+    xpp::log(XPP_LOG_ERROR, MSG_BAD_T, t, tn-hu, tn);
     return(BAD_T);
   }
 
@@ -2383,13 +2383,13 @@ static int CVHandleFailure(CVodeMem cv_mem, int kflag)
 
   /* Depending on kflag, print error message and return error flag */
   switch (kflag) {
-    case REP_ERR_FAIL:  fprintf(errfp, MSG_ERR_FAILS, tn, h);
+    case REP_ERR_FAIL:  xpp::log(XPP_LOG_ERROR, MSG_ERR_FAILS, tn, h);
                         return(ERR_FAILURE);
-    case REP_CONV_FAIL: fprintf(errfp, MSG_CONV_FAILS, tn, h);
+    case REP_CONV_FAIL: xpp::log(XPP_LOG_ERROR, MSG_CONV_FAILS, tn, h);
                         return(CONV_FAILURE);
-    case SETUP_FAILED:  fprintf(errfp, MSG_SETUP_FAILED, tn);
+    case SETUP_FAILED:  xpp::log(XPP_LOG_ERROR, MSG_SETUP_FAILED, tn);
                         return(SETUP_FAILURE);
-    case SOLVE_FAILED:  fprintf(errfp, MSG_SOLVE_FAILED, tn);
+    case SOLVE_FAILED:  xpp::log(XPP_LOG_ERROR, MSG_SOLVE_FAILED, tn);
                         return(SOLVE_FAILURE);
   }
   return(ERR_FAILURE);
