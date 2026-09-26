@@ -5,6 +5,7 @@
 #include "xpp_log.h"
 #include "auto_c.h"
 #include "xAuto.h"
+#include <memory>
 
 
 
@@ -23,7 +24,7 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
 {
   integer icp[NPARX2];
   doublereal par[NPARX2], thl[NPARX];
-  doublereal *thu;
+  doublereal *thu_raw = nullptr;
   integer iuz[100];
   doublereal vuz[100];
   iap_type iap;
@@ -57,7 +58,11 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
     
   /* here is the feeder code from xAuto structure */
 
-  init(&iap, &rap, par, icp, thl, &thu, iuz, vuz);
+  init(&iap, &rap, par, icp, thl, &thu_raw, iuz, vuz);
+  /* thu_raw is owned by init()'s xpp_malloc; this guard frees it on every
+     exit path (the early "label not found" return included) instead of
+     the two separate xpp_free(thu) call sites the C code paired by hand */
+  std::unique_ptr<doublereal, void (*)(void *)> thu(thu_raw, xpp_free);
 
     
     /* Find restart label and determine type of restart point. */
@@ -74,7 +79,6 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
 	fclose(fp3);
 	fclose(fp7);
 	fclose(fp9);
-	xpp_free(thu);
 	return(0);/* bad retrun */
       }
     }
@@ -98,10 +102,10 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
     /* ---------------------------------------------------------- */
 
     if(list.type==AUTOAE)
-      autoae(&iap, &rap, par, icp, list.aelist.funi, list.aelist.stpnt, list.aelist.pvli, thl, thu, iuz, vuz);
+      autoae(&iap, &rap, par, icp, list.aelist.funi, list.aelist.stpnt, list.aelist.pvli, thl, thu.get(), iuz, vuz);
     if(list.type==AUTOBV)
-      autobv(&iap, &rap, par, icp, list.bvlist.funi, list.bvlist.bcni, 
-	     list.bvlist.icni, list.bvlist.stpnt, list.bvlist.pvli, thl, thu, iuz, vuz);
+      autobv(&iap, &rap, par, icp, list.bvlist.funi, list.bvlist.bcni,
+	     list.bvlist.icni, list.bvlist.stpnt, list.bvlist.pvli, thl, thu.get(), iuz, vuz);
 
 
 
@@ -109,7 +113,6 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
   
 
 
-  xpp_free(thu);
   /*   free(iuz);
        free(vuz); */
   fclose(fp3);

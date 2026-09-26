@@ -20,7 +20,7 @@
 #include "load_eqn.h"
 #include "browse.h"
 #include "graf_par.h"
-#define DALLOC(a) (double *)xpp_malloc((a)*sizeof(double))
+#define DALLOC(a) static_cast<double *>(xpp_malloc((a)*sizeof(double)))
 extern int TypeOfCalc;
 extern ROTCHK blrtn;
 
@@ -38,7 +38,7 @@ DIAGRAM *bifd;
 void start_diagram(int n)
 {
   NBifs=1;
-  bifd=(DIAGRAM *)xpp_malloc(sizeof(DIAGRAM));
+  bifd=static_cast<DIAGRAM *>(xpp_malloc(sizeof(DIAGRAM)));
   bifd->prev=NULL;
   bifd->next=NULL;
   bifd->index=0;
@@ -102,7 +102,7 @@ void add_diagram(int ibr, int ntot, int itp, int lab, int nfpar, double a, doubl
  while(d->next != NULL){
    d=(d->next);
  }
- d->next=(DIAGRAM *)xpp_malloc(sizeof(DIAGRAM));
+ d->next=static_cast<DIAGRAM *>(xpp_malloc(sizeof(DIAGRAM)));
  dnew=d->next;
  dnew->next=NULL;
  dnew->prev=d;

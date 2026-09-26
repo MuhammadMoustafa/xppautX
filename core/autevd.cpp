@@ -1,3 +1,4 @@
+#include <vector> /* first: auto_f2c.h's min/max macros (pulled in below) break libstdc++ headers if not included first */
 #include "autevd.h"
 #include <stdlib.h>
 #include <math.h>
@@ -43,9 +44,6 @@ void init_auto(int ndim, int nicp, int nbc, int ips, int irs, int ilp, int ntst,
                int ip1, int ip2, int ip3, int ip4, int ip5, int nuzr, double epsl, double epsu, double epss,
                int ncol)
 {
-  (void)nbc;
-  (void)nuzr;
-
   /* here are the constants that we do not allow the user to change */
   int nnbc;
   int i;
@@ -114,7 +112,6 @@ void init_auto(int ndim, int nicp, int nbc, int ips, int irs, int ilp, int ntst,
 
 int get_bif_type(int ibr, int ntot, int lab)
 {
-  (void)lab;
   int type=SEQ;
 
     if(ibr<0&&ntot<0)type=SPER;
@@ -126,7 +123,6 @@ int get_bif_type(int ibr, int ntot, int lab)
 }
 void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *par,integer *icp,int lab, double *a, double *uhigh, double *ulow, double *u0, double *ubar)
 {
-  (void)rap;
   int icp1=icp[0],icp2=icp[1],icp3=icp[2],icp4=icp[3];
   double per=par[10];
   int n=iap->ndim;
@@ -135,18 +131,17 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   /* its entry in the diagram list: the first one after start_diagram, else a new one */
   int node=DiagFlag==0?0:NBifs;
   /* xppautX: the point's stability, or zeros: not computed (auto_stability.h) */
-  double *ev=(double *)xpp_malloc(2*(size_t)n*sizeof(double));
-  auto_stability_for((int)ibrs,(int)ntots,n,ev,ev+n);
+  std::vector<double> ev(2*static_cast<size_t>(n));
+  auto_stability_for(static_cast<int>(ibrs),static_cast<int>(ntots),n,ev.data(),ev.data()+n);
 
   if(DiagFlag==0){
     edit_start(ibrs,ntots,iap->itp,lab,iap->nfpr,*a,uhigh,ulow,u0,ubar,
-	       par,per,n,icp1,icp2,icp3,icp4,ev,ev+n);
+	       par,per,n,icp1,icp2,icp3,icp4,ev.data(),ev.data()+n);
     DiagFlag=1;
   } else {
     add_diagram(ibrs,ntots,iap->itp,lab,iap->nfpr,*a,uhigh,ulow,u0,ubar,
-	        par,per,n,icp1,icp2,icp3,icp4,AutoTwoParam,ev,ev+n);
+	        par,per,n,icp1,icp2,icp3,icp4,AutoTwoParam,ev.data(),ev.data()+n);
   }
-  xpp_free(ev);
   if(from)set_last_diagram_from(from);
 
   /* plotted, and its stability shown, from the stored point, as a redraw
@@ -155,7 +150,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   auto_point_id(ibrs,ntots,iap->itp,node,from);
   add_point(par,per,uhigh,ulow,ubar,*a,type,iap->ntot==1?0:1,lab,
 	    iap->nfpr,icp1,icp2,icp3,icp4,AutoTwoParam,d->evr,d->evi);
-  xpp_job_point_stored((int)labs(ibrs),(int)labs(ntots)); /* xppautX: where it got to (xpp_job.h) */
+  xpp_job_point_stored(static_cast<int>(labs(ibrs)),static_cast<int>(labs(ntots))); /* xppautX: where it got to (xpp_job.h) */
 }
 
 

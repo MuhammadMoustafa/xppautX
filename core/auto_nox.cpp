@@ -447,14 +447,14 @@ void draw_bif_axes()
 
 int IXVal(double x)
 {
-  double temp=(double)Auto.wid*(x-Auto.xmin)/(Auto.xmax-Auto.xmin);
+  double temp=static_cast<double>(Auto.wid)*(x-Auto.xmin)/(Auto.xmax-Auto.xmin);
   return ((int) temp+Auto.x0);
 }
 
 int IYVal(double y)
 {
-  double temp=(double)Auto.hgt*(y-Auto.ymin)/(Auto.ymax-Auto.ymin);
-  return(Auto.hgt-(int)temp+Auto.y0);
+  double temp=static_cast<double>(Auto.hgt)*(y-Auto.ymin)/(Auto.ymax-Auto.ymin);
+  return(Auto.hgt-static_cast<int>(temp)+Auto.y0);
 }
 
 int chk_auto_bnds(int ix,int iy)
@@ -627,29 +627,25 @@ static char *auto_home_dir(char *dname)
 
 void create_auto_file_name()
 {
- char *basec,*bname,*dirc,*dname;
-
-  basec = xpp_strdup(this_file);
-  dirc  = xpp_strdup(this_file);
-  bname = (char*)basename(basec);
-  dname = (char*)dirname(dirc);
+  /* basename()/dirname() may write into their argument or return a
+     pointer into it, so each needs its own writable, NUL-terminated
+     copy of this_file (std::string::data() is both since C++17) */
+  std::string basec = this_file, dirc = this_file;
+  char *bname = static_cast<char*>(basename(basec.data()));
+  char *dname = static_cast<char*>(dirname(dirc.data()));
 
   char* HOME = auto_home_dir(dname);
 
   XPP_SPRINTF(this_auto_file,"%s/%s",HOME,bname);
-  xpp_free(basec); /* HOME may point into dirc: freed after its last use */
-  xpp_free(dirc);
 }
 
 void open_auto(int flg) /* compatible with new auto */
 {
   char string[210];
-  char *basec,*bname,*dirc,*dname;
 
-  basec = xpp_strdup(this_file);
-  dirc  = xpp_strdup(this_file);
-  bname = (char*)basename(basec);
-  dname = (char*)dirname(dirc);
+  std::string basec = this_file, dirc = this_file;
+  char *bname = static_cast<char*>(basename(basec.data()));
+  char *dname = static_cast<char*>(dirname(dirc.data()));
 
   char* HOME = auto_home_dir(dname);
 
@@ -658,8 +654,6 @@ void open_auto(int flg) /* compatible with new auto */
   XPP_SPRINTF(fort7,"%s/%s",HOME,"fort.7");
   XPP_SPRINTF(fort8,"%s/%s",HOME,"fort.8");
   XPP_SPRINTF(fort9,"%s/%s",HOME,"fort.9");
-  xpp_free(basec); /* HOME may point into dirc: freed after its last use */
-  xpp_free(dirc);
   is_3_there=flg;
 
   if(flg==1){
@@ -790,7 +784,7 @@ static void auto_col_centre(char *out,const char *s)
   int n,l;
   char t[AUTO_COL_W];
   short_name(t,s,AUTO_COL_W-1);
-  n=(int)strlen(t);
+  n=static_cast<int>(strlen(t));
   l=(AUTO_COL_W-n)/2;
   xpp_snprintf(out,AUTO_COL_W+1,"%*s%s%*s",l,"",t,AUTO_COL_W-n-l,"");
 }
@@ -800,7 +794,7 @@ void auto_screen_col(char *col,char *out)
   long p;
   int i;
   char name[AUTO_COL_W+XPP_NAME_MAX+2],pre[AUTO_COL_W+1],*q;
-  if(sscanf(col," PAR(%ld)",&p)==1&&auto_par_to_name((int)p,name)){
+  if(sscanf(col," PAR(%ld)",&p)==1&&auto_par_to_name(static_cast<int>(p),name)){
     auto_col_centre(out,name);
     return;
   }
@@ -808,11 +802,11 @@ void auto_screen_col(char *col,char *out)
      overwritten the U itself */
   q=strchr(col,'(');
   if(q!=NULL&&strstr(col,"PAR")==NULL&&sscanf(q,"(%ld)",&p)==1&&p>=1&&p<=NODE){
-    int n=(int)(q-col);
+    int n=static_cast<int>((q-col));
     if(n>0&&col[n-1]=='U')n--; /* the name replaces the U */
     /* keep what stands in front of it: MAX, MIN, L2-NORM, INTEGRAL */
     XPP_SPRINTF(pre,"%.*s",n,col);
-    for(i=(int)strlen(pre);i>0&&pre[i-1]==' ';i--)
+    for(i=static_cast<int>(strlen(pre));i>0&&pre[i-1]==' ';i--)
       pre[i-1]=0;
     for(i=0;pre[i]==' ';i++)
       ;
@@ -837,8 +831,8 @@ void auto_per_par()
   char ch;
   /* "Mark values" (T21): AUTO labels (UZ) the points where a parameter or
      the period reaches one of these values */
-  ch=(char)auto_pop_up_list("Mark values: how many?",m,key,10,12,Auto.nper,10,10,no_hint,
-		       Auto.hinttxt);
+  ch=static_cast<char>(auto_pop_up_list("Mark values: how many?",m,key,10,12,Auto.nper,10,10,no_hint,
+		       Auto.hinttxt));
   for(i=0;i<10;i++)
     if(ch==key[i])Auto.nper=i;
   NAutoUzr=Auto.nper;
@@ -984,8 +978,8 @@ void auto_plot_par()
   int ii1,ii2,ji1,ji2;
   int i1=Auto.var+1;
   char n1[XPP_NAME_MAX+1];
-  ch=(char)auto_pop_up_list("Plot Type",m,key,14,10,Auto.plot,10,50,
-		       aaxes_hint,Auto.hinttxt);
+  ch=static_cast<char>(auto_pop_up_list("Plot Type",m,key,14,10,Auto.plot,10,50,
+		       aaxes_hint,Auto.hinttxt));
   if(ch==ESC) 
     return;
   for(i=0;i<5;i++){
@@ -1117,10 +1111,10 @@ void auto_zoom_in(int i1, int j1, int i2, int j2)
    if(j2>j1){temp=j1;j1=j2;j2=temp;}
    double dx = (Auto.xmax-Auto.xmin);
    double dy = (Auto.ymax-Auto.ymin);
-   x1 = Auto.xmin+(double)(i1-Auto.x0)*(dx)/(double)Auto.wid;
-   x2 = Auto.xmin+(double)(i2-Auto.x0)*(dx)/(double)Auto.wid;
-   y1 = Auto.ymin+(double)(Auto.hgt+Auto.y0-j1)*(dy)/(double)Auto.hgt;
-   y2 = Auto.ymin+(double)(Auto.hgt+Auto.y0-j2)*(dy)/(double)Auto.hgt;
+   x1 = Auto.xmin+static_cast<double>((i1-Auto.x0))*(dx)/static_cast<double>(Auto.wid);
+   x2 = Auto.xmin+static_cast<double>((i2-Auto.x0))*(dx)/static_cast<double>(Auto.wid);
+   y1 = Auto.ymin+static_cast<double>((Auto.hgt+Auto.y0-j1))*(dy)/static_cast<double>(Auto.hgt);
+   y2 = Auto.ymin+static_cast<double>((Auto.hgt+Auto.y0-j2))*(dy)/static_cast<double>(Auto.hgt);
  
    if((i1==i2)||(j1==j2))
    { 
@@ -1154,10 +1148,10 @@ void auto_zoom_out(int i1, int j1, int i2, int j2)
 
    if(i1>i2){temp=i1;i1=i2;i2=temp;}
    if(j2>j1){temp=j1;j1=j2;j2=temp;}
-   a1=(double)(i1-Auto.x0)/(double)Auto.wid;
-      a2=(double)(i2-Auto.x0)/(double)Auto.wid;
-      b1=(double)(Auto.hgt+Auto.y0-j1)/(double)Auto.hgt;
-      b2=(double)(Auto.hgt+Auto.y0-j2)/(double)Auto.hgt;
+   a1=static_cast<double>((i1-Auto.x0))/static_cast<double>(Auto.wid);
+      a2=static_cast<double>((i2-Auto.x0))/static_cast<double>(Auto.wid);
+      b1=static_cast<double>((Auto.hgt+Auto.y0-j1))/static_cast<double>(Auto.hgt);
+      b2=static_cast<double>((Auto.hgt+Auto.y0-j2))/static_cast<double>(Auto.hgt);
 
    
    if((i1==i2)||(j1==j2))
@@ -1276,7 +1270,7 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     }
     else 
       set_linestyle(8);
-    line_abs((float)x,(float)y1,(float)Auto.lastx,(float)Auto.lasty);
+    line_abs(static_cast<float>(x),static_cast<float>(y1),static_cast<float>(Auto.lastx),static_cast<float>(Auto.lasty));
     break;
   case CUEQ:
     if(Auto.plot==PE_P||Auto.plot==FR_P)break;
@@ -1289,7 +1283,7 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
 	pscolset2(flag2);
       
       }
-    line_abs((float)x,(float)y1,(float)Auto.lastx,(float)Auto.lasty);
+    line_abs(static_cast<float>(x),static_cast<float>(y1),static_cast<float>(Auto.lastx),static_cast<float>(Auto.lasty));
     break;
   case UPER:
     if(plot_export.color) 
@@ -1300,8 +1294,8 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     if(flag2>0&&Auto.icp2!=icp2)break;
     PointType=UPT;
    /*  plintf("UP: %g %g %g\n",x,y1,y2); */
-    point_abs((float)x,(float)y1);
-    point_abs((float)x,(float)y2);
+    point_abs(static_cast<float>(x),static_cast<float>(y1));
+    point_abs(static_cast<float>(x),static_cast<float>(y2));
     break;
   case SPER:
     if(plot_export.color)
@@ -1312,8 +1306,8 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     if(flag2>0&&Auto.icp2!=icp2)break;
    /*  plintf("SP: %g %g %g\n",x,y1,y2); */
     PointType=SPT;
-    point_abs((float)x,(float)y1);
-    point_abs((float)x,(float)y2); 
+    point_abs(static_cast<float>(x),static_cast<float>(y1));
+    point_abs(static_cast<float>(x),static_cast<float>(y2)); 
     break;
   }
 
@@ -1850,7 +1844,7 @@ int reset_auto()
 {
   char ch;
     if(NBifs<=1)return(0);
-    ch=(char)TwoChoice("YES","NO","Destroy AUTO diagram & files","yn");
+    ch=static_cast<char>(TwoChoice("YES","NO","Destroy AUTO diagram & files","yn"));
     if(ch!='y')return(0);
    
   return(yes_reset_auto());
@@ -1918,10 +1912,10 @@ void get_start_orbit(double *u, double t, double p, int n)
   if(t>1.0)t-=1.0;
   if(t<0.0)t+=1.0;
   tnorm=t*(storind-1);
-  i1=(int)tnorm;
+  i1=static_cast<int>(tnorm);
   i2=i1+1;
   if(i2>=storind)i2-=storind;
-  lam=(tnorm-(double)i1);
+  lam=(tnorm-static_cast<double>(i1));
 
    for(j=0;j<n;j++)
     u[j]=(1.0-lam)*storage[j+1][i1]+lam*storage[j+1][i2];
@@ -1937,8 +1931,8 @@ void auto_start_choice()
     auto_new_discrete();
     return;
   }
-  ch=(char)auto_pop_up_list("Start",m,key,5,13,0,10,10,arun_hint,
-		       Auto.hinttxt);
+  ch=static_cast<char>(auto_pop_up_list("Start",m,key,5,13,0,10,10,arun_hint,
+		       Auto.hinttxt));
    if(ch=='s'){
     auto_new_ss();
     return;
@@ -1977,8 +1971,8 @@ void torus_choice()
   /*static const char *m[]={"Fixed period","Extend"}; */
   static  char key[]="tfe";
   char ch;
-  ch=(char)auto_pop_up_list("Torus",m,key,3,10,0,10,10,
-		       no_hint,Auto.hinttxt);
+  ch=static_cast<char>(auto_pop_up_list("Torus",m,key,3,10,0,10,10,
+		       no_hint,Auto.hinttxt));
    if(ch=='e'){
     auto_new_per();
     return;
@@ -1999,7 +1993,7 @@ void per_doub_choice()
   static const char *m[]={"Doubling","Two Param","Fixed period","Extend"};
   static  char key[]="dtfe";
   char ch;
-  ch=(char)auto_pop_up_list("Per. Doub.",m,key,4,10,0,10,10,no_hint,Auto.hinttxt);
+  ch=static_cast<char>(auto_pop_up_list("Per. Doub.",m,key,4,10,0,10,10,no_hint,Auto.hinttxt));
   if(ch=='d'){
     auto_period_double();
     return;
@@ -2024,8 +2018,8 @@ void periodic_choice()
   static const char *m[]={"Extend","Fixed Period"};
   static  char key[]="ef";
   char ch;
-  ch=(char)auto_pop_up_list("Periodic ",m,key,2,14,0,10,10,
-		       no_hint,Auto.hinttxt);
+  ch=static_cast<char>(auto_pop_up_list("Periodic ",m,key,2,14,0,10,10,
+		       no_hint,Auto.hinttxt));
   if(ch=='e'){
     auto_new_per();
     return;
@@ -2049,8 +2043,8 @@ void hopf_choice()
     return;
   }
 
-  ch=(char)auto_pop_up_list("Hopf Pt",m,key,4,10,0,10,10,
-		       no_hint,Auto.hinttxt);
+  ch=static_cast<char>(auto_pop_up_list("Hopf Pt",m,key,4,10,0,10,10,
+		       no_hint,Auto.hinttxt));
   if(ch=='p'){
     auto_new_per();
     return;
@@ -2080,7 +2074,7 @@ void auto_run()
     ping();return;
   }
   if(grabpt.lab==0){
-    ch=(char)TwoChoice("YES","NO","Not Labeled Pt: New Start?","y");
+    ch=static_cast<char>(TwoChoice("YES","NO","Not Labeled Pt: New Start?","y"));
     if(ch=='y')auto_start_diff_ss();
     ping();return;
   }
@@ -2167,8 +2161,8 @@ void auto_branch_choice(int ibr, int ips)
   static  char key[]="sent";
   char ch;
   int ipsuse;
-  ch=(char)auto_pop_up_list("Branch Pt",m,key,4,10,0,10,10,
-		       no_hint,Auto.hinttxt);
+  ch=static_cast<char>(auto_pop_up_list("Branch Pt",m,key,4,10,0,10,10,
+		       no_hint,Auto.hinttxt));
 
 
   if(ch=='s'){
@@ -2397,33 +2391,31 @@ void auto_extend_ss()
 
 int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
 {
-  char **s;
   char v[100][MAX_LEN_SBOX];
   int n=2+2*NODE;
   int i;
   int flag=0;
-  s=(char **)xpp_malloc(n *sizeof(char *));
-  for(i=0;i<n;i++){
-   s[i]=(char *)xpp_malloc(XPP_NAME_MAX+8); /* name_L, name_R */
-
-  }
-  /* each s[i] is a pointer, allocated XPP_NAME_MAX+8 bytes just above. */
-  xpp_snprintf(s[0],XPP_NAME_MAX+8,"dim unstable");
+  /* do_string_box_of's names are read-only (const char *const *): plain
+     std::strings own the text, s just points at them for the call */
+  std::vector<std::string> labels(n);
+  labels[0]="dim unstable";
   XPP_SPRINTF(v[0],"%d",*nun);
-  xpp_snprintf(s[NODE+1],XPP_NAME_MAX+8,"dim stable");
+  labels[NODE+1]="dim stable";
   XPP_SPRINTF(v[NODE+1],"%d",*nst);
   for(i=0;i<NODE;i++){
-    xpp_snprintf(s[i+1],XPP_NAME_MAX+8,"%s_L",uvar_names[i]);
+    labels[i+1]=std::string(uvar_names[i])+"_L";
     XPP_SPRINTF(v[i+1],"%g",ul[i]);
-    xpp_snprintf(s[i+2+NODE],XPP_NAME_MAX+8,"%s_R",uvar_names[i]);
+    labels[i+2+NODE]=std::string(uvar_names[i])+"_R";
     XPP_SPRINTF(v[i+2+NODE],"%g",ur[i]);
   }
- 
+  std::vector<const char*> s(n);
+  for(i=0;i<n;i++) s[i]=labels[i].c_str();
+
   {
     std::vector<int> kinds(n, XPP_FIELD_NUMBER);
     kinds[0]=XPP_FIELD_INTEGER;
     kinds[NODE+1]=XPP_FIELD_INTEGER;
-    flag=do_string_box_of(n,n/2,2,"Homoclinic info",s,v,16,kinds.data());
+    flag=do_string_box_of(n,n/2,2,"Homoclinic info",s.data(),v,16,kinds.data());
   }
   if(flag!=0){
     *nun=atoi(v[0]);
@@ -2434,12 +2426,6 @@ int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
 	ur[i]=atof(v[i+2+NODE]);
     }
   }
-  for(i=0;i<n;i++){
-    xpp_free(s[i]);
-
-  }
-  xpp_free(s);
-
   return flag;
 }
 
@@ -2830,9 +2816,9 @@ void load_auto_orbit()
       storage[j+1][i]=u[j];
       x[j]=u[j];
     }
-    extra(x,(double)storage[0][i],nstor,NEQ);
+    extra(x,static_cast<double>(storage[0][i]),nstor,NEQ);
     for(j=nstor;j<NEQ;j++)
-      storage[j+1][i]=(float)x[j];
+      storage[j+1][i]=static_cast<float>(x[j]);
   }
   storind=nrow;
   refresh_browser(nrow);
@@ -3106,8 +3092,8 @@ void auto_file()
 		    "Reset diagram","Clear grab","Write pts","All info","init Data","Toggle redraw","auto raNge","sElect 2par pt","draw laBled","lOad branch","eXport CSV"};
   static  char key[]="islpvrcwadtnebox";
   char ch;
-  ch=(char)auto_pop_up_list("File",m,key,16,16,0,10,10,afile_hint_csv(),
-		       Auto.hinttxt);
+  ch=static_cast<char>(auto_pop_up_list("File",m,key,16,16,0,10,10,afile_hint_csv(),
+		       Auto.hinttxt));
   if(ch=='i'){
     load_auto_orbit();
     return;
@@ -3316,8 +3302,8 @@ int query_special(const char * title,char *nsymb)
         int status=1;
         static const char *m[]={"BP","EP","HB","LP","MX","PD","TR","UZ"};
 	static  char key[]="behlmptu";
-	int ch=(char)auto_pop_up_list(title,m,key,8,11,1,10,10,
-			     aspecial_hint,Auto.hinttxt);
+	int ch=static_cast<char>(auto_pop_up_list(title,m,key,8,11,1,10,10,
+			     aspecial_hint,Auto.hinttxt));
 	if(ch=='b'){
 	  xpp_snprintf(nsymb,3,"BP");
 	}
@@ -3414,7 +3400,7 @@ void traverse_diagram()
 		load_all_labeled_orbits=0;
 		while (1)
 		{
-			dist = sqrt(((double)(xm-ix))*((double)(xm-ix)) + ((double)(ym-iy))*((double)(ym-iy))); 
+			dist = sqrt((static_cast<double>((xm-ix)))*(static_cast<double>((xm-ix))) + (static_cast<double>((ym-iy)))*(static_cast<double>((ym-iy)))); 
 			if (dist<ndist)
 			{
 				ndist = dist;
@@ -3703,8 +3689,8 @@ void auto_update_view(float xlo,float xhi, float ylo, float yhi)
 void auto_motion_xy(int i,int j)
 {
   double x,y;
-    x=Auto.xmin+(double)(i-Auto.x0)*(Auto.xmax-Auto.xmin)/(double)Auto.wid;
-    y=Auto.ymin+(double)(Auto.y0-j+Auto.hgt)*(Auto.ymax-Auto.ymin)/(double)Auto.hgt;
+    x=Auto.xmin+static_cast<double>((i-Auto.x0))*(Auto.xmax-Auto.xmin)/static_cast<double>(Auto.wid);
+    y=Auto.ymin+static_cast<double>((Auto.y0-j+Auto.hgt))*(Auto.ymax-Auto.ymin)/static_cast<double>(Auto.hgt);
     auto_point_xy(x,y);
 }
 

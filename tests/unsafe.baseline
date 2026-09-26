@@ -19,18 +19,15 @@ core/arrayplot.cpp buffers 7
 core/arrayplot.cpp files 2
 core/arrayplot.cpp text 25
 core/arrayplot.h buffers 3
-core/autevd.cpp casts 10
-core/autevd.cpp memory 2
 core/autlib1.cpp buffers 2
 core/autlib1.cpp files 2
 core/autlib1.cpp memory 1
 core/auto_data.cpp buffers 2
 core/auto_f2c.h casts 2
 core/auto_nox.cpp buffers 49
-core/auto_nox.cpp casts 70
+core/auto_nox.cpp casts 1
 core/auto_nox.cpp files 21
-core/auto_nox.cpp memory 12
-core/auto_nox.cpp text 111
+core/auto_nox.cpp text 107
 core/auto_nox.h buffers 1
 core/auto_settings.cpp buffers 4
 core/auto_settings.cpp text 7
@@ -83,7 +80,6 @@ core/derived.cpp casts 2
 core/derived.cpp memory 2
 core/derived.cpp text 1
 core/diagram.cpp buffers 5
-core/diagram.cpp casts 1
 core/diagram.cpp memory 17
 core/diagram.cpp text 19
 core/do_fit.cpp buffers 2
@@ -123,7 +119,6 @@ core/gear.cpp memory 8
 core/gear.cpp text 2
 core/gogoauto.cpp buffers 1
 core/gogoauto.cpp files 10
-core/gogoauto.cpp memory 2
 core/graf_par.cpp buffers 22
 core/graf_par.cpp casts 12
 core/graf_par.cpp files 8
