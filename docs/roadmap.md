@@ -77,7 +77,7 @@ issue; the card here is the one kept up to date.
 | W31b | #59 | Tests for the stochastic menu's random-number features, checking statistics with tolerances (they must survive W32a's new generator) | none | done |
 | W31c | #60 | Golden-file tests for the PostScript, SVG, GIF and array-print outputs (W29f's byte-compare harness, committed, run by verify.sh) | none | done |
 | W32a | #61 | xpp_math: pocketfft replaces fftn and histogram's FFT wrappers; std::mt19937_64 plus our own distributions replace the Numerical Recipes generator; one LU solve; gear uses EISPACK's eigenvalues; std helpers. Stochastic models' checksums rebaselined once | W30, W31a, W31b | done |
-| W32b | #62 | xpp_files: every file operation (open handles with print, safe replace, copy/append/rename/delete, temp folders) in one module; open_write_file, AUTO's file helpers and the five print copies go; tools/filecheck.sh enforces it | W30, W31c, W32a | ready |
+| W32b | #62 | xpp_files: every file operation (open handles with print, safe replace, copy/append/rename/delete, temp folders) in one module; open_write_file, AUTO's file helpers and the five print copies go; tools/filecheck.sh enforces it | W30, W31c, W32a | in-progress |
 | W32c | #63 | The dialog API (xpp_ui.h) returns std::string instead of filling char[MAX_LEN_SBOX] buffers; callers changed only as the signatures require | W32b | blocked |
 | W32d | #64 | One definition of the shared data: HIST_INFO and TABULAR once, the data store as a class (histogram's aliasing explicit), the AUTO diagram's list as a container | W32c | blocked |
 | W33a | #65 | Sweep, the ODE solvers (W29a's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | blocked |
@@ -96,7 +96,7 @@ issue; the card here is the one kept up to date.
 | W35f | #78 | The example models that do not load by themselves ("noload" since W35c): none was a parser bug. clustor.ode had a missing `]` (fixed, now checked by its md5); the other eight (hedge, tstar: malformed on purpose; tstdll2, candelator, tsthom3: drafts; pHtools_*: a module that never existed) each say why at their top | none | done |
 | W36 | #79 | CI's windows-clang faster: its sanitizers a job of their own (windows-clang-sanitizers); asancheck builds the unit tests with -j and runs servercheck, webcheck and autocheck side by side | none | done |
 | W37 | #80 | Compile the formatting once: xpp::format, format_to_buf, xpp::log and buf_format check the format at the call and format in xpp::vformat (xpp_io.cpp), not std::format inline in every file (clang: 278 to 170 CPU-s for the core) | none | done |
-| W38 | #81 | fftcon reads one past its weight table (simplenet.cpp update_fft: FFTCONP reads w[n] and skips w[n2-1], FFTCON0 w[2N]; the load check allows exactly n/2N points): decide the layout, make the check and update_fft agree, say the length in the manual | W32a | ready |
+| W38 | #81 | fftcon reads one past its weight table (simplenet.cpp update_fft: FFTCONP reads w[n] and skips w[n2-1], FFTCON0 w[2N]; the load check allows exactly n/2N points): decide the layout, make the check and update_fft agree, say the length in the manual | W32a | in-progress |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
