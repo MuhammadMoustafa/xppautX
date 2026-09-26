@@ -260,7 +260,7 @@ int svg_init(const char *filename, int color)
 				xpp::log(XPP_LOG_INFO, "Styling svg image according to {}\n",css);
 				std::optional<std::string_view> line;
 				while((line=lr.next()))
-					fprintf(svgfile,"%.*s\n",(int)line->size(),line->data());
+					fprintf(svgfile,"%.*s\n",static_cast<int>(line->size()),line->data());
 			}
 		}
 	
@@ -316,7 +316,7 @@ void svg_frect(int x, int y, int w, int h)
 	else
 	{
 		gray = (0.299*cur_RGB[0] + 0.587*cur_RGB[1] + 0.114*cur_RGB[2]);
-		fprintf(svgfile,"      <rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" style=\"stroke:rgb(%d,%d,%d);fill:rgb(%d,%d,%d);\"/>",x,y,w,h,(int)gray,(int)gray,(int)gray,(int)gray,(int)gray,(int)gray);
+		fprintf(svgfile,"      <rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" style=\"stroke:rgb(%d,%d,%d);fill:rgb(%d,%d,%d);\"/>",x,y,w,h,static_cast<int>(gray),static_cast<int>(gray),static_cast<int>(gray),static_cast<int>(gray),static_cast<int>(gray),static_cast<int>(gray));
 	}     
 }
 
