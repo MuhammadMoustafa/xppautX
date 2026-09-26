@@ -9,7 +9,6 @@ core/aniparse.cpp text 8
 core/aniparse.h buffers 5
 core/aniparse_avi.h buffers 2
 core/array_print.cpp buffers 2
-core/array_print.cpp casts 53
 core/array_print.cpp files 2
 core/array_print.cpp text 50
 core/arrayplot.cpp buffers 7
@@ -37,7 +36,6 @@ core/browse_data.cpp buffers 8
 core/browse_data.cpp files 7
 core/browse_data.cpp memory 8
 core/browse_data.cpp text 22
-core/colormap.cpp casts 2
 core/comline.cpp buffers 1
 core/comline.cpp files 2
 core/commands.cpp buffers 1
@@ -70,11 +68,10 @@ core/form_ode.cpp text 12
 core/form_ode.h buffers 3
 core/gogoauto.cpp buffers 1
 core/gogoauto.cpp files 10
-core/graf_par.cpp buffers 22
-core/graf_par.cpp casts 12
+core/graf_par.cpp buffers 21
 core/graf_par.cpp files 8
-core/graf_par.cpp memory 12
-core/graf_par.cpp text 66
+core/graf_par.cpp memory 10
+core/graf_par.cpp text 65
 core/graf_par.h buffers 3
 core/graphics.cpp buffers 3
 core/graphics.cpp text 2
@@ -114,7 +111,6 @@ core/my_svg.cpp casts 7
 core/my_svg.cpp text 224
 core/newpars.h buffers 1
 core/nullcline.cpp buffers 4
-core/nullcline.cpp casts 68
 core/nullcline.cpp files 8
 core/nullcline.cpp memory 26
 core/nullcline.cpp text 24
