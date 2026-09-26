@@ -159,8 +159,8 @@ void send_stopped(void)
     if (p.what == XPP_JOB_INTEGRATE) {
         /* t is a stored single-precision number: 9 digits read back exactly */
         buf_format(&b, "{{\"what\":\"integrate\",\"rows\":{:d},\"t\":", p.rows);
-        if (isfinite(p.t)) buf_format(&b, "{:.9g}}}", p.t);
-        else BUF_LIT(&b, "null}");
+        buf_num(&b, p.t, 9);
+        BUF_LIT(&b, "}");
     } else if (p.what == XPP_JOB_AUTO) {
         buf_format(&b, "{{\"what\":\"auto\",\"branch\":{:d},\"point\":{:d}}}", p.branch, p.point);
     } else {
@@ -552,14 +552,24 @@ void json_ui_hello(const char *title)
             if (k++) BUF_LIT(&b, ",");
             BUF_LIT(&b, "{\"name\":");
             buf_str(&b, sliders[i].var);
-            buf_format(&b, ",\"lo\":{:.16g},\"hi\":{:.16g}}}", sliders[i].lo, sliders[i].hi);
+            BUF_LIT(&b, ",\"lo\":");
+            buf_num(&b, sliders[i].lo, 16);
+            BUF_LIT(&b, ",\"hi\":");
+            buf_num(&b, sliders[i].hi, 16);
+            BUF_LIT(&b, "}");
         }
     }
     /* the model file's values, what `default` restores, in state's order */
     BUF_LIT(&b, "],\"defaults\":{\"pars\":[");
-    for (i = 0; i < NUPAR; i++) buf_format(&b, "{}{:.16g}", i ? "," : "", default_val[i]);
+    for (i = 0; i < NUPAR; i++) {
+        if (i) BUF_LIT(&b, ",");
+        buf_num(&b, default_val[i], 16);
+    }
     BUF_LIT(&b, "],\"ics\":[");
-    for (i = 0; i < NODE + NMarkov; i++) buf_format(&b, "{}{:.16g}", i ? "," : "", default_ic[i]);
+    for (i = 0; i < NODE + NMarkov; i++) {
+        if (i) BUF_LIT(&b, ",");
+        buf_num(&b, default_ic[i], 16);
+    }
     BUF_LIT(&b, "]}}");
     send_buf(&b);
     send_main_window(title);

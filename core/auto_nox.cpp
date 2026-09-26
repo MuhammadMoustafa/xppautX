@@ -239,9 +239,40 @@ extern char upar_names[MAXPAR][XPP_NAME_MAX+1];
 extern int NUPAR;
 unsigned int DONT_XORCross=0;
 
- 
+
 double XfromAuto,YfromAuto;
 int FromAutoFlag=0;
+
+/* AUTO's continuation parameters back into the model (find_point, the
+   Grab loop's Return): a diverged run's stored point can hold a
+   non-finite value (QA SCI-001, -nan in the "state" event's pars). Skip
+   it and keep the model's previous value instead, once per parameter. */
+static void auto_set_pars_from(const double *par)
+{
+    for (int i = 0; i < NAutoPar; i++) {
+        const int idx = Auto_index_to_array[i];
+        if (std::isfinite(par[i])) constants[idx] = par[i];
+        else
+            xpp::log(XPP_LOG_WARN, "AUTO: {} from the diagram is not finite; keeping {:.16g}",
+                     upar_names[AutoPar[i]], constants[idx]);
+    }
+}
+
+/* do_auto's cleanup after go_go_auto(): a run that diverges can leave
+   AUTO's own working copy of a continuation parameter (autpp.cpp's func,
+   synced into constants[] every RHS call) not finite. Restore what the
+   run started from instead of leaving -nan in the model (QA SCI-001). */
+static void auto_restore_finite_pars(const double *before)
+{
+    for (int i = 0; i < NAutoPar; i++) {
+        const int idx = Auto_index_to_array[i];
+        if (!std::isfinite(constants[idx])) {
+            xpp::log(XPP_LOG_WARN, "AUTO: the run left {} not finite; keeping {:.16g}",
+                     upar_names[AutoPar[i]], before[i]);
+            constants[idx] = before[i];
+        }
+    }
+}
 
 extern int NODE,NEQ;
 extern int METHOD;
@@ -699,9 +730,14 @@ void do_auto(int iold, int isave, int itp)
     xpp_job_begin(0); /* Abort cancels it (xpp_job.h) */
     run_from=Auto.irs>0?Auto.irs:0; /* the diagram's data say where the run started */
     stability_run_start(); /* what its first point's stability is (auto_stability.h) */
-    go_go_auto(); /* this complets the initialization and calls the 
-                      main routines 
-		  */
+    {
+        double before[8];
+        for (int i = 0; i < NAutoPar; i++) before[i] = constants[Auto_index_to_array[i]];
+        go_go_auto(); /* this complets the initialization and calls the
+                          main routines
+                       */
+        auto_restore_finite_pars(before); /* leave no NaN parameter behind (QA SCI-001) */
+    }
     run_from=0;
     if(xpp_job_cancelled())RestartLabel=0; /* xppautX: cancel: no follow-up run */
     xpp_job_end();
@@ -3229,8 +3265,7 @@ void find_point(int ibr, int pt)
 	   for(i=0;i<NODE;i++)
 	     set_ivar(i+1,d->u0[i]);
 	   get_ic(0,d->u0);
-	   for(i=0;i<NAutoPar;i++)
-	     constants[Auto_index_to_array[i]]=d->par[i];
+	   auto_set_pars_from(d->par);
 	   evaluate_derived();
 	   redo_all_fun_tables();
 	   redraw_params();
@@ -3627,8 +3662,7 @@ void traverse_diagram()
     grabpt.ntot=d->ntot;
     grabpt.nfpar=d->nfpar;
     grabpt.index=d->index;
-    for(i=0;i<NAutoPar;i++)
-      constants[Auto_index_to_array[i]]=grabpt.par[i];
+    auto_set_pars_from(grabpt.par);
   }
   evaluate_derived();
   redo_all_fun_tables();

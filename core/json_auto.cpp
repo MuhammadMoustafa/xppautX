@@ -117,17 +117,20 @@ void j_auto_diagram(const XppDiagPoint *p)
 
 namespace {
 
-/* a number, null when it is not finite (JSON has no nan) */
-void buf_num(Buf *b, double v)
-{
-    if (v != v || v > 1e308 || v < -1e308) BUF_LIT(b, "null");
-    else buf_format(b, "{:.7g}", v);
-}
+/* the AUTO diagram's points, to 7 significant digits (buf_num, 3-arg, is
+   the shared JSON number writer: json_number.h) */
+void diag_num(Buf *b, double v) { buf_num(b, v, 7); }
 
 void diag_axes(Buf *b)
 {
-    buf_format(b, ",\"xmin\":{:.17g},\"xmax\":{:.17g},\"ymin\":{:.17g},\"ymax\":{:.17g}", dg_ax.xmin, dg_ax.xmax,
-               dg_ax.ymin, dg_ax.ymax);
+    BUF_LIT(b, ",\"xmin\":");
+    buf_num(b, dg_ax.xmin, 17);
+    BUF_LIT(b, ",\"xmax\":");
+    buf_num(b, dg_ax.xmax, 17);
+    BUF_LIT(b, ",\"ymin\":");
+    buf_num(b, dg_ax.ymin, 17);
+    BUF_LIT(b, ",\"ymax\":");
+    buf_num(b, dg_ax.ymax, 17);
     buf_format(b, ",\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"plot\":{:d},\"xlabel\":", dg_ax.x0, dg_ax.y0,
                dg_ax.wid, dg_ax.hgt, dg_ax.plot);
     buf_str(b, dg_ax.xlabel.data());
@@ -150,21 +153,21 @@ void diag_run(Buf *b, int i, int j)
     BUF_LIT(b, ",\"x\":[");
     for (k = i; k <= j; k++) {
         if (k > i) BUF_LIT(b, ",");
-        buf_num(b, dg[k].x);
+        diag_num(b, dg[k].x);
         if (dg[k].y2 != dg[k].y1) two = 1;
         if (dg[k].lab) nlab++;
     }
     BUF_LIT(b, "],\"y\":[");
     for (k = i; k <= j; k++) {
         if (k > i) BUF_LIT(b, ",");
-        buf_num(b, dg[k].y1);
+        diag_num(b, dg[k].y1);
     }
     BUF_LIT(b, "]");
     if (two) {
         BUF_LIT(b, ",\"y2\":[");
         for (k = i; k <= j; k++) {
             if (k > i) BUF_LIT(b, ",");
-            buf_num(b, dg[k].y2);
+            diag_num(b, dg[k].y2);
         }
         BUF_LIT(b, "]");
     }

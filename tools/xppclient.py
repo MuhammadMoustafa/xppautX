@@ -15,6 +15,14 @@ import json, os, queue, shutil, subprocess, tempfile, threading, time
 SLOW = float(os.environ.get('XPP_CHECK_SLOW', '1'))
 
 
+def _reject_non_finite(text):
+    """json.loads' parse_constant: NaN/Infinity/-Infinity are not valid
+    JSON (W35a, core/json_number.h); a strict parse must fail on them
+    instead of silently making a Python float, so a "-nan" that leaks
+    past the core's writer fails a check instead of round-tripping."""
+    raise ValueError('non-finite JSON constant: %s' % text)
+
+
 def is_idle(e):
     return e.get('ev') == 'idle'
 
@@ -53,7 +61,7 @@ class Server:
     def _read(self):
         for line in self.proc.stdout:
             try:
-                ev = json.loads(line)
+                ev = json.loads(line, parse_constant=_reject_non_finite)
             except ValueError:
                 ev = {'ev': 'bad', 'line': line[:300]}
             ev['_t'] = time.monotonic()

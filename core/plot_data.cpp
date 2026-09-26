@@ -14,13 +14,13 @@
    "plots" lists the windows themselves; it is compared as text with the
    last one sent. */
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
 
 #include "plot_data.h"
 #include "series_enc.h"
+#include "json_number.h"
 #include "xpp_globals.h"
 #include "xpp_job.h"
 #include "xpp_mem.h"
@@ -87,18 +87,9 @@ void add_str(std::string &o, const char *s)
 
 void add_int(std::string &o, long v) { o += std::to_string(v); }
 
-/* the shortest of 15 or 17 digits that reads back as v; null when not finite */
-void add_num(std::string &o, double v)
-{
-    char t[32];
-    if (v != v || v > 1e308 || v < -1e308) {
-        o += "null";
-        return;
-    }
-    std::snprintf(t, sizeof t, "%.15g", v);
-    if (std::strtod(t, nullptr) != v) std::snprintf(t, sizeof t, "%.17g", v);
-    o += t;
-}
+/* the shortest of 15 or 17 digits that reads back as v; null when not
+   finite (json_number.h, the shared JSON number writer) */
+void add_num(std::string &o, double v) { xpp::json::json_append_number_shortest(o, v); }
 
 void emit(const std::string &s)
 {

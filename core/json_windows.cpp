@@ -581,8 +581,15 @@ void send_aplot(const char *tag)
         if (j >= nrows) j = nrows - 1;
         if (j >= 0) thi = my_browser.data[0][j];
     }
-    buf_format(&b, ",\"tlo\":{:g},\"thi\":{:g},\"zmin\":{:g},\"zmax\":{:g},\"first\":{:d},\"ncolors\":{:d},\"nx\":{:d},\"ny\":{:d}",
-               tlo, thi, ap->zmin, ap->zmax, FIRSTCOLOR, color_table.count, nx, ny);
+    BUF_LIT(&b, ",\"tlo\":");
+    buf_num(&b, tlo, 6);
+    BUF_LIT(&b, ",\"thi\":");
+    buf_num(&b, thi, 6);
+    BUF_LIT(&b, ",\"zmin\":");
+    buf_num(&b, ap->zmin, 6);
+    BUF_LIT(&b, ",\"zmax\":");
+    buf_num(&b, ap->zmax, 6);
+    buf_format(&b, ",\"first\":{:d},\"ncolors\":{:d},\"nx\":{:d},\"ny\":{:d}", FIRSTCOLOR, color_table.count, nx, ny);
     if (tag) {
         BUF_LIT(&b, ",\"tag\":");
         buf_str(&b, tag);

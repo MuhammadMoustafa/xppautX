@@ -7,7 +7,7 @@ Plays a fixed session (integrate, change a parameter, answer a menu, a
 string prompt and a form, find an equilibrium, open a second plot window)
 and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
-import argparse, base64, cmath, glob, hashlib, json, os, re, shutil, struct, subprocess, sys, tempfile, threading, queue
+import argparse, base64, cmath, glob, hashlib, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, queue
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -16,6 +16,13 @@ ap.add_argument('-v', action='store_true')
 args = ap.parse_args()
 # XPP_CHECK_SLOW=F multiplies every wait by F (tools/xppclient.py)
 SLOW = float(os.environ.get('XPP_CHECK_SLOW', '1'))
+
+def _reject_non_finite(text):
+    """json.loads' parse_constant: NaN/Infinity/-Infinity are not valid
+    JSON (W35a, json_number.h); a strict parse must fail on them instead
+    of silently making a Python float, so a "-nan" that leaks past the
+    core's writer fails this check instead of round-tripping."""
+    raise ValueError('non-finite JSON constant: %s' % text)
 
 def check_logging():
     """core/xpp_log.h: -silent is quiet by default, --verbose shows the
@@ -73,7 +80,7 @@ def launch_server(extra_env=None, ode=None):
     def reader():
         for l in proc.stdout:
             try:
-                events.put(json.loads(l))
+                events.put(json.loads(l, parse_constant=_reject_non_finite))
             except ValueError:
                 print('BAD LINE: %r' % l[:300])
                 events.put({'ev': 'bad'})
@@ -1985,6 +1992,51 @@ def check_auto_stop():
 
 
 check_auto_stop()
+
+
+def check_auto_no_nan_par():
+    """W35a (issue #73, QA SCI-001): a periodic-continuation script left the
+    model's parameter at -nan after a run that never converged, which made
+    the next "state" event invalid JSON. auto_stop.ode's 'noconv-min' run
+    (above: Par Max far out of reach, so AUTO never converges even at its
+    smallest step) is the same failure mode, small and fast. Every line
+    from the server must still parse as strict JSON (a non-finite constant
+    is rejected: json.loads' parse_constant, launch_server's reader), and
+    the run's last "state" must show the continuation parameter 'a'
+    finite, not left over from a diverged Newton step (core/auto_nox.cpp's
+    auto_restore_finite_pars)."""
+    wide = {'rl0': -1, 'rl1': 0.9, 'a0': -1, 'a1': 100, 'nmx': 200}
+    p, r, snd, col, evq = launch_server(ode=STOP_ODE)
+    try:
+        col(is_idle)
+        snd(cmd='data', events=['autoinfo'])
+        col(is_idle)
+        for k in 'fa':
+            snd(cmd='key', key=k)
+            col(lambda e: is_idle(e) or e.get('ev') == 'ask')
+        snd(cmd='auto', op='set', numerics={**wide, 'rl1': 10})
+        col(is_idle)
+        snd(cmd='auto', op='run')
+        _, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e))
+        ok = isinstance(ask, dict) and ask.get('ev') == 'ask'
+        states = []
+        if ok:
+            snd(cmd='answer', id=ask['id'], key='s')
+            evs, _ = col(is_idle, timeout=60 * SLOW)
+            bad = [e for e in evs if e.get('ev') == 'bad']
+            states = [e for e in evs if e.get('ev') == 'state']
+            pars = states[-1].get('pars', []) if states else []
+            finite = all(math.isfinite(v) for _, v in pars)
+            ok = not bad and bool(states) and finite
+            detail = str(bad) if bad else str(pars)
+        else:
+            detail = str(ask)
+        check('AUTO: a run with no convergence parses strictly and leaves every par finite', ok, detail)
+    finally:
+        stop_server(p, r, snd)
+
+
+check_auto_no_nan_par()
 
 # A HOME the process cannot write to used to make AUTO exit(1) under the
 # client when it opened fort.8 there; open_auto() now falls back to the

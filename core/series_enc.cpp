@@ -1,11 +1,10 @@
 /* A column of the series event as JSON numbers or base64 float32
    (series_enc.h). Pure: no core state, no I/O. */
 #include "series_enc.h"
+#include "json_number.h"
 #include "xpp_mem.h"
 
 #include <cstdint>
-#include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <new>
 #include <string>
@@ -56,21 +55,15 @@ void base64(const float *v, int n, std::string &s)
     s += '"';
 }
 
-/* as ui_json.cpp's buf_float(b, z, 9): the same text for the same number */
+/* the shared JSON number writer (json_number.h), 9 digits: a float32
+   round-trips exactly in that many significant digits */
 void numbers(const float *v, int n, std::string &s)
 {
     s.reserve(s.size() + 2 + 13 * static_cast<std::size_t>(n));
     s += '[';
     for (int i = 0; i < n; i++) {
-        const double z = v[i];
         if (i) s += ',';
-        if (z != z || z > 1e300 || z < -1e300) {
-            s += "null";
-        } else {
-            char t[32];
-            const int k = std::snprintf(t, sizeof t, "%.9g", z);
-            if (k > 0) s.append(t, static_cast<std::size_t>(k));
-        }
+        xpp::json::json_append_number(s, v[i], 9);
     }
     s += ']';
 }

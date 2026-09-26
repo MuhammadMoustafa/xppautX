@@ -76,20 +76,27 @@ void send_state(void)
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
         buf_str(&b, upar_names[i]);
-        buf_format(&b, ",{:.16g}]", z);
+        BUF_LIT(&b, ",");
+        buf_num(&b, z, 16);
+        BUF_LIT(&b, "]");
     }
     BUF_LIT(&b, "],\"ics\":[");
     for (i = 0; i < NODE + NMarkov; i++) {
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
         buf_str(&b, uvar_names[i]);
-        buf_format(&b, ",{:.16g}]", last_ic[i]);
+        BUF_LIT(&b, ",");
+        buf_num(&b, last_ic[i], 16);
+        BUF_LIT(&b, "]");
     }
     BUF_LIT(&b, "]");
     /* where the last run ended (MyData, what Initialconds/Last starts from) */
     if (INFLAG) {
         BUF_LIT(&b, ",\"now\":[");
-        for (i = 0; i < NODE + NMarkov; i++) buf_format(&b, "{}{:.16g}", i ? "," : "", MyData[i]);
+        for (i = 0; i < NODE + NMarkov; i++) {
+            if (i) BUF_LIT(&b, ",");
+            buf_num(&b, MyData[i], 16);
+        }
         BUF_LIT(&b, "]");
     }
     BUF_LIT(&b, ",\"bcs\":[");
@@ -461,12 +468,21 @@ void j_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y, double *ev
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
         buf_str(&b, uvar_names[i]);
-        buf_format(&b, ",{:.16g}]", y[i]);
+        BUF_LIT(&b, ",");
+        buf_num(&b, y[i], 16);
+        BUF_LIT(&b, "]");
     }
     BUF_LIT(&b, "]");
     if (ev) { /* the Jacobian's eigenvalues, (re, im) pairs (gear.c eigen) */
         BUF_LIT(&b, ",\"eigenvalues\":[");
-        for (i = 0; i < n; i++) buf_format(&b, "{}[{:.16g},{:.16g}]", i ? "," : "", ev[2 * i], ev[2 * i + 1]);
+        for (i = 0; i < n; i++) {
+            if (i) BUF_LIT(&b, ",");
+            BUF_LIT(&b, "[");
+            buf_num(&b, ev[2 * i], 16);
+            BUF_LIT(&b, ",");
+            buf_num(&b, ev[2 * i + 1], 16);
+            BUF_LIT(&b, "]");
+        }
         BUF_LIT(&b, "]");
     }
     BUF_LIT(&b, "}");

@@ -3,6 +3,7 @@
    lines that come in, from the inbox; and a small reader for the flat
    JSON objects they are. */
 #include "ui_json_internal.h"
+#include "json_number.h"
 #include "xpp_mem.h"
 #include "xpp_http.h"
 #include "xpp_inbox.h"
@@ -69,6 +70,13 @@ void buf_str_array(Buf *b, const char *const *v, int n)
         buf_str(b, v ? v[i] : "");
     }
     BUF_LIT(b, "]");
+}
+
+void buf_num(Buf *b, double v, int sig)
+{
+    std::string t;
+    json_append_number(t, v, sig);
+    buf_add(b, t.data(), t.size());
 }
 
 /* one event line to the client: stdout, or the page xppautX serves */
