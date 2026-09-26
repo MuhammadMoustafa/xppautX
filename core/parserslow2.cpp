@@ -23,6 +23,9 @@
 /* #include <malloc.h> */
 #include <stdio.h>
 #include <string.h>
+#include <string>
+#include <string_view>
+#include <vector>
 
 
 #include "xpplim.h"
@@ -234,27 +237,6 @@ double (*fun2[50])(double, double);
 *************************************************************/
 
 /* INIT_RPN    */
-/*
-int matherr(e)
-     struct exception *e;
-{
-char *c;
-	switch (e->type) {
-	    case DOMAIN:    c = "domain error"; break;
-	    case SING  :    c = "argument singularity"; break;
-	    case OVERFLOW:  c = "overflow range"; break;
-	    case UNDERFLOW: c = "underflow range"; break;
-	    default:		c = "(unknown error"; break;
-	} 
-	fprintf(stderr, "math exception : %d\n", e->type);
-	fprintf(stderr, "    name : %s\n", e->name);
-	fprintf(stderr, "    arg 1: %e\n", e->arg1);
-	fprintf(stderr, "    arg 2: %e\n", e->arg2);
-	fprintf(stderr, "    ret  : %e\n", e->retval);
-	return 1;
-}
-*/
-
 void init_rpn()
 {
 
@@ -308,24 +290,34 @@ int duplicate_name(const char *junk)
   return(0);
 }
 
+namespace {
+
+/* name as convert makes it: blanks removed, upper case (never longer) */
+std::string converted(const char *name)
+{
+  std::string s(name);
+  convert(name, s.data());
+  s.resize(strlen(s.c_str()));
+  return s;
+}
+
+} // namespace
+
 /* Puts name, without blanks and in upper case, into symbol slot k.
    Returns 1 (and says why) when it is empty or longer than XPP_NAME_MAX;
    with primed set, the primed name X' of a variable X (form_ode.c) may be
    one longer. */
 static int set_symbol_name(int k, const char *name, int primed)
 {
-  char string[MAXEXPLEN];
-  int len;
-  if(strlen(name)>=sizeof(string))return name_too_long(name);
-  convert(name,string);
-  len=strlen(string);
+  std::string string=converted(name);
+  int len=static_cast<int>(string.size());
   if(len<1){
     xpp_log(XPP_LOG_WARN, "Empty name - remove spaces\n");
     return 1;
   }
   if(len>XPP_NAME_MAX&&!(primed&&len==MXLEN&&string[len-1]=='\''))
     return name_too_long(name);
-  memcpy(my_symb[k].name,string,len+1);
+  memcpy(my_symb[k].name,string.c_str(),len+1);
   my_symb[k].len=len;
   return 0;
 }
@@ -334,11 +326,7 @@ static int set_symbol_name(int k, const char *name, int primed)
    XPP_NAME_MAX and so cannot be a symbol */
 int name_too_long(const char *name)
 {
-  char string[MAXEXPLEN];
-  if(strlen(name)<sizeof(string)){
-    convert(name,string);
-    if(strlen(string)<=XPP_NAME_MAX)return 0;
-  }
+  if(converted(name).size()<=XPP_NAME_MAX)return 0;
   xpp_log(XPP_LOG_WARN, "Name %.40s... is longer than %d characters\n",name,XPP_NAME_MAX);
   return 1;
 }
@@ -398,7 +386,7 @@ int add_con(const char *name, double value)
 
 int add_kernel(const char *name, double mu, const char *expr)
 {
-  int i,in=-1;
+  int in=-1;
   if(duplicate_name(name)==1)return(1);
   if(NKernel==MAXKER){
     xpp_log(XPP_LOG_WARN, "Too many kernels..\n");
@@ -417,28 +405,23 @@ int add_kernel(const char *name, double mu, const char *expr)
   kernel[NKernel].k_n=0.0;
   kernel[NKernel].k_n1=0.0;
   kernel[NKernel].flag=0;
-  for(i=0;i<(int)strlen(expr);i++)
-    if(expr[i]=='#')in=i;
-  if(in==0||in==((int)strlen(expr)-1)){
+  std::string_view text(expr);
+  size_t hash=text.rfind('#');
+  if(hash!=std::string_view::npos)in=static_cast<int>(hash);
+  if(in==0||in==static_cast<int>(text.size())-1){
     xpp_log(XPP_LOG_WARN, "Illegal use of convolution...\n");
     return(1);
   }
   if(in>0){
     kernel[NKernel].flag=CONV;
-    kernel[NKernel].expr=(char *)xpp_malloc(strlen(expr)+2-in);
-    kernel[NKernel].kerexpr=(char *)xpp_malloc(in+1);
-    for(i=0;i<in;i++)kernel[NKernel].kerexpr[i]=expr[i];
-    kernel[NKernel].kerexpr[in]=0;
-    for(i=in+1;i<(int)strlen(expr);i++)kernel[NKernel].expr[i-in-1]=expr[i];
-    kernel[NKernel].expr[strlen(expr)-in-1]=0;
+    /* KERNEL is C API (volterra.h): xpp_strdup'd text, split at the # */
+    kernel[NKernel].kerexpr=xpp_strdup(std::string(text.substr(0,in)).c_str());
+    kernel[NKernel].expr=xpp_strdup(std::string(text.substr(in+1)).c_str());
     xpp_log(XPP_LOG_INFO, "Convolving %s with %s\n",
 	   kernel[NKernel].kerexpr,kernel[NKernel].expr);
   }
   else {
-    kernel[NKernel].expr=(char *)xpp_malloc(strlen(expr)+2);
-    /* kernel[NKernel].expr is a pointer, allocated strlen(expr)+2
-       bytes just above. */
-    xpp_strlcpy(kernel[NKernel].expr,expr,strlen(expr)+2);
+    kernel[NKernel].expr=xpp_strdup(expr);
   }
   NSYM++;
   NKernel++;
@@ -472,21 +455,14 @@ int add_var(const char *junk, double value)
 
 int add_expr(const char *expr, int *command, int *length)
 {
- char dest[1024];
- int my_token[1024];
  int err,i;
- convert(expr,dest);
-/* plintf(" Making token ...\n");  */
- err=make_toks(dest,my_token); 
-
-/*  i=0;
-  while(1){
-  plintf(" %d %d \n",i,my_token[i]);
-  if(my_token[i]==ENDTOK)break;
-  i++;
-} */ 
+ std::string dest=converted(expr);
+ /* make_toks writes a token per character at most, three for a number
+    (its token and the double's two ints), the end, and slack */
+ std::vector<int> my_token(3*dest.size()+8);
+ err=make_toks(dest.c_str(),my_token.data());
  if(err!=0)return(1);
- err = alg_to_rpn(my_token,command);
+ err = alg_to_rpn(my_token.data(),command);
  if(err!=0)return(1);
   i=0;
    while(command[i]!=ENDEXP)i++;
@@ -537,19 +513,12 @@ int add_2d_table(const char *name, const char *file)
 
 int add_file_table(int index, const char *file)
 {
-  char file2[1000];
-  int i2=0,i1=0,n;
-  char ch; 
-  n=strlen(file);
-  for(i1=0;i1<n;i1++){
-    ch=file[i1];
-    if(((int)ch>31)&&((int)ch<127)){
-      file2[i2]=ch;
-      i2++;
-    }
-  }
-  file2[i2]=0;
-  if(load_table(file2,index)==0)
+  /* the name's printable characters */
+  std::string file2;
+  for(const char *p=file;*p;p++)
+    if(*p>31&&*p<127)
+      file2+=*p;
+  if(load_table(file2.c_str(),index)==0)
     {
       if(ERROUT)xpp_log(XPP_LOG_WARN, "Problem with creating table !!\n");
        return(1);
@@ -589,7 +558,7 @@ void set_old_arg_names(int narg)
 {
   int i;
   for(i=0;i<narg;i++){
-    XPP_SPRINTF(my_symb[FIRST_ARG+i].name,"ARG%d",i+1);
+    XPP_FORMAT_TO_BUF(my_symb[FIRST_ARG+i].name,"ARG{}",i+1);
     my_symb[FIRST_ARG+i].len=4;
   }
 }
@@ -598,7 +567,7 @@ void set_new_arg_names(int narg, char args[MAXARG][XPP_NAME_MAX+1])
 {
   int i;
   for(i=0;i<narg;i++){
-    XPP_STRCPY(my_symb[FIRST_ARG+i].name,args[i]);
+    XPP_FORMAT_TO_BUF(my_symb[FIRST_ARG+i].name,"{}",args[i]);
     my_symb[FIRST_ARG+i].len=strlen(args[i]);
  }
 }
@@ -620,7 +589,7 @@ int add_ufun_name(const char *name, int index, int narg)
   my_symb[NSYM].arg=narg;
   my_symb[NSYM].com=COM(UFUNTYPE, index);
   NSYM++;
-  XPP_STRCPY(ufun_names[index],name);
+  XPP_FORMAT_TO_BUF(ufun_names[index],"{}",name);
   return (0);
 }
 
@@ -635,25 +604,19 @@ void fixup_endfun(int *u, int l, int narg)
 int add_ufun_new(int index, int narg, const char *rhs, char args[MAXARG][XPP_NAME_MAX+1])
 {
   
-  int i,l;
+  int i;
   int end;
    if(narg>MAXARG){
     xpp_log(XPP_LOG_WARN, "Maximal arguments exceeded \n");
     return(1);
   }
-  if((ufun[index]=(int *)xpp_malloc(1024))==NULL)
-    {
-      if(ERROUT)xpp_log(XPP_LOG_WARN, "not enough memory!!\n");
-      return(1);
-    }
-  if((ufun_def[index]=(char *)xpp_malloc(MAXEXPLEN))==NULL)
-    {
-      if(ERROUT)xpp_log(XPP_LOG_WARN, "not enough memory!!\n");
-      return(1);
-    }
+  /* ufun and ufun_def are C tables (edit_rhs.cpp rewrites them in
+     place): MAXEXPLEN commands and characters each */
+  ufun[index]=static_cast<int *>(xpp_calloc(MAXEXPLEN,sizeof(int)));
+  ufun_def[index]=static_cast<char *>(xpp_malloc(MAXEXPLEN));
   ufun_arg[index].narg=narg;
   for(i=0;i<narg;i++)
-    XPP_STRCPY(ufun_arg[index].args[i],args[i]);
+    XPP_FORMAT_TO_BUF(ufun_arg[index].args[i],"{}",args[i]);
   set_new_arg_names(narg,args);
   if(add_expr(rhs,ufun[index],&end)==0)
     {
@@ -661,11 +624,7 @@ int add_ufun_new(int index, int narg, const char *rhs, char args[MAXARG][XPP_NAM
       ufun[index][end-1]=ENDFUN;
       ufun[index][end]=narg;
       ufun[index][end+1]=ENDEXP;
-      /* ufun_def[index] is a pointer, allocated MAXEXPLEN bytes
-         (every allocation site here). */
       xpp_strlcpy(ufun_def[index],rhs,MAXEXPLEN);
-      l=strlen(ufun_def[index]);
-      ufun_def[index][l]=0;
       narg_fun[index]=narg;
       set_old_arg_names(narg);
       return(0);
@@ -680,7 +639,7 @@ int add_ufun_new(int index, int narg, const char *rhs, char args[MAXARG][XPP_NAM
 
 int add_ufun(const char *junk, const char *expr, int narg)
 {
- int i,l;
+ int i;
  int end;
 
  if(duplicate_name(junk)==1)return(1);
@@ -690,16 +649,8 @@ int add_ufun(const char *junk, const char *expr, int narg)
   if(ERROUT)xpp_log(XPP_LOG_WARN, "too many functions !!\n");
   return(1);
  }
- if((ufun[NFUN]=(int *)xpp_malloc(1024))==NULL)
- {
-  if(ERROUT)xpp_log(XPP_LOG_WARN, "not enough memory!!\n");
-  return(1);
- }
- if((ufun_def[NFUN]=(char *)xpp_malloc(MAXEXPLEN))==NULL)
- {
-  if(ERROUT)xpp_log(XPP_LOG_WARN, "not enough memory!!\n");
-  return(1);
- }
+ ufun[NFUN]=static_cast<int *>(xpp_calloc(MAXEXPLEN,sizeof(int)));
+ ufun_def[NFUN]=static_cast<char *>(xpp_malloc(MAXEXPLEN));
 
  if(add_expr(expr,ufun[NFUN],&end)==0)
  {
@@ -711,14 +662,14 @@ int add_ufun(const char *junk, const char *expr, int narg)
   ufun[NFUN][end-1]=ENDFUN;
   ufun[NFUN][end]=narg;
   ufun[NFUN][end+1]=ENDEXP;
-  /* ufun_def[NFUN] is a pointer, allocated MAXEXPLEN bytes above. */
-  xpp_strlcpy(ufun_def[NFUN],expr,MAXEXPLEN);
-  l=strlen(ufun_def[NFUN]);
-  ufun_def[NFUN][l-1]=0;
-  XPP_STRCPY(ufun_names[NFUN],junk);
+  /* the definition without its last character */
+  std::string_view def(expr);
+  if(!def.empty())def.remove_suffix(1);
+  xpp_strlcpy(ufun_def[NFUN],std::string(def).c_str(),MAXEXPLEN);
+  XPP_FORMAT_TO_BUF(ufun_names[NFUN],"{}",junk);
   narg_fun[NFUN]=narg;
   for(i=0;i<narg;i++){
-    XPP_SPRINTF(ufun_arg[NFUN].args[i],"ARG%d",i+1);
+    XPP_FORMAT_TO_BUF(ufun_arg[NFUN].args[i],"ARG{}",i+1);
   }
   NFUN++;
   return(0);
@@ -791,18 +742,13 @@ int find_lookup(const char *name)
 
 void find_name(const char *string, int *index)
 {
-  char junk[MAXEXPLEN];
-  int i,len;
-  if(strlen(string)>=sizeof(junk)){
-    *index=-1;
-    return;
-  }
-  convert(string,junk);
-  len=strlen(junk);
+  int i;
+  std::string junk=converted(string);
+  int len=static_cast<int>(junk.size());
   for(i=0;i<NSYM;i++)
   {
    if(len==my_symb[i].len)
-    if(strncmp(my_symb[i].name,junk,len)==0)break;
+    if(strncmp(my_symb[i].name,junk.c_str(),len)==0)break;
   }
    if(i<NSYM)
     *index=i;
@@ -1146,13 +1092,10 @@ int alg_to_rpn(int *toklist, int *command)
 
 void show_where(const char *string, int index)
 {
-  char junk[MAXEXPLEN];
-  int i;
-  /* exit(-1); */
-  for(i=0;i<index;i++)junk[i]=' ';
-  junk[index]='^';
-  junk[index+1]=0;
-  xpp_log(XPP_LOG_WARN, "%s\n%s\n",string,junk);
+  /* a caret under string's character index */
+  std::string junk(index>0?index:0,' ');
+  junk+='^';
+  xpp::log(XPP_LOG_WARN, "{}\n{}\n",string,junk);
 }
 
 int function_sym(int token) /* functions should have ( after them  */
@@ -1356,8 +1299,9 @@ void tokeninfo(int tok)
 
 int do_num(const char *source, char *num, double *value, int *ind)
 {
- int j=0,i=*ind,error=0;
+ int i=*ind,error=0;
  int ndec=0,nexp=0,ndig=0;
+ std::string text;
  char ch,oldch;
  oldch='\0';
  *value=0.0;
@@ -1383,24 +1327,23 @@ int do_num(const char *source, char *num, double *value, int *ind)
                        break;
 
              }
-   num[j]=ch;
-   j++;
+   text+=ch;
    i++;
    oldch=ch;
   }
   else
   {
 err:
-    num[j]=ch;
-    j++;
+    text+=ch;
     error=1;
     break;
   }
   }
-  num[j]='\0';
-  if(error==0)*value=atof(num);
+  size_t n=text.copy(num,39);
+  num[n]='\0';
+  if(error==0)*value=atof(text.c_str());
   else
-  if(ERROUT)xpp_log(XPP_LOG_WARN, " illegal expression: %s\n",num);
+  if(ERROUT)xpp::log(XPP_LOG_WARN, " illegal expression: {}\n",text);
   *ind=i;
   return(error);
 }
