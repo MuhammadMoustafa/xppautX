@@ -137,13 +137,13 @@ int OnTheFly=1;
 extern FILE *svgfile;
 
 
-typedef struct {
+struct ARRAY_IC {
   int index0,type;
   std::array<char, 256> formula{};
   int n;
   std::array<char, 1024> var{};
   int j1,j2;
-} ARRAY_IC;
+};
 int ar_ic_defined=0;
 ARRAY_IC ar_ic[NAR_IC];
 typedef struct 
