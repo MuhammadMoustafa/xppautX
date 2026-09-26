@@ -1,19 +1,40 @@
 # Known-answer test model for the network "fftcon" special function
-# (W31a: tests/test_stochast_fourier.cpp), which will guard W32a's
-# fftn->pocketfft swap. v0..v3 are static (v_i'=0): the periodic fftcon
-# convolves the fixed v0..v3 with a weight table that is zero except at
-# t=3 (one tap), so k(i) is a scaled circular shift of v(i) that the
-# test checks against a direct sum it computes itself.
+# (W31a: tests/test_stochast_fourier.cpp; W38: fixed the table layout),
+# which will guard W32a's fftn->pocketfft swap. v0..v4 are static
+# (v_i'=0). k is a periodic (5-point) fftcon convolution of v0..v4 with
+# wgt (documented length n=5); kc is the matching direct conv(p,...)
+# network on the same table (ncon=n/2=2): the two must agree. m is a
+# zero-padded (3-point) fftcon convolution of v0..v2 with wz (documented
+# length 2n=6, its first entry 0 so it carries no extra tap beyond the
+# 2n-1 a matching conv(0,...) reads); mc is that matching conv network
+# (ncon=n=3): m and mc must agree too.
 v0'=0
 v1'=0
 v2'=0
 v3'=0
-init v0=1,v1=2,v2=3,v3=4
-tabular wgt % 5 0 4 2*(t==3)
-special k=fftcon(p,4,wgt,v0)
-aux kk0=k(0)
-aux kk1=k(1)
-aux kk2=k(2)
-aux kk3=k(3)
+v4'=0
+init v0=1,v1=2,v2=3,v3=4,v4=5
+tabular wgt % 5 0 4 t
+tabular wz % 6 0 5 3*t
+special k=fftcon(p,5,wgt,v0)
+special kc=conv(p,5,2,wgt,v0)
+special m=fftcon(0,3,wz,v0)
+special mc=conv(0,3,3,wz,v0)
+aux k0=k(0)
+aux k1=k(1)
+aux k2=k(2)
+aux k3=k(3)
+aux k4=k(4)
+aux kc0=kc(0)
+aux kc1=kc(1)
+aux kc2=kc(2)
+aux kc3=kc(3)
+aux kc4=kc(4)
+aux m0=m(0)
+aux m1=m(1)
+aux m2=m(2)
+aux mc0=mc(0)
+aux mc1=mc(1)
+aux mc2=mc(2)
 @ total=1,dt=1
 done

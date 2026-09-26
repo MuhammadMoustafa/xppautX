@@ -1,11 +1,13 @@
-/* The network layer's "fftcon" special function (simplenet.cpp) against a
-   direct circular convolution computed here (W31a; its own process, since
-   the core loads one model per process). fftcon is only reachable by
-   loading a model that uses it: tools/models/fftcon_test.ode has a static
-   (v_i'=0) 4-cell periodic ("p") network whose weight table is zero except
-   one tap, run the way `xppautX -silent` runs it (xpp_batch_main), then
-   read back through its aux variables (k(i)) in output.dat -- never
-   through the FFT directly, so W32a's change of FFT keeps this test. */
+/* The network layer's "fftcon" special function (simplenet.cpp) against
+   the matching direct conv/conv0 network on the same weight table (W38:
+   this is the documented relationship fftcon's table layout must hold;
+   W31a/W32a: run the way `xppautX -silent` runs it, so this also guards
+   W32a's fftn->pocketfft swap). fftcon is only reachable by loading a
+   model that uses it: tools/models/fftcon_test.ode has a static
+   (v_i'=0) 5-cell periodic ("p") fftcon network (k) and a zero-padded
+   3-cell one (m), each beside the conv/conv0 network (kc, mc) that
+   should equal it on the same table; read back through their aux
+   variables in output.dat, never through the FFT directly. */
 #include "xpptest.h"
 #include "xpp_batch.h"
 
@@ -31,12 +33,13 @@ static double field(const char *line, int col)
     return atof(p);
 }
 
-/* the fftcon network: load tools/models/fftcon_test.ode, run it the way
-   -silent does, and read k(0..3) back from output.dat's second row (the
-   first, t=0, row is written before the network's first evaluation, so
-   its aux columns are still the zero the model started with -- not
-   fftcon's fault, see the report). Returns 1 on success. */
-static int run_fftcon(double k[4])
+/* the model's row 2 (t=1) holds t, v0..v4 (columns 0..5), then the aux
+   columns in declaration order: k0..k4 (6..10), kc0..kc4 (11..15),
+   m0..m2 (16..18), mc0..mc2 (19..21) (the first, t=0, row is written
+   before the networks' first evaluation, so its aux columns are still
+   the zero the model started with -- not fftcon's fault, see the
+   report). Returns 1 on success. */
+static int run_fftcon(double k[5], double kc[5], double m[3], double mc[3])
 {
     char *argv[] = {const_cast<char *>("test_fftcon"),
                     const_cast<char *>("tools/models/fftcon_test.ode"),
@@ -52,7 +55,10 @@ static int run_fftcon(double k[4])
     while (fgets(line, sizeof line, fp)) {
         row++;
         if (row == 2) { /* t=1 */
-            for (int i = 0; i < 4; i++) k[i] = field(line, 5 + i);
+            for (int i = 0; i < 5; i++) k[i] = field(line, 6 + i);
+            for (int i = 0; i < 5; i++) kc[i] = field(line, 11 + i);
+            for (int i = 0; i < 3; i++) m[i] = field(line, 16 + i);
+            for (int i = 0; i < 3; i++) mc[i] = field(line, 19 + i);
             ok = 1;
             break;
         }
@@ -63,21 +69,22 @@ static int run_fftcon(double k[4])
 
 int main(void)
 {
-    /* --- fftcon: periodic network convolution vs. a direct circular sum
-       computed here. tools/models/fftcon_test.ode's weight table is zero
-       except a single tap (2 at t=3 of 0..4); by the weight-table layout
-       simplenet.cpp's update_fft documents (fftr[i]=w[i+n2] for
-       i=0..n2, fftr[n2+i+1]=w[i] for i=0..n2-1, n2=n/2), that tap lands
-       at kernel offset +1, so k(i) should equal c*v[(i-1) mod n]. */
+    /* --- fftcon: the periodic (k) and zero-padded (m) network
+       convolutions vs. the matching conv/conv0 network (kc, mc) on the
+       same weight table (tools/models/fftcon_test.ode); see its header
+       comment and simplenet.cpp's update_fft for why they must agree. */
     {
-        double k[4];
-        CHECK(run_fftcon(k));
-        double v[4] = {1, 2, 3, 4};
-        double c = 2.0;
-        for (int i = 0; i < 4; i++) {
-            double want = c * v[((i - 1) % 4 + 4) % 4];
-            CHECK(relerr(k[i], want) < 1e-9);
-        }
+        double k[5], kc[5], m[3], mc[3];
+        CHECK(run_fftcon(k, kc, m, mc));
+        for (int i = 0; i < 5; i++) CHECK(relerr(k[i], kc[i]) < 1e-9);
+        for (int i = 0; i < 3; i++) CHECK(relerr(m[i], mc[i]) < 1e-9);
+        /* not all-zero, so a broken update_fft (e.g. a stray zero kernel)
+           would not pass by accident */
+        double ksum = 0, msum = 0;
+        for (int i = 0; i < 5; i++) ksum += std::fabs(k[i]);
+        for (int i = 0; i < 3; i++) msum += std::fabs(m[i]);
+        CHECK(ksum > 1e-6);
+        CHECK(msum > 1e-6);
     }
 
     TEST_REPORT("fftcon");

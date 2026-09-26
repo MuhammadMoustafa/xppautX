@@ -128,7 +128,7 @@ where `root` is the name of a variable and `wgt` is a table, produces an array `
 
     special bob=fftconv(type,npts,wgt,root)
 
-is similar to the `conv` operation, but uses the FFT to do it. The `type` should be `odd` or `periodic`. The size of the `wgt` table should be either `npts` or `2 npts`. The `sparse` network has the syntax:
+is similar to the `conv` operation, but uses the FFT to do it. The `type` should be `0` (zero, i.e. bounded) or `periodic`. The size of the `wgt` table should be either `npts` (periodic) or `2 npts` (zero); it is the same centred table `conv`/`conv(0,...)` reads (`wgt[j+ncon]` the weight at lag `j`, `ncon` = `npts/2`), so `fftconv(periodic,npts,wgt,root)` equals `conv(periodic,npts,npts/2,wgt,root)` on that table, and `fftconv(0,npts,wgt,root)` equals `conv(0,npts,npts,wgt,root)` provided `wgt`'s first entry (index 0, the one extra tap the zero-padded table carries beyond `conv`'s own `2 npts - 1`) is 0. The `sparse` network has the syntax:
 
     special zip=sparse(npts,ncon,wgt,index,root)
 

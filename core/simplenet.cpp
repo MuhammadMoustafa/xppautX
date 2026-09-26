@@ -107,6 +107,11 @@ special k=fftcon(type,n,wgt,v0)
 uses the fft to convolve v0 with the wgt which must be of
 length n if type=periodic
        2n if type=0
+wgt is the same centred kernel (w[j+k], k its centre) a matching
+conv/conv0 network on the same v0 would read; fftcon periodic equals
+conv(p,n,n/2,wgt,v0) on that table, and fftcon 0-type equals
+conv(0,n,n,wgt,v0) provided wgt's first entry (the one extra tap the
+zero-padded table has beyond conv's own 2n-1) is 0.
 
 special f=interp(type,n,root)
         this produces an interpolated value of x for 
@@ -1408,46 +1413,42 @@ void update_all_ffts()
     if(my_net[i].type==FFTCON0||my_net[i].type==FFTCONP)
       update_fft(i);
 }
-/*  
- tabular weights are of size 2k+1
- and go from -k ... k
- for FFT's 
- they are reordered as follows
- fftr[i]=wgt[i+k] i = 0.. k
- fftr[i+k]=wgt[i] i=1 .. k-1
-*/	 
+/*
+ the weight table is the same centred kernel a matching conv/conv0
+ network reads (w[j+k] for lag j, k the table's centre), but with no
+ extra unused or out-of-range entry: its length is exactly n (FFTCONP,
+ n=my_net[ind].n) or 2n (FFTCON0, n=2*my_net[ind].n), n2=n/2 its centre
+ (the direct sum's own ncon, w[j+n2] its weight at lag j). Circular
+ convolution by FFT needs the kernel negated in lag and reordered into
+ the FFT's own bin order (fftr[i] is the kernel's value at circular lag
+ i for i<=n2, at lag i-n otherwise; conv's value[i]=sum_j w[j+n2]
+ y[i+j] is sum_k fftr[k] y[i-k] with k=-j mod n):
+   fftr[i]      = w[n2-i]  for i = 0 .. n2        (lags 0 .. -n2)
+   fftr[n-i]    = w[n2+i]  for i = 1 .. n-1-n2     (lags -1 .. n2-n = -(n-n2))
+ which together read w[0..n-1] exactly once each: for n even, the two
+ ranges meet without a shared or skipped index (n-1-n2 = n2-1); for n
+ odd they are a plain reflection about the centre (n-1-n2 = n2).
+*/
 void update_fft(int ind)
 {
-  int i;
   double *w=my_net[ind].weight;
   double *fftr=my_net[ind].fftr.data();
   double *ffti=my_net[ind].ffti.data();
-  int n,n2;
   int type=my_net[ind].type;
-  if(type==FFTCONP){
+  int n;
+  if(type==FFTCONP)
     n=my_net[ind].n;
-    n2=n/2;
-    for(i=0;i<n;i++)ffti[i]=0.0;
-    for(i=0;i<=n2;i++)
-      fftr[i]=w[i+n2];
-    for(i=0;i<n2;i++)
-      fftr[n2+i+1]=w[i];
-    xpp_fft(n,fftr,ffti,1,1.0);
-    /* plintf("index=%d n=%d n2=%d \n",ind,n,n2); 
-    for(i=0;i<n;i++)
-    plintf("(%g , %g)\n",fftr[i],ffti[i]); */
-  }
-  if(type==FFTCON0){
+  else if(type==FFTCON0)
     n=2*my_net[ind].n;
-    n2=n/2;
-    for(i=0;i<n;i++)ffti[i]=0.0;
-    for(i=0;i<=n2;i++)
-      fftr[i]=w[i+n2];
-    for(i=1;i<n2;i++)
-      fftr[n2+i]=w[i];
-    xpp_fft(n,fftr,ffti,1,1.0);
-  }
-  /* for(i=0;i<10;i++)printf("fftr,i=%g %g %g %g\n",fftr[i],ffti[i],fftr[n-1-i],ffti[n-1-i]); */
+  else
+    return;
+  int n2=n/2;
+  for(int i=0;i<n;i++)ffti[i]=0.0;
+  for(int i=0;i<=n2;i++)
+    fftr[i]=w[n2-i];
+  for(int i=1;i<=n-1-n2;i++)
+    fftr[n-i]=w[n2+i];
+  xpp_fft(n,fftr,ffti,1,1.0);
 }
 
 
