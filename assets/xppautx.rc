@@ -3,36 +3,11 @@
    tools/make_icons.py), as resource 32512 -- IDI_APPLICATION's number, the
    icon the web view's window class loads -- the version block, whose
    names Windows shows for the program (the taskbar, Task Manager), and
-   the application manifest (assets/xppautx.manifest, RT_MANIFEST
-   resource 1, the id Windows loads for the exe's own manifest).
-
-   MinGW-w64's g++ links no manifest of its own (there was none before
-   this), so xppautx.manifest is the only one xppautX.exe gets; without
-   it the narrow fopen/opendir/FindFirstFileA/rename/argv calls that
-   core/xpp_files.cpp and friends use interpret bytes in the process's
-   ANSI code page instead of UTF-8, mangling a non-ASCII model parameter
-   name or file name (docs: CLAUDE.md "Strings and I/O", card W35b). Its
-   <activeCodePage>UTF-8</activeCodePage> (Windows 10 1903+; ignored,
-   harmlessly, on an older Windows) makes GetACP() report CP_UTF8 for
-   this process, so the narrow Win32 "A" calls (MoveFileExA included)
-   treat both their arguments and their results as UTF-8; <supportedOS>
-   declares Windows 10/11 (and every version back to Vista, so an old
-   Windows still gets asInvoker) since activeCodePage is a documented
-   no-op without it. <requestedExecutionLevel>asInvoker</requestedExecutionLevel>
-   only keeps the default a process with no manifest also gets. No
-   dpiAware/dpiAwareness: xpp_window.cpp does not itself set process DPI
-   awareness, so the window keeps relying on the default that applies
-   with no manifest at all (System/Unaware), unchanged by this one.
-
-   The manifest file itself carries no XML comments: Windows' manifest
-   parser (distinct from, and stricter than, a generic XML parser) failed
-   the whole exe to start ("side-by-side configuration is incorrect")
-   with a comment anywhere inside <assembly>, comment placement tested
-   here as an embedded RT_MANIFEST resource, not merely as well-formed
-   XML. Its nesting under asmv3:application/asmv3:windowsSettings, and
-   activeCodePage's own xmlns on itself, is exactly Microsoft's
-   documented shape; anything else was silently ignored rather than an
-   error, the harder way this was found. */
+   the manifest, assets/xppautx.manifest (W35b). Its activeCodePage UTF-8
+   (Windows 10 1903 and later) makes the narrow calls (fopen, opendir,
+   FindFirstFileA, MoveFileExA, argv) read and write UTF-8, the core's
+   text, instead of the ANSI code page. Windows refuses to start the exe
+   when that file has an XML comment inside <assembly>: keep notes here. */
 #include "version_rc.h"
 #include <winuser.h>
 
