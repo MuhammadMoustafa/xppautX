@@ -3,7 +3,6 @@ core/adj2.cpp memory 21
 core/adj2.cpp text 10
 core/ani_data.cpp buffers 4
 core/aniparse.cpp buffers 15
-core/aniparse.cpp casts 39
 core/aniparse.cpp files 5
 core/aniparse.cpp memory 32
 core/aniparse.cpp text 8
@@ -31,12 +30,10 @@ core/auto_settings.cpp buffers 4
 core/auto_settings.cpp text 7
 core/auto_settings.h buffers 3
 core/axes2.cpp buffers 10
-core/axes2.cpp casts 21
 core/axes2.cpp text 28
 core/band.cpp memory 8
 core/browse.h buffers 1
 core/browse_data.cpp buffers 8
-core/browse_data.cpp casts 21
 core/browse_data.cpp files 7
 core/browse_data.cpp memory 8
 core/browse_data.cpp text 22
@@ -80,7 +77,6 @@ core/graf_par.cpp memory 12
 core/graf_par.cpp text 66
 core/graf_par.h buffers 3
 core/graphics.cpp buffers 3
-core/graphics.cpp casts 37
 core/graphics.cpp text 2
 core/grobs.cpp buffers 6
 core/histogram.cpp buffers 2
@@ -177,8 +173,7 @@ core/xpp_session.cpp buffers 1
 core/xpp_session.cpp files 3
 core/xpp_sha256.cpp buffers 1
 core/xpp_sha256.h buffers 2
-core/xpp_ui.cpp buffers 5
-core/xpp_ui.cpp casts 104
+core/xpp_ui.cpp buffers 4
 core/xpp_ui.cpp text 2
 core/xpp_ui.h buffers 3
 core/xpp_util.cpp buffers 4
