@@ -91,7 +91,7 @@ issue; the card here is the one kept up to date.
 | W35a | #73 | QA 2026-09-26 SCI-001: one JSON number writer in json_io (not finite: null) for every event, the three copies merged; AUTO never writes a non-finite point's parameters into the model; servercheck parses strictly | none | running |
 | W35b | #74 | QA 2026-09-26 MI-001, WF-002: the core's text is UTF-8: one JSON string writer and reader (json_io's and xpp_files' merged) that keep UTF-8; the Windows manifest's activeCodePage UTF-8 for the narrow file APIs and argv | none | running |
 | W35c | #75 | QA 2026-09-26 INPUT-001: a model that fails to load exits non-zero in every mode | none | running |
-| W35d | #76 | QA 2026-09-26 UX-001, WF-001: Escape in a Values field drops its edit (the narrow sheet's Escape no longer takes it first); a formula the core refuses keeps its draft and message | none | running |
+| W35d | #76 | QA 2026-09-26 UX-001, WF-001: a box refuses a keystroke or paste that could not become a valid text of its kind (a %formula excepted: the core judges it); Escape in a Values field drops its edit (the narrow sheet's Escape no longer takes it first); a formula the core refuses keeps its draft and message | none | running |
 | W35e | #77 | QA 2026-09-26 DESK-001: the web view's start error (code, message) in the fallback warning, the runtime hint only when the runtime is missing | none | running |
 
 ## W0: C/C++ mixed build
