@@ -27,8 +27,8 @@ DEVSCALE ps_scale;
 int array_print(const char *filename, const char *xtitle, const char *ytitle, const char *bottom, int nacross, int ndown, int col0, int row0, int nskip, int ncskip, int maxrow, int maxcol, float **data, double zmin, double zmax, double tlo, double thi, int type)
 {
   float xx,yy;
-  xx=(float)ndown;
-  yy=(float)(nacross/ncskip);
+  xx=static_cast<float>(ndown);
+  yy=static_cast<float>(nacross/ncskip);
   my_plot_file=fopen(filename,"w");
   if(my_plot_file==NULL){
     return -1;
@@ -50,8 +50,8 @@ void  ps_replot(float **z, int col0, int row0, int nskip, int ncskip, int maxrow
    float dy=(ps_scale.ymax-ps_scale.ymin);
    float xhi=.95*dx,yhi=.85*dy;
   float delx,dely;
-  delx=.8*dx/(float)ndown;
-  dely=.8*dy/(float)(nacross/ncskip);
+  delx=.8*dx/static_cast<float>(ndown);
+  dely=.8*dy/static_cast<float>(nacross/ncskip);
   for(i=0;i<nacross/ncskip;i++){
     ib=col0+i*ncskip;
     if(ib>maxcol)return;
@@ -132,13 +132,13 @@ void ps_col_scale(double y0, double x0, double dy, double dx, int n, double zlo,
   int i;
   char s[100];
   
-  float dz=1./(float)(n-1);
+  float dz=1./static_cast<float>(n-1);
    
 for(i=0;i<n;i++){
     if(type==GREYSCALE)
-      ps_bar(x0,y0-(i+1)*dy,dx,dy,1-(float)i*dz,0);
+      ps_bar(x0,y0-(i+1)*dy,dx,dy,1-static_cast<float>(i)*dz,0);
     else
-      ps_rgb_bar(x0,y0-(i+1)*dy,dx,dy,1.-(float)i*dz,0,type);
+      ps_rgb_bar(x0,y0-(i+1)*dy,dx,dy,1.-static_cast<float>(i)*dz,0,type);
   }
   fprintf(my_plot_file,"0 G\n");
   XPP_SPRINTF(s,"%g",zlo);
@@ -203,7 +203,7 @@ void ps_text2(const char *str, float xr, float yr, int icent)  /* ignores for no
   double a=sizex*cos(slant),b=sizey*sin(slant),
   c=-sizex*sin(slant),d=sizey*cos(slant);
   ps_convert(xr,yr,&x,&y);
-  fprintf(my_plot_file,"%d %d m\n",(int)x,(int)y);
+  fprintf(my_plot_file,"%d %d m\n",static_cast<int>(x),static_cast<int>(y));
   fprintf(my_plot_file,"gsave \n %f rotate \n",rot);
   fprintf(my_plot_file,"basefont [%.4f %.4f %.4f %.4f 0 0] makefont setfont\n"
 	,a,b,c,d);
@@ -237,8 +237,8 @@ void ps_rect(float x, float y, float wid, float len)
  ps_convert(x,y,&x1,&y1);
  ps_convert(x+wid,y+len,&x2,&y2);
  fprintf(my_plot_file,"%d %d m \n %d %d l \n %d %d l \n %d %d l \n %d %d l \n S \n",
-	 (int)x1,(int)y1,(int)x2,(int)y1,(int)x2,
-	 (int)y2,(int)x1,(int)y2,(int)x1,(int)y1);
+	 static_cast<int>(x1),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y1),static_cast<int>(x2),
+	 static_cast<int>(y2),static_cast<int>(x1),static_cast<int>(y2),static_cast<int>(x1),static_cast<int>(y1));
 }
 
 void ps_bar(float x, float y, float wid, float len, float fill, int flag)
@@ -248,7 +248,7 @@ void ps_bar(float x, float y, float wid, float len, float fill, int flag)
     ps_convert(x,y,&x1,&y1);
     ps_convert(x+wid,y+len,&x2,&y2);
     fprintf(my_plot_file,"%d %d m \n %d %d l \n %d %d l \n %d %d l \n FS\n",
-	    (int)x1,(int)y1,(int)x2,(int)y1,(int)x2,(int)y2,(int)x1,(int)y2);
+	    static_cast<int>(x1),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y2),static_cast<int>(x1),static_cast<int>(y2));
     
     if(flag){
       fprintf(my_plot_file,"0 G\n");
@@ -271,16 +271,16 @@ void ps_rgb_bar(float x, float y, float wid, float len, float fill, int flag, in
       {
       case 0:
 	fill=1.-fill;
-	b=(float)sqrt((double)(1.0-fill*fill));
-	r=(float)sqrt((double)(fill*(2.0-fill)));
+	b=static_cast<float>(sqrt(static_cast<double>(1.0-fill*fill)));
+	r=static_cast<float>(sqrt(static_cast<double>(fill*(2.0-fill))));
 	break;
       case 1:
        if(fill>.4999)r=0.0;
-	else r=(float)sqrt((float)(1.-4*fill*fill));
-	g=(float)2*sqrt((double)fill*(1.-fill));
+	else r=static_cast<float>(sqrt(static_cast<float>(1.-4*fill*fill)));
+	g=static_cast<float>(2)*sqrt(static_cast<double>(fill)*(1.-fill));
 	
 	if(fill<.5001)b=0.0;
-	else b=(float)sqrt((float)(4*(fill-.5)*(1.5-fill)));
+	else b=static_cast<float>(sqrt(static_cast<float>(4*(fill-.5)*(1.5-fill))));
 	break;
       }
    fprintf(my_plot_file,"%f %f %f RGB\n",r,g,b);
@@ -289,7 +289,7 @@ void ps_rgb_bar(float x, float y, float wid, float len, float fill, int flag, in
 /*   fprintf(my_plot_file,"%f %f m \n %f %f l \n %f %f l \n %f %f l \n FS\n",
 	   x1,y1,x2,y1,x2,y2,x1,y2); */
   fprintf(my_plot_file,"%d %d m \n %d %d l \n %d %d l \n %d %d l \n FS\n",
-	   (int)x1,(int)y1,(int)x2,(int)y1,(int)x2,(int)y2,(int)x1,(int)y2);
+	   static_cast<int>(x1),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y2),static_cast<int>(x1),static_cast<int>(y2));
   if(flag){
     fprintf(my_plot_file,"0 G\n");
     ps_rect(x,y,wid,len);
@@ -306,7 +306,7 @@ void ps_hsb_bar(float x, float y, float wid, float len, float fill, int flag)
   /* fprintf(my_plot_file,"%f %f m \n %f %f l \n %f %f l \n %f %f l \n FS\n",
 	   x1,y1,x2,y1,x2,y2,x1,y2); */
   fprintf(my_plot_file,"%d %d m \n %d %d l \n %d %d l \n %d %d l \n FS\n",
-	   (int)x1,(int)y1,(int)x2,(int)y1,(int)x2,(int)y2,(int)x1,(int)y2);
+	   static_cast<int>(x1),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y2),static_cast<int>(x1),static_cast<int>(y2));
   if(flag){
     fprintf(my_plot_file,"0 G\n");
     ps_rect(x,y,wid,len);
