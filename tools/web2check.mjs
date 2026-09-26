@@ -319,6 +319,10 @@ async function values() {
 
   /* text typed into a box whose focus event the browser never delivered (CI's Linux Chrome, a
      window without the OS focus) stays as typed: only a committed draft is dropped (W35d) */
+  /* after the edit above has settled (its set answered, no run left): the check is about focus,
+     not about racing that commit (macOS CI, once) */
+  await until('!s.values.pending && !s.busy && !s.values.queue.length', 'the edit above settled');
+  await sleep(100);
   await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)});
     el.value = '0.25'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   await sleep(150);
