@@ -1,0 +1,19 @@
+# Known-answer test model for the network "fftcon" special function
+# (W31a: tests/test_stochast_fourier.cpp), which will guard W32a's
+# fftn->pocketfft swap. v0..v3 are static (v_i'=0): the periodic fftcon
+# convolves the fixed v0..v3 with a weight table that is zero except at
+# t=3 (one tap), so k(i) is a scaled circular shift of v(i) that the
+# test checks against a direct sum it computes itself.
+v0'=0
+v1'=0
+v2'=0
+v3'=0
+init v0=1,v1=2,v2=3,v3=4
+tabular wgt % 5 0 4 2*(t==3)
+special k=fftcon(p,4,wgt,v0)
+aux kk0=k(0)
+aux kk1=k(1)
+aux kk2=k(2)
+aux kk3=k(3)
+@ total=1,dt=1
+done
