@@ -171,6 +171,11 @@ difficulty) implements one card in the worktree its brief names:
   core/x.c core/x.cpp`, then "C and C++" below), however small the
   change: a logging call, a rename, one line. No exemption for sweeps.
   Report verify.sh's `C++: N / M` before and after.
+- One operation, one module ("Single source" under Conventions): before
+  writing a helper, look for the module that owns that kind of operation
+  and use or extend it there; never add a local copy. If the owning
+  module is outside your card's files, say so in the report instead of
+  copying it.
 - Gates: the per-task tier above. Iterate with `web2check --only <your
   sections>`; never run the full web2check or tools/asancheck.sh.
 - Keep token use low: read the parts of files you need (grep, `sed -n`
@@ -525,6 +530,17 @@ change. Plain `tools/unsafecheck.sh` prints the per-file table.
   std::chrono).
 
 ## Conventions
+
+- Single source (maintainer, 2026-09-26): every kind of operation lives
+  in one module, so a bug in it is fixed in one place. Memory is
+  xpp_mem, logging xpp_log, text formatting and reading/writing text
+  xpp_io, files and folders xpp_files, dialogs xpp_ui. A new helper
+  goes into the module that owns its kind of operation, never a local
+  copy in the file that needs it (no per-file `put`/`print`/`str`
+  wrappers, no second typedef of a struct, no platform code outside its
+  platform file). Where two copies exist, merging them into the owner is
+  part of any task that touches one. The source checks enforce what they
+  can (alloccheck, stdoutcheck, formatcheck, literalcheck).
 
 - Upstream mergeability is no longer a goal (2026-09-23): refactor for
   single responsibility and clean code, numerics included. Numerical
