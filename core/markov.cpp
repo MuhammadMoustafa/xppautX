@@ -1,3 +1,4 @@
+#include "xpp_batch.h"
 #include "markov.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
@@ -135,7 +136,7 @@ int build_markov(const char *const *ma, const char *name)  /*   FILE *fptr; */
   }
   if(index==-1){
     xpp_log(XPP_LOG_ERROR, " Markov variable |%s| not found \n",name);
-    exit(0);
+    xpp_model_failed();
   }
  /* get number of states  */
  nstates=markov[index].nstates;
@@ -151,7 +152,7 @@ int build_markov(const char *const *ma, const char *name)  /*   FILE *fptr; */
      fputs(line.c_str(),convertf);
    /*nn=strlen(line)+1;*/
    /* if((save_eqn[NLINES]=(char *)malloc(nn))==NULL){
-     plintf("saveeqn-prob\n");exit(0);}
+     plintf("saveeqn-prob\n");xpp_model_failed();}
      strncpy(save_eqn[NLINES++],line,nn); */
    istart=0;
      for(j=0;j<nstates;j++){
@@ -188,7 +189,7 @@ int old_build_markov(FILE *fptr, const char *name)
   }
   if(index==-1){
     xpp_log(XPP_LOG_ERROR, " Markov variable |%s| not found \n",name);
-    exit(0);
+    xpp_model_failed();
   }
  /* get number of states  */
  nstates=markov[index].nstates;
@@ -205,7 +206,7 @@ int old_build_markov(FILE *fptr, const char *name)
     auto line_view = reader.next();
     if(!line_view){
       xpp_log(XPP_LOG_ERROR, " Unexpected end of file building markov variable |%s|\n",name);
-      exit(0);
+      xpp_model_failed();
     }
     std::string line(*line_view);
 
@@ -216,7 +217,7 @@ int old_build_markov(FILE *fptr, const char *name)
      fputc('\n',convertf);
    }
    /*nn=strlen(line)+1;*/
-   /* if((save_eqn[NLINES]=(char *)malloc(nn))==NULL)exit(0);
+   /* if((save_eqn[NLINES]=(char *)malloc(nn))==NULL)xpp_model_failed();
       strncpy(save_eqn[NLINES++],line,nn); */
    istart=0;
      for(j=0;j<nstates;j++){
@@ -262,7 +263,7 @@ void create_markov(int nstates, double *st, int type, const char *name)
   int j=NMarkov;
   if(j>=MAXMARK){
     xpp_log(XPP_LOG_ERROR, "Too many Markov chains...\n");
-    exit(0);
+    xpp_model_failed();
   }
 
   markov[j].nstates=nstates;
@@ -293,7 +294,7 @@ void add_markov_entry(int index, int j, int k, const char *expr)
  /*
   if(add_expr(expr,com,&leng)){ 
     plintf("Illegal expression %s\n",expr);
-    exit(0);
+    xpp_model_failed();
   }
   markov[index].command[l0]=(int *)malloc(sizeof(int)*(leng+2));
   for(i=0;i<leng;i++){
@@ -322,7 +323,7 @@ void compile_all_markov()
 	if(compile_markov(index,j,k)==-1){
 	  xpp_log(XPP_LOG_ERROR, "Bad expression %s[%d][%d] = %s \n",
 		 markov[index].name.c_str(), j,k,markov[index].trans[l0].c_str());
-	  exit(0);
+	  xpp_model_failed();
 	}
       }
     }

@@ -1,3 +1,4 @@
+#include "xpp_batch.h"
 #include "simplenet.h"
 #include "form_ode.h"
 #include "xpp_mem.h"
@@ -280,12 +281,12 @@ void add_vectorizer_name(const char *name, const char *rhs)
 {
   if(n_vector>=MAXVEC){
     xpp_log(XPP_LOG_ERROR, "Too many vectors \n");
-    exit(0);
+    xpp_model_failed();
   }
-  if(name_too_long(name))exit(0);
+  if(name_too_long(name))xpp_model_failed();
   my_vec[n_vector].name=name;
   if(add_vector_name( n_vector,name))
-    exit(0);
+    xpp_model_failed();
   n_vector++;
 
 }
@@ -1092,7 +1093,7 @@ void add_special_name(const char *name, char *rhs)
     if(n_network>=MAXNET){
       return;
     }
-    if(name_too_long(name))exit(0);
+    if(name_too_long(name))xpp_model_failed();
     my_net[n_network].name=name;
     add_net_name(n_network,name);
     n_network++;

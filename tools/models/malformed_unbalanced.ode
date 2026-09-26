@@ -1,0 +1,7 @@
+# does not load: f has an unbalanced parenthesis (modecheck: a model that
+# does not load exits non-zero, QA INPUT-001)
+p a=1
+f(x)=sin(x
+v'=f(v)*a
+init v=1
+done

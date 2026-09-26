@@ -35,6 +35,11 @@ int xpp_batch_main(int argc, char **argv);
    batch mode */
 void xpp_load_model(int argc, char **argv, int batch);
 
+/* the model cannot be loaded (a parse or compile error, already logged):
+   the program exits with status 1. In browser and window mode the page
+   stays open on the log until it is closed (xpp_http's at_exit). */
+[[noreturn]] void xpp_model_failed(void);
+
 #ifdef __cplusplus
 }
 #endif

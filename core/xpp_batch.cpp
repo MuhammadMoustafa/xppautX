@@ -292,6 +292,11 @@ void xpp_load_model(int argc, char **argv, int batch)
     auto_load_dll();
 }
 
+void xpp_model_failed(void)
+{
+    exit(1);
+}
+
 int xpp_batch_main(int argc, char **argv)
 {
     xpp_load_model(argc, argv, 1);

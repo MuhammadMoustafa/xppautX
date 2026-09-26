@@ -356,7 +356,7 @@ int get_eqn(FILE *fptr)
     OldStyle=0;
     ConvertStyle=0;
     flag=do_new_parser(fptr,bob,0);
-    if(flag<0) exit(0);
+    if(flag<0) xpp_model_failed();
   }
   else{
     OldStyle=1;
@@ -384,11 +384,11 @@ int get_eqn(FILE *fptr)
   }
  if((NODE+NMarkov)==0){
    xpp_log(XPP_LOG_ERROR, " Must have at least one equation! \n Probably not an ODE file.\n");
-   exit(0);
+   xpp_model_failed();
  }
   if(BVP_N>IN_VARS ){
     xpp_log(XPP_LOG_ERROR, "Too many boundary conditions\n");
-    exit(0);
+    xpp_model_failed();
   }
   /* plintf("BVP_N=%d NODE=%d NVAR=%d IN_VARS=%d\n",BVP_N,NODE,NVAR,IN_VARS); */
   if(BVP_N<IN_VARS ){
@@ -407,12 +407,12 @@ int get_eqn(FILE *fptr)
   if(NODE!=NEQ+FIX_VAR-NMarkov)
     {
       xpp_log(XPP_LOG_ERROR, " Too many/few equations\n");
-      exit(0);
+      xpp_model_failed();
     }
   if(IN_VARS>NEQ)
     {
       xpp_log(XPP_LOG_ERROR, " Too many variables\n");
-	exit(0);
+	xpp_model_failed();
     }
   NODE=IN_VARS;
   
@@ -450,7 +450,7 @@ int get_eqn(FILE *fptr)
     compile_all_markov();
   if(compile_flags()==1){
     xpp_log(XPP_LOG_ERROR, " Error in compiling a flag \n");
-    exit(0);
+    xpp_model_failed();
   }
   /*  add auxiliary variables   */
   for(i=NODE+NMarkov;i<NEQ;i++)add_var(uvar_names[i],0.0); 
@@ -514,7 +514,7 @@ int compiler(char *bob, FILE *fptr)
 	    put(convertf,"{}  ",name);
 	  if(add_con(name,value)){
 	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
-	    exit(0);
+	    xpp_model_failed();
 	  }
 	  add_wiener(NCON-1);
 	 
@@ -538,7 +538,7 @@ int compiler(char *bob, FILE *fptr)
 	  xpp_log(XPP_LOG_DEBUG, "|%s|=%f ",name,value);
 	  if(add_con(name,value)){
 	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
-	    exit(0);
+	    xpp_model_failed();
 	  }
 
 	}
@@ -558,7 +558,7 @@ int compiler(char *bob, FILE *fptr)
       xpp_log(XPP_LOG_DEBUG, " events=%s \n",formula);
       if(add_global(condition,sign,formula)){
 	xpp_log(XPP_LOG_WARN, "Bad global !! \n");
-	exit(0);
+	xpp_model_failed();
       }
       if(ConvertStyle){
 	put(convertf,"global {} {{{}}} {}\n",sign,condition,formula);
@@ -577,7 +577,7 @@ int compiler(char *bob, FILE *fptr)
 	  take_apart(tok->c_str(),&value,name);
 	  if(add_con(name,value)){
 	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
-	    exit(0);
+	    xpp_model_failed();
 	  }
 	  default_val[NUPAR]=value;
 	  XPP_FORMAT_TO_BUF(upar_names[NUPAR++],"{}",name);
@@ -608,7 +608,7 @@ int compiler(char *bob, FILE *fptr)
       nstates=atoi(my_string);
       if(name_too_long(name)||add_var(name,value)){
 	xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
-	exit(0);
+	xpp_model_failed();
       }
       XPP_FORMAT_TO_BUF(uvar_names[IN_VARS+NMarkov],"{}",name);
       last_ic[IN_VARS+NMarkov]=value;
@@ -634,7 +634,7 @@ int compiler(char *bob, FILE *fptr)
     vrs:
       if(NMarkov>0&&OldStyle) {
 	xpp_log(XPP_LOG_WARN, " Error at line %d \n Must declare Markov variables after fixed and regular variables\n",NLINES);
-	exit(0);
+	xpp_model_failed();
       }
       advance_past_first_word(&ptr);
       for(std::optional<std::string> tok;(tok=get_next2(&ptr));)
@@ -642,12 +642,12 @@ int compiler(char *bob, FILE *fptr)
 	  if((IN_VARS>NEQ)||(IN_VARS==MAXODE))
 	    {
 	      xpp_log(XPP_LOG_ERROR, " too many variables at line %d\n",NLINES);
-	      exit(0);
+	      xpp_model_failed();
 	    }
 	  take_apart(tok->c_str(),&value,name);
 	  if(name_too_long(name)||add_var(name,value)){
 	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
-	    exit(0);
+	    xpp_model_failed();
 	  }
 	  if(iflg)
 	    {
@@ -701,14 +701,14 @@ int compiler(char *bob, FILE *fptr)
       xpp_log(XPP_LOG_DEBUG, "Kernel mu=%f %s = %s \n",value,name,formula);
       if(add_kernel(name,value,formula)){
 	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",NLINES);
-	exit(0);
+	xpp_model_failed();
       }
       break;
     case 't': 
       if(NTable>=MAX_TAB)
 	{
 	  if(ERROUT)xpp_log(XPP_LOG_WARN, "too many tables !!\n");
-	  exit(0);
+	  xpp_model_failed();
 	}
       my_string=get_next(" ");
       XPP_FORMAT_TO_BUF(name,"{}",my_string);
@@ -729,7 +729,7 @@ int compiler(char *bob, FILE *fptr)
 
 	if(add_form_table(NTable,nn,xlo,xhi,formula)){
 	  xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
-	  exit(0);
+	  xpp_model_failed();
 	}
 
 	if(ConvertStyle)
@@ -749,7 +749,7 @@ int compiler(char *bob, FILE *fptr)
 	  xpp_log(XPP_LOG_INFO, " %s = %s \n",name,formula);
 	  if(add_2d_table(name,formula)){
 	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
-	    exit(0);
+	    xpp_model_failed();
 	  }
 	}
 	else
@@ -759,7 +759,7 @@ int compiler(char *bob, FILE *fptr)
             add_table_name(NTable,name);
 	    if(add_file_table(NTable,formula)){
 	      xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
-	      exit(0);
+	      xpp_model_failed();
 	    }
 	    if(ConvertStyle)
 	      put(convertf,"table {} {}\n",
@@ -787,7 +787,7 @@ int compiler(char *bob, FILE *fptr)
       }
       if(add_ufun(name,formula,narg)){
 	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",NLINES);
-	exit(0);
+	xpp_model_failed();
       }
 
       xpp_log(XPP_LOG_INFO, "user %s = %s\n",name,formula);
@@ -842,7 +842,7 @@ int compiler(char *bob, FILE *fptr)
       xpp_log(XPP_LOG_INFO, "RHS(%d)=%s\n",NODE,formula);
       if(add_expr(formula,my_ode[NODE],&leng[NODE])){
 	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",NLINES);
-	exit(0);
+	xpp_model_failed();
       }
       /* fpr_command(my_ode[NODE]); */
       NODE++;
@@ -852,7 +852,7 @@ int compiler(char *bob, FILE *fptr)
       xpp_log(XPP_LOG_INFO, "Auxiliary variables:\n");
       while((my_string=get_next(" ,\n"))!=NULL)
 	{
-	  if(name_too_long(my_string))exit(0);
+	  if(name_too_long(my_string))xpp_model_failed();
 	  XPP_FORMAT_TO_BUF(aux_names[Naux],"{}",my_string);   
 	  xpp_log(XPP_LOG_DEBUG, "|%s| ",aux_names[Naux]);
 	  Naux++;
@@ -974,7 +974,7 @@ void find_ker(char *string, int *alt)   /* this extracts the integral operators 
     if(ch=='}'){
       std::string name=xpp::format("K##{}",NKernel);
       xpp::log(XPP_LOG_DEBUG, "Kernel mu={:f} {} = {} \n",mu,name,form);
-      if(add_kernel(name.c_str(),mu,form.c_str()))exit(0);
+      if(add_kernel(name.c_str(),mu,form.c_str()))xpp_model_failed();
       newstr+=name;
       mu=0.0;
       form.clear();
@@ -1428,7 +1428,7 @@ static int parse_model(FILE *fp, const char *first, int nnn)
       i2=find_char(v.rhs," ",i0,&i1);
       if(i2!=0){
 	xpp_log(XPP_LOG_WARN, " Illegal definition of table %s \n",v.rhs);
-	exit(0);
+	xpp_model_failed();
       }
       strpiece(v.lhs,v.rhs,i0,i1-1);
       big=v.rhs;
@@ -1584,7 +1584,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
     }
     if(v->type==MAP||v->type==ODE||v->type==VEQ){
       convert(v->lhs,tmp);
-      if(name_too_long(tmp))exit(0);
+      if(name_too_long(tmp))xpp_model_failed();
       if(find_the_name(vnames,nvar,tmp)<0){
 	XPP_FORMAT_TO_BUF(vnames[nvar],"{}",tmp);
 	nvar++;
@@ -1592,7 +1592,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
       else
 	{
 	  xpp_log(XPP_LOG_ERROR, " %s is a duplicate name \n",tmp);
-	  exit(0);
+	  xpp_model_failed();
 	}
       
       /*  plintf("%d:%s = %s \n",nvar-1,vnames[nvar-1],v->rhs);   */
@@ -1600,7 +1600,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 
     if(v->type==MARKOV_VAR){
       convert(v->lhs,tmp);
-      if(name_too_long(tmp))exit(0);
+      if(name_too_long(tmp))xpp_model_failed();
       if(find_the_name(mnames,nmark,tmp)<0){
 	XPP_FORMAT_TO_BUF(mnames[nmark],"{}",tmp);
 	nmark++;
@@ -1621,25 +1621,25 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	}
     if(v->type==SOL_VAR){
        if(add_svar(v->lhs,v->rhs)==1)
-	 exit(0);
+	 xpp_model_failed();
     }
        
     if(v->type==AUX_VAR){
       convert(v->lhs,tmp);
-      if(name_too_long(tmp))exit(0);
+      if(name_too_long(tmp))xpp_model_failed();
       XPP_FORMAT_TO_BUF(anames[naux],"{}",tmp);
       naux++;
       xpp_log(XPP_LOG_INFO, "%s = %s \n",anames[naux-1],v->rhs); 
     }
     if(v->type==DERIVE_PAR){
       if(add_derived(v->lhs,v->rhs)==1)
-	exit(0);
+	xpp_model_failed();
     }
     if(v->type==FIXED){
       fixinfo[nfix].name=xpp_strdup(v->lhs);
       fixinfo[nfix].value=xpp_strdup(v->rhs);
       convert(v->lhs,tmp);
-      if(name_too_long(tmp))exit(0);
+      if(name_too_long(tmp))xpp_model_failed();
       XPP_FORMAT_TO_BUF(fnames[nfix],"{}",tmp);
       nfix++;
      xpp_log(XPP_LOG_INFO, "%s = %s \n",fnames[nfix-1],v->rhs); 
@@ -1649,7 +1649,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
       convert(v->lhs,tmp);
       if(add_table_name(ntab,tmp)==1){
 	xpp_log(XPP_LOG_ERROR, " %s is duplicate name \n", tmp);
-	exit(0);
+	xpp_model_failed();
       }
       xpp_log(XPP_LOG_DEBUG, "added name %d\n",ntab);
       ntab++;
@@ -1659,7 +1659,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
       convert(v->lhs,tmp);
       if(add_ufun_name(tmp,nufun,v->nargs)==1){
 	xpp_log(XPP_LOG_ERROR, "Duplicate name or too many functions for %s \n",tmp);
-	exit(0);
+	xpp_model_failed();
       }
     
       nufun++;
@@ -1676,7 +1676,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
  for(i=0;i<nvar;i++){
       if(add_var(vnames[i],0.0)){
 	xpp_log(XPP_LOG_ERROR, " Duplicate name %s \n",vnames[i]);
-	exit(0);
+	xpp_model_failed();
       }
       XPP_FORMAT_TO_BUF(uvar_names[i],"{}",vnames[i]);
       last_ic[i]=0.0;
@@ -1685,13 +1685,13 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
  for(i=0;i<nfix;i++){
    if(add_var(fnames[i],0.0)){
 	xpp_log(XPP_LOG_ERROR, " Duplicate name %s \n",fnames[i]);
-	exit(0);
+	xpp_model_failed();
       }
  }
  for(i=0;i<nmark;i++){
    if(add_var(mnames[i],0.0)){
 	xpp_log(XPP_LOG_ERROR, " Duplicate name %s \n",mnames[i]);
-	exit(0);
+	xpp_model_failed();
       }
    XPP_FORMAT_TO_BUF(uvar_names[i+nvar],"{}",mnames[i]);
    last_ic[i+nvar]=0.0;
@@ -1758,7 +1758,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	       {
 		 xpp_log(XPP_LOG_ERROR, "In initial value statement no variable %s \n",
 			tmp);
-		 exit(0);
+		 xpp_model_failed();
 	       }
 	   }
 	 } /* end take apart */
@@ -1799,7 +1799,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	   {
 	     xpp_log(XPP_LOG_ERROR, "In initial value statement no variable %s \n",
 		    tmp);
-	     exit(0);
+	     xpp_model_failed();
 	   }
        }
      } /* end IC stuff  */
@@ -1817,7 +1817,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        find_ker(v->rhs,&alt);
        if(add_expr(v->rhs,my_ode[nvar],&leng[nvar])){
 	 xpp_log(XPP_LOG_ERROR, "ERROR compiling %s' \n",v->lhs);
-	 exit(0);
+	 xpp_model_failed();
        }
        /* fpr_command(my_ode[nvar]); */
        if(v->type==MAP){
@@ -1835,14 +1835,14 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        my_ode[nfix+IN_VARS]=static_cast<int *>(xpp_malloc(MAXEXPLEN*sizeof(int)));
        if(add_expr(v->rhs,my_ode[nfix+IN_VARS],&leng[IN_VARS+nfix])!=0){
 	 xpp_log(XPP_LOG_ERROR, " Error allocating or compiling %s\n",v->lhs);
-	 exit(0);
+	 xpp_model_failed();
        }
        nfix++;
        xpp_log(XPP_LOG_INFO, "%s=%s\n",v->lhs,v->rhs);
        break;
      case DAE:
        if(add_aeqn(v->rhs)==1)
-	 exit(0);
+	 xpp_model_failed();
        xpp_log(XPP_LOG_INFO, " DAE eqn: %s=0 \n",v->rhs);
        break;
 	 
@@ -1853,7 +1853,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        my_ode[in2]=static_cast<int *>(xpp_malloc(MAXEXPLEN*sizeof(int)));
        if(add_expr(v->rhs,my_ode[in2],&leng[in2])){
 	 xpp_log(XPP_LOG_ERROR, "ERROR compiling %s \n",v->lhs);
-	 exit(0);
+	 xpp_model_failed();
        }
        naux++;
        xpp_log(XPP_LOG_INFO, "%s=%s\n",v->lhs,v->rhs);
@@ -1861,14 +1861,14 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
      case VECTOR:
        if(add_vectorizer(v->lhs,v->rhs)==0){
 	 xpp_log(XPP_LOG_ERROR, " Illegal vector  %s \n",v->rhs);
-	 exit(0);
+	 xpp_model_failed();
        }
 
        break;
      case SPEC_FUN:
        if(add_spec_fun(v->lhs,v->rhs)==0){
 	 xpp_log(XPP_LOG_ERROR, " Illegal special function %s \n",v->rhs);
-	 exit(0);
+	 xpp_model_failed();
        }
        break;
      case MARKOV_VAR:
@@ -1879,7 +1879,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
      case  FUNCTION:
        if(add_ufun_new(nufun,v->nargs,v->rhs,v->args)!=0){
 	 xpp_log(XPP_LOG_ERROR, " Function %s messed up \n",v->lhs);
-	 exit(0);
+	 xpp_model_failed();
        }
        nufun++;
        xpp_log(XPP_LOG_INFO, "%s(%s",v->lhs,v->args[0]);
@@ -1909,7 +1909,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	 /* plintf(" ntab = %d\n",ntab); */
 	 if(add_form_table(ntab,nn,xlo,xhi,formula)){
 	   xpp_log(XPP_LOG_ERROR, "ERROR computing %s\n",v->lhs);
-	   exit(0);
+	   xpp_model_failed();
 	 }
 	 ntab++;
        }
@@ -1921,7 +1921,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	   xpp_log(XPP_LOG_INFO, " %s = %s \n",name,formula);
 	   if(add_2d_table(name,formula)){
 	     xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
-	     exit(0);
+	     xpp_model_failed();
 	   }
 	 }
 	 else
@@ -1931,7 +1931,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	     
 	     if(add_file_table(ntab,formula)){
 	       xpp_log(XPP_LOG_ERROR, "ERROR computing %s",v->lhs);
-	       exit(0);
+	       xpp_model_failed();
 	     }
 	     ntab++;
 	   }
@@ -1939,9 +1939,9 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
      }
    }
  if(compile_derived()==1)
-   exit(0);
+   xpp_model_failed();
  if(compile_svars()==1)
-   exit(0);
+   xpp_model_failed();
  evaluate_derived();
  do_export_list();  
  xpp_log(XPP_LOG_INFO, " All formulas are valid!!\n");
@@ -2523,7 +2523,7 @@ void subsk(const char *big, std::string &newstr, int k, int flag)
   /* the subscript's text runs to its ']' */
   auto unterminated=[big](){
     xpp_log(XPP_LOG_ERROR, "Error in %s The expression does not terminate. Perhaps a ] is missing.\n",big);
-    exit(0);
+    xpp_model_failed();
   };
   while(i<n){
     ch=big[i];
@@ -2548,7 +2548,7 @@ void subsk(const char *big, std::string &newstr, int k, int flag)
     else if(ch=='['&&chp=='j'){
       if(flag==0){
 	xpp_log(XPP_LOG_WARN, " Illegal use of [j] at %s \n",big);
-	exit(0);
+	xpp_model_failed();
       }
       num.clear();
       isign=1;

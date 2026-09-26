@@ -1,3 +1,4 @@
+#include "xpp_batch.h"
 #include "extra.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
@@ -303,7 +304,7 @@ void parse_inout(const char *l,int flag)
         index=get_var_index(name.c_str());
         if(index<0){
           xpp::log(XPP_LOG_ERROR, "Cant export {} - non existent!\n",name);
-          exit(0);
+          xpp_model_failed();
         }
         kind=VAR;
       }
@@ -320,7 +321,7 @@ void parse_inout(const char *l,int flag)
     default:
       if(name.size()>=XPP_NAME_MAX){
         xpp::log(XPP_LOG_WARN, "Cant export {}... - name too long!\n",name);
-        exit(0);
+        xpp_model_failed();
       }
       name+=c;
     }

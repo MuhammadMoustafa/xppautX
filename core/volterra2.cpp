@@ -1,3 +1,4 @@
+#include "xpp_batch.h"
 #include "volterra2.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
@@ -77,7 +78,7 @@ void alloc_v_memory()  /* allocate stuff for volterra equations */
      kernel[i].k_n=0.0;
      if(add_expr(kernel[i].expr,formula,&len)){
     xpp_log(XPP_LOG_ERROR, "Illegal kernel %s=%s\n",kernel[i].name,kernel[i].expr);
-    exit(0); /* fatal error ... */
+    xpp_model_failed(); /* fatal error ... */
   }
      kernel[i].formula=static_cast<int *>(xpp_malloc((len+2)*sizeof(int)));
      for(j=0;j<len;j++){
@@ -88,7 +89,7 @@ void alloc_v_memory()  /* allocate stuff for volterra equations */
        if(add_expr(kernel[i].kerexpr,formula,&len)){
 	 xpp_log(XPP_LOG_ERROR, "Illegal convolution %s=%s\n",
 		kernel[i].name,kernel[i].kerexpr);
-	 exit(0); /* fatal error ... */
+	 xpp_model_failed(); /* fatal error ... */
        }
        kernel[i].kerform=static_cast<int *>(xpp_malloc((len+2)*sizeof(int)));
        for(j=0;j<len;j++){

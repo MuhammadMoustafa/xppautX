@@ -132,5 +132,24 @@ if [ $linux_window -eq 1 ]; then
   ENVS=
 fi
 
+# a model that does not load exits non-zero (QA INPUT-001): --server and
+# -silent at once (browser and window mode keep the page open on the log)
+cp tools/models/malformed_unbalanced.ode "$tmp/"
+for mode in --server -silent; do
+  ( cd "$tmp" && exec "$BIN" $mode malformed_unbalanced.ode < /dev/null > bad.out 2>&1 ) &
+  bpid=$!
+  ( sleep 20; kill $bpid 2>/dev/null ) &
+  watchdog=$!
+  wait $bpid
+  status=$?
+  kill $watchdog 2>/dev/null
+  wait $watchdog 2>/dev/null
+  if [ $status -ne 0 ] && [ $status -lt 128 ] && grep -q 'ERROR' "$tmp/bad.out"; then
+    pass "$mode: a model that does not load exits with status $status"
+  else
+    bad "$mode: a model that does not load exits with status $status: $(head -c 300 "$tmp/bad.out")"
+  fi
+done
+
 [ $fail -eq 0 ] && echo "modecheck: all passed"
 exit $fail
