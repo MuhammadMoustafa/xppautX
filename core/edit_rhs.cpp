@@ -1,20 +1,15 @@
-
 #include "edit_rhs.h"
 #include "xpp_mem.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "extra.h"
 #include "parserslow.h"
+#include "browse.h"
 
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
-#ifndef WCTYPE
-#include <ctype.h>
-#else
-#include <wctype.h>
-#endif
 
 #include "xpplim.h"
 #include "struct.h"
@@ -22,12 +17,10 @@
 #include "load_eqn.h"
 #include "xpp_io.h"
 
-
-
-
-
-char *get_next(),*get_first();
-
+#include <algorithm>
+#include <array>
+#include <string>
+#include <vector>
 
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern char *ode_names[MAXODE];
@@ -37,8 +30,6 @@ extern int *my_ode[];
 extern int NUPAR;
 extern double last_ic[MAXODE];
 
-/*extern char upar_names[MAXPAR][XPP_NAME_MAX+1],this_file[100];*/
-
 extern char upar_names[MAXPAR][XPP_NAME_MAX+1],this_file[XPP_MAX_NAME];
 extern int EqType[MAXODE];
 
@@ -46,204 +37,163 @@ extern char *ufun_def[MAXUFUN];
 extern char ufun_names[MAXUFUN][XPP_NAME_MAX+1];
 extern int narg_fun[MAXUFUN], *ufun[MAXUFUN];
 
-
-
 extern UFUN_ARG ufun_arg[MAXUFUN];
 extern BC_STRUCT my_bc[MAXODE];
 
 extern int NFUN;
 
+namespace {
 
+/* do_edit_box's fields: the names it shows and the values it edits in
+   place (MAX_LEN_EBOX bytes each, what the front ends write at most) */
+class EditBox {
+public:
+  void add(std::string name, const char *value)
+  {
+    names_.push_back(std::move(name));
+    std::array<char, MAX_LEN_EBOX> v{};
+    std::string_view text(value ? value : "");
+    text.copy(v.data(), std::min(text.size(), v.size() - 1));
+    values_.push_back(v);
+  }
+  /* 0 on cancel */
+  int show(const char *title)
+  {
+    std::vector<const char *> names;
+    std::vector<char *> values;
+    for (size_t i = 0; i < names_.size(); i++) {
+      names.push_back(names_[i].c_str());
+      values.push_back(values_[i].data());
+    }
+    return do_edit_box(static_cast<int>(names_.size()), title, names.data(), values.data());
+  }
+  const std::string &name(int i) const { return names_[i]; }
+  const char *value(int i) const { return values_[i].data(); }
+private:
+  std::vector<std::string> names_;
+  std::vector<std::array<char, MAX_LEN_EBOX>> values_;
+};
 
+/* the command add_expr compiles an expression into */
+using Command = std::array<int, 200>;
 
+template <class... Args>
+void put(FILE *fp, std::format_string<Args...> fmt, Args &&...args)
+{
+  std::string s = xpp::format(fmt, std::forward<Args>(args)...);
+  std::fwrite(s.data(), 1, s.size(), fp);
+}
 
-
-  
-
-	
+} // namespace
 
 void edit_rhs()
 {
- char **names,**values;
- int **command;
- int i,status,err,len,i0,j;
  int n=NEQ;
- char fstr[20],msg[200];
  if(NEQ>NEQMAXFOREDIT) return;
- names=(char **)xpp_malloc(n*sizeof(char*));
- values=(char **)xpp_malloc(n*sizeof(char*));
- command=(int **)xpp_malloc(n*sizeof(int*));
- for(i=0;i<n;i++){
-   values[i]=(char *)xpp_malloc(MAX_LEN_EBOX*sizeof(char));
-   names[i]=(char *)xpp_malloc(MAX_LEN_EBOX+3*XPP_NAME_MAX);
-   command[i]=(int *)xpp_malloc(200*sizeof(int));
-   if(i<NODE &&METHOD>0)XPP_STRCPY(fstr,"d%s/dT");
-   if(i<NODE &&METHOD==0)XPP_STRCPY(fstr,"%s(n+1)");
-   if(i<NODE &&EqType[i]==1)XPP_STRCPY(fstr,"%s(T)");
-   if(i>=NODE)XPP_STRCPY(fstr,"%s");
-   /* names[i]/values[i] are pointers, allocated MAX_LEN_EBOX+3*
-      XPP_NAME_MAX and MAX_LEN_EBOX bytes respectively, just above. */
-   xpp_snprintf(names[i],MAX_LEN_EBOX+3*XPP_NAME_MAX,fstr,uvar_names[i]);
-   xpp_strlcpy(values[i],ode_names[i],MAX_LEN_EBOX);
+ EditBox box;
+ for(int i=0;i<n;i++){
+   std::string name;
+   if(i>=NODE)name=uvar_names[i];
+   else if(EqType[i]==1)name=xpp::format("{}(T)",uvar_names[i]);
+   else if(METHOD==0)name=xpp::format("{}(n+1)",uvar_names[i]);
+   else name=xpp::format("d{}/dT",uvar_names[i]);
+   box.add(std::move(name),ode_names[i]);
  }
- status=do_edit_box(n,"Right Hand Sides",names,values);
- if(status!=0){
-  
-   for(i=0;i<n;i++){
-     if(i<NODE||(i>=(NODE+NMarkov))){
-      
-       err=add_expr(values[i],command[i],&len);
-       if(err==1)
-	 {
-	   snprintf(msg,sizeof(msg),"Bad rhs:%s=%s",names[i],values[i]);
-	   err_msg(msg);
-	 }
-       else 
-	 {
-	   xpp_free(ode_names[i]);
-	   ode_names[i]=(char *)xpp_malloc(strlen(values[i])+5);
-	   /* ode_names[i] is a pointer, allocated strlen(values[i])+5
-	      bytes just above. */
-	   xpp_strlcpy(ode_names[i],values[i],strlen(values[i])+5);
-	   i0=i;
-	   if(i>=NODE)i0=i0+FIX_VAR-NMarkov;
-         
-	   for(j=0;j<len;j++)
-	     my_ode[i0][j]=command[i][j];
-	 }
+ if(box.show("Right Hand Sides")==0)return;
+ for(int i=0;i<n;i++){
+   if(i<NODE||(i>=(NODE+NMarkov))){
+     Command command;
+     int len;
+     if(add_expr(box.value(i),command.data(),&len)==1)
+       err_msg(xpp::format("Bad rhs:{}={}",box.name(i),box.value(i)).c_str());
+     else {
+       /* ode_names is the parser's table of xpp_malloc'd formulas */
+       xpp_free(ode_names[i]);
+       ode_names[i]=xpp_strdup(box.value(i));
+       int i0=i;
+       if(i>=NODE)i0=i0+FIX_VAR-NMarkov;
+       for(int j=0;j<len;j++)
+         my_ode[i0][j]=command[j];
      }
    }
  }
-     
-
- for(i=0;i<n;i++){
-   xpp_free(values[i]);
-   xpp_free(names[i]);
-   xpp_free(command[i]);
- }
- xpp_free(values);
- xpp_free(names);
- xpp_free(command);
 }
 
 void edit_functions()
 {
- char **names,**values;
- int **command;
- int i,status,err,len,j;
  int n=NFUN;
- char msg[200];
  if(n==0||n>NEQMAXFOREDIT)return;
- names=(char **)xpp_malloc(n*sizeof(char*));
- values=(char **)xpp_malloc(n*sizeof(char*));
- command=(int **)xpp_malloc(n*sizeof(int*));
- for(i=0;i<n;i++){
-   values[i]=(char *)xpp_malloc(MAX_LEN_EBOX*sizeof(char));
-   names[i]=(char *)xpp_malloc(MAX_LEN_EBOX+3*XPP_NAME_MAX);
-   command[i]=(int *)xpp_malloc(200*sizeof(int));
-   /* names[i]/values[i] are pointers, allocated MAX_LEN_EBOX+3*
-      XPP_NAME_MAX and MAX_LEN_EBOX bytes respectively, just above
-      (same as edit_rhs). */
-   xpp_snprintf(values[i],MAX_LEN_EBOX,"%s",ufun_def[i]);
-
-   if(narg_fun[i]==0){
-     xpp_snprintf(names[i],MAX_LEN_EBOX+3*XPP_NAME_MAX,"%s()",ufun_names[i]);
-   }
-   if(narg_fun[i]==1){
-     xpp_snprintf(names[i],MAX_LEN_EBOX+3*XPP_NAME_MAX,"%s(%s)",ufun_names[i],
-			     ufun_arg[i].args[0]);
-   }
-   if(narg_fun[i]>1)xpp_snprintf(names[i],MAX_LEN_EBOX+3*XPP_NAME_MAX,"%s(%s,...,%s)",ufun_names[i],
-			    ufun_arg[i].args[0],
-			    ufun_arg[i].args[narg_fun[i]-1]);
-
-			   
+ EditBox box;
+ for(int i=0;i<n;i++){
+   std::string name;
+   if(narg_fun[i]==0)
+     name=xpp::format("{}()",ufun_names[i]);
+   else if(narg_fun[i]==1)
+     name=xpp::format("{}({})",ufun_names[i],ufun_arg[i].args[0]);
+   else
+     name=xpp::format("{}({},...,{})",ufun_names[i],ufun_arg[i].args[0],
+                      ufun_arg[i].args[narg_fun[i]-1]);
+   box.add(std::move(name),ufun_def[i]);
  }
-
- status=do_edit_box(n,"Functions",names,values);
- if(status!=0){
-  
-   for(i=0;i<n;i++){
-     set_new_arg_names(narg_fun[i],ufun_arg[i].args);
-     err=add_expr(values[i],command[i],&len);
-     set_old_arg_names(narg_fun[i]);
-     if(err==1){
-       snprintf(msg,sizeof(msg),"Bad func.:%s=%s",names[i],values[i]);
-       err_msg(msg);
-     }
-     else {
-       /* ufun_def[i] is a pointer, allocated MAXEXPLEN (1024,
-          newpars.h -- not included here) bytes, parserslow2.c's every
-          allocation site. */
-       xpp_strlcpy(ufun_def[i],values[i],1024);
-       for(j=0;j<=len;j++){
-         /* plintf("f(%d)[%d]=%d %d \n",i,j,command[i][j],ufun[i][j]); */
-         ufun[i][j]=command[i][j];
-	 
-       }
-              fixup_endfun(ufun[i],len,narg_fun[i]);
-
-     }
-
+ if(box.show("Functions")==0)return;
+ for(int i=0;i<n;i++){
+   Command command;
+   int len;
+   set_new_arg_names(narg_fun[i],ufun_arg[i].args);
+   int err=add_expr(box.value(i),command.data(),&len);
+   set_old_arg_names(narg_fun[i]);
+   if(err==1)
+     err_msg(xpp::format("Bad func.:{}={}",box.name(i),box.value(i)).c_str());
+   else {
+     /* ufun_def[i] is the parser's MAXEXPLEN (1024, newpars.h -- not
+        included here) bytes, parserslow2.cpp's every allocation site */
+     xpp_strlcpy(ufun_def[i],box.value(i),1024);
+     for(int j=0;j<=len;j++)
+       ufun[i][j]=command[j];
+     fixup_endfun(ufun[i],len,narg_fun[i]);
    }
  }
- 
-
- for(i=0;i<n;i++){
-   xpp_free(values[i]);
-   xpp_free(names[i]);
-   xpp_free(command[i]);
- }
- xpp_free(values);
- xpp_free(names);
- xpp_free(command);
-
 }
 
 int save_as()
 {
-  int i,ok;
-  FILE *fp;
-  double z;
-  char filename[256];
-  snprintf(filename,sizeof(filename),"%.255s",this_file);
+  std::array<char, 256> filename{};
+  std::string_view file(this_file);
+  file.copy(filename.data(), std::min(file.size(), filename.size() - 1));
   ping();
-  /* if(new_string("Filename: ",filename)==0)return; */
-  if(!file_selector("Save As",filename,"*.ode"))return(-1);
-  open_write_file(&fp,filename,&ok); 
-   if(!ok)return(-1);
-  fp=fopen(filename,"w");
-  if(fp==NULL)return(0);
-  fprintf(fp,"%d",NEQ);
-  for(i=0;i<NODE;i++){
-    if(i%5==0)fprintf(fp,"\nvariable ");
-    fprintf(fp," %s=%.16g ",uvar_names[i],last_ic[i]);
+  if(!file_selector("Save As",filename.data(),"*.ode"))return(-1);
+  if(!may_write_file(filename.data()))return(-1);
+  xpp::Writer w(filename.data());
+  if(!w){
+    err_msg("Cannot open file");
+    return(-1);
   }
-  fprintf(fp,"\n");
-  for(i=NODE;i<NEQ;i++){
-    if((i-NODE)%5==0)fprintf(fp,"\naux ");
-    fprintf(fp," %s ",uvar_names[i]);
+  FILE *fp=w.file();
+  double z;
+  put(fp,"{}",NEQ);
+  for(int i=0;i<NODE;i++){
+    if(i%5==0)put(fp,"\nvariable ");
+    put(fp," {}={:.16g} ",uvar_names[i],last_ic[i]);
   }
-  fprintf(fp,"\n");
-  for(i=0;i<NUPAR;i++){
-    if(i%5==0)fprintf(fp,"\nparam  ");
+  put(fp,"\n");
+  for(int i=NODE;i<NEQ;i++){
+    if((i-NODE)%5==0)put(fp,"\naux ");
+    put(fp," {} ",uvar_names[i]);
+  }
+  put(fp,"\n");
+  for(int i=0;i<NUPAR;i++){
+    if(i%5==0)put(fp,"\nparam  ");
     get_val(upar_names[i],&z);
-    fprintf(fp," %s=%.16g   ",upar_names[i],z);
+    put(fp," {}={:.16g}   ",upar_names[i],z);
   }
-  fprintf(fp,"\n");
-  for(i=0;i<NFUN;i++){
-    fprintf(fp, "user %s %d %s\n",ufun_names[i],narg_fun[i],ufun_def[i]);
-  }
-  for(i=0;i<NODE;i++){
-    if(EqType[i]==1)fprintf(fp,"i ");
-    else fprintf(fp,"o ");
-    fprintf(fp,"%s\n",ode_names[i]);
-  }
-  for(i=NODE;i<NEQ;i++)
-    fprintf(fp,"o %s\n",ode_names[i]);
-  for(i=0;i<NODE;i++)fprintf(fp,"b %s \n",my_bc[i].string);
-  fprintf(fp,"done\n");
-  fclose(fp);
-  
-  return(1);
+  put(fp,"\n");
+  for(int i=0;i<NFUN;i++)
+    put(fp,"user {} {} {}\n",ufun_names[i],narg_fun[i],ufun_def[i]);
+  for(int i=0;i<NODE;i++)
+    put(fp,"{} {}\n",EqType[i]==1?"i":"o",ode_names[i]);
+  for(int i=NODE;i<NEQ;i++)
+    put(fp,"o {}\n",ode_names[i]);
+  for(int i=0;i<NODE;i++)put(fp,"b {} \n",my_bc[i].string);
+  put(fp,"done\n");
+  return w.commit()?1:0;
 }

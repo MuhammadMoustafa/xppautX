@@ -257,14 +257,10 @@ void xpp_reset_options(void)
    the ODE file, numerics set-up. batch forces XPPBatch. */
 void xpp_load_model(int argc, char **argv, int batch)
 {
-    char myfile[XPP_MAX_NAME];
-    OptionsSet *tempNS;
-
     xpp_reset_options();
-    get_directory(myfile);
     program.interactive = 0;
-    XPP_SPRINTF(batch_options.out_file, "output.dat");
-    XPP_SPRINTF(plot_export.format, "ps");
+    XPP_FORMAT_TO_BUF(batch_options.out_file, "output.dat");
+    XPP_FORMAT_TO_BUF(plot_export.format, "ps");
     log_settings.file = stdout;
     check_for_quiet(argc, argv);
     do_comline(argc, argv);
@@ -272,10 +268,8 @@ void xpp_load_model(int argc, char **argv, int batch)
 
     load_eqn();
 
-    tempNS = (OptionsSet *)xpp_malloc(sizeof(OptionsSet));
-    *tempNS = notAlreadySet;
-    set_internopts(tempNS);
-    xpp_free(tempNS);
+    OptionsSet mask = notAlreadySet;
+    set_internopts(&mask);
 
     init_alloc_info();
     do_vis_env();
@@ -287,8 +281,8 @@ void xpp_load_model(int argc, char **argv, int batch)
     init_auto_win();
 #endif
     if (disc(this_file)) METHOD = 0;
-    program.version_major = (float)cstringmaj;
-    program.version_minor = (float)cstringmin;
+    program.version_major = static_cast<float>(cstringmaj);
+    program.version_minor = static_cast<float>(cstringmin);
     do_meth();
     set_delay();
     rhs = my_rhs;

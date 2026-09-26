@@ -17,5 +17,11 @@ void get_import_values(int n, double *ydot, const char *soname, const char *sofu
 
 #ifdef __cplusplus
 }
+
+#include <string_view>
+/* load_eqn.cpp: the model's dll_lib= and dll_fun= (auto_load_dll loads
+   the library once both are set) */
+void set_dll_library(std::string_view lib);
+void set_dll_function(std::string_view fun);
 #endif
 #endif

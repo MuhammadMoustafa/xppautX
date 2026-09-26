@@ -20,6 +20,9 @@
 #include <math.h>
 #include "xpplim.h"
 #include "getvar.h"
+#include <array>
+#include <string>
+#include <vector>
 #define MY_DBL_EPS 5e-16
 
 #include "odesol2.h"
@@ -93,11 +96,11 @@ typedef struct {
   double tstar;
   int lhs[MAX_EVENTS];
   double vrhs[MAX_EVENTS];
-  char lhsname[MAX_EVENTS][XPP_NAME_MAX+1];
-  char *rhs[MAX_EVENTS];
-  int *comrhs[MAX_EVENTS];
-  char *cond;
-  int *comcond;
+  std::array<std::string, MAX_EVENTS> lhsname;
+  std::array<std::string, MAX_EVENTS> rhs;
+  std::array<std::vector<int>, MAX_EVENTS> comrhs;
+  std::string cond;
+  std::vector<int> comcond;
   int sign,nevents;
   int hit,type[MAX_EVENTS];
   int anypars;
@@ -107,67 +110,56 @@ typedef struct {
 #define IC 2
 #define PARAM 1
 /* #define Set_ivar(a,b) variables[(a)]=(b) */
-FLAG flag[MAXFLAG];
+static FLAG flag[MAXFLAG];
 int NFlags=0;
 
 double STOL=1.e-10;
 extern double variables[];
 extern int NVAR;
+
+/* rest is "{name=formula;name=formula;...}" (spaces ignored): the flag's
+   events, in order */
 int add_global(const char *cond, int sign, const char *rest)
 {
-  char temp[256];
-  int nevents,ii,k,l,lt,j=NFlags;
-  char ch;
+  int nevents,j=NFlags;
+  std::string temp;
   if(NFlags>=MAXFLAG){
     xpp_log(XPP_LOG_WARN, "Too many global conditions\n");
     return(1);
   }
-  l=strlen(cond);
-  flag[j].cond=(char *) xpp_malloc(l+1);
-  /* flag[j].cond is a pointer, allocated l+1 bytes just above. */
-  xpp_strlcpy(flag[j].cond,cond,l+1);
+  flag[j].cond=cond;
   nevents=0;
-  flag[j].lhsname[0][0]=0;
-  k=0;
-  l=strlen(rest);
-  for(ii=0;ii<l;ii++){
-    ch=rest[ii];
+  flag[j].lhsname[0].clear();
+  for(const char *p=rest;*p;p++){
+    char ch=*p;
     if(ch=='{'||ch==' ')continue;
     if(ch=='}'||ch==';'){
       if(nevents==MAX_EVENTS){
 	xpp_log(XPP_LOG_WARN, " Too many events per flag \n");
 	return(1);
       }
-      temp[k]=0;
-      lt=strlen(temp);
-      if(flag[j].lhsname[nevents][0]==0){
-	xpp_log(XPP_LOG_WARN, " No event variable named for %s \n",temp);
+      if(flag[j].lhsname[nevents].empty()){
+	xpp::log(XPP_LOG_WARN, " No event variable named for {} \n",temp);
 	return(1);
       }
-      flag[j].rhs[nevents]=(char *)xpp_malloc(lt+1);
-      /* flag[j].rhs[nevents] is a pointer, allocated lt+1 bytes above. */
-      xpp_strlcpy(flag[j].rhs[nevents],temp,lt+1);
+      flag[j].rhs[nevents]=temp;
       nevents++;
-      k=0;
+      temp.clear();
       if(ch=='}')break;
       continue;
     }
     if(ch=='='){
-      temp[k]=0;
-      if(k>XPP_NAME_MAX){
-	xpp_log(XPP_LOG_WARN, " Event variable %s is too long\n",temp);
+      if(temp.size()>XPP_NAME_MAX){
+	xpp::log(XPP_LOG_WARN, " Event variable {} is too long\n",temp);
 	return(1);
       }
-      XPP_STRCPY(flag[j].lhsname[nevents],temp);
-      
-      k=0;
+      flag[j].lhsname[nevents]=temp;
+      temp.clear();
       if(nevents<MAX_EVENTS-1)
-	flag[j].lhsname[nevents+1][0]=0;
+	flag[j].lhsname[nevents+1].clear();
       continue;
     }
-    
-    temp[k]=ch;
-    k++;
+    temp+=ch;
   }
   if(nevents==0){
     xpp_log(XPP_LOG_WARN, " No events for condition %s \n",cond);
@@ -180,71 +172,64 @@ int add_global(const char *cond, int sign, const char *rest)
   return(0);
 }
 
-void show_flags()
+/* expr compiled (add_expr), its ENDEXP included; false if it does not
+   parse */
+static bool compile(const std::string &expr, std::vector<int> &out)
 {
- /* uncomment for debugging */
- /*
- for(i=0;i<NFlags;i++){
-   n=flag[i].nevents;
-   plintf(" Flag %d has sign %d and %d events and condition %s \n",
-	  i+1,flag[i].sign,n,flag[i].cond);
-   for(j=0;j<n;j++)
-     plintf("%d:  %s [%d] = %s \n",j+1,flag[i].lhsname[j],flag[i].lhs[j],
-	    flag[i].rhs[j]);
- }
- */
+  int command[256];
+  int nc;
+  if(add_expr(expr.c_str(),command,&nc))return false;
+  out.assign(command,command+nc+1);
+  return true;
 }
-   
+
 int compile_flags()
 {
   int j;
-  int i,k,index,nc;
-  int command[256];
+  int i,index;
   if(NFlags==0)return(0);
   for(j=0;j<NFlags;j++){
-    if(add_expr(flag[j].cond,command,&nc)){
-      xpp_log(XPP_LOG_WARN, "Illegal global condition:  %s\n",flag[j].cond);
+    if(!compile(flag[j].cond,flag[j].comcond)){
+      xpp::log(XPP_LOG_WARN, "Illegal global condition:  {}\n",flag[j].cond);
       return(1);
     }
     flag[j].anypars=0;
     flag[j].nointerp=0;
-    flag[j].comcond=(int *)xpp_malloc(sizeof(int)*(nc+1));
-    for(k=0;k<=nc;k++)
-      flag[j].comcond[k]=command[k];
     for(i=0;i<flag[j].nevents;i++){
-      index=find_user_name(IC,flag[j].lhsname[i]);
+      const char *name=flag[j].lhsname[i].c_str();
+      index=find_user_name(IC,name);
       if(index<0){
-	index=find_user_name(PARAM,flag[j].lhsname[i]);
+	index=find_user_name(PARAM,name);
 	if(index<0){
-	  if(strcasecmp(flag[j].lhsname[i],"out_put")==0)
+	  if(strcasecmp(name,"out_put")==0)
 	    {
 	      flag[j].type[i]=2;
 	      flag[j].lhs[i]=0;
 	    }
 	  else {
-	    if(strcasecmp(flag[j].lhsname[i],"arret")==0)
+	    if(strcasecmp(name,"arret")==0)
 	      {
 		flag[j].type[i]=3;
 		flag[j].lhs[i]=0;
-		
+
 	      }
 	    else {
-	      if(strcasecmp(flag[j].lhsname[i],"no_interp")==0)
+	      if(strcasecmp(name,"no_interp")==0)
 		{
 		  flag[j].nointerp=1;
                   flag[j].type[i]=0;
 		  flag[j].lhs[i]=0;
 		}
-	  
+
 	    else {
-	      xpp_log(XPP_LOG_WARN, " <%s> is not a valid variable/parameter name \n",
-		     flag[j].lhsname[i]);
+	      xpp::log(XPP_LOG_WARN, " <{}> is not a valid variable/parameter name \n",
+		     name);
 	      return(1);
 	    }
 	    }
 	  }
 	}
-	else{ 
+	else{
 	  flag[j].lhs[i]=index;
 	  flag[j].type[i]=1;
           flag[j].anypars=1;
@@ -254,14 +239,11 @@ int compile_flags()
 	flag[j].lhs[i]=index;
 	flag[j].type[i]=0;
       }
-      if(add_expr(flag[j].rhs[i],command,&nc)){
-	xpp_log(XPP_LOG_WARN, "Illegal event %s for global %s\n",
+      if(!compile(flag[j].rhs[i],flag[j].comrhs[i])){
+	xpp::log(XPP_LOG_WARN, "Illegal event {} for global {}\n",
 	       flag[j].rhs[i],flag[j].cond);
       return(1);
       }
-      flag[j].comrhs[i]=(int *)xpp_malloc(sizeof(int)*(nc+1));
-      for(k=0;k<=nc;k++)
-      flag[j].comrhs[i][k]=command[k];
     }
   }
   return(0);
@@ -301,7 +283,7 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
     for(j=0;j<neq;j++)
       SETVAR(j+1,ynew[j]);
     SETVAR(0,*tnew);
-    f1=evaluate(flag[i].comcond);
+    f1=evaluate(flag[i].comcond.data());
     flag[i].f1=f1;
     tol=fabs(f1-f0);
     /* plintf(" call1 %g %g %g %g\n",told,f0,f1,smin);  */
@@ -352,7 +334,7 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
     SETVAR(i+1,ynew[i]);
   }
   for(i=0;i<NFlags;i++)
-    flag[i].f0=evaluate(flag[i].comcond);
+    flag[i].f0=evaluate(flag[i].comcond.data());
   while(1){ /* run through all possible events  */
     ncycle++;
     newhit=0;
@@ -362,7 +344,7 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
       /* plintf(" hit(%d)=%d,ts=%g\n",i,flag[i].hit,flag[i].tstar); */  /* COMMENT */
       if(flag[i].hit==ncycle&&flag[i].tstar<=smin){
 	for(j=0;j<nevents;j++){
-	  flag[i].vrhs[j]=evaluate(flag[i].comrhs[j]);
+	  flag[i].vrhs[j]=evaluate(flag[i].comrhs[j].data());
 	  in=flag[i].lhs[j];
 	  if(flag[i].type[j]==0)
 	        SETVAR(in+1,flag[i].vrhs[j]);
@@ -412,7 +394,7 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
       /*      printf("step 9 %d %g %g\n",i,ynew[i],GETVAR(i+1)); */
     }
     for(i=0;i<NFlags;i++){
-      flag[i].f1=evaluate(flag[i].comcond);
+      flag[i].f1=evaluate(flag[i].comcond.data());
       if(flag[i].hit>0)continue; /* already hit so dont do anything */
       f1=flag[i].f1;
       sign=flag[i].sign;

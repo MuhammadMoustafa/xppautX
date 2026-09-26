@@ -7,7 +7,6 @@ extern "C" {
 
 /* flags.c */
 int add_global(const char *cond, int sign, const char *rest);
-void show_flags(void);
 int compile_flags(void);
 int one_flag_step(double *yold, double *ynew, int *istart, double told, double *tnew, int neq, double *s);
 int one_flag_step_symp(double *y, double dt, double *work, int neq, double *tim, int *istart);

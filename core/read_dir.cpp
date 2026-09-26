@@ -1,206 +1,96 @@
+/* The file selector's directory listing (get_fileinfo), the current
+   directory, and Unix-style wildcards (wild_match). */
 #include "read_dir.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
-
-#include <unistd.h>
-#include "ggets.h"
-#include <stdlib.h> 
-#include <string.h>
+#include "xpp_io.h"
 #include "load_eqn.h"
 
-
-/* OSX note:
-
-IGNORE THIS -- I have included the relevant files !!  July 2002
-
-1. Make the following changes in the MAC system directories. (I
-think this is a bug in their header files.) 
-
-  a. copy /usr/include/dirent.h  to your xpp directory. I'll assume
-you've called it dirent.h locally.
-
-  b. copy  /usr/include/sys/dirent.h to your xpp directory
-     (giving it a new name obviously. I called it sysdirent.h).
-
-  c. In the file read_dir.c change the #include <dirent.h>
-statement to call your local copy of dirent.h, not the one in
- /usr/include.
-
- d. In your local copy of dirent.h, change the #include<sys/dirent.h>   
-statement to call your local copy of sysdirent.h
-
- e. In your local copy of sysdirent.h, change the lines:
-
-  u_int32_t d_fileno;          
-  u_int16_t d_reclen;          
-  u_int8_t  d_type;           
-  u_int8_t  d_namlen;       
- to the new lines:
-
-  unsigned long d_fileno;   
-  unsigned short d_reclen; 
-  unsigned char d_type;    
-  unsigned char d_namlen;  
-(These occur in the {\tt struct dirent}  declaration)
-and save the file.
-
-
-
-*/
-/*#ifdef MACOSX
-#include "macdirent.h"
-#else
 #include <dirent.h>
-#endif
-*/
-#include <dirent.h>
-#include <stdio.h>
 #include <sys/stat.h>
-#include "xpp_io.h"
+#include <unistd.h>
+#include <cerrno>
+#include <algorithm>
+#include <string>
+#include <string_view>
+#include <vector>
 
-/*Let's try to be consistent with file name buffer sizes and
-any strings that may hold a path name (e.g. dialog message etc.)*/
-/*#define MAXPATHLEN 1024*/
+/* Every buffer that holds a path name (cur_dir, the callers' of
+   get_directory) is XPP_MAX_NAME bytes. */
 #define MAXPATHLEN XPP_MAX_NAME
 
-
-#define EOS '\0'
-#define NENTRIES 100
-#define streq(a,b) (! strcmp((a),(b)))
-
-#define SYSV
-
-/*static int	file_entry_cnt, dir_entry_cnt;
-static char   **file_list, **dir_list;
-static char   **filelist, **dirlist;
-static char    *dirmask;
-static char	CurrentSelectionName[MAXPATHLEN];
-*/
 char cur_dir[MAXPATHLEN];
 
+namespace {
 
-FILEINFO my_ff;
- /*
-main()
-{ 
-  int i;
-  change_directory("../xtc");
-  get_directory(cur_dir);
-  plintf("direct = %s \n",cur_dir);
-  get_fileinfo("*.c",cur_dir,&my_ff);
-  for(i=0;i<my_ff.ndirs;i++)
-    plintf("%s\n",my_ff.dirnames[i]);
-  for(i=0;i<my_ff.nfiles;i++)
-    plintf("%s\n",my_ff.filenames[i]);
-  free_finfo(&my_ff);
+/* the working directory, whatever its length ("" when it cannot be had) */
+std::string working_directory()
+{
+  std::vector<char> buf(1024);
+  for(;;){
+    if(getcwd(buf.data(), buf.size()) != nullptr) return buf.data();
+    if(errno != ERANGE) return {};
+    buf.resize(buf.size() * 2);
+  }
 }
-*/
+
+bool is_directory(std::string_view root, const char *name)
+{
+  std::string full(root);
+  full += '/';
+  full += name;
+  struct stat statbuf;
+  if(stat(full.c_str(), &statbuf)) /* some error: not a directory */
+    return false;
+  return (statbuf.st_mode & S_IFDIR) != 0;
+}
+
+/* FILEINFO is C API (the JSON front end's file selector reads it and
+   free_finfo frees it): a raw xpp_malloc'd array of xpp_strdup'd names */
+char **c_strings(const std::vector<std::string> &names)
+{
+  char **out = static_cast<char **>(xpp_malloc(names.size() * sizeof(char *)));
+  for(size_t i = 0; i < names.size(); i++)
+    out[i] = xpp_strdup(names[i].c_str());
+  return out;
+}
+
+} // namespace
+
 void free_finfo(FILEINFO *ff)
 {
-  int i;
-  for(i=0;i<ff->ndirs;i++)
+  for(int i = 0; i < ff->ndirs; i++)
     xpp_free(ff->dirnames[i]);
   xpp_free(ff->dirnames);
-  for(i=0;i<ff->nfiles;i++)
+  for(int i = 0; i < ff->nfiles; i++)
     xpp_free(ff->filenames[i]);
   xpp_free(ff->filenames);
 }
 
-
-int cmpstringp(const void *p1, const void *p2)
-{
-    /* The actual arguments to this function are "pointers to
-       pointers to char", but strcmp(3) arguments are "pointers
-       to char", hence the following cast plus dereference */
-
-    return strcmp(* (char * const *) p1, * (char * const *) p2);
-}
-
-
-
+/* The directories of direct and its files that match wild, each list
+   sorted. 0 (ff untouched) when direct cannot be read. */
 int get_fileinfo(const char *wild, const char *direct, FILEINFO *ff)
 {
-  int i,ans;
-  DIR *dirp;
-  int mlf,mld;
-  int nf,nd;
-  struct dirent *dp;
-  ans=fil_count(direct,&nd,&nf,wild,&mld,&mlf);
-  if(ans==0)return 0;
-  ff->nfiles=nf;
-  ff->ndirs=nd;
-  ff->dirnames=(char **)xpp_malloc(nd*sizeof(char *));
-  ff->filenames=(char **)xpp_malloc(nf*sizeof(char *));
-  for(i=0;i<nd;i++)
-    ff->dirnames[i]=(char *)xpp_malloc(mld+2);
-  for(i=0;i<nf;i++)
-    ff->filenames[i]=(char *)xpp_malloc(mlf+2);
-  dirp=opendir(direct);
-  dp=readdir(dirp);
-  nf=0;
-  nd=0;
-  while(dp != NULL){
-     if(IsDirectory(direct,dp->d_name)){
-       xpp_strlcpy(ff->dirnames[nd],dp->d_name,mld+2);
-       nd++;
-     }
-     else {
-       if(wild_match(dp->d_name,wild)){
-	 xpp_strlcpy(ff->filenames[nf],dp->d_name,mlf+2);
-	 nf++;
-       }
-     }
-     dp=readdir(dirp);
-   }
-   
-   if (nd > 0)
-   {	
-   	qsort(&(ff->dirnames[0]),nd, sizeof(char *), cmpstringp);
-   }
-   
-   if (nf > 0)
-   {
-   	qsort(&(ff->filenames[0]),nf, sizeof(char *), cmpstringp);
-   }
-   closedir(dirp);
-  return 1;
-}
-
-
-
-int fil_count(const char *direct, int *ndir, int *nfil, const char *wild, int *mld, int *mlf)
-{
-  DIR *dirp;
-  int l;
-  struct dirent *dp;
-  *mld=0;
-  *mlf=0;
-  dirp=opendir(direct);
-  if(dirp==NULL){
-    xpp_log(XPP_LOG_WARN, " % is not a directory \n",direct);
+  DIR *dirp = opendir(direct);
+  if(dirp == nullptr){
+    xpp_log(XPP_LOG_WARN, " %s is not a directory \n", direct);
     return 0;
   }
-  dp=readdir(dirp);
-  *ndir=0;
-  *nfil=0;
-  while( dp != NULL){
-    if(IsDirectory(direct,dp->d_name)){
-      *ndir=*ndir+1;
-      l=strlen(dp->d_name);
-      if(l>*mld)*mld=l;
-    }
-    else {
-      if(wild_match(dp->d_name,wild)){
-	*nfil=*nfil+1;
-	l=strlen(dp->d_name);
-	if(l>*mlf)*mlf=l;
-      }
-      
-    }
-    dp=readdir(dirp);
+  std::vector<std::string> dirs, files;
+  for(struct dirent *dp = readdir(dirp); dp != nullptr; dp = readdir(dirp)){
+    if(is_directory(direct, dp->d_name))
+      dirs.emplace_back(dp->d_name);
+    else if(wild_match(dp->d_name, wild))
+      files.emplace_back(dp->d_name);
   }
- closedir(dirp);
- return 1;
+  closedir(dirp);
+  std::sort(dirs.begin(), dirs.end());
+  std::sort(files.begin(), files.end());
+  ff->ndirs = static_cast<int>(dirs.size());
+  ff->nfiles = static_cast<int>(files.size());
+  ff->dirnames = c_strings(dirs);
+  ff->filenames = c_strings(files);
+  return 1;
 }
 
 
@@ -220,65 +110,19 @@ int change_directory(const char *path)
 	return (1);
 }
 
+/* direct holds MAXPATHLEN bytes (every caller's buffer is XPP_MAX_NAME);
+   a longer directory is cut, with a WARN, where getcwd(direct,1024)
+   used to overflow it */
 int get_directory(char *direct)
 {
-#if defined(SYSV) || defined(SVR4)
-
-#else
-    extern char	   *getwd();
-
-#endif
-
-#if defined(SYSV) || defined(SVR4)
-    if (getcwd(direct, 1024) == NULL) {	/* get current working dir */
+    std::string cwd = working_directory();
+    if (cwd.empty()) {
 	xpp_log(XPP_LOG_WARN, "%s\n", "Can't get current directory");
-#else
-    if (getwd(direct) == NULL) {/* get current working dir */
-	xpp_log(XPP_LOG_WARN, "%s\n", direct);	/* err msg is in directory */
-#endif
 	*direct = '\0';
 	return 0;
     }
+    xpp_strlcpy(direct, cwd.c_str(), MAXPATHLEN);
     return 1;
-}
-
-
-
-
-int IsDirectory(const char *root, const char *path)
-{
-    char	    fullpath[MAXPATHLEN];
-    struct stat	    statbuf;
-
-    if (path == NULL)
-	return (0);
-    MakeFullPath(root, path, fullpath);
-    if (stat(fullpath, &statbuf))	/* some error, report that it is not
-					 * a directory */
-	return (0);
-    if (statbuf.st_mode & S_IFDIR)
-	return (1);
-    else
-	return (0);
-}
-
-/* Function:	MakeFullPath() creates the full pathname for the given file.
- * Arguments:	filename:	Name of the file in question.
- *		pathname:	Buffer for full name.
- * Returns:	Nothing.
- * Notes:
- */
-
-
-void MakeFullPath(const char *root, const char *filename, char *pathname)
-{
-    /* pathname is a pointer here; the one caller (IsDirectory) passes
-       char fullpath[MAXPATHLEN]. strcat below is unconverted (out of
-       this sweep's scope: only sprintf/strcpy/vsprintf), so a long
-       root+filename can still overflow it -- unchanged from before. */
-    xpp_strlcpy(pathname, root, MAXPATHLEN);
-    strcat(pathname, "/");
-    strcat(pathname, filename);
 }
 
 /* wildmatch.c - Unix-style command line wildcards

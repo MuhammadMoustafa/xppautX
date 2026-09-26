@@ -1,14 +1,20 @@
 #include "extra.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
 #include "init_conds.h"
 #include "ggets.h"
 #include "read_dir.h"
 #include "parserslow.h"
+#include "load_eqn.h"
+#include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <cstring>
+#include <string>
+#include <vector>
+
 /* this is a way to communicate XPP with other stuff
+
 # complex right-hand sides
 # let xpp know about the names
 xp=0
@@ -17,45 +23,74 @@ x'=xp
 y'=yp
 # tell xpp input info and output info
 export {x,y} {xp,yp}
+
 */
+
 #define PAR 0
 #define VAR 1
-#define MAXW 50
+
 
 extern "C" {
-/* set by load_eqn.c from the file's dll_lib= and dll_fun= */
-char dll_lib[256];
-char dll_fun[256];
-int dll_flag=0;
 extern double variables[], constants[];
-extern char cur_dir[];
+extern char cur_dir[XPP_MAX_NAME]; /* read_dir.cpp */
 }
 
 namespace {
 
+/* the model's export {inputs} {outputs}: where each comes from (a
+   parameter or a variable, by index) and its value */
 struct InOut {
-  char *lin = nullptr, *lout = nullptr;
-  int *in = nullptr, *intype = nullptr;
-  int *out = nullptr, *outtype = nullptr;
+  std::string lin, lout;
+  std::vector<int> in, intype;
+  std::vector<int> out, outtype;
   int nin = 0, nout = 0;
-  double *vin = nullptr, *vout = nullptr;
+  std::vector<double> vin, vout;
 };
+
 InOut in_out;
 
+/* set by load_eqn.cpp from the file's dll_lib= and dll_fun= */
+std::string dll_lib;
+std::string dll_fun;
+int dll_flag=0;
+
 struct DlFun {
-  char libname[1024];
-  char libfile[256];
-  char fun[256];
-  int loaded;
+  std::string libname;
+  std::string libfile;
+  std::string fun;
+  int loaded = 0;
 };
+
 DlFun dlf;
 
+/* a dialog's buffer (new_string/file_selector write up to 256 bytes)
+   with text as its default */
+std::array<char, 256> dialog_buffer(const std::string &text)
+{
+  std::array<char, 256> buf{};
+  text.copy(buf.data(), std::min(text.size(), buf.size() - 1));
+  return buf;
+}
+
 }  // namespace
+
+void set_dll_library(std::string_view lib)
+{
+  dll_lib = lib;
+  dll_flag += 1;
+}
+
+void set_dll_function(std::string_view fun)
+{
+  dll_fun = fun;
+  dll_flag += 2;
+}
 
 #ifdef HAVEDLL
 /* this loads a dynamically linked library of the
    users choice
 */
+
 #include "xpp_dlfcn.h"
 
 namespace {
@@ -64,6 +99,7 @@ namespace {
 using ExportFun = void (*)(double *in, double *out, int nin, int nout, double *v, double *c);
 /* a network's import(...) function (simplenet.c) */
 using ImportFun = void (*)(int n, int ivar, double *con, double *var, double **wgt, double *ydot);
+
 void *dlhandle = nullptr;
 ExportFun export_fun = nullptr;
 void *import_handle = nullptr;
@@ -85,23 +121,25 @@ void auto_load_dll(void)
 {
   if(dll_flag==3){
     get_directory(cur_dir);
-    xpp_log(XPP_LOG_INFO, "DLL lib %s/%s with function %s \n",cur_dir,dll_lib,dll_fun);
-    XPP_SPRINTF(dlf.libfile,"%s",dll_lib);
-    XPP_SPRINTF(dlf.libname,"%s/%s",cur_dir,dlf.libfile);
-    XPP_SPRINTF(dlf.fun,"%s",dll_fun);
+    xpp::log(XPP_LOG_INFO, "DLL lib {}/{} with function {} \n",cur_dir,dll_lib,dll_fun);
+    dlf.libfile=dll_lib;
+    dlf.libname=xpp::format("{}/{}",cur_dir,dlf.libfile);
+    dlf.fun=dll_fun;
     dlf.loaded=0;
   }
 }
 
 void load_new_dll(void)
 {
-  int status;
   if(dlf.loaded!=0&&dlhandle!=nullptr)
     dlclose(dlhandle);
-  status=file_selector("Library:",dlf.libfile,"*.so");
-  if(status==0)return;
-  XPP_SPRINTF(dlf.libname,"%s/%s",cur_dir,dlf.libfile);
-  new_string("Function name:",dlf.fun);
+  std::array<char, 256> file=dialog_buffer(dlf.libfile);
+  if(file_selector("Library:",file.data(),"*.so")==0)return;
+  dlf.libfile=file.data();
+  dlf.libname=xpp::format("{}/{}",cur_dir,dlf.libfile);
+  std::array<char, 256> fun=dialog_buffer(dlf.fun);
+  new_string("Function name:",fun.data());
+  dlf.fun=fun.data();
   dlf.loaded=0;
 }
 
@@ -109,7 +147,6 @@ void get_import_values(int n, double *ydot, const char *soname, const char *sofu
 		       int ivar, double **wgt,
 		       double *var, double *con)
 {
-  char sofullname[256];
   const char *error;
   if(dll_loaded==1){
     import_fun(n,ivar,con,var,wgt,ydot);
@@ -119,8 +156,8 @@ void get_import_values(int n, double *ydot, const char *soname, const char *sofu
     return;
   xpp::log(XPP_LOG_INFO, "soname = {}  sofun = {} \n",soname,sofun);
   get_directory(cur_dir);
-  XPP_SPRINTF(sofullname,"%s/%s",cur_dir,soname);
-  import_handle=dlopen(sofullname, RTLD_LAZY);
+  std::string sofullname=xpp::format("{}/{}",cur_dir,soname);
+  import_handle=dlopen(sofullname.c_str(), RTLD_LAZY);
   if(!import_handle){
     xpp::log(XPP_LOG_WARN, " Cant find the library {}\n",soname);
     dll_loaded=-1;
@@ -144,7 +181,7 @@ int my_fun(double *in, double *out, int nin,int nout,double *v,double *c)
   const char *error;
   if(dlf.loaded==-1)return(0);
   if(dlf.loaded==0){
-    dlhandle=dlopen(dlf.libname, RTLD_LAZY);
+    dlhandle=dlopen(dlf.libname.c_str(), RTLD_LAZY);
     if(!dlhandle){
       xpp::log(XPP_LOG_WARN, " Cant find the library \n");
       dlf.loaded=-1;
@@ -153,7 +190,7 @@ int my_fun(double *in, double *out, int nin,int nout,double *v,double *c)
     /* dlerror() clears any old error, dlsym(), then dlerror() again says
        whether dlsym failed (a symbol may be NULL) */
     dlerror();
-    export_fun=symbol<ExportFun>(dlhandle,dlf.fun);
+    export_fun=symbol<ExportFun>(dlhandle,dlf.fun.c_str());
     error=dlerror();
     if(error!=nullptr){
       xpp::log(XPP_LOG_WARN, "Problem with function..\n");
@@ -165,6 +202,7 @@ int my_fun(double *in, double *out, int nin,int nout,double *v,double *c)
   export_fun(in,out,nin,nout,v,c);
   return(1);
 }
+
 #else
 
 void get_import_values(int, double *, const char *, const char *, int, double **, double *, double *)
@@ -183,6 +221,7 @@ int my_fun(double *, double *, int, int, double *, double *)
 void auto_load_dll(void)
 {
 }
+
 #endif
 
 void do_in_out(void)
@@ -198,7 +237,7 @@ void do_in_out(void)
   /* no library (none named, or it did not load): the outputs keep their own
      values; they took whatever the never-written buffer held before, which
      differed between runs on Windows (W20) */
-  if(!my_fun(in_out.vin,in_out.vout,in_out.nin,in_out.nout,variables,constants))
+  if(!my_fun(in_out.vin.data(),in_out.vout.data(),in_out.nin,in_out.nout,variables,constants))
     return;
   for(i=0;i<in_out.nout;i++){
     if(in_out.outtype[i]==PAR)
@@ -210,27 +249,18 @@ void do_in_out(void)
 
 void add_export_list(const char *in,const char *out)
 {
-  int i;
-  /* a model loaded before this one had its own list */
-  xpp_free(in_out.lin);
-  xpp_free(in_out.lout);
-  xpp_free(in_out.in);
-  xpp_free(in_out.intype);
-  xpp_free(in_out.vin);
-  xpp_free(in_out.out);
-  xpp_free(in_out.outtype);
-  xpp_free(in_out.vout);
-  in_out.lin=xpp_strdup(in); /* was malloc(strlen(in)): one byte short */
-  in_out.lout=xpp_strdup(out);
-  i=get_export_count(in);
-  in_out.in=(int *)xpp_calloc(i+1,sizeof(int));
-  in_out.intype=(int *)xpp_calloc(i+1,sizeof(int));
-  in_out.vin=(double *)xpp_calloc(i+1,sizeof(double));
+  /* a model loaded before this one had its own list: assign replaces it */
+  in_out.lin=in;
+  in_out.lout=out;
+  int i=get_export_count(in);
+  in_out.in.assign(i+1,0);
+  in_out.intype.assign(i+1,0);
+  in_out.vin.assign(i+1,0.0);
   in_out.nin=i;
   i=get_export_count(out);
-  in_out.out=(int *)xpp_calloc(i+1,sizeof(int));
-  in_out.outtype=(int *)xpp_calloc(i+1,sizeof(int));
-  in_out.vout=(double *)xpp_calloc(i+1,sizeof(double));
+  in_out.out.assign(i+1,0);
+  in_out.outtype.assign(i+1,0);
+  in_out.vout.assign(i+1,0.0);
   in_out.nout=i;
 }
 
@@ -246,83 +276,53 @@ int get_export_count(const char *s)
 void do_export_list(void)
 {
  if(in_out.nin==0||in_out.nout==0)return;
- parse_inout(in_out.lin,0);
- parse_inout(in_out.lout,1);
+ parse_inout(in_out.lin.c_str(),0);
+ parse_inout(in_out.lout.c_str(),1);
 }
 
+/* l is "{name,name,...}": each name's index and kind into the inputs
+   (flag 0) or the outputs (flag 1) */
 void parse_inout(const char *l,int flag)
 {
-  size_t i=0;
-  int j=0;
-  int k=0,index;
-  char name[XPP_NAME_MAX+1],c;
-  int done=1;
+  std::vector<int> &where=flag==0?in_out.in:in_out.out;
+  std::vector<int> &type=flag==0?in_out.intype:in_out.outtype;
+  size_t k=0;
+  std::string name;
   size_t len=strlen(l);
-  while(done)
-    {
-      c=l[i];
-      switch(c){
-      case '{':
-	i++;
-	break;
-      case ' ':
-	i++;
-	break;
-      case ',':
-      case '}':
-	i++;
-	name[j]=0;
-	index=get_param_index(name);
-	if(index<0) /* not a parameter */
-	  {
-	    index=get_var_index(name);
-	    if(index<0)
-	      {
-		xpp::log(XPP_LOG_ERROR, "Cant export {} - non existent!\n",name);
-		exit(0);
-	      }
-	    else /* it is a variable */
-	      {
-		if(flag==0){
-		  in_out.in[k]=index;
-		  in_out.intype[k]=VAR;
-		}
-		else {
-		  in_out.out[k]=index;
-		  in_out.outtype[k]=VAR;
-		}
-		k++;
-	      }
-	  } /* it is a parameter */
-	else
-	  {
-	    if(flag==0)
-	      {
-		in_out.in[k]=index;
-		in_out.intype[k]=PAR;
-	      }
-	  else
-	    {
-	      in_out.out[k]=index;
-	      in_out.outtype[k]=PAR;
-	    }
-	    k++;
-	  }
-	if(c=='}')
-	  done=0;
-	j=0;
-	break;
-
-      default:
-	if(j>=XPP_NAME_MAX){
-	  xpp_log(XPP_LOG_WARN, "Cant export %.*s... - name too long!\n",XPP_NAME_MAX,name);
-	  exit(0);
-	}
-	name[j]=c;
-	j++;
-	i++;
+  for(size_t i=0;i<=len;i++){
+    char c=l[i];
+    switch(c){
+    case '{':
+    case ' ':
+      break;
+    case ',':
+    case '}':{
+      int index=get_param_index(name.c_str());
+      int kind=PAR;
+      if(index<0){ /* not a parameter */
+        index=get_var_index(name.c_str());
+        if(index<0){
+          xpp::log(XPP_LOG_ERROR, "Cant export {} - non existent!\n",name);
+          exit(0);
+        }
+        kind=VAR;
       }
-      if(i>len)
-	done=0;
+      if(k<where.size()){
+        where[k]=index;
+        type[k]=kind;
+      }
+      k++;
+      if(c=='}')
+        return;
+      name.clear();
+      break;
     }
+    default:
+      if(name.size()>=XPP_NAME_MAX){
+        xpp::log(XPP_LOG_WARN, "Cant export {}... - name too long!\n",name);
+        exit(0);
+      }
+      name+=c;
+    }
+  }
 }

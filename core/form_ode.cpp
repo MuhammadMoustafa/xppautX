@@ -46,6 +46,7 @@
 #include "newpars.h"
 #include "xpp_batch.h"
 #include "xpp_globals.h"
+#include "comline.h"
 
 #define MAXONLY 1000
 
@@ -62,7 +63,6 @@ extern int NUPAR;
 extern int NLINES;
 extern int IN_VARS;
 extern int leng[MAXODE];
-extern int NincludedFiles;
 
 namespace {
 /* the lines of the model being read, in order: do_new_parser() adds them,
@@ -80,8 +80,6 @@ typedef struct {
 } ACTION;
 
 extern int loadincludefile;
-/*extern char includefilename[MaxIncludeFiles][100];*/
-extern char includefilename[MaxIncludeFiles][XPP_MAX_NAME];
 
 char *onlylist[MAXONLY];
 int *plotlist;
@@ -136,7 +134,6 @@ FIXINFO fixinfo[MAXODE];
 extern char cur_dir[];
 
 
-extern FILEINFO my_ff;
 
 int make_eqn()
   {
@@ -313,13 +310,13 @@ void list_em(const char *wild)
 { 
   get_directory(cur_dir);
   xpp_log(XPP_LOG_INFO, "%s: \n",cur_dir);
-  get_fileinfo(wild,cur_dir,&my_ff);
+  FILEINFO ff{};
+  if(!get_fileinfo(wild,cur_dir,&ff))return;
   xpp_log(XPP_LOG_INFO, "DIRECTORIES:\n");
-  format_list(my_ff.dirnames,my_ff.ndirs);
+  format_list(ff.dirnames,ff.ndirs);
   xpp_log(XPP_LOG_INFO, "FILES OF TYPE %s:\n",wild);
-  format_list(my_ff.filenames,my_ff.nfiles);
-
-  free_finfo(&my_ff);
+  format_list(ff.filenames,ff.nfiles);
+  free_finfo(&ff);
 }
 int read_eqn()
 {
@@ -506,7 +503,6 @@ int get_eqn(FILE *fptr)
     xpp_log(XPP_LOG_ERROR, " Error in compiling a flag \n");
     exit(0);
   }
-  show_flags();
   /*  add auxiliary variables   */
   for(i=NODE+NMarkov;i<NEQ;i++)add_var(uvar_names[i],0.0); 
   NCON_START=NCON;
@@ -1344,18 +1340,17 @@ static int parse_model(FILE *fp, const char *first, int nnn)
         if(loadincludefile)
 	{
 		loadincludefile=0;/*Only do this once*/
-		int j=0;
-		for (j=0;j<NincludedFiles;j++)
+		for (const std::string &inc : include_files)
 		{
-			fnew=fopen(includefilename[j],"r");
+			fnew=fopen(inc.c_str(),"r");
       			if(fnew==NULL){
-         		  xpp_log(XPP_LOG_ERROR, "Can't open include file <%s>\n",includefilename[j]);
+         		  xpp::log(XPP_LOG_ERROR, "Can't open include file <{}>\n",inc);
 			  exit(-1);
 			  /*continue;*/
        			} 
-      			xpp_log(XPP_LOG_INFO, "Including %s \n",includefilename[j]); 
+      			xpp::log(XPP_LOG_INFO, "Including {} \n",inc);
 			IN_INCLUDED_FILE++;
-       			do_new_parser(fnew,includefilename[j],1);
+       			do_new_parser(fnew,inc.c_str(),1);
        			fclose(fnew);
 		}
        		/*continue;*/

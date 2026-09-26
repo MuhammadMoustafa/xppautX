@@ -12,13 +12,10 @@ typedef struct {
 
 
 void free_finfo(FILEINFO *ff);
-int cmpstringp(const void *p1, const void *p2);
 int get_fileinfo(const char *wild, const char *direct, FILEINFO *ff);
-int fil_count(const char *direct, int *ndir, int *nfil, const char *wild, int *mld, int *mlf);
 int change_directory(const char *path);
+/* direct: an XPP_MAX_NAME buffer */
 int get_directory(char *direct);
-int IsDirectory(const char *root, const char *path);
-void MakeFullPath(const char *root, const char *filename, char *pathname);
 int wild_match(const char *string, const char *pattern);
 
 

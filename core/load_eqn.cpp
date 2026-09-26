@@ -69,9 +69,6 @@ char *interopt[MAXOPT];
 int Nopts=0;
 int RunImmediately=0;
 XppSlider sliders[XPP_NSLIDERS] = {{"", 0.0, 1.0}, {"", 0.0, 1.0}, {"", 0.0, 1.0}};
-extern char dll_lib[256];
-extern char dll_fun[256];
-extern int dll_flag;
 
 
 
@@ -1059,8 +1056,7 @@ if(msc("UMC",s1)){
    if(msc("DLL_LIB",s1)){
       if ((notAlreadySet.DLL_LIB||force) || ((mask!=NULL)&&(mask->DLL_LIB==1)))
      {
-     XPP_SPRINTF(dll_lib,"%s",s2);
-     dll_flag+=1;
+     set_dll_library(s2);
      notAlreadySet.DLL_LIB=0;
      }
      return;
@@ -1068,8 +1064,7 @@ if(msc("UMC",s1)){
    if(msc("DLL_FUN",s1)){
      if ((notAlreadySet.DLL_FUN||force) || ((mask!=NULL)&&(mask->DLL_FUN==1)))
      {
-     	XPP_SPRINTF(dll_fun,"%s",s2);
-     	dll_flag+=2;
+     	set_dll_function(s2);
      	notAlreadySet.DLL_FUN=0;
      }
      return;

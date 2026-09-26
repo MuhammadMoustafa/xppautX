@@ -12,6 +12,11 @@
 #include <stdio.h>
 #include "xpp_batch.h"
 #include "aniparse.h"
+#include <algorithm>
+#include <cstdio>
+#include <string>
+#include <string_view>
+#include <vector>
 #define NCMD 47 /* add new commands as needed  */
 
 #define MAKEC 0
@@ -67,25 +72,31 @@ extern int SuppressOut;
 extern int RunImmediately;
 extern int got_file;
 
-/*
-char setfilename[100];
-char parfilename[100];
-char icfilename[100];
-char includefilename[MaxIncludeFiles][100];
-*/
-char setfilename[XPP_MAX_NAME];
-char parfilename[XPP_MAX_NAME];
-char icfilename[XPP_MAX_NAME];
-char includefilename[MaxIncludeFiles][XPP_MAX_NAME];
+namespace {
 
-char readsetfile[XPP_MAX_NAME];
+/* the files and text the options name, whatever their length */
+std::string setfilename;
+std::string parfilename;
+std::string icfilename;
+std::string readsetfile;
+std::string externaloptionsstring;
+/* -uset and -rset: the internal sets to run and not to run */
+std::vector<std::string> sets2use, setsNOTuse;
+
+bool is_set_name(const std::vector<std::string> &sets, const char *nam)
+{
+  return std::find(sets.begin(), sets.end(), nam) != sets.end();
+}
+
+void add_set(std::vector<std::string> &sets, const char *nam)
+{
+  if(!is_set_name(sets,nam)) sets.emplace_back(nam);
+}
+
+} // namespace
+
 int externaloptionsflag=0;
-char externaloptionsstring[1024];
-int NincludedFiles=0;
-/*extern char UserOUTFILE[256];
-*/
-/*extern char anifile[256];
-*/
+std::vector<std::string> include_files;
 int select_intern_sets=0;
 
 
@@ -94,13 +105,10 @@ extern int Nintern_set;
 int Nintern_2_use=0;
 
 
-SET_NAME *sets2use,*setsNOTuse;
 
 extern INTERN_SET intern_set[MAX_INTERN_SET];
 
 
-/*extern char batchout[256];
-*/
 
 int loadsetfile=0;
 int loadparfile=0;
@@ -110,8 +118,6 @@ int querysets=0;
 int querypars=0;
 int queryics=0;
 int dryrun=0;
-/*extern char this_file[100];
-*/
 extern char this_file[XPP_MAX_NAME];
 extern int MakePlotFlag;
 extern int xorfix;
@@ -121,9 +127,8 @@ extern int ConvertStyle;
 int noicon=1;
 int newseed=0;
 typedef struct {
-  char name[11];
+  const char *name;
   int len;
-
 } VOCAB;
 
 VOCAB my_cmd[NCMD]=
@@ -178,40 +183,6 @@ VOCAB my_cmd[NCMD]=
  };
 
 
-int is_set_name(SET_NAME *set, const char *nam)
-{
-	if (set==NULL){return(0);}
-	SET_NAME *curr;
-	
-	curr=set;
-	
-	while(curr)
-	{
-		if (strcmp(curr->name,nam)==0)
-		{
-			return(1);
-		}
-		curr=(SET_NAME*)curr->next;
-	}
-	
-	return(0);
-}
-
-SET_NAME * add_set(SET_NAME *set, const char *nam)
-{
-	if (!is_set_name(set,nam))
-	{
-		SET_NAME *curr;	
-		curr = (SET_NAME *)xpp_malloc(sizeof(SET_NAME));
-        	curr->name = nam;
-		curr->next  = (struct SET_NAME *)set;
-		set=curr;
-	}
-	
-	return(set);
-}
-
-
 void do_comline(int argc, char **argv)
 { 
  int i,k;
@@ -221,15 +192,13 @@ void do_comline(int argc, char **argv)
  xorfix=1;
  /*PaperWhite=0;
  */
- setfilename[0]=0;
- parfilename[0]=0;
- icfilename[0]=0;
- /*includefilename[0]=0;
- */
+ setfilename.clear();
+ parfilename.clear();
+ icfilename.clear();
  for(i=1;i<argc;i++){
    k=parse_it(argv[i]);
    if(k==1){
-     XPP_STRCPY(setfilename,argv[i+1]);
+     setfilename=argv[i+1];
      i++;
      loadsetfile=1;
      
@@ -245,8 +214,8 @@ void do_comline(int argc, char **argv)
      i++;
    } 
    if(k==4){
-     strcat(parfilename,"!load ");
-     strcat(parfilename,argv[i+1]);
+     parfilename+="!load ";
+     parfilename+=argv[i+1];
      i++;
      loadparfile=1;
    }
@@ -257,7 +226,7 @@ void do_comline(int argc, char **argv)
      i++;
    }
    if(k==6){
-     strcat(icfilename,argv[i+1]);
+     icfilename+=argv[i+1];
      i++;
      loadicfile=1;
    }
@@ -323,22 +292,17 @@ void do_comline(int argc, char **argv)
      i++;
    }  
    if(k==17){
-     sets2use=add_set(sets2use,argv[i+1]);
+     add_set(sets2use,argv[i+1]);
      i++;
      select_intern_sets=1;
    }
    if(k==18){
-     setsNOTuse=add_set(setsNOTuse,argv[i+1]);
+     add_set(setsNOTuse,argv[i+1]);
      i++;
      select_intern_sets=1;
    } 
    if(k==19){
-     if (NincludedFiles>MaxIncludeFiles)
-     {
-         xpp_log(XPP_LOG_WARN, "Max number of include files exceeded.\n");
-     }
-     XPP_STRCPY(includefilename[NincludedFiles],argv[i+1]);
-     NincludedFiles++;
+     include_files.emplace_back(argv[i+1]);
      i++;
      loadincludefile=1;
    } 
@@ -356,7 +320,7 @@ void do_comline(int argc, char **argv)
      i++;
    }
    if(k==23){
-     printf("XPPAUT Version %g.%g\nCopyright 2015 Bard Ermentrout\n",(float)MYSTR1,(float)MYSTR2);
+     printf("XPPAUT Version %g.%g\nCopyright 2015 Bard Ermentrout\n",static_cast<float>(MYSTR1),static_cast<float>(MYSTR2));
      exit(0);
    }
    if(k==24){
@@ -377,13 +341,13 @@ void do_comline(int argc, char **argv)
      i++;
    }
    if(k==28){ /* -readset */
-     XPP_STRCPY(readsetfile,argv[i+1]);
+     readsetfile=argv[i+1];
      i++;
      externaloptionsflag=1;
 
    }
    if(k==29){  /* -with */
-     XPP_STRCPY(externaloptionsstring,argv[i+1]);
+     externaloptionsstring=argv[i+1];
      i++;
      externaloptionsflag=2;
    }
@@ -400,31 +364,25 @@ void do_comline(int argc, char **argv)
 
 int if_needed_load_ext_options()
 {
-  FILE *fp;
-  char myopts[1024];
-  char myoptsx[1026];
-  /*   printf("flag=%d file=%s\n",externaloptionsflag,readsetfile); */
   if(externaloptionsflag==0)
     return 1;
   if(externaloptionsflag==1){
-    fp=fopen(readsetfile,"r");
-    if(fp==NULL){
-      xpp_log(XPP_LOG_WARN, "%s external set not found\n",readsetfile);
+    /* the file's first line, whatever its length */
+    xpp::LineReader lr(readsetfile.c_str());
+    if(!lr){
+      xpp::log(XPP_LOG_WARN, "{} external set not found\n",readsetfile);
       return 0;
     }
-    if(fgets(myopts,1024,fp)==NULL)myopts[0]=0;
-    XPP_SPRINTF(myoptsx,"$ %s",myopts);
-    xpp_log(XPP_LOG_DEBUG, "Got this string: {%s}\n",myopts);
-    extract_action(myoptsx);
-    fclose(fp);
+    std::string myopts(lr.next().value_or(std::string_view()));
+    xpp::log(XPP_LOG_DEBUG, "Got this string: {{{}}}\n",myopts);
+    extract_action(("$ "+myopts).c_str());
     return 1;
   }
 
   if(externaloptionsflag==2){
-    XPP_SPRINTF(myoptsx,"$ %s",externaloptionsstring);
-    extract_action(myoptsx);
+    extract_action(("$ "+externaloptionsstring).c_str());
     return 1;
-  }  
+  }
   return 0;
 }
 int if_needed_select_sets()
@@ -460,19 +418,18 @@ int if_needed_select_sets()
 
 int if_needed_load_set()
 {
-  FILE *fp;
   if(!loadsetfile)
   {
     return 1;
   }
-  fp=fopen(setfilename,"r");
+  FILE *fp=std::fopen(setfilename.c_str(),"r");
   if(fp==NULL)
   {
-    xpp_log(XPP_LOG_WARN, "Couldn't load %s\n",setfilename);
+    xpp::log(XPP_LOG_WARN, "Couldn't load {}\n",setfilename);
     return 0;
   }
   read_lunch(fp);
-  fclose(fp);
+  std::fclose(fp);
   return 1;
 }
 
@@ -485,8 +442,8 @@ int if_needed_load_par()
   {
     return 1;
   }
-  xpp_log(XPP_LOG_INFO, "Loading external parameter file: %s\n",parfilename);
-  io_parameter_file(parfilename,1);
+  xpp::log(XPP_LOG_INFO, "Loading external parameter file: {}\n",parfilename);
+  io_parameter_file(parfilename.c_str(),1);
   return 1;
 }
 
@@ -498,8 +455,8 @@ int if_needed_load_ic()
   {
   	return 1;
   }
-  xpp_log(XPP_LOG_INFO, "Loading external initial condition file: %s\n",icfilename);
-  io_ic_file(icfilename,1);
+  xpp::log(XPP_LOG_INFO, "Loading external initial condition file: {}\n",icfilename);
+  io_ic_file(icfilename.c_str(),1);
   return(1);
 }
 
