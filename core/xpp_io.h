@@ -267,6 +267,40 @@ inline std::string number(double v)
 }
 #endif
 
+/* ---- JSON strings -------------------------------------------------------
+   The one place that reads or writes a JSON string's content (the core's
+   text is UTF-8): the protocol (json_io.cpp's events and command objects)
+   and the files module (xpp_files.cpp's /files listing and its "file"
+   command) shared two near-copies of this before, one of them (buf_str)
+   treating bytes above 0x7f as Latin-1 instead of decoding UTF-8, which
+   sent a model's non-ASCII names back mangled (docs/protocol.md). */
+
+/* Appends `s` (already-decoded UTF-8, as the core's own strings are)
+   escaped as a JSON string's *content* to `out` -- no surrounding quotes,
+   the caller adds those, since both callers build the quotes into a
+   larger buffer around other text. A valid UTF-8 sequence in `s` passes
+   through unchanged; '"', '\\' and the control characters are escaped
+   (\n \t \r \b \f by name, the rest as \u00XX); a byte that is not part
+   of a valid UTF-8 sequence -- and so is not text at all -- is escaped as
+   \u00XX too, its own byte value, the same fallback buf_str always used. */
+void json_encode_string(std::string &out, std::string_view s);
+
+/* Decodes the JSON string value at *v (which must point to its opening
+   '"'): unescapes \", \\, \/, \n, \t, \r, \b, \f and \uXXXX (a surrogate
+   pair combined into one code point, encoded to UTF-8) into `out`
+   (cleared first), stopping at the closing '"' or the end of the input.
+   At most `max` bytes are appended (SIZE_MAX for no limit); a command
+   object's fixed-size destination passes its buffer size, same as the
+   old js_string.
+
+   `strict` is xpp_files' stricter rule for a file name: false for any
+   other escape, control character (embedded raw or via \u), or unpaired
+   surrogate, instead of the loose fallback (an unknown escape copied
+   literally, a bad \u treated as U+FFFD) callers reading a command's
+   ordinary text fields use. Returns false only when *v is not a '"' or,
+   in strict mode, one of those rejects. */
+bool json_decode_string(const char *v, std::string &out, size_t max, bool strict);
+
 /* A FILE * that closes itself: for a stream the core gets from an API
    that hands out a FILE * (xpp_files_open, fdopen, ...) rather than a
    path the readers/writer below could open. */

@@ -1,0 +1,9 @@
+# A model with a non-ASCII (UTF-8) parameter name, for the protocol's
+# UTF-8 round trip (card W35b, docs/protocol.md "state"): before the fix
+# a name like this came back in the state event as mojibake (each UTF-8
+# byte >=0x80 treated as Latin-1 and re-encoded).
+par Iαpp=0.05
+v'=Iαpp-v
+init v=0
+@ total=1,dt=.1
+done

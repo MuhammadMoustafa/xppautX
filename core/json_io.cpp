@@ -10,7 +10,6 @@
 #include "xpp_log.h"
 #include "xpp_win32.h"
 #include "mykeydef.h"
-#include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -44,21 +43,8 @@ void buf_add(Buf *b, const char *s, size_t n)
 
 void buf_str(Buf *b, const char *s)
 {
-    static constexpr std::string_view hex = "0123456789abcdef";
     BUF_LIT(b, "\"");
-    for (; s && *s; s++) {
-        unsigned char c = static_cast<unsigned char>(*s);
-        if (c == '"' || c == '\\') {
-            const std::array<char, 2> esc{'\\', *s};
-            buf_add(b, esc.data(), esc.size());
-        } else if (c == '\n') BUF_LIT(b, "\\n");
-        else if (c == '\t') BUF_LIT(b, "\\t");
-        else if (c < 0x20 || c >= 0x80) {
-            /* the core's strings are ASCII or Latin-1; keep the byte value */
-            const std::array<char, 6> esc{'\\', 'u', '0', '0', hex[c >> 4], hex[c & 15]};
-            buf_add(b, esc.data(), esc.size());
-        } else buf_add(b, s, 1);
-    }
+    if (s) xpp::json_encode_string(b->s, std::string_view(s));
     BUF_LIT(b, "\"");
 }
 
@@ -260,29 +246,11 @@ const char *js_find(const char *obj, const char *key)
 
 bool js_string(const char *v, std::string &out, size_t max)
 {
-    out.clear();
-    if (!v || *v != '"') return false;
-    v++;
     try {
-        while (*v && *v != '"') {
-            char c = *v++;
-            if (c == '\\' && *v) {
-                c = *v++;
-                if (c == 'n') c = '\n';
-                else if (c == 't') c = '\t';
-                else if (c == 'u') {
-                    unsigned u = 0;
-                    for (int i = 0; i < 4 && *v; i++, v++)
-                        u = u * 16 + static_cast<unsigned>(*v <= '9' ? *v - '0' : (*v | 32) - 'a' + 10);
-                    c = u < 256 ? static_cast<char>(u) : '?';
-                }
-            }
-            if (out.size() + 1 < max) out += c;
-        }
+        return xpp::json_decode_string(v, out, max, /*strict=*/false);
     } catch (...) {
         out_of_memory("reading a command");
     }
-    return true;
 }
 
 int js_string(const char *v, char *out, int max)

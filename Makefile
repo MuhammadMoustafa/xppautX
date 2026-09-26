@@ -216,7 +216,7 @@ $(BUILDDIR)/webview.o: $(WEBVIEW_DIR)/src/webview.cc $(BUILDDIR)/toolchain.stamp
 # web view's window takes) and the version block, from assets/xppautx.rc
 ifeq ($(OS),Windows_NT)
 SERVER_OBJECTS += $(BUILDDIR)/xppautx_res.o
-$(BUILDDIR)/xppautx_res.o: assets/xppautx.rc assets/icon.ico $(BUILDDIR)/version.stamp | $(BUILDDIR)
+$(BUILDDIR)/xppautx_res.o: assets/xppautx.rc assets/icon.ico assets/xppautx.manifest $(BUILDDIR)/version.stamp | $(BUILDDIR)
 	@echo '#define XPPAUTX_VERSION_STR "$(XPPAUTX_VERSION)"' > $(BUILDDIR)/version_rc.h
 	$(WINDRES) -I$(BUILDDIR) -O coff -i $< -o $@
 endif

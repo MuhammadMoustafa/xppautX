@@ -171,63 +171,28 @@ bool cached(const std::string &name, unsigned long long size, long long mtime, H
     return true;
 }
 
-/* ---- JSON --------------------------------------------------------------------------- */
+/* ---- JSON ---------------------------------------------------------------
+   The reader/writer for a JSON string's content are xpp_io.h's
+   (xpp::json_encode_string/json_decode_string): json_io.cpp's protocol
+   events and command objects share them, so a fix (UTF-8, surrogate
+   pairs) lands in one place. This module keeps its own stricter rule for
+   a file name below (xpp_files_name_ok), and calls the shared decoder in
+   "strict" mode: false for a control character or an unpaired surrogate,
+   which are not a name we take. */
 
 void json_str(std::string &s, const std::string &v)
 {
     s += '"';
-    for (unsigned char c : v) {
-        if (c == '"' || c == '\\') {
-            s += '\\';
-            s += static_cast<char>(c);
-        } else if (c < 0x20) {
-            s += xpp::format("\\u{:04x}", static_cast<unsigned>(c));
-        } else s += static_cast<char>(c);
-    }
+    xpp::json_encode_string(s, v);
     s += '"';
 }
 
-void put_utf8(std::string &s, unsigned u)
-{
-    if (u < 0x80) s += static_cast<char>(u);
-    else if (u < 0x800) {
-        s += static_cast<char>(0xc0 | u >> 6);
-        s += static_cast<char>(0x80 | (u & 63));
-    } else {
-        s += static_cast<char>(0xe0 | u >> 12);
-        s += static_cast<char>(0x80 | (u >> 6 & 63));
-        s += static_cast<char>(0x80 | (u & 63));
-    }
-}
-
 /* a JSON string value, strictly: false for anything but a string, and for
-   one that holds a control character (\u0000 included) */
+   one that holds a control character (\u0000 included) or an unpaired
+   surrogate */
 bool json_string(const char *v, std::string &out)
 {
-    if (!v || *v != '"') return false;
-    for (v++; *v != '"'; v++) {
-        unsigned char c = static_cast<unsigned char>(*v);
-        if (!c || c < 0x20) return false;
-        if (c != '\\') {
-            out += static_cast<char>(c);
-            continue;
-        }
-        c = static_cast<unsigned char>(*++v);
-        if (c == '"' || c == '\\' || c == '/') out += static_cast<char>(c);
-        else if (c == 'u') {
-            unsigned u = 0;
-            for (int i = 0; i < 4; i++) {
-                int d = *++v;
-                if (d >= '0' && d <= '9') d -= '0';
-                else if ((d | 32) >= 'a' && (d | 32) <= 'f') d = (d | 32) - 'a' + 10;
-                else return false;
-                u = u * 16 + static_cast<unsigned>(d);
-            }
-            if (u < 0x20 || (u >= 0xd800 && u <= 0xdfff)) return false; /* surrogates: not a file name we take */
-            put_utf8(out, u);
-        } else return false; /* \n, \t, ...: control characters */
-    }
-    return true;
+    return xpp::json_decode_string(v, out, static_cast<size_t>(-1), /*strict=*/true);
 }
 
 /* ---- base64 ----------------------------------------------------------------------- */

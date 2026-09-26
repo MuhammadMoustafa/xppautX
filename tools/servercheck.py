@@ -72,9 +72,14 @@ def launch_server(extra_env=None, ode=None):
     if extra_env is not None:
         env = dict(os.environ)
         env.update(extra_env)
+    # encoding='utf-8' explicitly (docs/protocol.md: the protocol is UTF-8):
+    # text=True alone decodes with locale.getpreferredencoding(), which on a
+    # Windows box without the UTF-8 system locale is the ANSI code page
+    # (cp1252 here), mojibake-ing a non-ASCII name on this side even though
+    # the wire bytes and xppautX itself (card W35b) are correct UTF-8.
     proc = subprocess.Popen([os.path.abspath(args.server), '--server', os.path.basename(ode)], cwd=run_dir,
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                            text=True, bufsize=1, env=env)
+                            text=True, encoding='utf-8', bufsize=1, env=env)
     events = queue.Queue()
 
     def reader():
@@ -369,6 +374,21 @@ ev = file_cmd(op='get', name='none.bin')
 check('file get of a missing file says so', ev.get('ok') == 0 and ev.get('error'), str(ev))
 check('refused file commands leave nothing behind', sorted(os.listdir(run)) == sorted(before + ['srv.bin'])
       and stat_of(outside) == above, str(sorted(os.listdir(run))))
+
+# UTF-8 file names (card W35b, MI-001/WF-002): "mu settings.set" ('μ',
+# a Greek mu) written, listed and read back with its real name, not the
+# mojibake ('Î¼...') the old byte-as-Latin-1 JSON string
+# reader/writer produced -- and, on Windows, not mangled by the ANSI code
+# page either (assets/xppautx.manifest's activeCodePage UTF-8).
+utf8_name = 'μ settings.set'
+ev = file_cmd(op='put', name=utf8_name, data=base64.b64encode(b'hi').decode())
+check('file put takes a UTF-8 name and writes that file', ev.get('ok') == 1 and ev.get('name') == utf8_name
+      and os.path.exists(os.path.join(run, utf8_name)), str(ev))
+ev = file_cmd(op='list')
+names = [f['name'] for f in ev.get('files', [])]
+check('file list gives the UTF-8 name back whole', utf8_name in names, str(names))
+ev = file_cmd(op='get', name=utf8_name)
+check('file get of the UTF-8 name gives its bytes back', ev.get('ok') == 1 and base64.b64decode(ev.get('data', '')) == b'hi', str(ev))
 
 send(cmd='key', key='u')  # nUmerics menu
 send(cmd='key', key='t')  # total
@@ -2078,6 +2098,30 @@ else:
     proc2.kill()
     check('bad-HOME server: File/Quit exits', False, 'server had already exited')
 shutil.rmtree(run2, ignore_errors=True)
+
+
+# A non-ASCII parameter name round-trips through state and set (card
+# W35b, MI-001): tools/models/utf8name.ode's "Iαpp" ('α', Greek
+# alpha) used to come back in the state event as mojibake (json_io.cpp's
+# buf_str treated each UTF-8 byte >=0x80 as Latin-1).
+UTF8_ODE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'utf8name.ode')
+alpha_name = 'Iαpp'
+p3, r3, snd3, col3, _ = launch_server(ode=UTF8_ODE)
+try:
+    col3(is_idle)
+    snd3(cmd='state')
+    evs, st = col3(is_state)
+    col3(is_idle)
+    check('a UTF-8 parameter name round-trips through state', st is not None
+          and dict(st['pars']).get(alpha_name) == 0.05, str(st and st['pars']))
+    snd3(cmd='set', kind='par', name=alpha_name, value=0.2)
+    snd3(cmd='state')
+    evs, st = col3(is_state)
+    col3(is_idle)
+    check('set by its UTF-8 name changes it, and state shows the UTF-8 name still', st is not None
+          and dict(st['pars']).get(alpha_name) == 0.2, str(st and st['pars']))
+finally:
+    stop_server(p3, r3, snd3)
 
 send(cmd='key', key='f')
 send(cmd='key', key='q')

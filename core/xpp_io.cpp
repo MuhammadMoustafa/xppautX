@@ -456,4 +456,190 @@ void format_failed(const char *file, int line) noexcept
     xpp_log(XPP_LOG_ERROR, "out of memory formatting a string at %s:%d\n", file, line);
     std::exit(1);
 }
+
+namespace {
+
+constexpr std::string_view kHex = "0123456789abcdef";
+
+void append_u00(std::string &out, unsigned char c)
+{
+    out += "\\u00";
+    out += kHex[c >> 4];
+    out += kHex[c & 15];
 }
+
+void append_utf8(std::string &out, unsigned cp)
+{
+    if (cp < 0x80) {
+        out += static_cast<char>(cp);
+    } else if (cp < 0x800) {
+        out += static_cast<char>(0xc0 | (cp >> 6));
+        out += static_cast<char>(0x80 | (cp & 0x3f));
+    } else if (cp < 0x10000) {
+        out += static_cast<char>(0xe0 | (cp >> 12));
+        out += static_cast<char>(0x80 | ((cp >> 6) & 0x3f));
+        out += static_cast<char>(0x80 | (cp & 0x3f));
+    } else {
+        out += static_cast<char>(0xf0 | (cp >> 18));
+        out += static_cast<char>(0x80 | ((cp >> 12) & 0x3f));
+        out += static_cast<char>(0x80 | ((cp >> 6) & 0x3f));
+        out += static_cast<char>(0x80 | (cp & 0x3f));
+    }
+}
+
+/* the UTF-8 sequence length a leading byte announces, 0 if it cannot
+   start one (a continuation byte, or a byte no valid UTF-8 uses) */
+int utf8_len(unsigned char c0)
+{
+    if ((c0 & 0xe0) == 0xc0) return 2;
+    if ((c0 & 0xf0) == 0xe0) return 3;
+    if ((c0 & 0xf8) == 0xf0) return 4;
+    return 0;
+}
+
+} // namespace
+
+void json_encode_string(std::string &out, std::string_view s)
+{
+    size_t i = 0, n = s.size();
+    while (i < n) {
+        unsigned char c = static_cast<unsigned char>(s[i]);
+        if (c == '"' || c == '\\') {
+            out += '\\';
+            out += static_cast<char>(c);
+            i++;
+        } else if (c == '\n') { out += "\\n"; i++; }
+        else if (c == '\t') { out += "\\t"; i++; }
+        else if (c == '\r') { out += "\\r"; i++; }
+        else if (c == '\b') { out += "\\b"; i++; }
+        else if (c == '\f') { out += "\\f"; i++; }
+        else if (c < 0x20) { append_u00(out, c); i++; }
+        else if (c < 0x80) { out += static_cast<char>(c); i++; }
+        else {
+            int len = utf8_len(c);
+            bool valid = len > 0 && i + static_cast<size_t>(len) <= n;
+            unsigned cp = c & (0xffu >> (len + 1));
+            for (int k = 1; valid && k < len; k++) {
+                unsigned char cc = static_cast<unsigned char>(s[i + static_cast<size_t>(k)]);
+                if ((cc & 0xc0) != 0x80) { valid = false; break; }
+                cp = (cp << 6) | (cc & 0x3f);
+            }
+            if (valid) {
+                /* reject overlong encodings, surrogates and out-of-range
+                   code points: not a byte sequence a UTF-8 encoder would
+                   ever produce, so not passed through as one */
+                if (len == 2 && cp < 0x80) valid = false;
+                else if (len == 3 && cp < 0x800) valid = false;
+                else if (len == 4 && cp < 0x10000) valid = false;
+                else if (cp > 0x10ffff) valid = false;
+                else if (cp >= 0xd800 && cp <= 0xdfff) valid = false;
+            }
+            if (valid) {
+                out.append(s.data() + i, static_cast<size_t>(len));
+                i += static_cast<size_t>(len);
+            } else {
+                append_u00(out, c);
+                i++;
+            }
+        }
+    }
+}
+
+namespace {
+
+/* one \uXXXX's 4 hex digits at *v (which must point just past the 'u'),
+   advancing v; -1 on a bad digit */
+int read_hex4(const char *&v)
+{
+    unsigned u = 0;
+    for (int i = 0; i < 4; i++) {
+        unsigned char d = static_cast<unsigned char>(*v);
+        int digit;
+        if (d >= '0' && d <= '9') digit = d - '0';
+        else if ((d | 32) >= 'a' && (d | 32) <= 'f') digit = (d | 32) - 'a' + 10;
+        else return -1;
+        u = u * 16 + static_cast<unsigned>(digit);
+        v++;
+    }
+    return static_cast<int>(u);
+}
+
+} // namespace
+
+bool json_decode_string(const char *v, std::string &out, size_t max, bool strict)
+{
+    out.clear();
+    if (!v || *v != '"') return false;
+    v++;
+    auto push_byte = [&](char ch) {
+        if (out.size() + 1 < max) out += ch;
+    };
+    auto push_cp = [&](unsigned cp) {
+        std::string tmp;
+        append_utf8(tmp, cp);
+        for (char ch : tmp) push_byte(ch);
+    };
+    while (*v && *v != '"') {
+        unsigned char c = static_cast<unsigned char>(*v);
+        if (c < 0x20) {
+            if (strict) return false;
+            push_byte(static_cast<char>(c));
+            v++;
+            continue;
+        }
+        if (c != '\\') {
+            push_byte(static_cast<char>(c));
+            v++;
+            continue;
+        }
+        v++;
+        unsigned char e = static_cast<unsigned char>(*v);
+        if (!e) break; /* a trailing backslash: stop, like the old readers did */
+        switch (e) {
+        case '"': push_byte('"'); v++; break;
+        case '\\': push_byte('\\'); v++; break;
+        case '/': push_byte('/'); v++; break;
+        case 'n': if (strict) return false; push_byte('\n'); v++; break;
+        case 't': if (strict) return false; push_byte('\t'); v++; break;
+        case 'r': if (strict) return false; push_byte('\r'); v++; break;
+        case 'b': if (strict) return false; push_byte('\b'); v++; break;
+        case 'f': if (strict) return false; push_byte('\f'); v++; break;
+        case 'u': {
+            v++;
+            int u1 = read_hex4(v);
+            if (u1 < 0) { if (strict) return false; break; }
+            unsigned cp = static_cast<unsigned>(u1);
+            if (u1 >= 0xd800 && u1 <= 0xdbff) {
+                /* a high surrogate: a following \uDCxx completes the pair */
+                const char *save = v;
+                if (v[0] == '\\' && v[1] == 'u') {
+                    const char *v2 = v + 2;
+                    int u2 = read_hex4(v2);
+                    if (u2 >= 0xdc00 && u2 <= 0xdfff) {
+                        cp = 0x10000u + ((static_cast<unsigned>(u1) - 0xd800u) << 10) +
+                             (static_cast<unsigned>(u2) - 0xdc00u);
+                        v = v2;
+                    } else {
+                        v = save;
+                        if (strict) return false;
+                    }
+                } else if (strict) return false;
+            } else if (u1 >= 0xdc00 && u1 <= 0xdfff) {
+                if (strict) return false; /* a lone low surrogate */
+            }
+            if (strict && cp < 0x20) return false; /* \u0000 etc: a control character too */
+            if (cp >= 0xd800 && cp <= 0xdfff) cp = 0xfffd; /* unpaired: U+FFFD, loose mode only */
+            push_cp(cp);
+            break;
+        }
+        default:
+            if (strict) return false;
+            push_byte(static_cast<char>(e)); /* an unknown escape: copied literally */
+            v++;
+            break;
+        }
+    }
+    return true;
+}
+
+} // namespace xpp

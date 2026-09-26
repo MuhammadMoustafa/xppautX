@@ -499,5 +499,81 @@ int main(void)
         CHECK(read_raw(tf.c_str()) == "replaced" TEXT_NL);
     }
 
+    /* xpp::json_encode_string/json_decode_string (card W35b): the one
+       JSON string codec json_io.cpp's protocol lines and xpp_files.cpp's
+       file names/listing both use, merged so a UTF-8 bug (the protocol
+       used to treat bytes >=0x80 as Latin-1) is fixed in one place. */
+    {
+        /* encode: valid UTF-8 (2/3/4-byte) passes through unchanged */
+        std::string out;
+        xpp::json_encode_string(out, "I\xce\xb1pp"); /* "Iαpp" */
+        CHECK_STR(out.c_str(), "I\xce\xb1pp");
+        out.clear();
+        xpp::json_encode_string(out, "\xe2\x82\xac"); /* U+20AC EURO SIGN */
+        CHECK_STR(out.c_str(), "\xe2\x82\xac");
+        out.clear();
+        xpp::json_encode_string(out, "\xf0\x9f\x98\x80"); /* U+1F600, 4 bytes */
+        CHECK_STR(out.c_str(), "\xf0\x9f\x98\x80");
+
+        /* encode: '"', '\\' and control characters are escaped */
+        out.clear();
+        xpp::json_encode_string(out, "a\"b\\c\nd\te");
+        CHECK_STR(out.c_str(), "a\\\"b\\\\c\\nd\\te");
+        out.clear();
+        xpp::json_encode_string(out, std::string(1, '\x01'));
+        CHECK_STR(out.c_str(), "\\u0001");
+
+        /* encode: a byte that is not part of valid UTF-8 (a lone
+           continuation byte, an overlong/truncated sequence) is escaped
+           as \u00XX -- its own byte value, Latin-1 style, since it is
+           not decodable text at all */
+        out.clear();
+        xpp::json_encode_string(out, "\xff\xfe");
+        CHECK_STR(out.c_str(), "\\u00ff\\u00fe");
+        out.clear();
+        xpp::json_encode_string(out, "\xc3"); /* truncated 2-byte sequence */
+        CHECK_STR(out.c_str(), "\\u00c3");
+
+        /* decode: escapes, including a surrogate pair, into UTF-8 */
+        std::string in;
+        CHECK(xpp::json_decode_string("\"I\\u03b1pp\"", in, static_cast<size_t>(-1), false));
+        CHECK_STR(in.c_str(), "I\xce\xb1pp"); /* U+03B1 -> UTF-8 */
+        CHECK(xpp::json_decode_string("\"\\ud83d\\ude00\"", in, static_cast<size_t>(-1), false));
+        CHECK_STR(in.c_str(), "\xf0\x9f\x98\x80"); /* U+1F600 via its surrogate pair */
+        CHECK(xpp::json_decode_string("\"a\\nb\\t\\\"\\\\\"", in, static_cast<size_t>(-1), false));
+        CHECK_STR(in.c_str(), "a\nb\t\"\\");
+
+        /* decode: raw UTF-8 bytes in the input pass through unchanged */
+        CHECK(xpp::json_decode_string("\"caf\xc3\xa9\"", in, static_cast<size_t>(-1), false));
+        CHECK_STR(in.c_str(), "caf\xc3\xa9");
+
+        /* decode, strict (xpp_files' file-name rule): a control
+           character, raw or via \u0000, and an unpaired surrogate are
+           refused; a valid escape and a surrogate pair still work */
+        CHECK(!xpp::json_decode_string("\"a\\u0000b\"", in, static_cast<size_t>(-1), true));
+        CHECK(!xpp::json_decode_string(std::string("\"a\x01" "b\"").c_str(), in, static_cast<size_t>(-1), true));
+        CHECK(!xpp::json_decode_string("\"\\ud83d\"", in, static_cast<size_t>(-1), true)); /* lone high */
+        CHECK(!xpp::json_decode_string("\"\\ude00\"", in, static_cast<size_t>(-1), true)); /* lone low */
+        CHECK(xpp::json_decode_string("\"I\\u03b1pp\"", in, static_cast<size_t>(-1), true));
+        CHECK_STR(in.c_str(), "I\xce\xb1pp");
+        CHECK(xpp::json_decode_string("\"\\ud83d\\ude00\"", in, static_cast<size_t>(-1), true));
+        CHECK_STR(in.c_str(), "\xf0\x9f\x98\x80");
+
+        /* decode: not a string at all */
+        CHECK(!xpp::json_decode_string("42", in, static_cast<size_t>(-1), false));
+        CHECK(!xpp::json_decode_string(NULL, in, static_cast<size_t>(-1), false));
+
+        /* decode: a max byte cap truncates, same as the old js_string */
+        CHECK(xpp::json_decode_string("\"hello\"", in, 4, false));
+        CHECK_STR(in.c_str(), "hel");
+
+        /* round trip: encode then decode gives the original text back */
+        std::string enc;
+        xpp::json_encode_string(enc, "I\xce\xb1pp \"quoted\"\n");
+        std::string quoted = "\"" + enc + "\"";
+        CHECK(xpp::json_decode_string(quoted.c_str(), in, static_cast<size_t>(-1), false));
+        CHECK_STR(in.c_str(), "I\xce\xb1pp \"quoted\"\n");
+    }
+
     TEST_REPORT("test_io");
 }
