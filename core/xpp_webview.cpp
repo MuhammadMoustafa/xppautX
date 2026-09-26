@@ -5,8 +5,8 @@
    (macOS and Windows clang need C++17 for libc++ compatibility).
    The glue file catches webview::exception to extract detailed error
    information (code, message) when window creation fails, preventing the
-   loss of error details that the C API webview_create normally discards. */
-#define WEBVIEW_STATIC
+   loss of error details that the C API webview_create normally discards.
+   WEBVIEW_STATIC is defined in compiler flags (-DWEBVIEW_STATIC). */
 #include "webview/webview.h"
 #include "xpp_webview.h"
 
