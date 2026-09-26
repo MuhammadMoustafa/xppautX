@@ -322,10 +322,13 @@ async function values() {
   await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)});
     el.value = '0.25'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   await sleep(150);
+  const noFocus = await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)});
+    const msg = document.getElementById(el.getAttribute('aria-describedby') || '');
+    return {value: el.value, focused: document.activeElement === el, active: document.activeElement?.id || document.activeElement?.tagName,
+      message: msg ? msg.textContent : null}; })()`);
   check('text typed without a focus event stays in the box, unsent',
-    await cdp.eval(`document.getElementById(${JSON.stringify(field)}).value`) === '0.25'
-      && !(await S('s.values.pending')),
-    await cdp.eval(`document.getElementById(${JSON.stringify(field)}).value`));
+    noFocus.value === '0.25' && !(await S('s.values.pending')),
+    JSON.stringify([noFocus, await S('[s.values.pending, s.values.errors, s.busy, __xpp.sent().slice(-2)]')]));
   await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)});
     el.focus(); el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})); })()`);
   await sleep(150);
