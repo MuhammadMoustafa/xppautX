@@ -34,6 +34,12 @@ double ndrand48(void);
 void nsrand48(int seed);
 double ran1(long *idum);
 
+/* stocHast's many-runs state (markov.cpp): whether a Compute is running,
+   whether its mean and variance exist, the number of trials and the
+   length of each run, and the mean and variance columns */
+extern int STOCH_FLAG, STOCH_HERE, N_TRIALS, stoch_len;
+extern float *my_mean[], *my_variance[];
+
 
 #ifdef __cplusplus
 }

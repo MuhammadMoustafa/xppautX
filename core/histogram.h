@@ -29,6 +29,15 @@ void post_process_stuff();
 void just_fourier(int flag);
 void just_sd(int flag);
 
+/* histogram.cpp's results, read back by the data browser and the tests:
+   the last histogram and Fourier transform's columns, whether one exists
+   and its length, and the spectrum's settings (the model's own
+   @ options set spec_*) */
+extern float *my_hist[];
+extern float *my_four[];
+extern int HIST_HERE, FOUR_HERE, hist_len, four_len;
+extern int spec_col, spec_wid, spec_win, spec_col2, spec_type;
+
 #ifdef __cplusplus
 }
 #endif

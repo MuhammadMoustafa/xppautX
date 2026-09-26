@@ -39,15 +39,6 @@ extern "C" {
 extern float **storage;
 extern int storind;
 }
-/* my_four/my_hist/HIST_HERE/FOUR_HERE/hist_len/four_len and the spec_*
-   globals are histogram.cpp's own (declared the way every other core
-   file that uses them already does, e.g. load_eqn.cpp's "extern int
-   spec_col,..."); there is no header for them since they are file-scope
-   working state, not part of histogram.h's function API. */
-extern float *my_four[];
-extern float *my_hist[];
-extern int FOUR_HERE, HIST_HERE, four_len, hist_len;
-extern int spec_col, spec_wid, spec_win, spec_col2, spec_type;
 
 static const double PI = 3.14159265358979323846;
 

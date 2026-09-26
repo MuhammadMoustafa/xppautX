@@ -20,10 +20,6 @@
 
 #include <cmath>
 
-/* file-scope in histogram.cpp, not declared in histogram.h (W31b note:
-   hist_inf/my_hist have no public accessor -- see the report) */
-extern float *my_hist[MAXODE + 1];
-extern int HIST_HERE;
 
 namespace {
 

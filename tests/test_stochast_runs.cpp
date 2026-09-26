@@ -14,6 +14,7 @@
 #include "browse.h"
 #include "graphics.h"
 #include "integrate.h"
+#include "markov.h"
 #include "phsplan.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
@@ -24,10 +25,6 @@
 
 extern double MyData[MAXODE];
 
-/* file-scope in markov.cpp, not declared in markov.h (W31b note: see the
-   report) */
-extern int STOCH_FLAG, STOCH_HERE, N_TRIALS, stoch_len;
-extern float *my_mean[MAXODE], *my_variance[MAXODE];
 
 int main(void)
 {
