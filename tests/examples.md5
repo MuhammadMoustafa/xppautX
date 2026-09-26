@@ -28,7 +28,7 @@ bb1743f40d2f2a996d45533e06042da0 examples/ode/bob.ode
 14446a99cee7eb66d3bc1adb6021c6a0 examples/ode/cable.ode
 noload examples/ode/candelator.ode
 bc9922f6723839257a6b251ca75c47f9 examples/ode/chemotax.ode
-noload examples/ode/clustor.ode
+02e4358bbc717bfb0ced28445ad201b7 examples/ode/clustor.ode
 dad380965e47854139fde99dc8dd82fb examples/ode/coaster2D.ode
 3989da722c07edde4b0e99cf67724fe5 examples/ode/cobweb2.ode
 bb1743f40d2f2a996d45533e06042da0 examples/ode/crazy.ode

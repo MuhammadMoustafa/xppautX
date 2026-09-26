@@ -1,3 +1,7 @@
+# Does not load: mksol, addtosol, tracksol, pHsol, strength, buffcap and Cb
+# are commands of a pHtools module that is not part of XPPAUT 8 or xppautX
+# (the parser does not know them), kept for reference.
+# tools/examples_check.sh expects "noload".
 #Demonstration of malolactic alkalinization during fermentation
 #
 #Parameters

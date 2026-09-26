@@ -1,3 +1,7 @@
+# Does not load: mksol, addtosol, tracksol, pHsol, strength, buffcap and Cb
+# are commands of a pHtools module that is not part of XPPAUT 8 or xppautX
+# (the parser does not know them), kept for reference.
+# tools/examples_check.sh expects "noload".
 #Demonstrates basic syntax of the module
 #We create a buffer calculate its initial pH and then exit
 

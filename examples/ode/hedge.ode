@@ -1,2 +1,5 @@
+# Does not load, on purpose or unfinished: x' has no right-hand side
+# ("Premature end of expression"). XPPAUT 8 rejects it the same way;
+# tools/examples_check.sh expects "noload" (the parser's error path).
 x'=
 y'=eps*x

@@ -1,3 +1,8 @@
+# Does not load: an unfinished draft of tsthom2.ode's homoclinic set-up
+# with hom_bcs. b is both a variable (b'=0) and a parameter ("Duplicate
+# name B"), the first hom_bcs( is not closed and p is never defined
+# (tsthom2.ode has p'=0). See tsthom2.ode, or the homoclinic example in
+# docs/manual/09-auto.md. tools/examples_check.sh expects "noload".
 xl'=0
 yl'=0
 b xl

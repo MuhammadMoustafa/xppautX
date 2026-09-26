@@ -1,2 +1,5 @@
+# Does not load, on purpose: a malformed array equation ("+[j" never
+# closes), which the parser reports as "The expression does not terminate".
+# tools/examples_check.sh expects "noload" (the parser's error path).
 x[0..20]'=-x[j]+[j
 done

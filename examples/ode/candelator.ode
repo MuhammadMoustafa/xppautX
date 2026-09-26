@@ -1,3 +1,7 @@
+# Does not load: an unfinished draft. m1' and m2' use th1 and th2, which
+# are never defined (the variables are w and th), and f(t) below is cut
+# off in the middle of its if(...) (unbalanced parentheses). XPPAUT 8
+# rejects it the same way; tools/examples_check.sh expects "noload".
 !g=980
 par k=.1
 init m1=60,m2=60
