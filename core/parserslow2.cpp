@@ -23,6 +23,7 @@
 /* #include <malloc.h> */
 #include <stdio.h>
 #include <string.h>
+#include <array>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -1214,7 +1215,7 @@ int check_syntax(int oldtoken, int newtoken)  /* 1 is BAD!   */
 
 int make_toks(const char *dest, int *my_token)
 {
- char num[40];
+ std::array<char,40> num{}; /* do_num writes the number's start */
  double value;
   int old_tok=STARTTOK,tok_in=0;
  int index=0,token,nparen=0,lastindex=0;
@@ -1241,7 +1242,7 @@ int make_toks(const char *dest, int *my_token)
   
   if(token==NSYM)
     {
-      if(do_num(dest,num,&value,&index)){
+      if(do_num(dest,num.data(),&value,&index)){
 	show_where(dest,index);
 	return(1);
       }

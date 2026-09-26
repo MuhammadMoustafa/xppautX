@@ -315,7 +315,7 @@ void do_comline(int argc, char **argv)
      i++;
    }
    if(k==22){
-     XPP_STRCPY(ani_options.file,argv[i+1]);
+     XPP_FORMAT_TO_BUF(ani_options.file,"{}",argv[i+1]);
      ani_options.use_file=1;
      i++;
    }
@@ -648,7 +648,7 @@ int parse_it(const char *com)
      exit(0);
     }
     else {
-      XPP_STRCPY(this_file,com);
+      XPP_FORMAT_TO_BUF(this_file,"{}",com);
       got_file=1;
     }
   }

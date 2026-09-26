@@ -3,6 +3,7 @@
 #include <vector>
 #include <algorithm>
 #include <array>
+#include <optional>
 #include <string_view>
 
 #include "form_ode.h"
@@ -505,10 +506,9 @@ int compiler(char *bob, FILE *fptr)
       if(ConvertStyle)
 	put(convertf,"wiener ");
       advance_past_first_word(&ptr);
-      while((my_string=get_next2(&ptr))!=NULL)
+      for(std::optional<std::string> tok;(tok=get_next2(&ptr));)
 	{
-	  take_apart(my_string,&value,name);
-	  xpp_free(my_string);
+	  take_apart(tok->c_str(),&value,name);
 	  xpp_log(XPP_LOG_DEBUG, "|%s|=%f ",name,value);
 	  if(ConvertStyle)
 	    put(convertf,"{}  ",name);
@@ -529,10 +529,9 @@ int compiler(char *bob, FILE *fptr)
 	put(convertf,"number ");
 	
       advance_past_first_word(&ptr);
-      while((my_string=get_next2(&ptr))!=NULL)
+      for(std::optional<std::string> tok;(tok=get_next2(&ptr));)
 	{
-	  take_apart(my_string,&value,name);
-	  xpp_free(my_string);
+	  take_apart(tok->c_str(),&value,name);
 	  if(ConvertStyle)
 	    put(convertf,"{}={:g}  ",name,value);
           
@@ -572,11 +571,10 @@ int compiler(char *bob, FILE *fptr)
 
       advance_past_first_word(&ptr);
 
-      while((my_string=get_next2(&ptr))!=NULL)
+      for(std::optional<std::string> tok;(tok=get_next2(&ptr));)
 	{
 
-	  take_apart(my_string,&value,name);
-	  xpp_free(my_string);
+	  take_apart(tok->c_str(),&value,name);
 	  if(add_con(name,value)){
 	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	    exit(0);
@@ -625,12 +623,8 @@ int compiler(char *bob, FILE *fptr)
       XPP_FORMAT_TO_BUF(name,"{}",my_string);
       nlin=NLINES;
       index=old_build_markov(fptr,name);
-      nn=strlen(save_eqn[nlin]);
-      /* if(nn>72)nn=72; */
-      ode_names[IN_VARS+index]=static_cast<char *>(xpp_malloc(nn+10));
       XPP_FORMAT_TO_BUF(formula,"{}",save_eqn[nlin]);
-      /*      formula[nn-1]=0; */
-      xpp_snprintf(ode_names[IN_VARS+index],nn+10,"{ %s ... }",formula);
+      ode_names[IN_VARS+index]=xpp_strdup(xpp::format("{{ {} ... }}",formula).c_str());
       break;
     case 'v':      
       iflg=1;
@@ -643,15 +637,14 @@ int compiler(char *bob, FILE *fptr)
 	exit(0);
       }
       advance_past_first_word(&ptr);
-      while((my_string=get_next2(&ptr))!=NULL)
+      for(std::optional<std::string> tok;(tok=get_next2(&ptr));)
 	{
 	  if((IN_VARS>NEQ)||(IN_VARS==MAXODE))
 	    {
 	      xpp_log(XPP_LOG_ERROR, " too many variables at line %d\n",NLINES);
 	      exit(0);
 	    }
-	  take_apart(my_string,&value,name);
-	  xpp_free(my_string);
+	  take_apart(tok->c_str(),&value,name);
 	  if(name_too_long(name)||add_var(name,value)){
 	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	    exit(0);
@@ -808,20 +801,11 @@ int compiler(char *bob, FILE *fptr)
 	}
       my_string=get_next("\n");
       XPP_FORMAT_TO_BUF(formula,"{}",my_string);
-      nn=strlen(formula)+1;
-      /* if(nn>79)nn=79;  */
-      if((my_ode[NODE]=static_cast<int *>(xpp_malloc(MAXEXPLEN*sizeof(int))))==NULL){
-	xpp_log(XPP_LOG_WARN, "Out of memory at line %d\n",NLINES);
-	exit(0);
-      }
+      my_ode[NODE]=static_cast<int *>(xpp_malloc(MAXEXPLEN*sizeof(int)));
       
       if(NODE<IN_VARS)
 	{
-	  if((ode_names[NODE]=static_cast<char *>(xpp_malloc(nn+5)))==NULL){
-	    xpp_log(XPP_LOG_ERROR, "Out of memory at line %d\n",NLINES);
-	    exit(0);
-	  }
-          xpp_strlcpy(ode_names[NODE],formula,nn+5);
+	  ode_names[NODE]=xpp_strdup(formula);
 	  if(ConvertStyle){
 	    if(VFlag)
 	      put(convertf,"volt {}={}\n",uvar_names[NODE],formula);
@@ -830,7 +814,6 @@ int compiler(char *bob, FILE *fptr)
 	  }
 	  find_ker(formula,&alt);
 	  
-	  /* ode_names[NODE][nn]='\0'; */
 	
 	  EqType[NODE]=VFlag;
 	
@@ -848,12 +831,7 @@ int compiler(char *bob, FILE *fptr)
       if(NODE>=(IN_VARS+FIX_VAR))
 	{
 	  i=NODE-(IN_VARS+FIX_VAR);
-	  if((ode_names[NODE-FIX_VAR+NMarkov]=static_cast<char *>(xpp_malloc(nn)))==NULL){
-	    xpp_log(XPP_LOG_ERROR, "Out of memory at line %d\n",NLINES);
-	    exit(0);
-	  }
-          xpp_strlcpy(ode_names[NODE-FIX_VAR+NMarkov],formula,nn);
-	  /* ode_names[NODE-FIX_VAR+NMarkov][nn]='\0'; */
+	  ode_names[NODE-FIX_VAR+NMarkov]=xpp_strdup(formula);
 	  if(ConvertStyle){
 	    if(i<Naux)
 	      put(convertf,"aux {}={}\n",aux_names[i],formula);
@@ -928,8 +906,7 @@ void show_syms()
 /* ram: do I need to strip the name of any whitespace? */
 void take_apart(const char *bob, double *value, char *name)
 {
- int k,i,l;
- char number[40];
+ int k,l;
  l=strlen(bob);
  k=strcspn(bob,"=");
  if(k==l)
@@ -941,9 +918,8 @@ void take_apart(const char *bob, double *value, char *name)
   {
   strncpy_trim(name,bob,k);
   name[k]='\0';
-  for(i=k+1;i<l;i++)number[i-k-1]=bob[i];
-  number[l-k-1]='\0';
-  *value=atof(number);
+  /* the number after the '=', whatever its length */
+  *value=atof(bob+k+1);
   }
 }
 
@@ -962,73 +938,61 @@ char *get_next(const char *src)
 
 void find_ker(char *string, int *alt)   /* this extracts the integral operators from the string */ 
 {
-  char newstr[MAXEXPLEN],form[MAXEXPLEN],num[MAXEXPLEN];
+  /* int[mu]{form} (or int{form}) becomes the kernel's name, K##n */
+  std::string newstr,form;
   double mu=0.0;
-  int fflag=0,in=0,i=0,ifr=0,inum=0;
-  int n=strlen(string),j;
-  char name[20],ch;
+  bool fflag=false;
+  int i=0;
+  int n=strlen(string);
+  char ch;
   *alt=0;
   while(i<n){
     ch=string[i];
     if(ch=='['){
-      in=in-3;
-      inum=0;
+      newstr.resize(newstr.size()>=3?newstr.size()-3:0); /* the "int" */
+      std::string num;
       i++;
       while((ch=string[i])!=']'&&ch!=0){
-	if(inum<MAXEXPLEN-1)num[inum++]=ch;
+	num+=ch;
 	i++;
       }
-      /* was never terminated: atof read on into whatever the stack held
-         after mu's digits (valgrind, W21) */
-      num[inum]=0;
-      mu=atof(num);
-      fflag=1;
+      mu=atof(num.c_str());
+      fflag=true;
       *alt=1;
-      ifr=0;
+      form.clear();
       i+=2;
       continue;
     }
     if(ch=='{'){
-      in=in-3;
-      fflag=1;
-      ifr=0;
+      newstr.resize(newstr.size()>=3?newstr.size()-3:0); /* the "int" */
+      fflag=true;
+      form.clear();
       *alt=1;
       i++;
       continue;
     }
     if(ch=='}'){
-      form[ifr]=0;
-      XPP_SPRINTF(name,"K##%d",NKernel);
-      xpp_log(XPP_LOG_DEBUG, "Kernel mu=%f %s = %s \n",mu,name,form);
-      if(add_kernel(name,mu,form))exit(0);
-      for(j=0;j<static_cast<int>(strlen(name));j++){
-	newstr[in]=name[j];
-	in++;
-      }
+      std::string name=xpp::format("K##{}",NKernel);
+      xpp::log(XPP_LOG_DEBUG, "Kernel mu={:f} {} = {} \n",mu,name,form);
+      if(add_kernel(name.c_str(),mu,form.c_str()))exit(0);
+      newstr+=name;
       mu=0.0;
-      ifr=0;
-      fflag=0;
+      form.clear();
+      fflag=false;
       i++;
       continue;
     }
-    if(fflag){
-      form[ifr]=ch;
-      ifr++;
-    }
-    else {
-      newstr[in]=ch;
-      in++;
-    }
+    if(fflag)
+      form+=ch;
+    else
+      newstr+=ch;
     i++;
   }
-  newstr[in]=0;
-  /* string is a pointer here (find_ker's own parameter), rewritten in
-     place; newstr can only be built shorter than or equal to string's
-     original content (every branch that appends to newstr consumes at
-     least as much of string), so string's own original capacity, n+1
-     (n=strlen(string) at entry, never reassigned), is always enough. */
-  xpp_strlcpy(string,newstr,n+1);
-  
+  /* string is rewritten in place: newstr is never longer (every branch
+     that appends to it consumes at least as much of string) */
+  size_t len=newstr.copy(string,n);
+  string[len]=0;
+
 }
 
 void clrscr()
@@ -1771,10 +1735,9 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        	/*No more tokens.  Should this throw an error?*/
        }
       advance_past_first_word(&ptr);
-      while((my_string=get_next2(&ptr))!=NULL)
+      for(std::optional<std::string> tok;(tok=get_next2(&ptr));)
 	{
-	  take_apart(my_string,&z,name);
-	  xpp_free(my_string);
+	  take_apart(tok->c_str(),&z,name);
 	   convert(name,tmp);
 	   in=find_the_name(vnames,IN_VARS,tmp);
 	   if(in>=0){
@@ -1852,7 +1815,6 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        ode_names[nvar]=xpp_strdup(v->rhs);
        my_ode[nvar]=static_cast<int *>(xpp_malloc(MAXEXPLEN*sizeof(int)));
        find_ker(v->rhs,&alt);
-       /*       ode_names[nvar][nn-1]=0; */
        if(add_expr(v->rhs,my_ode[nvar],&leng[nvar])){
 	 xpp_log(XPP_LOG_ERROR, "ERROR compiling %s' \n",v->lhs);
 	 exit(0);
@@ -1889,7 +1851,6 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        in2=IN_VARS+FIX_VAR+naux;
        ode_names[in1]=xpp_strdup(v->rhs);
        my_ode[in2]=static_cast<int *>(xpp_malloc(MAXEXPLEN*sizeof(int)));
-       /* ode_names[in1][nn]=0; */
        if(add_expr(v->rhs,my_ode[in2],&leng[in2])){
 	 xpp_log(XPP_LOG_ERROR, "ERROR compiling %s \n",v->lhs);
 	 exit(0);
@@ -1995,14 +1956,17 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 */
 int formula_or_number(const char *expr,double *z)
 {
-  char num[80],form[80];
+  std::array<char,40> num{}; /* do_num's 40 bytes */
   int flag,i=0;
   int olderr=ERROUT;
   ERROUT=0;
   *z=0.0; /* initial it to 0 */
-  convert(expr,form);
-  flag=do_num(form,num,z,&i);
-  if(i<static_cast<int>(strlen(form)))flag=1;
+  /* convert only drops blanks: never longer than expr */
+  std::string form(expr);
+  convert(expr,form.data());
+  form.resize(strlen(form.c_str()));
+  flag=do_num(form.c_str(),num.data(),z,&i);
+  if(i<static_cast<int>(form.size()))flag=1;
   ERROUT=olderr;
   if(flag==0)
     return 0; /* 0 is a number */
@@ -2701,23 +2665,19 @@ void advance_past_first_word(char** sptr) {
     (*sptr) += len + 1;
 }
 
-char* new_string2(const char * old, int length) {
-    /*cout << "new_string2(\"" << old << "\", " << length << ")\n"; */
-    char* s = static_cast<char *>(xpp_malloc((length + 1) * sizeof(char)));
-    memcpy(s, old, length);
-    s[length] = '\0';
-    if (length > 0 && s[length - 1] == ',') {
-        s[length - 1] = '\0';
-    }
-    /* printf("s = %s; length = %d\n", s, length); */
-    return(s);
+/* old's first length characters, a final comma dropped */
+std::string new_string2(const char * old, int length) {
+    std::string s(old, length);
+    if (!s.empty() && s.back() == ',')
+        s.pop_back();
+    return s;
 }
 
 
-char* get_next2(char** tokens_ptr) {
+std::optional<std::string> get_next2(char** tokens_ptr) {
     /* grabs (a copy of) the next block of the form var = val, ending with a \n, space, or comma */
     /* importantly, this supports white space around the equal sign */
-    /* returns NULL if no more text */
+    /* returns nullopt if no more text */
     /* advances tokens_ptr */
     /* modified 2012-10-12 to also work if no = */
     int success = 0;
@@ -2728,7 +2688,7 @@ char* get_next2(char** tokens_ptr) {
     }
     if (!(*tokens)) {
         (*tokens_ptr) = tokens;
-        return NULL;
+        return std::nullopt;
     }
     int len = strlen(tokens);
     /* advance past space/the equal sign/comma */

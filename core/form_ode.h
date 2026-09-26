@@ -60,16 +60,19 @@ void subsk(const char *big, char *newstr, int k, int flag);
 void add_comment(const char *s);
 
 /* for parsing par, init with whitespace correctly */
-char* new_string2(const char * old, int length);
 void advance_past_first_word(char** sptr);
-char* get_next2(char** tokens_ptr);
 void strcpy_trim(char * dest, const char * source);
 void strncpy_trim(char * dest, const char * source, int n);
 
 #ifdef __cplusplus
 }
 
+#include <optional>
 #include <string>
+std::string new_string2(const char *old, int length);
+/* the next "name=value" (blanks around the = allowed) of *tokens_ptr,
+   which it advances */
+std::optional<std::string> get_next2(char **tokens_ptr);
 /* the parser's lines of any length (the char * forms above write at most
    256 bytes) */
 void read_a_line(FILE *fp, std::string &s);
