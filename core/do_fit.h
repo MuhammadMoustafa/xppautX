@@ -6,16 +6,8 @@ extern "C" {
 
 #include "xpplim.h"
 
-
-typedef struct {
-  char file[MAX_LEN_SBOX];
-  char varlist[MAX_LEN_SBOX],collist[MAX_LEN_SBOX];
-  char parlist1[MAX_LEN_SBOX],parlist2[MAX_LEN_SBOX];
-  int dim,npars,nvars,npts,maxiter;
-  int icols[50],ipar[50],ivar[50];
-  double tol,eps;
-} FITINFO;
-
+/* FITINFO is internal to do_fit.cpp (the only file that uses it); it is
+   not declared here. */
 
 void init_fit_info(void);
 void get_fit_info(double *y, double *a, double *t0, int *flag, double eps, double *yfit, double **yderv, int npts, int npars, int nvars, int *ivar, int *ipar);

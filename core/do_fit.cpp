@@ -10,10 +10,12 @@
 #include "stiff.h"
 #include "parserslow.h"
 #include "derived.h"
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <string>
+#include <vector>
 #include "ggets.h"
 #include "odesol2.h"
 #include "delay_handle.h"
@@ -40,9 +42,19 @@ extern double last_ic[MAXODE];
 
 extern double DELAY;
 extern int DelayFlag;
+
+namespace {
+struct FITINFO {
+  std::string file;
+  std::string varlist, collist;
+  std::string parlist1, parlist2;
+  int dim = 0, npars = 0, nvars = 0, npts = 0, maxiter = 0;
+  int icols[50], ipar[50], ivar[50];
+  double tol = 0.0, eps = 0.0;
+};
+
 FITINFO fin;
-
-
+}  // namespace
 
 
 void init_fit_info()
@@ -52,13 +64,13 @@ void init_fit_info()
   fin.dim=0;
   fin.npars=0;
   fin.nvars=0;
-  fin.varlist[0]=0;
-  fin.collist[0]=0;
-  fin.parlist1[0]=0;
-  fin.parlist2[0]=0;
+  fin.varlist.clear();
+  fin.collist.clear();
+  fin.parlist1.clear();
+  fin.parlist2.clear();
   fin.npts=0;
   fin.maxiter=20;
-  fin.file[0]=0;
+  fin.file.clear();
 }
 
 void get_fit_info(double *y, double *a, double *t0, int *flag, double eps, double *yfit, double **yderv, int npts, int npars, int nvars, int *ivar, int *ipar)
@@ -270,7 +282,7 @@ if(METHOD==RKQS||METHOD==STIFF){
     return(1);
   }
   z=(t1-t0)/dt;
-  nit=(int)z;
+  nit=static_cast<int>(z);
   kflag=solver(y,&t,dt,nit,NODE,istart,WORK);
 
   if(kflag<0)return(0);
@@ -289,7 +301,7 @@ void print_fit_info()
 {
   int i;
   xpp_log(XPP_LOG_INFO, "dim=%d maxiter=%d npts=%d file=%s tol=%g eps=%g\n",
-	 fin.dim,fin.maxiter,fin.npts,fin.file,fin.tol,fin.eps);
+	 fin.dim,fin.maxiter,fin.npts,fin.file.c_str(),fin.tol,fin.eps);
 
   for(i=0;i<fin.nvars;i++)
     xpp_log(XPP_LOG_INFO, " variable %d to col %d \n",
@@ -301,20 +313,15 @@ void print_fit_info()
 
 void test_fit()
 {
- double *yfit,a[1000],y0[1000];
+ double a[1000],y0[1000];
  int nvars,npars,i,ok;
- char collist[MAX_LEN_SBOX],parlist1[MAX_LEN_SBOX],parlist2[MAX_LEN_SBOX],varlist[MAX_LEN_SBOX];
+ std::string collist=fin.collist,parlist1=fin.parlist1,parlist2=fin.parlist2,varlist=fin.varlist;
  fin.nvars=0;
  fin.npars=0;
  if(get_fit_params()==0)return;
- 
- XPP_SPRINTF(collist,"%s",fin.collist);
- XPP_SPRINTF(varlist,"%s",fin.varlist);
- XPP_SPRINTF(parlist1,"%s",fin.parlist1);
- XPP_SPRINTF(parlist2,"%s",fin.parlist2);
 
 
- parse_collist(collist,fin.icols,&nvars);
+ parse_collist(collist.data(),fin.icols,&nvars);
  
  if(nvars<=0){
    err_msg("No columns...");
@@ -322,16 +329,16 @@ void test_fit()
  }
  fin.nvars=nvars;
  nvars=0;
- parse_varlist(varlist, fin.ivar, &nvars);
- 
+ parse_varlist(varlist.data(), fin.ivar, &nvars);
+
  if(fin.nvars!=nvars){
    err_msg(" # columns != # fitted variables");
    return;
  }
  npars=0;
- parse_parlist(parlist1,fin.ipar,&npars);
- 
- parse_parlist(parlist2,fin.ipar,&npars);
+ parse_parlist(parlist1.data(),fin.ipar,&npars);
+
+ parse_parlist(parlist2.data(),fin.ipar,&npars);
 
  if(npars<=0){
    err_msg(" No parameters!");
@@ -356,7 +363,8 @@ void test_fit()
      return;
    }
  }
- yfit=(double *)xpp_malloc(fin.npts*fin.nvars*sizeof(double));
+ std::vector<double> yfit_v(static_cast<size_t>(fin.npts)*fin.nvars);
+  double *yfit=yfit_v.data();
   for(i=0;i<NODE;i++)
     y0[i]=last_ic[i];
   for(i=0;i<fin.npars;i++){
@@ -368,12 +376,11 @@ void test_fit()
 
  print_fit_info();
  xpp_log(XPP_LOG_INFO, " Running the fit...\n");
- ok=run_fit(fin.file, fin.npts,fin.npars,fin.nvars,fin.maxiter,fin.dim,
+ ok=run_fit(fin.file.c_str(), fin.npts,fin.npars,fin.nvars,fin.maxiter,fin.dim,
          fin.eps,fin.tol,
 	 fin.ipar,fin.ivar,fin.icols,
 	 y0,a,yfit);
 
-   xpp_free(yfit);
    if(ok==0)return;
 
  /* get the latest par values ...  */
@@ -402,36 +409,32 @@ int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, i
    
 */
 {
-  double *t0,*y,sig[MAXODE],*covar,*alpha,chisq,ochisq,alambda,**yderv,*work;
-  int i,j,k,ioff,ictrl=0,ok;
-  FILE *fp;
+  int i,j,k,ioff,ictrl=0,ok=0;
   int niter=0,good_flag=0;
   double tol10=10*tol;
   double t,ytemp[MAXODE];
-/*printf(" %s %d %d %d %d %d \n",
-	  filename, 
-	npts,npars,nvars,maxiter,ndim); */
+  double sig[MAXODE];
+  double chisq=0.0,ochisq=0.0,alambda=0.0;
 
-
-  if((fp=fopen(filename,"r"))==NULL){
+  xpp::TokenReader reader(filename);
+  if(!reader){
     err_msg("No such file...");
     return(0);
   }
-  t0=(double *)xpp_malloc((npts+1)*sizeof(double));
-  y=(double *)xpp_malloc((npts+1)*nvars*sizeof(double));
+  std::vector<double> t0_v(static_cast<size_t>(npts)+1);
+  std::vector<double> y_v(static_cast<size_t>(npts+1)*nvars);
+  double *t0=t0_v.data(), *y=y_v.data();
 /* load up the data to fit   */
 
   for(i=0;i<npts;i++){
-    if(fscanf(fp,"%lg ",&t)!=1){
+    if(!reader.read(t)){
       err_msg("Data file too short...");
-      xpp_free(t0);xpp_free(y);fclose(fp);
       return(0);
     }
 
     for(j=0;j<ndim-1;j++)
-      if(fscanf(fp,"%lg ",&ytemp[j])!=1){
+      if(!reader.read(ytemp[j])){
 	err_msg("Data file too short...");
-	xpp_free(t0);xpp_free(y);fclose(fp);
 	return(0);
       }
     t0[i]=t;
@@ -443,26 +446,32 @@ int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, i
     }
 
   }
+  reader.close();
   xpp_log(XPP_LOG_INFO, " Data loaded ... %f %f ...  %f %f \n",
 	 y[0],y[1],y[npts*nvars-2],y[npts*nvars-1]);
 
-  
 
-  work=(double *)xpp_malloc(sizeof(double)*(4*npars+npars*npars));
-  yderv=(double **)xpp_malloc(npars*sizeof(double *));
-  for(i=0;i<npars;i++)
-    yderv[i]=(double *)xpp_malloc((npts+1)*nvars*sizeof(double));
+
+  std::vector<double> work_v(static_cast<size_t>(4*npars+npars*npars));
+  double *work=work_v.data();
+  std::vector<std::vector<double>> yderv_store(npars);
+  std::vector<double *> yderv(npars);
+  for(i=0;i<npars;i++){
+    yderv_store[i].assign(static_cast<size_t>(npts+1)*nvars, 0.0);
+    yderv[i]=yderv_store[i].data();
+  }
   for(i=0;i<nvars;i++)
     sig[i]=1.0;
-    
-  covar=(double *)xpp_malloc(npars*npars*sizeof(double));
-  alpha=(double *)xpp_malloc(npars*npars*sizeof(double));
-  
+
+  std::vector<double> covar_v(static_cast<size_t>(npars)*npars);
+  std::vector<double> alpha_v(static_cast<size_t>(npars)*npars);
+  double *covar=covar_v.data(), *alpha=alpha_v.data();
+
   while(good_flag<3){  /* take 3 good steps after convergence  */
-    
+
     ok=marlevstep(t0,y0,y,sig,a,npts,nvars,npars,
 	       ivar,ipar,covar,alpha,&chisq,&alambda,work,
-	       yderv,yfit,&ochisq,ictrl,eps);
+	       yderv.data(),yfit,&ochisq,ictrl,eps);
     niter++;
     xpp_log(XPP_LOG_INFO, " step %d is %d  -- lambda= %g  chisq= %g oldchi= %g\n",
 	   niter,ok,alambda,chisq,ochisq);
@@ -473,7 +482,7 @@ int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, i
     if((ok==0)||(niter>=maxiter))break;
     if(ochisq>chisq){
       if(((ochisq-chisq)<tol10)||(((ochisq-chisq)/MAX(1.0,chisq))<tol))
-      { 
+      {
 	good_flag++;
 	niter--;  /* compensate for good stuff ... */
 	}
@@ -483,42 +492,21 @@ int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, i
       chisq=ochisq;
 
     ictrl=1;
-    
+
   }
-  
+
   if(ok==0){
     err_msg("Error in step...");
-
- xpp_free(work);
-  for(i=0;i<npars;i++)
-    xpp_free(yderv[i]);
-  xpp_free(yderv);
-  xpp_free(alpha);
-  xpp_free(covar);
-  xpp_free(t0);
-  xpp_free(y);
-  
     return(0);
   }
   if(niter>=maxiter){
     err_msg("Max iterations exceeded...");
-
- xpp_free(work);
-  for(i=0;i<npars;i++)
-    xpp_free(yderv[i]);
-  xpp_free(yderv);
-  xpp_free(alpha);
-  xpp_free(covar);
-  xpp_free(t0);
-  xpp_free(y);
-  
-
     return(1);
   }
   ictrl=2;
   marlevstep(t0,y0,y,sig,a,npts,nvars,npars,
 	       ivar,ipar,covar,alpha,&chisq,&alambda,work,
-	       yderv,yfit,&ochisq,ictrl,eps);
+	       yderv.data(),yfit,&ochisq,ictrl,eps);
   err_msg(" Success! ");
   /* have the covariance matrix -- so what?   */
   xpp_log(XPP_LOG_INFO, " covariance: \n");
@@ -528,18 +516,8 @@ int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, i
     xpp_log(XPP_LOG_INFO, "\n");
   }
 
-
-  xpp_free(work);
-  for(i=0;i<npars;i++)
-    xpp_free(yderv[i]);
-  xpp_free(yderv);
-  xpp_free(alpha);
-  xpp_free(covar);
-  xpp_free(t0);
-  xpp_free(y);
-  
   return(1);
-}  
+}
 
 int marlevstep(double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *covar, double *alpha, double *chisq, double *alambda, double *work, double **yderv, double *yfit, double *ochisq, int ictrl, double eps)
 /*   One step of Levenberg-Marquardt  
@@ -692,16 +670,16 @@ int get_fit_params()
 		    "NCols","To Col","Params","Epsilon","Max iter"};
   int status;
   char values[10][MAX_LEN_SBOX];
-  XPP_SPRINTF(values[0],"%s",fin.file);
-  XPP_SPRINTF(values[1],"%s",fin.varlist);
-  XPP_SPRINTF(values[2],"%s",fin.parlist1);
-  XPP_SPRINTF(values[3],"%g",fin.tol);
-  XPP_SPRINTF(values[4],"%d",fin.npts);
-  XPP_SPRINTF(values[5],"%d",fin.dim);
-  XPP_SPRINTF(values[6],"%s",fin.collist);
-  XPP_SPRINTF(values[7],"%s",fin.parlist2);
-  XPP_SPRINTF(values[8],"%g",fin.eps);
-  XPP_SPRINTF(values[9],"%d",fin.maxiter);
+  XPP_FORMAT_TO_BUF(values[0],"{}",fin.file);
+  XPP_FORMAT_TO_BUF(values[1],"{}",fin.varlist);
+  XPP_FORMAT_TO_BUF(values[2],"{}",fin.parlist1);
+  XPP_FORMAT_TO_BUF(values[3],"{:g}",fin.tol);
+  XPP_FORMAT_TO_BUF(values[4],"{}",fin.npts);
+  XPP_FORMAT_TO_BUF(values[5],"{}",fin.dim);
+  XPP_FORMAT_TO_BUF(values[6],"{}",fin.collist);
+  XPP_FORMAT_TO_BUF(values[7],"{}",fin.parlist2);
+  XPP_FORMAT_TO_BUF(values[8],"{:g}",fin.eps);
+  XPP_FORMAT_TO_BUF(values[9],"{}",fin.maxiter);
   static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,
                             XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER};
   status=do_string_box_of(10,5,2,"Fit",n,values,45,kinds);
@@ -711,11 +689,11 @@ int get_fit_params()
     fin.dim=atoi(values[5]);
     fin.eps=atof(values[8]);
     fin.maxiter=atoi(values[9]);
-    XPP_SPRINTF(fin.file,"%s",values[0]);
-    XPP_SPRINTF(fin.varlist,"%s",values[1]);
-    XPP_SPRINTF(fin.parlist1,"%s",values[2]);
-    XPP_SPRINTF(fin.collist,"%s",values[6]);
-    XPP_SPRINTF(fin.parlist2,"%s",values[7]);
+    fin.file=values[0];
+    fin.varlist=values[1];
+    fin.parlist1=values[2];
+    fin.collist=values[6];
+    fin.parlist2=values[7];
      return(1);
   }
   return(0);
