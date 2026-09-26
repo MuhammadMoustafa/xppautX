@@ -75,15 +75,12 @@ struct Buf {
 [[noreturn]] void out_of_memory(const char *what);
 
 void buf_add(Buf *b, const char *s, size_t n);
-/* std::format into a Buf (type-checked at compile time) */
+/* std::format into a Buf (type-checked at compile time; the formatting
+   itself is xpp::vformat_append's, compiled once in xpp_io.cpp) */
 template <class... Args>
 void buf_format(Buf *b, std::format_string<Args...> fmt, Args &&...args) noexcept
 {
-    try {
-        std::format_to(std::back_inserter(b->s), fmt, std::forward<Args>(args)...);
-    } catch (...) {
-        out_of_memory("building an event");
-    }
+    xpp::vformat_append(b->s, fmt.get(), std::make_format_args(args...));
 }
 void buf_str(Buf *b, const char *s); /* a JSON string */
 void buf_str_array(Buf *b, const char *const *v, int n);

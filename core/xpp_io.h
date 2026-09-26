@@ -216,23 +216,28 @@ namespace xpp {
 [[noreturn]] void format_failed(const char *file, int line) noexcept;
 
 #ifdef XPP_IO_HAVE_STD_FORMAT
+/* The formatting itself, compiled once, here (xpp_io.cpp): the templates
+   below (and xpp::log) only check the format string against the
+   arguments at compile time and pack them (std::make_format_args), so a
+   file that formats does not compile std::format's machinery again (W37:
+   inlined in 81 files, it more than doubled the core's compile time) */
+std::string vformat(std::string_view fmt, std::format_args args) noexcept;
+/* the same, appended to out */
+void vformat_append(std::string &out, std::string_view fmt, std::format_args args) noexcept;
+
 /* Compile-time checked formatting: a bad "{}" against the argument
    types is a compile error, not a WARN at run time. No length limit
    (returns a std::string); for a fixed buffer use format_to_buf. */
 template <class... Args>
 std::string format(std::format_string<Args...> fmt, Args &&...args) noexcept
 {
-    try {
-        return std::format(fmt, std::forward<Args>(args)...);
-    } catch (...) {
-        format_failed(__FILE__, __LINE__);
-    }
+    return xpp::vformat(fmt.get(), std::make_format_args(args...));
 }
 
 /* The array-destination counterpart of XPP_SPRINTF: dst must be a real
    array (a template on its size, not a decayed pointer -- a pointer
    destination simply does not match this overload and fails to
-   compile), formats with std::format, then copies in with
+   compile), formats with xpp::vformat, then copies in with
    xpp_strlcpy_at so a result that does not fit is cut and warns once,
    exactly like every other truncation in this module. file/line come
    from the XPP_FORMAT_TO_BUF macro wrapper (xpp_mem.h/XPP_SPRINTF
@@ -243,12 +248,8 @@ template <std::size_t N, class... Args>
 void format_to_buf(char (&buf)[N], const char *file, int line,
                     std::format_string<Args...> fmt, Args &&...args) noexcept
 {
-    try {
-        std::string s = std::format(fmt, std::forward<Args>(args)...);
-        xpp_strlcpy_at(buf, s.c_str(), N, file, line);
-    } catch (...) {
-        format_failed(file, line);
-    }
+    std::string s = xpp::vformat(fmt.get(), std::make_format_args(args...));
+    xpp_strlcpy_at(buf, s.c_str(), N, file, line);
 }
 #endif
 

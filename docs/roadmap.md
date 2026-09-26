@@ -95,6 +95,7 @@ issue; the card here is the one kept up to date.
 | W35e | #77 | QA 2026-09-26 DESK-001: the web view's start error (code, message) in the fallback warning, the runtime hint only when the runtime is missing | none | done |
 | W35f | #78 | The example models that do not load by themselves ("noload" since W35c): clustor.ode (a `\` continued array line cut before its `[j]`) and candelator.ode (M1' does not compile) look like parser bugs; the other seven, model or parser, each decided | none | ready |
 | W36 | #79 | CI's windows-clang faster: its sanitizers a job of their own (windows-clang-sanitizers); asancheck builds the unit tests with -j and runs servercheck, webcheck and autocheck side by side | none | done |
+| W37 | #80 | Compile the formatting once: xpp::format, format_to_buf, xpp::log and buf_format check the format at the call and format in xpp::vformat (xpp_io.cpp), not std::format inline in every file (clang: 278 to 170 CPU-s for the core) | none | done |
 
 ## W0: C/C++ mixed build
 **Goal.** core/*.cpp builds next to core/*.c on Linux, Windows (MinGW,

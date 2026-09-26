@@ -8,6 +8,7 @@
 #include "xpp_files.h"
 #include "xpp_log.h"
 
+#include <iterator>
 #include <cctype>
 #include <cstdarg>
 #include <cstdio>
@@ -455,6 +456,24 @@ void format_failed(const char *file, int line) noexcept
 {
     xpp_log(XPP_LOG_ERROR, "out of memory formatting a string at %s:%d\n", file, line);
     std::exit(1);
+}
+
+std::string vformat(std::string_view fmt, std::format_args args) noexcept
+{
+    try {
+        return std::vformat(fmt, args);
+    } catch (...) {
+        format_failed(__FILE__, __LINE__);
+    }
+}
+
+void vformat_append(std::string &out, std::string_view fmt, std::format_args args) noexcept
+{
+    try {
+        std::vformat_to(std::back_inserter(out), fmt, args);
+    } catch (...) {
+        format_failed(__FILE__, __LINE__);
+    }
 }
 
 namespace {

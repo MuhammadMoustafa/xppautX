@@ -84,11 +84,9 @@ int xpp_log_parse_arg(const char *arg);
 #ifdef __cplusplus
 } /* extern "C" */
 
-#include <cstdlib>
 #include <string>
-#include <utility>
-#if defined(__cpp_lib_format) || (defined(__has_include) && __has_include(<format>))
-#include <format>
+#include "xpp_io.h" /* xpp::vformat */
+#ifdef XPP_IO_HAVE_STD_FORMAT
 #define XPP_LOG_HAVE_STD_FORMAT 1
 #endif
 
@@ -109,13 +107,9 @@ template <class... Args>
 void log(XppLogLevel level, std::format_string<Args...> fmt, Args &&...args) noexcept
 {
     if (!xpp_log_enabled(level)) return; /* no formatting for a filtered message */
-    try {
-        std::string s = std::format(fmt, std::forward<Args>(args)...);
-        xpp_log(level, "%s", s.c_str());
-    } catch (...) {
-        xpp_log(XPP_LOG_ERROR, "out of memory formatting a log message\n");
-        std::exit(1);
-    }
+    /* xpp::vformat (xpp_io.h): the formatting compiled once, not here */
+    std::string s = xpp::vformat(fmt.get(), std::make_format_args(args...));
+    xpp_log(level, "%s", s.c_str());
 }
 #endif
 } // namespace xpp
