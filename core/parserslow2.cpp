@@ -1437,13 +1437,13 @@ void two_args()
 
 double bessel_j(double x, double y)
 {
- int n=(int)x;
+ int n=static_cast<int>(x);
  return(jn(n,y));
 }
 
 double bessel_y(double x, double y)
 {
- int n=(int)x;
+ int n=static_cast<int>(x);
  return(yn(n,y));
 }
 
@@ -1456,7 +1456,7 @@ double bessi(double nn, double x)
 {
   int j,n;
 	double  bi,bim,bip,tox,ans;
-	n=(int)nn;
+	n=static_cast<int>(nn);
 	if(n==0)return bessi0(x);
 	if(n==1)return bessi1(x);
 	if (x == 0.0)
@@ -1465,7 +1465,7 @@ double bessi(double nn, double x)
 		tox=2.0/fabs(x);
 		bip=ans=0.0;
 		bi=1.0;
-		for (j=2*(n+(int) sqrt(ACC*n));j>0;j--) {
+		for (j=2*(n+static_cast<int>(sqrt(ACC*n)));j>0;j--) {
 			bim=bip+j*tox*bi;
 			bip=bi;
 			bi=bim;
@@ -1527,7 +1527,7 @@ double bessis(double nn, double x)
 {
   int j,n;
 	double  bi,bim,bip,tox,ans;
-	n=(int)nn;
+	n=static_cast<int>(nn);
 	if(n==0)return bessis0(x);
 	if(n==1)return bessis1(x);
 	if (x == 0.0)
@@ -1536,7 +1536,7 @@ double bessis(double nn, double x)
 		tox=2.0/fabs(x);
 		bip=ans=0.0;
 		bi=1.0;
-		for (j=2*(n+(int) sqrt(ACC*n));j>0;j--) {
+		for (j=2*(n+static_cast<int>(sqrt(ACC*n)));j>0;j--) {
 			bim=bip+j*tox*bi;
 			bip=bi;
 			bi=bim;
@@ -1627,7 +1627,7 @@ double z,w;
 double do_shift(double shift, double variable)
 {
   int it, in;
-  int i=(int)(variable),ish=(int)shift;
+  int i=static_cast<int>(variable),ish=static_cast<int>(shift);
 
 /* plintf( "shifting %d (%s) by %d to %d (%s)\n", 
  *	(int)variable, com_name((int)variable), (int)shift, i, com_name(i) );
@@ -1666,7 +1666,7 @@ double do_ishift(double shift, double variable)
 double do_delay_shift(double delay, double shift, double variable)
 {
  int in;
-  int i=(int)(variable),ish=(int)shift;
+  int i=static_cast<int>(variable),ish=static_cast<int>(shift);
   if(i<0) return(0.0);
   in=(i % MAXTYPE)+ish;
 
@@ -1691,7 +1691,7 @@ double do_delay(double delay, double i)
 
   int variable;
     /* ram - this was a little weird, since i is a double... except I think it's secretely an integer */
-    variable = ((int) i) % MAXTYPE;
+    variable = (static_cast<int>(i)) % MAXTYPE;
 
   if(del_stab_flag>0){
     if(DelayFlag&&delay>0.0) {
@@ -1701,7 +1701,7 @@ double do_delay(double delay, double i)
     return(variables[variable]);
   }
  
-  return(delay_stab_eval(delay,(int)variable));
+  return(delay_stab_eval(delay,static_cast<int>(variable)));
   
 }
 /*
@@ -1729,7 +1729,7 @@ double z;
    always 0 */
 double hom_bcs(double x)
 {
-  (void)x;
+  static_cast<void>(x);
   return 0.0;
 }
 void one_arg()
@@ -1832,39 +1832,39 @@ double signum(double z)
 
 double dnot(double x)
 {
- return((double)(x==0.0));
+ return(static_cast<double>(x==0.0));
 }
 double dand(double x, double y)
 {
- return((double)(x&&y));
+ return(static_cast<double>(x&&y));
 }
 double dor(double x, double y)
 {
- return((double)(x||y));
+ return(static_cast<double>(x||y));
 }
 double dge(double x, double y)
 {
- return((double)(x>=y));
+ return(static_cast<double>(x>=y));
 }
 double dle(double x, double y)
 {
- return((double)(x<=y));
+ return(static_cast<double>(x<=y));
 }
 double deq(double x, double y)
 {
- return((double)(x==y));
+ return(static_cast<double>(x==y));
 }
 double dne(double x, double y)
 {
- return((double)(x!=y));
+ return(static_cast<double>(x!=y));
 }
 double dgt(double x, double y)
 {
- return((double)(x>y));
+ return(static_cast<double>(x>y));
 }
 double dlt(double x, double y)
 {
- return((double)(x<y));
+ return(static_cast<double>(x<y));
 }
 
 
@@ -1943,7 +1943,7 @@ double dlt(double x, double y)
      temx=POP;
      temy=POP;
      temz=POP;
-     iv=(int)temy+(((int)temz) % MAXTYPE);
+     iv=static_cast<int>(temy)+((static_cast<int>(temz)) % MAXTYPE);
      variables[iv]=temx;
      PUSH(temx);
      break;
@@ -1966,15 +1966,15 @@ double dlt(double x, double y)
                  break;
    case SUMSYM:
               temx=POP;
-              high=(int)temx;
+              high=static_cast<int>(temx);
               temx=POP;
-              low=(int)temx;
+              low=static_cast<int>(temx);
               ijmp=*equat++;
               sum=0.0;
               if(low<=high){
 		for(is=low;is<=high;is++){
 		  tmpeq=equat;
-		  constants[SumIndex]=(double)is;
+		  constants[SumIndex]=static_cast<double>(is);
 		  sum+=eval_rpn(tmpeq);
 		}
 	      }
@@ -2023,10 +2023,10 @@ double dlt(double x, double y)
      /* indexes for shift and delay operators... */
      case SCONTYPE:
         
-         PUSH((double)(COM(CONTYPE, in))); break;
+         PUSH(static_cast<double>(COM(CONTYPE, in))); break;
      case SVARTYPE:
         
-             PUSH((double)(COM(VARTYPE, in))); break;
+             PUSH(static_cast<double>(COM(VARTYPE, in))); break;
 
      case UFUNTYPE: i=*equat++;
          

@@ -393,9 +393,9 @@ int get_eqn(FILE *fptr)
   if(BVP_N<IN_VARS ){
     if(BVP_N>0)xpp_log(XPP_LOG_WARN, "Warning: Too few boundary conditions\n");
     for(i=BVP_N;i<IN_VARS ;i++){
-      my_bc[i].com=(int *)xpp_malloc(200*sizeof(int));
-      my_bc[i].string=(char *)xpp_malloc(256);
-      my_bc[i].name=(char *)xpp_malloc(10);
+      my_bc[i].com=static_cast<int *>(xpp_malloc(200*sizeof(int)));
+      my_bc[i].string=static_cast<char *>(xpp_malloc(256));
+      my_bc[i].name=static_cast<char *>(xpp_malloc(10));
       my_bc[i].side=0;
       xpp_strlcpy(my_bc[i].string,"0",256);
       xpp_strlcpy(my_bc[i].name,"0=",10);
@@ -627,7 +627,7 @@ int compiler(char *bob, FILE *fptr)
       index=old_build_markov(fptr,name);
       nn=strlen(save_eqn[nlin]);
       /* if(nn>72)nn=72; */
-      ode_names[IN_VARS+index]=(char *)xpp_malloc(nn+10);
+      ode_names[IN_VARS+index]=static_cast<char *>(xpp_malloc(nn+10));
       XPP_FORMAT_TO_BUF(formula,"{}",save_eqn[nlin]);
       /*      formula[nn-1]=0; */
       xpp_snprintf(ode_names[IN_VARS+index],nn+10,"{ %s ... }",formula);
@@ -680,11 +680,11 @@ int compiler(char *bob, FILE *fptr)
       break;
     case 'b':
             my_string=get_next("\n");
-      my_bc[BVP_N].com=(int *)xpp_malloc(200*sizeof(int));
+      my_bc[BVP_N].com=static_cast<int *>(xpp_malloc(200*sizeof(int)));
       /*         plintf(" adding boundary condition %s \n",my_string);
        */
-      my_bc[BVP_N].string=(char *)xpp_malloc(256);
-      my_bc[BVP_N].name=(char *)xpp_malloc(10);
+      my_bc[BVP_N].string=static_cast<char *>(xpp_malloc(256));
+      my_bc[BVP_N].name=static_cast<char *>(xpp_malloc(10));
       xpp_strlcpy(my_bc[BVP_N].string,my_string,256);
       xpp_strlcpy(my_bc[BVP_N].name,"0=",10);
       if(ConvertStyle)
@@ -810,14 +810,14 @@ int compiler(char *bob, FILE *fptr)
       XPP_FORMAT_TO_BUF(formula,"{}",my_string);
       nn=strlen(formula)+1;
       /* if(nn>79)nn=79;  */
-      if((my_ode[NODE]=(int *)xpp_malloc(MAXEXPLEN*sizeof(int)))==NULL){
+      if((my_ode[NODE]=static_cast<int *>(xpp_malloc(MAXEXPLEN*sizeof(int))))==NULL){
 	xpp_log(XPP_LOG_WARN, "Out of memory at line %d\n",NLINES);
 	exit(0);
       }
       
       if(NODE<IN_VARS)
 	{
-	  if((ode_names[NODE]=(char *)xpp_malloc(nn+5))==NULL){
+	  if((ode_names[NODE]=static_cast<char *>(xpp_malloc(nn+5)))==NULL){
 	    xpp_log(XPP_LOG_ERROR, "Out of memory at line %d\n",NLINES);
 	    exit(0);
 	  }
@@ -848,7 +848,7 @@ int compiler(char *bob, FILE *fptr)
       if(NODE>=(IN_VARS+FIX_VAR))
 	{
 	  i=NODE-(IN_VARS+FIX_VAR);
-	  if((ode_names[NODE-FIX_VAR+NMarkov]=(char *)xpp_malloc(nn))==NULL){
+	  if((ode_names[NODE-FIX_VAR+NMarkov]=static_cast<char *>(xpp_malloc(nn)))==NULL){
 	    xpp_log(XPP_LOG_ERROR, "Out of memory at line %d\n",NLINES);
 	    exit(0);
 	  }
@@ -1001,7 +1001,7 @@ void find_ker(char *string, int *alt)   /* this extracts the integral operators 
       XPP_SPRINTF(name,"K##%d",NKernel);
       xpp_log(XPP_LOG_DEBUG, "Kernel mu=%f %s = %s \n",mu,name,form);
       if(add_kernel(name,mu,form))exit(0);
-      for(j=0;j<(int)strlen(name);j++){
+      for(j=0;j<static_cast<int>(strlen(name));j++){
 	newstr[in]=name[j];
 	in++;
       }
@@ -1302,7 +1302,7 @@ static int parse_model(FILE *fp, const char *first, int nnn)
             
   
    while(1){
-      for(ns=0;ns<(int)strings.size();ns++){
+      for(ns=0;ns<static_cast<int>(strings.size());ns++){
       subsk(strings[ns].c_str(),big,jj,is_array);
      
  
@@ -1515,7 +1515,7 @@ void create_plot_list()
 {
   int i,j=0,k;
   if(N_only==0)return;
-  plotlist=(int *)xpp_malloc(sizeof(int)*(N_only+1));
+  plotlist=static_cast<int *>(xpp_malloc(sizeof(int)*(N_only+1)));
   for(i=0;i<N_only;i++){
     find_variable(onlylist[i],&k);
     if(k>=0){
@@ -2002,7 +2002,7 @@ int formula_or_number(const char *expr,double *z)
   *z=0.0; /* initial it to 0 */
   convert(expr,form);
   flag=do_num(form,num,z,&i);
-  if(i<(int)strlen(form))flag=1;
+  if(i<static_cast<int>(strlen(form)))flag=1;
   ERROUT=olderr;
   if(flag==0)
     return 0; /* 0 is a number */
@@ -2062,7 +2062,7 @@ int parse_a_string(char *s1, VAR_INFO *v)
   switch(type){
   case 0:
     i0=i1;
-    ch=(char )next_nonspace(s1,i0,&i2);
+    ch=static_cast<char>(next_nonspace(s1,i0,&i2));
     switch(ch){
     case '=' :
       if(s1[0]=='!'){
@@ -2199,7 +2199,7 @@ void add_varinfo(int type, const char *lhs, const char *rhs, int nargs, char arg
   try {
     model_lines.push_back(v);
   } catch (const std::bad_alloc &) { /* no exception crosses into C */
-    xpp_log(XPP_LOG_ERROR, "out of memory: the model's line %d\n", (int)model_lines.size() + 1);
+    xpp_log(XPP_LOG_ERROR, "out of memory: the model's line %d\n", static_cast<int>(model_lines.size()) + 1);
     exit(1);
   }
 }
@@ -2341,7 +2341,7 @@ int next_nonspace(const char *s1, int i0, int *i1)
     ch=s1[i];
     if(ch!=' '){
       *i1=i;
-      return((int) ch);
+      return(static_cast<int>(ch));
     }
     i++;
   }
@@ -2703,7 +2703,7 @@ void advance_past_first_word(char** sptr) {
 
 char* new_string2(const char * old, int length) {
     /*cout << "new_string2(\"" << old << "\", " << length << ")\n"; */
-    char* s = (char*) xpp_malloc((length + 1) * sizeof(char));
+    char* s = static_cast<char *>(xpp_malloc((length + 1) * sizeof(char)));
     memcpy(s, old, length);
     s[length] = '\0';
     if (length > 0 && s[length - 1] == ',') {

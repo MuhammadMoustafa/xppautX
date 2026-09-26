@@ -240,10 +240,10 @@ NETWORK my_net[MAXNET];
 int n_network=0;
 double net_interp(double x, int i)
 {
-  int jlo=(int)x;
+  int jlo=static_cast<int>(x);
   double *y;
   int n=my_net[i].n;
-  double dx=x-(double)jlo;
+  double dx=x-static_cast<double>(jlo);
   y=&variables[my_net[i].root];
   if(jlo<0 || jlo>(n-1))return 0.0; /* out of range */
   return (1-dx)*y[jlo]+dx*y[jlo+1];
@@ -291,7 +291,7 @@ void add_vectorizer_name(const char *name, const char *rhs)
 }
 double vector_value(double x, int i)
 {
-  int il=my_vec[i].il,ir=my_vec[i].ir,n=my_vec[i].length,k=(int)x;
+  int il=my_vec[i].il,ir=my_vec[i].ir,n=my_vec[i].length,k=static_cast<int>(x);
   int root=my_vec[i].root;
   if((k>=0)&&(k<n))  return variables[root+k];
   if(il==PERIODIC)return variables[root+((k+n)%n)];
@@ -310,7 +310,7 @@ double vector_value(double x, int i)
 }  
 double network_value(double x, int i)
 {
-  int j=(int)x;
+  int j=static_cast<int>(x);
   if(my_net[i].type==INTERP){
     return net_interp(x,i);
   }
@@ -1184,9 +1184,9 @@ void evaluate_network(int ind)
        }
 
      }
-     values[1]=(double)imax;
+     values[1]=static_cast<double>(imax);
      values[0]=ymax;
-     values[3]=(double)imin;
+     values[3]=static_cast<double>(imin);
      values[2]=ymin;
      break;
    case INTERP: /* do nothing! */ 
@@ -1282,7 +1282,7 @@ void evaluate_network(int ind)
        sum=0.0;
        for(j=0;j<ncon;j++){
 	 ij=i*ncon+j;
-	 k=(int)cc[ij];
+	 k=static_cast<int>(cc[ij]);
          if(k>=0)
 	   sum+=(w[ij]*get_delay(k+in0-1,tau[ij])); /* as in DEL_MUL */
        }
@@ -1295,7 +1295,7 @@ void evaluate_network(int ind)
        sum=0.0;
        for(j=0;j<ncon;j++){
 	 ij=i*ncon+j;
-	 k=(int)cc[ij];
+	 k=static_cast<int>(cc[ij]);
          if(k>=0)
 	   sum+=(w[ij]*y[k]);
        }
@@ -1364,7 +1364,7 @@ void evaluate_network(int ind)
        sum=0.0;
        for(j=0;j<ncon;j++){
 	 ij=i*ncon+j;
-	 k=(int)cc[ij];
+	 k=static_cast<int>(cc[ij]);
          if(k>=0){
 	   f[0]=root2+k;
 	   z=evaluate(f);
