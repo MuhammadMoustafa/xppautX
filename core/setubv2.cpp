@@ -1,3 +1,4 @@
+#include <vector>
 #include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h"
 #include "xpp_mem.h"
@@ -15,16 +16,16 @@ static double time_start (void) {
   struct timeval time;
   double seconds,microseconds;
   gettimeofday(&time,NULL);
-  seconds = (double)time.tv_sec;
-  microseconds = (double)time.tv_usec;
+  seconds = static_cast<double>(time.tv_sec);
+  microseconds = static_cast<double>(time.tv_usec);
   return seconds + microseconds/1e6;
 }
 static double time_end(double start) {
   struct timeval time;
   double seconds,microseconds;
   gettimeofday(&time,NULL);
-  seconds = (double)time.tv_sec;
-  microseconds = (double)time.tv_usec;
+  seconds = static_cast<double>(time.tv_sec);
+  microseconds = static_cast<double>(time.tv_usec);
   return (seconds + microseconds/1e6)-start;
 }
 #endif
@@ -50,10 +51,6 @@ void *setubv_make_aa_bb_cc(void * arg)
 
   setubv_parallel_arglist *larg =  (setubv_parallel_arglist *)arg;
 
-  doublereal *dicd, *ficd, *dfdp, *dfdu, *uold;
-  doublereal *f;
-  doublereal *u, *wploc;
-  doublereal *dbc, *fbc, *uic, *uio, *prm, *uid, *uip, *ubc0, *ubc1;
   
   doublereal *ups = larg->ups;
   doublereal *upoldp = larg->upoldp;
@@ -68,23 +65,23 @@ void *setubv_make_aa_bb_cc(void * arg)
   doublereal *wt = larg->wt;
 
 
-  dicd = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->nint)*(larg->ndim + NPARX));
-  ficd = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->nint));
-  dfdp = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim)*NPARX);
-  dfdu = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim)*(larg->ndim));
-  uold = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
-  f    = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
-  u    = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
-  wploc= (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ncol)*(larg->ncol+1));
-  dbc  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->nbc)*(2*larg->ndim + NPARX));
-  fbc  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->nbc));
-  uic  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
-  uio  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
-  prm  = (doublereal *)xpp_malloc(sizeof(doublereal)*NPARX);
-  uid  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
-  uip  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
-  ubc0 = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
-  ubc1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg->ndim));
+  std::vector<doublereal> dicd((larg->nint)*(larg->ndim + NPARX));
+  std::vector<doublereal> ficd(larg->nint);
+  std::vector<doublereal> dfdp((larg->ndim)*NPARX);
+  std::vector<doublereal> dfdu((larg->ndim)*(larg->ndim));
+  std::vector<doublereal> uold(larg->ndim);
+  std::vector<doublereal> f(larg->ndim);
+  std::vector<doublereal> u(larg->ndim);
+  std::vector<doublereal> wploc((larg->ncol)*(larg->ncol+1));
+  std::vector<doublereal> dbc((larg->nbc)*(2*larg->ndim + NPARX));
+  std::vector<doublereal> fbc(larg->nbc);
+  std::vector<doublereal> uic(larg->ndim);
+  std::vector<doublereal> uio(larg->ndim);
+  std::vector<doublereal> prm(NPARX);
+  std::vector<doublereal> uid(larg->ndim);
+  std::vector<doublereal> uip(larg->ndim);
+  std::vector<doublereal> ubc0(larg->ndim);
+  std::vector<doublereal> ubc1(larg->ndim);
 
   upoldp_dim1 = larg->ndxloc;
   udotps_dim1 = larg->ndxloc;
@@ -153,7 +150,7 @@ void *setubv_make_aa_bb_cc(void * arg)
 	  so if they ever get parallelized they need to be
 	  checked as well.
       */
-      (*(larg->funi))(larg->iap, larg->rap, larg->ndim, u, uold, larg->icp, prm, 2, f, dfdu, dfdp);
+      (*(larg->funi))(larg->iap, larg->rap, larg->ndim, u.data(), uold.data(), larg->icp, prm.data(), 2, f.data(), dfdu.data(), dfdp.data());
 
 
       ic1 = ic * (larg->ndim);
@@ -188,7 +185,7 @@ void *setubv_make_aa_bb_cc(void * arg)
     
 
     (*(larg->bcni))(larg->iap, larg->rap, larg->ndim, larg->par, 
-	    larg->icp, larg->nbc, ubc0, ubc1, fbc, 2, dbc);
+	    larg->icp, larg->nbc, ubc0.data(), ubc1.data(), fbc.data(), 2, dbc.data());
     for (i = 0; i < larg->nbc; ++i) {
       for (k = 0; k < larg->ndim; ++k) {
 	/*NOTE!!
@@ -229,7 +226,7 @@ void *setubv_make_aa_bb_cc(void * arg)
 
 	(*(larg->icni))(larg->iap, larg->rap, larg->ndim, larg->par, 
 		larg->icp, larg->nint, 
-		uic, uio, uid, uip, ficd, 2, dicd);
+		uic.data(), uio.data(), uid.data(), uip.data(), ficd.data(), 2, dicd.data());
 
 	
 	for (m = 0; m < larg->nint; ++m) {
@@ -257,23 +254,6 @@ void *setubv_make_aa_bb_cc(void * arg)
     }
   }
 
-  xpp_free(dicd );
-  xpp_free(ficd );
-  xpp_free(dfdp );
-  xpp_free(dfdu );
-  xpp_free(uold );
-  xpp_free(f    );
-  xpp_free(u    );
-  xpp_free(wploc);
-  xpp_free(dbc  );
-  xpp_free(fbc  );
-  xpp_free(uic  );
-  xpp_free(uio  );
-  xpp_free(prm  );
-  xpp_free(uid  );
-  xpp_free(uip  );
-  xpp_free(ubc0 );
-  xpp_free(ubc1 );
 
   return NULL;
 
@@ -300,11 +280,10 @@ setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer
   /* Local variables */
   integer i, j, k;
 
-  doublereal *wi, *wp, *wt;
   
-  wi   = (doublereal *)xpp_malloc(sizeof(doublereal)*(ncol+1) );
-  wp   = (doublereal *)xpp_malloc(sizeof(doublereal)*(ncol)*(ncol+1) );
-  wt   = (doublereal *)xpp_malloc(sizeof(doublereal)*(ncol)*(ncol+1) );
+  std::vector<doublereal> wi(ncol+1);
+  std::vector<doublereal> wp((ncol)*(ncol+1));
+  std::vector<doublereal> wt((ncol)*(ncol+1));
 
   dd_dim1 = ncb;
   
@@ -317,8 +296,8 @@ setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer
   aa_dim1 = nca;
   aa_dim2 = nra;
 
-  wint(ncol + 1, wi);
-  genwts(ncol, ncol + 1, wt, wp);
+  wint(ncol + 1, wi.data());
+  genwts(ncol, ncol + 1, wt.data(), wp.data());
   
   /* Initialize to zero. */
   for (i = 0; i < nrc; ++i) {
@@ -363,7 +342,7 @@ setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer
     setubv_parallel_arglist_constructor(ndim, ips, na, ncol, nbc, nint, ncb, 
 					nrc, nra, nca, funi, icni, ndxloc, iap, rap, 
 					par, icp, aa, bb, cc, dd, fa, fc, ups, 
-					uoldps, udotps, upoldp, dtm, wp, wt, wi, 
+					uoldps, udotps, upoldp, dtm, wp.data(), wt.data(), wi.data(), 
 					thu, thl, rldot, bcni, &arglist);
   
     setubv_default_wrapper(arglist);
@@ -371,9 +350,6 @@ setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer
     setubv_make_fc_dd(arglist,dups,rlcur,rlold,rds);
   }
 
-  xpp_free(wi   );
-  xpp_free(wp   );
-  xpp_free(wt   );
   return 0;
 }
 
@@ -398,15 +374,15 @@ void setubv_make_fa(setubv_parallel_arglist larg) {
   doublereal *fa = larg.fa;
   integer fa_dim1 = larg.nra;
   
-  doublereal *wploc= (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ncol)*(larg.ncol+1));
+  std::vector<doublereal> wploc((larg.ncol)*(larg.ncol+1));
   integer wploc_dim1 = larg.ncol + 1;
   
-  doublereal *dfdp = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim)*NPARX);
-  doublereal *dfdu = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim)*(larg.ndim));
-  doublereal *u    = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
-  doublereal *uold = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
-  doublereal *f    = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
-  doublereal *prm  = (doublereal *)xpp_malloc(sizeof(doublereal)*NPARX);
+  std::vector<doublereal> dfdp((larg.ndim)*NPARX);
+  std::vector<doublereal> dfdu((larg.ndim)*(larg.ndim));
+  std::vector<doublereal> u(larg.ndim);
+  std::vector<doublereal> uold(larg.ndim);
+  std::vector<doublereal> f(larg.ndim);
+  std::vector<doublereal> prm(NPARX);
 
   for (jj = 0; jj < larg.na; ++jj) {
     if (xpp_setubv_stop && xpp_job_cancelled()) break; /* xppautX: cancel */
@@ -433,7 +409,7 @@ void setubv_make_fa(setubv_parallel_arglist larg) {
       for (i = 0; i < NPARX; ++i) {
 	prm[i] = larg.par[i];
       }
-      (*(larg.funi))(larg.iap, larg.rap, larg.ndim, u, uold, larg.icp, prm, 2, f, dfdu, dfdp);
+      (*(larg.funi))(larg.iap, larg.rap, larg.ndim, u.data(), uold.data(), larg.icp, prm.data(), 2, f.data(), dfdu.data(), dfdp.data());
 
       ic1 = ic * (larg.ndim);
       for (i = 0; i < larg.ndim; ++i) {
@@ -446,13 +422,6 @@ void setubv_make_fa(setubv_parallel_arglist larg) {
     }
   
   }
-  xpp_free(wploc);
-  xpp_free(dfdp);
-  xpp_free(dfdu);
-  xpp_free(u);
-  xpp_free(uold);
-  xpp_free(f);
-  xpp_free(prm);
   
 }
 
@@ -480,17 +449,17 @@ void setubv_make_fc_dd(setubv_parallel_arglist larg, doublereal *dups, doublerea
   integer upoldp_dim1 = larg.ndxloc;
   
   integer dbc_dim1 = larg.nbc;
-  doublereal *dbc  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.nbc)*(2*larg.ndim + NPARX));
-  doublereal *fbc  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.nbc));
-  doublereal *ubc0 = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
-  doublereal *ubc1 = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
+  std::vector<doublereal> dbc((larg.nbc)*(2*larg.ndim + NPARX));
+  std::vector<doublereal> fbc(larg.nbc);
+  std::vector<doublereal> ubc0(larg.ndim);
+  std::vector<doublereal> ubc1(larg.ndim);
   integer dicd_dim1 = larg.nint;
-  doublereal *dicd = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.nint)*(larg.ndim + NPARX));
-  doublereal *ficd = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.nint));
-  doublereal *uic  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
-  doublereal *uio  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
-  doublereal *uid  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
-  doublereal *uip  = (doublereal *)xpp_malloc(sizeof(doublereal)*(larg.ndim));
+  std::vector<doublereal> dicd((larg.nint)*(larg.ndim + NPARX));
+  std::vector<doublereal> ficd(larg.nint);
+  std::vector<doublereal> uic(larg.ndim);
+  std::vector<doublereal> uio(larg.ndim);
+  std::vector<doublereal> uid(larg.ndim);
+  std::vector<doublereal> uip(larg.ndim);
 
   /* Boundary condition part of FC */
   if (larg.nbc > 0) {
@@ -500,7 +469,7 @@ void setubv_make_fc_dd(setubv_parallel_arglist larg, doublereal *dups, doublerea
     }
     
     (*(larg.bcni))(larg.iap, larg.rap, larg.ndim, larg.par, 
-		   larg.icp, larg.nbc, ubc0, ubc1, fbc, 2, dbc);
+		   larg.icp, larg.nbc, ubc0.data(), ubc1.data(), fbc.data(), 2, dbc.data());
     for (i = 0; i < larg.nbc; ++i) {
       larg.fc[i] = -fbc[i];
       for (k = 0; k < larg.ncb; ++k) {
@@ -539,7 +508,7 @@ void setubv_make_fc_dd(setubv_parallel_arglist larg, doublereal *dups, doublerea
 	
 	(*(larg.icni))(larg.iap, larg.rap, larg.ndim, larg.par, 
 		larg.icp, larg.nint, 
-		uic, uio, uid, uip, ficd, 2, dicd);
+		uic.data(), uio.data(), uid.data(), uip.data(), ficd.data(), 2, dicd.data());
 	
 	for (m = 0; m < larg.nint; ++m) {
 	  larg.fc[larg.nbc + m] -= larg.dtm[j] * larg.wi[k] * ficd[m];
@@ -563,16 +532,6 @@ void setubv_make_fc_dd(setubv_parallel_arglist larg, doublereal *dups, doublerea
 
   larg.fc[larg.nrc-1] = rds - rinpr(larg.iap, &(larg.ndim), &(larg.ndxloc), larg.udotps, dups, larg.dtm, larg.thu) - rlsum;
 
-  xpp_free(dbc);
-  xpp_free(fbc);
-  xpp_free(ubc0);
-  xpp_free(ubc1);
-  xpp_free(dicd);
-  xpp_free(ficd);
-  xpp_free(uic);
-  xpp_free(uio);
-  xpp_free(uid);
-  xpp_free(uip);
 
 }
 
