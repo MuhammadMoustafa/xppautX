@@ -83,4 +83,48 @@ XppMemStats xpp_mem_stats(void);
 #define xpp_realloc(p, n) xpp_realloc_at((p), (n), __FILE__, __LINE__)
 #define xpp_strdup(s) xpp_strdup_at((s), __FILE__, __LINE__)
 
+#ifdef __cplusplus
+namespace xpp {
+/* A block from xpp_malloc & co. (or from a C API that hands one out, such
+   as xpp_inbox_next's lines) that frees itself: RAII where the memory must
+   stay a raw block rather than a std::vector or std::string. A small
+   std::unique_ptr<T, xpp_free>, written out so that this header includes
+   no standard C++ header (it is included after headers whose min/max
+   macros break them). */
+template <class T>
+class MemPtr {
+public:
+    MemPtr() noexcept = default;
+    explicit MemPtr(T *p) noexcept : p_(p) {}
+    ~MemPtr() { reset(); }
+    MemPtr(const MemPtr &) = delete;
+    MemPtr &operator=(const MemPtr &) = delete;
+    MemPtr(MemPtr &&o) noexcept : p_(o.release()) {}
+    MemPtr &operator=(MemPtr &&o) noexcept
+    {
+        reset(o.release());
+        return *this;
+    }
+    T *get() const noexcept { return p_; }
+    T *release() noexcept
+    {
+        T *p = p_;
+        p_ = nullptr;
+        return p;
+    }
+    void reset(T *p = nullptr) noexcept
+    {
+        T *old = p_;
+        p_ = p;
+        if (old && old != p) xpp_free(old);
+    }
+    explicit operator bool() const noexcept { return p_ != nullptr; }
+    T &operator[](size_t i) const noexcept { return p_[i]; }
+
+private:
+    T *p_ = nullptr;
+};
+} // namespace xpp
+#endif
+
 #endif

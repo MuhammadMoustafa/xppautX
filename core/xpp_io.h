@@ -408,7 +408,7 @@ public:
     template <class... Args>
     void write(std::format_string<Args...> fmt, Args &&...args)
     {
-        std::string s = format(fmt, std::forward<Args>(args)...);
+        std::string s = xpp::format(fmt, std::forward<Args>(args)...);
         if (w_) ::fwrite(s.data(), 1, s.size(), xpp_writer_file(w_));
     }
 #endif

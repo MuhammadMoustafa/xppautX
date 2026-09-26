@@ -10,8 +10,8 @@
    terminal and into the page's log. The
    model's folder is served as /files (xpp_files.h: listing, reading, and
    uploads streamed to a temporary file). This file includes no core header
-   but those small C APIs (xpp_inbox.h, xpp_files.h, xpp_log.h, xpp_io.h),
-   so the socket and Windows headers cannot clash with core
+   but those small C APIs (xpp_inbox.h, xpp_files.h, xpp_log.h, xpp_io.h,
+   xpp_mem.h), so the socket and Windows headers cannot clash with core
    names. */
 /* macOS hides the BSD names (INADDR_LOOPBACK) under _XOPEN_SOURCE=600;
    this must come before any system header. */
@@ -23,6 +23,7 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
+#include "xpp_mem.h"
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -621,7 +622,11 @@ void serve_files(Request &q)
         return;
     }
     if (n == 6 || (n == 7 && q.target[6] == '/')) {
-        if (q.method == "GET") reply(q.s, "200 OK", "application/json", xpp::files_list_json());
+        if (q.method == "GET") {
+            size_t len;
+            xpp::MemPtr<char> json(xpp_files_list_json(&len));
+            reply(q.s, "200 OK", "application/json", {json.get(), len});
+        }
         else reply_text(q.s, "405 Method Not Allowed", "GET only");
         return;
     }

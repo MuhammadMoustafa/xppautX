@@ -23,6 +23,7 @@
 #include "xpp_io.h"
 #include "xpp_log.h"
 
+#include <array>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -149,7 +150,9 @@ int xpp_window_run(void (*session)(void), const char *about)
         std::string err;
         loaded = load(err);
         if (!loaded) {
-            xpp::log(XPP_LOG_WARN, "{}", xpp::window_load_message(os_release(), err));
+            std::array<char, 1024> msg;
+            xpp_window_load_message(msg.data(), msg.size(), os_release().c_str(), err.c_str());
+            xpp_log(XPP_LOG_WARN, "%s", msg.data());
             return 0;
         }
     } catch (const std::exception &e) {

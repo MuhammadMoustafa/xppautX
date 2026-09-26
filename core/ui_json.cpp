@@ -13,7 +13,6 @@
    the files that hold the rest. */
 #include "ui_json.h"
 #include "ui_json_internal.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_http.h"
 #include "xpp_inbox.h"
@@ -32,19 +31,18 @@
 #include "auto_data.h"
 #include "auto_settings.h"
 #include "xpp_files.h"
+#include <algorithm>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include "load_eqn.h"
+#include "pop_list.h" /* NUPAR, NODE, NMarkov, NEQ, upar_names, uvar_names, color_names */
 
 /* the core's own globals and functions that have no header of their own */
 extern "C" {
-extern int NUPAR, NODE, NMarkov, NEQ;
-extern char upar_names[MAXPAR][XPP_NAME_MAX+1], uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern double default_val[MAXPAR], default_ic[MAXODE];
 extern char this_file[];
-extern const char *color_names[];
 extern const char *auto_hint[];
 void commander(int ch); /* commands.c */
 }
@@ -108,18 +106,16 @@ namespace {
    it, and runs after the job's idle. */
 int classify(const char *line, unsigned long seq)
 {
-    char c[16], o[16];
-    if (!get_str(line, "cmd", c, sizeof c)) return XPP_INBOX_NORMAL;
-    if (strcmp(c, "abort") == 0 || strcmp(c, "quit") == 0) {
+    std::string c, o; /* at most 15 bytes: no allocation on the reader thread */
+    if (!get_string(line, "cmd", c, 16)) return XPP_INBOX_NORMAL;
+    if (c == "abort" || c == "quit") {
         xpp_job_cancel(seq);
         return XPP_INBOX_CONTROL;
     }
     if (!xpp_job_running()) return XPP_INBOX_NORMAL;
-    if (strcmp(c, "key") == 0 || strcmp(c, "set") == 0 || strcmp(c, "state") == 0)
-        return XPP_INBOX_CONTROL;
-    if (strcmp(c, "browser") == 0 && js_find(line, "from")) return XPP_INBOX_CONTROL;
-    if (strcmp(c, "ani") == 0 && get_str(line, "op", o, sizeof o) &&
-        (strcmp(o, "pause") == 0 || strcmp(o, "fast") == 0 || strcmp(o, "slow") == 0 || strcmp(o, "speed") == 0))
+    if (c == "key" || c == "set" || c == "state") return XPP_INBOX_CONTROL;
+    if (c == "browser" && js_find(line, "from")) return XPP_INBOX_CONTROL;
+    if (c == "ani" && get_string(line, "op", o, 16) && (o == "pause" || o == "fast" || o == "slow" || o == "speed"))
         return XPP_INBOX_CONTROL;
     return XPP_INBOX_NORMAL;
 }
@@ -131,21 +127,21 @@ int classify(const char *line, unsigned long seq)
    ANI_PAUSE for the animation's Pause, 64 otherwise. */
 int control_line(const char *line)
 {
-    char k[32];
+    std::string k;
     if (handle_async(line)) return 64;
     if (is_cmd(line, "abort")) return ESC;
     if (is_cmd(line, "key")) {
-        get_str(line, "key", k, sizeof k);
-        return key_code(k);
+        get_string(line, "key", k, 32);
+        return key_code(k.c_str());
     }
     if (is_cmd(line, "set")) {
         apply_set(line);
         return 64;
     }
     if (is_cmd(line, "ani")) {
-        get_str(line, "op", k, sizeof k);
-        if (strcmp(k, "pause") == 0) return ANI_PAUSE;
-        ani_speed_op(k, line);
+        get_string(line, "op", k, 32);
+        if (k == "pause") return ANI_PAUSE;
+        ani_speed_op(k.c_str(), line);
     }
     return 64;
 }
@@ -158,21 +154,20 @@ namespace {
 void send_stopped(void)
 {
     XppJobProgress p = xpp_job_progress();
-    Buf b = {0};
+    Buf b;
     BUF_LIT(&b, "{\"ev\":\"stopped\",\"at\":");
     if (p.what == XPP_JOB_INTEGRATE) {
         /* t is a stored single-precision number: 9 digits read back exactly */
-        buf_printf(&b, "{\"what\":\"integrate\",\"rows\":%ld,\"t\":", p.rows);
-        if (isfinite(p.t)) buf_printf(&b, "%.9g}", p.t);
+        buf_format(&b, "{{\"what\":\"integrate\",\"rows\":{:d},\"t\":", p.rows);
+        if (isfinite(p.t)) buf_format(&b, "{:.9g}}}", p.t);
         else BUF_LIT(&b, "null}");
     } else if (p.what == XPP_JOB_AUTO) {
-        buf_printf(&b, "{\"what\":\"auto\",\"branch\":%d,\"point\":%d}", p.branch, p.point);
+        buf_format(&b, "{{\"what\":\"auto\",\"branch\":{:d},\"point\":{:d}}}", p.branch, p.point);
     } else {
         BUF_LIT(&b, "{\"what\":\"other\"}");
     }
     BUF_LIT(&b, "}");
     send_buf(&b);
-    xpp_free(b.s);
 }
 
 /* A recorded interruption (docs/protocol.md "Scripts"): the line after the
@@ -181,22 +176,27 @@ void send_stopped(void)
    answer) cancels itself at AT (xpp_job_stop_at_rows/point). stop_line and
    stop_at say what was armed, for script_stop_missed(). */
 int stop_line;
-char stop_at[400];
+constexpr size_t STOP_AT_MAX = 399;
+std::string stop_at; /* cut to STOP_AT_MAX */
 
 void script_arm_stop(void)
 {
     int no = 0;
     const char *next = xpp_inbox_script_peek(&no), *at, *end;
-    char what[16];
+    std::string what;
     if (!next || !is_cmd(next, "abort") || !(at = js_find(next, "at")) || *at != '{') return;
     end = skip_value(at);
-    snprintf(stop_at, sizeof stop_at, "%.*s", (int)(end - at), at);
+    try {
+        stop_at.assign(at, std::min(static_cast<size_t>(end - at), STOP_AT_MAX));
+    } catch (...) {
+        out_of_memory("reading a script");
+    }
     stop_line = no;
-    get_str(at, "what", what, sizeof what);
-    if (strcmp(what, "integrate") == 0)
-        xpp_job_stop_at_rows((long)get_num(at, "rows", -1));
-    else if (strcmp(what, "auto") == 0)
-        xpp_job_stop_at_point((int)get_num(at, "branch", -1), (int)get_num(at, "point", -1));
+    get_string(at, "what", what, 16);
+    if (what == "integrate")
+        xpp_job_stop_at_rows(static_cast<long>(get_num(at, "rows", -1)));
+    else if (what == "auto")
+        xpp_job_stop_at_point(get_int(at, "branch", -1), get_int(at, "point", -1));
     /* an interruption of anything else cannot be placed: the job runs on */
     xpp_inbox_script_skip();
 }
@@ -216,8 +216,8 @@ namespace {
 /* the job ends with its recorded interruption still armed */
 void script_stop_missed(void)
 {
-    xpp_log(XPP_LOG_ERROR, "xppautX: script line %d: the recorded interruption at %s was never reached\n", stop_line,
-            stop_at);
+    xpp::log(XPP_LOG_ERROR, "xppautX: script line {}: the recorded interruption at {} was never reached\n", stop_line,
+             stop_at);
     exit(1);
 }
 
@@ -228,7 +228,7 @@ void j_exit_program(void)
 }
 
 void j_void(void) {}
-void j_int(int i) { (void)i; }
+void j_int(int) {}
 
 /* the JSON front end's table: assignments, so C++17 needs no designated
    initializers; fields not set stay null, as in the C initializer */
@@ -331,12 +331,12 @@ const XppUi json_ui = make_json_ui();
    number: an abort cancels it from the reader thread */
 void handle_line(const char *line, unsigned long seq)
 {
-    char k[32];
     xpp_job_begin(seq);
     if (handle_async(line)) {
     } else if (is_cmd(line, "key")) {
-        get_str(line, "key", k, sizeof k);
-        commander(key_code(k));
+        std::string k;
+        get_string(line, "key", k, 32);
+        commander(key_code(k.c_str()));
     } else if (is_cmd(line, "set")) {
         apply_set(line);
     } else if (is_cmd(line, "default")) {
@@ -344,7 +344,7 @@ void handle_line(const char *line, unsigned long seq)
     } else if (is_cmd(line, "slide")) {
         slide_command(line);
     } else if (is_cmd(line, "userbut")) {
-        int i = (int)get_num(line, "index", -1);
+        int i = get_int(line, "index", -1);
         if (i >= 0 && i < nuserbut) run_the_commands(userbut[i].com);
     } else if (is_cmd(line, "browser")) {
         browser_command(line);
@@ -380,16 +380,16 @@ void handle_line(const char *line, unsigned long seq)
     } else if (is_cmd(line, "auto")) {
         auto_command(line);
     } else if (is_cmd(line, "session")) {
-        char o[8], name[XPP_MAX_NAME];
-        get_str(line, "op", o, sizeof o);
-        get_str(line, "name", name, sizeof name);
-        if (strcmp(o, "save") == 0) xpp_session_save(name[0] ? name : NULL);
-        else if (strcmp(o, "load") == 0) xpp_session_load(name[0] ? name : NULL);
+        std::string o, name;
+        get_string(line, "op", o, 8);
+        get_string(line, "name", name, XPP_MAX_NAME);
+        if (o == "save") xpp_session_save(name.empty() ? nullptr : name.c_str());
+        else if (o == "load") xpp_session_load(name.empty() ? nullptr : name.c_str());
     } else if (is_cmd(line, "file")) {
         /* the model's folder for a client that cannot reach it (xpp_files.h) */
-        char o[8];
-        get_str(line, "op", o, sizeof o);
-        xpp_files_command(o, js_find(line, "name"), js_find(line, "data"), data_emit);
+        std::string o;
+        get_string(line, "op", o, 8);
+        xpp_files_command(o.c_str(), js_find(line, "name"), js_find(line, "data"), data_emit);
     }
     apply_deferred_sets();
     aplot_update();
@@ -428,22 +428,20 @@ void json_ui_handle(const char *line) { handle_line(line, 0); }
 
 void json_ui_loop(void)
 {
-    char *copy = NULL;
-    size_t cap = 0;
+    std::string copy;
     for (;;) {
         /* a copy: the command's own prompts read further lines */
         char *line = read_line(XPP_INBOX_ARRIVAL, -1);
         unsigned long seq = read_line_seq();
-        size_t n = strlen(line) + 1;
-        if (n > cap) {
-            cap = n;
-            copy = static_cast<char *>(xpp_realloc(copy, cap));
+        try {
+            copy = line;
+        } catch (...) {
+            out_of_memory("taking a command");
         }
-        memcpy(copy, line, n);
         /* an abort did its work when it arrived (classify()): it is no
            command of its own, and gets no state or idle; in a script,
            where nothing ran for it to stop, the next line follows */
-        if (!is_cmd(copy, "abort")) handle_line(copy, seq);
+        if (!is_cmd(copy.c_str(), "abort")) handle_line(copy.c_str(), seq);
         else if (session.script_mode) script_next();
     }
 }
@@ -481,7 +479,7 @@ void json_ui_install(void)
 /* the first events a client sees */
 void json_ui_hello(const char *title)
 {
-    Buf b = {0};
+    Buf b;
     int i;
     BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":" JSON_UI_STR(JSON_UI_PROTOCOL) ",\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\",\"autosettings\"],\"title\":");
     buf_str(&b, title);
@@ -529,10 +527,8 @@ void json_ui_hello(const char *title)
     }
     BUF_LIT(&b, "],[");
     for (i = 0; i < 11; i++) {
-        char item[40];
-        snprintf(item, sizeof item, "%d %s", i, color_names[i]);
         if (i) BUF_LIT(&b, ",");
-        buf_str(&b, item);
+        buf_str(&b, xpp::format("{} {}", i, color_names[i]).c_str());
     }
     BUF_LIT(&b, "],[\"2 Box\",\"3 Diamond\",\"4 Triangle\",\"5 Plus\",\"6 X\",\"7 Circle\"],"
                 "[\"0 Discrete\",\"1 Euler\",\"2 Mod. Euler\",\"3 Runge-Kutta\",\"4 Adams\",\"5 Gear\","
@@ -556,17 +552,16 @@ void json_ui_hello(const char *title)
             if (k++) BUF_LIT(&b, ",");
             BUF_LIT(&b, "{\"name\":");
             buf_str(&b, sliders[i].var);
-            buf_printf(&b, ",\"lo\":%.16g,\"hi\":%.16g}", sliders[i].lo, sliders[i].hi);
+            buf_format(&b, ",\"lo\":{:.16g},\"hi\":{:.16g}}}", sliders[i].lo, sliders[i].hi);
         }
     }
     /* the model file's values, what `default` restores, in state's order */
     BUF_LIT(&b, "],\"defaults\":{\"pars\":[");
-    for (i = 0; i < NUPAR; i++) buf_printf(&b, "%s%.16g", i ? "," : "", default_val[i]);
+    for (i = 0; i < NUPAR; i++) buf_format(&b, "{}{:.16g}", i ? "," : "", default_val[i]);
     BUF_LIT(&b, "],\"ics\":[");
-    for (i = 0; i < NODE + NMarkov; i++) buf_printf(&b, "%s%.16g", i ? "," : "", default_ic[i]);
+    for (i = 0; i < NODE + NMarkov; i++) buf_format(&b, "{}{:.16g}", i ? "," : "", default_ic[i]);
     BUF_LIT(&b, "]}}");
     send_buf(&b);
-    xpp_free(b.s);
     send_main_window(title);
     send_state();
 }

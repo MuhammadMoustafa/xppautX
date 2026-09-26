@@ -20,7 +20,13 @@
 #endif
 
 #include "xpp_ui.h"
+#include "xpp_io.h"
 #include <stddef.h>
+#include <iterator>
+#include <span>
+#include <string>
+#include <utility>
+#include <vector>
 
 /* a name a client sends: one byte more than any name, so a longer one is
    cut to something no name equals */
@@ -59,13 +65,26 @@ void script_next(void); /* the script's next line, and an interruption after it 
 
 /* ---- json_io.cpp: output ---- */
 
+/* an event line being built */
 struct Buf {
-    char *s;
-    size_t len, cap;
+    std::string s;
 };
 
+/* a failed allocation ends the program, as xpp_mem's do: no exception
+   leaves the front end's functions, which the core calls as C */
+[[noreturn]] void out_of_memory(const char *what);
+
 void buf_add(Buf *b, const char *s, size_t n);
-void buf_printf(Buf *b, const char *fmt, ...);
+/* std::format into a Buf (type-checked at compile time) */
+template <class... Args>
+void buf_format(Buf *b, std::format_string<Args...> fmt, Args &&...args) noexcept
+{
+    try {
+        std::format_to(std::back_inserter(b->s), fmt, std::forward<Args>(args)...);
+    } catch (...) {
+        out_of_memory("building an event");
+    }
+}
 void buf_str(Buf *b, const char *s); /* a JSON string */
 void buf_str_array(Buf *b, const char *const *v, int n);
 
@@ -87,11 +106,17 @@ const char *skip_ws(const char *p);
 const char *skip_value(const char *p);
 const char *js_find(const char *obj, const char *key);
 int js_string(const char *v, char *out, int max);
+/* the JSON string at v into out, cut to max - 1 bytes as the char *
+   version cuts it (NAME_IN: an overlong name then equals no name); false
+   (out empty) when v is not a string */
+bool js_string(const char *v, std::string &out, size_t max = std::string::npos);
 double js_num(const char *v, double def);
 int js_number(const char *v, double *out);
 const char *js_elem(const char *arr, int i);
 int get_str(const char *obj, const char *key, char *out, int max);
+bool get_string(const char *obj, const char *key, std::string &out, size_t max = std::string::npos);
 double get_num(const char *obj, const char *key, double def);
+int get_int(const char *obj, const char *key, double def); /* get_num cut to an int */
 int is_cmd(const char *line, const char *name);
 int key_code(const char *k);
 
@@ -180,9 +205,9 @@ void j_draw_freeze(void);
 void j_scroll_window(void);
 void j_new_colormap(int type);
 
-unsigned char *ask_pixels(int win, int film, int *w, int *h);
-int write_ppm(const char *file, unsigned char *rgb, int w, int h);
-void web_safe_colors(unsigned char *rgb, int w, int h);
+std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h); /* empty: cancelled */
+int write_ppm(const char *file, std::span<const unsigned char> rgb, int w, int h);
+void web_safe_colors(std::span<unsigned char> rgb); /* at most 256 colours, for the GIF writer */
 
 int j_film_clip(void);
 void j_reset_film(void);

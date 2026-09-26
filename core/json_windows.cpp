@@ -20,9 +20,12 @@
 #include "marks_data.h"
 #include "series_enc.h"
 #include "xpp_io.h"
+#include <array>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <string>
+#include <vector>
 #include "many_pops.h"
 #include "kinescope.h"
 #include "load_eqn.h"
@@ -144,13 +147,12 @@ void j_reset_graphics(void)
 
 void send_window(const char *what, unsigned long id, int w, int h, const char *title)
 {
-    Buf b = {0};
-    buf_printf(&b, "{\"ev\":\"window\",\"op\":\"%s\",\"win\":%lu,\"w\":%d,\"h\":%d,\"title\":",
+    Buf b;
+    buf_format(&b, "{{\"ev\":\"window\",\"op\":\"{}\",\"win\":{:d},\"w\":{:d},\"h\":{:d},\"title\":",
                what, id, w, h);
     buf_str(&b, title ? title : "");
     BUF_LIT(&b, "}");
     send_buf(&b);
-    xpp_free(b.s);
 }
 
 void select_graph(int i)
@@ -225,21 +227,21 @@ void j_kill_plot_windows(void)
 
 void j_cput_text(void)
 {
-    char string[256], text[256];
+    /* new_string and fillintext write into them, as the X11 prompt's 256-byte line */
+    std::array<char, 256> string{}, text{};
     int x, y, size = 2;
-    XPP_STRCPY(string, "");
-    if (new_string("Text: ", string) == 0) return;
+    if (new_string("Text: ", string.data()) == 0) return;
     if (string[0] == '%') {
-        fillintext(&string[1], text);
-        XPP_STRCPY(string, text);
+        fillintext(&string[1], text.data());
+        string = text;
     }
     new_int("Size 0-4 :", &size);
     if (size > 4) size = 4;
     if (size < 0) size = 0;
     j_message_box("Place text with mouse");
     if (j_get_mouse_xy(&x, &y)) {
-        fillintext(string, text);
-        marks_data_label(plot_windows.draw_win, add_label(string, x, y, size, 0), text);
+        fillintext(string.data(), text.data());
+        marks_data_label(plot_windows.draw_win, add_label(string.data(), x, y, size, 0), text.data());
     }
     j_kill_message_box();
 }
@@ -249,7 +251,7 @@ void j_draw_freeze(void) { draw_freeze(plot_windows.draw_win); }
 /* {"cmd":"click","win":w}: the user clicked in plot window w */
 void click_command(const char *line)
 {
-    int win = (int)get_num(line, "win", 1) - 1;
+    int win = get_int(line, "win", 1) - 1;
     if (win >= 0 && win < MAXPOP && plot_windows.graph[win].Use && plot_windows.active != win) select_graph(win);
 }
 
@@ -259,7 +261,7 @@ namespace {
    after telling the client it does not exist */
 int command_window(const char *line)
 {
-    int i = (int)get_num(line, "win", -1) - 1;
+    int i = get_int(line, "win", -1) - 1;
     if (i < 0 || i >= MAXPOP || !plot_windows.graph[i].Use) {
         j_err_msg("No such window");
         return -1;
@@ -287,7 +289,7 @@ void view_command(const char *line)
         return;
     }
     if (i != plot_windows.active) select_graph(i);
-    update_view((float)xlo, (float)xhi, (float)ylo, (float)yhi);
+    update_view(static_cast<float>(xlo), static_cast<float>(xhi), static_cast<float>(ylo), static_cast<float>(yhi));
 }
 
 /* dragging a 3D plot turns it (many_pops.c rotate3dcheck):
@@ -296,20 +298,20 @@ void rotate_command(const char *line)
 {
     static int x0, y0;
     static double theta, phi;
-    char what[8];
-    int x = (int)get_num(line, "x", 0), y = (int)get_num(line, "y", 0);
+    std::string what;
+    int x = get_int(line, "x", 0), y = get_int(line, "y", 0);
     if (!plot_windows.current->ThreeDFlag) return;
-    get_str(line, "what", what, sizeof what);
-    if (strcmp(what, "down") == 0) {
+    get_string(line, "what", what, 8);
+    if (what == "down") {
         x0 = x;
         y0 = y;
         phi = plot_windows.current->Phi;
         theta = plot_windows.current->Theta;
-    } else if (strcmp(what, "move") == 0) {
-        plot_windows.current->Phi = phi - (double)(y - y0);
-        plot_windows.current->Theta = theta - (double)(x - x0);
+    } else if (what == "move") {
+        plot_windows.current->Phi = phi - static_cast<double>(y - y0);
+        plot_windows.current->Theta = theta - static_cast<double>(x - x0);
         redraw_cube_pt(plot_windows.current->Theta, plot_windows.current->Phi);
-    } else if (strcmp(what, "up") == 0) {
+    } else if (what == "up") {
         do_axes();
         j_redraw_all();
     }
@@ -351,7 +353,7 @@ void j_scroll_window(void)
     float x, y, x0 = 0, y0 = 0, dx = 0, dy = 0;
     float xlo = plot_windows.current->xlo, ylo = plot_windows.current->ylo, xhi = plot_windows.current->xhi, yhi = plot_windows.current->yhi;
     send_simple("message", "box", "Drag the plot to scroll it; any key ends");
-    while ((t = ask_drag((unsigned long)plot_windows.draw_win, &i, &j)) != 0) {
+    while ((t = ask_drag(plot_windows.draw_win, &i, &j)) != 0) {
         if (t == 1 && state == 0) {
             scale_to_real(i, j, &x0, &y0);
             state = 1;
@@ -398,65 +400,66 @@ int b64_value(int c)
 
 } // namespace
 
-/* malloc'd w*h*3 RGB bytes, or NULL when cancelled */
-unsigned char *ask_pixels(int win, int film, int *w, int *h)
+/* w*h*3 RGB bytes, or none when cancelled */
+std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h)
 {
     Buf b;
-    const char *v;
-    unsigned char *rgb;
-    size_t n, k = 0;
+    std::vector<unsigned char> rgb;
+    size_t k = 0;
     int q[4], nq = 0, id = ask_begin(&b, "pixels");
-    if (film >= 0) buf_printf(&b, ",\"film\":%d", film);
-    else buf_printf(&b, ",\"win\":%d", win);
-    if (!ask_wait(&b, id)) return NULL;
-    *w = (int)get_num(ask_answer(), "w", 0);
-    *h = (int)get_num(ask_answer(), "h", 0);
-    v = js_find(ask_answer(), "rgb");
-    if (!v || *v != '"' || *w <= 0 || *h <= 0 || *w > 8192 || *h > 8192) return NULL;
-    n = (size_t)*w * (size_t)*h * 3;
-    rgb = static_cast<unsigned char *>(xpp_calloc(n, 1));
+    if (film >= 0) buf_format(&b, ",\"film\":{:d}", film);
+    else buf_format(&b, ",\"win\":{:d}", win);
+    if (!ask_wait(&b, id)) return rgb;
+    *w = get_int(ask_answer(), "w", 0);
+    *h = get_int(ask_answer(), "h", 0);
+    const char *v = js_find(ask_answer(), "rgb");
+    if (!v || *v != '"' || *w <= 0 || *h <= 0 || *w > 8192 || *h > 8192) return rgb;
+    size_t n = static_cast<size_t>(*w) * static_cast<size_t>(*h) * 3;
+    try {
+        rgb.resize(n);
+    } catch (...) {
+        out_of_memory("taking a picture");
+    }
     for (v++; *v && *v != '"' && k < n; v++) {
-        int d = b64_value((unsigned char)*v);
+        int d = b64_value(static_cast<unsigned char>(*v));
         if (d < 0) continue;
         q[nq++] = d;
         if (nq == 4) {
-            rgb[k++] = (unsigned char)(q[0] << 2 | q[1] >> 4);
-            if (k < n) rgb[k++] = (unsigned char)(q[1] << 4 | q[2] >> 2);
-            if (k < n) rgb[k++] = (unsigned char)(q[2] << 6 | q[3]);
+            rgb[k++] = static_cast<unsigned char>(q[0] << 2 | q[1] >> 4);
+            if (k < n) rgb[k++] = static_cast<unsigned char>(q[1] << 4 | q[2] >> 2);
+            if (k < n) rgb[k++] = static_cast<unsigned char>(q[2] << 6 | q[3]);
             nq = 0;
         }
     }
-    if (nq >= 2 && k < n) rgb[k++] = (unsigned char)(q[0] << 2 | q[1] >> 4);
-    if (nq >= 3 && k < n) rgb[k++] = (unsigned char)(q[1] << 4 | q[2] >> 2);
+    if (nq >= 2 && k < n) rgb[k++] = static_cast<unsigned char>(q[0] << 2 | q[1] >> 4);
+    if (nq >= 3 && k < n) rgb[k++] = static_cast<unsigned char>(q[1] << 4 | q[2] >> 2);
     return rgb;
 }
 
-int write_ppm(const char *file, unsigned char *rgb, int w, int h)
+int write_ppm(const char *file, std::span<const unsigned char> rgb, int w, int h)
 {
-    FILE *fp = fopen(file, "wb");
-    if (!fp) return 0;
-    fprintf(fp, "P6\n%d %d\n255\n", w, h);
-    fwrite(rgb, 3, (size_t)w * h, fp);
-    fclose(fp);
-    return 1;
+    xpp::Writer out = xpp::Writer::binary(file);
+    if (!out) return 0;
+    out.write("P6\n{} {}\n255\n", w, h);
+    fwrite(rgb.data(), 3, static_cast<size_t>(w) * h, out.file());
+    return out.commit();
 }
 
 /* the GIF writer takes at most 256 colours; a canvas smooths its lines */
-void web_safe_colors(unsigned char *rgb, int w, int h)
+void web_safe_colors(std::span<unsigned char> rgb)
 {
-    size_t i, n = (size_t)w * h * 3;
-    for (i = 0; i < n; i++) rgb[i] = (unsigned char)(((rgb[i] + 25) / 51) * 51);
+    for (unsigned char &c : rgb) c = static_cast<unsigned char>(((c + 25) / 51) * 51);
 }
 
 namespace {
 
-void write_gif(const char *file, unsigned char *rgb, int w, int h)
+void write_gif(const char *file, std::vector<unsigned char> &rgb, int w, int h)
 {
-    FILE *fp = fopen(file, "wb");
-    if (!fp) return;
-    web_safe_colors(rgb, w, h);
-    gif_stuff_ppm(rgb, w, h, fp, MAKE_ONE_GIF);
-    fclose(fp);
+    xpp::Writer out = xpp::Writer::binary(file);
+    if (!out) return;
+    web_safe_colors(rgb);
+    gif_stuff_ppm(rgb.data(), w, h, out.file(), MAKE_ONE_GIF);
+    out.commit();
 }
 
 } // namespace
@@ -470,11 +473,10 @@ int film_count;
 
 void send_film(const char *what)
 {
-    Buf b = {0};
-    buf_printf(&b, "{\"ev\":\"film\",\"op\":\"%s\",\"count\":%d,\"win\":%lu,\"cycles\":%d,\"delay\":%d}",
-               what, film_count, (unsigned long)plot_windows.draw_win, movie_autoplay.cycles, movie_autoplay.frame_ms);
+    Buf b;
+    buf_format(&b, "{{\"ev\":\"film\",\"op\":\"{}\",\"count\":{:d},\"win\":{:d},\"cycles\":{:d},\"delay\":{:d}}}",
+               what, film_count, plot_windows.draw_win, movie_autoplay.cycles, movie_autoplay.frame_ms);
     send_buf(&b);
-    xpp_free(b.s);
 }
 
 } // namespace
@@ -505,43 +507,38 @@ void j_movie_auto_play(void)
 
 void j_movie_save(const char *basename, int fmat)
 {
-    char file[XPP_MAX_NAME + 32];
-    int i, w, h;
-    for (i = 0; i < film_count; i++) {
-        unsigned char *rgb = ask_pixels(0, i, &w, &h);
-        if (!rgb) return;
-        snprintf(file, sizeof file, "%s_%d.%s", basename, i, fmat == 1 ? "ppm" : "gif");
-        if (fmat == 1) write_ppm(file, rgb, w, h);
-        else write_gif(file, rgb, w, h);
-        xpp_free(rgb);
+    int w, h;
+    for (int i = 0; i < film_count; i++) {
+        std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
+        if (rgb.empty()) return;
+        std::string file = xpp::format("{}_{}.{}", basename, i, fmat == 1 ? "ppm" : "gif");
+        if (fmat == 1) write_ppm(file.c_str(), rgb, w, h);
+        else write_gif(file.c_str(), rgb, w, h);
     }
 }
 
 void j_movie_make_anigif(void)
 {
-    FILE *fp;
-    int i, w, h, w0 = 0, h0 = 0;
+    int w, h, w0 = 0, h0 = 0;
     if (film_count == 0) return;
-    fp = fopen("anim.gif", "wb");
-    if (!fp) return;
+    xpp::Writer out = xpp::Writer::binary("anim.gif");
+    if (!out) return;
     set_global_map(1);
-    for (i = 0; i < film_count; i++) {
-        unsigned char *rgb = ask_pixels(0, i, &w, &h);
-        if (!rgb) break;
+    for (int i = 0; i < film_count; i++) {
+        std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
+        if (rgb.empty()) break;
         if (i == 0) {
             w0 = w;
             h0 = h;
         } else if (w != w0 || h != h0) {
-            xpp_free(rgb);
             j_err_msg("All clips must be same size");
             break;
         }
-        web_safe_colors(rgb, w, h);
-        gif_stuff_ppm(rgb, w, h, fp, i == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
-        xpp_free(rgb);
+        web_safe_colors(rgb);
+        gif_stuff_ppm(rgb.data(), w, h, out.file(), i == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
     }
-    end_ani_gif(fp);
-    fclose(fp);
+    end_ani_gif(out.file());
+    out.commit();
     set_global_map(0);
 }
 
@@ -562,18 +559,18 @@ int aplot_dirty; /* the data behind an array plot changed */
 
 void send_aplot(const char *tag)
 {
-    Buf b = {0};
-    char sroot[100];
+    Buf b;
+    std::array<char, 100> sroot{}; /* get_root writes it */
     int num, i, j, nx, ny, nrows = my_browser.maxrow;
     double tlo = 0.0, thi = 20.0;
     APLOT *ap = &aplot;
-    float *vals;
+    std::vector<float> vals;
     int f32 = plot_data_want_f32();
     aplot_dirty = 0;
     if (!ap->alive) return;
-    get_root(ap->name, sroot, &num);
-    buf_printf(&b, "{\"ev\":\"aplot\",\"title\":\"");
-    buf_printf(&b, "%.60s%d..%d\"", sroot, num, num + ap->nacross - 1);
+    get_root(ap->name, sroot.data(), &num);
+    BUF_LIT(&b, "{\"ev\":\"aplot\",\"title\":\"");
+    buf_format(&b, "{:.60}{:d}..{:d}\"", sroot.data(), num, num + ap->nacross - 1);
     nx = ap->ncskip > 0 ? ap->nacross / ap->ncskip : 0;
     ny = ap->ndown;
     if (nrows <= 2 || ap->plotdef == 0 || ap->nacross < 2 || ap->ndown < 2) nx = ny = 0;
@@ -584,13 +581,17 @@ void send_aplot(const char *tag)
         if (j >= nrows) j = nrows - 1;
         if (j >= 0) thi = my_browser.data[0][j];
     }
-    buf_printf(&b, ",\"tlo\":%g,\"thi\":%g,\"zmin\":%g,\"zmax\":%g,\"first\":%d,\"ncolors\":%d,\"nx\":%d,\"ny\":%d",
+    buf_format(&b, ",\"tlo\":{:g},\"thi\":{:g},\"zmin\":{:g},\"zmax\":{:g},\"first\":{:d},\"ncolors\":{:d},\"nx\":{:d},\"ny\":{:d}",
                tlo, thi, ap->zmin, ap->zmax, FIRSTCOLOR, color_table.count, nx, ny);
     if (tag) {
         BUF_LIT(&b, ",\"tag\":");
         buf_str(&b, tag);
     }
-    vals = nx * ny > 0 ? (float *)xpp_malloc(sizeof(float) * (size_t)(nx * ny)) : NULL;
+    try {
+        if (nx * ny > 0) vals.resize(static_cast<size_t>(nx * ny));
+    } catch (...) {
+        out_of_memory("sending an array plot");
+    }
     /* -1 (cells) / NaN (values): past the stored rows or columns (left blank) */
     BUF_LIT(&b, ",\"cells\":[");
     for (j = 0; j < ny; j++) {
@@ -600,16 +601,16 @@ void send_aplot(const char *tag)
             float v = NAN;
             if (ib < my_browser.maxcol && jb < nrows && jb >= 0) {
                 double z = my_browser.data[ib][jb];
-                v = (float)z;
+                v = static_cast<float>(z);
                 if (ap->zmax > ap->zmin) {
-                    c = (int)(color_table.count * (z - ap->zmin) / (ap->zmax - ap->zmin));
+                    c = static_cast<int>(color_table.count * (z - ap->zmin) / (ap->zmax - ap->zmin));
                     if (c < 0) c = 0;
                     if (c > color_table.count) c = color_table.count;
                 }
             }
-            if (vals) vals[j * nx + i] = v;
+            if (!vals.empty()) vals[j * nx + i] = v;
             if (i || j) BUF_LIT(&b, ",");
-            buf_printf(&b, "%d", c);
+            buf_format(&b, "{:d}", c);
         }
     }
     BUF_LIT(&b, "]");
@@ -617,16 +618,12 @@ void send_aplot(const char *tag)
     BUF_LIT(&b, ",\"values\":");
     {
         size_t len;
-        char *t = xpp_series_values(vals, nx * ny, f32, &len);
-        if (t) {
-            buf_add(&b, t, len);
-            xpp_free(t);
-        } else BUF_LIT(&b, "[]");
+        MemPtr<char> t(xpp_series_values(vals.empty() ? nullptr : vals.data(), nx * ny, f32, &len));
+        if (t) buf_add(&b, t.get(), len);
+        else BUF_LIT(&b, "[]");
     }
-    if (vals) xpp_free(vals);
     BUF_LIT(&b, "}");
     send_buf(&b);
-    xpp_free(b.s);
 }
 
 } // namespace
@@ -658,19 +655,17 @@ namespace {
 void aplot_gif(const char *file, int still)
 {
     int w, h;
-    unsigned char *rgb;
     if (still == 1 || aplot_range_count == 0) {
         if ((ap_fp = fopen(file, "wb")) == NULL) {
             j_err_msg("Cannot open file ");
             return;
         }
     }
-    rgb = ask_pixels(WIN_APLOT, -1, &w, &h);
-    if (rgb) {
-        web_safe_colors(rgb, w, h);
-        if (still == 1) gif_stuff_ppm(rgb, w, h, ap_fp, MAKE_ONE_GIF);
-        else gif_stuff_ppm(rgb, w, h, ap_fp, aplot_range_count == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
-        xpp_free(rgb);
+    std::vector<unsigned char> rgb = ask_pixels(WIN_APLOT, -1, &w, &h);
+    if (!rgb.empty()) {
+        web_safe_colors(rgb);
+        if (still == 1) gif_stuff_ppm(rgb.data(), w, h, ap_fp, MAKE_ONE_GIF);
+        else gif_stuff_ppm(rgb.data(), w, h, ap_fp, aplot_range_count == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
     }
     if (still == 1) fclose(ap_fp);
 }
@@ -679,36 +674,35 @@ void aplot_gif(const char *file, int still)
 
 void j_aplot_draw_one(const char *tag)
 {
-    char file[300];
     send_aplot(aplot_tag ? tag : NULL);
-    snprintf(file, sizeof file, "%s.%d.gif", aplot_range_stem, aplot_range_count);
-    aplot_gif(file, aplot_still);
+    aplot_gif(xpp::format("{}.{}.gif", aplot_range_stem, aplot_range_count).c_str(), aplot_still);
     aplot_range_count++;
 }
 
 /* the array plot window's buttons */
 void aplot_command(const char *line)
 {
-    char o[16];
-    get_str(line, "op", o, sizeof o);
+    std::string o;
+    get_string(line, "op", o, 16);
     if (!aplot.alive) return;
-    if (strcmp(o, "redraw") == 0) send_aplot(NULL);
-    else if (strcmp(o, "edit") == 0) {
+    if (o == "redraw") send_aplot(NULL);
+    else if (o == "edit") {
         editaplot(&aplot);
         send_aplot(NULL);
-    } else if (strcmp(o, "fit") == 0) fit_aplot();
-    else if (strcmp(o, "range") == 0) set_up_aplot_range();
-    else if (strcmp(o, "print") == 0) print_aplot(&aplot);
-    else if (strcmp(o, "gif") == 0) {
-        char file[XPP_MAX_NAME];
-        snprintf(file, sizeof file, "%s.gif", this_file);
-        if (file_selector("GIF plot", file, "*.gif")) aplot_gif(file, 1);
-    } else if (strcmp(o, "scroll") == 0) {
+    } else if (o == "fit") fit_aplot();
+    else if (o == "range") set_up_aplot_range();
+    else if (o == "print") print_aplot(&aplot);
+    else if (o == "gif") {
+        std::array<char, XPP_MAX_NAME> file{}; /* the file selector edits it in place */
+        std::string name = xpp::format("{}.gif", static_cast<const char *>(this_file));
+        name.copy(file.data(), file.size() - 1);
+        if (file_selector("GIF plot", file.data(), "*.gif")) aplot_gif(file.data(), 1);
+    } else if (o == "scroll") {
         /* dragging the plot by dy pixels moves the first row, as in X11 */
-        aplot.nstart -= (int)get_num(line, "dy", 0);
+        aplot.nstart -= get_int(line, "dy", 0);
         if (aplot.nstart < 0) aplot.nstart = 0;
         send_aplot(NULL);
-    } else if (strcmp(o, "close") == 0) {
+    } else if (o == "close") {
         aplot.alive = 0;
         send_window("destroy", WIN_APLOT, 0, 0, NULL);
     }

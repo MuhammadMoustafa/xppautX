@@ -471,14 +471,11 @@ const char *xpp_files_status_text(int status)
     }
 }
 
-std::string xpp::files_list_json() { return listing(); }
-
 char *xpp_files_list_json(size_t *len)
 {
     try {
         std::string s = listing();
-        /* a raw block: the C API hands it to a caller that frees it (C++
-           callers take xpp::files_list_json's std::string instead) */
+        /* a raw block: the C API hands it to a caller that frees it */
         char *out = static_cast<char *>(xpp_malloc(s.size() + 1));
         std::memcpy(out, s.c_str(), s.size() + 1);
         *len = s.size();

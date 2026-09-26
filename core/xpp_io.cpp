@@ -46,11 +46,10 @@ bool first_time_at(const char *file, int line)
     }
 }
 
-template <class... Args>
-void warn_once(const char *file, int line, std::format_string<Args...> fmt, Args &&...args)
+void warn_once(const char *file, int line, const std::string &msg)
 {
     if (!first_time_at(file, line)) return;
-    xpp::log(XPP_LOG_WARN, "{}:{}: {}\n", file ? file : "?", line, xpp::format(fmt, std::forward<Args>(args)...));
+    xpp::log(XPP_LOG_WARN, "{}:{}: {}\n", file ? file : "?", line, msg);
 }
 
 /* strlen(s), but never looks past s[maxlen-1] (s need not be
@@ -77,14 +76,13 @@ int xpp_snprintf_at(char *dst, size_t size, const char *file, int line,
         /* an encoding error, not a size problem: vsnprintf may still
            leave dst without a NUL, so terminate it ourselves. */
         if (size > 0) dst[0] = '\0';
-        warn_once(file, line, "xpp_snprintf: formatting error (fmt \"{}\")",
-                   fmt ? fmt : "?");
+        warn_once(file, line, xpp::format("xpp_snprintf: formatting error (fmt \"{}\")",
+                   fmt ? fmt : "?"));
         return want;
     }
     if (size > 0 && static_cast<size_t>(want) >= size) {
-        warn_once(file, line,
-                   "xpp_snprintf: wanted {} bytes, buffer is {}: truncated",
-                   want, size);
+        warn_once(file, line, xpp::format("xpp_snprintf: wanted {} bytes, buffer is {}: truncated",
+                   want, size));
     }
     return want;
 }
@@ -99,9 +97,8 @@ size_t xpp_strlcpy_at(char *dst, const char *src, size_t size,
         dst[n] = '\0';
     }
     if (srclen >= size) {
-        warn_once(file, line,
-                   "xpp_strlcpy: wanted {} bytes, buffer is {}: truncated",
-                   srclen, size);
+        warn_once(file, line, xpp::format("xpp_strlcpy: wanted {} bytes, buffer is {}: truncated",
+                   srclen, size));
     }
     return srclen;
 }
@@ -115,9 +112,8 @@ size_t xpp_strlcat_at(char *dst, const char *src, size_t size,
     if (dstlen >= size) {
         /* dst was not NUL-terminated within size: nothing safe to
            append. Report and leave dst untouched, like BSD strlcat. */
-        warn_once(file, line,
-                   "xpp_strlcat: destination not NUL-terminated within "
-                   "{} bytes", size);
+        warn_once(file, line, xpp::format("xpp_strlcat: destination not NUL-terminated within "
+                   "{} bytes", size));
         return size + srclen;
     }
     size_t avail = size - dstlen - 1;
@@ -125,9 +121,8 @@ size_t xpp_strlcat_at(char *dst, const char *src, size_t size,
     if (n > 0) std::memcpy(dst + dstlen, src, n);
     dst[dstlen + n] = '\0';
     if (srclen > avail) {
-        warn_once(file, line,
-                   "xpp_strlcat: wanted {} bytes, buffer is {}: truncated",
-                   dstlen + srclen, size);
+        warn_once(file, line, xpp::format("xpp_strlcat: wanted {} bytes, buffer is {}: truncated",
+                   dstlen + srclen, size));
     }
     return dstlen + srclen;
 }

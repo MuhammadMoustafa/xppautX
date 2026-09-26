@@ -76,11 +76,5 @@ void xpp_files_command(const char *op, const char *name_json, const char *data_j
 
 #ifdef __cplusplus
 }
-
-#include <string>
-namespace xpp {
-/* xpp_files_list_json's JSON as a std::string, for C++ callers */
-std::string files_list_json();
-} // namespace xpp
 #endif
 #endif

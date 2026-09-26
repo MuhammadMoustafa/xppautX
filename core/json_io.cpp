@@ -6,12 +6,14 @@
 #include "xpp_mem.h"
 #include "xpp_http.h"
 #include "xpp_inbox.h"
+#include "xpp_log.h"
 #include "xpp_win32.h"
 #include "mykeydef.h"
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <array>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <string_view>
 #include <unistd.h>
 
 namespace xpp::json {
@@ -22,57 +24,47 @@ FILE *proto;
 
 } // namespace
 
+[[noreturn]] void out_of_memory(const char *what)
+{
+    xpp_log(XPP_LOG_ERROR, "out of memory %s\n", what);
+    std::exit(1);
+}
+
 /* ---- output ------------------------------------------------------------ */
 
 void buf_add(Buf *b, const char *s, size_t n)
 {
-    if (b->len + n + 1 > b->cap) {
-        b->cap = (b->len + n + 1) * 2 + 4096;
-        b->s = static_cast<char *>(xpp_realloc(b->s, b->cap));
+    try {
+        b->s.append(s, n);
+    } catch (...) {
+        out_of_memory("building an event");
     }
-    memcpy(b->s + b->len, s, n);
-    b->len += n;
-    b->s[b->len] = 0;
-}
-
-void buf_printf(Buf *b, const char *fmt, ...)
-{
-    char tmp[1024];
-    va_list ap;
-    int n;
-    va_start(ap, fmt);
-    n = vsnprintf(tmp, sizeof tmp, fmt, ap);
-    va_end(ap);
-    if (n < 0) return;
-    if (n >= (int)sizeof tmp) n = sizeof tmp - 1;
-    buf_add(b, tmp, n);
 }
 
 void buf_str(Buf *b, const char *s)
 {
-    char esc[8];
+    static constexpr std::string_view hex = "0123456789abcdef";
     BUF_LIT(b, "\"");
     for (; s && *s; s++) {
-        unsigned char c = (unsigned char)*s;
+        unsigned char c = static_cast<unsigned char>(*s);
         if (c == '"' || c == '\\') {
-            esc[0] = '\\'; esc[1] = c;
-            buf_add(b, esc, 2);
+            const std::array<char, 2> esc{'\\', *s};
+            buf_add(b, esc.data(), esc.size());
         } else if (c == '\n') BUF_LIT(b, "\\n");
         else if (c == '\t') BUF_LIT(b, "\\t");
         else if (c < 0x20 || c >= 0x80) {
             /* the core's strings are ASCII or Latin-1; keep the byte value */
-            snprintf(esc, sizeof esc, "\\u%04x", c);
-            buf_add(b, esc, 6);
-        } else buf_add(b, (char *)&c, 1);
+            const std::array<char, 6> esc{'\\', 'u', '0', '0', hex[c >> 4], hex[c & 15]};
+            buf_add(b, esc.data(), esc.size());
+        } else buf_add(b, s, 1);
     }
     BUF_LIT(b, "\"");
 }
 
 void buf_str_array(Buf *b, const char *const *v, int n)
 {
-    int i;
     BUF_LIT(b, "[");
-    for (i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++) {
         if (i) BUF_LIT(b, ",");
         buf_str(b, v ? v[i] : "");
     }
@@ -117,22 +109,21 @@ void flush_pending(void) { diag_flush(0); }
 void send_buf(Buf *b)
 {
     flush_pending();
-    out_line(b->s, b->len);
+    out_line(b->s.data(), b->s.size());
     out_flush();
-    b->len = 0;
+    b->s.clear();
 }
 
 void send_simple(const char *ev, const char *key, const char *text)
 {
-    Buf b = {0};
-    buf_printf(&b, "{\"ev\":\"%s\"", ev);
+    Buf b;
+    buf_format(&b, "{{\"ev\":\"{}\"", ev);
     if (key) {
-        buf_printf(&b, ",\"%s\":", key);
+        buf_format(&b, ",\"{}\":", key);
         buf_str(&b, text);
     }
     BUF_LIT(&b, "}");
     send_buf(&b);
-    xpp_free(b.s);
 }
 
 void json_flush(void)
@@ -171,15 +162,17 @@ void data_emit(const char *line, size_t n)
 namespace {
 
 unsigned long line_seq;
+MemPtr<char> last_line; /* the inbox's block, freed at the next call */
 
 } // namespace
 
 char *read_line(int which, int wait_ms)
 {
-    static char *line;
-    xpp_free(line);
-    line = NULL;
-    switch (xpp_inbox_next(which, wait_ms, &line, &line_seq)) {
+    char *line = nullptr;
+    last_line.reset();
+    int r = xpp_inbox_next(which, wait_ms, &line, &line_seq);
+    last_line.reset(line);
+    switch (r) {
     case 1:
         return line;
     case -1:
@@ -187,7 +180,7 @@ char *read_line(int which, int wait_ms)
            unmatched ask (docs/protocol.md "Scripts"), else as always, 0 */
         quit_session();
     default:
-        return NULL;
+        return nullptr;
     }
 }
 
@@ -234,58 +227,62 @@ const char *skip_value(const char *p)
 const char *js_find(const char *obj, const char *key)
 {
     const char *p = skip_ws(obj);
-    size_t klen = strlen(key);
-    if (*p != '{') return NULL;
+    std::string_view want(key);
+    if (*p != '{') return nullptr;
     p++;
     for (;;) {
-        const char *k;
         p = skip_ws(p);
-        if (*p != '"') return NULL;
-        k = ++p;
+        if (*p != '"') return nullptr;
+        const char *k = ++p;
         while (*p && *p != '"') {
             if (*p == '\\' && p[1]) p++;
             p++;
         }
-        if (!*p) return NULL;
-        {
-            int match = (size_t)(p - k) == klen && strncmp(k, key, klen) == 0;
-            p = skip_ws(p + 1);
-            if (*p != ':') return NULL;
-            p = skip_ws(p + 1);
-            if (match) return p;
-        }
+        if (!*p) return nullptr;
+        bool match = std::string_view(k, static_cast<size_t>(p - k)) == want;
+        p = skip_ws(p + 1);
+        if (*p != ':') return nullptr;
+        p = skip_ws(p + 1);
+        if (match) return p;
         p = skip_ws(skip_value(p));
-        if (*p != ',') return NULL;
+        if (*p != ',') return nullptr;
         p++;
     }
 }
 
+bool js_string(const char *v, std::string &out, size_t max)
+{
+    out.clear();
+    if (!v || *v != '"') return false;
+    v++;
+    try {
+        while (*v && *v != '"') {
+            char c = *v++;
+            if (c == '\\' && *v) {
+                c = *v++;
+                if (c == 'n') c = '\n';
+                else if (c == 't') c = '\t';
+                else if (c == 'u') {
+                    unsigned u = 0;
+                    for (int i = 0; i < 4 && *v; i++, v++)
+                        u = u * 16 + static_cast<unsigned>(*v <= '9' ? *v - '0' : (*v | 32) - 'a' + 10);
+                    c = u < 256 ? static_cast<char>(u) : '?';
+                }
+            }
+            if (out.size() + 1 < max) out += c;
+        }
+    } catch (...) {
+        out_of_memory("reading a command");
+    }
+    return true;
+}
+
 int js_string(const char *v, char *out, int max)
 {
-    int n = 0;
-    if (!v || *v != '"') {
-        if (max > 0) out[0] = 0;
-        return 0;
-    }
-    v++;
-    while (*v && *v != '"') {
-        char c = *v++;
-        if (c == '\\' && *v) {
-            c = *v++;
-            if (c == 'n') c = '\n';
-            else if (c == 't') c = '\t';
-            else if (c == 'u') {
-                unsigned u = 0;
-                int i;
-                for (i = 0; i < 4 && *v; i++, v++)
-                    u = u * 16 + (*v <= '9' ? *v - '0' : (*v | 32) - 'a' + 10);
-                c = u < 256 ? (char)u : '?';
-            }
-        }
-        if (n < max - 1) out[n++] = c;
-    }
-    out[n] = 0;
-    return 1;
+    std::string s;
+    bool ok = js_string(v, s, max > 0 ? static_cast<size_t>(max) : 1);
+    if (max > 0) std::memcpy(out, s.c_str(), s.size() + 1);
+    return ok;
 }
 
 double js_num(const char *v, double def)
@@ -299,13 +296,12 @@ double js_num(const char *v, double def)
 
 const char *js_elem(const char *arr, int i)
 {
-    const char *p;
-    if (!arr || *arr != '[') return NULL;
-    p = skip_ws(arr + 1);
-    if (*p == ']') return NULL;
+    if (!arr || *arr != '[') return nullptr;
+    const char *p = skip_ws(arr + 1);
+    if (*p == ']') return nullptr;
     while (i-- > 0) {
         p = skip_ws(skip_value(p));
-        if (*p != ',') return NULL;
+        if (*p != ',') return nullptr;
         p = skip_ws(p + 1);
     }
     return p;
@@ -316,15 +312,25 @@ int get_str(const char *obj, const char *key, char *out, int max)
     return js_string(js_find(obj, key), out, max);
 }
 
+bool get_string(const char *obj, const char *key, std::string &out, size_t max)
+{
+    return js_string(js_find(obj, key), out, max);
+}
+
 double get_num(const char *obj, const char *key, double def)
 {
     return js_num(js_find(obj, key), def);
 }
 
+int get_int(const char *obj, const char *key, double def)
+{
+    return static_cast<int>(get_num(obj, key, def));
+}
+
 int is_cmd(const char *line, const char *name)
 {
-    char c[32];
-    return get_str(line, "cmd", c, sizeof c) && strcmp(c, name) == 0;
+    std::string c;
+    return get_string(line, "cmd", c, 32) && c == name;
 }
 
 /* a JSON number at v into *out; 0 for anything else (a string, null, true) */
@@ -340,7 +346,10 @@ int js_number(const char *v, double *out)
    names) to the codes get_key_press() gives the core */
 int key_code(const char *k)
 {
-    static const struct { const char *name; int code; } named[] = {
+    static const struct {
+        const char *name;
+        int code;
+    } named[] = {
         {"Escape", ESC}, {"Enter", FINE}, {"Return", FINE}, {"Tab", TAB},
         {"Backspace", BKSP}, {"BackSpace", BKSP}, {"Delete", DEL},
         {"Home", HOME}, {"End", END}, {"ArrowLeft", LEFT}, {"Left", LEFT},
@@ -348,10 +357,9 @@ int key_code(const char *k)
         {"ArrowDown", DOWN}, {"Down", DOWN}, {"PageUp", PGUP}, {"Prior", PGUP},
         {"PageDown", PGDN}, {"Next", PGDN}, {" ", ' '}, {"space", ' '},
     };
-    size_t i;
-    if (k[0] && !k[1]) return (unsigned char)k[0];
-    for (i = 0; i < sizeof named / sizeof named[0]; i++)
-        if (strcmp(k, named[i].name) == 0) return named[i].code;
+    if (k[0] && !k[1]) return static_cast<unsigned char>(k[0]);
+    for (const auto &n : named)
+        if (strcmp(k, n.name) == 0) return n.code;
     return BADKEY;
 }
 

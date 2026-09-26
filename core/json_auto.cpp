@@ -2,7 +2,6 @@
    ("diagram" events), and AUTO's settings as data ({"cmd":"auto","op":"set"},
    auto_settings.h). */
 #include "ui_json_internal.h"
-#include "xpp_mem.h"
 #include "xpp_job.h"
 #include "xpp_globals.h"
 #include "menus.h"
@@ -11,8 +10,11 @@
 #include "auto_data.h"
 #include "auto_settings.h"
 #include "xpp_io.h"
+#include <array>
 #include <climits>
 #include <stdio.h>
+#include <string>
+#include <vector>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -43,14 +45,14 @@ namespace xpp::json {
 
 namespace {
 
-XppDiagPoint *dg;
-int dg_n, dg_cap, dg_client, dg_dirty;
+std::vector<XppDiagPoint> dg; /* dg_n of them in use */
+int dg_n, dg_client, dg_dirty;
 
 int dg_replay, dg_match, dg_axes;
 struct {
     double xmin, xmax, ymin, ymax;
     int x0, y0, wid, hgt, plot;
-    char xlabel[AUTO_LABEL_LEN], ylabel[AUTO_LABEL_LEN];
+    std::array<char, AUTO_LABEL_LEN> xlabel, ylabel; /* get_auto_str writes them */
 } dg_ax;
 
 /* the client has nothing: a new window, or one it no longer holds */
@@ -90,7 +92,7 @@ void j_auto_diagram(const XppDiagPoint *p)
         dg_ax.wid = Auto.wid;
         dg_ax.hgt = Auto.hgt;
         dg_ax.plot = Auto.plot;
-        get_auto_str(dg_ax.xlabel, dg_ax.ylabel);
+        get_auto_str(dg_ax.xlabel.data(), dg_ax.ylabel.data());
         dg_axes = 1;
         dg_replay = 1;
         dg_match = 0;
@@ -103,9 +105,12 @@ void j_auto_diagram(const XppDiagPoint *p)
         }
         diag_end_replay(dg_match);
     }
-    if (dg_n == dg_cap) {
-        dg_cap = dg_cap ? 2 * dg_cap : 1024;
-        dg = static_cast<XppDiagPoint *>(xpp_realloc(dg, (size_t)dg_cap * sizeof *dg));
+    if (static_cast<size_t>(dg_n) == dg.size()) {
+        try {
+            dg.resize(dg.empty() ? 1024 : 2 * dg.size());
+        } catch (...) {
+            out_of_memory("keeping the AUTO diagram");
+        }
     }
     dg[dg_n++] = *p;
 }
@@ -116,18 +121,18 @@ namespace {
 void buf_num(Buf *b, double v)
 {
     if (v != v || v > 1e308 || v < -1e308) BUF_LIT(b, "null");
-    else buf_printf(b, "%.7g", v);
+    else buf_format(b, "{:.7g}", v);
 }
 
 void diag_axes(Buf *b)
 {
-    buf_printf(b, ",\"xmin\":%.17g,\"xmax\":%.17g,\"ymin\":%.17g,\"ymax\":%.17g", dg_ax.xmin, dg_ax.xmax,
+    buf_format(b, ",\"xmin\":{:.17g},\"xmax\":{:.17g},\"ymin\":{:.17g},\"ymax\":{:.17g}", dg_ax.xmin, dg_ax.xmax,
                dg_ax.ymin, dg_ax.ymax);
-    buf_printf(b, ",\"x0\":%d,\"y0\":%d,\"wid\":%d,\"hgt\":%d,\"plot\":%d,\"xlabel\":", dg_ax.x0, dg_ax.y0,
+    buf_format(b, ",\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"plot\":{:d},\"xlabel\":", dg_ax.x0, dg_ax.y0,
                dg_ax.wid, dg_ax.hgt, dg_ax.plot);
-    buf_str(b, dg_ax.xlabel);
+    buf_str(b, dg_ax.xlabel.data());
     BUF_LIT(b, ",\"ylabel\":");
-    buf_str(b, dg_ax.ylabel);
+    buf_str(b, dg_ax.ylabel.data());
 }
 
 /* points i..j of the list as one run: they share branch, kind and style,
@@ -136,12 +141,12 @@ void diag_run(Buf *b, int i, int j)
 {
     const XppDiagPoint *p = &dg[i];
     int k, two = 0, nlab = 0;
-    char sym[4];
-    buf_printf(b, "{\"br\":%d,\"pt\":%d,\"ty\":%d,\"d\":%d,\"c\":%d,\"lw\":%d", abs(p->ibr), abs(p->pt), p->type,
+    std::array<char, 4> sym; /* get_bif_sym writes it */
+    buf_format(b, "{{\"br\":{:d},\"pt\":{:d},\"ty\":{:d},\"d\":{:d},\"c\":{:d},\"lw\":{:d}", abs(p->ibr), abs(p->pt), p->type,
                p->draw, p->color, p->lw);
-    if (p->flag2) buf_printf(b, ",\"f2\":%d", p->flag2);
+    if (p->flag2) buf_format(b, ",\"f2\":{:d}", p->flag2);
     if (p->newseg) BUF_LIT(b, ",\"new\":1");
-    if (p->from) buf_printf(b, ",\"from\":%d", p->from);
+    if (p->from) buf_format(b, ",\"from\":{:d}", p->from);
     BUF_LIT(b, ",\"x\":[");
     for (k = i; k <= j; k++) {
         if (k > i) BUF_LIT(b, ",");
@@ -166,11 +171,11 @@ void diag_run(Buf *b, int i, int j)
     if (nlab) {
         BUF_LIT(b, ",\"lab\":[");
         for (k = i, nlab = 0; k <= j; k++) {
-            const char *t = sym;
+            const char *t = sym.data();
             if (!dg[k].lab) continue;
-            get_bif_sym(sym, dg[k].itp);
+            get_bif_sym(sym.data(), dg[k].itp);
             while (*t == ' ') t++;
-            buf_printf(b, "%s[%d,%d,", nlab++ ? "," : "", k - i, dg[k].lab);
+            buf_format(b, "{}[{:d},{:d},", nlab++ ? "," : "", k - i, dg[k].lab);
             buf_str(b, t);
             BUF_LIT(b, "]");
         }
@@ -206,33 +211,33 @@ int diag_joins(const XppDiagPoint *a, const XppDiagPoint *b)
    something, so a replay that has not been completed never will be */
 void diag_flush(int final)
 {
-    Buf b = {0};
+    Buf b;
     if (dg_replay) {
         if (dg_match == dg_n) diag_end_replay(dg_n); /* all agreed; more points are new ones */
         else if (final) diag_end_replay(dg_match);
         else return; /* still replaying: nothing is known yet */
     }
     if (dg_dirty < dg_client) {
-        buf_printf(&b, "{\"ev\":\"diagram\",\"op\":\"reset\",\"keep\":%d", dg_dirty);
+        buf_format(&b, "{{\"ev\":\"diagram\",\"op\":\"reset\",\"keep\":{:d}", dg_dirty);
         diag_axes(&b);
         BUF_LIT(&b, "}");
-        out_line(b.s, b.len);
-        b.len = 0;
+        out_line(b.s.data(), b.s.size());
+        b.s.clear();
         dg_client = dg_dirty;
         dg_axes = 0;
     } else if (dg_axes) {
         BUF_LIT(&b, "{\"ev\":\"diagram\",\"op\":\"axes\"");
         diag_axes(&b);
         BUF_LIT(&b, "}");
-        out_line(b.s, b.len);
-        b.len = 0;
+        out_line(b.s.data(), b.s.size());
+        b.s.clear();
         dg_axes = 0;
     }
     /* the points in events of some 60 kB */
     while (dg_client < dg_n) {
         int i = dg_client, j;
-        buf_printf(&b, "{\"ev\":\"diagram\",\"op\":\"add\",\"from\":%d,\"runs\":[", dg_client);
-        while (i < dg_n && b.len < 60000) {
+        buf_format(&b, "{{\"ev\":\"diagram\",\"op\":\"add\",\"from\":{:d},\"runs\":[", dg_client);
+        while (i < dg_n && b.s.size() < 60000) {
             for (j = i; j + 1 < dg_n && j - i < 2000 && diag_joins(&dg[j], &dg[j + 1]); j++) {
             }
             if (i > dg_client) BUF_LIT(&b, ",");
@@ -240,12 +245,11 @@ void diag_flush(int final)
             i = j + 1;
         }
         BUF_LIT(&b, "]}");
-        out_line(b.s, b.len);
-        b.len = 0;
+        out_line(b.s.data(), b.s.size());
+        b.s.clear();
         dg_client = i;
     }
     dg_dirty = dg_n;
-    xpp_free(b.s);
 }
 
 /* AUTO's refreshdisplay() after every point: a few frames a second, not a
@@ -272,9 +276,8 @@ void auto_redraw_for_client(void)
 
 /* ---- AUTO window --------------------------------------------------------------- */
 
-void j_auto_make_window(const char *wname, const char *iname)
+void j_auto_make_window(const char *wname, const char *)
 {
-    (void)iname;
     Auto.hgt = 20 * text_metrics.big_height;
     Auto.wid = 67 * text_metrics.big_width;
     Auto.x0 = 10 * text_metrics.small_width;
@@ -302,11 +305,10 @@ int j_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag)
     *i1 = v[0]; *j1 = v[1]; *i2 = v[2]; *j2 = v[3];
     return 1;
 }
-int j_auto_choose_key(const char *title, const char *const *list, const char *key, int n, int max, int def,
-                             int x, int y, const char *const *hints, const char *httxt)
+int j_auto_choose_key(const char *title, const char *const *list, const char *key, int n, int, int def, int, int,
+                      const char *const *hints, const char *)
 {
     XppMenu m;
-    (void)max; (void)x; (void)y; (void)httxt;
     m.name = "auto";
     m.title = title;
     m.n = n;
@@ -330,7 +332,7 @@ int grab_key_after;
 int j_auto_grab_event(int *x, int *y)
 {
     Buf b;
-    char k[32];
+    std::string k;
     const char *jp;
     int id;
     if (grab_key_after) {
@@ -339,7 +341,7 @@ int j_auto_grab_event(int *x, int *y)
         return id;
     }
     id = ask_begin(&b, "grab");
-    buf_printf(&b, ",\"win\":%d", WIN_AUTO);
+    buf_format(&b, ",\"win\":{:d}", WIN_AUTO);
     if (!ask_wait(&b, id)) return ESC;
     /* a point of the diagram data by its index: the cursor goes to that
        point's entry (docs/protocol.md "Grab by point"); one the data do not
@@ -347,12 +349,12 @@ int j_auto_grab_event(int *x, int *y)
        until reDraw), is ignored, and so is its key */
     if ((jp = js_find(ask_answer(), "point")) != NULL) {
         double i = js_num(jp, -1);
-        const XppDiagPoint *p = i >= 0 && i < dg_client ? &dg[(int)i] : NULL;
+        const XppDiagPoint *p = i >= 0 && i < dg_client ? &dg[static_cast<int>(i)] : NULL;
         *x = p && diagram_has(p->node, p->ibr, p->pt) ? p->node : -1;
-        if (*x >= 0 && get_str(ask_answer(), "key", k, sizeof k)) grab_key_after = key_code(k);
+        if (*x >= 0 && get_string(ask_answer(), "key", k, 32)) grab_key_after = key_code(k.c_str());
         return XPP_AUTO_NODE;
     }
-    if (get_str(ask_answer(), "key", k, sizeof k)) return key_code(k);
+    if (get_string(ask_answer(), "key", k, 32)) return key_code(k.c_str());
     answer_point(WIN_AUTO, 0, x, y);
     return XPP_AUTO_CLICK;
 }
@@ -370,8 +372,8 @@ void j_auto_scroll_window(void)
             j0 = j;
             state = 1;
         } else if (t == 2 && state == 1) {
-            dx = (float)(i0 - i) * (xhi - xlo) / (float)Auto.wid;
-            dy = (float)(j - j0) * (yhi - ylo) / (float)Auto.hgt;
+            dx = static_cast<float>(i0 - i) * (xhi - xlo) / static_cast<float>(Auto.wid);
+            dy = static_cast<float>(j - j0) * (yhi - ylo) / static_cast<float>(Auto.hgt);
             auto_update_view(xlo + dx, xhi + dx, ylo + dy, yhi + dy);
         } else if (t == 3) {
             state = 0;
@@ -389,15 +391,15 @@ void j_auto_scroll_window(void)
 
 int is_auto_set(const char *line)
 {
-    char o[8];
-    return is_cmd(line, "auto") && get_str(line, "op", o, sizeof o) && strcmp(o, "set") == 0;
+    std::string o;
+    return is_cmd(line, "auto") && get_string(line, "op", o, 8) && o == "set";
 }
 
 namespace {
 
 /* the "numerics", "pars", "axes" and "marks" of {"cmd":"auto","op":"set",...}
    into s; 0 with why when one is not what docs/protocol.md says */
-int read_auto_set(const char *line, AutoSettingsSet *s, char *why, size_t n)
+int read_auto_set(const char *line, AutoSettingsSet *s, std::string &why)
 {
     const char *num = js_find(line, "numerics"), *pars = js_find(line, "pars"), *axes = js_find(line, "axes"),
                *marks = js_find(line, "marks"), *v;
@@ -405,7 +407,7 @@ int read_auto_set(const char *line, AutoSettingsSet *s, char *why, size_t n)
     for (i = 0; num && *num == '{' && i < AUTO_NUM_N; i++) {
         if (!(v = js_find(num, auto_settings_num_key(i)))) continue;
         if (!js_number(v, &s->num[i])) {
-            xpp_snprintf(why, n, "%s must be a number", auto_settings_num_label(i));
+            why = xpp::format("{} must be a number", auto_settings_num_label(i));
             return 0;
         }
         s->has_num[i] = 1;
@@ -413,7 +415,7 @@ int read_auto_set(const char *line, AutoSettingsSet *s, char *why, size_t n)
     if (pars && *pars == '[') {
         for (i = 0; (v = js_elem(pars, i)) != NULL; i++) {
             if (i >= AUTO_SETTINGS_PARS || !js_string(v, s->pars[i], sizeof s->pars[i])) {
-                xpp_snprintf(why, n, "AUTO's parameters must be a list of at most %d names", AUTO_SETTINGS_PARS);
+                why = xpp::format("AUTO's parameters must be a list of at most {} names", AUTO_SETTINGS_PARS);
                 return 0;
             }
         }
@@ -424,11 +426,11 @@ int read_auto_set(const char *line, AutoSettingsSet *s, char *why, size_t n)
         double z;
         if ((v = js_find(axes, "plot")) != NULL) {
             if (!js_number(v, &z) || z < INT_MIN || z > INT_MAX || z != floor(z)) {
-                xpp_snprintf(why, n, "the plot type must be a whole number");
+                why = "the plot type must be a whole number";
                 return 0;
             }
             s->has_plot = 1;
-            s->plot = (int)z;
+            s->plot = static_cast<int>(z);
         }
         get_str(axes, "var", s->var, sizeof s->var);
         get_str(axes, "par1", s->par1, sizeof s->par1);
@@ -436,7 +438,7 @@ int read_auto_set(const char *line, AutoSettingsSet *s, char *why, size_t n)
         for (i = 0; i < 4; i++) {
             if (!(v = js_find(axes, range[i]))) continue;
             if (!js_number(v, &s->range[i])) {
-                xpp_snprintf(why, n, "%c%s must be a number", range[i][0] - 32, range[i] + 1);
+                why = xpp::format("{}{} must be a number", static_cast<char>(range[i][0] - 32), range[i] + 1);
                 return 0;
             }
             s->has_range[i] = 1;
@@ -447,7 +449,7 @@ int read_auto_set(const char *line, AutoSettingsSet *s, char *why, size_t n)
         for (i = 0; (v = js_elem(marks, i)) != NULL; i++) {
             if (i >= AUTO_SETTINGS_MARKS || *v != '[' || !js_string(js_elem(v, 0), s->mark_name[i], sizeof s->mark_name[i])
                 || !js_number(js_elem(v, 1), &s->mark_value[i])) {
-                xpp_snprintf(why, n, "Mark values must be a list of at most %d pairs [name, number]", AUTO_SETTINGS_MARKS);
+                why = xpp::format("Mark values must be a list of at most {} pairs [name, number]", AUTO_SETTINGS_MARKS);
                 return 0;
             }
         }
@@ -461,62 +463,63 @@ int read_auto_set(const char *line, AutoSettingsSet *s, char *why, size_t n)
 void auto_set_command(const char *line)
 {
     AutoSettingsSet s;
-    char why[256];
+    std::string why;
+    std::array<char, 256> refused{}; /* auto_settings_apply says why here */
     auto_settings_set_init(&s);
-    if (!read_auto_set(line, &s, why, sizeof why) || auto_settings_apply(&s, why, sizeof why) != 0) {
-        char msg[300];
-        XPP_FORMAT_TO_BUF(msg, "AUTO settings: {}", why);
-        j_err_msg(msg);
-    }
+    if (!read_auto_set(line, &s, why)) j_err_msg(xpp::format("AUTO settings: {}", why).c_str());
+    else if (auto_settings_apply(&s, refused.data(), refused.size()) != 0)
+        j_err_msg(xpp::format("AUTO settings: {}", refused.data()).c_str());
 }
 
 /* the settings a question's wait put aside, applied at the command's end */
-char **deferred_sets;
-int n_deferred, cap_deferred;
+std::vector<std::string> deferred_sets;
 
 } // namespace
 
 void defer_auto_set(const char *line)
 {
-    if (n_deferred == cap_deferred) {
-        cap_deferred = cap_deferred ? 2 * cap_deferred : 4;
-        deferred_sets = static_cast<char **>(xpp_realloc(deferred_sets, cap_deferred * sizeof *deferred_sets));
+    try {
+        deferred_sets.emplace_back(line);
+    } catch (...) {
+        out_of_memory("keeping AUTO's settings");
     }
-    deferred_sets[n_deferred++] = xpp_strdup(line);
 }
 
 void apply_deferred_sets(void)
 {
-    int i;
-    for (i = 0; i < n_deferred; i++) {
-        auto_set_command(deferred_sets[i]);
-        xpp_free(deferred_sets[i]);
+    try {
+        for (size_t i = 0; i < deferred_sets.size(); i++) {
+            std::string line = deferred_sets[i]; /* a copy: setting one may defer another */
+            auto_set_command(line.c_str());
+        }
+        deferred_sets.clear();
+    } catch (...) {
+        out_of_memory("applying AUTO's settings");
     }
-    n_deferred = 0;
 }
 
 /* {"cmd":"auto","op":...}: the AUTO window's buttons */
 void auto_command(const char *line)
 {
-    char o[16];
-    get_str(line, "op", o, sizeof o);
-    if (strcmp(o, "param") == 0) auto_params();
-    else if (strcmp(o, "axes") == 0) auto_plot_par();
-    else if (strcmp(o, "numerics") == 0) auto_num_par();
-    else if (strcmp(o, "run") == 0) auto_run();
-    else if (strcmp(o, "grab") == 0) auto_grab();
-    else if (strcmp(o, "usr") == 0) auto_per_par();
-    else if (strcmp(o, "clear") == 0) draw_bif_axes();
-    else if (strcmp(o, "redraw") == 0) redraw_diagram();
-    else if (strcmp(o, "file") == 0) auto_file();
-    else if (strcmp(o, "set") == 0) auto_set_command(line);
-    else if (strcmp(o, "point") == 0 && Auto.exist) {
+    std::string o;
+    get_string(line, "op", o, 16);
+    if (o == "param") auto_params();
+    else if (o == "axes") auto_plot_par();
+    else if (o == "numerics") auto_num_par();
+    else if (o == "run") auto_run();
+    else if (o == "grab") auto_grab();
+    else if (o == "usr") auto_per_par();
+    else if (o == "clear") draw_bif_axes();
+    else if (o == "redraw") redraw_diagram();
+    else if (o == "file") auto_file();
+    else if (o == "set") auto_set_command(line);
+    else if (o == "point" && Auto.exist) {
         /* in the diagram's quantities, or a pixel of window 101 */
         const char *jx = js_find(line, "xd"), *jy = js_find(line, "yd");
         if (jx && jy) auto_point_xy(js_num(jx, 0), js_num(jy, 0));
-        else auto_motion_xy((int)get_num(line, "x", 0), (int)get_num(line, "y", 0));
+        else auto_motion_xy(get_int(line, "x", 0), get_int(line, "y", 0));
     }
-    else if (strcmp(o, "close") == 0 && Auto.exist) {
+    else if (o == "close" && Auto.exist) {
         Auto.exist = 0; /* auto_x11.c auto_kill; File/Auto opens it again */
         send_window("destroy", WIN_AUTO, 0, 0, NULL);
         diag_forget();
