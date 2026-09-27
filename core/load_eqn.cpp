@@ -199,7 +199,7 @@ void set_all_vals()
  if (xpp::session().not_already_set.SOS){xpp::session().numerics.sos=0;xpp::session().not_already_set.SOS=0;};
  if (xpp::session().not_already_set.FFT){xpp::session().numerics.fft=0;xpp::session().not_already_set.FFT=0;};
  if (xpp::session().not_already_set.HIST){xpp::session().numerics.hist=0;xpp::session().not_already_set.HIST=0;};
- if (xpp::session().not_already_set.PltFmtFlag){PltFmtFlag=0;xpp::session().not_already_set.PltFmtFlag=0;};
+ if (xpp::session().not_already_set.PltFmtFlag){xpp::session().plot_file.plt_fmt_flag=0;xpp::session().not_already_set.PltFmtFlag=0;};
  if (xpp::session().not_already_set.AXES){xpp::session().plot_settings.axes=0;xpp::session().not_already_set.AXES=0;};
  if (xpp::session().not_already_set.TOLER){xpp::session().numerics.toler=0.001;xpp::session().not_already_set.TOLER=0;};
  if (xpp::session().not_already_set.ATOLER){xpp::session().numerics.atoler=0.001;xpp::session().not_already_set.ATOLER=0;};
@@ -1045,7 +1045,7 @@ if(msc(yyl.c_str(),s1)){
   if(msc("PHI",s1)){
      if ((xpp::session().not_already_set.PHI||force) || ((mask!=NULL)&&(mask->PHI==1)))
      {
-    	PHI0=atof(s2);
+    	xpp::session().drawing.phi0=atof(s2);
 	xpp::session().not_already_set.PHI=0;
      }
     return;
@@ -1053,7 +1053,7 @@ if(msc(yyl.c_str(),s1)){
    if(msc("THETA",s1)){
      if ((xpp::session().not_already_set.THETA||force) || ((mask!=NULL)&&(mask->THETA==1)))
      {
-    	THETA0=atof(s2);
+    	xpp::session().drawing.theta0=atof(s2);
 	xpp::session().not_already_set.THETA=0;
      }
     return;
@@ -1509,7 +1509,7 @@ if(msc("AUTOVAR",s1)){
  if(msc("PS_FONT",s1)){
      if ((xpp::session().not_already_set.PS_FONT||force)|| ((mask!=NULL)&&(mask->PS_FONT==1)))
      {
-   	PS_FONT=s2;
+   	xpp::session().plot_file.ps_font=s2;
 	xpp::session().not_already_set.PS_FONT=0;
      }
    return;
@@ -1518,7 +1518,7 @@ if(msc("AUTOVAR",s1)){
 if(msc("PS_LW",s1)){
    if ((xpp::session().not_already_set.PS_LW||force)|| ((mask!=NULL)&&(mask->PS_LW==1)))
    {
-  	PS_LW=atof(s2);
+  	xpp::session().plot_file.ps_lw=atof(s2);
 	xpp::session().not_already_set.PS_LW=0;
    }
    return;
@@ -1527,7 +1527,7 @@ if(msc("PS_LW",s1)){
 if(msc("PS_FSIZE",s1)){
      if ((xpp::session().not_already_set.PS_FSIZE||force)|| ((mask!=NULL)&&(mask->PS_FSIZE==1)))
      {
-  	PS_FONTSIZE=atoi(s2);
+  	xpp::session().plot_file.ps_font_size=atoi(s2);
 	xpp::session().not_already_set.PS_FSIZE=0;
      }
    return;
@@ -1536,8 +1536,8 @@ if(msc("PS_FSIZE",s1)){
 if(msc("PS_COLOR",s1)){
      if ((xpp::session().not_already_set.PS_COLOR||force)|| ((mask!=NULL)&&(mask->PS_COLOR==1)))
      {
-  	PSColorFlag=atoi(s2);
-  	xpp::session().plot_export.color=PSColorFlag;
+  	xpp::session().plot_file.ps_color_flag=atoi(s2);
+  	xpp::session().plot_export.color=xpp::session().plot_file.ps_color_flag;
 	xpp::session().not_already_set.PS_COLOR=0;
      }
    return;

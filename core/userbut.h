@@ -8,8 +8,6 @@ extern "C" {
 
 #define USERBUTMAX 20
 
-extern int nuserbut;
-
 void add_user_button(const char *s); /* parse "name:keys" from an @ button line */
 
 #ifdef __cplusplus
@@ -22,6 +20,5 @@ struct USERBUT {
   std::string bname;
   int com;
 };
-extern USERBUT userbut[USERBUTMAX];
 #endif
 #endif

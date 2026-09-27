@@ -357,8 +357,8 @@ void answer_point(unsigned long win, int k, int *x, int *y)
         *y = data_to_pixel(js_num(jy, 0), xpp::session().auto_state.bifur.ymin, xpp::session().auto_state.bifur.ymax, xpp::session().auto_state.bifur.y0 + xpp::session().auto_state.bifur.hgt, xpp::session().auto_state.bifur.y0);
     } else {
         get_draw_area();
-        *x = data_to_pixel(js_num(jx, 0), xpp::session().plot_windows.current->xlo, xpp::session().plot_windows.current->xhi, DLeft, DRight);
-        *y = data_to_pixel(js_num(jy, 0), xpp::session().plot_windows.current->ylo, xpp::session().plot_windows.current->yhi, DBottom, DTop);
+        *x = data_to_pixel(js_num(jx, 0), xpp::session().plot_windows.current->xlo, xpp::session().plot_windows.current->xhi, xpp::session().drawing.d_left, xpp::session().drawing.d_right);
+        *y = data_to_pixel(js_num(jy, 0), xpp::session().plot_windows.current->ylo, xpp::session().plot_windows.current->yhi, xpp::session().drawing.d_bottom, xpp::session().drawing.d_top);
     }
 }
 

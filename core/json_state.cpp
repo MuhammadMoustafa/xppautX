@@ -110,7 +110,7 @@ void send_state(void)
     get_draw_area();
     buf_format(&b, ",\"view\":{{\"win\":{:d},\"left\":{:d},\"right\":{:d},\"top\":{:d},\"bottom\":{:d},"
                "\"xlo\":{:g},\"xhi\":{:g},\"ylo\":{:g},\"yhi\":{:g},\"three\":{:d}",
-               xpp::session().plot_windows.draw_win, DLeft, DRight, DTop, DBottom, xpp::session().plot_windows.current->xlo, xpp::session().plot_windows.current->xhi,
+               xpp::session().plot_windows.draw_win, xpp::session().drawing.d_left, xpp::session().drawing.d_right, xpp::session().drawing.d_top, xpp::session().drawing.d_bottom, xpp::session().plot_windows.current->xlo, xpp::session().plot_windows.current->xhi,
                xpp::session().plot_windows.current->ylo, xpp::session().plot_windows.current->yhi, xpp::session().plot_windows.current->ThreeDFlag);
     /* a 3D window's angles (view3d); only then are they set at all */
     if (xpp::session().plot_windows.current->ThreeDFlag && isfinite(xpp::session().plot_windows.current->Theta) && isfinite(xpp::session().plot_windows.current->Phi))

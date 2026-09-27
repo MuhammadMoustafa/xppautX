@@ -31,6 +31,12 @@
 #include "markov.h"
 #include "nullcline.h"
 #include "gear.h"
+#include "graphics.h"
+#include "my_ps.h"
+#include "grobs.h"
+#include "arrayplot.h"
+#include "aniparse.h"
+#include "userbut.h"
 
 #include <array>
 #include <string>
@@ -119,6 +125,20 @@ struct Session {
   NullclineSettings nullclines;
   /* Sing pts' shooting (gear.cpp) */
   ManifoldShots manifolds;
+
+  /* the drawing state and a picture file's (graphics.cpp, axes2.cpp,
+     my_ps.cpp, my_svg.cpp) */
+  DrawingState drawing;
+  PlotFileState plot_file;
+  /* the text labels and graphic objects on the plot windows (grobs.cpp) */
+  std::array<LABEL,MAXLAB> labels{};
+  std::array<GROB,MAXGROB> grobs{};
+  /* the array plot (arrayplot.cpp) and the animator (aniparse.cpp) */
+  ArrayPlotState array_plot;
+  AnimationState animation;
+  /* the model's buttons (@ button=name:keys; userbut.cpp) */
+  int nuserbut=0;
+  std::array<USERBUT,USERBUTMAX> userbut{};
 };
 
 /* the current Session (xpp_current.h) */

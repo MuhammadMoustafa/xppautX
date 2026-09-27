@@ -241,11 +241,11 @@ Content content_of(int pop, const Record &r)
     Content c;
     c.eqs = r.eqs;
     for (const auto &e : r.labels) {
-        const LABEL &l = lb[e.first];
+        const LABEL &l = xpp::session().labels[e.first];
         if (l.use == 1 && l.w == w) c.labels.push_back({l.x, l.y, e.second, l.size, l.font});
     }
     for (std::size_t i = 0; i < r.grobs.size(); i++) {
-        const GROB &g = grob[i];
+        const GROB &g = xpp::session().grobs[i];
         if (r.grobs[i] && g.use == 1 && g.w == w) c.grobs.push_back({g.type, g.color, g.xs, g.ys, g.xe, g.ye, g.size});
     }
     for (const auto &e : r.frozen) {

@@ -21,8 +21,6 @@ typedef struct {
   int type, color;
 } GROB;
 
-extern LABEL lb[MAXLAB];
-extern GROB grob[MAXGROB];
 
 /* a label at pixel (x, y) of the current window; its slot in lb[], -1 when full */
 int add_label(const char *s, int x, int y, int size, int font);

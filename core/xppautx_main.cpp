@@ -127,12 +127,12 @@ static void init_main_graph(void)
 {
     int i;
     for (i = 0; i < MAXLAB; i++) {
-        lb[i].use = 0;
-        lb[i].w = 0;
+        xpp::session().labels[i].use = 0;
+        xpp::session().labels[i].w = 0;
     }
     for (i = 0; i < MAXGROB; i++) {
-        grob[i].w = 0;
-        grob[i].use = 0;
+        xpp::session().grobs[i].w = 0;
+        xpp::session().grobs[i].use = 0;
     }
     init_bd();
     for (i = 0; i < MAXFRZ; i++) xpp::session().frozen_curves.curve[i].use = 0;
@@ -169,7 +169,7 @@ static void run_session(void)
                             : xpp::format("XPP Version {:g}.{:g}", program.version_major, program.version_minor);
     program.interactive = 1;
     color_table.enabled = 1;     /* init_X on a colour display */
-    AxisVarLabels = 1; /* a plot without axis names is hard to read */
+    xpp::session().drawing.axis_var_labels = 1; /* a plot without axis names is hard to read */
     xpp_build_colormap();
     init_main_graph();
     init_browser();
@@ -183,9 +183,9 @@ static void run_session(void)
     default_window();
 
     json_ui_hello(title.c_str());
-    if (ani_options.use_file) {
+    if (xpp::session().animation.options.use_file) {
         new_vcr();
-        get_ani_file(ani_options.file.c_str());
+        get_ani_file(xpp::session().animation.options.file.c_str());
     }
     json_ui_handle("{\"cmd\":\"redraw\"}");
     /* -tutorial and -runnow, as main.c does after opening its window */

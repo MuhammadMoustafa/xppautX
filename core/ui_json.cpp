@@ -339,7 +339,7 @@ void handle_line(const char *line, unsigned long seq)
         slide_command(line);
     } else if (is_cmd(line, "userbut")) {
         int i = get_int(line, "index", -1);
-        if (i >= 0 && i < nuserbut) run_the_commands(userbut[i].com);
+        if (i >= 0 && i < xpp::session().nuserbut) run_the_commands(xpp::session().userbut[i].com);
     } else if (is_cmd(line, "browser")) {
         browser_command(line);
     } else if (is_cmd(line, "aplot")) {
@@ -533,9 +533,9 @@ void json_ui_hello(const char *title)
     buf_str_array(&b, auto_hint, 9);
     /* @ button name:keys lines of the ODE file ({"cmd":"userbut","index":i}) */
     BUF_LIT(&b, ",\"userbuttons\":[");
-    for (i = 0; i < nuserbut; i++) {
+    for (i = 0; i < xpp::session().nuserbut; i++) {
         if (i) BUF_LIT(&b, ",");
-        buf_str(&b, userbut[i].bname);
+        buf_str(&b, xpp::session().userbut[i].bname);
     }
     /* @ slider1=name,slider1lo=...: the parameter sliders set in the file */
     BUF_LIT(&b, "],\"sliders\":[");

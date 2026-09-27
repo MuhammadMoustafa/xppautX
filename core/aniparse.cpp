@@ -64,20 +64,6 @@
 #define COMNT 30
 #define SPEED 23
 
-extern "C" {
-}
-
-int ani_grab_flag = 0;
-XppAniOptions ani_options;
-
-int ani_speed = 10;
-
-MPEG_SAVE mpeg;
-VCR vcr;
-
-/* the number of commands of the loaded animation (my_ani.size()) */
-int n_anicom;
-
 /* Colors
   no color given is default black on white background or white on black
   $name is named color -- red ... purple
@@ -209,7 +195,7 @@ double get_current_time(void)
 
 void ani_rad2scale(double rx, double ry, int *ix, int *iy)
 {
-    double dx = static_cast<double>(vcr.wid) / (ani_xhi - ani_xlo), dy = static_cast<double>(vcr.hgt) / (ani_yhi - ani_ylo);
+    double dx = static_cast<double>(xpp::session().animation.vcr.wid) / (ani_xhi - ani_xlo), dy = static_cast<double>(xpp::session().animation.vcr.hgt) / (ani_yhi - ani_ylo);
     double r1 = rx * dx, r2 = ry * dy;
     *ix = static_cast<int>(r1);
     *iy = static_cast<int>(r2);
@@ -217,7 +203,7 @@ void ani_rad2scale(double rx, double ry, int *ix, int *iy)
 
 void ani_radscale(double rad, int *ix, int *iy)
 {
-    double dx = static_cast<double>(vcr.wid) / (ani_xhi - ani_xlo), dy = static_cast<double>(vcr.hgt) / (ani_yhi - ani_ylo);
+    double dx = static_cast<double>(xpp::session().animation.vcr.wid) / (ani_xhi - ani_xlo), dy = static_cast<double>(xpp::session().animation.vcr.hgt) / (ani_yhi - ani_ylo);
     double r1 = rad * dx, r2 = rad * dy;
     *ix = static_cast<int>(r1);
     *iy = static_cast<int>(r2);
@@ -225,23 +211,23 @@ void ani_radscale(double rad, int *ix, int *iy)
 
 void ani_ij_to_xy(int ix, int iy, double *x, double *y)
 {
-    double dx = (ani_xhi - ani_xlo) / static_cast<double>(vcr.wid);
-    double dy = (ani_yhi - ani_ylo) / static_cast<double>(vcr.hgt);
+    double dx = (ani_xhi - ani_xlo) / static_cast<double>(xpp::session().animation.vcr.wid);
+    double dy = (ani_yhi - ani_ylo) / static_cast<double>(xpp::session().animation.vcr.hgt);
     *x = ani_xlo + static_cast<double>(ix) * dx;
-    *y = ani_ylo + static_cast<double>(vcr.hgt - iy) * dy;
+    *y = ani_ylo + static_cast<double>(xpp::session().animation.vcr.hgt - iy) * dy;
 }
 
 void ani_xyscale(double x, double y, int *ix, int *iy)
 {
-    double dx = static_cast<double>(vcr.wid) / (ani_xhi - ani_xlo), dy = static_cast<double>(vcr.hgt) / (ani_yhi - ani_ylo);
+    double dx = static_cast<double>(xpp::session().animation.vcr.wid) / (ani_xhi - ani_xlo), dy = static_cast<double>(xpp::session().animation.vcr.hgt) / (ani_yhi - ani_ylo);
     double xx = (x - ani_xlo) * dx;
-    double yy = vcr.hgt - dy * (y - ani_ylo);
+    double yy = xpp::session().animation.vcr.hgt - dy * (y - ani_ylo);
     *ix = static_cast<int>(xx);
     *iy = static_cast<int>(yy);
     if (*ix < 0) *ix = 0;
-    if (*ix >= vcr.wid) *ix = vcr.wid - 1;
+    if (*ix >= xpp::session().animation.vcr.wid) *ix = xpp::session().animation.vcr.wid - 1;
     if (*iy < 0) *iy = 0;
-    if (*iy >= vcr.hgt) *iy = vcr.hgt - 1;
+    if (*iy >= xpp::session().animation.vcr.hgt) *iy = xpp::session().animation.vcr.hgt - 1;
 }
 
 } // namespace
@@ -611,7 +597,7 @@ int add_ani_com(int type, const std::string &x1, std::string &y1, const std::str
         return -1;
     }
     my_ani.push_back(std::move(a));
-    n_anicom = static_cast<int>(my_ani.size());
+    xpp::session().animation.ncom = static_cast<int>(my_ani.size());
     return 1;
 }
 
@@ -623,11 +609,11 @@ void init_ani_stuff(void)
     ani_yhi = 1.0;
     aniflag = TRANSIENT;
     my_ani.clear();
-    n_anicom = 0;
+    xpp::session().animation.ncom = 0;
     ani_lastx = 0.0;
     ani_lasty = 0.0;
-    vcr.pos = 0;
-    ani_grab_flag = 0; /*********** GRABBER *******************/
+    xpp::session().animation.vcr.pos = 0;
+    xpp::session().animation.grab_flag = 0; /*********** GRABBER *******************/
     ani_grab.clear();
 }
 
@@ -836,9 +822,9 @@ int parse_ani_string(std::string &s, xpp::LineReader &fp)
     case SPEED: {
         std::optional<std::string_view> nxt = tokens.next(" \n");
         if (!nxt) return -1;
-        ani_speed = std::atoi(std::string(*nxt).c_str());
-        if (ani_speed < 0) ani_speed = 0;
-        if (ani_speed > 1000) ani_speed = 1000;
+        xpp::session().animation.speed = std::atoi(std::string(*nxt).c_str());
+        if (xpp::session().animation.speed < 0) xpp::session().animation.speed = 0;
+        if (xpp::session().animation.speed > 1000) xpp::session().animation.speed = 1000;
         return 1;
     }
     case DIMENSION:
@@ -898,7 +884,7 @@ int ani_new_file(const char *filename)
         err_msg("Couldn't open ani-file");
         return -1;
     }
-    if (n_anicom > 0) free_ani();
+    if (xpp::session().animation.ncom > 0) free_ani();
     /* a new animation: its frames start again, nothing of the old one shows */
     ani_data_forget();
     if (load_ani_file(fp) == 0) {
@@ -937,12 +923,12 @@ void set_from_init_data(void)
 
 void ani_disk_warn(void)
 {
-    unsigned int total = (xpp::session().browser.view.maxrow * vcr.wid * vcr.hgt * 3) / (mpeg.skip * vcr.inc);
+    unsigned int total = (xpp::session().browser.view.maxrow * xpp::session().animation.vcr.wid * xpp::session().animation.vcr.hgt * 3) / (xpp::session().animation.mpeg.skip * xpp::session().animation.vcr.inc);
     total = total / (1024 * 1024);
     if (total > 10) {
         const std::string q = xpp::format(" {} Mb disk space needed! Continue?", total);
         const char ans = static_cast<char>(TwoChoice("YES", "NO", q.c_str(), "yn"));
-        if (ans != 'y') mpeg.flag = 0;
+        if (ans != 'y') xpp::session().animation.mpeg.flag = 0;
     }
 }
 
@@ -1146,52 +1132,52 @@ void ani_create_mpeg(void)
 {
     static const char *n[] = {"PPM 0/1", "Basename", "AniGif(0/1)"};
     std::array<std::string, 3> values;
-    mpeg.flag = 0;
-    values[0] = xpp::format("{:d}", mpeg.flag);
-    values[1] = xpp::format("{:.24}", mpeg.root);
-    values[2] = xpp::format("{:d}", mpeg.aviflag);
+    xpp::session().animation.mpeg.flag = 0;
+    values[0] = xpp::format("{:d}", xpp::session().animation.mpeg.flag);
+    values[1] = xpp::format("{:.24}", xpp::session().animation.mpeg.root);
+    values[2] = xpp::format("{:d}", xpp::session().animation.mpeg.aviflag);
     static const int kinds[] = {XPP_FIELD_INTEGER, XPP_FIELD_FILE, XPP_FIELD_INTEGER};
     const int status = do_string_box_of(3, 1, "Frame saving", n, values, 28, kinds);
     if (status != 0) {
-        mpeg.flag = std::atoi(values[0].c_str());
-        if (mpeg.flag > 0) mpeg.flag = 1;
-        mpeg.aviflag = std::atoi(values[2].c_str());
-        mpeg.root = values[1];
-        if (mpeg.aviflag == 1) mpeg.flag = 0;
+        xpp::session().animation.mpeg.flag = std::atoi(values[0].c_str());
+        if (xpp::session().animation.mpeg.flag > 0) xpp::session().animation.mpeg.flag = 1;
+        xpp::session().animation.mpeg.aviflag = std::atoi(values[2].c_str());
+        xpp::session().animation.mpeg.root = values[1];
+        if (xpp::session().animation.mpeg.aviflag == 1) xpp::session().animation.mpeg.flag = 0;
     } else
-        mpeg.flag = 0;
-    if (mpeg.flag == 1) ani_disk_warn();
+        xpp::session().animation.mpeg.flag = 0;
+    if (xpp::session().animation.mpeg.flag == 1) ani_disk_warn();
 }
 
 void ani_newskip(void)
 {
-    std::string bob = xpp::format("{}", vcr.inc);
+    std::string bob = xpp::format("{}", xpp::session().animation.vcr.inc);
     int status = get_dialog_of("Frame skip", "Increment:", bob, "Ok", "Cancel", 20, XPP_FIELD_INTEGER);
     if (status != 0) {
-        vcr.inc = std::atoi(bob.c_str());
-        if (vcr.inc <= 0) vcr.inc = 1;
+        xpp::session().animation.vcr.inc = std::atoi(bob.c_str());
+        if (xpp::session().animation.vcr.inc <= 0) xpp::session().animation.vcr.inc = 1;
     }
 }
 
 void on_the_fly(int task)
 {
-    if (vcr.iexist == 0 || n_anicom == 0) return;
+    if (xpp::session().animation.vcr.iexist == 0 || xpp::session().animation.ncom == 0) return;
     ani_frame(task);
     waitasec(on_the_fly_speed);
 }
 
 void ani_flip1(int n)
 {
-    if (n_anicom == 0) return;
+    if (xpp::session().animation.ncom == 0) return;
     if (xpp::session().browser.view.maxrow < 2) return;
     float **ss = xpp::session().browser.view.data;
     xpp_ui.ani_clear();
-    if (vcr.pos == 0) set_ani_perm();
+    if (xpp::session().animation.vcr.pos == 0) set_ani_perm();
 
-    vcr.pos = vcr.pos + n;
-    if (vcr.pos >= xpp::session().browser.view.maxrow) vcr.pos = xpp::session().browser.view.maxrow - 1;
-    if (vcr.pos < 0) vcr.pos = 0;
-    const int row = vcr.pos;
+    xpp::session().animation.vcr.pos = xpp::session().animation.vcr.pos + n;
+    if (xpp::session().animation.vcr.pos >= xpp::session().browser.view.maxrow) xpp::session().animation.vcr.pos = xpp::session().browser.view.maxrow - 1;
+    if (xpp::session().animation.vcr.pos < 0) xpp::session().animation.vcr.pos = 0;
+    const int row = xpp::session().animation.vcr.pos;
 
     const double t = static_cast<double>(ss[0][row]);
     std::array<double, MAXODE> y;
@@ -1204,37 +1190,37 @@ void ani_flip1(int n)
 
 void ani_zero(void)
 {
-    vcr.iexist = 0;
-    vcr.ok = 0;
-    vcr.inc = 1;
-    vcr.pos = 0;
-    n_anicom = 0;
-    ani_speed = 10;
+    xpp::session().animation.vcr.iexist = 0;
+    xpp::session().animation.vcr.ok = 0;
+    xpp::session().animation.vcr.inc = 1;
+    xpp::session().animation.vcr.pos = 0;
+    xpp::session().animation.ncom = 0;
+    xpp::session().animation.speed = 10;
     aniflag = TRANSIENT;
-    ani_grab_flag = 0;
-    if (ani_options.use_file)
-        vcr.file = ani_options.file;
+    xpp::session().animation.grab_flag = 0;
+    if (xpp::session().animation.options.use_file)
+        xpp::session().animation.vcr.file = xpp::session().animation.options.file;
     else {
         /* dirname() may write into its argument or return static storage:
            a copy of xpp::model().this_file */
         std::string dir = xpp::model().this_file;
-        vcr.file = dirname(dir.data());
-        vcr.file += '/';
+        xpp::session().animation.vcr.file = dirname(dir.data());
+        xpp::session().animation.vcr.file += '/';
     }
 }
 
 int get_ani_file(const char *fname)
 {
     if (fname == nullptr) {
-        std::string file = vcr.file;
+        std::string file = xpp::session().animation.vcr.file;
         if (file_selector("Load animation", file, "*.ani") == 0) return 0;
-        vcr.file = file;
-    } else if (fname != vcr.file.c_str())
-        vcr.file = fname;
-    if (ani_new_file(vcr.file.c_str()) < 0) return 0;
-    vcr.ok = 1; /* loaded and compiled */
-    xpp::log(XPP_LOG_INFO, "Loaded {} lines successfully!\n", n_anicom);
-    ani_grab_flag = 0;
+        xpp::session().animation.vcr.file = file;
+    } else if (fname != xpp::session().animation.vcr.file.c_str())
+        xpp::session().animation.vcr.file = fname;
+    if (ani_new_file(xpp::session().animation.vcr.file.c_str()) < 0) return 0;
+    xpp::session().animation.vcr.ok = 1; /* loaded and compiled */
+    xpp::log(XPP_LOG_INFO, "Loaded {} lines successfully!\n", xpp::session().animation.ncom);
+    xpp::session().animation.grab_flag = 0;
     return 1;
 }
 
@@ -1249,7 +1235,7 @@ void render_ani(void)
     xpp_ui.ani_slider();
     pen.color = 0; /* ani_clear gave the frame a black pen */
     ani_data_begin();
-    for (int i = 0; i < n_anicom; i++) {
+    for (int i = 0; i < xpp::session().animation.ncom; i++) {
         const int type = my_ani[i].type;
         const int flag = my_ani[i].flag;
         if (type == LINE || type == RLINE || type == RECT || type == FRECT || type == CIRC || type == FCIRC ||
@@ -1292,17 +1278,17 @@ void render_ani(void)
     if (show_grab_points == 1) draw_grab_points();
     {
         AniDataFrame f;
-        f.pos = vcr.pos;
+        f.pos = xpp::session().animation.vcr.pos;
         f.rows = xpp::session().browser.view.maxrow;
         f.t = get_ivar(0);
-        f.speed = ani_speed;
-        f.skip = vcr.inc;
+        f.speed = xpp::session().animation.speed;
+        f.skip = xpp::session().animation.vcr.inc;
         f.xlo = ani_xlo;
         f.ylo = ani_ylo;
         f.xhi = ani_xhi;
         f.yhi = ani_yhi;
-        f.w = vcr.wid;
-        f.h = vcr.hgt;
+        f.w = xpp::session().animation.vcr.wid;
+        f.h = xpp::session().animation.vcr.hgt;
         ani_data_end(&f);
     }
 }
@@ -1310,7 +1296,7 @@ void render_ani(void)
 void set_ani_perm(void)
 {
     set_from_init_data();
-    for (int i = 0; i < n_anicom; i++) {
+    for (int i = 0; i < xpp::session().animation.ncom; i++) {
         const int type = my_ani[i].type;
         if (my_ani[i].flag == PERMANENT) {
             if (my_ani[i].type != SETTEXT) eval_ani_com(i);
@@ -1327,31 +1313,31 @@ void set_ani_perm(void)
 /* a new animation window of vcr.wid x vcr.hgt exists */
 void ani_view_created(void)
 {
-    mpeg.flag = 0;
-    mpeg.root = "frame";
-    mpeg.skip = 1;
-    vcr.pos = 0;
-    if (ani_options.use_file) get_ani_file(vcr.file.c_str());
+    xpp::session().animation.mpeg.flag = 0;
+    xpp::session().animation.mpeg.root = "frame";
+    xpp::session().animation.mpeg.skip = 1;
+    xpp::session().animation.vcr.pos = 0;
+    if (xpp::session().animation.options.use_file) get_ani_file(xpp::session().animation.vcr.file.c_str());
 }
 
 /* Grab: show the first frame with the grab points and wait for the mouse */
 void ani_grab_start(void)
 {
     if (ani_grab.empty()) return;
-    if (vcr.ok) {
-        vcr.pos = 0;
+    if (xpp::session().animation.vcr.ok) {
+        xpp::session().animation.vcr.pos = 0;
 
         show_grab_points = 1;
         ani_frame(1);
         ani_frame(0);
-        ani_grab_flag = 1;
+        xpp::session().animation.grab_flag = 1;
     }
 }
 
 /* Reset: back to the first frame */
 void ani_reset(void)
 {
-    vcr.pos = 0;
+    xpp::session().animation.vcr.pos = 0;
     reset_comets();
     xpp_ui.ani_slider();
     ani_flip1(0);
@@ -1370,11 +1356,11 @@ void ani_grab_mouse(int flag, int ix, int iy)
         if (who_was_grabbed < 0) return;
         do_grab_tasks(2);
         set_to_init_data();
-        ani_grab_flag = 0;
+        xpp::session().animation.grab_flag = 0;
         redraw_params();
         if (run_now_grab()) {
             run_now();
-            ani_grab_flag = 0;
+            xpp::session().animation.grab_flag = 0;
         }
     }
 }

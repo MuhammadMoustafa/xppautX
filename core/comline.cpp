@@ -283,8 +283,8 @@ void do_comline(int argc, char **argv)
      i++;
    }
    if(k==22){
-     ani_options.file=argv[i+1];
-     ani_options.use_file=1;
+     xpp::session().animation.options.file=argv[i+1];
+     xpp::session().animation.options.use_file=1;
      i++;
    }
    if(k==23){

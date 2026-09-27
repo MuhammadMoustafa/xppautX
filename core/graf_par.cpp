@@ -83,7 +83,7 @@ void change_view_com(int com)
  
  if(com==2){
    make_my_aplot("Array!");
-   editaplot(&aplot);
+   editaplot(&xpp::session().array_plot.plot);
    return;
  }
  if(com==3){
@@ -162,7 +162,7 @@ void axes_opts()
   values[3] = xpp::format("{:d}", xpp::session().plot_windows.current->xorgflag);
   values[4] = xpp::format("{:d}", xpp::session().plot_windows.current->yorgflag);
   values[5] = xpp::format("{:d}", xpp::session().plot_windows.current->zorgflag);
-  values[6] = xpp::format("{:d}", PS_FONTSIZE);
+  values[6] = xpp::format("{:d}", xpp::session().plot_file.ps_font_size);
   static const int kinds[]={XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
   status=do_string_box_of(7,1,"Axes options",n,values,25,kinds);
@@ -173,7 +173,7 @@ void axes_opts()
    xpp::session().plot_windows.current->xorgflag=atoi(values[3].c_str());
    xpp::session().plot_windows.current->yorgflag=atoi(values[4].c_str());
    xpp::session().plot_windows.current->zorgflag=atoi(values[5].c_str());
-   PS_FONTSIZE=atoi(values[6].c_str());
+   xpp::session().plot_file.ps_font_size=atoi(values[6].c_str());
    redraw_the_graph();
  }
    
@@ -757,18 +757,18 @@ void create_ps()
  int status;
  std::array<std::string, 5> values;
  values[0] = xpp::format("{:d}", xpp::session().plot_export.color);
- values[1] = xpp::format("{:d}", PS_Port);
- values[2] = xpp::format("{:d}", PS_FONTSIZE);
- values[3] = xpp::format("{:.24}", PS_FONT);
- values[4] = xpp::format("{:g}", PS_LW);
+ values[1] = xpp::format("{:d}", xpp::session().drawing.ps_port);
+ values[2] = xpp::format("{:d}", xpp::session().plot_file.ps_font_size);
+ values[3] = xpp::format("{:.24}", xpp::session().plot_file.ps_font);
+ values[4] = xpp::format("{:g}", xpp::session().plot_file.ps_lw);
  static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_NUMBER};
  status=do_string_box_of(5,1,"Postscript parameters",nn,values,25,kinds);
  if(status!=0){
          xpp::session().plot_export.color=atoi(values[0].c_str());
-	 PS_Port=atoi(values[1].c_str());
-	 PS_FONTSIZE=atoi(values[2].c_str());
-	 PS_LW=atof(values[4].c_str());
-         PS_FONT=values[3];
+	 xpp::session().drawing.ps_port=atoi(values[1].c_str());
+	 xpp::session().plot_file.ps_font_size=atoi(values[2].c_str());
+	 xpp::session().plot_file.ps_lw=atof(values[4].c_str());
+         xpp::session().plot_file.ps_font=values[3];
 	 std::string filename=xpp::format("{:.250}.ps",xpp::model().this_file);
 	 ping();
  
@@ -846,18 +846,18 @@ void draw_freeze_key()
   int ix,iy;
   int i,y0;
   int ix2;
-  int dy=2*HChar;
+  int dy=2*xpp::session().drawing.h_char;
   if(FreezeKeyFlag==SCRNFMT)return;
-  if(PltFmtFlag==PSFMT)dy=-dy;
+  if(xpp::session().plot_file.plt_fmt_flag==PSFMT)dy=-dy;
   scale_to_screen(static_cast<float>(FreezeKeyX),static_cast<float>(FreezeKeyY),&ix,&iy);
-  ix2=ix+4*HChar;
+  ix2=ix+4*xpp::session().drawing.h_char;
   y0=iy;
   for(i=0;i<MAXFRZ;i++){
     if(xpp::session().frozen_curves.curve[i].use==1&&xpp::session().frozen_curves.curve[i].w==xpp::session().plot_windows.draw_win&&!xpp::session().frozen_curves.curve[i].key.empty()){
       set_linestyle(abs(xpp::session().frozen_curves.curve[i].color));
       line(ix,y0,ix2,y0);
       set_linestyle(0);
-      put_text(ix2+HChar,y0,xpp::session().frozen_curves.curve[i].key.c_str());
+      put_text(ix2+xpp::session().drawing.h_char,y0,xpp::session().frozen_curves.curve[i].key.c_str());
       y0+=dy;
     }
   }

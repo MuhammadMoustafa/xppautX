@@ -4,13 +4,7 @@
 extern "C" {
 #endif
 
-/* graphics.cpp: the drawing area in device units, its world coordinates,
-   and the current point, text and 3D view settings */
-extern int DLeft, DRight, DTop, DBottom, VTic, HTic, VChar, HChar;
-extern double XMin, YMin, XMax, YMax;
-extern int PointType, PointRadius, TextJustify, PS_Port;
 extern const int TextAngle;
-extern double THETA0, PHI0;
 
 void get_scale(double *x1, double *y1, double *x2, double *y2);
 void set_scale(double x1, double y1, double x2, double y2);
@@ -67,5 +61,22 @@ void reset_all_line_type();
 #include <string_view>
 /* text with each \{expr} replaced by the expression's value */
 std::string fill_in_text(std::string_view old);
+
+/* the drawing state (graphics.cpp, axes2.cpp), a Session's (session.h):
+   the drawing area in device units, its tick and character sizes, its
+   world coordinates, the current point's type and size, the text's
+   justification, a PostScript picture's orientation (ps_port) and the 3D
+   view's angles; set while the axes (the box's own sides) are drawn, for
+   the SVG classes; label unlabelled 2D axes with the plotted variables
+   (front ends that ask) */
+struct DrawingState {
+  int d_left = 0, d_right = 0, d_top = 0, d_bottom = 0;
+  int v_tic = 0, h_tic = 0, v_char = 0, h_char = 0;
+  double x_min = 0, y_min = 0, x_max = 0, y_max = 0;
+  int point_type = -1, point_radius = 0, text_justify = 0, ps_port = 0;
+  double theta0 = 45, phi0 = 45;
+  int doing_axes = 0, doing_box_axes = 0;
+  int axis_var_labels = 0;
+};
 #endif
 #endif

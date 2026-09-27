@@ -164,7 +164,7 @@ void save_frozen_clines(const std::string &fn)
 
 void restor_null(const float *v, int n, int d)  /* d=1 for x and 2 for y  */
 {
-  if (PltFmtFlag==SVGFMT)
+  if (xpp::session().plot_file.plt_fmt_flag==SVGFMT)
     svg_write("<g>");
   for(int i=0;i<n;i++){
     const int i4=4*i;
@@ -184,7 +184,7 @@ void restor_null(const float *v, int n, int d)  /* d=1 for x and 2 for y  */
       }
     }
   }
-  if (PltFmtFlag==SVGFMT)
+  if (xpp::session().plot_file.plt_fmt_flag==SVGFMT)
     svg_write("</g>");
 }
 
@@ -401,7 +401,7 @@ void dfield_grid(int grid, double u0, double v0, double du, double dv, double dz
   get_max_dfield(y.data(),ydot.data(),u0,v0,du,dv,grid,inx,iny,&mdf);
   if(!suppress&&(xpp::session().nullclines.df_flag==1||xpp::session().nullclines.df_flag==4))
     phase_data_dfield_begin(grid+1,du,dv,DFIELD_TYPE==0,xpp::session().plot_windows.current->color[0]);
-  if (PltFmtFlag==SVGFMT){
+  if (xpp::session().plot_file.plt_fmt_flag==SVGFMT){
     xpp::session().nullclines.doing_dfield=1;
     svg_write("<g>");
   }
@@ -447,7 +447,7 @@ void dfield_grid(int grid, double u0, double v0, double du, double dv, double dz
         frect_abs(static_cast<float>(y[inx]),static_cast<float>(y[iny]),static_cast<float>(du),static_cast<float>(dv));
     }
   }
-  if (PltFmtFlag==SVGFMT){
+  if (xpp::session().plot_file.plt_fmt_flag==SVGFMT){
     xpp::session().nullclines.doing_dfield=0;
     svg_write("</g>");
   }
@@ -616,8 +616,8 @@ void redraw_dfield()
   const double du=(xpp::session().plot_windows.current->xhi-xpp::session().plot_windows.current->xlo)/static_cast<double>(grid);
   const double dv=(xpp::session().plot_windows.current->yhi-xpp::session().plot_windows.current->ylo)/static_cast<double>(grid);
 
-  const double dup=static_cast<double>(DRight-DLeft)/static_cast<double>(grid);
-  const double dvp=static_cast<double>(DTop-DBottom)/static_cast<double>(grid);
+  const double dup=static_cast<double>(xpp::session().drawing.d_right-xpp::session().drawing.d_left)/static_cast<double>(grid);
+  const double dvp=static_cast<double>(xpp::session().drawing.d_top-xpp::session().drawing.d_bottom)/static_cast<double>(grid);
   const double dz=hypot(dup,dvp)*(.25+.75*DFIELD_TYPE);
   const double u0=xpp::session().plot_windows.current->xlo;
   const double v0=xpp::session().plot_windows.current->ylo;
@@ -651,8 +651,8 @@ void direct_field_com(int c)
   double du=(xpp::session().plot_windows.current->xhi-xpp::session().plot_windows.current->xlo)/static_cast<double>(grid);
   double dv=(xpp::session().plot_windows.current->yhi-xpp::session().plot_windows.current->ylo)/static_cast<double>(grid);
 
-  const double dup=static_cast<double>(DRight-DLeft)/static_cast<double>(grid);
-  const double dvp=static_cast<double>(DTop-DBottom)/static_cast<double>(grid);
+  const double dup=static_cast<double>(xpp::session().drawing.d_right-xpp::session().drawing.d_left)/static_cast<double>(grid);
+  const double dvp=static_cast<double>(xpp::session().drawing.d_top-xpp::session().drawing.d_bottom)/static_cast<double>(grid);
   const double dz=hypot(dup,dvp)*(.25+.75*DFIELD_TYPE) ;
   const double u0=xpp::session().plot_windows.current->xlo;
   const double v0=xpp::session().plot_windows.current->ylo;
@@ -691,7 +691,7 @@ void direct_field_com(int c)
   phase_data_flow_stop();
   xpp::session().integrator.suppress_bounds=0;
   xpp::session().numerics.delta_t=dtold;
-  if (PltFmtFlag==SVGFMT){
+  if (xpp::session().plot_file.plt_fmt_flag==SVGFMT){
     xpp::session().nullclines.doing_dfield=0;
     svg_write("</g>");
   }

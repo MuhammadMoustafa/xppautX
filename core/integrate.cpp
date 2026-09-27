@@ -107,7 +107,6 @@ static void row_stored(void)
 #define RB23 13
 
 constexpr int OnTheFly=1;
-extern FILE *svgfile;
 
 struct ARRAY_IC {
   int index0,type;
@@ -799,7 +798,7 @@ if(fabs(xpp::session().data_store.current_time)>=xpp::session().numerics.trans&&
 
  do_this_liaprun(i,p);  /* sends parameter and index back */
  if(xpp::session().data_store.rows>2)auto_freeze_it();
- if(aplot_range==1)
+ if(xpp::session().array_plot.range==1)
    draw_one_array_plot(bob.c_str());
  
  if(res==1||xpp::session().stochastic.flag)
@@ -812,8 +811,8 @@ if(fabs(xpp::session().data_store.current_time)>=xpp::session().numerics.trans&&
    }
   }
  }
- if(aplot_range==1){
-   aplot_range=0;
+ if(xpp::session().array_plot.range==1){
+   xpp::session().array_plot.range=0;
    close_aplot_files();
  }
  if(oldic==1)get_ic(1,x);
@@ -1668,7 +1667,7 @@ if(program.interactive) cwidth=get_command_width();
   MSWTCH(xpp::session().solver_work.xpv.x,x);
  xv[0]=static_cast<float>(*t);
  for(ieqn=1;ieqn<=xpp::model().neq;ieqn++)xv[ieqn]=static_cast<float>(x[ieqn-1]);
- if(ani_options.on_the_fly)on_the_fly(1); 
+ if(xpp::session().animation.options.on_the_fly)on_the_fly(1); 
    
  if(xpp::session().numerics.poimap)
  {
@@ -2087,7 +2086,7 @@ poi:    for(i=0;i<xpp::model().neq;i++)oldx[i]=x[i];
 
 	   if((xpp::session().numerics.storflag==1)&&(count!=0)&&(xpp::session().data_store.rows<xpp::session().data_store.max_rows)&&!(fabs(*t)<xpp::session().numerics.trans))
 	   {
-           if(ani_options.on_the_fly)on_the_fly(0);
+           if(xpp::session().animation.options.on_the_fly)on_the_fly(0);
            for(ieqn=0;ieqn<=xpp::model().neq;ieqn++)
 		 xpp::session().data_store.col[ieqn][xpp::session().data_store.rows]=xv[ieqn];
 	    xpp::session().data_store.rows++;
@@ -2143,7 +2142,7 @@ void send_output(double *y,double t)
 	   }
            if(xpp::session().plot_windows.current->line[ip]<=0)
            {
-	    PointRadius=-xpp::session().plot_windows.current->line[ip];
+	    xpp::session().drawing.point_radius=-xpp::session().plot_windows.current->line[ip];
 	   if(xpp::session().plot_windows.current->ThreeDFlag==0) point_abs(xpl[ip],ypl[ip]);
 	   else point_3d(xpl[ip],ypl[ip],zpl[ip]);
            }
@@ -2269,9 +2268,9 @@ void restore(int i1, int i2)
   if(xpp::session().data_store.rows<2)return;
 
    for(ip=0;ip<np;ip++){
-     if (PltFmtFlag==SVGFMT)
+     if (xpp::session().plot_file.plt_fmt_flag==SVGFMT)
      {
-  	   xpp::print(svgfile,"<g>\n");
+  	   xpp::print(xpp::session().plot_file.svgfile,"<g>\n");
      } 
      kxoff=i1-XSHFT;
      kzoff=i1-ZSHFT;
@@ -2307,7 +2306,7 @@ void restore(int i1, int i2)
 		     static_cast<float>(fabs(data[0][i]-data[0][i+1])));
 	}     /* ignored by postscript */
       if(xpp::session().plot_windows.current->line[ip]<=0){
-	PointRadius=-xpp::session().plot_windows.current->line[ip];
+	xpp::session().drawing.point_radius=-xpp::session().plot_windows.current->line[ip];
 	if(xpp::session().plot_windows.current->ThreeDFlag==0)point_abs(xpl,ypl);
 	else point_3d(xpl,ypl,zpl);
       }
@@ -2326,9 +2325,9 @@ void restore(int i1, int i2)
       kzoff++;
      
     }
-    if (PltFmtFlag==SVGFMT)
+    if (xpp::session().plot_file.plt_fmt_flag==SVGFMT)
      {
-  	   xpp::print(svgfile,"</g>\n");
+  	   xpp::print(xpp::session().plot_file.svgfile,"</g>\n");
      } 
     
   }
@@ -2354,8 +2353,8 @@ void comp_color(float *v1, float *v2, int n, float dt)
  if(cur_color>color_table.count)cur_color=color_table.count-1;
   cur_color+=FIRSTCOLOR;
   if (program.interactive){set_color(cur_color);}
- if(PltFmtFlag==1){ps_do_color(cur_color);}
- else if(PltFmtFlag==SVGFMT){svg_do_color(cur_color);}
+ if(xpp::session().plot_file.plt_fmt_flag==1){ps_do_color(cur_color);}
+ else if(xpp::session().plot_file.plt_fmt_flag==SVGFMT){svg_do_color(cur_color);}
 }
 
 void shoot_easy(double *x)

@@ -21,10 +21,7 @@
 #define max(a,b) ((a>b) ? a : b)
 #define SYMSIZE .00175
 
-double THETA0=45,PHI0=45;
 
-int PS_Port=0;
-int PointRadius=0;
 
 /*  This is an improved graphics driver for XPP  
     It requires only a few commands
@@ -49,27 +46,24 @@ int PointRadius=0;
 
 */
 
-int DLeft,DRight,DTop,DBottom,VTic,HTic,VChar,HChar;
 static int XDMax,YDMax;
-double XMin,YMin,XMax,YMax;
-int PointType=-1,TextJustify;
 /* text is never turned (my_ps.cpp's rotation stays for it) */
 const int TextAngle=0;
 
 void get_scale(double *x1, double *y1, double *x2, double *y2)
 {
-  *x1=XMin;
-  *y1=YMin;
-  *x2=XMax;
-  *y2=YMax;
+  *x1=xpp::session().drawing.x_min;
+  *y1=xpp::session().drawing.y_min;
+  *x2=xpp::session().drawing.x_max;
+  *y2=xpp::session().drawing.y_max;
 }
 
 void set_scale(double x1, double y1, double x2, double y2)
 {
-  XMin=x1;
-  YMin=y1;
-  XMax=x2;
-  YMax=y2;
+  xpp::session().drawing.x_min=x1;
+  xpp::session().drawing.y_min=y1;
+  xpp::session().drawing.x_max=x2;
+  xpp::session().drawing.y_max=y2;
 }
 
 /* SLUGGISH??? */
@@ -95,15 +89,15 @@ void get_draw_area_flag(int flag)
   }
   XDMax=w;
   YDMax=h;
-  VTic=max(h/100,1);
-  HTic=max(w/150,1);
-  VChar=text_metrics.small_height;
-  HChar=text_metrics.small_width;
+  xpp::session().drawing.v_tic=max(h/100,1);
+  xpp::session().drawing.h_tic=max(w/150,1);
+  xpp::session().drawing.v_char=text_metrics.small_height;
+  xpp::session().drawing.h_char=text_metrics.small_width;
   
-  DLeft=12*HChar;
-  DRight=XDMax-3*HChar-HTic;
-  DBottom=YDMax-1-VChar*7/2;
-  DTop=VChar*5/2+1;
+  xpp::session().drawing.d_left=12*xpp::session().drawing.h_char;
+  xpp::session().drawing.d_right=XDMax-3*xpp::session().drawing.h_char-xpp::session().drawing.h_tic;
+  xpp::session().drawing.d_bottom=YDMax-1-xpp::session().drawing.v_char*7/2;
+  xpp::session().drawing.d_top=xpp::session().drawing.v_char*5/2+1;
  set_normal_scale();
 }
 
@@ -115,45 +109,45 @@ void change_current_linestyle(int newstyle, int *old)
 
 void set_normal_scale()
 {
-XMin=xpp::session().plot_windows.current->xlo;
- YMin=xpp::session().plot_windows.current->ylo;
- XMax=xpp::session().plot_windows.current->xhi;
- YMax=xpp::session().plot_windows.current->yhi;
+xpp::session().drawing.x_min=xpp::session().plot_windows.current->xlo;
+ xpp::session().drawing.y_min=xpp::session().plot_windows.current->ylo;
+ xpp::session().drawing.x_max=xpp::session().plot_windows.current->xhi;
+ xpp::session().drawing.y_max=xpp::session().plot_windows.current->yhi;
 }
 
 void point(int x, int y)
 {
-  if(PltFmtFlag==PSFMT)ps_point(x,y);
-  else if(PltFmtFlag==SVGFMT)svg_point(x,y);
+  if(xpp::session().plot_file.plt_fmt_flag==PSFMT)ps_point(x,y);
+  else if(xpp::session().plot_file.plt_fmt_flag==SVGFMT)svg_point(x,y);
   else xpp_ui.draw_point(x,y);
 }
 
 void line(int x1, int y1, int x2, int y2)
 {
-  if(PltFmtFlag==PSFMT)ps_line(x1,y1,x2,y2);
-  else if(PltFmtFlag==SVGFMT)svg_line(x1,y1,x2,y2);
+  if(xpp::session().plot_file.plt_fmt_flag==PSFMT)ps_line(x1,y1,x2,y2);
+  else if(xpp::session().plot_file.plt_fmt_flag==SVGFMT)svg_line(x1,y1,x2,y2);
   else xpp_ui.draw_line(x1,y1,x2,y2);
 }
 /* draw a little filled circle */
 
 void bead(int x1, int y1)
 {
- if(PltFmtFlag==PSFMT)ps_bead(x1,y1);
- else if(PltFmtFlag==SVGFMT)svg_bead(x1,y1);
+ if(xpp::session().plot_file.plt_fmt_flag==PSFMT)ps_bead(x1,y1);
+ else if(xpp::session().plot_file.plt_fmt_flag==SVGFMT)svg_bead(x1,y1);
  else xpp_ui.draw_bead(x1,y1);
 }
 
 void frect(int x1, int y1, int w, int h)
 {
-  if(PltFmtFlag==PSFMT)ps_frect(x1,y1,w,h);
-  else if(PltFmtFlag==SVGFMT)svg_frect(x1,y1,w,h);
+  if(xpp::session().plot_file.plt_fmt_flag==PSFMT)ps_frect(x1,y1,w,h);
+  else if(xpp::session().plot_file.plt_fmt_flag==SVGFMT)svg_frect(x1,y1,w,h);
   else xpp_ui.draw_frect(x1,y1,w,h);
 }
 
 void put_text(int x, int y, const char *str)
 {
-  if(PltFmtFlag==PSFMT)ps_text(x,y,str);
-  else if(PltFmtFlag==SVGFMT)svg_text(x,y,str);
+  if(xpp::session().plot_file.plt_fmt_flag==PSFMT)ps_text(x,y,str);
+  else if(xpp::session().plot_file.plt_fmt_flag==SVGFMT)svg_text(x,y,str);
   else xpp_ui.draw_text(x,y,str);
 }
 
@@ -164,30 +158,30 @@ void init_x11()
 
 void init_ps()
 {
-  if(!PS_Port){
+  if(!xpp::session().drawing.ps_port){
  XDMax=7200;
  YDMax=5040;
- VTic=63;
- HTic=63;
- VChar=140;
- HChar=84;
- DLeft=12*HChar;
- DRight=XDMax-3*HChar-HTic;
- DTop=YDMax-1-VChar*7/2;
- DBottom=VChar*5/2+1;
+ xpp::session().drawing.v_tic=63;
+ xpp::session().drawing.h_tic=63;
+ xpp::session().drawing.v_char=140;
+ xpp::session().drawing.h_char=84;
+ xpp::session().drawing.d_left=12*xpp::session().drawing.h_char;
+ xpp::session().drawing.d_right=XDMax-3*xpp::session().drawing.h_char-xpp::session().drawing.h_tic;
+ xpp::session().drawing.d_top=YDMax-1-xpp::session().drawing.v_char*7/2;
+ xpp::session().drawing.d_bottom=xpp::session().drawing.v_char*5/2+1;
   }
   else
     {
  YDMax=7200;
  XDMax=5040;
- VTic=63;
- HTic=63;
- VChar=140;
- HChar=84;
- DLeft=12*HChar;
- DRight=XDMax-3*HChar-HTic;
- DTop=YDMax-1-VChar*7/2;
- DBottom=VChar*5/2+1;
+ xpp::session().drawing.v_tic=63;
+ xpp::session().drawing.h_tic=63;
+ xpp::session().drawing.v_char=140;
+ xpp::session().drawing.h_char=84;
+ xpp::session().drawing.d_left=12*xpp::session().drawing.h_char;
+ xpp::session().drawing.d_right=XDMax-3*xpp::session().drawing.h_char-xpp::session().drawing.h_tic;
+ xpp::session().drawing.d_top=YDMax-1-xpp::session().drawing.v_char*7/2;
+ xpp::session().drawing.d_bottom=xpp::session().drawing.v_char*5/2+1;
 
     }
 
@@ -197,37 +191,37 @@ void init_svg()
 {
   XDMax=640;
   YDMax=400;
-  VTic=9;
-  HTic=9;
-  VChar=20;
-  HChar=12;
-  DLeft=12*HChar;
-  DRight=XDMax-3*HChar-HTic;
-  DBottom=YDMax-1-VChar*7/2;
-  DTop=VChar*5/2+1;
+  xpp::session().drawing.v_tic=9;
+  xpp::session().drawing.h_tic=9;
+  xpp::session().drawing.v_char=20;
+  xpp::session().drawing.h_char=12;
+  xpp::session().drawing.d_left=12*xpp::session().drawing.h_char;
+  xpp::session().drawing.d_right=XDMax-3*xpp::session().drawing.h_char-xpp::session().drawing.h_tic;
+  xpp::session().drawing.d_bottom=YDMax-1-xpp::session().drawing.v_char*7/2;
+  xpp::session().drawing.d_top=xpp::session().drawing.v_char*5/2+1;
 }
 
 void set_linestyle(int ls)
 {
-  if(PltFmtFlag==PSFMT)ps_linetype(ls);
-  else if(PltFmtFlag==SVGFMT)svg_linetype(ls);
+  if(xpp::session().plot_file.plt_fmt_flag==PSFMT)ps_linetype(ls);
+  else if(xpp::session().plot_file.plt_fmt_flag==SVGFMT)svg_linetype(ls);
   else xpp_ui.draw_linestyle(ls);
 }
 
 void scale_dxdy(float x, float y, double *i, double *j)
 {
-  float dx=(DRight-DLeft)/(XMax-XMin);
-  float dy=(DTop-DBottom)/(YMax-YMin);
+  float dx=(xpp::session().drawing.d_right-xpp::session().drawing.d_left)/(xpp::session().drawing.x_max-xpp::session().drawing.x_min);
+  float dy=(xpp::session().drawing.d_top-xpp::session().drawing.d_bottom)/(xpp::session().drawing.y_max-xpp::session().drawing.y_min);
   *i=x*dx;
   *j=y*dy;
 }  
      
 void scale_to_screen(float x, float y, int *i, int *j)  /* not really the screen!  */
 {
-  float dx=(DRight-DLeft)/(XMax-XMin);
-  float dy=(DTop-DBottom)/(YMax-YMin);
-  *i=static_cast<int>((x-XMin)*dx)+DLeft;
-  *j=static_cast<int>((y-YMin)*dy)+DBottom;
+  float dx=(xpp::session().drawing.d_right-xpp::session().drawing.d_left)/(xpp::session().drawing.x_max-xpp::session().drawing.x_min);
+  float dy=(xpp::session().drawing.d_top-xpp::session().drawing.d_bottom)/(xpp::session().drawing.y_max-xpp::session().drawing.y_min);
+  *i=static_cast<int>((x-xpp::session().drawing.x_min)*dx)+xpp::session().drawing.d_left;
+  *j=static_cast<int>((y-xpp::session().drawing.y_min)*dy)+xpp::session().drawing.d_bottom;
 }
 
 void scale_to_real(int i, int j, float *x, float *y)  /* Not needed except for X */
@@ -235,12 +229,12 @@ void scale_to_real(int i, int j, float *x, float *y)  /* Not needed except for X
   int i1,j1;
   float x1,y1;
   get_draw_area();
-  i1=i-DLeft;
-  j1=j-DBottom;
+  i1=i-xpp::session().drawing.d_left;
+  j1=j-xpp::session().drawing.d_bottom;
   x1=static_cast<float>(i1);
   y1=static_cast<float>(j1);
-  *x=(xpp::session().plot_windows.current->xhi-xpp::session().plot_windows.current->xlo)*x1/static_cast<float>(DRight-DLeft)+xpp::session().plot_windows.current->xlo;
-  *y=(xpp::session().plot_windows.current->yhi-xpp::session().plot_windows.current->ylo)*y1/static_cast<float>(DTop-DBottom)+xpp::session().plot_windows.current->ylo;
+  *x=(xpp::session().plot_windows.current->xhi-xpp::session().plot_windows.current->xlo)*x1/static_cast<float>(xpp::session().drawing.d_right-xpp::session().drawing.d_left)+xpp::session().plot_windows.current->xlo;
+  *y=(xpp::session().plot_windows.current->yhi-xpp::session().plot_windows.current->ylo)*y1/static_cast<float>(xpp::session().drawing.d_top-xpp::session().drawing.d_bottom)+xpp::session().plot_windows.current->ylo;
   
  }
 
@@ -405,8 +399,8 @@ void init_graph(int i)
     xpp::session().plot_windows.graph[i].xorgflag=1;
     xpp::session().plot_windows.graph[i].yorgflag=1;
     xpp::session().plot_windows.graph[i].zorgflag=1;
-    xpp::session().plot_windows.graph[i].Theta=THETA0;
-    xpp::session().plot_windows.graph[i].Phi=PHI0;
+    xpp::session().plot_windows.graph[i].Theta=xpp::session().drawing.theta0;
+    xpp::session().plot_windows.graph[i].Phi=xpp::session().drawing.phi0;
     xpp::session().plot_windows.graph[i].xshft=0;
     xpp::session().plot_windows.graph[i].yshft=0;
     xpp::session().plot_windows.graph[i].zshft=0;
@@ -419,7 +413,7 @@ void init_graph(int i)
     xpp::session().plot_windows.graph[i].oldxhi=xpp::session().plot_settings.my_xhi;
     xpp::session().plot_windows.graph[i].oldyhi=xpp::session().plot_settings.my_yhi;
     xpp::session().plot_windows.current=&xpp::session().plot_windows.graph[i];
-    make_rot(THETA0,PHI0);
+    make_rot(xpp::session().drawing.theta0,xpp::session().drawing.phi0);
     
   }
 
@@ -662,10 +656,10 @@ void point_abs(float x1, float y1)
 {
   int xp,yp;
 
-  float x_left=XMin;
-  float x_right=XMax;
-  float y_top=YMax;
-  float y_bottom=YMin;
+  float x_left=xpp::session().drawing.x_min;
+  float x_right=xpp::session().drawing.x_max;
+  float y_top=xpp::session().drawing.y_max;
+  float y_bottom=xpp::session().drawing.y_min;
    if((x1>x_right)||(x1<x_left)||(y1>y_top)||(y1<y_bottom))return; 
   scale_to_screen(x1,y1,&xp,&yp);
   point(xp,yp);
@@ -684,10 +678,10 @@ void line_nabs(float x1_out, float y1_out, float x2_out, float y2_out)
 void bead_abs(float x1, float y1)
 {
   int i1,j1;
-  float x_left=XMin;
-  float x_right=XMax;
-  float y_top=YMax;
-  float y_bottom=YMin;
+  float x_left=xpp::session().drawing.x_min;
+  float x_right=xpp::session().drawing.x_max;
+  float y_top=xpp::session().drawing.y_max;
+  float y_bottom=xpp::session().drawing.y_min;
    if((x1>x_right)||(x1<x_left)||(y1>y_top)||(y1<y_bottom))return; 
   scale_to_screen(x1,y1,&i1,&j1);
   bead(i1,j1);
@@ -772,8 +766,8 @@ void fancy_text_abs(float x, float y, const char *old, int size, int font)
   int xp,yp;
   scale_to_screen(x,y,&xp,&yp);
   const std::string text=fill_in_text(old);
-  if(PltFmtFlag==PSFMT)special_put_text_ps(xp,yp,text.c_str(),size);
-  else if(PltFmtFlag==SVGFMT)special_put_text_svg(xp,yp,text.c_str(),size);
+  if(xpp::session().plot_file.plt_fmt_flag==PSFMT)special_put_text_ps(xp,yp,text.c_str(),size);
+  else if(xpp::session().plot_file.plt_fmt_flag==SVGFMT)special_put_text_svg(xp,yp,text.c_str(),size);
   else xpp_ui.draw_special_text(xp,yp,text.c_str(),size);
     
 }
@@ -913,10 +907,10 @@ int clip(float x1, float x2, float y1, float y2, float *x1_out, float *y1_out, f
 {
    int istack,ix1,ix2,iy1,iy2,isum,iflag;
    float  wh,xhat,yhat,wv;
-   float x_left=XMin;
-   float x_right=XMax;
-   float y_top=YMax;
-   float y_bottom=YMin;
+   float x_left=xpp::session().drawing.x_min;
+   float x_right=xpp::session().drawing.x_max;
+   float y_top=xpp::session().drawing.y_max;
+   float y_bottom=xpp::session().drawing.y_min;
    istack=1;
    ix1=ix2=iy1=iy2=iflag=0;
    *y1_out=y1;

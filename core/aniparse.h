@@ -10,8 +10,6 @@
 extern "C" {
 #endif
 
-/* aniparse.cpp: the animator (the .ani language and its frames) */
-extern int n_anicom, ani_speed, ani_grab_flag;
 
 void update_ani_motion_stuff(int x, int y);
 void ani_create_mpeg(void);
@@ -39,7 +37,6 @@ struct XppAniOptions {
     std::string file;   /* the .ani file it named */
     int on_the_fly = 0; /* animate while integrating */
 };
-extern XppAniOptions ani_options;
 
 /* the animation window: its size in the core's pixels, the row shown */
 struct VCR {
@@ -47,7 +44,6 @@ struct VCR {
     int pos = 0, inc = 0;
     std::string file; /* the .ani file, or the folder to pick one in */
 };
-extern VCR vcr;
 
 /* Frame saving (the ppm frames, or an animated gif) */
 struct MPEG_SAVE {
@@ -56,7 +52,16 @@ struct MPEG_SAVE {
     std::string root; /* the frames' base name */
     int aviflag = 0;
 };
-/* C linkage: json_ani.cpp declares it so itself */
-extern "C" MPEG_SAVE mpeg;
+
+/* the animator (aniparse.cpp: the .ani language and its frames), a
+   Session's (session.h): the number of commands of the loaded animation
+   (ncom), its speed and grab state, its options, window and frame
+   saving */
+struct AnimationState {
+  int ncom = 0, speed = 10, grab_flag = 0;
+  XppAniOptions options;
+  VCR vcr;
+  MPEG_SAVE mpeg;
+};
 #endif
 #endif

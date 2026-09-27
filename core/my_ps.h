@@ -5,11 +5,6 @@ extern "C" {
 #endif
 
 
-/* my_ps.cpp: the export's state, shared with my_svg.cpp and graphics.cpp */
-extern int PltFmtFlag, PSColorFlag, PSLines;
-extern int LastPSX, LastPSY, NoBreakLine;
-extern int PS_FONTSIZE;
-extern double PS_LW;
 
 int ps_init(const char *filename, int color);
 void ps_stroke(void);
@@ -33,8 +28,20 @@ void ps_text(int x, int y, const char *str);
 #ifdef __cplusplus
 }
 
+#include <stdio.h>
 #include <string>
-/* the PostScript font (@ ps_font=) */
-extern std::string PS_FONT;
+/* a picture file's state (my_ps.cpp, my_svg.cpp, shared with
+   graphics.cpp), a Session's (session.h): which format is being written
+   (plt_fmt_flag), in colour, the line count, the last point drawn and
+   whether a line goes on from it, the PostScript font, its size and the
+   line width (@ ps_font=, ps_fsize=, ps_lw=), and the SVG file open */
+struct PlotFileState {
+  int plt_fmt_flag = 0, ps_color_flag = 1, ps_lines = 0;
+  int last_ps_x = 0, last_ps_y = 0, no_break_line = 0;
+  int ps_font_size = 14;
+  double ps_lw = 5;
+  std::string ps_font = "Times-Roman";
+  FILE *svgfile = nullptr;
+};
 #endif
 #endif

@@ -48,32 +48,23 @@
 #include "browse.h"
 #include "integrate.h"
 
-/* the core's globals that have no header of their own */
-int aplot_range_count=0;
-int aplot_range;
-std::string aplot_range_stem="rangearray";
-int aplot_still=1,aplot_tag=0;
-APLOT aplot;
-int plot3d_auto_redraw=0;
-FILE *ap_fp;
-
 void set_up_aplot_range(void)
 { 
   static const char *n[]={"Basename","Still(1/0)","Tag(0/1)"};
   std::array<std::string, 3> values;
   int status;
   double *x;
- values[0] = xpp::format("{:.24}", aplot_range_stem);
- values[1] = xpp::format("{:d}", aplot_still);
- values[2] = xpp::format("{:d}", aplot_tag);
+ values[0] = xpp::format("{:.24}", xpp::session().array_plot.range_stem);
+ values[1] = xpp::format("{:d}", xpp::session().array_plot.still);
+ values[2] = xpp::format("{:d}", xpp::session().array_plot.tag);
  static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
  status=do_string_box_of(3,1,"Array range saving",n,values,28,kinds);
  if(status!=0){
-   aplot_range_stem=values[0];
-   aplot_still=atoi(values[1].c_str());
-   aplot_tag=atoi(values[2].c_str());
- aplot_range=1;
- aplot_range_count=0;
+   xpp::session().array_plot.range_stem=values[0];
+   xpp::session().array_plot.still=atoi(values[1].c_str());
+   xpp::session().array_plot.tag=atoi(values[2].c_str());
+ xpp::session().array_plot.range=1;
+ xpp::session().array_plot.range_count=0;
  x=&xpp::session().data_store.current[0];
  do_range(x,0);
  }
@@ -81,9 +72,9 @@ void set_up_aplot_range(void)
 void fit_aplot(void)
 {
 double zmax,zmin;
- scale_aplot(&aplot,&zmax,&zmin);
-  aplot.zmin=zmin;
-  aplot.zmax=zmax;
+ scale_aplot(&xpp::session().array_plot.plot,&zmax,&zmin);
+  xpp::session().array_plot.plot.zmin=zmin;
+  xpp::session().array_plot.plot.zmax=zmax;
   xpp_ui.aplot_redraw();
 
 }
@@ -98,20 +89,20 @@ void optimize_aplot(int *plist)
   if(ncol<2||nrows<2)return;
   make_my_aplot("Array!");
 
-  aplot.index0=i0+1;
-  aplot.name=xpp::model().uvar_names[i0];
-  aplot.nacross=ncol;
+  xpp::session().array_plot.plot.index0=i0+1;
+  xpp::session().array_plot.plot.name=xpp::model().uvar_names[i0];
+  xpp::session().array_plot.plot.nacross=ncol;
   nr=201;
   if(nrows<nr)
     nr=nrows;
-  aplot.ndown=nr;
+  xpp::session().array_plot.plot.ndown=nr;
   ns=nrows/nr;
-  aplot.nskip=ns;
-  aplot.ncskip=1;
-  scale_aplot(&aplot,&zmax,&zmin);
-  aplot.zmin=zmin;
-  aplot.zmax=zmax;
-  aplot.plotdef=1;
+  xpp::session().array_plot.plot.nskip=ns;
+  xpp::session().array_plot.plot.ncskip=1;
+  scale_aplot(&xpp::session().array_plot.plot,&zmax,&zmin);
+  xpp::session().array_plot.plot.zmin=zmin;
+  xpp::session().array_plot.plot.zmax=zmax;
+  xpp::session().array_plot.plot.plotdef=1;
   xpp_ui.aplot_reset_axes();
   xpp_ui.aplot_redraw();
 }
@@ -145,7 +136,7 @@ void scale_aplot(APLOT *ap, double *zmax, double *zmin)
 
 void init_my_aplot(void)
 {
- APLOT *ap=&aplot;
+ APLOT *ap=&xpp::session().array_plot.plot;
  ap->height=400;
  ap->width=400;
  ap->zmin=0.0;
@@ -232,13 +223,13 @@ void dump_aplot(FILE *fp, int f)
   }
   else
     xpp::print(fp,"# Array plot stuff\n");
-  io_string(aplot.name,fp,f);
-  io_int(&aplot.nacross ,fp,f,"NCols");
-  io_int(&aplot.nstart ,fp,f,"Row 1");
-  io_int(&aplot.ndown ,fp,f,"NRows");
-  io_int(&aplot.nskip ,fp,f,"RowSkip");
-  io_double(&aplot.zmin,fp,f,"Zmin");
-  io_double(&aplot.zmax,fp,f,"Zmax");
+  io_string(xpp::session().array_plot.plot.name,fp,f);
+  io_int(&xpp::session().array_plot.plot.nacross ,fp,f,"NCols");
+  io_int(&xpp::session().array_plot.plot.nstart ,fp,f,"Row 1");
+  io_int(&xpp::session().array_plot.plot.ndown ,fp,f,"NRows");
+  io_int(&xpp::session().array_plot.plot.nskip ,fp,f,"RowSkip");
+  io_double(&xpp::session().array_plot.plot.zmin,fp,f,"Zmin");
+  io_double(&xpp::session().array_plot.plot.zmax,fp,f,"Zmax");
 }
 
 int editaplot(APLOT *ap)
@@ -255,7 +246,7 @@ int editaplot(APLOT *ap)
  values[4] = xpp::format("{:d}", ap->nskip);
  values[5] = xpp::format("{:g}", ap->zmin);
  values[6] = xpp::format("{:g}", ap->zmax);
- values[7] = xpp::format("{:d}", plot3d_auto_redraw);
+ values[7] = xpp::format("{:d}", xpp::session().array_plot.auto_redraw);
 values[8] = xpp::format("{:d}", ap->ncskip);
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
                            XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
@@ -282,7 +273,7 @@ values[8] = xpp::format("{:d}", ap->ncskip);
     ap->nstart=atoi(values[2].c_str());
     ap->ndown=atoi(values[3].c_str());
     ap->nskip=atoi(values[4].c_str());
-    plot3d_auto_redraw=atoi(values[7].c_str());
+    xpp::session().array_plot.auto_redraw=atoi(values[7].c_str());
     ap->plotdef=1;
     ap->ncskip=atoi(values[8].c_str());
     if(ap->ncskip<1)
@@ -293,9 +284,9 @@ values[8] = xpp::format("{:d}", ap->ncskip);
 }
 void close_aplot_files(void)
 {
-  if(aplot_still==0){
-    xpp::UniqueFile movie(ap_fp); /* closes it */
-    ap_fp=nullptr;
+  if(xpp::session().array_plot.still==0){
+    xpp::UniqueFile movie(xpp::session().array_plot.fp); /* closes it */
+    xpp::session().array_plot.fp=nullptr;
   }
 }
 

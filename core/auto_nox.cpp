@@ -1102,7 +1102,7 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
       set_linestyle(0);
     if(icp1!=xpp::session().auto_state.bifur.icp1)break;
     if(flag2>0&&xpp::session().auto_state.bifur.icp2!=icp2)break;
-    PointType=UPT;
+    xpp::session().drawing.point_type=UPT;
     point_abs(static_cast<float>(x),static_cast<float>(y1));
     point_abs(static_cast<float>(x),static_cast<float>(y2));
     break;
@@ -1113,7 +1113,7 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
       set_linestyle(0);
     if(icp1!=xpp::session().auto_state.bifur.icp1)break;
     if(flag2>0&&xpp::session().auto_state.bifur.icp2!=icp2)break;
-    PointType=SPT;
+    xpp::session().drawing.point_type=SPT;
     point_abs(static_cast<float>(x),static_cast<float>(y1));
     point_abs(static_cast<float>(x),static_cast<float>(y2)); 
     break;
@@ -2783,14 +2783,14 @@ void auto_file()
     grabpt.flag=0;
   }
   if(ch=='p'){
-    NoBreakLine=1;
+    xpp::session().plot_file.no_break_line=1;
     post_auto();
-    NoBreakLine=0;
+    xpp::session().plot_file.no_break_line=0;
   }
   if(ch=='v'){
-    NoBreakLine=1;
+    xpp::session().plot_file.no_break_line=1;
     svg_auto();
-    NoBreakLine=0;
+    xpp::session().plot_file.no_break_line=0;
   }
   if(ch=='w'){
     write_pts();

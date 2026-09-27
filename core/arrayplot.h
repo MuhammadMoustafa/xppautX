@@ -16,14 +16,6 @@ void fit_aplot(void);
 void init_my_aplot(void);
 void dump_aplot(FILE *fp, int f);
 
-/* 1: the next range integration saves the array plot at each step (the
-   array plot's range saving); integrate.c clears it when the range ends */
-extern int aplot_range;
-
-/* the range saving's settings (Array range saving) and its open GIF file
-   (json_windows.cpp writes it); Autoplot: redraw after each integration */
-extern int aplot_range_count, aplot_still, aplot_tag, plot3d_auto_redraw;
-extern FILE *ap_fp;
 
 #ifdef __cplusplus
 }
@@ -42,13 +34,25 @@ struct APLOT {
   int type;
 };
 
-extern APLOT aplot;
 void scale_aplot(APLOT *ap, double *zmax, double *zmin);
 int editaplot(APLOT *ap);
 void print_aplot(APLOT *ap);
 /* splits an array plot's first column name at its trailing digits: "u10"
    gives "u" and 10, a name with no digits itself and 0 */
 std::string get_root(std::string_view s, int *num);
-extern std::string aplot_range_stem; /* Array range saving's base name */
+
+/* the array plot (arrayplot.cpp), a Session's (session.h): its settings;
+   range: the next range integration saves the array plot at each step
+   (the array plot's range saving), integrate.cpp clears it when the range
+   ends; the range saving's settings (Array range saving: range_count,
+   still, tag, the base name range_stem) and its open GIF file
+   (json_windows.cpp writes it); Autoplot: redraw after each integration
+   (auto_redraw) */
+struct ArrayPlotState {
+  APLOT plot{};
+  int range = 0, range_count = 0, still = 1, tag = 0, auto_redraw = 0;
+  FILE *fp = nullptr;
+  std::string range_stem = "rangearray";
+};
 #endif
 #endif

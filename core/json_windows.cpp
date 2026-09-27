@@ -510,7 +510,7 @@ void send_aplot(const char *tag)
     Buf b;
     int num, i, j, nx, ny, nrows = xpp::session().browser.view.maxrow;
     double tlo = 0.0, thi = 20.0;
-    APLOT *ap = &aplot;
+    APLOT *ap = &xpp::session().array_plot.plot;
     std::vector<float> vals;
     int f32 = plot_data_want_f32();
     aplot_dirty = 0;
@@ -582,17 +582,17 @@ void aplot_changed(void) { aplot_dirty = 1; }
 /* an auto-redrawn array plot shows the data that changed */
 void aplot_update(void)
 {
-    if (aplot_dirty && aplot.alive && plot3d_auto_redraw == 1) send_aplot(NULL);
+    if (aplot_dirty && xpp::session().array_plot.plot.alive && xpp::session().array_plot.auto_redraw == 1) send_aplot(NULL);
     aplot_dirty = 0;
 }
 
 void j_aplot_make(const char *name)
 {
-    if (aplot.alive) return;
-    aplot.alive = 1;
-    aplot.plotw = aplot.width - 30 - 10 * text_metrics.small_width;
-    aplot.ploth = aplot.height - 55;
-    send_window("create", WIN_APLOT, aplot.plotw, aplot.ploth, name);
+    if (xpp::session().array_plot.plot.alive) return;
+    xpp::session().array_plot.plot.alive = 1;
+    xpp::session().array_plot.plot.plotw = xpp::session().array_plot.plot.width - 30 - 10 * text_metrics.small_width;
+    xpp::session().array_plot.plot.ploth = xpp::session().array_plot.plot.height - 55;
+    send_window("create", WIN_APLOT, xpp::session().array_plot.plot.plotw, xpp::session().array_plot.plot.ploth, name);
 }
 
 void j_aplot_redraw(void) { send_aplot(NULL); }
@@ -611,10 +611,10 @@ void aplot_gif(const char *file, int still)
             j_err_msg("Cannot open file ");
             return;
         }
-    } else if (aplot_range_count == 0) {
+    } else if (xpp::session().array_plot.range_count == 0) {
         /* a range movie's frames all go into the first frame's file, a
            stream kept open until arrayplot.cpp's close_aplot_files */
-        if ((ap_fp = xpp_files_open_stream(file, "wb")) == NULL) {
+        if ((xpp::session().array_plot.fp = xpp_files_open_stream(file, "wb")) == NULL) {
             j_err_msg("Cannot open file ");
             return;
         }
@@ -623,7 +623,7 @@ void aplot_gif(const char *file, int still)
     if (!rgb.empty()) {
         web_safe_colors(rgb);
         if (still == 1) gif_stuff_ppm(rgb.data(), w, h, one.file(), MAKE_ONE_GIF);
-        else gif_stuff_ppm(rgb.data(), w, h, ap_fp, aplot_range_count == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
+        else gif_stuff_ppm(rgb.data(), w, h, xpp::session().array_plot.fp, xpp::session().array_plot.range_count == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
     }
     one.commit();
 }
@@ -632,9 +632,9 @@ void aplot_gif(const char *file, int still)
 
 void j_aplot_draw_one(const char *tag)
 {
-    send_aplot(aplot_tag ? tag : NULL);
-    aplot_gif(xpp::format("{}.{}.gif", aplot_range_stem, aplot_range_count).c_str(), aplot_still);
-    aplot_range_count++;
+    send_aplot(xpp::session().array_plot.tag ? tag : NULL);
+    aplot_gif(xpp::format("{}.{}.gif", xpp::session().array_plot.range_stem, xpp::session().array_plot.range_count).c_str(), xpp::session().array_plot.still);
+    xpp::session().array_plot.range_count++;
 }
 
 /* the array plot window's buttons */
@@ -642,24 +642,24 @@ void aplot_command(const char *line)
 {
     std::string o;
     get_string(line, "op", o, 16);
-    if (!aplot.alive) return;
+    if (!xpp::session().array_plot.plot.alive) return;
     if (o == "redraw") send_aplot(NULL);
     else if (o == "edit") {
-        editaplot(&aplot);
+        editaplot(&xpp::session().array_plot.plot);
         send_aplot(NULL);
     } else if (o == "fit") fit_aplot();
     else if (o == "range") set_up_aplot_range();
-    else if (o == "print") print_aplot(&aplot);
+    else if (o == "print") print_aplot(&xpp::session().array_plot.plot);
     else if (o == "gif") {
         std::string file = xpp::format("{}.gif", xpp::model().this_file);
         if (file_selector("GIF plot", file, "*.gif")) aplot_gif(file.c_str(), 1);
     } else if (o == "scroll") {
         /* dragging the plot by dy pixels moves the first row, as in X11 */
-        aplot.nstart -= get_int(line, "dy", 0);
-        if (aplot.nstart < 0) aplot.nstart = 0;
+        xpp::session().array_plot.plot.nstart -= get_int(line, "dy", 0);
+        if (xpp::session().array_plot.plot.nstart < 0) xpp::session().array_plot.plot.nstart = 0;
         send_aplot(NULL);
     } else if (o == "close") {
-        aplot.alive = 0;
+        xpp::session().array_plot.plot.alive = 0;
         send_window("destroy", WIN_APLOT, 0, 0, NULL);
     }
 }
