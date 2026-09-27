@@ -632,6 +632,14 @@ change. Plain `tools/unsafecheck.sh` prints the per-file table.
   part of any task that touches one. The source checks enforce what they
   can (alloccheck, stdoutcheck, formatcheck, literalcheck).
 
+- No global state (maintainer, 2026-09-27): global variables are avoided.
+  A new piece of state goes into its owner's struct, never a new global;
+  what a load produces belongs to `xpp::Model` (core/model.h, from W46c),
+  what a run changes to `xpp::Session`, passed as `Model&`/`Session&`
+  (W47a-d in docs/roadmap.md take the existing ~500 globals there in
+  stages). A value nothing writes after initialization is
+  `const`/`constexpr`, and one file's own state has internal linkage.
+
 - Upstream mergeability is no longer a goal (2026-09-23): refactor for
   single responsibility and clean code, numerics included. Numerical
   results must not change: tools/verify.sh's checksums and saved AUTO
