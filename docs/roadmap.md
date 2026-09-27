@@ -119,6 +119,7 @@ issue; the card here is the one kept up to date.
 | W53 | #101 | Picture export as a registry (maintainer, 2026-09-27): xpp::ImageFormat for PostScript, SVG and the GIFs, a registry table the export menus list; goldencheck byte for byte | none (soft overlap W47c: plot windows) | ready |
 | W54 | #102 | Remove the in-program equation editor (maintainer, 2026-09-27): edit_rhs.cpp and the Edit menu (RHS's, Functions, Save as) go, Load DLL goes with W55, the manual's section with them; one of the post-load Model writes W47c lists | none | ready |
 | W55 | #103 | Drop compiled functions (maintainer, 2026-09-27: risks outweigh benefits): export, dll_lib/dll_fun, Load DLL, extra.cpp's library loading, xpp_dlfcn.h, -DHAVEDLL; a model using them fails to load with a clear error; the 13 examples rewritten in plain .ode or deleted, the prebuilt .so files deleted, the md5 baselines updated; manual chapter 11 removed | none (soft overlap W54: menus) | ready |
+| W56 | #104 | -silent as a built-in script over the Command API (maintainer, 2026-09-27): its flags and the model's @ batch options become commands run like --script; batch_integrate and the silent_* functions go; command line, output.dat and every written file unchanged (the example md5s) | W47c | blocked |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
