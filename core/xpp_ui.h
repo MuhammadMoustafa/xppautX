@@ -62,7 +62,7 @@ enum {
    that draws the diagram from data. */
 typedef struct XppDiagPoint {
     int ibr, pt;   /* AUTO's branch and point number, signed as AUTO has them */
-    int itp;       /* AUTO's point type (get_bif_sym) */
+    int itp;       /* AUTO's point type (auto_bif_sym) */
     int lab;       /* label, 0 when none or when the label mark is not drawn */
     int type;      /* 1 stable eq, 2 unstable eq, 3 stable periodic, 4 unstable periodic */
     int flag2;     /* two-parameter curve kind (LPE2...), 0 for one parameter */

@@ -46,7 +46,7 @@ void add_pair(std::string &o, double re, double im)
     o += ']';
 }
 
-/* a name as the strip shows it, without the blanks get_bif_sym pads with */
+/* a name as the strip shows it, without the blanks auto_bif_sym pads with */
 std::string trimmed(const char *s)
 {
     std::string t = s ? s : "";
