@@ -16,7 +16,6 @@
 #define MAXBIFCRV 100
 #define lmax(a,b) ((a) > (b) ? (a) : (b))
 
-#include <stdio.h>
 #include "xpp_types.h"
 #include "struct.h" /* CURVE, MAXFRZ */
 #ifdef __cplusplus
@@ -40,19 +39,6 @@ typedef struct {
 } XppPlotExport;
 extern XppPlotExport plot_export;
 
-typedef struct {
-  char angle[20];
-  char yes[3];
-  double start;
-  double incr;
-  int nclip;
-} MOV3D;
-
-typedef struct {
-  float *x[MAXBIFCRV],*y[MAXBIFCRV];
-  int color[MAXBIFCRV],npts[MAXBIFCRV],nbifcrv;
-  XppWinId w;
-} BD;
 void change_view_com(int com);
 void check_flags(void);
 void get_2d_view(int ind);
@@ -87,14 +73,8 @@ int freeze_crv(int ind);
 void auto_freeze_it(void);
 int create_crv(int ind);
 void edit_frz_crv(int i);
-void draw_frozen_cline(int index, XppWinId w);
 void draw_freeze(XppWinId w);
 void init_bd(void);
-void draw_bd(XppWinId w);
-void free_bd(void);
-void add_bd_crv(float *x, float *y, int len, int type, int ncrv);
-void frz_bd(void);
-void read_bd(FILE *fp);
 int get_frz_index(XppWinId w);
 void export_graf_data(void);
 void add_a_curve_com(int c);

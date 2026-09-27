@@ -1,6 +1,5 @@
 #include "graf_par.h"
 #include "storage.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
 #include <array>
@@ -35,13 +34,6 @@
 #include "xpp_io.h"
 #include "many_pops.h"
 
-NCLINE nclines[MAXNCLINE];
-extern int PS_FONTSIZE;
-extern int PS_Port;
-/*extern char PS_FONT[100];*/
-extern char PS_FONT[100]; /* my_ps.c */
-extern double PS_LW;
-extern BROWSER my_browser;
 extern double x_3d[2],y_3d[2],z_3d[2];
 /*Default is now color*/
 
@@ -59,26 +51,47 @@ extern double x_3d[2],y_3d[2],z_3d[2];
 
 
 
-MOV3D mov3d = { "theta","N",45,45,7};
+namespace {
 
+/* 3D Params' movie */
+struct Mov3d {
+  std::string angle; /* theta or phi, at most 19 characters */
+  std::string yes;   /* at most 2 */
+  double start;
+  double incr;
+  int nclip;
+};
+Mov3d mov3d = { "theta","N",45,45,7};
 
+/* an imported bifurcation diagram's curves (Freeze > Bif.Diag) */
+struct BifCurve {
+  std::vector<float> x,y;
+  int color;
+};
+struct {
+  std::vector<BifCurve> curves; /* at most MAXBIFCRV */
+  XppWinId w;
+} my_bd;
 
-BD my_bd;
+/* the frozen curves' points: frozen_curves.curve[i].xv/yv/zv point into
+   frozen_points[i][0..2] (CURVE, struct.h, holds plain pointers) */
+std::array<std::array<std::vector<float>,3>,MAXFRZ> frozen_points;
+
+void draw_bd(XppWinId w);
+void free_bd(void);
+void frz_bd(void);
+
+} // namespace
+
 XppFrozenCurves frozen_curves;
 XppPlotExport plot_export = {"", 1};
-
-extern int DLeft,DRight,DTop,DBottom,VTic,HTic,VChar,HChar;
 
 extern double T0,TEND;
 
 double FreezeKeyX,FreezeKeyY;
 int FreezeKeyFlag;
 int CurrentCurve=0;
-extern char this_file[XPP_MAX_NAME];
-extern char this_internset[XPP_MAX_NAME];
-
-extern int PltFmtFlag;
-extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
+extern char this_file[XPP_MAX_NAME]; /* comline.cpp's, in no header */
 
 extern const char *no_hint[],*wind_hint[],*view_hint[],*frz_hint[];
 extern const char *graf_hint[], *cmap_hint[]; 
@@ -128,11 +141,11 @@ void get_2d_view(int ind)
  std::array<std::string, 8> values;
  int  status,i; 
  int i1=plot_windows.current->xv[ind],i2=plot_windows.current->yv[ind];
- char n1[XPP_NAME_MAX+1],n2[XPP_NAME_MAX+1];
- ind_to_sym(i1,n1);
- ind_to_sym(i2,n2);
- values[0] = n1;
- values[1] = n2;
+ std::array<char,XPP_NAME_MAX+1> n1,n2; /* ind_to_sym's */
+ ind_to_sym(i1,n1.data());
+ ind_to_sym(i2,n2.data());
+ values[0] = n1.data();
+ values[1] = n2.data();
  values[2] = xpp::format("{:g}", plot_windows.current->xmin);
  values[3] = xpp::format("{:g}", plot_windows.current->ymin);
  values[4] = xpp::format("{:g}", plot_windows.current->xmax);
@@ -159,8 +172,8 @@ void get_2d_view(int ind)
 	      plot_windows.current->ylo=plot_windows.current->ymin;
 	      plot_windows.current->xhi=plot_windows.current->xmax;
 	      plot_windows.current->yhi=plot_windows.current->ymax;
-	     XPP_SPRINTF(plot_windows.current->xlabel,"%s",values[6].c_str());
-	     XPP_SPRINTF(plot_windows.current->ylabel,"%s",values[7].c_str());
+	     XPP_FORMAT_TO_BUF(plot_windows.current->xlabel,"{}",values[6]);
+	     XPP_FORMAT_TO_BUF(plot_windows.current->ylabel,"{}",values[7]);
 	      check_windows();
 /*	      plintf(" x=%d y=%d xlo=%f ylo=%f xhi=%f yhi=%f \n",
 		     MyGraph->xv[ind],MyGraph->yv[ind],MyGraph->xlo,
@@ -210,13 +223,13 @@ void get_3d_view(int ind)
 		   "XLo", "XHi", "YLo", "YHi","Xlabel","Ylabel","Zlabel"};
  std::array<std::string, 16> values;
  int  status,i,i1=plot_windows.current->xv[ind],i2=plot_windows.current->yv[ind],i3=plot_windows.current->zv[ind];
- char n1[XPP_NAME_MAX+1],n2[XPP_NAME_MAX+1],n3[XPP_NAME_MAX+1];
- ind_to_sym(i1,n1);
- ind_to_sym(i2,n2);
- ind_to_sym(i3,n3);
- values[0] = n1;
- values[1] = n2;
- values[2] = n3;
+ std::array<char,XPP_NAME_MAX+1> n1,n2,n3; /* ind_to_sym's */
+ ind_to_sym(i1,n1.data());
+ ind_to_sym(i2,n2.data());
+ ind_to_sym(i3,n3.data());
+ values[0] = n1.data();
+ values[1] = n2.data();
+ values[2] = n3.data();
  values[3] = xpp::format("{:g}", plot_windows.current->xmin);
  values[5] = xpp::format("{:g}", plot_windows.current->ymin);
  values[7] = xpp::format("{:g}", plot_windows.current->zmin);
@@ -247,9 +260,9 @@ void get_3d_view(int ind)
               find_variable(values[2].c_str(),&i);
   		if(i>-1)
 		  plot_windows.current->zv[ind]=i;
-	      XPP_SPRINTF(plot_windows.current->xlabel,"%s",values[13].c_str());
-	      XPP_SPRINTF(plot_windows.current->ylabel,"%s",values[14].c_str());
-	      XPP_SPRINTF(plot_windows.current->zlabel,"%s",values[15].c_str());
+	      XPP_FORMAT_TO_BUF(plot_windows.current->xlabel,"{}",values[13]);
+	      XPP_FORMAT_TO_BUF(plot_windows.current->ylabel,"{}",values[14]);
+	      XPP_FORMAT_TO_BUF(plot_windows.current->zlabel,"{}",values[15]);
 
 
 	      plot_windows.current->xmin=atof(values[3].c_str());
@@ -477,12 +490,11 @@ void user_window()
 
 void xi_vs_t() /*  a short cut   */
 {
- char sym[256];
+ std::array<char,XPP_NAME_MAX+1> sym; /* ind_to_sym's */
  int i=plot_windows.current->yv[0];
- 
 
- ind_to_sym(i,sym);
- std::string value=sym;
+ ind_to_sym(i,sym.data());
+ std::string value=sym.data();
  new_string_of("Plot vs t: ",value,XPP_FIELD_NAME_IN(0));
  find_variable(value.c_str(),&i);
  
@@ -570,8 +582,8 @@ void get_3d_par_com()
 	      plot_windows.current->Theta=atof(values[3].c_str());
 	      plot_windows.current->Phi=atof(values[4].c_str());
              if(values[5][0]=='y'|| values[5][0]=='Y'){  
-	      snprintf(mov3d.yes,sizeof(mov3d.yes),"%.*s",static_cast<int>(sizeof(mov3d.yes))-1,values[5].c_str());
-	      snprintf(mov3d.angle,sizeof(mov3d.angle),"%.*s",static_cast<int>(sizeof(mov3d.angle))-1,values[6].c_str());
+	      mov3d.yes=values[5].substr(0,2);
+	      mov3d.angle=values[6].substr(0,19);
               start=atof(values[7].c_str());
 	      increment=atof(values[8].c_str());
 	      nclip=atoi(values[9].c_str());
@@ -789,15 +801,13 @@ int alter_curve(const char *title, int in_it, int n)
  std::array<std::string, 5> values;
  int status,i;
  int i1=plot_windows.current->xv[in_it],i2=plot_windows.current->yv[in_it],i3=plot_windows.current->zv[in_it];
- char n1[XPP_NAME_MAX+1],n2[XPP_NAME_MAX+1],n3[XPP_NAME_MAX+1];
-
-
- ind_to_sym(i1,n1);
- ind_to_sym(i2,n2);
- ind_to_sym(i3,n3);
- values[0] = n1;
- values[1] = n2;
- values[2] = n3;
+ std::array<char,XPP_NAME_MAX+1> n1,n2,n3; /* ind_to_sym's */
+ ind_to_sym(i1,n1.data());
+ ind_to_sym(i2,n2.data());
+ ind_to_sym(i3,n3.data());
+ values[0] = n1.data();
+ values[1] = n2.data();
+ values[2] = n3.data();
  values[3] = xpp::format("{:d}", plot_windows.current->color[in_it]);
  values[4] = xpp::format("{:d}", plot_windows.current->line[in_it]);
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),
@@ -828,16 +838,11 @@ int alter_curve(const char *title, int in_it, int n)
 
 void edit_curve()
 {
- char bob[32];
  int crv=0;
- snprintf(bob,sizeof(bob),"Edit 0-%d :",plot_windows.current->nvars-1);
  ping();
- new_int(bob,&crv);
+ new_int(xpp::format("Edit 0-{} :",plot_windows.current->nvars-1).c_str(),&crv);
  if(crv>=0&&crv<plot_windows.current->nvars)
-   {
-     snprintf(bob,sizeof(bob),"Edit curve %d",crv);
-     alter_curve(bob,crv,crv);
-   }
+   alter_curve(xpp::format("Edit curve {}",crv).c_str(),crv,crv);
 }
 
 void new_curve()
@@ -864,7 +869,7 @@ void create_ps()
 	 PS_Port=atoi(values[1].c_str());
 	 PS_FONTSIZE=atoi(values[2].c_str());
 	 PS_LW=atof(values[4].c_str());
-         XPP_SPRINTF(PS_FONT,"%s",values[3].c_str());
+         XPP_FORMAT_TO_BUF(PS_FONT,"{}",values[3]);
 	 std::string filename=xpp::format("{:.250}.ps",this_file);
 	 ping();
  
@@ -1000,10 +1005,11 @@ void delete_frz_crv(int i)
   frozen_curves.curve[i].use=0;
   frozen_curves.curve[i].name[0]=0;
   frozen_curves.curve[i].key[0]=0;
-  xpp_free(frozen_curves.curve[i].xv);
-  xpp_free(frozen_curves.curve[i].yv);
-  if(frozen_curves.curve[i].type>0)
-    xpp_free(frozen_curves.curve[i].zv);
+  for(std::vector<float> &v:frozen_points[i])
+    std::vector<float>().swap(v);
+  frozen_curves.curve[i].xv=nullptr;
+  frozen_curves.curve[i].yv=nullptr;
+  frozen_curves.curve[i].zv=nullptr;
 }
 
 
@@ -1045,14 +1051,15 @@ int create_crv(int ind)
 	err_msg("No Curve to freeze");
 	return(-1);
       }
-      frozen_curves.curve[i].xv=static_cast<float *>(xpp_malloc(sizeof(float)*my_browser.maxrow));
-      frozen_curves.curve[i].yv=static_cast<float *>(xpp_malloc(sizeof(float)*my_browser.maxrow));
-      if((type=plot_windows.current->grtype)>0)
-	frozen_curves.curve[i].zv=static_cast<float *>(xpp_malloc(sizeof(float)*my_browser.maxrow));
-      if ((type>0&&frozen_curves.curve[i].zv==NULL)|| (type==0&&frozen_curves.curve[i].yv==NULL)){
-	err_msg("Cant allocate storage for curve");
-	return(-1);
-      }
+      type=plot_windows.current->grtype;
+      std::array<std::vector<float>,3> &pts=frozen_points[i];
+      pts[0].assign(my_browser.maxrow,0.0f);
+      pts[1].assign(my_browser.maxrow,0.0f);
+      if(type>0)pts[2].assign(my_browser.maxrow,0.0f);
+      else std::vector<float>().swap(pts[2]);
+      frozen_curves.curve[i].xv=pts[0].data();
+      frozen_curves.curve[i].yv=pts[1].data();
+      frozen_curves.curve[i].zv=type>0?pts[2].data():nullptr;
       frozen_curves.curve[i].use=1;
       frozen_curves.curve[i].len=my_browser.maxrow;
       for(j=0;j<my_browser.maxrow;j++){
@@ -1063,8 +1070,8 @@ int create_crv(int ind)
       }
       frozen_curves.curve[i].type=type;
       frozen_curves.curve[i].w=plot_windows.draw_win;
-      XPP_SPRINTF(frozen_curves.curve[i].name,"crv%c",'a'+i);
-      XPP_SPRINTF(frozen_curves.curve[i].key,"crv%c",'a'+i);
+      XPP_FORMAT_TO_BUF(frozen_curves.curve[i].name,"crv{}",static_cast<char>('a'+i));
+      XPP_FORMAT_TO_BUF(frozen_curves.curve[i].key,"crv{}",static_cast<char>('a'+i));
       marks_data_frozen_new(i); /* the window shows it: it is its current curve */
       return(i);
     }
@@ -1086,15 +1093,9 @@ void edit_frz_crv(int i)
  status=do_string_box_of(3,1,"Edit Freeze",nn,values,25,kinds);
  if(status!=0){
    frozen_curves.curve[i].color=atoi(values[0].c_str());
-   snprintf(frozen_curves.curve[i].key,sizeof(frozen_curves.curve[i].key),"%.19s",values[1].c_str());
-   snprintf(frozen_curves.curve[i].name,sizeof(frozen_curves.curve[i].name),"%.9s",values[2].c_str());
+   XPP_FORMAT_TO_BUF(frozen_curves.curve[i].key,"{:.19}",values[1]);
+   XPP_FORMAT_TO_BUF(frozen_curves.curve[i].name,"{:.9}",values[2]);
  }
-}
-
-void draw_frozen_cline(int index, XppWinId w)
-{
-  if(nclines[index].use==0||nclines[index].w!=w)
-    return;
 }
 
 void draw_freeze(XppWinId w)
@@ -1102,8 +1103,6 @@ void draw_freeze(XppWinId w)
   int i,j,type=plot_windows.current->grtype,lt=0;
   float oldxpl,oldypl,oldzpl=0.0,xpl,ypl,zpl=0.0;
   float *xv,*yv,*zv;
-  for(i=0;i<MAXNCLINE;i++)
-    draw_frozen_cline(i,w);
   for(i=0;i<MAXFRZ;i++){
     if(frozen_curves.curve[i].use==1&&frozen_curves.curve[i].w==w&&frozen_curves.curve[i].type==type){
       if(type==0)marks_data_frozen(w,i); /* the curve as data */
@@ -1150,124 +1149,113 @@ void draw_freeze(XppWinId w)
 
 /*  Bifurcation curve importing */
 
-void init_bd()
-{
- my_bd.nbifcrv=0;
-}
+namespace {
 
 void draw_bd(XppWinId w)
 {
- int i,j,len;
- float oldxpl,oldypl,xpl,ypl,*x,*y;
- if(w==my_bd.w&&my_bd.nbifcrv>0){
-   for(i=0;i<my_bd.nbifcrv;i++){
-     set_linestyle(my_bd.color[i]);
-     len=my_bd.npts[i];
-     x=my_bd.x[i];
-     y=my_bd.y[i];
-     xpl=x[0];
-     ypl=y[0];
-     for(j=0;j<len;j++){
-       oldxpl=xpl;
-       oldypl=ypl;
-       xpl=x[j];
-       ypl=y[j];
-       line_abs(oldxpl,oldypl,xpl,ypl);
-     }
+ if(w!=my_bd.w)return;
+ for(const BifCurve &c:my_bd.curves){
+   set_linestyle(c.color);
+   const int len=static_cast<int>(c.x.size());
+   float xpl=c.x[0],ypl=c.y[0];
+   for(int j=0;j<len;j++){
+     const float oldxpl=xpl,oldypl=ypl;
+     xpl=c.x[j];
+     ypl=c.y[j];
+     line_abs(oldxpl,oldypl,xpl,ypl);
    }
  }
 }
 
 void free_bd()
 {
-  int i;
-  if(my_bd.nbifcrv>0){
-    for(i=0;i<my_bd.nbifcrv;i++){
-      xpp_free(my_bd.x[i]);
-      xpp_free(my_bd.y[i]);
-    }
-    my_bd.nbifcrv=0;
-  }
+  my_bd.curves.clear();
 }
 
-
-void add_bd_crv(float *x, float *y, int len, int type, int ncrv)
+void add_bd_crv(const float *x, const float *y, int len, int type)
 {
-  int i;
-  if(ncrv>=MAXBIFCRV)return;
-  my_bd.x[ncrv]=static_cast<float *>(xpp_malloc(sizeof(float)*len));
-  my_bd.y[ncrv]=static_cast<float *>(xpp_malloc(sizeof(float)*len));
-  for(i=0;i<len;i++){
-    my_bd.x[ncrv][i]=x[i];
-    my_bd.y[ncrv][i]=y[i];
-  }
-  my_bd.npts[ncrv]=len;
-  i=lsSEQ;
+  if(static_cast<int>(my_bd.curves.size())>=MAXBIFCRV)return;
+  BifCurve c;
+  c.x.assign(x,x+len);
+  c.y.assign(y,y+len);
+  int i=lsSEQ;
   if(type==UPER)i=lsUPER;
   if(type==SPER)i=lsSPER;
   if(type==UEQ)i=lsUEQ;
-  my_bd.color[ncrv]=i;
+  c.color=i;
+  my_bd.curves.push_back(std::move(c));
 }
 
-void frz_bd()
-{
-  FILE *fp;
-  std::string filename="diagram.dat";
-  ping();
-  if(!file_selector("Import Diagram",filename,"*.dat"))return;
-  if((fp=fopen(filename.c_str(),"r"))==NULL){
-    err_msg("Couldn't open file");
-    return;
-  }
-  read_bd(fp);
-}
-void read_bd(FILE *fp)
+/* a diagram.dat (AUTO's Write pts): x ylo yhi type branch 2par per line;
+   each run of points of one type and branch is a curve (two, ylo and yhi,
+   for periodic orbits) */
+void read_bd(xpp::TokenReader &fp)
 {
   int oldtype,type,oldbr,br,ncrv=0,len,f2;
-  float x[8000],ylo[8000],yhi[8000];
+  std::vector<float> x(1),ylo(1),yhi(1);
   len=0;
-  if(fscanf(fp,"%g %g %g %d %d %d",&x[len],&ylo[len],&yhi[len],&oldtype,&oldbr,&f2)!=6){
-    fclose(fp);
+  if(!(fp.read(x[len])&&fp.read(ylo[len])&&fp.read(yhi[len])&&fp.read(oldtype)&&fp.read(oldbr)&&fp.read(f2)))
     return;
-  }
   len++;
-  while(!feof(fp)){
-    if(fscanf(fp,"%g %g %g %d %d %d",&x[len],&ylo[len],&yhi[len],&type,&br,&f2)!=6)
+  free_bd();
+  for(;;){
+    if(static_cast<int>(x.size())<=len){
+      x.resize(len+1);
+      ylo.resize(len+1);
+      yhi.resize(len+1);
+    }
+    if(!(fp.read(x[len])&&fp.read(ylo[len])&&fp.read(yhi[len])&&fp.read(type)&&fp.read(br)&&fp.read(f2)))
       break;
     if(type==oldtype&&br==oldbr)
-      len++; 
+      len++;
     else {
-    /* if(oldbr==br)len++; */ /* extend to point of instability */
-     add_bd_crv(x,ylo,len,oldtype,ncrv); 
+      add_bd_crv(x.data(),ylo.data(),len,oldtype);
       ncrv++;
       if(oldtype==UPER||oldtype==SPER){
-     add_bd_crv(x,yhi,len,oldtype,ncrv); 	
-	ncrv++;
+        add_bd_crv(x.data(),yhi.data(),len,oldtype);
+        ncrv++;
       }
       if(oldbr==br)len--;
       x[0]=x[len];
       ylo[0]=ylo[len];
       yhi[0]=yhi[len];
-   
       len=1;
     }
     oldbr=br;
     oldtype=type;
   }
- /*  save this last one */
-   if(len>1){
-     add_bd_crv(x,ylo,len,oldtype,ncrv); 
-     ncrv++;
-     if(oldtype==UPER||oldtype==SPER){
-       add_bd_crv(x,yhi,len,oldtype,ncrv); 	
-       ncrv++;
-     }
-   }
-  xpp_log(XPP_LOG_INFO, " got %d bifurcation curves\n",ncrv);
- fclose(fp);
- my_bd.nbifcrv=ncrv;
- my_bd.w=plot_windows.draw_win;
-} 
+  /*  save this last one */
+  if(len>1){
+    add_bd_crv(x.data(),ylo.data(),len,oldtype);
+    ncrv++;
+    if(oldtype==UPER||oldtype==SPER){
+      add_bd_crv(x.data(),yhi.data(),len,oldtype);
+      ncrv++;
+    }
+  }
+  xpp::log(XPP_LOG_INFO, " got {} bifurcation curves\n",ncrv);
+  my_bd.w=plot_windows.draw_win;
+}
+
+void frz_bd()
+{
+  std::string filename="diagram.dat";
+  ping();
+  if(!file_selector("Import Diagram",filename,"*.dat"))return;
+  xpp::TokenReader fp(filename.c_str());
+  if(!fp){
+    err_msg("Couldn't open file");
+    return;
+  }
+  read_bd(fp);
+}
+
+} // namespace
+
+void init_bd()
+{
+  free_bd();
+}
 
 int get_frz_index(XppWinId w)
 {
@@ -1297,16 +1285,16 @@ int get_frz_index(XppWinId w)
 
 void export_graf_data()
 {
- FILE *fp;
  std::string filename="curve.dat";
  ping();
-if(!file_selector("Export graph data",filename,"*.dat"))return;
-if((fp=fopen(filename.c_str(),"w"))==NULL){
+ if(!file_selector("Export graph data",filename,"*.dat"))return;
+ xpp::Writer fp(filename.c_str());
+ if(!fp){
     err_msg("Couldn't open file");
     return;
   }
- export_data(fp);
- fclose(fp);
+ export_data(fp.file());
+ fp.commit();
 }
 
 void add_a_curve_com(int c)
