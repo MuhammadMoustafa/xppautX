@@ -558,6 +558,12 @@ change. Plain `tools/unsafecheck.sh` prints the per-file table.
   functions or variables gets the same guard by hand, after its
   #includes, never with an #include inside it). A .cpp that calls C code
   defined in a file without a header declares it `extern "C"`.
+- Where the API is C++ (std::string, std::span, a class), it goes in a
+  C++ section of the header after the `extern "C"` block, never inside it
+  (clang's -Wreturn-type-c-linkage, an error under WERROR). The text
+  dialogs are that (W32c): `new_string`, `get_dialog`, `file_selector`
+  fill a `std::string &`, the forms (`do_string_box`, `do_edit_box`) take
+  a `std::span<std::string>`, and the `XppUi` table is C++.
 - No exception may cross into C: C++ code called from C catches what it
   can throw (std::bad_alloc included) or uses only non-throwing code, and
   C callbacks called from C++ are assumed not to throw.
