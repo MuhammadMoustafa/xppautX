@@ -1080,15 +1080,18 @@ def file_content(path, mode='r'):
 
 
 def section_replay():
-    # (a) an integration of lecar, total 20000 (400001 rows, some seconds),
-    # stopped after 0.3 s, then its data written by the browser's Write
-    r = Recording(LECAR)
+    # (a) an integration stopped after 0.3 s, then its data written by the
+    # browser's Write. heavy.ode, total 2000 (200001 rows, about a minute
+    # here): lecar's 400001 rows ended within 0.3 s on macos-core, so the
+    # abort came after the run; heavy.ode's cost per step does not shrink
+    # with a faster machine enough for that
+    r = Recording(HEAVY)
     s = r.s
     r.send(cmd='key', key='u')
     s.collect(is_idle)
     r.send(cmd='key', key='t')
     s.collect(is_ask)
-    r.send(cmd='answer', ok=1, value='20000')
+    r.send(cmd='answer', ok=1, value='2000')
     s.collect(is_idle)
     r.send(cmd='key', key='Escape')
     s.collect(is_idle)
@@ -1098,7 +1101,7 @@ def section_replay():
     stopped, evs = r.interrupt(0.3)
     at = stopped['at'] if stopped else {}
     check('replay: an interrupted integration says where it stopped', at.get('what') == 'integrate' and
-          0 < at.get('rows', 0) < 400001 and at['rows'] == rows(evs), '%s, rows %s' % (at, rows(evs)))
+          0 < at.get('rows', 0) < 200001 and at['rows'] == rows(evs), '%s, rows %s' % (at, rows(evs)))
     print('INFO replay: integration stopped at %s' % at)
     r.send(cmd='browser', op='write')
     s.collect(is_ask)
@@ -1108,7 +1111,7 @@ def section_replay():
     path = os.path.join(here, 'replay_integrate.jsonl')
     r.write(path)
     s.close()
-    code, out, run = run_script(path)
+    code, out, run = run_script(path, HEAVY)
     replay_data = file_content(os.path.join(run, 'run.dat'), 'rb')
     check('replay: the script plays the interrupted integration', code == 0,
           'exit %d, %s' % (code, run_script.stderr[-300:]))
