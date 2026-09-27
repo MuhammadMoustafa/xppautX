@@ -128,6 +128,7 @@ issue; the card here is the one kept up to date.
 | W62 | #110 | Remove the values panel's Undo (maintainer, 2026-09-27, decision 2): Reset one or all to the .ode's values is the way back | none | ready |
 | W63 | #111 | Errors are values (design section 9): the numerics' exit() calls (autlib1/2/4, eispack) become returned errors; computations return errors instead of calling err_msg/the UI; a load's diagnostics (line, column, cause) as an `error` event | none | ready |
 | W64 | #112 | Grab an AUTO label by number: `auto grab <label>` for scripts, W56 and W59's replay; the interactive grab unchanged | none | ready |
+| W65 | #113 | What the page displays lives in the core (maintainer, 2026-09-27, decision 3): earlier runs until Erase, AUTO's hidden branches, the zoom shown; held by the core's windows and sent as data, so the session file saves them | W47c | blocked |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
