@@ -48,7 +48,6 @@
                    delmmult(n,m,w,tau,root)
                    delsparse(m,nc,w,index,tau,root)
               
-    export {x1,x2,....} {x1p,x2p,..}     
     # comments
     @ <name>=<value>, ...
     set <name> {x1=z1,x2=z2,...}
@@ -75,7 +74,6 @@
 - In the `global` declaration the `sign` is `{0,1,-1}`. 0 means the condition must be met exactly at the point it was checked. It is a good way to set initial conditions as expressions, e.g. `global 0 t {x=sin(1)}`.
 - `bdry <expression>` is a way to set boundary conditions for the boundary value solver. The BVP solver tries to zero the expression. Use the names of your variables for the left end conditions and primed versions for the right ends (see `gberg.ode`).
 - The pair `0= <expression>` and `solve <name>=<expression>` set up differential algebraic equations. The lines starting with `0=` will solve for the variables in the `solv` lines to make the expressions zero. See `huygens.ode` for an example where three accelerations are solved for to get the dynamics of two pendulums on a cart.
-- `export` is used to communicate with a dynamically loaded library compiled from some C code. See `tstdll.ode`.
 - `only` is useful for silent mode (no GUI) as this puts out a bunch of data in a file. `only` restricts the output to a specified set of variables.
 - `set` creates a bunch of settings for numerics, variables, parameters that you can call by name within XPP.
 - Active comments allow you to create a little tutorial where you take care of changing parameters, numerics, etc. You invoke this in XPP with the File Printsrc command. See `lecar.ode` for an example.
@@ -188,9 +186,7 @@ returns the $`m`$ values
 k(i)=\sum_{j=0}^{n-1} \mbox{w}[i n  + j] u[l(i n +j)](t-\mbox{tau}[i m + j])
 ```
 
-    special ydot=import(soname,sofun,nret,root,w1,w2,...wm)
-
-This is a conveneient way to load a large number of right-hand sides that have been coded in C. See the examples in the cuda folder.
+Compiled functions (`export`, `special ...=import(...)` and the options `dll_lib`/`dll_fun`, which ran C code from a library) are not supported: a model that uses one does not load, and the log names the line.
 
 ## The options list
 
@@ -340,10 +336,6 @@ The remaining options can be set from within the program. They are
 - SPECCOL=`name`, SPECCOL2=`name`, SPECWIDTH=`number`, SPECWIN=`0,1,2,3,4` (corresponding to square,parabolic,hamming,bartlett, or hanning windows), sets up relevant spectral stuff for use in conjunction with postprocessing.
 
 - AUTO-stuff. The following AUTO-specific variables can also be set: `NTST, NMAX, NPR, DSMIN, DSMAX, DS, PARMIN, PARMAX, NORMMIN, NORMMAX, AUTOXMIN, AUTOXMAX, AUTOYMIN, AUTOYMAX, AUTOVAR`. The last is the variable to plot on the y-axis. The x-axis variable is always the first parameter in the ODE file unless you change it within AUTO.
-
-- DLL_LIB=`file` Dynamically linked library
-
-- DLL_FUN=`name` Dynamically linked function.
 
 - DFDRAW =`1, 2, or 3` will force the drawing of direction fields on batch plots; 1 is unscaled, 2 is scaled, and 3 is colorized.
 

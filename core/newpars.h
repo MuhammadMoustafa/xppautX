@@ -20,7 +20,6 @@
 #define DERIVE_PAR 13
 #define SOL_VAR 14
 
-#define EXPORT 15
 
 #define ONLY 26
 

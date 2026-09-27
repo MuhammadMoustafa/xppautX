@@ -81,11 +81,11 @@ Two differences:
   shades. The GIF format takes 256 colours, and a browser smooths its lines.
 - Kinescope frames live in the page. Reloading the page loses them.
 
-## What still needs a compiler
+## No compiler needed
 
-A model that loads user C functions (`load dll`) needs that library built
-for the machine that runs `xppautX`; the Windows build loads `.dll`
-files. Everything else in XPPAUT works without any compiler.
+Everything in `xppautX` works without a compiler. A model that called a
+compiled C library (`export`, `dll_lib`/`dll_fun`, a network's `import`)
+no longer loads: those statements were removed.
 
 Help and "Edit .xpprc" open a browser or an editor on the machine that runs
 the program, as in X11. If you ever run the server on another machine, they

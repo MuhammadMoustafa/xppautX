@@ -31,7 +31,6 @@ dialogs straight to the sections below.
 8. [Functional equations](08-functional-equations.md) — Volterra/integral equations, convolutions, networks (`special`)
 9. [Auto interface](09-auto.md) — the AUTO view, parameters, diagram axes, numerics, running, grabbing, homoclinics
 10. [Creating Animations](10-animations.md) — the DASL scripting language and the Animation tab
-11. [Creating C-files for faster simulations](11-dll-libraries.md) — dynamically linked right-hand sides (`load dll`)
 12. [Some comments on the numerical methods](12-numerical-methods-notes.md)
 13. [Colors](13-colors.md) — the curve colour indices and their web2 palette
 14. [The options file](14-options-file.md) — `option <filename>`, the `.opt` format

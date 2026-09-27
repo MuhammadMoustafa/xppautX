@@ -4,7 +4,6 @@
 #include "form_ode.h"
 #include "xpp_log.h"
 
-#include "extra.h"
 #include "markov.h"
 #include "parserslow.h"
 #include "tabular.h"
@@ -119,20 +118,8 @@ if type=1  mx(0)=maximum mx(1)=index
 if type=-1 mx(2)=minimum mx(3)=index
 if type=0 mx(0)=maximum mx(1)=index,mx(2)=minimum mx(3)=index
 
-special ydot=import(soname,sofun,nret,root,w1,w2,...wm)
-  
- run right hand side in C 
- soname is shared object library say mlnet.so
- sofun  is shared object function 
- nret is the number of return values
- root is the name of the first variable
-
-sofun(int nret, int root, double *con, double *var, double *z[50],double *ydot)
-
-*z[50] contains a list of pointers  z[0] -> w1, .... 50 is hard coded
-
-NOTE that the user-defined parameters start at #6 and are in order
-including derived parameters but XPP takes care of this so start at 0
+special ydot=import(...) ran a compiled library's function: refused
+(compiled functions are not supported, W55)
 
 */
 
@@ -143,7 +130,6 @@ including derived parameters but XPP takes care of this so start at 0
 #define EVEN 0
 #define ZERO 1
 #define PERIODIC 2
-#define MAXW 50
 #include "delay_handle.h"
 #include "model.h"
 
@@ -162,8 +148,6 @@ static int n_vector=0;
 typedef struct {
   int type,ncon,n;
   std::string name;
-  std::string soname,sofun;
-
   int root,root2;
   int f[20];
   int iwgt;
@@ -175,7 +159,6 @@ typedef struct {
   double *weight,*index,*taud;
   std::vector<double> gill_nu;
   std::vector<double> fftr,ffti,dr,di;
-  double *wgtlist[MAXW];
 } NETWORK;
 
 #define CONVE 0
@@ -195,12 +178,10 @@ typedef struct {
 #define FINDEXT 35  /* find extrema in list of variables */
 #define DEL_MUL 40  /* for delayed coupled networks  - global coupling */
 #define DEL_SPAR 41 /* sparse with unequal in degree and delays  */
-#define IMPORT  50 /* not really a network type   */
+#define IMPORT  50 /* refused: a compiled library (W55) */
 
 namespace {
 bool gilparse(std::string_view s, std::vector<int> &ind);
-bool parse_import(std::string_view s, std::string &soname, std::string &sofun, int *n,
-                  std::string &vname, std::vector<std::string> &tname);
 } // namespace
 
 static NETWORK my_net[MAXNET];
@@ -338,15 +319,13 @@ bool next_pair_function(xpp::Tokens &args, const char *net, int ind, int &ivar, 
 
 int add_spec_fun(const char *name, char *rhs)
 {
-  int i,ind,err;
+  int i,ind;
   int type;
   int iwgt,itau,iind,ivar,ivar2;
   int ntype,ntot,ncon,ntab;
   std::string str;
   /* tokens of the right-hand side, checked as names after the copy */
   std::string rootname,wgtname,tauname,indname,fname;
-  std::string sofun,soname;
-  std::vector<std::string> tname;
   type=is_network(rhs);
     if(type==0)return 0;
   xpp_log(XPP_LOG_DEBUG, "type=%d \n",type);
@@ -629,37 +608,8 @@ int add_spec_fun(const char *name, char *rhs)
     return 1;
 
    case IMPORT:
-     ntype=IMPORT;
-     err=parse_import(rhs,soname,sofun,&ncon,rootname,tname);
-     ntab=static_cast<int>(tname.size());
-     if(err==0)return 0;
-     my_net[ind].values.assign((ncon+1),0.0);
-     my_net[ind].n=ncon;
-     ivar=get_var_index(rootname.c_str());
-     if(ivar<0){
-      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname.c_str());
-      return 0;
-    }
-     my_net[ind].soname=soname;
-     my_net[ind].sofun=sofun;
-     my_net[ind].root=ivar;
-     my_net[ind].type=ntype;
-     my_net[ind].ncon=0;
-     for(i=0;i<ntab;i++){
-       iwgt=find_lookup(tname[i].c_str());
-       xpp::log(XPP_LOG_DEBUG, "Found {}\n",tname[i]);
-       if(iwgt<0){
-	 xpp::log(XPP_LOG_ERROR, "in network {},  {} is not a table \n",
-		name,tname[i]);
-	 return 0;
-       }
-       my_net[ind].wgtlist[i]=xpp::model().tables[iwgt].y;
-     }
-     xpp_log(XPP_LOG_INFO, " Added import %s len=%d  with %s %s var[%d] %d weights\n",
-	    name,my_net[ind].n,soname.c_str(),sofun.c_str(),ivar,ntab );
-     
-     return 1;
+     refuse_compiled_functions("import");
+     return 0;
    case DEL_MUL:
 
     args.next("(");
@@ -919,9 +869,6 @@ void evaluate_network(int ind)
       fft_conv(1,n,values,y,my_net[ind].fftr.data(),my_net[ind].ffti.data(),my_net[ind].dr.data(),my_net[ind].di.data());
     break;
 
-   case IMPORT:
-     get_import_values(n,values,my_net[ind].soname.c_str(),my_net[ind].sofun.c_str(),my_net[ind].root,my_net[ind].wgtlist,variables,&constants[6]);
-     break;
    case DEL_MUL:
      tau=my_net[ind].taud;
      in0=my_net[ind].root;
@@ -1237,59 +1184,6 @@ bool gilparse(std::string_view s, std::vector<int> &ind)
     if (comma == std::string_view::npos) return true;
     start = comma + 1;
   }
-}
-
-/* the next argument of import(...) from i: up to its ',' (0) or ')' (1);
-   -1 when s ends first */
-int getimpstr(std::string_view s, size_t &i, std::string &out)
-{
-  size_t end = s.find_first_of(",)", i);
-  if (end == std::string_view::npos) return -1;
-  out = s.substr(i, end - i);
-  int k = s[end] == ')' ? 1 : 0;
-  i = end + 1;
-  return k;
-}
-
-bool import_error()
-{
-  xpp_log(XPP_LOG_ERROR, "k=import(soname,sofun,nret,var0,w1,...,wm)\n");
-  return false;
-}
-
-/* import(soname,sofun,nret,var0,w1,...,wm): its library, function,
-   number of values, first variable and weight tables */
-bool parse_import(std::string_view s, std::string &soname, std::string &sofun, int *n,
-                  std::string &vname, std::vector<std::string> &tname)
-{
-  std::string temp;
-  size_t i = s.find('(');
-  if (i == std::string_view::npos) return import_error();
-  i++;
-
-  if (getimpstr(s, i, soname) != 0) return import_error();
-  if (getimpstr(s, i, sofun) != 0) return import_error();
-  if (getimpstr(s, i, temp) != 0) return import_error();
-  *n = atoi(temp.c_str());
-  if (*n <= 0) return import_error();
-
-  int j = getimpstr(s, i, vname);
-  if (j < 0) return import_error();
-  tname.clear();
-  if (j == 1) {
-    xpp_log(XPP_LOG_INFO, "No weights....\n");
-    return true;
-  }
-  do {
-    j = getimpstr(s, i, temp);
-    if (j < 0) return import_error();
-    if (tname.size() >= MAXW) {
-      xpp::log(XPP_LOG_ERROR, "import: at most {} weights\n", MAXW);
-      return false;
-    }
-    tname.push_back(temp);
-  } while (j == 0);
-  return true;
 }
 
 } // namespace

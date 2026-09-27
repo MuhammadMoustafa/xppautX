@@ -10,35 +10,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "xpp_dlfcn.h"
 #include "xpp_win32.h"
 #include <array>
 #include <string>
-
-static const char *dl_error;
-
-void *dlopen(const char *name, int)
-{
-    HMODULE h = LoadLibraryA(name);
-    dl_error = h ? NULL : "LoadLibrary failed";
-    return reinterpret_cast<void *>(h);
-}
-
-void *dlsym(void *handle, const char *name)
-{
-    FARPROC f = GetProcAddress(static_cast<HMODULE>(handle), name);
-    dl_error = f ? NULL : "GetProcAddress failed";
-    return reinterpret_cast<void *>(f);
-}
-
-int dlclose(void *handle) { return FreeLibrary(static_cast<HMODULE>(handle)) ? 0 : -1; }
-
-char *dlerror(void)
-{
-    const char *e = dl_error;
-    dl_error = NULL;
-    return const_cast<char *>(e); /* POSIX's type; the text is never written */
-}
 
 /* blocks until stdin has data: xpp_inbox.cpp calls it on its reader thread */
 int xpp_read_stdin(char *buf, int n)

@@ -56,8 +56,6 @@ core/cvband.cpp CVBandFree|vendored/numerical, keep: see core/cvband.cpp CVBandS
 core/cvdense.cpp CVDenseFree|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
 core/dormpri.cpp hinit|vendored/numerical, keep: Hairer's dop853/dopri5, two integrators of parallel structure (hinit/hinit5) by the original source's own design
 core/dormpri.cpp hinit5|vendored/numerical, keep: see core/dormpri.cpp hinit
-core/extra.cpp set_dll_library|keep (W33e looked): two three-line setters of the dll= and fun= options, each naming its own field and flag bit; nothing to merge
-core/extra.cpp set_dll_function|keep: see core/extra.cpp set_dll_library
 core/flags.cpp one_flag_step_symp|keep (W33e looked): per-integration-method single-step dispatch (symplectic/euler/discrete/heun/rk4), each calling its own method's step; same shape by design
 core/flags.cpp one_flag_step_euler|keep: see core/flags.cpp one_flag_step_symp
 core/flags.cpp one_flag_step_discrete|keep: see core/flags.cpp one_flag_step_symp

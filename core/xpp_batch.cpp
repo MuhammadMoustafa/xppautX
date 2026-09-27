@@ -17,7 +17,6 @@
 #include "dae_fun.h"
 #include "simplenet.h"
 #include "do_fit.h"
-#include "extra.h"
 #include "graphics.h"
 #include "browse.h"
 #include "auto_nox.h"
@@ -124,8 +123,6 @@ void xpp_reset_options(void)
   notAlreadySet.PaperWhite=1;
   notAlreadySet.COLORMAP=1;
   notAlreadySet.NPLOT=1;
-  notAlreadySet.DLL_LIB=1;
-  notAlreadySet.DLL_FUN=1;
   notAlreadySet.XP=1;
   notAlreadySet.YP=1;
   notAlreadySet.ZP=1;
@@ -278,7 +275,6 @@ void xpp_load_model(int argc, char **argv, int batch)
     init_fit_info();
     strip_saveqn();
     create_plot_list();
-    auto_load_dll();
     load.commit();
 }
 

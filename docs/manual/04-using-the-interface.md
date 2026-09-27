@@ -260,13 +260,11 @@ Two differences from X11 worth knowing:
 - Kinescope frames live in the page as data (not bitmaps): reloading the
   page loses them.
 
-## What still needs a compiler
+## No compiler needed
 
-A model that loads user C functions (`load dll`,
-[Creating C-files for faster simulations](11-dll-libraries.md)) needs
-that library built for the machine that runs xppautX; the Windows build
-loads `.dll` files. Everything else in XPPAUT works without any
-compiler.
+Everything in xppautX works without a compiler. A model that called a
+compiled C library (`export`, `dll_lib`/`dll_fun`, a network's
+`import`) no longer loads: those statements were removed.
 
 File > Help opens this manual in the page's Help view. "Edit .xpprc"
 opens an editor on the machine that runs the program, as in X11 (the

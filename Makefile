@@ -23,7 +23,7 @@ WARN    ?= -Wall -Wunused-macros -Wunused-but-set-parameter
 STRICT  ?= -Werror=implicit-function-declaration -Werror=implicit-int -Werror=int-conversion -Werror=incompatible-pointer-types -Werror=return-type
 CXXSTRICT ?= -Werror=return-type
 OPT     ?= -g -O2
-DEFS     = -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES -DHAVEDLL \
+DEFS     = -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES \
            -DMYSTR1=$(MAJORVER) -DMYSTR2=$(MINORVER)
 # what `xppautX --version` prints: the release tag (release.yml sets
 # XPP_VERSION), else git describe
@@ -35,7 +35,6 @@ CFLAGS  ?= $(CSTD) $(WARN) $(STRICT) $(OPT) $(DEFS) $(INCS) -fcommon
 # no -fcommon: C++ has no tentative definitions
 CXXFLAGS ?= $(CXXSTD) $(WARN) $(CXXSTRICT) $(OPT) $(DEFS) $(INCS)
 LDFLAGS ?= -fcommon
-LIBS     = -lm -ldl
 
 # Native Windows (MinGW-w64 gcc, from Git Bash or MSYS2)
 ifeq ($(OS),Windows_NT)
@@ -59,6 +58,7 @@ NETLIBS  = -lpthread -lws2_32 -mwindows
 WINDRES ?= windres
 else
 EXE      =
+# dlopen, for xpp_window_loader.cpp (the Linux window's library)
 DLLIB    = -ldl
 LDSTATIC =
 NETLIBS  = -lpthread

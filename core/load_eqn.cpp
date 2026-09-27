@@ -17,8 +17,8 @@
 
 #include "xpp_files.h"
 #include "load_eqn.h"
+#include "form_ode.h"
 
-#include "extra.h"
 #include "browse.h"
 #include "numerics.h"
 #include "integrate.h"
@@ -551,9 +551,19 @@ void stor_internopts(const char *s1)
   store_option(interopt,s1);
 }
 
-void add_model_option(const char *s1)
+int add_model_option(const char *s1)
 {
+  /* dll_lib= and dll_fun= named a compiled library and its function */
+  const char *refused=nullptr;
+  each_option(s1," ,"," ,\n\r",[&refused](const std::string &name,const std::string &){
+    if(refused)return;
+    std::string upper=upper_case(name);
+    if(msc("DLL_LIB",upper.c_str()))refused="dll_lib";
+    else if(msc("DLL_FUN",upper.c_str()))refused="dll_fun";
+  });
+  if(refused)return refuse_compiled_functions(refused);
   store_option(xpp::model().options,s1);
+  return 0;
 }
 
 void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
@@ -790,22 +800,6 @@ if(msc("UMC",s1)){
     return;
   }
 
-   if(msc("DLL_LIB",s1)){
-      if ((notAlreadySet.DLL_LIB||force) || ((mask!=NULL)&&(mask->DLL_LIB==1)))
-     {
-     set_dll_library(s2);
-     notAlreadySet.DLL_LIB=0;
-     }
-     return;
-   }
-   if(msc("DLL_FUN",s1)){
-     if ((notAlreadySet.DLL_FUN||force) || ((mask!=NULL)&&(mask->DLL_FUN==1)))
-     {
-     	set_dll_function(s2);
-     	notAlreadySet.DLL_FUN=0;
-     }
-     return;
-   }
    /* can now initialize several plots */
    if(msc("SIMPLOT",s1)){
      plot_windows.simul=1;

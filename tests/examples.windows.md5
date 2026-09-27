@@ -47,13 +47,6 @@ f1cc78566943f1b4f8169c0ce56ecfa9 examples/ode/duck.ode
 f1cc78566943f1b4f8169c0ce56ecfa9 examples/ode/duckx.ode
 1444a0fac02a45322a001e09f3070737 examples/ode/dumbbvp.ode
 aab07a6d3941dc222fcc2493620d04a7 examples/ode/ecofilip.ode
-6a04117751453dff99917cbf7025ca94 examples/ode/efm.ode
-74bd3040e86a1a3d3620cbf550710c09 examples/ode/efmplot.ode
-6a04117751453dff99917cbf7025ca94 examples/ode/efmx.ode
-bb0a18d10ec9264e6f04016064571691 examples/ode/efmxfb.ode
-74bd3040e86a1a3d3620cbf550710c09 examples/ode/efmxplot.ode
-eade0667e26feac5331821cd4a29c702 examples/ode/efmxplott.ode
-bb6f540724259d9802b9564fb5a8a0c8 examples/ode/efmxrun.ode
 2f175c238e597bc24f0d961e5f7fc9ef examples/ode/elaspen.ode
 b0064651b50fb8e077a4d2ebf34b8d4b examples/ode/ev1.ode
 6cf81ac046ffdf8affdffed395f58121 examples/ode/evelyn.ode
@@ -66,7 +59,6 @@ ee7453e3eb4d3278a4b253f95810bff0 examples/ode/fieldnoy.ode
 6e5ea9f8829511af9c209284ec86d049 examples/ode/fr.ode
 f36735f1f0ac5827c23f4d96c22f4f30 examples/ode/gausvolt.ode
 8a49933f64ffdc5db4618047a3919a02 examples/ode/geisel.ode
-be9c54ce1515e075cef5fb0a38ec4156 examples/ode/getfrefm.ode
 294d032640281fd479f99a4d27cb9c58 examples/ode/gill_bruss.ode
 36583e5b3e7e7ed625a6bddee23c033b examples/ode/greg.ode
 noload examples/ode/hedge.ode
@@ -83,7 +75,7 @@ a9bb6d309dbca12a8822ec2ba54ce905 examples/ode/julia.ode
 b3e54a61908b92474f79b91f1adc00ab examples/ode/junk.ode
 9abf30d74052f3a7406bd2d3e1b26b26 examples/ode/junk2.ode
 ef389fbf30e0fe858557155723a3ac1c examples/ode/kepler.ode
-2f2d1a9e935c34fe3da70f1a7a426077 examples/ode/koho.ode
+c723bf9a950fe1758e227380e0e42b13 examples/ode/koho.ode
 13de7073113442075e0a6df07d5d0b01 examples/ode/koho2.ode
 960312af9e6a6c5fd5e8a7903a153e60 examples/ode/koho3.ode
 3eb404ae30fa0227d9755649af2d9137 examples/ode/kohonen.ode
@@ -108,7 +100,7 @@ f8819a2c8d68d0fb49ddc8a72454ade8 examples/ode/logbif.ode
 99c70304a1dbf2f9b7870c641b045b9b examples/ode/lorknead.ode
 8ef71f722d1765afdcc25402440a38a1 examples/ode/lorliap.ode
 f168969cd966954576f8365fb135b988 examples/ode/lorpecor.ode
-243ea08a4250e65978f7430ef513bf54 examples/ode/minode.ode
+9a5a46e8f193b0e11959d8295dbe5f7e examples/ode/minode.ode
 none examples/ode/ml-range.ode
 bef0cae5f930097911b576d9d35c9186 examples/ode/ml1.ode
 5d12566525cffeeb407df998acb524ed examples/ode/mlvolt.ode
@@ -135,7 +127,6 @@ fc76295472f5495b4e013156d89cb362 examples/ode/rosscmpliap.ode
 71d93153bf4f0fcfeb3fbae88971c1f2 examples/ode/rossler.ode
 1a09445d5f3e32aa7053397a20f3dec6 examples/ode/simplecube.ode
 30a7260f3b416f9edaf00ab47d078ce9 examples/ode/test.ode
-3d95b5a6d757f07c1c906c609cbdea06 examples/ode/testdll.ode
 df3c08819e4d0a3df1221d1aa29cb725 examples/ode/torus.ode
 bb02c2bbdefaead2b374ea61c22c3508 examples/ode/toy_ok.ode
 505b231f23b5762cab7b6bbc8e1e8c81 examples/ode/transient.ode
@@ -144,8 +135,7 @@ bb02c2bbdefaead2b374ea61c22c3508 examples/ode/toy_ok.ode
 noload examples/ode/tstar.ode
 822f8c1ee80d8f322acbaf8075e59f24 examples/ode/tstdel.ode
 6a038537f4fdf8d8d413a90c0c143976 examples/ode/tstdelsp.ode
-24c08996e1ac91bcee3bf3ca7dd520b4 examples/ode/tstdll.ode
-noload examples/ode/tstdll2.ode
+2707862d6aca38c80e09129a19c7da55 examples/ode/tstdll.ode
 93beaf7aa86a32aafc3bc6ccfd58887e examples/ode/tstheti.ode
 4d7afb9dd15acb7818ba28f3e552b485 examples/ode/tsthomi.ode
 be55ed47574e3c7ce401bcb101dfe6d7 examples/ode/tstset.ode

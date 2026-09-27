@@ -24,6 +24,10 @@ void strip_saveqn(void);
 int get_eqn(FILE *fptr);
 void create_plot_list(void);
 int find_char(const char *s1, const char *s2, int i0, int *i1);
+/* a model statement that calls compiled C code (export, dll_lib, dll_fun,
+   a network's import; W55 removed them): logs why the line is refused
+   and returns -1, the parsers' "this line does not parse" */
+int refuse_compiled_functions(const char *what);
 
 
 #ifdef __cplusplus

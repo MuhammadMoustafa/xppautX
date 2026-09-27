@@ -151,5 +151,27 @@ for mode in --server -silent; do
   fi
 done
 
+# compiled functions (export, dll_lib/dll_fun, a network's import; W55)
+# are gone: a model that uses one does not load, and says why
+printf "x'=xp\nxp=0\nexport {x} {xp}\ninit x=1\ndone\n" > "$tmp/c_export.ode"
+printf "x'=-x\n@ dll_lib=ex.so, dll_fun=vdp\ndone\n" > "$tmp/c_dll.ode"
+printf "x[0..3]'=-x[j]\nspecial k=import(a.so,f,4,x0)\ndone\n" > "$tmp/c_import.ode"
+for m in c_export c_dll c_import; do
+  ( cd "$tmp" && exec "$BIN" -silent $m.ode < /dev/null > $m.out 2>&1 ) &
+  bpid=$!
+  ( sleep 20; kill $bpid 2>/dev/null ) &
+  watchdog=$!
+  wait $bpid
+  status=$?
+  kill $watchdog 2>/dev/null
+  wait $watchdog 2>/dev/null
+  if [ $status -ne 0 ] && [ $status -lt 128 ] && grep -q 'compiled functions are not supported' "$tmp/$m.out" &&
+    grep -q 'Error in parsing\|Illegal special function' "$tmp/$m.out"; then
+    pass "$m: a model using compiled functions does not load, and says why"
+  else
+    bad "$m: a model using compiled functions does not load, and says why (status $status): $(head -c 300 "$tmp/$m.out")"
+  fi
+done
+
 [ $fail -eq 0 ] && echo "modecheck: all passed"
 exit $fail

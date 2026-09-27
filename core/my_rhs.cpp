@@ -1,7 +1,6 @@
 #include "my_rhs.h"
 #include "parserslow.h"
 #include "dae_fun.h"
-#include "extra.h"
 #include <stdlib.h> 
 #include "getvar.h"
 #include "simplenet.h"
@@ -39,8 +38,6 @@ void set_fix_rhs(double t, double *y)
   for(i=node;i<node+fix;i++)
     SETVAR(i+1,evaluate(m.programs[i].data()));
   eval_all_nets();
-
-  do_in_out(); 
 }
 
 int my_rhs(double t, double *y, double *ydot, int neq)
@@ -58,8 +55,6 @@ int my_rhs(double t, double *y, double *ydot, int neq)
 eval_all_nets();
     
     do_daes();
-
-    do_in_out(); 
  for(i=0;i<node;i++)
   {
     ydot[i]=evaluate(m.programs[i].data());
@@ -78,7 +73,6 @@ void update_based_on_current()
     SETVAR(i+1,evaluate(m.programs[i].data()));
     
   eval_all_nets();
-  do_in_out(); 
 }
 
 void fix_only()

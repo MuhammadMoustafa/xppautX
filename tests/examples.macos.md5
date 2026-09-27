@@ -47,13 +47,6 @@ b0b799eb3ab86f4aacf14c5a7c6e551a examples/ode/duck.ode
 b0b799eb3ab86f4aacf14c5a7c6e551a examples/ode/duckx.ode
 1444a0fac02a45322a001e09f3070737 examples/ode/dumbbvp.ode
 aab07a6d3941dc222fcc2493620d04a7 examples/ode/ecofilip.ode
-6a04117751453dff99917cbf7025ca94 examples/ode/efm.ode
-74bd3040e86a1a3d3620cbf550710c09 examples/ode/efmplot.ode
-6a04117751453dff99917cbf7025ca94 examples/ode/efmx.ode
-bb0a18d10ec9264e6f04016064571691 examples/ode/efmxfb.ode
-74bd3040e86a1a3d3620cbf550710c09 examples/ode/efmxplot.ode
-eade0667e26feac5331821cd4a29c702 examples/ode/efmxplott.ode
-bb6f540724259d9802b9564fb5a8a0c8 examples/ode/efmxrun.ode
 58f2123aec2df951a6c93fb21e478d46 examples/ode/elaspen.ode
 b0064651b50fb8e077a4d2ebf34b8d4b examples/ode/ev1.ode
 6cf81ac046ffdf8affdffed395f58121 examples/ode/evelyn.ode
@@ -66,7 +59,6 @@ b0064651b50fb8e077a4d2ebf34b8d4b examples/ode/ev1.ode
 9ad6aaa9e7b5be1aa2f4965a48b4b915 examples/ode/fr.ode
 f36735f1f0ac5827c23f4d96c22f4f30 examples/ode/gausvolt.ode
 1a449458350bad3e9f1b005e44d172d9 examples/ode/geisel.ode
-be9c54ce1515e075cef5fb0a38ec4156 examples/ode/getfrefm.ode
 294d032640281fd479f99a4d27cb9c58 examples/ode/gill_bruss.ode
 36583e5b3e7e7ed625a6bddee23c033b examples/ode/greg.ode
 noload examples/ode/hedge.ode
@@ -135,7 +127,6 @@ df100981b9622714a2595341787082a7 examples/ode/rossler-pecora.ode
 71d93153bf4f0fcfeb3fbae88971c1f2 examples/ode/rossler.ode
 1a09445d5f3e32aa7053397a20f3dec6 examples/ode/simplecube.ode
 30a7260f3b416f9edaf00ab47d078ce9 examples/ode/test.ode
-3d95b5a6d757f07c1c906c609cbdea06 examples/ode/testdll.ode
 df3c08819e4d0a3df1221d1aa29cb725 examples/ode/torus.ode
 28c61455505f2bf4a2d975989cba6d8d examples/ode/toy_ok.ode
 898e5133ab752f643c757c39b7d24a02 examples/ode/transient.ode
@@ -145,7 +136,6 @@ noload examples/ode/tstar.ode
 822f8c1ee80d8f322acbaf8075e59f24 examples/ode/tstdel.ode
 6a038537f4fdf8d8d413a90c0c143976 examples/ode/tstdelsp.ode
 24c08996e1ac91bcee3bf3ca7dd520b4 examples/ode/tstdll.ode
-noload examples/ode/tstdll2.ode
 93beaf7aa86a32aafc3bc6ccfd58887e examples/ode/tstheti.ode
 4d7afb9dd15acb7818ba28f3e552b485 examples/ode/tsthomi.ode
 be55ed47574e3c7ce401bcb101dfe6d7 examples/ode/tstset.ode

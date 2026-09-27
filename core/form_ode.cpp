@@ -20,7 +20,6 @@
 
 #include "dae_fun.h"
 #include "derived.h"
-#include "extra.h"
 #include "browse.h"
 #include "simplenet.h"
 #include "integrate.h"
@@ -128,6 +127,12 @@ void c_resync(std::string &s)
   s.resize(strlen(s.c_str()));
 }
 } // namespace
+
+int refuse_compiled_functions(const char *what)
+{
+  xpp::log(XPP_LOG_ERROR, " {}: compiled functions are not supported\n", what);
+  return -1;
+}
 
 void set_ode_name(int i, std::string_view text)
 {
@@ -533,7 +538,10 @@ int compiler(const std::string &bob, FILE *fptr)
   int nlin,i;
   done=1;
   if(bob[0]=='@'){
-    add_model_option(bob.c_str());
+    if(add_model_option(bob.c_str())<0){
+      xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
+      xpp_model_failed();
+    }
     if(ConvertStyle)
       xpp::print(convertf,"{}\n",bob.c_str());
     return(done);
@@ -1379,10 +1387,8 @@ int parse_a_string(std::string &s1, VAR_INFO &v)
     add_comment(s1);
     return 0;
   }
-  if(char_at(s1,0)=='@') {
-    add_model_option(s1.c_str());
-    return 0;
-  }
+  if(char_at(s1,0)=='@')
+    return add_model_option(s1.c_str());
   remove_blanks(s1);
 
   const std::string s1old=s1;
@@ -1570,9 +1576,6 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	mnames.push_back(tmp);
 	nmark++;
       }
-    }
-    if(v.type==EXPORT){
-      add_export_list(lhs,rhs);
     }
     if(v.type==VECTOR){
       add_vectorizer_name(lhs,rhs);
@@ -1890,7 +1893,6 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
  if(compile_svars()==1)
    xpp_model_failed();
  evaluate_derived();
- do_export_list();
  xpp_log(XPP_LOG_INFO, " All formulas are valid!!\n");
  xpp::model().node=nvar+naux+nfix;
  xpp_log(XPP_LOG_INFO, " nvar=%d naux=%d nfix=%d nmark=%d NEQ=%d NODE=%d \n",
@@ -2088,12 +2090,12 @@ int parse_model(FILE *fp, const std::string &first, int nnn, bool at_end)
        v.type=SPEC_FUN;
      }
 
-/*   import-export to external C program   */
+/*   export {inputs} {outputs} called a compiled library's function   */
      if(v.type==COMMAND && char_at(v.lhs,0)=='E' && char_at(v.lhs,1)=='X'){
-       v.type=EXPORT;
-       if(find_char(v.rhs.c_str(),"}",0,&i1)>=0)
-	 split_rhs(v,i1+1,i1+1);
-    }
+       refuse_compiled_functions("export");
+       xpp::log(XPP_LOG_ERROR, " Error in parsing {} \n",big.c_str());
+       return -1;
+     }
 
 /*  ONLY save options  */
 

@@ -88,7 +88,7 @@ its own behavioural regression test (`tools/web2check.mjs`).
       ([docs/vscode-extension.md](docs/vscode-extension.md)).
    5. *(done)* Native builds of the program: `make xppautx` works with
       MinGW-w64 gcc on Windows (`xppautX.exe` needs only the system C
-      runtime, and dll_lib models load `.dll`s) and on macOS with nothing
+      runtime) and on macOS with nothing
       extra installed; both build with their window on by default (W13a,
       W13d). The Windows and macOS builds pass the same protocol checks
       and write the same `output.dat` as Linux apart from line endings.
