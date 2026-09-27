@@ -570,11 +570,10 @@ brought in from outside.
 The extension was only the first step. The goal (maintainer, 2026-09-25)
 is safe C++ in place of the unsafe C idioms, file by file (the W29 cards):
 - memory: `std::vector`, `std::string`, `std::unique_ptr` (RAII) instead of
-  hand-paired `xpp_malloc`/`xpp_free` (xpp_mem stays for what must stay a
-  raw block, with a reason);
+  hand-paired allocation (xpp_mem's raw allocator was retired at W48);
 - text: `std::string` for text that is kept, `std::string_view` for a
   parameter that only reads it, instead of fixed `char` buffers and
-  `xpp_strlcpy`/`xpp_snprintf`/`XPP_SPRINTF`; `const char *` only where a
+  C string copies (the C text API was retired at W48); `const char *` only where a
   C function needs a NUL-terminated string or across an `extern "C"` API;
 - formatting: `xpp::format`/`xpp::log` (type-checked) instead of printf
   formats;
@@ -585,10 +584,9 @@ is safe C++ in place of the unsafe C idioms, file by file (the W29 cards):
 Numerics do not change (the md5s). A task that touches a file moves what it
 touches to these. `tools/unsafecheck.sh` (comments stripped first, like
 tools/formatcheck.sh) counts every core/*.cpp and core/*.h's unsafe C
-idioms per file, in five categories (memory: xpp_malloc/xpp_calloc/
-xpp_realloc/xpp_free/xpp_strdup and new[]/delete[]; buffers: fixed
-`char name[N]` declarations; text: xpp_strlcpy/xpp_snprintf/XPP_SPRINTF
-and the raw strcpy/sprintf/fprintf family; files: fopen/fscanf/fgets and
+idioms per file, in five categories (memory: malloc/free-style raw
+allocation and new[]/delete[]; buffers: fixed `char name[N]`
+declarations; text: the raw strcpy/sprintf/fprintf family; files: fopen/fscanf/fgets and
 the rest of stdio; casts: a heuristic match on a C-style cast). `--check`
 (verify.sh runs this) compares against the committed `tests/unsafe.baseline`
 and fails naming any file/category whose count grew past it (a count that
