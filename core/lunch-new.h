@@ -35,6 +35,5 @@ void io_int(int *i, FILE *fp, int f, std::string_view ss);
 void io_double(double *z, FILE *fp, int f, std::string_view ss);
 /* one line of a set file into s, whole (f READEM), or s written as one */
 void io_string(std::string &s, FILE *fp, int f);
-void io_string(char *s, int len, FILE *fp, int f);
 #endif
 #endif

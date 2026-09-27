@@ -36,7 +36,6 @@ void wipe_rep(void);
 void unreplace_column(void);
 void make_d_table(double xlo, double xhi, int col, const char *filename, BROWSER b);
 void find_value(int col, double val, int *row, BROWSER b);
-void find_variable(const char *s, int *col);
 void new_browse_dat(float **new_dat, int dat_len);
 void refresh_browser(int length);
 void reset_browser(void);
@@ -61,6 +60,10 @@ void data_restore(BROWSER *b);
    exists: an empty Writer when the answer is no, or when it cannot be
    written (err_msg says so) */
 xpp::Writer open_writer_asking(const char *fil);
+
+/* the data column of variable s: 0 for T, i+1 for variable i, -1 for
+   none (case ignored) */
+void find_variable(std::string_view s, int *col);
 #endif
 #endif
 

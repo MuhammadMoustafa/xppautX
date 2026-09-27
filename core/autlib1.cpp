@@ -2499,10 +2499,8 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
     if (iunit == 6) {
       xpp_log_auto("  BR    PT  TY LAB ");
       for (i = 0; i < *n1 + *n2 + 1; ++i) {
-	char scr_buf[AUTO_COL_W+1];
-	auto_screen_col(col[i].data(),scr_buf);
-	std::string scr=scr_buf; /* PAR(n)/U(n) as the user named them */
-	xpp_log_auto("%s",scr.c_str());
+	/* PAR(n)/U(n) as the user named them */
+	xpp_log_auto("%s",auto_screen_col(col[i]).c_str());
       }
       xpp_log_auto("\n");
     } else if (iunit == 7) {

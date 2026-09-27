@@ -570,12 +570,7 @@ void send_aplot(const char *tag)
     BUF_LIT(&b, "]");
     if (f32) BUF_LIT(&b, ",\"enc\":\"f32\"");
     BUF_LIT(&b, ",\"values\":");
-    {
-        size_t len;
-        MemPtr<char> t(xpp_series_values(vals.empty() ? nullptr : vals.data(), nx * ny, f32, &len));
-        if (t) buf_add(&b, t.get(), len);
-        else BUF_LIT(&b, "[]");
-    }
+    xpp_series_append(b.s, vals.empty() ? nullptr : vals.data(), nx * ny, f32);
     BUF_LIT(&b, "}");
     send_buf(&b);
 }

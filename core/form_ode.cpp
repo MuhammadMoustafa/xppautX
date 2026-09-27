@@ -94,7 +94,7 @@ std::array<std::string,MAXCOMMENTS> comment_text,comment_action; /* comments[] *
 std::vector<int> plot_columns;                    /* plotlist */
 struct BcText {
   std::vector<int> com;     /* the compiled condition: 200 commands */
-  std::vector<char> string; /* the condition: 256 bytes (lunch-new reads a .set's into it) */
+  std::vector<char> string; /* the condition: 256 bytes (set_bc_formula) */
   std::vector<char> name;   /* "0=": 10 bytes (pp_shoot writes its side into it) */
 };
 std::array<BcText,MAXODE> bc_text;                /* my_bc[] */
@@ -106,6 +106,16 @@ std::array<std::string,MAXODE> aux_names;
 int Naux=0;
 int OldStyle=1;
 int is_a_map=0;
+
+} // namespace
+
+void set_program(int i, std::vector<int> program)
+{
+  ode_program[i]=std::move(program);
+  my_ode[i]=ode_program[i].data();
+}
+
+namespace {
 
 /* my_ode[i]: MAXEXPLEN commands, zeroed */
 int *new_program(int i)
@@ -121,17 +131,28 @@ void set_bc(int i, std::string_view string)
   b.com.assign(200,0);
   b.string.assign(256,'\0');
   b.name.assign(10,'\0');
-  if(string.size()>=b.string.size()){
-    xpp::log(XPP_LOG_WARN, "boundary condition cut to {} characters: {}\n",b.string.size()-1,string);
-    string=string.substr(0,b.string.size()-1);
-  }
-  std::copy(string.begin(),string.end(),b.string.begin());
+  set_bc_formula(i,string);
   std::string_view name="0=";
   std::copy(name.begin(),name.end(),b.name.begin());
   my_bc[i].com=b.com.data();
   my_bc[i].string=b.string.data();
   my_bc[i].name=b.name.data();
 }
+
+} // namespace
+
+void set_bc_formula(int i, std::string_view string)
+{
+  std::vector<char> &text=bc_text[i].string;
+  if(string.size()>=text.size()){
+    xpp::log(XPP_LOG_WARN, "boundary condition cut to {} characters: {}\n",text.size()-1,string);
+    string=string.substr(0,text.size()-1);
+  }
+  std::fill(text.begin(),text.end(),'\0');
+  std::copy(string.begin(),string.end(),text.begin());
+}
+
+namespace {
 
 /* p's text, "" for none (a missing token) */
 const char *text_of(const char *p)
@@ -1058,15 +1079,6 @@ int get_eqn(FILE *fptr)
   xpp_log(XPP_LOG_INFO, "Used %d constants and %d symbols \n",NCON,NSYM);
   xpp_log(XPP_LOG_INFO, "XPPAUT %g.%g Copyright (C) 2002-now  Bard Ermentrout \n",program.version_major,program.version_minor);
     return(1);
-}
-
-char *get_first(char *string, const char *src)
-{
- return strtok(string,src);
-}
-char *get_next(const char *src)
-{
- return strtok(NULL,src);
 }
 
 namespace {

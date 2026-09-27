@@ -109,17 +109,13 @@ void open_auto(int flag);
 const char *auto_fort_path(int unit);
 void do_auto(int iold, int isave, int itp);
 void set_auto(void);
-int auto_name_to_index(const char *s);
 /* AUTO's index of the period among its parameters (PAR(10), named T) */
 #define AUTO_PERIOD_INDEX 10
 /* the model's name of AUTO's parameter index k (AutoPar[k]), NULL when k
    is not one of AUTO's NAutoPar parameters: the one lookup the forms,
    the settings event, the CSV export and the branch-end text share */
 const char *auto_par_name(int k);
-/* AUTO's printed column headings, in the user's own names (screen only):
-   out is a char[AUTO_COL_W+1] */
 #define AUTO_COL_W 14
-void auto_screen_col(const char *col, char *out);
 void auto_per_par(void);
 void auto_params(void);
 void auto_num_par(void);
@@ -227,6 +223,12 @@ void do_auto_range(void);
 /* the number of points of the marked stretch of the diagram (*n) and its
    first parameter's name (pname); both unchanged when none is marked */
 void auto_get_info(int *n, std::string &pname);
+/* AUTO's printed column heading col in the user's own names (screen
+   only), AUTO_COL_W wide */
+std::string auto_screen_col(const std::string &col);
+/* AUTO's index of parameter or period name s (10 for the period, T),
+   -1 when it is not one of AUTO's parameters */
+int auto_name_to_index(std::string_view s);
 
 /* the diagram's axis labels as the axes show them: a name, name_bar or
    "Frequency" each (json_auto.cpp's diagram events) */

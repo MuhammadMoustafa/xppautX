@@ -144,8 +144,8 @@ void get_2d_view(int ind)
 	      plot_windows.current->ylo=plot_windows.current->ymin;
 	      plot_windows.current->xhi=plot_windows.current->xmax;
 	      plot_windows.current->yhi=plot_windows.current->ymax;
-	     XPP_FORMAT_TO_BUF(plot_windows.current->xlabel,"{}",values[6]);
-	     XPP_FORMAT_TO_BUF(plot_windows.current->ylabel,"{}",values[7]);
+	     plot_windows.current->xlabel=values[6];
+	     plot_windows.current->ylabel=values[7];
 	      check_windows();
 		     
 	      }
@@ -222,9 +222,9 @@ void get_3d_view(int ind)
               find_variable(values[2].c_str(),&i);
   		if(i>-1)
 		  plot_windows.current->zv[ind]=i;
-	      XPP_FORMAT_TO_BUF(plot_windows.current->xlabel,"{}",values[13]);
-	      XPP_FORMAT_TO_BUF(plot_windows.current->ylabel,"{}",values[14]);
-	      XPP_FORMAT_TO_BUF(plot_windows.current->zlabel,"{}",values[15]);
+	      plot_windows.current->xlabel=values[13];
+	      plot_windows.current->ylabel=values[14];
+	      plot_windows.current->zlabel=values[15];
 
 	      plot_windows.current->xmin=atof(values[3].c_str());
 	      plot_windows.current->ymin=atof(values[5].c_str());
@@ -855,11 +855,11 @@ void draw_freeze_key()
   ix2=ix+4*HChar;
   y0=iy;
   for(i=0;i<MAXFRZ;i++){
-    if(frozen_curves.curve[i].use==1&&frozen_curves.curve[i].w==plot_windows.draw_win&&strlen(frozen_curves.curve[i].key)>0){
+    if(frozen_curves.curve[i].use==1&&frozen_curves.curve[i].w==plot_windows.draw_win&&!frozen_curves.curve[i].key.empty()){
       set_linestyle(abs(frozen_curves.curve[i].color));
       line(ix,y0,ix2,y0);
       set_linestyle(0);
-      put_text(ix2+HChar,y0,frozen_curves.curve[i].key);
+      put_text(ix2+HChar,y0,frozen_curves.curve[i].key.c_str());
       y0+=dy;
     }
   }
@@ -886,8 +886,8 @@ void delete_frz_crv(int i)
 {
   if(frozen_curves.curve[i].use==0)return;
   frozen_curves.curve[i].use=0;
-  frozen_curves.curve[i].name[0]=0;
-  frozen_curves.curve[i].key[0]=0;
+  frozen_curves.curve[i].name.clear();
+  frozen_curves.curve[i].key.clear();
   for(std::vector<float> &v:frozen_points[i])
     std::vector<float>().swap(v);
   frozen_curves.curve[i].xv=nullptr;
@@ -952,8 +952,8 @@ int create_crv(int ind)
       }
       frozen_curves.curve[i].type=type;
       frozen_curves.curve[i].w=plot_windows.draw_win;
-      XPP_FORMAT_TO_BUF(frozen_curves.curve[i].name,"crv{}",static_cast<char>('a'+i));
-      XPP_FORMAT_TO_BUF(frozen_curves.curve[i].key,"crv{}",static_cast<char>('a'+i));
+      frozen_curves.curve[i].name=xpp::format("crv{}",static_cast<char>('a'+i));
+      frozen_curves.curve[i].key=xpp::format("crv{}",static_cast<char>('a'+i));
       marks_data_frozen_new(i); /* the window shows it: it is its current curve */
       return(i);
     }
@@ -974,8 +974,8 @@ void edit_frz_crv(int i)
  status=do_string_box_of(3,1,"Edit Freeze",nn,values,25,kinds);
  if(status!=0){
    frozen_curves.curve[i].color=atoi(values[0].c_str());
-   XPP_FORMAT_TO_BUF(frozen_curves.curve[i].key,"{:.19}",values[1]);
-   XPP_FORMAT_TO_BUF(frozen_curves.curve[i].name,"{:.9}",values[2]);
+   frozen_curves.curve[i].key=xpp::format("{:.19}",values[1]);
+   frozen_curves.curve[i].name=xpp::format("{:.9}",values[2]);
  }
 }
 

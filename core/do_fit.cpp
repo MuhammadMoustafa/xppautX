@@ -303,10 +303,7 @@ void test_fit()
  fin.nvars=0;
  fin.npars=0;
  if(get_fit_params()==0)return;
- /* the lists as the dialog left them: the parsers cut them up in place */
- std::string collist=fin.collist,parlist1=fin.parlist1,parlist2=fin.parlist2,varlist=fin.varlist;
-
- parse_collist(collist.data(),fin.icols.data(),&nvars);
+ parse_collist(fin.collist,fin.icols.data(),&nvars);
  
  if(nvars<=0){
    err_msg("No columns...");
@@ -314,16 +311,16 @@ void test_fit()
  }
  fin.nvars=nvars;
  nvars=0;
- parse_varlist(varlist.data(), fin.ivar.data(), &nvars);
+ parse_varlist(fin.varlist, fin.ivar.data(), &nvars);
 
  if(fin.nvars!=nvars){
    err_msg(" # columns != # fitted variables");
    return;
  }
  npars=0;
- parse_parlist(parlist1.data(),fin.ipar.data(),&npars);
+ parse_parlist(fin.parlist1,fin.ipar.data(),&npars);
 
- parse_parlist(parlist2.data(),fin.ipar.data(),&npars);
+ parse_parlist(fin.parlist2,fin.ipar.data(),&npars);
 
  if(npars<=0){
    err_msg(" No parameters!");
@@ -667,89 +664,44 @@ int get_fit_params()
 
 /* gets a list of the data columns to use ... */
 
-void parse_collist(char *collist, int *icols, int *n)
+void parse_collist(std::string_view collist, int *icols, int *n)
 {
-  char *item;
-  int v,i=0;
- 
-  item=get_first(collist," ,");
-
-  if(item[0]==0)return;
-  v=atoi(item);
-  icols[i]=v;
-  i++;
-  while((item=get_next(" ,"))!=NULL)
-    {
-
-      v=atoi(item);
-      icols[i]=v;
-      i++;
-    }
+  xpp::Tokens tokens(collist);
+  int i=0;
+  for(std::optional<std::string_view> item;(item=tokens.next(" ,"));)
+    icols[i++]=atoi(std::string(*item).c_str());
   *n=i;
 }
 
-void parse_varlist(char *varlist, int *ivars, int *n)
-{  
-  char *item;
+void parse_varlist(std::string_view varlist, int *ivars, int *n)
+{
+  xpp::Tokens tokens(varlist);
   int v,i=0;
-  
-  item=get_first(varlist," ,");
-  if(item[0]==0)return;
-  find_variable(item,&v);
-  if(v<=0)return;
-  ivars[i]=v-1;
-  i++;
-  while((item=get_next(" ,"))!=NULL)
-    { 
-      find_variable(item,&v);
-      if(v<=0)return;
-      ivars[i]=v-1;
-      i++;
-    }
-  *n=i;
-
-}
-
-void parse_parlist(char *parlist, int *ipars, int *n)
-{  
-  char *item;
-  int v,i=0;
-  size_t j;
-  for(j=0;j<strlen(parlist);j++){
-    if(parlist[j]!=' ')break;
-  }
-  if(j==strlen(parlist))return;
-  if(strlen(parlist)==0)return;
-  item=get_first(parlist," ,");
-  if(item[0]==0L)return;
- 
-  find_variable(item,&v);
-  if(v>0){
-    ipars[i+*n]=v-1;
-    i++;
-  }
-  else {
-    v=get_param_index(item);
+  for(std::optional<std::string_view> item;(item=tokens.next(" ,"));){
+    find_variable(*item,&v);
     if(v<=0)return;
-    ipars[i+*n]=-v;
-    i++;
+    ivars[i++]=v-1;
   }
-  while((item=get_next(" ,"))!=NULL)
-    { 
- 
-      find_variable(item,&v);
-      if(v>0){
-	ipars[i+*n]=v-1;
-	i++;
-      }
-      else {
-	v=get_param_index(item);
-	if(v<=0)return;
-	ipars[i+*n]=-v;
-	i++;
-      }
-    }
-  *n=*n+i;
+  *n=i;
+}
 
+void parse_parlist(std::string_view parlist, int *ipars, int *n)
+{
+  xpp::Tokens tokens(parlist);
+  int v,i=0;
+  for(std::optional<std::string_view> item;(item=tokens.next(" ,"));){
+    find_variable(*item,&v);
+    if(v>0){
+      ipars[i+*n]=v-1;
+      i++;
+    }
+    else {
+      v=get_param_index(*item);
+      if(v<=0)return;
+      ipars[i+*n]=-v;
+      i++;
+    }
+  }
+  *n=*n+i;
 }
 

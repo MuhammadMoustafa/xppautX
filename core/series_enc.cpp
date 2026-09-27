@@ -2,7 +2,6 @@
    (series_enc.h). Pure: no core state, no I/O. */
 #include "series_enc.h"
 #include "json_number.h"
-#include "xpp_mem.h"
 
 #include <array>
 #include <cstdint>
@@ -88,19 +87,3 @@ void xpp_series_append(std::string &out, const float *v, int n, int f32) noexcep
     }
 }
 
-char *xpp_series_values(const float *v, int n, int f32, size_t *len)
-{
-    try {
-        std::string s;
-        if (n < 0) n = 0;
-        if (f32) base64(v, n, s);
-        else numbers(v, n, s);
-        /* a raw block: json_windows.cpp frees it (MemPtr) */
-        char *out = static_cast<char *>(xpp_malloc(s.size() + 1));
-        std::memcpy(out, s.c_str(), s.size() + 1);
-        *len = s.size();
-        return out;
-    } catch (...) { /* std::bad_alloc: no exception may reach C */
-        return nullptr;
-    }
-}

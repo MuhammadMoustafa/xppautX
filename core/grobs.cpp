@@ -48,7 +48,7 @@ int add_label(const char *s, int x, int y, int size, int font)
             lb[i].w = plot_windows.draw_win;
             lb[i].font = font;
             lb[i].size = size;
-            std::snprintf(lb[i].s, sizeof lb[i].s, "%s", s);
+            lb[i].s = s;
             return i;
         }
     }
@@ -366,7 +366,7 @@ void edit_object_com(int com)
             if (ans == 'y') {
                 std::string text = lb[ilab].s;
                 new_string("Text: ", text);
-                XPP_FORMAT_TO_BUF(lb[ilab].s, "{}", text);
+                lb[ilab].s = text;
                 new_int("Size 0-4 :", &lb[ilab].size);
                 if (lb[ilab].size > 4) lb[ilab].size = 4;
                 if (lb[ilab].size < 0) lb[ilab].size = 0;

@@ -18,12 +18,17 @@ int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, i
 int marlevstep(double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *covar, double *alpha, double *chisq, double *alambda, double *work, double **yderv, double *yfit, double *ochisq, int ictrl, double eps);
 int mrqcof(double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *alpha, double *chisq, double *beta, double **yderv, double *yfit, double eps);
 int get_fit_params(void);
-void parse_collist(char *collist, int *icols, int *n);
-void parse_varlist(char *varlist, int *ivars, int *n);
-void parse_parlist(char *parlist, int *ipars, int *n);
 
 #ifdef __cplusplus
 }
+
+#include <string_view>
+
+/* the fit's lists, blank- or comma-separated: the data columns, the
+   fitted variables and (appended at ipars[*n]) the parameters */
+void parse_collist(std::string_view collist, int *icols, int *n);
+void parse_varlist(std::string_view varlist, int *ivars, int *n);
+void parse_parlist(std::string_view parlist, int *ipars, int *n);
 #endif
 #endif
 

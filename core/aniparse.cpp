@@ -761,12 +761,12 @@ struct Arg {
 };
 
 /* false when a required argument is missing */
-bool read_args(std::initializer_list<Arg> args)
+bool read_args(xpp::Tokens &tokens, std::initializer_list<Arg> args)
 {
     for (const Arg &a : args) {
-        const char *nxt = get_next(a.delims);
-        if (nxt == nullptr || (a.optional && *nxt == 0)) return a.optional;
-        *a.dst = nxt;
+        std::optional<std::string_view> nxt = tokens.next(a.delims);
+        if (!nxt) return a.optional;
+        *a.dst = *nxt;
     }
     return true;
 }
@@ -777,19 +777,21 @@ int parse_ani_string(std::string &s, xpp::LineReader &fp)
 {
     std::string x1, x2, x3, x4, col, thick;
     int type = COMNT;
-    char *command = get_first(s.data(), "; ");
-    if (command == nullptr) return -1;
-    strupr(command);
+    xpp::Tokens tokens(s);
+    std::optional<std::string_view> first = tokens.next("; ");
+    if (!first) return -1;
+    std::string command(*first);
+    strupr(command.data());
     for (const auto &k : ani_commands)
-        if (std::strncmp(k.prefix, command, 2) == 0) type = k.type;
+        if (std::strncmp(k.prefix, command.c_str(), 2) == 0) type = k.type;
     bool ok = true;
     switch (type) {
     case GRAB:
-        if (!read_args({{&x1, ";", false}, {&x2, ";", false}, {&x3, ";", false}})) return -1;
+        if (!read_args(tokens, {{&x1, ";", false}, {&x2, ";", false}, {&x3, ";", false}})) return -1;
         return add_grab_command(x1, x2, x3, fp);
     case AXNULL:
     case AYNULL:
-        ok = read_args({{&x1, ";", false},
+        ok = read_args(tokens, {{&x1, ";", false},
                         {&x2, ";", false},
                         {&x3, ";", false},
                         {&x4, ";\n", false},
@@ -801,7 +803,7 @@ int parse_ani_string(std::string &s, xpp::LineReader &fp)
     case ELLIP:
     case FELLIP:
     case FRECT:
-        ok = read_args({{&x1, ";", false},
+        ok = read_args(tokens, {{&x1, ";", false},
                         {&x2, ";", false},
                         {&x3, ";", false},
                         {&x4, ";\n", false},
@@ -809,10 +811,10 @@ int parse_ani_string(std::string &s, xpp::LineReader &fp)
                         {&thick, "\n", true}});
         break;
     case RLINE:
-        ok = read_args({{&x1, ";", false}, {&x2, ";", false}, {&col, ";\n", true}, {&thick, "\n", true}});
+        ok = read_args(tokens, {{&x1, ";", false}, {&x2, ";", false}, {&col, ";\n", true}, {&thick, "\n", true}});
         break;
     case COMET:
-        ok = read_args({{&x1, ";", false},
+        ok = read_args(tokens, {{&x1, ";", false},
                         {&x2, ";", false},
                         {&thick, ";", false},
                         {&x3, ";\n", false},
@@ -820,27 +822,27 @@ int parse_ani_string(std::string &s, xpp::LineReader &fp)
         break;
     case CIRC:
     case FCIRC:
-        ok = read_args({{&x1, ";", false}, {&x2, ";", false}, {&x3, ";", false}, {&col, ";\n", true}});
+        ok = read_args(tokens, {{&x1, ";", false}, {&x2, ";", false}, {&x3, ";", false}, {&col, ";\n", true}});
         break;
     case SETTEXT:
-        ok = read_args({{&x1, ";", false}, {&x2, ";", false}, {&col, ";", false}});
+        ok = read_args(tokens, {{&x1, ";", false}, {&x2, ";", false}, {&col, ";", false}});
         break;
     case TEXT:
-        ok = read_args({{&x1, ";", false}, {&x2, ";", false}, {&x4, ";", false}});
+        ok = read_args(tokens, {{&x1, ";", false}, {&x2, ";", false}, {&x4, ";", false}});
         break;
     case VTEXT:
-        ok = read_args({{&x1, ";", false}, {&x2, ";", false}, {&x4, ";", false}, {&x3, ";\n", false}});
+        ok = read_args(tokens, {{&x1, ";", false}, {&x2, ";", false}, {&x4, ";", false}, {&x3, ";\n", false}});
         break;
     case SPEED: {
-        const char *nxt = get_next(" \n");
-        if (nxt == nullptr) return -1;
-        ani_speed = std::atoi(nxt);
+        std::optional<std::string_view> nxt = tokens.next(" \n");
+        if (!nxt) return -1;
+        ani_speed = std::atoi(std::string(*nxt).c_str());
         if (ani_speed < 0) ani_speed = 0;
         if (ani_speed > 1000) ani_speed = 1000;
         return 1;
     }
     case DIMENSION:
-        ok = read_args({{&x1, ";", false}, {&x2, ";", false}, {&x3, ";", false}, {&x4, ";\n", false}});
+        ok = read_args(tokens, {{&x1, ";", false}, {&x2, ";", false}, {&x3, ";", false}, {&x4, ";\n", false}});
         break;
     }
     if (!ok) return -1;

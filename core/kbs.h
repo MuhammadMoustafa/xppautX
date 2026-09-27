@@ -5,7 +5,7 @@ extern "C" {
 
 typedef struct {
   int com;
-  char seq[5];
+  const char *seq;
 
 } KBS;
 

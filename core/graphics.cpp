@@ -374,9 +374,9 @@ void init_graph(int i)
 	plot_windows.graph[i].color[j]=0;
         }
      
-    plot_windows.graph[i].xlabel[0]='\0';
-    plot_windows.graph[i].ylabel[0]='\0';
-    plot_windows.graph[i].zlabel[0]='\0';
+    plot_windows.graph[i].xlabel.clear();
+    plot_windows.graph[i].ylabel.clear();
+    plot_windows.graph[i].zlabel.clear();
     
     plot_windows.graph[i].Use=0;
     plot_windows.graph[i].Nullrestore=0;

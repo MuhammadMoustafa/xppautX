@@ -2,13 +2,12 @@
    the files a long AUTO run is picked back up from, <base>.set (as File/
    Write set) and, when there is a diagram, <base>.auto (as AUTO's File/
    Save diagram, orbits included). */
-#include "model.h"
 #include "xpp_session.h"
 #include "xpp_ui.h"
 #include "xpp_io.h"
 #include "lunch-new.h"
 #include "diagram.h"    /* redraw_diagram; pulls in auto_nox.h */
-#include "load_eqn.h"   /* XPP_MAX_NAME */
+#include "model.h"
 #include <algorithm>
 #include <array>
 #include <cstdio>

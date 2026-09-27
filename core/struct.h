@@ -3,7 +3,7 @@
 
 #include "xpplim.h"
 #include "xpp_types.h"
-#define MAXCHAR 60
+#include <string>
 
 #define MAXPERPLOT 10
 #define MAXFRZ 26
@@ -30,21 +30,21 @@ typedef struct {
 		int xshft,yshft,zshft;
 	        int xorgflag,yorgflag,zorgflag;
 		int ColorFlag,ColorValue;
-	        char xlabel[MAX_LEN_SBOX],ylabel[MAX_LEN_SBOX],zlabel[MAX_LEN_SBOX];
+	        std::string xlabel,ylabel,zlabel;
 		} GRAPH;
 
 typedef struct {
 		XppWinId w;
 		float x;
 		float y;
-		char s[MAXCHAR];
+		std::string s;
 		short use;
 		int font,size;
 		} LABEL;
 
 typedef struct {
                 XppWinId w;
-		char key[20],name[10];
+		std::string key,name; /* at most 19 and 9 characters */
 		short use,type;
 		float *xv,*yv,*zv;
 		int len,color;

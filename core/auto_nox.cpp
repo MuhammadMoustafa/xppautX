@@ -607,7 +607,7 @@ void set_auto() /* Caution - need to include NICP here */
 	    Auto.icp2,Auto.icp3,Auto.icp4,Auto.icp5,Auto.nper,Auto.epsl,Auto.epsu,Auto.epss,Auto.ncol);
   
 }
-int auto_name_to_index(const char *s)
+int auto_name_to_index(std::string_view s)
 {
   int i,in;
   find_variable(s,&in);
@@ -681,10 +681,9 @@ std::string screen_col(const char *col)
 }
 } // namespace
 
-void auto_screen_col(const char *col,char *out)
+std::string auto_screen_col(const std::string &col)
 {
-  /* the C API of screen_col: out is autlib1.cpp's char[AUTO_COL_W+1] */
-  xpp_strlcpy(out,screen_col(col).c_str(),AUTO_COL_W+1);
+  return screen_col(col.c_str());
 }
 
 void auto_per_par()
@@ -693,7 +692,6 @@ void auto_per_par()
   static const char *m[]={"0","1","2","3","4","5","6","7","8","9"};
   static const char *const key="0123456789";
   std::array<std::string, 9> values;
-  char *ptr;
   static const char *n[]={"Uzr1","Uzr2","Uzr3","Uzr4","Uzr5",
 		      "Uzr6","Uzr7","Uzr8","Uzr9"};
   int status,i,in;
@@ -712,12 +710,11 @@ void auto_per_par()
     status=do_string_box(5,2,"Mark values (UZ): parameter=value or per=value",n,values,45);
     if(status!=0)
       for(i=0;i<9;i++){
-	ptr=get_first(values[i].data(),"=");
-	in=auto_name_to_index(ptr);
+	xpp::Tokens tokens(values[i]);
+	in=auto_name_to_index(tokens.next("=").value_or(std::string_view()));
 	if(in>=0){
 	  Auto.uzrpar[i]=in;
-	  ptr=get_next("@");
-	  Auto.period[i]=atof(ptr);
+	  Auto.period[i]=atof(tokens.text("@").c_str());
 	}
       }
   }

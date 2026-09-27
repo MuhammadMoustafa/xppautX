@@ -60,6 +60,10 @@ typedef struct {
 } XppLogSettings;
 extern XppLogSettings log_settings;
 
+/* The log goes to the file path from now on (@ logfile=): the one it
+   went to before is closed, unless that was stdout or stderr. */
+void xpp_log_open_file(const char *path);
+
 /* Default is XPP_LOG_WARN. */
 void xpp_log_set_threshold(XppLogLevel level);
 /* 1 when a message at level would be printed now (the threshold, and

@@ -97,7 +97,7 @@ int add_table_name(int index, const char *name);
 int add_form_table(int index, int nn, double xlo, double xhi, const char *formula);
 void set_old_arg_names(int narg);
 /* the symbols ARG1..ARGn stand for user function index's own argument
-   names (ufun_arg), until set_old_arg_names puts them back */
+   names (xpp::Model ufun_args), until set_old_arg_names puts them back */
 void set_ufun_arg_names(int index);
 int add_ufun_name(const char *name, int index, int narg);
 void fixup_endfun(int *u, int l, int narg);

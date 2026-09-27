@@ -405,7 +405,11 @@ void io_exprs(int f, FILE *fp)
  io_heading(f,fp,"# Delays");
  for(i=0;i<NODE;i++)io_string(delay_string[i],fp,f);
  io_heading(f,fp,"# Bndry conds");
- for(i=0;i<NODE;i++)io_string(my_bc[i].string,256,fp,f);
+ for(i=0;i<NODE;i++){
+   std::string formula=my_bc[i].string;
+   io_string(formula,fp,f);
+   if(f==READEM)set_bc_formula(i,formula);
+ }
  io_heading(f,fp,"# Old ICs");
  for(i=0;i<NODE+NMarkov;i++)io_double(&last_ic[i],fp,f,xpp::model().uvar_names[i]);
  io_heading(f,fp,"# Ending  ICs");
@@ -516,17 +520,4 @@ void io_string(std::string &s, FILE *fp, int f)
    xpp::print(fp,"{}\n",s);
 }
 
-void io_string(char *s, int len, FILE *fp, int f)
-{
- /* s (len bytes, the caller's) gets the line's start, safely cut with a
-    WARN rather than overflowing; files written with the old 10-character
-    names read the same */
- if(f==READEM){
-   std::string line;
-   io_string(line,fp,f);
-   xpp_strlcpy(s,line.c_str(),static_cast<size_t>(len));
- }
- else
-   xpp::print(fp,"{}\n",s);
-}
 

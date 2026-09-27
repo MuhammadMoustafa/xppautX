@@ -32,9 +32,11 @@ FNR == 1 {
   if (index(content, "new"))    counts[FILENAME, "memory"] += gsub(/(^|[^A-Za-z0-9_])new[ \t]+[A-Za-z_][A-Za-z0-9_:<>]*[ \t]*\[/, "&", content)
   if (index(content, "delete")) counts[FILENAME, "memory"] += gsub(/(^|[^A-Za-z0-9_])delete[ \t]*\[[ \t]*\]/, "&", content)
 
-  # buffers: fixed-size "char name[N];" declarations (locals or members).
+  # buffers: fixed-size "char name[N];" declarations (locals or members);
+  # "char name[]" (an extern array of unknown bound, such as the embedded
+  # bytes xpp_window*.cpp declare) has no size to overflow and is not one.
   if (index(content, "char") && index(content, "["))
-    counts[FILENAME, "buffers"] += gsub(/(^|[^A-Za-z0-9_])char[ \t]+[A-Za-z_][A-Za-z0-9_]*[ \t]*\[/, "&", content)
+    counts[FILENAME, "buffers"] += gsub(/(^|[^A-Za-z0-9_])char[ \t]+[A-Za-z_][A-Za-z0-9_]*[ \t]*\[[ \t]*[^] \t]/, "&", content)
 
   # text: xpp_io.h's own safe copiers/formatters, and the raw calls they
   # replace (strcpy/strcat/strncpy/sprintf/strtok are already 0 per

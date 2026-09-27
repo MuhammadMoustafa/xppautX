@@ -523,9 +523,7 @@ int box_set_value(int type,int i,const char *s,double *z)
     set_val(xpp::model().upar_names[i],*z);
     return 1;
   case BCBOX:
-    /* my_bc[i].string is a pointer, allocated 256 bytes (form_ode.cpp,
-       both allocation sites). */
-    xpp_strlcpy(my_bc[i].string,s,256);
+    set_bc_formula(i,s);
     return 0;
   case DELAYBOX:
     delay_string[i]=s;

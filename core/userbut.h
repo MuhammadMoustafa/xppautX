@@ -8,17 +8,20 @@ extern "C" {
 
 #define USERBUTMAX 20
 
-typedef struct {
-  char bname[10]; /* ui_json.cpp sends it as a C string */
-  int com;
-} USERBUT;
-
 extern int nuserbut;
-extern USERBUT userbut[USERBUTMAX];
 
 void add_user_button(const char *s); /* parse "name:keys" from an @ button line */
 
 #ifdef __cplusplus
 }
+
+#include <string>
+
+/* a button of the model's (@ button=name:keys): its name and command */
+struct USERBUT {
+  std::string bname;
+  int com;
+};
+extern USERBUT userbut[USERBUTMAX];
 #endif
 #endif

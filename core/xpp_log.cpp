@@ -1,5 +1,6 @@
 /* See xpp_log.h. */
 #include "xpp_log.h"
+#include "xpp_files.h"
 #include <cstdio>
 #include <cstring>
 
@@ -16,6 +17,13 @@ FILE *sink()
 } // namespace
 
 XppLogSettings log_settings = {NULL, 1, 0, 0};
+
+void xpp_log_open_file(const char *path)
+{
+    if (log_settings.file != nullptr && log_settings.file != stdout && log_settings.file != stderr)
+        std::fclose(log_settings.file);
+    log_settings.file = xpp_files_open_stream(path, "w");
+}
 
 void xpp_log_set_threshold(XppLogLevel level) { threshold = level; }
 void xpp_log_set_auto_echo(int on) { auto_echo = on; }

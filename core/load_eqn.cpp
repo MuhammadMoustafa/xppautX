@@ -581,11 +581,7 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
  if(msc("LOGFILE",s1)){
    if (log_settings.file_from_command_line==0) /*Will be 1 if -logfile was specified on the command line.*/
    {
-      if (log_settings.file != NULL)       
-      { 		         
-     	  fclose(log_settings.file);       
-      } 		         
-      log_settings.file=xpp_files_open_stream(s2,"w");     
+      xpp_log_open_file(s2);
    }
    return;
  }

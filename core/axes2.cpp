@@ -111,8 +111,8 @@ void do_axes()
     switch(plot_windows.current->grtype)
     {
     case 0: Box_axis(plot_windows.current->xlo,plot_windows.current->xhi,plot_windows.current->ylo,plot_windows.current->yhi,
-		       (plot_windows.current->xlabel[0]||!AxisVarLabels)?plot_windows.current->xlabel:s1.c_str(),
-		       (plot_windows.current->ylabel[0]||!AxisVarLabels)?plot_windows.current->ylabel:s2.c_str(),1); break;
+		       (!plot_windows.current->xlabel.empty()||!AxisVarLabels)?plot_windows.current->xlabel.c_str():s1.c_str(),
+		       (!plot_windows.current->ylabel.empty()||!AxisVarLabels)?plot_windows.current->ylabel.c_str():s2.c_str(),1); break;
     case 5: Frame_3d(); break;
 
    }
@@ -180,15 +180,15 @@ void Frame_3d()
   TextJustify=2;
   text3d(x1,-1-2.*dt,-1.0,xpp::format("{:g}",xmin).c_str());
   text3d(x2,-1-2.*dt,-1.0,xpp::format("{:g}",xmax).c_str());
-  text3d(0.0,-1-dt,-1.0,plot_windows.current->xlabel);
+  text3d(0.0,-1-dt,-1.0,plot_windows.current->xlabel.c_str());
   TextJustify=0;
   text3d(1+dt,y1,-1.0,xpp::format("{:g}",ymin).c_str());
   text3d(1+dt,y2,-1.0,xpp::format("{:g}",ymax).c_str());
-  text3d(1+dt,0.0,-1.0,plot_windows.current->ylabel);
+  text3d(1+dt,0.0,-1.0,plot_windows.current->ylabel.c_str());
   TextJustify=2;
   text3d(-1.-dt,-1-dt,z1,xpp::format("{:g}",zmin).c_str());
   text3d(-1.-dt,-1-dt,z2,xpp::format("{:g}",zmax).c_str());
-  text3d(-1.-dt,-1.-dt,0.0,plot_windows.current->zlabel);
+  text3d(-1.-dt,-1.-dt,0.0,plot_windows.current->zlabel.c_str());
   TextJustify=0;
   
   DOING_AXES=0;

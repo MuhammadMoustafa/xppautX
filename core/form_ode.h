@@ -43,10 +43,6 @@ extern FILE *convertf;
 int make_eqn(void);
 void strip_saveqn(void);
 int get_eqn(FILE *fptr);
-/* strtok's tokens of string (get_first) and of the rest of it (get_next):
-   the tokenizer aniparse, auto_nox, do_fit, load_eqn and simplenet share */
-char *get_first(char *string, const char *src);
-char *get_next(const char *src);
 void create_plot_list(void);
 int find_char(const char *s1, const char *s2, int i0, int *i1);
 
@@ -67,6 +63,7 @@ extern int n_comments;
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 /* a fixed variable's name and formula as typed (lunch-new.cpp writes
    them): FIX_VAR of them */
@@ -77,6 +74,11 @@ extern std::array<FIXINFO,MAXODE> fixinfo;
 
 /* 1 when the model is a map: is_a_map, or file ends in .dis or .dif */
 int disc(std::string_view file);
+/* variable i's compiled formula (my_ode[i]) becomes program */
+void set_program(int i, std::vector<int> program);
+/* boundary condition i's formula (my_bc[i].string, at most 255 bytes
+   of it) becomes string; set_bc makes the condition first */
+void set_bc_formula(int i, std::string_view string);
 /* formula i (ode_names[i]) becomes text */
 void set_ode_name(int i, std::string_view text);
 /* old with its array range x[i..j] made x[j] (i1, i2 the range; flag 1,

@@ -299,8 +299,8 @@ inline bool equal_ignoring_case(std::string_view a, std::string_view b)
   return true;
 }
 
-/* strtok's tokens without writing into the text (the parser's, the
-   options' and form_ode.cpp's get_first/get_next replacement):
+/* strtok's tokens without writing into the text (the core's one
+   tokenizer: the parser, the options, the .ani reader, the fit's lists):
    next(delims) passes over the delimiters, returns the text up to the
    next one and passes over that one too, each call naming its own
    delimiters as strtok's did; nullopt once nothing is left. rest() is

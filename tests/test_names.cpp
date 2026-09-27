@@ -5,6 +5,7 @@
    section. */
 #include "xpptest.h"
 #include "model.h"
+#include <string>
 #include "parserslow.h"
 #include "auto_nox.h"
 #include "lunch-new.h"
@@ -36,7 +37,8 @@ static char *rep(char *s, int c, int n)
 int main(void)
 {
     char p64[XPP_NAME_MAX + 2], p65[XPP_NAME_MAX + 2], v64[XPP_NAME_MAX + 2];
-    char primed[XPP_NAME_MAX + 3], expr[400], out[AUTO_COL_W + 1];
+    char primed[XPP_NAME_MAX + 3], expr[400];
+    std::string out;
     double z = 0;
     int ok;
     FILE *fp;
@@ -84,26 +86,26 @@ int main(void)
     NUPAR = 1;
     NAutoPar = 1;
     AutoPar[0] = 0;
-    auto_screen_col("   PAR(0)     ", out);
-    CHECK_STR(out, "applied_stim~ ");
-    auto_screen_col("   MAX U(1)   ", out);
-    CHECK_STR(out, "MAX MEMBRANE~ ");
+    out = auto_screen_col("   PAR(0)     ");
+    CHECK_STR(out.c_str(), "applied_stim~ ");
+    out = auto_screen_col("   MAX U(1)   ");
+    CHECK_STR(out.c_str(), "MAX MEMBRANE~ ");
     xpp::model().uvar_names[0] = "v";
-    auto_screen_col("     U(1)     ", out);
-    CHECK_STR(out, "      v       "); /* a short name is centred as before */
+    out = auto_screen_col("     U(1)     ");
+    CHECK_STR(out.c_str(), "      v       "); /* a short name is centred as before */
 
-    /* a .set file line longer than the field: the field gets its start and
-       the next field is read from the next line, not from the rest */
+    /* a .set file line longer than a name: read whole, and the next field
+       is read from the next line */
     fp = fopen("build/test_names.tmp", "w+");
     CHECK(fp != NULL);
     if (fp) {
-        char a[11], b[11];
+        std::string a, b;
         fprintf(fp, "%s\nnext\n", p64);
         rewind(fp);
-        io_string(a, sizeof a, fp, 1);
-        io_string(b, sizeof b, fp, 1);
-        CHECK_STR(a, "pppppppppp");
-        CHECK_STR(b, "next");
+        io_string(a, fp, 1);
+        io_string(b, fp, 1);
+        CHECK_STR(a.c_str(), p64);
+        CHECK_STR(b.c_str(), "next");
         fclose(fp);
         remove("build/test_names.tmp");
     }

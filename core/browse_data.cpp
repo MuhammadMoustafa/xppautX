@@ -84,10 +84,10 @@ void write_browser_data(FILE *fp, BROWSER *b)
  
 }
 
-void find_variable(const char *s, int *col)
+void find_variable(std::string_view s, int *col)
 {
  *col=-1;
-  if(strcasecmp("T",s)==0){
+  if(xpp::equal_ignoring_case("T",s)){
    *col=0;
     return;
    }
@@ -225,18 +225,16 @@ int add_stor_col(const char *name, const char *formula, BROWSER *b)
     err_msg("Bad Formula .... ");
     return(0);
   }
-  if((my_ode[NEQ+FIX_VAR]=static_cast<int *>(xpp_malloc((i+2)*sizeof(int))))==NULL){
-     err_msg("Cant allocate formula space");
-     return(0);
-   }
+  /* the column's program: the compiled formula and a 0 after it */
+  std::vector<int> program(com,com+i+1);
+  program.push_back(0);
+  set_program(NEQ+FIX_VAR,std::move(program));
   data_store.add_column(NEQ+1);
   /* the column's name as the browser shows it: at most 79 characters of
      the formula, upper case */
   std::string shown=std::string(formula).substr(0,79);
   for(char &c:shown)c=static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
   set_ode_name(NEQ,shown);
-  for(j=0;j<=i;j++)
-    my_ode[NEQ+FIX_VAR][j]=com[j];
   std::string &col_name=xpp::model().uvar_names[NEQ];
   col_name=name;
   strupr(col_name.data());
