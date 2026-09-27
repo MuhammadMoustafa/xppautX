@@ -140,6 +140,7 @@ issue; the card here is the one kept up to date.
 | W74 | #122 | .odex parser and --convert (maintainer, 2026-09-27): both parsers build the same Model, one route after; the converter writes what the .ode parser understood; every example's .odex md5 equals its .ode's | W73, W70 | blocked |
 | W75 | #123 | xppautX --check (maintainer, 2026-09-27): the quirks as warnings with line and column, produced once by xppautX, JSON for the extension, shown at load; a clean .ode is silent; .ode never deprecated | W73, W63 | blocked |
 | W76 | #124 | No limit on a name's length (maintainer, 2026-09-27): XPP_NAME_MAX is a rule left from fixed buffers; the refusals, silent cuts and fixed fields (AUTO settings, NAME_IN, dialogs) become std::string with no cut; short_name() for fixed-width displays; a 200-character name tested end to end | W47c (AUTO settings) | blocked |
+| W77 | #125 | The browser's added column without changing the Model (left by W47c): the column is the Session's data, never a model variable; neq stays the model's | none | ready |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
