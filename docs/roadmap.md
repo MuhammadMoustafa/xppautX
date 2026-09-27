@@ -165,6 +165,8 @@ core/graf_par.cpp's edit_frz/delete_frz (frozen_curves); core/grobs.cpp's
 destroy_grob/destroy_label; core/simplenet.cpp's per-connectivity-type
 16-34 line blocks (the same TABULAR-driven code repeated per network type).
 
+**Found by W32d, for W33:** core/auto_f2c.h's `min`/`max` macros break the C++ standard headers, so a header that auto_f2c.h can reach (storage.h) cannot include them yet; W33c (AUTO's numerics) replaces those macros. TABULAR.y stays a raw block while simplenet's networks keep pointers into it.
+
 **Not owned by any W32 card, left as "keep" in the allowlist; the W33 sweep of each file looks at them again, merging or keeping each with its reason** (same-shape
 per-variant dispatch that is a design pattern, not a copy to merge, or a
 possible coincidental structural match worth a human's second look before

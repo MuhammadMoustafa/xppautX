@@ -265,7 +265,10 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   graphs, the active one, the Simulplot list, draw_win), `frozen_curves`
   and `plot_export` (graf_par.h), `color_table` (colormap.h),
   `text_metrics` (xpp_ui.h), `ani_options` (aniparse.h), `movie_autoplay`
-  (kinescope.h). Use them through the instance (`plot_windows.current->xlo`),
+  (kinescope.h), `data_store` (storage.h, W32d: the stored columns, their
+  rows and the current point; histogram and Fourier results borrow columns
+  through `lend_columns`), the AUTO diagram (diagram.cpp: a container read
+  through `diagram_count`/`diagram_point`/`diagram_first`/`_next`/`_prev`). Use them through the instance (`plot_windows.current->xlo`),
   include the owner's header, never redeclare them `extern` in a .c file.
   The options that set the X11 window's fonts, colours and size are still
   accepted and no longer stored. `core/xpp_util.cpp`,
