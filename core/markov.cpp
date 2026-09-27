@@ -261,7 +261,7 @@ void update_markov(double *x, double t, double dt)
   for(i=0;i<xpp::model().node;i++)set_ivar(i+1,x[i]);
   for(i=xpp::model().node+xpp::model().fix_var;i<xpp::model().node+xpp::model().fix_var+xpp::model().nmarkov;i++)set_ivar(i+1,x[i-xpp::model().fix_var]);
   for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)
-  set_ivar(i+1,evaluate(my_ode[i]));
+  set_ivar(i+1,evaluate(xpp::model().programs[i].data()));
   for(i=0;i<xpp::model().nmarkov;i++)
     yp[i]=new_state(x[xpp::model().node+i],i,dt);
   for(i=0;i<xpp::model().nmarkov;i++){

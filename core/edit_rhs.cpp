@@ -59,7 +59,7 @@ void edit_rhs()
    else if(xpp::model().eq_type[i]==1)name=xpp::format("{}(T)",xpp::model().uvar_names[i]);
    else if(METHOD==0)name=xpp::format("{}(n+1)",xpp::model().uvar_names[i]);
    else name=xpp::format("d{}/dT",xpp::model().uvar_names[i]);
-   box.add(std::move(name),ode_names[i]);
+   box.add(std::move(name),xpp::model().formulas[i].c_str());
  }
  if(box.show("Right Hand Sides")==0)return;
  for(int i=0;i<n;i++){
@@ -73,7 +73,7 @@ void edit_rhs()
        int i0=i;
        if(i>=xpp::model().node)i0=i0+xpp::model().fix_var-xpp::model().nmarkov;
        for(int j=0;j<len;j++)
-         my_ode[i0][j]=command[j];
+         xpp::model().programs[i0][j]=command[j];
      }
    }
  }
@@ -141,10 +141,10 @@ int save_as()
   for(int i=0;i<NFUN;i++)
     w.print("user {} {} {}\n",xpp::model().ufun_names[i],narg_fun[i],ufun_def[i]);
   for(int i=0;i<xpp::model().node;i++)
-    w.print("{} {}\n",xpp::model().eq_type[i]==1?"i":"o",ode_names[i]);
+    w.print("{} {}\n",xpp::model().eq_type[i]==1?"i":"o",xpp::model().formulas[i]);
   for(int i=xpp::model().node;i<xpp::model().neq;i++)
-    w.print("o {}\n",ode_names[i]);
-  for(int i=0;i<xpp::model().node;i++)w.print("b {} \n",my_bc[i].string);
+    w.print("o {}\n",xpp::model().formulas[i]);
+  for(int i=0;i<xpp::model().node;i++)w.print("b {} \n",xpp::model().bcs[i].string.data());
   w.print("done\n");
   return w.commit()?1:0;
 }

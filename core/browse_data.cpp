@@ -12,7 +12,6 @@
 #include "model.h"
 #include "xpp_util.h"
 #include "storage.h"
-#include "xpp_mem.h" /* add_stor_col's formula: form_ode.cpp's my_ode block */
 #include "form_ode.h"
 #include "parserslow.h"
 #include "browse.h"

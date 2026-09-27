@@ -59,9 +59,9 @@ void do_bc(double *y__0, double t0, double *y__1, double t1, double *f, int n)
    SETVAR(i+1,y__0[i]);
    SETVAR(i+n0+1,y__1[i]);
  }
-  for(i=n;i<n+xpp::model().fix_var;i++)SETVAR(i+1,evaluate(my_ode[i]));
+  for(i=n;i<n+xpp::model().fix_var;i++)SETVAR(i+1,evaluate(xpp::model().programs[i].data()));
  
-  for(i=0;i<n;i++)f[i]=evaluate(my_bc[i].com);
+  for(i=0;i<n;i++)f[i]=evaluate(xpp::model().bcs[i].com.data());
 }
 
 void compile_bvp()
@@ -76,7 +76,7 @@ void compile_bvp()
  BVP_FLAG=0;
  for(i=0;i<xpp::model().node;i++){
 
-   if(add_expr(my_bc[i].string,my_bc[i].com,&len)){
+   if(add_expr(xpp::model().bcs[i].string.data(),xpp::model().bcs[i].com.data(),&len)){
      err_msg(xpp::format("Bad syntax on {} th BC",i+1).c_str());
      return;
    }

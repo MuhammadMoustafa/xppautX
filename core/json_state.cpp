@@ -86,9 +86,9 @@ void send_state(void)
     for (i = 0; i < xpp::model().node; i++) {
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
-        buf_str(&b, my_bc[i].name);
+        buf_str(&b, xpp::model().bcs[i].name.data());
         BUF_LIT(&b, ",");
-        buf_str(&b, my_bc[i].string);
+        buf_str(&b, xpp::model().bcs[i].string.data());
         BUF_LIT(&b, "]");
     }
     BUF_LIT(&b, "]");
@@ -304,7 +304,7 @@ void send_equations(void)
     BUF_LIT(&b, "{\"ev\":\"equations\",\"lines\":[");
     for (i = 0; i < xpp::model().neq; i++) {
         const std::string &name = xpp::model().uvar_names[i];
-        const char *rhs = ode_names[i] ? ode_names[i] : "";
+        const char *rhs = xpp::model().formulas[i].c_str();
         line.s.clear();
         if (i < xpp::model().node && xpp::model().eq_type[i] != 1 && METHOD > 0) BUF_LIT(&line, "d");
         buf_add(&line, name.data(), name.size());
@@ -348,7 +348,7 @@ int apply_value(const char *line)
     index = get_int(line, "index", -1);
     if (index >= n) index = -1;
     for (i = 0; index < 0 && i < n; i++) {
-        const char *bc = type == 4 ? my_bc[i].name : nullptr;
+        const char *bc = type == 4 ? xpp::model().bcs[i].name.data() : nullptr;
         if (type == 4 ? bc && xpp::equal_ignoring_case(bc, name)
                       : xpp::equal_ignoring_case(type == 1 ? xpp::model().upar_names[i] : xpp::model().uvar_names[i], name))
             index = i;

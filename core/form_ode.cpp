@@ -41,20 +41,15 @@
 #define MAXCOMMENTS 500
 
 static int IN_INCLUDED_FILE=0;
-char *ode_names[MAXODE];
 char *save_eqn[MAXLINES];
 double default_val[MAXPAR];
 
-int *my_ode[MAXODE];
-/* each program's length */
-static int leng[MAXODE];
 
 int *plotlist;
 int N_plist;
 
 ACTION comments[MAXCOMMENTS];
 int n_comments=0;
-BC_STRUCT my_bc[MAXODE];
 
 double default_ic[MAXODE];
 int NLINES;
@@ -82,17 +77,9 @@ xpp::Writer convert_writer;
 /* The storage behind the C tables above, which the rest of the core
    reads (and a few write into, so each keeps its old size): each entry
    points into one of these, set with the functions below */
-std::array<std::string,MAXODE> ode_text;          /* ode_names[] */
-std::array<std::vector<int>,MAXODE> ode_program;  /* my_ode[] */
 std::array<std::string,MAXLINES> line_text;       /* save_eqn[] */
 std::array<std::string,MAXCOMMENTS> comment_text,comment_action; /* comments[] */
 std::vector<int> plot_columns;                    /* plotlist */
-struct BcText {
-  std::vector<int> com;     /* the compiled condition: 200 commands */
-  std::vector<char> string; /* the condition: 256 bytes (set_bc_formula) */
-  std::vector<char> name;   /* "0=": 10 bytes (pp_shoot writes its side into it) */
-};
-std::array<BcText,MAXODE> bc_text;                /* my_bc[] */
 
 /* the names an "only" statement keeps */
 std::vector<std::string> onlylist;
@@ -106,39 +93,36 @@ int is_a_map=0;
 
 void set_program(int i, std::vector<int> program)
 {
-  ode_program[i]=std::move(program);
-  my_ode[i]=ode_program[i].data();
+  xpp::model().programs[i]=std::move(program);
 }
 
 namespace {
 
-/* my_ode[i]: MAXEXPLEN commands, zeroed */
+/* program i: MAXEXPLEN commands, zeroed */
 int *new_program(int i)
 {
-  ode_program[i].assign(MAXEXPLEN,0);
-  return my_ode[i]=ode_program[i].data();
+  std::vector<int> &program=xpp::model().programs[i];
+  program.assign(MAXEXPLEN,0);
+  return program.data();
 }
 
 /* boundary condition i is 0=string (at most 255 bytes of it) */
 void set_bc(int i, std::string_view string)
 {
-  BcText &b=bc_text[i];
+  xpp::Model::BoundaryCondition &b=xpp::model().bcs[i];
   b.com.assign(200,0);
   b.string.assign(256,'\0');
   b.name.assign(10,'\0');
   set_bc_formula(i,string);
   std::string_view name="0=";
   std::copy(name.begin(),name.end(),b.name.begin());
-  my_bc[i].com=b.com.data();
-  my_bc[i].string=b.string.data();
-  my_bc[i].name=b.name.data();
 }
 
 } // namespace
 
 void set_bc_formula(int i, std::string_view string)
 {
-  std::vector<char> &text=bc_text[i].string;
+  std::vector<char> &text=xpp::model().bcs[i].string;
   if(string.size()>=text.size()){
     xpp::log(XPP_LOG_WARN, "boundary condition cut to {} characters: {}\n",text.size()-1,string);
     string=string.substr(0,text.size()-1);
@@ -149,12 +133,6 @@ void set_bc_formula(int i, std::string_view string)
 
 namespace {
 
-/* p's text, "" for none (a missing token) */
-const char *text_of(const char *p)
-{
-  return p?p:"";
-}
-
 /* s after a C function wrote into s.data(): cut at its NUL */
 void c_resync(std::string &s)
 {
@@ -164,7 +142,7 @@ void c_resync(std::string &s)
 
 void set_ode_name(int i, std::string_view text)
 {
-  xpp::keep_c_text(ode_text[i],ode_names[i],text);
+  xpp::model().formulas[i]=text;
 }
 
 namespace {
@@ -559,6 +537,7 @@ int compiler(const std::string &bob, FILE *fptr)
 {
   double value,xlo,xhi;
   int narg,done,nn,iflg=0,VFlag=0,nstates,alt,index,sign;
+  int len; /* a program's length, from add_expr */
   std::string name,formula,condition;
   /* the fixed variables' names, for a converted file */
   static std::array<std::string,MAXODE1> fixname;
@@ -748,8 +727,8 @@ int compiler(const std::string &bob, FILE *fptr)
     case 'b':
       set_bc(BVP_N,tokens.text("\n"));
       if(ConvertStyle)
-	xpp::print(convertf,"bndry {}\n",my_bc[BVP_N].string);
-      xpp_log(XPP_LOG_DEBUG, "|%s| |%s| \n",my_bc[BVP_N].name,my_bc[BVP_N].string);
+	xpp::print(convertf,"bndry {}\n",xpp::model().bcs[BVP_N].string.data());
+      xpp_log(XPP_LOG_DEBUG, "|%s| |%s| \n",xpp::model().bcs[BVP_N].name.data(),xpp::model().bcs[BVP_N].string.data());
       BVP_N++;
       break;
     case 'k':
@@ -886,7 +865,7 @@ int compiler(const std::string &bob, FILE *fptr)
 	  }
 	}
       xpp::log(XPP_LOG_INFO, "RHS({})={}\n",xpp::model().node,formula);
-      if(add_expr(formula.c_str(),my_ode[xpp::model().node],&leng[xpp::model().node])){
+      if(add_expr(formula.c_str(),xpp::model().programs[xpp::model().node].data(),&len)){
 	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",NLINES);
 	xpp_model_failed();
       }
@@ -1037,7 +1016,7 @@ int get_eqn(FILE *fptr)
   for(i=0;i<xpp::model().neq;i++)
       {
 	strupr(uvar_names[i].data());
-	std::string formula=text_of(ode_names[i]);
+	std::string formula=xpp::model().formulas[i];
 	strupr(formula.data());
         de_space(formula.data());
 	c_resync(formula);
@@ -1551,6 +1530,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
  int nmark=0,nfix=0,naux=0,nvar=0,nn,alt,in,i,ntab=0,nufun=0;
  int in1,in2,iflag,ok;
  int fon;
+ int len; /* a program's length, from add_expr */
  FILE *fp=NULL;
  /* v.lhs/v.rhs after a C function wrote into them: cut at their NUL */
  auto resync=[](VAR_INFO &v){
@@ -1795,7 +1775,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        set_ode_name(nvar,v.rhs);
        new_program(nvar);
        find_ker(v.rhs,&alt);
-       if(add_expr(v.rhs.c_str(),my_ode[nvar],&leng[nvar])){
+       if(add_expr(v.rhs.c_str(),xpp::model().programs[nvar].data(),&len)){
 	 xpp::log(XPP_LOG_ERROR, "ERROR compiling {}' \n",v.lhs);
 	 xpp_model_failed();
        }
@@ -1812,7 +1792,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
       case FIXED:
        find_ker(v.rhs,&alt);
        new_program(nfix+IN_VARS);
-       if(add_expr(v.rhs.c_str(),my_ode[nfix+IN_VARS],&leng[IN_VARS+nfix])!=0){
+       if(add_expr(v.rhs.c_str(),xpp::model().programs[nfix+IN_VARS].data(),&len)!=0){
 	 xpp::log(XPP_LOG_ERROR, " Error allocating or compiling {}\n",v.lhs);
 	 xpp_model_failed();
        }
@@ -1830,7 +1810,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        in2=IN_VARS+xpp::model().fix_var+naux;
        set_ode_name(in1,v.rhs);
        new_program(in2);
-       if(add_expr(v.rhs.c_str(),my_ode[in2],&leng[in2])){
+       if(add_expr(v.rhs.c_str(),xpp::model().programs[in2].data(),&len)){
 	 xpp::log(XPP_LOG_ERROR, "ERROR compiling {} \n",v.lhs);
 	 xpp_model_failed();
        }

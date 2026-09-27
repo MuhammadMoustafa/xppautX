@@ -176,7 +176,7 @@ void get_dae_fun(double *y, double *f)
   for(i=0;i<nsvar;i++)
     SETVAR(svar[i].index,y[i]);
   for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)
-    SETVAR(i+1,evaluate(my_ode[i]));
+    SETVAR(i+1,evaluate(xpp::model().programs[i].data()));
   for(i=0;i<naeqn;i++)
     f[i]=evaluate(aeqn[i].form.data());
 }

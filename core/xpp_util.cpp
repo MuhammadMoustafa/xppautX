@@ -385,9 +385,9 @@ void clone_ode()
   fp.print("\n");
 
   /* BDRY conds */
-  if(my_bc[0].string[0]!='0'){
+  if(xpp::model().bcs[0].string.data()[0]!='0'){
     for(i=0;i<xpp::model().node;i++)
-      fp.print("bdry {}\n",my_bc[i].string);
+      fp.print("bdry {}\n",xpp::model().bcs[i].string.data());
   }
   j=0;
   if(xpp::model().nupar>0){

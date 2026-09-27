@@ -10,7 +10,7 @@
 
 void extra(double *y__y, double t, int nod, int neq)
 {
-  const xpp::Model &m=xpp::model();
+  xpp::Model &m=xpp::model();
   const int fix=m.fix_var,nmark=m.nmarkov;
   int i;
   if(nod>=neq)return;
@@ -19,16 +19,16 @@ void extra(double *y__y, double t, int nod, int neq)
   SETVAR(i+1,y__y[i]);
   for(i=nod+fix;i<nod+fix+nmark;i++)SETVAR(i+1,y__y[i-fix]);
   for(i=nod;i<nod+fix;i++)
-  SETVAR(i+1,evaluate(my_ode[i]));
+  SETVAR(i+1,evaluate(m.programs[i].data()));
   /* I dont think this is generally needed  */
 
   for(i=nod+nmark;i<neq;i++)
-  y__y[i]=evaluate(my_ode[i+fix-nmark]);
+  y__y[i]=evaluate(m.programs[i+fix-nmark].data());
 }
 
 void set_fix_rhs(double t, double *y)
 {
-  const xpp::Model &m=xpp::model();
+  xpp::Model &m=xpp::model();
   const int node=m.node,fix=m.fix_var;
   int i;
   SETVAR(0,t);
@@ -37,7 +37,7 @@ void set_fix_rhs(double t, double *y)
   for(i=0;i<m.nmarkov;i++)
     SETVAR(i+1+node+fix,y[i+node]);
   for(i=node;i<node+fix;i++)
-    SETVAR(i+1,evaluate(my_ode[i]));
+    SETVAR(i+1,evaluate(m.programs[i].data()));
   eval_all_nets();
 
   do_in_out(); 
@@ -45,7 +45,7 @@ void set_fix_rhs(double t, double *y)
 
 int my_rhs(double t, double *y, double *ydot, int neq)
 {
-  const xpp::Model &m=xpp::model();
+  xpp::Model &m=xpp::model();
   const int node=m.node,fix=m.fix_var;
   int i;
   SETVAR(0,t);
@@ -53,7 +53,7 @@ int my_rhs(double t, double *y, double *ydot, int neq)
   SETVAR(i+1,y[i]);
 
   for(i=node;i<node+fix;i++){
-  SETVAR(i+1,evaluate(my_ode[i]));
+  SETVAR(i+1,evaluate(m.programs[i].data()));
   }
 eval_all_nets();
     
@@ -62,7 +62,7 @@ eval_all_nets();
     do_in_out(); 
  for(i=0;i<node;i++)
   {
-    ydot[i]=evaluate(my_ode[i]);
+    ydot[i]=evaluate(m.programs[i].data());
   }
  if(neq>node)vec_rhs(t,y,ydot,neq);
 	
@@ -71,10 +71,11 @@ eval_all_nets();
 
 void update_based_on_current()
 {
-  const int node=xpp::model().node,fix=xpp::model().fix_var;
+  xpp::Model &m=xpp::model();
+  const int node=m.node,fix=m.fix_var;
   int i;
    for(i=node;i<node+fix;i++)
-    SETVAR(i+1,evaluate(my_ode[i]));
+    SETVAR(i+1,evaluate(m.programs[i].data()));
     
   eval_all_nets();
   do_in_out(); 
@@ -82,19 +83,21 @@ void update_based_on_current()
 
 void fix_only()
 {
-  const int node=xpp::model().node,fix=xpp::model().fix_var;
+  xpp::Model &m=xpp::model();
+  const int node=m.node,fix=m.fix_var;
    int i;
   for(i=node;i<node+fix;i++)
-    SETVAR(i+1,evaluate(my_ode[i]));
+    SETVAR(i+1,evaluate(m.programs[i].data()));
 
 }
 
 void rhs_only(double *y,double *ydot)
 {
-  const int node=xpp::model().node;
+  xpp::Model &m=xpp::model();
+  const int node=m.node;
   int i;
   for(i=0;i<node;i++){
-    ydot[i]=evaluate(my_ode[i]);
+    ydot[i]=evaluate(m.programs[i].data());
   }
 }
  

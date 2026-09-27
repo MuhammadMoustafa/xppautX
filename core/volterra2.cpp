@@ -226,7 +226,7 @@ void get_kn(double *y, double t)  /* uses the guessed value y to update Kn  */
   for(i=0;i<xpp::model().node;i++)
     SETVAR(i+1,y[i]);
   for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)
-    SETVAR(i+1,evaluate(my_ode[i]));
+    SETVAR(i+1,evaluate(xpp::model().programs[i].data()));
   for(i=0;i<NKernel;i++){
     if(kernel[i].flag==CONV)
       kernel[i].k_n=kernel[i].sum+
@@ -265,15 +265,15 @@ int volterra(double *y, double *t, double dt, int nt, int neq, int *istart, doub
     for(i=0;i<xpp::model().node;i++)
       if(!xpp::model().eq_type[i])SETVAR(i+1,y[i]);  /* assign initial data             */
     for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)
-      SETVAR(i+1,evaluate(my_ode[i])); /* set fixed variables  for pass 1 */
+      SETVAR(i+1,evaluate(xpp::model().programs[i].data())); /* set fixed variables  for pass 1 */
     for(i=0;i<xpp::model().node;i++)
       if(xpp::model().eq_type[i]){  
-	z=evaluate(my_ode[i]);           /* reset IC for integral eqns      */
+	z=evaluate(xpp::model().programs[i].data());           /* reset IC for integral eqns      */
 	SETVAR(i+1,z);
 	y[i]=z;    
       }
     for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)       /* pass 2 for fixed variables      */   
-      SETVAR(i+1,evaluate(my_ode[i]));
+      SETVAR(i+1,evaluate(xpp::model().programs[i].data()));
     for(i=0;i<xpp::model().node+xpp::model().fix_var+xpp::model().nmarkov;i++)
       Memory[i][0]=get_ivar(i+1);        /* save everything                 */
     CurrentPoint=1;
@@ -310,18 +310,18 @@ int volt_step(double *y, double t, double dt, int neq, double *yg, double *yp, d
    SETVAR(i+1+xpp::model().fix_var,y[i]);
  SETVAR(0,t-dt);
  for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)
-   SETVAR(i+1,evaluate(my_ode[i]));
+   SETVAR(i+1,evaluate(xpp::model().programs[i].data()));
  for(i=0;i<xpp::model().node;i++){
-   if(!xpp::model().eq_type[i])yp2[i]=y[i]+dt2*evaluate(my_ode[i]);
+   if(!xpp::model().eq_type[i])yp2[i]=y[i]+dt2*evaluate(xpp::model().programs[i].data());
    else yp2[i]=0.0;
  }
  KnFlag=1;
  while(1){
    get_kn(yg,t);
     for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)
-     SETVAR(i+1,evaluate(my_ode[i])); 
+     SETVAR(i+1,evaluate(xpp::model().programs[i].data())); 
    for(i=0;i<xpp::model().node;i++){
-     yp[i]=evaluate(my_ode[i]);
+     yp[i]=evaluate(xpp::model().programs[i].data());
      if(xpp::model().eq_type[i])errvec[i]=-yg[i]+yp[i];
      else errvec[i]=-yg[i]+dt2*yp[i]+yp2[i];
    }
@@ -333,11 +333,11 @@ int volt_step(double *y, double t, double dt, int neq, double *yg, double *yp, d
      delinv=1./del;
      get_kn(yg,t);
       for(j=xpp::model().node;j<xpp::model().node+xpp::model().fix_var;j++)
-       SETVAR(j+1,evaluate(my_ode[j]));  
+       SETVAR(j+1,evaluate(xpp::model().programs[j].data()));  
      for(j=0;j<xpp::model().node;j++){
        fac=delinv;
        if(!xpp::model().eq_type[j])fac*=dt2;
-       jac[j*xpp::model().node+i]=(evaluate(my_ode[j])-yp[j])*fac;
+       jac[j*xpp::model().node+i]=(evaluate(xpp::model().programs[j].data())-yp[j])*fac;
      }
      yg[i]=yold;
    }

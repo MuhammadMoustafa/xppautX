@@ -59,6 +59,26 @@ struct Model {
      0 an ODE or a map */
   std::array<int,MAXODE> eq_type{};
 
+  /* ---- the compiled right-hand sides (form_ode.cpp) ---- */
+  /* each quantity's formula as typed and as compiled for evaluate(), by
+     the index form_ode.cpp's compile_em gives it: the ODEs (node), the
+     fixed variables (fix_var), the Markov variables' transition
+     placeholders, then the aux quantities; browse_data's added column
+     takes the next one. An unused index has "" and no program. */
+  std::array<std::string,MAXODE> formulas;
+  std::array<std::vector<int>,MAXODE> programs;
+  /* a boundary condition, 0=string: string (at most 255 bytes, the rest
+     NUL), com its compiled form (200 commands), name "0=" (10 bytes;
+     pp_shoot writes its side into it). C buffers: the shooting code and
+     the dialogs write into them. */
+  struct BoundaryCondition {
+    std::vector<int> com;
+    std::vector<char> string;
+    std::vector<char> name;
+  };
+  /* the boundary conditions, one per ODE */
+  std::array<BoundaryCondition,MAXODE> bcs;
+
   /* the variables' names by index: the ODEs (NODE), the Markov variables
      (NMarkov), then the aux quantities, NEQ in all; browse_data's added
      column takes the next one */
