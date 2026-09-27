@@ -94,13 +94,12 @@ void get_draw_area_flag(int flag)
     w=plot_windows.current->x11Wid;
     h=plot_windows.current->x11Hgt;
   }
-  /* plintf(" geom:+%d+%d:%dx%d\n",x,y,w,h); */
   XDMax=w;
   YDMax=h;
   VTic=max(h/100,1);
   HTic=max(w/150,1);
-  VChar=text_metrics.small_height;  /*max(h/25,1);*/
-  HChar=text_metrics.small_width; /* max(w/80,1); */
+  VChar=text_metrics.small_height;
+  HChar=text_metrics.small_width;
   
   DLeft=12*HChar;
   DRight=XDMax-3*HChar-HTic;
@@ -136,7 +135,6 @@ void point(int x, int y)
 
 void line(int x1, int y1, int x2, int y2)
 {
-  /* plintf("l %d %d %d %d \n",x1,y1,x2,y2); */
   if(PltFmtFlag==PSFMT)ps_line(x1,y1,x2,y2);
   else if(PltFmtFlag==SVGFMT)svg_line(x1,y1,x2,y2);
   else xpp_ui.draw_line(x1,y1,x2,y2);
@@ -270,7 +268,6 @@ void init_all_graph()
  for(i=0;i<MAXPOP;i++)
  init_graph(i);
  plot_windows.current=&plot_windows.graph[0];
- /*set_extra_graphs();*/
  set_normal_scale();
 
 }
@@ -303,7 +300,6 @@ void set_extra_graphs()
     plot_windows.graph[i].xhi=X_HI[i+1];
     plot_windows.graph[i].ylo=Y_LO[i+1];
     plot_windows.graph[i].yhi=Y_HI[i+1];
-    /*  printf(" %g %g %g %g \n",X_LO[i+1],X_HI[i+1],Y_LO[i+1],Y_HI[i+1]); */
   }
   set_active_windows();
   make_active(0,1); 
@@ -514,7 +510,6 @@ void scale3d(float x, float y, float z, float *xp, float *yp, float *zp)
 int threedproj(float x2p, float y2p, float z2p, float *xp, float *yp)
 {
   float x1p,y1p,z1p,s;
- /*  if(fabs(x2p)>1||fabs(y2p)>1||fabs(z2p)>1)return(0); */
  rot_3dvec(x2p,y2p,z2p,&x1p,&y1p,&z1p);
 
  if(plot_windows.current->PerspFlag==0){
@@ -542,7 +537,6 @@ int threed_proj(float x, float y, float z, float *xp, float *yp)
   float x1p,y1p,z1p,s;
  float x2p,y2p,z2p;
  scale3d(x,y,z,&x2p,&y2p,&z2p);  /* scale to a cube  */
- /* if(fabs(x2p)>1||fabs(y2p)>1||fabs(z2p)>1)return(0); */
  rot_3dvec(x2p,y2p,z2p,&x1p,&y1p,&z1p);
 
  if(plot_windows.current->PerspFlag==0){
@@ -786,7 +780,6 @@ void fancy_text_abs(float x, float y, const char *old, int size, int font)
   if(PltFmtFlag==PSFMT)special_put_text_ps(xp,yp,text.c_str(),size);
   else if(PltFmtFlag==SVGFMT)special_put_text_svg(xp,yp,text.c_str(),size);
   else xpp_ui.draw_special_text(xp,yp,text.c_str(),size);
-/* fancy_put_text_x11(xp,yp,text,size,font); */
     
 }
 

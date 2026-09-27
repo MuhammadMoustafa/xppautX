@@ -66,7 +66,6 @@ extern "C" int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
   get_start_period(&p);
   par[10]=p;
   if(HomoFlag!=1)get_start_orbit(u,t,p,ndim);
-  /*  printf("%d %d %g %g %g %g \n",ndim,HomoFlag,t,u[0],u[1],p); */
   if(HomoFlag==1){
 
     get_shifted_orbit(u,t,p,ndim);
@@ -110,13 +109,6 @@ extern "C" int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
 	 const doublereal *upold, integer ijac,
 	 doublereal *fi, doublereal *dint)
 {
-   /*
-   int i;
-   double dum=0.0;
-  for(i=0;i<Homo_n;i++)
-    dum+=upold[i]*(u[i]-uold[i]);
-  fi[0]=dum;
-   */
     return 0;
 } /* icnd_ */
 

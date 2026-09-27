@@ -373,7 +373,6 @@ if(dif_var<0)
      {
        if(i==0)derv=(dat[dif_var][1]-dat[dif_var][0])/dt;
        if(i==(n-1))derv=(dat[dif_var][i]-old)/dt;
-       /* if(i>0&&i<(n-1))derv=(dat[dif_var][i+1]-old)/(2*dt); */
        if(i>0&&i<(n-1))derv=(dat[dif_var][i+1]-dat[dif_var][i])/dt;
        old=dat[dif_var][i];
        dat[R_COL][i]=derv;
@@ -548,8 +547,6 @@ if(status==0)return;
   }
   refresh_browser(len);
   data_store.rows=len;
- /*  b->maxrow=len;
- xpp_ui.browser_redraw(0); */
 }
 
 void data_write(BROWSER *b)

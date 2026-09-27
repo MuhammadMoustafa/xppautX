@@ -168,7 +168,6 @@ void one_step_discrete(double *y, double dt, double *yp, int neq, double *t)
      rhs(*t,y,yp,neq);
      *t=*t+dt;
      for(j=0;j<neq;j++){y[j]=yp[j];
-       /*                  plintf("%g %d %g \n",*t,j,y[j]); */
      }
 
 }
@@ -500,34 +499,27 @@ int *istart,int n,double *work,int *ierr)
 	 if(err<temp)err=temp;
        }
        err=err*(absh/6);
-       /* plintf(" err=%g hmin=%g absh=%g \n",err,hmin,absh);
-	  wait_for_key(); */
        if(err>rtol){
 	 if(absh<hmin){
-	   /* plintf("rosen failed at t=%g. Step size too small \n",t);*/
            *ierr=-1;
 	   return(-1);
 	 }
 	 absh = MAX(hmin, absh * MAX(0.1, pow(0.8*(rtol/err),1./3.)));
-         /* plintf(" absh=%g  %g  \n",absh,0.8*(rtol/err)); */
 	 h = tdir * absh;
 	 nofailed=0;
 	 done=0;
        }
        else {
-	 /* plintf(" successful step -- nofail=%d absh=%g \n",nofailed,absh); */
 	 break;
        }
      }
      if(nofailed==1){
-       /* plintf(" I didn't fail! \n"); */
        temp=1.25*pow(err/rtol,1./3.);
        if(temp>0.2)
 	 absh=absh/temp;
        else
 	 absh=5*absh;
      }
-     /* plintf("  absh=%g \n",absh); */
      t=tnew;
      for(i=0;i<n;i++){
        y[i]=ynew[i];
@@ -539,14 +531,6 @@ int *istart,int n,double *work,int *ierr)
  *istart=0;
  return(0);
 }
-     
-/* wait_for_key()
-{
-  char bob[256];
-  plintf(" Pause:");
-  gets(bob);
-}
-*/
 
  /* this assumes that yp is already computed */
 void get_the_jac(double t,double *y,double *yp,
@@ -577,7 +561,6 @@ void get_band_jac(double *a, double *y, double t, double *ypnew, double *ypold, 
   double yhat;
   double dy;
   double dsy;
-  /* plintf("Getting banded! \n"); */
   for(i=0;i<(n*mt);i++)
     a[i]=0.0;
   for(i=0;i<n;i++){

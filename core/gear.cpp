@@ -53,7 +53,6 @@ void do_sing(double *x, double eps, double err, double big, int maxit, int n, in
  double real,imag;
  double bigpos=-1e10,bigneg=1e10;
  int bpos=0,bneg=0;
- /* float xl[MAXODE]; */
  kmem=n*(2*n+5)+50;
  /* xpp_malloc never returns NULL (it exits on failure); work is RAII now
     (std::vector) so every return path below frees it automatically. */
@@ -75,11 +74,9 @@ void do_sing(double *x, double eps, double err, double big, int maxit, int n, in
   return;
  }
  DING;
- /* for(i=0;i<n;i++)xl[i]=(float)x[i]; */
  
  for(i=0;i<n*n;i++){
   oldwork[i]=work[i];
-  /* plintf("dm=%g\n",oldwork[i]); */
  }
 /* Transpose for Eigen        */
   for(i=0;i<n;i++)
@@ -183,8 +180,6 @@ if(!PAR_FOL)
   
    if(rp==1)
    {
-     /* plintf(" One real positive -- pos=%d lam=%g \n",pose,eval[2*pose]); */
-     /*     for(i=0;i<n*n;i++)printf(" w=%g o=%g \n",work[i],oldwork[i]); */
      get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*pose],ierr);
      if(*ierr==0)
      {
@@ -352,7 +347,6 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
  double real,imag;
  double bigpos=-1e10,bigneg=1e10;
 
- /* float xl[MAXODE]; */
  kmem=n*(2*n+5)+50;
  /* xpp_malloc never returns NULL (it exits on failure); work is RAII now
     (std::vector) so every return path below frees it automatically. */
@@ -370,16 +364,12 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
  rooter(x,err,eps,big,work,ierr,maxit,n);
  if(*ierr!=0)
  {
-  /* err_msg("Could not converge to root"); */
   for(i=0;i<n;i++)x[i]=old_x[i];
   return;
  }
- 
- /* for(i=0;i<n;i++)xl[i]=(float)x[i]; */
- 
+
  for(i=0;i<n*n;i++){
   oldwork[i]=work[i];
-  /* plintf("dm=%g\n",oldwork[i]); */
  }
 /* Transpose for Eigen        */
   for(i=0;i<n;i++)
@@ -457,8 +447,6 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
  
    if(rp==1)
    {
-     /* plintf(" One real positive -- pos=%d lam=%g \n",pose,eval[2*pose]); */
-     /*     for(i=0;i<n*n;i++)printf(" w=%g o=%g \n",work[i],oldwork[i]); */
      get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*pose],ierr);
 
      if(*ierr==0)
@@ -503,14 +491,6 @@ void pr_evec(double *x, double *ev, int n, int pr, double eval, int type)
    ShootIndex+=2;
  }
  if(pr==0)return;
- /* plintf("Initial conditions for %f \n",eval);
-
- for(i=0;i<n;i++)
- {
-  plintf(" %.16g   %.16g   %.16g \n",ev[i],x[i]+d*ev[i],x[i]-d*ev[i]);
-
- }
- */
 }
 
 void get_evec(double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval, int *ierr)
@@ -522,7 +502,6 @@ void get_evec(double *a, double *anew, double *b, double *bp, int n, int maxit, 
     *ierr=0;
     for(j=0;j<n*n;j++){
     anew[j]=a[j];
-    /*  plintf(" %d %g \n",j,a[j]);   */
     }
     for(j=0;j<n;j++)
     anew[j*(1+n)]=anew[j*(1+n)]-eval-err*err*zz;
@@ -601,22 +580,16 @@ void getjac(double *x, double *y, double *yp, double *xp, double eps, double *de
 
   for(i=0;i<n;i++)
   {
-    /*    plintf(" y=%g x=%g\n",y[i],x[i]); */
     for(k=0;k<n;k++) xp[k]=x[k];
     r=eps*std::max(eps,fabs(x[i]));
     xp[i]=xp[i]+r;
     rhs(0.0,xp,yp,n);
-    /* 
-       for(j=0;j<n;j++)
-       plintf(" r=%g yp=%g xp=%g\n",r,yp[j],xp[j]);
-    */
     if(METHOD==0){
      for(j=0;j<n;j++)yp[j]=yp[j]-xp[j];
     }
     for(j=0;j<n;j++)
     {
     dermat[j*n+i]=(yp[j]-y[j])/r;
-    /*    plintf("dm=%g \n",dermat[j*n+i]); */
     }
 
   }
@@ -630,19 +603,13 @@ void getjactrans(double *x,double *y,double *yp,double *xp, double eps, double *
    rhs(0.0,x,y,n);
   for(i=0;i<n;i++)
   {
-    /*    plintf(" y=%g x=%g\n",y[i],x[i]); */
     for(k=0;k<n;k++) xp[k]=x[k];
     r=eps*std::max(eps,fabs(x[i]));
     xp[i]=xp[i]+r;
     rhs(0.0,xp,yp,n);
-    /* 
-       for(j=0;j<n;j++)
-       plintf(" r=%g yp=%g xp=%g\n",r,yp[j],xp[j]);
-    */
     for(j=0;j<n;j++)
     {
     dermat[j+n*i]=(yp[j]-y[j])/r;
-    /*    plintf("dm=%g \n",dermat[j*n+i]); */
     }
 
   }
@@ -705,7 +672,6 @@ void rooter(double *x, double err, double eps, double big, double *work, int *ie
      getjac(x,y,yp,xp,eps,dermat,n);
      if(METHOD==0)
      for(i=0;i<n;i++)dermat[i*(n+1)]+=1.0;
-     /* for(i=0;i<n*n;i++)printf("dm=%g \n",dermat[i]); */
      return; /* success !! */
   }
   if((r/static_cast<double>(n))>big)
@@ -738,7 +704,6 @@ int gear(int n, double *t, double tout, double *y, double hmin, double hmax, dou
 
 int ggear(int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
 {
- /* int ipivot[MAXODE]; */
   double deltat=0.0,hnew=0.0,hold=0.0,h=0.0,racum=0.0,told=0.0,r=0.0,d=0.0;
   double *a,pr1,pr2,pr3,r1;
   double *dermat,*save[8],*save9,*save10,*save11,*save12;
@@ -746,7 +711,6 @@ int ggear(int n, double *t, double tout, double *y, double hmin, double hmax, do
   double *ytable[8],*ymax,*work2;
   int i,iret=0,maxder=0,j=0,k=0,iret1=0,nqold=0,nq=0,newq=0;
   int idoub=0,mtyp=0,iweval=0,j1=0,j2=0,l=0,info=0,nt=0;
-/* plintf("entering gear ... with start=%d \n",*jstart);*/ 
    for(i=0;i<8;i++)
   {
   save[i]=work+i*n;
@@ -941,8 +905,6 @@ L330:
       rhs(*t,ytable[0],save11,n);
       if(iweval<1)
 	{ 
-       /*  plintf("iweval=%d \n",iweval);
-         for(i=0;i<n;i++)printf("up piv = %d \n",gear_pivot[i]);*/
 	  goto L460;
        }
 /*       JACOBIAN COMPUTED   */
@@ -960,9 +922,7 @@ L330:
       }
       for(i=0;i<n;i++)dermat[n*i+i]+=1.0;
       iweval=-1;
-/*      plintf(" Jac = %f %f %f %f \n",dermat[0],dermat[1],dermat[2],dermat[3]);
-*/      sgefa(dermat,n,n,gear_pivot,&info);
-        /* for(i=0;i<n;i++)printf("gear_pivot[%d]=%d \n",i,gear_pivot[i]);*/
+      sgefa(dermat,n,n,gear_pivot,&info);
       if(info==-1)j1=1;
       else j1=-1;
       if(j1<0)goto L520;

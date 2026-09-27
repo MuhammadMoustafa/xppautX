@@ -20,7 +20,6 @@
 #include <vector>
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
-/* #define Set_ivar(a,b) variables[(a)]=(b) */
 
 /*  This is an implicit solver for volterra integral and integro-differential
     equations.  It is based on code found in Peter Linz's book
@@ -35,23 +34,13 @@
     The kernel structure contains the constant mu and the expression for
     evaluating K(t,t',u)
 
-
 */
 
 #define CONV 2
 int CurrentPoint;
 int KnFlag;
 
-
 int AutoEvaluate=0;
-
-
-
-
-
-
-
-
 
 double ker_val(int in)
 {
@@ -152,7 +141,6 @@ void alloc_kernels(int flag)
    
    the weights al and bet are computed in general, but specifically
    for mu=0,.5 since these involve no transcendental functions
-   
 
    */
 
@@ -187,7 +175,7 @@ void init_sums(double t0, int n, double dt, int i0, int iend, int ishift)
      for(ker=0;ker<NKernel;ker++){
        mu=kernel[ker].mu;
        if(mu==0.0)alpbet=dt;
-       else alpbet=kernel[ker].al[n-i0-i];      /* alpbetjn(mu,dt,t,tp); */
+       else alpbet=kernel[ker].al[n-i0-i];
        if(kernel[ker].flag==CONV)
 	 sum[ker]+=(alpbet*evaluate(kernel[ker].formula.data())
 		    *kernel[ker].cnv[n-i0-i]);
@@ -207,7 +195,6 @@ void init_sums(double t0, int n, double dt, int i0, int iend, int ishift)
    piecewise --linear-- method
 */
 
-
 double alpha1n(double mu, double dt, double t, double t0)
 {
   double m1;
@@ -215,7 +202,6 @@ double alpha1n(double mu, double dt, double t, double t0)
   m1=1-mu;
   return(.5*(pow(fabs(t-t0),m1)-pow(fabs(t-t0-dt),m1))/m1);
 }
-
 
 double alpbetjn(double mu, double dt, int l)
 {
@@ -249,7 +235,6 @@ void get_kn(double *y, double t)  /* uses the guessed value y to update Kn  */
 	kernel[i].betnn*evaluate(kernel[i].formula.data())*kernel[i].cnv[0];
     else 
       kernel[i].k_n=kernel[i].sum+kernel[i].betnn*evaluate(kernel[i].formula.data());
-    /* plintf(" Value t=%g %d =%g %g\n",t,i,kernel[i].k_n,y[i]); */
   }
 }
      
@@ -264,7 +249,6 @@ int volterra(double *y, double *t, double dt, int nt, int neq, int *istart, doub
   errvec=ytemp+neq;
   yp2=errvec+neq;
   jac=yp2+neq;
-
 
                                          /*  Initialization of everything   */  
   if(*istart==1){
@@ -309,10 +293,6 @@ int volterra(double *y, double *t, double dt, int nt, int neq, int *istart, doub
  return(0);
 }
 
-
-
-
-
 int volt_step(double *y, double t, double dt, int neq, double *yg, double *yp, double *yp2, double *ytemp, double *errvec, double *jac)
 {
  int i0,iend,ishift,i,iter=0,info,ipivot[MAXODE1],j,ind;
@@ -344,7 +324,6 @@ int volt_step(double *y, double t, double dt, int neq, double *yg, double *yp, d
      SETVAR(i+1,evaluate(my_ode[i])); 
    for(i=0;i<NODE;i++){
      yp[i]=evaluate(my_ode[i]);
-    /*  plintf(" yp[%d]=%g\n",i,yp[i]); */
      if(EqType[i])errvec[i]=-yg[i]+yp[i];
      else errvec[i]=-yg[i]+dt2*yp[i]+yp2[i];
    }
@@ -386,24 +365,13 @@ int volt_step(double *y, double t, double dt, int neq, double *yg, double *yp, d
  }
  /* We have a good point; lets save it    */
  get_kn(yg,t);
-/*  for(i=NODE;i<NODE+FIX_VAR;i++)
-   SETVAR(i+1,evaluate(my_ode[i])); */
  for(i=0;i<NODE;i++)y[i]=yg[i];
  ind=CurrentPoint%MaxPoints;
  for(i=0;i<NODE+FIX_VAR+NMarkov;i++)
    Memory[i][ind]=GETVAR(i+1);
  CurrentPoint++;
-   
 
  return(0);
  
 }
-
-
-
-
-
-
-
-
 

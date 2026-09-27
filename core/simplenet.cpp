@@ -41,7 +41,6 @@ rootname here is the name of the root quantity.
 type is either ep0  
 for conv.
 
-
 conv0 conve convp type
      
 value[i]=    sum(j=-ncon;j<=ncon;i++){
@@ -66,7 +65,6 @@ tabular wgt % 51 -25 25 .032*cos(.5*pi*t/25)
 special stot=conv(0, 51, 25, wgt,v0)
 v[0..50]'=f(v[j],w[j])-gsyn*stot([j])*(v([j])-vsyn)
 
-
 last example -- random sparse network 51 cells 5 connections each
  
 tabular w % 251 0 250 .2*rand(1)     
@@ -90,7 +88,6 @@ special k=delsparse(m,nc,w,index,tau,root)
           tau is m*nc is list of delays
       
        k[i]=sum( 0<=j < nc) w[j+nc*i]*delay(root[c[j+nc*i]],tau[j+nc*i])
- 
 
 special f=mmult(n,m,w,root)  -- note that here m is the number of return
                           values and n is the size of input root
@@ -124,7 +121,6 @@ special f=findext(type,n,skip,root)
 if type=1  mx(0)=maximum mx(1)=index
 if type=-1 mx(2)=minimum mx(3)=index
 if type=0 mx(0)=maximum mx(1)=index,mx(2)=minimum mx(3)=index
-          
 
 special ydot=import(soname,sofun,nret,root,w1,w2,...wm)
   
@@ -134,21 +130,14 @@ special ydot=import(soname,sofun,nret,root,w1,w2,...wm)
  nret is the number of return values
  root is the name of the first variable
 
-
-
 sofun(int nret, int root, double *con, double *var, double *z[50],double *ydot)
 
 *z[50] contains a list of pointers  z[0] -> w1, .... 50 is hard coded
 
-
 NOTE that the user-defined parameters start at #6 and are in order
 including derived parameters but XPP takes care of this so start at 0
 
- 
- 
-
 */
-
 
 #include <math.h>
 #include <cmath>
@@ -161,8 +150,6 @@ including derived parameters but XPP takes care of this so start at 0
 #include "delay_handle.h"
 #include "xpp_math.h"
 
-
-
 /* simple network stuff */
 
 #define MAXVEC 100
@@ -172,10 +159,8 @@ typedef struct {
   int root,length,il,ir;
 } VECTORIZER;
 
-
 VECTORIZER my_vec[MAXVEC];
 int n_vector=0;
-
 
 typedef struct {
   int type,ncon,n;
@@ -221,10 +206,6 @@ bool parse_import(std::string_view s, std::string &soname, std::string &sofun, i
                   std::string &vname, std::vector<std::string> &tname);
 } // namespace
 
-
-
-
-
 NETWORK my_net[MAXNET];
 int n_network=0;
 double net_interp(double x, int i)
@@ -236,7 +217,6 @@ double net_interp(double x, int i)
   y=&variables[my_net[i].root];
   if(jlo<0 || jlo>(n-1))return 0.0; /* out of range */
   return (1-dx)*y[jlo]+dx*y[jlo+1];
-  
 
 }
 
@@ -294,8 +274,6 @@ double vector_value(double x, int i)
   }
   return 0.0;
 
-
-
 }  
 double network_value(double x, int i)
 {
@@ -307,7 +285,6 @@ double network_value(double x, int i)
     return my_net[i].values[j];
   return 0.0;
 }
- 
 
 namespace {
 /* add_spec_fun's arguments, read one at a time from args up to `sep`:
@@ -461,7 +438,6 @@ int add_spec_fun(const char *name, char *rhs)
     iwgt=next_index(args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
 
-
     if(!next_pair_function(args,name,ind,ivar,ivar2,fname))return 0;
     my_net[ind].values.assign((ntot+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
@@ -487,7 +463,6 @@ int add_spec_fun(const char *name, char *rhs)
     iind=next_index(args,name,",",indname,NameKind::table);
     if(iind<0)return 0;
 
-
     if(!next_pair_function(args,name,ind,ivar,ivar2,fname))return 0;
 
     my_net[ind].values.assign((ntot+1),0.0);
@@ -508,7 +483,6 @@ int add_spec_fun(const char *name, char *rhs)
     args.next("(");
     str=args.text(",");
     ntype=-1;
-    /* if(str[0]=='E')ntype=CONVE; */
     if(str[0]=='0'||str[0]=='Z')ntype=FFTCON0;
     if(str[0]=='P')ntype=FFTCONP;
     if(ntype==-1){
@@ -702,8 +676,6 @@ int add_spec_fun(const char *name, char *rhs)
     itau=next_index(args,name,",",tauname,NameKind::table);
     if(itau<0)return 0;
 
-     
-
     ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
  
@@ -734,11 +706,9 @@ int add_spec_fun(const char *name, char *rhs)
     iind=next_index(args,name,",",indname,NameKind::table);
     if(iind<0)return 0;
 
-
     itau=next_index(args,name,",",tauname,NameKind::table);
     if(itau<0)return 0;
 
-    
     ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
  
@@ -755,7 +725,6 @@ int add_spec_fun(const char *name, char *rhs)
     NDELAYS=1;
     return 1;   
     break;
-
 
     return 0;
   case 10:
@@ -793,9 +762,6 @@ int add_spec_fun(const char *name, char *rhs)
     xpp_log(XPP_LOG_INFO, "Added gillespie chain with %d reactions \n",ivar2);
     return 1;
 
-
-    
-    
   }
   return 0;
 }
@@ -817,8 +783,6 @@ void add_special_name(const char *name, char *rhs)
 
 int is_network(char *s)
 {
-  /*int n;
-  */
   de_space(s);
   strupr(s);
  /* n=strlen(s); Not used*/
@@ -835,10 +799,8 @@ int is_network(char *s)
    if(s[0]=='D' &&s[1]=='E' &&s[2]=='L' && s[3]=='M')return DEL_MUL;
    if(s[0]=='D' &&s[1]=='E' &&s[2]=='L' && s[3]=='S')return DEL_SPAR;
    if(s[0]=='I' &&s[1]=='M' &&s[2]=='P' && s[3]=='O')return IMPORT;  
-  /* if(s[0]=='G'&& s[1]=='R' && s[2]=='O' && s[3]=='U')return 8; */
   return 0;
 }
-  
 
 void eval_all_nets()
 {
@@ -863,7 +825,6 @@ void evaluate_network(int ind)
    cc=my_net[ind].index;
    w=my_net[ind].weight;
    values=my_net[ind].values.data();
-   /*  y=&variables[my_net[ind].root]; */
    switch(my_net[ind].type){
    case FINDEXT:
      y=&variables[root];
@@ -1158,7 +1119,6 @@ void update_fft(int ind)
   xpp_fft(n,fftr,ffti,1,1.0);
 }
 
-
 void fft_conv(int it,int n,double *values,double *yy,double *fftr,double *ffti,double *dr,double *di)
 {
   int i;
@@ -1173,8 +1133,6 @@ void fft_conv(int it,int n,double *values,double *yy,double *fftr,double *ffti,d
     }
     
     xpp_fft(n,dr,di,1,1.0/std::sqrt(static_cast<double>(n)));
-
-
 
     for(i=0;i<n;i++){
       x=dr[i]*fftr[i]-di[i]*ffti[i];
@@ -1338,7 +1296,6 @@ bool parse_import(std::string_view s, std::string &soname, std::string &sofun, i
 }
 
 } // namespace
-
 
 /* vector(var,length,e|z|p,e|z|p) (spaces removed from str first): the
    first variable, the length and the two ends' kinds */

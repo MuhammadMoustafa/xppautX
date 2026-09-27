@@ -23,11 +23,6 @@ extern double variable_shift[2][MAXODE];
 extern double delay_list[MAXDELAY];
 extern int NDelay,WhichDelay;
 
-/*typedef struct{
-  double r,i;
-}COMPLEX;
-*/
-
 /* The
  code here replaces the do_sing code if the equation is
    a delay differential equation. 
@@ -80,7 +75,6 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
      for(j=0;j<n;j++){
        coef[j*n+i]=(yp[j]-y[j])/dx;
        colsum+=fabs(coef[j*n+i]);
-       /*      plintf("a(0,%d,%d)=%g \n",i,j,coef[j*n+i]); */   
      }
      if(colsum>colmax)colmax=colsum;
    }
@@ -88,7 +82,6 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
  for(j=0;j<n;j++)xp[j]=x[j];
  /* now the jacobians for the delays */
  for(k=0;k<NDelay;k++){
-   /* plintf(" found delay=%g \n",delay_list[k]); */   
    WhichDelay=k;
    colmax=0.0;
    for(i=0;i<n;i++){
@@ -102,14 +95,11 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
      for(j=0;j<n;j++){
        coef[j*n+i+n*n*(k+1)]=(yp[j]-y[j])/dx;
        colsum+=fabs(coef[j*n+i+n*n*(k+1)]);
-       /* plintf("a(%d,%d,%d)=%g \n",k+1,i,j,coef[j*n+i+n*n*(k+1)]); */  
      }
      if(colsum>colmax)colmax=colsum;
    }
    colnorm+=colmax;
  }
- /* plintf("Norm= %g \n",colnorm); */
- /* sign=plot_args(coef,delay_list,n,NDelay,DelayGrid,AlphaMax,OmegaMax); */
  sign=plot_args(coef.data(),delay_list,n,NDelay,DelayGrid,colnorm,colnorm);
 
  okroot=find_positive_root(coef.data(),delay_list,n,NDelay,colnorm,err,eps,big,maxit,rr);
@@ -228,14 +218,12 @@ void make_z(COMPLEX *z, double *delay, int n, int m, double *coef, COMPLEX lambd
     for(i=0;i<n;i++){
       if(i==j)temp=lambda;
       else temp=rtoc(0.0,0.0);
-      /* cprintn(temp); */
       z[i+j*n]=cdif(temp,rtoc(coef[i+j*n],0.0)); /* initialize the array */
     }
   for(k=0;k<m;k++){
     km=(k+1)*n*n;
     temp=rtoc(-delay[k],0.0); /* convert delay to complex number */
     eld=cexp2(cmlt(temp,lambda)); /* compute exp(-lambda*tau) */
-    /* cprintn(eld); */
     for(j=0;j<n;j++)
       for(i=0;i<n;i++)
 	z[i+j*n]=cdif(z[i+j*n],cmlt(eld,rtoc(coef[km+i+n*j],0.0)));
@@ -338,14 +326,12 @@ double get_arg(double *delay, double *coef, int m, int n, COMPLEX lambda)
     for(i=0;i<n;i++){
       if(i==j)temp=lambda;
       else temp=rtoc(0.0,0.0);
-      /* cprintn(temp); */
       z[i+j*n]=cdif(temp,rtoc(coef[i+j*n],0.0)); /* initialize the array */
     }
   for(k=0;k<m;k++){
     km=(k+1)*n*n;
     temp=rtoc(-delay[k],0.0); /* convert delay to complex number */
     eld=cexp2(cmlt(temp,lambda)); /* compute exp(-lambda*tau) */
-    /* cprintn(eld); */
     for(j=0;j<n;j++)
       for(i=0;i<n;i++)
 	z[i+j*n]=cdif(z[i+j*n],cmlt(eld,rtoc(coef[km+i+n*j],0.0)));
@@ -353,7 +339,6 @@ double get_arg(double *delay, double *coef, int m, int n, COMPLEX lambda)
   /*  the array is done  */
   temp=cdeterm(z.data(),n);
   arg=atan2(temp.i,temp.r);
-  /*   plintf("%g %g %g \n",lambda.r,lambda.i,arg); */ 
   return(arg);
 }   
 
@@ -402,7 +387,6 @@ int plot_args(double *coef, double *delay, int n, int m, int npts, double almax,
     y=wmax-i*ds;
     lambda=rtoc(x,y);
     arg=get_arg(delay,coef,m,n,lambda);
-   /* plintf(" %d %g \n",i,arg); */
     sign=sign+test_sign(oldarg,arg);
     oldarg=arg;
  
@@ -414,7 +398,6 @@ int plot_args(double *coef, double *delay, int n, int m, int npts, double almax,
     x=i*ds;
     lambda=rtoc(x,y);
     arg=get_arg(delay,coef,m,n,lambda);
-/*        plintf(" %d %g \n",i+npts,arg); */
        sign=sign+test_sign(oldarg,arg);
     oldarg=arg;
  
@@ -426,7 +409,6 @@ int plot_args(double *coef, double *delay, int n, int m, int npts, double almax,
     y=-wmax+i*ds;
     lambda=rtoc(x,y);
     arg=get_arg(delay,coef,m,n,lambda);
-/*     plintf(" %d %g \n",i+2*npts,arg); */
       sign=sign+test_sign(oldarg,arg);
     oldarg=arg;
  
@@ -439,7 +421,6 @@ int plot_args(double *coef, double *delay, int n, int m, int npts, double almax,
     x=almax-i*ds;
     lambda=rtoc(x,y);
     arg=get_arg(delay,coef,m,n,lambda);
-/*         plintf(" %d %g \n",i+3*npts,arg); */
     sign=sign+test_sign(oldarg,arg);
     oldarg=arg;
   

@@ -32,9 +32,6 @@
 #include "lunch-new.h"
 #include "graphics.h"
 
-/*#include "macdirent.h"
-*/
-
 #include "userbut.h"
 #include "volterra2.h"
 #include "storage.h"
@@ -127,9 +124,6 @@ int START_LINE_TYPE=1;
 INTERN_SET intern_set[MAX_INTERN_SET];
 int Nintern_set=0;
 
-/*void set_option(char *s1,const char *s2);
-*/
-
 /*   this file has all of the phaseplane parameters defined   
      and created.  All other files should use external stuff
     to use them. (Except eqn forming stuff)
@@ -141,8 +135,6 @@ extern int SEc,UEc,SPc,UPc;
 
  std::array<std::string,MAXODE> delay_string;
  int itor[MAXODE];
- /*char this_file[100];
- */
  char this_file[XPP_MAX_NAME];
  char this_internset[XPP_MAX_NAME];
  float oldhp_x,oldhp_y,my_pl_wid,my_pl_ht;
@@ -302,11 +294,9 @@ void set_all_vals()
  my_pl_wid=10000. ;
  my_pl_ht=7000.  ;
 
- /* TORUS=0; */ 
  if (notAlreadySet.T0){T0=0.0;notAlreadySet.T0=0;};
  if (notAlreadySet.TRANS){TRANS=0.0;notAlreadySet.TRANS=0;};
  if (notAlreadySet.DT){DELTA_T=.05;notAlreadySet.DT=0;};
- /*  if (notAlreadySet.JAC_EPS){NEWT_ERR=.001;notAlreadySet.JAC_EPS=0;}; */
  
  if (notAlreadySet.XMIN){x_3d[0]=-12;notAlreadySet.XMIN=0;notAlreadySet.XLO=0;};
  if (notAlreadySet.XMAX){x_3d[1]=12;notAlreadySet.XMAX=0;notAlreadySet.XHI=0;};
@@ -316,7 +306,6 @@ void set_all_vals()
  if (notAlreadySet.ZMAX){z_3d[1]=12;notAlreadySet.ZMAX=0;};
  
  if (notAlreadySet.TEND){TEND=20.00;notAlreadySet.TEND=0;};
- /* TOR_PERIOD=6.2831853071795864770; */
  if (notAlreadySet.IXPLT){IXPLT=0;notAlreadySet.IXPLT=0;}
  if (notAlreadySet.IYPLT){IYPLT=1;notAlreadySet.IYPLT=0;}
  if (notAlreadySet.IZPLT){IZPLT=1;notAlreadySet.IZPLT=0;}
@@ -499,7 +488,6 @@ void do_intern_set(const char *name1, const char *value)
       set_val(name,atof(value));
     }
     else {
-      /*     set_option(name,value,0,NULL); */
       set_option(name,value,1,NULL);
    }
   }
@@ -1200,7 +1188,6 @@ if(msc(yyl.c_str(),s1)){
     return;
   }
    if(msc("XMIN",s1)){
-     /*  printf("Trying to set XMIN %d =%s\n",notAlreadySet.XMIN,s2); */
      if ((notAlreadySet.XMIN||force) || ((mask!=NULL)&&(mask->XMIN==1)))
      {
         x_3d[0]=atof(s2);

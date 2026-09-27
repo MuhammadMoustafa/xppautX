@@ -117,9 +117,6 @@ void new_four(int nmodes, int col)
  four_columns.make(3,length,NEQ);
  FOUR_HERE=1;
 for(i=0;i<length;i++)my_four[0][i]=static_cast<float>(i)/total; 
-/* for(i=0;i<length;i++)my_four[0][i]=static_cast<float>(i); */
- /*  sft(my_browser.data[col],my_four[1],my_four[2],length,storind);
-  */
  bob=get_data_col(col);
     fft(bob,my_four[1],my_four[2],nmodes,data_store.rows);
  four_back();
@@ -258,8 +255,6 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
 	  cond=1;
 	}
       }
-    /* plintf(" cond=%d \n condition=%s \n,node=%d\n", 
-       cond,condition,NODE);  */
     for(i=0;i<data_store.rows;i++)
       {
 	flag=1;
@@ -298,7 +293,6 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
     return;
   }
   if(which==2){
-    /* mycor(storage[col],storage[col2],storind,zlo,zhi,nbins,my_hist[1],1); */
     mycor2(data_store.col[col],data_store.col[col2],data_store.rows,nbins,my_hist[1],1);
     hist_back();
     ping();
@@ -387,14 +381,10 @@ int spectrum(float *data,int nr,int win,int w_type,float *pow)
   int kwin=(nr-win+1)/shift;
  int i,j,kk;
  float x,nrmf;
- /*float sum;
- */
  if(nr<2)return(0);
  if(kwin<1)return(0);
  std::vector<float> ct_v(win), d_v(win), st_v(win), f_v(win);
  float *ct=ct_v.data(), *d=d_v.data(), *st=st_v.data(), *f=f_v.data();
- /*  plintf("nr=%d,win=%d,type=%d,data[10]=%g,kwin=%d\n",
-     nr,win,w_type,data[10],kwin); */
  nrmf=0.0;
  for(i=0;i<win;i++){
    x=static_cast<float>(i)/(static_cast<float>(win));
@@ -406,13 +396,9 @@ int spectrum(float *data,int nr,int win,int w_type,float *pow)
    case 3: f[i]=1-2*fabs(x-.5);break;
    }
    nrmf+=(f[i]*f[i]/win);
-   /* plintf("f[%d]=%g\n",i,f[i]); */
  }
- /* plintf("NRMF = %g\n",nrmf); */
  for(i=0;i<shift;i++)
    pow[i]=0.0;
- /*sum=0;
-  */
   
  for(j=0;j<kwin;j++){
    for(i=0;i<win;i++){
@@ -423,11 +409,9 @@ int spectrum(float *data,int nr,int win,int w_type,float *pow)
    for(i=0;i<shift;i++){
      x=ct[i]*ct[i]+st[i]*st[i];
      pow[i]=pow[i]+sqrt(x);
-     /* sum+=x; */
    }
  }
  for(i=0;i<shift;i++)
-   /*  pow[i]=log(pow[i]/((kwin)*nrmf)); */
    pow[i]=pow[i]/((kwin)*sqrt(nrmf));
 
  return(1);
@@ -465,8 +449,6 @@ int cross_spectrum(float *data,float *data2,int nr,int win,int w_type,float *pow
  float *ct2=ct2_v.data(), *st2=st2_v.data(), *d2=d2_v.data();
  float *pxx=pxx_v.data(), *pyy=pyy_v.data();
  float *pxyr=pxyr_v.data(), *pxym=pxym_v.data();
- /*  plintf("nr=%d,win=%d,type=%d,data[10]=%g,kwin=%d\n",
-     nr,win,w_type,data[10],kwin); */
  nrmwin=0.0;
  for(i=0;i<win;i++){
    x=static_cast<float>(i)/(static_cast<float>(win));
@@ -478,7 +460,6 @@ int cross_spectrum(float *data,float *data2,int nr,int win,int w_type,float *pow
    case 3: f[i]=1-2*fabs(x-.5);break;
    }
    nrmwin+=f[i]*f[i];
-   /* plintf("f[%d]=%g\n",i,f[i]); */
  }
  for(i=0;i<shift;i++){
    pxx[i]=0.0;
@@ -487,10 +468,8 @@ int cross_spectrum(float *data,float *data2,int nr,int win,int w_type,float *pow
    pxym[i]=0.0;
  }
    
- /*sum=0;*/
  for(j=0;j<=kwin;j++){
    for(i=0;i<win;i++){
-     /* kk=kk=(-shift+j*shift+i+nr)%nr; */
      kk=(i+j*shift)%nr;
      d[i]=f[i]*data[kk];
      d2[i]=f[i]*data2[kk];
@@ -585,7 +564,6 @@ void compute_fourier()
     err_msg("Need at least three data columns");
     return;
   }
-  /* new_int("Number of modes ",&nmodes); */
   if(data_store.rows<=1){
     err_msg("No data!");
     return;
@@ -601,12 +579,6 @@ void compute_correl()
   int lag;
   float total=data_store.col[0][data_store.rows-1]-data_store.col[0][0],dta;
   dta=total/static_cast<float>((data_store.rows-1));
-  /*  new_int("(0) Xcor (1) Xspec (2) Coher ",&flag);
-  if(flag>0){
-    compute_cross(flag-1);
-    return;
-  }
-  */  
   
   new_int("Number of bins ",&hist_inf.nbins);
   new_int("(0)Direct or (1) FFT ", &hist_inf.fftc);
@@ -616,8 +588,6 @@ void compute_correl()
   hist_inf.nbins=2*(hist_inf.nbins/2)+1;
   lag=hist_inf.nbins/2;
 
-  /* new_float("Low ",&hist_inf.xlo);
-     new_float("Hi ",&hist_inf.xhi); */
   /* lets try to get the lags correct for plotting */
   hist_inf.xlo=-lag*dta;
   hist_inf.xhi=lag*dta;

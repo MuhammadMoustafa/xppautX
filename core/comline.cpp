@@ -66,7 +66,6 @@
 #define VERBOSEOPT 45
 #define DEBUGOPT 46
 
-
 extern int SuppressOut;
 
 namespace {
@@ -96,14 +95,7 @@ int externaloptionsflag=0;
 std::vector<std::string> include_files;
 int select_intern_sets=0;
 
-
-
 int Nintern_2_use=0;
-
-
-
-
-
 
 int loadsetfile=0;
 int loadparfile=0;
@@ -172,7 +164,6 @@ VOCAB my_cmd[NCMD]=
   {"-debug",6}
  };
 
-
 void do_comline(int argc, char **argv)
 { 
  int i,k;
@@ -180,8 +171,6 @@ void do_comline(int argc, char **argv)
  silent = 0;
  got_file=0;
  xorfix=1;
- /*PaperWhite=0;
- */
  setfilename.clear();
  parfilename.clear();
  icfilename.clear();
@@ -240,8 +229,6 @@ void do_comline(int argc, char **argv)
      i++;
    }
    if(k==9){
-     /*strcpy(UserBGBitmap,argv[i+1]);
-     */
      set_option("BACKIMAGE",argv[i+1],1,NULL);
      i++;
    }
@@ -346,11 +333,9 @@ void do_comline(int argc, char **argv)
      i++;
      xpp_log(XPP_LOG_INFO, " Batch equilibria %d \n",batch_options.equilibria);
    }
-	 
-  
+
  }
 }
-
 
 int if_needed_load_ext_options()
 {
@@ -405,7 +390,6 @@ int if_needed_select_sets()
 	return 1;
 }
 
-
 int if_needed_load_set()
 {
   if(!loadsetfile)
@@ -422,8 +406,6 @@ int if_needed_load_set()
   return 1;
 }
 
-
-
 int if_needed_load_par()
 {
 
@@ -435,7 +417,6 @@ int if_needed_load_par()
   io_parameter_file(parfilename.c_str(),1);
   return 1;
 }
-
 
 int if_needed_load_ic()
 {
@@ -490,10 +471,6 @@ int parse_it(const char *com)
     case PWHITE:
       xpp_log(XPP_LOG_WARN, "-white option is no longer part of this version. \n Sorry \n");
       break;
-      /*PaperWhite=1;
-      notAlreadySet.PaperWhite=0;
-      break;
-      */
     case RUNNOW:
       RunImmediately=1;
       break;
@@ -643,10 +620,4 @@ int parse_it(const char *com)
   }
   return 0;
 }
-
-
-
-
-
-
 

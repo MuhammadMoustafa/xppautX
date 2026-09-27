@@ -156,10 +156,6 @@ void get_2d_view(int ind)
 	     XPP_FORMAT_TO_BUF(plot_windows.current->xlabel,"{}",values[6]);
 	     XPP_FORMAT_TO_BUF(plot_windows.current->ylabel,"{}",values[7]);
 	      check_windows();
-/*	      plintf(" x=%d y=%d xlo=%f ylo=%f xhi=%f yhi=%f \n",
-		     MyGraph->xv[ind],MyGraph->yv[ind],MyGraph->xlo,
-		     MyGraph->ylo,MyGraph->xhi,MyGraph->yhi);
-*/
 		     
 	      }
 }
@@ -250,21 +246,12 @@ void get_3d_view(int ind)
 	      plot_windows.current->xhi=atof(values[10].c_str());
 	      plot_windows.current->yhi=atof(values[12].c_str());
               check_windows();
-	/*      plintf("%f %f %f %f %f %f \n %f %f %f %f",
-		     MyGraph->xmin,MyGraph->xmax,
-		     MyGraph->ymin,MyGraph->ymax,
-		     MyGraph->zmin,MyGraph->zmax,
-		     MyGraph->xlo,MyGraph->xhi,
-		     MyGraph->ylo,MyGraph->yhi);
-*/
 
 	      }
 }
 
 void pretty(double *x1, double *x2)  /* this was always pretty ugly */
 {
-/* if(fabs(*x1-*x2)<1.e-12)
- *x2=*x1+max(.1*fabs(*x2),1.0); */
 }
 
 void corner_cube(double *xlo, double *xhi, double *ylo, double *yhi)
@@ -546,7 +533,6 @@ void get_3d_par_com()
 	      angle=0;
               if(mov3d.angle[0]=='p'||mov3d.angle[0]=='P')
 		angle=1;
-	      /*     XRaiseWindow(display,MyGraph->w); */
 	      movie_rot(start,increment,nclip,angle);
 	     }
 	       
@@ -583,14 +569,6 @@ void window_zoom_com(int c)
 	    case 0:user_window(); break;
 	    case 1:
 	    
-	   /*  XSelectInput(display,w,
-   KeyPressMask|ButtonPressMask|ButtonReleaseMask|
-		PointerMotionMask|ButtonMotionMask|ExposureMask);
-	    	   while(1)
-		   {
-		   	XNextEvent(display,&ev);
-   			switch(ev.type){ 
-		   } */
 	    	if(rubber_band(&i1,&j1,&i2,&j2,RUBBOX)==0)break;
 		     zoom_in(i1,j1,i2,j2);
 		 
@@ -659,13 +637,6 @@ void zoom_out(int i1, int j1, int i2, int j2)
  scale_to_real(i1,j1,&x1,&y1);
  scale_to_real(i2,j2,&x2,&y2);
 
- /*
- if(x1==x2||y1==y2)return;
- */
- /*
- plintf("%f %f %f %f \n ",x1,y1,x2,y2);
- plintf("%f %f %f %f \n",MyGraph->xlo,MyGraph->ylo,MyGraph->xhi,MyGraph->yhi);
-*/
  if(x1==x2||y1==y2)
  {
  
@@ -835,19 +806,6 @@ void create_svg()
  
 }
 
-/* 
-ps_test()
-{
- double xlo=MyGraph->xlo,xhi=MyGraph->xhi,ylo=MyGraph->ylo,yhi=MyGraph->yhi;
- text_abs(static_cast<float>(xlo),static_cast<float>(ylo),"lolo");
- text_abs(static_cast<float>(xlo),static_cast<float>(yhi),"lohi");
- text_abs(static_cast<float>(xhi),static_cast<float>(ylo),"hilo");
- text_abs(static_cast<float>(xhi),static_cast<float>(yhi),"hihi");
- ps_end();
-}
- 
-*/
-
 void change_cmap_com(int i)
 {
       NewColormap(i);
@@ -872,9 +830,6 @@ void freeze_com(int c)
  case 3:
    kill_frz();
    break;
-   /*case 4:
-   key_frz();
-   break; */
  case 5:
    frz_bd();
    break;
@@ -1248,14 +1203,10 @@ void add_a_curve_com(int c)
    break;
  case 5: create_svg();
    break;
-   /* case 6: freeze();
-      break; */
  case 7: axes_opts();
    break;
  case 8: export_graf_data();
    break;
-   /*  case 9: change_cmap();
-       break; */
  }
  check_flags();
  redraw_the_graph();

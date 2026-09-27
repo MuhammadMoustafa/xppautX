@@ -54,7 +54,6 @@
 
 XppPlotWindows plot_windows;
 
-
 void make_active(int i, int flag)
 {
     plot_windows.active = i;
@@ -215,11 +214,9 @@ int has_eq(const char *z, char *w, int *where)
      *ok=0;
       goto bye;
    }
-    /* fpr_command(com); */
   z=evaluate(com);
  *ok=1;
 bye:
-  /* plintf(" old=%d %d  new = %d %d \n",NCON,NSYM,NCON_START,NSYM_START);  */
   NCON=NCON_START;
   NSYM=NSYM_START;
   return(z);
@@ -338,17 +335,10 @@ void ps_restore()
 
 void svg_restore()
 {
- 
-/* restore(0,my_browser.maxrow);
-*/
- /*ps_do_color(0);
- if(MyGraph->Nullrestore){restore_nullclines();ps_stroke();}
-  */
-  
+
   redraw_dfield();
  if(plot_windows.current->Nullrestore){restore_nullclines();}
   svg_last_pt_off();
- /*ps_do_color(0);*/ 
  restore(0,my_browser.maxrow);
  do_axes();
  if(program.interactive){

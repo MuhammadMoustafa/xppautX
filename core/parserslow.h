@@ -21,10 +21,7 @@ extern "C" {
 #define VECTYPE 13  /* for vectorized stuff */
 #define MAXTYPE 20000000  /* this is the maximum number of named stuff */ 
 
-
-
 #define COM(a,b) ((a)*MAXTYPE+(b))
-
 
 #define MAXARG 20
 #define NEGATE 9
@@ -59,13 +56,9 @@ extern "C" {
 #define ENDSET 981
 #define INDX 68
 
-/*#define STDSYM 95
-*/
 #define STDSYM 96
 
 #define INDXCOM 922
-
-
 
 /* longest symbol name: a model's names, and the primed name X' that
    form_ode.c adds for each variable X */
@@ -98,11 +91,6 @@ extern double constants[MAXPAR];
 extern double variables[MAXODE1];
 extern int NCON,NVAR,NFUN,NSYM,NDELAYS,NKernel,NTable,MaxPoints;
 extern int ERROUT,RandSeed;
-
-
-
-
-
 
 void init_rpn(void);
 int duplicate_name(const char *junk);
@@ -197,11 +185,6 @@ void strupr(char *s);
 void strlwr(char *s);
 
 /*****************************************************/
-
-
-
-
-
 
 #ifdef __cplusplus
 }

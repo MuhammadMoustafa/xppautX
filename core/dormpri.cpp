@@ -3,7 +3,6 @@
 #include "xpp_ui.h"
 #include "xpp_math.h"
 #include <math.h>
-/* #include <malloc.h> */
 #include <limits.h>
 #include <memory.h>
 #include <vector>

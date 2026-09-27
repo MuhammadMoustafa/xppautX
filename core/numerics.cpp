@@ -125,24 +125,16 @@ void  get_num_par(char ch)
 			 MyStart=1;
 			 alloc_kernels(1);
 		       }
-		       /* if(NMemory>0){
-			  make_kernels();
-			  reset_memory();
-			  INFLAG=0;
-			} */
 			flash(3);
 			break;
 		case 'n': flash(4);
 			 /* ncline */
 			 new_int("ncline mesh :",&NMESH);
-			/* new_float("Error :",&NULL_ERR); */
                           check_pos(&NMESH);
 
 			flash(4);
 			break;
 		case 'v':
-		      /*   new_int("Number Left :", &BVP_NL);
-		         new_int("Number Right :", &BVP_NR); */
 		        
 		         new_int("Maximum iterates :",&BVP_MAXIT);
 		         check_pos(&BVP_MAXIT);

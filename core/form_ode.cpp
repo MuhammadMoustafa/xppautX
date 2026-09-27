@@ -557,7 +557,6 @@ int compiler(const std::string &bob, FILE *fptr)
   int nlin,i;
   done=1;
   if(bob[0]=='@'){
-    /* printf("Storing opts from formode \n"); */
     stor_internopts(bob.c_str());
     if(ConvertStyle)
       xpp::print(convertf,"{}\n",bob.c_str());
@@ -883,7 +882,6 @@ int compiler(const std::string &bob, FILE *fptr)
 	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",NLINES);
 	xpp_model_failed();
       }
-      /* fpr_command(my_ode[NODE]); */
       NODE++;
       break;
 
@@ -1327,7 +1325,6 @@ int check_if_ic(const char *big)
   while(1){
     c=big[j];
     if(c==']'){
-      /*  plintf(" %c %c %c \n",big[j+1],big[j+2],big[j+3]); */
       if((big[j+1]=='(') && (big[j+2]=='0') && (big[j+3]==')')){
 	return 1;
 
@@ -1806,7 +1803,6 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	 xpp::log(XPP_LOG_ERROR, "ERROR compiling {}' \n",v.lhs);
 	 xpp_model_failed();
        }
-       /* fpr_command(my_ode[nvar]); */
        if(v.type==MAP){
 	 xpp::log(XPP_LOG_INFO, "{}(t+1)={}\n",v.lhs,v.rhs);
 	 is_a_map=1;

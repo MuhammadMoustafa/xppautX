@@ -326,7 +326,6 @@ void cont_integ()
   tetemp=fabs(tetemp);
   if(fabs(data_store.current_time)>=tetemp)return;
   dif=tetemp-fabs(data_store.current_time);
-  /* TEND=tetemp; */
   MyStart=1;  /*  I know it is wasteful to restart, but lets be safe.... */
   integrate(&data_store.current_time,x,dif,DELTA_T,1,NJMP,&MyStart);
   ping();
@@ -390,21 +389,6 @@ int set_up_range()
  status=do_string_box_of(8,1,"Range Integrate",n,values,45,kinds);
  if(status!=0){
    XPP_STRCPY(range.item,values[0].c_str());
-   /* i=find_user_name(PARAM,range.item);
-   if(i>-1){
-     range.type=PARAM;
-     range.index=i;
-   }
-   else {
-     i=find_user_name(IC,range.item);
-     if(i<=-1){
-       err_msg("No such name!");
-       return(0);
-     }
-     range.type=IC;
-     range.index=i;
-   }
-   */
    if(range_item()==0)return 0;
    range.steps=atoi(values[1].c_str());
    if(range.steps<=0)range.steps=10;
@@ -418,10 +402,6 @@ int set_up_range()
    else range.cycle=0;
     if(values[7][0]=='Y'||values[7][0]=='y')range.movie=1;
    else range.movie=0;
-    /* plintf("%s %d %d %d (%d %d) %f %f ",
-	  range.item, range.steps,
-	  range.reset,range.oldic,range.type,range.index,
-	  range.plow,range.phigh); */
  RANGE_FLAG=1;
  return(1);
  }
@@ -552,10 +532,8 @@ void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
     fixptlist.flag=1;
   }
   for(i=0;i<n;i++){
-    /*  plintf("Guess:\n"); */
     for(j=0;j<NODE;j++){ 
       x[j]=ndrand48()*(fixptguess.xhi[j]-fixptguess.xlo[j])+fixptguess.xlo[j];
-      /*      plintf("x[%d]=%g \n",j,x[j]); */
     }
     do_sing_info(x,NEWT_ERR,EVEC_ERR,BOUND,EVEC_ITER,NODE,er,em,&ierr);
     if(ierr==0){
@@ -728,7 +706,6 @@ int do_range(double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto
  ivar=range.index;
  
  res=range.reset;
- /*  plintf("Reset=%d \n",res); */
  oldic=range.oldic;
  nit=range.steps;
  plow=range.plow;
@@ -831,7 +808,6 @@ if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
    ierr=-1;
    break;
  }
- /*  plintf("storind = %d \n",storind);  */
  if(STOCH_FLAG)
    append_stoch(i,data_store.rows);
 
@@ -876,7 +852,6 @@ if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
  evaluate_derived();
 plot_windows.current->color[0]=color;
  INFLAG=1;
- /* refresh_browser(storind); */
  
  ping();
  AdjRange=0;
@@ -1064,7 +1039,6 @@ void batch_integrate_once()
   POIEXT=0;
   data_store.rows=0;
   reset_browser();
-  /*  plintf("batch_range=%d\n",batch_range); */
  if(batch_options.range==1||STOCH_FLAG>0){
    reset_dae();
    RANGE_FLAG=1;
@@ -1516,7 +1490,6 @@ int set_array_ic()
    new_string_of("u=F(t-i0):",ar_ic[myar].formula,XPP_FIELD_EXPRESSION);
    i1=index0-1;
    in=i1+ar_ic[myar].n;
-   /* plintf("i1=%d in=%d \n",i1,in); */
    if(i1>NODE||in>NODE)return 0; /* out of bounds */
    for(i=i1;i<in;i++){
      set_val("t",static_cast<double>((i-i1)));
@@ -1723,8 +1696,6 @@ if(program.interactive) cwidth=get_command_width();
  xv[0]=static_cast<float>(*t);
  for(ieqn=1;ieqn<=NEQ;ieqn++)xv[ieqn]=static_cast<float>(x[ieqn-1]);
  if(ani_options.on_the_fly)on_the_fly(1); 
- /* if(POIMAP==4)
-   pmapfold=get_map_value(x,*t); */
    
  if(POIMAP)
  {
@@ -1951,27 +1922,10 @@ if(program.interactive) cwidth=get_command_width();
 			if (x[ieqn] > TOR_PERIOD) {
 				x[ieqn] -= TOR_PERIOD;
                                 torcross[ieqn]=-1;
-				/* for (ip = 0; ip < NPlots; ip++) {
-					if (ieqn == IYPLT[ip]-1)
-					oldypl[ip] -= static_cast<float>(TOR_PERIOD);
-					if (ieqn == IXPLT[ip]-1)
-					oldxpl[ip] -= static_cast<float>(TOR_PERIOD);
-				if ((ieqn == IZPLT[ip]-1) && (PLOT_3D == 1))
-					oldzpl[ip] -= static_cast<float>(TOR_PERIOD);
-					} */
 			}
 			if (x[ieqn] < 0) {
 				x[ieqn] += TOR_PERIOD;
                                 torcross[ieqn]=1;
-				/* for (ip = 0; ip < NPlots; ip++) {
-					if (ieqn == IYPLT[ip]-1)
-					oldypl[ip] += static_cast<float>(TOR_PERIOD);
-					if (ieqn == IXPLT[ip]-1)
-					oldxpl[ip] += static_cast<float>(TOR_PERIOD);
-				if ((ieqn == IZPLT[ip]-1) &&
-				    (MyGraph->ThreeDFlag == 1))
-					oldzpl[ip] += static_cast<float>(TOR_PERIOD);
-					} */
 			}
 		      }
 	      }
@@ -1991,26 +1945,18 @@ if(program.interactive) cwidth=get_command_width();
             {
              std::string error_message=xpp::format(" {} is NaN at t = {} ",
              static_cast<const char *>(uvar_names[ieqn-1]),*t);
-          /* if((STORFLAG==1)&&(storind<MAXSTOR))
-	     { */ i_nan=0;
+ i_nan=0;
 	         xpp::log(XPP_LOG_DEBUG, "variable\tf(t-1)\tf(t) \n");
-	        /* storage[i_nan][storind]=*t;     */
                 for(i_nan=1;i_nan<=ieqn;i_nan++)
-		 {/*storage[i_nan][storind]=xv[i_nan];*/
+		 {
  		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
              		static_cast<const char *>(uvar_names[i_nan-1]),xvold[i_nan],xv[i_nan]);
 		 }
 		for(;i_nan<=NEQ;i_nan++) 
 		 {
-		 /*storage[i_nan][storind]=static_cast<float>(x[i_nan-1]);*/
  		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
              		static_cast<const char *>(uvar_names[i_nan-1]),xv[i_nan],static_cast<float>(x[i_nan-1]));
 		 }	
-	     /* storind++;
-	      if(!(storind<MAXSTOR))
-              if(stor_full()==0)break;
-	     }
-	     */
      	     err_msg(error_message.c_str());
              rval=1;
              break;
@@ -2021,26 +1967,18 @@ if(program.interactive) cwidth=get_command_width();
 	     if(RANGE_FLAG||SuppressBounds)break;
              std::string error_message=xpp::format(" {} out of bounds at t = {} ",
              static_cast<const char *>(uvar_names[ieqn-1]),*t);
-         /* if((STORFLAG==1)&&(storind<MAXSTOR))
-	     { */ i_nan=0;
+ i_nan=0;
 	         xpp::log(XPP_LOG_DEBUG, "variable\tf(t-1)\tf(t) \n");
-	        /* storage[i_nan][storind]=*t;     */
                 for(i_nan=1;i_nan<=ieqn;i_nan++)
-		 {/*storage[i_nan][storind]=xv[i_nan];*/
+		 {
  		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
              		static_cast<const char *>(uvar_names[i_nan-1]),xvold[i_nan],xv[i_nan]);
 		 }
 		for(;i_nan<=NEQ;i_nan++) 
 		 {
-		 /*storage[i_nan][storind]=static_cast<float>(x[i_nan-1]);*/
  		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
              		static_cast<const char *>(uvar_names[i_nan-1]),xv[i_nan],static_cast<float>(x[i_nan-1]));
 		 }	
-	     /* storind++;
-	      if(!(storind<MAXSTOR))
-              if(stor_full()==0)break;
-	     }
-	     */
 	     err_msg(error_message.c_str());
              rval=1;
 
@@ -2061,7 +1999,6 @@ if(program.interactive) cwidth=get_command_width();
 	}        
 	if(STOP_FLAG==1){STOP_FLAG=0;break;}
            if(DelayErr){err_dae();rval=1;ENDSING=1;DelayErr=0;break;}
-         /*  plintf(" NEQ=%d ieqn = %d \n",NEQ,ieqn); */
            if(ieqn<(NEQ+1))break;
            tv=static_cast<float>(*t);
 	   xv[0]=tv;
@@ -2101,9 +2038,6 @@ if(program.interactive) cwidth=get_command_width();
  /*  here is code for a formula type map --  F(X,t)=0 
   */
  if(POIMAP==4) {
-   
-   /*  pmapf=get_map_value(x,*t);
-    */
 
  }
  
@@ -2234,8 +2168,6 @@ void send_output(double *y,double t)
 
 	     set_linestyle(plot_windows.current->color[ip]);
 	   }
-/*	   if(MyGraph->line[ip]<0)
-	     continue;  */
            if(plot_windows.current->line[ip]<=0)
            {
 	    PointRadius=-plot_windows.current->line[ip];
@@ -2401,8 +2333,6 @@ void restore(int i1, int i2)
 	  comp_color(v1,v2,NODE,
 		     static_cast<float>(fabs(data[0][i]-data[0][i+1])));
 	}     /* ignored by postscript */
-     /* if(MyGraph->line[ip]<0)
-	goto noplot; */
       if(plot_windows.current->line[ip]<=0){
 	PointRadius=-plot_windows.current->line[ip];
 	if(plot_windows.current->ThreeDFlag==0)point_abs(xpl,ypl);
@@ -2440,7 +2370,6 @@ void comp_color(float *v1, float *v2, int n, float dt)
  float color_scale=static_cast<float>((plot_windows.current->color_scale));
  if(plot_windows.current->ColorFlag==2){
    sum=v1[plot_windows.current->ColorValue];
-   /* plintf(" %d:sum=%g \n",MyGraph->zv[0],sum); */
  }
  else
    {
@@ -2448,8 +2377,6 @@ void comp_color(float *v1, float *v2, int n, float dt)
      sum=sum/(dt);
    }
  cur_color=static_cast<int>(((sum-min_scale)*static_cast<float>(color_table.count)/color_scale));
-/*  plintf("min=%f max=%f col = %d val = %f \n",min_scale,color_scale,
-	cur_color,sum); */  
  if(cur_color<0)cur_color=0;
  if(cur_color>color_table.count)cur_color=color_table.count-1;
   cur_color+=FIRSTCOLOR;

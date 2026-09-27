@@ -64,7 +64,6 @@ these must also be checked to see if they have been switched
 and in what order.  This is particularly true for "delta" function
 type things.
 
-
 Here is a simple example -- the kicked cycle:
 dx/dt = y 
 dy/dy = -x -c y
@@ -73,7 +72,6 @@ if y=0 and y goes from pos to neg then x=x+b
 here is how it would work:
 
 global -1 y {x=x+b}
-
 
 Here is Tysons model:
 
@@ -109,7 +107,6 @@ typedef struct {
 
 #define IC 2
 #define PARAM 1
-/* #define Set_ivar(a,b) variables[(a)]=(b) */
 static FLAG flag[MAXFLAG];
 int NFlags=0;
 
@@ -247,8 +244,6 @@ int compile_flags()
   return(0);
 }
 
-
-
 /*  here is the shell code for a loop around  integration step  */
 
 int one_flag_step(double *yold, double *ynew, int *istart, double told, double *tnew, int neq, double *s)
@@ -259,8 +254,6 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
   int sign,i,j,in,ncycle=0,newhit,nevents;
 
   if(NFlags==0)return(0);
-  /* printf("dt=%g yold= %g ynew = %g \n",dt,yold[0],ynew[0]); */
-  /*  if(abs(dt)<MY_DBL_EPS) return(0);  */
   for(i=0;i<NFlags;i++){
     flag[i].tstar=2.0;
     flag[i].hit=0;
@@ -284,13 +277,11 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
     f1=evaluate(flag[i].comcond.data());
     flag[i].f1=f1;
     tol=fabs(f1-f0);
-    /* plintf(" call1 %g %g %g %g\n",told,f0,f1,smin);  */
     switch(sign){
     case 1: 
       if((((f0<0.0)&&(f1>0.0))||((f0<0.0)&&(f1>0.0)))&&tol>tolmin){
 	flag[i].hit=ncycle+1;
 	flag[i].tstar=f0/(f0-f1);
-	/* plintf(" f0=%g, f1=%g tstar=%g at t=%g\n tol=%g",f0,f1,flag[i].tstar,*tnew,tol);  */ /* COMMENT! */
       }
       break;
     case -1:
@@ -300,15 +291,10 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
       }
       break;
     case 0:
-      /* if(f1==0.0){ */
       if(fabs(f1)<MY_DBL_EPS){
 	flag[i].hit=ncycle+1;
 	flag[i].tstar=told;
       }
-	/* if((f0*f1)<=0&&f0!=0.0&&tol>tolmin){
-	flag[i].hit=ncycle+1;
-	flag[i].tstar=f0/(f0-f1);
-	} */
       break;
     }
     if(flag[i].nointerp==1)
@@ -317,8 +303,7 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
       }
     
       if(smin>flag[i].tstar)smin=flag[i].tstar;
-   
-    
+
   } /* run through flags */
  
    if(smin<STOL)smin=STOL;
@@ -336,10 +321,8 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
   while(1){ /* run through all possible events  */
     ncycle++;
     newhit=0;
- /*   plintf(" %g %g %g \n",*tnew,ynew[0],ynew[1]); */
     for(i=0;i<NFlags;i++){
       nevents=flag[i].nevents;
-      /* plintf(" hit(%d)=%d,ts=%g\n",i,flag[i].hit,flag[i].tstar); */  /* COMMENT */
       if(flag[i].hit==ncycle&&flag[i].tstar<=smin){
 	for(j=0;j<nevents;j++){
 	  flag[i].vrhs[j]=evaluate(flag[i].comrhs[j].data());
@@ -350,9 +333,6 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
 	}
       }
     }
-    /* printf("step 7 \n");
-    for(i=0;i<neq;i++)
-    printf("%d %g %g\n",i,ynew[i],GETVAR(i+1)); */
     for(i=0;i<NFlags;i++){
       nevents=flag[i].nevents;
       if(flag[i].hit==ncycle&&flag[i].tstar<=smin){
@@ -372,9 +352,7 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
 	      if((flag[i].type[j]==3)&&(flag[i].vrhs[j]>0))send_halt(ynew,*tnew);
 	    }
 	  }
-	
-	   
-	  /* plintf(" increment it ... \n");  */
+
 	}
 	if(flag[i].anypars){
 	  evaluate_derived();
@@ -383,13 +361,8 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
       }
     }
 
-/*    plintf(" %g %g %g \n",*tnew,ynew[0],ynew[1]); */
-    
     for(i=0;i<neq;i++){
-      /* printf("step 8 %d %g %g\n",i,ynew[i],GETVAR(i+1)); */
-      /*  SETVAR(i+1,ynew[i]); */
       ynew[i]=GETVAR(i+1); /* if this screws up */
-      /*      printf("step 9 %d %g %g\n",i,ynew[i],GETVAR(i+1)); */
     }
     for(i=0;i<NFlags;i++){
       flag[i].f1=evaluate(flag[i].comcond.data());
@@ -398,7 +371,6 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
       sign=flag[i].sign;
       f0=flag[i].f0;
       tol=fabs(f1-f0);
-      /* plintf(" call2 flag=%d %g %g -- %g \n",i,f0,f1,smin); */
       switch(sign){
       case 1:
 	if(f0<=0.0&&f1>=0.0&&tol>tolmin){
@@ -424,17 +396,11 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
     }
     if(newhit==0)break;
   }
-  /*  plintf(" Exit flags \n"); */ /* COMMENT */
  
   *s=smin;
-  /* for(i=0;i<neq;i++)
-     printf("step 10 %d %g %g \n",i,ynew[i],GETVAR(i+1)); */
   return(1);
 }
-  
-    
-    
-    
+
 /*  here are the ODE drivers */
 
 int one_flag_step_symp(double *y, double dt, double *work, int neq, double *tim, int *istart)
@@ -558,7 +524,6 @@ int one_flag_step_rk4(double *y, double dt, double *yval[3], int neq, double *ti
     if(nstep>(NFlags+2)){
       xpp_log(XPP_LOG_WARN, " Working too hard?");
             xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
-	    /* plintflaginfo(); */
       break;
     }
   }
@@ -590,7 +555,6 @@ int one_flag_step_gear(int neq, double *t, double tout, double *y, double hmin, 
     }
   }
   return 0;
-  
 
 }
 int one_flag_step_rosen(double *y,double *tstart,double tfinal,
@@ -621,7 +585,6 @@ int *istart,int n,double *work,int *ierr)
     }
   }
   return 0;
-  
 
 }
 
@@ -651,7 +614,6 @@ int one_flag_step_dp(int *istart, double *y, double *t, int n, double tout, doub
     }
   }
   return 0;
-  
 
 }
 
@@ -682,7 +644,6 @@ int one_flag_step_cvode(int *command, double *y, double *t, int n, double tout, 
     }
   }
   return 0;
-  
 
 }
 
@@ -713,7 +674,6 @@ int one_flag_step_adap(double *y, int neq, double *t, double tout, double eps, d
     }
   }
   return 0;
-  
 
 }
 
@@ -743,14 +703,4 @@ int one_flag_step_backeul(double *y, double *t, double dt, int neq, double *yg, 
   }
   return 0;
 }
-    
-
-
-
-
-
-
-
-
-
 

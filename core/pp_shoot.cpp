@@ -41,8 +41,6 @@
 #define PARAM 1
 #define IC 2
 
-/* #define Set_ivar(a,b) variables[(a)]=(b) */
-
 extern int RANGE_FLAG;
 
 namespace {
@@ -96,30 +94,6 @@ void reset_bvp()
 {
  BVP_FLAG=1;
 } 
-   
-/* 
-
-reset_bvp()
-{
- int i;
- int sum=BVP_NL+BVP_NR;
- if(sum!=NODE){
-   err_msg("Number BCs not equal to number ODES !");
-   BVP_FLAG=0;
-   return;
- }
- BVP_FLAG=1;
- for(i=0;i<BVP_NL;i++){ my_bc[i].side=0;
-			sprintf(my_bc[i].name,"At t0 0=");
-		      }
- for(i=BVP_NL;i<NODE;i++){
-   my_bc[i].side=1;
-   sprintf(my_bc[i].name,"At t1 0=");
- }
- redraw_bcs();
-}
- 
-*/
 
 void init_shoot_range(const char *s)
 {
@@ -337,11 +311,6 @@ void last_shot(int flag)
 
 }
  integrate(&data_store.current_time,x,TEND,DELTA_T,1,NJMP,&MyStart);
-/* if(flag){
-   INFLAG=1;
-   refresh_browser(storind);
- }
- */
 }
 
 int set_up_sh_range()
@@ -410,7 +379,6 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
    y0[i]=y[i];
  if(iper)  get_val(upar_names[ipar],&y0[n]);
 
- /* dt=(t1-t0)/nt;  */
  while(1){
    esc=my_abort();
 
@@ -432,7 +400,6 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
  }
  for(i=0;i<n;i++){
    y1[i]=y[i];
-  /*  plintf("%f \n",y[i]); */
  }
 
  do_bc(y0,t0,y1,t1,f,n);
@@ -451,7 +418,6 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
    goto bye;
   
  }
-  /* plintf("err1 = %f tol= %f \n",error,err); */ 
  niter++;
  if(niter>maxit){
    *iret=-2;
@@ -500,7 +466,6 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
   }
  
  for(i=0;i<n;i++)y[i]=y0[i];
-  /* plintf("error2 = %f \n",error);  */
   if(error<1.e-10){
    for(i=0;i<n;i++)yend[i]=y1[i];
     *iret=2;

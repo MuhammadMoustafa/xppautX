@@ -3,12 +3,6 @@
 
 #include "xpplim.h"
 
-
-/*#define LPAREN 1
-*/
-
-
-
 #define COMMAND -1
 #define FIXED 0
 #define FUNCTION 1
@@ -27,8 +21,6 @@
 #define SOL_VAR 14
 
 #define EXPORT 15
-
-
 
 #define ONLY 26
 

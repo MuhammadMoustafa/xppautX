@@ -103,7 +103,6 @@ void edit_diagram(DIAGRAM *d, int ibr, int ntot, int itp, int lab, int nfpar, do
   d->norm=a;
   for(i=0;i<8;i++){
     d->par[i]=par[i];
-    /*  printf("%d %g\n",i,par[i]); */
   }
 
   d->per=per;
@@ -238,16 +237,12 @@ void write_info_out()
   int icp1,icp2;
   double *par;
   double par1,par2=0,*uhigh,*ulow,per;
-  /*double a,*ubar,*u0;*/
   xpp::Writer w=diagram_file("Write all info","allinfo.dat");
   if(!w)return;
   d=diagram_first();
  while(1){
     type=get_bif_type(d->ibr,d->ntot,d->lab);
     
-    /*if(d->ntot==1)flag=0;
-    else flag=1;
-    */
     icp1=d->icp1;
     icp2=d->icp2;
     par=d->par;
@@ -286,8 +281,6 @@ extern "C" void load_browser_with_branch(int ibr,int pts,int pte)
 {
    DIAGRAM *d;
    int i,j,pt;
-  /*int flag=0;
-  */
   int icp1;
   double *par;
   double par1,*u0;
@@ -327,39 +320,19 @@ void write_init_data_file()
 {
   DIAGRAM *d;
   int i;
-  /*int flag=0;
-  */
   int icp1;
   double *par;
   double par1,*u0;
-  /*double a,*uhigh,*ulow,*ubar;*/
   xpp::Writer w=diagram_file("Write init data file","initdata.dat");
   if(!w)return;
   d=diagram_first();
  while(1){
-    /*if(d->ntot==1)flag=0;
-    else flag=1;
-    Unused here?
-    */
     icp1=d->icp1;
     par=d->par;
-    /*
-    uhigh=d->uhi;
-    ulow=d->ulo;
-    ubar=d->ubar;
-    Unused here??
-    */
     u0=d->u0;
 
-    /*
-    a=d->norm;
-
-    Unused here??
-    */
     par1=par[icp1];
 
-    /* fprintf(fp,"%d %d %g %g %g ",
-       type,d->ibr,par1,par2,per); */
     {
       std::string line=xpp::format("{:g} ",par1);
       for(i=0;i<NODE;i++)
@@ -378,8 +351,6 @@ void write_pts()
 {
   DIAGRAM *d;
   int type;
-  /*int flag=0;
-  */
   int icp1,icp2;
   double *par;
   double x,y1,y2,par1,par2=0,a,*uhigh,*ulow,*ubar,per;
@@ -389,11 +360,6 @@ void write_pts()
   while(1){
     type=get_bif_type(d->ibr,d->ntot,d->lab);
     
-    /*if(d->ntot==1)flag=0;
-    else flag=1;
-    
-    Unused here??
-    */
     icp1=d->icp1;
     icp2=d->icp2;
     par=d->par;
@@ -435,8 +401,6 @@ void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi)
   DIAGRAM *d;
   int type;
   
-  /*int flag=0;
-  */
   double x,y1,y2,par1,par2=0.0;
   d=diagram_first();
   if(diagram_next(d)==NULL)return;
@@ -450,10 +414,6 @@ void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi)
     {
         xpp::log(XPP_LOG_WARN, "Unable to get bifurcation type.\n");
     }
-    /*if(d->ntot==1)flag=0;
-    else flag=1;
-    Unused here?
-    */
     par1=d->par[d->icp1];
     if(d->icp2<NAutoPar)par2=d->par[d->icp2];
     auto_xy_plot(&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);
@@ -502,7 +462,6 @@ int load_diagram(FILE *fp, int node)
   xpp::TokenReader tr=xpp::TokenReader::attach(fp);
   if (!tr.read(n)) return -1;
   if(n==0){
-/*    start_diagram(NODE); */
     return(-1);
   }
 

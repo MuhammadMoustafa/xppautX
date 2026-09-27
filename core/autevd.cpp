@@ -4,7 +4,6 @@
 #include <math.h>
 #include <stdio.h>
 
-
 #include "auto_nox.h"
 #include "diagram.h"
 #include "gear.h"
@@ -19,8 +18,6 @@
 #define UPER 4
 #define SEQ 1
 #define UEQ 2
-
-
 
 XAUTO xAuto;
 
@@ -72,8 +69,6 @@ void init_auto(int ndim, int nicp, int nbc, int ips, int irs, int ilp, int ntst,
   xAuto.a0=a0;
   xAuto.a1=a1;
   xAuto.npr=npr;
-  
-
 
   xAuto.epsl=epsl;
   xAuto.epss=epss;
@@ -90,11 +85,7 @@ void init_auto(int ndim, int nicp, int nbc, int ips, int irs, int ilp, int ntst,
  
 }
 
-
-
-
 /* Only unit 8,3 or q.prb is important; all others are unnecesary */
-
 
 int get_bif_type(int ibr, int ntot, int lab)
 {
@@ -104,7 +95,6 @@ int get_bif_type(int ibr, int ntot, int lab)
   if(ibr<0&&ntot>0)type=UPER;
   if(ibr>0&&ntot>0)type=UEQ;
   if(ibr>0&&ntot<0)type=SEQ;
-  /* if(lab>0)type=SPECIAL; */
   return(type);
 }
 void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *par,integer *icp,int lab, double *a, double *uhigh, double *ulow, double *u0, double *ubar)
@@ -138,7 +128,4 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
 	    iap->nfpr,icp1,icp2,icp3,icp4,AutoTwoParam,d->evr,d->evi);
   xpp_job_point_stored(static_cast<int>(labs(ibrs)),static_cast<int>(labs(ntots))); /* xppautX: where it got to (xpp_job.h) */
 }
-
-
-
 

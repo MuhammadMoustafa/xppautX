@@ -56,12 +56,10 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
   iap.mynode = mynode();
   iap.numnodes = numnodes();
 
-    
   /* here is the feeder code from xAuto structure */
 
   init(&iap, &rap, par.data(), icp.data(), thl.data(), thu, iuz.data(), vuz.data());
 
-    
     /* Find restart label and determine type of restart point. */
     if (iap.irs > 0) {
       logical found = FALSE_;
@@ -74,7 +72,6 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
 	return(0);/* bad return: units closes the files */
       }
     }
-    /*     dump_params(iap,rap,icp,thl); */
     /* this is good for debugging and writes all the auto parameters */
     set_function_pointers(iap,&list);
     init1(&iap, &rap, icp.data(), par.data());
@@ -99,12 +96,6 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
     if(list.type==AUTOBV)
       autobv(&iap, &rap, par.data(), icp.data(), list.bvlist.funi, list.bvlist.bcni,
 	     list.bvlist.icni, list.bvlist.stpnt, list.bvlist.pvli, thl.data(), thu.data(), iuz.data(), vuz.data());
-
-
-
-
-  
-
 
   return 1;  /* normal return */
 }
@@ -495,7 +486,6 @@ int set_function_pointers(const iap_type iap,function_list *data) {
       xpp_log_auto("itp=%ld ips=%ld isw=%ld\n",iap.itp,iap.ips,iap.isw);
   }
   /* -----------------------------------------------------------------------*/
-
 
   return 0;
 }

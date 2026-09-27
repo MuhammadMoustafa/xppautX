@@ -449,7 +449,6 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
 		  rval=0;
 		  goto bye;
 		} 
-		/* rk_interp(jac,k,k2,yold,work,node,dt,5); */
 	      }
 	ytemp=0.0;
 	error=0.0;
@@ -491,7 +490,6 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
 	  rval=0;
 	  goto bye;
 	    }	 
-	/* rk_interp(jac,k,k2,yold,work,node,dt,5); */
 
       }
 
@@ -582,7 +580,6 @@ void do_this_liaprun(int i,double p)
  my_liap[0][i]=p;
  hrw_liapunov(&liap,1,NEWT_ERR);
  my_liap[1][i]=liap;
- /* plintf("p=%g lambda=%g \n",p,liap); */
  LIAP_I++;
 }
 
@@ -636,8 +633,6 @@ int hrw_liapunov(double *liap,int batch,double eps)
      sum=sum+log(nrm);
     for(i=0;i<NODE;i++)
       dy[i]=eps*yp[i];
-     /*  plintf("%d %g %g %g %g %g  \n",j,nrm,log(nrm),sum/((double)(j+1)),
-	 yp[0],yp[1]); */
 
    }
    t1=data_store.col[0][data_store.rows-1]-data_store.col[0][0];

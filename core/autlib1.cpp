@@ -287,14 +287,9 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
 
   rap->a1 = a1;
 
-
   det = 0.;
 
   tivp = 0.;
-
-
-
-
 
   rap->epsl = epsl;
 
@@ -475,10 +470,6 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
     nint = iap->nint;
     nuzr = iap->nuzr;
     nfpr = nbc + nint - ndim + 1;
-    /*    printf("%d %d %d %d %d\n",ndim,nbc,nint,nuzr,nfpr);
-     for(ii=0;ii<nfpr;ii++)
-	 printf("%d %d \n",ii,icp[ii]);
-    */
   } else if (ips == 14 || ips == 16) {
     /*        **Evolution calculations for Parabolic Systems */
     ndim <<= 1;
@@ -717,9 +708,6 @@ rt */
   rap->ds = ds;
   rap->dsmin = dsmin;
   rap->dsmax = dsmax;
-  /* printf("ready to go \n");
-  printf("dim=%d ps=%d rs=%d lp=%d sp=%d sw=%d nbc=%d nint=%d nfpr=%d nicp=%d\n",
-  ndim,ips,irs,ilp,isp,isw,nbc,nint,nfpr,nicp); */
   return 0;
 } /* init1 */
 
@@ -2683,8 +2671,6 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     }
   }
   addbif(iap,rap,ntots,iap->ibr,par,icp,labw,&amp, u, u, u, u);
-  /* addbif_(ibr, ntot, itp, labw,
-   npar,amp, u, u, u, u,ndim);  */
   wrline(iap, rap, par, icp, &icp[NPARX], &ibr, &ntots,
 	 &labw, &amp, u);
   if (iap->istop != 0) { /* xppautX: why the branch ended (auto_stop.h, T23) */
@@ -2884,8 +2870,6 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   doublereal t;
   integer nrowpr, ibr;
   integer nar, itp, isw;
-
-  /*   static FILE *fp8=NULL; */
 
   if(fp8_is_open==0){
     fp8 = xpp_files_open_stream(auto_fort_path(8),"w");
@@ -4817,9 +4801,6 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       
       for (i = 0; i < iap->nfpr; ++i) {
 	/* Computing 2nd power */
-	//FIXME  No sure if this is right
-	//This is the original
-	//dot_product += thl[icp[-1+i]] * (rldot[i] * rlolddot[i]);
 	dot_product += thl[icp[i]] * (rldot[i] * rlolddot[i]);
       }
       

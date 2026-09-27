@@ -18,7 +18,6 @@
 #include <ctype.h>
 
 #include <math.h>
-/* #include <malloc.h> */
 #include <stdio.h>
 #include <string.h>
 #include <array>
@@ -34,10 +33,8 @@
 double zippy;
 #define PUSH(a) zippy=(a); stack[stack_pointer++]=zippy;
 
-/* #define COM(a) my_symb[toklist[(a)]].com */
 int             ERROUT;
 int NDELAYS=0;
-/*double pow2(); */
 int RandSeed=12345678;
 
 #ifndef M_PI
@@ -242,9 +239,6 @@ void init_rpn()
         add_con("mouse_vy",0.0);
 
     /* end animator stuff */
-    /*  add_con("c___1",0.0);
-        add_con("c___2",0.0);
-        add_con("c___3",0.0); */
 
     init_table();
     if (newseed==1) RandSeed=time(0);
@@ -347,7 +341,6 @@ int get_var_index(const char *name)
 int add_con(const char *name, double value)
 {
 
-  /*  printf("Adding constant %s # %d\n",name,NCON); */
  if(NCON>=MAXPAR)
  {
   if(ERROUT)xpp_log(XPP_LOG_WARN, "too many constants !!\n");
@@ -407,7 +400,6 @@ int add_kernel(const char *name, double mu, const char *expr)
 
 int add_var(const char *junk, double value)
 {
- /*   plintf(" variable - %s \n",junk); */
  if(duplicate_name(junk)==1)return(1);
  if(NVAR>=MAXODE1)
  {
@@ -440,7 +432,6 @@ int add_expr(const char *expr, int *command, int *length)
   i=0;
    while(command[i]!=ENDEXP)i++;
    *length=i+1;
- /*  for(i=0;i<*length;i++)printf("%d \n",command[i]);  */
    return(0);
 }
 
@@ -802,8 +793,6 @@ int alg_to_rpn(int *toklist, int *command)
          {
  getnew:
           newtok=toklist[lstptr++];
-   /*    for(zip=0;zip<tokptr;zip++)
-	    plintf("%d %d\n",zip,tokstak[zip]);  */
 /*        check for delay symbol             */
           if(newtok==DELSYM)
 	  {
@@ -921,11 +910,6 @@ int alg_to_rpn(int *toklist, int *command)
             goto getnew;
            }
            /* ram -- the THOUS problem */
-	   /*           if(my_symb[oldtok%THOUS].pri>=my_symb[newtok%THOUS].pri)
-           {
-            command[comptr]=my_symb[oldtok%THOUS].com;
-	    if((my_symb[oldtok%THOUS].arg==2)&&
-	    (my_symb[oldtok%THOUS].com/MAXTYPE==FUN2TYPE)) */
 
      if(my_symb[oldtok].pri>=my_symb[newtok].pri)
            {
@@ -937,15 +921,11 @@ int alg_to_rpn(int *toklist, int *command)
 	                comptr++;
  /*   New code   3/95      */
 	   if(my_com==NUMSYM){
-/*             plintf("tp=%d ",tokptr);  */
 	     tokptr--;
-/*     plintf(" ts[%d]=%d ",tokptr,tokstak[tokptr]); */
 	     command[comptr]=tokstak[tokptr-1];
-/*	     plintf("xcom(%d)=%d\n",comptr,command[comptr]);  */
 	     comptr++;
 	     tokptr--;
 	     command[comptr]=tokstak[tokptr-1];
-/*	     plintf("xcom(%d)=%d\n",comptr,command[comptr]);  */
 	     comptr++;
 	   }
  /*   end new code    3/95    */
@@ -990,9 +970,6 @@ int alg_to_rpn(int *toklist, int *command)
                 }
              if(my_com==ENDDELSHFT||my_com==ENDSET)
 	       ncomma-=2;  
-           /*  if(my_com==CONV||my_com==DCONV){
-       	      ncomma-=1;
-	     }  */
 
             /*    CHECK FOR USER FUNCTION       */
             if(is_ufun(my_com))
@@ -1028,7 +1005,6 @@ int alg_to_rpn(int *toklist, int *command)
 	    }
         command[comptr]=my_symb[ENDTOK].com;
 
-	/* pr_command(command);  */
         return(0);
     }
 
@@ -1337,7 +1313,6 @@ void two_args()
  fun2[5]=pow;
  fun2[6]=max;
  fun2[7]=min;
-/*  fun2[8]=fmod;  */
  fun2[8]=pmod; /* This always gives an answer in [0,y) for mod(x,y) */
  fun2[9]=dand;
  fun2[10]=dor;
@@ -1355,25 +1330,6 @@ void two_args()
 
 }
 
-/*
-double pow2(z,w)
-double z,w;
-{
- return(pow(z,w));
-
- double sign=1.0;
- if(floor(w)==w){
- if(z<0.0)sign=-1.0;
- if(fabs(fmod(w,2.0))<1.e-10)sign=1.0;
-  return(sign*pow(fabs(z),w));
- }
- else
- return(pow(fabs(z),w));
- 
-}
- 
- */
-
 /*********************************************
           FANCY DELAY HERE                   *-------------------------<<<
 *********************************************/
@@ -1382,10 +1338,6 @@ double do_shift(double shift, double variable)
 {
   int it, in;
   int i=static_cast<int>(variable),ish=static_cast<int>(shift);
-
-/* plintf( "shifting %d (%s) by %d to %d (%s)\n", 
- *	(int)variable, com_name((int)variable), (int)shift, i, com_name(i) );
- */
 
   if(i<0) return(0.0);
    it=i/MAXTYPE;
@@ -1410,9 +1362,6 @@ double do_shift(double shift, double variable)
 double do_ishift(double shift, double variable)
 {
   
-/* plintf( "shifting %d (%s) by %d to %d (%s)\n", 
- *	(int)variable, com_name((int)variable), (int)shift, i, com_name(i) );
- */
  return variable+shift;
  
 }
@@ -1445,7 +1394,6 @@ double do_delay(double delay, double i)
 
   if(del_stab_flag>0){
     if(DelayFlag&&delay>0.0) {
-      /* printf("do_delay for var #%d, delay %f\n", variable-1, delay); */
       return(get_delay(variable-1,delay));
     }
     return(variables[variable]);
@@ -1454,26 +1402,6 @@ double do_delay(double delay, double i)
   return(delay_stab_eval(delay,static_cast<int>(variable)));
   
 }
-/*
-double Exp(z)
-double z;
-{
- if(z>700)return(1.01423e+304);
- return(exp(z));
-}
-double Ln(z)
-double z;
-{
- if(z<1e-320)return(-736.82724);
- return(log(z));
-}
-double Log10(z)
-double z;
-{
- if(z<1e-320)return(-320.);
- return(log10(z));
-}
-*/
 
 /* HOM_BCS(x), a one-argument function of the parser (fun1): deprecated,
    always 0 */
@@ -1541,7 +1469,6 @@ double heaviside(double z)
 
 double rndom(double z)
 {
- /* return (z*(double)rand()/32767.00); */
   return(z*ndrand48());
 }
 

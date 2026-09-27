@@ -26,7 +26,6 @@
 #include "load_eqn.h"
 #include <string>
 #include <vector>
-/* #include "browse.h" */
 
 typedef struct {
   std::vector<std::vector<int>> command; /* compiled transition formulas */
@@ -101,10 +100,8 @@ static int markov_named(const char *name)
   return index;
 }
 
-int build_markov(const char *const *ma, const char *name)  /*   FILE *fptr; */
+int build_markov(const char *const *ma, const char *name)
 {
- /*int nn;
- */
   int istart;
 
  int i,j;
@@ -112,14 +109,9 @@ int build_markov(const char *const *ma, const char *name)  /*   FILE *fptr; */
  int nstates=markov[index].nstates;
  xpp_log(XPP_LOG_INFO, " Building %s %d states...\n",name,nstates);
  for(i=0;i<nstates;i++){
-   /* fgets(line,256,fptr); */
    std::string line = ma[i];
    if(ConvertStyle)
      xpp::print(convertf,"{}",line);
-   /*nn=strlen(line)+1;*/
-   /* if((save_eqn[NLINES]=(char *)malloc(nn))==NULL){
-     plintf("saveeqn-prob\n");xpp_model_failed();}
-     strncpy(save_eqn[NLINES++],line,nn); */
    istart=0;
      for(j=0;j<nstates;j++){
        std::string expr = extract_expr(line.c_str(),&istart);
@@ -133,7 +125,6 @@ int build_markov(const char *const *ma, const char *name)  /*   FILE *fptr; */
 
 int old_build_markov(FILE *fptr, const char *name)
 {
- /*int nn;*/
   int istart;
 
  int i,j;
@@ -157,9 +148,6 @@ int old_build_markov(FILE *fptr, const char *name)
         so the converted file's line breaks match exactly. */
      xpp::print(convertf,"{}\n",line);
    }
-   /*nn=strlen(line)+1;*/
-   /* if((save_eqn[NLINES]=(char *)malloc(nn))==NULL)xpp_model_failed();
-      strncpy(save_eqn[NLINES++],line,nn); */
    istart=0;
      for(j=0;j<nstates;j++){
        std::string expr = extract_expr(line.c_str(),&istart);
@@ -225,17 +213,6 @@ void add_markov_entry(int index, int j, int k, const char *expr)
   if(type==0){
   markov[index].trans[l0]=expr;
   /*  compilation step -- can be delayed */
- /*
-  if(add_expr(expr,com,&leng)){ 
-    plintf("Illegal expression %s\n",expr);
-    xpp_model_failed();
-  }
-  markov[index].command[l0]=(int *)malloc(sizeof(int)*(leng+2));
-  for(i=0;i<leng;i++){
-    markov[index].command[l0][i]=com[i];
-    
-  }
- */
   /*  end of compilation   */
   
 }
@@ -283,7 +260,6 @@ void update_markov(double *x, double t, double dt)
 {
   int i;
   double yp[MAXODE];
-  /*  plintf(" NODE=%d x=%g \n",NODE,x[0]); */
   if(NMarkov==0)return;
   set_ivar(0,t);
   for(i=0;i<NODE;i++)set_ivar(i+1,x[i]);
@@ -307,7 +283,6 @@ double new_state(double old, int index, double dt)
   int i,ns=markov[index].nstates;
   int type=markov[index].type;
   st=markov[index].states.data();
-  /*  plintf(" old=%g i=%d st=%g\n",old,index,st); */
   for(i=0;i<ns;i++)
     if(fabs(st[i]-old)<.0001){
       row=i;
@@ -322,7 +297,6 @@ double new_state(double old, int index, double dt)
 	 prob=evaluate(markov[index].command[rns+i].data())*dt;
 	 sum=sum+prob;
 	 if(coin<=sum){
-	   /*	   plintf("index %d switched state to %d \n",index,i); */
 	   return(st[i]);
 	 }
        }
@@ -334,7 +308,6 @@ double new_state(double old, int index, double dt)
 	 prob=markov[index].fixed[rns+i]*dt;
 	 sum=sum+prob;
 	 if(coin<=sum){
-	   /*	   plintf("index %d switched state to %d \n",index,i); */
 	   return(st[i]);
 	 }
        }
@@ -383,7 +356,6 @@ void one_gill_step(int meth,int nrxn,int *rxn,double *v)
       rate+=r[i];
     }
     if(rate<=0.0)return;
-    /* plintf("rate=%g \n",rate); */
     v[0]=-log(ndrand48())/rate; /* next step */
     test=rate*ndrand48();
     rate=r[0];
@@ -397,9 +369,6 @@ void one_gill_step(int meth,int nrxn,int *rxn,double *v)
     break;
   case 1: /* tau stepping method  */
     perror("Tau stepping method not implemented yet.");
-    /*for(i=0;i<nrxn;i++)
-      rold[i]=get_ivar(rxn[i]);
-	*/
     break;
 
   }
@@ -550,7 +519,6 @@ void do_stats(int ierr)
 {
   int i,j;
   float ninv,mean;
-  /*  STOCH_FLAG=0; */
   if(ierr!=-1&&N_TRIALS>0){
     ninv=1./static_cast<float>(N_TRIALS);
     for(i=0;i<stoch_len;i++){

@@ -12,7 +12,6 @@
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define SIGN(a,b) ((b)>=0.0 ? fabs(a):-fabs(a))
-/* #define MAXODE 100 */
 #define SAFETY 0.9
 #define GROW 1.5
 #define PGROW -0.25
@@ -74,7 +73,6 @@ void jacobn(double x, double *y, double *dfdx, double *dermat, double eps, doubl
     for(j=0;j<n;j++)
     {
     dermat[j*n+i]=(ynew[j]-yval[j])/r;
-    /* plintf(" %g ",dermat[j*n+i]); */
     }
     y[i]=ytemp;
 

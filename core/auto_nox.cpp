@@ -22,7 +22,6 @@
 #include "auto_stability.h"
 #include "csv_export.h"
 #include <libgen.h>
-/* #include "f2c.h" */
 #include "auto_f2c.h"
 #include "auto_c.h"
 #include "graf_par.h"
@@ -33,14 +32,10 @@
 #include "pp_shoot.h"
 
 #include "read_dir.h"
-/*#include "chunk.h"
-*/
 
 #include "kinescope.h"
 
 #include "parserslow.h"
-/*#include "graf_par.h"
-*/
 
 #include "diagram.h"
 #include "many_pops.h"
@@ -70,8 +65,6 @@
 
 #define RUBBOX 0
 
-/* #define RIGHT 6
-   #define LEFT 2 */
 #define ESC 27
 
 #define UPT 6
@@ -117,9 +110,6 @@ int TypeOfCalc=0;
 static int run_from;
 
 extern int fp8_is_open;
-
-/*extern char *strdup(const char *s);
-*/
 
 namespace {
 /* the diagram's marked stretch (the S and E keys in the Grab loop): the
@@ -603,7 +593,6 @@ void do_auto(int iold, int isave, int itp)
     run_from=0;
     if(xpp_job_cancelled())RestartLabel=0; /* xppautX: cancel: no follow-up run */
     xpp_job_end();
-    /* plintf("AUTO opened it==%d\n",itp); */
     /*     run_aut(Auto.nfpar,itp); THIS WILL CHANGE TO gogoauto stuff */ 
     close_auto(isave); /* this copies fort.8 to the .s file and other 
                           irrelevant stuff 
@@ -774,7 +763,6 @@ void auto_params()
 	  AutoPar[i]=in;
 	  in=get_param_index(values[i].c_str());
 	  Auto_index_to_array[i]=in;
-	  /* printf("%d -> %d %s\n",i,in, values[i]); */
 	}
       }
     }
@@ -914,7 +902,6 @@ void auto_plot_par()
   if(ch==key[13]){
     auto_scroll_window();
     redraw_diagram();
-    /* printf("I am done scrolling!!"); */
     return;
   }
   values[0] = ind_to_sym(i1);
@@ -1161,7 +1148,6 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     if(icp1!=Auto.icp1)break;
     if(flag2>0&&Auto.icp2!=icp2)break;
     PointType=UPT;
-   /*  plintf("UP: %g %g %g\n",x,y1,y2); */
     point_abs(static_cast<float>(x),static_cast<float>(y1));
     point_abs(static_cast<float>(x),static_cast<float>(y2));
     break;
@@ -1172,7 +1158,6 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
       set_linestyle(0);
     if(icp1!=Auto.icp1)break;
     if(flag2>0&&Auto.icp2!=icp2)break;
-   /*  plintf("SP: %g %g %g\n",x,y1,y2); */
     PointType=SPT;
     point_abs(static_cast<float>(x),static_cast<float>(y1));
     point_abs(static_cast<float>(x),static_cast<float>(y2)); 
@@ -1440,7 +1425,6 @@ void new_info(int ibr, int pt, const char *ty, int lab, double *par, double norm
   std::string bob=xpp::format("{:4} {:4} {:>2} {:4} {:10.4g} {:10.4g} {:10.4g} {:10.4g} {:10.4g}",
 	  ibr,pt,ty,lab,p1,p2,norm,u0,per);
   draw_auto_info(bob.c_str(),10,2*text_metrics.small_height+2);
-  /* SmallGr(); */
   refreshdisplay();
 }
 
@@ -1452,7 +1436,6 @@ void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw)
   const char *symb;
   if (d==NULL)
   {
-  	/*err_msg("Can not traverse to NULL diagram.");*/
 	return;
   }
   norm=d->norm;
@@ -1592,7 +1575,6 @@ void init_auto_win()
   for(i=0;i<NAutoPar;i++)AutoPar[i]=i;
   for(i=0;i<NAutoPar;i++){
     Auto_index_to_array[i]=get_param_index(upar_names[AutoPar[i]]);
-    /* printf("%d -> %d, %s \n",i,Auto_index_to_array[i],upar_names[AutoPar[i]]); */
   }
   Auto.nper=0;
   grabpt.flag=0;  /*  no point in buffer  */
@@ -1681,8 +1663,6 @@ int reset_auto()
 void auto_grab()
 {
   traverse_diagram();
- /* redraw_auto_menus();
-   */ 
 } 
 
 void get_start_period(double *p)
@@ -1780,9 +1760,6 @@ void auto_start_choice()
      return;
    }
      
- /*  Auto.nbc=NODE-1;
-   auto_start_at_bvp();
-   } */
  if(ch=='e'){
    HomoFlag=2;
    auto_start_at_homoclinic();
@@ -1908,7 +1885,6 @@ void auto_run()
   itp1=itp%10;
   itp2=itp/10;
   ips=Auto.ips;
-  /*  printf(" ips=%d itp=%d itp1= %d itp2=%d\n",ips,itp,itp1,itp2); */
   if(itp1==3||itp2==3){  /* its a HOPF Point  */
     hopf_choice();
     ping();return;
@@ -1939,17 +1915,7 @@ void auto_run()
 
   auto_branch_choice(grabpt.ibr,ips);
     ping();
-    return; /* 
-    
-    if(grabpt.ibr<0&&ips==2)
-      auto_switch_per();
-    else 
-      if(ips==4)
-	auto_switch_bvp();
-      else
-	auto_switch_ss();
-    ping();
-    return;   */
+    return;
   }
   if(itp1==8||itp2==8){ /* Torus 2 parameter */
     torus_choice();
@@ -1973,7 +1939,6 @@ void auto_run()
 
 void auto_homo_choice(int itp)
 {
-  /* printf("in choice: itp=%d\n",itp); */
   if(itp!=5)
     auto_extend_homoclinic();
   
@@ -2014,7 +1979,6 @@ void auto_branch_choice(int ibr, int ips)
     if(ibr<0)
       ipsuse=2;
     auto_2p_branch(ipsuse);
-    /* auto_2p_limit(ips); */
     return;
   }
   redraw_auto_menus();
@@ -2120,10 +2084,6 @@ void auto_new_ss()
     {
        xpp::log(XPP_LOG_WARN, "Boolean response expected.\n");
     }
-   /* if(ans==0){
-      opn=OPEN_3;
-      cls=APPEND;
-    } */
   }
       TypeOfCalc=EQ1;
   Auto.ips=1;
@@ -2149,10 +2109,6 @@ void auto_new_discrete()
     {
        xpp::log(XPP_LOG_WARN, "Boolean response expected.\n");
     }
-   /* if(ans==0){
-      opn=OPEN_3;
-      cls=APPEND;
-    } */
   }
   TypeOfCalc=DI1;
   Auto.ips=-1;
@@ -2320,7 +2276,6 @@ void auto_new_per() /* same for extending periodic  */
       TypeOfCalc=PE1;
   Auto.irs=grabpt.lab;
   Auto.itp=grabpt.itp;
-  /* Auto.nfpar=grabpt.nfpar; */
   Auto.nfpar=1;
   Auto.ilp=1;
   Auto.isw=1; /* -1 */
@@ -2426,8 +2381,6 @@ void auto_2p_limit(int ips)
     TypeOfCalc=LPP2;
     AutoTwoParam=LPP2;
   }
-  /* printf("ips=%d  itp=%d \n",Auto.ips,Auto.itp); */
-  /* plintf(" IPS = %d \n",ips); */
   do_auto(OPEN_3,APPEND,Auto.itp);
 }
 
@@ -2574,7 +2527,6 @@ void load_auto_orbit()
   double period;
   std::string string;
   int nrow,ndim,label,flg;
-  /* printf("Loading orbit ibr=%d ips=%d flag=%d\n",grabpt.ibr,Auto.ips, grabpt.flag);  */
 
   if((ibr>0&&(Auto.ips!=4)&&(Auto.ips!=3)&&(Auto.ips!=9))||flag==0)return;
    /* either nothing grabbed or just a fixed point and that is already loaded */
@@ -2686,7 +2638,6 @@ void load_auto_numerics(FILE *fp)
     if (!tr.read(outperiod[i]) || !tr.read(UzrPar[i])) return;
     Auto.period[i]=outperiod[i];
     Auto.uzrpar[i]=UzrPar[i];
-    /*    printf("%g %d\n",Auto.period[i],Auto.uzrpar[i]); */
   }
 
  if (!tr.read(Auto.ntst) || !tr.read(Auto.nmx) || !tr.read(Auto.npr)) return;
@@ -3181,7 +3132,6 @@ void traverse_diagram()
 	 if(dnew==NULL){dnew=d;break;} 
  	 if(strcmp(auto_bif_sym(dnew->itp),nsymb)==0){d=dnew;found=1;break;} 
          d=dnew;
-         /*if(d->lab==0)break;*/
        }
        if (found)
        {
@@ -3306,8 +3256,6 @@ void traverse_diagram()
     }
     
   }
-  /*XORCross(ix,iy);
-*/
   /* check mark_flag branch similarity */
   if(diagram_mark.state==2){
     if(diagram_mark.start_branch!=diagram_mark.end_branch)

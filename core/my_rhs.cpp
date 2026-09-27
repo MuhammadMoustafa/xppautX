@@ -9,8 +9,6 @@
 #include "simplenet.h"
 #include "form_ode.h"
 
-/* #define Set_ivar(a,b) variables[(a)]=(b) */
-
 void extra(double *y__y, double t, int nod, int neq)
 {
   int i;
@@ -22,9 +20,7 @@ void extra(double *y__y, double t, int nod, int neq)
   for(i=nod;i<nod+FIX_VAR;i++)
   SETVAR(i+1,evaluate(my_ode[i]));
   /* I dont think this is generally needed  */
-  
-  /* do_in_out();   */
-  
+
   for(i=nod+NMarkov;i<neq;i++)
   y__y[i]=evaluate(my_ode[i+FIX_VAR-NMarkov]);
 }
