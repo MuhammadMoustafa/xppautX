@@ -14,7 +14,6 @@
 #include <memory>
 #include <string>
 
-extern int NBifs;       /* diagram.c: >1 once a diagram has a point in it */
 extern BIFUR Auto;
 extern char this_file[XPP_MAX_NAME];
 
@@ -67,7 +66,7 @@ int xpp_session_save(const char *base_arg)
     session_set = set_name;
     session_auto.clear();
 
-    if (NBifs > 1) { /* a diagram exists (save_diagram's own empty check) */
+    if (diagram_count() > 1) { /* a diagram exists (save_diagram's own empty check) */
         std::string auto_name = base + ".auto";
         xpp::Writer w(auto_name.c_str());
         if (!w) {
@@ -104,7 +103,7 @@ int xpp_session_load(const char *base_arg)
     std::string auto_name = base + ".auto";
     xpp::UniqueFile fp = xpp::open_read(auto_name.c_str());
     if (fp) {
-        if (NBifs > 1) yes_reset_auto(); /* as load_auto does, without its confirmation ask */
+        if (diagram_count() > 1) yes_reset_auto(); /* as load_auto does, without its confirmation ask */
         if (!Auto.exist) do_auto_win(); /* the diagram needs a window to draw into */
         if (load_auto_file(fp.get()) != 1) {
             err_msg("Bad AUTO file");

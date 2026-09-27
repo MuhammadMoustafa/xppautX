@@ -44,7 +44,6 @@ core/dae_fun.cpp text 1
 core/delay_handle.cpp buffers 1
 core/delay_handle.cpp memory 2
 core/dense.cpp memory 8
-core/diagram.cpp memory 17
 core/edit_rhs.cpp buffers 3
 core/edit_rhs.cpp memory 2
 core/edit_rhs.cpp text 1

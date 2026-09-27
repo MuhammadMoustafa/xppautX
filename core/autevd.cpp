@@ -38,7 +38,6 @@ XAUTO xAuto;
 
 extern int AutoTwoParam;
 int DiagFlag=0;
-extern int NBifs; /* diagram.c: the index the next add_diagram() gives */
 void init_auto(int ndim, int nicp, int nbc, int ips, int irs, int ilp, int ntst, int isp, int isw, int nmx,
                int npr, double ds, double dsmin, double dsmax, double rl0, double rl1, double a0, double a1,
                int ip1, int ip2, int ip3, int ip4, int ip5, int nuzr, double epsl, double epsu, double epss,
@@ -129,7 +128,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   int from=auto_run_from_take(); /* the run's first point says which label it started from */
   int type=get_bif_type(ibrs,ntots,lab);
   /* its entry in the diagram list: the first one after start_diagram, else a new one */
-  int node=DiagFlag==0?0:NBifs;
+  int node=DiagFlag==0?0:diagram_count();
   /* xppautX: the point's stability, or zeros: not computed (auto_stability.h) */
   std::vector<double> ev(2*static_cast<size_t>(n));
   auto_stability_for(static_cast<int>(ibrs),static_cast<int>(ntots),n,ev.data(),ev.data()+n);

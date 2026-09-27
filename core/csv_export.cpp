@@ -18,7 +18,6 @@
 /* the core's own globals that have no header of their own (diagram.cpp,
    auto_settings.cpp precedent) */
 extern "C" {
-extern DIAGRAM *bifd;
 extern int NODE;
 extern int NAutoPar;
 extern int AutoPar[8];
@@ -72,7 +71,7 @@ bool point_is_stable(int type) { return type == 1 || type == 3; }
 
 int csv_export_diagram(const char *filename)
 {
-    if (bifd == NULL || bifd->next == NULL) return 0; /* nothing recorded */
+    if (diagram_count() < 2) return 0; /* nothing recorded */
     xpp::Writer w(filename);
     if (!w) {
         err_msg("Can't open file");
@@ -83,10 +82,10 @@ int csv_export_diagram(const char *filename)
     for (int i = 0; i < NODE; i++) fprintf(fp, ",%s_max", uvar_names[i]);
     for (int i = 0; i < NODE; i++) fprintf(fp, ",%s_min", uvar_names[i]);
     fprintf(fp, "\n");
-    /* bifd is the first stored point itself (edit_start fills it in
+    /* the first point is a stored point itself (edit_start fills it in
        place), not a sentinel before one: write_info_out/write_pts start
        the same way */
-    for (const DIAGRAM *d = bifd; d != NULL; d = d->next) {
+    for (const DIAGRAM *d = diagram_first(); d != NULL; d = diagram_next(d)) {
         int type = get_bif_type(d->ibr, d->ntot, d->lab);
         char symb[3];
         get_bif_sym(symb, d->itp);
@@ -112,7 +111,7 @@ int csv_export_diagram(const char *filename)
 
 int csv_export_diagram_eigenvalues(const char *filename)
 {
-    if (bifd == NULL || bifd->next == NULL) return 0;
+    if (diagram_count() < 2) return 0;
     xpp::Writer w(filename);
     if (!w) {
         err_msg("Can't open file");
@@ -120,7 +119,7 @@ int csv_export_diagram_eigenvalues(const char *filename)
     }
     FILE *fp = w.file();
     fprintf(fp, "branch,point,index,re,im,kind\n");
-    for (const DIAGRAM *d = bifd; d != NULL; d = d->next) {
+    for (const DIAGRAM *d = diagram_first(); d != NULL; d = diagram_next(d)) {
         int type = get_bif_type(d->ibr, d->ntot, d->lab);
         const char *kind = point_is_periodic(type) ? "multiplier" : "eigenvalue";
         for (int i = 0; i < NODE; i++)

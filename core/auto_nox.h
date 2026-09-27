@@ -65,8 +65,6 @@ typedef struct diagram {
   int index,nfpar;
   int icp1,icp2,icp3,icp4,icp5,flag2;
   int from; /* the label its run started from, on a run's first point (not saved in files) */
-  struct diagram *prev;
-  struct diagram *next;
 } DIAGRAM;
 
 typedef struct {

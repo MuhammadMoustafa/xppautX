@@ -204,9 +204,7 @@ extern "C" void load_browser_with_branch(int ibr, int pts, int pte);
 
 GRABPT grabpt;
 
-extern DIAGRAM *bifd;
 
-extern int NBifs;
 int AutoTwoParam=0;
 int NAutoPar=8;
 int Auto_index_to_array[8];
@@ -1733,10 +1731,9 @@ void init_auto_win()
 
 int yes_reset_auto()
 {
-  if(NBifs<=1)return(0);
+  if(diagram_count()<=1)return(0);
  kill_diagrams();
  FromAutoFlag=0;
-    NBifs=1;
     grabpt.flag=0;
     xpp_files_remove((this_auto_file+".b").c_str());
     xpp_files_remove((this_auto_file+".d").c_str());
@@ -1747,7 +1744,7 @@ int yes_reset_auto()
 int reset_auto()
 {
   char ch;
-    if(NBifs<=1)return(0);
+    if(diagram_count()<=1)return(0);
     ch=static_cast<char>(TwoChoice("YES","NO","Destroy AUTO diagram & files","yn"));
     if(ch!='y')return(0);
    
@@ -2203,7 +2200,7 @@ void auto_new_ss()
   int opn=NO_OPEN_3,cls=OVERWRITE;
   NewPeriodFlag=0;
 
-  if(NBifs>1){
+  if(diagram_count()>1){
     ans=reset_auto();
     if ((ans!=0) && (ans!=1))
     {
@@ -2233,7 +2230,7 @@ void auto_new_discrete()
   int ans;
   int opn=NO_OPEN_3,cls=OVERWRITE;
   NewPeriodFlag=0;
-  if(NBifs>1){
+  if(diagram_count()>1){
     ans=reset_auto();
     if ((ans!=0) && (ans!=1))
     {
@@ -2878,7 +2875,7 @@ void load_auto()
   int ok;
   /*char filename[256];*/
   int status;
-  if(NBifs>1){
+  if(diagram_count()>1){
     ok=reset_auto();
     if(ok==0)return;
   }
@@ -3088,7 +3085,7 @@ void  auto_get_info( int *n, char *pname )
     ibr=diagram_mark.start_branch;
     i2=abs(diagram_mark.end_point);
     *n=abs(i2-i1);
-    d=bifd;
+    d=diagram_first();
     while(1){
       if(d->ibr==ibr && ((d->ntot==i1)||(d->ntot==(-i1))))
 	{
@@ -3096,7 +3093,7 @@ void  auto_get_info( int *n, char *pname )
 	  xpp_strlcpy(pname,upar_names[AutoPar[d->icp1]],256);
 	  break;
 	}
-       dnew=d->next;
+       dnew=diagram_next(d);
        if(dnew==NULL){
 	 
 	 break;
@@ -3124,8 +3121,8 @@ void find_point(int ibr, int pt)
 {
   int i;
   DIAGRAM *d,*dnew;
-   if(NBifs<2)return;
-   d=bifd;
+   if(diagram_count()<2)return;
+   d=diagram_first();
    while(1)
      {
        if(d->ibr==ibr && ((d->ntot==pt)||(d->ntot==(-pt))))
@@ -3143,7 +3140,7 @@ void find_point(int ibr, int pt)
 	     set_total(d->per);		       
 	   break;
 	 }
-       dnew=d->next;
+       dnew=diagram_next(d);
        if(dnew==NULL){
 	 
 	 break;
@@ -3229,9 +3226,9 @@ void traverse_diagram()
   int kp;
   int xm,ym;
   diagram_mark.state=0;
-  if(NBifs<2)return;
+  if(diagram_count()<2)return;
   
-  d=bifd; 
+  d=diagram_first(); 
   DONT_XORCross=0;
   traverse_out(d,&ix,&iy,1);
   
@@ -3240,8 +3237,7 @@ void traverse_diagram()
     if(kp==XPP_AUTO_NODE)
     {
       /* a point of the diagram by its entry: the cursor goes there */
-      dnew=bifd;
-      while(dnew!=NULL&&dnew->index!=xm)dnew=dnew->next;
+      dnew=diagram_point(xm);
       if(dnew!=NULL){
         clear_msg();
         XORCross(ix,iy);
@@ -3259,13 +3255,7 @@ void traverse_diagram()
 		*/
 		XORCross(ix,iy);
 		DONT_XORCross = 1;
-		while (1){
-        		dnew=d->prev;
-        		if(dnew==NULL){dnew=d;break;}
-        		/*bifd = dnew;*/
-        		d=dnew;
-		}
-		d=dnew;
+		d=diagram_first();
 		CUR_DIAGRAM=d;
 		traverse_out(d,&ix,&iy,0);
                 /*
@@ -3289,7 +3279,7 @@ void traverse_diagram()
 				ndist = dist;
 				mindex=d->index;
 			}
-			dnew=d->next;
+			dnew=diagram_next(d);
 			if(dnew==NULL){dnew=d;break;}
 			d=dnew;
 			traverse_out(d,&ix,&iy,0);/*Need this each time to update the distance calc*/
@@ -3310,9 +3300,8 @@ void traverse_diagram()
 		XORCross(ix,iy);
 		while (1){
 		        if (d->index == mindex){dnew=d;break;}
-        		dnew=d->prev;
+        		dnew=diagram_prev(d);
         		if(dnew==NULL){dnew=d;break;}
-        		/*bifd = dnew;*/
         		d=dnew;
 		}
 		d=dnew;
@@ -3333,8 +3322,8 @@ void traverse_diagram()
 
       switch(kp){
       case RIGHT:
-	dnew=d->next;
-	if(dnew==NULL)dnew=bifd;
+	dnew=diagram_next(d);
+	if(dnew==NULL)dnew=diagram_first();
 	XORCross(ix,iy);
 	d=dnew;
 	CUR_DIAGRAM=dnew;
@@ -3342,8 +3331,8 @@ void traverse_diagram()
 	break;
 	
       case LEFT:
-	dnew=d->prev;
-	if(dnew==NULL)dnew=bifd;
+	dnew=diagram_prev(d);
+	if(dnew==NULL)dnew=diagram_first();
 	XORCross(ix,iy);
 	d=dnew;
 	CUR_DIAGRAM=dnew;
@@ -3355,7 +3344,7 @@ void traverse_diagram()
        found=0;
        dold=d;
        while(1){
-         dnew=d->next;
+         dnew=diagram_next(d);
 	 if(dnew==NULL){dnew=d;break;} 
 	 get_bif_sym(symb,dnew->itp);
 	 if(strcmp(symb,nsymb)==0){d=dnew;found=1;break;} 
@@ -3381,7 +3370,7 @@ void traverse_diagram()
        found=0;
        dold=d;
        while(1){
-         dnew=d->prev;
+         dnew=diagram_prev(d);
 	 if(dnew==NULL){dnew=d;break;} 
 	 get_bif_sym(symb,dnew->itp);
 	 if(strcmp(symb,nsymb)==0){d=dnew;found=1;break;} 
@@ -3403,8 +3392,8 @@ void traverse_diagram()
       case TAB:
        XORCross(ix,iy);
        while(1){
-         dnew=d->next;
-         if(dnew==NULL){dnew=bifd;break;} /*TAB wraps*/
+         dnew=diagram_next(d);
+         if(dnew==NULL){dnew=diagram_first();break;} /*TAB wraps*/
          d=dnew;
          if(d->lab!=0)break;
        }
@@ -3437,32 +3426,20 @@ void traverse_diagram()
 	break;
        case END:/*All the way to end*/
        XORCross(ix,iy);
-       while (1){
-               dnew=d->next;
-               if(dnew==NULL){dnew=d;break;}
-               /*bifd = dnew;*/
-               d=dnew;
-       }
-       d=dnew;
+       d=last_diagram();
        CUR_DIAGRAM=d;
        traverse_out(d,&ix,&iy,1);
        break;
        case HOME:/*All the way to beginning*/
        XORCross(ix,iy);
-       while (1){
-               dnew=d->prev;
-               if(dnew==NULL){dnew=d;break;}
-               /*bifd = dnew;*/
-               d=dnew;
-       }
-       d=dnew;
+       d=diagram_first();
        CUR_DIAGRAM=d;
        traverse_out(d,&ix,&iy,1);
        break;
        case PGUP: /*Same as TAB except we don't wrap*/
        XORCross(ix,iy);
        while(1){
-         dnew=d->next;
+         dnew=diagram_next(d);
          if(dnew==NULL){dnew=d;break;}
          d=dnew;
          if(d->lab!=0)break;
@@ -3474,7 +3451,7 @@ void traverse_diagram()
        case PGDN: /*REVERSE TAB*/
        XORCross(ix,iy);
        while(1){
-         dnew=d->prev;
+         dnew=diagram_prev(d);
          if(dnew==NULL){dnew=d;break;}
          d=dnew;
          if(d->lab!=0)break;

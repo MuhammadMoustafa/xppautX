@@ -7,7 +7,20 @@
 extern "C" {
 #endif
 
+/* AUTO's bifurcation diagram: a list of points in the order they were
+   stored (diagram.cpp owns it). start_diagram empties it to one point of
+   n variables, which the run's first point (edit_start) fills in place;
+   add_diagram appends. Point i has index i. */
 void start_diagram(int n);
+/* how many points (1 for an empty diagram, 0 before start_diagram) */
+int diagram_count(void);
+/* the point of that index, or NULL */
+DIAGRAM *diagram_point(int index);
+/* the first point, or NULL before start_diagram */
+DIAGRAM *diagram_first(void);
+/* the point after / before d, or NULL at the end / the start */
+DIAGRAM *diagram_next(const DIAGRAM *d);
+DIAGRAM *diagram_prev(const DIAGRAM *d);
 void edit_start(int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4,double *evr, double *evi);
 void edit_diagram(DIAGRAM *d, int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4,int flag2, double *evr, double *evi, double tp);
 void add_diagram(int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3,int icp4,int flag2, double *evr, double *evi);

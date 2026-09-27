@@ -2,6 +2,8 @@
    auto_f2c.h's own min/max macros (included transitively below, through
    auto_nox.h) break if they are already defined first. */
 #include "xpp_io.h"
+#include <deque>
+#include <vector>
 #include "storage.h"
 #include "xpp_ui.h"
 #include "xpp_log.h"
@@ -20,7 +22,6 @@
 #include "load_eqn.h"
 #include "browse.h"
 #include "graf_par.h"
-#define DALLOC(a) static_cast<double *>(xpp_malloc((a)*sizeof(double)))
 extern int TypeOfCalc;
 extern ROTCHK blrtn;
 
@@ -29,33 +30,73 @@ extern ROTCHK blrtn;
 extern int AutoTwoParam;
 extern int NODE;
 extern int DiagFlag;
-int NBifs=0;
 extern int NAutoPar;
-DIAGRAM *bifd;
+
+namespace {
+/* a diagram point and the arrays its DIAGRAM entry points at */
+struct DiagramPoint {
+  DIAGRAM d{};
+  std::vector<double> uhi,ulo,u0,ubar,evr,evi;
+};
+
+/* AUTO's bifurcation diagram: its points in the order they were stored,
+   point i with index i (so next/prev are index +/- 1). A deque, so a
+   point's address stays valid while points are added. */
+std::deque<DiagramPoint> points;
+
+/* a new last point of n variables, zeroed */
+DIAGRAM *new_point(int n)
+{
+  DiagramPoint &p=points.emplace_back();
+  for(std::vector<double> *v:{&p.uhi,&p.ulo,&p.u0,&p.ubar,&p.evr,&p.evi})
+    v->assign(n,0.0);
+  p.d.uhi=p.uhi.data();
+  p.d.ulo=p.ulo.data();
+  p.d.u0=p.u0.data();
+  p.d.ubar=p.ubar.data();
+  p.d.evr=p.evr.data();
+  p.d.evi=p.evi.data();
+  p.d.index=static_cast<int>(points.size())-1;
+  return &p.d;
+}
+} // namespace
+
+int diagram_count(void)
+{
+  return static_cast<int>(points.size());
+}
+
+DIAGRAM *diagram_point(int index)
+{
+  if(index<0||index>=diagram_count())return NULL;
+  return &points[index].d;
+}
+
+DIAGRAM *diagram_first(void)
+{
+  return diagram_point(0);
+}
+
+DIAGRAM *diagram_next(const DIAGRAM *d)
+{
+  return diagram_point(d->index+1);
+}
+
+DIAGRAM *diagram_prev(const DIAGRAM *d)
+{
+  return diagram_point(d->index-1);
+}
 
 void start_diagram(int n)
 {
-  NBifs=1;
-  bifd=static_cast<DIAGRAM *>(xpp_malloc(sizeof(DIAGRAM)));
-  bifd->prev=NULL;
-  bifd->next=NULL;
-  bifd->index=0;
-  bifd->uhi=DALLOC(n);
-  bifd->ulo=DALLOC(n);
-  bifd->u0=DALLOC(n);
-  bifd->ubar=DALLOC(n);
-  bifd->evr=DALLOC(n);
-  bifd->evi=DALLOC(n);
-  bifd->norm=0;
-  bifd->lab=0;
-  bifd->from=0;
-   
+  points.clear();
+  new_point(n);
   DiagFlag=0;
 }
 
 void edit_start(int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, double *evr, double *evi)
 {
-  edit_diagram(bifd,ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,
+  edit_diagram(diagram_first(),ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,
 	       par,per,n,icp1,icp2,icp3,icp4,AutoTwoParam,evr,evi,blrtn.torper);
 }
 
@@ -94,35 +135,14 @@ void edit_diagram(DIAGRAM *d, int ibr, int ntot, int itp, int lab, int nfpar, do
   
 void add_diagram(int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, int flag2, double *evr, double *evi)
 {
- DIAGRAM *d,*dnew;
-
- d=bifd;
- while(d->next != NULL){
-   d=(d->next);
- }
- d->next=static_cast<DIAGRAM *>(xpp_malloc(sizeof(DIAGRAM)));
- dnew=d->next;
- dnew->next=NULL;
- dnew->prev=d;
- dnew->uhi=DALLOC(n);
- dnew->ulo=DALLOC(n);
- dnew->u0=DALLOC(n);
- dnew->ubar=DALLOC(n);
- dnew->evr=DALLOC(n);
- dnew->evi=DALLOC(n);
- dnew->index=NBifs;
- dnew->from=0;
- NBifs++;
+ DIAGRAM *dnew=new_point(n);
  edit_diagram(dnew,ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,par,per,n,
 	      icp1,icp2,icp3,icp4,flag2,evr,evi,blrtn.torper);
- 
 }
 
 DIAGRAM *last_diagram(void)
 {
-  DIAGRAM *d=bifd;
-  while(d->next!=NULL)d=d->next;
-  return d;
+  return diagram_point(diagram_count()-1);
 }
 
 void set_last_diagram_from(int from)
@@ -132,51 +152,20 @@ void set_last_diagram_from(int from)
 
 const DIAGRAM *diagram_of_label(int lab)
 {
-  if(lab<=0||DiagFlag==0)return NULL; /* DiagFlag 0: bifd holds no point yet */
-  for(const DIAGRAM *d=bifd;d!=NULL;d=d->next)
-    if(d->lab==lab)return d;
+  if(lab<=0||DiagFlag==0)return NULL; /* DiagFlag 0: the first point is not filled in yet */
+  for(const DiagramPoint &p:points)
+    if(p.d.lab==lab)return &p.d;
   return NULL;
 }
 
 int diagram_has(int index,int ibr,int ntot)
 {
-  DIAGRAM *d=bifd;
-  while(d!=NULL&&d->index!=index)d=d->next;
+  const DIAGRAM *d=diagram_point(index);
   return d!=NULL&&d->ibr==ibr&&abs(d->ntot)==abs(ntot);
 }
 
 void kill_diagrams()
 {
-  DIAGRAM *d,*dnew;
-  d=bifd;
-  while(d->next != NULL){  /*  Move to the end of the tree  */
-    d=d->next;
-  }
-  while(d->prev != NULL ){
-   dnew=d->prev;
-   d->next=NULL;
-   d->prev=NULL;
-   xpp_free(d->uhi);
-   xpp_free(d->ulo);
-   xpp_free(d->u0);
-   xpp_free(d->ubar);
-   xpp_free(d->evr);
-   xpp_free(d->evi);
-   xpp_free(d);
-   d=dnew;
- }
-/*  NBifs=1;
-  bifd->prev=NULL;
-  bifd->next=NULL;
-  bifd->index=0;
-  */
-  xpp_free(bifd->uhi);
-  xpp_free(bifd->ulo);
-  xpp_free(bifd->u0);
-  xpp_free(bifd->ubar);
-  xpp_free(bifd->evr);
-  xpp_free(bifd->evi);
-  xpp_free(bifd);
   start_diagram(NODE);
 }
 
@@ -185,8 +174,8 @@ void redraw_diagram()
   DIAGRAM *d;
   int type,flag=0;
   draw_bif_axes();
-  d=bifd;
-  if(d->next==NULL)return;
+  d=diagram_first();
+  if(diagram_next(d)==NULL)return;
   while(1){
     type=get_bif_type(d->ibr,d->ntot,d->lab);
  
@@ -195,7 +184,7 @@ void redraw_diagram()
     auto_point_id(d->ibr,d->ntot,d->itp,d->index,d->from);
     add_point(d->par,d->per,d->uhi,d->ulo,d->ubar,d->norm,type,flag,
 	      d->lab,d->nfpar,d->icp1,d->icp2,d->icp3,d->icp4,d->flag2,d->evr,d->evi);
-    d=d->next;
+    d=diagram_next(d);
     if(d==NULL)break;
   }
 }
@@ -210,7 +199,7 @@ xpp::Writer diagram_file(const char *title, const char *name)
 {
   std::string filename=name;
   if(!file_selector(title,filename,"*.dat"))return xpp::Writer();
-  if(bifd->next==NULL)return xpp::Writer();
+  if(diagram_count()<2)return xpp::Writer();
   xpp::Writer w(filename.c_str());
   if(!w)err_msg("Can't open file");
   return w;
@@ -228,8 +217,8 @@ void export_diagram(const char *title, const char *name, const char *wild,
   if(!begin(filename.c_str(),plot_export.color))
     return;
   draw_export_axes();
-  d=bifd;
-  if(d->next==NULL)return;
+  d=diagram_first();
+  if(diagram_next(d)==NULL)return;
   while(1){
     type=get_bif_type(d->ibr,d->ntot,d->lab);
     if (type < 0)
@@ -240,7 +229,7 @@ void export_diagram(const char *title, const char *name, const char *wild,
     else flag=1;
     add_ps_point(d->par,d->per,d->uhi,d->ulo,d->ubar,d->norm,type,flag,
 	      d->lab,d->nfpar,d->icp1,d->icp2,d->flag2,d->evr,d->evi);
-    d=d->next;
+    d=diagram_next(d);
     if(d==NULL)break;
   }
   end();
@@ -261,7 +250,7 @@ void write_info_out()
   /*double a,*ubar,*u0;*/
   xpp::Writer w=diagram_file("Write all info","allinfo.dat");
   if(!w)return;
-  d=bifd;
+  d=diagram_first();
  while(1){
     type=get_bif_type(d->ibr,d->ntot,d->lab);
     
@@ -295,7 +284,7 @@ void write_info_out()
       line+='\n';
       w.print("{}",line);
     }
-    d=d->next;
+    d=diagram_next(d);
     if(d==NULL)break;
   }
   w.commit();
@@ -320,8 +309,8 @@ extern "C" void load_browser_with_branch(int ibr,int pts,int pte)
     last=i;
   }
   nrows=last-first+1;
-   d=bifd;
-  if(d->next==NULL)return;
+   d=diagram_first();
+  if(diagram_next(d)==NULL)return;
   j=0;
  while(1){
     pt=abs(d->ntot);
@@ -336,7 +325,7 @@ extern "C" void load_browser_with_branch(int ibr,int pts,int pte)
 	data_store.col[i+1][j]=u0[i];
       j++;
     }
-    d=d->next;
+    d=diagram_next(d);
     if(d==NULL)break;
         
  }
@@ -355,7 +344,7 @@ void write_init_data_file()
   /*double a,*uhigh,*ulow,*ubar;*/
   xpp::Writer w=diagram_file("Write init data file","initdata.dat");
   if(!w)return;
-  d=bifd;
+  d=diagram_first();
  while(1){
     /*if(d->ntot==1)flag=0;
     else flag=1;
@@ -387,7 +376,7 @@ void write_init_data_file()
       line+='\n';
       w.print("{}",line);
     }
-    d=d->next;
+    d=diagram_next(d);
     if(d==NULL)break;
   }
   w.commit();
@@ -406,7 +395,7 @@ void write_pts()
   double x,y1,y2,par1,par2=0,a,*uhigh,*ulow,*ubar,per;
   xpp::Writer w=diagram_file("Write points","diagram.dat");
   if(!w)return;
-  d=bifd;
+  d=diagram_first();
   while(1){
     type=get_bif_type(d->ibr,d->ntot,d->lab);
     
@@ -435,7 +424,7 @@ void write_pts()
       w.print("{:g} {:g} {:g} {} {} {}\n",
 	      x,y1,y2,type,abs(d->ibr),d->flag2);
     }
-      d=d->next;
+      d=diagram_next(d);
       if(d==NULL)break;
   }
   w.commit();
@@ -462,8 +451,8 @@ void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi)
   /*int flag=0;
   */
   double x,y1,y2,par1,par2=0.0;
-  d=bifd;
-  if(d->next==NULL)return;
+  d=diagram_first();
+  if(diagram_next(d)==NULL)return;
   *xlo=1.e16;
   *ylo=*xlo;
   *xhi=-*xlo;
@@ -485,7 +474,7 @@ void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi)
     if(x>*xhi)*xhi=x;
     if(y2<*ylo)*ylo=y2;
     if(y1>*yhi)*yhi=y1;
-    d=d->next;
+    d=diagram_next(d);
     if(d==NULL)break;
   }
 }
@@ -496,10 +485,10 @@ int save_diagram(FILE *fp, int n)
 {
   int i;
   DIAGRAM *d;
-  fputs(xpp::format("{}\n",NBifs-1).c_str(),fp);
-  if(NBifs==1)
+  fputs(xpp::format("{}\n",diagram_count()-1).c_str(),fp);
+  if(diagram_count()==1)
     return(-1);
-  d=bifd;
+  d=diagram_first();
   while(1){
     std::string line=xpp::format("{} {} {} {} {} {} {} {} {} {} {} {}\n",
 	    d->calc,d->ibr,d->ntot,d->itp,d->lab,d->index,d->nfpar,
@@ -511,7 +500,7 @@ int save_diagram(FILE *fp, int n)
     for(i=0;i<n;i++)
       fputs(xpp::format("{:f} {:f} {:f} {:f} {:f} {:f}\n",d->u0[i],d->uhi[i],d->ulo[i],
 			    d->ubar[i],d->evr[i],d->evi[i]).c_str(),fp);
-    d=d->next;
+    d=diagram_next(d);
     if(d==NULL)break;
   }
   return(1);
