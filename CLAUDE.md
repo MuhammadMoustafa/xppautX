@@ -285,6 +285,17 @@ difficulty) implements one card in the worktree its brief names:
 - Keep token use low: read the parts of files you need (grep, `sed -n`
   ranges), pipe check output through tail/grep, never paste full logs.
 - Leave no `until`/`while` sleep loops or background runs behind.
+- Background tasks are registered (maintainer, 2026-09-27): every
+  background run (a command run in the background, a background agent, a
+  server or program left running) gets a line in
+  `C:\gitRepos\xppautX\.claude\background-tasks.md` (the main
+  checkout's, whatever worktree you are in; local, not committed) the
+  moment it starts: its id, what it runs, where, who started it and who
+  closes it. Whoever closes it stops it or confirms it ended, then
+  deletes its line. An agent closes its own before its final report and
+  says the file holds none of its lines; the reviewer checks the file is
+  empty of finished work before a merge, a push, and each report to the
+  maintainer.
 - Final report: at most 15 lines: what changed, gate results as counts,
   anything unfinished or doubtful.
 
