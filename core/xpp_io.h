@@ -457,7 +457,7 @@ private:
 class Writer {
 public:
     Writer() = default;
-    explicit Writer(const char *path) noexcept : w_(xpp_writer_open_as(path, XPP_WRITE_TEXT)) {}
+    explicit Writer(const char *path) noexcept : w_(xpp_writer_open(path)) {}
     static Writer binary(const char *path) noexcept
     {
         Writer w;
