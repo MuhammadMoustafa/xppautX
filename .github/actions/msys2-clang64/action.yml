@@ -28,7 +28,10 @@ runs:
         key: msys2-clang64-toolchain-${{ hashFiles('.github/msys2-clang64-packages.txt') }}
     # release: false in both: the runner's preinstalled MSYS2 at C:\msys64
     # is the tree clang64 sits under either way (the default installs a
-    # fresh MSYS2 under the runner's temp folder instead)
+    # fresh MSYS2 under the runner's temp folder instead). cache: false in
+    # both: the 7z archive is the one toolchain cache; setup-msys2's own
+    # package cache (on by default) only duplicated it, and every parallel
+    # job on a hit raced to save the same key ("Unable to reserve cache").
     - name: "MSYS2 shell (cache hit): no packages installed here, extracted below"
       if: steps.cache.outputs.cache-hit == 'true'
       uses: msys2/setup-msys2@v2
@@ -36,7 +39,7 @@ runs:
         msystem: CLANG64
         release: false
         update: false
-        install: false
+        cache: false
     - name: Extract the cached clang64 tree with 7-Zip
       if: steps.cache.outputs.cache-hit == 'true'
       shell: pwsh
@@ -52,7 +55,7 @@ runs:
         msystem: CLANG64
         release: false
         update: false
-        cache: true
+        cache: false
         pacboy: >-
           toolchain:p
           make:p
