@@ -1,16 +1,16 @@
 #!/bin/sh
-# The core allocates through core/xpp_mem.h (xpp_malloc, xpp_calloc,
-# xpp_realloc, xpp_strdup, xpp_free), never the C library's malloc,
-# calloc, realloc, strdup or free directly (W21): those return NULL
-# unchecked where xpp_* fail loudly, they escape xpp_mem's counts, and
-# xpp_free must only ever see what xpp_* allocated. Comments are stripped
-# first (tools/strip_comments.awk), so dead code needs no entry.
+# The core never calls the C library's malloc, calloc, realloc, strdup or
+# free directly (W21, W48): those return NULL unchecked, where a C++
+# container (std::vector, std::string, std::unique_ptr, ...) fails loudly
+# through xpp_out_of_memory (core/xpp_mem.h) instead. Comments are
+# stripped first (tools/strip_comments.awk), so dead code needs no entry.
 # tools/sourcecheck.sh runs this. Usage: tools/alloccheck.sh
 cd "$(dirname "$0")/.." || exit 1
 
-# xpp_mem.cpp is the allocator itself. A new exception (memory a library
-# allocates or frees) is listed here and in xpp_mem.h's comment.
-EXCLUDE="core/xpp_mem.cpp"
+# A new exception (memory that crosses a boundary with a library, which
+# keeps that library's allocator) is listed here and in xpp_mem.h's
+# comment.
+EXCLUDE=""
 
 # a call, not a member (x.free(, p->free() or a longer name (xpp_free()
 PATTERN='(^|[^a-zA-Z0-9_.>])(malloc|calloc|realloc|strdup|free)[ \t]*\('

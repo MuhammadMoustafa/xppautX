@@ -5,13 +5,17 @@
 #include "xpplim.h" /* MAX_TAB, XPP_NAME_MAX */
 #ifdef __cplusplus
 #include <string>
+#include <vector>
 
 /* a model's table: file or function values y on [xlo,xhi] step dx (x too
-   when xyvals); y is one raw block because simplenet.cpp's networks keep
-   pointers into it (weights, indices, delays) */
+   when xyvals); y stays a raw double* because simplenet.cpp's networks
+   keep pointers into it (weights, indices, delays); y_storage owns that
+   block (tabular.cpp's resize_values), a std::vector instead of a
+   hand-paired xpp_realloc/xpp_free */
 struct TABULAR {
   double xlo,xhi,dx;
   double *y,*x;
+  std::vector<double> y_storage;
   int n,flag,interp,autoeval;
   int xyvals;
 /* flag=0 if virgin array, flag=1 if already allocated; flag=2 for function

@@ -1,16 +1,13 @@
 #!/bin/sh
-# The core formats into and copies text through core/xpp_io.h, never
-# sprintf/strcpy/vsprintf into a fixed buffer (issue: W11 step 2): those
-# write with no length, so an oversized name or expression silently
-# overflows; XPP_SPRINTF/XPP_STRCPY (a real array destination) and
-# xpp_snprintf/xpp_strlcpy (an explicit size, for a pointer destination)
-# never do. tools/verify.sh runs this. Usage: tools/formatcheck.sh
+# The core never uses sprintf/strcpy/vsprintf into a fixed buffer (issue:
+# W11 step 2): those write with no length, so an oversized name or
+# expression silently overflows it. Format into a std::string with
+# xpp::format (core/xpp_io.h) instead. tools/verify.sh runs this.
+# Usage: tools/formatcheck.sh
 cd "$(dirname "$0")/.." || exit 1
 
 # xpp_http.cpp is excluded: W7 converts it separately (CLAUDE.md).
-# xpp_io.cpp is the module itself -- the one place allowed to call the C
-# library's vsnprintf/memcpy directly.
-EXCLUDE="core/xpp_http.cpp core/xpp_io.cpp"
+EXCLUDE="core/xpp_http.cpp"
 
 # Comments are stripped (see strip_comments below) before matching, so a
 # sprintf/strcpy left inside dead/commented-out code does not need an

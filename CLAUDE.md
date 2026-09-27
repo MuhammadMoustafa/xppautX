@@ -200,7 +200,7 @@ under memcheck (`--origins`: also where a bad value came from, about
 twice as slow, for fixing a report) and fails on
 any report (build/vg/reports; tools/valgrind.supp only for code we do not
 own). It sets `XPP_CHECK_SLOW=30`, which multiplies every wait of the
-python checks (tools/xppclient.py), and `XPP_MEM_INIT=0` (core/xpp_mem.h).
+python checks (tools/xppclient.py).
 
 Metrics: verify.sh's `C++: N / M sources` (core/*.cpp over all core
 sources). The tree builds with 0 warnings (gcc 13, MinGW gcc 13 and
@@ -472,18 +472,22 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
 
 ## Memory
 
-- The core allocates with `xpp_malloc`, `xpp_calloc`, `xpp_realloc`,
-  `xpp_strdup` and frees with `xpp_free` (core/xpp_mem.h), never libc's
-  directly. They never return NULL: a failure logs an ERROR naming the size
-  and file:line and exits 1, so callers do not check. Memory comes zeroed
-  (xpp_malloc's too, and what xpp_realloc adds); `XPP_MEM_INIT=0` leaves
-  it as the C library gives it, for valgrind (tools/valgrindcheck.sh). `XPP_MEM_FAIL_AT=N`
-  fails the N-th allocation (verify.sh checks the message;
-  `XPP_WINDOW_FAIL_LOAD=1`, xpp_window_loader.cpp, is the Linux window's
-  like hook); `--debug`
-  prints the counts at exit. The exceptions (memory a library allocates or
+- Every core allocation is C++: `std::vector`, `std::string`,
+  `std::unique_ptr` (RAII) instead of a hand-paired malloc/free. The raw
+  allocator this section used to describe (`xpp_malloc`/`xpp_calloc`/
+  `xpp_realloc`/`xpp_strdup`/`xpp_free`, `XPP_MEM_FAIL_AT`,
+  `XPP_MEM_INIT`) was retired at W48, once tabular.cpp -- its last
+  caller -- moved to a `std::vector`. What is left is `xpp_out_of_memory`
+  (core/xpp_mem.h): C++ code whose `std::string`/`std::vector` could not
+  allocate (it caught `std::bad_alloc`: no exception may cross into C)
+  calls it instead of letting the exception escape, for the same loud,
+  final exit (an ERROR naming what was being built, then exit 1) the
+  allocator itself always took; `--debug` no longer prints allocation
+  counts. `XPP_WINDOW_FAIL_LOAD=1` (xpp_window_loader.cpp) is the Linux
+  window's own like hook. The exceptions (memory a library allocates or
   frees) are listed in xpp_mem.h's comment; add any new one there and in
-  `tools/alloccheck.sh` (sourcecheck.sh), which fails any other direct call.
+  `tools/alloccheck.sh` (sourcecheck.sh), which fails any other direct
+  call to the C library's malloc/calloc/realloc/strdup/free.
 - A leak or memory error LeakSanitizer/ASan/UBSan reports in our code is
   fixed, never suppressed; tools/lsan.supp is only for code we do not own,
   with a reason per line. Memory kept for the program's life (a global set
@@ -491,35 +495,24 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
 
 ## Strings and I/O
 
-- The core formats and copies text through `core/xpp_io.h`
-  (issue: W11 step 2), never `sprintf`/`strcpy`/`vsprintf` into a fixed
-  buffer: `tools/formatcheck.sh` (run by verify.sh) fails a new one. In a
-  C file, format with `xpp_snprintf`/`XPP_SPRINTF` and copy with
-  `xpp_strlcpy`/`XPP_STRCPY` (`xpp_strlcat`/`XPP_STRCAT` for append): the
-  `XPP_*` macros take the destination's size from `sizeof(dst)`, so `dst`
-  must be a real array (a struct member or an indexed element works too;
-  a pointer fails to *compile*, not silently take `sizeof(pointer)` --
-  find that call's real destination size, from its own allocation or its
-  callers' buffers, and call `xpp_snprintf`/`xpp_strlcpy` with it
-  directly). All three log a WARN, once per call site, when what they
-  wanted to write did not fit, instead of overflowing.
-- In a C++ file, prefer `xpp::format`/`xpp::number` (`core/xpp_io.h`,
-  `std::format`/`std::to_chars`, type-checked at compile time) and
-  `XPP_FORMAT_TO_BUF` (the `XPP_SPRINTF`-style array-destination form of
-  `xpp::format`) over the C wrappers, unless the original format string
-  has no mechanical `std::format` equivalent (`%*s`, `%.*s`, ...) or the
-  destination is a pointer (`XPP_FORMAT_TO_BUF`, like `XPP_SPRINTF`,
-  needs a real array): those stay on `xpp_snprintf`/`xpp_strlcpy`. The
-  build is `-std=c++23`/`gnu++23` for this (present and warning-clean on
-  WSL gcc 15 and MinGW gcc 13.2); avoid library parts newer than gcc 13
-  ships (e.g. `std::print`) until Windows' MinGW catches up.
+- The core formats text with `xpp::format`/`xpp::number` (`core/xpp_io.h`,
+  `std::format`/`std::to_chars`, type-checked at compile time), never
+  `sprintf`/`strcpy`/`vsprintf` into a fixed buffer: `tools/formatcheck.sh`
+  (run by verify.sh) fails a new one. The C text API this section used to
+  describe (`xpp_snprintf`/`xpp_strlcpy`/`xpp_strlcat`,
+  `XPP_SPRINTF`/`XPP_STRCPY`/`XPP_STRCAT`, `XPP_FORMAT_TO_BUF`) was
+  retired at W48, once every core file was C++ and nothing called it any
+  more; the build is `-std=c++23`/`gnu++23` for `xpp::format`'s
+  `std::format` (present and warning-clean on WSL gcc 15 and MinGW
+  gcc 13.2; avoid library parts newer than gcc 13 ships, e.g.
+  `std::print`, until Windows' MinGW catches up).
 - New code that reads or writes a file (`core/xpp_io.h`, W11 step 3) uses
   `xpp_line_reader_open`/`_attach` for a whole line of any length (no
   fixed-buffer cut, no `while(!feof)` reading the last line twice; CR/LF
   tolerant) and `xpp_token_reader_open`/`_attach` where the file is
   whitespace-separated numbers read like `fscanf` (`_double`/`_int`
   return 1/0 like `fscanf`'s own convention; `_string` is the safe,
-  never-overflowing `xpp_strlcpy`-style counterpart of `fscanf "%s"`),
+  never-overflowing counterpart of `fscanf "%s"`),
   over `fopen`/`fgets`/`fscanf`/`feof`. `_attach` wraps a `FILE *` the
   caller already owns (never closes it) for a helper that takes a plain
   `FILE *` from elsewhere, such as `lunch-new.cpp`'s `io_int`/`io_double`

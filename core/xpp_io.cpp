@@ -1,9 +1,6 @@
-/* core/xpp_io.h's implementation. C API (extern "C"), C++ inside: a
-   small mutex-guarded set dedupes the "truncated" warning per call site
-   (file:line), so a call made every integration step does not flood the
-   log. No exception crosses into C (CLAUDE.md, "C and C++"): the only
-   things that can throw here are the set's own allocations, caught so a
-   formatting call can never itself abort the caller. */
+/* core/xpp_io.h's implementation: the file half (line reader, token
+   reader, writer) and xpp::format/xpp::vformat. No exception crosses
+   into C (CLAUDE.md, "C and C++"). */
 #include "xpp_io.h"
 #include "xpp_files.h"
 #include "xpp_log.h"
@@ -14,12 +11,11 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <atomic>
+#include <cstring>
 #include <memory>
 #include <mutex>
 #include <string>
-#include <unordered_set>
 #include <utility>
 
 #ifdef _WIN32
@@ -27,107 +23,6 @@
 #else
 #include <unistd.h>
 #endif
-
-namespace {
-
-std::mutex g_warned_mutex;
-std::unordered_set<std::string> g_warned_sites;
-
-/* True the first time this file:line is seen, false after (so the
-   caller warns once). Never throws: a std::bad_alloc from the set is
-   swallowed and treated as "not yet warned", which just means that one
-   site may warn more than once under memory pressure. */
-bool first_time_at(const char *file, int line)
-{
-    try {
-        std::string key = std::format("{}:{}", file ? file : "?", line);
-        std::lock_guard<std::mutex> lock(g_warned_mutex);
-        return g_warned_sites.insert(std::move(key)).second;
-    } catch (...) {
-        return true;
-    }
-}
-
-void warn_once(const char *file, int line, const std::string &msg)
-{
-    if (!first_time_at(file, line)) return;
-    xpp::log(XPP_LOG_WARN, "{}:{}: {}\n", file ? file : "?", line, msg);
-}
-
-/* strlen(s), but never looks past s[maxlen-1] (s need not be
-   NUL-terminated within maxlen bytes). Avoids strnlen, which is POSIX,
-   not C99/MinGW-portable across every target this file builds on. */
-size_t bounded_len(const char *s, size_t maxlen)
-{
-    size_t n = 0;
-    while (n < maxlen && s[n] != '\0') n++;
-    return n;
-}
-
-} // namespace
-
-int xpp_snprintf_at(char *dst, size_t size, const char *file, int line,
-                     const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    int want = std::vsnprintf(dst, size, fmt, ap);
-    va_end(ap);
-
-    if (want < 0) {
-        /* an encoding error, not a size problem: vsnprintf may still
-           leave dst without a NUL, so terminate it ourselves. */
-        if (size > 0) dst[0] = '\0';
-        warn_once(file, line, xpp::format("xpp_snprintf: formatting error (fmt \"{}\")",
-                   fmt ? fmt : "?"));
-        return want;
-    }
-    if (size > 0 && static_cast<size_t>(want) >= size) {
-        warn_once(file, line, xpp::format("xpp_snprintf: wanted {} bytes, buffer is {}: truncated",
-                   want, size));
-    }
-    return want;
-}
-
-size_t xpp_strlcpy_at(char *dst, const char *src, size_t size,
-                       const char *file, int line)
-{
-    size_t srclen = std::strlen(src);
-    if (size > 0) {
-        size_t n = srclen < size - 1 ? srclen : size - 1;
-        if (n > 0) std::memcpy(dst, src, n);
-        dst[n] = '\0';
-    }
-    if (srclen >= size) {
-        warn_once(file, line, xpp::format("xpp_strlcpy: wanted {} bytes, buffer is {}: truncated",
-                   srclen, size));
-    }
-    return srclen;
-}
-
-size_t xpp_strlcat_at(char *dst, const char *src, size_t size,
-                       const char *file, int line)
-{
-    size_t dstlen = bounded_len(dst, size);
-    size_t srclen = std::strlen(src);
-
-    if (dstlen >= size) {
-        /* dst was not NUL-terminated within size: nothing safe to
-           append. Report and leave dst untouched, like BSD strlcat. */
-        warn_once(file, line, xpp::format("xpp_strlcat: destination not NUL-terminated within "
-                   "{} bytes", size));
-        return size + srclen;
-    }
-    size_t avail = size - dstlen - 1;
-    size_t n = srclen < avail ? srclen : avail;
-    if (n > 0) std::memcpy(dst + dstlen, src, n);
-    dst[dstlen + n] = '\0';
-    if (srclen > avail) {
-        warn_once(file, line, xpp::format("xpp_strlcat: wanted {} bytes, buffer is {}: truncated",
-                   dstlen + srclen, size));
-    }
-    return dstlen + srclen;
-}
 
 /* ===================================================================
    The file half: line reader, token reader, writer (issue: W11 step 3,
@@ -360,11 +255,37 @@ int xpp_token_reader_skip_line(XppTokenReader *r)
     return 0;
 }
 
+namespace {
+
+/* xpp_token_reader_string's own truncating copy (never overflows buf,
+   NUL-terminates, warns once if the token does not fit): the general
+   xpp_strlcpy this used to call was retired at W48 once nothing in core
+   called it directly any more, but this one caller still needs the same
+   safe, non-overflowing copy fscanf "%s" itself never was. */
+void copy_token(char *buf, size_t bufsize, const std::string &tok)
+{
+    size_t n = tok.size() < bufsize - 1 ? tok.size() : bufsize - 1;
+    if (n > 0) std::memcpy(buf, tok.data(), n);
+    buf[n] = '\0';
+    if (tok.size() >= bufsize) {
+        static std::mutex m;
+        static bool warned = false;
+        std::lock_guard<std::mutex> lock(m);
+        if (!warned) {
+            warned = true;
+            xpp::log(XPP_LOG_WARN, "xpp_token_reader_string: wanted {} bytes, buffer is {}: truncated\n",
+                     tok.size() + 1, bufsize);
+        }
+    }
+}
+
+} // namespace
+
 int xpp_token_reader_string(XppTokenReader *r, char *buf, size_t bufsize)
 {
     std::string tok;
     if (!r || !r->fp || !read_token(r->fp, tok)) return 0;
-    if (bufsize > 0) xpp_strlcpy(buf, tok.c_str(), bufsize);
+    if (bufsize > 0) copy_token(buf, bufsize, tok);
     return 1;
 }
 

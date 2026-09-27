@@ -68,21 +68,6 @@ else
   echo "HEADLESS -silent MISMATCH: rows=$rows sum=$sum"
   exit 1
 fi
-# a failed allocation is loud: exit 1 and an ERROR naming the call site
-# (core/xpp_mem.h; XPP_MEM_FAIL_AT makes the 1st allocation fail). Since
-# W33e lecar.ode's run allocates nothing through xpp_mem; amari.ode's
-# table still does (tabular.cpp's raw block)
-tmp=$(mktemp -d)
-( cd "$tmp" && XPP_MEM_FAIL_AT=1 "$OLDPWD/xppautX" "$OLDPWD/examples/ode/amari.ode" -silent > run.log 2>&1 )
-st=$?
-site=$(grep -oE 'out of memory: .* at core/[a-z0-9_]+\.(c|cpp):[0-9]+' "$tmp/run.log")
-rm -rf "$tmp"
-if [ $st -eq 1 ] && [ -n "$site" ]; then
-  echo "allocation failure ok: exit 1, \"$site\""
-else
-  echo "ALLOCATION FAILURE NOT LOUD: exit $st, message \"$site\""
-  exit 1
-fi
 if make -j"$NPROC" test > build/unittest.log 2>&1; then
   echo "unit tests ok: $(grep -c 'checks,' build/unittest.log) files"
 else

@@ -30,17 +30,8 @@ cd "$(dirname "$0")/.." || exit 1
 # What stays although no Linux link reaches it: "file symbol|reason", the
 # symbol as reported (C++ names demangled, without their parameters), or
 # "file *|reason" for a whole file.
-ALLOW="core/xpp_io.cpp xpp_strlcat_at|owner API: XPP_STRCAT/xpp_strlcat, the append of the xpp_io.h API CLAUDE.md prescribes; test_io
-core/xpp_io.cpp (anon)::bounded_len|owner API: xpp_strlcat_at's helper
-core/xpp_io.cpp xpp_token_reader_string|owner API: xpp_io.h's fscanf-%s counterpart CLAUDE.md prescribes; test_io
-core/xpp_mem.cpp xpp_calloc_at|owner API: xpp_calloc, of the xpp_mem.h API CLAUDE.md prescribes (W33e took its last caller); test_mem
-core/xpp_io.cpp xpp_snprintf_at|owner API: xpp_snprintf/XPP_SPRINTF, the formatting of the xpp_io.h API CLAUDE.md prescribes for C text (W33e took its last caller); test_io
-core/xpp_io.cpp xpp_strlcpy_at|owner API until W48 retires the C text API (W46c took its last caller); test_io
-core/xpp_io.cpp (anon)::warn_once|owner API until W48: the C text API's once-per-site WARN
-core/xpp_io.cpp (anon)::first_time_at|owner API until W48: warn_once's helper
-core/xpp_io.cpp (anon)::g_warned_mutex|owner API until W48: warn_once's lock
-core/xpp_mem.cpp xpp_malloc_at|owner API until W48 (W46c took its last caller); test_mem
-core/xpp_mem.cpp xpp_strdup_at|owner API until W48 (W46c took its last caller); test_mem
+ALLOW="core/xpp_io.cpp xpp_token_reader_string|owner API: xpp_io.h's fscanf-%s counterpart CLAUDE.md prescribes; test_io
+core/xpp_io.cpp (anon)::copy_token|xpp_token_reader_string's own truncating-copy helper; test_io
 core/xpp_io.cpp xpp_writer_printf|owner API: xpp_io.h's fprintf over a writer, named in CLAUDE.md; test_io
 core/auto_settings.cpp auto_settings_num_ok|test_auto_settings' view of the field check auto_settings_apply makes
 core/auto_stop.cpp auto_stop_key|test_auto_stop's view of the keys auto_stop_last hands the protocol"

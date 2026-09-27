@@ -2,7 +2,6 @@
 #include "storage.h"
 #include "xpp_files.h"
 #include "load_eqn.h"
-#include "xpp_mem.h"
 #include "xpp_ui.h"
 
 #include "browse.h"
@@ -78,10 +77,14 @@ TABULAR my_table[MAX_TAB];
 
 namespace {
 /* table index's values y to length doubles, keeping what it holds (what
-   is added is zero). y stays a raw block: see TABULAR (tabular.h). */
+   is added is zero); every caller then fills [0,length) itself, so a
+   regrow after a shrink leaving stale rather than zeroed values (unlike
+   xpp_realloc, std::vector::resize does not re-zero capacity it already
+   had) never shows. y stays a raw double*: see TABULAR (tabular.h). */
 void resize_values(int index, int length)
 {
-  my_table[index].y=static_cast<double *>(xpp_realloc(my_table[index].y,length*sizeof(double)));
+  my_table[index].y_storage.resize(static_cast<size_t>(length));
+  my_table[index].y=my_table[index].y_storage.data();
 }
 }
 
@@ -376,7 +379,7 @@ int load_table(const char *filename, int index)
     auto line=next_line();
     if(!line){
        err_msg("Table file too short");
-       xpp_free(my_table[index].y);
+       my_table[index].y_storage=std::vector<double>();
        my_table[index].y=NULL;
        my_table[index].flag=0;
        return(0);

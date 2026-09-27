@@ -1,29 +1,21 @@
-/* xpp_io: the safe formatting/copying the whole core uses instead of
-   sprintf/strcpy into fixed buffers (issue: W11 step 2), and its file
-   half -- a line reader, a token reader and a writer (W11 step 3, W7b).
-   Checks truncation, NUL termination, the returned lengths, XPP_SPRINTF/
-   XPP_STRCPY/XPP_STRCAT taking sizeof(dst) automatically, that a
-   truncating call logs exactly one WARN (redirecting stderr, since
-   xpp_log's default threshold already prints WARN and up), the C++ API
-   (xpp::format, XPP_FORMAT_TO_BUF, xpp::number), and the file half: long
-   lines, no trailing newline, CRLF, an empty file, a failed open, and a
-   writer's commit vs. abandon (xpp_writer_abort/an uncommitted
-   xpp::Writer leave the original file untouched). */
+/* xpp_io: the C++ API (xpp::format, xpp::number) and the file half -- a
+   line reader, a token reader and a writer (W11 step 3, W7b). Checks
+   xpp::format's std::format syntax, xpp::number's round-trip text, and
+   the file half: long lines, no trailing newline, CRLF, an empty file, a
+   failed open, and a writer's commit vs. abandon (xpp_writer_abort/an
+   uncommitted xpp::Writer leave the original file untouched). The C
+   text-formatting API this used to also check (xpp_snprintf/xpp_strlcpy/
+   xpp_strlcat, XPP_SPRINTF/XPP_STRCPY/XPP_STRCAT, XPP_FORMAT_TO_BUF) was
+   retired at W48: no core file called it any more. */
 #include "xpptest.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_util.h"
-#include "xpp_mem.h"
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
-#ifdef _WIN32
-#include <io.h>
-#else
-#include <unistd.h>
-#endif
 
 namespace {
 
@@ -67,55 +59,6 @@ private:
     std::string path_;
 };
 
-/* Captures everything written to stderr between begin() and end() by
-   redirecting the process's stderr to a scratch file and reading it
-   back; good enough for one test binary that exits right after. */
-class StderrCapture {
-public:
-    StderrCapture() : tempfile_("test_io_stderr.tmp"), saved_stderr_fd_(-1) {}
-
-    void begin()
-    {
-        std::fflush(stderr);
-        // Save the current stderr file descriptor
-        saved_stderr_fd_ = dup(fileno(stderr));
-        CHECK(saved_stderr_fd_ >= 0);
-        // Redirect stderr to the temp file
-        FILE *f = freopen(tempfile_.c_str(), "w", stderr);
-        CHECK(f != NULL);
-    }
-    std::string end()
-    {
-        std::fflush(stderr);
-        // Restore stderr from saved file descriptor
-        if (saved_stderr_fd_ >= 0) {
-            dup2(saved_stderr_fd_, fileno(stderr));
-            close(saved_stderr_fd_);
-            saved_stderr_fd_ = -1;
-        }
-        std::string text;
-        FILE *f = std::fopen(tempfile_.c_str(), "r");
-        if (f) {
-            char buf[4096];
-            size_t n;
-            while ((n = std::fread(buf, 1, sizeof buf, f)) > 0)
-                text.append(buf, n);
-            std::fclose(f);
-        }
-        return text;
-    }
-    ~StderrCapture()
-    {
-        if (saved_stderr_fd_ >= 0) {
-            dup2(saved_stderr_fd_, fileno(stderr));
-            close(saved_stderr_fd_);
-        }
-    }
-private:
-    TempFile tempfile_;
-    int saved_stderr_fd_;
-};
-
 /* writes data (strlen(data) bytes) to path, no text-mode translation, for
    tests that need control over the raw bytes (a CRLF line, a file with
    no trailing newline, ...) */
@@ -154,120 +97,10 @@ std::string read_raw(const char *path)
 
 int main(void)
 {
-    char small[8];
-    int want;
-
-    /* fits: normal snprintf behaviour, return is the written length */
-    want = xpp_snprintf(small, sizeof small, "%s", "hi");
-    CHECK(want == 2);
-    CHECK_STR(small, "hi");
-
-    /* truncates: still NUL-terminated, return is the length it wanted
-       (not -1, not the truncated length) */
-    want = xpp_snprintf(small, sizeof small, "%s", "far too long for this");
-    CHECK(want == (int)strlen("far too long for this"));
-    CHECK(strlen(small) == sizeof(small) - 1);
-    CHECK(small[sizeof small - 1] == '\0');
-
-    /* XPP_SPRINTF takes the size from sizeof(dst) */
-    char arr[6];
-    int w2 = XPP_SPRINTF(arr, "%d", 123456789);
-    CHECK(w2 == 9);
-    CHECK(strlen(arr) == 5);
-    CHECK(arr[5] == '\0');
-
-    /* xpp_strlcpy: fits */
-    char dst[10];
-    size_t n = xpp_strlcpy(dst, "abc", sizeof dst);
-    CHECK(n == 3);
-    CHECK_STR(dst, "abc");
-
-    /* xpp_strlcpy: truncates, still NUL-terminated, returns src's length */
-    n = xpp_strlcpy(dst, "abcdefghijklmnop", sizeof dst);
-    CHECK(n == strlen("abcdefghijklmnop"));
-    CHECK(strlen(dst) == sizeof(dst) - 1);
-
-    /* XPP_STRCPY takes the size from sizeof(dst) */
-    char cbuf[4];
-    n = XPP_STRCPY(cbuf, "hi");
-    CHECK(n == 2);
-    CHECK_STR(cbuf, "hi");
-    n = XPP_STRCPY(cbuf, "toolong");
-    CHECK(n == strlen("toolong"));
-    CHECK(strlen(cbuf) == sizeof(cbuf) - 1);
-
-    /* xpp_strlcat / XPP_STRCAT */
-    char cat[8] = "ab";
-    size_t total = xpp_strlcat(cat, "cd", sizeof cat);
-    CHECK(total == 4);
-    CHECK_STR(cat, "abcd");
-    total = xpp_strlcat(cat, "efghij", sizeof cat);
-    CHECK(total == 4 + strlen("efghij"));
-    CHECK(strlen(cat) == sizeof(cat) - 1);
-
-    char cat2[6] = "xy";
-    size_t catn = XPP_STRCAT(cat2, "z");
-    CHECK(catn == 3);
-    CHECK_STR(cat2, "xyz");
-
-    /* struct-member and array-element destinations: sizeof(dst) still
-       sees the whole member/element array, not just one element */
-    struct { char name[5]; } rec[2];
-    XPP_STRCPY(rec[1].name, "abcdefgh");
-    CHECK(strlen(rec[1].name) == 4);
-
-    /* size 0: no write, no crash */
-    want = xpp_snprintf(small, 0, "%s", "x");
-    CHECK(want >= 0);
-
-    /* a truncating call logs exactly one WARN, and a second call at the
-       same call site does not log again */
-    {
-        StderrCapture cap;
-        cap.begin();
-        char buf[4];
-        for (int i = 0; i < 3; i++)
-            XPP_SPRINTF(buf, "%s", "way too long for four bytes");
-        std::string out = cap.end();
-        size_t count = 0, pos = 0;
-        while ((pos = out.find("truncated", pos)) != std::string::npos) {
-            count++;
-            pos += 9;
-        }
-        CHECK(count == 1);
-    }
-
-    /* a call that fits logs nothing */
-    {
-        StderrCapture cap;
-        cap.begin();
-        char buf[64];
-        XPP_SPRINTF(buf, "%s", "fits fine");
-        std::string out = cap.end();
-        CHECK(out.empty());
-    }
-
 #ifdef XPP_IO_HAVE_STD_FORMAT
     /* xpp::format: unbounded, std::format syntax, compile-time checked */
     CHECK_STR(xpp::format("{} and {}", 1, "two").c_str(), "1 and two");
     CHECK_STR(xpp::format("{:.2f}", 3.14159).c_str(), "3.14");
-
-    /* XPP_FORMAT_TO_BUF: fits */
-    {
-        char fb[16];
-        XPP_FORMAT_TO_BUF(fb, "{}-{}", 12, "ab");
-        CHECK_STR(fb, "12-ab");
-    }
-    /* XPP_FORMAT_TO_BUF: truncates, still NUL-terminated, warns once */
-    {
-        StderrCapture cap;
-        cap.begin();
-        char fb[6];
-        XPP_FORMAT_TO_BUF(fb, "{}", "way too long for six bytes");
-        std::string out = cap.end();
-        CHECK(strlen(fb) == sizeof(fb) - 1);
-        CHECK(out.find("truncated") != std::string::npos);
-    }
 #endif
 #ifdef XPP_IO_HAVE_TO_CHARS
     /* xpp::number: shortest round-trip text, no trailing garbage digits */

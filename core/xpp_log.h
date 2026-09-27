@@ -108,8 +108,7 @@ namespace xpp {
    loud and final, like xpp::format_failed. Prefer this over plain
    xpp_log() in .cpp files whenever the format string converts
    mechanically (most do); a dynamic width/precision (`%*s`, `%.*s`) or a
-   pointer destination stay on xpp_log, same as xpp::format vs
-   xpp_snprintf in xpp_io.h. */
+   pointer destination stay on plain xpp_log. */
 template <class... Args>
 void log(XppLogLevel level, std::format_string<Args...> fmt, Args &&...args) noexcept
 {
