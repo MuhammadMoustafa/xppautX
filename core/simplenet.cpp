@@ -1,4 +1,5 @@
 #include "xpp_util.h"
+#include "session.h"
 #include "xpp_batch.h"
 #include "simplenet.h"
 #include "form_ode.h"
@@ -192,7 +193,7 @@ double net_interp(double x, int i)
   double *y;
   int n=my_net[i].n;
   double dx=x-static_cast<double>(jlo);
-  y=&variables[my_net[i].root];
+  y=&xpp::session().parser.variables[my_net[i].root];
   if(jlo<0 || jlo>(n-1))return 0.0; /* out of range */
   return (1-dx)*y[jlo]+dx*y[jlo+1];
 
@@ -240,15 +241,15 @@ double vector_value(double x, int i)
 {
   int il=my_vec[i].il,ir=my_vec[i].ir,n=my_vec[i].length,k=static_cast<int>(x);
   int root=my_vec[i].root;
-  if((k>=0)&&(k<n))  return variables[root+k];
-  if(il==PERIODIC)return variables[root+((k+n)%n)];
+  if((k>=0)&&(k<n))  return xpp::session().parser.variables[root+k];
+  if(il==PERIODIC)return xpp::session().parser.variables[root+((k+n)%n)];
   if(k<0){
     if(il==ZERO)return 0.0;
-    return variables[root-k-1];
+    return xpp::session().parser.variables[root-k-1];
   }
   if(k>=n){
     if(ir==ZERO)return 0.0;
-    return variables[2*n-k-1+root];
+    return xpp::session().parser.variables[2*n-k-1+root];
   }
   return 0.0;
 
@@ -774,7 +775,7 @@ void evaluate_network(int ind)
    values=my_net[ind].values.data();
    switch(my_net[ind].type){
    case FINDEXT:
-     y=&variables[root];
+     y=&xpp::session().parser.variables[root];
      mmt=my_net[ind].iwgt;
      skip=ncon;
      imax=0;
@@ -823,7 +824,7 @@ void evaluate_network(int ind)
      one_gill_step(my_net[ind].iwgt,my_net[ind].root,my_net[ind].gcom.data(),my_net[ind].values.data());
      break;
    case CONVE:
-     y=&variables[root];
+     y=&xpp::session().parser.variables[root];
      for(i=0;i<n;i++){
        sum=0.0;
        for(j=-ncon;j<=ncon;j++){
@@ -837,7 +838,7 @@ void evaluate_network(int ind)
      }
      break;
      case CONV0:
-     y=&variables[root];
+     y=&xpp::session().parser.variables[root];
      for(i=0;i<n;i++){
        sum=0.0;
        for(j=-ncon;j<=ncon;j++){
@@ -849,7 +850,7 @@ void evaluate_network(int ind)
      }
      break;
      case CONVP:
-     y=&variables[root];
+     y=&xpp::session().parser.variables[root];
      for(i=0;i<n;i++){
        sum=0.0;
        for(j=-ncon;j<=ncon;j++){
@@ -860,12 +861,12 @@ void evaluate_network(int ind)
      }
      break;
    case FFTCONP:
-     y=&variables[root];
+     y=&xpp::session().parser.variables[root];
     fft_conv(0,n,values,y,my_net[ind].fftr.data(),my_net[ind].ffti.data(),my_net[ind].dr.data(),my_net[ind].di.data());
     break;
    
    case FFTCON0:
-     y=&variables[root];           
+     y=&xpp::session().parser.variables[root];           
       fft_conv(1,n,values,y,my_net[ind].fftr.data(),my_net[ind].ffti.data(),my_net[ind].dr.data(),my_net[ind].di.data());
     break;
 
@@ -884,7 +885,7 @@ void evaluate_network(int ind)
      }
      break;
    case MMULT:
-     y=&variables[root];
+     y=&xpp::session().parser.variables[root];
      for(j=0;j<n;j++){
        sum=0.0;
        for(i=0;i<ncon;i++){
@@ -909,7 +910,7 @@ void evaluate_network(int ind)
      }  
       break;
    case SPARSE:
-     y=&variables[root];
+     y=&xpp::session().parser.variables[root];
      for(i=0;i<n;i++){
        sum=0.0;
        for(j=0;j<ncon;j++){

@@ -68,17 +68,6 @@ extern "C" {
 #define MAXEXPLEN 1024
 
 
-/* the parser's counts and values (parserslow2.cpp's): the model's
-   constants (parameters and numbers) and variables as the compiled
-   programs read them, how many of each kind of symbol there are, the
-   delays, kernels, tables and user functions, and the Volterra grid's
-   length (MaxPoints); ERROUT: report parse errors; RandSeed: the random
-   numbers' seed */
-extern double constants[MAXPAR];
-extern double variables[MAXODE1];
-extern int NCON,NSYM,MaxPoints;
-extern int ERROUT,RandSeed;
-
 void init_rpn(void);
 int add_constant(const char *junk);
 int add_con(const char *name, double value);
@@ -193,5 +182,19 @@ int get_param_index(std::string_view name);
 int get_val(std::string_view name, double *value);
 int set_val(std::string_view name, double value);
 int add_var(std::string_view name, double value);
+
+/* The parser's working state (parserslow2.cpp's), a Session's
+   (session.h): the constants (parameters and numbers) and variables as
+   the compiled programs read them, how many constants and symbols there
+   are (an expression compiled after the load adds its own above the
+   Model's ncon_start/nsym_start and rolls back to them), and whether a
+   parse reports its errors (errout) */
+struct ParserState {
+  std::array<double, MAXPAR> constants{};
+  std::array<double, MAXODE1> variables{};
+  int ncon = 0;
+  int nsym = STDSYM;
+  int errout = 0;
+};
 #endif
 #endif

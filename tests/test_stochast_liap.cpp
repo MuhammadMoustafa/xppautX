@@ -29,7 +29,7 @@ int main(void)
     CHECK(xpp::session().data_store.rows > 100);
 
     double liap = 0;
-    int ok = hrw_liapunov(&liap, 1, NEWT_ERR);
+    int ok = hrw_liapunov(&liap, 1, xpp::session().numerics.newt_err);
     CHECK(ok == 1);
     CHECK(std::fabs(liap - (-0.7)) < 1e-3);
 

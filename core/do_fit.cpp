@@ -97,7 +97,7 @@ void get_fit_info(double *y, double *a, double *t0, int *flag, double eps, doubl
 /* set up all initial data and parameter guesses  */
   for(l=0;l<npars;l++){
     ip=ipar[l];
-    if(ip<0)constants[-ip]=a[l];
+    if(ip<0)xpp::session().parser.constants[-ip]=a[l];
     else y[ip]=a[l];
   }
   for(i=0;i<xpp::model().node;i++){
@@ -105,7 +105,7 @@ void get_fit_info(double *y, double *a, double *t0, int *flag, double eps, doubl
   }
   if(DelayFlag){
    /* restart initial data */
-   if(do_init_delay(DELAY)==0)return;
+   if(do_init_delay(xpp::session().numerics.delay)==0)return;
   }
 evaluate_derived();
 /*   This gets the values at the desired points  */
@@ -129,7 +129,7 @@ evaluate_derived();
     }
   }   
 #ifdef CVODE_YES 
-  if(METHOD==CVODE)
+  if(xpp::session().numerics.method==CVODE)
     end_cv();
 #endif
   /*  Now we take the derivatives !!   */
@@ -142,9 +142,9 @@ evaluate_derived();
       y[i]=yold[i];
     ip=ipar[l];
     if(ip<0){
-      par=constants[-ip];
+      par=xpp::session().parser.constants[-ip];
       dp=eps*MAX(eps,fabs(par));
-      constants[-ip]=par+dp;
+      xpp::session().parser.constants[-ip]=par+dp;
     }
     else {
       par=yold[ip];
@@ -157,7 +157,7 @@ evaluate_derived();
     }
     if(DelayFlag){
    /* restart initial data */
-   if(do_init_delay(DELAY)==0)return;
+   if(do_init_delay(xpp::session().numerics.delay)==0)return;
   }
     evaluate_derived();
    /* now loop through all the points */
@@ -176,10 +176,10 @@ evaluate_derived();
       }
     }
     /* Now return the parameter to its old value */
-    if(ip<0)constants[-ip]=par;
+    if(ip<0)xpp::session().parser.constants[-ip]=par;
     evaluate_derived();
 #ifdef CVODE_YES
-if(METHOD==CVODE)
+if(xpp::session().numerics.method==CVODE)
   end_cv();
 #endif
 
@@ -194,13 +194,13 @@ int one_step_int(double *y, double t0, double t1, int *istart)
 {
   int nit;
    int kflag;
-  double dt=DELTA_T;
+  double dt=xpp::session().numerics.delta_t;
   double z;
   double error[MAXODE];
   double t=t0;
 #ifdef CVODE_YES
-  if(METHOD==CVODE){
-    cvode(istart,y,&t,xpp::model().node,t1,&kflag,&TOLER,&ATOLER);
+  if(xpp::session().numerics.method==CVODE){
+    cvode(istart,y,&t,xpp::model().node,t1,&kflag,&xpp::session().numerics.toler,&xpp::session().numerics.atoler);
     if(kflag<0){
       cvode_err_msg(kflag);
       return(0);
@@ -209,8 +209,8 @@ int one_step_int(double *y, double t0, double t1, int *istart)
     return 1;
   }
 #endif
-  if(METHOD==DP5||METHOD==DP83){
-    dp(istart,y,&t,xpp::model().node,t1,&TOLER,&ATOLER,METHOD-DP5,&kflag);
+  if(xpp::session().numerics.method==DP5||xpp::session().numerics.method==DP83){
+    dp(istart,y,&t,xpp::model().node,t1,&xpp::session().numerics.toler,&xpp::session().numerics.atoler,xpp::session().numerics.method-DP5,&kflag);
     if(kflag!=1){
       dp_err(kflag);
       return(0);
@@ -218,7 +218,7 @@ int one_step_int(double *y, double t0, double t1, int *istart)
         stor_delay(y);
     return 1;
   }
-  if(METHOD==RB23){
+  if(xpp::session().numerics.method==RB23){
     rb23(y,&t,t1,istart,xpp::model().node,xpp::session().solver_work.work.data(),&kflag);
     if(kflag<0){
        err_msg("Step size too small");
@@ -227,9 +227,9 @@ int one_step_int(double *y, double t0, double t1, int *istart)
         stor_delay(y);
     return 1;
   }
-if(METHOD==RKQS||METHOD==STIFF){
-      adaptive(y,xpp::model().node,&t,t1,TOLER,&dt,
-		      HMIN,xpp::session().solver_work.work.data(),&kflag,NEWT_ERR,METHOD,istart);
+if(xpp::session().numerics.method==RKQS||xpp::session().numerics.method==STIFF){
+      adaptive(y,xpp::model().node,&t,t1,xpp::session().numerics.toler,&dt,
+		      xpp::session().numerics.hmin,xpp::session().solver_work.work.data(),&kflag,xpp::session().numerics.newt_err,xpp::session().numerics.method,istart);
       if(kflag){
 	ping();
 	 switch(kflag){
@@ -246,8 +246,8 @@ if(METHOD==RKQS||METHOD==STIFF){
     }
   /* cvode(command,y,t,n,tout,kflag,atol,rtol) 
  command =0 continue, 1 is start 2 finish   */
-  if(METHOD==GEAR){
-    gear(xpp::model().node,&t,t1,y,HMIN,HMAX,TOLER,2,error,&kflag,istart,xpp::session().solver_work.work.data(),xpp::session().solver_work.iwork.data());
+  if(xpp::session().numerics.method==GEAR){
+    gear(xpp::model().node,&t,t1,y,xpp::session().numerics.hmin,xpp::session().numerics.hmax,xpp::session().numerics.toler,2,error,&kflag,istart,xpp::session().solver_work.work.data(),xpp::session().solver_work.iwork.data());
     if(kflag<0)
       {
 	ping();
@@ -264,7 +264,7 @@ if(METHOD==RKQS||METHOD==STIFF){
         stor_delay(y);
     return(1);
   }
-  if(METHOD==0){
+  if(xpp::session().numerics.method==0){
     nit=fabs(t0-t1);
     dt=dt/fabs(dt);
     kflag=xpp::session().integrator.solver(y,&t,dt,nit,xpp::model().node,istart,xpp::session().solver_work.work.data());
@@ -353,7 +353,7 @@ void test_fit()
     y0[i]=xpp::session().last_ic[i];
   for(i=0;i<fin.npars;i++){
     if(fin.ipar[i]<0)
-      a[i]=constants[-fin.ipar[i]];
+      a[i]=xpp::session().parser.constants[-fin.ipar[i]];
     else
       a[i]=xpp::session().last_ic[fin.ipar[i]];
   }
@@ -371,7 +371,7 @@ void test_fit()
  
  for(i=0;i<npars;i++){
    if(fin.ipar[i]<0)
-     constants[-fin.ipar[i]]=a[i];
+     xpp::session().parser.constants[-fin.ipar[i]]=a[i];
    else
      xpp::session().last_ic[fin.ipar[i]]=a[i];
  }

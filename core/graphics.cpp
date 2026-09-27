@@ -251,7 +251,7 @@ void reset_all_line_type()
 	{
 		for(k=0;k<MAXPERPLOT;k++)
 		{
-			xpp::session().plot_windows.graph[j].line[k]=START_LINE_TYPE;
+			xpp::session().plot_windows.graph[j].line[k]=xpp::session().plot_settings.start_line_type;
 		}
 	}
 
@@ -270,31 +270,31 @@ void init_all_graph()
 void set_extra_graphs()
 {
   int i;
-  if(NPltV<2)return;
-  if(NPltV>8){
-    NPltV=8;
+  if(xpp::session().plot_settings.npltv<2)return;
+  if(xpp::session().plot_settings.npltv>8){
+    xpp::session().plot_settings.npltv=8;
   }
-  if(MultiWin==0){
-    xpp::session().plot_windows.current->nvars=NPltV;
-    for(i=1;i<NPltV;i++){
-      xpp::session().plot_windows.current->xv[i]=IX_PLT[i+1];
-    xpp::session().plot_windows.current->yv[i]=IY_PLT[i+1];
-    xpp::session().plot_windows.current->zv[i]=IZ_PLT[i+1];
+  if(xpp::session().plot_settings.multi_win==0){
+    xpp::session().plot_windows.current->nvars=xpp::session().plot_settings.npltv;
+    for(i=1;i<xpp::session().plot_settings.npltv;i++){
+      xpp::session().plot_windows.current->xv[i]=xpp::session().plot_settings.ix_plt[i+1];
+    xpp::session().plot_windows.current->yv[i]=xpp::session().plot_settings.iy_plt[i+1];
+    xpp::session().plot_windows.current->zv[i]=xpp::session().plot_settings.iz_plt[i+1];
     xpp::session().plot_windows.current->color[i]=i;
     }
     return;
   }
   if(program.interactive){
-  for(i=1;i<NPltV;i++){
+  for(i=1;i<xpp::session().plot_settings.npltv;i++){
     create_a_pop();
-    xpp::session().plot_windows.graph[i].xv[0]=IX_PLT[i+1];
-    xpp::session().plot_windows.graph[i].yv[0]=IY_PLT[i+1];
-    xpp::session().plot_windows.graph[i].zv[0]=IZ_PLT[i+1]; /* irrelevant probably */
+    xpp::session().plot_windows.graph[i].xv[0]=xpp::session().plot_settings.ix_plt[i+1];
+    xpp::session().plot_windows.graph[i].yv[0]=xpp::session().plot_settings.iy_plt[i+1];
+    xpp::session().plot_windows.graph[i].zv[0]=xpp::session().plot_settings.iz_plt[i+1]; /* irrelevant probably */
     xpp::session().plot_windows.graph[i].grtype=0; /* force 2D */
-    xpp::session().plot_windows.graph[i].xlo=X_LO[i+1];
-    xpp::session().plot_windows.graph[i].xhi=X_HI[i+1];
-    xpp::session().plot_windows.graph[i].ylo=Y_LO[i+1];
-    xpp::session().plot_windows.graph[i].yhi=Y_HI[i+1];
+    xpp::session().plot_windows.graph[i].xlo=xpp::session().plot_settings.x_lo[i+1];
+    xpp::session().plot_windows.graph[i].xhi=xpp::session().plot_settings.x_hi[i+1];
+    xpp::session().plot_windows.graph[i].ylo=xpp::session().plot_settings.y_lo[i+1];
+    xpp::session().plot_windows.graph[i].yhi=xpp::session().plot_settings.y_hi[i+1];
   }
   set_active_windows();
   make_active(0,1); 
@@ -303,30 +303,30 @@ void set_extra_graphs()
 
 void reset_graph()
 {
-  if(AXES>=5)
-    PLOT_3D=1;
+  if(xpp::session().plot_settings.axes>=5)
+    xpp::session().plot_settings.plot_3d=1;
   else
-    PLOT_3D=0;
-  xpp::session().plot_windows.current->xv[0]=IXPLT;
-  xpp::session().plot_windows.current->yv[0]=IYPLT;
-  xpp::session().plot_windows.current->zv[0]=IZPLT;
-   xpp::session().plot_windows.current->xmax=x_3d[1];
-    xpp::session().plot_windows.current->ymax=y_3d[1];
-    xpp::session().plot_windows.current->zmax=z_3d[1];
-    xpp::session().plot_windows.current->xbar=.5*(x_3d[1]+x_3d[0]);
-    xpp::session().plot_windows.current->ybar=.5*(y_3d[1]+y_3d[0]);
-    xpp::session().plot_windows.current->zbar=.5*(z_3d[1]+z_3d[0]);
-    xpp::session().plot_windows.current->dx=2./(x_3d[1]-x_3d[0]);
-    xpp::session().plot_windows.current->dy=2./(y_3d[1]-y_3d[0]);
-    xpp::session().plot_windows.current->dz=2./(z_3d[1]-z_3d[0]);
-    xpp::session().plot_windows.current->xmin=x_3d[0];
-    xpp::session().plot_windows.current->ymin=y_3d[0];
-    xpp::session().plot_windows.current->zmin=z_3d[0];
-    xpp::session().plot_windows.current->xlo=MY_XLO;
-    xpp::session().plot_windows.current->ylo=MY_YLO;
-    xpp::session().plot_windows.current->xhi=MY_XHI;
-    xpp::session().plot_windows.current->yhi=MY_YHI;
-    xpp::session().plot_windows.current->grtype=AXES;
+    xpp::session().plot_settings.plot_3d=0;
+  xpp::session().plot_windows.current->xv[0]=xpp::session().plot_settings.ixplt;
+  xpp::session().plot_windows.current->yv[0]=xpp::session().plot_settings.iyplt;
+  xpp::session().plot_windows.current->zv[0]=xpp::session().plot_settings.izplt;
+   xpp::session().plot_windows.current->xmax=xpp::session().plot_settings.x_3d[1];
+    xpp::session().plot_windows.current->ymax=xpp::session().plot_settings.y_3d[1];
+    xpp::session().plot_windows.current->zmax=xpp::session().plot_settings.z_3d[1];
+    xpp::session().plot_windows.current->xbar=.5*(xpp::session().plot_settings.x_3d[1]+xpp::session().plot_settings.x_3d[0]);
+    xpp::session().plot_windows.current->ybar=.5*(xpp::session().plot_settings.y_3d[1]+xpp::session().plot_settings.y_3d[0]);
+    xpp::session().plot_windows.current->zbar=.5*(xpp::session().plot_settings.z_3d[1]+xpp::session().plot_settings.z_3d[0]);
+    xpp::session().plot_windows.current->dx=2./(xpp::session().plot_settings.x_3d[1]-xpp::session().plot_settings.x_3d[0]);
+    xpp::session().plot_windows.current->dy=2./(xpp::session().plot_settings.y_3d[1]-xpp::session().plot_settings.y_3d[0]);
+    xpp::session().plot_windows.current->dz=2./(xpp::session().plot_settings.z_3d[1]-xpp::session().plot_settings.z_3d[0]);
+    xpp::session().plot_windows.current->xmin=xpp::session().plot_settings.x_3d[0];
+    xpp::session().plot_windows.current->ymin=xpp::session().plot_settings.y_3d[0];
+    xpp::session().plot_windows.current->zmin=xpp::session().plot_settings.z_3d[0];
+    xpp::session().plot_windows.current->xlo=xpp::session().plot_settings.my_xlo;
+    xpp::session().plot_windows.current->ylo=xpp::session().plot_settings.my_ylo;
+    xpp::session().plot_windows.current->xhi=xpp::session().plot_settings.my_xhi;
+    xpp::session().plot_windows.current->yhi=xpp::session().plot_settings.my_yhi;
+    xpp::session().plot_windows.current->grtype=xpp::session().plot_settings.axes;
     check_windows();
     set_normal_scale();
     xpp_ui.redraw_graph();
@@ -334,41 +334,41 @@ void reset_graph()
 
 void get_graph()
 {
- x_3d[0]=xpp::session().plot_windows.current->xmin;
- x_3d[1]=xpp::session().plot_windows.current->xmax;
-y_3d[0]=xpp::session().plot_windows.current->ymin;
- y_3d[1]=xpp::session().plot_windows.current->ymax;
-z_3d[0]=xpp::session().plot_windows.current->zmin;
- z_3d[1]=xpp::session().plot_windows.current->zmax;
-MY_XLO=xpp::session().plot_windows.current->xlo;
-MY_YLO=xpp::session().plot_windows.current->ylo;
-MY_XHI=xpp::session().plot_windows.current->xhi;
-MY_YHI=xpp::session().plot_windows.current->yhi;
-IXPLT=xpp::session().plot_windows.current->xv[0];
-IYPLT=xpp::session().plot_windows.current->yv[0];
-IZPLT=xpp::session().plot_windows.current->zv[0];
-PLOT_3D=xpp::session().plot_windows.current->ThreeDFlag;
-if(PLOT_3D)
-  AXES=5;
+ xpp::session().plot_settings.x_3d[0]=xpp::session().plot_windows.current->xmin;
+ xpp::session().plot_settings.x_3d[1]=xpp::session().plot_windows.current->xmax;
+xpp::session().plot_settings.y_3d[0]=xpp::session().plot_windows.current->ymin;
+ xpp::session().plot_settings.y_3d[1]=xpp::session().plot_windows.current->ymax;
+xpp::session().plot_settings.z_3d[0]=xpp::session().plot_windows.current->zmin;
+ xpp::session().plot_settings.z_3d[1]=xpp::session().plot_windows.current->zmax;
+xpp::session().plot_settings.my_xlo=xpp::session().plot_windows.current->xlo;
+xpp::session().plot_settings.my_ylo=xpp::session().plot_windows.current->ylo;
+xpp::session().plot_settings.my_xhi=xpp::session().plot_windows.current->xhi;
+xpp::session().plot_settings.my_yhi=xpp::session().plot_windows.current->yhi;
+xpp::session().plot_settings.ixplt=xpp::session().plot_windows.current->xv[0];
+xpp::session().plot_settings.iyplt=xpp::session().plot_windows.current->yv[0];
+xpp::session().plot_settings.izplt=xpp::session().plot_windows.current->zv[0];
+xpp::session().plot_settings.plot_3d=xpp::session().plot_windows.current->ThreeDFlag;
+if(xpp::session().plot_settings.plot_3d)
+  xpp::session().plot_settings.axes=5;
 else
-  AXES=0;
-AXES=xpp::session().plot_windows.current->grtype;  
+  xpp::session().plot_settings.axes=0;
+xpp::session().plot_settings.axes=xpp::session().plot_windows.current->grtype;  
 }
 
 void init_graph(int i)
 {
  int j,k;
- if(AXES<=3)AXES=0;
+ if(xpp::session().plot_settings.axes<=3)xpp::session().plot_settings.axes=0;
  for(j=0;j<3;j++)
   for(k=0;k<3;k++)
         if(k==j)xpp::session().plot_windows.graph[i].rm[k][j]=1.0;
 	else xpp::session().plot_windows.graph[i].rm[k][j]=0.0;
  xpp::session().plot_windows.graph[i].nvars=1;
   for(j=0;j<MAXPERPLOT;j++){
-        xpp::session().plot_windows.graph[i].xv[j]=IXPLT;
-	xpp::session().plot_windows.graph[i].yv[j]=IYPLT;
-	xpp::session().plot_windows.graph[i].zv[j]=IZPLT;
-        xpp::session().plot_windows.graph[i].line[j]=START_LINE_TYPE;
+        xpp::session().plot_windows.graph[i].xv[j]=xpp::session().plot_settings.ixplt;
+	xpp::session().plot_windows.graph[i].yv[j]=xpp::session().plot_settings.iyplt;
+	xpp::session().plot_windows.graph[i].zv[j]=xpp::session().plot_settings.izplt;
+        xpp::session().plot_windows.graph[i].line[j]=xpp::session().plot_settings.start_line_type;
 	xpp::session().plot_windows.graph[i].color[j]=0;
         }
      
@@ -381,24 +381,24 @@ void init_graph(int i)
     xpp::session().plot_windows.graph[i].ZPlane=-1000.0;
     xpp::session().plot_windows.graph[i].ZView=1000.0;
     xpp::session().plot_windows.graph[i].PerspFlag=0;
-    xpp::session().plot_windows.graph[i].ThreeDFlag=PLOT_3D;
-    xpp::session().plot_windows.graph[i].TimeFlag=TIMPLOT;
+    xpp::session().plot_windows.graph[i].ThreeDFlag=xpp::session().plot_settings.plot_3d;
+    xpp::session().plot_windows.graph[i].TimeFlag=xpp::session().plot_settings.timplot;
     xpp::session().plot_windows.graph[i].ColorFlag=0;
-    xpp::session().plot_windows.graph[i].grtype=AXES;
+    xpp::session().plot_windows.graph[i].grtype=xpp::session().plot_settings.axes;
     xpp::session().plot_windows.graph[i].color_scale=1.0;
     xpp::session().plot_windows.graph[i].min_scale=0.0;
-    xpp::session().plot_windows.graph[i].xmax=x_3d[1];
-    xpp::session().plot_windows.graph[i].ymax=y_3d[1];
-    xpp::session().plot_windows.graph[i].zmax=z_3d[1];
-    xpp::session().plot_windows.graph[i].xbar=.5*(x_3d[1]+x_3d[0]);
-    xpp::session().plot_windows.graph[i].ybar=.5*(y_3d[1]+y_3d[0]);
-    xpp::session().plot_windows.graph[i].zbar=.5*(z_3d[1]+z_3d[0]);
-    xpp::session().plot_windows.graph[i].dx=2./(x_3d[1]-x_3d[0]);
-    xpp::session().plot_windows.graph[i].dy=2./(y_3d[1]-y_3d[0]);
-    xpp::session().plot_windows.graph[i].dz=2./(z_3d[1]-z_3d[0]);
-    xpp::session().plot_windows.graph[i].xmin=x_3d[0];
-    xpp::session().plot_windows.graph[i].ymin=y_3d[0];
-    xpp::session().plot_windows.graph[i].zmin=z_3d[0];
+    xpp::session().plot_windows.graph[i].xmax=xpp::session().plot_settings.x_3d[1];
+    xpp::session().plot_windows.graph[i].ymax=xpp::session().plot_settings.y_3d[1];
+    xpp::session().plot_windows.graph[i].zmax=xpp::session().plot_settings.z_3d[1];
+    xpp::session().plot_windows.graph[i].xbar=.5*(xpp::session().plot_settings.x_3d[1]+xpp::session().plot_settings.x_3d[0]);
+    xpp::session().plot_windows.graph[i].ybar=.5*(xpp::session().plot_settings.y_3d[1]+xpp::session().plot_settings.y_3d[0]);
+    xpp::session().plot_windows.graph[i].zbar=.5*(xpp::session().plot_settings.z_3d[1]+xpp::session().plot_settings.z_3d[0]);
+    xpp::session().plot_windows.graph[i].dx=2./(xpp::session().plot_settings.x_3d[1]-xpp::session().plot_settings.x_3d[0]);
+    xpp::session().plot_windows.graph[i].dy=2./(xpp::session().plot_settings.y_3d[1]-xpp::session().plot_settings.y_3d[0]);
+    xpp::session().plot_windows.graph[i].dz=2./(xpp::session().plot_settings.z_3d[1]-xpp::session().plot_settings.z_3d[0]);
+    xpp::session().plot_windows.graph[i].xmin=xpp::session().plot_settings.x_3d[0];
+    xpp::session().plot_windows.graph[i].ymin=xpp::session().plot_settings.y_3d[0];
+    xpp::session().plot_windows.graph[i].zmin=xpp::session().plot_settings.z_3d[0];
     xpp::session().plot_windows.graph[i].xorg=0.0;
     xpp::session().plot_windows.graph[i].yorg=0.0;
     xpp::session().plot_windows.graph[i].yorg=0.0;
@@ -410,14 +410,14 @@ void init_graph(int i)
     xpp::session().plot_windows.graph[i].xshft=0;
     xpp::session().plot_windows.graph[i].yshft=0;
     xpp::session().plot_windows.graph[i].zshft=0;
-    xpp::session().plot_windows.graph[i].xlo=MY_XLO;
-    xpp::session().plot_windows.graph[i].ylo=MY_YLO;
-    xpp::session().plot_windows.graph[i].oldxlo=MY_XLO;
-    xpp::session().plot_windows.graph[i].oldylo=MY_YLO;
-    xpp::session().plot_windows.graph[i].xhi=MY_XHI;
-    xpp::session().plot_windows.graph[i].yhi=MY_YHI;
-    xpp::session().plot_windows.graph[i].oldxhi=MY_XHI;
-    xpp::session().plot_windows.graph[i].oldyhi=MY_YHI;
+    xpp::session().plot_windows.graph[i].xlo=xpp::session().plot_settings.my_xlo;
+    xpp::session().plot_windows.graph[i].ylo=xpp::session().plot_settings.my_ylo;
+    xpp::session().plot_windows.graph[i].oldxlo=xpp::session().plot_settings.my_xlo;
+    xpp::session().plot_windows.graph[i].oldylo=xpp::session().plot_settings.my_ylo;
+    xpp::session().plot_windows.graph[i].xhi=xpp::session().plot_settings.my_xhi;
+    xpp::session().plot_windows.graph[i].yhi=xpp::session().plot_settings.my_yhi;
+    xpp::session().plot_windows.graph[i].oldxhi=xpp::session().plot_settings.my_xhi;
+    xpp::session().plot_windows.graph[i].oldyhi=xpp::session().plot_settings.my_yhi;
     xpp::session().plot_windows.current=&xpp::session().plot_windows.graph[i];
     make_rot(THETA0,PHI0);
     

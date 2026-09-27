@@ -268,7 +268,7 @@ void replace_column(const char *var, char *form, float **dat, int n)
  float sum=0.0;
  if(n<2)return;
 
- dt=NJMP*DELTA_T;
+ dt=xpp::session().numerics.njmp*xpp::session().numerics.delta_t;
 /* first check for derivative or integral symbol */
 i=0;
 while(i<static_cast<int>(strlen(form))){
@@ -305,8 +305,8 @@ if(dif_var<0)
 
  if(dif_var<0&&seq==0){
    if(add_expr(form,com,&i)){
-     NCON=xpp::model().ncon_start;
-     NSYM=xpp::model().nsym_start;
+     xpp::session().parser.ncon=xpp::model().ncon_start;
+     xpp::session().parser.nsym=xpp::model().nsym_start;
      err_msg("Illegal formula...");
      return;
    }
@@ -316,8 +316,8 @@ if(dif_var<0)
  find_variable(var,&i);
  if(i<0){
    err_msg("No such column...");
-   NCON=xpp::model().ncon_start;
-   NSYM=xpp::model().nsym_start;
+   xpp::session().parser.ncon=xpp::model().ncon_start;
+   xpp::session().parser.nsym=xpp::model().nsym_start;
    return;
  }
  xpp::session().browser.replaced_col=i;
@@ -358,8 +358,8 @@ if(dif_var<0)
        dat[xpp::session().browser.replaced_col][i]=derv;
      }
  }
- NCON=xpp::model().ncon_start;
- NSYM=xpp::model().nsym_start;
+ xpp::session().parser.ncon=xpp::model().ncon_start;
+ xpp::session().parser.nsym=xpp::model().nsym_start;
 
 }
 

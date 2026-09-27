@@ -258,11 +258,11 @@ int eval_fun_table(int n, double xlo, double xhi, const char *formula, double *y
   
   double dx;
   double oldt;
-  int command[200],ncold=NCON,nsym=NSYM;
+  int command[200],ncold=xpp::session().parser.ncon,nsym=xpp::session().parser.nsym;
   if(add_expr(formula,command,&i)){
     err_msg("Illegal formula...");
-    NCON=ncold;
-    NSYM=nsym;
+    xpp::session().parser.ncon=ncold;
+    xpp::session().parser.nsym=nsym;
     return(0);
   }
   oldt=get_ivar(0);
@@ -272,8 +272,8 @@ int eval_fun_table(int n, double xlo, double xhi, const char *formula, double *y
     y[i]=evaluate(command);
   }
   set_ivar(0,oldt);
-  NCON=ncold;
-  NSYM=nsym;
+  xpp::session().parser.ncon=ncold;
+  xpp::session().parser.nsym=nsym;
   return(1);
 }
 

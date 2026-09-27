@@ -37,7 +37,7 @@ void alloc_meth()
   SolverWork &w=xpp::session().solver_work;
   int nn=w.xpv.node+w.xpv.nvec;
   int sz=30*nn;
-  switch(METHOD){
+  switch(xpp::session().numerics.method){
   case STIFF:
      sz=2*nn*nn+13*nn+100;
 

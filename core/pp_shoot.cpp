@@ -69,11 +69,11 @@ void compile_bvp()
  int i;
  int len;
  reset_bvp();
- if(BVP_FLAG==0)return;
+ if(xpp::session().numerics.bvp_flag==0)return;
 
- NCON=xpp::model().ncon_start;
- NSYM=xpp::model().nsym_start;
- BVP_FLAG=0;
+ xpp::session().parser.ncon=xpp::model().ncon_start;
+ xpp::session().parser.nsym=xpp::model().nsym_start;
+ xpp::session().numerics.bvp_flag=0;
  for(i=0;i<xpp::model().node;i++){
 
    if(add_expr(xpp::model().bcs[i].string.data(),xpp::model().bcs[i].com.data(),&len)){
@@ -81,12 +81,12 @@ void compile_bvp()
      return;
    }
  }
- BVP_FLAG=1;
+ xpp::session().numerics.bvp_flag=1;
 }
 
 void reset_bvp()
 {
- BVP_FLAG=1;
+ xpp::session().numerics.bvp_flag=1;
 } 
 
 void init_shoot_range(std::string_view s)
@@ -158,7 +158,7 @@ void do_sh_range(double *ystart, double *yend)
      if(shoot_range.movie==1)
        clr_scrn();
      
-     bvshoot(ystart,yend,BVP_TOL,BVP_EPS,BVP_MAXIT,&ierr,xpp::model().node,0,
+     bvshoot(ystart,yend,xpp::session().numerics.bvp_tol,xpp::session().numerics.bvp_eps,xpp::session().numerics.bvp_maxit,&ierr,xpp::model().node,0,
 	     0,0,0,0.0);
      if(ierr==-5)continue;
      if(ierr<0){ 
@@ -236,12 +236,12 @@ void find_bvp_com(int com)
  wipe_rep();
  data_back();
  compile_bvp();
- if(FFT||HIST||DelayFlag||BVP_FLAG==0)return;
- STORFLAG=0;
+ if(xpp::session().numerics.fft||xpp::session().numerics.hist||DelayFlag||xpp::session().numerics.bvp_flag==0)return;
+ xpp::session().numerics.storflag=0;
  xpp::session().integrator.range_flag=1;
- POIMAP=0;
- oldtrans=TRANS;
- TRANS=0.0;
+ xpp::session().numerics.poimap=0;
+ oldtrans=xpp::session().numerics.trans;
+ xpp::session().numerics.trans=0.0;
  get_ic(1,ystart);
  switch(com){
  case 0:
@@ -265,10 +265,10 @@ void find_bvp_com(int com)
    break;
  }
  if(iper)
- bvshoot(ystart,yend,BVP_TOL,BVP_EPS,BVP_MAXIT,&iret,xpp::model().node,ishow,
+ bvshoot(ystart,yend,xpp::session().numerics.bvp_tol,xpp::session().numerics.bvp_eps,xpp::session().numerics.bvp_maxit,&iret,xpp::model().node,ishow,
 	iper,ipar,ivar,sect);
  else 
- bvshoot(ystart,yend,BVP_TOL,BVP_EPS,BVP_MAXIT,&iret,xpp::model().node,ishow,0,0,0,0.0 );
+ bvshoot(ystart,yend,xpp::session().numerics.bvp_tol,xpp::session().numerics.bvp_eps,xpp::session().numerics.bvp_maxit,&iret,xpp::model().node,ishow,0,0,0,0.0 );
  bad_shoot(iret);
  if(iret==1||iret==2) {
  get_ic(0,ystart);  
@@ -277,7 +277,7 @@ void find_bvp_com(int com)
    reset_graphics();
  }
  last_shot(1);
- INFLAG=1;
+ xpp::session().numerics.inflag=1;
  refresh_browser(xpp::session().data_store.rows);
  auto_freeze_it();
  ping();
@@ -285,7 +285,7 @@ void find_bvp_com(int com)
 else 
  if(iper)set_val(xpp::model().upar_names[ipar],oldpar);
   
-bye:  TRANS=oldtrans;
+bye:  xpp::session().numerics.trans=oldtrans;
 }
 
 void last_shot(int flag)
@@ -295,16 +295,16 @@ void last_shot(int flag)
  x=&xpp::session().data_store.current[0];
  xpp::session().integrator.my_start=1;
  get_ic(2,x);
- STORFLAG=flag;
- xpp::session().data_store.current_time=T0;
+ xpp::session().numerics.storflag=flag;
+ xpp::session().data_store.current_time=xpp::session().numerics.t0;
  if(flag){
-  xpp::session().data_store.col[0][0]=static_cast<float>(T0);
-  extra(x,T0,xpp::model().node,xpp::model().neq);
+  xpp::session().data_store.col[0][0]=static_cast<float>(xpp::session().numerics.t0);
+  extra(x,xpp::session().numerics.t0,xpp::model().node,xpp::model().neq);
   for(i=0;i<xpp::model().neq;i++)xpp::session().data_store.col[1+i][0]=static_cast<float>(x[i]);
   xpp::session().data_store.rows=1;
 
 }
- integrate(&xpp::session().data_store.current_time,x,TEND,DELTA_T,1,NJMP,&xpp::session().integrator.my_start);
+ integrate(&xpp::session().data_store.current_time,x,xpp::session().numerics.tend,xpp::session().numerics.delta_t,1,xpp::session().numerics.njmp,&xpp::session().integrator.my_start);
 }
 
 int set_up_sh_range()
@@ -360,9 +360,9 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
  int ipvt[MAXODE1];
  char esc;
  int info,niter=0;
- double dt=DELTA_T,t;
- double t0=T0;
- double t1=T0+TEND*dt/fabs(dt);
+ double dt=xpp::session().numerics.delta_t,t;
+ double t0=xpp::session().numerics.t0;
+ double t1=xpp::session().numerics.t0+xpp::session().numerics.tend*dt/fabs(dt);
 
  if(iper)ntot=n+1;
  std::vector<double> jac_v(static_cast<size_t>(ntot)*ntot);

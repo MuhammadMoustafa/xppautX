@@ -189,10 +189,10 @@ static void run_session(void)
     }
     json_ui_handle("{\"cmd\":\"redraw\"}");
     /* -tutorial and -runnow, as main.c does after opening its window */
-    if (program.tutorial == 1 || RunImmediately == 1) {
+    if (program.tutorial == 1 || xpp::session().run_immediately == 1) {
         if (program.tutorial == 1) do_tutorial();
-        if (RunImmediately == 1) run_the_commands(4);
-        RunImmediately = 0;
+        if (xpp::session().run_immediately == 1) run_the_commands(4);
+        xpp::session().run_immediately = 0;
         json_ui_handle("{\"cmd\":\"state\"}");
     }
     json_ui_loop();

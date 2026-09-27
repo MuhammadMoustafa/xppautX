@@ -12,6 +12,7 @@
    classifier, script replay, install and hello; ui_json_internal.h names
    the files that hold the rest. */
 #include "model.h"
+#include "session.h"
 #include "ui_json.h"
 #include "form_ode.h"
 #include "ui_json_internal.h"
@@ -539,17 +540,17 @@ void json_ui_hello(const char *title)
     /* @ slider1=name,slider1lo=...: the parameter sliders set in the file */
     BUF_LIT(&b, "],\"sliders\":[");
     {
-        int set[3] = {!notAlreadySet.SLIDER1, !notAlreadySet.SLIDER2, !notAlreadySet.SLIDER3};
+        int set[3] = {!xpp::session().not_already_set.SLIDER1, !xpp::session().not_already_set.SLIDER2, !xpp::session().not_already_set.SLIDER3};
         int k = 0;
         for (i = 0; i < XPP_NSLIDERS; i++) {
             if (!set[i]) continue;
             if (k++) BUF_LIT(&b, ",");
             BUF_LIT(&b, "{\"name\":");
-            buf_str(&b, sliders[i].var.c_str());
+            buf_str(&b, xpp::session().sliders[i].var.c_str());
             BUF_LIT(&b, ",\"lo\":");
-            buf_num(&b, sliders[i].lo, 16);
+            buf_num(&b, xpp::session().sliders[i].lo, 16);
             BUF_LIT(&b, ",\"hi\":");
-            buf_num(&b, sliders[i].hi, 16);
+            buf_num(&b, xpp::session().sliders[i].hi, 16);
             BUF_LIT(&b, "}");
         }
     }

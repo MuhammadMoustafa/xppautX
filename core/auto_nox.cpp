@@ -158,10 +158,10 @@ static void auto_set_pars_from(const double *par)
 {
     for (int i = 0; i < xpp::session().auto_state.npar; i++) {
         const int idx = xpp::session().auto_state.par_index[i];
-        if (std::isfinite(par[i])) constants[idx] = par[i];
+        if (std::isfinite(par[i])) xpp::session().parser.constants[idx] = par[i];
         else
             xpp::log(XPP_LOG_WARN, "AUTO: {} from the diagram is not finite; keeping {:.16g}",
-                     xpp::model().upar_names[xpp::session().auto_state.par[i]], constants[idx]);
+                     xpp::model().upar_names[xpp::session().auto_state.par[i]], xpp::session().parser.constants[idx]);
     }
 }
 
@@ -173,10 +173,10 @@ static void auto_restore_finite_pars(const double *before)
 {
     for (int i = 0; i < xpp::session().auto_state.npar; i++) {
         const int idx = xpp::session().auto_state.par_index[i];
-        if (!std::isfinite(constants[idx])) {
+        if (!std::isfinite(xpp::session().parser.constants[idx])) {
             xpp::log(XPP_LOG_WARN, "AUTO: the run left {} not finite; keeping {:.16g}",
                      xpp::model().upar_names[xpp::session().auto_state.par[i]], before[i]);
-            constants[idx] = before[i];
+            xpp::session().parser.constants[idx] = before[i];
         }
     }
 }
@@ -542,7 +542,7 @@ void do_auto(int iold, int isave, int itp)
     stability_run_start(); /* what its first point's stability is (auto_stability.h) */
     {
         std::array<double, 8> before{}; /* AutoPar's size */
-        for (int i = 0; i < xpp::session().auto_state.npar; i++) before[i] = constants[xpp::session().auto_state.par_index[i]];
+        for (int i = 0; i < xpp::session().auto_state.npar; i++) before[i] = xpp::session().parser.constants[xpp::session().auto_state.par_index[i]];
         go_go_auto(); /* this complets the initialization and calls the
                           main routines
                        */
@@ -1534,7 +1534,7 @@ void init_auto_win()
   xpp::session().auto_state.bifur.nper=0;
   grabpt.flag=0;  /*  no point in buffer  */
   xpp::session().auto_state.bifur.exist=0;
- xpp::session().auto_state.blrtn.torper=TOR_PERIOD;
+ xpp::session().auto_state.blrtn.torper=xpp::session().numerics.tor_period;
  create_auto_file_name();
  
 /*  Control -- done automatically   */
@@ -1690,7 +1690,7 @@ void auto_start_choice()
   static const char *const key="spbhe";
   char ch;
   xpp::session().auto_state.homo_flag=0;
-  if(METHOD==DISCRETE){
+  if(xpp::session().numerics.method==DISCRETE){
     auto_new_discrete();
     return;
   }
@@ -1796,7 +1796,7 @@ void hopf_choice()
   static const char *m[]={"Periodic","Extend","New Point","Two Param"};
   static const char *const key="pent";
   char ch;
-  if(METHOD==DISCRETE){
+  if(xpp::session().numerics.method==DISCRETE){
     auto_2p_hopf();
     return;
   }
@@ -1974,7 +1974,7 @@ void auto_start_diff_ss()
 {
   xpp::session().auto_state.type_of_calc=EQ1;
   xpp::session().auto_state.bifur.ips=1;
-  if(METHOD==DISCRETE)xpp::session().auto_state.bifur.ips=-1;
+  if(xpp::session().numerics.method==DISCRETE)xpp::session().auto_state.bifur.ips=-1;
   xpp::session().auto_state.bifur.irs=0;
   xpp::session().auto_state.bifur.itp=0;
   xpp::session().auto_state.bifur.ilp=1;
@@ -1990,7 +1990,7 @@ void auto_start_at_bvp()
 {
   int opn=NO_OPEN_3,cls=OVERWRITE;
  compile_bvp();
-  if(BVP_FLAG==0)
+  if(xpp::session().numerics.bvp_flag==0)
     return; 
   xpp::session().auto_state.type_of_calc=BV1;
  xpp::session().auto_state.bifur.ips=4;
@@ -2105,7 +2105,7 @@ void auto_extend_ss()
   xpp::session().auto_state.bifur.ilp=1;
   xpp::session().auto_state.bifur.isw=1;
   xpp::session().auto_state.bifur.ips=1;
-  if(METHOD==DISCRETE)
+  if(xpp::session().numerics.method==DISCRETE)
     xpp::session().auto_state.bifur.ips=-1;
   xpp::session().auto_state.bifur.isp=1;
     if(xpp::session().auto_state.suppress_bp==1) xpp::session().auto_state.bifur.isp=0;
@@ -2299,7 +2299,7 @@ void auto_switch_ss()
   xpp::session().auto_state.bifur.isp=1;
     if(xpp::session().auto_state.suppress_bp==1) xpp::session().auto_state.bifur.isp=0;
   xpp::session().auto_state.bifur.ips=1;
-  if(METHOD==DISCRETE)
+  if(xpp::session().numerics.method==DISCRETE)
     xpp::session().auto_state.bifur.ips=-1;
   xpp::session().auto_state.two_param=0;
   do_auto(OPEN_3,APPEND,xpp::session().auto_state.bifur.itp);
@@ -2389,7 +2389,7 @@ void auto_2p_branch(int ips)
   }
 
   xpp::session().auto_state.bifur.ips=ipsuse;
-  if(METHOD==DISCRETE)
+  if(xpp::session().numerics.method==DISCRETE)
     xpp::session().auto_state.bifur.ips=-1;
   xpp::session().auto_state.two_param=BR2;
       xpp::session().auto_state.type_of_calc=BR2;
@@ -2437,7 +2437,7 @@ void auto_2p_hopf()
   xpp::session().auto_state.bifur.isw=2;
   xpp::session().auto_state.bifur.isp=0;
   xpp::session().auto_state.bifur.ips=1;
-  if(METHOD==DISCRETE)
+  if(xpp::session().numerics.method==DISCRETE)
     xpp::session().auto_state.bifur.ips=-1;
   xpp::session().auto_state.two_param=HB2;
     xpp::session().auto_state.type_of_calc=HB2;
@@ -2924,11 +2924,11 @@ void find_point(int ibr, int pt)
 
 void do_auto_range()
 {
-  double t=TEND;
+  double t=xpp::session().numerics.tend;
   
   if(diagram_mark.state==2)
     do_auto_range_go();
-  TEND=t;
+  xpp::session().numerics.tend=t;
 }
 
 void DLINE(double a,double b,double c,double d)

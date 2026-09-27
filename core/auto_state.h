@@ -9,7 +9,6 @@
    fort files open during a run and its work arrays). */
 #include <stdio.h>
 #include "auto_nox.h"
-#include "auto_f2c.h"
 #include "xAuto.h"
 
 #include <array>
@@ -78,13 +77,16 @@ struct AutoState {
 };
 
 /* AUTO's work arrays (autlib1's allocate_global_memory owns their
-   storage; autlib3 and autlib5 read them) */
+   storage; autlib3 and autlib5 read them). auto_f2c.h's doublereal and
+   integer spelt out (double, long): the header is not included here, as
+   its typedefs clash with CVODE's (llnltyps.h) in a file that includes
+   both through session.h. */
 typedef struct {
-  doublereal *dfu, *dfp, *uu1, *uu2, *ff1, *ff2;
+  double *dfu, *dfp, *uu1, *uu2, *ff1, *ff2;
 } AutoGlobalScratch;
 typedef struct {
-  integer irtn;
-  integer *nrtn;
+  long irtn;
+  long *nrtn;
 } AutoGlobalRotations;
 
 struct AutoLib {

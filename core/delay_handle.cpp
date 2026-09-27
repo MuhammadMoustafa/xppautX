@@ -58,7 +58,7 @@ int alloc_delay(double big)
 {
  int n;
 
- n=static_cast<int>(big/fabs(DELTA_T))+1;
+ n=static_cast<int>(big/fabs(xpp::session().numerics.delta_t))+1;
 
  MaxDelay=n;
  LatestDelay=1;
@@ -121,8 +121,8 @@ void polint(double *xa, double *ya, int n, double x, double *y, double *dy)
 /* this is like get_delay but uses cubic interpolation */
 double get_delay(int in, double tau)
 {
- double x=tau/fabs(DELTA_T);
- double dd=fabs(DELTA_T);
+ double x=tau/fabs(xpp::session().numerics.delta_t);
+ double dd=fabs(xpp::session().numerics.delta_t);
  double y,ya[4],xa[4],dy;
  int n1=static_cast<int>(x);
  int n2=n1+1;
@@ -131,7 +131,7 @@ double get_delay(int in, double tau)
  int n3=n2+1;
  int i0,i1,i2,i3;
 
- if(tau<0.0||tau>DELAY){
+ if(tau<0.0||tau>xpp::session().numerics.delay){
 			 err_msg("Delay negative or too large");
 			stop_integration();
 			return(0.0);
@@ -163,7 +163,7 @@ double get_delay(int in, double tau)
 /*  Handling of the initial data  */
 int do_init_delay(double big)
 {
- double t=T0,old_t,y[MAXODE];
+ double t=xpp::session().numerics.t0,old_t,y[MAXODE];
  int i,nt,j;
  int len;
 
@@ -171,14 +171,14 @@ int do_init_delay(double big)
     every return path below frees them automatically -- no more manual
     xpp_free loops paired to each early-exit. */
  std::vector<std::vector<int>> del_form(xpp::model().node, std::vector<int>(200, 0));
- nt=static_cast<int>(big/fabs(DELTA_T));
- NCON=xpp::model().ncon_start;
- NSYM=xpp::model().nsym_start;
+ nt=static_cast<int>(big/fabs(xpp::session().numerics.delta_t));
+ xpp::session().parser.ncon=xpp::model().ncon_start;
+ xpp::session().parser.nsym=xpp::model().nsym_start;
  for(i=0;i<(xpp::model().node );i++){
 	 if(add_expr(xpp::session().delay_string[i].c_str(),del_form[i].data(),&len)){
 		err_msg("Illegal delay expression");
-		 NCON=xpp::model().ncon_start;
-		NSYM=xpp::model().nsym_start;
+		 xpp::session().parser.ncon=xpp::model().ncon_start;
+		xpp::session().parser.nsym=xpp::model().nsym_start;
 		return(0);
 		}
 	 }        /*  Okay all formulas are cool... */
@@ -187,14 +187,14 @@ int do_init_delay(double big)
   get_val("t",&old_t);
 
   for(i=nt;i>=0;i--){
-	t=T0-fabs(DELTA_T)*i;
+	t=xpp::session().numerics.t0-fabs(xpp::session().numerics.delta_t)*i;
 	set_val("t",t);
 	for(j=0;j<(xpp::model().node );j++)
 		y[j]=evaluate(del_form[j].data());
 	stor_delay(y);
   }
-   NCON=xpp::model().ncon_start;
-   NSYM=xpp::model().nsym_start;
+   xpp::session().parser.ncon=xpp::model().ncon_start;
+   xpp::session().parser.nsym=xpp::model().nsym_start;
   set_val("t",old_t);
    return(1);
  }

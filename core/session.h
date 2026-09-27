@@ -23,6 +23,8 @@
 #include "diagram.h"
 #include "browse.h"
 #include "kinescope.h"
+#include "load_eqn.h"
+#include "parserslow.h"
 
 #include <array>
 #include <string>
@@ -64,6 +66,22 @@ struct Session {
   BrowserState browser;
   /* the kinescope (commands.cpp, json_windows.cpp) */
   XppKinescope kinescope;
+
+  /* the numerics and the main plot's settings in use (load_eqn.cpp) */
+  NumericsSettings numerics;
+  PlotSettings plot_settings;
+  /* the parser's constants, variables and counts (parserslow2.cpp) */
+  ParserState parser;
+  /* the parameter sliders the model sets up (@ s1=name, slo1=, shi1=,
+     likewise 2 and 3) */
+  std::array<XppSlider,XPP_NSLIDERS> sliders;
+  /* 1 while an option may still be set: the command line and .xpprc set
+     theirs first, and the model's may not override them */
+  OptionsSet not_already_set{};
+  /* -runnow or @ runnow=1: integrate once the front end is up */
+  int run_immediately=0;
+  /* the command line named a model file */
+  int got_file=0;
 };
 
 /* the current Session (xpp_current.h) */

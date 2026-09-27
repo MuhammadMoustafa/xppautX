@@ -223,10 +223,10 @@ void redraw_froz_cline(int flag)
    two grid rows for this mesh every time. */
 void null_storage(int course)
 {
-  if(NULL_HERE==0){
+  if(xpp::session().numerics.null_here==0){
     x_null.assign(4*MAX_NULL,0.0f);
     y_null.assign(4*MAX_NULL,0.0f);
-    NULL_HERE=1;
+    xpp::session().numerics.null_here=1;
   }
   n_top.assign(course+1,0.0f);
   n_bot.assign(course+1,0.0f);
@@ -333,7 +333,7 @@ void do_range_clines()
   static const char *n[]={"*2Range parameter","Steps","Low","High"};
   std::array<std::string, 4> values;
   const int col1=XNullColor,col2=YNullColor;
-  const int course=NMESH;
+  const int course=xpp::session().numerics.nmesh;
   values[0] = ncrange.rv;
   values[1] = xpp::format("{:d}", ncrange.nstep);
   values[2] = xpp::format("{:g}", ncrange.xlo);
@@ -463,7 +463,7 @@ void dfield_grid(int grid, double u0, double v0, double du, double dv, double dz
 
 void save_the_nullclines()
 {
-  if(NULL_HERE==0)return;
+  if(xpp::session().numerics.null_here==0)return;
   std::string filename="nc.dat";
   ping();
   if(!file_selector("Save nullclines",filename,"*.dat"))return;
@@ -485,7 +485,7 @@ void froz_cline_stuff_com(int i)
   if(!frozen_started)start_ncline();
   switch(i){
   case 0:
-    if(NULL_HERE==0)return;
+    if(xpp::session().numerics.null_here==0)return;
     add_froz_cline(x_null.data(),num_x_n,null_ix,y_null.data(),num_y_n,null_iy);
     note_frozen();
     break;
@@ -640,8 +640,8 @@ void direct_field_com(int c)
 {
   const int inx=xpp::session().plot_windows.current->xv[0]-1;
   const int iny=xpp::session().plot_windows.current->yv[0]-1;
-  const double dtold=DELTA_T;
-  const double oldtrans=TRANS;
+  const double dtold=xpp::session().numerics.delta_t;
+  const double oldtrans=xpp::session().numerics.trans;
   int grid=DF_GRID;
 
   if(xpp::session().plot_windows.current->TimeFlag||xpp::session().plot_windows.current->xv[0]==xpp::session().plot_windows.current->yv[0]||xpp::session().plot_windows.current->ThreeDFlag)
@@ -675,10 +675,10 @@ void direct_field_com(int c)
     DF_IX=inx+1;
     DF_IY=iny+1;
     dfield_grid(grid,u0,v0,du,dv,dz,inx,iny,nullptr);
-    TRANS=oldtrans;
+    xpp::session().numerics.trans=oldtrans;
     return;
   }
-  STORFLAG=0;
+  xpp::session().numerics.storflag=0;
 
   xpp::session().integrator.suppress_bounds=1;
   phase_data_flow_start();
@@ -692,13 +692,13 @@ void direct_field_com(int c)
         double t=0.0;
         int start=1;
         phase_data_flow_next();
-        integrate(&t,y.data(),TEND,DELTA_T,1,NJMP,&start);
+        integrate(&t,y.data(),xpp::session().numerics.tend,xpp::session().numerics.delta_t,1,xpp::session().numerics.njmp,&start);
       }
-    DELTA_T=-DELTA_T;
+    xpp::session().numerics.delta_t=-xpp::session().numerics.delta_t;
   }
   phase_data_flow_stop();
   xpp::session().integrator.suppress_bounds=0;
-  DELTA_T=dtold;
+  xpp::session().numerics.delta_t=dtold;
   if (PltFmtFlag==SVGFMT){
     DOING_DFIELD=0;
     svg_write("</g>");
@@ -720,7 +720,7 @@ void direct_field_com(int c)
 void restore_nullclines()
 {
   const int col1=XNullColor,col2=YNullColor;
-  if(NULL_HERE==0)return;
+  if(xpp::session().numerics.null_here==0)return;
   if(xpp::session().plot_windows.current->xv[0]==null_ix&&xpp::session().plot_windows.current->yv[0]==null_iy&&xpp::session().plot_windows.current->ThreeDFlag==0){
     set_linestyle(col1);
     restor_null(x_null.data(),num_x_n,1);
@@ -733,13 +733,13 @@ void restore_nullclines()
 
 void create_new_cline()
 {
-  if(NULL_HERE)
+  if(xpp::session().numerics.null_here)
     new_clines_com(0);
 }
 
 void new_clines_com(int c)
 {
-  const int course=NMESH;
+  const int course=xpp::session().numerics.nmesh;
   const int col1=XNullColor,col2=YNullColor;
 
   if(xpp::session().plot_windows.current->ThreeDFlag||xpp::session().plot_windows.current->TimeFlag||xpp::session().plot_windows.current->xv[0]==xpp::session().plot_windows.current->yv[0])return;

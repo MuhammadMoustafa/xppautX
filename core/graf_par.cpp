@@ -296,12 +296,12 @@ void corner_cube(double *xlo, double *xhi, double *ylo, double *yhi)
 void default_window()
 {
  	if(xpp::session().plot_windows.current->ThreeDFlag){
-	      xpp::session().plot_windows.current->xmax=x_3d[1];
-    	      xpp::session().plot_windows.current->ymax=y_3d[1];
-    	      xpp::session().plot_windows.current->zmax=z_3d[1];
-              xpp::session().plot_windows.current->xmin=x_3d[0];
-              xpp::session().plot_windows.current->ymin=y_3d[0];
-              xpp::session().plot_windows.current->zmin=z_3d[0];  
+	      xpp::session().plot_windows.current->xmax=xpp::session().plot_settings.x_3d[1];
+    	      xpp::session().plot_windows.current->ymax=xpp::session().plot_settings.y_3d[1];
+    	      xpp::session().plot_windows.current->zmax=xpp::session().plot_settings.z_3d[1];
+              xpp::session().plot_windows.current->xmin=xpp::session().plot_settings.x_3d[0];
+              xpp::session().plot_windows.current->ymin=xpp::session().plot_settings.y_3d[0];
+              xpp::session().plot_windows.current->zmin=xpp::session().plot_settings.z_3d[0];  
 	      
 	      pretty(&(xpp::session().plot_windows.current->ymin),&(xpp::session().plot_windows.current->ymax));
 	      pretty(&(xpp::session().plot_windows.current->xmin),&(xpp::session().plot_windows.current->xmax));
@@ -313,11 +313,11 @@ void default_window()
 	}
 	else  
     	{
-	      xpp::session().plot_windows.current->xmax=x_3d[1];
-    	      xpp::session().plot_windows.current->ymax=y_3d[1];
+	      xpp::session().plot_windows.current->xmax=xpp::session().plot_settings.x_3d[1];
+    	      xpp::session().plot_windows.current->ymax=xpp::session().plot_settings.y_3d[1];
     	      
-              xpp::session().plot_windows.current->xmin=x_3d[0];
-              xpp::session().plot_windows.current->ymin=y_3d[0];
+              xpp::session().plot_windows.current->xmin=xpp::session().plot_settings.x_3d[0];
+              xpp::session().plot_windows.current->ymin=xpp::session().plot_settings.y_3d[0];
 	      
 	      pretty(&(xpp::session().plot_windows.current->ymin),&(xpp::session().plot_windows.current->ymax)); 
 	      pretty(&(xpp::session().plot_windows.current->xmin),&(xpp::session().plot_windows.current->xmax));
@@ -445,8 +445,8 @@ void xi_vs_t() /*  a short cut   */
    
     }
    else {
-     xpp::session().plot_windows.current->xmin=T0;
-     xpp::session().plot_windows.current->xmax=TEND;
+     xpp::session().plot_windows.current->xmin=xpp::session().numerics.t0;
+     xpp::session().plot_windows.current->xmax=xpp::session().numerics.tend;
         }
     xpp::session().plot_windows.current->xlo=xpp::session().plot_windows.current->xmin;
     xpp::session().plot_windows.current->ylo=xpp::session().plot_windows.current->ymin;

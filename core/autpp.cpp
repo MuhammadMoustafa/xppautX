@@ -24,17 +24,17 @@ extern "C" int func(integer ndim, double *u, integer *icp, double *par, integer 
    int i,j;
    std::array<double,NAUTO> zz,y,yp,xp; /* getjactrans's scratch, and the NJMP steps' */
    for(i=0;i<xpp::session().auto_state.npar;i++){
-     constants[xpp::session().auto_state.par_index[i]]=par[i];
+     xpp::session().parser.constants[xpp::session().auto_state.par_index[i]]=par[i];
      
    }
    evaluate_derived();
    redo_all_fun_tables();
    xpp::session().integrator.rhs(0.0,u,f,ndim);
    if(ijac==1){
-     getjactrans(u,y.data(),yp.data(),xp.data(),NEWT_ERR,dfdu,ndim);
+     getjactrans(u,y.data(),yp.data(),xp.data(),xpp::session().numerics.newt_err,dfdu,ndim);
    }
-   if(METHOD>0||NJMP==1)return 0;
-   for(i=1;i<NJMP;i++){
+   if(xpp::session().numerics.method>0||xpp::session().numerics.njmp==1)return 0;
+   for(i=1;i<xpp::session().numerics.njmp;i++){
      for(j=0;j<ndim;j++)
        zz[j]=f[j];
      xpp::session().integrator.rhs(0.0,zz.data(),f,ndim);
@@ -51,7 +51,7 @@ extern "C" int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
   double p;
 
   for(i=0;i<xpp::session().auto_state.npar;i++)
-    par[i] = constants[xpp::session().auto_state.par_index[i]];
+    par[i] = xpp::session().parser.constants[xpp::session().auto_state.par_index[i]];
 
   if(xpp::session().auto_state.new_period_flag==0){  
     for(i=0;i<ndim;i++)
@@ -88,7 +88,7 @@ extern "C" int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
 /* Hooks to the XPP bc parser!! */
 
  for(i=0;i<xpp::session().auto_state.npar;i++){
-     constants[xpp::session().auto_state.par_index[i]]=par[i];
+     xpp::session().parser.constants[xpp::session().auto_state.par_index[i]]=par[i];
  }
 
  evaluate_derived();

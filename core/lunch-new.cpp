@@ -42,7 +42,7 @@ void put_equation(FILE *fp, int i)
 {
   if(i>=xpp::model().node)
     xpp::print(fp,"{}={}\n",xpp::model().uvar_names[i],xpp::model().formulas[i]);
-  else if(METHOD>0)
+  else if(xpp::session().numerics.method>0)
     xpp::print(fp,"d{}/dT={}\n",xpp::model().uvar_names[i],xpp::model().formulas[i]);
   else
     xpp::print(fp,"{}(n+1)={}\n",xpp::model().uvar_names[i],xpp::model().formulas[i]);
@@ -130,7 +130,7 @@ int read_set(FILE *fp, bool ask)
     return 0;
   }
   io_numerics(f,fp);
-  if(METHOD==VOLTERRA){
+  if(xpp::session().numerics.method==VOLTERRA){
     io_int(&temp,fp,f," ");
     allocate_volterra(temp,1);
     xpp::session().integrator.my_start=1;
@@ -178,16 +178,16 @@ void do_info(FILE *fp)
 
   xpp::print(fp,"\n\n Numerical parameters ...\n");
   xpp::print(fp,"NJMP={}  NMESH={} METHOD={} EVEC_ITER={} \n",
-	 NJMP,NMESH,method[METHOD],EVEC_ITER);
+	 xpp::session().numerics.njmp,xpp::session().numerics.nmesh,method[xpp::session().numerics.method],xpp::session().numerics.evec_iter);
   xpp::print(fp,"BVP_EPS={:g},BVP_TOL={:g},BVP_MAXIT={} \n",
-	 BVP_EPS,BVP_TOL,BVP_MAXIT);
+	 xpp::session().numerics.bvp_eps,xpp::session().numerics.bvp_tol,xpp::session().numerics.bvp_maxit);
   xpp::print(fp,"DT={:g} T0={:g} TRANS={:g} TEND={:g} BOUND={:g} DELAY={:g} MaxPts={}\n",
-	 DELTA_T,T0,TRANS,TEND,BOUND,DELAY,MaxPoints);
+	 xpp::session().numerics.delta_t,xpp::session().numerics.t0,xpp::session().numerics.trans,xpp::session().numerics.tend,xpp::session().numerics.bound,xpp::session().numerics.delay,xpp::session().numerics.max_points);
   xpp::print(fp,"EVEC_ERR={:g}, NEWT_ERR={:g} HMIN={:g} HMAX={:g} TOLER={:g} \n",
-	 EVEC_ERR,NEWT_ERR,HMIN,HMAX,TOLER);
-  const std::string &poivar=ind_to_sym(POIVAR);
+	 xpp::session().numerics.evec_err,xpp::session().numerics.newt_err,xpp::session().numerics.hmin,xpp::session().numerics.hmax,xpp::session().numerics.toler);
+  const std::string &poivar=ind_to_sym(xpp::session().numerics.poivar);
   xpp::print(fp,"POIMAP={} POIVAR={} POIPLN={:g} POISGN={} \n",
-        POIMAP,poivar,POIPLN,POISGN);
+        xpp::session().numerics.poimap,poivar,xpp::session().numerics.poipln,xpp::session().numerics.poisgn);
 
   xpp::print(fp,"\n\n Delay strings ...\n");
   for(int i=0;i<xpp::model().node;i++)xpp::print(fp,"{}\n",xpp::session().delay_string[i]);
@@ -214,8 +214,8 @@ void write_lunch(FILE *fp)
  io_int(&xpp::model().neq,fp,f,"Number of equations and auxiliaries");
  io_int(&xpp::model().nupar,fp,f,"Number of parameters");
  io_numerics(f,fp);
- if(METHOD==VOLTERRA){
-     io_int(&MaxPoints,fp,f,"Max points for volterra");
+ if(xpp::session().numerics.method==VOLTERRA){
+     io_int(&xpp::session().numerics.max_points,fp,f,"Max points for volterra");
      }
    io_exprs(f,fp);
    io_graph(f,fp);
@@ -268,46 +268,46 @@ if(f==READEM&&set_type==1){
 }
 if(f!=READEM)
   xpp::print(fp,"# Numerical stuff\n");
-io_int(&NJMP,fp,f," nout");
-io_int(&NMESH,fp,f," nullcline mesh");
-io_int(&METHOD,fp,f,method[METHOD]);
+io_int(&xpp::session().numerics.njmp,fp,f," nout");
+io_int(&xpp::session().numerics.nmesh,fp,f," nullcline mesh");
+io_int(&xpp::session().numerics.method,fp,f,method[xpp::session().numerics.method]);
  if(f==READEM){do_meth();alloc_meth();}
-io_double(&TEND,fp,f,"total");
-io_double(&DELTA_T,fp,f,"DeltaT");
-io_double(&T0,fp,f,"T0");
-io_double(&TRANS,fp,f,"Transient");
-io_double(&BOUND,fp,f,"Bound");
-io_double(&HMIN,fp,f,"DtMin");
-io_double(&HMAX,fp,f,"DtMax");
-io_double(&TOLER,fp,f,"Tolerance");
+io_double(&xpp::session().numerics.tend,fp,f,"total");
+io_double(&xpp::session().numerics.delta_t,fp,f,"DeltaT");
+io_double(&xpp::session().numerics.t0,fp,f,"T0");
+io_double(&xpp::session().numerics.trans,fp,f,"Transient");
+io_double(&xpp::session().numerics.bound,fp,f,"Bound");
+io_double(&xpp::session().numerics.hmin,fp,f,"DtMin");
+io_double(&xpp::session().numerics.hmax,fp,f,"DtMax");
+io_double(&xpp::session().numerics.toler,fp,f,"Tolerance");
 /* fix stuff concerning the tolerance */
 if(f==READEM){
    if(set_type==1)
-     io_double(&ATOLER,fp,f,"Abs. Tolerance");
+     io_double(&xpp::session().numerics.atoler,fp,f,"Abs. Tolerance");
    else
-     ATOLER=TOLER*10;
+     xpp::session().numerics.atoler=xpp::session().numerics.toler*10;
  }
  else 
-   io_double(&ATOLER,fp,f,"Abs. Tolerance");
+   io_double(&xpp::session().numerics.atoler,fp,f,"Abs. Tolerance");
 
-io_double(&DELAY,fp,f,"Max Delay");
-io_int(&EVEC_ITER,fp,f,"Eigenvector iterates");
-io_double(&EVEC_ERR,fp,f,"Eigenvector tolerance");
-io_double(&NEWT_ERR,fp,f,"Newton tolerance");
-io_double(&POIPLN,fp,f,"Poincare plane");
-io_double(&BVP_TOL,fp,f,"Boundary value tolerance");
-io_double(&BVP_EPS,fp,f,"Boundary value epsilon");
-io_int(&BVP_MAXIT,fp,f,"Boundary value iterates");
-io_int(&POIMAP,fp,f,pmap[POIMAP]);
+io_double(&xpp::session().numerics.delay,fp,f,"Max Delay");
+io_int(&xpp::session().numerics.evec_iter,fp,f,"Eigenvector iterates");
+io_double(&xpp::session().numerics.evec_err,fp,f,"Eigenvector tolerance");
+io_double(&xpp::session().numerics.newt_err,fp,f,"Newton tolerance");
+io_double(&xpp::session().numerics.poipln,fp,f,"Poincare plane");
+io_double(&xpp::session().numerics.bvp_tol,fp,f,"Boundary value tolerance");
+io_double(&xpp::session().numerics.bvp_eps,fp,f,"Boundary value epsilon");
+io_int(&xpp::session().numerics.bvp_maxit,fp,f,"Boundary value iterates");
+io_int(&xpp::session().numerics.poimap,fp,f,pmap[xpp::session().numerics.poimap]);
 
-io_int(&POIVAR,fp,f,"Poincare variable");
-io_int(&POISGN,fp,f,"Poincare sign");
-io_int(&SOS,fp,f,"Stop on Section");
+io_int(&xpp::session().numerics.poivar,fp,f,"Poincare variable");
+io_int(&xpp::session().numerics.poisgn,fp,f,"Poincare sign");
+io_int(&xpp::session().numerics.sos,fp,f,"Stop on Section");
 io_int(&DelayFlag,fp,f,"Delay flag");
 io_double(&xpp::session().data_store.current_time,fp,f,"Current time");
 io_double(&xpp::session().integrator.last_time,fp,f,"Last Time");
 io_int(&xpp::session().integrator.my_start,fp,f,"xpp::session().integrator.my_start");
-io_int(&INFLAG,fp,f,"INFLAG");
+io_int(&xpp::session().numerics.inflag,fp,f,"INFLAG");
 }
 void io_parameter_file(const char *fn,int flag)
 {

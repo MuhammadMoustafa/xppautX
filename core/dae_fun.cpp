@@ -192,8 +192,8 @@ int solve_dae()
   int i,j,n;
   int info;
   double err,del,z,yold;
-  double tol=EVEC_ERR,eps=NEWT_ERR;
-  int maxit=EVEC_ITER,iter=0;
+  double tol=xpp::session().numerics.evec_err,eps=xpp::session().numerics.newt_err;
+  int maxit=xpp::session().numerics.evec_iter,iter=0;
   double *y,*ynew,*f,*fnew,*jac,*errvec;
   n=m.nsvar;
   if(m.nsvar==0)return 1;
@@ -246,7 +246,7 @@ int solve_dae()
       y[i]-=errvec[i];
       err+=fabs(errvec[i]);
     } 
-    if(err>(n*BOUND)){
+    if(err>(n*xpp::session().numerics.bound)){
       for(i=0;i<n;i++)
 	SETVAR(m.svars[i].index,svar_last[i]);
       return(-3); /* getting too big */

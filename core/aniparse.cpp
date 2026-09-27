@@ -932,7 +932,7 @@ void set_from_init_data(void)
 {
     std::array<double, MAXODE> y;
     for (int i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) y[i] = xpp::session().last_ic[i];
-    set_fix_rhs(T0, y.data());
+    set_fix_rhs(xpp::session().numerics.t0, y.data());
 }
 
 void ani_disk_warn(void)

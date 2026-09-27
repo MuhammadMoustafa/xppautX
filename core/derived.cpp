@@ -1,4 +1,5 @@
 #include "derived.h"
+#include "session.h"
 #include "xpp_log.h"
 
 #include <array>
@@ -49,7 +50,7 @@ void evaluate_derived()
 {
   for (int i = 0; i < nderived; i++) {
     derived[i].value = evaluate(derived[i].form.data());
-    constants[derived[i].index] = derived[i].value;
+    xpp::session().parser.constants[derived[i].index] = derived[i].value;
   }
 }
 
@@ -63,9 +64,9 @@ int add_derived(const char *name, const char *rhs)
   int i0 = nderived;
   derived[i0].rhs = rhs;
   /* this is the constant to which it addresses */
-  derived[i0].index = NCON;
+  derived[i0].index = xpp::session().parser.ncon;
   /* add the name to the recognized symbols */
-  xpp::log(XPP_LOG_INFO, " derived constant[{}] is {} = {}\n", NCON, name, rhs);
+  xpp::log(XPP_LOG_INFO, " derived constant[{}] is {} = {}\n", xpp::session().parser.ncon, name, rhs);
   nderived++;
   return add_con(name, 0.0);
 }

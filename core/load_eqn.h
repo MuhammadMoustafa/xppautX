@@ -186,10 +186,6 @@ typedef struct {
 
   } OptionsSet;
 
-/* 1 while an option may still be set: the command line and .xpprc set
-   theirs first, and the ODE file's may not override them */
-extern OptionsSet notAlreadySet;
-
 void dump_torus(FILE *fp, int f);
 void load_eqn(void);
 void set_all_vals(void);
@@ -214,32 +210,6 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask);
 
 #define XPP_NSLIDERS 3
 
-/* load_eqn.cpp's settings that have no other owner yet: the initial data
-   the last run started from, the plot's axes and view, the boundary
-   value solver's and the backward Euler's settings, and the command
-   line's switches */
-extern int IX_PLT[10],IY_PLT[10],IZ_PLT[10],NPltV,MultiWin,START_LINE_TYPE;
-extern double X_LO[10],Y_LO[10],X_HI[10],Y_HI[10];
-extern double x_3d[2],y_3d[2],z_3d[2];
-extern int IXPLT,IYPLT,IZPLT,AXES,TIMPLOT;
-extern double MY_XLO,MY_YLO,MY_XHI,MY_YHI;
-extern double BVP_EPS,BVP_TOL,EulTol;
-extern int BVP_MAXIT,BVP_FLAG,MaxEulIter;
-extern int SHOOT,PAR_FOL;
-extern int RunImmediately,got_file;
-/* the integration's settings (the nUmerics menu, @ options) and the run's
-   state: the number of equations, the time span and step, tolerances,
-   the Poincare section, the torus, the flags the integrator keeps */
-extern int PLOT_3D,INFLAG,STORFLAG,FOREVER,ENDSING,PAUSER,NULL_HERE;
-extern int METHOD,NJMP,EVEC_ITER,NMESH,FFT,HIST;
-extern double HMIN,HMAX,TOLER,ATOLER,BOUND,DELAY;
-extern double EVEC_ERR,NEWT_ERR;
-extern double TEND,DELTA_T,T0,TRANS;
-extern int TORUS;
-extern double TOR_PERIOD;
-extern int POIMAP,POISGN,POIEXT,SOS,POIVAR;
-extern double POIPLN;
-
 #ifdef __cplusplus
 }
 
@@ -251,9 +221,62 @@ struct XppSlider {
     std::string var;           /* the parameter it moves */
     double lo = 0.0, hi = 1.0; /* its range */
 };
-extern std::array<XppSlider,XPP_NSLIDERS> sliders;
-/* the options file (the model's "options" line, else default.opt) that
-   set_all_vals reads */
-extern std::string options_file;
+
+/* The numerics settings in use (the nUmerics menu, the model's @ options,
+   the command line), a Session's (session.h) */
+struct NumericsSettings {
+  /* the time span: from t0 for tend, step delta_t, every njmp-th step
+     stored once |t| is past the transient trans */
+  double t0 = 0, tend = 0, delta_t = 0, trans = 0;
+  int njmp = 0;
+  /* the method (numerics.cpp's numbers) and its step bounds, tolerances,
+     the bound on the variables and the delays' maximum */
+  int method = 0;
+  double hmin = 0, hmax = 0, toler = 0, atoler = 0, bound = 0, delay = 0;
+  /* the Volterra equations' memory, in points */
+  int max_points = 0;
+  /* equilibria: the Newton and eigenvector tolerances and iterations */
+  double evec_err = 0, newt_err = 0;
+  int evec_iter = 0;
+  /* the boundary value solver */
+  double bvp_eps = 0, bvp_tol = 0;
+  int bvp_maxit = 0, bvp_flag = 0;
+  /* the backward Euler's Newton solve */
+  double eul_tol = 0;
+  int max_eul_iter = 0;
+  /* the nullclines' mesh */
+  int nmesh = 0;
+  /* the Poincare map: its kind, the section's variable, sign and plane,
+     extrema, stop on section */
+  int poimap = 0, poivar = 0, poisgn = 0, poiext = 0, sos = 0;
+  double poipln = 0;
+  /* the torus and its period (each variable's flag is Session::itor) */
+  int torus = 0;
+  double tor_period = 6.2831853071795864770;
+  /* the random numbers' seed */
+  int rand_seed = 12345678;
+  /* a run's state: data were stored (inflag), storing is on (storflag),
+     integrate without end (forever), a range stops (endsing), pauses
+     between runs (pauser), shoots (shoot) or follows its parameter
+     (par_fol); the browser shows a Fourier transform (fft) or a
+     histogram (hist); nullclines were computed (null_here) */
+  int inflag = 0, storflag = 0, forever = 0, endsing = 0, pauser = 0;
+  int shoot = 0, par_fol = 0, fft = 0, hist = 0, null_here = 0;
+};
+
+/* The main plot's settings in use (the model's @ options, the Viewaxes
+   dialogs), a Session's (session.h): the plotted variables, the axes'
+   kind, the 2D window and the 3D box, and the extra curves (@ xp2=,
+   ..., npltv of them) with the windows @ nplot opens (multi_win) */
+struct PlotSettings {
+  int ixplt = 0, iyplt = 0, izplt = 0;
+  int axes = 0, timplot = 0, plot_3d = 0;
+  double my_xlo = 0, my_ylo = 0, my_xhi = 0, my_yhi = 0;
+  std::array<double,2> x_3d{}, y_3d{}, z_3d{};
+  std::array<int,10> ix_plt{}, iy_plt{}, iz_plt{};
+  int npltv = 0, multi_win = 0;
+  std::array<double,10> x_lo{}, y_lo{}, x_hi{}, y_hi{};
+  int start_line_type = 1;
+};
 #endif
 #endif

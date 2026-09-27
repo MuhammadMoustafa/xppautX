@@ -579,7 +579,7 @@ int compiler(const std::string &bob, FILE *fptr)
 	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	    xpp_model_failed();
 	  }
-	  add_wiener(NCON-1);
+	  add_wiener(xpp::session().parser.ncon-1);
 
 	}
       if(ConvertStyle)
@@ -648,10 +648,10 @@ int compiler(const std::string &bob, FILE *fptr)
       xpp_log(XPP_LOG_DEBUG, "\n");
       break;
     case 'c':
-      options_file=tokens.text(" \n");
-      xpp::log(XPP_LOG_INFO, " Loading new options file:<{}>\n",options_file);
+      xpp::model().options_file=tokens.text(" \n");
+      xpp::log(XPP_LOG_INFO, " Loading new options file:<{}>\n",xpp::model().options_file);
       if(ConvertStyle)
-	xpp::print(convertf,"option {}\n",options_file);
+	xpp::print(convertf,"option {}\n",xpp::model().options_file);
       break;
     case 'f':iflg=0;
       xpp_log(XPP_LOG_INFO, "\nFixed variables:\n");
@@ -744,7 +744,7 @@ int compiler(const std::string &bob, FILE *fptr)
     case 't':
       if(xpp::model().ntable>=MAX_TAB)
 	{
-	  if(ERROUT)xpp_log(XPP_LOG_WARN, "too many tables !!\n");
+	  if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "too many tables !!\n");
 	  xpp_model_failed();
 	}
       name=tokens.text(" ");
@@ -934,7 +934,7 @@ int get_eqn(FILE *fptr)
   xpp::model().nwiener=0;
   /*check_for_xpprc();  This is now done just once and in do_vis_env()
   */
-  options_file="default.opt";
+  xpp::model().options_file="default.opt";
   add_var("t",0.0);
   bool in_file=read_raw_line(fptr,bob);
   save_line(bob);
@@ -988,7 +988,7 @@ int get_eqn(FILE *fptr)
       set_bc(i,"0");
     }
   }
-  BVP_FLAG=1;
+  xpp::session().numerics.bvp_flag=1;
 
   if(xpp::model().node!=xpp::model().neq+xpp::model().fix_var-xpp::model().nmarkov)
     {
@@ -1041,11 +1041,11 @@ int get_eqn(FILE *fptr)
   }
   /*  add auxiliary variables   */
   for(i=xpp::model().node+xpp::model().nmarkov;i<xpp::model().neq;i++)add_var(uvar_names[i],0.0);
-  xpp::model().ncon_start=NCON;
-  xpp::model().nsym_start=NSYM;
+  xpp::model().ncon_start=xpp::session().parser.ncon;
+  xpp::model().nsym_start=xpp::session().parser.nsym;
   program.version_major=static_cast<float>(cstringmaj);
   program.version_minor=static_cast<float>(cstringmin);
-  xpp_log(XPP_LOG_INFO, "Used %d constants and %d symbols \n",NCON,NSYM);
+  xpp_log(XPP_LOG_INFO, "Used %d constants and %d symbols \n",xpp::session().parser.ncon,xpp::session().parser.nsym);
   xpp_log(XPP_LOG_INFO, "XPPAUT %g.%g Copyright (C) 2002-now  Bard Ermentrout \n",program.version_major,program.version_minor);
     return(1);
 }
@@ -1158,8 +1158,8 @@ int formula_or_number(const char *expr,double *z)
 {
   std::array<char,40> num{}; /* do_num's 40 bytes */
   int flag,i=0;
-  int olderr=ERROUT;
-  ERROUT=0;
+  int olderr=xpp::session().parser.errout;
+  xpp::session().parser.errout=0;
   *z=0.0; /* initial it to 0 */
   /* convert only drops blanks: never longer than expr */
   std::string form(expr);
@@ -1167,7 +1167,7 @@ int formula_or_number(const char *expr,double *z)
   c_resync(form);
   flag=do_num(form.c_str(),num.data(),z,&i);
   if(i<static_cast<int>(form.size()))flag=1;
-  ERROUT=olderr;
+  xpp::session().parser.errout=olderr;
   if(flag==0)
     return 0; /* 0 is a number */
   return 1; /* 1 is a formula */

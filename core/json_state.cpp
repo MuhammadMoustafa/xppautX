@@ -75,7 +75,7 @@ void send_state(void)
     }
     BUF_LIT(&b, "]");
     /* where the last run ended (MyData, what Initialconds/Last starts from) */
-    if (INFLAG) {
+    if (xpp::session().numerics.inflag) {
         BUF_LIT(&b, ",\"now\":[");
         for (i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) {
             if (i) BUF_LIT(&b, ",");
@@ -307,10 +307,10 @@ void send_equations(void)
         const std::string &name = xpp::model().uvar_names[i];
         const char *rhs = xpp::model().formulas[i].c_str();
         line.s.clear();
-        if (i < xpp::model().node && xpp::model().eq_type[i] != 1 && METHOD > 0) BUF_LIT(&line, "d");
+        if (i < xpp::model().node && xpp::model().eq_type[i] != 1 && xpp::session().numerics.method > 0) BUF_LIT(&line, "d");
         buf_add(&line, name.data(), name.size());
         if (i < xpp::model().node && xpp::model().eq_type[i] == 1) BUF_LIT(&line, "(t)");
-        else if (i < xpp::model().node && METHOD == 0) BUF_LIT(&line, "(n+1)");
+        else if (i < xpp::model().node && xpp::session().numerics.method == 0) BUF_LIT(&line, "(n+1)");
         else if (i < xpp::model().node) BUF_LIT(&line, "/dT");
         BUF_LIT(&line, "=");
         buf_add(&line, rhs, strlen(rhs));
@@ -378,7 +378,7 @@ void apply_set(const char *line)
     int i, bad = 0;
     if (get_string(line, "from", from, 8)) {
         if (from != "last") return;
-        if (!INFLAG) {
+        if (!xpp::session().numerics.inflag) {
             j_err_msg("No prior solution");
             return;
         }

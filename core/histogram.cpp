@@ -272,8 +272,8 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
 	  my_hist[1][index]+=1.0;
 	}
       }
-    NCON=xpp::model().ncon_start;
-    NSYM=xpp::model().nsym_start;
+    xpp::session().parser.ncon=xpp::model().ncon_start;
+    xpp::session().parser.nsym=xpp::model().nsym_start;
     hist_back();
     ping();
     return;

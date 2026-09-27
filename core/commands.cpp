@@ -353,13 +353,13 @@ void new_clines(void) { menu_run(&menu_nullclines, 0); }
 void froz_cline_stuff(void) { menu_run(&menu_freeze_cline, 0); }
 void direct_field(void) { menu_run(&menu_dirfield, 0); }
 void window_zoom(void) { menu_run(&menu_window, 0); }
-void do_torus(void) { menu_run(&menu_torus, 1 - TORUS); }
+void do_torus(void) { menu_run(&menu_torus, 1 - xpp::session().numerics.torus); }
 void do_movie(void) { menu_run(&menu_kinescope, 0); }
 void find_equilibrium(void) { menu_run(&menu_equilibria, 1); }
 void change_view(void) { menu_run(&menu_view, 0); }
 void find_bvp(void) { menu_run(&menu_bvp, 1); }
 void do_stochast(void) { menu_run(&menu_stochastic, 0); }
-void get_pmap_pars(void) { menu_run(&menu_poincare, POIMAP); }
+void get_pmap_pars(void) { menu_run(&menu_poincare, xpp::session().numerics.poimap); }
 void set_col_par(void) { menu_run(&menu_color_code, 0); }
 void make_adj(void) { menu_run(&menu_adjoint, 0); }
 

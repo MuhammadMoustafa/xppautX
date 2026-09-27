@@ -58,14 +58,14 @@ int main(void)
 
     get_val("iapp", &iapp);
     v0 = xpp::session().last_ic[0];
-    tend = TEND;
-    dt = DELTA_T;
+    tend = xpp::session().numerics.tend;
+    dt = xpp::session().numerics.delta_t;
     save(a);
 
     set_val("iapp", iapp + 1);
     xpp::session().last_ic[0] = v0 + 1;
-    TEND = tend * 2;
-    DELTA_T = dt / 2;
+    xpp::session().numerics.tend = tend * 2;
+    xpp::session().numerics.delta_t = dt / 2;
 
     fp = fopen(a, "r");
     CHECK(fp != NULL);
@@ -76,8 +76,8 @@ int main(void)
     get_val("iapp", &x);
     CHECK(x == iapp);
     CHECK(xpp::session().last_ic[0] == v0);
-    CHECK(TEND == tend);
-    CHECK(DELTA_T == dt);
+    CHECK(xpp::session().numerics.tend == tend);
+    CHECK(xpp::session().numerics.delta_t == dt);
 
     save(b);
     sa = body(a);

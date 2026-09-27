@@ -161,7 +161,7 @@ void do_comline(int argc, char **argv)
 { 
  int i,k;
 
- got_file=0;
+ xpp::session().got_file=0;
  setfilename.clear();
  parfilename.clear();
  icfilename.clear();
@@ -175,12 +175,12 @@ void do_comline(int argc, char **argv)
    }
    if(k==2){
      /* -smallfont: the X11 font, accepted and not kept */
-     if (notAlreadySet.SMALL_FONT_NAME){notAlreadySet.SMALL_FONT_NAME=0;};
+     if (xpp::session().not_already_set.SMALL_FONT_NAME){xpp::session().not_already_set.SMALL_FONT_NAME=0;};
      i++;
    }
    if(k==3){
      /* -bigfont: the X11 font, accepted and not kept */
-     if (notAlreadySet.BIG_FONT_NAME){notAlreadySet.BIG_FONT_NAME=0;};
+     if (xpp::session().not_already_set.BIG_FONT_NAME){xpp::session().not_already_set.BIG_FONT_NAME=0;};
      i++;
    } 
    if(k==4){
@@ -466,7 +466,7 @@ int parse_it(const char *com)
       xpp_log(XPP_LOG_WARN, "-white option is no longer part of this version. \n Sorry \n");
       break;
     case RUNNOW:
-      RunImmediately=1;
+      xpp::session().run_immediately=1;
       break;
     case SETFILE:
       return 1;
@@ -552,7 +552,7 @@ int parse_it(const char *com)
     }
   }
   else {
-    if(com[0]=='-'||got_file==1){ 
+    if(com[0]=='-'||xpp::session().got_file==1){ 
      xpp_log(XPP_LOG_WARN, "Problem reading option %s\n",com);
      xpp_log(XPP_LOG_WARN, "\nUsage: xppaut filename [options ...]\n\n");
      xpp_log(XPP_LOG_WARN, "Options:\n");
@@ -609,7 +609,7 @@ int parse_it(const char *com)
     }
     else {
       xpp::model().this_file=com;
-      got_file=1;
+      xpp::session().got_file=1;
     }
   }
   return 0;

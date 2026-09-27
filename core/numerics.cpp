@@ -51,7 +51,7 @@ int cv_bandflag=0,cv_bandupper=1,cv_bandlower=1;
 
 void chk_volterra()
 {
-  if (xpp::model().nkernel>0)METHOD=VOLTERRA;
+  if (xpp::model().nkernel>0)xpp::session().numerics.method=VOLTERRA;
 }
 
 void  check_pos(int *j)
@@ -69,8 +69,8 @@ void quick_num(int com)
 void set_total(double total)
 {
   int n;
-  n=(total/fabs(DELTA_T))+1;
-  TEND=n*fabs(DELTA_T);
+  n=(total/fabs(xpp::session().numerics.delta_t))+1;
+  xpp::session().numerics.tend=n*fabs(xpp::session().numerics.delta_t);
 }
 
 void  get_num_par(char ch)
@@ -84,41 +84,41 @@ void  get_num_par(char ch)
 
 		case 't': flash(0);
 			 /* total */
-			 new_float("total :",&TEND);
-			  FOREVER=0;
-			  if(TEND<0)
+			 new_float("total :",&xpp::session().numerics.tend);
+			  xpp::session().numerics.forever=0;
+			  if(xpp::session().numerics.tend<0)
 			  {
-			    FOREVER=1;
-			    TEND=-TEND;
+			    xpp::session().numerics.forever=1;
+			    xpp::session().numerics.tend=-xpp::session().numerics.tend;
                           }
 
 			flash(0);
 			break;
 		case 's': flash(1);
 			 /* start */
-			 new_float("start time :",&T0);
+			 new_float("start time :",&xpp::session().numerics.t0);
 			flash(1);
 			break;
 		case 'r': flash(2);
 			 /* transient */
-			 new_float("transient :",&TRANS);
+			 new_float("transient :",&xpp::session().numerics.trans);
 			flash(2);
 			break;
 		case 'd': flash(3);
 			 /* DT */
-		         temp=DELTA_T;
-			 new_float("Delta t :",&DELTA_T);
-		         if(DELTA_T==0.0)DELTA_T=temp;
-		         if(DELAY>0.0) {
+		         temp=xpp::session().numerics.delta_t;
+			 new_float("Delta t :",&xpp::session().numerics.delta_t);
+		         if(xpp::session().numerics.delta_t==0.0)xpp::session().numerics.delta_t=temp;
+		         if(xpp::session().numerics.delay>0.0) {
 			  free_delay();
-			  if(alloc_delay(DELAY)){
-			    INFLAG=0; /*  Make sure no last ics allowed */
+			  if(alloc_delay(xpp::session().numerics.delay)){
+			    xpp::session().numerics.inflag=0; /*  Make sure no last ics allowed */
 			  }
 			}
 			  else 
 			    free_delay();
 		       if(xpp::model().nkernel>0){
-			 INFLAG=0;
+			 xpp::session().numerics.inflag=0;
 			 xpp::session().integrator.my_start=1;
 			 alloc_kernels(1);
 		       }
@@ -126,25 +126,25 @@ void  get_num_par(char ch)
 			break;
 		case 'n': flash(4);
 			 /* ncline */
-			 new_int("ncline mesh :",&NMESH);
-                          check_pos(&NMESH);
+			 new_int("ncline mesh :",&xpp::session().numerics.nmesh);
+                          check_pos(&xpp::session().numerics.nmesh);
 
 			flash(4);
 			break;
 		case 'v':
 		        
-		         new_int("Maximum iterates :",&BVP_MAXIT);
-		         check_pos(&BVP_MAXIT);
-		         new_float("Tolerance :",&BVP_TOL);
-		         new_float("Epsilon :",&BVP_EPS);
+		         new_int("Maximum iterates :",&xpp::session().numerics.bvp_maxit);
+		         check_pos(&xpp::session().numerics.bvp_maxit);
+		         new_float("Tolerance :",&xpp::session().numerics.bvp_tol);
+		         new_float("Epsilon :",&xpp::session().numerics.bvp_eps);
 		         reset_bvp();
 		         break;
 		case 'i': flash(5);
 			 /* sing pt */
-			 new_int("Maximum iterates :",&EVEC_ITER);
-			 check_pos(&EVEC_ITER);
-			 new_float("Newton tolerance :",&EVEC_ERR);
-			 new_float("Jacobian epsilon :",&NEWT_ERR);
+			 new_int("Maximum iterates :",&xpp::session().numerics.evec_iter);
+			 check_pos(&xpp::session().numerics.evec_iter);
+			 new_float("Newton tolerance :",&xpp::session().numerics.evec_err);
+			 new_float("Jacobian epsilon :",&xpp::session().numerics.newt_err);
 		       if(xpp::model().nflags>0)
 			 new_float("SMIN :",&STOL);
 		       
@@ -152,49 +152,49 @@ void  get_num_par(char ch)
 			break;
 		case 'o': flash(6);
 			 /* noutput */
-			new_int("n_out :",&NJMP);
-			 check_pos(&NJMP);
+			new_int("n_out :",&xpp::session().numerics.njmp);
+			 check_pos(&xpp::session().numerics.njmp);
 
 			flash(6);
 			break;
 		case 'b': flash(7);
 			 /* bounds */
-			new_float("Bounds :",&BOUND); BOUND=fabs(BOUND);
+			new_float("Bounds :",&xpp::session().numerics.bound); xpp::session().numerics.bound=fabs(xpp::session().numerics.bound);
 
 			flash(7);
 			break;
 		case 'm': flash(8);
 			 /* method */
 			 get_method();
-			 if(METHOD==VOLTERRA&&xpp::model().nkernel==0){
+			 if(xpp::session().numerics.method==VOLTERRA&&xpp::model().nkernel==0){
 			   err_msg("Volterra only for integral eqns");
-			   METHOD=4; 
+			   xpp::session().numerics.method=4; 
 			 }
-		       if(xpp::model().nkernel>0)METHOD=VOLTERRA;
-			if(METHOD==GEAR||METHOD==RKQS||METHOD==STIFF)
+		       if(xpp::model().nkernel>0)xpp::session().numerics.method=VOLTERRA;
+			if(xpp::session().numerics.method==GEAR||xpp::session().numerics.method==RKQS||xpp::session().numerics.method==STIFF)
 		{
-		 new_float("Tolerance :",&TOLER);
-		 new_float("minimum step :",&HMIN);
-		 new_float("maximum step :",&HMAX);
+		 new_float("Tolerance :",&xpp::session().numerics.toler);
+		 new_float("minimum step :",&xpp::session().numerics.hmin);
+		 new_float("maximum step :",&xpp::session().numerics.hmax);
 		}
-			if(METHOD==CVODE||METHOD==DP5||METHOD==DP83||METHOD==RB23)
+			if(xpp::session().numerics.method==CVODE||xpp::session().numerics.method==DP5||xpp::session().numerics.method==DP83||xpp::session().numerics.method==RB23)
 			  {
-			    new_float("Relative tol:",&TOLER);
-			    new_float("Abs. Toler:",&ATOLER);
+			    new_float("Relative tol:",&xpp::session().numerics.toler);
+			    new_float("Abs. Toler:",&xpp::session().numerics.atoler);
 			  }
 
-		       if(METHOD==BACKEUL||METHOD==VOLTERRA){
-			 new_float("Tolerance :",&EulTol);
-			 new_int("MaxIter :",&MaxEulIter);
+		       if(xpp::session().numerics.method==BACKEUL||xpp::session().numerics.method==VOLTERRA){
+			 new_float("Tolerance :",&xpp::session().numerics.eul_tol);
+			 new_int("MaxIter :",&xpp::session().numerics.max_eul_iter);
 		       }
-		       if(METHOD==VOLTERRA){
-			 tmp=MaxPoints;
+		       if(xpp::session().numerics.method==VOLTERRA){
+			 tmp=xpp::session().numerics.max_points;
 			 new_int("MaxPoints:",&tmp);
 			 new_int("AutoEval(1=yes) :",&AutoEvaluate);
 			 allocate_volterra(tmp,1);
 		       }
 			 
-		       if(METHOD==CVODE||METHOD==RB23)
+		       if(xpp::session().numerics.method==CVODE||xpp::session().numerics.method==RB23)
 			 {
 			   new_int("Banded system(0/1)?",&cv_bandflag);
 			   if(cv_bandflag==1){
@@ -202,10 +202,10 @@ void  get_num_par(char ch)
 			     new_int("Upper band:",&cv_bandupper);
 			   }
 			 }
-		       if(METHOD==SYMPLECT){
+		       if(xpp::session().numerics.method==SYMPLECT){
 			 if((xpp::model().node%2)!=0){
 			   err_msg("Symplectic is only for even dimensions");
-			   METHOD=4;
+			   xpp::session().numerics.method=4;
 			 }
 		       }
 			flash(8);
@@ -213,14 +213,14 @@ void  get_num_par(char ch)
 		case 'e': flash(9);
 			 /* delay */
                         if(xpp::model().ndelays==0)break;
-			new_float("Maximal delay :",&DELAY);
+			new_float("Maximal delay :",&xpp::session().numerics.delay);
                         new_float("real guess :", &AlphaMax);
 			   new_float("imag guess :", &OmegaMax); 
 		        new_int("DelayGrid :",&DelayGrid);
-		        if(DELAY>0.0) {
+		        if(xpp::session().numerics.delay>0.0) {
 			  free_delay();
-			  if(alloc_delay(DELAY)){
-			    INFLAG=0; /*  Make sure no last ics allowed */
+			  if(alloc_delay(xpp::session().numerics.delay)){
+			    xpp::session().numerics.inflag=0; /*  Make sure no last ics allowed */
 			  }
 			}
 			  else 
@@ -259,7 +259,7 @@ void  get_num_par(char ch)
 			break;
 		case 27: 
 		       do_meth();
-		      TEND=fabs(TEND);
+		      xpp::session().numerics.tend=fabs(xpp::session().numerics.tend);
 		       alloc_meth();
 			show_main_menu(MAIN_MENU);
 			break;
@@ -269,10 +269,10 @@ void  get_num_par(char ch)
 
 void chk_delay()
 {
-  if(DELAY>0.0) {
+  if(xpp::session().numerics.delay>0.0) {
 			  free_delay();
-			  if(alloc_delay(DELAY)){
-			    INFLAG=0; /*  Make sure no last ics allowed */
+			  if(alloc_delay(xpp::session().numerics.delay)){
+			    xpp::session().numerics.inflag=0; /*  Make sure no last ics allowed */
 			  }
 			}
 			  else 
@@ -282,10 +282,10 @@ void chk_delay()
 void set_delay()
 {
  if(xpp::model().ndelays==0)return;
- if(DELAY>0.0){
+ if(xpp::session().numerics.delay>0.0){
    free_delay();
-   if(alloc_delay(DELAY)){
-     INFLAG=0;
+   if(alloc_delay(xpp::session().numerics.delay)){
+     xpp::session().numerics.inflag=0;
    }
  }
 }
@@ -302,13 +302,13 @@ void ruelle()
 
 void compute_one_period(double period,double *x,const char *name)
 {
-  int opm=POIMAP;
-  double ot=TRANS,ote=TEND;
-  TRANS=0;
-  T0=0;
+  int opm=xpp::session().numerics.poimap;
+  double ot=xpp::session().numerics.trans,ote=xpp::session().numerics.tend;
+  xpp::session().numerics.trans=0;
+  xpp::session().numerics.t0=0;
   xpp::session().data_store.current_time=0;
-  TEND=period;
-  POIMAP=0; /* turn off poincare map */
+  xpp::session().numerics.tend=period;
+  xpp::session().numerics.poimap=0; /* turn off poincare map */
   reset_browser();
 
   usual_integrate_stuff(x);
@@ -319,9 +319,9 @@ void compute_one_period(double period,double *x,const char *name)
       w.commit();
     }
     else{
-      TRANS=ot;
-      POIMAP=opm;
-      TEND=ote;
+      xpp::session().numerics.trans=ot;
+      xpp::session().numerics.poimap=opm;
+      xpp::session().numerics.tend=ote;
       return;
     }
   }
@@ -346,9 +346,9 @@ void compute_one_period(double period,double *x,const char *name)
 
   reset_browser();
 
-  TRANS=ot;
-  POIMAP=opm;
-  TEND=ote;
+  xpp::session().numerics.trans=ot;
+  xpp::session().numerics.poimap=opm;
+  xpp::session().numerics.tend=ote;
 
 }
 void get_pmap_pars_com(int l)
@@ -359,34 +359,34 @@ void get_pmap_pars_com(int l)
  std::array<std::string, 4> values;
  static const char *yn[]={"N","Y"};
  int status;
- int i1=POIVAR;
+ int i1=xpp::session().numerics.poivar;
 
  ch=mkey[l];
 
- POIMAP=0;
- if(ch=='s')POIMAP=1;
- if(ch=='m')POIMAP=2;
- if(ch=='p')POIMAP=3;
+ xpp::session().numerics.poimap=0;
+ if(ch=='s')xpp::session().numerics.poimap=1;
+ if(ch=='m')xpp::session().numerics.poimap=2;
+ if(ch=='p')xpp::session().numerics.poimap=3;
 
- if(POIMAP==0)return;
+ if(xpp::session().numerics.poimap==0)return;
 
  values[0] = ind_to_sym(i1);
- values[1] = xpp::format("{:.16g}", POIPLN);
- values[2] = xpp::format("{}", POISGN);
- values[3] = yn[SOS];
+ values[1] = xpp::format("{:.16g}", xpp::session().numerics.poipln);
+ values[2] = xpp::format("{}", xpp::session().numerics.poisgn);
+ values[3] = yn[xpp::session().numerics.sos];
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
  status=do_string_box_of(4,1,"Poincare map",n,values,45,kinds);
  if(status!=0){
               find_variable(values[0].c_str(),&i1);
-	      if(i1<0) { POIMAP=0;
+	      if(i1<0) { xpp::session().numerics.poimap=0;
                          err_msg("No such section");
 			 return;
 		       }
-	      POIVAR=i1;
-	      POISGN=atoi(values[2].c_str());
-	      if(values[3][0]=='Y'||values[3][0]=='y')SOS=1;
-	      else SOS=0;
-	      POIPLN=atof(values[1].c_str());
+	      xpp::session().numerics.poivar=i1;
+	      xpp::session().numerics.poisgn=atoi(values[2].c_str());
+	      if(values[3][0]=='Y'||values[3][0]=='y')xpp::session().numerics.sos=1;
+	      else xpp::session().numerics.sos=0;
+	      xpp::session().numerics.poipln=atof(values[1].c_str());
 	    }
 
 }
@@ -395,9 +395,9 @@ void get_method()
 {
  char ch;
  int i;
- ch = static_cast<char>(menu_choose(&menu_method,METHOD));
+ ch = static_cast<char>(menu_choose(&menu_method,xpp::session().numerics.method));
  for(i=0;i<menu_method.n;i++)
- if(ch==menu_method.keys[i])METHOD=i;
+ if(ch==menu_method.keys[i])xpp::session().numerics.method=i;
  }
 
 void user_set_color_par(int flag,const char *via,double lo,double hi)
@@ -494,8 +494,8 @@ void set_col_par_com(int i)
   }
   if(minder>=0.0&&maxder>minder)
   {
-   xpp::session().plot_windows.current->color_scale=(maxder-minder)/(fabs(DELTA_T*NJMP));
-   xpp::session().plot_windows.current->min_scale=minder/(fabs(DELTA_T*NJMP));
+   xpp::session().plot_windows.current->color_scale=(maxder-minder)/(fabs(xpp::session().numerics.delta_t*xpp::session().numerics.njmp));
+   xpp::session().plot_windows.current->min_scale=minder/(fabs(xpp::session().numerics.delta_t*xpp::session().numerics.njmp));
   }
  }
  else
@@ -510,15 +510,15 @@ void set_col_par_com(int i)
 
 void do_meth()
 {
- if(xpp::model().nkernel>0)METHOD=VOLTERRA;
- switch(METHOD)
+ if(xpp::model().nkernel>0)xpp::session().numerics.method=VOLTERRA;
+ switch(xpp::session().numerics.method)
  {
-  case 0: xpp::session().integrator.solver=discrete; DELTA_T=1;break;
+  case 0: xpp::session().integrator.solver=discrete; xpp::session().numerics.delta_t=1;break;
   case 1: xpp::session().integrator.solver=euler;break;
   case 2: xpp::session().integrator.solver=mod_euler;break;
   case 3: xpp::session().integrator.solver=rung_kut;break;
   case 4: xpp::session().integrator.solver=adams;break;
-  case 5: NJMP=1;break;
+  case 5: xpp::session().numerics.njmp=1;break;
   case 6: xpp::session().integrator.solver=volterra;break;
   case SYMPLECT: 
        xpp::session().integrator.solver=symplect3;
@@ -530,7 +530,7 @@ void do_meth()
  case DP5:
  case DP83:
  case RB23:
-   NJMP=1; break;
+   xpp::session().numerics.njmp=1; break;
   default: xpp::session().integrator.solver=rung_kut;
  }
 }

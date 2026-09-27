@@ -129,7 +129,7 @@ int one_bak_step(double *y, double *t, double dt, int neq, double *yg, double *y
 	err1+=fabs(errvec[i]);
 	ytemp[i]=yg[i];
       }
-      get_the_jac(*t,yg,yp,ytemp,jac,neq,NEWT_ERR,-.5*dt);
+      get_the_jac(*t,yg,yp,ytemp,jac,neq,xpp::session().numerics.newt_err,-.5*dt);
       if(cv_bandflag){
 	for(i=0;i<neq;i++)
 	  jac[i*mt+ml]+=1;
@@ -150,12 +150,12 @@ int one_bak_step(double *y, double *t, double dt, int neq, double *yg, double *y
 	err+=fabs(errvec[i]);
 	yg[i]-=errvec[i];
       }
-      if(err<EulTol||err1<EulTol){
+      if(err<xpp::session().numerics.eul_tol||err1<xpp::session().numerics.eul_tol){
 	for(i=0;i<neq;i++)y[i]=yg[i];
 	return(0);
       }
       iter++;
-      if(iter>MaxEulIter)return(-2);
+      if(iter>xpp::session().numerics.max_eul_iter)return(-2);
     }
 }
 
@@ -401,10 +401,10 @@ int rosen(double *y,double *tstart,double tfinal,
 int *istart,int n,double *work,int *ierr)
 {
  static double htry;
- double epsjac=NEWT_ERR;
+ double epsjac=xpp::session().numerics.newt_err;
  double eps=1e-15,hmin,hmax;
  double tdir=1,t0=*tstart,t=t0;
- double atol=ATOLER,rtol=TOLER;
+ double atol=xpp::session().numerics.atoler,rtol=xpp::session().numerics.toler;
  double sqrteps=sqrt(eps);
  double thresh=atol/rtol,absh,h;
  double d=1/(2.+sqrt(2.)),e32=6.+sqrt(2.),tnew;

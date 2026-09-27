@@ -207,8 +207,8 @@ int has_eq(const char *z, char *w, int *where)
   z=evaluate(com);
  *ok=1;
 bye:
-  NCON=xpp::model().ncon_start;
-  NSYM=xpp::model().nsym_start;
+  xpp::session().parser.ncon=xpp::model().ncon_start;
+  xpp::session().parser.nsym=xpp::model().nsym_start;
   return(z);
  }
 
@@ -536,7 +536,7 @@ void box_values_loaded(int type)
     redo_all_fun_tables();
   }
   if(type==DELAYBOX){
-   do_init_delay(DELAY);
+   do_init_delay(xpp::session().numerics.delay);
   }
 }
 

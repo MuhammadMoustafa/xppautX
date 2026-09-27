@@ -44,7 +44,7 @@ void do_sing(double *x, double eps, double err, double big, int maxit, int n, in
  int rp=0,rn=0,cp=0,cn=0,im=0;
  int pose=0,nege=0,pr;
  double *work,*eval,*b,*bp,*oldwork,*ework;
- double temp,oldt=DELTA_T,old_x[MAXODE];
+ double temp,oldt=xpp::session().numerics.delta_t,old_x[MAXODE];
  
  char ch;
  double real,imag;
@@ -93,7 +93,7 @@ void do_sing(double *x, double eps, double err, double big, int maxit, int n, in
  }
 /* succesfully computed evals now lets work with them */
 ch='n';
-if(!PAR_FOL)
+if(!xpp::session().numerics.par_fol)
 {
  ch=static_cast<char>(TwoChoice("YES","NO","Print eigenvalues?","yn"));
  
@@ -114,7 +114,7 @@ if(!PAR_FOL)
    xpp_log(XPP_LOG_INFO, " %f  +  i  %f \n",real,imag);
 
   }
-  if(METHOD==0)real=real*real+imag*imag-1.00;
+  if(xpp::session().numerics.method==0)real=real*real+imag*imag-1.00;
   if(fabs(imag)<.00000001)imag=0.0;
   if(real<0.0)
   {
@@ -167,13 +167,13 @@ if(!PAR_FOL)
  if(((rp==1)||(rn==1))&&(n>1))
  {
  ch='n';
- if(!PAR_FOL)
+ if(!xpp::session().numerics.par_fol)
  {
   ch=static_cast<char>(TwoChoice("YES","NO","Draw Invariant Sets?","yn"));
    }
-  if((ch=='y')||(PAR_FOL&&SHOOT))
+  if((ch=='y')||(xpp::session().numerics.par_fol&&xpp::session().numerics.shoot))
   {
-   oldt=DELTA_T;
+   oldt=xpp::session().numerics.delta_t;
   
    if(rp==1)
    {
@@ -182,7 +182,7 @@ if(!PAR_FOL)
      {
      change_current_linestyle(UnstableManifoldColor,&oldcol);
      pr_evec(x,b,n,pr,eval[2*pose],1);
-      DELTA_T=fabs(DELTA_T);
+      xpp::session().numerics.delta_t=fabs(xpp::session().numerics.delta_t);
       shoot(bp,x,b,1);
       shoot(bp,x,b,-1);
      change_current_linestyle(oldcol,&dummy);
@@ -199,7 +199,7 @@ if(!PAR_FOL)
      {
         change_current_linestyle(StableManifoldColor,&oldcol);
 	pr_evec(x,b,n,pr,eval[2*nege],-1);
-      DELTA_T=-fabs(DELTA_T);
+      xpp::session().numerics.delta_t=-fabs(xpp::session().numerics.delta_t);
       shoot(bp,x,b,1);
       shoot(bp,x,b,-1);
         change_current_linestyle(oldcol,&dummy);
@@ -207,7 +207,7 @@ if(!PAR_FOL)
      else
      err_msg("Failed to compute eigenvector");
    }
-    DELTA_T=oldt;
+    xpp::session().numerics.delta_t=oldt;
   }
  }  /* end of normal shooting stuff */
 
@@ -216,14 +216,14 @@ if(!PAR_FOL)
  /* lets check to see if it is relevant */
  if(((rn>1)&&(bneg>=0))||((rp>1)&&(bpos>=0))) {
    ch='n';
-   if(!PAR_FOL)
+   if(!xpp::session().numerics.par_fol)
      {
        ch=static_cast<char>(TwoChoice("YES","NO","Draw Strong Sets?","yn"));
      }
 
-   if((ch=='y')||(PAR_FOL&&SHOOT))
+   if((ch=='y')||(xpp::session().numerics.par_fol&&xpp::session().numerics.shoot))
      {
-       oldt=DELTA_T;
+       oldt=xpp::session().numerics.delta_t;
 
 	 if((rp>1)&&(bpos>=0)) /* then there is a strong unstable */
 	 {
@@ -233,7 +233,7 @@ if(!PAR_FOL)
 	     {
 	       change_current_linestyle(UnstableManifoldColor,&oldcol);
 	       pr_evec(x,b,n,pr,bigpos,1);
-	       DELTA_T=fabs(DELTA_T);
+	       xpp::session().numerics.delta_t=fabs(xpp::session().numerics.delta_t);
 	       shoot(bp,x,b,1);
 	       shoot(bp,x,b,-1);
 	       change_current_linestyle(oldcol,&dummy);
@@ -251,7 +251,7 @@ if(!PAR_FOL)
 	     {
 	       change_current_linestyle(StableManifoldColor,&oldcol);
 	       pr_evec(x,b,n,pr,bigneg,-1);
-	       DELTA_T=-fabs(DELTA_T);
+	       xpp::session().numerics.delta_t=-fabs(xpp::session().numerics.delta_t);
 	       shoot(bp,x,b,1);
 	       shoot(bp,x,b,-1);
 	       change_current_linestyle(oldcol,&dummy);
@@ -261,7 +261,7 @@ if(!PAR_FOL)
 
 	 }
      }
-        DELTA_T=oldt;
+        xpp::session().numerics.delta_t=oldt;
  }
 
  return;
@@ -272,8 +272,8 @@ void save_batch_shoot()
 int i,k,type;
   double x[MAXODE],olddt;
   if(ShootIndex<1)return;
-  olddt=DELTA_T;
-  STORFLAG=1;
+  olddt=xpp::session().numerics.delta_t;
+  xpp::session().numerics.storflag=1;
   for(k=0;k<ShootIndex;k++){
     for(i=0;i<xpp::model().node;i++)
       x[i]=ShootIC[k][i];
@@ -281,7 +281,7 @@ int i,k,type;
     type=ShootType[k];
     if(type>0){
 
-       DELTA_T=fabs(DELTA_T);
+       xpp::session().numerics.delta_t=fabs(xpp::session().numerics.delta_t);
        usual_integrate_stuff(x);
        {
          xpp::Writer w(xpp::format("UM{}.dat",k).c_str());
@@ -290,7 +290,7 @@ int i,k,type;
     }
     if(type<0){
 
-       DELTA_T=-fabs(DELTA_T);
+       xpp::session().numerics.delta_t=-fabs(xpp::session().numerics.delta_t);
        usual_integrate_stuff(x);
        {
          xpp::Writer w(xpp::format("SM{}.dat",k).c_str());
@@ -299,7 +299,7 @@ int i,k,type;
 
     }
   }
-  DELTA_T=olddt;
+  xpp::session().numerics.delta_t=olddt;
 
 }
 void shoot_this_now() /* this uses the current labeled saddle point stuff to integrate */
@@ -307,7 +307,7 @@ void shoot_this_now() /* this uses the current labeled saddle point stuff to int
   int i,k,type,oldcol,dummy;
   double x[MAXODE],olddt;
   if(ShootIndex<1)return;
-  olddt=DELTA_T;
+  olddt=xpp::session().numerics.delta_t;
 
   for(k=0;k<ShootIndex;k++){
     for(i=0;i<xpp::model().node;i++)
@@ -316,18 +316,18 @@ void shoot_this_now() /* this uses the current labeled saddle point stuff to int
     type=ShootType[k];
     if(type>0){
        change_current_linestyle(UnstableManifoldColor,&oldcol);
-       DELTA_T=fabs(DELTA_T);
+       xpp::session().numerics.delta_t=fabs(xpp::session().numerics.delta_t);
        shoot_easy(x);
        change_current_linestyle(oldcol,&dummy);
     }
     if(type<0){
       change_current_linestyle(StableManifoldColor,&oldcol);
-       DELTA_T=-fabs(DELTA_T);
+       xpp::session().numerics.delta_t=-fabs(xpp::session().numerics.delta_t);
        shoot_easy(x);
        change_current_linestyle(oldcol,&dummy);
     }
   }
-  DELTA_T=olddt;
+  xpp::session().numerics.delta_t=olddt;
 
 }
 
@@ -392,7 +392,7 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
   er[i]=real;
   em[i]=imag;
 
-  if(METHOD==0)real=real*real+imag*imag-1.00;
+  if(xpp::session().numerics.method==0)real=real*real+imag*imag-1.00;
   if(fabs(imag)<.00000001)imag=0.0;
   if(real<0.0)
   {
@@ -476,7 +476,7 @@ void pr_evec(double *x, double *ev, int n, int pr, double eval, int type)
 {
 
  int i;
- double d=fabs(DELTA_T)*.1;
+ double d=fabs(xpp::session().numerics.delta_t)*.1;
  ShootICFlag=1;
  if(ShootIndex<7){
    for(i=0;i<n;i++){
@@ -572,7 +572,7 @@ void getjac(double *x, double *y, double *yp, double *xp, double eps, double *de
  int i,j,k;
  double r;
    xpp::session().integrator.rhs(0.0,x,y,n);
-   if(METHOD==0)
+   if(xpp::session().numerics.method==0)
    for(i=0;i<n;i++)y[i]=y[i]-x[i];
 
   for(i=0;i<n;i++)
@@ -581,7 +581,7 @@ void getjac(double *x, double *y, double *yp, double *xp, double eps, double *de
     r=eps*std::max(eps,fabs(x[i]));
     xp[i]=xp[i]+r;
     xpp::session().integrator.rhs(0.0,xp,yp,n);
-    if(METHOD==0){
+    if(xpp::session().numerics.method==0){
      for(j=0;j<n;j++)yp[j]=yp[j]-xp[j];
     }
     for(j=0;j<n;j++)
@@ -642,10 +642,10 @@ void rooter(double *x, double err, double eps, double big, double *work, int *ie
        if(ch=='/')
 	 {
 	   *ierr=1;
-	   ENDSING=1;
+	   xpp::session().numerics.endsing=1;
 	   return;
 	 }
-       if(ch=='p')PAUSER=1;
+       if(ch=='p')xpp::session().numerics.pauser=1;
      }
    }
  
@@ -667,7 +667,7 @@ void rooter(double *x, double err, double eps, double big, double *work, int *ie
   if(r<err)
   {
      getjac(x,y,yp,xp,eps,dermat,n);
-     if(METHOD==0)
+     if(xpp::session().numerics.method==0)
      for(i=0;i<n;i++)dermat[i*(n+1)]+=1.0;
      return; /* success !! */
   }

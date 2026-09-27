@@ -1,4 +1,5 @@
 #include "cv2.h"
+#include "session.h"
 #include "xpp_ui.h"
 
 #include "flags.h"
@@ -60,7 +61,7 @@ void cvode_err_msg(int kflag)
   case -3: s = "Too much work -- try smaller DT";
     break;
   case -4: s = xpp::format("Tolerance too low-- try TOL={} ATOL={}",
-	TOLER*cv_ropt[ROPT_TOLSF], ATOLER*cv_ropt[ROPT_TOLSF]);
+	xpp::session().numerics.toler*cv_ropt[ROPT_TOLSF], xpp::session().numerics.atoler*cv_ropt[ROPT_TOLSF]);
     break;
   case -5: s = "Error test failure too frequent ??";
     break;

@@ -48,7 +48,7 @@ void set_wieners(double dt, double *x, double t)
   int i;
   update_markov(x,t,fabs(dt));
   for(i=0;i<xpp::model().nwiener;i++)
-    constants[xpp::model().wiener[i]]=normal(0.00,1.00)/sqrt(fabs(dt));
+    xpp::session().parser.constants[xpp::model().wiener[i]]=normal(0.00,1.00)/sqrt(fabs(dt));
 }
 
 void add_markov(int nstate, const char *name)
@@ -369,8 +369,8 @@ void do_stochast_com(int i)
   if(ch==27)return;
   switch(ch){
   case 'n': 
-    new_int("Seed:",&RandSeed);
-    nsrand48(RandSeed);
+    new_int("Seed:",&xpp::session().numerics.rand_seed);
+    nsrand48(xpp::session().numerics.rand_seed);
     break;
   case 'd':
     data_back();

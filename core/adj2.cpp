@@ -262,7 +262,7 @@ void new_h_fun(int silent)
    h_len=xpp::session().data_store.rows;
    data_back(); 
    h_columns.make(n,h_len,xpp::model().neq);
-   if(make_h(xpp::session().data_store.col,my_adj,my_h,h_len,DELTA_T*NJMP,xpp::model().node,silent )){
+   if(make_h(xpp::session().data_store.col,my_adj,my_h,h_len,xpp::session().numerics.delta_t*xpp::session().numerics.njmp,xpp::model().node,silent )){
      H_HERE=1;
      h_back();
    }
@@ -337,8 +337,8 @@ int make_h(float **orb, float **adj, float **h, int nt, double dt, int node, int
    rval=1;
       
  bye:
-  NSYM=xpp::model().nsym_start;
-  NCON=xpp::model().ncon_start;
+  xpp::session().parser.nsym=xpp::model().nsym_start;
+  xpp::session().parser.ncon=xpp::model().ncon_start;
   return(rval);
 
 }
@@ -353,7 +353,7 @@ void new_adjoint()
  }
  adj_len=xpp::session().data_store.rows;
  adj_columns.make(n,adj_len,xpp::model().neq);
- if(adjoint(xpp::session().data_store.col,my_adj,adj_len,DELTA_T*NJMP,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,xpp::model().node )){
+ if(adjoint(xpp::session().data_store.col,my_adj,adj_len,xpp::session().numerics.delta_t*xpp::session().numerics.njmp,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,xpp::model().node )){
    ADJ_HERE=1;;
  adj_back();
  }
@@ -451,7 +451,7 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
 	error=0.0;
 	
          for(i=0;i<node;i++){
-	  if(fabs(yold[i])>BOUND){
+	  if(fabs(yold[i])>xpp::session().numerics.bound){
 	    
 	     rval=0;
 	  err_msg("Out of bounds");
@@ -546,7 +546,7 @@ void do_liapunov()
   double *x;
   new_int("Range over parameters?(0/1)",&LIAP_FLAG);
   if(LIAP_FLAG!=1){
-    hrw_liapunov(&z,0,NEWT_ERR);
+    hrw_liapunov(&z,0,xpp::session().numerics.newt_err);
     return;
   }
   x=&xpp::session().data_store.current[0];
@@ -574,7 +574,7 @@ void do_this_liaprun(int i,double p)
  double liap;
  if(LIAP_FLAG==0)return;
  my_liap[0][i]=p;
- hrw_liapunov(&liap,1,NEWT_ERR);
+ hrw_liapunov(&liap,1,xpp::session().numerics.newt_err);
  my_liap[1][i]=liap;
  LIAP_I++;
 }
