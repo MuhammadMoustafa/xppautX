@@ -5,7 +5,6 @@ core/arrayplot.h buffers 1
 core/autlib1.cpp buffers 1
 core/auto_nox.cpp buffers 1
 core/auto_nox.cpp text 2
-core/auto_nox.h buffers 1
 core/browse_data.cpp memory 2
 core/comline.cpp buffers 1
 core/comline.cpp files 2
@@ -71,7 +70,7 @@ core/xpp_mem.cpp memory 1
 core/xpp_mem.h memory 6
 core/xpp_session.cpp buffers 1
 core/xpp_util.cpp buffers 4
-core/xpp_util.cpp text 4
+core/xpp_util.cpp text 2
 core/xpp_window.cpp buffers 1
 core/xpp_window_loader.cpp buffers 1
 core/xppautx_main.cpp buffers 1

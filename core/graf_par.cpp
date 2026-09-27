@@ -141,11 +141,8 @@ void get_2d_view(int ind)
  std::array<std::string, 8> values;
  int  status,i; 
  int i1=plot_windows.current->xv[ind],i2=plot_windows.current->yv[ind];
- std::array<char,XPP_NAME_MAX+1> n1,n2; /* ind_to_sym's */
- ind_to_sym(i1,n1.data());
- ind_to_sym(i2,n2.data());
- values[0] = n1.data();
- values[1] = n2.data();
+ values[0] = ind_to_sym(i1);
+ values[1] = ind_to_sym(i2);
  values[2] = xpp::format("{:g}", plot_windows.current->xmin);
  values[3] = xpp::format("{:g}", plot_windows.current->ymin);
  values[4] = xpp::format("{:g}", plot_windows.current->xmax);
@@ -223,13 +220,9 @@ void get_3d_view(int ind)
 		   "XLo", "XHi", "YLo", "YHi","Xlabel","Ylabel","Zlabel"};
  std::array<std::string, 16> values;
  int  status,i,i1=plot_windows.current->xv[ind],i2=plot_windows.current->yv[ind],i3=plot_windows.current->zv[ind];
- std::array<char,XPP_NAME_MAX+1> n1,n2,n3; /* ind_to_sym's */
- ind_to_sym(i1,n1.data());
- ind_to_sym(i2,n2.data());
- ind_to_sym(i3,n3.data());
- values[0] = n1.data();
- values[1] = n2.data();
- values[2] = n3.data();
+ values[0] = ind_to_sym(i1);
+ values[1] = ind_to_sym(i2);
+ values[2] = ind_to_sym(i3);
  values[3] = xpp::format("{:g}", plot_windows.current->xmin);
  values[5] = xpp::format("{:g}", plot_windows.current->ymin);
  values[7] = xpp::format("{:g}", plot_windows.current->zmin);
@@ -490,11 +483,9 @@ void user_window()
 
 void xi_vs_t() /*  a short cut   */
 {
- std::array<char,XPP_NAME_MAX+1> sym; /* ind_to_sym's */
  int i=plot_windows.current->yv[0];
 
- ind_to_sym(i,sym.data());
- std::string value=sym.data();
+ std::string value=ind_to_sym(i);
  new_string_of("Plot vs t: ",value,XPP_FIELD_NAME_IN(0));
  find_variable(value.c_str(),&i);
  
@@ -801,13 +792,9 @@ int alter_curve(const char *title, int in_it, int n)
  std::array<std::string, 5> values;
  int status,i;
  int i1=plot_windows.current->xv[in_it],i2=plot_windows.current->yv[in_it],i3=plot_windows.current->zv[in_it];
- std::array<char,XPP_NAME_MAX+1> n1,n2,n3; /* ind_to_sym's */
- ind_to_sym(i1,n1.data());
- ind_to_sym(i2,n2.data());
- ind_to_sym(i3,n3.data());
- values[0] = n1.data();
- values[1] = n2.data();
- values[2] = n3.data();
+ values[0] = ind_to_sym(i1);
+ values[1] = ind_to_sym(i2);
+ values[2] = ind_to_sym(i3);
  values[3] = xpp::format("{:d}", plot_windows.current->color[in_it]);
  values[4] = xpp::format("{:d}", plot_windows.current->line[in_it]);
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),

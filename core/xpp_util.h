@@ -20,7 +20,7 @@ void make_active(int i, int flag);
 void clr_scrn(void);
 int find_user_name(int type, const char *oname);
 void de_space(char *s);
-void ind_to_sym(int ind, char *str);
+const char *ind_to_sym(int ind);
 void get_max(int index, double *vmin, double *vmax);
 int do_calc(const char *temp, double *z);
 int has_eq(const char *z, char *w, int *where);

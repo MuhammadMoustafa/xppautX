@@ -918,7 +918,6 @@ void auto_plot_par()
   int  status,i;
   int ii1,ii2,ji1,ji2;
   int i1=Auto.var+1;
-  std::array<char,XPP_NAME_MAX+1> n1{}; /* ind_to_sym's */
   ch=static_cast<char>(auto_pop_up_list("Plot Type",m,key,14,10,Auto.plot,10,50,
 		       aaxes_hint,Auto.hinttxt.c_str()));
   if(ch==ESC) 
@@ -975,8 +974,7 @@ void auto_plot_par()
     /* printf("I am done scrolling!!"); */
     return;
   }
-  ind_to_sym(i1,n1.data());
-  values[0] = n1.data();
+  values[0] = ind_to_sym(i1);
   values[1] = upar_names[AutoPar[Auto.icp1]];
   values[2] = upar_names[AutoPar[Auto.icp2]];
   values[3] = xpp::format("{:g}", Auto.xmin);

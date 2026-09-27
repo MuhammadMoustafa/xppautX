@@ -43,12 +43,6 @@ int DOING_BOX_AXES=0;
 
 namespace {
 
-/* the name of plotted variable i: T (0) or a variable */
-std::string_view axis_name(int i)
-{
-  return i==0 ? std::string_view("T") : std::string_view(uvar_names[i-1]);
-}
-
 void Frame_3d();
 void draw_ytics(const char *s1, double start, double incr, double end);
 void draw_xtics(const char *s2, double start, double incr, double end);
@@ -58,8 +52,8 @@ std::string make_title()
 {
   const auto *g=plot_windows.current;
   if(g->grtype>=5)
-    return xpp::format("{} vs {} vs {}",axis_name(g->zv[0]),axis_name(g->yv[0]),axis_name(g->xv[0]));
-  return xpp::format("{} vs {}",axis_name(g->yv[0]),axis_name(g->xv[0]));
+    return xpp::format("{} vs {} vs {}",ind_to_sym(g->zv[0]),ind_to_sym(g->yv[0]),ind_to_sym(g->xv[0]));
+  return xpp::format("{} vs {}",ind_to_sym(g->yv[0]),ind_to_sym(g->xv[0]));
 }
 
 double dbl_raise(double x, int y)
@@ -120,8 +114,8 @@ void redraw_cube_pt(double theta,double phi)
 
 void do_axes()
 {
-    const std::string s1(axis_name(plot_windows.current->xv[0]));
-    const std::string s2(axis_name(plot_windows.current->yv[0]));
+    const std::string s1(ind_to_sym(plot_windows.current->xv[0]));
+    const std::string s2(ind_to_sym(plot_windows.current->yv[0]));
     set_linestyle(0);
     if(program.interactive){  re_title();
     SmallGr();

@@ -20,6 +20,7 @@
 
 #include "plot_data.h"
 #include "xpp_io.h"
+#include "xpp_util.h"
 #include "series_enc.h"
 #include "json_number.h"
 #include "xpp_globals.h"
@@ -107,8 +108,6 @@ bool same_plot(const SeriesSig &a, const SeriesSig &b)
     return same(x, b);
 }
 
-const char *column_name(int col) { return col == 0 ? "T" : uvar_names[col - 1]; }
-
 /* rows [from, to) of storage column col as a JSON value */
 void add_values(std::string &o, int col, int from, int to)
 {
@@ -186,7 +185,7 @@ void send_series(int pop, const SeriesSig &s, int rows)
         o += "{\"col\":";
         add_int(o, cols[k]);
         o += ",\"name\":";
-        xpp::json_append_string(o, column_name(cols[k]));
+        xpp::json_append_string(o, ind_to_sym(cols[k]));
         o += ",\"data\":";
         add_values(o, cols[k], 0, rows);
         o += '}';
@@ -258,7 +257,7 @@ void series_update()
    make_title() names the active one */
 std::string title(const GRAPH &g)
 {
-    const std::string x = column_name(g.xv[0]), y = column_name(g.yv[0]), z = column_name(g.zv[0]);
+    const std::string x = ind_to_sym(g.xv[0]), y = ind_to_sym(g.yv[0]), z = ind_to_sym(g.zv[0]);
     return g.grtype >= 5 ? z + " vs " + y + " vs " + x : y + " vs " + x;
 }
 

@@ -412,7 +412,6 @@ void get_pmap_pars_com(int l)
  std::array<std::string, 4> values;
  static const char *yn[]={"N","Y"};
  int status;
- std::array<char, XPP_NAME_MAX+1> n1;
  int i1=POIVAR;
 
  ch=mkey[l];
@@ -425,8 +424,7 @@ void get_pmap_pars_com(int l)
 
  if(POIMAP==0)return;
 
- ind_to_sym(i1,n1.data());
- values[0] = n1.data();
+ values[0] = ind_to_sym(i1);
  values[1] = xpp::format("{:.16g}", POIPLN);
  values[2] = xpp::format("{}", POISGN);
  values[3] = yn[SOS];
@@ -502,15 +500,13 @@ void set_col_par_com(int i)
     double temp[2];
     float maxder=0.0,minder=0.0,sum=0.0;
     char ch;
-    std::array<char, 256> sym; /* ind_to_sym writes a name */
    plot_windows.current->ColorFlag=i;
    if(plot_windows.current->ColorFlag==0){
    /* set color to black/white */
     return;
     }
     if(plot_windows.current->ColorFlag==2){
-      ind_to_sym(plot_windows.current->ColorValue,sym.data());
-      std::string name=sym.data();
+      std::string name=ind_to_sym(plot_windows.current->ColorValue);
       new_string_of("Color via:",name,XPP_FIELD_NAME_IN(0));
       find_variable(name.c_str(),&ivar);
       

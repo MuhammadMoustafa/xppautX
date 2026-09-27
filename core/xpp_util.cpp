@@ -93,13 +93,11 @@ extern int NLINES;
 extern BC_STRUCT my_bc[MAXODE];
 
 
-void ind_to_sym(int ind, char *str)
+/* the name of plotted variable ind: T (0) or a variable; stays valid
+   while the model is loaded (uvar_names' own storage) */
+const char *ind_to_sym(int ind)
 {
- /* str is a pointer here; every caller passes at least
-    char[XPP_NAME_MAX+1] (some larger), matching uvar_names' own
-    element size. */
- if(ind==0)xpp_strlcpy(str,"T",XPP_NAME_MAX+1);
- else xpp_strlcpy(str,uvar_names[ind-1],XPP_NAME_MAX+1);
+ return ind==0 ? "T" : uvar_names[ind-1];
 }
 
 void  get_max(int index, double *vmin, double *vmax)
