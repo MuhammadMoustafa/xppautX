@@ -312,8 +312,6 @@ int j_auto_choose_key(const char *title, const char *const *list, const char *ke
     m.keys = key;
     m.hints = hints;
     m.first_cmd = -1;
-    m.width = 0;
-    m.row = 0;
     return j_menu_choose(&m, def);
 }
 

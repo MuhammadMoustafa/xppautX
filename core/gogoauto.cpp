@@ -55,11 +55,6 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
 
   iap.mynode = mynode();
   iap.numnodes = numnodes();
-  if (iap.numnodes > 1) {
-    iap.parallel_flag = 1;
-  } else {
-    iap.parallel_flag = 0;
-  }
 
     
   /* here is the feeder code from xAuto structure */

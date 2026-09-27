@@ -1208,7 +1208,7 @@ int get_frz_index(XppWinId w)
   }
   if(count==0)return(-1);
   for(const auto &s : labels) items.push_back(s.c_str());
-  XppMenu m={"freeze_curves","Curves",count,items.data(),key.c_str(),no_hint,-1,12,8};
+  XppMenu m={"freeze_curves","Curves",count,items.data(),key.c_str(),no_hint,-1};
   char ch=static_cast<char>(menu_choose(&m,0));
   return(static_cast<int>(ch-'a'));
 }

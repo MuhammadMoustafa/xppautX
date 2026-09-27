@@ -21,7 +21,8 @@
 extern "C" {
 #endif
 
-/* graf_par.cpp: the palette index of each named colour (pop_list.h's color_names) */
+/* graf_par.cpp: the colours' names and each one's palette index */
+extern const char *color_names[];
 extern int colorline[];
 
 /* The frozen curves of every plot window (Graphic stuff > Freeze) */

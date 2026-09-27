@@ -38,7 +38,7 @@
 #include <string.h>
 #include <math.h>
 #include "load_eqn.h"
-#include "pop_list.h" /* NUPAR, NODE, NMarkov, NEQ, upar_names, uvar_names, color_names */
+#include "graf_par.h"
 
 /* the core's own globals and functions that have no header of their own */
 

@@ -21,7 +21,6 @@
 #include <vector>
 #include "odesol2.h"
 #include "delay_handle.h"
-#include "pop_list.h"
 #include "gear.h"
 #include "browse.h"
 #include "xpp_ui.h"

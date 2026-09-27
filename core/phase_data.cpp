@@ -19,7 +19,6 @@
 #include "series_enc.h"
 #include "xpp_globals.h"
 #include "many_pops.h"
-#include "pop_list.h"
 #include "form_ode.h"
 
 extern "C" {

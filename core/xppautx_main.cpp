@@ -140,12 +140,7 @@ static void init_main_graph(void)
     init_all_graph();
     plot_windows.graph[0].w = 1;
     plot_windows.graph[0].Use = 1;
-    plot_windows.graph[0].Restore = 1;
     plot_windows.graph[0].Nullrestore = 1;
-    plot_windows.graph[0].x0 = 0;
-    plot_windows.graph[0].y0 = 0;
-    plot_windows.graph[0].Width = 640;
-    plot_windows.graph[0].Height = 480;
     plot_windows.count = 1;
     plot_windows.draw_win = plot_windows.graph[0].w;
     plot_windows.active = 0;

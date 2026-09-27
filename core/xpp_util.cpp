@@ -29,7 +29,6 @@
 #include "lunch-new.h"
 #include "delay_handle.h"
 #include "numerics.h"
-#include "pop_list.h" /* NUPAR, NEQ, upar_names, uvar_names */
 #include <array>
 #include <string>
 #include <string_view>
@@ -55,8 +54,6 @@
 
 XppPlotWindows plot_windows;
 
-void restore_off(void) { plot_windows.current->Restore = 0; }
-void restore_on(void) { plot_windows.current->Restore = 1; }
 
 void make_active(int i, int flag)
 {
@@ -68,7 +65,6 @@ void make_active(int i, int flag)
 void clr_scrn(void)
 {
     xpp_ui.blank_draw_window();
-    restore_off();
     do_axes();
 }
 

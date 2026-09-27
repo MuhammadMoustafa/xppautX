@@ -6,7 +6,6 @@
 #include "xpp_math.h"
 #include "xpp_io.h"
 #include "my_rhs.h"
-#include "pop_list.h"
 #include "browse.h"
 #include "do_fit.h"
 #include "lunch-new.h"

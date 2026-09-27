@@ -34,12 +34,11 @@ extern FILE *ap_fp;
 
 /* the array plot's settings */
 struct APLOT {
-  XppWinId base,wclose,wedit,wprint,wstyle,wscale,wmax,wmin,wplot,wredraw,wtime,wgif,wrange,wfit;
-  int index0,indexn,alive,nacross,ndown,plotdef;
+  int index0,alive,nacross,ndown,plotdef;
   int height,width,ploth,plotw;
   int nstart,nskip,ncskip;
   std::string name; /* its first column */
-  double tstart,tend,zmin,zmax,dt;
+  double zmin,zmax;
   std::string xtitle,ytitle,filename,bottom; /* Print's */
   int type;
 };

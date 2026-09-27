@@ -35,7 +35,6 @@ Add any options here that you might want to track.
 typedef struct {
    int BIG_FONT_NAME;
    int SMALL_FONT_NAME;
-   int BACKGROUND;
    int IXPLT;
    int IYPLT;
    int IZPLT;
@@ -86,8 +85,6 @@ typedef struct {
    int FOLD;
    int DTMIN;
    int DTMAX;
-   int ATOL;
-   int TOL;
    int BANDUP;
    int BANDLO;
    int PHI;

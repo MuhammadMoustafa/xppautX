@@ -18,7 +18,6 @@
 #include "graf_par.h"
 #include "xpp_globals.h"
 #include "xpp_io.h"
-#include "pop_list.h"
 
 
 

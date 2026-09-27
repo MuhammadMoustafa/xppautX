@@ -14,8 +14,6 @@ extern "C" {
 #define MAX_AUT_PER 10
 
 typedef struct {
-  int irot;
-  int nrot[1000];
   double torper;
 } ROTCHK;
 
@@ -51,7 +49,6 @@ typedef struct {
 } ADVAUTO;
 
 typedef struct {
-  int package;
   int ibr,ntot,itp,lab;
   double norm,uhi[NAUTO],ulo[NAUTO],u0[NAUTO],ubar[NAUTO];
   double par[20],per,torper;
@@ -60,7 +57,6 @@ typedef struct {
 } GRABPT;
 
 typedef struct diagram {
-  int package;
   int ibr,ntot,itp,lab,calc;
   double norm,*uhi,*ulo,*u0,*ubar,*evr,*evi;
   double par[20],per,torper;

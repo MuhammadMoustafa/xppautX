@@ -43,7 +43,6 @@
 #include "volterra2.h"
 #include <stdlib.h> 
 #include "aniparse.h"
-#include "pop_list.h"
 #include "delay_handle.h"
 #include "load_eqn.h"
 

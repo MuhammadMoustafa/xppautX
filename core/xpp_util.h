@@ -8,8 +8,6 @@ extern "C" {
 #endif
 
 /* xpp_util.c: pure helpers relocated out of X11 files */
-void restore_off(void);
-void restore_on(void);
 void ps_restore(void);
 void svg_restore(void);
 void set_active_windows(void);

@@ -19,7 +19,7 @@ struct DevScale {
   float xmin,xmax,ymin,ymax;
   float xscale,yscale,xoff,yoff;
   float tx,ty,angle,slant;  /* text attributes   */
-  float linecol,letx,lety;
+  float linecol;
   int linewid;
 };
 
@@ -143,8 +143,6 @@ void ps_begin(double xlo, double ylo, double xhi, double yhi, float sx, float sy
   ps_scale.yscale=1800.*sy*.2/(yhi-ylo);
 
   ps_set_text(-90.,0.0,18.0,18.0);
-  ps_scale.letx=ps_scale.tx/ps_scale.xscale;
-  ps_scale.lety=ps_scale.ty/ps_scale.yscale;
   ps_convert(xlo,ylo,&x0,&y0);
   ps_convert(xhi,yhi,&x1,&y1);
   plot_writer.print("%!\n");

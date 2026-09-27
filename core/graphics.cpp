@@ -110,10 +110,6 @@ void get_draw_area_flag(int flag)
   w=DRight-DLeft;
   if(h>0&&w>0)D_FLAG=1;
  else D_FLAG=0;
- plot_windows.current->Width=w;
- plot_windows.current->Height=h;
- plot_windows.current->x0=DLeft;
- plot_windows.current->y0=DTop;
  set_normal_scale();
 }
 
@@ -390,8 +386,6 @@ void init_graph(int i)
     plot_windows.graph[i].zlabel[0]='\0';
     
     plot_windows.graph[i].Use=0;
-    plot_windows.graph[i].state=0;
-    plot_windows.graph[i].Restore=1;
     plot_windows.graph[i].Nullrestore=0;
     plot_windows.graph[i].ZPlane=-1000.0;
     plot_windows.graph[i].ZView=1000.0;
@@ -402,7 +396,6 @@ void init_graph(int i)
     plot_windows.graph[i].grtype=AXES;
     plot_windows.graph[i].color_scale=1.0;
     plot_windows.graph[i].min_scale=0.0;
-    plot_windows.graph[i].gr_info[0]='\0';
     plot_windows.graph[i].xmax=x_3d[1];
     plot_windows.graph[i].ymax=y_3d[1];
     plot_windows.graph[i].zmax=z_3d[1];
@@ -443,7 +436,6 @@ void copy_graph(int i, int l)  /*  Graph[i]=Graph[l]  */
 {
  int j,k;
  plot_windows.graph[i].Use=plot_windows.graph[l].Use;
- plot_windows.graph[i].Restore=plot_windows.graph[l].Restore;
  plot_windows.graph[i].Nullrestore=plot_windows.graph[l].Nullrestore;
  for(j=0;j<3;j++)
   for(k=0;k<3;k++)

@@ -65,7 +65,6 @@ typedef struct XppMenu {
   const char *keys;
   const char *const *hints;
   int first_cmd;
-  int width, row;
 } XppMenu;
 
 extern const XppMenu menu_integrate, menu_nullclines, menu_freeze_cline,

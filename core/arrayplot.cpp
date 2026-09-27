@@ -50,7 +50,6 @@
 #include "browse.h"
 #include "xpp_io.h"
 #include "integrate.h"
-#include "pop_list.h"
 #include "form_ode.h"
 
 /* the core's globals that have no header of their own */
@@ -158,14 +157,11 @@ void init_my_aplot(void)
  ap->alive=0;
  ap->plotdef=0;
  ap->index0=1;
- ap->indexn=0;
  ap->nacross=1;
  ap->ndown=50;
  ap->nstart=0;
  ap->nskip=8;
  ap->ncskip=1;
- ap->tstart=0.0;
- ap->tend=20.0;
  ap->filename="output.ps";
  ap->xtitle="index";
  ap->ytitle="time";

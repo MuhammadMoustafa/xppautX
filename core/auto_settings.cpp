@@ -17,7 +17,6 @@
 #include "browse.h"
 #include "diagram.h"
 #include "parserslow.h"
-#include "pop_list.h"
 #include "xpp_io.h"
 #include "xpp_util.h"
 #include "form_ode.h"

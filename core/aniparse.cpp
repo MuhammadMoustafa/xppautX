@@ -35,7 +35,6 @@
 #include "integrate.h"
 #include "browse.h"
 #include "graf_par.h"
-#include "pop_list.h"
 #include "xpplim.h"
 #include <libgen.h>
 #include "colormap.h"
@@ -168,12 +167,10 @@ struct AniGrab {
 };
 
 struct AniMotionInfo {
-    double x0, y0;
     double x, y;
     double ox, oy;
-    double t1, t2, tstart;
+    double t1, t2;
     double vx, vy;
-    double vax, vay;
 };
 
 AniMotionInfo ami;
@@ -1135,11 +1132,6 @@ void update_ani_motion_stuff(int x, int y)
     if (dt == 0.0) dt = 10000000000;
     ami.vx = (ami.x - ami.ox) / dt;
     ami.vy = (ami.y - ami.oy) / dt;
-
-    dt = ami.tstart - ami.t2;
-    if (dt == 0.0) dt = 100000000000;
-    ami.vax = (ami.x0 - ami.x) / dt;
-    ami.vay = (ami.y0 - ami.y) / dt;
     set_val("mouse_x", ami.x);
     set_val("mouse_y", ami.y);
     set_val("mouse_vx", ami.vx);
@@ -1371,10 +1363,7 @@ void ani_grab_mouse(int flag, int ix, int iy)
 {
     if (flag == 1) {
         ami.t1 = get_current_time();
-        ami.tstart = ami.t1;
         ani_ij_to_xy(ix, iy, &ami.x, &ami.y);
-        ami.x0 = ami.x;
-        ami.y0 = ami.y;
         who_was_grabbed = search_for_grab(ami.x, ami.y);
         if (who_was_grabbed < 0) xpp::log(XPP_LOG_INFO, "Nothing grabbed\n");
     }

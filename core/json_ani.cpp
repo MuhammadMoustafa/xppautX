@@ -9,7 +9,6 @@
 #include "mykeydef.h"
 #include "scrngif.h"
 #include "my_rhs.h"
-#include "pop_list.h" /* NODE, NMarkov */
 #include "form_ode.h"
 #include <stdio.h>
 #include <string.h>

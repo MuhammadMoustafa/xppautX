@@ -420,34 +420,34 @@ static const char *meth_items[]={"(D)iscrete","(E)uler","(M)od. Euler",
   "Rosen(2)3","sYmplectic"};
 static const char *edrh_items[]={"RHS's","Functions","Save as","Load DLL"};
 
-/*                                 name  title  n  items  keys  hints  first_cmd  width  row */
-const XppMenu menu_integrate={"integrate","Integrate",14,ic_items,"r2logmsnhfuidb",ic_hint,M_IR,13,3};
-const XppMenu menu_nullclines={"nullclines","Nullclines",6,null_items,"nramfs",null_hint,M_NN,10,6};
-const XppMenu menu_freeze_cline={"freeze_cline","Freeze cline",4,frzcline_items,"fdra",null_freeze,M_NFF,10,6};
-const XppMenu menu_dirfield={"dirfield","Two-D Fun",5,dfield_items,"dfncs",flow_hint,M_DD,18,6};
-const XppMenu menu_window={"window","Window",6,window_items,"wzofds",wind_hint,M_WW,13,13};
-const XppMenu menu_torus={"torus","Torus",3,torus_items,"anc",phas_hint,M_AA,9,4};
-const XppMenu menu_kinescope={"kinescope","Kinescope",6,kin_items,"crpasmx",kin_hint,M_KC,11,8};
+/*                                 name  title  n  items  keys  hints  first_cmd */
+const XppMenu menu_integrate={"integrate","Integrate",14,ic_items,"r2logmsnhfuidb",ic_hint,M_IR};
+const XppMenu menu_nullclines={"nullclines","Nullclines",6,null_items,"nramfs",null_hint,M_NN};
+const XppMenu menu_freeze_cline={"freeze_cline","Freeze cline",4,frzcline_items,"fdra",null_freeze,M_NFF};
+const XppMenu menu_dirfield={"dirfield","Two-D Fun",5,dfield_items,"dfncs",flow_hint,M_DD};
+const XppMenu menu_window={"window","Window",6,window_items,"wzofds",wind_hint,M_WW};
+const XppMenu menu_torus={"torus","Torus",3,torus_items,"anc",phas_hint,M_AA};
+const XppMenu menu_kinescope={"kinescope","Kinescope",6,kin_items,"crpasmx",kin_hint,M_KC};
 /* (F)reeze and (C)olormap open the next two menus instead of a command */
-const XppMenu menu_curves={"curves","Curves",10,curve_items,"adrepvfxoc",graf_hint,M_GA,15,8};
-const XppMenu menu_freeze={"freeze","Freeze",8,freeze_items,"fderkbco",frz_hint,M_GFF,15,8};
-const XppMenu menu_freeze_off={"freeze_off","Freeze",8,freeze_off_items,"fderkbco",frz_hint,M_GFF,15,8};
-const XppMenu menu_freeze_key={"freeze_key","Key",2,key_items,"nk",no_hint,M_GFKN,9,8};
-const XppMenu menu_colormap={"colormap","Colormap",7,cmap_items,"nphcbgu",cmap_hint,M_GCN,15,8};
-const XppMenu menu_windows={"windows","Make window",7,windows_items,"ckdbams",half_hint,M_MC,11,14};
-const XppMenu menu_windows_simoff={"windows_simoff","Make window",7,windows_simoff_items,"ckdbams",half_hint,M_MC,11,14};
+const XppMenu menu_curves={"curves","Curves",10,curve_items,"adrepvfxoc",graf_hint,M_GA};
+const XppMenu menu_freeze={"freeze","Freeze",8,freeze_items,"fderkbco",frz_hint,M_GFF};
+const XppMenu menu_freeze_off={"freeze_off","Freeze",8,freeze_off_items,"fderkbco",frz_hint,M_GFF};
+const XppMenu menu_freeze_key={"freeze_key","Key",2,key_items,"nk",no_hint,M_GFKN};
+const XppMenu menu_colormap={"colormap","Colormap",7,cmap_items,"nphcbgu",cmap_hint,M_GCN};
+const XppMenu menu_windows={"windows","Make window",7,windows_items,"ckdbams",half_hint,M_MC};
+const XppMenu menu_windows_simoff={"windows_simoff","Make window",7,windows_simoff_items,"ckdbams",half_hint,M_MC};
 /* (E)dit opens menu_text_edit */
-const XppMenu menu_text={"text","Text,etc",7,text_items,"tapmeds",text_hint,M_TT,10,10};
-const XppMenu menu_text_edit={"text_edit","Edit",3,text_edit_items,"mcd",edit_hint,M_TEM,9,10};
-const XppMenu menu_equilibria={"equilibria","Equilibria",4,sing_items,"gmrc",sing_hint,M_SG,12,6};
-const XppMenu menu_view={"view","Axes",4,view_items,"23at",view_hint,M_V2,5,13};
-const XppMenu menu_bvp={"bvp","Bndry Value Prob",4,bvp_items,"rnsp",bvp_hint,M_BR,16,6};
-const XppMenu menu_stochastic={"stochastic","Stochastic",16,stoch_items,"ncdmvhofpislaxe2",stoch_hint,M_UHN,10,2};
-const XppMenu menu_poincare={"poincare","Poincare map",4,map_items,"nsmp",map_hint,M_UPN,13,6};
-const XppMenu menu_color_code={"color_code","Color code",3,color_items,"nva",color_hint,M_UCN,11,12};
-const XppMenu menu_adjoint={"adjoint","Adjoint",7,adj_items,"nmaohpr",adj_hint,M_UAN,10,11};
-const XppMenu menu_lookup={"lookup","Tables",2,tab_items,"ev",tab_hint,M_UKE,12,11};
+const XppMenu menu_text={"text","Text,etc",7,text_items,"tapmeds",text_hint,M_TT};
+const XppMenu menu_text_edit={"text_edit","Edit",3,text_edit_items,"mcd",edit_hint,M_TEM};
+const XppMenu menu_equilibria={"equilibria","Equilibria",4,sing_items,"gmrc",sing_hint,M_SG};
+const XppMenu menu_view={"view","Axes",4,view_items,"23at",view_hint,M_V2};
+const XppMenu menu_bvp={"bvp","Bndry Value Prob",4,bvp_items,"rnsp",bvp_hint,M_BR};
+const XppMenu menu_stochastic={"stochastic","Stochastic",16,stoch_items,"ncdmvhofpislaxe2",stoch_hint,M_UHN};
+const XppMenu menu_poincare={"poincare","Poincare map",4,map_items,"nsmp",map_hint,M_UPN};
+const XppMenu menu_color_code={"color_code","Color code",3,color_items,"nva",color_hint,M_UCN};
+const XppMenu menu_adjoint={"adjoint","Adjoint",7,adj_items,"nmaohpr",adj_hint,M_UAN};
+const XppMenu menu_lookup={"lookup","Tables",2,tab_items,"ev",tab_hint,M_UKE};
 /* sets METHOD directly */
-const XppMenu menu_method={"method","Method",15,meth_items,"demragvbqsc582y",meth_hint,-1,15,1};
-const XppMenu menu_edit_rhs={"edit_rhs","Edit Stuff",4,edrh_items,"rfsl",edrh_hint,M_FER,11,13};
+const XppMenu menu_method={"method","Method",15,meth_items,"demragvbqsc582y",meth_hint,-1};
+const XppMenu menu_edit_rhs={"edit_rhs","Edit Stuff",4,edrh_items,"rfsl",edrh_hint,M_FER};
 

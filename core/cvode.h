@@ -557,8 +557,6 @@ typedef struct CVodeMemRec {
     int cv_nstlp;    /* step number of last setup call */
   real cv_hu;           /* last successful h value used   */
   real cv_saved_tq5;    /* saved value of tq[5]           */
-  integer cv_imxer;     /* index of max value of          */
-                        /* |acor[i]|*ewt[i]               */
   bool cv_jcur;         /* Is the Jacobian info used by   */
                         /* linear solver current?         */
   real cv_tolsf;        /* tolerance scale factor         */

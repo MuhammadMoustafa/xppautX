@@ -24,7 +24,6 @@
 #include <cstring>
 #include <strings.h>
 #include "xpp_io.h"
-#include "pop_list.h"
 #include "load_eqn.h"
 
 /*  The one and only primitive data browser   */

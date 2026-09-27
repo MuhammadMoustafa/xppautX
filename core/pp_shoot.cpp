@@ -14,7 +14,6 @@
 #include "browse.h"
 #include "graf_par.h"
 #include "integrate.h"
-#include "pop_list.h"
 #include "lunch-new.h"
 
 #include <stdlib.h>

@@ -30,7 +30,6 @@
 #include <math.h>
 #include "many_pops.h"
 #include "menudrive.h"
-#include "pop_list.h" /* NUPAR, NODE, NMarkov, NEQ, upar_names, uvar_names */
 #include "delay_handle.h"
 #include <array>
 #include <string>

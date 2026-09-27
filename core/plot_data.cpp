@@ -27,7 +27,6 @@
 #include "xpp_job.h"
 #include "browse.h"
 #include "many_pops.h"
-#include "pop_list.h"
 
 extern "C" {
 }

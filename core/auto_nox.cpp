@@ -45,7 +45,6 @@
 #include "diagram.h"
 #include "many_pops.h"
 #include "browse.h"
-#include "pop_list.h"
 
 #include "menudrive.h"
 #include <stdlib.h> 
@@ -129,7 +128,6 @@ struct DiagramMark {
     int state = 0;        /* 0 nothing, 1 start marked, 2 start and end */
     int start_branch = 0, end_branch = 0;
     int start_point = 0, end_point = 0;
-    int start_x = 0, start_y = 0, end_x = 0, end_y = 0;
 };
 DiagramMark diagram_mark;
 int auto_redraw = 1; /* AUTO's File menu Redraw toggle: only reported */
@@ -1599,9 +1597,6 @@ void init_auto_win()
   Auto.nper=0;
   grabpt.flag=0;  /*  no point in buffer  */
   Auto.exist=0;
-  blrtn.irot=0;
-  for(i=0;i<NODE;i++)
-    blrtn.nrot[i]=0;
  blrtn.torper=TOR_PERIOD;
  create_auto_file_name();
  
@@ -3244,8 +3239,6 @@ void traverse_diagram()
 	  diagram_mark.start_branch=d->ibr;
 	  diagram_mark.start_point=d->ntot;
 	  diagram_mark.state=1;
-	  diagram_mark.start_x=ix;
-	  diagram_mark.start_y=iy;
 
 	}
 	break;
@@ -3255,8 +3248,6 @@ void traverse_diagram()
 	  diagram_mark.end_branch=d->ibr;
 	  diagram_mark.end_point=d->ntot;
 	  diagram_mark.state=2;
-	  diagram_mark.end_x=ix;
-	  diagram_mark.end_y=iy;
 
 	}
 	break;

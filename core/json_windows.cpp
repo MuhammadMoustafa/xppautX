@@ -94,7 +94,6 @@ void j_redraw_all(void)
     restore(0, my_browser.maxrow);
     draw_label(plot_windows.draw_win);
     draw_freeze(plot_windows.draw_win);
-    restore_on();
 }
 
 void j_redraw_graph(void)
@@ -155,10 +154,8 @@ void j_create_plot_window(void)
     }
     copy_graph(i, plot_windows.active);
     plot_windows.graph[i].w = i + 1;
-    win_w[i] = plot_windows.graph[i].Width = 450;
-    win_h[i] = plot_windows.graph[i].Height = 350;
-    plot_windows.graph[i].x0 = 0;
-    plot_windows.graph[i].y0 = 0;
+    win_w[i] = 450;
+    win_h[i] = 350;
     plot_windows.count++;
     send_window("create", plot_windows.graph[i].w, win_w[i], win_h[i], "");
     select_graph(i);

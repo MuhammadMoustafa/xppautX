@@ -1,7 +1,6 @@
 #ifndef _browse_h_
 #define _browse_h_
 
-#define BMAXCOL 20
 #include "xpp_types.h"
 
 #include <stdio.h>
@@ -11,20 +10,12 @@ extern "C" {
 #endif
 
 typedef struct {
-		XppWinId base,upper;
-		XppWinId find,up,down,pgup,pgdn,home,end,left,right;
-		XppWinId first,last,restore,write,get,close;
-		XppWinId load,repl,unrepl,table,addcol,delcol;
-                XppWinId main;
-                XppWinId label[BMAXCOL];
-                XppWinId time;
-                XppWinId hint;
-		int dataflag,xflag;
-		int col0,row0,ncol,nrow;
-		int maxrow,maxcol;
-                float **data;
-		int istart,iend;
-                } BROWSER;
+    int dataflag;
+    int col0,row0;
+    int maxrow,maxcol;
+    float **data;
+    int istart,iend;
+} BROWSER;
 
 /* browse_data.cpp: the data browser's view of the stored data */
 extern BROWSER my_browser;

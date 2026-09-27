@@ -201,7 +201,7 @@ int select_marker_type(int *type)
     int ival = *type - MARKER;
     static const char *const list[] = {"Box", "Diamond", "Triangle", "Plus", "X", "Circle"};
     static constexpr std::string_view key = "bdtpxc";
-    XppMenu m = {"markers", "Markers", 6, list, key.data(), no_hint, -1, 9, 4};
+    XppMenu m = {"markers", "Markers", 6, list, key.data(), no_hint, -1};
     const char ch = static_cast<char>(menu_choose(&m, ival));
     if (ch == 27) return 0;
     for (int i = 0; i < 6; i++) {
@@ -491,7 +491,6 @@ void set_restore(int flag)
 {
     for (int i = 0; i < MAXPOP; i++) {
         if (plot_windows.graph[i].w == plot_windows.draw_win) {
-            plot_windows.graph[i].Restore = flag;
             plot_windows.graph[i].Nullrestore = flag;
             return;
         }

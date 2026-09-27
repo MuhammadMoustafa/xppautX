@@ -189,7 +189,7 @@ void get_intern_set(void)
   for (const auto &s : labels) items.push_back(s.c_str());
 
   XppMenu m = {"param_set", "Param set", count, items.data(), keys.c_str(),
-               no_hint, -1, 12, -1};
+               no_hint, -1};
   char ch = static_cast<char>(menu_choose(&m, 0));
   int j = ch - 'a';
   if (j < 0 || j >= Nintern_set) {

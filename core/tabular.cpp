@@ -433,8 +433,8 @@ int select_table(void)
  }
  for(const std::string &s : names)n.push_back(s.c_str());
  {
-   XppMenu m={"table","Table",0,NULL,NULL,NULL,-1,0,1};
-   m.n=NTable; m.items=n.data(); m.keys=key.c_str(); m.hints=no_hint; m.width=NTable;
+   XppMenu m={"table","Table",0,NULL,NULL,NULL,-1};
+   m.n=NTable; m.items=n.data(); m.keys=key.c_str(); m.hints=no_hint;
    ch=static_cast<char>(menu_choose(&m,0));
  }
  j=static_cast<int>(ch-'a');

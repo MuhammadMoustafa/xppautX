@@ -10,16 +10,10 @@
 #define MAXPOP 21
 
 typedef struct {
-	       XppWinId w,w_info;
+	       XppWinId w;
 
 	       int Use;
-                int state;
-	       	int Restore;
 		int Nullrestore;
-		int x0;
-		int y0;
-		int Width;
-		int Height;
                 int x11Wid;
   int x11Hgt;
 		int nvars;
@@ -37,7 +31,6 @@ typedef struct {
 	        int xorgflag,yorgflag,zorgflag;
 		int ColorFlag,ColorValue;
 	        char xlabel[MAX_LEN_SBOX],ylabel[MAX_LEN_SBOX],zlabel[MAX_LEN_SBOX];
-                char gr_info[256];
 		} GRAPH;
 
 typedef struct {
@@ -57,20 +50,7 @@ typedef struct {
 		int len,color;
 	      } CURVE;
 
-typedef struct {
-		XppWinId w;
-		char name[MAXCHAR];
-		char value[MAXCHAR];
-		} PARAM;
 
-typedef struct {
-		XppWinId base;
-		char title[MAXCHAR];
-		PARAM *p;
-		int n;
-		XppWinId ok;
-		XppWinId cancel;
-		} PARAM_BOX;
 
 #endif
 

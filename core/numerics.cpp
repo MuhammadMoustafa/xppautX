@@ -14,7 +14,6 @@
 #include <stdio.h>
 #include <math.h>
 #include "browse.h"
-#include "pop_list.h"
 #include "volterra2.h"
 #include "odesol2.h"
 #include "gear.h"

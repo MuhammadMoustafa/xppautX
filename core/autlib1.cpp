@@ -44,9 +44,7 @@ static int auto_locating = 0;
 int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, std::vector<doublereal> &thu_vec, integer *iuz, doublereal *vuz)
 {
   /* Local variables */
-  doublereal hbff, biff;
   integer nbif;
-  doublereal fldf;
   integer iads, ndim, nicp, ncol, mxbf;
   doublereal epsl;
   integer nthl, nfpr, nins, iplt, nint, jtmp;
@@ -54,13 +52,12 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
   integer itmx, itnw, ntot, ipos, nwtn;
   doublereal tivp;
   integer ntst, iuzr;
-  doublereal spbf;
   integer nuzr, i;
   doublereal dsold, dsmin, dsmax, a0, a1;
   integer istop, itpst;
   doublereal ds, rl0, rl1;
   integer iad, jac, lab, nbc, iid, ibr, ndm;
-  doublereal amp, det;
+  doublereal det;
   integer ilp, nit, ips, isp, irs, itp, npr, isw, nmx, nbc0, nnt0;
 
   for (i = 0; i < NPARX; ++i) {
@@ -290,21 +287,14 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
 
   rap->a1 = a1;
 
-  amp = 0.;
 
   det = 0.;
 
   tivp = 0.;
 
-  fldf = 0.;
 
-  hbff = 0.;
 
-  biff = 0.;
 
-  spbf = 0.;
-
-  rap->amp = amp;
 
   rap->epsl = epsl;
 
@@ -315,14 +305,6 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
   rap->det = det;
 
   rap->tivp = tivp;
-
-  rap->fldf = fldf;
-
-  rap->hbff = hbff;
-
-  rap->biff = biff;
-
-  rap->spbf = spbf;
 
   return 0;
 
@@ -1722,7 +1704,6 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     nrmlz(&tmp, ud.data());
   }
   ret_val = ud[ndim];
-  rap->fldf = ret_val;
   *chng = TRUE_;
 
   /* If requested write additional output on unit 9 : */
@@ -1856,7 +1837,6 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   } else {
     ret_val = rev;
   }
-  rap->hbff = ret_val;
   nins = iap->nins;
   if (nins1 != nins) {
     *chng = TRUE_;
@@ -2659,7 +2639,6 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     }
     amp = sqrt(ss);
   }
-  rap->amp = amp;
   byeauto_(&iflag);
   istop = iap->istop;
   /* xppautX: cancel: a point the solve reached is stored as it is; the next
@@ -2904,7 +2883,6 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   integer ndim, nfpr, ntpl, jtmp, mtot, ntot, i;
   doublereal t;
   integer nrowpr, ibr;
-  doublereal amp;
   integer nar, itp, isw;
 
   /*   static FILE *fp8=NULL; */
@@ -2942,8 +2920,6 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   nrowpr = ndim / 7 + 1 + (jtmp - 1) / 7 + 1;
   par[icp[0]] = rlcur[0];
   t = 0.;
-  amp = 0.;
-  rap->amp = amp;
   if (iap->mynode > 0) {
     return 0;
   }
@@ -6177,8 +6153,6 @@ fnlpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   ret_val = rldot[0];
   *chng = TRUE_;
-  rap->fldf = ret_val;
-
   return ret_val;
 } /* fnlpbv_ */
 
@@ -6231,8 +6205,6 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     ret_val = 0.;
     *chng = FALSE_;
   }
-  rap->biff = ret_val;
-
   if (iap->mynode > 0) {
     return ret_val;
   }
@@ -6285,7 +6257,6 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   /* Initialize. */
 
   ret_val = 0.;
-  rap->spbf = ret_val;
   d = 0.;
   *chng = FALSE_;
 
@@ -6386,7 +6357,6 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   if (ndim == 1) {
     d = 0.;
     ret_val = d;
-    rap->spbf = ret_val;
   } else {
     nins1 = 1;
     for (i = 1; i < ndim; ++i) {
@@ -6406,7 +6376,6 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
       } else {
 	ret_val = d;
       }
-      rap->spbf = ret_val;
       nins = iap->nins;
       if (nins1 != nins) {
 	*chng = TRUE_;
@@ -6650,7 +6619,6 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     amp = rmnups(iap, ndxloc, &iab, ups);
   }
 
-  rap->amp = amp;
   /* here is another place for byeauto
    call with iflag  */
   byeauto_(&iflag);
@@ -6967,7 +6935,6 @@ wrtbv9(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   if (iplt < 0 && iab <= ndim) {
     amp = rmnups(iap, ndxloc, &iab, ups);
   }
-  rap->amp = amp;
   if (iid >= 2) {
     if (iap->mynode == 0) {
       if (nitps == 0 || iid >= 3) {

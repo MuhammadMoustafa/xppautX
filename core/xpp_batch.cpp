@@ -91,7 +91,6 @@ void xpp_reset_options(void)
 {
   notAlreadySet.BIG_FONT_NAME=1;
   notAlreadySet.SMALL_FONT_NAME=1;
-  notAlreadySet.BACKGROUND=1;
   notAlreadySet.IXPLT=1;
   notAlreadySet.IYPLT=1;
   notAlreadySet.IZPLT=1;
@@ -142,8 +141,6 @@ void xpp_reset_options(void)
   notAlreadySet.FOLD=1;
   notAlreadySet.DTMIN=1;
   notAlreadySet.DTMAX=1;
-  notAlreadySet.ATOL=1;
-  notAlreadySet.TOL=1;
   notAlreadySet.BANDUP=1;
   notAlreadySet.BANDLO=1;
   notAlreadySet.PHI=1;

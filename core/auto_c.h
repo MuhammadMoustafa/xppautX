@@ -83,7 +83,6 @@ typedef struct {
      They have to do with the old parallel version. */
   /* 38 */ integer mynode;
   /* 39 */ integer numnodes;
-  /* 40 */ integer parallel_flag;
 } iap_type;
 
 typedef struct {
@@ -96,16 +95,11 @@ typedef struct {
   /* 7 */ doublereal rl1;
   /* 8 */ doublereal a0;
   /* 9 */ doublereal a1;
-  /* 10 */ doublereal amp;
   /* 11 */ doublereal epsl;
   /* 12 */ doublereal epsu;
   /* 13 */ doublereal epss;
   /* 14 */ doublereal det;
   /* 15 */ doublereal tivp;
-  /* 16 */ doublereal fldf;
-  /* 17 */ doublereal hbff;
-  /* 18 */ doublereal biff;
-  /* 19 */ doublereal spbf;
 } rap_type;
 
 /*This is the type for all functions which can be used as "funi" the function

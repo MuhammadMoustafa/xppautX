@@ -8,7 +8,6 @@
 #include "autevd.h"
 #include "auto_nox.h"
 #include "auto_settings.h"
-#include "pop_list.h"
 #include "xpp_ui.h"
 #include "form_ode.h"
 #include <string>
