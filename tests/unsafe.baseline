@@ -13,7 +13,6 @@ core/arrayplot.cpp text 13
 core/arrayplot.h buffers 3
 core/autlib1.cpp buffers 2
 core/autlib1.cpp memory 1
-core/auto_f2c.h casts 2
 core/auto_nox.cpp buffers 17
 core/auto_nox.cpp casts 1
 core/auto_nox.cpp files 4

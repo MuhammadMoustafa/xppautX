@@ -4,9 +4,8 @@
 */
 
 #include <vector>
-#include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
+#include "xpp_io.h"
 #include "auto_f2c.h"
-#include "xpp_mem.h"
 #include "auto_c.h"
 #include "xAuto.h"
 
@@ -117,8 +116,8 @@ fnho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u[i]) > umx) {
-      umx = fabs(u[i]);
+    if (f2c::abs(u[i]) > umx) {
+      umx = f2c::abs(u[i]);
     }
   }
 
@@ -270,8 +269,8 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u0[i]) > umx) {
-      umx = fabs(u0[i]);
+    if (f2c::abs(u0[i]) > umx) {
+      umx = f2c::abs(u0[i]);
     }
   }
   rtmp = HMACH;
@@ -296,8 +295,8 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u1[i]) > umx) {
-      umx = fabs(u1[i]);
+    if (f2c::abs(u1[i]) > umx) {
+      umx = f2c::abs(u1[i]);
     }
   }
   rtmp = HMACH;
@@ -675,8 +674,8 @@ icho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u[i]) > umx) {
-      umx = fabs(u[i]);
+    if (f2c::abs(u[i]) > umx) {
+      umx = f2c::abs(u[i]);
     }
   }
 
@@ -1429,7 +1428,7 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 /*   (saddle, saddle-focus transition) */
 
  L2:
-  if (fabs(ri[-1 + blhom_1.nstab]) > blhma_1.compzero) {
+  if (f2c::abs(ri[-1 + blhom_1.nstab]) > blhma_1.compzero) {
     /* Computing 2nd power */
     doublereal tmp= ri[-1 + blhom_1.nstab] - ri[-1 + blhom_1.nstab - 1];
     ret_val = -(tmp * tmp);
@@ -1444,7 +1443,7 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 /*   (saddle, saddle-focus transition) */
 
  L3:
-  if (fabs(ri[blhom_1.nstab]) > blhma_1.compzero) {
+  if (f2c::abs(ri[blhom_1.nstab]) > blhma_1.compzero) {
     /* Computing 2nd power */
     doublereal tmp = ri[blhom_1.nstab] - ri[blhom_1.nstab + 1];
     ret_val = -(tmp * tmp);

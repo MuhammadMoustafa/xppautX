@@ -3,10 +3,10 @@
 	-lf2c -lm   (in that order)
 */
 
+#include <array>
 #include <vector>
-#include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
+#include "xpp_io.h"
 #include "auto_f2c.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "auto_c.h"
 #include "xpp_job.h" /* xppautX: cancel */
@@ -822,21 +822,21 @@ reduce(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2,
     ipr_dim1;
 
     /* Local variables */
-  logical oddc[KREDO] = {FALSE_};
+  std::array<logical, KREDO> oddc{};
   integer niam, info,
     nlev, itmp;
   doublereal zero, tpiv;
   real xkwt;
   integer nbcp1, ipiv1, jpiv1, ipiv2, jpiv2, i, k, l;
 
-  logical evenc[KREDO];
+  std::array<logical, KREDO> evenc;
 
   integer i1, i2, k1, k2, i3, l1, iprow, k3, l2, l3, ic, ir;
   doublereal rm;
-  logical master[KREDO] = {FALSE_};
+  std::array<logical, KREDO> master{};
   integer ib1, ib2;
 
-  logical worker[KREDO] = {FALSE_};
+  std::array<logical, KREDO> worker{};
   integer ir1, iprown, iprown2, nrcmnbc;
   doublereal tmp;
   logical notsend;
@@ -1570,9 +1570,9 @@ redrhs(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2,
 
   integer i1, i2, k1, l1, ic, ir;
   doublereal rm;
-  logical master[KREDO] = {FALSE_};
-  logical worker[KREDO] = {FALSE_};
-  doublereal buf[2];
+  std::array<logical, KREDO> master{};
+  std::array<logical, KREDO> worker{};
+  std::array<doublereal, 2> buf;
   doublereal tmp;
   logical notsend;
   integer nap1, nam1, icp1;
@@ -1946,7 +1946,7 @@ bcksub(integer *iam, integer *kwt, logical *par, doublereal *s1, doublereal *s2,
   integer itest, l1, l2;
   doublereal sm;
 
-  logical master[KREDO] = {FALSE_};
+  std::array<logical, KREDO> master{};
   integer kp1;
   logical odd = FALSE_;
   logical hasleft, notsend;
@@ -2234,12 +2234,12 @@ rd0(integer *iam, integer *kwt, doublereal *d, integer *nrc)
 
   /* Local variables */
   integer niam;
-  logical even[KREDO];
+  std::array<logical, KREDO> even;
   doublereal xkwt;
   integer i, n;
 
   integer nredo;
-  logical odd[KREDO];
+  std::array<logical, KREDO> odd;
 
 
   logical notsend;

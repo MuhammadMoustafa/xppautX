@@ -7,12 +7,8 @@
  */
 
 
-#include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h"
-#include "odesol2.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
-#include "math.h"
 #include "auto_c.h"
 /* Table of constant values */
 
@@ -221,7 +217,7 @@ hqr(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, double
 	i__2 = *n;
 	for (j = k; j <= i__2; ++j) {
 /* L40: */
-	    norm += (d__1 = h__[i__ + j * h_dim1], fabs(d__1));
+	    norm += (d__1 = h__[i__ + j * h_dim1], f2c::abs(d__1));
 	}
 
 	k = i__;
@@ -254,13 +250,13 @@ L70:
 	if (l == *low) {
 	    goto L100;
 	}
-	s = (d__1 = h__[l - 1 + (l - 1) * h_dim1], fabs(d__1)) + (d__2 = h__[l 
-		+ l * h_dim1], fabs(d__2));
+	s = (d__1 = h__[l - 1 + (l - 1) * h_dim1], f2c::abs(d__1)) + (d__2 = h__[l 
+		+ l * h_dim1], f2c::abs(d__2));
 	if (s == 0.) {
 	    s = norm;
 	}
 	tst1 = s;
-	tst2 = tst1 + (d__1 = h__[l + (l - 1) * h_dim1], fabs(d__1));
+	tst2 = tst1 + (d__1 = h__[l + (l - 1) * h_dim1], f2c::abs(d__1));
 	if (tst2 == tst1) {
 	    goto L100;
 	}
@@ -292,8 +288,8 @@ L100:
 	h__[i__ + i__ * h_dim1] -= x;
     }
 
-    s = (d__1 = h__[en + na * h_dim1], fabs(d__1)) + (d__2 = h__[na + enm2 * 
-	    h_dim1], fabs(d__2));
+    s = (d__1 = h__[en + na * h_dim1], f2c::abs(d__1)) + (d__2 = h__[na + enm2 * 
+	    h_dim1], f2c::abs(d__2));
     x = s * .75;
     y = x;
     w = s * -.4375 * s;
@@ -313,17 +309,17 @@ L130:
 		h_dim1];
 	q = h__[m + 1 + (m + 1) * h_dim1] - zz - r__ - s;
 	r__ = h__[m + 2 + (m + 1) * h_dim1];
-	s = fabs(p) + fabs(q) + fabs(r__);
+	s = f2c::abs(p) + f2c::abs(q) + f2c::abs(r__);
 	p /= s;
 	q /= s;
 	r__ /= s;
 	if (m == l) {
 	    goto L150;
 	}
-	tst1 = fabs(p) * ((d__1 = h__[m - 1 + (m - 1) * h_dim1], fabs(d__1)) + 
-		fabs(zz) + (d__2 = h__[m + 1 + (m + 1) * h_dim1], fabs(d__2)));
-	tst2 = tst1 + (d__1 = h__[m + (m - 1) * h_dim1], fabs(d__1)) * (fabs(q) 
-		+ fabs(r__));
+	tst1 = f2c::abs(p) * ((d__1 = h__[m - 1 + (m - 1) * h_dim1], f2c::abs(d__1)) + 
+		f2c::abs(zz) + (d__2 = h__[m + 1 + (m + 1) * h_dim1], f2c::abs(d__2)));
+	tst2 = tst1 + (d__1 = h__[m + (m - 1) * h_dim1], f2c::abs(d__1)) * (f2c::abs(q) 
+		+ f2c::abs(r__));
 	if (tst2 == tst1) {
 	    goto L150;
 	}
@@ -357,7 +353,7 @@ L160:
 	if (notlas) {
 	    r__ = h__[k + 2 + (k - 1) * h_dim1];
 	}
-	x = fabs(p) + fabs(q) + fabs(r__);
+	x = f2c::abs(p) + f2c::abs(q) + f2c::abs(r__);
 	if (x == 0.) {
 	    goto L260;
 	}
@@ -397,7 +393,7 @@ L190:
 
 /* Computing MIN */
 	i__2 = en, i__3 = k + 3;
-	j = min(i__2,i__3);
+	j = f2c::min(i__2,i__3);
 /*     .......... COLUMN MODIFICATION .......... */
 	i__2 = j;
 	for (i__ = 1; i__ <= i__2; ++i__) {
@@ -421,7 +417,7 @@ L225:
 
 /* Computing MIN */
 	i__2 = en, i__3 = k + 3;
-	j = min(i__2,i__3);
+	j = f2c::min(i__2,i__3);
 /*     .......... COLUMN MODIFICATION .......... */
 	i__2 = j;
 	for (i__ = 1; i__ <= i__2; ++i__) {
@@ -449,7 +445,7 @@ L270:
 L280:
     p = (y - x) / 2.;
     q = p * p + w;
-    zz = sqrt((fabs(q)));
+    zz = sqrt((f2c::abs(q)));
     x += t;
     if (q < 0.) {
 	goto L320;
@@ -596,7 +592,7 @@ hqr2(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, doubl
 	i__2 = *n;
 	for (j = k; j <= i__2; ++j) {
 /* L40: */
-	    norm += (d__1 = h__[i__ + j * h_dim1], fabs(d__1));
+	    norm += (d__1 = h__[i__ + j * h_dim1], f2c::abs(d__1));
 	}
 
 	k = i__;
@@ -629,13 +625,13 @@ L70:
 	if (l == *low) {
 	    goto L100;
 	}
-	s = (d__1 = h__[l - 1 + (l - 1) * h_dim1], fabs(d__1)) + (d__2 = h__[l 
-		+ l * h_dim1], fabs(d__2));
+	s = (d__1 = h__[l - 1 + (l - 1) * h_dim1], f2c::abs(d__1)) + (d__2 = h__[l 
+		+ l * h_dim1], f2c::abs(d__2));
 	if (s == 0.) {
 	    s = norm;
 	}
 	tst1 = s;
-	tst2 = tst1 + (d__1 = h__[l + (l - 1) * h_dim1], fabs(d__1));
+	tst2 = tst1 + (d__1 = h__[l + (l - 1) * h_dim1], f2c::abs(d__1));
 	if (tst2 == tst1) {
 	    goto L100;
 	}
@@ -667,8 +663,8 @@ L100:
 	h__[i__ + i__ * h_dim1] -= x;
     }
 
-    s = (d__1 = h__[en + na * h_dim1], fabs(d__1)) + (d__2 = h__[na + enm2 * 
-	    h_dim1], fabs(d__2));
+    s = (d__1 = h__[en + na * h_dim1], f2c::abs(d__1)) + (d__2 = h__[na + enm2 * 
+	    h_dim1], f2c::abs(d__2));
     x = s * .75;
     y = x;
     w = s * -.4375 * s;
@@ -688,17 +684,17 @@ L130:
 		h_dim1];
 	q = h__[m + 1 + (m + 1) * h_dim1] - zz - r__ - s;
 	r__ = h__[m + 2 + (m + 1) * h_dim1];
-	s = fabs(p) + fabs(q) + fabs(r__);
+	s = f2c::abs(p) + f2c::abs(q) + f2c::abs(r__);
 	p /= s;
 	q /= s;
 	r__ /= s;
 	if (m == l) {
 	    goto L150;
 	}
-	tst1 = fabs(p) * ((d__1 = h__[m - 1 + (m - 1) * h_dim1], fabs(d__1)) + 
-		fabs(zz) + (d__2 = h__[m + 1 + (m + 1) * h_dim1], fabs(d__2)));
-	tst2 = tst1 + (d__1 = h__[m + (m - 1) * h_dim1], fabs(d__1)) * (fabs(q) 
-		+ fabs(r__));
+	tst1 = f2c::abs(p) * ((d__1 = h__[m - 1 + (m - 1) * h_dim1], f2c::abs(d__1)) + 
+		f2c::abs(zz) + (d__2 = h__[m + 1 + (m + 1) * h_dim1], f2c::abs(d__2)));
+	tst2 = tst1 + (d__1 = h__[m + (m - 1) * h_dim1], f2c::abs(d__1)) * (f2c::abs(q) 
+		+ f2c::abs(r__));
 	if (tst2 == tst1) {
 	    goto L150;
 	}
@@ -732,7 +728,7 @@ L160:
 	if (notlas) {
 	    r__ = h__[k + 2 + (k - 1) * h_dim1];
 	}
-	x = fabs(p) + fabs(q) + fabs(r__);
+	x = f2c::abs(p) + f2c::abs(q) + f2c::abs(r__);
 	if (x == 0.) {
 	    goto L260;
 	}
@@ -772,7 +768,7 @@ L190:
 
 /* Computing MIN */
 	i__2 = en, i__3 = k + 3;
-	j = min(i__2,i__3);
+	j = f2c::min(i__2,i__3);
 /*     .......... COLUMN MODIFICATION .......... */
 	i__2 = j;
 	for (i__ = 1; i__ <= i__2; ++i__) {
@@ -804,7 +800,7 @@ L225:
 
 /* Computing MIN */
 	i__2 = en, i__3 = k + 3;
-	j = min(i__2,i__3);
+	j = f2c::min(i__2,i__3);
 /*     .......... COLUMN MODIFICATION .......... */
 	i__2 = j;
 	for (i__ = 1; i__ <= i__2; ++i__) {
@@ -843,7 +839,7 @@ L270:
 L280:
     p = (y - x) / 2.;
     q = p * p + w;
-    zz = sqrt((fabs(q)));
+    zz = sqrt((f2c::abs(q)));
     h__[en + en * h_dim1] = x + t;
     x = h__[en + en * h_dim1];
     h__[na + na * h_dim1] = y + t;
@@ -860,7 +856,7 @@ L280:
     wi[na] = 0.;
     wi[en] = 0.;
     x = h__[en + na * h_dim1];
-    s = fabs(x) + fabs(zz);
+    s = f2c::abs(x) + f2c::abs(zz);
     p = x / s;
     q = zz / s;
     r__ = sqrt(p * p + q * q);
@@ -974,7 +970,7 @@ L640:
 	    q = (wr[i__] - p) * (wr[i__] - p) + wi[i__] * wi[i__];
 	    t = (x * s - zz * r__) / q;
 	    h__[i__ + en * h_dim1] = t;
-	    if (fabs(x) <= fabs(zz)) {
+	    if (f2c::abs(x) <= f2c::abs(zz)) {
 		goto L650;
 	    }
 	    h__[i__ + 1 + en * h_dim1] = (-r__ - w * t) / x;
@@ -984,7 +980,7 @@ L650:
 
 /*     .......... OVERFLOW CONTROL .......... */
 L680:
-	    t = (d__1 = h__[i__ + en * h_dim1], fabs(d__1));
+	    t = (d__1 = h__[i__ + en * h_dim1], f2c::abs(d__1));
 	    if (t == 0.) {
 		goto L700;
 	    }
@@ -1009,8 +1005,8 @@ L710:
 	m = na;
 /*     .......... LAST VECTOR COMPONENT CHOSEN IMAGINARY SO THAT */
 /*                EIGENVECTOR MATRIX IS TRIANGULAR .......... */
-	if ((d__1 = h__[en + na * h_dim1], fabs(d__1)) <= (d__2 = h__[na + en *
-		 h_dim1], fabs(d__2))) {
+	if ((d__1 = h__[en + na * h_dim1], f2c::abs(d__1)) <= (d__2 = h__[na + en *
+		 h_dim1], f2c::abs(d__2))) {
 	    goto L720;
 	}
 	h__[na + na * h_dim1] = q / h__[en + na * h_dim1];
@@ -1070,7 +1066,7 @@ L780:
 	    if (vr != 0. || vi != 0.) {
 		goto L784;
 	    }
-	    tst1 = norm * (fabs(w) + fabs(q) + fabs(x) + fabs(y) + fabs(zz));
+	    tst1 = norm * (f2c::abs(w) + f2c::abs(q) + f2c::abs(x) + f2c::abs(y) + f2c::abs(zz));
 	    vr = tst1;
 L783:
 	    vr *= .01;
@@ -1083,7 +1079,7 @@ L784:
 	    d__2 = x * s - zz * sa - q * ra;
 	    cdiv(&d__1, &d__2, &vr, &vi, &h__[i__ + na * h_dim1], &h__[i__ + 
 		    en * h_dim1]);
-	    if (fabs(x) <= fabs(zz) + fabs(q)) {
+	    if (f2c::abs(x) <= f2c::abs(zz) + f2c::abs(q)) {
 		goto L785;
 	    }
 	    h__[i__ + 1 + na * h_dim1] = (-ra - w * h__[i__ + na * h_dim1] + 
@@ -1100,9 +1096,9 @@ L785:
 /*     .......... OVERFLOW CONTROL .......... */
 L790:
 /* Computing MAX */
-	    d__3 = (d__1 = h__[i__ + na * h_dim1], fabs(d__1)), d__4 = (d__2 = 
-		    h__[i__ + en * h_dim1], fabs(d__2));
-	    t = max(d__3,d__4);
+	    d__3 = (d__1 = h__[i__ + na * h_dim1], f2c::abs(d__1)), d__4 = (d__2 = 
+		    h__[i__ + en * h_dim1], f2c::abs(d__2));
+	    t = f2c::max(d__3,d__4);
 	    if (t == 0.) {
 		goto L795;
 	    }
@@ -1148,7 +1144,7 @@ L840:
     i__1 = *n;
     for (jj = *low; jj <= i__1; ++jj) {
 	j = *n + *low - jj;
-	m = min(j,*igh);
+	m = f2c::min(j,*igh);
 
 	i__2 = *igh;
 	for (i__ = *low; i__ <= i__2; ++i__) {
@@ -1189,7 +1185,7 @@ cdiv(doublereal *ar, doublereal *ai, doublereal *br, doublereal *bi, doublereal 
 
 /*     COMPLEX DIVISION, (CR,CI) = (AR,AI)/(BR,BI) */
 
-    s = fabs(*br) + fabs(*bi);
+    s = f2c::abs(*br) + f2c::abs(*bi);
     ars = *ar / s;
     ais = *ai / s;
     brs = *br / s;
@@ -1399,8 +1395,8 @@ L190:
 	    if (j == i__) {
 		goto L200;
 	    }
-	    c__ += (d__1 = a[j + i__ * a_dim1], fabs(d__1));
-	    r__ += (d__1 = a[i__ + j * a_dim1], fabs(d__1));
+	    c__ += (d__1 = a[j + i__ * a_dim1], f2c::abs(d__1));
+	    r__ += (d__1 = a[i__ + j * a_dim1], f2c::abs(d__1));
 L200:
 	    ;
 	}
@@ -1658,7 +1654,7 @@ elmhes(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, integ
 
 	i__2 = *igh;
 	for (j = m; j <= i__2; ++j) {
-	    if ((d__1 = a[j + mm1 * a_dim1], fabs(d__1)) <= fabs(x)) {
+	    if ((d__1 = a[j + mm1 * a_dim1], f2c::abs(d__1)) <= f2c::abs(x)) {
 		goto L100;
 	    }
 	    x = a[j + mm1 * a_dim1];
@@ -1957,14 +1953,14 @@ L10:
 
 	i__2 = n;
 	for (i__ = l1; i__ <= i__2; ++i__) {
-	    s += (d__1 = b[i__ + l * b_dim1], fabs(d__1));
+	    s += (d__1 = b[i__ + l * b_dim1], f2c::abs(d__1));
 /* L20: */
 	}
 
 	if (s == 0.) {
 	    goto L100;
 	}
-	s += (d__1 = b[l + l * b_dim1], fabs(d__1));
+	s += (d__1 = b[l + l * b_dim1], f2c::abs(d__1));
 	r__ = 0.;
 
 	i__2 = n;
@@ -2050,8 +2046,8 @@ L100:
 	    l = n - lb;
 	    l1 = l + 1;
 /*     .......... ZERO A(L+1,K) .......... */
-	    s = (d__1 = a[l + k * a_dim1], fabs(d__1)) + (d__2 = a[l1 + k * 
-		    a_dim1], fabs(d__2));
+	    s = (d__1 = a[l + k * a_dim1], f2c::abs(d__1)) + (d__2 = a[l1 + k * 
+		    a_dim1], f2c::abs(d__2));
 	    if (s == 0.) {
 		goto L150;
 	    }
@@ -2081,8 +2077,8 @@ L100:
 /* L120: */
 	    }
 /*     .......... ZERO B(L+1,L) .......... */
-	    s = (d__1 = b[l1 + l1 * b_dim1], fabs(d__1)) + (d__2 = b[l1 + l * 
-		    b_dim1], fabs(d__2));
+	    s = (d__1 = b[l1 + l1 * b_dim1], f2c::abs(d__1)) + (d__2 = b[l1 + l * 
+		    b_dim1], f2c::abs(d__2));
 	    if (s == 0.) {
 		goto L150;
 	    }
@@ -2260,14 +2256,14 @@ qzit(integer nm, integer n, doublereal *a, doublereal *b, doublereal eps1, logic
     for (i__ = 1; i__ <= i__1; ++i__) {
 	ani = 0.;
 	if (i__ != 1) {
-	    ani = (d__1 = a[i__ + (i__ - 1) * a_dim1], fabs(d__1));
+	    ani = (d__1 = a[i__ + (i__ - 1) * a_dim1], f2c::abs(d__1));
 	}
 	bni = 0.;
 
 	i__2 = n;
 	for (j = i__; j <= i__2; ++j) {
-	    ani += (d__1 = a[i__ + j * a_dim1], fabs(d__1));
-	    bni += (d__1 = b[i__ + j * b_dim1], fabs(d__1));
+	    ani += (d__1 = a[i__ + j * a_dim1], f2c::abs(d__1));
+	    bni += (d__1 = b[i__ + j * b_dim1], f2c::abs(d__1));
 /* L20: */
 	}
 
@@ -2323,7 +2319,7 @@ L70:
 	if (l == 1) {
 	    goto L95;
 	}
-	if ((d__1 = a[l + lm1 * a_dim1], fabs(d__1)) <= epsa) {
+	if ((d__1 = a[l + lm1 * a_dim1], f2c::abs(d__1)) <= epsa) {
 	    goto L90;
 	}
 /* L80: */
@@ -2343,12 +2339,12 @@ L95:
 L100:
     l1 = l + 1;
     b11 = b[l + l * b_dim1];
-    if (fabs(b11) > epsb) {
+    if (f2c::abs(b11) > epsb) {
 	goto L120;
     }
     b[l + l * b_dim1] = 0.;
-    s = (d__1 = a[l + l * a_dim1], fabs(d__1)) + (d__2 = a[l1 + l * a_dim1], 
-	    fabs(d__2));
+    s = (d__1 = a[l + l * a_dim1], f2c::abs(d__1)) + (d__2 = a[l1 + l * a_dim1], 
+	    f2c::abs(d__2));
     u1 = a[l + l * a_dim1] / s;
     u2 = a[l1 + l * a_dim1] / s;
     d__1 = sqrt(u1 * u1 + u2 * u2);
@@ -2389,15 +2385,15 @@ L120:
     }
 /*     .......... DETERMINE TYPE OF SHIFT .......... */
     b22 = b[l1 + l1 * b_dim1];
-    if (fabs(b22) < epsb) {
+    if (f2c::abs(b22) < epsb) {
 	b22 = epsb;
     }
     b33 = b[na + na * b_dim1];
-    if (fabs(b33) < epsb) {
+    if (f2c::abs(b33) < epsb) {
 	b33 = epsb;
     }
     b44 = b[en + en * b_dim1];
-    if (fabs(b44) < epsb) {
+    if (f2c::abs(b44) < epsb) {
 	b44 = epsb;
     }
     a33 = a[na + na * a_dim1] / b33;
@@ -2415,7 +2411,7 @@ L120:
     r__ = sqrt(r__);
     sh = -t + r__;
     s = -t - r__;
-    if ((d__1 = s - a44, fabs(d__1)) < (d__2 = sh - a44, fabs(d__2))) {
+    if ((d__1 = s - a44, f2c::abs(d__1)) < (d__2 = sh - a44, f2c::abs(d__2))) {
 	sh = s;
     }
 /*     .......... LOOK FOR TWO CONSECUTIVE SMALL */
@@ -2430,11 +2426,11 @@ L120:
 	lm1 = l - 1;
 	l1 = l + 1;
 	t = a[l + l * a_dim1];
-	if ((d__1 = b[l + l * b_dim1], fabs(d__1)) > epsb) {
+	if ((d__1 = b[l + l * b_dim1], f2c::abs(d__1)) > epsb) {
 	    t -= sh * b[l + l * b_dim1];
 	}
-	if ((d__1 = a[l + lm1 * a_dim1], fabs(d__1)) <= (d__2 = t / a[l1 + l * 
-		a_dim1], fabs(d__2)) * epsa) {
+	if ((d__1 = a[l + lm1 * a_dim1], f2c::abs(d__1)) <= (d__2 = t / a[l1 + l * 
+		a_dim1], f2c::abs(d__2)) * epsa) {
 	    goto L100;
 	}
 /* L130: */
@@ -2476,10 +2472,10 @@ L160:
 	k2 = k + 2;
 /* Computing MAX */
 	i__2 = k - 1;
-	km1 = max(i__2,l);
+	km1 = f2c::max(i__2,l);
 /* Computing MIN */
 	i__2 = en, i__3 = k1 + ish;
-	ll = min(i__2,i__3);
+	ll = f2c::min(i__2,i__3);
 	if (notlas) {
 	    goto L190;
 	}
@@ -2490,7 +2486,7 @@ L160:
 	a1 = a[k + km1 * a_dim1];
 	a2 = a[k1 + km1 * a_dim1];
 L170:
-	s = fabs(a1) + fabs(a2);
+	s = f2c::abs(a1) + f2c::abs(a2);
 	if (s == 0.) {
 	    goto L70;
 	}
@@ -2526,7 +2522,7 @@ L190:
 	a2 = a[k1 + km1 * a_dim1];
 	a3 = a[k2 + km1 * a_dim1];
 L200:
-	s = fabs(a1) + fabs(a2) + fabs(a3);
+	s = f2c::abs(a1) + f2c::abs(a2) + f2c::abs(a3);
 	if (s == 0.) {
 	    goto L260;
 	}
@@ -2563,8 +2559,8 @@ L200:
 	a[k2 + km1 * a_dim1] = 0.;
 /*     .......... ZERO B(K+2,K+1) AND B(K+2,K) .......... */
 L220:
-	s = (d__1 = b[k2 + k2 * b_dim1], fabs(d__1)) + (d__2 = b[k2 + k1 * 
-		b_dim1], fabs(d__2)) + (d__3 = b[k2 + k * b_dim1], fabs(d__3));
+	s = (d__1 = b[k2 + k2 * b_dim1], f2c::abs(d__1)) + (d__2 = b[k2 + k1 * 
+		b_dim1], f2c::abs(d__2)) + (d__3 = b[k2 + k * b_dim1], f2c::abs(d__3));
 	if (s == 0.) {
 	    goto L240;
 	}
@@ -2611,8 +2607,8 @@ L220:
 	}
 /*     .......... ZERO B(K+1,K) .......... */
 L240:
-	s = (d__1 = b[k1 + k1 * b_dim1], fabs(d__1)) + (d__2 = b[k1 + k * 
-		b_dim1], fabs(d__2));
+	s = (d__1 = b[k1 + k1 * b_dim1], f2c::abs(d__1)) + (d__2 = b[k1 + k * 
+		b_dim1], f2c::abs(d__2));
 	if (s == 0.) {
 	    goto L260;
 	}
@@ -2797,15 +2793,15 @@ L410:
 	if (b[en + en * b_dim1] < 0.) {
 	    alfr[en] = -alfr[en];
 	}
-	beta[en] = (d__1 = b[en + en * b_dim1], fabs(d__1));
+	beta[en] = (d__1 = b[en + en * b_dim1], f2c::abs(d__1));
 	alfi[en] = 0.;
 	goto L510;
 /*     .......... 2-BY-2 BLOCK .......... */
 L420:
-	if ((d__1 = b[na + na * b_dim1], fabs(d__1)) <= epsb) {
+	if ((d__1 = b[na + na * b_dim1], f2c::abs(d__1)) <= epsb) {
 	    goto L455;
 	}
-	if ((d__1 = b[en + en * b_dim1], fabs(d__1)) > epsb) {
+	if ((d__1 = b[en + en * b_dim1], f2c::abs(d__1)) > epsb) {
 	    goto L430;
 	}
 	a1 = a[en + en * a_dim1];
@@ -2813,11 +2809,11 @@ L420:
 	bn = 0.;
 	goto L435;
 L430:
-	an = (d__1 = a[na + na * a_dim1], fabs(d__1)) + (d__2 = a[na + en * 
-		a_dim1], fabs(d__2)) + (d__3 = a[en + na * a_dim1], fabs(d__3)) 
-		+ (d__4 = a[en + en * a_dim1], fabs(d__4));
-	bn = (d__1 = b[na + na * b_dim1], fabs(d__1)) + (d__2 = b[na + en * 
-		b_dim1], fabs(d__2)) + (d__3 = b[en + en * b_dim1], fabs(d__3));
+	an = (d__1 = a[na + na * a_dim1], f2c::abs(d__1)) + (d__2 = a[na + en * 
+		a_dim1], f2c::abs(d__2)) + (d__3 = a[en + na * a_dim1], f2c::abs(d__3)) 
+		+ (d__4 = a[en + en * a_dim1], f2c::abs(d__4));
+	bn = (d__1 = b[na + na * b_dim1], f2c::abs(d__1)) + (d__2 = b[na + en * 
+		b_dim1], f2c::abs(d__2)) + (d__3 = b[en + en * b_dim1], f2c::abs(d__3));
 	a11 = a[na + na * a_dim1] / an;
 	a12 = a[na + en * a_dim1] / an;
 	a21 = a[en + na * a_dim1] / an;
@@ -2829,7 +2825,7 @@ L430:
 	ei = a22 / b22;
 	s = a21 / (b11 * b22);
 	t = (a22 - e * b22) / b22;
-	if (fabs(e) <= fabs(ei)) {
+	if (f2c::abs(e) <= f2c::abs(ei)) {
 	    goto L431;
 	}
 	e = ei;
@@ -2847,7 +2843,7 @@ L431:
 	a11 -= e * b11;
 	a12 -= e * b12;
 	a22 -= e * b22;
-	if (fabs(a11) + fabs(a12) < fabs(a21) + fabs(a22)) {
+	if (f2c::abs(a11) + f2c::abs(a12) < f2c::abs(a21) + f2c::abs(a22)) {
 	    goto L432;
 	}
 	a1 = a12;
@@ -2858,7 +2854,7 @@ L432:
 	a2 = a21;
 /*     .......... CHOOSE AND APPLY REAL Z .......... */
 L435:
-	s = fabs(a1) + fabs(a2);
+	s = f2c::abs(a1) + f2c::abs(a2);
 	u1 = a1 / s;
 	u2 = a2 / s;
 	d__1 = sqrt(u1 * u1 + u2 * u2);
@@ -2894,7 +2890,7 @@ L450:
 	if (bn == 0.) {
 	    goto L475;
 	}
-	if (an < fabs(e) * bn) {
+	if (an < f2c::abs(e) * bn) {
 	    goto L455;
 	}
 	a1 = b[na + na * b_dim1];
@@ -2905,7 +2901,7 @@ L455:
 	a2 = a[en + na * a_dim1];
 /*     .......... CHOOSE AND APPLY REAL Q .......... */
 L460:
-	s = fabs(a1) + fabs(a2);
+	s = f2c::abs(a1) + f2c::abs(a2);
 	if (s == 0.) {
 	    goto L475;
 	}
@@ -2939,8 +2935,8 @@ L475:
 	if (b[en + en * b_dim1] < 0.) {
 	    alfr[en] = -alfr[en];
 	}
-	beta[na] = (d__1 = b[na + na * b_dim1], fabs(d__1));
-	beta[en] = (d__1 = b[en + en * b_dim1], fabs(d__1));
+	beta[na] = (d__1 = b[na + na * b_dim1], f2c::abs(d__1));
+	beta[en] = (d__1 = b[en + en * b_dim1], f2c::abs(d__1));
 	alfi[en] = 0.;
 	alfi[na] = 0.;
 	goto L505;
@@ -2954,8 +2950,8 @@ L480:
 	a12i = ei * b12;
 	a22r = a22 - e * b22;
 	a22i = ei * b22;
-	if (fabs(a11r) + fabs(a11i) + fabs(a12r) + fabs(a12i) < fabs(a21) + fabs(
-		a22r) + fabs(a22i)) {
+	if (f2c::abs(a11r) + f2c::abs(a11i) + f2c::abs(a12r) + f2c::abs(a12i) < f2c::abs(a21) + f2c::abs(
+		a22r) + f2c::abs(a22i)) {
 	    goto L482;
 	}
 	a1 = a12r;
@@ -2985,7 +2981,7 @@ L487:
 	szr = 1.;
 	szi = 0.;
 L490:
-	if (an < (fabs(e) + ei) * bn) {
+	if (an < (f2c::abs(e) + ei) * bn) {
 	    goto L492;
 	}
 	a1 = cz * b11 + szr * b12;
@@ -3095,11 +3091,11 @@ epslon(doublereal x)
 L10:
     b = a - 1.;
     c__ = b + b + b;
-    eps = (d__1 = c__ - 1., fabs(d__1));
+    eps = (d__1 = c__ - 1., f2c::abs(d__1));
     if (eps == 0.) {
 	goto L10;
     }
-    ret_val = eps * fabs(x);
+    ret_val = eps * f2c::abs(x);
     return ret_val;
 } /* epslon_ */
 
@@ -3193,7 +3189,7 @@ L20:
 	case 3: goto L110;
     }
 L30:
-    if ((d__1 = dx[i__], fabs(d__1)) > cutlo) {
+    if ((d__1 = dx[i__], f2c::abs(d__1)) > cutlo) {
 	goto L85;
     }
     next = 1;
@@ -3205,7 +3201,7 @@ L50:
     if (dx[i__] == zero) {
 	goto L200;
     }
-    if ((d__1 = dx[i__], fabs(d__1)) > cutlo) {
+    if ((d__1 = dx[i__], f2c::abs(d__1)) > cutlo) {
 	goto L85;
     }
 
@@ -3220,14 +3216,14 @@ L100:
     next = 3;
     sum = sum / dx[i__] / dx[i__];
 L105:
-    xmax = (d__1 = dx[i__], fabs(d__1));
+    xmax = (d__1 = dx[i__], f2c::abs(d__1));
     goto L115;
 
 /*                   PHASE 2.  SUM IS SMALL. */
 /*                             SCALE TO AVOID DESTRUCTIVE UNDERFLOW. */
 
 L70:
-    if ((d__1 = dx[i__], fabs(d__1)) > cutlo) {
+    if ((d__1 = dx[i__], f2c::abs(d__1)) > cutlo) {
 	goto L75;
     }
 
@@ -3236,13 +3232,13 @@ L70:
 */
 
 L110:
-    if ((d__1 = dx[i__], fabs(d__1)) <= xmax) {
+    if ((d__1 = dx[i__], f2c::abs(d__1)) <= xmax) {
 	goto L115;
     }
 /* Computing 2nd power */
     d__1 = xmax / dx[i__];
     sum = one + sum * (d__1 * d__1);
-    xmax = (d__1 = dx[i__], fabs(d__1));
+    xmax = (d__1 = dx[i__], f2c::abs(d__1));
     goto L200;
 
 L115:
@@ -3269,7 +3265,7 @@ L85:
     i__1 = nn;
     i__2 = *incx;
     for (j = i__; i__2 < 0 ? j >= i__1 : j <= i__1; j += i__2) {
-	if ((d__1 = dx[j], fabs(d__1)) >= hitest) {
+	if ((d__1 = dx[j], f2c::abs(d__1)) >= hitest) {
 	    goto L100;
 	}
 /* L95: */
@@ -3493,15 +3489,15 @@ idamax(integer *n, doublereal *dx, integer *incx)
 /*        CODE FOR INCREMENT NOT EQUAL TO 1 */
 
     ix = 1;
-    dmax__ = fabs(dx[1]);
+    dmax__ = f2c::abs(dx[1]);
     ix += *incx;
     i__1 = *n;
     for (i__ = 2; i__ <= i__1; ++i__) {
-	if ((d__1 = dx[ix], fabs(d__1)) <= dmax__) {
+	if ((d__1 = dx[ix], f2c::abs(d__1)) <= dmax__) {
 	    goto L5;
 	}
 	ret_val = i__;
-	dmax__ = (d__1 = dx[ix], fabs(d__1));
+	dmax__ = (d__1 = dx[ix], f2c::abs(d__1));
 L5:
 	ix += *incx;
 /* L10: */
@@ -3511,14 +3507,14 @@ L5:
 /*        CODE FOR INCREMENT EQUAL TO 1 */
 
 L20:
-    dmax__ = fabs(dx[1]);
+    dmax__ = f2c::abs(dx[1]);
     i__1 = *n;
     for (i__ = 2; i__ <= i__1; ++i__) {
-	if ((d__1 = dx[i__], fabs(d__1)) <= dmax__) {
+	if ((d__1 = dx[i__], f2c::abs(d__1)) <= dmax__) {
 	    goto L30;
 	}
 	ret_val = i__;
-	dmax__ = (d__1 = dx[i__], fabs(d__1));
+	dmax__ = (d__1 = dx[i__], f2c::abs(d__1));
 L30:
 	;
     }
@@ -3920,7 +3916,7 @@ xerbla(const char *srname, integer *info, integer srname_len)
 
 /*     .. Executable Statements .. */
 
-    xpp_log(XPP_LOG_ERROR, "On entry to %c%c%c%c%c%c parameter number %ld had an illegal value\n",
+    xpp::log(XPP_LOG_ERROR, "On entry to {}{}{}{}{}{} parameter number {} had an illegal value\n",
 	   srname[0],srname[1],srname[2],srname[3],srname[4],srname[5],(*info));
     exit(0);
     return 0;
@@ -4254,11 +4250,11 @@ dgemm(const char *transa, const char *transb, integer *m, integer *n, integer *k
 	info = 4;
     } else if (*k < 0) {
 	info = 5;
-    } else if (*lda < max(1,nrowa)) {
+    } else if (*lda < f2c::max(1,nrowa)) {
 	info = 8;
-    } else if (*ldb < max(1,nrowb)) {
+    } else if (*ldb < f2c::max(1,nrowb)) {
 	info = 10;
-    } else if (*ldc < max(1,*m)) {
+    } else if (*ldc < f2c::max(1,*m)) {
 	info = 13;
     }
     if (info != 0) {
@@ -4549,7 +4545,7 @@ o */
 	    *f = *g;
 	}
     } else {
-	if (fabs(*f) > fabs(*g)) {
+	if (f2c::abs(*f) > f2c::abs(*g)) {
 	    t = *g / *f;
 	    tt = sqrt(t * t + 1.);
 	    *cs = 1. / tt;
@@ -4771,7 +4767,7 @@ ndsvd(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, double
     jobu = *job % 100 / 10;
     ncu = *n;
     if (jobu > 1) {
-	ncu = min(*n,*p);
+	ncu = f2c::min(*n,*p);
     }
     if (jobu != 0) {
 	wantu = TRUE_;
@@ -4786,13 +4782,13 @@ ndsvd(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, double
     *info = 0;
 /* Computing MIN */
     i__1 = *n - 1;
-    nct = min(i__1,*p);
+    nct = f2c::min(i__1,*p);
 /* Computing MAX */
 /* Computing MIN */
     i__3 = *p - 2;
-    i__1 = 0, i__2 = min(i__3,*n);
-    nrt = max(i__1,i__2);
-    lu = max(nct,nrt);
+    i__1 = 0, i__2 = f2c::min(i__3,*n);
+    nrt = f2c::max(i__1,i__2);
+    lu = f2c::max(nct,nrt);
     if (*skip <= 0) {
 	if (lu < 1) {
 	    goto L170;
@@ -4938,7 +4934,7 @@ L170:
 
 /* Computing MIN */
     i__1 = *p, i__2 = *n + 1;
-    m = min(i__1,i__2);
+    m = f2c::min(i__1,i__2);
     nctp1 = nct + 1;
     nrtp1 = nrt + 1;
     if (*skip <= 0) {
@@ -5065,7 +5061,7 @@ L350:
 
     if (*skip == 1) {
 /*       set up s,e,u,v assuming x bidiagonal on input */
-	minnp = min(*n,*p);
+	minnp = f2c::min(*n,*p);
 	i__1 = minnp;
 	for (i__ = 1; i__ <= i__1; ++i__) {
 	    s[i__] = x[i__ + i__ * x_dim1];
@@ -5118,24 +5114,24 @@ L350:
 	thresh = 0.;
     } else {
 /*       absolute accuracy desired */
-	smax = (d__1 = s[m], fabs(d__1));
+	smax = (d__1 = s[m], f2c::abs(d__1));
 	i__1 = m - 1;
 	for (i__ = 1; i__ <= i__1; ++i__) {
 /* Computing MAX */
-	    d__3 = smax, d__4 = (d__1 = s[i__], fabs(d__1)), d__3 = max(d__3,
-		    d__4), d__4 = (d__2 = e[i__], fabs(d__2));
-	    smax = max(d__3,d__4);
+	    d__3 = smax, d__4 = (d__1 = s[i__], f2c::abs(d__1)), d__3 = f2c::max(d__3,
+		    d__4), d__4 = (d__2 = e[i__], f2c::abs(d__2));
+	    smax = f2c::max(d__3,d__4);
 /* L1111: */
 	}
-	thresh = fabs(*tol) * smax;
+	thresh = f2c::abs(*tol) * smax;
     }
     mm = m;
 
 /*     begin loop */
 L999:
     if (*idbg > 0) {
-      xpp_log(XPP_LOG_DEBUG, "top of loop\n");
-      xpp_log(XPP_LOG_DEBUG, "oldll,oldm,oldacc,m,iter,maxit,ifull,thresh=%ld,%ld,%ld,%ld,%ld,%ld,%ld,%f\n",
+      xpp::log(XPP_LOG_DEBUG, "top of loop\n");
+      xpp::log(XPP_LOG_DEBUG, "oldll,oldm,oldacc,m,iter,maxit,ifull,thresh={},{},{},{},{},{},{},{:f}\n",
 	     oldll,oldm,oldacc,oldacc,iter,maxit,(*ifull),thresh);
 	prse(&c__1, &mm, n, p, &s[1], &e[1]);
     }
@@ -5151,10 +5147,10 @@ L999:
     }
 
 /*     compute minimum s(i) and max of all s(i),e(i) */
-    if (*tol <= 0. && (d__1 = s[m], fabs(d__1)) <= thresh) {
+    if (*tol <= 0. && (d__1 = s[m], f2c::abs(d__1)) <= thresh) {
 	s[m] = 0.;
     }
-    smax = (d__1 = s[m], fabs(d__1));
+    smax = (d__1 = s[m], f2c::abs(d__1));
     smin = smax;
 
 /*     reset convergence threshold if starting new part of matrix */
@@ -5162,7 +5158,7 @@ L999:
 	thresh = 0.;
     }
     if (*idbg > 0) {
-            xpp_log(XPP_LOG_DEBUG, "thresh=%f\n",thresh);
+            xpp::log(XPP_LOG_DEBUG, "thresh={:f}\n",thresh);
     }
     i__1 = m;
     for (lll = 1; lll <= i__1; ++lll) {
@@ -5170,18 +5166,18 @@ L999:
 	if (ll == 0) {
 	    goto L1003;
 	}
-	if (*tol <= 0. && (d__1 = s[ll], fabs(d__1)) <= thresh) {
+	if (*tol <= 0. && (d__1 = s[ll], f2c::abs(d__1)) <= thresh) {
 	    s[ll] = 0.;
 	}
-	if ((d__1 = e[ll], fabs(d__1)) <= thresh) {
+	if ((d__1 = e[ll], f2c::abs(d__1)) <= thresh) {
 	    goto L1002;
 	}
-	abss = (d__1 = s[ll], fabs(d__1));
-	abse = (d__1 = e[ll], fabs(d__1));
-	smin = min(smin,abss);
+	abss = (d__1 = s[ll], f2c::abs(d__1));
+	abse = (d__1 = e[ll], f2c::abs(d__1));
+	smin = f2c::min(smin,abss);
 /* Computing MAX */
-	d__1 = max(smax,abss);
-	smax = max(d__1,abse);
+	d__1 = f2c::max(smax,abss);
+	smax = f2c::max(d__1,abse);
 /* L1001: */
     }
 L1002:
@@ -5192,7 +5188,7 @@ L1002:
 /*       convergence of bottom singular values */
 	--m;
 	if (*idbg > 0) {
-	        xpp_log(XPP_LOG_DEBUG, "convergence\n");
+	        xpp::log(XPP_LOG_DEBUG, "convergence\n");
 	}
 	goto L999;
     }
@@ -5200,10 +5196,10 @@ L1003:
     ++ll;
 /*     e(ll) ... e(m-1) are nonzero */
     if (*idbg > 0) {
-      xpp_log(XPP_LOG_DEBUG, "work on block ll,m=%ld,%ld\n",ll,m);	
-      xpp_log(XPP_LOG_DEBUG, "smin=%f\n",smin);
+      xpp::log(XPP_LOG_DEBUG, "work on block ll,m={},{}\n",ll,m);	
+      xpp::log(XPP_LOG_DEBUG, "smin={:f}\n",smin);
 
-      xpp_log(XPP_LOG_DEBUG, "smax=%f\n",smax);
+      xpp::log(XPP_LOG_DEBUG, "smax={:f}\n",smax);
     }
 
 /*     2 by 2 block - handle specially to guarantee convergence */
@@ -5262,7 +5258,7 @@ L1003:
 /*     if (ll.ne.oldll .or. m.ne.oldm) then */
 /*     choose shift direction if working on entirely new submatrix */
     if (ll > oldm || m < oldll) {
-	if (((d__1 = s[ll], fabs(d__1)) >= (d__2 = s[m], fabs(d__2)) && *iidir == 0) || *iidir == 1) {
+	if (((d__1 = s[ll], f2c::abs(d__1)) >= (d__2 = s[m], f2c::abs(d__2)) && *iidir == 0) || *iidir == 1) {
 /*         chase bulge from top (big end) to bottom (small end) */
 /*         if m=n+1, chase from top to bottom even if s(ll)=0 */
 	    idir = 1;
@@ -5272,7 +5268,7 @@ L1003:
 	}
     }
     if (*idbg > 0) {
-            xpp_log(XPP_LOG_DEBUG, "idir=%ld\n",idir);
+            xpp::log(XPP_LOG_DEBUG, "idir={}\n",idir);
     }
 
 /*     compute lower bound on smallest singular value */
@@ -5334,57 +5330,57 @@ L1003:
 	if (idir == 1) {
 /*         forward direction */
 /*         apply test on bottom 2 by 2 only */
-	    if ((d__1 = e[m - 1], fabs(d__1)) <= *tol * (d__2 = s[m], fabs(d__2)
+	    if ((d__1 = e[m - 1], f2c::abs(d__1)) <= *tol * (d__2 = s[m], f2c::abs(d__2)
 		    )) {
 /*           convergence of bottom element */
 		e[m - 1] = 0.;
 		goto L999;
 	    }
 /*         apply test in forward direction */
-	    mu = (d__1 = s[ll], fabs(d__1));
+	    mu = (d__1 = s[ll], f2c::abs(d__1));
 	    sminl = mu;
 	    i__1 = m - 1;
 	    for (lll = ll; lll <= i__1; ++lll) {
-		if ((d__1 = e[lll], fabs(d__1)) <= *tol * mu) {
+		if ((d__1 = e[lll], f2c::abs(d__1)) <= *tol * mu) {
 /*             test for negligibility satisfied */
 		    if (*idbg >= 1) {
-		            xpp_log(XPP_LOG_DEBUG, "knew: e(lll),mu=%f,%f\n",e[lll],mu);
+		            xpp::log(XPP_LOG_DEBUG, "knew: e(lll),mu={:f},{:f}\n",e[lll],mu);
 		    }
 		    e[lll] = 0.;
 		    goto L999;
 		} else {
-		    mu = (d__1 = s[lll + 1], fabs(d__1)) * (mu / (mu + (d__2 = 
-			    e[lll], fabs(d__2))));
+		    mu = (d__1 = s[lll + 1], f2c::abs(d__1)) * (mu / (mu + (d__2 = 
+			    e[lll], f2c::abs(d__2))));
 		}
-		sminl = min(sminl,mu);
+		sminl = f2c::min(sminl,mu);
 /* L3330: */
 	    }
 	} else {
 /*         idir=2,  backwards direction */
 /*         apply test on top 2 by 2 only */
-	    if ((d__1 = e[ll], fabs(d__1)) <= *tol * (d__2 = s[ll], fabs(d__2)))
+	    if ((d__1 = e[ll], f2c::abs(d__1)) <= *tol * (d__2 = s[ll], f2c::abs(d__2)))
 		     {
 /*           convergence of top element */
 		e[ll] = 0.;
 		goto L999;
 	    }
 /*         apply test in backward direction */
-	    lambda = (d__1 = s[m], fabs(d__1));
+	    lambda = (d__1 = s[m], f2c::abs(d__1));
 	    sminl = lambda;
 	    i__1 = ll;
 	    for (lll = m - 1; lll >= i__1; --lll) {
-		if ((d__1 = e[lll], fabs(d__1)) <= *tol * lambda) {
+		if ((d__1 = e[lll], f2c::abs(d__1)) <= *tol * lambda) {
 /*             test for negligibility satisfied */
 		    if (*idbg >= 1) {
-		            xpp_log(XPP_LOG_DEBUG, "knew: e(lll),lambda=%f,%f\n",e[lll],lambda);
+		            xpp::log(XPP_LOG_DEBUG, "knew: e(lll),lambda={:f},{:f}\n",e[lll],lambda);
 		    }
 		    e[lll] = 0.;
 		    goto L999;
 		} else {
-		    lambda = (d__1 = s[lll], fabs(d__1)) * (lambda / (lambda + 
-			    (d__2 = e[lll], fabs(d__2))));
+		    lambda = (d__1 = s[lll], f2c::abs(d__1)) * (lambda / (lambda + 
+			    (d__2 = e[lll], f2c::abs(d__2))));
 		}
-		sminl = min(sminl,lambda);
+		sminl = f2c::min(sminl,lambda);
 /* L3331: */
 	    }
 	}
@@ -5401,7 +5397,7 @@ L1003:
 /*       smallest singular value */
 	shift = 0.;
 	if (*idbg > 0) {
-	        xpp_log(XPP_LOG_DEBUG, "sminl test for shift is zero\n");
+	        xpp::log(XPP_LOG_DEBUG, "sminl test for shift is zero\n");
 	}
     } else {
 
@@ -5418,26 +5414,26 @@ L1003:
 	    sll = s[m];
 	}
 	if (*idbg > 0) {
-	        xpp_log(XPP_LOG_DEBUG, "smm1,emm1,sm=%f,%f,%f\n",smm1,emm1,sm);
+	        xpp::log(XPP_LOG_DEBUG, "smm1,emm1,sm={:f},{:f},{:f}\n",smm1,emm1,sm);
 	}
 	shift = sigmin(&smm1, &emm1, &sm);
 	if (*idbg > 0) {
-	  xpp_log(XPP_LOG_DEBUG, "sigma-min of 2 by 2 corner=%f\n",shift);
+	  xpp::log(XPP_LOG_DEBUG, "sigma-min of 2 by 2 corner={:f}\n",shift);
 	}
 	if (*tol > 0.) {
 	    if (shift > nct * smin) {
 		++(*limshf);
 		shift = nct * smin;
 		if (*idbg > 0) {
-		        xpp_log(XPP_LOG_DEBUG, "shift limited\n");
+		        xpp::log(XPP_LOG_DEBUG, "shift limited\n");
 		}
 	    }
 	    if (*idbg > 0) {
-	            xpp_log(XPP_LOG_DEBUG, "shift=%f\n",shift);
+	            xpp::log(XPP_LOG_DEBUG, "shift={:f}\n",shift);
 	    }
 	    temp = shift / sll;
 	    if (*idbg > 0) {
-	            xpp_log(XPP_LOG_DEBUG, "temp=%f\n",temp);
+	            xpp::log(XPP_LOG_DEBUG, "temp={:f}\n",temp);
 	    }
 /* Computing 2nd power */
 	    d__1 = temp;
@@ -5451,7 +5447,7 @@ L1003:
 e 0, */
 /*         leading to infinite loop; avoid by doing 0 shift in thi
 s case */
-	    if (shift > (d__1 = s[ll], fabs(d__1))) {
+	    if (shift > (d__1 = s[ll], f2c::abs(d__1))) {
 		test = s[ll] / shift;
 		if (test + 1. == 1.) {
 		    ++(*limshf);
@@ -5459,7 +5455,7 @@ s case */
 			shift = 0.;
 		    }
 		    if (*idbg > 0 && *ifull != 1) {
-		            xpp_log(XPP_LOG_DEBUG, "shift limited\n");
+		            xpp::log(XPP_LOG_DEBUG, "shift limited\n");
 		    }
 		}
 	    }
@@ -5469,7 +5465,7 @@ s case */
 	    }
 	}
 	if (*idbg > 0) {
-	        xpp_log(XPP_LOG_DEBUG, "test,shift=%f,%f\n",test,shift);
+	        xpp::log(XPP_LOG_DEBUG, "test,shift={:f},{:f}\n",test,shift);
 	}
     }
 
@@ -5477,7 +5473,7 @@ s case */
     iter = iter + m - ll;
     ++(*kount);
     if (*idbg > 1) {
-      xpp_log(XPP_LOG_DEBUG, "s,e before qr\n");
+      xpp::log(XPP_LOG_DEBUG, "s,e before qr\n");
 	prse(&ll, &m, n, p, &s[1], &e[1]);
     }
 
@@ -5488,7 +5484,7 @@ s case */
 /*       if idir=1, chase bulge from top to bottom */
 	if (idir == 1) {
 	    if (*idbg > 2) {
-	            xpp_log(XPP_LOG_DEBUG, "qr with zero shift, top to bottom\n");
+	            xpp::log(XPP_LOG_DEBUG, "qr with zero shift, top to bottom\n");
 	    }
 	    oldcs = 1.;
 	    f = s[ll];
@@ -5499,8 +5495,8 @@ s case */
 /*           if (idbg.gt.3) print *,'f,g=',f,g */
 		ndrotg(&f, &g, &cs, &sn);
 /* Computing MAX */
-		d__1 = *maxsin, d__2 = fabs(sn);
-		*maxsin = max(d__1,d__2);
+		d__1 = *maxsin, d__2 = f2c::abs(sn);
+		*maxsin = f2c::max(d__1,d__2);
 /*           if (idbg.gt.3) print *,'f,cs,sn=',f,cs,sn */
 		if (wantv) {
 		    drot(p, &v[k * v_dim1 + 1], &c__1, &v[(k + 1) * v_dim1 + 
@@ -5521,8 +5517,8 @@ k-1) */
 /*           if (idbg.gt.3) print *,'gg=',gg */
 		ndrotg(&f, &g, &cs, &sn);
 /* Computing MAX */
-		d__1 = *maxsin, d__2 = fabs(sn);
-		*maxsin = max(d__1,d__2);
+		d__1 = *maxsin, d__2 = f2c::abs(sn);
+		*maxsin = f2c::max(d__1,d__2);
 /*           if (idbg.gt.3) print *,'f,cs,sn=',f,cs,sn */
 /*           if wantu and k.eq.n, then s(k+1)=0 so g=0 so cs=1
  and sn=0 */
@@ -5550,19 +5546,19 @@ k-1) */
 
 /*         test convergence */
 	    if (*idbg > 0) {
-	            xpp_log(XPP_LOG_DEBUG, "convergence decision for zero shift top to bottom\n");
-		          xpp_log(XPP_LOG_DEBUG, "e(m-1), threshold=%f,%f\n",e[m - 1],thresh);
-		if ((d__1 = e[m - 1], fabs(d__1)) <= thresh) {
-		        xpp_log(XPP_LOG_DEBUG, "***converged***\n");
+	            xpp::log(XPP_LOG_DEBUG, "convergence decision for zero shift top to bottom\n");
+		          xpp::log(XPP_LOG_DEBUG, "e(m-1), threshold={:f},{:f}\n",e[m - 1],thresh);
+		if ((d__1 = e[m - 1], f2c::abs(d__1)) <= thresh) {
+		        xpp::log(XPP_LOG_DEBUG, "***converged***\n");
 		}
 	    }
-	    if ((d__1 = e[m - 1], fabs(d__1)) <= thresh) {
+	    if ((d__1 = e[m - 1], f2c::abs(d__1)) <= thresh) {
 		e[m - 1] = 0.;
 	    }
 	} else {
 /*       (idir=2, so chase bulge from bottom to top) */
 	    if (*idbg > 2) {
-      xpp_log(XPP_LOG_DEBUG, "qr with zero shift, bottom to top\n");
+      xpp::log(XPP_LOG_DEBUG, "qr with zero shift, bottom to top\n");
 	    }
 	    oldcs = 1.;
 	    f = s[m];
@@ -5573,8 +5569,8 @@ k-1) */
 /*           if (idbg.gt.3) print *,'f,g=',f,g */
 		ndrotg(&f, &g, &cs, &sn);
 /* Computing MAX */
-		d__1 = *maxsin, d__2 = fabs(sn);
-		*maxsin = max(d__1,d__2);
+		d__1 = *maxsin, d__2 = f2c::abs(sn);
+		*maxsin = f2c::max(d__1,d__2);
 /*           if (idbg.gt.3) print *,'f,cs,sn=',f,cs,sn */
 /*           if m=n+1, always chase from top to bottom so no t
 est for */
@@ -5599,8 +5595,8 @@ est for */
 /*           if (idbg.gt.3) print *,'gg=',gg */
 		ndrotg(&f, &g, &cs, &sn);
 /* Computing MAX */
-		d__1 = *maxsin, d__2 = fabs(sn);
-		*maxsin = max(d__1,d__2);
+		d__1 = *maxsin, d__2 = f2c::abs(sn);
+		*maxsin = f2c::max(d__1,d__2);
 /*           if (idbg.gt.3) print *,'f,cs,sn=',f,cs,sn */
 		if (wantv) {
 		    d__1 = -sn;
@@ -5629,14 +5625,14 @@ est for */
 
 /*         test convergence */
 	    if (*idbg > 0) {
-	            xpp_log(XPP_LOG_DEBUG, "convergence decision for zero shift bottom to top\n");
-		          xpp_log(XPP_LOG_DEBUG, "e(ll), threshold=%f,%f\n",e[ll],thresh);
+	            xpp::log(XPP_LOG_DEBUG, "convergence decision for zero shift bottom to top\n");
+		          xpp::log(XPP_LOG_DEBUG, "e(ll), threshold={:f},{:f}\n",e[ll],thresh);
 
-		if ((d__1 = e[ll], fabs(d__1)) <= thresh) {
-		        xpp_log(XPP_LOG_DEBUG, "***converged***\n");
+		if ((d__1 = e[ll], f2c::abs(d__1)) <= thresh) {
+		        xpp::log(XPP_LOG_DEBUG, "***converged***\n");
 		}
 	    }
-	    if ((d__1 = e[ll], fabs(d__1)) <= thresh) {
+	    if ((d__1 = e[ll], f2c::abs(d__1)) <= thresh) {
 		e[ll] = 0.;
 	    }
 	}
@@ -5647,9 +5643,9 @@ est for */
 /*       if idir=1, chase bulge from top to bottom */
 	if (idir == 1) {
 	    if (*idbg > 2) {
-	            xpp_log(XPP_LOG_DEBUG, "qr with nonzero shift, top to bottom\n");
+	            xpp::log(XPP_LOG_DEBUG, "qr with nonzero shift, top to bottom\n");
 	    }
-	    f = ((d__1 = s[ll], fabs(d__1)) - shift) * (d_sign(c_b170, s[ll])
+	    f = ((d__1 = s[ll], f2c::abs(d__1)) - shift) * (d_sign(c_b170, s[ll])
 		     + shift / s[ll]);
 	    g = e[ll];
 	    i__1 = m - 1;
@@ -5702,21 +5698,21 @@ s zero */
 
 /*         check convergence */
 	    if (*idbg > 0) {
-	            xpp_log(XPP_LOG_DEBUG, "convergence decision for shift top to bottom\n");
-		          xpp_log(XPP_LOG_DEBUG, "e(m-1), threshold=%f,%f\n",e[m - 1],thresh);
-		if ((d__1 = e[m - 1], fabs(d__1)) <= thresh) {
-		  xpp_log(XPP_LOG_DEBUG, "***converged***\n");
+	            xpp::log(XPP_LOG_DEBUG, "convergence decision for shift top to bottom\n");
+		          xpp::log(XPP_LOG_DEBUG, "e(m-1), threshold={:f},{:f}\n",e[m - 1],thresh);
+		if ((d__1 = e[m - 1], f2c::abs(d__1)) <= thresh) {
+		  xpp::log(XPP_LOG_DEBUG, "***converged***\n");
 		}
 	    }
-	    if ((d__1 = e[m - 1], fabs(d__1)) <= thresh) {
+	    if ((d__1 = e[m - 1], f2c::abs(d__1)) <= thresh) {
 		e[m - 1] = 0.;
 	    }
 	} else {
 /*       (idir=2, so chase bulge from bottom to top) */
 	    if (*idbg > 2) {
-	            xpp_log(XPP_LOG_DEBUG, "qr with nonzero shift, bottom to top\n");
+	            xpp::log(XPP_LOG_DEBUG, "qr with nonzero shift, bottom to top\n");
 	    }
-	    f = ((d__1 = s[m], fabs(d__1)) - shift) * (d_sign(c_b170, s[m]) 
+	    f = ((d__1 = s[m], f2c::abs(d__1)) - shift) * (d_sign(c_b170, s[m]) 
 		    + shift / s[m]);
 	    g = e[m - 1];
 	    i__1 = ll + 1;
@@ -5770,21 +5766,21 @@ s zero */
 
 /*         test convergence */
 	    if (*idbg > 0) {
-	            xpp_log(XPP_LOG_DEBUG, "convergence decision for shift bottom to top\n");
-		          xpp_log(XPP_LOG_DEBUG, "e(ll), threshold=%f,%f\n",e[ll],thresh);
+	            xpp::log(XPP_LOG_DEBUG, "convergence decision for shift bottom to top\n");
+		          xpp::log(XPP_LOG_DEBUG, "e(ll), threshold={:f},{:f}\n",e[ll],thresh);
 
-		if ((d__1 = e[ll], fabs(d__1)) <= thresh) {
-		        xpp_log(XPP_LOG_DEBUG, "***converged***\n");
+		if ((d__1 = e[ll], f2c::abs(d__1)) <= thresh) {
+		        xpp::log(XPP_LOG_DEBUG, "***converged***\n");
 		}
 	    }
-	    if ((d__1 = e[ll], fabs(d__1)) <= thresh) {
+	    if ((d__1 = e[ll], f2c::abs(d__1)) <= thresh) {
 		e[ll] = 0.;
 	    }
 	}
     }
 
     if (*idbg > 1) {
-            xpp_log(XPP_LOG_DEBUG, "s,e after qr\n");
+            xpp::log(XPP_LOG_DEBUG, "s,e after qr\n");
 	prse(&ll, &m, n, p, &s[1], &e[1]);
     }
 
@@ -5794,7 +5790,7 @@ s zero */
 L998:
 
 /*     make singular values positive */
-    m = min(*n,*p);
+    m = f2c::min(*n,*p);
     i__1 = m;
     for (i__ = 1; i__ <= i__1; ++i__) {
 	if (s[i__] < 0.) {
@@ -5879,18 +5875,18 @@ prse(integer *ll, integer *m, integer *nrow, integer *ncol, doublereal *s, doubl
     --s;
 
     /* Function Body */
-    xpp_log(XPP_LOG_DEBUG, "                      s(.)                       e(.) for ll,m=%ld,%ld\n",(*ll),(*m));
+    xpp::log(XPP_LOG_DEBUG, "                      s(.)                       e(.) for ll,m={},{}\n",(*ll),(*m));
     i__1 = *m - 1;
     for (i__ = *ll; i__ <= i__1; ++i__) {
-      xpp_log(XPP_LOG_DEBUG, "%26.17f %26.17f\n",s[i__],e[i__]);
+      xpp::log(XPP_LOG_DEBUG, "{:26.17f} {:26.17f}\n",s[i__],e[i__]);
 
 /* L1: */
     }
     if (*m >= *ncol) {
-      xpp_log(XPP_LOG_DEBUG, "%26.17f\n",s[*m]);
+      xpp::log(XPP_LOG_DEBUG, "{:26.17f}\n",s[*m]);
     }
     if (*m < *ncol) {
-      xpp_log(XPP_LOG_DEBUG, "%26.17f %26.17f\n",s[*m],e[*m]);
+      xpp::log(XPP_LOG_DEBUG, "{:26.17f} {:26.17f}\n",s[*m],e[*m]);
     }
     return 0;
 } /* prse_ */
@@ -5950,14 +5946,14 @@ sig22(doublereal *a, doublereal *b, doublereal *c__, doublereal *sigmin, doubler
 
 /*     local variables: */
 
-    absa = fabs(*a);
-    absb = fabs(*b);
-    absc = fabs(*c__);
+    absa = f2c::abs(*a);
+    absb = f2c::abs(*b);
+    absc = f2c::abs(*c__);
     sgna = d_sign(c_b170, *a);
     sgnb = d_sign(c_b170, *b);
     sgnc = d_sign(c_b170, *c__);
-    acmn = min(absa,absc);
-    acmx = max(absa,absc);
+    acmn = f2c::min(absa,absc);
+    acmx = f2c::max(absa,absc);
 /*     bad underflow possible if acmx<UF/eps and standard underflow */
 /*     underflow impossible if underflow gradual */
 /*     either at=0 or eps/2 <= at <= 1 */
@@ -6166,15 +6162,15 @@ sigmin(doublereal *a, doublereal *b, doublereal *c__)
 /*     answer is accurate to a few ulps if final answer */
 /*     exceeds (underflow_threshold/macheps) */
 /*     overflow is impossible */
-    aa = fabs(*a);
-    ab = fabs(*b);
-    ac = fabs(*c__);
-    acmn = min(aa,ac);
+    aa = f2c::abs(*a);
+    ab = f2c::abs(*b);
+    ac = f2c::abs(*c__);
+    acmn = f2c::min(aa,ac);
     if (acmn == 0.) {
 	ret_val = 0.;
     } else {
-	acmx = max(aa,ac);
-	ab = fabs(*b);
+	acmx = f2c::max(aa,ac);
+	ab = f2c::abs(*b);
 	if (ab < acmx) {
 	    as = acmn / acmx + 1.;
 	    at = (acmx - acmn) / acmx;
@@ -6227,7 +6223,7 @@ sndrtg(doublereal *f, doublereal *g, doublereal *cs, doublereal *sn)
 	*cs = 1.;
 	*sn = 0.;
     } else {
-	if (fabs(*f) > fabs(*g)) {
+	if (f2c::abs(*f) > f2c::abs(*g)) {
 	    t = *g / *f;
 	    tt = sqrt(t * t + 1.);
 	    d__1 = 1. / tt;
@@ -6358,9 +6354,9 @@ L40:
     if (l == *nlow) {
 	goto L50;
     }
-    if ((d__1 = a[l + (l - 1) * a_dim1], fabs(d__1)) <= *eps * ((d__2 = a[l - 
-	    1 + (l - 1) * a_dim1], fabs(d__2)) + (d__3 = a[l + l * a_dim1], 
-	    fabs(d__3)))) {
+    if ((d__1 = a[l + (l - 1) * a_dim1], f2c::abs(d__1)) <= *eps * ((d__2 = a[l - 
+	    1 + (l - 1) * a_dim1], f2c::abs(d__2)) + (d__3 = a[l + l * a_dim1], 
+	    f2c::abs(d__3)))) {
 	goto L50;
     }
     --l;
@@ -6392,8 +6388,8 @@ L50:
 	a[i__ + i__ * a_dim1] -= x;
 /* L60: */
     }
-    s = (d__1 = a[nu + (nu - 1) * a_dim1], fabs(d__1)) + (d__2 = a[nu - 1 + (
-	    nu - 2) * a_dim1], fabs(d__2));
+    s = (d__1 = a[nu + (nu - 1) * a_dim1], f2c::abs(d__1)) + (d__2 = a[nu - 1 + (
+	    nu - 2) * a_dim1], f2c::abs(d__2));
     x = s * .75;
     y = x;
 /* Computing 2nd power */
@@ -6411,16 +6407,16 @@ L80:
     p = (r__ * s - w) / a[nl + 1 + nl * a_dim1] + a[nl + (nl + 1) * a_dim1];
     q = a[nl + 1 + (nl + 1) * a_dim1] - z__ - r__ - s;
     r__ = a[nl + 2 + (nl + 1) * a_dim1];
-    s = fabs(p) + fabs(q) + fabs(r__);
+    s = f2c::abs(p) + f2c::abs(q) + f2c::abs(r__);
     p /= s;
     q /= s;
     r__ /= s;
     if (nl == l) {
 	goto L90;
     }
-    if ((d__1 = a[nl + (nl - 1) * a_dim1], fabs(d__1)) * (fabs(q) + fabs(r__)) <=
-	     *eps * fabs(p) * ((d__2 = a[nl - 1 + (nl - 1) * a_dim1], fabs(d__2)
-	    ) + fabs(z__) + (d__3 = a[nl + 1 + (nl + 1) * a_dim1], fabs(d__3))))
+    if ((d__1 = a[nl + (nl - 1) * a_dim1], f2c::abs(d__1)) * (f2c::abs(q) + f2c::abs(r__)) <=
+	     *eps * f2c::abs(p) * ((d__2 = a[nl - 1 + (nl - 1) * a_dim1], f2c::abs(d__2)
+	    ) + f2c::abs(z__) + (d__3 = a[nl + 1 + (nl + 1) * a_dim1], f2c::abs(d__3))))
 	     {
 	goto L90;
     }
@@ -6733,14 +6729,14 @@ L30:
 L40:
     r__ = 0.;
 L50:
-    if ((d__1 = x + z__, fabs(d__1)) >= (d__2 = x + r__, fabs(d__2))) {
+    if ((d__1 = x + z__, f2c::abs(d__1)) >= (d__2 = x + r__, f2c::abs(d__2))) {
 	z__ = r__;
     }
     y = y - x - z__;
     x = -z__;
     t = a[*l + (*l + 1) * a_dim1];
     u = a[*l + 1 + *l * a_dim1];
-    if (fabs(y) + fabs(u) <= fabs(t) + fabs(x)) {
+    if (f2c::abs(y) + f2c::abs(u) <= f2c::abs(t) + f2c::abs(x)) {
 	goto L60;
     }
     q = u;
@@ -6858,8 +6854,8 @@ exchng(doublereal *a, doublereal *v, integer *n, integer *l, integer *b1, intege
     q = a[*l + 1 + (*l + 1) * a_dim1] - a[*l + *l * a_dim1];
     p = a[*l + (*l + 1) * a_dim1];
 /* Computing MAX */
-    d__1 = fabs(p), d__2 = fabs(q);
-    r__ = max(d__1,d__2);
+    d__1 = f2c::abs(p), d__2 = f2c::abs(q);
+    r__ = f2c::max(d__1,d__2);
     if (r__ == 0.) {
 	return 0;
     }
@@ -6920,9 +6916,9 @@ L60:
     r__ = 0.;
     i__1 = *l + 2;
     qrstep(&a[a_offset], &v[v_offset], &p, &q, &r__, l, &i__1, n, na, nv);
-    if ((d__1 = a[*l + 2 + (*l + 1) * a_dim1], fabs(d__1)) > *eps * ((d__2 = a[
-	    *l + 1 + (*l + 1) * a_dim1], fabs(d__2)) + (d__3 = a[*l + 2 + (*l 
-	    + 2) * a_dim1], fabs(d__3)))) {
+    if ((d__1 = a[*l + 2 + (*l + 1) * a_dim1], f2c::abs(d__1)) > *eps * ((d__2 = a[
+	    *l + 1 + (*l + 1) * a_dim1], f2c::abs(d__2)) + (d__3 = a[*l + 2 + (*l 
+	    + 2) * a_dim1], f2c::abs(d__3)))) {
 	goto L50;
     }
     a[*l + 2 + (*l + 1) * a_dim1] = 0.;
@@ -6955,14 +6951,14 @@ L90:
     p = (r__ * s - w) / a[*l + 1 + *l * a_dim1] + a[*l + (*l + 1) * a_dim1];
     q = a[*l + 1 + (*l + 1) * a_dim1] - z__ - r__ - s;
     r__ = a[*l + 2 + (*l + 1) * a_dim1];
-    s = fabs(p) + fabs(q) + fabs(r__);
+    s = f2c::abs(p) + f2c::abs(q) + f2c::abs(r__);
     p /= s;
     q /= s;
     r__ /= s;
     qrstep(&a[a_offset], &v[v_offset], &p, &q, &r__, l, &m, n, na, nv);
-    if ((d__1 = a[m - 1 + (m - 2) * a_dim1], fabs(d__1)) > *eps * ((d__2 = a[m 
-	    - 1 + (m - 1) * a_dim1], fabs(d__2)) + (d__3 = a[m - 2 + (m - 2) * 
-	    a_dim1], fabs(d__3)))) {
+    if ((d__1 = a[m - 1 + (m - 2) * a_dim1], f2c::abs(d__1)) > *eps * ((d__2 = a[m 
+	    - 1 + (m - 1) * a_dim1], f2c::abs(d__2)) + (d__3 = a[m - 2 + (m - 2) * 
+	    a_dim1], f2c::abs(d__3)))) {
 	goto L80;
     }
     a[m - 1 + (m - 2) * a_dim1] = 0.;
@@ -7042,7 +7038,7 @@ L30:
 	if (! last) {
 	    *r__ = a[k + 2 + (k - 1) * a_dim1];
 	}
-	x = fabs(*p) + fabs(*q) + fabs(*r__);
+	x = f2c::abs(*p) + f2c::abs(*q) + f2c::abs(*r__);
 	if (x == 0.) {
 	    goto L130;
 	}
@@ -7093,7 +7089,7 @@ L70:
 /* POSTMULTIPLY. */
 /* Computing MIN */
 	i__2 = k + 3;
-	j = min(i__2,*nu);
+	j = f2c::min(i__2,*nu);
 	i__2 = j;
 	for (i__ = 1; i__ <= i__2; ++i__) {
 	    *p = x * a[i__ + k * a_dim1] + y * a[i__ + (k + 1) * a_dim1];
@@ -7210,7 +7206,7 @@ orthes(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, doubl
 	i__2 = *igh;
 	for (i__ = m; i__ <= i__2; ++i__) {
 /* L90: */
-	    scale += (d__1 = a[i__ + (m - 1) * a_dim1], fabs(d__1));
+	    scale += (d__1 = a[i__ + (m - 1) * a_dim1], f2c::abs(d__1));
 	}
 
 	if (scale == 0.) {

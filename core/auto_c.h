@@ -1,21 +1,12 @@
+#ifndef AUTO_C_H
+#define AUTO_C_H
+/* AUTO's own API between its files (autlib1-5, eispack, conpar2,
+   setubv2) and the AUTO front end (gogoauto, auto_nox, autevd). */
 #include <stdio.h>
-#include <signal.h>
-#include <unistd.h>
-#ifdef PTHREADS
-#include <pthread.h>
-#endif
-#ifdef MPI
-#include <mpi.h>
-#include "auto_mpi.h"
-#endif
-#include <string.h>
+#include "auto_f2c.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#ifndef __AUTO_C_H__
-#define __AUTO_C_H__
-
 
 #define NPARX (36) /*get rid of*/
 #define NBIFX (20)
@@ -25,30 +16,24 @@ extern "C" {
 #define RSMALL (1.0e-30)
 #define RLARGE (1.0e+30)
 #define HMACH1 (HMACH+1.0e0)
-#define M1SB (NBIFX) 
 #define LEFT (1)
 #define RIGHT (2)
-#define QZMATZ (.FALSE.)
 #define QZEPS1 (0.0E0)
 #define HMACHHO (1.0e-13)
 
-extern FILE *fp2;
 extern FILE *fp3;
 extern FILE *fp7;
 extern FILE *fp8;
 extern FILE *fp9;
-extern FILE *fp10;
 
-#define CONPAR_DEFAULT  0
-#define CONPAR_PTHREADS 1
-#define CONPAR_MPI      2
+#define CONPAR_DEFAULT  0 /* the only kind left: no pthreads, no MPI */
 
 extern int global_conpar_type;
 
 /* AUTO's work arrays, defined in autlib1 (allocate_global_memory, which
-   owns their storage) and shared with autlib3, autlib5
-   and worker2 (see there). Named types: a C++ file cannot share a
-   variable of an unnamed struct type with another file. */
+   owns their storage) and shared with autlib3 and autlib5. Named types: a
+   C++ file cannot share a variable of an unnamed struct type with another
+   file. */
 typedef struct {
   doublereal *dfu, *dfp, *uu1, *uu2, *ff1, *ff2;
 } AutoGlobalScratch;
@@ -242,7 +227,7 @@ int newlab(iap_type *iap, rap_type *rap);
 int findlb(iap_type *iap, const rap_type *rap, integer irs, integer *nfpr, logical *found);
 int readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par);
 int skip3(integer *nskip, logical *eof3);
-doublereal rinpr(iap_type *iap, integer *ndim1, integer *ndxloc, doublereal *ups, doublereal *vps, doublereal *dtm, doublereal *thu);
+doublereal rinpr(iap_type *iap, const integer *ndim1, const integer *ndxloc, doublereal *ups, doublereal *vps, doublereal *dtm, doublereal *thu);
 doublereal rnrmsq(iap_type *iap, integer *ndim1, integer *ndxloc, doublereal *ups, doublereal *dtm, doublereal *thu);
 doublereal rintg(iap_type *iap, integer *ndxloc, integer ic, doublereal *ups, doublereal *dtm);
 doublereal rnrm2(iap_type *iap, integer *ndxloc, integer *ic, doublereal *ups, doublereal *dtm);
@@ -270,8 +255,6 @@ int wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublere
 int wrtbv9(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rlcur, integer *ndxloc, doublereal *ups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu);
 PVLI_TYPE_AE(pvlsae);
 PVLI_TYPE_BVP(pvlsbv);
-int autim0(doublereal *t);
-int autim1(doublereal *t);
 /* autlib2.c */
 int solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *rds, integer *nllv, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dtm, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, doublereal *thl, doublereal *thu);
 int setfcdd(integer *ifst, doublereal *dd, doublereal *fc, integer *ncb, integer *nrc);
@@ -441,63 +424,18 @@ int fopt(integer ndim, const doublereal *u, const integer *icp,
 	 const doublereal *par, integer ijac, 
 	 doublereal *fs, doublereal *dfdu, doublereal *dfdp);
 int pvls(integer ndim, const doublereal *u, doublereal *par);
-/* conpar.c */
-void *conpar_process(void *);
+/* conpar2.cpp */
 int conpar(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf);
-/*setubv.c */
-#ifdef __cplusplus
-}
-#endif
-#include "auto_types.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
-void *setubv_make_aa_bb_cc(void *);
+/* setubv2.cpp */
 int setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
 	   FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, 
 	   doublereal rds, doublereal *aa, doublereal *bb, doublereal *cc, doublereal *dd, doublereal *fa, doublereal *fc, doublereal *rlcur, 
 	   doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, 
 	   doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1);
-void setubv_parallel_arglist_constructor(integer ndim, integer ips, integer na, integer ncol, 
-					 integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
-					 FUNI_TYPE((*funi)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, 
-					 integer *icp, doublereal *aa, doublereal *bb, 
-					 doublereal *cc, doublereal *dd, doublereal *fa, doublereal *fc, doublereal *ups, 
-					 doublereal *uoldps, doublereal *udotps, 
-					 doublereal *upoldp, doublereal *dtm, 
-					 doublereal *wp, doublereal *wt, doublereal *wi,
-					 doublereal *thu, doublereal *thl, doublereal *rldot, BCNI_TYPE((*bcni)),
-					 setubv_parallel_arglist *data);
-void setubv_make_fa(setubv_parallel_arglist larg);
-void setubv_make_fc_dd(setubv_parallel_arglist larg,doublereal *dups, doublereal *rlcur, 
-		       doublereal *rlold, doublereal rds);
-
-
-/*worker.c*/
-int mpi_worker();
-int mpi_setubv_worker();
-int mpi_conpar_worker();
-#ifdef __cplusplus
-}
-#endif
-#include "auto_types.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
-int set_funi_and_icni(iap_type *,setubv_parallel_arglist *);
+/* gogoauto.cpp */
 int set_function_pointers(const iap_type,function_list *);
 
-#ifdef AUTO_CONSTRUCT_DESCTRUCT
-int user_construct(int argc, char **argv);
-int user_destruct();
-#endif
-
-#endif
-
-
-
-
-
 #ifdef __cplusplus
 }
+#endif
 #endif

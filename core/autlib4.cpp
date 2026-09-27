@@ -3,10 +3,10 @@
 	-lf2c -lm   (in that order)
 */
 
+#include <array>
 #include <vector>
-#include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
+#include "xpp_io.h"
 #include "auto_f2c.h"
-#include "xpp_mem.h"
 #include "auto_c.h"
 
 
@@ -72,7 +72,8 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
   integer c0_dim1, c1_dim1, rwork_dim1;
 
   /* Local variables */
-  doublereal beta, svdu[1];
+  doublereal beta;
+  std::array<doublereal, 1> svdu;
 
 
   integer i, j;
@@ -86,7 +87,7 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
   doublereal nrmc0x, nrmc1x;
   integer svdinf;
   integer qzierr;
-  doublereal qzz[1];
+  std::array<doublereal, 1> qzz;
 
   std::vector<doublereal> svde(*ndim);
   std::vector<doublereal> svds(*ndim+1);
@@ -210,7 +211,7 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
        BLAS routines. */
     integer tmp = 1;
     doublereal tmp_tol = 1.0E-16;
-    ezsvd(rwork, ndim, ndim, ndim, svds.data(), svde.data(), svdu, &tmp, 
+    ezsvd(rwork, ndim, ndim, ndim, svds.data(), svde.data(), svdu.data(), &tmp, 
 	  svdv.data(), ndim, svdwrk.data(), &tmp, &svdinf, &tmp_tol);
   }
   if (svdinf != 0) {
@@ -264,7 +265,7 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
    */
 
   /* Computing MAX */
-  const__ = max(fabs(ARRAY2D(c0, 0, (*ndim - 1))),fabs(ARRAY2D(c1, 0, (*ndim - 1))));
+  const__ = f2c::max(f2c::abs(ARRAY2D(c0, 0, (*ndim - 1))),f2c::abs(ARRAY2D(c1, 0, (*ndim - 1))));
   for (j = 0; j < *ndim; ++j) {
     for (i = 0; i < *ndim; ++i) {
       ARRAY2D(c0, i, j) /= const__;
@@ -324,13 +325,13 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
   /*   (C0BarDef,C1BarDef) = (upper hessenberg, upper triangular) */
 
 
-  qzhes(*ndim, ndimm1, &c0[1], &c1[1], FALSE_ , qzz);
+  qzhes(*ndim, ndimm1, &c0[1], &c1[1], FALSE_ , qzz.data());
 
   /*  now reduce to an even simpler form */
   /*   (C0BarDef,C1BarDef) = (quasi-upper triangular, upper triangular) */
 
   qzit(*ndim, ndimm1, &c0[1], &c1[1], QZEPS1, FALSE_ , 
-       qzz, &qzierr);
+       qzz.data(), &qzierr);
   if (qzierr != 0) {
     xpp::print(fp9," NOTE : Warning from subroutine FLOWKM : QZ routine returned QZIERR = {:4}        Floquet multiplier calculations may be wrong \n",qzierr);	
 
@@ -339,7 +340,7 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
   /*  compute the generalized eigenvalues */
 
   qzval(*ndim, ndimm1, &c0[1], &c1[1], qzalfr.data(), qzalfi.data(), 
-	qzbeta.data(), FALSE_, qzz);
+	qzbeta.data(), FALSE_, qzz.data());
 
   /*  Pack the eigenvalues into complex form. */
   ev[0].r = ARRAY2D(c0, 0, (*ndim - 1)) / ARRAY2D(c1, 0, (*ndim - 1));
@@ -482,7 +483,7 @@ dhhpr(integer *k, integer *j, integer *n, doublereal *x, integer *incx, doublere
 
   /*  Find M := max{ |x_k|, ... , |x_j| } */
 
-  m = fabs(x[-1 + idamax(&jmkp1, &x[-1 + *k], incx)]);
+  m = f2c::abs(x[-1 + idamax(&jmkp1, &x[-1 + *k], incx)]);
 
   /*  alpha := 0 */
   /*  For i = k to j */
@@ -517,7 +518,7 @@ dhhpr(integer *k, integer *j, integer *n, doublereal *x, integer *incx, doublere
   }
   /*  beta := 1/(alpha(alpha + |V_k|)) */
 
-  *beta = 1. / (alpha * (alpha + fabs(v[-1 + *k])));
+  *beta = 1. / (alpha * (alpha + f2c::abs(v[-1 + *k])));
 
   /*  v_k := v_k + sign(v_k)*alpha */
 

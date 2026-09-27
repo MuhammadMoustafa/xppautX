@@ -1,7 +1,7 @@
 #include <array>
 #include <string>
 #include <vector>
-#include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
+#include "xpp_io.h"
 #include "auto_f2c.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
@@ -13,8 +13,8 @@
 #include "auto_nox.h" /* auto_screen_col() */
 #include "xpp_job.h" /* xppautX: cancel */
 #include "auto_stop.h" /* xppautX: why a branch ended (T23) */
+#include "phsplan.h" /* NODE */
 extern XAUTO xAuto;
-extern int NODE;
 extern int RestartLabel;
 int restart_flag=0;
 /* The memory for these are taken care of in main, and setubv for the
@@ -44,7 +44,6 @@ extern char fort8[200];
    last stored point, so a cancelled run always ends the same way (the EP
    repeating that point) and a script can replay it exactly. */
 static int auto_locating = 0;
-void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *par,integer *icp,int labw, double *a, double *uhigh, double *ulow, double *u0, double *ubar);
 
 int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, doublereal **thu_pointer, integer *iuz, doublereal *vuz)
 {
@@ -141,12 +140,12 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
   
   if(dsmin < 0.0) {
     xpp_log_auto("Warning : DSMIN less then 0.0, will use absolute value instead.");
-    dsmin = fabs(dsmin);
+    dsmin = f2c::abs(dsmin);
   }
 
   if(dsmax < 0.0) {
     xpp_log_auto("Warning : DSMAX less then 0.0, will use absolute value instead.");
-    dsmax = fabs(dsmax);
+    dsmax = f2c::abs(dsmax);
   }
   nthl=xAuto.nthl;
   
@@ -460,7 +459,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
     ds = .1;
   }
   if (dsmin == 0.) {
-    dsmin = fabs(ds) * 1e-4;
+    dsmin = f2c::abs(ds) * 1e-4;
   }
   fc = HMACH1;
   ds = fc * ds;
@@ -484,7 +483,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
 
   /* General Redefinition. */
 
-  if (abs(ips) <= 1 && isw == 1) {
+  if (f2c::abs(ips) <= 1 && isw == 1) {
     /*        ** Algebraic Systems */
     nfpr = 1;
 
@@ -495,13 +494,13 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
     ilp = 0;
     icp[0] = 13;
 
-  } else if (ips == 2 && abs(isw) == 1) {
+  } else if (ips == 2 && f2c::abs(isw) == 1) {
     /*        ** Periodic Solutions */
     nbc = ndim;
     nint = 1;
     nfpr = nbc + nint - ndim + 1;
     /*        **ISW=1 when starting from a HB */
-    if (itp == 3 || abs(itp) / 10 == 3) {
+    if (itp == 3 || f2c::abs(itp) / 10 == 3) {
       isw = 1;
     }
     if (nicp == 1) {
@@ -509,15 +508,15 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       icp[1] = 10;
     }
 
-  } else if (ips == 4 && abs(isw) == 1) {
+  } else if (ips == 4 && f2c::abs(isw) == 1) {
     /*        ** Boundary value problems */
     nfpr = nbc + nint - ndim + 1;
 
-  } else if (ips == 7 && abs(isw) == 1) {
+  } else if (ips == 7 && f2c::abs(isw) == 1) {
     /*        ** Boundary value problems */
     nfpr = nbc + nint - ndim + 1;
 
-  } else if (ips == 9 && abs(isw) == 1) {
+  } else if (ips == 9 && f2c::abs(isw) == 1) {
     /*        ** Homoclinic bifurcation analysis */
     /*        Redefine AUTO constants for homoclinic orbits */
     inho(iap, icp, par);
@@ -570,7 +569,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
     nneg = 0;
     for (i = 0; i < nicp; ++i) {
       ic = ict[i];
-      jc = abs(ic) - 20;
+      jc = f2c::abs(ic) - 20;
       if (ic < 0 && jc > 0 && jc <= 11) {
 	++nneg;
 	icp[nfpr + nneg - 1] = jc;
@@ -597,16 +596,16 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       icp[0] = 9;
     }
 
-  } else if (irs > 0 && abs(isw) == 2) {
+  } else if (irs > 0 && f2c::abs(isw) == 2) {
     /*        ** Continuation of singular points */
 
-    if ((itp == 1 || abs(itp) / 10 == 1 || itp == 2 || abs(itp) / 10 == 2)
-	&& abs(ips) <= 1) {
+    if ((itp == 1 || f2c::abs(itp) / 10 == 1 || itp == 2 || f2c::abs(itp) / 10 == 2)
+	&& f2c::abs(ips) <= 1) {
       /*          ** Fold continuation (Algebraic Problems) */
       ndim = (ndim << 1) + 1;
       nfpr = 2;
 
-    } else if ((itp == 3 || abs(itp) / 10 == 3) && abs(ips) <= 1) {
+    } else if ((itp == 3 || f2c::abs(itp) / 10 == 3) && f2c::abs(ips) <= 1) {
       /*          ** Hopf bifurcation continuation (Maps, ODE, Waves) */
       ndim = ndim * 3 + 2;
       nfpr = 2;
@@ -636,7 +635,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
 	restart_flag=1;
       }
 
-    } else if ((abs(itp) / 10 == 5 || abs(itp) / 10 == 6) && ips == 2) {
+    } else if ((f2c::abs(itp) / 10 == 5 || f2c::abs(itp) / 10 == 6) && ips == 2) {
       /*          ** Fold continuation (Periodic solutions); restart */
       ndim <<= 1;
       nbc = ndim;
@@ -672,7 +671,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
 	restart_flag=1;
       }
 
-    } else if (abs(itp) / 10 == 7 && ips == 2) {
+    } else if (f2c::abs(itp) / 10 == 7 && ips == 2) {
       /*          ** Continuation of period doubling bifurcations; resta
 rt */
       ndim <<= 1;
@@ -702,7 +701,7 @@ rt */
 	restart_flag=1;
       }
 
-    } else if (abs(itp) / 10 == 8 && ips == 2) {
+    } else if (f2c::abs(itp) / 10 == 8 && ips == 2) {
       /*          ** Continuation of torus bifurcations; restart */
       ndim *= 3;
       nbc = ndim;
@@ -733,7 +732,7 @@ rt */
 	xpp_log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
       }
 
-    } else if ((abs(itp) / 10 == 5 || abs(itp) / 10 == 5) && ips == 4) {
+    } else if ((f2c::abs(itp) / 10 == 5 || f2c::abs(itp) / 10 == 5) && ips == 4) {
       /*          ** Continuation of folds (BVP; restart) */
       ndim <<= 1;
       nbc <<= 1;
@@ -791,14 +790,17 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer nbif, iads;
   integer mxbf;
 
-  doublereal stla[NBIFX], stld[NBIFX];
+  std::array<doublereal, NBIFX> stla;
+  std::array<doublereal, NBIFX> stld;
   integer nins;
   integer ipos;
   integer ntot, iuzr, nuzr;
   integer i, k;
   doublereal dsold;
 
-  doublereal rlold[NPARX], rldot[NPARX], rlcur[NPARX];
+  std::array<doublereal, NPARX> rlold;
+  std::array<doublereal, NPARX> rldot;
+  std::array<doublereal, NPARX> rlcur;
   integer istop, itpst;
 
 
@@ -902,7 +904,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   }
   iap->itp = itp;
   rlcur[0] = par[icp[0]];
-  stplae(iap, rap, par, icp, rlcur, u.data());
+  stplae(iap, rap, par, icp, rlcur.data(), u.data());
   istop = iap->istop;
   if (istop == 1) {
     goto L6;
@@ -911,7 +913,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   /* Starting procedure  (to get second point on first branch) : */
 
   stprae(iap, rap, par, icp, funi, &rds, &aa_first_dimension, aa.data(), 
-	 rhs.data(), rlcur, rlold, rldot, u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(), thl, 
+	 rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(), thl, 
 	 thu);
   istop = iap->istop;
   if (istop == 1) {
@@ -925,7 +927,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
  L2:
   swpnt(iap, rap, par, icp, &rds, NBIFX, stud.data(), stu.data(), 
-	stla, stld, rlcur, rlold, rldot, u.data(), udot.data());
+	stla.data(), stld.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), udot.data());
 
   ipos = iap->ipos;
   if (ipos == 1) {
@@ -960,7 +962,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
 /* Store plotting data for first point on the bifurcating branch */
 
-  stplae(iap, rap, par, icp, rlcur, u.data());
+  stplae(iap, rap, par, icp, rlcur.data(), u.data());
   istop = iap->istop;
   if (istop == 1) {
     goto L6;
@@ -969,7 +971,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   /* Determine the second point on the bifurcating branch */
 
   swprc(iap, rap, par, icp, funi, &aa_first_dimension, aa.data(), rhs.data(), 
-	rlcur, rlold, rldot, u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(), &rds, thl, 
+	rlcur.data(), rlold.data(), rldot.data(), u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(), &rds, thl, 
 	thu);
   istop = iap->istop;
   if (istop == 1) {
@@ -978,7 +980,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   /* Store plotting data for second point : */
 
-  stplae(iap, rap, par, icp, rlcur, u.data());
+  stplae(iap, rap, par, icp, rlcur.data(), u.data());
   istop = iap->istop;
   if (istop == 1) {
     goto L6;
@@ -990,12 +992,12 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 /* Provide initial approximation to the next point on the branch */
 
  L3:
-  contae(iap, rap, &rds, rlcur, rlold, rldot, u.data(), uold.data(), udot.data());
+  contae(iap, rap, &rds, rlcur.data(), rlold.data(), rldot.data(), u.data(), uold.data(), udot.data());
 
 /* Find the next solution point on the branch */
 
   solvae(iap, rap, par, icp, funi, &rds, &aa_first_dimension, aa.data(), 
-	 rhs.data(), rlcur, rlold, rldot, u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(), thl, 
+	 rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(), thl, 
 	 thu);
   istop = iap->istop;
   if (istop == 1) {
@@ -1008,7 +1010,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     for (iuzr = 0; iuzr < nuzr; ++iuzr) {
       iap->iuzr = iuzr;
       lcspae(iap, rap, par, icp, 
-	     fnuzae, funi, &aa_first_dimension, aa.data(), rhs.data(), rlcur, rlold, rldot, u.data(), du.data(), uold.data(), udot.data(),
+	     fnuzae, funi, &aa_first_dimension, aa.data(), rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), du.data(), uold.data(), udot.data(),
 	     f.data(), dfdu.data(), dfdp.data(), &uzr[iuzr], thl, thu, iuz, vuz);
       istop = iap->istop;
       if (istop == 1) {
@@ -1036,7 +1038,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   if (iap->ilp == 1) {
     lcspae(iap, rap, par, icp, fnlpae, 
 	   funi, &aa_first_dimension, 
-	   aa.data(), rhs.data(), rlcur, rlold, rldot, u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), 
+	   aa.data(), rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), 
 	   dfdp.data(), &rlp, thl, thu, iuz, vuz);
     itp = iap->itp;
     if (itp == -1) {
@@ -1053,7 +1055,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   if (isp != 0) {
     lcspae(iap, rap, par, icp, 
 	   fnbpae, funi, &aa_first_dimension, 
-	   aa.data(), rhs.data(), rlcur, rlold, rldot, u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), 
+	   aa.data(), rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), 
 	   dfdp.data(), &rbp, thl, thu, iuz, vuz);
     istop = iap->istop;
     if (istop == 1) {
@@ -1066,7 +1068,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       ++nbif;
       iap->nbif = nbif;
       stbif(iap, rap, par, icp, &aa_first_dimension, aa.data(),
-	    NBIFX, stud.data(), stu.data(), stla, stld, rlcur, rlold, rldot, u.data(), 
+	    NBIFX, stud.data(), stu.data(), stla.data(), stld.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), 
 	    du.data(), udot.data(), dfdu.data(), dfdp.data(), thl, thu);
       rlp = 0.;
       rbp = 0.;
@@ -1076,10 +1078,10 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   /* Check for Hopf bifurcation */
 
-  if (abs(ips) == 1) {
+  if (f2c::abs(ips) == 1) {
     lcspae(iap, rap, par, icp, fnhbae, 
 	   funi, &aa_first_dimension, 
-	   aa.data(), rhs.data(), rlcur, rlold, rldot, u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), 
+	   aa.data(), rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), 
 	   dfdp.data(), &rev, thl, thu, iuz, vuz);
     istop = iap->istop;
     if (istop == 1) {
@@ -1099,7 +1101,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   /* Store plotting data on unit 7 : */
 
  L5:
-  stplae(iap, rap, par, icp, rlcur, u.data());
+  stplae(iap, rap, par, icp, rlcur.data(), u.data());
 
 /* Adapt the stepsize along the branch */
 
@@ -1118,7 +1120,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   }
 
   nbif = iap->nbif;
-  if (nbif != 0 && nbfc < abs(mxbf)) {
+  if (nbif != 0 && nbfc < f2c::abs(mxbf)) {
     goto L2;
   }
 
@@ -1448,8 +1450,8 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     dumx = 0.;
     umx = 0.;
     for (i = 0; i < ndim; ++i) {
-      adu = fabs(du[i]);
-      au = fabs(u[i]);
+      adu = f2c::abs(du[i]);
+      au = f2c::abs(u[i]);
       if (au > umx) {
 	umx = au;
       }
@@ -1470,7 +1472,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       }
     }
 
-    rdrlm = fabs(drlm) / (fabs(rlcur[0]) + 1.);
+    rdrlm = f2c::abs(drlm) / (f2c::abs(rlcur[0]) + 1.);
     rdumx = dumx / (umx + 1.);
     if (rdrlm <= epsl && rdumx <= epsu) {
       pvlsae(iap, rap, u, par);
@@ -1484,9 +1486,9 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
      */
 
     if (nit == 1) {
-      delref = max(rdrlm,rdumx) * 20;
+      delref = f2c::max(rdrlm,rdumx) * 20;
     } else {
-      delmax = max(rdrlm,rdumx);
+      delmax = f2c::max(rdrlm,rdumx);
       if (delmax > delref) {
 	goto L3;
       }
@@ -1511,7 +1513,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   mxt = itnw;
   iap->nit = mxt;
   adptds(iap, rap, rds);
-  if (fabs(*rds) < dsmin) {
+  if (f2c::abs(*rds) < dsmin) {
     goto L4;
   }
   rlcur[0] = rlold[0] + *rds * rldot[0];
@@ -1614,7 +1616,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
 
   /* Return if relative tolerance has been met : */
 
-  rrds = fabs(rds) / (sqrt(fabs(ds * dsmax)) + 1);
+  rrds = f2c::abs(rds) / (sqrt(f2c::abs(ds * dsmax)) + 1);
   if (rrds < epss) {
     itp = -1;
     iap->itp = itp;
@@ -1681,7 +1683,7 @@ mueller(doublereal *q0, doublereal *q1, doublereal *q, doublereal *s0, doublerea
 
   a = (h1 * h1 * (*q0 - *q) - h0 *  h0 * (*q1 - *q)) / d;
   b = (-h1 * (*q0 - *q) + h0 * (*q1 - *q)) / d;
-  if (fabs(b) <= RSMALL) {
+  if (f2c::abs(b) <= RSMALL) {
     *rds = -(*q) / a;
   } else {
     c = a / (b * 2);
@@ -1811,7 +1813,7 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   /* If requested write additional output on unit 9 : */
 
   if (iid >= 2 && iap->mynode == 0) {
-    xpp::print(fp9,"{:4}{:6}        Fold Function {:14.6E}\n",abs(ibr),ntop,ret_val);
+    xpp::print(fp9,"{:4}{:6}        Fold Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
   }
   return ret_val;
 } /* fnlpae_ */
@@ -1907,11 +1909,11 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   rev = 0.;
   for (i = 0; i < ndm; ++i) {
     if (d_imag(&ev[i]) != 0.) {
-      ar = fabs(ev[i].r);
+      ar = f2c::abs(ev[i].r);
       if (ar <= arev) {
 	arev = ar;
 	rev = ev[i].r;
-	rimhb = fabs(d_imag(&ev[i]));
+	rimhb = f2c::abs(d_imag(&ev[i]));
 	if (rimhb != 0.) {
 	  par[10] = pi(2.0) / rimhb;
 	}
@@ -1952,23 +1954,23 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   ntot = iap->ntot;
   ntotp1 = ntot + 1;
   if (iid >= 2 && iap->mynode == 0) {
-    xpp::print(fp9,"{:4}{:6}        Hopf Function {:14.6E}\n",abs(ibr),ntop,ret_val);	
+    xpp::print(fp9,"{:4}{:6}        Hopf Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);	
   }
   if (nins1 == ndm) {
     ntotp1 = -ntotp1;
   }
 
   if (iap->mynode == 0) {
-    xpp::print(fp9,"{:4}{:6}        Eigenvalues:                                 Stable:{:3}\n",abs(ibr),ntop,nins);	
+    xpp::print(fp9,"{:4}{:6}        Eigenvalues:                                 Stable:{:3}\n",f2c::abs(ibr),ntop,nins);	
     if (ips == -1) {
       for (i = 0; i < ndm; ++i) {
 	doublecomplex tmp;
 	z_exp(&tmp, &ev[i]);
-	xpp::print(fp9,"{:4}{:6}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",abs(ibr),ntop,i+1,tmp.r,tmp.i);	
+	xpp::print(fp9,"{:4}{:6}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,tmp.r,tmp.i);	
       }
     } else {
       for (i = 0; i < ndm; ++i) {
-	xpp::print(fp9,"{:4}{:6}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",abs(ibr),ntop,i+1,ev[i].r,ev[i].i);
+	xpp::print(fp9,"{:4}{:6}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,ev[i].r,ev[i].i);
       }
     }
   }
@@ -2009,11 +2011,11 @@ fnuzae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   ntot = iap->ntot;
   ntop = (ntot + 1) % 10000;
 
-  ret_val = par[abs(iuz[iuzr])] - vuz[iuzr];
+  ret_val = par[f2c::abs(iuz[iuzr])] - vuz[iuzr];
   *chng = TRUE_;
 
   if (iid >= 3) {
-    xpp::print(fp9,"{:4}{:6}        User Func. {:3} {:16.6E}\n",abs(ibr),ntop,iuzr,ret_val);	
+    xpp::print(fp9,"{:4}{:6}        User Func. {:3} {:16.6E}\n",f2c::abs(ibr),ntop,iuzr,ret_val);	
   }
 
   return ret_val;
@@ -2183,7 +2185,7 @@ swpnt(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *r
     u[i] = ARRAY2D(stu, 0, i);
     udot[i] = ARRAY2D(stud, 0, i);
   }
-  if (abs(isw) == 2) {
+  if (f2c::abs(isw) == 2) {
     par[icp[1]] = u[-1 + ndim];
   }
 
@@ -2357,11 +2359,11 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
     dumx = 0.;
     umx = 0.;
     for (i = 0; i < ndim; ++i) {
-      adu = fabs(du[i]);
+      adu = f2c::abs(du[i]);
       if (adu > dumx) {
 	dumx = adu;
       }
-      au = fabs(u[i]);
+      au = f2c::abs(u[i]);
       if (au > umx) {
 	umx = au;
       }
@@ -2379,7 +2381,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
     /* Check whether relative error has reached user-supplied tolerance : 
      */
 
-    rdrlm = fabs(drlm) / (fabs(rlcur[0]) + 1.);
+    rdrlm = f2c::abs(drlm) / (f2c::abs(rlcur[0]) + 1.);
     rdumx = dumx / (umx + 1.);
     if (rdrlm < epsl && rdumx < epsu) {
       return 0;
@@ -2400,7 +2402,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
   mxt = itnw;
   iap->nit = mxt;
   adptds(iap, rap, rds);
-  if (fabs(*rds) < dsmin) {
+  if (f2c::abs(*rds) < dsmin) {
     goto L4;
   }
   rlcur[0] = rlold[0] + *rds * rldot[0];
@@ -2608,13 +2610,13 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
   } else if (iplt > ndm << 1 && iplt <= ndm * 3) {
     col[1] = xpp::format(" L2-NORM U({}) ",iplt - (ndm * 2));
   } else if (iplt > 0 && iplt <= ndm) {
-    if (abs(ips) <= 1 || ips == 5) {
+    if (f2c::abs(ips) <= 1 || ips == 5) {
       col[1] = xpp::format("     U({})     ",-iplt);
     } else {
       col[1] = xpp::format("   MAX U({})   ",iplt);
     }
   } else if (iplt < 0 && iplt >= -ndm) {
-    if (abs(ips) <= 1 || ips == 5) {
+    if (f2c::abs(ips) <= 1 || ips == 5) {
       col[1] = xpp::format("     U({})     ",-iplt);
     } else {
       col[1] = xpp::format("   MIN U({})   ",-iplt);
@@ -2655,7 +2657,6 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
 	xpp_log_auto("%s",scr);
       }
       xpp_log_auto("\n");
-      fflush(stdout);
     } else if (iunit == 7) {
       xpp::print(fp7,"   0    PT  TY LAB ");
       for (i = 0; i < *n1 + *n2 + 1; ++i) {
@@ -2768,7 +2769,7 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   /* CHECK WHETHER LIMITS OF THE BIFURCATION DIAGRAM HAVE BEEN REACHED : */
 
-  iab = abs(iplt);
+  iab = f2c::abs(iplt);
 
   if (iab <= ndim && iab > 0) {
     amp = u[-1 + iab];
@@ -2822,7 +2823,7 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   ntots = ntot;
   nins = iap->nins;
-  if (abs(ips) == 1 && abs(isw) != 2 && ntot > 1) {
+  if (f2c::abs(ips) == 1 && f2c::abs(isw) != 2 && ntot > 1) {
     if (nins == ndim) {
       ntots = -ntot;
     }
@@ -2903,10 +2904,10 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 
   /* Write a heading above the first line. */
 
-  if (abs(*ntot) == 1) {
+  if (f2c::abs(*ntot) == 1) {
     headng(iap, rap, par, icu, 6, &n1, &n2);
   }
-  if (abs(*ntot) == 1) {
+  if (f2c::abs(*ntot) == 1) {
     headng(iap, rap, par, icu, 7, &n1, &n2);
   }
   headng(iap, rap, par, icu, 9, &n1, &n2);
@@ -2951,7 +2952,6 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 	xpp_log_auto("%14.6E",par[icu[i]]);
       }
       xpp_log_auto("\n");
-      fflush(stdout);
     }
     xpp::print(fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,itp,(*lab));
     xpp::print(fp7,"{:14.5E}",par[icu[0]]);
@@ -2970,14 +2970,13 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   } else {
     if (n1 == 1) {
       if (itp % 10 != 0) {
-	xpp_log_auto("%4li%6li  %c%c%4li",abs(*ibr),abs(mtot),atype[0],atype[1],*(lab));
+	xpp_log_auto("%4li%6li  %c%c%4li",f2c::abs(*ibr),f2c::abs(mtot),atype[0],atype[1],*(lab));
 	xpp_log_auto("%14.6E",par[icu[0]]);
 	xpp_log_auto("%14.6E",(*vaxis));
 	for (i = 0; i < n2; ++i) {
 	  xpp_log_auto("%14.6E",u[i]);
 	}
 	xpp_log_auto("\n");
-	fflush(stdout);
       }
       xpp::print(fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,itp,(*lab));
       xpp::print(fp7,"{:14.5E}",par[icu[0]]);
@@ -2996,7 +2995,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 
     } else {
       if (itp % 10 != 0) {
-	xpp_log_auto("%4li%6li  %c%c%4li",abs(*ibr),abs(mtot),atype[0],atype[1],*(lab));
+	xpp_log_auto("%4li%6li  %c%c%4li",f2c::abs(*ibr),f2c::abs(mtot),atype[0],atype[1],*(lab));
 	xpp_log_auto("%14.6E",par[icu[0]]);
 	xpp_log_auto("%14.6E",(*vaxis));
 	for (i = 0; i < n2; ++i) {
@@ -3006,7 +3005,6 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 	  xpp_log_auto("%14.6E",par[icu[i]]);
 	}
 	xpp_log_auto("\n");
-	fflush(stdout);      
       }
       xpp::print(fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,itp,(*lab));
       xpp::print(fp7,"{:14.5E}",par[icu[0]]);
@@ -3539,13 +3537,13 @@ adptds(iap_type *iap, rap_type *rap, doublereal *rds)
     *rds *= .5;
   }
 
-  ards = fabs(*rds);
+  ards = f2c::abs(*rds);
   if (ards > dsmax) {
     *rds = *rds * dsmax / ards;
   }
 
-  xpp::print(fp9,"{:4}{:6}        Iterations     {:3}\n",abs(ibr),ntop - 1,nit);	
-  xpp::print(fp9,"{:4}{:6}        Stepsize      {:14.6E}\n",abs(ibr),ntop,(*rds));	
+  xpp::print(fp9,"{:4}{:6}        Iterations     {:3}\n",f2c::abs(ibr),ntop - 1,nit);	
+  xpp::print(fp9,"{:4}{:6}        Stepsize      {:14.6E}\n",f2c::abs(ibr),ntop,(*rds));	
 
   return 0;
 } /* adptds_ */
@@ -3600,7 +3598,7 @@ adapt(iap_type *iap, rap_type *rap, integer *nold, integer *ncold, integer *nnew
 
   /* For periodic boundary conditions extrapolate by periodicity. */
 
-  if (ips == 2 && abs(isw) != 2) {
+  if (ips == 2 && f2c::abs(isw) != 2) {
     iper = 1;
   } else {
     iper = 0;
@@ -3888,7 +3886,7 @@ eqdf(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, 
 	hd[j + i * (*ntst + 1)] += wh[k] * ARRAY2D(ups, j, k1);
       }
       hd[j + i * (*ntst + 1)] = sc * hd[j + i * (*ntst + 1)];
-      if (fabs(hd[j + i * (*ntst + 1)]) > HMACH) {
+      if (f2c::abs(hd[j + i * (*ntst + 1)]) > HMACH) {
 	small = FALSE_;
       }
     }
@@ -3935,7 +3933,7 @@ eqdf(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, 
   for (j = 0; j < *ntst; ++j) {
     e = 0.;
     for (i = 0; i < *ndim; ++i) {
-      doublereal tmp = fabs(hd[j + i * (*ntst + 1)]);
+      doublereal tmp = f2c::abs(hd[j + i * (*ntst + 1)]);
       e += pow_dd(&tmp, &pwr);
     }
     eqf[j + 1] = eqf[j] + dtm[j] * e;
@@ -4055,7 +4053,7 @@ nlvc(integer n, integer m, integer k, doublereal *a, doublereal *u)
     piv = 0.;
     for (i = jj; i < n; ++i) {
       for (j = jj; j < n; ++j) {
-	p = fabs(ARRAY2D(a, ir[i], ic[j]));
+	p = f2c::abs(ARRAY2D(a, ir[i], ic[j]));
 	if (p > piv) {
 	  piv = p;
 	  ipiv = i;
@@ -4223,7 +4221,7 @@ ge(integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublere
     piv = 0.;
     for (i = jj; i < n; ++i) {
       for (j = jj; j < n; ++j) {
-	p = fabs(ARRAY2D(a, ir[i], ic[j]));
+	p = f2c::abs(ARRAY2D(a, ir[i], ic[j]));
 	if (p > piv) {
 	  piv = p;
 	  ipiv = i;
@@ -4236,7 +4234,7 @@ ge(integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublere
 #ifdef GE_PIVOTS_DEBUG
     if(jj==0)  xpp::print(fp9,"\n Pivots in GE");
     if((jj%6)==0) xpp::print(fp9,"\n");
-    xpp::print(fp9," {:4} {:12.3e} ",jj,fabs(ARRAY2D(a, ir[ipiv], ic[jpiv])));
+    xpp::print(fp9," {:4} {:12.3e} ",jj,f2c::abs(ARRAY2D(a, ir[ipiv], ic[jpiv])));
 #endif
     if (ipiv != jj) {
       *det = -(*det);
@@ -4392,8 +4390,8 @@ newlab(iap_type *iap, rap_type *rap)
   if (isw < 0 || irs == 0) {
     ibr = mbr + 1;
     iap->ibr = ibr;
-  } else if ((abs(itp) < 10 && abs(isw) == 2) || (ips == 2 && itp == 3) || 
-	     (ips == 4 && isw == 2 && abs(itp) < 10) || (ips == 5 && itp % 10 == 2)) {
+  } else if ((f2c::abs(itp) < 10 && f2c::abs(isw) == 2) || (ips == 2 && itp == 3) || 
+	     (ips == 4 && isw == 2 && f2c::abs(itp) < 10) || (ips == 5 && itp % 10 == 2)) {
     ibr = irs;
     iap->ibr = ibr;
   }
@@ -4461,12 +4459,12 @@ findlb(iap_type *iap, const rap_type *rap,
     iap->ibr = ibr;
     if (labrs == irs) {
       *found = TRUE_;
-      if (abs(isw) == 2) {
-	if (abs(itp) < 10) {
-	  itpst = abs(itp);
+      if (f2c::abs(isw) == 2) {
+	if (f2c::abs(itp) < 10) {
+	  itpst = f2c::abs(itp);
 	  iap->itpst = itpst;
 	} else {
-	  itpst = abs(itp / 10);
+	  itpst = f2c::abs(itp / 10);
 	  iap->itpst = itpst;
 	}
       } else {
@@ -4564,7 +4562,7 @@ skip3(integer *nskip, logical *eof3)
 
 /*     ------ --------- -------- ----- */
 doublereal 
-rinpr(iap_type *iap, integer *ndim1, integer *ndxloc, doublereal *ups, doublereal *vps, doublereal *dtm, doublereal *thu)
+rinpr(iap_type *iap, const integer *ndim1, const integer *ndxloc, doublereal *ups, doublereal *vps, doublereal *dtm, doublereal *thu)
 {
   /* System generated locals */
   integer ups_dim1, vps_dim1;
@@ -4905,7 +4903,9 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer ntot, ntst, iuzr, nuzr, i, j, k;
   doublereal dsold;
   integer nodir = 0;
-  doublereal rlold[NPARX], rldot[NPARX], rlcur[NPARX];
+  std::array<doublereal, NPARX> rlold;
+  std::array<doublereal, NPARX> rldot;
+  std::array<doublereal, NPARX> rlcur;
   integer nitps, istop;
   integer itpst;
   doublereal ds;
@@ -4997,20 +4997,20 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     rlold[j] = 0.0;
   }
 
-  rsptbv(iap, rap, par, icp, funi, stpnt, &rds, rlcur, 
-	 rlold, rldot, &ntst_plus_one, ups.data(), uoldps.data(), udotps.data(), upoldp.data(), dups.data(), tm.data(), 
+  rsptbv(iap, rap, par, icp, funi, stpnt, &rds, rlcur.data(), 
+	 rlold.data(), rldot.data(), &ntst_plus_one, ups.data(), uoldps.data(), udotps.data(), upoldp.data(), dups.data(), tm.data(), 
 	 dtm.data(), ev.data(), &nodir, thl, thu);
   (*pvli)(iap, rap, icp, dtm.data(), &ntst_plus_one, ups.data(), &ndim, p0.data(), p1.data(), par);
 
   setrtn(iap, &ntst, &ntst_plus_one, ups.data(), par);
 
   if (nodir == 1 && isw > 0) {
-    stdrbv(iap, rap, par, icp, funi, bcni, icni, rlcur, 
-	   rlold, rldot, iap->ntst+1, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(), 
+    stdrbv(iap, rap, par, icp, funi, bcni, icni, rlcur.data(), 
+	   rlold.data(), rldot.data(), iap->ntst+1, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(), 
 	   fa.data(), fc.data(), dtm.data(), 0, p0.data(), p1.data(), thl, thu);
   } else if (irs != 0 && isw < 0) {
-    stdrbv(iap, rap, par, icp, funi, bcni, icni, rlcur, 
-	   rlold, rldot, iap->ntst+1, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(), 
+    stdrbv(iap, rap, par, icp, funi, bcni, icni, rlcur.data(), 
+	   rlold.data(), rldot.data(), iap->ntst+1, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(), 
 	   fa.data(), fc.data(), dtm.data(), 1, p0.data(), p1.data(), thl, thu);
   }
 
@@ -5026,14 +5026,14 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   istop = 0;
   iap->istop = istop;
   (*pvli)(iap, rap, icp, dtm.data(), &ntst_plus_one, ups.data(), &ndim, p0.data(), p1.data(), par);
-  stplbv(iap, rap, par, icp, rldot, &ntst_plus_one, ups.data(), udotps.data(),
+  stplbv(iap, rap, par, icp, rldot.data(), &ntst_plus_one, ups.data(), udotps.data(),
 	 tm.data(), dtm.data(), thl, thu);
   istop = iap->istop;
   if (istop == 1) {
     return 0;
   }
 
-  extrbv(iap, rap, funi, &rds, rlcur, rlold, rldot, &ntst_plus_one, ups.data(),
+  extrbv(iap, rap, funi, &rds, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one, ups.data(),
 	 uoldps.data(), udotps.data());
 
   itp = 0;
@@ -5066,8 +5066,8 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
 #define SECANT_GUESS
 #ifdef SECANT_GUESS
-  contbv(iap, rap, par, icp, funi, &rds, rlcur, rlold, 
-	 rldot, &ntst_plus_one, ups.data(), uoldps.data(), udotps.data(), upoldp.data(), dtm.data(), thl, thu);
+  contbv(iap, rap, par, icp, funi, &rds, rlcur.data(), rlold.data(), 
+	 rldot.data(), &ntst_plus_one, ups.data(), uoldps.data(), udotps.data(), upoldp.data(), dtm.data(), thl, thu);
 #else
   {
     std::vector<doublereal> uolddotps((iap->ntst+1)*(iap->ndim)*(iap->ncol));
@@ -5085,8 +5085,8 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       uolddotps[ntst + i * (iap->ntst+1)] = udotps[ntst + i * (iap->ntst+1)]; 
     }
     
-    stdrbv(iap, rap, par, icp, funi, bcni, icni, rlcur, 
-	   rlold, rldot, iap->ntst+1, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(), 
+    stdrbv(iap, rap, par, icp, funi, bcni, icni, rlcur.data(), 
+	   rlold.data(), rldot.data(), iap->ntst+1, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(), 
 	   fa.data(), fc.data(), dtm.data(), 0, p0.data(), p1.data(), thl, thu);
 	
     {
@@ -5115,16 +5115,16 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       }
     }
   }	  
-  extrbv(iap, rap, funi, &rds, rlcur, rlold, rldot, &ntst_plus_one, ups.data(),
+  extrbv(iap, rap, funi, &rds, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one, ups.data(),
 	 uoldps.data(), udotps.data());
 
-  stupbv(iap, rap, par, icp, funi, rlcur, rlold, rldot,
+  stupbv(iap, rap, par, icp, funi, rlcur.data(), rlold.data(), rldot.data(),
 	 &ntst_plus_one, ups.data(), uoldps.data(), upoldp.data());
 #endif
   
  L2:
   stepbv(iap, rap, par, icp, funi, bcni, icni, pvli, &rds, 
-	 rlcur, rlold, rldot, &ntst_plus_one, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(),
+	 rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(),
 	 fa.data(), fc.data(), tm.data(), dtm.data(), p0.data(), p1.data(), thl, thu);
   istop = iap->istop;
   if (istop == 1) {
@@ -5137,7 +5137,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     for (iuzr = 0; iuzr < nuzr; ++iuzr) {
       iap->iuzr = iuzr;
       lcspbv(iap, rap, par, icp, fnuzbv, funi, bcni, 
-	     icni, pvli, &uzr[iuzr], rlcur, rlold, rldot, &
+	     icni, pvli, &uzr[iuzr], rlcur.data(), rlold.data(), rldot.data(), &
 	     ntst_plus_one, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(), fa.data(), fc.data(), tm.data(), 
 	     dtm.data(), p0.data(), p1.data(), ev.data(), thl, thu, iuz, vuz);
       istop = iap->istop;
@@ -5164,7 +5164,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   if (ilp == 1) {
     lcspbv(iap, rap, par, icp, fnlpbv, funi, bcni, icni,
-	   pvli, &rlp, rlcur, rlold, rldot, &ntst_plus_one, ups.data(), dups.data(), 
+	   pvli, &rlp, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one, ups.data(), dups.data(), 
 	   uoldps.data(), udotps.data(), upoldp.data(), fa.data(), fc.data(), tm.data(), dtm.data(), p0.data(), p1.data(), ev.data(), thl, thu,
 	   iuz, vuz);
     istop = iap->istop;
@@ -5185,7 +5185,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   if (isp >= 2) {
     lcspbv(iap, rap, par, icp, fnbpbv, funi, bcni, icni,
-	   pvli, &bp1, rlcur, rlold, rldot, &ntst_plus_one, ups.data(), dups.data(), 
+	   pvli, &bp1, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one, ups.data(), dups.data(), 
 	   uoldps.data(), udotps.data(), upoldp.data(), fa.data(), fc.data(), tm.data(), dtm.data(), p0.data(), p1.data(), ev.data(), thl, thu,
 	   iuz, vuz);
     istop = iap->istop;
@@ -5206,7 +5206,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   if ((isp == 1 || isp == 2) && (ips == 2 || ips == 7 || ips == 12)) {
     lcspbv(iap, rap, par, icp, fnspbv, funi, bcni, icni,
-	   pvli, &sp1, rlcur, rlold, rldot, &ntst_plus_one, ups.data(), dups.data(), 
+	   pvli, &sp1, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one, ups.data(), dups.data(), 
 	   uoldps.data(), udotps.data(), upoldp.data(), fa.data(), fc.data(), tm.data(), dtm.data(), p0.data(), p1.data(), ev.data(), thl, thu,
 	   iuz, vuz);
     istop = iap->istop;
@@ -5227,7 +5227,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
  L3:
   (*pvli)(iap, rap, icp, dtm.data(), &ntst_plus_one, ups.data(), &ndim, p0.data(), p1.data(), par);
-  stplbv(iap, rap, par, icp, rldot, &ntst_plus_one, ups.data(), udotps.data(),
+  stplbv(iap, rap, par, icp, rldot.data(), &ntst_plus_one, ups.data(), udotps.data(),
 	 tm.data(), dtm.data(), thl, thu);
 
   istop = iap->istop;
@@ -5563,11 +5563,11 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     nrow = ndim * ncol;
     for (j = 0; j < ntst; ++j) {
       for (i = 0; i < nrow; ++i) {
-	adu = fabs(ARRAY2D(fa, j, i));
+	adu = f2c::abs(ARRAY2D(fa, j, i));
 	if (adu > dumx) {
 	  dumx = adu;
 	}
-	au = fabs(ARRAY2D(ups, j, i));
+	au = f2c::abs(ARRAY2D(ups, j, i));
 	if (au > umx) {
 	  umx = au;
 	}
@@ -5586,7 +5586,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     done = TRUE_;
     rdrl = 0.;
     for (i = 0; i < nfpr; ++i) {
-      adrl = fabs(fc[ndim + i]) / (fabs(rlcur[i]) + 1.);
+      adrl = f2c::abs(fc[ndim + i]) / (f2c::abs(rlcur[i]) + 1.);
       if (adrl > epsl) {
 	done = FALSE_;
       }
@@ -5604,9 +5604,9 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     }
 
     if (nitps == 1) {
-      delref = max(rdrl,rdumx) * 20;
+      delref = f2c::max(rdrl,rdumx) * 20;
     } else {
-      delmax = max(rdrl,rdumx);
+      delmax = f2c::max(rdrl,rdumx);
       if (delmax > delref) {
 	goto L3;
       }
@@ -5631,7 +5631,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   mxt = itnw;
   iap->nit = mxt;
   adptds(iap, rap, rds);
-  if (fabs(*rds) < dsmin) {
+  if (f2c::abs(*rds) < dsmin) {
     goto L12;
   }
   for (i = 0; i < nfpr; ++i) {
@@ -5858,13 +5858,14 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
     /* Local variables */
   integer ndim, nars;
-  doublereal temp[7];
+  std::array<doublereal, 7> temp;
   integer nfpr;
 
   integer i, j, k;
 
   logical found;
-  integer icprs[NPARX], nparr, nskip;
+  integer nparr, nskip;
+  std::array<integer, NPARX> icprs;
 
   integer nfprs, k1, k2, itprs, iswrs, nskip1, nskip2;
 
@@ -6349,7 +6350,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
 
   /* Return if tolerance has been met : */
 
-  rrds = fabs(rds) / (sqrt(fabs(ds * dsmax)) + 1);
+  rrds = f2c::abs(rds) / (sqrt(f2c::abs(ds * dsmax)) + 1);
   if (rrds < epss) {
     itp = -1;
     iap->itp = itp;
@@ -6466,7 +6467,7 @@ fnlpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   scaleb(iap, icp, ndxloc, udotps, rldot, dtm, 
 	 thl, thu);
   if (iid >= 2 && iap->mynode == 0) {
-    xpp::print(fp9,"{:4}{:6}        Fold Function {:14.6E}\n",abs(ibr),ntop,rldot[0]);	
+    xpp::print(fp9,"{:4}{:6}        Fold Function {:14.6E}\n",f2c::abs(ibr),ntop,rldot[0]);	
   }
 
   /* Set the quantity to be returned. */
@@ -6538,7 +6539,7 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   }
 
   if (iid >= 2) {
-    xpp::print(fp9,"{:4}{:6}        BP   Function {:14.6E}\n",abs(ibr),ntop,ret_val);	
+    xpp::print(fp9,"{:4}{:6}        BP   Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);	
 
   }
   return ret_val;
@@ -6624,7 +6625,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
       amin = RLARGE;
       for (j = i; j < ndim; ++j) {
 	azm1 = z_abs(&ev[j]) - 1.;
-	azm1 = fabs(azm1);
+	azm1 = f2c::abs(azm1);
 	if (azm1 <= amin) {
 	  amin = azm1;
 	  loc = j;
@@ -6650,17 +6651,17 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   if (amin > .05 && isp == 2) {
     if (iap->mynode == 0) {
       if (iid >= 2) {
-	xpp::print(fp9,"{:4}{:6} NOTE:Multiplier inaccurate\n",abs(ibr),ntop);	
+	xpp::print(fp9,"{:4}{:6} NOTE:Multiplier inaccurate\n",f2c::abs(ibr),ntop);	
 
       }
       for (i = 0; i < ndim; ++i) {
-	xpp::print(fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",abs(ibr),ntop,i,ev[i].r,ev[i].i);	
+	xpp::print(fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);	
       }
     }
     nins = 0;
     iap->nins = nins;
     if (iap->mynode == 0) {
-      xpp::print(fp9,"{:4}{:6}        Multipliers:   Stable: {:3}\n",abs(ibr),ntop,nins);	
+      xpp::print(fp9,"{:4}{:6}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);	
     }
     isp = -isp;
     iap->isp = isp;
@@ -6673,14 +6674,14 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   if (isp < 0) {
     if (amin < .01) {
       if (iap->mynode == 0) {
-	xpp::print(fp9,"{:4}{:6} NOTE:Multiplier accurate again\n",abs(ibr),ntop);	
+	xpp::print(fp9,"{:4}{:6} NOTE:Multiplier accurate again\n",f2c::abs(ibr),ntop);	
       }
       isp = -isp;
       iap->isp = isp;
     } else {
       if (iap->mynode == 0) {
 	for (i = 0; i < ndim; ++i) {
-	  xpp::print(fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",abs(ibr),ntop,i,ev[i].r,ev[i].i);	
+	  xpp::print(fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);	
 	}
       }
       return ret_val;
@@ -6724,7 +6725,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   iap->nins = nins;
   if (iid >= 2 && (isp == 1 || isp == 2)) {
     if (iap->mynode == 0) {
-      xpp::print(fp9,"{:4}{:6}        SPB  Function {:14.6E}\n",abs(ibr),ntop,d);	
+      xpp::print(fp9,"{:4}{:6}        SPB  Function {:14.6E}\n",f2c::abs(ibr),ntop,d);	
 
     }
   }
@@ -6733,10 +6734,10 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   nins = iap->nins;
   if (iap->mynode == 0) {
-    xpp::print(fp9,"{:4}{:6}        Multipliers:   Stable: {:3}\n",abs(ibr),ntop,nins);	
+    xpp::print(fp9,"{:4}{:6}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);	
 
     for (i = 0; i < ndim; ++i) {
-      xpp::print(fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",abs(ibr),ntop,i,ev[i].r,ev[i].i);	
+      xpp::print(fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);	
 
     }
   }
@@ -6765,11 +6766,11 @@ fnuzbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   ntot = iap->ntot;
   ntop = (ntot + 1) % 10000;
 
-  ret_val = par[abs(iuz[iuzr])] - vuz[iuzr];
+  ret_val = par[f2c::abs(iuz[iuzr])] - vuz[iuzr];
   *chng = TRUE_;
 
   if (iid >= 3) {
-    xpp::print(fp9,"{:4}{:6}        User Func. {:3} {:14.6E}\n",abs(ibr),ntop,iuzr,ret_val);	
+    xpp::print(fp9,"{:4}{:6}        User Func. {:3} {:14.6E}\n",f2c::abs(ibr),ntop,iuzr,ret_val);	
   }
 
   return ret_val;
@@ -6821,7 +6822,7 @@ tpspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomple
   for (i = 0; i < ndim; ++i) {
     if (i != loc) {
       d = z_abs(&ev[i]) - 1.;
-      ad = fabs(d);
+      ad = f2c::abs(d);
       if (ad <= amin) {
 	amin = ad;
 	loc1 = i;
@@ -6829,11 +6830,11 @@ tpspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomple
     }
   }
 
-  if (fabs(d_imag(&ev[loc1])) > sqrt(epss)) {
+  if (f2c::abs(d_imag(&ev[loc1])) > sqrt(epss)) {
     /*       ** torus bifurcation */
     itp = itpst * 10 + 8;
     iap->itp = itp;
-    par[11] =fabs(atan2(d_imag(&ev[loc1]),ev[loc1].r));
+    par[11] =f2c::abs(atan2(d_imag(&ev[loc1]),ev[loc1].r));
 
   } else /* if(complicated condition) */ {
     if (ev[loc1].r < -.5) {
@@ -6866,7 +6867,10 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   int iflag=0;
   AutoStopAt stop_at = {0}; /* xppautX: T23 */
   integer i;
-  double u_high[1000],u_low[1000],u_0[1000],u_bar[1000];
+  std::array<double, 1000> u_high;
+  std::array<double, 1000> u_low;
+  std::array<double, 1000> u_0;
+  std::array<double, 1000> u_bar;
   doublereal a0, a1;
    /* used a fixed array here for maximum AUTO size 
      double u_high[NAUTO], u_low, u0, ubar   */
@@ -6878,7 +6882,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   integer iab, lab, ibr, ndm;
   doublereal amp;
   integer ips, itp, npr, isw, nmx;
-  doublereal umx[7];
+  std::array<doublereal, 7> umx;
 
   /* Writes the bifurcation diagram on unit 7 (Differential Equations) */
   /* (Also controls the writing of complete solutions on unit 8). */
@@ -6945,7 +6949,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   /* Check whether limits of the bifurcation diagram have been reached : */
 
-  iab = abs(iplt);
+  iab = f2c::abs(iplt);
   if (iab == 0 || iab > ndm * 3) {
     amp = sqrt(rnrmsq(iap, &ndm, ndxloc, ups, dtm, thu));
   }
@@ -7023,7 +7027,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   ibrs = ibr;
   ntots = ntot;
-  if (ips == 2 && abs(isw) != 2) {
+  if (ips == 2 && f2c::abs(isw) != 2) {
     ibrs = -ibr;
     nins = iap->nins;
     if (nins == ndim) {
@@ -7035,11 +7039,11 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     
    
   */
-  addbif(iap,rap, ntots, ibrs, par,icp,labw,&amp, u_high, u_low, u_0, u_bar);  
+  addbif(iap,rap, ntots, ibrs, par,icp,labw,&amp, u_high.data(), u_low.data(), u_0.data(), u_bar.data());  
   
   
   wrline(iap, rap, par, icp, &icp[jtmp], &ibrs, &ntots,
-	 &labw, &amp, umx);
+	 &labw, &amp, umx.data());
   if (iap->istop != 0) { /* xppautX: why the branch ended (auto_stop.h, T23) */
     stop_at.br = ibr, stop_at.pt = ntot, stop_at.ipar = icp[0], stop_at.par = par[icp[0]], stop_at.norm = amp;
     stop_at.rl0 = rl0, stop_at.rl1 = rl1, stop_at.a0 = a0, stop_at.a1 = a1, stop_at.nmx = nmx;
@@ -7282,7 +7286,7 @@ wrtbv9(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   nitps = iap->nit;
   ntot = iap->ntot;
   
-  iab = abs(iplt);
+  iab = f2c::abs(iplt);
   if (iab == 0 || iab > ndim) {
     amp = sqrt(rnrmsq(iap, &ndm, ndxloc, ups, dtm, thu));
   }

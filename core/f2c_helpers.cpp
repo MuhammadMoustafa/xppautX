@@ -4,13 +4,13 @@
    merged into one small translation unit since nothing depends on their
    individual file names. */
 
-#include <cmath> /* first: C++ headers before auto_f2c.h's min/max macros */
+#include <cmath>
 #include "auto_f2c.h"
 
 namespace {
 constexpr double log10e = 0.43429448190325182765;
-}
 
+/* cabs.c: |real + i imag| without overflow in the squares */
 double f__cabs(double real, double imag) {
   double temp;
 
@@ -30,10 +30,11 @@ double f__cabs(double real, double imag) {
   temp = real * sqrt(1.0 + temp * temp); /*overflow!!*/
   return (temp);
 }
+} // namespace
 
-double d_imag(doublecomplex *z) { return (z->i); }
+double d_imag(const doublecomplex *z) { return (z->i); }
 
-double d_lg10(doublereal *x) { return (log10e * log(*x)); }
+double d_lg10(const doublereal *x) { return (log10e * log(*x)); }
 
 double d_sign(doublereal a, doublereal b) {
   double x;
@@ -41,17 +42,17 @@ double d_sign(doublereal a, doublereal b) {
   return (b >= 0 ? x : -x);
 }
 
-integer i_dnnt(doublereal *x) {
+integer i_dnnt(const doublereal *x) {
   return static_cast<integer>(*x >= 0. ? floor(*x + .5) : -floor(.5 - *x));
 }
 
-integer i_nint(real *x) {
+integer i_nint(const real *x) {
   return static_cast<integer>(*x >= 0 ? floor(*x + .5) : -floor(.5 - *x));
 }
 
-double pow_dd(doublereal *ap, doublereal *bp) { return (pow(*ap, *bp)); }
+double pow_dd(const doublereal *ap, const doublereal *bp) { return (pow(*ap, *bp)); }
 
-double pow_di(doublereal *ap, integer *bp) {
+double pow_di(const doublereal *ap, const integer *bp) {
   double pow_, x;
   integer n;
   unsigned long u;
@@ -105,9 +106,9 @@ integer pow_ii(integer ap, integer bp) {
 
 double r_lg10(real x) { return (log10e * log(x)); }
 
-double z_abs(doublecomplex *z) { return (f__cabs(z->r, z->i)); }
+double z_abs(const doublecomplex *z) { return (f__cabs(z->r, z->i)); }
 
-void z_exp(doublecomplex *r, doublecomplex *z) {
+void z_exp(doublecomplex *r, const doublecomplex *z) {
   double expx, zi = z->i;
 
   expx = exp(z->r);
@@ -115,7 +116,7 @@ void z_exp(doublecomplex *r, doublecomplex *z) {
   r->i = expx * sin(zi);
 }
 
-void z_log(doublecomplex *r, doublecomplex *z) {
+void z_log(doublecomplex *r, const doublecomplex *z) {
   double zi = z->i, zr = z->r;
   r->i = atan2(zi, zr);
   r->r = log(f__cabs(zr, zi));

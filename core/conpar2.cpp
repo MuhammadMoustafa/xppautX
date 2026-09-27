@@ -1,36 +1,27 @@
-#include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h"
 #include "auto_c.h"
-#include "auto_types.h"
 
-#ifdef TIME
-#include <unistd.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-static double time_start (void) {
-  struct rusage time;
-  double seconds,microseconds;
-  getrusage(RUSAGE_SELF,&time);
-  seconds = static_cast<double>(time.ru_utime.tv_sec);
-  microseconds = static_cast<double>(time.ru_utime.tv_usec);
-  return seconds + microseconds/1e6;
-}
-static double time_end(double start) {
-  struct rusage time;
-  double seconds,microseconds;
-  getrusage(RUSAGE_SELF,&time);
-  seconds = static_cast<double>(time.ru_utime.tv_sec);
-  microseconds = static_cast<double>(time.ru_utime.tv_usec);
-  return (seconds + microseconds/1e6)-start;
-}
-#endif
+namespace {
+/* This structure contains all of the input data for the conpar routine
+   Those values which are arrays and those
+   which are input and output are markered as such*/
+struct conpar_parallel_arglist {
+  integer *nov, *nra, *nca; /*scalars input*/
+  doublereal *a; /*array input and output size: nca X nra X na */
+  integer *ncb; /*scalar input */
+  doublereal *b; /*array input and output size: ncb X nra X na*/
+  integer *nbc, *nrc; /*scalar input */
+  doublereal *c; /*array input and output size: nca X nrc X *na*/
+  doublereal *d; /*array input and output size: ncb X nrc*/
+  integer *irf; /*array input size: na X nra*/
+  integer *icf; /*array input: na X nca*/
+  integer loop_start; /*scalar input*/
+  integer loop_end; /*scalar output*/
+};
 
-
-/*This is the process function.  It is meant to be called either
-  on a SMP using shared memory, or wrapped inside another
-  routine for message passing*/
-
-void *conpar_process(void * arg)
+/* The process function: the original AUTO called it per worker, on a
+   shared-memory machine or wrapped for message passing. */
+void conpar_process(const conpar_parallel_arglist *arg)
 {
   integer icf_dim1, irf_dim1, d_dim1;
   integer a_dim1, a_dim2, b_dim1, b_dim2, c_dim1, c_dim2;
@@ -55,42 +46,20 @@ void *conpar_process(void * arg)
 
 
 
-  nov = ((conpar_parallel_arglist *)arg)->nov;
-  nra = ((conpar_parallel_arglist *)arg)->nra;
-  nca = ((conpar_parallel_arglist *)arg)->nca;
-  a = ((conpar_parallel_arglist *)arg)->a;
-  ncb = ((conpar_parallel_arglist *)arg)->ncb;
-  b = ((conpar_parallel_arglist *)arg)->b;
-  nbc = ((conpar_parallel_arglist *)arg)->nbc;
-  nrc = ((conpar_parallel_arglist *)arg)->nrc;
-  c = ((conpar_parallel_arglist *)arg)->c;
-  d = ((conpar_parallel_arglist *)arg)->d;
-  irf = ((conpar_parallel_arglist *)arg)->irf;
-  icf = ((conpar_parallel_arglist *)arg)->icf;
-  loop_start = ((conpar_parallel_arglist *)arg)->loop_start;
-  loop_end = ((conpar_parallel_arglist *)arg)->loop_end;
-
-  /* In the default case we don't need to do anything special */
-  if(global_conpar_type == CONPAR_DEFAULT) {
-    ;
-  }
-  /* In the message passing case we set d to be
-     0.0, do a sum here, and then do the final
-     sum (with the true copy of d) in the
-     master */
-  else if (global_conpar_type == CONPAR_MPI) {
-    for(i=0;i<(*ncb)*(*nrc);i++)
-      d[i]=0.0;
-  }
-  /* In the shared memory case we create a local
-     variable for doing this threads part of the
-     sum, then we do a final sum into shared memory
-     at the end */
-  else if (global_conpar_type == CONPAR_PTHREADS) {
-
-    ;
-
-  }
+  nov = arg->nov;
+  nra = arg->nra;
+  nca = arg->nca;
+  a = arg->a;
+  ncb = arg->ncb;
+  b = arg->b;
+  nbc = arg->nbc;
+  nrc = arg->nrc;
+  c = arg->c;
+  d = arg->d;
+  irf = arg->irf;
+  icf = arg->icf;
+  loop_start = arg->loop_start;
+  loop_end = arg->loop_end;
 
   /* Note that the summation of the adjacent overlapped part of C */
   /* is delayed until REDUCE, in order to merge it with other communications.*/
@@ -181,49 +150,19 @@ void *conpar_process(void * arg)
 	      c[-1 + icf_l_i + c_offset1] -= rm * a[-1 + icf_l_i + a_offset2];
 	    }
 	    for (l = 0; l < *ncb; ++l) {
-	      /* 
-		 A little explanation of what is going on here
-		 is in order I believe.  This array is
-		 created by a summation across all workers,
-		 hence it needs a mutex to avoid concurrent
-		 writes (in the shared memory case) or a summation
-		 in the master (in the message passing case).
-		 Since mutex's can be somewhat slow, we will do the
-		 summation into a local variable, and then do a
-		 final summation back into global memory when the
-		 main loop is done.
-	      */
-	      /* Nothing special for the default case */
-	      if(global_conpar_type == CONPAR_DEFAULT) {
-		d[l + d_offset1] -= rm * b[l + b_offset2];
-	      }
-	      /* In the message passing case we sum into d,
-		 which is a local variable initialized to 0.0.
-		 We then sum our part with the masters part
-		 in the master. */
-	      else if (global_conpar_type == CONPAR_MPI) {
-		d[l + d_offset1] -= rm * b[l + b_offset2];
-	      }
-	      /* In the shared memory case we sum into a local
-		 variable our contribution, and then sum
-		 into shared memory at the end (inside a mutex */
-	      else if (global_conpar_type == CONPAR_PTHREADS) {
-
-		;
-
-	      }
+	      /* d is summed over all workers in the original AUTO
+		 (a mutex with pthreads, a sum in the master with MPI);
+		 xppautX runs one. */
+	      d[l + d_offset1] -= rm * b[l + b_offset2];
 	    }
 	  }
 	}
       }
     }
   }
-  return NULL;
 }
 
-
-
-int 
+void
 conpar_default_wrapper(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf)
 
 {
@@ -243,8 +182,8 @@ conpar_default_wrapper(integer *nov, integer *na, integer *nra, integer *nca, do
     data.loop_start = 0;
     data.loop_end = *na;
     conpar_process(&data);
-    return 0;
 }
+} // namespace
 
 
 int 
@@ -277,11 +216,12 @@ conpar(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, int
     }
   }
 
-  switch(global_conpar_type) {
-  default:
+  /* global_conpar_type (gogoauto.cpp) is always CONPAR_DEFAULT: xppautX
+     runs AUTO without pthreads or MPI. The variable and this test can go
+     together. */
+  if (global_conpar_type == CONPAR_DEFAULT) {
     conpar_default_wrapper(nov, na, nra, nca, a, 
 			    ncb, b, nbc, nrc, c, d,irf, icf);
-    break;
   }
   return 0;
 } 

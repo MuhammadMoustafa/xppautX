@@ -16,64 +16,56 @@ extern "C" {
 typedef long int integer;
 typedef float real;
 typedef double doublereal;
-typedef struct { real r, i; } complex;
 typedef struct { doublereal r, i; } doublecomplex;
 typedef integer logical;
 
 #define TRUE_ (1)
 #define FALSE_ (0)
 
-/* I/O stuff */
-
-#define VOID void
-
-#ifndef abs
-#define abs(x) ((x) >= 0 ? (x) : -(x))
-#endif
-#ifndef fabs
-#define fabs(x) ((x) >= 0 ? (x) : -(x))
-#endif
-
-#define min(a,b) ((a) <= (b) ? (a) : (b))
-#define max(a,b) ((a) >= (b) ? (a) : (b))
-#define dmin(a,b) (doublereal)min(a,b)
-#define dmax(a,b) (doublereal)max(a,b)
-
 #define ARRAY2D(array,i,j) array[(i) + (j) * array ## _dim1]
 #define ARRAY3D(array,i,j,k) array[(i) + ((j)  + (k) * array ## _dim2) * array ## _dim1]
 
-/* cabs.c */
-double f__cabs(double real, double imag);
-/* d_imag.c */
-double d_imag(doublecomplex *z);
-/* d_lg10.c */
-double d_lg10(doublereal *x);
-/* d_sign.c */
+/* f2c's libF77 helpers (f2c_helpers.cpp) */
+double d_imag(const doublecomplex *z);
+double d_lg10(const doublereal *x);
 double d_sign(doublereal a, doublereal b);
-/* etime_.c */
-double etime(float *tarray);
-/* i_dnnt.c */
-integer i_dnnt(doublereal *x);
-/* i_nint.c */
-integer i_nint(real *x);
-/* pow_dd.c */
-double pow_dd(doublereal *ap, doublereal *bp);
-/* pow_di.c */
-double pow_di(doublereal *ap, integer *bp);
-/* pow_ii.c */
+integer i_dnnt(const doublereal *x);
+integer i_nint(const real *x);
+double pow_dd(const doublereal *ap, const doublereal *bp);
+double pow_di(const doublereal *ap, const integer *bp);
 integer pow_ii(integer ap, integer bp);
-/* r_lg10.c */
 double r_lg10(real x);
-/* z_abs.c */
-double z_abs(doublecomplex *z);
-/* z_exp.c */
-void z_exp(doublecomplex *r, doublecomplex *z);
-/* z_log.c */
-void z_log(doublecomplex *r, doublecomplex *z);
+double z_abs(const doublecomplex *z);
+void z_exp(doublecomplex *r, const doublecomplex *z);
+void z_log(doublecomplex *r, const doublecomplex *z);
 
 #ifdef __cplusplus
 }
+
+/* f2c's abs/fabs/min/max macros, as functions (W33c): the macros broke
+   every C++ standard header included after this one. Same types (the
+   usual arithmetic conversions of the macros' ?:) and the same results,
+   which the standard ones do not always give: f2c::abs keeps -0.0 and a
+   NaN's sign flips where std::fabs clears the sign bit, and std::min/max
+   pick the other operand of an unordered (NaN) pair. The arguments are
+   evaluated once where the macros evaluated the chosen one twice; every
+   argument in AUTO's code is free of side effects. */
+namespace f2c {
+template <class T>
+constexpr auto abs(T x) noexcept
+{
+  return x >= 0 ? x : -x;
+}
+template <class A, class B>
+constexpr auto min(A a, B b) noexcept
+{
+  return a <= b ? a : b;
+}
+template <class A, class B>
+constexpr auto max(A a, B b) noexcept
+{
+  return a >= b ? a : b;
+}
+} // namespace f2c
 #endif
 #endif
-
-

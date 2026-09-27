@@ -3,10 +3,10 @@
 	-lf2c -lm   (in that order)
 */
 
+#include <array>
 #include <vector>
-#include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
+#include "xpp_io.h"
 #include "auto_f2c.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "auto_c.h"
 
@@ -65,8 +65,8 @@ fnlp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u[i]) > umx) {
-      umx = fabs(u[i]);
+    if (f2c::abs(u[i]) > umx) {
+      umx = f2c::abs(u[i]);
     }
   }
  
@@ -213,7 +213,7 @@ fnc1(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     /* Local variables */
 
   integer i, j;
-  doublereal ddp[NPARX];
+  std::array<doublereal, NPARX> ddp;
   integer ndm;
 
   std::vector<doublereal> ddu(iap->ndim);
@@ -248,7 +248,7 @@ fnc1(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   }
 
   fopi(iap, rap, ndm, u, icp, par, ijac, &f[-1 + ndim], ddu.data(), 
-       ddp);
+       ddp.data());
   f[-1 + ndim] = par[icp[0]] - f[-1 + ndim];
 
   if (ijac != 0) {
@@ -342,8 +342,8 @@ fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u[i]) > umx) {
-      umx = fabs(u[i]);
+    if (f2c::abs(u[i]) > umx) {
+      umx = f2c::abs(u[i]);
     }
   }
 
@@ -387,7 +387,8 @@ ffc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   integer icpm;
 
   integer nfpr, i, j;
-  doublereal ddp[NPARX], fop;
+  doublereal fop;
+  std::array<doublereal, NPARX> ddp;
   integer ndm2;
 
 
@@ -404,7 +405,7 @@ ffc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     par[icp[i]] = u[(ndm * 2) + i];
   }
   funi(iap, rap, ndm, u, uold, icp, par, 2, f, dfdu, dfdp);
-  fopi(iap, rap, ndm, u, icp, par, 2, &fop, ddu.data(), ddp);
+  fopi(iap, rap, ndm, u, icp, par, 2, &fop, ddu.data(), ddp.data());
 
   for (i = 0; i < ndm; ++i) {
     f[ndm + i] = ddu[i] * u[(ndm * 2)];
@@ -448,7 +449,7 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   integer i, j;
   logical found;
 
-  doublereal dp[NPARX];
+  std::array<doublereal, NPARX> dp;
 
   integer ndm;
   doublereal fop;
@@ -477,7 +478,7 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     funi(iap, rap, ndm, u, &uold, icp, par, 2, f.data(), 
 	 global_scratch.dfu, global_scratch.dfp);
     fopi(iap, rap, ndm, u, icp, par, 2, &fop, du.data(), 
-	 dp);
+	 dp.data());
     /*       TRANSPOSE */
     for (i = 0; i < ndm; ++i) {
       for (j = 0; j < ndm; ++j) {
@@ -656,8 +657,8 @@ fnhd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u[i]) > umx) {
-      umx = fabs(u[i]);
+    if (f2c::abs(u[i]) > umx) {
+      umx = f2c::abs(u[i]);
     }
   }
 
@@ -888,8 +889,8 @@ fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u[i]) > umx) {
-      umx = fabs(u[i]);
+    if (f2c::abs(u[i]) > umx) {
+      umx = f2c::abs(u[i]);
     }
   }
 
@@ -1108,8 +1109,8 @@ fnhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u[i]) > umx) {
-      umx = fabs(u[i]);
+    if (f2c::abs(u[i]) > umx) {
+      umx = f2c::abs(u[i]);
     }
   }
 
@@ -2127,7 +2128,7 @@ ffpe(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   t = par[icp[0]];
   rlold = rap->tivp;
   dt = t - rlold;
-  if (fabs(dt) < dsmin) {
+  if (f2c::abs(dt) < dsmin) {
     dt = ds;
   }
 
@@ -2219,8 +2220,8 @@ fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u[i]) > umx) {
-      umx = fabs(u[i]);
+    if (f2c::abs(u[i]) > umx) {
+      umx = f2c::abs(u[i]);
     }
   }
 
@@ -2433,10 +2434,11 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Local variables */
   integer ndim;
-  doublereal temp[7];
+  std::array<doublereal, 7> temp;
   integer nfpr, nfpr1, ntpl1, nrsp1, ntot1, i, j, k;
   logical found;
-  integer icprs[NPARX], nparr, k1, k2, nskip1;
+  integer nparr, k1, k2, nskip1;
+  std::array<integer, NPARX> icprs;
 
   doublereal rd1, rd2;
   integer ibr, ndm, irs, lab1, nar1, itp1, isw1;
@@ -2629,8 +2631,8 @@ fnpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u[i]) > umx) {
-      umx = fabs(u[i]);
+    if (f2c::abs(u[i]) > umx) {
+      umx = f2c::abs(u[i]);
     }
   }
 
@@ -2833,10 +2835,11 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Local variables */
   integer ndim;
-  doublereal temp[7];
+  std::array<doublereal, 7> temp;
   integer nfpr, nfpr1, ntpl1, nrsp1, ntot1, i, j, k;
   logical found;
-  integer icprs[NPARX], nparr, k1, k2, nskip1;
+  integer nparr, k1, k2, nskip1;
+  std::array<integer, NPARX> icprs;
 
   integer ibr, ndm, irs, lab1, nar1, itp1, isw1;
 
@@ -3014,8 +3017,8 @@ fntr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u[i]) > umx) {
-      umx = fabs(u[i]);
+    if (f2c::abs(u[i]) > umx) {
+      umx = f2c::abs(u[i]);
     }
   }
 
@@ -3243,10 +3246,11 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Local variables */
   integer ndim;
-  doublereal temp[7];
+  std::array<doublereal, 7> temp;
   integer nfpr, nfpr1, ntpl1, ntot1, i, j, k;
   logical found;
-  integer icprs[NPARX], nparr, k1, k2, k3, nskip1;
+  integer nparr, k1, k2, k3, nskip1;
+  std::array<integer, NPARX> icprs;
 
   integer ibr, ndm, k2p1, irs, lab1, nar1, itp1, isw1;
 
@@ -3435,8 +3439,8 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u[i]) > umx) {
-      umx = fabs(u[i]);
+    if (f2c::abs(u[i]) > umx) {
+      umx = f2c::abs(u[i]);
     }
   }
 
@@ -3623,8 +3627,8 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u[i]) > umx) {
-      umx = fabs(u[i]);
+    if (f2c::abs(u[i]) > umx) {
+      umx = f2c::abs(u[i]);
     }
   }
 
@@ -3674,7 +3678,7 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   integer nfpr, indx;
   integer i, j, l;
-  doublereal dfp[NPARX];
+  std::array<doublereal, NPARX> dfp;
   integer ndm;
   doublereal fop;
 
@@ -3699,7 +3703,7 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   for (i = 0; i < NPARX; ++i) {
     dfp[i] = 0.;
   }
-  fopi(iap, rap, ndm, u, icp, par, 2, &fop, dfu.data(), dfp);
+  fopi(iap, rap, ndm, u, icp, par, 2, &fop, dfu.data(), dfp.data());
   fi[1] = par[9] - fop;
 
   /* Computing 2nd power */
@@ -3749,14 +3753,15 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Local variables */
   integer ndim;
-  doublereal temp[7];
+  std::array<doublereal, 7> temp;
   integer nfpr;
   doublereal dump;
 
   doublereal dumu;
   integer nfpr1, ntpl1, ntot1, i, j, k;
   logical found;
-  integer icprs[NPARX], nparr;
+  integer nparr;
+  std::array<integer, NPARX> icprs;
 
   integer k1, k2, nskip1;
   doublereal fs;
@@ -3973,8 +3978,8 @@ fnbl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u[i]) > umx) {
-      umx = fabs(u[i]);
+    if (f2c::abs(u[i]) > umx) {
+      umx = f2c::abs(u[i]);
     }
   }
 
@@ -4100,8 +4105,8 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u0[i]) > umx) {
-      umx = fabs(u0[i]);
+    if (f2c::abs(u0[i]) > umx) {
+      umx = f2c::abs(u0[i]);
     }
   }
   rtmp = HMACH;
@@ -4126,8 +4131,8 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u1[i]) > umx) {
-      umx = fabs(u1[i]);
+    if (f2c::abs(u1[i]) > umx) {
+      umx = f2c::abs(u1[i]);
     }
   }
   rtmp = HMACH;
@@ -4250,8 +4255,8 @@ icbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u[i]) > umx) {
-      umx = fabs(u[i]);
+    if (f2c::abs(u[i]) > umx) {
+      umx = f2c::abs(u[i]);
     }
   }
 
@@ -4352,10 +4357,11 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Local variables */
   integer ndim;
-  doublereal temp[7];
+  std::array<doublereal, 7> temp;
   integer nfpr, nfpx, nfpr0, nfpr1, ntpl1, ntot1, i, j, k;
   logical found;
-  integer icprs[NPARX], nparr, k1, k2, nskip1;
+  integer nparr, k1, k2, nskip1;
+  std::array<integer, NPARX> icprs;
 
   integer ibr, ndm, irs, lab1, nar1, itp1, isw1;
 
@@ -4529,8 +4535,8 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u[i]) > umx) {
-      umx = fabs(u[i]);
+    if (f2c::abs(u[i]) > umx) {
+      umx = f2c::abs(u[i]);
     }
   }
 
@@ -4557,7 +4563,7 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   for (i = 0; i < nfpr; ++i) {
     rtmp = HMACH;
-    ep = rtmp * (fabs(par[icp[i]]) + 1);
+    ep = rtmp * (f2c::abs(par[icp[i]]) + 1);
     par[icp[i]] += ep;
     func(ndim, u, icp, par, 0, f1zz.data(), dfdu, 
 	 dfdp);
@@ -4622,8 +4628,8 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u0[i]) > umx) {
-      umx = fabs(u0[i]);
+    if (f2c::abs(u0[i]) > umx) {
+      umx = f2c::abs(u0[i]);
     }
   }
 
@@ -4646,8 +4652,8 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u1[i]) > umx) {
-      umx = fabs(u1[i]);
+    if (f2c::abs(u1[i]) > umx) {
+      umx = f2c::abs(u1[i]);
     }
   }
 
@@ -4674,7 +4680,7 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   for (i = 0; i < nfpr; ++i) {
     rtmp = HMACH;
-    ep = rtmp * (fabs(par[icp[i]]) + 1);
+    ep = rtmp * (f2c::abs(par[icp[i]]) + 1);
     par[icp[i]] += ep;
     bcnd(ndim, par, icp, nbc, u0, u1, 0, f1zz.data(), dbc);
     for (j = 0; j < nbc; ++j) {
@@ -4737,8 +4743,8 @@ icni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u[i]) > umx) {
-      umx = fabs(u[i]);
+    if (f2c::abs(u[i]) > umx) {
+      umx = f2c::abs(u[i]);
     }
   }
 
@@ -4765,7 +4771,7 @@ icni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   for (i = 0; i < nfpr; ++i) {
     rtmp = HMACH;
-    ep = rtmp * (fabs(par[icp[i]]) + 1);
+    ep = rtmp * (f2c::abs(par[icp[i]]) + 1);
     par[icp[i]] += ep;
     icnd(ndim, par, icp, nint, u, uold, udot, upold, 0, f1zz.data(), dint);
     for (j = 0; j < nint; ++j) {
@@ -4821,8 +4827,8 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   umx = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (fabs(u[i]) > umx) {
-      umx = fabs(u[i]);
+    if (f2c::abs(u[i]) > umx) {
+      umx = f2c::abs(u[i]);
     }
   }
 
@@ -4847,7 +4853,7 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   for (i = 0; i < nfpr; ++i) {
     rtmp = HMACH;
-    ep = rtmp * (fabs(par[icp[i]]) + 1);
+    ep = rtmp * (f2c::abs(par[icp[i]]) + 1);
     par[icp[i]] += ep;
     fopt(ndim, u, icp, par, 0, &f1, dfdu, dfdp);
     dfdp[icp[i]] = (f1 - *f) / ep;

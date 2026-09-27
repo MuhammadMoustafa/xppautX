@@ -1,36 +1,63 @@
 #include <vector>
-#include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h"
-#include "xpp_mem.h"
 #include "auto_c.h"
-#include "auto_types.h"
 #include "xpp_job.h" /* xppautX: cancel */
 
 int xpp_setubv_stop = 0; /* xppautX: cancel (xpp_job.h) */
 
-#ifdef TIME
-#include <unistd.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-static double time_start (void) {
-  struct timeval time;
-  double seconds,microseconds;
-  gettimeofday(&time,NULL);
-  seconds = static_cast<double>(time.tv_sec);
-  microseconds = static_cast<double>(time.tv_usec);
-  return seconds + microseconds/1e6;
-}
-static double time_end(double start) {
-  struct timeval time;
-  double seconds,microseconds;
-  gettimeofday(&time,NULL);
-  seconds = static_cast<double>(time.tv_sec);
-  microseconds = static_cast<double>(time.tv_usec);
-  return (seconds + microseconds/1e6)-start;
-}
-#endif
+namespace {
+/* This structure contains all of the input data for the setubv routine
+   Those values which are arrays and those
+   which are input and output are markered as such*/
+struct setubv_parallel_arglist {
+  integer ndim, ips, ncol, nbc, nint, ncb, nrc, nra, nca, na; /*scalar input */
+  FUNI_TYPE((*funi)); /*scalar input*/
+  ICNI_TYPE((*icni)); /*scalar input*/
+  integer ndxloc; /*scalar input*/
+  iap_type *iap; /*array input size: NIAP*/
+  rap_type *rap; /*array input size: NRAP*/
+  doublereal  *par; /*array input size: NPARX2*/
+  integer *icp; /*array input size:  NPARX2*/
+  doublereal *aa; /*array output (but must be initialized to 0) size: *nca X *nra X *na */
+  doublereal *bb; /*array output (but must be initialized to 0) size: *ncb X *nra X *na */
+  doublereal *cc; /*array output (but must be initialized to 0) size: *nca X *nrc X *na */
+  doublereal *dd; /*array output (but must be initialized to 0) size: *ncb X *nrc */
+  doublereal *fa; /*array output (but must be initialized to 0) size: *nra X *na */
+  doublereal *fc; /*array output (but must be initialized to 0) size: *nrc */
+  doublereal *ups; /*array input size: *ndxloc X (*ndim X *ncol) */
+  doublereal *uoldps; /*array input size: *ndxloc X (*ndim X *ncol) */
+  doublereal *udotps; /*array input size: *ndxloc X (*ndim X *ncol) */
+  doublereal *upoldp; /*array input size: *ndxloc X (*ndim X *ncol) */
+  doublereal *dtm; /*array input size: *na */
+  integer loop_start; /*scalar input*/
+  integer loop_end; /*scalar input*/  
+  integer loop_offset; /*scalar input*/
+  doublereal *wp; /*array input size: MCL2*MCL1 */
+  doublereal *wt; /*array input size: MCL2*MCL1 */
+  doublereal *wi; /*array input size: MCL2*MCL1??? Not sure of this one yet */
+  doublereal *thu; /*array input size: ndim * 8 */
+  doublereal *thl; /*array input size: NPARX */ 
+  doublereal *rldot; /*array input size: NPARX */ 
+  BCNI_TYPE((*bcni));
+};
 
-void *setubv_make_aa_bb_cc(void * arg)
+/* setubv's steps (the original AUTO also ran them on pthreads or MPI
+   workers). */
+void setubv_make_fa(const setubv_parallel_arglist &larg);
+void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, doublereal *rlcur,
+		       doublereal *rlold, doublereal rds);
+void setubv_parallel_arglist_constructor(integer ndim, integer ips, integer na, integer ncol,
+					 integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca,
+					 FUNI_TYPE((*funi)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par,
+					 integer *icp, doublereal *aa, doublereal *bb,
+					 doublereal *cc, doublereal *dd, doublereal *fa, doublereal *fc, doublereal *ups,
+					 doublereal *uoldps, doublereal *udotps,
+					 doublereal *upoldp, doublereal *dtm,
+					 doublereal *wp, doublereal *wt, doublereal *wi,
+					 doublereal *thu, doublereal *thl, doublereal *rldot, BCNI_TYPE((*bcni)),
+					 setubv_parallel_arglist *data);
+
+void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 {  
   /* System generated locals */
   integer aa_dim1, aa_dim2, bb_dim1, bb_dim2, cc_dim1,
@@ -49,7 +76,6 @@ void *setubv_make_aa_bb_cc(void * arg)
   integer jp1;
   doublereal ddt;
 
-  setubv_parallel_arglist *larg =  (setubv_parallel_arglist *)arg;
 
   
   doublereal *ups = larg->ups;
@@ -255,16 +281,13 @@ void *setubv_make_aa_bb_cc(void * arg)
   }
 
 
-  return NULL;
-
 }
 
-int 
-setubv_default_wrapper(setubv_parallel_arglist data)
+void setubv_default_wrapper(const setubv_parallel_arglist &data)
 {
-  setubv_make_aa_bb_cc((void *)&data);
-  return 0;
+  setubv_make_aa_bb_cc(&data);
 }
+} // namespace
 
 int 
 setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
@@ -353,7 +376,8 @@ setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer
   return 0;
 }
 
-void setubv_make_fa(setubv_parallel_arglist larg) {
+namespace {
+void setubv_make_fa(const setubv_parallel_arglist &larg) {
   integer i,j,k,l;
   integer ic,k1,ib;
   integer jj,jp1,l1,ic1;
@@ -426,7 +450,7 @@ void setubv_make_fa(setubv_parallel_arglist larg) {
 }
 
 
-void setubv_make_fc_dd(setubv_parallel_arglist larg, doublereal *dups, doublereal *rlcur, 
+void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, doublereal *rlcur, 
 	     doublereal *rlold, doublereal rds) {
   integer i,j,jj,jp1,k,i1,m,j1;
   doublereal rlsum;
@@ -586,12 +610,4 @@ void setubv_parallel_arglist_constructor(integer ndim, integer ips, integer na, 
   data->rldot  = rldot;
   data->bcni   = bcni;
 }  
-
-
-
-
-
-
-
-
-
+} // namespace

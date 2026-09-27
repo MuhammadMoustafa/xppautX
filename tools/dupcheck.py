@@ -65,10 +65,6 @@ core/cvband.cpp CVBandSolve|vendored/numerical, keep: CVODE's band and dense lin
 core/cvdense.cpp CVDenseSolve|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
 core/cvband.cpp CVBandFree|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
 core/cvdense.cpp CVDenseFree|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
-core/conpar2.cpp time_start|vendored/numerical, keep: AUTO's parallel worker files (conpar2.cpp/worker2.cpp) share a timing helper pair by the AUTO source's own design
-core/worker2.cpp time_start|vendored/numerical, keep: see core/conpar2.cpp time_start
-core/conpar2.cpp time_end|vendored/numerical, keep: see core/conpar2.cpp time_start
-core/worker2.cpp time_end|vendored/numerical, keep: see core/conpar2.cpp time_start
 core/dormpri.cpp hinit|vendored/numerical, keep: Hairer's dop853/dopri5, two integrators of parallel structure (hinit/hinit5) by the original source's own design
 core/dormpri.cpp hinit5|vendored/numerical, keep: see core/dormpri.cpp hinit
 core/extra.cpp set_dll_library|keep: dlopen/dlsym pair for a plugin's library vs. function lookup, same shape by design; no W32a-d card owns extra.cpp yet
@@ -102,8 +98,6 @@ core/xpp_io.h abort|keep: see core/xpp_io.h close
 core/autlib1.cpp *block*|vendored/numerical, keep: AUTO (Doedel), translated Fortran; its long repeated per-branch-type blocks are the algorithm's own structure
 core/autlib3.cpp *block*|vendored/numerical, keep: see core/autlib1.cpp *block*
 core/autlib5.cpp *block*|vendored/numerical, keep: see core/autlib1.cpp *block*
-core/conpar2.cpp *block*|vendored/numerical, keep: AUTO's parallel worker files share their startup block by the AUTO source's own design
-core/worker2.cpp *block*|vendored/numerical, keep: see core/conpar2.cpp *block*
 core/cvband.cpp *block*|vendored/numerical, keep: CVODE's band/dense solvers, translated C of parallel structure by the CVODE API's own design
 core/cvdense.cpp *block*|vendored/numerical, keep: see core/cvband.cpp *block*
 core/dormpri.cpp *block*|vendored/numerical, keep: Hairer's dop853/dopri5, two integrators of parallel structure by the original source's own design
