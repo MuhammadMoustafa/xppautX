@@ -2325,11 +2325,33 @@ async function autoView(dir) {
     && !(await S('s.ask')) && (await cdp.eval('__xpp.sent().length')) === sentSave,
     JSON.stringify([await DS('d.setupSaved'), await S('[s.busy, s.ask]'), await cdp.eval('__xpp.sent().slice(-6)')]));
   const saved = JSON.parse(await DS('d.setupSaved'));
-  /* Nmax 20000: the long run below must still be going when Stop is
-     clicked, a few round trips after it starts (W18: at 321 points it ran
-     0.8 s on CI's Windows runner and ended before Stop; lecar's periodic
-     branch goes on to 20000 points, a minute's run, and Stop ends it) */
-  saved.numerics.Nmax = '20000';
+  /* The long run below must still be going when Stop is clicked, a few
+     round trips after it starts (W18: at 321 points it ran 0.8 s on CI's
+     Windows runner and ended before Stop; bumping Nmax to 20000 "fixed"
+     that then). A bigger Nmax alone is not it, and can make things worse
+     (W42, GitHub #85): every AUTO point is one `diagram add` event, and a
+     CPU-throttled page (`--throttle`) processes its whole incoming queue
+     slower, in order -- so a page already behind by thousands of queued
+     points reads `s.busy` (delivered on that same queue) just as late,
+     long after the native run (a separate process, unaffected by a CDP
+     CPU throttle) has actually finished. More points only grows the
+     backlog the throttled page has to work through before it can even
+     see the run is (or was) going, which is why T22, T23 and T25 raced
+     and lost under `--throttle 2` and `4` (and on the slow macOS CI
+     runner) despite lecar's periodic branch running for whole minutes at
+     Nmax 20000. A finer mesh (NTST) makes each AUTO point itself slower
+     to compute -- real seconds of native work per point -- so a modest
+     Nmax (a few hundred events, never enough to back the page up) still
+     keeps the run going for a good long while. NCOL stays at the model's
+     own default (4): NTST 1000, with NCOL either at its default 4 or
+     raised to its max 7, made "the run after" below -- a second periodic
+     continuation from the same Hopf point, started after the first was
+     Stopped mid-run -- come back with zero points every time, though the
+     first continuation at that same mesh ran fine; NTST 300 alone finishes
+     before Stop is even clicked (too fast). NTST 700 is the point between
+     those that was reliable for both in testing. */
+  saved.numerics.Nmax = '300';
+  saved.numerics.Ntst = '700';
   saved.plot = 1;
   saved.axes.Xmin = '0.01';
   saved.axes.Xmax = '0.4';
@@ -2341,9 +2363,9 @@ async function autoView(dir) {
       && s.diagram.points.x.length === ${nAll}`, 'settings loaded', 20000), JSON.stringify(await DS('d.axes')));
   await autoButton('N');
   await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-numerics]')`, 'numerics again');
-  check("T22: ... and the Numerics (Nmax 20000): the core's settings and the form",
-    await S(`s.autoSettings.core.numerics.nmx === 20000
-      && document.querySelector('.auto-settings-dialog input[data-field=nmx]').value === '20000'`)
+  check("T22: ... and the Numerics (Nmax 300): the core's settings and the form",
+    await S(`s.autoSettings.core.numerics.nmx === 300
+      && document.querySelector('.auto-settings-dialog input[data-field=nmx]').value === '300'`)
     && (await cdp.eval(`__xpp.sent().filter(c => c.cmd === 'auto' && c.op === 'set').length`)) === 2,
     JSON.stringify([await S('s.autoSettings.core.numerics'), await cdp.eval(`__xpp.sent().filter(c => c.cmd === 'auto')`)]));
   await until(`!!document.activeElement.closest('.dialog')`, 'numerics focus');
@@ -2459,7 +2481,7 @@ async function autoView(dir) {
   const setsSent = () => cdp.eval(`__xpp.sent().slice(${sentPre}).filter(c => c.cmd === 'auto' && c.op === 'set')`);
   check('T22: Numerics during a run: Nmax 15 waits, pending (the button dashed, the store\'s queue), nothing sent',
     long && await S(`s.busy && s.autoSettings.queued && s.autoSettings.queued.numerics.nmx === 15
-      && s.autoSettings.core.numerics.nmx === 20000`)
+      && s.autoSettings.core.numerics.nmx === 300`)
     && await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)
     && (await setsSent()).length === 0, JSON.stringify([long, await S('[s.busy, s.autoSettings]'), await setsSent()]));
   /* T25: a connection the browser opened and sent nothing on yet (a
@@ -2476,13 +2498,13 @@ async function autoView(dir) {
   await new Promise(r => idle.once('connect', r));
   await sleep(200);
   const labsPre = await DS('d.labels.length'), runningAtStop = await S('s.busy'), tStop = Date.now();
-  /* the button only renders while busy: on a throttled run (W40, GitHub
-     #83) the JS-driven steps above this point (the Numerics dialog, the
-     idle connection) themselves run slower, so the native run -- unaffected
-     by a CDP CPU throttle, which only slows the page's own JS -- can win
-     the race and finish first. Guard the click instead of crashing on a
-     null .auto-stop, and let the assertion below say plainly that the run
-     was already over rather than a TypeError with no detail. */
+  /* the button only renders while busy. Nmax 300 with a finer mesh (NTST
+     300, above) keeps the run going for many seconds of real, native time
+     while sending few enough `diagram add` events that a throttled page
+     still reads `s.busy` promptly (W42, GitHub #85); guard the click anyway
+     instead of crashing on a null .auto-stop, and let the assertion below
+     say plainly that the run was already over rather than a TypeError
+     with no detail. */
   const stopBtn = runningAtStop && await until(`document.querySelector('.auto-status .auto-stop')`, 'stop button present', 2000);
   if (stopBtn) await cdp.eval(`document.querySelector('.auto-status .auto-stop').click()`);
   const stopped = stopBtn && await until('!s.busy', 'stopped', 5000), tookStop = Date.now() - tStop;
