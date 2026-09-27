@@ -23,6 +23,9 @@
 extern "C" {
 #endif
 
+/* graf_par.cpp: the palette index of each named colour (pop_list.h's color_names) */
+extern int colorline[];
+
 /* The frozen curves of every plot window (Graphic stuff > Freeze) */
 typedef struct {
     CURVE curve[MAXFRZ]; /* .use: the slot holds one; .w: its window */

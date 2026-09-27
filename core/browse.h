@@ -27,8 +27,8 @@ typedef struct {
 		int istart,iend;
                 } BROWSER;
 
-/*extern BROWSER my_browser;
-*/
+/* browse_data.cpp: the data browser's view of the stored data */
+extern BROWSER my_browser;
 
 float **get_browser_data(void);
 void set_browser_data(float **data, int col0);

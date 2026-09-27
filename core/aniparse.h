@@ -3,173 +3,59 @@
 
 
 #include "xpplim.h"
-#include <stdio.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/**************  New stuff for the Grabber ***************************/
-#define MAX_GEVENTS 20  /* maximum variables you can change per grabbable */
-#define MAX_ANI_GRAB 50   /* max grabbable objects  */
-
-
-typedef struct {  /* tasks have the form {name1=formula1;name2=formula2;...} */
- 
-  double vrhs[MAX_GEVENTS];
-  char lhsname[MAX_GEVENTS][XPP_NAME_MAX+1]; 
-  int lhsivar[MAX_GEVENTS];
-  int *comrhs[MAX_GEVENTS];
-  int runnow;
-  int n; /* number of tasks <= MAX_GEVENTS */
-}GRAB_TASK;
-
-
-typedef struct {
-  int ok;
-  double zx,zy,tol;
-  int *x,*y;
-  GRAB_TASK start,end;
-} ANI_GRAB;
-
-/***************  End of grabber stuff  in header **************/
-
-typedef struct {
-  int flag;
- int skip;
-  char root[100];
- char filter[256];
- int aviflag,filflag;
-} MPEG_SAVE;
-
-
-/* a comet's last n positions, in the animation's coordinates, and their colours */
-typedef struct {
-  int n;
-  double *x,*y;
-  int *col;
-  int i;
-} Comet;
-
-#ifdef __cplusplus
-}
-#endif
 #include "xpp_types.h"
 #include "load_eqn.h"
 #ifdef __cplusplus
+#include <string>
 extern "C" {
 #endif
 
-/* the animation window; the ids are the front end's */
-typedef struct {
-XppWinId base, wfile,wgo,wpause,wreset,wfast,wslow,wmpeg;
-  XppWinId wfly,kill,slider;
-XppWinId wup,wdn,wskip;
-  XppWinId view,wgrab;
-int hgt,wid,iexist,ok;
-int pos,inc;
-  int slipos,sliwid;
-char file[XPP_MAX_NAME];
-} VCR;
+/* aniparse.cpp: the animator (the .ani language and its frames) */
+extern int n_anicom, ani_speed, ani_speed_inc, ani_grab_flag;
 
-extern VCR vcr;
-
-typedef struct {
-  Comet c;
-  int type, flag;
-  int *col,*x1,*y1,*x2,*y2,*who;
-  double zcol,zx1,zy1,zx2,zy2,zrad,zval;
-  int zthick,tfont,tsize,tcolor;  
-} ANI_COM;
-
-void create_vcr(const char *name);
-void destroy_vcr(void);
-double get_current_time(void);
 void update_ani_motion_stuff(int x, int y);
 void ani_create_mpeg(void);
-void ani_resize(int x, int y);
 void ani_newskip(void);
-void check_on_the_fly(void);
 void on_the_fly(int task);
-void ani_frame(int task);
 void ani_view_created(void);
 void ani_grab_start(void);
 void ani_reset(void);
 void ani_grab_mouse(int flag, int ix, int iy);
-void set_to_init_data(void);
-void set_from_init_data(void);
 void ani_flip1(int n);
-void ani_flip(void);
-void ani_disk_warn(void);
 void ani_zero(void);
 int get_ani_file(const char *fname); /* 1 when a file was loaded */
-int ani_new_file(const char *filename);
-int load_ani_file(FILE *fp);
-int parse_ani_string(char *s, FILE *fp);
-void set_ani_dimension(const char *x1, const char *y1, const char *x2, const char *y2);
-int add_ani_com(int type, const char *x1, char *y1, const char *x2, const char *y2, char *col, const char *thick);
-void init_ani_stuff(void);
-void free_ani(void);
-int chk_ani_color(char *s, int *index);
-int add_ani_expr(const char *x, int *c);
-int add_ani_rline(ANI_COM *a, const char *x1, const char *y1, char *col, const char *thick);
 void reset_comets(void);
-void roll_comet(ANI_COM *a, double xn, double yn, int col);
-int add_ani_comet(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *y2, char *col, const char *thick);
-int add_ani_line(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *y2, char *col, const char *thick);
-int add_ani_null(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *y2, char *col, const char *who);
-int add_ani_rect(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *y2, char *col, const char *thick);
-int add_ani_frect(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *y2, char *col, const char *thick);
-int add_ani_ellip(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *y2, char *col, const char *thick);
-int add_ani_fellip(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *y2, char *col, const char *thick);
-int add_ani_circle(ANI_COM *a, const char *x1, const char *y1, const char *x2, char *col, const char *thick);
-int add_ani_text(ANI_COM *a, const char *x1, const char *y1, const char *y2);
-int add_ani_vtext(ANI_COM *a, const char *x1, const char *y1, const char *x2, const char *y2);
-int add_ani_settext(ANI_COM *a, const char *x1, char *y1, char *col);
 void render_ani(void);
 void set_ani_perm(void);
-void eval_ani_color(int j);
-void eval_ani_com(int j);
-void set_ani_font_stuff(int size, int font, int color);
-void set_ani_col(int j);
-void xset_ani_col(int icol);
-void ani_rad2scale(double rx, double ry, int *ix, int *iy);
-void ani_radscale(double rad, int *ix, int *iy);
-void ani_ij_to_xy(int ix, int iy, double *x, double *y);
-void ani_xyscale(double x, double y, int *ix, int *iy);
-void draw_ani_comet(int j);
-void draw_ani_null(int j, int id);
-void draw_ani_line(int j);
-void draw_ani_rline(int j);
-void draw_ani_circ(int j);
-void draw_ani_fcirc(int j);
-void draw_ani_rect(int j);
-void draw_ani_frect(int j);
-void draw_ani_ellip(int j);
-void draw_ani_fellip(int j);
-void draw_ani_text(int j);
-void draw_ani_vtext(int j);
-void tst_pix_draw(void);
-void read_ani_line(FILE *fp, char *s);
-int add_grab_command(const char *xs, const char *ys, const char *ts, FILE *fp);
-int ani_grab_tasks(const char *line, int igrab, int which);
-int run_now_grab(void);
-int search_for_grab(double x, double y);
-void do_grab_tasks(int which);
-int add_grab_task(const char *lhs, const char *rhs, int igrab, int which);
-void draw_grab_points(void);
-void free_grabber(void);
-void redraw_ani_slider(void);
 
 /* The animator's options: the -anifile to load at the start, and whether
    the animation follows an integration as it runs */
 typedef struct {
     int use_file;             /* -anifile was given */
-    char file[XPP_MAX_NAME];  /* the .ani file it named */
+    char file[XPP_MAX_NAME];  /* the .ani file it named (comline.cpp writes it by its size) */
     int on_the_fly;           /* animate while integrating */
 } XppAniOptions;
 extern XppAniOptions ani_options;
 
 #ifdef __cplusplus
 }
+
+/* the animation window: its size in the core's pixels, the row shown */
+struct VCR {
+    int hgt = 0, wid = 0, iexist = 0, ok = 0;
+    int pos = 0, inc = 0;
+    std::string file; /* the .ani file, or the folder to pick one in */
+};
+extern VCR vcr;
+
+/* Frame saving (the ppm frames, or an animated gif) */
+struct MPEG_SAVE {
+    int flag = 0;
+    int skip = 0;
+    std::string root; /* the frames' base name */
+    int aviflag = 0;
+};
+/* C linkage: json_ani.cpp declares it so itself */
+extern "C" MPEG_SAVE mpeg;
 #endif
 #endif
