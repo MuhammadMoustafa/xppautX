@@ -69,9 +69,11 @@ else
   exit 1
 fi
 # a failed allocation is loud: exit 1 and an ERROR naming the call site
-# (core/xpp_mem.h; XPP_MEM_FAIL_AT makes the 5th allocation fail)
+# (core/xpp_mem.h; XPP_MEM_FAIL_AT makes the 1st allocation fail). Since
+# W33e lecar.ode's run allocates nothing through xpp_mem; amari.ode's
+# table still does (tabular.cpp's raw block)
 tmp=$(mktemp -d)
-( cd "$tmp" && XPP_MEM_FAIL_AT=5 "$OLDPWD/xppautX" "$OLDPWD/examples/ode/lecar.ode" -silent > run.log 2>&1 )
+( cd "$tmp" && XPP_MEM_FAIL_AT=1 "$OLDPWD/xppautX" "$OLDPWD/examples/ode/amari.ode" -silent > run.log 2>&1 )
 st=$?
 site=$(grep -oE 'out of memory: .* at core/[a-z0-9_]+\.(c|cpp):[0-9]+' "$tmp/run.log")
 rm -rf "$tmp"

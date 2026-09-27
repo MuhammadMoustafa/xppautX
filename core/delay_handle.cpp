@@ -1,4 +1,5 @@
 #include "delay_handle.h"
+#include "load_eqn.h"
 #include "xpp_ui.h"
 #include "parserslow.h"
 #include "integrate.h"
@@ -30,7 +31,6 @@ double delay_list[MAXDELAY];
 extern double DELTA_T,T0,DELAY;
 extern int NODE,NCON,NSYM,NSYM_START,NCON_START,NMarkov;
  
-extern char delay_string[MAXODE][80];
 extern double variables[];
 extern int NVAR;
 
@@ -184,7 +184,7 @@ int do_init_delay(double big)
  NCON=NCON_START;
  NSYM=NSYM_START;
  for(i=0;i<(NODE );i++){
-	 if(add_expr(delay_string[i],del_form[i].data(),&len)){
+	 if(add_expr(delay_string[i].c_str(),del_form[i].data(),&len)){
 		err_msg("Illegal delay expression");
 		 NCON=NCON_START;
 		NSYM=NSYM_START;

@@ -1784,7 +1784,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	 last_ic[in]=z;
          default_ic[in]=z;
 	 set_val(tmp.c_str(),z);
-	   XPP_FORMAT_TO_BUF(delay_string[in],"{}",v.rhs);
+	   delay_string[in]=v.rhs;
 
 	 xpp::log(XPP_LOG_INFO, " Initial {}(0)={}\n",tmp,v.rhs);
        }

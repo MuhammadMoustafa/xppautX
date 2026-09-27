@@ -238,10 +238,8 @@ typedef struct {
 #define XPP_NSLIDERS 3
 extern XppSlider sliders[XPP_NSLIDERS];
 
-/* the model's file (C text, XPP_MAX_NAME bytes), the named set of
-   options the command line picked (@ set, -iset), and each variable's
-   initial data as typed (a delay equation's history: "0.0" when it has
-   none) */
+/* the model's file (C text, XPP_MAX_NAME bytes) and the named set of
+   options the command line picked (@ set, -iset) */
 extern char this_file[XPP_MAX_NAME];
 /* load_eqn.cpp's settings that have no other owner yet: the initial data
    the last run started from, the plot's axes and view, the boundary
@@ -258,14 +256,17 @@ extern int BVP_MAXIT,BVP_FLAG,MaxEulIter;
 extern int SHOOT,PAR_FOL;
 extern int RunImmediately,xorfix,silent,got_file;
 extern char this_internset[XPP_MAX_NAME];
-extern char delay_string[MAXODE][80];
 
 
 
 #ifdef __cplusplus
 }
 
+#include <array>
 #include <string>
+/* each variable's initial data as typed (a delay equation's history:
+   "0.0" when it has none) */
+extern std::array<std::string,MAXODE> delay_string;
 /* the options file (the model's "options" line, else default.opt) that
    set_all_vals reads */
 extern std::string options_file;

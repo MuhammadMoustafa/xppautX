@@ -154,7 +154,7 @@ extern double PS_LW;
 
 extern int SEc,UEc,SPc,UPc;
 
- char delay_string[MAXODE][80];
+ std::array<std::string,MAXODE> delay_string;
  int itor[MAXODE];
  /*char this_file[100];
  */
@@ -244,7 +244,7 @@ void load_eqn()
  for(int i=0;i<MAXODE;i++)
  {
   itor[i]=0;
-  XPP_FORMAT_TO_BUF(delay_string[i],"0.0");
+  delay_string[i]="0.0";
  }
  if(strcmp(this_file,"/dev/stdin")==0)std=1;
  if (got_file==1&&(std==0)&&xpp_files_is_dir(this_file))

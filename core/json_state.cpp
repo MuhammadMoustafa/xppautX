@@ -105,7 +105,7 @@ void send_state(void)
             BUF_LIT(&b, "[");
             buf_str(&b, uvar_names[i]);
             BUF_LIT(&b, ",");
-            buf_str(&b, delay_string[i]);
+            buf_str(&b, delay_string[i].c_str());
             BUF_LIT(&b, "]");
         }
         BUF_LIT(&b, "]");

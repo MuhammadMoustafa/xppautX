@@ -425,7 +425,7 @@ void io_exprs(int f, FILE *fp)
  int i;
  double z;
  io_heading(f,fp,"# Delays");
- for(i=0;i<NODE;i++)io_string(delay_string[i],sizeof(delay_string[i]),fp,f);
+ for(i=0;i<NODE;i++)io_string(delay_string[i],fp,f);
  io_heading(f,fp,"# Bndry conds");
  for(i=0;i<NODE;i++)io_string(my_bc[i].string,256,fp,f);
  io_heading(f,fp,"# Old ICs");

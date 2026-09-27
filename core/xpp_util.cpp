@@ -553,7 +553,7 @@ int box_set_value(int type,int i,const char *s,double *z)
     xpp_strlcpy(my_bc[i].string,s,256);
     return 0;
   case DELAYBOX:
-    XPP_STRCPY(delay_string[i],s);
+    delay_string[i]=s;
     return 0;
   }
   return 0;
