@@ -5,6 +5,7 @@
 
 #include <vector>
 #include "xpp_io.h"
+#include "session.h"
 #include "autevd.h" /* xAuto (its own extern) */
 
 /* The memory for these are taken care of in main, and setubv for the
@@ -95,7 +96,7 @@ fnho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Generate the function. */
 
   ffho(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       global_scratch.dfu, global_scratch.dfp);
+       xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -115,26 +116,26 @@ fnho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
-      global_scratch.uu1[j] = u[j];
-      global_scratch.uu2[j] = u[j];
+      xpp::session().auto_lib.scratch.uu1[j] = u[j];
+      xpp::session().auto_lib.scratch.uu2[j] = u[j];
     }
-    global_scratch.uu1[i] -= ep;
-    global_scratch.uu2[i] += ep;
-    ffho(iap, rap, ndim, global_scratch.uu1, uold, icp, par, 
-	 global_scratch.ff1, ndm, global_scratch.dfu, global_scratch.dfp);
-    ffho(iap, rap, ndim, global_scratch.uu2, uold, icp, par, 
-	 global_scratch.ff2, ndm, global_scratch.dfu, global_scratch.dfp);
+    xpp::session().auto_lib.scratch.uu1[i] -= ep;
+    xpp::session().auto_lib.scratch.uu2[i] += ep;
+    ffho(iap, rap, ndim, xpp::session().auto_lib.scratch.uu1, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff1, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
+    ffho(iap, rap, ndim, xpp::session().auto_lib.scratch.uu2, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff2, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (global_scratch.ff2[j] - global_scratch.ff1[j]) / (ep * 2);
+      ARRAY2D(dfdu, j, i) = (xpp::session().auto_lib.scratch.ff2[j] - xpp::session().auto_lib.scratch.ff1[j]) / (ep * 2);
     }
   }
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
-    ffho(iap, rap, ndim, u, uold, icp, par, global_scratch.ff1, 
-	 ndm, global_scratch.dfu, global_scratch.dfp);
+    ffho(iap, rap, ndim, u, uold, icp, par, xpp::session().auto_lib.scratch.ff1, 
+	 ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdp, j, icp[i]) = (global_scratch.ff1[j] - f[j]) / ep;
+      ARRAY2D(dfdp, j, icp[i]) = (xpp::session().auto_lib.scratch.ff1[j] - f[j]) / ep;
     }
     par[icp[i]] -= ep;
   }
@@ -781,9 +782,9 @@ inho(iap_type *iap, integer *icp, doublereal *par)
   nuzr = iap->nuzr;
   ndm = ndim;
   blhma_1.compzero = HMACHHO;
-  blhom_1.nunstab=xAuto.nunstab;
-  blhom_1.nstab=xAuto.nstab;
-  blhom_1.iequib=xAuto.iequib;
+  blhom_1.nunstab=xpp::session().auto_state.run.nunstab;
+  blhom_1.nstab=xpp::session().auto_state.run.nstab;
+  blhom_1.iequib=xpp::session().auto_state.run.iequib;
   blhom_1.itwist=0;
   blhom_1.istart=2;
   blhom_1.nrev=0;
@@ -860,7 +861,7 @@ inho(iap_type *iap, integer *icp, doublereal *par)
       nbc = ndm * (blhom_1.iequib + 1) + blhom_1.nunstab + 1;
     }
     if (blhom_1.iequib == 2) {
-      xpp::print(fp9,"WARNING: IEQUIB=2 NOT ALLOWED WITH ISTART=3\n");	
+      xpp::print(xpp::session().auto_lib.fp9,"WARNING: IEQUIB=2 NOT ALLOWED WITH ISTART=3\n");	
     }
     if (blhom_1.iequib < 0) {
       nbc -= ndm * (blhom_1.iequib * 3 + 2);
@@ -1157,9 +1158,9 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
       * par[-1 + kp] * par[kp] * exp(rr[blhom_1.nstab] * *t * par[10]);
   }
   for (i = 0; i < ndm; ++i) {
-    xpp::print(fp9,"stpho {:20.10f}\n",u[i]);	
+    xpp::print(xpp::session().auto_lib.fp9,"stpho {:20.10f}\n",u[i]);	
   }
-  xpp::print(fp9,"\n");	
+  xpp::print(xpp::session().auto_lib.fp9,"\n");	
 
 /* Artificial parameters at the right-hand end point of the orbit */
 /* omega_i=<x(1)-x_o,w_i^*> */
@@ -1208,9 +1209,9 @@ pvlsho(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
   eighi(1, 2, bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.v.data(), bleig_1.xequib.data(), 
 	icp, par, &ndm);
   if (iid >= 3) {
-    xpp::print(fp9,"EIGENVALUES\n");	
+    xpp::print(xpp::session().auto_lib.fp9,"EIGENVALUES\n");	
     for (j = 0; j < ndm; ++j) {
-      xpp::print(fp9," ({:12.7f} {:12.7f})\n",bleig_1.rr[j],bleig_1.ri[j]);	
+      xpp::print(xpp::session().auto_lib.fp9," ({:12.7f} {:12.7f})\n",bleig_1.rr[j],bleig_1.ri[j]);	
     }
   }
   if (blhom_1.itwist == 1) {
@@ -1221,9 +1222,9 @@ pvlsho(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
 		   bleig_1.vt.data(), icp, par);
     if (iid >= 3) {
       if (orient < 0.) {
-	xpp::print(fp9," Non-orientable, ({:20.10f})\n",orient);	
+	xpp::print(xpp::session().auto_lib.fp9," Non-orientable, ({:20.10f})\n",orient);	
       } else {
-	xpp::print(fp9," Orientable ({:20.10f})\n",orient);	
+	xpp::print(xpp::session().auto_lib.fp9," Orientable ({:20.10f})\n",orient);	
       }
     }
   }
@@ -1236,7 +1237,7 @@ pvlsho(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
     }
     par[blhmp_1.ipsi[i] + 19] = psiho(iap, blhmp_1.ipsi[i], bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.v.data(), bleig_1.vt.data(), icp, par);
     if (iid >= 3) {
-      xpp::print(fp9," PSI({:2})={:20.10f}\n",blhmp_1.ipsi[i],par[blhmp_1.ipsi[i] + 19]);	
+      xpp::print(xpp::session().auto_lib.fp9," PSI({:2})={:20.10f}\n",blhmp_1.ipsi[i],par[blhmp_1.ipsi[i] + 19]);	
 
     }
   }
@@ -1574,7 +1575,7 @@ eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublerea
      iv1.data(), fv1.data(), &ifail);
 
   if (ifail != 0) {
-    xpp::print(fp9,"EISPACK EIGENVALUE ROUTINE FAILED !\n");	
+    xpp::print(xpp::session().auto_lib.fp9,"EISPACK EIGENVALUE ROUTINE FAILED !\n");	
   }
 
   for (j = 0; j < *ndm; ++j) {

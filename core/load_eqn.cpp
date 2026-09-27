@@ -135,7 +135,6 @@ int START_LINE_TYPE=1;
  */
 
 
-extern int SEc,UEc,SPc,UPc;
 
  int STORFLAG,INFLAG;
  double x_3d[2],y_3d[2],z_3d[2];
@@ -170,13 +169,6 @@ double EulTol;
 
 /*  custon color stuff  */
 
-/* AUTO STUFF  */
-extern int auto_ntst,auto_nmx,auto_npr,auto_ncol;
-extern double auto_ds,  auto_dsmax,  auto_dsmin;
-extern double auto_rl0,auto_rl1,auto_a0,auto_a1;
-extern double auto_epss,auto_epsl,auto_epsu;
-extern int auto_var;
-extern double auto_xmin,auto_xmax,auto_ymin,auto_ymax;
 
  int got_file;
 
@@ -1350,7 +1342,7 @@ if(msc(yyl.c_str(),s1)){
  if(msc("NTST",s1)){
      if ((notAlreadySet.NTST||force)|| ((mask!=NULL)&&(mask->NTST==1)))
      {
-   	auto_ntst=atoi(s2);
+   	xpp::session().auto_state.options.ntst=atoi(s2);
 	notAlreadySet.NTST=0;
      }
    return;
@@ -1358,7 +1350,7 @@ if(msc(yyl.c_str(),s1)){
 if(msc("NMAX",s1)){
    if ((notAlreadySet.NMAX||force)|| ((mask!=NULL)&&(mask->NMAX==1)))
    {
-   	auto_nmx=atoi(s2);
+   	xpp::session().auto_state.options.nmx=atoi(s2);
 	notAlreadySet.NMAX=0;
    }
    return;
@@ -1366,7 +1358,7 @@ if(msc("NMAX",s1)){
 if(msc("NPR",s1)){
    if ((notAlreadySet.NPR||force)|| ((mask!=NULL)&&(mask->NPR==1)))
    {
-   	auto_npr=atoi(s2);
+   	xpp::session().auto_state.options.npr=atoi(s2);
 	notAlreadySet.NPR=0;
    }
    return;
@@ -1374,7 +1366,7 @@ if(msc("NPR",s1)){
  if(msc("NCOL",s1)){
    if ((notAlreadySet.NCOL||force)|| ((mask!=NULL)&&(mask->NCOL==1)))
    {
-   	auto_ncol=atoi(s2);
+   	xpp::session().auto_state.options.ncol=atoi(s2);
    	notAlreadySet.NCOL=0;
    }
    return;
@@ -1383,7 +1375,7 @@ if(msc("NPR",s1)){
 if(msc("DSMIN",s1)){
    if ((notAlreadySet.DSMIN||force)|| ((mask!=NULL)&&(mask->DSMIN==1)))
    {
-   	auto_dsmin=atof(s2);
+   	xpp::session().auto_state.options.dsmin=atof(s2);
 	notAlreadySet.DSMIN=0;
    }
    return;
@@ -1391,7 +1383,7 @@ if(msc("DSMIN",s1)){
 if(msc("DSMAX",s1)){
    if ((notAlreadySet.DSMAX||force)|| ((mask!=NULL)&&(mask->DSMAX==1)))
    {
-   	auto_dsmax=atof(s2);
+   	xpp::session().auto_state.options.dsmax=atof(s2);
    	notAlreadySet.DSMAX=0;
    }
    return;
@@ -1399,7 +1391,7 @@ if(msc("DSMAX",s1)){
 if(msc("DS",s1)){
     if ((notAlreadySet.DS||force)|| ((mask!=NULL)&&(mask->DS==1)))
     {
-   	auto_ds=atof(s2);
+   	xpp::session().auto_state.options.ds=atof(s2);
 	notAlreadySet.DS=0;
     }
  
@@ -1408,7 +1400,7 @@ if(msc("DS",s1)){
 if(msc("PARMIN",s1)){
    if ((notAlreadySet.XMAX||force)|| ((mask!=NULL)&&(mask->XMAX==1)))
    {
-   	auto_rl0=atof(s2);
+   	xpp::session().auto_state.options.rl0=atof(s2);
 	notAlreadySet.XMAX=0;
    }
    return;
@@ -1416,7 +1408,7 @@ if(msc("PARMIN",s1)){
 if(msc("PARMAX",s1)){
     if ((notAlreadySet.PARMAX||force)|| ((mask!=NULL)&&(mask->PARMAX==1)))
     {
-   	auto_rl1=atof(s2);
+   	xpp::session().auto_state.options.rl1=atof(s2);
 	notAlreadySet.PARMAX=0;
     }
    return;
@@ -1424,7 +1416,7 @@ if(msc("PARMAX",s1)){
 if(msc("NORMMIN",s1)){
      if ((notAlreadySet.NORMMIN||force)|| ((mask!=NULL)&&(mask->NORMMIN==1)))
      {
-   	auto_a0=atof(s2);
+   	xpp::session().auto_state.options.a0=atof(s2);
 	notAlreadySet.NORMMIN=0;
      }
    return;
@@ -1432,7 +1424,7 @@ if(msc("NORMMIN",s1)){
 if(msc("NORMMAX",s1)){
      if ((notAlreadySet.NORMMAX||force)|| ((mask!=NULL)&&(mask->NORMMAX==1)))
      {
-   	auto_a1=atof(s2);
+   	xpp::session().auto_state.options.a1=atof(s2);
    	notAlreadySet.NORMMAX=0;
      }
    return;
@@ -1440,7 +1432,7 @@ if(msc("NORMMAX",s1)){
  if(msc("EPSL",s1)){
      if ((notAlreadySet.EPSL||force)|| ((mask!=NULL)&&(mask->EPSL==1)))
      {
-   	auto_epsl=atof(s2);
+   	xpp::session().auto_state.options.epsl=atof(s2);
 	notAlreadySet.EPSL=0;
      }
    return;
@@ -1449,7 +1441,7 @@ if(msc("NORMMAX",s1)){
 if(msc("EPSU",s1)){
      if ((notAlreadySet.EPSU||force)|| ((mask!=NULL)&&(mask->EPSU==1)))
      {
-   	auto_epsu=atof(s2);
+   	xpp::session().auto_state.options.epsu=atof(s2);
 	notAlreadySet.EPSU=0;
      }
    return;
@@ -1457,7 +1449,7 @@ if(msc("EPSU",s1)){
 if(msc("EPSS",s1)){
      if ((notAlreadySet.EPSS||force)|| ((mask!=NULL)&&(mask->EPSS==1)))
      {
-   	auto_epss=atof(s2);
+   	xpp::session().auto_state.options.epss=atof(s2);
 	notAlreadySet.EPSS=0;
      }
    return;
@@ -1474,7 +1466,7 @@ if(msc("EPSS",s1)){
  if(msc("SEC",s1)){
      if ((notAlreadySet.SEC||force)|| ((mask!=NULL)&&(mask->SEC==1)))
      {
-   	SEc=atoi(s2);
+   	xpp::session().auto_state.stable_eq_color=atoi(s2);
 	notAlreadySet.SEC=0;
      }
    return;
@@ -1482,7 +1474,7 @@ if(msc("EPSS",s1)){
  if(msc("UEC",s1)){
      if ((notAlreadySet.UEC||force)|| ((mask!=NULL)&&(mask->UEC==1)))
      {
-   	UEc=atoi(s2);
+   	xpp::session().auto_state.unstable_eq_color=atoi(s2);
 	notAlreadySet.UEC=0;
      }
    return;
@@ -1490,7 +1482,7 @@ if(msc("EPSS",s1)){
  if(msc("SPC",s1)){
      if ((notAlreadySet.SPC||force)|| ((mask!=NULL)&&(mask->SPC==1)))
      {
-   	SPc=atoi(s2);
+   	xpp::session().auto_state.stable_po_color=atoi(s2);
 	notAlreadySet.SPC=0;
      }
    return;
@@ -1498,7 +1490,7 @@ if(msc("EPSS",s1)){
  if(msc("UPC",s1)){
      if ((notAlreadySet.UPC||force)|| ((mask!=NULL)&&(mask->UPC==1)))
      {
-   	UPc=atoi(s2);
+   	xpp::session().auto_state.unstable_po_color=atoi(s2);
 	notAlreadySet.UPC=0;
      }
    return;
@@ -1516,7 +1508,7 @@ if(msc("EPSS",s1)){
 if(msc("AUTOXMAX",s1)){
      if ((notAlreadySet.AUTOXMAX||force)|| ((mask!=NULL)&&(mask->AUTOXMAX==1)))
      {
- 	auto_xmax=atof(s2);
+ 	xpp::session().auto_state.options.xmax=atof(s2);
 	notAlreadySet.AUTOXMAX=0;
      }
  return;
@@ -1524,7 +1516,7 @@ if(msc("AUTOXMAX",s1)){
 if(msc("AUTOYMAX",s1)){
      if ((notAlreadySet.AUTOYMAX||force)|| ((mask!=NULL)&&(mask->AUTOYMAX==1)))
      {
- 		auto_ymax=atof(s2);
+ 		xpp::session().auto_state.options.ymax=atof(s2);
 		notAlreadySet.AUTOYMAX=0;
      }
  return;
@@ -1532,7 +1524,7 @@ if(msc("AUTOYMAX",s1)){
 if(msc("AUTOXMIN",s1)){
      if ((notAlreadySet.AUTOXMIN||force)|| ((mask!=NULL)&&(mask->AUTOXMIN==1)))
      {
- 	auto_xmin=atof(s2);
+ 	xpp::session().auto_state.options.xmin=atof(s2);
 	notAlreadySet.AUTOXMIN=0;
      }
  return;
@@ -1540,7 +1532,7 @@ if(msc("AUTOXMIN",s1)){
 if(msc("AUTOYMIN",s1)){
      if ((notAlreadySet.AUTOYMIN||force)|| ((mask!=NULL)&&(mask->AUTOYMIN==1)))
      {
- 	auto_ymin=atof(s2);
+ 	xpp::session().auto_state.options.ymin=atof(s2);
 	notAlreadySet.AUTOYMIN=0;
      }
  return;
@@ -1549,7 +1541,7 @@ if(msc("AUTOVAR",s1)){
      if ((notAlreadySet.AUTOVAR||force)|| ((mask!=NULL)&&(mask->AUTOVAR==1)))
      {
      	find_variable(s2,&i);
-    	if(i>0)auto_var=i-1;
+    	if(i>0)xpp::session().auto_state.options.var=i-1;
 	notAlreadySet.AUTOVAR=0;
     }
     return;

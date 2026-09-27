@@ -4,6 +4,7 @@
    (loading, the protocol, .set files, AUTO) is tools/autocheck.py's names
    section. */
 #include "xpptest.h"
+#include "session.h"
 #include "model.h"
 #include <string>
 #include "parserslow.h"
@@ -13,8 +14,6 @@
 #include <stdio.h>
 #include <string.h>
 
-extern int AutoPar[8];
-extern int NAutoPar;
 
 static double calc(char *expr, int *ok)
 {
@@ -83,8 +82,8 @@ int main(void)
     xpp::model().uvar_names[0] = "MEMBRANE_POTENTIAL_FAST_VARIABLE";
     xpp::model().node = xpp::model().neq = 1;
     xpp::model().nupar = 1;
-    NAutoPar = 1;
-    AutoPar[0] = 0;
+    xpp::session().auto_state.npar = 1;
+    xpp::session().auto_state.par[0] = 0;
     out = auto_screen_col("   PAR(0)     ");
     CHECK_STR(out.c_str(), "applied_stim~ ");
     out = auto_screen_col("   MAX U(1)   ");

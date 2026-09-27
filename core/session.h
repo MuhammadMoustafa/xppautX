@@ -19,6 +19,8 @@
 #include "many_pops.h"
 #include "graf_par.h"
 #include "integrate.h"
+#include "auto_state.h"
+#include "diagram.h"
 
 #include <array>
 #include <string>
@@ -48,6 +50,13 @@ struct Session {
   /* each variable's torus flag: 1 when it is taken modulo the torus
      period (the nUmerics menu's Torus) */
   std::array<int,MAXODE> itor{};
+
+  /* AUTO's settings, run parameters and scratch folder (auto_nox.cpp,
+     autevd.cpp), the AUTO library's files and work arrays (autlib1.cpp,
+     gogoauto.cpp) and the diagram (diagram.cpp) */
+  AutoState auto_state;
+  AutoLib auto_lib;
+  AutoDiagram diagram;
 };
 
 /* the current Session (xpp_current.h) */

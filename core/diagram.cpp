@@ -23,21 +23,10 @@
 #include "model.h"
 
 namespace {
-/* a diagram point and the arrays its DIAGRAM entry points at */
-struct DiagramPoint {
-  DIAGRAM d{};
-  std::vector<double> uhi,ulo,u0,ubar,evr,evi;
-};
-
-/* AUTO's bifurcation diagram: its points in the order they were stored,
-   point i with index i (so next/prev are index +/- 1). A deque, so a
-   point's address stays valid while points are added. */
-std::deque<DiagramPoint> points;
-
 /* a new last point of n variables, zeroed */
 DIAGRAM *new_point(int n)
 {
-  DiagramPoint &p=points.emplace_back();
+  DiagramPoint &p=xpp::session().diagram.points.emplace_back();
   for(std::vector<double> *v:{&p.uhi,&p.ulo,&p.u0,&p.ubar,&p.evr,&p.evi})
     v->assign(n,0.0);
   p.d.uhi=p.uhi.data();
@@ -46,20 +35,20 @@ DIAGRAM *new_point(int n)
   p.d.ubar=p.ubar.data();
   p.d.evr=p.evr.data();
   p.d.evi=p.evi.data();
-  p.d.index=static_cast<int>(points.size())-1;
+  p.d.index=static_cast<int>(xpp::session().diagram.points.size())-1;
   return &p.d;
 }
 } // namespace
 
 int diagram_count(void)
 {
-  return static_cast<int>(points.size());
+  return static_cast<int>(xpp::session().diagram.points.size());
 }
 
 DIAGRAM *diagram_point(int index)
 {
   if(index<0||index>=diagram_count())return NULL;
-  return &points[index].d;
+  return &xpp::session().diagram.points[index].d;
 }
 
 DIAGRAM *diagram_first(void)
@@ -79,21 +68,21 @@ DIAGRAM *diagram_prev(const DIAGRAM *d)
 
 void start_diagram(int n)
 {
-  points.clear();
+  xpp::session().diagram.points.clear();
   new_point(n);
-  DiagFlag=0;
+  xpp::session().auto_state.diag_flag=0;
 }
 
 void edit_start(int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, double *evr, double *evi)
 {
   edit_diagram(diagram_first(),ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,
-	       par,per,n,icp1,icp2,icp3,icp4,AutoTwoParam,evr,evi,blrtn.torper);
+	       par,per,n,icp1,icp2,icp3,icp4,xpp::session().auto_state.two_param,evr,evi,xpp::session().auto_state.blrtn.torper);
 }
 
 void edit_diagram(DIAGRAM *d, int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, int flag2, double *evr, double *evi, double tp)
 {
   int i;
-  d->calc=TypeOfCalc;
+  d->calc=xpp::session().auto_state.type_of_calc;
   d->ibr=ibr;
   d->ntot=ntot;
   d->itp=itp;
@@ -126,7 +115,7 @@ void add_diagram(int ibr, int ntot, int itp, int lab, int nfpar, double a, doubl
 {
  DIAGRAM *dnew=new_point(n);
  edit_diagram(dnew,ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,par,per,n,
-	      icp1,icp2,icp3,icp4,flag2,evr,evi,blrtn.torper);
+	      icp1,icp2,icp3,icp4,flag2,evr,evi,xpp::session().auto_state.blrtn.torper);
 }
 
 DIAGRAM *last_diagram(void)
@@ -141,8 +130,8 @@ void set_last_diagram_from(int from)
 
 const DIAGRAM *diagram_of_label(int lab)
 {
-  if(lab<=0||DiagFlag==0)return NULL; /* DiagFlag 0: the first point is not filled in yet */
-  for(const DiagramPoint &p:points)
+  if(lab<=0||xpp::session().auto_state.diag_flag==0)return NULL; /* DiagFlag 0: the first point is not filled in yet */
+  for(const DiagramPoint &p:xpp::session().diagram.points)
     if(p.d.lab==lab)return &p.d;
   return NULL;
 }
@@ -254,7 +243,7 @@ void write_info_out()
    /* u0=d->u0; Not used*/
     /* a=d->norm; Not used*/
     par1=par[icp1];
-    if(icp2<NAutoPar)
+    if(icp2<xpp::session().auto_state.npar)
       par2=par[icp2];
     else 
       par2=par1;
@@ -370,7 +359,7 @@ void write_pts()
     ubar=d->ubar;
     a=d->norm;
     par1=par[icp1];
-    if(icp2<NAutoPar)
+    if(icp2<xpp::session().auto_state.npar)
       par2=par[icp2];
 
     /* now we have to check is the diagram parameters correspond to the 
@@ -416,7 +405,7 @@ void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi)
         xpp::log(XPP_LOG_WARN, "Unable to get bifurcation type.\n");
     }
     par1=d->par[d->icp1];
-    if(d->icp2<NAutoPar)par2=d->par[d->icp2];
+    if(d->icp2<xpp::session().auto_state.npar)par2=d->par[d->icp2];
     auto_xy_plot(&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);
     if(x<*xlo)*xlo=x;
     if(x>*xhi)*xhi=x;
@@ -480,7 +469,7 @@ int load_diagram(FILE *fp, int node)
       edit_start(ibr,ntot,itp,lab,nfpar,norm,uhi.data(),ulo.data(),u0.data(),ubar.data(),par.data(),per,node,
 		 icp1,icp2,icp3,icp4,evr.data(),evi.data());
       flag=1;
-      DiagFlag=1;
+      xpp::session().auto_state.diag_flag=1;
     }
     else
       add_diagram(ibr,ntot,itp,lab,nfpar,norm,uhi.data(),ulo.data(),u0.data(),ubar.data(),par.data(),per,node,

@@ -13,8 +13,6 @@
 
 /*    Hooks to xpp RHS     */
 
-extern int NewPeriodFlag;
-extern int HomoFlag;
 
 /* AUTO calls these through auto_c.h's "problem defined functions"
    prototypes; give them C linkage so the callers (autlib3.cpp,
@@ -25,8 +23,8 @@ extern "C" int func(integer ndim, double *u, integer *icp, double *par, integer 
 {
    int i,j;
    std::array<double,NAUTO> zz,y,yp,xp; /* getjactrans's scratch, and the NJMP steps' */
-   for(i=0;i<NAutoPar;i++){
-     constants[Auto_index_to_array[i]]=par[i];
+   for(i=0;i<xpp::session().auto_state.npar;i++){
+     constants[xpp::session().auto_state.par_index[i]]=par[i];
      
    }
    evaluate_derived();
@@ -52,10 +50,10 @@ extern "C" int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
 
   double p;
 
-  for(i=0;i<NAutoPar;i++)
-    par[i] = constants[Auto_index_to_array[i]];
+  for(i=0;i<xpp::session().auto_state.npar;i++)
+    par[i] = constants[xpp::session().auto_state.par_index[i]];
 
-  if(NewPeriodFlag==0){  
+  if(xpp::session().auto_state.new_period_flag==0){  
     for(i=0;i<ndim;i++)
       u[i]=xpp::session().last_ic[i];
     return 0;
@@ -63,19 +61,19 @@ extern "C" int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
 
   get_start_period(&p);
   par[10]=p;
-  if(HomoFlag!=1)get_start_orbit(u,t,p,ndim);
-  if(HomoFlag==1){
+  if(xpp::session().auto_state.homo_flag!=1)get_start_orbit(u,t,p,ndim);
+  if(xpp::session().auto_state.homo_flag==1){
 
     get_shifted_orbit(u,t,p,ndim);
     for(i=0;i<ndim;i++){
-      par[11+i]=homo_l[i];
+      par[11+i]=xpp::session().auto_state.homo_l[i];
 
     }
   }
-  if(HomoFlag==2){ /* heteroclinic */
+  if(xpp::session().auto_state.homo_flag==2){ /* heteroclinic */
     for(i=0;i<ndim;i++){
-      par[11+i]=homo_l[i];
-      par[11+i+ndim]=homo_r[i];
+      par[11+i]=xpp::session().auto_state.homo_l[i];
+      par[11+i+ndim]=xpp::session().auto_state.homo_r[i];
 
     }
 
@@ -89,8 +87,8 @@ extern "C" int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
  int i;
 /* Hooks to the XPP bc parser!! */
 
- for(i=0;i<NAutoPar;i++){
-     constants[Auto_index_to_array[i]]=par[i];
+ for(i=0;i<xpp::session().auto_state.npar;i++){
+     constants[xpp::session().auto_state.par_index[i]]=par[i];
  }
 
  evaluate_derived();

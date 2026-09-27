@@ -6,6 +6,7 @@
 #include <array>
 #include <vector>
 #include "xpp_log.h"
+#include "session.h"
 #include "auto_c.h"
 
 /* The memory for these are taken care of in main, and setubv for the
@@ -53,7 +54,7 @@ fnlp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
   
   fflp(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       global_scratch.dfu, global_scratch.dfp);
+       xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
   
   if (ijac == 0) {
     return 0;
@@ -73,26 +74,26 @@ fnlp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
-      global_scratch.uu1[j] = u[j];
-      global_scratch.uu2[j] = u[j];
+      xpp::session().auto_lib.scratch.uu1[j] = u[j];
+      xpp::session().auto_lib.scratch.uu2[j] = u[j];
     }
-    global_scratch.uu1[i] -= ep;
-    global_scratch.uu2[i] += ep;
-    fflp(iap, rap, ndim, global_scratch.uu1, uold, icp, par, 
-	 global_scratch.ff1, ndm, global_scratch.dfu, global_scratch.dfp);
-    fflp(iap, rap, ndim, global_scratch.uu2, uold, icp, par, 
-	 global_scratch.ff2, ndm, global_scratch.dfu, global_scratch.dfp);
+    xpp::session().auto_lib.scratch.uu1[i] -= ep;
+    xpp::session().auto_lib.scratch.uu2[i] += ep;
+    fflp(iap, rap, ndim, xpp::session().auto_lib.scratch.uu1, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff1, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
+    fflp(iap, rap, ndim, xpp::session().auto_lib.scratch.uu2, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff2, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (global_scratch.ff2[j] - global_scratch.ff1[j]) / (ep * 2);
+      ARRAY2D(dfdu, j, i) = (xpp::session().auto_lib.scratch.ff2[j] - xpp::session().auto_lib.scratch.ff1[j]) / (ep * 2);
     }
   }
 
   par[icp[0]] += ep;
 
-  fflp(iap, rap, ndim, u, uold, icp, par, global_scratch.ff1, ndm, global_scratch.dfu, global_scratch.dfp);
+  fflp(iap, rap, ndim, u, uold, icp, par, xpp::session().auto_lib.scratch.ff1, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   for (j = 0; j < ndim; ++j) {
-    ARRAY2D(dfdp, j, (icp[0])) = (global_scratch.ff1[j] - f[j]) / ep;
+    ARRAY2D(dfdp, j, (icp[0])) = (xpp::session().auto_lib.scratch.ff1[j] - f[j]) / ep;
   }
 
   par[icp[0]] -= ep;
@@ -179,12 +180,12 @@ stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   if (ips == -1) {
     fnds(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
-	 global_scratch.dfu, global_scratch.dfp);
+	 xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
   } else {
     funi(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
-	 global_scratch.dfu, global_scratch.dfp);
+	 xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
   }
-  nlvc(ndm, ndm, 1, global_scratch.dfu, v.data());
+  nlvc(ndm, ndm, 1, xpp::session().auto_lib.scratch.dfu, v.data());
   nrmlz(&ndm, v.data());
   for (i = 0; i < ndm; ++i) {
     u[ndm + i] = v[i];
@@ -330,7 +331,7 @@ fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ffc2(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       global_scratch.dfu, global_scratch.dfp);
+       xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -350,17 +351,17 @@ fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
-      global_scratch.uu1[j] = u[j];
-      global_scratch.uu2[j] = u[j];
+      xpp::session().auto_lib.scratch.uu1[j] = u[j];
+      xpp::session().auto_lib.scratch.uu2[j] = u[j];
     }
-    global_scratch.uu1[i] -= ep;
-    global_scratch.uu2[i] += ep;
-    ffc2(iap, rap, ndim, global_scratch.uu1, uold, icp, par, 
-	 global_scratch.ff1, ndm, global_scratch.dfu, global_scratch.dfp);
-    ffc2(iap, rap, ndim, global_scratch.uu2, uold, icp, par, 
-	 global_scratch.ff2, ndm, global_scratch.dfu, global_scratch.dfp);
+    xpp::session().auto_lib.scratch.uu1[i] -= ep;
+    xpp::session().auto_lib.scratch.uu2[i] += ep;
+    ffc2(iap, rap, ndim, xpp::session().auto_lib.scratch.uu1, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff1, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
+    ffc2(iap, rap, ndim, xpp::session().auto_lib.scratch.uu2, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff2, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (global_scratch.ff2[j] - global_scratch.ff1[j]) / (ep * 2);
+      ARRAY2D(dfdu, j, i) = (xpp::session().auto_lib.scratch.ff2[j] - xpp::session().auto_lib.scratch.ff1[j]) / (ep * 2);
     }
   }
 
@@ -474,18 +475,18 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   if (nfpr == 3) {
     funi(iap, rap, ndm, u, &uold, icp, par, 2, f.data(), 
-	 global_scratch.dfu, global_scratch.dfp);
+	 xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     fopi(iap, rap, ndm, u, icp, par, 2, &fop, du.data(), 
 	 dp.data());
     /*       TRANSPOSE */
     for (i = 0; i < ndm; ++i) {
       for (j = 0; j < ndm; ++j) {
-	dd[i + j * ndim] = global_scratch.dfu[i * ndm + j];
+	dd[i + j * ndim] = xpp::session().auto_lib.scratch.dfu[i * ndm + j];
       }
     }
     for (i = 0; i < ndm; ++i) {
       dd[i + ndm * ndim] = du[i];
-      dd[ndm + i * ndim] = global_scratch.dfp[(icp[1]) * ndm + i];
+      dd[ndm + i * ndim] = xpp::session().auto_lib.scratch.dfp[(icp[1]) * ndm + i];
     }
     dd[ndm + ndm * ndim] = dp[icp[1]];
     nlvc(ndm + 1, ndim, 1, dd.data(), v.data());
@@ -645,7 +646,7 @@ fnhd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ffhd(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       global_scratch.dfu, global_scratch.dfp);
+       xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -665,27 +666,27 @@ fnhd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
-      global_scratch.uu1[j] = u[j];
-      global_scratch.uu2[j] = u[j];
+      xpp::session().auto_lib.scratch.uu1[j] = u[j];
+      xpp::session().auto_lib.scratch.uu2[j] = u[j];
     }
-    global_scratch.uu1[i] -= ep;
-    global_scratch.uu2[i] += ep;
-    ffhd(iap, rap, ndim, global_scratch.uu1, uold, icp, par, 
-	 global_scratch.ff1, ndm, global_scratch.dfu, global_scratch.dfp);
-    ffhd(iap, rap, ndim, global_scratch.uu2, uold, icp, par, 
-	 global_scratch.ff2, ndm, global_scratch.dfu, global_scratch.dfp);
+    xpp::session().auto_lib.scratch.uu1[i] -= ep;
+    xpp::session().auto_lib.scratch.uu2[i] += ep;
+    ffhd(iap, rap, ndim, xpp::session().auto_lib.scratch.uu1, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff1, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
+    ffhd(iap, rap, ndim, xpp::session().auto_lib.scratch.uu2, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff2, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (global_scratch.ff2[j] - global_scratch.ff1[j]) / (ep * 2);
+      ARRAY2D(dfdu, j, i) = (xpp::session().auto_lib.scratch.ff2[j] - xpp::session().auto_lib.scratch.ff1[j]) / (ep * 2);
     }
   }
 
   par[icp[0]] += ep;
 
-  ffhd(iap, rap, ndim, u, uold, icp, par, global_scratch.ff1, 
-       ndm, global_scratch.dfu, global_scratch.dfp);
+  ffhd(iap, rap, ndim, u, uold, icp, par, xpp::session().auto_lib.scratch.ff1, 
+       ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   for (j = 0; j < ndim; ++j) {
-    ARRAY2D(dfdp, j, icp[0]) = (global_scratch.ff1[j] - f[j]) / ep;
+    ARRAY2D(dfdp, j, icp[0]) = (xpp::session().auto_lib.scratch.ff1[j] - f[j]) / ep;
   }
 
   par[icp[0]] -= ep;
@@ -795,7 +796,7 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   s1 = sin(thta);
   c1 = cos(thta);
   funi(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
-       global_scratch.dfu, global_scratch.dfp);
+       xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   ndm2 = ndm * 2;
   for (i = 0; i < ndm2; ++i) {
@@ -814,8 +815,8 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   for (i = 0; i < ndm; ++i) {
     for (j = 0; j < ndm; ++j) {
-      smat[i + j * (ndim*2)] = global_scratch.dfu[j * ndm + i];
-      smat[ndm + i + (ndm + j) * (ndim*2)] = global_scratch.dfu[j * ndm + i];
+      smat[i + j * (ndim*2)] = xpp::session().auto_lib.scratch.dfu[j * ndm + i];
+      smat[ndm + i + (ndm + j) * (ndim*2)] = xpp::session().auto_lib.scratch.dfu[j * ndm + i];
     }
     smat[i + i * (ndim*2)] -= c1;
     smat[ndm + i + (ndm + i) * (ndim*2)] -= c1;
@@ -877,7 +878,7 @@ fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ffhb(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       global_scratch.dfu, global_scratch.dfp);
+       xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -897,27 +898,27 @@ fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
-      global_scratch.uu1[j] = u[j];
-      global_scratch.uu2[j] = u[j];
+      xpp::session().auto_lib.scratch.uu1[j] = u[j];
+      xpp::session().auto_lib.scratch.uu2[j] = u[j];
     }
-    global_scratch.uu1[i] -= ep;
-    global_scratch.uu2[i] += ep;
-    ffhb(iap, rap, ndim, global_scratch.uu1, uold, icp, par, 
-	 global_scratch.ff1, ndm, global_scratch.dfu, global_scratch.dfp);
-    ffhb(iap, rap, ndim, global_scratch.uu2, uold, icp, par, 
-	 global_scratch.ff2, ndm, global_scratch.dfu, global_scratch.dfp);
+    xpp::session().auto_lib.scratch.uu1[i] -= ep;
+    xpp::session().auto_lib.scratch.uu2[i] += ep;
+    ffhb(iap, rap, ndim, xpp::session().auto_lib.scratch.uu1, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff1, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
+    ffhb(iap, rap, ndim, xpp::session().auto_lib.scratch.uu2, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff2, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (global_scratch.ff2[j] - global_scratch.ff1[j]) / (ep * 2);
+      ARRAY2D(dfdu, j, i) = (xpp::session().auto_lib.scratch.ff2[j] - xpp::session().auto_lib.scratch.ff1[j]) / (ep * 2);
     }
   }
 
   par[icp[0]] += ep;
 
-  ffhb(iap, rap, ndim, u, uold, icp, par, global_scratch.ff1, 
-       ndm, global_scratch.dfu, global_scratch.dfp);
+  ffhb(iap, rap, ndim, u, uold, icp, par, xpp::session().auto_lib.scratch.ff1, 
+       ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   for (j = 0; j < ndim; ++j) {
-    ARRAY2D(dfdp, j, icp[0]) = (global_scratch.ff1[j] - f[j]) / ep;
+    ARRAY2D(dfdp, j, icp[0]) = (xpp::session().auto_lib.scratch.ff1[j] - f[j]) / ep;
   }
 
   par[icp[0]] -= ep;
@@ -1018,7 +1019,7 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   period = par[10];
   rom = period / pi(2.0);
   funi(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
-       global_scratch.dfu, global_scratch.dfp);
+       xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   ndm2 = ndm * 2;
   for (i = 0; i < ndm2; ++i) {
@@ -1037,8 +1038,8 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   for (i = 0; i < ndm; ++i) {
     for (j = 0; j < ndm; ++j) {
-      smat[i + j * (ndim*2)] = rom * global_scratch.dfu[j * ndm + i];
-      smat[ndm + i + (ndm + j) * (ndim*2)] = rom * global_scratch.dfu[j * ndm + i];
+      smat[i + j * (ndim*2)] = rom * xpp::session().auto_lib.scratch.dfu[j * ndm + i];
+      smat[ndm + i + (ndm + j) * (ndim*2)] = rom * xpp::session().auto_lib.scratch.dfu[j * ndm + i];
     }
   }
   {
@@ -1097,7 +1098,7 @@ fnhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ffhw(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       global_scratch.dfu, global_scratch.dfp);
+       xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -1117,27 +1118,27 @@ fnhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
-      global_scratch.uu1[j] = u[j];
-      global_scratch.uu2[j] = u[j];
+      xpp::session().auto_lib.scratch.uu1[j] = u[j];
+      xpp::session().auto_lib.scratch.uu2[j] = u[j];
     }
-    global_scratch.uu1[i] -= ep;
-    global_scratch.uu2[i] += ep;
-    ffhw(iap, rap, ndim, global_scratch.uu1, uold, icp, par, 
-	 global_scratch.ff1, ndm, global_scratch.dfu, global_scratch.dfp);
-    ffhw(iap, rap, ndim, global_scratch.uu2, uold, icp, par, 
-	 global_scratch.ff2, ndm, global_scratch.dfu, global_scratch.dfp);
+    xpp::session().auto_lib.scratch.uu1[i] -= ep;
+    xpp::session().auto_lib.scratch.uu2[i] += ep;
+    ffhw(iap, rap, ndim, xpp::session().auto_lib.scratch.uu1, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff1, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
+    ffhw(iap, rap, ndim, xpp::session().auto_lib.scratch.uu2, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff2, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (global_scratch.ff2[j] - global_scratch.ff1[j]) / (ep * 2);
+      ARRAY2D(dfdu, j, i) = (xpp::session().auto_lib.scratch.ff2[j] - xpp::session().auto_lib.scratch.ff1[j]) / (ep * 2);
     }
   }
 
   par[icp[0]] += ep;
 
-  ffhw(iap, rap, ndim, u, uold, icp, par, global_scratch.ff1, 
-       ndm, global_scratch.dfu, global_scratch.dfp);
+  ffhw(iap, rap, ndim, u, uold, icp, par, xpp::session().auto_lib.scratch.ff1, 
+       ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   for (j = 0; j < ndim; ++j) {
-    ARRAY2D(dfdp, j, icp[0]) = (global_scratch.ff1[j] - f[j]) / ep;
+    ARRAY2D(dfdp, j, icp[0]) = (xpp::session().auto_lib.scratch.ff1[j] - f[j]) / ep;
   }
 
   par[icp[0]] -= ep;
@@ -1262,8 +1263,8 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   for (i = 0; i < ndm; ++i) {
     for (j = 0; j < ndm; ++j) {
-      smat[i + j * (ndim*2)] = rom * global_scratch.dfu[j * ndm + i];
-      smat[ndm + i + (ndm + j) * (ndim*2)] = rom * global_scratch.dfu[j * ndm + i];
+      smat[i + j * (ndim*2)] = rom * xpp::session().auto_lib.scratch.dfu[j * ndm + i];
+      smat[ndm + i + (ndm + j) * (ndim*2)] = rom * xpp::session().auto_lib.scratch.dfu[j * ndm + i];
     }
   }
   {
@@ -1381,10 +1382,10 @@ bcps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   /* Rotations */
-  if (global_rotations.irtn != 0) {
+  if (xpp::session().auto_lib.rotations.irtn != 0) {
     for (i = 0; i < ndim; ++i) {
-      if (global_rotations.nrtn[i] != 0) {
-	f[i] += par[18] * global_rotations.nrtn[i];
+      if (xpp::session().auto_lib.rotations.nrtn[i] != 0) {
+	f[i] += par[18] * xpp::session().auto_lib.rotations.nrtn[i];
       }
     }
   }
@@ -1431,7 +1432,7 @@ icps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   
   f[0] = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (global_rotations.nrtn[i] == 0) {
+    if (xpp::session().auto_lib.rotations.nrtn[i] == 0) {
       f[0] += u[i] * upold[i];
     }
   }
@@ -1447,7 +1448,7 @@ icps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   for (i = 0; i < ndim; ++i) {
-    if (global_rotations.nrtn[i] == 0) {
+    if (xpp::session().auto_lib.rotations.nrtn[i] == 0) {
       ARRAY2D(dint, 0, i) = upold[i];
     } else {
       ARRAY2D(dint, 0, i) = 0.;
@@ -1481,7 +1482,7 @@ pdble(const iap_type *iap, const rap_type *rap, integer *ndim, integer *ntst, in
   ups_dim1 = *ndxloc;
     
   par[10] *= 2.;
-  if (global_rotations.irtn != 0) {
+  if (xpp::session().auto_lib.rotations.irtn != 0) {
     par[18] *= 2.;
   }
 
@@ -1587,12 +1588,12 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   }
 
   funi(iap, rap, ndim, u.data(), &uold, icp, par, 1, f.data(), 
-       global_scratch.dfu, global_scratch.dfp);
+       xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
-      smat[i + (ndim + j) * (ndim*2)] = global_scratch.dfu[j * ndim + i];
-      smat[ndim + i + j * (ndim*2)] = global_scratch.dfu[j * ndim + i];
+      smat[i + (ndim + j) * (ndim*2)] = xpp::session().auto_lib.scratch.dfu[j * ndim + i];
+      smat[ndim + i + j * (ndim*2)] = xpp::session().auto_lib.scratch.dfu[j * ndim + i];
     }
   }
 
@@ -1680,8 +1681,8 @@ fnws(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ndm2 = ndm / 2;
-  ffws(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, ndm2, global_scratch.dfu, 
-       global_scratch.dfp);
+  ffws(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, ndm2, xpp::session().auto_lib.scratch.dfu, 
+       xpp::session().auto_lib.scratch.dfp);
 
   return 0;
 } /* fnws_ */
@@ -1999,8 +2000,8 @@ fnsp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function and Jacobian. */
 
   ffsp(iap, rap, ndim, u, uold, icp, par, ijac, f, 
-       dfdu, dfdp, ndm, global_scratch.dfu, 
-       global_scratch.dfp);
+       dfdu, dfdp, ndm, xpp::session().auto_lib.scratch.dfu, 
+       xpp::session().auto_lib.scratch.dfp);
 
   return 0;
 } /* fnsp_ */
@@ -2091,8 +2092,8 @@ fnpe(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Generate the function and Jacobian. */
   ffpe(iap, rap, ndim, u, uold, icp, par, ijac, f, 
-       dfdu, dfdp, ndm, global_scratch.dfu, 
-       global_scratch.dfp);
+       dfdu, dfdp, ndm, xpp::session().auto_lib.scratch.dfu, 
+       xpp::session().auto_lib.scratch.dfp);
 
   return 0;
 } /* fnpe_ */
@@ -2208,7 +2209,7 @@ fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Generate the function. */
 
   ffpl(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       global_scratch.dfu, global_scratch.dfp);
+       xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -2228,26 +2229,26 @@ fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
-      global_scratch.uu1[j] = u[j];
-      global_scratch.uu2[j] = u[j];
+      xpp::session().auto_lib.scratch.uu1[j] = u[j];
+      xpp::session().auto_lib.scratch.uu2[j] = u[j];
     }
-    global_scratch.uu1[i] -= ep;
-    global_scratch.uu2[i] += ep;
-    ffpl(iap, rap, ndim, global_scratch.uu1, uold, icp, par, 
-	 global_scratch.ff1, ndm, global_scratch.dfu, global_scratch.dfp);
-    ffpl(iap, rap, ndim, global_scratch.uu2, uold, icp, par, 
-	 global_scratch.ff2, ndm, global_scratch.dfu, global_scratch.dfp);
+    xpp::session().auto_lib.scratch.uu1[i] -= ep;
+    xpp::session().auto_lib.scratch.uu2[i] += ep;
+    ffpl(iap, rap, ndim, xpp::session().auto_lib.scratch.uu1, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff1, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
+    ffpl(iap, rap, ndim, xpp::session().auto_lib.scratch.uu2, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff2, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (global_scratch.ff2[j] - global_scratch.ff1[j]) / (ep * 2);
+      ARRAY2D(dfdu, j, i) = (xpp::session().auto_lib.scratch.ff2[j] - xpp::session().auto_lib.scratch.ff1[j]) / (ep * 2);
     }
   }
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
-    ffpl(iap, rap, ndim, u, uold, icp, par, global_scratch.ff1, 
-	 ndm, global_scratch.dfu, global_scratch.dfp);
+    ffpl(iap, rap, ndim, u, uold, icp, par, xpp::session().auto_lib.scratch.ff1, 
+	 ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdp, j, icp[i]) = (global_scratch.ff1[j] - f[j]) / ep;
+      ARRAY2D(dfdp, j, icp[i]) = (xpp::session().auto_lib.scratch.ff1[j] - f[j]) / ep;
     }
     par[icp[i]] -= ep;
   }
@@ -2324,11 +2325,11 @@ bcpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   /* Rotations */
-  if (global_rotations.irtn != 0) {
+  if (xpp::session().auto_lib.rotations.irtn != 0) {
     ndm = iap->ndm;
     for (i = 0; i < ndm; ++i) {
-      if (global_rotations.nrtn[i] != 0) {
-	f[i] += par[18] * global_rotations.nrtn[i];
+      if (xpp::session().auto_lib.rotations.nrtn[i] != 0) {
+	f[i] += par[18] * xpp::session().auto_lib.rotations.nrtn[i];
       }
     }
   }
@@ -2382,7 +2383,7 @@ icpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   f[2] = par[11] * par[11] - par[12];
 
   for (i = 0; i < ndm; ++i) {
-    if (global_rotations.nrtn[i] == 0) {
+    if (xpp::session().auto_lib.rotations.nrtn[i] == 0) {
       f[0] += u[i] * upold[i];
       f[1] += u[ndm + i] * upold[i];
     }
@@ -2402,7 +2403,7 @@ icpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   for (i = 0; i < ndm; ++i) {
-    if (global_rotations.nrtn[i] == 0) {
+    if (xpp::session().auto_lib.rotations.nrtn[i] == 0) {
       ARRAY2D(dint, 0, i) = upold[i];
       ARRAY2D(dint, 1, ndm + i) = upold[i];
     } else {
@@ -2470,7 +2471,7 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
      *ncolrs or nparr can be used as a garbage loop bound or array
      index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
-  xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
+  xpp::TokenReader tr = xpp::TokenReader::attach(xpp::session().auto_lib.fp3);
   if (!tr.read(ibr)) return 1;
   if (!tr.read(ntot1)) return 1;
   if (!tr.read(itp1)) return 1;
@@ -2619,7 +2620,7 @@ fnpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Generate the function. */
 
   ffpd(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       global_scratch.dfu, global_scratch.dfp);
+       xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -2639,26 +2640,26 @@ fnpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
-      global_scratch.uu1[j] = u[j];
-      global_scratch.uu2[j] = u[j];
+      xpp::session().auto_lib.scratch.uu1[j] = u[j];
+      xpp::session().auto_lib.scratch.uu2[j] = u[j];
     }
-    global_scratch.uu1[i] -= ep;
-    global_scratch.uu2[i] += ep;
-    ffpd(iap, rap, ndim, global_scratch.uu1, uold, icp, par, 
-	 global_scratch.ff1, ndm, global_scratch.dfu, global_scratch.dfp);
-    ffpd(iap, rap, ndim, global_scratch.uu2, uold, icp, par, 
-	 global_scratch.ff2, ndm, global_scratch.dfu, global_scratch.dfp);
+    xpp::session().auto_lib.scratch.uu1[i] -= ep;
+    xpp::session().auto_lib.scratch.uu2[i] += ep;
+    ffpd(iap, rap, ndim, xpp::session().auto_lib.scratch.uu1, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff1, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
+    ffpd(iap, rap, ndim, xpp::session().auto_lib.scratch.uu2, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff2, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (global_scratch.ff2[j] - global_scratch.ff1[j]) / (ep * 2);
+      ARRAY2D(dfdu, j, i) = (xpp::session().auto_lib.scratch.ff2[j] - xpp::session().auto_lib.scratch.ff1[j]) / (ep * 2);
     }
   }
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
-    ffpd(iap, rap, ndim, u, uold, icp, par, global_scratch.ff1, 
-	 ndm, global_scratch.dfu, global_scratch.dfp);
+    ffpd(iap, rap, ndim, u, uold, icp, par, xpp::session().auto_lib.scratch.ff1, 
+	 ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdp, j, icp[i]) = (global_scratch.ff1[j] - f[j]) / ep;
+      ARRAY2D(dfdp, j, icp[i]) = (xpp::session().auto_lib.scratch.ff1[j] - f[j]) / ep;
     }
     par[icp[i]] -= ep;
   }
@@ -2731,10 +2732,10 @@ bcpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   /* Rotations */
-  if (global_rotations.irtn != 0) {
+  if (xpp::session().auto_lib.rotations.irtn != 0) {
     for (i = 0; i < ndm; ++i) {
-      if (global_rotations.nrtn[i] != 0) {
-	f[i] += par[18] * global_rotations.nrtn[i];
+      if (xpp::session().auto_lib.rotations.nrtn[i] != 0) {
+	f[i] += par[18] * xpp::session().auto_lib.rotations.nrtn[i];
       }
     }
   }
@@ -2788,7 +2789,7 @@ icpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   f[1] = -par[12];
 
   for (i = 0; i < ndm; ++i) {
-    if (global_rotations.nrtn[i] == 0) {
+    if (xpp::session().auto_lib.rotations.nrtn[i] == 0) {
       f[0] += u[i] * upold[i];
     }
     f[1] += u[ndm + i] * u[ndm + i];
@@ -2807,7 +2808,7 @@ icpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   for (i = 0; i < ndm; ++i) {
-    if (global_rotations.nrtn[i] == 0) {
+    if (xpp::session().auto_lib.rotations.nrtn[i] == 0) {
       ARRAY2D(dint, 0, i) = upold[i];
     } else {
       ARRAY2D(dint, 0, i) = 0.;
@@ -2870,7 +2871,7 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
      *ncolrs or nparr can be used as a garbage loop bound or array
      index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
-  xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
+  xpp::TokenReader tr = xpp::TokenReader::attach(xpp::session().auto_lib.fp3);
   if (!tr.read(ibr)) return 1;
   if (!tr.read(ntot1)) return 1;
   if (!tr.read(itp1)) return 1;
@@ -3005,7 +3006,7 @@ fntr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Generate the function. */
 
   fftr(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       global_scratch.dfu, global_scratch.dfp);
+       xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -3025,26 +3026,26 @@ fntr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
-      global_scratch.uu1[j] = u[j];
-      global_scratch.uu2[j] = u[j];
+      xpp::session().auto_lib.scratch.uu1[j] = u[j];
+      xpp::session().auto_lib.scratch.uu2[j] = u[j];
     }
-    global_scratch.uu1[i] -= ep;
-    global_scratch.uu2[i] += ep;
-    fftr(iap, rap, ndim, global_scratch.uu1, uold, icp, par, 
-	 global_scratch.ff1, ndm, global_scratch.dfu, global_scratch.dfp);
-    fftr(iap, rap, ndim, global_scratch.uu2, uold, icp, par, 
-	 global_scratch.ff2, ndm, global_scratch.dfu, global_scratch.dfp);
+    xpp::session().auto_lib.scratch.uu1[i] -= ep;
+    xpp::session().auto_lib.scratch.uu2[i] += ep;
+    fftr(iap, rap, ndim, xpp::session().auto_lib.scratch.uu1, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff1, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
+    fftr(iap, rap, ndim, xpp::session().auto_lib.scratch.uu2, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff2, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (global_scratch.ff2[j] - global_scratch.ff1[j]) / (ep * 2);
+      ARRAY2D(dfdu, j, i) = (xpp::session().auto_lib.scratch.ff2[j] - xpp::session().auto_lib.scratch.ff1[j]) / (ep * 2);
     }
   }
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
-    fftr(iap, rap, ndim, u, uold, icp, par, global_scratch.ff1, 
-	 ndm, global_scratch.dfu, global_scratch.dfp);
+    fftr(iap, rap, ndim, u, uold, icp, par, xpp::session().auto_lib.scratch.ff1, 
+	 ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdp, j, icp[i]) = (global_scratch.ff1[j] - f[j]) / ep;
+      ARRAY2D(dfdp, j, icp[i]) = (xpp::session().auto_lib.scratch.ff1[j] - f[j]) / ep;
     }
     par[icp[i]] -= ep;
   }
@@ -3133,10 +3134,10 @@ bctr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   /* Rotations */
-  if (global_rotations.irtn != 0) {
+  if (xpp::session().auto_lib.rotations.irtn != 0) {
     for (i = 0; i < ndm; ++i) {
-      if (global_rotations.nrtn[i] != 0) {
-	f[i] += par[18] * global_rotations.nrtn[i];
+      if (xpp::session().auto_lib.rotations.nrtn[i] != 0) {
+	f[i] += par[18] * xpp::session().auto_lib.rotations.nrtn[i];
       }
     }
   }
@@ -3196,7 +3197,7 @@ ictr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   f[2] = -par[12];
 
   for (i = 0; i < ndm; ++i) {
-    if (global_rotations.nrtn[i] == 0) {
+    if (xpp::session().auto_lib.rotations.nrtn[i] == 0) {
       f[0] += u[i] * upold[i];
     }
     f[1] = f[1] + u[ndm + i] * u[ndm2 + i] - u[ndm2 + i] * u[ndm + i];
@@ -3216,7 +3217,7 @@ ictr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   for (i = 0; i < ndm; ++i) {
-    if (global_rotations.nrtn[i] == 0) {
+    if (xpp::session().auto_lib.rotations.nrtn[i] == 0) {
       ARRAY2D(dint, 0, i) = upold[i];
     } else {
       ARRAY2D(dint, 0, i) = 0.;
@@ -3281,7 +3282,7 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
      *ncolrs or nparr can be used as a garbage loop bound or array
      index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
-  xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
+  xpp::TokenReader tr = xpp::TokenReader::attach(xpp::session().auto_lib.fp3);
   if (!tr.read(ibr)) return 1;
   if (!tr.read(ntot1)) return 1;
   if (!tr.read(itp1)) return 1;
@@ -3427,7 +3428,7 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ffpo(iap, rap, ndim, u, uold, upold.data(), icp, par, f,
-       ndm, global_scratch.dfu, global_scratch.dfp);
+       ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -3447,26 +3448,26 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
-      global_scratch.uu1[j] = u[j];
-      global_scratch.uu2[j] = u[j];
+      xpp::session().auto_lib.scratch.uu1[j] = u[j];
+      xpp::session().auto_lib.scratch.uu2[j] = u[j];
     }
-    global_scratch.uu1[i] -= ep;
-    global_scratch.uu2[i] += ep;
-    ffpo(iap, rap, ndim, global_scratch.uu1, uold, upold.data(), icp, par, 
-	 global_scratch.ff1, ndm, global_scratch.dfu, global_scratch.dfp);
-    ffpo(iap, rap, ndim, global_scratch.uu2, uold, upold.data(), icp, par, 
-	 global_scratch.ff2, ndm, global_scratch.dfu, global_scratch.dfp);
+    xpp::session().auto_lib.scratch.uu1[i] -= ep;
+    xpp::session().auto_lib.scratch.uu2[i] += ep;
+    ffpo(iap, rap, ndim, xpp::session().auto_lib.scratch.uu1, uold, upold.data(), icp, par, 
+	 xpp::session().auto_lib.scratch.ff1, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
+    ffpo(iap, rap, ndim, xpp::session().auto_lib.scratch.uu2, uold, upold.data(), icp, par, 
+	 xpp::session().auto_lib.scratch.ff2, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (global_scratch.ff2[j] - global_scratch.ff1[j]) / (ep * 2);
+      ARRAY2D(dfdu, j, i) = (xpp::session().auto_lib.scratch.ff2[j] - xpp::session().auto_lib.scratch.ff1[j]) / (ep * 2);
     }
   }
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
     ffpo(iap, rap, ndim, u, uold, upold.data(), icp, par, 
-	 global_scratch.ff1, ndm, global_scratch.dfu, global_scratch.dfp);
+	 xpp::session().auto_lib.scratch.ff1, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdp, j, icp[i]) = (global_scratch.ff1[j] - f[j]) / ep;
+      ARRAY2D(dfdp, j, icp[i]) = (xpp::session().auto_lib.scratch.ff1[j] - f[j]) / ep;
     }
     par[icp[i]] -= ep;
   }
@@ -3552,11 +3553,11 @@ bcpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   /* Rotations */
-  if (global_rotations.irtn != 0) {
+  if (xpp::session().auto_lib.rotations.irtn != 0) {
     nbc0 = iap->nbc0;
     for (i = 0; i < nbc0; ++i) {
-      if (global_rotations.nrtn[i] != 0) {
-	f[i] += par[18] * global_rotations.nrtn[i];
+      if (xpp::session().auto_lib.rotations.nrtn[i] != 0) {
+	f[i] += par[18] * xpp::session().auto_lib.rotations.nrtn[i];
       }
     }
   }
@@ -3615,7 +3616,7 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Generate the function. */
 
   fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, 
-       udot, upold, f, dnt.data(), ndm, global_scratch.dfu, global_scratch.dfp);
+       udot, upold, f, dnt.data(), ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -3635,17 +3636,17 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
-      global_scratch.uu1[j] = u[j];
-      global_scratch.uu2[j] = u[j];
+      xpp::session().auto_lib.scratch.uu1[j] = u[j];
+      xpp::session().auto_lib.scratch.uu2[j] = u[j];
     }
-    global_scratch.uu1[i] -= ep;
-    global_scratch.uu2[i] += ep;
-    fipo(iap, rap, ndim, par, icp, nint, nnt0, global_scratch.uu1, 
-	 uold, udot, upold, f1.data(), dnt.data(), ndm, global_scratch.dfu, 
-	 global_scratch.dfp);
-    fipo(iap, rap, ndim, par, icp, nint, nnt0, global_scratch.uu2, 
-	 uold, udot, upold, f2.data(), dnt.data(), ndm, global_scratch.dfu, 
-	 global_scratch.dfp);
+    xpp::session().auto_lib.scratch.uu1[i] -= ep;
+    xpp::session().auto_lib.scratch.uu2[i] += ep;
+    fipo(iap, rap, ndim, par, icp, nint, nnt0, xpp::session().auto_lib.scratch.uu1, 
+	 uold, udot, upold, f1.data(), dnt.data(), ndm, xpp::session().auto_lib.scratch.dfu, 
+	 xpp::session().auto_lib.scratch.dfp);
+    fipo(iap, rap, ndim, par, icp, nint, nnt0, xpp::session().auto_lib.scratch.uu2, 
+	 uold, udot, upold, f2.data(), dnt.data(), ndm, xpp::session().auto_lib.scratch.dfu, 
+	 xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < nint; ++j) {
       ARRAY2D(dint, j, i) = (f2[j] - f1[j]) / (ep * 2);
     }
@@ -3653,8 +3654,8 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
-    fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, f1.data(), dnt.data(), ndm, global_scratch.dfu, 
-	 global_scratch.dfp);
+    fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, f1.data(), dnt.data(), ndm, xpp::session().auto_lib.scratch.dfu, 
+	 xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < nint; ++j) {
       ARRAY2D(dint, j, ndim + icp[i]) = (f1[j] - f[j]) / ep;
     }
@@ -3693,7 +3694,7 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   fi[0] = 0.;
   for (i = 0; i < ndm; ++i) {
-    if (global_rotations.nrtn[i] == 0) {
+    if (xpp::session().auto_lib.rotations.nrtn[i] == 0) {
       fi[0] += u[i] * upold[i];
     }
   }
@@ -3803,7 +3804,7 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
      buffers allocated above) before *ntsr, *ncolrs or nparr can be
      used as a garbage loop bound or array index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
-  xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
+  xpp::TokenReader tr = xpp::TokenReader::attach(xpp::session().auto_lib.fp3);
   if (!tr.read(ibr)) goto read_failed;
   if (!tr.read(ntot1)) goto read_failed;
   if (!tr.read(itp1)) goto read_failed;
@@ -3956,7 +3957,7 @@ fnbl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Generate the function. */
 
   ffbl(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       global_scratch.dfu, global_scratch.dfp);
+       xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -3976,26 +3977,26 @@ fnbl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
-      global_scratch.uu1[j] = u[j];
-      global_scratch.uu2[j] = u[j];
+      xpp::session().auto_lib.scratch.uu1[j] = u[j];
+      xpp::session().auto_lib.scratch.uu2[j] = u[j];
     }
-    global_scratch.uu1[i] -= ep;
-    global_scratch.uu2[i] += ep;
-    ffbl(iap, rap, ndim, global_scratch.uu1, uold, icp, par, 
-	 global_scratch.ff1, ndm, global_scratch.dfu, global_scratch.dfp);
-    ffbl(iap, rap, ndim, global_scratch.uu2, uold, icp, par, 
-	 global_scratch.ff2, ndm, global_scratch.dfu, global_scratch.dfp);
+    xpp::session().auto_lib.scratch.uu1[i] -= ep;
+    xpp::session().auto_lib.scratch.uu2[i] += ep;
+    ffbl(iap, rap, ndim, xpp::session().auto_lib.scratch.uu1, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff1, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
+    ffbl(iap, rap, ndim, xpp::session().auto_lib.scratch.uu2, uold, icp, par, 
+	 xpp::session().auto_lib.scratch.ff2, ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (global_scratch.ff2[j] - global_scratch.ff1[j]) / (ep * 2);
+      ARRAY2D(dfdu, j, i) = (xpp::session().auto_lib.scratch.ff2[j] - xpp::session().auto_lib.scratch.ff1[j]) / (ep * 2);
     }
   }
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
-    ffbl(iap, rap, ndim, u, uold, icp, par, global_scratch.ff1, 
-	 ndm, global_scratch.dfu, global_scratch.dfp);
+    ffbl(iap, rap, ndim, u, uold, icp, par, xpp::session().auto_lib.scratch.ff1, 
+	 ndm, xpp::session().auto_lib.scratch.dfu, xpp::session().auto_lib.scratch.dfp);
     for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdp, j, icp[i]) = (global_scratch.ff1[j] - f[j]) / ep;
+      ARRAY2D(dfdp, j, icp[i]) = (xpp::session().auto_lib.scratch.ff1[j] - f[j]) / ep;
     }
     par[icp[i]] -= ep;
   }
@@ -4382,7 +4383,7 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
      *ncolrs or nparr can be used as a garbage loop bound or array
      index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
-  xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
+  xpp::TokenReader tr = xpp::TokenReader::attach(xpp::session().auto_lib.fp3);
   if (!tr.read(ibr)) return 1;
   if (!tr.read(ntot1)) return 1;
   if (!tr.read(itp1)) return 1;

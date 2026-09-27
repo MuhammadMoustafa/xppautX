@@ -109,13 +109,6 @@ void xpp_job_stop_at_point(int branch, int point);
 /* 1 while a stop is armed and not reached yet */
 int xpp_job_stop_armed(void);
 
-/* AUTO: 1 while stepbv solves a Newton step (autlib1.c). A cancelled job
-   then stops the collocation setup early (setubv2.c), solvbv skips the
-   solve and stepbv returns to the last converged point. Other solves, such
-   as stdrbv's starting direction and the location of a special point
-   (lcspae, lcspbv), always run to the end. */
-extern int xpp_setubv_stop;
-
 #ifdef __cplusplus
 }
 #endif

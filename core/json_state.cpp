@@ -116,10 +116,10 @@ void send_state(void)
     if (xpp::session().plot_windows.current->ThreeDFlag && isfinite(xpp::session().plot_windows.current->Theta) && isfinite(xpp::session().plot_windows.current->Phi))
         buf_format(&b, ",\"theta\":{:g},\"phi\":{:g}", xpp::session().plot_windows.current->Theta, xpp::session().plot_windows.current->Phi);
     BUF_LIT(&b, "}");
-    if (Auto.exist)
+    if (xpp::session().auto_state.bifur.exist)
         buf_format(&b, ",\"auto\":{{\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"xmin\":{:g},\"xmax\":{:g},"
-                   "\"ymin\":{:g},\"ymax\":{:g}}}", Auto.x0, Auto.y0, Auto.wid, Auto.hgt, Auto.xmin, Auto.xmax,
-                   Auto.ymin, Auto.ymax);
+                   "\"ymin\":{:g},\"ymax\":{:g}}}", xpp::session().auto_state.bifur.x0, xpp::session().auto_state.bifur.y0, xpp::session().auto_state.bifur.wid, xpp::session().auto_state.bifur.hgt, xpp::session().auto_state.bifur.xmin, xpp::session().auto_state.bifur.xmax,
+                   xpp::session().auto_state.bifur.ymin, xpp::session().auto_state.bifur.ymax);
     buf_format(&b, ",\"rows\":{:d},\"menu\":{:d},\"win\":{:d}", my_browser.maxrow, help_menu, xpp::session().plot_windows.draw_win);
     if (xpp_session_set_file()[0]) {
         BUF_LIT(&b, ",\"session\":{\"set\":");

@@ -3,12 +3,10 @@
 #include <memory>
 #include <vector>
 #include "xpp_log.h"
+#include "session.h"
 #include "autevd.h" /* xAuto (its own extern) */
 #include "auto_nox.h" /* auto_fort_path() */
 
-FILE *fp3;
-FILE *fp7;
-FILE *fp9;
 
 namespace {
 /* AUTO's fort.3 (its restart data: read, or written from scratch), fort.7
@@ -23,11 +21,11 @@ struct RunUnits {
       u7(xpp_files_open_stream(auto_fort_path(7),"w")),
       u9(xpp_files_open_stream(auto_fort_path(9),"w"))
   {
-    fp3=u3.get();
-    fp7=u7.get();
-    fp9=u9.get();
+    xpp::session().auto_lib.fp3=u3.get();
+    xpp::session().auto_lib.fp7=u7.get();
+    xpp::session().auto_lib.fp9=u9.get();
   }
-  ~RunUnits() { fp3=fp7=fp9=nullptr; }
+  ~RunUnits() { xpp::session().auto_lib.fp3=xpp::session().auto_lib.fp7=xpp::session().auto_lib.fp9=nullptr; }
   RunUnits(const RunUnits &)=delete;
   RunUnits &operator=(const RunUnits &)=delete;
 };
@@ -44,7 +42,7 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
   iap_type iap;
   rap_type rap;
   function_list list;
-  RunUnits units(xAuto.irs>0);
+  RunUnits units(xpp::session().auto_state.run.irs>0);
 
   /* Initialization : */
 

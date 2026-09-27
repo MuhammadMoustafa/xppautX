@@ -13,6 +13,7 @@
 #include <strings.h>
 
 #include "model.h"
+#include "session.h"
 #include "auto_settings.h"
 #include "browse.h"
 #include "diagram.h"
@@ -67,11 +68,11 @@ bool plot_ok(int p) { return (p >= 0 && p <= 4) || p == 10 || p == 11; }
 void read_num(double v[AUTO_NUM_N])
 {
     const double now[AUTO_NUM_N] = {
-        static_cast<double>(Auto.ntst), static_cast<double>(Auto.nmx), static_cast<double>(Auto.npr),
-        static_cast<double>(Auto.ncol), Auto.ds, Auto.dsmin, Auto.dsmax, Auto.rl0, Auto.rl1, Auto.a0, Auto.a1,
-        Auto.epsl, Auto.epsu, Auto.epss, static_cast<double>(aauto.iad), static_cast<double>(aauto.mxbf),
-        static_cast<double>(aauto.iid), static_cast<double>(aauto.itmx), static_cast<double>(aauto.itnw),
-        static_cast<double>(aauto.nwtn), static_cast<double>(aauto.iads), static_cast<double>(SuppressBP),
+        static_cast<double>(xpp::session().auto_state.bifur.ntst), static_cast<double>(xpp::session().auto_state.bifur.nmx), static_cast<double>(xpp::session().auto_state.bifur.npr),
+        static_cast<double>(xpp::session().auto_state.bifur.ncol), xpp::session().auto_state.bifur.ds, xpp::session().auto_state.bifur.dsmin, xpp::session().auto_state.bifur.dsmax, xpp::session().auto_state.bifur.rl0, xpp::session().auto_state.bifur.rl1, xpp::session().auto_state.bifur.a0, xpp::session().auto_state.bifur.a1,
+        xpp::session().auto_state.bifur.epsl, xpp::session().auto_state.bifur.epsu, xpp::session().auto_state.bifur.epss, static_cast<double>(xpp::session().auto_state.advanced.iad), static_cast<double>(xpp::session().auto_state.advanced.mxbf),
+        static_cast<double>(xpp::session().auto_state.advanced.iid), static_cast<double>(xpp::session().auto_state.advanced.itmx), static_cast<double>(xpp::session().auto_state.advanced.itnw),
+        static_cast<double>(xpp::session().auto_state.advanced.nwtn), static_cast<double>(xpp::session().auto_state.advanced.iads), static_cast<double>(xpp::session().auto_state.suppress_bp),
     };
     std::memcpy(v, now, sizeof now);
 }
@@ -79,28 +80,28 @@ void read_num(double v[AUTO_NUM_N])
 void write_num(const double v[AUTO_NUM_N])
 {
     auto i = [&](int k) { return static_cast<int>(v[k]); };
-    Auto.ntst = i(AUTO_NUM_NTST);
-    Auto.nmx = i(AUTO_NUM_NMX);
-    Auto.npr = i(AUTO_NUM_NPR);
-    Auto.ncol = i(AUTO_NUM_NCOL);
-    Auto.ds = v[AUTO_NUM_DS];
-    Auto.dsmin = v[AUTO_NUM_DSMIN];
-    Auto.dsmax = v[AUTO_NUM_DSMAX];
-    Auto.rl0 = v[AUTO_NUM_RL0];
-    Auto.rl1 = v[AUTO_NUM_RL1];
-    Auto.a0 = v[AUTO_NUM_A0];
-    Auto.a1 = v[AUTO_NUM_A1];
-    Auto.epsl = v[AUTO_NUM_EPSL];
-    Auto.epsu = v[AUTO_NUM_EPSU];
-    Auto.epss = v[AUTO_NUM_EPSS];
-    aauto.iad = i(AUTO_NUM_IAD);
-    aauto.mxbf = i(AUTO_NUM_MXBF);
-    aauto.iid = i(AUTO_NUM_IID);
-    aauto.itmx = i(AUTO_NUM_ITMX);
-    aauto.itnw = i(AUTO_NUM_ITNW);
-    aauto.nwtn = i(AUTO_NUM_NWTN);
-    aauto.iads = i(AUTO_NUM_IADS);
-    SuppressBP = i(AUTO_NUM_SUPPBP);
+    xpp::session().auto_state.bifur.ntst = i(AUTO_NUM_NTST);
+    xpp::session().auto_state.bifur.nmx = i(AUTO_NUM_NMX);
+    xpp::session().auto_state.bifur.npr = i(AUTO_NUM_NPR);
+    xpp::session().auto_state.bifur.ncol = i(AUTO_NUM_NCOL);
+    xpp::session().auto_state.bifur.ds = v[AUTO_NUM_DS];
+    xpp::session().auto_state.bifur.dsmin = v[AUTO_NUM_DSMIN];
+    xpp::session().auto_state.bifur.dsmax = v[AUTO_NUM_DSMAX];
+    xpp::session().auto_state.bifur.rl0 = v[AUTO_NUM_RL0];
+    xpp::session().auto_state.bifur.rl1 = v[AUTO_NUM_RL1];
+    xpp::session().auto_state.bifur.a0 = v[AUTO_NUM_A0];
+    xpp::session().auto_state.bifur.a1 = v[AUTO_NUM_A1];
+    xpp::session().auto_state.bifur.epsl = v[AUTO_NUM_EPSL];
+    xpp::session().auto_state.bifur.epsu = v[AUTO_NUM_EPSU];
+    xpp::session().auto_state.bifur.epss = v[AUTO_NUM_EPSS];
+    xpp::session().auto_state.advanced.iad = i(AUTO_NUM_IAD);
+    xpp::session().auto_state.advanced.mxbf = i(AUTO_NUM_MXBF);
+    xpp::session().auto_state.advanced.iid = i(AUTO_NUM_IID);
+    xpp::session().auto_state.advanced.itmx = i(AUTO_NUM_ITMX);
+    xpp::session().auto_state.advanced.itnw = i(AUTO_NUM_ITNW);
+    xpp::session().auto_state.advanced.nwtn = i(AUTO_NUM_NWTN);
+    xpp::session().auto_state.advanced.iads = i(AUTO_NUM_IADS);
+    xpp::session().auto_state.suppress_bp = i(AUTO_NUM_SUPPBP);
 }
 
 /* AUTO's parameter index of a model parameter's name in pars, or -1 */
@@ -108,7 +109,7 @@ int auto_index_of(const int pars[8], const char *name)
 {
     int p = find_user_name(PARAM_BOX, name);
     if (p < 0) return -1;
-    for (int k = 0; k < NAutoPar; k++)
+    for (int k = 0; k < xpp::session().auto_state.npar; k++)
         if (pars[k] == p) return k;
     return -1;
 }
@@ -134,28 +135,28 @@ std::string event_text()
         add_num(o, v[i]);
     }
     o += "},\"pars\":[";
-    for (int k = 0; k < NAutoPar; k++) {
+    for (int k = 0; k < xpp::session().auto_state.npar; k++) {
         if (k) o += ',';
         add_str_or_null(o, auto_par_name(k));
     }
-    o += xpp::format("],\"axes\":{{\"plot\":{},\"var\":", Auto.plot);
-    add_str_or_null(o, Auto.var >= 0 && Auto.var < xpp::model().node ? xpp::model().uvar_names[Auto.var].c_str() : nullptr);
+    o += xpp::format("],\"axes\":{{\"plot\":{},\"var\":", xpp::session().auto_state.bifur.plot);
+    add_str_or_null(o, xpp::session().auto_state.bifur.var >= 0 && xpp::session().auto_state.bifur.var < xpp::model().node ? xpp::model().uvar_names[xpp::session().auto_state.bifur.var].c_str() : nullptr);
     o += ",\"par1\":";
-    add_str_or_null(o, auto_par_name(Auto.icp1));
+    add_str_or_null(o, auto_par_name(xpp::session().auto_state.bifur.icp1));
     o += ",\"par2\":";
-    add_str_or_null(o, auto_par_name(Auto.icp2));
+    add_str_or_null(o, auto_par_name(xpp::session().auto_state.bifur.icp2));
     const std::pair<const char *, double> range[] = {
-        {"xmin", Auto.xmin}, {"xmax", Auto.xmax}, {"ymin", Auto.ymin}, {"ymax", Auto.ymax}};
+        {"xmin", xpp::session().auto_state.bifur.xmin}, {"xmax", xpp::session().auto_state.bifur.xmax}, {"ymin", xpp::session().auto_state.bifur.ymin}, {"ymax", xpp::session().auto_state.bifur.ymax}};
     for (const auto &[name, value] : range) {
         o += xpp::format(",\"{}\":", name);
         add_num(o, value);
     }
     o += "},\"marks\":[";
-    for (int i = 0; i < Auto.nper && i < AUTO_SETTINGS_MARKS; i++) {
+    for (int i = 0; i < xpp::session().auto_state.bifur.nper && i < AUTO_SETTINGS_MARKS; i++) {
         o += i ? ",[" : "[";
-        add_str_or_null(o, Auto.uzrpar[i] == AUTO_PERIOD_INDEX ? "T" : auto_par_name(Auto.uzrpar[i]));
+        add_str_or_null(o, xpp::session().auto_state.bifur.uzrpar[i] == AUTO_PERIOD_INDEX ? "T" : auto_par_name(xpp::session().auto_state.bifur.uzrpar[i]));
         o += ',';
-        add_num(o, Auto.period[i]);
+        add_num(o, xpp::session().auto_state.bifur.period[i]);
         o += ']';
     }
     o += "]}";
@@ -237,9 +238,9 @@ bool apply(const AutoSettingsSet *s, std::string &why)
 
     /* the Parameter form: AUTO's parameters by name */
     int pars[8];
-    std::memcpy(pars, AutoPar, sizeof pars);
-    if (s->npars > NAutoPar) {
-        why = xpp::format("AUTO has {} parameters for this model, not {}", NAutoPar, s->npars);
+    std::memcpy(pars, xpp::session().auto_state.par.data(), sizeof pars);
+    if (s->npars > xpp::session().auto_state.npar) {
+        why = xpp::format("AUTO has {} parameters for this model, not {}", xpp::session().auto_state.npar, s->npars);
         return false;
     }
     for (int k = 0; k < s->npars; k++) {
@@ -253,8 +254,8 @@ bool apply(const AutoSettingsSet *s, std::string &why)
     }
 
     /* the Axes: plot type, the variable, the two parameters among AUTO's, the ranges */
-    int plot = Auto.plot, var = Auto.var, icp1 = Auto.icp1, icp2 = Auto.icp2;
-    double range[4] = {Auto.xmin, Auto.xmax, Auto.ymin, Auto.ymax};
+    int plot = xpp::session().auto_state.bifur.plot, var = xpp::session().auto_state.bifur.var, icp1 = xpp::session().auto_state.bifur.icp1, icp2 = xpp::session().auto_state.bifur.icp2;
+    double range[4] = {xpp::session().auto_state.bifur.xmin, xpp::session().auto_state.bifur.xmax, xpp::session().auto_state.bifur.ymin, xpp::session().auto_state.bifur.ymax};
     if (s->has_plot) {
         if (!plot_ok(s->plot)) {
             why = xpp::format("{} is not one of AUTO's plot types (0-4, 10, 11)", s->plot);
@@ -318,41 +319,41 @@ bool apply(const AutoSettingsSet *s, std::string &why)
 
     /* all good: write them, as the forms do */
     write_num(num);
-    const bool new_pars = s->npars > 0 && std::memcmp(pars, AutoPar, sizeof pars) != 0;
+    const bool new_pars = s->npars > 0 && std::memcmp(pars, xpp::session().auto_state.par.data(), sizeof pars) != 0;
     for (int k = 0; k < s->npars; k++) {
         if (s->pars[k].empty()) continue;
-        AutoPar[k] = pars[k];
-        Auto_index_to_array[k] = get_param_index(xpp::model().upar_names[pars[k]]);
+        xpp::session().auto_state.par[k] = pars[k];
+        xpp::session().auto_state.par_index[k] = get_param_index(xpp::model().upar_names[pars[k]]);
     }
     bool axes = s->has_plot || !s->var.empty() || !s->par1.empty() || !s->par2.empty() || s->fit;
     for (int i = 0; i < 4; i++) axes = axes || s->has_range[i];
     if (axes) {
-        Auto.plot = plot;
-        Auto.var = var;
-        Auto.icp1 = icp1;
-        Auto.icp2 = icp2;
-        Auto.xmin = range[0];
-        Auto.xmax = range[1];
-        Auto.ymin = range[2];
-        Auto.ymax = range[3];
-        if (Auto.plot < 4) keep_last_plot(1);
-        if (Auto.plot == 4) keep_last_plot(2);
+        xpp::session().auto_state.bifur.plot = plot;
+        xpp::session().auto_state.bifur.var = var;
+        xpp::session().auto_state.bifur.icp1 = icp1;
+        xpp::session().auto_state.bifur.icp2 = icp2;
+        xpp::session().auto_state.bifur.xmin = range[0];
+        xpp::session().auto_state.bifur.xmax = range[1];
+        xpp::session().auto_state.bifur.ymin = range[2];
+        xpp::session().auto_state.bifur.ymax = range[3];
+        if (xpp::session().auto_state.bifur.plot < 4) keep_last_plot(1);
+        if (xpp::session().auto_state.bifur.plot == 4) keep_last_plot(2);
         if (s->fit) auto_fit();
     }
     if (s->nmarks >= 0) {
-        Auto.nper = s->nmarks;
+        xpp::session().auto_state.bifur.nper = s->nmarks;
         for (int i = 0; i < s->nmarks; i++) {
-            Auto.uzrpar[i] = uzr[i];
-            Auto.period[i] = s->mark_value[i];
+            xpp::session().auto_state.bifur.uzrpar[i] = uzr[i];
+            xpp::session().auto_state.bifur.period[i] = s->mark_value[i];
         }
-        NAutoUzr = Auto.nper;
+        xpp::session().auto_state.nuzr = xpp::session().auto_state.bifur.nper;
         for (int i = 0; i < AUTO_SETTINGS_MARKS; i++) {
-            outperiod[i] = Auto.period[i];
-            UzrPar[i] = Auto.uzrpar[i];
+            xpp::session().auto_state.uzr_period[i] = xpp::session().auto_state.bifur.period[i];
+            xpp::session().auto_state.uzr_par[i] = xpp::session().auto_state.bifur.uzrpar[i];
         }
     }
     /* the diagram in its new quantities (and a new parameter's name on its axis) */
-    if ((axes || new_pars) && Auto.exist) redraw_diagram();
+    if ((axes || new_pars) && xpp::session().auto_state.bifur.exist) redraw_diagram();
     return true;
 }
 

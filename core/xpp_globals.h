@@ -12,10 +12,6 @@
 
 struct XppProgram {
     int interactive = 0; /* a front end is up (0: -silent, headless) */
-    /* AUTO's scratch directory (fort.3/7/8/9, <model>.ode.b/.d/.s). Empty:
-       HOME, as upstream (-silent); xppautX sets a private one per session
-       so concurrent sessions never share AUTO files (xppautx_main.cpp). */
-    std::string auto_dir;
     float version_major = 0, version_minor = 0; /* XPPAUT's version, for titles */
     int tutorial = 0; /* @ tutorial=1: show the tutorial at start-up */
 };

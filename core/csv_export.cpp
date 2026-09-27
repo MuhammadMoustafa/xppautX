@@ -3,6 +3,7 @@
    pandas.read_csv and MATLAB readtable read with no options. See
    csv_export.h. */
 #include "model.h"
+#include "session.h"
 #include "csv_export.h"
 #include "xpp_io.h"
 #include "diagram.h"
@@ -71,7 +72,7 @@ int csv_export_diagram(const char *filename)
         const char *sym = auto_bif_sym(d->itp);
         while (*sym == ' ') sym++;
         double par1 = d->par[d->icp1];
-        double par2 = d->icp2 < NAutoPar ? d->par[d->icp2] : par1;
+        double par2 = d->icp2 < xpp::session().auto_state.npar ? d->par[d->icp2] : par1;
         /* AUTO signs ibr and ntot by stability, which has its own column */
         w.print("{},{},{},{},{},{},{},{},{},{},{}", unsigned_of(d->ibr), unsigned_of(d->ntot), csv_field(sym), d->lab,
                 point_is_stable(type) ? "stable" : "unstable", d->flag2, csv_field(par_name(d->icp1)),

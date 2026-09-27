@@ -4,21 +4,13 @@
    tools/servercheck.py checks the same through the protocol, against the
    forms. */
 #include "xpptest.h"
+#include "session.h"
 #include "model.h"
 #include "auto_nox.h"
 #include "auto_settings.h"
 
 #include <cmath>
 #include <cstring>
-
-extern "C" {
-extern int AutoPar[8];
-extern int NAutoPar;
-extern BIFUR Auto;
-extern double outperiod[20];
-extern long UzrPar[20];
-extern int NAutoUzr;
-}
 
 namespace {
 
@@ -31,20 +23,20 @@ void load_model()
     xpp::model().uvar_names[1] = "w";
     xpp::model().node = xpp::model().neq = 2;
     xpp::model().nupar = 3;
-    NAutoPar = 3;
-    for (int i = 0; i < 3; i++) AutoPar[i] = i;
-    Auto.nmx = 200;
-    Auto.ncol = 4;
-    Auto.dsmin = 0.001;
-    Auto.dsmax = 0.5;
-    Auto.rl0 = 0;
-    Auto.rl1 = 2;
-    Auto.xmin = -1;
-    Auto.xmax = 1;
-    Auto.ymin = -1;
-    Auto.ymax = 1;
-    Auto.icp1 = 0;
-    Auto.icp2 = 1;
+    xpp::session().auto_state.npar = 3;
+    for (int i = 0; i < 3; i++) xpp::session().auto_state.par[i] = i;
+    xpp::session().auto_state.bifur.nmx = 200;
+    xpp::session().auto_state.bifur.ncol = 4;
+    xpp::session().auto_state.bifur.dsmin = 0.001;
+    xpp::session().auto_state.bifur.dsmax = 0.5;
+    xpp::session().auto_state.bifur.rl0 = 0;
+    xpp::session().auto_state.bifur.rl1 = 2;
+    xpp::session().auto_state.bifur.xmin = -1;
+    xpp::session().auto_state.bifur.xmax = 1;
+    xpp::session().auto_state.bifur.ymin = -1;
+    xpp::session().auto_state.bifur.ymax = 1;
+    xpp::session().auto_state.bifur.icp1 = 0;
+    xpp::session().auto_state.bifur.icp2 = 1;
 }
 
 bool ok(int field, double v)
@@ -81,30 +73,30 @@ int main()
     s.num[AUTO_NUM_NMX] = 30;
     s.has_num[AUTO_NUM_NCOL] = 1;
     s.num[AUTO_NUM_NCOL] = 9;
-    CHECK(auto_settings_apply(s, why) == -1 && Auto.nmx == 200 && Auto.ncol == 4);
+    CHECK(auto_settings_apply(s, why) == -1 && xpp::session().auto_state.bifur.nmx == 200 && xpp::session().auto_state.bifur.ncol == 4);
     s.num[AUTO_NUM_NCOL] = 5;
-    CHECK(auto_settings_apply(s, why) == 0 && Auto.nmx == 30 && Auto.ncol == 5);
+    CHECK(auto_settings_apply(s, why) == 0 && xpp::session().auto_state.bifur.nmx == 30 && xpp::session().auto_state.bifur.ncol == 5);
 
     /* pairs in order, only checked when one of them is given */
     s = AutoSettingsSet{};
     s.has_num[AUTO_NUM_RL1] = 1;
     s.num[AUTO_NUM_RL1] = -1;
-    CHECK(auto_settings_apply(s, why) == -1 && Auto.rl1 == 2);
+    CHECK(auto_settings_apply(s, why) == -1 && xpp::session().auto_state.bifur.rl1 == 2);
     CHECK_STR(why.c_str(), "Par Min must be below Par Max");
 
     /* Dsmin <= |Ds| <= Dsmax, checked when one of the three is given (T23) */
-    Auto.ds = 0.02;
+    xpp::session().auto_state.bifur.ds = 0.02;
     s = AutoSettingsSet{};
     s.has_num[AUTO_NUM_DS] = 1;
     s.num[AUTO_NUM_DS] = -0.6;
-    CHECK(auto_settings_apply(s, why) == -1 && Auto.ds == 0.02);
+    CHECK(auto_settings_apply(s, why) == -1 && xpp::session().auto_state.bifur.ds == 0.02);
     CHECK_STR(why.c_str(), "Ds must be from Dsmin to Dsmax in size (its sign is the direction)");
     s.num[AUTO_NUM_DS] = -0.5;
-    CHECK(auto_settings_apply(s, why) == 0 && Auto.ds == -0.5);
+    CHECK(auto_settings_apply(s, why) == 0 && xpp::session().auto_state.bifur.ds == -0.5);
     s = AutoSettingsSet{};
     s.has_num[AUTO_NUM_DSMIN] = 1;
     s.num[AUTO_NUM_DSMIN] = 0.6; /* above |Ds| and Dsmax */
-    CHECK(auto_settings_apply(s, why) == -1 && Auto.dsmin == 0.001);
+    CHECK(auto_settings_apply(s, why) == -1 && xpp::session().auto_state.bifur.dsmin == 0.001);
 
     /* axes: names among AUTO's parameters, ranges in order */
     s = AutoSettingsSet{};
@@ -112,17 +104,17 @@ int main()
     s.var = "w";
     s.has_plot = 1;
     s.plot = 1;
-    CHECK(auto_settings_apply(s, why) == 0 && Auto.icp1 == 1 && Auto.var == 1 && Auto.plot == 1);
+    CHECK(auto_settings_apply(s, why) == 0 && xpp::session().auto_state.bifur.icp1 == 1 && xpp::session().auto_state.bifur.var == 1 && xpp::session().auto_state.bifur.plot == 1);
     s.par1 = "nosuch";
-    CHECK(auto_settings_apply(s, why) == -1 && Auto.icp1 == 1);
+    CHECK(auto_settings_apply(s, why) == -1 && xpp::session().auto_state.bifur.icp1 == 1);
     s = AutoSettingsSet{};
     s.has_plot = 1;
     s.plot = 5;
-    CHECK(auto_settings_apply(s, why) == -1 && Auto.plot == 1);
+    CHECK(auto_settings_apply(s, why) == -1 && xpp::session().auto_state.bifur.plot == 1);
     s = AutoSettingsSet{};
     s.has_range[2] = 1;
     s.range[2] = 3; /* ymin above ymax */
-    CHECK(auto_settings_apply(s, why) == -1 && Auto.ymin == -1);
+    CHECK(auto_settings_apply(s, why) == -1 && xpp::session().auto_state.bifur.ymin == -1);
 
     /* Mark values: a parameter of AUTO's or T, into AUTO's user points */
     s = AutoSettingsSet{};
@@ -131,10 +123,10 @@ int main()
     s.mark_value[0] = 0.5;
     s.mark_name[1] = "t";
     s.mark_value[1] = 20;
-    CHECK(auto_settings_apply(s, why) == 0 && Auto.nper == 2 && NAutoUzr == 2);
-    CHECK(UzrPar[0] == 2 && outperiod[0] == 0.5 && UzrPar[1] == 10 && outperiod[1] == 20);
+    CHECK(auto_settings_apply(s, why) == 0 && xpp::session().auto_state.bifur.nper == 2 && xpp::session().auto_state.nuzr == 2);
+    CHECK(xpp::session().auto_state.uzr_par[0] == 2 && xpp::session().auto_state.uzr_period[0] == 0.5 && xpp::session().auto_state.uzr_par[1] == 10 && xpp::session().auto_state.uzr_period[1] == 20);
     s.mark_name[1] = "v"; /* a variable is no user point */
-    CHECK(auto_settings_apply(s, why) == -1 && UzrPar[1] == 10);
+    CHECK(auto_settings_apply(s, why) == -1 && xpp::session().auto_state.uzr_par[1] == 10);
 
     TEST_REPORT("auto_settings");
 }

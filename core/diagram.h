@@ -46,5 +46,22 @@ int load_diagram(FILE *fp, int node);
 
 #ifdef __cplusplus
 }
+
+#include <deque>
+#include <vector>
+
+/* a diagram point and the arrays its DIAGRAM entry points at */
+struct DiagramPoint {
+  DIAGRAM d{};
+  std::vector<double> uhi,ulo,u0,ubar,evr,evi;
+};
+
+/* AUTO's bifurcation diagram, a Session's (session.h): its points in the
+   order they were stored, point i with index i (so next/prev are index
+   +/- 1). A deque, so a point's address stays valid while points are
+   added. */
+struct AutoDiagram {
+  std::deque<DiagramPoint> points;
+};
 #endif
 #endif

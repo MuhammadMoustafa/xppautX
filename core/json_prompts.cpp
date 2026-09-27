@@ -353,8 +353,8 @@ void answer_point(unsigned long win, int k, int *x, int *y)
         *x = get_int(answer.c_str(), px[k], 0);
         *y = get_int(answer.c_str(), py[k], 0);
     } else if (win == WIN_AUTO) {
-        *x = data_to_pixel(js_num(jx, 0), Auto.xmin, Auto.xmax, Auto.x0, Auto.x0 + Auto.wid);
-        *y = data_to_pixel(js_num(jy, 0), Auto.ymin, Auto.ymax, Auto.y0 + Auto.hgt, Auto.y0);
+        *x = data_to_pixel(js_num(jx, 0), xpp::session().auto_state.bifur.xmin, xpp::session().auto_state.bifur.xmax, xpp::session().auto_state.bifur.x0, xpp::session().auto_state.bifur.x0 + xpp::session().auto_state.bifur.wid);
+        *y = data_to_pixel(js_num(jy, 0), xpp::session().auto_state.bifur.ymin, xpp::session().auto_state.bifur.ymax, xpp::session().auto_state.bifur.y0 + xpp::session().auto_state.bifur.hgt, xpp::session().auto_state.bifur.y0);
     } else {
         get_draw_area();
         *x = data_to_pixel(js_num(jx, 0), xpp::session().plot_windows.current->xlo, xpp::session().plot_windows.current->xhi, DLeft, DRight);

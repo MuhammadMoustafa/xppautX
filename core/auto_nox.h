@@ -70,30 +70,6 @@ typedef struct {
   double xmin,ymin,xmax,ymax;
 }  AUTOAX;
 
-/* AUTO's state, auto_nox.cpp's: its window and settings (Auto), the
-   advanced numerics (aauto), the parameters AUTO continues (the first
-   NAutoPar of AutoPar, model parameter indices, and their constants[]
-   indices), the Mark values (NAutoUzr of UzrPar/outperiod; UzrPar is
-   auto_f2c.h's integer) and Numerics' SuppBP */
-extern BIFUR Auto;
-extern ADVAUTO aauto;
-extern int NAutoPar;
-extern int AutoPar[8];
-extern int Auto_index_to_array[8];
-extern int NAutoUzr;
-extern long UzrPar[20];
-extern double outperiod[20];
-extern int SuppressBP;
-/* a homoclinic orbit's left and right equilibria (autpp.cpp's stpnt) */
-extern double homo_l[100],homo_r[100];
-extern int AutoTwoParam;
-/* the label do_auto's follow-up run (a restart) continues from, 0 for none */
-extern int RestartLabel;
-/* the kind of run (LPE2, HB2, ...; 0 one parameter) each stored point records */
-extern int TypeOfCalc;
-/* the torus period a two-parameter torus run starts from */
-extern ROTCHK blrtn;
-
 void colset(int type);
 void pscolset2(int flag2);
 void colset2(int flag2);

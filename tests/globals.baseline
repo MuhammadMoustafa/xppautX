@@ -1,9 +1,6 @@
 core/adj2.cpp 1
 core/aniparse.cpp 6
 core/arrayplot.cpp 8
-core/autevd.cpp 2
-core/autlib1.cpp 4
-core/auto_nox.cpp 40
 core/axes2.cpp 3
 core/browse_data.cpp 1
 core/colormap.cpp 3
@@ -13,7 +10,6 @@ core/delay_handle.cpp 9
 core/flags.cpp 1
 core/form_ode.cpp 4
 core/gear.cpp 5
-core/gogoauto.cpp 3
 core/graphics.cpp 18
 core/grobs.cpp 2
 core/histogram.cpp 12
@@ -24,7 +20,6 @@ core/my_svg.cpp 1
 core/nullcline.cpp 11
 core/numerics.cpp 3
 core/parserslow2.cpp 7
-core/setubv2.cpp 1
 core/ui_json.cpp 1
 core/userbut.cpp 2
 core/volterra2.cpp 1

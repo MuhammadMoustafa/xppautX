@@ -3,6 +3,7 @@
    Write set) and, when there is a diagram, <base>.auto (as AUTO's File/
    Save diagram, orbits included). */
 #include "xpp_session.h"
+#include "session.h"
 #include "xpp_ui.h"
 #include "xpp_io.h"
 #include "lunch-new.h"
@@ -101,13 +102,13 @@ int xpp_session_load(const char *base_arg)
     xpp::UniqueFile fp = xpp::open_read(auto_name.c_str());
     if (fp) {
         if (diagram_count() > 1) yes_reset_auto(); /* as load_auto does, without its confirmation ask */
-        if (!Auto.exist) do_auto_win(); /* the diagram needs a window to draw into */
+        if (!xpp::session().auto_state.bifur.exist) do_auto_win(); /* the diagram needs a window to draw into */
         if (load_auto_file(fp.get()) != 1) {
             err_msg("Bad AUTO file");
             return 0;
         }
         fp.reset();
-        if (Auto.exist) redraw_diagram(); /* load_auto leaves this to the caller */
+        if (xpp::session().auto_state.bifur.exist) redraw_diagram(); /* load_auto leaves this to the caller */
         session_auto = auto_name;
     }
     return 1;

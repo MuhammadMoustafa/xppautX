@@ -39,7 +39,7 @@ void redo_stuff(void);
 /* a comment's action (the source's "# ... {action}"), run when it is picked */
 void do_txt_action(const char *s);
 
-/* atexit hook: removes program.auto_dir (xpp_globals.h) if it is set, and
+/* atexit hook: removes the Session's AUTO scratch folder (auto_state.h) if it is set, and
    clears it. Registered by xppautx_main.c, not the X11 front end. */
 void xpp_cleanup_auto_dir(void);
 

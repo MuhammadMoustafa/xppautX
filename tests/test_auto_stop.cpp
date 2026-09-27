@@ -3,17 +3,13 @@
    limit through the protocol; this checks the order the reasons are tried
    in and their words. */
 #include "xpptest.h"
+#include "session.h"
 #include "model.h"
 #include "auto_stop.h"
 #include "xpplim.h"
 
 #include <cmath>
 #include <cstring>
-
-extern "C" {
-extern int AutoPar[8];
-extern int NAutoPar;
-}
 
 namespace {
 
@@ -37,8 +33,8 @@ int main()
 {
     xpp::model().upar_names[0] = "iapp";
     xpp::model().nupar = 1;
-    NAutoPar = 1;
-    AutoPar[0] = 0;
+    xpp::session().auto_state.npar = 1;
+    xpp::session().auto_state.par[0] = 0;
 
     AutoStopAt at = inside();
     at.par = 2.5;

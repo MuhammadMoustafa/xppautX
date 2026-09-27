@@ -5,6 +5,7 @@
 #include <string>
 
 #include "auto_nox.h"
+#include "session.h"
 #include "auto_stop.h"
 #include "xpp_log.h"
 
@@ -29,7 +30,7 @@ std::string last_text;
 std::string par_name(long ipar)
 {
     if (ipar == AUTO_PERIOD_INDEX) return "the period T";
-    const char *name = ipar >= 0 && ipar < NAutoPar ? auto_par_name(static_cast<int>(ipar)) : nullptr;
+    const char *name = ipar >= 0 && ipar < xpp::session().auto_state.npar ? auto_par_name(static_cast<int>(ipar)) : nullptr;
     return name ? std::string("parameter ") + name : std::string("the parameter");
 }
 

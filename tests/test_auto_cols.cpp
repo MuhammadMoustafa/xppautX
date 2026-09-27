@@ -4,13 +4,12 @@
    column. Nothing end-to-end would catch that: the numbers stay right and
    only the heading slides. */
 #include "xpptest.h"
+#include "session.h"
 #include "auto_nox.h"
 #include "model.h"
 #include <string>
 
 /* what the core holds for a loaded model; the names come from the .ode file */
-extern int AutoPar[8];
-extern int NAutoPar;
 
 static void load_model(void)
 {
@@ -21,10 +20,10 @@ static void load_model(void)
     xpp::model().uvar_names[1] = "w";
     xpp::model().node = xpp::model().neq = 2;
     xpp::model().nupar = 3;
-    NAutoPar = 3;
-    AutoPar[0] = 0;
-    AutoPar[1] = 1;
-    AutoPar[2] = 2;
+    xpp::session().auto_state.npar = 3;
+    xpp::session().auto_state.par[0] = 0;
+    xpp::session().auto_state.par[1] = 1;
+    xpp::session().auto_state.par[2] = 2;
 }
 
 int main(void)

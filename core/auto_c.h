@@ -21,24 +21,6 @@ extern "C" {
 #define QZEPS1 (0.0E0)
 #define HMACHHO (1.0e-13)
 
-extern FILE *fp3;
-extern FILE *fp7;
-extern FILE *fp8;
-extern FILE *fp9;
-
-/* AUTO's work arrays, defined in autlib1 (allocate_global_memory, which
-   owns their storage) and shared with autlib3 and autlib5. Named types: a
-   C++ file cannot share a variable of an unnamed struct type with another
-   file. */
-typedef struct {
-  doublereal *dfu, *dfp, *uu1, *uu2, *ff1, *ff2;
-} AutoGlobalScratch;
-typedef struct {
-  integer irtn;
-  integer *nrtn;
-} AutoGlobalRotations;
-extern AutoGlobalScratch global_scratch;
-extern AutoGlobalRotations global_rotations;
 
 typedef struct {
   /* 1 */ integer ndim;

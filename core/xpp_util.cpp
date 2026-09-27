@@ -612,12 +612,12 @@ void eq_import(double *y,int n)
   if(n<20){
     if(sparity==0){
       for(i=0;i<n;i++)
-	homo_l[i]=y[i];
+	xpp::session().auto_state.homo_l[i]=y[i];
       xpp_log(XPP_LOG_INFO, "Saved to left equilibrium\n");
     }
     if(sparity==1){
       for(i=0;i<n;i++)
-	homo_r[i]=y[i];
+	xpp::session().auto_state.homo_r[i]=y[i];
       xpp_log(XPP_LOG_INFO, "Saved to right equilibrium\n");
     }
     sparity=1-sparity;
@@ -647,12 +647,13 @@ void do_txt_action(const char *s)
   reset_graph();
 }
 
-/* ---- AUTO's private scratch directory (xpp_globals.h: program.auto_dir),
+/* ---- AUTO's private scratch directory (session.h: AutoState::dir),
    made by xpp_files_make_temp_dir ---- */
 void xpp_cleanup_auto_dir(void)
 {
-  if (!program.auto_dir.empty()) {
-    xpp_files_remove_temp_dir(program.auto_dir.c_str());
-    program.auto_dir.clear();
+  std::string &dir=xpp::session().auto_state.dir;
+  if (!dir.empty()) {
+    xpp_files_remove_temp_dir(dir.c_str());
+    dir.clear();
   }
 }
