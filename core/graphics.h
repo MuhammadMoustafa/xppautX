@@ -61,6 +61,7 @@ void bead_abs(float x1, float y1);
 void frect_abs(float x1, float y1, float w, float h);
 void line_abs(float x1, float y1, float x2, float y2);
 void text_abs(float x, float y, const char *text);
+/* fill_in_text (below) into newname, which holds 256 chars */
 void fillintext(const char *old, char *newname);
 void fancy_text_abs(float x, float y, const char *old, int size, int font);
 int clip3d(float x1, float y1, float z1, float x2, float y2, float z2, float *x1p, float *y1p, float *z1p, float *x2p, float *y2p, float *z2p);
@@ -71,5 +72,10 @@ void reset_all_line_type();
 
 #ifdef __cplusplus
 }
+
+#include <string>
+#include <string_view>
+/* text with each \{expr} replaced by the expression's value */
+std::string fill_in_text(std::string_view old);
 #endif
 #endif

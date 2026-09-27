@@ -18,11 +18,10 @@
 #include "json_number.h"
 #include "series_enc.h"
 #include "xpp_globals.h"
-#include "xpp_mem.h"
 #include "many_pops.h"
+#include "pop_list.h"
 
 extern "C" {
-extern char uvar_names[MAXODE][XPP_NAME_MAX + 1];
 }
 
 namespace {
@@ -165,12 +164,7 @@ void add_name(std::string &o, int col)
 
 void add_values(std::string &o, const Floats &v)
 {
-    std::size_t n;
-    char *t = xpp_series_values(v.data(), static_cast<int>(v.size()), values_f32, &n);
-    if (t) {
-        o.append(t, n);
-        xpp_free(t);
-    } else o += "[]";
+    xpp_series_append(o, v.data(), static_cast<int>(v.size()), values_f32);
 }
 
 void begin_event(std::string &o, const char *ev, int pop)

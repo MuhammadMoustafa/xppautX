@@ -6,10 +6,10 @@
    most 25 times a second, the last one always (at the end of the command
    when the rate held it back). */
 #include <chrono>
-#include <cstdio>
 #include <string>
 
 #include "ani_data.h"
+#include "json_number.h"
 #include "xpp_io.h"
 #include "colormap.h"
 #include "xpp_globals.h"
@@ -31,13 +31,11 @@ const std::chrono::milliseconds MIN_GAP(40);
 /* unit coordinates: 6 digits are a millionth of the picture, far under a pixel */
 void add_num(std::string &o, double v)
 {
-    char t[32];
-    if (v != v || v > 1e300 || v < -1e300) {
+    if (v > 1e300 || v < -1e300) {
         o += "null";
         return;
     }
-    std::snprintf(t, sizeof t, "%.6g", v);
-    o += t;
+    xpp::json::json_append_number(o, v, 6);
 }
 
 void add_int(std::string &o, long v) { o += std::to_string(v); }
@@ -47,7 +45,6 @@ void add_int(std::string &o, long v) { o += std::to_string(v); }
    map's colour as #rrggbb for the others */
 void add_color(std::string &o, int icol)
 {
-    char t[16];
     if (icol >= 20 && icol <= 29) {
         add_int(o, icol - 19);
         return;
@@ -56,9 +53,8 @@ void add_color(std::string &o, int icol)
         o += '0';
         return;
     }
-    std::snprintf(t, sizeof t, "\"#%02x%02x%02x\"", xpp_cmap_rgb[icol][0] >> 8, xpp_cmap_rgb[icol][1] >> 8,
-                  xpp_cmap_rgb[icol][2] >> 8);
-    o += t;
+    o += xpp::format("\"#{:02x}{:02x}{:02x}\"", xpp_cmap_rgb[icol][0] >> 8, xpp_cmap_rgb[icol][1] >> 8,
+                     xpp_cmap_rgb[icol][2] >> 8);
 }
 
 /* ["kind", ... */
@@ -199,12 +195,7 @@ extern "C" void ani_data_end(const AniDataFrame *f)
     o += ",\"rows\":";
     add_int(o, f->rows);
     o += ",\"t\":";
-    char t[32];
-    if (f->t == f->t) {
-        std::snprintf(t, sizeof t, "%.9g", f->t);
-        o += t;
-    } else
-        o += "null";
+    xpp::json::json_append_number(o, f->t, 9);
     o += ",\"speed\":";
     add_int(o, f->speed);
     o += ",\"skip\":";

@@ -24,13 +24,11 @@
 #include "json_number.h"
 #include "xpp_globals.h"
 #include "xpp_job.h"
-#include "xpp_mem.h"
 #include "browse.h"
 #include "many_pops.h"
+#include "pop_list.h"
 
 extern "C" {
-extern BROWSER my_browser;
-extern char uvar_names[MAXODE][XPP_NAME_MAX + 1];
 }
 
 namespace {
@@ -114,12 +112,7 @@ const char *column_name(int col) { return col == 0 ? "T" : uvar_names[col - 1]; 
 /* rows [from, to) of storage column col as a JSON value */
 void add_values(std::string &o, int col, int from, int to)
 {
-    std::size_t n;
-    char *t = xpp_series_values(my_browser.data[col] + from, to - from, series_f32, &n);
-    if (t) {
-        o.append(t, n);
-        xpp_free(t);
-    } else o += "[]";
+    xpp_series_append(o, my_browser.data[col] + from, to - from, series_f32);
 }
 
 void add_curves(std::string &o, const SeriesSig &s)

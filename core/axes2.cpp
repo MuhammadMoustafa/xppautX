@@ -18,6 +18,7 @@
 #include "graf_par.h"
 #include "xpp_globals.h"
 #include "xpp_io.h"
+#include "pop_list.h"
 
 
 #define NOAXES 0
@@ -34,7 +35,7 @@
 #define CheckZero(x,tic) (fabs(x) < ((tic) * SIGNIF) ? 0.0 : (x))
 
 
-extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
+
 
 int DOING_AXES=0;
 int AxisVarLabels = 0;

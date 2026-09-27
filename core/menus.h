@@ -48,9 +48,9 @@ extern const char *aspecial_hint[];
 extern const char *arun_hint[];
 
 /* key strings for the three main-window menus, one key per entry */
-extern char main_menu_keys[];
-extern char num_menu_keys[];
-extern char file_menu_keys[];
+extern const char *const main_menu_keys;
+extern const char *const num_menu_keys;
+extern const char *const file_menu_keys;
 
 /* A pop-up menu as data. Core code asks the front end to show one with
    menu_choose() and gets back the chosen key. Item i usually runs

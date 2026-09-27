@@ -10,7 +10,6 @@
    for this window; a window whose content differs from what the client
    got last gets its event. */
 #include <cmath>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <map>
@@ -22,7 +21,7 @@
 #include "grobs.h"
 #include "series_enc.h"
 #include "xpp_globals.h"
-#include "xpp_mem.h"
+#include "xpp_io.h"
 #include "many_pops.h"
 #include "graf_par.h"
 
@@ -133,72 +132,11 @@ Record *record_of(XppWinId w)
 void add_int(std::string &o, long v) { o += std::to_string(v); }
 
 /* a stored float: 9 digits read back as exactly it */
-void add_float(std::string &o, float v)
-{
-    char t[32];
-    if (!std::isfinite(v)) {
-        o += "null";
-        return;
-    }
-    std::snprintf(t, sizeof t, "%.9g", static_cast<double>(v));
-    o += t;
-}
-
-/* the length of the UTF-8 sequence at s (valid, shortest form), else 0 */
-int utf8_length(const unsigned char *s)
-{
-    int n;
-    unsigned int c = s[0];
-    if (c >= 0xc2 && c <= 0xdf) n = 2;
-    else if (c >= 0xe0 && c <= 0xef) n = 3;
-    else if (c >= 0xf0 && c <= 0xf4) n = 4;
-    else return 0;
-    for (int k = 1; k < n; k++)
-        if ((s[k] & 0xc0) != 0x80) return 0;
-    if (c == 0xe0 && s[1] < 0xa0) return 0; /* overlong */
-    if (c == 0xed && s[1] >= 0xa0) return 0; /* a surrogate */
-    if (c == 0xf0 && s[1] < 0x90) return 0; /* overlong */
-    if (c == 0xf4 && s[1] >= 0x90) return 0; /* past U+10FFFF */
-    return n;
-}
-
-/* a label's text: UTF-8 the user typed stays as it is, other bytes are
-   Latin-1 (the core's strings); backslashes (XPP's font escapes) escaped */
-void add_text(std::string &o, const char *s)
-{
-    char esc[8];
-    o += '"';
-    for (const unsigned char *p = reinterpret_cast<const unsigned char *>(s); *p;) {
-        const unsigned char c = *p;
-        if (c == '"' || c == '\\') {
-            o += '\\';
-            o += static_cast<char>(c);
-        } else if (c < 0x20) {
-            std::snprintf(esc, sizeof esc, "\\u%04x", c);
-            o += esc;
-        } else if (c >= 0x80) {
-            const int n = utf8_length(p);
-            if (n) {
-                o.append(reinterpret_cast<const char *>(p), n);
-                p += n;
-                continue;
-            }
-            std::snprintf(esc, sizeof esc, "\\u%04x", c);
-            o += esc;
-        } else o += static_cast<char>(c);
-        p++;
-    }
-    o += '"';
-}
+void add_float(std::string &o, float v) { xpp::json::json_append_number(o, v, 9); }
 
 void add_values(std::string &o, const float *v, int n)
 {
-    std::size_t len;
-    char *t = xpp_series_values(v, n > 0 ? n : 0, values_f32, &len);
-    if (t) {
-        o.append(t, len);
-        xpp_free(t);
-    } else o += "[]";
+    xpp_series_append(o, v, n > 0 ? n : 0, values_f32);
 }
 
 const char *eq_type(int symbol) { return symbol == 3 ? "stable" : symbol == 1 ? "saddle" : "unstable"; }
@@ -229,7 +167,7 @@ void send_marks(int pop, const Content &c)
         o += ",\"y\":";
         add_float(o, l.y);
         o += ",\"text\":";
-        add_text(o, l.text.c_str());
+        xpp::json_append_string(o, l.text.c_str());
         o += ",\"size\":";
         add_int(o, l.size);
         o += ",\"font\":";
@@ -280,9 +218,9 @@ void send_marks(int pop, const Content &c)
         const Frozen &f = c.frozen[k];
         const CURVE &z = frozen_curves.curve[f.slot];
         o += k ? ",{\"key\":" : "{\"key\":";
-        add_text(o, f.key.c_str());
+        xpp::json_append_string(o, f.key.c_str());
         o += ",\"name\":";
-        add_text(o, f.name.c_str());
+        xpp::json_append_string(o, f.name.c_str());
         o += ",\"color\":";
         add_int(o, f.color < 0 ? -f.color : f.color);
         o += ",\"line\":";

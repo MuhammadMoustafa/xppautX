@@ -59,7 +59,7 @@ void add_user_button(const char *s)
     if (userbut[i].com == z) return;
   }
   userbut[nuserbut].com = z;
-  XPP_STRCPY(userbut[nuserbut].bname, bname.c_str());
+  XPP_FORMAT_TO_BUF(userbut[nuserbut].bname, "{}", bname);
   xpp::log(XPP_LOG_INFO, " added button({})  -- {} {}\n",
            nuserbut, userbut[nuserbut].bname, userbut[nuserbut].com);
   nuserbut++;

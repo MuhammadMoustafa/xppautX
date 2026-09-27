@@ -11,7 +11,7 @@ extern "C" {
 
 typedef struct {
   XppWinId w;
-  char bname[10];
+  char bname[10]; /* ui_json.cpp sends it as a C string */
   int com;
 } USERBUT;
 

@@ -123,11 +123,11 @@ int make_local_map(unsigned char *pixels,const unsigned char *ppm,int h, int w)
 /* the logical screen: its size and the colour map (256 colours) */
 void put_screen(std::vector<unsigned char> &out, int cols, int rows, unsigned char flags)
 {
-  const unsigned char head[]={
+  const std::array<unsigned char,7> head={
     static_cast<unsigned char>(0xff & cols),static_cast<unsigned char>((0xff00 & cols)/0x100),
     static_cast<unsigned char>(0xff & rows),static_cast<unsigned char>((0xff00 & rows)/0x100),
     flags,0xff,0x0};
-  out.insert(out.end(),std::begin(head),std::end(head));
+  out.insert(out.end(),head.begin(),head.end());
   for(const GIFCOL &c:gifcol){
     out.push_back(0xff & c.r);
     out.push_back(0xff & c.g);
@@ -417,12 +417,12 @@ void make_gif(unsigned char *pixels,int cols,int rows,FILE *dst)
   const int depth=8;
   std::vector<unsigned char> out={'G','I','F','8','7','a'};
   put_screen(out,cols,rows,static_cast<unsigned char>(0xf0 | (0x7&(depth-1))));
-  const unsigned char image[]={
+  const std::array<unsigned char,10> image={
     0x2c,0x00,0x00,0x00,0x00,
     static_cast<unsigned char>(0xff & cols),static_cast<unsigned char>((0xff00 & cols)/0x100),
     static_cast<unsigned char>(0xff & rows),static_cast<unsigned char>((0xff00 & rows)/0x100),
     static_cast<unsigned char>(0x7&(depth-1))};
-  out.insert(out.end(),std::begin(image),std::end(image));
+  out.insert(out.end(),image.begin(),image.end());
   fwrite(out.data(),out.size(),1,dst);
 
   /* header info done */

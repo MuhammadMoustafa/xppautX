@@ -4,21 +4,25 @@
 #include "json_number.h"
 #include "xpp_mem.h"
 
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <new>
 #include <string>
+#include <string_view>
 
 namespace {
 
-const char B64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+constexpr std::string_view B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 /* the float's 4 bytes, least significant first */
-void le_bytes(float f, unsigned char out[4])
+std::array<unsigned char, 4> le_bytes(float f)
 {
     std::uint32_t u;
     std::memcpy(&u, &f, sizeof u);
+    std::array<unsigned char, 4> out;
     for (int i = 0; i < 4; i++) out[i] = static_cast<unsigned char>(u >> (8 * i));
+    return out;
 }
 
 void base64(const float *v, int n, std::string &s)
@@ -26,12 +30,10 @@ void base64(const float *v, int n, std::string &s)
     const std::size_t bytes = 4 * static_cast<std::size_t>(n);
     s.reserve(s.size() + 2 + (bytes + 2) / 3 * 4);
     s += '"';
-    unsigned char q[3];
+    std::array<unsigned char, 3> q{};
     int nq = 0;
     for (int i = 0; i < n; i++) {
-        unsigned char b[4];
-        le_bytes(v[i], b);
-        for (unsigned char c : b) {
+        for (unsigned char c : le_bytes(v[i])) {
             q[nq++] = c;
             if (nq == 3) {
                 s += B64[q[0] >> 2];
@@ -70,6 +72,22 @@ void numbers(const float *v, int n, std::string &s)
 
 } // namespace
 
+void xpp_series_append(std::string &out, const float *v, int n, int f32) noexcept
+{
+    try {
+        std::string s;
+        if (n < 0) n = 0;
+        if (f32) base64(v, n, s);
+        else numbers(v, n, s);
+        out += s;
+    } catch (...) { /* std::bad_alloc */
+        try {
+            out += "[]";
+        } catch (...) {
+        }
+    }
+}
+
 char *xpp_series_values(const float *v, int n, int f32, size_t *len)
 {
     try {
@@ -77,8 +95,8 @@ char *xpp_series_values(const float *v, int n, int f32, size_t *len)
         if (n < 0) n = 0;
         if (f32) base64(v, n, s);
         else numbers(v, n, s);
+        /* a raw block: json_windows.cpp frees it (MemPtr) */
         char *out = static_cast<char *>(xpp_malloc(s.size() + 1));
-        if (!out) return nullptr;
         std::memcpy(out, s.c_str(), s.size() + 1);
         *len = s.size();
         return out;

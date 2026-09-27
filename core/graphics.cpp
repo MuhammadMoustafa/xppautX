@@ -421,10 +421,6 @@ void init_graph(int i)
 	plot_windows.graph[i].color[j]=0;
         }
      
-    /*sprintf(graph[i].xlabel,"");
-    sprintf(graph[i].ylabel,"");
-    sprintf(graph[i].zlabel,"");
-    */
     plot_windows.graph[i].xlabel[0]='\0';
     plot_windows.graph[i].ylabel[0]='\0';
     plot_windows.graph[i].zlabel[0]='\0';
@@ -442,7 +438,7 @@ void init_graph(int i)
     plot_windows.graph[i].grtype=AXES;
     plot_windows.graph[i].color_scale=1.0;
     plot_windows.graph[i].min_scale=0.0;
-    XPP_STRCPY(plot_windows.graph[i].gr_info,"");
+    plot_windows.graph[i].gr_info[0]='\0';
     plot_windows.graph[i].xmax=x_3d[1];
     plot_windows.graph[i].ymax=y_3d[1];
     plot_windows.graph[i].zmax=z_3d[1];
@@ -817,79 +813,61 @@ void text_abs(float x, float y, const char *text)
  put_text(xp,yp,text);
 }
 
+/* old with each \{expr} replaced by the expression's value (%g), ? for
+   one that does not evaluate (the rest up to the next } then joins the
+   expression), and a ? ending an unclosed one */
+std::string fill_in_text(std::string_view old)
+{
+  std::string out;
+  const size_t l=old.size();
+  if(l==0)return out;
+  size_t i=0;
+  for(;;){
+    const char c=old[i];
+    if(c=='\\'&&i+1<l&&old[i+1]=='{'){
+      std::string name;
+      i+=2;
+      for(;;){
+        const char c2=i<l?old[i]:'\0';
+        if(c2=='}'){
+          double z;
+          if(do_calc(name.c_str(),&z)!=-1){
+            out+=xpp::format("{:g}",z);
+            break;
+          }
+          out+='?';
+        }
+        else
+          name+=c2;
+        i++;
+        if(i>=l){ /* oops - end of string */
+          out+='?';
+          return out;
+        }
+      }
+    } /* ok - we have found matching and are done */
+    else
+      out+=c;
+    i++;
+    if(i>=l)
+      break;
+  }
+  return out;
+}
+
 void fillintext(const char *old,char *newname)
 {
- int i,l=strlen(old);
- int j,m,k,ans;
- char name[256],c,c2;
- double z;
- char val[25];
- i=0;
- j=0;
- while(1){
-   c=old[i];
-
-   if(c=='\\'){
-     c2=old[i+1];
-     if(c2!='{')goto na;
-     if(c2=='{'){
-       m=0;
-       i=i+2;
-       while(1){
-	 c2=old[i];
-	 if(c2=='}'){
-	   name[m]=0;
-	   ans=do_calc(name,&z);
-	   if(ans!=-1){
-	     XPP_SPRINTF(val,"%g",z);
-
-	     for(k=0;k<static_cast<int>(strlen(val));k++){
-	       newname[j]=val[k];
-	       j++;
-	     }
-
-	     break;
-	   }
-	   else {
-	     newname[j]='?';
-	     j++;
-	   }
-	 }
-	 else {
-	   name[m]=c2;
-	   m++;
-	 }
-	 i++;
-	 if(i>=l){ /* oops - end of string */
-	   newname[j]='?';
-	   newname[j+1]=0;
-	   return;
-	 }
-       }
-     } /* ok - we have found matching and are done */
-     goto nc; /* sometimes its just easier to use the !#$$# goto */
-   }
- na:
-   newname[j]=c;
-   j++;
- nc:  /* normal characters */
-   i++;
-   if(i>=l)
-     break;
- }
- newname[j]=0;
- return;
+  xpp_strlcpy(newname,fill_in_text(old).c_str(),256);
 }
 
 void fancy_text_abs(float x, float y, const char *old, int size, int font)
 {
   int xp,yp;
-  char text[256];
   scale_to_screen(x,y,&xp,&yp);
-  fillintext(old,text);
-  if(PltFmtFlag==PSFMT)special_put_text_ps(xp,yp,text,size); 
-  else if(PltFmtFlag==SVGFMT)special_put_text_svg(xp,yp,text,size);
-  else xpp_ui.draw_special_text(xp,yp,text,size);
+  const std::string text=fill_in_text(old);
+  if(PltFmtFlag==PSFMT)special_put_text_ps(xp,yp,text.c_str(),size);
+  else if(PltFmtFlag==SVGFMT)special_put_text_svg(xp,yp,text.c_str(),size);
+  else xpp_ui.draw_special_text(xp,yp,text.c_str(),size);
 /* fancy_put_text_x11(xp,yp,text,size,font); */
     
 }

@@ -159,15 +159,14 @@ void destroy_labels_and_grobs(XppWinId w)
 
 void draw_label(XppWinId w)
 {
-    char text[256];
     GrCol();
     for (int i = 0; i < MAXLAB; i++) {
         if (lb[i].use == 1 && lb[i].w == w) {
             /* \{expr} filled in once: an expression may set a parameter.
                The filled text has none left, so fancy_text_abs leaves it. */
-            fillintext(lb[i].s, text);
-            marks_data_label(w, i, text);
-            fancy_text_abs(lb[i].x, lb[i].y, text, lb[i].size, lb[i].font);
+            const std::string text = fill_in_text(lb[i].s);
+            marks_data_label(w, i, text.c_str());
+            fancy_text_abs(lb[i].x, lb[i].y, text.c_str(), lb[i].size, lb[i].font);
         }
     }
     for (int i = 0; i < MAXGROB; i++) {
@@ -200,12 +199,9 @@ void add_grob(double xs, double ys, double xe, double ye, double size, int type,
 int select_marker_type(int *type)
 {
     int ival = *type - MARKER;
-    static char box[] = "Box", diamond[] = "Diamond", triangle[] = "Triangle", plus[] = "Plus", x[] = "X",
-                circle[] = "Circle";
-    static char *list[] = {box, diamond, triangle, plus, x, circle};
-    static char key[] = "bdtpxc";
-    static char title[] = "Markers";
-    XppMenu m = {"markers", title, 6, list, key, no_hint, -1, 9, 4};
+    static const char *const list[] = {"Box", "Diamond", "Triangle", "Plus", "X", "Circle"};
+    static constexpr std::string_view key = "bdtpxc";
+    XppMenu m = {"markers", "Markers", 6, list, key.data(), no_hint, -1, 9, 4};
     const char ch = static_cast<char>(menu_choose(&m, ival));
     if (ch == 27) return 0;
     for (int i = 0; i < 6; i++) {

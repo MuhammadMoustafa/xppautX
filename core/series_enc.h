@@ -22,5 +22,9 @@ char *xpp_series_values(const float *v, int n, int f32, size_t *len);
 
 #ifdef __cplusplus
 }
+
+#include <string>
+/* the same text appended to out ("[]" when memory runs out) */
+void xpp_series_append(std::string &out, const float *v, int n, int f32) noexcept;
 #endif
 #endif

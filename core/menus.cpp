@@ -372,9 +372,9 @@ const char *arun_hint[]={
 }; 
 
 /* keys of the main-window menus; the numerics menu ends with Esc */
-char main_menu_keys[]="icndwakgufpemtsvxr3b";
-char num_menu_keys[]="tsrdniobmechpukva\033";
-char file_menu_keys[]="pwraceshqtglxu";
+const char *const main_menu_keys="icndwakgufpemtsvxr3b";
+const char *const num_menu_keys="tsrdniobmechpukva\033";
+const char *const file_menu_keys="pwraceshqtglxu";
 
 /* pop-up menus, formerly static arrays inside the menudrive.c handlers */
 static const char *ic_items[]={"(R)ange","(2)par range","(L)ast","(O)ld","(G)o",
