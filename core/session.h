@@ -21,6 +21,8 @@
 #include "integrate.h"
 #include "auto_state.h"
 #include "diagram.h"
+#include "browse.h"
+#include "kinescope.h"
 
 #include <array>
 #include <string>
@@ -57,6 +59,11 @@ struct Session {
   AutoState auto_state;
   AutoLib auto_lib;
   AutoDiagram diagram;
+
+  /* the data browser (browse_data.cpp) */
+  BrowserState browser;
+  /* the kinescope (commands.cpp, json_windows.cpp) */
+  XppKinescope kinescope;
 };
 
 /* the current Session (xpp_current.h) */

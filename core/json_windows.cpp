@@ -88,7 +88,7 @@ void j_blank_draw_window(void)
 void j_redraw_all(void)
 {
     redraw_dfield();
-    restore(0, my_browser.maxrow);
+    restore(0, xpp::session().browser.view.maxrow);
     draw_label(xpp::session().plot_windows.draw_win);
     draw_freeze(xpp::session().plot_windows.draw_win);
 }
@@ -98,7 +98,7 @@ void j_redraw_graph(void)
     j_blank_draw_window();
     set_normal_scale();
     do_axes();
-    restore(0, my_browser.maxrow);
+    restore(0, xpp::session().browser.view.maxrow);
     draw_label(xpp::session().plot_windows.draw_win);
     draw_freeze(xpp::session().plot_windows.draw_win);
     redraw_dfield();
@@ -418,13 +418,12 @@ void write_gif(const char *file, std::vector<unsigned char> &rgb, int w, int h)
 namespace {
 
 #define MAXFILM 250 /* kinescope.c */
-int film_count;
 
 void send_film(const char *what)
 {
     Buf b;
     buf_format(&b, "{{\"ev\":\"film\",\"op\":\"{}\",\"count\":{:d},\"win\":{:d},\"cycles\":{:d},\"delay\":{:d}}}",
-               what, film_count, xpp::session().plot_windows.draw_win, movie_autoplay.cycles, movie_autoplay.frame_ms);
+               what, xpp::session().kinescope.frames, xpp::session().plot_windows.draw_win, xpp::session().kinescope.cycles, xpp::session().kinescope.frame_ms);
     send_buf(&b);
 }
 
@@ -432,32 +431,32 @@ void send_film(const char *what)
 
 int j_film_clip(void)
 {
-    if (film_count >= MAXFILM) return 0;
-    film_count++;
+    if (xpp::session().kinescope.frames >= MAXFILM) return 0;
+    xpp::session().kinescope.frames++;
     send_film("capture");
     return 1;
 }
 
 void j_reset_film(void)
 {
-    film_count = 0;
+    xpp::session().kinescope.frames = 0;
     send_film("reset");
 }
 
 void j_movie_play_back(void)
 {
-    if (film_count) send_film("play");
+    if (xpp::session().kinescope.frames) send_film("play");
 }
 
 void j_movie_auto_play(void)
 {
-    if (film_count) send_film("autoplay");
+    if (xpp::session().kinescope.frames) send_film("autoplay");
 }
 
 void j_movie_save(const char *basename, int fmat)
 {
     int w, h;
-    for (int i = 0; i < film_count; i++) {
+    for (int i = 0; i < xpp::session().kinescope.frames; i++) {
         std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
         if (rgb.empty()) return;
         std::string file = xpp::format("{}_{}.{}", basename, i, fmat == 1 ? "ppm" : "gif");
@@ -469,11 +468,11 @@ void j_movie_save(const char *basename, int fmat)
 void j_movie_make_anigif(void)
 {
     int w, h, w0 = 0, h0 = 0;
-    if (film_count == 0) return;
+    if (xpp::session().kinescope.frames == 0) return;
     xpp::Writer out = xpp::Writer::binary("anim.gif");
     if (!out) return;
     set_global_map(1);
-    for (int i = 0; i < film_count; i++) {
+    for (int i = 0; i < xpp::session().kinescope.frames; i++) {
         std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
         if (rgb.empty()) break;
         if (i == 0) {
@@ -509,7 +508,7 @@ int aplot_dirty; /* the data behind an array plot changed */
 void send_aplot(const char *tag)
 {
     Buf b;
-    int num, i, j, nx, ny, nrows = my_browser.maxrow;
+    int num, i, j, nx, ny, nrows = xpp::session().browser.view.maxrow;
     double tlo = 0.0, thi = 20.0;
     APLOT *ap = &aplot;
     std::vector<float> vals;
@@ -524,10 +523,10 @@ void send_aplot(const char *tag)
     if (nrows <= 2 || ap->plotdef == 0 || ap->nacross < 2 || ap->ndown < 2) nx = ny = 0;
     if (nx) {
         j = ap->nstart;
-        if (j > 0 && j < nrows) tlo = my_browser.data[0][j];
+        if (j > 0 && j < nrows) tlo = xpp::session().browser.view.data[0][j];
         j = ap->nstart + ap->nskip * (ap->ndown - 1);
         if (j >= nrows) j = nrows - 1;
-        if (j >= 0) thi = my_browser.data[0][j];
+        if (j >= 0) thi = xpp::session().browser.view.data[0][j];
     }
     BUF_LIT(&b, ",\"tlo\":");
     buf_num(&b, tlo, 6);
@@ -554,8 +553,8 @@ void send_aplot(const char *tag)
         for (i = 0; i < nx; i++) {
             int ib = ap->index0 + i * ap->ncskip, c = -1;
             float v = NAN;
-            if (ib < my_browser.maxcol && jb < nrows && jb >= 0) {
-                double z = my_browser.data[ib][jb];
+            if (ib < xpp::session().browser.view.maxcol && jb < nrows && jb >= 0) {
+                double z = xpp::session().browser.view.data[ib][jb];
                 v = static_cast<float>(z);
                 if (ap->zmax > ap->zmin) {
                     c = static_cast<int>(color_table.count * (z - ap->zmin) / (ap->zmax - ap->zmin));

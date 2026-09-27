@@ -257,7 +257,7 @@ typedef struct XppUi {
     void (*reset_film)(void);
     /* kinescope: the captured frames live in the front end */
     void (*movie_play_back)(void);  /* step through frames with keys/mouse */
-    void (*movie_auto_play)(void);  /* movie_autoplay's cycles, frame_ms apart */
+    void (*movie_auto_play)(void);  /* the kinescope's cycles, frame_ms apart */
     void (*movie_save)(const char *basename, int fmat); /* 1 ppm, 2 gif */
     void (*movie_make_anigif)(void);
 

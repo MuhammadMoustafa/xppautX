@@ -130,7 +130,6 @@ void edit_xpprc(void)
 
 /* ---- commands that were in X11 files -------------------------------- */
 
-XppMovieAutoPlay movie_autoplay = {1, 50};
 int help_menu;
 
 void do_movie_com(int c)
@@ -144,10 +143,10 @@ void do_movie_com(int c)
   case 1: reset_film(); break;
   case 2: xpp_ui.movie_play_back(); break;
   case 3:
-    new_int("Number of cycles", &movie_autoplay.cycles);
-    new_int("Msec between frames", &movie_autoplay.frame_ms);
-    if (movie_autoplay.frame_ms < 0) movie_autoplay.frame_ms = 0;
-    if (movie_autoplay.cycles <= 0) return;
+    new_int("Number of cycles", &xpp::session().kinescope.cycles);
+    new_int("Msec between frames", &xpp::session().kinescope.frame_ms);
+    if (xpp::session().kinescope.frame_ms < 0) xpp::session().kinescope.frame_ms = 0;
+    if (xpp::session().kinescope.cycles <= 0) return;
     xpp_ui.movie_auto_play();
     break;
   case 4:

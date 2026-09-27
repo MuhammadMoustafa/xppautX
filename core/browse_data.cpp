@@ -23,31 +23,22 @@
 #include <strings.h>
 #include "load_eqn.h"
 
-/*  The one and only primitive data browser   */
-BROWSER my_browser;
-static int REPLACE=0,R_COL=0;
-
-namespace {
-/* Replace's column as it was, for Unreplace */
-std::vector<float> old_rep;
-} // namespace
-
 float **get_browser_data()
 {
-  return my_browser.data;
+  return xpp::session().browser.view.data;
 }
 
 /* show another data set in the browser: its columns from new_dat[1] on,
    dat_len rows (the adjoint, the Fourier modes, a histogram, ...) */
 void new_browse_dat(float **new_dat, int dat_len)
 {
-  my_browser.data=new_dat;
+  xpp::session().browser.view.data=new_dat;
   refresh_browser(dat_len);
 }
 
 float *get_data_col(int c)
 {
-  return my_browser.data[c];
+  return xpp::session().browser.view.data[c];
 }
 
 void waitasec(int msec)
@@ -57,12 +48,12 @@ void waitasec(int msec)
 
 int get_maxrow_browser()
 {
-  return my_browser.maxrow;
+  return xpp::session().browser.view.maxrow;
 }
 
 void write_mybrowser_data(FILE *fp)
 {
-  write_browser_data(fp,&my_browser);
+  write_browser_data(fp,&xpp::session().browser.view);
 }
 
 void write_browser_data(FILE *fp, BROWSER *b)
@@ -97,28 +88,28 @@ void find_variable(std::string_view s, int *col)
 
 void  refresh_browser(int length)
 {
- my_browser.dataflag=1;
- my_browser.maxrow=length;
- my_browser.iend=length;
+ xpp::session().browser.view.dataflag=1;
+ xpp::session().browser.view.maxrow=length;
+ xpp::session().browser.view.iend=length;
  xpp_ui.data_changed(length);
 }
 
 void reset_browser()
 {
-  my_browser.maxrow=0;
-  my_browser.dataflag=0;
+  xpp::session().browser.view.maxrow=0;
+  xpp::session().browser.view.dataflag=0;
 }
 
 void init_browser()
 {
  
- my_browser.dataflag=0;
- my_browser.data=xpp::session().data_store.col;
- my_browser.maxcol=xpp::model().neq+1;
- my_browser.maxrow=0;
- my_browser.row0=0;
- my_browser.istart=0;
- my_browser.iend=0;
+ xpp::session().browser.view.dataflag=0;
+ xpp::session().browser.view.data=xpp::session().data_store.col;
+ xpp::session().browser.view.maxcol=xpp::model().neq+1;
+ xpp::session().browser.view.maxrow=0;
+ xpp::session().browser.view.row0=0;
+ xpp::session().browser.view.istart=0;
+ xpp::session().browser.view.iend=0;
 
 }
 
@@ -144,9 +135,9 @@ xpp::Writer open_writer_asking(const char *fil)
 
 void  wipe_rep()
  {
-    if(!REPLACE)return;
-    std::vector<float>().swap(old_rep);
-    REPLACE=0;
+    if(!xpp::session().browser.replaced)return;
+    std::vector<float>().swap(xpp::session().browser.old_column);
+    xpp::session().browser.replaced=0;
   }
 
 void data_get(BROWSER *b)
@@ -170,16 +161,16 @@ void data_get(BROWSER *b)
 
 extern "C" void data_get_mybrowser(int row)
 {
-  my_browser.row0=row;
-  data_get(&my_browser);
+  xpp::session().browser.view.row0=row;
+  data_get(&xpp::session().browser.view);
 }
 
 void get_data_xyz(float *x, float *y, float *z, int i1, int i2, int i3, int off)
 {
-  int in=my_browser.row0+off;
-  *x=my_browser.data[i1][in];
-  *y=my_browser.data[i2][in];
-  *z=my_browser.data[i3][in];
+  int in=xpp::session().browser.view.row0+off;
+  *x=xpp::session().browser.view.data[i1][in];
+  *y=xpp::session().browser.view.data[i2][in];
+  *z=xpp::session().browser.view.data[i3][in];
 }
 
 /* ---- the browser's commands (were in browse.c); the widget calls them ---- */
@@ -329,16 +320,16 @@ if(dif_var<0)
    NSYM=xpp::model().nsym_start;
    return;
  }
- R_COL=i;
+ xpp::session().browser.replaced_col=i;
 
  /* Okay the formula is cool so lets allocate and replace  */
 
  wipe_rep();
- old_rep.assign(n,0.0f);
- REPLACE=1;
+ xpp::session().browser.old_column.assign(n,0.0f);
+ xpp::session().browser.replaced=1;
  for(i=0;i<n;i++)
  {
-   old_rep[i]=dat[R_COL][i];
+   xpp::session().browser.old_column[i]=dat[xpp::session().browser.replaced_col][i];
    if(dif_var<0)
      {
        if(seq==0)
@@ -348,14 +339,14 @@ if(dif_var<0)
 	   if(intflag)
 	     {
 	       sum+=static_cast<float>(evaluate(com));
-	       dat[R_COL][i]=sum*dt;
+	       dat[xpp::session().browser.replaced_col][i]=sum*dt;
 	     }
 	   else 
-	     dat[R_COL][i]=static_cast<float>(evaluate(com));
+	     dat[xpp::session().browser.replaced_col][i]=static_cast<float>(evaluate(com));
 	 }
        else 
 	 {
-	   dat[R_COL][i]=static_cast<float>(a1+i*da);
+	   dat[xpp::session().browser.replaced_col][i]=static_cast<float>(a1+i*da);
 	 }
      }
    else 
@@ -364,7 +355,7 @@ if(dif_var<0)
        if(i==(n-1))derv=(dat[dif_var][i]-old)/dt;
        if(i>0&&i<(n-1))derv=(dat[dif_var][i+1]-dat[dif_var][i])/dt;
        old=dat[dif_var][i];
-       dat[R_COL][i]=derv;
+       dat[xpp::session().browser.replaced_col][i]=derv;
      }
  }
  NCON=xpp::model().ncon_start;
@@ -375,9 +366,9 @@ if(dif_var<0)
 void unreplace_column()
 
 {
- int i,n=my_browser.maxrow;
- if(!REPLACE)return;
- for(i=0;i<n;i++)my_browser.data[R_COL][i]=old_rep[i];
+ int i,n=xpp::session().browser.view.maxrow;
+ if(!xpp::session().browser.replaced)return;
+ for(i=0;i<n;i++)xpp::session().browser.view.data[xpp::session().browser.replaced_col][i]=xpp::session().browser.old_column[i];
  wipe_rep();
  
  }

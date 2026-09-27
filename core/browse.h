@@ -16,9 +16,6 @@ typedef struct {
     int istart,iend;
 } BROWSER;
 
-/* browse_data.cpp: the data browser's view of the stored data */
-extern BROWSER my_browser;
-
 float **get_browser_data(void);
 float *get_data_col(int c);
 void waitasec(int msec);
@@ -64,6 +61,17 @@ xpp::Writer open_writer_asking(const char *fil);
 /* the data column of variable s: 0 for T, i+1 for variable i, -1 for
    none (case ignored) */
 void find_variable(std::string_view s, int *col);
+
+#include <vector>
+/* the data browser (browse_data.cpp), a Session's (session.h) */
+struct BrowserState {
+  /* the data set it shows: the stored data, or a derived set in its place */
+  BROWSER view{};
+  /* Replace's column as it was, for Unreplace: whether there is one,
+     its column and its values */
+  int replaced=0,replaced_col=0;
+  std::vector<float> old_column;
+};
 #endif
 #endif
 

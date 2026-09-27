@@ -2,10 +2,9 @@ core/adj2.cpp 1
 core/aniparse.cpp 6
 core/arrayplot.cpp 8
 core/axes2.cpp 3
-core/browse_data.cpp 1
 core/colormap.cpp 3
 core/comline.cpp 7
-core/commands.cpp 2
+core/commands.cpp 1
 core/delay_handle.cpp 9
 core/flags.cpp 1
 core/form_ode.cpp 4

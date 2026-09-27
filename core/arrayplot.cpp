@@ -93,7 +93,7 @@ void optimize_aplot(int *plist)
   int i1=plist[1]-1;
   int nr,ns;
   double zmax,zmin;
-  int nrows=my_browser.maxrow;
+  int nrows=xpp::session().browser.view.maxrow;
   int ncol=i1+1-i0;
   if(ncol<2||nrows<2)return;
   make_my_aplot("Array!");
@@ -119,19 +119,19 @@ void optimize_aplot(int *plist)
 void scale_aplot(APLOT *ap, double *zmax, double *zmin)
 {
   int i,j,ib,jb,row0=ap->nstart,col0=ap->index0;
-  int nrows=my_browser.maxrow;
+  int nrows=xpp::session().browser.view.maxrow;
   double z;
   ib=col0;
   jb=row0;
-  *zmax=my_browser.data[ib][jb];
+  *zmax=xpp::session().browser.view.data[ib][jb];
   *zmin=*zmax;
   for(i=0;i<ap->nacross/ap->ncskip;i++){
       ib=col0+i*ap->ncskip;
-      if(ib<=my_browser.maxcol){
+      if(ib<=xpp::session().browser.view.maxcol){
 	for(j=0;j<ap->ndown;j++){
 	  jb=row0+ap->nskip*j;
 	  if(jb<nrows&&jb>=0){
-	    z=my_browser.data[ib][jb];
+	    z=xpp::session().browser.view.data[ib][jb];
 	    if(z<*zmin)*zmin=z;
 	    if(z>*zmax)*zmax=z;
 	  }
@@ -172,7 +172,7 @@ void print_aplot(APLOT *ap)
   static const char *n[]={"Filename","Top label","Side label","Bottom label", 
 	       "Render(-1,0,1,2)"};
    std::array<std::string, 5> values;
-  int nrows=my_browser.maxrow;
+  int nrows=xpp::session().browser.view.maxrow;
   int row0=ap->nstart;
   int col0=ap->index0;
   int jb;
@@ -181,10 +181,10 @@ void print_aplot(APLOT *ap)
   jb=row0;
   tlo=0.0;
   thi=20.0;
-  if(jb>0&&jb<nrows)tlo=my_browser.data[0][jb];
+  if(jb>0&&jb<nrows)tlo=xpp::session().browser.view.data[0][jb];
   jb=row0+ap->nskip*(ap->ndown-1);
   if(jb>=nrows)jb=nrows-1;
-  if(jb>=0)thi=my_browser.data[0][jb];
+  if(jb>=0)thi=xpp::session().browser.view.data[0][jb];
   values[0] = xpp::format("{:.24}", ap->filename);
   values[1] = xpp::format("{:.24}", ap->xtitle);
   values[2] = xpp::format("{:.24}", ap->ytitle);
@@ -202,8 +202,8 @@ void print_aplot(APLOT *ap)
    errflag=array_print(ap->filename.c_str(),ap->xtitle.c_str(),ap->ytitle.c_str(),ap->bottom.c_str(),
 		       ap->nacross,
 		       ap->ndown,col0,row0,ap->nskip,ap->ncskip,
-		       nrows,my_browser.maxcol,
-		      my_browser.data,ap->zmin,ap->zmax,tlo,thi,ap->type);
+		       nrows,xpp::session().browser.view.maxcol,
+		      xpp::session().browser.view.data,ap->zmin,ap->zmax,tlo,thi,ap->type);
    if(errflag==-1)err_msg("Couldn't open file");
  }
 }

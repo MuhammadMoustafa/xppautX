@@ -484,11 +484,11 @@ void set_col_par_com(int i)
     if(xpp::session().data_store.rows<2)return;
     maxder=0.0;
     minder=1.e20;
-  for(i=1;i<my_browser.maxrow;i++)
+  for(i=1;i<xpp::session().browser.view.maxrow;i++)
   {
    sum=0.0;
    for(j=0;j<xpp::model().node;j++)
-   sum+=static_cast<float>(fabs(static_cast<double>(my_browser.data[1+j][i]-my_browser.data[1+j][i-1])));
+   sum+=static_cast<float>(fabs(static_cast<double>(xpp::session().browser.view.data[1+j][i]-xpp::session().browser.view.data[1+j][i-1])));
    if(sum<minder)minder=sum;
    if(sum>maxder)maxder=sum;
   }

@@ -937,7 +937,7 @@ void set_from_init_data(void)
 
 void ani_disk_warn(void)
 {
-    unsigned int total = (my_browser.maxrow * vcr.wid * vcr.hgt * 3) / (mpeg.skip * vcr.inc);
+    unsigned int total = (xpp::session().browser.view.maxrow * vcr.wid * vcr.hgt * 3) / (mpeg.skip * vcr.inc);
     total = total / (1024 * 1024);
     if (total > 10) {
         const std::string q = xpp::format(" {} Mb disk space needed! Continue?", total);
@@ -1183,13 +1183,13 @@ void on_the_fly(int task)
 void ani_flip1(int n)
 {
     if (n_anicom == 0) return;
-    if (my_browser.maxrow < 2) return;
-    float **ss = my_browser.data;
+    if (xpp::session().browser.view.maxrow < 2) return;
+    float **ss = xpp::session().browser.view.data;
     xpp_ui.ani_clear();
     if (vcr.pos == 0) set_ani_perm();
 
     vcr.pos = vcr.pos + n;
-    if (vcr.pos >= my_browser.maxrow) vcr.pos = my_browser.maxrow - 1;
+    if (vcr.pos >= xpp::session().browser.view.maxrow) vcr.pos = xpp::session().browser.view.maxrow - 1;
     if (vcr.pos < 0) vcr.pos = 0;
     const int row = vcr.pos;
 
@@ -1293,7 +1293,7 @@ void render_ani(void)
     {
         AniDataFrame f;
         f.pos = vcr.pos;
-        f.rows = my_browser.maxrow;
+        f.rows = xpp::session().browser.view.maxrow;
         f.t = get_ivar(0);
         f.speed = ani_speed;
         f.skip = vcr.inc;

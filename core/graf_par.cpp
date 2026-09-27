@@ -927,26 +927,26 @@ int create_crv(int ind)
       ix=xpp::session().plot_windows.current->xv[ind];
       iy=xpp::session().plot_windows.current->yv[ind];
       iz=xpp::session().plot_windows.current->zv[ind];
-      if(my_browser.maxrow<=2){
+      if(xpp::session().browser.view.maxrow<=2){
 	err_msg("No Curve to freeze");
 	return(-1);
       }
       type=xpp::session().plot_windows.current->grtype;
       std::array<std::vector<float>,3> &pts=frozen_points[i];
-      pts[0].assign(my_browser.maxrow,0.0f);
-      pts[1].assign(my_browser.maxrow,0.0f);
-      if(type>0)pts[2].assign(my_browser.maxrow,0.0f);
+      pts[0].assign(xpp::session().browser.view.maxrow,0.0f);
+      pts[1].assign(xpp::session().browser.view.maxrow,0.0f);
+      if(type>0)pts[2].assign(xpp::session().browser.view.maxrow,0.0f);
       else std::vector<float>().swap(pts[2]);
       xpp::session().frozen_curves.curve[i].xv=pts[0].data();
       xpp::session().frozen_curves.curve[i].yv=pts[1].data();
       xpp::session().frozen_curves.curve[i].zv=type>0?pts[2].data():nullptr;
       xpp::session().frozen_curves.curve[i].use=1;
-      xpp::session().frozen_curves.curve[i].len=my_browser.maxrow;
-      for(j=0;j<my_browser.maxrow;j++){
-	xpp::session().frozen_curves.curve[i].xv[j]=my_browser.data[ix][j];
-	xpp::session().frozen_curves.curve[i].yv[j]=my_browser.data[iy][j];
+      xpp::session().frozen_curves.curve[i].len=xpp::session().browser.view.maxrow;
+      for(j=0;j<xpp::session().browser.view.maxrow;j++){
+	xpp::session().frozen_curves.curve[i].xv[j]=xpp::session().browser.view.data[ix][j];
+	xpp::session().frozen_curves.curve[i].yv[j]=xpp::session().browser.view.data[iy][j];
 	if(type>0)
-	  xpp::session().frozen_curves.curve[i].zv[j]=my_browser.data[iz][j];
+	  xpp::session().frozen_curves.curve[i].zv[j]=xpp::session().browser.view.data[iz][j];
       }
       xpp::session().frozen_curves.curve[i].type=type;
       xpp::session().frozen_curves.curve[i].w=xpp::session().plot_windows.draw_win;

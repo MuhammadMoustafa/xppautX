@@ -6,15 +6,17 @@ extern "C" {
 
 void do_movie_com(int c);
 
-/* The kinescope's Autoplay: how many times it runs the film, how fast */
-typedef struct {
-    int cycles;    /* times through the film */
-    int frame_ms;  /* milliseconds between frames */
-} XppMovieAutoPlay;
-extern XppMovieAutoPlay movie_autoplay;
-
 #ifdef __cplusplus
 }
+
+/* The kinescope, a Session's (session.h): the frames it holds (the front
+   end keeps their pictures) and Autoplay's settings, how many times it
+   runs the film and how fast */
+struct XppKinescope {
+    int frames = 0;     /* frames captured */
+    int cycles = 1;     /* times through the film */
+    int frame_ms = 50;  /* milliseconds between frames */
+};
 #endif
 #endif
 

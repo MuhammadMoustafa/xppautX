@@ -75,11 +75,11 @@ void  get_max(int index, double *vmin, double *vmax)
    float x0,x1,z;
    double temp;
    int i;
-   x0=my_browser.data[index][0];
+   x0=xpp::session().browser.view.data[index][0];
    x1=x0;
-   for(i=0;i<my_browser.maxrow;i++)
+   for(i=0;i<xpp::session().browser.view.maxrow;i++)
    {
-    z=my_browser.data[index][i];
+    z=xpp::session().browser.view.data[index][i];
     if(z<x0)x0=z;
     if(z>x1)x1=z;
    }
@@ -308,7 +308,7 @@ void ps_restore()
  if(xpp::session().plot_windows.current->Nullrestore){restore_nullclines();ps_stroke();}
   }
 
-  restore(0,my_browser.maxrow);  
+  restore(0,xpp::session().browser.view.maxrow);  
  
   do_batch_nclines();
   do_batch_dfield(); 
@@ -327,7 +327,7 @@ void svg_restore()
 
   redraw_dfield();
  if(xpp::session().plot_windows.current->Nullrestore){restore_nullclines();}
- restore(0,my_browser.maxrow);
+ restore(0,xpp::session().browser.view.maxrow);
  do_axes();
  if(program.interactive){
  draw_label(xpp::session().plot_windows.draw_win);

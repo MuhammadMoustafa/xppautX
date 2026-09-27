@@ -2,6 +2,7 @@
    Go, which plays the frames (ani_data.cpp sends them) and can write them
    to files with the pixels the client renders. */
 #include "ui_json_internal.h"
+#include "session.h"
 #include "xpp_inbox.h"
 #include "xpp_job.h"
 #include "browse.h"
@@ -32,7 +33,7 @@ void j_ani_slider(void)
     Buf b;
     buf_format(&b, "{{\"ev\":\"ani\",\"pos\":{:d},\"rows\":{:d},\"fly\":{:d},\"grab\":{:d},\"skip\":{:d},\"speed\":{:d},"
                "\"loaded\":{:d},\"open\":{:d}}}",
-               vcr.pos, my_browser.maxrow, ani_options.on_the_fly, ani_grab_flag, vcr.inc, ani_speed, n_anicom > 0,
+               vcr.pos, xpp::session().browser.view.maxrow, ani_options.on_the_fly, ani_grab_flag, vcr.inc, ani_speed, n_anicom > 0,
                vcr.iexist);
     send_buf(&b);
 }
@@ -85,10 +86,10 @@ int ani_wait(int ms)
 void ani_go(void)
 {
     double y[MAXODE];
-    float **ss = my_browser.data;
+    float **ss = xpp::session().browser.view.data;
     xpp::Writer gif; /* anim.gif, when the animation is written as one */
     int i, stop = 0, frame = 0, written = 0, w, h;
-    if (n_anicom == 0 || my_browser.maxrow < 2) return;
+    if (n_anicom == 0 || xpp::session().browser.view.maxrow < 2) return;
     set_ani_perm();
     if (mpeg.aviflag == 1) {
         gif = xpp::Writer::binary("anim.gif");
@@ -113,7 +114,7 @@ void ani_go(void)
         frame++;
         stop = ani_wait(ani_speed * (mpeg.aviflag == 1 || mpeg.flag > 0 ? 6 : 1));
         vcr.pos += vcr.inc;
-        if (vcr.pos >= my_browser.maxrow) {
+        if (vcr.pos >= xpp::session().browser.view.maxrow) {
             stop = 1;
             vcr.pos = 0;
             reset_comets();
@@ -149,13 +150,13 @@ void ani_command(const char *line)
     else if (o == "reset") ani_reset();
     else if (o == "file") {
         /* a new animation shows its first frame at once when there is data */
-        if (get_ani_file(NULL) && my_browser.maxrow >= 2) ani_reset();
+        if (get_ani_file(NULL) && xpp::session().browser.view.maxrow >= 2) ani_reset();
     } else if (o == "go") ani_go();
     else if (o == "skip") ani_newskip();
     else if (o == "mpeg") ani_create_mpeg();
     else if (o == "fly") ani_options.on_the_fly = 1 - ani_options.on_the_fly;
     else if (o == "grab") ani_grab_start();
-    else if (o == "seek" && my_browser.maxrow >= 2) {
+    else if (o == "seek" && xpp::session().browser.view.maxrow >= 2) {
         vcr.pos = 0;
         ani_flip1(0);
         ani_flip1(get_int(line, "pos", 0));

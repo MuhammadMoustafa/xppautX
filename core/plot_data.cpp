@@ -78,7 +78,7 @@ SeriesSig series_sig(int pop)
     const GRAPH &g = xpp::session().plot_windows.graph[pop];
     s.win = static_cast<unsigned long>(g.w);
     s.version = data_version;
-    s.rows = my_browser.maxrow;
+    s.rows = xpp::session().browser.view.maxrow;
     s.nvars = g.nvars;
     s.three = g.ThreeDFlag;
     for (int i = 0; i < g.nvars && i < MAXPERPLOT; i++) {
@@ -108,7 +108,7 @@ bool same_plot(const SeriesSig &a, const SeriesSig &b)
 /* rows [from, to) of storage column col as a JSON value */
 void add_values(std::string &o, int col, int from, int to)
 {
-    xpp_series_append(o, my_browser.data[col] + from, to - from, series_f32);
+    xpp_series_append(o, xpp::session().browser.view.data[col] + from, to - from, series_f32);
 }
 
 void add_curves(std::string &o, const SeriesSig &s)
@@ -146,7 +146,7 @@ std::vector<int> used_columns(const SeriesSig &s)
     for (int i = 0; i < s.nvars && i < MAXPERPLOT; i++) {
         const int c[3] = {s.xv[i], s.yv[i], s.zv[i]};
         for (int k = 0; k < (s.three ? 3 : 2); k++)
-            if (c[k] >= 0 && c[k] < my_browser.maxcol && c[k] <= MAXODE && !used[c[k]]) {
+            if (c[k] >= 0 && c[k] < xpp::session().browser.view.maxcol && c[k] <= MAXODE && !used[c[k]]) {
                 used[c[k]] = true;
                 cols.push_back(c[k]);
             }
@@ -243,7 +243,7 @@ void series_update()
         }
         const SeriesSig s = series_sig(pop);
         if (appended != pop && sent[pop].valid && same(s, sent[pop].sig)) continue;
-        send_series(pop, s, my_browser.dataflag ? s.rows : 0);
+        send_series(pop, s, xpp::session().browser.view.dataflag ? s.rows : 0);
     }
     appended = -1;
 }

@@ -120,7 +120,7 @@ void send_state(void)
         buf_format(&b, ",\"auto\":{{\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"xmin\":{:g},\"xmax\":{:g},"
                    "\"ymin\":{:g},\"ymax\":{:g}}}", xpp::session().auto_state.bifur.x0, xpp::session().auto_state.bifur.y0, xpp::session().auto_state.bifur.wid, xpp::session().auto_state.bifur.hgt, xpp::session().auto_state.bifur.xmin, xpp::session().auto_state.bifur.xmax,
                    xpp::session().auto_state.bifur.ymin, xpp::session().auto_state.bifur.ymax);
-    buf_format(&b, ",\"rows\":{:d},\"menu\":{:d},\"win\":{:d}", my_browser.maxrow, help_menu, xpp::session().plot_windows.draw_win);
+    buf_format(&b, ",\"rows\":{:d},\"menu\":{:d},\"win\":{:d}", xpp::session().browser.view.maxrow, help_menu, xpp::session().plot_windows.draw_win);
     if (xpp_session_set_file()[0]) {
         BUF_LIT(&b, ",\"session\":{\"set\":");
         buf_str(&b, xpp_session_set_file());
@@ -160,29 +160,29 @@ void buf_float(Buf *b, double z, int digits)
 void send_browser(void)
 {
     Buf b;
-    int i, j, last, maxcol = my_browser.maxcol;
+    int i, j, last, maxcol = xpp::session().browser.view.maxcol;
     browser_dirty = 0;
-    if (br_from > my_browser.maxrow - 1) br_from = my_browser.maxrow > 0 ? my_browser.maxrow - 1 : 0;
+    if (br_from > xpp::session().browser.view.maxrow - 1) br_from = xpp::session().browser.view.maxrow > 0 ? xpp::session().browser.view.maxrow - 1 : 0;
     if (br_from < 0) br_from = 0;
     if (br_col > maxcol - 1) br_col = maxcol - 1;
     if (br_col < 1) br_col = 1;
     buf_format(&b, "{{\"ev\":\"browser\",\"rows\":{:d},\"row0\":{:d},\"start\":{:d},\"end\":{:d},\"cols\":[\"T\"",
-               my_browser.dataflag ? my_browser.maxrow : 0, my_browser.row0, my_browser.istart, my_browser.iend);
+               xpp::session().browser.view.dataflag ? xpp::session().browser.view.maxrow : 0, xpp::session().browser.view.row0, xpp::session().browser.view.istart, xpp::session().browser.view.iend);
     for (j = 1; j < maxcol; j++) {
         BUF_LIT(&b, ",");
         buf_str(&b, xpp::model().uvar_names[j - 1]);
     }
     buf_format(&b, "],\"from\":{:d},\"col\":{:d},\"data\":[", br_from, br_col);
-    last = my_browser.dataflag ? br_from + br_count : br_from;
-    if (last > my_browser.maxrow) last = my_browser.maxrow;
+    last = xpp::session().browser.view.dataflag ? br_from + br_count : br_from;
+    if (last > xpp::session().browser.view.maxrow) last = xpp::session().browser.view.maxrow;
     for (i = br_from; i < last; i++) {
         if (i > br_from) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
         /* 9 significant digits read back as exactly the stored floats (as series) */
-        buf_float(&b, my_browser.data[0][i], 9);
+        buf_float(&b, xpp::session().browser.view.data[0][i], 9);
         for (j = br_col; j < br_col + br_ncol && j < maxcol; j++) {
             BUF_LIT(&b, ",");
-            buf_float(&b, my_browser.data[j][i], 9);
+            buf_float(&b, xpp::session().browser.view.data[j][i], 9);
         }
         BUF_LIT(&b, "]");
     }
@@ -219,19 +219,19 @@ void browser_command(const char *line)
     std::string o;
     int row = get_int(line, "row", -1);
     get_string(line, "op", o, 16);
-    if (row >= 0 && row < my_browser.maxrow) my_browser.row0 = row;
-    if (o == "find") data_find(&my_browser);
-    else if (o == "get") data_get(&my_browser);
-    else if (o == "replace") data_replace(&my_browser);
-    else if (o == "unreplace") data_unreplace(&my_browser);
-    else if (o == "table") data_table(&my_browser);
-    else if (o == "load") data_read(&my_browser);
-    else if (o == "write") data_write(&my_browser);
-    else if (o == "first") data_first(&my_browser);
-    else if (o == "last") data_last(&my_browser);
-    else if (o == "restore") data_restore(&my_browser);
-    else if (o == "addcol") data_add_col(&my_browser);
-    else if (o == "delcol") data_del_col(&my_browser);
+    if (row >= 0 && row < xpp::session().browser.view.maxrow) xpp::session().browser.view.row0 = row;
+    if (o == "find") data_find(&xpp::session().browser.view);
+    else if (o == "get") data_get(&xpp::session().browser.view);
+    else if (o == "replace") data_replace(&xpp::session().browser.view);
+    else if (o == "unreplace") data_unreplace(&xpp::session().browser.view);
+    else if (o == "table") data_table(&xpp::session().browser.view);
+    else if (o == "load") data_read(&xpp::session().browser.view);
+    else if (o == "write") data_write(&xpp::session().browser.view);
+    else if (o == "first") data_first(&xpp::session().browser.view);
+    else if (o == "last") data_last(&xpp::session().browser.view);
+    else if (o == "restore") data_restore(&xpp::session().browser.view);
+    else if (o == "addcol") data_add_col(&xpp::session().browser.view);
+    else if (o == "delcol") data_del_col(&xpp::session().browser.view);
     else if (o == "close") br_count = 0;
     browser_dirty = 1;
 }
