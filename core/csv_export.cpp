@@ -8,21 +8,10 @@
 #include "autevd.h"
 #include "auto_nox.h"
 #include "auto_settings.h"
+#include "phsplan.h"
 #include "pop_list.h"
 #include "xpp_ui.h"
 #include <string>
-#include <cmath>
-#include <cstdio>
-#include <cstring>
-
-/* the core's own globals that have no header of their own (diagram.cpp,
-   auto_settings.cpp precedent) */
-extern "C" {
-extern int NODE;
-extern int NAutoPar;
-extern int AutoPar[8];
-extern char upar_names[MAXPAR][XPP_NAME_MAX + 1];
-}
 
 namespace {
 
@@ -46,16 +35,11 @@ std::string csv_field(const char *s)
 }
 
 /* the model parameter name of the diagram point's active parameter icp
-   (AutoPar[icp] is the model's own parameter index), or "" */
-std::string par_name(int icp)
+   (AUTO's own parameter index, d->icp1/icp2), or "" */
+const char *par_name(int icp)
 {
-    /* AutoPar[icp] (icp: AUTO's own parameter index, d->icp1/icp2) is the
-       model's own parameter index (auto_settings.cpp auto_par_name's
-       rule, reimplemented here: that one has internal linkage) */
-    if (icp < 0 || icp >= NAutoPar) return "";
-    int p = AutoPar[icp];
-    if (p < 0 || p >= NUPAR) return "";
-    return upar_names[p];
+    const char *p = auto_par_name(icp);
+    return p ? p : "";
 }
 
 /* get_bif_type's SEQ/UEQ/SPER/UPER (autevd.cpp; also a run's "ty" in
@@ -77,30 +61,26 @@ int csv_export_diagram(const char *filename)
         err_msg("Can't open file");
         return 0;
     }
-    FILE *fp = w.file();
-    fprintf(fp, "branch,point,type,label,stability,f2,param1_name,param1,param2_name,param2,period");
-    for (int i = 0; i < NODE; i++) fprintf(fp, ",%s_max", uvar_names[i]);
-    for (int i = 0; i < NODE; i++) fprintf(fp, ",%s_min", uvar_names[i]);
-    fprintf(fp, "\n");
+    w.print("branch,point,type,label,stability,f2,param1_name,param1,param2_name,param2,period");
+    for (int i = 0; i < NODE; i++) w.print(",{}_max", uvar_names[i]);
+    for (int i = 0; i < NODE; i++) w.print(",{}_min", uvar_names[i]);
+    w.print("\n");
     /* the first point is a stored point itself (edit_start fills it in
        place), not a sentinel before one: write_info_out/write_pts start
        the same way */
     for (const DIAGRAM *d = diagram_first(); d != NULL; d = diagram_next(d)) {
         int type = get_bif_type(d->ibr, d->ntot, d->lab);
-        char symb[3];
-        get_bif_sym(symb, d->itp);
-        const char *sym = symb;
+        const char *sym = auto_bif_sym(d->itp);
         while (*sym == ' ') sym++;
         double par1 = d->par[d->icp1];
         double par2 = d->icp2 < NAutoPar ? d->par[d->icp2] : par1;
         /* AUTO signs ibr and ntot by stability, which has its own column */
-        fprintf(fp, "%d,%d,%s,%d,%s,%d,%s,%s,%s,%s,%s", unsigned_of(d->ibr), unsigned_of(d->ntot), csv_field(sym).c_str(), d->lab,
-                point_is_stable(type) ? "stable" : "unstable", d->flag2, csv_field(par_name(d->icp1).c_str()).c_str(),
-                xpp::number(par1).c_str(), csv_field(par_name(d->icp2).c_str()).c_str(), xpp::number(par2).c_str(),
-                xpp::number(d->per).c_str());
-        for (int i = 0; i < NODE; i++) fprintf(fp, ",%s", xpp::number(d->uhi[i]).c_str());
-        for (int i = 0; i < NODE; i++) fprintf(fp, ",%s", xpp::number(d->ulo[i]).c_str());
-        fprintf(fp, "\n");
+        w.print("{},{},{},{},{},{},{},{},{},{},{}", unsigned_of(d->ibr), unsigned_of(d->ntot), csv_field(sym), d->lab,
+                point_is_stable(type) ? "stable" : "unstable", d->flag2, csv_field(par_name(d->icp1)),
+                xpp::number(par1), csv_field(par_name(d->icp2)), xpp::number(par2), xpp::number(d->per));
+        for (int i = 0; i < NODE; i++) w.print(",{}", xpp::number(d->uhi[i]));
+        for (int i = 0; i < NODE; i++) w.print(",{}", xpp::number(d->ulo[i]));
+        w.print("\n");
     }
     if (!w.commit()) {
         err_msg("Can't open file");
@@ -117,14 +97,13 @@ int csv_export_diagram_eigenvalues(const char *filename)
         err_msg("Can't open file");
         return 0;
     }
-    FILE *fp = w.file();
-    fprintf(fp, "branch,point,index,re,im,kind\n");
+    w.print("branch,point,index,re,im,kind\n");
     for (const DIAGRAM *d = diagram_first(); d != NULL; d = diagram_next(d)) {
         int type = get_bif_type(d->ibr, d->ntot, d->lab);
         const char *kind = point_is_periodic(type) ? "multiplier" : "eigenvalue";
         for (int i = 0; i < NODE; i++)
-            fprintf(fp, "%d,%d,%d,%s,%s,%s\n", unsigned_of(d->ibr), unsigned_of(d->ntot), i, xpp::number(d->evr[i]).c_str(),
-                    xpp::number(d->evi[i]).c_str(), kind);
+            w.print("{},{},{},{},{},{}\n", unsigned_of(d->ibr), unsigned_of(d->ntot), i, xpp::number(d->evr[i]),
+                    xpp::number(d->evi[i]), kind);
     }
     if (!w.commit()) {
         err_msg("Can't open file");

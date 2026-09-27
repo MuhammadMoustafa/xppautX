@@ -15,7 +15,6 @@
 #include "auto_stability.h"
 #include "xAuto.h"
 #include "xpp_job.h"
-#include "xpp_mem.h"
 
 #define SPECIAL 5
 #define SPER 3
@@ -28,15 +27,8 @@
 #define MAXDIMHOM 24
 
 
-extern double outperiod[20];
-extern integer UzrPar[20];
-extern int NAutoUzr;
-
-extern ADVAUTO aauto;
-
 XAUTO xAuto;
 
-extern int AutoTwoParam;
 int DiagFlag=0;
 void init_auto(int ndim, int nicp, int nbc, int ips, int irs, int ilp, int ntst, int isp, int isw, int nmx,
                int npr, double ds, double dsmin, double dsmax, double rl0, double rl1, double a0, double a1,

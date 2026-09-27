@@ -11,7 +11,7 @@ extern char upar_names[][XPP_NAME_MAX + 1];
 extern char uvar_names[][XPP_NAME_MAX + 1];
 extern int AutoPar[8];
 extern int NAutoPar;
-extern int NODE, NEQ;
+extern int NODE, NEQ, NUPAR;
 
 static void model(void)
 {
@@ -21,6 +21,7 @@ static void model(void)
     strcpy(uvar_names[0], "v");
     strcpy(uvar_names[1], "w");
     NODE = NEQ = 2;
+    NUPAR = 3;
     NAutoPar = 3;
     AutoPar[0] = 0;
     AutoPar[1] = 1;

@@ -12,7 +12,7 @@ extern "C" {
    "autosettings" event and set by the `auto` `set` command, so a front end
    edits them in forms of its own, at any time.
 
-   The forms in auto_nox.c stay (scripts replay them); this is a second
+   The forms in auto_nox.cpp stay (scripts replay them); this is a second
    path that writes the same fields (Auto, aauto, SuppressBP, AutoPar and
    the user points' copies), after checking every value: a set with one
    bad value changes nothing.

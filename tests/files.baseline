@@ -1,6 +1,5 @@
 core/aniparse.cpp 1
 core/comline.cpp 1
-core/gogoauto.cpp 4
 core/graf_par.cpp 2
 core/load_eqn.cpp 4
 core/my_ps.cpp 1

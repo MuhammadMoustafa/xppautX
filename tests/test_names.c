@@ -15,7 +15,7 @@ extern char upar_names[][XPP_NAME_MAX + 1];
 extern char uvar_names[][XPP_NAME_MAX + 1];
 extern int AutoPar[8];
 extern int NAutoPar;
-extern int NODE, NEQ;
+extern int NODE, NEQ, NUPAR;
 
 static double calc(char *expr, int *ok)
 {
@@ -84,6 +84,7 @@ int main(void)
     strcpy(upar_names[0], "applied_stimulus_current_amplitude");
     strcpy(uvar_names[0], "MEMBRANE_POTENTIAL_FAST_VARIABLE");
     NODE = NEQ = 1;
+    NUPAR = 1;
     NAutoPar = 1;
     AutoPar[0] = 0;
     auto_screen_col("   PAR(0)     ", out);

@@ -1,11 +1,14 @@
 
+#include <array>
+#include <memory>
 #include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "auto_c.h"
 #include "xAuto.h"
-#include <memory>
+#include "auto_nox.h" /* auto_fort_path() */
+#include "xpp_files.h"
 
 
 
@@ -14,36 +17,42 @@ FILE *fp3;
 FILE *fp7;
 FILE *fp9;
 int global_conpar_type=CONPAR_DEFAULT;
-extern int fp8_is_open;
-extern char fort3[200], fort7[200], fort8[200],fort9[200];
 
-
-
+namespace {
+/* AUTO's fort.3 (its restart data: read, or written from scratch), fort.7
+   and fort.9 for one run, opened where open_auto put them; AUTO reads and
+   writes them through auto_c.h's fp3/fp7/fp9. Closed on every way out of
+   the run (Windows cannot rename or delete an open file, which
+   close_auto does next), the globals cleared first. */
+struct RunUnits {
+  xpp::UniqueFile u3,u7,u9;
+  explicit RunUnits(bool restart)
+    : u3(xpp_files_open_stream(auto_fort_path(3),restart?"r":"w+")),
+      u7(xpp_files_open_stream(auto_fort_path(7),"w")),
+      u9(xpp_files_open_stream(auto_fort_path(9),"w"))
+  {
+    fp3=u3.get();
+    fp7=u7.get();
+    fp9=u9.get();
+  }
+  ~RunUnits() { fp3=fp7=fp9=nullptr; }
+  RunUnits(const RunUnits &)=delete;
+  RunUnits &operator=(const RunUnits &)=delete;
+};
+} // namespace
 
 extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been set */
 {
-  integer icp[NPARX2];
-  doublereal par[NPARX2], thl[NPARX];
+  std::array<integer,NPARX2> icp;
+  std::array<doublereal,NPARX2> par;
+  std::array<doublereal,NPARX> thl;
   doublereal *thu_raw = nullptr;
-  integer iuz[100];
-  doublereal vuz[100];
+  std::array<integer,100> iuz;
+  std::array<doublereal,100> vuz;
   iap_type iap;
   rap_type rap;
   function_list list;
-  int irs=xAuto.irs;
-  if(irs>0){
-          fp3 = fopen(fort3,"r");
-  }
-  else
-    {
-            fp3 = fopen(fort3,"w+");
-    }
-  
-
-
-  fp7 = fopen(fort7,"w");
-  fp9 = fopen(fort9,"w");
- 
+  RunUnits units(xAuto.irs>0);
 
   /* Initialization : */
 
@@ -58,7 +67,7 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
     
   /* here is the feeder code from xAuto structure */
 
-  init(&iap, &rap, par, icp, thl, &thu_raw, iuz, vuz);
+  init(&iap, &rap, par.data(), icp.data(), thl.data(), &thu_raw, iuz.data(), vuz.data());
   /* thu_raw is owned by init()'s xpp_malloc; this guard frees it on every
      exit path (the early "label not found" return included) instead of
      the two separate xpp_free(thu) call sites the C code paired by hand */
@@ -74,18 +83,13 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
 	if (iap.mynode == 0) {
 	  xpp_log_auto("\nRestart label %4ld not found\n",iap.irs);
 	}
-	/* close the units before giving up: Windows cannot rename or delete
-	   an open file, so leaking them here makes every later run fail too */
-	fclose(fp3);
-	fclose(fp7);
-	fclose(fp9);
-	return(0);/* bad retrun */
+	return(0);/* bad return: units closes the files */
       }
     }
     /*     dump_params(iap,rap,icp,thl); */
     /* this is good for debugging and writes all the auto parameters */
     set_function_pointers(iap,&list);
-    init1(&iap, &rap, icp, par);
+    init1(&iap, &rap, icp.data(), par.data());
     chdim(&iap);
 
     /* Create the allocations for the global structures used in 
@@ -102,10 +106,11 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
     /* ---------------------------------------------------------- */
 
     if(list.type==AUTOAE)
-      autoae(&iap, &rap, par, icp, list.aelist.funi, list.aelist.stpnt, list.aelist.pvli, thl, thu.get(), iuz, vuz);
+      autoae(&iap, &rap, par.data(), icp.data(), list.aelist.funi, list.aelist.stpnt, list.aelist.pvli, thl.data(), thu.get(),
+             iuz.data(), vuz.data());
     if(list.type==AUTOBV)
-      autobv(&iap, &rap, par, icp, list.bvlist.funi, list.bvlist.bcni,
-	     list.bvlist.icni, list.bvlist.stpnt, list.bvlist.pvli, thl, thu.get(), iuz, vuz);
+      autobv(&iap, &rap, par.data(), icp.data(), list.bvlist.funi, list.bvlist.bcni,
+	     list.bvlist.icni, list.bvlist.stpnt, list.bvlist.pvli, thl.data(), thu.get(), iuz.data(), vuz.data());
 
 
 
@@ -113,11 +118,6 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
   
 
 
-  /*   free(iuz);
-       free(vuz); */
-  fclose(fp3);
-  fclose(fp7);
-  fclose(fp9);
   return 1;  /* normal return */
 }
 

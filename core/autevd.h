@@ -8,18 +8,11 @@
 extern "C" {
 #endif
 
-/* autevd.c */
+/* autevd.cpp */
 
-/* typedef struct {double r,i;} doublecomplex; */
+/* 0 until addbif fills the diagram's first point (start_diagram's), then 1 */
+extern int DiagFlag;
 
-typedef struct {
-  int pt,br;
-  double evr[NAUTO],evi[NAUTO];
-} EIGVAL;
-
-
-void send_eigen(int ibr, int ntot, int n, doublecomplex *ev);
-void send_mult(int ibr, int ntot, int n, doublecomplex *ev);
 int get_bif_type(int ibr, int ntot, int lab);
 void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *par,integer *icp,int labw, double *a, double *uhigh, double *ulow, double *u0, double *ubar);
 void init_auto(int ndim, int nicp,int nbc, int ips, int irs, int ilp, int ntst, int isp, int isw, int nmx, int npr, double ds, double dsmin, double dsmax, double rl0, double rl1, double a0, double a1, int ip1, int ip2, int ip3, int ip4, int ip5, int nuzr, double epsl, double epsu, double epss, int ncol);

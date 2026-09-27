@@ -6,7 +6,9 @@
 #include "xpp_io.h"
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <array>
+#include <string_view>
 #include "numerics.h"
 #include "xpp_globals.h"
 #include "xpp_ui.h"
@@ -219,18 +221,18 @@ integer UzrPar[20];
 int NAutoUzr;
 
 
-/*extern char this_file[100];*/
-extern char this_file[XPP_MAX_NAME];
+extern char this_file[XPP_MAX_NAME]; /* comline.cpp's, in no header */
 
 std::string this_auto_file;
-char fort3[200];
-char fort7[200];
+/* AUTO's unit files under its folder (open_auto): fort.3 the restart
+   data, fort.7 the branches, fort.8 the solutions, fort.9 the diagnostics */
+namespace {
+std::string fort3,fort7,fort9;
+}
+/* fort.8's path stays a C array while autlib1.cpp (W33c) declares it
+   extern char[200]; auto_fort_path(8) is the same text */
 char fort8[200];
-char fort9[200];
 
-
-extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
-extern char upar_names[MAXPAR][XPP_NAME_MAX+1];
 extern int NUPAR;
 unsigned int DONT_XORCross=0;
 
@@ -276,7 +278,6 @@ int HomoFlag=0;
 int sparity=0;
 double homo_l[100],homo_r[100];
 double HOMO_SHIFT=0.0;
-extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 
 
 BIFUR Auto;
@@ -390,43 +391,63 @@ void setautopoint()
     }
 }
       
+namespace {
+/* AUTO's parameter k's name, or "" (auto_par_name) */
+std::string par_label(int k)
+{
+  const char *p=auto_par_name(k);
+  return p?p:"";
+}
+
+/* the diagram's axis labels: its first parameter, and what Auto.plot
+   shows up the side */
+struct AxisLabels {
+  std::string x,y;
+};
+AxisLabels axis_labels()
+{
+  AxisLabels l;
+  l.x=par_label(Auto.icp1);
+  switch(Auto.plot){
+  case HI_P:
+  case HL_P:
+    l.y=uvar_names[Auto.var];
+    break;
+  case NR_P:
+    l.y="Norm";
+    break;
+  case PE_P:
+    l.y="Period";
+    break;
+  case FR_P:
+    l.y="Frequency";
+    break;
+  case P_P:
+    l.y=par_label(Auto.icp2);
+    break;
+  case AV_P:
+    l.y=std::string(uvar_names[Auto.var])+"_bar";
+    break;
+  }
+  return l;
+}
+} // namespace
+
 void get_auto_str(char *xlabel, char *ylabel)
 {
-  /* xlabel/ylabel are pointers here; every caller passes a
-     char[AUTO_LABEL_LEN] (draw_export_axes, draw_bif_axes,
-     ui_json.cpp's dg_ax), so that is the real size. */
- xpp_snprintf(xlabel,AUTO_LABEL_LEN,"%s",upar_names[AutoPar[Auto.icp1]]);
- switch(Auto.plot){
- case HI_P:
- case HL_P:
-   xpp_snprintf(ylabel,AUTO_LABEL_LEN,"%s",uvar_names[Auto.var]);
-   break;
- case NR_P:
-   xpp_snprintf(ylabel,AUTO_LABEL_LEN,"Norm");
-   break;
- case PE_P:
-   xpp_snprintf(ylabel,AUTO_LABEL_LEN,"Period");
-   break;
- case FR_P:
-   xpp_snprintf(ylabel,AUTO_LABEL_LEN,"Frequency");
-   break;
- case P_P:
-   xpp_snprintf(ylabel,AUTO_LABEL_LEN,"%s",upar_names[AutoPar[Auto.icp2]]);
-   break;
- case AV_P:
-   xpp_snprintf(ylabel,AUTO_LABEL_LEN,"%s_bar",uvar_names[Auto.var]);
-   break;
- }
+  /* the C API of axis_labels: every caller passes char[AUTO_LABEL_LEN]s */
+  const AxisLabels l=axis_labels();
+  xpp_strlcpy(xlabel,l.x.c_str(),AUTO_LABEL_LEN);
+  xpp_strlcpy(ylabel,l.y.c_str(),AUTO_LABEL_LEN);
 }
 
 /* the diagram's axes in a PostScript or SVG export (diagram.cpp
    export_diagram), whichever ps_init/svg_init began */
 void draw_export_axes()
 {
- char sx[AUTO_LABEL_LEN],sy[AUTO_LABEL_LEN];
  set_scale(Auto.xmin,Auto.ymin,Auto.xmax,Auto.ymax);
- get_auto_str(sx,sy);
- Box_axis(Auto.xmin,Auto.xmax,Auto.ymin,Auto.ymax,sx,sy,0);
+ const AxisLabels l=axis_labels();
+ Box_axis(Auto.xmin,Auto.xmax,Auto.ymin,Auto.ymax,l.x.c_str(),l.y.c_str(),0);
 }
 
 void draw_bif_axes()
@@ -434,7 +455,6 @@ void draw_bif_axes()
  int x0=Auto.x0,y0=Auto.y0,ii,i0;
  int x1=x0+Auto.wid,y1=y0+Auto.hgt;
  std::string junk;
- char xlabel[AUTO_LABEL_LEN],ylabel[AUTO_LABEL_LEN];
  clear_auto_plot();
  ALINE(x0,y0,x1,y0);
  ALINE(x1,y0,x1,y1);
@@ -455,9 +475,9 @@ void draw_bif_axes()
  i0=9-ii;
  if(i0<0)i0=0;
  ATEXT(i0*text_metrics.small_width,y0+text_metrics.small_height,junk.c_str());
- get_auto_str(xlabel,ylabel);
- ATEXT((x0+x1)/2,y1+text_metrics.small_height+2,xlabel);
- ATEXT(10*text_metrics.small_width,text_metrics.small_height,ylabel);
+ const AxisLabels l=axis_labels();
+ ATEXT((x0+x1)/2,y1+text_metrics.small_height+2,l.x.c_str());
+ ATEXT(10*text_metrics.small_width,text_metrics.small_height,l.y.c_str());
  auto_diagram(NULL); /* the data of the diagram starts again too */
  refreshdisplay();
 }
@@ -468,7 +488,7 @@ void draw_bif_axes()
 int IXVal(double x)
 {
   double temp=static_cast<double>(Auto.wid)*(x-Auto.xmin)/(Auto.xmax-Auto.xmin);
-  return ((int) temp+Auto.x0);
+  return (static_cast<int>(temp)+Auto.x0);
 }
 
 int IYVal(double y)
@@ -493,26 +513,27 @@ void close_auto(int flg) /* labels compatible with A2K  */
      turned on upstream -- it was dead code there, not a deliberate
      no-op. */
   if(fp8_is_open){
-      fclose(fp8);
+      xpp::UniqueFile{fp8}.reset(); /* autlib1.cpp's xpp_files_open_stream, closed */
+      fp8=NULL;
       fp8_is_open=0;
   }
   if(flg==0) {/*Overwrite*/
-    xpp_files_move(fort7,(this_auto_file+".b").c_str());
-    xpp_files_move(fort9,(this_auto_file+".d").c_str());
+    xpp_files_move(fort7.c_str(),(this_auto_file+".b").c_str());
+    xpp_files_move(fort9.c_str(),(this_auto_file+".d").c_str());
     xpp_files_move(fort8,(this_auto_file+".s").c_str());
   }
   else {/*APPEND*/
-    xpp_files_prepend(fort7,(this_auto_file+".b").c_str());
-    xpp_files_prepend(fort9,(this_auto_file+".d").c_str());
+    xpp_files_prepend(fort7.c_str(),(this_auto_file+".b").c_str());
+    xpp_files_prepend(fort9.c_str(),(this_auto_file+".d").c_str());
     xpp_files_prepend(fort8,(this_auto_file+".s").c_str());
   }
 
     xpp_files_remove(fort8);
 
     fp8_is_open=0;
-    xpp_files_remove(fort7);
-    xpp_files_remove(fort9);
-    xpp_files_remove(fort3);
+    xpp_files_remove(fort7.c_str());
+    xpp_files_remove(fort9.c_str());
+    xpp_files_remove(fort3.c_str());
 
  
 }
@@ -557,16 +578,27 @@ void open_auto(int flg) /* compatible with new auto */
   char* HOME = auto_home_dir(dname);
 
   this_auto_file=xpp::format("{}/{}",HOME,bname);
-  XPP_SPRINTF(fort3,"%s/%s",HOME,"fort.3");
-  XPP_SPRINTF(fort7,"%s/%s",HOME,"fort.7");
-  XPP_SPRINTF(fort8,"%s/%s",HOME,"fort.8");
-  XPP_SPRINTF(fort9,"%s/%s",HOME,"fort.9");
+  fort3=xpp::format("{}/fort.3",HOME);
+  fort7=xpp::format("{}/fort.7",HOME);
+  XPP_FORMAT_TO_BUF(fort8,"{}/fort.8",HOME);
+  fort9=xpp::format("{}/fort.9",HOME);
   is_3_there=flg;
 
   if(flg==1){
-    xpp_files_copy((this_auto_file+".s").c_str(),fort3);
+    xpp_files_copy((this_auto_file+".s").c_str(),fort3.c_str());
   }
 
+}
+
+const char *auto_fort_path(int unit)
+{
+  switch(unit){
+  case 3: return fort3.c_str();
+  case 7: return fort7.c_str();
+  case 8: return fort8;
+  case 9: return fort9.c_str();
+  default: return "";
+  }
 }
 
 /* what a run continues, for auto_stability.h */
@@ -665,17 +697,26 @@ int auto_name_to_index(const char *s)
     if(AutoPar[i]==in)return(i);
   return(-1);
 }
-int auto_par_to_name(int index, char *s)
+const char *auto_par_name(int k)
 {
-  /* s is a pointer here; its callers pass char name[AUTO_COL_W+
-     XPP_NAME_MAX+2] (80) and char bob[100] -- 80 is the smaller. */
-  if(index==10){
-    xpp_snprintf(s,80,"T");
-    return(1);
-  }
-  if(index<0||index>8)return(0);
-  xpp_snprintf(s,80,"%s",upar_names[AutoPar[index]]);
-  return(1);
+  return k>=0&&k<NAutoPar&&AutoPar[k]>=0&&AutoPar[k]<NUPAR?upar_names[AutoPar[k]]:NULL;
+}
+
+namespace {
+/* AUTO's parameter index's name, T for the period; empty for no such
+   parameter */
+std::string par_or_period_name(long index)
+{
+  if(index==AUTO_PERIOD_INDEX)return "T";
+  return index>=0&&index<NAutoPar?par_label(static_cast<int>(index)):std::string();
+}
+
+/* fscanf "%ld" at s (blanks, a sign, digits): true with v */
+bool read_long(const char *s,long &v)
+{
+  char *end;
+  v=strtol(s,&end,10);
+  return end!=s;
 }
 
 /* AUTO heads its printed columns PAR(n) and U(n); XPP knows what the user
@@ -683,49 +724,48 @@ int auto_par_to_name(int index, char *s)
    rewrites one 14-character column heading for the screen only: fort.7 and
    fort.9 keep AUTO's own format, which its restart path and other people's
    scripts read. PAR(10) and friends are the period and such, not the user's
-   parameters, and auto_par_to_name leaves them alone. A name that does not
+   parameters, and par_or_period_name leaves them alone. A name that does not
    fit (names go to XPP_NAME_MAX) is shortened with a '~' (short_name) and
    still leaves a blank between it and the next heading: the column stays
    14 wide so the numbers below stay under it. */
-static void auto_col_centre(char *out,const char *s)
+std::string col_centre(const std::string &s)
 {
-  /* out is a pointer here; its callers pass char scr[AUTO_COL_W+1]
-     (autlib1.c) or auto_screen_col's own out parameter, itself
-     AUTO_COL_W+1 by the same reasoning. */
-  int n,l;
-  char t[AUTO_COL_W];
-  short_name(t,s,AUTO_COL_W-1);
-  n=static_cast<int>(strlen(t));
-  l=(AUTO_COL_W-n)/2;
-  xpp_snprintf(out,AUTO_COL_W+1,"%*s%s%*s",l,"",t,AUTO_COL_W-n-l,"");
+  std::array<char,AUTO_COL_W> t{};
+  short_name(t.data(),s.c_str(),AUTO_COL_W-1);
+  const int n=static_cast<int>(strlen(t.data()));
+  const int l=(AUTO_COL_W-n)/2;
+  return std::string(static_cast<size_t>(l),' ')+t.data()+std::string(static_cast<size_t>(AUTO_COL_W-n-l),' ');
 }
 
-void auto_screen_col(char *col,char *out)
+std::string screen_col(const char *col)
 {
   long p;
-  int i;
-  char name[AUTO_COL_W+XPP_NAME_MAX+2],pre[AUTO_COL_W+1],*q;
-  if(sscanf(col," PAR(%ld)",&p)==1&&auto_par_to_name(static_cast<int>(p),name)){
-    auto_col_centre(out,name);
-    return;
+  const char *s=col;
+  while(isspace(static_cast<unsigned char>(*s)))s++;
+  if(strncmp(s,"PAR(",4)==0&&read_long(s+4,p)){
+    const std::string name=par_or_period_name(p);
+    if(!name.empty())return col_centre(name);
   }
   /* U(n), and the MAX(n) / MIN(n) a periodic branch prints, where AUTO has
      overwritten the U itself */
-  q=strchr(col,'(');
-  if(q!=NULL&&strstr(col,"PAR")==NULL&&sscanf(q,"(%ld)",&p)==1&&p>=1&&p<=NODE){
-    int n=static_cast<int>((q-col));
+  const char *q=strchr(col,'(');
+  if(q!=NULL&&strstr(col,"PAR")==NULL&&read_long(q+1,p)&&p>=1&&p<=NODE){
+    size_t n=static_cast<size_t>(q-col);
     if(n>0&&col[n-1]=='U')n--; /* the name replaces the U */
     /* keep what stands in front of it: MAX, MIN, L2-NORM, INTEGRAL */
-    XPP_SPRINTF(pre,"%.*s",n,col);
-    for(i=static_cast<int>(strlen(pre));i>0&&pre[i-1]==' ';i--)
-      pre[i-1]=0;
-    for(i=0;pre[i]==' ';i++)
-      ;
-    XPP_SPRINTF(name,"%s%s%s",pre+i,pre[i]?" ":"",uvar_names[p-1]);
-    auto_col_centre(out,name);
-    return;
+    std::string pre(col,std::min<size_t>(n,AUTO_COL_W));
+    const size_t a=pre.find_first_not_of(' '),b=pre.find_last_not_of(' ');
+    pre=a==std::string::npos?std::string():pre.substr(a,b-a+1);
+    return col_centre(pre+(pre.empty()?"":" ")+uvar_names[p-1]);
   }
-  xpp_snprintf(out,AUTO_COL_W+1,"%.*s",AUTO_COL_W,col);
+  return std::string(std::string_view(col).substr(0,AUTO_COL_W));
+}
+} // namespace
+
+void auto_screen_col(const char *col,char *out)
+{
+  /* the C API of screen_col: out is autlib1.cpp's char[AUTO_COL_W+1] */
+  xpp_strlcpy(out,screen_col(col).c_str(),AUTO_COL_W+1);
 }
 
 
@@ -735,7 +775,7 @@ void auto_per_par()
   static const char *m[]={"0","1","2","3","4","5","6","7","8","9"};
   static const char *const key="0123456789";
   std::array<std::string, 9> values;
-  char bob[100],*ptr;
+  char *ptr;
   static const char *n[]={"Uzr1","Uzr2","Uzr3","Uzr4","Uzr5",
 		      "Uzr6","Uzr7","Uzr8","Uzr9"};
   int status,i,in;
@@ -749,10 +789,7 @@ void auto_per_par()
   NAutoUzr=Auto.nper;
   if(Auto.nper>0){
     for(i=0;i<9;i++){
-      auto_par_to_name(Auto.uzrpar[i],bob);
-
-
-      values[i] = xpp::format("{}={:g}", bob, Auto.period[i]);
+      values[i] = xpp::format("{}={:g}", par_or_period_name(Auto.uzrpar[i]), Auto.period[i]);
     }
     status=do_string_box(5,2,"Mark values (UZ): parameter=value or per=value",n,values,45);
     if(status!=0)
@@ -888,7 +925,7 @@ void auto_plot_par()
   int  status,i;
   int ii1,ii2,ji1,ji2;
   int i1=Auto.var+1;
-  char n1[XPP_NAME_MAX+1];
+  std::array<char,XPP_NAME_MAX+1> n1{}; /* ind_to_sym's */
   ch=static_cast<char>(auto_pop_up_list("Plot Type",m,key,14,10,Auto.plot,10,50,
 		       aaxes_hint,Auto.hinttxt));
   if(ch==ESC) 
@@ -945,8 +982,8 @@ void auto_plot_par()
     /* printf("I am done scrolling!!"); */
     return;
   }
-  ind_to_sym(i1,n1);
-  values[0] = n1;
+  ind_to_sym(i1,n1.data());
+  values[0] = n1.data();
   values[1] = upar_names[AutoPar[Auto.icp1]];
   values[2] = upar_names[AutoPar[Auto.icp2]];
   values[3] = xpp::format("{:g}", Auto.xmin);
@@ -1437,53 +1474,49 @@ if(flag2>0&&Auto.plot!=P_P){ /* two parameter and not in two parameter plot, jus
   
 
 
-void get_bif_sym(char *at, int itp)
+const char *auto_bif_sym(int itp)
 {
-  /* at is a pointer here; every caller passes a char[3] (symb/nsymb/sym),
-     matching the longest label written below ("BP" etc, 2 chars + NUL). */
-  int i=itp%10;
-  switch(i){
+  switch(itp%10){
   case 1:
   case 6:
-    xpp_snprintf(at,3,"BP");
-    break;
+    return "BP";
   case 2:
   case 5:
-    xpp_snprintf(at,3,"LP");
-    break;
+    return "LP";
   case 3:
-    xpp_snprintf(at,3,"HB");
-    break;
+    return "HB";
   case -4:
-    xpp_snprintf(at,3,"UZ");
-    break;
+    return "UZ";
   case 7:
-    xpp_snprintf(at,3,"PD");
-    break;
+    return "PD";
   case 8:
-    xpp_snprintf(at,3,"TR");
-    break;
+    return "TR";
   case 9:
-    xpp_snprintf(at,3,"EP");
-    break;
+    return "EP";
   case -9:
-    xpp_snprintf(at,3,"MX");
-    break;
+    return "MX";
   default:
-    xpp_snprintf(at,3,"  ");
-    break;
+    return "  ";
   }
+}
+
+void get_bif_sym(char *at, int itp)
+{
+  /* the C API of auto_bif_sym: every caller passes a char[3] */
+  xpp_strlcpy(at,auto_bif_sym(itp),3);
 }
     
 void info_header(int flag2, int icp1, int icp2)
 {
   /* the names head 10-wide columns of new_info's numbers */
-  char p1name[11],p2name[11],vname[11];
-
-  short_name(p1name,upar_names[AutoPar[icp1]],10);
-  if(icp2<NAutoPar)short_name(p2name,upar_names[AutoPar[icp2]],10);
-  else XPP_SPRINTF(p2name,"   ");
-  short_name(vname,uvar_names[Auto.var],10);
+  auto short10=[](const char *name){
+    std::array<char,11> b{};
+    short_name(b.data(),name,10);
+    return std::string(b.data());
+  };
+  const std::string p1name=short10(upar_names[AutoPar[icp1]]);
+  const std::string p2name=icp2<NAutoPar?short10(upar_names[AutoPar[icp2]]):std::string("   ");
+  const std::string vname=short10(uvar_names[Auto.var]);
   SmallBase();
   std::string bob=xpp::format("  Br  Pt Ty  Lab {:>10} {:>10}       norm {:>10}     period",
 	  p1name,
@@ -1513,7 +1546,7 @@ void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw)
   double norm,per,*par,par1,par2=0,*evr,*evi;
   int pt,itp,ibr,lab,icp1,icp2,flag2;
   double x,y1,y2;
-  char symb[3];
+  const char *symb;
   if (d==NULL)
   {
   	/*err_msg("Can not traverse to NULL diagram.");*/
@@ -1534,7 +1567,7 @@ void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw)
   evr=d->evr;
   evi=d->evi;
  
-  get_bif_sym(symb,itp);
+  symb=auto_bif_sym(itp);
  par1=par[icp1];
   if(icp2<NAutoPar)par2=par[icp2];  
     auto_xy_plot(&x,&y1,&y2,par1,par2,per,d->uhi,d->ulo,d->ubar,norm);
@@ -2534,35 +2567,33 @@ void auto_2p_limit(int ips)
   do_auto(OPEN_3,APPEND,Auto.itp);
 }
 
-void auto_twopar_double()
+namespace {
+/* continue a grabbed period doubling (PD2) or torus bifurcation (TR2) in
+   two parameters: the same periodic restart, told apart by its kind */
+void auto_2p_periodic(int kind)
 {
-
   blrtn.torper=grabpt.torper;
   Auto.irs=grabpt.lab;
   Auto.itp=grabpt.itp;
   Auto.nfpar=2;
-  AutoTwoParam=PD2;
-  TypeOfCalc=PD2;
+  AutoTwoParam=kind;
+  TypeOfCalc=kind;
   Auto.ips=2;
   Auto.ilp=0;
   Auto.isw=2;
   Auto.isp=0;
   do_auto(OPEN_3,APPEND,Auto.itp);
 }
+} // namespace
+
+void auto_twopar_double()
+{
+  auto_2p_periodic(PD2);
+}
 
 void auto_torus()
 {
-  blrtn.torper=grabpt.torper;
-  Auto.irs=grabpt.lab;
-  Auto.itp=grabpt.itp;
-  Auto.nfpar=2;
-  AutoTwoParam=TR2;
-  TypeOfCalc=TR2;
-  Auto.ips=2;
-  Auto.ilp=0;
-  Auto.isw=2;
-  Auto.isp=0;
-  do_auto(OPEN_3,APPEND,Auto.itp);
+  auto_2p_periodic(TR2);
 }
 
 void auto_2p_branch(int ips)
@@ -2776,7 +2807,7 @@ void save_auto_numerics(FILE *fp)
   line+=xpp::format("{:g} {:g} {:g} \n",Auto.ds,Auto.dsmin,Auto.dsmax);
   line+=xpp::format("{:g} {:g} {:g} {:g}\n",Auto.rl0,Auto.rl1,Auto.a0,Auto.a1);
   line+=xpp::format("{} {} {} {} {} {} {}\n",aauto.iad,aauto.mxbf,aauto.iid,aauto.itmx,aauto.itnw,aauto.nwtn,aauto.iads);
-  fputs(line.c_str(),fp);
+  xpp::print(fp,"{}",line);
 }
 
 
@@ -2811,8 +2842,8 @@ void load_auto_numerics(FILE *fp)
 
 void save_auto_graph(FILE *fp)
 {
-  fputs(xpp::format("{:g} {:g} {:g} {:g} {} {} \n",Auto.xmin,Auto.ymin,Auto.xmax,Auto.ymax,
-	Auto.var,Auto.plot).c_str(),fp);
+  xpp::print(fp,"{:g} {:g} {:g} {:g} {} {} \n",Auto.xmin,Auto.ymin,Auto.xmax,Auto.ymax,
+	Auto.var,Auto.plot);
 }
 
 void load_auto_graph(FILE *fp)
@@ -2830,11 +2861,19 @@ void save_q_file(FILE *fp) /* I am keeping the name q_file even though they are 
     auto_err("Couldnt open s-file");
     return;
   }
-  while(auto line=lr.next()){
-    fwrite(line->data(),1,line->size(),fp);
-    fputc('\n',fp);
-  }
+  while(auto line=lr.next())
+    xpp::print(fp,"{}\n",*line);
 }
+
+namespace {
+/* a blank line, which make_q_file leaves out */
+bool noinfo(std::string_view s)
+{
+  for(char c:s)
+    if(!isspace(static_cast<unsigned char>(c)))return false;
+  return true;
+}
+} // namespace
 
 void make_q_file(FILE *fp)
 {
@@ -2849,31 +2888,18 @@ void make_q_file(FILE *fp)
   /* the rest of fp, the .auto's copy of the .s, without its blank lines */
   xpp::LineReader lr=xpp::LineReader::attach(fp);
   while(auto line=lr.next()){
-    std::string l(*line);
-    if(!noinfo(l.data())){
-      l+='\n';
-      fwrite(l.data(),1,l.size(),w.file());
-    }
+    if(!noinfo(*line))
+      w.print("{}\n",*line);
   }
   w.commit();
 }
   
-int noinfo(const char *s) /* get rid of any blank lines  */
-{
-  int n=strlen(s);
-  int i;
-  if(n==0)return(1);
-  for(i=0;i<n;i++){
-    if(!isspace(s[i]))return(0);
-  }
-  return(1);
-}
 
 void load_auto()
 {
 
   int ok;
-  /*char filename[256];*/
+
   int status;
   if(diagram_count()>1){
     ok=reset_auto();
@@ -2907,24 +2933,25 @@ int load_auto_file(FILE *fp)
 
 int move_to_label(int mylab, int *nrow, int *ndim, FILE *fp)
 {
-  int ibr=0,ntot=0,itp=0,lab=0,nfpar=0,isw=0,ntpl=0,nar=0,nskip=0;
-  int i;
-  /* attached to fp: the rows after the label line found are get_a_row()'s */
-  xpp::LineReader lr=xpp::LineReader::attach(fp);
-  while(auto line=lr.next()){
-    /* the label line's "%5ld" columns may touch: sscanf reads them apart */
-    std::string l(*line);
-    sscanf(l.c_str(),"%d%d %d %d %d %d %d %d %d",
-	   &ibr,&ntot,&itp,&lab,&nfpar,&isw,&ntpl,&nar,&nskip);
-    if(mylab==lab){
-      *nrow=ntpl;
-      *ndim=nar-1;
+  /* a solution's label line: ibr ntot itp lab nfpr isw ntpl nar nrowpr
+     (and more), AUTO's "%5ld" columns that may touch, which read(long&)
+     reads apart; then its nrowpr rows. The rows after the label line
+     found are get_a_row()'s. */
+  enum {IBR,NTOT,ITP,LAB,NFPAR,ISW,NTPL,NAR,NSKIP,NFIELDS};
+  std::array<long,NFIELDS> f{};
+  xpp::TokenReader tr=xpp::TokenReader::attach(fp);
+  while(true){
+    for(long &v:f)
+      if(!tr.read(v))return(0);
+    tr.skip_line();
+    if(mylab==f[LAB]){
+      *nrow=static_cast<int>(f[NTPL]);
+      *ndim=static_cast<int>(f[NAR])-1;
       return(1);
     }
-    for(i=0;i<nskip;i++)
-      if(!lr.next())break;
+    for(long i=0;i<f[NSKIP];i++)
+      if(!tr.skip_line())return(0);
   }
-  return(0);
 }
 
 void get_a_row(double *u, double *t, int n, FILE *fp)
@@ -3089,7 +3116,7 @@ void  auto_get_info( int *n, char *pname )
     while(1){
       if(d->ibr==ibr && ((d->ntot==i1)||(d->ntot==(-i1))))
 	{
-	  /* pname's one real caller (integrate.c) passes char parn[256] */
+	  /* pname's one real caller (integrate.cpp) passes char parn[256] */
 	  xpp_strlcpy(pname,upar_names[AutoPar[d->icp1]],256);
 	  break;
 	}
@@ -3175,46 +3202,15 @@ void DLINE(double a,double b,double c,double d)
 extern const char *aspecial_hint[];
 DIAGRAM *CUR_DIAGRAM;
 
-int query_special(const char * title,char *nsymb)
+const char *query_special(const char *title)
 {
-        /* nsymb is a pointer here; both callers pass a char[3] (symb/
-           nsymb below), matching the longest label written below. */
-        int status=1;
         static const char *m[]={"BP","EP","HB","LP","MX","PD","TR","UZ"};
 	static const char *const key="behlmptu";
 	int ch=static_cast<char>(auto_pop_up_list(title,m,key,8,11,1,10,10,
 			     aspecial_hint,Auto.hinttxt));
-	if(ch=='b'){
-	  xpp_snprintf(nsymb,3,"BP");
-	}
-	else if(ch=='e'){
-	  xpp_snprintf(nsymb,3,"EP");
-	}
-	else if(ch=='h'){
-	   xpp_snprintf(nsymb,3,"HB");
-	}
-	else if(ch=='l'){ 
-	   xpp_snprintf(nsymb,3,"LP");
-	}
-	else if(ch=='m'){ 
-	   xpp_snprintf(nsymb,3,"MX");
-	}
-	else if(ch=='p'){
-	   xpp_snprintf(nsymb,3,"PD"); 
-	}
-	else if(ch=='t'){
-	   xpp_snprintf(nsymb,3,"TR");  
-	}
-	else if(ch=='u'){ 
-	   xpp_snprintf(nsymb,3,"UZ");
-	}
-	else
-	{
-	   status=0;   
-	   xpp_snprintf(nsymb,3,"  ");
-	}
 	redraw_auto_menus();
-	return(status);
+	const char *k=ch!=0?strchr(key,ch):NULL;
+	return k!=NULL?m[k-key]:NULL;
 }
 
 void traverse_diagram()
@@ -3316,7 +3312,7 @@ void traverse_diagram()
     }
     else {
         clear_msg();
-	char symb[3],nsymb[3];
+	const char *nsymb;
         
 	int found=0;
 
@@ -3339,15 +3335,14 @@ void traverse_diagram()
 	traverse_out(d,&ix,&iy,1);
 	break;
       case UP:
-       if (!query_special("Next...",nsymb)){break;}
+       if ((nsymb=query_special("Next..."))==NULL){break;}
        XORCross(ix,iy);
        found=0;
        dold=d;
        while(1){
          dnew=diagram_next(d);
 	 if(dnew==NULL){dnew=d;break;} 
-	 get_bif_sym(symb,dnew->itp);
-	 if(strcmp(symb,nsymb)==0){d=dnew;found=1;break;} 
+ 	 if(strcmp(auto_bif_sym(dnew->itp),nsymb)==0){d=dnew;found=1;break;} 
          d=dnew;
          /*if(d->lab==0)break;*/
        }
@@ -3357,7 +3352,7 @@ void traverse_diagram()
        }
        else
        {
-         snprintf(Auto.hinttxt,255,"  Higher %s not found",nsymb);
+         XPP_FORMAT_TO_BUF(Auto.hinttxt,"  Higher {} not found",nsymb);
 	 xpp_ui.auto_show_hint();
 	 d=dold;
        }
@@ -3365,15 +3360,14 @@ void traverse_diagram()
        traverse_out(d,&ix,&iy,1);
        break;
       case DOWN:
-       if (!query_special("Previous...",nsymb)){break;}
+       if ((nsymb=query_special("Previous..."))==NULL){break;}
        XORCross(ix,iy);
        found=0;
        dold=d;
        while(1){
          dnew=diagram_prev(d);
 	 if(dnew==NULL){dnew=d;break;} 
-	 get_bif_sym(symb,dnew->itp);
-	 if(strcmp(symb,nsymb)==0){d=dnew;found=1;break;} 
+ 	 if(strcmp(auto_bif_sym(dnew->itp),nsymb)==0){d=dnew;found=1;break;} 
          d=dnew;
        }
        if (found)
@@ -3382,7 +3376,7 @@ void traverse_diagram()
        }
        else
        {
-         snprintf(Auto.hinttxt,255,"  Lower %s not found",nsymb);
+         XPP_FORMAT_TO_BUF(Auto.hinttxt,"  Lower {} not found",nsymb);
 	 xpp_ui.auto_show_hint();
 	 d=dold;
        }
@@ -3555,7 +3549,7 @@ void auto_motion_xy(int i,int j)
 
 void auto_point_xy(double x,double y)
 {
-    XPP_SPRINTF(Auto.hinttxt,"x=%g,y=%g",x,y);
+    XPP_FORMAT_TO_BUF(Auto.hinttxt,"x={:g},y={:g}",x,y);
     storeautopoint(x,y);
     xpp_ui.auto_show_hint();
 }

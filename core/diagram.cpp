@@ -2,17 +2,16 @@
    auto_f2c.h's own min/max macros (included transitively below, through
    auto_nox.h) break if they are already defined first. */
 #include "xpp_io.h"
+#include <array>
 #include <deque>
 #include <vector>
 #include "storage.h"
 #include "xpp_ui.h"
 #include "xpp_log.h"
 #include "diagram.h"
-#include "xpp_mem.h"
 #include "autevd.h"
 
 #include "my_svg.h"
-#include "my_ps.h"
 #include "my_ps.h"
 #include "graphics.h"
 #include "auto_nox.h"
@@ -22,15 +21,7 @@
 #include "load_eqn.h"
 #include "browse.h"
 #include "graf_par.h"
-extern int TypeOfCalc;
-extern ROTCHK blrtn;
-
-#define PACK_AUTO 0
-#define PACK_LBF 1
-extern int AutoTwoParam;
-extern int NODE;
-extern int DiagFlag;
-extern int NAutoPar;
+#include "phsplan.h"
 
 namespace {
 /* a diagram point and the arrays its DIAGRAM entry points at */
@@ -485,7 +476,7 @@ int save_diagram(FILE *fp, int n)
 {
   int i;
   DIAGRAM *d;
-  fputs(xpp::format("{}\n",diagram_count()-1).c_str(),fp);
+  xpp::print(fp,"{}\n",diagram_count()-1);
   if(diagram_count()==1)
     return(-1);
   d=diagram_first();
@@ -495,11 +486,11 @@ int save_diagram(FILE *fp, int n)
 	    d->icp1,d->icp2,d->icp3,d->icp4,d->flag2);
     for(i=0;i<8;i++)line+=xpp::format("{:g} ",d->par[i]);
     line+=xpp::format("{:g} {:g} \n",d->norm,d->per);
-    fputs(line.c_str(),fp);
+    xpp::print(fp,"{}",line);
 
     for(i=0;i<n;i++)
-      fputs(xpp::format("{:f} {:f} {:f} {:f} {:f} {:f}\n",d->u0[i],d->uhi[i],d->ulo[i],
-			    d->ubar[i],d->evr[i],d->evi[i]).c_str(),fp);
+      xpp::print(fp,"{:f} {:f} {:f} {:f} {:f} {:f}\n",d->u0[i],d->uhi[i],d->ulo[i],
+		 d->ubar[i],d->evr[i],d->evi[i]);
     d=diagram_next(d);
     if(d==NULL)break;
   }
@@ -513,46 +504,41 @@ int save_diagram(FILE *fp, int n)
  
 int load_diagram(FILE *fp, int node)
 {
-  double u0[NAUTO],uhi[NAUTO],ulo[NAUTO],ubar[NAUTO],evr[NAUTO],evi[NAUTO],norm,par[8],per;
+  std::array<double,NAUTO> u0,uhi,ulo,ubar,evr,evi;
+  std::array<double,8> par;
+  double norm,per;
   int i,flag=0;
   int n;
   int calc,ibr,ntot,itp,lab,index,nfpar,icp1,icp2,icp3,icp4,flag2;
-  XppTokenReader *tr=xpp_token_reader_attach(fp);
-  if (xpp_token_reader_int(tr,&n) != 1) { xpp_token_reader_close(tr); return -1; }
+  xpp::TokenReader tr=xpp::TokenReader::attach(fp);
+  if (!tr.read(n)) return -1;
   if(n==0){
 /*    start_diagram(NODE); */
-    xpp_token_reader_close(tr);
     return(-1);
   }
 
   while(1){
-    if (xpp_token_reader_int(tr,&calc) != 1 || xpp_token_reader_int(tr,&ibr) != 1
-	|| xpp_token_reader_int(tr,&ntot) != 1 || xpp_token_reader_int(tr,&itp) != 1
-	|| xpp_token_reader_int(tr,&lab) != 1 || xpp_token_reader_int(tr,&index) != 1
-	|| xpp_token_reader_int(tr,&nfpar) != 1 || xpp_token_reader_int(tr,&icp1) != 1
-	|| xpp_token_reader_int(tr,&icp2) != 1 || xpp_token_reader_int(tr,&icp3) != 1
-	|| xpp_token_reader_int(tr,&icp4) != 1 || xpp_token_reader_int(tr,&flag2) != 1) break;
-    for(i=0;i<8;i++) if (xpp_token_reader_double(tr,&par[i]) != 1) break;
+    if (!tr.read(calc) || !tr.read(ibr) || !tr.read(ntot) || !tr.read(itp) || !tr.read(lab)
+	|| !tr.read(index) || !tr.read(nfpar) || !tr.read(icp1) || !tr.read(icp2) || !tr.read(icp3)
+	|| !tr.read(icp4) || !tr.read(flag2)) break;
+    for(i=0;i<8;i++) if (!tr.read(par[i])) break;
     if (i<8) break;
-    if (xpp_token_reader_double(tr,&norm) != 1 || xpp_token_reader_double(tr,&per) != 1) break;
-    for(i=0;i<node;i++) if (xpp_token_reader_double(tr,&u0[i]) != 1 || xpp_token_reader_double(tr,&uhi[i]) != 1
-			      || xpp_token_reader_double(tr,&ulo[i]) != 1 || xpp_token_reader_double(tr,&ubar[i]) != 1
-			      || xpp_token_reader_double(tr,&evr[i]) != 1 || xpp_token_reader_double(tr,&evi[i]) != 1) break;
+    if (!tr.read(norm) || !tr.read(per)) break;
+    for(i=0;i<node;i++) if (!tr.read(u0[i]) || !tr.read(uhi[i]) || !tr.read(ulo[i]) || !tr.read(ubar[i])
+			      || !tr.read(evr[i]) || !tr.read(evi[i])) break;
     if (i<node) break;
     if(flag==0){
-      edit_start(ibr,ntot,itp,lab,nfpar,norm,uhi,ulo,u0,ubar,par,per,node,
-		 icp1,icp2,icp3,icp4,evr,evi);
+      edit_start(ibr,ntot,itp,lab,nfpar,norm,uhi.data(),ulo.data(),u0.data(),ubar.data(),par.data(),per,node,
+		 icp1,icp2,icp3,icp4,evr.data(),evi.data());
       flag=1;
       DiagFlag=1;
     }
     else
-      add_diagram(ibr,ntot,itp,lab,nfpar,norm,uhi,ulo,u0,ubar,par,per,node,
-		  icp1,icp2,icp3,icp4,flag2,evr,evi);
+      add_diagram(ibr,ntot,itp,lab,nfpar,norm,uhi.data(),ulo.data(),u0.data(),ubar.data(),par.data(),per,node,
+		  icp1,icp2,icp3,icp4,flag2,evr.data(),evi.data());
     if(index>=n)break;
   }
-    xpp_token_reader_close(tr);
-    return(1);
-
+  return(1);
 }
   
 

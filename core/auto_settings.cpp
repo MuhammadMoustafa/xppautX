@@ -2,7 +2,7 @@
    command's checks and writes (auto_settings.h, docs/protocol.md "AUTO's
    settings as data").
 
-   The same fields the AUTO window's forms write (auto_nox.c auto_num_par,
+   The same fields the AUTO window's forms write (auto_nox.cpp auto_num_par,
    auto_params, auto_plot_par, auto_per_par), with every value checked
    first: AUTO takes some values badly (Ncol above 7 exits the program,
    autlib1.c cpnts), and a form typed into by hand could always send them. */
@@ -21,22 +21,9 @@
 #include "xpp_io.h"
 #include "xpp_util.h"
 
-extern "C" {
-extern BIFUR Auto;
-extern ADVAUTO aauto;
-extern int SuppressBP;
-extern int NAutoPar;
-extern int AutoPar[8];
-extern int Auto_index_to_array[8];
-extern double outperiod[20];
-extern long UzrPar[20]; /* auto_f2c.h's integer, long int */
-extern int NAutoUzr;
-}
-
 namespace {
 
 constexpr int PARAM_BOX = 1; /* find_user_name's parameters */
-constexpr int PERIOD = 10;   /* uzrpar's index of the period, named T (auto_par_to_name) */
 
 enum class Rule { any, positive, nonzero, range };
 
@@ -76,9 +63,10 @@ constexpr NumField num_fields[AUTO_NUM_N] = {
 /* Auto.plot's values: hi, norm, hi and lo, period, two parameters, frequency, average */
 bool plot_ok(int p) { return (p >= 0 && p <= 4) || p == 10 || p == 11; }
 
-void say(char *why, size_t n, const std::string &s)
+/* the reason into the C API's why, a buffer of n */
+void say(char *why, size_t n, const char *s)
 {
-    if (n) xpp_strlcpy(why, s.c_str(), n);
+    if (n) xpp_strlcpy(why, s, n);
 }
 
 /* ---- the settings now ---- */
@@ -122,18 +110,10 @@ void write_num(const double v[AUTO_NUM_N])
     SuppressBP = i(AUTO_NUM_SUPPBP);
 }
 
-/* the parameter of AUTO's parameter index k (AutoPar), or null */
-const char *auto_par_name(const int pars[8], int k)
-{
-    return k >= 0 && k < NAutoPar && pars[k] >= 0 && pars[k] < NUPAR ? upar_names[pars[k]] : nullptr;
-}
-
 /* AUTO's parameter index of a model parameter's name in pars, or -1 */
 int auto_index_of(const int pars[8], const char *name)
 {
-    char copy[XPP_NAME_MAX + 1];
-    xpp_strlcpy(copy, name, sizeof copy);
-    int p = find_user_name(PARAM_BOX, copy);
+    int p = find_user_name(PARAM_BOX, name);
     if (p < 0) return -1;
     for (int k = 0; k < NAutoPar; k++)
         if (pars[k] == p) return k;
@@ -163,14 +143,14 @@ std::string event_text()
     o += "},\"pars\":[";
     for (int k = 0; k < NAutoPar; k++) {
         if (k) o += ',';
-        add_str_or_null(o, auto_par_name(AutoPar, k));
+        add_str_or_null(o, auto_par_name(k));
     }
     o += xpp::format("],\"axes\":{{\"plot\":{},\"var\":", Auto.plot);
     add_str_or_null(o, Auto.var >= 0 && Auto.var < NODE ? uvar_names[Auto.var] : nullptr);
     o += ",\"par1\":";
-    add_str_or_null(o, auto_par_name(AutoPar, Auto.icp1));
+    add_str_or_null(o, auto_par_name(Auto.icp1));
     o += ",\"par2\":";
-    add_str_or_null(o, auto_par_name(AutoPar, Auto.icp2));
+    add_str_or_null(o, auto_par_name(Auto.icp2));
     const std::pair<const char *, double> range[] = {
         {"xmin", Auto.xmin}, {"xmax", Auto.xmax}, {"ymin", Auto.ymin}, {"ymax", Auto.ymax}};
     for (const auto &[name, value] : range) {
@@ -180,7 +160,7 @@ std::string event_text()
     o += "},\"marks\":[";
     for (int i = 0; i < Auto.nper && i < AUTO_SETTINGS_MARKS; i++) {
         o += i ? ",[" : "[";
-        add_str_or_null(o, Auto.uzrpar[i] == PERIOD ? "T" : auto_par_name(AutoPar, Auto.uzrpar[i]));
+        add_str_or_null(o, Auto.uzrpar[i] == AUTO_PERIOD_INDEX ? "T" : auto_par_name(Auto.uzrpar[i]));
         o += ',';
         add_num(o, Auto.period[i]);
         o += ']';
@@ -198,54 +178,54 @@ bool sent_valid;
 bool have_settings() { return NODE <= NAUTO; }
 
 
-int num_ok(int i, double v, char *why, size_t n)
+bool num_ok(int i, double v, std::string &why)
 {
     if (i < 0 || i >= AUTO_NUM_N) {
-        say(why, n, "no such AUTO setting");
-        return 0;
+        why = "no such AUTO setting";
+        return false;
     }
     const NumField &f = num_fields[i];
     const std::string whole = f.integer ? "a whole number" : "a number";
     if (!std::isfinite(v) || (f.integer && (v != std::floor(v) || v < INT_MIN || v > INT_MAX))) {
-        say(why, n, xpp::format("{} must be {}", f.label, whole));
-        return 0;
+        why = xpp::format("{} must be {}", f.label, whole);
+        return false;
     }
     switch (f.rule) {
     case Rule::positive:
-        if (v > 0) return 1;
-        say(why, n, xpp::format("{} must be a number above 0", f.label));
-        return 0;
+        if (v > 0) return true;
+        why = xpp::format("{} must be a number above 0", f.label);
+        return false;
     case Rule::nonzero:
-        if (v != 0) return 1;
-        say(why, n, xpp::format("{} must be a number other than 0", f.label));
-        return 0;
+        if (v != 0) return true;
+        why = xpp::format("{} must be a number other than 0", f.label);
+        return false;
     case Rule::range:
-        if (v >= f.lo && v <= f.hi) return 1;
+        if (v >= f.lo && v <= f.hi) return true;
         if (f.hi == INT_MAX)
-            say(why, n, xpp::format("{} must be {} of at least {}", f.label, whole, static_cast<long>(f.lo)));
+            why = xpp::format("{} must be {} of at least {}", f.label, whole, static_cast<long>(f.lo));
         else
-            say(why, n, xpp::format("{} must be {} from {} to {}", f.label, whole, static_cast<long>(f.lo),
-                                    static_cast<long>(f.hi)));
-        return 0;
+            why = xpp::format("{} must be {} from {} to {}", f.label, whole, static_cast<long>(f.lo),
+                                    static_cast<long>(f.hi));
+        return false;
     case Rule::any:
         break;
     }
-    return 1;
+    return true;
 }
 
 
-int apply(const AutoSettingsSet *s, char *why, size_t n)
+bool apply(const AutoSettingsSet *s, std::string &why)
 {
     if (!have_settings()) {
-        say(why, n, xpp::format("AUTO is restricted to less than {} variables", NAUTO));
-        return -1;
+        why = xpp::format("AUTO is restricted to less than {} variables", NAUTO);
+        return false;
     }
     /* Numerics: each value given, then the pairs that must be in order */
     double num[AUTO_NUM_N];
     read_num(num);
     for (int i = 0; i < AUTO_NUM_N; i++) {
         if (!s->has_num[i]) continue;
-        if (!num_ok(i, s->num[i], why, n)) return -1;
+        if (!num_ok(i, s->num[i], why)) return false;
         num[i] = s->num[i];
     }
     const struct { int lo, hi; bool strict; } pairs[] = {
@@ -253,32 +233,30 @@ int apply(const AutoSettingsSet *s, char *why, size_t n)
     for (const auto &p : pairs) {
         if (!s->has_num[p.lo] && !s->has_num[p.hi]) continue;
         if (p.strict ? num[p.lo] < num[p.hi] : num[p.lo] <= num[p.hi]) continue;
-        say(why, n, xpp::format("{} must be {} {}", num_fields[p.lo].label, p.strict ? "below" : "at most",
-                                num_fields[p.hi].label));
-        return -1;
+        why = xpp::format("{} must be {} {}", num_fields[p.lo].label, p.strict ? "below" : "at most",
+                                num_fields[p.hi].label);
+        return false;
     }
     /* the first step within the step sizes AUTO may take (T23) */
     if ((s->has_num[AUTO_NUM_DS] || s->has_num[AUTO_NUM_DSMIN] || s->has_num[AUTO_NUM_DSMAX])
         && !(std::fabs(num[AUTO_NUM_DS]) >= num[AUTO_NUM_DSMIN] && std::fabs(num[AUTO_NUM_DS]) <= num[AUTO_NUM_DSMAX])) {
-        say(why, n, "Ds must be from Dsmin to Dsmax in size (its sign is the direction)");
-        return -1;
+        why = "Ds must be from Dsmin to Dsmax in size (its sign is the direction)";
+        return false;
     }
 
     /* the Parameter form: AUTO's parameters by name */
     int pars[8];
     std::memcpy(pars, AutoPar, sizeof pars);
     if (s->npars > NAutoPar) {
-        say(why, n, xpp::format("AUTO has {} parameters for this model, not {}", NAutoPar, s->npars));
-        return -1;
+        why = xpp::format("AUTO has {} parameters for this model, not {}", NAutoPar, s->npars);
+        return false;
     }
     for (int k = 0; k < s->npars; k++) {
         if (!s->pars[k][0]) continue;
-        char copy[XPP_NAME_MAX + 1];
-        xpp_strlcpy(copy, s->pars[k], sizeof copy);
-        int p = find_user_name(PARAM_BOX, copy);
+        int p = find_user_name(PARAM_BOX, s->pars[k]);
         if (p < 0) {
-            say(why, n, xpp::format("{} is not a parameter", s->pars[k]));
-            return -1;
+            why = xpp::format("{} is not a parameter", s->pars[k]);
+            return false;
         }
         pars[k] = p;
     }
@@ -288,19 +266,17 @@ int apply(const AutoSettingsSet *s, char *why, size_t n)
     double range[4] = {Auto.xmin, Auto.xmax, Auto.ymin, Auto.ymax};
     if (s->has_plot) {
         if (!plot_ok(s->plot)) {
-            say(why, n, xpp::format("{} is not one of AUTO's plot types (0-4, 10, 11)", s->plot));
-            return -1;
+            why = xpp::format("{} is not one of AUTO's plot types (0-4, 10, 11)", s->plot);
+            return false;
         }
         plot = s->plot;
     }
     if (s->var[0]) {
-        char copy[XPP_NAME_MAX + 1];
         int col;
-        xpp_strlcpy(copy, s->var, sizeof copy);
-        find_variable(copy, &col);
+        find_variable(s->var, &col);
         if (col < 1 || col > NODE) {
-            say(why, n, xpp::format("{} is not a variable AUTO computes", s->var));
-            return -1;
+            why = xpp::format("{} is not a variable AUTO computes", s->var);
+            return false;
         }
         var = col - 1;
     }
@@ -309,8 +285,8 @@ int apply(const AutoSettingsSet *s, char *why, size_t n)
         if (!a.name[0]) continue;
         int k = auto_index_of(pars, a.name);
         if (k < 0) {
-            say(why, n, xpp::format("{} is not one of AUTO's parameters (see Parameter)", a.name));
-            return -1;
+            why = xpp::format("{} is not one of AUTO's parameters (see Parameter)", a.name);
+            return false;
         }
         *a.icp = k;
     }
@@ -318,34 +294,34 @@ int apply(const AutoSettingsSet *s, char *why, size_t n)
     for (int i = 0; i < 4; i++) {
         if (!s->has_range[i]) continue;
         if (!std::isfinite(s->range[i])) {
-            say(why, n, xpp::format("{} must be a number", range_names[i]));
-            return -1;
+            why = xpp::format("{} must be a number", range_names[i]);
+            return false;
         }
         range[i] = s->range[i];
     }
     for (int i = 0; i < 4; i += 2) {
         if ((s->has_range[i] || s->has_range[i + 1]) && !(range[i] < range[i + 1])) {
-            say(why, n, xpp::format("{} must be below {}", range_names[i], range_names[i + 1]));
-            return -1;
+            why = xpp::format("{} must be below {}", range_names[i], range_names[i + 1]);
+            return false;
         }
     }
 
     /* Mark values: parameter (or T, the period) = value */
     int uzr[AUTO_SETTINGS_MARKS];
     if (s->nmarks > AUTO_SETTINGS_MARKS) {
-        say(why, n, xpp::format("at most {} Mark values", AUTO_SETTINGS_MARKS));
-        return -1;
+        why = xpp::format("at most {} Mark values", AUTO_SETTINGS_MARKS);
+        return false;
     }
     for (int i = 0; i < s->nmarks; i++) {
-        uzr[i] = strcasecmp(s->mark_name[i], "T") == 0 ? PERIOD : auto_index_of(pars, s->mark_name[i]);
+        uzr[i] = strcasecmp(s->mark_name[i], "T") == 0 ? AUTO_PERIOD_INDEX : auto_index_of(pars, s->mark_name[i]);
         if (uzr[i] < 0) {
-            say(why, n, xpp::format("Mark values: {} is not one of AUTO's parameters (see Parameter) or T",
-                                    s->mark_name[i]));
-            return -1;
+            why = xpp::format("Mark values: {} is not one of AUTO's parameters (see Parameter) or T",
+                                    s->mark_name[i]);
+            return false;
         }
         if (!std::isfinite(s->mark_value[i])) {
-            say(why, n, xpp::format("Mark values: the value of {} must be a number", s->mark_name[i]));
-            return -1;
+            why = xpp::format("Mark values: the value of {} must be a number", s->mark_name[i]);
+            return false;
         }
     }
 
@@ -355,9 +331,7 @@ int apply(const AutoSettingsSet *s, char *why, size_t n)
     for (int k = 0; k < s->npars; k++) {
         if (!s->pars[k][0]) continue;
         AutoPar[k] = pars[k];
-        char copy[XPP_NAME_MAX + 1];
-        xpp_strlcpy(copy, upar_names[pars[k]], sizeof copy);
-        Auto_index_to_array[k] = get_param_index(copy);
+        Auto_index_to_array[k] = get_param_index(upar_names[pars[k]]);
     }
     bool axes = s->has_plot || s->var[0] || s->par1[0] || s->par2[0] || s->fit;
     for (int i = 0; i < 4; i++) axes = axes || s->has_range[i];
@@ -388,7 +362,7 @@ int apply(const AutoSettingsSet *s, char *why, size_t n)
     }
     /* the diagram in its new quantities (and a new parameter's name on its axis) */
     if ((axes || new_pars) && Auto.exist) redraw_diagram();
-    return 0;
+    return true;
 }
 
 } // namespace
@@ -402,11 +376,13 @@ const char *auto_settings_num_label(int i) { return i >= 0 && i < AUTO_NUM_N ? n
 int auto_settings_num_ok(int i, double v, char *why, size_t n)
 {
     try {
-        return num_ok(i, v, why, n);
+        std::string w;
+        if (num_ok(i, v, w)) return 1;
+        say(why, n, w.c_str());
     } catch (...) {
-        if (n) xpp_strlcpy(why, "out of memory", n);
-        return 0;
+        say(why, n, "out of memory");
     }
+    return 0;
 }
 
 void auto_settings_set_init(AutoSettingsSet *s)
@@ -419,12 +395,14 @@ void auto_settings_set_init(AutoSettingsSet *s)
 int auto_settings_apply(const AutoSettingsSet *s, char *why, size_t n)
 {
     try {
-        return apply(s, why, n);
+        std::string w;
+        if (apply(s, w)) return 0;
+        say(why, n, w.c_str());
     } catch (...) {
         /* only the messages allocate, all before anything is written */
-        if (n) xpp_strlcpy(why, "out of memory", n);
-        return -1;
+        say(why, n, "out of memory");
     }
+    return -1;
 }
 
 void auto_settings_init(AutoSettingsEmit emit) { emit_line = emit; }

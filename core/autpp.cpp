@@ -1,4 +1,5 @@
-#include <stdlib.h> 
+#include <array>
+#include <stdlib.h>
 #include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h" 
 #include "odesol2.h"
@@ -16,14 +17,10 @@ extern XAUTO xAuto;
 
 extern double constants[],last_ic[];
 
-extern int Auto_index_to_array[8];
 extern int NewPeriodFlag;
-extern int AutoTwoParam,NAutoPar;
 extern int HomoFlag;
 extern double homo_l[100],homo_r[100];
 extern int METHOD,NJMP;
-extern double outperiod[];
-extern int UzrPar[],NAutoUzr;
 
 extern double NEWT_ERR;
 
@@ -35,8 +32,7 @@ extern double NEWT_ERR;
 extern "C" int func(integer ndim, double *u, integer *icp, double *par, integer ijac, double *f, double *dfdu, double *dfdp)
 {
    int i,j;
-   double zz[NAUTO];
-   double  y[NAUTO],yp[NAUTO],xp[NAUTO];
+   std::array<double,NAUTO> zz,y,yp,xp; /* getjactrans's scratch, and the NJMP steps' */
    for(i=0;i<NAutoPar;i++){
      constants[Auto_index_to_array[i]]=par[i];
      
@@ -45,13 +41,13 @@ extern "C" int func(integer ndim, double *u, integer *icp, double *par, integer 
    redo_all_fun_tables();
    rhs(0.0,u,f,ndim);
    if(ijac==1){
-     getjactrans(u,y,yp,xp,NEWT_ERR,dfdu,ndim);
+     getjactrans(u,y.data(),yp.data(),xp.data(),NEWT_ERR,dfdu,ndim);
    }
    if(METHOD>0||NJMP==1)return 0;
    for(i=1;i<NJMP;i++){
      for(j=0;j<ndim;j++)
        zz[j]=f[j];
-     rhs(0.0,zz,f,ndim);
+     rhs(0.0,zz.data(),f,ndim);
    }
 
    return 0;

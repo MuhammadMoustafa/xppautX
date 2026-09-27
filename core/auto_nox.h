@@ -72,6 +72,26 @@ typedef struct {
   double xmin,ymin,xmax,ymax;
 }  AUTOAX;
 
+/* AUTO's state, auto_nox.cpp's: its window and settings (Auto), the
+   advanced numerics (aauto), the parameters AUTO continues (the first
+   NAutoPar of AutoPar, model parameter indices, and their constants[]
+   indices), the Mark values (NAutoUzr of UzrPar/outperiod; UzrPar is
+   auto_f2c.h's integer) and Numerics' SuppBP */
+extern BIFUR Auto;
+extern ADVAUTO aauto;
+extern int NAutoPar;
+extern int AutoPar[8];
+extern int Auto_index_to_array[8];
+extern int NAutoUzr;
+extern long UzrPar[20];
+extern double outperiod[20];
+extern int SuppressBP;
+extern int AutoTwoParam;
+/* the kind of run (LPE2, HB2, ...; 0 one parameter) each stored point records */
+extern int TypeOfCalc;
+/* the torus period a two-parameter torus run starts from */
+extern ROTCHK blrtn;
+
 
 
 void colset(int type);
@@ -87,13 +107,22 @@ int IYVal(double y);
 int chk_auto_bnds(int ix, int iy);
 void close_auto(int flag);
 void open_auto(int flag);
+/* the path of AUTO's fort.<unit> (3, 7, 8 or 9) open_auto set, "" for
+   another unit: gogoauto.cpp opens them for a run */
+const char *auto_fort_path(int unit);
 void do_auto(int iold, int isave, int itp);
 void set_auto(void);
 int auto_name_to_index(const char *s);
-int auto_par_to_name(int index, char *s);
-/* AUTO's printed column headings, in the user's own names (screen only) */
+/* AUTO's index of the period among its parameters (PAR(10), named T) */
+#define AUTO_PERIOD_INDEX 10
+/* the model's name of AUTO's parameter index k (AutoPar[k]), NULL when k
+   is not one of AUTO's NAutoPar parameters: the one lookup the forms,
+   the settings event, the CSV export and the branch-end text share */
+const char *auto_par_name(int k);
+/* AUTO's printed column headings, in the user's own names (screen only):
+   out is a char[AUTO_COL_W+1] */
 #define AUTO_COL_W 14
-void auto_screen_col(char *col, char *out);
+void auto_screen_col(const char *col, char *out);
 void auto_per_par(void);
 void auto_params(void);
 void auto_num_par(void);
@@ -111,6 +140,9 @@ void auto_point_id(int ibr, int ntot, int itp, int node, int from);
 /* the label the running continuation started from, once: for its first point */
 int auto_run_from_take(void);
 void add_point(double *par, double per, double *uhigh, double *ulow, double *ubar, double a, int type, int flag, int lab, int npar, int icp1, int icp2, int flag2,int icp3, int icp4, double *evr, double *evi);
+/* the two-letter symbol of AUTO's point type itp (BP, LP, HB, UZ, PD, TR,
+   EP, MX), two blanks for any other; get_bif_sym copies it into a char[3] */
+const char *auto_bif_sym(int itp);
 void get_bif_sym(char *at, int itp);
 void info_header(int flag2, int icp1, int icp2);
 void new_info(int ibr, int pt, const char *ty, int lab, double *par, double norm, double u0, double per, int flag2, int icp1, int icp2);
@@ -167,7 +199,6 @@ void save_auto_graph(FILE *fp);
 void load_auto_graph(FILE *fp);
 void save_q_file(FILE *fp);
 void make_q_file(FILE *fp);
-int noinfo(const char *s);
 void load_auto(void);
 int load_auto_file(FILE *fp);
 int move_to_label(int mylab, int *nrow, int *ndim, FILE *fp);
@@ -177,7 +208,8 @@ int check_plot_type(int flag2,int icp1, int icp2);
 
 /* grabbing and marking points on the diagram (from auto_x11.c) */
 void traverse_diagram(void);
-int query_special(const char *title, char *nsymb);
+/* asks which kind of special point: its symbol (auto_bif_sym's), or NULL */
+const char *query_special(const char *title);
 void MarkAuto(int x, int y);
 void clear_msg(void);
 void auto_update_view(float xlo, float xhi, float ylo, float yhi);

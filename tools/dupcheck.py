@@ -57,10 +57,8 @@ core/autlib3.cpp fnpd|vendored/numerical, keep: see core/autlib3.cpp fnhd
 core/autlib3.cpp fntr|vendored/numerical, keep: see core/autlib3.cpp fnhd
 core/autlib3.cpp fnbl|vendored/numerical, keep: see core/autlib3.cpp fnhd
 core/autlib5.cpp fnho|vendored/numerical, keep: see core/autlib3.cpp fnhd
-core/auto_nox.cpp auto_twopar_double|keep: two-parameter continuation dispatch pair (double/torus), same shape by design; no W32a-d card owns auto_nox.cpp yet
-core/auto_nox.cpp auto_torus|keep: see core/auto_nox.cpp auto_twopar_double
-core/auto_nox.cpp save_auto_file|a save/load mirror, not a copy: save_auto_file writes the four parts load_auto_file reads back in the same order (W32b looked: keep)
-core/auto_nox.cpp load_auto_file|W32b xpp_files: see core/auto_nox.cpp save_auto_file
+core/auto_nox.cpp save_auto_file|keep: a save/load mirror, not a copy: save_auto_file writes the four parts load_auto_file reads back in the same order, each part through its own save_/load_ pair (W32b and W33d looked)
+core/auto_nox.cpp load_auto_file|keep: see core/auto_nox.cpp save_auto_file
 core/cvband.cpp CVBandSolve|vendored/numerical, keep: CVODE's band and dense linear solvers (cvband.cpp/cvdense.cpp), the same solve and free by the CVODE API's own design, each over its own matrix type (BandBacksolve/DenseBacksolve, BandFreeMat/DenseFreeMat); W33a looked: keep
 core/cvdense.cpp CVDenseSolve|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
 core/cvband.cpp CVBandFree|vendored/numerical, keep: see core/cvband.cpp CVBandSolve

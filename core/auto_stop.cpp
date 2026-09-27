@@ -4,20 +4,12 @@
 #include <cstdlib>
 #include <string>
 
+#include "auto_nox.h"
 #include "auto_stop.h"
-#include "pop_list.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
 
-extern "C" {
-extern int NAutoPar;
-extern int AutoPar[8];
-extern int NUPAR;
-}
-
 namespace {
-
-constexpr long PERIOD = 10; /* AUTO's index of the period, T (auto_par_to_name) */
 
 const char *const keys[AUTO_STOP_N] = {
     "", "parmin", "parmax", "normmin", "normmax", "npts", "user", "mark",
@@ -37,10 +29,9 @@ std::string last_text;
 /* the continuation parameter as the text names it */
 std::string par_name(long ipar)
 {
-    if (ipar == PERIOD) return "the period T";
-    if (ipar >= 0 && ipar < NAutoPar && AutoPar[ipar] >= 0 && AutoPar[ipar] < NUPAR)
-        return std::string("parameter ") + upar_names[AutoPar[ipar]];
-    return "the parameter";
+    if (ipar == AUTO_PERIOD_INDEX) return "the period T";
+    const char *name = ipar >= 0 && ipar < NAutoPar ? auto_par_name(static_cast<int>(ipar)) : nullptr;
+    return name ? std::string("parameter ") + name : std::string("the parameter");
 }
 
 /* a limit as a person typed it: AUTO keeps some as floats (0.0009999999) */

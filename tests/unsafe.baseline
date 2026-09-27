@@ -13,13 +13,10 @@ core/arrayplot.cpp text 13
 core/arrayplot.h buffers 3
 core/autlib1.cpp buffers 2
 core/autlib1.cpp memory 1
-core/auto_nox.cpp buffers 17
-core/auto_nox.cpp casts 1
-core/auto_nox.cpp files 4
-core/auto_nox.cpp text 38
+core/auto_nox.cpp buffers 2
+core/auto_nox.cpp text 5
 core/auto_nox.h buffers 1
-core/auto_settings.cpp buffers 4
-core/auto_settings.cpp text 7
+core/auto_settings.cpp text 1
 core/auto_settings.h buffers 3
 core/axes2.cpp buffers 10
 core/axes2.cpp text 28
@@ -29,8 +26,6 @@ core/browse_data.cpp memory 4
 core/browse_data.cpp text 11
 core/comline.cpp buffers 1
 core/comline.cpp files 2
-core/csv_export.cpp buffers 2
-core/csv_export.cpp text 10
 core/delay_handle.cpp buffers 1
 core/edit_rhs.cpp buffers 3
 core/edit_rhs.cpp memory 2
@@ -42,8 +37,6 @@ core/form_ode.cpp files 5
 core/form_ode.cpp memory 24
 core/form_ode.cpp text 10
 core/form_ode.h buffers 3
-core/gogoauto.cpp buffers 1
-core/gogoauto.cpp files 10
 core/graf_par.cpp buffers 9
 core/graf_par.cpp files 8
 core/graf_par.cpp memory 10
