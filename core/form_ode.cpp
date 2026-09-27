@@ -41,16 +41,12 @@
 #define MAXCOMMENTS 500
 
 static int IN_INCLUDED_FILE=0;
-char *save_eqn[MAXLINES];
 
 
 int *plotlist;
 int N_plist;
 
-ACTION comments[MAXCOMMENTS];
-int n_comments=0;
 
-int NLINES;
 /* the boundary conditions' count */
 static int BVP_N;
 
@@ -74,12 +70,8 @@ xpp::Writer convert_writer;
 /* The storage behind the C tables above, which the rest of the core
    reads (and a few write into, so each keeps its old size): each entry
    points into one of these, set with the functions below */
-std::array<std::string,MAXLINES> line_text;       /* save_eqn[] */
-std::array<std::string,MAXCOMMENTS> comment_text,comment_action; /* comments[] */
 std::vector<int> plot_columns;                    /* plotlist */
 
-/* the names an "only" statement keeps */
-std::vector<std::string> onlylist;
 /* the model's named auxiliary variables */
 std::array<std::string,MAXODE> aux_names;
 int Naux=0;
@@ -272,16 +264,16 @@ bool read_raw_line(FILE *fp, std::string &line)
   return false;
 }
 
-/* keeps one line of the model's source in save_eqn (C text: strip_saveqn
-   and the front ends read it) */
+/* keeps one line of the model's source in Model::source, up to a NUL
+   (the front ends read it as text) */
 void save_line(const std::string &line)
 {
-  if (NLINES>=MAXLINES) {
+  std::vector<std::string> &source=xpp::model().source;
+  if (source.size()>=MAXLINES) {
     xpp_log(XPP_LOG_ERROR, "The model has more than %d lines\n", MAXLINES);
     exit(1);
   }
-  xpp::keep_c_text(line_text[NLINES],save_eqn[NLINES],line);
-  NLINES++;
+  source.push_back(line.substr(0,line.find('\0')));
 }
 
 /* The next logical line: a line ending in a backslash goes on in the
@@ -575,7 +567,7 @@ int compiler(const std::string &bob, FILE *fptr)
 	  if(ConvertStyle)
 	    xpp::print(convertf,"{}  ",name);
 	  if(add_con(name.c_str(),value)){
-	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
+	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	    xpp_model_failed();
 	  }
 	  add_wiener(NCON-1);
@@ -598,7 +590,7 @@ int compiler(const std::string &bob, FILE *fptr)
 
 	  xpp::log(XPP_LOG_DEBUG, "|{}|={:f} ",name,value);
 	  if(add_con(name.c_str(),value)){
-	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
+	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	    xpp_model_failed();
 	  }
 
@@ -632,7 +624,7 @@ int compiler(const std::string &bob, FILE *fptr)
 
 	  name=take_apart(*tok,&value);
 	  if(add_con(name.c_str(),value)){
-	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
+	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	    xpp_model_failed();
 	  }
 	  xpp::model().default_val[xpp::model().nupar]=value;
@@ -660,7 +652,7 @@ int compiler(const std::string &bob, FILE *fptr)
       value=atof_of(tokens.text(" "));
       nstates=atoi_of(tokens.text(" \n"));
       if(name_too_long(name)||add_var(name,value)){
-	xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
+	xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	xpp_model_failed();
       }
       xpp::model().uvar_names[IN_VARS+xpp::model().nmarkov]=name;
@@ -673,9 +665,9 @@ int compiler(const std::string &bob, FILE *fptr)
       break;
     case 'r': /* state table for Markov variables  */
       name=tokens.text("\n");
-      nlin=NLINES;
+      nlin=xpp::model().nlines();
       index=old_build_markov(fptr,name.c_str());
-      set_ode_name(IN_VARS+index,xpp::format("{{ {} ... }}",save_eqn[nlin]));
+      set_ode_name(IN_VARS+index,xpp::format("{{ {} ... }}",xpp::model().source[nlin]));
       break;
     case 'v':
       iflg=1;
@@ -684,19 +676,19 @@ int compiler(const std::string &bob, FILE *fptr)
 	xpp::print(convertf,"init ");
     vrs:
       if(xpp::model().nmarkov>0&&OldStyle) {
-	xpp_log(XPP_LOG_WARN, " Error at line %d \n Must declare Markov variables after fixed and regular variables\n",NLINES);
+	xpp_log(XPP_LOG_WARN, " Error at line %d \n Must declare Markov variables after fixed and regular variables\n",xpp::model().nlines());
 	xpp_model_failed();
       }
       for(std::optional<std::string> tok;(tok=get_next2(values));)
 	{
 	  if((IN_VARS>xpp::model().neq)||(IN_VARS==MAXODE))
 	    {
-	      xpp_log(XPP_LOG_ERROR, " too many variables at line %d\n",NLINES);
+	      xpp_log(XPP_LOG_ERROR, " too many variables at line %d\n",xpp::model().nlines());
 	      xpp_model_failed();
 	    }
 	  name=take_apart(*tok,&value);
 	  if(name_too_long(name)||add_var(name,value)){
-	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
+	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	    xpp_model_failed();
 	  }
 	  if(iflg)
@@ -736,7 +728,7 @@ int compiler(const std::string &bob, FILE *fptr)
       formula=tokens.text("$");
       xpp::log(XPP_LOG_DEBUG, "Kernel mu={:f} {} = {} \n",value,name,formula);
       if(add_kernel(name.c_str(),value,formula.c_str())){
-	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",NLINES);
+	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",xpp::model().nlines());
 	xpp_model_failed();
       }
       break;
@@ -759,7 +751,7 @@ int compiler(const std::string &bob, FILE *fptr)
 	add_table_name(NTable,name.c_str());
 
 	if(add_form_table(NTable,nn,xlo,xhi,formula.c_str())){
-	  xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
+	  xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	  xpp_model_failed();
 	}
 
@@ -776,7 +768,7 @@ int compiler(const std::string &bob, FILE *fptr)
 	  formula=tokens.text(" ");
 	  xpp::log(XPP_LOG_INFO, " {} = {} \n",name,formula);
 	  if(add_2d_table(name.c_str(),formula.c_str())){
-	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
+	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	    xpp_model_failed();
 	  }
 	}
@@ -785,7 +777,7 @@ int compiler(const std::string &bob, FILE *fptr)
 	    xpp::log(XPP_LOG_INFO, "Lookup table {} = {} \n",name,formula);
             add_table_name(NTable,name.c_str());
 	    if(add_file_table(NTable,formula.c_str())){
-	      xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
+	      xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	      xpp_model_failed();
 	    }
 	    if(ConvertStyle)
@@ -810,7 +802,7 @@ int compiler(const std::string &bob, FILE *fptr)
 	xpp::print(convertf,")={}",formula);
       }
       if(add_ufun(name.c_str(),formula.c_str(),narg)){
-	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",NLINES);
+	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",xpp::model().nlines());
 	xpp_model_failed();
       }
 
@@ -863,7 +855,7 @@ int compiler(const std::string &bob, FILE *fptr)
 	}
       xpp::log(XPP_LOG_INFO, "RHS({})={}\n",xpp::model().node,formula);
       if(add_expr(formula.c_str(),xpp::model().programs[xpp::model().node].data(),&len)){
-	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",NLINES);
+	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",xpp::model().nlines());
 	xpp_model_failed();
       }
       xpp::model().node++;
@@ -904,10 +896,10 @@ int make_eqn()
 
 void strip_saveqn()
 {
-  for(int i=0;i<NLINES;i++)
-    for(char *c=save_eqn[i];*c;c++)
-      if(*c<32)
-	*c=32;
+  for(std::string &line : xpp::model().source)
+    for(char &c : line)
+      if(c<32)
+	c=32;
 }
 
 int disc(std::string_view s)
@@ -925,7 +917,7 @@ int get_eqn(FILE *fptr)
   int done=1,i;
   int flag;
   init_rpn();
-  NLINES=0;
+  xpp::model().source.clear();
   IN_VARS=0;
   xpp::model().node=0;
   BVP_N=0;
@@ -1112,8 +1104,9 @@ int do_new_parser(FILE *fp, const std::string &first, int nnn, bool at_end)
 void add_only(std::string_view s)
 {
   if(s.empty())return;
-  if(onlylist.size()>=MAXONLY)return;
-  onlylist.emplace_back(s);
+  std::vector<std::string> &only=xpp::model().only;
+  if(only.size()>=MAXONLY)return;
+  only.emplace_back(s);
 }
 
 void break_up_list(std::string_view rhs)
@@ -1337,16 +1330,17 @@ int is_comment(const char *s)
    ...") and the text after the braces ("* text") */
 void add_comment(std::string_view line)
 {
-  if(n_comments>=MAXCOMMENTS)return;
-  ACTION &c=comments[n_comments];
-  std::string &text=comment_text[n_comments];
+  std::vector<xpp::Model::Comment> &comments=xpp::model().comments;
+  if(comments.size()>=MAXCOMMENTS)return;
+  xpp::Model::Comment c;
+  std::string &text=c.text;
   size_t open=line.find('{');
   if(open==std::string_view::npos){
     text=line.empty()?std::string_view():line.substr(1);
     c.aflag=0;
   }
   else {
-    std::string &action=comment_action[n_comments];
+    std::string &action=c.action;
     action="$ ";
     size_t j1=open+1;
     for(size_t i=open+1;i<line.size();i++){
@@ -1364,14 +1358,12 @@ void add_comment(std::string_view line)
     }
     text="* ";
     text+=line.substr(j1);
-    c.action=action.data();
     c.aflag=1;
   }
-  c.text=text.data();
  xpp::log(XPP_LOG_DEBUG, "text={} \n",text);
  if(c.aflag==1)
-   xpp_log(XPP_LOG_DEBUG, "action=%s \n",c.action);
- n_comments++;
+   xpp::log(XPP_LOG_DEBUG, "action={} \n",c.action);
+ comments.push_back(std::move(c));
 }
 
 /* The line s1 (made upper case, its leading blanks removed) as v: 1, 2
@@ -1875,7 +1867,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	   formula=tokens.text(" ");
 	   xpp::log(XPP_LOG_INFO, " {} = {} \n",v.lhs,formula);
 	   if(add_2d_table(v.lhs.c_str(),formula.c_str())){
-	     xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
+	     xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	     xpp_model_failed();
 	   }
 	 }
@@ -2164,11 +2156,12 @@ int parse_model(FILE *fp, const std::string &first, int nnn, bool at_end)
 void create_plot_list()
 {
   int k;
-  if(onlylist.empty())return;
-  plot_columns.assign(onlylist.size()+1,0);
+  const std::vector<std::string> &only=xpp::model().only;
+  if(only.empty())return;
+  plot_columns.assign(only.size()+1,0);
   plotlist=plot_columns.data();
   N_plist=0;
-  for(const std::string &name : onlylist){
+  for(const std::string &name : only){
     find_variable(name.c_str(),&k);
     if(k>=0){
       plotlist[N_plist]=k;

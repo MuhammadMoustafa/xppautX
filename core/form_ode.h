@@ -10,14 +10,10 @@ extern "C" {
 
 #define MAXLINES 5000
 
-/* The model as the parser leaves it (form_ode.cpp), read by the rest of
-   the core as C tables (the names, formulas, programs and boundary
-   conditions are xpp::Model's, model.h): the source's lines (save_eqn)
-   and the columns an "only" statement keeps (plotlist) */
-extern char *save_eqn[MAXLINES];
+/* the columns a batch run writes (plotlist, N_plist of them): an "only"
+   statement's (create_plot_list), or post-processing's; what the model
+   itself defines is xpp::Model's (model.h) */
 extern int *plotlist,N_plist;
-/* the source's line count (the model's other counts are xpp::Model's) */
-extern int NLINES;
 /* an old-style file being rewritten in the new syntax (-convert):
    ConvertStyle set, convertf the new file (markov.cpp writes it too) */
 extern int ConvertStyle;
@@ -29,15 +25,6 @@ int get_eqn(FILE *fptr);
 void create_plot_list(void);
 int find_char(const char *s1, const char *s2, int i0, int *i1);
 
-/* the model's comments (the ones with an action run it when picked):
-   C text, kept by form_ode.cpp */
-typedef struct {
-  char *text,*action;
-  int aflag;
-} ACTION;
-
-extern ACTION comments[];
-extern int n_comments;
 
 #ifdef __cplusplus
 }

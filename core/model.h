@@ -182,6 +182,26 @@ struct Model {
   /* each one compiled: MAXEXPLEN commands, the formula then ENDFUN,
      its argument count and ENDEXP */
   std::array<std::vector<int>,MAXUFUN> ufun_programs;
+  /* ---- the source ---- */
+  /* the model file's lines as read (strip_saveqn makes their control
+     characters blanks at the end of the load) */
+  std::vector<std::string> source;
+  int nlines() const { return static_cast<int>(source.size()); }
+  /* a " comment of the model: its text, and with {name=value,...} an
+     action, "$ name=value ..." (aflag 1), run when it is picked */
+  struct Comment {
+    std::string text,action;
+    int aflag=0;
+  };
+  std::vector<Comment> comments;
+  /* the names an "only" statement keeps in a batch run's output */
+  std::vector<std::string> only;
+  /* a named set of options (@ set name {...}): does holds them as
+     "$ name=value ..." */
+  struct InternalSet {
+    std::string name,does;
+  };
+  std::vector<InternalSet> intern_sets;
   /* the loaded file's path, as given ("console" for standard input) */
   std::string this_file;
   /* "_<name>" of the internal set last applied, "" when none */

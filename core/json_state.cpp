@@ -484,16 +484,16 @@ void eqimport_command(void)
 void j_make_txtview(void)
 {
     Buf b;
-    int i;
+    const xpp::Model &m = xpp::model();
     BUF_LIT(&b, "{\"ev\":\"source\",\"lines\":");
-    buf_str_array(&b, save_eqn, NLINES);
+    buf_str_array(&b, m.source);
     /* comments; one with an action runs it when picked ({"cmd":"action"}) */
     BUF_LIT(&b, ",\"comments\":[");
-    for (i = 0; i < n_comments; i++) {
+    for (std::size_t i = 0; i < m.comments.size(); i++) {
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
-        buf_str(&b, comments[i].text);
-        buf_format(&b, ",{:d}]", comments[i].aflag > 0);
+        buf_str(&b, m.comments[i].text);
+        buf_format(&b, ",{:d}]", m.comments[i].aflag > 0);
     }
     BUF_LIT(&b, "]}");
     send_buf(&b);
@@ -504,7 +504,9 @@ void j_make_txtview(void)
 void action_command(const char *line)
 {
     int i = get_int(line, "index", -1);
-    if (i >= 0 && i < n_comments && comments[i].aflag > 0) do_txt_action(comments[i].action);
+    const std::vector<xpp::Model::Comment> &comments = xpp::model().comments;
+    if (i >= 0 && i < static_cast<int>(comments.size()) && comments[i].aflag > 0)
+        do_txt_action(comments[i].action.c_str());
 }
 
 } // namespace xpp::json

@@ -7,11 +7,11 @@ core/auto_nox.cpp 40
 core/axes2.cpp 3
 core/browse_data.cpp 1
 core/colormap.cpp 3
-core/comline.cpp 8
+core/comline.cpp 7
 core/commands.cpp 2
 core/delay_handle.cpp 9
 core/flags.cpp 1
-core/form_ode.cpp 8
+core/form_ode.cpp 4
 core/gear.cpp 5
 core/gogoauto.cpp 3
 core/graf_par.cpp 2
@@ -19,7 +19,7 @@ core/graphics.cpp 18
 core/grobs.cpp 2
 core/histogram.cpp 12
 core/integrate.cpp 9
-core/load_eqn.cpp 73
+core/load_eqn.cpp 71
 core/markov.cpp 6
 core/my_ps.cpp 9
 core/my_svg.cpp 1

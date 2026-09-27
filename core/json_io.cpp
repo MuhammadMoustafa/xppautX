@@ -57,6 +57,16 @@ void buf_str_array(Buf *b, const char *const *v, int n)
     BUF_LIT(b, "]");
 }
 
+void buf_str_array(Buf *b, std::span<const std::string> v)
+{
+    BUF_LIT(b, "[");
+    for (std::size_t i = 0; i < v.size(); i++) {
+        if (i) BUF_LIT(b, ",");
+        buf_str(b, v[i]);
+    }
+    BUF_LIT(b, "]");
+}
+
 void buf_num(Buf *b, double v, int sig)
 {
     std::string t;

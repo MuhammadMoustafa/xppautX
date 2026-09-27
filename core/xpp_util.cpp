@@ -344,7 +344,7 @@ void clone_ode()
 {
   int i,j,x,y;
   std::string clone;
-  char *s;
+  const char *s;
   time_t ttt;
   double z;
   if(!file_selector("Clone ODE file",clone,"*.ode"))return;
@@ -355,8 +355,8 @@ void clone_ode()
     }
   ttt=time(0);
   fp.print("# clone of {} on {}",xpp::model().this_file,ctime(&ttt));
-  for(i=0;i<NLINES;i++){
-    s=save_eqn[i];
+  for(i=0;i<xpp::model().nlines();i++){
+    s=xpp::model().source[i].c_str();
 
     if(s[0]=='p'||s[0]=='P'||s[0]=='b'||s[0]=='B'){
       x=find_char(s,"'",0,&j);

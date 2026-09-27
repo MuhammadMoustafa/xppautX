@@ -117,9 +117,6 @@ std::string read_line(FILE *fp)
   return std::string(lr.next().value_or(std::string_view()));
 }
 
-/* intern_set's names and options (the C table points into them) */
-std::array<std::string,MAX_INTERN_SET> intern_name,intern_does;
-
 } // namespace
 
 int RunImmediately=0;
@@ -130,8 +127,6 @@ int IX_PLT[10],IY_PLT[10],IZ_PLT[10],NPltV;
 int MultiWin=0;
 double X_LO[10],Y_LO[10],X_HI[10],Y_HI[10];
 int START_LINE_TYPE=1;
-INTERN_SET intern_set[MAX_INTERN_SET];
-int Nintern_set=0;
 
 /*   this file has all of the phaseplane parameters defined   
      and created.  All other files should use external stuff
@@ -436,13 +431,12 @@ void fil_int(FILE *fpt, int *val)
 
 void add_intern_set(const char *name, const char *does)
 {
-  int j=Nintern_set;
-  if(Nintern_set>=MAX_INTERN_SET){
+  std::vector<xpp::Model::InternalSet> &sets=xpp::model().intern_sets;
+  if(sets.size()>=MAX_INTERN_SET){
    xpp_log(XPP_LOG_WARN, " %s not added -- too many must be less than %d \n",
 	   name,MAX_INTERN_SET);
     return;
   }
-  intern_set[j].use=1;
   /* "$ " then does without its braces, commas as spaces */
   std::string bob="$ ";
   for(const char *p=does;*p;p++){
@@ -450,11 +444,9 @@ void add_intern_set(const char *name, const char *does)
       continue;
     bob+=*p==','?' ':*p;
   }
-  xpp::keep_c_text(intern_name[j],intern_set[j].name,name);
-  xpp::keep_c_text(intern_does[j],intern_set[j].does,bob);
+  sets.push_back({name,bob});
  xpp_log(XPP_LOG_INFO, " added %s doing %s \n",
-	 intern_set[j].name,intern_set[j].does);
-  Nintern_set++;
+	 sets.back().name.c_str(),sets.back().does.c_str());
 }
 
 void extract_action(const char *ptr)
@@ -466,7 +458,7 @@ void extract_action(const char *ptr)
 
 void extract_internset(int j)
 {
-  extract_action(intern_set[j].does);
+  extract_action(xpp::model().intern_sets[j].does.c_str());
 }
 
 void do_intern_set(const char *name1, const char *value)

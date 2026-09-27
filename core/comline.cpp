@@ -91,7 +91,6 @@ static int externaloptionsflag=0;
 std::vector<std::string> include_files;
 static int select_intern_sets=0;
 
-int Nintern_2_use=0;
 
 static int loadsetfile=0;
 static int loadparfile=0;
@@ -356,29 +355,33 @@ int if_needed_load_ext_options()
 int if_needed_select_sets()
 {
 	if(!select_intern_sets){return 1;}
-	int j;
-	for(j=0;j<Nintern_set;j++)
+	const std::vector<xpp::Model::InternalSet> &sets=xpp::model().intern_sets;
+	std::vector<int> &use=batch_options.intern_set_use;
+	int &used=batch_options.intern_sets_used;
+	use.assign(sets.size(),1);
+	for(std::size_t j=0;j<sets.size();j++)
   	{
-		intern_set[j].use=batch_options.use_intern_sets;
-		Nintern_2_use+=batch_options.use_intern_sets;
+		const char *name=sets[j].name.c_str();
+		use[j]=batch_options.use_intern_sets;
+		used+=batch_options.use_intern_sets;
 		
-		if (is_set_name(sets2use,intern_set[j].name))
+		if (is_set_name(sets2use,name))
 		{
-		xpp_log(XPP_LOG_INFO, "Internal set %s was included\n",intern_set[j].name);
-			if (intern_set[j].use==0){Nintern_2_use++;}
-			intern_set[j].use=1;
+		xpp_log(XPP_LOG_INFO, "Internal set %s was included\n",name);
+			if (use[j]==0){used++;}
+			use[j]=1;
 			
 		}
 		
-		if (is_set_name(setsNOTuse,intern_set[j].name))
+		if (is_set_name(setsNOTuse,name))
 		{
-		xpp_log(XPP_LOG_INFO, "Internal set %s was excluded\n",intern_set[j].name);
-			if (intern_set[j].use==1){Nintern_2_use--;}
-			intern_set[j].use=0;
+		xpp_log(XPP_LOG_INFO, "Internal set %s was excluded\n",name);
+			if (use[j]==1){used--;}
+			use[j]=0;
 		}
 	}
 	
-	xpp_log(XPP_LOG_INFO, "A total of %d internal sets will be used\n",Nintern_2_use);
+	xpp_log(XPP_LOG_INFO, "A total of %d internal sets will be used\n",used);
 	
 	return 1;
 }

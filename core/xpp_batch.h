@@ -31,6 +31,7 @@ void xpp_load_model(int argc, char **argv, int batch);
 }
 
 #include <string>
+#include <vector>
 /* How a run without an interface goes and where its output lands: the
    command line (-silent, -outfile, -equil, -iset) and the ODE file's
    @ output=, @ range= options set these. */
@@ -41,6 +42,14 @@ struct XppBatchOptions {
     int use_intern_sets = 1;   /* run every internal set (1) or the chosen ones */
     std::string out_file;      /* the data file a batch run writes */
     std::string user_out_file; /* -outfile as given ("": name it after the set) */
+    /* whether a batch run uses each of the model's internal sets, as the
+       command line picked them (if_needed_select_sets; a set it did not
+       pick is used), and how many it picked in all (0: run once, no set) */
+    std::vector<int> intern_set_use;
+    int intern_sets_used = 0;
+    int uses_intern_set(std::size_t j) const {
+        return j < intern_set_use.size() ? intern_set_use[j] : 1;
+    }
 };
 extern XppBatchOptions batch_options;
 #endif

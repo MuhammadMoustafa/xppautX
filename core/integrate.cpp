@@ -936,22 +936,22 @@ void find_equilib_com(int com)
 void batch_integrate()
 {
 
-  int i;
+  const std::vector<xpp::Model::InternalSet> &sets=xpp::model().intern_sets;
   
-  if ((Nintern_set==0) | (Nintern_2_use==0)){
+  if (sets.empty() || (batch_options.intern_sets_used==0)){
     xpp::model().this_internset.clear();
     do_batch_dry_run();
     batch_integrate_once();
     return;
   }
  
-  for(i=0;i<Nintern_set;i++)
+  for(std::size_t i=0;i<sets.size();i++)
   {
   
-  	  xpp::model().this_internset=xpp::format("_{}",intern_set[i].name);
+  	  xpp::model().this_internset=xpp::format("_{}",sets[i].name);
 	  if (batch_options.user_out_file.empty()) /*Use the set name for outfile name*/
 	  {
-	      batch_options.out_file=xpp::format("{}.dat",intern_set[i].name);
+	      batch_options.out_file=xpp::format("{}.dat",sets[i].name);
 	  }
 	  else/*Use the command line supplied outfile name*/
 	  {
@@ -959,10 +959,10 @@ void batch_integrate()
 	      batch_options.out_file=batch_options.user_out_file;
 	  }
 	  xpp::log(XPP_LOG_INFO, "out={}\n",batch_options.out_file);
-	  extract_internset(i);
+	  extract_internset(static_cast<int>(i));
 	  chk_delay();
 	  do_batch_dry_run();
-	  if (intern_set[i].use)
+	  if (batch_options.uses_intern_set(i))
 	  {
 		batch_integrate_once(); 
 	  }
@@ -984,9 +984,10 @@ void do_batch_dry_run()
 	if (querysets)
 	{
 		w.print("#Internal sets query:\n");
-		for(int i=0;i<Nintern_set;i++)
+		const std::vector<xpp::Model::InternalSet> &sets=xpp::model().intern_sets;
+		for(std::size_t i=0;i<sets.size();i++)
 		{
-			w.print("{} {} {}\n",static_cast<const char *>(intern_set[i].name),intern_set[i].use,static_cast<const char *>(intern_set[i].does));
+			w.print("{} {} {}\n",sets[i].name,batch_options.uses_intern_set(i),sets[i].does);
 		}
 	}
 

@@ -45,6 +45,7 @@
 #include "many_pops.h"
 #include "kinescope.h"
 #include "parserslow.h"
+#include "model.h"
 
 /* Pop up m and return the index of the chosen item, -1 if none. */
 static int menu_pick(const XppMenu *m, int def)
@@ -173,7 +174,8 @@ void draw_many_lines(void)
 
 void get_intern_set(void)
 {
-  int count = Nintern_set;
+  const std::vector<xpp::Model::InternalSet> &sets = xpp::model().intern_sets;
+  int count = static_cast<int>(sets.size());
   if (count <= 0 || count >= MAX_INTERN_SET) return;
 
   std::vector<std::string> labels;
@@ -183,7 +185,7 @@ void get_intern_set(void)
   items.reserve(static_cast<std::size_t>(count));
   for (int i = 0; i < count; i++) {
     char key = static_cast<char>('a' + i);
-    labels.push_back(xpp::format("{}: {}", key, intern_set[i].name));
+    labels.push_back(xpp::format("{}: {}", key, sets[i].name));
     keys.push_back(key);
   }
   for (const auto &s : labels) items.push_back(s.c_str());
@@ -192,7 +194,7 @@ void get_intern_set(void)
                no_hint, -1};
   char ch = static_cast<char>(menu_choose(&m, 0));
   int j = ch - 'a';
-  if (j < 0 || j >= Nintern_set) {
+  if (j < 0 || j >= count) {
     err_msg("Not a valid set");
     return;
   }

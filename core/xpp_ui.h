@@ -347,7 +347,7 @@ typedef struct XppUi {
                         double *ev, int n);
 
     /* Whole dialogs a front end provides; the core has no logic in them
-       beyond what they call back (do_calc, the ODE source in save_eqn).
+       beyond what they call back (do_calc, the ODE source in xpp::Model).
        Headless: they do nothing. */
     void (*make_txtview)(void); /* File/Prt src: source and active comments */
     void (*q_calc)(void);       /* File/Calculator: evaluate formulas */
