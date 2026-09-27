@@ -11,7 +11,7 @@ typedef struct {
 
 
 
-KBS kbs[400]={
+static const KBS kbs[400]={
   {M_IR,"ir"},
   {M_I2,"i2"},
   {M_IL,"il"},

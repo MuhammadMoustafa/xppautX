@@ -13,12 +13,12 @@
 
 int (*rhs)(double t, double *y, double *ydot, int neq);
 
-double coefp[]={ 6.875/3.00,-7.375/3.00,4.625/3.00,-.375},
+constexpr double coefp[]={ 6.875/3.00,-7.375/3.00,4.625/3.00,-.375},
        coefc[]={ .375,2.375/3.00,-.625/3.00,0.125/3.00 };
-double *y_s[4],*y_p[4],*ypred;
+static double *y_s[4],*y_p[4],*ypred;
 
-double symp_b[]={7/24.,.75,-1./24};
-double symp_B[]={2/3.,-2./3.,1.0};
+constexpr double symp_b[]={7/24.,.75,-1./24};
+constexpr double symp_B[]={2/3.,-2./3.,1.0};
 
 namespace {
 /* nt steps of a fixed-step method, storing the delays after each: its

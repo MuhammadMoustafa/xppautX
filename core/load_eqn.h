@@ -243,7 +243,7 @@ extern int RunImmediately,xorfix,silent,got_file;
 extern int NEQ,PLOT_3D,INFLAG,STORFLAG,FOREVER,ENDSING,PAUSER,NULL_HERE;
 extern int METHOD,NJMP,EVEC_ITER,NMESH,FFT,HIST;
 extern double HMIN,HMAX,TOLER,ATOLER,BOUND,DELAY;
-extern double NULL_ERR,EVEC_ERR,NEWT_ERR;
+extern double EVEC_ERR,NEWT_ERR;
 extern double TEND,DELTA_T,T0,TRANS;
 extern int TORUS,itor[MAXODE];
 extern double TOR_PERIOD;

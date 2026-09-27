@@ -40,13 +40,14 @@
 #define MAXONLY 1000
 #define MAXCOMMENTS 500
 
-int IN_INCLUDED_FILE=0;
+static int IN_INCLUDED_FILE=0;
 char *ode_names[MAXODE];
 char *save_eqn[MAXLINES];
 double default_val[MAXPAR];
 
 int *my_ode[MAXODE];
-int leng[MAXODE];
+/* each program's length */
+static int leng[MAXODE];
 
 int *plotlist;
 int N_plist;
@@ -59,17 +60,19 @@ double default_ic[MAXODE];
 int NODE,NUPAR,NLINES;
 int PrimeStart;
 int NCON_START,NSYM_START;
-int BVP_NL,BVP_NR,BVP_N;
+/* the boundary conditions: all, left, right */
+static int BVP_NL,BVP_NR,BVP_N;
 
 #define cstringmaj MYSTR1
 #define cstringmin MYSTR2
 
 int ConvertStyle=0;
 FILE *convertf;
-int IN_VARS;
+static int IN_VARS;
 int NMarkov;
 int FIX_VAR;
-int NEQ_MIN;
+/* NEQ as the model left it: the data browser's new columns come after */
+static int NEQ_MIN;
 int EqType[MAXODE];
 std::array<FIXINFO,MAXODE> fixinfo;
 

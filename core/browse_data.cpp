@@ -25,7 +25,7 @@
 
 /*  The one and only primitive data browser   */
 BROWSER my_browser;
-int REPLACE=0,R_COL=0;
+static int REPLACE=0,R_COL=0;
 
 namespace {
 /* Replace's column as it was, for Unreplace */

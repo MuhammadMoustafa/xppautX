@@ -33,7 +33,7 @@ typedef struct {
   std::string name;
 } MARKOV;
 
-MARKOV markov[MAXMARK];
+static MARKOV markov[MAXMARK];
 
 /* The browser (new_browse_dat, browse.h) takes the statistics as a plain
    float ** of MAXODE rows, so my_mean/my_variance stay arrays of row
@@ -45,7 +45,7 @@ std::vector<float> mean_rows[MAXODE], variance_rows[MAXODE];
 int stoch_len;
 
 int STOCH_FLAG,STOCH_HERE,N_TRIALS;
-int Wiener[MAXPAR];
+static int Wiener[MAXPAR];
 int NWiener;
 
 void add_wiener(int index)

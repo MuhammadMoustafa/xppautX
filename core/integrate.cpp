@@ -112,7 +112,7 @@ extern int AdjRange;
 
 int MakePlotFlag=0;
 
-int OnTheFly=1;
+constexpr int OnTheFly=1;
 extern FILE *svgfile;
 
 struct ARRAY_IC {
@@ -122,8 +122,8 @@ struct ARRAY_IC {
   std::string var;
   int j1,j2;
 };
-int ar_ic_defined=0;
-ARRAY_IC ar_ic[NAR_IC];
+static int ar_ic_defined=0;
+static ARRAY_IC ar_ic[NAR_IC];
 namespace {
 /* the fixed points the Monte Carlo search found: each one's values and
    its eigenvalues' real and imaginary parts, NODE of each */
@@ -140,20 +140,18 @@ typedef struct
   double xlo[MAXODE],xhi[MAXODE];
 } FIXPTGUESS;
 
-FIXPTGUESS fixptguess;
+static FIXPTGUESS fixptguess;
 
 int SuppressOut=0;
 int SuppressBounds=0;
 
-extern int SCALEY;
 int DelayErr;
 
 int MyStart;
 int RANGE_FLAG; 
 double LastTime;
 
-extern int R_COL;
-int STOP_FLAG=0;
+static int STOP_FLAG=0;
  struct {
          std::string item;
    int steps,shoot,col,movie,mc;

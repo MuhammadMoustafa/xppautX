@@ -26,7 +26,7 @@ typedef struct {
   std::vector<int> iwork;
   int status;
 } DAEWORK;
-DAEWORK dae_work;
+static DAEWORK dae_work;
 
 typedef struct {
   std::string name, rhs;
@@ -40,10 +40,10 @@ typedef struct {
   std::vector<int> form;
 } DAE_EQN;
 
-DaeSolVar svar[MAXDAE];
-DAE_EQN aeqn[MAXDAE];
+static DaeSolVar svar[MAXDAE];
+static DAE_EQN aeqn[MAXDAE];
 
-int nsvar=0,naeqn=0;
+static int nsvar=0,naeqn=0;
 
 /* this adds an algebraically defined variable  and a formula
    for the first guess */

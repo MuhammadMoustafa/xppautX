@@ -5,7 +5,7 @@
 
 
 
-const char *main_menu[]={
+const char *const main_menu[]={
  "XPP","Initialconds","Continue","Nullcline",
  "Dir.field/flow","Window/zoom","phAsespace",
  "Kinescope","Graphic stuff","nUmerics","File",
@@ -13,17 +13,17 @@ const char *main_menu[]={
  "Sing pts","Viewaxes","Xi vs t","Restore","3d-params",
  "Bndryval"};
 
-const char *num_menu[]={"NUMERICS","Total","Start time","tRansient",
+const char *const num_menu[]={"NUMERICS","Total","Start time","tRansient",
 "Dt","Ncline ctrl","sIng pt ctrl","nOutput","Bounds","Method",
 "dElay","Color code","stocHast","Poincare map","rUelle plot",
 "looKup","bndVal","Averaging","[Esc]-exit"};
-const char *file_menu[]={
+const char *const file_menu[]={
 "FILE","Prt src","Write set","Read set",
 "Auto","Calculator","Edit","Save info",
 "Help","Quit","Transpose","Get par set","cLone",".Xpprc","tUtorial"};
 
 /* hints for the main menus */
-const char *main_hint[]=
+const char *const main_hint[]=
 { "Integrate the equations",
   "Continue integration for specified time",
   "Draw nullclines",
@@ -46,7 +46,7 @@ const char *main_hint[]=
   "Run boundary value solver" };
 
 
-const char *file_hint[]={
+const char *const file_hint[]={
 "Display source and active comments",
 "Save information for restart",
 "Read information for restart",
@@ -64,7 +64,7 @@ const char *file_hint[]={
 };
 
 
-const char *num_hint[]={
+const char *const num_hint[]={
 "Total time to integrate eqns",
 "Starting time -- T0",
 "Time to integrate before storing",
@@ -87,7 +87,7 @@ const char *num_hint[]={
 
 /* other hints  */
 
-const char *null_hint[]={
+const char *const null_hint[]={
 "Compute new nullclines",
 "Redraw last nullclines",
 "Set automatic redraw -- X redraws when needed",
@@ -96,13 +96,13 @@ const char *null_hint[]={
 "Save nullcline values to a file"
 };
 
-const char *null_freeze[]={
+const char *const null_freeze[]={
   "Freeze current clines",
   "Delete all frozen clines",
   "Range freeze a bunch of clines",
   "Animate nullclines"
 };
-const char *ic_hint[]={
+const char *const ic_hint[]={
 "Integrate over a range of parameters, init data, etc",
 "Integrate over range of 2 parameters,init data, etc",
 "Pick up from last step of previous solution",
@@ -118,7 +118,7 @@ const char *ic_hint[]={
 "Integrate backwards"
 };
 
-const char *wind_hint[]={
+const char *const wind_hint[]={
 "Manually choose 2D view",
 "Zoom into with mouse",
 "Zoom out with mouse",
@@ -127,7 +127,7 @@ const char *wind_hint[]={
 "Scroll around the view"
 };
 
-const char *flow_hint[]={
+const char *const flow_hint[]={
 "Draw vector field for 2D section",
 "Draw regular series of trajectories",
 " ",
@@ -135,13 +135,13 @@ const char *flow_hint[]={
 "Draw only directions"
 };
 
-const char *phas_hint[]={
+const char *const phas_hint[]={
 "Each variable is on a circle",
 "No variable on circle",
 "Choose circle variables"
 };
 
-const char *kin_hint[]={
+const char *const kin_hint[]={
 "Grab a screen shot",
 "Clear all screen shots",
 "Manually cycle thru screenshots",
@@ -150,7 +150,7 @@ const char *kin_hint[]={
 "Make animated gif file from screenshots"
 };
 
-const char *graf_hint[]={
+const char *const graf_hint[]={
 "Add another curve to the current plot",
 "Delete last added plot",
 "Remove all the added plots except the main one",
@@ -163,7 +163,7 @@ const char *graf_hint[]={
 "Change colormap"
 };
 
-const char *cmap_hint[]={
+const char *const cmap_hint[]={
  " blue-green-red",
  "red-...-violet-red",
  "black-red-yellow-white",
@@ -172,7 +172,7 @@ const char *cmap_hint[]={
  "black-white",
  "helical luminence corrected"
 };
-const char *frz_hint[]={
+const char *const frz_hint[]={
 "Permanently keep main curve -- even after reintegrating",
 "Delete specified frozen curve",
 "Edit specified frozen curve",
@@ -183,7 +183,7 @@ const char *frz_hint[]={
 "Automatically freeze after each integration",
 };
 
-const char *stoch_hint[]={
+const char *const stoch_hint[]={
 "Seed random number generator",
 "Run many simulations to get average trajectory",
 "Get data from last simulation",
@@ -202,7 +202,7 @@ const char *stoch_hint[]={
 "Compute two-variable histograms"
 };
 
-const char *bvp_hint[]={
+const char *const bvp_hint[]={
 "Solve BVP over range of parameters",
 "Don't show any but final step",
 "Show each step of iteration",
@@ -210,7 +210,7 @@ const char *bvp_hint[]={
 "Set up special homoclinic stuff"
 }; 
 
-const char *adj_hint[]={
+const char *const adj_hint[]={
 "Compute a new adjoint function",
 "Compute averaging interaction function",
 "Load computed adjoint",
@@ -220,7 +220,7 @@ const char *adj_hint[]={
 "Range over stuff to computte many adjoints"
 };
 
-const char *map_hint[]={
+const char *const map_hint[]={
 "Turn off Poincare map",
 "Define section for Poincare map",
 "Compute Poincare map on maximum/minimum of variable",
@@ -228,14 +228,14 @@ const char *map_hint[]={
 };
 
 
-const char *view_hint[]={
+const char *const view_hint[]={
   "Two-dimensional view settings",
   "Three-dimensional view settings",
   "Plot array ",
   "Animation window"
 };
 
-const char *half_hint[]={
+const char *const half_hint[]={
 "Create new window",
 "Delete all but main window",
 "Delete last window",
@@ -244,7 +244,7 @@ const char *half_hint[]={
 "Redraw only when requested",
 "Plot all graphs simultaneously -- slows you down"};
 
-const char *text_hint[]={
+const char *const text_hint[]={
 "Create text labels in different fonts ",
 "Add arrows to trajectories",
 "Create lines with arrowheads",
@@ -254,19 +254,19 @@ const char *text_hint[]={
 "Create many markers based on browser data"
 };
 
-const char *edit_hint[]={
+const char *const edit_hint[]={
 "Move the selected item",
 "Change properties of selected item",
 "Delete selected item"
 };
 
-const char *sing_hint[]={
+const char *const sing_hint[]={
 "Find fixed points over range of parameter",
 " ",
 "Use mouse to guess fixed point",
 "Monte carlo search for fixed points"};
 
-const char *meth_hint[]={
+const char *const meth_hint[]={
 "Discrete time -- difference equations",
 "Euler method",
 "Heun method -- 2nd order Euler",
@@ -283,22 +283,22 @@ const char *meth_hint[]={
 "Rosenbrock(2,3) - good with discontinuties",
 "Symplectic - x''=F(x)"};
 
-const char *color_hint[]={
+const char *const color_hint[]={
 " ",
 "Color according to magnitude of derivative",
 "Color according to height of Z-axis"
 };
 
-const char *tab_hint[]={"Edit the lookup tables","View a table in the data browser"};
+const char *const tab_hint[]={"Edit the lookup tables","View a table in the data browser"};
 
-const char *edrh_hint[]={
+const char *const edrh_hint[]={
 "Edit right-hand sides and auxiliaries",
 "Edit function definitions",
 "Save current file with new defs",
 "Load external C right-hand sides"
 };
 
-const char *auto_hint[]={
+const char *const auto_hint[]={
 "Tell AUTO the parameters you may vary",
 "What will be plotted on the axes and what parameter(s)",
 "Tell AUTO range, direction, and tolerance",
@@ -309,10 +309,10 @@ const char *auto_hint[]={
 "Redraw the diagram",
 "Save and output options"};
 
-const char *no_hint[]={ 
+const char *const no_hint[]={ 
 " "," "," "," "," "," "," "," "," "," ", " "," "," "," "};
 
-const char *aaxes_hint[]={
+const char *const aaxes_hint[]={
 "Plot maximum of variable vs parameter",
 "Plot norm of solution vs parameter",
 "Plot max/min of variable vs parameter",
@@ -329,7 +329,7 @@ const char *aaxes_hint[]={
 "Scroll around the plot"
 };
 
-const char *afile_hint[]={
+const char *const afile_hint[]={
 "Load a computed orbit into XPP",
 "Write diagram info to file for reuse",
 "Load previously saved file for restart",
@@ -347,7 +347,7 @@ const char *afile_hint[]={
 "Put all data from branch into browser",
 };
 
-const char *aspecial_hint[]={
+const char *const aspecial_hint[]={
 "Bifurcation or branch point",
 "Endpoint of a branch",
 "Hopf bifurcation point",
@@ -358,7 +358,7 @@ const char *aspecial_hint[]={
 "User defined function",
 };
 
-const char *arun_hint[]={
+const char *const arun_hint[]={
   "Start at fixed point",
   "Start at periodic orbit",
   "Start at solution to boundary value problem",

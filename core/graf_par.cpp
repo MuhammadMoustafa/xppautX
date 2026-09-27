@@ -71,9 +71,9 @@ void frz_bd(void);
 XppFrozenCurves frozen_curves;
 XppPlotExport plot_export;
 
-double FreezeKeyX,FreezeKeyY;
-int FreezeKeyFlag;
-int CurrentCurve=0;
+static double FreezeKeyX,FreezeKeyY;
+static int FreezeKeyFlag;
+constexpr int CurrentCurve=0;
 
 int colorline[]={0,20,21,22,23,24,25,26,27,28,29,0};
 const char *color_names[]={"WHITE","RED","REDORANGE","ORANGE","YELLOWORANGE",

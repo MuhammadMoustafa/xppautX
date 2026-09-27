@@ -38,7 +38,7 @@ void just_sd(int flag);
 extern float **my_hist;
 extern float **my_four;
 extern int HIST_HERE, FOUR_HERE, hist_len, four_len;
-extern int spec_col, spec_wid, spec_win, spec_col2, spec_type;
+extern int spec_col, spec_wid, spec_win, spec_col2;
 extern int post_process;
 
 #ifdef __cplusplus

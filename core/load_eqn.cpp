@@ -128,8 +128,6 @@ extern int SEc,UEc,SPc,UPc;
 
  std::array<std::string,MAXODE> delay_string;
  int itor[MAXODE];
- float oldhp_x,oldhp_y,my_pl_wid,my_pl_ht;
- int mov_ind;
  int STORFLAG,INFLAG;
  double x_3d[2],y_3d[2],z_3d[2];
  int IXPLT,IYPLT,IZPLT;
@@ -142,8 +140,8 @@ extern int SEc,UEc,SPc,UPc;
 
 /*   Numerical stuff ....   */
 
- double DELTA_T,TEND,T0,TRANS,
-	NULL_ERR,EVEC_ERR,NEWT_ERR;
+ double DELTA_T,TEND,T0,TRANS,EVEC_ERR,NEWT_ERR;
+ static double NULL_ERR;
  double BOUND,DELAY,TOLER,ATOLER,HMIN,HMAX;
  double BVP_EPS,BVP_TOL;
 
@@ -266,13 +264,10 @@ void set_all_vals()
  if (notAlreadySet.POIPLN){POIPLN=0.0;notAlreadySet.POIPLN=0;};
 
  data_store.rows=0;
- mov_ind=0;
 
  STORFLAG=0;
 
  INFLAG=0;
- oldhp_x=-100000.0 ;
- oldhp_y=-100000.0;
  solver=rung_kut;
  PLOT_3D=0;
  if (notAlreadySet.METHOD){METHOD=3;notAlreadySet.METHOD=0;};
@@ -283,8 +278,6 @@ void set_all_vals()
  
  if (notAlreadySet.BOUND){BOUND=100;notAlreadySet.BOUND=0;};
  if (notAlreadySet.MAXSTOR){data_store.max_rows=5000;notAlreadySet.MAXSTOR=0;};
- my_pl_wid=10000. ;
- my_pl_ht=7000.  ;
 
  if (notAlreadySet.T0){T0=0.0;notAlreadySet.T0=0;};
  if (notAlreadySet.TRANS){TRANS=0.0;notAlreadySet.TRANS=0;};

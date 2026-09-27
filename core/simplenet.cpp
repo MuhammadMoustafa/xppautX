@@ -155,8 +155,8 @@ typedef struct {
   int root,length,il,ir;
 } VECTORIZER;
 
-VECTORIZER my_vec[MAXVEC];
-int n_vector=0;
+static VECTORIZER my_vec[MAXVEC];
+static int n_vector=0;
 
 typedef struct {
   int type,ncon,n;
@@ -202,8 +202,8 @@ bool parse_import(std::string_view s, std::string &soname, std::string &sofun, i
                   std::string &vname, std::vector<std::string> &tname);
 } // namespace
 
-NETWORK my_net[MAXNET];
-int n_network=0;
+static NETWORK my_net[MAXNET];
+static int n_network=0;
 double net_interp(double x, int i)
 {
   int jlo=static_cast<int>(x);

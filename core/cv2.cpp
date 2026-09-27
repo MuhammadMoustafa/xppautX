@@ -15,10 +15,10 @@
 #include "load_eqn.h"
 #include "numerics.h"
 #include <string>
-double cv_ropt[OPT_SIZE];
-  int cv_iopt[OPT_SIZE];
-void *cvode_mem;
-N_Vector ycv;
+static double cv_ropt[OPT_SIZE];
+static int cv_iopt[OPT_SIZE];
+static void *cvode_mem;
+static N_Vector ycv;
 static void cvf(int n, double t, N_Vector y, N_Vector ydot, void *fdata);
 void start_cv(double *y, double t, int n, double tout, double *atol, double *rtol)
 {

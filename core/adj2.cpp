@@ -34,8 +34,8 @@
 
 #define READEM 1
 
-int adj_len;
 namespace {
+int adj_len;
 /* the derived data sets this file shows in the browser (storage.h) */
 LentColumns adj_columns, h_columns, trans_columns;
 float **const my_adj=adj_columns.table();
@@ -50,10 +50,13 @@ struct {
   std::string firstcol;
 } my_trans;
    
+namespace {
 int LIAP_FLAG=0;
 int LIAP_N,LIAP_I;
-double ADJ_EPS=1.e-8,ADJ_ERR=1.e-3;
+constexpr double ADJ_EPS=1.e-8;
+double ADJ_ERR=1.e-3;
 int ADJ_MAXIT=20,ADJ_HERE=0,H_HERE=0,h_len,HODD_EV=0;
+}
 int AdjRange=0;
 namespace {
 /* each equation's coupling for the H function: its formula and the

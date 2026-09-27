@@ -87,29 +87,28 @@ void add_set(std::vector<std::string> &sets, const char *nam)
 
 } // namespace
 
-int externaloptionsflag=0;
+static int externaloptionsflag=0;
 std::vector<std::string> include_files;
-int select_intern_sets=0;
+static int select_intern_sets=0;
 
 int Nintern_2_use=0;
 
-int loadsetfile=0;
-int loadparfile=0;
-int loadicfile=0;
+static int loadsetfile=0;
+static int loadparfile=0;
+static int loadicfile=0;
 int loadincludefile=0;
 int querysets=0;
 int querypars=0;
 int queryics=0;
 int dryrun=0;
 extern int MakePlotFlag;
-int noicon=1;
 int newseed=0;
 typedef struct {
   const char *name;
   int len;
 } VOCAB;
 
-VOCAB my_cmd[NCMD]=
+constexpr VOCAB my_cmd[NCMD]=
 {
   {"-m",3},         
   {"-xorfix",7},
@@ -455,7 +454,7 @@ int parse_it(const char *com)
       ConvertStyle=1;
       break;
     case NOICON:
-      noicon=0;
+      /* -iconify: the X11 icon is gone; accepted and ignored */
       break;
     case NEWSEED:
      xpp_log(XPP_LOG_INFO, "Random number seed changed\n");

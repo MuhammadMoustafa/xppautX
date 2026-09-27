@@ -11,41 +11,18 @@ extern "C" {
 #define FILE_ENTRIES 14
 #define NUM_ENTRIES 18
 
-extern const char *main_menu[];
-extern const char *num_menu[];
-extern const char *file_menu[];
-extern const char *main_hint[];
-extern const char *file_hint[];
-extern const char *num_hint[];
-extern const char *null_hint[];
-extern const char *null_freeze[];
-extern const char *ic_hint[];
-extern const char *wind_hint[];
-extern const char *flow_hint[];
-extern const char *phas_hint[];
-extern const char *kin_hint[];
-extern const char *graf_hint[];
-extern const char *cmap_hint[];
-extern const char *frz_hint[];
-extern const char *stoch_hint[];
-extern const char *bvp_hint[];
-extern const char *adj_hint[];
-extern const char *map_hint[];
-extern const char *view_hint[];
-extern const char *half_hint[];
-extern const char *text_hint[];
-extern const char *edit_hint[];
-extern const char *sing_hint[];
-extern const char *meth_hint[];
-extern const char *color_hint[];
-extern const char *tab_hint[];
-extern const char *edrh_hint[];
-extern const char *auto_hint[];
-extern const char *no_hint[];
-extern const char *aaxes_hint[];
-extern const char *afile_hint[];
-extern const char *aspecial_hint[];
-extern const char *arun_hint[];
+extern const char *const main_menu[];
+extern const char *const num_menu[];
+extern const char *const file_menu[];
+extern const char *const main_hint[];
+extern const char *const file_hint[];
+extern const char *const num_hint[];
+extern const char *const auto_hint[];
+extern const char *const no_hint[];
+extern const char *const aaxes_hint[];
+extern const char *const afile_hint[];
+extern const char *const aspecial_hint[];
+extern const char *const arun_hint[];
 
 /* key strings for the three main-window menus, one key per entry */
 extern const char *const main_menu_keys;

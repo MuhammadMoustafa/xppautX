@@ -20,8 +20,8 @@ namespace {
    LatestDelay its newest row) */
 std::vector<double> DelayWork;
 }
-int LatestDelay;
-int MaxDelay;
+static int LatestDelay;
+static int MaxDelay;
 int DelayFlag=0;
 
 int NDelay,del_stab_flag,WhichDelay,DelayGrid=1000;

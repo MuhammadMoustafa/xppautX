@@ -21,7 +21,7 @@ struct Derived {
 std::array<Derived, MAXDERIVED> derived;
 }  // namespace
 
-int nderived = 0;
+static int nderived = 0;
 
 /* This compiles all of the formulae
 It is called only once during the session

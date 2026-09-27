@@ -22,19 +22,14 @@ extern char *save_eqn[MAXLINES];
 extern BC_STRUCT my_bc[MAXODE];
 extern int *plotlist,N_plist;
 extern int EqType[MAXODE];
-/* the parameters' and variables' values as the model gives them, and
-   the programs' lengths */
+/* the parameters' and variables' values as the model gives them */
 extern double default_val[MAXPAR];
 extern double default_ic[MAXODE];
-extern int leng[MAXODE];
 /* the model's counts: ODEs, parameters, source lines, Markov variables,
    fixed variables, the first symbol and constant after the model's own
-   (NSYM_START, NCON_START), the boundary conditions (BVP_N, BVP_NL
-   left, BVP_NR right), the first primed symbol (PrimeStart) and NEQ as
-   the model left it (NEQ_MIN: the data browser's new columns come after) */
-extern int NODE,NUPAR,NLINES,NMarkov,FIX_VAR,NEQ_MIN;
+   (NSYM_START, NCON_START) and the first primed symbol (PrimeStart) */
+extern int NODE,NUPAR,NLINES,NMarkov,FIX_VAR;
 extern int NCON_START,NSYM_START,PrimeStart;
-extern int BVP_N,BVP_NL,BVP_NR;
 /* an old-style file being rewritten in the new syntax (-convert):
    ConvertStyle set, convertf the new file (markov.cpp writes it too) */
 extern int ConvertStyle;

@@ -21,10 +21,9 @@
 #define SYMSIZE .00175
 
 double THETA0=45,PHI0=45;
-extern int SCALEX,SCALEY;
 
 int PS_Port=0;
-int D_FLAG;
+static int D_FLAG;
 int PointRadius=0;
 
 /*  This is an improved graphics driver for XPP  
@@ -50,9 +49,12 @@ int PointRadius=0;
 
 */
 
-int DLeft,DRight,DTop,DBottom,VTic,HTic,VChar,HChar,XDMax,YDMax;
+int DLeft,DRight,DTop,DBottom,VTic,HTic,VChar,HChar;
+static int XDMax,YDMax;
 double XMin,YMin,XMax,YMax;
-int PointType=-1,TextJustify,TextAngle;
+int PointType=-1,TextJustify;
+/* text is never turned (my_ps.cpp's rotation stays for it) */
+const int TextAngle=0;
 
 void get_scale(double *x1, double *y1, double *x2, double *y2)
 {

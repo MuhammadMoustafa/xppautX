@@ -31,7 +31,7 @@
 #define READEM 1
 #define VOLTERRA 6
 
-int set_type=0;
+static int set_type=0;
 
 /* delay_handle.cpp's and integrate.cpp's (no header declares them yet) */
 extern double LastTime;

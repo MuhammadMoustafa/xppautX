@@ -8,9 +8,9 @@ extern "C" {
 #endif
 
 /* nullcline.cpp: nullclines and direction fields */
-extern int NCSuppress, DFSuppress, NCBatch, DFBatch, NullStyle;
+extern int NCBatch, DFBatch;
 extern int XNullColor, YNullColor;
-extern int DF_GRID, DF_FLAG, DF_IX, DF_IY, DFIELD_TYPE;
+extern int DF_GRID, DF_FLAG;
 /* set while the direction field is drawn, for the SVG classes */
 extern int DOING_DFIELD;
 extern double ColorViaLo, ColorViaHi;

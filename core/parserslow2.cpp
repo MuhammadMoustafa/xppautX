@@ -26,7 +26,7 @@
 
 #define DOUB_EPS 2.23E-15 
 #define POP stack[--stack_pointer]
-double zippy;
+static double zippy;
 #define PUSH(a) zippy=(a); stack[stack_pointer++]=zippy;
 
 int             ERROUT;
@@ -37,17 +37,17 @@ int RandSeed=12345678;
 # define M_PI	3.14159265358979323846264338327950288
 #endif
 
-double CurrentIndex=0;
-int SumIndex=1;
+constexpr double CurrentIndex=0;
+static int SumIndex=1;
 
 /* FIXXX */
-int stack_pointer,uptr;
+static int stack_pointer,uptr;
 double constants[MAXPAR];
 double variables[MAXODE1];
 std::array<std::vector<int>,MAXUFUN> ufun;
 char *ufun_def[MAXUFUN];
 int narg_fun[MAXUFUN];
-double stack[200],ustack[200];
+static double stack[200],ustack[200];
 
 std::array<KERNEL,MAXKER> kernel;
 int NKernel;
@@ -175,8 +175,8 @@ int NSYM=STDSYM;
 
 /*     pointers to functions    */
 
-double (*fun1[50])(double);
-double (*fun2[50])(double, double);
+static double (*fun1[50])(double);
+static double (*fun2[50])(double, double);
 
 /*************************
   RPN COMPILER           *

@@ -31,16 +31,17 @@
 
 #define MAX_NULL 10000
 
-int NCSuppress=0;
-int DFSuppress=0;
+static int NCSuppress=0;
+static int DFSuppress=0;
 int DFBatch=0;
 int NCBatch=0;
 
-int NullStyle=0; /* 1 is with little vertical/horizontal lines */
+constexpr int NullStyle=0; /* 1 is with little vertical/horizontal lines */
 
 int XNullColor=2,YNullColor=7;
-int DF_GRID=16,DF_FLAG=0,DF_IX=-1,DF_IY=-1;
-int DFIELD_TYPE=0;
+int DF_GRID=16,DF_FLAG=0;
+static int DF_IX=-1,DF_IY=-1;
+static int DFIELD_TYPE=0;
 
 int DOING_DFIELD=0;
 

@@ -23,10 +23,10 @@ int StableManifoldColor=8;
 double ShootIC[8][MAXODE];
 int ShootICFlag;
 int ShootIndex;
-int ShootType[8];
-int gear_pivot[MAXODE];
+static int ShootType[8];
+static int gear_pivot[MAXODE];
 
-double pertst[7][2][3]={{{2,3,1},{2,12,1}},
+constexpr double pertst[7][2][3]={{{2,3,1},{2,12,1}},
                         {{4.5,6,1},{12,24,1}},
 			{{7.333,9.167,.5},{24,37.89,2}},
 			{{10.42,12.5,.1667},{37.89,53.33,1}},

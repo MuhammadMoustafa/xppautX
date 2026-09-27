@@ -123,13 +123,13 @@ int UPc=28;
     FP  is 25  (olive)
 */
 
-int LPP_color=0;
-int LPE_color=20;
-int HB_color=28;
-int TR_color=26;
-int PD_color=23;
-int BR_color=27;
-int FP_color=25;
+constexpr int LPP_color=0;
+constexpr int LPE_color=20;
+constexpr int HB_color=28;
+constexpr int TR_color=26;
+constexpr int PD_color=23;
+constexpr int BR_color=27;
+constexpr int FP_color=25;
 
 int RestartLabel=0;
 int auto_ntst=15,auto_nmx=200,auto_npr=50,auto_ncol=4;
@@ -139,9 +139,9 @@ double  auto_xmax=2.5,  auto_xmin=-.5,auto_ymax=3.0,auto_ymin=-3.0;
 double auto_epsl=1e-4,auto_epsu=1e-4,auto_epss=1e-4;
 int auto_var=0;
 
-int is_3_there=0;
+static int is_3_there=0;
 
-int load_all_labeled_orbits=0;
+static int load_all_labeled_orbits=0;
 
 int SuppressBP=0;
 ROTCHK blrtn;
@@ -150,7 +150,7 @@ ROTCHK blrtn;
 extern "C" int go_go_auto(void);
 extern "C" void load_browser_with_branch(int ibr, int pts, int pte);
 
-GRABPT grabpt;
+static GRABPT grabpt;
 
 int AutoTwoParam=0;
 int NAutoPar=8;
@@ -161,17 +161,17 @@ double outperiod[20];
 integer UzrPar[20];
 int NAutoUzr;
 
-std::string this_auto_file;
+static std::string this_auto_file;
 /* AUTO's unit files under its folder (open_auto): fort.3 the restart
    data, fort.7 the branches, fort.8 the solutions, fort.9 the diagnostics */
 namespace {
 std::string fort3,fort7,fort8,fort9;
 }
 
-unsigned int DONT_XORCross=0;
+static unsigned int DONT_XORCross=0;
 
-double XfromAuto,YfromAuto;
-int FromAutoFlag=0;
+static double XfromAuto,YfromAuto;
+static int FromAutoFlag=0;
 
 /* AUTO's continuation parameters back into the model (find_point, the
    Grab loop's Return): a diverged run's stored point can hold a
@@ -207,15 +207,15 @@ static void auto_restore_finite_pars(const double *before)
 int HomoFlag=0;
 int sparity=0;
 double homo_l[100],homo_r[100];
-double HOMO_SHIFT=0.0;
+static double HOMO_SHIFT=0.0;
 
 BIFUR Auto;
 ADVAUTO aauto;
 
 int NewPeriodFlag;
 
-AUTOAX Old1p;
-AUTOAX Old2p;
+static AUTOAX Old1p;
+static AUTOAX Old2p;
 
 /* color plot stuff */
 void colset(int type )
@@ -2974,7 +2974,7 @@ void DLINE(double a,double b,double c,double d)
 #undef LEFT
 #undef RIGHT
 #include "mykeydef.h"
-DIAGRAM *CUR_DIAGRAM;
+static DIAGRAM *CUR_DIAGRAM;
 
 const char *query_special(const char *title)
 {

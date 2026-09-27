@@ -32,8 +32,8 @@
 */
 
 #define CONV 2
-int CurrentPoint;
-int KnFlag;
+static int CurrentPoint;
+static int KnFlag;
 
 int AutoEvaluate=0;
 

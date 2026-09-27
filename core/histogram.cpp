@@ -19,7 +19,8 @@
 #include "form_ode.h"
 #include "load_eqn.h"
 
-int spec_col=1,spec_wid=512,spec_win=2,spec_col2=1,spec_type=0;
+int spec_col=1,spec_wid=512,spec_win=2,spec_col2=1;
+static int spec_type=0;
 /* type =0 for PSD
    type =1 for crossspectrum
    type =2 for coherence

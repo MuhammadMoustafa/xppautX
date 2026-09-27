@@ -120,8 +120,6 @@ static const char *const usage_tail =
 /* what xppautX does with the session */
 enum { MODE_WINDOW, MODE_BROWSER, MODE_SERVER };
 
-int SCALEX, SCALEY;
-
 /* init_grafs() without the window: graph 0 is client window 1 */
 static void init_main_graph(void)
 {
@@ -158,7 +156,6 @@ static void run_session(void)
     /* a monospace font the client can match: small 7x13, big 9x15 */
     text_metrics.small_width = 7; text_metrics.small_height = 13;
     text_metrics.big_width = 9; text_metrics.big_height = 15;
-    SCALEX = 640; SCALEY = 480;
 
     json_ui_install();
     xpp_load_model(session_argc, session_argv, 0);
