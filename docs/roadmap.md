@@ -113,6 +113,7 @@ issue; the card here is the one kept up to date.
 | W47d | #95 | Model&/Session& passed instead of a current-one global; only the session list stays; ThreadSanitizer over the reader threads | W47c | blocked |
 | W48 | #96 | Retire the C-only text and memory APIs nothing calls since W46c (xpp_strlcpy/strlcat/snprintf and the XPP_* macros, xpp_malloc/calloc/strdup), tabular's raw block to a std::vector if it can be, the deadcode allowlist entries and CLAUDE.md's C-file guidance with them | W46c | done |
 | W49 | #97 | autoinfo: after a periodic run from a grabbed HB point the strip's state turns to the HB point after the run's last event; only the next idle sends it (seen once on macos-sanitizers, hidden elsewhere by the 0.1 s throttle): reproduce, fix, make the check deterministic | none | done |
+| W50 | #98 | Any number of views of the AUTO diagram (maintainer, 2026-09-27): the one Diagram per session separate from its views, each view its own axes, ranges and variables (I-V beside I-gca), new/close view, grab from any; every view saved and restored with the session (a view is only axis values), in the format the session-file decision picks | W47c, the session-file decision | blocked |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
