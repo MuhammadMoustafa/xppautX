@@ -212,8 +212,8 @@ void do_comline(int argc, char **argv)
    }
    if(k==5){
     xpp_log(XPP_LOG_INFO, "%s",argv[i+1]);
-     XPP_FORMAT_TO_BUF(batch_options.out_file,"{}",argv[i+1]);
-     XPP_FORMAT_TO_BUF(batch_options.user_out_file,"{}",argv[i+1]);
+     batch_options.out_file=argv[i+1];
+     batch_options.user_out_file=argv[i+1];
      i++;
    }
    if(k==6){
@@ -306,7 +306,7 @@ void do_comline(int argc, char **argv)
      i++;
    }
    if(k==22){
-     XPP_FORMAT_TO_BUF(ani_options.file,"{}",argv[i+1]);
+     ani_options.file=argv[i+1];
      ani_options.use_file=1;
      i++;
    }

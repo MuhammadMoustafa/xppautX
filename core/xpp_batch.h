@@ -4,19 +4,6 @@
 extern "C" {
 #endif
 
-/* How a run without an interface goes and where its output lands: the
-   command line (-silent, -outfile, -equil, -iset) and the ODE file's
-   @ output=, @ range= options set these. */
-typedef struct {
-    int enabled;             /* batch mode: no interface, run and write */
-    int range;               /* run the range integration in batch mode */
-    int equilibria;          /* -equil: <0 none, 1 find and write equilibria */
-    int use_intern_sets;     /* run every internal set (1) or the chosen ones */
-    char out_file[256];      /* the data file a batch run writes */
-    char user_out_file[256]; /* -outfile as given ("": name it after the set) */
-} XppBatchOptions;
-extern XppBatchOptions batch_options;
-
 /* Reset the "which options were explicitly set" table. Called at the start
    of the headless xpp_batch_main(). */
 void xpp_reset_options(void);
@@ -42,5 +29,19 @@ void xpp_load_model(int argc, char **argv, int batch);
 
 #ifdef __cplusplus
 }
+
+#include <string>
+/* How a run without an interface goes and where its output lands: the
+   command line (-silent, -outfile, -equil, -iset) and the ODE file's
+   @ output=, @ range= options set these. */
+struct XppBatchOptions {
+    int enabled = 0;           /* batch mode: no interface, run and write */
+    int range = 0;             /* run the range integration in batch mode */
+    int equilibria = -1;       /* -equil: <0 none, 1 find and write equilibria */
+    int use_intern_sets = 1;   /* run every internal set (1) or the chosen ones */
+    std::string out_file;      /* the data file a batch run writes */
+    std::string user_out_file; /* -outfile as given ("": name it after the set) */
+};
+extern XppBatchOptions batch_options;
 #endif
 #endif

@@ -7,6 +7,8 @@
 #include <utility>
 #include <vector>
 #include "load_eqn.h"
+#include "my_ps.h"
+#include "nullcline.h"
 #include "form_ode.h"
 #include "colormap.h"
 #include "xpp_files.h"
@@ -119,15 +121,13 @@ std::array<std::string,MAX_INTERN_SET> intern_name,intern_does;
 } // namespace
 
 int RunImmediately=0;
-XppSlider sliders[XPP_NSLIDERS] = {{"", 0.0, 1.0}, {"", 0.0, 1.0}, {"", 0.0, 1.0}};
+std::array<XppSlider,XPP_NSLIDERS> sliders;
 
 
 
 
-extern int NCBatch,DFBatch;
-extern int DF_GRID;
 
-extern int XNullColor,YNullColor,StableManifoldColor,UnstableManifoldColor;
+extern int StableManifoldColor,UnstableManifoldColor; /* gear.cpp's, in no header */
 int IX_PLT[10],IY_PLT[10],IZ_PLT[10],NPltV;
 int MultiWin=0;
 double X_LO[10],Y_LO[10],X_HI[10],Y_HI[10];
@@ -137,7 +137,6 @@ int Nintern_set=0;
 
 
 extern int del_stab_flag;
-extern double THETA0,PHI0;
 /*void set_option(char *s1,const char *s2);
 */
 
@@ -148,9 +147,6 @@ extern double THETA0,PHI0;
 
  double last_ic[MAXODE];
 
-extern int PSColorFlag,PS_FONTSIZE;
-extern char PS_FONT[100];
-extern double PS_LW;
 
 extern int SEc,UEc,SPc,UPc;
 
@@ -199,9 +195,6 @@ extern int cv_bandflag,cv_bandupper,cv_bandlower;
 
 /*  custon color stuff  */
 
-extern char ColorVia[XPP_NAME_MAX+1];
-extern double ColorViaLo,ColorViaHi;
-extern int ColorizeFlag;
 
 
 /* AUTO STUFF  */
@@ -212,7 +205,6 @@ extern double auto_epss,auto_epsl,auto_epsu;
 extern int auto_var;
 extern double auto_xmin,auto_xmax,auto_ymin,auto_ymax;
 
- extern int PltFmtFlag;
 
  int xorfix,silent,got_file;
 
@@ -727,7 +719,7 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
   if(msc("PLOTFMT",s1)){
     if ((notAlreadySet.PLOTFORMAT||force) || ((mask!=NULL)&&(mask->PLOTFORMAT==1)))
     {
-    	XPP_FORMAT_TO_BUF(plot_export.format,"{}",s2);
+    	plot_export.format=s2;
 	notAlreadySet.PLOTFORMAT=0;
     }
     return;
@@ -1307,7 +1299,7 @@ if(msc(yyl.c_str(),s1)){
  if(msc("OUTPUT",s1)){
      if ((notAlreadySet.OUTPUT||force) || ((mask!=NULL)&&(mask->OUTPUT==1)))
      {
-   	XPP_FORMAT_TO_BUF(batch_options.out_file,"{}",s2);
+   	batch_options.out_file=s2;
 	notAlreadySet.OUTPUT=0;
      }
    return;
@@ -1644,7 +1636,7 @@ if(msc("AUTOVAR",s1)){
  if(msc("PS_FONT",s1)){
      if ((notAlreadySet.PS_FONT||force)|| ((mask!=NULL)&&(mask->PS_FONT==1)))
      {
-   	XPP_FORMAT_TO_BUF(PS_FONT,"{}",s2);
+   	PS_FONT=s2;
 	notAlreadySet.PS_FONT=0;
      }
    return;
@@ -1693,7 +1685,7 @@ if(msc("TUTORIAL",s1)){
  if(msc("S1",s1)){
      if ((notAlreadySet.SLIDER1||force) || ((mask!=NULL)&&(mask->SLIDER1==1)))
      {
-	XPP_FORMAT_TO_BUF(sliders[0].var,"{}",s2);
+	sliders[0].var=s2;
 	notAlreadySet.SLIDER1=0;
      }
     return;
@@ -1702,7 +1694,7 @@ if(msc("TUTORIAL",s1)){
 if(msc("S2",s1)){
      if ((notAlreadySet.SLIDER2||force) || ((mask!=NULL)&&(mask->SLIDER2==1)))
      {
-    	XPP_FORMAT_TO_BUF(sliders[1].var,"{}",s2);
+    	sliders[1].var=s2;
 	notAlreadySet.SLIDER2=0;
      }
     return;
@@ -1710,7 +1702,7 @@ if(msc("S2",s1)){
  if(msc("S3",s1)){
      if ((notAlreadySet.SLIDER3||force) || ((mask!=NULL)&&(mask->SLIDER3==1)))
      {	
-     	XPP_FORMAT_TO_BUF(sliders[2].var,"{}",s2);
+     	sliders[2].var=s2;
 	notAlreadySet.SLIDER3=0;
      }
     return;
@@ -1922,7 +1914,7 @@ if(msc("SLO2",s1)){
    if(msc("COLORVIA",s1))
      {
        if ((notAlreadySet.COLORVIA||force)|| ((mask!=NULL)&&(mask->COLORVIA==1)))
-       XPP_FORMAT_TO_BUF(ColorVia,"{}",s2);
+       ColorVia=s2;
        	notAlreadySet.COLORVIA=0;
        return;
      }

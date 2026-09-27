@@ -110,7 +110,7 @@ void optimize_aplot(int *plist)
   make_my_aplot("Array!");
 
   aplot.index0=i0+1;
-  XPP_FORMAT_TO_BUF(aplot.name,"{}",uvar_names[i0]);
+  aplot.name=uvar_names[i0];
   aplot.nacross=ncol;
   nr=201;
   if(nrows<nr)
@@ -249,7 +249,7 @@ void dump_aplot(FILE *fp, int f)
   }
   else
     xpp::print(fp,"# Array plot stuff\n");
-  io_string(aplot.name,sizeof(aplot.name),fp,f);
+  io_string(aplot.name,fp,f);
   io_int(&aplot.nacross ,fp,f,"NCols");
   io_int(&aplot.nstart ,fp,f,"Row 1");
   io_int(&aplot.ndown ,fp,f,"NRows");
@@ -281,7 +281,7 @@ values[8] = xpp::format("{:d}", ap->ncskip);
    find_variable(values[0].c_str(),&i);
    if(i>-1){
      ap->index0=i;
-     XPP_FORMAT_TO_BUF(ap->name,"{:.{}}",values[0],XPP_NAME_MAX);
+     ap->name=values[0].substr(0,XPP_NAME_MAX);
    }
    else
      {

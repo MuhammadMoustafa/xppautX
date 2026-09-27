@@ -31,12 +31,11 @@
 #include "xpp_log.h"
 #include "graf_par.h"
 
-XppBatchOptions batch_options = {0, 0, -1, 1, "", ""};
+XppBatchOptions batch_options;
 
 #define cstringmaj MYSTR1
 #define cstringmin MYSTR2
 
-extern int NCBatch, DFBatch; /* nullcline.cpp's (no header declares them yet) */
 
 /* nullcline.c / integrate.c batch helpers without a header prototype */
 void set_colorization_stuff(void);
@@ -257,8 +256,8 @@ void xpp_load_model(int argc, char **argv, int batch)
 {
     xpp_reset_options();
     program.interactive = 0;
-    XPP_FORMAT_TO_BUF(batch_options.out_file, "output.dat");
-    XPP_FORMAT_TO_BUF(plot_export.format, "ps");
+    batch_options.out_file = "output.dat";
+    plot_export.format = "ps";
     log_settings.file = stdout;
     check_for_quiet(argc, argv);
     do_comline(argc, argv);

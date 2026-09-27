@@ -900,7 +900,7 @@ if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
    {
      if(batch_options.range==1){
        post_process_stuff();
-       write_this_run(batch_options.out_file,i);
+       write_this_run(batch_options.out_file.c_str(),i);
      }
      data_store.rows=0;
    }
@@ -1031,16 +1031,16 @@ void batch_integrate()
   {
   
   	  XPP_FORMAT_TO_BUF(this_internset,"_{}",intern_set[i].name);
-	  if (strlen(batch_options.user_out_file)==0) /*Use the set name for outfile name*/
+	  if (batch_options.user_out_file.empty()) /*Use the set name for outfile name*/
 	  {
-	      XPP_FORMAT_TO_BUF(batch_options.out_file,"{}.dat",intern_set[i].name);
+	      batch_options.out_file=xpp::format("{}.dat",intern_set[i].name);
 	  }
 	  else/*Use the command line supplied outfile name*/
 	  {
 	      /*Will get over-written each internal set*/
-	      XPP_FORMAT_TO_BUF(batch_options.out_file,"{}",static_cast<const char *>(batch_options.user_out_file));
+	      batch_options.out_file=batch_options.user_out_file;
 	  }
-	  xpp::log(XPP_LOG_INFO, "out={}\n",static_cast<const char *>(batch_options.out_file));
+	  xpp::log(XPP_LOG_INFO, "out={}\n",batch_options.out_file);
 	  extract_internset(i);
 	  chk_delay();
 	  do_batch_dry_run();
@@ -1059,9 +1059,9 @@ void do_batch_dry_run()
 
 	xpp::log(XPP_LOG_INFO, "It's a dry run...\n");
 	
-	xpp::Writer w(batch_options.out_file);
+	xpp::Writer w(batch_options.out_file.c_str());
    	if(!w){
-     		xpp::log(XPP_LOG_WARN, " Unable to open {} to write \n",static_cast<const char *>(batch_options.out_file));
+     		xpp::log(XPP_LOG_WARN, " Unable to open {} to write \n",batch_options.out_file);
      		return;
    	}
 	if (querysets)
@@ -1147,9 +1147,9 @@ void batch_integrate_once()
    if(STOCH_FLAG==1)mean_back();
    if(STOCH_FLAG==2)variance_back();
    if(!SuppressOut){
-  xpp::Writer w(batch_options.out_file);
+  xpp::Writer w(batch_options.out_file.c_str());
    if(!w){
-     xpp::log(XPP_LOG_WARN, " Unable to open {} to write \n",static_cast<const char *>(batch_options.out_file));
+     xpp::log(XPP_LOG_WARN, " Unable to open {} to write \n",batch_options.out_file);
      return;
    }
    write_mybrowser_data(w.file());

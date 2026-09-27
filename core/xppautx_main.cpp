@@ -191,7 +191,7 @@ static void run_session(void)
     json_ui_hello(title.c_str());
     if (ani_options.use_file) {
         new_vcr();
-        get_ani_file(ani_options.file);
+        get_ani_file(ani_options.file.c_str());
     }
     json_ui_handle("{\"cmd\":\"redraw\"}");
     /* -tutorial and -runnow, as main.c does after opening its window */

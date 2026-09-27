@@ -39,7 +39,7 @@ int NoBreakLine=0;
 int PS_FONTSIZE=14;
 double PS_LW=5;
 /* a char array while load_eqn.cpp (the ps_font option) declares it so */
-char PS_FONT[100]="Times-Roman";
+std::string PS_FONT="Times-Roman";
 /*Default is now with color*/
 int PltFmtFlag,PSColorFlag=1;
 int PSLines;

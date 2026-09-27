@@ -546,7 +546,7 @@ void json_ui_hello(const char *title)
             if (!set[i]) continue;
             if (k++) BUF_LIT(&b, ",");
             BUF_LIT(&b, "{\"name\":");
-            buf_str(&b, sliders[i].var);
+            buf_str(&b, sliders[i].var.c_str());
             BUF_LIT(&b, ",\"lo\":");
             buf_num(&b, sliders[i].lo, 16);
             BUF_LIT(&b, ",\"hi\":");

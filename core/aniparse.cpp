@@ -69,13 +69,11 @@
 #define SPEED 23
 
 extern "C" {
-extern double last_ic[MAXODE], T0;
-extern int NODE, FIX_VAR, NMarkov;
-extern char this_file[XPP_MAX_NAME]; /* comline.cpp's, in no header */
+extern double T0;
 }
 
 int ani_grab_flag = 0;
-XppAniOptions ani_options = {0, "", 0};
+XppAniOptions ani_options;
 
 int ani_speed = 10;
 int ani_speed_inc = 2;

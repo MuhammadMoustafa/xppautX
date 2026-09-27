@@ -56,7 +56,7 @@ int DFIELD_TYPE=0;
 int DOING_DFIELD=0;
 
 /* load_eqn.cpp's @ colorvia= writes it through sizeof: kept an array */
-char ColorVia[XPP_NAME_MAX+1]="speed";
+std::string ColorVia="speed";
 double ColorViaLo=0,ColorViaHi=1;
 int ColorizeFlag=0;
 
@@ -585,7 +585,7 @@ void do_batch_nclines()
 
 void set_colorization_stuff()
 {
-  user_set_color_par(ColorizeFlag,ColorVia,ColorViaLo,ColorViaHi);
+  user_set_color_par(ColorizeFlag,ColorVia.c_str(),ColorViaLo,ColorViaHi);
 }
 
 void do_batch_dfield()

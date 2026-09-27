@@ -38,7 +38,7 @@ struct APLOT {
   int index0,indexn,alive,nacross,ndown,plotdef;
   int height,width,ploth,plotw;
   int nstart,nskip,ncskip;
-  char name[XPP_NAME_MAX+1]; /* its first column (lunch-new.cpp's io_string reads it by its size) */
+  std::string name; /* its first column */
   double tstart,tend,zmin,zmax,dt;
   std::string xtitle,ytitle,filename,bottom; /* Print's */
   int type;

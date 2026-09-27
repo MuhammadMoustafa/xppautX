@@ -229,14 +229,7 @@ void check_for_xpprc(void);
 void stor_internopts(const char *s1);
 void set_option(const char *name, const char *s2, int force, OptionsSet *mask);
 
-/* The parameter sliders the ODE file sets up (@ s1=name, slo1=, shi1=,
-   likewise 2 and 3); notAlreadySet.SLIDERn is 0 once slider n was set. */
-typedef struct {
-    char var[XPP_NAME_MAX+1]; /* the parameter it moves */
-    double lo, hi;            /* its range */
-} XppSlider;
 #define XPP_NSLIDERS 3
-extern XppSlider sliders[XPP_NSLIDERS];
 
 /* the model's file (C text, XPP_MAX_NAME bytes) and the named set of
    options the command line picked (@ set, -iset) */
@@ -264,6 +257,13 @@ extern char this_internset[XPP_MAX_NAME];
 
 #include <array>
 #include <string>
+/* The parameter sliders the ODE file sets up (@ s1=name, slo1=, shi1=,
+   likewise 2 and 3); notAlreadySet.SLIDERn is 0 once slider n was set. */
+struct XppSlider {
+    std::string var;           /* the parameter it moves */
+    double lo = 0.0, hi = 1.0; /* its range */
+};
+extern std::array<XppSlider,XPP_NSLIDERS> sliders;
 /* each variable's initial data as typed (a delay equation's history:
    "0.0" when it has none) */
 extern std::array<std::string,MAXODE> delay_string;

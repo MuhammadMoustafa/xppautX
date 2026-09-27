@@ -13,7 +13,6 @@ extern int XNullColor, YNullColor;
 extern int DF_GRID, DF_FLAG, DF_IX, DF_IY, DFIELD_TYPE;
 /* set while the direction field is drawn, for the SVG classes */
 extern int DOING_DFIELD;
-extern char ColorVia[XPP_NAME_MAX+1];
 extern double ColorViaLo, ColorViaHi;
 extern int ColorizeFlag;
 
@@ -33,6 +32,10 @@ void silent_dfields(void);
 
 #ifdef __cplusplus
 }
+
+#include <string>
+/* what colours an orbit by (@ colorvia=) */
+extern std::string ColorVia;
 
 /* C++ linkage: xppautx_main.cpp declares it so itself */
 void set_colorization_stuff(void);

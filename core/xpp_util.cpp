@@ -280,18 +280,19 @@ void check_val(double *x1, double *x2, double *xb, double *xd)
 
 void dump_ps(int i)
 {
-  const char *file=this_file,*set=this_internset,*format=plot_export.format;
+  const char *file=this_file,*set=this_internset;
+  const std::string &format=plot_export.format;
   std::string filename=i<0?xpp::format("{:.100}{:.100}.{:.10}",file,set,format)
                           :xpp::format("{:.100}{:.100}_{:04d}.{:.10}",file,set,i,format);
 
-   if (strcmp(plot_export.format,"ps")==0)
+   if (plot_export.format=="ps")
    {
      if(ps_init(filename.c_str(),plot_export.color))
      {
        ps_restore();
      }
    }
-   else if (strcmp(plot_export.format,"svg")==0)
+   else if (plot_export.format=="svg")
    {
      if(svg_init(filename.c_str(),plot_export.color))
      {

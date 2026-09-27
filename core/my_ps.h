@@ -10,7 +10,6 @@ extern int PltFmtFlag, PSColorFlag, PSLines;
 extern int LastPSX, LastPSY, LastPtLine, NoBreakLine;
 extern int PS_FONTSIZE;
 extern double PS_LW;
-extern char PS_FONT[100];
 
 int ps_init(const char *filename, int color);
 void ps_stroke(void);
@@ -34,5 +33,9 @@ void ps_text(int x, int y, const char *str);
 
 #ifdef __cplusplus
 }
+
+#include <string>
+/* the PostScript font (@ ps_font=) */
+extern std::string PS_FONT;
 #endif
 #endif

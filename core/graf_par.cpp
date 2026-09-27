@@ -34,7 +34,6 @@
 #include "xpp_io.h"
 #include "many_pops.h"
 
-extern double x_3d[2],y_3d[2],z_3d[2];
 /*Default is now color*/
 
 
@@ -84,14 +83,13 @@ void frz_bd(void);
 } // namespace
 
 XppFrozenCurves frozen_curves;
-XppPlotExport plot_export = {"", 1};
+XppPlotExport plot_export;
 
 extern double T0,TEND;
 
 double FreezeKeyX,FreezeKeyY;
 int FreezeKeyFlag;
 int CurrentCurve=0;
-extern char this_file[XPP_MAX_NAME]; /* comline.cpp's, in no header */
 
 extern const char *no_hint[],*wind_hint[],*view_hint[],*frz_hint[];
 extern const char *graf_hint[], *cmap_hint[]; 
@@ -856,7 +854,7 @@ void create_ps()
 	 PS_Port=atoi(values[1].c_str());
 	 PS_FONTSIZE=atoi(values[2].c_str());
 	 PS_LW=atof(values[4].c_str());
-         XPP_FORMAT_TO_BUF(PS_FONT,"{}",values[3]);
+         PS_FONT=values[3];
 	 std::string filename=xpp::format("{:.250}.ps",this_file);
 	 ping();
  

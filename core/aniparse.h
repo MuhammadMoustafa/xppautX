@@ -28,17 +28,18 @@ void reset_comets(void);
 void render_ani(void);
 void set_ani_perm(void);
 
-/* The animator's options: the -anifile to load at the start, and whether
-   the animation follows an integration as it runs */
-typedef struct {
-    int use_file;             /* -anifile was given */
-    char file[XPP_MAX_NAME];  /* the .ani file it named (comline.cpp writes it by its size) */
-    int on_the_fly;           /* animate while integrating */
-} XppAniOptions;
-extern XppAniOptions ani_options;
 
 #ifdef __cplusplus
 }
+
+/* The animator's options: the -anifile to load at the start, and whether
+   the animation follows an integration as it runs */
+struct XppAniOptions {
+    int use_file = 0;   /* -anifile was given */
+    std::string file;   /* the .ani file it named */
+    int on_the_fly = 0; /* animate while integrating */
+};
+extern XppAniOptions ani_options;
 
 /* the animation window: its size in the core's pixels, the row shown */
 struct VCR {

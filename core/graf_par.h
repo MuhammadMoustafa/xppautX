@@ -32,12 +32,6 @@ typedef struct {
 } XppFrozenCurves;
 extern XppFrozenCurves frozen_curves;
 
-/* How plots are written to files (PostScript, SVG) */
-typedef struct {
-    char format[100]; /* a batch run's plot files: "ps" or "svg" (@ plotfmt=) */
-    int color;        /* in colour (1) or black and white */
-} XppPlotExport;
-extern XppPlotExport plot_export;
 
 void change_view_com(int com);
 void check_flags(void);
@@ -83,5 +77,13 @@ void dump_ps( int i);
 
 #ifdef __cplusplus
 }
+
+#include <string>
+/* How plots are written to files (PostScript, SVG) */
+struct XppPlotExport {
+    std::string format; /* a batch run's plot files: "ps" or "svg" (@ plotfmt=) */
+    int color = 1;      /* in colour (1) or black and white */
+};
+extern XppPlotExport plot_export;
 #endif
 #endif
