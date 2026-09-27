@@ -4,6 +4,7 @@
    (loading, the protocol, .set files, AUTO) is tools/autocheck.py's names
    section. */
 #include "xpptest.h"
+#include "model.h"
 #include "parserslow.h"
 #include "auto_nox.h"
 #include "lunch-new.h"
@@ -11,8 +12,6 @@
 #include <stdio.h>
 #include <string.h>
 
-extern char upar_names[][XPP_NAME_MAX + 1];
-extern char uvar_names[][XPP_NAME_MAX + 1];
 extern int AutoPar[8];
 extern int NAutoPar;
 extern int NODE, NEQ, NUPAR;
@@ -79,8 +78,8 @@ int main(void)
 
     /* AUTO's headings stay 14 wide: a long name is shortened with the marker
        and leaves a blank before the next heading */
-    strcpy(upar_names[0], "applied_stimulus_current_amplitude");
-    strcpy(uvar_names[0], "MEMBRANE_POTENTIAL_FAST_VARIABLE");
+    xpp::model().upar_names[0] = "applied_stimulus_current_amplitude";
+    xpp::model().uvar_names[0] = "MEMBRANE_POTENTIAL_FAST_VARIABLE";
     NODE = NEQ = 1;
     NUPAR = 1;
     NAutoPar = 1;
@@ -89,7 +88,7 @@ int main(void)
     CHECK_STR(out, "applied_stim~ ");
     auto_screen_col("   MAX U(1)   ", out);
     CHECK_STR(out, "MAX MEMBRANE~ ");
-    strcpy(uvar_names[0], "v");
+    xpp::model().uvar_names[0] = "v";
     auto_screen_col("     U(1)     ", out);
     CHECK_STR(out, "      v       "); /* a short name is centred as before */
 

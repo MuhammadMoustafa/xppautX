@@ -2,6 +2,7 @@
    whatever else the batch options ask for. This is the XPPBatch branch of
    the historical do_main(), with no front end setup, so it links against
    libxppcore alone. */
+#include "model.h"
 #include "xpp_batch.h"
 #include "load_eqn.h"
 #include "odesol2.h"
@@ -266,7 +267,7 @@ void xpp_load_model(int argc, char **argv, int batch)
 #ifdef AUTO
     init_auto_win();
 #endif
-    if (disc(this_file)) METHOD = 0;
+    if (disc(xpp::model().this_file)) METHOD = 0;
     program.version_major = static_cast<float>(cstringmaj);
     program.version_minor = static_cast<float>(cstringmin);
     do_meth();

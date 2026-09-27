@@ -1,6 +1,7 @@
 /* Pure helpers that used to live in X11 source files (init_conds.c,
    aniparse.c, graf_par.c, calc.c, many_pops.c, main.c). Nothing here
    touches a window. */
+#include "model.h"
 #include "xpp_util.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"
@@ -65,11 +66,10 @@ void clr_scrn(void)
 #define READEM 1
 #define WRITEM 0
 
-/* the name of plotted variable ind: T (0) or a variable; stays valid
-   while the model is loaded (uvar_names' own storage) */
-const char *ind_to_sym(int ind)
+const std::string &ind_to_sym(int ind)
 {
- return ind==0 ? "T" : uvar_names[ind-1];
+ static const std::string time_name="T";
+ return ind==0 ? time_name : xpp::model().uvar_names[ind-1];
 }
 
 void  get_max(int index, double *vmin, double *vmax)
@@ -118,11 +118,11 @@ void de_space(char *s)
   s[j]=0;
 }
 
-int find_user_name(int type, const char *oname)
+int find_user_name(int type, std::string_view oname)
 {
  std::string name; /* at most XPP_NAME_MAX: no allocation past the string's own room */
  int i=-1;
- for(const char *p=oname;*p;p++){
+ for(const char *p=oname.data();p!=oname.data()+oname.size();p++){
    if(!isspace(*p)){
      if(name.size()>=XPP_NAME_MAX)return(-1); /* longer than any name */
      try{
@@ -134,10 +134,10 @@ int find_user_name(int type, const char *oname)
  }
 
  for(i=0;i<NUPAR;i++)
-         if((type==PARAMBOX)&&(strcasecmp(upar_names[i],name.c_str())==0))break;
+         if((type==PARAMBOX)&&xpp::equal_ignoring_case(xpp::model().upar_names[i],name))break;
  if(i<NUPAR)return(i);
  for(i=0;i<NEQ;i++)
-	 if((type==ICBOX)&&(strcasecmp(uvar_names[i],name.c_str())==0))break;
+	 if((type==ICBOX)&&xpp::equal_ignoring_case(xpp::model().uvar_names[i],name))break;
    if(i<NEQ)return(i);
 	return(-1);
  }
@@ -262,7 +262,7 @@ void check_val(double *x1, double *x2, double *xb, double *xd)
 
 void dump_ps(int i)
 {
-  const char *file=this_file,*set=this_internset;
+  const std::string &file=xpp::model().this_file,&set=xpp::model().this_internset;
   const std::string &format=plot_export.format;
   std::string filename=i<0?xpp::format("{:.100}{:.100}.{:.10}",file,set,format)
                           :xpp::format("{:.100}{:.100}_{:04d}.{:.10}",file,set,i,format);
@@ -294,9 +294,9 @@ void   redo_stuff()
 void user_fun_info(FILE *fp)
 {
   for(int j=0;j<NFUN;j++){
-    std::string line=xpp::format("{}(",static_cast<const char *>(ufun_names[j]));
+    std::string line=xpp::format("{}(",xpp::model().ufun_names[j]);
     for(int i=0;i<narg_fun[j];i++)
-      line+=xpp::format("{}{}",static_cast<const char *>(ufun_arg[j].args[i]),i<narg_fun[j]-1?",":"");
+      line+=xpp::format("{}{}",xpp::model().ufun_args[j][i],i<narg_fun[j]-1?",":"");
     line+=xpp::format(") = {}\n",ufun_def[j]);
     fwrite(line.data(),1,line.size(),fp);
   }
@@ -356,7 +356,7 @@ void clone_ode()
       return;
     }
   ttt=time(0);
-  fp.print("# clone of {} on {}",static_cast<const char *>(this_file),ctime(&ttt));
+  fp.print("# clone of {} on {}",xpp::model().this_file,ctime(&ttt));
   for(i=0;i<NLINES;i++){
     s=save_eqn[i];
 
@@ -381,7 +381,7 @@ void clone_ode()
       fp.print("\ninit ");
       j=0;
     }
-    fp.print("{}={:g} ",static_cast<const char *>(uvar_names[i]),last_ic[i]);
+    fp.print("{}={:g} ",xpp::model().uvar_names[i],last_ic[i]);
     j++;
   }
   fp.print("\n");
@@ -399,8 +399,8 @@ void clone_ode()
 	fp.print("\npar ");
         j=0;
       }
-      get_val(upar_names[i],&z);
-      fp.print("{}={:g} ",static_cast<const char *>(upar_names[i]),z);
+      get_val(xpp::model().upar_names[i],&z);
+      fp.print("{}={:g} ",xpp::model().upar_names[i],z);
       j++;
     }
   }
@@ -435,10 +435,10 @@ void new_parameter()
     else {
       index=find_user_name(PARAMBOX,name.data());
       if(index>=0){
-	get_val(upar_names[index],&z);
+	get_val(xpp::model().upar_names[index],&z);
 	done=new_float(xpp::format("{} :",name.data()).c_str(),&z);
 	if(done==0){
-	  set_val(upar_names[index],z);
+	  set_val(xpp::model().upar_names[index],z);
 	  xpp_ui.param_box_set(index,xpp::format("{:.16g}",z).c_str());
 	  xpp_ui.param_box_redraw(index);
 	}
@@ -455,7 +455,7 @@ void   set_default_params()
  {
 
  for(int i=0;i<NUPAR;i++){
-   set_val(upar_names[i],default_val[i]);
+   set_val(xpp::model().upar_names[i],default_val[i]);
    xpp_ui.param_box_set(i,xpp::format("{:.16g}",default_val[i]).c_str());
  }
  
@@ -495,7 +495,7 @@ void man_ic()
   double z;
   while(1){
     z=last_ic[index];
-    done=new_float(xpp::format("{} :",static_cast<const char *>(uvar_names[index])).c_str(),&z);
+    done=new_float(xpp::format("{} :",xpp::model().uvar_names[index]).c_str(),&z);
     if(done==0){
       last_ic[index]=z;
       xpp_ui.ic_box_set(index,xpp::format("{:.16g}",z).c_str());
@@ -520,7 +520,7 @@ int box_set_value(int type,int i,const char *s,double *z)
     return 1;
   case PARAMBOX:
     if(to_float(s,z)==-1)return -1;
-    set_val(upar_names[i],*z);
+    set_val(xpp::model().upar_names[i],*z);
     return 1;
   case BCBOX:
     /* my_bc[i].string is a pointer, allocated 256 bytes (form_ode.cpp,

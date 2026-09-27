@@ -2,6 +2,7 @@
    ICs, BCs, delays, the view), the data browser, the edits that change
    them (set, default, slide), the data events a client subscribes to, and
    the equations, source and equilibrium windows. */
+#include "model.h"
 #include "ui_json_internal.h"
 #include "load_eqn.h"
 #include "storage.h"
@@ -54,10 +55,10 @@ void send_state(void)
     evaluate_derived();
     BUF_LIT(&b, "{\"ev\":\"state\",\"pars\":[");
     for (i = 0; i < NUPAR; i++) {
-        get_val(upar_names[i], &z);
+        get_val(xpp::model().upar_names[i], &z);
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
-        buf_str(&b, upar_names[i]);
+        buf_str(&b, xpp::model().upar_names[i]);
         BUF_LIT(&b, ",");
         buf_num(&b, z, 16);
         BUF_LIT(&b, "]");
@@ -66,7 +67,7 @@ void send_state(void)
     for (i = 0; i < NODE + NMarkov; i++) {
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
-        buf_str(&b, uvar_names[i]);
+        buf_str(&b, xpp::model().uvar_names[i]);
         BUF_LIT(&b, ",");
         buf_num(&b, last_ic[i], 16);
         BUF_LIT(&b, "]");
@@ -96,7 +97,7 @@ void send_state(void)
         for (i = 0; i < NODE; i++) {
             if (i) BUF_LIT(&b, ",");
             BUF_LIT(&b, "[");
-            buf_str(&b, uvar_names[i]);
+            buf_str(&b, xpp::model().uvar_names[i]);
             BUF_LIT(&b, ",");
             buf_str(&b, delay_string[i].c_str());
             BUF_LIT(&b, "]");
@@ -168,7 +169,7 @@ void send_browser(void)
                my_browser.dataflag ? my_browser.maxrow : 0, my_browser.row0, my_browser.istart, my_browser.iend);
     for (j = 1; j < maxcol; j++) {
         BUF_LIT(&b, ",");
-        buf_str(&b, uvar_names[j - 1]);
+        buf_str(&b, xpp::model().uvar_names[j - 1]);
     }
     buf_format(&b, "],\"from\":{:d},\"col\":{:d},\"data\":[", br_from, br_col);
     last = my_browser.dataflag ? br_from + br_count : br_from;
@@ -250,7 +251,7 @@ void plotvars_command(const char *line)
     for (i = 0; arr && js_elem(arr, i); i++) {
         if (!js_string(js_elem(arr, i), name, NAME_IN)) continue;
         for (int k = 0; k < n; k++)
-            if (strcasecmp(uvar_names[k], name.c_str()) == 0) isck[k] = 1;
+            if (xpp::equal_ignoring_case(xpp::model().uvar_names[k], name)) isck[k] = 1;
     }
     if (get_int(line, "how", 0) == 2) {
         /* arry: the array of variables from the first to the second checked */
@@ -302,10 +303,11 @@ void send_equations(void)
     int i;
     BUF_LIT(&b, "{\"ev\":\"equations\",\"lines\":[");
     for (i = 0; i < NEQ; i++) {
-        const char *name = uvar_names[i], *rhs = ode_names[i] ? ode_names[i] : "";
+        const std::string &name = xpp::model().uvar_names[i];
+        const char *rhs = ode_names[i] ? ode_names[i] : "";
         line.s.clear();
         if (i < NODE && EqType[i] != 1 && METHOD > 0) BUF_LIT(&line, "d");
-        buf_add(&line, name, strlen(name));
+        buf_add(&line, name.data(), name.size());
         if (i < NODE && EqType[i] == 1) BUF_LIT(&line, "(t)");
         else if (i < NODE && METHOD == 0) BUF_LIT(&line, "(n+1)");
         else if (i < NODE) BUF_LIT(&line, "/dT");
@@ -346,8 +348,10 @@ int apply_value(const char *line)
     index = get_int(line, "index", -1);
     if (index >= n) index = -1;
     for (i = 0; index < 0 && i < n; i++) {
-        const char *s = type == 1 ? upar_names[i] : type == 4 ? my_bc[i].name : uvar_names[i];
-        if (s && strcasecmp(s, name.c_str()) == 0) index = i;
+        const char *bc = type == 4 ? my_bc[i].name : nullptr;
+        if (type == 4 ? bc && xpp::equal_ignoring_case(bc, name)
+                      : xpp::equal_ignoring_case(type == 1 ? xpp::model().upar_names[i] : xpp::model().uvar_names[i], name))
+            index = i;
     }
     state_dirty = 1;
     if (index < 0) return 0;
@@ -449,7 +453,7 @@ void j_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y, double *ev
     for (i = 0; i < n; i++) {
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
-        buf_str(&b, uvar_names[i]);
+        buf_str(&b, xpp::model().uvar_names[i]);
         BUF_LIT(&b, ",");
         buf_num(&b, y[i], 16);
         BUF_LIT(&b, "]");

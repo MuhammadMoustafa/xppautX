@@ -9,6 +9,7 @@
 #include <string_view>
 #include <thread>
 #include <vector>
+#include "model.h"
 #include "xpp_util.h"
 #include "storage.h"
 #include "xpp_mem.h" /* add_stor_col's formula: form_ode.cpp's my_ode block */
@@ -162,7 +163,7 @@ void data_get(BROWSER *b)
    set_ivar(i+1+NODE+FIX_VAR,last_ic[i+NODE]);
  }
  for(i=NODE+NMarkov;i<NEQ;i++)
-   set_val(uvar_names[i],data_store.col[i+1][in]);
+   set_val(xpp::model().uvar_names[i],data_store.col[i+1][in]);
 
  redraw_ics();
 }
@@ -236,16 +237,17 @@ int add_stor_col(const char *name, const char *formula, BROWSER *b)
   set_ode_name(NEQ,shown);
   for(j=0;j<=i;j++)
     my_ode[NEQ+FIX_VAR][j]=com[j];
-  XPP_FORMAT_TO_BUF(uvar_names[NEQ],"{}",name);
-  strupr(uvar_names[NEQ]);
+  std::string &col_name=xpp::model().uvar_names[NEQ];
+  col_name=name;
+  strupr(col_name.data());
   for(i=0;i<b->maxrow;i++)
     data_store.col[NEQ+1][i]=0.0;   /*  zero it all   */
   for(i=0;i<b->maxrow;i++){
     for(j=0;j<NODE+1;j++)set_ivar(j,static_cast<double>(data_store.col[j][i]));
-    for(j=NODE;j<NEQ;j++)set_val(uvar_names[j],static_cast<double>(data_store.col[j+1][i])); 
+    for(j=NODE;j<NEQ;j++)set_val(xpp::model().uvar_names[j],static_cast<double>(data_store.col[j+1][i])); 
     data_store.col[NEQ+1][i]=static_cast<float>(evaluate(com));
   }
-  add_var(uvar_names[NEQ],0.0);  /*  this could be trouble .... */
+  add_var(xpp::model().uvar_names[NEQ],0.0);  /*  this could be trouble .... */
   NEQ++;
   b->maxcol=NEQ+1;
   xpp_ui.browser_redraw(1);  
@@ -344,7 +346,7 @@ if(dif_var<0)
        if(seq==0)
 	 {
 	   for(j=0;j<NODE+1;j++)set_ivar(j,static_cast<double>(dat[j][i]));
-	   for(j=NODE;j<NEQ;j++)set_val(uvar_names[j],static_cast<double>(dat[j+1][i]));
+	   for(j=NODE;j<NEQ;j++)set_val(xpp::model().uvar_names[j],static_cast<double>(dat[j+1][i]));
 	   if(intflag)
 	     {
 	       sum+=static_cast<float>(evaluate(com));
@@ -416,7 +418,7 @@ void find_value(int col, double val, int *row, BROWSER b)
 void data_replace(BROWSER *b)
 {
  int status;
- std::string var=uvar_names[0],form=uvar_names[0];
+ std::string var=xpp::model().uvar_names[0],form=xpp::model().uvar_names[0];
 status=get_dialog_of("Replace","Variable:",var,"Ok","Cancel",XPP_NAME_MAX,XPP_FIELD_NAME_IN(0));
 if(status!=0){
  status=get_dialog_of("Replace","Formula:",form,"Replace","Cancel",80,XPP_FIELD_EXPRESSION);
@@ -441,7 +443,7 @@ void data_table(BROWSER *b)
 
  double xlo=0,xhi=1;
  int col;
- value[0] = uvar_names[0];
+ value[0] = xpp::model().uvar_names[0];
  value[1] = "0.00";
  value[2] = "1.00";
  value[3] = value[0].substr(0, XPP_NAME_MAX) + ".tab";
@@ -465,7 +467,7 @@ void data_find(BROWSER *b)
 
  double val;
 
- value[0] = uvar_names[0];
+ value[0] = xpp::model().uvar_names[0];
  value[1] = "0.00";
  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_NUMBER};
  status=do_string_box_of(2,1,"Find Data",name,value,40,kinds);

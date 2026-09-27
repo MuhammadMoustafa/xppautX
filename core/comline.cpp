@@ -1,3 +1,4 @@
+#include "model.h"
 #include "comline.h"
 #include "lunch-new.h"
 #include "xpp_log.h"
@@ -609,7 +610,7 @@ int parse_it(const char *com)
      exit(0);
     }
     else {
-      XPP_FORMAT_TO_BUF(this_file,"{}",com);
+      xpp::model().this_file=com;
       got_file=1;
     }
   }

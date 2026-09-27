@@ -1,3 +1,4 @@
+#include "model.h"
 #include "flags.h"
 #include "form_ode.h"
 #include "xpp_ui.h"
@@ -342,7 +343,7 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
 	  }
 	  else {
 	    if(flag[i].type[j]==1)
-	      set_val(upar_names[in],flag[i].vrhs[j]);
+	      set_val(xpp::model().upar_names[in],flag[i].vrhs[j]);
 	    else{
 
 	      if((flag[i].type[j]==2)&&(flag[i].vrhs[j]>0))send_output(ynew,*tnew);

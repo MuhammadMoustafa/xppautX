@@ -1,3 +1,4 @@
+#include "model.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "xpp_log.h"
@@ -41,11 +42,11 @@ namespace {
 void put_equation(FILE *fp, int i)
 {
   if(i>=NODE)
-    xpp::print(fp,"{}={}\n",uvar_names[i],ode_names[i]);
+    xpp::print(fp,"{}={}\n",xpp::model().uvar_names[i],ode_names[i]);
   else if(METHOD>0)
-    xpp::print(fp,"d{}/dT={}\n",uvar_names[i],ode_names[i]);
+    xpp::print(fp,"d{}/dT={}\n",xpp::model().uvar_names[i],ode_names[i]);
   else
-    xpp::print(fp,"{}(n+1)={}\n",uvar_names[i],ode_names[i]);
+    xpp::print(fp,"{}(n+1)={}\n",xpp::model().uvar_names[i],ode_names[i]);
 }
 
 /* do_info/dump_eqn's equations, fixed variables and functions */
@@ -68,8 +69,8 @@ void put_parameters(FILE *fp, const char *prefix)
 {
   double z;
   for(int i=0;i<NUPAR;i++){
-    get_val(upar_names[i],&z);
-    xpp::print(fp,"{}{}={:.16g}   ",prefix,upar_names[i],z);
+    get_val(xpp::model().upar_names[i],&z);
+    xpp::print(fp,"{}{}={:.16g}   ",prefix,xpp::model().upar_names[i],z);
     if(i%4==3) xpp::print(fp,"\n");
   }
   xpp::print(fp,"\n");
@@ -152,7 +153,7 @@ int read_set(FILE *fp, bool ask)
 
 void file_inf()
 {
-  std::string filename=std::string(this_file)+".pars";
+  std::string filename=xpp::model().this_file+".pars";
   ping();
   if(!file_selector("Save info",filename,"*.pars*"))return;
   xpp::Writer w=open_writer_asking(filename.c_str());
@@ -164,7 +165,7 @@ void file_inf()
 
 void ps_write_pars(FILE *fp)
 {
-  xpp::print(fp,"\n %% {} \n %% Parameters ...\n",this_file);
+  xpp::print(fp,"\n %% {} \n %% Parameters ...\n",xpp::model().this_file);
   put_parameters(fp,"%% ");
 }
 
@@ -173,7 +174,7 @@ void do_info(FILE *fp)
   static const char *method[]={"Discrete","Euler","Mod. Euler",
 	"Runge-Kutta","Adams","Gear","Volterra","BackEul","QualRK",
          "Stiff","CVode","DoPri5","DoPri8(3)","Rosenbrock","Symplectic"};
-  xpp::print(fp,"File: {} \n\n Equations... \n",this_file);
+  xpp::print(fp,"File: {} \n\n Equations... \n",xpp::model().this_file);
   put_equations(fp);
 
   xpp::print(fp,"\n\n Numerical parameters ...\n");
@@ -185,7 +186,7 @@ void do_info(FILE *fp)
 	 DELTA_T,T0,TRANS,TEND,BOUND,DELAY,MaxPoints);
   xpp::print(fp,"EVEC_ERR={:g}, NEWT_ERR={:g} HMIN={:g} HMAX={:g} TOLER={:g} \n",
 	 EVEC_ERR,NEWT_ERR,HMIN,HMAX,TOLER);
-  const char *poivar=POIVAR==0?"T":uvar_names[POIVAR-1];
+  std::string_view poivar=POIVAR==0?"T":xpp::model().uvar_names[POIVAR-1];
   xpp::print(fp,"POIMAP={} POIVAR={} POIPLN={:g} POISGN={} \n",
         POIMAP,poivar,POIPLN,POISGN);
 
@@ -194,7 +195,7 @@ void do_info(FILE *fp)
   xpp::print(fp,"\n\n BCs ...\n");
   for(int i=0;i<NODE;i++)xpp::print(fp,"0={}\n",my_bc[i].string);
   xpp::print(fp,"\n\n ICs ...\n");
-  for(int i=0;i<NODE+NMarkov;i++)xpp::print(fp,"{}={:.16g}\n",uvar_names[i],last_ic[i]);
+  for(int i=0;i<NODE+NMarkov;i++)xpp::print(fp,"{}={:.16g}\n",xpp::model().uvar_names[i],last_ic[i]);
   xpp::print(fp,"\n\n Parameters ...\n");
   put_parameters(fp,"");
 }
@@ -210,7 +211,7 @@ void write_lunch(FILE *fp)
  time_t ttt;
 
  ttt=time(0);
- xpp::print(fp,"## Set file for {} on {}",this_file,ctime(&ttt));
+ xpp::print(fp,"## Set file for {} on {}",xpp::model().this_file,ctime(&ttt));
  io_int(&NEQ,fp,f,"Number of equations and auxiliaries");
  io_int(&NUPAR,fp,f,"Number of parameters");
  io_numerics(f,fp);
@@ -229,7 +230,7 @@ void write_lunch(FILE *fp)
 
 void do_lunch(int f) /* f=1 to read and 0 to write */
 {
-  std::string filename=std::string(this_file)+".set";
+  std::string filename=xpp::model().this_file+".set";
 
   if(f==READEM){
     ping();
@@ -342,7 +343,7 @@ void io_parameter_file(const char *fn,int flag)
   io_int(&NUPAR,fp,flag,"Number params");
   io_parameters(flag,fp);
   time_t ttt=time(0);
-  xpp::print(fp,"\n\nFile:{}\n{}",this_file,ctime(&ttt));
+  xpp::print(fp,"\n\nFile:{}\n{}",xpp::model().this_file,ctime(&ttt));
   w.commit();
 }
 
@@ -374,12 +375,12 @@ void io_parameters(int f, FILE *fp)
  double z;
  for(i=0;i<NUPAR;i++){
   if(f!=READEM){
-    get_val(upar_names[i],&z);
-    io_double(&z,fp,f,upar_names[i]);
+    get_val(xpp::model().upar_names[i],&z);
+    io_double(&z,fp,f,xpp::model().upar_names[i]);
   }
   else {
     io_double(&z,fp,f," ");
-    set_val(upar_names[i],z);
+    set_val(xpp::model().upar_names[i],z);
 
     }
   }
@@ -406,18 +407,18 @@ void io_exprs(int f, FILE *fp)
  io_heading(f,fp,"# Bndry conds");
  for(i=0;i<NODE;i++)io_string(my_bc[i].string,256,fp,f);
  io_heading(f,fp,"# Old ICs");
- for(i=0;i<NODE+NMarkov;i++)io_double(&last_ic[i],fp,f,uvar_names[i]);
+ for(i=0;i<NODE+NMarkov;i++)io_double(&last_ic[i],fp,f,xpp::model().uvar_names[i]);
  io_heading(f,fp,"# Ending  ICs");
- for(i=0;i<NODE+NMarkov;i++)io_double(&data_store.current[i],fp,f,uvar_names[i]);
+ for(i=0;i<NODE+NMarkov;i++)io_double(&data_store.current[i],fp,f,xpp::model().uvar_names[i]);
  io_heading(f,fp,"# Parameters");
  for(i=0;i<NUPAR;i++){
   if(f!=READEM){
-    get_val(upar_names[i],&z);
-    io_double(&z,fp,f,upar_names[i]);
+    get_val(xpp::model().upar_names[i],&z);
+    io_double(&z,fp,f,xpp::model().upar_names[i]);
   }
   else {
     io_double(&z,fp,f," ");
-    set_val(upar_names[i],z);
+    set_val(xpp::model().upar_names[i],z);
   }
 }
 
@@ -483,7 +484,7 @@ void io_graph(int f, FILE *fp)
     if(f==READEM&&program.interactive)xpp_ui.redraw_graph();
 }
 
-void io_int(int *i, FILE *fp, int f, const char *ss)
+void io_int(int *i, FILE *fp, int f, std::string_view ss)
 {
  if(f==READEM){
    std::optional<std::string> bob=next_line(fp);
@@ -494,7 +495,7 @@ void io_int(int *i, FILE *fp, int f, const char *ss)
  xpp::print(fp,"{}   {}\n",*i,ss);
 }
 
-void io_double(double *z, FILE *fp, int f, const char *ss)
+void io_double(double *z, FILE *fp, int f, std::string_view ss)
 {
  if(f==READEM){
    std::optional<std::string> bob=next_line(fp);

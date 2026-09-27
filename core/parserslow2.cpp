@@ -1,4 +1,5 @@
 #include "parserslow.h"
+#include "model.h"
 #include "comline.h"
 #include "volterra2.h"
 #include "delay_handle.h"
@@ -45,7 +46,6 @@ double constants[MAXPAR];
 double variables[MAXODE1];
 std::array<std::vector<int>,MAXUFUN> ufun;
 char *ufun_def[MAXUFUN];
-char ufun_names[MAXUFUN][XPP_NAME_MAX+1];
 int narg_fun[MAXUFUN];
 double stack[200],ustack[200];
 
@@ -54,8 +54,6 @@ int NKernel;
 int MaxPoints;
 std::array<std::vector<double>,MAXODE> Memory; /* one per variable (volterra2.c), not per kernel */
 int NTable;
-
-UFUN_ARG ufun_arg[MAXUFUN];
 
 namespace {
 /* the text behind ufun_def[] (set_ufun_def) */
@@ -242,7 +240,7 @@ void init_rpn()
 
  /*  FREE_UFUNS   */
 
-int duplicate_name(const char *junk)
+int duplicate_name(std::string_view junk)
 {
   int i;
   find_name(junk,&i);
@@ -251,7 +249,7 @@ int duplicate_name(const char *junk)
        common, intentional pattern -- lecar.ode does exactly this for ica)
        hits this every time and is not a mistake the user needs to act on;
        WARN would make --verbose-off runs noisy for a routine model shape. */
-    if(ERROUT)xpp_log(XPP_LOG_INFO, "%s is a duplicate name\n",junk);
+    if(ERROUT)xpp::log(XPP_LOG_INFO, "{} is a duplicate name\n",junk);
     return(1);
   }
   return(0);
@@ -273,7 +271,7 @@ std::string converted(std::string_view name)
    Returns 1 (and says why) when it is empty or longer than XPP_NAME_MAX;
    with primed set, the primed name X' of a variable X (form_ode.c) may be
    one longer. */
-static int set_symbol_name(int k, const char *name, int primed)
+static int set_symbol_name(int k, std::string_view name, int primed)
 {
   std::string string=converted(name);
   int len=static_cast<int>(string.size());
@@ -290,10 +288,10 @@ static int set_symbol_name(int k, const char *name, int primed)
 
 /* 1 (with a message) when name, blanks removed, is longer than
    XPP_NAME_MAX and so cannot be a symbol */
-int name_too_long(const char *name)
+int name_too_long(std::string_view name)
 {
   if(converted(name).size()<=XPP_NAME_MAX)return 0;
-  xpp_log(XPP_LOG_WARN, "Name %.40s... is longer than %d characters\n",name,XPP_NAME_MAX);
+  xpp::log(XPP_LOG_WARN, "Name {:.40}... is longer than {} characters\n",name,XPP_NAME_MAX);
   return 1;
 }
 
@@ -315,7 +313,7 @@ int add_constant(const char *junk)
  return(0);
 }
 
-int get_var_index(const char *name)
+int get_var_index(std::string_view name)
 {
 
   int type,com;
@@ -393,7 +391,7 @@ int add_kernel(const char *name, double mu, const char *expr)
 
 /*  ADD_VAR          */
 
-int add_var(const char *junk, double value)
+int add_var(std::string_view junk, double value)
 {
  if(duplicate_name(junk)==1)return(1);
  if(NVAR>=MAXODE1)
@@ -517,9 +515,9 @@ void set_old_arg_names(int narg)
 
 void set_ufun_arg_names(int index)
 {
-  const UFUN_ARG &a=ufun_arg[index];
-  for(int i=0;i<a.narg;i++){
-    my_symb[FIRST_ARG+i].name=a.args[i];
+  const std::vector<std::string> &args=xpp::model().ufun_args[index];
+  for(size_t i=0;i<args.size();i++){
+    my_symb[FIRST_ARG+i].name=args[i];
     my_symb[FIRST_ARG+i].len=static_cast<int>(my_symb[FIRST_ARG+i].name.size());
  }
 }
@@ -540,7 +538,7 @@ int add_ufun_name(const char *name, int index, int narg)
   my_symb[NSYM].arg=narg;
   my_symb[NSYM].com=COM(UFUNTYPE, index);
   NSYM++;
-  XPP_FORMAT_TO_BUF(ufun_names[index],"{}",name);
+  xpp::model().ufun_names[index]=name;
   return (0);
 }
 
@@ -567,9 +565,7 @@ int add_ufun_new(int index, const char *rhs, std::span<const std::string> args)
   /* edit_rhs.cpp rewrites the program in place: MAXEXPLEN commands */
   ufun[index].assign(MAXEXPLEN,0);
   set_ufun_def(index,"");
-  ufun_arg[index].narg=narg;
-  for(int i=0;i<narg;i++)
-    XPP_FORMAT_TO_BUF(ufun_arg[index].args[i],"{}",args[i]);
+  xpp::model().ufun_args[index].assign(args.begin(),args.end());
   set_ufun_arg_names(index);
   if(add_expr(rhs,ufun[index].data(),&end)==0)
     {
@@ -619,12 +615,11 @@ int add_ufun(const char *junk, const char *expr, int narg)
   std::string_view def(expr);
   if(!def.empty())def.remove_suffix(1);
   set_ufun_def(NFUN,def);
-  XPP_FORMAT_TO_BUF(ufun_names[NFUN],"{}",junk);
+  xpp::model().ufun_names[NFUN]=junk;
   narg_fun[NFUN]=narg;
-  ufun_arg[NFUN].narg=narg;
-  for(i=0;i<narg;i++){
-    XPP_FORMAT_TO_BUF(ufun_arg[NFUN].args[i],"ARG{}",i+1);
-  }
+  std::vector<std::string> &arg_names=xpp::model().ufun_args[NFUN];
+  arg_names.clear();
+  for(i=0;i<narg;i++)arg_names.push_back(xpp::format("ARG{}",i+1));
   NFUN++;
   return(0);
  }
@@ -676,7 +671,7 @@ int is_lookup(int x)
  else return(0);
 }
 
-int find_lookup(const char *name)
+int find_lookup(std::string_view name)
 {
  int index,com;
  find_name(name,&index);
@@ -688,7 +683,7 @@ int find_lookup(const char *name)
 
 /* FIND_NAME    */
 
-void find_name(const char *string, int *index)
+void find_name(std::string_view string, int *index)
 {
   int i;
   std::string junk=converted(string);
@@ -703,7 +698,7 @@ void find_name(const char *string, int *index)
    else *index=-1;
 }
 
-int get_param_index(const char *name)
+int get_param_index(std::string_view name)
 {
  int type,com;
   find_name(name,&type);
@@ -719,7 +714,7 @@ int get_param_index(const char *name)
 
 /* GET_VAL   */
 
-int get_val(const char *name, double *value)
+int get_val(std::string_view name, double *value)
 {
   int type,com;
   *value=0.0;
@@ -741,7 +736,7 @@ int get_val(const char *name, double *value)
 
 /* SET_VAL         */
 
-int set_val(const char *name, double value)
+int set_val(std::string_view name, double value)
 {
   int type,com;
   find_name(name,&type);

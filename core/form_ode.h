@@ -12,12 +12,10 @@ extern "C" {
 #define MAXLINES 5000
 
 /* The model as the parser leaves it (form_ode.cpp), read by the rest of
-   the core as C tables: the names of the variables (ODEs, Markov, aux)
-   and parameters, each variable's formula as typed (ode_names) and
+   the core as C tables (the names of the variables and parameters are
+   xpp::Model's, model.h): each variable's formula as typed (ode_names) and
    compiled (my_ode), the source's lines (save_eqn), the boundary
    conditions, and the columns an "only" statement keeps (plotlist) */
-extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
-extern char upar_names[MAXPAR][XPP_NAME_MAX+1];
 extern char *ode_names[MAXODE];
 extern int *my_ode[MAXODE];
 extern char *save_eqn[MAXLINES];
@@ -44,7 +42,6 @@ extern FILE *convertf;
 
 int make_eqn(void);
 void strip_saveqn(void);
-int disc(const char *string);
 int get_eqn(FILE *fptr);
 /* strtok's tokens of string (get_first) and of the rest of it (get_next):
    the tokenizer aniparse, auto_nox, do_fit, load_eqn and simplenet share */
@@ -78,6 +75,8 @@ struct FIXINFO {
 };
 extern std::array<FIXINFO,MAXODE> fixinfo;
 
+/* 1 when the model is a map: is_a_map, or file ends in .dis or .dif */
+int disc(std::string_view file);
 /* formula i (ode_names[i]) becomes text */
 void set_ode_name(int i, std::string_view text);
 /* old with its array range x[i..j] made x[j] (i1, i2 the range; flag 1,

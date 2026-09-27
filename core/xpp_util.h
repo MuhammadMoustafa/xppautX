@@ -16,9 +16,7 @@ void set_default_params(void);
 void clone_ode(void);
 void make_active(int i, int flag);
 void clr_scrn(void);
-int find_user_name(int type, const char *oname);
 void de_space(char *s);
-const char *ind_to_sym(int ind);
 void get_max(int index, double *vmin, double *vmax);
 int do_calc(const char *temp, double *z);
 int has_eq(const char *z, char *w, int *where);
@@ -51,6 +49,14 @@ void xpp_cleanup_auto_dir(void);
 /* name, shortened for a fixed-width display of width characters: a longer
    one keeps its start and ends in '~' so it cannot pass for another name */
 std::string short_name(std::string_view name, int width);
+
+/* the name of plotted variable ind: T (0) or a variable (xpp::Model's
+   own, valid while the model is loaded) */
+const std::string &ind_to_sym(int ind);
+
+/* the index of parameter (type PARAMBOX) or variable (ICBOX) oname,
+   blanks ignored and case not, -1 when there is none */
+int find_user_name(int type, std::string_view oname);
 
 /* f() on the active plot window, or under Simulplot on each open one in
    turn (made active with make_active(i, flag)), the active one made

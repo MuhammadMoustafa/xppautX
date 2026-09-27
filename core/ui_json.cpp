@@ -11,6 +11,7 @@
    This file holds the XppUi table, the command dispatch, the input
    classifier, script replay, install and hello; ui_json_internal.h names
    the files that hold the rest. */
+#include "model.h"
 #include "ui_json.h"
 #include "form_ode.h"
 #include "ui_json_internal.h"
@@ -477,7 +478,7 @@ void json_ui_hello(const char *title)
     BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":" JSON_UI_STR(JSON_UI_PROTOCOL) ",\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\",\"autosettings\"],\"title\":");
     buf_str(&b, title);
     BUF_LIT(&b, ",\"file\":");
-    buf_str(&b, this_file);
+    buf_str(&b, xpp::model().this_file);
     BUF_LIT(&b, ",\"menus\":{\"main\":");
     buf_str_array(&b, main_menu + 1, MAIN_ENTRIES); /* [0] is the title */
     BUF_LIT(&b, ",\"main_keys\":");
@@ -499,24 +500,25 @@ void json_ui_hello(const char *title)
     BUF_LIT(&b, "}");
     /* the lists a form field *n picks from (pop_list.c make_scrbox_lists) */
     BUF_LIT(&b, ",\"lists\":[[\"T\"");
+    const xpp::Model &m = xpp::model();
     for (i = 0; i < NEQ; i++) {
         BUF_LIT(&b, ",");
-        buf_str(&b, uvar_names[i]);
+        buf_str(&b, m.uvar_names[i]);
     }
     BUF_LIT(&b, "],[");
     for (i = 0; i < NODE + NMarkov; i++) {
         if (i) BUF_LIT(&b, ",");
-        buf_str(&b, uvar_names[i]);
+        buf_str(&b, m.uvar_names[i]);
     }
     BUF_LIT(&b, "],[");
     for (i = 0; i < NUPAR; i++) {
         if (i) BUF_LIT(&b, ",");
-        buf_str(&b, upar_names[i]);
+        buf_str(&b, m.upar_names[i]);
     }
     BUF_LIT(&b, "],[");
     for (i = 0; i < NODE + NMarkov + NUPAR; i++) {
         if (i) BUF_LIT(&b, ",");
-        buf_str(&b, i < NODE + NMarkov ? uvar_names[i] : upar_names[i - NODE - NMarkov]);
+        buf_str(&b, i < NODE + NMarkov ? m.uvar_names[i] : m.upar_names[i - NODE - NMarkov]);
     }
     BUF_LIT(&b, "],[");
     for (i = 0; i < 11; i++) {

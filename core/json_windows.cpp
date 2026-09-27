@@ -1,6 +1,7 @@
 /* The plot windows (create, select, destroy, redraw, the view), the
    pictures only the client has (pixels, for frame and GIF writers), the
    kinescope, whose frames the client keeps, and the array plot window. */
+#include "model.h"
 #include "ui_json_internal.h"
 #include "xpp_util.h"
 #include "graphics.h"
@@ -655,7 +656,7 @@ void aplot_command(const char *line)
     else if (o == "range") set_up_aplot_range();
     else if (o == "print") print_aplot(&aplot);
     else if (o == "gif") {
-        std::string file = xpp::format("{}.gif", static_cast<const char *>(this_file));
+        std::string file = xpp::format("{}.gif", xpp::model().this_file);
         if (file_selector("GIF plot", file, "*.gif")) aplot_gif(file.c_str(), 1);
     } else if (o == "scroll") {
         /* dragging the plot by dy pixels moves the first row, as in X11 */

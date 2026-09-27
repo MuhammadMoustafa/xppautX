@@ -7,15 +7,6 @@
 extern "C" {
 #endif
 
-/* Initialconds/Range's settings (integrate.cpp's, read by load_eqn.cpp's
-   options): one type for both, a C++ requirement since W27 */
-typedef struct RangeVars {
-  char item[MAX_LEN_SBOX], item2[MAX_LEN_SBOX];
-  int steps, steps2, reset, oldic, index, index2, cycle, type, type2, movie;
-  double plow, phigh, plow2, phigh2;
-  int rtype;
-} RangeVars;
-extern RangeVars range;
 extern int SuppressBounds,MyStart;
 
 /* the fixed-step integrator Integrate uses (numerics.c picks it) */
@@ -72,5 +63,17 @@ int do_auto_range_go();
 
 #ifdef __cplusplus
 }
+
+#include <string>
+
+/* Initialconds/Range's settings (integrate.cpp's, read by load_eqn.cpp's
+   options): the one range over item (and item2 for the double range) */
+struct RangeVars {
+  std::string item, item2;
+  int steps, steps2, reset, oldic, index, index2, cycle, type, type2, movie;
+  double plow, phigh, plow2, phigh2;
+  int rtype;
+};
+extern RangeVars range;
 #endif
 #endif

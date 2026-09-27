@@ -2,6 +2,7 @@
    the files a long AUTO run is picked back up from, <base>.set (as File/
    Write set) and, when there is a diagram, <base>.auto (as AUTO's File/
    Save diagram, orbits included). */
+#include "model.h"
 #include "xpp_session.h"
 #include "xpp_ui.h"
 #include "xpp_io.h"
@@ -23,7 +24,7 @@ std::string session_auto;
    returning it without its .set. false on cancel. */
 bool ask_base(const char *title, std::string &base)
 {
-    std::string file = std::string(this_file) + ".set";
+    std::string file = xpp::model().this_file + ".set";
     ping();
     if (!file_selector(title, file, "*.set")) return false;
     base = file;

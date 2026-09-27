@@ -10,14 +10,13 @@
 #include "lunch-new.h"
 #include "xpp_batch.h"
 #include "parserslow.h"
+#include "browse.h"
+#include "graphics.h"
+#include "load_eqn.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-extern double TEND, DELTA_T;
-extern double last_ic[];
-void init_browser(void);
-void init_all_graph(void);
 
 /* the file without its first line, which carries the time it was written */
 static char *body(const char *path)
@@ -29,11 +28,11 @@ static char *body(const char *path)
     fseek(fp, 0, SEEK_END);
     n = ftell(fp);
     rewind(fp);
-    s = calloc((size_t)n + 1, 1);
-    if (fread(s, 1, (size_t)n, fp) != (size_t)n) n = 0;
+    s = static_cast<char *>(calloc(static_cast<size_t>(n) + 1, 1));
+    if (fread(s, 1, static_cast<size_t>(n), fp) != static_cast<size_t>(n)) n = 0;
     fclose(fp);
     nl = strchr(s, '\n');
-    return nl ? memmove(s, nl + 1, strlen(nl + 1) + 1) : s;
+    return nl ? static_cast<char *>(memmove(s, nl + 1, strlen(nl + 1) + 1)) : s;
 }
 
 static void save(const char *path)
@@ -45,7 +44,8 @@ static void save(const char *path)
 
 int main(void)
 {
-    char *argv[] = {"test_lunch", "examples/ode/lecar.ode", NULL};
+    char arg0[] = "test_lunch", arg1[] = "examples/ode/lecar.ode";
+    char *argv[] = {arg0, arg1, NULL};
     const char *a = "build/test_lunch_a.set", *b = "build/test_lunch_b.set";
     double iapp, v0, tend, dt, x;
     FILE *fp;

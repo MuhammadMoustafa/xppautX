@@ -1,3 +1,4 @@
+#include "model.h"
 #include "adj2.h"
 #include "storage.h"
 #include "odesol2.h"
@@ -46,7 +47,7 @@ std::array<std::vector<float>, 2> my_liap;
 struct {
   int here,col0,ncol,colskip;
   int row0,nrow,rowskip; 
-  std::array<char, XPP_NAME_MAX+1> firstcol; /* lunch-new.cpp's io_string reads into it */
+  std::string firstcol;
 } my_trans;
    
 int LIAP_FLAG=0;
@@ -55,10 +56,10 @@ double ADJ_EPS=1.e-8,ADJ_ERR=1.e-3;
 int ADJ_MAXIT=20,ADJ_HERE=0,H_HERE=0,h_len,HODD_EV=0;
 int AdjRange=0;
 namespace {
-/* each equation's coupling for the H function: its formula (io_string's
-   buffer, 80 bytes as ever) and the formula compiled */
+/* each equation's coupling for the H function: its formula and the
+   formula compiled */
 std::vector<std::array<int, 100>> coup_fun;
-std::vector<std::array<char, 80>> coup_string;
+std::vector<std::string> coup_string;
 }
 
 /* extern Window main_win; */
@@ -66,7 +67,7 @@ std::vector<std::array<char, 80>> coup_string;
 void init_trans()
 {
   my_trans.here=0;
-  xpp_strlcpy(my_trans.firstcol.data(),uvar_names[0],my_trans.firstcol.size());
+  my_trans.firstcol=xpp::model().uvar_names[0];
   my_trans.ncol=2;
   my_trans.nrow=1;
   my_trans.rowskip=1;
@@ -83,7 +84,7 @@ void dump_transpose_info(FILE *fp, int f)
   }
   else
     xpp::print(fp,"# Transpose variables etc\n");
-  io_string(my_trans.firstcol.data(),static_cast<int>(my_trans.firstcol.size()),fp,f);
+  io_string(my_trans.firstcol,fp,f);
   io_int(&my_trans.ncol,fp,f,"n columns");
   io_int(&my_trans.nrow,fp,f,"n rows");
   io_int(&my_trans.rowskip,fp,f,"row skip");
@@ -97,7 +98,7 @@ int do_transpose()
  int i,status;
  static const char *n[]={"*0Column 1","NCols","ColSkip","Row 1","NRows","RowSkip"};
  std::array<std::string, 6> values;
- values[0] = my_trans.firstcol.data();
+ values[0] = my_trans.firstcol;
  values[1] = xpp::format("{:d}", my_trans.ncol);
  values[2] = xpp::format("{:d}", my_trans.colskip);
  values[3] = xpp::format("{:d}", my_trans.row0);
@@ -121,7 +122,7 @@ int do_transpose()
        err_msg("No such columns");
        return 0;
      }
-   xpp_strlcpy(my_trans.firstcol.data(),values[0].c_str(),my_trans.firstcol.size());
+   my_trans.firstcol=values[0];
    i=atoi(values[4].c_str());
    if(i>=NEQ)i=NEQ-1;
    my_trans.nrow=i;
@@ -163,8 +164,7 @@ int create_transpose()
 void alloc_h_stuff()
 {
  coup_fun.assign(NODE,{});
- coup_string.assign(NODE,{});
- for(auto &s : coup_string)s[0]='0';
+ coup_string.assign(NODE,"0");
 }
 
 void data_back()
@@ -276,7 +276,7 @@ void dump_h_stuff(FILE *fp, int f)
   else
     xpp::print(fp,"# Coupling stuff for H funs\n");
  for(i=0;i<NODE ;i++)
-   io_string(coup_string[i].data(),79,fp,f);
+   io_string(coup_string[i],fp,f);
 
 }
 
@@ -289,11 +289,9 @@ int make_h(float **orb, float **adj, float **h, int nt, double dt, int node, int
  int n0=node+1+FIX_VAR,k2,k;
  if(silent==0){
    for(i=0;i<NODE ;i++){
-     std::string name=xpp::format("Coupling for {} eqn:",static_cast<const char *>(uvar_names[i]));
-     std::string coupling = coup_string[i].data();
-     new_string_of(name.c_str(),coupling,XPP_FIELD_EXPRESSION);
-     xpp_strlcpy(coup_string[i].data(),coupling.c_str(),coup_string[i].size());
-     if(add_expr(coup_string[i].data(),coup_fun[i].data(),&j)){
+     std::string name=xpp::format("Coupling for {} eqn:",xpp::model().uvar_names[i]);
+     new_string_of(name.c_str(),coup_string[i],XPP_FIELD_EXPRESSION);
+     if(add_expr(coup_string[i].c_str(),coup_fun[i].data(),&j)){
        err_msg("Illegal formula");
        goto bye;
      }

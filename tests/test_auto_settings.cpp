@@ -4,6 +4,7 @@
    tools/servercheck.py checks the same through the protocol, against the
    forms. */
 #include "xpptest.h"
+#include "model.h"
 #include "auto_nox.h"
 #include "auto_settings.h"
 
@@ -11,8 +12,6 @@
 #include <cstring>
 
 extern "C" {
-extern char upar_names[][XPP_NAME_MAX + 1];
-extern char uvar_names[][XPP_NAME_MAX + 1];
 extern int AutoPar[8];
 extern int NAutoPar;
 extern int NODE, NEQ, NUPAR;
@@ -24,13 +23,13 @@ extern int NAutoUzr;
 
 namespace {
 
-void model()
+void load_model()
 {
-    std::strcpy(upar_names[0], "iapp");
-    std::strcpy(upar_names[1], "gca");
-    std::strcpy(upar_names[2], "phi");
-    std::strcpy(uvar_names[0], "v");
-    std::strcpy(uvar_names[1], "w");
+    xpp::model().upar_names[0] = "iapp";
+    xpp::model().upar_names[1] = "gca";
+    xpp::model().upar_names[2] = "phi";
+    xpp::model().uvar_names[0] = "v";
+    xpp::model().uvar_names[1] = "w";
     NODE = NEQ = 2;
     NUPAR = 3;
     NAutoPar = 3;
@@ -61,7 +60,7 @@ int main()
 {
     std::string num_why;
     std::string why;
-    model();
+    load_model();
 
     CHECK(ok(AUTO_NUM_NCOL, 2) && ok(AUTO_NUM_NCOL, 7));
     CHECK(!ok(AUTO_NUM_NCOL, 1) && !ok(AUTO_NUM_NCOL, 8));

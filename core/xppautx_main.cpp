@@ -29,6 +29,7 @@
    errors only) so the banner, parser stats and integrator chatter show
    on stderr too; xpp_log_parse_arg() also recognizes xpp_batch_main's
    own argv, so they work with -silent as well. */
+#include "model.h"
 #include "xpp_batch.h"
 #include "xpp_globals.h"
 #include "xpp_log.h"
@@ -161,10 +162,10 @@ static void run_session(void)
 
     json_ui_install();
     xpp_load_model(session_argc, session_argv, 0);
-    xpp_window_set_model(this_file);
+    const std::string &file = xpp::model().this_file;
+    xpp_window_set_model(file.c_str());
 
-    const char *file = this_file;
-    std::string title = strlen(file) < 60
+    std::string title = file.size() < 60
                             ? xpp::format("XPP Ver {:g}.{:g} >> {}", program.version_major, program.version_minor, file)
                             : xpp::format("XPP Version {:g}.{:g}", program.version_major, program.version_minor);
     program.interactive = 1;

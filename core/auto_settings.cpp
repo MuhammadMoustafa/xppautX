@@ -12,6 +12,7 @@
 #include <string>
 #include <strings.h>
 
+#include "model.h"
 #include "auto_settings.h"
 #include "browse.h"
 #include "diagram.h"
@@ -138,7 +139,7 @@ std::string event_text()
         add_str_or_null(o, auto_par_name(k));
     }
     o += xpp::format("],\"axes\":{{\"plot\":{},\"var\":", Auto.plot);
-    add_str_or_null(o, Auto.var >= 0 && Auto.var < NODE ? uvar_names[Auto.var] : nullptr);
+    add_str_or_null(o, Auto.var >= 0 && Auto.var < NODE ? xpp::model().uvar_names[Auto.var].c_str() : nullptr);
     o += ",\"par1\":";
     add_str_or_null(o, auto_par_name(Auto.icp1));
     o += ",\"par2\":";
@@ -321,7 +322,7 @@ bool apply(const AutoSettingsSet *s, std::string &why)
     for (int k = 0; k < s->npars; k++) {
         if (s->pars[k].empty()) continue;
         AutoPar[k] = pars[k];
-        Auto_index_to_array[k] = get_param_index(upar_names[pars[k]]);
+        Auto_index_to_array[k] = get_param_index(xpp::model().upar_names[pars[k]]);
     }
     bool axes = s->has_plot || !s->var.empty() || !s->par1.empty() || !s->par2.empty() || s->fit;
     for (int i = 0; i < 4; i++) axes = axes || s->has_range[i];

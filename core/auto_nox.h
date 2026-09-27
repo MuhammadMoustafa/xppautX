@@ -216,7 +216,6 @@ void auto_point_xy(double x, double y);
 
 void DLINE(double a, double b, double c, double d);
 void find_point(int ibr, int pt);
-void auto_get_info(int *n, char *pname);
 void auto_set_mark(int i);
 void do_auto_range(void);
 
@@ -224,6 +223,10 @@ void do_auto_range(void);
 }
 
 #include <string>
+
+/* the number of points of the marked stretch of the diagram (*n) and its
+   first parameter's name (pname); both unchanged when none is marked */
+void auto_get_info(int *n, std::string &pname);
 
 /* the diagram's axis labels as the axes show them: a name, name_bar or
    "Frequency" each (json_auto.cpp's diagram events) */

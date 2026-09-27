@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "model.h"
 #include "aniparse.h"
 #include "ani_data.h"
 #include "xpp_log.h"
@@ -1213,8 +1214,8 @@ void ani_zero(void)
         vcr.file = ani_options.file;
     else {
         /* dirname() may write into its argument or return static storage:
-           a copy of this_file */
-        std::string dir = this_file;
+           a copy of xpp::model().this_file */
+        std::string dir = xpp::model().this_file;
         vcr.file = dirname(dir.data());
         vcr.file += '/';
     }

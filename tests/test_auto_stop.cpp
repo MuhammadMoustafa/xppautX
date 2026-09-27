@@ -3,6 +3,7 @@
    limit through the protocol; this checks the order the reasons are tried
    in and their words. */
 #include "xpptest.h"
+#include "model.h"
 #include "auto_stop.h"
 #include "xpplim.h"
 
@@ -10,7 +11,6 @@
 #include <cstring>
 
 extern "C" {
-extern char upar_names[][XPP_NAME_MAX + 1];
 extern int AutoPar[8];
 extern int NAutoPar;
 extern int NUPAR;
@@ -36,7 +36,7 @@ AutoStopAt inside()
 
 int main()
 {
-    std::strcpy(upar_names[0], "iapp");
+    xpp::model().upar_names[0] = "iapp";
     NUPAR = 1;
     NAutoPar = 1;
     AutoPar[0] = 0;

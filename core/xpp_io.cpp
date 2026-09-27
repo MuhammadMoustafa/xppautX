@@ -529,8 +529,13 @@ int utf8_len(unsigned char c0)
 
 void json_append_string(std::string &out, const char *s)
 {
+    json_append_string(out, s ? std::string_view(s) : std::string_view());
+}
+
+void json_append_string(std::string &out, std::string_view s)
+{
     out += '"';
-    if (s) json_encode_string(out, s);
+    json_encode_string(out, s);
     out += '"';
 }
 

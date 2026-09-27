@@ -1,4 +1,5 @@
 #include "histogram.h"
+#include "model.h"
 #include "storage.h"
 
 #include <stdlib.h>
@@ -328,7 +329,7 @@ void column_mean()
 
 int get_col_info(int *col, const char *prompt)
 {
- std::string variable=*col==0?"t":uvar_names[*col-1];
+ std::string variable=*col==0?"t":xpp::model().uvar_names[*col-1];
  new_string_of(prompt,variable,XPP_FIELD_NAME_IN(0));
  find_variable(variable.c_str(),col);
  if(*col<0){

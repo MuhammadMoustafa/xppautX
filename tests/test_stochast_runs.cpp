@@ -30,7 +30,7 @@ int main(void)
     init_all_graph();
 
     const int ntrials = 400;
-    XPP_STRCPY(range.item, "dummy");
+    range.item = "dummy";
     range.steps = ntrials - 1;
     range.plow = 0.0;
     range.phigh = 0.0;

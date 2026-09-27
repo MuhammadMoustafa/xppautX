@@ -67,18 +67,10 @@ extern "C" {
 /* the longest program add_expr writes (the callers' command arrays) */
 #define MAXEXPLEN 1024
 
-/* a user function's argument names (xpp_util.cpp and edit_rhs.cpp read
-   them as C text) */
-typedef struct {
-  int narg;
-  char args[MAXARG][XPP_NAME_MAX+1];
-} UFUN_ARG;
-
-/* the user functions (NFUN of them): names, argument counts and names,
-   and their definitions as C text (set_ufun_def keeps it) */
-extern char ufun_names[MAXUFUN][XPP_NAME_MAX+1];
+/* the user functions (NFUN of them): argument counts and their
+   definitions as C text (set_ufun_def keeps it); their names and argument
+   names are xpp::Model's (model.h) */
 extern int narg_fun[MAXUFUN];
-extern UFUN_ARG ufun_arg[MAXUFUN];
 extern char *ufun_def[MAXUFUN];
 
 /* the parser's counts and values (parserslow2.cpp's): the model's
@@ -93,13 +85,9 @@ extern int NCON,NVAR,NFUN,NSYM,NDELAYS,NKernel,NTable,MaxPoints;
 extern int ERROUT,RandSeed;
 
 void init_rpn(void);
-int duplicate_name(const char *junk);
-int name_too_long(const char *name);
 int add_constant(const char *junk);
-int get_var_index(const char *name);
 int add_con(const char *name, double value);
 int add_kernel(const char *name, double mu, const char *expr);
-int add_var(const char *junk, double value);
 int add_expr(const char *expr, int *command, int *length);
 int add_net_name(int index, const char *name);
 int add_vector_name(int index, const char *name);
@@ -121,11 +109,6 @@ int isvar(int y);
 int iscnst(int y);
 int isker(int y);
 int is_lookup(int x);
-int find_lookup(const char *name);
-void find_name(const char *string, int *index);
-int get_param_index(const char *name);
-int get_val(const char *name, double *value);
-int set_val(const char *name, double value);
 void set_ivar(int i, double value);
 double get_ivar(int i);
 int alg_to_rpn(int *toklist, int *command);
@@ -203,5 +186,20 @@ void set_ufun_def(int index, std::string_view def);
 int add_ufun_new(int index, const char *rhs, std::span<const std::string> args);
 /* name as the symbol table keeps it: blanks removed, upper case */
 std::string converted(std::string_view name);
+/* the symbol table by name (as converted makes it): 1 (with an INFO)
+   when name is already a symbol, 1 (with a WARN) when it is longer than
+   XPP_NAME_MAX; name's symbol index in *index (-1 when none), a
+   variable's, a lookup table's or a parameter's index (-1 when name is
+   not one); a parameter's or variable's value got or set (1 when name
+   is one); add_var adds a variable (0 when it did) */
+int duplicate_name(std::string_view name);
+int name_too_long(std::string_view name);
+void find_name(std::string_view name, int *index);
+int get_var_index(std::string_view name);
+int find_lookup(std::string_view name);
+int get_param_index(std::string_view name);
+int get_val(std::string_view name, double *value);
+int set_val(std::string_view name, double value);
+int add_var(std::string_view name, double value);
 #endif
 #endif

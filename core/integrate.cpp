@@ -1,3 +1,4 @@
+#include "model.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "auto_nox.h"
@@ -154,7 +155,7 @@ double LastTime;
 extern int R_COL;
 int STOP_FLAG=0;
  struct {
-         std::array<char, MAX_LEN_SBOX> item{};
+         std::string item;
    int steps,shoot,col,movie,mc;
 	 double plow,phigh;
        } eq_range;
@@ -185,14 +186,14 @@ void dump_range(FILE *fp, int f)
   }
   else
     xpp::print(fp,"# Range information\n");
-  io_string(eq_range.item.data(),eq_range.item.size(),fp,f);
+  io_string(eq_range.item,fp,f);
   io_int(&eq_range.col,fp,f,"eq-range stab col");
   io_int(&eq_range.shoot,fp,f,"shoot flag 1=on");
   io_int(&eq_range.steps,fp,f,"eq-range steps");
   io_double(&eq_range.plow,fp,f,"eq_range low");
   io_double(&eq_range.phigh,fp,f,"eq_range high");
-  io_string(range.item,sizeof(range.item),fp,f);
-  io_string(range.item2,sizeof(range.item2),fp,f);
+  io_string(range.item,fp,f);
+  io_string(range.item2,fp,f);
   io_int(&range.steps,fp,f,"Range steps");
   io_int(&range.cycle,fp,f,"Cycle color 1=on");
   io_int(&range.reset,fp,f,"Reset data 1=on");
@@ -213,7 +214,7 @@ void init_range()
  eq_range.plow=0.0;
  eq_range.phigh=1.0;
  eq_range.movie=0;
- xpp_strlcpy(eq_range.item.data(),upar_names[0],eq_range.item.size());
+ eq_range.item=xpp::model().upar_names[0];
  range.type=0;
  range.rtype=0;
  range.index=range.index2=0;
@@ -248,11 +249,11 @@ void init_range()
  range.movie=0;
  if (notAlreadySet.RANGEOVER)
  {
- 	XPP_FORMAT_TO_BUF(range.item,"{}",static_cast<const char *>(uvar_names[0]));
+ 	range.item=xpp::model().uvar_names[0];
 	notAlreadySet.RANGEOVER=0;
  }
- XPP_FORMAT_TO_BUF(range.item2,"{}",static_cast<const char *>(uvar_names[0]));
- init_shoot_range(upar_names[0]); 
+ range.item2=xpp::model().uvar_names[0];
+ init_shoot_range(xpp::model().upar_names[0]); 
  init_monte_carlo();
 }
 
@@ -264,7 +265,7 @@ static const char *n[]={"*2Range over","Steps","Start","End",
  std::array<std::string, 8> values;
  int status,i;
  static  const char *yn[]={"N","Y"};
- values[0] = eq_range.item.data();
+ values[0] = eq_range.item;
  values[1] = xpp::format("{}", eq_range.steps);
  values[2] = xpp::format("{:.16g}", eq_range.plow);
  values[3] = xpp::format("{:.16g}", eq_range.phigh);
@@ -277,8 +278,8 @@ values[7] = yn[eq_range.mc];
                            XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
  status=do_string_box_of(8,1,"Range Equilibria",n,values,45,kinds);
  if(status!=0){
-   xpp_strlcpy(eq_range.item.data(),values[0].c_str(),eq_range.item.size());
-   i=find_user_name(PARAM,eq_range.item.data());
+   eq_range.item=values[0];
+   i=find_user_name(PARAM,eq_range.item);
    if(i<0){
         err_msg("No such parameter");
        return(0);
@@ -325,7 +326,7 @@ void cont_integ()
 namespace {
 /* what a range varies: item a parameter (PARAM) or else a variable (IC),
    and its index; 0 (and a message) when it is neither */
-int find_range_item(const char *item, int *type, int *index)
+int find_range_item(const std::string &item, int *type, int *index)
 {
  int i=find_user_name(PARAM,item);
  if(i>-1){
@@ -378,7 +379,7 @@ int set_up_range()
  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
  status=do_string_box_of(8,1,"Range Integrate",n,values,45,kinds);
  if(status!=0){
-   XPP_STRCPY(range.item,values[0].c_str());
+   range.item=values[0];
    if(range_item()==0)return 0;
    range.steps=atoi(values[1].c_str());
    if(range.steps<=0)range.steps=10;
@@ -433,10 +434,10 @@ values[6] = xpp::format("{}", range.steps);
                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
  status=do_string_box_of(7,2,"Double Range Integrate",n,values,45,kinds);
  if(status!=0){
-   XPP_STRCPY(range.item,values[0].c_str());
+   range.item=values[0];
    
    if(range_item()==0)return 0;
-    XPP_STRCPY(range.item2,values[3].c_str());
+    range.item2=values[3];
    
    if(range_item2()==0)return 0;
    range.steps=atoi(values[6].c_str());
@@ -488,12 +489,12 @@ void monte_carlo()
   new_float("Tolerance:",&fixptguess.tol);
   while(1){
     z=fixptguess.xlo[i];
-    done=new_float(xpp::format("{}_lo :",static_cast<const char *>(uvar_names[i])).c_str(),&z);
+    done=new_float(xpp::format("{}_lo :",xpp::model().uvar_names[i]).c_str(),&z);
     if(done==0)
       fixptguess.xlo[i]=z;
     if(done==-1)break;
     z=fixptguess.xhi[i];
-    done=new_float(xpp::format("{}_hi :",static_cast<const char *>(uvar_names[i])).c_str(),&z);
+    done=new_float(xpp::format("{}_hi :",xpp::model().uvar_names[i]).c_str(),&z);
     if(done==0)
       fixptguess.xhi[i]=z;
     if(done==-1)break;
@@ -613,10 +614,10 @@ void do_eq_range(double *x)
      if(eq_range.movie)
        clear_draw_window();
       temp=parlo+dpar*static_cast<double>(i);
-      set_val(eq_range.item.data(),temp);
+      set_val(eq_range.item,temp);
       PAR_FOL=1;
       {
-        std::string bob=xpp::format("{}={:.16g}",static_cast<const char *>(eq_range.item.data()),temp);
+        std::string bob=xpp::format("{}={:.16g}",eq_range.item,temp);
         bottom_msg(2,bob.c_str());
         evaluate_derived();
         /*  I think  */ redo_all_fun_tables();
@@ -675,7 +676,7 @@ int do_range(double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto
 {
 
   std::string bob;
-  std::array<char, 256> parn{}; /* auto_get_info writes the parameter's name */
+  std::string parn; /* auto_get_info writes the parameter's name */
  int ivar=0,ivar2=0,res=0,oldic=0;
  int nit=20,i=0,j=0,itype=0,itype2=0,cycle=0,icol=0,nit2=0,iii=0;
  int color=plot_windows.current->color[0];
@@ -725,7 +726,7 @@ if(range.type==PARAM)get_val(range.item,&temp);
 
  if(range.movie)reset_film();
  if(flag==2){
-   auto_get_info(&nit,parn.data());
+   auto_get_info(&nit,parn);
    nit2=0;
  }
  for(j=0;j<=nit2;j++){
@@ -772,17 +773,17 @@ if(range.type==PARAM)get_val(range.item,&temp);
      }
      if(program.interactive){   
        if(range.rtype>0)
-	 bob=xpp::format("{}={:.16g}  {}={:.16g}",static_cast<const char *>(range.item),p,static_cast<const char *>(range.item2),p2);
+	 bob=xpp::format("{}={:.16g}  {}={:.16g}",range.item,p,range.item2,p2);
        else
-	 bob=xpp::format("{}={:.16g}  i={}",static_cast<const char *>(range.item),p,i);
+	 bob=xpp::format("{}={:.16g}  i={}",range.item,p,i);
        bottom_msg(2,bob.c_str());
      }
    }  /* normal range stuff   */ 
    else {  /* auto range stuff */
      auto_set_mark(i);
      get_ic(2,x);
-     get_val(parn.data(),&temp);
-     bob=xpp::format("{:.230}={:.16g}",parn.data(),temp);
+     get_val(parn,&temp);
+     bob=xpp::format("{:.230}={:.16g}",parn,temp);
      bottom_msg(2,bob.c_str());
    }
    do_start_flags(x,&data_store.current_time);
@@ -810,7 +811,7 @@ if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
  }
  refresh_browser(data_store.rows);
  if(AdjRange==1){
-   bob=xpp::format("{}_{:g}",static_cast<const char *>(range.item),p);
+   bob=xpp::format("{}_{:g}",range.item,p);
    data_get_mybrowser(data_store.rows-1);
    compute_one_period(static_cast<double>(data_store.col[0][data_store.rows-1]),last_ic,bob.c_str());
  }
@@ -940,7 +941,7 @@ void batch_integrate()
   int i;
   
   if ((Nintern_set==0) | (Nintern_2_use==0)){
-    this_internset[0] = '\0'; 
+    xpp::model().this_internset.clear();
     do_batch_dry_run();
     batch_integrate_once();
     return;
@@ -949,7 +950,7 @@ void batch_integrate()
   for(i=0;i<Nintern_set;i++)
   {
   
-  	  XPP_FORMAT_TO_BUF(this_internset,"_{}",intern_set[i].name);
+  	  xpp::model().this_internset=xpp::format("_{}",intern_set[i].name);
 	  if (batch_options.user_out_file.empty()) /*Use the set name for outfile name*/
 	  {
 	      batch_options.out_file=xpp::format("{}.dat",intern_set[i].name);
@@ -996,7 +997,7 @@ void do_batch_dry_run()
 		w.print("#Parameters query:\n");
 		for(int i=0;i<NUPAR;i++)
 		{
-			w.print("{} {:f}\n",static_cast<const char *>(upar_names[i]),default_val[i]);
+			w.print("{} {:f}\n",xpp::model().upar_names[i],default_val[i]);
 		}
 	}
 
@@ -1005,7 +1006,7 @@ void do_batch_dry_run()
 		w.print("#Initial conditions query:\n");
 		for(int i=0;i<NEQ;i++)
 		{
-			w.print("{} {:f}\n",static_cast<const char *>(uvar_names[i]),last_ic[i]);
+			w.print("{} {:f}\n",xpp::model().uvar_names[i],last_ic[i]);
 		}
 	}
 
@@ -1934,18 +1935,18 @@ if(program.interactive) cwidth=get_command_width();
 	    if(isnan(x[ieqn-1])!=0)
             {
              std::string error_message=xpp::format(" {} is NaN at t = {} ",
-             static_cast<const char *>(uvar_names[ieqn-1]),*t);
+             xpp::model().uvar_names[ieqn-1],*t);
  i_nan=0;
 	         xpp::log(XPP_LOG_DEBUG, "variable\tf(t-1)\tf(t) \n");
                 for(i_nan=1;i_nan<=ieqn;i_nan++)
 		 {
  		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
-             		static_cast<const char *>(uvar_names[i_nan-1]),xvold[i_nan],xv[i_nan]);
+             		xpp::model().uvar_names[i_nan-1],xvold[i_nan],xv[i_nan]);
 		 }
 		for(;i_nan<=NEQ;i_nan++) 
 		 {
  		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
-             		static_cast<const char *>(uvar_names[i_nan-1]),xv[i_nan],static_cast<float>(x[i_nan-1]));
+             		xpp::model().uvar_names[i_nan-1],xv[i_nan],static_cast<float>(x[i_nan-1]));
 		 }	
      	     err_msg(error_message.c_str());
              rval=1;
@@ -1956,18 +1957,18 @@ if(program.interactive) cwidth=get_command_width();
             {
 	     if(RANGE_FLAG||SuppressBounds)break;
              std::string error_message=xpp::format(" {} out of bounds at t = {} ",
-             static_cast<const char *>(uvar_names[ieqn-1]),*t);
+             xpp::model().uvar_names[ieqn-1],*t);
  i_nan=0;
 	         xpp::log(XPP_LOG_DEBUG, "variable\tf(t-1)\tf(t) \n");
                 for(i_nan=1;i_nan<=ieqn;i_nan++)
 		 {
  		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
-             		static_cast<const char *>(uvar_names[i_nan-1]),xvold[i_nan],xv[i_nan]);
+             		xpp::model().uvar_names[i_nan-1],xvold[i_nan],xv[i_nan]);
 		 }
 		for(;i_nan<=NEQ;i_nan++) 
 		 {
  		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
-             		static_cast<const char *>(uvar_names[i_nan-1]),xv[i_nan],static_cast<float>(x[i_nan-1]));
+             		xpp::model().uvar_names[i_nan-1],xv[i_nan],static_cast<float>(x[i_nan-1]));
 		 }	
 	     err_msg(error_message.c_str());
              rval=1;

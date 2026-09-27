@@ -2,6 +2,7 @@
    header row of names, "\n" line ends, full precision, that
    pandas.read_csv and MATLAB readtable read with no options. See
    csv_export.h. */
+#include "model.h"
 #include "csv_export.h"
 #include "xpp_io.h"
 #include "diagram.h"
@@ -59,8 +60,8 @@ int csv_export_diagram(const char *filename)
         return 0;
     }
     w.print("branch,point,type,label,stability,f2,param1_name,param1,param2_name,param2,period");
-    for (int i = 0; i < NODE; i++) w.print(",{}_max", uvar_names[i]);
-    for (int i = 0; i < NODE; i++) w.print(",{}_min", uvar_names[i]);
+    for (int i = 0; i < NODE; i++) w.print(",{}_max", xpp::model().uvar_names[i]);
+    for (int i = 0; i < NODE; i++) w.print(",{}_min", xpp::model().uvar_names[i]);
     w.print("\n");
     /* the first point is a stored point itself (edit_start fills it in
        place), not a sentinel before one: write_info_out/write_pts start

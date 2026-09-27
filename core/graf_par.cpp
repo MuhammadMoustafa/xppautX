@@ -1,3 +1,4 @@
+#include "model.h"
 #include "graf_par.h"
 #include "storage.h"
 #include "xpp_log.h"
@@ -770,7 +771,7 @@ void create_ps()
 	 PS_FONTSIZE=atoi(values[2].c_str());
 	 PS_LW=atof(values[4].c_str());
          PS_FONT=values[3];
-	 std::string filename=xpp::format("{:.250}.ps",this_file);
+	 std::string filename=xpp::format("{:.250}.ps",xpp::model().this_file);
 	 ping();
  
 	 if(!file_selector("Print postscript",filename,"*.ps"))return;
@@ -785,7 +786,7 @@ void create_svg()
 {
 
  /* the model's name without its ".ode" */
- std::string filename=this_file;
+ std::string filename=xpp::model().this_file;
  filename.resize(filename.size()>=4?filename.size()-4:0);
  filename+=".svg";
  if(!file_selector("Print svg",filename,"*.svg"))return;

@@ -23,16 +23,18 @@ void io_ic_file(const char *fn, int flag);
 void io_parameters(int f, FILE *fp);
 void io_exprs(int f, FILE *fp);
 void io_graph(int f, FILE *fp);
-void io_int(int *i, FILE *fp, int f, const char *ss);
-void io_double(double *z, FILE *fp, int f, const char *ss);
-void io_string(char *s, int len, FILE *fp, int f);
 
 
 #ifdef __cplusplus
 }
 
 #include <string>
+#include <string_view>
+/* a number of a set file (f READEM), or z written with its name ss */
+void io_int(int *i, FILE *fp, int f, std::string_view ss);
+void io_double(double *z, FILE *fp, int f, std::string_view ss);
 /* one line of a set file into s, whole (f READEM), or s written as one */
 void io_string(std::string &s, FILE *fp, int f);
+void io_string(char *s, int len, FILE *fp, int f);
 #endif
 #endif

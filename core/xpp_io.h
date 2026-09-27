@@ -285,6 +285,20 @@ inline void keep_c_text(std::string &store, char *&entry, std::string_view text)
     entry = store.data();
 }
 
+/* a and b are the same text but for the case of ASCII letters (strcasecmp's
+   test in the C locale): a model's names are looked up this way */
+inline bool equal_ignoring_case(std::string_view a, std::string_view b)
+{
+  if(a.size()!=b.size())return false;
+  for(size_t i=0;i<a.size();i++){
+    unsigned char x=static_cast<unsigned char>(a[i]),y=static_cast<unsigned char>(b[i]);
+    if(x>='A'&&x<='Z')x=static_cast<unsigned char>(x-'A'+'a');
+    if(y>='A'&&y<='Z')y=static_cast<unsigned char>(y-'A'+'a');
+    if(x!=y)return false;
+  }
+  return true;
+}
+
 /* strtok's tokens without writing into the text (the parser's, the
    options' and form_ode.cpp's get_first/get_next replacement):
    next(delims) passes over the delimiters, returns the text up to the
@@ -339,6 +353,7 @@ void json_encode_string(std::string &out, std::string_view s);
    between them); a null `s` as the empty string "". The data events'
    text (plot_data, auto_data, ani_data, auto_settings) goes through this. */
 void json_append_string(std::string &out, const char *s);
+void json_append_string(std::string &out, std::string_view s);
 
 /* Decodes the JSON string value at *v (which must point to its opening
    '"'): unescapes \", \\, \/, \n, \t, \r, \b, \f and \uXXXX (a surrogate

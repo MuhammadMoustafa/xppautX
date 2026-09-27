@@ -5,21 +5,20 @@
    only the heading slides. */
 #include "xpptest.h"
 #include "auto_nox.h"
+#include "model.h"
 
 /* what the core holds for a loaded model; the names come from the .ode file */
-extern char upar_names[][XPP_NAME_MAX + 1];
-extern char uvar_names[][XPP_NAME_MAX + 1];
 extern int AutoPar[8];
 extern int NAutoPar;
 extern int NODE, NEQ, NUPAR;
 
-static void model(void)
+static void load_model(void)
 {
-    strcpy(upar_names[0], "iapp");
-    strcpy(upar_names[1], "gca");
-    strcpy(upar_names[2], "phi");
-    strcpy(uvar_names[0], "v");
-    strcpy(uvar_names[1], "w");
+    xpp::model().upar_names[0] = "iapp";
+    xpp::model().upar_names[1] = "gca";
+    xpp::model().upar_names[2] = "phi";
+    xpp::model().uvar_names[0] = "v";
+    xpp::model().uvar_names[1] = "w";
     NODE = NEQ = 2;
     NUPAR = 3;
     NAutoPar = 3;
@@ -31,7 +30,7 @@ static void model(void)
 int main(void)
 {
     char out[AUTO_COL_W + 1];
-    model();
+    load_model();
 
     /* a parameter column becomes the parameter's name */
     auto_screen_col("   PAR(1)     ", out);
@@ -42,7 +41,7 @@ int main(void)
     CHECK_STR(out, "     iapp     ");
 
     /* a variable column, with and without the prefix AUTO puts in front */
-    strcpy(uvar_names[0], "v");
+    xpp::model().uvar_names[0] = "v";
     auto_screen_col("     U(1)     ", out);
     CHECK_STR(out, "      v       ");
     auto_screen_col("   MAX U(2)   ", out);
@@ -59,7 +58,7 @@ int main(void)
     CHECK(strstr(out, "T") != NULL);
 
     /* a periodic branch prints MAX(n)/MIN(n): AUTO has overwritten the U */
-    strcpy(uvar_names[1], "w");
+    xpp::model().uvar_names[1] = "w";
     auto_screen_col("   MAX(2)     ", out);
     CHECK(strlen(out) == AUTO_COL_W);
     CHECK(strstr(out, "MAX w") != NULL);
@@ -71,7 +70,7 @@ int main(void)
     CHECK_STR(out, "     U(9)     ");
 
     /* a name as long as XPP allows must still not widen the column */
-    strcpy(uvar_names[0], "abcdefghijk");
+    xpp::model().uvar_names[0] = "abcdefghijk";
     auto_screen_col("   MAX U(1)   ", out);
     CHECK(strlen(out) == AUTO_COL_W);
 

@@ -37,8 +37,13 @@ void buf_add(Buf *b, const char *s, size_t n)
 
 void buf_str(Buf *b, const char *s)
 {
+    buf_str(b, s ? std::string_view(s) : std::string_view());
+}
+
+void buf_str(Buf *b, std::string_view s)
+{
     BUF_LIT(b, "\"");
-    if (s) xpp::json_encode_string(b->s, std::string_view(s));
+    xpp::json_encode_string(b->s, s);
     BUF_LIT(b, "\"");
 }
 

@@ -1,3 +1,4 @@
+#include "model.h"
 #include "xpp_ui.h"
 #include "storage.h"
 #include "xpp_util.h"
@@ -38,7 +39,7 @@ extern int RANGE_FLAG;
 
 namespace {
 struct {
-  std::array<char, MAX_LEN_SBOX> item{};
+  std::string item;
   int steps,side,cycle,movie;
   double plow,phigh;
 } shoot_range;
@@ -88,9 +89,9 @@ void reset_bvp()
  BVP_FLAG=1;
 } 
 
-void init_shoot_range(const char *s)
+void init_shoot_range(std::string_view s)
 {
- xpp_strlcpy(shoot_range.item.data(),s,shoot_range.item.size());
+ shoot_range.item=s;
  shoot_range.phigh=1.0;
  shoot_range.plow=0.0;
  shoot_range.side=0;
@@ -101,7 +102,7 @@ void init_shoot_range(const char *s)
   
 void dump_shoot_range(FILE *fp, int f)
 {
-  io_string(shoot_range.item.data(),shoot_range.item.size(),fp,f);
+  io_string(shoot_range.item,fp,f);
   io_int(&shoot_range.side,fp,f,"BVP side");
   io_int(&shoot_range.cycle,fp,f,"color cycle flag 1=on");
   io_int(&shoot_range.steps,fp,f,"BVP range steps");
@@ -152,8 +153,8 @@ void do_sh_range(double *ystart, double *yend)
  for(i=0;i<=npar;i++)
    {
      temp=parlo+dpar*static_cast<double>(i);
-     set_val(shoot_range.item.data(),temp);
-     bottom_msg(2,xpp::format("{}={:.16g}",shoot_range.item.data(),temp).c_str());
+     set_val(shoot_range.item,temp);
+     bottom_msg(2,xpp::format("{}={:.16g}",shoot_range.item,temp).c_str());
      if(shoot_range.movie==1)
        clr_scrn();
      
@@ -189,8 +190,8 @@ int set_up_periodic(int *ipar, int *ivar, double *sect, int *ishow)
  std::array<std::string, 4> values;
  int status,i;
  static const char *yn[]={"N","Y"};
- values[0] = upar_names[*ipar];
- values[1] = uvar_names[*ivar];
+ values[0] = xpp::model().upar_names[*ipar];
+ values[1] = xpp::model().uvar_names[*ivar];
  values[2] = xpp::format("{:g}", *sect);
  values[3] = yn[*ishow];
  
@@ -251,7 +252,7 @@ void find_bvp_com(int com)
    pflag=set_up_periodic(&ipar,&ivar,&sect,&ishow);
    if(pflag==0)goto bye;
    iper=1;
-   get_val(upar_names[ipar],&oldpar);
+   get_val(xpp::model().upar_names[ipar],&oldpar);
    break;
         
  case 2: 
@@ -282,7 +283,7 @@ void find_bvp_com(int com)
  ping();
 }
 else 
- if(iper)set_val(upar_names[ipar],oldpar);
+ if(iper)set_val(xpp::model().upar_names[ipar],oldpar);
   
 bye:  TRANS=oldtrans;
 }
@@ -314,7 +315,7 @@ static const char *n[]={"*2Range over","Steps","Start","End",
  std::array<std::string, 7> values;
  int status,i;
  static  const char *yn[]={"N","Y"};
- values[0] = shoot_range.item.data();
+ values[0] = shoot_range.item;
  values[1] = xpp::format("{}", shoot_range.steps);
  values[2] = xpp::format("{:g}", shoot_range.plow);
  values[3] = xpp::format("{:g}", shoot_range.phigh);
@@ -326,8 +327,8 @@ static const char *n[]={"*2Range over","Steps","Start","End",
                            XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
  status=do_string_box_of(7,1,"Range Shoot",n,values,45,kinds);
  if(status!=0){
-   xpp_strlcpy(shoot_range.item.data(),values[0].c_str(),shoot_range.item.size());
-   i=find_user_name(PARAM,shoot_range.item.data());
+   shoot_range.item=values[0];
+   i=find_user_name(PARAM,shoot_range.item);
    if(i<0){
         err_msg("No such parameter");
        return(0);
@@ -370,7 +371,7 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
 
  for(i=0;i<n;i++)
    y0[i]=y[i];
- if(iper)  get_val(upar_names[ipar],&y0[n]);
+ if(iper)  get_val(xpp::model().upar_names[ipar],&y0[n]);
 
  while(1){
    esc=my_abort();
@@ -384,7 +385,7 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
          
   t=t0;
  istart=1;
- if(iper)set_val(upar_names[ipar],y0[n]);
+ if(iper)set_val(xpp::model().upar_names[ipar],y0[n]);
 
  if(ode_int(y,&t,&istart,ishow)==0)
  {
@@ -402,7 +403,7 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
  if(error<err){
    for(i=0;i<n;i++)y[i]=y0[i]; /*   Good values .... */
   if(iper){ 
-    set_val(upar_names[ipar],y0[n]);
+    set_val(xpp::model().upar_names[ipar],y0[n]);
     redraw_params();
   }
    
@@ -429,7 +430,7 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
      y0[j]=y0[j]+dev;
   
      if(j==n)
-         set_val(upar_names[ipar],y0[j]);
+         set_val(xpp::model().upar_names[ipar],y0[j]);
        
      t=t0;
      istart=1;

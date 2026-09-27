@@ -1,3 +1,4 @@
+#include "model.h"
 #include "edit_rhs.h"
 #include "xpp_ui.h"
 #include "parserslow.h"
@@ -54,10 +55,10 @@ void edit_rhs()
  EditBox box;
  for(int i=0;i<n;i++){
    std::string name;
-   if(i>=NODE)name=uvar_names[i];
-   else if(EqType[i]==1)name=xpp::format("{}(T)",uvar_names[i]);
-   else if(METHOD==0)name=xpp::format("{}(n+1)",uvar_names[i]);
-   else name=xpp::format("d{}/dT",uvar_names[i]);
+   if(i>=NODE)name=xpp::model().uvar_names[i];
+   else if(EqType[i]==1)name=xpp::format("{}(T)",xpp::model().uvar_names[i]);
+   else if(METHOD==0)name=xpp::format("{}(n+1)",xpp::model().uvar_names[i]);
+   else name=xpp::format("d{}/dT",xpp::model().uvar_names[i]);
    box.add(std::move(name),ode_names[i]);
  }
  if(box.show("Right Hand Sides")==0)return;
@@ -86,12 +87,12 @@ void edit_functions()
  for(int i=0;i<n;i++){
    std::string name;
    if(narg_fun[i]==0)
-     name=xpp::format("{}()",ufun_names[i]);
+     name=xpp::format("{}()",xpp::model().ufun_names[i]);
    else if(narg_fun[i]==1)
-     name=xpp::format("{}({})",ufun_names[i],ufun_arg[i].args[0]);
+     name=xpp::format("{}({})",xpp::model().ufun_names[i],xpp::model().ufun_args[i][0]);
    else
-     name=xpp::format("{}({},...,{})",ufun_names[i],ufun_arg[i].args[0],
-                      ufun_arg[i].args[narg_fun[i]-1]);
+     name=xpp::format("{}({},...,{})",xpp::model().ufun_names[i],xpp::model().ufun_args[i][0],
+                      xpp::model().ufun_args[i][narg_fun[i]-1]);
    box.add(std::move(name),ufun_def[i]);
  }
  if(box.show("Functions")==0)return;
@@ -114,7 +115,7 @@ void edit_functions()
 
 int save_as()
 {
-  std::string filename=this_file;
+  std::string filename=xpp::model().this_file;
   ping();
   if(!file_selector("Save As",filename,"*.ode"))return(-1);
   xpp::Writer w=open_writer_asking(filename.c_str());
@@ -123,22 +124,22 @@ int save_as()
   w.print("{}",NEQ);
   for(int i=0;i<NODE;i++){
     if(i%5==0)w.print("\nvariable ");
-    w.print(" {}={:.16g} ",uvar_names[i],last_ic[i]);
+    w.print(" {}={:.16g} ",xpp::model().uvar_names[i],last_ic[i]);
   }
   w.print("\n");
   for(int i=NODE;i<NEQ;i++){
     if((i-NODE)%5==0)w.print("\naux ");
-    w.print(" {} ",uvar_names[i]);
+    w.print(" {} ",xpp::model().uvar_names[i]);
   }
   w.print("\n");
   for(int i=0;i<NUPAR;i++){
     if(i%5==0)w.print("\nparam  ");
-    get_val(upar_names[i],&z);
-    w.print(" {}={:.16g}   ",upar_names[i],z);
+    get_val(xpp::model().upar_names[i],&z);
+    w.print(" {}={:.16g}   ",xpp::model().upar_names[i],z);
   }
   w.print("\n");
   for(int i=0;i<NFUN;i++)
-    w.print("user {} {} {}\n",ufun_names[i],narg_fun[i],ufun_def[i]);
+    w.print("user {} {} {}\n",xpp::model().ufun_names[i],narg_fun[i],ufun_def[i]);
   for(int i=0;i<NODE;i++)
     w.print("{} {}\n",EqType[i]==1?"i":"o",ode_names[i]);
   for(int i=NODE;i<NEQ;i++)

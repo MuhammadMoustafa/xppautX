@@ -1,3 +1,4 @@
+#include "model.h"
 #include "integrate.h"
 #include "storage.h"
 #include "form_ode.h"
@@ -183,7 +184,7 @@ static void auto_set_pars_from(const double *par)
         if (std::isfinite(par[i])) constants[idx] = par[i];
         else
             xpp::log(XPP_LOG_WARN, "AUTO: {} from the diagram is not finite; keeping {:.16g}",
-                     upar_names[AutoPar[i]], constants[idx]);
+                     xpp::model().upar_names[AutoPar[i]], constants[idx]);
     }
 }
 
@@ -197,7 +198,7 @@ static void auto_restore_finite_pars(const double *before)
         const int idx = Auto_index_to_array[i];
         if (!std::isfinite(constants[idx])) {
             xpp::log(XPP_LOG_WARN, "AUTO: the run left {} not finite; keeping {:.16g}",
-                     upar_names[AutoPar[i]], before[i]);
+                     xpp::model().upar_names[AutoPar[i]], before[i]);
             constants[idx] = before[i];
         }
     }
@@ -309,8 +310,8 @@ void setautopoint()
   if(FromAutoFlag)
     {
       FromAutoFlag=0;
-      set_val(upar_names[AutoPar[Auto.icp1]],XfromAuto);
-      set_val(upar_names[AutoPar[Auto.icp2]],YfromAuto);
+      set_val(xpp::model().upar_names[AutoPar[Auto.icp1]],XfromAuto);
+      set_val(xpp::model().upar_names[AutoPar[Auto.icp2]],YfromAuto);
       evaluate_derived();
       redo_all_fun_tables();
       redraw_params();
@@ -337,7 +338,7 @@ AxisLabels axis_labels()
   switch(Auto.plot){
   case HI_P:
   case HL_P:
-    l.y=uvar_names[Auto.var];
+    l.y=xpp::model().uvar_names[Auto.var];
     break;
   case NR_P:
     l.y="Norm";
@@ -352,7 +353,7 @@ AxisLabels axis_labels()
     l.y=par_label(Auto.icp2);
     break;
   case AV_P:
-    l.y=std::string(uvar_names[Auto.var])+"_bar";
+    l.y=xpp::model().uvar_names[Auto.var]+"_bar";
     break;
   }
   return l;
@@ -480,8 +481,8 @@ void create_auto_file_name()
 {
   /* basename()/dirname() may write into their argument or return a
      pointer into it, so each needs its own writable, NUL-terminated
-     copy of this_file (std::string::data() is both since C++17) */
-  std::string basec = this_file, dirc = this_file;
+     copy of xpp::model().this_file (std::string::data() is both since C++17) */
+  std::string basec = xpp::model().this_file, dirc = xpp::model().this_file;
   char *bname = static_cast<char*>(basename(basec.data()));
   char *dname = static_cast<char*>(dirname(dirc.data()));
 
@@ -492,7 +493,7 @@ void create_auto_file_name()
 
 void open_auto(int flg) /* compatible with new auto */
 {
-  std::string basec = this_file, dirc = this_file;
+  std::string basec = xpp::model().this_file, dirc = xpp::model().this_file;
   char *bname = static_cast<char*>(basename(basec.data()));
   char *dname = static_cast<char*>(dirname(dirc.data()));
 
@@ -618,7 +619,7 @@ int auto_name_to_index(const char *s)
 }
 const char *auto_par_name(int k)
 {
-  return k>=0&&k<NAutoPar&&AutoPar[k]>=0&&AutoPar[k]<NUPAR?upar_names[AutoPar[k]]:NULL;
+  return k>=0&&k<NAutoPar&&AutoPar[k]>=0&&AutoPar[k]<NUPAR?xpp::model().upar_names[AutoPar[k]].c_str():NULL;
 }
 
 namespace {
@@ -674,7 +675,7 @@ std::string screen_col(const char *col)
     std::string pre(col,std::min<size_t>(n,AUTO_COL_W));
     const size_t a=pre.find_first_not_of(' '),b=pre.find_last_not_of(' ');
     pre=a==std::string::npos?std::string():pre.substr(a,b-a+1);
-    return col_centre(pre+(pre.empty()?"":" ")+uvar_names[p-1]);
+    return col_centre(pre+(pre.empty()?"":" ")+xpp::model().uvar_names[p-1]);
   }
   return std::string(std::string_view(col).substr(0,AUTO_COL_W));
 }
@@ -736,7 +737,7 @@ void auto_params()
   int status,i,in;
   std::array<std::string, 8> values;
   for(i=0;i<8;i++){
-    if(i<NAutoPar)  values[i] = upar_names[AutoPar[i]];
+    if(i<NAutoPar)  values[i] = xpp::model().upar_names[AutoPar[i]];
     else values[i].clear();
   }
   static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),
@@ -892,8 +893,8 @@ void auto_plot_par()
     return;
   }
   values[0] = ind_to_sym(i1);
-  values[1] = upar_names[AutoPar[Auto.icp1]];
-  values[2] = upar_names[AutoPar[Auto.icp2]];
+  values[1] = xpp::model().upar_names[AutoPar[Auto.icp1]];
+  values[2] = xpp::model().upar_names[AutoPar[Auto.icp2]];
   values[3] = xpp::format("{:g}", Auto.xmin);
   values[4] = xpp::format("{:g}", Auto.ymin);
   values[5] = xpp::format("{:g}", Auto.xmax);
@@ -1389,10 +1390,10 @@ const char *auto_bif_sym(int itp)
 void info_header(int flag2, int icp1, int icp2)
 {
   /* the names head 10-wide columns of new_info's numbers */
-  auto short10=[](const char *name){ return short_name(name,10); };
-  const std::string p1name=short10(upar_names[AutoPar[icp1]]);
-  const std::string p2name=icp2<NAutoPar?short10(upar_names[AutoPar[icp2]]):std::string("   ");
-  const std::string vname=short10(uvar_names[Auto.var]);
+  auto short10=[](std::string_view name){ return short_name(name,10); };
+  const std::string p1name=short10(xpp::model().upar_names[AutoPar[icp1]]);
+  const std::string p2name=icp2<NAutoPar?short10(xpp::model().upar_names[AutoPar[icp2]]):std::string("   ");
+  const std::string vname=short10(xpp::model().uvar_names[Auto.var]);
   SmallBase();
   std::string bob=xpp::format("  Br  Pt Ty  Lab {:>10} {:>10}       norm {:>10}     period",
 	  p1name,
@@ -1461,12 +1462,12 @@ void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw)
       ai.flag2=flag2;
       ai.node=d->index;
       ai.sym=symb;
-      ai.p1name=upar_names[AutoPar[icp1]];
+      ai.p1name=xpp::model().upar_names[AutoPar[icp1]].c_str();
       ai.p1=par1;
-      ai.p2name=icp2<NAutoPar?upar_names[AutoPar[icp2]]:NULL;
+      ai.p2name=icp2<NAutoPar?xpp::model().upar_names[AutoPar[icp2]].c_str():NULL;
       ai.p2=par2;
       ai.norm=norm;
-      ai.vname=uvar_names[Auto.var];
+      ai.vname=xpp::model().uvar_names[Auto.var].c_str();
       ai.u=d->u0[Auto.var];
       ai.per=per;
       ai.x=x;
@@ -1561,7 +1562,7 @@ void init_auto_win()
   if(NUPAR<8)NAutoPar=NUPAR;
   for(i=0;i<NAutoPar;i++)AutoPar[i]=i;
   for(i=0;i<NAutoPar;i++){
-    Auto_index_to_array[i]=get_param_index(upar_names[AutoPar[i]]);
+    Auto_index_to_array[i]=get_param_index(xpp::model().upar_names[AutoPar[i]]);
   }
   Auto.nper=0;
   grabpt.flag=0;  /*  no point in buffer  */
@@ -2160,9 +2161,9 @@ int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
   labels[NODE+1]="dim stable";
   v[NODE+1] = xpp::format("{:d}", *nst);
   for(i=0;i<NODE;i++){
-    labels[i+1]=std::string(uvar_names[i])+"_L";
+    labels[i+1]=xpp::model().uvar_names[i]+"_L";
     v[i+1] = xpp::format("{:g}", ul[i]);
-    labels[i+2+NODE]=std::string(uvar_names[i])+"_R";
+    labels[i+2+NODE]=xpp::model().uvar_names[i]+"_R";
     v[i+2+NODE] = xpp::format("{:g}", ur[i]);
   }
   std::vector<const char*> s(n);
@@ -2616,7 +2617,7 @@ void load_auto_numerics(FILE *fp)
  if (!tr.read(NAutoPar)) return;
  for(i=0;i<NAutoPar;i++){
    if (!tr.read(AutoPar[i])) return;
-   in=get_param_index(upar_names[AutoPar[i]]);
+   in=get_param_index(xpp::model().upar_names[AutoPar[i]]);
    Auto_index_to_array[i]=in;
  }
  if (!tr.read(NAutoUzr)) return;
@@ -2880,7 +2881,7 @@ void auto_file()
 
 }
 
-void  auto_get_info( int *n, char *pname )
+void auto_get_info(int *n, std::string &pname)
 {
   int i1,i2,ibr;
   DIAGRAM *d,*dnew;
@@ -2894,8 +2895,7 @@ void  auto_get_info( int *n, char *pname )
     while(1){
       if(d->ibr==ibr && ((d->ntot==i1)||(d->ntot==(-i1))))
 	{
-	  /* pname's one real caller (integrate.cpp) passes char parn[256] */
-	  xpp_strlcpy(pname,upar_names[AutoPar[d->icp1]],256);
+	  pname=xpp::model().upar_names[AutoPar[d->icp1]];
 	  break;
 	}
        dnew=diagram_next(d);

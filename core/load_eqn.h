@@ -223,9 +223,6 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask);
 
 #define XPP_NSLIDERS 3
 
-/* the model's file (C text, XPP_MAX_NAME bytes) and the named set of
-   options the command line picked (@ set, -iset) */
-extern char this_file[XPP_MAX_NAME];
 /* load_eqn.cpp's settings that have no other owner yet: the initial data
    the last run started from, the plot's axes and view, the boundary
    value solver's and the backward Euler's settings, and the command
@@ -240,7 +237,6 @@ extern double BVP_EPS,BVP_TOL,EulTol;
 extern int BVP_MAXIT,BVP_FLAG,MaxEulIter;
 extern int SHOOT,PAR_FOL;
 extern int RunImmediately,xorfix,silent,got_file;
-extern char this_internset[XPP_MAX_NAME];
 /* the integration's settings (the nUmerics menu, @ options) and the run's
    state: the number of equations, the time span and step, tolerances,
    the Poincare section, the torus, the flags the integrator keeps */

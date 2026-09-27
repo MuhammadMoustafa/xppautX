@@ -6,6 +6,7 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+#include "model.h"
 #include "my_ps.h"
 #include "nullcline.h"
 #include "colormap.h"
@@ -127,8 +128,6 @@ extern int SEc,UEc,SPc,UPc;
 
  std::array<std::string,MAXODE> delay_string;
  int itor[MAXODE];
- char this_file[XPP_MAX_NAME];
- char this_internset[XPP_MAX_NAME];
  float oldhp_x,oldhp_y,my_pl_wid,my_pl_ht;
  int mov_ind;
  int STORFLAG,INFLAG;
@@ -189,7 +188,7 @@ void dump_torus(FILE *fp, int f)
   io_double(&TOR_PERIOD,fp,f,"Torus period");
   if(TORUS){
     for(i=0;i<NEQ;i++)
-      io_int(&itor[i],fp,f,uvar_names[i]);
+      io_int(&itor[i],fp,f,xpp::model().uvar_names[i]);
   }
 }
 
@@ -203,19 +202,20 @@ void load_eqn()
   itor[i]=0;
   delay_string[i]="0.0";
  }
- if(strcmp(this_file,"/dev/stdin")==0)std=1;
- if (got_file==1&&(std==0)&&xpp_files_is_dir(this_file))
+ std::string &this_file=xpp::model().this_file;
+ if(this_file=="/dev/stdin")std=1;
+ if (got_file==1&&(std==0)&&xpp_files_is_dir(this_file.c_str()))
  {
-   xpp_files_change_dir(this_file);
+   xpp_files_change_dir(this_file.c_str());
    make_eqn();
    return;
  }
  if(got_file==1)
  {
-   xpp::UniqueFile fptr=xpp::open_read(this_file);
+   xpp::UniqueFile fptr=xpp::open_read(this_file.c_str());
    if(fptr)
    {
-     if(std==1)XPP_FORMAT_TO_BUF(this_file,"console");
+     if(std==1)this_file="console";
      okay=get_eqn(fptr.get());
      if(okay==1)return;
    }
@@ -1282,7 +1282,7 @@ if(msc(yyl.c_str(),s1)){
  if(msc("RANGEOVER",s1)){
      if ((notAlreadySet.RANGEOVER||force)|| ((mask!=NULL)&&(mask->RANGEOVER==1)))
      {
-    	XPP_FORMAT_TO_BUF(range.item,"{}",s2);
+    	range.item=s2;
 	notAlreadySet.RANGEOVER=0;
      }
 

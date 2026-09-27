@@ -1,3 +1,4 @@
+#include "model.h"
 #include "arrayplot.h"
 #include "storage.h"
 #include "xpp_ui.h"
@@ -97,7 +98,7 @@ void optimize_aplot(int *plist)
   make_my_aplot("Array!");
 
   aplot.index0=i0+1;
-  aplot.name=uvar_names[i0];
+  aplot.name=xpp::model().uvar_names[i0];
   aplot.nacross=ncol;
   nr=201;
   if(nrows<nr)

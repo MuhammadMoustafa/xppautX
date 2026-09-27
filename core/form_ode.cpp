@@ -8,6 +8,7 @@
 
 #include "xpp_util.h"
 #include "form_ode.h"
+#include "model.h"
 #include "xpp_log.h"
 
 #include "parserslow.h"
@@ -40,9 +41,7 @@
 #define MAXCOMMENTS 500
 
 int IN_INCLUDED_FILE=0;
-char uvar_names[MAXODE][XPP_NAME_MAX+1];
 char *ode_names[MAXODE];
-char upar_names[MAXPAR][XPP_NAME_MAX+1];
 char *save_eqn[MAXLINES];
 double default_val[MAXPAR];
 
@@ -444,7 +443,7 @@ int read_eqn()
     xpp::log(XPP_LOG_WARN, "\n Cannot open {} \n",string);
     return(0);
    }
-   XPP_FORMAT_TO_BUF(this_file,"{}",string);
+   xpp::model().this_file=string;
    clrscr();
    return(get_eqn(fptr.get()));
 }
@@ -645,7 +644,7 @@ int compiler(const std::string &bob, FILE *fptr)
 	    xpp_model_failed();
 	  }
 	  default_val[NUPAR]=value;
-	  XPP_FORMAT_TO_BUF(upar_names[NUPAR++],"{}",name);
+	  xpp::model().upar_names[NUPAR++]=name;
 	  if(ConvertStyle)
 	    xpp::print(convertf,"{}={:g}  ",name,value);
 	  xpp::log(XPP_LOG_DEBUG, "|{}|={:f} ",name,value);
@@ -668,11 +667,11 @@ int compiler(const std::string &bob, FILE *fptr)
       name=tokens.text(" ");
       value=atof_of(tokens.text(" "));
       nstates=atoi_of(tokens.text(" \n"));
-      if(name_too_long(name.c_str())||add_var(name.c_str(),value)){
+      if(name_too_long(name)||add_var(name,value)){
 	xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	xpp_model_failed();
       }
-      XPP_FORMAT_TO_BUF(uvar_names[IN_VARS+NMarkov],"{}",name);
+      xpp::model().uvar_names[IN_VARS+NMarkov]=name;
       last_ic[IN_VARS+NMarkov]=value;
       default_ic[IN_VARS+NMarkov]=value;
       xpp::log(XPP_LOG_INFO, " Markov variable {}={:f} has {} states \n",name,value,nstates);
@@ -704,13 +703,13 @@ int compiler(const std::string &bob, FILE *fptr)
 	      xpp_model_failed();
 	    }
 	  name=take_apart(*tok,&value);
-	  if(name_too_long(name.c_str())||add_var(name.c_str(),value)){
+	  if(name_too_long(name)||add_var(name,value)){
 	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	    xpp_model_failed();
 	  }
 	  if(iflg)
 	    {
-	      XPP_FORMAT_TO_BUF(uvar_names[IN_VARS],"{}",name);
+	      xpp::model().uvar_names[IN_VARS]=name;
 	      last_ic[IN_VARS]=value;
               default_ic[IN_VARS]=value;
 	      IN_VARS++;
@@ -841,9 +840,9 @@ int compiler(const std::string &bob, FILE *fptr)
 	  set_ode_name(NODE,formula);
 	  if(ConvertStyle){
 	    if(VFlag)
-	      xpp::print(convertf,"volt {}={}\n",uvar_names[NODE],formula);
+	      xpp::print(convertf,"volt {}={}\n",xpp::model().uvar_names[NODE],formula);
 	    else
-	      xpp::print(convertf,"{}'={}\n",uvar_names[NODE],formula);
+	      xpp::print(convertf,"{}'={}\n",xpp::model().uvar_names[NODE],formula);
 	  }
 	  find_ker(formula,&alt);
 
@@ -919,11 +918,10 @@ void strip_saveqn()
 	*c=32;
 }
 
-int disc(const char *string)
+int disc(std::string_view s)
 {
   if(is_a_map==1)return(1);
   /* what follows the first '.' */
-  std::string_view s(string);
   size_t dot=s.find('.');
   std::string_view end=dot==std::string_view::npos?std::string_view():s.substr(dot+1);
   return end=="dis"||end=="dif";
@@ -962,7 +960,8 @@ int get_eqn(FILE *fptr)
     NEQ=i;
     xpp_log(XPP_LOG_INFO, "NEQ=%d\n",NEQ);
     if(ConvertStyle){
-      std::string filename=this_file[0]==0?std::string("convert.ode"):std::string(this_file)+".new";
+      const std::string &this_file=xpp::model().this_file;
+      std::string filename=this_file.empty()?std::string("convert.ode"):this_file+".new";
       convert_writer=xpp::Writer(filename.c_str());
       convertf=convert_writer.file();
       if(convertf==NULL){
@@ -1012,17 +1011,18 @@ int get_eqn(FILE *fptr)
     }
   NODE=IN_VARS;
 
+  std::array<std::string,MAXODE> &uvar_names=xpp::model().uvar_names;
   for(i=0; i<Naux; i++)
-    XPP_FORMAT_TO_BUF(uvar_names[i+NODE+NMarkov],"{}",aux_names[i]);
+    uvar_names[i+NODE+NMarkov]=aux_names[i];
 
   for(i=NODE+NMarkov+Naux;i<NEQ;i++)
     {
-      XPP_FORMAT_TO_BUF(uvar_names[i],"AUX{}",i-NODE-NMarkov+1);
+      uvar_names[i]=xpp::format("AUX{}",i-NODE-NMarkov+1);
     }
 
   for(i=0;i<NEQ;i++)
       {
-	strupr(uvar_names[i]);
+	strupr(uvar_names[i].data());
 	std::string formula=text_of(ode_names[i]);
 	strupr(formula.data());
         de_space(formula.data());
@@ -1035,7 +1035,7 @@ int get_eqn(FILE *fptr)
   if(NVAR<MAXPRIMEVAR){
   add_var("t'",0.0);
   for(i=0;i<NODE ;i++)
-    add_var(xpp::format("{}'",uvar_names[i]).c_str(),0.0);
+    add_var(xpp::format("{}'",uvar_names[i]),0.0);
 }
   else {
     xpp_log(XPP_LOG_WARN, " Warning: primed variables not added must have < %d variables\n",
@@ -1664,7 +1664,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	xpp::log(XPP_LOG_ERROR, " Duplicate name {} \n",vnames[i]);
 	xpp_model_failed();
       }
-      XPP_FORMAT_TO_BUF(uvar_names[i],"{}",vnames[i]);
+      xpp::model().uvar_names[i]=vnames[i];
       last_ic[i]=0.0;
       default_ic[i]=0.0;
     }
@@ -1679,7 +1679,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	xpp::log(XPP_LOG_ERROR, " Duplicate name {} \n",mnames[i]);
 	xpp_model_failed();
       }
-   XPP_FORMAT_TO_BUF(uvar_names[i+nvar],"{}",mnames[i]);
+   xpp::model().uvar_names[i+nvar]=mnames[i];
    last_ic[i+nvar]=0.0;
    default_ic[i+nvar]=0.0;
  }

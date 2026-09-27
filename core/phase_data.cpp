@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "model.h"
 #include "phase_data.h"
 #include "json_number.h"
 #include "series_enc.h"
@@ -156,8 +157,8 @@ void add_name(std::string &o, int col)
 {
     o += '"';
     if (col > 0 && col <= MAXODE)
-        for (const char *s = uvar_names[col - 1]; *s; s++)
-            if (*s != '"' && *s != '\\' && static_cast<unsigned char>(*s) >= 0x20) o += *s;
+        for (char c : xpp::model().uvar_names[col - 1])
+            if (c != '"' && c != '\\' && static_cast<unsigned char>(c) >= 0x20) o += c;
     o += '"';
 }
 

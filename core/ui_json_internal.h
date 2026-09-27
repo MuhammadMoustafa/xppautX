@@ -82,7 +82,8 @@ void buf_format(Buf *b, std::format_string<Args...> fmt, Args &&...args) noexcep
 {
     xpp::vformat_append(b->s, fmt.get(), std::make_format_args(args...));
 }
-void buf_str(Buf *b, const char *s); /* a JSON string */
+void buf_str(Buf *b, const char *s); /* a JSON string ("" for NULL) */
+void buf_str(Buf *b, std::string_view s);
 void buf_str_array(Buf *b, const char *const *v, int n);
 /* a JSON number, "null" when v is not finite (json_number.h): sig
    significant digits, e.g. 16 for a full double, 7 for AUTO's diagram */
