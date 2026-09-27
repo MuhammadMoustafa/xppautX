@@ -56,7 +56,6 @@ extern int HIST;
   extern double POIPLN;
 
  extern int NULL_HERE;
- extern float *X_n,*Y_n;
 
 
  extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
