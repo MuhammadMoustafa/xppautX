@@ -14,6 +14,8 @@
 #   - no extern whose type differs from its definition (make ltocheck)
 #   - no function or file-scope datum nothing reaches (tools/deadcode.sh;
 #     Linux: elsewhere it says so and passes)
+#   - no more external mutable data symbols per file than
+#     tests/globals.baseline allows (tools/globalcheck.sh)
 #   - no new duplicated function/block/struct (tools/dupcheck.sh)
 #   - no dead declaration: an unused macro, type or field, a declaration
 #     with no definition or repeated in a second header, #if 0, commented-
@@ -85,6 +87,13 @@ if ! sh tools/deadcode.sh --check > build/deadcode.out 2>&1; then
   exit 1
 fi
 tail -1 build/deadcode.out
+# the objects deadcode.sh just built in build/deadcode
+if ! sh tools/globalcheck.sh --check --builddir build/deadcode > build/globalcheck.out 2>&1; then
+  tail -40 build/globalcheck.out
+  echo "GLOBAL STATE CHECK FAILED"
+  exit 1
+fi
+tail -1 build/globalcheck.out
 if ! sh tools/dupcheck.sh --check > build/dupcheck.out 2>&1; then
   tail -60 build/dupcheck.out
   echo "DUPLICATION CHECK FAILED"
