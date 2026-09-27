@@ -11,7 +11,8 @@
 #include <vector>
 #include "xpp_util.h"
 #include "storage.h"
-#include "xpp_mem.h" /* add_stor_col's formula: form_ode.cpp's my_ode/ode_names blocks */
+#include "xpp_mem.h" /* add_stor_col's formula: form_ode.cpp's my_ode block */
+#include "form_ode.h"
 #include "parserslow.h"
 #include "browse.h"
 #include "xpp_ui.h"
@@ -253,9 +254,11 @@ int add_stor_col(const char *name, const char *formula, BROWSER *b)
      return(0);
    }
   data_store.add_column(NEQ+1);
-  /* form_ode.cpp's raw array of names: at most 79 characters of it */
-  ode_names[NEQ]=xpp_strdup(std::string(formula).substr(0,79).c_str());
-  strupr(ode_names[NEQ]);
+  /* the column's name as the browser shows it: at most 79 characters of
+     the formula, upper case */
+  std::string shown=std::string(formula).substr(0,79);
+  for(char &c:shown)c=static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+  set_ode_name(NEQ,shown);
   for(j=0;j<=i;j++)
     my_ode[NEQ+FIX_VAR][j]=com[j];
   XPP_FORMAT_TO_BUF(uvar_names[NEQ],"{}",name);
