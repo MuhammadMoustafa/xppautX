@@ -18,16 +18,16 @@ extern "C" {
      each eigenvalue lambda (inside the unit circle is stable), for a
      periodic orbit its Floquet multipliers, all zeros where AUTO did not
      compute them (a run's first point, unless it restarts from a label of
-     the same kind). Every point AUTO stores or a redraw plots shows it,
-     so after a run it is the last point's, while grabbing the cursor's.
+     the same kind). Every point AUTO stores shows it, so after a run it
+     is the last point's, while grabbing the cursor's; a redraw of the
+     diagram leaves the strip and the circle as they were.
 
    - Why the run's last branch ended (auto_stop.h, T23): "stop", null
      until a branch ends; a run's start and a new AUTO window clear it.
 
    auto_nox.c reports the strip and the circle as it draws them; the front
    end sends the event at the end of a command, before every prompt and at
-   most ten times a second while AUTO runs (never while a redraw re-plots
-   the diagram), and only when it differs from the one it sent
+   most ten times a second while AUTO runs, and only when it differs from the one it sent
    last. Nothing is recorded before auto_data_init(), so a program without
    such a front end (xppaut) pays nothing.
 
@@ -73,13 +73,13 @@ void auto_data_info(const AutoDataInfo *info);
 void auto_data_stab(const double *evr, const double *evi, int n, int periodic);
 
 /* send the event if it changed since the last one sent; final 0 (during a
-   run) sends at most ten a second, and nothing while held */
+   run) sends at most ten a second */
 void auto_data_update(int final);
 
-/* on 1 ... on 0 around a redraw of the diagram (redraw_diagram): plotting
-   every point again moves the circle over each in turn, a passage no
-   update during it sends; the command's end sends where it stopped, if
-   that differs from what was sent. Nests. */
+/* on 1 ... on 0 around a redraw of the diagram (redraw_diagram): the
+   strip and the circle keep what they show (a run's last point, a grab's
+   point) while it plots every point again, auto_data_info and
+   auto_data_stab ignored until the last on 0. Nests. */
 void auto_data_hold(int on);
 
 #ifdef __cplusplus

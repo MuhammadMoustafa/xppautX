@@ -1812,6 +1812,24 @@ def check_autoinfo():
         evs, _ = cola(is_idle)
         check('autoinfo: a redraw sends none (nothing it shows changed, nor on its way)', not infos(evs),
               '%d events, the first %s' % (len(infos(evs)), str(infos(evs)[:1])[:300]))
+        # a redraw after a grab: the strip and the circle stay the grabbed point's (W49: the circle
+        # used to move to the diagram's last point, under the grabbed point's info)
+        snda(cmd='auto', op='grab')
+        evs, ask = cola(lambda e: e.get('ev') == 'ask')
+        snda(cmd='answer', id=ask['id'], point=5, key='Return')
+        evs, _ = cola(is_idle)
+        snda(cmd='redraw')
+        evs, _ = cola(is_idle)
+        sent = infos(evs)
+        snda(cmd='data', events=['autoinfo'])  # sends what it holds, changed or not
+        evs, _ = cola(is_idle)
+        got = infos(evs)
+        info, stab = (got[-1]['info'], got[-1]['stab']) if got else (None, None)
+        pr = printed.get((info['br'], info['pt'])) if info else None
+        check("autoinfo: a redraw after a grab sends none, and the strip and circle stay the grabbed point's",
+              not sent and info is not None and info['point'] == 5 and strip_matches(info, diag_a) is None
+              and stab is not None and stab['periodic'] == 0 and close_pairs(stab['eig'], pr, 2e-5),
+              '%d sent; %s %s vs %s' % (len(sent), info, stab, pr))
         snda(cmd='auto', op='point', xd=0.125, yd=-0.25)
         evs, _ = cola(is_idle)
         hint = [e.get('auto') for e in evs if e.get('ev') == 'message' and 'auto' in e]

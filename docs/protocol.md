@@ -281,9 +281,9 @@ command, and then whenever what it says changed: before every ask (so
 every step of a grab brings the point's strip and circle before the grab
 asks again), at the end of a command, and at most ten times a second while
 AUTO runs; a command that changes neither sends none. A redraw of the
-diagram plots every point again, each moving the circle: none of that is
-sent, only where it ends (after a run, the run's last point, as before
-it). core/auto_data.cpp
+diagram (reDraw, new axes, a loaded diagram) leaves the strip and the
+circle as they were: after a run, the run's last point; after a grab, the
+grabbed point. core/auto_data.cpp
 keeps it, from what auto_nox.c shows there; `stop` comes from
 core/auto_stop.cpp, which autlib1.c tells where it ends a branch (T23).
 
@@ -306,7 +306,7 @@ core/auto_stop.cpp, which autlib1.c tells where it ends a branch (T23).
 | `info.par` | the continuation parameter's `name` and `value`, and the second parameter's for a two-parameter point (the strip then shows both; for a one-parameter point it shows a blank name and 0) |
 | `info.norm`, `var`, `u`, `per` | the norm, the variable of the Axes setting and its value, the period (AUTO's value for a steady state too: what the strip prints) |
 | `info.x`, `y`, `y2` | where the diagram plots the point, in the quantities of the Axes setting |
-| `stab` | what the circle shows: the point AUTO computed or a redraw plotted last, or the grab's cursor; `null` before any |
+| `stab` | what the circle shows: the point AUTO computed last, or the grab's cursor; `null` before any |
 | `stab.periodic` | 1: `circle` holds the Floquet multipliers of a periodic orbit; 0: e^λ of each eigenvalue λ of a steady state (XPP keeps them so: inside the unit circle is stable) |
 | `stab.circle` | `[re,im]` per variable, the values themselves (the X11 circle clamps them to ±1.95). All `[0,0]`: not computed. Always a stored diagram point's own values, while AUTO runs and while grabbing alike (core/auto_stability.h). AUTO computes them from a run's second point on, so a run's first point, and a run that stops there, has none, unless the run restarts from a label of the same kind (a steady state from a steady label, a periodic orbit from a periodic one, one parameter): that first point is the label's solution and carries the label's values. A periodic run from a Hopf point, a two-parameter run and a period doubling's branch switch start with none; a two-parameter curve of periodic orbits (a limit point's, a period doubling's, a torus') has none at all, AUTO computing no multipliers along it. (XPPAUT stores the last values computed with every point, so its first points carry those of another point.) |
 | `stop` | why the run's last branch ended; `null` until one ends, and again when a run starts or AUTO's window is new. AUTO labels the end EP (a limit, Max points, Stop, a Mark value) or MX (no convergence); this says which |

@@ -163,7 +163,7 @@ void redraw_diagram()
   draw_bif_axes();
   d=diagram_first();
   if(diagram_next(d)==NULL)return;
-  auto_data_hold(1); /* each point moves the circle: only where it ends is sent */
+  auto_data_hold(1); /* plotting again leaves the strip and circle as they were */
   while(1){
     type=get_bif_type(d->ibr,d->ntot,d->lab);
  

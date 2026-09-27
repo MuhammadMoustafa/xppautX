@@ -173,7 +173,7 @@ extern "C" void auto_data_forget(void)
 
 extern "C" void auto_data_info(const AutoDataInfo *v)
 {
-    if (!enabled || !v) return;
+    if (!enabled || !v || held > 0) return;
     try {
         info.v = *v;
         info.sym = trimmed(v->sym);
@@ -190,7 +190,7 @@ extern "C" void auto_data_info(const AutoDataInfo *v)
 
 extern "C" void auto_data_stab(const double *evr, const double *evi, int n, int periodic)
 {
-    if (!enabled) return;
+    if (!enabled || held > 0) return;
     try {
         stab_re.assign(evr, evr + (n > 0 ? n : 0));
         stab_im.assign(evi, evi + (n > 0 ? n : 0));
@@ -210,7 +210,7 @@ extern "C" void auto_data_update(int final)
 {
     static double last;
     if (!enabled || !subscribed || !emit_line) return;
-    if (!final && (held > 0 || !xpp_every(&last, 0.1))) return;
+    if (!final && !xpp_every(&last, 0.1)) return;
     try {
         std::string e = event();
         if (sent_valid && e == sent) return;
