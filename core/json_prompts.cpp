@@ -27,7 +27,6 @@ namespace xpp::json {
 
 namespace {
 
-#define MAX_LEN_EBOX 86 /* edit_rhs.h */
 
 int ask_id;
 int ask_user; /* the open ask is the user's to answer, not the client's (pixels) */
@@ -241,7 +240,7 @@ const char *ask_answer(void) { return answer.c_str(); }
 
 namespace {
 
-/* string_box and edit_box: a form of named fields, each of kinds[i]
+/* string_box: a form of named fields, each of kinds[i]
    (every one `all` when kinds is NULL) */
 int form(const char *title, const char *const *names, std::span<std::string> values, int size, const int *kinds,
          int all)
@@ -278,12 +277,6 @@ int j_string_box(int, int, const char *title, const char *const *names, std::spa
                  const int *kinds)
 {
     return form(title, names, values, MAX_LEN_SBOX, kinds, XPP_FIELD_TEXT);
-}
-
-int j_edit_box(const char *title, const char *const *names, std::span<std::string> values)
-{
-    /* edit_rhs.c's right-hand sides and functions: expressions */
-    return form(title, names, values, MAX_LEN_EBOX, NULL, XPP_FIELD_EXPRESSION);
 }
 
 /* the file selector lists the directory like the X11 one; an answer with

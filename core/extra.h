@@ -4,7 +4,6 @@
 extern "C" {
 #endif
 
-void load_new_dll(void);
 int my_fun(double *in, double *out, int nin, int nout, double *v, double *c);
 void auto_load_dll(void);
 void do_in_out(void);

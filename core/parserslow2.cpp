@@ -528,7 +528,9 @@ int add_ufun_name(const char *name, int index, int narg)
   return (0);
 }
 
-void fixup_endfun(int *u, int l, int narg)
+/* ends a compiled user function of narg arguments whose formula add_expr
+   wrote in l commands */
+static void fixup_endfun(int *u, int l, int narg)
 {
  u[l-1]=ENDFUN;
  u[l]=narg;
@@ -548,17 +550,14 @@ int add_ufun_new(int index, const char *rhs, std::span<const std::string> args)
     xpp_log(XPP_LOG_WARN, "Maximal arguments exceeded \n");
     return(1);
   }
-  /* edit_rhs.cpp rewrites the program in place: MAXEXPLEN commands */
+  /* add_expr compiles into it in place: MAXEXPLEN commands */
   xpp::model().ufun_programs[index].assign(MAXEXPLEN,0);
   set_ufun_def(index,"");
   xpp::model().ufun_args[index].assign(args.begin(),args.end());
   set_ufun_arg_names(index);
   if(add_expr(rhs,xpp::model().ufun_programs[index].data(),&end)==0)
     {
-      
-      xpp::model().ufun_programs[index][end-1]=ENDFUN;
-      xpp::model().ufun_programs[index][end]=narg;
-      xpp::model().ufun_programs[index][end+1]=ENDEXP;
+      fixup_endfun(xpp::model().ufun_programs[index].data(),end,narg);
       set_ufun_def(index,rhs);
       xpp::model().narg_fun[index]=narg;
       set_old_arg_names(narg);

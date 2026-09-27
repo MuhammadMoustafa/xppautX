@@ -31,6 +31,8 @@ int find_par_or_var(const char *name, int *type, int *index);
 void set_par_or_var(const char *name, int type, int index, double val);
 void slider_rerun(void);
 void eq_import(double *y, int n);
+/* the model's user functions, as lunch-new.cpp's file info writes them */
+void user_fun_info(FILE *fp);
 const char *eq_stability(int cp, int rp, int im);
 void redo_stuff(void);
 /* a comment's action (the source's "# ... {action}"), run when it is picked */

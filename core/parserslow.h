@@ -95,7 +95,6 @@ void set_old_arg_names(int narg);
    names (xpp::Model ufun_args), until set_old_arg_names puts them back */
 void set_ufun_arg_names(int index);
 int add_ufun_name(const char *name, int index, int narg);
-void fixup_endfun(int *u, int l, int narg);
 int add_ufun(const char *junk, const char *expr, int narg);
 int is_ufun(int x);
 int is_ucon(int x);

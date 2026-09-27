@@ -9,7 +9,6 @@
 #include "xpp_io.h"
 #include "xpp_globals.h"
 #include "xpp_util.h"
-#include "edit_rhs.h"
 #include "menus.h"
 #include "menudrive.h"
 #include "tutor.h"
@@ -17,7 +16,6 @@
 #include "adj2.h"
 #include "auto_nox.h"
 #include "comline.h"
-#include "extra.h"
 #include "graf_par.h"
 #include "graphics.h"
 #include "grobs.h"
@@ -344,10 +342,6 @@ void do_file_com(int com)
   case M_FQ:
     if (yes_no_box()) bye_bye();
     break;
-  case M_FER: edit_rhs(); break;
-  case M_FEF: edit_functions(); break;
-  case M_FES: save_as(); break;
-  case M_FEL: load_new_dll(); break;
   case M_FL: clone_ode(); break;
   }
 }
@@ -418,12 +412,6 @@ void add_a_curve(void)
   run_the_commands(com);
 }
 
-void edit_menu(void)
-{
-  int i = menu_pick(&menu_edit_rhs, 0);
-  if (i >= 0) run_the_commands(M_FER + i);
-}
-
 void new_param(void) { run_the_commands(M_P); }
 void clear_screens(void) { run_the_commands(M_EE); }
 void x_vs_t(void) { run_the_commands(M_X); }
@@ -482,7 +470,6 @@ void commander(int ch)
       break;
     case 'c': flash(4); q_calc(); flash(4); break;
     case 'r': flash(5); do_lunch(1); flash(5); break;
-    case 'e': flash(6); edit_menu(); flash(6); break;
     case 'h': open_help("05-commands", "file"); break;
     case 'q':
       flash(7);

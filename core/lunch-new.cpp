@@ -4,7 +4,6 @@
 #include "xpp_log.h"
 #include "lunch-new.h"
 #include "parserslow.h"
-#include "edit_rhs.h"
 #include "browse.h"
 #include "volterra2.h"
 #include "storage.h"

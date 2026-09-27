@@ -19,7 +19,7 @@ const char *const num_menu[]={"NUMERICS","Total","Start time","tRansient",
 "looKup","bndVal","Averaging","[Esc]-exit"};
 const char *const file_menu[]={
 "FILE","Prt src","Write set","Read set",
-"Auto","Calculator","Edit","Save info",
+"Auto","Calculator","Save info",
 "Help","Quit","Transpose","Get par set","cLone",".Xpprc","tUtorial"};
 
 /* hints for the main menus */
@@ -52,7 +52,6 @@ const char *const file_hint[]={
 "Read information for restart",
 "Run AUTO, the bifurcation package",
 "A little calculator -- press ESC to exit",
-"Edit right-hand sides or functions or auxiliaries",
 "Save info about simulation in human readable format",
 "Browser help",
 "Duh!",
@@ -291,12 +290,6 @@ const char *const color_hint[]={
 
 const char *const tab_hint[]={"Edit the lookup tables","View a table in the data browser"};
 
-const char *const edrh_hint[]={
-"Edit right-hand sides and auxiliaries",
-"Edit function definitions",
-"Save current file with new defs",
-"Load external C right-hand sides"
-};
 
 const char *const auto_hint[]={
 "Tell AUTO the parameters you may vary",
@@ -369,7 +362,7 @@ const char *const arun_hint[]={
 /* keys of the main-window menus; the numerics menu ends with Esc */
 const char *const main_menu_keys="icndwakgufpemtsvxr3b";
 const char *const num_menu_keys="tsrdniobmechpukva\033";
-const char *const file_menu_keys="pwraceshqtglxu";
+const char *const file_menu_keys="pwracshqtglxu";
 
 /* pop-up menus, formerly static arrays inside the menudrive.c handlers */
 static const char *ic_items[]={"(R)ange","(2)par range","(L)ast","(O)ld","(G)o",
@@ -418,7 +411,6 @@ static const char *meth_items[]={"(D)iscrete","(E)uler","(M)od. Euler",
   "(R)unge-Kutta","(A)dams","(G)ear","(V)olterra","(B)ackEul",
   "(Q)ualst.RK4","(S)tiff","(C)Vode","DoPri(5)","DoPri(8)3",
   "Rosen(2)3","sYmplectic"};
-static const char *edrh_items[]={"RHS's","Functions","Save as","Load DLL"};
 
 /*                                 name  title  n  items  keys  hints  first_cmd */
 const XppMenu menu_integrate={"integrate","Integrate",14,ic_items,"r2logmsnhfuidb",ic_hint,M_IR};
@@ -449,5 +441,4 @@ const XppMenu menu_adjoint={"adjoint","Adjoint",7,adj_items,"nmaohpr",adj_hint,M
 const XppMenu menu_lookup={"lookup","Tables",2,tab_items,"ev",tab_hint,M_UKE};
 /* sets METHOD directly */
 const XppMenu menu_method={"method","Method",15,meth_items,"demragvbqsc582y",meth_hint,-1};
-const XppMenu menu_edit_rhs={"edit_rhs","Edit Stuff",4,edrh_items,"rfsl",edrh_hint,M_FER};
 

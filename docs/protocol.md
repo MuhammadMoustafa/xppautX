@@ -617,7 +617,7 @@ call site that knows it (core/xpp_ui.h `XPP_FIELD_*`: `new_int`,
 `atoi`; new_int). `number`: a decimal number (`atof`). `formula`: a number,
 or `%` and a formula the core evaluates (new_float). `expression`: a
 formula of the model's quantities (a column's formula, the calculator,
-edit_box's right-hand sides). `file`: a file's base name. `name:N`: a name
+initial data from a formula). `file`: a file's base name. `name:N`: a name
 from `hello.lists[N]` (`name:0` T or a variable). `text`: anything. Every
 field of a prompt whose call site says nothing is `text`, and a client
 reading an ask without `kinds` (an older core) treats every field as

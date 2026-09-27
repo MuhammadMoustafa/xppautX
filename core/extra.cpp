@@ -115,18 +115,6 @@ void auto_load_dll(void)
   }
 }
 
-void load_new_dll(void)
-{
-  if(dlf.loaded!=0&&dlhandle!=nullptr)
-    dlclose(dlhandle);
-  std::string file=dlf.libfile;
-  if(file_selector("Library:",file,"*.so")==0)return;
-  dlf.libfile=file;
-  dlf.libname=xpp::format("{}/{}",xpp_files_cur_dir(),dlf.libfile);
-  new_string("Function name:",dlf.fun);
-  dlf.loaded=0;
-}
-
 void get_import_values(int n, double *ydot, const char *soname, const char *sofun,
 		       int ivar, double **wgt,
 		       double *var, double *con)
@@ -190,10 +178,6 @@ int my_fun(double *in, double *out, int nin,int nout,double *v,double *c)
 #else
 
 void get_import_values(int, double *, const char *, const char *, int, double **, double *, double *)
-{
-}
-
-void load_new_dll(void)
 {
 }
 

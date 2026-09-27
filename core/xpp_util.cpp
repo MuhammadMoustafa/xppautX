@@ -7,7 +7,6 @@
 #include "xpp_ui.h"
 #include "axes2.h"
 #include "graphics.h"
-#include "edit_rhs.h"
 #include "xpp_globals.h"
 #include "parserslow.h"
 #include "browse.h"

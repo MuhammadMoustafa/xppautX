@@ -146,7 +146,6 @@ void j_respond_box(const char *button, const char *message);
 int j_checklist(const char *title, const char *const *names, int *flags, int n);
 int j_string_box(int row, int col, const char *title, const char *const *names, std::span<std::string> values,
                  int maxchar, const int *kinds);
-int j_edit_box(const char *title, const char *const *names, std::span<std::string> values);
 int j_file_selector(const char *title, std::string &file, const char *wild);
 int j_get_mouse_xy(int *x, int *y);
 int j_rubber_band(int *i1, int *j1, int *i2, int *j2, int flag);

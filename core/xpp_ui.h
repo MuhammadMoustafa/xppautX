@@ -195,9 +195,6 @@ typedef struct XppUi {
     /* one-line text entry with named buttons; returns 0 on cancel */
     int (*dialog)(const char *title, const char *name, std::string &value, const char *ok,
                   const char *cancel, int max, int kind);
-    /* like string_box but for n long strings (MAX_LEN_EBOX); returns 0 on
-       cancel */
-    int (*edit_box)(const char *title, const char *const *names, std::span<std::string> values);
     int (*get_mouse_xy)(int *x, int *y);
 
     /* menus. show_menu makes MAIN_MENU, FILE_MENU or NUM_MENU (menus.h) the
@@ -380,9 +377,6 @@ int get_dialog(const char *wname, const char *name, std::string &value, const ch
                int max);
 int get_dialog_of(const char *wname, const char *name, std::string &value, const char *ok,
                   const char *cancel, int max, int kind);
-/* the long strings (right-hand sides, MAX_LEN_EBOX) named names[i]; 0 on
-   cancel */
-int do_edit_box(const char *title, const char *const *names, std::span<std::string> values);
 
 #endif
 #endif

@@ -84,10 +84,6 @@ static int hl_dialog(const char *, const char *, std::string &, const char *, co
 }
 static void hl_ani_font(int, int, int) {}
 static void hl_ani_box(int, int, int, int, int) {}
-static int hl_edit_box(const char *, const char *const *, std::span<std::string>)
-{
-    return 0;
-}
 static void hl_param_box_set(int, const char *) {}
 static void hl_respond_box(const char *, const char *message) { xpp::log(XPP_LOG_WARN, "{}\n", message); }
 static int hl_checklist(const char *, const char *const *, int *, int)
@@ -116,7 +112,6 @@ XppUi xpp_ui = {
     .string_box = hl_string_box,
     .file_selector = hl_file_selector,
     .dialog = hl_dialog,
-    .edit_box = hl_edit_box,
     .get_mouse_xy = hl_get_mouse_xy,
     .menu_flash = hl_int,
     .show_menu = hl_int,
@@ -273,10 +268,6 @@ int get_dialog_of(const char *wname, const char *name, std::string &value, const
                   const char *cancel, int max, int kind)
 {
     return xpp_ui.dialog(wname, name, value, ok, cancel, max, kind);
-}
-int do_edit_box(const char *title, const char *const *names, std::span<std::string> values)
-{
-    return xpp_ui.edit_box(title, names, values);
 }
 int GetMouseXY(int *x, int *y) { return xpp_ui.get_mouse_xy(x, y); }
 void flash(int num) { xpp_ui.menu_flash(num); }

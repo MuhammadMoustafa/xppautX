@@ -153,10 +153,6 @@ extern "C" {
 #define M_FT 209
 #define M_FG 211
 
-#define M_FER 212
-#define M_FEF 213
-#define M_FES 214
-#define M_FEL 215
 
 
 #define M_FX 216
