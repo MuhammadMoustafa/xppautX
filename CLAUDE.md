@@ -478,13 +478,26 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   fort.8/.s) are read with `xpp_token_reader_long` (fscanf `%ld`'s own
   grammar, not a whole token; `read(long&)`), and
   `xpp_token_reader_skip_line` skips the rest of a line;
-  `xpp_writer_open_binary` (`xpp::Writer::binary`) is the writer for a
-  byte-for-byte copy (AUTO's copyf/appendf). Files AUTO streams into
-  during a run (fort.7/8/9) keep their FILE*. Not every `fopen` in the core goes through
-  this yet: a write via the shared `open_write_file` (`browse_data.cpp`,
-  used well beyond W7b's files) still opens its target directly, since
-  giving it temp-then-rename needs every caller's `fclose` to become a
-  commit too, across files outside a single task's scope.
+  `xpp::Writer::binary(path)` writes a file byte for byte and
+  `xpp::Writer::append(path)` appends to it (the C API's
+  `xpp_writer_open_as`); a Writer prints with `print()`, and
+  `xpp::print(FILE *, ...)` is the one overload for a stream. Reading a
+  whole file's bytes is `xpp::open_read`/`open_read_binary` (an
+  `xpp::UniqueFile`). Asking before overwriting a user's file is
+  `open_writer_asking` (browse.h), a Writer that commits in place.
+- Every other file operation is `core/xpp_files.h` (W32b): a stream kept
+  open across calls (`xpp_files_open_stream`: AUTO's fort.3/7/8/9 during
+  a run, the array plot's GIF movie, an input script), an exclusive
+  create (`xpp_files_create_new`, every temp file), `exists`,
+  `dir_writable`, `remove`, `copy`, `prepend` (AUTO's "append": new bytes
+  ahead of the file's own), `move`, and AUTO's scratch folders
+  (`xpp_files_make_temp_dir`, `_remove_temp_dir`,
+  `_cleanup_stale_temp_dirs`; the Windows API parts in xpp_win32.cpp).
+  `tools/filecheck.sh` (sourcecheck) counts each core file's direct
+  fopen/freopen/remove/rename/unlink/mkdir/rmdir/opendir/tmpfile calls
+  outside xpp_files, xpp_io and xpp_win32 against `tests/files.baseline`
+  and fails on growth; the W33 sweeps take the rest to 0
+  (`--update` after a drop).
 
 ## C and C++
 
