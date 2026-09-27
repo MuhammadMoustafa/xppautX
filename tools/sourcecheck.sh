@@ -8,6 +8,8 @@
 #   - the core never prints to stdout/stderr directly (tools/stdoutcheck.sh)
 #   - no sprintf/strcpy into a fixed buffer (tools/formatcheck.sh)
 #   - no malloc/free but through xpp_mem.h (tools/alloccheck.sh)
+#   - no more direct fopen/remove/rename/mkdir/... than tests/files.baseline
+#     allows: files go through xpp_files.h (tools/filecheck.sh)
 #   - no string literal cast to char * (tools/literalcheck.sh)
 #   - no extern whose type differs from its definition (make ltocheck)
 #   - no function or file-scope datum nothing reaches (tools/deadcode.sh;
@@ -56,6 +58,10 @@ if ! sh tools/formatcheck.sh; then
 fi
 if ! sh tools/alloccheck.sh; then
   echo "ALLOC CHECK FAILED"
+  exit 1
+fi
+if ! sh tools/filecheck.sh --check; then
+  echo "FILE CHECK FAILED"
   exit 1
 fi
 if ! sh tools/literalcheck.sh; then
