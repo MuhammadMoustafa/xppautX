@@ -3252,8 +3252,6 @@ void traverse_diagram()
     grabpt.lab=d->lab;
     for(i=0;i<8;i++)
     grabpt.par[i]=d->par[i];
-    grabpt.icp1=d->icp1;
-    grabpt.icp2=d->icp2;
     grabpt.per=d->per;
     grabpt.torper=d->torper;
     for(i=0;i<NODE;i++){
@@ -3266,9 +3264,7 @@ void traverse_diagram()
     get_ic(0,grabpt.u0);
     grabpt.flag=1;
     grabpt.itp=d->itp;
-    grabpt.ntot=d->ntot;
     grabpt.nfpar=d->nfpar;
-    grabpt.index=d->index;
     auto_set_pars_from(grabpt.par);
   }
   evaluate_derived();

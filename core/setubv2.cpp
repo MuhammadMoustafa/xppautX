@@ -9,7 +9,7 @@ namespace {
    Those values which are arrays and those
    which are input and output are markered as such*/
 struct setubv_parallel_arglist {
-  integer ndim, ips, ncol, nbc, nint, ncb, nrc, nra, nca, na; /*scalar input */
+  integer ndim, ncol, nbc, nint, ncb, nrc, nra, nca, na; /*scalar input */
   FUNI_TYPE((*funi)); /*scalar input*/
   ICNI_TYPE((*icni)); /*scalar input*/
   integer ndxloc; /*scalar input*/
@@ -45,7 +45,7 @@ struct setubv_parallel_arglist {
 void setubv_make_fa(const setubv_parallel_arglist &larg);
 void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, doublereal *rlcur,
 		       doublereal *rlold, doublereal rds);
-void setubv_parallel_arglist_constructor(integer ndim, integer ips, integer na, integer ncol,
+void setubv_parallel_arglist_constructor(integer ndim, integer na, integer ncol,
 					 integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca,
 					 FUNI_TYPE((*funi)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par,
 					 integer *icp, doublereal *aa, doublereal *bb,
@@ -361,7 +361,7 @@ setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer
  
   {
     setubv_parallel_arglist arglist;
-    setubv_parallel_arglist_constructor(ndim, ips, na, ncol, nbc, nint, ncb, 
+    setubv_parallel_arglist_constructor(ndim, na, ncol, nbc, nint, ncb, 
 					nrc, nra, nca, funi, icni, ndxloc, iap, rap, 
 					par, icp, aa, bb, cc, dd, fa, fc, ups, 
 					uoldps, udotps, upoldp, dtm, wp.data(), wt.data(), wi.data(), 
@@ -560,7 +560,7 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
 
 
 /* Fill in a setubv_parallel_arglist for the individual variables */
-void setubv_parallel_arglist_constructor(integer ndim, integer ips, integer na, integer ncol, 
+void setubv_parallel_arglist_constructor(integer ndim, integer na, integer ncol, 
 					 integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
 					 FUNI_TYPE((*funi)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, 
 					 integer *icp, doublereal *aa, doublereal *bb, 
@@ -571,7 +571,6 @@ void setubv_parallel_arglist_constructor(integer ndim, integer ips, integer na, 
 					 doublereal *thu, doublereal *thl,
 					 doublereal *rldot, BCNI_TYPE((*bcni)), setubv_parallel_arglist *data) {
   data->ndim   = ndim;
-  data->ips    = ips;
   data->ncol   = ncol;
   data->nbc    = nbc;
   data->nint   = nint;

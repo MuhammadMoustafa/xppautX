@@ -32,7 +32,7 @@ typedef struct {
   std::string name, rhs;
   std::vector<int> form;
   int index;
-  double value,last;
+  double last;
 }DaeSolVar;
 
 typedef struct {
@@ -135,7 +135,6 @@ void set_init_guess()
   for(i=0;i<nsvar;i++){
    z=evaluate(svar[i].form.data());
     SETVAR(svar[i].index,z);
-    svar[i].value=z;
     svar[i].last=z;
   }
 }
@@ -292,7 +291,6 @@ void get_new_guesses()
     }
     z=evaluate(svar[i].form.data());
     SETVAR(svar[i].index,z);
-    svar[i].value=z;
     svar[i].last=z;
   }
 }

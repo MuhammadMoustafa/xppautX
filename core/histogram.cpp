@@ -33,7 +33,7 @@ std::array<int, 10> post_process_plotlist{};
 
 int post_process=0;
 
-HIST_INFO hist_inf = {100,100,0,1,1,0,0,1,0,1,""};
+HIST_INFO hist_inf = {100,100,1,1,0,0,1,0,1,""};
 
 int hist_len,four_len;
 namespace {

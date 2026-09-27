@@ -49,10 +49,10 @@ typedef struct {
 } ADVAUTO;
 
 typedef struct {
-  int ibr,ntot,itp,lab;
-  double norm,uhi[NAUTO],ulo[NAUTO],u0[NAUTO],ubar[NAUTO];
+  int ibr,itp,lab;
+  double uhi[NAUTO],ulo[NAUTO],u0[NAUTO],ubar[NAUTO];
   double par[20],per,torper;
-  int index,nfpar,icp1,icp2,icp3,icp4,icp5;
+  int nfpar;
   int flag;
 } GRABPT;
 
@@ -61,12 +61,12 @@ typedef struct diagram {
   double norm,*uhi,*ulo,*u0,*ubar,*evr,*evi;
   double par[20],per,torper;
   int index,nfpar;
-  int icp1,icp2,icp3,icp4,icp5,flag2;
+  int icp1,icp2,icp3,icp4,flag2;
   int from; /* the label its run started from, on a run's first point (not saved in files) */
 } DIAGRAM;
 
 typedef struct {
-  int plot,var,icp1,icp2,icp3,icp4,icp5;
+  int plot,var,icp1,icp2;
   double xmin,ymin,xmax,ymax;
 }  AUTOAX;
 

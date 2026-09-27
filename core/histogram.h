@@ -48,7 +48,7 @@ extern int post_process;
    @ options edit (load_eqn.cpp's option reader; cond, the histogram's
    condition, only the Histogram dialog) */
 struct HIST_INFO {
-  int nbins,nbins2,type,col,col2,fftc;
+  int nbins,nbins2,col,col2,fftc;
   double xlo,xhi;
   double ylo,yhi;
   std::string cond;
