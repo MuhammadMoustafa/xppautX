@@ -97,9 +97,6 @@ extern ROTCHK blrtn;
 void colset(int type);
 void pscolset2(int flag2);
 void colset2(int flag2);
-/* get_auto_str writes a name, name_bar or "Frequency" into each label */
-#define AUTO_LABEL_LEN (XPP_NAME_MAX+8)
-void get_auto_str(char *xlabel, char *ylabel);
 void draw_export_axes(void);
 void draw_bif_axes(void);
 int IXVal(double x);
@@ -141,9 +138,8 @@ void auto_point_id(int ibr, int ntot, int itp, int node, int from);
 int auto_run_from_take(void);
 void add_point(double *par, double per, double *uhigh, double *ulow, double *ubar, double a, int type, int flag, int lab, int npar, int icp1, int icp2, int flag2,int icp3, int icp4, double *evr, double *evi);
 /* the two-letter symbol of AUTO's point type itp (BP, LP, HB, UZ, PD, TR,
-   EP, MX), two blanks for any other; get_bif_sym copies it into a char[3] */
+   EP, MX), two blanks for any other */
 const char *auto_bif_sym(int itp);
-void get_bif_sym(char *at, int itp);
 void info_header(int flag2, int icp1, int icp2);
 void new_info(int ibr, int pt, const char *ty, int lab, double *par, double norm, double u0, double per, int flag2, int icp1, int icp2);
 void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw);
@@ -226,5 +222,11 @@ void do_auto_range(void);
 
 #ifdef __cplusplus
 }
+
+#include <string>
+
+/* the diagram's axis labels as the axes show them: a name, name_bar or
+   "Frequency" each (json_auto.cpp's diagram events) */
+void get_auto_str(std::string &xlabel, std::string &ylabel);
 #endif
 #endif

@@ -51,15 +51,16 @@ void model()
 
 bool ok(int field, double v)
 {
-    char why[200];
-    return auto_settings_num_ok(field, v, why, sizeof why) != 0;
+    std::string why;
+    return auto_settings_num_ok(field, v, why) != 0;
 }
 
 } // namespace
 
 int main()
 {
-    char why[200];
+    std::string num_why;
+    std::string why;
     model();
 
     CHECK(ok(AUTO_NUM_NCOL, 2) && ok(AUTO_NUM_NCOL, 7));
@@ -70,73 +71,72 @@ int main()
     CHECK(ok(AUTO_NUM_RL0, -1e6) && !ok(AUTO_NUM_RL0, HUGE_VAL));
     CHECK(ok(AUTO_NUM_MXBF, -5) && ok(AUTO_NUM_SUPPBP, 1) && !ok(AUTO_NUM_SUPPBP, 2));
     CHECK(!ok(AUTO_NUM_NMX, 3e9)); /* no int holds it */
-    auto_settings_num_ok(AUTO_NUM_NCOL, 9, why, sizeof why);
-    CHECK_STR(why, "Ncol must be a whole number from 2 to 7");
+    auto_settings_num_ok(AUTO_NUM_NCOL, 9, num_why);
+    CHECK_STR(num_why.c_str(), "Ncol must be a whole number from 2 to 7");
     CHECK_STR(auto_settings_num_key(AUTO_NUM_RL0), "rl0");
     CHECK_STR(auto_settings_num_label(AUTO_NUM_RL0), "Par Min");
     CHECK(auto_settings_num_key(AUTO_NUM_N) == nullptr);
 
     /* all or nothing: one bad value keeps the good one out */
     AutoSettingsSet s;
-    auto_settings_set_init(&s);
     s.has_num[AUTO_NUM_NMX] = 1;
     s.num[AUTO_NUM_NMX] = 30;
     s.has_num[AUTO_NUM_NCOL] = 1;
     s.num[AUTO_NUM_NCOL] = 9;
-    CHECK(auto_settings_apply(&s, why, sizeof why) == -1 && Auto.nmx == 200 && Auto.ncol == 4);
+    CHECK(auto_settings_apply(s, why) == -1 && Auto.nmx == 200 && Auto.ncol == 4);
     s.num[AUTO_NUM_NCOL] = 5;
-    CHECK(auto_settings_apply(&s, why, sizeof why) == 0 && Auto.nmx == 30 && Auto.ncol == 5);
+    CHECK(auto_settings_apply(s, why) == 0 && Auto.nmx == 30 && Auto.ncol == 5);
 
     /* pairs in order, only checked when one of them is given */
-    auto_settings_set_init(&s);
+    s = AutoSettingsSet{};
     s.has_num[AUTO_NUM_RL1] = 1;
     s.num[AUTO_NUM_RL1] = -1;
-    CHECK(auto_settings_apply(&s, why, sizeof why) == -1 && Auto.rl1 == 2);
-    CHECK_STR(why, "Par Min must be below Par Max");
+    CHECK(auto_settings_apply(s, why) == -1 && Auto.rl1 == 2);
+    CHECK_STR(why.c_str(), "Par Min must be below Par Max");
 
     /* Dsmin <= |Ds| <= Dsmax, checked when one of the three is given (T23) */
     Auto.ds = 0.02;
-    auto_settings_set_init(&s);
+    s = AutoSettingsSet{};
     s.has_num[AUTO_NUM_DS] = 1;
     s.num[AUTO_NUM_DS] = -0.6;
-    CHECK(auto_settings_apply(&s, why, sizeof why) == -1 && Auto.ds == 0.02);
-    CHECK_STR(why, "Ds must be from Dsmin to Dsmax in size (its sign is the direction)");
+    CHECK(auto_settings_apply(s, why) == -1 && Auto.ds == 0.02);
+    CHECK_STR(why.c_str(), "Ds must be from Dsmin to Dsmax in size (its sign is the direction)");
     s.num[AUTO_NUM_DS] = -0.5;
-    CHECK(auto_settings_apply(&s, why, sizeof why) == 0 && Auto.ds == -0.5);
-    auto_settings_set_init(&s);
+    CHECK(auto_settings_apply(s, why) == 0 && Auto.ds == -0.5);
+    s = AutoSettingsSet{};
     s.has_num[AUTO_NUM_DSMIN] = 1;
     s.num[AUTO_NUM_DSMIN] = 0.6; /* above |Ds| and Dsmax */
-    CHECK(auto_settings_apply(&s, why, sizeof why) == -1 && Auto.dsmin == 0.001);
+    CHECK(auto_settings_apply(s, why) == -1 && Auto.dsmin == 0.001);
 
     /* axes: names among AUTO's parameters, ranges in order */
-    auto_settings_set_init(&s);
-    std::strcpy(s.par1, "GCA");
-    std::strcpy(s.var, "w");
+    s = AutoSettingsSet{};
+    s.par1 = "GCA";
+    s.var = "w";
     s.has_plot = 1;
     s.plot = 1;
-    CHECK(auto_settings_apply(&s, why, sizeof why) == 0 && Auto.icp1 == 1 && Auto.var == 1 && Auto.plot == 1);
-    std::strcpy(s.par1, "nosuch");
-    CHECK(auto_settings_apply(&s, why, sizeof why) == -1 && Auto.icp1 == 1);
-    auto_settings_set_init(&s);
+    CHECK(auto_settings_apply(s, why) == 0 && Auto.icp1 == 1 && Auto.var == 1 && Auto.plot == 1);
+    s.par1 = "nosuch";
+    CHECK(auto_settings_apply(s, why) == -1 && Auto.icp1 == 1);
+    s = AutoSettingsSet{};
     s.has_plot = 1;
     s.plot = 5;
-    CHECK(auto_settings_apply(&s, why, sizeof why) == -1 && Auto.plot == 1);
-    auto_settings_set_init(&s);
+    CHECK(auto_settings_apply(s, why) == -1 && Auto.plot == 1);
+    s = AutoSettingsSet{};
     s.has_range[2] = 1;
     s.range[2] = 3; /* ymin above ymax */
-    CHECK(auto_settings_apply(&s, why, sizeof why) == -1 && Auto.ymin == -1);
+    CHECK(auto_settings_apply(s, why) == -1 && Auto.ymin == -1);
 
     /* Mark values: a parameter of AUTO's or T, into AUTO's user points */
-    auto_settings_set_init(&s);
+    s = AutoSettingsSet{};
     s.nmarks = 2;
-    std::strcpy(s.mark_name[0], "phi");
+    s.mark_name[0] = "phi";
     s.mark_value[0] = 0.5;
-    std::strcpy(s.mark_name[1], "t");
+    s.mark_name[1] = "t";
     s.mark_value[1] = 20;
-    CHECK(auto_settings_apply(&s, why, sizeof why) == 0 && Auto.nper == 2 && NAutoUzr == 2);
+    CHECK(auto_settings_apply(s, why) == 0 && Auto.nper == 2 && NAutoUzr == 2);
     CHECK(UzrPar[0] == 2 && outperiod[0] == 0.5 && UzrPar[1] == 10 && outperiod[1] == 20);
-    std::strcpy(s.mark_name[1], "v"); /* a variable is no user point */
-    CHECK(auto_settings_apply(&s, why, sizeof why) == -1 && UzrPar[1] == 10);
+    s.mark_name[1] = "v"; /* a variable is no user point */
+    CHECK(auto_settings_apply(s, why) == -1 && UzrPar[1] == 10);
 
     TEST_REPORT("auto_settings");
 }

@@ -37,7 +37,7 @@ static char *rep(char *s, int c, int n)
 int main(void)
 {
     char p64[XPP_NAME_MAX + 2], p65[XPP_NAME_MAX + 2], v64[XPP_NAME_MAX + 2];
-    char primed[XPP_NAME_MAX + 3], expr[400], out[AUTO_COL_W + 1], s[16];
+    char primed[XPP_NAME_MAX + 3], expr[400], out[AUTO_COL_W + 1];
     double z = 0;
     int ok;
     FILE *fp;
@@ -50,7 +50,8 @@ int main(void)
     CHECK(add_con("stimulus_amplitude_second", 2.5) == 0);
     CHECK(get_val("stimulus_amplitude_first", &z) && z == 1.5);
     CHECK(get_val("STIMULUS_AMPLITUDE_SECOND", &z) && z == 2.5); /* any case */
-    CHECK(calc("stimulus_amplitude_second-stimulus_amplitude_first", &ok) == 1.0 && ok);
+    snprintf(expr, sizeof expr, "%s", "stimulus_amplitude_second-stimulus_amplitude_first");
+    CHECK(calc(expr, &ok) == 1.0 && ok); /* calc takes a char * */
 
     /* XPP_NAME_MAX characters is a name, one more is refused */
     rep(p64, 'p', XPP_NAME_MAX);
@@ -72,12 +73,9 @@ int main(void)
     CHECK(name_too_long(p65) == 1);
 
     /* short_name: for display only, with a marker when it shortens */
-    short_name(s, "gca", 10);
-    CHECK_STR(s, "gca");
-    short_name(s, "abcdefghij", 10);
-    CHECK_STR(s, "abcdefghij");
-    short_name(s, "abcdefghijk", 10);
-    CHECK_STR(s, "abcdefghi~");
+    CHECK_STR(short_name("gca", 10).c_str(), "gca");
+    CHECK_STR(short_name("abcdefghij", 10).c_str(), "abcdefghij");
+    CHECK_STR(short_name("abcdefghijk", 10).c_str(), "abcdefghi~");
 
     /* AUTO's headings stay 14 wide: a long name is shortened with the marker
        and leaves a blank before the next heading */

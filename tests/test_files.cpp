@@ -26,12 +26,9 @@ namespace {
 
 std::string sha_of(const void *p, size_t n)
 {
-    XppSha256 c;
-    char hex[65];
-    xpp_sha256_init(&c);
-    xpp_sha256_update(&c, p, n);
-    xpp_sha256_hex(&c, hex);
-    return hex;
+    xpp::Sha256 c;
+    c.update(p, n);
+    return c.hex();
 }
 
 /* the names in the current folder, hidden ones included */
@@ -72,13 +69,10 @@ int main()
         const char *m = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
         CHECK_STR(sha_of(m, std::strlen(m)).c_str(), "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1");
         std::string million(1000000, 'a');
-        XppSha256 c; /* in uneven pieces: the block boundary handling */
-        char hex[65];
-        xpp_sha256_init(&c);
+        xpp::Sha256 c; /* in uneven pieces: the block boundary handling */
         for (size_t i = 0; i < million.size(); i += 777)
-            xpp_sha256_update(&c, million.data() + i, i + 777 <= million.size() ? 777 : million.size() - i);
-        xpp_sha256_hex(&c, hex);
-        CHECK_STR(hex, "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0");
+            c.update(million.data() + i, i + 777 <= million.size() ? 777 : million.size() - i);
+        CHECK_STR(c.hex().c_str(), "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0");
     }
 
     /* names: base names only */
@@ -123,7 +117,7 @@ int main()
     /* a put lands only at commit, under its name */
     XppFilePut *put;
     unsigned long long size = 0;
-    char sha[65];
+    std::string sha;
     const unsigned char bin[] = {0, 1, 2, 0xff, '\r', '\n', 0x80, 'x'};
     CHECK(xpp_files_put_begin("a.bin", 100, &put) == XPP_FILES_OK);
     CHECK(xpp_files_put_write(put, bin, 5) == XPP_FILES_OK);
@@ -131,7 +125,7 @@ int main()
     CHECK(!xpp_files_exists("a.bin")); /* only the hidden temp file so far */
     CHECK(xpp_files_put_commit(put, &size, sha) == XPP_FILES_OK);
     CHECK(size == 8);
-    CHECK_STR(sha, sha_of(bin, 8).c_str());
+    CHECK(sha == sha_of(bin, 8));
     CHECK(slurp("a.bin") == std::string(reinterpret_cast<const char *>(bin), 8));
     CHECK_STR(folder().c_str(), "a.bin");
 
@@ -176,13 +170,11 @@ int main()
 #endif
 
     /* the listing: plain files only */
-    size_t len;
-    char *list = xpp_files_list_json(&len);
+    std::string list = xpp_files_list_json();
     std::string want = "{\"files\":[{\"name\":\"a.bin\",\"size\":3,\"mtime\":";
-    CHECK(std::strncmp(list, want.c_str(), want.size()) == 0);
-    CHECK(std::strstr(list, sha_of("new", 3).c_str()) != nullptr);
-    CHECK(std::strstr(list, "sub") == nullptr && std::strstr(list, "link") == nullptr);
-    xpp_free(list);
+    CHECK(list.starts_with(want));
+    CHECK(list.find(sha_of("new", 3)) != std::string::npos);
+    CHECK(list.find("sub") == std::string::npos && list.find("link") == std::string::npos);
 
     /* the protocol's file command */
     xpp_files_command("put", "\"c.dat\"", "\"AAEC/w0KgHg=\"", keep); /* bin, base64 */
@@ -237,18 +229,17 @@ int main()
     CHECK(folder().find(".tmp-") == std::string::npos); /* no temp file left behind */
 
     /* the scratch folder: made, emptied and removed */
-    char *scratch = xpp_files_make_temp_dir();
-    CHECK(scratch != nullptr);
-    if (scratch) {
-        CHECK(std::strstr(scratch, "xppautoX-") != nullptr);
-        CHECK(xpp_files_exists(scratch));
-        std::string inside = std::string(scratch) + "/fort.7";
+    std::string scratch = xpp_files_make_temp_dir();
+    CHECK(!scratch.empty());
+    if (!scratch.empty()) {
+        CHECK(scratch.find("xppautoX-") != std::string::npos);
+        CHECK(xpp_files_exists(scratch.c_str()));
+        std::string inside = scratch + "/fort.7";
         std::FILE *f7 = xpp_files_open_stream(inside.c_str(), "w");
         CHECK(f7 != nullptr);
         if (f7) std::fclose(f7);
-        xpp_files_remove_temp_dir(scratch);
-        CHECK(!xpp_files_exists(scratch));
-        xpp_free(scratch);
+        xpp_files_remove_temp_dir(scratch.c_str());
+        CHECK(!xpp_files_exists(scratch.c_str()));
     }
     xpp_files_remove_temp_dir(nullptr);
 #ifndef _WIN32

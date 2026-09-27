@@ -43,8 +43,6 @@
 extern "C" {
 extern double default_val[MAXPAR], default_ic[MAXODE];
 extern char this_file[];
-extern const char *auto_hint[];
-void commander(int ch); /* commands.c */
 }
 
 namespace xpp::json {

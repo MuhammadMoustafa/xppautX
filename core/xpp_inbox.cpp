@@ -9,17 +9,17 @@
    enqueue happen as one step, so sequence order is queue order) and is
    never taken by the core; lock guards the queues and is held only briefly.
    Waiting is on a condition variable, never a polling loop. This file
-   includes no core header but the small C APIs of xpp_mem.h, xpp_log.h
-   and xpp_io.h.
+   includes no core header but the small C APIs of xpp_log.h, xpp_io.h
+   and xpp_files.h.
 
-   C++ with a C API (xpp_inbox.h is extern "C"). The lines handed out are
-   xpp_malloc'd C strings the caller frees with xpp_free (a raw block: its
-   ownership passes to C callers); nothing here throws into C (an
-   allocation that fails ends the program, as xpp_mem.h's do). */
+   C++ with a C API for the pushers (xpp_inbox.h is extern "C"); the core
+   takes a line into a std::string (the header's C++ section). Nothing here
+   throws into C or out of a thread (an allocation that fails ends the
+   program). */
 #include "xpp_inbox.h"
+#include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
-#include "xpp_mem.h"
 
 #include <cerrno>
 #include <cstdio>
@@ -43,8 +43,8 @@
 namespace {
 
 struct Item {
-    unsigned long seq;
-    char *line; /* xpp_malloc'd: handed to the caller as it is */
+    unsigned long seq = 0;
+    std::string line; /* moved out to the caller as it is */
 };
 
 pthread_mutex_t push_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -89,16 +89,19 @@ void xpp_inbox_set_classifier(int (*cls)(const char *line, unsigned long seq))
 
 void xpp_inbox_push(const char *line, size_t n)
 {
-    Item it{0, static_cast<char *>(xpp_malloc(n + 1))};
+    Item it;
     int q = XPP_INBOX_NORMAL;
-    std::memcpy(it.line, line, n);
-    it.line[n] = 0;
+    try {
+        it.line.assign(line, n);
+    } catch (...) {
+        out_of_memory("keeping a line");
+    }
     pthread_mutex_lock(&push_lock);
     it.seq = next_seq++;
-    if (classify && classify(it.line, it.seq) == XPP_INBOX_CONTROL) q = XPP_INBOX_CONTROL;
+    if (classify && classify(it.line.c_str(), it.seq) == XPP_INBOX_CONTROL) q = XPP_INBOX_CONTROL;
     pthread_mutex_lock(&lock);
     try {
-        queues[q].push_back(it);
+        queues[q].push_back(std::move(it));
     } catch (...) {
         out_of_memory("queueing a line");
     }
@@ -116,7 +119,7 @@ void xpp_inbox_close(void)
     pthread_mutex_unlock(&lock);
 }
 
-int xpp_inbox_next(int which, int wait_ms, char **line, unsigned long *seq)
+int xpp_inbox_next(int which, int wait_ms, std::string &line, unsigned long *seq)
 {
     struct timespec until = {};
     int q, r = 0;
@@ -137,8 +140,8 @@ int xpp_inbox_next(int which, int wait_ms, char **line, unsigned long *seq)
     }
     if (q < 0) q = pick(which); /* a line may have come with the timeout */
     if (q >= 0) {
-        const Item &it = queues[q].front();
-        *line = it.line;
+        Item &it = queues[q].front();
+        line = std::move(it.line); /* no allocation: it takes the item's block */
         if (seq) *seq = it.seq;
         queues[q].pop_front();
         r = 1;
@@ -284,7 +287,7 @@ int xpp_inbox_script_line(void) { return script_line; }
 
 int xpp_inbox_start_file(const char *path)
 {
-    script_fp.reset(std::fopen(path, "rb"));
+    script_fp.reset(xpp_files_open_stream(path, "rb"));
     return script_fp != nullptr;
 }
 

@@ -14,10 +14,8 @@ core/arrayplot.h buffers 3
 core/autlib1.cpp buffers 2
 core/autlib1.cpp memory 1
 core/auto_nox.cpp buffers 2
-core/auto_nox.cpp text 5
+core/auto_nox.cpp text 2
 core/auto_nox.h buffers 1
-core/auto_settings.cpp text 1
-core/auto_settings.h buffers 3
 core/axes2.cpp buffers 10
 core/axes2.cpp text 28
 core/browse.h buffers 1
@@ -48,7 +46,6 @@ core/grobs.cpp buffers 4
 core/integrate.cpp buffers 1
 core/integrate.cpp text 5
 core/integrate.h buffers 1
-core/json_auto.cpp text 1
 core/json_prompts.cpp buffers 1
 core/json_state.cpp buffers 1
 core/json_windows.cpp buffers 1
@@ -100,12 +97,7 @@ core/userbut.h buffers 1
 core/volterra.h buffers 1
 core/xpp_batch.cpp buffers 1
 core/xpp_batch.h buffers 2
-core/xpp_files.cpp buffers 1
 core/xpp_files.cpp files 4
-core/xpp_files.cpp memory 2
-core/xpp_files.h buffers 1
-core/xpp_inbox.cpp files 1
-core/xpp_inbox.cpp memory 1
 core/xpp_io.cpp files 1
 core/xpp_io.cpp text 2
 core/xpp_io.h casts 1
@@ -115,10 +107,7 @@ core/xpp_log.cpp text 2
 core/xpp_mem.cpp memory 1
 core/xpp_mem.h memory 6
 core/xpp_session.cpp buffers 1
-core/xpp_sha256.cpp buffers 1
-core/xpp_sha256.h buffers 2
 core/xpp_util.cpp buffers 4
-core/xpp_util.cpp memory 1
 core/xpp_util.cpp text 4
 core/xpp_window.cpp buffers 1
 core/xpp_window_hint.cpp text 2

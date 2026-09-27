@@ -105,15 +105,13 @@ unsigned long read_line_seq(void); /* the sequence number of read_line()'s line 
 const char *skip_ws(const char *p);
 const char *skip_value(const char *p);
 const char *js_find(const char *obj, const char *key);
-int js_string(const char *v, char *out, int max);
-/* the JSON string at v into out, cut to max - 1 bytes as the char *
-   version cuts it (NAME_IN: an overlong name then equals no name); false
-   (out empty) when v is not a string */
+/* the JSON string at v into out, cut to max - 1 bytes, the size of the
+   array it once went into (NAME_IN: an overlong name then equals no name);
+   false (out empty) when v is not a string */
 bool js_string(const char *v, std::string &out, size_t max = std::string::npos);
 double js_num(const char *v, double def);
 int js_number(const char *v, double *out);
 const char *js_elem(const char *arr, int i);
-int get_str(const char *obj, const char *key, char *out, int max);
 bool get_string(const char *obj, const char *key, std::string &out, size_t max = std::string::npos);
 double get_num(const char *obj, const char *key, double def);
 int get_int(const char *obj, const char *key, double def); /* get_num cut to an int */
@@ -126,7 +124,8 @@ int ask_begin(Buf *b, const char *kind);
 int ask_wait(Buf *b, int id);
 const char *ask_answer(void); /* the answer ask_wait() took */
 void answer_point(unsigned long win, int k, int *x, int *y);
-int mouse_ask(unsigned long win, const char *kind, int flag, int *v, int nv);
+/* the answer's points into v, x and y by turns (v.size() / 2 of them) */
+int mouse_ask(unsigned long win, const char *kind, int flag, std::span<int> v);
 int ask_drag(unsigned long win, int *x, int *y);
 
 void j_err_msg(const char *msg);

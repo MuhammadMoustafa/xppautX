@@ -87,7 +87,7 @@ void clr_scrn(void)
 /* new_parameter, set_default_params, clone_ode: from init_conds.c */
 extern double default_val[MAXPAR];
 extern char *save_eqn[MAXLINES];
-extern int NLINES, NMarkov, NODE, NUPAR;
+extern int NLINES;
 #define READEM 1
 #define WRITEM 0
 extern BC_STRUCT my_bc[MAXODE];
@@ -125,15 +125,12 @@ void  get_max(int index, double *vmin, double *vmax)
  
  }
 
-/* name, shortened for a fixed-width display of width characters: a longer
-   one keeps its start and ends in '~' so it cannot pass for another name.
-   out holds width+1 bytes. */
-void short_name(char *out, const char *name, int width)
+std::string short_name(std::string_view name, int width)
 {
-  if(static_cast<int>(strlen(name))<=width)
-    snprintf(out,width+1,"%s",name);
-  else
-    snprintf(out,width+1,"%.*s~",width-1,name);
+  const size_t w=width>0?static_cast<size_t>(width):0;
+  if(name.size()<=w)
+    return std::string(name);
+  return w?std::string(name.substr(0,w-1))+'~':std::string();
 }
 
 void de_space(char *s)
@@ -705,9 +702,8 @@ void do_txt_action(const char *s)
    made by xpp_files_make_temp_dir ---- */
 void xpp_cleanup_auto_dir(void)
 {
-  if (program.auto_dir != NULL) {
-    xpp_files_remove_temp_dir(program.auto_dir);
-    xpp_free(program.auto_dir);
-    program.auto_dir = NULL;
+  if (!program.auto_dir.empty()) {
+    xpp_files_remove_temp_dir(program.auto_dir.c_str());
+    program.auto_dir.clear();
   }
 }

@@ -74,6 +74,9 @@ void xpp_log_v(XppLogLevel level, const char *fmt, va_list ap);
 /* AUTO's console table and its startup/warning lines: always written,
    never gated by the threshold. See the big comment above. */
 void xpp_log_auto(const char *fmt, ...);
+/* 1 when xpp_log_auto() writes (browser mode, or a threshold of INFO or
+   more) */
+int xpp_log_auto_enabled(void);
 /* 1: AUTO's table is written whatever the threshold (browser mode) */
 void xpp_log_set_auto_echo(int on);
 
@@ -110,6 +113,16 @@ void log(XppLogLevel level, std::format_string<Args...> fmt, Args &&...args) noe
     /* xpp::vformat (xpp_io.h): the formatting compiled once, not here */
     std::string s = xpp::vformat(fmt.get(), std::make_format_args(args...));
     xpp_log(level, "%s", s.c_str());
+}
+
+/* the same for AUTO's table and notes: xpp_log_auto() with a checked
+   format */
+template <class... Args>
+void log_auto(std::format_string<Args...> fmt, Args &&...args) noexcept
+{
+    if (!xpp_log_auto_enabled()) return;
+    std::string s = xpp::vformat(fmt.get(), std::make_format_args(args...));
+    xpp_log_auto("%s", s.c_str());
 }
 #endif
 } // namespace xpp

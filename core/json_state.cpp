@@ -38,7 +38,6 @@ extern "C" {
 extern double last_ic[MAXODE];
 extern int INFLAG;
 extern BROWSER my_browser;
-extern BIFUR Auto;
 extern BC_STRUCT my_bc[MAXODE];
 extern char delay_string[MAXODE][80];
 extern int DelayFlag, METHOD, EqType[];

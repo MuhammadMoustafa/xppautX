@@ -150,19 +150,17 @@ void data_emit(const char *line, size_t n)
 namespace {
 
 unsigned long line_seq;
-MemPtr<char> last_line; /* the inbox's block, freed at the next call */
+std::string last_line; /* the line read_line gave last, freed at the next call */
 
 } // namespace
 
 char *read_line(int which, int wait_ms)
 {
-    char *line = nullptr;
-    last_line.reset();
-    int r = xpp_inbox_next(which, wait_ms, &line, &line_seq);
-    last_line.reset(line);
+    std::string().swap(last_line); /* a pixels answer is megabytes: not kept while waiting */
+    int r = xpp_inbox_next(which, wait_ms, last_line, &line_seq);
     switch (r) {
     case 1:
-        return line;
+        return last_line.data();
     case -1:
         /* end of input: exit 1 for a script that hit an error or an
            unmatched ask (docs/protocol.md "Scripts"), else as always, 0 */
@@ -247,14 +245,6 @@ bool js_string(const char *v, std::string &out, size_t max)
     }
 }
 
-int js_string(const char *v, char *out, int max)
-{
-    std::string s;
-    bool ok = js_string(v, s, max > 0 ? static_cast<size_t>(max) : 1);
-    if (max > 0) std::memcpy(out, s.c_str(), s.size() + 1);
-    return ok;
-}
-
 double js_num(const char *v, double def)
 {
     if (!v) return def;
@@ -275,11 +265,6 @@ const char *js_elem(const char *arr, int i)
         p = skip_ws(p + 1);
     }
     return p;
-}
-
-int get_str(const char *obj, const char *key, char *out, int max)
-{
-    return js_string(js_find(obj, key), out, max);
 }
 
 bool get_string(const char *obj, const char *key, std::string &out, size_t max)

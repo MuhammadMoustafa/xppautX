@@ -37,10 +37,10 @@ struct ScratchDir {
     bool made;
     ScratchDir()
     {
-        char *d = xpp_files_make_temp_dir();
-        made = d != nullptr;
-        path = made ? d : ".";
-        xpp_free(d);
+        path = xpp_files_make_temp_dir();
+        made = !path.empty();
+        if (!made)
+            path = ".";
     }
     /* at exit, with the path still alive (an atexit handler registered
        while this was being built ran after its destructor: ASan) */

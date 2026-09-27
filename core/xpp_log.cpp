@@ -46,11 +46,13 @@ void xpp_log(XppLogLevel level, const char *fmt, ...)
     va_end(ap);
 }
 
+int xpp_log_auto_enabled(void) { return auto_echo || threshold >= XPP_LOG_INFO; }
+
 void xpp_log_auto(const char *fmt, ...)
 {
     va_list ap;
     FILE *out = sink();
-    if (!auto_echo && threshold < XPP_LOG_INFO) return;
+    if (!xpp_log_auto_enabled()) return;
     va_start(ap, fmt);
     vfprintf(out, fmt, ap);
     va_end(ap);

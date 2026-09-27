@@ -55,7 +55,7 @@ struct XppFilePut {
     xpp::Writer w; /* binary: the temp file beside name, renamed over it at commit */
     std::string name;
     unsigned long long cap = 0, bytes = 0;
-    XppSha256 sha{};
+    xpp::Sha256 sha;
 };
 
 namespace {
@@ -150,9 +150,6 @@ int open_plain(const char *name, xpp::UniqueFile &fp, unsigned long long *size)
 
 /* ---- the listing's digests, kept while a file does not change ----------------- */
 
-/* a SHA-256 as 64 hex digits and a NUL (xpp_sha256_hex) */
-using Hex = std::array<char, 65>;
-
 struct Digest {
     unsigned long long size;
     long long mtime;
@@ -161,38 +158,38 @@ struct Digest {
 std::mutex cache_lock;
 std::map<std::string, Digest> cache;
 
-bool file_sha(const char *name, Hex &out)
+/* the file's SHA-256 as 64 hex digits */
+bool file_sha(const char *name, std::string &out)
 {
     xpp::UniqueFile fp;
     unsigned long long size;
     if (open_plain(name, fp, &size) != XPP_FILES_OK) return false;
-    XppSha256 c;
-    xpp_sha256_init(&c);
+    xpp::Sha256 c;
     std::vector<unsigned char> buf(1 << 16);
     size_t n;
-    while ((n = std::fread(buf.data(), 1, buf.size(), fp.get())) > 0) xpp_sha256_update(&c, buf.data(), n);
+    while ((n = std::fread(buf.data(), 1, buf.size(), fp.get())) > 0) c.update(buf.data(), n);
     bool ok = !std::ferror(fp.get());
     fp.reset();
-    xpp_sha256_hex(&c, out.data());
+    out = c.hex();
     return ok;
 }
 
 /* a digest is kept only for a file untouched for 2 seconds: a rewrite of
    the same size within the second of its mtime would otherwise look
    unchanged */
-void remember(const std::string &name, unsigned long long size, long long mtime, const char *sha)
+void remember(const std::string &name, unsigned long long size, long long mtime, const std::string &sha)
 {
     if (static_cast<long long>(std::time(nullptr)) - mtime < 2) return;
     std::lock_guard<std::mutex> g(cache_lock);
     cache[name] = Digest{size, mtime, sha};
 }
 
-bool cached(const std::string &name, unsigned long long size, long long mtime, Hex &out)
+bool cached(const std::string &name, unsigned long long size, long long mtime, std::string &out)
 {
     std::lock_guard<std::mutex> g(cache_lock);
     auto it = cache.find(name);
     if (it == cache.end() || it->second.size != size || it->second.mtime != mtime) return false;
-    std::memcpy(out.data(), it->second.sha.c_str(), out.size());
+    out = it->second.sha;
     return true;
 }
 
@@ -300,12 +297,10 @@ std::string listing()
             Stat st;
             if (kind_of(e->d_name, &st) != XPP_FILES_OK) continue;
             Entry f{e->d_name, static_cast<unsigned long long>(st.st_size), static_cast<long long>(st.st_mtime), ""};
-            Hex sha;
-            if (!cached(f.name, f.size, f.mtime, sha)) {
-                if (!file_sha(e->d_name, sha)) continue;
-                remember(f.name, f.size, f.mtime, sha.data());
+            if (!cached(f.name, f.size, f.mtime, f.sha)) {
+                if (!file_sha(e->d_name, f.sha)) continue;
+                remember(f.name, f.size, f.mtime, f.sha);
             }
-            f.sha = sha.data();
             files.push_back(std::move(f));
         }
         closedir(d);
@@ -362,14 +357,14 @@ std::string command(const char *op, const char *name_json, const char *data_json
         fail_event(s, XPP_FILES_BAD_NAME);
         return s;
     }
-    Hex sha;
+    std::string sha;
     unsigned long long size = 0;
     if (op[0] == 'p') {
         XppFilePut *put;
         int st = xpp_files_put_begin(name.c_str(), XPP_FILES_CAP, &put);
         if (st == XPP_FILES_OK) {
             st = put_base64(put, data_json);
-            if (st == XPP_FILES_OK) st = xpp_files_put_commit(put, &size, sha.data());
+            if (st == XPP_FILES_OK) st = xpp_files_put_commit(put, &size, sha);
             else xpp_files_put_abort(put);
         }
         if (st == NOT_BASE64) {
@@ -380,7 +375,7 @@ std::string command(const char *op, const char *name_json, const char *data_json
             fail_event(s, st);
             return s;
         }
-        s += xpp::format(",\"ok\":1,\"size\":{},\"sha256\":\"{}\"}}", size, sha.data());
+        s += xpp::format(",\"ok\":1,\"size\":{},\"sha256\":\"{}\"}}", size, sha);
         return s;
     }
     xpp::UniqueFile fp;
@@ -400,11 +395,9 @@ std::string command(const char *op, const char *name_json, const char *data_json
         fail_event(s, XPP_FILES_IO);
         return s;
     }
-    XppSha256 c;
-    xpp_sha256_init(&c);
-    xpp_sha256_update(&c, buf.data(), got);
-    xpp_sha256_hex(&c, sha.data());
-    s += xpp::format(",\"ok\":1,\"size\":{},\"sha256\":\"{}\",\"data\":\"", size, sha.data());
+    xpp::Sha256 c;
+    c.update(buf.data(), got);
+    s += xpp::format(",\"ok\":1,\"size\":{},\"sha256\":\"{}\",\"data\":\"", size, c.hex());
     s.reserve(s.size() + (got + 2) / 3 * 4 + 4);
     base64_append(s, buf.data(), got);
     s += "\"}";
@@ -443,15 +436,10 @@ const char *xpp_files_status_text(int status)
     }
 }
 
-char *xpp_files_list_json(size_t *len)
+std::string xpp_files_list_json()
 {
     try {
-        std::string s = listing();
-        /* a raw block: the C API hands it to a caller that frees it */
-        char *out = static_cast<char *>(xpp_malloc(s.size() + 1));
-        std::memcpy(out, s.c_str(), s.size() + 1);
-        *len = s.size();
-        return out;
+        return listing();
     } catch (const std::bad_alloc &) {
         xpp_out_of_memory("listing the model's folder");
     }
@@ -477,7 +465,6 @@ int xpp_files_put_begin(const char *name, unsigned long long cap, XppFilePut **p
         std::unique_ptr<XppFilePut> p = std::make_unique<XppFilePut>();
         p->name = name;
         p->cap = cap;
-        xpp_sha256_init(&p->sha);
         p->w = xpp::Writer::binary(name); /* hidden (a leading dot): neither listed nor reachable by name */
         if (!p->w) return XPP_FILES_IO;
         *put = p.release();
@@ -492,22 +479,22 @@ int xpp_files_put_write(XppFilePut *put, const void *data, size_t n)
     if (n > put->cap - put->bytes) return XPP_FILES_TOO_LARGE;
     if (n && std::fwrite(data, 1, n, put->w.file()) != n) return XPP_FILES_IO;
     put->bytes += n;
-    xpp_sha256_update(&put->sha, data, n);
+    put->sha.update(data, n);
     return XPP_FILES_OK;
 }
 
 void xpp_files_put_abort(XppFilePut *put) { delete put; /* its writer discards the temp file */ }
 
-int xpp_files_put_commit(XppFilePut *put, unsigned long long *size, char sha256[65])
+int xpp_files_put_commit(XppFilePut *put, unsigned long long *size, std::string &sha256)
 {
     std::unique_ptr<XppFilePut> p(put);
     Stat st;
     int k = kind_of(p->name.c_str(), &st);
     if (k != XPP_FILES_OK && k != XPP_FILES_NOT_FOUND) return k; /* became a link or a folder meanwhile */
     if (!p->w.commit()) return XPP_FILES_IO;
-    xpp_sha256_hex(&p->sha, sha256);
     *size = p->bytes;
     try {
+        sha256 = p->sha.hex();
         if (stat_name(p->name.c_str(), &st) == 0 && static_cast<unsigned long long>(st.st_size) == p->bytes)
             remember(p->name, p->bytes, static_cast<long long>(st.st_mtime), sha256);
     } catch (const std::bad_alloc &) {
@@ -598,6 +585,14 @@ bool scratch_dir_pid(std::string_view name, long long *pid)
 
 FILE *xpp_files_open_stream(const char *path, const char *mode) { return path ? std::fopen(path, mode) : nullptr; }
 
+int xpp_files_stream_fd(FILE *f)
+{
+#ifdef _WIN32
+    if (_fileno(f) < 0 && !std::freopen("NUL", "w", f)) return -1;
+#endif
+    return fileno(f);
+}
+
 FILE *xpp_files_create_new(const char *path, int binary)
 {
     int fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | (binary ? O_BINARY : O_TEXT), 0666);
@@ -656,20 +651,20 @@ void xpp_files_move(const char *from, const char *to)
     std::remove(from);
 }
 
-char *xpp_files_make_temp_dir(void)
+std::string xpp_files_make_temp_dir()
 {
     try {
         std::string base = temp_base();
-        if (base.empty()) return nullptr;
+        if (base.empty()) return {};
         for (int i = 0; i < 1000; i++) { /* a crashed run with our pid may have left one */
             std::string path = xpp::format("{}{}xppautoX-{}-{}", base, SEP, own_pid(), i);
-            if (make_dir(path.c_str()) == 0) return xpp_strdup(path.c_str()); /* program.auto_dir: a C string */
+            if (make_dir(path.c_str()) == 0) return path;
             if (errno != EEXIST) break;
         }
     } catch (const std::bad_alloc &) {
         xpp_out_of_memory("making the scratch folder");
     }
-    return nullptr;
+    return {};
 }
 
 void xpp_files_remove_temp_dir(const char *dir)

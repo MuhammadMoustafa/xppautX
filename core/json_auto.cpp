@@ -8,21 +8,16 @@
 #include "mykeydef.h"
 #include "diagram.h"
 #include "auto_data.h"
+#include "auto_nox.h"
 #include "auto_settings.h"
 #include "xpp_io.h"
 #include <array>
 #include <climits>
-#include <stdio.h>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <string>
 #include <vector>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-
-/* the core's own globals and functions that have no header of their own */
-extern "C" {
-extern BIFUR Auto;
-}
 
 namespace xpp::json {
 
@@ -52,7 +47,7 @@ int dg_replay, dg_match, dg_axes;
 struct {
     double xmin, xmax, ymin, ymax;
     int x0, y0, wid, hgt, plot;
-    std::array<char, AUTO_LABEL_LEN> xlabel, ylabel; /* get_auto_str writes them */
+    std::string xlabel, ylabel;
 } dg_ax;
 
 /* the client has nothing: a new window, or one it no longer holds */
@@ -66,8 +61,8 @@ int diag_same(const XppDiagPoint *a, const XppDiagPoint *b)
 {
     return a->ibr == b->ibr && a->pt == b->pt && a->itp == b->itp && a->lab == b->lab && a->type == b->type &&
            a->flag2 == b->flag2 && a->draw == b->draw && a->newseg == b->newseg && a->color == b->color &&
-           a->lw == b->lw && a->from == b->from && memcmp(&a->x, &b->x, sizeof a->x) == 0 && memcmp(&a->y1, &b->y1, sizeof a->y1) == 0 &&
-           memcmp(&a->y2, &b->y2, sizeof a->y2) == 0;
+           a->lw == b->lw && a->from == b->from && std::memcmp(&a->x, &b->x, sizeof a->x) == 0 && std::memcmp(&a->y1, &b->y1, sizeof a->y1) == 0 &&
+           std::memcmp(&a->y2, &b->y2, sizeof a->y2) == 0;
 }
 
 /* the replay is over: the list is its first k points */
@@ -92,7 +87,7 @@ void j_auto_diagram(const XppDiagPoint *p)
         dg_ax.wid = Auto.wid;
         dg_ax.hgt = Auto.hgt;
         dg_ax.plot = Auto.plot;
-        get_auto_str(dg_ax.xlabel.data(), dg_ax.ylabel.data());
+        get_auto_str(dg_ax.xlabel, dg_ax.ylabel);
         dg_axes = 1;
         dg_replay = 1;
         dg_match = 0;
@@ -133,9 +128,9 @@ void diag_axes(Buf *b)
     buf_num(b, dg_ax.ymax, 17);
     buf_format(b, ",\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"plot\":{:d},\"xlabel\":", dg_ax.x0, dg_ax.y0,
                dg_ax.wid, dg_ax.hgt, dg_ax.plot);
-    buf_str(b, dg_ax.xlabel.data());
+    buf_str(b, dg_ax.xlabel.c_str());
     BUF_LIT(b, ",\"ylabel\":");
-    buf_str(b, dg_ax.ylabel.data());
+    buf_str(b, dg_ax.ylabel.c_str());
 }
 
 /* points i..j of the list as one run: they share branch, kind and style,
@@ -144,8 +139,7 @@ void diag_run(Buf *b, int i, int j)
 {
     const XppDiagPoint *p = &dg[i];
     int k, two = 0, nlab = 0;
-    std::array<char, 4> sym; /* get_bif_sym writes it */
-    buf_format(b, "{{\"br\":{:d},\"pt\":{:d},\"ty\":{:d},\"d\":{:d},\"c\":{:d},\"lw\":{:d}", abs(p->ibr), abs(p->pt), p->type,
+    buf_format(b, "{{\"br\":{:d},\"pt\":{:d},\"ty\":{:d},\"d\":{:d},\"c\":{:d},\"lw\":{:d}", std::abs(p->ibr), std::abs(p->pt), p->type,
                p->draw, p->color, p->lw);
     if (p->flag2) buf_format(b, ",\"f2\":{:d}", p->flag2);
     if (p->newseg) BUF_LIT(b, ",\"new\":1");
@@ -174,9 +168,8 @@ void diag_run(Buf *b, int i, int j)
     if (nlab) {
         BUF_LIT(b, ",\"lab\":[");
         for (k = i, nlab = 0; k <= j; k++) {
-            const char *t = sym.data();
             if (!dg[k].lab) continue;
-            get_bif_sym(sym.data(), dg[k].itp);
+            const char *t = auto_bif_sym(dg[k].itp);
             while (*t == ' ') t++;
             buf_format(b, "{}[{:d},{:d},", nlab++ ? "," : "", k - i, dg[k].lab);
             buf_str(b, t);
@@ -204,7 +197,7 @@ namespace {
 /* b continues a's run */
 int diag_joins(const XppDiagPoint *a, const XppDiagPoint *b)
 {
-    return !b->newseg && !b->from && abs(a->ibr) == abs(b->ibr) && abs(b->pt) == abs(a->pt) + 1 && a->type == b->type &&
+    return !b->newseg && !b->from && std::abs(a->ibr) == std::abs(b->ibr) && std::abs(b->pt) == std::abs(a->pt) + 1 && a->type == b->type &&
            a->draw == b->draw && a->color == b->color && a->lw == b->lw && a->flag2 == b->flag2;
 }
 
@@ -285,7 +278,7 @@ void j_auto_make_window(const char *wname, const char *)
     Auto.wid = 67 * text_metrics.big_width;
     Auto.x0 = 10 * text_metrics.small_width;
     Auto.y0 = 2 * text_metrics.small_height;
-    XPP_STRCPY(Auto.hinttxt, "hint");
+    XPP_FORMAT_TO_BUF(Auto.hinttxt, "hint"); /* auto_nox.cpp passes it on as a char * */
     diag_forget();      /* a new window has no data */
     auto_data_forget(); /* nor an info strip or a stability circle */
     send_window("create", WIN_AUTO, Auto.wid + 12 * text_metrics.small_width, Auto.hgt + 4 * text_metrics.small_height, wname);
@@ -303,8 +296,8 @@ int j_auto_check_abort(int *iflag)
 }
 int j_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag)
 {
-    int v[4];
-    if (!mouse_ask(WIN_AUTO, "rubber", flag, v, 4)) return 0;
+    std::array<int, 4> v;
+    if (!mouse_ask(WIN_AUTO, "rubber", flag, v)) return 0;
     *i1 = v[0]; *j1 = v[1]; *i2 = v[2]; *j2 = v[3];
     return 1;
 }
@@ -402,61 +395,61 @@ namespace {
 
 /* the "numerics", "pars", "axes" and "marks" of {"cmd":"auto","op":"set",...}
    into s; 0 with why when one is not what docs/protocol.md says */
-int read_auto_set(const char *line, AutoSettingsSet *s, std::string &why)
+int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
 {
     const char *num = js_find(line, "numerics"), *pars = js_find(line, "pars"), *axes = js_find(line, "axes"),
                *marks = js_find(line, "marks"), *v;
     int i;
     for (i = 0; num && *num == '{' && i < AUTO_NUM_N; i++) {
         if (!(v = js_find(num, auto_settings_num_key(i)))) continue;
-        if (!js_number(v, &s->num[i])) {
+        if (!js_number(v, &s.num[i])) {
             why = xpp::format("{} must be a number", auto_settings_num_label(i));
             return 0;
         }
-        s->has_num[i] = 1;
+        s.has_num[i] = 1;
     }
     if (pars && *pars == '[') {
         for (i = 0; (v = js_elem(pars, i)) != NULL; i++) {
-            if (i >= AUTO_SETTINGS_PARS || !js_string(v, s->pars[i], sizeof s->pars[i])) {
+            if (i >= AUTO_SETTINGS_PARS || !js_string(v, s.pars[i], XPP_NAME_MAX + 1)) {
                 why = xpp::format("AUTO's parameters must be a list of at most {} names", AUTO_SETTINGS_PARS);
                 return 0;
             }
         }
-        s->npars = i;
+        s.npars = i;
     }
     if (axes && *axes == '{') {
         static const char *const range[4] = {"xmin", "xmax", "ymin", "ymax"};
         double z;
         if ((v = js_find(axes, "plot")) != NULL) {
-            if (!js_number(v, &z) || z < INT_MIN || z > INT_MAX || z != floor(z)) {
+            if (!js_number(v, &z) || z < INT_MIN || z > INT_MAX || z != std::floor(z)) {
                 why = "the plot type must be a whole number";
                 return 0;
             }
-            s->has_plot = 1;
-            s->plot = static_cast<int>(z);
+            s.has_plot = 1;
+            s.plot = static_cast<int>(z);
         }
-        get_str(axes, "var", s->var, sizeof s->var);
-        get_str(axes, "par1", s->par1, sizeof s->par1);
-        get_str(axes, "par2", s->par2, sizeof s->par2);
+        get_string(axes, "var", s.var, XPP_NAME_MAX + 1);
+        get_string(axes, "par1", s.par1, XPP_NAME_MAX + 1);
+        get_string(axes, "par2", s.par2, XPP_NAME_MAX + 1);
         for (i = 0; i < 4; i++) {
             if (!(v = js_find(axes, range[i]))) continue;
-            if (!js_number(v, &s->range[i])) {
+            if (!js_number(v, &s.range[i])) {
                 why = xpp::format("{}{} must be a number", static_cast<char>(range[i][0] - 32), range[i] + 1);
                 return 0;
             }
-            s->has_range[i] = 1;
+            s.has_range[i] = 1;
         }
-        s->fit = get_num(axes, "fit", 0) != 0;
+        s.fit = get_num(axes, "fit", 0) != 0;
     }
     if (marks && *marks == '[') {
         for (i = 0; (v = js_elem(marks, i)) != NULL; i++) {
-            if (i >= AUTO_SETTINGS_MARKS || *v != '[' || !js_string(js_elem(v, 0), s->mark_name[i], sizeof s->mark_name[i])
-                || !js_number(js_elem(v, 1), &s->mark_value[i])) {
+            if (i >= AUTO_SETTINGS_MARKS || *v != '[' || !js_string(js_elem(v, 0), s.mark_name[i], XPP_NAME_MAX + 1)
+                || !js_number(js_elem(v, 1), &s.mark_value[i])) {
                 why = xpp::format("Mark values must be a list of at most {} pairs [name, number]", AUTO_SETTINGS_MARKS);
                 return 0;
             }
         }
-        s->nmarks = i;
+        s.nmarks = i;
     }
     return 1;
 }
@@ -467,11 +460,8 @@ void auto_set_command(const char *line)
 {
     AutoSettingsSet s;
     std::string why;
-    std::array<char, 256> refused{}; /* auto_settings_apply says why here */
-    auto_settings_set_init(&s);
-    if (!read_auto_set(line, &s, why)) j_err_msg(xpp::format("AUTO settings: {}", why).c_str());
-    else if (auto_settings_apply(&s, refused.data(), refused.size()) != 0)
-        j_err_msg(xpp::format("AUTO settings: {}", refused.data()).c_str());
+    if (!read_auto_set(line, s, why) || auto_settings_apply(s, why) != 0)
+        j_err_msg(xpp::format("AUTO settings: {}", why).c_str());
 }
 
 /* the settings a question's wait put aside, applied at the command's end */

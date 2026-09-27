@@ -35,40 +35,8 @@ enum {
 const char *auto_settings_num_key(int i);
 const char *auto_settings_num_label(int i);
 
-/* 1 when a value of field i is AUTO's (an integer where the field is one,
-   in the field's range); why names the field and its range otherwise.
-   Pure: no model state. */
-int auto_settings_num_ok(int i, double v, char *why, size_t n);
-
 #define AUTO_SETTINGS_PARS 8  /* AUTO's parameters (AutoPar) */
 #define AUTO_SETTINGS_MARKS 9 /* Mark values (the form's Uzr1..Uzr9) */
-
-/* One `auto` `set`: what it changes, each part only when given. A name
-   left empty keeps what is there. */
-typedef struct AutoSettingsSet {
-    int has_num[AUTO_NUM_N];
-    double num[AUTO_NUM_N];
-    int npars; /* -1: no "pars"; else the first npars of AutoPar */
-    char pars[AUTO_SETTINGS_PARS][XPP_NAME_MAX + 1];
-    int has_plot;
-    int plot;
-    char var[XPP_NAME_MAX + 1], par1[XPP_NAME_MAX + 1], par2[XPP_NAME_MAX + 1];
-    int has_range[4]; /* xmin, xmax, ymin, ymax */
-    double range[4];
-    int fit; /* Axes/Fit after the axes are set */
-    int nmarks; /* -1: no "marks"; else how many (0 to 9) */
-    char mark_name[AUTO_SETTINGS_MARKS][XPP_NAME_MAX + 1];
-    double mark_value[AUTO_SETTINGS_MARKS];
-} AutoSettingsSet;
-
-/* an empty set: nothing given */
-void auto_settings_set_init(AutoSettingsSet *s);
-
-/* check the set against the model and apply it all, or nothing: 0 when
-   applied, -1 with why (a sentence naming the bad value) when not. Axes
-   (plot type, names, ranges, fit) draw the diagram again when AUTO's
-   window is open, as the AutoPlot form does. */
-int auto_settings_apply(const AutoSettingsSet *s, char *why, size_t n);
 
 /* the event: {"ev":"autosettings",...} with the settings now, whole; an
    empty string when the model is too big for AUTO (no settings) */
@@ -84,5 +52,38 @@ void auto_settings_update(void);
 
 #ifdef __cplusplus
 }
+
+#include <array>
+#include <string>
+
+/* One `auto` `set`: what it changes, each part only when given (a
+   default-constructed set gives nothing). A name left empty keeps what is
+   there. C++: filled by json_auto.cpp, read by auto_settings.cpp. */
+struct AutoSettingsSet {
+    std::array<int, AUTO_NUM_N> has_num{};
+    std::array<double, AUTO_NUM_N> num{};
+    int npars = -1; /* -1: no "pars"; else the first npars of AutoPar */
+    std::array<std::string, AUTO_SETTINGS_PARS> pars;
+    int has_plot = 0;
+    int plot = 0;
+    std::string var, par1, par2;
+    std::array<int, 4> has_range{}; /* xmin, xmax, ymin, ymax */
+    std::array<double, 4> range{};
+    int fit = 0; /* Axes/Fit after the axes are set */
+    int nmarks = -1; /* -1: no "marks"; else how many (0 to 9) */
+    std::array<std::string, AUTO_SETTINGS_MARKS> mark_name;
+    std::array<double, AUTO_SETTINGS_MARKS> mark_value{};
+};
+
+/* 1 when a value of field i is AUTO's (an integer where the field is one,
+   in the field's range); why names the field and its range otherwise.
+   Pure: no model state. Nothing is thrown. */
+int auto_settings_num_ok(int i, double v, std::string &why);
+
+/* check the set against the model and apply it all, or nothing: 0 when
+   applied, -1 with why (a sentence naming the bad value) when not. Axes
+   (plot type, names, ranges, fit) draw the diagram again when AUTO's
+   window is open, as the AutoPlot form does. Nothing is thrown. */
+int auto_settings_apply(const AutoSettingsSet &s, std::string &why);
 #endif
 #endif

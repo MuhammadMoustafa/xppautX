@@ -568,7 +568,7 @@ void put_file(Request &q, const std::string &name)
 {
     XppFilePut *put;
     unsigned long long left, size;
-    std::array<char, 65> sha;
+    std::string sha;
     if (!q.has_length) {
         reply_text(q.s, "411 Length Required", "a Content-Length is required");
         return;
@@ -603,14 +603,14 @@ void put_file(Request &q, const std::string &name)
         else reply_text(q.s, "400 Bad Request", "incomplete body");
         return;
     }
-    st = xpp_files_put_commit(put, &size, sha.data());
+    st = xpp_files_put_commit(put, &size, sha);
     if (st != XPP_FILES_OK) {
         reply_text(q.s, files_status(st), xpp_files_status_text(st));
         return;
     }
     /* the name passed xpp_files_name_ok: no quote, backslash or control character */
     reply(q.s, "200 OK", "application/json",
-          xpp::format("{{\"name\":\"{}\",\"size\":{},\"sha256\":\"{}\"}}", name, size, sha.data()));
+          xpp::format("{{\"name\":\"{}\",\"size\":{},\"sha256\":\"{}\"}}", name, size, sha));
 }
 
 /* /files (the listing), /files/NAME (GET, PUT): docs/protocol.md "Files" */
@@ -622,11 +622,7 @@ void serve_files(Request &q)
         return;
     }
     if (n == 6 || (n == 7 && q.target[6] == '/')) {
-        if (q.method == "GET") {
-            size_t len;
-            xpp::MemPtr<char> json(xpp_files_list_json(&len));
-            reply(q.s, "200 OK", "application/json", {json.get(), len});
-        }
+        if (q.method == "GET") reply(q.s, "200 OK", "application/json", xpp_files_list_json());
         else reply_text(q.s, "405 Method Not Allowed", "GET only");
         return;
     }
@@ -904,21 +900,6 @@ void print_address(const char *page_url)
     std::fflush(stdout);
 }
 
-/* the descriptor a standard stream writes through, given one if it has
-   none: the Windows exe is a GUI-subsystem program, and started with no
-   console (Explorer, a shortcut, Start-Process) the C library leaves stdout
-   and stderr without a descriptor (_fileno -2), where a dup2 onto 1 and 2
-   never reaches them and all the core prints, AUTO's table included, was
-   lost to the page (T27). The pipe goes onto the stream's own descriptor,
-   whichever it is (also a stream xpp_win32_attach_console reopened). */
-int stream_fd(FILE *f)
-{
-#ifdef _WIN32
-    if (_fileno(f) < 0 && !freopen("NUL", "w", f)) return -1;
-#endif
-    return fileno(f);
-}
-
 std::array<int, 2> log_pipe;
 
 void start(int got, int flags)
@@ -937,8 +918,8 @@ void start(int got, int flags)
 #endif
         no_inherit_fd(log_pipe[0]);
         no_inherit_fd(log_pipe[1]);
-        dup2(log_pipe[1], stream_fd(stdout));
-        dup2(log_pipe[1], stream_fd(stderr));
+        dup2(log_pipe[1], xpp_files_stream_fd(stdout));
+        dup2(log_pipe[1], xpp_files_stream_fd(stderr));
         setvbuf(stdout, nullptr, _IONBF, 0);
         setvbuf(stderr, nullptr, _IONBF, 0);
         pthread_create(&log_thread, nullptr, log_main, &log_pipe[0]);

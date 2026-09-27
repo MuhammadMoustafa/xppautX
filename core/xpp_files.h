@@ -38,24 +38,19 @@ extern "C" {
 int xpp_files_name_ok(const char *name);
 const char *xpp_files_status_text(int status); /* in words, for an error */
 
-/* {"files":[{"name":..,"size":..,"mtime":..,"sha256":".."},...]}: the plain
-   files of the working directory whose names are reachable, sorted by
-   name; mtime in seconds since 1970. xpp_malloc'd, length in *len. */
-char *xpp_files_list_json(size_t *len);
-
 /* opens a file for reading ("rb"); *size its length */
 int xpp_files_open(const char *name, FILE **fp, unsigned long long *size);
 
 /* a write in steps: begin, write the bytes as they come (more than `cap`
    in all fails with XPP_FILES_TOO_LARGE), then commit, or abort. Commit
    and abort end the XppFilePut whatever they return; after a failed
-   write, abort. Commit gives the size and SHA-256 of what was written.
+   write, abort. Commit (below, C++) gives the size and SHA-256 of what
+   was written.
    The write is xpp_io.h's writer (binary): the temp file beside the name
    and its rename are the same as every other replace's. */
 typedef struct XppFilePut XppFilePut;
 int xpp_files_put_begin(const char *name, unsigned long long cap, XppFilePut **put);
 int xpp_files_put_write(XppFilePut *put, const void *data, size_t n);
-int xpp_files_put_commit(XppFilePut *put, unsigned long long *size, char sha256[65]);
 void xpp_files_put_abort(XppFilePut *put);
 
 /* "read" when a file selector with this title opens a file, "write" when
@@ -85,6 +80,14 @@ int xpp_files_replace_file(const char *from, const char *to);
    an input script): fopen's modes, NULL on failure. A file opened and
    closed in one scope uses a handle of xpp_io.h instead. */
 FILE *xpp_files_open_stream(const char *path, const char *mode);
+/* the descriptor a standard stream (stdout, stderr) writes through, given
+   one (the null device) if it has none: the Windows exe is a GUI-subsystem
+   program, and started with no console (Explorer, a shortcut,
+   Start-Process) the C library leaves stdout and stderr without a
+   descriptor (_fileno -2), where a dup2 onto 1 and 2 never reaches them
+   and all the core prints, AUTO's table included, was lost to the page
+   (T27). -1 when it cannot be given one. */
+int xpp_files_stream_fd(FILE *f);
 /* Creates path for writing, failing when it exists already (a link
    included, which is never followed): the temp files of a replace.
    binary 0 is text mode ("w"), 1 binary ("wb"). NULL on failure. */
@@ -108,10 +111,6 @@ void xpp_files_prepend(const char *from, const char *to);
    source still open elsewhere) a copy, then from is removed if it can be */
 void xpp_files_move(const char *from, const char *to);
 
-/* AUTO's private scratch folder: "xppautoX-<pid>-<N>", mode 0700, under
-   $TMPDIR or /tmp (POSIX) or the system temp path (Windows). An
-   xpp_malloc'd absolute path (xpp_free it), or NULL on failure. */
-char *xpp_files_make_temp_dir(void);
 /* Removes every file directly in dir (no folders are expected there),
    then dir itself. NULL does nothing. */
 void xpp_files_remove_temp_dir(const char *dir);
@@ -129,5 +128,21 @@ void xpp_files_command(const char *op, const char *name_json, const char *data_j
 
 #ifdef __cplusplus
 }
+
+#include <string>
+
+/* {"files":[{"name":..,"size":..,"mtime":..,"sha256":".."},...]}: the plain
+   files of the working directory whose names are reachable, sorted by
+   name; mtime in seconds since 1970 */
+std::string xpp_files_list_json();
+
+/* the put's commit (above): its size in *size, the SHA-256 of what was
+   written in sha256 (64 hex digits) */
+int xpp_files_put_commit(XppFilePut *put, unsigned long long *size, std::string &sha256);
+
+/* AUTO's private scratch folder: "xppautoX-<pid>-<N>", mode 0700, under
+   $TMPDIR or /tmp (POSIX) or the system temp path (Windows): its absolute
+   path, or empty on failure */
+std::string xpp_files_make_temp_dir();
 #endif
 #endif

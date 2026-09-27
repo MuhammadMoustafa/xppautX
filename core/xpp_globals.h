@@ -5,24 +5,20 @@
    X11 files once defined now lives with the module that owns it (batch
    options in xpp_batch.h, logging in xpp_log.h, the plot windows in
    many_pops.h, and so on; CLAUDE.md lists them). Defined in
-   xpp_globals.cpp, which has no UI dependency. */
+   xpp_globals.cpp, which has no UI dependency. C++ (a std::string
+   member). */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <string>
 
-typedef struct {
-    int interactive;     /* a front end is up (0: -silent, headless) */
-    /* AUTO's scratch directory (fort.3/7/8/9, <model>.ode.b/.d/.s). NULL:
+struct XppProgram {
+    int interactive = 0; /* a front end is up (0: -silent, headless) */
+    /* AUTO's scratch directory (fort.3/7/8/9, <model>.ode.b/.d/.s). Empty:
        HOME, as upstream (-silent); xppautX sets a private one per session
-       so concurrent sessions never share AUTO files (xppautx_main.c). */
-    char *auto_dir;
-    float version_major, version_minor; /* XPPAUT's version, for titles */
-    int tutorial;        /* @ tutorial=1: show the tutorial at start-up */
-} XppProgram;
+       so concurrent sessions never share AUTO files (xppautx_main.cpp). */
+    std::string auto_dir;
+    float version_major = 0, version_minor = 0; /* XPPAUT's version, for titles */
+    int tutorial = 0; /* @ tutorial=1: show the tutorial at start-up */
+};
 extern XppProgram program;
 
-#ifdef __cplusplus
-}
-#endif
 #endif

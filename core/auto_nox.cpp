@@ -433,12 +433,11 @@ AxisLabels axis_labels()
 }
 } // namespace
 
-void get_auto_str(char *xlabel, char *ylabel)
+void get_auto_str(std::string &xlabel, std::string &ylabel)
 {
-  /* the C API of axis_labels: every caller passes char[AUTO_LABEL_LEN]s */
-  const AxisLabels l=axis_labels();
-  xpp_strlcpy(xlabel,l.x.c_str(),AUTO_LABEL_LEN);
-  xpp_strlcpy(ylabel,l.y.c_str(),AUTO_LABEL_LEN);
+  AxisLabels l=axis_labels();
+  xlabel=std::move(l.x);
+  ylabel=std::move(l.y);
 }
 
 /* the diagram's axes in a PostScript or SVG export (diagram.cpp
@@ -541,13 +540,13 @@ void close_auto(int flg) /* labels compatible with A2K  */
 /* AUTO writes fort.3/7/8/9 under HOME. A HOME that is set but unusable
    (missing, not writable) must fall back to the model's directory like an
    unset one, or the opens fail deep inside autlib1.c. */
-static char *auto_home_dir(char *dname)
+static const char *auto_home_dir(char *dname)
 {
-  char *home;
+  const char *home;
 
   /* xppautX gives each session its own directory (xpp_globals.h) */
-  if (program.auto_dir != NULL)
-    return program.auto_dir;
+  if (!program.auto_dir.empty())
+    return program.auto_dir.c_str();
 
   home = getenv("HOME");
   if (home == NULL || !xpp_files_dir_writable(home))
@@ -564,7 +563,7 @@ void create_auto_file_name()
   char *bname = static_cast<char*>(basename(basec.data()));
   char *dname = static_cast<char*>(dirname(dirc.data()));
 
-  char* HOME = auto_home_dir(dname);
+  const char* HOME = auto_home_dir(dname);
 
   this_auto_file=xpp::format("{}/{}",HOME,bname);
 }
@@ -575,7 +574,7 @@ void open_auto(int flg) /* compatible with new auto */
   char *bname = static_cast<char*>(basename(basec.data()));
   char *dname = static_cast<char*>(dirname(dirc.data()));
 
-  char* HOME = auto_home_dir(dname);
+  const char* HOME = auto_home_dir(dname);
 
   this_auto_file=xpp::format("{}/{}",HOME,bname);
   fort3=xpp::format("{}/fort.3",HOME);
@@ -730,11 +729,10 @@ bool read_long(const char *s,long &v)
    14 wide so the numbers below stay under it. */
 std::string col_centre(const std::string &s)
 {
-  std::array<char,AUTO_COL_W> t{};
-  short_name(t.data(),s.c_str(),AUTO_COL_W-1);
-  const int n=static_cast<int>(strlen(t.data()));
+  const std::string t=short_name(s,AUTO_COL_W-1);
+  const int n=static_cast<int>(t.size());
   const int l=(AUTO_COL_W-n)/2;
-  return std::string(static_cast<size_t>(l),' ')+t.data()+std::string(static_cast<size_t>(AUTO_COL_W-n-l),' ');
+  return std::string(static_cast<size_t>(l),' ')+t+std::string(static_cast<size_t>(AUTO_COL_W-n-l),' ');
 }
 
 std::string screen_col(const char *col)
@@ -1500,20 +1498,11 @@ const char *auto_bif_sym(int itp)
   }
 }
 
-void get_bif_sym(char *at, int itp)
-{
-  /* the C API of auto_bif_sym: every caller passes a char[3] */
-  xpp_strlcpy(at,auto_bif_sym(itp),3);
-}
     
 void info_header(int flag2, int icp1, int icp2)
 {
   /* the names head 10-wide columns of new_info's numbers */
-  auto short10=[](const char *name){
-    std::array<char,11> b{};
-    short_name(b.data(),name,10);
-    return std::string(b.data());
-  };
+  auto short10=[](const char *name){ return short_name(name,10); };
   const std::string p1name=short10(upar_names[AutoPar[icp1]]);
   const std::string p2name=icp2<NAutoPar?short10(upar_names[AutoPar[icp2]]):std::string("   ");
   const std::string vname=short10(uvar_names[Auto.var]);

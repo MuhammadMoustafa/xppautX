@@ -63,12 +63,6 @@ constexpr NumField num_fields[AUTO_NUM_N] = {
 /* Auto.plot's values: hi, norm, hi and lo, period, two parameters, frequency, average */
 bool plot_ok(int p) { return (p >= 0 && p <= 4) || p == 10 || p == 11; }
 
-/* the reason into the C API's why, a buffer of n */
-void say(char *why, size_t n, const char *s)
-{
-    if (n) xpp_strlcpy(why, s, n);
-}
-
 /* ---- the settings now ---- */
 
 void read_num(double v[AUTO_NUM_N])
@@ -252,8 +246,8 @@ bool apply(const AutoSettingsSet *s, std::string &why)
         return false;
     }
     for (int k = 0; k < s->npars; k++) {
-        if (!s->pars[k][0]) continue;
-        int p = find_user_name(PARAM_BOX, s->pars[k]);
+        if (s->pars[k].empty()) continue;
+        int p = find_user_name(PARAM_BOX, s->pars[k].c_str());
         if (p < 0) {
             why = xpp::format("{} is not a parameter", s->pars[k]);
             return false;
@@ -271,16 +265,16 @@ bool apply(const AutoSettingsSet *s, std::string &why)
         }
         plot = s->plot;
     }
-    if (s->var[0]) {
+    if (!s->var.empty()) {
         int col;
-        find_variable(s->var, &col);
+        find_variable(s->var.c_str(), &col);
         if (col < 1 || col > NODE) {
             why = xpp::format("{} is not a variable AUTO computes", s->var);
             return false;
         }
         var = col - 1;
     }
-    const struct { const char *name; int *icp; } axis_pars[] = {{s->par1, &icp1}, {s->par2, &icp2}};
+    const struct { const char *name; int *icp; } axis_pars[] = {{s->par1.c_str(), &icp1}, {s->par2.c_str(), &icp2}};
     for (const auto &a : axis_pars) {
         if (!a.name[0]) continue;
         int k = auto_index_of(pars, a.name);
@@ -313,7 +307,7 @@ bool apply(const AutoSettingsSet *s, std::string &why)
         return false;
     }
     for (int i = 0; i < s->nmarks; i++) {
-        uzr[i] = strcasecmp(s->mark_name[i], "T") == 0 ? AUTO_PERIOD_INDEX : auto_index_of(pars, s->mark_name[i]);
+        uzr[i] = strcasecmp(s->mark_name[i].c_str(), "T") == 0 ? AUTO_PERIOD_INDEX : auto_index_of(pars, s->mark_name[i].c_str());
         if (uzr[i] < 0) {
             why = xpp::format("Mark values: {} is not one of AUTO's parameters (see Parameter) or T",
                                     s->mark_name[i]);
@@ -329,11 +323,11 @@ bool apply(const AutoSettingsSet *s, std::string &why)
     write_num(num);
     const bool new_pars = s->npars > 0 && std::memcmp(pars, AutoPar, sizeof pars) != 0;
     for (int k = 0; k < s->npars; k++) {
-        if (!s->pars[k][0]) continue;
+        if (s->pars[k].empty()) continue;
         AutoPar[k] = pars[k];
         Auto_index_to_array[k] = get_param_index(upar_names[pars[k]]);
     }
-    bool axes = s->has_plot || s->var[0] || s->par1[0] || s->par2[0] || s->fit;
+    bool axes = s->has_plot || !s->var.empty() || !s->par1.empty() || !s->par2.empty() || s->fit;
     for (int i = 0; i < 4; i++) axes = axes || s->has_range[i];
     if (axes) {
         Auto.plot = plot;
@@ -373,38 +367,6 @@ const char *auto_settings_num_key(int i) { return i >= 0 && i < AUTO_NUM_N ? num
 
 const char *auto_settings_num_label(int i) { return i >= 0 && i < AUTO_NUM_N ? num_fields[i].label : nullptr; }
 
-int auto_settings_num_ok(int i, double v, char *why, size_t n)
-{
-    try {
-        std::string w;
-        if (num_ok(i, v, w)) return 1;
-        say(why, n, w.c_str());
-    } catch (...) {
-        say(why, n, "out of memory");
-    }
-    return 0;
-}
-
-void auto_settings_set_init(AutoSettingsSet *s)
-{
-    std::memset(s, 0, sizeof *s);
-    s->npars = -1;
-    s->nmarks = -1;
-}
-
-int auto_settings_apply(const AutoSettingsSet *s, char *why, size_t n)
-{
-    try {
-        std::string w;
-        if (apply(s, w)) return 0;
-        say(why, n, w.c_str());
-    } catch (...) {
-        /* only the messages allocate, all before anything is written */
-        say(why, n, "out of memory");
-    }
-    return -1;
-}
-
 void auto_settings_init(AutoSettingsEmit emit) { emit_line = emit; }
 
 void auto_settings_subscribe(int on)
@@ -428,3 +390,32 @@ void auto_settings_update(void)
 }
 
 } // extern "C"
+
+int auto_settings_num_ok(int i, double v, std::string &why)
+{
+    try {
+        return num_ok(i, v, why) ? 1 : 0;
+    } catch (...) {
+        why.clear();
+        try {
+            why = "out of memory";
+        } catch (...) {
+        }
+    }
+    return 0;
+}
+
+int auto_settings_apply(const AutoSettingsSet &s, std::string &why)
+{
+    try {
+        if (apply(&s, why)) return 0;
+    } catch (...) {
+        /* only the messages allocate, all before anything is written */
+        why.clear();
+        try {
+            why = "out of memory";
+        } catch (...) {
+        }
+    }
+    return -1;
+}

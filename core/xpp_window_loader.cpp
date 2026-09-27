@@ -20,6 +20,7 @@
 #include "xpp_window_hint.h"
 #include "xpp_http.h"
 #include "xpp_inbox.h"
+#include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
 
@@ -100,7 +101,7 @@ void *open_library(std::string &err, bool from_memory)
     }
     /* the mapping keeps the library: neither the descriptor nor the file */
     close(fd);
-    if (!temp.empty()) unlink(temp.c_str());
+    if (!temp.empty()) xpp_files_remove(temp.c_str());
     return lib;
 }
 

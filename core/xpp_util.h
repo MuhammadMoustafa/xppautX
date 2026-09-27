@@ -19,7 +19,6 @@ void clone_ode(void);
 void make_active(int i, int flag);
 void clr_scrn(void);
 int find_user_name(int type, const char *oname);
-void short_name(char *out, const char *name, int width);
 void de_space(char *s);
 void ind_to_sym(int ind, char *str);
 void get_max(int index, double *vmin, double *vmax);
@@ -47,6 +46,13 @@ void xpp_cleanup_auto_dir(void);
 
 #ifdef __cplusplus
 }
+
+#include <string>
+#include <string_view>
+
+/* name, shortened for a fixed-width display of width characters: a longer
+   one keeps its start and ends in '~' so it cannot pass for another name */
+std::string short_name(std::string_view name, int width);
 
 /* f() on the active plot window, or under Simulplot on each open one in
    turn (made active with make_active(i, flag)), the active one made

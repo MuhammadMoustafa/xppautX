@@ -17,7 +17,8 @@ extern "C" {
    the core sees lines in the order they arrived. Every line gets a sequence
    number that grows by one per line, whichever queue it lands in.
 
-   This file and xpp_inbox.cpp include no core header. */
+   This file and xpp_inbox.cpp include no core header but small C APIs
+   (xpp_log.h, xpp_io.h, xpp_files.h). */
 
 #define XPP_INBOX_NORMAL 0  /* a classifier result; next(): the normal queue only */
 #define XPP_INBOX_CONTROL 1 /* a classifier result; next(): the control queue only */
@@ -37,13 +38,6 @@ void xpp_inbox_push(const char *line, size_t n);
    the default: everything normal. */
 void xpp_inbox_set_classifier(int (*cls)(const char *line, unsigned long seq));
 
-/* The next line from `which` queue (XPP_INBOX_NORMAL, _CONTROL, _ANY or
-   _ARRIVAL), waiting at most wait_ms (< 0: block, 0: poll). Returns 1 with
-   *line set to a malloc'd string the caller frees (and *seq, when seq is
-   not NULL, to its sequence number); 0 when nothing came in time, or when
-   input has ended and only the other queue still holds lines; -1 when
-   input has ended (xpp_inbox_close) and both queues are empty. */
-int xpp_inbox_next(int which, int wait_ms, char **line, unsigned long *seq);
 
 /* End of input: once both queues are drained, next() returns -1. */
 void xpp_inbox_close(void);
@@ -84,5 +78,16 @@ void xpp_inbox_script_skip(void);
 
 #ifdef __cplusplus
 }
+
+#include <string>
+
+/* The next line from `which` queue (XPP_INBOX_NORMAL, _CONTROL, _ANY or
+   _ARRIVAL), waiting at most wait_ms (< 0: block, 0: poll). Returns 1 with
+   the line in `line` (and *seq, when seq is not NULL, set to its sequence
+   number); 0 when nothing came in time, or when input has ended and only
+   the other queue still holds lines; -1 when input has ended
+   (xpp_inbox_close) and both queues are empty. `line` is left alone
+   unless 1 is returned. Nothing is thrown. */
+int xpp_inbox_next(int which, int wait_ms, std::string &line, unsigned long *seq);
 #endif
 #endif

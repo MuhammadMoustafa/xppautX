@@ -64,7 +64,7 @@ static void start_auto_dir(void)
        in a signal handler or from another thread is neither safe nor needed */
     xpp_files_cleanup_stale_temp_dirs();
     program.auto_dir = xpp_files_make_temp_dir();
-    if (program.auto_dir != NULL) atexit(xpp_cleanup_auto_dir);
+    if (!program.auto_dir.empty()) atexit(xpp_cleanup_auto_dir);
 }
 
 /* What --version prints. The Makefile passes the release tag when there is

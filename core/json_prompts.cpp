@@ -25,7 +25,6 @@
 /* the core's own globals and functions that have no header of their own */
 extern "C" {
 extern char cur_dir[];
-extern BIFUR Auto;
 extern int DLeft, DRight, DTop, DBottom;
 }
 
@@ -372,20 +371,20 @@ void answer_point(unsigned long win, int k, int *x, int *y)
     }
 }
 
-int mouse_ask(unsigned long win, const char *kind, int flag, int *v, int nv)
+int mouse_ask(unsigned long win, const char *kind, int flag, std::span<int> v)
 {
     Buf b;
-    int i, id = ask_begin(&b, kind);
+    int id = ask_begin(&b, kind);
     buf_format(&b, ",\"win\":{:d},\"flag\":{:d}", win, flag);
     if (!ask_wait(&b, id)) return 0;
-    for (i = 0; i < nv / 2; i++) answer_point(win, i, &v[2 * i], &v[2 * i + 1]);
+    for (size_t i = 0; i < v.size() / 2; i++) answer_point(win, static_cast<int>(i), &v[2 * i], &v[2 * i + 1]);
     return 1;
 }
 
 int j_get_mouse_xy(int *x, int *y)
 {
-    int v[2];
-    if (!mouse_ask(plot_windows.draw_win, "mouse", 0, v, 2)) return 0;
+    std::array<int, 2> v;
+    if (!mouse_ask(plot_windows.draw_win, "mouse", 0, v)) return 0;
     *x = v[0];
     *y = v[1];
     return 1;
@@ -393,8 +392,8 @@ int j_get_mouse_xy(int *x, int *y)
 
 int j_rubber_band(int *i1, int *j1, int *i2, int *j2, int flag)
 {
-    int v[4];
-    if (!mouse_ask(plot_windows.draw_win, "rubber", flag, v, 4)) return 0;
+    std::array<int, 4> v;
+    if (!mouse_ask(plot_windows.draw_win, "rubber", flag, v)) return 0;
     *i1 = v[0]; *j1 = v[1]; *i2 = v[2]; *j2 = v[3];
     return 1;
 }

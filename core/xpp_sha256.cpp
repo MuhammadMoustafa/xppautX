@@ -1,6 +1,7 @@
 /* SHA-256 (FIPS 180-4), see xpp_sha256.h. */
 #include "xpp_sha256.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -8,7 +9,7 @@
 
 namespace {
 
-const std::uint32_t K[64] = {
+constexpr std::array<std::uint32_t, 64> K = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
     0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
@@ -20,9 +21,9 @@ const std::uint32_t K[64] = {
 
 inline std::uint32_t rotr(std::uint32_t x, int n) { return (x >> n) | (x << (32 - n)); }
 
-void compress(unsigned int h[8], const unsigned char *p)
+void compress(std::array<std::uint32_t, 8> &h, const unsigned char *p)
 {
-    std::uint32_t w[64];
+    std::array<std::uint32_t, 64> w;
     for (int i = 0; i < 16; i++)
         w[i] = std::uint32_t(p[4 * i]) << 24 | std::uint32_t(p[4 * i + 1]) << 16 | std::uint32_t(p[4 * i + 2]) << 8
                | std::uint32_t(p[4 * i + 3]);
@@ -56,48 +57,49 @@ void compress(unsigned int h[8], const unsigned char *p)
 
 } // namespace
 
-void xpp_sha256_init(XppSha256 *c)
+namespace xpp {
+
+Sha256::Sha256() noexcept
+    : h_{0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19}
 {
-    static const unsigned int H0[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
-                                       0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
-    std::memcpy(c->h, H0, sizeof H0);
-    c->bytes = 0;
-    c->fill = 0;
 }
 
-void xpp_sha256_update(XppSha256 *c, const void *data, size_t n)
+void Sha256::update(const void *data, std::size_t n) noexcept
 {
     const unsigned char *p = static_cast<const unsigned char *>(data);
-    c->bytes += n;
-    if (c->fill) {
-        size_t k = 64 - c->fill < n ? 64 - c->fill : n;
-        std::memcpy(c->block + c->fill, p, k);
-        c->fill += k;
+    bytes_ += n;
+    if (fill_) {
+        std::size_t k = std::min(block_.size() - fill_, n);
+        std::memcpy(block_.data() + fill_, p, k);
+        fill_ += k;
         p += k;
         n -= k;
-        if (c->fill < 64) return;
-        compress(c->h, c->block);
-        c->fill = 0;
+        if (fill_ < block_.size()) return;
+        compress(h_, block_.data());
+        fill_ = 0;
     }
-    for (; n >= 64; p += 64, n -= 64) compress(c->h, p);
-    std::memcpy(c->block, p, n);
-    c->fill = n;
+    for (; n >= block_.size(); p += block_.size(), n -= block_.size()) compress(h_, p);
+    std::memcpy(block_.data(), p, n);
+    fill_ = n;
 }
 
-void xpp_sha256_hex(XppSha256 *c, char out[65])
+std::string Sha256::hex()
 {
-    static constexpr std::string_view hex = "0123456789abcdef";
-    const unsigned long long bits = c->bytes * 8;
+    static constexpr std::string_view digits = "0123456789abcdef";
+    const unsigned long long bits = bytes_ * 8;
     std::array<unsigned char, 72> pad{0x80};
-    size_t npad = (c->fill < 56 ? 56 : 120) - c->fill;
+    std::size_t npad = (fill_ < 56 ? 56 : 120) - fill_;
     for (int i = 0; i < 8; i++) pad[npad + i] = static_cast<unsigned char>(bits >> (56 - 8 * i));
-    const unsigned long long keep = c->bytes;
-    xpp_sha256_update(c, pad.data(), npad + 8);
-    c->bytes = keep;
+    const unsigned long long keep = bytes_;
+    update(pad.data(), npad + 8);
+    bytes_ = keep;
+    std::string out(64, '0');
     for (int i = 0; i < 32; i++) {
-        unsigned char b = static_cast<unsigned char>(c->h[i / 4] >> (24 - 8 * (i % 4)));
-        out[2 * i] = hex[b >> 4];
-        out[2 * i + 1] = hex[b & 15];
+        unsigned char b = static_cast<unsigned char>(h_[i / 4] >> (24 - 8 * (i % 4)));
+        out[2 * i] = digits[b >> 4];
+        out[2 * i + 1] = digits[b & 15];
     }
-    out[64] = 0;
+    return out;
 }
+
+} // namespace xpp
