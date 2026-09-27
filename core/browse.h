@@ -20,7 +20,6 @@ typedef struct {
 extern BROWSER my_browser;
 
 float **get_browser_data(void);
-void set_browser_data(float **data);
 float *get_data_col(int c);
 void waitasec(int msec);
 int get_maxrow_browser(void);
