@@ -26,6 +26,7 @@
    an empty name. */
 #include "xpplim.h"
 #include "volterra.h"
+#include "tabular.h"
 
 #include <array>
 #include <string>
@@ -172,6 +173,13 @@ struct Model {
   std::array<std::string, MAXUFUN> ufun_names;
   /* each user function's argument names (narg_fun[i] of them) */
   std::array<std::vector<std::string>, MAXUFUN> ufun_args;
+
+  /* ---- the tables (tabular.cpp), ntable of them ---- */
+  /* a function table's values are computed again when a parameter it
+     reads changes (autoeval, redo_all_fun_tables), and a file table can
+     be read again from the Numerics menu: the Session's to own (W47c) */
+  int ntable=0;
+  std::array<TABULAR,MAX_TAB> tables;
 
   /* ---- the user functions (parserslow2.cpp), nfun of them ---- */
   int nfun=0;

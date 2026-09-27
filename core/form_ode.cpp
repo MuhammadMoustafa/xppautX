@@ -733,7 +733,7 @@ int compiler(const std::string &bob, FILE *fptr)
       }
       break;
     case 't':
-      if(NTable>=MAX_TAB)
+      if(xpp::model().ntable>=MAX_TAB)
 	{
 	  if(ERROUT)xpp_log(XPP_LOG_WARN, "too many tables !!\n");
 	  xpp_model_failed();
@@ -748,9 +748,9 @@ int compiler(const std::string &bob, FILE *fptr)
 	formula=tokens.text("\n");
 	xpp::log(XPP_LOG_INFO, " {} has {} pts from {:f} to {:f} = {}\n",
 	       name,nn,xlo,xhi,formula);
-	add_table_name(NTable,name.c_str());
+	add_table_name(xpp::model().ntable,name.c_str());
 
-	if(add_form_table(NTable,nn,xlo,xhi,formula.c_str())){
+	if(add_form_table(xpp::model().ntable,nn,xlo,xhi,formula.c_str())){
 	  xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	  xpp_model_failed();
 	}
@@ -758,8 +758,8 @@ int compiler(const std::string &bob, FILE *fptr)
 	if(ConvertStyle)
 	  xpp::print(convertf,"table {} % {} {:g} {:g} {}\n",
 		  name,nn,xlo,xhi,formula);
-	NTable++;
-	xpp_log(XPP_LOG_INFO, " NTable = %d \n",NTable);
+	xpp::model().ntable++;
+	xpp_log(XPP_LOG_INFO, " NTable = %d \n",xpp::model().ntable);
 
       }
       else
@@ -775,15 +775,15 @@ int compiler(const std::string &bob, FILE *fptr)
 	else
 	  {
 	    xpp::log(XPP_LOG_INFO, "Lookup table {} = {} \n",name,formula);
-            add_table_name(NTable,name.c_str());
-	    if(add_file_table(NTable,formula.c_str())){
+            add_table_name(xpp::model().ntable,name.c_str());
+	    if(add_file_table(xpp::model().ntable,formula.c_str())){
 	      xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	      xpp_model_failed();
 	    }
 	    if(ConvertStyle)
 	      xpp::print(convertf,"table {} {}\n",
 		      name,formula);
-	    NTable++;
+	    xpp::model().ntable++;
 	  }
       break;
 
@@ -1666,7 +1666,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
  Naux=naux;
  xpp::model().neq=nvar+xpp::model().nmarkov+Naux;
  xpp::model().fix_var=nfix;
- NTable=ntab;
+ xpp::model().ntable=ntab;
  xpp::model().nfun=nufun;
 
 /* Reset all this stuff so we align the indices correctly */

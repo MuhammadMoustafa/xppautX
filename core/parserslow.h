@@ -76,7 +76,7 @@ extern "C" {
    numbers' seed */
 extern double constants[MAXPAR];
 extern double variables[MAXODE1];
-extern int NCON,NSYM,NTable,MaxPoints;
+extern int NCON,NSYM,MaxPoints;
 extern int ERROUT,RandSeed;
 
 void init_rpn(void);

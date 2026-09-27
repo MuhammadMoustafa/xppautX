@@ -26,10 +26,9 @@ core/my_svg.cpp 1
 core/nullcline.cpp 11
 core/numerics.cpp 3
 core/odesol2.cpp 1
-core/parserslow2.cpp 8
+core/parserslow2.cpp 7
 core/setubv2.cpp 1
 core/storage.cpp 4
-core/tabular.cpp 1
 core/ui_json.cpp 1
 core/userbut.cpp 2
 core/volterra2.cpp 1

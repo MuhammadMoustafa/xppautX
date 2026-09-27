@@ -380,7 +380,7 @@ int add_spec_fun(const char *name, char *rhs)
     ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
     my_net[ind].values.assign((ntot+1),0.0);
-    my_net[ind].weight=my_table[iwgt].y;
+    my_net[ind].weight=xpp::model().tables[iwgt].y;
     my_net[ind].type=ntype;
     my_net[ind].root=ivar;
     my_net[ind].n=ntot;
@@ -406,8 +406,8 @@ int add_spec_fun(const char *name, char *rhs)
     if(ivar<0)return 0;
  
     my_net[ind].values.assign((ntot+1),0.0);
-    my_net[ind].weight=my_table[iwgt].y;
-    my_net[ind].index=my_table[iind].y;
+    my_net[ind].weight=xpp::model().tables[iwgt].y;
+    my_net[ind].index=xpp::model().tables[iind].y;
 
     my_net[ind].type=ntype;
     my_net[ind].root=ivar;
@@ -437,7 +437,7 @@ int add_spec_fun(const char *name, char *rhs)
 
     if(!next_pair_function(args,name,ind,ivar,ivar2,fname))return 0;
     my_net[ind].values.assign((ntot+1),0.0);
-    my_net[ind].weight=my_table[iwgt].y;
+    my_net[ind].weight=xpp::model().tables[iwgt].y;
     my_net[ind].type=ntype;
     my_net[ind].root=my_net[ind].f[0]; /* this is strange - I am adding the compiled names */
     my_net[ind].root2=my_net[ind].f[1];
@@ -463,8 +463,8 @@ int add_spec_fun(const char *name, char *rhs)
     if(!next_pair_function(args,name,ind,ivar,ivar2,fname))return 0;
 
     my_net[ind].values.assign((ntot+1),0.0);
-    my_net[ind].weight=my_table[iwgt].y;
-    my_net[ind].index=my_table[iind].y;
+    my_net[ind].weight=xpp::model().tables[iwgt].y;
+    my_net[ind].index=xpp::model().tables[iind].y;
 
     my_net[ind].type=ntype;
     my_net[ind].root=my_net[ind].f[0]; /* this is strange - I am adding the compiled names */
@@ -512,7 +512,7 @@ int add_spec_fun(const char *name, char *rhs)
     my_net[ind].di.assign(ncon+2,0.0);
     my_net[ind].iwgt=iwgt;
     my_net[ind].values.assign((ntot+1),0.0);
-    my_net[ind].weight=my_table[iwgt].y;
+    my_net[ind].weight=xpp::model().tables[iwgt].y;
     my_net[ind].type=ntype;
     my_net[ind].root=ivar;
     my_net[ind].n=ntot;
@@ -537,7 +537,7 @@ int add_spec_fun(const char *name, char *rhs)
     if(ivar<0)return 0;
  
     my_net[ind].values.assign((ncon+1),0.0);
-    my_net[ind].weight=my_table[iwgt].y;
+    my_net[ind].weight=xpp::model().tables[iwgt].y;
 
     my_net[ind].type=ntype;
     my_net[ind].root=ivar;
@@ -559,7 +559,7 @@ int add_spec_fun(const char *name, char *rhs)
 
     if(!next_pair_function(args,name,ind,ivar,ivar2,fname))return 0;
     my_net[ind].values.assign((ncon+1),0.0);
-    my_net[ind].weight=my_table[iwgt].y;
+    my_net[ind].weight=xpp::model().tables[iwgt].y;
 
     my_net[ind].type=ntype;
     my_net[ind].root=my_net[ind].f[0]; /* this is strange - I am adding the compiled names */
@@ -654,7 +654,7 @@ int add_spec_fun(const char *name, char *rhs)
 		name,tname[i]);
 	 return 0;
        }
-       my_net[ind].wgtlist[i]=my_table[iwgt].y;
+       my_net[ind].wgtlist[i]=xpp::model().tables[iwgt].y;
      }
      xpp_log(XPP_LOG_INFO, " Added import %s len=%d  with %s %s var[%d] %d weights\n",
 	    name,my_net[ind].n,soname.c_str(),sofun.c_str(),ivar,ntab );
@@ -677,8 +677,8 @@ int add_spec_fun(const char *name, char *rhs)
     if(ivar<0)return 0;
  
     my_net[ind].values.assign((ncon+1),0.0);
-    my_net[ind].weight=my_table[iwgt].y;
-    my_net[ind].taud=my_table[itau].y;
+    my_net[ind].weight=xpp::model().tables[iwgt].y;
+    my_net[ind].taud=xpp::model().tables[itau].y;
 
     my_net[ind].type=ntype;
     my_net[ind].root=ivar;
@@ -710,9 +710,9 @@ int add_spec_fun(const char *name, char *rhs)
     if(ivar<0)return 0;
  
     my_net[ind].values.assign((ntot+1),0.0);
-    my_net[ind].weight=my_table[iwgt].y;
-    my_net[ind].index=my_table[iind].y;
-    my_net[ind].taud=my_table[itau].y;
+    my_net[ind].weight=xpp::model().tables[iwgt].y;
+    my_net[ind].index=xpp::model().tables[iind].y;
+    my_net[ind].taud=xpp::model().tables[itau].y;
     my_net[ind].type=ntype;
     my_net[ind].root=ivar;
     my_net[ind].n=ntot;

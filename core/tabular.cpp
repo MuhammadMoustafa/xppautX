@@ -72,8 +72,8 @@ to be added later
 
 #include <math.h>
 #include <stdio.h>
+#include "model.h"
 
-TABULAR my_table[MAX_TAB];
 
 namespace {
 /* table index's values y to length doubles, keeping what it holds (what
@@ -83,8 +83,9 @@ namespace {
    had) never shows. y stays a raw double*: see TABULAR (tabular.h). */
 void resize_values(int index, int length)
 {
-  my_table[index].y_storage.resize(static_cast<size_t>(length));
-  my_table[index].y=my_table[index].y_storage.data();
+  xpp::Model &m=xpp::model();
+  m.tables[index].y_storage.resize(static_cast<size_t>(length));
+  m.tables[index].y=m.tables[index].y_storage.data();
 }
 }
 
@@ -92,19 +93,20 @@ void set_auto_eval_flags(int f)
 {
  int i;
   for(i=0;i<MAX_TAB;i++) 
-    my_table[i].autoeval=f;
+    xpp::model().tables[i].autoeval=f;
 }
 void set_table_name(const char *name, int index)
 {
-  my_table[index].name=name;
+  xpp::model().tables[index].name=name;
 }
 
 void view_table(int index)
 {
+  xpp::Model &m=xpp::model();
   int i;
-  int n=my_table[index].n,len;
-  double *y=my_table[index].y;
-  double xlo=my_table[index].xlo,dx=my_table[index].dx;
+  int n=m.tables[index].n,len;
+  double *y=m.tables[index].y;
+  double xlo=m.tables[index].xlo,dx=m.tables[index].dx;
   len=n;
   if(len>=data_store.max_rows)len=data_store.max_rows-1;
   for(i=0;i<len;i++){
@@ -116,6 +118,7 @@ void view_table(int index)
 
 void new_lookup_com(int i)
 {
+  xpp::Model &m=xpp::model();
  int index,ok,status;
  double xlo,xhi;
  int npts;
@@ -126,21 +129,21 @@ void new_lookup_com(int i)
     view_table(index);
     return;
   }
-   if(my_table[index].flag==1){
-     std::string file=my_table[index].filename;
+   if(m.tables[index].flag==1){
+     std::string file=m.tables[index].filename;
      status=file_selector("Load table",file,"*.tab");
      if(status==0)return;
      ok=load_table(file.c_str(),index);
-     if(ok==1)my_table[index].filename=file;
+     if(ok==1)m.tables[index].filename=file;
 
    }
-   if(my_table[index].flag==2){
-     npts=my_table[index].n;
+   if(m.tables[index].flag==2){
+     npts=m.tables[index].n;
 
-     xlo=my_table[index].xlo;
-       xhi=my_table[index].xhi;
-       std::string newform=my_table[index].filename;
-       new_int("Auto-evaluate? (1/0)",&my_table[index].autoeval);
+     xlo=m.tables[index].xlo;
+       xhi=m.tables[index].xhi;
+       std::string newform=m.tables[index].filename;
+       new_int("Auto-evaluate? (1/0)",&m.tables[index].autoeval);
        new_int("NPts: ",&npts);
        new_float("Xlo: ",&xlo);
        new_float("Xhi: ",&xhi);
@@ -193,25 +196,26 @@ double tab_interp(double xlo, double h, double x, double *y, int n, int i)
 }
 double lookup(double x, int index)
 {
-  double xlo=my_table[index].xlo,xhi=my_table[index].xhi,dx=my_table[index].dx;
+  xpp::Model &m=xpp::model();
+  double xlo=m.tables[index].xlo,xhi=m.tables[index].xhi,dx=m.tables[index].dx;
   double *y;
   double x1,y1,y2;
-  int i1,i2,n=my_table[index].n;
-  y=my_table[index].y;
+  int i1,i2,n=m.tables[index].n;
+  y=m.tables[index].y;
  
-  if(my_table[index].flag==0)return(0.0); /* Not defined   */
-   if(my_table[index].xyvals==1)
-    return(lookupxy(x,n,my_table[index].x,y));
+  if(m.tables[index].flag==0)return(0.0); /* Not defined   */
+   if(m.tables[index].xyvals==1)
+    return(lookupxy(x,n,m.tables[index].x,y));
   
   i1=static_cast<int>((x-xlo)/dx);   /* (int)floor(x) instead of (int)x ??? */
-  if(my_table[index].interp==2&&i1>0&&i1<(n-2))
+  if(m.tables[index].interp==2&&i1>0&&i1<(n-2))
     return tab_interp(xlo,dx,x,y,n,i1); /* if it is on the edge - use linear */
   i2=i1+1;
     if(i1>-1&&i2<n){
     x1=dx*i1+xlo;
     y1=y[i1];
     y2=y[i2];
-    if (my_table[index].interp==0||my_table[index].interp==2)
+    if (m.tables[index].interp==0||m.tables[index].interp==2)
       return(y1+(y2-y1)*(x-x1)/dx);
     else
       {
@@ -226,21 +230,23 @@ double lookup(double x, int index)
 
 void init_table()
 {
+  xpp::Model &m=xpp::model();
   int i;
   for(i=0;i<MAX_TAB;i++) {
-    my_table[i].flag=0;
-    my_table[i].autoeval=1;
-    my_table[i].interp=0;
+    m.tables[i].flag=0;
+    m.tables[i].autoeval=1;
+    m.tables[i].interp=0;
   }
 }
 
 void redo_all_fun_tables()
 {
+  xpp::Model &m=xpp::model();
   int i;
-  for(i=0;i<NTable;i++){
-    if(my_table[i].flag==2&&my_table[i].autoeval==1)
-      eval_fun_table(my_table[i].n,my_table[i].xlo,
-		     my_table[i].xhi,my_table[i].filename.c_str(),my_table[i].y);
+  for(i=0;i<m.ntable;i++){
+    if(m.tables[i].flag==2&&m.tables[i].autoeval==1)
+      eval_fun_table(m.tables[i].n,m.tables[i].xlo,
+		     m.tables[i].xhi,m.tables[i].filename.c_str(),m.tables[i].y);
   }
   update_all_ffts();
 }
@@ -272,9 +278,10 @@ int eval_fun_table(int n, double xlo, double xhi, const char *formula, double *y
 
 int create_fun_table(int npts, double xlo, double xhi, const char *formula, int index)
 {
+  xpp::Model &m=xpp::model();
   int length=npts;
 
-   if(my_table[index].flag==1){
+   if(m.tables[index].flag==1){
     err_msg("Not a function table...");
     return(0);
   }
@@ -287,13 +294,13 @@ int create_fun_table(int npts, double xlo, double xhi, const char *formula, int 
     return(0);
   }
   resize_values(index,length);
-  my_table[index].flag=2;
-  if(eval_fun_table(npts,xlo,xhi,formula,my_table[index].y)){
-    my_table[index].xlo=xlo;
-    my_table[index].xhi=xhi;
-    my_table[index].n=npts;
-    my_table[index].dx=(xhi-xlo)/(static_cast<double>(npts-1));
-    my_table[index].filename=formula;
+  m.tables[index].flag=2;
+  if(eval_fun_table(npts,xlo,xhi,formula,m.tables[index].y)){
+    m.tables[index].xlo=xlo;
+    m.tables[index].xhi=xhi;
+    m.tables[index].n=npts;
+    m.tables[index].dx=(xhi-xlo)/(static_cast<double>(npts-1));
+    m.tables[index].filename=formula;
     return(1);
   }
    return(0);
@@ -301,6 +308,7 @@ int create_fun_table(int npts, double xlo, double xhi, const char *formula, int 
 
 int load_table(const char *filename, int index)
 {
+  xpp::Model &m=xpp::model();
   int i;
   int length;
   double xlo,xhi;
@@ -316,7 +324,7 @@ int load_table(const char *filename, int index)
       filename2+=*p;
   }
 
-  if(my_table[index].flag==2){
+  if(m.tables[index].flag==2){
     err_msg("Not a file table...");
     return(0);
   }
@@ -333,7 +341,7 @@ int load_table(const char *filename, int index)
     return std::string(*line);
   };
 
- my_table[index].interp=0;
+ m.tables[index].interp=0;
   auto line0=next_line();
   if(!line0){
     err_msg("Table file too short");
@@ -343,12 +351,12 @@ int load_table(const char *filename, int index)
     const char *bob=line0->c_str();
     if (bob[0]=='i') /* closest step value */
       {
-        my_table[index].interp=1;
+        m.tables[index].interp=1;
         bob++;  /* skip past initial "i" to length */
       };
     if (bob[0]=='s') /* cubic spline  */
       {
-        my_table[index].interp=2;
+        m.tables[index].interp=2;
         bob++;  /* skip past initial "i" to length */
       };
     length=atoi(bob);
@@ -373,31 +381,31 @@ int load_table(const char *filename, int index)
     err_msg("xlo >= xhi ??? ");
     return(0);
   }
-  bool fresh=(my_table[index].flag==0);
+  bool fresh=(m.tables[index].flag==0);
   resize_values(index,length);
   for(i=0;i<length;i++){
     auto line=next_line();
     if(!line){
        err_msg("Table file too short");
-       my_table[index].y_storage=std::vector<double>();
-       my_table[index].y=NULL;
-       my_table[index].flag=0;
+       m.tables[index].y_storage=std::vector<double>();
+       m.tables[index].y=NULL;
+       m.tables[index].flag=0;
        return(0);
      }
-     my_table[index].y[i]=atof(line->c_str());
+     m.tables[index].y[i]=atof(line->c_str());
    }
-  my_table[index].xlo=xlo;
-  my_table[index].xhi=xhi;
-  my_table[index].n=length;
-  my_table[index].dx=(xhi-xlo)/(length-1);
-  my_table[index].flag=1;
-  if(fresh) my_table[index].filename=filename2;
+  m.tables[index].xlo=xlo;
+  m.tables[index].xhi=xhi;
+  m.tables[index].n=length;
+  m.tables[index].dx=(xhi-xlo)/(length-1);
+  m.tables[index].flag=1;
+  if(fresh) m.tables[index].filename=filename2;
   return(1);
 }
    
 int get_lookup_len(int i)
 {
-  return my_table[i].n;
+  return xpp::model().tables[i].n;
 }
 
 /*   network stuff  
@@ -429,18 +437,18 @@ int select_table(void)
  std::string key;
  std::vector<std::string> names;
  std::vector<const char *> n;
- for(int i=0;i<NTable;i++){
+ for(int i=0;i<xpp::model().ntable;i++){
    key+=static_cast<char>('a'+i);
-   names.push_back(xpp::format("{}: {}",key[i],my_table[i].name));
+   names.push_back(xpp::format("{}: {}",key[i],xpp::model().tables[i].name));
  }
  for(const std::string &s : names)n.push_back(s.c_str());
  {
    XppMenu m={"table","Table",0,NULL,NULL,NULL,-1};
-   m.n=NTable; m.items=n.data(); m.keys=key.c_str(); m.hints=no_hint;
+   m.n=xpp::model().ntable; m.items=n.data(); m.keys=key.c_str(); m.hints=no_hint;
    ch=static_cast<char>(menu_choose(&m,0));
  }
  j=static_cast<int>(ch-'a');
- if(j<0||j>=NTable){
+ if(j<0||j>=xpp::model().ntable){
    err_msg("Not a valid table");
    return -1;
  }

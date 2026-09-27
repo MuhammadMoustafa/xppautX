@@ -46,7 +46,6 @@ double variables[MAXODE1];
 static double stack[200],ustack[200];
 
 int MaxPoints;
-int NTable;
 
 namespace {
 /* a name the parser knows: its length, what it compiles to (com), its
