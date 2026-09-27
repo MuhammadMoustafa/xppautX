@@ -17,7 +17,6 @@
 #define _cvdense_h
 
 
-#include <stdio.h>
 #include "cvode.h"
 #include "llnltyps.h"
 #include "dense.h"

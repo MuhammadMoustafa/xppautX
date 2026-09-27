@@ -10,8 +10,6 @@
  ******************************************************************/
 
 #include <stdio.h>
-#include "xpp_mem.h"
-#include "xpp_log.h"
 #include <stdlib.h>
 #include "band.h"
 #include "llnltyps.h"
@@ -29,14 +27,17 @@
 
 BandMat BandAllocMat(integer N, integer mu, integer ml, integer smu)
 {
-  BandMat A;
-
   if (N <= 0) return(NULL);
-  
-  A = static_cast<BandMat>(xpp_malloc(sizeof *A));
 
-  /* bandalloc only returns NULL for n <= 0, already ruled out above. */
-  A->data = bandalloc(N, smu, ml);
+  /* The C API's raw handle (BandFreeMat deletes it), its elements in its
+     own std::vectors, zeroed like the xpp_malloc blocks they replace:
+     data[0] points to all N*(smu+ml+1), data[j] to the jth column's. */
+  integer colSize = smu + ml + 1;
+  BandMat A = new BandMatRec();
+  A->values.assign(N * colSize, ZERO);
+  A->columns.resize(N);
+  for (integer j=0; j < N; j++) A->columns[j] = A->values.data() + j * colSize;
+  A->data = A->columns.data();
 
   A->size = N;
   A->mu = mu;
@@ -44,14 +45,6 @@ BandMat BandAllocMat(integer N, integer mu, integer ml, integer smu)
   A->smu = smu;
 
   return(A);
-}
-
-
-integer *BandAllocPiv(integer N)
-{
-  if (N <= 0) return(NULL);
-  
-  return(static_cast<integer *>(xpp_malloc(N * sizeof(integer))));
 }
 
 
@@ -88,33 +81,7 @@ void BandAddI(BandMat A)
 
 void BandFreeMat(BandMat A)
 {
-  bandfree(A->data);
-  xpp_free(A);
-}
-
-void BandFreePiv(integer *p)
-{ 
-  xpp_free(p);
-}
-
-
-real **bandalloc(integer n, integer smu, integer ml)
-{
-  real **a;
-  integer j, colSize;
-
-  if (n <= 0) return(NULL);
-
-  a = static_cast<real **>(xpp_malloc(n * sizeof(real *)));
-
-  /* xpp_malloc never returns NULL (it exits on failure), so there is no
-     allocation-failure branch to unwind here. */
-  colSize = smu + ml + 1;
-  a[0] = static_cast<real *>(xpp_malloc(n * colSize * sizeof(real)));
-
-  for (j=1; j < n; j++) a[j] = a[0] + j * colSize;
-
-  return(a);
+  delete A;
 }
 
 
@@ -309,10 +276,3 @@ void bandaddI(real **a, integer n, integer smu)
   for(j=0; j < n; j++)
     a[j][smu] += ONE;
 }
-
-void bandfree(real **a)
-{
-  xpp_free(a[0]);
-  xpp_free(a);
-}
-

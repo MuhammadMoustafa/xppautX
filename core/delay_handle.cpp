@@ -1,6 +1,5 @@
 #include "delay_handle.h"
 #include "xpp_ui.h"
-#include "xpp_mem.h"
 #include "parserslow.h"
 #include "integrate.h"
 
@@ -15,7 +14,11 @@
 
 double AlphaMax=2,OmegaMax=2;
 
-double *DelayWork;
+namespace {
+/* the stored history, NODE values per row, MaxDelay rows (a ring,
+   LatestDelay its newest row) */
+std::vector<double> DelayWork;
+}
 int LatestDelay;
 int MaxDelay;
 int DelayFlag=0;
@@ -60,7 +63,7 @@ double delay_stab_eval(double delay, int var)  /* this returns appropriate value
 
 int alloc_delay(double big)
 {
- int n,i;
+ int n;
 
  
  n=static_cast<int>(big/fabs(DELTA_T))+1;
@@ -68,20 +71,17 @@ int alloc_delay(double big)
  MaxDelay=n;
  LatestDelay=1;
  DelayFlag=0;
- /* xpp_calloc never returns NULL (it exits on failure), so there is no
-    allocation-failure branch to handle here. */
- DelayWork=static_cast<double *>(xpp_calloc(n*(NODE ),sizeof(double)));
+ DelayWork.assign(n*(NODE ),0.0);
  DelayFlag=1;
  NDelay=0;
  WhichDelay=-1;
  del_stab_flag=1;
- for(i=0;i<n*(NODE );i++)DelayWork[i]=0.0;
  return(1);
 }
 
 void free_delay()
 {
- if(DelayFlag)xpp_free(DelayWork);
+ if(DelayFlag)DelayWork=std::vector<double>();
  DelayFlag=0;
 }
 

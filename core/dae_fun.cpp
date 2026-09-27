@@ -1,6 +1,5 @@
 
 #include "dae_fun.h"
-#include "xpp_mem.h"
 #include "gear.h"
 #include "parserslow.h"
 
@@ -15,6 +14,7 @@
 #include "xpp_math.h"
 #include "xpp_ui.h"
 #include <string>
+#include <string_view>
 #include <vector>
 #define MAXDAE 400
 
@@ -294,16 +294,14 @@ int solve_dae()
 void get_new_guesses()
 {
   int i,n;
-  /* new_string_of edits svar[i].rhs in place. name stays on
-     xpp_snprintf: its "%.*s" dynamic precision has no mechanical
-     xpp::format equivalent (CLAUDE.md's xpp::format carve-out). */
-  char name[XPP_NAME_MAX+40];
+  /* new_string_of edits svar[i].rhs in place */
   double z;
   if(nsvar<1)return;
   for(i=0;i<nsvar;i++){
     z=svar[i].last;
-    xpp_snprintf(name,sizeof(name),"Initial %.*s(%g):",XPP_NAME_MAX,svar[i].name.c_str(),z);
-    new_string_of(name,svar[i].rhs,XPP_FIELD_EXPRESSION);
+    const std::string name=xpp::format("Initial {}({:g}):",
+      std::string_view(svar[i].name).substr(0,XPP_NAME_MAX),z);
+    new_string_of(name.c_str(),svar[i].rhs,XPP_FIELD_EXPRESSION);
     if(add_expr(svar[i].rhs.c_str(),svar[i].form.data(),&n)){
       err_msg("Illegal formula");
       return;

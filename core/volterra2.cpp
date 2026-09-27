@@ -1,6 +1,5 @@
 #include "xpp_batch.h"
 #include "volterra2.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "delay_handle.h"
@@ -14,8 +13,7 @@
 #include <math.h>
 #include <stdio.h>
 #include "parserslow.h"
-
-
+#include <vector>
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
 /* #define Set_ivar(a,b) variables[(a)]=(b) */
@@ -49,6 +47,28 @@ int KnFlag;
 
 
 int AutoEvaluate=0;
+
+namespace {
+/* The storage behind the raw pointers of KERNEL (volterra.h) and Memory[]
+   (both defined in parserslow2.cpp, C structs of plain pointers): each
+   pointer is a view into one of these vectors, which own the memory and
+   are replaced, not freed, when the grid is allocated again. */
+struct VolterraStore {
+  std::vector<int> formula[MAXKER], kerform[MAXKER];
+  std::vector<double> cnv[MAXKER], al[MAXKER];
+  std::vector<double> memory[MAXODE];
+};
+VolterraStore store;
+
+/* v made n zeroed values; returns where they start */
+template <class T>
+T *zeroed(std::vector<T> &v, size_t n)
+{
+  v.assign(n, T());
+  return v.data();
+}
+}
+
 extern double variables[];
 extern int NVAR;
 extern int MaxEulIter;
@@ -80,7 +100,7 @@ void alloc_v_memory()  /* allocate stuff for volterra equations */
     xpp_log(XPP_LOG_ERROR, "Illegal kernel %s=%s\n",kernel[i].name,kernel[i].expr);
     xpp_model_failed(); /* fatal error ... */
   }
-     kernel[i].formula=static_cast<int *>(xpp_malloc((len+2)*sizeof(int)));
+     kernel[i].formula=zeroed(store.formula[i],len+2);
      for(j=0;j<len;j++){
 
        kernel[i].formula[j]=formula[j];
@@ -91,7 +111,7 @@ void alloc_v_memory()  /* allocate stuff for volterra equations */
 		kernel[i].name,kernel[i].kerexpr);
 	 xpp_model_failed(); /* fatal error ... */
        }
-       kernel[i].kerform=static_cast<int *>(xpp_malloc((len+2)*sizeof(int)));
+       kernel[i].kerform=zeroed(store.kerform[i],len+2);
        for(j=0;j<len;j++){
 	 kernel[i].kerform[j]=formula[j];
        }
@@ -108,14 +128,10 @@ void allocate_volterra(int npts, int flag)
   MaxPoints=npts;
   /* now allocate the memory   */
   if(NKernel==0)return;
-  if(flag==1)for(i=0;i<ntot;i++)xpp_free(Memory[i]);
-  /* xpp_malloc never returns NULL (it exits on failure), so the
-     smaller-than-requested retry that used to follow a short allocation
-     here is unreachable and has been removed. Memory[] is a raw
-     xpp_malloc block per node because it is a global array shared with
-     other translation units (GETVAR/SETVAR's Memory[i][j] access). */
+  /* flag==1 (a new grid) used to free the old blocks first; assigning the
+     vectors again replaces them either way, so flag no longer matters */
   for(i=0;i<ntot;i++)
-    Memory[i]=static_cast<double *>(xpp_malloc(sizeof(double)*MaxPoints));
+    Memory[i]=zeroed(store.memory[i],MaxPoints);
 
   CurrentPoint=0;
   KnFlag=1;
@@ -144,8 +160,7 @@ void alloc_kernels(int flag)
   double mu;
   for(i=0;i<NKernel;i++){
     if(kernel[i].flag==CONV){
-      if(flag==1)xpp_free(kernel[i].cnv);
-      kernel[i].cnv=static_cast<double *>(xpp_malloc((n+1)*sizeof(double)));
+      kernel[i].cnv=zeroed(store.cnv[i],n+1);
       for(j=0;j<=n;j++){
 	SETVAR(0,T0+DELTA_T*j);
 	kernel[i].cnv[j]=evaluate(kernel[i].kerform);
@@ -154,8 +169,7 @@ void alloc_kernels(int flag)
     /* Do the alpha functions here later  */
    if(kernel[i].mu>0.0){
      mu=kernel[i].mu;
-     if(flag==1)xpp_free(kernel[i].al);
-     kernel[i].al=static_cast<double *>(xpp_malloc((n+1)*sizeof(double)));
+     kernel[i].al=zeroed(store.al[i],n+1);
      for(j=0;j<=n;j++)kernel[i].al[j]=alpbetjn(mu,DELTA_T,j);
    }
   }

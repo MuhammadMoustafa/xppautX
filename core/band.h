@@ -29,10 +29,9 @@
  * The BandAllocMat function allocates a band matrix for use in   *
  * the other matrix routines listed in this file. Matrix storage  *
  * details are given in the documentation for the type BandMat.   *
- * The BandAllocPiv function allocates memory for pivot           *
- * information. The storage allocated by BandAllocMat and         *
- * BandAllocPiv is deallocated by the routines BandFreeMat and    *
- * BandFreePiv, respectively. The BandFactor and BandBacksolve    *
+ * BandFreeMat frees it. The pivot information is an array of N  *
+ * integers the caller keeps (cvband.cpp holds it in a            *
+ * std::vector). The BandFactor and BandBacksolve                 *
  * routines perform the actual solution of a band linear system.  *
  * Note that the BandBacksolve routine has a parameter b of type  *
  * N_Vector. The current implementation makes use of a machine    *
@@ -44,7 +43,7 @@
  * Routines that work with real ** begin with "band" (except for  *
  * the factor and solve routines which are called gbfa and gbsl,  *
  * respectively). The underlying matrix storage is described in   *
- * the documentation for bandalloc.                               *
+ * the documentation for the type BandMat.                        *
  *                                                                *
  ******************************************************************/
  
@@ -55,6 +54,7 @@
 
 #include "llnltyps.h"
 #include "vector.h"
+#include <vector>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -121,10 +121,15 @@ extern "C" {
  ******************************************************************/
 
 
-typedef struct {
+typedef struct BandMatRec {
   integer size;
   integer mu, ml, smu;
   real **data;
+  /* the storage data points into, freed with the matrix by BandFreeMat:
+     values holds the (smu+ml+1)*size elements column by column, columns
+     each column's uppermost stored element (data is columns.data()) */
+  std::vector<real> values;
+  std::vector<real *> columns;
 } *BandMat;
  
 
@@ -204,24 +209,6 @@ typedef struct {
  ******************************************************************/
 
 BandMat BandAllocMat(integer N, integer mu, integer ml, integer smu);
-
-
-/******************************************************************
- *                                                                *
- * Function : BandAllocPiv                                        *
- * Usage    : p = BandAllocPiv(N);                                *
- *            if (p == NULL) ... memory request failed            *
- *----------------------------------------------------------------*
- * BandAllocPiv allocates memory for pivot information to be      *
- * filled in by the BandFactor routine during the factorization   *
- * of an N by N band matrix. The underlying type for pivot        *
- * information is an array of N integers and this routine returns *
- * the pointer to the memory it allocates. If the request for     *
- * pivot storage cannot be satisfied, BandAllocPiv returns NULL.  *
- *                                                                * 
- ******************************************************************/
-
-integer *BandAllocPiv(integer N);
 
 
 /******************************************************************
@@ -347,51 +334,16 @@ void BandAddI(BandMat A);
 void BandFreeMat(BandMat A);
 
 
-/******************************************************************
- *                                                                *
- * Function : BandFreePiv                                         *
- * Usage    : BandFreePiv(p);                                     *
- *----------------------------------------------------------------*
- * BandFreePiv frees the memory allocated by BandAllocPiv for     *
- * the pivot information array p.                                 *
- *                                                                *
- ******************************************************************/
-
-void BandFreePiv(integer *p);
-
-
 /* Functions that use the real ** representation for a band matrix */
 
  
 /******************************************************************
  *                                                                *
- * Function : bandalloc                                           *
- * Usage    : real **a;                                           *
- *            a = bandalloc(n, smu, ml);                          *
- *            if (a == NULL) ... memory request failed            *
+ * The real ** storage of a band matrix (a BandMat's data)        *
  *----------------------------------------------------------------*
- * bandalloc(n, smu, ml) allocates storage for an n by n band     *
- * matrix A with storage upper bandwidth smu and lower bandwidth  *
- * ml. It returns a pointer to the newly allocated storage if     *
- * successful. If the memory request cannot be satisfied, then    *
- * bandalloc returns NULL. If, mathematically, A has upper and    *
- * lower bandwidths mu and ml, respectively, then the value       *
- * passed to bandalloc for smu may need to be greater than mu.    *
- * The gbfa routine writes the LU factors into the storage (named *
- * "a" in the above usage documentation) for A (thus destroying   *
- * the original elements of A). The upper triangular factor U,    *
- * however, may have a larger upper bandwidth than the upper      *
- * bandwidth mu of A. Thus some "extra" storage for A must be     *
- * allocated if A is to be factored by gbfa. Pass smu as follows: *
- *                                                                *
- * (1) Pass smu = mu if A will not be factored.                   *
- *                                                                *
- * (2) Pass smu = MIN(n-1,mu+ml) if A will be factored.           *
- *                                                                *
- * The underlying type of the band matrix returned is real **. If *
- * we allocate a band matrix A in real **a by                     *
- * a = bandalloc(n,smu,ml), then a[0] is a pointer to             *
- * n * (smu + ml + 1) contiguous storage locations and a[j] is a  *
+ * With storage upper bandwidth smu and lower bandwidth ml, a[0]  *
+ * is a pointer to n * (smu + ml + 1) contiguous storage          *
+ * locations and a[j] is a                                        *
  * pointer to the uppermost element in the storage for the jth    *
  * column. The expression a[j][i-j+smu] references the (i,j)th    *
  * element of A, where 0 <= i,j <= n-1 and j-mu <= i <= j+ml.     *
@@ -399,8 +351,6 @@ void BandFreePiv(integer *p);
  * by gbfa and gbsl.)                                             *
  *                                                                *
  ******************************************************************/
-
-real **bandalloc(integer n, integer smu, integer ml);
 
 
 /******************************************************************
@@ -441,16 +391,16 @@ real **bandalloc(integer n, integer smu, integer ml);
  * because of partial pivoting. The lower triangular factor L has *
  * lower bandwidth ml. Thus, if A is to be factored and           *
  * backsolved using gbfa and gbsl, then it should be allocated    *
- * as a = bandalloc(n,smu,ml), where smu = MIN(n-1,mu+ml). The    *
+ * with BandAllocMat(n,mu,ml,smu), smu = MIN(n-1,mu+ml). The     *
  * call to gbfa is ier = gbfa(a,n,mu,ml,smu,p). The corresponding *
  * call to gbsl is gbsl(a,n,smu,ml,p,b). The user does not need   *
  * to zero the "extra" storage allocated for the purpose of       *
  * factorization. This is handled by the gbfa routine. If A is    *
  * not going to be factored and backsolved, then it can be        *
- * allocated as a = bandalloc(n,smu,ml). In either case, all      *
+ * allocated with smu = mu. In either case, all                   *
  * routines in this section use the parameter name smu for a      *
  * parameter which must be the "storage upper bandwidth" which    *
- * was passed to bandalloc.                                       *
+ * was passed to BandAllocMat.                                    *
  *                                                                *
  ******************************************************************/
 
@@ -525,18 +475,6 @@ void bandscale(real c, real **a, integer n, integer mu, integer ml,
  ******************************************************************/
 
 void bandaddI(real **a, integer n, integer smu);
-
-
-/******************************************************************
- *                                                                *
- * Function : bandfree                                            *
- * Usage    : bandfree(a);                                        *
- *----------------------------------------------------------------*
- * bandfree(a) frees the band matrix a allocated by bandalloc.    *
- *                                                                *
- ******************************************************************/
-
-void bandfree(real **a);
 
 
 #ifdef __cplusplus

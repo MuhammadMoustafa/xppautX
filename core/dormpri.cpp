@@ -1,10 +1,8 @@
 #include <stdlib.h> 
-#include "xpp_mem.h"
 #include "storage.h"
 #include "xpp_ui.h"
 #include "xpp_math.h"
 #include <math.h>
-#include <stdio.h>
 /* #include <malloc.h> */
 #include <limits.h>
 #include <memory.h>
@@ -15,15 +13,9 @@
 #include "xpp_io.h"
 
 
-/* fileout is a caller-supplied diagnostic stream (dormpri.h: "if you do
-   not want any [messages], pass NULL"), not the core's own error/log
-   stream, so its messages go straight to that file rather than through
-   xpp::log. Every call site already checks fileout is non-NULL first. */
-static void fileout_msg(FILE *f, const std::string &s)
-{
-  fputs(s.c_str(), f);
-}
-
+/* The integrators' messages (Hairer's fileout stream, which XPP passed as
+   stdout) are xpp_log WARNs: the caller's dp_err reports the failure
+   itself; the stdout of --server is the protocol. */
 static long      nfcn, nstep, naccpt, nrejct;
 static double    hout, xold, xout;
 static unsigned  nrds, *indir;
@@ -78,12 +70,12 @@ int dormprin(int *istart, double *y, double *t, int n, double tout, double *tol,
   *istart=0;
   switch(flag){
   case 0:
-    *kflag=dopri5(n,dprhs,*t,y,tout,tol,atol,0,(SolTrait)NULL,0,stdout,0.0,
+    *kflag=dopri5(n,dprhs,*t,y,tout,tol,atol,0,nullptr,0,0.0,
            0.0,0.0,0.0,0.0,0.0,hg,0,0,1,0,NULL,0,WORK);
            *t=tout;
     return 1;
   case 1:
-     *kflag=dop853(n,dprhs,*t,y,tout,tol,atol,0,(SolTrait)NULL,0,stdout,0.0,
+     *kflag=dop853(n,dprhs,*t,y,tout,tol,atol,0,nullptr,0,0.0,
            0.0,0.0,0.0,0.0,0.0,hg,0,0,1,0,NULL,0,WORK);
            *t=tout;
      return 1;
@@ -192,7 +184,7 @@ static double hinit (unsigned n, FcnEqDiff fcn, double x, double* y,
 /* core integrator */
 static int dopcor (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 		   double hmax, double h, double* rtoler, double* atoler,
-		   int itoler, FILE* fileout, SolTrait solout, int iout,
+		   int itoler, SolTrait solout, int iout,
 		   long nmax, double uround, int meth, long nstiff, double safe,
 		   double beta, double fac1, double fac2, unsigned* icont)
 {
@@ -421,8 +413,7 @@ static int dopcor (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
     solout (naccpt+1, xold, x, y, n, &irtrn); 
     if (irtrn < 0)
     {
-      if (fileout)
-	fileout_msg(fileout, xpp::format("Exit of dop853 at t = {:.16e}\r\n", x));
+      xpp::log(XPP_LOG_WARN, "Exit of dop853 at t = {:.16e}\n", x);
       return 2;
     }
   }
@@ -432,8 +423,7 @@ static int dopcor (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
   {
     if (nstep > nmax)
     {
-      if (fileout)
-	fileout_msg(fileout, xpp::format("Exit of dop853 at t = {:.16e}, more than nmax = {} are needed\r\n", x, nmax));
+      xpp::log(XPP_LOG_WARN, "Exit of dop853 at t = {:.16e}, more than nmax = {} are needed\n", x, nmax);
       xout = x;
       hout = h;
       return -2;
@@ -441,8 +431,7 @@ static int dopcor (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 
     if (0.1 * fabs(h) <= fabs(x) * uround)
     {
-      if (fileout)
-	fileout_msg(fileout, xpp::format("Exit of dop853 at t = {:.16e}, step size too small h = {:.16e}\r\n", x, h));
+      xpp::log(XPP_LOG_WARN, "Exit of dop853 at t = {:.16e}, step size too small h = {:.16e}\n", x, h);
       xout = x;
       hout = h;
       return -3;
@@ -574,16 +563,9 @@ static int dopcor (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 	  iasti++;
 	  if (iasti == 15)
 	  {
-	    if (fileout)
-	    {
-	      fileout_msg(fileout, xpp::format("The problem seems to become stiff at t = {:.16e}\r\n", x));
-	    }
-	    else
-	    {
-	      xout = x;
-	      hout = h;
-	      return -4;
-	    }
+	    /* Hairer returns -4 here only when there is no message stream;
+	       XPP always passed one (stdout), so it warns and goes on */
+	    xpp::log(XPP_LOG_WARN, "The problem seems to become stiff at t = {:.16e}\n", x);
 	  }
 	}
 	else
@@ -694,8 +676,7 @@ static int dopcor (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 	solout (naccpt+1, xold, x, y, n, &irtrn);
 	if (irtrn < 0)
 	{
-	  if (fileout)
-	    fileout_msg(fileout, xpp::format("Exit of dop853 at t = {:.16e}\r\n", x));
+	  xpp::log(XPP_LOG_WARN, "Exit of dop853 at t = {:.16e}\n", x);
 	  return 2;
 	}
       }
@@ -733,7 +714,7 @@ static int dopcor (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 /* front-end */
 int dop853
  (unsigned n, FcnEqDiff fcn, double x, double* y, double xend, double* rtoler,
-  double* atoler, int itoler, SolTrait solout, int iout, FILE* fileout, double uround,
+  double* atoler, int itoler, SolTrait solout, int iout, double uround,
   double safe, double fac1, double fac2, double beta, double hmax, double h,
   long nmax, int meth, long nstiff, unsigned nrdens, unsigned* icont, unsigned licont,double *work)
 {
@@ -752,8 +733,7 @@ int dop853
   /* n, the dimension of the system */
   if (n == UINT_MAX)
   {
-    if (fileout)
-      fileout_msg(fileout, xpp::format("System too big, max. n = {}\r\n", UINT_MAX-1));
+    xpp::log(XPP_LOG_WARN, "System too big, max. n = {}\n", UINT_MAX-1);
     arret = 1;
   }
 
@@ -762,8 +742,7 @@ int dop853
     nmax = 100000;
   else if (nmax <= 0)
   {
-    if (fileout)
-      fileout_msg(fileout, xpp::format("Wrong input, nmax = {}\r\n", nmax));
+    xpp::log(XPP_LOG_WARN, "Wrong input, nmax = {}\n", nmax);
     arret = 1;
   }
 
@@ -772,8 +751,7 @@ int dop853
     meth = 1;
   else if ((meth <= 0) || (meth >= 2))
   {
-    if (fileout)
-      fileout_msg(fileout, xpp::format("Curious input, meth = {}\r\n", meth));
+    xpp::log(XPP_LOG_WARN, "Curious input, meth = {}\n", meth);
     arret = 1;
   }
 
@@ -786,16 +764,14 @@ int dop853
   /* iout, switch for calling solout */
   if ((iout < 0) || (iout > 2))
   {
-    if (fileout)
-      fileout_msg(fileout, xpp::format("Wrong input, iout = {}\r\n", iout));
+    xpp::log(XPP_LOG_WARN, "Wrong input, iout = {}\n", iout);
     arret = 1;
   }
 
   /* nrdens, number of dense output components */
   if (nrdens > n)
   {
-    if (fileout)
-      fileout_msg(fileout, xpp::format("Curious input, nrdens = {}\r\n", nrdens));
+    xpp::log(XPP_LOG_WARN, "Curious input, nrdens = {}\n", nrdens);
     arret = 1;
   }
   else if (nrdens)
@@ -818,20 +794,19 @@ int dop853
     /* control of length of icont */
     if (nrdens == n)
     {
-      if (icont && fileout)
-	fileout_msg(fileout, "Warning : when nrdens = n there is no need allocating memory for icont\r\n");
+      if (icont)
+	xpp::log(XPP_LOG_WARN, "Warning : when nrdens = n there is no need allocating memory for icont\n");
       nrds = n;
     }
     else if (licont < nrdens)
     {
-      if (fileout)
-	fileout_msg(fileout, xpp::format("Insufficient storage for icont, min. licont = {}\r\n", nrdens));
+      xpp::log(XPP_LOG_WARN, "Insufficient storage for icont, min. licont = {}\n", nrdens);
       arret = 1;
     }
     else
     {
-      if ((iout < 2) && fileout)
-	fileout_msg(fileout, "Warning : put iout = 2 for dense output\r\n");
+      if (iout < 2)
+	xpp::log(XPP_LOG_WARN, "Warning : put iout = 2 for dense output\n");
       nrds = nrdens;
       for (i = 0; i < n; i++)
 	indir[i] = UINT_MAX;
@@ -845,8 +820,7 @@ int dop853
     uround = 2.3E-16;
   else if ((uround <= 1.0E-35) || (uround >= 1.0))
   {
-    if (fileout)
-      fileout_msg(fileout, xpp::format("Which machine do you have ? Your uround was : {:.16e}\r\n", uround));
+    xpp::log(XPP_LOG_WARN, "Which machine do you have ? Your uround was : {:.16e}\n", uround);
     arret = 1;
   }
 
@@ -855,8 +829,7 @@ int dop853
     safe = 0.9;
   else if ((safe >= 1.0) || (safe <= 1.0E-4))
   {
-    if (fileout)
-      fileout_msg(fileout, xpp::format("Curious input for safety factor, safe = {:.16e}\r\n", safe));
+    xpp::log(XPP_LOG_WARN, "Curious input for safety factor, safe = {:.16e}\n", safe);
     arret = 1;
   }
 
@@ -873,8 +846,7 @@ int dop853
     beta = 0.0;
   else if (beta > 0.2)
   {
-    if (fileout)
-      fileout_msg(fileout, xpp::format("Curious input for beta : beta = {:.16e}\r\n", beta));
+    xpp::log(XPP_LOG_WARN, "Curious input for beta : beta = {:.16e}\n", beta);
     arret = 1;
   }
 
@@ -897,7 +869,7 @@ int dop853
 
 
   
-    idid = dopcor (n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler, fileout,
+    idid = dopcor (n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler,
 		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont);
     return idid;
   
@@ -985,7 +957,7 @@ static double hinit5 (unsigned n, FcnEqDiff fcn, double x, double* y,
 /* core integrator */
 static int dopcor5 (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 		   double hmax, double h, double* rtoler, double* atoler,
-		   int itoler, FILE* fileout, SolTrait solout, int iout,
+		   int itoler, SolTrait solout, int iout,
 		   long nmax, double uround, int meth, long nstiff, double safe,
 		   double beta, double fac1, double fac2, unsigned* icont)
 {
@@ -1049,8 +1021,7 @@ static int dopcor5 (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
     solout (naccpt+1, xold, x, y, n, &irtrn);
     if (irtrn < 0)
     {
-      if (fileout)
-	fileout_msg(fileout, xpp::format("Exit of dopri5 at t = {:.16e}\r\n", x));
+      xpp::log(XPP_LOG_WARN, "Exit of dopri5 at t = {:.16e}\n", x);
       return 2;
     }
   }
@@ -1060,8 +1031,7 @@ static int dopcor5 (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
   {
     if (nstep > nmax)
     {
-      if (fileout)
-	fileout_msg(fileout, xpp::format("Exit of dopri5 at t = {:.16e}, more than nmax = {} are needed\r\n", x, nmax));
+      xpp::log(XPP_LOG_WARN, "Exit of dopri5 at t = {:.16e}, more than nmax = {} are needed\n", x, nmax);
       xout = x;
       hout = h;
       return -2;
@@ -1069,8 +1039,7 @@ static int dopcor5 (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 
     if (0.1 * fabs(h) <= fabs(x) * uround)
     {
-      if (fileout)
-	fileout_msg(fileout, xpp::format("Exit of dopri5 at t = {:.16e}, step size too small h = {:.16e}\r\n", x, h));
+      xpp::log(XPP_LOG_WARN, "Exit of dopri5 at t = {:.16e}, step size too small h = {:.16e}\n", x, h);
       xout = x;
       hout = h;
       return -3;
@@ -1179,16 +1148,9 @@ static int dopcor5 (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 	  iasti++;
 	  if (iasti == 15)
 	  {
-	    if (fileout)
-	    {
-	      fileout_msg(fileout, xpp::format("The problem seems to become stiff at t = {:.16e}\r\n", x));
-	    }
-	    else
-	    {
-	      xout = x;
-	      hout = h;
-	      return -4;
-	    }
+	    /* Hairer returns -4 here only when there is no message stream;
+	       XPP always passed one (stdout), so it warns and goes on */
+	    xpp::log(XPP_LOG_WARN, "The problem seems to become stiff at t = {:.16e}\n", x);
 	  }
 	}
 	else
@@ -1241,8 +1203,7 @@ static int dopcor5 (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 	solout (naccpt+1, xold, x, y, n, &irtrn);
 	if (irtrn < 0)
 	{
-	  if (fileout)
-	    fileout_msg(fileout, xpp::format("Exit of dopri5 at t = {:.16e}\r\n", x));
+	  xpp::log(XPP_LOG_WARN, "Exit of dopri5 at t = {:.16e}\n", x);
 	  return 2;
 	}
       }
@@ -1282,7 +1243,7 @@ static int dopcor5 (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 /* front-end */
 int dopri5
  (unsigned n, FcnEqDiff fcn, double x, double* y, double xend, double* rtoler,
-  double* atoler, int itoler, SolTrait solout, int iout, FILE* fileout, double uround,
+  double* atoler, int itoler, SolTrait solout, int iout, double uround,
   double safe, double fac1, double fac2, double beta, double hmax, double h,
   long nmax, int meth, long nstiff, unsigned nrdens, unsigned* icont, unsigned licont, double *work)
 {
@@ -1301,8 +1262,7 @@ int dopri5
   /* n, the dimension of the system */
   if (n == UINT_MAX)
   {
-    if (fileout)
-      fileout_msg(fileout, xpp::format("System too big, max. n = {}\r\n", UINT_MAX-1));
+    xpp::log(XPP_LOG_WARN, "System too big, max. n = {}\n", UINT_MAX-1);
     arret = 1;
   }
 
@@ -1311,8 +1271,7 @@ int dopri5
     nmax = 100000;
   else if (nmax <= 0)
   {
-    if (fileout)
-      fileout_msg(fileout, xpp::format("Wrong input, nmax = {}\r\n", nmax));
+    xpp::log(XPP_LOG_WARN, "Wrong input, nmax = {}\n", nmax);
     arret = 1;
   }
 
@@ -1321,8 +1280,7 @@ int dopri5
     meth = 1;
   else if ((meth <= 0) || (meth >= 2))
   {
-    if (fileout)
-      fileout_msg(fileout, xpp::format("Curious input, meth = {}\r\n", meth));
+    xpp::log(XPP_LOG_WARN, "Curious input, meth = {}\n", meth);
     arret = 1;
   }
 
@@ -1335,16 +1293,14 @@ int dopri5
   /* iout, switch for calling solout */
   if ((iout < 0) || (iout > 2))
   {
-    if (fileout)
-      fileout_msg(fileout, xpp::format("Wrong input, iout = {}\r\n", iout));
+    xpp::log(XPP_LOG_WARN, "Wrong input, iout = {}\n", iout);
     arret = 1;
   }
 
   /* nrdens, number of dense output components */
   if (nrdens > n)
   {
-    if (fileout)
-      fileout_msg(fileout, xpp::format("Curious input, nrdens = {}\r\n", nrdens));
+    xpp::log(XPP_LOG_WARN, "Curious input, nrdens = {}\n", nrdens);
     arret = 1;
   }
   else if (nrdens)
@@ -1365,20 +1321,19 @@ int dopri5
     /* control of length of icont */
     if (nrdens == n)
     {
-      if (icont && fileout)
-	fileout_msg(fileout, "Warning : when nrdens = n there is no need allocating memory for icont\r\n");
+      if (icont)
+	xpp::log(XPP_LOG_WARN, "Warning : when nrdens = n there is no need allocating memory for icont\n");
       nrds = n;
     }
     else if (licont < nrdens)
     {
-      if (fileout)
-	fileout_msg(fileout, xpp::format("Insufficient storage for icont, min. licont = {}\r\n", nrdens));
+      xpp::log(XPP_LOG_WARN, "Insufficient storage for icont, min. licont = {}\n", nrdens);
       arret = 1;
     }
     else
     {
-      if ((iout < 2) && fileout)
-	fileout_msg(fileout, "Warning : put iout = 2 for dense output\r\n");
+      if (iout < 2)
+	xpp::log(XPP_LOG_WARN, "Warning : put iout = 2 for dense output\n");
       nrds = nrdens;
       for (i = 0; i < n; i++)
 	indir[i] = UINT_MAX;
@@ -1392,8 +1347,7 @@ int dopri5
     uround = 2.3E-16;
   else if ((uround <= 1.0E-35) || (uround >= 1.0))
   {
-    if (fileout)
-      fileout_msg(fileout, xpp::format("Which machine do you have ? Your uround was : {:.16e}\r\n", uround));
+    xpp::log(XPP_LOG_WARN, "Which machine do you have ? Your uround was : {:.16e}\n", uround);
     arret = 1;
   }
 
@@ -1402,8 +1356,7 @@ int dopri5
     safe = 0.9;
   else if ((safe >= 1.0) || (safe <= 1.0E-4))
   {
-    if (fileout)
-      fileout_msg(fileout, xpp::format("Curious input for safety factor, safe = {:.16e}\r\n", safe));
+    xpp::log(XPP_LOG_WARN, "Curious input for safety factor, safe = {:.16e}\n", safe);
     arret = 1;
   }
 
@@ -1420,8 +1373,7 @@ int dopri5
     beta = 0.0;
   else if (beta > 0.2)
   {
-    if (fileout)
-      fileout_msg(fileout, xpp::format("Curious input for beta : beta = {:.16e}\r\n", beta));
+    xpp::log(XPP_LOG_WARN, "Curious input for beta : beta = {:.16e}\n", beta);
     arret = 1;
   }
 
@@ -1440,7 +1392,7 @@ int dopri5
   ysti = k6+n;
 
 
-    idid = dopcor5 (n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler, fileout,
+    idid = dopcor5 (n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler,
 		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont);
 
     return idid;

@@ -13,7 +13,6 @@
 #define _cvode_h
 
 
-#include <stdio.h>
 #include "llnltyps.h"
 #include "vector.h"
 #ifdef __cplusplus
@@ -143,15 +142,7 @@ typedef void (*RhsFn)(integer N, real t, N_Vector y, N_Vector ydot,
  * f_data  is a pointer to user data that will be passed to the   *
  *             user's f function every time f is called.          *
  *                                                                *
- * errfp   is the file pointer for an error file where all CVODE  *
- *            warning and error messages will be written. This    *
- *            parameter can be stdout (standard output), stderr   *
- *            (standard error), a file pointer (corresponding to  *
- *            a user error file opened for writing) returned by   *
- *            fopen, or NULL. If the user passes NULL, then all   *
- *            messages will be written to standard output.        *
- *                                                                *
- * optIn   is a flag indicating whether there are any optional    *
+* optIn   is a flag indicating whether there are any optional    *
  *            inputs from the user in the arrays iOpt and rOpt.   *
  *            Pass FALSE to indicate no optional inputs and TRUE  *
  *            to indicate that optional inputs are present.       *
@@ -181,15 +172,15 @@ typedef void (*RhsFn)(integer N, real t, N_Vector y, N_Vector ydot,
  *                                                                * 
  * If successful, CVodeMalloc returns a pointer to initialized    *
  * problem memory. This pointer should be passed to CVode. If     *
- * an initialization error occurs, CVodeMalloc prints an error    *
- * message to the file specified by errfp and returns NULL.       *
+ * an initialization error occurs, CVodeMalloc logs an error     *
+ * (xpp_log's ERROR, as every CVODE message) and returns NULL.    *
  *                                                                *
  ******************************************************************/
 
 
 void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
                   int itol, real *reltol, void *abstol, void *f_data,
-                  FILE *errfp, bool optIn,   int iopt[], real ropt[],
+                  bool optIn,   int iopt[], real ropt[],
                   void *machEnv);
  
  
@@ -596,11 +587,7 @@ typedef struct CVodeMemRec {
     int *cv_iopt;  /*   int optional input, output */
   real     *cv_ropt;  /* real optional input, output     */
 
-  /* Error File */
-
-  FILE *cv_errfp;      /* CVODE error messages are sent to errfp */
-
-  /* Pointer to Machine Environment-Specific Information */
+/* Pointer to Machine Environment-Specific Information */
 
   void *cv_machenv;
 
@@ -616,8 +603,8 @@ typedef struct CVodeMemRec {
  * LINIT_OK    : The cv_linit routine succeeded.                  *
  *                                                                *
  * LINIT_ERR   : The cv_linit routine failed. Each linear solver  *
- *               init routine should print an appropriate error   *
- *               message to (cv_mem->errfp).                      *
+ *               init routine should log an appropriate error     *
+ *               message (xpp_log's ERROR).                       *
  *                                                                *
  * (2) convfail (input to cv_lsetup)                              *
  *                                                                *
@@ -676,8 +663,8 @@ typedef struct CVodeMemRec {
  * nothing. An LInitFn should return LINIT_OK (== 0) if it has     *
  * successfully initialized the CVODE linear solver and LINIT_ERR  *
  * (== -1) otherwise. These constants are defined above. If an     *
- * error does occur, an appropriate message should be sent to      *
- * (cv_mem->errfp).                                                *
+ * error does occur, an appropriate message should be logged       *
+ * (xpp_log's ERROR).                                              *
  *                                                                 *
  *******************************************************************/
 

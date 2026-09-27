@@ -13,7 +13,6 @@
 
 
 #include <stdio.h>
-#include "xpp_mem.h"
 #include "xpp_log.h"
 #include <stdlib.h>
 #include "vector.h"
@@ -45,30 +44,23 @@ static void VScaleBy(real a, N_Vector x); /* x <- ax */
  
 N_Vector N_VNew(integer N, void *machEnv)
 {
-  N_Vector v;
-
   if (N <= 0) return(NULL);
 
-  /* N_Vector is a C-API handle other modules hold as a raw pointer
-     (nvector consumers across the CVODE/dense/band code reach it via
-     N_VDATA/N_VLENGTH), so its storage stays an xpp_malloc block rather
-     than becoming a std::vector-backed RAII type. */
-  v = static_cast<N_Vector>(xpp_malloc(sizeof *v));
-
-  /* xpp_malloc never returns NULL (it exits on failure), so there is no
-     allocation-failure branch to handle here. */
-  v->data = static_cast<real *>(xpp_malloc(N * sizeof(real)));
-
+  /* N_Vector is the C API's raw handle (N_VFree deletes it); its
+     components live in the handle's own std::vector, zeroed like the
+     xpp_malloc block it replaces. */
+  N_Vector v = new N_VectorContent();
+  v->storage.assign(N, ZERO);
+  v->data = v->storage.data();
   v->length = N;
-  
+
   return(v);
 }
 
 
 void N_VFree(N_Vector x)
 {
-  xpp_free(x->data);
-  xpp_free(x);
+  delete x;
 }
 
 

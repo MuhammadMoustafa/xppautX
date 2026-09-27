@@ -61,12 +61,10 @@ core/auto_nox.cpp auto_twopar_double|keep: two-parameter continuation dispatch p
 core/auto_nox.cpp auto_torus|keep: see core/auto_nox.cpp auto_twopar_double
 core/auto_nox.cpp save_auto_file|a save/load mirror, not a copy: save_auto_file writes the four parts load_auto_file reads back in the same order (W32b looked: keep)
 core/auto_nox.cpp load_auto_file|W32b xpp_files: see core/auto_nox.cpp save_auto_file
-core/band.cpp BandAllocPiv|vendored/numerical, keep: CVODE's band/dense linear-algebra pair (BandAllocPiv/DenseAllocPiv, BandFreeMat/DenseFreeMat, bandfree/denfree), same shape by the CVODE API's own design
-core/dense.cpp DenseAllocPiv|vendored/numerical, keep: see core/band.cpp BandAllocPiv
-core/band.cpp BandFreeMat|vendored/numerical, keep: see core/band.cpp BandAllocPiv
-core/dense.cpp DenseFreeMat|vendored/numerical, keep: see core/band.cpp BandAllocPiv
-core/band.cpp bandfree|vendored/numerical, keep: see core/band.cpp BandAllocPiv
-core/dense.cpp denfree|vendored/numerical, keep: see core/band.cpp BandAllocPiv
+core/cvband.cpp CVBandSolve|vendored/numerical, keep: CVODE's band and dense linear solvers (cvband.cpp/cvdense.cpp), the same solve and free by the CVODE API's own design, each over its own matrix type (BandBacksolve/DenseBacksolve, BandFreeMat/DenseFreeMat); W33a looked: keep
+core/cvdense.cpp CVDenseSolve|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
+core/cvband.cpp CVBandFree|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
+core/cvdense.cpp CVDenseFree|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
 core/conpar2.cpp time_start|vendored/numerical, keep: AUTO's parallel worker files (conpar2.cpp/worker2.cpp) share a timing helper pair by the AUTO source's own design
 core/worker2.cpp time_start|vendored/numerical, keep: see core/conpar2.cpp time_start
 core/conpar2.cpp time_end|vendored/numerical, keep: see core/conpar2.cpp time_start
@@ -94,7 +92,7 @@ core/ui_json.cpp script_next|see core/json_ani.cpp j_ani_show
 core/xpp_batch.cpp do_vis_env|see core/json_ani.cpp j_ani_show
 core/lunch-new.cpp io_int|keep: fscanf-style int/double token readers over a plain FILE * (xpp_io.h's xpp::TokenReader is the owner going forward, per CLAUDE.md's Strings and I/O section); not yet moved, no new copy added
 core/lunch-new.cpp io_double|keep: see core/lunch-new.cpp io_int
-core/odesol2.cpp discrete|keep: discrete/euler are two of odesol2.cpp's per-method step dispatchers, same shape by design; no W32a-d card owns odesol2.cpp yet
+core/odesol2.cpp discrete|merged (W33a): the step loop they shared is odesol2.cpp's fixed_steps; what is left is each method naming its own two step functions
 core/odesol2.cpp euler|keep: see core/odesol2.cpp discrete
 core/xpp_io.cpp xpp_line_reader_open|keep: xpp_io.h's own two reader kinds (whole-line vs whitespace-token), open/attach pairs of the same shape by design (CLAUDE.md's Strings and I/O section); not a copy to merge
 core/xpp_io.cpp xpp_token_reader_open|keep: see core/xpp_io.cpp xpp_line_reader_open

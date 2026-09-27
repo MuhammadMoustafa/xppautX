@@ -26,6 +26,30 @@ extern double EulTol,NEWT_ERR;
 extern int NFlags;
 extern double TOLER,ATOLER;
 extern int  cv_bandflag,cv_bandupper,cv_bandlower;
+
+namespace {
+/* nt steps of a fixed-step method, storing the delays after each: its
+   plain step, or, when the model has flags, the step that also checks
+   them (flags.cpp's one_flag_step_*). discrete, euler, mod_euler and
+   rung_kut differ only in these two. */
+template <class Plain, class Flagged>
+int fixed_steps(double *y, int nt, Plain plain, Flagged flagged)
+{
+  if(NFlags==0){
+    for(int i=0;i<nt;i++){
+      plain();
+      stor_delay(y);
+    }
+    return(0);
+  }
+  for(int i=0;i<nt;i++){
+    flagged();
+    stor_delay(y);
+  }
+  return(0);
+}
+}
+
 /* my first symplectic integrator */
 
 int symplect3(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
@@ -57,21 +81,9 @@ int symplect3(double *y, double *tim, double dt, int nt, int neq, int *istart, d
 
 int discrete(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
-int i;
- if(NFlags==0){ 
-   for(i=0;i<nt;i++)
-      {
-	one_step_discrete(y,dt,work,neq,tim);
-	stor_delay(y);
-      }
-    return(0);
-  }
-  for(i=0;i<nt;i++)
-      {
-	one_flag_step_discrete(y,dt,work,neq,tim,istart);
-	stor_delay(y);
-      }
-    return(0);
+  return fixed_steps(y,nt,
+    [&]{ one_step_discrete(y,dt,work,neq,tim); },
+    [&]{ one_flag_step_discrete(y,dt,work,neq,tim,istart); });
 }
 
 
@@ -253,21 +265,9 @@ void one_step_heun(double *y, double dt, double *yval[2], int neq, double *tim)
 
 int euler(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
-  int i;
-  if(NFlags==0){ 
-    for(i=0;i<nt;i++)
-      {
-	one_step_euler(y,dt,work,neq,tim);
-	stor_delay(y);
-      }
-    return(0);
-  }
-  for(i=0;i<nt;i++)
-      {
-	one_flag_step_euler(y,dt,work,neq,tim,istart);
-	stor_delay(y);
-      }
-    return(0);
+  return fixed_steps(y,nt,
+    [&]{ one_step_euler(y,dt,work,neq,tim); },
+    [&]{ one_flag_step_euler(y,dt,work,neq,tim,istart); });
 }
 
 /* Modified Euler  */
@@ -275,53 +275,27 @@ int euler(double *y, double *tim, double dt, int nt, int neq, int *istart, doubl
 int mod_euler(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  double *yval[2];
- int j;
 
  yval[0]=work;
  yval[1]=work+neq;
- if(NFlags==0){
-   for(j=0;j<nt;j++)
-     {
-       one_step_heun(y,dt,yval,neq,tim);
-       stor_delay(y);
-     }
-   return(0);
- }
- for(j=0;j<nt;j++)
-     {
-       one_flag_step_heun(y,dt,yval,neq,tim,istart);
-       stor_delay(y);
-     }
-   return(0);
+ return fixed_steps(y,nt,
+   [&]{ one_step_heun(y,dt,yval,neq,tim); },
+   [&]{ one_flag_step_heun(y,dt,yval,neq,tim,istart); });
 }
 
 /*  Runge Kutta    */
 
 int rung_kut(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
- int j;
  double *yval[3];
- 
+
  yval[0]=work;
  yval[1]=work+neq;
  yval[2]=work+neq+neq;
 
- if(NFlags==0){
-   for(j=0;j<nt;j++)
-     {
-       one_step_rk4(y,dt,yval,neq,tim);
-       stor_delay(y);
-     }
-   return(0);
- }
-
- for(j=0;j<nt;j++)
-   {
-     one_flag_step_rk4(y,dt,yval,neq,tim,istart);
-       stor_delay(y);
-   }
- return(0);
- 
+ return fixed_steps(y,nt,
+   [&]{ one_step_rk4(y,dt,yval,neq,tim); },
+   [&]{ one_flag_step_rk4(y,dt,yval,neq,tim,istart); });
 }
 
 /*   ABM   */

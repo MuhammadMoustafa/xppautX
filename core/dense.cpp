@@ -10,8 +10,6 @@
  ******************************************************************/ 
 
 #include <stdio.h>
-#include "xpp_mem.h"
-#include "xpp_log.h"
 #include <stdlib.h>
 #include "dense.h"
 #include "llnltyps.h"
@@ -28,26 +26,20 @@
 
 DenseMat DenseAllocMat(integer N)
 {
-  DenseMat A;
-
   if (N <= 0) return(NULL);
 
-  A = static_cast<DenseMat>(xpp_malloc(sizeof *A));
-
-  /* denalloc only returns NULL for n <= 0, already ruled out above. */
-  A->data = denalloc(N);
+  /* The C API's raw handle (DenseFreeMat deletes it), its elements in
+     its own std::vectors, zeroed like the xpp_malloc blocks they
+     replace: data[0] points to all N*N, data[j] to the jth column. */
+  DenseMat A = new DenseMatRec();
+  A->values.assign(N * N, ZERO);
+  A->columns.resize(N);
+  for (integer j=0; j < N; j++) A->columns[j] = A->values.data() + j * N;
+  A->data = A->columns.data();
 
   A->size = N;
 
   return(A);
-}
-
-
-integer *DenseAllocPiv(integer N)
-{
-  if (N <= 0) return(NULL);
-
-  return(static_cast<integer *>(xpp_malloc(N * sizeof(integer))));
 }
 
 
@@ -85,33 +77,9 @@ void DenseAddI(DenseMat A)
 
 void DenseFreeMat(DenseMat A)
 {
-  denfree(A->data);
-  xpp_free(A);
+  delete A;
 }
 
-void DenseFreePiv(integer *p)
-{  
-  xpp_free(p);
-}
-
-
-real **denalloc(integer n)
-{
-  integer j;
-  real **a;
-
-  if (n <= 0) return(NULL);
-
-  a = static_cast<real **>(xpp_malloc(n * sizeof(real *)));
-
-  /* xpp_malloc never returns NULL (it exits on failure), so there is no
-     allocation-failure branch to unwind here. */
-  a[0] = static_cast<real *>(xpp_malloc(n * n * sizeof(real)));
-
-  for (j=1; j < n; j++) a[j] = a[0] + j * n;
-
-  return(a);
-}
 
 integer gefa(real **a, integer n, integer *p)
 {
@@ -267,12 +235,3 @@ void denaddI(real **a, integer n)
   
   for (i=0; i < n; i++) a[i][i] += ONE;
 }
-
-void denfree(real **a)
-{
-  xpp_free(a[0]);
-  xpp_free(a);
-}
-
-
-

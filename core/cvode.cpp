@@ -14,10 +14,9 @@
 /******************* BEGIN Imports **************************/
 /************************************************************/
 
-#include <stdio.h>
-#include "xpp_mem.h"
 #include "xpp_log.h"
 #include <stdlib.h>
+#include <memory>
 #include "cvode.h"
 #include "llnltyps.h"
 #include "vector.h"
@@ -465,27 +464,23 @@ static int  CVHandleFailure(CVodeMem cv_mem,int kflag);
 
  CVode Malloc allocates and initializes memory for a problem. All
  problem specification inputs are checked for errors. If any
- error occurs during initialization, it is reported to the file
- whose file pointer is errfp and NULL is returned. Otherwise, the
+ error occurs during initialization, it is logged (an ERROR) and
+ NULL is returned. Otherwise, the
  pointer to successfully initialized problem memory is returned.
  
 *****************************************************************/
 
 void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
 		  int itol, real *reltol, void *abstol, void *f_data,
-		  FILE *errfp, bool optIn,   int iopt[], real ropt[],
+		  bool optIn,   int iopt[], real ropt[],
 		  void *machEnv)
 {
   bool    allocOK, ioptExists, roptExists, neg_abstol, ewtsetOK;
   int     maxord;
   CVodeMem cv_mem;
-  FILE *fp;
-  
-  /* Check for legal input parameters */
-  
-  fp = (errfp == NULL) ? stdout : errfp;
 
-  if (y0==NULL) {
+  /* Check for legal input parameters */
+if (y0==NULL) {
     xpp::log(XPP_LOG_ERROR, MSG_Y0_NULL);
     return(NULL);
   }
@@ -568,29 +563,27 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
     if (iopt[MAXORD] > 0)  maxord = MIN(maxord, iopt[MAXORD]);
   }
 
-  /* cv_mem is returned to the caller as the opaque void *cvode_mem handle
-     (cv2.cpp keeps it for the lifetime of the solver, freed by
-     CVodeFree), so it stays an xpp_malloc block rather than a smart
-     pointer: the C API contract is a raw handle. xpp_malloc never
-     returns NULL (it exits on failure). */
-  cv_mem = static_cast<CVodeMem>(xpp_malloc(sizeof(struct CVodeMemRec)));
+  /* cv_mem goes to the caller as the opaque void *cvode_mem handle
+     (cv2.cpp keeps it for the lifetime of the solver, CVodeFree deletes
+     it); owned here until then, so a return on an error frees it.
+     Value-initialised (zeroed), as the xpp_malloc block it replaces was. */
+  std::unique_ptr<CVodeMemRec> owner(new CVodeMemRec());
+  cv_mem = owner.get();
 
   /* Allocate the vectors */
 
   allocOK = CVAllocVectors(cv_mem, N, maxord, machEnv);
   if (!allocOK) {
     xpp::log(XPP_LOG_ERROR, MSG_MEM_FAIL);
-    xpp_free(cv_mem);
     return(NULL);
   }
- 
+
   /* Set the ewt vector */
 
   ewtsetOK = CVEwtSet(cv_mem, reltol, abstol, itol, y0, ewt, N);
   if (!ewtsetOK) {
     xpp::log(XPP_LOG_ERROR, MSG_BAD_EWT);
     CVFreeVectors(cv_mem, maxord);
-    xpp_free(cv_mem);
     return(NULL);
   }
   
@@ -608,8 +601,7 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
   cv_mem->cv_abstol = abstol;
   cv_mem->cv_iopt = iopt;
   cv_mem->cv_ropt = ropt;
-  cv_mem->cv_errfp = fp;
-  tn = t0;
+tn = t0;
   machenv = machEnv;
 
   /* Set step parameters */
@@ -692,7 +684,7 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
       
   /* Problem has been successfully initialized */
 
-  return(static_cast<void *>(cv_mem));
+  return(static_cast<void *>(owner.release()));
 }
 
 
@@ -710,8 +702,6 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
 #define abstol (cv_mem->cv_abstol)     
 #define iopt   (cv_mem->cv_iopt)
 #define ropt   (cv_mem->cv_ropt)
-#define errfp  (cv_mem->cv_errfp)
-
 /**************************************************************/
 /*************** END More Readability Constants ***************/
 /**************************************************************/
@@ -743,7 +733,7 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
 
   /* Check for legal inputs in all cases */
 
-  cv_mem = (CVodeMem) cvode_mem;
+  cv_mem = static_cast<CVodeMem>(cvode_mem);
   if (cvode_mem == NULL) {
     xpp_log(XPP_LOG_ERROR, MSG_CVODE_NO_MEM);
     return(CVODE_NO_MEM);
@@ -960,7 +950,7 @@ int CVodeDky(void *cvode_mem, real t, int k, N_Vector dky)
   int i, j;
   CVodeMem cv_mem;
   
-  cv_mem = (CVodeMem) cvode_mem;
+  cv_mem = static_cast<CVodeMem>(cvode_mem);
 
   /* Check all inputs for legality */
  
@@ -1018,13 +1008,15 @@ void CVodeFree(void *cvode_mem)
 {
   CVodeMem cv_mem;
 
-  cv_mem = (CVodeMem) cvode_mem;
+  cv_mem = static_cast<CVodeMem>(cvode_mem);
   
   if (cvode_mem == NULL) return;
 
   CVFreeVectors(cv_mem, qmax);
-  if ((iter == NEWTON) && linitOK) lfree(cv_mem);
-  xpp_free(cv_mem);
+  /* also after a failed linit: the linear solvers' free takes what their
+     init left, allocated or not, so their record is not leaked */
+  if ((iter == NEWTON) && (lfree != NULL)) lfree(cv_mem);
+  delete cv_mem;
 }
 
 

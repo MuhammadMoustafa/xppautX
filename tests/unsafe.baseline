@@ -26,7 +26,6 @@ core/auto_settings.cpp text 7
 core/auto_settings.h buffers 3
 core/axes2.cpp buffers 10
 core/axes2.cpp text 28
-core/band.cpp memory 8
 core/browse.h buffers 1
 core/browse_data.cpp buffers 2
 core/browse_data.cpp memory 4
@@ -35,14 +34,7 @@ core/comline.cpp buffers 1
 core/comline.cpp files 2
 core/csv_export.cpp buffers 2
 core/csv_export.cpp text 10
-core/cvband.cpp memory 2
-core/cvdense.cpp memory 2
-core/cvode.cpp memory 4
-core/dae_fun.cpp buffers 1
-core/dae_fun.cpp text 1
 core/delay_handle.cpp buffers 1
-core/delay_handle.cpp memory 2
-core/dense.cpp memory 8
 core/edit_rhs.cpp buffers 3
 core/edit_rhs.cpp memory 2
 core/edit_rhs.cpp text 1
@@ -82,7 +74,6 @@ core/load_eqn.h buffers 1
 core/lunch-new.cpp buffers 2
 core/lunch-new.cpp text 1
 core/macsysdirent.h buffers 2
-core/markov.cpp memory 4
 core/marks_data.cpp buffers 2
 core/marks_data.cpp memory 1
 core/menus.cpp buffers 3
@@ -125,10 +116,7 @@ core/torus.cpp buffers 1
 core/ui_json.cpp buffers 1
 core/userbut.cpp text 1
 core/userbut.h buffers 1
-core/vector.cpp memory 4
-core/vector.h memory 2
 core/volterra.h buffers 1
-core/volterra2.cpp memory 8
 core/xpp_batch.cpp buffers 1
 core/xpp_batch.h buffers 2
 core/xpp_files.cpp buffers 1

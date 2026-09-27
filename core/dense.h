@@ -29,10 +29,9 @@
  * The DenseAllocMat function allocates a dense matrix for use in *
  * the other DenseMat routines listed in this file. Matrix        *
  * storage details are given in the documentation for the type    *
- * DenseMat. The DenseAllocPiv function allocates memory for      *
- * pivot information. The storage allocated by DenseAllocMat and  *
- * DenseAllocPiv is deallocated by the routines DenseFreeMat and  *
- * DenseFreePiv, respectively. The DenseFactor and DenseBacksolve *
+ * DenseMat; DenseFreeMat frees it. The pivot information is an   *
+ * array of N integers the caller keeps (cvdense.cpp holds it in  *
+ * a std::vector). The DenseFactor and DenseBacksolve             *
  * routines perform the actual solution of a dense linear system. *
  * Note that the DenseBacksolve routine has a parameter b of type *
  * N_Vector. The current implementation makes use of a machine    *
@@ -44,7 +43,7 @@
  * Routines that work with real ** begin with "den" (except for   *
  * the factor and solve routines which are called gefa and gesl,  *
  * respectively). The underlying matrix storage is described in   *
- * the documentation for denalloc.                                *
+ * the documentation for the type DenseMat.                       *
  *                                                                *
  ******************************************************************/
  
@@ -55,6 +54,7 @@
 
 #include "llnltyps.h"
 #include "vector.h"
+#include <vector>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -83,9 +83,15 @@ extern "C" {
  *                                                                *
  ******************************************************************/
 
-typedef struct {
+typedef struct DenseMatRec {
   integer size;
   real  **data;
+  /* the storage data points into, freed with the matrix by DenseFreeMat:
+     values holds the size*size elements column by column, columns each
+     column's first element (data is columns.data()), so data[0] points
+     to all size*size of them and data[j] to the jth column */
+  std::vector<real> values;
+  std::vector<real *> columns;
 } *DenseMat;
  
 
@@ -140,24 +146,6 @@ typedef struct {
  ******************************************************************/
 
 DenseMat DenseAllocMat(integer N);
-
-
-/******************************************************************
- *                                                                *
- * Function : DenseAllocPiv                                       *
- * Usage    : p = DenseAllocPiv(N);                               *
- *            if (p == NULL) ... memory request failed            *
- *----------------------------------------------------------------*
- * DenseAllocPiv allocates memory for pivot information to be     *
- * filled in by the DenseFactor routine during the factorization  *
- * of an N by N dense matrix. The underlying type for pivot       *
- * information is an array of N integers and this routine returns *
- * the pointer to the memory it allocates. If the request for     *
- * pivot storage cannot be satisfied, DenseAllocPiv returns NULL. *
- *                                                                * 
- ******************************************************************/
-
-integer *DenseAllocPiv(integer N);
 
 
 /******************************************************************
@@ -273,45 +261,9 @@ void DenseAddI(DenseMat A);
 void DenseFreeMat(DenseMat A);
 
 
-/******************************************************************
- *                                                                *
- * Function : DenseFreePiv                                        *
- * Usage    : DenseFreePiv(p);                                    *
- *----------------------------------------------------------------*
- * DenseFreePiv frees the memory allocated by DenseAllocPiv for   *
- * the pivot information array p.                                 *
- *                                                                *
- ******************************************************************/
-
-void DenseFreePiv(integer *p);
-
-
 /* Functions that use the real ** representation for a dense matrix */
 
  
-/******************************************************************
- *                                                                *
- * Function : denalloc                                            *
- * Usage    : real **a;                                           *
- *            a = denalloc(n);                                    *
- *            if (a == NULL) ... memory request failed            *
- *----------------------------------------------------------------*
- * denalloc(n) allocates storage for an n by n dense matrix. It   *
- * returns a pointer to the newly allocated storage if            *
- * successful. If the memory request cannot be satisfied, then    *
- * denalloc returns NULL. The underlying type of the dense matrix *
- * returned is real **. If we allocate a dense matrix real **a by *
- * a = denalloc(n), then a[j][i] references the (i,j)th element   *
- * of the matrix a, 0 <= i,j <= n-1, and a[j] is a pointer to the *
- * first element in the jth column of a. The location a[0]        *
- * contains a pointer to n^2 contiguous locations which contain   *
- * the elements of a.                                             *
- *                                                                *
- ******************************************************************/
-
-real **denalloc(integer n);
-
-
 /******************************************************************
  *                                                                *
  * Function : gefa                                                *
@@ -414,18 +366,6 @@ void denscale(real c, real **a, integer n);
  ******************************************************************/
 
 void denaddI(real **a, integer n);
-
-
-/******************************************************************
- *                                                                *
- * Function : denfree                                             *
- * Usage    : denfree(a);                                         *
- *----------------------------------------------------------------*
- * denfree(a) frees the dense matrix a allocated by denalloc.     *
- *                                                                *
- ******************************************************************/
-
-void denfree(real **a);
 
 
 #ifdef __cplusplus

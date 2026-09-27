@@ -2,7 +2,6 @@
 #include "storage.h"
 #include "xpp_ui.h"
 #include "markov.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
 
@@ -58,10 +57,13 @@ MARKOV markov[MAXMARK];
 
 
 
-/* raw xpp_malloc blocks per row, not std::vector<std::vector<float>>:
-   set_browser_data (browse.h) takes a plain float** and expects these
-   MAXODE pointers contiguous, so my_mean/my_variance stay this shape. */
+/* The browser (new_browse_dat, browse.h) takes the statistics as a plain
+   float ** of MAXODE rows, so my_mean/my_variance stay arrays of row
+   pointers; each row points into the vector below that owns it. */
 float *my_mean[MAXODE],*my_variance[MAXODE];
+namespace {
+std::vector<float> mean_rows[MAXODE], variance_rows[MAXODE];
+}
 int stoch_len;
 
 int STOCH_FLAG,STOCH_HERE,N_TRIALS;
@@ -115,10 +117,8 @@ static int markov_named(const char *name)
     xpp_log(XPP_LOG_ERROR, " Markov variable |%s| not found \n",name);
     xpp_model_failed();
   }
-  if(ConvertStyle){
-    std::string _cvt = xpp::format("markov {} {}\n", name, markov[index].nstates);
-    fwrite(_cvt.data(), 1, _cvt.size(), convertf);
-  }
+  if(ConvertStyle)
+    xpp::print(convertf,"markov {} {}\n", name, markov[index].nstates);
   return index;
 }
 
@@ -137,7 +137,7 @@ int build_markov(const char *const *ma, const char *name)  /*   FILE *fptr; */
    /* fgets(line,256,fptr); */
    std::string line = ma[i];
    if(ConvertStyle)
-     fputs(line.c_str(),convertf);
+     xpp::print(convertf,"{}",line);
    /*nn=strlen(line)+1;*/
    /* if((save_eqn[NLINES]=(char *)malloc(nn))==NULL){
      plintf("saveeqn-prob\n");xpp_model_failed();}
@@ -179,8 +179,7 @@ int old_build_markov(FILE *fptr, const char *name)
    if(ConvertStyle){
      /* LineReader strips the terminator fgets used to keep; restore it
         so the converted file's line breaks match exactly. */
-     fputs(line.c_str(),convertf);
-     fputc('\n',convertf);
+     xpp::print(convertf,"{}\n",line);
    }
    /*nn=strlen(line)+1;*/
    /* if((save_eqn[NLINES]=(char *)malloc(nn))==NULL)xpp_model_failed();
@@ -548,8 +547,9 @@ void free_stoch()
   if(STOCH_HERE){
     data_back();
     for(i=0;i<(NEQ+1);i++){
-      xpp_free(my_mean[i]);
-      xpp_free(my_variance[i]);
+      mean_rows[i]=std::vector<float>();
+      variance_rows[i]=std::vector<float>();
+      my_mean[i]=my_variance[i]=nullptr;
     }
     STOCH_HERE=0;
   }
@@ -562,12 +562,10 @@ void init_stoch(int len)
   N_TRIALS=0;
   stoch_len=len;
   for(i=0;i<(NEQ+1);i++){
-    my_mean[i]=static_cast<float *>(xpp_malloc(sizeof(float)*stoch_len));
-    my_variance[i]=static_cast<float *>(xpp_malloc(sizeof(float)*stoch_len));
-    for(j=0;j<stoch_len;j++){
-      my_mean[i][j]=0.0;
-      my_variance[i][j]=0.0;
-    }
+    mean_rows[i].assign(stoch_len,0.0f);
+    variance_rows[i].assign(stoch_len,0.0f);
+    my_mean[i]=mean_rows[i].data();
+    my_variance[i]=variance_rows[i].data();
   }
   for(j=0;j<stoch_len;j++){
     my_mean[0][j]=data_store.col[0][j];

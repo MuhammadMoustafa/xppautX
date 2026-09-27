@@ -19,7 +19,6 @@
 #define _cvband_h
 
 
-#include <stdio.h>
 #include "cvode.h"
 #include "llnltyps.h"
 #include "band.h"

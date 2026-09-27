@@ -2,7 +2,6 @@
 #include "markov.h"
 #include "odesol2.h"
 #include "browse.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "gear.h"

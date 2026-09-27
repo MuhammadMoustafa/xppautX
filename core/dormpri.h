@@ -74,9 +74,6 @@ iout     Switch for calling solout :
 	   iout=2 : dense output is performed in solout (in this case nrdens
 		    must be greater than 0).
 
-fileout  A pointer to the stream used for messages, if you do not want any
-	 message, just pass NULL.
-
 icont    An array containing the indexes of components for which dense
 	 output is required. If no dense output is required, pass NULL.
 
@@ -225,9 +222,6 @@ iout     Switch for calling solout :
 	   iout=2 : dense output is performed in solout (in this case nrdens
 		    must be greater than 0).
 
-fileout  A pointer to the stream used for messages, if you do not want any
-	 message, just pass NULL.
-
 icont    An array containing the indexes of components for which dense
 	 output is required. If no dense output is required, pass NULL.
 
@@ -304,7 +298,6 @@ dopri5 returns the following values
 
 
 #include "my_rhs.h"
-#include <stdio.h>
 #include <limits.h>
 #ifdef __cplusplus
 extern "C" {
@@ -325,7 +318,6 @@ extern int dop853
   int itoler,      /* switch for rtoler and atoler */
   SolTrait solout, /* function providing the numerical solution during integration */
   int iout,        /* switch for calling solout */
-  FILE* fileout,   /* messages stream */
   double uround,   /* rounding unit */
   double safe,     /* safety factor */
   double fac1,     /* parameters for step size selection */
@@ -356,7 +348,6 @@ extern int dopri5
   int itoler,      /* switch for rtoler and atoler */
   SolTrait solout, /* function providing the numerical solution during integration */
   int iout,        /* switch for calling solout */
-  FILE* fileout,   /* messages stream */
   double uround,   /* rounding unit */
   double safe,     /* safety factor */
   double fac1,     /* parameters for step size selection */
@@ -381,8 +372,6 @@ void dprhs(unsigned n, double t, double *y, double *f);
 void dp_err(int k);
 int dp(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag);
 int dormprin(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag);
-int dop853(unsigned n, FcnEqDiff fcn, double x, double *y, double xend, double *rtoler, double *atoler, int itoler, SolTrait solout, int iout, FILE *fileout, double uround, double safe, double fac1, double fac2, double beta, double hmax, double h, long nmax, int meth, long nstiff, unsigned nrdens, unsigned *icont, unsigned licont, double *work);
-int dopri5(unsigned n, FcnEqDiff fcn, double x, double *y, double xend, double *rtoler, double *atoler, int itoler, SolTrait solout, int iout, FILE *fileout, double uround, double safe, double fac1, double fac2, double beta, double hmax, double h, long nmax, int meth, long nstiff, unsigned nrdens, unsigned *icont, unsigned licont, double *work);
 
 
 

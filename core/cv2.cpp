@@ -3,8 +3,8 @@
 
 #include "flags.h"
 #include "my_rhs.h"
-#include <stdio.h>
-#include <string.h>
+
+
 #include "llnltyps.h" /* definitions of types real (set to double) and     */
                       /* integer (set to int), and the constant FALSE      */
 #include "cvode.h"    /* prototypes for CVodeMalloc, CVode, and CVodeFree, */
@@ -34,7 +34,7 @@ void start_cv(double *y, double t, int n, double tout, double *atol, double *rto
  ycv=N_VNew(n,NULL);
  for(i=0;i<n;i++)ycv->data[i]=y[i];
  cvode_mem=CVodeMalloc(n, cvf, t, ycv, BDF, NEWTON, SS, rtol, atol,
-                          NULL, NULL, FALSE, cv_iopt, cv_ropt, NULL);
+                          NULL, FALSE, cv_iopt, cv_ropt, NULL);
  if(cv_bandflag==1)
    CVBand(cvode_mem,cv_bandupper,cv_bandlower,NULL,NULL);
  else

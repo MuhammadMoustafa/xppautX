@@ -45,6 +45,7 @@
 
 
 #include "llnltyps.h"
+#include <vector>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -73,37 +74,23 @@ extern "C" {
 typedef struct N_VectorContent {  /* a tag: -fsanitize=function tells unnamed structs apart by file */
   integer length;
   real   *data;
+  /* N_VNew's components, which data points into (N_VFree deletes the
+     whole vector). Empty for a vector made around the caller's own array
+     (cvdense.cpp's jthCol, a local N_VectorContent over one column). */
+  std::vector<real> storage;
 } *N_Vector;
  
  
 /***************************************************************
  *                                                             *
- * Macros: N_VMAKE, N_VDISPOSE, N_VDATA, N_VLENGTH, N_VIth     *
+ * Macros: N_VDATA, N_VLENGTH, N_VIth                          *
  *-------------------------------------------------------------*
  * In the descriptions below, the following user               *
  * declarations are assumed:                                   *
  *                                                             *
  * N_Vector v; real *v_data, r; integer v_len, i;              *
  *                                                             *
- * (1) N_VMAKE, N_VDISPOSE                                     *
- *                                                             *
- *     These companion routines are used to create and         *
- *     destroy an N_Vector with a component array v_data       *
- *     allocated by the user.                                  *
- *                                                             *
- *     The call N_VMAKE(v, v_data, v_len) makes v an           *
- *     N_Vector with component array v_data and length v_len.  *
- *     N_VMAKE stores the pointer v_data so that changes       *
- *     made by the user to the elements of v_data are          *
- *     simultaneously reflected in v. There is no copying of   *
- *     elements.                                               *
- *                                                             *
- *     The call N_VDISPOSE(v) frees all memory associated      *
- *     with v except the its component array. This memory was  *
- *     allocated by the user and, therefore, should be         *
- *     deallocated by the user.                                *
- *                                                             *
- * (2) N_VDATA, N_VLENGTH                                      *
+ * (1) N_VDATA, N_VLENGTH                                      *
  *                                                             *
  *     These routines give individual access to the parts of   *
  *     an N_Vector.                                            *
@@ -117,7 +104,7 @@ typedef struct N_VectorContent {  /* a tag: -fsanitize=function tells unnamed st
  *     the length of v. The call N_VLENGTH(v)=len_v sets       *
  *     the length of v to be len_v.                            *
  *                                                             *
- * (3) N_VIth                                                  *
+ * (2) N_VIth                                                  *
  *                                                             *
  *     In the following description, the components of an      *
  *     N_Vector are numbered 0..N-1, where N is the length of  *
@@ -129,29 +116,12 @@ typedef struct N_VectorContent {  /* a tag: -fsanitize=function tells unnamed st
  *                                                             *
  * Notes..                                                     *
  *                                                             *
- * Users who use the macros (1) must #include "xpp_mem.h"      *
- * since these macros expand to xpp_malloc and xpp_free.      *
- *                                                             *
  * When looping over the components of an N_Vector v, it is    *
  * more efficient to first obtain the component array via      *
  * v_data=N_VDATA(v) and then access v_data[i] within the      *
  * loop than it is to use N_VDATA(v,i) within the loop.        *
  *                                                             *
- * N_VMAKE and N_VDISPOSE are similar to N_VNew and N_VFree.   *
- * The difference is one of responsibility for component       *
- * memory allocation and deallocation. N_VNew allocates memory *
- * for the N_Vector components and N_VFree frees the component *
- * memory allocated by N_VNew. For N_VMAKE and N_VDISPOSE, the *
- * component memory is allocated and freed by the user of      *
- * this package.                                               *
- *                                                             *
  ***************************************************************/ 
-
-#define N_VMAKE(v, v_data, v_len) v = static_cast<N_Vector>(xpp_malloc(sizeof(*v))); \
-                                  v->data   = v_data; \
-                                  v->length = v_len
-
-#define N_VDISPOSE(v) xpp_free(v)
 
 #define N_VDATA(v) (v->data)
 

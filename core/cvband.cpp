@@ -10,9 +10,7 @@
  ******************************************************************/
 
 
-#include <stdio.h>
-#include "xpp_mem.h"
-#include "xpp_io.h"
+#include "xpp_log.h"
 #include <stdlib.h>
 #include "cvband.h"
 #include "cvode.h"
@@ -26,11 +24,11 @@
 
 #define CVBAND_INIT      "CVBandInit-- "
   
-#define MSG_MEM_FAIL     CVBAND_INIT "A memory request failed.\n\n"
+#define MSG_MEM_FAIL     CVBAND_INIT "A memory request failed.\n"
 
 #define MSG_BAD_SIZES_1  CVBAND_INIT "Illegal bandwidth parameter(s) "
 #define MSG_BAD_SIZES_2  "ml = {}, mu = {}.\n"
-#define MSG_BAD_SIZES_3  "Must have 0 <=  ml, mu <= N-1={}.\n\n"
+#define MSG_BAD_SIZES_3  "Must have 0 <=  ml, mu <= N-1={}.\n"
 #define MSG_BAD_SIZES    MSG_BAD_SIZES_1 MSG_BAD_SIZES_2 MSG_BAD_SIZES_3
 
 
@@ -51,7 +49,7 @@
  *                                                                *
  ******************************************************************/
 
-typedef struct {
+typedef struct CVBandMemRec {
 
     CVBandJacFn b_jac;      /* jac = Jacobian routine to be called      */
 
@@ -63,7 +61,7 @@ typedef struct {
 
     BandMat b_M;            /* M = I - gamma J, gamma = h / l1          */
 
-    integer *b_pivots;      /* pivots = pivot array for PM = LU         */
+    std::vector<integer> b_pivots; /* pivots = pivot array for PM = LU  */
 
     BandMat b_savedJ;       /* savedJ = old Jacobian                    */
 
@@ -73,7 +71,7 @@ typedef struct {
 
     void *b_J_data;         /* J_data is passed to jac                  */
 
-} CVBandMemRec, *CVBandMem;
+} *CVBandMem;
 
 
 /* CVBAND linit, lsetup, lsolve, and lfree routines */
@@ -181,7 +179,6 @@ void CVBandDQJac(integer N, integer mupper, integer mlower, BandMat J,
 #define gamrat    (cv_mem->cv_gamrat)
 #define ewt       (cv_mem->cv_ewt)
 #define nfe       (cv_mem->cv_nfe)
-#define errfp     (cv_mem->cv_errfp)
 #define iopt      (cv_mem->cv_iopt)
 #define linit     (cv_mem->cv_linit)
 #define lsetup    (cv_mem->cv_lsetup)
@@ -235,12 +232,10 @@ void CVBand(void *cvode_mem, integer mupper, integer mlower, CVBandJacFn bjac,
   lsolve = CVBandSolve;
   lfree  = CVBandFree;
   
-  /* Get memory for CVBandMemRec. xpp_malloc never returns NULL (it exits
-     on failure). lmem is a void* handle shared with cv_mem (cvode.h) and
-     freed only by CVBandFree below, so it stays an xpp_malloc block
-     rather than a smart pointer: cv_mem's struct field is a plain
-     void *, the same opaque-handle pattern as N_Vector. */
-  lmem = cvband_mem = static_cast<CVBandMem>(xpp_malloc(sizeof(CVBandMemRec)));
+  /* The record behind cv_mem's opaque void *lmem, deleted by CVBandFree
+     below; value-initialised (zeroed), as the xpp_malloc block it
+     replaces was. */
+  lmem = cvband_mem = new CVBandMemRec();
 
   /* Set Jacobian routine field to user's bjac or CVBandDQJac */
   if (bjac == NULL) {
@@ -271,7 +266,7 @@ static int CVBandInit(CVodeMem cv_mem, bool *setupNonNull)
 
   /* Print error message and return if cvband_mem is NULL */
   if (cvband_mem == NULL) {
-    fputs(MSG_MEM_FAIL, errfp);
+    xpp::log(XPP_LOG_ERROR, MSG_MEM_FAIL);
     return(LINIT_ERR);
   }
 
@@ -280,32 +275,18 @@ static int CVBandInit(CVodeMem cv_mem, bool *setupNonNull)
 
   /* Test ml and mu for legality */
   if ((ml < 0) || (mu < 0) || (ml >= N) || (mu >= N)) {
-    fputs(xpp::format(MSG_BAD_SIZES, static_cast<long>(ml), static_cast<long>(mu), static_cast<long>(N-1)).c_str(), errfp);
+    xpp::log(XPP_LOG_ERROR, MSG_BAD_SIZES, static_cast<long>(ml), static_cast<long>(mu), static_cast<long>(N-1));
     return(LINIT_ERR);
   }
 
   /* Set extended upper half-bandwith for M (required for pivoting) */
   storage_mu = MIN(N-1, mu + ml);
 
-  /* Allocate memory for M, savedJ, and pivot arrays */
+  /* Allocate memory for M, savedJ, and pivot arrays (N > 0, which
+     CVodeMalloc checked, so BandAllocMat cannot return NULL) */
   M = BandAllocMat(N, mu, ml, storage_mu);
-  if (M == NULL) {
-    fputs(MSG_MEM_FAIL, errfp);
-    return(LINIT_ERR);
-  }
   savedJ = BandAllocMat(N, mu, ml, mu);
-  if (savedJ == NULL) {
-    fputs(MSG_MEM_FAIL, errfp);
-    BandFreeMat(M);
-    return(LINIT_ERR);
-  }
-  pivots = BandAllocPiv(N);
-  if (pivots == NULL) {
-    fputs(MSG_MEM_FAIL, errfp);
-    BandFreeMat(M);
-    BandFreeMat(savedJ);
-    return(LINIT_ERR);
-  }
+  pivots.assign(N, 0);
 
   /* Initialize nje and nstlj, and set workspace lengths */
   nje = 0;
@@ -370,7 +351,7 @@ static int CVBandSetup(CVodeMem cv_mem, int convfail, N_Vector ypred,
   BandAddI(M);
 
   /* Do LU factorization of M */
-  ier = BandFactor(M, pivots);
+  ier = BandFactor(M, pivots.data());
 
   /* Return 0 if the LU was complete; otherwise return 1 */
   if (ier > 0) return(1);
@@ -391,7 +372,7 @@ static int CVBandSolve(CVodeMem cv_mem, N_Vector b, N_Vector ycur,
   
   cvband_mem = static_cast<CVBandMem>(lmem);
 
-  BandBacksolve(M, pivots, b);
+  BandBacksolve(M, pivots.data(), b);
 
   /* If BDF, scale the correction to account for change in gamma */
   if ((lmm == BDF) && (gamrat != ONE)) {
@@ -415,6 +396,5 @@ static void CVBandFree(CVodeMem cv_mem)
 
   BandFreeMat(M);
   BandFreeMat(savedJ);
-  BandFreePiv(pivots);
-  xpp_free(lmem);
+  delete cvband_mem;
 }
