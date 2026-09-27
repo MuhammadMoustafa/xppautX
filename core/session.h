@@ -82,6 +82,10 @@ struct Session {
   int run_immediately=0;
   /* the command line named a model file */
   int got_file=0;
+
+  /* what each network computed last and its work space (simplenet.cpp;
+     their definitions are Model::networks) */
+  std::array<NetworkValues,MAXNET> networks;
 };
 
 /* the current Session (xpp_current.h) */

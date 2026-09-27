@@ -30,6 +30,7 @@
 #include "xpplim.h"
 #include "volterra.h"
 #include "tabular.h"
+#include "simplenet.h"
 #include "xpp_current.h"
 
 #include <array>
@@ -184,6 +185,11 @@ struct Model {
      be read again from the Numerics menu: the Session's to own (W47c) */
   int ntable=0;
   std::array<TABULAR,MAX_TAB> tables;
+
+  /* ---- the networks and vectorizers (simplenet.cpp) ---- */
+  int nnetwork=0,nvector=0;
+  std::array<Network,MAXNET> networks;
+  std::array<Vectorizer,MAXVEC> vectors;
 
   /* ---- the user functions (parserslow2.cpp), nfun of them ---- */
   int nfun=0;
