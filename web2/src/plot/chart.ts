@@ -34,13 +34,10 @@ export interface ChartInfo {
   y: Range;
   width: number;
   height: number;
-  /** milliseconds the last draws took (newest last), and how many draws there were */
-  drawMs: number[];
+  /** how many draws there were (draw times are measured from outside, through CDP: W58) */
   draws: number;
   /** a long curve's trace is still being refined in later tasks (decimate.ts) */
   tracing: boolean;
-  /** milliseconds from a new view to its finished traces, the last time it took later tasks */
-  traceMs: number | null;
   /** vertices the phase plane's line paths drew last, per curve (null: uPlot's own path) */
   vertices: (number | null)[];
   /** earlier runs drawn under the curves (store/runs.ts): how many, whether
@@ -51,7 +48,6 @@ export interface ChartInfo {
   layers: ((Layer | MarkLayer) & {visible: boolean; drawn: number; css: string})[];
 }
 
-const DRAWS_KEPT = 100;
 /** points of a line traced while drawing (a small curve, an append's rows);
     more go to later tasks, TRACE_MS each at most, TRACE_STEP points at a time */
 const TRACE_NOW = 32768;
@@ -105,13 +101,9 @@ export class Chart {
   private reportPending = false;
   private dark = false;
   private base: Ranges = {x: {min: 0, max: 1}, y: {min: 0, max: 1}};
-  private drawStart = 0;
-  private drawMs: number[] = [];
   private draws = 0;
   private traces: CurveTraces[] = [];
   private traceTimer: ReturnType<typeof setTimeout> | null = null;
-  private traceStart = 0;
-  private traceMs: number | null = null;
   private vertices: (number | null)[] = [];
   private nullclines: Nullclines | null = null;
   private dfield: Dfield | null = null;
@@ -179,7 +171,6 @@ export class Chart {
     if (!tr.current || !sameFrame(tr.current.frame, f)) {
       if (tr.current && tr.done) tr.complete = tr.current;
       tr.current = new LineTrace(f, Math.max(0, i0));
-      this.traceStart = performance.now();
     }
     /* at most a slice now (a small curve, the rows of an append), else all
        of it in later tasks: the frame shows the stand-in meanwhile */
@@ -217,7 +208,6 @@ export class Chart {
       this.traceTimer = setTimeout(() => this.traceRest(), 0);
       return;
     }
-    this.traceMs = performance.now() - this.traceStart;
     this.applying = true;
     u.batch(() => u.setData(this.data(), false)); /* new paths from the finished traces */
     this.applying = false;
@@ -283,7 +273,6 @@ export class Chart {
       },
       hooks: {
         setScale: [() => this.scaleChanged()],
-        drawClear: [() => { this.drawStart = performance.now(); }],
         drawAxes: [u => this.drawPhase(u)], /* after the axes, before the curves */
         draw: [u => { this.drawMarks(u); this.drawn(); }], /* over the curves */
       },
@@ -491,8 +480,6 @@ export class Chart {
   }
 
   private drawn(): void {
-    this.drawMs.push(performance.now() - this.drawStart);
-    if (this.drawMs.length > DRAWS_KEPT) this.drawMs.shift();
     this.draws++;
   }
 
@@ -607,10 +594,8 @@ export class Chart {
       ...this.ranges(),
       width: u.over.clientWidth,
       height: u.over.clientHeight,
-      drawMs: this.drawMs.slice(),
       draws: this.draws,
       tracing: this.traceTimer !== null,
-      traceMs: this.traceMs,
       vertices: this.vertices.slice(),
       runs: {count: this.runs.length, shown: this.showRuns, drawn: this.runsDrawn},
       layers: [...this.layers, ...this.markLayers].map(l => ({...l, visible: this.isLayerVisible(l.key),

@@ -2,9 +2,11 @@
    actions it took (newest last) and a plot window's chart, never pixels.
    window.__xpp exists in every build; only `send` changes anything, and it
    is what the UI itself does. `sent` lists the commands the page sent
-   (newest last), such as an ask's answer. `longTasks` lists the main thread's tasks of
-   more than 50 ms (the Long Tasks API), so a test can tell that a gesture
-   never held a frame back longer than that. */
+   (newest last), such as an ask's answer. Draw times and long tasks are not
+   read here any more (W58): the program carries no code that exists only to
+   measure or slow it, so web2check measures those from outside, through
+   CDP (tools/cdp.mjs: an injected PerformanceObserver and rAF timestamps),
+   not through window.__xpp. */
 import {diagramChart} from './plot/diagramChart';
 import {aniDrawInfo} from './ani/render';
 import {bytesToBase64} from './plot/gif';
@@ -14,30 +16,9 @@ import type {Action} from './store/state';
 
 const KEEP = 200;
 
-interface LongTask {
-  start: number;
-  duration: number;
-}
-
-function watchLongTasks(): LongTask[] {
-  const tasks: LongTask[] = [];
-  try {
-    new PerformanceObserver(list => {
-      for (const e of list.getEntries()) {
-        tasks.push({start: e.startTime, duration: e.duration});
-        if (tasks.length > KEEP) tasks.shift();
-      }
-    }).observe({type: 'longtask', buffered: true});
-  } catch {
-    /* a browser without the Long Tasks API: the list stays empty */
-  }
-  return tasks;
-}
-
 export function installTestHook(session: Session): void {
   const actions: string[] = [];
   const sent: unknown[] = [];
-  const tasks = watchLongTasks();
   /* the `diagram` events as they came, so a test can rebuild the diagram on its
      own: from the last that started it over (a reset to no points), for AUTO's
      window as it is now */
@@ -66,9 +47,6 @@ export function installTestHook(session: Session): void {
     diagram: () => diagramChart()?.info() ?? null,
     /** every `diagram` event received, oldest first */
     diagramEvents: () => diagramEvents.slice(),
-    /** long tasks that started at or after `since` (performance.now() milliseconds) */
-    longTasks: (since = 0) => tasks.filter(t => t.start >= since),
-    longTasksSupported: () => PerformanceObserver.supportedEntryTypes?.includes('longtask') ?? false,
     send: (cmd: {cmd: string}) => session.send(cmd),
     /** the animation's last drawing: the frame, its primitive count, the canvas and the box on it */
     ani: () => aniDrawInfo(),

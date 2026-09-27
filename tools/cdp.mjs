@@ -59,6 +59,41 @@ export class Cdp {
 
 export const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+/* Draw and frame timing (W58: the program itself carries no code that
+   exists only to measure or slow it -- performance is for CI). Injected
+   into every document the page navigates to (Page.addScriptToEvaluateOnNewDocument
+   runs before any of the page's own scripts), so it needs no cooperation
+   from web2/src: a PerformanceObserver for long tasks (the Long Tasks API,
+   read back through Runtime.evaluate), and the timestamps of every
+   animation frame, whose gaps stand in for how long each frame's drawing
+   took (a frame slowed by a synchronous draw shows up as a wider gap
+   before the next one). window.__xppPerf is this script's own global,
+   never read by the app. */
+const PERF_SCRIPT = `(() => {
+  const KEEP = 2000;
+  window.__xppPerf = {longTasks: [], frames: []};
+  try {
+    new PerformanceObserver(list => {
+      for (const e of list.getEntries()) {
+        window.__xppPerf.longTasks.push({start: e.startTime, duration: e.duration});
+        if (window.__xppPerf.longTasks.length > KEEP) window.__xppPerf.longTasks.shift();
+      }
+    }).observe({type: 'longtask', buffered: true});
+  } catch (e) { /* no Long Tasks API */ }
+  function raf(t) {
+    window.__xppPerf.frames.push(t);
+    if (window.__xppPerf.frames.length > KEEP) window.__xppPerf.frames.shift();
+    requestAnimationFrame(raf);
+  }
+  requestAnimationFrame(raf);
+})();`;
+
+/** installs PERF_SCRIPT for every document this tab navigates to from now
+    on; call once, right after Page.enable, before the first Page.navigate */
+export function installPerfObserver(cdp) {
+  return cdp.send('Page.addScriptToEvaluateOnNewDocument', {source: PERF_SCRIPT});
+}
+
 export async function startBrowser(browser, profile) {
   const proc = spawn(browser, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
     '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--hide-scrollbars', '--mute-audio',

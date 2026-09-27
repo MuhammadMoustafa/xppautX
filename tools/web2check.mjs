@@ -79,7 +79,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {findBrowser, sleep, startBrowser, startServer, stopServer} from './cdp.mjs';
+import {findBrowser, installPerfObserver, sleep, startBrowser, startServer, stopServer} from './cdp.mjs';
 
 const top = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const opt = {bin: `xppautX${process.platform === 'win32' ? '.exe' : ''}`};
@@ -3208,11 +3208,25 @@ const pct = (a, q) => a.length ? [...a].sort((x, y) => x - y)[Math.min(a.length 
 const ms = v => `${v.toFixed(1)} ms`;
 /* Frame draw times and long tasks are measurements, printed as perf: lines
    (W58: performance is for CI, not the program, and a check that races the
-   clock is a design problem). The 90th percentile is still the number
-   reported (not the max): a slow, unsteady runner (macos-ui, W40, GitHub
-   #83) drew one frame of a handful well past the rest, and the median alone
-   would hide that a whole run's frames, not just one, had gone slow. */
+   clock is a design problem), read from outside through CDP: tools/cdp.mjs's
+   installPerfObserver injects a PerformanceObserver (long tasks) and a
+   requestAnimationFrame sampler into the page before it loads, into
+   window.__xppPerf, which the app itself never reads. A frame's own draw
+   time is not observable from outside without the app's cooperation, so the
+   gap before the next animation frame stands in for it: a synchronous draw
+   that runs long delays the next rAF callback by about as much. The 90th
+   percentile is still the number reported (not the max): a slow, unsteady
+   runner (macos-ui, W40, GitHub #83) drew one frame of a handful well past
+   the rest, and the median alone would hide that a whole run's frames, not
+   just one, had gone slow. */
 const p90 = frames => frames.length ? ms(pct(frames, 0.9)) : 'n/a';
+
+/** long tasks that started at or after t0 (performance.now() ms) */
+const longTasksSince = t0 => cdp.eval(`window.__xppPerf.longTasks.filter(t => t.start >= ${t0})`);
+/** the gaps (ms) between consecutive animation frames from t0 on: a proxy
+    for how long each frame's drawing took (see above) */
+const frameGapsSince = t0 => cdp.eval(`(() => { const f = window.__xppPerf.frames.filter(t => t >= ${t0});
+  const g = []; for (let i = 1; i < f.length; i++) g.push(f[i] - f[i - 1]); return g; })()`);
 
 /** wheel zooms in and out about the middle of the plot; the long tasks and draw times they cost */
 async function zoomFrames() {
@@ -3226,14 +3240,14 @@ async function zoomFrames() {
   }
   await sleep(200);
   await until('!__xpp.plot().tracing', 'tracing', 5000);
+  const t1 = await cdp.eval('performance.now()');
   const p = await P(), draws = p.draws - d0;
   return {
     zoomed: JSON.stringify(v0) !== JSON.stringify(await S('w.viewport')),
-    traceMs: p.traceMs,
+    traceMs: t1 - t0,
     vertices: p.vertices,
-    long: await cdp.eval(`__xpp.longTasks(${t0})`),
-    supported: await cdp.eval('__xpp.longTasksSupported()'),
-    drawMs: p.drawMs.slice(-Math.min(draws, p.drawMs.length)),
+    long: await longTasksSince(t0),
+    frameGaps: await frameGapsSince(t0),
     draws,
   };
 }
@@ -3252,46 +3266,48 @@ async function million() {
     done, JSON.stringify(await S('w.series && [w.series.rows, s.busy]')));
   if (!done) return;
   await until('!__xpp.plot().tracing', 'tracing', 10000);
+  const t1 = await cdp.eval('performance.now()');
   await sleep(300);
-  const p = await P(), frames = p.drawMs.slice(-Math.min(p.draws - d0, p.drawMs.length));
-  const load = await cdp.eval(`__xpp.longTasks(${p0})`);
+  const p = await P(), frames = await frameGapsSince(p0);
+  const load = await longTasksSince(p0);
   /* the long tasks of the run are the arrival of the data (the final full
      series is 16 MB of base64 in one event): reported, not drawing */
-  console.log(`  run: ${frames.length} draws, median ${ms(pct(frames, 0.5))}, max ${ms(Math.max(...frames))}; `
-    + `long tasks (data arriving) ${JSON.stringify(load.map(t => Math.round(t.duration)))}; the final trace took `
-    + `${ms(p.traceMs ?? 0)} in later tasks and keeps ${p.vertices[0]} of the 1 000 001 vertices`);
+  console.log(`  run: ${frames.length} frame gaps, median ${ms(pct(frames, 0.5))}, max ${ms(Math.max(0, ...frames))}; `
+    + `long tasks (data arriving) ${JSON.stringify(load.map(t => Math.round(t.duration)))}; tracing settled `
+    + `${ms(t1 - p0)} after the run started and keeps ${p.vertices[0]} of the 1 000 001 vertices`);
   check('10^6: the phase plane draws its 1 000 001 points as they come',
-    p.mode === 2 && p.curves[0].points === 1000001 && frames.length > 0
-    && p.vertices[0] > 100, JSON.stringify({mode: p.mode, points: p.curves[0].points, frames, vertices: p.vertices}));
+    p.mode === 2 && p.curves[0].points === 1000001 && p.draws - d0 > 0
+    && p.vertices[0] > 100, JSON.stringify({mode: p.mode, points: p.curves[0].points, draws: p.draws - d0, vertices: p.vertices}));
   perf('10^6 phase plane draw p90', p90(frames));
   let z = await zoomFrames();
-  console.log(`  phase plane zoom: ${z.draws} draws, median ${ms(pct(z.drawMs, 0.5))}, max ${ms(Math.max(...z.drawMs))}, `
-    + `long tasks ${JSON.stringify(z.long.map(t => Math.round(t.duration)))}${z.supported ? '' : ' (not supported)'}; `
-    + `the last view's trace took ${ms(z.traceMs ?? 0)} (${z.vertices[0]} vertices)`);
+  console.log(`  phase plane zoom: ${z.draws} draws, ${z.frameGaps.length} frame gaps, median ${ms(pct(z.frameGaps, 0.5))}, `
+    + `max ${ms(Math.max(0, ...z.frameGaps))}, long tasks ${JSON.stringify(z.long.map(t => Math.round(t.duration)))}; `
+    + `the last view's trace took ${ms(z.traceMs)} (${z.vertices[0]} vertices)`);
   check('10^6: a wheel zoom of the phase plane ends traced',
     z.zoomed && z.draws > 0 && z.vertices[0] > 0, JSON.stringify(z));
-  perf('10^6 phase plane zoom draw p90', p90(z.drawMs));
+  perf('10^6 phase plane zoom draw p90', p90(z.frameGaps));
   perf('10^6 phase plane zoom long task max', ms(z.long.length ? Math.max(...z.long.map(t => t.duration)) : 0));
 
   /* x against time: uPlot's own line with its min and max per pixel column */
   await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
   const n0 = await S('s.seriesCount');
+  const t2 = await cdp.eval('performance.now()');
   await key('x');
   if (!(await until("s.ask && s.ask.kind === 'string'", 'Xi vs t'))) return check('10^6: X asks what to plot', false);
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: 'x'})`);
   check('10^6: X plots x against T', await until(`s.seriesCount > ${n0} && !s.busy && w.series.curves[0].x === 0`, 'x vs t', 60000));
   await until('!__xpp.plot().tracing', 'tracing', 10000);
+  const t3 = await cdp.eval('performance.now()');
   await sleep(300);
   const q = await P();
-  const render2 = q.drawMs[q.drawMs.length - 1];
   check('10^6: the time plot draws', q.mode === 1 && q.curves[0].points === 1000001,
-    JSON.stringify({mode: q.mode, points: q.curves[0].points, render2}));
-  perf('10^6 time plot draw', ms(render2));
+    JSON.stringify({mode: q.mode, points: q.curves[0].points}));
+  perf('10^6 time plot draw', ms(t3 - t2));
   z = await zoomFrames();
-  console.log(`  time plot zoom: ${z.draws} draws, median ${ms(pct(z.drawMs, 0.5))}, max ${ms(Math.max(...z.drawMs))}, `
-    + `long tasks ${JSON.stringify(z.long.map(t => Math.round(t.duration)))}`);
+  console.log(`  time plot zoom: ${z.draws} draws, ${z.frameGaps.length} frame gaps, median ${ms(pct(z.frameGaps, 0.5))}, `
+    + `max ${ms(Math.max(0, ...z.frameGaps))}, long tasks ${JSON.stringify(z.long.map(t => Math.round(t.duration)))}`);
   check('10^6: a wheel zoom of the time plot', z.zoomed && z.draws > 0, JSON.stringify(z));
-  perf('10^6 time plot zoom draw p90', p90(z.drawMs));
+  perf('10^6 time plot zoom draw p90', p90(z.frameGaps));
   perf('10^6 time plot zoom long task max', ms(z.long.length ? Math.max(...z.long.map(t => t.duration)) : 0));
 }
 
@@ -3769,6 +3785,7 @@ async function main() {
   cdp = b.cdp;
   try {
     await cdp.send('Page.enable');
+    await installPerfObserver(cdp); /* before the first Page.navigate: draw/frame timing and long tasks, W58 */
     await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     const run = name => !opt.only || opt.only.split(',').includes(name);
     if (run('desktop')) await session(ODE, async () => {

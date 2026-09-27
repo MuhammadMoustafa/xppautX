@@ -89,24 +89,30 @@ committed. After editing `web2/src`, from Git Bash:
 
 and commit `web2/dist` with the source. Tests read `window.__xpp`
 (`state()`, `actions()`, `sent()`, `plot()`, `diagram()`,
-`diagramEvents()`, `longTasks()` -- a measurement, read into a `perf:`
-line, never a pass/fail budget), never pixels. `tools/cdp.mjs` is
-web2check.mjs's headless-browser driver; web2check.mjs runs from Git Bash,
-where Node and Chrome are (not WSL), and builds nothing: it drives
-`./xppautX[.exe]` (`--bin` to point elsewhere).
+`diagramEvents()`), never pixels. `tools/cdp.mjs` is web2check.mjs's
+headless-browser driver; web2check.mjs runs from Git Bash, where Node and
+Chrome are (not WSL), and builds nothing: it drives `./xppautX[.exe]`
+(`--bin` to point elsewhere).
 A section a check fails in is rerun once (macos-ui, the slowest runner,
 failed a different check nearly every time, always passing on a rerun,
 W40): still failing is a FAIL, passing on the rerun is FLAKY (counted at
 the end, not silently a pass). `XPP_CHECK_SLOW` scales safety timeouts for
 a slow runner; it never scales a pass/fail budget (W58: performance is for
 CI, not the program -- a check whose outcome depends on wall-clock speed is
-a design problem, not a speed problem). Frame draw times, long tasks and
-Stop latency print as `perf: <name> <value>` lines instead, measured but
-never failed; a check whose *correctness* (not its speed) needs a run
-still in progress uses a heavier model (W42's heavy.ode) so that holds
-without racing the clock, and a check that can know its stopping point
-ahead of time arms it exactly (`xpp_job_stop_at_rows`/`_point`, the same
-mechanism `--script`'s abort replay uses: docs/protocol.md "Scripts"),
+a design problem, not a speed problem, and the program carries no code that
+exists only to measure or slow it). Frame draw times, long tasks and Stop
+latency print as `perf: <name> <value>` lines instead, measured but never
+failed, from outside through CDP: `tools/cdp.mjs`'s `installPerfObserver`
+injects a PerformanceObserver (long tasks) and a requestAnimationFrame
+sampler into the page before it loads (`Page.addScriptToEvaluateOnNewDocument`,
+so it needs no cooperation from web2/src), into `window.__xppPerf`, read
+back through `Runtime.evaluate`; a frame's own draw time is not observable
+from outside without the app's cooperation, so the gap before the next
+animation frame stands in for it. A check whose *correctness* (not its
+speed) needs a run still in progress uses a heavier model (W42's heavy.ode)
+so that holds without racing the clock, and a check that can know its
+stopping point ahead of time arms it exactly (`xpp_job_stop_at_rows`/`_point`,
+the same mechanism `--script`'s abort replay uses: docs/protocol.md "Scripts"),
 in a one-shot `--script` subprocess, rather than racing a live Abort.
 
 `tools/deadcode.sh` (W24; sourcecheck runs it with `--check`, about a

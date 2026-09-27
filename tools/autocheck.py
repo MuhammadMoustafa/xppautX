@@ -61,6 +61,13 @@ def check(name, ok, detail='', limit=False):
     failures += 0 if ok else 1
 
 
+def perf(name, detail=''):
+    """A measurement, never pass/fail (W58: performance is for CI, not the
+    program; the pass/fail stays on the result -- a reply arrived, a window
+    closed, the process exited -- checked separately)."""
+    print('perf: ' + name + ('  ' + detail if detail else ''))
+
+
 def open_auto(s):
     s.send(cmd='key', key='f')
     s.send(cmd='key', key='a')
@@ -341,9 +348,9 @@ def section_abort():
     t = s.send(cmd='abort')
     evs, e = s.collect(is_idle, timeout=120 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
-    check('Abort stops a periodic run within 0.5 s', e is not None and took < 0.5,
-          'abort->idle %.2f s (a point takes %.2f s)' % (took, gap), limit=True)
-    print('INFO abort->idle %.2f s, one point %.2f s' % (took, gap))
+    check('Abort stops a periodic run (reaches idle)', e is not None,
+          'abort->idle %.2f s (a point takes %.2f s)' % (took, gap))
+    perf('abort stops a periodic run -> idle', '%.2f s (a point takes %.2f s)' % (took, gap))
 
     # the run ends on an end point (EP, not MX: no convergence), which is
     # where it can be continued from
@@ -380,23 +387,24 @@ def section_abort():
     evs, e = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 101 and e.get('op') == 'destroy',
                        timeout=120 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
-    check('Abort then Close during a run closes the AUTO window within 1 s', e is not None and took < 1,
-          '%.2f s' % took, limit=True)
-    print('INFO abort+close -> destroy %.2f s' % took)
+    check('Abort then Close during a run closes the AUTO window', e is not None, '%.2f s' % took)
+    perf('abort+close -> destroy', '%.2f s' % took)
     s.collect(is_idle)
 
-    # Quit during a run: the process ends within a second
+    # Quit during a run: the process ends on its own, not killed
     open_auto(s)
     run_periodic(s)
     s.collect(is_point, timeout=60 * SLOW)
     t = s.send(cmd='quit')
     try:
         s.proc.wait(timeout=60 * SLOW)
+        exited = True
     except subprocess.TimeoutExpired:
         s.proc.kill()
+        exited = False
     took = time.monotonic() - t
-    check('Quit during a run exits within 1 s', took < 1, '%.2f s' % took, limit=True)
-    print('INFO quit -> exit %.2f s' % took)
+    check('Quit during a run exits the process on its own', exited, '%.2f s' % took)
+    perf('quit during a run -> exit', '%.2f s' % took)
     s.close()
 
 
@@ -794,9 +802,7 @@ def section_control():
     n = rows(evs)
     check('an Abort sent with the command still stops it', e is not None and n is not None and n < 40001,
           'rows %s' % n)
-    check('Abort right after the command: idle within 0.5 s', e is not None and took < 0.5, '%.2f s' % took,
-          limit=True)
-    print('INFO abort with the command -> idle %.2f s, %s rows' % (took, n))
+    perf('abort right after the command -> idle', '%.2f s, %s rows' % (took, n))
     s.send(cmd='state')
     evs, e = s.collect(is_idle, timeout=10 * SLOW)
     check('an Abort has no idle of its own', len([x for x in evs if is_idle(x)]) == 1 and
@@ -819,8 +825,7 @@ def section_control():
     took = (e['_t'] if e else time.monotonic()) - t
     closed = [x for x in evs if x.get('ev') == 'window' and x.get('win') == 101 and x.get('op') == 'destroy']
     check('Abort stops an integration', e is not None and (rows(evs) or 0) < 40001, 'rows %s' % rows(evs))
-    check('Abort stops an integration within 0.5 s', e is not None and took < 0.5, '%.2f s' % took, limit=True)
-    print('INFO abort during an integration -> idle %.2f s' % took)
+    perf('abort during an integration -> idle', '%.2f s' % took)
     check('a command sent during a job waits for its idle', not closed)
     evs, e = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 101 and e.get('op') == 'destroy',
                        timeout=10 * SLOW)
@@ -833,11 +838,13 @@ def section_control():
     t = s.send(cmd='quit')
     try:
         s.proc.wait(timeout=30 * SLOW)
+        exited = True
     except subprocess.TimeoutExpired:
         s.proc.kill()
+        exited = False
     took = time.monotonic() - t
-    check('Quit during an integration exits within 1 s', took < 1, '%.2f s' % took, limit=True)
-    print('INFO quit during an integration -> exit %.2f s' % took)
+    check('Quit during an integration exits the process on its own', exited, '%.2f s' % took)
+    perf('quit during an integration -> exit', '%.2f s' % took)
     s.close()
 
 
