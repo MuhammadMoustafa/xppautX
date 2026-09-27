@@ -133,6 +133,8 @@ issue; the card here is the one kept up to date.
 | W67 | #115 | Copy as set line (maintainer, 2026-09-27): a dialog names it and shows `set name {...}` with every parameter and initial condition, copied to the clipboard for the user to paste into the .ode; the program never writes the .ode | none | ready |
 | W68 | #116 | Commands during a computation are discarded at the source (maintainer, 2026-09-27): the page disables buttons and keys but Esc while busy, sliders and value fields stay usable, their edits waiting for the next computation (W69); the core takes only Stop, Quit, the run's answers and view changes, and drops anything else with a log line; nothing queues | none | ready |
 | W69 | #117 | Value edits are sent with the next computation, not on each change (maintainer, 2026-09-27): sliders, fields, Default/Reset and loaded .par/.ic stay pending in the page, sent as one set right before Go (or any computing command); Run on change and the rerun flag go | none | ready |
+| W70 | #118 | Split the expression engine (maintainer, 2026-09-27): parserslow2.cpp into files by job (symbols, compiler, evaluator, built-in functions), its stack and counts into the Model; numerics unchanged | W47c | blocked |
+| W71 | #119 | Every run has its own seed (maintainer, 2026-09-27): the seed set is the next run's (first-run noise and md5s unchanged), the next drawn from a seed stream; each run's seed logged and saved with its data; set it and Go regenerates that run exactly; -newseed logs its seed; the generator's state in the session file | none | ready |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
