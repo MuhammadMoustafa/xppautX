@@ -29,9 +29,10 @@
    locally at once, throttled `view3d` commands, and state.view settling
    to agree). Then live plotting (tools/models/live.ode: the store
    and the plot grow while 20 001 rows are computed, and end as output.dat)
-   and a run of 10^6 rows (tools/models/million.ode) that must draw and zoom
-   with most frames under a budget that XPP_CHECK_SLOW/--throttle scale for a
-   slow runner (draw times and long tasks, read through __xpp; W40).
+   and a run of 10^6 rows (tools/models/million.ode) that draws and zooms,
+   its draw times and long tasks (read through __xpp; W40) printed as
+   perf: lines, never pass/fail (W58: performance is for CI, not the
+   program).
    Files (T5): Write set lands in the model's folder and is downloaded, Read
    set by upload restores the parameters, a same-content upload is not
    copied, a same-name one asks Replace / Keep both / Cancel, and "Add
@@ -64,9 +65,11 @@
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH]
      [--only desktop,phase,marks,auto,keys,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help] [-v]
-     [--throttle N]   -- Emulation.setCPUThrottlingRate(N): imitates a slow runner (also raises
-                          frame budgets, like XPP_CHECK_SLOW=N; W40). A section a check fails in
-                          is rerun once; still failing is a FAIL, passing on the rerun is FLAKY.
+   A section a check fails in is rerun once; still failing is a FAIL,
+   passing on the rerun is FLAKY. XPP_CHECK_SLOW=N scales safety timeouts
+   for a slow runner (W40); it never scales a pass/fail budget (W58: draw
+   times, long tasks and Stop latency are measured as perf: lines, never
+   failed).
 
    Needs Node 22 or later and a browser, nothing else (tools/cdp.mjs). */
 import {spawnSync} from 'node:child_process';
@@ -93,21 +96,12 @@ const APLOT_ODE = path.join(top, 'examples/ode/wcring.ode');
 const LORENZ_ODE = path.join(top, 'examples/ode/lorenz.ode');
 const HEAVY_ODE = path.join(top, 'tools/models/heavy.ode');
 
-/* macos-ui is the slowest, least steady runner (W40, GitHub #83): a frame
-   budget and a settle wait both need slack a fast machine never sees.
-   XPP_CHECK_SLOW (the Python checks' own name for this) scales every frame
-   budget, and --throttle N asks Chrome itself to run N times slower
-   (Emulation.setCPUThrottlingRate) to reproduce that slowness locally; either
-   one raises SLOW. */
-const SLOW = Math.max(Number(process.env.XPP_CHECK_SLOW) || 1, Number(opt.throttle) || 1);
-/* the AUTO Stop budget (W42, GitHub #85): what tookStop below measures is
-   the *page's* turnaround from click to seeing `!s.busy`, which a throttled
-   page is, by construction, slower to report -- the same reason
-   FRAME_BUDGET (below) scales with SLOW. The core's own Stop/Abort latency
-   is not what is slow here: tools/autocheck.py's raw-protocol Abort check
-   holds a periodic run on tools/models/heavy.ode (seconds per point) to
-   under 0.5 s with no browser in the loop at all. */
-const STOP_BUDGET = 1000 * SLOW;
+/* macos-ui is the slowest, least steady runner (W40, GitHub #83): a wait for
+   something to settle needs slack a fast machine never sees. XPP_CHECK_SLOW
+   (the Python checks' own name for this) scales every such safety timeout;
+   it never scales a pass/fail budget any more (W58: frame draw times, long
+   tasks and Stop latency are `perf:` lines, measured, never failed). */
+const SLOW = Number(process.env.XPP_CHECK_SLOW) || 1;
 
 let failures = 0, flaky = 0;
 /* while a section (session(), below) is retrying a failed run, checks are
@@ -119,6 +113,15 @@ function check(name, ok, detail = '') {
   if (record) { record.push({name, ok, detail}); return; }
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : '  ' + detail}`);
   if (!ok) failures++;
+}
+
+/* A measurement, never pass/fail (the maintainer: performance is for CI, not
+   the program, and a check that races the clock is a design problem, not a
+   speed problem -- W58). Printed even while a section's checks are being
+   collected for a possible rerun (record), since a measurement is not
+   something a rerun could change the truth of. */
+function perf(name, value) {
+  console.log(`perf: ${name} ${value}`);
 }
 
 /* output.dat of the same model: the numbers the plot must show */
@@ -2063,9 +2066,9 @@ async function autoView(dir) {
   await menuKey('p');
   /* T21 ("while it runs the status strip says Running...") and T22 ("the
      axis dialog can change during the run") used to be asserted here, on
-     lecar.ode's fast default mesh: under --throttle they raced the same
+     lecar.ode's fast default mesh: on a slow runner they raced the same
      way the Stop checks did (W42, GitHub #85) and lost every time, not
-     occasionally -- a throttled page's render/dispatch loop, swamped by
+     occasionally -- a slow page's render/dispatch loop, swamped by
      this run's fast stream of `diagram add` events, coalesces every
      intermediate state and paints only the final "Stopped" one, no matter
      how long the test polls for "Running" to appear. Moved to
@@ -2449,18 +2452,18 @@ async function autoView(dir) {
 }
 
 /* T21, T22, T23, T25: AUTO Numerics/Stop during a run (W42, GitHub #85).
-   On lecar.ode's fast default mesh, a page throttled with --throttle
-   processes its incoming queue of `diagram add` events slower, in order;
-   if the run finishes (reaches Nmax, or a parameter/norm bound) before the
-   page's render/dispatch loop gets a turn, every intermediate state is
-   coalesced away and only the final "Stopped" one ever paints, no matter
-   how large Nmax is or how long the test polls. A finer mesh (raising
-   NTST) can make each point slower without raising Nmax, but a mesh
-   raised far enough to survive a throttled page's worst-case backlog
-   (NTST 1000) made a second periodic continuation from the same Hopf
-   point -- started fresh after the first was Stopped mid-run -- come back
-   with zero points every time, at any speed (see the final report for how
-   this reproduces; not fixed here, per the card).
+   On lecar.ode's fast default mesh, a slow page processes its incoming
+   queue of `diagram add` events slower, in order; if the run finishes
+   (reaches Nmax, or a parameter/norm bound) before the page's
+   render/dispatch loop gets a turn, every intermediate state is coalesced
+   away and only the final "Stopped" one ever paints, no matter how large
+   Nmax is or how long the test polls. A finer mesh (raising NTST) can make
+   each point slower without raising Nmax, but a mesh raised far enough to
+   survive a slow page's worst-case backlog (NTST 1000) made a second
+   periodic continuation from the same Hopf point -- started fresh after the
+   first was Stopped mid-run -- come back with zero points every time, at
+   any speed (see the final report for how this reproduces; not fixed here,
+   per the card).
 
    tools/models/heavy.ode sidesteps both problems: its right-hand side is
    deliberately expensive (a long sum), so every AUTO point costs real
@@ -2471,7 +2474,9 @@ async function autoView(dir) {
    "cannot finish on its own" is true by construction, not by luck. This
    is the same model and technique tools/autocheck.py's section_abort
    already relies on for the raw-protocol Abort check, proven fast there
-   (< 0.5 s) with no browser or throttle involved. */
+   (< 0.5 s) with no browser involved. The checks below (W58) assert Stop's
+   result -- rows kept, the EP label, a second run working -- not how long
+   it took: Stop latency is a perf: line, measured, never failed. */
 async function autoStopRace() {
   await key('f');
   await until('!s.busy', 'file menu');
@@ -2554,13 +2559,17 @@ async function autoStopRace() {
   const labsPre = await DS('d.labels.length'), runningAtStop = await S('s.busy'), tStop = Date.now();
   const stopBtn = runningAtStop && await until(`document.querySelector('.auto-status .auto-stop')`, 'stop button present', 2000 * SLOW);
   if (stopBtn) await cdp.eval(`document.querySelector('.auto-status .auto-stop').click()`);
-  const stopped = stopBtn && await until('!s.busy', 'stopped', STOP_BUDGET * 5), tookStop = Date.now() - tStop;
+  /* the wait is a safety ceiling (XPP_CHECK_SLOW-scaled), not a pass/fail
+     budget: how long Stop actually took is a perf: line below (W58) --
+     tools/autocheck.py's section_abort measures the core's own Abort
+     latency separately, with no browser in the loop at all */
+  const stopped = stopBtn && await until('!s.busy', 'stopped', 5000 * SLOW), tookStop = Date.now() - tStop;
   const lastLab = await DS('d.labels.length > 0 && d.labels[d.labels.length - 1].sym');
   idle.destroy();
-  check(`T25: Stop ends the run within its budget (${ms(STOP_BUDGET)}, scaled with the throttle -- the core's own Abort latency is not `
-    + 'what this measures, tools/autocheck.py\'s section_abort has that at under 0.5 s), with an idle connection open to xppautX, on an EP label',
-    runningAtStop && stopBtn && stopped && tookStop < STOP_BUDGET && (await DS('d.labels.length')) > labsPre && lastLab === 'EP',
-    JSON.stringify([runningAtStop, stopBtn, stopped, tookStop, STOP_BUDGET, labsPre, lastLab]));
+  if (runningAtStop && stopBtn && stopped) perf('T25 stop latency', ms(tookStop));
+  check('T25: Stop ends a running AUTO computation, with an idle connection open to xppautX, on an EP label',
+    runningAtStop && stopBtn && stopped && (await DS('d.labels.length')) > labsPre && lastLab === 'EP',
+    JSON.stringify([runningAtStop, stopBtn, stopped, tookStop, labsPre, lastLab]));
   check('T22: at the run\'s idle the edit goes out, one set, and applies: the core\'s Nmax is 15, nothing pending',
     await until(`!s.busy && s.autoSettings.core.numerics.nmx === 15 && !s.autoSettings.queued && !s.autoSettings.sent`,
       'applied at idle', 60000 * SLOW)
@@ -3197,16 +3206,13 @@ async function live(want) {
 
 const pct = (a, q) => a.length ? [...a].sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor(q * a.length))] : NaN;
 const ms = v => `${v.toFixed(1)} ms`;
-/* the frame budget (W40, GitHub #83): a slow, unsteady runner (macos-ui)
-   drew one frame of a handful over 50 ms, the rest 6-20 ms, and failed on
-   that one outlier; judged on the 90th percentile instead, one bad frame in
-   ten or fewer no longer fails it, but a run whose frames are consistently
-   slow (a real regression) still fails since most of them, not just one,
-   land above the budget. FRAME_BUDGET scales with SLOW (XPP_CHECK_SLOW or
-   --throttle) so a deliberately throttled run judges itself by the same
-   slower yardstick a real slow machine would need. */
-const FRAME_BUDGET = 50 * SLOW;
-const framesOk = (frames, budget = FRAME_BUDGET) => frames.length > 0 && pct(frames, 0.9) < budget;
+/* Frame draw times and long tasks are measurements, printed as perf: lines
+   (W58: performance is for CI, not the program, and a check that races the
+   clock is a design problem). The 90th percentile is still the number
+   reported (not the max): a slow, unsteady runner (macos-ui, W40, GitHub
+   #83) drew one frame of a handful well past the rest, and the median alone
+   would hide that a whole run's frames, not just one, had gone slow. */
+const p90 = frames => frames.length ? ms(pct(frames, 0.9)) : 'n/a';
 
 /** wheel zooms in and out about the middle of the plot; the long tasks and draw times they cost */
 async function zoomFrames() {
@@ -3254,22 +3260,18 @@ async function million() {
   console.log(`  run: ${frames.length} draws, median ${ms(pct(frames, 0.5))}, max ${ms(Math.max(...frames))}; `
     + `long tasks (data arriving) ${JSON.stringify(load.map(t => Math.round(t.duration)))}; the final trace took `
     + `${ms(p.traceMs ?? 0)} in later tasks and keeps ${p.vertices[0]} of the 1 000 001 vertices`);
-  check(`10^6: the phase plane draws its 1 000 001 points as they come, 90% of draws under ${ms(FRAME_BUDGET)}`,
-    p.mode === 2 && p.curves[0].points === 1000001 && framesOk(frames)
+  check('10^6: the phase plane draws its 1 000 001 points as they come',
+    p.mode === 2 && p.curves[0].points === 1000001 && frames.length > 0
     && p.vertices[0] > 100, JSON.stringify({mode: p.mode, points: p.curves[0].points, frames, vertices: p.vertices}));
+  perf('10^6 phase plane draw p90', p90(frames));
   let z = await zoomFrames();
   console.log(`  phase plane zoom: ${z.draws} draws, median ${ms(pct(z.drawMs, 0.5))}, max ${ms(Math.max(...z.drawMs))}, `
     + `long tasks ${JSON.stringify(z.long.map(t => Math.round(t.duration)))}${z.supported ? '' : ' (not supported)'}; `
     + `the last view's trace took ${ms(z.traceMs ?? 0)} (${z.vertices[0]} vertices)`);
-  /* the Long Tasks API's own threshold is a fixed 50 ms (the browser spec,
-     not ours to scale): under a real CPU throttle a frame drawn slower than
-     that legitimately reports as one, even while it is still within our own
-     SLOW-scaled FRAME_BUDGET (W40, GitHub #83, a 2x-throttled run: two
-     "long" tasks of 60 ms and 117 ms, both under FRAME_BUDGET*2). Judge a
-     long task against the same scaled budget instead of demanding none. */
-  const longOk = z.long.every(t => t.duration < FRAME_BUDGET * 2);
-  check(`10^6: a wheel zoom of the phase plane keeps 90% of frames under ${ms(FRAME_BUDGET)}, and ends traced`,
-    z.zoomed && z.draws > 0 && framesOk(z.drawMs) && longOk && z.vertices[0] > 0, JSON.stringify(z));
+  check('10^6: a wheel zoom of the phase plane ends traced',
+    z.zoomed && z.draws > 0 && z.vertices[0] > 0, JSON.stringify(z));
+  perf('10^6 phase plane zoom draw p90', p90(z.drawMs));
+  perf('10^6 phase plane zoom long task max', ms(z.long.length ? Math.max(...z.long.map(t => t.duration)) : 0));
 
   /* x against time: uPlot's own line with its min and max per pixel column */
   await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
@@ -3282,13 +3284,15 @@ async function million() {
   await sleep(300);
   const q = await P();
   const render2 = q.drawMs[q.drawMs.length - 1];
-  check(`10^6: the time plot draws in ${ms(render2)}`, q.mode === 1 && q.curves[0].points === 1000001 && render2 < FRAME_BUDGET,
+  check('10^6: the time plot draws', q.mode === 1 && q.curves[0].points === 1000001,
     JSON.stringify({mode: q.mode, points: q.curves[0].points, render2}));
+  perf('10^6 time plot draw', ms(render2));
   z = await zoomFrames();
   console.log(`  time plot zoom: ${z.draws} draws, median ${ms(pct(z.drawMs, 0.5))}, max ${ms(Math.max(...z.drawMs))}, `
     + `long tasks ${JSON.stringify(z.long.map(t => Math.round(t.duration)))}`);
-  check(`10^6: a wheel zoom of the time plot keeps 90% of frames under ${ms(FRAME_BUDGET)}`,
-    z.zoomed && z.draws > 0 && framesOk(z.drawMs) && z.long.every(t => t.duration < FRAME_BUDGET * 2), JSON.stringify(z));
+  check('10^6: a wheel zoom of the time plot', z.zoomed && z.draws > 0, JSON.stringify(z));
+  perf('10^6 time plot zoom draw p90', p90(z.drawMs));
+  perf('10^6 time plot zoom long task max', ms(z.long.length ? Math.max(...z.long.map(t => t.duration)) : 0));
 }
 
 /* ---- files (docs/ui-v2.md section 4, T5) ------------------------------------------ */
@@ -3766,7 +3770,6 @@ async function main() {
   try {
     await cdp.send('Page.enable');
     await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
-    if (opt.throttle) await cdp.send('Emulation.setCPUThrottlingRate', {rate: Number(opt.throttle)});
     const run = name => !opt.only || opt.only.split(',').includes(name);
     if (run('desktop')) await session(ODE, async () => {
       await desktop(want);

@@ -444,38 +444,60 @@ st = last_state(evs)
 check('total 40 gives 801 rows', st is not None and st['rows'] == 801, str(st and st['rows']))
 check('a run that is not cancelled sends no stopped', not any(e.get('ev') == 'stopped' for e in evs))
 
-# an Abort right behind the answer that starts the run: the run stops, and
-# says where (docs/protocol.md "stopped") before its state and idle
-send(cmd='key', key='i')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-proc.stdin.write(json.dumps({'cmd': 'answer', 'id': ask['id'], 'key': 'g'}) + '\n' +
-                 json.dumps({'cmd': 'abort'}) + '\n')
-proc.stdin.flush()
-evs, _ = collect(is_idle, timeout=30 * SLOW)
+# An Abort right behind the answer that starts the run: the run stops, and
+# says where (docs/protocol.md "stopped") before its state and idle. Armed
+# by row count ahead of time (xpp_job_stop_at_rows, the same mechanism
+# --script's own abort replay uses: docs/protocol.md "Scripts"), in a
+# one-shot --script subprocess of its own, not raced against the clock in
+# the middle of this session: how many rows are kept is known in advance,
+# not discovered by luck.
+def run_script(lines, ode=None):
+    """xppautX --script of `lines` (dicts, one command each) over `ode` (a
+    fresh scratch copy); returns (exit code, stdout text, stderr text)"""
+    ode = ode or args.ode
+    run_dir = tempfile.mkdtemp(prefix='xppscript')
+    try:
+        shutil.copy(ode, run_dir)
+        script_path = os.path.join(run_dir, 'script.jsonl')
+        with open(script_path, 'w') as f:
+            f.write(''.join(json.dumps(c) + chr(10) for c in lines))
+        r = subprocess.run([os.path.abspath(args.server), '--script', script_path, os.path.basename(ode)],
+                            cwd=run_dir, capture_output=True, text=True, timeout=60 * SLOW)
+        return r.returncode, r.stdout, r.stderr
+    finally:
+        shutil.rmtree(run_dir, ignore_errors=True)
+
+STOP_ROWS = 400  # well inside total 40's 801 rows
+code, out, err = run_script([
+    {'cmd': 'key', 'key': 'u'}, {'cmd': 'key', 'key': 't'}, {'cmd': 'answer', 'value': '40'},
+    {'cmd': 'key', 'key': 'Escape'},
+    {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+    {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': STOP_ROWS, 't': 0}},
+    {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+])
+check('xppautX --script plays the armed interruption', code == 0, 'exit %d, %s' % (code, err[-300:]))
+evs = [json.loads(l) for l in out.splitlines() if l.strip()]
 kinds = [e.get('ev') for e in evs]
-stopped = next((e for e in evs if e.get('ev') == 'stopped'), None)
-st = last_state(evs)
+stopped = [e for e in evs if e.get('ev') == 'stopped']
+# every command ends with state then idle (docs/protocol.md), so the whole
+# session's transcript has one state per idle, not just the run's: the row
+# count that matters is the state right before each idle, in idle order
+rows_at_idle, last_rows = [], None
+for e in evs:
+    if e.get('ev') == 'state':
+        last_rows = e.get('rows')
+    elif e.get('ev') == 'idle':
+        rows_at_idle.append(last_rows)
 check('a cancelled integration sends stopped, then state and idle',
-      stopped is not None and kinds.index('stopped') < len(kinds) - 1 - kinds[::-1].index('state'), str(kinds[-5:]))
-at = stopped['at'] if stopped else {}
-check('stopped says how many rows the integration stored, and the last time',
-      at.get('what') == 'integrate' and st is not None and at.get('rows') == st['rows'] and 0 < st['rows'] < 801
-      and isinstance(at.get('t'), (int, float)), '%s, state rows %s' % (at, st and st['rows']))
-if stopped and st and st['rows'] > 0:
-    send(cmd='browser', **{'from': st['rows'] - 1, 'count': 1, 'col': 1, 'ncol': 1})
-    evs, br = collect(lambda e: e.get('ev') == 'browser')
-    collect(is_idle)
-    check('stopped\'s t is the time of the last stored row', br is not None and br['data'] and
-          '%.8g' % br['data'][0][0] == '%.8g' % at['t'], '%s vs %s' % (at.get('t'), br and br['data']))
-    send(cmd='browser', **{'from': 0, 'count': 0})
-    collect(is_idle)
-send(cmd='key', key='i')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-send(cmd='answer', id=ask['id'], key='g')
-evs, _ = collect(is_idle, timeout=30 * SLOW)
-st = last_state(evs)
-check('the next run is whole again', st is not None and st['rows'] == 801 and
-      not any(e.get('ev') == 'stopped' for e in evs), str(st and st['rows']))
+      len(stopped) == 1 and kinds.index('stopped') < len(kinds) - 1 - kinds[::-1].index('state'), str(kinds[-8:]))
+at = stopped[0]['at'] if stopped else {}
+check('stopped says exactly how many rows the armed stop kept, and the last time',
+      at.get('what') == 'integrate' and at.get('rows') == STOP_ROWS and isinstance(at.get('t'), (int, float)),
+      str(at))
+check('state at the interrupted run\'s idle agrees with the armed row count',
+      len(rows_at_idle) >= 2 and rows_at_idle[-2] == STOP_ROWS, str(rows_at_idle[-2:]))
+check('the next run is whole again', len(rows_at_idle) >= 1 and rows_at_idle[-1] == 801 and len(stopped) == 1,
+      str(rows_at_idle[-1:]))
 
 send(cmd='key', key='s')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
