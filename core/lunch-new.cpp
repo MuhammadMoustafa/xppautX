@@ -186,7 +186,7 @@ void do_info(FILE *fp)
 	 DELTA_T,T0,TRANS,TEND,BOUND,DELAY,MaxPoints);
   xpp::print(fp,"EVEC_ERR={:g}, NEWT_ERR={:g} HMIN={:g} HMAX={:g} TOLER={:g} \n",
 	 EVEC_ERR,NEWT_ERR,HMIN,HMAX,TOLER);
-  std::string_view poivar=POIVAR==0?"T":xpp::model().uvar_names[POIVAR-1];
+  const std::string &poivar=ind_to_sym(POIVAR);
   xpp::print(fp,"POIMAP={} POIVAR={} POIPLN={:g} POISGN={} \n",
         POIMAP,poivar,POIPLN,POISGN);
 
