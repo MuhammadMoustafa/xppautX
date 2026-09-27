@@ -1,6 +1,9 @@
-#include <stdlib.h> 
-#include <math.h>
-#include <stdio.h>
+/* Print arrayplot: the array plot as a PostScript picture of shaded bars
+   with its colour scale, titles and ranges. tests/golden/lecar_array.ps
+   guards the output byte for byte (tools/goldencheck.py). */
+#include <cmath>
+#include <string>
+#include <string_view>
 #include "array_print.h"
 #include "xpp_io.h"
 
@@ -10,76 +13,122 @@
 #define ROYGBIV  1
 #define PERIODIC 2
 
+namespace {
 
-
-typedef struct {
+struct DevScale {
   float xmin,xmax,ymin,ymax;
   float xscale,yscale,xoff,yoff;
   float tx,ty,angle,slant;  /* text attributes   */
   float linecol,letx,lety;
   int linewid;
-  } DEVSCALE;
+};
 
-namespace {
 xpp::Writer plot_writer; /* the file being written, in place at ps_close */
-} // namespace
-FILE *my_plot_file;      /* plot_writer's FILE * */
+DevScale ps_scale;
 
-DEVSCALE ps_scale;
-
-int array_print(const char *filename, const char *xtitle, const char *ytitle, const char *bottom, int nacross, int ndown, int col0, int row0, int nskip, int ncskip, int maxrow, int maxcol, float **data, double zmin, double zmax, double tlo, double thi, int type)
+void ps_convert(float x, float y, float *xs, float *ys)
 {
-  float xx,yy;
-  xx=static_cast<float>(ndown);
-  yy=static_cast<float>(nacross/ncskip);
-  plot_writer=xpp::Writer(filename);
-  my_plot_file=plot_writer.file();
-  if(my_plot_file==NULL){
-    return -1;
-  }
-  ps_begin(0.0,0.0,xx,yy,10.,7.);
-  ps_replot(data,col0,row0,nskip,ncskip,maxrow,maxcol,nacross,ndown,zmin,zmax,type); 
-  ps_boxit(tlo,thi,0.0,yy,zmin,zmax,xtitle,ytitle,bottom,type);
-  ps_close();
-  return 0;
- }
-
-
-void  ps_replot(float **z, int col0, int row0, int nskip, int ncskip, int maxrow, int maxcol, int nacross, int ndown, double zmin, double zmax, int type)
-{
-   int i,j,ib,jb;
-
-   float fill,x,y;
-   float dx=(ps_scale.xmax-ps_scale.xmin);
-   float dy=(ps_scale.ymax-ps_scale.ymin);
-   float xhi=.95*dx,yhi=.85*dy;
-  float delx,dely;
-  delx=.8*dx/static_cast<float>(ndown);
-  dely=.8*dy/static_cast<float>(nacross/ncskip);
-  for(i=0;i<nacross/ncskip;i++){
-    ib=col0+i*ncskip;
-    if(ib>maxcol)return;
-    for(j=0;j<ndown;j++){
-      jb=row0+j*nskip;
-      if(jb<maxrow&&jb>=0){
-	fill=(z[ib][jb]-zmin)/(zmax-zmin);
-	if(fill<0.0)fill=0.0;
-	if(fill>1.0)fill=1.0;
-        fill=1-fill;
-	x=xhi-delx-j*delx;
-	y=yhi-dely-i*dely;
-	if(type==GREYSCALE)
-	  ps_bar(x,y,delx,dely,fill,0);
-	else
-	  ps_rgb_bar(x,y,delx,dely,fill,0,type);
-
-      }
-    }
-  }
-
-
-
+  *xs=(x-ps_scale.xmin)*ps_scale.xscale+ps_scale.xoff;
+  *ys=(y-ps_scale.ymin)*ps_scale.yscale+ps_scale.yoff;
 }
+
+void ps_setline(float fill, int thick)
+{
+  plot_writer.print("{:f} G\n {} setlinewidth \n",fill,thick);
+  ps_scale.linewid=thick;
+  ps_scale.linecol=fill;
+}
+
+void ps_set_text(float angle, float slant, float x_size, float y_size)
+{
+  ps_scale.tx=x_size*5.0;
+  ps_scale.ty=y_size*5.0;
+  ps_scale.angle=angle;
+  ps_scale.slant=slant;
+}
+
+void ps_rect(float x, float y, float wid, float len)
+{
+  float x1,y1,x2,y2;
+  ps_convert(x,y,&x1,&y1);
+  ps_convert(x+wid,y+len,&x2,&y2);
+  const int i1=static_cast<int>(x1),j1=static_cast<int>(y1),i2=static_cast<int>(x2),j2=static_cast<int>(y2);
+  plot_writer.print("{} {} m \n {} {} l \n {} {} l \n {} {} l \n {} {} l \n S \n",
+                    i1,j1,i2,j1,i2,j2,i1,j2,i1,j1);
+}
+
+/* a bar filled with colour (a PostScript colour command), and outlined
+   in black when flag */
+void ps_bar(std::string_view colour, float x, float y, float wid, float len, int flag)
+{
+  float x1,y1,x2,y2;
+  plot_writer.print("{}\n",colour);
+  ps_convert(x,y,&x1,&y1);
+  ps_convert(x+wid,y+len,&x2,&y2);
+  const int i1=static_cast<int>(x1),j1=static_cast<int>(y1),i2=static_cast<int>(x2),j2=static_cast<int>(y2);
+  plot_writer.print("{} {} m \n {} {} l \n {} {} l \n {} {} l \n FS\n",i1,j1,i2,j1,i2,j2,i1,j2);
+  if(flag){
+    plot_writer.print("0 G\n");
+    ps_rect(x,y,wid,len);
+  }
+}
+
+/* the colour command of fill (0..1) in the scale type */
+std::string ps_colour(float fill, int type)
+{
+  if(type==GREYSCALE)
+    return xpp::format("{:f} G",fill);
+  if(type==PERIODIC)
+    return xpp::format("{:f} 1.0 1.0 HSB",fill);
+  float r=0.0,g=0.0,b=0.0;
+  if(fill<0.0)fill=0.0;
+  if(fill>1.0)fill=1.0;
+  switch(type)
+    {
+    case REDBLUE:
+      fill=1.-fill;
+      b=static_cast<float>(sqrt(static_cast<double>(1.0-fill*fill)));
+      r=static_cast<float>(sqrt(static_cast<double>(fill*(2.0-fill))));
+      break;
+    case ROYGBIV:
+      if(fill>.4999)r=0.0;
+      else r=static_cast<float>(sqrt(static_cast<float>(1.-4*fill*fill)));
+      g=static_cast<float>(2)*sqrt(static_cast<double>(fill)*(1.-fill));
+
+      if(fill<.5001)b=0.0;
+      else b=static_cast<float>(sqrt(static_cast<float>(4*(fill-.5)*(1.5-fill))));
+      break;
+    }
+  return xpp::format("{:f} {:f} {:f} RGB",r,g,b);
+}
+
+void ps_text2(std::string_view str, float xr, float yr, int icent)
+{
+  double slant=.0174532*ps_scale.slant;
+  float x,y;
+  float sizex=ps_scale.tx,sizey=ps_scale.ty,rot=ps_scale.angle;
+  double a=sizex*cos(slant),b=sizey*sin(slant),
+    c=-sizex*sin(slant),d=sizey*cos(slant);
+  ps_convert(xr,yr,&x,&y);
+  plot_writer.print("{} {} m\n",static_cast<int>(x),static_cast<int>(y));
+  plot_writer.print("gsave \n {:f} rotate \n",rot);
+  plot_writer.print("basefont [{:.4f} {:.4f} {:.4f} {:.4f} 0 0] makefont setfont\n",a,b,c,d);
+  switch(icent){
+  case 0:
+    plot_writer.print("( {} ) show \n grestore\n",str);
+    break;
+  case 1:  /* centered */
+    plot_writer.print("({}) dup stringwidth pop -2 div 0 rmoveto show \n grestore\n",str);
+    break;
+  case 2: /* left edge */
+    plot_writer.print("({}) dup stringwidth pop neg 0 rmoveto show \n grestore\n",str);
+    break;
+  case 3: /* right edge */
+    plot_writer.print("({}) dup stringwidth pop  0 rmoveto show \n grestore\n",str);
+    break;
+  }
+}
+
 void ps_begin(double xlo, double ylo, double xhi, double yhi, float sx, float sy)
 {
   float x0,y0,x1,y1;
@@ -92,228 +141,113 @@ void ps_begin(double xlo, double ylo, double xhi, double yhi, float sx, float sy
   ps_scale.angle=-90.;
   ps_scale.xscale=1800.*sx*.2/(xhi-xlo);
   ps_scale.yscale=1800.*sy*.2/(yhi-ylo);
- 
+
   ps_set_text(-90.,0.0,18.0,18.0);
   ps_scale.letx=ps_scale.tx/ps_scale.xscale;
   ps_scale.lety=ps_scale.ty/ps_scale.yscale;
   ps_convert(xlo,ylo,&x0,&y0);
   ps_convert(xhi,yhi,&x1,&y1);
-  fprintf(my_plot_file,"%s\n","%!");
-  fprintf(my_plot_file,"%s %g %g %g %g\n",
-  "%%BoundingBox: ", .2*x0,.2*y0,.2*x1,.2*y1);
-  fprintf(my_plot_file,"20 dict begin\n");
-  fprintf(my_plot_file,"gsave\n");
-  fprintf(my_plot_file,"/m {moveto} def\n");
-  fprintf(my_plot_file,"/l {lineto} def\n");
- fprintf(my_plot_file,"/Cshow { currentpoint stroke moveto\n");
- fprintf(my_plot_file,"  dup stringwidth pop -2 div vshift rmoveto show } def\n");
- fprintf(my_plot_file,"/Lshow { currentpoint stroke moveto\n");
- fprintf(my_plot_file,"  0 vshift rmoveto show } def\n");
- fprintf(my_plot_file,"/Rshow { currentpoint stroke moveto\n");
- fprintf(my_plot_file,"  dup stringwidth pop neg vshift rmoveto show } def\n");
-  fprintf(my_plot_file,"/C {setrgbcolor} def\n");
-  fprintf(my_plot_file,"/G {setgray} def\n");
-  fprintf(my_plot_file,"/S {stroke} def\n");
-  fprintf(my_plot_file,"/HSB {sethsbcolor} def\n");
-  fprintf(my_plot_file,"/RGB {setrgbcolor} def\n");
-  fprintf(my_plot_file,"/FS {fill stroke} def\n");
-   fprintf(my_plot_file,"630 -20 translate\n");
-  fprintf(my_plot_file,"90 rotate\n");
-  fprintf(my_plot_file,".2 .2 scale\n");
-  fprintf(my_plot_file,"/basefont /Times-Roman findfont def\n");
+  plot_writer.print("%!\n");
+  plot_writer.print("%%BoundingBox:  {:g} {:g} {:g} {:g}\n",.2*x0,.2*y0,.2*x1,.2*y1);
+  plot_writer.print("{}",
+    "20 dict begin\n"
+    "gsave\n"
+    "/m {moveto} def\n"
+    "/l {lineto} def\n"
+    "/Cshow { currentpoint stroke moveto\n"
+    "  dup stringwidth pop -2 div vshift rmoveto show } def\n"
+    "/Lshow { currentpoint stroke moveto\n"
+    "  0 vshift rmoveto show } def\n"
+    "/Rshow { currentpoint stroke moveto\n"
+    "  dup stringwidth pop neg vshift rmoveto show } def\n"
+    "/C {setrgbcolor} def\n"
+    "/G {setgray} def\n"
+    "/S {stroke} def\n"
+    "/HSB {sethsbcolor} def\n"
+    "/RGB {setrgbcolor} def\n"
+    "/FS {fill stroke} def\n"
+    "630 -20 translate\n"
+    "90 rotate\n"
+    ".2 .2 scale\n"
+    "/basefont /Times-Roman findfont def\n");
   ps_setline(0.0,4);
 }
 
-
-void ps_convert(float x, float y, float *xs, float *ys)
+void ps_replot(float **z, int col0, int row0, int nskip, int ncskip, int maxrow, int maxcol, int nacross, int ndown, double zmin, double zmax, int type)
 {
-  *xs=(x-ps_scale.xmin)*ps_scale.xscale+ps_scale.xoff;
-  *ys=(y-ps_scale.ymin)*ps_scale.yscale+ps_scale.yoff;
+  float dx=(ps_scale.xmax-ps_scale.xmin);
+  float dy=(ps_scale.ymax-ps_scale.ymin);
+  float xhi=.95*dx,yhi=.85*dy;
+  float delx=.8*dx/static_cast<float>(ndown);
+  float dely=.8*dy/static_cast<float>(nacross/ncskip);
+  for(int i=0;i<nacross/ncskip;i++){
+    int ib=col0+i*ncskip;
+    if(ib>maxcol)return;
+    for(int j=0;j<ndown;j++){
+      int jb=row0+j*nskip;
+      if(jb<maxrow&&jb>=0){
+        float fill=(z[ib][jb]-zmin)/(zmax-zmin);
+        if(fill<0.0)fill=0.0;
+        if(fill>1.0)fill=1.0;
+        fill=1-fill;
+        float x=xhi-delx-j*delx;
+        float y=yhi-dely-i*dely;
+        ps_bar(ps_colour(fill,type),x,y,delx,dely,0);
+      }
+    }
+  }
 }
 
-void ps_col_scale(double y0, double x0, double dy, double dx, int n, double zlo, double zhi, int type, float mx)
+void ps_col_scale(double y0, double x0, double dy, double dx, int n, double zlo, double zhi, int type)
 {
-  int i;
-  char s[100];
-  
   float dz=1./static_cast<float>(n-1);
-   
-for(i=0;i<n;i++){
-    if(type==GREYSCALE)
-      ps_bar(x0,y0-(i+1)*dy,dx,dy,1-static_cast<float>(i)*dz,0);
-    else
-      ps_rgb_bar(x0,y0-(i+1)*dy,dx,dy,1.-static_cast<float>(i)*dz,0,type);
-  }
-  fprintf(my_plot_file,"0 G\n");
-  XPP_SPRINTF(s,"%g",zlo);
-  ps_text2(s,x0+.5*dx,y0+.01*dx,2);
-    XPP_SPRINTF(s,"%g",zhi);
-  ps_text2(s,x0+.5*dx,y0-n*dy-dy/2,0);
+
+  for(int i=0;i<n;i++)
+    ps_bar(ps_colour(1-static_cast<float>(i)*dz,type),x0,y0-(i+1)*dy,dx,dy,0);
+  plot_writer.print("0 G\n");
+  ps_text2(xpp::format("{:g}",zlo),x0+.5*dx,y0+.01*dx,2);
+  ps_text2(xpp::format("{:g}",zhi),x0+.5*dx,y0-n*dy-dy/2,0);
 }
 
 void ps_boxit(double tlo, double thi, double jlo, double jhi, double zlo, double zhi, const char *sx, const char *sy, const char *sb, int type)
 {
-  char str[100];
   int i=ps_scale.linewid;
-  float mx=ps_scale.letx;
   float z=ps_scale.linecol;
   float dx=ps_scale.xmax-ps_scale.xmin;
   float dy=ps_scale.ymax-ps_scale.ymin;
   float xlo=.15*dx,ylo=.05*dy,xhi=.95*dx,yhi=.85*dy;
-  /* plintf(" %g %g %g %g %g %g \n",xlo,xhi,ylo,yhi,dx,dy); */
-  mx=(yhi-ylo)*.25/5.6;
   ps_setline(0.0,10);
-  ps_rect(xlo,ylo,.8*dx,.8*dy);	  
+  ps_rect(xlo,ylo,.8*dx,.8*dy);
   ps_setline(z,i);
-  
+
   ps_text2(sx,xhi+.01*dx,.5*(yhi+ylo),1);
   ps_text2(sy,.5*(xhi+xlo),yhi+.01*dy,2);
-  XPP_SPRINTF(str,"%g",tlo);
-  ps_text2(str,xhi-.01*dx,yhi+.01*dy,2);
-  XPP_SPRINTF(str,"%g",thi);
-  ps_text2(str,xlo,yhi+.01*dy,2);
-  XPP_SPRINTF(str,"%g",jlo);
-  ps_text2(str,xhi+.01*dx,yhi,0);
-  XPP_SPRINTF(str,"%g",jhi);
-  ps_text2(str,xhi+.01*dx,ylo+.01,2);
-  ps_col_scale(yhi-.15*dy,xlo-.1*dx,.025*dy,.05*dx,20,zlo,zhi,type,mx);
+  ps_text2(xpp::format("{:g}",tlo),xhi-.01*dx,yhi+.01*dy,2);
+  ps_text2(xpp::format("{:g}",thi),xlo,yhi+.01*dy,2);
+  ps_text2(xpp::format("{:g}",jlo),xhi+.01*dx,yhi,0);
+  ps_text2(xpp::format("{:g}",jhi),xhi+.01*dx,ylo+.01,2);
+  ps_col_scale(yhi-.15*dy,xlo-.1*dx,.025*dy,.05*dx,20,zlo,zhi,type);
   ps_text2(sb, xlo-.035*dx,.5*(yhi+ylo),1);
- }
+}
 
 void ps_close()
- {
-  fprintf(my_plot_file,"showpage\n");
-  fprintf(my_plot_file,"grestore\n");
-  fprintf(my_plot_file,"end\n");
+{
+  plot_writer.print("showpage\ngrestore\nend\n");
   plot_writer.commit();
-  my_plot_file=NULL;
-}
-
-void ps_setline(float fill, int thick)
-{
-  fprintf(my_plot_file,"%f G\n %d setlinewidth \n",fill,thick);
-  ps_scale.linewid=thick;
-  ps_scale.linecol=fill;
-}
- 
-
-
-
-
-void ps_text2(const char *str, float xr, float yr, int icent)  /* ignores for now  */
-{
-  double slant=.0174532*ps_scale.slant;
-  float x,y;
-  float sizex=ps_scale.tx,sizey=ps_scale.ty,rot=ps_scale.angle;
-  double a=sizex*cos(slant),b=sizey*sin(slant),
-  c=-sizex*sin(slant),d=sizey*cos(slant);
-  ps_convert(xr,yr,&x,&y);
-  fprintf(my_plot_file,"%d %d m\n",static_cast<int>(x),static_cast<int>(y));
-  fprintf(my_plot_file,"gsave \n %f rotate \n",rot);
-  fprintf(my_plot_file,"basefont [%.4f %.4f %.4f %.4f 0 0] makefont setfont\n"
-	,a,b,c,d);
-   switch(icent){
-   case 0: 
-     fprintf(my_plot_file,"( %s ) show \n grestore\n",str);
-     break;
-   case 1:  /* centered */
-     fprintf(my_plot_file,"(%s) dup stringwidth pop -2 div 0 rmoveto show \n grestore\n", str);
-     break;
-   case 2: /* left edge */
-     fprintf(my_plot_file,"(%s) dup stringwidth pop neg 0 rmoveto show \n grestore\n", str); 
-     break;
-   case 3: /* right edge */
-     fprintf(my_plot_file,"(%s) dup stringwidth pop  0 rmoveto show \n grestore\n", str); 
-     break;
-   }
-}
-
-void ps_set_text(float angle, float slant, float x_size, float y_size)
-{
- ps_scale.tx=x_size*5.0;
- ps_scale.ty=y_size*5.0;
- ps_scale.angle=angle;
- ps_scale.slant=slant;
-}
-
-void ps_rect(float x, float y, float wid, float len)
-{
- float x1,y1,x2,y2;
- ps_convert(x,y,&x1,&y1);
- ps_convert(x+wid,y+len,&x2,&y2);
- fprintf(my_plot_file,"%d %d m \n %d %d l \n %d %d l \n %d %d l \n %d %d l \n S \n",
-	 static_cast<int>(x1),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y1),static_cast<int>(x2),
-	 static_cast<int>(y2),static_cast<int>(x1),static_cast<int>(y2),static_cast<int>(x1),static_cast<int>(y1));
-}
-
-namespace {
-
-/* a bar filled with the colour just set, and outlined in black when flag */
-void ps_filled_bar(float x, float y, float wid, float len, int flag)
-{
-  float x1,y1,x2,y2;
-  ps_convert(x,y,&x1,&y1);
-  ps_convert(x+wid,y+len,&x2,&y2);
-  fprintf(my_plot_file,"%d %d m \n %d %d l \n %d %d l \n %d %d l \n FS\n",
-	  static_cast<int>(x1),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y2),static_cast<int>(x1),static_cast<int>(y2));
-  if(flag){
-    fprintf(my_plot_file,"0 G\n");
-    ps_rect(x,y,wid,len);
-  }
 }
 
 } // namespace
 
-void ps_bar(float x, float y, float wid, float len, float fill, int flag)
+int array_print(const char *filename, const char *xtitle, const char *ytitle, const char *bottom, int nacross, int ndown, int col0, int row0, int nskip, int ncskip, int maxrow, int maxcol, float **data, double zmin, double zmax, double tlo, double thi, int type)
 {
-  fprintf(my_plot_file,"%f G\n",fill);
-  ps_filled_bar(x,y,wid,len,flag);
+  float xx=static_cast<float>(ndown);
+  float yy=static_cast<float>(nacross/ncskip);
+  plot_writer=xpp::Writer(filename);
+  if(!plot_writer)
+    return -1;
+  ps_begin(0.0,0.0,xx,yy,10.,7.);
+  ps_replot(data,col0,row0,nskip,ncskip,maxrow,maxcol,nacross,ndown,zmin,zmax,type);
+  ps_boxit(tlo,thi,0.0,yy,zmin,zmax,xtitle,ytitle,bottom,type);
+  ps_close();
+  return 0;
 }
-
-void ps_rgb_bar(float x, float y, float wid, float len, float fill, int flag, int rgb)
-{
-    float r=0.0,g=0.0,b=0.0;
-    if(rgb==2){
-      ps_hsb_bar(x,y,wid,len,fill,flag);
-      return;
-    }
-    if(fill<0.0)fill=0.0;
-    if(fill>1.0)fill=1.0;
-    switch(rgb)
-      {
-      case 0:
-	fill=1.-fill;
-	b=static_cast<float>(sqrt(static_cast<double>(1.0-fill*fill)));
-	r=static_cast<float>(sqrt(static_cast<double>(fill*(2.0-fill))));
-	break;
-      case 1:
-       if(fill>.4999)r=0.0;
-	else r=static_cast<float>(sqrt(static_cast<float>(1.-4*fill*fill)));
-	g=static_cast<float>(2)*sqrt(static_cast<double>(fill)*(1.-fill));
-	
-	if(fill<.5001)b=0.0;
-	else b=static_cast<float>(sqrt(static_cast<float>(4*(fill-.5)*(1.5-fill))));
-	break;
-      }
-   fprintf(my_plot_file,"%f %f %f RGB\n",r,g,b);
-   ps_filled_bar(x,y,wid,len,flag);
- }
-
-void ps_hsb_bar(float x, float y, float wid, float len, float fill, int flag)
-{
-  fprintf(my_plot_file,"%f 1.0 1.0 HSB\n",fill);
-  ps_filled_bar(x,y,wid,len,flag);
-}
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,12 +1,17 @@
+/* The PostScript export (Graphic stuff/Postscript): ps_init opens the
+   file through an xpp::Writer (a temp file, renamed into place only at
+   ps_end's commit), graphics.cpp's primitives call the ps_* functions
+   below while the picture is redrawn. the tests/golden .ps files guard the output
+   byte for byte (tools/goldencheck.py). */
 #include "my_ps.h"
 #include "xpp_ui.h"
 #include "colormap.h"
 #include "lunch-new.h"
 #include "graphics.h"
 
-#include <stdlib.h> 
-#include <stdio.h>
-#include <string.h>
+#include <array>
+#include <string>
+#include <string_view>
 #include "xpp_io.h"
 #include "xpp_globals.h"
 #define MAXPSLINE 100
@@ -29,27 +34,25 @@
 #define RIGHT 2
 #define CENTER 1
 #define POINT_TYPES 8
-extern int PointType;
-extern int PointRadius;
-extern int PS_Port;
-extern int TextJustify;
-extern int TextAngle;
 int LastPtLine;
 int NoBreakLine=0;
 int PS_FONTSIZE=14;
 double PS_LW=5;
+/* a char array while load_eqn.cpp (the ps_font option) declares it so */
 char PS_FONT[100]="Times-Roman";
-FILE *psfile;
 /*Default is now with color*/
 int PltFmtFlag,PSColorFlag=1;
 int PSLines;
 int LastPSX,LastPSY;
+
+namespace {
+
 /* this header stuff was stolen from GNUPLOT I have added  filled circles
     and open circles for bifurcation diagrams I also use Times Roman
     since Courier is an ugly font!!  
 */
 
-static const char *PS_header[]={
+constexpr std::string_view ps_header[]={
 "/vpt2 vpt 2 mul def\n",
 "/hpt2 hpt 2 mul def\n",
 "/Romfnt {/Times-Roman findfont exch scalefont setfont} def ",
@@ -114,105 +117,107 @@ static const char *PS_header[]={
 "  P  } def\n",
 "/S { 2 copy A C} def\n", /* Star */
 "/K { stroke [] 0 setdash vpt 0 360 arc stroke} def ", /* Circle */
-"/F { stroke [] 0 setdash vpt 0 360 arc fill stroke } def ", /* Filled circle */ 
-NULL
+"/F { stroke [] 0 setdash vpt 0 360 arc fill stroke } def ", /* Filled circle */
 };
 
-  
-		   
+xpp::Writer ps_writer;
+
+/* str as a PostScript string: '(', ')' and '\' escaped, in parentheses */
+std::string ps_string(std::string_view str)
+{
+  std::string s = "(";
+  for (const char ch : str) {
+    if (ch == '(' || ch == ')' || ch == '\\')
+      s += '\\';
+    s += ch;
+  }
+  s += ')';
+  return s;
+}
+
+} // namespace
+
 int ps_init(const char *filename, int color)
 {
-  int i;
- if((psfile=fopen(filename,"w"))==NULL){
+  ps_writer = xpp::Writer(filename);
+  if (!ps_writer) {
     err_msg("Cannot open file ");
     return(0);
   }
   init_ps();
- PltFmtFlag=1;
- PSLines=0;
- LastPSX=-10000;
- LastPSY=-10000;
- fprintf(psfile,"%%!PS-Adobe-2.0\n");
- fprintf(psfile,"%%Creator: xppaut\n");
- fprintf(psfile,"%%%%BoundingBox: %d %d %d %d\n",PS_XOFF,PS_YOFF,
-	 static_cast<int>(PS_YMAX/PS_SC+.5+PS_YOFF+0.1*PS_VCHAR),static_cast<int>(PS_XMAX/PS_SC+.5+PS_XOFF+0.1*PS_VCHAR));
- fprintf(psfile,"/xppdict 40 dict def\nxppdict begin\n");
- if(color==0){
-   fprintf(psfile, "/Color false def \n");
-   PSColorFlag=0;
- }
- else {
-   fprintf(psfile, "/Color true def \n");
-   fprintf(psfile,"/RGB {setrgbcolor currentpoint stroke moveto} def\n");
-   fprintf(psfile,"/RGb {setrgbcolor } def\n");
-   PSColorFlag=1;
- }
- fprintf(psfile,"/xpplinewidth %.3f def\n",PS_LW);
- fprintf(psfile,"/vshift %d def\n", static_cast<int>(PS_VCHAR)/(-3));
- fprintf(psfile,"/dl {%d mul} def\n",PS_SC); /* dash length */
- fprintf(psfile,"/hpt %.1f def\n",PS_HTIC/2.0);
- fprintf(psfile,"/vpt %.1f def\n",PS_VTIC/2.0);
- for ( i=0; PS_header[i] != NULL; i++)
-   fprintf(psfile,"%s",PS_header[i]);
- fprintf(psfile,"end\n");
- fprintf(psfile,"%%%%EndProlog\n");
- fprintf(psfile,"xppdict begin\n");
- fprintf(psfile,"gsave\n");
- fprintf(psfile,"%d %d translate\n",PS_XOFF,PS_YOFF);
- fprintf(psfile,"%.3f %.3f scale\n", 1./PS_SC,1./PS_SC);
- if(!PS_Port)
-   fprintf(psfile,"90 rotate\n0 %d translate\n", -PS_YMAX);
- /* fprintf(psfile,"% 0 setgray\n"); */
- fprintf(psfile,"/%s findfont %d ",PS_FONT,PS_FONTSIZE*PS_SC);
- fprintf(psfile,"scalefont setfont\n");
- fprintf(psfile,"newpath\n");
- return(1);
+  PltFmtFlag=1;
+  PSLines=0;
+  LastPSX=-10000;
+  LastPSY=-10000;
+  ps_writer.print("%!PS-Adobe-2.0\n");
+  ps_writer.print("%Creator: xppaut\n");
+  ps_writer.print("%%BoundingBox: {} {} {} {}\n",PS_XOFF,PS_YOFF,
+           static_cast<int>(PS_YMAX/PS_SC+.5+PS_YOFF+0.1*PS_VCHAR),static_cast<int>(PS_XMAX/PS_SC+.5+PS_XOFF+0.1*PS_VCHAR));
+  ps_writer.print("/xppdict 40 dict def\nxppdict begin\n");
+  if(color==0){
+    ps_writer.print("/Color false def \n");
+    PSColorFlag=0;
+  }
+  else {
+    ps_writer.print("/Color true def \n");
+    ps_writer.print("/RGB {{setrgbcolor currentpoint stroke moveto}} def\n");
+    ps_writer.print("/RGb {{setrgbcolor }} def\n");
+    PSColorFlag=1;
+  }
+  ps_writer.print("/xpplinewidth {:.3f} def\n",PS_LW);
+  ps_writer.print("/vshift {} def\n", static_cast<int>(PS_VCHAR)/(-3));
+  ps_writer.print("/dl {{{} mul}} def\n",PS_SC); /* dash length */
+  ps_writer.print("/hpt {:.1f} def\n",PS_HTIC/2.0);
+  ps_writer.print("/vpt {:.1f} def\n",PS_VTIC/2.0);
+  for (const std::string_view h : ps_header)
+    ps_writer.print("{}",h);
+  ps_writer.print("end\n");
+  ps_writer.print("%%EndProlog\n");
+  ps_writer.print("xppdict begin\n");
+  ps_writer.print("gsave\n");
+  ps_writer.print("{} {} translate\n",PS_XOFF,PS_YOFF);
+  ps_writer.print("{:.3f} {:.3f} scale\n", 1./PS_SC,1./PS_SC);
+  if(!PS_Port)
+    ps_writer.print("90 rotate\n0 {} translate\n", -PS_YMAX);
+  ps_writer.print("/{} findfont {} ",PS_FONT,PS_FONTSIZE*PS_SC);
+  ps_writer.print("scalefont setfont\n");
+  ps_writer.print("newpath\n");
+  return(1);
 }
 
 void ps_stroke()
 {
-  fprintf(psfile,"stroke\n");
+  ps_writer.print("stroke\n");
 }
 
 void ps_do_color(int color)
 {
- float r,g,b;
- /* this doesn work very well */
- if(PltFmtFlag==0)return;
- /* if(color==0) */
-   /* fprintf(psfile,"0 setgray\n"); */
- /* plintf("color=%d\n",color); */
- if(PSColorFlag==0)return;
- get_ps_color(color,&r,&g,&b);
- /*  if(LastPtLine)
-   fprintf(psfile,"%f %f %f RGB\n",r,g,b);
-   else */ 
-   fprintf(psfile,"%f %f %f RGb\n",r,g,b);  
- 		
- 
+  float r,g,b;
+  if(PltFmtFlag==0)return;
+  if(PSColorFlag==0)return;
+  get_ps_color(color,&r,&g,&b);
+  ps_writer.print("{:f} {:f} {:f} RGb\n",r,g,b);
 }
 
 void ps_end()
 {
- ps_write("stroke");
- ps_write("grestore");
- ps_write("end");
- ps_write("showpage");
- ps_write_pars(psfile);
- fclose(psfile);
- PltFmtFlag=0;
- if(program.interactive)init_x11(); 
+  ps_write("stroke");
+  ps_write("grestore");
+  ps_write("end");
+  ps_write("showpage");
+  ps_write_pars(ps_writer.file());
+  ps_writer.commit();
+  PltFmtFlag=0;
+  if(program.interactive)init_x11();
 }
 
-void ps_bead(int x, int y)
+void ps_bead(int /*x*/, int /*y*/)
 {
-	/*fprintf(psfile,"%d %d F\n",x,y);*/
 }
 
 void ps_frect(int x, int y, int w, int h)
 {
-	
-	fprintf(psfile," newpath %d %d M %d %d R %d %d R %d %d R closepath fill\n",x,y,0,-h,w,0,0,h);	
+  ps_writer.print(" newpath {} {} M {} {} R {} {} R {} {} R closepath fill\n",x,y,0,-h,w,0,0,h);
 }
 
 void ps_last_pt_off()
@@ -222,236 +227,163 @@ void ps_last_pt_off()
 
 void ps_line(int xp1, int yp1, int xp2, int yp2)
 {
- LastPtLine=1;
- if(NoBreakLine==1){
-   fprintf(psfile,"%d %d M\n%d %d L\n",xp1,yp1,xp2,yp2);
- LastPSX=xp2;
- LastPSY=yp2;
- chk_ps_lines();
-   return;
- }
- if(xp1==LastPSX&&yp1==LastPSY){
-   LastPSX=xp2;
-   LastPSY=yp2;
-   fprintf(psfile,"%d %d L\n",xp2,yp2);
-   chk_ps_lines();
-   return;
- }
- if(xp2==LastPSX&&yp2==LastPSY){
-     LastPSX=xp1;
-     LastPSY=yp1;
-     fprintf(psfile,"%d %d L\n",xp1,yp1);
-     chk_ps_lines();
-     return;
-   }
-  fprintf(psfile,"%d %d M\n%d %d L\n",xp1,yp1,xp2,yp2);
- LastPSX=xp2;
- LastPSY=yp2;
- chk_ps_lines();
- }
- 
+  LastPtLine=1;
+  if(NoBreakLine!=1 && xp1==LastPSX && yp1==LastPSY){
+    LastPSX=xp2;
+    LastPSY=yp2;
+    ps_writer.print("{} {} L\n",xp2,yp2);
+  }
+  else if(NoBreakLine!=1 && xp2==LastPSX && yp2==LastPSY){
+    LastPSX=xp1;
+    LastPSY=yp1;
+    ps_writer.print("{} {} L\n",xp1,yp1);
+  }
+  else {
+    ps_writer.print("{} {} M\n{} {} L\n",xp1,yp1,xp2,yp2);
+    LastPSX=xp2;
+    LastPSY=yp2;
+  }
+  chk_ps_lines();
+}
+
 void chk_ps_lines()
 {
   PSLines++;
   if(PSLines>=MAXPSLINE){
-    fprintf(psfile,"currentpoint stroke moveto\n");
+    ps_writer.print("currentpoint stroke moveto\n");
     PSLines=0;
   }
 }
-   
+
 void ps_linetype(int linetype)
 {
-const char *line = "ba0123456789c"; 
-
-	fprintf(psfile,"LT%c\n", line[(linetype%11)+2]);
-	PSLines=0;
-        LastPSX=-100000000;
-        LastPSY=-100000000;
+  constexpr std::string_view line = "ba0123456789c";
+  ps_writer.print("LT{}\n", line[(linetype%11)+2]);
+  PSLines=0;
+  LastPSX=-100000000;
+  LastPSY=-100000000;
 }
 
- 
- 
 void ps_point(int x, int y)
 {
+  constexpr std::string_view point="PDABCTSKF";
   int number=PointType;
-  const char *point="PDABCTSKF";
   number %= POINT_TYPES;
-  if(number < -1) 
+  if(number < -1)
     number = -1;
   if(PointRadius>0)number=7;
-  fprintf(psfile,"%d %d %c\n",x,y,point[number+1]);
+  ps_writer.print("{} {} {}\n",x,y,point[number+1]);
   PSLines=0;
- LastPtLine=0;
+  LastPtLine=0;
 }
-
 
 void ps_write(const char *str)
 {
-  fprintf(psfile,"%s\n",str);
+  ps_writer.print("{}\n",str);
 }
 
 void ps_fnt(int cf,int scale)
 {
-  if(cf==0) 
-    fprintf(psfile,"/%s findfont %d scalefont setfont \n",PS_FONT,scale);
+  if(cf==0)
+    ps_writer.print("/{} findfont {} scalefont setfont \n",PS_FONT,scale);
   else
-    fprintf(psfile,"%d Symfnt\n",scale);
+    ps_writer.print("{} Symfnt\n",scale);
 }
-
 
 void ps_show(const char *str,int type)
 {
-  char ch;
-  putc('(',psfile);
-  ch = *str++;
-  while(ch!='\0') {
-    if ( (ch=='(') || (ch==')') || (ch=='\\') )
-      putc('\\',psfile);
-    putc(ch,psfile);
-    ch = *str++;
-  }
-  if(type==1)
-    fprintf(psfile,") Lshow\n");
-  else
-    fprintf(psfile,") show\n");
- PSLines=0;
+  ps_writer.print("{} {}\n",ps_string(str),type==1 ? "Lshow" : "show");
+  PSLines=0;
 }
 
 void ps_abs(int x, int y)
 {
-  fprintf(psfile,"%d %d moveto \n",x,y);
+  ps_writer.print("{} {} moveto \n",x,y);
 }
 
 void ps_rel(int x, int y)
 {
-  fprintf(psfile,"%d %d rmoveto \n",x,y);
+  ps_writer.print("{} {} rmoveto \n",x,y);
 }
 
+/* str with its escapes: \0 and \1 the text and the symbol font, \s and
+   \S a sub- and superscript, \n back to the base line */
 void special_put_text_ps(int x, int y, const char *str, int size)
 {
-  int i=0,j=0,type=1;
+  static constexpr std::array<int,5> sz={8,10,14,18,24};
+  int type=1;
   int cf=0;
-  /*int cs;*/
-  int n=strlen(str);
   int cy=0;
-  char tmp[256],c;
-  int sub,sup,pssz;
-  static int sz[]={8,10,14,18,24};    
-  /*cs=size; Not used anywhere*/
-  /* plintf(" %s size %d \n",str,size); */
-  fprintf(psfile, "0 0 0 setrgbcolor \n");
+  std::string tmp;
+  ps_writer.print("0 0 0 setrgbcolor \n");
   ps_abs(x,y);
-  pssz=sz[size]*PS_SC;
-  sub=.3*pssz;
-  sup=.6*pssz;
-  /* set the size here! */
+  int pssz=sz[size]*PS_SC;
+  const int sub=static_cast<int>(.3*pssz);
+  const int sup=static_cast<int>(.6*pssz);
   ps_fnt(cf,pssz);
-  while(i<n){
-    c=str[i];
-    if(c=='\\'){      
-      i++;
-      c=str[i];
-      tmp[j]=0; /* end the current buffer */
-      if(strlen(tmp)>0){
-	ps_show(tmp,type);
-	type=0;
-      }
-
-      
-      j=0;
-      if(c=='0'){
-        cf=0;
-	ps_fnt(cf,pssz);
-
-      }
-      if(c=='n'){
-
-	ps_rel(0,-cy);
-	cy=0;
-	pssz=PS_SC*sz[size];
-	ps_fnt(cf,pssz);
-      }
-      if(c=='s'){
-
-	cy=cy-sub;
-	ps_rel(0,-sub);
-	pssz=3*PS_SC*sz[size]/5;
-	ps_fnt(cf,pssz);
-      }
-      if(c=='S'){
-	pssz=3*PS_SC*sz[size]/5;
-	cy=cy+sup;
-        ps_rel(0,sup);
-	ps_fnt(cf,pssz);
-      }
-      if(c=='1'){
-
-	cf=1;
-	ps_fnt(cf,pssz);
-      }
-    
-      i++;
+  const std::string_view s(str);
+  for(size_t i=0;i<s.size();i++){
+    const char c=s[i];
+    if(c!='\\'){
+      tmp+=c;
+      continue;
     }
-    else {
-      tmp[j]=c;
-      j++;
-      i++;
+    i++;
+    const char e=i<s.size() ? s[i] : '\0';
+    if(!tmp.empty()){
+      ps_show(tmp.c_str(),type);
+      type=0;
+    }
+    tmp.clear();
+    if(e=='0'){
+      cf=0;
+      ps_fnt(cf,pssz);
+    }
+    if(e=='n'){
+      ps_rel(0,-cy);
+      cy=0;
+      pssz=PS_SC*sz[size];
+      ps_fnt(cf,pssz);
+    }
+    if(e=='s'){
+      cy=cy-sub;
+      ps_rel(0,-sub);
+      pssz=3*PS_SC*sz[size]/5;
+      ps_fnt(cf,pssz);
+    }
+    if(e=='S'){
+      pssz=3*PS_SC*sz[size]/5;
+      cy=cy+sup;
+      ps_rel(0,sup);
+      ps_fnt(cf,pssz);
+    }
+    if(e=='1'){
+      cf=1;
+      ps_fnt(cf,pssz);
     }
   }
-  tmp[j]=0;
-  if(strlen(tmp)>0)
-    ps_show(tmp,type);
-      
-
+  if(!tmp.empty())
+    ps_show(tmp.c_str(),type);
 }
-    
-      
-      
 
 void ps_text(int x, int y, const char *str)
 {
- char ch;
-  fprintf(psfile, "0 0 0 setrgbcolor \n");
-  fprintf(psfile,"/%s findfont %d ",PS_FONT,PS_FONTSIZE*PS_SC);
- fprintf(psfile,"scalefont setfont\n");
- fprintf(psfile,"%d %d moveto\n",x,y);
- if (TextAngle != 0)
-   fprintf(psfile,"currentpoint gsave translate %d rotate 0 0 moveto\n"
-	   ,TextAngle*90);
- putc('(',psfile);
- ch = *str++;
- while(ch!='\0') {
-   if ( (ch=='(') || (ch==')') || (ch=='\\') )
-     putc('\\',psfile);
-   putc(ch,psfile);
-   ch = *str++;
- }
- switch(TextJustify) {
- case LEFT : fprintf(psfile,") Lshow\n");
-   break;
- case CENTER : fprintf(psfile,") Cshow\n");
-   break;
- case RIGHT : fprintf(psfile,") Rshow\n");
-   break;
- }
- if (TextAngle != 0)
-   fprintf(psfile,"grestore\n");
- PSLines=0;
+  ps_writer.print("0 0 0 setrgbcolor \n");
+  ps_writer.print("/{} findfont {} ",PS_FONT,PS_FONTSIZE*PS_SC);
+  ps_writer.print("scalefont setfont\n");
+  ps_writer.print("{} {} moveto\n",x,y);
+  if (TextAngle != 0)
+    ps_writer.print("currentpoint gsave translate {} rotate 0 0 moveto\n",TextAngle*90);
+  ps_writer.print("{}",ps_string(str));
+  switch(TextJustify) {
+  case LEFT : ps_writer.print(" Lshow\n");
+    break;
+  case CENTER : ps_writer.print(" Cshow\n");
+    break;
+  case RIGHT : ps_writer.print(" Rshow\n");
+    break;
+  }
+  if (TextAngle != 0)
+    ps_writer.print("grestore\n");
+  PSLines=0;
 }
-
-
-
- 
- 
-
-
-
-
-
-
-
-
-
-
-
-

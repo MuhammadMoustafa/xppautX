@@ -6,19 +6,13 @@ extern "C" {
 #endif
 
 
+/* axes2.cpp: the plot's axes, tick labels and title */
 void re_title(void);
-void get_title_str(char *s1, char *s2, char *s3);
-void make_title(char *str);
-double dbl_raise(double x, int y);
-double make_tics(double tmin, double tmax);
-void find_max_min_tic(double *tmin, double *tmax, double tic);
 void redraw_cube_pt(double theta, double phi);
 void do_axes(void);
-void Frame_3d(void);
 void Box_axis(double x_min, double x_max, double y_min, double y_max, const char *sx, const char *sy, int flag);
-void draw_ytics(const char *s1, double start, double incr, double end);
-void draw_xtics(const char *s2, double start, double incr, double end);
-
+/* set while the axes (the box's own sides) are drawn, for the SVG classes */
+extern int DOING_AXES, DOING_BOX_AXES;
 /* label unlabelled 2D axes with the plotted variables (front ends that ask) */
 extern int AxisVarLabels;
 

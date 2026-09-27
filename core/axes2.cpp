@@ -2,13 +2,15 @@
 #include "xpp_util.h"
 #include  "axes2.h"
 
-#include <stdlib.h> 
-#include <string.h>
+#include <cmath>
+#include <cstdlib>
+#include <string>
+#include <string_view>
  /* All new improved axes !!  */
 
 
-#include <math.h>
-#include <stdio.h>
+#include "my_ps.h"
+#include "my_svg.h"
 #include "xpplim.h"
 #include "struct.h"
 #include "graphics.h"
@@ -32,62 +34,31 @@
 #define CheckZero(x,tic) (fabs(x) < ((tic) * SIGNIF) ? 0.0 : (x))
 
 
-extern int PltFmtFlag;
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
-extern int DLeft,DRight,DTop,DBottom,VTic,HTic,VChar,HChar;
-extern int TextJustify,TextAngle;
-extern double XMin,XMax,YMin,YMax;
-
 
 int DOING_AXES=0;
 int AxisVarLabels = 0;
 int DOING_BOX_AXES=0;
-extern FILE *svgfile;
 
+namespace {
 
-
-void re_title()
+/* the name of plotted variable i: T (0) or a variable */
+std::string_view axis_name(int i)
 {
- char bob[3*XPP_NAME_MAX+16]; /* "z vs y vs x" */
- make_title(bob);
- title_text(bob);
+  return i==0 ? std::string_view("T") : std::string_view(uvar_names[i-1]);
 }
 
-void get_title_str(char *s1, char *s2, char *s3)
+void Frame_3d();
+void draw_ytics(const char *s1, double start, double incr, double end);
+void draw_xtics(const char *s2, double start, double incr, double end);
+
+/* "y vs x", or "z vs y vs x" in 3D */
+std::string make_title()
 {
- /* s1/s2/s3 are pointers here; the one caller (do_axes) passes
-    char[XPP_NAME_MAX+1], matching uvar_names' own element size. */
- int i;
- if((i=plot_windows.current->xv[0])==0)xpp_strlcpy(s1,"T",XPP_NAME_MAX+1);
- else xpp_strlcpy(s1,uvar_names[i-1],XPP_NAME_MAX+1);
-
-if((i=plot_windows.current->yv[0])==0)xpp_strlcpy(s2,"T",XPP_NAME_MAX+1);
- else xpp_strlcpy(s2,uvar_names[i-1],XPP_NAME_MAX+1);
- 
-if((i=plot_windows.current->zv[0])==0)xpp_strlcpy(s3,"T",XPP_NAME_MAX+1);
- else xpp_strlcpy(s3,uvar_names[i-1],XPP_NAME_MAX+1);
-}
-
-void make_title(char *str)
-{
- int i;
- char name1[XPP_NAME_MAX+1];
- char name2[XPP_NAME_MAX+1];
- char name3[XPP_NAME_MAX+1];
- if((i=plot_windows.current->xv[0])==0)XPP_STRCPY(name1,"T");
- else XPP_STRCPY(name1,uvar_names[i-1]);
-
-if((i=plot_windows.current->yv[0])==0)XPP_STRCPY(name2,"T");
- else XPP_STRCPY(name2,uvar_names[i-1]);
- 
-if((i=plot_windows.current->zv[0])==0)XPP_STRCPY(name3,"T");
- else XPP_STRCPY(name3,uvar_names[i-1]);
-
- /* str is a pointer here; the one caller (re_title) passes
-    char bob[3*XPP_NAME_MAX+16], sized for exactly this "z vs y vs x". */
- if(plot_windows.current->grtype>=5)
- xpp_snprintf(str,3*XPP_NAME_MAX+16,"%s vs %s vs %s",name3,name2,name1);
- else xpp_snprintf(str,3*XPP_NAME_MAX+16,"%s vs %s",name2,name1);
+  const auto *g=plot_windows.current;
+  if(g->grtype>=5)
+    return xpp::format("{} vs {} vs {}",axis_name(g->zv[0]),axis_name(g->yv[0]),axis_name(g->xv[0]));
+  return xpp::format("{} vs {}",axis_name(g->yv[0]),axis_name(g->xv[0]));
 }
 
 double dbl_raise(double x, int y)
@@ -131,21 +102,25 @@ void find_max_min_tic(double *tmin, double *tmax, double tic)
   *tmax=t1;
 }
  
+} // namespace
+
+void re_title()
+{
+  title_text(make_title().c_str());
+}
+
 void redraw_cube_pt(double theta,double phi)
 {
-  char bob[50];
   set_linestyle(0);
   make_rot(theta,phi);
   clr_scrn();
-  
-  XPP_SPRINTF(bob,"theta=%g phi=%g",theta,phi);
-  canvas_xy(bob);
+  canvas_xy(xpp::format("theta={:g} phi={:g}",theta,phi).c_str());
 }
 
 void do_axes()
 {
-    char s1[XPP_NAME_MAX+1],s2[XPP_NAME_MAX+1],s3[XPP_NAME_MAX+1];
-    get_title_str(s1,s2,s3);
+    const std::string s1(axis_name(plot_windows.current->xv[0]));
+    const std::string s2(axis_name(plot_windows.current->yv[0]));
     set_linestyle(0);
     if(program.interactive){  re_title();
     SmallGr();
@@ -154,14 +129,16 @@ void do_axes()
     switch(plot_windows.current->grtype)
     {
     case 0: Box_axis(plot_windows.current->xlo,plot_windows.current->xhi,plot_windows.current->ylo,plot_windows.current->yhi,
-		       (plot_windows.current->xlabel[0]||!AxisVarLabels)?plot_windows.current->xlabel:s1,
-		       (plot_windows.current->ylabel[0]||!AxisVarLabels)?plot_windows.current->ylabel:s2,1); break; 
+		       (plot_windows.current->xlabel[0]||!AxisVarLabels)?plot_windows.current->xlabel:s1.c_str(),
+		       (plot_windows.current->ylabel[0]||!AxisVarLabels)?plot_windows.current->ylabel:s2.c_str(),1); break;
     case 5: Frame_3d(); break;
 
    }
     if(program.interactive)SmallBase();
  
  }
+
+namespace {
 
 void Frame_3d()
 {
@@ -170,8 +147,6 @@ void Frame_3d()
   double tx,ty,tz;
   float x1,y1,z1,x2,y2,z2,dt=.03;
   float x0=plot_windows.current->xorg,y0=plot_windows.current->yorg,z0=plot_windows.current->zorg;
-  char bob[20];
-  
   double xmin=plot_windows.current->xmin,xmax=plot_windows.current->xmax,ymin=plot_windows.current->ymin;
   double ymax=plot_windows.current->ymax,zmin=plot_windows.current->zmin,zmax=plot_windows.current->zmax;
   float x4=xmin,y4=ymin,z4=zmin,x5=xmax,y5=ymax,z5=zmax;
@@ -221,26 +196,16 @@ void Frame_3d()
 
   dt=.06;
   TextJustify=2;
-  XPP_SPRINTF(bob,"%g",xmin);
-  text3d(x1,-1-2.*dt,-1.0,bob);
-  XPP_SPRINTF(bob,"%g",xmax);
-  text3d(x2,-1-2.*dt,-1.0,bob);
+  text3d(x1,-1-2.*dt,-1.0,xpp::format("{:g}",xmin).c_str());
+  text3d(x2,-1-2.*dt,-1.0,xpp::format("{:g}",xmax).c_str());
   text3d(0.0,-1-dt,-1.0,plot_windows.current->xlabel);
   TextJustify=0;
-  XPP_SPRINTF(bob,"%g",ymin);
-  /*sprintf(bob,"%g",ymin,bob);
-  */
-  text3d(1+dt,y1,-1.0,bob);
-  XPP_SPRINTF(bob,"%g",ymax);
-  /*sprintf(bob,"%g",ymax,bob);
-  */
-  text3d(1+dt,y2,-1.0,bob);
+  text3d(1+dt,y1,-1.0,xpp::format("{:g}",ymin).c_str());
+  text3d(1+dt,y2,-1.0,xpp::format("{:g}",ymax).c_str());
   text3d(1+dt,0.0,-1.0,plot_windows.current->ylabel);
   TextJustify=2;
-  XPP_SPRINTF(bob,"%g",zmin);
-  text3d(-1.-dt,-1-dt,z1,bob);
-  XPP_SPRINTF(bob,"%g",zmax);
-  text3d(-1.-dt,-1-dt,z2,bob);
+  text3d(-1.-dt,-1-dt,z1,xpp::format("{:g}",zmin).c_str());
+  text3d(-1.-dt,-1-dt,z2,xpp::format("{:g}",zmax).c_str());
   text3d(-1.-dt,-1.-dt,0.0,plot_windows.current->zlabel);
   TextJustify=0;
   
@@ -250,6 +215,8 @@ void Frame_3d()
 
 
 
+
+} // namespace
 
 void Box_axis(double x_min, double x_max, double y_min, double y_max, const char *sx, const char *sy, int flag)
 {
@@ -293,43 +260,32 @@ void Box_axis(double x_min, double x_max, double y_min, double y_max, const char
 }
 
 
+namespace {
+
 void draw_ytics(const char *s1, double start, double incr, double end)
 {
   double ticvalue,place;
   double y_min=YMin,y_max=YMax,
   x_min=XMin;
-  char bob[100];
   int xt,yt,s=1;
   TextJustify=2; /* Right justification  */
   for(ticvalue=start;ticvalue<=end;ticvalue+=incr){
     place=CheckZero(ticvalue,incr);
     if(ticvalue<y_min||ticvalue>y_max)continue;
-    XPP_SPRINTF(bob,"%g",place);
     scale_to_screen(static_cast<float>(x_min),static_cast<float>(place),&xt,&yt);
     DOING_BOX_AXES=0;
     line(DLeft,yt,DLeft+HTic,yt);
     DOING_BOX_AXES=1;
     line(DRight,yt,DRight-HTic,yt);
     DOING_BOX_AXES=0;
-    put_text(DLeft-static_cast<int>(1.25*HChar),yt,bob);
+    put_text(DLeft-static_cast<int>(1.25*HChar),yt,xpp::format("{:g}",place).c_str());
   }
    scale_to_screen(static_cast<float>(x_min),static_cast<float>(y_max),&xt,&yt);
    if(DTop<DBottom)s=-1;
    if (PltFmtFlag==SVGFMT)
-   {
-   	
-	fprintf(svgfile,"\n      <text class=\"xppyaxislabelv\" text-anchor=\"middle\" x=\"%d\"  y=\"%d\"\n",0,0);
-        fprintf(svgfile,"      transform=\"rotate(-90,75,180) translate(75,180)\"\n");
-        fprintf(svgfile,"      >%s</text>\n",s1);
-       
-        fprintf(svgfile,"\n      <text class=\"xppyaxislabelh\" text-anchor=\"end\" x=\"%d\"  y=\"%d\"\n",DLeft-HChar,yt+2*s*VChar);
-        fprintf(svgfile,"      >%s</text>\n",s1);
-			
-   }
+     svg_y_axis_label(DLeft-HChar,yt+2*s*VChar,s1);
    else
-   {
-   	put_text(DLeft-HChar,yt+2*s*VChar,s1);
-   }
+     put_text(DLeft-HChar,yt+2*s*VChar,s1);
 
 }
 
@@ -340,7 +296,6 @@ void draw_xtics(const char *s2, double start, double incr, double end)
   double y_min=YMin,
   x_min=XMin,x_max=XMax;
 
-  char bob[100];
   int xt,yt;
   int s=1;
   if(DTop<DBottom)s=-1;
@@ -348,30 +303,17 @@ void draw_xtics(const char *s2, double start, double incr, double end)
   for(ticvalue=start;ticvalue<=end;ticvalue+=incr){
     place=CheckZero(ticvalue,incr);
     if(ticvalue<x_min||ticvalue>x_max)continue;
-    XPP_SPRINTF(bob,"%g",place);
     scale_to_screen(static_cast<float>(place),y_min,&xt,&yt);
     DOING_BOX_AXES=0;
     line(xt,DBottom,xt,DBottom+s*VTic); 
     DOING_BOX_AXES=1;
     line(xt,DTop,xt,DTop-s*VTic);
     DOING_BOX_AXES=0;
-    put_text(xt,yt-static_cast<int>(1.25*VChar*s),bob);
+    put_text(xt,yt-static_cast<int>(1.25*VChar*s),xpp::format("{:g}",place).c_str());
   }
   put_text((DLeft+DRight)/2,yt-static_cast<int>(2.5*VChar*s),s2);    
 
 
 }
-	 
 
-
-
-
-
-
-
-
-
-
-
-
-
+} // namespace

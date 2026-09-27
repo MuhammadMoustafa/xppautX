@@ -1,14 +1,22 @@
+/* The SVG export (Graphic stuff/SVG): svg_init opens the file through an
+   xpp::Writer (a temp file, renamed into place only at svg_end's commit),
+   graphics.cpp's primitives call the svg_* functions below while the
+   picture is redrawn. tests/golden/lecar.svg guards the output byte for
+   byte (tools/goldencheck.py). */
 #include "my_svg.h"
+#include "my_ps.h"
 #include "xpp_ui.h"
 #include "colormap.h"
 #include "xpp_log.h"
 #include "lunch-new.h"
 #include "graphics.h"
 #include "graf_par.h"
+#include "axes2.h"
 
-#include <stdlib.h> 
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <string>
+#include <string_view>
 #include "xpp_io.h"
 #include "xpp_globals.h"
 
@@ -17,307 +25,312 @@
 #define CENTER 1
 #define POINT_TYPES 8
 
-char SVGLINETYPE;
-
-extern int TextJustify;
-extern int TextAngle;
-
-extern int PointType;
-extern int PointRadius;
+/* The open export's stream while svg_init..svg_end runs, NULL otherwise
+   (integrate.cpp and nullcline.cpp group their curves with <g>). */
 FILE *svgfile;
-/* svg_init opens this (temp file, renamed into place only on svg_end's
-   commit -- W11 step 3); svgfile is its FILE*, so every existing
-   fprintf(svgfile,...) call below keeps working unchanged. */
-static XppWriter *svg_writer;
-extern int PltFmtFlag,PSColorFlag;
-extern int PSLines;
-extern int LastPtLine;
-int cur_RGB[3];
-extern int LastPSX,LastPSY;
-extern int NoBreakLine;
-int DOING_SVG_COLOR=0;
-extern int DOING_AXES,DOING_BOX_AXES;
-
-int DO_MARKER=0;
 extern int DOING_DFIELD;
 
+namespace {
+
+/* The fixed head of every export: the point symbols and the default
+   style block, up to where $HOME/xppaut-stylesheet.css is folded in
+   (svg_init closes the block after it). */
+constexpr std::string_view svg_head = R"svg(<!-- Uncomment following when using your own custom external stylesheet.-->
+<!--
+<?xml-stylesheet type="text/css" href="xppaut-stylesheet.css" ?>
+-->
+<svg  xmlns="http://www.w3.org/2000/svg"
+      xmlns:xlink="http://www.w3.org/1999/xlink" font-size="12pt" width="640" height="400">
+
+
+      <defs>
+          <circle class="xpppointP" id = "xpppointP"  r = "1"  stroke-width = "1"/>
+          <circle class="xppbead" id = "xppbead"  r = "1"  stroke-width = "1"/>
+          <circle class="xpppointD" id = "xpppointD"  r = "1"  stroke-width = "1"/>
+          <circle class="xpppointA" id = "xpppointA"  r = "1"  stroke-width = "1"/>
+          <circle class="xpppointB" id = "xpppointB"  r = "1"  stroke-width = "1"/>
+          <circle class="xpppointC" id = "xpppointC"  r = "1"  stroke-width = "1"/>
+          <circle class="xpppointT" id = "xpppointT"  r = "1"  stroke-width = "1"/>
+          <circle class="xpppointS" id = "xpppointS"  r = "1"  stroke-width = "1"/>
+          <circle class="xpppointK" id = "xpppointK"  r = "3"  stroke-width = "0.75"/>
+          <circle class="xpppointF" id = "xpppointF"  r = "2"  stroke-width = "0"/>
+      </defs>
 
 
 
-int svg_init(const char *filename, int color)
+      <!-- Comment out the following style block when using your own custom external stylesheet.-->
+      <!-- As a starting point for your custom external stylesheet, consider copying the style 
+           information (between but not including CDATA tags) to a file named xppaut-stylesheet.css 
+       -->
+      <style type="text/css">
+           <![CDATA[
+      
+                 circle.xpppointP {
+                    stroke-width: 1.0;
+                 }
+
+                 circle.xpppointD {
+                    stroke-width: 1.0;
+                 }
+
+                 circle.xpppointA {
+                    stroke-width: 1.0;
+                 }
+
+                 circle.xpppointB {
+                    stroke-width: 1.0;
+                 }
+
+                 circle.xpppointC {
+                    stroke-width: 1.0;
+                 }
+
+                 circle.xpppointT {
+                    stroke-width: 1.0;
+                 }
+
+                 circle.xpppointS {
+                    stroke-width: 1.0;
+                 }
+
+                 circle.xpppointK {
+                    stroke-width: 1.0;
+                 }
+
+                 circle.xpppointF {
+                    stroke-width: 1.0;
+                 }
+
+                 line.xppaxes {
+                    stroke: #000000;
+                 }
+                 line.xppboxaxes {
+                    stroke: #000000;
+                 }
+                 line.xppdfield {
+                    stroke: #000000;
+                 }
+                 line.xpplineb {
+                    stroke: #000000;
+                 }
+                 line.xpplinea {
+                    stroke-dasharray: 2,8;
+                    stroke-width: 2;
+                    stroke: #000000;
+                 }
+                 line.xppline0 {
+                    stroke: #000000;
+                 }
+                 line.xppline1 {
+                    stroke-width: 1;
+                    stroke: #FF0000;
+                 }
+                 line.xppline2 {
+                    stroke: #F06400;
+                 }
+                 line.xppline3 {
+                    stroke: #FFA500;
+                 }
+                 line.xppline4 {
+                    stroke: #FFCD00;
+                 }
+                 line.xppline5 {
+                    stroke: #C8C800;
+                 }
+                 line.xppline6 {
+                    stroke: #00FF00;
+                 }
+                 line.xppline7 {
+                    stroke: #32CD32;
+                 }
+                 line.xppline8 {
+                    stroke: #00C8C8;
+                 }
+                 line.xppline9 {
+                    stroke: #0000FF;
+                 }
+                 line.xpplinec {
+                    stroke: #000000;
+                 }
+                 
+                 text.xpptext {
+                    font-family: sans-serif;
+                    font-size  : 1em;
+                    stroke	: #000000;
+                    fill	: #000000;
+                    baseline-shift:-33%;
+                    dominant-baseline: central;
+                 }
+                 text.xppyaxislabelh {
+                    font-family: sans-serif;
+                    font-size  : 1em;
+                    stroke	: none;
+                    fill	: none;
+                    baseline-shift:-33%;
+                    dominant-baseline: central;
+                 }
+                 text.xppyaxislabelv {
+                    font-family: sans-serif;
+                    font-size  : 1em;
+                    stroke	: #000000;
+                    fill	: #000000;
+                    baseline-shift:-33%;
+                    dominant-baseline: central;
+                 }
+                 text.xppaxestext {
+                    font-family: sans-serif;
+                    font-size  : 1em;
+                    stroke	: #000000;
+                    fill	: #000000;
+                    baseline-shift:-33%;
+                    dominant-baseline: central;
+                 }
+                 
+                 text.xpptext0 {
+                    font-family: sans-serif;
+                    font-size  : 0.5em;
+                    stroke	: #000000;
+                    fill	: #000000;
+                    baseline-shift:-33%;
+                    dominant-baseline: central;
+                 }
+                 
+                 text.xpptext1 {
+                    font-family: sans-serif;
+                    font-size  : 0.75em;
+                    stroke	: #000000;
+                    fill	: #000000;
+                    baseline-shift:-33%;
+                    dominant-baseline: central;
+                 }
+                 
+                 text.xpptext2 {
+                    font-family: sans-serif;
+                    font-size  : 1em;
+                    stroke	: #000000;
+                    fill	: #000000;
+                    baseline-shift:-33%;
+                    dominant-baseline: central;
+                 }
+                 
+                 text.xpptext3 {
+                    font-family: sans-serif;
+                    font-size  : 1.25em;
+                    stroke	: #000000;
+                    fill	: #000000;
+                    baseline-shift:-33%;
+                    dominant-baseline: central;
+                 }
+                 
+                 text.xpptext4 {
+                    font-family: sans-serif;
+                    font-size  : 1.5em;
+                    stroke	: #000000;
+                    fill	: #000000;
+                    baseline-shift:-33%;
+                    dominant-baseline: central;
+                 }
+)svg";
+
+xpp::Writer svg_writer;
+char svg_line_type;
+int cur_rgb[3];
+bool doing_svg_color = false;
+bool do_marker = false;
+
+/* The text-anchor of TextJustify. */
+const char *svg_anchor()
 {
-
-	init_svg();
-	char css[256];
-
-
-	LastPSX=-10000;
-        LastPSY=-10000;
-
-	if((svg_writer=xpp_writer_open(filename))==NULL){
-	  err_msg("Cannot open file ");
-	  return(0);
-	}
-	svgfile=xpp_writer_file(svg_writer);
-	PltFmtFlag=SVGFMT;
-
-	fprintf(svgfile,"<!-- Uncomment following when using your own custom external stylesheet.-->\n");
-	fprintf(svgfile,"<!--\n");
-	fprintf(svgfile,"<?xml-stylesheet type=\"text/css\" href=\"xppaut-stylesheet.css\" ?>\n");
-	fprintf(svgfile,"-->\n");
-	fprintf(svgfile,"<svg  xmlns=\"http://www.w3.org/2000/svg\"\n");
-	fprintf(svgfile,"      xmlns:xlink=\"http://www.w3.org/1999/xlink\" font-size=\"12pt\" width=\"640\" height=\"400\">\n");
-	fprintf(svgfile,"\n\n      <defs>\n");
-	fprintf(svgfile,"          <circle class=\"xpppointP\" id = \"xpppointP\"  r = \"1\"  stroke-width = \"1\"/>\n");
-	fprintf(svgfile,"          <circle class=\"xppbead\" id = \"xppbead\"  r = \"1\"  stroke-width = \"1\"/>\n");
-	fprintf(svgfile,"          <circle class=\"xpppointD\" id = \"xpppointD\"  r = \"1\"  stroke-width = \"1\"/>\n");
-	fprintf(svgfile,"          <circle class=\"xpppointA\" id = \"xpppointA\"  r = \"1\"  stroke-width = \"1\"/>\n");
-	fprintf(svgfile,"          <circle class=\"xpppointB\" id = \"xpppointB\"  r = \"1\"  stroke-width = \"1\"/>\n");
-	fprintf(svgfile,"          <circle class=\"xpppointC\" id = \"xpppointC\"  r = \"1\"  stroke-width = \"1\"/>\n");
-	fprintf(svgfile,"          <circle class=\"xpppointT\" id = \"xpppointT\"  r = \"1\"  stroke-width = \"1\"/>\n");
-	fprintf(svgfile,"          <circle class=\"xpppointS\" id = \"xpppointS\"  r = \"1\"  stroke-width = \"1\"/>\n");
-	fprintf(svgfile,"          <circle class=\"xpppointK\" id = \"xpppointK\"  r = \"3\"  stroke-width = \"0.75\"/>\n");
-	fprintf(svgfile,"          <circle class=\"xpppointF\" id = \"xpppointF\"  r = \"2\"  stroke-width = \"0\"/>\n");
-	fprintf(svgfile,"      </defs>\n\n");
-	fprintf(svgfile,"\n\n");
-	fprintf(svgfile,"      <!-- Comment out the following style block when using your own custom external stylesheet.-->\n");
-	fprintf(svgfile,"      <!-- As a starting point for your custom external stylesheet, consider copying the style \n");
-	fprintf(svgfile,"           information (between but not including CDATA tags) to a file named xppaut-stylesheet.css \n");
-	fprintf(svgfile,"       -->\n");
-	fprintf(svgfile,"      <style type=\"text/css\">\n");
-	fprintf(svgfile,"           <![CDATA[\n");
-	fprintf(svgfile,"      \n");
-
- 
-	
-		fprintf(svgfile,"                 circle.xpppointP {\n");
-		fprintf(svgfile,"                    stroke-width: 1.0;\n");
-		fprintf(svgfile,"                 }\n\n");
-		fprintf(svgfile,"                 circle.xpppointD {\n");
-		fprintf(svgfile,"                    stroke-width: 1.0;\n");
-		fprintf(svgfile,"                 }\n\n");
-		fprintf(svgfile,"                 circle.xpppointA {\n");
-		fprintf(svgfile,"                    stroke-width: 1.0;\n");
-		fprintf(svgfile,"                 }\n\n");
-		fprintf(svgfile,"                 circle.xpppointB {\n");
-		fprintf(svgfile,"                    stroke-width: 1.0;\n");
-		fprintf(svgfile,"                 }\n\n");
-		fprintf(svgfile,"                 circle.xpppointC {\n");
-		fprintf(svgfile,"                    stroke-width: 1.0;\n");
-		fprintf(svgfile,"                 }\n\n");
-		fprintf(svgfile,"                 circle.xpppointT {\n");
-		fprintf(svgfile,"                    stroke-width: 1.0;\n");
-		fprintf(svgfile,"                 }\n\n");
-		fprintf(svgfile,"                 circle.xpppointS {\n");
-		fprintf(svgfile,"                    stroke-width: 1.0;\n");
-		fprintf(svgfile,"                 }\n\n");
-		fprintf(svgfile,"                 circle.xpppointK {\n");
-		fprintf(svgfile,"                    stroke-width: 1.0;\n");
-		fprintf(svgfile,"                 }\n\n");
-		fprintf(svgfile,"                 circle.xpppointF {\n");
-		fprintf(svgfile,"                    stroke-width: 1.0;\n");
-		fprintf(svgfile,"                 }\n\n");
-		fprintf(svgfile,"                 line.xppaxes {\n");
-		fprintf(svgfile,"                    stroke: #000000;\n");
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 line.xppboxaxes {\n");
-		fprintf(svgfile,"                    stroke: #000000;\n");
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 line.xppdfield {\n");
-		fprintf(svgfile,"                    stroke: #000000;\n");
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 line.xpplineb {\n");
-		fprintf(svgfile,"                    stroke: #000000;\n");
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 line.xpplinea {\n");
-		fprintf(svgfile,"                    stroke-dasharray: 2,8;\n");
-		fprintf(svgfile,"                    stroke-width: 2;\n");
-		fprintf(svgfile,"                    stroke: #000000;\n");
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 line.xppline0 {\n");
-		fprintf(svgfile,"                    stroke: #000000;\n");
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 line.xppline1 {\n");
-		fprintf(svgfile,"                    stroke-width: 1;\n");
-		fprintf(svgfile,"                    stroke: #FF0000;\n");
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 line.xppline2 {\n");
-		fprintf(svgfile,"                    stroke: #F06400;\n");
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 line.xppline3 {\n");
-		fprintf(svgfile,"                    stroke: #FFA500;\n");
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 line.xppline4 {\n");
-		fprintf(svgfile,"                    stroke: #FFCD00;\n");
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 line.xppline5 {\n");
-		fprintf(svgfile,"                    stroke: #C8C800;\n");
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 line.xppline6 {\n");
-		fprintf(svgfile,"                    stroke: #00FF00;\n");
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 line.xppline7 {\n");
-		fprintf(svgfile,"                    stroke: #32CD32;\n");
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 line.xppline8 {\n");
-		fprintf(svgfile,"                    stroke: #00C8C8;\n");
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 line.xppline9 {\n");
-		fprintf(svgfile,"                    stroke: #0000FF;\n");
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 line.xpplinec {\n");
-		fprintf(svgfile,"                    stroke: #000000;\n");
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 \n");
-		fprintf(svgfile,"                 text.xpptext {\n");
-		fprintf(svgfile,"                    font-family: sans-serif;\n");
-		fprintf(svgfile,"                    font-size  : 1em;\n");
-		fprintf(svgfile,"                    stroke	: #000000;\n");
-		fprintf(svgfile,"                    fill	: #000000;\n"); /*Need to support more than 1 vertical centering tactic!*/ 
-		fprintf(svgfile,"                    baseline-shift:-33%%;\n"); /*Supported in Inkscape v0.48.2, but not in Firefox v13*/
-		fprintf(svgfile,"                    dominant-baseline: central;\n");/*Supported in Firefox v13, but not in Inkscape v0.48.2*/
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 text.xppyaxislabelh {\n");
-		fprintf(svgfile,"                    font-family: sans-serif;\n");
-		fprintf(svgfile,"                    font-size  : 1em;\n");
-		fprintf(svgfile,"                    stroke	: none;\n");
-		fprintf(svgfile,"                    fill	: none;\n"); /*Need to support more than 1 vertical centering tactic!*/ 
-		fprintf(svgfile,"                    baseline-shift:-33%%;\n"); /*Supported in Inkscape v0.48.2, but not in Firefox v13*/
-		fprintf(svgfile,"                    dominant-baseline: central;\n");/*Supported in Firefox v13, but not in Inkscape v0.48.2*/
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 text.xppyaxislabelv {\n");
-		fprintf(svgfile,"                    font-family: sans-serif;\n");
-		fprintf(svgfile,"                    font-size  : 1em;\n");
-		fprintf(svgfile,"                    stroke	: #000000;\n");
-		fprintf(svgfile,"                    fill	: #000000;\n"); /*Need to support more than 1 vertical centering tactic!*/ 
-		fprintf(svgfile,"                    baseline-shift:-33%%;\n"); /*Supported in Inkscape v0.48.2, but not in Firefox v13*/
-		fprintf(svgfile,"                    dominant-baseline: central;\n");/*Supported in Firefox v13, but not in Inkscape v0.48.2*/
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 text.xppaxestext {\n");
-		fprintf(svgfile,"                    font-family: sans-serif;\n");
-		fprintf(svgfile,"                    font-size  : 1em;\n");
-		fprintf(svgfile,"                    stroke	: #000000;\n");
-		fprintf(svgfile,"                    fill	: #000000;\n"); /*Need to support more than 1 vertical centering tactic!*/ 
-		fprintf(svgfile,"                    baseline-shift:-33%%;\n"); /*Supported in Inkscape v0.48.2, but not in Firefox v13*/
-		fprintf(svgfile,"                    dominant-baseline: central;\n");/*Supported in Firefox v13, but not in Inkscape v0.48.2*/
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 \n");
-		fprintf(svgfile,"                 text.xpptext0 {\n");
-		fprintf(svgfile,"                    font-family: sans-serif;\n");
-		fprintf(svgfile,"                    font-size  : 0.5em;\n");
-		fprintf(svgfile,"                    stroke	: #000000;\n");
-		fprintf(svgfile,"                    fill	: #000000;\n"); /*Need to support more than 1 vertical centering tactic!*/ 
-		fprintf(svgfile,"                    baseline-shift:-33%%;\n"); /*Supported in Inkscape v0.48.2, but not in Firefox v13*/
-		fprintf(svgfile,"                    dominant-baseline: central;\n");/*Supported in Firefox v13, but not in Inkscape v0.48.2*/
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 \n");
-		fprintf(svgfile,"                 text.xpptext1 {\n");
-		fprintf(svgfile,"                    font-family: sans-serif;\n");
-		fprintf(svgfile,"                    font-size  : 0.75em;\n");
-		fprintf(svgfile,"                    stroke	: #000000;\n");
-		fprintf(svgfile,"                    fill	: #000000;\n"); /*Need to support more than 1 vertical centering tactic!*/ 
-		fprintf(svgfile,"                    baseline-shift:-33%%;\n"); /*Supported in Inkscape v0.48.2, but not in Firefox v13*/
-		fprintf(svgfile,"                    dominant-baseline: central;\n");/*Supported in Firefox v13, but not in Inkscape v0.48.2*/
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 \n");
-		fprintf(svgfile,"                 text.xpptext2 {\n");
-		fprintf(svgfile,"                    font-family: sans-serif;\n");
-		fprintf(svgfile,"                    font-size  : 1em;\n");
-		fprintf(svgfile,"                    stroke	: #000000;\n");
-		fprintf(svgfile,"                    fill	: #000000;\n"); /*Need to support more than 1 vertical centering tactic!*/ 
-		fprintf(svgfile,"                    baseline-shift:-33%%;\n"); /*Supported in Inkscape v0.48.2, but not in Firefox v13*/
-		fprintf(svgfile,"                    dominant-baseline: central;\n");/*Supported in Firefox v13, but not in Inkscape v0.48.2*/
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 \n");
-		fprintf(svgfile,"                 text.xpptext3 {\n");
-		fprintf(svgfile,"                    font-family: sans-serif;\n");
-		fprintf(svgfile,"                    font-size  : 1.25em;\n");
-		fprintf(svgfile,"                    stroke	: #000000;\n");
-		fprintf(svgfile,"                    fill	: #000000;\n"); /*Need to support more than 1 vertical centering tactic!*/ 
-		fprintf(svgfile,"                    baseline-shift:-33%%;\n"); /*Supported in Inkscape v0.48.2, but not in Firefox v13*/
-		fprintf(svgfile,"                    dominant-baseline: central;\n");/*Supported in Firefox v13, but not in Inkscape v0.48.2*/
-		fprintf(svgfile,"                 }\n");
-		fprintf(svgfile,"                 \n");
-		fprintf(svgfile,"                 text.xpptext4 {\n");
-		fprintf(svgfile,"                    font-family: sans-serif;\n");
-		fprintf(svgfile,"                    font-size  : 1.5em;\n");
-		fprintf(svgfile,"                    stroke	: #000000;\n");
-		fprintf(svgfile,"                    fill	: #000000;\n"); /*Need to support more than 1 vertical centering tactic!*/ 
-		fprintf(svgfile,"                    baseline-shift:-33%%;\n"); /*Supported in Inkscape v0.48.2, but not in Firefox v13*/
-		fprintf(svgfile,"                    dominant-baseline: central;\n");/*Supported in Firefox v13, but not in Inkscape v0.48.2*/
-		fprintf(svgfile,"                 }\n");
-	
-		XPP_SPRINTF(css,"%s/xppaut-stylesheet.css",getenv("HOME"));
-		{
-			/* copied in whole lines (any length, not the 255-byte fgets
-			   cut this replaced); a trailing newline is put back on each
-			   one, so a css file that itself ends without one gains a
-			   final newline it did not have -- the one difference from
-			   the fgets loop, on an unwritten-in-the-wild edge case. */
-			xpp::LineReader lr(css);
-			if(lr)
-			{
-				xpp::log(XPP_LOG_INFO, "Styling svg image according to {}\n",css);
-				std::optional<std::string_view> line;
-				while((line=lr.next()))
-					fprintf(svgfile,"%.*s\n",static_cast<int>(line->size()),line->data());
-			}
-		}
-	
-	
-	fprintf(svgfile,"           ]]>\n");
-	fprintf(svgfile,"      </style>\n\n");
-
-        return(1);
+  switch(TextJustify) {
+  case CENTER: return "middle";
+  case RIGHT: return "end";
+  default: return "start";
+  }
 }
 
-	
+/* The style attribute of a coloured stroke (and fill) in cur_rgb. */
+std::string svg_stroke()
+{
+  return xpp::format("stroke:rgb({},{},{});",cur_rgb[0],cur_rgb[1],cur_rgb[2]);
+}
+
+std::string svg_stroke_fill()
+{
+  return xpp::format("stroke:rgb({0},{1},{2}); fill:rgb({0},{1},{2})",cur_rgb[0],cur_rgb[1],cur_rgb[2]);
+}
+
+} // namespace
+
+int svg_init(const char *filename, int /*color*/)
+{
+  init_svg();
+
+  LastPSX=-10000;
+  LastPSY=-10000;
+
+  svg_writer=xpp::Writer(filename);
+  if(!svg_writer){
+    err_msg("Cannot open file ");
+    return(0);
+  }
+  svgfile=svg_writer.file();
+  PltFmtFlag=SVGFMT;
+  svg_writer.print("{}",svg_head);
+
+  if(const char *home=std::getenv("HOME")){
+    /* copied in whole lines; a trailing newline is put back on each one,
+       so a css file that itself ends without one gains a final newline. */
+    const std::string css=xpp::format("{}/xppaut-stylesheet.css",home);
+    xpp::LineReader lr(css.c_str());
+    if(lr){
+      xpp::log(XPP_LOG_INFO, "Styling svg image according to {}\n",css);
+      while(auto line=lr.next())
+        svg_writer.print("{}\n",*line);
+    }
+  }
+  svg_writer.print("           ]]>\n      </style>\n\n");
+  return(1);
+}
+
 void svg_write(const char *str)
 {
-  fprintf(svgfile,"%s\n",str);
+  svg_writer.print("{}\n",str);
 }
 
 void svg_do_color(int color)
 {
-   int r,g,b;
-
-   if(PltFmtFlag==SCRNFMT)return;
-   if(PltFmtFlag==PSFMT)return;
-   if(PSColorFlag==0)return;
-   get_svg_color(color,&r,&g,&b);
-   cur_RGB[0]=r;cur_RGB[1]=g;cur_RGB[2]=b;
-   
-   DOING_SVG_COLOR=1;
+  if(PltFmtFlag==SCRNFMT)return;
+  if(PltFmtFlag==PSFMT)return;
+  if(PSColorFlag==0)return;
+  get_svg_color(color,&cur_rgb[0],&cur_rgb[1],&cur_rgb[2]);
+  doing_svg_color=true;
 }
 
 void svg_end(void)
 {
- svg_write("</svg>");
- xpp_writer_commit(svg_writer);
- svg_writer=NULL;
- svgfile=NULL;
- PltFmtFlag=SCRNFMT;
- DOING_SVG_COLOR=0;
- if(program.interactive)init_x11();
+  svg_write("</svg>");
+  svg_writer.commit();
+  svgfile=NULL;
+  PltFmtFlag=SCRNFMT;
+  doing_svg_color=false;
+  if(program.interactive)init_x11();
 }
 
-void svg_bead(int x, int y)
+void svg_bead(int /*x*/, int /*y*/)
 {
-	DO_MARKER=1;
+  do_marker=true;
 }
 
 void svg_frect(int x, int y, int w, int h)
 {
-	double gray = 0;
-	if (DOING_SVG_COLOR)
-	{
-		fprintf(svgfile,"      <rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" style=\"stroke:rgb(%d,%d,%d);fill:rgb(%d,%d,%d);\"/>",x,y,w,h,cur_RGB[0],cur_RGB[1],cur_RGB[2],cur_RGB[0],cur_RGB[1],cur_RGB[2]);
-    	}
-	else
-	{
-		gray = (0.299*cur_RGB[0] + 0.587*cur_RGB[1] + 0.114*cur_RGB[2]);
-		fprintf(svgfile,"      <rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" style=\"stroke:rgb(%d,%d,%d);fill:rgb(%d,%d,%d);\"/>",x,y,w,h,static_cast<int>(gray),static_cast<int>(gray),static_cast<int>(gray),static_cast<int>(gray),static_cast<int>(gray),static_cast<int>(gray));
-	}     
+  if (doing_svg_color)
+    svg_writer.print("      <rect x=\"{0}\" y=\"{1}\" width=\"{2}\" height=\"{3}\" style=\"stroke:rgb({4},{5},{6});fill:rgb({4},{5},{6});\"/>",
+              x,y,w,h,cur_rgb[0],cur_rgb[1],cur_rgb[2]);
+  else {
+    const int gray = static_cast<int>(0.299*cur_rgb[0] + 0.587*cur_rgb[1] + 0.114*cur_rgb[2]);
+    svg_writer.print("      <rect x=\"{0}\" y=\"{1}\" width=\"{2}\" height=\"{3}\" style=\"stroke:rgb({4},{4},{4});fill:rgb({4},{4},{4});\"/>",
+              x,y,w,h,gray);
+  }
 }
 
 void svg_last_pt_off(void)
@@ -325,307 +338,93 @@ void svg_last_pt_off(void)
   LastPtLine=0;
 }
 
-
-
 void svg_line(int xp1, int yp1, int xp2, int yp2)
 {
-	if (DOING_SVG_COLOR)
-	{
-		if (DOING_AXES)
-		{
-			if (DOING_BOX_AXES)
-			{
-				fprintf(svgfile,"      <line class=\"xppboxaxes\"  x1=\"%d\"  y1=\"%d\" x2=\"%d\"   y2=\"%d\" style=\"stroke:rgb(%d,%d,%d);\"/>\n",xp1,yp1,xp2,yp2,cur_RGB[0],cur_RGB[1],cur_RGB[2]);
-			}
-			else
-			{
-				fprintf(svgfile,"      <line class=\"xppaxes\"  x1=\"%d\"  y1=\"%d\" x2=\"%d\"   y2=\"%d\" style=\"stroke:rgb(%d,%d,%d);\"/>\n",xp1,yp1,xp2,yp2,cur_RGB[0],cur_RGB[1],cur_RGB[2]);
-			}
-		}
-		else
-		{
-		
-		
-			if (DOING_DFIELD)
-			{
-				if (DO_MARKER)
-				{
-					fprintf(svgfile,"<g>\n"); 
-				}
-			
-			
-				fprintf(svgfile,"      <line class=\"xppdfield\"  x1=\"%d\"  y1=\"%d\" x2=\"%d\"   y2=\"%d\" style=\"stroke:rgb(%d,%d,%d);\"/>\n",xp1,yp1,xp2,yp2,cur_RGB[0],cur_RGB[1],cur_RGB[2]);
-				if (DO_MARKER)
-				{	
-					fprintf(svgfile,"      <use xlink:href = \"#xppbead\" x=\"%d\" y=\"%d\" style=\"stroke:rgb(%d,%d,%d); fill:rgb(%d,%d,%d)\"/>\n",xp2,yp2,cur_RGB[0],cur_RGB[1],cur_RGB[2],cur_RGB[0],cur_RGB[1],cur_RGB[2]);
-					fprintf(svgfile,"</g>\n"); 
-				}   
-			}
-			else
-			{
-				fprintf(svgfile,"      <line class=\"xppline%c\"  x1=\"%d\"  y1=\"%d\" x2=\"%d\"   y2=\"%d\" style=\"stroke:rgb(%d,%d,%d);\"/>\n",SVGLINETYPE,xp1,yp1,xp2,yp2,cur_RGB[0],cur_RGB[1],cur_RGB[2]);
-			}
-		}
-		
-	}
-	else
-	{
-		if (DOING_AXES)
-		{
-			if (DOING_BOX_AXES)
-			{
-				fprintf(svgfile,"      <line class=\"xppboxaxes\"  x1=\"%d\"  y1=\"%d\" x2=\"%d\"   y2=\"%d\" />\n",xp1,yp1,xp2,yp2);
-			}
-			else
-			{
-				fprintf(svgfile,"      <line class=\"xppaxes\"  x1=\"%d\"  y1=\"%d\" x2=\"%d\"   y2=\"%d\" />\n",xp1,yp1,xp2,yp2);
-			}
-		}
-		else
-		{
-			
-			
-			if (DOING_DFIELD)
-			{
-			
-				if (DO_MARKER)
-				{
-					fprintf(svgfile,"<g>\n"); 
-				}
-				fprintf(svgfile,"      <line class=\"xppdfield\"  x1=\"%d\"  y1=\"%d\" x2=\"%d\"   y2=\"%d\" />\n",xp1,yp1,xp2,yp2);
-				if (DO_MARKER)
-				{	
-					fprintf(svgfile,"      <use xlink:href = \"#xppbead\" x=\"%d\" y=\"%d\" />\n",xp2,yp2);
-					fprintf(svgfile,"</g>\n"); 
-				} 
-			
-			}
-			else
-			{
-				fprintf(svgfile,"      <line class=\"xppline%c\"  x1=\"%d\"  y1=\"%d\" x2=\"%d\"   y2=\"%d\" />\n",SVGLINETYPE,xp1,yp1,xp2,yp2);
-			}
-		}
-	
-	}
-	
-	LastPSX=xp2;
- 	LastPSY=yp2;
-	
-	DOING_SVG_COLOR=0;
-	DO_MARKER=0;
+  /* the line's class: the axes, the box axes, a direction-field arrow
+     or a curve of line type svg_line_type */
+  std::string cls;
+  if (DOING_AXES)
+    cls = DOING_BOX_AXES ? "xppboxaxes" : "xppaxes";
+  else if (DOING_DFIELD)
+    cls = "xppdfield";
+  else
+    cls = xpp::format("xppline{}",svg_line_type);
+  const std::string style = doing_svg_color ? " style=\""+svg_stroke()+"\"/>" : " />";
+  /* a direction-field arrow with its bead is a group */
+  const bool arrow = !DOING_AXES && DOING_DFIELD && do_marker;
+  if (arrow)
+    svg_writer.print("<g>\n");
+  svg_writer.print("      <line class=\"{}\"  x1=\"{}\"  y1=\"{}\" x2=\"{}\"   y2=\"{}\"{}\n",cls,xp1,yp1,xp2,yp2,style);
+  if (arrow) {
+    if (doing_svg_color)
+      svg_writer.print("      <use xlink:href = \"#xppbead\" x=\"{}\" y=\"{}\" style=\"{}\"/>\n",xp2,yp2,svg_stroke_fill());
+    else
+      svg_writer.print("      <use xlink:href = \"#xppbead\" x=\"{}\" y=\"{}\" />\n",xp2,yp2);
+    svg_writer.print("</g>\n");
+  }
+
+  LastPSX=xp2;
+  LastPSY=yp2;
+
+  doing_svg_color=false;
+  do_marker=false;
 }
 
-
 void svg_linetype(int linetype)
-{	
-	const char *line = "ba0123456789c";
-
-	SVGLINETYPE=line[(linetype%11)+2];
-	
-	
-	PSLines=0;
-       /* LastPSX=-100000000;
-        LastPSY=-100000000;
-	*/	
+{
+  constexpr std::string_view line = "ba0123456789c";
+  svg_line_type=line[(linetype%11)+2];
+  PSLines=0;
 }
 
 void svg_point(int x, int y)
 {
-  /* svgcol/svgfill are char[8]: exactly sizeof(char*) on a 64-bit
-     build, so XPP_ARRAY_SIZE_CHECK's sizeof(dst)==sizeof(char*)
-     heuristic false-triggers on them (documented in xpp_io.h). */
-  char svgcol[8];
-  char svgfill[8];
-
-
-  xpp_snprintf(svgfill,8,"none");
-  svgcol[0]='\0';
-
+  constexpr std::string_view point="PDABCTSKF";
   int number=PointType;
-  const char *point="PDABCTSKF";
   number %= POINT_TYPES;
-  if(number < -1) 
+  if(number < -1)
     number = -1;
   if(PointRadius>0)number=7;
-  
-  if (number==7)
-  {
-  	xpp_snprintf(svgcol,8,"00FF00");xpp_snprintf(svgfill,8,"#00FF00");
+
+  if (doing_svg_color)
+    svg_writer.print("      <use xlink:href = \"#xpppoint{}\" x=\"{}\" y=\"{}\" style=\"{}\"/>\n",
+              point[number+1],x,y,svg_stroke_fill());
+  else {
+    const char *col = "000000", *fill = "#000000";
+    if (number==7) {
+      col = "00FF00";
+      fill = "#00FF00";
+    } else if (number==6) {
+      col = "0000FF";
+      fill = "none";
+    }
+    svg_writer.print("      <use xlink:href = \"#xpppoint{}\" x=\"{}\" y=\"{}\" style=\"stroke:#{}; fill:{}\"/>\n",
+              point[number+1],x,y,col,fill);
   }
-  else if (number==6)
-  {
-  	xpp_snprintf(svgcol,8,"0000FF");
-  }
-  else
-  {
-  	xpp_snprintf(svgcol,8,"000000");xpp_snprintf(svgfill,8,"#000000");
-  }
- 
-  if (DOING_SVG_COLOR)
-  {
-  	fprintf(svgfile,"      <use xlink:href = \"#xpppoint%c\" x=\"%d\" y=\"%d\" style=\"stroke:rgb(%d,%d,%d); fill:rgb(%d,%d,%d)\"/>\n",point[number+1],x,y,cur_RGB[0],cur_RGB[1],cur_RGB[2],cur_RGB[0],cur_RGB[1],cur_RGB[2]);
-  }
-  else
-  {
-  	fprintf(svgfile,"      <use xlink:href = \"#xpppoint%c\" x=\"%d\" y=\"%d\" style=\"stroke:#%s; fill:%s\"/>\n",point[number+1],x,y,svgcol,svgfill);
-  }
- 
+
   PSLines=0;
   LastPtLine=0;
-  DOING_SVG_COLOR=0;
+  doing_svg_color=false;
 }
-
 
 void special_put_text_svg(int x, int y, const char *str, int size)
 {
-  /*int i=0,j=0,type=1;
-  int cf=0;
- 
-  int n=strlen(str);
-  int cy=0;
-  char tmp[256],c;
-  int sub,sup,pssz;
-  static int sz[]={8,10,14,18,24};    
-  fprintf(psfile, "0 0 0 setrgbcolor \n");
-  ps_abs(x,y);
-  pssz=sz[size]*PS_SC;
-  sub=.3*pssz;
-  sup=.6*pssz;
-  */
-  /* set the size here! */
-  
-  /*ps_fnt(cf,pssz);
-  while(i<n){
-    c=str[i];
-    if(c=='\\'){      
-      i++;
-      c=str[i];
-      tmp[j]=0;*/ /* end the current buffer */
-      /*if(strlen(tmp)>0){
-	ps_show(tmp,type);
-	type=0;
-      }
-
-      
-      j=0;
-      if(c=='0'){
-        cf=0;
-	ps_fnt(cf,pssz);
-
-      }
-      if(c=='n'){
-
-	ps_rel(0,-cy);
-	cy=0;
-	pssz=PS_SC*sz[size];
-	ps_fnt(cf,pssz);
-      }
-      if(c=='s'){
-
-	cy=cy-sub;
-	ps_rel(0,-sub);
-	pssz=3*PS_SC*sz[size]/5;
-	ps_fnt(cf,pssz);
-      }
-      if(c=='S'){
-	pssz=3*PS_SC*sz[size]/5;
-	cy=cy+sup;
-        ps_rel(0,sup);
-	ps_fnt(cf,pssz);
-      }
-      if(c=='1'){
-
-	cf=1;
-	ps_fnt(cf,pssz);
-      }
-    
-      i++;
-    }
-    else {
-      tmp[j]=c;
-      j++;
-      i++;
-    }
-  }
-  tmp[j]=0;
-  if(strlen(tmp)>0)
-    ps_show(tmp,type);
-   */   
-   
-   
-   	char anchor[7];
-	
-	switch(TextJustify) {
-	case LEFT : XPP_SPRINTF(anchor,"start");
-	  break;
-	case CENTER : XPP_SPRINTF(anchor,"middle");
-	  break;
-	case RIGHT : XPP_SPRINTF(anchor,"end");
-	  break;
-	default: XPP_SPRINTF(anchor,"start");
-	  break;
-	}
-	
-	fprintf(svgfile,"\n      <text class=\"xpptext%d\" text-anchor=\"%s\" x=\"%d\"  y=\"%d\"\n",size,anchor,x,y);
-        
-        fprintf(svgfile,"      >%s</text>\n",str);
-	
+  svg_writer.print("\n      <text class=\"xpptext{}\" text-anchor=\"{}\" x=\"{}\"  y=\"{}\"\n",size,svg_anchor(),x,y);
+  svg_writer.print("      >{}</text>\n",str);
 }
 
 void svg_text(int x, int y, const char *str)
 {
-	char anchor[7];
-	
-	switch(TextJustify) {
-	case LEFT : XPP_SPRINTF(anchor,"start");
-	  break;
-	case CENTER : XPP_SPRINTF(anchor,"middle");
-	  break;
-	case RIGHT : XPP_SPRINTF(anchor,"end");
-	  break;
-	default: XPP_SPRINTF(anchor,"start");
-	  break;
-	}
-	
-	if (DOING_AXES)
-	{
-		fprintf(svgfile,"\n      <text class=\"xppaxestext\" text-anchor=\"%s\" x=\"%d\"  y=\"%d\"\n",anchor,x,y);
-      
-	}
-	else
-	{
-		fprintf(svgfile,"\n      <text class=\"xpptext\" text-anchor=\"%s\" x=\"%d\"  y=\"%d\"\n",anchor,x,y);
-        }
-	
-	
- 	fprintf(svgfile,"      >%s</text>\n",str);
-	
-    /* char ch;
-     fprintf(psfile, "0 0 0 setrgbcolor \n");
-     fprintf(psfile,"/%s findfont %d ",PS_FONT,PS_FONTSIZE*PS_SC);
-    fprintf(psfile,"scalefont setfont\n");
-    fprintf(psfile,"%d %d moveto\n",x,y);
-    if (TextAngle != 0)
-      fprintf(psfile,"currentpoint gsave translate %d rotate 0 0 moveto\n"
-	      ,TextAngle*90);
-    putc('(',psfile);
-    ch = *str++;
-    while(ch!='\0') {
-      if ( (ch=='(') || (ch==')') || (ch=='\\') )
-	putc('\\',psfile);
-      putc(ch,psfile);
-      ch = *str++;
-    }
-    switch(TextJustify) {
-    case LEFT : fprintf(psfile,") Lshow\n");
-      break;
-    case CENTER : fprintf(psfile,") Cshow\n");
-      break;
-    case RIGHT : fprintf(psfile,") Rshow\n");
-      break;
-    }
-    if (TextAngle != 0)
-      fprintf(psfile,"grestore\n");
-    PSLines=0;
-    */
+  svg_writer.print("\n      <text class=\"{}\" text-anchor=\"{}\" x=\"{}\"  y=\"{}\"\n",
+            DOING_AXES ? "xppaxestext" : "xpptext",svg_anchor(),x,y);
+  svg_writer.print("      >{}</text>\n",str);
+}
+
+void svg_y_axis_label(int x, int y, const char *label)
+{
+  svg_writer.print("\n      <text class=\"xppyaxislabelv\" text-anchor=\"middle\" x=\"0\"  y=\"0\"\n");
+  svg_writer.print("      transform=\"rotate(-90,75,180) translate(75,180)\"\n");
+  svg_writer.print("      >{}</text>\n",label);
+  svg_writer.print("\n      <text class=\"xppyaxislabelh\" text-anchor=\"end\" x=\"{}\"  y=\"{}\"\n",x,y);
+  svg_writer.print("      >{}</text>\n",label);
 }

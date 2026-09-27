@@ -4,6 +4,13 @@
 extern "C" {
 #endif
 
+/* graphics.cpp: the drawing area in device units, its world coordinates,
+   and the current point, text and 3D view settings */
+extern int DLeft, DRight, DTop, DBottom, VTic, HTic, VChar, HChar, XDMax, YDMax;
+extern double XMin, YMin, XMax, YMax;
+extern int PointType, PointRadius, TextJustify, TextAngle, PS_Port;
+extern double THETA0, PHI0;
+
 
 void get_scale(double *x1, double *y1, double *x2, double *y2);
 void set_scale(double x1, double y1, double x2, double y2);

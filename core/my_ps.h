@@ -5,7 +5,13 @@ extern "C" {
 #endif
 
 
-/* my_ps.c */
+/* my_ps.cpp: the export's state, shared with my_svg.cpp and graphics.cpp */
+extern int PltFmtFlag, PSColorFlag, PSLines;
+extern int LastPSX, LastPSY, LastPtLine, NoBreakLine;
+extern int PS_FONTSIZE;
+extern double PS_LW;
+extern char PS_FONT[100];
+
 int ps_init(const char *filename, int color);
 void ps_stroke(void);
 void ps_do_color(int color);
