@@ -14,7 +14,8 @@
 #include "markov.h"
 #include "parserslow.h"
 
-#include "read_dir.h"
+#include "xpp_files.h"
+#include "load_eqn.h"
 
 #include "extra.h"
 #include "browse.h"
@@ -205,7 +206,7 @@ void load_eqn()
  if(strcmp(this_file,"/dev/stdin")==0)std=1;
  if (got_file==1&&(std==0)&&xpp_files_is_dir(this_file))
  {
-   change_directory(this_file);
+   xpp_files_change_dir(this_file);
    make_eqn();
    return;
  }
@@ -223,7 +224,7 @@ void load_eqn()
  {
    const char *start=getenv("XPPSTART");
    if (start!=NULL && xpp_files_is_dir(start))
-     change_directory(start);
+     xpp_files_change_dir(start);
    okay=make_eqn();
  }
 }

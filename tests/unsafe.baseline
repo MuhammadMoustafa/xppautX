@@ -15,15 +15,12 @@ core/lunch-new.cpp text 1
 core/parserslow.h buffers 2
 core/parserslow2.cpp buffers 1
 core/pp_shoot.cpp text 2
-core/read_dir.cpp buffers 1
-core/read_dir.cpp memory 6
-core/read_dir.cpp text 1
-core/read_dir.h buffers 1
 core/series_enc.cpp memory 1
 core/struct.h buffers 3
 core/tabular.cpp memory 2
 core/userbut.h buffers 1
-core/xpp_files.cpp files 4
+core/xpp_files.cpp files 3
+core/xpp_files_dir.cpp files 1
 core/xpp_io.cpp files 1
 core/xpp_io.cpp text 2
 core/xpp_io.h casts 1

@@ -2,7 +2,8 @@
 #include "xpp_ui.h"
 #include "extra.h"
 #include "xpp_log.h"
-#include "read_dir.h"
+#include "xpp_files.h"
+#include "load_eqn.h"
 #include "parserslow.h"
 #include <algorithm>
 #include <array>
@@ -105,10 +106,10 @@ template <typename F> F symbol(void *handle, const char *name)
 void auto_load_dll(void)
 {
   if(dll_flag==3){
-    get_directory(cur_dir);
-    xpp::log(XPP_LOG_INFO, "DLL lib {}/{} with function {} \n",cur_dir,dll_lib,dll_fun);
+    xpp_files_refresh_cur_dir();
+    xpp::log(XPP_LOG_INFO, "DLL lib {}/{} with function {} \n",xpp_files_cur_dir(),dll_lib,dll_fun);
     dlf.libfile=dll_lib;
-    dlf.libname=xpp::format("{}/{}",cur_dir,dlf.libfile);
+    dlf.libname=xpp::format("{}/{}",xpp_files_cur_dir(),dlf.libfile);
     dlf.fun=dll_fun;
     dlf.loaded=0;
   }
@@ -121,7 +122,7 @@ void load_new_dll(void)
   std::string file=dlf.libfile;
   if(file_selector("Library:",file,"*.so")==0)return;
   dlf.libfile=file;
-  dlf.libname=xpp::format("{}/{}",cur_dir,dlf.libfile);
+  dlf.libname=xpp::format("{}/{}",xpp_files_cur_dir(),dlf.libfile);
   new_string("Function name:",dlf.fun);
   dlf.loaded=0;
 }
@@ -138,8 +139,8 @@ void get_import_values(int n, double *ydot, const char *soname, const char *sofu
   if(dll_loaded==-1)
     return;
   xpp::log(XPP_LOG_INFO, "soname = {}  sofun = {} \n",soname,sofun);
-  get_directory(cur_dir);
-  std::string sofullname=xpp::format("{}/{}",cur_dir,soname);
+  xpp_files_refresh_cur_dir();
+  std::string sofullname=xpp::format("{}/{}",xpp_files_cur_dir(),soname);
   import_handle=dlopen(sofullname.c_str(), RTLD_LAZY);
   if(!import_handle){
     xpp::log(XPP_LOG_WARN, " Cant find the library {}\n",soname);

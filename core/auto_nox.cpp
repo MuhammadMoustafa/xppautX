@@ -22,7 +22,8 @@
 
 #include "pp_shoot.h"
 
-#include "read_dir.h"
+#include "xpp_files.h"
+#include "load_eqn.h"
 
 
 #include "parserslow.h"

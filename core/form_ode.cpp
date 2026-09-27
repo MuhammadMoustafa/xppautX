@@ -12,7 +12,8 @@
 
 #include "parserslow.h"
 #include "markov.h"
-#include "read_dir.h"
+#include "xpp_files.h"
+#include "load_eqn.h"
 #include <unistd.h>
 #include "flags.h"
 
@@ -354,10 +355,10 @@ void format_list(const std::vector<std::string> &s)
 
 void list_em(const char *wild)
 {
-  get_directory(cur_dir);
-  xpp_log(XPP_LOG_INFO, "%s: \n",cur_dir);
+  xpp_files_refresh_cur_dir();
+  xpp_log(XPP_LOG_INFO, "%s: \n",xpp_files_cur_dir());
   std::vector<std::string> dirs,files;
-  if(!list_folder(wild,cur_dir,dirs,files))return;
+  if(!xpp_files_list_matching(wild,xpp_files_cur_dir(),dirs,files))return;
   xpp_log(XPP_LOG_INFO, "DIRECTORIES:\n");
   format_list(dirs);
   xpp_log(XPP_LOG_INFO, "FILES OF TYPE %s:\n",wild);
@@ -406,7 +407,7 @@ int get_a_filename(std::string &filename,std::string &wild)
  	 if(string[0]=='c'){
 	   xpp_log(XPP_LOG_INFO, "Change to directory: ");
 	   if(!read_word(string))return 0;
-	   change_directory(string.c_str());
+	   xpp_files_change_dir(string.c_str());
 	   list_em(wild.c_str());
 	 }
         }
@@ -415,7 +416,7 @@ int get_a_filename(std::string &filename,std::string &wild)
   }
   else
   {
-    std::string dir=current_directory();
+    std::string dir=xpp_files_working_dir();
     if (dir.empty() || dir.back() != '/')
       dir += '/';
     if (file_selector ("Select an ODE file", dir, wild.c_str()) == 0) {

@@ -1,18 +1,18 @@
-/* The model's folder as the page's workspace: see xpp_files.h. */
+/* The model's folder as the page's workspace: see xpp_files.h. Folder
+   operations (listing, the wildcard match, the current folder, AUTO's
+   scratch folders) are core/xpp_files_dir.cpp, behind the same header;
+   this file keeps the page's file API and the core's own single-file
+   operations. */
 #include "xpp_files.h"
+#include "xpp_files_internal.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_mem.h"
 #include "xpp_sha256.h"
-#ifdef _WIN32
-#include "xpp_win32.h"
-#endif
 
 #include <algorithm>
 #include <array>
 #include <cctype>
-#include <charconv>
-#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -27,15 +27,8 @@
 
 #include <dirent.h>
 #include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #ifdef _WIN32
-#include <direct.h>
 #include <io.h>
-#include <process.h>
-#else
-#include <signal.h>
-#include <unistd.h>
 #endif
 
 #ifndef O_BINARY
@@ -77,41 +70,18 @@ bool device_name(const char *name)
 
 /* ---- the file system ------------------------------------------------------------ */
 
+/* is_link, stat_follow, make_dir, remove_dir, own_pid, temp_base,
+   process_gone, SEP and the Stat type are xpp_files_internal.h, shared
+   with xpp_files_dir.cpp. stat_name (lstat, not stat_follow: a link is
+   never followed here) and replace_file are this file's own. */
+using namespace xpp::files;
+
 #ifdef _WIN32
-typedef struct _stat64 Stat;
 int stat_name(const char *name, Stat *st) { return _stat64(name, st); }
-bool is_link(const char *name) { return xpp_path_is_link(name) != 0; }
 int replace_file(const char *from, const char *to) { return xpp_replace_file(from, to); }
-int make_dir(const char *path) { return _mkdir(path); }
-int remove_dir(const char *path) { return _rmdir(path); }
-int stat_follow(const char *path, Stat *st) { return _stat64(path, st); }
-long long own_pid() { return _getpid(); }
-constexpr char SEP = '\\';
-/* the folder the scratch folders go in */
-std::string temp_base() { return xpp_temp_folder(); }
-bool process_gone(long long pid) { return pid >= 0 && !xpp_process_running(static_cast<unsigned long>(pid)); }
 #else
-typedef struct stat Stat;
 int stat_name(const char *name, Stat *st) { return lstat(name, st); }
-bool is_link(const char *name)
-{
-    struct stat st;
-    return lstat(name, &st) == 0 && S_ISLNK(st.st_mode);
-}
 int replace_file(const char *from, const char *to) { return std::rename(from, to); }
-int make_dir(const char *path) { return mkdir(path, 0700); }
-int remove_dir(const char *path) { return rmdir(path); }
-int stat_follow(const char *path, Stat *st) { return stat(path, st); }
-long long own_pid() { return getpid(); }
-constexpr char SEP = '/';
-std::string temp_base()
-{
-    const char *base = std::getenv("TMPDIR");
-    return base && base[0] ? base : "/tmp";
-}
-/* kill(pid, 0) says ESRCH: no such process. A live pid, or one this user
-   may not signal (EPERM), is not gone. */
-bool process_gone(long long pid) { return kill(static_cast<pid_t>(pid), 0) != 0 && errno == ESRCH; }
 #endif
 
 /* what a name is on disk: NOT_FOUND, REFUSED (not a plain file) or OK */
@@ -567,20 +537,6 @@ void concat(const char *first, xpp::UniqueFile second, const char *to)
     w.commit();
 }
 
-/* name is exactly "xppautoX-<pid>-<N>" (digits; the pid may be negative
-   as %ld reads it): *pid */
-bool scratch_dir_pid(std::string_view name, long long *pid)
-{
-    constexpr std::string_view prefix = "xppautoX-";
-    if (!name.starts_with(prefix)) return false;
-    const char *p = name.data() + prefix.size(), *end = name.data() + name.size();
-    std::from_chars_result r = std::from_chars(p, end, *pid);
-    if (r.ec != std::errc() || r.ptr == end || *r.ptr != '-') return false;
-    int idx;
-    r = std::from_chars(r.ptr + 1, end, idx);
-    return r.ec == std::errc() && r.ptr == end;
-}
-
 } // namespace
 
 FILE *xpp_files_open_stream(const char *path, const char *mode) { return path ? std::fopen(path, mode) : nullptr; }
@@ -605,31 +561,10 @@ FILE *xpp_files_create_new(const char *path, int binary)
     return fp;
 }
 
-int xpp_files_is_dir(const char *path)
-{
-    Stat st;
-    return path && stat_follow(path, &st) == 0 && S_ISDIR(st.st_mode);
-}
-
 int xpp_files_exists(const char *path)
 {
     Stat st;
     return path && stat_follow(path, &st) == 0;
-}
-
-int xpp_files_dir_writable(const char *dir)
-{
-    if (dir == nullptr || dir[0] == 0) return 0;
-    try {
-        std::string probe = xpp::format("{}/.xppautx_homecheck", dir);
-        xpp::UniqueFile fp(std::fopen(probe.c_str(), "w"));
-        if (!fp) return 0;
-        fp.reset();
-        std::remove(probe.c_str());
-        return 1;
-    } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("probing a folder");
-    }
 }
 
 int xpp_files_remove(const char *path) { return std::remove(path); }
@@ -657,76 +592,6 @@ void xpp_files_move(const char *from, const char *to)
     std::remove(from);
 }
 
-std::string xpp_files_make_temp_dir()
-{
-    try {
-        std::string base = temp_base();
-        if (base.empty()) return {};
-        for (int i = 0; i < 1000; i++) { /* a crashed run with our pid may have left one */
-            std::string path = xpp::format("{}{}xppautoX-{}-{}", base, SEP, own_pid(), i);
-            if (make_dir(path.c_str()) == 0) return path;
-            if (errno != EEXIST) break;
-        }
-    } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("making the scratch folder");
-    }
-    return {};
-}
-
-void xpp_files_remove_temp_dir(const char *dir)
-{
-    if (dir == nullptr) return;
-    try {
-        if (DIR *d = opendir(dir)) {
-            while (struct dirent *e = readdir(d)) {
-                if (std::strcmp(e->d_name, ".") == 0 || std::strcmp(e->d_name, "..") == 0) continue;
-                std::remove(xpp::format("{}{}{}", dir, SEP, static_cast<const char *>(e->d_name)).c_str());
-            }
-            closedir(d);
-        }
-    } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("removing the scratch folder");
-    }
-    remove_dir(dir);
-}
-
-void xpp_files_cleanup_stale_temp_dirs(void)
-{
-    try {
-        std::string base = temp_base();
-        if (base.empty()) return;
-        DIR *d = opendir(base.c_str());
-        if (d == nullptr) return;
-        while (struct dirent *e = readdir(d)) {
-            long long pid;
-            if (!scratch_dir_pid(e->d_name, &pid)) continue;
-            std::string path = xpp::format("{}{}{}", base, SEP, static_cast<const char *>(e->d_name));
-            Stat st;
-            if (stat_follow(path.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) continue;
-            if (!process_gone(pid)) continue; /* still running, or cannot tell: leave it alone */
-            xpp_files_remove_temp_dir(path.c_str());
-        }
-        closedir(d);
-    } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("sweeping old scratch folders");
-    }
-}
-
-bool xpp_files_list_dir(const char *dir, std::vector<XppDirEntry> &out)
-{
-    out.clear();
-    DIR *d = opendir(dir);
-    if (d == nullptr) return false;
-    try {
-        while (struct dirent *e = readdir(d)) {
-            std::string path = xpp::format("{}/{}", dir, static_cast<const char *>(e->d_name));
-            Stat st;
-            bool folder = stat_follow(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode);
-            out.push_back({e->d_name, folder});
-        }
-    } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("listing a folder");
-    }
-    closedir(d);
-    return true;
-}
+/* xpp_files_is_dir, xpp_files_dir_writable, xpp_files_make_temp_dir,
+   xpp_files_remove_temp_dir, xpp_files_cleanup_stale_temp_dirs and
+   xpp_files_list_dir are core/xpp_files_dir.cpp. */

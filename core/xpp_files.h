@@ -99,6 +99,18 @@ int xpp_files_is_dir(const char *path);
 /* 1 when a file can be created in dir: probed by creating one and
    removing it (a folder can exist without being writable) */
 int xpp_files_dir_writable(const char *dir);
+/* the file selector's current folder (core/read_dir.cpp's old cur_dir,
+   folded in here, W46b): "" until refreshed. The pointer is valid until
+   the next call to xpp_files_refresh_cur_dir or xpp_files_change_dir. */
+const char *xpp_files_cur_dir(void);
+/* sets it from getcwd(): 1 on success; on failure a WARN and "" */
+int xpp_files_refresh_cur_dir(void);
+/* chdir(path), then refreshes the current folder; path NULL clears the
+   current folder without touching the process's own (form_ode.cpp's
+   console (c)d and json_prompts.cpp's file selector "cd" answer).
+   0 on success, 1 on failure (the chdir failed, a WARN, or the refresh
+   after it did) -- the historical change_directory()'s own convention. */
+int xpp_files_change_dir(const char *path);
 /* deletes the file path: 0 on success */
 int xpp_files_remove(const char *path);
 /* to becomes a byte-for-byte copy of from, written beside it and renamed
@@ -157,5 +169,14 @@ struct XppDirEntry {
 /* the entries of the folder dir ("." and ".." included, in the order the
    system gives them) into out; false (out empty) when dir cannot be read */
 bool xpp_files_list_dir(const char *dir, std::vector<XppDirEntry> &out);
+
+/* the working directory, whatever its length ("" when it cannot be had) */
+std::string xpp_files_working_dir();
+/* the folders of direct and its files that match the Unix-style wildcard
+   wild (*, ?, [..]), each list sorted; false (dirs/files left empty, a
+   WARN) when direct cannot be read. core/read_dir.cpp's old list_folder,
+   folded in here (W46b). */
+bool xpp_files_list_matching(const char *wild, const char *direct,
+                             std::vector<std::string> &dirs, std::vector<std::string> &files);
 #endif
 #endif

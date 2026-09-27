@@ -1,6 +1,7 @@
 #include "tabular.h"
 #include "storage.h"
-#include "read_dir.h"
+#include "xpp_files.h"
+#include "load_eqn.h"
 #include "xpp_mem.h"
 #include "xpp_ui.h"
 
@@ -319,8 +320,8 @@ int load_table(const char *filename, int index)
 
   xpp::LineReader reader(filename2.c_str());
   if(!reader){
-     get_directory(cur_dir);
-    err_msg(xpp::format("File<{:.245}> not found in {:.245}",filename2,static_cast<const char *>(cur_dir)).c_str());
+    xpp_files_refresh_cur_dir();
+    err_msg(xpp::format("File<{:.245}> not found in {:.245}",filename2,xpp_files_cur_dir()).c_str());
     return(0);
   }
   auto next_line=[&reader]() -> std::optional<std::string> {

@@ -3,6 +3,7 @@
    the historical do_main(), with no front end setup, so it links against
    libxppcore alone. */
 #include "xpp_batch.h"
+#include "load_eqn.h"
 #include "odesol2.h"
 #include "xpp_globals.h"
 #include "colormap.h"
@@ -20,7 +21,6 @@
 #include "browse.h"
 #include "auto_nox.h"
 #include "my_rhs.h"
-#include "read_dir.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
