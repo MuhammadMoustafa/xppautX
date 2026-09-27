@@ -294,6 +294,11 @@ inline std::string number(double v)
    \u00XX too, its own byte value, the same fallback buf_str always used. */
 void json_encode_string(std::string &out, std::string_view s);
 
+/* Appends `s` as a whole JSON string, quotes included (json_encode_string
+   between them); a null `s` as the empty string "". The data events'
+   text (plot_data, auto_data, ani_data, auto_settings) goes through this. */
+void json_append_string(std::string &out, const char *s);
+
 /* Decodes the JSON string value at *v (which must point to its opening
    '"'): unescapes \", \\, \/, \n, \t, \r, \b, \f and \uXXXX (a surrogate
    pair combined into one code point, encoded to UTF-8) into `out`

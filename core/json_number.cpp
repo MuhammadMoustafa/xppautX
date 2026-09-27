@@ -31,4 +31,12 @@ void json_append_number_shortest(std::string &s, double v)
     s += t.data();
 }
 
+void json_append_field(std::string &s, const char *name, double v)
+{
+    s += ",\"";
+    s += name;
+    s += "\":";
+    json_append_number_shortest(s, v);
+}
+
 } // namespace xpp::json

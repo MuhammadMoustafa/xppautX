@@ -1,7 +1,7 @@
 core/adj2.cpp buffers 2
 core/adj2.cpp memory 21
 core/adj2.cpp text 5
-core/ani_data.cpp buffers 4
+core/ani_data.cpp buffers 3
 core/aniparse.cpp buffers 12
 core/aniparse.cpp files 5
 core/aniparse.cpp memory 32
@@ -15,7 +15,6 @@ core/arrayplot.cpp text 13
 core/arrayplot.h buffers 3
 core/autlib1.cpp buffers 2
 core/autlib1.cpp memory 1
-core/auto_data.cpp buffers 2
 core/auto_f2c.h casts 2
 core/auto_nox.cpp buffers 17
 core/auto_nox.cpp casts 1
@@ -84,7 +83,7 @@ core/lunch-new.cpp buffers 2
 core/lunch-new.cpp text 1
 core/macsysdirent.h buffers 2
 core/markov.cpp memory 4
-core/marks_data.cpp buffers 3
+core/marks_data.cpp buffers 2
 core/marks_data.cpp memory 1
 core/menus.cpp buffers 3
 core/menus.h buffers 3
@@ -102,10 +101,10 @@ core/parserslow.h buffers 4
 core/parserslow2.cpp buffers 3
 core/parserslow2.cpp memory 7
 core/parserslow2.cpp text 2
-core/phase_data.cpp buffers 2
+core/phase_data.cpp buffers 1
 core/phase_data.cpp memory 1
 core/phsplan.h buffers 1
-core/plot_data.cpp buffers 2
+core/plot_data.cpp buffers 1
 core/plot_data.cpp memory 1
 core/pop_list.h buffers 2
 core/pp_shoot.cpp buffers 3

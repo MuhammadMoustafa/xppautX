@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "plot_data.h"
+#include "xpp_io.h"
 #include "series_enc.h"
 #include "json_number.h"
 #include "xpp_globals.h"
@@ -65,31 +66,7 @@ bool plots_valid;
 
 /* ---- JSON text ---- */
 
-void add_str(std::string &o, const char *s)
-{
-    char esc[8];
-    o += '"';
-    for (; s && *s; s++) {
-        const unsigned char c = static_cast<unsigned char>(*s);
-        if (c == '"' || c == '\\') {
-            o += '\\';
-            o += static_cast<char>(c);
-        } else if (c == '\n') o += "\\n";
-        else if (c == '\t') o += "\\t";
-        else if (c < 0x20 || c >= 0x80) {
-            /* the core's strings are ASCII or Latin-1; keep the byte value */
-            std::snprintf(esc, sizeof esc, "\\u%04x", c);
-            o += esc;
-        } else o += static_cast<char>(c);
-    }
-    o += '"';
-}
-
 void add_int(std::string &o, long v) { o += std::to_string(v); }
-
-/* the shortest of 15 or 17 digits that reads back as v; null when not
-   finite (json_number.h, the shared JSON number writer) */
-void add_num(std::string &o, double v) { xpp::json::json_append_number_shortest(o, v); }
 
 void emit(const std::string &s)
 {
@@ -203,11 +180,11 @@ void send_series(int pop, const SeriesSig &s, int rows)
     add_int(o, s.three);
     if (series_f32) o += ",\"enc\":\"f32\"";
     o += ",\"xlabel\":";
-    add_str(o, g.xlabel);
+    xpp::json_append_string(o, g.xlabel);
     o += ",\"ylabel\":";
-    add_str(o, g.ylabel);
+    xpp::json_append_string(o, g.ylabel);
     o += ",\"zlabel\":";
-    add_str(o, g.zlabel);
+    xpp::json_append_string(o, g.zlabel);
     o += ',';
     add_curves(o, s);
     o += ",\"columns\":[";
@@ -216,7 +193,7 @@ void send_series(int pop, const SeriesSig &s, int rows)
         o += "{\"col\":";
         add_int(o, cols[k]);
         o += ",\"name\":";
-        add_str(o, column_name(cols[k]));
+        xpp::json_append_string(o, column_name(cols[k]));
         o += ",\"data\":";
         add_values(o, cols[k], 0, rows);
         o += '}';
@@ -292,14 +269,6 @@ std::string title(const GRAPH &g)
     return g.grtype >= 5 ? z + " vs " + y + " vs " + x : y + " vs " + x;
 }
 
-void add_field(std::string &o, const char *name, double v)
-{
-    o += ",\"";
-    o += name;
-    o += "\":";
-    add_num(o, v);
-}
-
 std::string plots_event()
 {
     std::string o = "{\"ev\":\"plots\",\"active\":";
@@ -314,33 +283,33 @@ std::string plots_event()
         o += "{\"win\":";
         add_int(o, static_cast<long>(g.w));
         o += ",\"title\":";
-        add_str(o, title(g).c_str());
+        xpp::json_append_string(o, title(g).c_str());
         o += ",\"three\":";
         add_int(o, g.ThreeDFlag);
-        add_field(o, "xlo", g.xlo);
-        add_field(o, "xhi", g.xhi);
-        add_field(o, "ylo", g.ylo);
-        add_field(o, "yhi", g.yhi);
+        xpp::json::json_append_field(o, "xlo", g.xlo);
+        xpp::json::json_append_field(o, "xhi", g.xhi);
+        xpp::json::json_append_field(o, "ylo", g.ylo);
+        xpp::json::json_append_field(o, "yhi", g.yhi);
         o += ",\"xlabel\":";
-        add_str(o, g.xlabel);
+        xpp::json_append_string(o, g.xlabel);
         o += ",\"ylabel\":";
-        add_str(o, g.ylabel);
+        xpp::json_append_string(o, g.ylabel);
         o += ",\"zlabel\":";
-        add_str(o, g.zlabel);
+        xpp::json_append_string(o, g.zlabel);
         o += ",\"box\":{\"xmin\":";
-        add_num(o, g.xmin);
-        add_field(o, "xmax", g.xmax);
-        add_field(o, "ymin", g.ymin);
-        add_field(o, "ymax", g.ymax);
-        add_field(o, "zmin", g.zmin);
-        add_field(o, "zmax", g.zmax);
+        xpp::json::json_append_number_shortest(o, g.xmin);
+        xpp::json::json_append_field(o, "xmax", g.xmax);
+        xpp::json::json_append_field(o, "ymin", g.ymin);
+        xpp::json::json_append_field(o, "ymax", g.ymax);
+        xpp::json::json_append_field(o, "zmin", g.zmin);
+        xpp::json::json_append_field(o, "zmax", g.zmax);
         o += '}';
-        add_field(o, "theta", g.Theta);
-        add_field(o, "phi", g.Phi);
+        xpp::json::json_append_field(o, "theta", g.Theta);
+        xpp::json::json_append_field(o, "phi", g.Phi);
         o += ",\"persp\":";
         add_int(o, g.PerspFlag);
-        add_field(o, "zplane", g.ZPlane);
-        add_field(o, "zview", g.ZView);
+        xpp::json::json_append_field(o, "zplane", g.ZPlane);
+        xpp::json::json_append_field(o, "zview", g.ZView);
         o += ',';
         SeriesSig s = series_sig(pop);
         add_curves(o, s);

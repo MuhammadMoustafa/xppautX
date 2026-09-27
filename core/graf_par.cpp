@@ -918,12 +918,14 @@ void freeze_com(int c)
  case 0: 
    freeze_crv(0);
    break;
- case 1:
-   delete_frz();
+ case 1: /* delete, or edit, the graph's frozen curve (asked which) */
+ case 2: {
+   int i=get_frz_index(plot_windows.draw_win);
+   if(i<0)break;
+   if(c==1)delete_frz_crv(i);
+   else edit_frz_crv(i);
    break;
- case 2:
-   edit_frz();
-   break;
+ }
  case 3:
    kill_frz();
    break;
@@ -991,14 +993,6 @@ void key_frz_com(int c)
   }
 }
   
-void edit_frz()
-{
- int i;
- i=get_frz_index(plot_windows.draw_win);
- if(i<0)return;
- edit_frz_crv(i);
-}
-
 
 void delete_frz_crv(int i)
 {
@@ -1010,14 +1004,6 @@ void delete_frz_crv(int i)
   xpp_free(frozen_curves.curve[i].yv);
   if(frozen_curves.curve[i].type>0)
     xpp_free(frozen_curves.curve[i].zv);
-}
-
-void delete_frz()
-{
- int i;
- i=get_frz_index(plot_windows.draw_win);
- if(i<0)return;
- delete_frz_crv(i);
 }
 
 

@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "marks_data.h"
+#include "json_number.h"
 #include "grobs.h"
 #include "series_enc.h"
 #include "xpp_globals.h"
@@ -131,19 +132,6 @@ Record *record_of(XppWinId w)
 
 void add_int(std::string &o, long v) { o += std::to_string(v); }
 
-/* the shortest of 15 or 17 digits that reads back as v; null when not finite */
-void add_num(std::string &o, double v)
-{
-    char t[32];
-    if (!std::isfinite(v)) {
-        o += "null";
-        return;
-    }
-    std::snprintf(t, sizeof t, "%.15g", v);
-    if (std::strtod(t, nullptr) != v) std::snprintf(t, sizeof t, "%.17g", v);
-    o += t;
-}
-
 /* a stored float: 9 digits read back as exactly it */
 void add_float(std::string &o, float v)
 {
@@ -224,9 +212,9 @@ void send_marks(int pop, const Content &c)
     o += ",\"equilibria\":[";
     for (std::size_t k = 0; k < c.eqs.size(); k++) {
         o += k ? ",{\"x\":" : "{\"x\":";
-        add_num(o, c.eqs[k].x);
+        xpp::json::json_append_number_shortest(o, c.eqs[k].x);
         o += ",\"y\":";
-        add_num(o, c.eqs[k].y);
+        xpp::json::json_append_number_shortest(o, c.eqs[k].y);
         o += ",\"type\":\"";
         o += eq_type(c.eqs[k].symbol);
         o += "\",\"symbol\":\"";
@@ -264,7 +252,7 @@ void send_marks(int pop, const Content &c)
         o += ",\"y2\":";
         add_float(o, g.ye);
         o += ",\"size\":";
-        add_num(o, g.size);
+        xpp::json::json_append_number_shortest(o, g.size);
         o += ",\"color\":";
         add_int(o, g.color);
         o += '}';
@@ -282,7 +270,7 @@ void send_marks(int pop, const Content &c)
         o += ",\"shape\":\"";
         o += MARKER_SHAPES[shape < N_SHAPES ? shape : 0];
         o += "\",\"size\":";
-        add_num(o, g.size);
+        xpp::json::json_append_number_shortest(o, g.size);
         o += ",\"color\":";
         add_int(o, g.color);
         o += '}';

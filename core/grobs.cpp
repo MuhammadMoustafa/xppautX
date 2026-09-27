@@ -136,24 +136,25 @@ void arrow_head(double xsd, double ysd, double xed, double yed, double size)
     line_abs(xs, ys, xm, ym);
 }
 
-void destroy_grob(XppWinId w)
+namespace {
+/* frees the slots of `slots` (labels or graphic objects) that window w
+   holds */
+template <typename Slot, std::size_t N>
+void release_slots_of(Slot (&slots)[N], XppWinId w)
 {
-    for (int i = 0; i < MAXGROB; i++) {
-        if (grob[i].use == 1 && grob[i].w == w) {
-            grob[i].use = 0;
-            grob[i].w = 0;
+    for (Slot &x : slots) {
+        if (x.use == 1 && x.w == w) {
+            x.use = 0;
+            x.w = 0;
         }
     }
 }
+} // namespace
 
-void destroy_label(XppWinId w)
+void destroy_labels_and_grobs(XppWinId w)
 {
-    for (int i = 0; i < MAXLAB; i++) {
-        if (lb[i].use == 1 && lb[i].w == w) {
-            lb[i].use = 0;
-            lb[i].w = 0;
-        }
-    }
+    release_slots_of(lb, w);
+    release_slots_of(grob, w);
 }
 
 void draw_label(XppWinId w)
@@ -455,8 +456,7 @@ void do_gr_objs_com(int com)
         add_markers();
         break;
     case 5:
-        destroy_label(plot_windows.draw_win);
-        destroy_grob(plot_windows.draw_win);
+        destroy_labels_and_grobs(plot_windows.draw_win);
         clr_scrn();
         redraw_all();
         break;

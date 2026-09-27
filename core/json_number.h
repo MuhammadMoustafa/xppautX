@@ -27,6 +27,11 @@ void json_append_number(std::string &s, double v, int sig);
    as plot_data.cpp's series/plot bounds use. */
 void json_append_number_shortest(std::string &s, double v);
 
+/* Appends ,"name": and v (json_append_number_shortest) to s: one more
+   numeric field of an object being built (name is a plain key, not
+   escaped). */
+void json_append_field(std::string &s, const char *name, double v);
+
 } // namespace xpp::json
 
 #endif

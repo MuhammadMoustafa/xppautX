@@ -57,8 +57,6 @@ core/autlib3.cpp fnpd|vendored/numerical, keep: see core/autlib3.cpp fnhd
 core/autlib3.cpp fntr|vendored/numerical, keep: see core/autlib3.cpp fnhd
 core/autlib3.cpp fnbl|vendored/numerical, keep: see core/autlib3.cpp fnhd
 core/autlib5.cpp fnho|vendored/numerical, keep: see core/autlib3.cpp fnhd
-core/auto_data.cpp add_str|W32d shared data: auto_data.cpp's and plot_data.cpp's identical small string-append helper, merge into one shared-data helper
-core/plot_data.cpp add_str|W32d shared data: see core/auto_data.cpp add_str
 core/auto_nox.cpp auto_twopar_double|keep: two-parameter continuation dispatch pair (double/torus), same shape by design; no W32a-d card owns auto_nox.cpp yet
 core/auto_nox.cpp auto_torus|keep: see core/auto_nox.cpp auto_twopar_double
 core/auto_nox.cpp save_auto_file|a save/load mirror, not a copy: save_auto_file writes the four parts load_auto_file reads back in the same order (W32b looked: keep)
@@ -82,16 +80,12 @@ core/flags.cpp one_flag_step_euler|keep: see core/flags.cpp one_flag_step_symp
 core/flags.cpp one_flag_step_discrete|keep: see core/flags.cpp one_flag_step_symp
 core/flags.cpp one_flag_step_heun|keep: see core/flags.cpp one_flag_step_symp
 core/flags.cpp one_flag_step_rk4|keep: see core/flags.cpp one_flag_step_symp
-core/graf_par.cpp edit_frz|W32d shared data: frozen_curves' own edit/delete pair (graf_par.h's frozen_curves, per CLAUDE.md's Architecture section), merge into the frozen_curves module
-core/graf_par.cpp delete_frz|W32d shared data: see core/graf_par.cpp edit_frz
 core/graphics.cpp point|keep: pixel-primitive pairs behind the XppUi seam (point/bead, line/frect, point_abs/bead_abs), same shape by design; no W32a-d card owns graphics.cpp yet
 core/graphics.cpp bead|keep: see core/graphics.cpp point
 core/graphics.cpp line|keep: see core/graphics.cpp point
 core/graphics.cpp frect|keep: see core/graphics.cpp point
 core/graphics.cpp point_abs|keep: see core/graphics.cpp point
 core/graphics.cpp bead_abs|keep: see core/graphics.cpp point
-core/grobs.cpp destroy_grob|W32d shared data: grobs.cpp's own label/object destroy pair (marks_data's grobs, per CLAUDE.md's Architecture section), merge into the marks_data module
-core/grobs.cpp destroy_label|W32d shared data: see core/grobs.cpp destroy_grob
 core/integrate.cpp range_item|keep: range_item/range_item2 look like a coincidental structural match (same small loop shape, different purpose); verify before merging, no W32a-d card owns integrate.cpp yet
 core/integrate.cpp range_item2|keep: see core/integrate.cpp range_item
 core/json_ani.cpp j_ani_show|same shape, not a duplicate: two-line functions each calling a different pair (flush/out, blank/axes, advance/arm, xpprc/options); nothing to merge (W32c), keep
@@ -100,8 +94,6 @@ core/ui_json.cpp script_next|see core/json_ani.cpp j_ani_show
 core/xpp_batch.cpp do_vis_env|see core/json_ani.cpp j_ani_show
 core/lunch-new.cpp io_int|keep: fscanf-style int/double token readers over a plain FILE * (xpp_io.h's xpp::TokenReader is the owner going forward, per CLAUDE.md's Strings and I/O section); not yet moved, no new copy added
 core/lunch-new.cpp io_double|keep: see core/lunch-new.cpp io_int
-core/marks_data.cpp add_num|W32d shared data: marks_data.cpp's and phase_data.cpp's identical small array-append helper, merge into one shared-data helper
-core/phase_data.cpp add_num|W32d shared data: see core/marks_data.cpp add_num
 core/odesol2.cpp discrete|keep: discrete/euler are two of odesol2.cpp's per-method step dispatchers, same shape by design; no W32a-d card owns odesol2.cpp yet
 core/odesol2.cpp euler|keep: see core/odesol2.cpp discrete
 core/xpp_io.cpp xpp_line_reader_open|keep: xpp_io.h's own two reader kinds (whole-line vs whitespace-token), open/attach pairs of the same shape by design (CLAUDE.md's Strings and I/O section); not a copy to merge
@@ -123,7 +115,6 @@ core/dormpri.h *block*|vendored/numerical, keep: see core/dormpri.cpp *block*
 core/eispack.cpp *block*|vendored/numerical, keep: EISPACK, translated Fortran eigenvalue routines
 core/integrate.cpp *block*|keep: integrate.cpp's two similar range-stepping loops (17 lines); no W32a-d card owns integrate.cpp yet
 core/nullcline.cpp *block*|keep: nullcline.cpp's two nullcline-branch blocks (16 lines); no W32a-d card owns nullcline.cpp yet
-core/simplenet.cpp *block*|W32d shared data: simplenet.cpp's per-connectivity-type blocks (16-34 lines), the same TABULAR-driven connectivity code repeated per network type; merge with the TABULAR cleanup above
 
 
 

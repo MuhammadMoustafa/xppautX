@@ -10,6 +10,7 @@
 #include <string>
 
 #include "ani_data.h"
+#include "xpp_io.h"
 #include "colormap.h"
 #include "xpp_globals.h"
 
@@ -40,25 +41,6 @@ void add_num(std::string &o, double v)
 }
 
 void add_int(std::string &o, long v) { o += std::to_string(v); }
-
-void add_str(std::string &o, const char *s)
-{
-    char esc[8];
-    o += '"';
-    for (; s && *s; s++) {
-        const unsigned char c = static_cast<unsigned char>(*s);
-        if (c == '"' || c == '\\') {
-            o += '\\';
-            o += static_cast<char>(c);
-        } else if (c < 0x20 || c >= 0x80) {
-            /* the core's strings are ASCII or Latin-1; keep the byte value */
-            std::snprintf(esc, sizeof esc, "\\u%04x", c);
-            o += esc;
-        } else
-            o += static_cast<char>(c);
-    }
-    o += '"';
-}
 
 /* a palette index as the event says it: an XPP colour index (0 the
    foreground, 1..10 red .. purple) for the named colours, the colour
@@ -200,7 +182,7 @@ extern "C" void ani_data_text(double u, double v, const char *s, int c, int size
     num(u);
     num(v);
     prims += ',';
-    add_str(prims, s);
+    xpp::json_append_string(prims, s);
     color(c);
     integer(size);
     integer(font);

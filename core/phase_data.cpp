@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "phase_data.h"
+#include "json_number.h"
 #include "series_enc.h"
 #include "xpp_globals.h"
 #include "xpp_mem.h"
@@ -152,18 +153,6 @@ std::size_t flow_values(const Field &f)
 
 void add_int(std::string &o, long v) { o += std::to_string(v); }
 
-void add_num(std::string &o, double v)
-{
-    char t[32];
-    if (!std::isfinite(v)) {
-        o += "null";
-        return;
-    }
-    std::snprintf(t, sizeof t, "%.15g", v);
-    if (std::strtod(t, nullptr) != v) std::snprintf(t, sizeof t, "%.17g", v);
-    o += t;
-}
-
 /* a variable's name ("" for none): the model's own, letters, digits, underscores */
 void add_name(std::string &o, int col)
 {
@@ -232,9 +221,9 @@ void send_dfield(int pop, const Field &f)
     o += ",\"n\":";
     add_int(o, f.n);
     o += ",\"du\":";
-    add_num(o, f.du);
+    xpp::json::json_append_number_shortest(o, f.du);
     o += ",\"dv\":";
-    add_num(o, f.dv);
+    xpp::json::json_append_number_shortest(o, f.dv);
     o += ",\"grid\":";
     add_values(o, f.grid);
     o += ",\"speed\":";

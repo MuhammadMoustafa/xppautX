@@ -142,25 +142,11 @@ int auto_index_of(const int pars[8], const char *name)
 
 /* ---- the event ---- */
 
-void add_str(std::string &o, const char *s)
+/* a JSON string, or null for no name */
+void add_str_or_null(std::string &o, const char *s)
 {
-    if (!s) {
-        o += "null";
-        return;
-    }
-    o += '"';
-    for (; *s; s++) {
-        const unsigned char c = static_cast<unsigned char>(*s);
-        if (c == '"' || c == '\\') {
-            o += '\\';
-            o += static_cast<char>(c);
-        } else if (c < 0x20 || c >= 0x80) {
-            o += xpp::format("\\u{:04x}", static_cast<unsigned>(c));
-        } else {
-            o += static_cast<char>(c);
-        }
-    }
-    o += '"';
+    if (s) xpp::json_append_string(o, s);
+    else o += "null";
 }
 
 void add_num(std::string &o, double v) { o += std::isfinite(v) ? xpp::number(v) : std::string("null"); }
@@ -177,14 +163,14 @@ std::string event_text()
     o += "},\"pars\":[";
     for (int k = 0; k < NAutoPar; k++) {
         if (k) o += ',';
-        add_str(o, auto_par_name(AutoPar, k));
+        add_str_or_null(o, auto_par_name(AutoPar, k));
     }
     o += xpp::format("],\"axes\":{{\"plot\":{},\"var\":", Auto.plot);
-    add_str(o, Auto.var >= 0 && Auto.var < NODE ? uvar_names[Auto.var] : nullptr);
+    add_str_or_null(o, Auto.var >= 0 && Auto.var < NODE ? uvar_names[Auto.var] : nullptr);
     o += ",\"par1\":";
-    add_str(o, auto_par_name(AutoPar, Auto.icp1));
+    add_str_or_null(o, auto_par_name(AutoPar, Auto.icp1));
     o += ",\"par2\":";
-    add_str(o, auto_par_name(AutoPar, Auto.icp2));
+    add_str_or_null(o, auto_par_name(AutoPar, Auto.icp2));
     const std::pair<const char *, double> range[] = {
         {"xmin", Auto.xmin}, {"xmax", Auto.xmax}, {"ymin", Auto.ymin}, {"ymax", Auto.ymax}};
     for (const auto &[name, value] : range) {
@@ -194,7 +180,7 @@ std::string event_text()
     o += "},\"marks\":[";
     for (int i = 0; i < Auto.nper && i < AUTO_SETTINGS_MARKS; i++) {
         o += i ? ",[" : "[";
-        add_str(o, Auto.uzrpar[i] == PERIOD ? "T" : auto_par_name(AutoPar, Auto.uzrpar[i]));
+        add_str_or_null(o, Auto.uzrpar[i] == PERIOD ? "T" : auto_par_name(AutoPar, Auto.uzrpar[i]));
         o += ',';
         add_num(o, Auto.period[i]);
         o += ']';

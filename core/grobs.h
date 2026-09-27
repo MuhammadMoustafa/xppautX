@@ -29,8 +29,8 @@ int add_label(const char *s, int x, int y, int size, int font);
 void draw_marker(double x, double y, double size, int type);
 void draw_grob(int i);
 void arrow_head(double xs, double ys, double xe, double ye, double size);
-void destroy_grob(XppWinId w);
-void destroy_label(XppWinId w);
+/* forgets the text labels and graphic objects (Text,etc) of window w */
+void destroy_labels_and_grobs(XppWinId w);
 void draw_label(XppWinId w);
 void add_grob(double xs, double ys, double xe, double ye, double size, int type, int color);
 int select_marker_type(int *type);

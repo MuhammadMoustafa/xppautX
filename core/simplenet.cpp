@@ -314,15 +314,68 @@ double network_value(double x, int i)
 }
  
 
+namespace {
+/* add_spec_fun's arguments, read one at a time up to `sep` (get_next):
+   each logs what is wrong with it and returns a value the caller refuses
+   (<= 0 for a count, < 0 for an index) */
+
+/* a count, which must be positive */
+int next_positive_int(const char *sep)
+{
+  char *str=get_next(sep);
+  int n=atoi(str);
+  if(n<=0)xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
+  return n;
+}
+
+/* what a name argument must be */
+enum class NameKind { table, variable };
+
+/* a table's or a variable's name (into s): its index */
+int next_index(const char *net, const char *sep, std::string &s, NameKind kind)
+{
+  s=token(get_next(sep));
+  if(kind==NameKind::table){
+    int i=find_lookup(s.c_str());
+    if(i<0)xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
+                   net,s.c_str());
+    return i;
+  }
+  int i=get_var_index(s.c_str());
+  if(i<0)xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
+                 net,s.c_str());
+  return i;
+}
+
+/* the last arguments root,root2,f of the networks that apply a function
+   (fconv, fsparse, fmmult): f(root,root2) compiled into my_net[ind].f;
+   false after an error */
+bool next_pair_function(const char *net, int ind, int &ivar, int &ivar2, std::string &fname)
+{
+  std::string rootname,root2name;
+  ivar=next_index(net,",",rootname,NameKind::variable);
+  if(ivar<0)return false;
+  ivar2=next_index(net,",",root2name,NameKind::variable);
+  if(ivar2<0)return false;
+  fname=token(get_next(")"));
+  int elen;
+  if(add_expr(xpp::format("{}({},{})",fname,rootname,root2name).c_str(),my_net[ind].f,&elen)){
+    xpp_log(XPP_LOG_ERROR, " bad function %s \n",fname.c_str());
+    return false;
+  }
+  return true;
+}
+} // namespace
+
 int add_spec_fun(const char *name, char *rhs)
 {
-  int i,ind,elen,err;
+  int i,ind,err;
   int type;
   int iwgt,itau,iind,ivar,ivar2;
   int ntype,ntot,ncon,ntab;
   char *str;
   /* tokens of the right-hand side, checked as names after the copy */
-  std::string rootname,wgtname,tauname,indname,root2name,fname,junk;
+  std::string rootname,wgtname,tauname,indname,fname;
   std::string sofun,soname;
   std::vector<std::string> tname;
   type=is_network(rhs);
@@ -347,34 +400,14 @@ int add_spec_fun(const char *name, char *rhs)
       xpp_log(XPP_LOG_ERROR, " No such convolution type %s \n",str);
       return 0;
     }
-    str=get_next(",");
-    ntot=atoi(str);
-    if(ntot<=0){
-      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
-      return 0;
-    }
-    str=get_next(",");
-    ncon=atoi(str);
-    if(ncon<=0){
-       xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
-      return 0;
-    }
-    str=get_next(",");
-    wgtname=token(str);
-    iwgt=find_lookup(wgtname.c_str());
-    if(iwgt<0){
-      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname.c_str());
-      return 0;
-    }
-    str=get_next(")");
-    rootname=token(str);
-    ivar=get_var_index(rootname.c_str());
-    if(ivar<0){
-      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname.c_str());
-      return 0;
-    }
+    ntot=next_positive_int(",");
+    if(ntot<=0)return 0;
+    ncon=next_positive_int(",");
+    if(ncon<=0)return 0;
+    iwgt=next_index(name,",",wgtname,NameKind::table);
+    if(iwgt<0)return 0;
+    ivar=next_index(name,")",rootname,NameKind::variable);
+    if(ivar<0)return 0;
     my_net[ind].values.assign((ntot+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
     my_net[ind].type=ntype;
@@ -388,50 +421,18 @@ int add_spec_fun(const char *name, char *rhs)
     break;
   case 2: /* sparse */
     get_first(rhs,"(");
-    str=get_next(",");
     ntype=SPARSE;
-    ntot=atoi(str);
-    
-    if(ntot<=0){
-      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
-      return 0;
-    }
-    str=get_next(",");
-    ncon=atoi(str);
-    
-    if(ncon<=0){
-       xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
-      return 0;
-    }
-    str=get_next(",");
-    wgtname=token(str);
-    iwgt=find_lookup(wgtname.c_str());
-    
-    if(iwgt<0){
-      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname.c_str());
-      return 0;
-    }
+    ntot=next_positive_int(",");
+    if(ntot<=0)return 0;
+    ncon=next_positive_int(",");
+    if(ncon<=0)return 0;
+    iwgt=next_index(name,",",wgtname,NameKind::table);
+    if(iwgt<0)return 0;
 
-     str=get_next(",");
-    indname=token(str);
-    iind=find_lookup(indname.c_str());
-    
-    if(iind<0){
-      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,indname.c_str());
-      return 0;
-    }
-    str=get_next(")");
-    rootname=token(str);
-       ivar=get_var_index(rootname.c_str());
-  
-
-   if(ivar<0){
-      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname.c_str());
-      return 0;
-    }
+    iind=next_index(name,",",indname,NameKind::table);
+    if(iind<0)return 0;
+    ivar=next_index(name,")",rootname,NameKind::variable);
+    if(ivar<0)return 0;
  
     my_net[ind].values.assign((ntot+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
@@ -456,52 +457,15 @@ int add_spec_fun(const char *name, char *rhs)
       xpp_log(XPP_LOG_ERROR, " No such convolution type %s \n",str);
       return 0;
     }
-    str=get_next(",");
-    ntot=atoi(str);
-    if(ntot<=0){
-      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
-      return 0;
-    }
-    str=get_next(",");
-    ncon=atoi(str);
-    if(ncon<=0){
-       xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
-      return 0;
-    }
-    str=get_next(",");
-    wgtname=token(str);
-    iwgt=find_lookup(wgtname.c_str());
-    if(iwgt<0){
-      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname.c_str());
-      return 0;
-    }
+    ntot=next_positive_int(",");
+    if(ntot<=0)return 0;
+    ncon=next_positive_int(",");
+    if(ncon<=0)return 0;
+    iwgt=next_index(name,",",wgtname,NameKind::table);
+    if(iwgt<0)return 0;
 
 
-    str=get_next(",");
-    rootname=token(str);
-    ivar=get_var_index(rootname.c_str());
-    if(ivar<0){
-      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname.c_str());
-      return 0;
-    }
-
-    str=get_next(",");
-    root2name=token(str);
-    ivar2=get_var_index(root2name.c_str());
-    if(ivar2<0){
-      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,root2name.c_str());
-      return 0;
-    }
-    str=get_next(")");
-    fname=token(str);
-    junk=xpp::format("{}({},{})",fname,rootname,root2name);
-    if(add_expr(junk.c_str(),my_net[ind].f,&elen)){
-      xpp_log(XPP_LOG_ERROR, " bad function %s \n",fname.c_str());
-      return 0;
-    }
+    if(!next_pair_function(name,ind,ivar,ivar2,fname))return 0;
     my_net[ind].values.assign((ntot+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
     my_net[ind].type=ntype;
@@ -515,69 +479,19 @@ int add_spec_fun(const char *name, char *rhs)
     break;
   case 4: /* sparse */
     get_first(rhs,"(");
-    str=get_next(",");
     ntype=FSPARSE;
-    ntot=atoi(str);
-    
-    if(ntot<=0){
-      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
-      return 0;
-    }
-    str=get_next(",");
-    ncon=atoi(str);
-    
-    if(ncon<=0){
-       xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
-      return 0;
-    }
-    str=get_next(",");
-    wgtname=token(str);
-    iwgt=find_lookup(wgtname.c_str());
-    
-    if(iwgt<0){
-      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname.c_str());
-      return 0;
-    }
+    ntot=next_positive_int(",");
+    if(ntot<=0)return 0;
+    ncon=next_positive_int(",");
+    if(ncon<=0)return 0;
+    iwgt=next_index(name,",",wgtname,NameKind::table);
+    if(iwgt<0)return 0;
 
-     str=get_next(",");
-    indname=token(str);
-    iind=find_lookup(indname.c_str());
-    
-    if(iind<0){
-      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,indname.c_str());
-      return 0;
-    }
+    iind=next_index(name,",",indname,NameKind::table);
+    if(iind<0)return 0;
 
 
-    str=get_next(",");
-    rootname=token(str);
-       ivar=get_var_index(rootname.c_str());
-  
-
-   if(ivar<0){
-      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname.c_str());
-      return 0;
-    }
- 
-
-    str=get_next(",");
-    root2name=token(str);
-    ivar2=get_var_index(root2name.c_str());
-    if(ivar2<0){
-      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,root2name.c_str());
-      return 0;
-    }
-    str=get_next(")");
-    fname=token(str);
-    junk=xpp::format("{}({},{})",fname,rootname,root2name);
-    if(add_expr(junk.c_str(),my_net[ind].f,&elen)){
-      xpp_log(XPP_LOG_ERROR, " bad function %s \n",fname.c_str());
-      return 0;
-    }
+    if(!next_pair_function(name,ind,ivar,ivar2,fname))return 0;
 
     my_net[ind].values.assign((ntot+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
@@ -604,21 +518,11 @@ int add_spec_fun(const char *name, char *rhs)
       xpp_log(XPP_LOG_ERROR, " No such fft convolution type %s \n",str);
       return 0;
     }
-    str=get_next(",");
-    ntot=atoi(str);
-    if(ntot<=0){
-      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
-      return 0;
-    }
+    ntot=next_positive_int(",");
+    if(ntot<=0)return 0;
    
-    str=get_next(",");
-    wgtname=token(str);
-    iwgt=find_lookup(wgtname.c_str());
-    if(iwgt<0){
-      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname.c_str());
-      return 0;
-    }
+    iwgt=next_index(name,",",wgtname,NameKind::table);
+    if(iwgt<0)return 0;
     ntab=get_lookup_len(iwgt);
     if(type==FFTCONP&&ntab<ntot){
      xpp_log(XPP_LOG_ERROR, " In %s, weight is length %d < %d \n",name,ntab,ntot);
@@ -628,14 +532,8 @@ int add_spec_fun(const char *name, char *rhs)
      xpp_log(XPP_LOG_ERROR, " In %s, weight is length %d < %d \n",name,ntab,2*ntot);
      return 0;
     }
-    str=get_next(")");
-    rootname=token(str);
-    ivar=get_var_index(rootname.c_str());
-    if(ivar<0){
-      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname.c_str());
-      return 0;
-    }
+    ivar=next_index(name,")",rootname,NameKind::variable);
+    if(ivar<0)return 0;
     if(ntype==FFTCON0)
       ncon=2*ntot;
     else
@@ -659,41 +557,16 @@ int add_spec_fun(const char *name, char *rhs)
     break;
   case 6:   /* MMULT    ntot=n,ncon=m  */
     get_first(rhs,"(");
-    str=get_next(",");
     ntype=MMULT;
-    ntot=atoi(str);
-    
-    if(ntot<=0){
-      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
-      return 0;
-    }
-    str=get_next(",");
-    ncon=atoi(str);
-    
-    if(ncon<=0){
-       xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
-      return 0;
-    }
-    str=get_next(",");
-    wgtname=token(str);
-    iwgt=find_lookup(wgtname.c_str());
-    
-    if(iwgt<0){
-      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname.c_str());
-      return 0;
-    }
+    ntot=next_positive_int(",");
+    if(ntot<=0)return 0;
+    ncon=next_positive_int(",");
+    if(ncon<=0)return 0;
+    iwgt=next_index(name,",",wgtname,NameKind::table);
+    if(iwgt<0)return 0;
 
-    str=get_next(")");
-    rootname=token(str);
-       ivar=get_var_index(rootname.c_str());
-  
-
-   if(ivar<0){
-      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname.c_str());
-      return 0;
-    }
+    ivar=next_index(name,")",rootname,NameKind::variable);
+    if(ivar<0)return 0;
  
     my_net[ind].values.assign((ncon+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
@@ -708,59 +581,15 @@ int add_spec_fun(const char *name, char *rhs)
     break;
   case 7:  /* FMMULT */
      get_first(rhs,"(");
-    str=get_next(",");
     ntype=FMMULT;
-    ntot=atoi(str);
-    
-    if(ntot<=0){
-      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
-      return 0;
-    }
-    str=get_next(",");
-    ncon=atoi(str);
-    
-    if(ncon<=0){
-       xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
-      return 0;
-    }
-    str=get_next(",");
-    wgtname=token(str);
-    iwgt=find_lookup(wgtname.c_str());
-    
-    if(iwgt<0){
-      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname.c_str());
-      return 0;
-    }
+    ntot=next_positive_int(",");
+    if(ntot<=0)return 0;
+    ncon=next_positive_int(",");
+    if(ncon<=0)return 0;
+    iwgt=next_index(name,",",wgtname,NameKind::table);
+    if(iwgt<0)return 0;
 
-    str=get_next(",");
-    rootname=token(str);
-       ivar=get_var_index(rootname.c_str());
-  
-
-   if(ivar<0){
-      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname.c_str());
-      return 0;
-    }
-  str=get_next(",");
-    root2name=token(str);
-    ivar2=get_var_index(root2name.c_str());
-    if(ivar2<0){
-      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,root2name.c_str());
-      return 0;
-    }
-    str=get_next(")");
-    fname=token(str);
-    junk=xpp::format("{}({},{})",fname,rootname,root2name);
-    if(add_expr(junk.c_str(),my_net[ind].f,&elen)){
-      xpp_log(XPP_LOG_ERROR, " bad function %s \n",fname.c_str());
-      return 0;
-    }
-    /*for(i=0;i<elen;i++)
-      printf("%d %d \n",i,my_net[ind].f[i]);
-    */
+    if(!next_pair_function(name,ind,ivar,ivar2,fname))return 0;
     my_net[ind].values.assign((ncon+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
 
@@ -797,14 +626,8 @@ int add_spec_fun(const char *name, char *rhs)
 	     name,ncon);
       return 0;
     }
-    str=get_next(")");
-    rootname=token(str);
-    ivar=get_var_index(rootname.c_str());
-    if(ivar<0){
-      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname.c_str());
-      return 0;
-    }
+    ivar=next_index(name,")",rootname,NameKind::variable);
+    if(ivar<0)return 0;
     my_net[ind].values.assign(6,0.0);
     my_net[ind].type=FINDEXT;
     my_net[ind].root=ivar;
@@ -831,14 +654,8 @@ int add_spec_fun(const char *name, char *rhs)
       return 0;
     }
     my_net[ind].n=ivar; /* # entries in array */
-    str=get_next(")");
-    rootname=token(str);
-    ivar=get_var_index(rootname.c_str());
-    if(ivar<0){
-      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname.c_str());
-      return 0;
-    }
+    ivar=next_index(name,")",rootname,NameKind::variable);
+    if(ivar<0)return 0;
     my_net[ind].root=ivar;
     xpp_log(XPP_LOG_INFO, "Added interpolator %s length %d on %s \n",name,my_net[ind].n,rootname.c_str()); 
     return 1;
@@ -878,52 +695,20 @@ int add_spec_fun(const char *name, char *rhs)
    case DEL_MUL:
 
     get_first(rhs,"(");
-    str=get_next(",");
     ntype=DEL_MUL;
-    ntot=atoi(str);
-    
-    if(ntot<=0){
-      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
-      return 0;
-    }
-    str=get_next(",");
-    ncon=atoi(str);
-    
-    if(ncon<=0){
-       xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
-      return 0;
-    }
-    str=get_next(",");
-    wgtname=token(str);
-    iwgt=find_lookup(wgtname.c_str());
-    
-    if(iwgt<0){
-      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname.c_str());
-      return 0;
-    }
-    str=get_next(",");
-    tauname=token(str);
-    itau=find_lookup(tauname.c_str());
-    
-    if(itau<0){
-      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,tauname.c_str());
-      return 0;
-    }
+    ntot=next_positive_int(",");
+    if(ntot<=0)return 0;
+    ncon=next_positive_int(",");
+    if(ncon<=0)return 0;
+    iwgt=next_index(name,",",wgtname,NameKind::table);
+    if(iwgt<0)return 0;
+    itau=next_index(name,",",tauname,NameKind::table);
+    if(itau<0)return 0;
 
      
 
-    str=get_next(")");
-    rootname=token(str);
-       ivar=get_var_index(rootname.c_str());
-  
-
-   if(ivar<0){
-      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname.c_str());
-      return 0;
-    }
+    ivar=next_index(name,")",rootname,NameKind::variable);
+    if(ivar<0)return 0;
  
     my_net[ind].values.assign((ncon+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
@@ -941,63 +726,24 @@ int add_spec_fun(const char *name, char *rhs)
     return 0;
   case DEL_SPAR:
    get_first(rhs,"(");
-    str=get_next(",");
     ntype=DEL_SPAR;
-    ntot=atoi(str);
-    
-    if(ntot<=0){
-      xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
-      return 0;
-    }
-    str=get_next(",");
-    ncon=atoi(str);
-    
-    if(ncon<=0){
-       xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
-      return 0;
-    }
-    str=get_next(",");
-    wgtname=token(str);
-    iwgt=find_lookup(wgtname.c_str());
-    
-    if(iwgt<0){
-      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,wgtname.c_str());
-      return 0;
-    }
+    ntot=next_positive_int(",");
+    if(ntot<=0)return 0;
+    ncon=next_positive_int(",");
+    if(ncon<=0)return 0;
+    iwgt=next_index(name,",",wgtname,NameKind::table);
+    if(iwgt<0)return 0;
 
-     str=get_next(",");
-    indname=token(str);
-    iind=find_lookup(indname.c_str());
-    
-    if(iind<0){
-      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,indname.c_str());
-      return 0;
-    }
+    iind=next_index(name,",",indname,NameKind::table);
+    if(iind<0)return 0;
 
 
-     str=get_next(",");
-    tauname=token(str);
-    itau=find_lookup(tauname.c_str());
-    
-    if(itau<0){
-      xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-	     name,tauname.c_str());
-      return 0;
-    }
+    itau=next_index(name,",",tauname,NameKind::table);
+    if(itau<0)return 0;
 
     
-    str=get_next(")");
-    rootname=token(str);
-       ivar=get_var_index(rootname.c_str());
-  
-
-   if(ivar<0){
-      xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-	     name,rootname.c_str());
-      return 0;
-    }
+    ivar=next_index(name,")",rootname,NameKind::variable);
+    if(ivar<0)return 0;
  
     my_net[ind].values.assign((ntot+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;

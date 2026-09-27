@@ -171,8 +171,7 @@ namespace {
 void destroy_graph(int i)
 {
     plot_windows.graph[i].Use = 0;
-    destroy_label(plot_windows.graph[i].w);
-    destroy_grob(plot_windows.graph[i].w);
+    destroy_labels_and_grobs(plot_windows.graph[i].w);
     send_window("destroy", plot_windows.graph[i].w, 0, 0, NULL);
     plot_windows.count--;
 }
