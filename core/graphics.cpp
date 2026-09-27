@@ -855,11 +855,6 @@ std::string fill_in_text(std::string_view old)
   return out;
 }
 
-void fillintext(const char *old,char *newname)
-{
-  xpp_strlcpy(newname,fill_in_text(old).c_str(),256);
-}
-
 void fancy_text_abs(float x, float y, const char *old, int size, int font)
 {
   int xp,yp;

@@ -241,12 +241,6 @@ std::string get_root(std::string_view s, int *num)
   return std::string(s.substr(0,i));
 }
 
-/* the same into sroot, which holds 100 chars (json_windows.cpp's) */
-void get_root(const char *s, char *sroot, int *num)
-{
-  xpp_strlcpy(sroot,get_root(std::string_view(s),num).c_str(),100);
-}
-
 void dump_aplot(FILE *fp, int f)
 {
   if(f==READEM){

@@ -15,9 +15,6 @@ void optimize_aplot(int *plist);
 void set_up_aplot_range(void);
 void fit_aplot(void);
 void init_my_aplot(void);
-/* splits an array plot's first column name at its trailing digits into
-   sroot (100 chars) and the number */
-void get_root(const char *s, char *sroot, int *num);
 void dump_aplot(FILE *fp, int f);
 
 /* 1: the next range integration saves the array plot at each step (the
@@ -51,6 +48,8 @@ extern APLOT aplot;
 void scale_aplot(APLOT *ap, double *zmax, double *zmin);
 int editaplot(APLOT *ap);
 void print_aplot(APLOT *ap);
+/* splits an array plot's first column name at its trailing digits: "u10"
+   gives "u" and 10, a name with no digits itself and 0 */
 std::string get_root(std::string_view s, int *num);
 extern std::string aplot_range_stem; /* Array range saving's base name */
 #endif

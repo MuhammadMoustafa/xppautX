@@ -202,22 +202,17 @@ void j_kill_plot_windows(void)
 
 void j_cput_text(void)
 {
-    /* fillintext writes into text: the prompt's text is at most 255 characters */
-    std::array<char, 256> text{};
     std::string string;
     int x, y, size = 2;
     if (new_string("Text: ", string) == 0) return;
-    if (string[0] == '%') {
-        fillintext(string.c_str() + 1, text.data());
-        string = text.data();
-    }
+    if (string[0] == '%') string = fill_in_text(std::string_view(string).substr(1));
     new_int("Size 0-4 :", &size);
     if (size > 4) size = 4;
     if (size < 0) size = 0;
     j_message_box("Place text with mouse");
     if (j_get_mouse_xy(&x, &y)) {
-        fillintext(string.c_str(), text.data());
-        marks_data_label(plot_windows.draw_win, add_label(string.c_str(), x, y, size, 0), text.data());
+        const std::string text = fill_in_text(string);
+        marks_data_label(plot_windows.draw_win, add_label(string.c_str(), x, y, size, 0), text.c_str());
     }
     j_kill_message_box();
 }
@@ -522,7 +517,6 @@ int aplot_dirty; /* the data behind an array plot changed */
 void send_aplot(const char *tag)
 {
     Buf b;
-    std::array<char, 100> sroot{}; /* get_root writes it */
     int num, i, j, nx, ny, nrows = my_browser.maxrow;
     double tlo = 0.0, thi = 20.0;
     APLOT *ap = &aplot;
@@ -530,9 +524,9 @@ void send_aplot(const char *tag)
     int f32 = plot_data_want_f32();
     aplot_dirty = 0;
     if (!ap->alive) return;
-    get_root(ap->name, sroot.data(), &num);
+    const std::string sroot = get_root(ap->name, &num);
     BUF_LIT(&b, "{\"ev\":\"aplot\",\"title\":\"");
-    buf_format(&b, "{:.60}{:d}..{:d}\"", sroot.data(), num, num + ap->nacross - 1);
+    buf_format(&b, "{:.60}{:d}..{:d}\"", sroot, num, num + ap->nacross - 1);
     nx = ap->ncskip > 0 ? ap->nacross / ap->ncskip : 0;
     ny = ap->ndown;
     if (nrows <= 2 || ap->plotdef == 0 || ap->nacross < 2 || ap->ndown < 2) nx = ny = 0;
