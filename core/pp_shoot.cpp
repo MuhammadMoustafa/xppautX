@@ -229,7 +229,7 @@ void find_bvp_com(int com)
  double ystart[MAXODE],oldtrans;
  double yend[MAXODE];
  /*  Window temp=main_win; */
- if(xpp::model().nmarkov>0||NKernel>0){
+ if(xpp::model().nmarkov>0||xpp::model().nkernel>0){
    err_msg("Can't do BVP with integral or markov eqns");
    return;
  }

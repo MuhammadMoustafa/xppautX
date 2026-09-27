@@ -30,7 +30,6 @@ static double zippy;
 #define PUSH(a) zippy=(a); stack[stack_pointer++]=zippy;
 
 int             ERROUT;
-int NDELAYS=0;
 int RandSeed=12345678;
 
 #ifndef M_PI
@@ -46,8 +45,6 @@ double constants[MAXPAR];
 double variables[MAXODE1];
 static double stack[200],ustack[200];
 
-std::array<KERNEL,MAXKER> kernel;
-int NKernel;
 int MaxPoints;
 int NTable;
 
@@ -207,7 +204,7 @@ void init_rpn()
     NCON = 0;
     xpp::model().nfun = 0;
     xpp::model().nvar = 0;
-    NKernel=0;
+    xpp::model().nkernel=0;
 
     MaxPoints=4000;
     NSYM = STDSYM;
@@ -341,7 +338,7 @@ int add_kernel(const char *name, double mu, const char *expr)
 {
   int in=-1;
   if(duplicate_name(name)==1)return(1);
-  if(NKernel==MAXKER){
+  if(xpp::model().nkernel==MAXKER){
     xpp_log(XPP_LOG_WARN, "Too many kernels..\n");
     return(1);
   }
@@ -352,12 +349,9 @@ int add_kernel(const char *name, double mu, const char *expr)
   if(set_symbol_name(NSYM,name,0))return 1;
   my_symb[NSYM].pri=10;
   my_symb[NSYM].arg=0;
-  my_symb[NSYM].com=COM(KERTYPE,NKernel);
-  kernel[NKernel].k_n1=0.0;
-  kernel[NKernel].mu=mu;
-  kernel[NKernel].k_n=0.0;
-  kernel[NKernel].k_n1=0.0;
-  kernel[NKernel].flag=0;
+  my_symb[NSYM].com=COM(KERTYPE,xpp::model().nkernel);
+  xpp::model().kernels[xpp::model().nkernel].mu=mu;
+  xpp::model().kernels[xpp::model().nkernel].flag=0;
   std::string_view text(expr);
   size_t hash=text.rfind('#');
   if(hash!=std::string_view::npos)in=static_cast<int>(hash);
@@ -366,19 +360,19 @@ int add_kernel(const char *name, double mu, const char *expr)
     return(1);
   }
   if(in>0){
-    kernel[NKernel].flag=CONV;
+    xpp::model().kernels[xpp::model().nkernel].flag=CONV;
     /* split at the # */
-    kernel[NKernel].kerexpr=text.substr(0,in);
-    kernel[NKernel].expr=text.substr(in+1);
+    xpp::model().kernels[xpp::model().nkernel].kerexpr=text.substr(0,in);
+    xpp::model().kernels[xpp::model().nkernel].expr=text.substr(in+1);
     xpp::log(XPP_LOG_INFO, "Convolving {} with {}\n",
-	   kernel[NKernel].kerexpr,kernel[NKernel].expr);
+	   xpp::model().kernels[xpp::model().nkernel].kerexpr,xpp::model().kernels[xpp::model().nkernel].expr);
   }
   else {
-    kernel[NKernel].expr=text;
+    xpp::model().kernels[xpp::model().nkernel].expr=text;
   }
-  kernel[NKernel].name=name;
+  xpp::model().kernels[xpp::model().nkernel].name=name;
   NSYM++;
-  NKernel++;
+  xpp::model().nkernel++;
   return(0);
 }
 
@@ -784,7 +778,7 @@ int alg_to_rpn(int *toklist, int *command)
 	   {
 	    /* ram -- is this right? not sure I understand what was happening here */
 	    my_symb[LASTTOK].com=COM(SVARTYPE,temp%MAXTYPE); /* create a temporary sybol */
-            NDELAYS++;
+            xpp::model().ndelays++;
            toklist[lstptr+1]=LASTTOK;
 	  	
 	    my_symb[LASTTOK].pri=10;
@@ -806,7 +800,7 @@ int alg_to_rpn(int *toklist, int *command)
 	   {
 	    /* ram -- same issue */
 	    my_symb[LASTTOK].com=COM(SVARTYPE, temp%MAXTYPE); /* create a temporary sybol */
-            NDELAYS++;
+            xpp::model().ndelays++;
            toklist[lstptr+1]=LASTTOK;
 	  	
 	    my_symb[LASTTOK].pri=10;

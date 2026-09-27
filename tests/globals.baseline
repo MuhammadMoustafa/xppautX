@@ -10,8 +10,8 @@ core/colormap.cpp 3
 core/comline.cpp 8
 core/commands.cpp 2
 core/delay_handle.cpp 9
-core/flags.cpp 2
-core/form_ode.cpp 11
+core/flags.cpp 1
+core/form_ode.cpp 10
 core/gear.cpp 5
 core/gogoauto.cpp 3
 core/graf_par.cpp 2
@@ -26,7 +26,7 @@ core/my_svg.cpp 1
 core/nullcline.cpp 11
 core/numerics.cpp 3
 core/odesol2.cpp 1
-core/parserslow2.cpp 11
+core/parserslow2.cpp 8
 core/setubv2.cpp 1
 core/storage.cpp 4
 core/tabular.cpp 1

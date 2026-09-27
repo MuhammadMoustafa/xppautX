@@ -24,17 +24,6 @@
 #include <vector>
 #include "model.h"
 
-typedef struct {
-  std::vector<std::vector<int>> command; /* compiled transition formulas */
-  std::vector<std::string> trans;
-  std::vector<double> fixed;
-  int nstates;
-  std::vector<double> states;
-  int type;   /* 0 is default and state dependent.  1 is fixed for all time  */
-  std::string name;
-} MARKOV;
-
-static MARKOV markov[MAXMARK];
 
 /* The browser (new_browse_dat, browse.h) takes the statistics as a plain
    float ** of MAXODE rows, so my_mean/my_variance stay arrays of row
@@ -46,11 +35,10 @@ std::vector<float> mean_rows[MAXODE], variance_rows[MAXODE];
 int stoch_len;
 
 int STOCH_FLAG,STOCH_HERE,N_TRIALS;
-static int Wiener[MAXPAR];
 
 void add_wiener(int index)
 {
-  Wiener[xpp::model().nwiener]=index;
+  xpp::model().wiener[xpp::model().nwiener]=index;
   xpp::model().nwiener++;
 }
 
@@ -59,7 +47,7 @@ void set_wieners(double dt, double *x, double t)
   int i;
   update_markov(x,t,fabs(dt));
   for(i=0;i<xpp::model().nwiener;i++)
-    constants[Wiener[i]]=normal(0.00,1.00)/sqrt(fabs(dt));
+    constants[xpp::model().wiener[i]]=normal(0.00,1.00)/sqrt(fabs(dt));
 }
 
 void add_markov(int nstate, const char *name)
@@ -81,8 +69,8 @@ static int markov_named(const char *name)
 {
   int len=0,index=-1;
   for(int i=0;i<xpp::model().nmarkov;i++){
-    int ll=static_cast<int>(markov[i].name.size());
-    if(strncasecmp(name,markov[i].name.c_str(),ll)==0&&len<ll){
+    int ll=static_cast<int>(xpp::model().markov[i].name.size());
+    if(strncasecmp(name,xpp::model().markov[i].name.c_str(),ll)==0&&len<ll){
       index=i;
       len=ll;
     }
@@ -92,7 +80,7 @@ static int markov_named(const char *name)
     xpp_model_failed();
   }
   if(ConvertStyle)
-    xpp::print(convertf,"markov {} {}\n", name, markov[index].nstates);
+    xpp::print(convertf,"markov {} {}\n", name, xpp::model().markov[index].nstates);
   return index;
 }
 
@@ -102,7 +90,7 @@ int build_markov(const char *const *ma, const char *name)
 
  int i,j;
  int index=markov_named(name);
- int nstates=markov[index].nstates;
+ int nstates=xpp::model().markov[index].nstates;
  xpp_log(XPP_LOG_INFO, " Building %s %d states...\n",name,nstates);
  for(i=0;i<nstates;i++){
    std::string line = ma[i];
@@ -125,7 +113,7 @@ int old_build_markov(FILE *fptr, const char *name)
 
  int i,j;
  int index=markov_named(name);
- int nstates=markov[index].nstates;
+ int nstates=xpp::model().markov[index].nstates;
  xpp_log(XPP_LOG_INFO, " Building %s ...\n",name);
  {
    /* a whole line at a time, no 256-byte fgets cut, wrapping the FILE*
@@ -185,18 +173,18 @@ void create_markov(int nstates, double *st, int type, const char *name)
     xpp_model_failed();
   }
 
-  markov[j].nstates=nstates;
-  markov[j].states.assign(st, st+nstates);
+  xpp::model().markov[j].nstates=nstates;
+  xpp::model().markov[j].states.assign(st, st+nstates);
   if(type==0){
-    markov[j].trans.assign(n2, std::string());
-    markov[j].command.assign(n2, std::vector<int>());
+    xpp::model().markov[j].trans.assign(n2, std::string());
+    xpp::model().markov[j].command.assign(n2, std::vector<int>());
   }
   else {
-    markov[j].fixed.assign(n2, 0.0);
+    xpp::model().markov[j].fixed.assign(n2, 0.0);
   }
   /* std::string::substr keeps the same XPP_NAME_MAX truncation the old
      fixed char[XPP_NAME_MAX+1] buffer's snprintf enforced. */
-  markov[j].name = std::string(name).substr(0, XPP_NAME_MAX);
+  xpp::model().markov[j].name = std::string(name).substr(0, XPP_NAME_MAX);
   xpp::model().nmarkov++;
 
 }
@@ -204,16 +192,16 @@ void create_markov(int nstates, double *st, int type, const char *name)
 void add_markov_entry(int index, int j, int k, const char *expr)
 {
   
-  int l0=markov[index].nstates*j+k;
-  int type=markov[index].type;
+  int l0=xpp::model().markov[index].nstates*j+k;
+  int type=xpp::model().markov[index].type;
   if(type==0){
-  markov[index].trans[l0]=expr;
+  xpp::model().markov[index].trans[l0]=expr;
   /*  compilation step -- can be delayed */
   /*  end of compilation   */
   
 }
   else {
-    markov[index].fixed[l0]=atof(expr);
+    xpp::model().markov[index].fixed[l0]=atof(expr);
   }
 }
 
@@ -222,13 +210,13 @@ void compile_all_markov()
   int index,j,k,ns,l0;
   if(xpp::model().nmarkov==0)return;
   for(index=0;index<xpp::model().nmarkov;index++){
-    ns=markov[index].nstates;
+    ns=xpp::model().markov[index].nstates;
     for(j=0;j<ns;j++){
       for(k=0;k<ns;k++){
 	l0=ns*j+k;
 	if(compile_markov(index,j,k)==-1){
 	  xpp_log(XPP_LOG_ERROR, "Bad expression %s[%d][%d] = %s \n",
-		 markov[index].name.c_str(), j,k,markov[index].trans[l0].c_str());
+		 xpp::model().markov[index].name.c_str(), j,k,xpp::model().markov[index].trans[l0].c_str());
 	  xpp_model_failed();
 	}
       }
@@ -239,15 +227,15 @@ void compile_all_markov()
 int compile_markov(int index, int j, int k)
 {
   const char *expr;
-  int l0=markov[index].nstates*j+k,leng;
+  int l0=xpp::model().markov[index].nstates*j+k,leng;
   int com[256];
-  expr=markov[index].trans[l0].c_str();
+  expr=xpp::model().markov[index].trans[l0].c_str();
 
   if(add_expr(expr,com,&leng))
     return -1;
   /* zero-padded by two, like the xpp_malloc block it replaces */
-  markov[index].command[l0].assign(com, com+leng);
-  markov[index].command[l0].resize(leng+2, 0);
+  xpp::model().markov[index].command[l0].assign(com, com+leng);
+  xpp::model().markov[index].command[l0].resize(leng+2, 0);
   
   return 1;
 }
@@ -276,9 +264,10 @@ double new_state(double old, int index, double dt)
   double coin=ndrand48();
   int row=-1,rns;
   double *st;
-  int i,ns=markov[index].nstates;
-  int type=markov[index].type;
-  st=markov[index].states.data();
+  xpp::Model::MarkovChain &chain=xpp::model().markov[index];
+  int i,ns=chain.nstates;
+  int type=chain.type;
+  st=chain.states.data();
   for(i=0;i<ns;i++)
     if(fabs(st[i]-old)<.0001){
       row=i;
@@ -290,7 +279,7 @@ double new_state(double old, int index, double dt)
    if(type==0){
      for(i=0;i<ns;i++){
        if(i!=row){
-	 prob=evaluate(markov[index].command[rns+i].data())*dt;
+	 prob=evaluate(chain.command[rns+i].data())*dt;
 	 sum=sum+prob;
 	 if(coin<=sum){
 	   return(st[i]);
@@ -301,7 +290,7 @@ double new_state(double old, int index, double dt)
    else{
      for(i=0;i<ns;i++){
        if(i!=row){
-	 prob=markov[index].fixed[rns+i]*dt;
+	 prob=chain.fixed[rns+i]*dt;
 	 sum=sum+prob;
 	 if(coin<=sum){
 	   return(st[i]);

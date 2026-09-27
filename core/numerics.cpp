@@ -50,7 +50,7 @@ int cv_bandflag=0,cv_bandupper=1,cv_bandlower=1;
 
 void chk_volterra()
 {
-  if (NKernel>0)METHOD=VOLTERRA;
+  if (xpp::model().nkernel>0)METHOD=VOLTERRA;
 }
 
 void  check_pos(int *j)
@@ -116,7 +116,7 @@ void  get_num_par(char ch)
 			}
 			  else 
 			    free_delay();
-		       if(NKernel>0){
+		       if(xpp::model().nkernel>0){
 			 INFLAG=0;
 			 MyStart=1;
 			 alloc_kernels(1);
@@ -144,7 +144,7 @@ void  get_num_par(char ch)
 			 check_pos(&EVEC_ITER);
 			 new_float("Newton tolerance :",&EVEC_ERR);
 			 new_float("Jacobian epsilon :",&NEWT_ERR);
-		       if(NFlags>0)
+		       if(xpp::model().nflags>0)
 			 new_float("SMIN :",&STOL);
 		       
 			flash(5);
@@ -165,11 +165,11 @@ void  get_num_par(char ch)
 		case 'm': flash(8);
 			 /* method */
 			 get_method();
-			 if(METHOD==VOLTERRA&&NKernel==0){
+			 if(METHOD==VOLTERRA&&xpp::model().nkernel==0){
 			   err_msg("Volterra only for integral eqns");
 			   METHOD=4; 
 			 }
-		       if(NKernel>0)METHOD=VOLTERRA;
+		       if(xpp::model().nkernel>0)METHOD=VOLTERRA;
 			if(METHOD==GEAR||METHOD==RKQS||METHOD==STIFF)
 		{
 		 new_float("Tolerance :",&TOLER);
@@ -211,7 +211,7 @@ void  get_num_par(char ch)
 			break;
 		case 'e': flash(9);
 			 /* delay */
-                        if(NDELAYS==0)break;
+                        if(xpp::model().ndelays==0)break;
 			new_float("Maximal delay :",&DELAY);
                         new_float("real guess :", &AlphaMax);
 			   new_float("imag guess :", &OmegaMax); 
@@ -280,7 +280,7 @@ void chk_delay()
 
 void set_delay()
 {
- if(NDELAYS==0)return;
+ if(xpp::model().ndelays==0)return;
  if(DELAY>0.0){
    free_delay();
    if(alloc_delay(DELAY)){
@@ -509,7 +509,7 @@ void set_col_par_com(int i)
 
 void do_meth()
 {
- if(NKernel>0)METHOD=VOLTERRA;
+ if(xpp::model().nkernel>0)METHOD=VOLTERRA;
  switch(METHOD)
  {
   case 0: solver=discrete; DELTA_T=1;break;

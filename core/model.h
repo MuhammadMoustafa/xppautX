@@ -25,6 +25,7 @@
    each at its own offset), and an index past what the model uses reads
    an empty name. */
 #include "xpplim.h"
+#include "volterra.h"
 
 #include <array>
 #include <string>
@@ -78,6 +79,77 @@ struct Model {
   };
   /* the boundary conditions, one per ODE */
   std::array<BoundaryCondition,MAXODE> bcs;
+
+  /* a fixed variable's name and formula as typed (lunch-new.cpp writes
+     them), fix_var of them */
+  struct FixedVariable {
+    std::string name,value;
+  };
+  std::array<FixedVariable,MAXODE> fixinfo;
+
+  /* ---- the global flags (flags.cpp), nflags of them ---- */
+  /* a flag: when the condition's value (cond, compiled comcond) crosses
+     0 in the direction sign (1 up, -1 down, 0 at 0), set each of its
+     nevents events' lhs to its formula (rhs, compiled comrhs); type 0 a
+     variable, 1 a parameter (anypars when any is), 2 "out_put", 3
+     "arret"; nointerp for "no_interp" */
+  static constexpr int max_events=20;
+  struct GlobalFlag {
+    std::array<int,max_events> lhs{};
+    std::array<std::string,max_events> lhsname;
+    std::array<std::string,max_events> rhs;
+    std::array<std::vector<int>,max_events> comrhs;
+    std::string cond;
+    std::vector<int> comcond;
+    int sign=0,nevents=0;
+    std::array<int,max_events> type{};
+    int anypars=0;
+    int nointerp=0;
+  };
+  int nflags=0;
+  std::array<GlobalFlag,MAXFLAG> flags;
+
+  /* ---- the DAEs (dae_fun.cpp) ---- */
+  /* an algebraic variable (solv): its name, the formula of its first
+     guess (rhs, compiled form), its place in the parser's variables */
+  struct AlgebraicVariable {
+    std::string name,rhs;
+    std::vector<int> form;
+    int index=0;
+  };
+  /* an algebraic condition 0=rhs (compiled form) */
+  struct AlgebraicEquation {
+    std::string rhs;
+    std::vector<int> form;
+  };
+  int nsvar=0,naeqn=0;
+  std::array<AlgebraicVariable,MAXDAE> svars;
+  std::array<AlgebraicEquation,MAXDAE> aeqns;
+
+  /* ---- delays, integral equations, Markov chains, networks ---- */
+  /* the delay terms the parser compiled (delay(), a delayed network) */
+  int ndelays=0;
+  /* the integral equations' kernels (nkernel of them) */
+  int nkernel=0;
+  std::array<KERNEL,MAXKER> kernels;
+
+  /* a Markov variable's chain: nstates states and their values, and the
+     nstates x nstates transitions as typed (trans) and compiled
+     (command), or as numbers (fixed) when type is 1 (fixed for all time;
+     0 when they depend on the state) */
+  struct MarkovChain {
+    std::vector<std::vector<int>> command;
+    std::vector<std::string> trans;
+    std::vector<double> fixed;
+    int nstates=0;
+    std::vector<double> states;
+    int type=0;
+    std::string name;
+  };
+  /* the Markov variables' chains (nmarkov of them) */
+  std::array<MarkovChain,MAXMARK> markov;
+  /* the Wiener parameters' places in the parser's constants (nwiener) */
+  std::array<int,MAXPAR> wiener{};
 
   /* the variables' names by index: the ODEs (NODE), the Markov variables
      (NMarkov), then the aux quantities, NEQ in all; browse_data's added

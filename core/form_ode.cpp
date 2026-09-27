@@ -62,7 +62,6 @@ static int BVP_N;
 int ConvertStyle=0;
 FILE *convertf;
 static int IN_VARS;
-std::array<FIXINFO,MAXODE> fixinfo;
 
 
 namespace {
@@ -512,7 +511,7 @@ void find_ker(std::string &string, int *alt)
       continue;
     }
     if(ch=='}'){
-      std::string name=xpp::format("K##{}",NKernel);
+      std::string name=xpp::format("K##{}",xpp::model().nkernel);
       xpp::log(XPP_LOG_DEBUG, "Kernel mu={:f} {} = {} \n",mu,name,form);
       if(add_kernel(name.c_str(),mu,form.c_str()))xpp_model_failed();
       newstr+=name;
@@ -1610,8 +1609,8 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	xpp_model_failed();
     }
     if(v.type==FIXED){
-      fixinfo[nfix].name=v.lhs;
-      fixinfo[nfix].value=v.rhs;
+      xpp::model().fixinfo[nfix].name=v.lhs;
+      xpp::model().fixinfo[nfix].value=v.rhs;
       tmp=converted(v.lhs);
       if(name_too_long(tmp.c_str()))xpp_model_failed();
       fnames.push_back(tmp);

@@ -9,19 +9,17 @@
 #include <string>
 #include <vector>
 
-/* An integral equation's kernel (parserslow2.cpp add_kernel declares it,
-   volterra2.cpp compiles and evaluates it): K(t,t',u) with the constant
-   mu, or a convolution kerexpr#expr (flag CONV) */
+/* An integral equation's kernel as the model declares it (parserslow2.cpp
+   add_kernel; volterra2.cpp alloc_v_memory compiles it while the model
+   loads): K(t,t',u) with the constant mu, or a convolution kerexpr#expr
+   (flag CONV). xpp::Model's kernels hold them; the running integrals are
+   volterra2.cpp's. */
 struct KERNEL {
-  double k_n1=0.0,k_n=0.0,sum=0.0,betnn=0.0,mu=0.0;
-  std::vector<double> al,cnv;       /* alpbetjn's weights, the convolution's values */
+  double mu=0.0;
   std::vector<int> formula,kerform; /* expr and kerexpr compiled */
   int flag=0;
   std::string name,expr,kerexpr;
 };
-
-/* the kernels (NKernel of them), parserslow2.cpp's */
-extern std::array<KERNEL,MAXKER> kernel;
 #endif
 
 #endif

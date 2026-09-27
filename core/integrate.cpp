@@ -883,7 +883,7 @@ void find_equilib_com(int com)
  double *x,oldtrans;
 
  x=&data_store.current[0];
- if(FFT||HIST||NKernel>0)return;
+ if(FFT||HIST||xpp::model().nkernel>0)return;
 
  STORFLAG=0;
  POIMAP=0;

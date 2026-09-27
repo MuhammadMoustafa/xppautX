@@ -691,7 +691,7 @@ return(z*z);
 
 int gear(int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
 {
-  if(NFlags==0)
+  if(xpp::model().nflags==0)
     return(ggear( n,t, tout,y, hmin, hmax,eps,
 	  mf,error,kflag,jstart,work,iwork));
   return(one_flag_step_gear(n,t, tout,y, hmin, 

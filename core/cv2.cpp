@@ -15,6 +15,7 @@
 #include "load_eqn.h"
 #include "numerics.h"
 #include <string>
+#include "model.h"
 static double cv_ropt[OPT_SIZE];
 static int cv_iopt[OPT_SIZE];
 static void *cvode_mem;
@@ -79,7 +80,7 @@ void cvode_err_msg(int kflag)
 int cvode(int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
 {
  int err=0;
- if(NFlags==0)
+ if(xpp::model().nflags==0)
    return(ccvode(command,y,t,n,tout,kflag,atol,rtol));
  err=one_flag_step_cvode(command,y,t,n,tout,kflag,atol,rtol);
  if(err==1)*kflag=-9;

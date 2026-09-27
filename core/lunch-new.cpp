@@ -56,7 +56,7 @@ void put_equations(FILE *fp)
   if(xpp::model().fix_var>0){
     xpp::print(fp,"\nwhere ...\n");
     for(int i=0;i<xpp::model().fix_var;i++)
-      xpp::print(fp,"{} = {} \n",fixinfo[i].name,fixinfo[i].value);
+      xpp::print(fp,"{} = {} \n",xpp::model().fixinfo[i].name,xpp::model().fixinfo[i].value);
   }
   if(xpp::model().nfun>0){
     xpp::print(fp,"\nUser-defined functions:\n");

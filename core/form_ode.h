@@ -51,13 +51,6 @@ extern int n_comments;
 #include <string_view>
 #include <vector>
 
-/* a fixed variable's name and formula as typed (lunch-new.cpp writes
-   them): FIX_VAR of them */
-struct FIXINFO {
-  std::string name,value;
-};
-extern std::array<FIXINFO,MAXODE> fixinfo;
-
 /* 1 when the model is a map: is_a_map, or file ends in .dis or .dif */
 int disc(std::string_view file);
 /* quantity i's compiled formula (Model::programs) becomes program */

@@ -4,6 +4,7 @@
 #include "stiff.h"
 #include "flags.h"
 #include "markov.h"
+#include "model.h"
 
 #define STIFF 9
 #define MAX(a,b) ((a)>(b)?(a):(b))
@@ -78,7 +79,7 @@ void jacobn(double x, double *y, double *dfdx, double *dermat, double eps, doubl
 
 int adaptive(double *ystart, int nvar, double *xs, double x2, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart)
 {
-  if(NFlags==0)
+  if(xpp::model().nflags==0)
     return(gadaptive(ystart,nvar,xs,x2,eps,
 		     hguess,hmin,work,ier,epjac,iflag,jstart));
   return(one_flag_step_adap(ystart,nvar,xs,x2,eps,hguess,

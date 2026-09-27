@@ -5,8 +5,7 @@ extern "C" {
 #endif
 
 
-/* the global flags (NFlags of them) and their crossing tolerance */
-extern int NFlags;
+/* the global flags' crossing tolerance (the flags are xpp::Model's) */
 extern double STOL;
 
 /* flags.c */

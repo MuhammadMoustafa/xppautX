@@ -9,6 +9,7 @@
 #include "dormpri.h"
 #include "flags.h"
 #include "xpp_log.h"
+#include "model.h"
 
 /* The integrators' messages (Hairer's fileout stream, which XPP passed as
    stdout) are xpp_log WARNs: the caller's dp_err reports the failure
@@ -44,7 +45,7 @@ void dp_err(int k)
 int dp(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag)
 {
  int err=0;
- if(NFlags==0)
+ if(xpp::model().nflags==0)
    return(dormprin(istart,y,t,n,tout,tol,atol,flag,kflag));
  err=one_flag_step_dp(istart,y,t,n,tout,tol,atol,flag,kflag);
  if(err==1)*kflag=-9;

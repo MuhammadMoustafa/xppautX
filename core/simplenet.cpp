@@ -686,7 +686,7 @@ int add_spec_fun(const char *name, char *rhs)
     my_net[ind].ncon=ntot;
     xpp_log(XPP_LOG_INFO, " Added del_mul %s len=%d x %d using %s var[%d] with delay %s\n",
 	   name,ntot,ncon,wgtname.c_str(),ivar,indname.c_str(),tauname.c_str() );
-    NDELAYS=1;
+    xpp::model().ndelays=1;
     return 1;   
     break;
     return 0;
@@ -719,7 +719,7 @@ int add_spec_fun(const char *name, char *rhs)
     my_net[ind].ncon=ncon;
     xpp_log(XPP_LOG_INFO, " Added sparse %s len=%d x %d using %s var[%d]  and %s with dely %s\n",
 	   name,ntot,ncon,wgtname.c_str(),ivar,indname.c_str(),tauname.c_str() );
-    NDELAYS=1;
+    xpp::model().ndelays=1;
     return 1;   
     break;
 

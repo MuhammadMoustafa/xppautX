@@ -85,28 +85,25 @@ type =2 output
 type =3 halt
 */
 
-#define MAX_EVENTS 20 /*  this is the maximum number of events per flag */
-
-typedef struct {
-  double f0,f1;
-  double tstar;
-  int lhs[MAX_EVENTS];
-  double vrhs[MAX_EVENTS];
-  std::array<std::string, MAX_EVENTS> lhsname;
-  std::array<std::string, MAX_EVENTS> rhs;
-  std::array<std::vector<int>, MAX_EVENTS> comrhs;
-  std::string cond;
-  std::vector<int> comcond;
-  int sign,nevents;
-  int hit,type[MAX_EVENTS];
-  int anypars;
-  int nointerp;
-} FLAG;
-
 #define IC 2
 #define PARAM 1
-static FLAG flag[MAXFLAG];
-int NFlags=0;
+
+/* the most events a flag has */
+constexpr int MAX_EVENTS=xpp::Model::max_events;
+
+namespace {
+/* each flag's state during a run (xpp::Model has its definition): the
+   condition's value at the step before and this one, where in the step
+   it crossed (tstar, 0..1), whether it did (hit, the pass it did in) and
+   the events' values */
+struct FlagState {
+  double f0=0.0,f1=0.0;
+  double tstar=0.0;
+  std::array<double,MAX_EVENTS> vrhs{};
+  int hit=0;
+};
+std::array<FlagState,MAXFLAG> fstate;
+}
 
 double STOL=1.e-10;
 
@@ -114,15 +111,16 @@ double STOL=1.e-10;
    events, in order */
 int add_global(const char *cond, int sign, const char *rest)
 {
-  int nevents,j=NFlags;
+  std::array<xpp::Model::GlobalFlag,MAXFLAG> &flags=xpp::model().flags;
+  int nevents,j=xpp::model().nflags;
   std::string temp;
-  if(NFlags>=MAXFLAG){
+  if(xpp::model().nflags>=MAXFLAG){
     xpp_log(XPP_LOG_WARN, "Too many global conditions\n");
     return(1);
   }
-  flag[j].cond=cond;
+  flags[j].cond=cond;
   nevents=0;
-  flag[j].lhsname[0].clear();
+  flags[j].lhsname[0].clear();
   for(const char *p=rest;*p;p++){
     char ch=*p;
     if(ch=='{'||ch==' ')continue;
@@ -131,11 +129,11 @@ int add_global(const char *cond, int sign, const char *rest)
 	xpp_log(XPP_LOG_WARN, " Too many events per flag \n");
 	return(1);
       }
-      if(flag[j].lhsname[nevents].empty()){
+      if(flags[j].lhsname[nevents].empty()){
 	xpp::log(XPP_LOG_WARN, " No event variable named for {} \n",temp);
 	return(1);
       }
-      flag[j].rhs[nevents]=temp;
+      flags[j].rhs[nevents]=temp;
       nevents++;
       temp.clear();
       if(ch=='}')break;
@@ -146,10 +144,10 @@ int add_global(const char *cond, int sign, const char *rest)
 	xpp::log(XPP_LOG_WARN, " Event variable {} is too long\n",temp);
 	return(1);
       }
-      flag[j].lhsname[nevents]=temp;
+      flags[j].lhsname[nevents]=temp;
       temp.clear();
       if(nevents<MAX_EVENTS-1)
-	flag[j].lhsname[nevents+1].clear();
+	flags[j].lhsname[nevents+1].clear();
       continue;
     }
     temp+=ch;
@@ -159,9 +157,9 @@ int add_global(const char *cond, int sign, const char *rest)
     return(1);
   }
  /*  we now have the condition, the names, and the formulae */
-  flag[j].sign=sign;
-  flag[j].nevents=nevents;
-  NFlags++;
+  flags[j].sign=sign;
+  flags[j].nevents=nevents;
+  xpp::model().nflags++;
   return(0);
 }
 
@@ -178,40 +176,41 @@ static bool compile(const std::string &expr, std::vector<int> &out)
 
 int compile_flags()
 {
+  std::array<xpp::Model::GlobalFlag,MAXFLAG> &flags=xpp::model().flags;
   int j;
   int i,index;
-  if(NFlags==0)return(0);
-  for(j=0;j<NFlags;j++){
-    if(!compile(flag[j].cond,flag[j].comcond)){
-      xpp::log(XPP_LOG_WARN, "Illegal global condition:  {}\n",flag[j].cond);
+  if(xpp::model().nflags==0)return(0);
+  for(j=0;j<xpp::model().nflags;j++){
+    if(!compile(flags[j].cond,flags[j].comcond)){
+      xpp::log(XPP_LOG_WARN, "Illegal global condition:  {}\n",flags[j].cond);
       return(1);
     }
-    flag[j].anypars=0;
-    flag[j].nointerp=0;
-    for(i=0;i<flag[j].nevents;i++){
-      const char *name=flag[j].lhsname[i].c_str();
+    flags[j].anypars=0;
+    flags[j].nointerp=0;
+    for(i=0;i<flags[j].nevents;i++){
+      const char *name=flags[j].lhsname[i].c_str();
       index=find_user_name(IC,name);
       if(index<0){
 	index=find_user_name(PARAM,name);
 	if(index<0){
 	  if(strcasecmp(name,"out_put")==0)
 	    {
-	      flag[j].type[i]=2;
-	      flag[j].lhs[i]=0;
+	      flags[j].type[i]=2;
+	      flags[j].lhs[i]=0;
 	    }
 	  else {
 	    if(strcasecmp(name,"arret")==0)
 	      {
-		flag[j].type[i]=3;
-		flag[j].lhs[i]=0;
+		flags[j].type[i]=3;
+		flags[j].lhs[i]=0;
 
 	      }
 	    else {
 	      if(strcasecmp(name,"no_interp")==0)
 		{
-		  flag[j].nointerp=1;
-                  flag[j].type[i]=0;
-		  flag[j].lhs[i]=0;
+		  flags[j].nointerp=1;
+                  flags[j].type[i]=0;
+		  flags[j].lhs[i]=0;
 		}
 
 	    else {
@@ -223,18 +222,18 @@ int compile_flags()
 	  }
 	}
 	else{
-	  flag[j].lhs[i]=index;
-	  flag[j].type[i]=1;
-          flag[j].anypars=1;
+	  flags[j].lhs[i]=index;
+	  flags[j].type[i]=1;
+          flags[j].anypars=1;
 	}
       }
       else {
-	flag[j].lhs[i]=index;
-	flag[j].type[i]=0;
+	flags[j].lhs[i]=index;
+	flags[j].type[i]=0;
       }
-      if(!compile(flag[j].rhs[i],flag[j].comrhs[i])){
+      if(!compile(flags[j].rhs[i],flags[j].comrhs[i])){
 	xpp::log(XPP_LOG_WARN, "Illegal event {} for global {}\n",
-	       flag[j].rhs[i],flag[j].cond);
+	       flags[j].rhs[i],flags[j].cond);
       return(1);
       }
     }
@@ -246,61 +245,62 @@ int compile_flags()
 
 int one_flag_step(double *yold, double *ynew, int *istart, double told, double *tnew, int neq, double *s)
 {
+  std::array<xpp::Model::GlobalFlag,MAXFLAG> &flags=xpp::model().flags;
   double dt=*tnew-told;
   double f0,f1,tol,tolmin=1e-10;
   double smin=2;
   int sign,i,j,in,ncycle=0,newhit,nevents;
 
-  if(NFlags==0)return(0);
-  for(i=0;i<NFlags;i++){
-    flag[i].tstar=2.0;
-    flag[i].hit=0;
+  if(xpp::model().nflags==0)return(0);
+  for(i=0;i<xpp::model().nflags;i++){
+    fstate[i].tstar=2.0;
+    fstate[i].hit=0;
   }
   /* If this is the first call, then need f1  */
   if(*istart==1){  
     for(i=0;i<neq;i++)
       SETVAR(i+1,yold[i]);
     SETVAR(0,told);
-    for(i=0;i<NFlags;i++)
+    for(i=0;i<xpp::model().nflags;i++)
     *istart=0;
   
   }
-  for(i=0;i<NFlags;i++){
-    sign=flag[i].sign;
-    flag[i].f0=flag[i].f1;
-    f0=flag[i].f0;
+  for(i=0;i<xpp::model().nflags;i++){
+    sign=flags[i].sign;
+    fstate[i].f0=fstate[i].f1;
+    f0=fstate[i].f0;
     for(j=0;j<neq;j++)
       SETVAR(j+1,ynew[j]);
     SETVAR(0,*tnew);
-    f1=evaluate(flag[i].comcond.data());
-    flag[i].f1=f1;
+    f1=evaluate(flags[i].comcond.data());
+    fstate[i].f1=f1;
     tol=fabs(f1-f0);
     switch(sign){
     case 1: 
       if((((f0<0.0)&&(f1>0.0))||((f0<0.0)&&(f1>0.0)))&&tol>tolmin){
-	flag[i].hit=ncycle+1;
-	flag[i].tstar=f0/(f0-f1);
+	fstate[i].hit=ncycle+1;
+	fstate[i].tstar=f0/(f0-f1);
       }
       break;
     case -1:
       if(f0>0.0&&f1<=0.0&&tol>tolmin){
-	flag[i].hit=ncycle+1;
-	flag[i].tstar=f0/(f0-f1);
+	fstate[i].hit=ncycle+1;
+	fstate[i].tstar=f0/(f0-f1);
       }
       break;
     case 0:
       if(fabs(f1)<MY_DBL_EPS){
-	flag[i].hit=ncycle+1;
-	flag[i].tstar=told;
+	fstate[i].hit=ncycle+1;
+	fstate[i].tstar=told;
       }
       break;
     }
-    if(flag[i].nointerp==1)
+    if(flags[i].nointerp==1)
       {
-	flag[i].tstar=1.0;
+	fstate[i].tstar=1.0;
       }
     
-      if(smin>flag[i].tstar)smin=flag[i].tstar;
+      if(smin>fstate[i].tstar)smin=fstate[i].tstar;
 
   } /* run through flags */
  
@@ -314,45 +314,45 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
     ynew[i]=yold[i]+smin*(ynew[i]-yold[i]);
     SETVAR(i+1,ynew[i]);
   }
-  for(i=0;i<NFlags;i++)
-    flag[i].f0=evaluate(flag[i].comcond.data());
+  for(i=0;i<xpp::model().nflags;i++)
+    fstate[i].f0=evaluate(flags[i].comcond.data());
   while(1){ /* run through all possible events  */
     ncycle++;
     newhit=0;
-    for(i=0;i<NFlags;i++){
-      nevents=flag[i].nevents;
-      if(flag[i].hit==ncycle&&flag[i].tstar<=smin){
+    for(i=0;i<xpp::model().nflags;i++){
+      nevents=flags[i].nevents;
+      if(fstate[i].hit==ncycle&&fstate[i].tstar<=smin){
 	for(j=0;j<nevents;j++){
-	  flag[i].vrhs[j]=evaluate(flag[i].comrhs[j].data());
-	  in=flag[i].lhs[j];
-	  if(flag[i].type[j]==0)
-	        SETVAR(in+1,flag[i].vrhs[j]);
+	  fstate[i].vrhs[j]=evaluate(flags[i].comrhs[j].data());
+	  in=flags[i].lhs[j];
+	  if(flags[i].type[j]==0)
+	        SETVAR(in+1,fstate[i].vrhs[j]);
 	 
 	}
       }
     }
-    for(i=0;i<NFlags;i++){
-      nevents=flag[i].nevents;
-      if(flag[i].hit==ncycle&&flag[i].tstar<=smin){
+    for(i=0;i<xpp::model().nflags;i++){
+      nevents=flags[i].nevents;
+      if(fstate[i].hit==ncycle&&fstate[i].tstar<=smin){
 	for(j=0;j<nevents;j++){
 	  
-	  in=flag[i].lhs[j];
-	  if(flag[i].type[j]==0){
-	     ynew[in]=flag[i].vrhs[j];
+	  in=flags[i].lhs[j];
+	  if(flags[i].type[j]==0){
+	     ynew[in]=fstate[i].vrhs[j];
 	     /* SETVAR(in+1,ynew[in]); if this screws up */
 	  }
 	  else {
-	    if(flag[i].type[j]==1)
-	      set_val(xpp::model().upar_names[in],flag[i].vrhs[j]);
+	    if(flags[i].type[j]==1)
+	      set_val(xpp::model().upar_names[in],fstate[i].vrhs[j]);
 	    else{
 
-	      if((flag[i].type[j]==2)&&(flag[i].vrhs[j]>0))send_output(ynew,*tnew);
-	      if((flag[i].type[j]==3)&&(flag[i].vrhs[j]>0))send_halt(ynew,*tnew);
+	      if((flags[i].type[j]==2)&&(fstate[i].vrhs[j]>0))send_output(ynew,*tnew);
+	      if((flags[i].type[j]==3)&&(fstate[i].vrhs[j]>0))send_halt(ynew,*tnew);
 	    }
 	  }
 
 	}
-	if(flag[i].anypars){
+	if(flags[i].anypars){
 	  evaluate_derived();
 	  redraw_params();
 	}
@@ -362,32 +362,32 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
     for(i=0;i<neq;i++){
       ynew[i]=GETVAR(i+1); /* if this screws up */
     }
-    for(i=0;i<NFlags;i++){
-      flag[i].f1=evaluate(flag[i].comcond.data());
-      if(flag[i].hit>0)continue; /* already hit so dont do anything */
-      f1=flag[i].f1;
-      sign=flag[i].sign;
-      f0=flag[i].f0;
+    for(i=0;i<xpp::model().nflags;i++){
+      fstate[i].f1=evaluate(flags[i].comcond.data());
+      if(fstate[i].hit>0)continue; /* already hit so dont do anything */
+      f1=fstate[i].f1;
+      sign=flags[i].sign;
+      f0=fstate[i].f0;
       tol=fabs(f1-f0);
       switch(sign){
       case 1:
 	if(f0<=0.0&&f1>=0.0&&tol>tolmin){
-	  flag[i].tstar=smin;
-	  flag[i].hit=ncycle+1;
+	  fstate[i].tstar=smin;
+	  fstate[i].hit=ncycle+1;
 	  newhit=1;
 	}
 	break;
       case -1:
 	if(f0>=0.0&&f1<=0.0&&tol>tolmin){
-	  flag[i].tstar=smin;
-	  flag[i].hit=ncycle+1;
+	  fstate[i].tstar=smin;
+	  fstate[i].hit=ncycle+1;
 	  newhit=1;
 	}
 	break; 
       case 0:
 	if(f0*f1<=0&&(f1!=0||f0!=0)&&tol>tolmin){
-	  flag[i].tstar=smin;
-	  flag[i].hit=ncycle+1;
+	  fstate[i].tstar=smin;
+	  fstate[i].hit=ncycle+1;
 	  newhit=1;
 	}
       }
@@ -417,7 +417,7 @@ int one_flag_step_symp(double *y, double dt, double *work, int neq, double *tim,
     /* Its a hit !! */
     nstep++;
     dtt=(1-s)*dt;
-    if(nstep>(NFlags+2)){
+    if(nstep>(xpp::model().nflags+2)){
       xpp_log(XPP_LOG_WARN, " Working too hard?? ");
       xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       break;
@@ -443,7 +443,7 @@ int one_flag_step_euler(double *y, double dt, double *work, int neq, double *tim
     /* Its a hit !! */
     nstep++;
     dtt=(1-s)*dt;
-    if(nstep>(NFlags+2)){
+    if(nstep>(xpp::model().nflags+2)){
       xpp_log(XPP_LOG_WARN, " Working too hard?? ");
       xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       break;
@@ -469,7 +469,7 @@ int one_flag_step_discrete(double *y, double dt, double *work, int neq, double *
     /* Its a hit !! */
     nstep++;
     dtt=(1-s)*dt;
-    if(nstep>(NFlags+2)){
+    if(nstep>(xpp::model().nflags+2)){
       xpp_log(XPP_LOG_WARN, " Working too hard?? ");
       xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       break;
@@ -494,7 +494,7 @@ int one_flag_step_heun(double *y, double dt, double *yval[2], int neq, double *t
     /* Its a hit !! */
     nstep++;
     dtt=(1-s)*dt;
-    if(nstep>(NFlags+2)){
+    if(nstep>(xpp::model().nflags+2)){
       xpp_log(XPP_LOG_WARN, " Working too hard? ");
       xpp_log(XPP_LOG_WARN, " smin=%g\n",s);
       break;
@@ -519,7 +519,7 @@ int one_flag_step_rk4(double *y, double dt, double *yval[3], int neq, double *ti
     /* Its a hit !! */
     nstep++;
     dtt=(1-s)*dt;
-    if(nstep>(NFlags+2)){
+    if(nstep>(xpp::model().nflags+2)){
       xpp_log(XPP_LOG_WARN, " Working too hard?");
             xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       break;
@@ -546,7 +546,7 @@ int one_flag_step_gear(int neq, double *t, double tout, double *y, double hmin, 
     nstep++;
     *jstart=0; /* for gear always reset  */
     if(*t==tout)break;
-    if(nstep>(NFlags+2)){
+    if(nstep>(xpp::model().nflags+2)){
       xpp_log(XPP_LOG_WARN, " Working too hard? ");
             xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       break;
@@ -574,7 +574,7 @@ int *istart,int n,double *work,int *ierr)
     nstep++;
     
     if(*tstart==tfinal)break;
-    if(nstep>(NFlags+2)){
+    if(nstep>(xpp::model().nflags+2)){
       xpp_log(XPP_LOG_WARN, " Working too hard? ");
             xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       *ierr=-2;
@@ -604,7 +604,7 @@ int one_flag_step_dp(int *istart, double *y, double *t, int n, double tout, doub
     nstep++;
     
     if(*t==tout)break;
-    if(nstep>(NFlags+2)){
+    if(nstep>(xpp::model().nflags+2)){
       xpp_log(XPP_LOG_WARN, " Working too hard? ");
             xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       return 1;
@@ -635,7 +635,7 @@ int one_flag_step_cvode(int *command, double *y, double *t, int n, double tout, 
    end_cv();
     *command=1; /* for cvode always reset  */
     if(*t==tout)break;
-    if(nstep>(NFlags+2)){
+    if(nstep>(xpp::model().nflags+2)){
       xpp_log(XPP_LOG_WARN, " Working too hard? ");
             xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       return 1;
@@ -665,7 +665,7 @@ int one_flag_step_adap(double *y, int neq, double *t, double tout, double eps, d
     nstep++;
     
     if(*t==tout)break;
-    if(nstep>(NFlags+2)){
+    if(nstep>(xpp::model().nflags+2)){
       xpp_log(XPP_LOG_WARN, " Working too hard? ");
             xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       break;
@@ -693,7 +693,7 @@ int one_flag_step_backeul(double *y, double *t, double dt, int neq, double *yg, 
     /* Its a hit !! */
     nstep++;
     dtt=(1-s)*dt;  
-    if(nstep>(NFlags+2)){
+    if(nstep>(xpp::model().nflags+2)){
       xpp_log(XPP_LOG_WARN, " Working too hard?");
             xpp_log(XPP_LOG_WARN, "smin=%g\n",s);
       break;

@@ -7,6 +7,7 @@
 #include "delay_handle.h"
 #include "load_eqn.h"
 #include "numerics.h"
+#include "model.h"
 
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
@@ -28,7 +29,7 @@ namespace {
 template <class Plain, class Flagged>
 int fixed_steps(double *y, int nt, Plain plain, Flagged flagged)
 {
-  if(NFlags==0){
+  if(xpp::model().nflags==0){
     for(int i=0;i<nt;i++){
       plain();
       stor_delay(y);
@@ -48,7 +49,7 @@ int fixed_steps(double *y, int nt, Plain plain, Flagged flagged)
 int symplect3(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  int i;
- if(NFlags==0){ 
+ if(xpp::model().nflags==0){ 
    for(i=0;i<nt;i++)
      {
        one_step_symp(y,dt,work,neq,tim);
@@ -86,7 +87,7 @@ int bak_euler(double *y, double *tim, double dt, int nt, int neq, int *istart, d
   errvec=ytemp+neq;
   yp2=errvec+neq;
   jac=yp2+neq;
-  if(NFlags==0){
+  if(xpp::model().nflags==0){
     for(i=0;i<nt;i++)
       {
 	
@@ -385,7 +386,7 @@ int rb23(double *y,double *tstart,double tfinal,
  int *istart,int n,double *work,int *ierr)
 {
 int out =-1;
- if(NFlags==0)
+ if(xpp::model().nflags==0)
  {
    out = rosen(y,tstart,tfinal,istart,n,work,ierr);
  }
