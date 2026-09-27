@@ -1713,9 +1713,16 @@ def infos(evs):
     return [e for e in evs if e.get('ev') == 'autoinfo']
 
 
+# XPP_NO_THROTTLE (core/xpp_job.h): every throttled flush happens, so the
+# autoinfo events are each state the strip passes through on any machine,
+# not the few a 0.1 s rate limit happens to catch (W49: a redraw's passage
+# of the circle over every point showed only on a slow runner)
+NO_THROTTLE = {'XPP_NO_THROTTLE': '1'}
+
+
 def check_autoinfo():
-    pa, ra, snda, cola, _ = launch_server()
-    pb, rb, sndb, colb, _ = launch_server()
+    pa, ra, snda, cola, _ = launch_server(NO_THROTTLE)
+    pb, rb, sndb, colb, _ = launch_server(NO_THROTTLE)
     try:
         cola(is_idle)
         colb(is_idle)
@@ -1803,7 +1810,8 @@ def check_autoinfo():
               and any(abs(complex(*z) - 1) < 1e-3 for z in stab['circle']), '%s vs %s' % (stab, pr))
         snda(cmd='redraw')
         evs, _ = cola(is_idle)
-        check('autoinfo: a redraw sends none (nothing it shows changed)', not infos(evs), str(infos(evs))[:200])
+        check('autoinfo: a redraw sends none (nothing it shows changed, nor on its way)', not infos(evs),
+              '%d events, the first %s' % (len(infos(evs)), str(infos(evs)[:1])[:300]))
         snda(cmd='auto', op='point', xd=0.125, yd=-0.25)
         evs, _ = cola(is_idle)
         hint = [e.get('auto') for e in evs if e.get('ev') == 'message' and 'auto' in e]

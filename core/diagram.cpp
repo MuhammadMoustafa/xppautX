@@ -8,6 +8,7 @@
 #include "xpp_ui.h"
 #include "xpp_log.h"
 #include "diagram.h"
+#include "auto_data.h"
 #include "autevd.h"
 
 #include "my_svg.h"
@@ -162,6 +163,7 @@ void redraw_diagram()
   draw_bif_axes();
   d=diagram_first();
   if(diagram_next(d)==NULL)return;
+  auto_data_hold(1); /* each point moves the circle: only where it ends is sent */
   while(1){
     type=get_bif_type(d->ibr,d->ntot,d->lab);
  
@@ -173,6 +175,7 @@ void redraw_diagram()
     d=diagram_next(d);
     if(d==NULL)break;
   }
+  auto_data_hold(0);
 }
 
 namespace {

@@ -51,7 +51,10 @@ int xpp_job_cancelled(void);
 void xpp_job_resume(unsigned long seq);
 
 /* 1 when at least `seconds` have passed since *last (then *last becomes
-   now; start it at 0): the rate limit of polls and flushes in long loops */
+   now; start it at 0): the rate limit of polls and flushes in long loops.
+   XPP_NO_THROTTLE set in the environment makes it always 1: every throttled
+   flush then happens, so a check sees each state a long loop passes through
+   whatever the machine's speed (tools/servercheck.py's autoinfo checks) */
 int xpp_every(double *last, double seconds);
 
 /* 1 at most every 50 ms (then the clock starts again): whether the front end

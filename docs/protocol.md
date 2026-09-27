@@ -280,7 +280,10 @@ show, as data, for a client that asked with
 command, and then whenever what it says changed: before every ask (so
 every step of a grab brings the point's strip and circle before the grab
 asks again), at the end of a command, and at most ten times a second while
-AUTO runs; a command that changes neither sends none. core/auto_data.cpp
+AUTO runs; a command that changes neither sends none. A redraw of the
+diagram plots every point again, each moving the circle: none of that is
+sent, only where it ends (after a run, the run's last point, as before
+it). core/auto_data.cpp
 keeps it, from what auto_nox.c shows there; `stop` comes from
 core/auto_stop.cpp, which autlib1.c tells where it ends a branch (T23).
 

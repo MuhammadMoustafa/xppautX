@@ -34,6 +34,7 @@ std::vector<double> stab_re, stab_im;
 
 std::string sent;
 bool sent_valid;
+int held; /* auto_data_hold depth */
 
 /* ---- JSON text (as plot_data.cpp writes it) ---- */
 
@@ -200,11 +201,16 @@ extern "C" void auto_data_stab(const double *evr, const double *evi, int n, int 
     }
 }
 
+extern "C" void auto_data_hold(int on)
+{
+    held += on ? 1 : (held > 0 ? -1 : 0);
+}
+
 extern "C" void auto_data_update(int final)
 {
     static double last;
     if (!enabled || !subscribed || !emit_line) return;
-    if (!final && !xpp_every(&last, 0.1)) return;
+    if (!final && (held > 0 || !xpp_every(&last, 0.1))) return;
     try {
         std::string e = event();
         if (sent_valid && e == sent) return;

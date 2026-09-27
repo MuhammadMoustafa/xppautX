@@ -10,6 +10,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdlib>
 
 namespace {
 
@@ -119,6 +120,8 @@ void xpp_job_resume(unsigned long seq)
 
 int xpp_every(double *last, double seconds)
 {
+    static const bool always = std::getenv("XPP_NO_THROTTLE") != nullptr; /* a check's hook (xpp_job.h) */
+    if (always) return 1;
     using seconds_d = std::chrono::duration<double>;
     const double now = seconds_d(std::chrono::system_clock::now().time_since_epoch()).count();
     if (now - *last < seconds && now >= *last) return 0; /* a clock set back also passes */

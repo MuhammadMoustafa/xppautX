@@ -26,7 +26,8 @@ extern "C" {
 
    auto_nox.c reports the strip and the circle as it draws them; the front
    end sends the event at the end of a command, before every prompt and at
-   most ten times a second while AUTO runs, and only when it differs from the one it sent
+   most ten times a second while AUTO runs (never while a redraw re-plots
+   the diagram), and only when it differs from the one it sent
    last. Nothing is recorded before auto_data_init(), so a program without
    such a front end (xppaut) pays nothing.
 
@@ -72,8 +73,14 @@ void auto_data_info(const AutoDataInfo *info);
 void auto_data_stab(const double *evr, const double *evi, int n, int periodic);
 
 /* send the event if it changed since the last one sent; final 0 (during a
-   run) sends at most ten a second */
+   run) sends at most ten a second, and nothing while held */
 void auto_data_update(int final);
+
+/* on 1 ... on 0 around a redraw of the diagram (redraw_diagram): plotting
+   every point again moves the circle over each in turn, a passage no
+   update during it sends; the command's end sends where it stopped, if
+   that differs from what was sent. Nests. */
+void auto_data_hold(int on);
 
 #ifdef __cplusplus
 }
