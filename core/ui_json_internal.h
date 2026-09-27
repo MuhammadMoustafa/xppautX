@@ -136,16 +136,17 @@ void j_message_box(const char *msg);
 void j_kill_message_box(void);
 void j_title_text(const char *s);
 void j_canvas_xy(const char *s);
-int j_dialog(const char *title, const char *name, char *value, const char *ok, const char *cancel, int max, int kind);
-int j_new_string(const char *name, char *value, int kind);
+int j_dialog(const char *title, const char *name, std::string &value, const char *ok, const char *cancel, int max,
+             int kind);
+int j_new_string(const char *name, std::string &value, int kind);
 int j_yes_no_box(void);
 int j_two_choice(const char *c1, const char *c2, const char *q, const char *key, const char *title);
 void j_respond_box(const char *button, const char *message);
 int j_checklist(const char *title, const char *const *names, int *flags, int n);
-int j_string_box(int n, int row, int col, const char *title, const char *const *names, char values[][MAX_LEN_SBOX], int maxchar,
-                 const int *kinds);
-int j_edit_box(int n, const char *title, const char *const *names, char **values);
-int j_file_selector(const char *title, char *file, const char *wild);
+int j_string_box(int row, int col, const char *title, const char *const *names, std::span<std::string> values,
+                 int maxchar, const int *kinds);
+int j_edit_box(const char *title, const char *const *names, std::span<std::string> values);
+int j_file_selector(const char *title, std::string &file, const char *wild);
 int j_get_mouse_xy(int *x, int *y);
 int j_rubber_band(int *i1, int *j1, int *i2, int *j2, int flag);
 int j_menu_choose(const struct XppMenu *m, int def);

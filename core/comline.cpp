@@ -1,7 +1,6 @@
 #include "xpplim.h"
 #include "xpp_mem.h"
 #include "comline.h"
-#include "ggets.h"
 #include "load_eqn.h"
 #include "lunch-new.h"
 #include "xpp_log.h"

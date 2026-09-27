@@ -1,7 +1,6 @@
 #include "my_rhs.h"
 #include "parserslow.h"
 #include "dae_fun.h"
-#include "main.h"
 #include "extra.h"
 #include <stdlib.h> 
 #include "xpplim.h"

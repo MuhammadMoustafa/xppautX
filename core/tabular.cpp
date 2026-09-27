@@ -1,12 +1,11 @@
 #include "tabular.h"
+#include "read_dir.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
 
 #include "browse.h"
-#include "ggets.h"
-#include "init_conds.h"
 #include "many_pops.h"
 #include "simplenet.h"
 
@@ -126,11 +125,9 @@ void view_table(int index)
 
 void new_lookup_com(int i)
 {
-  std::array<char, 128> file{};
  int index,ok,status;
  double xlo,xhi;
  int npts;
- std::array<char, 80> newform{};
 
 
   index=select_table();
@@ -140,11 +137,11 @@ void new_lookup_com(int i)
     return;
   }
    if(my_table[index].flag==1){
-     xpp_strlcpy(file.data(),my_table[index].filename,file.size());
-     status=file_selector("Load table",file.data(),"*.tab");
+     std::string file=my_table[index].filename;
+     status=file_selector("Load table",file,"*.tab");
      if(status==0)return;
-     ok=load_table(file.data(),index);
-     if(ok==1)XPP_STRCPY(my_table[index].filename,file.data());
+     ok=load_table(file.c_str(),index);
+     if(ok==1)XPP_STRCPY(my_table[index].filename,file.c_str());
 
    }
    if(my_table[index].flag==2){
@@ -152,13 +149,13 @@ void new_lookup_com(int i)
 
      xlo=my_table[index].xlo;
        xhi=my_table[index].xhi;
-       xpp_strlcpy(newform.data(),my_table[index].filename,newform.size());
+       std::string newform=my_table[index].filename;
        new_int("Auto-evaluate? (1/0)",&my_table[index].autoeval);
        new_int("NPts: ",&npts);
        new_float("Xlo: ",&xlo);
        new_float("Xhi: ",&xhi);
-       new_string_of("Formula :",newform.data(),XPP_FIELD_EXPRESSION);
-       create_fun_table(npts,xlo,xhi,newform.data(),index);
+       new_string_of("Formula :",newform,XPP_FIELD_EXPRESSION);
+       create_fun_table(npts,xlo,xhi,newform.c_str(),index);
 
    }
 

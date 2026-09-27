@@ -5,6 +5,8 @@
 #include "array_print.h"
 
 #include <stdlib.h> 
+#include <string>
+#include <array>
 #include <string.h>
 /*   routines for plotting arrays as functions of time  
 
@@ -78,18 +80,18 @@ FILE *ap_fp;
 void set_up_aplot_range(void)
 { 
   static const char *n[]={"Basename","Still(1/0)","Tag(0/1)"};
-  char values[3][MAX_LEN_SBOX];
+  std::array<std::string, 3> values;
   int status;
   double *x;
- snprintf(values[0],sizeof(values[0]),"%.24s",aplot_range_stem);
- XPP_SPRINTF(values[1],"%d",aplot_still);
- XPP_SPRINTF(values[2],"%d",aplot_tag);
+ values[0] = xpp::format("{:.24}", aplot_range_stem);
+ values[1] = xpp::format("{:d}", aplot_still);
+ values[2] = xpp::format("{:d}", aplot_tag);
  static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
- status=do_string_box_of(3,3,1,"Array range saving",n,values,28,kinds);
+ status=do_string_box_of(3,1,"Array range saving",n,values,28,kinds);
  if(status!=0){
-   XPP_SPRINTF(aplot_range_stem,"%s",values[0]);
-   aplot_still=atoi(values[1]);
-   aplot_tag=atoi(values[2]);
+   XPP_SPRINTF(aplot_range_stem,"%s",values[0].c_str());
+   aplot_still=atoi(values[1].c_str());
+   aplot_tag=atoi(values[2].c_str());
  aplot_range=1;
  aplot_range_count=0;
  x=&MyData[0];
@@ -200,7 +202,7 @@ void print_aplot(APLOT *ap)
   int status,errflag;
   static const char *n[]={"Filename","Top label","Side label","Bottom label", 
 	       "Render(-1,0,1,2)"};
-   char values[5][MAX_LEN_SBOX];
+   std::array<std::string, 5> values;
   int nrows=my_browser.maxrow;
   int row0=ap->nstart;
   int col0=ap->index0;
@@ -214,19 +216,19 @@ void print_aplot(APLOT *ap)
   jb=row0+ap->nskip*(ap->ndown-1);
   if(jb>=nrows)jb=nrows-1;
   if(jb>=0)thi=my_browser.data[0][jb];
-  snprintf(values[0],sizeof(values[0]),"%.24s",ap->filename);
-  snprintf(values[1],sizeof(values[1]),"%.24s",ap->xtitle);
-  snprintf(values[2],sizeof(values[2]),"%.24s",ap->ytitle);
-    snprintf(values[3],sizeof(values[3]),"%.24s",ap->bottom);
-  XPP_SPRINTF(values[4],"%d",ap->type);
+  values[0] = xpp::format("{:.24}", ap->filename);
+  values[1] = xpp::format("{:.24}", ap->xtitle);
+  values[2] = xpp::format("{:.24}", ap->ytitle);
+    values[3] = xpp::format("{:.24}", ap->bottom);
+  values[4] = xpp::format("{:d}", ap->type);
   static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_INTEGER};
-  status=do_string_box_of(5,5,1,"Print arrayplot",n,values,40,kinds);
+  status=do_string_box_of(5,1,"Print arrayplot",n,values,40,kinds);
  if(status!=0){
-   XPP_STRCPY(ap->filename,values[0]);
-   XPP_STRCPY(ap->xtitle,values[1]);
-   XPP_STRCPY(ap->ytitle,values[2]);
-   XPP_STRCPY(ap->bottom,values[3]);
-   ap->type=atoi(values[4]);
+   XPP_STRCPY(ap->filename,values[0].c_str());
+   XPP_STRCPY(ap->xtitle,values[1].c_str());
+   XPP_STRCPY(ap->ytitle,values[2].c_str());
+   XPP_STRCPY(ap->bottom,values[3].c_str());
+   ap->type=atoi(values[4].c_str());
    if(ap->type<-1||ap->type>2)ap->type=-1;
    errflag=array_print(ap->filename,ap->xtitle,ap->ytitle,ap->bottom,
 		       ap->nacross,
@@ -286,24 +288,24 @@ int editaplot(APLOT *ap)
  double zmax,zmin;
   const char *n[]={"*0Column 1","NCols","Row 1","NRows","RowSkip",
   "Zmin","Zmax","Autoplot(0/1)","ColSkip"};
- char values[9][MAX_LEN_SBOX];
- XPP_SPRINTF(values[0],"%s",ap->name);
- XPP_SPRINTF(values[1],"%d",ap->nacross);
- XPP_SPRINTF(values[2],"%d",ap->nstart);
- XPP_SPRINTF(values[3],"%d",ap->ndown);
- XPP_SPRINTF(values[4],"%d",ap->nskip);
- XPP_SPRINTF(values[5],"%g",ap->zmin);
- XPP_SPRINTF(values[6],"%g",ap->zmax);
- XPP_SPRINTF(values[7],"%d",plot3d_auto_redraw);
-XPP_SPRINTF(values[8],"%d",ap->ncskip);
+ std::array<std::string, 9> values;
+ values[0] = ap->name;
+ values[1] = xpp::format("{:d}", ap->nacross);
+ values[2] = xpp::format("{:d}", ap->nstart);
+ values[3] = xpp::format("{:d}", ap->ndown);
+ values[4] = xpp::format("{:d}", ap->nskip);
+ values[5] = xpp::format("{:g}", ap->zmin);
+ values[6] = xpp::format("{:g}", ap->zmax);
+ values[7] = xpp::format("{:d}", plot3d_auto_redraw);
+values[8] = xpp::format("{:d}", ap->ncskip);
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
                            XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
- status=do_string_box_of(9,9,1,"Edit arrayplot",n,values,40,kinds);
+ status=do_string_box_of(9,1,"Edit arrayplot",n,values,40,kinds);
  if(status!=0){
-   find_variable(values[0],&i);
+   find_variable(values[0].c_str(),&i);
    if(i>-1){
      ap->index0=i;
-     snprintf(ap->name,sizeof(ap->name),"%.*s",XPP_NAME_MAX,values[0]);
+     snprintf(ap->name,sizeof(ap->name),"%.*s",XPP_NAME_MAX,values[0].c_str());
    }
    else
      {
@@ -311,19 +313,19 @@ XPP_SPRINTF(values[8],"%d",ap->ncskip);
        ap->plotdef=0;
        return 0;
      }
-    zmax=atof(values[6]);
-    zmin=atof(values[5]);
+    zmax=atof(values[6].c_str());
+    zmin=atof(values[5].c_str());
     if(zmin<zmax){
       ap->zmin=zmin;
       ap->zmax=zmax;
     }
-    ap->nacross=atoi(values[1]);
-    ap->nstart=atoi(values[2]);
-    ap->ndown=atoi(values[3]);
-    ap->nskip=atoi(values[4]);
-    plot3d_auto_redraw=atoi(values[7]);
+    ap->nacross=atoi(values[1].c_str());
+    ap->nstart=atoi(values[2].c_str());
+    ap->ndown=atoi(values[3].c_str());
+    ap->nskip=atoi(values[4].c_str());
+    plot3d_auto_redraw=atoi(values[7].c_str());
     ap->plotdef=1;
-    ap->ncskip=atoi(values[8]);
+    ap->ncskip=atoi(values[8].c_str());
     if(ap->ncskip<1)
       ap->ncskip=1;
     xpp_ui.aplot_reset_axes();

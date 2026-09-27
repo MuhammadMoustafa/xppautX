@@ -29,6 +29,8 @@
 
 #include <stdio.h>
 #ifdef __cplusplus
+#include <span>
+#include <string>
 extern "C" {
 #endif
 
@@ -75,6 +77,99 @@ typedef struct XppDiagPoint {
     double x, y1, y2;
 } XppDiagPoint;
 
+/* Historical names, now dispatchers. Declared here so every core file sees
+   one consistent prototype. */
+void err_msg(const char *string);
+void ping(void);
+void bottom_msg(int line, const char *msg);
+void MessageBox(const char *m);
+void KillMessageBox(void);
+void title_text(const char *s);
+void canvas_xy(const char *s);
+int new_int(const char *name, int *value);
+int new_float(const char *name, double *value);
+int yes_no_box(void);
+int TwoChoice(const char *c1, const char *c2, const char *q, const char *key);
+void respond_box(const char *button, const char *message);
+int GetMouseXY(int *x, int *y);
+void flash(int num);
+int menu_choose(const struct XppMenu *m, int def);
+int my_abort(void);
+int get_command_width(void);
+void plot_command(int nit, int icount, int cwidth);
+void rows_stored(int nrows);
+void FlushDisplay(void);
+void redraw_params(void);
+void redraw_ics(void);
+void redraw_all(void);
+void drw_all_scrns(void);
+void clr_all_scrns(void);
+void clear_draw_window(void);
+void reset_graphics(void);
+void create_a_pop(void);
+void destroy_a_pop(void);
+void kill_all_pops(void);
+void GrCol(void);
+void BaseCol(void);
+void cput_text(void);
+void SmallBase(void);
+void SmallGr(void);
+void reset_film(void);
+void set_color(int col);
+void draw_one_array_plot(const char *bob);
+void make_auto(const char *wname, const char *iname);
+void ALINE(int a, int b, int c, int d);
+void ATEXT(int a, int b, const char *c);
+void Circle(int x, int y, int r);
+void FillCircle(int x, int y, int r);
+void XORCross(int x, int y);
+void LineWidth(int wid);
+void autocol(int col);
+void autobw(void);
+void clear_auto_plot(void);
+void redraw_auto_menus(void);
+void clear_auto_info(void);
+void draw_auto_info(const char *bob, int x, int y);
+void refreshdisplay(void);
+int byeauto_(int *iflag);
+int auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag);
+int auto_pop_up_list(const char *title, const char *const *list, const char *key, int n, int max,
+                     int def, int x, int y, const char *const *hints, const char *httxt);
+void auto_scroll_window(void);
+void auto_diagram(const XppDiagPoint *p);
+void init_txtview(void);
+void create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
+                   double *ev, int n);
+void bye_bye(void);
+void draw_help(void);
+int rubber_band(int *i1, int *j1, int *i2, int *j2, int flag);
+void scroll_window(void);
+void NewColormap(int type);
+void make_my_aplot(const char *name);
+void new_vcr(void);
+void redraw_the_graph(void);
+void make_txtview(void);
+void q_calc(void);
+void open_help(const char *chapter, const char *anchor);
+
+/* The front end's character cell in pixels, for laying out the AUTO and
+   array plot windows and text in plots: a big and a small monospace font.
+   0 when headless; xppautX sets them before it serves a session. */
+typedef struct {
+    int big_width, big_height;
+    int small_width, small_height;
+} XppTextMetrics;
+extern XppTextMetrics text_metrics;
+
+#ifdef __cplusplus
+}
+
+/* ---- C++: the table and the dialogs that edit text ---------------------
+   The text a user types comes back in a std::string, as long as the
+   front end sends it (up to a dialog's own limit), instead of in a
+   caller's char[MAX_LEN_SBOX] (W32c). C++ only: std::string cannot cross
+   an extern "C" boundary, and every caller is C++. */
+
 typedef struct XppUi {
     /* messages */
     void (*err_msg)(const char *msg);
@@ -86,7 +181,7 @@ typedef struct XppUi {
     void (*canvas_xy)(const char *s);
 
     /* prompts */
-    int (*new_string)(const char *name, char *value, int kind);
+    int (*new_string)(const char *name, std::string &value, int kind);
     int (*yes_no_box)(void);
     int (*two_choice)(const char *c1, const char *c2, const char *q, const char *key, const char *title);
     void (*respond_box)(const char *button, const char *message); /* alert with one button */
@@ -94,15 +189,15 @@ typedef struct XppUi {
        restored on cancel. Returns 1 for done, 0 for cancel. */
     int (*checklist)(const char *title, const char *const *names, int *flags, int n);
     /* kinds: one XPP_FIELD_* per field, or NULL (all text) */
-    int (*string_box)(int n, int row, int col, const char *title, const char *const *names,
-                      char values[][MAX_LEN_SBOX], int maxchar, const int *kinds);
-    int (*file_selector)(const char *title, char *file, const char *wild);
+    int (*string_box)(int row, int col, const char *title, const char *const *names,
+                      std::span<std::string> values, int maxchar, const int *kinds);
+    int (*file_selector)(const char *title, std::string &file, const char *wild);
     /* one-line text entry with named buttons; returns 0 on cancel */
-    int (*dialog)(const char *title, const char *name, char *value, const char *ok, const char *cancel,
-                  int max, int kind);
+    int (*dialog)(const char *title, const char *name, std::string &value, const char *ok,
+                  const char *cancel, int max, int kind);
     /* like string_box but for n long strings (MAX_LEN_EBOX); returns 0 on
        cancel */
-    int (*edit_box)(int n, const char *title, const char *const *names, char **values);
+    int (*edit_box)(const char *title, const char *const *names, std::span<std::string> values);
     int (*get_mouse_xy)(int *x, int *y);
 
     /* menus. show_menu makes MAIN_MENU, FILE_MENU or NUM_MENU (menus.h) the
@@ -267,101 +362,27 @@ extern XppUi xpp_ui;
 
 void xpp_set_ui(const XppUi *ui); /* copies; missing entries keep defaults */
 
-/* Historical names, now dispatchers. Declared here so every core file sees
-   one consistent prototype. */
-void err_msg(const char *string);
-void ping(void);
-void bottom_msg(int line, const char *msg);
-void MessageBox(const char *m);
-void KillMessageBox(void);
-void title_text(const char *s);
-void canvas_xy(const char *s);
-int new_string(const char *name, char *value);
-int new_string_of(const char *name, char *value, int kind); /* kind: XPP_FIELD_* */
-int new_int(const char *name, int *value);
-int new_float(const char *name, double *value);
-int yes_no_box(void);
-int TwoChoice(const char *c1, const char *c2, const char *q, const char *key);
-void respond_box(const char *button, const char *message);
-int do_string_box(int n, int row, int col, const char *title, const char *const *names,
-                  char values[][MAX_LEN_SBOX], int maxchar);
-int do_string_box_of(int n, int row, int col, const char *title, const char *const *names,
-                     char values[][MAX_LEN_SBOX], int maxchar, const int *kinds);
-int file_selector(const char *title, char *file, const char *wild);
-int get_dialog(const char *wname, const char *name, char *value, const char *ok, const char *cancel, int max);
-int get_dialog_of(const char *wname, const char *name, char *value, const char *ok, const char *cancel, int max, int kind);
-int do_edit_box(int n, const char *title, const char *const *names, char **values);
-int GetMouseXY(int *x, int *y);
-void flash(int num);
-int menu_choose(const struct XppMenu *m, int def);
-int my_abort(void);
-int get_command_width(void);
-void plot_command(int nit, int icount, int cwidth);
-void rows_stored(int nrows);
-void FlushDisplay(void);
-void redraw_params(void);
-void redraw_ics(void);
-void redraw_all(void);
-void drw_all_scrns(void);
-void clr_all_scrns(void);
-void clear_draw_window(void);
-void reset_graphics(void);
-void create_a_pop(void);
-void destroy_a_pop(void);
-void kill_all_pops(void);
-void GrCol(void);
-void BaseCol(void);
-void cput_text(void);
-void SmallBase(void);
-void SmallGr(void);
-void reset_film(void);
-void set_color(int col);
-void draw_one_array_plot(const char *bob);
-void make_auto(const char *wname, const char *iname);
-void ALINE(int a, int b, int c, int d);
-void ATEXT(int a, int b, const char *c);
-void Circle(int x, int y, int r);
-void FillCircle(int x, int y, int r);
-void XORCross(int x, int y);
-void LineWidth(int wid);
-void autocol(int col);
-void autobw(void);
-void clear_auto_plot(void);
-void redraw_auto_menus(void);
-void clear_auto_info(void);
-void draw_auto_info(const char *bob, int x, int y);
-void refreshdisplay(void);
-int byeauto_(int *iflag);
-int auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag);
-int auto_pop_up_list(const char *title, const char *const *list, const char *key, int n, int max,
-                     int def, int x, int y, const char *const *hints, const char *httxt);
-void auto_scroll_window(void);
-void auto_diagram(const XppDiagPoint *p);
-void init_txtview(void);
-void create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
-                   double *ev, int n);
-void bye_bye(void);
-void draw_help(void);
-int rubber_band(int *i1, int *j1, int *i2, int *j2, int flag);
-void scroll_window(void);
-void NewColormap(int type);
-void make_my_aplot(const char *name);
-void new_vcr(void);
-void redraw_the_graph(void);
-void make_txtview(void);
-void q_calc(void);
-void open_help(const char *chapter, const char *anchor);
+/* new_string / new_string_of: one line of text (kind: XPP_FIELD_*), value
+   the default shown and, on OK, what was typed. 0 on cancel. */
+int new_string(const char *name, std::string &value);
+int new_string_of(const char *name, std::string &value, int kind);
+/* a form of values.size() fields named names[i] (at most maxchar shown),
+   each kinds[i] (XPP_FIELD_*; NULL all text); 0 on cancel */
+int do_string_box(int row, int col, const char *title, const char *const *names,
+                  std::span<std::string> values, int maxchar);
+int do_string_box_of(int row, int col, const char *title, const char *const *names,
+                     std::span<std::string> values, int maxchar, const int *kinds);
+/* a file name (base name or path, what the user picked) matching wild;
+   0 on cancel or an empty name */
+int file_selector(const char *title, std::string &file, const char *wild);
+/* one-line entry of at most max characters with named buttons; 0 on cancel */
+int get_dialog(const char *wname, const char *name, std::string &value, const char *ok, const char *cancel,
+               int max);
+int get_dialog_of(const char *wname, const char *name, std::string &value, const char *ok,
+                  const char *cancel, int max, int kind);
+/* the long strings (right-hand sides, MAX_LEN_EBOX) named names[i]; 0 on
+   cancel */
+int do_edit_box(const char *title, const char *const *names, std::span<std::string> values);
 
-/* The front end's character cell in pixels, for laying out the AUTO and
-   array plot windows and text in plots: a big and a small monospace font.
-   0 when headless; xppautX sets them before it serves a session. */
-typedef struct {
-    int big_width, big_height;
-    int small_width, small_height;
-} XppTextMetrics;
-extern XppTextMetrics text_metrics;
-
-#ifdef __cplusplus
-}
 #endif
 #endif

@@ -1,16 +1,13 @@
 #include "nullcline.h"
+#include "xpp_util.h"
 #include "xpp_log.h"
 #include "odesol2.h"
 #include "numerics.h"
 #include "xpp_mem.h"
 #include "my_rhs.h"
-#include "abort.h"
 #include "browse.h"
-#include "ggets.h"
-#include "init_conds.h"
 #include "integrate.h"
 #include "load_eqn.h"
-#include "main.h"
 #include "graf_par.h"
 #include "phase_data.h"
 
@@ -19,6 +16,8 @@
 #include "xpp_ui.h"
 
 #include <stdlib.h> 
+#include <string>
+#include <array>
 #include <string.h>
 #include <math.h>
 #include <stdio.h>
@@ -140,7 +139,7 @@ void silent_nullclines()
 void do_range_clines()
 {
   static const char *n[]={"*2Range parameter","Steps","Low","High"};
-  char values[4][MAX_LEN_SBOX];
+  std::array<std::string, 4> values;
   int status,i;
   double z,dz,zold;
   float xmin,xmax,y_tp,y_bot;
@@ -150,17 +149,17 @@ void do_range_clines()
     col1=1;
     col2=9;
     } */
-  XPP_SPRINTF(values[0],"%s",ncrange.rv);
-  XPP_SPRINTF(values[1],"%d",ncrange.nstep);
-  XPP_SPRINTF(values[2],"%g",ncrange.xlo);
-  XPP_SPRINTF(values[3],"%g",ncrange.xhi);
+  values[0] = ncrange.rv;
+  values[1] = xpp::format("{:d}", ncrange.nstep);
+  values[2] = xpp::format("{:g}", ncrange.xlo);
+  values[3] = xpp::format("{:g}", ncrange.xhi);
   static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
-  status=do_string_box_of(4,4,1,"Range Clines",n,values,45,kinds);
+  status=do_string_box_of(4,1,"Range Clines",n,values,45,kinds);
   if(status!=0){
-    XPP_STRCPY(ncrange.rv,values[0]);
-    ncrange.nstep=atoi(values[1]);
-    ncrange.xlo=atof(values[2]);
-    ncrange.xhi=atof(values[3]);
+    XPP_STRCPY(ncrange.rv,values[0].c_str());
+    ncrange.nstep=atoi(values[1].c_str());
+    ncrange.xlo=atof(values[2].c_str());
+    ncrange.xhi=atof(values[3].c_str());
     if(ncrange.nstep<=0)return;
     dz=(ncrange.xhi-ncrange.xlo)/static_cast<double>(ncrange.nstep);
     if(dz<=0.0)return;
@@ -742,19 +741,18 @@ void direct_field_com(int c)
 void save_the_nullclines()
 {
   FILE *fp;
-  char filename[256];
   if(NULL_HERE==0)return;
-  XPP_SPRINTF(filename,"nc.dat");
+  std::string filename="nc.dat";
   ping();
   if(!file_selector("Save nullclines",filename,"*.dat"))return;
-  fp=fopen(filename,"w");
+  fp=fopen(filename.c_str(),"w");
   if(fp==NULL){
     err_msg("Cant open file!");
     return;
   }
   dump_clines(fp,X_n,num_x_n,Y_n,num_y_n);
   fclose(fp);
-  save_frozen_clines(filename);
+  save_frozen_clines(filename.c_str());
 }
 
 

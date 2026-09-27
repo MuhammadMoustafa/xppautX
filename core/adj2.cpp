@@ -8,7 +8,6 @@
 #include "my_rhs.h"
 #include "pop_list.h"
 #include "browse.h"
-#include "ggets.h"
 #include "do_fit.h"
 #include "lunch-new.h"
 #include "gear.h"
@@ -17,6 +16,7 @@
 #include "xpp_ui.h"
 
 
+#include <string>
 #include <stdlib.h>
 #include <string.h>
 #include <array>
@@ -108,13 +108,13 @@ int do_transpose()
 {
  int i,status;
  static const char *n[]={"*0Column 1","NCols","ColSkip","Row 1","NRows","RowSkip"};
- char values[6][MAX_LEN_SBOX];
- XPP_SPRINTF(values[0],"%s",my_trans.firstcol);
- XPP_SPRINTF(values[1],"%d",my_trans.ncol);
- XPP_SPRINTF(values[2],"%d",my_trans.colskip);
- XPP_SPRINTF(values[3],"%d",my_trans.row0);
- XPP_SPRINTF(values[4],"%d",my_trans.nrow);
- XPP_SPRINTF(values[5],"%d",my_trans.rowskip);
+ std::array<std::string, 6> values;
+ values[0] = my_trans.firstcol;
+ values[1] = xpp::format("{:d}", my_trans.ncol);
+ values[2] = xpp::format("{:d}", my_trans.colskip);
+ values[3] = xpp::format("{:d}", my_trans.row0);
+ values[4] = xpp::format("{:d}", my_trans.nrow);
+ values[5] = xpp::format("{:d}", my_trans.rowskip);
  if(my_trans.here){
    
    for(i=0;i<=my_trans.nrow;i++)xpp_free(my_trans.data[i]);
@@ -124,9 +124,9 @@ int do_transpose()
  }
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
- status=do_string_box_of(6,6,1,"Transpose Data",n,values,33,kinds);
+ status=do_string_box_of(6,1,"Transpose Data",n,values,33,kinds);
  if(status!=0){
-   find_variable(values[0],&i);
+   find_variable(values[0].c_str(),&i);
    if(i>-1)
      my_trans.col0=i+1;
    else
@@ -134,14 +134,14 @@ int do_transpose()
        err_msg("No such columns");
        return 0;
      }
-   snprintf(my_trans.firstcol,sizeof(my_trans.firstcol),"%.*s",XPP_NAME_MAX,values[0]);
-   i=atoi(values[4]);
+   snprintf(my_trans.firstcol,sizeof(my_trans.firstcol),"%.*s",XPP_NAME_MAX,values[0].c_str());
+   i=atoi(values[4].c_str());
    if(i>=NEQ)i=NEQ-1;
    my_trans.nrow=i;
-   my_trans.ncol=atoi(values[1]);
-   my_trans.colskip=atoi(values[2]);
-   my_trans.row0=atoi(values[3]);
-   my_trans.rowskip=atoi(values[5]);
+   my_trans.ncol=atoi(values[1].c_str());
+   my_trans.colskip=atoi(values[2].c_str());
+   my_trans.row0=atoi(values[3].c_str());
+   my_trans.rowskip=atoi(values[5].c_str());
    return (create_transpose());
  }
  return 0; 
@@ -326,7 +326,9 @@ int make_h(float **orb, float **adj, float **h, int nt, double dt, int node, int
  if(silent==0){
    for(i=0;i<NODE ;i++){
      snprintf(name.data(),name.size(),"Coupling for %.*s eqn:",XPP_NAME_MAX,uvar_names[i]);
-     new_string_of(name.data(),coup_string[i],XPP_FIELD_EXPRESSION);
+     std::string coupling = coup_string[i];
+     new_string_of(name.data(),coupling,XPP_FIELD_EXPRESSION);
+     xpp_strlcpy(coup_string[i],coupling.c_str(),80); /* xpp_malloc(80) above */
      if(add_expr(coup_string[i],coup_fun[i],&j)){
        err_msg("Illegal formula");
        goto bye;

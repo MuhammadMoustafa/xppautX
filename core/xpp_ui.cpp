@@ -20,18 +20,18 @@ static void hl_void(void) {}
 static void hl_str(const char *) {}
 static void hl_int(int) {}
 static void hl_bottom_msg(int, const char *) {}
-static int hl_new_string(const char *, char *, int) { return 0; }
+static int hl_new_string(const char *, std::string &, int) { return 0; }
 static int hl_no(void) { return 0; }
 static int hl_two_choice(const char *, const char *, const char *, const char *, const char *)
 {
     return 0;
 }
-static int hl_string_box(int, int, int, const char *, const char *const *,
-                         char [][MAX_LEN_SBOX], int, const int *)
+static int hl_string_box(int, int, const char *, const char *const *, std::span<std::string>, int,
+                         const int *)
 {
     return 0;
 }
-static int hl_file_selector(const char *, char *, const char *)
+static int hl_file_selector(const char *, std::string &, const char *)
 {
     return 0;
 }
@@ -81,13 +81,13 @@ static void hl_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
         else xpp::log(XPP_LOG_DEBUG, "  y[{}]={:.8g}\n", i, y[i]);
     }
 }
-static int hl_dialog(const char *, const char *, char *, const char *, const char *, int, int)
+static int hl_dialog(const char *, const char *, std::string &, const char *, const char *, int, int)
 {
     return 0;
 }
 static void hl_ani_font(int, int, int) {}
 static void hl_ani_box(int, int, int, int, int) {}
-static int hl_edit_box(int, const char *, const char *const *, char **)
+static int hl_edit_box(const char *, const char *const *, std::span<std::string>)
 {
     return 0;
 }
@@ -245,39 +245,41 @@ void MessageBox(const char *m) { xpp_ui.message_box(m); }
 void KillMessageBox(void) { xpp_ui.kill_message_box(); }
 void title_text(const char *s) { xpp_ui.title_text(s); }
 void canvas_xy(const char *s) { xpp_ui.canvas_xy(s); }
-int new_string(const char *name, char *value) { return xpp_ui.new_string(name, value, XPP_FIELD_TEXT); }
-int new_string_of(const char *name, char *value, int kind) { return xpp_ui.new_string(name, value, kind); }
+int new_string(const char *name, std::string &value) { return xpp_ui.new_string(name, value, XPP_FIELD_TEXT); }
+int new_string_of(const char *name, std::string &value, int kind) { return xpp_ui.new_string(name, value, kind); }
 int yes_no_box(void) { return xpp_ui.yes_no_box(); }
 int TwoChoice(const char *c1, const char *c2, const char *q, const char *key)
 {
     return xpp_ui.two_choice(c1, c2, q, key, NULL);
 }
 void respond_box(const char *button, const char *message) { xpp_ui.respond_box(button, message); }
-int do_string_box(int n, int row, int col, const char *title, const char *const *names,
-                  char values[][MAX_LEN_SBOX], int maxchar)
+int do_string_box(int row, int col, const char *title, const char *const *names,
+                  std::span<std::string> values, int maxchar)
 {
-    return xpp_ui.string_box(n, row, col, title, names, values, maxchar, NULL);
+    return xpp_ui.string_box(row, col, title, names, values, maxchar, NULL);
 }
-int do_string_box_of(int n, int row, int col, const char *title, const char *const *names,
-                     char values[][MAX_LEN_SBOX], int maxchar, const int *kinds)
+int do_string_box_of(int row, int col, const char *title, const char *const *names,
+                     std::span<std::string> values, int maxchar, const int *kinds)
 {
-    return xpp_ui.string_box(n, row, col, title, names, values, maxchar, kinds);
+    return xpp_ui.string_box(row, col, title, names, values, maxchar, kinds);
 }
-int file_selector(const char *title, char *file, const char *wild)
+int file_selector(const char *title, std::string &file, const char *wild)
 {
     return xpp_ui.file_selector(title, file, wild);
 }
-int get_dialog(const char *wname, const char *name, char *value, const char *ok, const char *cancel, int max)
+int get_dialog(const char *wname, const char *name, std::string &value, const char *ok, const char *cancel,
+               int max)
 {
     return xpp_ui.dialog(wname, name, value, ok, cancel, max, XPP_FIELD_TEXT);
 }
-int get_dialog_of(const char *wname, const char *name, char *value, const char *ok, const char *cancel, int max, int kind)
+int get_dialog_of(const char *wname, const char *name, std::string &value, const char *ok,
+                  const char *cancel, int max, int kind)
 {
     return xpp_ui.dialog(wname, name, value, ok, cancel, max, kind);
 }
-int do_edit_box(int n, const char *title, const char *const *names, char **values)
+int do_edit_box(const char *title, const char *const *names, std::span<std::string> values)
 {
-    return xpp_ui.edit_box(n, title, names, values);
+    return xpp_ui.edit_box(title, names, values);
 }
 int GetMouseXY(int *x, int *y) { return xpp_ui.get_mouse_xy(x, y); }
 void flash(int num) { xpp_ui.menu_flash(num); }
@@ -386,29 +388,23 @@ void open_help(const char *chapter, const char *anchor) { xpp_ui.open_help(chapt
 
 int new_int(const char *name, int *value)
 {
-    char svalue[200];
-    XPP_SPRINTF(svalue, "%d", *value);
-    if (new_string_of(name, svalue, XPP_FIELD_INTEGER) == 0 || strlen(svalue) == 0) return -1;
-    *value = atoi(svalue);
+    std::string svalue = xpp::format("{}", *value);
+    if (new_string_of(name, svalue, XPP_FIELD_INTEGER) == 0 || svalue.empty()) return -1;
+    *value = atoi(svalue.c_str());
     return 0;
 }
 
 int new_float(const char *name, double *value)
 {
-    int done;
-    int flag;
-    double newz;
-    char tvalue[200];
-    XPP_SPRINTF(tvalue, "%.16g", *value);
-    done = new_string_of(name, tvalue, XPP_FIELD_FORMULA);
-    if (done == 0 || strlen(tvalue) == 0) return -1;
+    std::string tvalue = xpp::format("{:.16g}", *value);
+    if (new_string_of(name, tvalue, XPP_FIELD_FORMULA) == 0 || tvalue.empty()) return -1;
 
     if (tvalue[0] == '%') {
-        flag = do_calc(&tvalue[1], &newz);
-        if (flag != -1) *value = newz;
+        double newz;
+        if (do_calc(tvalue.c_str() + 1, &newz) != -1) *value = newz;
         return 0;
     }
-    *value = atof(tvalue);
+    *value = atof(tvalue.c_str());
 
     return 0;
 }

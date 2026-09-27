@@ -12,7 +12,6 @@
 
 #include "adj2.h"
 #include "browse.h"
-#include "ggets.h"
 
 #include "parserslow.h"
 #include "xpp_io.h"
@@ -402,13 +401,9 @@ void column_mean()
 
 int get_col_info(int *col, const char *prompt)
 {
- std::array<char, 256> variable{}; /* new_string edits up to 255 characters */
- if(*col==0)
-   xpp_strlcpy(variable.data(),"t",variable.size());
- else
-   xpp_strlcpy(variable.data(),uvar_names[*col-1],variable.size());
- new_string_of(prompt,variable.data(),XPP_FIELD_NAME_IN(0));
- find_variable(variable.data(),col);
+ std::string variable=*col==0?"t":uvar_names[*col-1];
+ new_string_of(prompt,variable,XPP_FIELD_NAME_IN(0));
+ find_variable(variable.c_str(),col);
  if(*col<0){
    err_msg("No such variable...");
    return(0);
@@ -765,7 +760,9 @@ void compute_hist()
   new_float("Low ",&hist_inf.xlo);
   new_float("Hi ",&hist_inf.xhi);
   if(get_col_info(&hist_inf.col,"Variable ")==0)return;
-  new_string_of("Condition ",hist_inf.cond,XPP_FIELD_EXPRESSION);
+  std::string cond=hist_inf.cond;
+  new_string_of("Condition ",cond,XPP_FIELD_EXPRESSION);
+  XPP_FORMAT_TO_BUF(hist_inf.cond,"{}",cond);
   new_hist(hist_inf.nbins,hist_inf.xlo,
 	   hist_inf.xhi,hist_inf.col,0,hist_inf.cond,0);
 }

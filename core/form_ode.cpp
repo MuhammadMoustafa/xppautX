@@ -6,6 +6,7 @@
 #include <optional>
 #include <string_view>
 
+#include "xpp_util.h"
 #include "form_ode.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
@@ -20,8 +21,6 @@
 
 
 
-#include "main.h"
-#include "ggets.h"
 #include "load_eqn.h"
 #include "dae_fun.h"
 #include "derived.h"
@@ -45,7 +44,6 @@
 
 #include "xpplim.h"
 
-#include "my_pars.h"
 #include "shoot.h"
 #include "newpars.h"
 #include "xpp_batch.h"
@@ -270,18 +268,17 @@ static int get_a_filename(std::string &filename,std::string &wild)
   }
   else
   {
-    /* get_directory fills XPP_MAX_NAME bytes, file_selector up to 256 */
+    /* get_directory fills XPP_MAX_NAME bytes */
     std::array<char, XPP_MAX_NAME+10> buf{};
     get_directory(buf.data());
     std::string dir(buf.data());
     if (dir.empty() || dir.back() != '/')
       dir += '/';
-    dir.copy(buf.data(), std::min(dir.size(), buf.size()-1));
-    if (file_selector ("Select an ODE file", buf.data(), wild.c_str()) == 0) {
+    if (file_selector ("Select an ODE file", dir, wild.c_str()) == 0) {
       bye_bye ();
       return 0;
     }
-    filename = buf.data();
+    filename = dir;
     return 1;
   }
   return(0);

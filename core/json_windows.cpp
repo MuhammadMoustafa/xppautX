@@ -111,33 +111,9 @@ void j_redraw_graph(void)
     if (plot_windows.current->Nullrestore) restore_nullclines();
 }
 
-void j_redraw_screens(void)
-{
-    int i, ic = plot_windows.active;
-    if (plot_windows.simul == 0) {
-        j_redraw_all();
-        return;
-    }
-    for (i = 0; i < plot_windows.count; i++) {
-        make_active(plot_windows.open[i], 1);
-        j_redraw_all();
-    }
-    make_active(ic, 1);
-}
+void j_redraw_screens(void) { for_each_shown_window(1, j_redraw_all); }
 
-void j_clear_screens(void)
-{
-    int i, ic = plot_windows.active;
-    if (plot_windows.simul == 0) {
-        clr_scrn();
-        return;
-    }
-    for (i = 0; i < plot_windows.count; i++) {
-        make_active(plot_windows.open[i], 1);
-        clr_scrn();
-    }
-    make_active(ic, 1);
-}
+void j_clear_screens(void) { for_each_shown_window(1, clr_scrn); }
 
 void j_reset_graphics(void)
 {
@@ -227,21 +203,22 @@ void j_kill_plot_windows(void)
 
 void j_cput_text(void)
 {
-    /* new_string and fillintext write into them, as the X11 prompt's 256-byte line */
-    std::array<char, 256> string{}, text{};
+    /* fillintext writes into text: the prompt's text is at most 255 characters */
+    std::array<char, 256> text{};
+    std::string string;
     int x, y, size = 2;
-    if (new_string("Text: ", string.data()) == 0) return;
+    if (new_string("Text: ", string) == 0) return;
     if (string[0] == '%') {
-        fillintext(&string[1], text.data());
-        string = text;
+        fillintext(string.c_str() + 1, text.data());
+        string = text.data();
     }
     new_int("Size 0-4 :", &size);
     if (size > 4) size = 4;
     if (size < 0) size = 0;
     j_message_box("Place text with mouse");
     if (j_get_mouse_xy(&x, &y)) {
-        fillintext(string.data(), text.data());
-        marks_data_label(plot_windows.draw_win, add_label(string.data(), x, y, size, 0), text.data());
+        fillintext(string.c_str(), text.data());
+        marks_data_label(plot_windows.draw_win, add_label(string.c_str(), x, y, size, 0), text.data());
     }
     j_kill_message_box();
 }
@@ -695,10 +672,8 @@ void aplot_command(const char *line)
     else if (o == "range") set_up_aplot_range();
     else if (o == "print") print_aplot(&aplot);
     else if (o == "gif") {
-        std::array<char, XPP_MAX_NAME> file{}; /* the file selector edits it in place */
-        std::string name = xpp::format("{}.gif", static_cast<const char *>(this_file));
-        name.copy(file.data(), file.size() - 1);
-        if (file_selector("GIF plot", file.data(), "*.gif")) aplot_gif(file.data(), 1);
+        std::string file = xpp::format("{}.gif", static_cast<const char *>(this_file));
+        if (file_selector("GIF plot", file, "*.gif")) aplot_gif(file.c_str(), 1);
     } else if (o == "scroll") {
         /* dragging the plot by dy pixels moves the first row, as in X11 */
         aplot.nstart -= get_int(line, "dy", 0);

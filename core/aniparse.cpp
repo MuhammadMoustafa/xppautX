@@ -8,6 +8,8 @@
    draws them since protocol 2) and ani_data.h, which
    keeps it in unit coordinates for a front end that draws it itself
    (docs/protocol.md "The animation as data"). */
+#include <string>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -27,7 +29,6 @@
 #include "xpp_util.h"
 #include "load_eqn.h"
 #include "integrate.h"
-#include "init_conds.h"
 #include "browse.h"
 #include "xpplim.h"
 #include <sys/time.h>
@@ -207,19 +208,19 @@ void ani_create_mpeg(void)
 {
     char n0[] = "PPM 0/1", n1[] = "Basename", n2[] = "AniGif(0/1)", title[] = "Frame saving";
     char *n[] = {n0, n1, n2};
-    char values[3][MAX_LEN_SBOX];
+    std::array<std::string, 3> values;
     int status;
     mpeg.flag = 0;
-    XPP_SPRINTF(values[0], "%d", mpeg.flag);
-    snprintf(values[1], sizeof(values[1]), "%.24s", mpeg.root);
-    XPP_SPRINTF(values[2], "%d", mpeg.aviflag);
+    values[0] = xpp::format("{:d}", mpeg.flag);
+    values[1] = xpp::format("{:.24}", mpeg.root);
+    values[2] = xpp::format("{:d}", mpeg.aviflag);
     static const int kinds[] = {XPP_FIELD_INTEGER, XPP_FIELD_FILE, XPP_FIELD_INTEGER};
-    status = do_string_box_of(3, 3, 1, title, n, values, 28, kinds);
+    status = do_string_box_of(3, 1, title, n, values, 28, kinds);
     if (status != 0) {
-        mpeg.flag = atoi(values[0]);
+        mpeg.flag = atoi(values[0].c_str());
         if (mpeg.flag > 0) mpeg.flag = 1;
-        mpeg.aviflag = atoi(values[2]);
-        XPP_SPRINTF(mpeg.root, "%s", values[1]);
+        mpeg.aviflag = atoi(values[2].c_str());
+        XPP_SPRINTF(mpeg.root, "%s", values[1].c_str());
         if (mpeg.aviflag == 1) mpeg.flag = 0;
     } else
         mpeg.flag = 0;
@@ -228,12 +229,10 @@ void ani_create_mpeg(void)
 
 void ani_newskip(void)
 {
-    char bob[20], title[] = "Frame skip", name[] = "Increment:", ok[] = "Ok", cancel[] = "Cancel";
-    int status;
-    XPP_SPRINTF(bob, "%d", vcr.inc);
-    status = get_dialog_of(title, name, bob, ok, cancel, 20, XPP_FIELD_INTEGER);
+    std::string bob = xpp::format("{}", vcr.inc);
+    int status = get_dialog_of("Frame skip", "Increment:", bob, "Ok", "Cancel", 20, XPP_FIELD_INTEGER);
     if (status != 0) {
-        vcr.inc = atoi(bob);
+        vcr.inc = atoi(bob.c_str());
         if (vcr.inc <= 0) vcr.inc = 1;
     }
 }
@@ -334,11 +333,11 @@ int get_ani_file(const char *fname)
 {
     int status;
     int err;
-    char title[] = "Load animation", wild[] = "*.ani";
-
     if (fname == NULL) {
-        status = file_selector(title, vcr.file, wild);
+        std::string file = vcr.file;
+        status = file_selector("Load animation", file, "*.ani");
         if (status == 0) return 0;
+        XPP_FORMAT_TO_BUF(vcr.file, "{}", file);
     } else {
         if (fname != vcr.file) XPP_FORMAT_TO_BUF(vcr.file,"{}", fname);
     }

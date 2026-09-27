@@ -1,7 +1,7 @@
 #include "delay_handle.h"
+#include "xpp_ui.h"
 #include "xpp_mem.h"
 #include "parserslow.h"
-#include "ggets.h"
 #include "integrate.h"
 
 #include <stdlib.h>

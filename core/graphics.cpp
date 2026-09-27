@@ -1,4 +1,5 @@
 #include "graphics.h"
+#include "xpp_util.h"
 #include "xpp_ui.h"
 #include "xpp_globals.h"
 #include "marks_data.h"
@@ -10,9 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "struct.h"
-#include "color.h"
 #include "graf_par.h"
-#include "calc.h"
 #include "many_pops.h"
 #include "xpp_io.h"
 #include "colormap.h"

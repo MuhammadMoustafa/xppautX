@@ -6,20 +6,18 @@
 #include <utility>
 #include <vector>
 #include "load_eqn.h"
+#include "xpp_ui.h"
+#include "xpp_util.h"
 #include "markov.h"
 #include "xpp_mem.h"
 #include "parserslow.h"
 
 #include "read_dir.h"
 
-#include "main.h"
-#include "ggets.h"
 #include "dae_fun.h"
 #include "derived.h"
 #include "extra.h"
-#include "init_conds.h"
 #include "browse.h"
-#include "txtread.h"
 #include "numerics.h"
 #include "integrate.h"
 #include "odesol2.h"

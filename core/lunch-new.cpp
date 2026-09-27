@@ -1,15 +1,14 @@
 #include "xpp_ui.h"
+#include "xpp_util.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
 #include "lunch-new.h"
 #include "parserslow.h"
 #include "edit_rhs.h"
 #include "browse.h"
-#include "ggets.h"
 #include "graf_par.h"
 #include "volterra2.h"
 #include "storage.h"
-#include "init_conds.h"
 
 #include "numerics.h"
 #include <stdlib.h> 
@@ -61,17 +60,6 @@ extern int MaxPoints;
  extern char uvar_names[MAXODE][XPP_NAME_MAX+1]; 
  extern char *ode_names[MAXODE],*fix_names[MAXODE];
 namespace {
-
-/* file_selector's dialog writes up to 256 bytes into the buffer it is
-   given: ask with name as the default, name the answer on OK */
-bool choose_file(const char *title, std::string &name, const char *wild)
-{
-  std::array<char, XPP_MAX_NAME+10> buf{};
-  name.copy(buf.data(), std::min(name.size(), buf.size()-1));
-  if(!file_selector(title, buf.data(), wild)) return false;
-  name = buf.data();
-  return true;
-}
 
 /* An equation line of do_info/dump_eqn: dX/dT=..., X(n+1)=... or X=... */
 void put_equation(FILE *fp, int i)
@@ -190,7 +178,7 @@ void file_inf()
 {
   std::string filename=std::string(this_file)+".pars";
   ping();
-  if(!choose_file("Save info",filename,"*.pars*"))return;
+  if(!file_selector("Save info",filename,"*.pars*"))return;
   xpp::Writer w=open_writer_asking(filename.c_str());
   if(!w)return;
   redraw_params();
@@ -271,7 +259,7 @@ void do_lunch(int f) /* f=1 to read and 0 to write */
 
   if(f==READEM){
     ping();
-    if(!choose_file("Load SET File",filename,"*.set"))return;
+    if(!file_selector("Load SET File",filename,"*.set"))return;
     xpp::UniqueFile fp=xpp::open_read(filename.c_str());
     if(!fp){
       err_msg("Cannot open file");
@@ -280,7 +268,7 @@ void do_lunch(int f) /* f=1 to read and 0 to write */
     read_set(fp.get(),true);
     return;
   }
-  if(!choose_file("Save SET File",filename,"*.set"))return;
+  if(!file_selector("Save SET File",filename,"*.set"))return;
   xpp::Writer w=open_writer_asking(filename.c_str());
   if(!w)return;
   redraw_params();

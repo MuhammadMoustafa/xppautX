@@ -6,13 +6,11 @@
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "gear.h"
-#include "ggets.h"
 #include "menudrive.h"
 #include "eig_list.h"
 #include "graphics.h"
 #include "flags.h"
 #include "integrate.h"
-#include "abort.h"
 
 #include <stdlib.h>
 #include <math.h>

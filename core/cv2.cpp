@@ -1,8 +1,8 @@
 #include "cv2.h"
+#include "xpp_ui.h"
 
 #include "flags.h"
 #include "my_rhs.h"
-#include "ggets.h"
 #include <stdio.h>
 #include <string.h>
 #include "llnltyps.h" /* definitions of types real (set to double) and     */

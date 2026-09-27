@@ -10,7 +10,6 @@
 #include "xpp_globals.h"
 #include "xpp_util.h"
 #include "edit_rhs.h"
-#include "menu.h"
 #include "menus.h"
 #include "menudrive.h"
 #include "tutor.h"
@@ -73,22 +72,10 @@ static void menu_run(const XppMenu *m, int def)
 
 /* ---- the three main-window menus ------------------------------------ */
 
-void help(void)
+void show_main_menu(int which)
 {
-  xpp_ui.show_menu(MAIN_MENU);
-  help_menu = MAIN_MENU;
-}
-
-void help_num(void)
-{
-  xpp_ui.show_menu(NUM_MENU);
-  help_menu = NUM_MENU;
-}
-
-void help_file(void)
-{
-  xpp_ui.show_menu(FILE_MENU);
-  help_menu = FILE_MENU;
+  xpp_ui.show_menu(which);
+  help_menu = which;
 }
 
 /* ---- things the File menu runs without a pop-up ---------------------- */
@@ -153,7 +140,7 @@ int help_menu;
 
 void do_movie_com(int c)
 {
-  char base[128];
+  std::string base;
   switch (c) {
   case 0:
     if (xpp_ui.film_clip() == 0)
@@ -169,10 +156,10 @@ void do_movie_com(int c)
     xpp_ui.movie_auto_play();
     break;
   case 4:
-    XPP_SPRINTF(base, "frame");
+    base = "frame";
     new_string_of("Base file name", base, XPP_FIELD_FILE);
-    if (strlen(base) > 0)
-      xpp_ui.movie_save(base, 2);
+    if (!base.empty())
+      xpp_ui.movie_save(base.c_str(), 2);
     break;
   case 5: xpp_ui.movie_make_anigif(); break;
   case 6: break;
@@ -461,8 +448,8 @@ void commander(int ch)
     case 'a': flash(5); do_torus(); flash(5); break;
     case 'k': flash(6); do_movie(); flash(6); break;
     case 'g': flash(7); flash(7); add_a_curve(); break;
-    case 'u': flash(8); flash(8); help_num(); break;
-    case 'f': flash(9); flash(9); help_file(); break;
+    case 'u': flash(8); flash(8); show_main_menu(NUM_MENU); break;
+    case 'f': flash(9); flash(9); show_main_menu(FILE_MENU); break;
     case 'p': flash(10); new_param(); flash(10); break;
     case 'e': flash(11); clear_screens(); flash(11); break;
     case 'h':
@@ -509,7 +496,7 @@ void commander(int ch)
     case 'x': edit_xpprc(); break;
     case 'u': do_tutorial(); break;
     }
-    help();
+    show_main_menu(MAIN_MENU);
     break;
   }
 }

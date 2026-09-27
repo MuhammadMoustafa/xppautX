@@ -1,4 +1,5 @@
 #include "integrate.h"
+#include "form_ode.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
@@ -16,7 +17,6 @@
 #include "auto_nox.h"
 #include "auto_stop.h"
 #include "auto_stability.h"
-#include "auto_x11.h"
 #include "csv_export.h"
 #include <libgen.h>
 /* #include "f2c.h" */
@@ -38,9 +38,7 @@
 #include "parserslow.h"
 /*#include "graf_par.h"
 */
-#include "ggets.h"
 
-#include "init_conds.h"
 #include "diagram.h"
 #include "many_pops.h"
 #include "browse.h"
@@ -741,7 +739,7 @@ void auto_per_par()
   
   static const char *m[]={"0","1","2","3","4","5","6","7","8","9"};
   static const char *const key="0123456789";
-  char values[10][MAX_LEN_SBOX];
+  std::array<std::string, 9> values;
   char bob[100],*ptr;
   static const char *n[]={"Uzr1","Uzr2","Uzr3","Uzr4","Uzr5",
 		      "Uzr6","Uzr7","Uzr8","Uzr9"};
@@ -759,12 +757,12 @@ void auto_per_par()
       auto_par_to_name(Auto.uzrpar[i],bob);
 
 
-      XPP_SPRINTF(values[i],"%s=%g",bob,Auto.period[i]);
+      values[i] = xpp::format("{}={:g}", bob, Auto.period[i]);
     }
-    status=do_string_box(9,5,2,"Mark values (UZ): parameter=value or per=value",n,values,45);
+    status=do_string_box(5,2,"Mark values (UZ): parameter=value or per=value",n,values,45);
     if(status!=0)
       for(i=0;i<9;i++){
-	ptr=get_first(values[i],"=");
+	ptr=get_first(values[i].data(),"=");
 	in=auto_name_to_index(ptr);
 	if(in>=0){
 	  Auto.uzrpar[i]=in;
@@ -787,21 +785,21 @@ void auto_params()
 {
   static const char *n[]={"*2Par1","*2Par2","*2Par3","*2Par4","*2Par5","*2Par6","*2Par7","*2Par8"};
   int status,i,in;
-  char values[8][MAX_LEN_SBOX];
+  std::array<std::string, 8> values;
   for(i=0;i<8;i++){
-    if(i<NAutoPar)  XPP_SPRINTF(values[i],"%s",upar_names[AutoPar[i]]);
-    else values[i][0]='\0';/*sprintf(values[i],"");*/
+    if(i<NAutoPar)  values[i] = upar_names[AutoPar[i]];
+    else values[i].clear();
   }
   static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),
                             XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2)};
-  status=do_string_box_of(8,8,1,"Parameters",n,values,38,kinds);
+  status=do_string_box_of(8,1,"Parameters",n,values,38,kinds);
   if(status!=0){
     for(i=0;i<8;i++){
       if(i<NAutoPar){
-	in=find_user_name(PARAM_BOX,values[i]);
+	in=find_user_name(PARAM_BOX,values[i].c_str());
 	if(in>=0){
 	  AutoPar[i]=in;
-	  in=get_param_index(values[i]);
+	  in=get_param_index(values[i].c_str());
 	  Auto_index_to_array[i]=in;
 	  /* printf("%d -> %d %s\n",i,in, values[i]); */
 	}
@@ -819,58 +817,58 @@ void auto_num_par()
 		    "Par Min","Par Max","Norm Min","Norm Max","EPSL","EPSU","EPSS",
                     "IAD","MXBF","IID","ITMX","ITNW","NWTN","IADS","SuppBP"};
   int status;
-  char values[22][MAX_LEN_SBOX];
-  XPP_SPRINTF(values[0],"%d",Auto.ntst);
-  XPP_SPRINTF(values[1],"%d",Auto.nmx);
-  XPP_SPRINTF(values[2],"%d",Auto.npr);
-  XPP_SPRINTF(values[3],"%d",Auto.ncol);
-  XPP_SPRINTF(values[4],"%g",Auto.ds);
-  XPP_SPRINTF(values[5],"%g",Auto.dsmin);
-  XPP_SPRINTF(values[6],"%g",Auto.dsmax);
-  XPP_SPRINTF(values[7],"%g",Auto.rl0);
-  XPP_SPRINTF(values[8],"%g",Auto.rl1);
-  XPP_SPRINTF(values[9],"%g",Auto.a0);
-  XPP_SPRINTF(values[10],"%g",Auto.a1);
-  XPP_SPRINTF(values[11],"%g",Auto.epsl);
-  XPP_SPRINTF(values[12],"%g",Auto.epsu);
-  XPP_SPRINTF(values[13],"%g",Auto.epss);
-  XPP_SPRINTF(values[14],"%d",aauto.iad);
-  XPP_SPRINTF(values[15],"%d",aauto.mxbf);
-  XPP_SPRINTF(values[16],"%d",aauto.iid);
-  XPP_SPRINTF(values[17],"%d",aauto.itmx);
-  XPP_SPRINTF(values[18],"%d",aauto.itnw);
-  XPP_SPRINTF(values[19],"%d",aauto.nwtn);
-  XPP_SPRINTF(values[20],"%d",aauto.iads);
-  XPP_SPRINTF(values[21],"%d",SuppressBP); 
+  std::array<std::string, 22> values;
+  values[0] = xpp::format("{:d}", Auto.ntst);
+  values[1] = xpp::format("{:d}", Auto.nmx);
+  values[2] = xpp::format("{:d}", Auto.npr);
+  values[3] = xpp::format("{:d}", Auto.ncol);
+  values[4] = xpp::format("{:g}", Auto.ds);
+  values[5] = xpp::format("{:g}", Auto.dsmin);
+  values[6] = xpp::format("{:g}", Auto.dsmax);
+  values[7] = xpp::format("{:g}", Auto.rl0);
+  values[8] = xpp::format("{:g}", Auto.rl1);
+  values[9] = xpp::format("{:g}", Auto.a0);
+  values[10] = xpp::format("{:g}", Auto.a1);
+  values[11] = xpp::format("{:g}", Auto.epsl);
+  values[12] = xpp::format("{:g}", Auto.epsu);
+  values[13] = xpp::format("{:g}", Auto.epss);
+  values[14] = xpp::format("{:d}", aauto.iad);
+  values[15] = xpp::format("{:d}", aauto.mxbf);
+  values[16] = xpp::format("{:d}", aauto.iid);
+  values[17] = xpp::format("{:d}", aauto.itmx);
+  values[18] = xpp::format("{:d}", aauto.itnw);
+  values[19] = xpp::format("{:d}", aauto.nwtn);
+  values[20] = xpp::format("{:d}", aauto.iads);
+  values[21] = xpp::format("{:d}", SuppressBP); 
 
   
   static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
-  status=do_string_box_of(22,7,4,"AutoNum",n,values,25,kinds);
+  status=do_string_box_of(7,4,"AutoNum",n,values,25,kinds);
   if(status!=0){
-    Auto.ntst=atoi(values[0]);
-    Auto.nmx=atoi(values[1]);
-    Auto.npr=atoi(values[2]);
-    Auto.ncol=atoi(values[3]);
-    Auto.ds=atof(values[4]);
-    Auto.dsmin=atof(values[5]);
-    Auto.dsmax=atof(values[6]);
-    Auto.rl0=atof(values[7]);
-    Auto.rl1=atof(values[8]);
-    Auto.a0=atof(values[9]);
-    Auto.a1=atof(values[10]);
-    Auto.epsl=atof(values[11]);
-    Auto.epsu=atof(values[12]);
-    Auto.epss=atof(values[13]);
-    aauto.iad=atoi(values[14]);
-    aauto.mxbf=atoi(values[15]);
-    aauto.iid=atoi(values[16]);
-    aauto.itmx=atoi(values[17]);
-    aauto.itnw=atoi(values[18]);
-    aauto.nwtn=atoi(values[19]);
-    aauto.iads=atoi(values[20]);
-    SuppressBP=atoi(values[21]);
+    Auto.ntst=atoi(values[0].c_str());
+    Auto.nmx=atoi(values[1].c_str());
+    Auto.npr=atoi(values[2].c_str());
+    Auto.ncol=atoi(values[3].c_str());
+    Auto.ds=atof(values[4].c_str());
+    Auto.dsmin=atof(values[5].c_str());
+    Auto.dsmax=atof(values[6].c_str());
+    Auto.rl0=atof(values[7].c_str());
+    Auto.rl1=atof(values[8].c_str());
+    Auto.a0=atof(values[9].c_str());
+    Auto.a1=atof(values[10].c_str());
+    Auto.epsl=atof(values[11].c_str());
+    Auto.epsu=atof(values[12].c_str());
+    Auto.epss=atof(values[13].c_str());
+    aauto.iad=atoi(values[14].c_str());
+    aauto.mxbf=atoi(values[15].c_str());
+    aauto.iid=atoi(values[16].c_str());
+    aauto.itmx=atoi(values[17].c_str());
+    aauto.itnw=atoi(values[18].c_str());
+    aauto.nwtn=atoi(values[19].c_str());
+    aauto.iads=atoi(values[20].c_str());
+    SuppressBP=atoi(values[21].c_str());
 
     
   }
@@ -891,7 +889,7 @@ void auto_plot_par()
 
   static const char *n[]={"*1Y-axis","*2Main Parm", "*2Secnd Parm", "Xmin", "Ymin",
 		   "Xmax", "Ymax"};
-  char values[7][MAX_LEN_SBOX];
+  std::array<std::string, 7> values;
   int  status,i;
   int ii1,ii2,ji1,ji2;
   int i1=Auto.var+1;
@@ -953,22 +951,22 @@ void auto_plot_par()
     return;
   }
   ind_to_sym(i1,n1);
-  XPP_SPRINTF(values[0],"%s",n1);
-  XPP_SPRINTF(values[1],"%s",upar_names[AutoPar[Auto.icp1]]);
-  XPP_SPRINTF(values[2],"%s",upar_names[AutoPar[Auto.icp2]]);
-  XPP_SPRINTF(values[3],"%g",Auto.xmin);
-  XPP_SPRINTF(values[4],"%g",Auto.ymin);
-  XPP_SPRINTF(values[5],"%g",Auto.xmax);
-  XPP_SPRINTF(values[6],"%g",Auto.ymax);
+  values[0] = n1;
+  values[1] = upar_names[AutoPar[Auto.icp1]];
+  values[2] = upar_names[AutoPar[Auto.icp2]];
+  values[3] = xpp::format("{:g}", Auto.xmin);
+  values[4] = xpp::format("{:g}", Auto.ymin);
+  values[5] = xpp::format("{:g}", Auto.xmax);
+  values[6] = xpp::format("{:g}", Auto.ymax);
   static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
-  status=do_string_box_of(7,7,1,"AutoPlot",n,values,31,kinds);
+  status=do_string_box_of(7,1,"AutoPlot",n,values,31,kinds);
   if(status!=0){
     /*  get variable names  */
-    find_variable(values[0],&i);
+    find_variable(values[0].c_str(),&i);
     if(i>0)
       Auto.var=i-1;
     /*  Now check the parameters  */
-    i1=find_user_name(PARAM_BOX,values[1]);
+    i1=find_user_name(PARAM_BOX,values[1].c_str());
     if(i1>=0){
       for(i=0;i<NAutoPar;i++){
 	if(i1==AutoPar[i]){
@@ -977,7 +975,7 @@ void auto_plot_par()
 	}
       }
     }
-     i1=find_user_name(PARAM_BOX,values[2]);
+     i1=find_user_name(PARAM_BOX,values[2].c_str());
     if(i1>=0){
       for(i=0;i<NAutoPar;i++){
 	if(i1==AutoPar[i]){
@@ -986,10 +984,10 @@ void auto_plot_par()
       }
     }
 
-    Auto.xmin=atof(values[3]);
-    Auto.ymin=atof(values[4]);
-    Auto.xmax=atof(values[5]);
-    Auto.ymax=atof(values[6]);
+    Auto.xmin=atof(values[3].c_str());
+    Auto.ymin=atof(values[4].c_str());
+    Auto.xmax=atof(values[5].c_str());
+    Auto.ymax=atof(values[6].c_str());
     if(Auto.plot<4)keep_last_plot(1);
     if(Auto.plot==4)keep_last_plot(2);
     redraw_diagram();
@@ -2300,7 +2298,7 @@ void auto_extend_ss()
 
 int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
 {
-  char v[100][MAX_LEN_SBOX];
+  std::array<std::string, 100> v;
   int n=2+2*NODE;
   int i;
   int flag=0;
@@ -2308,14 +2306,14 @@ int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
      std::strings own the text, s just points at them for the call */
   std::vector<std::string> labels(n);
   labels[0]="dim unstable";
-  XPP_SPRINTF(v[0],"%d",*nun);
+  v[0] = xpp::format("{:d}", *nun);
   labels[NODE+1]="dim stable";
-  XPP_SPRINTF(v[NODE+1],"%d",*nst);
+  v[NODE+1] = xpp::format("{:d}", *nst);
   for(i=0;i<NODE;i++){
     labels[i+1]=std::string(uvar_names[i])+"_L";
-    XPP_SPRINTF(v[i+1],"%g",ul[i]);
+    v[i+1] = xpp::format("{:g}", ul[i]);
     labels[i+2+NODE]=std::string(uvar_names[i])+"_R";
-    XPP_SPRINTF(v[i+2+NODE],"%g",ur[i]);
+    v[i+2+NODE] = xpp::format("{:g}", ur[i]);
   }
   std::vector<const char*> s(n);
   for(i=0;i<n;i++) s[i]=labels[i].c_str();
@@ -2324,15 +2322,15 @@ int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
     std::vector<int> kinds(n, XPP_FIELD_NUMBER);
     kinds[0]=XPP_FIELD_INTEGER;
     kinds[NODE+1]=XPP_FIELD_INTEGER;
-    flag=do_string_box_of(n,n/2,2,"Homoclinic info",s.data(),v,16,kinds.data());
+    flag=do_string_box_of(n/2,2,"Homoclinic info",s.data(),v,16,kinds.data());
   }
   if(flag!=0){
-    *nun=atoi(v[0]);
-    *nst=atoi(v[NODE+1]);
+    *nun=atoi(v[0].c_str());
+    *nst=atoi(v[NODE+1].c_str());
     for(i=0;i<NODE;i++){
-      ul[i]=atof(v[i+1]);
+      ul[i]=atof(v[i+1].c_str());
       if(HomoFlag==2)
-	ur[i]=atof(v[i+2+NODE]);
+	ur[i]=atof(v[i+2+NODE].c_str());
     }
   }
   return flag;
@@ -2740,19 +2738,12 @@ void load_auto_orbit()
 void save_auto()
 {
 
-  /*char filename[256];*/
-  char filename[XPP_MAX_NAME];
   int status;
-  /* XGetInputFocus(display,&w,&rev); */
-  
-  XPP_SPRINTF(filename,"%s.auto",basename(this_auto_file.data()));
-  /* status=get_dialog("Save Auto","Filename",filename,"Ok","Cancel",60);
-  XSetInputFocus(display,w,rev,CurrentTime);
-  */
+  std::string filename=xpp::format("{}.auto",basename(this_auto_file.data()));
   status=file_selector("Save Auto",filename,"*.auto");
   if(status==0)return;
   /* written beside filename and renamed over it once whole */
-  xpp::Writer w=open_writer_asking(filename);
+  xpp::Writer w=open_writer_asking(filename.c_str());
   if(!w)return;
   status=save_auto_file(w.file());
   if(status!=1){
@@ -2889,18 +2880,16 @@ void load_auto()
 
   int ok;
   /*char filename[256];*/
-  char filename[XPP_MAX_NAME];
   int status;
   if(NBifs>1){
     ok=reset_auto();
     if(ok==0)return;
   }
 
-  XPP_SPRINTF(filename,"%s.auto",basename(this_auto_file.data()));
- 
+  std::string filename=xpp::format("{}.auto",basename(this_auto_file.data()));
   status=file_selector("Load Auto",filename,"*.auto");
   if(status==0)return;
-  xpp::UniqueFile fp=xpp::open_read(filename);
+  xpp::UniqueFile fp=xpp::open_read(filename.c_str());
   if(!fp){
     auto_err("Cannot open file");
     return;
@@ -2977,10 +2966,9 @@ static const char **afile_hint_csv()
    answer names both files (csv_export_diagram_pair derives the second) */
 void export_auto_csv()
 {
-  char filename[XPP_MAX_NAME];
-  XPP_SPRINTF(filename,"diagram.csv");
+  std::string filename="diagram.csv";
   if(!file_selector("Export CSV",filename,"*.csv"))return;
-  if(!csv_export_diagram_pair(filename))
+  if(!csv_export_diagram_pair(filename.c_str()))
     err_msg("Nothing to export: run or load a diagram first");
 }
 

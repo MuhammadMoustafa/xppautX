@@ -1,9 +1,9 @@
 #include "my_svg.h"
+#include "xpp_ui.h"
+#include "colormap.h"
 #include "xpp_log.h"
 #include "lunch-new.h"
-#include "ggets.h"
 #include "graphics.h"
-#include "color.h"
 #include "graf_par.h"
 
 #include <stdlib.h> 

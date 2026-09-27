@@ -11,7 +11,6 @@
 #include "axes2.h"
 #include "graphics.h"
 #include "edit_rhs.h"
-#include "init_conds.h"
 #include "xpp_globals.h"
 #include "parserslow.h"
 #include "browse.h"
@@ -29,7 +28,6 @@
 #include "shoot.h"
 #include "lunch-new.h"
 #include "delay_handle.h"
-#include "txtread.h"
 #include "numerics.h"
 #include "pop_list.h" /* NUPAR, NEQ, upar_names, uvar_names */
 #include <array>
@@ -389,12 +387,12 @@ void svg_restore()
 void clone_ode()
 {
   int i,j,x,y;
-  std::array<char,256> clone{}; /* the file selector edits it in place */
+  std::string clone;
   char *s;
   time_t ttt;
   double z;
-  if(!file_selector("Clone ODE file",clone.data(),"*.ode"))return;
-  xpp::Writer fp(clone.data());
+  if(!file_selector("Clone ODE file",clone,"*.ode"))return;
+  xpp::Writer fp(clone.c_str());
   if(!fp){
       err_msg(" Cant open clone file");
       return;
@@ -457,11 +455,11 @@ void new_parameter()
 {
   int done,index;
   double z;
-  std::array<char,256> name; /* new_string_of edits it in place */
+  std::string name;
   while(1){
-    name[0]=0;
-    done=new_string_of("Parameter:",name.data(),XPP_FIELD_NAME_IN(2));
-    if(strlen(name.data())==0||done==0){redo_stuff(); return;}
+    name.clear();
+    done=new_string_of("Parameter:",name,XPP_FIELD_NAME_IN(2));
+    if(name.empty()||done==0){redo_stuff(); return;}
     if(strncasecmp(name.data(),"DEFAULT",7  )==0){
       set_default_params();
       continue;

@@ -1,5 +1,6 @@
 #include <stdlib.h> 
 #include "xpp_mem.h"
+#include "xpp_ui.h"
 #include "xpp_math.h"
 #include <math.h>
 #include <stdio.h>
@@ -9,7 +10,6 @@
 #include <vector>
 #include "dormpri.h"
 #include "flags.h"
-#include "ggets.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
 
@@ -819,7 +819,7 @@ int dop853
     if (nrdens == n)
     {
       if (icont && fileout)
-	fileout_msg(fileout, xpp::format("Warning : when nrdens = n there is no need allocating memory for icont\r\n"));
+	fileout_msg(fileout, "Warning : when nrdens = n there is no need allocating memory for icont\r\n");
       nrds = n;
     }
     else if (licont < nrdens)
@@ -831,7 +831,7 @@ int dop853
     else
     {
       if ((iout < 2) && fileout)
-	fileout_msg(fileout, xpp::format("Warning : put iout = 2 for dense output\r\n"));
+	fileout_msg(fileout, "Warning : put iout = 2 for dense output\r\n");
       nrds = nrdens;
       for (i = 0; i < n; i++)
 	indir[i] = UINT_MAX;
@@ -1366,7 +1366,7 @@ int dopri5
     if (nrdens == n)
     {
       if (icont && fileout)
-	fileout_msg(fileout, xpp::format("Warning : when nrdens = n there is no need allocating memory for icont\r\n"));
+	fileout_msg(fileout, "Warning : when nrdens = n there is no need allocating memory for icont\r\n");
       nrds = n;
     }
     else if (licont < nrdens)
@@ -1378,7 +1378,7 @@ int dopri5
     else
     {
       if ((iout < 2) && fileout)
-	fileout_msg(fileout, xpp::format("Warning : put iout = 2 for dense output\r\n"));
+	fileout_msg(fileout, "Warning : put iout = 2 for dense output\r\n");
       nrds = nrdens;
       for (i = 0; i < n; i++)
 	indir[i] = UINT_MAX;

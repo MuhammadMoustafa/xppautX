@@ -11,7 +11,6 @@
 #include "auto_nox.h"
 #include "derived.h"
 #include "parserslow.h"
-#include "txtread.h"
 #include "shoot.h"
 #include "arrayplot.h"
 #include "xpp_session.h"

@@ -7,7 +7,6 @@
 #include "xpp_math.h"
 
 #include <time.h>
-#include "ggets.h"
 #include "tabular.h"
 #include "markov.h"
 #include "simplenet.h"

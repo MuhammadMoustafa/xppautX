@@ -1,4 +1,5 @@
 #include "xpp_ui.h"
+#include "xpp_util.h"
 #include  "axes2.h"
 
 #include <stdlib.h> 
@@ -10,9 +11,7 @@
 #include <stdio.h>
 #include "xpplim.h"
 #include "struct.h"
-#include "ggets.h"
 #include "graphics.h"
-#include "main.h"
 #include "many_pops.h"
 #include "graf_par.h"
 #include "xpp_globals.h"

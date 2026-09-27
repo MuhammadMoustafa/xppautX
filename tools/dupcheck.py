@@ -38,8 +38,6 @@ core/histogram.cpp HIST_INFO|W32d shared data: load_eqn.cpp's comment says it "k
 core/load_eqn.cpp HIST_INFO|W32d shared data: see core/histogram.cpp HIST_INFO; merge into one header
 core/simplenet.cpp TABULAR|W32d shared data: tabular.cpp's comment says simplenet.cpp keeps its own duplicate TABULAR typedef and reads this field's layout directly; merge into one header
 core/tabular.cpp TABULAR|W32d shared data: see core/simplenet.cpp TABULAR; merge into one header
-core/calc.h do_calc|W32c dialog API: declared in both calc.h and xpp_util.h, keep one declaration
-core/xpp_util.h do_calc|W32c dialog API: declared in both calc.h and xpp_util.h, keep one declaration
 
 core/aniparse.cpp draw_ani_circ|keep: per-primitive-type dispatch wrappers (circle/filled circle/rect/filled rect/ellipse/filled ellipse), same shape by design; no W32a-d card owns aniparse.cpp yet
 core/aniparse.cpp draw_ani_fcirc|keep: see core/aniparse.cpp draw_ani_circ
@@ -75,9 +73,6 @@ core/band.cpp BandFreeMat|vendored/numerical, keep: see core/band.cpp BandAllocP
 core/dense.cpp DenseFreeMat|vendored/numerical, keep: see core/band.cpp BandAllocPiv
 core/band.cpp bandfree|vendored/numerical, keep: see core/band.cpp BandAllocPiv
 core/dense.cpp denfree|vendored/numerical, keep: see core/band.cpp BandAllocPiv
-core/commands.cpp help|W32c dialog API: help/help_num/help_file are the same lookup-and-show-dialog helper for three help kinds, merge into one
-core/commands.cpp help_num|W32c dialog API: see core/commands.cpp help
-core/commands.cpp help_file|W32c dialog API: see core/commands.cpp help
 core/conpar2.cpp time_start|vendored/numerical, keep: AUTO's parallel worker files (conpar2.cpp/worker2.cpp) share a timing helper pair by the AUTO source's own design
 core/worker2.cpp time_start|vendored/numerical, keep: see core/conpar2.cpp time_start
 core/conpar2.cpp time_end|vendored/numerical, keep: see core/conpar2.cpp time_start
@@ -103,12 +98,10 @@ core/grobs.cpp destroy_grob|W32d shared data: grobs.cpp's own label/object destr
 core/grobs.cpp destroy_label|W32d shared data: see core/grobs.cpp destroy_grob
 core/integrate.cpp range_item|keep: range_item/range_item2 look like a coincidental structural match (same small loop shape, different purpose); verify before merging, no W32a-d card owns integrate.cpp yet
 core/integrate.cpp range_item2|keep: see core/integrate.cpp range_item
-core/json_ani.cpp j_ani_show|W32c dialog API: json front end dispatch helpers of the same small shape (show/reset/next/env), merge where they truly overlap
-core/json_windows.cpp j_reset_graphics|W32c dialog API: see core/json_ani.cpp j_ani_show
-core/ui_json.cpp script_next|W32c dialog API: see core/json_ani.cpp j_ani_show
-core/xpp_batch.cpp do_vis_env|W32c dialog API: see core/json_ani.cpp j_ani_show
-core/json_windows.cpp j_redraw_screens|W32c dialog API: redraw/clear-all-plot-windows pair, same shape by design
-core/json_windows.cpp j_clear_screens|W32c dialog API: see core/json_windows.cpp j_redraw_screens
+core/json_ani.cpp j_ani_show|same shape, not a duplicate: two-line functions each calling a different pair (flush/out, blank/axes, advance/arm, xpprc/options); nothing to merge (W32c), keep
+core/json_windows.cpp j_reset_graphics|see core/json_ani.cpp j_ani_show
+core/ui_json.cpp script_next|see core/json_ani.cpp j_ani_show
+core/xpp_batch.cpp do_vis_env|see core/json_ani.cpp j_ani_show
 core/lunch-new.cpp io_int|keep: fscanf-style int/double token readers over a plain FILE * (xpp_io.h's xpp::TokenReader is the owner going forward, per CLAUDE.md's Strings and I/O section); not yet moved, no new copy added
 core/lunch-new.cpp io_double|keep: see core/lunch-new.cpp io_int
 core/marks_data.cpp add_num|W32d shared data: marks_data.cpp's and phase_data.cpp's identical small array-append helper, merge into one shared-data helper
@@ -138,45 +131,12 @@ core/simplenet.cpp *block*|W32d shared data: simplenet.cpp's per-connectivity-ty
 
 core/form_ode.cpp ACTION|W32d shared data: form_ode.cpp's and json_state.cpp's identical ACTION struct, merge into one header
 core/json_state.cpp ACTION|W32d shared data: see core/form_ode.cpp ACTION
-core/aniparse.h ANI_COM|W32c dialog API: aniparse_avi.h is an unused pre-refactor header (no #include anywhere) duplicating aniparse.h's ANI_COM/Comet/MPEG_SAVE structs and declarations; delete aniparse_avi.h
-core/aniparse_avi.h ANI_COM|W32c dialog API: see core/aniparse.h ANI_COM
-core/aniparse.h Comet|W32c dialog API: see core/aniparse.h ANI_COM
-core/aniparse_avi.h Comet|W32c dialog API: see core/aniparse.h ANI_COM
-core/aniparse.h MPEG_SAVE|W32c dialog API: see core/aniparse.h ANI_COM
-core/aniparse_avi.h MPEG_SAVE|W32c dialog API: see core/aniparse.h ANI_COM
 core/integrate.cpp INTERN_SET|W32d shared data: integrate.cpp's, load_eqn.cpp's and comline.h's identical INTERN_SET struct, merge into one header
 core/load_eqn.cpp INTERN_SET|W32d shared data: see core/integrate.cpp INTERN_SET
 core/comline.h INTERN_SET|W32d shared data: see core/integrate.cpp INTERN_SET
 core/integrate.cpp XPPVEC|W32d shared data: integrate.cpp's and storage.cpp's identical XPPVEC struct, merge into one header
 core/storage.cpp XPPVEC|W32d shared data: see core/integrate.cpp XPPVEC
 
-core/auto.h *|W32c dialog API: unused pre-refactor header (no #include anywhere) duplicating auto_nox.h's declarations; delete the file
-core/auto_nox.h *|W32c dialog API: current AUTO header; the dead core/auto.h duplicates its declarations, see there
-core/auto_x11.h *|W32c dialog API: X11-era AUTO header (still included by 2 files) duplicating xpp_ui.h's dialog seam and auto_nox.h/auto.h; fold what is still needed into auto_nox.h and xpp_ui.h, then delete
-core/aniparse_avi.h *|W32c dialog API: unused pre-refactor header (no #include anywhere) duplicating aniparse.h, see core/aniparse.h ANI_COM above; delete the file
-core/aniparse.h *|W32c dialog API: current animation header; the dead core/aniparse_avi.h duplicates its declarations, see there
-core/many_pops.h *|W32c dialog API: duplicates a few of xpp_ui.h's dialog-seam declarations left from the X11-era plot-window API; fold into xpp_ui.h
-core/xpp_ui.h *|W32c dialog API: the dialog seam (CLAUDE.md's Architecture section); several old headers (auto_x11.h, menudrive.h, ggets.h, color.h, abort.h, calc.h, kinescope.h, txtread.h, edit_rhs.h, graf_par.h, main.h, menu.h, arrayplot.h, pop_list.h, many_pops.h, init_conds.h) still declare the same historical names it now dispatches; drop the old declarations
-core/menudrive.h *|W32c dialog API: X11-era dialog declarations duplicated by xpp_ui.h's seam; drop the old declarations
-core/ggets.h *|W32c dialog API: see core/menudrive.h
-core/color.h *|W32c dialog API: duplicates colormap.h's/xpp_ui.h's declarations (color_table's owner is colormap.h per CLAUDE.md); fold into the owner
-core/colormap.h *|W32c dialog API: color_table's owner (CLAUDE.md's Architecture section); color.h duplicates a couple of its declarations, see there
-core/init_conds.h *|W32c dialog API: duplicates xpp_util.h/xpp_ui.h/many_pops.h declarations; fold into the owner
-core/calc.h *|W32c dialog API: duplicates xpp_util.h (do_calc, see above) and xpp_ui.h; fold into the owner
-core/abort.h *|W32c dialog API: duplicates xpp_ui.h's seam declarations; fold in
-core/main.h *|W32c dialog API: leftover main.c-era header now split across xpp_ui.h/xpp_util.h/xpp_batch.h/menudrive.h; drop the leftover declarations
-core/xpp_batch.h *|W32c dialog API: batch_options' owner (CLAUDE.md's Architecture section); main.h duplicates a couple of its declarations, see there
-core/menu.h *|W32c dialog API: duplicates xpp_ui.h's menu declarations; fold in
-core/arrayplot.h *|W32c dialog API: duplicates xpp_ui.h; fold in
-core/my_pars.h *|W32c dialog API: duplicates parserslow.h; fold in
-core/parserslow.h *|W32c dialog API: my_pars.h duplicates one of its declarations, see there
-core/form_ode.h *|W32c dialog API: duplicates pop_list.h; fold in
-core/pop_list.h *|W32c dialog API: duplicated by form_ode.h and declares a couple of xpp_ui.h's names; fold in
-core/graf_par.h *|W32c dialog API: duplicates xpp_util.h/xpp_ui.h; fold in
-core/txtread.h *|W32c dialog API: duplicates xpp_ui.h; fold in
-core/edit_rhs.h *|W32c dialog API: duplicates xpp_ui.h; fold in
-core/kinescope.h *|W32c dialog API: duplicates xpp_ui.h; fold in
-core/xpp_util.h *|W32c dialog API: duplicated by calc.h/init_conds.h/main.h/graf_par.h/browse.h/many_pops.h/aniparse.h (and dead aniparse_avi.h); fold the old declarations into the owner
 
 """
 

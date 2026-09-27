@@ -45,33 +45,27 @@ extern int NFUN;
 namespace {
 
 /* do_edit_box's fields: the names it shows and the values it edits in
-   place (MAX_LEN_EBOX bytes each, what the front ends write at most) */
+   place (at most MAX_LEN_EBOX-1 characters each, what the front ends
+   write at most) */
 class EditBox {
 public:
   void add(std::string name, const char *value)
   {
     names_.push_back(std::move(name));
-    std::array<char, MAX_LEN_EBOX> v{};
-    std::string_view text(value ? value : "");
-    text.copy(v.data(), std::min(text.size(), v.size() - 1));
-    values_.push_back(v);
+    values_.emplace_back(std::string_view(value ? value : "").substr(0, MAX_LEN_EBOX - 1));
   }
   /* 0 on cancel */
   int show(const char *title)
   {
     std::vector<const char *> names;
-    std::vector<char *> values;
-    for (size_t i = 0; i < names_.size(); i++) {
-      names.push_back(names_[i].c_str());
-      values.push_back(values_[i].data());
-    }
-    return do_edit_box(static_cast<int>(names_.size()), title, names.data(), values.data());
+    for (const std::string &n : names_) names.push_back(n.c_str());
+    return do_edit_box(title, names.data(), values_);
   }
   const std::string &name(int i) const { return names_[i]; }
-  const char *value(int i) const { return values_[i].data(); }
+  const char *value(int i) const { return values_[i].c_str(); }
 private:
   std::vector<std::string> names_;
-  std::vector<std::array<char, MAX_LEN_EBOX>> values_;
+  std::vector<std::string> values_;
 };
 
 /* the command add_expr compiles an expression into */
@@ -150,12 +144,10 @@ void edit_functions()
 
 int save_as()
 {
-  std::array<char, 256> filename{};
-  std::string_view file(this_file);
-  file.copy(filename.data(), std::min(file.size(), filename.size() - 1));
+  std::string filename=this_file;
   ping();
-  if(!file_selector("Save As",filename.data(),"*.ode"))return(-1);
-  xpp::Writer w=open_writer_asking(filename.data());
+  if(!file_selector("Save As",filename,"*.ode"))return(-1);
+  xpp::Writer w=open_writer_asking(filename.c_str());
   if(!w)return(-1);
   double z;
   w.print("{}",NEQ);

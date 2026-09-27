@@ -1,9 +1,8 @@
 #include "xpp_batch.h"
+#include "xpp_ui.h"
 #include "extra.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
-#include "init_conds.h"
-#include "ggets.h"
 #include "read_dir.h"
 #include "parserslow.h"
 #include "load_eqn.h"
@@ -63,15 +62,6 @@ struct DlFun {
 };
 
 DlFun dlf;
-
-/* a dialog's buffer (new_string/file_selector write up to 256 bytes)
-   with text as its default */
-std::array<char, 256> dialog_buffer(const std::string &text)
-{
-  std::array<char, 256> buf{};
-  text.copy(buf.data(), std::min(text.size(), buf.size() - 1));
-  return buf;
-}
 
 }  // namespace
 
@@ -134,13 +124,11 @@ void load_new_dll(void)
 {
   if(dlf.loaded!=0&&dlhandle!=nullptr)
     dlclose(dlhandle);
-  std::array<char, 256> file=dialog_buffer(dlf.libfile);
-  if(file_selector("Library:",file.data(),"*.so")==0)return;
-  dlf.libfile=file.data();
+  std::string file=dlf.libfile;
+  if(file_selector("Library:",file,"*.so")==0)return;
+  dlf.libfile=file;
   dlf.libname=xpp::format("{}/{}",cur_dir,dlf.libfile);
-  std::array<char, 256> fun=dialog_buffer(dlf.fun);
-  new_string("Function name:",fun.data());
-  dlf.fun=fun.data();
+  new_string("Function name:",dlf.fun);
   dlf.loaded=0;
 }
 

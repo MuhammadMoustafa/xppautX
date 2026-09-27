@@ -5,7 +5,6 @@
 #include "xpp_math.h"
 #include "delay_handle.h"
 #include "gear.h"
-#include "ggets.h"
 #include "markov.h"
 
 #include <stdlib.h> 

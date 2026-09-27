@@ -224,14 +224,6 @@ extern "C" {
 #define M_UC 410
 
 
-void MessageBox(const char *m);
-void KillMessageBox(void);
-int TwoChoice(const char *c1, const char *c2, const char *q, const char *key);
-int GetMouseXY(int *x, int *y);
-void FlushDisplay(void);
-void clear_draw_window(void);
-void drw_all_scrns(void);
-void clr_all_scrns(void);
 void run_the_commands(int com);
 void do_stochast(void);
 void get_pmap_pars(void);
@@ -260,6 +252,9 @@ void get_3d_par(void);
 void edit_xpprc();
 void do_tutorial();
 void commander(int ch);
+/* make MAIN_MENU, FILE_MENU or NUM_MENU (menus.h) the main window's menu,
+   the one its keys go to */
+void show_main_menu(int which);
 /* which menu the main window's keys go to: MAIN_MENU, FILE_MENU, NUM_MENU
    (commands.cpp) */
 extern int help_menu;

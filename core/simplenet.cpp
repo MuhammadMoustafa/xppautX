@@ -1,3 +1,4 @@
+#include "xpp_util.h"
 #include "xpp_batch.h"
 #include "simplenet.h"
 #include "form_ode.h"
@@ -7,7 +8,6 @@
 
 #include "aniparse.h"
 #include "extra.h"
-#include "ggets.h"
 #include "markov.h"
 #include "parserslow.h"
 #include "tabular.h"

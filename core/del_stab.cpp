@@ -7,7 +7,6 @@
 
 #include "eig_list.h"
 #include "gear.h"
-#include "ggets.h"
 
 #include <math.h>
 #include <stdio.h>

@@ -22,29 +22,18 @@ typedef struct {
 } APLOT;
 
 extern APLOT aplot;
-void set_acolor(int);
-void tag_aplot(const char *);
 void close_aplot_files(void);
-void draw_one_array_plot(const char *);
-void gif_aplot_all(const char *,int);
 void optimize_aplot(int *plist);
-void make_my_aplot(const char *name);
 void scale_aplot(APLOT *ap, double *zmax, double *zmin);
 void init_arrayplot(APLOT *ap);
 void set_up_aplot_range(void);
 void fit_aplot(void);
 int editaplot(APLOT *ap);
 void print_aplot(APLOT *ap);
-void destroy_aplot(void);
 void init_my_aplot(void);
-void create_arrayplot(APLOT *ap, const char *wname, const char *iname);
 void edit_aplot(void);
 void get_root(const char *s, char *sroot, int *num);
-void reset_aplot_axes(APLOT ap);
 void dump_aplot(FILE *fp, int f);
-void gif_aplot(void);
-void grab_aplot_screen(APLOT ap);
-void redraw_aplot(APLOT ap);
 
 /* 1: the next range integration saves the array plot at each step (the
    array plot's range saving); integrate.c clears it when the range ends */

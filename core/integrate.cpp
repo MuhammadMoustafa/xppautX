@@ -1,4 +1,6 @@
 #include "xpp_ui.h"
+#include "xpp_util.h"
+#include "auto_nox.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
@@ -20,24 +22,19 @@
 #include "browse.h"
 #include "derived.h"
 #include "gear.h"
-#include "ggets.h"
 #include "graf_par.h"
 #include "graphics.h"
-#include "init_conds.h"
 #include "kinescope.h"
 #include "lunch-new.h"
 #include "del_stab.h"
 #include "flags.h"
 #include "histogram.h"
-#include "auto_x11.h"
 
 #include "odesol2.h"
 #include "nullcline.h"
 
-#include "abort.h"
 
 #include "pp_shoot.h"
-#include "color.h"
 #include "dae_fun.h"
 #include "load_eqn.h"
 #include "many_pops.h"
@@ -46,7 +43,6 @@
 #include "numerics.h"
 #include "volterra2.h"
 #include <stdlib.h> 
-#include "calc.h"
 #include "aniparse.h"
 #include "pop_list.h"
 #include "delay_handle.h"
@@ -139,7 +135,7 @@ extern FILE *svgfile;
 
 struct ARRAY_IC {
   int index0,type;
-  std::array<char, 256> formula{};
+  std::string formula;
   int n;
   std::array<char, 1024> var{};
   int j1,j2;
@@ -226,7 +222,7 @@ void init_ar_ic()
   int i;
   for(i=0;i<NAR_IC;i++){
     ar_ic[i].index0=-1;
-    ar_ic[i].formula[0]=0;
+    ar_ic[i].formula.clear();
     ar_ic[i].n=0;
     ar_ic[i].var[0]=0;
     ar_ic[i].type=0;
@@ -317,41 +313,41 @@ int set_up_eq_range()
 static const char *n[]={"*2Range over","Steps","Start","End",
 		     "Shoot (Y/N)",
 		  "Stability col","Movie (Y/N)","Monte Carlo (Y/N)"};
- char values[8][MAX_LEN_SBOX];
+ std::array<std::string, 8> values;
  int status,i;
  static  const char *yn[]={"N","Y"};
- snprintf(values[0],sizeof(values[0]),"%s",eq_range.item.data());
- XPP_FORMAT_TO_BUF(values[1],"{}",eq_range.steps);
- XPP_FORMAT_TO_BUF(values[2],"{:.16g}",eq_range.plow);
- XPP_FORMAT_TO_BUF(values[3],"{:.16g}",eq_range.phigh);
- XPP_FORMAT_TO_BUF(values[4],"{}",yn[eq_range.shoot]);
- XPP_FORMAT_TO_BUF(values[5],"{}",eq_range.col);
- XPP_FORMAT_TO_BUF(values[6],"{}",yn[eq_range.movie]);
-XPP_FORMAT_TO_BUF(values[7],"{}",yn[eq_range.mc]);
+ values[0] = eq_range.item.data();
+ values[1] = eq_range.steps;
+ values[2] = xpp::format("{:.16g}", eq_range.plow);
+ values[3] = xpp::format("{:.16g}", eq_range.phigh);
+ values[4] = yn[eq_range.shoot];
+ values[5] = eq_range.col;
+ values[6] = yn[eq_range.movie];
+values[7] = yn[eq_range.mc];
 
  
  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(8,8,1,"Range Equilibria",n,values,45,kinds);
+ status=do_string_box_of(8,1,"Range Equilibria",n,values,45,kinds);
  if(status!=0){
-   xpp_strlcpy(eq_range.item.data(),values[0],eq_range.item.size());
+   xpp_strlcpy(eq_range.item.data(),values[0].c_str(),eq_range.item.size());
    i=find_user_name(PARAM,eq_range.item.data());
    if(i<0){
         err_msg("No such parameter");
        return(0);
      }
    
-   eq_range.steps=atoi(values[1]);
+   eq_range.steps=atoi(values[1].c_str());
    if(eq_range.steps<=0)eq_range.steps=10;
-   eq_range.plow=atof(values[2]);
-   eq_range.phigh=atof(values[3]);
+   eq_range.plow=atof(values[2].c_str());
+   eq_range.phigh=atof(values[3].c_str());
    if(values[4][0]=='Y'||values[4][0]=='y')eq_range.shoot=1;
    else eq_range.shoot=0;
    if(values[6][0]=='Y'||values[6][0]=='y')eq_range.movie=1;
    else eq_range.movie=0;
     if(values[7][0]=='Y'||values[6][0]=='y')eq_range.mc=1;
    else eq_range.mc=0;
-   eq_range.col=atoi(values[5]);
+   eq_range.col=atoi(values[5].c_str());
    if(eq_range.col<=1||eq_range.col>(NEQ+1))eq_range.col=-1;
  
  return(1);
@@ -427,26 +423,26 @@ int set_up_range()
  static const char *n[]={"*3Range over","Steps","Start","End",
 		     "Reset storage (Y/N)",
 		     "Use old ic's (Y/N)","Cycle color (Y/N)","Movie(Y/N)"};
- char values[8][MAX_LEN_SBOX];
+ std::array<std::string, 8> values;
  int status;
  static  const char *yn[]={"N","Y"};
  if(!program.interactive){
    return(range_item());
  }
  
- snprintf(values[0],sizeof(values[0]),"%s",range.item);
- XPP_FORMAT_TO_BUF(values[1],"{}",range.steps);
- XPP_FORMAT_TO_BUF(values[2],"{:.16g}",range.plow);
- XPP_FORMAT_TO_BUF(values[3],"{:.16g}",range.phigh);
- XPP_FORMAT_TO_BUF(values[4],"{}",yn[range.reset]);
- XPP_FORMAT_TO_BUF(values[5],"{}",yn[range.oldic]);
- XPP_FORMAT_TO_BUF(values[6],"{}",yn[range.cycle]);
- XPP_FORMAT_TO_BUF(values[7],"{}",yn[range.movie]);
+ values[0] = range.item;
+ values[1] = range.steps;
+ values[2] = xpp::format("{:.16g}", range.plow);
+ values[3] = xpp::format("{:.16g}", range.phigh);
+ values[4] = yn[range.reset];
+ values[5] = yn[range.oldic];
+ values[6] = yn[range.cycle];
+ values[7] = yn[range.movie];
  
  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(8,8,1,"Range Integrate",n,values,45,kinds);
+ status=do_string_box_of(8,1,"Range Integrate",n,values,45,kinds);
  if(status!=0){
-   XPP_STRCPY(range.item,values[0]);
+   XPP_STRCPY(range.item,values[0].c_str());
    /* i=find_user_name(PARAM,range.item);
    if(i>-1){
      range.type=PARAM;
@@ -463,10 +459,10 @@ int set_up_range()
    }
    */
    if(range_item()==0)return 0;
-   range.steps=atoi(values[1]);
+   range.steps=atoi(values[1].c_str());
    if(range.steps<=0)range.steps=10;
-   range.plow=atof(values[2]);
-   range.phigh=atof(values[3]);
+   range.plow=atof(values[2].c_str());
+   range.phigh=atof(values[3].c_str());
    if(values[4][0]=='Y'||values[4][0]=='y')range.reset=1;
    else range.reset=0;
    if(values[5][0]=='Y'||values[5][0]=='y')range.oldic=1;
@@ -492,49 +488,49 @@ int set_up_range2()
 		     "Reset storage (Y/N)",
 		     "Use old ic's (Y/N)","Cycle color (Y/N)","Movie(Y/N)",
                       "Crv(1) Array(2)","Steps2"};
- char values[13][MAX_LEN_SBOX];
+ std::array<std::string, 13> values;
  int status;
  static  const char *yn[]={"N","Y"};
  if(!program.interactive){
    return(range_item());
  }
- snprintf(values[0],sizeof(values[0]),"%s",range.item);
-  XPP_FORMAT_TO_BUF(values[1],"{:.16g}",range.plow);
- XPP_FORMAT_TO_BUF(values[2],"{:.16g}",range.phigh);
- snprintf(values[3],sizeof(values[3]),"%s",range.item2);
-  XPP_FORMAT_TO_BUF(values[4],"{:.16g}",range.plow2);
- XPP_FORMAT_TO_BUF(values[5],"{:.16g}",range.phigh2);
-XPP_FORMAT_TO_BUF(values[6],"{}",range.steps);
- XPP_FORMAT_TO_BUF(values[7],"{}",yn[range.reset]);
- XPP_FORMAT_TO_BUF(values[8],"{}",yn[range.oldic]);
- XPP_FORMAT_TO_BUF(values[9],"{}",yn[range.cycle]);
- XPP_FORMAT_TO_BUF(values[10],"{}",yn[range.movie]);
+ values[0] = range.item;
+  values[1] = xpp::format("{:.16g}", range.plow);
+ values[2] = xpp::format("{:.16g}", range.phigh);
+ values[3] = range.item2;
+  values[4] = xpp::format("{:.16g}", range.plow2);
+ values[5] = xpp::format("{:.16g}", range.phigh2);
+values[6] = range.steps;
+ values[7] = yn[range.reset];
+ values[8] = yn[range.oldic];
+ values[9] = yn[range.cycle];
+ values[10] = yn[range.movie];
  if(range.rtype==2)
-  XPP_FORMAT_TO_BUF(values[11],"2");
+  values[11] = "2";
  else
-   XPP_FORMAT_TO_BUF(values[11],"1");
- XPP_FORMAT_TO_BUF(values[12],"{}",range.steps2);
+   values[11] = "1";
+ values[12] = range.steps2;
  static const int kinds[]={XPP_FIELD_NAME_IN(3),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_NAME_IN(3),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,
                            XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,
                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
- status=do_string_box_of(13,7,2,"Double Range Integrate",n,values,45,kinds);
+ status=do_string_box_of(7,2,"Double Range Integrate",n,values,45,kinds);
  if(status!=0){
-   XPP_STRCPY(range.item,values[0]);
+   XPP_STRCPY(range.item,values[0].c_str());
    
    if(range_item()==0)return 0;
-    XPP_STRCPY(range.item2,values[3]);
+    XPP_STRCPY(range.item2,values[3].c_str());
    
    if(range_item2()==0)return 0;
-   range.steps=atoi(values[6]);
-      range.steps2=atoi(values[12]);
+   range.steps=atoi(values[6].c_str());
+      range.steps2=atoi(values[12].c_str());
    if(range.steps<=0)range.steps=10;
     if(range.steps2<=0)range.steps2=10;
   
-   range.plow=atof(values[1]);
-   range.phigh=atof(values[2]);
-    range.plow2=atof(values[4]);
-   range.phigh2=atof(values[5]);
+   range.plow=atof(values[1].c_str());
+   range.phigh=atof(values[2].c_str());
+    range.plow2=atof(values[4].c_str());
+   range.phigh2=atof(values[5].c_str());
    if(values[7][0]=='Y'||values[7][0]=='y')range.reset=1;
    else range.reset=0;
    if(values[8][0]=='Y'||values[8][0]=='y')range.oldic=1;
@@ -543,7 +539,7 @@ XPP_FORMAT_TO_BUF(values[6],"{}",range.steps);
    else range.cycle=0;
     if(values[10][0]=='Y'||values[10][0]=='y')range.movie=1;
    else range.movie=0;
-   range.rtype=atoi(values[11]);
+   range.rtype=atoi(values[11].c_str());
 
  RANGE_FLAG=1;
  return(1);
@@ -1228,7 +1224,7 @@ void do_init_data(int com)
   int i,si;
   double *x;
   double old_dt=DELTA_T;
-  std::array<char, XPP_MAX_NAME> icfile{};
+  std::string icfile;
   float xm,ym;
   int im,jm,oldstart,iv,jv,badmouse;
 
@@ -1377,10 +1373,10 @@ void do_init_data(int com)
       err_msg("Out of range");
     break;
   case M_IF:
-    icfile[0]=0;
-    if(!file_selector("Read initial data",icfile.data(),"*.dat"))return;
+    icfile.clear();
+    if(!file_selector("Read initial data",icfile,"*.dat"))return;
     {
-      xpp::TokenReader reader(icfile.data());
+      xpp::TokenReader reader(icfile.c_str());
       if(!reader){
         err_msg(" Cant open IC file");
         return;
@@ -1504,9 +1500,9 @@ void do_new_array_ic(const char *newic, int j1, int j2)
     ar_ic[ihot].j1=j1;
     ar_ic[ihot].j2=j2;
   }
-  new_string_of("Formula:",ar_ic[ihot].formula.data(),XPP_FIELD_EXPRESSION);
+  new_string_of("Formula:",ar_ic[ihot].formula,XPP_FIELD_EXPRESSION);
   /* now we have everything we need */
-  evaluate_ar_ic(ar_ic[ihot].var.data(),ar_ic[ihot].formula.data(),
+  evaluate_ar_ic(ar_ic[ihot].var.data(),ar_ic[ihot].formula.c_str(),
 		 ar_ic[ihot].j1,ar_ic[ihot].j2);
   
 
@@ -1539,7 +1535,7 @@ void store_new_array_ic(const char *newic, int j1, int j2, const char *formula)
     ar_ic[ihot].j1=j1;
     ar_ic[ihot].j2=j2;
   }
-  xpp_strlcpy(ar_ic[ihot].formula.data(),formula,ar_ic[ihot].formula.size());
+  ar_ic[ihot].formula=formula;
 }
 
 void evaluate_ar_ic(const char *v, const char *f, int j1, int j2)
@@ -1612,7 +1608,7 @@ void arr_ic_start()
   if(ar_ic_defined==0) return;
   for(i=0;i<NAR_IC;i++){
     if(ar_ic[i].type==2){
-      evaluate_ar_ic(ar_ic[i].var.data(),ar_ic[i].formula.data(),
+      evaluate_ar_ic(ar_ic[i].var.data(),ar_ic[i].formula.c_str(),
 		     ar_ic[i].j1,ar_ic[i].j2);
     }
   }
@@ -1621,22 +1617,21 @@ void arr_ic_start()
 
 int set_array_ic()
 {
- std::array<char, 256> junk{}; /* new_string edits up to 255 characters */
+ std::string junk;
  std::string newic;
  int i,index0,myar=-1;
  int i1,in;
  int j1,j2,flag2;
  double z;
  int flag;
- junk[0]=0;
- if(new_string("Variable: ",junk.data())==0)return 0;
+ if(new_string("Variable: ",junk)==0)return 0;
  search_array(junk.data(),newic,&j1,&j2,&flag2);
  if(flag2==1)
    {
      do_new_array_ic(newic.c_str(),j1,j2);
    }
  else {
-   find_variable(junk.data(),&i);
+   find_variable(junk.c_str(),&i);
    if(i<=-1)
      return 0;
    index0=i;
@@ -1662,14 +1657,14 @@ int set_array_ic()
    ar_ic[myar].index0=index0;
    ar_ic[myar].type=0;
    new_int("Number elements:",&ar_ic[myar].n);
-   new_string_of("u=F(t-i0):",ar_ic[myar].formula.data(),XPP_FIELD_EXPRESSION);
+   new_string_of("u=F(t-i0):",ar_ic[myar].formula,XPP_FIELD_EXPRESSION);
    i1=index0-1;
    in=i1+ar_ic[myar].n;
    /* plintf("i1=%d in=%d \n",i1,in); */
    if(i1>NODE||in>NODE)return 0; /* out of bounds */
    for(i=i1;i<in;i++){
      set_val("t",static_cast<double>((i-i1)));
-     flag=do_calc(ar_ic[myar].formula.data(),&z);
+     flag=do_calc(ar_ic[myar].formula.c_str(),&z);
      if(flag==-1){
        err_msg("Bad formula");
        return 1;
@@ -2486,19 +2481,7 @@ int ip,np=plot_windows.current->nvars;
 
 void plot_the_graphs(float *xv,float *xvold,int node,int neq,double ddt,int *tc,int flag)
 {
-  int i;
-  int ic=plot_windows.active;
- if(plot_windows.simul==0){
-   plot_one_graph(xv,xvold,node,neq,ddt,tc);
-   return;
- }
- 
- 
- for(i=0;i<plot_windows.count;i++){
-   make_active(plot_windows.open[i],flag);
-     plot_one_graph(xv,xvold,node,neq,ddt,tc);
- }
- make_active(ic,flag);
+ for_each_shown_window(flag,[&]{plot_one_graph(xv,xvold,node,neq,ddt,tc);});
 }
 
 void plot_one_graph(float *xv,float *xvold,int node,int neq,double ddt,int *tc)

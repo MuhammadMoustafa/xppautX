@@ -4,9 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "ggets.h"
 #include "parserslow.h"
-#include "calc.h"
 #include "xpp_io.h"
 
 /* Derived parameter stuff !!  */

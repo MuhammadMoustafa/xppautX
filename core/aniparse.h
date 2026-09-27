@@ -81,7 +81,6 @@ typedef struct {
   int zthick,tfont,tsize,tcolor;  
 } ANI_COM;
 
-void new_vcr(void);
 void create_vcr(const char *name);
 void destroy_vcr(void);
 double get_current_time(void);
@@ -151,7 +150,6 @@ void draw_ani_text(int j);
 void draw_ani_vtext(int j);
 void tst_pix_draw(void);
 void read_ani_line(FILE *fp, char *s);
-void de_space(char *s);
 int add_grab_command(const char *xs, const char *ys, const char *ts, FILE *fp);
 int ani_grab_tasks(const char *line, int igrab, int which);
 int run_now_grab(void);

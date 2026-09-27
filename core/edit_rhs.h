@@ -29,7 +29,6 @@ extern "C" {
 	editable strings  
  */
 
-int do_edit_box(int n, const char *title, const char *const *names, char **values);
 void edit_menu(void);
 void edit_rhs(void);
 void user_fun_info(FILE *fp);

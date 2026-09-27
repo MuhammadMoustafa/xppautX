@@ -4,7 +4,6 @@
 #include "gear.h"
 #include "parserslow.h"
 
-#include "ggets.h"
 #include <stdlib.h> 
 #include <stdio.h>
 #include <string.h>
@@ -295,22 +294,16 @@ int solve_dae()
 void get_new_guesses()
 {
   int i,n;
-  /* new_string_of edits a fixed dialog buffer in place (its C API takes
-     char *value, not a std::string); svar[i].rhs keeps its old 80-byte
-     editable capacity (add_svar's original allocation) via this local
-     buffer, then takes the edited text back. name stays on xpp_snprintf
-     too: its "%.*s" dynamic precision has no mechanical xpp::format
-     equivalent (CLAUDE.md's xpp::format carve-out). */
+  /* new_string_of edits svar[i].rhs in place. name stays on
+     xpp_snprintf: its "%.*s" dynamic precision has no mechanical
+     xpp::format equivalent (CLAUDE.md's xpp::format carve-out). */
   char name[XPP_NAME_MAX+40];
-  char rhs_buf[80];
   double z;
   if(nsvar<1)return;
   for(i=0;i<nsvar;i++){
     z=svar[i].last;
     xpp_snprintf(name,sizeof(name),"Initial %.*s(%g):",XPP_NAME_MAX,svar[i].name.c_str(),z);
-    xpp_strlcpy(rhs_buf,svar[i].rhs.c_str(),sizeof(rhs_buf));
-    new_string_of(name,rhs_buf,XPP_FIELD_EXPRESSION);
-    svar[i].rhs=rhs_buf;
+    new_string_of(name,svar[i].rhs,XPP_FIELD_EXPRESSION);
     if(add_expr(svar[i].rhs.c_str(),svar[i].form.data(),&n)){
       err_msg("Illegal formula");
       return;

@@ -2,12 +2,11 @@
    auto_f2c.h's own min/max macros (included transitively below, through
    auto_nox.h) break if they are already defined first. */
 #include "xpp_io.h"
+#include "xpp_ui.h"
 #include "xpp_log.h"
 #include "diagram.h"
 #include "xpp_mem.h"
 #include "autevd.h"
-#include "init_conds.h"
-#include "ggets.h"
 
 #include "my_svg.h"
 #include "my_ps.h"
@@ -210,11 +209,10 @@ namespace {
    or when it cannot be written (err_msg says so). */
 xpp::Writer diagram_file(const char *title, const char *name)
 {
-  char filename[XPP_MAX_NAME];
-  XPP_STRCPY(filename,name);
+  std::string filename=name;
   if(!file_selector(title,filename,"*.dat"))return xpp::Writer();
   if(bifd->next==NULL)return xpp::Writer();
-  xpp::Writer w(filename);
+  xpp::Writer w(filename.c_str());
   if(!w)err_msg("Can't open file");
   return w;
 }
@@ -224,12 +222,11 @@ xpp::Writer diagram_file(const char *title, const char *name)
 void export_diagram(const char *title, const char *name, const char *wild,
                     int (*begin)(const char *, int), void (*end)(void))
 {
-  char filename[XPP_MAX_NAME];
   DIAGRAM *d;
   int type,flag=0;
-  XPP_STRCPY(filename,name);
+  std::string filename=name;
   if(!file_selector(title,filename,wild))return;
-  if(!begin(filename,plot_export.color))
+  if(!begin(filename.c_str(),plot_export.color))
     return;
   draw_export_axes();
   d=bifd;

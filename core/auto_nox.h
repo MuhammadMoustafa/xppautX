@@ -188,6 +188,12 @@ void auto_motion_xy(int i, int j);
    as the point AUTO's File/sElect 2par pt uses in a two-parameter plot */
 void auto_point_xy(double x, double y);
 
+void DLINE(double a, double b, double c, double d);
+void find_point(int ibr, int pt);
+void auto_get_info(int *n, char *pname);
+void auto_set_mark(int i);
+void do_auto_range(void);
+
 #ifdef __cplusplus
 }
 #endif

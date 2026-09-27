@@ -2,6 +2,7 @@
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
+#include <array>
 #include <string>
 #include <vector>
 #include "arrayplot.h"
@@ -125,42 +126,42 @@ void get_2d_view(int ind)
 {
  static const char *n[]={"*0X-axis","*0Y-axis","Xmin", "Ymin",
 		   "Xmax", "Ymax", "Xlabel","Ylabel"};
- char values[8][MAX_LEN_SBOX];
+ std::array<std::string, 8> values;
  int  status,i; 
  int i1=plot_windows.current->xv[ind],i2=plot_windows.current->yv[ind];
  char n1[XPP_NAME_MAX+1],n2[XPP_NAME_MAX+1];
  ind_to_sym(i1,n1);
  ind_to_sym(i2,n2);
- XPP_SPRINTF(values[0],"%s",n1);
- XPP_SPRINTF(values[1],"%s",n2);
- XPP_SPRINTF(values[2],"%g",plot_windows.current->xmin);
- XPP_SPRINTF(values[3],"%g",plot_windows.current->ymin);
- XPP_SPRINTF(values[4],"%g",plot_windows.current->xmax);
- XPP_SPRINTF(values[5],"%g",plot_windows.current->ymax);
- snprintf(values[6],sizeof(values[6]),"%s",plot_windows.current->xlabel);
- snprintf(values[7],sizeof(values[7]),"%s",plot_windows.current->ylabel);
+ values[0] = n1;
+ values[1] = n2;
+ values[2] = xpp::format("{:g}", plot_windows.current->xmin);
+ values[3] = xpp::format("{:g}", plot_windows.current->ymin);
+ values[4] = xpp::format("{:g}", plot_windows.current->xmax);
+ values[5] = xpp::format("{:g}", plot_windows.current->ymax);
+ values[6] = plot_windows.current->xlabel;
+ values[7] = plot_windows.current->ylabel;
  plot_windows.current->ThreeDFlag=0;
  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(8,4,2,"2D View",n,values,31,kinds);
+ status=do_string_box_of(4,2,"2D View",n,values,31,kinds);
  if(status!=0){
 		/*  get variable names  */
-             find_variable(values[0],&i);
+             find_variable(values[0].c_str(),&i);
               if(i>-1)
 		plot_windows.current->xv[ind]=i;
-	     find_variable(values[1],&i);
+	     find_variable(values[1].c_str(),&i);
               if(i>-1)
 		plot_windows.current->yv[ind]=i;
 
-	      plot_windows.current->xmin=atof(values[2]);
-	      plot_windows.current->ymin=atof(values[3]);
-	      plot_windows.current->xmax=atof(values[4]);
-	      plot_windows.current->ymax=atof(values[5]);
+	      plot_windows.current->xmin=atof(values[2].c_str());
+	      plot_windows.current->ymin=atof(values[3].c_str());
+	      plot_windows.current->xmax=atof(values[4].c_str());
+	      plot_windows.current->ymax=atof(values[5].c_str());
 	      plot_windows.current->xlo=plot_windows.current->xmin;
 	      plot_windows.current->ylo=plot_windows.current->ymin;
 	      plot_windows.current->xhi=plot_windows.current->xmax;
 	      plot_windows.current->yhi=plot_windows.current->ymax;
-	     XPP_SPRINTF(plot_windows.current->xlabel,"%s",values[6]);
-	     XPP_SPRINTF(plot_windows.current->ylabel,"%s",values[7]);
+	     XPP_SPRINTF(plot_windows.current->xlabel,"%s",values[6].c_str());
+	     XPP_SPRINTF(plot_windows.current->ylabel,"%s",values[7].c_str());
 	      check_windows();
 /*	      plintf(" x=%d y=%d xlo=%f ylo=%f xhi=%f yhi=%f \n",
 		     MyGraph->xv[ind],MyGraph->yv[ind],MyGraph->xlo,
@@ -176,26 +177,26 @@ void axes_opts()
   static const char *n[]={"X-origin","Y-origin","Z-origin",
 		   "X-org(1=on)","Y-org(1=on)","Z-org(1=on",
 		    "PSFontSize"};
-  char values[7][MAX_LEN_SBOX];
+  std::array<std::string, 7> values;
   int status;
-  XPP_SPRINTF(values[0],"%g",plot_windows.current->xorg);
-  XPP_SPRINTF(values[1],"%g",plot_windows.current->yorg);
-  XPP_SPRINTF(values[2],"%g",plot_windows.current->zorg);
-  XPP_SPRINTF(values[3],"%d",plot_windows.current->xorgflag);
-  XPP_SPRINTF(values[4],"%d",plot_windows.current->yorgflag);
-  XPP_SPRINTF(values[5],"%d",plot_windows.current->zorgflag);
-  XPP_SPRINTF(values[6],"%d",PS_FONTSIZE);
+  values[0] = xpp::format("{:g}", plot_windows.current->xorg);
+  values[1] = xpp::format("{:g}", plot_windows.current->yorg);
+  values[2] = xpp::format("{:g}", plot_windows.current->zorg);
+  values[3] = xpp::format("{:d}", plot_windows.current->xorgflag);
+  values[4] = xpp::format("{:d}", plot_windows.current->yorgflag);
+  values[5] = xpp::format("{:d}", plot_windows.current->zorgflag);
+  values[6] = xpp::format("{:d}", PS_FONTSIZE);
   static const int kinds[]={XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
-  status=do_string_box_of(7,7,1,"Axes options",n,values,25,kinds);
+  status=do_string_box_of(7,1,"Axes options",n,values,25,kinds);
  if(status!=0){
-   plot_windows.current->xorg=atof(values[0]);
-   plot_windows.current->yorg=atof(values[1]);
-   plot_windows.current->zorg=atof(values[2]);
-   plot_windows.current->xorgflag=atoi(values[3]);
-   plot_windows.current->yorgflag=atoi(values[4]);
-   plot_windows.current->zorgflag=atoi(values[5]);
-   PS_FONTSIZE=atoi(values[6]);
+   plot_windows.current->xorg=atof(values[0].c_str());
+   plot_windows.current->yorg=atof(values[1].c_str());
+   plot_windows.current->zorg=atof(values[2].c_str());
+   plot_windows.current->xorgflag=atoi(values[3].c_str());
+   plot_windows.current->yorgflag=atoi(values[4].c_str());
+   plot_windows.current->zorgflag=atoi(values[5].c_str());
+   PS_FONTSIZE=atoi(values[6].c_str());
    redraw_the_graph();
  }
    
@@ -208,60 +209,60 @@ void get_3d_view(int ind)
 		   "Xmin", "Xmax", "Ymin",
 		   "Ymax", "Zmin","Zmax",
 		   "XLo", "XHi", "YLo", "YHi","Xlabel","Ylabel","Zlabel"};
- char values[16][MAX_LEN_SBOX];
+ std::array<std::string, 16> values;
  int  status,i,i1=plot_windows.current->xv[ind],i2=plot_windows.current->yv[ind],i3=plot_windows.current->zv[ind];
  char n1[XPP_NAME_MAX+1],n2[XPP_NAME_MAX+1],n3[XPP_NAME_MAX+1];
  ind_to_sym(i1,n1);
  ind_to_sym(i2,n2);
  ind_to_sym(i3,n3);
- XPP_SPRINTF(values[0],"%s",n1);
- XPP_SPRINTF(values[1],"%s",n2);
- XPP_SPRINTF(values[2],"%s",n3);
- XPP_SPRINTF(values[3],"%g",plot_windows.current->xmin);
- XPP_SPRINTF(values[5],"%g",plot_windows.current->ymin);
- XPP_SPRINTF(values[7],"%g",plot_windows.current->zmin);
- XPP_SPRINTF(values[4],"%g",plot_windows.current->xmax);
- XPP_SPRINTF(values[6],"%g",plot_windows.current->ymax);
- XPP_SPRINTF(values[8],"%g",plot_windows.current->zmax);
- XPP_SPRINTF(values[9],"%g",plot_windows.current->xlo);
- XPP_SPRINTF(values[11],"%g",plot_windows.current->ylo);
- XPP_SPRINTF(values[10],"%g",plot_windows.current->xhi);
- XPP_SPRINTF(values[12],"%g",plot_windows.current->yhi);
- snprintf(values[13],sizeof(values[13]),"%s",plot_windows.current->xlabel);
- snprintf(values[14],sizeof(values[14]),"%s",plot_windows.current->ylabel);
- snprintf(values[15],sizeof(values[15]),"%s",plot_windows.current->zlabel);
+ values[0] = n1;
+ values[1] = n2;
+ values[2] = n3;
+ values[3] = xpp::format("{:g}", plot_windows.current->xmin);
+ values[5] = xpp::format("{:g}", plot_windows.current->ymin);
+ values[7] = xpp::format("{:g}", plot_windows.current->zmin);
+ values[4] = xpp::format("{:g}", plot_windows.current->xmax);
+ values[6] = xpp::format("{:g}", plot_windows.current->ymax);
+ values[8] = xpp::format("{:g}", plot_windows.current->zmax);
+ values[9] = xpp::format("{:g}", plot_windows.current->xlo);
+ values[11] = xpp::format("{:g}", plot_windows.current->ylo);
+ values[10] = xpp::format("{:g}", plot_windows.current->xhi);
+ values[12] = xpp::format("{:g}", plot_windows.current->yhi);
+ values[13] = plot_windows.current->xlabel;
+ values[14] = plot_windows.current->ylabel;
+ values[15] = plot_windows.current->zlabel;
  plot_windows.current->ThreeDFlag=1;
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),
                            XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(16,6,3,"3D View",n,values,31,kinds);
+ status=do_string_box_of(6,3,"3D View",n,values,31,kinds);
  if(status!=0){
 		/*  get variable names  */
-              find_variable(values[0],&i);
+              find_variable(values[0].c_str(),&i);
  	      if(i>-1)
 		plot_windows.current->xv[ind]=i;
-              find_variable(values[1],&i);
+              find_variable(values[1].c_str(),&i);
               if(i>-1)
 		plot_windows.current->yv[ind]=i;
-              find_variable(values[2],&i);
+              find_variable(values[2].c_str(),&i);
   		if(i>-1)
 		  plot_windows.current->zv[ind]=i;
-	      XPP_SPRINTF(plot_windows.current->xlabel,"%s",values[13]);
-	      XPP_SPRINTF(plot_windows.current->ylabel,"%s",values[14]);
-	      XPP_SPRINTF(plot_windows.current->zlabel,"%s",values[15]);
+	      XPP_SPRINTF(plot_windows.current->xlabel,"%s",values[13].c_str());
+	      XPP_SPRINTF(plot_windows.current->ylabel,"%s",values[14].c_str());
+	      XPP_SPRINTF(plot_windows.current->zlabel,"%s",values[15].c_str());
 
 
-	      plot_windows.current->xmin=atof(values[3]);
-	      plot_windows.current->ymin=atof(values[5]);
-	      plot_windows.current->zmin=atof(values[7]);
-	      plot_windows.current->xmax=atof(values[4]);
-	      plot_windows.current->ymax=atof(values[6]);
-	      plot_windows.current->zmax=atof(values[8]);
-	      plot_windows.current->xlo=atof(values[9]);
-	      plot_windows.current->ylo=atof(values[11]);
-	      plot_windows.current->xhi=atof(values[10]);
-	      plot_windows.current->yhi=atof(values[12]);
+	      plot_windows.current->xmin=atof(values[3].c_str());
+	      plot_windows.current->ymin=atof(values[5].c_str());
+	      plot_windows.current->zmin=atof(values[7].c_str());
+	      plot_windows.current->xmax=atof(values[4].c_str());
+	      plot_windows.current->ymax=atof(values[6].c_str());
+	      plot_windows.current->zmax=atof(values[8].c_str());
+	      plot_windows.current->xlo=atof(values[9].c_str());
+	      plot_windows.current->ylo=atof(values[11].c_str());
+	      plot_windows.current->xhi=atof(values[10].c_str());
+	      plot_windows.current->yhi=atof(values[12].c_str());
               check_windows();
 	/*      plintf("%f %f %f %f %f %f \n %f %f %f %f",
 		     MyGraph->xmin,MyGraph->xmax,
@@ -450,20 +451,20 @@ void fit_window()
 void user_window()
 {
  static const char *n[]={"X Lo","X Hi","Y Lo","Y Hi"};
- char values[4][MAX_LEN_SBOX];
+ std::array<std::string, 4> values;
  int status;
- XPP_SPRINTF(values[0],"%g",plot_windows.current->xlo);
- XPP_SPRINTF(values[2],"%g",plot_windows.current->ylo);
- XPP_SPRINTF(values[1],"%g",plot_windows.current->xhi);
- XPP_SPRINTF(values[3],"%g",plot_windows.current->yhi);
+ values[0] = xpp::format("{:g}", plot_windows.current->xlo);
+ values[2] = xpp::format("{:g}", plot_windows.current->ylo);
+ values[1] = xpp::format("{:g}", plot_windows.current->xhi);
+ values[3] = xpp::format("{:g}", plot_windows.current->yhi);
  static const int kinds[]={XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
- status=do_string_box_of(4,2,2,"Window",n,values,28,kinds);
+ status=do_string_box_of(2,2,"Window",n,values,28,kinds);
  if(status!=0){
              
-	      plot_windows.current->xlo=atof(values[0]);
-	      plot_windows.current->ylo=atof(values[2]);
-	      plot_windows.current->xhi=atof(values[1]);
-	      plot_windows.current->yhi=atof(values[3]);
+	      plot_windows.current->xlo=atof(values[0].c_str());
+	      plot_windows.current->ylo=atof(values[2].c_str());
+	      plot_windows.current->xhi=atof(values[1].c_str());
+	      plot_windows.current->yhi=atof(values[3].c_str());
 	      if(plot_windows.current->grtype<5){
 	      plot_windows.current->xmin=plot_windows.current->xlo;
 	      plot_windows.current->xmax=plot_windows.current->xhi;
@@ -477,14 +478,14 @@ void user_window()
 
 void xi_vs_t() /*  a short cut   */
 {
- char name[20],value[256]; /* new_string edits up to 255 characters */
+ char sym[256];
  int i=plot_windows.current->yv[0];
  
 
- ind_to_sym(i,value);
- XPP_SPRINTF(name,"Plot vs t: ");
- new_string_of(name,value,XPP_FIELD_NAME_IN(0));
- find_variable(value,&i);
+ ind_to_sym(i,sym);
+ std::string value=sym;
+ new_string_of("Plot vs t: ",value,XPP_FIELD_NAME_IN(0));
+ find_variable(value.c_str(),&i);
  
  if(i>-1){
    plot_windows.current->yv[0]=i;
@@ -541,7 +542,7 @@ void get_3d_par_com()
  static const char *n[]={"Persp (1=On)","ZPlane","ZView","Theta","Phi","Movie(Y/N)",
                    "Vary (theta/phi)","Start angle", "Increment",
 		   "Number increments"};
- char values[10][MAX_LEN_SBOX];
+ std::array<std::string, 10> values;
  int status;
  
  int nclip=8,angle=0;
@@ -549,32 +550,32 @@ void get_3d_par_com()
   if(plot_windows.current->grtype<5)return;
 
 
- XPP_SPRINTF(values[0],"%d",plot_windows.current->PerspFlag);
- XPP_SPRINTF(values[1],"%g",plot_windows.current->ZPlane);
- XPP_SPRINTF(values[2],"%g",plot_windows.current->ZView);
- XPP_SPRINTF(values[3],"%g",plot_windows.current->Theta);
- XPP_SPRINTF(values[4],"%g",plot_windows.current->Phi);
- XPP_SPRINTF(values[5],"%s",mov3d.yes);
- XPP_SPRINTF(values[6],"%s",mov3d.angle);
- XPP_SPRINTF(values[7],"%g",mov3d.start);
- XPP_SPRINTF(values[8],"%g",mov3d.incr);
- XPP_SPRINTF(values[9],"%d",mov3d.nclip);
+ values[0] = xpp::format("{:d}", plot_windows.current->PerspFlag);
+ values[1] = xpp::format("{:g}", plot_windows.current->ZPlane);
+ values[2] = xpp::format("{:g}", plot_windows.current->ZView);
+ values[3] = xpp::format("{:g}", plot_windows.current->Theta);
+ values[4] = xpp::format("{:g}", plot_windows.current->Phi);
+ values[5] = mov3d.yes;
+ values[6] = mov3d.angle;
+ values[7] = xpp::format("{:g}", mov3d.start);
+ values[8] = xpp::format("{:g}", mov3d.incr);
+ values[9] = xpp::format("{:d}", mov3d.nclip);
  
  static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER};
- status=do_string_box_of(10,5,2,"3D Parameters",n,values,28,kinds);
+ status=do_string_box_of(5,2,"3D Parameters",n,values,28,kinds);
  if(status!=0){
-	      plot_windows.current->PerspFlag=atoi(values[0]);
-	      plot_windows.current->ZPlane=atof(values[1]);
-	      plot_windows.current->ZView=atof(values[2]);
-	      plot_windows.current->Theta=atof(values[3]);
-	      plot_windows.current->Phi=atof(values[4]);
+	      plot_windows.current->PerspFlag=atoi(values[0].c_str());
+	      plot_windows.current->ZPlane=atof(values[1].c_str());
+	      plot_windows.current->ZView=atof(values[2].c_str());
+	      plot_windows.current->Theta=atof(values[3].c_str());
+	      plot_windows.current->Phi=atof(values[4].c_str());
              if(values[5][0]=='y'|| values[5][0]=='Y'){  
-	      snprintf(mov3d.yes,sizeof(mov3d.yes),"%.*s",static_cast<int>(sizeof(mov3d.yes))-1,values[5]);
-	      snprintf(mov3d.angle,sizeof(mov3d.angle),"%.*s",static_cast<int>(sizeof(mov3d.angle))-1,values[6]);
-              start=atof(values[7]);
-	      increment=atof(values[8]);
-	      nclip=atoi(values[9]);
+	      snprintf(mov3d.yes,sizeof(mov3d.yes),"%.*s",static_cast<int>(sizeof(mov3d.yes))-1,values[5].c_str());
+	      snprintf(mov3d.angle,sizeof(mov3d.angle),"%.*s",static_cast<int>(sizeof(mov3d.angle))-1,values[6].c_str());
+              start=atof(values[7].c_str());
+	      increment=atof(values[8].c_str());
+	      nclip=atoi(values[9].c_str());
 	      mov3d.start=start;
 	      mov3d.incr=increment;
 	      mov3d.nclip=nclip;
@@ -786,7 +787,7 @@ void graph_all(int *list, int n, int type)
 int alter_curve(const char *title, int in_it, int n)
 {
  static const char *nn[]={"*0X-axis","*0Y-axis","*0Z-axis","*4Color","Line type"};
- char values[5][MAX_LEN_SBOX];
+ std::array<std::string, 5> values;
  int status,i;
  int i1=plot_windows.current->xv[in_it],i2=plot_windows.current->yv[in_it],i3=plot_windows.current->zv[in_it];
  char n1[XPP_NAME_MAX+1],n2[XPP_NAME_MAX+1],n3[XPP_NAME_MAX+1];
@@ -795,27 +796,27 @@ int alter_curve(const char *title, int in_it, int n)
  ind_to_sym(i1,n1);
  ind_to_sym(i2,n2);
  ind_to_sym(i3,n3);
- XPP_SPRINTF(values[0],"%s",n1);
- XPP_SPRINTF(values[1],"%s",n2);
- XPP_SPRINTF(values[2],"%s",n3);
- XPP_SPRINTF(values[3],"%d",plot_windows.current->color[in_it]);
- XPP_SPRINTF(values[4],"%d",plot_windows.current->line[in_it]);
+ values[0] = n1;
+ values[1] = n2;
+ values[2] = n3;
+ values[3] = xpp::format("{:d}", plot_windows.current->color[in_it]);
+ values[4] = xpp::format("{:d}", plot_windows.current->line[in_it]);
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),
                            XPP_FIELD_NAME_IN(4),XPP_FIELD_INTEGER};
- status=do_string_box_of(5,5,1,title,nn,values,25,kinds);
+ status=do_string_box_of(5,1,title,nn,values,25,kinds);
  if(status!=0){
-		    find_variable(values[0],&i);
+		    find_variable(values[0].c_str(),&i);
  	      if(i>-1)
 		plot_windows.current->xv[n]=i;
-              find_variable(values[1],&i);
+              find_variable(values[1].c_str(),&i);
               if(i>-1)
 		plot_windows.current->yv[n]=i;
-              find_variable(values[2],&i);
+              find_variable(values[2].c_str(),&i);
   		if(i>-1)
 		  plot_windows.current->zv[n]=i;
 
-	       plot_windows.current->line[n]=atoi(values[4]);
-               i=atoi(values[3]);
+	       plot_windows.current->line[n]=atoi(values[4].c_str());
+               i=atoi(values[3].c_str());
 		    if(i<0||i>10)i=0;
 		    plot_windows.current->color[n]=i;
 		   
@@ -849,29 +850,27 @@ void new_curve()
 
 void create_ps()
 {
- /*char filename[256];*/
- char filename[XPP_MAX_NAME];
  static const char *nn[]={"BW-0/Color-1","Land(0)/Port(1)","Axes fontsize","Font","Linewidth"};
  int status;
- char values[5][MAX_LEN_SBOX];
- XPP_SPRINTF(values[0],"%d",plot_export.color);
- XPP_SPRINTF(values[1],"%d",PS_Port);
- XPP_SPRINTF(values[2],"%d",PS_FONTSIZE);
- snprintf(values[3],sizeof(values[3]),"%.24s",PS_FONT);
- XPP_SPRINTF(values[4],"%g",PS_LW);
+ std::array<std::string, 5> values;
+ values[0] = xpp::format("{:d}", plot_export.color);
+ values[1] = xpp::format("{:d}", PS_Port);
+ values[2] = xpp::format("{:d}", PS_FONTSIZE);
+ values[3] = xpp::format("{:.24}", PS_FONT);
+ values[4] = xpp::format("{:g}", PS_LW);
  static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_NUMBER};
- status=do_string_box_of(5,5,1,"Postscript parameters",nn,values,25,kinds);
+ status=do_string_box_of(5,1,"Postscript parameters",nn,values,25,kinds);
  if(status!=0){
-         plot_export.color=atoi(values[0]);
-	 PS_Port=atoi(values[1]);
-	 PS_FONTSIZE=atoi(values[2]);
-	 PS_LW=atof(values[4]);
-         XPP_SPRINTF(PS_FONT,"%s",values[3]);
-	 snprintf(filename,sizeof(filename),"%.250s.ps",this_file);
+         plot_export.color=atoi(values[0].c_str());
+	 PS_Port=atoi(values[1].c_str());
+	 PS_FONTSIZE=atoi(values[2].c_str());
+	 PS_LW=atof(values[4].c_str());
+         XPP_SPRINTF(PS_FONT,"%s",values[3].c_str());
+	 std::string filename=xpp::format("{:.250}.ps",this_file);
 	 ping();
  
 	 if(!file_selector("Print postscript",filename,"*.ps"))return;
-	 if(ps_init(filename,plot_export.color)){
+	 if(ps_init(filename.c_str(),plot_export.color)){
 	   ps_restore(); 
 	   ping();
 	 }
@@ -881,13 +880,12 @@ void create_ps()
 void create_svg()
 {
 
- char filename[XPP_MAX_NAME];
- XPP_STRCPY(filename,this_file);
- filename[strlen(filename)-4]='\0';
- strcat(filename,".svg");	
- /*sprintf(filename,"%s.svg",tmp);*/
+ /* the model's name without its ".ode" */
+ std::string filename=this_file;
+ filename.resize(filename.size()>=4?filename.size()-4:0);
+ filename+=".svg";
  if(!file_selector("Print svg",filename,"*.svg"))return;
- if(svg_init(filename,plot_export.color)){
+ if(svg_init(filename.c_str(),plot_export.color)){
 	   svg_restore(); 
 	   ping();
 	 }
@@ -1094,17 +1092,17 @@ int create_crv(int ind)
 void edit_frz_crv(int i)
 {
  static const char *nn[]={"*4Color","Key","Name"};
- char values[3][MAX_LEN_SBOX];
+ std::array<std::string, 3> values;
  int status;
- XPP_SPRINTF(values[0],"%d",frozen_curves.curve[i].color);
- XPP_SPRINTF(values[1],"%s",frozen_curves.curve[i].key);
- XPP_SPRINTF(values[2],"%s",frozen_curves.curve[i].name);
+ values[0] = xpp::format("{:d}", frozen_curves.curve[i].color);
+ values[1] = frozen_curves.curve[i].key;
+ values[2] = frozen_curves.curve[i].name;
  static const int kinds[]={XPP_FIELD_NAME_IN(4),XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(3,3,1,"Edit Freeze",nn,values,25,kinds);
+ status=do_string_box_of(3,1,"Edit Freeze",nn,values,25,kinds);
  if(status!=0){
-   frozen_curves.curve[i].color=atoi(values[0]);
-   snprintf(frozen_curves.curve[i].key,sizeof(frozen_curves.curve[i].key),"%.19s",values[1]);
-   snprintf(frozen_curves.curve[i].name,sizeof(frozen_curves.curve[i].name),"%.9s",values[2]);
+   frozen_curves.curve[i].color=atoi(values[0].c_str());
+   snprintf(frozen_curves.curve[i].key,sizeof(frozen_curves.curve[i].key),"%.19s",values[1].c_str());
+   snprintf(frozen_curves.curve[i].name,sizeof(frozen_curves.curve[i].name),"%.9s",values[2].c_str());
  }
 }
 
@@ -1229,13 +1227,10 @@ void add_bd_crv(float *x, float *y, int len, int type, int ncrv)
 void frz_bd()
 {
   FILE *fp;
-  /*char filename[256];*/
-  char filename[XPP_MAX_NAME];
-  XPP_SPRINTF(filename,"diagram.dat");
+  std::string filename="diagram.dat";
   ping();
   if(!file_selector("Import Diagram",filename,"*.dat"))return;
-  /* if(new_string("Diagram to import: ",filename)==0)return; */
-  if((fp=fopen(filename,"r"))==NULL){
+  if((fp=fopen(filename.c_str(),"r"))==NULL){
     err_msg("Couldn't open file");
     return;
   }
@@ -1318,13 +1313,10 @@ int get_frz_index(XppWinId w)
 void export_graf_data()
 {
  FILE *fp;
- /*char filename[256];*/
- char filename[XPP_MAX_NAME];
- XPP_SPRINTF(filename,"curve.dat");
+ std::string filename="curve.dat";
  ping();
 if(!file_selector("Export graph data",filename,"*.dat"))return;
-/* if(new_string("Data filename:",filename)==0)return; */
-if((fp=fopen(filename,"w"))==NULL){
+if((fp=fopen(filename.c_str(),"w"))==NULL){
     err_msg("Couldn't open file");
     return;
   }

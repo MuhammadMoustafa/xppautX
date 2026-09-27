@@ -12,6 +12,8 @@
 #include "graf_par.h"
 #include "marks_data.h"
 #include "xpp_io.h"
+#include <string>
+#include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -215,16 +217,16 @@ int select_marker_type(int *type)
 int get_marker_info(void)
 {
     static const char *n[] = {"*5Type", "*4Color", "Size"};
-    char values[3][MAX_LEN_SBOX];
-    std::snprintf(values[0], sizeof values[0], "%d", markinfo.type);
-    std::snprintf(values[1], sizeof values[1], "%d", markinfo.color);
-    std::snprintf(values[2], sizeof values[2], "%g", markinfo.size);
+    std::array<std::string, 3> values;
+    values[0] = xpp::format("{:d}", markinfo.type);
+    values[1] = xpp::format("{:d}", markinfo.color);
+    values[2] = xpp::format("{:g}", markinfo.size);
     static const int kinds[] = {XPP_FIELD_NAME_IN(5), XPP_FIELD_NAME_IN(4), XPP_FIELD_NUMBER};
-    const int status = do_string_box_of(3, 3, 1, "Add Marker", n, values, 25, kinds);
+    const int status = do_string_box_of(3, 1, "Add Marker", n, values, 25, kinds);
     if (status != 0) {
-        markinfo.type = std::atoi(values[0]);
-        markinfo.size = std::atof(values[2]);
-        markinfo.color = std::atoi(values[1]);
+        markinfo.type = std::atoi(values[0].c_str());
+        markinfo.size = std::atof(values[2].c_str());
+        markinfo.color = std::atoi(values[1].c_str());
         return 1;
     }
     return 0;
@@ -233,23 +235,23 @@ int get_marker_info(void)
 int get_markers_info(void)
 {
     static const char *n[] = {"*5Type", "*4Color", "Size", "Number", "Row1", "Skip"};
-    char values[6][MAX_LEN_SBOX];
-    std::snprintf(values[0], sizeof values[0], "%d", markinfo.type);
-    std::snprintf(values[1], sizeof values[1], "%d", markinfo.color);
-    std::snprintf(values[2], sizeof values[2], "%g", markinfo.size);
-    std::snprintf(values[3], sizeof values[3], "%d", markinfo.number);
-    std::snprintf(values[4], sizeof values[4], "%d", markinfo.start);
-    std::snprintf(values[5], sizeof values[5], "%d", markinfo.skip);
+    std::array<std::string, 6> values;
+    values[0] = xpp::format("{:d}", markinfo.type);
+    values[1] = xpp::format("{:d}", markinfo.color);
+    values[2] = xpp::format("{:g}", markinfo.size);
+    values[3] = xpp::format("{:d}", markinfo.number);
+    values[4] = xpp::format("{:d}", markinfo.start);
+    values[5] = xpp::format("{:d}", markinfo.skip);
     static const int kinds[] = {XPP_FIELD_NAME_IN(5), XPP_FIELD_NAME_IN(4), XPP_FIELD_NUMBER,
                                 XPP_FIELD_INTEGER, XPP_FIELD_INTEGER, XPP_FIELD_INTEGER};
-    const int status = do_string_box_of(6, 6, 1, "Add Markers", n, values, 25, kinds);
+    const int status = do_string_box_of(6, 1, "Add Markers", n, values, 25, kinds);
     if (status != 0) {
-        markinfo.type = std::atoi(values[0]);
-        markinfo.size = std::atof(values[2]);
-        markinfo.color = std::atoi(values[1]);
-        markinfo.number = std::atoi(values[3]);
-        markinfo.start = std::atoi(values[4]);
-        markinfo.skip = std::atoi(values[5]);
+        markinfo.type = std::atoi(values[0].c_str());
+        markinfo.size = std::atof(values[2].c_str());
+        markinfo.color = std::atoi(values[1].c_str());
+        markinfo.number = std::atoi(values[3].c_str());
+        markinfo.start = std::atoi(values[4].c_str());
+        markinfo.skip = std::atoi(values[5].c_str());
         return 1;
     }
     return 0;
@@ -370,7 +372,9 @@ void edit_object_com(int com)
         case 1:
             ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Change {} ?", lb[ilab].s).c_str(), "yn"));
             if (ans == 'y') {
-                new_string("Text: ", lb[ilab].s);
+                std::string text = lb[ilab].s;
+                new_string("Text: ", text);
+                XPP_FORMAT_TO_BUF(lb[ilab].s, "{}", text);
                 new_int("Size 0-4 :", &lb[ilab].size);
                 if (lb[ilab].size > 4) lb[ilab].size = 4;
                 if (lb[ilab].size < 0) lb[ilab].size = 0;

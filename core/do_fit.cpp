@@ -1,5 +1,6 @@
 
 #include "do_fit.h"
+#include "form_ode.h"
 #include "integrate.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
@@ -11,13 +12,13 @@
 #include "stiff.h"
 #include "parserslow.h"
 #include "derived.h"
+#include <array>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include <string>
 #include <vector>
-#include "ggets.h"
 #include "odesol2.h"
 #include "delay_handle.h"
 #include "pop_list.h"
@@ -670,31 +671,31 @@ int get_fit_params()
   static const char *n[]={"File", "Fitvar","Params","Tolerance","Npts",
 		    "NCols","To Col","Params","Epsilon","Max iter"};
   int status;
-  char values[10][MAX_LEN_SBOX];
-  XPP_FORMAT_TO_BUF(values[0],"{}",fin.file);
-  XPP_FORMAT_TO_BUF(values[1],"{}",fin.varlist);
-  XPP_FORMAT_TO_BUF(values[2],"{}",fin.parlist1);
-  XPP_FORMAT_TO_BUF(values[3],"{:g}",fin.tol);
-  XPP_FORMAT_TO_BUF(values[4],"{}",fin.npts);
-  XPP_FORMAT_TO_BUF(values[5],"{}",fin.dim);
-  XPP_FORMAT_TO_BUF(values[6],"{}",fin.collist);
-  XPP_FORMAT_TO_BUF(values[7],"{}",fin.parlist2);
-  XPP_FORMAT_TO_BUF(values[8],"{:g}",fin.eps);
-  XPP_FORMAT_TO_BUF(values[9],"{}",fin.maxiter);
+  std::array<std::string, 10> values;
+  values[0] = fin.file;
+  values[1] = fin.varlist;
+  values[2] = fin.parlist1;
+  values[3] = xpp::format("{:g}", fin.tol);
+  values[4] = fin.npts;
+  values[5] = fin.dim;
+  values[6] = fin.collist;
+  values[7] = fin.parlist2;
+  values[8] = xpp::format("{:g}", fin.eps);
+  values[9] = fin.maxiter;
   static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,
                             XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER};
-  status=do_string_box_of(10,5,2,"Fit",n,values,45,kinds);
+  status=do_string_box_of(5,2,"Fit",n,values,45,kinds);
   if(status!=0){
-    fin.tol=atof(values[3]);
-    fin.npts=atoi(values[4]);
-    fin.dim=atoi(values[5]);
-    fin.eps=atof(values[8]);
-    fin.maxiter=atoi(values[9]);
-    fin.file=values[0];
-    fin.varlist=values[1];
-    fin.parlist1=values[2];
-    fin.collist=values[6];
-    fin.parlist2=values[7];
+    fin.tol=atof(values[3].c_str());
+    fin.npts=atoi(values[4].c_str());
+    fin.dim=atoi(values[5].c_str());
+    fin.eps=atof(values[8].c_str());
+    fin.maxiter=atoi(values[9].c_str());
+    fin.file=values[0].c_str();
+    fin.varlist=values[1].c_str();
+    fin.parlist1=values[2].c_str();
+    fin.collist=values[6].c_str();
+    fin.parlist2=values[7].c_str();
      return(1);
   }
   return(0);

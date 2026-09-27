@@ -1,8 +1,10 @@
 
 #include "xpp_ui.h"
+#include "xpp_util.h"
 #include "adj2.h"
 #include "integrate.h"
 #include "numerics.h"
+#include <string>
 #include <strings.h>
 #include <array>
 
@@ -16,8 +18,6 @@
 #include "volterra2.h"
 #include "odesol2.h"
 #include "gear.h"
-#include "menu.h"
-#include "ggets.h"
 #include "pp_shoot.h"
 #include "storage.h"
 #include "delay_handle.h"
@@ -311,7 +311,7 @@ void  get_num_par(char ch)
 		       do_meth();
 		      TEND=fabs(TEND);
 		       alloc_meth();
-			help();
+			show_main_menu(MAIN_MENU);
 			break;
 
 		}  /* End num switch */
@@ -412,7 +412,7 @@ void get_pmap_pars_com(int l)
  static const char *const mkey="nsmp";
  char ch;
  static const char *n[]={"*0Variable","Section","Direction (+1,-1,0)","Stop on sect(y/n)"};
- char values[4][MAX_LEN_SBOX];
+ std::array<std::string, 4> values;
  static const char *yn[]={"N","Y"};
  int status;
  std::array<char, XPP_NAME_MAX+1> n1;
@@ -429,23 +429,23 @@ void get_pmap_pars_com(int l)
  if(POIMAP==0)return;
 
  ind_to_sym(i1,n1.data());
- XPP_FORMAT_TO_BUF(values[0],"{}",n1.data());
- XPP_FORMAT_TO_BUF(values[1],"{:.16g}",POIPLN);
- XPP_FORMAT_TO_BUF(values[2],"{}",POISGN);
- XPP_FORMAT_TO_BUF(values[3],"{}",yn[SOS]);
+ values[0] = n1.data();
+ values[1] = xpp::format("{:.16g}", POIPLN);
+ values[2] = POISGN;
+ values[3] = yn[SOS];
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
- status=do_string_box_of(4,4,1,"Poincare map",n,values,45,kinds);
+ status=do_string_box_of(4,1,"Poincare map",n,values,45,kinds);
  if(status!=0){
-              find_variable(values[0],&i1);
+              find_variable(values[0].c_str(),&i1);
 	      if(i1<0) { POIMAP=0;
                          err_msg("No such section");
 			 return;
 		       }
 	      POIVAR=i1;
-	      POISGN=atoi(values[2]);
+	      POISGN=atoi(values[2].c_str());
 	      if(values[3][0]=='Y'||values[3][0]=='y')SOS=1;
 	      else SOS=0;
-	      POIPLN=atof(values[1]);
+	      POIPLN=atof(values[1].c_str());
 	    }
 
 }
@@ -505,16 +505,17 @@ void set_col_par_com(int i)
     double temp[2];
     float maxder=0.0,minder=0.0,sum=0.0;
     char ch;
-    std::array<char, 256> name; /* new_string edits up to 255 characters */
+    std::array<char, 256> sym; /* ind_to_sym writes a name */
    plot_windows.current->ColorFlag=i;
    if(plot_windows.current->ColorFlag==0){
    /* set color to black/white */
     return;
     }
     if(plot_windows.current->ColorFlag==2){
-      ind_to_sym(plot_windows.current->ColorValue,name.data());
-      new_string_of("Color via:",name.data(),XPP_FIELD_NAME_IN(0));
-      find_variable(name.data(),&ivar);
+      ind_to_sym(plot_windows.current->ColorValue,sym.data());
+      std::string name=sym.data();
+      new_string_of("Color via:",name,XPP_FIELD_NAME_IN(0));
+      find_variable(name.c_str(),&ivar);
       
 
       if(ivar>=0)

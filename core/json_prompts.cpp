@@ -152,7 +152,8 @@ void buf_kinds(Buf *b, const int *kinds, int all, int n)
 
 } // namespace
 
-int j_dialog(const char *title, const char *name, char *value, const char *ok, const char *cancel, int max, int kind)
+int j_dialog(const char *title, const char *name, std::string &value, const char *ok, const char *cancel, int max,
+             int kind)
 {
     Buf b;
     int id = ask_begin(&b, "string");
@@ -161,7 +162,7 @@ int j_dialog(const char *title, const char *name, char *value, const char *ok, c
     BUF_LIT(&b, ",\"name\":");
     buf_str(&b, name);
     BUF_LIT(&b, ",\"value\":");
-    buf_str(&b, value);
+    buf_str(&b, value.c_str());
     BUF_LIT(&b, ",\"ok\":");
     buf_str(&b, ok);
     BUF_LIT(&b, ",\"cancel\":");
@@ -169,13 +170,13 @@ int j_dialog(const char *title, const char *name, char *value, const char *ok, c
     buf_format(&b, ",\"max\":{:d}", max);
     buf_kinds(&b, &kind, kind, 1);
     if (!ask_wait(&b, id)) return 0;
-    get_str(answer.c_str(), "value", value, max + 1);
+    get_string(answer.c_str(), "value", value, static_cast<size_t>(max) + 1);
     return 1;
 }
 
-int j_new_string(const char *name, char *value, int kind)
+int j_new_string(const char *name, std::string &value, int kind)
 {
-    /* the X11 prompt edits a 256-byte line in place */
+    /* the X11 prompt edited a 256-byte line: 255 characters */
     return j_dialog("", name, value, "Ok", "Cancel", 255, kind);
 }
 
@@ -248,50 +249,54 @@ namespace {
 
 /* string_box and edit_box: a form of named fields, each of kinds[i]
    (every one `all` when kinds is NULL) */
-int form(const char *title, const char *const *names, int n, char **values, int size, const int *kinds, int all)
+int form(const char *title, const char *const *names, std::span<std::string> values, int size, const int *kinds,
+         int all)
 {
     Buf b;
-    int i, id = ask_begin(&b, "form");
-    const char *arr;
+    const int n = static_cast<int>(values.size());
+    int id = ask_begin(&b, "form");
+    /* a field shows at most size-1 characters, as the char[size] it was */
+    std::vector<const char *> shown(values.size());
+    for (size_t i = 0; i < values.size(); i++) {
+        if (values[i].size() >= static_cast<size_t>(size)) values[i].resize(static_cast<size_t>(size) - 1);
+        shown[i] = values[i].c_str();
+    }
     BUF_LIT(&b, ",\"title\":");
     buf_str(&b, title);
     BUF_LIT(&b, ",\"names\":");
     buf_str_array(&b, names, n);
     BUF_LIT(&b, ",\"values\":");
-    buf_str_array(&b, values, n);
+    buf_str_array(&b, shown.data(), n);
     buf_format(&b, ",\"max\":{:d}", size - 1);
     buf_kinds(&b, kinds, all, n);
     if (!ask_wait(&b, id)) return 0;
-    arr = js_find(answer.c_str(), "values");
-    for (i = 0; i < n; i++) {
+    const char *arr = js_find(answer.c_str(), "values");
+    for (int i = 0; i < n; i++) {
         const char *e = js_elem(arr, i);
-        if (e) js_string(e, values[i], size);
+        if (e) js_string(e, values[i], static_cast<size_t>(size));
     }
     return 1;
 }
 
 } // namespace
 
-int j_string_box(int n, int, int, const char *title, const char *const *names, char values[][MAX_LEN_SBOX], int,
+int j_string_box(int, int, const char *title, const char *const *names, std::span<std::string> values, int,
                  const int *kinds)
 {
-    std::array<char *, 64> v;
-    if (n > static_cast<int>(v.size())) n = static_cast<int>(v.size());
-    for (int i = 0; i < n; i++) v[i] = values[i];
-    return form(title, names, n, v.data(), MAX_LEN_SBOX, kinds, XPP_FIELD_TEXT);
+    return form(title, names, values, MAX_LEN_SBOX, kinds, XPP_FIELD_TEXT);
 }
 
-int j_edit_box(int n, const char *title, const char *const *names, char **values)
+int j_edit_box(const char *title, const char *const *names, std::span<std::string> values)
 {
     /* edit_rhs.c's right-hand sides and functions: expressions */
-    return form(title, names, n, values, MAX_LEN_EBOX, NULL, XPP_FIELD_EXPRESSION);
+    return form(title, names, values, MAX_LEN_EBOX, NULL, XPP_FIELD_EXPRESSION);
 }
 
 /* the file selector lists the directory like the X11 one; an answer with
    "cd" changes directory (as X11 does, for good) and asks again. "mode"
    says whether the command reads the file or writes it, so a client can
    show an open or a save dialog (docs/ui-v2.md section 4). */
-int j_file_selector(const char *title, char *file, const char *wild)
+int j_file_selector(const char *title, std::string &file, const char *wild)
 {
     constexpr size_t PATTERN_MAX = 255, CD_MAX = 1024;
     std::string pattern(wild ? wild : ""), cd;
@@ -306,7 +311,7 @@ int j_file_selector(const char *title, char *file, const char *wild)
         BUF_LIT(&b, ",\"mode\":");
         buf_str(&b, xpp_files_ask_mode(title));
         BUF_LIT(&b, ",\"file\":");
-        buf_str(&b, file);
+        buf_str(&b, file.c_str());
         BUF_LIT(&b, ",\"wild\":");
         buf_str(&b, pattern.c_str());
         BUF_LIT(&b, ",\"dir\":");
@@ -325,8 +330,8 @@ int j_file_selector(const char *title, char *file, const char *wild)
             continue;
         }
         if (!js_find(answer.c_str(), "file")) continue; /* a new pattern alone lists again */
-        get_str(answer.c_str(), "file", file, 256);
-        return file[0] != 0;
+        get_string(answer.c_str(), "file", file, 256); /* the X11 selector's 255 characters */
+        return !file.empty();
     }
 }
 
@@ -452,13 +457,13 @@ int ask_drag(unsigned long win, int *x, int *y)
 
 void j_q_calc(void)
 {
-    std::array<char, 256> expr{}; /* new_string_of edits it in place, as the X11 prompt's line */
+    std::string expr;
     double z;
     std::string result = "Formula:";
     /* the X11 calculator shows the answer in its window: here in the prompt */
-    while (new_string_of(result.c_str(), expr.data(), XPP_FIELD_EXPRESSION)) {
-        if (do_calc(expr.data(), &z) != -1) {
-            result = xpp::format("{:.200} = {:.16g}   Formula:", expr.data(), z);
+    while (new_string_of(result.c_str(), expr, XPP_FIELD_EXPRESSION)) {
+        if (do_calc(expr.c_str(), &z) != -1) {
+            result = xpp::format("{:.200} = {:.16g}   Formula:", expr, z);
             send_simple("message", "calc", result.c_str());
         }
     }

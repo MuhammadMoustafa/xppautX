@@ -1,8 +1,8 @@
 #include "my_ps.h"
+#include "xpp_ui.h"
+#include "colormap.h"
 #include "lunch-new.h"
-#include "ggets.h"
 #include "graphics.h"
-#include "color.h"
 
 #include <stdlib.h> 
 #include <stdio.h>

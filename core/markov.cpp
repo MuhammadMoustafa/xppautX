@@ -1,4 +1,5 @@
 #include "xpp_batch.h"
+#include "xpp_ui.h"
 #include "markov.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
@@ -7,11 +8,9 @@
 #include "integrate.h"
 #include "browse.h"
 #include "do_fit.h"
-#include "ggets.h"
 #include "my_rhs.h"
 
 #include <stdlib.h> 
-#include "init_conds.h"
 #include "adj2.h"
 #include "histogram.h"
 #include "browse.h"

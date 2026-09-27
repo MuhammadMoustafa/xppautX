@@ -1,4 +1,6 @@
 #include "flags.h"
+#include "xpp_ui.h"
+#include "xpp_util.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
@@ -8,8 +10,6 @@
 #include "derived.h"
 #include "dormpri.h"
 #include "gear.h"
-#include "ggets.h"
-#include "init_conds.h"
 #include "integrate.h"
 #include "parserslow.h"
 

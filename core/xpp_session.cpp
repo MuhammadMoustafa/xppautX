@@ -23,17 +23,14 @@ namespace {
 std::string session_set;
 std::string session_auto;
 
-/* base may be empty: ask for one the way do_lunch's Write/Read set does
-   (file_selector writes up to 256 bytes into its buffer), returning it
-   without its .set. false on cancel. */
+/* base may be empty: ask for one the way do_lunch's Write/Read set does,
+   returning it without its .set. false on cancel. */
 bool ask_base(const char *title, std::string &base)
 {
-    std::array<char, XPP_MAX_NAME + 10> buf{};
-    std::string def = std::string(this_file) + ".set";
-    def.copy(buf.data(), std::min(def.size(), buf.size() - 1));
+    std::string file = std::string(this_file) + ".set";
     ping();
-    if (!file_selector(title, buf.data(), "*.set")) return false;
-    base = buf.data();
+    if (!file_selector(title, file, "*.set")) return false;
+    base = file;
     if (base.size() >= 4 && base.ends_with(".set")) base.resize(base.size() - 4);
     return true;
 }

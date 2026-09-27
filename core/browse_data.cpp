@@ -1,7 +1,10 @@
 /* The data side of the browser: the one BROWSER instance, its storage
    pointer, row/column bookkeeping and the file writer. No X11 here; the
    widget code that displays it stays in browse.c. */
+#include <string>
+#include <array>
 #include <stdlib.h>
+#include "xpp_util.h"
 #include "xpp_mem.h"
 #include "parserslow.h"
 #include "browse.h"
@@ -23,7 +26,6 @@ extern int *plotlist, N_plist;
 extern int NEQ;
 extern float **storage;
 
-extern "C" int find_user_name(int type, const char *oname); /* init_conds.c (pure) */
 
 /*  The one and only primitive data browser   */
 BROWSER my_browser;
@@ -235,15 +237,13 @@ void data_del_col(BROWSER *b)  /*  this only works with storage  */
 void data_add_col(BROWSER *b)
 {
   int status;
-  char var[XPP_NAME_MAX+1],form[80];
+  std::string var,form;
    if(check_for_stor(b->data)==0)return;
-  XPP_STRCPY(var,"");
-  XPP_STRCPY(form,"");
   status=get_dialog("Add Column","Name",var,"Ok","Cancel",XPP_NAME_MAX);
   if(status!=0){
     status=get_dialog_of("Add Column","Formula:",form,"Add it","Cancel",80,XPP_FIELD_EXPRESSION);
      if(status!=0)
-      add_stor_col(var,form,b);
+      add_stor_col(var.c_str(),form.c_str(),b);
   }
 }
 
@@ -485,13 +485,11 @@ void find_value(int col, double val, int *row, BROWSER b)
 void data_replace(BROWSER *b)
 {
  int status;
- char var[XPP_NAME_MAX+1],form[80];
-XPP_STRCPY(var,uvar_names[0]);
-XPP_STRCPY(form,uvar_names[0]);
+ std::string var=uvar_names[0],form=uvar_names[0];
 status=get_dialog_of("Replace","Variable:",var,"Ok","Cancel",XPP_NAME_MAX,XPP_FIELD_NAME_IN(0));
 if(status!=0){
  status=get_dialog_of("Replace","Formula:",form,"Replace","Cancel",80,XPP_FIELD_EXPRESSION);
- if(status!=0)replace_column(var,form,b->data,b->maxrow);
+ if(status!=0)replace_column(var.data(),form.data(),b->data,b->maxrow);
  xpp_ui.browser_redraw(0);
 }
 
@@ -510,22 +508,22 @@ void data_table(BROWSER *b)
  int status;
 
  static const char *name[]={"Variable","Xlo","Xhi","File"};
- char value[4][MAX_LEN_SBOX];
+ std::array<std::string, 4> value;
 
  double xlo=0,xhi=1;
  int col;
- XPP_SPRINTF(value[0],"%s",uvar_names[0]);
- XPP_SPRINTF(value[1],"0.00");
- XPP_SPRINTF(value[2],"1.00");
- snprintf(value[3],sizeof(value[3]),"%.*s.tab",XPP_NAME_MAX,value[0]);
+ value[0] = uvar_names[0];
+ value[1] = "0.00";
+ value[2] = "1.00";
+ value[3] = value[0].substr(0, XPP_NAME_MAX) + ".tab";
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_FILE};
- status=do_string_box_of(4,4,1,"Tabulate",name,value,40,kinds);
+ status=do_string_box_of(4,1,"Tabulate",name,value,40,kinds);
  if(status==0)return;
- xlo=atof(value[1]);
- xhi=atof(value[2]);
- find_variable(value[0],&col);
+ xlo=atof(value[1].c_str());
+ xhi=atof(value[2].c_str());
+ find_variable(value[0].c_str(),&col);
   if(col>=0)
-   make_d_table(xlo,xhi,col,value[3],*b);
+   make_d_table(xlo,xhi,col,value[3].c_str(),*b);
 }
 
 void data_find(BROWSER *b)
@@ -533,21 +531,21 @@ void data_find(BROWSER *b)
  int status;
 
  static const char *name[]={"*0Variable","Value"};
- char value[2][MAX_LEN_SBOX];
+ std::array<std::string, 2> value;
  int col,row=-1;
 
  double val;
 
- XPP_SPRINTF(value[0],"%s",uvar_names[0]);
- XPP_SPRINTF(value[1],"0.00");
+ value[0] = uvar_names[0];
+ value[1] = "0.00";
  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_NUMBER};
- status=do_string_box_of(2,2,1,"Find Data",name,value,40,kinds);
+ status=do_string_box_of(2,1,"Find Data",name,value,40,kinds);
  
   
 
  if(status==0)return;
- val=atof(value[1]);
- find_variable(value[0],&col);
+ val=atof(value[1].c_str());
+ find_variable(value[0].c_str(),&col);
  if(col>=0)find_value(col,val,&row,*b);
  if(row>=0){
 	    b->row0=row;
@@ -562,18 +560,14 @@ void data_read(BROWSER *b)
 {
 
  int status;
- char fil[256];
  int k;
  int len,count=0;
  float z;
 
- XPP_STRCPY(fil,"test.dat");
- /*  XGetInputFocus(display,&w,&rev);
- status=get_dialog("Load","Filename:",fil,"Ok","Cancel",40);
- */
+ std::string fil="test.dat";
  status=file_selector("Load data",fil,"*.dat");
 if(status==0)return;
- xpp::UniqueFile fp=xpp::open_read(fil);
+ xpp::UniqueFile fp=xpp::open_read(fil.c_str());
  	if(!fp){
 				      respond_box("Ok",
 					"Cannot open file");
@@ -631,22 +625,12 @@ void data_write(BROWSER *b)
 {
 
  int status;
- char fil[256];
  int i,j;
 
- XPP_STRCPY(fil,"test.dat");
-
-/*
- XSetInputFocus(display,command_pop,RevertToParent,CurrentTime);
- strcpy(fil,"test.dat");
- new_string("Write to:",fil);
-*/
- /* status=get_dialog("Write","Filename:",fil,"Ok","Cancel",40);
-
-    XSetInputFocus(display,w,rev,CurrentTime); */
+ std::string fil="test.dat";
   status=file_selector("Write data",fil,"*.dat");
 if(status==0)return;
- xpp::Writer w=open_writer_asking(fil);
+ xpp::Writer w=open_writer_asking(fil.c_str());
  if(!w)return;
  FILE *fp=w.file();
  for(i=b->istart;i<b->iend;i++){

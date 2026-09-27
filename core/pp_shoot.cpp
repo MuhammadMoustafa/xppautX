@@ -1,22 +1,19 @@
 #include "xpp_ui.h"
+#include "xpp_util.h"
 #include "xpp_math.h"
 #include "xpp_mem.h"
 #include "pp_shoot.h"
 
 #include "my_rhs.h"
-#include "main.h"
 #include "adj2.h"
 #include "load_eqn.h"
-#include "abort.h"
 #include "gear.h"
 
 #include "parserslow.h"
 #include "browse.h"
 #include "graf_par.h"
 #include "integrate.h"
-#include "init_conds.h"
 #include "pop_list.h"
-#include "ggets.h"
 #include "lunch-new.h"
 
 
@@ -270,32 +267,32 @@ void do_sh_range(double *ystart, double *yend)
 int set_up_periodic(int *ipar, int *ivar, double *sect, int *ishow)
 {
  static const char *n[]={"Freq. Par.","*1Sect. Var","Section","Show(Y/N)"};
- char values[4][MAX_LEN_SBOX];
+ std::array<std::string, 4> values;
  int status,i;
  static const char *yn[]={"N","Y"};
- XPP_FORMAT_TO_BUF(values[0],"{}",upar_names[*ipar]);
- XPP_FORMAT_TO_BUF(values[1],"{}",uvar_names[*ivar]);
- XPP_FORMAT_TO_BUF(values[2],"{:g}",*sect);
- XPP_FORMAT_TO_BUF(values[3],"{}",yn[*ishow]);
+ values[0] = upar_names[*ipar];
+ values[1] = uvar_names[*ivar];
+ values[2] = xpp::format("{:g}", *sect);
+ values[3] = yn[*ishow];
  
  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(1),XPP_FIELD_NUMBER,XPP_FIELD_TEXT};
- status=do_string_box_of(4,4,1,"Periodic BCs",n,values,45,kinds);
+ status=do_string_box_of(4,1,"Periodic BCs",n,values,45,kinds);
  if(status!=0){
-               i=find_user_name(PARAM,values[0]);
+               i=find_user_name(PARAM,values[0].c_str());
 	       if(i>-1)
 		 *ipar=i;
 	       else {
 		 err_msg("No such parameter");
 		 return(0);
 	       }
-	       i=find_user_name(IC,values[1]);
+	       i=find_user_name(IC,values[1].c_str());
 	       if(i>-1)
 		 *ivar=i;
 	       else {
 		 err_msg("No such variable");
 		 return(0);
 	       }
-	       *sect=atof(values[2]);
+	       *sect=atof(values[2].c_str());
 	       if(values[3][0]=='Y'||values[3][0]=='y')*ishow=1;
 	       else *ishow=0;
 	       return(1);
@@ -408,38 +405,38 @@ int set_up_sh_range()
 static const char *n[]={"*2Range over","Steps","Start","End",
 		     "Cycle color(Y/N)",
 		       "Side(0/1)", "Movie(Y/N)" };
- char values[7][MAX_LEN_SBOX];
+ std::array<std::string, 7> values;
  int status,i;
  static  const char *yn[]={"N","Y"};
- snprintf(values[0],sizeof(values[0]),"%s",shoot_range.item.data());
- XPP_FORMAT_TO_BUF(values[1],"{}",shoot_range.steps);
- XPP_FORMAT_TO_BUF(values[2],"{:g}",shoot_range.plow);
- XPP_FORMAT_TO_BUF(values[3],"{:g}",shoot_range.phigh);
- XPP_FORMAT_TO_BUF(values[4],"{}",yn[shoot_range.cycle]);
- XPP_FORMAT_TO_BUF(values[5],"{}",shoot_range.side);
- XPP_FORMAT_TO_BUF(values[6],"{}",yn[shoot_range.movie]);
+ values[0] = shoot_range.item.data();
+ values[1] = shoot_range.steps;
+ values[2] = xpp::format("{:g}", shoot_range.plow);
+ values[3] = xpp::format("{:g}", shoot_range.phigh);
+ values[4] = yn[shoot_range.cycle];
+ values[5] = shoot_range.side;
+ values[6] = yn[shoot_range.movie];
 
  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
- status=do_string_box_of(7,7,1,"Range Shoot",n,values,45,kinds);
+ status=do_string_box_of(7,1,"Range Shoot",n,values,45,kinds);
  if(status!=0){
-   xpp_strlcpy(shoot_range.item.data(),values[0],shoot_range.item.size());
+   xpp_strlcpy(shoot_range.item.data(),values[0].c_str(),shoot_range.item.size());
    i=find_user_name(PARAM,shoot_range.item.data());
    if(i<0){
         err_msg("No such parameter");
        return(0);
      }
    
-   shoot_range.steps=atoi(values[1]);
+   shoot_range.steps=atoi(values[1].c_str());
    if(shoot_range.steps<=0)shoot_range.steps=10;
-   shoot_range.plow=atof(values[2]);
-   shoot_range.phigh=atof(values[3]);
+   shoot_range.plow=atof(values[2].c_str());
+   shoot_range.phigh=atof(values[3].c_str());
    if(values[4][0]=='Y'||values[4][0]=='y')shoot_range.cycle=1;
    else shoot_range.cycle=0;
  if(values[6][0]=='Y'||values[6][0]=='y')shoot_range.movie=1;
    else shoot_range.movie=0;
 
-   shoot_range.side=atoi(values[5]);
+   shoot_range.side=atoi(values[5].c_str());
    
 
  return(1);
