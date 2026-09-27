@@ -37,7 +37,7 @@
    - Xlib's own memory (XReadBitmapFileData's in main.c) goes back
      through XFree, as before.
    That is all today: dirname() (auto_nox.c, aniparse.c) returns a pointer
-   into its argument, getcwd() (read_dir.c) fills the caller's buffer, and
+   into its argument, getcwd() (xpp_files_dir.cpp) fills the caller's buffer, and
    no core file frees what the C library allocated. A new exception
    (getline, scandir, realpath(p, NULL), asprintf ...) stays on the C
    library's malloc/free and is listed here and in tools/alloccheck.sh,

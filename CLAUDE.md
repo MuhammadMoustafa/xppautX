@@ -554,6 +554,11 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   ahead of the file's own), `move`, and AUTO's scratch folders
   (`xpp_files_make_temp_dir`, `_remove_temp_dir`,
   `_cleanup_stale_temp_dirs`; the Windows API parts in xpp_win32.cpp).
+  The folder half (listing and its wildcard match, the file selector's
+  current folder, is_dir, dir_writable, AUTO's scratch folders) is
+  `core/xpp_files_dir.cpp` behind the same header (W46b, which folded
+  read_dir in); the two share the platform primitives of
+  `core/xpp_files_internal.h`.
   `tools/filecheck.sh` (sourcecheck) counts each core file's direct
   fopen/freopen/remove/rename/unlink/mkdir/rmdir/opendir/tmpfile calls
   outside xpp_files, xpp_io and xpp_win32 against `tests/files.baseline`
