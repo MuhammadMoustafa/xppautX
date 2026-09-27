@@ -30,17 +30,17 @@
 #include "many_pops.h"
 #include "menudrive.h"
 #include "pop_list.h" /* NUPAR, NODE, NMarkov, NEQ, upar_names, uvar_names */
+#include "phsplan.h" /* INFLAG, METHOD */
 #include <array>
 #include <string>
 
 /* the core's own globals and functions that have no header of their own */
 extern "C" {
 extern double last_ic[MAXODE];
-extern int INFLAG;
 extern BROWSER my_browser;
 extern BC_STRUCT my_bc[MAXODE];
 extern char delay_string[MAXODE][80];
-extern int DelayFlag, METHOD, EqType[];
+extern int DelayFlag, EqType[];
 extern char *ode_names[];
 extern char *save_eqn[];
 extern int NLINES;

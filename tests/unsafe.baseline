@@ -110,6 +110,5 @@ core/xpp_session.cpp buffers 1
 core/xpp_util.cpp buffers 4
 core/xpp_util.cpp text 4
 core/xpp_window.cpp buffers 1
-core/xpp_window_hint.cpp text 2
 core/xpp_window_loader.cpp buffers 1
 core/xppautx_main.cpp buffers 1

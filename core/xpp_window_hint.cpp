@@ -1,7 +1,6 @@
 /* The message for a window library that does not load (xpp_window_hint.h):
    pure text in, text out, so tests/test_window_hint.cpp can pin it. */
 #include "xpp_window_hint.h"
-#include "xpp_io.h"
 #include <string>
 #include <string_view>
 #include <vector>
@@ -78,13 +77,7 @@ std::string message(std::string_view os_release, std::string_view err)
 
 } /* namespace */
 
-void xpp_window_load_message(char *out, size_t size, const char *os_release, const char *dl_error)
+std::string xpp_window_load_message(std::string_view os_release, std::string_view dl_error)
 {
-    if (!out || size == 0) return;
-    try {
-        std::string m = message(os_release ? os_release : "", dl_error ? dl_error : "unknown error");
-        xpp_strlcpy(out, m.c_str(), size);
-    } catch (...) {
-        xpp_strlcpy(out, "xppautX: the window cannot open; using the browser instead\n", size);
-    }
+    return message(os_release, dl_error.empty() ? "unknown error" : dl_error);
 }

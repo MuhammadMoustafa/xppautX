@@ -507,7 +507,6 @@ void   set_default_params()
    parameter sliders (logic from init_conds.c; the widgets stay there) ---- */
 extern char delay_string[MAXODE][80];
 extern double default_ic[MAXODE];
-extern double DELAY;
 extern int SuppressBounds;
 
 void   set_default_ics()

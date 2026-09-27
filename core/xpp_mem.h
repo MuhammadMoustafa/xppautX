@@ -100,7 +100,7 @@ XppMemStats xpp_mem_stats(void);
 #ifdef __cplusplus
 namespace xpp {
 /* A block from xpp_malloc & co. (or from a C API that hands one out, such
-   as xpp_inbox_next's lines) that frees itself: RAII where the memory must
+   as series_enc.h's encoded values) that frees itself: RAII where the memory must
    stay a raw block rather than a std::vector or std::string. A small
    std::unique_ptr<T, xpp_free>, written out so that this header includes
    no standard C++ header (it is included after headers whose min/max

@@ -5,7 +5,6 @@
    the message reaches the log and that the browser opens instead. */
 #include "xpptest.h"
 #include "xpp_window_hint.h"
-#include "xpp_log.h"
 
 #include <string>
 
@@ -14,11 +13,9 @@ namespace {
 const char MISSING[] =
     "/proc/self/fd/5: libwebkit2gtk-4.1.so.0: cannot open shared object file: No such file or directory";
 
-std::string msg(const char *os_release, const char *err)
+std::string msg(std::string_view os_release, std::string_view err)
 {
-    char out[1024];
-    xpp_window_load_message(out, sizeof out, os_release, err);
-    return out;
+    return xpp_window_load_message(os_release, err);
 }
 
 bool has(const std::string &s, const char *part) { return s.find(part) != std::string::npos; }
@@ -50,7 +47,6 @@ int main()
     CHECK(has(other, "libwebkit2gtk-4.1.so.0 not found"));
     CHECK(has(other, "install WebKitGTK 4.1 (libwebkit2gtk-4.1) with your system's package manager"));
     CHECK(!has(other, "sudo"));
-    CHECK(has(msg(nullptr, MISSING), "your system's package manager"));
     CHECK(has(msg("", MISSING), "your system's package manager"));
 
     /* the missing one may be GTK or another dependency: named as it is */
@@ -64,13 +60,7 @@ int main()
     CHECK_STR(msg("ID=ubuntu\n", "/proc/self/fd/5: undefined symbol: webkit_web_view_new").c_str(),
               "xppautX: the window cannot open (/proc/self/fd/5: undefined symbol: webkit_web_view_new); using the "
               "browser instead\n");
-    CHECK(has(msg("ID=ubuntu\n", nullptr), "(unknown error)"));
-
-    /* cut to fit, never past the buffer (xpp_strlcpy's WARN kept quiet) */
-    xpp_log_set_threshold(XPP_LOG_ERROR);
-    char small[16];
-    xpp_window_load_message(small, sizeof small, "ID=ubuntu\n", MISSING);
-    CHECK_STR(small, "xppautX: the wi");
+    CHECK(has(msg("ID=ubuntu\n", ""), "(unknown error)"));
 
     /* xpp_webview_error_message (W35e): translate webview error codes */
     CHECK_STR(xpp_webview_error_message(-5, "").c_str(),
