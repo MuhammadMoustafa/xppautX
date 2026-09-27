@@ -25,6 +25,7 @@
 #include "xpp_ui.h"
 
 #include "load_eqn.h"
+#include "model.h"
 
 /*  this is also X free ! */
  
@@ -98,7 +99,7 @@ void get_fit_info(double *y, double *a, double *t0, int *flag, double eps, doubl
     if(ip<0)constants[-ip]=a[l];
     else y[ip]=a[l];
   }
-  for(i=0;i<NODE;i++){
+  for(i=0;i<xpp::model().node;i++){
     yold[i]=y[i];
   }
   if(DelayFlag){
@@ -115,7 +116,7 @@ evaluate_derived();
     k0=k*nvars;
     ok=one_step_int(y,t0[k-1],t0[k],&istart);
     if(ok==0){
-         for(i=0;i<NODE;i++)
+         for(i=0;i<xpp::model().node;i++)
 	y[i]=yold[i];
 
       return;
@@ -136,7 +137,7 @@ evaluate_derived();
 /* set up all the initial conditions   */
     for(j=0;j<nvars;j++)
       yderv[l][j]=0.0;   /* no dependence on initial data ... */
-    for(i=0;i<NODE;i++)
+    for(i=0;i<xpp::model().node;i++)
       y[i]=yold[i];
     ip=ipar[l];
     if(ip<0){
@@ -163,7 +164,7 @@ evaluate_derived();
       k0=k*nvars;
       ok=one_step_int(y,t0[k-1],t0[k],&istart);
       if(ok==0){
-         for(i=0;i<NODE;i++)
+         for(i=0;i<xpp::model().node;i++)
 	y[i]=yold[i];
 
        return;
@@ -183,7 +184,7 @@ if(METHOD==CVODE)
 
   }
  *flag=1;
-     for(i=0;i<NODE;i++)
+     for(i=0;i<xpp::model().node;i++)
 	y[i]=yold[i];
 
 }
@@ -198,7 +199,7 @@ int one_step_int(double *y, double t0, double t1, int *istart)
   double t=t0;
 #ifdef CVODE_YES
   if(METHOD==CVODE){
-    cvode(istart,y,&t,NODE,t1,&kflag,&TOLER,&ATOLER);
+    cvode(istart,y,&t,xpp::model().node,t1,&kflag,&TOLER,&ATOLER);
     if(kflag<0){
       cvode_err_msg(kflag);
       return(0);
@@ -208,7 +209,7 @@ int one_step_int(double *y, double t0, double t1, int *istart)
   }
 #endif
   if(METHOD==DP5||METHOD==DP83){
-    dp(istart,y,&t,NODE,t1,&TOLER,&ATOLER,METHOD-DP5,&kflag);
+    dp(istart,y,&t,xpp::model().node,t1,&TOLER,&ATOLER,METHOD-DP5,&kflag);
     if(kflag!=1){
       dp_err(kflag);
       return(0);
@@ -217,7 +218,7 @@ int one_step_int(double *y, double t0, double t1, int *istart)
     return 1;
   }
   if(METHOD==RB23){
-    rb23(y,&t,t1,istart,NODE,WORK,&kflag);
+    rb23(y,&t,t1,istart,xpp::model().node,WORK,&kflag);
     if(kflag<0){
        err_msg("Step size too small");
        return(0);
@@ -226,7 +227,7 @@ int one_step_int(double *y, double t0, double t1, int *istart)
     return 1;
   }
 if(METHOD==RKQS||METHOD==STIFF){
-      adaptive(y,NODE,&t,t1,TOLER,&dt,
+      adaptive(y,xpp::model().node,&t,t1,TOLER,&dt,
 		      HMIN,WORK,&kflag,NEWT_ERR,METHOD,istart);
       if(kflag){
 	ping();
@@ -245,7 +246,7 @@ if(METHOD==RKQS||METHOD==STIFF){
   /* cvode(command,y,t,n,tout,kflag,atol,rtol) 
  command =0 continue, 1 is start 2 finish   */
   if(METHOD==GEAR){
-    gear(NODE,&t,t1,y,HMIN,HMAX,TOLER,2,error,&kflag,istart,WORK,IWORK);
+    gear(xpp::model().node,&t,t1,y,HMIN,HMAX,TOLER,2,error,&kflag,istart,WORK,IWORK);
     if(kflag<0)
       {
 	ping();
@@ -265,18 +266,18 @@ if(METHOD==RKQS||METHOD==STIFF){
   if(METHOD==0){
     nit=fabs(t0-t1);
     dt=dt/fabs(dt);
-    kflag=solver(y,&t,dt,nit,NODE,istart,WORK);
+    kflag=solver(y,&t,dt,nit,xpp::model().node,istart,WORK);
 
     return(1);
   }
   z=(t1-t0)/dt;
   nit=static_cast<int>(z);
-  kflag=solver(y,&t,dt,nit,NODE,istart,WORK);
+  kflag=solver(y,&t,dt,nit,xpp::model().node,istart,WORK);
 
   if(kflag<0)return(0);
   if((dt<0&&t>t1)||(dt>0&&t<t1)){    
     dt=t1-t;
-    kflag=solver(y,&t,dt,1,NODE,istart,WORK);
+    kflag=solver(y,&t,dt,1,xpp::model().node,istart,WORK);
     if(kflag<0)return(0);
   }
 
@@ -330,7 +331,7 @@ void test_fit()
  for(i=0;i<npars;i++)
    if(fin.ipar[i]>=0)
      {
-       if(fin.ipar[i]>=NODE){
+       if(fin.ipar[i]>=xpp::model().node){
 	 err_msg(" Cant vary auxiliary/markov variables! ");
 	 return;
        }
@@ -340,14 +341,14 @@ void test_fit()
      err_msg(" Illegal column must be >= 2");
      return;
    }
-   if(fin.ivar[i]<0||fin.ivar[i]>=NODE){
+   if(fin.ivar[i]<0||fin.ivar[i]>=xpp::model().node){
      err_msg(" Fit only to variables! ");
      return;
    }
  }
  std::vector<double> yfit_v(static_cast<size_t>(fin.npts)*fin.nvars);
   double *yfit=yfit_v.data();
-  for(i=0;i<NODE;i++)
+  for(i=0;i<xpp::model().node;i++)
     y0[i]=last_ic[i];
   for(i=0;i<fin.npars;i++){
     if(fin.ipar[i]<0)

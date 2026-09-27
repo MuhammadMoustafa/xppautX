@@ -15,6 +15,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include "model.h"
 #define MAXDAE 400
 
 extern int DelayErr;
@@ -69,7 +70,7 @@ int add_svar_names()
 {
   int i;
   for(i=0;i<nsvar;i++){
-     svar[i].index=NVAR;
+     svar[i].index=xpp::model().nvar;
     if(add_var(svar[i].name.c_str(),0.0)==1)
       return 1;
   }
@@ -174,7 +175,7 @@ void get_dae_fun(double *y, double *f)
   /* better do this in case fixed variables depend on sol_var */
   for(i=0;i<nsvar;i++)
     SETVAR(svar[i].index,y[i]);
-  for(i=NODE;i<NODE+FIX_VAR;i++)
+  for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)
     SETVAR(i+1,evaluate(my_ode[i]));
   for(i=0;i<naeqn;i++)
     f[i]=evaluate(aeqn[i].form.data());

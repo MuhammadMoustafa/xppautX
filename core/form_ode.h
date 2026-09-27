@@ -21,15 +21,11 @@ extern int *my_ode[MAXODE];
 extern char *save_eqn[MAXLINES];
 extern BC_STRUCT my_bc[MAXODE];
 extern int *plotlist,N_plist;
-extern int EqType[MAXODE];
 /* the parameters' and variables' values as the model gives them */
 extern double default_val[MAXPAR];
 extern double default_ic[MAXODE];
-/* the model's counts: ODEs, parameters, source lines, Markov variables,
-   fixed variables, the first symbol and constant after the model's own
-   (NSYM_START, NCON_START) and the first primed symbol (PrimeStart) */
-extern int NODE,NUPAR,NLINES,NMarkov,FIX_VAR;
-extern int NCON_START,NSYM_START,PrimeStart;
+/* the source's line count (the model's other counts are xpp::Model's) */
+extern int NLINES;
 /* an old-style file being rewritten in the new syntax (-convert):
    ConvertStyle set, convertf the new file (markov.cpp writes it too) */
 extern int ConvertStyle;

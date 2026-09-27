@@ -294,7 +294,7 @@ values[7] = yn[eq_range.mc];
     if(values[7][0]=='Y'||values[6][0]=='y')eq_range.mc=1;
    else eq_range.mc=0;
    eq_range.col=atoi(values[5].c_str());
-   if(eq_range.col<=1||eq_range.col>(NEQ+1))eq_range.col=-1;
+   if(eq_range.col<=1||eq_range.col>(xpp::model().neq+1))eq_range.col=-1;
  
  return(1);
  }
@@ -468,7 +468,7 @@ void init_monte_carlo()
   int i;
   fixptguess.tol=.001;
   fixptguess.n=100;
-  for(i=0;i<NODE;i++){
+  for(i=0;i<xpp::model().node;i++){
     fixptguess.xlo[i]=-10;
     fixptguess.xhi[i]=10;
   }
@@ -497,7 +497,7 @@ void monte_carlo()
       fixptguess.xhi[i]=z;
     if(done==-1)break;
     i++;
-    if(i>=NODE)
+    if(i>=xpp::model().node)
       break;
   }
   do_monte_carlo_search(append, 1,ishoot);
@@ -514,23 +514,23 @@ void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
 
   if(fixptlist.flag==0){
     for(i=0;i<MAXFP;i++){
-      fixptlist.x[i].assign(NODE,0.0);
-      fixptlist.er[i].assign(NODE,0.0);
-      fixptlist.em[i].assign(NODE,0.0);
+      fixptlist.x[i].assign(xpp::model().node,0.0);
+      fixptlist.er[i].assign(xpp::model().node,0.0);
+      fixptlist.em[i].assign(xpp::model().node,0.0);
     }
     fixptlist.flag=1;
   }
   for(i=0;i<n;i++){
-    for(j=0;j<NODE;j++){ 
+    for(j=0;j<xpp::model().node;j++){ 
       x[j]=ndrand48()*(fixptguess.xhi[j]-fixptguess.xlo[j])+fixptguess.xlo[j];
     }
-    do_sing_info(x,NEWT_ERR,EVEC_ERR,BOUND,EVEC_ITER,NODE,er,em,&ierr);
+    do_sing_info(x,NEWT_ERR,EVEC_ERR,BOUND,EVEC_ITER,xpp::model().node,er,em,&ierr);
     if(ierr==0){
       m=fixptlist.n;
       if(m==0){ /* first fixed point found */
 	fixptlist.n=1;
 	xpp::log(XPP_LOG_INFO, "Found: {}\n",m);
-	for(j=0;j<NODE;j++){
+	for(j=0;j<xpp::model().node;j++){
 	  fixptlist.x[0][j]=x[j];
 	  fixptlist.er[0][j]=er[j];
 	  fixptlist.em[0][j]=em[j];
@@ -542,7 +542,7 @@ void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
 	is_new=1;
 	for(k=0;k<m;k++){
 	  sum=0.0;
-	  for(j=0;j<NODE;j++)
+	  for(j=0;j<xpp::model().node;j++)
 	    sum+=fabs(x[j]-fixptlist.x[k][j]);
 	  if(sum<fixptguess.tol)
 	    is_new=0;
@@ -552,7 +552,7 @@ void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
 	  fixptlist.n++;
 	  if(m<MAXFP){
 	    xpp::log(XPP_LOG_INFO, "Found: {}\n",m);
-	    for(j=0;j<NODE;j++){
+	    for(j=0;j<xpp::model().node;j++){
 	      fixptlist.x[m][j]=x[j];
 	      fixptlist.er[m][j]=er[j];
 	      fixptlist.em[m][j]=em[j];
@@ -570,7 +570,7 @@ void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
     m=fixptlist.n;
     for(i=0;i<m;i++){
       data_store.col[0][data_store.rows]=static_cast<float>(i);
-      for(j=0;j<NODE;j++)data_store.col[j+1][data_store.rows]=static_cast<float>(fixptlist.x[i][j]);
+      for(j=0;j<xpp::model().node;j++)data_store.col[j+1][data_store.rows]=static_cast<float>(fixptlist.x[i][j]);
       data_store.rows++;
     }
     refresh_browser(data_store.rows);
@@ -625,9 +625,9 @@ void do_eq_range(double *x)
         else {
         if(DelayFlag)
 	  do_delay_sing(x,NEWT_ERR,EVEC_ERR,BOUND,EVEC_ITER,
-		        NODE,&ierr,&stabinfo);
+		        xpp::model().node,&ierr,&stabinfo);
         else do_sing(x,NEWT_ERR,EVEC_ERR,BOUND,EVEC_ITER,
-		     NODE,&ierr,&stabinfo);
+		     xpp::model().node,&ierr,&stabinfo);
         }
         if(eq_range.movie){
 	  draw_label(plot_windows.draw_win);
@@ -637,8 +637,8 @@ void do_eq_range(double *x)
       }
       if(mc==0){
       data_store.col[0][data_store.rows]=temp;
-      for(j=0;j<NODE;j++)data_store.col[j+1][data_store.rows]=static_cast<float>(x[j]);
-      for(j=NODE;j<NODE+NMarkov;j++)data_store.col[j+1][data_store.rows]=0.0;
+      for(j=0;j<xpp::model().node;j++)data_store.col[j+1][data_store.rows]=static_cast<float>(x[j]);
+      for(j=xpp::model().node;j<xpp::model().node+xpp::model().nmarkov;j++)data_store.col[j+1][data_store.rows]=0.0;
       if(stabcol>0)data_store.col[stabcol-1][data_store.rows]=stabinfo;
 
       data_store.rows++;
@@ -788,8 +788,8 @@ if(range.type==PARAM)get_val(range.item,&temp);
 if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
   {
     data_store.col[0][data_store.rows]=static_cast<float>(data_store.current_time);
-    extra(x,data_store.current_time,NODE,NEQ);
-    for(iii=0;iii<NEQ;iii++)data_store.col[1+iii][data_store.rows]=static_cast<float>(x[iii]);
+    extra(x,data_store.current_time,xpp::model().node,xpp::model().neq);
+    for(iii=0;iii<xpp::model().neq;iii++)data_store.col[1+iii][data_store.rows]=static_cast<float>(x[iii]);
     data_store.rows++;
   }
 
@@ -856,14 +856,14 @@ void silent_equilibria()
   double x[MAXODE],er[MAXODE],em[MAXODE];
   int ierr,i;
   if(batch_options.equilibria<0)return;
-  for(i=0;i<NODE;i++)
+  for(i=0;i<xpp::model().node;i++)
     x[i]=last_ic[i];
 
-  do_sing_info(x,NEWT_ERR,EVEC_ERR,BOUND,EVEC_ITER,NODE,er,em,&ierr);
+  do_sing_info(x,NEWT_ERR,EVEC_ERR,BOUND,EVEC_ITER,xpp::model().node,er,em,&ierr);
   if(ierr==0){
     xpp::Writer w("equil.dat");
     if(w){
-      for(i=0;i<NODE;i++)
+      for(i=0;i<xpp::model().node;i++)
         w.print("{:g} {:g} {:g}\n",x[i],er[i],em[i]);
       w.commit();
     }
@@ -899,7 +899,7 @@ void find_equilib_com(int com)
     /*  Get mouse values  */
         iv=plot_windows.current->xv[0]-1;
         jv=plot_windows.current->yv[0]-1;
-    if(iv<0||iv>=NODE||jv<0||jv>=NODE||plot_windows.current->grtype>=5||jv==iv){
+    if(iv<0||iv>=xpp::model().node||jv<0||jv>=xpp::model().node||plot_windows.current->grtype>=5||jv==iv){
       err_msg("Not in useable 2D plane...");
       return;
     }
@@ -924,11 +924,11 @@ void find_equilib_com(int com)
  }
 
  if(DelayFlag){
-   do_delay_sing(x,NEWT_ERR,EVEC_ERR,BOUND,EVEC_ITER,NODE,&ierr,&stabinfo);
+   do_delay_sing(x,NEWT_ERR,EVEC_ERR,BOUND,EVEC_ITER,xpp::model().node,&ierr,&stabinfo);
    ping();
  }
  else
-    do_sing(x,NEWT_ERR,EVEC_ERR,BOUND,EVEC_ITER,NODE,&ierr,&stabinfo);
+    do_sing(x,NEWT_ERR,EVEC_ERR,BOUND,EVEC_ITER,xpp::model().node,&ierr,&stabinfo);
  TRANS=oldtrans;
  
 }
@@ -993,7 +993,7 @@ void do_batch_dry_run()
 	if (querypars)
 	{
 		w.print("#Parameters query:\n");
-		for(int i=0;i<NUPAR;i++)
+		for(int i=0;i<xpp::model().nupar;i++)
 		{
 			w.print("{} {:f}\n",xpp::model().upar_names[i],default_val[i]);
 		}
@@ -1002,7 +1002,7 @@ void do_batch_dry_run()
 	if (queryics)
 	{
 		w.print("#Initial conditions query:\n");
-		for(int i=0;i<NEQ;i++)
+		for(int i=0;i<xpp::model().neq;i++)
 		{
 			w.print("{} {:f}\n",xpp::model().uvar_names[i],last_ic[i]);
 		}
@@ -1045,8 +1045,8 @@ void batch_integrate_once()
   if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
     {
       data_store.col[0][0]=static_cast<float>(data_store.current_time);
-      extra(x,data_store.current_time,NODE,NEQ);
-      for(i=0;i<NEQ;i++)data_store.col[1+i][0]=static_cast<float>(x[i]);
+      extra(x,data_store.current_time,xpp::model().node,xpp::model().neq);
+      for(i=0;i<xpp::model().neq;i++)data_store.col[1+i][0]=static_cast<float>(x[i]);
       data_store.rows=1;
     }
 
@@ -1160,7 +1160,7 @@ void do_init_data(int com)
   case M_II:
         iv=plot_windows.current->xv[0]-1;
         jv=plot_windows.current->yv[0]-1;
-    if(iv<0||iv>=NODE||jv<0||jv>=NODE||plot_windows.current->grtype>=5||jv==iv){
+    if(iv<0||iv>=xpp::model().node||jv<0||jv>=xpp::model().node||plot_windows.current->grtype>=5||jv==iv){
       err_msg("Not in useable 2D plane...");
       return;
     }
@@ -1235,7 +1235,7 @@ void do_init_data(int com)
     new_int(xpp::format("Which? (1-{})",ShootIndex).c_str(),&si);
     si--;
     if(si<ShootIndex&&si>=0){
-      for(i=0;i<NODE;i++)
+      for(i=0;i<xpp::model().node;i++)
 	last_ic[i]=ShootIC[si][i];
       get_ic(2,x);
     }
@@ -1251,7 +1251,7 @@ void do_init_data(int com)
         err_msg(" Cant open IC file");
         return;
       }
-      for(i=0;i<NODE;i++)
+      for(i=0;i<xpp::model().node;i++)
         if(!reader.read(last_ic[i])){
           err_msg(" IC file too short");
           break;
@@ -1308,7 +1308,7 @@ void do_start_flags(double *x,double *t)
  int iflagstart=1;
  double tnew=*t;
  double sss;
- one_flag_step(x,x,&iflagstart,*t,&tnew,NODE,&sss);
+ one_flag_step(x,x,&iflagstart,*t,&tnew,xpp::model().node,&sss);
 
 }
 void usual_integrate_stuff(double *x)
@@ -1319,8 +1319,8 @@ void usual_integrate_stuff(double *x)
    if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
     {
       data_store.col[0][0]=static_cast<float>(data_store.current_time);
-      extra(x,data_store.current_time,NODE,NEQ);
-      for(i=0;i<NEQ;i++)data_store.col[1+i][0]=static_cast<float>(x[i]);
+      extra(x,data_store.current_time,xpp::model().node,xpp::model().neq);
+      for(i=0;i<xpp::model().neq;i++)data_store.col[1+i][0]=static_cast<float>(x[i]);
       data_store.rows=1;
     }
  
@@ -1479,7 +1479,7 @@ int set_array_ic()
    new_string_of("u=F(t-i0):",ar_ic[myar].formula,XPP_FIELD_EXPRESSION);
    i1=index0-1;
    in=i1+ar_ic[myar].n;
-   if(i1>NODE||in>NODE)return 0; /* out of bounds */
+   if(i1>xpp::model().node||in>xpp::model().node)return 0; /* out of bounds */
    for(i=i1;i<in;i++){
      set_val("t",static_cast<double>((i-i1)));
      flag=do_calc(ar_ic[myar].formula.c_str(),&z);
@@ -1508,11 +1508,11 @@ void get_ic(int it, double *x)
   int i;
   switch(it){
   case 0:
-    for(i=0;i<NODE+NMarkov;i++)last_ic[i]=x[i];
+    for(i=0;i<xpp::model().node+xpp::model().nmarkov;i++)last_ic[i]=x[i];
     break;
   case 1:
   case 2:
-    for(i=0;i<NODE+NMarkov;i++)x[i]=last_ic[i];
+    for(i=0;i<xpp::model().node+xpp::model().nmarkov;i++)x[i]=last_ic[i];
     break;
    }
 }
@@ -1646,7 +1646,7 @@ int integrate(double *t, double *x, double tend, double dt, int count, int nout,
  int kflag;
 
  int torcross[MAXODE];
- int nodes=xpv.node+xpv.nvec-NMarkov;
+ int nodes=xpv.node+xpv.nvec-xpp::model().nmarkov;
 
  int rval=0;
  double oldx[MAXODE],oldt=0,dint,dxp,sect,sect1,tout,tzero=*t;
@@ -1680,16 +1680,16 @@ if(program.interactive) cwidth=get_command_width();
  if(nit==0)return(rval);
  one_flag_step(xpv.x,xpv.x,&iflagstart,*t,&tnew,nodes,&sss);
  MSWTCH(x,xpv.x);
- extra(x,*t,NODE,NEQ); /* Note this takes care of initializing Markov variables */
+ extra(x,*t,xpp::model().node,xpp::model().neq); /* Note this takes care of initializing Markov variables */
   MSWTCH(xpv.x,x);
  xv[0]=static_cast<float>(*t);
- for(ieqn=1;ieqn<=NEQ;ieqn++)xv[ieqn]=static_cast<float>(x[ieqn-1]);
+ for(ieqn=1;ieqn<=xpp::model().neq;ieqn++)xv[ieqn]=static_cast<float>(x[ieqn-1]);
  if(ani_options.on_the_fly)on_the_fly(1); 
    
  if(POIMAP)
  {
  oldt=*t;
- for(ieqn=0;ieqn<NEQ;ieqn++)oldx[ieqn]=x[ieqn];
+ for(ieqn=0;ieqn<xpp::model().neq;ieqn++)oldx[ieqn]=x[ieqn];
  }
  if(dt<0.0)tscal=-tend;
  if(tscal==0.0)tscal=1.0;
@@ -1902,10 +1902,10 @@ if(program.interactive) cwidth=get_command_width();
 	   }
 	   /*   START POST INTEGRATE STUFF */           
 
-	   extra(x,*t,NODE,NEQ);
+	   extra(x,*t,xpp::model().node,xpp::model().neq);
 
           if (TORUS == 1) {
-	for (ieqn = 0; ieqn < NEQ; ieqn++) {
+	for (ieqn = 0; ieqn < xpp::model().neq; ieqn++) {
 	        torcross[ieqn]=0;
 		if (itor[ieqn] == 1) {
 			if (x[ieqn] > TOR_PERIOD) {
@@ -1920,7 +1920,7 @@ if(program.interactive) cwidth=get_command_width();
 	      }
       }
 	   xvold[0]=xv[0];
-           for(ieqn=1;ieqn<(NEQ+1);ieqn++)
+           for(ieqn=1;ieqn<(xpp::model().neq+1);ieqn++)
            {
 	    xvold[ieqn]=xv[ieqn];
 	    xv[ieqn]=static_cast<float>(x[ieqn-1]);
@@ -1941,7 +1941,7 @@ if(program.interactive) cwidth=get_command_width();
  		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
              		xpp::model().uvar_names[i_nan-1],xvold[i_nan],xv[i_nan]);
 		 }
-		for(;i_nan<=NEQ;i_nan++) 
+		for(;i_nan<=xpp::model().neq;i_nan++) 
 		 {
  		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
              		xpp::model().uvar_names[i_nan-1],xv[i_nan],static_cast<float>(x[i_nan-1]));
@@ -1963,7 +1963,7 @@ if(program.interactive) cwidth=get_command_width();
  		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
              		xpp::model().uvar_names[i_nan-1],xvold[i_nan],xv[i_nan]);
 		 }
-		for(;i_nan<=NEQ;i_nan++) 
+		for(;i_nan<=xpp::model().neq;i_nan++) 
 		 {
  		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
              		xpp::model().uvar_names[i_nan-1],xv[i_nan],static_cast<float>(x[i_nan-1]));
@@ -1988,7 +1988,7 @@ if(program.interactive) cwidth=get_command_width();
 	}        
 	if(STOP_FLAG==1){STOP_FLAG=0;break;}
            if(DelayErr){err_dae();rval=1;ENDSING=1;DelayErr=0;break;}
-           if(ieqn<(NEQ+1))break;
+           if(ieqn<(xpp::model().neq+1))break;
            tv=static_cast<float>(*t);
 	   xv[0]=tv;
  if((POIMAP==2)&&!(POIVAR==0))
@@ -2004,8 +2004,8 @@ if(program.interactive) cwidth=get_command_width();
       {
 	/*  We will interpolate to get a good local extremum   */
 	
-	rhs(*t,x,xprime,NEQ);
-	rhs(oldt,oldx,oldxprime,NEQ);
+	rhs(*t,x,xprime,xpp::model().neq);
+	rhs(oldt,oldx,oldxprime,xpp::model().neq);
         dxp=xprime[POIVAR-1]-oldxprime[POIVAR-1];
         if(dxp==0.0){
 	  err_msg("Cannot zero RHS for max/min - use a variable");
@@ -2015,7 +2015,7 @@ if(program.interactive) cwidth=get_command_width();
 
 	tv=(1-dint)**t+dint*oldt;
 	xv[0]=tv;
-	for(i=1;i<=NEQ;i++)xv[i]=dint*oldx[i-1]+(1-dint)*x[i-1];
+	for(i=1;i<=xpp::model().neq;i++)xv[i]=dint*oldx[i-1]+(1-dint)*x[i-1];
 	pflag=1;
         
       }
@@ -2043,7 +2043,7 @@ if(program.interactive) cwidth=get_command_width();
      i=static_cast<int>((fabs(*t)/fabs(POIPLN)));
      tv=static_cast<float>(POIPLN)*i;
      xv[0]=tv;
-     for(i=1;i<=NEQ;i++)xv[i]=static_cast<float>((dint*oldx[i-1]+(1-dint)*x[i-1]));
+     for(i=1;i<=xpp::model().neq;i++)xv[i]=static_cast<float>((dint*oldx[i-1]+(1-dint)*x[i-1]));
      pflag=1;
      }
      else pflag=0;
@@ -2059,7 +2059,7 @@ if(program.interactive) cwidth=get_command_width();
       dint=(x[POIVAR-1]-POIPLN)/(x[POIVAR-1]-oldx[POIVAR-1]);
       tv=(1-dint)**t+dint*oldt;
       xv[0]=tv;
-      for(i=1;i<=NEQ;i++)xv[i]=dint*oldx[i-1]+(1-dint)*x[i-1];
+      for(i=1;i<=xpp::model().neq;i++)xv[i]=dint*oldx[i-1]+(1-dint)*x[i-1];
       pflag=1;
       goto poi;
 
@@ -2073,13 +2073,13 @@ if(program.interactive) cwidth=get_command_width();
         dint=(x[POIVAR-1]-POIPLN)/(x[POIVAR-1]-oldx[POIVAR-1]);
         tv=(1-dint)**t+dint*oldt;
         xv[0]=tv;
-        for(i=1;i<=NEQ;i++)xv[i]=dint*oldx[i-1]+(1-dint)*x[i-1];
+        for(i=1;i<=xpp::model().neq;i++)xv[i]=dint*oldx[i-1]+(1-dint)*x[i-1];
         pflag=1;
        }
        else pflag=0;
      }
     }
-poi:    for(i=0;i<NEQ;i++)oldx[i]=x[i];
+poi:    for(i=0;i<xpp::model().neq;i++)oldx[i]=x[i];
     oldt=*t;
     if(pflag==0)goto out;
  }
@@ -2097,14 +2097,14 @@ poi:    for(i=0;i<NEQ;i++)oldx[i]=x[i];
      
           if(!(fabs(*t)<TRANS)&&program.interactive&&OnTheFly)
 	  {
-	     plot_the_graphs(xv,xvold,NODE,NEQ,fabs(dt*NJMP),torcross,0); 
+	     plot_the_graphs(xv,xvold,xpp::model().node,xpp::model().neq,fabs(dt*NJMP),torcross,0); 
 
 	  }
 
 	   if((STORFLAG==1)&&(count!=0)&&(data_store.rows<data_store.max_rows)&&!(fabs(*t)<TRANS))
 	   {
            if(ani_options.on_the_fly)on_the_fly(0);
-           for(ieqn=0;ieqn<=NEQ;ieqn++)
+           for(ieqn=0;ieqn<=xpp::model().neq;ieqn++)
 		 data_store.col[ieqn][data_store.rows]=xv[ieqn];
 	    data_store.rows++;
 	    row_stored(); /* xppautX: replay stops here, a front end shows the run grow */
@@ -2135,12 +2135,12 @@ void send_output(double *y,double t)
 {
   double yy[MAXODE];
   int i;
-  for(i=0;i<NODE;i++)
+  for(i=0;i<xpp::model().node;i++)
     yy[i]=y[i];
-  extra(yy,t,NODE,NEQ);
+  extra(yy,t,xpp::model().node,xpp::model().neq);
   if((STORFLAG==1)&&(data_store.rows<data_store.max_rows)){
     
-    for(i=0;i<NEQ;i++)
+    for(i=0;i<xpp::model().neq;i++)
       data_store.col[i+1][data_store.rows]=static_cast<float>(yy[i]);
     data_store.col[0][data_store.rows]=static_cast<float>(t);
     data_store.rows++;
@@ -2248,7 +2248,7 @@ void plot_one_graph(float *xv,float *xvold,int node,int neq,double ddt,int *tc)
  IXPLT=plot_windows.current->xv;
  IYPLT=plot_windows.current->yv;
  IZPLT=plot_windows.current->zv;
- for(ip=0;ip<NEQ;ip++){
+ for(ip=0;ip<xpp::model().neq;ip++){
    if(itor[ip]==1)
      xvold[ip+1]=xvold[ip+1]+tc[ip]*TOR_PERIOD;
  }
@@ -2261,7 +2261,7 @@ void plot_one_graph(float *xv,float *xvold,int node,int neq,double ddt,int *tc)
  zpl[ip]=xv[IZPLT[ip]];
  }
  if(plot_windows.current->ColorFlag)
-   comp_color(xv,xvold,NODE,static_cast<float>(ddt));
+   comp_color(xv,xvold,xpp::model().node,static_cast<float>(ddt));
  do_plot(oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
  phase_data_flow_step(NPlots,oldxpl,oldypl,xpl,ypl,plot_windows.current->color); /* Dir.field/flow's Flow as data */
 }
@@ -2314,12 +2314,12 @@ void restore(int i1, int i2)
 	if (fabs(oldzpl-zpl)>static_cast<float>((.5*TOR_PERIOD)))oldzpl=zpl;
       }
       if(plot_windows.current->ColorFlag!=0&&i>i1){
-	  for(j=0;j<=NEQ;j++){
+	  for(j=0;j<=xpp::model().neq;j++){
 	    v1[j]=data[j][i];
 	    v2[j]=data[j][i-1];
 	  }
 
-	  comp_color(v1,v2,NODE,
+	  comp_color(v1,v2,xpp::model().node,
 		     static_cast<float>(fabs(data[0][i]-data[0][i+1])));
 	}     /* ignored by postscript */
       if(plot_windows.current->line[ip]<=0){
@@ -2388,7 +2388,7 @@ void shoot(double *x, double *xg, double *evec, int sgn)
  int i;
  double t=0.0;
  SuppressBounds=1;
- for(i=0;i<NODE;i++)
+ for(i=0;i<xpp::model().node;i++)
  x[i]=xg[i]+sgn*evec[i]*DELTA_T*.1;
 i=1;
  integrate(&t,x,TEND,DELTA_T,1,NJMP,&i);
@@ -2409,7 +2409,7 @@ int stor_full()
 
  char ch;
  int nrow=2*data_store.max_rows;
- if(data_store.grow(NEQ+1,nrow)){
+ if(data_store.grow(xpp::model().neq+1,nrow)){
    data_store.max_rows=nrow;
    return 1;
  }

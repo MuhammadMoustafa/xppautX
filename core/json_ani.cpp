@@ -16,6 +16,7 @@
 #include <string>
 #include <sys/time.h>
 #include <vector>
+#include "model.h"
 
 /* the core's own globals and functions that have no header of their own */
 extern "C" {
@@ -95,7 +96,7 @@ void ani_go(void)
     }
     while (!stop) {
         int row = vcr.pos, ppm = mpeg.flag > 0 && frame % (mpeg.skip > 0 ? mpeg.skip : 1) == 0;
-        for (i = 0; i < NODE + NMarkov; i++) y[i] = ss[i + 1][row];
+        for (i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) y[i] = ss[i + 1][row];
         set_fix_rhs(static_cast<double>(ss[0][row]), y);
         xpp_ui.ani_clear();
         render_ani();

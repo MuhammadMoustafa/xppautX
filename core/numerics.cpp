@@ -24,6 +24,7 @@
 #include "form_ode.h"
 #include "load_eqn.h"
 #include "parserslow.h"
+#include "model.h"
 #define VOLTERRA 6
 #define BACKEUL 7
 #define RKQS 8
@@ -201,7 +202,7 @@ void  get_num_par(char ch)
 			   }
 			 }
 		       if(METHOD==SYMPLECT){
-			 if((NODE%2)!=0){
+			 if((xpp::model().node%2)!=0){
 			   err_msg("Symplectic is only for even dimensions");
 			   METHOD=4;
 			 }
@@ -485,7 +486,7 @@ void set_col_par_com(int i)
   for(i=1;i<my_browser.maxrow;i++)
   {
    sum=0.0;
-   for(j=0;j<NODE;j++)
+   for(j=0;j<xpp::model().node;j++)
    sum+=static_cast<float>(fabs(static_cast<double>(my_browser.data[1+j][i]-my_browser.data[1+j][i-1])));
    if(sum<minder)minder=sum;
    if(sum>maxder)maxder=sum;

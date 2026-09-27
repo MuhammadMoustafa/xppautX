@@ -114,7 +114,7 @@ void init_browser()
  
  my_browser.dataflag=0;
  my_browser.data=data_store.col;
- my_browser.maxcol=NEQ+1;
+ my_browser.maxcol=xpp::model().neq+1;
  my_browser.maxrow=0;
  my_browser.row0=0;
  my_browser.istart=0;
@@ -153,16 +153,16 @@ void data_get(BROWSER *b)
 {
  int i,in=b->row0;
  set_ivar(0,static_cast<double>(data_store.col[0][in]));
- for(i=0;i<NODE;i++)
+ for(i=0;i<xpp::model().node;i++)
  {
   last_ic[i]=static_cast<double>(data_store.col[i+1][in]);
   set_ivar(i+1,last_ic[i]);
  } 
- for(i=0;i<NMarkov;i++){
-   last_ic[i+NODE]=static_cast<double>(data_store.col[i+NODE+1][in]);
-   set_ivar(i+1+NODE+FIX_VAR,last_ic[i+NODE]);
+ for(i=0;i<xpp::model().nmarkov;i++){
+   last_ic[i+xpp::model().node]=static_cast<double>(data_store.col[i+xpp::model().node+1][in]);
+   set_ivar(i+1+xpp::model().node+xpp::model().fix_var,last_ic[i+xpp::model().node]);
  }
- for(i=NODE+NMarkov;i<NEQ;i++)
+ for(i=xpp::model().node+xpp::model().nmarkov;i<xpp::model().neq;i++)
    set_val(xpp::model().uvar_names[i],data_store.col[i+1][in]);
 
  redraw_ics();
@@ -228,26 +228,26 @@ int add_stor_col(const char *name, const char *formula, BROWSER *b)
   /* the column's program: the compiled formula and a 0 after it */
   std::vector<int> program(com,com+i+1);
   program.push_back(0);
-  set_program(NEQ+FIX_VAR,std::move(program));
-  data_store.add_column(NEQ+1);
+  set_program(xpp::model().neq+xpp::model().fix_var,std::move(program));
+  data_store.add_column(xpp::model().neq+1);
   /* the column's name as the browser shows it: at most 79 characters of
      the formula, upper case */
   std::string shown=std::string(formula).substr(0,79);
   for(char &c:shown)c=static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-  set_ode_name(NEQ,shown);
-  std::string &col_name=xpp::model().uvar_names[NEQ];
+  set_ode_name(xpp::model().neq,shown);
+  std::string &col_name=xpp::model().uvar_names[xpp::model().neq];
   col_name=name;
   strupr(col_name.data());
   for(i=0;i<b->maxrow;i++)
-    data_store.col[NEQ+1][i]=0.0;   /*  zero it all   */
+    data_store.col[xpp::model().neq+1][i]=0.0;   /*  zero it all   */
   for(i=0;i<b->maxrow;i++){
-    for(j=0;j<NODE+1;j++)set_ivar(j,static_cast<double>(data_store.col[j][i]));
-    for(j=NODE;j<NEQ;j++)set_val(xpp::model().uvar_names[j],static_cast<double>(data_store.col[j+1][i])); 
-    data_store.col[NEQ+1][i]=static_cast<float>(evaluate(com));
+    for(j=0;j<xpp::model().node+1;j++)set_ivar(j,static_cast<double>(data_store.col[j][i]));
+    for(j=xpp::model().node;j<xpp::model().neq;j++)set_val(xpp::model().uvar_names[j],static_cast<double>(data_store.col[j+1][i])); 
+    data_store.col[xpp::model().neq+1][i]=static_cast<float>(evaluate(com));
   }
-  add_var(xpp::model().uvar_names[NEQ],0.0);  /*  this could be trouble .... */
-  NEQ++;
-  b->maxcol=NEQ+1;
+  add_var(xpp::model().uvar_names[xpp::model().neq],0.0);  /*  this could be trouble .... */
+  xpp::model().neq++;
+  b->maxcol=xpp::model().neq+1;
   xpp_ui.browser_redraw(1);  
   return(1);
 }
@@ -314,8 +314,8 @@ if(dif_var<0)
 
  if(dif_var<0&&seq==0){
    if(add_expr(form,com,&i)){
-     NCON=NCON_START;
-     NSYM=NSYM_START;
+     NCON=xpp::model().ncon_start;
+     NSYM=xpp::model().nsym_start;
      err_msg("Illegal formula...");
      return;
    }
@@ -325,8 +325,8 @@ if(dif_var<0)
  find_variable(var,&i);
  if(i<0){
    err_msg("No such column...");
-   NCON=NCON_START;
-   NSYM=NSYM_START;
+   NCON=xpp::model().ncon_start;
+   NSYM=xpp::model().nsym_start;
    return;
  }
  R_COL=i;
@@ -343,8 +343,8 @@ if(dif_var<0)
      {
        if(seq==0)
 	 {
-	   for(j=0;j<NODE+1;j++)set_ivar(j,static_cast<double>(dat[j][i]));
-	   for(j=NODE;j<NEQ;j++)set_val(xpp::model().uvar_names[j],static_cast<double>(dat[j+1][i]));
+	   for(j=0;j<xpp::model().node+1;j++)set_ivar(j,static_cast<double>(dat[j][i]));
+	   for(j=xpp::model().node;j<xpp::model().neq;j++)set_val(xpp::model().uvar_names[j],static_cast<double>(dat[j+1][i]));
 	   if(intflag)
 	     {
 	       sum+=static_cast<float>(evaluate(com));
@@ -367,8 +367,8 @@ if(dif_var<0)
        dat[R_COL][i]=derv;
      }
  }
- NCON=NCON_START;
- NSYM=NSYM_START;
+ NCON=xpp::model().ncon_start;
+ NSYM=xpp::model().nsym_start;
 
 }
 

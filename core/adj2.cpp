@@ -127,7 +127,7 @@ int do_transpose()
      }
    my_trans.firstcol=values[0];
    i=atoi(values[4].c_str());
-   if(i>=NEQ)i=NEQ-1;
+   if(i>=xpp::model().neq)i=xpp::model().neq-1;
    my_trans.nrow=i;
    my_trans.ncol=atoi(values[1].c_str());
    my_trans.colskip=atoi(values[2].c_str());
@@ -143,14 +143,14 @@ int create_transpose()
 {
   int i,j;
   int inrow,incol;
-  float **data=trans_columns.make(my_trans.nrow+1,my_trans.ncol,NEQ);
+  float **data=trans_columns.make(my_trans.nrow+1,my_trans.ncol,xpp::model().neq);
   for(j=0;j<my_trans.ncol;j++)
     data[0][j]=j+1;
 
   for(i=0;i<my_trans.ncol;i++){
     incol=my_trans.col0-1+i*my_trans.colskip;
-    if(incol>NEQ)
-      incol=NEQ;
+    if(incol>xpp::model().neq)
+      incol=xpp::model().neq;
     for(j=0;j<my_trans.nrow;j++){
       inrow=my_trans.row0+j*my_trans.rowskip;
       if(inrow>data_store.rows)
@@ -166,8 +166,8 @@ int create_transpose()
 
 void alloc_h_stuff()
 {
- coup_fun.assign(NODE,{});
- coup_string.assign(NODE,"0");
+ coup_fun.assign(xpp::model().node,{});
+ coup_string.assign(xpp::model().node,"0");
 }
 
 void data_back()
@@ -254,14 +254,14 @@ void new_h_fun(int silent)
    H_HERE=0;
    HODD_EV=0;
  }
-   if(NEQ>2){
+   if(xpp::model().neq>2){
      HODD_EV=1;
      n=4;
    }
    h_len=data_store.rows;
    data_back(); 
-   h_columns.make(n,h_len,NEQ);
-   if(make_h(data_store.col,my_adj,my_h,h_len,DELTA_T*NJMP,NODE,silent )){
+   h_columns.make(n,h_len,xpp::model().neq);
+   if(make_h(data_store.col,my_adj,my_h,h_len,DELTA_T*NJMP,xpp::model().node,silent )){
      H_HERE=1;
      h_back();
    }
@@ -278,7 +278,7 @@ void dump_h_stuff(FILE *fp, int f)
   }
   else
     xpp::print(fp,"# Coupling stuff for H funs\n");
- for(i=0;i<NODE ;i++)
+ for(i=0;i<xpp::model().node ;i++)
    io_string(coup_string[i],fp,f);
 
 }
@@ -289,9 +289,9 @@ int make_h(float **orb, float **adj, float **h, int nt, double dt, int node, int
  int i,j,rval=0;
  float sum;
  double z;
- int n0=node+1+FIX_VAR,k2,k;
+ int n0=node+1+xpp::model().fix_var,k2,k;
  if(silent==0){
-   for(i=0;i<NODE ;i++){
+   for(i=0;i<xpp::model().node ;i++){
      std::string name=xpp::format("Coupling for {} eqn:",xpp::model().uvar_names[i]);
      new_string_of(name.c_str(),coup_string[i],XPP_FIELD_EXPRESSION);
      if(add_expr(coup_string[i].c_str(),coup_fun[i].data(),&j)){
@@ -336,23 +336,23 @@ int make_h(float **orb, float **adj, float **h, int nt, double dt, int node, int
    rval=1;
       
  bye:
-  NSYM=NSYM_START;
-  NCON=NCON_START;
+  NSYM=xpp::model().nsym_start;
+  NCON=xpp::model().ncon_start;
   return(rval);
 
 }
 
 void new_adjoint()
 {
- int n=NODE +1;
+ int n=xpp::model().node +1;
  if(ADJ_HERE){
    data_back();
    adj_columns.release();
    ADJ_HERE=0;
  }
  adj_len=data_store.rows;
- adj_columns.make(n,adj_len,NEQ);
- if(adjoint(data_store.col,my_adj,adj_len,DELTA_T*NJMP,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,NODE )){
+ adj_columns.make(n,adj_len,xpp::model().neq);
+ if(adjoint(data_store.col,my_adj,adj_len,DELTA_T*NJMP,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,xpp::model().node )){
    ADJ_HERE=1;;
  adj_back();
  }
@@ -606,7 +606,7 @@ int hrw_liapunov(double *liap,int batch,double eps)
  }
 
  /* lets make an initial random perturbation */
-   for(i=0;i<NODE;i++)
+   for(i=0;i<xpp::model().node;i++)
       dy[i]=0; 
    dy[0]=eps;
    
@@ -614,19 +614,19 @@ int hrw_liapunov(double *liap,int batch,double eps)
      t0=data_store.col[0][j];
      t1=data_store.col[0][j+1];
      istart=1;
-     for(i=0;i<NODE;i++)
+     for(i=0;i<xpp::model().node;i++)
        y[i]=data_store.col[i+1][j]+dy[i];
      one_step_int(y,t0,t1,&istart);
-     for(i=0;i<NODE;i++)
+     for(i=0;i<xpp::model().node;i++)
        yp[i]=(y[i]-data_store.col[i+1][j+1]);
-     norm_vec(yp,&nrm,NODE);
+     norm_vec(yp,&nrm,xpp::model().node);
      nrm=nrm/eps;
      if(nrm==0.0){
        if(batch==0)err_msg("Liapunov:-infinity exponent!");
        return 0; /* something wrong here */
      }
      sum=sum+log(nrm);
-    for(i=0;i<NODE;i++)
+    for(i=0;i<xpp::model().node;i++)
       dy[i]=eps*yp[i];
 
    }

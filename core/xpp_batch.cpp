@@ -243,6 +243,9 @@ void xpp_reset_options(void)
    the ODE file, numerics set-up. batch forces XPPBatch. */
 void xpp_load_model(int argc, char **argv, int batch)
 {
+    /* the parser fills a fresh Model, kept only when the load gets to the
+       end (a failed load exits today, xpp_model_failed) */
+    xpp::ModelLoad load;
     xpp_reset_options();
     program.interactive = 0;
     batch_options.out_file = "output.dat";
@@ -276,6 +279,7 @@ void xpp_load_model(int argc, char **argv, int batch)
     strip_saveqn();
     create_plot_list();
     auto_load_dll();
+    load.commit();
 }
 
 void xpp_model_failed(void)

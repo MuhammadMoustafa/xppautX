@@ -546,7 +546,7 @@ static void stability_run_start(void)
     auto_stability_run_start(run_stability_kind(),Auto.isw,AUTO_STABILITY_NONE,0,0,NULL,NULL);
     return;
   }
-  auto_stability_run_start(run_stability_kind(),Auto.isw,point_stability_kind(d),d->itp,NODE,d->evr,d->evi);
+  auto_stability_run_start(run_stability_kind(),Auto.isw,point_stability_kind(d),d->itp,xpp::model().node,d->evr,d->evi);
 }
 
 /* MAIN Running routine  Assumes that Auto structure is set up */
@@ -597,7 +597,7 @@ void do_auto(int iold, int isave, int itp)
 void set_auto() /* Caution - need to include NICP here */
 {
   NAutoUzr=Auto.nper;
-  init_auto(NODE,Auto.nfpar,Auto.nbc,Auto.ips,Auto.irs,Auto.ilp,Auto.ntst,Auto.isp,
+  init_auto(xpp::model().node,Auto.nfpar,Auto.nbc,Auto.ips,Auto.irs,Auto.ilp,Auto.ntst,Auto.isp,
 	    Auto.isw,Auto.nmx,Auto.npr,Auto.ds,Auto.dsmin,
 	    Auto.dsmax,Auto.rl0,Auto.rl1,Auto.a0,Auto.a1,Auto.icp1,
 	    Auto.icp2,Auto.icp3,Auto.icp4,Auto.icp5,Auto.nper,Auto.epsl,Auto.epsu,Auto.epss,Auto.ncol);
@@ -615,7 +615,7 @@ int auto_name_to_index(std::string_view s)
 }
 const char *auto_par_name(int k)
 {
-  return k>=0&&k<NAutoPar&&AutoPar[k]>=0&&AutoPar[k]<NUPAR?xpp::model().upar_names[AutoPar[k]].c_str():NULL;
+  return k>=0&&k<NAutoPar&&AutoPar[k]>=0&&AutoPar[k]<xpp::model().nupar?xpp::model().upar_names[AutoPar[k]].c_str():NULL;
 }
 
 namespace {
@@ -664,7 +664,7 @@ std::string screen_col(const char *col)
   /* U(n), and the MAX(n) / MIN(n) a periodic branch prints, where AUTO has
      overwritten the U itself */
   const char *q=strchr(col,'(');
-  if(q!=NULL&&strstr(col,"PAR")==NULL&&read_long(q+1,p)&&p>=1&&p<=NODE){
+  if(q!=NULL&&strstr(col,"PAR")==NULL&&read_long(q+1,p)&&p>=1&&p<=xpp::model().node){
     size_t n=static_cast<size_t>(q-col);
     if(n>0&&col[n-1]=='U')n--; /* the name replaces the U */
     /* keep what stands in front of it: MAX, MIN, L2-NORM, INTEGRAL */
@@ -1271,13 +1271,13 @@ auto_xy_plot(&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a); /* figure out who sits
 if(flag2==0&&Auto.plot==P_P) /* if the point was a 1 param run and we are in 2 param plot, skip */
     {
        if(flg==0)auto_diagram(&dp); /* not drawn, but the next line starts here */
-       show_stab(evr,evi,NODE,type==SPER||type==UPER);
+       show_stab(evr,evi,xpp::model().node,type==SPER||type==UPER);
        refreshdisplay();
        return;
      }
 if(flag2>0&&Auto.plot!=P_P){ /* two parameter and not in two parameter plot, just skip it */
     if(flg==0)auto_diagram(&dp);
-    show_stab(evr,evi,NODE,type==SPER||type==UPER);
+    show_stab(evr,evi,xpp::model().node,type==SPER||type==UPER);
     refreshdisplay();
     return;
   }
@@ -1350,7 +1350,7 @@ if(flag2>0&&Auto.plot!=P_P){ /* two parameter and not in two parameter plot, jus
   Auto.lastx=x;
   Auto.lasty=y1;
   auto_diagram(&dp);
-  show_stab(evr,evi,NODE,type==SPER||type==UPER);
+  show_stab(evr,evi,xpp::model().node,type==SPER||type==UPER);
   refreshdisplay();
 }
 
@@ -1471,7 +1471,7 @@ void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw)
          circle with the old point when a step took over 0.1 s (autocheck
          under valgrind, W21) */
       auto_data_info(&ai);
-      show_stab(evr,evi,NODE,ibr<0);
+      show_stab(evr,evi,xpp::model().node,ibr<0);
     }
     if(lab>0 && load_all_labeled_orbits>0)
       load_auto_orbitx(ibr,1,lab,per);
@@ -1481,7 +1481,7 @@ void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw)
 void do_auto_win()
 {
   if(Auto.exist==0){
-    if(NODE>NAUTO){
+    if(xpp::model().node>NAUTO){
       err_msg(xpp::format("Auto restricted to less than {} variables",NAUTO).c_str());
       return;
     }
@@ -1543,8 +1543,8 @@ void keep_last_plot(int flg)
 void init_auto_win()
 {
   int i;
-  if(NODE>NAUTO)return;
-  start_diagram(NODE); 
+  if(xpp::model().node>NAUTO)return;
+  start_diagram(xpp::model().node); 
   for(i=0;i<10;i++){
     Auto.period[i]=11.+3.*i;
     Auto.uzrpar[i]=10;
@@ -1552,7 +1552,7 @@ void init_auto_win()
     UzrPar[i]=10;
   }
   NAutoPar=8;
-  if(NUPAR<8)NAutoPar=NUPAR;
+  if(xpp::model().nupar<8)NAutoPar=xpp::model().nupar;
   for(i=0;i<NAutoPar;i++)AutoPar[i]=i;
   for(i=0;i<NAutoPar;i++){
     Auto_index_to_array[i]=get_param_index(xpp::model().upar_names[AutoPar[i]]);
@@ -1570,7 +1570,7 @@ void init_auto_win()
     if(SuppressBP==1) Auto.isp=0;
   Auto.ilp=1;
   Auto.isw=1;
-  Auto.nbc=NODE;
+  Auto.nbc=xpp::model().node;
   Auto.nfpar=1;
   HomoFlag=0;
 /*  User controls this      */
@@ -1616,7 +1616,7 @@ void init_auto_win()
   aauto.nwtn=3;
   aauto.iads=1;
   xAuto.nunstab=1;
-  xAuto.nstab=NODE-1;
+  xAuto.nstab=xpp::model().node-1;
 }
 
 int yes_reset_auto()
@@ -1731,7 +1731,7 @@ void auto_start_choice()
     return;
   }
  if(ch=='b'){
-   Auto.nbc=NODE;
+   Auto.nbc=xpp::model().node;
    auto_start_at_bvp();
    return;
  }
@@ -2143,7 +2143,7 @@ void auto_extend_ss()
 int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
 {
   std::array<std::string, 100> v;
-  int n=2+2*NODE;
+  int n=2+2*xpp::model().node;
   int i;
   int flag=0;
   /* do_string_box_of's names are read-only (const char *const *): plain
@@ -2151,13 +2151,13 @@ int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
   std::vector<std::string> labels(n);
   labels[0]="dim unstable";
   v[0] = xpp::format("{:d}", *nun);
-  labels[NODE+1]="dim stable";
-  v[NODE+1] = xpp::format("{:d}", *nst);
-  for(i=0;i<NODE;i++){
+  labels[xpp::model().node+1]="dim stable";
+  v[xpp::model().node+1] = xpp::format("{:d}", *nst);
+  for(i=0;i<xpp::model().node;i++){
     labels[i+1]=xpp::model().uvar_names[i]+"_L";
     v[i+1] = xpp::format("{:g}", ul[i]);
-    labels[i+2+NODE]=xpp::model().uvar_names[i]+"_R";
-    v[i+2+NODE] = xpp::format("{:g}", ur[i]);
+    labels[i+2+xpp::model().node]=xpp::model().uvar_names[i]+"_R";
+    v[i+2+xpp::model().node] = xpp::format("{:g}", ur[i]);
   }
   std::vector<const char*> s(n);
   for(i=0;i<n;i++) s[i]=labels[i].c_str();
@@ -2165,16 +2165,16 @@ int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
   {
     std::vector<int> kinds(n, XPP_FIELD_NUMBER);
     kinds[0]=XPP_FIELD_INTEGER;
-    kinds[NODE+1]=XPP_FIELD_INTEGER;
+    kinds[xpp::model().node+1]=XPP_FIELD_INTEGER;
     flag=do_string_box_of(n/2,2,"Homoclinic info",s.data(),v,16,kinds.data());
   }
   if(flag!=0){
     *nun=atoi(v[0].c_str());
-    *nst=atoi(v[NODE+1].c_str());
-    for(i=0;i<NODE;i++){
+    *nst=atoi(v[xpp::model().node+1].c_str());
+    for(i=0;i<xpp::model().node;i++){
       ul[i]=atof(v[i+1].c_str());
       if(HomoFlag==2)
-	ur[i]=atof(v[i+2+NODE].c_str());
+	ur[i]=atof(v[i+2+xpp::model().node].c_str());
     }
   }
   return flag;
@@ -2225,7 +2225,7 @@ void auto_start_at_homoclinic()
   
   if(HomoFlag==1){
     xAuto.iequib=1;
-    find_best_homo_shift(NODE);
+    find_best_homo_shift(xpp::model().node);
   }
   if(HomoFlag==2)
     xAuto.iequib=-2;
@@ -2521,7 +2521,7 @@ void load_auto_orbit()
   period=per;
   flg=move_to_label(label,&nrow,&ndim,fp.get());
   nstor=ndim;
-  if(ndim>NODE)nstor=NODE;
+  if(ndim>xpp::model().node)nstor=xpp::model().node;
   if(flg==0){
     xpp_log_auto("Could not find label %d in file %s \n",label,string.c_str());
     auto_err("Cant find labeled pt");
@@ -2539,8 +2539,8 @@ void load_auto_orbit()
       data_store.col[j+1][i]=u[j];
       x[j]=u[j];
     }
-    extra(x,static_cast<double>(data_store.col[0][i]),nstor,NEQ);
-    for(j=nstor;j<NEQ;j++)
+    extra(x,static_cast<double>(data_store.col[0][i]),nstor,xpp::model().neq);
+    for(j=nstor;j<xpp::model().neq;j++)
       data_store.col[j+1][i]=static_cast<float>(x[j]);
   }
   data_store.rows=nrow;
@@ -2578,7 +2578,7 @@ int save_auto_file(FILE *fp)
   int status;
   save_auto_numerics(fp);
   save_auto_graph(fp);
-  status=save_diagram(fp,NODE);
+  status=save_diagram(fp,xpp::model().node);
   if(status!=1)return status;
   save_q_file(fp);
   return 1;
@@ -2713,7 +2713,7 @@ int load_auto_file(FILE *fp)
   load_auto_numerics(fp);
   load_auto_graph(fp);
   auto_data_forget(); /* the strip described the diagram this one replaces */
-  status=load_diagram(fp,NODE);
+  status=load_diagram(fp,xpp::model().node);
   if(status!=1)return status;
   make_q_file(fp);
   return 1;
@@ -2927,7 +2927,7 @@ void find_point(int ibr, int pt)
        if(d->ibr==ibr && ((d->ntot==pt)||(d->ntot==(-pt))))
 	 {  /* need to look at both signs to ignore stability */
 	   /* now we use this info to set parameters and init data */
-	   for(i=0;i<NODE;i++)
+	   for(i=0;i<xpp::model().node;i++)
 	     set_ivar(i+1,d->u0[i]);
 	   get_ic(0,d->u0);
 	   auto_set_pars_from(d->par);
@@ -3249,7 +3249,7 @@ void traverse_diagram()
     grabpt.par[i]=d->par[i];
     grabpt.per=d->per;
     grabpt.torper=d->torper;
-    for(i=0;i<NODE;i++){
+    for(i=0;i<xpp::model().node;i++){
       grabpt.uhi[i]=d->uhi[i];
       grabpt.ulo[i]=d->ulo[i];
       grabpt.u0[i]=d->u0[i];

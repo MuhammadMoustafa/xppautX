@@ -54,7 +54,7 @@ void send_state(void)
     state_dirty = 0;
     evaluate_derived();
     BUF_LIT(&b, "{\"ev\":\"state\",\"pars\":[");
-    for (i = 0; i < NUPAR; i++) {
+    for (i = 0; i < xpp::model().nupar; i++) {
         get_val(xpp::model().upar_names[i], &z);
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
@@ -64,7 +64,7 @@ void send_state(void)
         BUF_LIT(&b, "]");
     }
     BUF_LIT(&b, "],\"ics\":[");
-    for (i = 0; i < NODE + NMarkov; i++) {
+    for (i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) {
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
         buf_str(&b, xpp::model().uvar_names[i]);
@@ -76,14 +76,14 @@ void send_state(void)
     /* where the last run ended (MyData, what Initialconds/Last starts from) */
     if (INFLAG) {
         BUF_LIT(&b, ",\"now\":[");
-        for (i = 0; i < NODE + NMarkov; i++) {
+        for (i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) {
             if (i) BUF_LIT(&b, ",");
             buf_num(&b, data_store.current[i], 16);
         }
         BUF_LIT(&b, "]");
     }
     BUF_LIT(&b, ",\"bcs\":[");
-    for (i = 0; i < NODE; i++) {
+    for (i = 0; i < xpp::model().node; i++) {
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
         buf_str(&b, my_bc[i].name);
@@ -94,7 +94,7 @@ void send_state(void)
     BUF_LIT(&b, "]");
     if (DelayFlag) {
         BUF_LIT(&b, ",\"delays\":[");
-        for (i = 0; i < NODE; i++) {
+        for (i = 0; i < xpp::model().node; i++) {
             if (i) BUF_LIT(&b, ",");
             BUF_LIT(&b, "[");
             buf_str(&b, xpp::model().uvar_names[i]);
@@ -245,7 +245,7 @@ void browser_update(void)
 void plotvars_command(const char *line)
 {
     std::array<int, MAXODE> isck{};
-    int i, n = NODE + NMarkov;
+    int i, n = xpp::model().node + xpp::model().nmarkov;
     const char *arr = js_find(line, "names");
     std::string name;
     for (i = 0; arr && js_elem(arr, i); i++) {
@@ -302,15 +302,15 @@ void send_equations(void)
     Buf b, line;
     int i;
     BUF_LIT(&b, "{\"ev\":\"equations\",\"lines\":[");
-    for (i = 0; i < NEQ; i++) {
+    for (i = 0; i < xpp::model().neq; i++) {
         const std::string &name = xpp::model().uvar_names[i];
         const char *rhs = ode_names[i] ? ode_names[i] : "";
         line.s.clear();
-        if (i < NODE && EqType[i] != 1 && METHOD > 0) BUF_LIT(&line, "d");
+        if (i < xpp::model().node && xpp::model().eq_type[i] != 1 && METHOD > 0) BUF_LIT(&line, "d");
         buf_add(&line, name.data(), name.size());
-        if (i < NODE && EqType[i] == 1) BUF_LIT(&line, "(t)");
-        else if (i < NODE && METHOD == 0) BUF_LIT(&line, "(n+1)");
-        else if (i < NODE) BUF_LIT(&line, "/dT");
+        if (i < xpp::model().node && xpp::model().eq_type[i] == 1) BUF_LIT(&line, "(t)");
+        else if (i < xpp::model().node && METHOD == 0) BUF_LIT(&line, "(n+1)");
+        else if (i < xpp::model().node) BUF_LIT(&line, "/dT");
         BUF_LIT(&line, "=");
         buf_add(&line, rhs, strlen(rhs));
         if (i) BUF_LIT(&b, ",");
@@ -343,7 +343,7 @@ int apply_value(const char *line)
     else if (kind == "delay") type = 3; /* DELAYBOX */
     else if (kind == "bc") type = 4;    /* BCBOX */
     else return 0;
-    n = type == 1 ? NUPAR : type == 2 ? NODE + NMarkov : NODE;
+    n = type == 1 ? xpp::model().nupar : type == 2 ? xpp::model().node + xpp::model().nmarkov : xpp::model().node;
     /* BC names are not unique ("0="): those come by index */
     index = get_int(line, "index", -1);
     if (index >= n) index = -1;

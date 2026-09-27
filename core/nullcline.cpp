@@ -28,6 +28,7 @@
 #include "menudrive.h"
 #include "xpp_batch.h"
 #include "form_ode.h"
+#include "model.h"
 
 #define MAX_NULL 10000
 
@@ -244,10 +245,10 @@ void stor_null(float x1, float y1, float x2, float y2)
 float fnull(float x, float y)
 {
   std::array<double,MAXODE> y1,ydot;
-  for(int i=0;i<NODE;i++)y1[i]=last_ic[i];
+  for(int i=0;i<xpp::model().node;i++)y1[i]=last_ic[i];
   y1[null_ix-1]=static_cast<double>(x);
   y1[null_iy-1]=static_cast<double>(y);
-  rhs(0.0,y1.data(),ydot.data(),NODE);
+  rhs(0.0,y1.data(),ydot.data(),xpp::model().node);
   return(static_cast<float>(ydot[WHICH_CRV-1]));
 }
 
@@ -349,7 +350,7 @@ void do_range_clines()
   double zold;
   get_val(ncrange.rv.c_str(),&zold);
 
-  for(int i=NODE;i<NODE+NMarkov;i++)set_ivar(i+1+FIX_VAR,last_ic[i]);
+  for(int i=xpp::model().node;i<xpp::model().node+xpp::model().nmarkov;i++)set_ivar(i+1+xpp::model().fix_var,last_ic[i]);
   const float xmin=static_cast<float>(plot_windows.current->xmin);
   const float xmax=static_cast<float>(plot_windows.current->xmax);
   const float y_tp=static_cast<float>(plot_windows.current->ymax);
@@ -384,8 +385,8 @@ void get_max_dfield(double *y, double *ydot, double u0, double v0, double du, do
     y[inx]=u0+du*i;
     for(int j=0;j<=n;j++){
       y[iny]=v0+dv*j;
-      rhs(0.0,y,ydot,NODE);
-      extra(y,0.0,NODE,NEQ);
+      rhs(0.0,y,ydot,xpp::model().node);
+      extra(y,0.0,xpp::model().node,xpp::model().neq);
       scale_dxdy(ydot[inx],ydot[iny],&dxp,&dyp);
       const double amp=hypot(dxp,dyp);
       if(amp>*mdf)*mdf=amp;
@@ -415,16 +416,16 @@ void dfield_grid(int grid, double u0, double v0, double du, double dv, double dz
     y[inx]=u0+du*i;
     for(int j=0;j<=grid;j++){
       y[iny]=v0+dv*j;
-      rhs(0.0,y.data(),ydot.data(),NODE);
-      extra(y.data(),0.0,NODE,NEQ);
+      rhs(0.0,y.data(),ydot.data(),xpp::model().node);
+      extra(y.data(),0.0,xpp::model().node,xpp::model().neq);
       if(plot_windows.current->ColorFlag||DF_FLAG==2){
         v1[0]=0.0;
         v2[0]=0.0;
-        for(int k=0;k<NEQ;k++){
+        for(int k=0;k<xpp::model().neq;k++){
           v1[k+1]=static_cast<float>(y[k]);
           v2[k+1]=v1[k+1]+static_cast<float>(ydot[k]);
         }
-        if(!suppress)comp_color(v1.data(),v2.data(),NODE,1.0);
+        if(!suppress)comp_color(v1.data(),v2.data(),xpp::model().node,1.0);
       }
       if(DF_FLAG==1||DF_FLAG==4){
         if(!suppress)phase_data_arrow(y[inx],y[iny],ydot[inx],ydot[iny]);
@@ -763,7 +764,7 @@ void new_clines_com(int c)
   default:
     return;
   }
-  for(int i=NODE;i<NODE+NMarkov;i++)set_ivar(i+1+FIX_VAR,last_ic[i]);
+  for(int i=xpp::model().node;i<xpp::model().node+xpp::model().nmarkov;i++)set_ivar(i+1+xpp::model().fix_var,last_ic[i]);
   const float xmin=static_cast<float>(plot_windows.current->xmin);
   const float xmax=static_cast<float>(plot_windows.current->xmax);
   const float y_tp=static_cast<float>(plot_windows.current->ymax);

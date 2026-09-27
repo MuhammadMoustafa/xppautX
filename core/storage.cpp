@@ -9,6 +9,7 @@
 #include <vector>
 #include "form_ode.h"
 #include "load_eqn.h"
+#include "model.h"
 double *WORK;
 int IWORK[10000];
 
@@ -28,7 +29,7 @@ std::vector<double> work_space;
 
 void init_alloc_info()
 {
-  xpv.node=NODE+NMarkov;
+  xpv.node=xpp::model().node+xpp::model().nmarkov;
   xpv.nvec=0; /* this is just for now */
   /* called again once the model's options are read: a fresh zeroed block */
   try {

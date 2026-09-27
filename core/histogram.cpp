@@ -113,7 +113,7 @@ void new_four(int nmodes, int col)
    FOUR_HERE=0;
  }
   four_len=nmodes;
- four_columns.make(3,length,NEQ);
+ four_columns.make(3,length,xpp::model().neq);
  FOUR_HERE=1;
 for(i=0;i<length;i++)my_four[0][i]=static_cast<float>(i)/total; 
  bob=get_data_col(col);
@@ -168,7 +168,7 @@ int twod_hist()
   }
 
    hist_len=length;
-  hist_columns.make(3,length,NEQ);
+  hist_columns.make(3,length,xpp::model().neq);
   HIST_HERE=2;
   hist_len=length;
   two_d_hist(hist_inf.col,hist_inf.col2,data_store.rows,
@@ -185,7 +185,7 @@ int twod_hist()
 int new_2d_hist()
 {
 
-  if((NEQ<2)||(data_store.rows<3)){
+  if((xpp::model().neq<2)||(data_store.rows<3)){
     err_msg("Need more data and at least 3 columns");
     return 0;
   }
@@ -236,7 +236,7 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
     HIST_HERE=0;
   }
   hist_len=length;
-  hist_columns.make(2,length,NEQ);
+  hist_columns.make(2,length,xpp::model().neq);
   HIST_HERE=1;
   for(i=0;i<length;i++){
     my_hist[0][i]=static_cast<float>((zlo+dz*i));
@@ -258,9 +258,9 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
       {
 	flag=1;
 	if(cond){
-	  for(j=0;j<NODE+1;j++)set_ivar(j,static_cast<double>(data_store.col[j][i]));
-	  for(j=0;j<NMarkov;j++)
-	    set_ivar(j+NODE+1+FIX_VAR,static_cast<double>(data_store.col[j+NODE+1][i]));
+	  for(j=0;j<xpp::model().node+1;j++)set_ivar(j,static_cast<double>(data_store.col[j][i]));
+	  for(j=0;j<xpp::model().nmarkov;j++)
+	    set_ivar(j+xpp::model().node+1+xpp::model().fix_var,static_cast<double>(data_store.col[j+xpp::model().node+1][i]));
 	  z=evaluate(command);
 	  if(fabs(z)>0.0)flag=1;
 	  else flag=0;
@@ -271,8 +271,8 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
 	  my_hist[1][index]+=1.0;
 	}
       }
-    NCON=NCON_START;
-    NSYM=NSYM_START;
+    NCON=xpp::model().ncon_start;
+    NSYM=xpp::model().nsym_start;
     hist_back();
     ping();
     return;
@@ -346,7 +346,7 @@ void compute_power()
   double s,c;
   float *datx,*daty,ptot=0;
   compute_fourier();
-  if((NEQ<2)||(data_store.rows<=1))return;
+  if((xpp::model().neq<2)||(data_store.rows<=1))return;
   datx=get_data_col(1);
   daty=get_data_col(2);
 
@@ -510,7 +510,7 @@ void just_sd(int flag)
   }  
    hist_len=spec_wid/2;
    length=hist_len+2;
-  hist_columns.make(2,length,NEQ);
+  hist_columns.make(2,length,xpp::model().neq);
   HIST_HERE=1;
   for(j=0;j<hist_len;j++)my_hist[0][j]=(static_cast<float>(j)*data_store.rows/spec_wid)/total;
   if(spec_type==0)
@@ -538,7 +538,7 @@ void just_fourier(int flag)
   double s,c;
   float *datx,*daty;
   int nmodes=data_store.rows/2-1;
-  if(NEQ<2||data_store.rows<=1)return;
+  if(xpp::model().neq<2||data_store.rows<=1)return;
    new_four(nmodes,spec_col);
    if(flag)
      {
@@ -559,7 +559,7 @@ void just_fourier(int flag)
 void compute_fourier()
 {
   int nmodes=10;
-  if(NEQ<2){
+  if(xpp::model().neq<2){
     err_msg("Need at least three data columns");
     return;
   }

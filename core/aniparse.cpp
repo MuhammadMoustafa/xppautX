@@ -922,15 +922,15 @@ void ani_frame(int task)
 void set_to_init_data(void)
 {
     int i;
-    for (i = 0; i < NODE; i++) last_ic[i] = get_ivar(i + 1);
-    for (i = NODE + FIX_VAR; i < NODE + FIX_VAR + NMarkov; i++) last_ic[i - FIX_VAR] = get_ivar(i + 1);
+    for (i = 0; i < xpp::model().node; i++) last_ic[i] = get_ivar(i + 1);
+    for (i = xpp::model().node + xpp::model().fix_var; i < xpp::model().node + xpp::model().fix_var + xpp::model().nmarkov; i++) last_ic[i - xpp::model().fix_var] = get_ivar(i + 1);
     redraw_ics();
 }
 
 void set_from_init_data(void)
 {
     std::array<double, MAXODE> y;
-    for (int i = 0; i < NODE + NMarkov; i++) y[i] = last_ic[i];
+    for (int i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) y[i] = last_ic[i];
     set_fix_rhs(T0, y.data());
 }
 
@@ -1194,7 +1194,7 @@ void ani_flip1(int n)
 
     const double t = static_cast<double>(ss[0][row]);
     std::array<double, MAXODE> y;
-    for (int i = 0; i < NODE + NMarkov; i++) y[i] = static_cast<double>(ss[i + 1][row]);
+    for (int i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) y[i] = static_cast<double>(ss[i + 1][row]);
     set_fix_rhs(t, y.data());
 
     render_ani();

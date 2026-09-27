@@ -13,7 +13,6 @@
 extern "C" {
 extern int AutoPar[8];
 extern int NAutoPar;
-extern int NUPAR;
 }
 
 namespace {
@@ -37,7 +36,7 @@ AutoStopAt inside()
 int main()
 {
     xpp::model().upar_names[0] = "iapp";
-    NUPAR = 1;
+    xpp::model().nupar = 1;
     NAutoPar = 1;
     AutoPar[0] = 0;
 

@@ -135,7 +135,6 @@ extern int SEc,UEc,SPc,UPc;
  double MY_XLO,MY_YLO,MY_XHI,MY_YHI;
  double TOR_PERIOD=6.2831853071795864770;
  int TORUS=0;
- int NEQ;
  std::string options_file;
 
 /*   Numerical stuff ....   */
@@ -184,7 +183,7 @@ void dump_torus(FILE *fp, int f)
   io_int(&TORUS,fp,f," Torus flag 1=ON");
   io_double(&TOR_PERIOD,fp,f,"Torus period");
   if(TORUS){
-    for(i=0;i<NEQ;i++)
+    for(i=0;i<xpp::model().neq;i++)
       io_int(&itor[i],fp,f,xpp::model().uvar_names[i]);
   }
 }
@@ -294,7 +293,7 @@ void set_all_vals()
  if (notAlreadySet.IZPLT){IZPLT=1;notAlreadySet.IZPLT=0;}
  
  if (notAlreadySet.NPLOT){
-   if (NEQ>2){if(notAlreadySet.IZPLT){IZPLT=2;}}
+   if (xpp::model().neq>2){if(notAlreadySet.IZPLT){IZPLT=2;}}
  NPltV=1;
  for(i=0;i<10;i++){
    IX_PLT[i]=IXPLT;
@@ -322,8 +321,8 @@ void set_all_vals()
 
 /*                           */
 
- if(IZPLT>NEQ)IZPLT=NEQ;
- if(IYPLT>NEQ)IYPLT=NEQ;
+ if(IZPLT>xpp::model().neq)IZPLT=xpp::model().neq;
+ if(IYPLT>xpp::model().neq)IYPLT=xpp::model().neq;
  if(IXPLT==0||IYPLT==0)
    TIMPLOT=1;
  else 
@@ -354,7 +353,7 @@ if(MY_YLO>=MY_YHI){
    x_3d[1]=MY_XHI;
    y_3d[1]=MY_YHI;
  } 
- data_store.allocate(data_store.max_rows,NEQ+1);
+ data_store.allocate(data_store.max_rows,xpp::model().neq+1);
  if(AXES>=5)PLOT_3D=1;
  chk_delay(); /* check for delay allocation */
  alloc_h_stuff();

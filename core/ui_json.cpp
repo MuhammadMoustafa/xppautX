@@ -501,24 +501,24 @@ void json_ui_hello(const char *title)
     /* the lists a form field *n picks from (pop_list.c make_scrbox_lists) */
     BUF_LIT(&b, ",\"lists\":[[\"T\"");
     const xpp::Model &m = xpp::model();
-    for (i = 0; i < NEQ; i++) {
+    for (i = 0; i < xpp::model().neq; i++) {
         BUF_LIT(&b, ",");
         buf_str(&b, m.uvar_names[i]);
     }
     BUF_LIT(&b, "],[");
-    for (i = 0; i < NODE + NMarkov; i++) {
+    for (i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) {
         if (i) BUF_LIT(&b, ",");
         buf_str(&b, m.uvar_names[i]);
     }
     BUF_LIT(&b, "],[");
-    for (i = 0; i < NUPAR; i++) {
+    for (i = 0; i < xpp::model().nupar; i++) {
         if (i) BUF_LIT(&b, ",");
         buf_str(&b, m.upar_names[i]);
     }
     BUF_LIT(&b, "],[");
-    for (i = 0; i < NODE + NMarkov + NUPAR; i++) {
+    for (i = 0; i < xpp::model().node + xpp::model().nmarkov + xpp::model().nupar; i++) {
         if (i) BUF_LIT(&b, ",");
-        buf_str(&b, i < NODE + NMarkov ? m.uvar_names[i] : m.upar_names[i - NODE - NMarkov]);
+        buf_str(&b, i < xpp::model().node + xpp::model().nmarkov ? m.uvar_names[i] : m.upar_names[i - xpp::model().node - xpp::model().nmarkov]);
     }
     BUF_LIT(&b, "],[");
     for (i = 0; i < 11; i++) {
@@ -556,12 +556,12 @@ void json_ui_hello(const char *title)
     }
     /* the model file's values, what `default` restores, in state's order */
     BUF_LIT(&b, "],\"defaults\":{\"pars\":[");
-    for (i = 0; i < NUPAR; i++) {
+    for (i = 0; i < xpp::model().nupar; i++) {
         if (i) BUF_LIT(&b, ",");
         buf_num(&b, default_val[i], 16);
     }
     BUF_LIT(&b, "],\"ics\":[");
-    for (i = 0; i < NODE + NMarkov; i++) {
+    for (i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) {
         if (i) BUF_LIT(&b, ",");
         buf_num(&b, default_ic[i], 16);
     }

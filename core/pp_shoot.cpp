@@ -49,7 +49,7 @@ struct {
 
 void do_bc(double *y__0, double t0, double *y__1, double t1, double *f, int n)
 {
- int n0=PrimeStart;
+ int n0=xpp::model().prime_start;
  int i;
 
  SETVAR(0,t0);
@@ -59,7 +59,7 @@ void do_bc(double *y__0, double t0, double *y__1, double t1, double *f, int n)
    SETVAR(i+1,y__0[i]);
    SETVAR(i+n0+1,y__1[i]);
  }
-  for(i=n;i<n+FIX_VAR;i++)SETVAR(i+1,evaluate(my_ode[i]));
+  for(i=n;i<n+xpp::model().fix_var;i++)SETVAR(i+1,evaluate(my_ode[i]));
  
   for(i=0;i<n;i++)f[i]=evaluate(my_bc[i].com);
 }
@@ -71,10 +71,10 @@ void compile_bvp()
  reset_bvp();
  if(BVP_FLAG==0)return;
 
- NCON=NCON_START;
- NSYM=NSYM_START;
+ NCON=xpp::model().ncon_start;
+ NSYM=xpp::model().nsym_start;
  BVP_FLAG=0;
- for(i=0;i<NODE;i++){
+ for(i=0;i<xpp::model().node;i++){
 
    if(add_expr(my_bc[i].string,my_bc[i].com,&len)){
      err_msg(xpp::format("Bad syntax on {} th BC",i+1).c_str());
@@ -158,7 +158,7 @@ void do_sh_range(double *ystart, double *yend)
      if(shoot_range.movie==1)
        clr_scrn();
      
-     bvshoot(ystart,yend,BVP_TOL,BVP_EPS,BVP_MAXIT,&ierr,NODE,0,
+     bvshoot(ystart,yend,BVP_TOL,BVP_EPS,BVP_MAXIT,&ierr,xpp::model().node,0,
 	     0,0,0,0.0);
      if(ierr==-5)continue;
      if(ierr<0){ 
@@ -169,8 +169,8 @@ void do_sh_range(double *ystart, double *yend)
        return;
      }
      data_store.col[0][data_store.rows]=temp;
-     if(side==0)for(j=0;j<NODE;j++)data_store.col[j+1][data_store.rows]=ystart[j];
-     else for(j=0;j<NODE;j++)data_store.col[j+1][data_store.rows]=yend[j];
+     if(side==0)for(j=0;j<xpp::model().node;j++)data_store.col[j+1][data_store.rows]=ystart[j];
+     else for(j=0;j<xpp::model().node;j++)data_store.col[j+1][data_store.rows]=yend[j];
      data_store.rows++;
      set_cycle(cycle,&icol);
      get_ic(0,ystart);
@@ -229,7 +229,7 @@ void find_bvp_com(int com)
  double ystart[MAXODE],oldtrans;
  double yend[MAXODE];
  /*  Window temp=main_win; */
- if(NMarkov>0||NKernel>0){
+ if(xpp::model().nmarkov>0||NKernel>0){
    err_msg("Can't do BVP with integral or markov eqns");
    return;
  }
@@ -248,7 +248,7 @@ void find_bvp_com(int com)
    do_sh_range(ystart,yend);
    return;
  case 3:
-   if(NUPAR==0)goto bye;
+   if(xpp::model().nupar==0)goto bye;
    pflag=set_up_periodic(&ipar,&ivar,&sect,&ishow);
    if(pflag==0)goto bye;
    iper=1;
@@ -265,10 +265,10 @@ void find_bvp_com(int com)
    break;
  }
  if(iper)
- bvshoot(ystart,yend,BVP_TOL,BVP_EPS,BVP_MAXIT,&iret,NODE,ishow,
+ bvshoot(ystart,yend,BVP_TOL,BVP_EPS,BVP_MAXIT,&iret,xpp::model().node,ishow,
 	iper,ipar,ivar,sect);
  else 
- bvshoot(ystart,yend,BVP_TOL,BVP_EPS,BVP_MAXIT,&iret,NODE,ishow,0,0,0,0.0 );
+ bvshoot(ystart,yend,BVP_TOL,BVP_EPS,BVP_MAXIT,&iret,xpp::model().node,ishow,0,0,0,0.0 );
  bad_shoot(iret);
  if(iret==1||iret==2) {
  get_ic(0,ystart);  
@@ -299,8 +299,8 @@ void last_shot(int flag)
  data_store.current_time=T0;
  if(flag){
   data_store.col[0][0]=static_cast<float>(T0);
-  extra(x,T0,NODE,NEQ);
-  for(i=0;i<NEQ;i++)data_store.col[1+i][0]=static_cast<float>(x[i]);
+  extra(x,T0,xpp::model().node,xpp::model().neq);
+  for(i=0;i<xpp::model().neq;i++)data_store.col[1+i][0]=static_cast<float>(x[i]);
   data_store.rows=1;
 
 }

@@ -16,6 +16,7 @@
 #include "xpp_globals.h"
 #include "form_ode.h"
 #include "load_eqn.h"
+#include "model.h"
 #define DING ping()
 int UnstableManifoldColor=5;
 int StableManifoldColor=8;
@@ -273,7 +274,7 @@ int i,k,type;
   olddt=DELTA_T;
   STORFLAG=1;
   for(k=0;k<ShootIndex;k++){
-    for(i=0;i<NODE;i++)
+    for(i=0;i<xpp::model().node;i++)
       x[i]=ShootIC[k][i];
 
     type=ShootType[k];
@@ -308,7 +309,7 @@ void shoot_this_now() /* this uses the current labeled saddle point stuff to int
   olddt=DELTA_T;
 
   for(k=0;k<ShootIndex;k++){
-    for(i=0;i<NODE;i++)
+    for(i=0;i<xpp::model().node;i++)
       x[i]=ShootIC[k][i];
     
     type=ShootType[k];

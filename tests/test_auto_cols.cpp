@@ -11,7 +11,6 @@
 /* what the core holds for a loaded model; the names come from the .ode file */
 extern int AutoPar[8];
 extern int NAutoPar;
-extern int NODE, NEQ, NUPAR;
 
 static void load_model(void)
 {
@@ -20,8 +19,8 @@ static void load_model(void)
     xpp::model().upar_names[2] = "phi";
     xpp::model().uvar_names[0] = "v";
     xpp::model().uvar_names[1] = "w";
-    NODE = NEQ = 2;
-    NUPAR = 3;
+    xpp::model().node = xpp::model().neq = 2;
+    xpp::model().nupar = 3;
     NAutoPar = 3;
     AutoPar[0] = 0;
     AutoPar[1] = 1;

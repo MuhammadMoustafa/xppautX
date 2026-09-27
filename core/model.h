@@ -3,8 +3,18 @@
 /* xpp::Model: what loading a model produces (CLAUDE.md "No global state";
    docs/roadmap.md W46c, the start of W47b). C++ only.
 
-   For now there is one Model, reached through xpp::model(); W47b moves
-   the rest of what a load produces here, and W47d passes it explicitly.
+   For now the current Model is reached through xpp::model(); W47d passes
+   it explicitly. A load (xpp_batch.cpp's xpp_load_model) builds a new one
+   through ModelLoad below and keeps it only when the load succeeds.
+
+   A Model is what the .ode file defines, and a load is the only thing
+   that should write it; what a person changes while working (parameter
+   values, initial conditions, the numerics settings) is the Session's
+   (W47c), which the Model gives its defaults (default_val, default_ic,
+   options). Two writers remain, both W47c's to move: browse_data's added
+   column (a formula column appended as one more variable: neq, nvar,
+   uvar_names, its program) and the runtime compiler's scratch symbols
+   (ncon/nsym grow past ncon_start/nsym_start and roll back).
 
    The name tables hold a model's names as the parser keeps them (blanks
    removed, upper case), each at most XPP_NAME_MAX long: the parser refuses
@@ -23,6 +33,32 @@
 namespace xpp {
 
 struct Model {
+  /* ---- counts and kinds (form_ode.cpp's parser sets them) ---- */
+  /* the stored columns but time: the ODEs, the Markov variables and the
+     aux quantities (browse_data's added column takes one more) */
+  int neq=0;
+  /* the ODEs (the fixed variables too while form_ode reads the file) */
+  int node=0;
+  /* the Markov variables, after the ODEs */
+  int nmarkov=0;
+  /* the fixed variables, after the ODEs and Markov variables */
+  int fix_var=0;
+  /* the parameters */
+  int nupar=0;
+  /* the parser's variables (t, the model's variables, then its extras) */
+  int nvar=0;
+  /* the Wiener parameters */
+  int nwiener=0;
+  /* the first constant and symbol after the model's own: an expression
+     compiled later (a browser column, a histogram's condition) adds its
+     own above them and rolls back to them */
+  int ncon_start=0,nsym_start=0;
+  /* the first primed symbol (a variable's x') */
+  int prime_start=0;
+  /* each variable's kind: 1 a Volterra integral equation (x(t)=...),
+     0 an ODE or a map */
+  std::array<int,MAXODE> eq_type{};
+
   /* the variables' names by index: the ODEs (NODE), the Markov variables
      (NMarkov), then the aux quantities, NEQ in all; browse_data's added
      column takes the next one */
@@ -39,8 +75,42 @@ struct Model {
   std::string this_internset;
 };
 
-/* the one Model, for the program's life */
-Model &model();
+namespace detail {
+/* the current Model's slot: constant-initialised (no guard on a read),
+   filled on first use and changed only by ModelLoad */
+inline Model *&current_model() noexcept
+{
+  static constinit Model *current=nullptr;
+  return current;
+}
+Model *first_model();
+}
+
+/* the current Model. Inline: the integrator's right-hand side reads the
+   counts on every step, and a call per read slowed it measurably. */
+inline Model &model()
+{
+  Model *m=detail::current_model();
+  if(!m)[[unlikely]]m=detail::first_model();
+  return *m;
+}
+
+/* A load in progress: while it lives the current Model is a fresh one,
+   which the parser fills; commit() keeps it and drops the one before,
+   and a load that never commits (it failed) puts the one before back.
+   Model memory is never freed while a pointer into it may be held: the
+   old one goes at commit, when the new model has replaced every use. */
+class ModelLoad {
+public:
+  ModelLoad();
+  ~ModelLoad();
+  ModelLoad(const ModelLoad &)=delete;
+  ModelLoad &operator=(const ModelLoad &)=delete;
+  void commit();
+private:
+  Model *previous;
+  bool committed=false;
+};
 
 }
 

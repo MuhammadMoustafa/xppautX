@@ -12,6 +12,7 @@
 #include <vector>
 #include "getvar.h"
 #include "form_ode.h"
+#include "model.h"
 
 double AlphaMax=2,OmegaMax=2;
 
@@ -61,7 +62,7 @@ int alloc_delay(double big)
  MaxDelay=n;
  LatestDelay=1;
  DelayFlag=0;
- DelayWork.assign(n*(NODE ),0.0);
+ DelayWork.assign(n*(xpp::model().node ),0.0);
  DelayFlag=1;
  NDelay=0;
  WhichDelay=-1;
@@ -78,7 +79,7 @@ void free_delay()
 void stor_delay(double *y)
 {
  int i,in;
- int nodes=NODE;
+ int nodes=xpp::model().node;
  if(DelayFlag==0)return;
  --LatestDelay;
  if(LatestDelay<0)LatestDelay+=MaxDelay;
@@ -124,7 +125,7 @@ double get_delay(int in, double tau)
  double y,ya[4],xa[4],dy;
  int n1=static_cast<int>(x);
  int n2=n1+1;
- int nodes=NODE;
+ int nodes=xpp::model().node;
  int n0=n1;
  int n3=n2+1;
  int i0,i1,i2,i3;
@@ -168,15 +169,15 @@ int do_init_delay(double big)
  /* del_form's per-node formula buffers are RAII now (std::vector), so
     every return path below frees them automatically -- no more manual
     xpp_free loops paired to each early-exit. */
- std::vector<std::vector<int>> del_form(NODE, std::vector<int>(200, 0));
+ std::vector<std::vector<int>> del_form(xpp::model().node, std::vector<int>(200, 0));
  nt=static_cast<int>(big/fabs(DELTA_T));
- NCON=NCON_START;
- NSYM=NSYM_START;
- for(i=0;i<(NODE );i++){
+ NCON=xpp::model().ncon_start;
+ NSYM=xpp::model().nsym_start;
+ for(i=0;i<(xpp::model().node );i++){
 	 if(add_expr(delay_string[i].c_str(),del_form[i].data(),&len)){
 		err_msg("Illegal delay expression");
-		 NCON=NCON_START;
-		NSYM=NSYM_START;
+		 NCON=xpp::model().ncon_start;
+		NSYM=xpp::model().nsym_start;
 		return(0);
 		}
 	 }        /*  Okay all formulas are cool... */
@@ -187,12 +188,12 @@ int do_init_delay(double big)
   for(i=nt;i>=0;i--){
 	t=T0-fabs(DELTA_T)*i;
 	set_val("t",t);
-	for(j=0;j<(NODE );j++)
+	for(j=0;j<(xpp::model().node );j++)
 		y[j]=evaluate(del_form[j].data());
 	stor_delay(y);
   }
-   NCON=NCON_START;
-   NSYM=NSYM_START;
+   NCON=xpp::model().ncon_start;
+   NSYM=xpp::model().nsym_start;
   set_val("t",old_t);
    return(1);
  }

@@ -169,7 +169,7 @@ static std::array<SYMBOL,MAX_SYMBS> my_symb=
    {"BESSELIS",8,COM(FUN2TYPE,21),2,10},/* Bessel I Scaled  # 95 */
       }};
 
-int NCON=0,NVAR=0,NFUN=0;
+int NCON=0,NFUN=0;
 int NSYM=STDSYM;
 
 /*     pointers to functions    */
@@ -212,7 +212,7 @@ void init_rpn()
     ERROUT = 1;
     NCON = 0;
     NFUN = 0;
-    NVAR = 0;
+    xpp::model().nvar = 0;
     NKernel=0;
 
     MaxPoints=4000;
@@ -393,7 +393,7 @@ int add_kernel(const char *name, double mu, const char *expr)
 int add_var(std::string_view junk, double value)
 {
  if(duplicate_name(junk)==1)return(1);
- if(NVAR>=MAXODE1)
+ if(xpp::model().nvar>=MAXODE1)
  {
   if(ERROUT)xpp_log(XPP_LOG_WARN, "too many variables !!\n");
   return(1);
@@ -401,10 +401,10 @@ int add_var(std::string_view junk, double value)
  if(set_symbol_name(NSYM,junk,1))return 1;
  my_symb[NSYM].pri=10;
  my_symb[NSYM].arg=0;
- my_symb[NSYM].com=COM(VARTYPE,NVAR);
+ my_symb[NSYM].com=COM(VARTYPE,xpp::model().nvar);
  NSYM++;
- variables[NVAR]=value;
- NVAR++;
+ variables[xpp::model().nvar]=value;
+ xpp::model().nvar++;
  return(0);
 }
 

@@ -139,7 +139,7 @@ std::string event_text()
         add_str_or_null(o, auto_par_name(k));
     }
     o += xpp::format("],\"axes\":{{\"plot\":{},\"var\":", Auto.plot);
-    add_str_or_null(o, Auto.var >= 0 && Auto.var < NODE ? xpp::model().uvar_names[Auto.var].c_str() : nullptr);
+    add_str_or_null(o, Auto.var >= 0 && Auto.var < xpp::model().node ? xpp::model().uvar_names[Auto.var].c_str() : nullptr);
     o += ",\"par1\":";
     add_str_or_null(o, auto_par_name(Auto.icp1));
     o += ",\"par2\":";
@@ -168,7 +168,7 @@ std::string sent;
 bool sent_valid;
 
 /* the model has settings: init_auto_win() skipped a model too big for AUTO */
-bool have_settings() { return NODE <= NAUTO; }
+bool have_settings() { return xpp::model().node <= NAUTO; }
 
 bool num_ok(int i, double v, std::string &why)
 {
@@ -265,7 +265,7 @@ bool apply(const AutoSettingsSet *s, std::string &why)
     if (!s->var.empty()) {
         int col;
         find_variable(s->var.c_str(), &col);
-        if (col < 1 || col > NODE) {
+        if (col < 1 || col > xpp::model().node) {
             why = xpp::format("{} is not a variable AUTO computes", s->var);
             return false;
         }

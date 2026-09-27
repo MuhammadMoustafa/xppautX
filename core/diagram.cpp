@@ -19,6 +19,7 @@
 #include "browse.h"
 #include "graf_par.h"
 #include "form_ode.h"
+#include "model.h"
 
 namespace {
 /* a diagram point and the arrays its DIAGRAM entry points at */
@@ -153,7 +154,7 @@ int diagram_has(int index,int ibr,int ntot)
 
 void kill_diagrams()
 {
-  start_diagram(NODE);
+  start_diagram(xpp::model().node);
 }
 
 void redraw_diagram()
@@ -260,11 +261,11 @@ void write_info_out()
     {
       std::string line=xpp::format("{} {} {} {:g} {:g} {:g} ",
 	      type,d->ibr,d->flag2,par1,par2,per);
-      for(i=0;i<NODE;i++)
+      for(i=0;i<xpp::model().node;i++)
         line+=xpp::format("{:g} ",uhigh[i]);
-      for(i=0;i<NODE;i++)
+      for(i=0;i<xpp::model().node;i++)
         line+=xpp::format("{:g} ",ulow[i]);
-      for(i=0;i<NODE;i++)
+      for(i=0;i<xpp::model().node;i++)
         line+=xpp::format("{:g} {:g} ",d->evr[i],d->evi[i]);
       line+='\n';
       w.print("{}",line);
@@ -304,7 +305,7 @@ extern "C" void load_browser_with_branch(int ibr,int pts,int pte)
 
       par1=par[icp1];
       data_store.col[0][j]=par1;
-      for(i=0;i<NODE;i++)
+      for(i=0;i<xpp::model().node;i++)
 	data_store.col[i+1][j]=u0[i];
       j++;
     }
@@ -334,7 +335,7 @@ void write_init_data_file()
 
     {
       std::string line=xpp::format("{:g} ",par1);
-      for(i=0;i<NODE;i++)
+      for(i=0;i<xpp::model().node;i++)
         line+=xpp::format("{:g} ",u0[i]);
       line+='\n';
       w.print("{}",line);

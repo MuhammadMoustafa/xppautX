@@ -50,20 +50,20 @@ using Command = std::array<int, 200>;
 
 void edit_rhs()
 {
- int n=NEQ;
- if(NEQ>NEQMAXFOREDIT) return;
+ int n=xpp::model().neq;
+ if(xpp::model().neq>NEQMAXFOREDIT) return;
  EditBox box;
  for(int i=0;i<n;i++){
    std::string name;
-   if(i>=NODE)name=xpp::model().uvar_names[i];
-   else if(EqType[i]==1)name=xpp::format("{}(T)",xpp::model().uvar_names[i]);
+   if(i>=xpp::model().node)name=xpp::model().uvar_names[i];
+   else if(xpp::model().eq_type[i]==1)name=xpp::format("{}(T)",xpp::model().uvar_names[i]);
    else if(METHOD==0)name=xpp::format("{}(n+1)",xpp::model().uvar_names[i]);
    else name=xpp::format("d{}/dT",xpp::model().uvar_names[i]);
    box.add(std::move(name),ode_names[i]);
  }
  if(box.show("Right Hand Sides")==0)return;
  for(int i=0;i<n;i++){
-   if(i<NODE||(i>=(NODE+NMarkov))){
+   if(i<xpp::model().node||(i>=(xpp::model().node+xpp::model().nmarkov))){
      Command command;
      int len;
      if(add_expr(box.value(i),command.data(),&len)==1)
@@ -71,7 +71,7 @@ void edit_rhs()
      else {
        set_ode_name(i,box.value(i));
        int i0=i;
-       if(i>=NODE)i0=i0+FIX_VAR-NMarkov;
+       if(i>=xpp::model().node)i0=i0+xpp::model().fix_var-xpp::model().nmarkov;
        for(int j=0;j<len;j++)
          my_ode[i0][j]=command[j];
      }
@@ -121,18 +121,18 @@ int save_as()
   xpp::Writer w=open_writer_asking(filename.c_str());
   if(!w)return(-1);
   double z;
-  w.print("{}",NEQ);
-  for(int i=0;i<NODE;i++){
+  w.print("{}",xpp::model().neq);
+  for(int i=0;i<xpp::model().node;i++){
     if(i%5==0)w.print("\nvariable ");
     w.print(" {}={:.16g} ",xpp::model().uvar_names[i],last_ic[i]);
   }
   w.print("\n");
-  for(int i=NODE;i<NEQ;i++){
-    if((i-NODE)%5==0)w.print("\naux ");
+  for(int i=xpp::model().node;i<xpp::model().neq;i++){
+    if((i-xpp::model().node)%5==0)w.print("\naux ");
     w.print(" {} ",xpp::model().uvar_names[i]);
   }
   w.print("\n");
-  for(int i=0;i<NUPAR;i++){
+  for(int i=0;i<xpp::model().nupar;i++){
     if(i%5==0)w.print("\nparam  ");
     get_val(xpp::model().upar_names[i],&z);
     w.print(" {}={:.16g}   ",xpp::model().upar_names[i],z);
@@ -140,11 +140,11 @@ int save_as()
   w.print("\n");
   for(int i=0;i<NFUN;i++)
     w.print("user {} {} {}\n",xpp::model().ufun_names[i],narg_fun[i],ufun_def[i]);
-  for(int i=0;i<NODE;i++)
-    w.print("{} {}\n",EqType[i]==1?"i":"o",ode_names[i]);
-  for(int i=NODE;i<NEQ;i++)
+  for(int i=0;i<xpp::model().node;i++)
+    w.print("{} {}\n",xpp::model().eq_type[i]==1?"i":"o",ode_names[i]);
+  for(int i=xpp::model().node;i<xpp::model().neq;i++)
     w.print("o {}\n",ode_names[i]);
-  for(int i=0;i<NODE;i++)w.print("b {} \n",my_bc[i].string);
+  for(int i=0;i<xpp::model().node;i++)w.print("b {} \n",my_bc[i].string);
   w.print("done\n");
   return w.commit()?1:0;
 }

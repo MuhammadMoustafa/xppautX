@@ -33,7 +33,7 @@ void choose_torus()
 {
  int i;
  std::array<const char *, MAXODE> names{};
- for(i=0;i<NEQ;i++)names[i]=xpp::model().uvar_names[i].c_str();
- xpp_ui.checklist("Fold which",names.data(),itor,NEQ);
- for(i=0;i<NEQ;i++)if(itor[i]==1)TORUS=1;
+ for(i=0;i<xpp::model().neq;i++)names[i]=xpp::model().uvar_names[i].c_str();
+ xpp_ui.checklist("Fold which",names.data(),itor,xpp::model().neq);
+ for(i=0;i<xpp::model().neq;i++)if(itor[i]==1)TORUS=1;
 }

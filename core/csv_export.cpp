@@ -60,8 +60,8 @@ int csv_export_diagram(const char *filename)
         return 0;
     }
     w.print("branch,point,type,label,stability,f2,param1_name,param1,param2_name,param2,period");
-    for (int i = 0; i < NODE; i++) w.print(",{}_max", xpp::model().uvar_names[i]);
-    for (int i = 0; i < NODE; i++) w.print(",{}_min", xpp::model().uvar_names[i]);
+    for (int i = 0; i < xpp::model().node; i++) w.print(",{}_max", xpp::model().uvar_names[i]);
+    for (int i = 0; i < xpp::model().node; i++) w.print(",{}_min", xpp::model().uvar_names[i]);
     w.print("\n");
     /* the first point is a stored point itself (edit_start fills it in
        place), not a sentinel before one: write_info_out/write_pts start
@@ -76,8 +76,8 @@ int csv_export_diagram(const char *filename)
         w.print("{},{},{},{},{},{},{},{},{},{},{}", unsigned_of(d->ibr), unsigned_of(d->ntot), csv_field(sym), d->lab,
                 point_is_stable(type) ? "stable" : "unstable", d->flag2, csv_field(par_name(d->icp1)),
                 xpp::number(par1), csv_field(par_name(d->icp2)), xpp::number(par2), xpp::number(d->per));
-        for (int i = 0; i < NODE; i++) w.print(",{}", xpp::number(d->uhi[i]));
-        for (int i = 0; i < NODE; i++) w.print(",{}", xpp::number(d->ulo[i]));
+        for (int i = 0; i < xpp::model().node; i++) w.print(",{}", xpp::number(d->uhi[i]));
+        for (int i = 0; i < xpp::model().node; i++) w.print(",{}", xpp::number(d->ulo[i]));
         w.print("\n");
     }
     if (!w.commit()) {
@@ -99,7 +99,7 @@ int csv_export_diagram_eigenvalues(const char *filename)
     for (const DIAGRAM *d = diagram_first(); d != NULL; d = diagram_next(d)) {
         int type = get_bif_type(d->ibr, d->ntot, d->lab);
         const char *kind = point_is_periodic(type) ? "multiplier" : "eigenvalue";
-        for (int i = 0; i < NODE; i++)
+        for (int i = 0; i < xpp::model().node; i++)
             w.print("{},{},{},{},{},{}\n", unsigned_of(d->ibr), unsigned_of(d->ntot), i, xpp::number(d->evr[i]),
                     xpp::number(d->evi[i]), kind);
     }

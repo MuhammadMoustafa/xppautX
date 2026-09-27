@@ -10,6 +10,7 @@
 #include "xpp_job.h" /* xppautX: cancel */
 #include "auto_stop.h" /* xppautX: why a branch ended (T23) */
 #include "form_ode.h"
+#include "model.h"
 static int restart_flag=0;
 /* The memory for these are taken care of in main, and setubv for the
    mpi parallel case.  These are global since the they are used many times
@@ -6582,7 +6583,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   }
 
   /* compute max, min, etc of solutions   This is correct!! */
-  for (i=0;i<NODE;i++){
+  for (i=0;i<xpp::model().node;i++){
     itmp=i+1;
     u_high[i]=rmxups(iap,ndxloc,&itmp,ups);
     u_low[i]=rmnups(iap,ndxloc,&itmp,ups);

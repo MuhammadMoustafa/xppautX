@@ -133,12 +133,12 @@ int find_user_name(int type, std::string_view oname)
    }
  }
 
- for(i=0;i<NUPAR;i++)
+ for(i=0;i<xpp::model().nupar;i++)
          if((type==PARAMBOX)&&xpp::equal_ignoring_case(xpp::model().upar_names[i],name))break;
- if(i<NUPAR)return(i);
- for(i=0;i<NEQ;i++)
+ if(i<xpp::model().nupar)return(i);
+ for(i=0;i<xpp::model().neq;i++)
 	 if((type==ICBOX)&&xpp::equal_ignoring_case(xpp::model().uvar_names[i],name))break;
-   if(i<NEQ)return(i);
+   if(i<xpp::model().neq)return(i);
 	return(-1);
  }
 
@@ -209,8 +209,8 @@ int has_eq(const char *z, char *w, int *where)
   z=evaluate(com);
  *ok=1;
 bye:
-  NCON=NCON_START;
-  NSYM=NSYM_START;
+  NCON=xpp::model().ncon_start;
+  NSYM=xpp::model().nsym_start;
   return(z);
  }
 
@@ -374,7 +374,7 @@ void clone_ode()
   /* now we do parameters boundary conds and ICs */
   j=0;
   fp.print("init ");
-  for(i=0;i<(NODE+NMarkov);i++){
+  for(i=0;i<(xpp::model().node+xpp::model().nmarkov);i++){
     if(j==8){
       fp.print("\ninit ");
       j=0;
@@ -386,13 +386,13 @@ void clone_ode()
 
   /* BDRY conds */
   if(my_bc[0].string[0]!='0'){
-    for(i=0;i<NODE;i++)
+    for(i=0;i<xpp::model().node;i++)
       fp.print("bdry {}\n",my_bc[i].string);
   }
   j=0;
-  if(NUPAR>0){
+  if(xpp::model().nupar>0){
     fp.print("par ");
-    for(i=0;i<NUPAR;i++){
+    for(i=0;i<xpp::model().nupar;i++){
       if(j==8){
 	fp.print("\npar ");
         j=0;
@@ -452,7 +452,7 @@ void new_parameter()
 void   set_default_params()
  {
 
- for(int i=0;i<NUPAR;i++){
+ for(int i=0;i<xpp::model().nupar;i++){
    set_val(xpp::model().upar_names[i],default_val[i]);
    xpp_ui.param_box_set(i,xpp::format("{:.16g}",default_val[i]).c_str());
  }
@@ -468,7 +468,7 @@ void   set_default_params()
 void   set_default_ics()
 {
   int i;
-  for(i=0;i<NODE+NMarkov;i++)
+  for(i=0;i<xpp::model().node+xpp::model().nmarkov;i++)
     last_ic[i]=default_ic[i];
    redraw_ics();
 }
@@ -499,7 +499,7 @@ void man_ic()
       xpp_ui.ic_box_set(index,xpp::format("{:.16g}",z).c_str());
       xpp_ui.ic_box_redraw(index);
       index++;
-      if(index>=NODE+NMarkov)return;
+      if(index>=xpp::model().node+xpp::model().nmarkov)return;
     }
     if(done==-1)return;
   }

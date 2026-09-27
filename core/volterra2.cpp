@@ -13,6 +13,7 @@
 #include "parserslow.h"
 #include <algorithm>
 #include <vector>
+#include "model.h"
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
 
@@ -80,7 +81,7 @@ void alloc_v_memory()  /* allocate stuff for volterra equations */
 void allocate_volterra(int npts, int flag)
 {
   int i;
-  int ntot=NODE+FIX_VAR+NMarkov;
+  int ntot=xpp::model().node+xpp::model().fix_var+xpp::model().nmarkov;
   npts=abs(npts);
   MaxPoints=npts;
   /* now allocate the memory   */
@@ -149,10 +150,10 @@ void init_sums(double t0, int n, double dt, int i0, int iend, int ishift)
 {
    double t=t0+n*dt,tp=t0+i0*dt;
    double sum[MAXODE],al,alpbet,mu;
-   int nvar=FIX_VAR+NODE+NMarkov;
+   int nvar=xpp::model().fix_var+xpp::model().node+xpp::model().nmarkov;
    int l,ioff,ker,i;
    SETVAR(0,t);
-   SETVAR(PrimeStart,tp);
+   SETVAR(xpp::model().prime_start,tp);
    for(l=0;l<nvar;l++)SETVAR(l+1,Memory[l][ishift]);
    for(ker=0;ker<NKernel;ker++){
      kernel[ker].k_n1=kernel[ker].k_n;
@@ -167,7 +168,7 @@ void init_sums(double t0, int n, double dt, int i0, int iend, int ishift)
    for(i=1;i<=iend;i++){
      ioff=(ishift+i)%MaxPoints;
      tp+=dt;
-     SETVAR(PrimeStart,tp);
+     SETVAR(xpp::model().prime_start,tp);
      for(l=0;l<nvar;l++)SETVAR(l+1,Memory[l][ioff]);
      for(ker=0;ker<NKernel;ker++){
        mu=kernel[ker].mu;
@@ -221,10 +222,10 @@ void get_kn(double *y, double t)  /* uses the guessed value y to update Kn  */
   int i;
 
   SETVAR(0,t);
-  SETVAR(PrimeStart,t);
-  for(i=0;i<NODE;i++)
+  SETVAR(xpp::model().prime_start,t);
+  for(i=0;i<xpp::model().node;i++)
     SETVAR(i+1,y[i]);
-  for(i=NODE;i<NODE+FIX_VAR;i++)
+  for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)
     SETVAR(i+1,evaluate(my_ode[i]));
   for(i=0;i<NKernel;i++){
     if(kernel[i].flag==CONV)
@@ -260,20 +261,20 @@ int volterra(double *y, double *t, double dt, int nt, int neq, int *istart, doub
       kernel[i].betnn=bet;
     }
     SETVAR(0,*t);
-    SETVAR(PrimeStart,*t);
-    for(i=0;i<NODE;i++)
-      if(!EqType[i])SETVAR(i+1,y[i]);  /* assign initial data             */
-    for(i=NODE;i<NODE+FIX_VAR;i++)
+    SETVAR(xpp::model().prime_start,*t);
+    for(i=0;i<xpp::model().node;i++)
+      if(!xpp::model().eq_type[i])SETVAR(i+1,y[i]);  /* assign initial data             */
+    for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)
       SETVAR(i+1,evaluate(my_ode[i])); /* set fixed variables  for pass 1 */
-    for(i=0;i<NODE;i++)
-      if(EqType[i]){  
+    for(i=0;i<xpp::model().node;i++)
+      if(xpp::model().eq_type[i]){  
 	z=evaluate(my_ode[i]);           /* reset IC for integral eqns      */
 	SETVAR(i+1,z);
 	y[i]=z;    
       }
-    for(i=NODE;i<NODE+FIX_VAR;i++)       /* pass 2 for fixed variables      */   
+    for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)       /* pass 2 for fixed variables      */   
       SETVAR(i+1,evaluate(my_ode[i]));
-    for(i=0;i<NODE+FIX_VAR+NMarkov;i++)
+    for(i=0;i<xpp::model().node+xpp::model().fix_var+xpp::model().nmarkov;i++)
       Memory[i][0]=get_ivar(i+1);        /* save everything                 */
     CurrentPoint=1;
     *istart=0;
@@ -293,7 +294,7 @@ int volterra(double *y, double *t, double dt, int nt, int neq, int *istart, doub
 int volt_step(double *y, double t, double dt, int neq, double *yg, double *yp, double *yp2, double *ytemp, double *errvec, double *jac)
 {
  int i0,iend,ishift,i,iter=0,info,ipivot[MAXODE1],j,ind;
- int n1=NODE+1;
+ int n1=xpp::model().node+1;
  double dt2=.5*dt,err;
  double del,yold,fac,delinv;
  i0=MAX(0,CurrentPoint-MaxPoints);
@@ -305,53 +306,53 @@ int volt_step(double *y, double t, double dt, int neq, double *yg, double *yp, d
    SETVAR(i+1,y[i]);
    yg[i]=y[i];
  }
- for(i=NODE;i<NODE+NMarkov;i++)
-   SETVAR(i+1+FIX_VAR,y[i]);
+ for(i=xpp::model().node;i<xpp::model().node+xpp::model().nmarkov;i++)
+   SETVAR(i+1+xpp::model().fix_var,y[i]);
  SETVAR(0,t-dt);
- for(i=NODE;i<NODE+FIX_VAR;i++)
+ for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)
    SETVAR(i+1,evaluate(my_ode[i]));
- for(i=0;i<NODE;i++){
-   if(!EqType[i])yp2[i]=y[i]+dt2*evaluate(my_ode[i]);
+ for(i=0;i<xpp::model().node;i++){
+   if(!xpp::model().eq_type[i])yp2[i]=y[i]+dt2*evaluate(my_ode[i]);
    else yp2[i]=0.0;
  }
  KnFlag=1;
  while(1){
    get_kn(yg,t);
-    for(i=NODE;i<NODE+FIX_VAR;i++)
+    for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)
      SETVAR(i+1,evaluate(my_ode[i])); 
-   for(i=0;i<NODE;i++){
+   for(i=0;i<xpp::model().node;i++){
      yp[i]=evaluate(my_ode[i]);
-     if(EqType[i])errvec[i]=-yg[i]+yp[i];
+     if(xpp::model().eq_type[i])errvec[i]=-yg[i]+yp[i];
      else errvec[i]=-yg[i]+dt2*yp[i]+yp2[i];
    }
    /*   Compute Jacobian     */
-   for(i=0;i<NODE;i++){
+   for(i=0;i<xpp::model().node;i++){
      del=NEWT_ERR*MAX(NEWT_ERR,fabs(yg[i]));
      yold=yg[i];
      yg[i]+=del;
      delinv=1./del;
      get_kn(yg,t);
-      for(j=NODE;j<NODE+FIX_VAR;j++)
+      for(j=xpp::model().node;j<xpp::model().node+xpp::model().fix_var;j++)
        SETVAR(j+1,evaluate(my_ode[j]));  
-     for(j=0;j<NODE;j++){
+     for(j=0;j<xpp::model().node;j++){
        fac=delinv;
-       if(!EqType[j])fac*=dt2;
-       jac[j*NODE+i]=(evaluate(my_ode[j])-yp[j])*fac;
+       if(!xpp::model().eq_type[j])fac*=dt2;
+       jac[j*xpp::model().node+i]=(evaluate(my_ode[j])-yp[j])*fac;
      }
      yg[i]=yold;
    }
    
-   for(i=0;i<NODE;i++)
+   for(i=0;i<xpp::model().node;i++)
      jac[n1*i]-=1.0;
-   sgefa(jac,NODE,NODE,ipivot,&info);
+   sgefa(jac,xpp::model().node,xpp::model().node,ipivot,&info);
    if(info!=-1)
      {
 	 
        return(-1); /* Jacobian is singular   */
      }
    err=0.0;
-   sgesl(jac,NODE,NODE,ipivot,errvec);
-   for(i=0;i<NODE;i++){
+   sgesl(jac,xpp::model().node,xpp::model().node,ipivot,errvec);
+   for(i=0;i<xpp::model().node;i++){
 	err=MAX(fabs(errvec[i]),err);
 	yg[i]-=errvec[i];
       }
@@ -362,9 +363,9 @@ int volt_step(double *y, double t, double dt, int neq, double *yg, double *yp, d
  }
  /* We have a good point; lets save it    */
  get_kn(yg,t);
- for(i=0;i<NODE;i++)y[i]=yg[i];
+ for(i=0;i<xpp::model().node;i++)y[i]=yg[i];
  ind=CurrentPoint%MaxPoints;
- for(i=0;i<NODE+FIX_VAR+NMarkov;i++)
+ for(i=0;i<xpp::model().node+xpp::model().fix_var+xpp::model().nmarkov;i++)
    Memory[i][ind]=GETVAR(i+1);
  CurrentPoint++;
 

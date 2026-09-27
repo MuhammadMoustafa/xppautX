@@ -14,7 +14,6 @@
 extern "C" {
 extern int AutoPar[8];
 extern int NAutoPar;
-extern int NODE, NEQ, NUPAR;
 extern BIFUR Auto;
 extern double outperiod[20];
 extern long UzrPar[20];
@@ -30,8 +29,8 @@ void load_model()
     xpp::model().upar_names[2] = "phi";
     xpp::model().uvar_names[0] = "v";
     xpp::model().uvar_names[1] = "w";
-    NODE = NEQ = 2;
-    NUPAR = 3;
+    xpp::model().node = xpp::model().neq = 2;
+    xpp::model().nupar = 3;
     NAutoPar = 3;
     for (int i = 0; i < 3; i++) AutoPar[i] = i;
     Auto.nmx = 200;

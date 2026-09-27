@@ -57,9 +57,7 @@ int n_comments=0;
 BC_STRUCT my_bc[MAXODE];
 
 double default_ic[MAXODE];
-int NODE,NUPAR,NLINES;
-int PrimeStart;
-int NCON_START,NSYM_START;
+int NLINES;
 /* the boundary conditions' count */
 static int BVP_N;
 
@@ -69,12 +67,8 @@ static int BVP_N;
 int ConvertStyle=0;
 FILE *convertf;
 static int IN_VARS;
-int NMarkov;
-int FIX_VAR;
-int EqType[MAXODE];
 std::array<FIXINFO,MAXODE> fixinfo;
 
-extern int NWiener;
 
 namespace {
 /* the lines of the model being read, in order: do_new_parser() adds them,
@@ -665,8 +659,8 @@ int compiler(const std::string &bob, FILE *fptr)
 	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	    xpp_model_failed();
 	  }
-	  default_val[NUPAR]=value;
-	  xpp::model().upar_names[NUPAR++]=name;
+	  default_val[xpp::model().nupar]=value;
+	  xpp::model().upar_names[xpp::model().nupar++]=name;
 	  if(ConvertStyle)
 	    xpp::print(convertf,"{}={:g}  ",name,value);
 	  xpp::log(XPP_LOG_DEBUG, "|{}|={:f} ",name,value);
@@ -693,9 +687,9 @@ int compiler(const std::string &bob, FILE *fptr)
 	xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	xpp_model_failed();
       }
-      xpp::model().uvar_names[IN_VARS+NMarkov]=name;
-      last_ic[IN_VARS+NMarkov]=value;
-      default_ic[IN_VARS+NMarkov]=value;
+      xpp::model().uvar_names[IN_VARS+xpp::model().nmarkov]=name;
+      last_ic[IN_VARS+xpp::model().nmarkov]=value;
+      default_ic[IN_VARS+xpp::model().nmarkov]=value;
       xpp::log(XPP_LOG_INFO, " Markov variable {}={:f} has {} states \n",name,value,nstates);
       if(OldStyle)add_markov(nstates,name.c_str());
       if(ConvertStyle)
@@ -713,13 +707,13 @@ int compiler(const std::string &bob, FILE *fptr)
       if(ConvertStyle)
 	xpp::print(convertf,"init ");
     vrs:
-      if(NMarkov>0&&OldStyle) {
+      if(xpp::model().nmarkov>0&&OldStyle) {
 	xpp_log(XPP_LOG_WARN, " Error at line %d \n Must declare Markov variables after fixed and regular variables\n",NLINES);
 	xpp_model_failed();
       }
       for(std::optional<std::string> tok;(tok=get_next2(values));)
 	{
-	  if((IN_VARS>NEQ)||(IN_VARS==MAXODE))
+	  if((IN_VARS>xpp::model().neq)||(IN_VARS==MAXODE))
 	    {
 	      xpp_log(XPP_LOG_ERROR, " too many variables at line %d\n",NLINES);
 	      xpp_model_failed();
@@ -740,8 +734,8 @@ int compiler(const std::string &bob, FILE *fptr)
 	    }
 	  else {
 	    if(ConvertStyle)
-	      fixname[FIX_VAR]=name;
-	    FIX_VAR++;
+	      fixname[xpp::model().fix_var]=name;
+	    xpp::model().fix_var++;
 
 	  }
 	  xpp::log(XPP_LOG_DEBUG, "|{}| ",name);
@@ -849,41 +843,41 @@ int compiler(const std::string &bob, FILE *fptr)
     case 'i': VFlag=1;
       [[fallthrough]];
     case 'o':
-      if(NODE>=(NEQ+FIX_VAR-NMarkov))
+      if(xpp::model().node>=(xpp::model().neq+xpp::model().fix_var-xpp::model().nmarkov))
 	{
 	  done=0;
 	  break;
 	}
       formula=tokens.text("\n");
-      new_program(NODE);
+      new_program(xpp::model().node);
 
-      if(NODE<IN_VARS)
+      if(xpp::model().node<IN_VARS)
 	{
-	  set_ode_name(NODE,formula);
+	  set_ode_name(xpp::model().node,formula);
 	  if(ConvertStyle){
 	    if(VFlag)
-	      xpp::print(convertf,"volt {}={}\n",xpp::model().uvar_names[NODE],formula);
+	      xpp::print(convertf,"volt {}={}\n",xpp::model().uvar_names[xpp::model().node],formula);
 	    else
-	      xpp::print(convertf,"{}'={}\n",xpp::model().uvar_names[NODE],formula);
+	      xpp::print(convertf,"{}'={}\n",xpp::model().uvar_names[xpp::model().node],formula);
 	  }
 	  find_ker(formula,&alt);
 
-	  EqType[NODE]=VFlag;
+	  xpp::model().eq_type[xpp::model().node]=VFlag;
 
 	  VFlag=0;
 	}
-      if(NODE>=IN_VARS&&NODE<(IN_VARS+FIX_VAR))
+      if(xpp::model().node>=IN_VARS&&xpp::model().node<(IN_VARS+xpp::model().fix_var))
 	{
 	  if(ConvertStyle)
-	    xpp::print(convertf,"{}={}\n",fixname[NODE-IN_VARS],formula);
+	    xpp::print(convertf,"{}={}\n",fixname[xpp::model().node-IN_VARS],formula);
 	  find_ker(formula,&alt);
 
 	}
 
-      if(NODE>=(IN_VARS+FIX_VAR))
+      if(xpp::model().node>=(IN_VARS+xpp::model().fix_var))
 	{
-	  i=NODE-(IN_VARS+FIX_VAR);
-	  set_ode_name(NODE-FIX_VAR+NMarkov,formula);
+	  i=xpp::model().node-(IN_VARS+xpp::model().fix_var);
+	  set_ode_name(xpp::model().node-xpp::model().fix_var+xpp::model().nmarkov,formula);
 	  if(ConvertStyle){
 	    if(i<Naux)
 	      xpp::print(convertf,"aux {}={}\n",aux_names[i],formula);
@@ -891,12 +885,12 @@ int compiler(const std::string &bob, FILE *fptr)
 	      xpp::print(convertf,"aux aux{}={}\n",i+1,formula);
 	  }
 	}
-      xpp::log(XPP_LOG_INFO, "RHS({})={}\n",NODE,formula);
-      if(add_expr(formula.c_str(),my_ode[NODE],&leng[NODE])){
+      xpp::log(XPP_LOG_INFO, "RHS({})={}\n",xpp::model().node,formula);
+      if(add_expr(formula.c_str(),my_ode[xpp::model().node],&leng[xpp::model().node])){
 	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",NLINES);
 	xpp_model_failed();
       }
-      NODE++;
+      xpp::model().node++;
       break;
 
     case 'a':   /* name auxiliary variables */
@@ -926,9 +920,9 @@ int compiler(const std::string &bob, FILE *fptr)
 
 int make_eqn()
 {
-   NEQ=2;
-   FIX_VAR=0;
-   NMarkov=0;
+   xpp::model().neq=2;
+   xpp::model().fix_var=0;
+   xpp::model().nmarkov=0;
    return(read_eqn());
 }
 
@@ -957,10 +951,10 @@ int get_eqn(FILE *fptr)
   init_rpn();
   NLINES=0;
   IN_VARS=0;
-  NODE=0;
+  xpp::model().node=0;
   BVP_N=0;
-  NUPAR=0;
-  NWiener=0;
+  xpp::model().nupar=0;
+  xpp::model().nwiener=0;
   /*check_for_xpprc();  This is now done just once and in do_vis_env()
   */
   options_file="default.opt";
@@ -977,8 +971,8 @@ int get_eqn(FILE *fptr)
   }
   else{
     OldStyle=1;
-    NEQ=i;
-    xpp_log(XPP_LOG_INFO, "NEQ=%d\n",NEQ);
+    xpp::model().neq=i;
+    xpp_log(XPP_LOG_INFO, "NEQ=%d\n",xpp::model().neq);
     if(ConvertStyle){
       const std::string &this_file=xpp::model().this_file;
       std::string filename=this_file.empty()?std::string("convert.ode"):this_file+".new";
@@ -1003,7 +997,7 @@ int get_eqn(FILE *fptr)
       convertf=NULL;
     }
   }
- if((NODE+NMarkov)==0){
+ if((xpp::model().node+xpp::model().nmarkov)==0){
    xpp_log(XPP_LOG_ERROR, " Must have at least one equation! \n Probably not an ODE file.\n");
    xpp_model_failed();
  }
@@ -1019,28 +1013,28 @@ int get_eqn(FILE *fptr)
   }
   BVP_FLAG=1;
 
-  if(NODE!=NEQ+FIX_VAR-NMarkov)
+  if(xpp::model().node!=xpp::model().neq+xpp::model().fix_var-xpp::model().nmarkov)
     {
       xpp_log(XPP_LOG_ERROR, " Too many/few equations\n");
       xpp_model_failed();
     }
-  if(IN_VARS>NEQ)
+  if(IN_VARS>xpp::model().neq)
     {
       xpp_log(XPP_LOG_ERROR, " Too many variables\n");
 	xpp_model_failed();
     }
-  NODE=IN_VARS;
+  xpp::model().node=IN_VARS;
 
   std::array<std::string,MAXODE> &uvar_names=xpp::model().uvar_names;
   for(i=0; i<Naux; i++)
-    uvar_names[i+NODE+NMarkov]=aux_names[i];
+    uvar_names[i+xpp::model().node+xpp::model().nmarkov]=aux_names[i];
 
-  for(i=NODE+NMarkov+Naux;i<NEQ;i++)
+  for(i=xpp::model().node+xpp::model().nmarkov+Naux;i<xpp::model().neq;i++)
     {
-      uvar_names[i]=xpp::format("AUX{}",i-NODE-NMarkov+1);
+      uvar_names[i]=xpp::format("AUX{}",i-xpp::model().node-xpp::model().nmarkov+1);
     }
 
-  for(i=0;i<NEQ;i++)
+  for(i=0;i<xpp::model().neq;i++)
       {
 	strupr(uvar_names[i].data());
 	std::string formula=text_of(ode_names[i]);
@@ -1051,10 +1045,10 @@ int get_eqn(FILE *fptr)
       }
   /*
      add primed variables                              */
-  PrimeStart=NVAR;
-  if(NVAR<MAXPRIMEVAR){
+  xpp::model().prime_start=xpp::model().nvar;
+  if(xpp::model().nvar<MAXPRIMEVAR){
   add_var("t'",0.0);
-  for(i=0;i<NODE ;i++)
+  for(i=0;i<xpp::model().node ;i++)
     add_var(xpp::format("{}'",uvar_names[i]),0.0);
 }
   else {
@@ -1062,16 +1056,16 @@ int get_eqn(FILE *fptr)
      MAXPRIMEVAR);
     xpp_log(XPP_LOG_WARN, " Averaging and boundary value problems cannot be done\n");
   }
-  if(NMarkov>0)
+  if(xpp::model().nmarkov>0)
     compile_all_markov();
   if(compile_flags()==1){
     xpp_log(XPP_LOG_ERROR, " Error in compiling a flag \n");
     xpp_model_failed();
   }
   /*  add auxiliary variables   */
-  for(i=NODE+NMarkov;i<NEQ;i++)add_var(uvar_names[i],0.0);
-  NCON_START=NCON;
-  NSYM_START=NSYM;
+  for(i=xpp::model().node+xpp::model().nmarkov;i<xpp::model().neq;i++)add_var(uvar_names[i],0.0);
+  xpp::model().ncon_start=NCON;
+  xpp::model().nsym_start=NSYM;
   program.version_major=static_cast<float>(cstringmaj);
   program.version_minor=static_cast<float>(cstringmin);
   xpp_log(XPP_LOG_INFO, "Used %d constants and %d symbols \n",NCON,NSYM);
@@ -1701,8 +1695,8 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 
  IN_VARS=nvar;
  Naux=naux;
- NEQ=nvar+NMarkov+Naux;
- FIX_VAR=nfix;
+ xpp::model().neq=nvar+xpp::model().nmarkov+Naux;
+ xpp::model().fix_var=nfix;
  NTable=ntab;
  NFUN=nufun;
 
@@ -1733,7 +1727,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	     xpp::log(XPP_LOG_INFO, " Initial {}(0)={:g}\n",tmp,z);
 	   }
 	   else {
-	     in=find_the_name(mnames,NMarkov,tmp);
+	     in=find_the_name(mnames,xpp::model().nmarkov,tmp);
 	     if(in>=0){
 	       last_ic[in+IN_VARS]=z;
                default_ic[in+IN_VARS]=z;
@@ -1773,7 +1767,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	 xpp::log(XPP_LOG_INFO, " Initial {}(0)={}\n",tmp,v.rhs);
        }
        else {
-	 in=find_the_name(mnames,NMarkov,tmp);
+	 in=find_the_name(mnames,xpp::model().nmarkov,tmp);
 	 if(in>=0){
 	   last_ic[in+IN_VARS]=z;
            default_ic[in+IN_VARS]=z;
@@ -1797,7 +1791,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        [[fallthrough]];
      case ODE:
      case MAP:
-       EqType[nvar]=iflag;
+       xpp::model().eq_type[nvar]=iflag;
        set_ode_name(nvar,v.rhs);
        new_program(nvar);
        find_ker(v.rhs,&alt);
@@ -1832,8 +1826,8 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        break;
 
      case  AUX_VAR:
-       in1=IN_VARS+NMarkov+naux;
-       in2=IN_VARS+FIX_VAR+naux;
+       in1=IN_VARS+xpp::model().nmarkov+naux;
+       in2=IN_VARS+xpp::model().fix_var+naux;
        set_ode_name(in1,v.rhs);
        new_program(in2);
        if(add_expr(v.rhs.c_str(),my_ode[in2],&leng[in2])){
@@ -1929,9 +1923,9 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
  evaluate_derived();
  do_export_list();
  xpp_log(XPP_LOG_INFO, " All formulas are valid!!\n");
- NODE=nvar+naux+nfix;
+ xpp::model().node=nvar+naux+nfix;
  xpp_log(XPP_LOG_INFO, " nvar=%d naux=%d nfix=%d nmark=%d NEQ=%d NODE=%d \n",
-	nvar,naux,nfix,nmark,NEQ,NODE);
+	nvar,naux,nfix,nmark,xpp::model().neq,xpp::model().node);
 
 }
 

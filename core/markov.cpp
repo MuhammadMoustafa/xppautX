@@ -22,6 +22,7 @@
 #include "load_eqn.h"
 #include <string>
 #include <vector>
+#include "model.h"
 
 typedef struct {
   std::vector<std::vector<int>> command; /* compiled transition formulas */
@@ -46,19 +47,18 @@ int stoch_len;
 
 int STOCH_FLAG,STOCH_HERE,N_TRIALS;
 static int Wiener[MAXPAR];
-int NWiener;
 
 void add_wiener(int index)
 {
-  Wiener[NWiener]=index;
-  NWiener++;
+  Wiener[xpp::model().nwiener]=index;
+  xpp::model().nwiener++;
 }
 
 void set_wieners(double dt, double *x, double t)
 {
   int i;
   update_markov(x,t,fabs(dt));
-  for(i=0;i<NWiener;i++)
+  for(i=0;i<xpp::model().nwiener;i++)
     constants[Wiener[i]]=normal(0.00,1.00)/sqrt(fabs(dt));
 }
 
@@ -80,7 +80,7 @@ static std::string extract_expr(const char *source, int *i0);
 static int markov_named(const char *name)
 {
   int len=0,index=-1;
-  for(int i=0;i<NMarkov;i++){
+  for(int i=0;i<xpp::model().nmarkov;i++){
     int ll=static_cast<int>(markov[i].name.size());
     if(strncasecmp(name,markov[i].name.c_str(),ll)==0&&len<ll){
       index=i;
@@ -179,7 +179,7 @@ static std::string extract_expr(const char *source, int *i0)
 void create_markov(int nstates, double *st, int type, const char *name)
 {
   int n2=nstates*nstates;
-  int j=NMarkov;
+  int j=xpp::model().nmarkov;
   if(j>=MAXMARK){
     xpp_log(XPP_LOG_ERROR, "Too many Markov chains...\n");
     xpp_model_failed();
@@ -197,7 +197,7 @@ void create_markov(int nstates, double *st, int type, const char *name)
   /* std::string::substr keeps the same XPP_NAME_MAX truncation the old
      fixed char[XPP_NAME_MAX+1] buffer's snprintf enforced. */
   markov[j].name = std::string(name).substr(0, XPP_NAME_MAX);
-  NMarkov++;
+  xpp::model().nmarkov++;
 
 }
 
@@ -220,8 +220,8 @@ void add_markov_entry(int index, int j, int k, const char *expr)
 void compile_all_markov()
 {
   int index,j,k,ns,l0;
-  if(NMarkov==0)return;
-  for(index=0;index<NMarkov;index++){
+  if(xpp::model().nmarkov==0)return;
+  for(index=0;index<xpp::model().nmarkov;index++){
     ns=markov[index].nstates;
     for(j=0;j<ns;j++){
       for(k=0;k<ns;k++){
@@ -256,17 +256,17 @@ void update_markov(double *x, double t, double dt)
 {
   int i;
   double yp[MAXODE];
-  if(NMarkov==0)return;
+  if(xpp::model().nmarkov==0)return;
   set_ivar(0,t);
-  for(i=0;i<NODE;i++)set_ivar(i+1,x[i]);
-  for(i=NODE+FIX_VAR;i<NODE+FIX_VAR+NMarkov;i++)set_ivar(i+1,x[i-FIX_VAR]);
-  for(i=NODE;i<NODE+FIX_VAR;i++)
+  for(i=0;i<xpp::model().node;i++)set_ivar(i+1,x[i]);
+  for(i=xpp::model().node+xpp::model().fix_var;i<xpp::model().node+xpp::model().fix_var+xpp::model().nmarkov;i++)set_ivar(i+1,x[i-xpp::model().fix_var]);
+  for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)
   set_ivar(i+1,evaluate(my_ode[i]));
-  for(i=0;i<NMarkov;i++)
-    yp[i]=new_state(x[NODE+i],i,dt);
-  for(i=0;i<NMarkov;i++){
-    x[NODE+i]=yp[i];
-    set_ivar(i+NODE+FIX_VAR+1,yp[i]);
+  for(i=0;i<xpp::model().nmarkov;i++)
+    yp[i]=new_state(x[xpp::model().node+i],i,dt);
+  for(i=0;i<xpp::model().nmarkov;i++){
+    x[xpp::model().node+i]=yp[i];
+    set_ivar(i+xpp::model().node+xpp::model().fix_var+1,yp[i]);
   }
 }
 
@@ -468,7 +468,7 @@ void free_stoch()
   int i;
   if(STOCH_HERE){
     data_back();
-    for(i=0;i<(NEQ+1);i++){
+    for(i=0;i<(xpp::model().neq+1);i++){
       mean_rows[i]=std::vector<float>();
       variance_rows[i]=std::vector<float>();
       my_mean[i]=my_variance[i]=nullptr;
@@ -482,7 +482,7 @@ void init_stoch(int len)
   int i,j;
   N_TRIALS=0;
   stoch_len=len;
-  for(i=0;i<(NEQ+1);i++){
+  for(i=0;i<(xpp::model().neq+1);i++){
     mean_rows[i].assign(stoch_len,0.0f);
     variance_rows[i].assign(stoch_len,0.0f);
     my_mean[i]=mean_rows[i].data();
@@ -502,7 +502,7 @@ void append_stoch(int first, int length)
   if(first==0)init_stoch(length);
   if(length!=stoch_len|| !STOCH_HERE)return;
   for(i=0;i<stoch_len;i++){
-      for(j=1;j<=NEQ;j++){
+      for(j=1;j<=xpp::model().neq;j++){
 	z=data_store.col[j][i];
 	my_mean[j][i]=my_mean[j][i]+z;
 	my_variance[j][i]=my_variance[j][i]+z*z;
@@ -518,7 +518,7 @@ void do_stats(int ierr)
   if(ierr!=-1&&N_TRIALS>0){
     ninv=1./static_cast<float>(N_TRIALS);
     for(i=0;i<stoch_len;i++){
-      for(j=1;j<=NEQ;j++){
+      for(j=1;j<=xpp::model().neq;j++){
 	mean=my_mean[j][i]*ninv;
 	my_mean[j][i]=mean;
 	my_variance[j][i]=(my_variance[j][i]*ninv-mean*mean);

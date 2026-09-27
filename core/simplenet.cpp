@@ -145,6 +145,7 @@ including derived parameters but XPP takes care of this so start at 0
 #define PERIODIC 2
 #define MAXW 50
 #include "delay_handle.h"
+#include "model.h"
 
 /* simple network stuff */
 
@@ -864,9 +865,9 @@ void evaluate_network(int ind)
      break;
    case GILLTYPE:
      if(my_net[ind].ncon==-1&&my_net[ind].iwgt>0){
-       my_net[ind].gill_nu.assign(static_cast<size_t>(my_net[ind].root)*NODE,0.0);
+       my_net[ind].gill_nu.assign(static_cast<size_t>(my_net[ind].root)*xpp::model().node,0.0);
        my_net[ind].weight=my_net[ind].gill_nu.data();
-       make_gill_nu(my_net[ind].weight,NODE,my_net[ind].root,my_net[ind].values.data());
+       make_gill_nu(my_net[ind].weight,xpp::model().node,my_net[ind].root,my_net[ind].values.data());
        my_net[ind].ncon=0;
      }
      one_gill_step(my_net[ind].iwgt,my_net[ind].root,my_net[ind].gcom.data(),my_net[ind].values.data());

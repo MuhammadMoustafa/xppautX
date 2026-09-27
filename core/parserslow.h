@@ -81,7 +81,7 @@ extern char *ufun_def[MAXUFUN];
    numbers' seed */
 extern double constants[MAXPAR];
 extern double variables[MAXODE1];
-extern int NCON,NVAR,NFUN,NSYM,NDELAYS,NKernel,NTable,MaxPoints;
+extern int NCON,NFUN,NSYM,NDELAYS,NKernel,NTable,MaxPoints;
 extern int ERROUT,RandSeed;
 
 void init_rpn(void);

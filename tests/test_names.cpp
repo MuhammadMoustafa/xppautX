@@ -15,7 +15,6 @@
 
 extern int AutoPar[8];
 extern int NAutoPar;
-extern int NODE, NEQ, NUPAR;
 
 static double calc(char *expr, int *ok)
 {
@@ -82,8 +81,8 @@ int main(void)
        and leaves a blank before the next heading */
     xpp::model().upar_names[0] = "applied_stimulus_current_amplitude";
     xpp::model().uvar_names[0] = "MEMBRANE_POTENTIAL_FAST_VARIABLE";
-    NODE = NEQ = 1;
-    NUPAR = 1;
+    xpp::model().node = xpp::model().neq = 1;
+    xpp::model().nupar = 1;
     NAutoPar = 1;
     AutoPar[0] = 0;
     out = auto_screen_col("   PAR(0)     ");

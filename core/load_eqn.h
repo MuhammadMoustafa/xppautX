@@ -239,7 +239,7 @@ extern int RunImmediately,got_file;
 /* the integration's settings (the nUmerics menu, @ options) and the run's
    state: the number of equations, the time span and step, tolerances,
    the Poincare section, the torus, the flags the integrator keeps */
-extern int NEQ,PLOT_3D,INFLAG,STORFLAG,FOREVER,ENDSING,PAUSER,NULL_HERE;
+extern int PLOT_3D,INFLAG,STORFLAG,FOREVER,ENDSING,PAUSER,NULL_HERE;
 extern int METHOD,NJMP,EVEC_ITER,NMESH,FFT,HIST;
 extern double HMIN,HMAX,TOLER,ATOLER,BOUND,DELAY;
 extern double EVEC_ERR,NEWT_ERR;
