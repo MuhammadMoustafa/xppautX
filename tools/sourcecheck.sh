@@ -14,8 +14,10 @@
 #   - no extern whose type differs from its definition (make ltocheck)
 #   - no function or file-scope datum nothing reaches (tools/deadcode.sh;
 #     Linux: elsewhere it says so and passes)
-#   - no new duplicated function/block/struct or header declared twice
-#     (tools/dupcheck.sh)
+#   - no new duplicated function/block/struct (tools/dupcheck.sh)
+#   - no dead declaration: an unused macro, type or field, a declaration
+#     with no definition or repeated in a second header, #if 0, commented-
+#     out code, a header nothing includes (tools/deadcheck.py)
 # Usage: tools/sourcecheck.sh [--warnings]
 #   --warnings  also count a clean build's warnings by flag and file
 #               (tools/warnings.sh; a count, it fails only if the build does)
@@ -89,6 +91,12 @@ if ! sh tools/dupcheck.sh --check > build/dupcheck.out 2>&1; then
   exit 1
 fi
 tail -1 build/dupcheck.out
+if ! python3 tools/deadcheck.py --check > build/deadcheck.out 2>&1; then
+  tail -40 build/deadcheck.out
+  echo "DEAD DECLARATION CHECK FAILED"
+  exit 1
+fi
+tail -1 build/deadcheck.out
 if [ "$1" = --warnings ]; then
   sh tools/warnings.sh || exit 1
 fi

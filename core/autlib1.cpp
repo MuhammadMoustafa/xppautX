@@ -6471,7 +6471,7 @@ tpspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomple
     iap->itp = itp;
     par[11] =f2c::abs(atan2(d_imag(&ev[loc1]),ev[loc1].r));
 
-  } else /* if(complicated condition) */ {
+  } else { /* a real multiplier */
     if (ev[loc1].r < -.5) {
       /*       ** period doubling */
       itp = itpst * 10 + 7;

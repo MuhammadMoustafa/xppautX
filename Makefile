@@ -14,7 +14,9 @@ CC      ?= gcc
 CXX     ?= g++
 CSTD    ?= -std=c99 -pedantic -D_XOPEN_SOURCE=600
 CXXSTD  ?= -std=c++23 -pedantic
-WARN    ?= -Wall
+# -Wunused-macros: a .cpp's own #define nothing expands (W46a: the dead
+# code a header's are tools/deadcheck.py's)
+WARN    ?= -Wall -Wunused-macros -Wunused-but-set-parameter
 # gcc 14 and clang 16 turned these into errors; keep older compilers strict
 # about them too, so a build that only runs here does not break CI. All but
 # return-type are C-only names (C++ has always rejected those constructs).
@@ -73,7 +75,7 @@ GCC_ONLY_WERROR := -Werror=maybe-uninitialized -Werror=stringop-truncation -Werr
 # default: another compiler (clang on macOS, a newer gcc) may not know these
 # names or may warn where gcc 13 does not, and must still build.
 ifeq ($(WERROR),1)
-WERROR_FLAGS = -Werror=unused-result -Werror=format-overflow -Werror=unused-variable   -Werror=misleading-indentation -Werror=unused-but-set-variable -Werror=format-security   -Werror=maybe-uninitialized -Werror=stringop-truncation -Werror=restrict -Werror=format   -Werror=tautological-compare -Werror=stringop-overflow   -Werror=aggressive-loop-optimizations -Werror=use-after-free -Werror=array-bounds   -Werror=format-truncation
+WERROR_FLAGS = -Werror=unused-result -Werror=format-overflow -Werror=unused-variable   -Werror=misleading-indentation -Werror=unused-but-set-variable -Werror=format-security   -Werror=maybe-uninitialized -Werror=stringop-truncation -Werror=restrict -Werror=format   -Werror=tautological-compare -Werror=stringop-overflow   -Werror=aggressive-loop-optimizations -Werror=use-after-free -Werror=array-bounds   -Werror=format-truncation   -Werror=unused-macros -Werror=unused-but-set-parameter
 ifeq ($(CLANG),1)
 WERROR_FLAGS := $(filter-out $(GCC_ONLY_WERROR),$(WERROR_FLAGS))
 endif

@@ -578,7 +578,6 @@ sigma  weights on nvars
 	   yderv,yfit,eps)==0)return(0);
 
   if(*chisq<*ochisq){
-    /* *ochisq=*chisq; */
     *alambda *= 0.1;
     for(j=0;j<npars;j++){
       for(k=0;k<npars;k++) alpha[j+k*npars]=covar[j+k*npars];
@@ -588,7 +587,6 @@ sigma  weights on nvars
   }
   else {
     *alambda *= 10.0;
-    /* *chisq=*ochisq; */
   }
   return(1);
 }

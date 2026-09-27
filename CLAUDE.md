@@ -65,7 +65,7 @@ calls (W32b, W33).
 
 verify.sh's checks about the source rather than the build (UTF-8, the
 scripts' executable bit, stdoutcheck, formatcheck, literalcheck, the LTO
-type check, the dead-code check, the duplication check) are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
+type check, the dead-code checks, the duplication check) are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
 `--warnings`: tools/warnings.sh's count, and web2's dist/types/unit
 tests), and its linux-core job runs `verify.sh --no-source-checks`. Every
 platform runs the same behaviour checks against its own build (`<platform>-core`)
@@ -112,12 +112,31 @@ reason: delete dead code rather than add an entry. Linux only (MinGW's
 linker keeps every function, macOS's cannot print what it drops); a
 function Windows alone calls is caught by the Windows build's link.
 
+`tools/deadcheck.py` (W46a; sourcecheck runs it with `--check`, a few
+seconds) reads the source for the dead code a linker cannot see, across
+core/ (uses counted in core/ and tests/, comments and literals
+stripped): a macro nothing expands, a type nothing names, a struct field
+nothing reads (only ever assigned counts as unread), a declaration with
+no definition, a declaration repeated in a second header or again in a
+.cpp (it lives only in the header of the file that defines it), `#if 0`
+or `#ifdef` of a macro nothing defines, commented-out code (a comment
+most of whose lines read as statements; a comment that explains stays),
+a header nothing includes. `--check` fails on anything not in the
+allowlist inside the script, each entry with its reason ("owner API" for
+xpp_mem/xpp_io/xpp_files/xpp_log/xpp_math): delete dead code rather than
+add an entry. Heuristic and line-based like dupcheck (a name that is also
+a common word elsewhere reads as used). A .cpp's own unused macro and a
+parameter set but never read are the compiler's (`-Wunused-macros`,
+`-Wunused-but-set-parameter` in WARN, errors under WERROR=1, like
+`-Wunused-but-set-variable`).
+
 `tools/dupcheck.sh` (W30; sourcecheck runs it with `--check`, a few
 seconds; `tools/dupcheck.py` does the work, `python3 tools/dupcheck.py`
 with no wrapper also runs) is a duplication audit of core/: normalising
 whitespace, comments and (for functions) identifiers, it lists duplicated
-functions, runs of >= 16 duplicated lines, a struct/typedef defined more
-than once, and a function declared in more than one header. `--check`
+functions, runs of >= 16 duplicated lines and a struct/typedef defined
+more than once (a declaration repeated in two headers is deadcheck's,
+above). `--check`
 fails on anything not in the allowlist inside the script, each entry
 naming which W32 card (docs/roadmap.md) absorbs the copy, or "vendored/
 numerical, keep" for a translated-Fortran/CVODE routine whose repeated

@@ -21,8 +21,6 @@
 
 #include <cmath>
 
-#define PARAM 1
-
 int main(void)
 {
     char arg0[] = "test_stochast_runs", arg1[] = "tools/models/stoch_runs.ode";

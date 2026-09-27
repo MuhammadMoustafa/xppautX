@@ -11,8 +11,9 @@
 #   - duplicated blocks: runs of >= BLOCK_MIN identical normalised lines
 #     (whitespace/comments stripped, identifiers left alone), within or
 #     across files;
-#   - a struct/typedef named more than once;
-#   - a function declared in more than one header.
+#   - a struct/typedef named more than once.
+# A declaration repeated in more than one header, or in a header and a
+# .cpp, is tools/deadcheck.py's (it sees variables too).
 # Usage: tools/dupcheck.py [--check] [core files...]
 #   --check   exit 1 when anything outside ALLOW is reported
 #             (tools/sourcecheck.sh)
@@ -438,40 +439,6 @@ def find_duplicated_structs(files: list[Path]):
     return dups
 
 
-HEADER_DECL_RE = re.compile(
-    r"^\s*[A-Za-z_][\w:<>,\*\s]*?\b([A-Za-z_]\w*)\s*\([^;{}]*\)\s*;\s*$"
-)
-
-
-def find_duplicated_header_decls(files: list[Path]):
-    names: dict[str, list[Path]] = {}
-    for path in files:
-        if path.suffix != ".h":
-            continue
-        raw = path.read_text(encoding="utf-8", errors="replace")
-        stripped = strip_comments(raw)
-        for line in stripped.split("\n"):
-            s = line.strip()
-            if not s or s.startswith("#") or s.startswith("//"):
-                continue
-            first = re.match(r"[A-Za-z_]\w*", s)
-            if first and first.group(0) in CONTROL_KW:
-                continue
-            m = HEADER_DECL_RE.match(s)
-            if not m:
-                continue
-            name = m.group(1)
-            if name in KEYWORDS:
-                continue
-            names.setdefault(name, []).append(path)
-    dups = {}
-    for name, paths in names.items():
-        distinct = sorted({relpath(p) for p in paths})
-        if len(distinct) > 1:
-            dups[name] = distinct
-    return dups
-
-
 def load_allow():
     entries = {}
     for line in ALLOW.strip("\n").split("\n"):
@@ -557,20 +524,6 @@ def main(argv: list[str]) -> int:
             loc_str = ", ".join(f"{relpath(p)}:{ln}" for p, ln in locs)
             mark = " (allowed)" if allowed_all else ""
             report_lines.append(f"  {name}: {loc_str}{mark}")
-
-    # function declared in more than one header
-    hdecls = find_duplicated_header_decls(files)
-    if hdecls:
-        report_lines.append(f"function declared in more than one header ({len(hdecls)}):")
-        for name, paths in sorted(hdecls.items()):
-            allowed_all = True
-            for p in paths:
-                if not check_allow(p, name):
-                    allowed_all = False
-            if not allowed_all:
-                unallowed += 1
-            mark = " (allowed)" if allowed_all else ""
-            report_lines.append(f"  {name}: {', '.join(paths)}{mark}")
 
     stale = sorted(set(allow) - matched_allow)
 
