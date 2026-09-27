@@ -99,7 +99,7 @@ issue; the card here is the one kept up to date.
 | W38 | #81 | fftcon reads one past its weight table (simplenet.cpp update_fft: FFTCONP reads w[n] and skips w[n2-1], FFTCON0 w[2N]; the load check allows exactly n/2N points): decide the layout, make the check and update_fft agree, say the length in the manual | W32a | done |
 | W39 | #82 | Remove examples/ode/sine-circel.ode, a misspelled byte-for-byte copy of examples/canonical/sine-circle.ode, and its baseline lines | none | done |
 | W40 | #83 | web2check's timing-sensitive checks flake on the macOS runner: frame budgets judged on most frames or scaled on CI, interactions wait for the page to settle, a check that fails once is rerun and reported FLAKY | none | in-progress |
-| W41 | #84 | windows-clang (~9 min) and windows-clang-sanitizers (~11 min) under ~6 min: a cached or prebuilt clang toolchain in place of setup-msys2's ~170 s, parallel test links, autocheck and examples side by side, asancheck split into parallel parts; no check dropped | none | in-progress |
+| W41 | #84 | windows-clang (~9 min) and windows-clang-sanitizers (~11 min) under ~6 min: a cached or prebuilt clang toolchain in place of setup-msys2's ~170 s, parallel test links, autocheck and examples side by side, asancheck split into parallel parts; no check dropped | none | done |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
