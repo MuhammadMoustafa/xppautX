@@ -1,22 +1,19 @@
 
 #include <array>
 #include <memory>
+#include <vector>
 #include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "auto_c.h"
-#include "xAuto.h"
+#include "autevd.h" /* xAuto (its own extern) */
 #include "auto_nox.h" /* auto_fort_path() */
 #include "xpp_files.h"
 
-
-
-extern XAUTO xAuto;
 FILE *fp3;
 FILE *fp7;
 FILE *fp9;
-int global_conpar_type=CONPAR_DEFAULT;
 
 namespace {
 /* AUTO's fort.3 (its restart data: read, or written from scratch), fort.7
@@ -46,7 +43,7 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
   std::array<integer,NPARX2> icp;
   std::array<doublereal,NPARX2> par;
   std::array<doublereal,NPARX> thl;
-  doublereal *thu_raw = nullptr;
+  std::vector<doublereal> thu;
   std::array<integer,100> iuz;
   std::array<doublereal,100> vuz;
   iap_type iap;
@@ -67,11 +64,7 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
     
   /* here is the feeder code from xAuto structure */
 
-  init(&iap, &rap, par.data(), icp.data(), thl.data(), &thu_raw, iuz.data(), vuz.data());
-  /* thu_raw is owned by init()'s xpp_malloc; this guard frees it on every
-     exit path (the early "label not found" return included) instead of
-     the two separate xpp_free(thu) call sites the C code paired by hand */
-  std::unique_ptr<doublereal, void (*)(void *)> thu(thu_raw, xpp_free);
+  init(&iap, &rap, par.data(), icp.data(), thl.data(), thu, iuz.data(), vuz.data());
 
     
     /* Find restart label and determine type of restart point. */
@@ -106,11 +99,11 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
     /* ---------------------------------------------------------- */
 
     if(list.type==AUTOAE)
-      autoae(&iap, &rap, par.data(), icp.data(), list.aelist.funi, list.aelist.stpnt, list.aelist.pvli, thl.data(), thu.get(),
+      autoae(&iap, &rap, par.data(), icp.data(), list.aelist.funi, list.aelist.stpnt, list.aelist.pvli, thl.data(), thu.data(),
              iuz.data(), vuz.data());
     if(list.type==AUTOBV)
       autobv(&iap, &rap, par.data(), icp.data(), list.bvlist.funi, list.bvlist.bcni,
-	     list.bvlist.icni, list.bvlist.stpnt, list.bvlist.pvli, thl.data(), thu.get(), iuz.data(), vuz.data());
+	     list.bvlist.icni, list.bvlist.stpnt, list.bvlist.pvli, thl.data(), thu.data(), iuz.data(), vuz.data());
 
 
 

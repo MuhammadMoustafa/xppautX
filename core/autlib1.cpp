@@ -8,14 +8,11 @@
 #include "auto_c.h"
 #include "autevd.h"
 #include "auto_stability.h"
-#include "xAuto.h"
 #include "xpp_ui.h" /* err_msg(), byeauto_() */
-#include "auto_nox.h" /* auto_screen_col() */
+#include "auto_nox.h" /* auto_screen_col(), RestartLabel */
 #include "xpp_job.h" /* xppautX: cancel */
 #include "auto_stop.h" /* xppautX: why a branch ended (T23) */
 #include "phsplan.h" /* NODE */
-extern XAUTO xAuto;
-extern int RestartLabel;
 int restart_flag=0;
 /* The memory for these are taken care of in main, and setubv for the
    mpi parallel case.  These are global since the they are used many times
@@ -36,7 +33,6 @@ AutoGlobalRotations global_rotations = {0,NULL};
 /* ----------------------------------------------------------------------- */
 FILE *fp8;
 int fp8_is_open=0;
-extern char fort8[200];
 /* xppautX: cancel: 1 while lcspae/lcspbv locate a special point. Their
    solves run to the end, as stdrbv's does (xpp_job.h): contae/contbv have
    already made the new, unstored point the one a cancelled solve returns
@@ -45,7 +41,7 @@ extern char fort8[200];
    repeating that point) and a script can replay it exactly. */
 static int auto_locating = 0;
 
-int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, doublereal **thu_pointer, integer *iuz, doublereal *vuz)
+int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, std::vector<doublereal> &thu_vec, integer *iuz, doublereal *vuz)
 {
   /* Local variables */
   doublereal hbff, biff;
@@ -66,10 +62,7 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
   integer iad, jac, lab, nbc, iid, ibr, ndm;
   doublereal amp, det;
   integer ilp, nit, ips, isp, irs, itp, npr, isw, nmx, nbc0, nnt0;
-  doublereal *thu;
 
-
-  
   for (i = 0; i < NPARX; ++i) {
     icp[i] = i;
     jtmp = NPARX;
@@ -84,11 +77,7 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
   irs=xAuto.irs;
   ilp=xAuto.ilp;
 
-  thu = *thu_pointer = static_cast<doublereal *>(xpp_malloc(sizeof(doublereal)*8*ndim));
-
-  for (i = 0; i < ndim * 8; ++i) {
-    thu[i] = 1.;
-  }
+  thu_vec.assign(static_cast<size_t>(ndim)*8, 1.);
 
   jtmp = NPARX;
   nicp=xAuto.nicp;
@@ -2652,9 +2641,10 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
     if (iunit == 6) {
       xpp_log_auto("  BR    PT  TY LAB ");
       for (i = 0; i < *n1 + *n2 + 1; ++i) {
-	char scr[AUTO_COL_W+1]; /* PAR(n)/U(n) as the user named them */
-	auto_screen_col(col[i].data(),scr);
-	xpp_log_auto("%s",scr);
+	char scr_buf[AUTO_COL_W+1];
+	auto_screen_col(col[i].data(),scr_buf);
+	std::string scr=scr_buf; /* PAR(n)/U(n) as the user named them */
+	xpp_log_auto("%s",scr.c_str());
       }
       xpp_log_auto("\n");
     } else if (iunit == 7) {
@@ -3047,11 +3037,11 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   /*   static FILE *fp8=NULL; */
 
   if(fp8_is_open==0){
-    fp8 = xpp_files_open_stream(fort8,"w");
+    fp8 = xpp_files_open_stream(auto_fort_path(8),"w");
     if(fp8 == NULL) {
       /* Report instead of exit(1): a server must outlive a bad HOME. fp8_is_open
 	 stays 0 so later calls retry the open instead of using a NULL fp8. */
-      err_msg(xpp::format("Could not open {:.200}", fort8).c_str());
+      err_msg(xpp::format("Could not open {:.200}", auto_fort_path(8)).c_str());
       return 0;
     }
     fp8_is_open=1;
@@ -7080,10 +7070,10 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
 
   if(fp8_is_open==0) {
-    fp8 = xpp_files_open_stream(fort8,"w");
+    fp8 = xpp_files_open_stream(auto_fort_path(8),"w");
     if(fp8 == NULL) {
       /* as in wrtsp8() */
-      err_msg(xpp::format("Could not open {:.200}", fort8).c_str());
+      err_msg(xpp::format("Could not open {:.200}", auto_fort_path(8)).c_str());
       return 0;
     }
     fp8_is_open=1;

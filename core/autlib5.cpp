@@ -7,9 +7,7 @@
 #include "xpp_io.h"
 #include "auto_f2c.h"
 #include "auto_c.h"
-#include "xAuto.h"
-
-extern XAUTO xAuto;
+#include "autevd.h" /* xAuto (its own extern) */
 
 /* The memory for these are taken care of in main, and setubv for the
    mpi parallel case.  These are global since the they are used many times

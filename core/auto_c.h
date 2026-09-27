@@ -26,10 +26,6 @@ extern FILE *fp7;
 extern FILE *fp8;
 extern FILE *fp9;
 
-#define CONPAR_DEFAULT  0 /* the only kind left: no pthreads, no MPI */
-
-extern int global_conpar_type;
-
 /* AUTO's work arrays, defined in autlib1 (allocate_global_memory, which
    owns their storage) and shared with autlib3 and autlib5. Named types: a
    C++ file cannot share a variable of an unnamed struct type with another
@@ -174,7 +170,6 @@ typedef struct {
 
 /* autlib1.c */
 void allocate_global_memory(const iap_type);
-int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, doublereal **thu_pointer, integer *iuz, doublereal *vuz);
 int chdim(iap_type *iap);
 int autoae(iap_type *iap, rap_type *rap, doublereal *par, 
 integer *icp, 
@@ -437,5 +432,10 @@ int set_function_pointers(const iap_type,function_list *);
 
 #ifdef __cplusplus
 }
+
+#include <vector>
+/* autlib1.cpp: fills thu (ndim*8 entries, each 1.) that thu_vec owns;
+   thu_vec.data() is what the AE/BVP solves take as their doublereal *thu */
+int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, std::vector<doublereal> &thu_vec, integer *iuz, doublereal *vuz);
 #endif
 #endif

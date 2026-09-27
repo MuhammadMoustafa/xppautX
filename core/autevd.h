@@ -4,11 +4,16 @@
 #include "autlim.h"
 #include "auto_f2c.h"
 #include "auto_c.h"
+#include "xAuto.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* autevd.cpp */
+
+/* the AUTO run's own parameters, filled from the model and settings
+   (auto_nox.cpp) before go_go_auto() (gogoauto.cpp) reads them */
+extern XAUTO xAuto;
 
 /* 0 until addbif fills the diagram's first point (start_diagram's), then 1 */
 extern int DiagFlag;

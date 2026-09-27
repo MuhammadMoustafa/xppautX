@@ -278,7 +278,7 @@ void j_auto_make_window(const char *wname, const char *)
     Auto.wid = 67 * text_metrics.big_width;
     Auto.x0 = 10 * text_metrics.small_width;
     Auto.y0 = 2 * text_metrics.small_height;
-    XPP_FORMAT_TO_BUF(Auto.hinttxt, "hint"); /* auto_nox.cpp passes it on as a char * */
+    Auto.hinttxt = "hint";
     diag_forget();      /* a new window has no data */
     auto_data_forget(); /* nor an info strip or a stability circle */
     send_window("create", WIN_AUTO, Auto.wid + 12 * text_metrics.small_width, Auto.hgt + 4 * text_metrics.small_height, wname);
@@ -354,7 +354,7 @@ int j_auto_grab_event(int *x, int *y)
     answer_point(WIN_AUTO, 0, x, y);
     return XPP_AUTO_CLICK;
 }
-void j_auto_show_hint(void) { send_simple("message", "auto", Auto.hinttxt); }
+void j_auto_show_hint(void) { send_simple("message", "auto", Auto.hinttxt.c_str()); }
 
 /* AUTO Axes/Scroll: drag the diagram (auto_x11.c x11_auto_scroll_window) */
 void j_auto_scroll_window(void)

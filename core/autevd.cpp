@@ -13,7 +13,6 @@
 #include "auto_def2.h"
 #include "autlim.h"
 #include "auto_stability.h"
-#include "xAuto.h"
 #include "xpp_job.h"
 
 #define SPECIAL 5

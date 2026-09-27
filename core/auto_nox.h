@@ -2,6 +2,9 @@
 #define _auto_nox_h_
 
 #include <stdio.h>
+#ifdef __cplusplus
+#include <string>
+#endif
 #include "xpplim.h"
 #include "autlim.h"
 #ifdef __cplusplus
@@ -29,7 +32,16 @@ typedef struct  {
   int plot,var;
   int icp1,icp2,icp3,icp4,icp5;
   int nper;
+#ifdef __cplusplus
+  std::string hinttxt;
+#else
+  /* tests/test_auto_cols.c compiles this header as plain C: hinttxt is a
+     std::string in every real (C++) use (auto_nox.cpp, json_auto.cpp),
+     this branch only keeps the struct parseable there; that test never
+     touches Auto/BIFUR storage itself, only auto_screen_col() and
+     AUTO_COL_W */
   char hinttxt[256];
+#endif
   double period[MAX_AUT_PER];
   int uzrpar[MAX_AUT_PER];
   double epsl,epsu,epss;
@@ -87,6 +99,8 @@ extern long UzrPar[20];
 extern double outperiod[20];
 extern int SuppressBP;
 extern int AutoTwoParam;
+/* the label do_auto's follow-up run (a restart) continues from, 0 for none */
+extern int RestartLabel;
 /* the kind of run (LPE2, HB2, ...; 0 one parameter) each stored point records */
 extern int TypeOfCalc;
 /* the torus period a two-parameter torus run starts from */

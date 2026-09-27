@@ -216,13 +216,10 @@ conpar(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, int
     }
   }
 
-  /* global_conpar_type (gogoauto.cpp) is always CONPAR_DEFAULT: xppautX
-     runs AUTO without pthreads or MPI. The variable and this test can go
-     together. */
-  if (global_conpar_type == CONPAR_DEFAULT) {
-    conpar_default_wrapper(nov, na, nra, nca, a, 
-			    ncb, b, nbc, nrc, c, d,irf, icf);
-  }
+  /* xppautX runs AUTO without pthreads or MPI: there is only ever the
+     one conpar implementation. */
+  conpar_default_wrapper(nov, na, nra, nca, a,
+			  ncb, b, nbc, nrc, c, d,irf, icf);
   return 0;
 } 
 

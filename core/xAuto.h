@@ -1,3 +1,6 @@
+#ifndef _xAuto_h_
+#define _xAuto_h_
+
  typedef struct {
     int ndim;
     int ips;
@@ -49,4 +52,5 @@
 
 /*  for homcont  - itwist=0, istart=2, nrev=0,nfixed=0,npsi=0 */
 
- 
+#endif
+

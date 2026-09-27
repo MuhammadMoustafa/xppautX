@@ -65,7 +65,6 @@
 
 #include "xpplim.h"
 #include "autlim.h"
-#include "xAuto.h" 
 #include "xpp_job.h"
 #include "auto_data.h"
 #include "derived.h"   /* evaluate_derived() */
@@ -128,7 +127,6 @@ int TypeOfCalc=0;
 #define CUEQ 2
 
 #define DISCRETE 0
-extern XAUTO xAuto;
 /* the label the running continuation started from (Auto.irs), for its
    first point: do_auto sets it, addbif takes it (auto_run_from_take) */
 static int run_from;
@@ -227,11 +225,8 @@ std::string this_auto_file;
 /* AUTO's unit files under its folder (open_auto): fort.3 the restart
    data, fort.7 the branches, fort.8 the solutions, fort.9 the diagnostics */
 namespace {
-std::string fort3,fort7,fort9;
+std::string fort3,fort7,fort8,fort9;
 }
-/* fort.8's path stays a C array while autlib1.cpp (W33c) declares it
-   extern char[200]; auto_fort_path(8) is the same text */
-char fort8[200];
 
 extern int NUPAR;
 unsigned int DONT_XORCross=0;
@@ -519,15 +514,15 @@ void close_auto(int flg) /* labels compatible with A2K  */
   if(flg==0) {/*Overwrite*/
     xpp_files_move(fort7.c_str(),(this_auto_file+".b").c_str());
     xpp_files_move(fort9.c_str(),(this_auto_file+".d").c_str());
-    xpp_files_move(fort8,(this_auto_file+".s").c_str());
+    xpp_files_move(fort8.c_str(),(this_auto_file+".s").c_str());
   }
   else {/*APPEND*/
     xpp_files_prepend(fort7.c_str(),(this_auto_file+".b").c_str());
     xpp_files_prepend(fort9.c_str(),(this_auto_file+".d").c_str());
-    xpp_files_prepend(fort8,(this_auto_file+".s").c_str());
+    xpp_files_prepend(fort8.c_str(),(this_auto_file+".s").c_str());
   }
 
-    xpp_files_remove(fort8);
+    xpp_files_remove(fort8.c_str());
 
     fp8_is_open=0;
     xpp_files_remove(fort7.c_str());
@@ -579,7 +574,7 @@ void open_auto(int flg) /* compatible with new auto */
   this_auto_file=xpp::format("{}/{}",HOME,bname);
   fort3=xpp::format("{}/fort.3",HOME);
   fort7=xpp::format("{}/fort.7",HOME);
-  XPP_FORMAT_TO_BUF(fort8,"{}/fort.8",HOME);
+  fort8=xpp::format("{}/fort.8",HOME);
   fort9=xpp::format("{}/fort.9",HOME);
   is_3_there=flg;
 
@@ -594,7 +589,7 @@ const char *auto_fort_path(int unit)
   switch(unit){
   case 3: return fort3.c_str();
   case 7: return fort7.c_str();
-  case 8: return fort8;
+  case 8: return fort8.c_str();
   case 9: return fort9.c_str();
   default: return "";
   }
@@ -781,7 +776,7 @@ void auto_per_par()
   /* "Mark values" (T21): AUTO labels (UZ) the points where a parameter or
      the period reaches one of these values */
   ch=static_cast<char>(auto_pop_up_list("Mark values: how many?",m,key,10,12,Auto.nper,10,10,no_hint,
-		       Auto.hinttxt));
+		       Auto.hinttxt.c_str()));
   for(i=0;i<10;i++)
     if(ch==key[i])Auto.nper=i;
   NAutoUzr=Auto.nper;
@@ -925,7 +920,7 @@ void auto_plot_par()
   int i1=Auto.var+1;
   std::array<char,XPP_NAME_MAX+1> n1{}; /* ind_to_sym's */
   ch=static_cast<char>(auto_pop_up_list("Plot Type",m,key,14,10,Auto.plot,10,50,
-		       aaxes_hint,Auto.hinttxt));
+		       aaxes_hint,Auto.hinttxt.c_str()));
   if(ch==ESC) 
     return;
   for(i=0;i<5;i++){
@@ -1855,7 +1850,7 @@ void auto_start_choice()
     return;
   }
   ch=static_cast<char>(auto_pop_up_list("Start",m,key,5,13,0,10,10,arun_hint,
-		       Auto.hinttxt));
+		       Auto.hinttxt.c_str()));
    if(ch=='s'){
     auto_new_ss();
     return;
@@ -1895,7 +1890,7 @@ void torus_choice()
   static const char *const key="tfe";
   char ch;
   ch=static_cast<char>(auto_pop_up_list("Torus",m,key,3,10,0,10,10,
-		       no_hint,Auto.hinttxt));
+		       no_hint,Auto.hinttxt.c_str()));
    if(ch=='e'){
     auto_new_per();
     return;
@@ -1916,7 +1911,7 @@ void per_doub_choice()
   static const char *m[]={"Doubling","Two Param","Fixed period","Extend"};
   static const char *const key="dtfe";
   char ch;
-  ch=static_cast<char>(auto_pop_up_list("Per. Doub.",m,key,4,10,0,10,10,no_hint,Auto.hinttxt));
+  ch=static_cast<char>(auto_pop_up_list("Per. Doub.",m,key,4,10,0,10,10,no_hint,Auto.hinttxt.c_str()));
   if(ch=='d'){
     auto_period_double();
     return;
@@ -1942,7 +1937,7 @@ void periodic_choice()
   static const char *const key="ef";
   char ch;
   ch=static_cast<char>(auto_pop_up_list("Periodic ",m,key,2,14,0,10,10,
-		       no_hint,Auto.hinttxt));
+		       no_hint,Auto.hinttxt.c_str()));
   if(ch=='e'){
     auto_new_per();
     return;
@@ -1967,7 +1962,7 @@ void hopf_choice()
   }
 
   ch=static_cast<char>(auto_pop_up_list("Hopf Pt",m,key,4,10,0,10,10,
-		       no_hint,Auto.hinttxt));
+		       no_hint,Auto.hinttxt.c_str()));
   if(ch=='p'){
     auto_new_per();
     return;
@@ -2085,7 +2080,7 @@ void auto_branch_choice(int ibr, int ips)
   char ch;
   int ipsuse;
   ch=static_cast<char>(auto_pop_up_list("Branch Pt",m,key,4,10,0,10,10,
-		       no_hint,Auto.hinttxt));
+		       no_hint,Auto.hinttxt.c_str()));
 
 
   if(ch=='s'){
@@ -2990,7 +2985,7 @@ void auto_file()
   static const char *const key="islpvrcwadtnebox";
   char ch;
   ch=static_cast<char>(auto_pop_up_list("File",m,key,16,16,0,10,10,afile_hint_csv(),
-		       Auto.hinttxt));
+		       Auto.hinttxt.c_str()));
   if(ch=='i'){
     load_auto_orbit();
     return;
@@ -3196,7 +3191,7 @@ const char *query_special(const char *title)
         static const char *m[]={"BP","EP","HB","LP","MX","PD","TR","UZ"};
 	static const char *const key="behlmptu";
 	int ch=static_cast<char>(auto_pop_up_list(title,m,key,8,11,1,10,10,
-			     aspecial_hint,Auto.hinttxt));
+			     aspecial_hint,Auto.hinttxt.c_str()));
 	redraw_auto_menus();
 	const char *k=ch!=0?strchr(key,ch):NULL;
 	return k!=NULL?m[k-key]:NULL;
@@ -3341,7 +3336,7 @@ void traverse_diagram()
        }
        else
        {
-         XPP_FORMAT_TO_BUF(Auto.hinttxt,"  Higher {} not found",nsymb);
+         Auto.hinttxt=xpp::format("  Higher {} not found",nsymb);
 	 xpp_ui.auto_show_hint();
 	 d=dold;
        }
@@ -3365,7 +3360,7 @@ void traverse_diagram()
        }
        else
        {
-         XPP_FORMAT_TO_BUF(Auto.hinttxt,"  Lower {} not found",nsymb);
+         Auto.hinttxt=xpp::format("  Lower {} not found",nsymb);
 	 xpp_ui.auto_show_hint();
 	 d=dold;
        }
@@ -3513,7 +3508,7 @@ void MarkAuto(int x, int y)
 
 void clear_msg()
 {
-  Auto.hinttxt[0]='\0';
+  Auto.hinttxt.clear();
   xpp_ui.auto_show_hint();
 }
 
@@ -3538,7 +3533,7 @@ void auto_motion_xy(int i,int j)
 
 void auto_point_xy(double x,double y)
 {
-    XPP_FORMAT_TO_BUF(Auto.hinttxt,"x={:g},y={:g}",x,y);
+    Auto.hinttxt=xpp::format("x={:g},y={:g}",x,y);
     storeautopoint(x,y);
     xpp_ui.auto_show_hint();
 }

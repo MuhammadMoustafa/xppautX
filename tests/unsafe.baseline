@@ -2,9 +2,8 @@ core/adj2.cpp text 3
 core/aniparse.cpp buffers 1
 core/aniparse.h buffers 1
 core/arrayplot.h buffers 1
-core/autlib1.cpp buffers 2
-core/autlib1.cpp memory 1
-core/auto_nox.cpp buffers 2
+core/autlib1.cpp buffers 1
+core/auto_nox.cpp buffers 1
 core/auto_nox.cpp text 2
 core/auto_nox.h buffers 1
 core/browse_data.cpp memory 2
