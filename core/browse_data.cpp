@@ -1,26 +1,29 @@
 /* The data side of the browser: the one BROWSER instance, its storage
    pointer, row/column bookkeeping and the file writer. No X11 here; the
    widget code that displays it stays in browse.c. */
-#include <string>
 #include <array>
-#include <stdlib.h>
+#include <chrono>
+#include <cmath>
+#include <cstdlib>
+#include <string>
+#include <string_view>
+#include <thread>
+#include <vector>
 #include "xpp_util.h"
 #include "storage.h"
-#include "xpp_mem.h"
+#include "xpp_mem.h" /* add_stor_col's formula: form_ode.cpp's my_ode/ode_names blocks */
 #include "parserslow.h"
 #include "browse.h"
 #include "xpp_ui.h"
 #include "xpp_globals.h"
 #include "integrate.h"
 #include "grobs.h"
-#include <math.h>
-#include <ctype.h>
+#include <cctype>
 #include "xpplim.h"
-#include <stdio.h>
-#include <string.h>
+#include <cstring>
 #include <strings.h>
-#include <sys/time.h>
 #include "xpp_io.h"
+#include "pop_list.h"
 
 
 extern int *plotlist, N_plist;
@@ -29,11 +32,14 @@ extern int NEQ;
 
 /*  The one and only primitive data browser   */
 BROWSER my_browser;
-float *old_rep;
 int REPLACE=0,R_COL=0;
 extern int NODE,NMarkov,FIX_VAR;
-extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern double last_ic[MAXODE];
+
+namespace {
+/* Replace's column as it was, for Unreplace */
+std::vector<float> old_rep;
+} // namespace
 
 float **get_browser_data()
 {
@@ -61,23 +67,7 @@ float *get_data_col(int c)
 
 void waitasec(int msec)
 {
-  struct timeval tim;
-  /*struct timezone tz;*/
-  double sec=static_cast<double>(msec)/1000;
-  double t1,t2;
-  gettimeofday(&tim,NULL);
-  t1=tim.tv_sec+(tim.tv_usec/1000000.0);
-
-   while(1)
-    {
-       gettimeofday(&tim,NULL);
-       t2=tim.tv_sec+(tim.tv_usec/1000000.0);
-
-
-       if((t2-t1)>sec)
-	
-       return;
-    }
+  std::this_thread::sleep_for(std::chrono::milliseconds(msec));
 }
 
 int get_maxrow_browser()
@@ -98,13 +88,13 @@ void write_browser_data(FILE *fp, BROWSER *b)
     if(N_plist>0){
       for(l=0;l<N_plist;l++){
 	j=plotlist[l];
-	fprintf(fp,"%.8g ",b->data[j][i]);
+	xpp::print(fp,"{:.8g} ",static_cast<double>(b->data[j][i]));
       }
     }
     else {
-	for(j=0;j<b->maxcol;j++)fprintf(fp,"%.8g ",b->data[j][i]);
+	for(j=0;j<b->maxcol;j++)xpp::print(fp,"{:.8g} ",static_cast<double>(b->data[j][i]));
     }
-    fprintf(fp,"\n");
+    xpp::print(fp,"\n");
   }
  
 }
@@ -145,7 +135,6 @@ void init_browser()
  my_browser.row0=0;
  my_browser.istart=0;
  my_browser.iend=0;
- XPP_STRCPY(my_browser.hinttxt,"hint");
 
 }
 
@@ -172,7 +161,7 @@ xpp::Writer open_writer_asking(const char *fil)
 void  wipe_rep()
  {
     if(!REPLACE)return;
-    xpp_free(old_rep);
+    std::vector<float>().swap(old_rep);
     REPLACE=0;
   }
 
@@ -264,13 +253,12 @@ int add_stor_col(const char *name, const char *formula, BROWSER *b)
      return(0);
    }
   data_store.add_column(NEQ+1);
-  ode_names[NEQ]=static_cast<char *>(xpp_malloc(80));
-  /* ode_names[NEQ] is a pointer, allocated 80 bytes just above. */
-  xpp_strlcpy(ode_names[NEQ],formula,80);
+  /* form_ode.cpp's raw array of names: at most 79 characters of it */
+  ode_names[NEQ]=xpp_strdup(std::string(formula).substr(0,79).c_str());
   strupr(ode_names[NEQ]);
   for(j=0;j<=i;j++)
     my_ode[NEQ+FIX_VAR][j]=com[j];
-  XPP_STRCPY(uvar_names[NEQ],name);
+  XPP_FORMAT_TO_BUF(uvar_names[NEQ],"{}",name);
   strupr(uvar_names[NEQ]);
   for(i=0;i<b->maxrow;i++)
     data_store.col[NEQ+1][i]=0.0;   /*  zero it all   */
@@ -286,37 +274,18 @@ int add_stor_col(const char *name, const char *formula, BROWSER *b)
   return(1);
 }
 
+/* a:b (seq 1) or a;b (seq 2), split at the last ':' or ';' */
 void chk_seq(const char *f,int *seq, double *a1, double *a2)
 {
-  int i,j=-1;
-  char n1[256],n2[256];
-  int n=strlen(f);
+  const std::string_view s(f);
   *seq=0;
   *a1=0.0;
   *a2=0.0;
-  for(i=0;i<n;i++)
-    {
-      if(f[i]==':'){
-	*seq=1;
-	j=i;
-      }
-      
-      if(f[i]==';'){
-	*seq=2;
-	j=i;
-      }
-    }
-  if(j>-1){
-    for(i=0;i<j;i++)
-      n1[i]=f[i];
-    n1[j]=0;
-    for(i=j+1;i<n;i++)
-      n2[i-j-1]=f[i];
-    n2[n-j-1]=0;
-    *a1=atof(n1);
-    *a2=atof(n2);
-  }
-  /*      plintf("seq=%d a1=%g a2=%g\n",*seq,*a1,*a2); */
+  const size_t j=s.find_last_of(":;");
+  if(j==std::string_view::npos)return;
+  *seq=s[j]==':'?1:2;
+  *a1=std::atof(std::string(s.substr(0,j)).c_str());
+  *a2=std::atof(std::string(s.substr(j+1)).c_str());
 }
 
 void replace_column(const char *var, char *form, float **dat, int n)
@@ -389,7 +358,7 @@ if(dif_var<0)
  /* Okay the formula is cool so lets allocate and replace  */
 
  wipe_rep();
- old_rep=static_cast<float *>(xpp_malloc(sizeof(float)*n));
+ old_rep.assign(n,0.0f);
  REPLACE=1;
  for(i=0;i<n;i++)
  {
@@ -444,14 +413,11 @@ void make_d_table(double xlo, double xhi, int col, const char *filename, BROWSER
   int i,npts;
   xpp::Writer w=open_writer_asking(filename);
   if(!w)return;
-  FILE *fp=w.file();
-    npts=b.iend-b.istart;
- 
-
-  fprintf(fp,"%d\n",npts);
-  fprintf(fp,"%g\n%g\n",xlo,xhi);
+  npts=b.iend-b.istart;
+  w.print("{}\n",npts);
+  w.print("{:g}\n{:g}\n",xlo,xhi);
   for(i=0;i<npts;i++)
-    fprintf(fp,"%10.10g\n",b.data[col][i+b.istart]);
+    w.print("{:10.10g}\n",static_cast<double>(b.data[col][i+b.istart]));
   w.commit();
   ping();
 }
@@ -558,16 +524,13 @@ void data_read(BROWSER *b)
  std::string fil="test.dat";
  status=file_selector("Load data",fil,"*.dat");
 if(status==0)return;
- xpp::UniqueFile fp=xpp::open_read(fil.c_str());
- 	if(!fp){
-				      respond_box("Ok",
-					"Cannot open file");
-				     return;
-				     }
+ xpp::LineReader lr(fil.c_str());
+ if(!lr){
+   respond_box("Ok","Cannot open file");
+   return;
+ }
  /*  Now we establish the width of the file (the whitespace-separated
-     fields of its first line -- xpp_line_reader reads that line whole,
-     however long, instead of the raw fscanf "%c" char-at-a-time loop
-     this replaced) and read it.
+     fields of its first line, read whole however long) and read it.
       If there are more columns than available we
       ignore them.
 
@@ -577,7 +540,6 @@ if(status==0)return;
      This data can be plotted etc like anything else
     */
  {
-   xpp::LineReader lr = xpp::LineReader::attach(fp.get());
    std::optional<std::string_view> line = lr.next();
    if(line){
      int white=1;
@@ -586,26 +548,24 @@ if(status==0)return;
        if(isspace(c)&&!white)white=1;
      }
    }
+   lr.close();
  }
- rewind(fp.get());
  len=0;
  {
-   XppTokenReader *tr=xpp_token_reader_attach(fp.get());
+   xpp::TokenReader tr(fil.c_str());
    for(;;)
    {
     int gotrow=1;
     for(k=0;k<count;k++)
     {
-     if(xpp_token_reader_float(tr,&z)!=1){gotrow=0;break;}
+     if(!tr.read(z)){gotrow=0;break;}
      if(k<b->maxcol)b->data[k][len]=z;
      }
      if(!gotrow)break;
      ++len;
      if(len>=data_store.max_rows)break;
     }
-   xpp_token_reader_close(tr);
   }
-  fp.reset();
   refresh_browser(len);
   data_store.rows=len;
  /*  b->maxrow=len;
@@ -623,10 +583,9 @@ void data_write(BROWSER *b)
 if(status==0)return;
  xpp::Writer w=open_writer_asking(fil.c_str());
  if(!w)return;
- FILE *fp=w.file();
  for(i=b->istart;i<b->iend;i++){
-	for(j=0;j<b->maxcol;j++)fprintf(fp,"%.8g ",b->data[j][i]);
- 	fprintf(fp,"\n");
+	for(j=0;j<b->maxcol;j++)w.print("{:.8g} ",static_cast<double>(b->data[j][i]));
+ 	w.print("\n");
         }
  w.commit();
 }
