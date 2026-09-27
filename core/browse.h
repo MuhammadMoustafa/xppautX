@@ -1,7 +1,6 @@
 #ifndef _browse_h_
 #define _browse_h_
 
-#include "xpp_types.h"
 
 #include <stdio.h>
 #ifdef __cplusplus
@@ -11,7 +10,7 @@ extern "C" {
 
 typedef struct {
     int dataflag;
-    int col0,row0;
+    int row0;
     int maxrow,maxcol;
     float **data;
     int istart,iend;
@@ -21,7 +20,7 @@ typedef struct {
 extern BROWSER my_browser;
 
 float **get_browser_data(void);
-void set_browser_data(float **data, int col0);
+void set_browser_data(float **data);
 float *get_data_col(int c);
 void waitasec(int msec);
 int get_maxrow_browser(void);

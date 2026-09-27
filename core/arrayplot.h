@@ -5,7 +5,6 @@
 #include <stdio.h>
 
 
-#include "xpp_types.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

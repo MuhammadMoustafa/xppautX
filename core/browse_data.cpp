@@ -36,17 +36,16 @@ float **get_browser_data()
   return my_browser.data;
 }
 
-void set_browser_data(float **data,int col0)
+void set_browser_data(float **data)
 {
   my_browser.data=data;
-  my_browser.col0=col0;
 }
 
 /* show another data set in the browser: its columns from new_dat[1] on,
    dat_len rows (the adjoint, the Fourier modes, a histogram, ...) */
 void new_browse_dat(float **new_dat, int dat_len)
 {
-  set_browser_data(new_dat,1);
+  set_browser_data(new_dat);
   refresh_browser(dat_len);
 }
 
@@ -121,7 +120,6 @@ void init_browser()
  my_browser.data=data_store.col;
  my_browser.maxcol=NEQ+1;
  my_browser.maxrow=0;
- my_browser.col0=1;
  my_browser.row0=0;
  my_browser.istart=0;
  my_browser.iend=0;

@@ -2,7 +2,6 @@
 #define _userbut_h_
 
 
-#include "xpp_types.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -10,7 +9,6 @@ extern "C" {
 #define USERBUTMAX 20
 
 typedef struct {
-  XppWinId w;
   char bname[10]; /* ui_json.cpp sends it as a C string */
   int com;
 } USERBUT;

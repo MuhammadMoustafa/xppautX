@@ -995,7 +995,6 @@ int get_eqn(FILE *fptr)
     if(BVP_N>0)xpp_log(XPP_LOG_WARN, "Warning: Too few boundary conditions\n");
     for(i=BVP_N;i<IN_VARS ;i++){
       set_bc(i,"0");
-      my_bc[i].side=0;
     }
   }
   BVP_FLAG=1;
