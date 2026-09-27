@@ -92,6 +92,12 @@ and commit `web2/dist` with the source. Tests read `window.__xpp`
 web2check.mjs's headless-browser driver; web2check.mjs runs from Git Bash,
 where Node and Chrome are (not WSL), and builds nothing: it drives
 `./xppautX[.exe]` (`--bin` to point elsewhere).
+A section a check fails in is rerun once (macos-ui, the slowest runner,
+failed a different check nearly every time, always passing on a rerun,
+W40): still failing is a FAIL, passing on the rerun is FLAKY (counted at
+the end, not silently a pass); `--throttle N` (Emulation.setCPUThrottlingRate)
+and `XPP_CHECK_SLOW` both scale the frame-rate budgets and can reproduce
+that slowness locally.
 
 `tools/deadcode.sh` (W24; sourcecheck runs it with `--check`, about a
 minute) builds every object at -O0 with -ffunction-sections
