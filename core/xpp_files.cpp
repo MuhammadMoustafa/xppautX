@@ -705,3 +705,22 @@ void xpp_files_cleanup_stale_temp_dirs(void)
         xpp_out_of_memory("sweeping old scratch folders");
     }
 }
+
+bool xpp_files_list_dir(const char *dir, std::vector<XppDirEntry> &out)
+{
+    out.clear();
+    DIR *d = opendir(dir);
+    if (d == nullptr) return false;
+    try {
+        while (struct dirent *e = readdir(d)) {
+            std::string path = xpp::format("{}/{}", dir, static_cast<const char *>(e->d_name));
+            Stat st;
+            bool folder = stat_follow(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode);
+            out.push_back({e->d_name, folder});
+        }
+    } catch (const std::bad_alloc &) {
+        xpp_out_of_memory("listing a folder");
+    }
+    closedir(d);
+    return true;
+}

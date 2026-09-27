@@ -43,24 +43,19 @@
 #define NAMLEN XPP_NAME_MAX
 #define MAXARG 20
 #define MAXEXPLEN 1024
-typedef struct var_info {
-  char lhs[MAXEXPLEN],rhs[MAXEXPLEN],args[MAXARG][NAMLEN+1];
-  int type,nargs;
-  double value;
-  struct var_info *next,*prev;
-} VAR_INFO;
 
-/*int start_var_info=0;
+#ifdef __cplusplus
+#include <string>
+#include <vector>
 
-VAR_INFO *my_varinfo;
-*/
-
+/* one line of a model as form_ode.cpp's parse_a_string splits it: its
+   kind, the text left and right of its '=' and a function's argument
+   names */
+struct VAR_INFO {
+  int type=0;
+  std::string lhs,rhs;
+  std::vector<std::string> args;
+};
 #endif
 
-
-
-
-
-
-
-
+#endif

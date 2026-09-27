@@ -15,6 +15,7 @@
 #include "struct.h"
 #include "shoot.h"
 #include "load_eqn.h"
+#include "form_ode.h"
 #include "xpp_io.h"
 
 #include <algorithm>
@@ -22,24 +23,9 @@
 #include <string>
 #include <vector>
 
-extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
-extern char *ode_names[MAXODE];
 extern int METHOD,NEQ,NODE,NMarkov,FIX_VAR;
-
-extern int *my_ode[];
 extern int NUPAR;
 extern double last_ic[MAXODE];
-
-extern char upar_names[MAXPAR][XPP_NAME_MAX+1],this_file[XPP_MAX_NAME];
-extern int EqType[MAXODE];
-
-extern char *ufun_def[MAXUFUN];
-extern char ufun_names[MAXUFUN][XPP_NAME_MAX+1];
-extern int narg_fun[MAXUFUN], *ufun[MAXUFUN];
-
-extern UFUN_ARG ufun_arg[MAXUFUN];
-extern BC_STRUCT my_bc[MAXODE];
-
 extern int NFUN;
 
 namespace {
@@ -94,9 +80,7 @@ void edit_rhs()
      if(add_expr(box.value(i),command.data(),&len)==1)
        err_msg(xpp::format("Bad rhs:{}={}",box.name(i),box.value(i)).c_str());
      else {
-       /* ode_names is the parser's table of xpp_malloc'd formulas */
-       xpp_free(ode_names[i]);
-       ode_names[i]=xpp_strdup(box.value(i));
+       set_ode_name(i,box.value(i));
        int i0=i;
        if(i>=NODE)i0=i0+FIX_VAR-NMarkov;
        for(int j=0;j<len;j++)
@@ -126,18 +110,16 @@ void edit_functions()
  for(int i=0;i<n;i++){
    Command command;
    int len;
-   set_new_arg_names(narg_fun[i],ufun_arg[i].args);
+   set_ufun_arg_names(i);
    int err=add_expr(box.value(i),command.data(),&len);
    set_old_arg_names(narg_fun[i]);
    if(err==1)
      err_msg(xpp::format("Bad func.:{}={}",box.name(i),box.value(i)).c_str());
    else {
-     /* ufun_def[i] is the parser's MAXEXPLEN (1024, newpars.h -- not
-        included here) bytes, parserslow2.cpp's every allocation site */
-     xpp_strlcpy(ufun_def[i],box.value(i),1024);
+     set_ufun_def(i,box.value(i));
      for(int j=0;j<=len;j++)
        ufun[i][j]=command[j];
-     fixup_endfun(ufun[i],len,narg_fun[i]);
+     fixup_endfun(ufun[i].data(),len,narg_fun[i]);
    }
  }
 }

@@ -130,6 +130,7 @@ void xpp_files_command(const char *op, const char *name_json, const char *data_j
 }
 
 #include <string>
+#include <vector>
 
 /* {"files":[{"name":..,"size":..,"mtime":..,"sha256":".."},...]}: the plain
    files of the working directory whose names are reachable, sorted by
@@ -144,5 +145,15 @@ int xpp_files_put_commit(XppFilePut *put, unsigned long long *size, std::string 
    $TMPDIR or /tmp (POSIX) or the system temp path (Windows): its absolute
    path, or empty on failure */
 std::string xpp_files_make_temp_dir();
+
+/* a folder's entry: its name, and whether it is a folder itself (a link
+   followed) */
+struct XppDirEntry {
+    std::string name;
+    bool folder;
+};
+/* the entries of the folder dir ("." and ".." included, in the order the
+   system gives them) into out; false (out empty) when dir cannot be read */
+bool xpp_files_list_dir(const char *dir, std::vector<XppDirEntry> &out);
 #endif
 #endif

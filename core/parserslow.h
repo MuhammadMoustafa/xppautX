@@ -77,20 +77,22 @@ extern "C" {
    form_ode.c adds for each variable X */
 #define MXLEN (XPP_NAME_MAX+1)
 
-typedef struct
-        {
-         char name[MXLEN+1];
-         int len;
-         int com;
-         int arg;
-         int pri;
-        } SYMBOL;
-	
+/* the longest program add_expr writes (the callers' command arrays) */
+#define MAXEXPLEN 1024
+
+/* a user function's argument names (xpp_util.cpp and edit_rhs.cpp read
+   them as C text) */
 typedef struct {
   int narg;
   char args[MAXARG][XPP_NAME_MAX+1];
 } UFUN_ARG;
 
+/* the user functions (NFUN of them): names, argument counts and names,
+   and their definitions as C text (set_ufun_def keeps it) */
+extern char ufun_names[MAXUFUN][XPP_NAME_MAX+1];
+extern int narg_fun[MAXUFUN];
+extern UFUN_ARG ufun_arg[MAXUFUN];
+extern char *ufun_def[MAXUFUN];
 
 
 #define VECT_ROOT 500 
@@ -114,10 +116,11 @@ int add_file_table(int index, const char *file);
 int add_table_name(int index, const char *name);
 int add_form_table(int index, int nn, double xlo, double xhi, const char *formula);
 void set_old_arg_names(int narg);
-void set_new_arg_names(int narg, char args[MAXARG][XPP_NAME_MAX+1]);
+/* the symbols ARG1..ARGn stand for user function index's own argument
+   names (ufun_arg), until set_old_arg_names puts them back */
+void set_ufun_arg_names(int index);
 int add_ufun_name(const char *name, int index, int narg);
 void fixup_endfun(int *u, int l, int narg);
-int add_ufun_new(int index, int narg, const char *rhs, char args[MAXARG][XPP_NAME_MAX+1]);
 int add_ufun(const char *junk, const char *expr, int narg);
 int is_ufun(int x);
 int is_ucon(int x);
@@ -200,32 +203,20 @@ void strlwr(char *s);
 
 #ifdef __cplusplus
 }
+
+#include <array>
+#include <span>
+#include <string>
+#include <string_view>
+#include <vector>
+
+/* the user functions' programs (MAXEXPLEN commands each) */
+extern std::array<std::vector<int>,MAXUFUN> ufun;
+/* user function index's definition becomes def (ufun_def[index] its text) */
+void set_ufun_def(int index, std::string_view def);
+/* user function index with the arguments args and the formula rhs */
+int add_ufun_new(int index, const char *rhs, std::span<const std::string> args);
+/* name as the symbol table keeps it: blanks removed, upper case */
+std::string converted(std::string_view name);
 #endif
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

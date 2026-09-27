@@ -276,6 +276,15 @@ inline std::string number(double v)
 }
 #endif
 
+/* An entry of a C table other files read as NUL-terminated text (char *)
+   whose text a std::string keeps: store takes text and entry points at
+   it, valid until store changes again */
+inline void keep_c_text(std::string &store, char *&entry, std::string_view text)
+{
+    store = text;
+    entry = store.data();
+}
+
 /* ---- JSON strings -------------------------------------------------------
    The one place that reads or writes a JSON string's content (the core's
    text is UTF-8): the protocol (json_io.cpp's events and command objects)

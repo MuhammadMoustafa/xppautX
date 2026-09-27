@@ -13,6 +13,7 @@
 #include <math.h>
 #include <stdio.h>
 #include "parserslow.h"
+#include <algorithm>
 #include <vector>
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
@@ -35,10 +36,8 @@
 */
 
 #define CONV 2
-extern KERNEL kernel[MAXKER];
 extern int NODE,NMarkov,FIX_VAR,PrimeStart; 
 extern int NKernel; 
-extern double *Memory[MAXODE];
 extern double T0,DELTA_T;
 extern int MaxPoints;
 extern int EqType[MAXODE];
@@ -47,27 +46,6 @@ int KnFlag;
 
 
 int AutoEvaluate=0;
-
-namespace {
-/* The storage behind the raw pointers of KERNEL (volterra.h) and Memory[]
-   (both defined in parserslow2.cpp, C structs of plain pointers): each
-   pointer is a view into one of these vectors, which own the memory and
-   are replaced, not freed, when the grid is allocated again. */
-struct VolterraStore {
-  std::vector<int> formula[MAXKER], kerform[MAXKER];
-  std::vector<double> cnv[MAXKER], al[MAXKER];
-  std::vector<double> memory[MAXODE];
-};
-VolterraStore store;
-
-/* v made n zeroed values; returns where they start */
-template <class T>
-T *zeroed(std::vector<T> &v, size_t n)
-{
-  v.assign(n, T());
-  return v.data();
-}
-}
 
 extern double variables[];
 extern int NVAR;
@@ -90,31 +68,31 @@ double ker_val(int in)
 
 void alloc_v_memory()  /* allocate stuff for volterra equations */
 {
-  int i,len,formula[256],j;
-  
+  int i,len;
+  /* add_expr's program, as long as any other formula's (MAXEXPLEN) */
+  std::vector<int> formula(MAXEXPLEN);
+  /* the program's len commands and two zeros after them */
+  auto program=[&formula](int len){
+    std::vector<int> p(len+2,0);
+    std::copy(formula.begin(),formula.begin()+len,p.begin());
+    return p;
+  };
 
 /* First parse the kernels   since these were deferred */
   for(i=0;i<NKernel;i++){
      kernel[i].k_n=0.0;
-     if(add_expr(kernel[i].expr,formula,&len)){
-    xpp_log(XPP_LOG_ERROR, "Illegal kernel %s=%s\n",kernel[i].name,kernel[i].expr);
-    xpp_model_failed(); /* fatal error ... */
-  }
-     kernel[i].formula=zeroed(store.formula[i],len+2);
-     for(j=0;j<len;j++){
-
-       kernel[i].formula[j]=formula[j];
+     if(add_expr(kernel[i].expr.c_str(),formula.data(),&len)){
+       xpp::log(XPP_LOG_ERROR, "Illegal kernel {}={}\n",kernel[i].name,kernel[i].expr);
+       xpp_model_failed(); /* fatal error ... */
      }
+     kernel[i].formula=program(len);
      if(kernel[i].flag==CONV){
-       if(add_expr(kernel[i].kerexpr,formula,&len)){
-	 xpp_log(XPP_LOG_ERROR, "Illegal convolution %s=%s\n",
+       if(add_expr(kernel[i].kerexpr.c_str(),formula.data(),&len)){
+	 xpp::log(XPP_LOG_ERROR, "Illegal convolution {}={}\n",
 		kernel[i].name,kernel[i].kerexpr);
 	 xpp_model_failed(); /* fatal error ... */
        }
-       kernel[i].kerform=zeroed(store.kerform[i],len+2);
-       for(j=0;j<len;j++){
-	 kernel[i].kerform[j]=formula[j];
-       }
+       kernel[i].kerform=program(len);
      }
    }
   allocate_volterra(MaxPoints,0);
@@ -131,7 +109,7 @@ void allocate_volterra(int npts, int flag)
   /* flag==1 (a new grid) used to free the old blocks first; assigning the
      vectors again replaces them either way, so flag no longer matters */
   for(i=0;i<ntot;i++)
-    Memory[i]=zeroed(store.memory[i],MaxPoints);
+    Memory[i].assign(MaxPoints,0.0);
 
   CurrentPoint=0;
   KnFlag=1;
@@ -147,7 +125,7 @@ void re_evaluate_kernels()
     if(kernel[i].flag==CONV){
       for(j=0;j<=n;j++){
 	SETVAR(0,T0+DELTA_T*j);
-	kernel[i].cnv[j]=evaluate(kernel[i].kerform);
+	kernel[i].cnv[j]=evaluate(kernel[i].kerform.data());
       }
     }  
   }
@@ -160,16 +138,16 @@ void alloc_kernels(int flag)
   double mu;
   for(i=0;i<NKernel;i++){
     if(kernel[i].flag==CONV){
-      kernel[i].cnv=zeroed(store.cnv[i],n+1);
+      kernel[i].cnv.assign(n+1,0.0);
       for(j=0;j<=n;j++){
 	SETVAR(0,T0+DELTA_T*j);
-	kernel[i].cnv[j]=evaluate(kernel[i].kerform);
+	kernel[i].cnv[j]=evaluate(kernel[i].kerform.data());
       }
     }
     /* Do the alpha functions here later  */
    if(kernel[i].mu>0.0){
      mu=kernel[i].mu;
-     kernel[i].al=zeroed(store.al[i],n+1);
+     kernel[i].al.assign(n+1,0.0);
      for(j=0;j<=n;j++)kernel[i].al[j]=alpbetjn(mu,DELTA_T,j);
    }
   }
@@ -203,7 +181,7 @@ void init_sums(double t0, int n, double dt, int i0, int iend, int ishift)
      mu=kernel[ker].mu;
      if(mu==0.0)al=.5*dt;
      else al=alpha1n(mu,dt,t,tp);
-     sum[ker]=al*evaluate(kernel[ker].formula);
+     sum[ker]=al*evaluate(kernel[ker].formula.data());
      if(kernel[ker].flag==CONV)
        sum[ker]=sum[ker]*kernel[ker].cnv[n-i0];
      
@@ -218,9 +196,9 @@ void init_sums(double t0, int n, double dt, int i0, int iend, int ishift)
        if(mu==0.0)alpbet=dt;
        else alpbet=kernel[ker].al[n-i0-i];      /* alpbetjn(mu,dt,t,tp); */
        if(kernel[ker].flag==CONV)
-	 sum[ker]+=(alpbet*evaluate(kernel[ker].formula)
+	 sum[ker]+=(alpbet*evaluate(kernel[ker].formula.data())
 		    *kernel[ker].cnv[n-i0-i]);
-       else sum[ker]+=(alpbet*evaluate(kernel[ker].formula));
+       else sum[ker]+=(alpbet*evaluate(kernel[ker].formula.data()));
      }
    }
    for(ker=0;ker<NKernel;ker++){
@@ -275,9 +253,9 @@ void get_kn(double *y, double t)  /* uses the guessed value y to update Kn  */
   for(i=0;i<NKernel;i++){
     if(kernel[i].flag==CONV)
       kernel[i].k_n=kernel[i].sum+
-	kernel[i].betnn*evaluate(kernel[i].formula)*kernel[i].cnv[0];
+	kernel[i].betnn*evaluate(kernel[i].formula.data())*kernel[i].cnv[0];
     else 
-      kernel[i].k_n=kernel[i].sum+kernel[i].betnn*evaluate(kernel[i].formula);
+      kernel[i].k_n=kernel[i].sum+kernel[i].betnn*evaluate(kernel[i].formula.data());
     /* plintf(" Value t=%g %d =%g %g\n",t,i,kernel[i].k_n,y[i]); */
   }
 }

@@ -238,6 +238,14 @@ typedef struct {
 #define XPP_NSLIDERS 3
 extern XppSlider sliders[XPP_NSLIDERS];
 
+/* the model's file (C text, XPP_MAX_NAME bytes), the named set of
+   options the command line picked (@ set, -iset), and each variable's
+   initial data as typed (a delay equation's history: "0.0" when it has
+   none) */
+extern char this_file[XPP_MAX_NAME];
+extern char this_internset[XPP_MAX_NAME];
+extern char delay_string[MAXODE][80];
+
 
 
 #ifdef __cplusplus

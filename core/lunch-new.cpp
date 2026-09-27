@@ -4,6 +4,7 @@
 #include "xpp_io.h"
 #include "lunch-new.h"
 #include "parserslow.h"
+#include "form_ode.h"
 #include "edit_rhs.h"
 #include "browse.h"
 #include "graf_par.h"
@@ -45,7 +46,6 @@
 
 int set_type=0;
 
-extern FIXINFO fixinfo[MAXODE];
 extern int FIX_VAR,NFUN;
  
  extern int NJMP,NMESH,METHOD,NODE,POIMAP,POIVAR,POISGN,SOS,INFLAG,NMarkov;

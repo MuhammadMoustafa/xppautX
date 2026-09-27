@@ -4,10 +4,9 @@
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
+#include "xpp_files.h"
 #include "load_eqn.h"
 
-#include <dirent.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #include <cerrno>
 #include <algorithm>
@@ -19,12 +18,11 @@
    get_directory) is XPP_MAX_NAME bytes. */
 #define MAXPATHLEN XPP_MAX_NAME
 
+/* the file selector's folder: C text, filled in place by get_directory
+   (json_prompts.cpp and tabular.cpp read it too) */
 char cur_dir[MAXPATHLEN];
 
-namespace {
-
-/* the working directory, whatever its length ("" when it cannot be had) */
-std::string working_directory()
+std::string current_directory()
 {
   std::vector<char> buf(1024);
   for(;;){
@@ -34,19 +32,32 @@ std::string working_directory()
   }
 }
 
-bool is_directory(std::string_view root, const char *name)
+bool list_folder(const char *wild, const char *direct,
+                 std::vector<std::string> &dirs, std::vector<std::string> &files)
 {
-  std::string full(root);
-  full += '/';
-  full += name;
-  struct stat statbuf;
-  if(stat(full.c_str(), &statbuf)) /* some error: not a directory */
+  dirs.clear();
+  files.clear();
+  std::vector<XppDirEntry> entries;
+  if(!xpp_files_list_dir(direct, entries)){
+    xpp_log(XPP_LOG_WARN, " %s is not a directory \n", direct);
     return false;
-  return (statbuf.st_mode & S_IFDIR) != 0;
+  }
+  for(XppDirEntry &e : entries){
+    if(e.folder)
+      dirs.push_back(std::move(e.name));
+    else if(wild_match(e.name.c_str(), wild))
+      files.push_back(std::move(e.name));
+  }
+  std::sort(dirs.begin(), dirs.end());
+  std::sort(files.begin(), files.end());
+  return true;
 }
 
-/* FILEINFO is C API (the JSON front end's file selector reads it and
-   free_finfo frees it): a raw xpp_malloc'd array of xpp_strdup'd names */
+namespace {
+
+/* FILEINFO is C API (json_prompts.cpp's file selector reads it and
+   free_finfo frees it): a raw xpp_malloc'd array of xpp_strdup'd names,
+   until that caller takes list_folder's vectors */
 char **c_strings(const std::vector<std::string> &names)
 {
   char **out = static_cast<char **>(xpp_malloc(names.size() * sizeof(char *)));
@@ -71,21 +82,8 @@ void free_finfo(FILEINFO *ff)
    sorted. 0 (ff untouched) when direct cannot be read. */
 int get_fileinfo(const char *wild, const char *direct, FILEINFO *ff)
 {
-  DIR *dirp = opendir(direct);
-  if(dirp == nullptr){
-    xpp_log(XPP_LOG_WARN, " %s is not a directory \n", direct);
-    return 0;
-  }
   std::vector<std::string> dirs, files;
-  for(struct dirent *dp = readdir(dirp); dp != nullptr; dp = readdir(dirp)){
-    if(is_directory(direct, dp->d_name))
-      dirs.emplace_back(dp->d_name);
-    else if(wild_match(dp->d_name, wild))
-      files.emplace_back(dp->d_name);
-  }
-  closedir(dirp);
-  std::sort(dirs.begin(), dirs.end());
-  std::sort(files.begin(), files.end());
+  if(!list_folder(wild, direct, dirs, files)) return 0;
   ff->ndirs = static_cast<int>(dirs.size());
   ff->nfiles = static_cast<int>(files.size());
   ff->dirnames = c_strings(dirs);
@@ -115,7 +113,7 @@ int change_directory(const char *path)
    used to overflow it */
 int get_directory(char *direct)
 {
-    std::string cwd = working_directory();
+    std::string cwd = current_directory();
     if (cwd.empty()) {
 	xpp_log(XPP_LOG_WARN, "%s\n", "Can't get current directory");
 	*direct = '\0';

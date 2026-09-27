@@ -32,7 +32,6 @@
 #include "xpplim.h"
 #include "getvar.h"
 
-#define MAXEXPLEN 1024
 #define THOUS 10000
 #define DOUB_EPS 2.23E-15 
 #define POP stack[--stack_pointer]
@@ -74,24 +73,38 @@ double pop(  );
 int stack_pointer,uptr;
 double constants[MAXPAR];
 double variables[MAXODE1];
-int *ufun[MAXUFUN];
+std::array<std::vector<int>,MAXUFUN> ufun;
 char *ufun_def[MAXUFUN];
 char ufun_names[MAXUFUN][XPP_NAME_MAX+1];
 int narg_fun[MAXUFUN];
 double stack[200],ustack[200];
 
-KERNEL kernel[MAXKER];
+std::array<KERNEL,MAXKER> kernel;
 int NKernel;
 int MaxPoints;
-double *Memory[MAXODE]; /* one per variable (volterra2.c), not per kernel */
+std::array<std::vector<double>,MAXODE> Memory; /* one per variable (volterra2.c), not per kernel */
 int NTable;
 
 
 UFUN_ARG ufun_arg[MAXUFUN];
 
+namespace {
+/* the text behind ufun_def[] (set_ufun_def) */
+std::array<std::string,MAXUFUN> ufun_text;
 
-SYMBOL my_symb[MAX_SYMBS]=
-{  
+/* a name the parser knows: its length, what it compiles to (com), its
+   number of arguments and its priority */
+struct SYMBOL {
+  std::string name;
+  int len;
+  int com;
+  int arg;
+  int pri;
+};
+}
+
+static std::array<SYMBOL,MAX_SYMBS> my_symb=
+{{
    {"(",1,999,0,1},      /*  0   */
    {")",1,999,0,2},
    {",",1,999,0,3},
@@ -188,7 +201,7 @@ SYMBOL my_symb[MAX_SYMBS]=
    {"BESSELI",7,COM(FUN2TYPE,20),2,10},/* Bessel I  # 93 */
    {"LGAMMA",6,COM(FUN1TYPE,25),1,10}, /* Log Gamma  #94 */
    {"BESSELIS",8,COM(FUN2TYPE,21),2,10},/* Bessel I Scaled  # 95 */
-      };
+      }};
     
     
     
@@ -285,18 +298,17 @@ int duplicate_name(const char *junk)
   return(0);
 }
 
-namespace {
-
 /* name as convert makes it: blanks removed, upper case (never longer) */
-std::string converted(const char *name)
+std::string converted(std::string_view name)
 {
-  std::string s(name);
-  convert(name, s.data());
-  s.resize(strlen(s.c_str()));
+  std::string s;
+  for(char ch : name){
+    if(ch=='\0')break;
+    if(!isspace(static_cast<unsigned char>(ch)))s+=ch;
+  }
+  strupr(s.data());
   return s;
 }
-
-} // namespace
 
 /* Puts name, without blanks and in upper case, into symbol slot k.
    Returns 1 (and says why) when it is empty or longer than XPP_NAME_MAX;
@@ -312,7 +324,7 @@ static int set_symbol_name(int k, const char *name, int primed)
   }
   if(len>XPP_NAME_MAX&&!(primed&&len==MXLEN&&string[len-1]=='\''))
     return name_too_long(name);
-  memcpy(my_symb[k].name,string.c_str(),len+1);
+  my_symb[k].name=std::move(string);
   my_symb[k].len=len;
   return 0;
 }
@@ -409,15 +421,16 @@ int add_kernel(const char *name, double mu, const char *expr)
   }
   if(in>0){
     kernel[NKernel].flag=CONV;
-    /* KERNEL is C API (volterra.h): xpp_strdup'd text, split at the # */
-    kernel[NKernel].kerexpr=xpp_strdup(std::string(text.substr(0,in)).c_str());
-    kernel[NKernel].expr=xpp_strdup(std::string(text.substr(in+1)).c_str());
-    xpp_log(XPP_LOG_INFO, "Convolving %s with %s\n",
+    /* split at the # */
+    kernel[NKernel].kerexpr=text.substr(0,in);
+    kernel[NKernel].expr=text.substr(in+1);
+    xpp::log(XPP_LOG_INFO, "Convolving {} with {}\n",
 	   kernel[NKernel].kerexpr,kernel[NKernel].expr);
   }
   else {
-    kernel[NKernel].expr=xpp_strdup(expr);
+    kernel[NKernel].expr=text;
   }
+  kernel[NKernel].name=name;
   NSYM++;
   NKernel++;
   return(0);
@@ -553,17 +566,17 @@ void set_old_arg_names(int narg)
 {
   int i;
   for(i=0;i<narg;i++){
-    XPP_FORMAT_TO_BUF(my_symb[FIRST_ARG+i].name,"ARG{}",i+1);
+    my_symb[FIRST_ARG+i].name=xpp::format("ARG{}",i+1);
     my_symb[FIRST_ARG+i].len=4;
   }
 }
 
-void set_new_arg_names(int narg, char args[MAXARG][XPP_NAME_MAX+1])
+void set_ufun_arg_names(int index)
 {
-  int i;
-  for(i=0;i<narg;i++){
-    XPP_FORMAT_TO_BUF(my_symb[FIRST_ARG+i].name,"{}",args[i]);
-    my_symb[FIRST_ARG+i].len=strlen(args[i]);
+  const UFUN_ARG &a=ufun_arg[index];
+  for(int i=0;i<a.narg;i++){
+    my_symb[FIRST_ARG+i].name=a.args[i];
+    my_symb[FIRST_ARG+i].len=static_cast<int>(my_symb[FIRST_ARG+i].name.size());
  }
 }
 
@@ -596,30 +609,33 @@ void fixup_endfun(int *u, int l, int narg)
 }
 
 
-int add_ufun_new(int index, int narg, const char *rhs, char args[MAXARG][XPP_NAME_MAX+1])
+void set_ufun_def(int index, std::string_view def)
 {
-  
-  int i;
+  xpp::keep_c_text(ufun_text[index],ufun_def[index],def);
+}
+
+int add_ufun_new(int index, const char *rhs, std::span<const std::string> args)
+{
   int end;
+  int narg=static_cast<int>(args.size());
    if(narg>MAXARG){
     xpp_log(XPP_LOG_WARN, "Maximal arguments exceeded \n");
     return(1);
   }
-  /* ufun and ufun_def are C tables (edit_rhs.cpp rewrites them in
-     place): MAXEXPLEN commands and characters each */
-  ufun[index]=static_cast<int *>(xpp_calloc(MAXEXPLEN,sizeof(int)));
-  ufun_def[index]=static_cast<char *>(xpp_malloc(MAXEXPLEN));
+  /* edit_rhs.cpp rewrites the program in place: MAXEXPLEN commands */
+  ufun[index].assign(MAXEXPLEN,0);
+  set_ufun_def(index,"");
   ufun_arg[index].narg=narg;
-  for(i=0;i<narg;i++)
+  for(int i=0;i<narg;i++)
     XPP_FORMAT_TO_BUF(ufun_arg[index].args[i],"{}",args[i]);
-  set_new_arg_names(narg,args);
-  if(add_expr(rhs,ufun[index],&end)==0)
+  set_ufun_arg_names(index);
+  if(add_expr(rhs,ufun[index].data(),&end)==0)
     {
       
       ufun[index][end-1]=ENDFUN;
       ufun[index][end]=narg;
       ufun[index][end+1]=ENDEXP;
-      xpp_strlcpy(ufun_def[index],rhs,MAXEXPLEN);
+      set_ufun_def(index,rhs);
       narg_fun[index]=narg;
       set_old_arg_names(narg);
       return(0);
@@ -644,10 +660,10 @@ int add_ufun(const char *junk, const char *expr, int narg)
   if(ERROUT)xpp_log(XPP_LOG_WARN, "too many functions !!\n");
   return(1);
  }
- ufun[NFUN]=static_cast<int *>(xpp_calloc(MAXEXPLEN,sizeof(int)));
- ufun_def[NFUN]=static_cast<char *>(xpp_malloc(MAXEXPLEN));
+ ufun[NFUN].assign(MAXEXPLEN,0);
+ set_ufun_def(NFUN,"");
 
- if(add_expr(expr,ufun[NFUN],&end)==0)
+ if(add_expr(expr,ufun[NFUN].data(),&end)==0)
  {
   set_symbol_name(NSYM,junk,0);
   my_symb[NSYM].pri=10;
@@ -660,9 +676,10 @@ int add_ufun(const char *junk, const char *expr, int narg)
   /* the definition without its last character */
   std::string_view def(expr);
   if(!def.empty())def.remove_suffix(1);
-  xpp_strlcpy(ufun_def[NFUN],std::string(def).c_str(),MAXEXPLEN);
+  set_ufun_def(NFUN,def);
   XPP_FORMAT_TO_BUF(ufun_names[NFUN],"{}",junk);
   narg_fun[NFUN]=narg;
+  ufun_arg[NFUN].narg=narg;
   for(i=0;i<narg;i++){
     XPP_FORMAT_TO_BUF(ufun_arg[NFUN].args[i],"ARG{}",i+1);
   }
@@ -743,7 +760,7 @@ void find_name(const char *string, int *index)
   for(i=0;i<NSYM;i++)
   {
    if(len==my_symb[i].len)
-    if(strncmp(my_symb[i].name,junk.c_str(),len)==0)break;
+    if(my_symb[i].name.compare(0,len,junk)==0)break;
   }
    if(i<NSYM)
     *index=i;
@@ -1286,7 +1303,7 @@ return(0);
 
 void tokeninfo(int tok)
 {
- xpp_log(XPP_LOG_DEBUG, " %s %d %d %d %d \n",
+ xpp::log(XPP_LOG_DEBUG, " {} {} {} {} {} \n",
 	my_symb[tok].name,my_symb[tok].len,my_symb[tok].com,
         my_symb[tok].arg,my_symb[tok].pri);
 }
@@ -1841,7 +1858,7 @@ double dlt(double x, double y)
 	 
 	    uptr++;
             }
-            PUSH(eval_rpn(ufun[in])); 
+            PUSH(eval_rpn(ufun[in].data())); 
 break;
     }
 bye: j=0;
