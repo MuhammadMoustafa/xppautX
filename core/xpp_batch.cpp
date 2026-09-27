@@ -239,11 +239,8 @@ void xpp_reset_options(void)
 
 /* everything both the batch run and an interactive front end do: options,
    the ODE file, numerics set-up. batch forces XPPBatch. */
-void xpp_load_model(int argc, char **argv, int batch)
+static void load_model(int argc, char **argv, int batch)
 {
-    /* the parser fills a fresh Model, kept only when the load gets to the
-       end (a failed load exits today, xpp_model_failed) */
-    xpp::ModelLoad load;
     xpp_reset_options();
     program.interactive = 0;
     batch_options.out_file = "output.dat";
@@ -278,17 +275,31 @@ void xpp_load_model(int argc, char **argv, int batch)
     init_fit_info();
     strip_saveqn();
     create_plot_list();
+}
+
+int xpp_load_model(int argc, char **argv, int batch)
+{
+    /* the parser and the set-up fill a fresh Model and Session, kept only
+       when the load gets to the end: a failed one puts back those before */
+    xpp::Load load;
+    try {
+        load_model(argc, argv, batch);
+    } catch (const xpp::LoadFailed &) {
+        return 0;
+    }
     load.commit();
+    return 1;
 }
 
 void xpp_model_failed(void)
 {
+    if (xpp::Load::running()) throw xpp::LoadFailed();
     exit(1);
 }
 
 int xpp_batch_main(int argc, char **argv)
 {
-    xpp_load_model(argc, argv, 1);
+    if (!xpp_load_model(argc, argv, 1)) exit(1);
 
     xpp_build_colormap();
     init_browser();

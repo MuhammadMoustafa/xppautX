@@ -19,12 +19,16 @@ void do_vis_env(void);
 int xpp_batch_main(int argc, char **argv);
 
 /* the shared start: options, the ODE file, numerics set-up; batch forces
-   batch mode */
-void xpp_load_model(int argc, char **argv, int batch);
+   batch mode. 1 when the model loaded (its Model and Session are the
+   current ones), 0 when it failed (the ones before stay current): the
+   caller exits with status 1 when there is nothing to go on with. */
+int xpp_load_model(int argc, char **argv, int batch);
 
 /* the model cannot be loaded (a parse or compile error, already logged):
-   the program exits with status 1. In browser and window mode the page
-   stays open on the log until it is closed (xpp_http's at_exit). */
+   during a load, the load fails (xpp::LoadFailed, caught by
+   xpp_load_model); otherwise the program exits with status 1. In browser
+   and window mode the page stays open on the log until it is closed
+   (xpp_http's at_exit). */
 [[noreturn]] void xpp_model_failed(void);
 
 #ifdef __cplusplus

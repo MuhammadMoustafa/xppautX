@@ -283,7 +283,7 @@ void save_line(const std::string &line)
   std::vector<std::string> &source=xpp::model().source;
   if (source.size()>=MAXLINES) {
     xpp_log(XPP_LOG_ERROR, "The model has more than %d lines\n", MAXLINES);
-    exit(1);
+    xpp_model_failed();
   }
   source.push_back(line.substr(0,line.find('\0')));
 }
@@ -1943,7 +1943,7 @@ int parse_model(FILE *fp, const std::string &first, int nnn, bool at_end)
 			xpp::UniqueFile fnew=xpp::open_read(inc.c_str());
       			if(!fnew){
          		  xpp::log(XPP_LOG_ERROR, "Can't open include file <{}>\n",inc);
-			  exit(-1);
+			  xpp_model_failed();
        			}
       			xpp::log(XPP_LOG_INFO, "Including {} \n",inc);
 			IN_INCLUDED_FILE++;

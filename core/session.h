@@ -13,7 +13,8 @@
 
    For now the current Session is reached through xpp::session(), like
    xpp::model(); W47d passes it explicitly. A hot loop takes
-   `xpp::Session &s=xpp::session()` once. */
+   `xpp::Session &s=xpp::session()` once. A load builds a new Model and
+   Session together (Load, below) and keeps them only when it succeeds. */
 #include "model.h"
 #include "storage.h"
 #include "many_pops.h"
@@ -108,6 +109,33 @@ inline Session &session()
 {
   return detail::current<Session>();
 }
+
+/* what xpp_model_failed throws while a Load is in progress: the model
+   cannot be loaded (a parse or compile error, already logged) */
+struct LoadFailed {};
+
+/* A load in progress: while it lives the current Model and Session are
+   fresh ones, which the parser and the load's set-up fill (the core is
+   single-threaded: nothing else sees them meanwhile); commit() keeps them
+   and drops the ones before, and a load that never commits (it failed:
+   LoadFailed) puts the ones before back, untouched. The fresh Session
+   keeps the process's AUTO scratch folder. Model and Session memory is
+   never freed while a pointer into it may be held: the old ones go at
+   commit, when the new ones have replaced every use. */
+class Load {
+public:
+  Load();
+  ~Load();
+  Load(const Load &)=delete;
+  Load &operator=(const Load &)=delete;
+  void commit();
+  /* a Load is in progress */
+  static bool running() noexcept { return detail::current_slot<Load>()!=nullptr; }
+private:
+  Model *previous_model;
+  Session *previous_session;
+  bool committed=false;
+};
 
 }
 

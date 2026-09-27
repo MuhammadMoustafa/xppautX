@@ -5,7 +5,8 @@
 
    For now the current Model is reached through xpp::model(); W47d passes
    it explicitly. A load (xpp_batch.cpp's xpp_load_model) builds a new one
-   through ModelLoad below and keeps it only when the load succeeds.
+   with a new Session through xpp::Load (session.h) and keeps them only
+   when the load succeeds.
 
    A Model is what the .ode file defines, and a load is the only thing
    that should write it; what a person changes while working (parameter
@@ -225,22 +226,6 @@ inline Model &model()
   return detail::current<Model>();
 }
 
-/* A load in progress: while it lives the current Model is a fresh one,
-   which the parser fills; commit() keeps it and drops the one before,
-   and a load that never commits (it failed) puts the one before back.
-   Model memory is never freed while a pointer into it may be held: the
-   old one goes at commit, when the new model has replaced every use. */
-class ModelLoad {
-public:
-  ModelLoad();
-  ~ModelLoad();
-  ModelLoad(const ModelLoad &)=delete;
-  ModelLoad &operator=(const ModelLoad &)=delete;
-  void commit();
-private:
-  Model *previous;
-  bool committed=false;
-};
 
 }
 
