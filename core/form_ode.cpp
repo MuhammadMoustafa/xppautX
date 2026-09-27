@@ -1678,7 +1678,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
  xpp::model().neq=nvar+xpp::model().nmarkov+Naux;
  xpp::model().fix_var=nfix;
  NTable=ntab;
- NFUN=nufun;
+ xpp::model().nfun=nufun;
 
 /* Reset all this stuff so we align the indices correctly */
 

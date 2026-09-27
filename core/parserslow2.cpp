@@ -44,9 +44,6 @@ static int SumIndex=1;
 static int stack_pointer,uptr;
 double constants[MAXPAR];
 double variables[MAXODE1];
-std::array<std::vector<int>,MAXUFUN> ufun;
-char *ufun_def[MAXUFUN];
-int narg_fun[MAXUFUN];
 static double stack[200],ustack[200];
 
 std::array<KERNEL,MAXKER> kernel;
@@ -55,9 +52,6 @@ int MaxPoints;
 int NTable;
 
 namespace {
-/* the text behind ufun_def[] (set_ufun_def) */
-std::array<std::string,MAXUFUN> ufun_text;
-
 /* a name the parser knows: its length, what it compiles to (com), its
    number of arguments and its priority */
 struct SYMBOL {
@@ -169,7 +163,7 @@ static std::array<SYMBOL,MAX_SYMBS> my_symb=
    {"BESSELIS",8,COM(FUN2TYPE,21),2,10},/* Bessel I Scaled  # 95 */
       }};
 
-int NCON=0,NFUN=0;
+int NCON=0;
 int NSYM=STDSYM;
 
 /*     pointers to functions    */
@@ -211,7 +205,7 @@ void init_rpn()
 
     ERROUT = 1;
     NCON = 0;
-    NFUN = 0;
+    xpp::model().nfun = 0;
     xpp::model().nvar = 0;
     NKernel=0;
 
@@ -550,7 +544,7 @@ void fixup_endfun(int *u, int l, int narg)
 
 void set_ufun_def(int index, std::string_view def)
 {
-  xpp::keep_c_text(ufun_text[index],ufun_def[index],def);
+  xpp::model().ufun_defs[index]=def;
 }
 
 int add_ufun_new(int index, const char *rhs, std::span<const std::string> args)
@@ -562,18 +556,18 @@ int add_ufun_new(int index, const char *rhs, std::span<const std::string> args)
     return(1);
   }
   /* edit_rhs.cpp rewrites the program in place: MAXEXPLEN commands */
-  ufun[index].assign(MAXEXPLEN,0);
+  xpp::model().ufun_programs[index].assign(MAXEXPLEN,0);
   set_ufun_def(index,"");
   xpp::model().ufun_args[index].assign(args.begin(),args.end());
   set_ufun_arg_names(index);
-  if(add_expr(rhs,ufun[index].data(),&end)==0)
+  if(add_expr(rhs,xpp::model().ufun_programs[index].data(),&end)==0)
     {
       
-      ufun[index][end-1]=ENDFUN;
-      ufun[index][end]=narg;
-      ufun[index][end+1]=ENDEXP;
+      xpp::model().ufun_programs[index][end-1]=ENDFUN;
+      xpp::model().ufun_programs[index][end]=narg;
+      xpp::model().ufun_programs[index][end+1]=ENDEXP;
       set_ufun_def(index,rhs);
-      narg_fun[index]=narg;
+      xpp::model().narg_fun[index]=narg;
       set_old_arg_names(narg);
       return(0);
     } 
@@ -592,34 +586,34 @@ int add_ufun(const char *junk, const char *expr, int narg)
 
  if(duplicate_name(junk)==1)return(1);
  if(name_too_long(junk))return(1);
- if(NFUN>=MAXUFUN)
+ if(xpp::model().nfun>=MAXUFUN)
  {
   if(ERROUT)xpp_log(XPP_LOG_WARN, "too many functions !!\n");
   return(1);
  }
- ufun[NFUN].assign(MAXEXPLEN,0);
- set_ufun_def(NFUN,"");
+ xpp::model().ufun_programs[xpp::model().nfun].assign(MAXEXPLEN,0);
+ set_ufun_def(xpp::model().nfun,"");
 
- if(add_expr(expr,ufun[NFUN].data(),&end)==0)
+ if(add_expr(expr,xpp::model().ufun_programs[xpp::model().nfun].data(),&end)==0)
  {
   set_symbol_name(NSYM,junk,0);
   my_symb[NSYM].pri=10;
   my_symb[NSYM].arg=narg;
-  my_symb[NSYM].com=COM(UFUNTYPE, NFUN);
+  my_symb[NSYM].com=COM(UFUNTYPE, xpp::model().nfun);
   NSYM++;
-  ufun[NFUN][end-1]=ENDFUN;
-  ufun[NFUN][end]=narg;
-  ufun[NFUN][end+1]=ENDEXP;
+  xpp::model().ufun_programs[xpp::model().nfun][end-1]=ENDFUN;
+  xpp::model().ufun_programs[xpp::model().nfun][end]=narg;
+  xpp::model().ufun_programs[xpp::model().nfun][end+1]=ENDEXP;
   /* the definition without its last character */
   std::string_view def(expr);
   if(!def.empty())def.remove_suffix(1);
-  set_ufun_def(NFUN,def);
-  xpp::model().ufun_names[NFUN]=junk;
-  narg_fun[NFUN]=narg;
-  std::vector<std::string> &arg_names=xpp::model().ufun_args[NFUN];
+  set_ufun_def(xpp::model().nfun,def);
+  xpp::model().ufun_names[xpp::model().nfun]=junk;
+  xpp::model().narg_fun[xpp::model().nfun]=narg;
+  std::vector<std::string> &arg_names=xpp::model().ufun_args[xpp::model().nfun];
   arg_names.clear();
   for(i=0;i<narg;i++)arg_names.push_back(xpp::format("ARG{}",i+1));
-  NFUN++;
+  xpp::model().nfun++;
   return(0);
  }
        if(ERROUT)xpp_log(XPP_LOG_WARN, " ERROR IN FUNCTION DEFINITION\n");
@@ -1668,7 +1662,7 @@ double dlt(double x, double y)
 	 
 	    uptr++;
             }
-            PUSH(eval_rpn(ufun[in].data())); 
+            PUSH(eval_rpn(xpp::model().ufun_programs[in].data())); 
 break;
     }
 bye: j=0;

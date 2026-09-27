@@ -89,6 +89,16 @@ struct Model {
   std::array<std::string, MAXUFUN> ufun_names;
   /* each user function's argument names (narg_fun[i] of them) */
   std::array<std::vector<std::string>, MAXUFUN> ufun_args;
+
+  /* ---- the user functions (parserslow2.cpp), nfun of them ---- */
+  int nfun=0;
+  /* each one's argument count */
+  std::array<int,MAXUFUN> narg_fun{};
+  /* each one's formula as typed */
+  std::array<std::string,MAXUFUN> ufun_defs;
+  /* each one compiled: MAXEXPLEN commands, the formula then ENDFUN,
+     its argument count and ENDEXP */
+  std::array<std::vector<int>,MAXUFUN> ufun_programs;
   /* the loaded file's path, as given ("console" for standard input) */
   std::string this_file;
   /* "_<name>" of the internal set last applied, "" when none */

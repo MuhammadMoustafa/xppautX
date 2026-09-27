@@ -293,11 +293,11 @@ void   redo_stuff()
 
 void user_fun_info(FILE *fp)
 {
-  for(int j=0;j<NFUN;j++){
+  for(int j=0;j<xpp::model().nfun;j++){
     std::string line=xpp::format("{}(",xpp::model().ufun_names[j]);
-    for(int i=0;i<narg_fun[j];i++)
-      line+=xpp::format("{}{}",xpp::model().ufun_args[j][i],i<narg_fun[j]-1?",":"");
-    line+=xpp::format(") = {}\n",ufun_def[j]);
+    for(int i=0;i<xpp::model().narg_fun[j];i++)
+      line+=xpp::format("{}{}",xpp::model().ufun_args[j][i],i<xpp::model().narg_fun[j]-1?",":"");
+    line+=xpp::format(") = {}\n",xpp::model().ufun_defs[j]);
     fwrite(line.data(),1,line.size(),fp);
   }
 }

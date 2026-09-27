@@ -26,7 +26,7 @@ core/my_svg.cpp 1
 core/nullcline.cpp 11
 core/numerics.cpp 3
 core/odesol2.cpp 1
-core/parserslow2.cpp 15
+core/parserslow2.cpp 11
 core/setubv2.cpp 1
 core/storage.cpp 4
 core/tabular.cpp 1

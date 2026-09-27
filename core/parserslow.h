@@ -67,11 +67,6 @@ extern "C" {
 /* the longest program add_expr writes (the callers' command arrays) */
 #define MAXEXPLEN 1024
 
-/* the user functions (NFUN of them): argument counts and their
-   definitions as C text (set_ufun_def keeps it); their names and argument
-   names are xpp::Model's (model.h) */
-extern int narg_fun[MAXUFUN];
-extern char *ufun_def[MAXUFUN];
 
 /* the parser's counts and values (parserslow2.cpp's): the model's
    constants (parameters and numbers) and variables as the compiled
@@ -81,7 +76,7 @@ extern char *ufun_def[MAXUFUN];
    numbers' seed */
 extern double constants[MAXPAR];
 extern double variables[MAXODE1];
-extern int NCON,NFUN,NSYM,NDELAYS,NKernel,NTable,MaxPoints;
+extern int NCON,NSYM,NDELAYS,NKernel,NTable,MaxPoints;
 extern int ERROUT,RandSeed;
 
 void init_rpn(void);
@@ -178,9 +173,7 @@ void strlwr(char *s);
 #include <string_view>
 #include <vector>
 
-/* the user functions' programs (MAXEXPLEN commands each) */
-extern std::array<std::vector<int>,MAXUFUN> ufun;
-/* user function index's definition becomes def (ufun_def[index] its text) */
+/* user function index's definition becomes def (Model::ufun_defs) */
 void set_ufun_def(int index, std::string_view def);
 /* user function index with the arguments args and the formula rhs */
 int add_ufun_new(int index, const char *rhs, std::span<const std::string> args);

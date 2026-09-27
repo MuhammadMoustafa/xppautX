@@ -81,19 +81,19 @@ void edit_rhs()
 
 void edit_functions()
 {
- int n=NFUN;
+ int n=xpp::model().nfun;
  if(n==0||n>NEQMAXFOREDIT)return;
  EditBox box;
  for(int i=0;i<n;i++){
    std::string name;
-   if(narg_fun[i]==0)
+   if(xpp::model().narg_fun[i]==0)
      name=xpp::format("{}()",xpp::model().ufun_names[i]);
-   else if(narg_fun[i]==1)
+   else if(xpp::model().narg_fun[i]==1)
      name=xpp::format("{}({})",xpp::model().ufun_names[i],xpp::model().ufun_args[i][0]);
    else
      name=xpp::format("{}({},...,{})",xpp::model().ufun_names[i],xpp::model().ufun_args[i][0],
-                      xpp::model().ufun_args[i][narg_fun[i]-1]);
-   box.add(std::move(name),ufun_def[i]);
+                      xpp::model().ufun_args[i][xpp::model().narg_fun[i]-1]);
+   box.add(std::move(name),xpp::model().ufun_defs[i].c_str());
  }
  if(box.show("Functions")==0)return;
  for(int i=0;i<n;i++){
@@ -101,14 +101,14 @@ void edit_functions()
    int len;
    set_ufun_arg_names(i);
    int err=add_expr(box.value(i),command.data(),&len);
-   set_old_arg_names(narg_fun[i]);
+   set_old_arg_names(xpp::model().narg_fun[i]);
    if(err==1)
      err_msg(xpp::format("Bad func.:{}={}",box.name(i),box.value(i)).c_str());
    else {
      set_ufun_def(i,box.value(i));
      for(int j=0;j<=len;j++)
-       ufun[i][j]=command[j];
-     fixup_endfun(ufun[i].data(),len,narg_fun[i]);
+       xpp::model().ufun_programs[i][j]=command[j];
+     fixup_endfun(xpp::model().ufun_programs[i].data(),len,xpp::model().narg_fun[i]);
    }
  }
 }
@@ -138,8 +138,8 @@ int save_as()
     w.print(" {}={:.16g}   ",xpp::model().upar_names[i],z);
   }
   w.print("\n");
-  for(int i=0;i<NFUN;i++)
-    w.print("user {} {} {}\n",xpp::model().ufun_names[i],narg_fun[i],ufun_def[i]);
+  for(int i=0;i<xpp::model().nfun;i++)
+    w.print("user {} {} {}\n",xpp::model().ufun_names[i],xpp::model().narg_fun[i],xpp::model().ufun_defs[i]);
   for(int i=0;i<xpp::model().node;i++)
     w.print("{} {}\n",xpp::model().eq_type[i]==1?"i":"o",xpp::model().formulas[i]);
   for(int i=xpp::model().node;i<xpp::model().neq;i++)
