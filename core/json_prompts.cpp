@@ -4,6 +4,7 @@
    arrives (docs/protocol.md). Also the messages, and what a long
    computation does between steps (Esc, progress). */
 #include "ui_json_internal.h"
+#include "session.h"
 #include "xpp_inbox.h"
 #include "xpp_job.h"
 #include "xpp_util.h"
@@ -356,8 +357,8 @@ void answer_point(unsigned long win, int k, int *x, int *y)
         *y = data_to_pixel(js_num(jy, 0), Auto.ymin, Auto.ymax, Auto.y0 + Auto.hgt, Auto.y0);
     } else {
         get_draw_area();
-        *x = data_to_pixel(js_num(jx, 0), plot_windows.current->xlo, plot_windows.current->xhi, DLeft, DRight);
-        *y = data_to_pixel(js_num(jy, 0), plot_windows.current->ylo, plot_windows.current->yhi, DBottom, DTop);
+        *x = data_to_pixel(js_num(jx, 0), xpp::session().plot_windows.current->xlo, xpp::session().plot_windows.current->xhi, DLeft, DRight);
+        *y = data_to_pixel(js_num(jy, 0), xpp::session().plot_windows.current->ylo, xpp::session().plot_windows.current->yhi, DBottom, DTop);
     }
 }
 
@@ -374,7 +375,7 @@ int mouse_ask(unsigned long win, const char *kind, int flag, std::span<int> v)
 int j_get_mouse_xy(int *x, int *y)
 {
     std::array<int, 2> v;
-    if (!mouse_ask(plot_windows.draw_win, "mouse", 0, v)) return 0;
+    if (!mouse_ask(xpp::session().plot_windows.draw_win, "mouse", 0, v)) return 0;
     *x = v[0];
     *y = v[1];
     return 1;
@@ -383,7 +384,7 @@ int j_get_mouse_xy(int *x, int *y)
 int j_rubber_band(int *i1, int *j1, int *i2, int *j2, int flag)
 {
     std::array<int, 4> v;
-    if (!mouse_ask(plot_windows.draw_win, "rubber", flag, v)) return 0;
+    if (!mouse_ask(xpp::session().plot_windows.draw_win, "rubber", flag, v)) return 0;
     *i1 = v[0]; *j1 = v[1]; *i2 = v[2]; *j2 = v[3];
     return 1;
 }

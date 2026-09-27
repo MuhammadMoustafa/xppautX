@@ -5,6 +5,7 @@
 #include <deque>
 #include <vector>
 #include "storage.h"
+#include "session.h"
 #include "xpp_ui.h"
 #include "xpp_log.h"
 #include "diagram.h"
@@ -204,7 +205,7 @@ void export_diagram(const char *title, const char *name, const char *wild,
   int type,flag=0;
   std::string filename=name;
   if(!file_selector(title,filename,wild))return;
-  if(!begin(filename.c_str(),plot_export.color))
+  if(!begin(filename.c_str(),xpp::session().plot_export.color))
     return;
   draw_export_axes();
   d=diagram_first();
@@ -304,16 +305,16 @@ extern "C" void load_browser_with_branch(int ibr,int pts,int pte)
       u0=d->u0;
 
       par1=par[icp1];
-      data_store.col[0][j]=par1;
+      xpp::session().data_store.col[0][j]=par1;
       for(i=0;i<xpp::model().node;i++)
-	data_store.col[i+1][j]=u0[i];
+	xpp::session().data_store.col[i+1][j]=u0[i];
       j++;
     }
     d=diagram_next(d);
     if(d==NULL)break;
         
  }
- data_store.rows=nrows;
+ xpp::session().data_store.rows=nrows;
  refresh_browser(nrows);
 }
 void write_init_data_file()

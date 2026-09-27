@@ -10,6 +10,7 @@
 #include <thread>
 #include <vector>
 #include "model.h"
+#include "session.h"
 #include "xpp_util.h"
 #include "storage.h"
 #include "form_ode.h"
@@ -112,7 +113,7 @@ void init_browser()
 {
  
  my_browser.dataflag=0;
- my_browser.data=data_store.col;
+ my_browser.data=xpp::session().data_store.col;
  my_browser.maxcol=xpp::model().neq+1;
  my_browser.maxrow=0;
  my_browser.row0=0;
@@ -151,18 +152,18 @@ void  wipe_rep()
 void data_get(BROWSER *b)
 {
  int i,in=b->row0;
- set_ivar(0,static_cast<double>(data_store.col[0][in]));
+ set_ivar(0,static_cast<double>(xpp::session().data_store.col[0][in]));
  for(i=0;i<xpp::model().node;i++)
  {
-  last_ic[i]=static_cast<double>(data_store.col[i+1][in]);
+  last_ic[i]=static_cast<double>(xpp::session().data_store.col[i+1][in]);
   set_ivar(i+1,last_ic[i]);
  } 
  for(i=0;i<xpp::model().nmarkov;i++){
-   last_ic[i+xpp::model().node]=static_cast<double>(data_store.col[i+xpp::model().node+1][in]);
+   last_ic[i+xpp::model().node]=static_cast<double>(xpp::session().data_store.col[i+xpp::model().node+1][in]);
    set_ivar(i+1+xpp::model().node+xpp::model().fix_var,last_ic[i+xpp::model().node]);
  }
  for(i=xpp::model().node+xpp::model().nmarkov;i<xpp::model().neq;i++)
-   set_val(xpp::model().uvar_names[i],data_store.col[i+1][in]);
+   set_val(xpp::model().uvar_names[i],xpp::session().data_store.col[i+1][in]);
 
  redraw_ics();
 }
@@ -185,7 +186,7 @@ void get_data_xyz(float *x, float *y, float *z, int i1, int i2, int i3, int off)
 
 int check_for_stor(float **data)
 {
- if(data!=data_store.col){
+ if(data!=xpp::session().data_store.col){
    err_msg("Only data can be in browser");
    return(0);
  }
@@ -228,7 +229,7 @@ int add_stor_col(const char *name, const char *formula, BROWSER *b)
   std::vector<int> program(com,com+i+1);
   program.push_back(0);
   set_program(xpp::model().neq+xpp::model().fix_var,std::move(program));
-  data_store.add_column(xpp::model().neq+1);
+  xpp::session().data_store.add_column(xpp::model().neq+1);
   /* the column's name as the browser shows it: at most 79 characters of
      the formula, upper case */
   std::string shown=std::string(formula).substr(0,79);
@@ -238,11 +239,11 @@ int add_stor_col(const char *name, const char *formula, BROWSER *b)
   col_name=name;
   strupr(col_name.data());
   for(i=0;i<b->maxrow;i++)
-    data_store.col[xpp::model().neq+1][i]=0.0;   /*  zero it all   */
+    xpp::session().data_store.col[xpp::model().neq+1][i]=0.0;   /*  zero it all   */
   for(i=0;i<b->maxrow;i++){
-    for(j=0;j<xpp::model().node+1;j++)set_ivar(j,static_cast<double>(data_store.col[j][i]));
-    for(j=xpp::model().node;j<xpp::model().neq;j++)set_val(xpp::model().uvar_names[j],static_cast<double>(data_store.col[j+1][i])); 
-    data_store.col[xpp::model().neq+1][i]=static_cast<float>(evaluate(com));
+    for(j=0;j<xpp::model().node+1;j++)set_ivar(j,static_cast<double>(xpp::session().data_store.col[j][i]));
+    for(j=xpp::model().node;j<xpp::model().neq;j++)set_val(xpp::model().uvar_names[j],static_cast<double>(xpp::session().data_store.col[j+1][i])); 
+    xpp::session().data_store.col[xpp::model().neq+1][i]=static_cast<float>(evaluate(com));
   }
   add_var(xpp::model().uvar_names[xpp::model().neq],0.0);  /*  this could be trouble .... */
   xpp::model().neq++;
@@ -530,11 +531,11 @@ if(status==0)return;
      }
      if(!gotrow)break;
      ++len;
-     if(len>=data_store.max_rows)break;
+     if(len>=xpp::session().data_store.max_rows)break;
     }
   }
   refresh_browser(len);
-  data_store.rows=len;
+  xpp::session().data_store.rows=len;
 }
 
 void data_write(BROWSER *b)

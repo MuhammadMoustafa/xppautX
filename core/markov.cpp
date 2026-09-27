@@ -1,4 +1,5 @@
 #include "xpp_batch.h"
+#include "session.h"
 #include "storage.h"
 #include "xpp_ui.h"
 #include "markov.h"
@@ -428,7 +429,7 @@ static void stats_back(float **stats)
 {
   if(STOCH_HERE){
     new_browse_dat(stats,stoch_len);
-    data_store.rows=stoch_len;
+    xpp::session().data_store.rows=stoch_len;
   }
 }
 
@@ -445,7 +446,7 @@ void variance_back()
 void compute_em()
 {
   double *x;
-  x=&data_store.current[0];
+  x=&xpp::session().data_store.current[0];
   free_stoch();
   STOCH_FLAG=1;
   do_range(x,0);
@@ -478,8 +479,8 @@ void init_stoch(int len)
     my_variance[i]=variance_rows[i].data();
   }
   for(j=0;j<stoch_len;j++){
-    my_mean[0][j]=data_store.col[0][j];
-    my_variance[0][j]=data_store.col[0][j];
+    my_mean[0][j]=xpp::session().data_store.col[0][j];
+    my_variance[0][j]=xpp::session().data_store.col[0][j];
   }
   STOCH_HERE=1;
 }
@@ -492,7 +493,7 @@ void append_stoch(int first, int length)
   if(length!=stoch_len|| !STOCH_HERE)return;
   for(i=0;i<stoch_len;i++){
       for(j=1;j<=xpp::model().neq;j++){
-	z=data_store.col[j][i];
+	z=xpp::session().data_store.col[j][i];
 	my_mean[j][i]=my_mean[j][i]+z;
 	my_variance[j][i]=my_variance[j][i]+z*z;
       }

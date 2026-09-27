@@ -3,6 +3,7 @@
    them (set, default, slide), the data events a client subscribes to, and
    the equations, source and equilibrium windows. */
 #include "model.h"
+#include "session.h"
 #include "ui_json_internal.h"
 #include "load_eqn.h"
 #include "storage.h"
@@ -78,7 +79,7 @@ void send_state(void)
         BUF_LIT(&b, ",\"now\":[");
         for (i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) {
             if (i) BUF_LIT(&b, ",");
-            buf_num(&b, data_store.current[i], 16);
+            buf_num(&b, xpp::session().data_store.current[i], 16);
         }
         BUF_LIT(&b, "]");
     }
@@ -109,17 +110,17 @@ void send_state(void)
     get_draw_area();
     buf_format(&b, ",\"view\":{{\"win\":{:d},\"left\":{:d},\"right\":{:d},\"top\":{:d},\"bottom\":{:d},"
                "\"xlo\":{:g},\"xhi\":{:g},\"ylo\":{:g},\"yhi\":{:g},\"three\":{:d}",
-               plot_windows.draw_win, DLeft, DRight, DTop, DBottom, plot_windows.current->xlo, plot_windows.current->xhi,
-               plot_windows.current->ylo, plot_windows.current->yhi, plot_windows.current->ThreeDFlag);
+               xpp::session().plot_windows.draw_win, DLeft, DRight, DTop, DBottom, xpp::session().plot_windows.current->xlo, xpp::session().plot_windows.current->xhi,
+               xpp::session().plot_windows.current->ylo, xpp::session().plot_windows.current->yhi, xpp::session().plot_windows.current->ThreeDFlag);
     /* a 3D window's angles (view3d); only then are they set at all */
-    if (plot_windows.current->ThreeDFlag && isfinite(plot_windows.current->Theta) && isfinite(plot_windows.current->Phi))
-        buf_format(&b, ",\"theta\":{:g},\"phi\":{:g}", plot_windows.current->Theta, plot_windows.current->Phi);
+    if (xpp::session().plot_windows.current->ThreeDFlag && isfinite(xpp::session().plot_windows.current->Theta) && isfinite(xpp::session().plot_windows.current->Phi))
+        buf_format(&b, ",\"theta\":{:g},\"phi\":{:g}", xpp::session().plot_windows.current->Theta, xpp::session().plot_windows.current->Phi);
     BUF_LIT(&b, "}");
     if (Auto.exist)
         buf_format(&b, ",\"auto\":{{\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"xmin\":{:g},\"xmax\":{:g},"
                    "\"ymin\":{:g},\"ymax\":{:g}}}", Auto.x0, Auto.y0, Auto.wid, Auto.hgt, Auto.xmin, Auto.xmax,
                    Auto.ymin, Auto.ymax);
-    buf_format(&b, ",\"rows\":{:d},\"menu\":{:d},\"win\":{:d}", my_browser.maxrow, help_menu, plot_windows.draw_win);
+    buf_format(&b, ",\"rows\":{:d},\"menu\":{:d},\"win\":{:d}", my_browser.maxrow, help_menu, xpp::session().plot_windows.draw_win);
     if (xpp_session_set_file()[0]) {
         BUF_LIT(&b, ",\"session\":{\"set\":");
         buf_str(&b, xpp_session_set_file());
@@ -381,7 +382,7 @@ void apply_set(const char *line)
             j_err_msg("No prior solution");
             return;
         }
-        get_ic(0, data_store.current); /* integrate.c do_init_data M_IL: last_ic = the current state */
+        get_ic(0, xpp::session().data_store.current); /* integrate.c do_init_data M_IL: last_ic = the current state */
         state_dirty = 1;
         return;
     }

@@ -1,4 +1,5 @@
 #include "model.h"
+#include "session.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "auto_nox.h"
@@ -80,8 +81,8 @@ NOTE: except for the structure MyGraph, it is "x-free" so it
    the job here (xpp_job.h), and a front end may show the run growing */
 static void row_stored(void)
 {
-  xpp_job_rows_stored(data_store.rows, data_store.col[0][data_store.rows-1]);
-  rows_stored(data_store.rows);
+  xpp_job_rows_stored(xpp::session().data_store.rows, xpp::session().data_store.col[0][xpp::session().data_store.rows-1]);
+  rows_stored(xpp::session().data_store.rows);
 }
 #define MSWTCH(u,v) memcpy(static_cast<void *>((u)),static_cast<void *>((v)),xpv.node*sizeof(double))
 
@@ -311,14 +312,14 @@ void cont_integ()
   wipe_rep();
   data_back();
   if(new_float("Continue until:",&tetemp)==-1)return;
-  x=&data_store.current[0];
+  x=&xpp::session().data_store.current[0];
   tetemp=fabs(tetemp);
-  if(fabs(data_store.current_time)>=tetemp)return;
-  dif=tetemp-fabs(data_store.current_time);
+  if(fabs(xpp::session().data_store.current_time)>=tetemp)return;
+  dif=tetemp-fabs(xpp::session().data_store.current_time);
   MyStart=1;  /*  I know it is wasteful to restart, but lets be safe.... */
-  integrate(&data_store.current_time,x,dif,DELTA_T,1,NJMP,&MyStart);
+  integrate(&xpp::session().data_store.current_time,x,dif,DELTA_T,1,NJMP,&MyStart);
   ping();
-  refresh_browser(data_store.rows);
+  refresh_browser(xpp::session().data_store.rows);
 }
 
 namespace {
@@ -566,14 +567,14 @@ void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
   }
   if(stuffbrowse) {
     reset_browser();
-    data_store.rows=0;
+    xpp::session().data_store.rows=0;
     m=fixptlist.n;
     for(i=0;i<m;i++){
-      data_store.col[0][data_store.rows]=static_cast<float>(i);
-      for(j=0;j<xpp::model().node;j++)data_store.col[j+1][data_store.rows]=static_cast<float>(fixptlist.x[i][j]);
-      data_store.rows++;
+      xpp::session().data_store.col[0][xpp::session().data_store.rows]=static_cast<float>(i);
+      for(j=0;j<xpp::model().node;j++)xpp::session().data_store.col[j+1][xpp::session().data_store.rows]=static_cast<float>(fixptlist.x[i][j]);
+      xpp::session().data_store.rows++;
     }
-    refresh_browser(data_store.rows);
+    refresh_browser(xpp::session().data_store.rows);
   }
 }
 
@@ -595,7 +596,7 @@ void do_eq_range(double *x)
  dpar=(parhi-parlo)/static_cast<double>(npar);
  stabcol=eq_range.col;
  mc=eq_range.mc;
- data_store.rows=0;
+ xpp::session().data_store.rows=0;
  DelayErr=0;
  ENDSING=0;
  PAR_FOL=1;
@@ -630,35 +631,35 @@ void do_eq_range(double *x)
 		     xpp::model().node,&ierr,&stabinfo);
         }
         if(eq_range.movie){
-	  draw_label(plot_windows.draw_win);
+	  draw_label(xpp::session().plot_windows.draw_win);
           xpp_ui.put_text(5,10,bob.c_str());
 	  if(xpp_ui.film_clip()==0)err_msg("Out of film");
         }
       }
       if(mc==0){
-      data_store.col[0][data_store.rows]=temp;
-      for(j=0;j<xpp::model().node;j++)data_store.col[j+1][data_store.rows]=static_cast<float>(x[j]);
-      for(j=xpp::model().node;j<xpp::model().node+xpp::model().nmarkov;j++)data_store.col[j+1][data_store.rows]=0.0;
-      if(stabcol>0)data_store.col[stabcol-1][data_store.rows]=stabinfo;
+      xpp::session().data_store.col[0][xpp::session().data_store.rows]=temp;
+      for(j=0;j<xpp::model().node;j++)xpp::session().data_store.col[j+1][xpp::session().data_store.rows]=static_cast<float>(x[j]);
+      for(j=xpp::model().node;j<xpp::model().node+xpp::model().nmarkov;j++)xpp::session().data_store.col[j+1][xpp::session().data_store.rows]=0.0;
+      if(stabcol>0)xpp::session().data_store.col[stabcol-1][xpp::session().data_store.rows]=stabinfo;
 
-      data_store.rows++;
+      xpp::session().data_store.rows++;
       row_stored();}
       if(ENDSING==1)break;
     }
-    refresh_browser(data_store.rows);
+    refresh_browser(xpp::session().data_store.rows);
  PAR_FOL=0;
 }
 
 void swap_color(int *col, int rorw)
 {
- if(rorw)plot_windows.current->color[0]=*col;
- else *col=plot_windows.current->color[0];
+ if(rorw)xpp::session().plot_windows.current->color[0]=*col;
+ else *col=xpp::session().plot_windows.current->color[0];
 }
 
 void set_cycle(int flag, int *icol)
 {
  if(flag==0)return;
- plot_windows.current->color[0]=*icol+1;
+ xpp::session().plot_windows.current->color[0]=*icol+1;
  *icol=*icol+1;
   if(*icol==10)*icol=0;
 } 
@@ -666,7 +667,7 @@ void set_cycle(int flag, int *icol)
 int do_auto_range_go()
 {
   double *x;
-  x=&data_store.current[0];
+  x=&xpp::session().data_store.current[0];
   return(do_range(x,2));
 }
 
@@ -677,7 +678,7 @@ int do_range(double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto
   std::string parn; /* auto_get_info writes the parameter's name */
  int ivar=0,ivar2=0,res=0,oldic=0;
  int nit=20,i=0,j=0,itype=0,itype2=0,cycle=0,icol=0,nit2=0,iii=0;
- int color=plot_windows.current->color[0];
+ int color=xpp::session().plot_windows.current->color[0];
  double t,dpar,plow=0.0,phigh=1.0,p=0.0,plow2=0.0,phigh2=0.0,p2=0.0,dpar2=0.0;
  double temp,temp2;
  int ierr=0;
@@ -704,7 +705,7 @@ int do_range(double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto
  dpar=(phigh-plow)/static_cast<double>(nit);
 
  get_ic(2,x);
- data_store.rows=0;
+ xpp::session().data_store.rows=0;
  STORFLAG=1;
  PAUSER=0;
 nit2=0;
@@ -731,7 +732,7 @@ if(range.type==PARAM)get_val(range.item,&temp);
  for(i=0;i<=nit;i++)
   {
     if(range.movie)clear_draw_window();
-   if(cycle)plot_windows.current->color[0]=icol+1;
+   if(cycle)xpp::session().plot_windows.current->color[0]=icol+1;
    icol++;
    if(icol==10)icol=0;
    t=T0;
@@ -784,13 +785,13 @@ if(range.type==PARAM)get_val(range.item,&temp);
      bob=xpp::format("{:.230}={:.16g}",parn,temp);
      bottom_msg(2,bob.c_str());
    }
-   do_start_flags(x,&data_store.current_time);
-if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
+   do_start_flags(x,&xpp::session().data_store.current_time);
+if(fabs(xpp::session().data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
   {
-    data_store.col[0][data_store.rows]=static_cast<float>(data_store.current_time);
-    extra(x,data_store.current_time,xpp::model().node,xpp::model().neq);
-    for(iii=0;iii<xpp::model().neq;iii++)data_store.col[1+iii][data_store.rows]=static_cast<float>(x[iii]);
-    data_store.rows++;
+    xpp::session().data_store.col[0][xpp::session().data_store.rows]=static_cast<float>(xpp::session().data_store.current_time);
+    extra(x,xpp::session().data_store.current_time,xpp::model().node,xpp::model().neq);
+    for(iii=0;iii<xpp::model().neq;iii++)xpp::session().data_store.col[1+iii][xpp::session().data_store.rows]=static_cast<float>(x[iii]);
+    xpp::session().data_store.rows++;
   }
 
  if(integrate(&t,x,TEND,DELTA_T,1,NJMP,&MyStart)==1){
@@ -798,24 +799,24 @@ if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
    break;
  }
  if(STOCH_FLAG)
-   append_stoch(i,data_store.rows);
+   append_stoch(i,xpp::session().data_store.rows);
 
  if(range.movie){
    xpp_ui.put_text(5,10,bob.c_str());
    redraw_dfield();
 	create_new_cline();
-   draw_label(plot_windows.draw_win);
+   draw_label(xpp::session().plot_windows.draw_win);
    if(xpp_ui.film_clip()==0){err_msg("Out of film");break;}
  }
- refresh_browser(data_store.rows);
+ refresh_browser(xpp::session().data_store.rows);
  if(AdjRange==1){
    bob=xpp::format("{}_{:g}",range.item,p);
-   data_get_mybrowser(data_store.rows-1);
-   compute_one_period(static_cast<double>(data_store.col[0][data_store.rows-1]),last_ic,bob.c_str());
+   data_get_mybrowser(xpp::session().data_store.rows-1);
+   compute_one_period(static_cast<double>(xpp::session().data_store.col[0][xpp::session().data_store.rows-1]),last_ic,bob.c_str());
  }
 
  do_this_liaprun(i,p);  /* sends parameter and index back */
- if(data_store.rows>2)auto_freeze_it();
+ if(xpp::session().data_store.rows>2)auto_freeze_it();
  if(aplot_range==1)
    draw_one_array_plot(bob.c_str());
  
@@ -825,7 +826,7 @@ if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
        post_process_stuff();
        write_this_run(batch_options.out_file.c_str(),i);
      }
-     data_store.rows=0;
+     xpp::session().data_store.rows=0;
    }
   }
  }
@@ -839,7 +840,7 @@ if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
  if(range.rtype>0)
    if(range.type2==PARAM)set_val(range.item2,temp2);
  evaluate_derived();
-plot_windows.current->color[0]=color;
+xpp::session().plot_windows.current->color[0]=color;
  INFLAG=1;
  
  ping();
@@ -882,7 +883,7 @@ void find_equilib_com(int com)
  float stabinfo;
  double *x,oldtrans;
 
- x=&data_store.current[0];
+ x=&xpp::session().data_store.current[0];
  if(FFT||HIST||xpp::model().nkernel>0)return;
 
  STORFLAG=0;
@@ -897,9 +898,9 @@ void find_equilib_com(int com)
    return;
   case 1:
     /*  Get mouse values  */
-        iv=plot_windows.current->xv[0]-1;
-        jv=plot_windows.current->yv[0]-1;
-    if(iv<0||iv>=xpp::model().node||jv<0||jv>=xpp::model().node||plot_windows.current->grtype>=5||jv==iv){
+        iv=xpp::session().plot_windows.current->xv[0]-1;
+        jv=xpp::session().plot_windows.current->yv[0]-1;
+    if(iv<0||iv>=xpp::model().node||jv<0||jv>=xpp::model().node||xpp::session().plot_windows.current->grtype>=5||jv==iv){
       err_msg("Not in useable 2D plane...");
       return;
     }
@@ -1020,14 +1021,14 @@ void batch_integrate_once()
  double *x;
  int i;
   MyStart=1;
-  x=&data_store.current[0];
+  x=&xpp::session().data_store.current[0];
   RANGE_FLAG=0;
   DelayErr=0;
-   data_store.current_time=T0;
+   xpp::session().data_store.current_time=T0;
   
   STORFLAG=1;
   POIEXT=0;
-  data_store.rows=0;
+  xpp::session().data_store.rows=0;
   reset_browser();
  if(batch_options.range==1||STOCH_FLAG>0){
    reset_dae();
@@ -1042,20 +1043,20 @@ void batch_integrate_once()
       /* restart initial data */
       if(do_init_delay(DELAY)==0)return;
     }
-   do_start_flags(x,&data_store.current_time); 
-  if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
+   do_start_flags(x,&xpp::session().data_store.current_time); 
+  if(fabs(xpp::session().data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
     {
-      data_store.col[0][0]=static_cast<float>(data_store.current_time);
-      extra(x,data_store.current_time,xpp::model().node,xpp::model().neq);
-      for(i=0;i<xpp::model().neq;i++)data_store.col[1+i][0]=static_cast<float>(x[i]);
-      data_store.rows=1;
+      xpp::session().data_store.col[0][0]=static_cast<float>(xpp::session().data_store.current_time);
+      extra(x,xpp::session().data_store.current_time,xpp::model().node,xpp::model().neq);
+      for(i=0;i<xpp::model().neq;i++)xpp::session().data_store.col[1+i][0]=static_cast<float>(x[i]);
+      xpp::session().data_store.rows=1;
     }
 
-  if(integrate(&data_store.current_time,x,TEND,DELTA_T,1,NJMP,&MyStart)!=0)
+  if(integrate(&xpp::session().data_store.current_time,x,TEND,DELTA_T,1,NJMP,&MyStart)!=0)
     xpp::log(XPP_LOG_WARN, " Integration not completed -- will write anyway...\n");
 
    INFLAG=1;
-  refresh_browser(data_store.rows);
+  refresh_browser(xpp::session().data_store.rows);
  }
  post_process_stuff();
  if(!batch_options.range || range.reset==0){
@@ -1104,7 +1105,7 @@ void do_init_data(int com)
 
   oldstart=MyStart;
   MyStart=1;
-  x=&data_store.current[0];
+  x=&xpp::session().data_store.current[0];
   RANGE_FLAG=0;
   DelayErr=0;
   reset_dae();
@@ -1117,11 +1118,11 @@ void do_init_data(int com)
 
  data_back();
   wipe_rep();
-  data_store.current_time=T0;
+  xpp::session().data_store.current_time=T0;
  
   STORFLAG=1;
   POIEXT=0;
-  data_store.rows=0;
+  xpp::session().data_store.rows=0;
   reset_browser();
 
   switch(com){
@@ -1142,7 +1143,7 @@ void do_init_data(int com)
     get_ic(0,x);
     if(com==M_IS){
       T0=LastTime;
-      data_store.current_time=T0;
+      xpp::session().data_store.current_time=T0;
     }
     if(METHOD==VOLTERRA&&oldstart==0){
       ch=static_cast<char>(TwoChoice("No","Yes","Reset integrals?","ny"));
@@ -1159,9 +1160,9 @@ void do_init_data(int com)
     break;
   case M_IM:
   case M_II:
-        iv=plot_windows.current->xv[0]-1;
-        jv=plot_windows.current->yv[0]-1;
-    if(iv<0||iv>=xpp::model().node||jv<0||jv>=xpp::model().node||plot_windows.current->grtype>=5||jv==iv){
+        iv=xpp::session().plot_windows.current->xv[0]-1;
+        jv=xpp::session().plot_windows.current->yv[0]-1;
+    if(iv<0||iv>=xpp::model().node||jv<0||jv>=xpp::model().node||xpp::session().plot_windows.current->grtype>=5||jv==iv){
       err_msg("Not in useable 2D plane...");
       return;
     }
@@ -1172,8 +1173,8 @@ void do_init_data(int com)
 	MessageBox("Click on initial data");
 	if(GetMouseXY(&im,&jm)){
 	  scale_to_real(im,jm,&xm,&ym);
-	  im=plot_windows.current->xv[0]-1;
-	  jm=plot_windows.current->yv[0]-1;
+	  im=xpp::session().plot_windows.current->xv[0]-1;
+	  jm=xpp::session().plot_windows.current->yv[0]-1;
 	  x[iv]=static_cast<double>(xm);
 	  x[jv]=static_cast<double>(ym);
 	  last_ic[im]=x[im];
@@ -1199,8 +1200,8 @@ void do_init_data(int com)
 	  badmouse=GetMouseXY(&im,&jm);
 	  if(badmouse==0)break;
 	  scale_to_real(im,jm,&xm,&ym);
-	  im=plot_windows.current->xv[0]-1;
-	  jm=plot_windows.current->yv[0]-1;
+	  im=xpp::session().plot_windows.current->xv[0]-1;
+	  jm=xpp::session().plot_windows.current->yv[0]-1;
 	  x[iv]=static_cast<double>(xm);
 	  x[jv]=static_cast<double>(ym);
 	  last_ic[im]=x[im];
@@ -1210,7 +1211,7 @@ void do_init_data(int com)
 	    if(do_init_delay(DELAY)==0)break;
 	  }
           MyStart=1;
-          data_store.current_time=T0;
+          xpp::session().data_store.current_time=T0;
 	  usual_integrate_stuff(x);
 	}
 	KillMessageBox();
@@ -1291,15 +1292,15 @@ void run_now()
  
   double *x;
  MyStart=1;
- x=&data_store.current[0];
+ x=&xpp::session().data_store.current[0];
  RANGE_FLAG=0;
  DelayErr=0;
  reset_dae();
- data_store.current_time=T0;
+ xpp::session().data_store.current_time=T0;
  get_ic(2,x); 
   STORFLAG=1;
   POIEXT=0;
-  data_store.rows=0;
+  xpp::session().data_store.rows=0;
   reset_browser();
   usual_integrate_stuff(x);
  }
@@ -1316,22 +1317,22 @@ void usual_integrate_stuff(double *x)
 {
   int i;
 
-  do_start_flags(x,&data_store.current_time);
-   if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
+  do_start_flags(x,&xpp::session().data_store.current_time);
+   if(fabs(xpp::session().data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
     {
-      data_store.col[0][0]=static_cast<float>(data_store.current_time);
-      extra(x,data_store.current_time,xpp::model().node,xpp::model().neq);
-      for(i=0;i<xpp::model().neq;i++)data_store.col[1+i][0]=static_cast<float>(x[i]);
-      data_store.rows=1;
+      xpp::session().data_store.col[0][0]=static_cast<float>(xpp::session().data_store.current_time);
+      extra(x,xpp::session().data_store.current_time,xpp::model().node,xpp::model().neq);
+      for(i=0;i<xpp::model().neq;i++)xpp::session().data_store.col[1+i][0]=static_cast<float>(x[i]);
+      xpp::session().data_store.rows=1;
     }
  
   xpp_job_begin(0); /* Abort cancels it (xpp_job.h) */
-  integrate(&data_store.current_time,x,TEND,DELTA_T,1,NJMP,&MyStart);
+  integrate(&xpp::session().data_store.current_time,x,TEND,DELTA_T,1,NJMP,&MyStart);
   xpp_job_end();
   
   ping();
   INFLAG=1;
-  refresh_browser(data_store.rows);
+  refresh_browser(xpp::session().data_store.rows);
   if(program.interactive){
  auto_freeze_it();
   redraw_ics();
@@ -1696,7 +1697,7 @@ if(program.interactive) cwidth=get_command_width();
  if(tscal==0.0)tscal=1.0;
  stor_delay(x);
  /* xppautX: the rows a cancel before the first step finds (xpp_job.h) */
- xpp_job_rows_stored(data_store.rows, data_store.rows > 0 ? data_store.col[0][data_store.rows-1] : *t);
+ xpp_job_rows_stored(xpp::session().data_store.rows, xpp::session().data_store.rows > 0 ? xpp::session().data_store.col[0][xpp::session().data_store.rows-1] : *t);
 
  while(1)
  {
@@ -2102,14 +2103,14 @@ poi:    for(i=0;i<xpp::model().neq;i++)oldx[i]=x[i];
 
 	  }
 
-	   if((STORFLAG==1)&&(count!=0)&&(data_store.rows<data_store.max_rows)&&!(fabs(*t)<TRANS))
+	   if((STORFLAG==1)&&(count!=0)&&(xpp::session().data_store.rows<xpp::session().data_store.max_rows)&&!(fabs(*t)<TRANS))
 	   {
            if(ani_options.on_the_fly)on_the_fly(0);
            for(ieqn=0;ieqn<=xpp::model().neq;ieqn++)
-		 data_store.col[ieqn][data_store.rows]=xv[ieqn];
-	    data_store.rows++;
+		 xpp::session().data_store.col[ieqn][xpp::session().data_store.rows]=xv[ieqn];
+	    xpp::session().data_store.rows++;
 	    row_stored(); /* xppautX: replay stops here, a front end shows the run grow */
-	    if(!(data_store.rows<data_store.max_rows))
+	    if(!(xpp::session().data_store.rows<xpp::session().data_store.max_rows))
             if(stor_full()==0)break;
 	    if((pflag==1)&&(SOS==1))break;
 	   }
@@ -2139,34 +2140,34 @@ void send_output(double *y,double t)
   for(i=0;i<xpp::model().node;i++)
     yy[i]=y[i];
   extra(yy,t,xpp::model().node,xpp::model().neq);
-  if((STORFLAG==1)&&(data_store.rows<data_store.max_rows)){
+  if((STORFLAG==1)&&(xpp::session().data_store.rows<xpp::session().data_store.max_rows)){
     
     for(i=0;i<xpp::model().neq;i++)
-      data_store.col[i+1][data_store.rows]=static_cast<float>(yy[i]);
-    data_store.col[0][data_store.rows]=static_cast<float>(t);
-    data_store.rows++;
+      xpp::session().data_store.col[i+1][xpp::session().data_store.rows]=static_cast<float>(yy[i]);
+    xpp::session().data_store.col[0][xpp::session().data_store.rows]=static_cast<float>(t);
+    xpp::session().data_store.rows++;
     row_stored();
   }
 }
 
   void  do_plot(float *oldxpl, float *oldypl, float *oldzpl, float *xpl, float *ypl, float *zpl)
 {
-	int ip,np=plot_windows.current->nvars;
+	int ip,np=xpp::session().plot_windows.current->nvars;
         
         for(ip=0;ip<np;ip++){
-           if(plot_windows.current->ColorFlag==0){
+           if(xpp::session().plot_windows.current->ColorFlag==0){
 
-	     set_linestyle(plot_windows.current->color[ip]);
+	     set_linestyle(xpp::session().plot_windows.current->color[ip]);
 	   }
-           if(plot_windows.current->line[ip]<=0)
+           if(xpp::session().plot_windows.current->line[ip]<=0)
            {
-	    PointRadius=-plot_windows.current->line[ip];
-	   if(plot_windows.current->ThreeDFlag==0) point_abs(xpl[ip],ypl[ip]);
+	    PointRadius=-xpp::session().plot_windows.current->line[ip];
+	   if(xpp::session().plot_windows.current->ThreeDFlag==0) point_abs(xpl[ip],ypl[ip]);
 	   else point_3d(xpl[ip],ypl[ip],zpl[ip]);
            }
            else
 	   {
-	    if(plot_windows.current->ThreeDFlag==0){
+	    if(xpp::session().plot_windows.current->ThreeDFlag==0){
             
 	      line_abs(oldxpl[ip],oldypl[ip],xpl[ip],ypl[ip]);
 	    }
@@ -2184,7 +2185,7 @@ void send_output(double *y,double t)
 void export_data(FILE *fp)
 {
 
-int ip,np=plot_windows.current->nvars;
+int ip,np=xpp::session().plot_windows.current->nvars;
   int ZSHFT,YSHFT,XSHFT;
   int j,kxoff,kyoff,kzoff;
   int iiXPLT,iiYPLT,iiZPLT;
@@ -2192,9 +2193,9 @@ int ip,np=plot_windows.current->nvars;
   int i1=0;  
   float **data;
   data=get_browser_data();
-  XSHFT=plot_windows.current->xshft;
-  YSHFT=plot_windows.current->yshft;
-  ZSHFT=plot_windows.current->zshft;
+  XSHFT=xpp::session().plot_windows.current->xshft;
+  YSHFT=xpp::session().plot_windows.current->yshft;
+  ZSHFT=xpp::session().plot_windows.current->zshft;
   if(i1<ZSHFT)i1=ZSHFT;
   if(i1<YSHFT)i1=YSHFT;
   if(i1<XSHFT)i1=XSHFT;
@@ -2203,11 +2204,11 @@ int ip,np=plot_windows.current->nvars;
      kzoff=i1-ZSHFT;
      kyoff=i1-YSHFT;
 
-    iiXPLT=plot_windows.current->xv[0];
-    iiYPLT=plot_windows.current->yv[0];
-    if(plot_windows.current->ThreeDFlag>0){
+    iiXPLT=xpp::session().plot_windows.current->xv[0];
+    iiYPLT=xpp::session().plot_windows.current->yv[0];
+    if(xpp::session().plot_windows.current->ThreeDFlag>0){
 
-       iiZPLT=plot_windows.current->zv[0];
+       iiZPLT=xpp::session().plot_windows.current->zv[0];
        for(j=i1;j<strind;j++){
 	 xpp::print(fp,"{:g} {:g} {:g} \n",
 		 data[iiXPLT][kxoff],
@@ -2223,7 +2224,7 @@ int ip,np=plot_windows.current->nvars;
     for(j=i1;j<strind;j++){
       xpp::print(fp,"{:g} ",data[iiXPLT][kxoff]);
       for(ip=0;ip<np;ip++){
-	 iiYPLT=plot_windows.current->yv[ip];
+	 iiYPLT=xpp::session().plot_windows.current->yv[ip];
 	 xpp::print(fp,"{:g} ",data[iiYPLT][kyoff]);
       }
       xpp::print(fp,"\n");
@@ -2245,10 +2246,10 @@ void plot_one_graph(float *xv,float *xvold,int node,int neq,double ddt,int *tc)
  int NPlots,ip;
  float oldxpl[MAXPERPLOT],oldypl[MAXPERPLOT],oldzpl[MAXPERPLOT];
  float xpl[MAXPERPLOT],ypl[MAXPERPLOT],zpl[MAXPERPLOT];
- NPlots=plot_windows.current->nvars;
- IXPLT=plot_windows.current->xv;
- IYPLT=plot_windows.current->yv;
- IZPLT=plot_windows.current->zv;
+ NPlots=xpp::session().plot_windows.current->nvars;
+ IXPLT=xpp::session().plot_windows.current->xv;
+ IYPLT=xpp::session().plot_windows.current->yv;
+ IZPLT=xpp::session().plot_windows.current->zv;
  for(ip=0;ip<xpp::model().neq;ip++){
    if(itor[ip]==1)
      xvold[ip+1]=xvold[ip+1]+tc[ip]*TOR_PERIOD;
@@ -2261,14 +2262,14 @@ void plot_one_graph(float *xv,float *xvold,int node,int neq,double ddt,int *tc)
  ypl[ip]=xv[IYPLT[ip]];
  zpl[ip]=xv[IZPLT[ip]];
  }
- if(plot_windows.current->ColorFlag)
+ if(xpp::session().plot_windows.current->ColorFlag)
    comp_color(xv,xvold,xpp::model().node,static_cast<float>(ddt));
  do_plot(oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
- phase_data_flow_step(NPlots,oldxpl,oldypl,xpl,ypl,plot_windows.current->color); /* Dir.field/flow's Flow as data */
+ phase_data_flow_step(NPlots,oldxpl,oldypl,xpl,ypl,xpp::session().plot_windows.current->color); /* Dir.field/flow's Flow as data */
 }
 void restore(int i1, int i2)
 {
-  int ip,np=plot_windows.current->nvars;
+  int ip,np=xpp::session().plot_windows.current->nvars;
   int ZSHFT,YSHFT,XSHFT;
   int i,j,kxoff,kyoff,kzoff;
   int iiXPLT,iiYPLT,iiZPLT;
@@ -2277,13 +2278,13 @@ void restore(int i1, int i2)
   float **data;
 
   data=get_browser_data();
-  XSHFT=plot_windows.current->xshft;
-  YSHFT=plot_windows.current->yshft;
-  ZSHFT=plot_windows.current->zshft;
+  XSHFT=xpp::session().plot_windows.current->xshft;
+  YSHFT=xpp::session().plot_windows.current->yshft;
+  ZSHFT=xpp::session().plot_windows.current->zshft;
   if(i1<ZSHFT)i1=ZSHFT;
   if(i1<YSHFT)i1=YSHFT;
   if(i1<XSHFT)i1=XSHFT;
-  if(data_store.rows<2)return;
+  if(xpp::session().data_store.rows<2)return;
 
    for(ip=0;ip<np;ip++){
      if (PltFmtFlag==SVGFMT)
@@ -2294,10 +2295,10 @@ void restore(int i1, int i2)
      kzoff=i1-ZSHFT;
      kyoff=i1-YSHFT;
 
-    iiXPLT=plot_windows.current->xv[ip];
-    iiYPLT=plot_windows.current->yv[ip];
-    iiZPLT=plot_windows.current->zv[ip];
-    set_linestyle(plot_windows.current->color[ip]);
+    iiXPLT=xpp::session().plot_windows.current->xv[ip];
+    iiYPLT=xpp::session().plot_windows.current->yv[ip];
+    iiZPLT=xpp::session().plot_windows.current->zv[ip];
+    set_linestyle(xpp::session().plot_windows.current->color[ip]);
     oldxpl=data[iiXPLT][kxoff];
     oldypl=data[iiYPLT][kyoff];
     oldzpl=data[iiZPLT][kzoff];
@@ -2314,7 +2315,7 @@ void restore(int i1, int i2)
 	if (fabs(oldypl-ypl)>static_cast<float>((.5*TOR_PERIOD)))oldypl=ypl;
 	if (fabs(oldzpl-zpl)>static_cast<float>((.5*TOR_PERIOD)))oldzpl=zpl;
       }
-      if(plot_windows.current->ColorFlag!=0&&i>i1){
+      if(xpp::session().plot_windows.current->ColorFlag!=0&&i>i1){
 	  for(j=0;j<=xpp::model().neq;j++){
 	    v1[j]=data[j][i];
 	    v2[j]=data[j][i-1];
@@ -2323,13 +2324,13 @@ void restore(int i1, int i2)
 	  comp_color(v1,v2,xpp::model().node,
 		     static_cast<float>(fabs(data[0][i]-data[0][i+1])));
 	}     /* ignored by postscript */
-      if(plot_windows.current->line[ip]<=0){
-	PointRadius=-plot_windows.current->line[ip];
-	if(plot_windows.current->ThreeDFlag==0)point_abs(xpl,ypl);
+      if(xpp::session().plot_windows.current->line[ip]<=0){
+	PointRadius=-xpp::session().plot_windows.current->line[ip];
+	if(xpp::session().plot_windows.current->ThreeDFlag==0)point_abs(xpl,ypl);
 	else point_3d(xpl,ypl,zpl);
       }
       else {
-	if(plot_windows.current->ThreeDFlag==0)
+	if(xpp::session().plot_windows.current->ThreeDFlag==0)
 	  line_abs(oldxpl,oldypl,xpl,ypl);
 	else
 	  line_3d(oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
@@ -2356,10 +2357,10 @@ void comp_color(float *v1, float *v2, int n, float dt)
 {
  int i,cur_color;
  float sum;
- float min_scale=static_cast<float>((plot_windows.current->min_scale));
- float color_scale=static_cast<float>((plot_windows.current->color_scale));
- if(plot_windows.current->ColorFlag==2){
-   sum=v1[plot_windows.current->ColorValue];
+ float min_scale=static_cast<float>((xpp::session().plot_windows.current->min_scale));
+ float color_scale=static_cast<float>((xpp::session().plot_windows.current->color_scale));
+ if(xpp::session().plot_windows.current->ColorFlag==2){
+   sum=v1[xpp::session().plot_windows.current->ColorValue];
  }
  else
    {
@@ -2409,9 +2410,9 @@ int stor_full()
 {
 
  char ch;
- int nrow=2*data_store.max_rows;
- if(data_store.grow(xpp::model().neq+1,nrow)){
-   data_store.max_rows=nrow;
+ int nrow=2*xpp::session().data_store.max_rows;
+ if(xpp::session().data_store.grow(xpp::model().neq+1,nrow)){
+   xpp::session().data_store.max_rows=nrow;
    return 1;
  }
 
@@ -2426,7 +2427,7 @@ int stor_full()
  if(ch=='y')
  {
 ov:
-  data_store.rows=0;
+  xpp::session().data_store.rows=0;
   return(1);
  }
   return(0);

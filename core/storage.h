@@ -33,7 +33,8 @@ void alloc_meth(void);
    in use), read and written as data_store.col[column][row]; and the point
    where the last run ended. storage.cpp owns it; the data browser shows it
    (browse_data.cpp) unless another data set (a histogram, the Fourier
-   modes, the adjoint) is shown in its place. */
+   modes, the adjoint) is shown in its place. The Session holds it
+   (session.h). */
 struct DataStore {
   float **col = nullptr; /* col[c] is column c, max_rows floats */
   int rows = 0;          /* rows stored so far */
@@ -56,9 +57,12 @@ struct DataStore {
      stay the store's (dst must not free them, and they are only valid
      until the store grows). */
   void lend_columns(float **dst, int from, int to) const;
+private:
+  /* the columns' memory, and the table of their addresses col points at
+     (fixed, so a pointer to it stays valid) */
+  std::vector<std::vector<float>> columns_;
+  std::array<float *, MAXODE + 1> table_{};
 };
-
-extern DataStore data_store;
 
 /* A derived data set's columns (a histogram, the Fourier modes, the
    adjoint, its H function, the transposed data): n columns of its own,

@@ -10,6 +10,7 @@
    triangular distribution over an arithmetic sequence), so it is checked
    exactly. */
 #include "xpptest.h"
+#include "session.h"
 #include "storage.h"
 #include "browse.h"
 #include "graphics.h"
@@ -24,7 +25,7 @@ namespace {
 double column_mean(int col, int n)
 {
     double s = 0;
-    for (int i = 0; i < n; i++) s += data_store.col[col][i];
+    for (int i = 0; i < n; i++) s += xpp::session().data_store.col[col][i];
     return s / n;
 }
 
@@ -32,7 +33,7 @@ double column_var(int col, int n, double mean)
 {
     double s = 0;
     for (int i = 0; i < n; i++) {
-        double d = data_store.col[col][i] - mean;
+        double d = xpp::session().data_store.col[col][i] - mean;
         s += d * d;
     }
     return s / n;
@@ -49,7 +50,7 @@ int main(void)
     init_all_graph();
     batch_integrate();
 
-    int n = data_store.rows;
+    int n = xpp::session().data_store.rows;
     CHECK(n > 3900); /* total=4000, dt=1: ~4001 rows */
 
     int rcol = -1, ncol = -1, wcol = -1;

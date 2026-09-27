@@ -43,7 +43,7 @@
 
 namespace xpp::json {
 
-Session session;
+ProtocolSession session;
 
 /* exit 1 for a script that hit an error or an unmatched ask
    (docs/protocol.md "Scripts"), else as always, 0 */

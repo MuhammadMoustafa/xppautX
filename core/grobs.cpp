@@ -3,6 +3,7 @@
    the window handling itself stays in the front end. What draw_label draws
    is also reported as data (marks_data.h). */
 #include "xpp_ui.h"
+#include "session.h"
 #include "xpp_util.h"
 #include "menus.h"
 #include "graphics.h"
@@ -45,7 +46,7 @@ int add_label(const char *s, int x, int y, int size, int font)
             lb[i].use = 1;
             lb[i].x = xp;
             lb[i].y = yp;
-            lb[i].w = plot_windows.draw_win;
+            lb[i].w = xpp::session().plot_windows.draw_win;
             lb[i].font = font;
             lb[i].size = size;
             lb[i].s = s;
@@ -94,8 +95,8 @@ void draw_marker(double xd, double yd, double size, int type)
         1, 1, 3, 3, 0, 0, 3, 0, 0, 3, 0, 0,
     };
     float x1 = static_cast<float>(xd), y1 = static_cast<float>(yd), x2, y2;
-    const float dx = static_cast<float>((plot_windows.current->xhi - plot_windows.current->xlo) * WDMARK * size);
-    const float dy = static_cast<float>((plot_windows.current->yhi - plot_windows.current->ylo) * HTMARK * size);
+    const float dx = static_cast<float>((xpp::session().plot_windows.current->xhi - xpp::session().plot_windows.current->xlo) * WDMARK * size);
+    const float dy = static_cast<float>((xpp::session().plot_windows.current->yhi - xpp::session().plot_windows.current->ylo) * HTMARK * size);
     for (int ind = 0;; ind++) {
         const int offset = 48 * type + 3 * ind;
         const int pen = sym_dir[offset];
@@ -123,7 +124,7 @@ void arrow_head(double xsd, double ysd, double xed, double yed, double size)
     const float xs = static_cast<float>(xsd), ys = static_cast<float>(ysd);
     const float xe = static_cast<float>(xed), ye = static_cast<float>(yed);
     const float l = xe - xs, h = ye - ys;
-    const float ar = static_cast<float>((plot_windows.current->xhi - plot_windows.current->xlo) / (plot_windows.current->yhi - plot_windows.current->ylo));
+    const float ar = static_cast<float>((xpp::session().plot_windows.current->xhi - xpp::session().plot_windows.current->xlo) / (xpp::session().plot_windows.current->yhi - xpp::session().plot_windows.current->ylo));
     const float x0 = static_cast<float>(xs + size * l), y0 = static_cast<float>(ys + size * h);
     const float xp = static_cast<float>(x0 + .5 * size * h * ar), yp = static_cast<float>(y0 - .5 * size * l / ar);
     const float xm = static_cast<float>(x0 - .5 * size * h * ar), ym = static_cast<float>(y0 + .5 * size * l / ar);
@@ -182,7 +183,7 @@ void add_grob(double xs, double ys, double xe, double ye, double size, int type,
             grob[i].xe = static_cast<float>(xe);
             grob[i].ys = static_cast<float>(ys);
             grob[i].ye = static_cast<float>(ye);
-            grob[i].w = plot_windows.draw_win;
+            grob[i].w = xpp::session().plot_windows.draw_win;
             grob[i].size = size;
             grob[i].color = color;
             grob[i].type = type;
@@ -269,8 +270,8 @@ static void add_markers_at(int number, int start, int skip, double size, int typ
 {
     float xs, ys, x, y, z;
     for (int i = 0; i < number; i++) {
-        get_data_xyz(&x, &y, &z, plot_windows.current->xv[0], plot_windows.current->yv[0], plot_windows.current->zv[0], start + i * skip);
-        if (plot_windows.current->ThreeDFlag == 0) {
+        get_data_xyz(&x, &y, &z, xpp::session().plot_windows.current->xv[0], xpp::session().plot_windows.current->yv[0], xpp::session().plot_windows.current->zv[0], start + i * skip);
+        if (xpp::session().plot_windows.current->ThreeDFlag == 0) {
             xs = x;
             ys = y;
         } else {
@@ -325,7 +326,7 @@ void edit_object_com(int com)
     /* now search all labels to find the best */
     type = 0; /* label =  0, arrows, etc =1 */
     for (i = 0; i < MAXLAB; i++) {
-        if (lb[i].use == 1 && lb[i].w == plot_windows.draw_win) {
+        if (lb[i].use == 1 && lb[i].w == xpp::session().plot_windows.draw_win) {
             dd = (x - lb[i].x) * (x - lb[i].x) + (y - lb[i].y) * (y - lb[i].y);
             if (dd < dist) {
                 ilab = i;
@@ -334,7 +335,7 @@ void edit_object_com(int com)
         }
     }
     for (i = 0; i < MAXGROB; i++) {
-        if (grob[i].use == 1 && grob[i].w == plot_windows.draw_win) {
+        if (grob[i].use == 1 && grob[i].w == xpp::session().plot_windows.draw_win) {
             dd = (x - grob[i].xs) * (x - grob[i].xs) + (y - grob[i].ys) * (y - grob[i].ys);
             if (dd < dist) {
                 ilab = i;
@@ -447,7 +448,7 @@ void do_gr_objs_com(int com)
         add_markers();
         break;
     case 5:
-        destroy_labels_and_grobs(plot_windows.draw_win);
+        destroy_labels_and_grobs(xpp::session().plot_windows.draw_win);
         clr_scrn();
         redraw_all();
         break;
@@ -476,7 +477,7 @@ void do_windows_com(int c)
         set_restore(1);
         break;
     case 6:
-        plot_windows.simul = 1 - plot_windows.simul;
+        xpp::session().plot_windows.simul = 1 - xpp::session().plot_windows.simul;
         break;
     }
     set_active_windows();
@@ -485,8 +486,8 @@ void do_windows_com(int c)
 void set_restore(int flag)
 {
     for (int i = 0; i < MAXPOP; i++) {
-        if (plot_windows.graph[i].w == plot_windows.draw_win) {
-            plot_windows.graph[i].Nullrestore = flag;
+        if (xpp::session().plot_windows.graph[i].w == xpp::session().plot_windows.draw_win) {
+            xpp::session().plot_windows.graph[i].Nullrestore = flag;
             return;
         }
     }

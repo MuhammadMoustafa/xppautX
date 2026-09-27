@@ -1,4 +1,5 @@
 #include "model.h"
+#include "session.h"
 #include "integrate.h"
 #include "storage.h"
 #include "form_ode.h"
@@ -1100,7 +1101,7 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     if(icp1!=Auto.icp1)break;
     if(flag2>0&&Auto.icp2!=icp2)break;
 
-    if(plot_export.color){
+    if(xpp::session().plot_export.color){
       set_linestyle(1);
       if(flag2>0)pscolset2(flag2);
     }
@@ -1113,7 +1114,7 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     if(icp1!=Auto.icp1)break;
     if(flag2>0&&Auto.icp2!=icp2)break;
     if(Auto.plot!=P_P)
-      {if(plot_export.color) set_linestyle(0);else set_linestyle(4);}
+      {if(xpp::session().plot_export.color) set_linestyle(0);else set_linestyle(4);}
     else
       {
 	pscolset2(flag2);
@@ -1122,7 +1123,7 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     line_abs(static_cast<float>(x),static_cast<float>(y1),static_cast<float>(Auto.lastx),static_cast<float>(Auto.lasty));
     break;
   case UPER:
-    if(plot_export.color) 
+    if(xpp::session().plot_export.color) 
       set_linestyle(9); 
     else 
       set_linestyle(0);
@@ -1133,7 +1134,7 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     point_abs(static_cast<float>(x),static_cast<float>(y2));
     break;
   case SPER:
-    if(plot_export.color)
+    if(xpp::session().plot_export.color)
       set_linestyle(7);
     else
       set_linestyle(0);
@@ -1648,7 +1649,7 @@ void auto_grab()
 
 void get_start_period(double *p)
 {
- *p=data_store.col[0][data_store.rows-1];
+ *p=xpp::session().data_store.col[0][xpp::session().data_store.rows-1];
 }
 void find_best_homo_shift(int n)
 /* this code looks for the best value
@@ -1661,14 +1662,14 @@ void find_best_homo_shift(int n)
   double dmin=10000.0;
   double d;
   double tshift=0.0;
-  for(i=0;i<data_store.rows;i++){
+  for(i=0;i<xpp::session().data_store.rows;i++){
     d=0.0;
     for(j=0;j<n;j++){
-      d+=fabs(data_store.col[j+1][i]-homo_l[j]);
+      d+=fabs(xpp::session().data_store.col[j+1][i]-homo_l[j]);
     }
     if(d<dmin){
       dmin=d;
-      tshift=data_store.col[0][i];
+      tshift=xpp::session().data_store.col[0][i];
     }
   }
   HOMO_SHIFT=tshift;
@@ -1682,14 +1683,14 @@ void get_shifted_orbit(double *u, double t, double p, int n)
   if(t>1.0)t-=1.0;
   if(t<0.0)t+=1.0;
   ts=fmod(t*p+HOMO_SHIFT,p);
-  for(i=0;i<data_store.rows;i++){
-    ip=(i+1)%data_store.rows;
-    if((ts>=data_store.col[0][i])&&(ts<data_store.col[0][ip])){
+  for(i=0;i<xpp::session().data_store.rows;i++){
+    ip=(i+1)%xpp::session().data_store.rows;
+    if((ts>=xpp::session().data_store.col[0][i])&&(ts<xpp::session().data_store.col[0][ip])){
       i1=i;
       i2=ip;
-      lam=ts-data_store.col[0][i];
+      lam=ts-xpp::session().data_store.col[0][i];
       for(j=0;j<n;j++)
-	u[j]=(1.0-lam)*data_store.col[j+1][i1]+lam*data_store.col[j+1][i2];
+	u[j]=(1.0-lam)*xpp::session().data_store.col[j+1][i1]+lam*xpp::session().data_store.col[j+1][i2];
       break;
     }
   }
@@ -1700,14 +1701,14 @@ void get_start_orbit(double *u, double t, double p, int n)
   int i1,i2,j;
   if(t>1.0)t-=1.0;
   if(t<0.0)t+=1.0;
-  tnorm=t*(data_store.rows-1);
+  tnorm=t*(xpp::session().data_store.rows-1);
   i1=static_cast<int>(tnorm);
   i2=i1+1;
-  if(i2>=data_store.rows)i2-=data_store.rows;
+  if(i2>=xpp::session().data_store.rows)i2-=xpp::session().data_store.rows;
   lam=(tnorm-static_cast<double>(i1));
 
    for(j=0;j<n;j++)
-    u[j]=(1.0-lam)*data_store.col[j+1][i1]+lam*data_store.col[j+1][i2];
+    u[j]=(1.0-lam)*xpp::session().data_store.col[j+1][i1]+lam*xpp::session().data_store.col[j+1][i2];
 }
   
 void auto_start_choice()
@@ -2527,23 +2528,23 @@ void load_auto_orbit()
     auto_err("Cant find labeled pt");
     return;
   }
-  x=&data_store.current[0];
+  x=&xpp::session().data_store.current[0];
   for(i=0;i<nrow;i++){
     get_a_row(u,&t,ndim,fp.get());
     if(Auto.ips!=4) 
-      data_store.col[0][i]=t*period;
+      xpp::session().data_store.col[0][i]=t*period;
     else
-      data_store.col[0][i]=t;
+      xpp::session().data_store.col[0][i]=t;
 
     for(j=0;j<nstor;j++){
-      data_store.col[j+1][i]=u[j];
+      xpp::session().data_store.col[j+1][i]=u[j];
       x[j]=u[j];
     }
-    extra(x,static_cast<double>(data_store.col[0][i]),nstor,xpp::model().neq);
+    extra(x,static_cast<double>(xpp::session().data_store.col[0][i]),nstor,xpp::model().neq);
     for(j=nstor;j<xpp::model().neq;j++)
-      data_store.col[j+1][i]=static_cast<float>(x[j]);
+      xpp::session().data_store.col[j+1][i]=static_cast<float>(x[j]);
   }
-  data_store.rows=nrow;
+  xpp::session().data_store.rows=nrow;
   refresh_browser(nrow);
   /* insert auxiliary stuff here */
   if(load_all_labeled_orbits==2)clr_all_scrns();

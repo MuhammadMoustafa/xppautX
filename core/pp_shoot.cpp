@@ -1,4 +1,5 @@
 #include "model.h"
+#include "session.h"
 #include "xpp_ui.h"
 #include "storage.h"
 #include "xpp_util.h"
@@ -146,7 +147,7 @@ void do_sh_range(double *ystart, double *yend)
  dpar=(parhi-parlo)/static_cast<double>(npar);
  side=shoot_range.side;
  cycle=shoot_range.cycle;
- data_store.rows=0;
+ xpp::session().data_store.rows=0;
  icol=0;
  if(shoot_range.movie==1)
    reset_film();
@@ -164,21 +165,21 @@ void do_sh_range(double *ystart, double *yend)
      if(ierr<0){ 
        bad_shoot(ierr);
 
-       refresh_browser(data_store.rows);
+       refresh_browser(xpp::session().data_store.rows);
        swap_color(&color,1);
        return;
      }
-     data_store.col[0][data_store.rows]=temp;
-     if(side==0)for(j=0;j<xpp::model().node;j++)data_store.col[j+1][data_store.rows]=ystart[j];
-     else for(j=0;j<xpp::model().node;j++)data_store.col[j+1][data_store.rows]=yend[j];
-     data_store.rows++;
+     xpp::session().data_store.col[0][xpp::session().data_store.rows]=temp;
+     if(side==0)for(j=0;j<xpp::model().node;j++)xpp::session().data_store.col[j+1][xpp::session().data_store.rows]=ystart[j];
+     else for(j=0;j<xpp::model().node;j++)xpp::session().data_store.col[j+1][xpp::session().data_store.rows]=yend[j];
+     xpp::session().data_store.rows++;
      set_cycle(cycle,&icol);
      get_ic(0,ystart);
      last_shot(0);
      if(shoot_range.movie==1)xpp_ui.film_clip();
      ping();
    }
-  refresh_browser(data_store.rows);
+  refresh_browser(xpp::session().data_store.rows);
   auto_freeze_it();     
  swap_color(&color,1);
 
@@ -278,7 +279,7 @@ void find_bvp_com(int com)
  }
  last_shot(1);
  INFLAG=1;
- refresh_browser(data_store.rows);
+ refresh_browser(xpp::session().data_store.rows);
  auto_freeze_it();
  ping();
 }
@@ -292,19 +293,19 @@ void last_shot(int flag)
 {
  int i;
  double *x;
- x=&data_store.current[0];
+ x=&xpp::session().data_store.current[0];
  MyStart=1;
  get_ic(2,x);
  STORFLAG=flag;
- data_store.current_time=T0;
+ xpp::session().data_store.current_time=T0;
  if(flag){
-  data_store.col[0][0]=static_cast<float>(T0);
+  xpp::session().data_store.col[0][0]=static_cast<float>(T0);
   extra(x,T0,xpp::model().node,xpp::model().neq);
-  for(i=0;i<xpp::model().neq;i++)data_store.col[1+i][0]=static_cast<float>(x[i]);
-  data_store.rows=1;
+  for(i=0;i<xpp::model().neq;i++)xpp::session().data_store.col[1+i][0]=static_cast<float>(x[i]);
+  xpp::session().data_store.rows=1;
 
 }
- integrate(&data_store.current_time,x,TEND,DELTA_T,1,NJMP,&MyStart);
+ integrate(&xpp::session().data_store.current_time,x,TEND,DELTA_T,1,NJMP,&MyStart);
 }
 
 int set_up_sh_range()

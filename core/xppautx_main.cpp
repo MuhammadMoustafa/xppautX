@@ -30,6 +30,7 @@
    on stderr too; xpp_log_parse_arg() also recognizes xpp_batch_main's
    own argv, so they work with -silent as well. */
 #include "model.h"
+#include "session.h"
 #include "xpp_batch.h"
 #include "xpp_globals.h"
 #include "xpp_log.h"
@@ -133,16 +134,16 @@ static void init_main_graph(void)
         grob[i].use = 0;
     }
     init_bd();
-    for (i = 0; i < MAXFRZ; i++) frozen_curves.curve[i].use = 0;
-    for (i = 0; i < MAXPOP; i++) plot_windows.graph[i].Use = 0;
-    plot_windows.open[0] = 0;
+    for (i = 0; i < MAXFRZ; i++) xpp::session().frozen_curves.curve[i].use = 0;
+    for (i = 0; i < MAXPOP; i++) xpp::session().plot_windows.graph[i].Use = 0;
+    xpp::session().plot_windows.open[0] = 0;
     init_all_graph();
-    plot_windows.graph[0].w = 1;
-    plot_windows.graph[0].Use = 1;
-    plot_windows.graph[0].Nullrestore = 1;
-    plot_windows.count = 1;
-    plot_windows.draw_win = plot_windows.graph[0].w;
-    plot_windows.active = 0;
+    xpp::session().plot_windows.graph[0].w = 1;
+    xpp::session().plot_windows.graph[0].Use = 1;
+    xpp::session().plot_windows.graph[0].Nullrestore = 1;
+    xpp::session().plot_windows.count = 1;
+    xpp::session().plot_windows.draw_win = xpp::session().plot_windows.graph[0].w;
+    xpp::session().plot_windows.active = 0;
     get_draw_area();
 }
 

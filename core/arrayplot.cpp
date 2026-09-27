@@ -1,4 +1,5 @@
 #include "model.h"
+#include "session.h"
 #include "arrayplot.h"
 #include "storage.h"
 #include "xpp_ui.h"
@@ -73,7 +74,7 @@ void set_up_aplot_range(void)
    aplot_tag=atoi(values[2].c_str());
  aplot_range=1;
  aplot_range_count=0;
- x=&data_store.current[0];
+ x=&xpp::session().data_store.current[0];
  do_range(x,0);
  }
 }

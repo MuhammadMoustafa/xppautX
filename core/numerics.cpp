@@ -1,5 +1,6 @@
 
 #include "xpp_ui.h"
+#include "session.h"
 #include "xpp_util.h"
 #include "adj2.h"
 #include "integrate.h"
@@ -291,12 +292,12 @@ void set_delay()
 
 void ruelle()
 {
-   new_int("x-axis shift ",&(plot_windows.current->xshft));
-   new_int("y-axis shift ",&(plot_windows.current->yshft));
-   new_int("z-axis shift",&(plot_windows.current->zshft));
-   if(plot_windows.current->xshft<0)plot_windows.current->xshft=0;
-   if(plot_windows.current->yshft<0)plot_windows.current->yshft=0;
-   if(plot_windows.current->zshft<0)plot_windows.current->zshft=0;
+   new_int("x-axis shift ",&(xpp::session().plot_windows.current->xshft));
+   new_int("y-axis shift ",&(xpp::session().plot_windows.current->yshft));
+   new_int("z-axis shift",&(xpp::session().plot_windows.current->zshft));
+   if(xpp::session().plot_windows.current->xshft<0)xpp::session().plot_windows.current->xshft=0;
+   if(xpp::session().plot_windows.current->yshft<0)xpp::session().plot_windows.current->yshft=0;
+   if(xpp::session().plot_windows.current->zshft<0)xpp::session().plot_windows.current->zshft=0;
 }
 
 void compute_one_period(double period,double *x,const char *name)
@@ -305,7 +306,7 @@ void compute_one_period(double period,double *x,const char *name)
   double ot=TRANS,ote=TEND;
   TRANS=0;
   T0=0;
-  data_store.current_time=0;
+  xpp::session().data_store.current_time=0;
   TEND=period;
   POIMAP=0; /* turn off poincare map */
   reset_browser();
@@ -402,31 +403,31 @@ void get_method()
 void user_set_color_par(int flag,const char *via,double lo,double hi)
 {
   int ivar;
-   plot_windows.current->min_scale=lo;
+   xpp::session().plot_windows.current->min_scale=lo;
   if(hi>lo)
-    plot_windows.current->color_scale=(hi-lo);
+    xpp::session().plot_windows.current->color_scale=(hi-lo);
   else
-    plot_windows.current->color_scale=1;
+    xpp::session().plot_windows.current->color_scale=1;
   
   if(strncasecmp("speed",via,5)==0)
     {
-      plot_windows.current->ColorFlag=1;
+      xpp::session().plot_windows.current->ColorFlag=1;
     }
   else
     {
       find_variable(via,&ivar);
       if(ivar>=0){
-	plot_windows.current->ColorValue=ivar;
-	plot_windows.current->ColorFlag=2;
+	xpp::session().plot_windows.current->ColorValue=ivar;
+	xpp::session().plot_windows.current->ColorFlag=2;
       }
       else
 	{
-	  plot_windows.current->ColorFlag=0; /* no valid colorizing */
+	  xpp::session().plot_windows.current->ColorFlag=0; /* no valid colorizing */
 
 	}
     }
   if(flag==0){ /* force overwrite  */
-    plot_windows.current->ColorFlag=0;
+    xpp::session().plot_windows.current->ColorFlag=0;
   
   }
 
@@ -438,22 +439,22 @@ void set_col_par_com(int i)
     double temp[2];
     float maxder=0.0,minder=0.0,sum=0.0;
     char ch;
-   plot_windows.current->ColorFlag=i;
-   if(plot_windows.current->ColorFlag==0){
+   xpp::session().plot_windows.current->ColorFlag=i;
+   if(xpp::session().plot_windows.current->ColorFlag==0){
    /* set color to black/white */
     return;
     }
-    if(plot_windows.current->ColorFlag==2){
-      std::string name=ind_to_sym(plot_windows.current->ColorValue);
+    if(xpp::session().plot_windows.current->ColorFlag==2){
+      std::string name=ind_to_sym(xpp::session().plot_windows.current->ColorValue);
       new_string_of("Color via:",name,XPP_FIELD_NAME_IN(0));
       find_variable(name.c_str(),&ivar);
 
       if(ivar>=0)
-	plot_windows.current->ColorValue=ivar;
+	xpp::session().plot_windows.current->ColorValue=ivar;
       else{
 	
 	err_msg("No such quantity!");
-	plot_windows.current->ColorFlag=0;
+	xpp::session().plot_windows.current->ColorFlag=0;
 	return;
       }
     }
@@ -463,24 +464,24 @@ void set_col_par_com(int i)
  
     if(ch=='c')
     {
-     temp[0]=plot_windows.current->min_scale;
-     temp[1]=plot_windows.current->min_scale+plot_windows.current->color_scale;
+     temp[0]=xpp::session().plot_windows.current->min_scale;
+     temp[1]=xpp::session().plot_windows.current->min_scale+xpp::session().plot_windows.current->color_scale;
      new_float("Min :",&temp[0]);
      new_float("Max :",&temp[1]);
-     if(temp[1]>temp[0]&&((plot_windows.current->ColorFlag==2)
-     ||(plot_windows.current->ColorFlag==1&&temp[0]>=0.0)))
+     if(temp[1]>temp[0]&&((xpp::session().plot_windows.current->ColorFlag==2)
+     ||(xpp::session().plot_windows.current->ColorFlag==1&&temp[0]>=0.0)))
      {
-      plot_windows.current->min_scale=temp[0];
-      plot_windows.current->color_scale=(temp[1]-temp[0]);
+      xpp::session().plot_windows.current->min_scale=temp[0];
+      xpp::session().plot_windows.current->color_scale=(temp[1]-temp[0]);
      }
      else{
        err_msg("Min>=Max or Min<0 error");
      }
      return;
     }
-    if(plot_windows.current->ColorFlag==1)
+    if(xpp::session().plot_windows.current->ColorFlag==1)
     {
-    if(data_store.rows<2)return;
+    if(xpp::session().data_store.rows<2)return;
     maxder=0.0;
     minder=1.e20;
   for(i=1;i<my_browser.maxrow;i++)
@@ -493,16 +494,16 @@ void set_col_par_com(int i)
   }
   if(minder>=0.0&&maxder>minder)
   {
-   plot_windows.current->color_scale=(maxder-minder)/(fabs(DELTA_T*NJMP));
-   plot_windows.current->min_scale=minder/(fabs(DELTA_T*NJMP));
+   xpp::session().plot_windows.current->color_scale=(maxder-minder)/(fabs(DELTA_T*NJMP));
+   xpp::session().plot_windows.current->min_scale=minder/(fabs(DELTA_T*NJMP));
   }
  }
  else
  {
-  get_max(plot_windows.current->ColorValue,&temp[0],&temp[1]);
-  plot_windows.current->min_scale=temp[0];
-  plot_windows.current->color_scale=(temp[1]-temp[0]);
-  if(plot_windows.current->color_scale==0.0)plot_windows.current->color_scale=1.0;
+  get_max(xpp::session().plot_windows.current->ColorValue,&temp[0],&temp[1]);
+  xpp::session().plot_windows.current->min_scale=temp[0];
+  xpp::session().plot_windows.current->color_scale=(temp[1]-temp[0]);
+  if(xpp::session().plot_windows.current->color_scale==0.0)xpp::session().plot_windows.current->color_scale=1.0;
  }
   
 }

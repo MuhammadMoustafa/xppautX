@@ -4,6 +4,7 @@
    through the same code. Menus are data (menus.c) and are shown with
    menu_choose(); see xpp_ui.h. */
 #include "xpp_ui.h"
+#include "session.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
@@ -371,7 +372,7 @@ void new_lookup(void)
 
 void do_windows(void)
 {
-  menu_run(plot_windows.simul == 0 ? &menu_windows : &menu_windows_simoff, 0);
+  menu_run(xpp::session().plot_windows.simul == 0 ? &menu_windows : &menu_windows_simoff, 0);
 }
 
 void do_gr_objs(void)
@@ -393,7 +394,7 @@ void add_a_curve(void)
   if (i < 0) return;
   switch (menu_curves.keys[i]) {
   case 'f':
-    j = menu_pick(frozen_curves.auto_freeze == 0 ? &menu_freeze : &menu_freeze_off, 0);
+    j = menu_pick(xpp::session().frozen_curves.auto_freeze == 0 ? &menu_freeze : &menu_freeze_off, 0);
     if (j < 0) break;
     if (menu_freeze.keys[j] == 'k') {
       j = menu_pick(&menu_freeze_key, 0);

@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 #include "model.h"
+#include "session.h"
 #include "my_ps.h"
 #include "nullcline.h"
 #include "colormap.h"
@@ -272,7 +273,7 @@ void set_all_vals()
  if (notAlreadySet.POISGN){POISGN=1;notAlreadySet.POISGN=0;};
  if (notAlreadySet.POIPLN){POIPLN=0.0;notAlreadySet.POIPLN=0;};
 
- data_store.rows=0;
+ xpp::session().data_store.rows=0;
 
  STORFLAG=0;
 
@@ -286,7 +287,7 @@ void set_all_vals()
  if (notAlreadySet.YHI){MY_YHI=1;y_3d[0]=MY_YHI;notAlreadySet.YHI=0;notAlreadySet.YMAX=0;};
  
  if (notAlreadySet.BOUND){BOUND=100;notAlreadySet.BOUND=0;};
- if (notAlreadySet.MAXSTOR){data_store.max_rows=5000;notAlreadySet.MAXSTOR=0;};
+ if (notAlreadySet.MAXSTOR){xpp::session().data_store.max_rows=5000;notAlreadySet.MAXSTOR=0;};
 
  if (notAlreadySet.T0){T0=0.0;notAlreadySet.T0=0;};
  if (notAlreadySet.TRANS){TRANS=0.0;notAlreadySet.TRANS=0;};
@@ -365,7 +366,7 @@ if(MY_YLO>=MY_YHI){
    x_3d[1]=MY_XHI;
    y_3d[1]=MY_YHI;
  } 
- data_store.allocate(data_store.max_rows,xpp::model().neq+1);
+ xpp::session().data_store.allocate(xpp::session().data_store.max_rows,xpp::model().neq+1);
  if(AXES>=5)PLOT_3D=1;
  chk_delay(); /* check for delay allocation */
  alloc_h_stuff();
@@ -397,7 +398,7 @@ void read_defaults(FILE *fp)
  if (notAlreadySet.METHOD){fil_int(fp,&METHOD);notAlreadySet.METHOD=0;};
 
  if (notAlreadySet.TIMEPLOT){fil_int(fp,&TIMPLOT);notAlreadySet.TIMEPLOT=0;};
- if (notAlreadySet.MAXSTOR){fil_int(fp,&data_store.max_rows);notAlreadySet.MAXSTOR=0;};
+ if (notAlreadySet.MAXSTOR){fil_int(fp,&xpp::session().data_store.max_rows);notAlreadySet.MAXSTOR=0;};
  if (notAlreadySet.TEND){fil_flt(fp,&TEND);notAlreadySet.TEND=0;};
  if (notAlreadySet.DT){fil_flt(fp,&DELTA_T);notAlreadySet.DT=0;};
  if (notAlreadySet.T0){fil_flt(fp,&T0);notAlreadySet.T0=0;};
@@ -668,7 +669,7 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
   if(msc("PLOTFMT",s1)){
     if ((notAlreadySet.PLOTFORMAT||force) || ((mask!=NULL)&&(mask->PLOTFORMAT==1)))
     {
-    	plot_export.format=s2;
+    	xpp::session().plot_export.format=s2;
 	notAlreadySet.PLOTFORMAT=0;
     }
     return;
@@ -802,7 +803,7 @@ if(msc("UMC",s1)){
 
    /* can now initialize several plots */
    if(msc("SIMPLOT",s1)){
-     plot_windows.simul=1;
+     xpp::session().plot_windows.simul=1;
      return;
    }
    if(msc("MULTIWIN",s1)){
@@ -944,7 +945,7 @@ if(msc(yyl.c_str(),s1)){
    if(msc("MAXSTOR",s1)){ 
      if ((notAlreadySet.MAXSTOR||force) || ((mask!=NULL)&&(mask->MAXSTOR==1)))
      {
-    	data_store.max_rows=atoi(s2);
+    	xpp::session().data_store.max_rows=atoi(s2);
         notAlreadySet.MAXSTOR=0;
      } 
     return;
@@ -1590,7 +1591,7 @@ if(msc("PS_COLOR",s1)){
      if ((notAlreadySet.PS_COLOR||force)|| ((mask!=NULL)&&(mask->PS_COLOR==1)))
      {
   	PSColorFlag=atoi(s2);
-  	plot_export.color=PSColorFlag;
+  	xpp::session().plot_export.color=PSColorFlag;
 	notAlreadySet.PS_COLOR=0;
      }
    return;

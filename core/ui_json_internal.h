@@ -49,13 +49,13 @@ namespace xpp::json {
 /* ---- ui_json.cpp ---- */
 
 /* the session's mutable state that more than one file needs */
-struct Session {
+struct ProtocolSession {
     /* --script FILE (docs/protocol.md "Scripts"): script_mode is set by
        json_ui_set_script(), script_error by an error message, which makes
        the process exit 1 at the end of the file */
     int script_mode, script_error;
 };
-extern Session session;
+extern ProtocolSession session;
 
 [[noreturn]] void quit_session(void); /* exit 1 after a script's error, else 0 */
 int handle_async(const char *line);   /* commands that make sense at any moment */

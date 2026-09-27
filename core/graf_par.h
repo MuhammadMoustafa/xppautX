@@ -30,7 +30,6 @@ typedef struct {
     CURVE curve[MAXFRZ]; /* .use: the slot holds one; .w: its window */
     int auto_freeze;     /* freeze the curve after every integration */
 } XppFrozenCurves;
-extern XppFrozenCurves frozen_curves;
 
 
 void change_view_com(int com);
@@ -84,6 +83,5 @@ struct XppPlotExport {
     std::string format; /* a batch run's plot files: "ps" or "svg" (@ plotfmt=) */
     int color = 1;      /* in colour (1) or black and white */
 };
-extern XppPlotExport plot_export;
 #endif
 #endif

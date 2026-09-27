@@ -1,4 +1,5 @@
 #include "model.h"
+#include "session.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "xpp_log.h"
@@ -304,7 +305,7 @@ io_int(&POIVAR,fp,f,"Poincare variable");
 io_int(&POISGN,fp,f,"Poincare sign");
 io_int(&SOS,fp,f,"Stop on Section");
 io_int(&DelayFlag,fp,f,"Delay flag");
-io_double(&data_store.current_time,fp,f,"Current time");
+io_double(&xpp::session().data_store.current_time,fp,f,"Current time");
 io_double(&LastTime,fp,f,"Last Time");
 io_int(&MyStart,fp,f,"MyStart");
 io_int(&INFLAG,fp,f,"INFLAG");
@@ -412,7 +413,7 @@ void io_exprs(int f, FILE *fp)
  io_heading(f,fp,"# Old ICs");
  for(i=0;i<xpp::model().node+xpp::model().nmarkov;i++)io_double(&last_ic[i],fp,f,xpp::model().uvar_names[i]);
  io_heading(f,fp,"# Ending  ICs");
- for(i=0;i<xpp::model().node+xpp::model().nmarkov;i++)io_double(&data_store.current[i],fp,f,xpp::model().uvar_names[i]);
+ for(i=0;i<xpp::model().node+xpp::model().nmarkov;i++)io_double(&xpp::session().data_store.current[i],fp,f,xpp::model().uvar_names[i]);
  io_heading(f,fp,"# Parameters");
  for(i=0;i<xpp::model().nupar;i++){
   if(f!=READEM){
@@ -439,51 +440,51 @@ void io_graph(int f, FILE *fp)
  io_heading(f,fp,"# Graphics");
  for(j=0;j<3;j++)
    for(k=0;k<3;k++)
-     io_double(&(plot_windows.current->rm[k][j]),fp,f,"rm");
+     io_double(&(xpp::session().plot_windows.current->rm[k][j]),fp,f,"rm");
  for(j=0;j<MAXPERPLOT;j++){
-        io_int(&(plot_windows.current->xv[j]),fp,f," ");
-        io_int(&(plot_windows.current->yv[j]),fp,f," ");
-        io_int(&(plot_windows.current->zv[j]),fp,f," ");
-        io_int(&(plot_windows.current->line[j]),fp,f," ");
-        io_int(&(plot_windows.current->color[j]),fp,f," ");
+        io_int(&(xpp::session().plot_windows.current->xv[j]),fp,f," ");
+        io_int(&(xpp::session().plot_windows.current->yv[j]),fp,f," ");
+        io_int(&(xpp::session().plot_windows.current->zv[j]),fp,f," ");
+        io_int(&(xpp::session().plot_windows.current->line[j]),fp,f," ");
+        io_int(&(xpp::session().plot_windows.current->color[j]),fp,f," ");
         }
 
-    io_double(&(plot_windows.current->ZPlane),fp,f," ");
-    io_double(&(plot_windows.current->ZView),fp,f," ");
-    io_int(&(plot_windows.current->PerspFlag),fp,f," ");
-    io_int(&(plot_windows.current->ThreeDFlag),fp,f,"3DFlag");
-    io_int(&(plot_windows.current->TimeFlag),fp,f,"Timeflag");
-    io_int(&(plot_windows.current->ColorFlag),fp,f,"Colorflag");
-    io_int(&(plot_windows.current->grtype),fp,f,"Type");
-    io_double(&(plot_windows.current->color_scale),fp,f,"color scale");
-    io_double(&(plot_windows.current->min_scale),fp,f," minscale");
+    io_double(&(xpp::session().plot_windows.current->ZPlane),fp,f," ");
+    io_double(&(xpp::session().plot_windows.current->ZView),fp,f," ");
+    io_int(&(xpp::session().plot_windows.current->PerspFlag),fp,f," ");
+    io_int(&(xpp::session().plot_windows.current->ThreeDFlag),fp,f,"3DFlag");
+    io_int(&(xpp::session().plot_windows.current->TimeFlag),fp,f,"Timeflag");
+    io_int(&(xpp::session().plot_windows.current->ColorFlag),fp,f,"Colorflag");
+    io_int(&(xpp::session().plot_windows.current->grtype),fp,f,"Type");
+    io_double(&(xpp::session().plot_windows.current->color_scale),fp,f,"color scale");
+    io_double(&(xpp::session().plot_windows.current->min_scale),fp,f," minscale");
 
-    io_double(&(plot_windows.current->xmax),fp,f," xmax");
-    io_double(&(plot_windows.current->xmin),fp,f," xmin");
-    io_double(&(plot_windows.current->ymax),fp,f," ymax");
-    io_double(&(plot_windows.current->ymin),fp,f," ymin");
-    io_double(&(plot_windows.current->zmax),fp,f," zmax");
-    io_double(&(plot_windows.current->zmin),fp,f," zmin");
-    io_double(&(plot_windows.current->xbar),fp,f, " ");
-    io_double(&(plot_windows.current->dx  ),fp,f," ");
-    io_double(&(plot_windows.current->ybar),fp,f," ");
-    io_double(&(plot_windows.current->dy  ),fp,f," ");
-    io_double(&(plot_windows.current->zbar),fp,f," ");
-    io_double(&(plot_windows.current->dz  ),fp,f," ");
+    io_double(&(xpp::session().plot_windows.current->xmax),fp,f," xmax");
+    io_double(&(xpp::session().plot_windows.current->xmin),fp,f," xmin");
+    io_double(&(xpp::session().plot_windows.current->ymax),fp,f," ymax");
+    io_double(&(xpp::session().plot_windows.current->ymin),fp,f," ymin");
+    io_double(&(xpp::session().plot_windows.current->zmax),fp,f," zmax");
+    io_double(&(xpp::session().plot_windows.current->zmin),fp,f," zmin");
+    io_double(&(xpp::session().plot_windows.current->xbar),fp,f, " ");
+    io_double(&(xpp::session().plot_windows.current->dx  ),fp,f," ");
+    io_double(&(xpp::session().plot_windows.current->ybar),fp,f," ");
+    io_double(&(xpp::session().plot_windows.current->dy  ),fp,f," ");
+    io_double(&(xpp::session().plot_windows.current->zbar),fp,f," ");
+    io_double(&(xpp::session().plot_windows.current->dz  ),fp,f," ");
 
-    io_double(&(plot_windows.current->Theta),fp,f," Theta");
-    io_double(&(plot_windows.current->Phi),fp,f, " Phi");
-    io_int(&(plot_windows.current->xshft),fp,f," xshft");
-    io_int(&(plot_windows.current->yshft),fp,f," yshft");
-    io_int(&(plot_windows.current->zshft),fp,f," zshft");
-    io_double(&(plot_windows.current->xlo),fp,f," xlo");
-    io_double(&(plot_windows.current->ylo),fp,f," ylo");
-    io_double(&(plot_windows.current->oldxlo),fp,f," ");
-    io_double(&(plot_windows.current->oldylo),fp,f," ");
-    io_double(&(plot_windows.current->xhi),fp,f," xhi");
-    io_double(&(plot_windows.current->yhi),fp,f," yhi");
-    io_double(&(plot_windows.current->oldxhi),fp,f," ");
-    io_double(&(plot_windows.current->oldyhi),fp,f," ");
+    io_double(&(xpp::session().plot_windows.current->Theta),fp,f," Theta");
+    io_double(&(xpp::session().plot_windows.current->Phi),fp,f, " Phi");
+    io_int(&(xpp::session().plot_windows.current->xshft),fp,f," xshft");
+    io_int(&(xpp::session().plot_windows.current->yshft),fp,f," yshft");
+    io_int(&(xpp::session().plot_windows.current->zshft),fp,f," zshft");
+    io_double(&(xpp::session().plot_windows.current->xlo),fp,f," xlo");
+    io_double(&(xpp::session().plot_windows.current->ylo),fp,f," ylo");
+    io_double(&(xpp::session().plot_windows.current->oldxlo),fp,f," ");
+    io_double(&(xpp::session().plot_windows.current->oldylo),fp,f," ");
+    io_double(&(xpp::session().plot_windows.current->xhi),fp,f," xhi");
+    io_double(&(xpp::session().plot_windows.current->yhi),fp,f," yhi");
+    io_double(&(xpp::session().plot_windows.current->oldxhi),fp,f," ");
+    io_double(&(xpp::session().plot_windows.current->oldyhi),fp,f," ");
     if(f==READEM&&program.interactive)xpp_ui.redraw_graph();
 }
 

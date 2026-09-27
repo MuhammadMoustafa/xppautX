@@ -2,6 +2,7 @@
    aniparse.c, graf_par.c, calc.c, many_pops.c, main.c). Nothing here
    touches a window. */
 #include "model.h"
+#include "session.h"
 #include "xpp_util.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"
@@ -44,12 +45,10 @@
 
 /* ---- graph bookkeeping (was many_pops.c / main.c) ----------------------- */
 
-XppPlotWindows plot_windows;
-
 void make_active(int i, int flag)
 {
-    plot_windows.active = i;
-    plot_windows.current = &plot_windows.graph[plot_windows.active];
+    xpp::session().plot_windows.active = i;
+    xpp::session().plot_windows.current = &xpp::session().plot_windows.graph[xpp::session().plot_windows.active];
     xpp_ui.activate_graph(i, flag);
 }
 
@@ -217,22 +216,22 @@ void set_active_windows()
 {
   int i,np=0;
    for(i=0;i<MAXPOP;i++){
-   if(plot_windows.graph[i].Use==1){
-     plot_windows.open[np]=i;
+   if(xpp::session().plot_windows.graph[i].Use==1){
+     xpp::session().plot_windows.open[np]=i;
      np++;
    }
  }
- plot_windows.count=np;
+ xpp::session().plot_windows.count=np;
 }  
 
 void check_windows()
 {
  double zip,zap;
- check_val(&plot_windows.current->xmin,&plot_windows.current->xmax,&plot_windows.current->xbar,&plot_windows.current->dx);
- check_val(&plot_windows.current->ymin,&plot_windows.current->ymax,&plot_windows.current->ybar,&plot_windows.current->dy);
- check_val(&plot_windows.current->zmin,&plot_windows.current->zmax,&plot_windows.current->zbar,&plot_windows.current->dz);
- check_val(&plot_windows.current->xlo,&plot_windows.current->xhi,&zip,&zap);
- check_val(&plot_windows.current->ylo,&plot_windows.current->yhi,&zip,&zap);
+ check_val(&xpp::session().plot_windows.current->xmin,&xpp::session().plot_windows.current->xmax,&xpp::session().plot_windows.current->xbar,&xpp::session().plot_windows.current->dx);
+ check_val(&xpp::session().plot_windows.current->ymin,&xpp::session().plot_windows.current->ymax,&xpp::session().plot_windows.current->ybar,&xpp::session().plot_windows.current->dy);
+ check_val(&xpp::session().plot_windows.current->zmin,&xpp::session().plot_windows.current->zmax,&xpp::session().plot_windows.current->zbar,&xpp::session().plot_windows.current->dz);
+ check_val(&xpp::session().plot_windows.current->xlo,&xpp::session().plot_windows.current->xhi,&zip,&zap);
+ check_val(&xpp::session().plot_windows.current->ylo,&xpp::session().plot_windows.current->yhi,&zip,&zap);
 } 
 
 void check_val(double *x1, double *x2, double *xb, double *xd)
@@ -262,20 +261,20 @@ void check_val(double *x1, double *x2, double *xb, double *xd)
 void dump_ps(int i)
 {
   const std::string &file=xpp::model().this_file,&set=xpp::model().this_internset;
-  const std::string &format=plot_export.format;
+  const std::string &format=xpp::session().plot_export.format;
   std::string filename=i<0?xpp::format("{:.100}{:.100}.{:.10}",file,set,format)
                           :xpp::format("{:.100}{:.100}_{:04d}.{:.10}",file,set,i,format);
 
-   if (plot_export.format=="ps")
+   if (xpp::session().plot_export.format=="ps")
    {
-     if(ps_init(filename.c_str(),plot_export.color))
+     if(ps_init(filename.c_str(),xpp::session().plot_export.color))
      {
        ps_restore();
      }
    }
-   else if (plot_export.format=="svg")
+   else if (xpp::session().plot_export.format=="svg")
    {
-     if(svg_init(filename.c_str(),plot_export.color))
+     if(svg_init(filename.c_str(),xpp::session().plot_export.color))
      {
        svg_restore();
      }
@@ -306,7 +305,7 @@ void ps_restore()
   if(program.interactive){
  redraw_dfield();
  ps_do_color(0);
- if(plot_windows.current->Nullrestore){restore_nullclines();ps_stroke();}
+ if(xpp::session().plot_windows.current->Nullrestore){restore_nullclines();ps_stroke();}
   }
 
   restore(0,my_browser.maxrow);  
@@ -317,7 +316,7 @@ void ps_restore()
   
  ps_do_color(0); 
  if(program.interactive){
- draw_label(plot_windows.draw_win);
+ draw_label(xpp::session().plot_windows.draw_win);
  xpp_ui.draw_freeze();
  }
  ps_end();
@@ -327,11 +326,11 @@ void svg_restore()
 {
 
   redraw_dfield();
- if(plot_windows.current->Nullrestore){restore_nullclines();}
+ if(xpp::session().plot_windows.current->Nullrestore){restore_nullclines();}
  restore(0,my_browser.maxrow);
  do_axes();
  if(program.interactive){
- draw_label(plot_windows.draw_win);
+ draw_label(xpp::session().plot_windows.draw_win);
  xpp_ui.draw_freeze();
  }
   do_batch_nclines();
@@ -591,7 +590,7 @@ void slider_rerun(void)
   clr_all_scrns();
   redraw_dfield();
   create_new_cline();
-  draw_label(plot_windows.draw_win);
+  draw_label(xpp::session().plot_windows.draw_win);
   SuppressBounds=1;
   run_now();
   SuppressBounds=sp;

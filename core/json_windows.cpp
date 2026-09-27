@@ -2,6 +2,7 @@
    pictures only the client has (pixels, for frame and GIF writers), the
    kinescope, whose frames the client keeps, and the array plot window. */
 #include "model.h"
+#include "session.h"
 #include "ui_json_internal.h"
 #include "xpp_util.h"
 #include "graphics.h"
@@ -46,7 +47,7 @@ int graph_of(unsigned long w)
 {
     int i;
     for (i = 0; i < MAXPOP; i++)
-        if (plot_windows.graph[i].Use && plot_windows.graph[i].w == w) return i;
+        if (xpp::session().plot_windows.graph[i].Use && xpp::session().plot_windows.graph[i].w == w) return i;
     return 0;
 }
 
@@ -66,7 +67,7 @@ void send_main_window(const char *title) { send_window("create", 1, win_w[0], wi
 
 void j_get_draw_size(unsigned int *w, unsigned int *h)
 {
-    int i = graph_of(plot_windows.draw_win);
+    int i = graph_of(xpp::session().plot_windows.draw_win);
     *w = win_w[i];
     *h = win_h[i];
 }
@@ -78,7 +79,7 @@ void j_blank_draw_window(void)
 {
     int i;
     for (i = 0; i < MAXPOP; i++)
-        if (plot_windows.graph[i].Use && plot_windows.graph[i].w == plot_windows.draw_win) {
+        if (xpp::session().plot_windows.graph[i].Use && xpp::session().plot_windows.graph[i].w == xpp::session().plot_windows.draw_win) {
             phase_data_cleared(i);
             marks_data_cleared(i);
         }
@@ -88,8 +89,8 @@ void j_redraw_all(void)
 {
     redraw_dfield();
     restore(0, my_browser.maxrow);
-    draw_label(plot_windows.draw_win);
-    draw_freeze(plot_windows.draw_win);
+    draw_label(xpp::session().plot_windows.draw_win);
+    draw_freeze(xpp::session().plot_windows.draw_win);
 }
 
 void j_redraw_graph(void)
@@ -98,10 +99,10 @@ void j_redraw_graph(void)
     set_normal_scale();
     do_axes();
     restore(0, my_browser.maxrow);
-    draw_label(plot_windows.draw_win);
-    draw_freeze(plot_windows.draw_win);
+    draw_label(xpp::session().plot_windows.draw_win);
+    draw_freeze(xpp::session().plot_windows.draw_win);
     redraw_dfield();
-    if (plot_windows.current->Nullrestore) restore_nullclines();
+    if (xpp::session().plot_windows.current->Nullrestore) restore_nullclines();
 }
 
 void j_redraw_screens(void) { for_each_shown_window(1, j_redraw_all); }
@@ -126,16 +127,16 @@ void send_window(const char *what, unsigned long id, int w, int h, const char *t
 
 void select_graph(int i)
 {
-    plot_windows.active = i;
-    plot_windows.current = &plot_windows.graph[i];
-    plot_windows.draw_win = plot_windows.graph[i].w;
+    xpp::session().plot_windows.active = i;
+    xpp::session().plot_windows.current = &xpp::session().plot_windows.graph[i];
+    xpp::session().plot_windows.draw_win = xpp::session().plot_windows.graph[i].w;
     get_draw_area();
-    send_window("select", plot_windows.draw_win, win_w[i], win_h[i], NULL);
+    send_window("select", xpp::session().plot_windows.draw_win, win_w[i], win_h[i], NULL);
 }
 
 void j_activate_graph(int i, int flag)
 {
-    plot_windows.draw_win = plot_windows.graph[i].w;
+    xpp::session().plot_windows.draw_win = xpp::session().plot_windows.graph[i].w;
     get_draw_area_flag(flag);
 }
 
@@ -143,17 +144,17 @@ void j_create_plot_window(void)
 {
     int i;
     for (i = 1; i < MAXPOP; i++)
-        if (plot_windows.graph[i].Use == 0) break;
+        if (xpp::session().plot_windows.graph[i].Use == 0) break;
     if (i >= MAXPOP) {
         j_respond_box("Okay", "Too many windows!");
         return;
     }
-    copy_graph(i, plot_windows.active);
-    plot_windows.graph[i].w = i + 1;
+    copy_graph(i, xpp::session().plot_windows.active);
+    xpp::session().plot_windows.graph[i].w = i + 1;
     win_w[i] = 450;
     win_h[i] = 350;
-    plot_windows.count++;
-    send_window("create", plot_windows.graph[i].w, win_w[i], win_h[i], "");
+    xpp::session().plot_windows.count++;
+    send_window("create", xpp::session().plot_windows.graph[i].w, win_w[i], win_h[i], "");
     select_graph(i);
 }
 
@@ -161,10 +162,10 @@ namespace {
 
 void destroy_graph(int i)
 {
-    plot_windows.graph[i].Use = 0;
-    destroy_labels_and_grobs(plot_windows.graph[i].w);
-    send_window("destroy", plot_windows.graph[i].w, 0, 0, NULL);
-    plot_windows.count--;
+    xpp::session().plot_windows.graph[i].Use = 0;
+    destroy_labels_and_grobs(xpp::session().plot_windows.graph[i].w);
+    send_window("destroy", xpp::session().plot_windows.graph[i].w, 0, 0, NULL);
+    xpp::session().plot_windows.count--;
 }
 
 } // namespace
@@ -172,11 +173,11 @@ void destroy_graph(int i)
 void j_destroy_plot_window(void)
 {
     int i;
-    if (plot_windows.draw_win == plot_windows.graph[0].w) {
+    if (xpp::session().plot_windows.draw_win == xpp::session().plot_windows.graph[0].w) {
         j_respond_box("Okay", "Can't destroy big window!");
         return;
     }
-    i = graph_of(plot_windows.draw_win);
+    i = graph_of(xpp::session().plot_windows.draw_win);
     if (i == 0) return;
     select_graph(0);
     destroy_graph(i);
@@ -187,8 +188,8 @@ void j_kill_plot_windows(void)
     int i;
     select_graph(0);
     for (i = 1; i < MAXPOP; i++)
-        if (plot_windows.graph[i].Use) destroy_graph(i);
-    plot_windows.count = 1;
+        if (xpp::session().plot_windows.graph[i].Use) destroy_graph(i);
+    xpp::session().plot_windows.count = 1;
 }
 
 void j_cput_text(void)
@@ -203,18 +204,18 @@ void j_cput_text(void)
     j_message_box("Place text with mouse");
     if (j_get_mouse_xy(&x, &y)) {
         const std::string text = fill_in_text(string);
-        marks_data_label(plot_windows.draw_win, add_label(string.c_str(), x, y, size, 0), text.c_str());
+        marks_data_label(xpp::session().plot_windows.draw_win, add_label(string.c_str(), x, y, size, 0), text.c_str());
     }
     j_kill_message_box();
 }
 
-void j_draw_freeze(void) { draw_freeze(plot_windows.draw_win); }
+void j_draw_freeze(void) { draw_freeze(xpp::session().plot_windows.draw_win); }
 
 /* {"cmd":"click","win":w}: the user clicked in plot window w */
 void click_command(const char *line)
 {
     int win = get_int(line, "win", 1) - 1;
-    if (win >= 0 && win < MAXPOP && plot_windows.graph[win].Use && plot_windows.active != win) select_graph(win);
+    if (win >= 0 && win < MAXPOP && xpp::session().plot_windows.graph[win].Use && xpp::session().plot_windows.active != win) select_graph(win);
 }
 
 namespace {
@@ -224,7 +225,7 @@ namespace {
 int command_window(const char *line)
 {
     int i = get_int(line, "win", -1) - 1;
-    if (i < 0 || i >= MAXPOP || !plot_windows.graph[i].Use) {
+    if (i < 0 || i >= MAXPOP || !xpp::session().plot_windows.graph[i].Use) {
         j_err_msg("No such window");
         return -1;
     }
@@ -250,7 +251,7 @@ void view_command(const char *line)
         j_err_msg("Bad view");
         return;
     }
-    if (i != plot_windows.active) select_graph(i);
+    if (i != xpp::session().plot_windows.active) select_graph(i);
     update_view(static_cast<float>(xlo), static_cast<float>(xhi), static_cast<float>(ylo), static_cast<float>(yhi));
 }
 
@@ -262,17 +263,17 @@ void rotate_command(const char *line)
     static double theta, phi;
     std::string what;
     int x = get_int(line, "x", 0), y = get_int(line, "y", 0);
-    if (!plot_windows.current->ThreeDFlag) return;
+    if (!xpp::session().plot_windows.current->ThreeDFlag) return;
     get_string(line, "what", what, 8);
     if (what == "down") {
         x0 = x;
         y0 = y;
-        phi = plot_windows.current->Phi;
-        theta = plot_windows.current->Theta;
+        phi = xpp::session().plot_windows.current->Phi;
+        theta = xpp::session().plot_windows.current->Theta;
     } else if (what == "move") {
-        plot_windows.current->Phi = phi - static_cast<double>(y - y0);
-        plot_windows.current->Theta = theta - static_cast<double>(x - x0);
-        redraw_cube_pt(plot_windows.current->Theta, plot_windows.current->Phi);
+        xpp::session().plot_windows.current->Phi = phi - static_cast<double>(y - y0);
+        xpp::session().plot_windows.current->Theta = theta - static_cast<double>(x - x0);
+        redraw_cube_pt(xpp::session().plot_windows.current->Theta, xpp::session().plot_windows.current->Phi);
     } else if (what == "up") {
         do_axes();
         j_redraw_all();
@@ -293,7 +294,7 @@ void view3d_command(const char *line)
     int i = command_window(line);
     double theta = get_num(line, "theta", 0), phi = get_num(line, "phi", 0);
     if (i < 0) return;
-    if (!plot_windows.graph[i].ThreeDFlag) {
+    if (!xpp::session().plot_windows.graph[i].ThreeDFlag) {
         j_err_msg("Not a 3D window");
         return;
     }
@@ -301,9 +302,9 @@ void view3d_command(const char *line)
         j_err_msg("Bad view");
         return;
     }
-    if (i != plot_windows.active) select_graph(i);
-    plot_windows.current->Theta = theta;
-    plot_windows.current->Phi = phi;
+    if (i != xpp::session().plot_windows.active) select_graph(i);
+    xpp::session().plot_windows.current->Theta = theta;
+    xpp::session().plot_windows.current->Phi = phi;
     do_axes();
     j_redraw_all();
 }
@@ -313,9 +314,9 @@ void j_scroll_window(void)
 {
     int i, j, t, state = 0;
     float x, y, x0 = 0, y0 = 0, dx = 0, dy = 0;
-    float xlo = plot_windows.current->xlo, ylo = plot_windows.current->ylo, xhi = plot_windows.current->xhi, yhi = plot_windows.current->yhi;
+    float xlo = xpp::session().plot_windows.current->xlo, ylo = xpp::session().plot_windows.current->ylo, xhi = xpp::session().plot_windows.current->xhi, yhi = xpp::session().plot_windows.current->yhi;
     send_simple("message", "box", "Drag the plot to scroll it; any key ends");
-    while ((t = ask_drag(plot_windows.draw_win, &i, &j)) != 0) {
+    while ((t = ask_drag(xpp::session().plot_windows.draw_win, &i, &j)) != 0) {
         if (t == 1 && state == 0) {
             scale_to_real(i, j, &x0, &y0);
             state = 1;
@@ -423,7 +424,7 @@ void send_film(const char *what)
 {
     Buf b;
     buf_format(&b, "{{\"ev\":\"film\",\"op\":\"{}\",\"count\":{:d},\"win\":{:d},\"cycles\":{:d},\"delay\":{:d}}}",
-               what, film_count, plot_windows.draw_win, movie_autoplay.cycles, movie_autoplay.frame_ms);
+               what, film_count, xpp::session().plot_windows.draw_win, movie_autoplay.cycles, movie_autoplay.frame_ms);
     send_buf(&b);
 }
 

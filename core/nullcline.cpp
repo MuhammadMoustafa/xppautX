@@ -3,6 +3,7 @@
    through graphics.cpp's primitives and recorded for the front end by
    phase_data.cpp. */
 #include "nullcline.h"
+#include "session.h"
 #include "xpp_util.h"
 #include "xpp_log.h"
 #include "odesol2.h"
@@ -102,7 +103,7 @@ void note_frozen()
   phase_data_frozen_begin();
   if(!frozen_started)return;
   for_each_frozen([](FrozenCline &z){
-    if(plot_windows.current->xv[0]==z.n_ix&&plot_windows.current->yv[0]==z.n_iy&&plot_windows.current->ThreeDFlag==0)
+    if(xpp::session().plot_windows.current->xv[0]==z.n_ix&&xpp::session().plot_windows.current->yv[0]==z.n_iy&&xpp::session().plot_windows.current->ThreeDFlag==0)
       phase_data_frozen(z.xn.data(),z.nmx,z.yn.data(),z.nmy);
   });
 }
@@ -201,8 +202,8 @@ void redraw_froz_cline(int flag)
   if(!frozen_started)return;
   phase_data_frozen_begin();
   for_each_frozen([&](FrozenCline &z){
-    if(plot_windows.current->xv[0]==z.n_ix&&plot_windows.current->yv[0]==z.n_iy
-       &&plot_windows.current->ThreeDFlag==0){
+    if(xpp::session().plot_windows.current->xv[0]==z.n_ix&&xpp::session().plot_windows.current->yv[0]==z.n_iy
+       &&xpp::session().plot_windows.current->ThreeDFlag==0){
       if(flag>0){
         waitasec(flag);
         clr_scrn();
@@ -351,12 +352,12 @@ void do_range_clines()
   get_val(ncrange.rv.c_str(),&zold);
 
   for(int i=xpp::model().node;i<xpp::model().node+xpp::model().nmarkov;i++)set_ivar(i+1+xpp::model().fix_var,last_ic[i]);
-  const float xmin=static_cast<float>(plot_windows.current->xmin);
-  const float xmax=static_cast<float>(plot_windows.current->xmax);
-  const float y_tp=static_cast<float>(plot_windows.current->ymax);
-  const float y_bot=static_cast<float>(plot_windows.current->ymin);
-  null_ix=plot_windows.current->xv[0];
-  null_iy=plot_windows.current->yv[0];
+  const float xmin=static_cast<float>(xpp::session().plot_windows.current->xmin);
+  const float xmax=static_cast<float>(xpp::session().plot_windows.current->xmax);
+  const float y_tp=static_cast<float>(xpp::session().plot_windows.current->ymax);
+  const float y_bot=static_cast<float>(xpp::session().plot_windows.current->ymin);
+  null_ix=xpp::session().plot_windows.current->xv[0];
+  null_iy=xpp::session().plot_windows.current->yv[0];
 
   for(int i=0;i<=ncrange.nstep;i++){
     const double z=static_cast<double>(i)*dz+ncrange.xlo;
@@ -407,7 +408,7 @@ void dfield_grid(int grid, double u0, double v0, double du, double dv, double dz
   get_ic(2,y.data());
   get_max_dfield(y.data(),ydot.data(),u0,v0,du,dv,grid,inx,iny,&mdf);
   if(!suppress&&(DF_FLAG==1||DF_FLAG==4))
-    phase_data_dfield_begin(grid+1,du,dv,DFIELD_TYPE==0,plot_windows.current->color[0]);
+    phase_data_dfield_begin(grid+1,du,dv,DFIELD_TYPE==0,xpp::session().plot_windows.current->color[0]);
   if (PltFmtFlag==SVGFMT){
     DOING_DFIELD=1;
     svg_write("<g>");
@@ -418,7 +419,7 @@ void dfield_grid(int grid, double u0, double v0, double du, double dv, double dz
       y[iny]=v0+dv*j;
       rhs(0.0,y.data(),ydot.data(),xpp::model().node);
       extra(y.data(),0.0,xpp::model().node,xpp::model().neq);
-      if(plot_windows.current->ColorFlag||DF_FLAG==2){
+      if(xpp::session().plot_windows.current->ColorFlag||DF_FLAG==2){
         v1[0]=0.0;
         v2[0]=0.0;
         for(int k=0;k<xpp::model().neq;k++){
@@ -600,19 +601,19 @@ void do_batch_dfield()
   default:
     return;
   }
-  DF_IX=plot_windows.current->xv[0];
-  DF_IY=plot_windows.current->yv[0];
+  DF_IX=xpp::session().plot_windows.current->xv[0];
+  DF_IY=xpp::session().plot_windows.current->yv[0];
   redraw_dfield();
 }
 
 void redraw_dfield()
 {
-  const int inx=plot_windows.current->xv[0]-1;
-  const int iny=plot_windows.current->yv[0]-1;
+  const int inx=xpp::session().plot_windows.current->xv[0]-1;
+  const int iny=xpp::session().plot_windows.current->yv[0]-1;
   const int grid=DF_GRID;
   if(DF_FLAG==0||
-     plot_windows.current->TimeFlag||plot_windows.current->xv[0]==plot_windows.current->yv[0]||plot_windows.current->ThreeDFlag
-     || DF_IX!=plot_windows.current->xv[0]||DF_IY!=plot_windows.current->yv[0])
+     xpp::session().plot_windows.current->TimeFlag||xpp::session().plot_windows.current->xv[0]==xpp::session().plot_windows.current->yv[0]||xpp::session().plot_windows.current->ThreeDFlag
+     || DF_IX!=xpp::session().plot_windows.current->xv[0]||DF_IY!=xpp::session().plot_windows.current->yv[0])
     return;
   xpp::Writer dump;
   if(DFSuppress==1){
@@ -620,15 +621,15 @@ void redraw_dfield()
     if(!dump)return;
   }
 
-  const double du=(plot_windows.current->xhi-plot_windows.current->xlo)/static_cast<double>(grid);
-  const double dv=(plot_windows.current->yhi-plot_windows.current->ylo)/static_cast<double>(grid);
+  const double du=(xpp::session().plot_windows.current->xhi-xpp::session().plot_windows.current->xlo)/static_cast<double>(grid);
+  const double dv=(xpp::session().plot_windows.current->yhi-xpp::session().plot_windows.current->ylo)/static_cast<double>(grid);
 
   const double dup=static_cast<double>(DRight-DLeft)/static_cast<double>(grid);
   const double dvp=static_cast<double>(DTop-DBottom)/static_cast<double>(grid);
   const double dz=hypot(dup,dvp)*(.25+.75*DFIELD_TYPE);
-  const double u0=plot_windows.current->xlo;
-  const double v0=plot_windows.current->ylo;
-  if(!DFSuppress)set_linestyle(plot_windows.current->color[0]);
+  const double u0=xpp::session().plot_windows.current->xlo;
+  const double v0=xpp::session().plot_windows.current->ylo;
+  if(!DFSuppress)set_linestyle(xpp::session().plot_windows.current->color[0]);
   dfield_grid(grid,u0,v0,du,dv,dz,inx,iny,DFSuppress==1?&dump:nullptr);
   if(DFSuppress==1)
     dump.commit();
@@ -637,13 +638,13 @@ void redraw_dfield()
 
 void direct_field_com(int c)
 {
-  const int inx=plot_windows.current->xv[0]-1;
-  const int iny=plot_windows.current->yv[0]-1;
+  const int inx=xpp::session().plot_windows.current->xv[0]-1;
+  const int iny=xpp::session().plot_windows.current->yv[0]-1;
   const double dtold=DELTA_T;
   const double oldtrans=TRANS;
   int grid=DF_GRID;
 
-  if(plot_windows.current->TimeFlag||plot_windows.current->xv[0]==plot_windows.current->yv[0]||plot_windows.current->ThreeDFlag)
+  if(xpp::session().plot_windows.current->TimeFlag||xpp::session().plot_windows.current->xv[0]==xpp::session().plot_windows.current->yv[0]||xpp::session().plot_windows.current->ThreeDFlag)
     return;
 
   if(c==2){
@@ -655,21 +656,21 @@ void direct_field_com(int c)
   new_int("Grid:",&grid);
   if(grid<=1)return;
   DF_GRID=grid;
-  double du=(plot_windows.current->xhi-plot_windows.current->xlo)/static_cast<double>(grid);
-  double dv=(plot_windows.current->yhi-plot_windows.current->ylo)/static_cast<double>(grid);
+  double du=(xpp::session().plot_windows.current->xhi-xpp::session().plot_windows.current->xlo)/static_cast<double>(grid);
+  double dv=(xpp::session().plot_windows.current->yhi-xpp::session().plot_windows.current->ylo)/static_cast<double>(grid);
 
   const double dup=static_cast<double>(DRight-DLeft)/static_cast<double>(grid);
   const double dvp=static_cast<double>(DTop-DBottom)/static_cast<double>(grid);
   const double dz=hypot(dup,dvp)*(.25+.75*DFIELD_TYPE) ;
-  const double u0=plot_windows.current->xlo;
-  const double v0=plot_windows.current->ylo;
-  set_linestyle(plot_windows.current->color[0]);
+  const double u0=xpp::session().plot_windows.current->xlo;
+  const double v0=xpp::session().plot_windows.current->ylo;
+  set_linestyle(xpp::session().plot_windows.current->color[0]);
   if(c!=1){
     DF_FLAG=1;
     if(c==3){
       DF_FLAG=2;
-      du=(plot_windows.current->xhi-plot_windows.current->xlo)/static_cast<double>(grid+1);
-      dv=(plot_windows.current->yhi-plot_windows.current->ylo)/static_cast<double>(grid+1);
+      du=(xpp::session().plot_windows.current->xhi-xpp::session().plot_windows.current->xlo)/static_cast<double>(grid+1);
+      dv=(xpp::session().plot_windows.current->yhi-xpp::session().plot_windows.current->ylo)/static_cast<double>(grid+1);
     }
     DF_IX=inx+1;
     DF_IY=iny+1;
@@ -720,7 +721,7 @@ void restore_nullclines()
 {
   const int col1=XNullColor,col2=YNullColor;
   if(NULL_HERE==0)return;
-  if(plot_windows.current->xv[0]==null_ix&&plot_windows.current->yv[0]==null_iy&&plot_windows.current->ThreeDFlag==0){
+  if(xpp::session().plot_windows.current->xv[0]==null_ix&&xpp::session().plot_windows.current->yv[0]==null_iy&&xpp::session().plot_windows.current->ThreeDFlag==0){
     set_linestyle(col1);
     restor_null(x_null.data(),num_x_n,1);
     set_linestyle(col2);
@@ -741,17 +742,17 @@ void new_clines_com(int c)
   const int course=NMESH;
   const int col1=XNullColor,col2=YNullColor;
 
-  if(plot_windows.current->ThreeDFlag||plot_windows.current->TimeFlag||plot_windows.current->xv[0]==plot_windows.current->yv[0])return;
+  if(xpp::session().plot_windows.current->ThreeDFlag||xpp::session().plot_windows.current->TimeFlag||xpp::session().plot_windows.current->xv[0]==xpp::session().plot_windows.current->yv[0])return;
 
   switch(c){
   case 1:
     restore_nullclines();
     return;
   case 2:
-    plot_windows.current->Nullrestore=1;
+    xpp::session().plot_windows.current->Nullrestore=1;
     return;
   case 3:
-    plot_windows.current->Nullrestore=0;
+    xpp::session().plot_windows.current->Nullrestore=0;
     return;
   case 4:
     froz_cline_stuff();
@@ -765,12 +766,12 @@ void new_clines_com(int c)
     return;
   }
   for(int i=xpp::model().node;i<xpp::model().node+xpp::model().nmarkov;i++)set_ivar(i+1+xpp::model().fix_var,last_ic[i]);
-  const float xmin=static_cast<float>(plot_windows.current->xmin);
-  const float xmax=static_cast<float>(plot_windows.current->xmax);
-  const float y_tp=static_cast<float>(plot_windows.current->ymax);
-  const float y_bot=static_cast<float>(plot_windows.current->ymin);
-  null_ix=plot_windows.current->xv[0];
-  null_iy=plot_windows.current->yv[0];
+  const float xmin=static_cast<float>(xpp::session().plot_windows.current->xmin);
+  const float xmax=static_cast<float>(xpp::session().plot_windows.current->xmax);
+  const float y_tp=static_cast<float>(xpp::session().plot_windows.current->ymax);
+  const float y_bot=static_cast<float>(xpp::session().plot_windows.current->ymin);
+  null_ix=xpp::session().plot_windows.current->xv[0];
+  null_iy=xpp::session().plot_windows.current->yv[0];
   null_storage(course);
 
   WHICH_CRV=null_ix;

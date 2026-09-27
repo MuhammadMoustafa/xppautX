@@ -25,7 +25,6 @@ typedef struct {
     int simul;             /* Simulplot: draw on every open window */
     XppWinId draw_win;     /* graph[active].w, the window drawn into */
 } XppPlotWindows;
-extern XppPlotWindows plot_windows;
 
 
 #ifdef __cplusplus

@@ -1,5 +1,6 @@
 
 #include "storage.h"
+#include "session.h"
 #include "xpp_ui.h"
 #include "xpp_mem.h" /* xpp_out_of_memory */
 #include <stdlib.h> 
@@ -68,34 +69,25 @@ void alloc_meth()
   WORK=work_space.data();
 }
 
-DataStore data_store;
-
-namespace {
-/* the store's memory: the columns, and the table of their addresses that
-   data_store.col points at (fixed, so a pointer to it stays valid) */
-std::vector<std::vector<float>> columns;
-std::array<float *, MAXODE + 1> column_table{};
-}
-
 void DataStore::allocate(int nrow, int ncol)
 {
   max_rows=nrow;
   rows=0;
-  columns.assign(MAXODE+1,{});
-  column_table.fill(nullptr);
+  columns_.assign(MAXODE+1,{});
+  table_.fill(nullptr);
   for(int c=0;c<ncol;c++){
-    columns[c].assign(nrow,0.0f);
-    column_table[c]=columns[c].data();
+    columns_[c].assign(nrow,0.0f);
+    table_[c]=columns_[c].data();
   }
-  col=column_table.data();
+  col=table_.data();
 }
 
 bool DataStore::grow(int ncol, int nrow)
 {
   try {
     for(int c=0;c<ncol;c++){
-      columns[c].resize(nrow,0.0f);
-      column_table[c]=columns[c].data();
+      columns_[c].resize(nrow,0.0f);
+      table_[c]=columns_[c].data();
     }
   } catch (const std::bad_alloc &) {
     err_msg("Cannot allocate sufficient storage");
@@ -106,13 +98,13 @@ bool DataStore::grow(int ncol, int nrow)
 
 void DataStore::add_column(int c)
 {
-  columns[c].assign(max_rows,0.0f);
-  column_table[c]=columns[c].data();
+  columns_[c].assign(max_rows,0.0f);
+  table_[c]=columns_[c].data();
 }
 
 void DataStore::lend_columns(float **dst, int from, int to) const
 {
-  for(int c=from;c<=to;c++)dst[c]=column_table[c];
+  for(int c=from;c<=to;c++)dst[c]=table_[c];
 }
 
 float **LentColumns::make(int n, int len, int last)
@@ -124,7 +116,7 @@ float **LentColumns::make(int n, int len, int last)
   }
   table_.fill(nullptr);
   for(int c=0;c<n;c++)table_[c]=own_[c].data();
-  data_store.lend_columns(table_.data(),n,last);
+  xpp::session().data_store.lend_columns(table_.data(),n,last);
   return table_.data();
 }
 

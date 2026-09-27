@@ -11,6 +11,7 @@
    do_range(); this test drives do_range() directly with the range fields
    it would have read, which is the same headless path. */
 #include "xpptest.h"
+#include "session.h"
 #include "storage.h"
 #include "browse.h"
 #include "graphics.h"
@@ -41,7 +42,7 @@ int main(void)
     range.rtype = 0;
 
     STOCH_FLAG = 1;
-    int ierr = do_range(data_store.current, 0);
+    int ierr = do_range(xpp::session().data_store.current, 0);
     STOCH_FLAG = 0;
 
     CHECK(ierr != -1);

@@ -1,4 +1,5 @@
 #include "histogram.h"
+#include "session.h"
 #include "model.h"
 #include "storage.h"
 
@@ -81,8 +82,8 @@ int two_d_hist(int col1,int col2,int ndat,int n1,int n2,double xlo,double xhi,do
       my_hist[2][i+j*n1]=0.0;
     }
   for(k=0;k<ndat;k++){
-    x=(data_store.col[col1][k]-xlo)/dx;
-    y=(data_store.col[col2][k]-ylo)/dy;
+    x=(xpp::session().data_store.col[col1][k]-xlo)/dx;
+    y=(xpp::session().data_store.col[col2][k]-ylo)/dy;
     i=static_cast<int>(x);
     j=static_cast<int>(y);
     if((i>=0)&&(i<n1)&&(j>=0)&&(j<n2))
@@ -105,7 +106,7 @@ void new_four(int nmodes, int col)
 {
   int i;
   int length=nmodes+1;
-  float total=data_store.col[0][data_store.rows-1]-data_store.col[0][0];
+  float total=xpp::session().data_store.col[0][xpp::session().data_store.rows-1]-xpp::session().data_store.col[0][0];
   float *bob;
   if(FOUR_HERE){
    data_back();
@@ -117,7 +118,7 @@ void new_four(int nmodes, int col)
  FOUR_HERE=1;
 for(i=0;i<length;i++)my_four[0][i]=static_cast<float>(i)/total; 
  bob=get_data_col(col);
-    fft(bob,my_four[1],my_four[2],nmodes,data_store.rows);
+    fft(bob,my_four[1],my_four[2],nmodes,xpp::session().data_store.rows);
  four_back();
   ping();
 }
@@ -158,8 +159,8 @@ int twod_hist()
 {
   int length;
  length=hist_inf.nbins*hist_inf.nbins2;
-   if(length>=data_store.max_rows)
-    length=data_store.max_rows-1;
+   if(length>=xpp::session().data_store.max_rows)
+    length=xpp::session().data_store.max_rows-1;
 
   if(HIST_HERE){
     data_back();
@@ -171,7 +172,7 @@ int twod_hist()
   hist_columns.make(3,length,xpp::model().neq);
   HIST_HERE=2;
   hist_len=length;
-  two_d_hist(hist_inf.col,hist_inf.col2,data_store.rows,
+  two_d_hist(hist_inf.col,hist_inf.col2,xpp::session().data_store.rows,
 	     hist_inf.nbins,hist_inf.nbins2,
 	     hist_inf.xlo,hist_inf.xhi,hist_inf.ylo,hist_inf.yhi);
 
@@ -185,7 +186,7 @@ int twod_hist()
 int new_2d_hist()
 {
 
-  if((xpp::model().neq<2)||(data_store.rows<3)){
+  if((xpp::model().neq<2)||(xpp::session().data_store.rows<3)){
     err_msg("Need more data and at least 3 columns");
     return 0;
   }
@@ -227,8 +228,8 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
   double z,y;
   double dz;
   int length=nbins+1;
-  if(length>=data_store.max_rows)
-    length=data_store.max_rows-1;
+  if(length>=xpp::session().data_store.max_rows)
+    length=xpp::session().data_store.max_rows-1;
   dz=(zhi-zlo)/static_cast<double>((length-1));
   if(HIST_HERE){
     data_back();
@@ -254,18 +255,18 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
 	  cond=1;
 	}
       }
-    for(i=0;i<data_store.rows;i++)
+    for(i=0;i<xpp::session().data_store.rows;i++)
       {
 	flag=1;
 	if(cond){
-	  for(j=0;j<xpp::model().node+1;j++)set_ivar(j,static_cast<double>(data_store.col[j][i]));
+	  for(j=0;j<xpp::model().node+1;j++)set_ivar(j,static_cast<double>(xpp::session().data_store.col[j][i]));
 	  for(j=0;j<xpp::model().nmarkov;j++)
-	    set_ivar(j+xpp::model().node+1+xpp::model().fix_var,static_cast<double>(data_store.col[j+xpp::model().node+1][i]));
+	    set_ivar(j+xpp::model().node+1+xpp::model().fix_var,static_cast<double>(xpp::session().data_store.col[j+xpp::model().node+1][i]));
 	  z=evaluate(command);
 	  if(fabs(z)>0.0)flag=1;
 	  else flag=0;
 	}
-	z=(data_store.col[col][i]-zlo)/dz;
+	z=(xpp::session().data_store.col[col][i]-zlo)/dz;
 	index=static_cast<int>(z);
 	if(index>=0&&index<length&&flag==1){
 	  my_hist[1][index]+=1.0;
@@ -278,9 +279,9 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
     return;
   }
   if(which==1){
-    for(i=0;i<data_store.rows;i++){
-      for(j=0;j<data_store.rows;j++){
-	y=data_store.col[col][i]-data_store.col[col][j];
+    for(i=0;i<xpp::session().data_store.rows;i++){
+      for(j=0;j<xpp::session().data_store.rows;j++){
+	y=xpp::session().data_store.col[col][i]-xpp::session().data_store.col[col][j];
 	z=(y-zlo)/dz;
 	index=static_cast<int>(z);
 	if(index>=0&&index<length)
@@ -292,13 +293,13 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
     return;
   }
   if(which==2){
-    mycor2(data_store.col[col],data_store.col[col2],data_store.rows,nbins,my_hist[1],1);
+    mycor2(xpp::session().data_store.col[col],xpp::session().data_store.col[col2],xpp::session().data_store.rows,nbins,my_hist[1],1);
     hist_back();
     ping();
     return;
   }
   if(which==3){
-    fftxcorr(data_store.col[col],data_store.col[col2],data_store.rows,(nbins-1)/2,my_hist[1],1);
+    fftxcorr(xpp::session().data_store.col[col],xpp::session().data_store.col[col2],xpp::session().data_store.rows,(nbins-1)/2,my_hist[1],1);
     hist_back();
     ping();
     return;
@@ -311,20 +312,20 @@ void column_mean()
  int i;
  double sum,sum2,ss;
  double mean,sdev;
- if(data_store.rows<=1){
+ if(xpp::session().data_store.rows<=1){
    err_msg("Need at least 2 data points!");
    return;
  }
  if(get_col_info(&hist_inf.col,"Variable ")==0)return;
  sum=0.0;
  sum2=0.0;
- for(i=0;i<data_store.rows;i++){
-   ss=data_store.col[hist_inf.col][i];
+ for(i=0;i<xpp::session().data_store.rows;i++){
+   ss=xpp::session().data_store.col[hist_inf.col][i];
    sum+=ss;
    sum2+=(ss*ss);
  }
- mean=sum/static_cast<double>(data_store.rows);
- sdev=sqrt(sum2/static_cast<double>(data_store.rows)-mean*mean);
+ mean=sum/static_cast<double>(xpp::session().data_store.rows);
+ sdev=sqrt(sum2/static_cast<double>(xpp::session().data_store.rows)-mean*mean);
  err_msg(xpp::format("Mean={:g} Std. Dev. = {:g} ",mean,sdev).c_str());
 }
 
@@ -346,7 +347,7 @@ void compute_power()
   double s,c;
   float *datx,*daty,ptot=0;
   compute_fourier();
-  if((xpp::model().neq<2)||(data_store.rows<=1))return;
+  if((xpp::model().neq<2)||(xpp::session().data_store.rows<=1))return;
   datx=get_data_col(1);
   daty=get_data_col(2);
 
@@ -501,7 +502,7 @@ int cross_spectrum(float *data,float *data2,int nr,int win,int w_type,float *pow
 void just_sd(int flag)
 {
  int length,j;
-  float total=data_store.col[0][data_store.rows-1]-data_store.col[0][0];
+  float total=xpp::session().data_store.col[0][xpp::session().data_store.rows-1]-xpp::session().data_store.col[0][0];
   spec_type=flag;
   if(HIST_HERE){
     data_back();
@@ -512,11 +513,11 @@ void just_sd(int flag)
    length=hist_len+2;
   hist_columns.make(2,length,xpp::model().neq);
   HIST_HERE=1;
-  for(j=0;j<hist_len;j++)my_hist[0][j]=(static_cast<float>(j)*data_store.rows/spec_wid)/total;
+  for(j=0;j<hist_len;j++)my_hist[0][j]=(static_cast<float>(j)*xpp::session().data_store.rows/spec_wid)/total;
   if(spec_type==0)
-    spectrum(data_store.col[spec_col],data_store.rows,spec_wid,spec_win,my_hist[1]);
+    spectrum(xpp::session().data_store.col[spec_col],xpp::session().data_store.rows,spec_wid,spec_win,my_hist[1]);
   else
-    cross_spectrum(data_store.col[spec_col],data_store.col[spec_col2],data_store.rows,spec_wid,spec_win,my_hist[1],spec_type);
+    cross_spectrum(xpp::session().data_store.col[spec_col],xpp::session().data_store.col[spec_col2],xpp::session().data_store.rows,spec_wid,spec_win,my_hist[1],spec_type);
   hist_back();
   ping();
 }
@@ -537,8 +538,8 @@ void just_fourier(int flag)
   int i;
   double s,c;
   float *datx,*daty;
-  int nmodes=data_store.rows/2-1;
-  if(xpp::model().neq<2||data_store.rows<=1)return;
+  int nmodes=xpp::session().data_store.rows/2-1;
+  if(xpp::model().neq<2||xpp::session().data_store.rows<=1)return;
    new_four(nmodes,spec_col);
    if(flag)
      {
@@ -563,12 +564,12 @@ void compute_fourier()
     err_msg("Need at least three data columns");
     return;
   }
-  if(data_store.rows<=1){
+  if(xpp::session().data_store.rows<=1){
     err_msg("No data!");
     return;
   }
   if(get_col_info(&spec_col,"Variable ")==1){
-    nmodes=data_store.rows/2-1;
+    nmodes=xpp::session().data_store.rows/2-1;
     new_four(nmodes,spec_col);
   }
 }
@@ -576,13 +577,13 @@ void compute_fourier()
 void compute_correl()
 {
   int lag;
-  float total=data_store.col[0][data_store.rows-1]-data_store.col[0][0],dta;
-  dta=total/static_cast<float>((data_store.rows-1));
+  float total=xpp::session().data_store.col[0][xpp::session().data_store.rows-1]-xpp::session().data_store.col[0][0],dta;
+  dta=total/static_cast<float>((xpp::session().data_store.rows-1));
   
   new_int("Number of bins ",&hist_inf.nbins);
   new_int("(0)Direct or (1) FFT ", &hist_inf.fftc);
-  if(hist_inf.nbins>(data_store.rows/2-1))
-    hist_inf.nbins=data_store.rows/2-2;
+  if(hist_inf.nbins>(xpp::session().data_store.rows/2-1))
+    hist_inf.nbins=xpp::session().data_store.rows/2-2;
   
   hist_inf.nbins=2*(hist_inf.nbins/2)+1;
   lag=hist_inf.nbins/2;

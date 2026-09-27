@@ -30,6 +30,7 @@
 #include "xpplim.h"
 #include "volterra.h"
 #include "tabular.h"
+#include "xpp_current.h"
 
 #include <array>
 #include <string>
@@ -219,24 +220,10 @@ struct Model {
   std::string this_internset;
 };
 
-namespace detail {
-/* the current Model's slot: constant-initialised (no guard on a read),
-   filled on first use and changed only by ModelLoad */
-inline Model *&current_model() noexcept
-{
-  static constinit Model *current=nullptr;
-  return current;
-}
-Model *first_model();
-}
-
-/* the current Model. Inline: the integrator's right-hand side reads the
-   counts on every step, and a call per read slowed it measurably. */
+/* the current Model (xpp_current.h) */
 inline Model &model()
 {
-  Model *m=detail::current_model();
-  if(!m)[[unlikely]]m=detail::first_model();
-  return *m;
+  return detail::current<Model>();
 }
 
 /* A load in progress: while it lives the current Model is a fresh one,

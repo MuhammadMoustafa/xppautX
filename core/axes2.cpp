@@ -1,4 +1,5 @@
 #include "xpp_ui.h"
+#include "session.h"
 #include "xpp_util.h"
 #include  "axes2.h"
 
@@ -37,7 +38,7 @@ void draw_xtics(const char *s2, double start, double incr, double end);
 /* "y vs x", or "z vs y vs x" in 3D */
 std::string make_title()
 {
-  const auto *g=plot_windows.current;
+  const auto *g=xpp::session().plot_windows.current;
   if(g->grtype>=5)
     return xpp::format("{} vs {} vs {}",ind_to_sym(g->zv[0]),ind_to_sym(g->yv[0]),ind_to_sym(g->xv[0]));
   return xpp::format("{} vs {}",ind_to_sym(g->yv[0]),ind_to_sym(g->xv[0]));
@@ -101,18 +102,18 @@ void redraw_cube_pt(double theta,double phi)
 
 void do_axes()
 {
-    const std::string s1(ind_to_sym(plot_windows.current->xv[0]));
-    const std::string s2(ind_to_sym(plot_windows.current->yv[0]));
+    const std::string s1(ind_to_sym(xpp::session().plot_windows.current->xv[0]));
+    const std::string s2(ind_to_sym(xpp::session().plot_windows.current->yv[0]));
     set_linestyle(0);
     if(program.interactive){  re_title();
     SmallGr();
     }
 
-    switch(plot_windows.current->grtype)
+    switch(xpp::session().plot_windows.current->grtype)
     {
-    case 0: Box_axis(plot_windows.current->xlo,plot_windows.current->xhi,plot_windows.current->ylo,plot_windows.current->yhi,
-		       (!plot_windows.current->xlabel.empty()||!AxisVarLabels)?plot_windows.current->xlabel.c_str():s1.c_str(),
-		       (!plot_windows.current->ylabel.empty()||!AxisVarLabels)?plot_windows.current->ylabel.c_str():s2.c_str(),1); break;
+    case 0: Box_axis(xpp::session().plot_windows.current->xlo,xpp::session().plot_windows.current->xhi,xpp::session().plot_windows.current->ylo,xpp::session().plot_windows.current->yhi,
+		       (!xpp::session().plot_windows.current->xlabel.empty()||!AxisVarLabels)?xpp::session().plot_windows.current->xlabel.c_str():s1.c_str(),
+		       (!xpp::session().plot_windows.current->ylabel.empty()||!AxisVarLabels)?xpp::session().plot_windows.current->ylabel.c_str():s2.c_str(),1); break;
     case 5: Frame_3d(); break;
 
    }
@@ -128,9 +129,9 @@ void Frame_3d()
 	
   double tx,ty,tz;
   float x1,y1,z1,x2,y2,z2,dt=.03;
-  float x0=plot_windows.current->xorg,y0=plot_windows.current->yorg,z0=plot_windows.current->zorg;
-  double xmin=plot_windows.current->xmin,xmax=plot_windows.current->xmax,ymin=plot_windows.current->ymin;
-  double ymax=plot_windows.current->ymax,zmin=plot_windows.current->zmin,zmax=plot_windows.current->zmax;
+  float x0=xpp::session().plot_windows.current->xorg,y0=xpp::session().plot_windows.current->yorg,z0=xpp::session().plot_windows.current->zorg;
+  double xmin=xpp::session().plot_windows.current->xmin,xmax=xpp::session().plot_windows.current->xmax,ymin=xpp::session().plot_windows.current->ymin;
+  double ymax=xpp::session().plot_windows.current->ymax,zmin=xpp::session().plot_windows.current->zmin,zmax=xpp::session().plot_windows.current->zmax;
   float x4=xmin,y4=ymin,z4=zmin,x5=xmax,y5=ymax,z5=zmax;
   float x3,y3,z3,x6,y6,z6;
   
@@ -172,23 +173,23 @@ void Frame_3d()
     
   set_linestyle(-1);
   
-  if(plot_windows.current->zorgflag)line_3d(x0,y0,z4,x0,y0,z5);
-  if(plot_windows.current->yorgflag)line_3d(x0,y4,z0,x0,y5,z0);
-  if(plot_windows.current->xorgflag)line_3d(x4,y0,z0,x5,y0,z0);
+  if(xpp::session().plot_windows.current->zorgflag)line_3d(x0,y0,z4,x0,y0,z5);
+  if(xpp::session().plot_windows.current->yorgflag)line_3d(x0,y4,z0,x0,y5,z0);
+  if(xpp::session().plot_windows.current->xorgflag)line_3d(x4,y0,z0,x5,y0,z0);
 
   dt=.06;
   TextJustify=2;
   text3d(x1,-1-2.*dt,-1.0,xpp::format("{:g}",xmin).c_str());
   text3d(x2,-1-2.*dt,-1.0,xpp::format("{:g}",xmax).c_str());
-  text3d(0.0,-1-dt,-1.0,plot_windows.current->xlabel.c_str());
+  text3d(0.0,-1-dt,-1.0,xpp::session().plot_windows.current->xlabel.c_str());
   TextJustify=0;
   text3d(1+dt,y1,-1.0,xpp::format("{:g}",ymin).c_str());
   text3d(1+dt,y2,-1.0,xpp::format("{:g}",ymax).c_str());
-  text3d(1+dt,0.0,-1.0,plot_windows.current->ylabel.c_str());
+  text3d(1+dt,0.0,-1.0,xpp::session().plot_windows.current->ylabel.c_str());
   TextJustify=2;
   text3d(-1.-dt,-1-dt,z1,xpp::format("{:g}",zmin).c_str());
   text3d(-1.-dt,-1-dt,z2,xpp::format("{:g}",zmax).c_str());
-  text3d(-1.-dt,-1.-dt,0.0,plot_windows.current->zlabel.c_str());
+  text3d(-1.-dt,-1.-dt,0.0,xpp::session().plot_windows.current->zlabel.c_str());
   TextJustify=0;
   
   DOING_AXES=0;
@@ -218,12 +219,12 @@ void Box_axis(double x_min, double x_max, double y_min, double y_max, const char
  
   ytic=make_tics(y_min,y_max);
   xtic=make_tics(x_min,x_max);
- scale_to_screen(static_cast<float>(plot_windows.current->xorg),static_cast<float>(plot_windows.current->yorg),&yaxis_x,&xaxis_y);
+ scale_to_screen(static_cast<float>(xpp::session().plot_windows.current->xorg),static_cast<float>(xpp::session().plot_windows.current->yorg),&yaxis_x,&xaxis_y);
   set_linestyle(-1);
-  if(plot_windows.current->xorgflag&&flag)
+  if(xpp::session().plot_windows.current->xorgflag&&flag)
     if(xaxis_y>=ybot&&xaxis_y<=ytop)
       line(xleft,xaxis_y,xright,xaxis_y);
-  if(plot_windows.current->yorgflag&&flag)
+  if(xpp::session().plot_windows.current->yorgflag&&flag)
     if(yaxis_x>=xleft&&yaxis_x<=xright)
       line(yaxis_x,ybot,yaxis_x,ytop);
  set_linestyle(-2);

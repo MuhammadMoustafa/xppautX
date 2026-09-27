@@ -1,4 +1,5 @@
 #include "model.h"
+#include "session.h"
 #include "adj2.h"
 #include "storage.h"
 #include "odesol2.h"
@@ -153,9 +154,9 @@ int create_transpose()
       incol=xpp::model().neq;
     for(j=0;j<my_trans.nrow;j++){
       inrow=my_trans.row0+j*my_trans.rowskip;
-      if(inrow>data_store.rows)
-	inrow=data_store.rows;
-      data[j+1][i]=data_store.col[incol][inrow];
+      if(inrow>xpp::session().data_store.rows)
+	inrow=xpp::session().data_store.rows;
+      data[j+1][i]=xpp::session().data_store.col[incol][inrow];
     }
   }
   
@@ -173,7 +174,7 @@ void alloc_h_stuff()
 void data_back()
 {
  FOUR_HERE=0;
- new_browse_dat(data_store.col,data_store.rows);
+ new_browse_dat(xpp::session().data_store.col,xpp::session().data_store.rows);
 }
 
 void adj_back()
@@ -245,7 +246,7 @@ void new_h_fun(int silent)
    err_msg("Must compute adjoint first!");
    return;
  }
-  if(data_store.rows!=adj_len){
+  if(xpp::session().data_store.rows!=adj_len){
      err_msg("incompatible data and adjoint");
      return;
    }
@@ -258,10 +259,10 @@ void new_h_fun(int silent)
      HODD_EV=1;
      n=4;
    }
-   h_len=data_store.rows;
+   h_len=xpp::session().data_store.rows;
    data_back(); 
    h_columns.make(n,h_len,xpp::model().neq);
-   if(make_h(data_store.col,my_adj,my_h,h_len,DELTA_T*NJMP,xpp::model().node,silent )){
+   if(make_h(xpp::session().data_store.col,my_adj,my_h,h_len,DELTA_T*NJMP,xpp::model().node,silent )){
      H_HERE=1;
      h_back();
    }
@@ -350,9 +351,9 @@ void new_adjoint()
    adj_columns.release();
    ADJ_HERE=0;
  }
- adj_len=data_store.rows;
+ adj_len=xpp::session().data_store.rows;
  adj_columns.make(n,adj_len,xpp::model().neq);
- if(adjoint(data_store.col,my_adj,adj_len,DELTA_T*NJMP,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,xpp::model().node )){
+ if(adjoint(xpp::session().data_store.col,my_adj,adj_len,DELTA_T*NJMP,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,xpp::model().node )){
    ADJ_HERE=1;;
  adj_back();
  }
@@ -548,15 +549,15 @@ void do_liapunov()
     hrw_liapunov(&z,0,NEWT_ERR);
     return;
   }
-  x=&data_store.current[0];
+  x=&xpp::session().data_store.current[0];
   do_range(x,0); 
   /* done the range */
   for(i=0;i<LIAP_I;i++){
-    data_store.col[0][i]=my_liap[0][i];
-    data_store.col[1][i]=my_liap[1][i];
+    xpp::session().data_store.col[0][i]=my_liap[0][i];
+    xpp::session().data_store.col[1][i]=my_liap[1][i];
   }
-  data_store.rows=LIAP_I;
-  refresh_browser(data_store.rows);
+  xpp::session().data_store.rows=LIAP_I;
+  refresh_browser(xpp::session().data_store.rows);
   LIAP_FLAG=0;
   for(auto &c : my_liap)c.clear();
 }
@@ -600,7 +601,7 @@ int hrw_liapunov(double *liap,int batch,double eps)
  double sum=0.0;
  int istart=1;
  int i,j;
-  if(data_store.rows<2){
+  if(xpp::session().data_store.rows<2){
    if(batch==0)err_msg("You need to compute an orbit first");
    return(0);
  }
@@ -610,15 +611,15 @@ int hrw_liapunov(double *liap,int batch,double eps)
       dy[i]=0; 
    dy[0]=eps;
    
-   for(j=0;j<(data_store.rows-1);j++){
-     t0=data_store.col[0][j];
-     t1=data_store.col[0][j+1];
+   for(j=0;j<(xpp::session().data_store.rows-1);j++){
+     t0=xpp::session().data_store.col[0][j];
+     t1=xpp::session().data_store.col[0][j+1];
      istart=1;
      for(i=0;i<xpp::model().node;i++)
-       y[i]=data_store.col[i+1][j]+dy[i];
+       y[i]=xpp::session().data_store.col[i+1][j]+dy[i];
      one_step_int(y,t0,t1,&istart);
      for(i=0;i<xpp::model().node;i++)
-       yp[i]=(y[i]-data_store.col[i+1][j+1]);
+       yp[i]=(y[i]-xpp::session().data_store.col[i+1][j+1]);
      norm_vec(yp,&nrm,xpp::model().node);
      nrm=nrm/eps;
      if(nrm==0.0){
@@ -630,7 +631,7 @@ int hrw_liapunov(double *liap,int batch,double eps)
       dy[i]=eps*yp[i];
 
    }
-   t1=data_store.col[0][data_store.rows-1]-data_store.col[0][0];
+   t1=xpp::session().data_store.col[0][xpp::session().data_store.rows-1]-xpp::session().data_store.col[0][0];
    if(t1!=0)
      sum=sum/t1;
    *liap=sum;

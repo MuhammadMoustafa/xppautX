@@ -4,6 +4,7 @@
 #include <stdio.h>
 #ifdef __cplusplus
 #include "many_pops.h"
+#include "session.h"
 extern "C" {
 #endif
 
@@ -66,13 +67,13 @@ int find_user_name(int type, std::string_view oname);
 template <class F>
 void for_each_shown_window(int flag, F f)
 {
-    if (plot_windows.simul == 0) {
+    if (xpp::session().plot_windows.simul == 0) {
         f();
         return;
     }
-    const int ic = plot_windows.active;
-    for (int i = 0; i < plot_windows.count; i++) {
-        make_active(plot_windows.open[i], flag);
+    const int ic = xpp::session().plot_windows.active;
+    for (int i = 0; i < xpp::session().plot_windows.count; i++) {
+        make_active(xpp::session().plot_windows.open[i], flag);
         f();
     }
     make_active(ic, flag);

@@ -1,4 +1,5 @@
 #include "tabular.h"
+#include "session.h"
 #include "storage.h"
 #include "xpp_files.h"
 #include "load_eqn.h"
@@ -108,10 +109,10 @@ void view_table(int index)
   double *y=m.tables[index].y;
   double xlo=m.tables[index].xlo,dx=m.tables[index].dx;
   len=n;
-  if(len>=data_store.max_rows)len=data_store.max_rows-1;
+  if(len>=xpp::session().data_store.max_rows)len=xpp::session().data_store.max_rows-1;
   for(i=0;i<len;i++){
-    data_store.col[0][i]=xlo+i*dx;
-    data_store.col[1][i]=y[i];
+    xpp::session().data_store.col[0][i]=xlo+i*dx;
+    xpp::session().data_store.col[1][i]=y[i];
   }
   refresh_browser(len);
 }

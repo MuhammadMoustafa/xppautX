@@ -3,6 +3,7 @@
    the historical do_main(), with no front end setup, so it links against
    libxppcore alone. */
 #include "model.h"
+#include "session.h"
 #include "xpp_batch.h"
 #include "load_eqn.h"
 #include "odesol2.h"
@@ -246,7 +247,7 @@ void xpp_load_model(int argc, char **argv, int batch)
     xpp_reset_options();
     program.interactive = 0;
     batch_options.out_file = "output.dat";
-    plot_export.format = "ps";
+    xpp::session().plot_export.format = "ps";
     log_settings.file = stdout;
     check_for_quiet(argc, argv);
     do_comline(argc, argv);
