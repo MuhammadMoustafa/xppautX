@@ -35,14 +35,6 @@ CORE = ROOT / "core"
 # adding an entry for new code.
 ALLOW = """\
 
-core/aniparse.cpp draw_ani_circ|keep: per-primitive-type dispatch wrappers (circle/filled circle/rect/filled rect/ellipse/filled ellipse), same shape by design; no W32a-d card owns aniparse.cpp yet
-core/aniparse.cpp draw_ani_fcirc|keep: see core/aniparse.cpp draw_ani_circ
-core/aniparse.cpp draw_ani_rect|keep: see core/aniparse.cpp draw_ani_circ
-core/aniparse.cpp draw_ani_frect|keep: see core/aniparse.cpp draw_ani_circ
-core/aniparse.cpp draw_ani_ellip|keep: see core/aniparse.cpp draw_ani_circ
-core/aniparse.cpp draw_ani_fellip|keep: see core/aniparse.cpp draw_ani_circ
-core/array_print.cpp ps_bar|W32b xpp_files: PostScript-export bar-drawing pair (linear vs log/hsb scale), same print-helper shape; merge with the array-export print helpers
-core/array_print.cpp ps_hsb_bar|W32b xpp_files: see core/array_print.cpp ps_bar
 core/autlib1.cpp fnuzae|vendored/numerical, keep: AUTO (Doedel), translated Fortran user-function stubs
 core/autlib1.cpp fnuzbv|vendored/numerical, keep: AUTO (Doedel), translated Fortran user-function stubs
 core/autlib2.cpp mynode|vendored/numerical, keep: AUTO's parallel-stub functions (mynode/numnodes/csend/crecv/...) for the non-MPI build, translated Fortran
@@ -72,7 +64,7 @@ core/flags.cpp one_flag_step_euler|keep: see core/flags.cpp one_flag_step_symp
 core/flags.cpp one_flag_step_discrete|keep: see core/flags.cpp one_flag_step_symp
 core/flags.cpp one_flag_step_heun|keep: see core/flags.cpp one_flag_step_symp
 core/flags.cpp one_flag_step_rk4|keep: see core/flags.cpp one_flag_step_symp
-core/graphics.cpp point|keep: pixel-primitive pairs behind the XppUi seam (point/bead, line/frect, point_abs/bead_abs), same shape by design; no W32a-d card owns graphics.cpp yet
+core/graphics.cpp point|keep: each primitive dispatched to its own sink (PS, SVG, the front end) and each _abs form clipped then scaled for its own; the same shape per primitive by design, a merge would only hide which sink call each makes (W33f looked again)
 core/graphics.cpp bead|keep: see core/graphics.cpp point
 core/graphics.cpp line|keep: see core/graphics.cpp point
 core/graphics.cpp frect|keep: see core/graphics.cpp point
@@ -101,7 +93,6 @@ core/cvdense.cpp *block*|vendored/numerical, keep: see core/cvband.cpp *block*
 core/dormpri.cpp *block*|vendored/numerical, keep: Hairer's dop853/dopri5, two integrators of parallel structure by the original source's own design
 core/dormpri.h *block*|vendored/numerical, keep: see core/dormpri.cpp *block*
 core/eispack.cpp *block*|vendored/numerical, keep: EISPACK, translated Fortran eigenvalue routines
-core/nullcline.cpp *block*|keep: nullcline.cpp's two nullcline-branch blocks (16 lines); no W32a-d card owns nullcline.cpp yet
 
 
 

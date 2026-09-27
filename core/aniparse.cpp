@@ -1080,31 +1080,26 @@ void draw_ani_rline(int j)
     ani_lasty = y1;
 }
 
-/* circle (fill 0) and fcircle (1) */
-void draw_ani_circ(int j, int fill)
-{
-    const AniCom &a = my_ani[j];
-    set_ani_col(j);
-    pen_thick(a.zthick);
-    put_circle(a.zx1, a.zy1, a.zrad, fill);
-}
-
-/* rect (fill 0) and frect (1) */
-void draw_ani_rect(int j, int fill)
+/* rect, ellip and circle, outlined or filled (frect, fellip, fcircle) */
+void draw_ani_shape(int j)
 {
     const AniCom &a = my_ani[j];
     pen_thick(a.zthick);
     set_ani_col(j);
-    put_rect(a.zx1, a.zy1, a.zx2, a.zy2, fill);
-}
-
-/* ellip (fill 0) and fellip (1) */
-void draw_ani_ellip(int j, int fill)
-{
-    const AniCom &a = my_ani[j];
-    pen_thick(a.zthick);
-    set_ani_col(j);
-    put_ellipse(a.zx1, a.zy1, a.zx2, a.zy2, fill);
+    switch (a.type) {
+    case RECT:
+    case FRECT:
+        put_rect(a.zx1, a.zy1, a.zx2, a.zy2, a.type == FRECT);
+        break;
+    case ELLIP:
+    case FELLIP:
+        put_ellipse(a.zx1, a.zy1, a.zx2, a.zy2, a.type == FELLIP);
+        break;
+    case CIRC:
+    case FCIRC:
+        put_circle(a.zx1, a.zy1, a.zrad, a.type == FCIRC);
+        break;
+    }
 }
 
 void draw_ani_text(int j) { put_text(my_ani[j].zx1, my_ani[j].zy1, my_ani[j].text.c_str()); }
@@ -1299,15 +1294,11 @@ void render_ani(void)
             break;
         case RECT:
         case FRECT:
-            draw_ani_rect(i, type == FRECT);
-            break;
         case ELLIP:
         case FELLIP:
-            draw_ani_ellip(i, type == FELLIP);
-            break;
         case CIRC:
         case FCIRC:
-            draw_ani_circ(i, type == FCIRC);
+            draw_ani_shape(i);
             break;
         }
     }

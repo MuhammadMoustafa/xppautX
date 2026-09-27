@@ -45,8 +45,7 @@
 #include "many_pops.h"
 #include "kinescope.h"
 
-extern int DF_FLAG, NTable, POIMAP, TORUS;
-extern const char *no_hint[];
+extern int NTable, POIMAP, TORUS;
 
 
 /* Pop up m and return the index of the chosen item, -1 if none. */
