@@ -439,6 +439,12 @@ const XppMenu menu_poincare={"poincare","Poincare map",4,map_items,"nsmp",map_hi
 const XppMenu menu_color_code={"color_code","Color code",3,color_items,"nva",color_hint,M_UCN};
 const XppMenu menu_adjoint={"adjoint","Adjoint",7,adj_items,"nmaohpr",adj_hint,M_UAN};
 const XppMenu menu_lookup={"lookup","Tables",2,tab_items,"ev",tab_hint,M_UKE};
+/* Save data (browse_data.cpp data_write): what it writes; the format
+   comes next, from the data formats' registry (data_formats.h) */
+static const char *const save_what_items[]={"The data table","What the plot shows"};
+static const char *const save_what_hint[]={"The stored rows from First to Last, every column",
+  "The current plot's curves and frozen curves, one row per point: curve,x,y (and z in 3D)"};
+const XppMenu menu_save_what={"save_what","Save data",2,save_what_items,"tp",save_what_hint,-1};
 /* sets METHOD directly */
 const XppMenu menu_method={"method","Method",15,meth_items,"demragvbqsc582y",meth_hint,-1};
 

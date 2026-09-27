@@ -53,22 +53,31 @@ This lets you save data in a tabulated format that can then be used by XPP as a 
 
 replots the data marked by First and Last. The default is the entire data set
 
-### (W)rite
+### (W)rite: Save data
 
-prompts you for a filename and writes the marked data to a file, in the working directory (see [Using the interface](04-using-the-interface.md#saving-pictures-and-files) for how the browser gets it). The file is ASCII readable and reflects the current contents of the DB:
+Saves numbers to a file in the working directory (see [Using the interface](04-using-the-interface.md#saving-pictures-and-files) for how the browser gets it). It asks three things in turn:
 
-```
-t0 x1(t0) ... xn(t0)
-t1 x1(t1) ... xn(t1)
-.
-.
-.
-tf x1(tf) ... xn(tf)
-```
+1. **What to save**: *The data table* (the rows marked by `First` and `Last`, every column: T, the variables, the auxiliary quantities) or *What the plot shows* (the current plot window's curves, then its frozen curves, as one long table with the columns `curve`, `x`, `y` and, in a 3D plot, `z`: one row per point, the window's curves numbered 1, 2, ... in order and the frozen curves after them).
+2. **The format**, one of:
+   - **XPP data (.dat)**: XPP's own, what it has always written (and what a batch run writes as `output.dat`): one row per line, the values separated by blanks, 8 significant digits, no names. It is ASCII readable and reflects the current contents of the DB:
+
+     ```
+     t0 x1(t0) ... xn(t0)
+     t1 x1(t1) ... xn(t1)
+     .
+     .
+     .
+     tf x1(tf) ... xn(tf)
+     ```
+
+   - **CSV with a header (.csv)**: a first row of the column names (`T,x,y,...`, or `curve,x,y`), then one row per point, each number written with as many digits as it takes to read back exactly the value XPP stored.
+   - **Compressed CSV (.csv.gz)**: the same CSV, gzipped (any gzip tool, Python's `gzip` or `pandas.read_csv` opens it).
+   - **NumPy arrays (.npz)**: NumPy's own format (`numpy.load`), a zip of one float64 array per column named after it (`T`, `x`, ...); for what the plot shows, one array per curve (`curve1`, `curve2`, ...) of one row per point and the columns x, y (and z).
+3. **The file's name**, suggested as `data` or `curves` with the format's extension.
 
 ### (L)oad
 
-Will load in as much of a similarly formatted data file as possible for graphing.
+Loads a data file into the table for graphing: its columns fill T and the columns after it in order (more columns than the table has are left out). The format is the file's extension: `.csv`, `.csv.gz` and `.npz` as Save data writes them (a CSV's header row, when it has one, is skipped; an `.npz` array of two dimensions gives one column per column), anything else is read as XPP's `.dat`, as much of a similarly formatted data file as possible.
 
 ### (A)ddcol
 

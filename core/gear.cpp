@@ -282,7 +282,7 @@ int i,k,type;
        usual_integrate_stuff(x);
        {
          xpp::Writer w(xpp::format("UM{}.dat",k).c_str());
-         if(w){ write_mybrowser_data(w.file()); w.commit(); }
+         if(w){ write_mybrowser_data(w); w.commit(); }
        }
     }
     if(type<0){
@@ -291,7 +291,7 @@ int i,k,type;
        usual_integrate_stuff(x);
        {
          xpp::Writer w(xpp::format("SM{}.dat",k).c_str());
-         if(w){ write_mybrowser_data(w.file()); w.commit(); }
+         if(w){ write_mybrowser_data(w); w.commit(); }
        }
 
     }

@@ -26,7 +26,9 @@
 
    pocketfft (third_party/pocketfft, compiled into xpp_math.cpp) allocates
    its scratch memory with the C library's malloc/free inside its own
-   header and hands none of it out; alloccheck reads core/ only.
+   header and hands none of it out; alloccheck reads core/ only. So does
+   miniz (third_party/miniz, its own object, used only by xpp_zip.cpp):
+   everything it produces comes back through callbacks into std::string.
 
    make asan (build/asan, AddressSanitizer + UBSan) and tools/asancheck.sh
    check that nothing leaks. */

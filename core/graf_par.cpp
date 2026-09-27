@@ -16,6 +16,8 @@
 
 
 #include "graphics.h"
+#include "data_formats.h"
+#include <algorithm>
 #include <stdlib.h> 
 #include <string.h>
 #include <stdio.h>
@@ -1171,6 +1173,43 @@ void export_graf_data()
   }
  export_data(fp.file());
  fp.commit();
+}
+
+xpp::DataTable plot_curves_table()
+{
+  xpp::Session &s=xpp::session();
+  const GRAPH &g=*s.plot_windows.current;
+  const BROWSER &b=s.browser.view;
+  const bool three=g.ThreeDFlag>0;
+  xpp::DataTable t;
+  t.curves=true;
+  t.names={"curve","x","y"};
+  if(three)t.names.emplace_back("z");
+  t.columns.resize(t.names.size());
+  const auto add=[&](int id,float x,float y,float z){
+    t.columns[0].push_back(static_cast<float>(id));
+    t.columns[1].push_back(x);
+    t.columns[2].push_back(y);
+    if(three)t.columns[3].push_back(z);
+  };
+  const auto stored=[&](int col){return col>=0&&col<b.maxcol;};
+  /* the window's curves: point j is x[j-xshft], y[j-yshft], z[j-zshft],
+     from the first j every shift allows (as they are drawn) */
+  const int first=std::max({0,g.xshft,g.yshft,g.zshft});
+  int id=1;
+  for(int c=0;c<g.nvars&&c<MAXPERPLOT;c++,id++){
+    if(!stored(g.xv[c])||!stored(g.yv[c])||(three&&!stored(g.zv[c])))continue;
+    for(int j=first;j<b.maxrow;j++)
+      add(id,b.data[g.xv[c]][j-g.xshft],b.data[g.yv[c]][j-g.yshft],three?b.data[g.zv[c]][j-g.zshft]:0.0f);
+  }
+  /* then its frozen curves, in their slots' order */
+  for(const CURVE &f : s.frozen_curves.curve){
+    if(f.use!=1||f.w!=g.w||f.type!=g.grtype)continue;
+    for(int j=0;j<f.len;j++)
+      add(id,f.xv[j],f.yv[j],three&&f.zv?f.zv[j]:0.0f);
+    id++;
+  }
+  return t;
 }
 
 void add_a_curve_com(int c)

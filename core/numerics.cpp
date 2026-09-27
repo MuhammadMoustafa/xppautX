@@ -316,7 +316,7 @@ void compute_one_period(double period,double *x,const char *name)
   {
     xpp::Writer w(xpp::format("orbit.{}.dat",name).c_str());
     if(w){
-      write_mybrowser_data(w.file());
+      write_mybrowser_data(w);
       w.commit();
     }
     else{
@@ -330,7 +330,7 @@ void compute_one_period(double period,double *x,const char *name)
   {
     xpp::Writer w(xpp::format("adjoint.{}.dat",name).c_str());
     if(w){
-      write_mybrowser_data(w.file());
+      write_mybrowser_data(w);
       w.commit();
       data_back();
     }
@@ -339,7 +339,7 @@ void compute_one_period(double period,double *x,const char *name)
   {
     xpp::Writer w(xpp::format("hfun.{}.dat",name).c_str());
     if(w){
-      write_mybrowser_data(w.file());
+      write_mybrowser_data(w);
       w.commit();
       data_back();
     }

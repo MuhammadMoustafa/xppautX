@@ -161,6 +161,13 @@ std::string format(std::format_string<Args...> fmt, Args &&...args) noexcept
 {
     return xpp::vformat(fmt.get(), std::make_format_args(args...));
 }
+
+/* the same, appended to out (a file's text built up before it is written) */
+template <class... Args>
+void format_append(std::string &out, std::format_string<Args...> fmt, Args &&...args) noexcept
+{
+    xpp::vformat_append(out, fmt.get(), std::make_format_args(args...));
+}
 #endif
 
 #ifdef XPP_IO_HAVE_TO_CHARS
@@ -296,6 +303,19 @@ inline UniqueFile open_read(const char *path) noexcept { return UniqueFile(xpp_f
 inline UniqueFile open_read_binary(const char *path) noexcept
 {
     return UniqueFile(xpp_files_open_stream(path, "rb"));
+}
+
+/* path's whole contents, byte for byte, into out; false (out empty) when
+   it cannot be opened or read. std::bad_alloc is the caller's to catch. */
+inline bool read_bytes(const char *path, std::string &out)
+{
+    out.clear();
+    UniqueFile f = open_read_binary(path);
+    if (!f) return false;
+    std::array<char, 65536> buf;
+    std::size_t n;
+    while ((n = std::fread(buf.data(), 1, buf.size(), f.get())) > 0) out.append(buf.data(), n);
+    return !std::ferror(f.get());
 }
 
 #ifdef XPP_IO_HAVE_STD_FORMAT
@@ -452,6 +472,13 @@ public:
         xpp::print(file(), fmt, std::forward<Args>(args)...);
     }
 #endif
+    /* bytes written as they are (a binary Writer's file); false when they
+       could not all be */
+    bool write(std::string_view bytes) noexcept
+    {
+        FILE *fp = file();
+        return fp && std::fwrite(bytes.data(), 1, bytes.size(), fp) == bytes.size();
+    }
     /* Renames the temp file into place; false (the original file left
        untouched) on failure. Either outcome ends this Writer -- a second
        commit()/abort() is a no-op. */

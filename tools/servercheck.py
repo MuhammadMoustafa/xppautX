@@ -2106,6 +2106,141 @@ def check_auto_no_nan_par():
 
 check_auto_no_nan_par()
 
+
+# Save data (W52, docs/protocol.md "The data browser"): the browser's
+# write with `what`, `format` and `name` writes the data table or what the
+# plot shows in each registered format; each file is read back here, the
+# NPZ by parsing its zip and .npy headers (and by numpy.load when numpy is
+# there), and the browser's load reads each back into the table.
+def npz_arrays(path):
+    """name -> (shape, float64 values) of an .npz, read without numpy"""
+    import ast, zipfile
+    out = {}
+    with zipfile.ZipFile(path) as z:
+        for info in z.infolist():
+            b = z.read(info)
+            assert b[:6] == b'\x93NUMPY' and b[6] == 1
+            hlen = struct.unpack('<H', b[8:10])[0]
+            h = ast.literal_eval(b[10:10 + hlen].decode('latin1'))
+            assert h['descr'] == '<f8' and not h['fortran_order'] and (10 + hlen) % 64 == 0
+            n = len(b[10 + hlen:]) // 8
+            out[info.filename[:-4]] = (h['shape'], struct.unpack('<%dd' % n, b[10 + hlen:]))
+    return out
+
+
+def check_data_formats():
+    import gzip
+    p, r, snd, col, _ = launch_server()
+    f32 = lambda v: struct.unpack('<f', struct.pack('<f', float(v)))[0]
+    read = lambda d, n: open(os.path.join(d, n), 'rb').read() if os.path.exists(os.path.join(d, n)) else b''
+
+    def browser(**kw):
+        """a browser command, a File exists? Overwrite ask answered yes"""
+        snd(cmd='browser', **kw)
+        got = []
+        while True:
+            evs, e = col(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=20 * SLOW)
+            got += evs
+            if e is None or e.get('kind') != 'choice':
+                return got, e
+            snd(cmd='answer', id=e['id'], key='y')
+
+    try:
+        col(is_idle)
+        live_run(snd, col)
+        for fmt, name in [('dat', 'd.dat'), ('csv', 'd.csv'), ('csv.gz', 'd.csv.gz'), ('npz', 'd.npz')]:
+            _, e = browser(op='write', what='table', format=fmt, name=name)
+            check('Save data writes the table as %s without asking' % fmt,
+                  e is not None and is_idle(e) and os.path.exists(os.path.join(r, name)), str(e))
+        silent = tempfile.mkdtemp(prefix='xppsilent')
+        shutil.copy(args.ode, silent)
+        subprocess.run([os.path.abspath(args.server), os.path.basename(args.ode), '-silent'], cwd=silent,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60 * SLOW)
+        want = read(silent, 'output.dat').replace(b'\r', b'')
+        shutil.rmtree(silent, ignore_errors=True)
+        check("Save data as .dat is byte for byte the -silent run's output.dat",
+              read(r, 'd.dat').replace(b'\r', b'') == want, '%d vs %d bytes' % (len(read(r, 'd.dat')), len(want)))
+        rows = [[float(x) for x in l.split()] for l in want.decode().splitlines() if l.strip()]
+        csv = read(r, 'd.csv').decode().splitlines() or ['']
+        header = csv[0].split(',')
+        vals = [[float(x) for x in l.split(',')] for l in csv[1:]]
+        check('Save data as CSV: a header of the column names, then every row',
+              header[:3] == ['T', 'V', 'W'] and rows and len(header) == len(rows[0]) and len(vals) == len(rows) == 601,
+              '%s, %d rows' % (header, len(vals)))
+        check("CSV's values are the stored floats (output.dat's %.8g of them)",
+              all('%.8g' % f32(a) == '%.8g' % b for ra, rb in zip(vals, rows) for a, b in zip(ra, rb)))
+        check('Save data as CSV.gz is the CSV, gzipped', gzip.decompress(read(r, 'd.csv.gz')) == read(r, 'd.csv'))
+        try:
+            arrays = npz_arrays(os.path.join(r, 'd.npz'))
+            ok = list(arrays) == header and all(
+                arrays[n][0] == (601,) and all(v == f32(x[j]) for v, x in zip(arrays[n][1], vals))
+                for j, n in enumerate(header))
+            detail = str({k: v[0] for k, v in arrays.items()})
+        except Exception as ex:  # any parse failure is the check's failure
+            ok, detail = False, repr(ex)
+        check('Save data as NPZ: one float64 array per column, named after it', ok, detail)
+        try:
+            import numpy
+        except ImportError:
+            numpy = None
+            print('SKIP numpy.load reads the NPZ: numpy is not installed for %s' % sys.executable)
+        if numpy is not None:
+            z = numpy.load(os.path.join(r, 'd.npz'))
+            check('numpy.load reads the NPZ', sorted(z.files) == sorted(header) and z['V'].dtype == numpy.float64
+                  and list(z['V']) == [f32(x[1]) for x in vals], str(z.files))
+
+        # what the plot shows: the curve V against W, one row per point
+        browser(op='write', what='plot', format='csv', name='p.csv')
+        pc = read(r, 'p.csv').decode().splitlines() or ['']
+        check('Save data writes what the plot shows: curve,x,y, a row per point',
+              pc[0] == 'curve,x,y' and len(pc) == 602 and pc[1].split(',')[0] == '1'
+              and [float(x) for x in pc[1].split(',')[1:]] == vals[0][1:3], str(pc[:2]))
+        browser(op='write', what='plot', format='npz', name='p.npz')
+        try:
+            arrays = npz_arrays(os.path.join(r, 'p.npz'))
+            ok, detail = list(arrays) == ['curve1'] and arrays['curve1'][0] == (601, 2), str(arrays.keys())
+        except Exception as ex:
+            ok, detail = False, repr(ex)
+        check('what the plot shows as NPZ: one (points, 2) array per curve', ok, detail)
+
+        # the dialog: what, then the format from the registry, then the file
+        snd(cmd='browser', op='write')
+        asks = []
+        replies = {'menu': lambda e: {'key': 'p' if e.get('name') == 'save_what' else 'g'},
+                   'file': lambda e: {'file': 'asked.csv.gz'}}
+        while True:
+            _, e = col(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=20 * SLOW)
+            if e is None or is_idle(e):
+                break
+            asks.append(e)
+            snd(cmd='answer', id=e['id'], **(replies[e['kind']](e) if e['kind'] in replies else {'ok': 0}))
+        fmt_menu = [a for a in asks if a.get('name') == 'save_format']
+        check('Save data asks what, then the format (every registered one), then the file',
+              [a.get('name', a['kind']) for a in asks] == ['save_what', 'save_format', 'file']
+              and fmt_menu and len(fmt_menu[0]['items']) == 4 and fmt_menu[0]['keys'] == 'dcgn'
+              and asks[-1].get('wild') == '*.csv.gz'
+              and gzip.decompress(read(r, 'asked.csv.gz')) == read(r, 'p.csv'),
+              str([(a['kind'], a.get('name'), a.get('wild')) for a in asks]))
+
+        # Load reads each format back into the table, picked by its extension
+        for name in ['d.csv', 'd.csv.gz', 'd.npz', 'd.dat']:
+            snd(cmd='browser', op='first', row=300)
+            col(is_idle)
+            browser(op='write', what='table', format='dat', name='cut.dat')  # rows 300.. only
+            browser(op='load', name='cut.dat')
+            evs, _ = browser(op='load', name=name)
+            snd(cmd='browser', op='first', row=0)
+            col(is_idle)
+            browser(op='write', what='table', format='dat', name='back.dat')
+            check('Load reads %s back into the table (rows and values)' % name,
+                  read(r, 'back.dat').replace(b'\r', b'') == want and last_state(evs).get('rows') == 601,
+                  str(last_state(evs).get('rows')))
+    finally:
+        stop_server(p, r, snd)
+
+
+check_data_formats()
+
 # A HOME the process cannot write to used to make AUTO exit(1) under the
 # client when it opened fort.8 there; open_auto() now falls back to the
 # model's directory. Drive a second server with such a HOME and check it survives.

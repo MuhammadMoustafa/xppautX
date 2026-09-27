@@ -228,8 +228,15 @@ void browser_command(const char *line)
     else if (o == "replace") data_replace(&s.browser.view);
     else if (o == "unreplace") data_unreplace(&s.browser.view);
     else if (o == "table") data_table(&s.browser.view);
-    else if (o == "load") data_read(&s.browser.view);
-    else if (o == "write") data_write(&s.browser.view);
+    else if (o == "load" || o == "write") {
+        /* Save data's and Load's choices, each asked for when not given */
+        std::string what, format, name;
+        get_string(line, "what", what, 8);
+        get_string(line, "format", format, 16);
+        get_string(line, "name", name, XPP_MAX_NAME);
+        if (o == "load") data_read(&s.browser.view, format, name);
+        else data_write(&s.browser.view, what, format, name);
+    }
     else if (o == "first") data_first(&s.browser.view);
     else if (o == "last") data_last(&s.browser.view);
     else if (o == "restore") data_restore(&s.browser.view);

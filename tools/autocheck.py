@@ -1073,7 +1073,8 @@ def section_replay():
     target = max(total_rows // 2, 1)
     path = script_file(['{"cmd":"key","key":"i"}', '{"cmd":"answer","key":"g"}',
                         '{"cmd":"abort","at":{"what":"integrate","rows":%d,"t":0}}' % target,
-                        '{"cmd":"browser","op":"write"}', '{"cmd":"answer","file":"run.dat"}',
+                        '{"cmd":"browser","op":"write","what":"table","format":"dat"}',
+                        '{"cmd":"answer","file":"run.dat"}',
                         '{"cmd":"key","key":"i"}', '{"cmd":"answer","key":"g"}'])
     code, out, run = run_script(path)
     at = (stopped_events(out) or [None])[0]

@@ -1059,7 +1059,7 @@ void batch_integrate_once()
      xpp::log(XPP_LOG_WARN, " Unable to open {} to write \n",batch_options.out_file);
      return;
    }
-   write_mybrowser_data(w.file());
+   write_mybrowser_data(w);
 
    w.commit();
    }
@@ -1077,7 +1077,7 @@ int write_this_run(const char *file, int i)
     xpp::log(XPP_LOG_WARN, "Couldnt open {}\n",outfile.c_str());
     return -1;
   }
-  write_mybrowser_data(w.file());
+  write_mybrowser_data(w);
   w.commit();
   }
    if(xpp::session().integrator.make_plot_flag)dump_ps(i);

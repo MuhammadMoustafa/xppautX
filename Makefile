@@ -226,6 +226,17 @@ endif
 # it changes, so --version never names an older commit than the build's
 $(BUILDDIR)/xppautx_main.o: $(BUILDDIR)/version.stamp
 CORE_OBJECTS := $(call obj,$(CORE_SOURCES))
+# vendored third_party/miniz (deflate, gzip and zip; only core/xpp_zip.cpp
+# includes it), its own object in the core library: its warnings are not
+# ours (-w), nor is LTO. MINIZ_DEFS configure both sides the same way: no
+# stdio (files go through xpp_io/xpp_files), no time stamps (a zip written
+# twice is the same bytes).
+MINIZ_DIR = third_party/miniz
+MINIZ_DEFS = -DMINIZ_NO_STDIO -DMINIZ_NO_TIME
+CORE_OBJECTS += $(BUILDDIR)/miniz.o
+$(BUILDDIR)/miniz.o: $(MINIZ_DIR)/miniz.c $(MINIZ_DIR)/miniz.h $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
+	$(CC) $(call NOLTO,$(OPT)) $(MINIZ_DEFS) -w -c $< -o $@
+$(BUILDDIR)/xpp_zip.o: CXXFLAGS += $(MINIZ_DEFS) -isystem $(MINIZ_DIR)
 # the linker of xppautX
 LINK_X := $(call link,$(SERVER_SOURCES) $(CORE_SOURCES))
 # per build directory, so a MinGW build does not replace the Linux library

@@ -37,7 +37,7 @@ A client that draws sends `data` next (see "The plot as data").
 | `userbut` | `index` | An `@ button` of the ODE file (`hello.userbuttons`). |
 | `plotvars` | `how` (0 x vs t, 1 phase plane, 2 array plot), `names` | The IC box's xvst/pp/arry buttons for the checked variables. |
 | `browser` | `from`, `count`, `col`, `ncol` | The data browser block the client shows (answered at once with `browser`, even during a prompt); `count` 0 stops the updates. |
-| `browser` | `op` (`find`, `get`, `replace`, `unreplace`, `table`, `load`, `write`, `first`, `last`, `restore`, `addcol`, `delcol`), `row` | A data browser button, with `row` the selected row (the X11 browser's top row). |
+| `browser` | `op` (`find`, `get`, `replace`, `unreplace`, `table`, `load`, `write`, `first`, `last`, `restore`, `addcol`, `delcol`), `row`; for `write` `what`, `format`, `name`; for `load` `format`, `name` | A data browser button, with `row` the selected row (the X11 browser's top row). `write` is Save data and `load` Load (see "Saving data" below): each of their fields that is given skips its question. |
 | `eqimport` | | The equilibrium window's Import: the last equilibrium becomes the initial conditions. |
 | `equations` | | Send `equations`. |
 | `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves, `marks`: equilibria, text, arrows, markers and frozen curves on the plots (all in "The plot as data", below); `ani`: the animation's frames ("The animation as data"); `autoinfo`: AUTO's info strip and stability circle ("The AUTO diagram as data"); `autosettings`: AUTO's Numerics, parameters, axes and Mark values ("AUTO's settings as data"). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers (an `ani` frame is always JSON). |
@@ -55,6 +55,39 @@ A client that draws sends `data` next (see "The plot as data").
 | `abort` | `at` (scripts only) | Stop the running command's computation, at once (see below). No reply of its own: the stopped command ends with `stopped`, `state` and `idle`; outside a command it does nothing. `at` is where a recorded session stopped (the `stopped` event's `at`); only a script's player reads it (see "Scripts"), anywhere else it is an ordinary `abort`. |
 | `file` | `op` (`list`, `get`, `put`), `name`, `data` | The model's folder (the working directory) for a client that cannot reach it: `put` writes `data` (base64, at most 64 MB decoded) as `name`, `get` reads `name` back, `list` lists the folder. Answered with a `file` event, then `state` and `idle`. Names are base names only (see "Files" below). |
 | `quit` | | Exit, at once even during a computation. |
+
+## Saving data
+
+The browser's `write` (Save data) writes the data table or what the plot
+shows in one of the registered data formats (core/data_formats.cpp, one line
+per format):
+
+| `format` | Extension | What is written |
+|---|---|---|
+| `dat` | `.dat` | XPP's own: a row per line, `%.8g` values each followed by a blank, no names (byte for byte what a batch run writes as output.dat) |
+| `csv` | `.csv` | a header row of the column names, then a row per point, each stored float in the shortest text that reads back as it; `
+` line ends |
+| `csv.gz` | `.csv.gz` | that CSV, gzipped (one member, time stamp 0) |
+| `npz` | `.npz` | NumPy's `numpy.savez_compressed` format: a zip of `.npy` files, one float64 array per column named after it (`T.npy`, `V.npy`, ...) |
+
+`what` is `table` (the rows First..Last of every column: `T`, then the
+browser's `cols`) or `plot` (the current plot window's curves, then its
+frozen curves, as one long table `curve,x,y` (and `z` in 3D), one row per
+point, the curves numbered from 1; in NPZ one (points, 2 or 3) array per
+curve, `curve1`, `curve2`, ...). `name` is the file (a name ending in a
+format's extension also chooses that format when `format` is not given).
+What is not given is asked, in this order: `what` as a `menu` ask named
+`save_what` (keys `t`, `p`), the format as a `menu` ask named
+`save_format` (one item per registered format, in the table's order, keys
+`d`, `c`, `g`, `n`), the name as a `file` ask whose `wild` is `*` and the
+format's extension. An existing file is only replaced after a `choice` ask
+(File Exists! Overwrite?). An unknown `what` or `format` is an error message.
+
+The browser's `load` asks for `name` (a `file` ask, `wild` `*`) when it is
+not given and reads it as `format`, or else as the format of its extension,
+or else as `.dat`; the file's columns fill the stored ones in order (a CSV's
+header row skipped, a 2-D `.npy` giving one column per column), at most the
+storage's rows.
 
 ## Commands during a command
 

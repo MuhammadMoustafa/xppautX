@@ -22,6 +22,11 @@
 #include <cstring>
 #include <strings.h>
 #include "load_eqn.h"
+#include "data_formats.h"
+#include "graf_par.h"
+#include "menus.h"
+#include <algorithm>
+#include <span>
 
 float **get_browser_data()
 {
@@ -51,28 +56,44 @@ int get_maxrow_browser()
   return xpp::session().browser.view.maxrow;
 }
 
-void write_mybrowser_data(FILE *fp)
+namespace {
+
+/* the name of stored column j: T, or the variable's */
+std::string column_name(int j)
 {
-  write_browser_data(fp,&xpp::session().browser.view);
+  if(j==0)return "T";
+  if(j>0&&j<=MAXODE)return xpp::model().uvar_names[j-1];
+  return "";
 }
 
-void write_browser_data(FILE *fp, BROWSER *b)
+/* the rows First..Last of b's columns cols */
+xpp::DataTable browser_table(const BROWSER &b, std::span<const int> cols)
 {
-  int i,j,l;
-  
-  for(i=b->istart;i<b->iend;i++){
-    if(N_plist>0){
-      for(l=0;l<N_plist;l++){
-	j=plotlist[l];
-	xpp::print(fp,"{:.8g} ",static_cast<double>(b->data[j][i]));
-      }
-    }
-    else {
-	for(j=0;j<b->maxcol;j++)xpp::print(fp,"{:.8g} ",static_cast<double>(b->data[j][i]));
-    }
-    xpp::print(fp,"\n");
+  xpp::DataTable t;
+  for(int j : cols){
+    t.names.push_back(column_name(j));
+    const float *c=b.data[j];
+    if(b.iend>b.istart)t.columns.emplace_back(c+b.istart,c+b.iend);
+    else t.columns.emplace_back();
   }
- 
+  return t;
+}
+
+/* every column b has */
+std::vector<int> all_columns(const BROWSER &b)
+{
+  std::vector<int> cols(b.maxcol>0?b.maxcol:0);
+  for(std::size_t j=0;j<cols.size();j++)cols[j]=static_cast<int>(j);
+  return cols;
+}
+
+} // namespace
+
+void write_mybrowser_data(xpp::Writer &w)
+{
+  const BROWSER &b=xpp::session().browser.view;
+  const std::vector<int> cols=N_plist>0?std::vector<int>(plotlist,plotlist+N_plist):all_columns(b);
+  xpp::data_format_named("dat")->write(browser_table(b,cols),w);
 }
 
 void find_variable(std::string_view s, int *col)
@@ -125,10 +146,10 @@ bool may_write_file(const char *fil)
 
 } // namespace
 
-xpp::Writer open_writer_asking(const char *fil)
+xpp::Writer open_writer_asking(const char *fil, bool binary)
 {
  if(!may_write_file(fil))return xpp::Writer();
- xpp::Writer w(fil);
+ xpp::Writer w=binary?xpp::Writer::binary(fil):xpp::Writer(fil);
  if(!w)err_msg("Cannot open file");
  return w;
 }
@@ -473,78 +494,88 @@ void data_find(BROWSER *b)
 
 }
 
-void data_read(BROWSER *b)
+void data_read(BROWSER *b, std::string_view format, std::string_view name)
 {
-
- int status;
- int k;
- int len,count=0;
- float z;
-
- std::string fil="test.dat";
- status=file_selector("Load data",fil,"*.dat");
-if(status==0)return;
- xpp::LineReader lr(fil.c_str());
- if(!lr){
-   respond_box("Ok","Cannot open file");
+ const xpp::DataFormat *f=nullptr;
+ if(!format.empty()&&!(f=xpp::data_format_named(format))){
+   err_msg(xpp::format("No data format {}",format).c_str());
    return;
  }
- /*  Now we establish the width of the file (the whitespace-separated
-     fields of its first line, read whole however long) and read it.
-      If there are more columns than available we
-      ignore them.
-
-     if there are fewer rows we read whats necessary
-     if there are more rows then read until we
-     are done or MAX_STOR_ROW.
-     This data can be plotted etc like anything else
-    */
- {
-   std::optional<std::string_view> line = lr.next();
-   if(line){
-     int white=1;
-     for(unsigned char c : *line){
-       if(!isspace(c)&&white){white=0;++count;}
-       if(isspace(c)&&!white)white=1;
-     }
-   }
-   lr.close();
+ std::string fil(name);
+ if(fil.empty()){
+   fil="test.dat";
+   if(!file_selector("Load data",fil,"*"))return;
  }
- len=0;
- {
-   xpp::TokenReader tr(fil.c_str());
-   for(;;)
-   {
-    int gotrow=1;
-    for(k=0;k<count;k++)
-    {
-     if(!tr.read(z)){gotrow=0;break;}
-     if(k<b->maxcol)b->data[k][len]=z;
-     }
-     if(!gotrow)break;
-     ++len;
-     if(len>=xpp::session().data_store.max_rows)break;
-    }
-  }
-  refresh_browser(len);
-  xpp::session().data_store.rows=len;
+ if(!f)f=xpp::data_format_of_file(fil);
+ if(!f||!f->read)f=xpp::data_format_named("dat"); /* any other name: XPP's own */
+ xpp::DataTable t;
+ if(!f->read(fil.c_str(),t)){
+   respond_box("Ok",xpp::format("Cannot read {} as {}",fil,f->title).c_str());
+   return;
+ }
+ /*  The file's columns fill the stored ones in order: more columns than
+     there are are left out, and at most max_rows rows are read. This data
+     can be plotted etc like anything else */
+ const int len=static_cast<int>(std::min<std::size_t>(t.rows(),static_cast<std::size_t>(xpp::session().data_store.max_rows)));
+ for(std::size_t k=0;k<t.columns.size()&&k<static_cast<std::size_t>(b->maxcol);k++)
+   std::copy(t.columns[k].begin(),t.columns[k].begin()+len,b->data[k]);
+ refresh_browser(len);
+ xpp::session().data_store.rows=len;
 }
 
-void data_write(BROWSER *b)
+namespace {
+
+/* the Save data menu of the data formats' registry; nullptr when none is
+   chosen */
+const xpp::DataFormat *choose_data_format()
 {
+ std::vector<const char *> items;
+ std::string keys;
+ for(const xpp::DataFormat &f : xpp::data_formats()){
+   items.push_back(f.title);
+   keys+=f.key;
+ }
+ const XppMenu m={"save_format","Save data as",static_cast<int>(items.size()),items.data(),keys.c_str(),nullptr,-1};
+ const int k=menu_choose(&m,0);
+ for(const xpp::DataFormat &f : xpp::data_formats())
+   if(k==f.key)return &f;
+ return nullptr;
+}
 
- int status;
- int i,j;
+} // namespace
 
- std::string fil="test.dat";
-  status=file_selector("Write data",fil,"*.dat");
-if(status==0)return;
- xpp::Writer w=open_writer_asking(fil.c_str());
+void data_write(BROWSER *b, std::string_view what, std::string_view format, std::string_view name)
+{
+ bool plot;
+ if(what.empty()){
+   const int k=menu_choose(&menu_save_what,0);
+   if(k!='t'&&k!='p')return;
+   plot=k=='p';
+ }
+ else if(what=="table"||what=="plot")plot=what=="plot";
+ else {
+   err_msg(xpp::format("Save data writes the table or the plot, not {}",what).c_str());
+   return;
+ }
+ const xpp::DataFormat *f=nullptr;
+ if(!format.empty()&&!(f=xpp::data_format_named(format))){
+   err_msg(xpp::format("No data format {}",format).c_str());
+   return;
+ }
+ if(!f&&!name.empty())f=xpp::data_format_of_file(name);
+ if(!f&&!(f=choose_data_format()))return;
+ std::string fil(name);
+ if(fil.empty()){
+   fil=std::string(plot?"curves":"data")+f->extension;
+   if(!file_selector("Save data",fil,xpp::format("*{}",f->extension).c_str()))return;
+ }
+ const xpp::DataTable t=plot?plot_curves_table():browser_table(*b,all_columns(*b));
+ xpp::Writer w=open_writer_asking(fil.c_str(),f->binary);
  if(!w)return;
- for(i=b->istart;i<b->iend;i++){
-	for(j=0;j<b->maxcol;j++)w.print("{:.8g} ",static_cast<double>(b->data[j][i]));
- 	w.print("\n");
-        }
+ if(!f->write(t,w)){
+   err_msg(xpp::format("Cannot write {}",fil).c_str());
+   return;
+ }
  w.commit();
 }
 

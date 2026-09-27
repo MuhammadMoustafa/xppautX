@@ -73,7 +73,7 @@ fi
 # only: not the tests', not generated code (web_assets, window_lib, icons)
 # nor the vendored web view's; class ro for read-only data
 cat $B/gc-*.log | sed -n "s/.*removing unused section '\([^']*\)' in file '\($(echo $B | sed 's/[/.]/\\&/g')\/[^']*\.o\)'.*/\2 \1/p" |
-  grep -v -e '/tests/' -e '/web_assets\.o ' -e '/window_lib\.o ' -e '/icon_assets\.o ' -e '/webview\.o ' |
+  grep -v -e '/tests/' -e '/web_assets\.o ' -e '/window_lib\.o ' -e '/icon_assets\.o ' -e '/webview\.o ' -e '/miniz\.o ' |
   sed -E 's/ \.(rodata|data\.rel\.ro\.local|data\.rel\.ro)[.$]/ ro /; s/ \.(text|data|bss|tbss|tdata|data\.rel\.local|data\.rel)(\.(unlikely|startup|hot|exit))?[.$]/ x /' |
   awk 'NF == 3 && $3 !~ /[.]/ {print $1, $3, $2}' | sort -u > $B/dropped.txt
 

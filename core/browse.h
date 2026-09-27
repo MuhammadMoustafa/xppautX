@@ -20,9 +20,7 @@ float **get_browser_data(void);
 float *get_data_col(int c);
 void waitasec(int msec);
 int get_maxrow_browser(void);
-void write_mybrowser_data(FILE *fp);
 void data_get_mybrowser(int row);
-void write_browser_data(FILE *fp, BROWSER *b);
 int check_for_stor(float **data);
 void data_del_col(BROWSER *b);
 void data_add_col(BROWSER *b);
@@ -43,8 +41,6 @@ void data_replace(BROWSER *b);
 void data_unreplace(BROWSER *b);
 void data_table(BROWSER *b);
 void data_find(BROWSER *b);
-void data_read(BROWSER *b);
-void data_write(BROWSER *b);
 void data_first(BROWSER *b);
 void data_last(BROWSER *b);
 void data_restore(BROWSER *b);
@@ -53,10 +49,25 @@ void data_restore(BROWSER *b);
 }
 
 /* A file the user named, opened for a write that replaces it only at
-   commit (xpp::Writer), after asking whether to overwrite it when it
-   exists: an empty Writer when the answer is no, or when it cannot be
-   written (err_msg says so) */
-xpp::Writer open_writer_asking(const char *fil);
+   commit (xpp::Writer, binary: byte for byte), after asking whether to
+   overwrite it when it exists: an empty Writer when the answer is no, or
+   when it cannot be written (err_msg says so) */
+xpp::Writer open_writer_asking(const char *fil, bool binary = false);
+
+/* the stored rows First..Last as XPP's .dat (data_formats.h), only the
+   columns of a batch run's "only" list (plotlist) when it has one: the
+   batch run's output.dat and the files written beside it */
+void write_mybrowser_data(xpp::Writer &w);
+
+/* Save data (the browser's Write, docs/protocol.md): what is "table" (the
+   rows First..Last of every column) or "plot" (what the current plot
+   window shows: its curves and frozen curves as one table curve,x,y[,z]),
+   format a data format's id (data_formats.h), name the file; whichever
+   is empty is asked for (a menu, a menu of the formats, a file). */
+void data_write(BROWSER *b, std::string_view what, std::string_view format, std::string_view name);
+/* the browser's Load: name (asked for when empty) read as format (by its
+   extension when empty, else .dat) into the stored columns, in order */
+void data_read(BROWSER *b, std::string_view format, std::string_view name);
 
 /* the data column of variable s: 0 for T, i+1 for variable i, -1 for
    none (case ignored) */

@@ -80,6 +80,12 @@ void dump_ps( int i);
 }
 
 #include <string>
+namespace xpp { struct DataTable; } /* data_formats.h */
+/* What the current plot window shows, for Save data (browse_data.cpp): its
+   curves (numbered 1.. in order) and then its frozen curves, one row per
+   point, as the columns curve, x, y and, in 3D, z */
+xpp::DataTable plot_curves_table();
+
 /* How plots are written to files (PostScript, SVG) */
 struct XppPlotExport {
     std::string format; /* a batch run's plot files: "ps" or "svg" (@ plotfmt=) */
