@@ -84,7 +84,7 @@ issue; the card here is the one kept up to date.
 | W33b | #66 | Sweep, integration and analysis (W29b's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | in-progress |
 | W33c | #67 | Sweep, AUTO's numerics (W29c's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | in-progress |
 | W33d | #68 | Sweep, AUTO's front (W29d's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | in-progress |
-| W33e | #69 | Sweep, the parser and model loading (W29e's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | ready |
+| W33e | #69 | Sweep, the parser and model loading (W29e's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | in-progress |
 | W33f | #70 | Sweep, the UI core and plot data (W29f's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | ready |
 | W33g | #71 | Sweep, the protocol, platform and base modules (W29g's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | ready |
 | W34 | #72 | Evaluate SUNDIALS CVODE in place of the vendored CVODE (later; changes every CVODE result) | W33a | later |
