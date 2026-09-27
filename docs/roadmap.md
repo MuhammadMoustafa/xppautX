@@ -80,10 +80,10 @@ issue; the card here is the one kept up to date.
 | W32b | #62 | xpp_files: every file operation (open handles with print, safe replace, copy/append/rename/delete, temp folders) in one module; open_write_file, AUTO's file helpers and the five print copies go; tools/filecheck.sh enforces it | W30, W31c, W32a | done |
 | W32c | #63 | The dialog API (xpp_ui.h) returns std::string instead of filling char[MAX_LEN_SBOX] buffers; callers changed only as the signatures require | W32b | done |
 | W32d | #64 | One definition of the shared data: HIST_INFO and TABULAR once, the data store as a class (histogram's aliasing explicit), the AUTO diagram's list as a container | W32c | done |
-| W33a | #65 | Sweep, the ODE solvers (W29a's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | ready |
-| W33b | #66 | Sweep, integration and analysis (W29b's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | ready |
-| W33c | #67 | Sweep, AUTO's numerics (W29c's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | ready |
-| W33d | #68 | Sweep, AUTO's front (W29d's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | ready |
+| W33a | #65 | Sweep, the ODE solvers (W29a's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | in-progress |
+| W33b | #66 | Sweep, integration and analysis (W29b's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | in-progress |
+| W33c | #67 | Sweep, AUTO's numerics (W29c's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | in-progress |
+| W33d | #68 | Sweep, AUTO's front (W29d's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | in-progress |
 | W33e | #69 | Sweep, the parser and model loading (W29e's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | ready |
 | W33f | #70 | Sweep, the UI core and plot data (W29f's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | ready |
 | W33g | #71 | Sweep, the protocol, platform and base modules (W29g's files): each file converted once to the W32 modules and the rest of its unsafe C idioms (fprintf, buffers, allocations), output byte-identical | W32a-d | ready |
@@ -100,7 +100,7 @@ issue; the card here is the one kept up to date.
 | W39 | #82 | Remove examples/ode/sine-circel.ode, a misspelled byte-for-byte copy of examples/canonical/sine-circle.ode, and its baseline lines | none | done |
 | W40 | #83 | web2check's timing-sensitive checks flake on the macOS runner: frame budgets judged on most frames or scaled on CI, interactions wait for the page to settle, a check that fails once is rerun and reported FLAKY | none | done |
 | W41 | #84 | windows-clang (~9 min) and windows-clang-sanitizers (~11 min) under ~6 min: a cached or prebuilt clang toolchain in place of setup-msys2's ~170 s, parallel test links, autocheck and examples side by side, asancheck split into parallel parts; no check dropped | none | done |
-| W42 | #85 | web2check's AUTO Stop-during-a-run checks (T22/T23/T25) race a fast native run under a CPU throttle (the macOS runner's case): make the run certainly still going at the Stop click, or judge by the stopped event's count | none | ready |
+| W42 | #85 | web2check's AUTO Stop-during-a-run checks (T22/T23/T25) race a fast native run under a CPU throttle (the macOS runner's case): make the run certainly still going at the Stop click, or judge by the stopped event's count | none | in-progress |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
