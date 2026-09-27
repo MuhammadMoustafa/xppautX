@@ -21,7 +21,7 @@ core/histogram.cpp 12
 core/integrate.cpp 9
 core/load_eqn.cpp 74
 core/markov.cpp 7
-core/my_ps.cpp 10
+core/my_ps.cpp 9
 core/my_svg.cpp 1
 core/nullcline.cpp 11
 core/numerics.cpp 3

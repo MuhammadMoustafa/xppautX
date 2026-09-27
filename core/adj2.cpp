@@ -52,7 +52,7 @@ struct {
    
 namespace {
 int LIAP_FLAG=0;
-int LIAP_N,LIAP_I;
+int LIAP_I;
 constexpr double ADJ_EPS=1.e-8;
 double ADJ_ERR=1.e-3;
 int ADJ_MAXIT=20,ADJ_HERE=0,H_HERE=0,h_len,HODD_EV=0;
@@ -565,7 +565,6 @@ void alloc_liap(int n)
 {
   if(LIAP_FLAG==0)return;
   for(auto &c : my_liap)c.assign(n+1,0.0f);
-  LIAP_N=(n+1);
   LIAP_I=0;
 }
 

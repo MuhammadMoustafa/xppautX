@@ -31,7 +31,6 @@
 #define RIGHT 2
 #define CENTER 1
 #define POINT_TYPES 8
-int LastPtLine;
 int NoBreakLine=0;
 int PS_FONTSIZE=14;
 double PS_LW=5;
@@ -217,14 +216,8 @@ void ps_frect(int x, int y, int w, int h)
   ps_writer.print(" newpath {} {} M {} {} R {} {} R {} {} R closepath fill\n",x,y,0,-h,w,0,0,h);
 }
 
-void ps_last_pt_off()
-{
-  LastPtLine=0;
-}
-
 void ps_line(int xp1, int yp1, int xp2, int yp2)
 {
-  LastPtLine=1;
   if(NoBreakLine!=1 && xp1==LastPSX && yp1==LastPSY){
     LastPSX=xp2;
     LastPSY=yp2;
@@ -271,7 +264,6 @@ void ps_point(int x, int y)
   if(PointRadius>0)number=7;
   ps_writer.print("{} {} {}\n",x,y,point[number+1]);
   PSLines=0;
-  LastPtLine=0;
 }
 
 void ps_write(const char *str)

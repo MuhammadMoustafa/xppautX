@@ -60,8 +60,8 @@ double default_ic[MAXODE];
 int NODE,NUPAR,NLINES;
 int PrimeStart;
 int NCON_START,NSYM_START;
-/* the boundary conditions: all, left, right */
-static int BVP_NL,BVP_NR,BVP_N;
+/* the boundary conditions' count */
+static int BVP_N;
 
 #define cstringmaj MYSTR1
 #define cstringmin MYSTR2
@@ -71,8 +71,6 @@ FILE *convertf;
 static int IN_VARS;
 int NMarkov;
 int FIX_VAR;
-/* NEQ as the model left it: the data browser's new columns come after */
-static int NEQ_MIN;
 int EqType[MAXODE];
 std::array<FIXINFO,MAXODE> fixinfo;
 
@@ -961,8 +959,6 @@ int get_eqn(FILE *fptr)
   IN_VARS=0;
   NODE=0;
   BVP_N=0;
-  BVP_NL=0;
-  BVP_NR=0;
   NUPAR=0;
   NWiener=0;
   /*check_for_xpprc();  This is now done just once and in do_vis_env()
@@ -1076,7 +1072,6 @@ int get_eqn(FILE *fptr)
   for(i=NODE+NMarkov;i<NEQ;i++)add_var(uvar_names[i],0.0);
   NCON_START=NCON;
   NSYM_START=NSYM;
-  NEQ_MIN=NEQ;
   program.version_major=static_cast<float>(cstringmaj);
   program.version_minor=static_cast<float>(cstringmin);
   xpp_log(XPP_LOG_INFO, "Used %d constants and %d symbols \n",NCON,NSYM);

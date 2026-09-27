@@ -309,7 +309,6 @@ void ps_restore()
  ps_do_color(0);
  if(plot_windows.current->Nullrestore){restore_nullclines();ps_stroke();}
   }
- ps_last_pt_off(); 
 
   restore(0,my_browser.maxrow);  
  
@@ -330,7 +329,6 @@ void svg_restore()
 
   redraw_dfield();
  if(plot_windows.current->Nullrestore){restore_nullclines();}
-  svg_last_pt_off();
  restore(0,my_browser.maxrow);
  do_axes();
  if(program.interactive){

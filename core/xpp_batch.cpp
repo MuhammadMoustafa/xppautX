@@ -204,7 +204,6 @@ void xpp_reset_options(void)
   notAlreadySet.EulTol=1;
   notAlreadySet.EVEC_ITER=1;
   notAlreadySet.EVEC_ERR=1;
-  notAlreadySet.NULL_ERR=1;
   notAlreadySet.NEWT_ERR=1;
   notAlreadySet.NULL_HERE=1;
   notAlreadySet.TUTORIAL=1;

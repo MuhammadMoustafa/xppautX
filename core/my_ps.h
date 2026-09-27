@@ -7,7 +7,7 @@ extern "C" {
 
 /* my_ps.cpp: the export's state, shared with my_svg.cpp and graphics.cpp */
 extern int PltFmtFlag, PSColorFlag, PSLines;
-extern int LastPSX, LastPSY, LastPtLine, NoBreakLine;
+extern int LastPSX, LastPSY, NoBreakLine;
 extern int PS_FONTSIZE;
 extern double PS_LW;
 
@@ -17,7 +17,6 @@ void ps_do_color(int color);
 void ps_end(void);
 void ps_bead(int x, int y);
 void ps_frect(int x, int y, int w, int h);
-void ps_last_pt_off(void);
 void ps_line(int xp1, int yp1, int xp2, int yp2);
 void chk_ps_lines(void);
 void ps_linetype(int linetype);

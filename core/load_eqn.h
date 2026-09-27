@@ -152,7 +152,6 @@ typedef struct {
    int EulTol;
    int EVEC_ITER;
    int EVEC_ERR;
-   int NULL_ERR;
    int NEWT_ERR;
    int NULL_HERE;
    int TUTORIAL;

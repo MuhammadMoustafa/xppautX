@@ -141,7 +141,6 @@ extern int SEc,UEc,SPc,UPc;
 /*   Numerical stuff ....   */
 
  double DELTA_T,TEND,T0,TRANS,EVEC_ERR,NEWT_ERR;
- static double NULL_ERR;
  double BOUND,DELAY,TOLER,ATOLER,HMIN,HMAX;
  double BVP_EPS,BVP_TOL;
 
@@ -252,7 +251,6 @@ void set_all_vals()
  if (notAlreadySet.DTMIN){HMIN=1e-12;notAlreadySet.DTMIN=0;};
  if (notAlreadySet.EVEC_ITER){EVEC_ITER=100;notAlreadySet.EVEC_ITER=0;};
  if (notAlreadySet.EVEC_ERR){EVEC_ERR=.001;notAlreadySet.EVEC_ERR=0;};
- if (notAlreadySet.NULL_ERR){NULL_ERR=.001;notAlreadySet.NULL_ERR=0;};
  if (notAlreadySet.NEWT_ERR){NEWT_ERR=.001;notAlreadySet.NEWT_ERR=0;};
  if (notAlreadySet.NULL_HERE){NULL_HERE=0;notAlreadySet.NULL_HERE=0;};
  del_stab_flag=DFNORMAL;

@@ -65,7 +65,7 @@ calls (W32b, W33).
 
 verify.sh's checks about the source rather than the build (UTF-8, the
 scripts' executable bit, stdoutcheck, formatcheck, literalcheck, the LTO
-type check, the dead-code checks, the duplication check) are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
+type check, the dead-code checks, the global state check, the duplication check) are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
 `--warnings`: tools/warnings.sh's count, and web2's dist/types/unit
 tests), and its linux-core job runs `verify.sh --no-source-checks`. Every
 platform runs the same behaviour checks against its own build (`<platform>-core`)
@@ -602,6 +602,19 @@ and fails naming any file/category whose count grew past it (a count that
 dropped is fine); `--update` rewrites the baseline after an intended
 change. Plain `tools/unsafecheck.sh` prints the per-file table.
 
+`tools/globalcheck.sh` (W47a; sourcecheck runs it with `--check` on the
+objects deadcode.sh has just built in build/deadcode, a few seconds)
+lists each core object's external mutable data symbols -- nm's B
+(.bss), D (.data) and C (common), but not the D symbols in
+.data.rel.ro, const data the loader relocates (a const table of
+pointers) -- and compares their count per file with the committed
+`tests/globals.baseline`, failing on growth and naming the file's
+symbols. A const global or one with internal linkage does not count.
+`--update` rewrites the baseline after a drop; plain
+`tools/globalcheck.sh` builds build/obj and prints every symbol by file
+(`--builddir DIR` reads objects already built there). Linux only, like
+deadcode.sh (GNU nm's section column). At W47a: 300 (from 461).
+
 - The rule: a task that changes a core C file converts that file to .cpp
   as part of the task, whatever the change, sweeps included (logging
   calls, renames, warning fixes, dead code removal; maintainer's decision
@@ -664,6 +677,8 @@ change. Plain `tools/unsafecheck.sh` prints the per-file table.
   (W47a-d in docs/roadmap.md take the existing ~500 globals there in
   stages). A value nothing writes after initialization is
   `const`/`constexpr`, and one file's own state has internal linkage.
+  `tools/globalcheck.sh` (sourcecheck) fails a file whose external
+  mutable data symbols grow past `tests/globals.baseline`.
 
 - Upstream mergeability is no longer a goal (2026-09-23): refactor for
   single responsibility and clean code, numerics included. Numerical

@@ -12,7 +12,6 @@ void svg_do_color(int color);
 void svg_end(void);
 void svg_bead(int x, int y);
 void svg_frect(int x, int y, int w, int h);
-void svg_last_pt_off(void);
 void svg_line(int xp1, int yp1, int xp2, int yp2);
 void svg_linetype(int linetype);
 void svg_point(int x, int y);

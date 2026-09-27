@@ -23,7 +23,6 @@
 double THETA0=45,PHI0=45;
 
 int PS_Port=0;
-static int D_FLAG;
 int PointRadius=0;
 
 /*  This is an improved graphics driver for XPP  
@@ -104,10 +103,6 @@ void get_draw_area_flag(int flag)
   DRight=XDMax-3*HChar-HTic;
   DBottom=YDMax-1-VChar*7/2;
   DTop=VChar*5/2+1;
-  h=DBottom-DTop;
-  w=DRight-DLeft;
-  if(h>0&&w>0)D_FLAG=1;
- else D_FLAG=0;
  set_normal_scale();
 }
 

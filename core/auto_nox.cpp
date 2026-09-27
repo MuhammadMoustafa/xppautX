@@ -139,8 +139,6 @@ double  auto_xmax=2.5,  auto_xmin=-.5,auto_ymax=3.0,auto_ymin=-3.0;
 double auto_epsl=1e-4,auto_epsu=1e-4,auto_epss=1e-4;
 int auto_var=0;
 
-static int is_3_there=0;
-
 static int load_all_labeled_orbits=0;
 
 int SuppressBP=0;
@@ -503,7 +501,6 @@ void open_auto(int flg) /* compatible with new auto */
   fort7=xpp::format("{}/fort.7",HOME);
   fort8=xpp::format("{}/fort.8",HOME);
   fort9=xpp::format("{}/fort.9",HOME);
-  is_3_there=flg;
 
   if(flg==1){
     xpp_files_copy((this_auto_file+".s").c_str(),fort3.c_str());

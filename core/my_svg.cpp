@@ -331,11 +331,6 @@ void svg_frect(int x, int y, int w, int h)
   }
 }
 
-void svg_last_pt_off(void)
-{
-  LastPtLine=0;
-}
-
 void svg_line(int xp1, int yp1, int xp2, int yp2)
 {
   /* the line's class: the axes, the box axes, a direction-field arrow
@@ -401,7 +396,6 @@ void svg_point(int x, int y)
   }
 
   PSLines=0;
-  LastPtLine=0;
   doing_svg_color=false;
 }
 
