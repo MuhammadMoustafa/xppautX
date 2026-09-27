@@ -2,27 +2,34 @@ name: MSYS2 CLANG64 toolchain (cached)
 description: >-
   Sets up MSYS2's CLANG64 toolchain (clang, lld, libc++, compiler-rt) plus
   make and python, the compiler CLAUDE.md's windows-clang and
-  windows-clang-sanitizers jobs build with (W23). Caches the installed
-  clang64 tree keyed on ../../msys2-clang64-packages.txt, so a run with an
-  unchanged package list restores it (a few seconds) instead of paying
-  pacman's ~170s toolchain install (W41); bump that file's version line to
-  force a fresh install (a package update, say).
+  windows-clang-sanitizers jobs build with (W23).
+
+  Caches the installed clang64 tree as a single 7z archive
+  (%RUNNER_TEMP%\msys2-clang64.7z), keyed on
+  .github/msys2-clang64-packages.txt, and restores it with 7-Zip instead
+  of through actions/cache's own directory caching. actions/cache always
+  tars a directory path before handing it to the runner's tar.exe for
+  extraction, and on this repo's clang64 tree (tens of thousands of small
+  files) that per-file extraction took over two minutes even on a cache
+  hit (W41, run 36284059453) -- most of the ~170s this was meant to
+  remove. A single 7z file only needs one file written by actions/cache's
+  own restore, and 7-Zip's own extraction (native Win32 file APIs, not
+  tar.exe's per-file syscalls under Git for Windows) is far faster for a
+  tree this shape. Bump the packages file's version line to force a
+  fresh install (a package bump, say).
 runs:
   using: composite
   steps:
-    - name: Restore cached MSYS2 CLANG64 toolchain
+    - name: Restore cached MSYS2 CLANG64 toolchain (single 7z archive)
       id: cache
       uses: actions/cache@v6
       with:
-        path: C:\msys64\clang64
+        path: ${{ runner.temp }}\msys2-clang64.7z
         key: msys2-clang64-toolchain-${{ hashFiles('.github/msys2-clang64-packages.txt') }}
-    # release: false in both: the runner's preinstalled MSYS2 at C:\msys64,
-    # the tree the cache holds (the default installs a fresh MSYS2 under
-    # the runner's temp folder instead, outside the cached path)
-    # cache hit: the clang64 tree is already on disk (restored above); just
-    # register the msys2 {0} shell over the runner's preinstalled MSYS2 base,
-    # installing nothing
-    - name: MSYS2 shell (cached toolchain)
+    # release: false in both: the runner's preinstalled MSYS2 at C:\msys64
+    # is the tree clang64 sits under either way (the default installs a
+    # fresh MSYS2 under the runner's temp folder instead)
+    - name: "MSYS2 shell (cache hit): no packages installed here, extracted below"
       if: steps.cache.outputs.cache-hit == 'true'
       uses: msys2/setup-msys2@v2
       with:
@@ -30,8 +37,14 @@ runs:
         release: false
         update: false
         install: false
-    # cache miss: install as before (first run after a package bump; the
-    # cache action saves C:\msys64\clang64 afterwards)
+    - name: Extract the cached clang64 tree with 7-Zip
+      if: steps.cache.outputs.cache-hit == 'true'
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force -Path C:\msys64\clang64 | Out-Null
+        Set-Location C:\msys64\clang64
+        & "$env:ProgramFiles\7-Zip\7z.exe" x "${{ runner.temp }}\msys2-clang64.7z" -y -bd
+        if ($LASTEXITCODE -ne 0) { throw "7z extract failed: $LASTEXITCODE" }
     - name: MSYS2 shell and toolchain (cache miss)
       if: steps.cache.outputs.cache-hit != 'true'
       uses: msys2/setup-msys2@v2
@@ -44,3 +57,10 @@ runs:
           toolchain:p
           make:p
           python:p
+    - name: Archive the installed clang64 tree for the cache (cache miss)
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        Set-Location C:\msys64\clang64
+        & "$env:ProgramFiles\7-Zip\7z.exe" a -mx=1 -mmt=on "${{ runner.temp }}\msys2-clang64.7z" *
+        if ($LASTEXITCODE -ne 0) { throw "7z archive failed: $LASTEXITCODE" }

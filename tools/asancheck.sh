@@ -27,12 +27,19 @@
 #                    e.g. downloaded from another CI job); never runs "make
 #                    asan-link"
 #   --only LIST     run only these comma-separated phases, in order:
-#                    build,smoke,examples,unittests,checks (default: all).
-#                    "checks" is servercheck+webcheck+autocheck, run side by
-#                    side. Lets a slow platform (W41: windows-clang-sanitizers)
-#                    split the work across parallel CI jobs that share one
-#                    build (--only build, then each shard --skip-build --only
-#                    <its phases>); Linux and macOS CI keep running it whole.
+#                    build,smoke,examples,unittests, then any of
+#                    servercheck,webcheck,autocheck (or the "checks" alias
+#                    for all three) -- these run side by side when more
+#                    than one is named. autocheck=SECTION+SECTION... (the
+#                    names tools/autocheck.py --list prints, '+'-joined)
+#                    runs only those sections instead of its default full
+#                    list. Default: build,smoke,examples,unittests,checks
+#                    (everything). Lets a slow platform (W41:
+#                    windows-clang-sanitizers) split the work across
+#                    parallel CI jobs, each with its own build (a build is
+#                    only 60-90s here, so unlike the checks a shard rarely
+#                    needs --skip-build); Linux and macOS CI keep running
+#                    it whole.
 #   VAR=value       passed to make (the compilers, say)
 #   $MAKE, $PYTHON  the make and python programs (default make, python3)
 cd "$(dirname "$0")/.." || exit 1
@@ -143,26 +150,54 @@ if has_phase unittests; then
   fi
 fi
 
-if has_phase checks; then
-  # the name, then the command: run side by side (each logged to its own
-  # file, its verdict printed in order once all are done), their waits
-  # doubled for a machine shared by three sanitized servers
-  run_check() {
-    name=$1; shift
-    if XPP_CHECK_SLOW=${XPP_CHECK_SLOW:-2} "$@" > "$log-$name.log" 2>&1; then
-      echo "$name ok: $(grep -c '^PASS' "$log-$name.log") checks"
-    else
-      grep -v '^PASS' "$log-$name.log" | head -30
-      echo "$name FAILED"
-    fi > "$log-$name.verdict"
-  }
-  run_check servercheck "$python" tools/servercheck.py --server "$bin" &
-  run_check webcheck "$python" tools/webcheck.py --bin "$bin" &
-  # --report: the sanitizers slow everything down, so the latency limits
-  # (which verify.sh checks) only measure here
-  run_check autocheck "$python" tools/autocheck.py --server "$bin" --report &
+# servercheck, webcheck and autocheck can be selected individually (a
+# platform whose combined "checks" is still too slow for one CI job
+# splits them across shards, W41) or together as the "checks" alias
+# (Linux and macOS CI's whole-script run); whichever of these are
+# requested run side by side, each logged to its own file, their waits
+# doubled for a machine sharing sanitized servers. Prints "NAME finished
+# after Ns" as each one exits (not just its final verdict), so a job log
+# shows which one is the long pole without needing to look at the .log
+# files afterwards.
+run_check() {
+  name=$1; shift
+  t0=$(date +%s)
+  if XPP_CHECK_SLOW=${XPP_CHECK_SLOW:-2} "$@" > "$log-$name.log" 2>&1; then
+    echo "$name ok: $(grep -c '^PASS' "$log-$name.log") checks" > "$log-$name.verdict"
+  else
+    { grep -v '^PASS' "$log-$name.log" | head -30; echo "$name FAILED"; } > "$log-$name.verdict"
+  fi
+  echo "$name finished after $(( $(date +%s) - t0 ))s"
+}
+# autocheck's sections (tools/autocheck.py --list), split roughly in half
+# by count so autocheck can be its own shard's own two shards if running
+# it whole is still the long pole (W41: unmeasured yet which of
+# servercheck/autocheck it is; --only autocheck=SECTION+SECTION... picks a
+# subset, '+'-joined so it doesn't collide with --only's own commas)
+want=""
+autosections=
+old_ifs=$IFS; IFS=,
+for tok in $only; do
+  case "$tok" in
+    checks) want="$want servercheck webcheck autocheck" ;;
+    servercheck|webcheck) want="$want $tok" ;;
+    autocheck) want="$want autocheck" ;;
+    autocheck=*) want="$want autocheck"; autosections=$(printf '%s' "${tok#autocheck=}" | tr '+' ' ') ;;
+  esac
+done
+IFS=$old_ifs
+if [ -n "$want" ]; then
+  for name in $want; do
+    case $name in
+      servercheck) run_check servercheck "$python" tools/servercheck.py --server "$bin" & ;;
+      webcheck) run_check webcheck "$python" tools/webcheck.py --bin "$bin" & ;;
+      # --report: the sanitizers slow everything down, so the latency
+      # limits (which verify.sh checks) only measure here
+      autocheck) run_check autocheck "$python" tools/autocheck.py --server "$bin" --report $autosections & ;;
+    esac
+  done
   wait
-  for name in servercheck webcheck autocheck; do
+  for name in $want; do
     cat "$log-$name.verdict"
     grep -q ' FAILED$' "$log-$name.verdict" && fail=1
   done

@@ -400,34 +400,21 @@ jobs:
           if-no-files-found: ignore
 
   # windows-clang's sanitizer run, a job of its own so it runs beside
-  # windows-clang's checks instead of after them (W36). Built once here
-  # (asancheck.sh --only build) and uploaded, so the two shards below don't
-  # each pay for their own ASan build (W41: the whole thing was one ~510s
-  # job; asancheck.sh's --only splits it into phases so no shard exceeds
-  # ~5 min).
-  windows-clang-sanitizers-build:
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: msys2 {0}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/msys2-clang64
-      - name: "Build xppautX with ASan + UBSan (clang)"
-        run: MAKE=mingw32-make tools/asancheck.sh --builddir build/clang-asan --only build CC=clang CXX=clang++
-      - uses: actions/upload-artifact@v7
-        with:
-          name: windows-clang-asan-build
-          path: build/clang-asan/
-          retention-days: 1
-
-  # each shard downloads the build above and runs its slice of
-  # asancheck.sh's phases (--skip-build --only ...); "examples" is the
-  # slowest phase alone (~88s unsanitized, several times that under ASan) so
-  # it gets its own shard, the rest (unit tests, then servercheck+webcheck+
-  # autocheck side by side) the other
+  # windows-clang's checks instead of after them (W36). W41 first split
+  # this into a shared-build job plus shards that downloaded it, but the
+  # build (57-89s) turned out far cheaper than the artifact round trip and
+  # the extra job's own msys2 setup, so each shard now builds for itself
+  # (--only build is still in every shard's --only list; asancheck.sh's
+  # --skip-build stays for local use, e.g. iterating on one phase against
+  # an already-built tree). 6 shards, none expected over ~2.5 min of its
+  # own work after its build: smoke+examples, unit tests, servercheck and
+  # webcheck each alone, autocheck split into two (its 13 sections,
+  # tools/autocheck.py --list, roughly in half) since it is the most
+  # likely of the three side-by-side checks to be the long pole (heavier
+  # numerics under ASan) -- run_check's new "NAME finished after Ns" line
+  # in each shard's own log will say for certain, and whether autocheck
+  # needs splitting further or servercheck/webcheck need it too.
   windows-clang-sanitizers:
-    needs: windows-clang-sanitizers-build
     runs-on: windows-latest
     defaults:
       run:
@@ -437,19 +424,23 @@ jobs:
       matrix:
         include:
           - shard: examples
-            only: smoke,examples
-          - shard: unit-and-protocol
-            only: unittests,checks
+            only: build,smoke,examples
+          - shard: unittests
+            only: build,unittests
+          - shard: servercheck
+            only: build,servercheck
+          - shard: webcheck
+            only: build,webcheck
+          - shard: autocheck-1
+            only: build,autocheck=diagram+input+abort+control+files+csv+stability
+          - shard: autocheck-2
+            only: build,autocheck=sessions+session+script+replay+names+scratch
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/msys2-clang64
-      - uses: actions/download-artifact@v7
-        with:
-          name: windows-clang-asan-build
-          path: build/clang-asan
       - name: "Sanitizers (ASan + UBSan, no leaks): ${{ matrix.shard }}"
         id: asan
-        run: MAKE=mingw32-make tools/asancheck.sh --no-leaks --builddir build/clang-asan --skip-build --only ${{ matrix.only }} CC=clang CXX=clang++
+        run: MAKE=mingw32-make tools/asancheck.sh --no-leaks --builddir build/clang-asan --only ${{ matrix.only }} CC=clang CXX=clang++
       - name: Upload the sanitizer reports
         if: ${{ !cancelled() && steps.asan.outcome == 'failure' }}
         uses: actions/upload-artifact@v7
