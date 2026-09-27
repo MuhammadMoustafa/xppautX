@@ -16,6 +16,9 @@ runs:
       with:
         path: C:\msys64\clang64
         key: msys2-clang64-toolchain-${{ hashFiles('.github/msys2-clang64-packages.txt') }}
+    # release: false in both: the runner's preinstalled MSYS2 at C:\msys64,
+    # the tree the cache holds (the default installs a fresh MSYS2 under
+    # the runner's temp folder instead, outside the cached path)
     # cache hit: the clang64 tree is already on disk (restored above); just
     # register the msys2 {0} shell over the runner's preinstalled MSYS2 base,
     # installing nothing
@@ -24,6 +27,7 @@ runs:
       uses: msys2/setup-msys2@v2
       with:
         msystem: CLANG64
+        release: false
         update: false
         install: false
     # cache miss: install as before (first run after a package bump; the
@@ -33,6 +37,7 @@ runs:
       uses: msys2/setup-msys2@v2
       with:
         msystem: CLANG64
+        release: false
         update: false
         cache: true
         pacboy: >-

@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [master]
+    branches: [master, 'ci/**']
   pull_request:
 
 # Each platform runs the same behaviour checks against its own build
