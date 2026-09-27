@@ -3,6 +3,7 @@
    them (set, default, slide), the data events a client subscribes to, and
    the equations, source and equilibrium windows. */
 #include "ui_json_internal.h"
+#include "load_eqn.h"
 #include "storage.h"
 #include "xpp_globals.h"
 #include "xpp_util.h"
@@ -36,14 +37,8 @@
 
 /* the core's own globals and functions that have no header of their own */
 extern "C" {
-extern double last_ic[MAXODE];
 extern BROWSER my_browser;
-extern BC_STRUCT my_bc[MAXODE];
-extern char delay_string[MAXODE][80];
-extern int DelayFlag, EqType[];
-extern char *ode_names[];
-extern char *save_eqn[];
-extern int NLINES;
+extern int DelayFlag;
 extern int DLeft, DRight, DTop, DBottom;
 }
 

@@ -24,7 +24,6 @@
 
 /* the core's own globals and functions that have no header of their own */
 extern "C" {
-extern char cur_dir[];
 extern int DLeft, DRight, DTop, DBottom;
 }
 

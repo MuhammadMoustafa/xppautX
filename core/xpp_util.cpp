@@ -50,16 +50,7 @@
 #define IC 2
 #define REAL_SMALL 1.e-6
 
-extern double last_ic[MAXODE];
-extern int NCON, NSYM, NCON_START, NSYM_START;
 extern BROWSER my_browser;
-extern char this_file[XPP_MAX_NAME];
-extern char this_internset[XPP_MAX_NAME];
-extern char *ufun_def[MAXUFUN];
-extern char ufun_names[MAXUFUN][XPP_NAME_MAX+1];
-extern int narg_fun[MAXUFUN];
-extern UFUN_ARG ufun_arg[MAXUFUN];
-extern int NFUN;
 
 /* ---- graph bookkeeping (was many_pops.c / main.c) ----------------------- */
 
@@ -85,12 +76,8 @@ void clr_scrn(void)
 /* ---- moved function bodies follow (appended by tools/move_funcs.py) ---- */
 
 /* new_parameter, set_default_params, clone_ode: from init_conds.c */
-extern double default_val[MAXPAR];
-extern char *save_eqn[MAXLINES];
-extern int NLINES;
 #define READEM 1
 #define WRITEM 0
-extern BC_STRUCT my_bc[MAXODE];
 
 
 /* the name of plotted variable ind: T (0) or a variable; stays valid
@@ -503,8 +490,6 @@ void   set_default_params()
 
 /* ---- the values behind the IC, parameter, BC and delay boxes and the
    parameter sliders (logic from init_conds.c; the widgets stay there) ---- */
-extern char delay_string[MAXODE][80];
-extern double default_ic[MAXODE];
 extern int SuppressBounds;
 
 void   set_default_ics()

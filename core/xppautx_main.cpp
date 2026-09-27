@@ -119,8 +119,6 @@ static const char *const usage_tail =
 enum { MODE_WINDOW, MODE_BROWSER, MODE_SERVER };
 
 void set_colorization_stuff(void);
-extern char this_file[XPP_MAX_NAME];
-extern int RunImmediately;
 int SCALEX, SCALEY;
 
 /* init_grafs() without the window: graph 0 is client window 1 */

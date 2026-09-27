@@ -12,6 +12,7 @@
    classifier, script replay, install and hello; ui_json_internal.h names
    the files that hold the rest. */
 #include "ui_json.h"
+#include "form_ode.h"
 #include "ui_json_internal.h"
 #include "xpp_log.h"
 #include "xpp_http.h"
@@ -40,10 +41,6 @@
 #include "pop_list.h" /* NUPAR, NODE, NMarkov, NEQ, upar_names, uvar_names, color_names */
 
 /* the core's own globals and functions that have no header of their own */
-extern "C" {
-extern double default_val[MAXPAR], default_ic[MAXODE];
-extern char this_file[];
-}
 
 namespace xpp::json {
 

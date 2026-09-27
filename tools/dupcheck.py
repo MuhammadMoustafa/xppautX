@@ -57,9 +57,9 @@ core/cvband.cpp CVBandFree|vendored/numerical, keep: see core/cvband.cpp CVBandS
 core/cvdense.cpp CVDenseFree|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
 core/dormpri.cpp hinit|vendored/numerical, keep: Hairer's dop853/dopri5, two integrators of parallel structure (hinit/hinit5) by the original source's own design
 core/dormpri.cpp hinit5|vendored/numerical, keep: see core/dormpri.cpp hinit
-core/extra.cpp set_dll_library|keep: dlopen/dlsym pair for a plugin's library vs. function lookup, same shape by design; no W32a-d card owns extra.cpp yet
+core/extra.cpp set_dll_library|keep (W33e looked): two three-line setters of the dll= and fun= options, each naming its own field and flag bit; nothing to merge
 core/extra.cpp set_dll_function|keep: see core/extra.cpp set_dll_library
-core/flags.cpp one_flag_step_symp|keep: per-integration-method single-step dispatch (symplectic/euler/discrete/heun/rk4), same shape by design; no W32a-d card owns flags.cpp yet
+core/flags.cpp one_flag_step_symp|keep (W33e looked): per-integration-method single-step dispatch (symplectic/euler/discrete/heun/rk4), each calling its own method's step; same shape by design
 core/flags.cpp one_flag_step_euler|keep: see core/flags.cpp one_flag_step_symp
 core/flags.cpp one_flag_step_discrete|keep: see core/flags.cpp one_flag_step_symp
 core/flags.cpp one_flag_step_heun|keep: see core/flags.cpp one_flag_step_symp
@@ -74,7 +74,7 @@ core/json_ani.cpp j_ani_show|same shape, not a duplicate: two-line functions eac
 core/json_windows.cpp j_reset_graphics|see core/json_ani.cpp j_ani_show
 core/ui_json.cpp script_next|see core/json_ani.cpp j_ani_show
 core/xpp_batch.cpp do_vis_env|see core/json_ani.cpp j_ani_show
-core/lunch-new.cpp io_int|keep: fscanf-style int/double token readers over a plain FILE * (xpp_io.h's xpp::TokenReader is the owner going forward, per CLAUDE.md's Strings and I/O section); not yet moved, no new copy added
+core/lunch-new.cpp io_int|keep (W33e looked): a .set file's one-number line, read whole through xpp::LineReader (atoi/atof of it, the format's own grammar) or written with its label, each type in its own print format; the io_string/io_int/io_double family of the .set format
 core/lunch-new.cpp io_double|keep: see core/lunch-new.cpp io_int
 core/odesol2.cpp discrete|merged (W33a): the step loop they shared is odesol2.cpp's fixed_steps; what is left is each method naming its own two step functions
 core/odesol2.cpp euler|keep: see core/odesol2.cpp discrete
