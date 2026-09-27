@@ -93,9 +93,13 @@ jobs:
       # at link time, -Wl,-s, so this does not touch it twice)
       - name: Strip the CI artifact
         run: strip xppautX
+      # Artifacts keep 14 days (programs, sanitizer reports), 30 for
+      # examples-md5-* (committed as platform baselines): W44, the 90-day
+      # default grew the list by ~4 MB a push
       - uses: actions/upload-artifact@v7
         with:
           name: xppautX-linux
+          retention-days: 14
           path: xppautX
 
   # The new front end driven through a headless browser (docs/ui-v2.md):
@@ -150,6 +154,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: asan-reports-linux
+          retention-days: 14
           path: build/asan/reports
           if-no-files-found: ignore
 
@@ -168,6 +173,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: asan-reports-macos
+          retention-days: 14
           path: build/asan/reports
           if-no-files-found: ignore
 
@@ -211,6 +217,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: examples-md5-macos
+          retention-days: 30
           path: |
             examples.macos.md5
             examples-differ/
@@ -220,6 +227,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: xppautX-macos
+          retention-days: 14
           path: xppautX
 
   # web2check against the macOS build, beside macos-core (as linux-ui and
@@ -292,6 +300,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: examples-md5-windows
+          retention-days: 30
           path: |
             examples.windows.md5
             examples-differ/
@@ -301,6 +310,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: xppautX-windows
+          retention-days: 14
           path: xppautX.exe
 
   # web2check against the Windows build, beside windows-core (as
@@ -394,6 +404,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: examples-md5-windows-clang
+          retention-days: 30
           path: |
             examples.windows-clang.md5
             examples-differ/
@@ -446,6 +457,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: sanitizer-reports-windows-clang-${{ matrix.shard }}
+          retention-days: 14
           path: |
             build/clang-asan/reports/
             build/clang-asan-*.log

@@ -102,6 +102,7 @@ issue; the card here is the one kept up to date.
 | W41 | #84 | windows-clang (~9 min) and windows-clang-sanitizers (~11 min) under ~6 min: a cached or prebuilt clang toolchain in place of setup-msys2's ~170 s, parallel test links, autocheck and examples side by side, asancheck split into parallel parts; no check dropped | none | done |
 | W42 | #85 | web2check's AUTO Stop-during-a-run checks (T22/T23/T25) race a fast native run under a CPU throttle (the macOS runner's case): make the run certainly still going at the Stop click, or judge by the stopped event's count | none | in-progress |
 | W43 | #86 | The AUTO joins W33c/W33d left (each confined to its files): fort8 via auto_fort_path(8) as a std::string, xAuto/RestartLabel declared in their headers, autlib1's thu as a vector (init()'s signature), scr as a std::string, gogoauto's stale comment and global_conpar_type; left by W33g: `Auto.hinttxt` as a std::string, xpp_util's `ind_to_sym(int, char *)` returning a std::string (callers in graf_par, numerics, auto_nox); output byte-identical | W33c, W33d | in-progress |
+| W44 | #87 | Artifact retention in CI: `retention-days` on build.yml's uploads, 14 for the programs and the sanitizer reports, 30 for `examples-md5-*` (committed as platform baselines); release.yml keeps the default | none | done |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
