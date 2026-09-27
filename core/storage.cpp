@@ -18,7 +18,6 @@ extern int METHOD;
 #define STIFF 9
 #define GEAR 5
 #define RB23 13
-#define SYMPLECT 14
 XPPVEC xpv;
 
 namespace {

@@ -40,7 +40,6 @@
 
 #define SPER 3
 #define UPER 4
-#define SEQ 1
 #define UEQ 2
 
 #define lsSEQ 0

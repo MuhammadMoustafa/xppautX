@@ -29,7 +29,6 @@ extern "C" {
 #define M_NR 32
 #define M_NA 33
 #define M_NM 34
-#define M_NF 35
 #define M_NS 36
 
 #define M_NFF 37
@@ -67,7 +66,6 @@ extern "C" {
 #define M_KA 93
 #define M_KS 94
 #define M_KM 95
-#define M_KX 96
 
 
 
@@ -77,7 +75,6 @@ extern "C" {
 #define M_GE 103
 #define M_GP 104
 #define M_GV 105
-#define M_GF 106
 #define M_GX 107
 #define M_GO 108
 #define M_GC 109
@@ -86,7 +83,6 @@ extern "C" {
 #define M_GFD 111
 #define M_GFE 112
 #define M_GFR 113
-#define M_GFK 114
 #define M_GFB 115
 #define M_GFC 116
 #define M_GFO 117
@@ -128,7 +124,6 @@ extern "C" {
 #define M_TA 161
 #define M_TP 162
 #define M_TM 163
-#define M_TE 164
 #define M_TD 165
 #define M_TS 166
 #define M_TEM 170

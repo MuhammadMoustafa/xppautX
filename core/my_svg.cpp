@@ -21,7 +21,6 @@
 #include "xpp_io.h"
 #include "xpp_globals.h"
 
-#define LEFT 0
 #define RIGHT 2
 #define CENTER 1
 #define POINT_TYPES 8

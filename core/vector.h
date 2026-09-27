@@ -125,9 +125,7 @@ typedef struct N_VectorContent {  /* a tag: -fsanitize=function tells unnamed st
 
 #define N_VDATA(v) (v->data)
 
-#define N_VLENGTH(v) (v->length)
 
-#define N_VIth(v,i) ((v->data)[i])
  
 
 /* Part II: N_Vector Kernel Prototypes (Machine Environment-Independent) */

@@ -4,7 +4,6 @@
 
 #include "xpplim.h"
 #define RUBBOX 0
-#define RUBLINE 1
 
 #define SCRNFMT 0
 #define PSFMT 1

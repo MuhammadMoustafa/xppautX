@@ -127,6 +127,4 @@ void xpp_win32_attach_console(void)
     if (!in) reopen("CONIN$", "r", stdin);
 }
 
-#else
-typedef int xpp_win32_unused;
 #endif

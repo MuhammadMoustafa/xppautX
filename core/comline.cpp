@@ -60,7 +60,6 @@
 #define NOOUT 38
 #define DFDRAW 39
 #define NCDRAW 40
-#define DEFINE 41
 #define READSET 42
 #define WITH 43
 #define EQUIL 44

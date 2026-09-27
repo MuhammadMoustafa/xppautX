@@ -37,11 +37,8 @@
 #define ESCAPE 27
 
 #define NOCHANGE 2
-#define GOODSHOT 1
 #define NUMICS -1
 #define BADINT -4
-#define ABORT -5
-#define ABORT_ALL -6
 #define TOOMANY -2
 #define BADJAC -3
 #define PARAM 1

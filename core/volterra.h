@@ -3,8 +3,6 @@
 
 #include "xpplim.h"
 
-#define KN_OLD 1
-#define KN 0
 
 #ifdef __cplusplus
 #include <array>

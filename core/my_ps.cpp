@@ -28,7 +28,6 @@
 /* #define	PS_LW (0.5*PS_SC) */		/* linewidth = 0.5 pts */
 /* #define PS_FONTSIZE 14     */        /* default is 14 point characters */
 #define PS_VCHAR (PS_FONTSIZE*PS_SC)		
-#define PS_HCHAR (PS_FONTSIZE*PS_SC*6/10)
 
 #define LEFT 0
 #define RIGHT 2

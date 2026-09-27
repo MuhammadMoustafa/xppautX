@@ -15,15 +15,11 @@
 #include "auto_stability.h"
 #include "xpp_job.h"
 
-#define SPECIAL 5
 #define SPER 3
 #define UPER 4
 #define SEQ 1
 #define UEQ 2
 
-#define ESCAPE 27
-#define MAXDIMHET 12
-#define MAXDIMHOM 24
 
 
 XAUTO xAuto;

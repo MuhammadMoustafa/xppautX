@@ -51,7 +51,6 @@
 #define ELLIP 9
 #define FELLIP 10
 #define COMET 11
-#define PCURVE 12
 #define AXNULL 13
 #define AYNULL 14
 #define GRAB 25

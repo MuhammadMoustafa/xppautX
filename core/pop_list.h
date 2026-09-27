@@ -15,29 +15,14 @@ extern "C" {
 
 
 
-#define MAX_N_SBOX 22
-
-
-#define FORGET_ALL 0
-#define DONE_ALL 2
-#define FORGET_THIS 3
-#define DONE_THIS 1
 
 
 
 
 
-#define EV_MASK (ButtonPressMask 	|\
-		KeyPressMask		|\
-		ExposureMask		|\
-		StructureNotifyMask)	
 
-#define BUT_MASK (ButtonPressMask 	|\
-		KeyPressMask		|\
-		ExposureMask		|\
-		StructureNotifyMask	|\
-		EnterWindowMask		|\
-		LeaveWindowMask)	
+
+
 
 
 
@@ -68,13 +53,6 @@ extern SCRBOX_LIST scrbox_list[10];
 
 
 /*  This is a new improved pop_up widget */
-#define SB_PLOTTABLE 0
-#define SB_VARIABLE 1
-#define SB_PARAMETER 2
-#define SB_PARVAR 3
-#define SB_COLOR 4
-#define SB_MARKER 5
-#define SB_METHOD 6
 
 
 

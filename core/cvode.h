@@ -423,7 +423,6 @@ void CVodeFree(void *cvode_mem);
  * values are used by the linear solvers.                         */
 
 #define CVODE_IOPT_SIZE 13
-#define CVODE_ROPT_SIZE  7
 
 /* iopt indices */
 

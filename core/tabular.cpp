@@ -223,9 +223,6 @@ double lookup(double x, int index)
       return(y1+(y2-y1)*(x-x1)/dx);
     else
       {
-#ifdef DEBUG
-   	  xpp::log(XPP_LOG_DEBUG, "index={}; x={:g}; i1={}; i2={}; x1={:g}; y1={:g}; y2={:g}\n",index,x,i1,i2,x1,y1,y2);
-#endif
 	    return(y1);
 	};
   }

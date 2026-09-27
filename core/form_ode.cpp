@@ -36,11 +36,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-#ifndef WCTYPE
 #include <ctype.h>
-#else
-#include <wctype.h>
-#endif
 
 #include "xpplim.h"
 

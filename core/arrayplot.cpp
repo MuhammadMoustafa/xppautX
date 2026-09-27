@@ -52,8 +52,6 @@
 #include "xpp_io.h"
 #include "integrate.h"
 #include "pop_list.h"
-#define FIRSTCOLOR 30
-#define FIX_MIN_SIZE 2
 
 /* the core's globals that have no header of their own */
 int aplot_range_count=0;

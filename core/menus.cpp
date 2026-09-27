@@ -5,11 +5,6 @@
 
 
 
-#define MAIN_MENU 0
-#define FILE_MENU 1
-#define NUM_MENU 2
-#define MAIN_ENTRIES 20
-#define NUM_ENTRIES 18
 const char *main_menu[]={
  "XPP","Initialconds","Continue","Nullcline",
  "Dir.field/flow","Window/zoom","phAsespace",

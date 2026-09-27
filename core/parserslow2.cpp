@@ -15,11 +15,7 @@
 
 #include <stdlib.h> 
 
-#ifndef WCTYPE
 #include <ctype.h>
-#else
-#include <wctype.h>
-#endif
 
 #include <math.h>
 /* #include <malloc.h> */
@@ -34,7 +30,6 @@
 #include "xpplim.h"
 #include "getvar.h"
 
-#define THOUS 10000
 #define DOUB_EPS 2.23E-15 
 #define POP stack[--stack_pointer]
 double zippy;
@@ -45,9 +40,6 @@ double zippy;
 
 
 
-#define DFNORMAL 1
-#define DFFP 2
-#define DFSTAB 3
 
 /* #define COM(a) my_symb[toklist[(a)]].com */
 int             ERROUT;
@@ -1875,7 +1867,6 @@ bye: j=0;
 
 
 /*  STRING STUFF  */
-#ifndef STRUPR
 void strupr(char *s)
 {
  int i=0;
@@ -1896,4 +1887,3 @@ void strlwr(char *s)
   i++;
   }
 }
-#endif

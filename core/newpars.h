@@ -8,9 +8,6 @@
 */
 
 
-#define COMMENT 2
-#define SPACE 3
-#define EQUAL 4
 
 #define COMMAND -1
 #define FIXED 0
@@ -25,7 +22,6 @@
 
 #define SPEC_FUN 11
 
-#define PAR_AM 16
 #define DAE 12
 #define DERIVE_PAR 13
 #define SOL_VAR 14

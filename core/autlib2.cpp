@@ -576,10 +576,8 @@ brbd(doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa,
 
     
   if (*idb > 4 && *iam == 0) {
-#ifndef ACCES_TEST
     print1(nov, na, nra, nca, ncb, nrc, a, b, c, d, &
     	   fa[0], fc);
-#endif
   }
   if (*ifst == 1) {
     conpar(nov, na, nra, nca, a, ncb, b, nbc, nrc, c, d, irf, icf);
@@ -592,20 +590,8 @@ brbd(doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa,
 	   irf, icf, iam);
     cpyrhs(na, nov, nra, faa, fa, irf);
   } else {
-#ifdef RANDY_FIX
-    /* The faa array needs to be intialized as well, since it 
-       it used in the dimrge_ rountine to print stuff out,
-       and in the bcksub_ routine for actual computations! */
-    {
-      integer k;
-      for(k=0;k<((*nov) * (*na + 1));k++)
-	faa[k]=0.0;
-    }
-    setzero(fa, fc, na, nra, nrc);
-#else
     setzero(fa, fc, na, nra, nrc);
     cpyrhs(na, nov, nra, faa, fa, irf);
-#endif
   }
 
   if (*ifst == 1) {

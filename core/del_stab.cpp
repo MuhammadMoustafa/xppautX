@@ -14,7 +14,6 @@
 #include "del_stab.h"
 
 #define Z(a,b) z[(a)+n*(b)]
-#define DING ping()
 /* this code takes the determinant of a complex valued matrix
 */
 

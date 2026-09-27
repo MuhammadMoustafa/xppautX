@@ -64,15 +64,14 @@ typedef SOCKET sock_t;
 typedef int sock_t;
 #define INVALID_SOCKET (-1)
 #define close_sock close
+/* BSD and macOS have no MSG_NOSIGNAL; SIGPIPE is ignored in xpp_http_start */
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
 #endif
 
 #ifdef _WIN32
 extern "C" errno_t rand_s(unsigned int *); /* the C library's; stdlib.h declares it only with _CRT_RAND_S */
-#endif
-
-/* BSD and macOS have no MSG_NOSIGNAL; SIGPIPE is ignored in xpp_http_start */
-#ifndef MSG_NOSIGNAL
-#define MSG_NOSIGNAL 0
 #endif
 
 typedef struct {

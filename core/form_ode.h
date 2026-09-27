@@ -9,7 +9,6 @@
 extern "C" {
 #endif
 
-#define MAXVNAM (XPP_NAME_MAX+1)
 #define MAXLINES 5000
 
 /* The model as the parser leaves it (form_ode.cpp), read by the rest of

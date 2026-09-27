@@ -161,7 +161,6 @@ including derived parameters but XPP takes care of this so start at 0
 #include "delay_handle.h"
 #include "xpp_math.h"
 
-#define IC 2
 
 
 /* simple network stuff */

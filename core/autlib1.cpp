@@ -4278,12 +4278,10 @@ ge(integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublere
   /*   Backsubstitution : */
 
   for (irh = 0; irh < nrhs; ++irh) {
-#ifndef FLOATING_POINT_TRAP
     if(ARRAY2D(a, ir[n - 1], ic[n - 1]) == 0) {
       xpp_log_auto("Division by Zero, exiting\n");
       exit(0);
     }
-#endif
     ARRAY2D(u, ic[n - 1], irh) = ARRAY2D(f, ir[n - 1], irh) / ARRAY2D(a, ir[n - 1], ic[n - 1]);
     for (i1 = 0; i1 < n - 1; ++i1) {
       i = n - (i1 + 1) - 1;

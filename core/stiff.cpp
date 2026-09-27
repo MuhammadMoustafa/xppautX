@@ -10,7 +10,6 @@
 
 
 extern int NFlags;
-#define RKQS 8
 #define STIFF 9
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))

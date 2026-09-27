@@ -79,7 +79,6 @@ typedef int integer;
 #define DOUBLE 1
 
 #define INT      1
-#define LONG_INT 0
 
 #if FLOAT
 

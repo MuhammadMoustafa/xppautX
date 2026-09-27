@@ -19,7 +19,6 @@ extern "C" {
 #define USTACKTYPE 8
 #define KERTYPE 10
 #define VECTYPE 13  /* for vectorized stuff */
-#define EVECTYPE 14 /* treat vector like a function */
 #define MAXTYPE 20000000  /* this is the maximum number of named stuff */ 
 
 
@@ -38,7 +37,6 @@ extern "C" {
 
 #define ENDEXP 999
 #define ENDFUN 998
-#define STARTDELAY 980
 #define DELSYM  42
 #define ENDDELAY 996
 #define MYIF  995
@@ -49,7 +47,6 @@ extern "C" {
 #define SHIFTSYM 64
 #define ISHIFTSYM 67
 #define ENDSHIFT 988
-#define SUMINDEX 989
 #define LASTTOK MAX_SYMBS-2
 #define NUMSYM 987
 #define NUMTOK 59
@@ -61,15 +58,12 @@ extern "C" {
 #define SETSYM  72
 #define ENDSET 981
 #define INDX 68
-#define INDXVAR 984
 
 /*#define STDSYM 95
 */
 #define STDSYM 96
 
 #define INDXCOM 922
-#define STARTINDX 70
-#define ENDINDX 69
 
 
 
@@ -106,7 +100,6 @@ extern int NCON,NVAR,NFUN,NSYM,NDELAYS,NKernel,NTable,MaxPoints;
 extern int ERROUT,RandSeed;
 
 
-#define VECT_ROOT 500 
 
 
 
@@ -200,10 +193,8 @@ extern "C" {
 #define strupr xpp_strupr
 #define strlwr xpp_strlwr
 #endif
-#ifndef STRUPR
 void strupr(char *s);
 void strlwr(char *s);
-#endif
 
 /*****************************************************/
 
