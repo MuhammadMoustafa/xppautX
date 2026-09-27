@@ -69,9 +69,12 @@ type check, the dead-code check, the duplication check) are `tools/sourcecheck.s
 tests), and its linux-core job runs `verify.sh --no-source-checks`. Every
 platform runs the same behaviour checks against its own build (`<platform>-core`)
 and web2check against it (`<platform>-ui`), for linux, windows and macos;
-`windows-clang` runs windows-core's checks against a clang build, and
-`windows-clang-sanitizers` asancheck with clang (below), beside it;
-a check step runs even after another one failed (only a failed build stops them).
+`windows-clang` runs windows-core's checks against a clang build (its
+servercheck/webcheck/autocheck/examples run side by side, W41), and
+`windows-clang-sanitizers-build` + `windows-clang-sanitizers` (a 2-shard
+matrix) build once and asancheck with clang across the shards (below),
+beside it; a check step runs even after another one failed (only a failed
+build stops them).
 
 The front end (`web2/`, the page at `/`; a `/v1/` or `/v2/` bookmark
 redirects to `/`; design and plan in docs/ui-v2.md). The classic page
@@ -137,6 +140,16 @@ there), about 9 minutes:
 
     PATH=/c/msys64/clang64/bin:$PATH MAKE=mingw32-make tools/asancheck.sh --no-leaks --builddir build/clang-asan CC=clang CXX=clang++
 
+`--skip-build` and `--only build,smoke,examples,unittests,checks` (W41)
+split the script into its phases, so a slow platform can build once and run
+the phases across parallel CI jobs instead of one long job: CI's
+`windows-clang-sanitizers-build` job runs `--only build` and uploads
+`build/clang-asan`; `windows-clang-sanitizers` (a 2-shard matrix) downloads
+it and runs `--skip-build --only smoke,examples` in one shard,
+`--skip-build --only unittests,checks` in the other, each under ~5 min.
+Linux (`linux-sanitizers`) and macOS (`macos-sanitizers`) still run the
+script whole (no `--only`), about a few minutes each.
+
 `tools/asancheck.sh --no-leaks` (CI's `macos-sanitizers` job, Apple clang
 on macos-latest) runs the same checks with LeakSanitizer's detect_leaks
 off, since Apple Silicon runners do not support it; ASan and UBSan still
@@ -171,7 +184,13 @@ native build, from Git Bash:
 
 MSYS2's CLANG64 toolchain (C:\msys64\clang64\bin: clang, libc++, lld,
 compiler-rt; W23) is a second Windows compiler, never the default: CI's
-`windows-clang` job. The Makefile knows clang (`CLANG`: gcc-only
+`windows-clang` job. CI installs it through `.github/actions/msys2-clang64`
+(W41), a composite action that both windows-clang jobs use: it caches the
+installed clang64 tree (`actions/cache`, keyed on
+`.github/msys2-clang64-packages.txt`), so a run with an unchanged package
+list restores it in seconds instead of paying pacman's ~170s install; bump
+that file's version line to force a fresh install (a package bump, say).
+The Makefile knows clang (`CLANG`: gcc-only
 `-Werror=` names dropped, webview in C++17 for libc++). Build it into its
 own directory, the binary at build/clang/xppautX.exe (dynamically linked:
 run it with clang64/bin on PATH):

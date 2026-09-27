@@ -339,21 +339,13 @@ jobs:
         shell: msys2 {0}
     steps:
       - uses: actions/checkout@v7
-      - uses: msys2/setup-msys2@v2
-        with:
-          msystem: CLANG64
-          update: false
-          cache: true
-          pacboy: >-
-            toolchain:p
-            make:p
-            python:p
+      - uses: ./.github/actions/msys2-clang64
       - name: "Build xppautX with clang (WERROR=1)"
         id: build
         run: |
           clang --version | head -1
           mingw32-make -j4 build/clang/xppautX.exe BUILDDIR=build/clang CC=clang CXX=clang++ WERROR=1
-      - name: "Unit tests (linked with clang++ and libc++)"
+      - name: "Unit tests (linked with clang++ and libc++, test binaries linked in parallel)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: mingw32-make -j4 test BUILDDIR=build/clang CC=clang CXX=clang++ WERROR=1
       - name: Headless run matches Linux (ignoring line ends)
@@ -362,21 +354,41 @@ jobs:
           top=$PWD
           cd "$(mktemp -d)" && "$top/build/clang/xppautX.exe" "$top/examples/ode/lecar.ode" -silent
           test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = c281851de59ffd03b2a46428619a0c8f
-      - name: Server protocol and web front end
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python tools/servercheck.py --server ./build/clang/xppautX.exe && python tools/webcheck.py --bin ./build/clang/xppautX.exe
       - name: "Command-line modes (--help, --no-open; --browser's ShellExecute skipped)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sh tools/modecheck.sh build/clang/xppautX.exe
-      - name: "AUTO over the protocol (tolerant of libm's last-digit ULP differences, autocheck.py's lines_close)"
+      # servercheck+webcheck, autocheck and examples_check ran one after
+      # another (32+90+88s); they touch disjoint parts of the binary (the
+      # protocol, AUTO, every .ode model) so nothing stops them running side
+      # by side instead (W41), each logged to its own file, verdicts printed
+      # once all are done (the pattern tools/asancheck.sh's run_check uses)
+      - name: "Server protocol, web front end, AUTO and every example (run side by side)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python tools/autocheck.py --server ./build/clang/xppautX.exe
-      # tests/examples.windows-clang.md5 when committed, else Linux's in
-      # first-run mode (differences reported, not failed); a crash or
-      # timeout always fails
-      - name: "Every example: no crash, output md5s against this platform's baseline"
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: tools/examples_check.sh --bin build/clang/xppautX.exe --platform windows-clang --write examples.windows-clang.md5 --keep examples-differ
+        run: |
+          bin=build/clang/xppautX.exe
+          run_check() {
+            name=$1; shift
+            if "$@" > "$name.log" 2>&1; then
+              echo "$name ok" > "$name.verdict"
+            else
+              tail -40 "$name.log"
+              echo "$name FAILED" > "$name.verdict"
+            fi
+          }
+          run_check servercheck python tools/servercheck.py --server "$bin" &
+          run_check webcheck python tools/webcheck.py --bin "$bin" &
+          run_check autocheck python tools/autocheck.py --server "$bin" &
+          # tests/examples.windows-clang.md5 when committed, else Linux's in
+          # first-run mode (differences reported, not failed); a crash or
+          # timeout always fails
+          run_check examples tools/examples_check.sh --bin "$bin" --platform windows-clang --write examples.windows-clang.md5 --keep examples-differ &
+          wait
+          fail=0
+          for name in servercheck webcheck autocheck examples; do
+            cat "$name.verdict"
+            grep -q FAILED "$name.verdict" && fail=1
+          done
+          exit $fail
       - name: Upload the examples' md5s (only when a model differs from the baseline)
         if: ${{ !cancelled() && hashFiles('examples-differ/**') != '' }}
         uses: actions/upload-artifact@v7
@@ -388,31 +400,61 @@ jobs:
           if-no-files-found: ignore
 
   # windows-clang's sanitizer run, a job of its own so it runs beside
-  # windows-clang's checks instead of after them (W36)
-  windows-clang-sanitizers:
+  # windows-clang's checks instead of after them (W36). Built once here
+  # (asancheck.sh --only build) and uploaded, so the two shards below don't
+  # each pay for their own ASan build (W41: the whole thing was one ~510s
+  # job; asancheck.sh's --only splits it into phases so no shard exceeds
+  # ~5 min).
+  windows-clang-sanitizers-build:
     runs-on: windows-latest
     defaults:
       run:
         shell: msys2 {0}
     steps:
       - uses: actions/checkout@v7
-      - uses: msys2/setup-msys2@v2
+      - uses: ./.github/actions/msys2-clang64
+      - name: "Build xppautX with ASan + UBSan (clang)"
+        run: MAKE=mingw32-make tools/asancheck.sh --builddir build/clang-asan --only build CC=clang CXX=clang++
+      - uses: actions/upload-artifact@v7
         with:
-          msystem: CLANG64
-          update: false
-          cache: true
-          pacboy: >-
-            toolchain:p
-            make:p
-            python:p
-      - name: "Sanitizers (ASan + UBSan, no leaks): no error report"
+          name: windows-clang-asan-build
+          path: build/clang-asan/
+          retention-days: 1
+
+  # each shard downloads the build above and runs its slice of
+  # asancheck.sh's phases (--skip-build --only ...); "examples" is the
+  # slowest phase alone (~88s unsanitized, several times that under ASan) so
+  # it gets its own shard, the rest (unit tests, then servercheck+webcheck+
+  # autocheck side by side) the other
+  windows-clang-sanitizers:
+    needs: windows-clang-sanitizers-build
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: examples
+            only: smoke,examples
+          - shard: unit-and-protocol
+            only: unittests,checks
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/msys2-clang64
+      - uses: actions/download-artifact@v7
+        with:
+          name: windows-clang-asan-build
+          path: build/clang-asan
+      - name: "Sanitizers (ASan + UBSan, no leaks): ${{ matrix.shard }}"
         id: asan
-        run: MAKE=mingw32-make tools/asancheck.sh --no-leaks --builddir build/clang-asan CC=clang CXX=clang++
+        run: MAKE=mingw32-make tools/asancheck.sh --no-leaks --builddir build/clang-asan --skip-build --only ${{ matrix.only }} CC=clang CXX=clang++
       - name: Upload the sanitizer reports
         if: ${{ !cancelled() && steps.asan.outcome == 'failure' }}
         uses: actions/upload-artifact@v7
         with:
-          name: sanitizer-reports-windows-clang
+          name: sanitizer-reports-windows-clang-${{ matrix.shard }}
           path: |
             build/clang-asan/reports/
             build/clang-asan-*.log

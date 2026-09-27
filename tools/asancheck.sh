@@ -19,9 +19,20 @@
 # (W23: --no-leaks, no LeakSanitizer there), from its shell or Git Bash
 # with C:\msys64\clang64\bin first on PATH:
 #   MAKE=mingw32-make tools/asancheck.sh --no-leaks --builddir build/clang-asan CC=clang CXX=clang++
-# Usage: tools/asancheck.sh [--no-leaks] [--builddir DIR] [VAR=value ...]
+# Usage: tools/asancheck.sh [--no-leaks] [--builddir DIR] [--skip-build]
+#                            [--only LIST] [VAR=value ...]
 #   --no-leaks      no LeakSanitizer (detect_leaks=0), where it does not exist
 #   --builddir DIR  build into and run from DIR (default build/asan)
+#   --skip-build    assume DIR is already built (a previous --only build run,
+#                    e.g. downloaded from another CI job); never runs "make
+#                    asan-link"
+#   --only LIST     run only these comma-separated phases, in order:
+#                    build,smoke,examples,unittests,checks (default: all).
+#                    "checks" is servercheck+webcheck+autocheck, run side by
+#                    side. Lets a slow platform (W41: windows-clang-sanitizers)
+#                    split the work across parallel CI jobs that share one
+#                    build (--only build, then each shard --skip-build --only
+#                    <its phases>); Linux and macOS CI keep running it whole.
 #   VAR=value       passed to make (the compilers, say)
 #   $MAKE, $PYTHON  the make and python programs (default make, python3)
 cd "$(dirname "$0")/.." || exit 1
@@ -29,26 +40,37 @@ top=$PWD
 BASELINE=c281851de59ffd03b2a46428619a0c8f
 leaks=1
 bdir=build/asan
+skip_build=0
+only=build,smoke,examples,unittests,checks
 while [ $# -gt 0 ]; do
   case $1 in
     --no-leaks) leaks=0 ;;
     --builddir) bdir=$2; shift ;;
+    --skip-build) skip_build=1 ;;
+    --only) only=$2; shift ;;
     *=*) break ;;
-    *) echo "usage: tools/asancheck.sh [--no-leaks] [--builddir DIR] [VAR=value ...]"; exit 2 ;;
+    *) echo "usage: tools/asancheck.sh [--no-leaks] [--builddir DIR] [--skip-build] [--only LIST] [VAR=value ...]"; exit 2 ;;
   esac
   shift
 done
+has_phase() {
+  case ",$only," in *",$1,"*) return 0 ;; *) return 1 ;; esac
+}
 make=${MAKE:-make}
 python=${PYTHON:-python3}
 # the logs: build/asan-*.log for build/asan
 log=build/$(basename "$bdir")
 mkdir -p build || exit 1
-if ! "$make" -j8 BUILDDIR="$bdir" ASAN=1 "$@" asan-link > "$log-build.log" 2>&1; then
-  grep -E ' error:' "$log-build.log" | head -20
-  echo "ASAN BUILD FAILED"
-  exit 1
+if [ $skip_build -eq 1 ] || ! has_phase build; then
+  echo "asan build skipped (--skip-build or --only without build): using $bdir as-is"
+else
+  if ! "$make" -j8 BUILDDIR="$bdir" ASAN=1 "$@" asan-link > "$log-build.log" 2>&1; then
+    grep -E ' error:' "$log-build.log" | head -20
+    echo "ASAN BUILD FAILED"
+    exit 1
+  fi
+  echo "asan build ok"
 fi
-echo "asan build ok"
 bin=$bdir/xppautX
 [ -e "$bin.exe" ] && bin=$bin.exe
 reports=$top/$bdir/reports
@@ -81,62 +103,70 @@ md5() {
 }
 fail=0
 
-tmp=$(mktemp -d)
-( cd "$tmp" && "$top/$bin" "$top/examples/ode/lecar.ode" -silent > run.log 2>&1 )
-st=$?
-# (CRs removed: Windows writes CRLF)
-sum=$( [ -e "$tmp/output.dat" ] && tr -d '\r' < "$tmp/output.dat" | md5 )
-if [ $st -eq 0 ] && [ "$sum" = "$BASELINE" ]; then
-  echo "$bin -silent ok: checksum matches baseline"
-else
-  head -20 "$tmp/run.log"
-  echo "$bin -silent FAILED: exit $st, sum=$sum"
-  fail=1
-fi
-rm -rf "$tmp"
-
-# every example through xppautX -silent, sanitizers only (no output
-# comparison, just their verdict); a model that does not run by itself
-# exits non-zero without a report
-ex=$(mktemp -d)
-find examples -name '*.ode' | sort | xargs -P"$NPROC" -I{} sh -c '
-  f=$1; run=$2/$(echo "$f" | tr / _); mkdir -p "$run"
-  cp "$(dirname "$f")"/* "$run"/ 2>/dev/null
-  cd "$run" && ${4:+$4 120} "$3" "$(basename "$f")" -silent > run.log 2>&1
-  echo "$? $f" >> "$2/status"' sh {} "$ex" "$top/$bin" "$TMO"
-echo "examples run: $(wc -l < "$ex/status"), exit codes: $(cut -d' ' -f1 "$ex/status" | sort -n | uniq -c | tr -s ' \n' ' ')"
-rm -rf "$ex"
-
-if "$make" -j"$NPROC" BUILDDIR="$bdir" ASAN=1 "$@" test > "$log-unittest.log" 2>&1; then
-  echo "unit tests ok"
-else
-  grep -E 'FAIL|failed|ERROR' "$log-unittest.log" | head -20
-  echo "UNIT TESTS FAILED"
-  fail=1
-fi
-
-# the name, then the command: run side by side (each logged to its own
-# file, its verdict printed in order once all are done), their waits
-# doubled for a machine shared by three sanitized servers
-run_check() {
-  name=$1; shift
-  if XPP_CHECK_SLOW=${XPP_CHECK_SLOW:-2} "$@" > "$log-$name.log" 2>&1; then
-    echo "$name ok: $(grep -c '^PASS' "$log-$name.log") checks"
+if has_phase smoke; then
+  tmp=$(mktemp -d)
+  ( cd "$tmp" && "$top/$bin" "$top/examples/ode/lecar.ode" -silent > run.log 2>&1 )
+  st=$?
+  # (CRs removed: Windows writes CRLF)
+  sum=$( [ -e "$tmp/output.dat" ] && tr -d '\r' < "$tmp/output.dat" | md5 )
+  if [ $st -eq 0 ] && [ "$sum" = "$BASELINE" ]; then
+    echo "$bin -silent ok: checksum matches baseline"
   else
-    grep -v '^PASS' "$log-$name.log" | head -30
-    echo "$name FAILED"
-  fi > "$log-$name.verdict"
-}
-run_check servercheck "$python" tools/servercheck.py --server "$bin" &
-run_check webcheck "$python" tools/webcheck.py --bin "$bin" &
-# --report: the sanitizers slow everything down, so the latency limits
-# (which verify.sh checks) only measure here
-run_check autocheck "$python" tools/autocheck.py --server "$bin" --report &
-wait
-for name in servercheck webcheck autocheck; do
-  cat "$log-$name.verdict"
-  grep -q ' FAILED$' "$log-$name.verdict" && fail=1
-done
+    head -20 "$tmp/run.log"
+    echo "$bin -silent FAILED: exit $st, sum=$sum"
+    fail=1
+  fi
+  rm -rf "$tmp"
+fi
+
+if has_phase examples; then
+  # every example through xppautX -silent, sanitizers only (no output
+  # comparison, just their verdict); a model that does not run by itself
+  # exits non-zero without a report
+  ex=$(mktemp -d)
+  find examples -name '*.ode' | sort | xargs -P"$NPROC" -I{} sh -c '
+    f=$1; run=$2/$(echo "$f" | tr / _); mkdir -p "$run"
+    cp "$(dirname "$f")"/* "$run"/ 2>/dev/null
+    cd "$run" && ${4:+$4 120} "$3" "$(basename "$f")" -silent > run.log 2>&1
+    echo "$? $f" >> "$2/status"' sh {} "$ex" "$top/$bin" "$TMO"
+  echo "examples run: $(wc -l < "$ex/status"), exit codes: $(cut -d' ' -f1 "$ex/status" | sort -n | uniq -c | tr -s ' \n' ' ')"
+  rm -rf "$ex"
+fi
+
+if has_phase unittests; then
+  if "$make" -j"$NPROC" BUILDDIR="$bdir" ASAN=1 "$@" test > "$log-unittest.log" 2>&1; then
+    echo "unit tests ok"
+  else
+    grep -E 'FAIL|failed|ERROR' "$log-unittest.log" | head -20
+    echo "UNIT TESTS FAILED"
+    fail=1
+  fi
+fi
+
+if has_phase checks; then
+  # the name, then the command: run side by side (each logged to its own
+  # file, its verdict printed in order once all are done), their waits
+  # doubled for a machine shared by three sanitized servers
+  run_check() {
+    name=$1; shift
+    if XPP_CHECK_SLOW=${XPP_CHECK_SLOW:-2} "$@" > "$log-$name.log" 2>&1; then
+      echo "$name ok: $(grep -c '^PASS' "$log-$name.log") checks"
+    else
+      grep -v '^PASS' "$log-$name.log" | head -30
+      echo "$name FAILED"
+    fi > "$log-$name.verdict"
+  }
+  run_check servercheck "$python" tools/servercheck.py --server "$bin" &
+  run_check webcheck "$python" tools/webcheck.py --bin "$bin" &
+  # --report: the sanitizers slow everything down, so the latency limits
+  # (which verify.sh checks) only measure here
+  run_check autocheck "$python" tools/autocheck.py --server "$bin" --report &
+  wait
+  for name in servercheck webcheck autocheck; do
+    cat "$log-$name.verdict"
+    grep -q ' FAILED$' "$log-$name.verdict" && fail=1
+  done
+fi
 
 n=$(ls "$reports" | wc -l)
 if [ "$n" -ne 0 ]; then

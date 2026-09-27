@@ -1,0 +1,41 @@
+name: MSYS2 CLANG64 toolchain (cached)
+description: >-
+  Sets up MSYS2's CLANG64 toolchain (clang, lld, libc++, compiler-rt) plus
+  make and python, the compiler CLAUDE.md's windows-clang and
+  windows-clang-sanitizers jobs build with (W23). Caches the installed
+  clang64 tree keyed on ../../msys2-clang64-packages.txt, so a run with an
+  unchanged package list restores it (a few seconds) instead of paying
+  pacman's ~170s toolchain install (W41); bump that file's version line to
+  force a fresh install (a package update, say).
+runs:
+  using: composite
+  steps:
+    - name: Restore cached MSYS2 CLANG64 toolchain
+      id: cache
+      uses: actions/cache@v6
+      with:
+        path: C:\msys64\clang64
+        key: msys2-clang64-toolchain-${{ hashFiles('.github/msys2-clang64-packages.txt') }}
+    # cache hit: the clang64 tree is already on disk (restored above); just
+    # register the msys2 {0} shell over the runner's preinstalled MSYS2 base,
+    # installing nothing
+    - name: MSYS2 shell (cached toolchain)
+      if: steps.cache.outputs.cache-hit == 'true'
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: CLANG64
+        update: false
+        install: false
+    # cache miss: install as before (first run after a package bump; the
+    # cache action saves C:\msys64\clang64 afterwards)
+    - name: MSYS2 shell and toolchain (cache miss)
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: CLANG64
+        update: false
+        cache: true
+        pacboy: >-
+          toolchain:p
+          make:p
+          python:p
