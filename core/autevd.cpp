@@ -20,60 +20,61 @@ void init_auto(int ndim, int nicp, int nbc, int ips, int irs, int ilp, int ntst,
                int ip1, int ip2, int ip3, int ip4, int ip5, int nuzr, double epsl, double epsu, double epss,
                int ncol)
 {
+  xpp::Session &s=xpp::session();
   /* here are the constants that we do not allow the user to change */
   int nnbc;
   int i;
-  xpp::session().auto_state.run.iad=xpp::session().auto_state.advanced.iad;   
-  xpp::session().auto_state.run.iplt=0;
-  xpp::session().auto_state.run.mxbf=xpp::session().auto_state.advanced.mxbf;
-  xpp::session().auto_state.run.iid=xpp::session().auto_state.advanced.iid;
-  xpp::session().auto_state.run.itmx=xpp::session().auto_state.advanced.itmx;
-  xpp::session().auto_state.run.itnw=xpp::session().auto_state.advanced.itnw;
-  xpp::session().auto_state.run.nwtn=xpp::session().auto_state.advanced.nwtn;
-  xpp::session().auto_state.run.jac=0;
-  xpp::session().auto_state.run.iads=xpp::session().auto_state.advanced.iads;
-  xpp::session().auto_state.run.nthl=1;
-  xpp::session().auto_state.run.ithl[0]=10;
-  xpp::session().auto_state.run.thl[0]=0.0;
-  xpp::session().auto_state.run.nint=0;    
+  s.auto_state.run.iad=s.auto_state.advanced.iad;   
+  s.auto_state.run.iplt=0;
+  s.auto_state.run.mxbf=s.auto_state.advanced.mxbf;
+  s.auto_state.run.iid=s.auto_state.advanced.iid;
+  s.auto_state.run.itmx=s.auto_state.advanced.itmx;
+  s.auto_state.run.itnw=s.auto_state.advanced.itnw;
+  s.auto_state.run.nwtn=s.auto_state.advanced.nwtn;
+  s.auto_state.run.jac=0;
+  s.auto_state.run.iads=s.auto_state.advanced.iads;
+  s.auto_state.run.nthl=1;
+  s.auto_state.run.ithl[0]=10;
+  s.auto_state.run.thl[0]=0.0;
+  s.auto_state.run.nint=0;    
   
   if(ips==4)
     nnbc=ndim;
   else
     nnbc=0;
-  xpp::session().auto_state.run.ndim=ndim;
-  xpp::session().auto_state.run.nbc=nnbc; 
-  xpp::session().auto_state.run.ips=ips;
-  xpp::session().auto_state.run.irs=irs;
-  xpp::session().auto_state.run.ilp=ilp;
-  xpp::session().auto_state.run.nicp=nicp;
-  xpp::session().auto_state.run.icp[0]=ip1;
-  xpp::session().auto_state.run.icp[1]=ip2;
-  xpp::session().auto_state.run.icp[2]=ip3;
-  xpp::session().auto_state.run.icp[3]=ip4;
-  xpp::session().auto_state.run.icp[4]=ip5;
-  xpp::session().auto_state.run.ntst=ntst;
-  xpp::session().auto_state.run.ncol=ncol;
-  xpp::session().auto_state.run.isp=isp;
-  xpp::session().auto_state.run.isw=isw;
-  xpp::session().auto_state.run.nmx=nmx;
-  xpp::session().auto_state.run.rl0=rl0;
-  xpp::session().auto_state.run.rl1=rl1;
-  xpp::session().auto_state.run.a0=a0;
-  xpp::session().auto_state.run.a1=a1;
-  xpp::session().auto_state.run.npr=npr;
+  s.auto_state.run.ndim=ndim;
+  s.auto_state.run.nbc=nnbc; 
+  s.auto_state.run.ips=ips;
+  s.auto_state.run.irs=irs;
+  s.auto_state.run.ilp=ilp;
+  s.auto_state.run.nicp=nicp;
+  s.auto_state.run.icp[0]=ip1;
+  s.auto_state.run.icp[1]=ip2;
+  s.auto_state.run.icp[2]=ip3;
+  s.auto_state.run.icp[3]=ip4;
+  s.auto_state.run.icp[4]=ip5;
+  s.auto_state.run.ntst=ntst;
+  s.auto_state.run.ncol=ncol;
+  s.auto_state.run.isp=isp;
+  s.auto_state.run.isw=isw;
+  s.auto_state.run.nmx=nmx;
+  s.auto_state.run.rl0=rl0;
+  s.auto_state.run.rl1=rl1;
+  s.auto_state.run.a0=a0;
+  s.auto_state.run.a1=a1;
+  s.auto_state.run.npr=npr;
 
-  xpp::session().auto_state.run.epsl=epsl;
-  xpp::session().auto_state.run.epss=epss;
-  xpp::session().auto_state.run.epsu=epsu;
-  xpp::session().auto_state.run.ds=ds;
-  xpp::session().auto_state.run.dsmax=dsmax;
-  xpp::session().auto_state.run.dsmin=dsmin;
+  s.auto_state.run.epsl=epsl;
+  s.auto_state.run.epss=epss;
+  s.auto_state.run.epsu=epsu;
+  s.auto_state.run.ds=ds;
+  s.auto_state.run.dsmax=dsmax;
+  s.auto_state.run.dsmin=dsmin;
 
-  xpp::session().auto_state.run.nuzr=xpp::session().auto_state.nuzr;
-  for(i=0;i<xpp::session().auto_state.nuzr;i++){
-    xpp::session().auto_state.run.iuz[i]=xpp::session().auto_state.uzr_par[i];
-     xpp::session().auto_state.run.vuz[i]=xpp::session().auto_state.uzr_period[i];
+  s.auto_state.run.nuzr=s.auto_state.nuzr;
+  for(i=0;i<s.auto_state.nuzr;i++){
+    s.auto_state.run.iuz[i]=s.auto_state.uzr_par[i];
+     s.auto_state.run.vuz[i]=s.auto_state.uzr_period[i];
   }
  
 }

@@ -1130,23 +1130,24 @@ void update_ani_motion_stuff(int x, int y)
 
 void ani_create_mpeg(void)
 {
+    xpp::Session &s=xpp::session();
     static const char *n[] = {"PPM 0/1", "Basename", "AniGif(0/1)"};
     std::array<std::string, 3> values;
-    xpp::session().animation.mpeg.flag = 0;
-    values[0] = xpp::format("{:d}", xpp::session().animation.mpeg.flag);
-    values[1] = xpp::format("{:.24}", xpp::session().animation.mpeg.root);
-    values[2] = xpp::format("{:d}", xpp::session().animation.mpeg.aviflag);
+    s.animation.mpeg.flag = 0;
+    values[0] = xpp::format("{:d}", s.animation.mpeg.flag);
+    values[1] = xpp::format("{:.24}", s.animation.mpeg.root);
+    values[2] = xpp::format("{:d}", s.animation.mpeg.aviflag);
     static const int kinds[] = {XPP_FIELD_INTEGER, XPP_FIELD_FILE, XPP_FIELD_INTEGER};
     const int status = do_string_box_of(3, 1, "Frame saving", n, values, 28, kinds);
     if (status != 0) {
-        xpp::session().animation.mpeg.flag = std::atoi(values[0].c_str());
-        if (xpp::session().animation.mpeg.flag > 0) xpp::session().animation.mpeg.flag = 1;
-        xpp::session().animation.mpeg.aviflag = std::atoi(values[2].c_str());
-        xpp::session().animation.mpeg.root = values[1];
-        if (xpp::session().animation.mpeg.aviflag == 1) xpp::session().animation.mpeg.flag = 0;
+        s.animation.mpeg.flag = std::atoi(values[0].c_str());
+        if (s.animation.mpeg.flag > 0) s.animation.mpeg.flag = 1;
+        s.animation.mpeg.aviflag = std::atoi(values[2].c_str());
+        s.animation.mpeg.root = values[1];
+        if (s.animation.mpeg.aviflag == 1) s.animation.mpeg.flag = 0;
     } else
-        xpp::session().animation.mpeg.flag = 0;
-    if (xpp::session().animation.mpeg.flag == 1) ani_disk_warn();
+        s.animation.mpeg.flag = 0;
+    if (s.animation.mpeg.flag == 1) ani_disk_warn();
 }
 
 void ani_newskip(void)
@@ -1168,16 +1169,17 @@ void on_the_fly(int task)
 
 void ani_flip1(int n)
 {
-    if (xpp::session().animation.ncom == 0) return;
-    if (xpp::session().browser.view.maxrow < 2) return;
-    float **ss = xpp::session().browser.view.data;
+    xpp::Session &s=xpp::session();
+    if (s.animation.ncom == 0) return;
+    if (s.browser.view.maxrow < 2) return;
+    float **ss = s.browser.view.data;
     xpp_ui.ani_clear();
-    if (xpp::session().animation.vcr.pos == 0) set_ani_perm();
+    if (s.animation.vcr.pos == 0) set_ani_perm();
 
-    xpp::session().animation.vcr.pos = xpp::session().animation.vcr.pos + n;
-    if (xpp::session().animation.vcr.pos >= xpp::session().browser.view.maxrow) xpp::session().animation.vcr.pos = xpp::session().browser.view.maxrow - 1;
-    if (xpp::session().animation.vcr.pos < 0) xpp::session().animation.vcr.pos = 0;
-    const int row = xpp::session().animation.vcr.pos;
+    s.animation.vcr.pos = s.animation.vcr.pos + n;
+    if (s.animation.vcr.pos >= s.browser.view.maxrow) s.animation.vcr.pos = s.browser.view.maxrow - 1;
+    if (s.animation.vcr.pos < 0) s.animation.vcr.pos = 0;
+    const int row = s.animation.vcr.pos;
 
     const double t = static_cast<double>(ss[0][row]);
     std::array<double, MAXODE> y;
@@ -1190,22 +1192,23 @@ void ani_flip1(int n)
 
 void ani_zero(void)
 {
-    xpp::session().animation.vcr.iexist = 0;
-    xpp::session().animation.vcr.ok = 0;
-    xpp::session().animation.vcr.inc = 1;
-    xpp::session().animation.vcr.pos = 0;
-    xpp::session().animation.ncom = 0;
-    xpp::session().animation.speed = 10;
+    xpp::Session &s=xpp::session();
+    s.animation.vcr.iexist = 0;
+    s.animation.vcr.ok = 0;
+    s.animation.vcr.inc = 1;
+    s.animation.vcr.pos = 0;
+    s.animation.ncom = 0;
+    s.animation.speed = 10;
     aniflag = TRANSIENT;
-    xpp::session().animation.grab_flag = 0;
-    if (xpp::session().animation.options.use_file)
-        xpp::session().animation.vcr.file = xpp::session().animation.options.file;
+    s.animation.grab_flag = 0;
+    if (s.animation.options.use_file)
+        s.animation.vcr.file = s.animation.options.file;
     else {
         /* dirname() may write into its argument or return static storage:
            a copy of xpp::model().this_file */
         std::string dir = xpp::model().this_file;
-        xpp::session().animation.vcr.file = dirname(dir.data());
-        xpp::session().animation.vcr.file += '/';
+        s.animation.vcr.file = dirname(dir.data());
+        s.animation.vcr.file += '/';
     }
 }
 

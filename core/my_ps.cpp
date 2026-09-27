@@ -127,16 +127,17 @@ std::string ps_string(std::string_view str)
 
 int ps_init(const char *filename, int color)
 {
+  xpp::Session &s=xpp::session();
   ps_writer = xpp::Writer(filename);
   if (!ps_writer) {
     err_msg("Cannot open file ");
     return(0);
   }
   init_ps();
-  xpp::session().plot_file.plt_fmt_flag=1;
-  xpp::session().plot_file.ps_lines=0;
-  xpp::session().plot_file.last_ps_x=-10000;
-  xpp::session().plot_file.last_ps_y=-10000;
+  s.plot_file.plt_fmt_flag=1;
+  s.plot_file.ps_lines=0;
+  s.plot_file.last_ps_x=-10000;
+  s.plot_file.last_ps_y=-10000;
   ps_writer.print("%!PS-Adobe-2.0\n");
   ps_writer.print("%Creator: xppaut\n");
   ps_writer.print("%%BoundingBox: {} {} {} {}\n",PS_XOFF,PS_YOFF,
@@ -144,15 +145,15 @@ int ps_init(const char *filename, int color)
   ps_writer.print("/xppdict 40 dict def\nxppdict begin\n");
   if(color==0){
     ps_writer.print("/Color false def \n");
-    xpp::session().plot_file.ps_color_flag=0;
+    s.plot_file.ps_color_flag=0;
   }
   else {
     ps_writer.print("/Color true def \n");
     ps_writer.print("/RGB {{setrgbcolor currentpoint stroke moveto}} def\n");
     ps_writer.print("/RGb {{setrgbcolor }} def\n");
-    xpp::session().plot_file.ps_color_flag=1;
+    s.plot_file.ps_color_flag=1;
   }
-  ps_writer.print("/xpplinewidth {:.3f} def\n",xpp::session().plot_file.ps_lw);
+  ps_writer.print("/xpplinewidth {:.3f} def\n",s.plot_file.ps_lw);
   ps_writer.print("/vshift {} def\n", static_cast<int>(PS_VCHAR)/(-3));
   ps_writer.print("/dl {{{} mul}} def\n",PS_SC); /* dash length */
   ps_writer.print("/hpt {:.1f} def\n",PS_HTIC/2.0);
@@ -165,9 +166,9 @@ int ps_init(const char *filename, int color)
   ps_writer.print("gsave\n");
   ps_writer.print("{} {} translate\n",PS_XOFF,PS_YOFF);
   ps_writer.print("{:.3f} {:.3f} scale\n", 1./PS_SC,1./PS_SC);
-  if(!xpp::session().drawing.ps_port)
+  if(!s.drawing.ps_port)
     ps_writer.print("90 rotate\n0 {} translate\n", -PS_YMAX);
-  ps_writer.print("/{} findfont {} ",xpp::session().plot_file.ps_font,xpp::session().plot_file.ps_font_size*PS_SC);
+  ps_writer.print("/{} findfont {} ",s.plot_file.ps_font,s.plot_file.ps_font_size*PS_SC);
   ps_writer.print("scalefont setfont\n");
   ps_writer.print("newpath\n");
   return(1);
@@ -210,20 +211,21 @@ void ps_frect(int x, int y, int w, int h)
 
 void ps_line(int xp1, int yp1, int xp2, int yp2)
 {
-  if(xpp::session().plot_file.no_break_line!=1 && xp1==xpp::session().plot_file.last_ps_x && yp1==xpp::session().plot_file.last_ps_y){
-    xpp::session().plot_file.last_ps_x=xp2;
-    xpp::session().plot_file.last_ps_y=yp2;
+  xpp::Session &s=xpp::session();
+  if(s.plot_file.no_break_line!=1 && xp1==s.plot_file.last_ps_x && yp1==s.plot_file.last_ps_y){
+    s.plot_file.last_ps_x=xp2;
+    s.plot_file.last_ps_y=yp2;
     ps_writer.print("{} {} L\n",xp2,yp2);
   }
-  else if(xpp::session().plot_file.no_break_line!=1 && xp2==xpp::session().plot_file.last_ps_x && yp2==xpp::session().plot_file.last_ps_y){
-    xpp::session().plot_file.last_ps_x=xp1;
-    xpp::session().plot_file.last_ps_y=yp1;
+  else if(s.plot_file.no_break_line!=1 && xp2==s.plot_file.last_ps_x && yp2==s.plot_file.last_ps_y){
+    s.plot_file.last_ps_x=xp1;
+    s.plot_file.last_ps_y=yp1;
     ps_writer.print("{} {} L\n",xp1,yp1);
   }
   else {
     ps_writer.print("{} {} M\n{} {} L\n",xp1,yp1,xp2,yp2);
-    xpp::session().plot_file.last_ps_x=xp2;
-    xpp::session().plot_file.last_ps_y=yp2;
+    s.plot_file.last_ps_x=xp2;
+    s.plot_file.last_ps_y=yp2;
   }
   chk_ps_lines();
 }

@@ -170,6 +170,7 @@ void ps_write_pars(FILE *fp)
 
 void do_info(FILE *fp)
 {
+  xpp::Session &s=xpp::session();
   static const char *method[]={"Discrete","Euler","Mod. Euler",
 	"Runge-Kutta","Adams","Gear","Volterra","BackEul","QualRK",
          "Stiff","CVode","DoPri5","DoPri8(3)","Rosenbrock","Symplectic"};
@@ -178,23 +179,23 @@ void do_info(FILE *fp)
 
   xpp::print(fp,"\n\n Numerical parameters ...\n");
   xpp::print(fp,"NJMP={}  NMESH={} METHOD={} EVEC_ITER={} \n",
-	 xpp::session().numerics.njmp,xpp::session().numerics.nmesh,method[xpp::session().numerics.method],xpp::session().numerics.evec_iter);
+	 s.numerics.njmp,s.numerics.nmesh,method[s.numerics.method],s.numerics.evec_iter);
   xpp::print(fp,"BVP_EPS={:g},BVP_TOL={:g},BVP_MAXIT={} \n",
-	 xpp::session().numerics.bvp_eps,xpp::session().numerics.bvp_tol,xpp::session().numerics.bvp_maxit);
+	 s.numerics.bvp_eps,s.numerics.bvp_tol,s.numerics.bvp_maxit);
   xpp::print(fp,"DT={:g} T0={:g} TRANS={:g} TEND={:g} BOUND={:g} DELAY={:g} MaxPts={}\n",
-	 xpp::session().numerics.delta_t,xpp::session().numerics.t0,xpp::session().numerics.trans,xpp::session().numerics.tend,xpp::session().numerics.bound,xpp::session().numerics.delay,xpp::session().numerics.max_points);
+	 s.numerics.delta_t,s.numerics.t0,s.numerics.trans,s.numerics.tend,s.numerics.bound,s.numerics.delay,s.numerics.max_points);
   xpp::print(fp,"EVEC_ERR={:g}, NEWT_ERR={:g} HMIN={:g} HMAX={:g} TOLER={:g} \n",
-	 xpp::session().numerics.evec_err,xpp::session().numerics.newt_err,xpp::session().numerics.hmin,xpp::session().numerics.hmax,xpp::session().numerics.toler);
-  const std::string &poivar=ind_to_sym(xpp::session().numerics.poivar);
+	 s.numerics.evec_err,s.numerics.newt_err,s.numerics.hmin,s.numerics.hmax,s.numerics.toler);
+  const std::string &poivar=ind_to_sym(s.numerics.poivar);
   xpp::print(fp,"POIMAP={} POIVAR={} POIPLN={:g} POISGN={} \n",
-        xpp::session().numerics.poimap,poivar,xpp::session().numerics.poipln,xpp::session().numerics.poisgn);
+        s.numerics.poimap,poivar,s.numerics.poipln,s.numerics.poisgn);
 
   xpp::print(fp,"\n\n Delay strings ...\n");
-  for(int i=0;i<xpp::model().node;i++)xpp::print(fp,"{}\n",xpp::session().delay_string[i]);
+  for(int i=0;i<xpp::model().node;i++)xpp::print(fp,"{}\n",s.delay_string[i]);
   xpp::print(fp,"\n\n BCs ...\n");
-  for(int i=0;i<xpp::model().node;i++)xpp::print(fp,"0={}\n",xpp::session().bcs[i].string.data());
+  for(int i=0;i<xpp::model().node;i++)xpp::print(fp,"0={}\n",s.bcs[i].string.data());
   xpp::print(fp,"\n\n ICs ...\n");
-  for(int i=0;i<xpp::model().node+xpp::model().nmarkov;i++)xpp::print(fp,"{}={:.16g}\n",xpp::model().uvar_names[i],xpp::session().last_ic[i]);
+  for(int i=0;i<xpp::model().node+xpp::model().nmarkov;i++)xpp::print(fp,"{}={:.16g}\n",xpp::model().uvar_names[i],s.last_ic[i]);
   xpp::print(fp,"\n\n Parameters ...\n");
   put_parameters(fp,"");
 }
@@ -258,6 +259,7 @@ void dump_eqn(FILE *fp)
 
 void io_numerics(int f, FILE *fp)
 {
+  xpp::Session &s=xpp::session();
 const char *method[]={"Discrete","Euler","Mod. Euler",
         "Runge-Kutta","Adams","Gear","Volterra","BackEul",
                       "Qual RK","Stiff","CVode","DorPrin5","DorPri8(3)",
@@ -268,46 +270,46 @@ if(f==READEM&&set_type==1){
 }
 if(f!=READEM)
   xpp::print(fp,"# Numerical stuff\n");
-io_int(&xpp::session().numerics.njmp,fp,f," nout");
-io_int(&xpp::session().numerics.nmesh,fp,f," nullcline mesh");
-io_int(&xpp::session().numerics.method,fp,f,method[xpp::session().numerics.method]);
+io_int(&s.numerics.njmp,fp,f," nout");
+io_int(&s.numerics.nmesh,fp,f," nullcline mesh");
+io_int(&s.numerics.method,fp,f,method[s.numerics.method]);
  if(f==READEM){do_meth();alloc_meth();}
-io_double(&xpp::session().numerics.tend,fp,f,"total");
-io_double(&xpp::session().numerics.delta_t,fp,f,"DeltaT");
-io_double(&xpp::session().numerics.t0,fp,f,"T0");
-io_double(&xpp::session().numerics.trans,fp,f,"Transient");
-io_double(&xpp::session().numerics.bound,fp,f,"Bound");
-io_double(&xpp::session().numerics.hmin,fp,f,"DtMin");
-io_double(&xpp::session().numerics.hmax,fp,f,"DtMax");
-io_double(&xpp::session().numerics.toler,fp,f,"Tolerance");
+io_double(&s.numerics.tend,fp,f,"total");
+io_double(&s.numerics.delta_t,fp,f,"DeltaT");
+io_double(&s.numerics.t0,fp,f,"T0");
+io_double(&s.numerics.trans,fp,f,"Transient");
+io_double(&s.numerics.bound,fp,f,"Bound");
+io_double(&s.numerics.hmin,fp,f,"DtMin");
+io_double(&s.numerics.hmax,fp,f,"DtMax");
+io_double(&s.numerics.toler,fp,f,"Tolerance");
 /* fix stuff concerning the tolerance */
 if(f==READEM){
    if(set_type==1)
-     io_double(&xpp::session().numerics.atoler,fp,f,"Abs. Tolerance");
+     io_double(&s.numerics.atoler,fp,f,"Abs. Tolerance");
    else
-     xpp::session().numerics.atoler=xpp::session().numerics.toler*10;
+     s.numerics.atoler=s.numerics.toler*10;
  }
  else 
-   io_double(&xpp::session().numerics.atoler,fp,f,"Abs. Tolerance");
+   io_double(&s.numerics.atoler,fp,f,"Abs. Tolerance");
 
-io_double(&xpp::session().numerics.delay,fp,f,"Max Delay");
-io_int(&xpp::session().numerics.evec_iter,fp,f,"Eigenvector iterates");
-io_double(&xpp::session().numerics.evec_err,fp,f,"Eigenvector tolerance");
-io_double(&xpp::session().numerics.newt_err,fp,f,"Newton tolerance");
-io_double(&xpp::session().numerics.poipln,fp,f,"Poincare plane");
-io_double(&xpp::session().numerics.bvp_tol,fp,f,"Boundary value tolerance");
-io_double(&xpp::session().numerics.bvp_eps,fp,f,"Boundary value epsilon");
-io_int(&xpp::session().numerics.bvp_maxit,fp,f,"Boundary value iterates");
-io_int(&xpp::session().numerics.poimap,fp,f,pmap[xpp::session().numerics.poimap]);
+io_double(&s.numerics.delay,fp,f,"Max Delay");
+io_int(&s.numerics.evec_iter,fp,f,"Eigenvector iterates");
+io_double(&s.numerics.evec_err,fp,f,"Eigenvector tolerance");
+io_double(&s.numerics.newt_err,fp,f,"Newton tolerance");
+io_double(&s.numerics.poipln,fp,f,"Poincare plane");
+io_double(&s.numerics.bvp_tol,fp,f,"Boundary value tolerance");
+io_double(&s.numerics.bvp_eps,fp,f,"Boundary value epsilon");
+io_int(&s.numerics.bvp_maxit,fp,f,"Boundary value iterates");
+io_int(&s.numerics.poimap,fp,f,pmap[s.numerics.poimap]);
 
-io_int(&xpp::session().numerics.poivar,fp,f,"Poincare variable");
-io_int(&xpp::session().numerics.poisgn,fp,f,"Poincare sign");
-io_int(&xpp::session().numerics.sos,fp,f,"Stop on Section");
-io_int(&xpp::session().delay.flag,fp,f,"Delay flag");
-io_double(&xpp::session().data_store.current_time,fp,f,"Current time");
-io_double(&xpp::session().integrator.last_time,fp,f,"Last Time");
-io_int(&xpp::session().integrator.my_start,fp,f,"xpp::session().integrator.my_start");
-io_int(&xpp::session().numerics.inflag,fp,f,"INFLAG");
+io_int(&s.numerics.poivar,fp,f,"Poincare variable");
+io_int(&s.numerics.poisgn,fp,f,"Poincare sign");
+io_int(&s.numerics.sos,fp,f,"Stop on Section");
+io_int(&s.delay.flag,fp,f,"Delay flag");
+io_double(&s.data_store.current_time,fp,f,"Current time");
+io_double(&s.integrator.last_time,fp,f,"Last Time");
+io_int(&s.integrator.my_start,fp,f,"s.integrator.my_start");
+io_int(&s.numerics.inflag,fp,f,"INFLAG");
 }
 void io_parameter_file(const char *fn,int flag)
 {
@@ -435,55 +437,56 @@ void io_exprs(int f, FILE *fp)
 
 void io_graph(int f, FILE *fp)
 {
+ xpp::Session &s=xpp::session();
  int j,k;
  io_heading(f,fp,"# Graphics");
  for(j=0;j<3;j++)
    for(k=0;k<3;k++)
-     io_double(&(xpp::session().plot_windows.current->rm[k][j]),fp,f,"rm");
+     io_double(&(s.plot_windows.current->rm[k][j]),fp,f,"rm");
  for(j=0;j<MAXPERPLOT;j++){
-        io_int(&(xpp::session().plot_windows.current->xv[j]),fp,f," ");
-        io_int(&(xpp::session().plot_windows.current->yv[j]),fp,f," ");
-        io_int(&(xpp::session().plot_windows.current->zv[j]),fp,f," ");
-        io_int(&(xpp::session().plot_windows.current->line[j]),fp,f," ");
-        io_int(&(xpp::session().plot_windows.current->color[j]),fp,f," ");
+        io_int(&(s.plot_windows.current->xv[j]),fp,f," ");
+        io_int(&(s.plot_windows.current->yv[j]),fp,f," ");
+        io_int(&(s.plot_windows.current->zv[j]),fp,f," ");
+        io_int(&(s.plot_windows.current->line[j]),fp,f," ");
+        io_int(&(s.plot_windows.current->color[j]),fp,f," ");
         }
 
-    io_double(&(xpp::session().plot_windows.current->ZPlane),fp,f," ");
-    io_double(&(xpp::session().plot_windows.current->ZView),fp,f," ");
-    io_int(&(xpp::session().plot_windows.current->PerspFlag),fp,f," ");
-    io_int(&(xpp::session().plot_windows.current->ThreeDFlag),fp,f,"3DFlag");
-    io_int(&(xpp::session().plot_windows.current->TimeFlag),fp,f,"Timeflag");
-    io_int(&(xpp::session().plot_windows.current->ColorFlag),fp,f,"Colorflag");
-    io_int(&(xpp::session().plot_windows.current->grtype),fp,f,"Type");
-    io_double(&(xpp::session().plot_windows.current->color_scale),fp,f,"color scale");
-    io_double(&(xpp::session().plot_windows.current->min_scale),fp,f," minscale");
+    io_double(&(s.plot_windows.current->ZPlane),fp,f," ");
+    io_double(&(s.plot_windows.current->ZView),fp,f," ");
+    io_int(&(s.plot_windows.current->PerspFlag),fp,f," ");
+    io_int(&(s.plot_windows.current->ThreeDFlag),fp,f,"3DFlag");
+    io_int(&(s.plot_windows.current->TimeFlag),fp,f,"Timeflag");
+    io_int(&(s.plot_windows.current->ColorFlag),fp,f,"Colorflag");
+    io_int(&(s.plot_windows.current->grtype),fp,f,"Type");
+    io_double(&(s.plot_windows.current->color_scale),fp,f,"color scale");
+    io_double(&(s.plot_windows.current->min_scale),fp,f," minscale");
 
-    io_double(&(xpp::session().plot_windows.current->xmax),fp,f," xmax");
-    io_double(&(xpp::session().plot_windows.current->xmin),fp,f," xmin");
-    io_double(&(xpp::session().plot_windows.current->ymax),fp,f," ymax");
-    io_double(&(xpp::session().plot_windows.current->ymin),fp,f," ymin");
-    io_double(&(xpp::session().plot_windows.current->zmax),fp,f," zmax");
-    io_double(&(xpp::session().plot_windows.current->zmin),fp,f," zmin");
-    io_double(&(xpp::session().plot_windows.current->xbar),fp,f, " ");
-    io_double(&(xpp::session().plot_windows.current->dx  ),fp,f," ");
-    io_double(&(xpp::session().plot_windows.current->ybar),fp,f," ");
-    io_double(&(xpp::session().plot_windows.current->dy  ),fp,f," ");
-    io_double(&(xpp::session().plot_windows.current->zbar),fp,f," ");
-    io_double(&(xpp::session().plot_windows.current->dz  ),fp,f," ");
+    io_double(&(s.plot_windows.current->xmax),fp,f," xmax");
+    io_double(&(s.plot_windows.current->xmin),fp,f," xmin");
+    io_double(&(s.plot_windows.current->ymax),fp,f," ymax");
+    io_double(&(s.plot_windows.current->ymin),fp,f," ymin");
+    io_double(&(s.plot_windows.current->zmax),fp,f," zmax");
+    io_double(&(s.plot_windows.current->zmin),fp,f," zmin");
+    io_double(&(s.plot_windows.current->xbar),fp,f, " ");
+    io_double(&(s.plot_windows.current->dx  ),fp,f," ");
+    io_double(&(s.plot_windows.current->ybar),fp,f," ");
+    io_double(&(s.plot_windows.current->dy  ),fp,f," ");
+    io_double(&(s.plot_windows.current->zbar),fp,f," ");
+    io_double(&(s.plot_windows.current->dz  ),fp,f," ");
 
-    io_double(&(xpp::session().plot_windows.current->Theta),fp,f," Theta");
-    io_double(&(xpp::session().plot_windows.current->Phi),fp,f, " Phi");
-    io_int(&(xpp::session().plot_windows.current->xshft),fp,f," xshft");
-    io_int(&(xpp::session().plot_windows.current->yshft),fp,f," yshft");
-    io_int(&(xpp::session().plot_windows.current->zshft),fp,f," zshft");
-    io_double(&(xpp::session().plot_windows.current->xlo),fp,f," xlo");
-    io_double(&(xpp::session().plot_windows.current->ylo),fp,f," ylo");
-    io_double(&(xpp::session().plot_windows.current->oldxlo),fp,f," ");
-    io_double(&(xpp::session().plot_windows.current->oldylo),fp,f," ");
-    io_double(&(xpp::session().plot_windows.current->xhi),fp,f," xhi");
-    io_double(&(xpp::session().plot_windows.current->yhi),fp,f," yhi");
-    io_double(&(xpp::session().plot_windows.current->oldxhi),fp,f," ");
-    io_double(&(xpp::session().plot_windows.current->oldyhi),fp,f," ");
+    io_double(&(s.plot_windows.current->Theta),fp,f," Theta");
+    io_double(&(s.plot_windows.current->Phi),fp,f, " Phi");
+    io_int(&(s.plot_windows.current->xshft),fp,f," xshft");
+    io_int(&(s.plot_windows.current->yshft),fp,f," yshft");
+    io_int(&(s.plot_windows.current->zshft),fp,f," zshft");
+    io_double(&(s.plot_windows.current->xlo),fp,f," xlo");
+    io_double(&(s.plot_windows.current->ylo),fp,f," ylo");
+    io_double(&(s.plot_windows.current->oldxlo),fp,f," ");
+    io_double(&(s.plot_windows.current->oldylo),fp,f," ");
+    io_double(&(s.plot_windows.current->xhi),fp,f," xhi");
+    io_double(&(s.plot_windows.current->yhi),fp,f," yhi");
+    io_double(&(s.plot_windows.current->oldxhi),fp,f," ");
+    io_double(&(s.plot_windows.current->oldyhi),fp,f," ");
     if(f==READEM&&program.interactive)xpp_ui.redraw_graph();
 }
 

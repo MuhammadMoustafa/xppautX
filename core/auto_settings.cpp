@@ -67,41 +67,43 @@ bool plot_ok(int p) { return (p >= 0 && p <= 4) || p == 10 || p == 11; }
 
 void read_num(double v[AUTO_NUM_N])
 {
+    xpp::Session &s=xpp::session();
     const double now[AUTO_NUM_N] = {
-        static_cast<double>(xpp::session().auto_state.bifur.ntst), static_cast<double>(xpp::session().auto_state.bifur.nmx), static_cast<double>(xpp::session().auto_state.bifur.npr),
-        static_cast<double>(xpp::session().auto_state.bifur.ncol), xpp::session().auto_state.bifur.ds, xpp::session().auto_state.bifur.dsmin, xpp::session().auto_state.bifur.dsmax, xpp::session().auto_state.bifur.rl0, xpp::session().auto_state.bifur.rl1, xpp::session().auto_state.bifur.a0, xpp::session().auto_state.bifur.a1,
-        xpp::session().auto_state.bifur.epsl, xpp::session().auto_state.bifur.epsu, xpp::session().auto_state.bifur.epss, static_cast<double>(xpp::session().auto_state.advanced.iad), static_cast<double>(xpp::session().auto_state.advanced.mxbf),
-        static_cast<double>(xpp::session().auto_state.advanced.iid), static_cast<double>(xpp::session().auto_state.advanced.itmx), static_cast<double>(xpp::session().auto_state.advanced.itnw),
-        static_cast<double>(xpp::session().auto_state.advanced.nwtn), static_cast<double>(xpp::session().auto_state.advanced.iads), static_cast<double>(xpp::session().auto_state.suppress_bp),
+        static_cast<double>(s.auto_state.bifur.ntst), static_cast<double>(s.auto_state.bifur.nmx), static_cast<double>(s.auto_state.bifur.npr),
+        static_cast<double>(s.auto_state.bifur.ncol), s.auto_state.bifur.ds, s.auto_state.bifur.dsmin, s.auto_state.bifur.dsmax, s.auto_state.bifur.rl0, s.auto_state.bifur.rl1, s.auto_state.bifur.a0, s.auto_state.bifur.a1,
+        s.auto_state.bifur.epsl, s.auto_state.bifur.epsu, s.auto_state.bifur.epss, static_cast<double>(s.auto_state.advanced.iad), static_cast<double>(s.auto_state.advanced.mxbf),
+        static_cast<double>(s.auto_state.advanced.iid), static_cast<double>(s.auto_state.advanced.itmx), static_cast<double>(s.auto_state.advanced.itnw),
+        static_cast<double>(s.auto_state.advanced.nwtn), static_cast<double>(s.auto_state.advanced.iads), static_cast<double>(s.auto_state.suppress_bp),
     };
     std::memcpy(v, now, sizeof now);
 }
 
 void write_num(const double v[AUTO_NUM_N])
 {
+    xpp::Session &s=xpp::session();
     auto i = [&](int k) { return static_cast<int>(v[k]); };
-    xpp::session().auto_state.bifur.ntst = i(AUTO_NUM_NTST);
-    xpp::session().auto_state.bifur.nmx = i(AUTO_NUM_NMX);
-    xpp::session().auto_state.bifur.npr = i(AUTO_NUM_NPR);
-    xpp::session().auto_state.bifur.ncol = i(AUTO_NUM_NCOL);
-    xpp::session().auto_state.bifur.ds = v[AUTO_NUM_DS];
-    xpp::session().auto_state.bifur.dsmin = v[AUTO_NUM_DSMIN];
-    xpp::session().auto_state.bifur.dsmax = v[AUTO_NUM_DSMAX];
-    xpp::session().auto_state.bifur.rl0 = v[AUTO_NUM_RL0];
-    xpp::session().auto_state.bifur.rl1 = v[AUTO_NUM_RL1];
-    xpp::session().auto_state.bifur.a0 = v[AUTO_NUM_A0];
-    xpp::session().auto_state.bifur.a1 = v[AUTO_NUM_A1];
-    xpp::session().auto_state.bifur.epsl = v[AUTO_NUM_EPSL];
-    xpp::session().auto_state.bifur.epsu = v[AUTO_NUM_EPSU];
-    xpp::session().auto_state.bifur.epss = v[AUTO_NUM_EPSS];
-    xpp::session().auto_state.advanced.iad = i(AUTO_NUM_IAD);
-    xpp::session().auto_state.advanced.mxbf = i(AUTO_NUM_MXBF);
-    xpp::session().auto_state.advanced.iid = i(AUTO_NUM_IID);
-    xpp::session().auto_state.advanced.itmx = i(AUTO_NUM_ITMX);
-    xpp::session().auto_state.advanced.itnw = i(AUTO_NUM_ITNW);
-    xpp::session().auto_state.advanced.nwtn = i(AUTO_NUM_NWTN);
-    xpp::session().auto_state.advanced.iads = i(AUTO_NUM_IADS);
-    xpp::session().auto_state.suppress_bp = i(AUTO_NUM_SUPPBP);
+    s.auto_state.bifur.ntst = i(AUTO_NUM_NTST);
+    s.auto_state.bifur.nmx = i(AUTO_NUM_NMX);
+    s.auto_state.bifur.npr = i(AUTO_NUM_NPR);
+    s.auto_state.bifur.ncol = i(AUTO_NUM_NCOL);
+    s.auto_state.bifur.ds = v[AUTO_NUM_DS];
+    s.auto_state.bifur.dsmin = v[AUTO_NUM_DSMIN];
+    s.auto_state.bifur.dsmax = v[AUTO_NUM_DSMAX];
+    s.auto_state.bifur.rl0 = v[AUTO_NUM_RL0];
+    s.auto_state.bifur.rl1 = v[AUTO_NUM_RL1];
+    s.auto_state.bifur.a0 = v[AUTO_NUM_A0];
+    s.auto_state.bifur.a1 = v[AUTO_NUM_A1];
+    s.auto_state.bifur.epsl = v[AUTO_NUM_EPSL];
+    s.auto_state.bifur.epsu = v[AUTO_NUM_EPSU];
+    s.auto_state.bifur.epss = v[AUTO_NUM_EPSS];
+    s.auto_state.advanced.iad = i(AUTO_NUM_IAD);
+    s.auto_state.advanced.mxbf = i(AUTO_NUM_MXBF);
+    s.auto_state.advanced.iid = i(AUTO_NUM_IID);
+    s.auto_state.advanced.itmx = i(AUTO_NUM_ITMX);
+    s.auto_state.advanced.itnw = i(AUTO_NUM_ITNW);
+    s.auto_state.advanced.nwtn = i(AUTO_NUM_NWTN);
+    s.auto_state.advanced.iads = i(AUTO_NUM_IADS);
+    s.auto_state.suppress_bp = i(AUTO_NUM_SUPPBP);
 }
 
 /* AUTO's parameter index of a model parameter's name in pars, or -1 */
@@ -127,6 +129,7 @@ void add_num(std::string &o, double v) { o += std::isfinite(v) ? xpp::number(v) 
 
 std::string event_text()
 {
+    xpp::Session &s=xpp::session();
     std::string o = "{\"ev\":\"autosettings\",\"numerics\":{";
     double v[AUTO_NUM_N];
     read_num(v);
@@ -135,28 +138,28 @@ std::string event_text()
         add_num(o, v[i]);
     }
     o += "},\"pars\":[";
-    for (int k = 0; k < xpp::session().auto_state.npar; k++) {
+    for (int k = 0; k < s.auto_state.npar; k++) {
         if (k) o += ',';
         add_str_or_null(o, auto_par_name(k));
     }
-    o += xpp::format("],\"axes\":{{\"plot\":{},\"var\":", xpp::session().auto_state.bifur.plot);
-    add_str_or_null(o, xpp::session().auto_state.bifur.var >= 0 && xpp::session().auto_state.bifur.var < xpp::model().node ? xpp::model().uvar_names[xpp::session().auto_state.bifur.var].c_str() : nullptr);
+    o += xpp::format("],\"axes\":{{\"plot\":{},\"var\":", s.auto_state.bifur.plot);
+    add_str_or_null(o, s.auto_state.bifur.var >= 0 && s.auto_state.bifur.var < xpp::model().node ? xpp::model().uvar_names[s.auto_state.bifur.var].c_str() : nullptr);
     o += ",\"par1\":";
-    add_str_or_null(o, auto_par_name(xpp::session().auto_state.bifur.icp1));
+    add_str_or_null(o, auto_par_name(s.auto_state.bifur.icp1));
     o += ",\"par2\":";
-    add_str_or_null(o, auto_par_name(xpp::session().auto_state.bifur.icp2));
+    add_str_or_null(o, auto_par_name(s.auto_state.bifur.icp2));
     const std::pair<const char *, double> range[] = {
-        {"xmin", xpp::session().auto_state.bifur.xmin}, {"xmax", xpp::session().auto_state.bifur.xmax}, {"ymin", xpp::session().auto_state.bifur.ymin}, {"ymax", xpp::session().auto_state.bifur.ymax}};
+        {"xmin", s.auto_state.bifur.xmin}, {"xmax", s.auto_state.bifur.xmax}, {"ymin", s.auto_state.bifur.ymin}, {"ymax", s.auto_state.bifur.ymax}};
     for (const auto &[name, value] : range) {
         o += xpp::format(",\"{}\":", name);
         add_num(o, value);
     }
     o += "},\"marks\":[";
-    for (int i = 0; i < xpp::session().auto_state.bifur.nper && i < AUTO_SETTINGS_MARKS; i++) {
+    for (int i = 0; i < s.auto_state.bifur.nper && i < AUTO_SETTINGS_MARKS; i++) {
         o += i ? ",[" : "[";
-        add_str_or_null(o, xpp::session().auto_state.bifur.uzrpar[i] == AUTO_PERIOD_INDEX ? "T" : auto_par_name(xpp::session().auto_state.bifur.uzrpar[i]));
+        add_str_or_null(o, s.auto_state.bifur.uzrpar[i] == AUTO_PERIOD_INDEX ? "T" : auto_par_name(s.auto_state.bifur.uzrpar[i]));
         o += ',';
-        add_num(o, xpp::session().auto_state.bifur.period[i]);
+        add_num(o, s.auto_state.bifur.period[i]);
         o += ']';
     }
     o += "]}";

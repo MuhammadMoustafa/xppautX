@@ -90,6 +90,7 @@ void get_fit_info(double *y, double *a, double *t0, int *flag, double eps, doubl
    
  */
 {
+  xpp::Session &s=xpp::session();
   int i,iv,ip,istart=1,j,k,l,k0,ok;
   double yold[MAXODE],dp;
   double par;
@@ -97,15 +98,15 @@ void get_fit_info(double *y, double *a, double *t0, int *flag, double eps, doubl
 /* set up all initial data and parameter guesses  */
   for(l=0;l<npars;l++){
     ip=ipar[l];
-    if(ip<0)xpp::session().parser.constants[-ip]=a[l];
+    if(ip<0)s.parser.constants[-ip]=a[l];
     else y[ip]=a[l];
   }
   for(i=0;i<xpp::model().node;i++){
     yold[i]=y[i];
   }
-  if(xpp::session().delay.flag){
+  if(s.delay.flag){
    /* restart initial data */
-   if(do_init_delay(xpp::session().numerics.delay)==0)return;
+   if(do_init_delay(s.numerics.delay)==0)return;
   }
 evaluate_derived();
 /*   This gets the values at the desired points  */
@@ -129,7 +130,7 @@ evaluate_derived();
     }
   }   
 #ifdef CVODE_YES 
-  if(xpp::session().numerics.method==CVODE)
+  if(s.numerics.method==CVODE)
     end_cv();
 #endif
   /*  Now we take the derivatives !!   */
@@ -142,9 +143,9 @@ evaluate_derived();
       y[i]=yold[i];
     ip=ipar[l];
     if(ip<0){
-      par=xpp::session().parser.constants[-ip];
+      par=s.parser.constants[-ip];
       dp=eps*MAX(eps,fabs(par));
-      xpp::session().parser.constants[-ip]=par+dp;
+      s.parser.constants[-ip]=par+dp;
     }
     else {
       par=yold[ip];
@@ -155,9 +156,9 @@ evaluate_derived();
 	  yderv[l][j]=1.0;  /* ... except for those ICs that can vary */
       }
     }
-    if(xpp::session().delay.flag){
+    if(s.delay.flag){
    /* restart initial data */
-   if(do_init_delay(xpp::session().numerics.delay)==0)return;
+   if(do_init_delay(s.numerics.delay)==0)return;
   }
     evaluate_derived();
    /* now loop through all the points */
@@ -176,10 +177,10 @@ evaluate_derived();
       }
     }
     /* Now return the parameter to its old value */
-    if(ip<0)xpp::session().parser.constants[-ip]=par;
+    if(ip<0)s.parser.constants[-ip]=par;
     evaluate_derived();
 #ifdef CVODE_YES
-if(xpp::session().numerics.method==CVODE)
+if(s.numerics.method==CVODE)
   end_cv();
 #endif
 
@@ -192,15 +193,16 @@ if(xpp::session().numerics.method==CVODE)
 
 int one_step_int(double *y, double t0, double t1, int *istart)
 {
+  xpp::Session &s=xpp::session();
   int nit;
    int kflag;
-  double dt=xpp::session().numerics.delta_t;
+  double dt=s.numerics.delta_t;
   double z;
   double error[MAXODE];
   double t=t0;
 #ifdef CVODE_YES
-  if(xpp::session().numerics.method==CVODE){
-    cvode(istart,y,&t,xpp::model().node,t1,&kflag,&xpp::session().numerics.toler,&xpp::session().numerics.atoler);
+  if(s.numerics.method==CVODE){
+    cvode(istart,y,&t,xpp::model().node,t1,&kflag,&s.numerics.toler,&s.numerics.atoler);
     if(kflag<0){
       cvode_err_msg(kflag);
       return(0);
@@ -209,8 +211,8 @@ int one_step_int(double *y, double t0, double t1, int *istart)
     return 1;
   }
 #endif
-  if(xpp::session().numerics.method==DP5||xpp::session().numerics.method==DP83){
-    dp(istart,y,&t,xpp::model().node,t1,&xpp::session().numerics.toler,&xpp::session().numerics.atoler,xpp::session().numerics.method-DP5,&kflag);
+  if(s.numerics.method==DP5||s.numerics.method==DP83){
+    dp(istart,y,&t,xpp::model().node,t1,&s.numerics.toler,&s.numerics.atoler,s.numerics.method-DP5,&kflag);
     if(kflag!=1){
       dp_err(kflag);
       return(0);
@@ -218,8 +220,8 @@ int one_step_int(double *y, double t0, double t1, int *istart)
         stor_delay(y);
     return 1;
   }
-  if(xpp::session().numerics.method==RB23){
-    rb23(y,&t,t1,istart,xpp::model().node,xpp::session().solver_work.work.data(),&kflag);
+  if(s.numerics.method==RB23){
+    rb23(y,&t,t1,istart,xpp::model().node,s.solver_work.work.data(),&kflag);
     if(kflag<0){
        err_msg("Step size too small");
        return(0);
@@ -227,9 +229,9 @@ int one_step_int(double *y, double t0, double t1, int *istart)
         stor_delay(y);
     return 1;
   }
-if(xpp::session().numerics.method==RKQS||xpp::session().numerics.method==STIFF){
-      adaptive(y,xpp::model().node,&t,t1,xpp::session().numerics.toler,&dt,
-		      xpp::session().numerics.hmin,xpp::session().solver_work.work.data(),&kflag,xpp::session().numerics.newt_err,xpp::session().numerics.method,istart);
+if(s.numerics.method==RKQS||s.numerics.method==STIFF){
+      adaptive(y,xpp::model().node,&t,t1,s.numerics.toler,&dt,
+		      s.numerics.hmin,s.solver_work.work.data(),&kflag,s.numerics.newt_err,s.numerics.method,istart);
       if(kflag){
 	ping();
 	 switch(kflag){
@@ -246,8 +248,8 @@ if(xpp::session().numerics.method==RKQS||xpp::session().numerics.method==STIFF){
     }
   /* cvode(command,y,t,n,tout,kflag,atol,rtol) 
  command =0 continue, 1 is start 2 finish   */
-  if(xpp::session().numerics.method==GEAR){
-    gear(xpp::model().node,&t,t1,y,xpp::session().numerics.hmin,xpp::session().numerics.hmax,xpp::session().numerics.toler,2,error,&kflag,istart,xpp::session().solver_work.work.data(),xpp::session().solver_work.iwork.data());
+  if(s.numerics.method==GEAR){
+    gear(xpp::model().node,&t,t1,y,s.numerics.hmin,s.numerics.hmax,s.numerics.toler,2,error,&kflag,istart,s.solver_work.work.data(),s.solver_work.iwork.data());
     if(kflag<0)
       {
 	ping();
@@ -264,21 +266,21 @@ if(xpp::session().numerics.method==RKQS||xpp::session().numerics.method==STIFF){
         stor_delay(y);
     return(1);
   }
-  if(xpp::session().numerics.method==0){
+  if(s.numerics.method==0){
     nit=fabs(t0-t1);
     dt=dt/fabs(dt);
-    kflag=xpp::session().integrator.solver(y,&t,dt,nit,xpp::model().node,istart,xpp::session().solver_work.work.data());
+    kflag=s.integrator.solver(y,&t,dt,nit,xpp::model().node,istart,s.solver_work.work.data());
 
     return(1);
   }
   z=(t1-t0)/dt;
   nit=static_cast<int>(z);
-  kflag=xpp::session().integrator.solver(y,&t,dt,nit,xpp::model().node,istart,xpp::session().solver_work.work.data());
+  kflag=s.integrator.solver(y,&t,dt,nit,xpp::model().node,istart,s.solver_work.work.data());
 
   if(kflag<0)return(0);
   if((dt<0&&t>t1)||(dt>0&&t<t1)){    
     dt=t1-t;
-    kflag=xpp::session().integrator.solver(y,&t,dt,1,xpp::model().node,istart,xpp::session().solver_work.work.data());
+    kflag=s.integrator.solver(y,&t,dt,1,xpp::model().node,istart,s.solver_work.work.data());
     if(kflag<0)return(0);
   }
 

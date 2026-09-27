@@ -299,6 +299,7 @@ bool next_pair_function(xpp::Tokens &args, const char *net, int ind, int &ivar, 
 
 int add_spec_fun(const char *name, char *rhs)
 {
+  xpp::Session &s=xpp::session();
   int i,ind;
   int type;
   int iwgt,itau,iind,ivar,ivar2;
@@ -338,7 +339,7 @@ int add_spec_fun(const char *name, char *rhs)
     if(iwgt<0)return 0;
     ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
-    xpp::session().networks[ind].values.assign((ntot+1),0.0);
+    s.networks[ind].values.assign((ntot+1),0.0);
     xpp::model().networks[ind].weight_table=iwgt;
     xpp::model().networks[ind].type=ntype;
     xpp::model().networks[ind].root=ivar;
@@ -364,7 +365,7 @@ int add_spec_fun(const char *name, char *rhs)
     ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
  
-    xpp::session().networks[ind].values.assign((ntot+1),0.0);
+    s.networks[ind].values.assign((ntot+1),0.0);
     xpp::model().networks[ind].weight_table=iwgt;
     xpp::model().networks[ind].index_table=iind;
 
@@ -395,7 +396,7 @@ int add_spec_fun(const char *name, char *rhs)
     if(iwgt<0)return 0;
 
     if(!next_pair_function(args,name,ind,ivar,ivar2,fname))return 0;
-    xpp::session().networks[ind].values.assign((ntot+1),0.0);
+    s.networks[ind].values.assign((ntot+1),0.0);
     xpp::model().networks[ind].weight_table=iwgt;
     xpp::model().networks[ind].type=ntype;
     xpp::model().networks[ind].root=xpp::model().networks[ind].f[0]; /* this is strange - I am adding the compiled names */
@@ -421,7 +422,7 @@ int add_spec_fun(const char *name, char *rhs)
 
     if(!next_pair_function(args,name,ind,ivar,ivar2,fname))return 0;
 
-    xpp::session().networks[ind].values.assign((ntot+1),0.0);
+    s.networks[ind].values.assign((ntot+1),0.0);
     xpp::model().networks[ind].weight_table=iwgt;
     xpp::model().networks[ind].index_table=iind;
 
@@ -465,12 +466,12 @@ int add_spec_fun(const char *name, char *rhs)
       ncon=2*ntot;
     else
       ncon=ntot;
-    xpp::session().networks[ind].fftr.assign(ncon+2,0.0);
-    xpp::session().networks[ind].ffti.assign(ncon+2,0.0);
-    xpp::session().networks[ind].dr.assign(ncon+2,0.0);
-    xpp::session().networks[ind].di.assign(ncon+2,0.0);
+    s.networks[ind].fftr.assign(ncon+2,0.0);
+    s.networks[ind].ffti.assign(ncon+2,0.0);
+    s.networks[ind].dr.assign(ncon+2,0.0);
+    s.networks[ind].di.assign(ncon+2,0.0);
     xpp::model().networks[ind].iwgt=iwgt;
-    xpp::session().networks[ind].values.assign((ntot+1),0.0);
+    s.networks[ind].values.assign((ntot+1),0.0);
     xpp::model().networks[ind].weight_table=iwgt;
     xpp::model().networks[ind].type=ntype;
     xpp::model().networks[ind].root=ivar;
@@ -495,7 +496,7 @@ int add_spec_fun(const char *name, char *rhs)
     ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
  
-    xpp::session().networks[ind].values.assign((ncon+1),0.0);
+    s.networks[ind].values.assign((ncon+1),0.0);
     xpp::model().networks[ind].weight_table=iwgt;
 
     xpp::model().networks[ind].type=ntype;
@@ -517,7 +518,7 @@ int add_spec_fun(const char *name, char *rhs)
     if(iwgt<0)return 0;
 
     if(!next_pair_function(args,name,ind,ivar,ivar2,fname))return 0;
-    xpp::session().networks[ind].values.assign((ncon+1),0.0);
+    s.networks[ind].values.assign((ncon+1),0.0);
     xpp::model().networks[ind].weight_table=iwgt;
 
     xpp::model().networks[ind].type=ntype;
@@ -555,7 +556,7 @@ int add_spec_fun(const char *name, char *rhs)
     }
     ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
-    xpp::session().networks[ind].values.assign(6,0.0);
+    s.networks[ind].values.assign(6,0.0);
     xpp::model().networks[ind].type=FINDEXT;
     xpp::model().networks[ind].root=ivar;
     xpp::model().networks[ind].n=ntot;
@@ -606,7 +607,7 @@ int add_spec_fun(const char *name, char *rhs)
     ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
  
-    xpp::session().networks[ind].values.assign((ncon+1),0.0);
+    s.networks[ind].values.assign((ncon+1),0.0);
     xpp::model().networks[ind].weight_table=iwgt;
     xpp::model().networks[ind].taud_table=itau;
 
@@ -639,7 +640,7 @@ int add_spec_fun(const char *name, char *rhs)
     ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
  
-    xpp::session().networks[ind].values.assign((ntot+1),0.0);
+    s.networks[ind].values.assign((ntot+1),0.0);
     xpp::model().networks[ind].weight_table=iwgt;
     xpp::model().networks[ind].index_table=iind;
     xpp::model().networks[ind].taud_table=itau;
@@ -685,7 +686,7 @@ int add_spec_fun(const char *name, char *rhs)
     xpp::model().networks[ind].n=ivar2+1;
     xpp::model().networks[ind].ncon=-1;
     /* zeroed: the first output row reads them before the first step */
-    xpp::session().networks[ind].values.assign(ivar2+2,0.0);
+    s.networks[ind].values.assign(ivar2+2,0.0);
     xpp_log(XPP_LOG_INFO, "Added gillespie chain with %d reactions \n",ivar2);
     return 1;
 

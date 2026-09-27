@@ -536,6 +536,7 @@ void find_ker(std::string &string, int *alt)
    the lines compile_em makes of the new one's commands. 0 at "done". */
 int compiler(const std::string &bob, FILE *fptr)
 {
+  xpp::Session &s=xpp::session();
   double value,xlo,xhi;
   int narg,done,nn,iflg=0,VFlag=0,nstates,alt,index,sign;
   int len; /* a program's length, from add_expr */
@@ -585,7 +586,7 @@ int compiler(const std::string &bob, FILE *fptr)
 	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	    xpp_model_failed();
 	  }
-	  add_wiener(xpp::session().parser.ncon-1);
+	  add_wiener(s.parser.ncon-1);
 
 	}
       if(ConvertStyle)
@@ -671,7 +672,7 @@ int compiler(const std::string &bob, FILE *fptr)
 	xpp_model_failed();
       }
       xpp::model().uvar_names[IN_VARS+xpp::model().nmarkov]=name;
-      xpp::session().last_ic[IN_VARS+xpp::model().nmarkov]=value;
+      s.last_ic[IN_VARS+xpp::model().nmarkov]=value;
       xpp::model().default_ic[IN_VARS+xpp::model().nmarkov]=value;
       xpp::log(XPP_LOG_INFO, " Markov variable {}={:f} has {} states \n",name,value,nstates);
       if(OldStyle)add_markov(nstates,name.c_str());
@@ -709,7 +710,7 @@ int compiler(const std::string &bob, FILE *fptr)
 	  if(iflg)
 	    {
 	      xpp::model().uvar_names[IN_VARS]=name;
-	      xpp::session().last_ic[IN_VARS]=value;
+	      s.last_ic[IN_VARS]=value;
               xpp::model().default_ic[IN_VARS]=value;
 	      IN_VARS++;
 	      if(ConvertStyle)
@@ -748,9 +749,9 @@ int compiler(const std::string &bob, FILE *fptr)
       }
       break;
     case 't':
-      if(xpp::session().ntable>=MAX_TAB)
+      if(s.ntable>=MAX_TAB)
 	{
-	  if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "too many tables !!\n");
+	  if(s.parser.errout)xpp_log(XPP_LOG_WARN, "too many tables !!\n");
 	  xpp_model_failed();
 	}
       name=tokens.text(" ");
@@ -763,9 +764,9 @@ int compiler(const std::string &bob, FILE *fptr)
 	formula=tokens.text("\n");
 	xpp::log(XPP_LOG_INFO, " {} has {} pts from {:f} to {:f} = {}\n",
 	       name,nn,xlo,xhi,formula);
-	add_table_name(xpp::session().ntable,name.c_str());
+	add_table_name(s.ntable,name.c_str());
 
-	if(add_form_table(xpp::session().ntable,nn,xlo,xhi,formula.c_str())){
+	if(add_form_table(s.ntable,nn,xlo,xhi,formula.c_str())){
 	  xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	  xpp_model_failed();
 	}
@@ -773,8 +774,8 @@ int compiler(const std::string &bob, FILE *fptr)
 	if(ConvertStyle)
 	  xpp::print(convertf,"table {} % {} {:g} {:g} {}\n",
 		  name,nn,xlo,xhi,formula);
-	xpp::session().ntable++;
-	xpp_log(XPP_LOG_INFO, " NTable = %d \n",xpp::session().ntable);
+	s.ntable++;
+	xpp_log(XPP_LOG_INFO, " NTable = %d \n",s.ntable);
 
       }
       else
@@ -790,15 +791,15 @@ int compiler(const std::string &bob, FILE *fptr)
 	else
 	  {
 	    xpp::log(XPP_LOG_INFO, "Lookup table {} = {} \n",name,formula);
-            add_table_name(xpp::session().ntable,name.c_str());
-	    if(add_file_table(xpp::session().ntable,formula.c_str())){
+            add_table_name(s.ntable,name.c_str());
+	    if(add_file_table(s.ntable,formula.c_str())){
 	      xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	      xpp_model_failed();
 	    }
 	    if(ConvertStyle)
 	      xpp::print(convertf,"table {} {}\n",
 		      name,formula);
-	    xpp::session().ntable++;
+	    s.ntable++;
 	  }
       break;
 

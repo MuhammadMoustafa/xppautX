@@ -85,18 +85,19 @@ int ani_wait(int ms)
 /* the Go button (aniwin.c ani_flip without the X pixmap) */
 void ani_go(void)
 {
+    xpp::Session &s=xpp::session();
     double y[MAXODE];
-    float **ss = xpp::session().browser.view.data;
+    float **ss = s.browser.view.data;
     xpp::Writer gif; /* anim.gif, when the animation is written as one */
     int i, stop = 0, frame = 0, written = 0, w, h;
-    if (xpp::session().animation.ncom == 0 || xpp::session().browser.view.maxrow < 2) return;
+    if (s.animation.ncom == 0 || s.browser.view.maxrow < 2) return;
     set_ani_perm();
-    if (xpp::session().animation.mpeg.aviflag == 1) {
+    if (s.animation.mpeg.aviflag == 1) {
         gif = xpp::Writer::binary("anim.gif");
         set_global_map(1);
     }
     while (!stop) {
-        int row = xpp::session().animation.vcr.pos, ppm = xpp::session().animation.mpeg.flag > 0 && frame % (xpp::session().animation.mpeg.skip > 0 ? xpp::session().animation.mpeg.skip : 1) == 0;
+        int row = s.animation.vcr.pos, ppm = s.animation.mpeg.flag > 0 && frame % (s.animation.mpeg.skip > 0 ? s.animation.mpeg.skip : 1) == 0;
         for (i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) y[i] = ss[i + 1][row];
         set_fix_rhs(static_cast<double>(ss[0][row]), y);
         xpp_ui.ani_clear();
@@ -105,22 +106,22 @@ void ani_go(void)
         if (ppm || gif) {
             std::vector<unsigned char> rgb = ask_pixels(WIN_ANI, -1, &w, &h);
             if (rgb.empty()) break;
-            if (ppm) write_ppm(xpp::format("{}_{}.ppm", xpp::session().animation.mpeg.root, written++).c_str(), rgb, w, h);
+            if (ppm) write_ppm(xpp::format("{}_{}.ppm", s.animation.mpeg.root, written++).c_str(), rgb, w, h);
             if (gif) {
                 web_safe_colors(rgb);
                 gif_stuff_ppm(rgb.data(), w, h, gif.file(), frame == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
             }
         }
         frame++;
-        stop = ani_wait(xpp::session().animation.speed * (xpp::session().animation.mpeg.aviflag == 1 || xpp::session().animation.mpeg.flag > 0 ? 6 : 1));
-        xpp::session().animation.vcr.pos += xpp::session().animation.vcr.inc;
-        if (xpp::session().animation.vcr.pos >= xpp::session().browser.view.maxrow) {
+        stop = ani_wait(s.animation.speed * (s.animation.mpeg.aviflag == 1 || s.animation.mpeg.flag > 0 ? 6 : 1));
+        s.animation.vcr.pos += s.animation.vcr.inc;
+        if (s.animation.vcr.pos >= s.browser.view.maxrow) {
             stop = 1;
-            xpp::session().animation.vcr.pos = 0;
+            s.animation.vcr.pos = 0;
             reset_comets();
         }
     }
-    xpp::session().animation.mpeg.flag = 0;
+    s.animation.mpeg.flag = 0;
     if (gif) {
         end_ani_gif(gif.file());
         gif.commit();
@@ -133,13 +134,14 @@ void ani_go(void)
 
 void ani_command(const char *line)
 {
+    xpp::Session &s=xpp::session();
     std::string o, what;
     int x = get_int(line, "x", 0), yy = get_int(line, "y", 0);
     /* a point in the animation's unit coordinates (u, v: y up, as the ani
        frame event's) instead of pixels: the nearest pixel of the window */
     if (js_find(line, "u") && js_find(line, "v")) {
-        x = static_cast<int>(floor(get_num(line, "u", 0) * xpp::session().animation.vcr.wid + 0.5));
-        yy = static_cast<int>(floor((1 - get_num(line, "v", 0)) * xpp::session().animation.vcr.hgt + 0.5));
+        x = static_cast<int>(floor(get_num(line, "u", 0) * s.animation.vcr.wid + 0.5));
+        yy = static_cast<int>(floor((1 - get_num(line, "v", 0)) * s.animation.vcr.hgt + 0.5));
     }
     get_string(line, "op", o, 16);
     if (ani_speed_op(o.c_str(), line)) {
@@ -150,25 +152,25 @@ void ani_command(const char *line)
     else if (o == "reset") ani_reset();
     else if (o == "file") {
         /* a new animation shows its first frame at once when there is data */
-        if (get_ani_file(NULL) && xpp::session().browser.view.maxrow >= 2) ani_reset();
+        if (get_ani_file(NULL) && s.browser.view.maxrow >= 2) ani_reset();
     } else if (o == "go") ani_go();
     else if (o == "skip") ani_newskip();
     else if (o == "mpeg") ani_create_mpeg();
-    else if (o == "fly") xpp::session().animation.options.on_the_fly = 1 - xpp::session().animation.options.on_the_fly;
+    else if (o == "fly") s.animation.options.on_the_fly = 1 - s.animation.options.on_the_fly;
     else if (o == "grab") ani_grab_start();
-    else if (o == "seek" && xpp::session().browser.view.maxrow >= 2) {
-        xpp::session().animation.vcr.pos = 0;
+    else if (o == "seek" && s.browser.view.maxrow >= 2) {
+        s.animation.vcr.pos = 0;
         ani_flip1(0);
         ani_flip1(get_int(line, "pos", 0));
-    } else if (o == "mouse" && xpp::session().animation.grab_flag) {
+    } else if (o == "mouse" && s.animation.grab_flag) {
         /* dragging a grab point: down, move..., up (which may integrate) */
         get_string(line, "what", what, 8);
         if (what == "down") ani_grab_mouse(1, x, yy);
         else if (what == "move") update_ani_motion_stuff(x, yy);
         else if (what == "up") ani_grab_mouse(0, x, yy);
-    } else if (o == "close" && xpp::session().animation.vcr.iexist) {
-        xpp::session().animation.vcr.iexist = 0;
-        xpp::session().animation.grab_flag = 0;
+    } else if (o == "close" && s.animation.vcr.iexist) {
+        s.animation.vcr.iexist = 0;
+        s.animation.grab_flag = 0;
         send_window("destroy", WIN_ANI, 0, 0, NULL);
     }
     j_ani_slider();

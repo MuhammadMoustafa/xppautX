@@ -109,41 +109,42 @@ void check_flags()
 
 void get_2d_view(int ind)
 {
+ xpp::Session &s=xpp::session();
  static const char *n[]={"*0X-axis","*0Y-axis","Xmin", "Ymin",
 		   "Xmax", "Ymax", "Xlabel","Ylabel"};
  std::array<std::string, 8> values;
  int  status,i; 
- int i1=xpp::session().plot_windows.current->xv[ind],i2=xpp::session().plot_windows.current->yv[ind];
+ int i1=s.plot_windows.current->xv[ind],i2=s.plot_windows.current->yv[ind];
  values[0] = ind_to_sym(i1);
  values[1] = ind_to_sym(i2);
- values[2] = xpp::format("{:g}", xpp::session().plot_windows.current->xmin);
- values[3] = xpp::format("{:g}", xpp::session().plot_windows.current->ymin);
- values[4] = xpp::format("{:g}", xpp::session().plot_windows.current->xmax);
- values[5] = xpp::format("{:g}", xpp::session().plot_windows.current->ymax);
- values[6] = xpp::session().plot_windows.current->xlabel;
- values[7] = xpp::session().plot_windows.current->ylabel;
- xpp::session().plot_windows.current->ThreeDFlag=0;
+ values[2] = xpp::format("{:g}", s.plot_windows.current->xmin);
+ values[3] = xpp::format("{:g}", s.plot_windows.current->ymin);
+ values[4] = xpp::format("{:g}", s.plot_windows.current->xmax);
+ values[5] = xpp::format("{:g}", s.plot_windows.current->ymax);
+ values[6] = s.plot_windows.current->xlabel;
+ values[7] = s.plot_windows.current->ylabel;
+ s.plot_windows.current->ThreeDFlag=0;
  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
  status=do_string_box_of(4,2,"2D View",n,values,31,kinds);
  if(status!=0){
 		/*  get variable names  */
              find_variable(values[0].c_str(),&i);
               if(i>-1)
-		xpp::session().plot_windows.current->xv[ind]=i;
+		s.plot_windows.current->xv[ind]=i;
 	     find_variable(values[1].c_str(),&i);
               if(i>-1)
-		xpp::session().plot_windows.current->yv[ind]=i;
+		s.plot_windows.current->yv[ind]=i;
 
-	      xpp::session().plot_windows.current->xmin=atof(values[2].c_str());
-	      xpp::session().plot_windows.current->ymin=atof(values[3].c_str());
-	      xpp::session().plot_windows.current->xmax=atof(values[4].c_str());
-	      xpp::session().plot_windows.current->ymax=atof(values[5].c_str());
-	      xpp::session().plot_windows.current->xlo=xpp::session().plot_windows.current->xmin;
-	      xpp::session().plot_windows.current->ylo=xpp::session().plot_windows.current->ymin;
-	      xpp::session().plot_windows.current->xhi=xpp::session().plot_windows.current->xmax;
-	      xpp::session().plot_windows.current->yhi=xpp::session().plot_windows.current->ymax;
-	     xpp::session().plot_windows.current->xlabel=values[6];
-	     xpp::session().plot_windows.current->ylabel=values[7];
+	      s.plot_windows.current->xmin=atof(values[2].c_str());
+	      s.plot_windows.current->ymin=atof(values[3].c_str());
+	      s.plot_windows.current->xmax=atof(values[4].c_str());
+	      s.plot_windows.current->ymax=atof(values[5].c_str());
+	      s.plot_windows.current->xlo=s.plot_windows.current->xmin;
+	      s.plot_windows.current->ylo=s.plot_windows.current->ymin;
+	      s.plot_windows.current->xhi=s.plot_windows.current->xmax;
+	      s.plot_windows.current->yhi=s.plot_windows.current->ymax;
+	     s.plot_windows.current->xlabel=values[6];
+	     s.plot_windows.current->ylabel=values[7];
 	      check_windows();
 		     
 	      }
@@ -151,29 +152,30 @@ void get_2d_view(int ind)
 
 void axes_opts()
 {
+  xpp::Session &s=xpp::session();
   static const char *n[]={"X-origin","Y-origin","Z-origin",
 		   "X-org(1=on)","Y-org(1=on)","Z-org(1=on",
 		    "PSFontSize"};
   std::array<std::string, 7> values;
   int status;
-  values[0] = xpp::format("{:g}", xpp::session().plot_windows.current->xorg);
-  values[1] = xpp::format("{:g}", xpp::session().plot_windows.current->yorg);
-  values[2] = xpp::format("{:g}", xpp::session().plot_windows.current->zorg);
-  values[3] = xpp::format("{:d}", xpp::session().plot_windows.current->xorgflag);
-  values[4] = xpp::format("{:d}", xpp::session().plot_windows.current->yorgflag);
-  values[5] = xpp::format("{:d}", xpp::session().plot_windows.current->zorgflag);
-  values[6] = xpp::format("{:d}", xpp::session().plot_file.ps_font_size);
+  values[0] = xpp::format("{:g}", s.plot_windows.current->xorg);
+  values[1] = xpp::format("{:g}", s.plot_windows.current->yorg);
+  values[2] = xpp::format("{:g}", s.plot_windows.current->zorg);
+  values[3] = xpp::format("{:d}", s.plot_windows.current->xorgflag);
+  values[4] = xpp::format("{:d}", s.plot_windows.current->yorgflag);
+  values[5] = xpp::format("{:d}", s.plot_windows.current->zorgflag);
+  values[6] = xpp::format("{:d}", s.plot_file.ps_font_size);
   static const int kinds[]={XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
   status=do_string_box_of(7,1,"Axes options",n,values,25,kinds);
  if(status!=0){
-   xpp::session().plot_windows.current->xorg=atof(values[0].c_str());
-   xpp::session().plot_windows.current->yorg=atof(values[1].c_str());
-   xpp::session().plot_windows.current->zorg=atof(values[2].c_str());
-   xpp::session().plot_windows.current->xorgflag=atoi(values[3].c_str());
-   xpp::session().plot_windows.current->yorgflag=atoi(values[4].c_str());
-   xpp::session().plot_windows.current->zorgflag=atoi(values[5].c_str());
-   xpp::session().plot_file.ps_font_size=atoi(values[6].c_str());
+   s.plot_windows.current->xorg=atof(values[0].c_str());
+   s.plot_windows.current->yorg=atof(values[1].c_str());
+   s.plot_windows.current->zorg=atof(values[2].c_str());
+   s.plot_windows.current->xorgflag=atoi(values[3].c_str());
+   s.plot_windows.current->yorgflag=atoi(values[4].c_str());
+   s.plot_windows.current->zorgflag=atoi(values[5].c_str());
+   s.plot_file.ps_font_size=atoi(values[6].c_str());
    redraw_the_graph();
  }
    
@@ -181,29 +183,30 @@ void axes_opts()
 
 void get_3d_view(int ind)
 {
+ xpp::Session &s=xpp::session();
  static const char *n[]={"*0X-axis","*0Y-axis", "*0Z-axis",
 		   "Xmin", "Xmax", "Ymin",
 		   "Ymax", "Zmin","Zmax",
 		   "XLo", "XHi", "YLo", "YHi","Xlabel","Ylabel","Zlabel"};
  std::array<std::string, 16> values;
- int  status,i,i1=xpp::session().plot_windows.current->xv[ind],i2=xpp::session().plot_windows.current->yv[ind],i3=xpp::session().plot_windows.current->zv[ind];
+ int  status,i,i1=s.plot_windows.current->xv[ind],i2=s.plot_windows.current->yv[ind],i3=s.plot_windows.current->zv[ind];
  values[0] = ind_to_sym(i1);
  values[1] = ind_to_sym(i2);
  values[2] = ind_to_sym(i3);
- values[3] = xpp::format("{:g}", xpp::session().plot_windows.current->xmin);
- values[5] = xpp::format("{:g}", xpp::session().plot_windows.current->ymin);
- values[7] = xpp::format("{:g}", xpp::session().plot_windows.current->zmin);
- values[4] = xpp::format("{:g}", xpp::session().plot_windows.current->xmax);
- values[6] = xpp::format("{:g}", xpp::session().plot_windows.current->ymax);
- values[8] = xpp::format("{:g}", xpp::session().plot_windows.current->zmax);
- values[9] = xpp::format("{:g}", xpp::session().plot_windows.current->xlo);
- values[11] = xpp::format("{:g}", xpp::session().plot_windows.current->ylo);
- values[10] = xpp::format("{:g}", xpp::session().plot_windows.current->xhi);
- values[12] = xpp::format("{:g}", xpp::session().plot_windows.current->yhi);
- values[13] = xpp::session().plot_windows.current->xlabel;
- values[14] = xpp::session().plot_windows.current->ylabel;
- values[15] = xpp::session().plot_windows.current->zlabel;
- xpp::session().plot_windows.current->ThreeDFlag=1;
+ values[3] = xpp::format("{:g}", s.plot_windows.current->xmin);
+ values[5] = xpp::format("{:g}", s.plot_windows.current->ymin);
+ values[7] = xpp::format("{:g}", s.plot_windows.current->zmin);
+ values[4] = xpp::format("{:g}", s.plot_windows.current->xmax);
+ values[6] = xpp::format("{:g}", s.plot_windows.current->ymax);
+ values[8] = xpp::format("{:g}", s.plot_windows.current->zmax);
+ values[9] = xpp::format("{:g}", s.plot_windows.current->xlo);
+ values[11] = xpp::format("{:g}", s.plot_windows.current->ylo);
+ values[10] = xpp::format("{:g}", s.plot_windows.current->xhi);
+ values[12] = xpp::format("{:g}", s.plot_windows.current->yhi);
+ values[13] = s.plot_windows.current->xlabel;
+ values[14] = s.plot_windows.current->ylabel;
+ values[15] = s.plot_windows.current->zlabel;
+ s.plot_windows.current->ThreeDFlag=1;
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),
                            XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
@@ -213,27 +216,27 @@ void get_3d_view(int ind)
 		/*  get variable names  */
               find_variable(values[0].c_str(),&i);
  	      if(i>-1)
-		xpp::session().plot_windows.current->xv[ind]=i;
+		s.plot_windows.current->xv[ind]=i;
               find_variable(values[1].c_str(),&i);
               if(i>-1)
-		xpp::session().plot_windows.current->yv[ind]=i;
+		s.plot_windows.current->yv[ind]=i;
               find_variable(values[2].c_str(),&i);
   		if(i>-1)
-		  xpp::session().plot_windows.current->zv[ind]=i;
-	      xpp::session().plot_windows.current->xlabel=values[13];
-	      xpp::session().plot_windows.current->ylabel=values[14];
-	      xpp::session().plot_windows.current->zlabel=values[15];
+		  s.plot_windows.current->zv[ind]=i;
+	      s.plot_windows.current->xlabel=values[13];
+	      s.plot_windows.current->ylabel=values[14];
+	      s.plot_windows.current->zlabel=values[15];
 
-	      xpp::session().plot_windows.current->xmin=atof(values[3].c_str());
-	      xpp::session().plot_windows.current->ymin=atof(values[5].c_str());
-	      xpp::session().plot_windows.current->zmin=atof(values[7].c_str());
-	      xpp::session().plot_windows.current->xmax=atof(values[4].c_str());
-	      xpp::session().plot_windows.current->ymax=atof(values[6].c_str());
-	      xpp::session().plot_windows.current->zmax=atof(values[8].c_str());
-	      xpp::session().plot_windows.current->xlo=atof(values[9].c_str());
-	      xpp::session().plot_windows.current->ylo=atof(values[11].c_str());
-	      xpp::session().plot_windows.current->xhi=atof(values[10].c_str());
-	      xpp::session().plot_windows.current->yhi=atof(values[12].c_str());
+	      s.plot_windows.current->xmin=atof(values[3].c_str());
+	      s.plot_windows.current->ymin=atof(values[5].c_str());
+	      s.plot_windows.current->zmin=atof(values[7].c_str());
+	      s.plot_windows.current->xmax=atof(values[4].c_str());
+	      s.plot_windows.current->ymax=atof(values[6].c_str());
+	      s.plot_windows.current->zmax=atof(values[8].c_str());
+	      s.plot_windows.current->xlo=atof(values[9].c_str());
+	      s.plot_windows.current->ylo=atof(values[11].c_str());
+	      s.plot_windows.current->xhi=atof(values[10].c_str());
+	      s.plot_windows.current->yhi=atof(values[12].c_str());
               check_windows();
 
 	      }
@@ -295,36 +298,37 @@ void corner_cube(double *xlo, double *xhi, double *ylo, double *yhi)
 
 void default_window()
 {
- 	if(xpp::session().plot_windows.current->ThreeDFlag){
-	      xpp::session().plot_windows.current->xmax=xpp::session().plot_settings.x_3d[1];
-    	      xpp::session().plot_windows.current->ymax=xpp::session().plot_settings.y_3d[1];
-    	      xpp::session().plot_windows.current->zmax=xpp::session().plot_settings.z_3d[1];
-              xpp::session().plot_windows.current->xmin=xpp::session().plot_settings.x_3d[0];
-              xpp::session().plot_windows.current->ymin=xpp::session().plot_settings.y_3d[0];
-              xpp::session().plot_windows.current->zmin=xpp::session().plot_settings.z_3d[0];  
+ 	xpp::Session &s=xpp::session();
+ 	if(s.plot_windows.current->ThreeDFlag){
+	      s.plot_windows.current->xmax=s.plot_settings.x_3d[1];
+    	      s.plot_windows.current->ymax=s.plot_settings.y_3d[1];
+    	      s.plot_windows.current->zmax=s.plot_settings.z_3d[1];
+              s.plot_windows.current->xmin=s.plot_settings.x_3d[0];
+              s.plot_windows.current->ymin=s.plot_settings.y_3d[0];
+              s.plot_windows.current->zmin=s.plot_settings.z_3d[0];  
 	      
-	      pretty(&(xpp::session().plot_windows.current->ymin),&(xpp::session().plot_windows.current->ymax));
-	      pretty(&(xpp::session().plot_windows.current->xmin),&(xpp::session().plot_windows.current->xmax));
-	      pretty(&(xpp::session().plot_windows.current->zmin),&(xpp::session().plot_windows.current->zmax));
-	      corner_cube(&(xpp::session().plot_windows.current->xlo),&(xpp::session().plot_windows.current->xhi),&(xpp::session().plot_windows.current->ylo),&(xpp::session().plot_windows.current->yhi));
-	      pretty(&(xpp::session().plot_windows.current->xlo),&(xpp::session().plot_windows.current->xhi));
-	      pretty(&(xpp::session().plot_windows.current->ylo),&(xpp::session().plot_windows.current->yhi));
+	      pretty(&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax));
+	      pretty(&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
+	      pretty(&(s.plot_windows.current->zmin),&(s.plot_windows.current->zmax));
+	      corner_cube(&(s.plot_windows.current->xlo),&(s.plot_windows.current->xhi),&(s.plot_windows.current->ylo),&(s.plot_windows.current->yhi));
+	      pretty(&(s.plot_windows.current->xlo),&(s.plot_windows.current->xhi));
+	      pretty(&(s.plot_windows.current->ylo),&(s.plot_windows.current->yhi));
 	      check_windows(); 
 	}
 	else  
     	{
-	      xpp::session().plot_windows.current->xmax=xpp::session().plot_settings.x_3d[1];
-    	      xpp::session().plot_windows.current->ymax=xpp::session().plot_settings.y_3d[1];
+	      s.plot_windows.current->xmax=s.plot_settings.x_3d[1];
+    	      s.plot_windows.current->ymax=s.plot_settings.y_3d[1];
     	      
-              xpp::session().plot_windows.current->xmin=xpp::session().plot_settings.x_3d[0];
-              xpp::session().plot_windows.current->ymin=xpp::session().plot_settings.y_3d[0];
+              s.plot_windows.current->xmin=s.plot_settings.x_3d[0];
+              s.plot_windows.current->ymin=s.plot_settings.y_3d[0];
 	      
-	      pretty(&(xpp::session().plot_windows.current->ymin),&(xpp::session().plot_windows.current->ymax)); 
-	      pretty(&(xpp::session().plot_windows.current->xmin),&(xpp::session().plot_windows.current->xmax));
-	      xpp::session().plot_windows.current->xlo=xpp::session().plot_windows.current->xmin;
-	      xpp::session().plot_windows.current->ylo=xpp::session().plot_windows.current->ymin;
-	      xpp::session().plot_windows.current->xhi=xpp::session().plot_windows.current->xmax;
-	      xpp::session().plot_windows.current->yhi=xpp::session().plot_windows.current->ymax;
+	      pretty(&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax)); 
+	      pretty(&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
+	      s.plot_windows.current->xlo=s.plot_windows.current->xmin;
+	      s.plot_windows.current->ylo=s.plot_windows.current->ymin;
+	      s.plot_windows.current->xhi=s.plot_windows.current->xmax;
+	      s.plot_windows.current->yhi=s.plot_windows.current->ymax;
 	      check_windows();
 	}
 	
@@ -334,64 +338,65 @@ void default_window()
 
 void fit_window()
 {
+  xpp::Session &s=xpp::session();
   double Mx=-1.e25,My=-1.e25,Mz=-1.e25,mx=-Mx,my=-My,mz=-Mz;
-  int i,n=xpp::session().plot_windows.current->nvars;
-  if(xpp::session().data_store.rows<2)return;
-  if(xpp::session().plot_windows.current->ThreeDFlag){
+  int i,n=s.plot_windows.current->nvars;
+  if(s.data_store.rows<2)return;
+  if(s.plot_windows.current->ThreeDFlag){
     for(i=0;i<n;i++){
       
-      get_max(xpp::session().plot_windows.current->xv[i],&(xpp::session().plot_windows.current->xmin),&(xpp::session().plot_windows.current->xmax));
-      Mx=lmax(xpp::session().plot_windows.current->xmax,Mx);
-      mx=-lmax(-xpp::session().plot_windows.current->xmin,-mx);
+      get_max(s.plot_windows.current->xv[i],&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
+      Mx=lmax(s.plot_windows.current->xmax,Mx);
+      mx=-lmax(-s.plot_windows.current->xmin,-mx);
       
-      get_max(xpp::session().plot_windows.current->yv[i],&(xpp::session().plot_windows.current->ymin),&(xpp::session().plot_windows.current->ymax));
-      My=lmax(xpp::session().plot_windows.current->ymax,My);
-      my=-lmax(-xpp::session().plot_windows.current->ymin,-my);
+      get_max(s.plot_windows.current->yv[i],&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax));
+      My=lmax(s.plot_windows.current->ymax,My);
+      my=-lmax(-s.plot_windows.current->ymin,-my);
       
-      get_max(xpp::session().plot_windows.current->zv[i],&(xpp::session().plot_windows.current->zmin),&(xpp::session().plot_windows.current->zmax));
-      Mz=lmax(xpp::session().plot_windows.current->zmax,Mz);
-      mz=-lmax(-xpp::session().plot_windows.current->zmin,-mz);
+      get_max(s.plot_windows.current->zv[i],&(s.plot_windows.current->zmin),&(s.plot_windows.current->zmax));
+      Mz=lmax(s.plot_windows.current->zmax,Mz);
+      mz=-lmax(-s.plot_windows.current->zmin,-mz);
       
     }
-    xpp::session().plot_windows.current->xmax=Mx;
-    xpp::session().plot_windows.current->ymax=My;
-    xpp::session().plot_windows.current->zmax=Mz;
-    xpp::session().plot_windows.current->xmin=mx;
-    xpp::session().plot_windows.current->ymin=my;
-    xpp::session().plot_windows.current->zmin=mz;
+    s.plot_windows.current->xmax=Mx;
+    s.plot_windows.current->ymax=My;
+    s.plot_windows.current->zmax=Mz;
+    s.plot_windows.current->xmin=mx;
+    s.plot_windows.current->ymin=my;
+    s.plot_windows.current->zmin=mz;
 
-    pretty(&(xpp::session().plot_windows.current->ymin),&(xpp::session().plot_windows.current->ymax));
-    pretty(&(xpp::session().plot_windows.current->xmin),&(xpp::session().plot_windows.current->xmax));
-    pretty(&(xpp::session().plot_windows.current->zmin),&(xpp::session().plot_windows.current->zmax));
-    corner_cube(&(xpp::session().plot_windows.current->xlo),&(xpp::session().plot_windows.current->xhi),&(xpp::session().plot_windows.current->ylo),&(xpp::session().plot_windows.current->yhi));
-    pretty(&(xpp::session().plot_windows.current->xlo),&(xpp::session().plot_windows.current->xhi));
-    pretty(&(xpp::session().plot_windows.current->ylo),&(xpp::session().plot_windows.current->yhi));
+    pretty(&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax));
+    pretty(&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
+    pretty(&(s.plot_windows.current->zmin),&(s.plot_windows.current->zmax));
+    corner_cube(&(s.plot_windows.current->xlo),&(s.plot_windows.current->xhi),&(s.plot_windows.current->ylo),&(s.plot_windows.current->yhi));
+    pretty(&(s.plot_windows.current->xlo),&(s.plot_windows.current->xhi));
+    pretty(&(s.plot_windows.current->ylo),&(s.plot_windows.current->yhi));
     check_windows();
   }
   else  
     {
       for(i=0;i<n;i++){
-	get_max(xpp::session().plot_windows.current->xv[i],&(xpp::session().plot_windows.current->xmin),&(xpp::session().plot_windows.current->xmax));
-	Mx=lmax(xpp::session().plot_windows.current->xmax,Mx);
-	mx=-lmax(-xpp::session().plot_windows.current->xmin,-mx);
+	get_max(s.plot_windows.current->xv[i],&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
+	Mx=lmax(s.plot_windows.current->xmax,Mx);
+	mx=-lmax(-s.plot_windows.current->xmin,-mx);
 	
-       get_max(xpp::session().plot_windows.current->yv[i],&(xpp::session().plot_windows.current->ymin),&(xpp::session().plot_windows.current->ymax));
-	My=lmax(xpp::session().plot_windows.current->ymax,My);
-	my=-lmax(-xpp::session().plot_windows.current->ymin,-my);
+       get_max(s.plot_windows.current->yv[i],&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax));
+	My=lmax(s.plot_windows.current->ymax,My);
+	my=-lmax(-s.plot_windows.current->ymin,-my);
 	
       }
-      xpp::session().plot_windows.current->xmax=Mx;
-      xpp::session().plot_windows.current->ymax=My;
+      s.plot_windows.current->xmax=Mx;
+      s.plot_windows.current->ymax=My;
       
-      xpp::session().plot_windows.current->xmin=mx;
-      xpp::session().plot_windows.current->ymin=my;
+      s.plot_windows.current->xmin=mx;
+      s.plot_windows.current->ymin=my;
 
-      pretty(&(xpp::session().plot_windows.current->ymin),&(xpp::session().plot_windows.current->ymax)); 
-      pretty(&(xpp::session().plot_windows.current->xmin),&(xpp::session().plot_windows.current->xmax));
-      xpp::session().plot_windows.current->xlo=xpp::session().plot_windows.current->xmin;
-      xpp::session().plot_windows.current->ylo=xpp::session().plot_windows.current->ymin;
-      xpp::session().plot_windows.current->xhi=xpp::session().plot_windows.current->xmax;
-      xpp::session().plot_windows.current->yhi=xpp::session().plot_windows.current->ymax;
+      pretty(&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax)); 
+      pretty(&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
+      s.plot_windows.current->xlo=s.plot_windows.current->xmin;
+      s.plot_windows.current->ylo=s.plot_windows.current->ymin;
+      s.plot_windows.current->xhi=s.plot_windows.current->xmax;
+      s.plot_windows.current->yhi=s.plot_windows.current->ymax;
       check_windows();
     }
   redraw_the_graph();
@@ -399,26 +404,27 @@ void fit_window()
 
 void user_window()
 {
+ xpp::Session &s=xpp::session();
  static const char *n[]={"X Lo","X Hi","Y Lo","Y Hi"};
  std::array<std::string, 4> values;
  int status;
- values[0] = xpp::format("{:g}", xpp::session().plot_windows.current->xlo);
- values[2] = xpp::format("{:g}", xpp::session().plot_windows.current->ylo);
- values[1] = xpp::format("{:g}", xpp::session().plot_windows.current->xhi);
- values[3] = xpp::format("{:g}", xpp::session().plot_windows.current->yhi);
+ values[0] = xpp::format("{:g}", s.plot_windows.current->xlo);
+ values[2] = xpp::format("{:g}", s.plot_windows.current->ylo);
+ values[1] = xpp::format("{:g}", s.plot_windows.current->xhi);
+ values[3] = xpp::format("{:g}", s.plot_windows.current->yhi);
  static const int kinds[]={XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
  status=do_string_box_of(2,2,"Window",n,values,28,kinds);
  if(status!=0){
              
-	      xpp::session().plot_windows.current->xlo=atof(values[0].c_str());
-	      xpp::session().plot_windows.current->ylo=atof(values[2].c_str());
-	      xpp::session().plot_windows.current->xhi=atof(values[1].c_str());
-	      xpp::session().plot_windows.current->yhi=atof(values[3].c_str());
-	      if(xpp::session().plot_windows.current->grtype<5){
-	      xpp::session().plot_windows.current->xmin=xpp::session().plot_windows.current->xlo;
-	      xpp::session().plot_windows.current->xmax=xpp::session().plot_windows.current->xhi;
-	      xpp::session().plot_windows.current->ymin=xpp::session().plot_windows.current->ylo;
-	      xpp::session().plot_windows.current->ymax=xpp::session().plot_windows.current->yhi;
+	      s.plot_windows.current->xlo=atof(values[0].c_str());
+	      s.plot_windows.current->ylo=atof(values[2].c_str());
+	      s.plot_windows.current->xhi=atof(values[1].c_str());
+	      s.plot_windows.current->yhi=atof(values[3].c_str());
+	      if(s.plot_windows.current->grtype<5){
+	      s.plot_windows.current->xmin=s.plot_windows.current->xlo;
+	      s.plot_windows.current->xmax=s.plot_windows.current->xhi;
+	      s.plot_windows.current->ymin=s.plot_windows.current->ylo;
+	      s.plot_windows.current->ymax=s.plot_windows.current->yhi;
 	      }
 	      check_windows();
              }
@@ -427,31 +433,32 @@ void user_window()
 
 void xi_vs_t() /*  a short cut   */
 {
- int i=xpp::session().plot_windows.current->yv[0];
+ xpp::Session &s=xpp::session();
+ int i=s.plot_windows.current->yv[0];
 
  std::string value=ind_to_sym(i);
  new_string_of("Plot vs t: ",value,XPP_FIELD_NAME_IN(0));
  find_variable(value.c_str(),&i);
  
  if(i>-1){
-   xpp::session().plot_windows.current->yv[0]=i;
-   xpp::session().plot_windows.current->grtype=0;
-   xpp::session().plot_windows.current->xv[0]=0;
-   if(xpp::session().data_store.rows>=2){
-      get_max(xpp::session().plot_windows.current->xv[0],&(xpp::session().plot_windows.current->xmin),&(xpp::session().plot_windows.current->xmax));
-   pretty(&(xpp::session().plot_windows.current->xmin),&(xpp::session().plot_windows.current->xmax));
-    get_max(xpp::session().plot_windows.current->yv[0],&(xpp::session().plot_windows.current->ymin),&(xpp::session().plot_windows.current->ymax));
-     pretty(&(xpp::session().plot_windows.current->ymin),&(xpp::session().plot_windows.current->ymax)); 
+   s.plot_windows.current->yv[0]=i;
+   s.plot_windows.current->grtype=0;
+   s.plot_windows.current->xv[0]=0;
+   if(s.data_store.rows>=2){
+      get_max(s.plot_windows.current->xv[0],&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
+   pretty(&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
+    get_max(s.plot_windows.current->yv[0],&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax));
+     pretty(&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax)); 
    
     }
    else {
-     xpp::session().plot_windows.current->xmin=xpp::session().numerics.t0;
-     xpp::session().plot_windows.current->xmax=xpp::session().numerics.tend;
+     s.plot_windows.current->xmin=s.numerics.t0;
+     s.plot_windows.current->xmax=s.numerics.tend;
         }
-    xpp::session().plot_windows.current->xlo=xpp::session().plot_windows.current->xmin;
-    xpp::session().plot_windows.current->ylo=xpp::session().plot_windows.current->ymin;
-    xpp::session().plot_windows.current->xhi=xpp::session().plot_windows.current->xmax;
-    xpp::session().plot_windows.current->yhi=xpp::session().plot_windows.current->ymax;
+    s.plot_windows.current->xlo=s.plot_windows.current->xmin;
+    s.plot_windows.current->ylo=s.plot_windows.current->ymin;
+    s.plot_windows.current->xhi=s.plot_windows.current->xmax;
+    s.plot_windows.current->yhi=s.plot_windows.current->ymax;
     check_windows();
     check_flags();
    set_normal_scale();
@@ -479,6 +486,7 @@ void movie_rot(double start, double increment, int nclip, int angle)
 
 void get_3d_par_com()
 {
+  xpp::Session &s=xpp::session();
 
  static const char *n[]={"Persp (1=On)","ZPlane","ZView","Theta","Phi","Movie(Y/N)",
                    "Vary (theta/phi)","Start angle", "Increment",
@@ -488,13 +496,13 @@ void get_3d_par_com()
  
  int nclip=8,angle=0;
  double start,increment=45; 
-  if(xpp::session().plot_windows.current->grtype<5)return;
+  if(s.plot_windows.current->grtype<5)return;
 
- values[0] = xpp::format("{:d}", xpp::session().plot_windows.current->PerspFlag);
- values[1] = xpp::format("{:g}", xpp::session().plot_windows.current->ZPlane);
- values[2] = xpp::format("{:g}", xpp::session().plot_windows.current->ZView);
- values[3] = xpp::format("{:g}", xpp::session().plot_windows.current->Theta);
- values[4] = xpp::format("{:g}", xpp::session().plot_windows.current->Phi);
+ values[0] = xpp::format("{:d}", s.plot_windows.current->PerspFlag);
+ values[1] = xpp::format("{:g}", s.plot_windows.current->ZPlane);
+ values[2] = xpp::format("{:g}", s.plot_windows.current->ZView);
+ values[3] = xpp::format("{:g}", s.plot_windows.current->Theta);
+ values[4] = xpp::format("{:g}", s.plot_windows.current->Phi);
  values[5] = mov3d.yes;
  values[6] = mov3d.angle;
  values[7] = xpp::format("{:g}", mov3d.start);
@@ -505,11 +513,11 @@ void get_3d_par_com()
                            XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER};
  status=do_string_box_of(5,2,"3D Parameters",n,values,28,kinds);
  if(status!=0){
-	      xpp::session().plot_windows.current->PerspFlag=atoi(values[0].c_str());
-	      xpp::session().plot_windows.current->ZPlane=atof(values[1].c_str());
-	      xpp::session().plot_windows.current->ZView=atof(values[2].c_str());
-	      xpp::session().plot_windows.current->Theta=atof(values[3].c_str());
-	      xpp::session().plot_windows.current->Phi=atof(values[4].c_str());
+	      s.plot_windows.current->PerspFlag=atoi(values[0].c_str());
+	      s.plot_windows.current->ZPlane=atof(values[1].c_str());
+	      s.plot_windows.current->ZView=atof(values[2].c_str());
+	      s.plot_windows.current->Theta=atof(values[3].c_str());
+	      s.plot_windows.current->Phi=atof(values[4].c_str());
              if(values[5][0]=='y'|| values[5][0]=='Y'){  
 	      mov3d.yes=values[5].substr(0,2);
 	      mov3d.angle=values[6].substr(0,19);
@@ -525,7 +533,7 @@ void get_3d_par_com()
 	      movie_rot(start,increment,nclip,angle);
 	     }
 	       
-                make_rot(xpp::session().plot_windows.current->Theta,xpp::session().plot_windows.current->Phi);   
+                make_rot(s.plot_windows.current->Theta,s.plot_windows.current->Phi);   
 	    /*  Redraw the picture   */	
 	       redraw_the_graph();
          
@@ -535,15 +543,16 @@ void get_3d_par_com()
 
 void update_view(float xlo,float xhi, float ylo, float yhi)
 {
-              xpp::session().plot_windows.current->xlo=xlo;
-	      xpp::session().plot_windows.current->ylo=ylo;
-	      xpp::session().plot_windows.current->xhi=xhi;
-	      xpp::session().plot_windows.current->yhi=yhi;
-	      if(xpp::session().plot_windows.current->grtype<5){
-	      xpp::session().plot_windows.current->xmin=xpp::session().plot_windows.current->xlo;
-	      xpp::session().plot_windows.current->xmax=xpp::session().plot_windows.current->xhi;
-	      xpp::session().plot_windows.current->ymin=xpp::session().plot_windows.current->ylo;
-	      xpp::session().plot_windows.current->ymax=xpp::session().plot_windows.current->yhi;
+              xpp::Session &s=xpp::session();
+              s.plot_windows.current->xlo=xlo;
+	      s.plot_windows.current->ylo=ylo;
+	      s.plot_windows.current->xhi=xhi;
+	      s.plot_windows.current->yhi=yhi;
+	      if(s.plot_windows.current->grtype<5){
+	      s.plot_windows.current->xmin=s.plot_windows.current->xlo;
+	      s.plot_windows.current->xmax=s.plot_windows.current->xhi;
+	      s.plot_windows.current->ymin=s.plot_windows.current->ylo;
+	      s.plot_windows.current->ymax=s.plot_windows.current->yhi;
 	      }
 	      check_windows();
             
@@ -577,9 +586,10 @@ void window_zoom_com(int c)
 
 void zoom_in(int i1, int j1, int i2, int j2)
 {
+ xpp::Session &s=xpp::session();
  float x1,y1,x2,y2;
- float dx=xpp::session().plot_windows.current->xhi-xpp::session().plot_windows.current->xlo;
- float dy=xpp::session().plot_windows.current->yhi-xpp::session().plot_windows.current->ylo;
+ float dx=s.plot_windows.current->xhi-s.plot_windows.current->xlo;
+ float dy=s.plot_windows.current->yhi-s.plot_windows.current->ylo;
  scale_to_real(i1,j1,&x1,&y1);
  scale_to_real(i2,j2,&x2,&y2);
    if(x1==x2||y1==y2)
@@ -591,25 +601,25 @@ void zoom_in(int i1, int j1, int i2, int j2)
 	dy = dy/2;
 	
 	/*Shrink by thirds and center (track) about the point clicked*/
-	xpp::session().plot_windows.current->xlo=x1-dx/2;
-	xpp::session().plot_windows.current->xhi=x1+dx/2;
+	s.plot_windows.current->xlo=x1-dx/2;
+	s.plot_windows.current->xhi=x1+dx/2;
 
-	xpp::session().plot_windows.current->ylo=y1-dy/2;
-	xpp::session().plot_windows.current->yhi=y1+dy/2;
+	s.plot_windows.current->ylo=y1-dy/2;
+	s.plot_windows.current->yhi=y1+dy/2;
 
  }
  else
  {           
-	      xpp::session().plot_windows.current->xlo=x1;
-	      xpp::session().plot_windows.current->ylo=y1;
-	      xpp::session().plot_windows.current->xhi=x2;
-	      xpp::session().plot_windows.current->yhi=y2;
+	      s.plot_windows.current->xlo=x1;
+	      s.plot_windows.current->ylo=y1;
+	      s.plot_windows.current->xhi=x2;
+	      s.plot_windows.current->yhi=y2;
   }
-  	if(xpp::session().plot_windows.current->grtype<5){
-	      xpp::session().plot_windows.current->xmin=xpp::session().plot_windows.current->xlo;
-	      xpp::session().plot_windows.current->xmax=xpp::session().plot_windows.current->xhi;
-	      xpp::session().plot_windows.current->ymin=xpp::session().plot_windows.current->ylo;
-	      xpp::session().plot_windows.current->ymax=xpp::session().plot_windows.current->yhi;
+  	if(s.plot_windows.current->grtype<5){
+	      s.plot_windows.current->xmin=s.plot_windows.current->xlo;
+	      s.plot_windows.current->xmax=s.plot_windows.current->xhi;
+	      s.plot_windows.current->ymin=s.plot_windows.current->ylo;
+	      s.plot_windows.current->ymax=s.plot_windows.current->yhi;
 	      }
 	      check_windows();
               redraw_the_graph();
@@ -618,11 +628,12 @@ void zoom_in(int i1, int j1, int i2, int j2)
 
 void zoom_out(int i1, int j1, int i2, int j2)
 {
+ xpp::Session &s=xpp::session();
  
  float x1,y1,x2,y2;
  float bx,mux,by,muy;
- float dx=xpp::session().plot_windows.current->xhi-xpp::session().plot_windows.current->xlo;
- float dy=xpp::session().plot_windows.current->yhi-xpp::session().plot_windows.current->ylo;
+ float dx=s.plot_windows.current->xhi-s.plot_windows.current->xlo;
+ float dy=s.plot_windows.current->yhi-s.plot_windows.current->ylo;
  scale_to_real(i1,j1,&x1,&y1);
  scale_to_real(i2,j2,&x2,&y2);
 
@@ -635,11 +646,11 @@ void zoom_out(int i1, int j1, int i2, int j2)
 	dx = dx*2;
 	dy = dy*2;
 	
-	xpp::session().plot_windows.current->xlo=x1-dx/2;
-	xpp::session().plot_windows.current->xhi=x1+dx/2;
+	s.plot_windows.current->xlo=x1-dx/2;
+	s.plot_windows.current->xhi=x1+dx/2;
 
-	xpp::session().plot_windows.current->ylo=y1-dy/2;
-	xpp::session().plot_windows.current->yhi=y1+dy/2;
+	s.plot_windows.current->ylo=y1-dy/2;
+	s.plot_windows.current->yhi=y1+dy/2;
  }
  else
  {
@@ -647,21 +658,21 @@ void zoom_out(int i1, int j1, int i2, int j2)
  	if(y1>y2){by=y1;y1=y2;y2=by;}
 	
 	 bx=dx*dx/(x2-x1);
-	 mux=(x1-xpp::session().plot_windows.current->xlo)/dx;
-	 xpp::session().plot_windows.current->xlo=xpp::session().plot_windows.current->xlo-bx*mux;
-	 xpp::session().plot_windows.current->xhi=xpp::session().plot_windows.current->xlo+bx;
+	 mux=(x1-s.plot_windows.current->xlo)/dx;
+	 s.plot_windows.current->xlo=s.plot_windows.current->xlo-bx*mux;
+	 s.plot_windows.current->xhi=s.plot_windows.current->xlo+bx;
 
 	 by=dy*dy/(y2-y1);
-	 muy=(y1-xpp::session().plot_windows.current->ylo)/dy;
-	 xpp::session().plot_windows.current->ylo=xpp::session().plot_windows.current->ylo-by*muy;
-	 xpp::session().plot_windows.current->yhi=xpp::session().plot_windows.current->ylo+by;
+	 muy=(y1-s.plot_windows.current->ylo)/dy;
+	 s.plot_windows.current->ylo=s.plot_windows.current->ylo-by*muy;
+	 s.plot_windows.current->yhi=s.plot_windows.current->ylo+by;
 
 }
-	if(xpp::session().plot_windows.current->grtype<5){
-		      xpp::session().plot_windows.current->xmin=xpp::session().plot_windows.current->xlo;
-		      xpp::session().plot_windows.current->xmax=xpp::session().plot_windows.current->xhi;
-		      xpp::session().plot_windows.current->ymin=xpp::session().plot_windows.current->ylo;
-		      xpp::session().plot_windows.current->ymax=xpp::session().plot_windows.current->yhi;
+	if(s.plot_windows.current->grtype<5){
+		      s.plot_windows.current->xmin=s.plot_windows.current->xlo;
+		      s.plot_windows.current->xmax=s.plot_windows.current->xhi;
+		      s.plot_windows.current->ymin=s.plot_windows.current->ylo;
+		      s.plot_windows.current->ymax=s.plot_windows.current->yhi;
 		      }
 	      check_windows();
               redraw_the_graph();
@@ -670,28 +681,29 @@ void zoom_out(int i1, int j1, int i2, int j2)
 
 void graph_all(int *list, int n, int type)
 {
+  xpp::Session &s=xpp::session();
   int i;
   if(type==0){
     for(i=0;i<n;i++){
-      xpp::session().plot_windows.current->xv[i]=0;
-      xpp::session().plot_windows.current->yv[i]=list[i];
-      xpp::session().plot_windows.current->line[i]=xpp::session().plot_windows.current->line[0];
-      xpp::session().plot_windows.current->color[i]=i;
+      s.plot_windows.current->xv[i]=0;
+      s.plot_windows.current->yv[i]=list[i];
+      s.plot_windows.current->line[i]=s.plot_windows.current->line[0];
+      s.plot_windows.current->color[i]=i;
     }
-    xpp::session().plot_windows.current->nvars=n;
-    xpp::session().plot_windows.current->grtype=0;
-    xpp::session().plot_windows.current->ThreeDFlag=0;
+    s.plot_windows.current->nvars=n;
+    s.plot_windows.current->grtype=0;
+    s.plot_windows.current->ThreeDFlag=0;
   }
   if(type==1){
-   xpp::session().plot_windows.current->nvars=1;
-   xpp::session().plot_windows.current->xv[0]=list[0];
-   xpp::session().plot_windows.current->yv[0]=list[1];
-    xpp::session().plot_windows.current->grtype=0;
-    xpp::session().plot_windows.current->ThreeDFlag=0;
+   s.plot_windows.current->nvars=1;
+   s.plot_windows.current->xv[0]=list[0];
+   s.plot_windows.current->yv[0]=list[1];
+    s.plot_windows.current->grtype=0;
+    s.plot_windows.current->ThreeDFlag=0;
     if(n==3){
-      xpp::session().plot_windows.current->zv[0]=list[2];
-      xpp::session().plot_windows.current->grtype=5;
-      xpp::session().plot_windows.current->ThreeDFlag=1;
+      s.plot_windows.current->zv[0]=list[2];
+      s.plot_windows.current->grtype=5;
+      s.plot_windows.current->ThreeDFlag=1;
     }
   }
   check_flags();
@@ -701,33 +713,34 @@ void graph_all(int *list, int n, int type)
 
 int alter_curve(const char *title, int in_it, int n)
 {
+ xpp::Session &s=xpp::session();
  static const char *nn[]={"*0X-axis","*0Y-axis","*0Z-axis","*4Color","Line type"};
  std::array<std::string, 5> values;
  int status,i;
- int i1=xpp::session().plot_windows.current->xv[in_it],i2=xpp::session().plot_windows.current->yv[in_it],i3=xpp::session().plot_windows.current->zv[in_it];
+ int i1=s.plot_windows.current->xv[in_it],i2=s.plot_windows.current->yv[in_it],i3=s.plot_windows.current->zv[in_it];
  values[0] = ind_to_sym(i1);
  values[1] = ind_to_sym(i2);
  values[2] = ind_to_sym(i3);
- values[3] = xpp::format("{:d}", xpp::session().plot_windows.current->color[in_it]);
- values[4] = xpp::format("{:d}", xpp::session().plot_windows.current->line[in_it]);
+ values[3] = xpp::format("{:d}", s.plot_windows.current->color[in_it]);
+ values[4] = xpp::format("{:d}", s.plot_windows.current->line[in_it]);
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),
                            XPP_FIELD_NAME_IN(4),XPP_FIELD_INTEGER};
  status=do_string_box_of(5,1,title,nn,values,25,kinds);
  if(status!=0){
 		    find_variable(values[0].c_str(),&i);
  	      if(i>-1)
-		xpp::session().plot_windows.current->xv[n]=i;
+		s.plot_windows.current->xv[n]=i;
               find_variable(values[1].c_str(),&i);
               if(i>-1)
-		xpp::session().plot_windows.current->yv[n]=i;
+		s.plot_windows.current->yv[n]=i;
               find_variable(values[2].c_str(),&i);
   		if(i>-1)
-		  xpp::session().plot_windows.current->zv[n]=i;
+		  s.plot_windows.current->zv[n]=i;
 
-	       xpp::session().plot_windows.current->line[n]=atoi(values[4].c_str());
+	       s.plot_windows.current->line[n]=atoi(values[4].c_str());
                i=atoi(values[3].c_str());
 		    if(i<0||i>10)i=0;
-		    xpp::session().plot_windows.current->color[n]=i;
+		    s.plot_windows.current->color[n]=i;
 		   
 		  return(1);
               
@@ -753,27 +766,28 @@ void new_curve()
 
 void create_ps()
 {
+ xpp::Session &s=xpp::session();
  static const char *nn[]={"BW-0/Color-1","Land(0)/Port(1)","Axes fontsize","Font","Linewidth"};
  int status;
  std::array<std::string, 5> values;
- values[0] = xpp::format("{:d}", xpp::session().plot_export.color);
- values[1] = xpp::format("{:d}", xpp::session().drawing.ps_port);
- values[2] = xpp::format("{:d}", xpp::session().plot_file.ps_font_size);
- values[3] = xpp::format("{:.24}", xpp::session().plot_file.ps_font);
- values[4] = xpp::format("{:g}", xpp::session().plot_file.ps_lw);
+ values[0] = xpp::format("{:d}", s.plot_export.color);
+ values[1] = xpp::format("{:d}", s.drawing.ps_port);
+ values[2] = xpp::format("{:d}", s.plot_file.ps_font_size);
+ values[3] = xpp::format("{:.24}", s.plot_file.ps_font);
+ values[4] = xpp::format("{:g}", s.plot_file.ps_lw);
  static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_NUMBER};
  status=do_string_box_of(5,1,"Postscript parameters",nn,values,25,kinds);
  if(status!=0){
-         xpp::session().plot_export.color=atoi(values[0].c_str());
-	 xpp::session().drawing.ps_port=atoi(values[1].c_str());
-	 xpp::session().plot_file.ps_font_size=atoi(values[2].c_str());
-	 xpp::session().plot_file.ps_lw=atof(values[4].c_str());
-         xpp::session().plot_file.ps_font=values[3];
+         s.plot_export.color=atoi(values[0].c_str());
+	 s.drawing.ps_port=atoi(values[1].c_str());
+	 s.plot_file.ps_font_size=atoi(values[2].c_str());
+	 s.plot_file.ps_lw=atof(values[4].c_str());
+         s.plot_file.ps_font=values[3];
 	 std::string filename=xpp::format("{:.250}.ps",xpp::model().this_file);
 	 ping();
  
 	 if(!file_selector("Print postscript",filename,"*.ps"))return;
-	 if(ps_init(filename.c_str(),xpp::session().plot_export.color)){
+	 if(ps_init(filename.c_str(),s.plot_export.color)){
 	   ps_restore(); 
 	   ping();
 	 }
@@ -843,21 +857,22 @@ void set_key(int x, int y)
 
 void draw_freeze_key()
 {
+  xpp::Session &s=xpp::session();
   int ix,iy;
   int i,y0;
   int ix2;
-  int dy=2*xpp::session().drawing.h_char;
+  int dy=2*s.drawing.h_char;
   if(FreezeKeyFlag==SCRNFMT)return;
-  if(xpp::session().plot_file.plt_fmt_flag==PSFMT)dy=-dy;
+  if(s.plot_file.plt_fmt_flag==PSFMT)dy=-dy;
   scale_to_screen(static_cast<float>(FreezeKeyX),static_cast<float>(FreezeKeyY),&ix,&iy);
-  ix2=ix+4*xpp::session().drawing.h_char;
+  ix2=ix+4*s.drawing.h_char;
   y0=iy;
   for(i=0;i<MAXFRZ;i++){
-    if(xpp::session().frozen_curves.curve[i].use==1&&xpp::session().frozen_curves.curve[i].w==xpp::session().plot_windows.draw_win&&!xpp::session().frozen_curves.curve[i].key.empty()){
-      set_linestyle(abs(xpp::session().frozen_curves.curve[i].color));
+    if(s.frozen_curves.curve[i].use==1&&s.frozen_curves.curve[i].w==s.plot_windows.draw_win&&!s.frozen_curves.curve[i].key.empty()){
+      set_linestyle(abs(s.frozen_curves.curve[i].color));
       line(ix,y0,ix2,y0);
       set_linestyle(0);
-      put_text(ix2+xpp::session().drawing.h_char,y0,xpp::session().frozen_curves.curve[i].key.c_str());
+      put_text(ix2+s.drawing.h_char,y0,s.frozen_curves.curve[i].key.c_str());
       y0+=dy;
     }
   }
@@ -919,39 +934,40 @@ void auto_freeze_it()
 
 int create_crv(int ind)
 {
+  xpp::Session &s=xpp::session();
   int i,type,j;
   int ix,iy,iz;
 
   for(i=0;i<MAXFRZ;i++){
-    if(xpp::session().frozen_curves.curve[i].use==0){
-      ix=xpp::session().plot_windows.current->xv[ind];
-      iy=xpp::session().plot_windows.current->yv[ind];
-      iz=xpp::session().plot_windows.current->zv[ind];
-      if(xpp::session().browser.view.maxrow<=2){
+    if(s.frozen_curves.curve[i].use==0){
+      ix=s.plot_windows.current->xv[ind];
+      iy=s.plot_windows.current->yv[ind];
+      iz=s.plot_windows.current->zv[ind];
+      if(s.browser.view.maxrow<=2){
 	err_msg("No Curve to freeze");
 	return(-1);
       }
-      type=xpp::session().plot_windows.current->grtype;
+      type=s.plot_windows.current->grtype;
       std::array<std::vector<float>,3> &pts=frozen_points[i];
-      pts[0].assign(xpp::session().browser.view.maxrow,0.0f);
-      pts[1].assign(xpp::session().browser.view.maxrow,0.0f);
-      if(type>0)pts[2].assign(xpp::session().browser.view.maxrow,0.0f);
+      pts[0].assign(s.browser.view.maxrow,0.0f);
+      pts[1].assign(s.browser.view.maxrow,0.0f);
+      if(type>0)pts[2].assign(s.browser.view.maxrow,0.0f);
       else std::vector<float>().swap(pts[2]);
-      xpp::session().frozen_curves.curve[i].xv=pts[0].data();
-      xpp::session().frozen_curves.curve[i].yv=pts[1].data();
-      xpp::session().frozen_curves.curve[i].zv=type>0?pts[2].data():nullptr;
-      xpp::session().frozen_curves.curve[i].use=1;
-      xpp::session().frozen_curves.curve[i].len=xpp::session().browser.view.maxrow;
-      for(j=0;j<xpp::session().browser.view.maxrow;j++){
-	xpp::session().frozen_curves.curve[i].xv[j]=xpp::session().browser.view.data[ix][j];
-	xpp::session().frozen_curves.curve[i].yv[j]=xpp::session().browser.view.data[iy][j];
+      s.frozen_curves.curve[i].xv=pts[0].data();
+      s.frozen_curves.curve[i].yv=pts[1].data();
+      s.frozen_curves.curve[i].zv=type>0?pts[2].data():nullptr;
+      s.frozen_curves.curve[i].use=1;
+      s.frozen_curves.curve[i].len=s.browser.view.maxrow;
+      for(j=0;j<s.browser.view.maxrow;j++){
+	s.frozen_curves.curve[i].xv[j]=s.browser.view.data[ix][j];
+	s.frozen_curves.curve[i].yv[j]=s.browser.view.data[iy][j];
 	if(type>0)
-	  xpp::session().frozen_curves.curve[i].zv[j]=xpp::session().browser.view.data[iz][j];
+	  s.frozen_curves.curve[i].zv[j]=s.browser.view.data[iz][j];
       }
-      xpp::session().frozen_curves.curve[i].type=type;
-      xpp::session().frozen_curves.curve[i].w=xpp::session().plot_windows.draw_win;
-      xpp::session().frozen_curves.curve[i].name=xpp::format("crv{}",static_cast<char>('a'+i));
-      xpp::session().frozen_curves.curve[i].key=xpp::format("crv{}",static_cast<char>('a'+i));
+      s.frozen_curves.curve[i].type=type;
+      s.frozen_curves.curve[i].w=s.plot_windows.draw_win;
+      s.frozen_curves.curve[i].name=xpp::format("crv{}",static_cast<char>('a'+i));
+      s.frozen_curves.curve[i].key=xpp::format("crv{}",static_cast<char>('a'+i));
       marks_data_frozen_new(i); /* the window shows it: it is its current curve */
       return(i);
     }
@@ -979,26 +995,27 @@ void edit_frz_crv(int i)
 
 void draw_freeze(XppWinId w)
 {
-  int i,j,type=xpp::session().plot_windows.current->grtype,lt=0;
+  xpp::Session &s=xpp::session();
+  int i,j,type=s.plot_windows.current->grtype,lt=0;
   float oldxpl,oldypl,oldzpl=0.0,xpl,ypl,zpl=0.0;
   float *xv,*yv,*zv;
   for(i=0;i<MAXFRZ;i++){
-    if(xpp::session().frozen_curves.curve[i].use==1&&xpp::session().frozen_curves.curve[i].w==w&&xpp::session().frozen_curves.curve[i].type==type){
+    if(s.frozen_curves.curve[i].use==1&&s.frozen_curves.curve[i].w==w&&s.frozen_curves.curve[i].type==type){
       if(type==0)marks_data_frozen(w,i); /* the curve as data */
-      if(xpp::session().frozen_curves.curve[i].color<0){
-	set_linestyle(-xpp::session().frozen_curves.curve[i].color);
+      if(s.frozen_curves.curve[i].color<0){
+	set_linestyle(-s.frozen_curves.curve[i].color);
 	lt=1;
       }
       else
-	set_linestyle(xpp::session().frozen_curves.curve[i].color);
-      xv=xpp::session().frozen_curves.curve[i].xv;
-      yv=xpp::session().frozen_curves.curve[i].yv;
-      zv=xpp::session().frozen_curves.curve[i].zv;
+	set_linestyle(s.frozen_curves.curve[i].color);
+      xv=s.frozen_curves.curve[i].xv;
+      yv=s.frozen_curves.curve[i].yv;
+      zv=s.frozen_curves.curve[i].zv;
       oldxpl=xv[0];
       oldypl=yv[0];
       if(type>0)
 	oldzpl=zv[0];
-      for(j=0;j<xpp::session().frozen_curves.curve[i].len;j++){
+      for(j=0;j<s.frozen_curves.curve[i].len;j++){
 	xpl=xv[j];
 	ypl=yv[j];
 	if(type>0)

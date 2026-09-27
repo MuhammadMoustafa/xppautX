@@ -80,29 +80,30 @@ double zmax,zmin;
 }
 void optimize_aplot(int *plist)
 {
+  xpp::Session &s=xpp::session();
   int i0=plist[0]-1;
   int i1=plist[1]-1;
   int nr,ns;
   double zmax,zmin;
-  int nrows=xpp::session().browser.view.maxrow;
+  int nrows=s.browser.view.maxrow;
   int ncol=i1+1-i0;
   if(ncol<2||nrows<2)return;
   make_my_aplot("Array!");
 
-  xpp::session().array_plot.plot.index0=i0+1;
-  xpp::session().array_plot.plot.name=xpp::model().uvar_names[i0];
-  xpp::session().array_plot.plot.nacross=ncol;
+  s.array_plot.plot.index0=i0+1;
+  s.array_plot.plot.name=xpp::model().uvar_names[i0];
+  s.array_plot.plot.nacross=ncol;
   nr=201;
   if(nrows<nr)
     nr=nrows;
-  xpp::session().array_plot.plot.ndown=nr;
+  s.array_plot.plot.ndown=nr;
   ns=nrows/nr;
-  xpp::session().array_plot.plot.nskip=ns;
-  xpp::session().array_plot.plot.ncskip=1;
-  scale_aplot(&xpp::session().array_plot.plot,&zmax,&zmin);
-  xpp::session().array_plot.plot.zmin=zmin;
-  xpp::session().array_plot.plot.zmax=zmax;
-  xpp::session().array_plot.plot.plotdef=1;
+  s.array_plot.plot.nskip=ns;
+  s.array_plot.plot.ncskip=1;
+  scale_aplot(&s.array_plot.plot,&zmax,&zmin);
+  s.array_plot.plot.zmin=zmin;
+  s.array_plot.plot.zmax=zmax;
+  s.array_plot.plot.plotdef=1;
   xpp_ui.aplot_reset_axes();
   xpp_ui.aplot_redraw();
 }

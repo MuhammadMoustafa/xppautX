@@ -160,6 +160,7 @@ void init_ar_ic()
     
 void dump_range(FILE *fp, int f)
 {
+  xpp::Session &s=xpp::session();
   if(f==READEM){
     auto reader=xpp::LineReader::attach(fp);
     if(!reader.next())return;
@@ -172,21 +173,22 @@ void dump_range(FILE *fp, int f)
   io_int(&eq_range.steps,fp,f,"eq-range steps");
   io_double(&eq_range.plow,fp,f,"eq_range low");
   io_double(&eq_range.phigh,fp,f,"eq_range high");
-  io_string(xpp::session().integrator.range.item,fp,f);
-  io_string(xpp::session().integrator.range.item2,fp,f);
-  io_int(&xpp::session().integrator.range.steps,fp,f,"Range steps");
-  io_int(&xpp::session().integrator.range.cycle,fp,f,"Cycle color 1=on");
-  io_int(&xpp::session().integrator.range.reset,fp,f,"Reset data 1=on");
-  io_int(&xpp::session().integrator.range.oldic,fp,f,"Use old I.C.s 1=yes");
-  io_double(&xpp::session().integrator.range.plow,fp,f,"Par1 low");
-  io_double(&xpp::session().integrator.range.plow2,fp,f,"Par2 low");
-  io_double(&xpp::session().integrator.range.phigh,fp,f,"Par1 high");
-  io_double(&xpp::session().integrator.range.phigh2,fp,f,"Par2 high");
+  io_string(s.integrator.range.item,fp,f);
+  io_string(s.integrator.range.item2,fp,f);
+  io_int(&s.integrator.range.steps,fp,f,"Range steps");
+  io_int(&s.integrator.range.cycle,fp,f,"Cycle color 1=on");
+  io_int(&s.integrator.range.reset,fp,f,"Reset data 1=on");
+  io_int(&s.integrator.range.oldic,fp,f,"Use old I.C.s 1=yes");
+  io_double(&s.integrator.range.plow,fp,f,"Par1 low");
+  io_double(&s.integrator.range.plow2,fp,f,"Par2 low");
+  io_double(&s.integrator.range.phigh,fp,f,"Par1 high");
+  io_double(&s.integrator.range.phigh2,fp,f,"Par2 high");
   dump_shoot_range(fp,f);
-  if(f==READEM)xpp::session().integrator.range.steps2=xpp::session().integrator.range.steps;
+  if(f==READEM)s.integrator.range.steps2=s.integrator.range.steps;
 }
 void init_range()
 {
+ xpp::Session &s=xpp::session();
  eq_range.col=-1;
  eq_range.mc=0;
  eq_range.shoot=0;
@@ -195,44 +197,44 @@ void init_range()
  eq_range.phigh=1.0;
  eq_range.movie=0;
  eq_range.item=xpp::model().upar_names[0];
- xpp::session().integrator.range.type=0;
- xpp::session().integrator.range.rtype=0;
- xpp::session().integrator.range.index=xpp::session().integrator.range.index2=0;
- if (xpp::session().not_already_set.RANGESTEP)
+ s.integrator.range.type=0;
+ s.integrator.range.rtype=0;
+ s.integrator.range.index=s.integrator.range.index2=0;
+ if (s.not_already_set.RANGESTEP)
  {
- 	xpp::session().integrator.range.steps=20;
-	xpp::session().not_already_set.RANGESTEP=0;
+ 	s.integrator.range.steps=20;
+	s.not_already_set.RANGESTEP=0;
  }
- xpp::session().integrator.range.steps2=20;
- if (xpp::session().not_already_set.RANGELOW)
+ s.integrator.range.steps2=20;
+ if (s.not_already_set.RANGELOW)
  {
- 	xpp::session().integrator.range.plow=xpp::session().integrator.range.plow2=0.0;
-	xpp::session().not_already_set.RANGELOW=0;
+ 	s.integrator.range.plow=s.integrator.range.plow2=0.0;
+	s.not_already_set.RANGELOW=0;
  }
  
- if (xpp::session().not_already_set.RANGEHIGH)
+ if (s.not_already_set.RANGEHIGH)
  {
- 	xpp::session().integrator.range.phigh=xpp::session().integrator.range.phigh2=1.0;
- 	xpp::session().not_already_set.RANGEHIGH=0;
+ 	s.integrator.range.phigh=s.integrator.range.phigh2=1.0;
+ 	s.not_already_set.RANGEHIGH=0;
  }
- if (xpp::session().not_already_set.RANGERESET)
+ if (s.not_already_set.RANGERESET)
  {
- 	xpp::session().integrator.range.reset=1;
- 	xpp::session().not_already_set.RANGERESET=0;
+ 	s.integrator.range.reset=1;
+ 	s.not_already_set.RANGERESET=0;
  }
- if (xpp::session().not_already_set.RANGEOLDIC)
+ if (s.not_already_set.RANGEOLDIC)
  {
- 	xpp::session().integrator.range.oldic=1;
- 	xpp::session().not_already_set.RANGEOLDIC=0;
+ 	s.integrator.range.oldic=1;
+ 	s.not_already_set.RANGEOLDIC=0;
  }
- xpp::session().integrator.range.cycle=0;
- xpp::session().integrator.range.movie=0;
- if (xpp::session().not_already_set.RANGEOVER)
+ s.integrator.range.cycle=0;
+ s.integrator.range.movie=0;
+ if (s.not_already_set.RANGEOVER)
  {
- 	xpp::session().integrator.range.item=xpp::model().uvar_names[0];
-	xpp::session().not_already_set.RANGEOVER=0;
+ 	s.integrator.range.item=xpp::model().uvar_names[0];
+	s.not_already_set.RANGEOVER=0;
  }
- xpp::session().integrator.range.item2=xpp::model().uvar_names[0];
+ s.integrator.range.item2=xpp::model().uvar_names[0];
  init_shoot_range(xpp::model().upar_names[0]); 
  init_monte_carlo();
 }
@@ -285,22 +287,23 @@ values[7] = yn[eq_range.mc];
 
 void cont_integ()
 {
+  xpp::Session &s=xpp::session();
   double tetemp;
   double *x;
   double dif;
-  if(xpp::session().numerics.inflag==0||xpp::session().numerics.fft!=0||xpp::session().numerics.hist!=0)return;
-  tetemp=xpp::session().numerics.tend;
+  if(s.numerics.inflag==0||s.numerics.fft!=0||s.numerics.hist!=0)return;
+  tetemp=s.numerics.tend;
   wipe_rep();
   data_back();
   if(new_float("Continue until:",&tetemp)==-1)return;
-  x=&xpp::session().data_store.current[0];
+  x=&s.data_store.current[0];
   tetemp=fabs(tetemp);
-  if(fabs(xpp::session().data_store.current_time)>=tetemp)return;
-  dif=tetemp-fabs(xpp::session().data_store.current_time);
-  xpp::session().integrator.my_start=1;  /*  I know it is wasteful to restart, but lets be safe.... */
-  integrate(&xpp::session().data_store.current_time,x,dif,xpp::session().numerics.delta_t,1,xpp::session().numerics.njmp,&xpp::session().integrator.my_start);
+  if(fabs(s.data_store.current_time)>=tetemp)return;
+  dif=tetemp-fabs(s.data_store.current_time);
+  s.integrator.my_start=1;  /*  I know it is wasteful to restart, but lets be safe.... */
+  integrate(&s.data_store.current_time,x,dif,s.numerics.delta_t,1,s.numerics.njmp,&s.integrator.my_start);
   ping();
-  refresh_browser(xpp::session().data_store.rows);
+  refresh_browser(s.data_store.rows);
 }
 
 namespace {
@@ -337,6 +340,7 @@ int range_item2()
 
 int set_up_range()
 {
+ xpp::Session &s=xpp::session();
  static const char *n[]={"*3Range over","Steps","Start","End",
 		     "Reset storage (Y/N)",
 		     "Use old ic's (Y/N)","Cycle color (Y/N)","Movie(Y/N)"};
@@ -347,33 +351,33 @@ int set_up_range()
    return(range_item());
  }
  
- values[0] = xpp::session().integrator.range.item;
- values[1] = xpp::format("{}", xpp::session().integrator.range.steps);
- values[2] = xpp::format("{:.16g}", xpp::session().integrator.range.plow);
- values[3] = xpp::format("{:.16g}", xpp::session().integrator.range.phigh);
- values[4] = yn[xpp::session().integrator.range.reset];
- values[5] = yn[xpp::session().integrator.range.oldic];
- values[6] = yn[xpp::session().integrator.range.cycle];
- values[7] = yn[xpp::session().integrator.range.movie];
+ values[0] = s.integrator.range.item;
+ values[1] = xpp::format("{}", s.integrator.range.steps);
+ values[2] = xpp::format("{:.16g}", s.integrator.range.plow);
+ values[3] = xpp::format("{:.16g}", s.integrator.range.phigh);
+ values[4] = yn[s.integrator.range.reset];
+ values[5] = yn[s.integrator.range.oldic];
+ values[6] = yn[s.integrator.range.cycle];
+ values[7] = yn[s.integrator.range.movie];
  
  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
  status=do_string_box_of(8,1,"Range Integrate",n,values,45,kinds);
  if(status!=0){
-   xpp::session().integrator.range.item=values[0];
+   s.integrator.range.item=values[0];
    if(range_item()==0)return 0;
-   xpp::session().integrator.range.steps=atoi(values[1].c_str());
-   if(xpp::session().integrator.range.steps<=0)xpp::session().integrator.range.steps=10;
-   xpp::session().integrator.range.plow=atof(values[2].c_str());
-   xpp::session().integrator.range.phigh=atof(values[3].c_str());
-   if(values[4][0]=='Y'||values[4][0]=='y')xpp::session().integrator.range.reset=1;
-   else xpp::session().integrator.range.reset=0;
-   if(values[5][0]=='Y'||values[5][0]=='y')xpp::session().integrator.range.oldic=1;
-   else xpp::session().integrator.range.oldic=0;
-    if(values[6][0]=='Y'||values[6][0]=='y')xpp::session().integrator.range.cycle=1;
-   else xpp::session().integrator.range.cycle=0;
-    if(values[7][0]=='Y'||values[7][0]=='y')xpp::session().integrator.range.movie=1;
-   else xpp::session().integrator.range.movie=0;
- xpp::session().integrator.range_flag=1;
+   s.integrator.range.steps=atoi(values[1].c_str());
+   if(s.integrator.range.steps<=0)s.integrator.range.steps=10;
+   s.integrator.range.plow=atof(values[2].c_str());
+   s.integrator.range.phigh=atof(values[3].c_str());
+   if(values[4][0]=='Y'||values[4][0]=='y')s.integrator.range.reset=1;
+   else s.integrator.range.reset=0;
+   if(values[5][0]=='Y'||values[5][0]=='y')s.integrator.range.oldic=1;
+   else s.integrator.range.oldic=0;
+    if(values[6][0]=='Y'||values[6][0]=='y')s.integrator.range.cycle=1;
+   else s.integrator.range.cycle=0;
+    if(values[7][0]=='Y'||values[7][0]=='y')s.integrator.range.movie=1;
+   else s.integrator.range.movie=0;
+ s.integrator.range_flag=1;
  return(1);
  }
  return(0);
@@ -381,6 +385,7 @@ int set_up_range()
 
 int set_up_range2()
 {
+ xpp::Session &s=xpp::session();
  static const char *n[]={"*3Vary1","Start1","End1",
                    "*3Vary2","Start2","End2","Steps",
 		     "Reset storage (Y/N)",
@@ -392,54 +397,54 @@ int set_up_range2()
  if(!program.interactive){
    return(range_item());
  }
- values[0] = xpp::session().integrator.range.item;
-  values[1] = xpp::format("{:.16g}", xpp::session().integrator.range.plow);
- values[2] = xpp::format("{:.16g}", xpp::session().integrator.range.phigh);
- values[3] = xpp::session().integrator.range.item2;
-  values[4] = xpp::format("{:.16g}", xpp::session().integrator.range.plow2);
- values[5] = xpp::format("{:.16g}", xpp::session().integrator.range.phigh2);
-values[6] = xpp::format("{}", xpp::session().integrator.range.steps);
- values[7] = yn[xpp::session().integrator.range.reset];
- values[8] = yn[xpp::session().integrator.range.oldic];
- values[9] = yn[xpp::session().integrator.range.cycle];
- values[10] = yn[xpp::session().integrator.range.movie];
- if(xpp::session().integrator.range.rtype==2)
+ values[0] = s.integrator.range.item;
+  values[1] = xpp::format("{:.16g}", s.integrator.range.plow);
+ values[2] = xpp::format("{:.16g}", s.integrator.range.phigh);
+ values[3] = s.integrator.range.item2;
+  values[4] = xpp::format("{:.16g}", s.integrator.range.plow2);
+ values[5] = xpp::format("{:.16g}", s.integrator.range.phigh2);
+values[6] = xpp::format("{}", s.integrator.range.steps);
+ values[7] = yn[s.integrator.range.reset];
+ values[8] = yn[s.integrator.range.oldic];
+ values[9] = yn[s.integrator.range.cycle];
+ values[10] = yn[s.integrator.range.movie];
+ if(s.integrator.range.rtype==2)
   values[11] = "2";
  else
    values[11] = "1";
- values[12] = xpp::format("{}", xpp::session().integrator.range.steps2);
+ values[12] = xpp::format("{}", s.integrator.range.steps2);
  static const int kinds[]={XPP_FIELD_NAME_IN(3),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_NAME_IN(3),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,
                            XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,
                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
  status=do_string_box_of(7,2,"Double Range Integrate",n,values,45,kinds);
  if(status!=0){
-   xpp::session().integrator.range.item=values[0];
+   s.integrator.range.item=values[0];
    
    if(range_item()==0)return 0;
-    xpp::session().integrator.range.item2=values[3];
+    s.integrator.range.item2=values[3];
    
    if(range_item2()==0)return 0;
-   xpp::session().integrator.range.steps=atoi(values[6].c_str());
-      xpp::session().integrator.range.steps2=atoi(values[12].c_str());
-   if(xpp::session().integrator.range.steps<=0)xpp::session().integrator.range.steps=10;
-    if(xpp::session().integrator.range.steps2<=0)xpp::session().integrator.range.steps2=10;
+   s.integrator.range.steps=atoi(values[6].c_str());
+      s.integrator.range.steps2=atoi(values[12].c_str());
+   if(s.integrator.range.steps<=0)s.integrator.range.steps=10;
+    if(s.integrator.range.steps2<=0)s.integrator.range.steps2=10;
   
-   xpp::session().integrator.range.plow=atof(values[1].c_str());
-   xpp::session().integrator.range.phigh=atof(values[2].c_str());
-    xpp::session().integrator.range.plow2=atof(values[4].c_str());
-   xpp::session().integrator.range.phigh2=atof(values[5].c_str());
-   if(values[7][0]=='Y'||values[7][0]=='y')xpp::session().integrator.range.reset=1;
-   else xpp::session().integrator.range.reset=0;
-   if(values[8][0]=='Y'||values[8][0]=='y')xpp::session().integrator.range.oldic=1;
-   else xpp::session().integrator.range.oldic=0;
-    if(values[9][0]=='Y'||values[9][0]=='y')xpp::session().integrator.range.cycle=1;
-   else xpp::session().integrator.range.cycle=0;
-    if(values[10][0]=='Y'||values[10][0]=='y')xpp::session().integrator.range.movie=1;
-   else xpp::session().integrator.range.movie=0;
-   xpp::session().integrator.range.rtype=atoi(values[11].c_str());
+   s.integrator.range.plow=atof(values[1].c_str());
+   s.integrator.range.phigh=atof(values[2].c_str());
+    s.integrator.range.plow2=atof(values[4].c_str());
+   s.integrator.range.phigh2=atof(values[5].c_str());
+   if(values[7][0]=='Y'||values[7][0]=='y')s.integrator.range.reset=1;
+   else s.integrator.range.reset=0;
+   if(values[8][0]=='Y'||values[8][0]=='y')s.integrator.range.oldic=1;
+   else s.integrator.range.oldic=0;
+    if(values[9][0]=='Y'||values[9][0]=='y')s.integrator.range.cycle=1;
+   else s.integrator.range.cycle=0;
+    if(values[10][0]=='Y'||values[10][0]=='y')s.integrator.range.movie=1;
+   else s.integrator.range.movie=0;
+   s.integrator.range.rtype=atoi(values[11].c_str());
 
- xpp::session().integrator.range_flag=1;
+ s.integrator.range_flag=1;
  return(1);
  }
  return(0);
@@ -487,6 +492,7 @@ void monte_carlo()
 
 void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
 {
+  xpp::Session &s=xpp::session();
   int i,j,k,m,n=fixptguess.n;
   int ierr,is_new=1;
   double x[MAXODE],sum;
@@ -506,7 +512,7 @@ void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
     for(j=0;j<xpp::model().node;j++){ 
       x[j]=ndrand48()*(fixptguess.xhi[j]-fixptguess.xlo[j])+fixptguess.xlo[j];
     }
-    do_sing_info(x,xpp::session().numerics.newt_err,xpp::session().numerics.evec_err,xpp::session().numerics.bound,xpp::session().numerics.evec_iter,xpp::model().node,er,em,&ierr);
+    do_sing_info(x,s.numerics.newt_err,s.numerics.evec_err,s.numerics.bound,s.numerics.evec_iter,xpp::model().node,er,em,&ierr);
     if(ierr==0){
       m=fixptlist.n;
       if(m==0){ /* first fixed point found */
@@ -548,19 +554,20 @@ void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
   }
   if(stuffbrowse) {
     reset_browser();
-    xpp::session().data_store.rows=0;
+    s.data_store.rows=0;
     m=fixptlist.n;
     for(i=0;i<m;i++){
-      xpp::session().data_store.col[0][xpp::session().data_store.rows]=static_cast<float>(i);
-      for(j=0;j<xpp::model().node;j++)xpp::session().data_store.col[j+1][xpp::session().data_store.rows]=static_cast<float>(fixptlist.x[i][j]);
-      xpp::session().data_store.rows++;
+      s.data_store.col[0][s.data_store.rows]=static_cast<float>(i);
+      for(j=0;j<xpp::model().node;j++)s.data_store.col[j+1][s.data_store.rows]=static_cast<float>(fixptlist.x[i][j]);
+      s.data_store.rows++;
     }
-    refresh_browser(xpp::session().data_store.rows);
+    refresh_browser(s.data_store.rows);
   }
 }
 
 void do_eq_range(double *x)
 {
+ xpp::Session &s=xpp::session();
  double parlo,parhi,dpar,temp;
  int npar,stabcol,i,j,ierr;
  int mc;
@@ -577,16 +584,16 @@ void do_eq_range(double *x)
  dpar=(parhi-parlo)/static_cast<double>(npar);
  stabcol=eq_range.col;
  mc=eq_range.mc;
- xpp::session().data_store.rows=0;
- xpp::session().integrator.delay_err=0;
- xpp::session().numerics.endsing=0;
- xpp::session().numerics.par_fol=1;
- xpp::session().numerics.pauser=0;
- xpp::session().numerics.shoot=eq_range.shoot;
+ s.data_store.rows=0;
+ s.integrator.delay_err=0;
+ s.numerics.endsing=0;
+ s.numerics.par_fol=1;
+ s.numerics.pauser=0;
+ s.numerics.shoot=eq_range.shoot;
  reset_browser();
  if(mc==1){
    eq_range.movie=1;
-   xpp::session().numerics.shoot=0;
+   s.numerics.shoot=0;
  }
  if(eq_range.movie)reset_film();
  for(i=0;i<=npar;i++)
@@ -595,7 +602,7 @@ void do_eq_range(double *x)
        clear_draw_window();
       temp=parlo+dpar*static_cast<double>(i);
       set_val(eq_range.item,temp);
-      xpp::session().numerics.par_fol=1;
+      s.numerics.par_fol=1;
       {
         std::string bob=xpp::format("{}={:.16g}",eq_range.item,temp);
         bottom_msg(2,bob.c_str());
@@ -605,30 +612,30 @@ void do_eq_range(double *x)
 	  do_monte_carlo_search(0,0,1);
         }
         else {
-        if(xpp::session().delay.flag)
-	  do_delay_sing(x,xpp::session().numerics.newt_err,xpp::session().numerics.evec_err,xpp::session().numerics.bound,xpp::session().numerics.evec_iter,
+        if(s.delay.flag)
+	  do_delay_sing(x,s.numerics.newt_err,s.numerics.evec_err,s.numerics.bound,s.numerics.evec_iter,
 		        xpp::model().node,&ierr,&stabinfo);
-        else do_sing(x,xpp::session().numerics.newt_err,xpp::session().numerics.evec_err,xpp::session().numerics.bound,xpp::session().numerics.evec_iter,
+        else do_sing(x,s.numerics.newt_err,s.numerics.evec_err,s.numerics.bound,s.numerics.evec_iter,
 		     xpp::model().node,&ierr,&stabinfo);
         }
         if(eq_range.movie){
-	  draw_label(xpp::session().plot_windows.draw_win);
+	  draw_label(s.plot_windows.draw_win);
           xpp_ui.put_text(5,10,bob.c_str());
 	  if(xpp_ui.film_clip()==0)err_msg("Out of film");
         }
       }
       if(mc==0){
-      xpp::session().data_store.col[0][xpp::session().data_store.rows]=temp;
-      for(j=0;j<xpp::model().node;j++)xpp::session().data_store.col[j+1][xpp::session().data_store.rows]=static_cast<float>(x[j]);
-      for(j=xpp::model().node;j<xpp::model().node+xpp::model().nmarkov;j++)xpp::session().data_store.col[j+1][xpp::session().data_store.rows]=0.0;
-      if(stabcol>0)xpp::session().data_store.col[stabcol-1][xpp::session().data_store.rows]=stabinfo;
+      s.data_store.col[0][s.data_store.rows]=temp;
+      for(j=0;j<xpp::model().node;j++)s.data_store.col[j+1][s.data_store.rows]=static_cast<float>(x[j]);
+      for(j=xpp::model().node;j<xpp::model().node+xpp::model().nmarkov;j++)s.data_store.col[j+1][s.data_store.rows]=0.0;
+      if(stabcol>0)s.data_store.col[stabcol-1][s.data_store.rows]=stabinfo;
 
-      xpp::session().data_store.rows++;
+      s.data_store.rows++;
       row_stored();}
-      if(xpp::session().numerics.endsing==1)break;
+      if(s.numerics.endsing==1)break;
     }
-    refresh_browser(xpp::session().data_store.rows);
- xpp::session().numerics.par_fol=0;
+    refresh_browser(s.data_store.rows);
+ s.numerics.par_fol=0;
 }
 
 void swap_color(int *col, int rorw)
@@ -654,17 +661,18 @@ int do_auto_range_go()
 
 int do_range(double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto range */
 {
+  xpp::Session &s=xpp::session();
 
   std::string bob;
   std::string parn; /* auto_get_info writes the parameter's name */
  int ivar=0,ivar2=0,res=0,oldic=0;
  int nit=20,i=0,j=0,itype=0,itype2=0,cycle=0,icol=0,nit2=0,iii=0;
- int color=xpp::session().plot_windows.current->color[0];
+ int color=s.plot_windows.current->color[0];
  double t,dpar,plow=0.0,phigh=1.0,p=0.0,plow2=0.0,phigh2=0.0,p2=0.0,dpar2=0.0;
  double temp,temp2;
  int ierr=0;
  if(flag==0||flag==2){ 
-        xpp::session().integrator.range.rtype=0;
+        s.integrator.range.rtype=0;
         if(set_up_range()==0)return(-1);
  }
  if(flag==1){
@@ -672,39 +680,39 @@ int do_range(double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto
    if(set_up_range2()==0)return -1;
  }
 
- xpp::session().integrator.my_start=1;
- itype=xpp::session().integrator.range.type;
- ivar=xpp::session().integrator.range.index;
+ s.integrator.my_start=1;
+ itype=s.integrator.range.type;
+ ivar=s.integrator.range.index;
  
- res=xpp::session().integrator.range.reset;
- oldic=xpp::session().integrator.range.oldic;
- nit=xpp::session().integrator.range.steps;
- plow=xpp::session().integrator.range.plow;
- phigh=xpp::session().integrator.range.phigh;
+ res=s.integrator.range.reset;
+ oldic=s.integrator.range.oldic;
+ nit=s.integrator.range.steps;
+ plow=s.integrator.range.plow;
+ phigh=s.integrator.range.phigh;
  
- cycle=xpp::session().integrator.range.cycle;
+ cycle=s.integrator.range.cycle;
  dpar=(phigh-plow)/static_cast<double>(nit);
 
  get_ic(2,x);
- xpp::session().data_store.rows=0;
- xpp::session().numerics.storflag=1;
- xpp::session().numerics.pauser=0;
+ s.data_store.rows=0;
+ s.numerics.storflag=1;
+ s.numerics.pauser=0;
 nit2=0;
-if(xpp::session().integrator.range.rtype==2)nit2=xpp::session().integrator.range.steps2; 
-if(xpp::session().integrator.range.type==PARAM)get_val(xpp::session().integrator.range.item,&temp);
+if(s.integrator.range.rtype==2)nit2=s.integrator.range.steps2; 
+if(s.integrator.range.type==PARAM)get_val(s.integrator.range.item,&temp);
  alloc_liap(nit); /* make space */
- if(xpp::session().integrator.range.rtype>0){
- itype2=xpp::session().integrator.range.type2;
- ivar2=xpp::session().integrator.range.index2;
- plow2=xpp::session().integrator.range.plow2;
- phigh2=xpp::session().integrator.range.phigh2;
-  if(xpp::session().integrator.range.rtype==2)dpar2=(phigh2-plow2)/static_cast<double>(nit2);
+ if(s.integrator.range.rtype>0){
+ itype2=s.integrator.range.type2;
+ ivar2=s.integrator.range.index2;
+ plow2=s.integrator.range.plow2;
+ phigh2=s.integrator.range.phigh2;
+  if(s.integrator.range.rtype==2)dpar2=(phigh2-plow2)/static_cast<double>(nit2);
   else dpar2=(phigh2-plow2)/static_cast<double>(nit);
-  if(xpp::session().integrator.range.type2==PARAM)get_val(xpp::session().integrator.range.item2,&temp2);
+  if(s.integrator.range.type2==PARAM)get_val(s.integrator.range.item2,&temp2);
  
  }
 
- if(xpp::session().integrator.range.movie)reset_film();
+ if(s.integrator.range.movie)reset_film();
  if(flag==2){
    auto_get_info(&nit,parn);
    nit2=0;
@@ -712,50 +720,50 @@ if(xpp::session().integrator.range.type==PARAM)get_val(xpp::session().integrator
  for(j=0;j<=nit2;j++){
  for(i=0;i<=nit;i++)
   {
-    if(xpp::session().integrator.range.movie)clear_draw_window();
-   if(cycle)xpp::session().plot_windows.current->color[0]=icol+1;
+    if(s.integrator.range.movie)clear_draw_window();
+   if(cycle)s.plot_windows.current->color[0]=icol+1;
    icol++;
    if(icol==10)icol=0;
-   t=xpp::session().numerics.t0;
-   xpp::session().integrator.my_start=1;
-   xpp::session().numerics.poiext=0;
+   t=s.numerics.t0;
+   s.integrator.my_start=1;
+   s.numerics.poiext=0;
 
    if(flag!=2){
      p=plow+dpar*static_cast<double>(i);
-     if(xpp::session().integrator.range.rtype==1)
+     if(s.integrator.range.rtype==1)
        p2=plow2+dpar2*static_cast<double>(i);
-     if(xpp::session().integrator.range.rtype==2)
+     if(s.integrator.range.rtype==2)
        p2=plow2+dpar2*static_cast<double>(j);
    
      if(oldic==1){
        get_ic(1,x);
        
-       if(xpp::session().delay.flag){
+       if(s.delay.flag){
 	 /* restart initial data */
-	 if(do_init_delay(xpp::session().numerics.delay)==0)break;
+	 if(do_init_delay(s.numerics.delay)==0)break;
        }
      }
 
      if(itype==IC)x[ivar]=p;
      else {
-       set_val(xpp::session().integrator.range.item,p);
+       set_val(s.integrator.range.item,p);
        redo_all_fun_tables(); 
        re_evaluate_kernels();
        
      }
-     if(xpp::session().integrator.range.rtype>0){
+     if(s.integrator.range.rtype>0){
        if(itype2==IC)x[ivar2]=p2;
        else {
-	 set_val(xpp::session().integrator.range.item2,p2);
+	 set_val(s.integrator.range.item2,p2);
 	 redo_all_fun_tables();
 	 re_evaluate_kernels();
        }
      }
      if(program.interactive){   
-       if(xpp::session().integrator.range.rtype>0)
-	 bob=xpp::format("{}={:.16g}  {}={:.16g}",xpp::session().integrator.range.item,p,xpp::session().integrator.range.item2,p2);
+       if(s.integrator.range.rtype>0)
+	 bob=xpp::format("{}={:.16g}  {}={:.16g}",s.integrator.range.item,p,s.integrator.range.item2,p2);
        else
-	 bob=xpp::format("{}={:.16g}  i={}",xpp::session().integrator.range.item,p,i);
+	 bob=xpp::format("{}={:.16g}  i={}",s.integrator.range.item,p,i);
        bottom_msg(2,bob.c_str());
      }
    }  /* normal range stuff   */ 
@@ -766,67 +774,67 @@ if(xpp::session().integrator.range.type==PARAM)get_val(xpp::session().integrator
      bob=xpp::format("{:.230}={:.16g}",parn,temp);
      bottom_msg(2,bob.c_str());
    }
-   do_start_flags(x,&xpp::session().data_store.current_time);
-if(fabs(xpp::session().data_store.current_time)>=xpp::session().numerics.trans&&xpp::session().numerics.storflag==1&&xpp::session().numerics.poimap==0)
+   do_start_flags(x,&s.data_store.current_time);
+if(fabs(s.data_store.current_time)>=s.numerics.trans&&s.numerics.storflag==1&&s.numerics.poimap==0)
   {
-    xpp::session().data_store.col[0][xpp::session().data_store.rows]=static_cast<float>(xpp::session().data_store.current_time);
-    extra(x,xpp::session().data_store.current_time,xpp::model().node,xpp::model().neq);
-    for(iii=0;iii<xpp::model().neq;iii++)xpp::session().data_store.col[1+iii][xpp::session().data_store.rows]=static_cast<float>(x[iii]);
-    xpp::session().data_store.rows++;
+    s.data_store.col[0][s.data_store.rows]=static_cast<float>(s.data_store.current_time);
+    extra(x,s.data_store.current_time,xpp::model().node,xpp::model().neq);
+    for(iii=0;iii<xpp::model().neq;iii++)s.data_store.col[1+iii][s.data_store.rows]=static_cast<float>(x[iii]);
+    s.data_store.rows++;
   }
 
- if(integrate(&t,x,xpp::session().numerics.tend,xpp::session().numerics.delta_t,1,xpp::session().numerics.njmp,&xpp::session().integrator.my_start)==1){
+ if(integrate(&t,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&s.integrator.my_start)==1){
    ierr=-1;
    break;
  }
- if(xpp::session().stochastic.flag)
-   append_stoch(i,xpp::session().data_store.rows);
+ if(s.stochastic.flag)
+   append_stoch(i,s.data_store.rows);
 
- if(xpp::session().integrator.range.movie){
+ if(s.integrator.range.movie){
    xpp_ui.put_text(5,10,bob.c_str());
    redraw_dfield();
 	create_new_cline();
-   draw_label(xpp::session().plot_windows.draw_win);
+   draw_label(s.plot_windows.draw_win);
    if(xpp_ui.film_clip()==0){err_msg("Out of film");break;}
  }
- refresh_browser(xpp::session().data_store.rows);
- if(xpp::session().integrator.adj_range==1){
-   bob=xpp::format("{}_{:g}",xpp::session().integrator.range.item,p);
-   data_get_mybrowser(xpp::session().data_store.rows-1);
-   compute_one_period(static_cast<double>(xpp::session().data_store.col[0][xpp::session().data_store.rows-1]),xpp::session().last_ic.data(),bob.c_str());
+ refresh_browser(s.data_store.rows);
+ if(s.integrator.adj_range==1){
+   bob=xpp::format("{}_{:g}",s.integrator.range.item,p);
+   data_get_mybrowser(s.data_store.rows-1);
+   compute_one_period(static_cast<double>(s.data_store.col[0][s.data_store.rows-1]),s.last_ic.data(),bob.c_str());
  }
 
  do_this_liaprun(i,p);  /* sends parameter and index back */
- if(xpp::session().data_store.rows>2)auto_freeze_it();
- if(xpp::session().array_plot.range==1)
+ if(s.data_store.rows>2)auto_freeze_it();
+ if(s.array_plot.range==1)
    draw_one_array_plot(bob.c_str());
  
- if(res==1||xpp::session().stochastic.flag)
+ if(res==1||s.stochastic.flag)
    {
      if(batch_options.range==1){
        post_process_stuff();
        write_this_run(batch_options.out_file.c_str(),i);
      }
-     xpp::session().data_store.rows=0;
+     s.data_store.rows=0;
    }
   }
  }
- if(xpp::session().array_plot.range==1){
-   xpp::session().array_plot.range=0;
+ if(s.array_plot.range==1){
+   s.array_plot.range=0;
    close_aplot_files();
  }
  if(oldic==1)get_ic(1,x);
  else get_ic(0,x);
- if(xpp::session().integrator.range.type==PARAM)set_val(xpp::session().integrator.range.item,temp);
- if(xpp::session().integrator.range.rtype>0)
-   if(xpp::session().integrator.range.type2==PARAM)set_val(xpp::session().integrator.range.item2,temp2);
+ if(s.integrator.range.type==PARAM)set_val(s.integrator.range.item,temp);
+ if(s.integrator.range.rtype>0)
+   if(s.integrator.range.type2==PARAM)set_val(s.integrator.range.item2,temp2);
  evaluate_derived();
-xpp::session().plot_windows.current->color[0]=color;
- xpp::session().numerics.inflag=1;
+s.plot_windows.current->color[0]=color;
+ s.numerics.inflag=1;
  
  ping();
- xpp::session().integrator.adj_range=0;
- if(xpp::session().stochastic.flag)
+ s.integrator.adj_range=0;
+ if(s.stochastic.flag)
    do_stats(ierr);
 
  return(ierr);
@@ -857,6 +865,7 @@ void silent_equilibria()
   
 void find_equilib_com(int com)
 {
+ xpp::Session &s=xpp::session();
  int ierr;
  float xm,ym;
  int im,jm;
@@ -864,13 +873,13 @@ void find_equilib_com(int com)
  float stabinfo;
  double *x,oldtrans;
 
- x=&xpp::session().data_store.current[0];
- if(xpp::session().numerics.fft||xpp::session().numerics.hist||xpp::model().nkernel>0)return;
+ x=&s.data_store.current[0];
+ if(s.numerics.fft||s.numerics.hist||xpp::model().nkernel>0)return;
 
- xpp::session().numerics.storflag=0;
- xpp::session().numerics.poimap=0;
- oldtrans=xpp::session().numerics.trans;
- xpp::session().numerics.trans=0.0;
+ s.numerics.storflag=0;
+ s.numerics.poimap=0;
+ oldtrans=s.numerics.trans;
+ s.numerics.trans=0.0;
  evaluate_derived(); 
  switch(com){
  case 2: 
@@ -879,9 +888,9 @@ void find_equilib_com(int com)
    return;
   case 1:
     /*  Get mouse values  */
-        iv=xpp::session().plot_windows.current->xv[0]-1;
-        jv=xpp::session().plot_windows.current->yv[0]-1;
-    if(iv<0||iv>=xpp::model().node||jv<0||jv>=xpp::model().node||xpp::session().plot_windows.current->grtype>=5||jv==iv){
+        iv=s.plot_windows.current->xv[0]-1;
+        jv=s.plot_windows.current->yv[0]-1;
+    if(iv<0||iv>=xpp::model().node||jv<0||jv>=xpp::model().node||s.plot_windows.current->grtype>=5||jv==iv){
       err_msg("Not in useable 2D plane...");
       return;
     }
@@ -905,13 +914,13 @@ void find_equilib_com(int com)
         break;
  }
 
- if(xpp::session().delay.flag){
-   do_delay_sing(x,xpp::session().numerics.newt_err,xpp::session().numerics.evec_err,xpp::session().numerics.bound,xpp::session().numerics.evec_iter,xpp::model().node,&ierr,&stabinfo);
+ if(s.delay.flag){
+   do_delay_sing(x,s.numerics.newt_err,s.numerics.evec_err,s.numerics.bound,s.numerics.evec_iter,xpp::model().node,&ierr,&stabinfo);
    ping();
  }
  else
-    do_sing(x,xpp::session().numerics.newt_err,xpp::session().numerics.evec_err,xpp::session().numerics.bound,xpp::session().numerics.evec_iter,xpp::model().node,&ierr,&stabinfo);
- xpp::session().numerics.trans=oldtrans;
+    do_sing(x,s.numerics.newt_err,s.numerics.evec_err,s.numerics.bound,s.numerics.evec_iter,xpp::model().node,&ierr,&stabinfo);
+ s.numerics.trans=oldtrans;
  
 }
  
@@ -998,52 +1007,53 @@ void do_batch_dry_run()
 
 void batch_integrate_once()
 {
+ xpp::Session &s=xpp::session();
  if (dryrun){return;}
  double *x;
  int i;
-  xpp::session().integrator.my_start=1;
-  x=&xpp::session().data_store.current[0];
-  xpp::session().integrator.range_flag=0;
-  xpp::session().integrator.delay_err=0;
-   xpp::session().data_store.current_time=xpp::session().numerics.t0;
+  s.integrator.my_start=1;
+  x=&s.data_store.current[0];
+  s.integrator.range_flag=0;
+  s.integrator.delay_err=0;
+   s.data_store.current_time=s.numerics.t0;
   
-  xpp::session().numerics.storflag=1;
-  xpp::session().numerics.poiext=0;
-  xpp::session().data_store.rows=0;
+  s.numerics.storflag=1;
+  s.numerics.poiext=0;
+  s.data_store.rows=0;
   reset_browser();
- if(batch_options.range==1||xpp::session().stochastic.flag>0){
+ if(batch_options.range==1||s.stochastic.flag>0){
    reset_dae();
-   xpp::session().integrator.range_flag=1;
+   s.integrator.range_flag=1;
 
   if(do_range(x,0)!=0)
     xpp::log(XPP_LOG_WARN, " Errors occured in range integration \n");
  }
  else {
    get_ic(2,x);
-    if(xpp::session().delay.flag){
+    if(s.delay.flag){
       /* restart initial data */
-      if(do_init_delay(xpp::session().numerics.delay)==0)return;
+      if(do_init_delay(s.numerics.delay)==0)return;
     }
-   do_start_flags(x,&xpp::session().data_store.current_time); 
-  if(fabs(xpp::session().data_store.current_time)>=xpp::session().numerics.trans&&xpp::session().numerics.storflag==1&&xpp::session().numerics.poimap==0)
+   do_start_flags(x,&s.data_store.current_time); 
+  if(fabs(s.data_store.current_time)>=s.numerics.trans&&s.numerics.storflag==1&&s.numerics.poimap==0)
     {
-      xpp::session().data_store.col[0][0]=static_cast<float>(xpp::session().data_store.current_time);
-      extra(x,xpp::session().data_store.current_time,xpp::model().node,xpp::model().neq);
-      for(i=0;i<xpp::model().neq;i++)xpp::session().data_store.col[1+i][0]=static_cast<float>(x[i]);
-      xpp::session().data_store.rows=1;
+      s.data_store.col[0][0]=static_cast<float>(s.data_store.current_time);
+      extra(x,s.data_store.current_time,xpp::model().node,xpp::model().neq);
+      for(i=0;i<xpp::model().neq;i++)s.data_store.col[1+i][0]=static_cast<float>(x[i]);
+      s.data_store.rows=1;
     }
 
-  if(integrate(&xpp::session().data_store.current_time,x,xpp::session().numerics.tend,xpp::session().numerics.delta_t,1,xpp::session().numerics.njmp,&xpp::session().integrator.my_start)!=0)
+  if(integrate(&s.data_store.current_time,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&s.integrator.my_start)!=0)
     xpp::log(XPP_LOG_WARN, " Integration not completed -- will write anyway...\n");
 
-   xpp::session().numerics.inflag=1;
-  refresh_browser(xpp::session().data_store.rows);
+   s.numerics.inflag=1;
+  refresh_browser(s.data_store.rows);
  }
  post_process_stuff();
- if(!batch_options.range || xpp::session().integrator.range.reset==0){
-   if(xpp::session().stochastic.flag==1)mean_back();
-   if(xpp::session().stochastic.flag==2)variance_back();
-   if(!xpp::session().integrator.suppress_out){
+ if(!batch_options.range || s.integrator.range.reset==0){
+   if(s.stochastic.flag==1)mean_back();
+   if(s.stochastic.flag==2)variance_back();
+   if(!s.integrator.suppress_out){
   xpp::Writer w(batch_options.out_file.c_str());
    if(!w){
      xpp::log(XPP_LOG_WARN, " Unable to open {} to write \n",batch_options.out_file);
@@ -1053,7 +1063,7 @@ void batch_integrate_once()
 
    w.commit();
    }
-    if(xpp::session().integrator.make_plot_flag)dump_ps(-1);
+    if(s.integrator.make_plot_flag)dump_ps(-1);
  }
   xpp::log(XPP_LOG_INFO, " Run complete ... \n");
 }
@@ -1076,21 +1086,22 @@ int write_this_run(const char *file, int i)
   
 void do_init_data(int com)
 {
+  xpp::Session &s=xpp::session();
   char ch;
   int i,si;
   double *x;
-  double old_dt=xpp::session().numerics.delta_t;
+  double old_dt=s.numerics.delta_t;
   std::string icfile;
   float xm,ym;
   int im,jm,oldstart,iv,jv,badmouse;
 
-  oldstart=xpp::session().integrator.my_start;
-  xpp::session().integrator.my_start=1;
-  x=&xpp::session().data_store.current[0];
-  xpp::session().integrator.range_flag=0;
-  xpp::session().integrator.delay_err=0;
+  oldstart=s.integrator.my_start;
+  s.integrator.my_start=1;
+  x=&s.data_store.current[0];
+  s.integrator.range_flag=0;
+  s.integrator.delay_err=0;
   reset_dae();
-  if(xpp::session().numerics.fft||xpp::session().numerics.hist)return;
+  if(s.numerics.fft||s.numerics.hist)return;
 
   if(com==M_ID){      /* dont want to wipe out everything! */
     get_new_guesses();
@@ -1099,11 +1110,11 @@ void do_init_data(int com)
 
  data_back();
   wipe_rep();
-  xpp::session().data_store.current_time=xpp::session().numerics.t0;
+  s.data_store.current_time=s.numerics.t0;
  
-  xpp::session().numerics.storflag=1;
-  xpp::session().numerics.poiext=0;
-  xpp::session().data_store.rows=0;
+  s.numerics.storflag=1;
+  s.numerics.poiext=0;
+  s.data_store.rows=0;
   reset_browser();
 
   switch(com){
@@ -1116,34 +1127,34 @@ void do_init_data(int com)
     return;
   case M_IS:
   case M_IL:
-    if(xpp::session().numerics.inflag==0){
+    if(s.numerics.inflag==0){
       ping();
       err_msg("No prior solution");
       return;
     }
     get_ic(0,x);
     if(com==M_IS){
-      xpp::session().numerics.t0=xpp::session().integrator.last_time;
-      xpp::session().data_store.current_time=xpp::session().numerics.t0;
+      s.numerics.t0=s.integrator.last_time;
+      s.data_store.current_time=s.numerics.t0;
     }
-    if(xpp::session().numerics.method==VOLTERRA&&oldstart==0){
+    if(s.numerics.method==VOLTERRA&&oldstart==0){
       ch=static_cast<char>(TwoChoice("No","Yes","Reset integrals?","ny"));
-      if(ch=='n')xpp::session().integrator.my_start=oldstart;
+      if(ch=='n')s.integrator.my_start=oldstart;
     }
     break;
   case M_IO:
     get_ic(1,x);
-    if(xpp::session().delay.flag){
+    if(s.delay.flag){
       /* restart initial data */
-      if(do_init_delay(xpp::session().numerics.delay)==0)return;
+      if(do_init_delay(s.numerics.delay)==0)return;
     }
    set_init_guess();
     break;
   case M_IM:
   case M_II:
-        iv=xpp::session().plot_windows.current->xv[0]-1;
-        jv=xpp::session().plot_windows.current->yv[0]-1;
-    if(iv<0||iv>=xpp::model().node||jv<0||jv>=xpp::model().node||xpp::session().plot_windows.current->grtype>=5||jv==iv){
+        iv=s.plot_windows.current->xv[0]-1;
+        jv=s.plot_windows.current->yv[0]-1;
+    if(iv<0||iv>=xpp::model().node||jv<0||jv>=xpp::model().node||s.plot_windows.current->grtype>=5||jv==iv){
       err_msg("Not in useable 2D plane...");
       return;
     }
@@ -1154,17 +1165,17 @@ void do_init_data(int com)
 	MessageBox("Click on initial data");
 	if(GetMouseXY(&im,&jm)){
 	  scale_to_real(im,jm,&xm,&ym);
-	  im=xpp::session().plot_windows.current->xv[0]-1;
-	  jm=xpp::session().plot_windows.current->yv[0]-1;
+	  im=s.plot_windows.current->xv[0]-1;
+	  jm=s.plot_windows.current->yv[0]-1;
 	  x[iv]=static_cast<double>(xm);
 	  x[jv]=static_cast<double>(ym);
-	  xpp::session().last_ic[im]=x[im];
-	  xpp::session().last_ic[jm]=x[jm];
+	  s.last_ic[im]=x[im];
+	  s.last_ic[jm]=x[jm];
 	  KillMessageBox();
   
-	  if(xpp::session().delay.flag){
+	  if(s.delay.flag){
 	    /* restart initial data */
-	    if(do_init_delay(xpp::session().numerics.delay)==0)return;
+	    if(do_init_delay(s.numerics.delay)==0)return;
 	  }
 	}
 	else {
@@ -1173,7 +1184,7 @@ void do_init_data(int com)
 	}
     }
     else {
-      xpp::session().integrator.suppress_bounds=1;
+      s.integrator.suppress_bounds=1;
 
 	MessageBox("Click on initial data -- ESC to quit");
 	while(1){
@@ -1181,22 +1192,22 @@ void do_init_data(int com)
 	  badmouse=GetMouseXY(&im,&jm);
 	  if(badmouse==0)break;
 	  scale_to_real(im,jm,&xm,&ym);
-	  im=xpp::session().plot_windows.current->xv[0]-1;
-	  jm=xpp::session().plot_windows.current->yv[0]-1;
+	  im=s.plot_windows.current->xv[0]-1;
+	  jm=s.plot_windows.current->yv[0]-1;
 	  x[iv]=static_cast<double>(xm);
 	  x[jv]=static_cast<double>(ym);
-	  xpp::session().last_ic[im]=x[im];
-	  xpp::session().last_ic[jm]=x[jm];
-	  if(xpp::session().delay.flag){
+	  s.last_ic[im]=x[im];
+	  s.last_ic[jm]=x[jm];
+	  if(s.delay.flag){
 	    /* restart initial data */
-	    if(do_init_delay(xpp::session().numerics.delay)==0)break;
+	    if(do_init_delay(s.numerics.delay)==0)break;
 	  }
-          xpp::session().integrator.my_start=1;
-          xpp::session().data_store.current_time=xpp::session().numerics.t0;
+          s.integrator.my_start=1;
+          s.data_store.current_time=s.numerics.t0;
 	  usual_integrate_stuff(x);
 	}
 	KillMessageBox();
-	xpp::session().integrator.suppress_bounds=0;
+	s.integrator.suppress_bounds=0;
 	return;
     }
     break;
@@ -1210,16 +1221,16 @@ void do_init_data(int com)
     get_ic(2,x);
     break;
   case M_IH:
-    if(xpp::session().manifolds.ic_flag==0){
+    if(s.manifolds.ic_flag==0){
       err_msg("No shooting data available");
       break;
     }
     si=1;
-    new_int(xpp::format("Which? (1-{})",xpp::session().manifolds.count).c_str(),&si);
+    new_int(xpp::format("Which? (1-{})",s.manifolds.count).c_str(),&si);
     si--;
-    if(si<xpp::session().manifolds.count&&si>=0){
+    if(si<s.manifolds.count&&si>=0){
       for(i=0;i<xpp::model().node;i++)
-	xpp::session().last_ic[i]=xpp::session().manifolds.ic[si][i];
+	s.last_ic[i]=s.manifolds.ic[si][i];
       get_ic(2,x);
     }
     else
@@ -1235,7 +1246,7 @@ void do_init_data(int com)
         return;
       }
       for(i=0;i<xpp::model().node;i++)
-        if(!reader.read(xpp::session().last_ic[i])){
+        if(!reader.read(s.last_ic[i])){
           err_msg(" IC file too short");
           break;
         }
@@ -1244,12 +1255,12 @@ void do_init_data(int com)
     break;
       
   case M_IB:
-    xpp::session().numerics.delta_t=-fabs(xpp::session().numerics.delta_t);
+    s.numerics.delta_t=-fabs(s.numerics.delta_t);
       get_ic(2,x);
       set_init_guess();
-      if(xpp::session().delay.flag){
+      if(s.delay.flag){
       /* restart initial data */
-      if(do_init_delay(xpp::session().numerics.delay)==0)return;
+      if(do_init_delay(s.numerics.delay)==0)return;
     }
       break;
   case M_IG:
@@ -1259,14 +1270,14 @@ void do_init_data(int com)
     
     get_ic(2,x); 
     
-    if(xpp::session().delay.flag){
+    if(s.delay.flag){
       /* restart initial data */
-      if(do_init_delay(xpp::session().numerics.delay)==0)return;
+      if(do_init_delay(s.numerics.delay)==0)return;
     }
     break;
   }
 usual_integrate_stuff(x);
-xpp::session().numerics.delta_t=old_dt;
+s.numerics.delta_t=old_dt;
 }	
 void run_now()
 {
@@ -1296,24 +1307,25 @@ void do_start_flags(double *x,double *t)
 }
 void usual_integrate_stuff(double *x)
 {
+  xpp::Session &s=xpp::session();
   int i;
 
-  do_start_flags(x,&xpp::session().data_store.current_time);
-   if(fabs(xpp::session().data_store.current_time)>=xpp::session().numerics.trans&&xpp::session().numerics.storflag==1&&xpp::session().numerics.poimap==0)
+  do_start_flags(x,&s.data_store.current_time);
+   if(fabs(s.data_store.current_time)>=s.numerics.trans&&s.numerics.storflag==1&&s.numerics.poimap==0)
     {
-      xpp::session().data_store.col[0][0]=static_cast<float>(xpp::session().data_store.current_time);
-      extra(x,xpp::session().data_store.current_time,xpp::model().node,xpp::model().neq);
-      for(i=0;i<xpp::model().neq;i++)xpp::session().data_store.col[1+i][0]=static_cast<float>(x[i]);
-      xpp::session().data_store.rows=1;
+      s.data_store.col[0][0]=static_cast<float>(s.data_store.current_time);
+      extra(x,s.data_store.current_time,xpp::model().node,xpp::model().neq);
+      for(i=0;i<xpp::model().neq;i++)s.data_store.col[1+i][0]=static_cast<float>(x[i]);
+      s.data_store.rows=1;
     }
  
   xpp_job_begin(0); /* Abort cancels it (xpp_job.h) */
-  integrate(&xpp::session().data_store.current_time,x,xpp::session().numerics.tend,xpp::session().numerics.delta_t,1,xpp::session().numerics.njmp,&xpp::session().integrator.my_start);
+  integrate(&s.data_store.current_time,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&s.integrator.my_start);
   xpp_job_end();
   
   ping();
-  xpp::session().numerics.inflag=1;
-  refresh_browser(xpp::session().data_store.rows);
+  s.numerics.inflag=1;
+  refresh_browser(s.data_store.rows);
   if(program.interactive){
  auto_freeze_it();
   redraw_ics();
@@ -1502,14 +1514,15 @@ void get_ic(int it, double *x)
 
 int ode_int(double *y, double *t, int *istart, int ishow)
 {
+ xpp::Session &s=xpp::session();
  double error[MAXODE];
 
  int kflag;
- int nodes=xpp::session().solver_work.xpv.node+xpp::session().solver_work.xpv.nvec;
- int nit,nout=xpp::session().numerics.njmp;
- double tend=xpp::session().numerics.tend;
- double dt=xpp::session().numerics.delta_t,tout;
-  if(xpp::session().numerics.method==0){
+ int nodes=s.solver_work.xpv.node+s.solver_work.xpv.nvec;
+ int nit,nout=s.numerics.njmp;
+ double tend=s.numerics.tend;
+ double dt=s.numerics.delta_t,tout;
+  if(s.numerics.method==0){
  nit=tend;
  dt=dt/fabs(dt);
  }
@@ -1520,16 +1533,16 @@ int ode_int(double *y, double *t, int *istart, int ishow)
 
  return(1);
 }
- MSWTCH(xpp::session().solver_work.xpv.x,y);
+ MSWTCH(s.solver_work.xpv.x,y);
  evaluate_derived(); 
- if(xpp::session().numerics.method<GEAR ||xpp::session().numerics.method==BACKEUL){
+ if(s.numerics.method<GEAR ||s.numerics.method==BACKEUL){
 
-   kflag=xpp::session().integrator.solver(xpp::session().solver_work.xpv.x,t,dt,nit,nodes,istart,xpp::session().solver_work.work.data());
-   MSWTCH(y,xpp::session().solver_work.xpv.x);
+   kflag=s.integrator.solver(s.solver_work.xpv.x,t,dt,nit,nodes,istart,s.solver_work.work.data());
+   MSWTCH(y,s.solver_work.xpv.x);
 
    if(kflag<0){
      ping();
-     if(xpp::session().integrator.range_flag)return(0);
+     if(s.integrator.range_flag)return(0);
      switch(kflag)
 	    {
 	     case -1: err_msg(" Singular Jacobian "); break;
@@ -1542,16 +1555,16 @@ int ode_int(double *y, double *t, int *istart, int ishow)
  else
    {
            tout=*t+tend*dt/fabs(dt);
-           switch(xpp::session().numerics.method){
+           switch(s.numerics.method){
 	   case GEAR:
 	     if(*istart==1)*istart=0;
-	     gear(nodes,t,tout,xpp::session().solver_work.xpv.x,xpp::session().numerics.hmin,xpp::session().numerics.hmax,xpp::session().numerics.toler,2,error,
-		  &kflag,istart,xpp::session().solver_work.work.data(),xpp::session().solver_work.iwork.data());
-	     MSWTCH(y,xpp::session().solver_work.xpv.x);
+	     gear(nodes,t,tout,s.solver_work.xpv.x,s.numerics.hmin,s.numerics.hmax,s.numerics.toler,2,error,
+		  &kflag,istart,s.solver_work.work.data(),s.solver_work.iwork.data());
+	     MSWTCH(y,s.solver_work.xpv.x);
 	     if(kflag<0)
 	       {
 		 ping();
-		 if(xpp::session().integrator.range_flag)return(0);
+		 if(s.integrator.range_flag)return(0);
 		 switch(kflag)
 		   {
 		   case -1: err_msg("kflag=-1: minimum step too big"); break;
@@ -1565,8 +1578,8 @@ int ode_int(double *y, double *t, int *istart, int ishow)
 	     break;
 #ifdef CVODE_YES
 	   case CVODE:
-	     cvode(istart,xpp::session().solver_work.xpv.x,t,nodes,tout,&kflag,&xpp::session().numerics.toler,&xpp::session().numerics.atoler);
-	     MSWTCH(y,xpp::session().solver_work.xpv.x);
+	     cvode(istart,s.solver_work.xpv.x,t,nodes,tout,&kflag,&s.numerics.toler,&s.numerics.atoler);
+	     MSWTCH(y,s.solver_work.xpv.x);
 	     if(kflag<0){
 	       cvode_err_msg(kflag);
 	       return(0);
@@ -1576,33 +1589,33 @@ int ode_int(double *y, double *t, int *istart, int ishow)
 #endif
            case DP5:
 	   case DP83:
-	     dp(istart,xpp::session().solver_work.xpv.x,t,nodes,tout,&xpp::session().numerics.toler,&xpp::session().numerics.atoler,xpp::session().numerics.method-DP5,&kflag);
-	     MSWTCH(y,xpp::session().solver_work.xpv.x);
+	     dp(istart,s.solver_work.xpv.x,t,nodes,tout,&s.numerics.toler,&s.numerics.atoler,s.numerics.method-DP5,&kflag);
+	     MSWTCH(y,s.solver_work.xpv.x);
 	     if(kflag<0){
-	        if(xpp::session().integrator.range_flag)return(0);
+	        if(s.integrator.range_flag)return(0);
 	       dp_err(kflag);
 	       return 0;
 	     }
 	   
 	   break;
            case RB23:
-	     rb23(xpp::session().solver_work.xpv.x,t,tout,istart,nodes,xpp::session().solver_work.work.data(),&kflag);
-	     MSWTCH(y,xpp::session().solver_work.xpv.x);
+	     rb23(s.solver_work.xpv.x,t,tout,istart,nodes,s.solver_work.work.data(),&kflag);
+	     MSWTCH(y,s.solver_work.xpv.x);
 	     if(kflag<0){
 	       ping();
-	       if(xpp::session().integrator.range_flag)return(0);
+	       if(s.integrator.range_flag)return(0);
 	       err_msg("Step size too small");
 	       return 0;
 	     }
 	     break;
 	   case RKQS:
 	   case STIFF:
-	     adaptive(xpp::session().solver_work.xpv.x,nodes,t,tout,xpp::session().numerics.toler,&dt,
-		      xpp::session().numerics.hmin,xpp::session().solver_work.work.data(),&kflag,xpp::session().numerics.newt_err,xpp::session().numerics.method,istart);
-	     MSWTCH(y,xpp::session().solver_work.xpv.x);
+	     adaptive(s.solver_work.xpv.x,nodes,t,tout,s.numerics.toler,&dt,
+		      s.numerics.hmin,s.solver_work.work.data(),&kflag,s.numerics.newt_err,s.numerics.method,istart);
+	     MSWTCH(y,s.solver_work.xpv.x);
 	     if(kflag){
 	       ping();
-	       if(xpp::session().integrator.range_flag)return(0);
+	       if(s.integrator.range_flag)return(0);
 	       switch(kflag){
 	       case 2: err_msg("Step size too small"); break;
 	       case 3: err_msg("Too many steps"); break;	 
@@ -1621,6 +1634,7 @@ int ode_int(double *y, double *t, int *istart, int ishow)
 
 int integrate(double *t, double *x, double tend, double dt, int count, int nout, int *start)
 {
+  xpp::Session &s=xpp::session();
 
  float xv[MAXODE+1],xvold[MAXODE+1];
  float oldperiod=0.0;
@@ -1629,7 +1643,7 @@ int integrate(double *t, double *x, double tend, double dt, int count, int nout,
  int kflag;
 
  int torcross[MAXODE];
- int nodes=xpp::session().solver_work.xpv.node+xpp::session().solver_work.xpv.nvec-xpp::model().nmarkov;
+ int nodes=s.solver_work.xpv.node+s.solver_work.xpv.nvec-xpp::model().nmarkov;
 
  int rval=0;
  double oldx[MAXODE],oldt=0,dint,dxp,sect,sect1,tout,tzero=*t;
@@ -1645,15 +1659,15 @@ int integrate(double *t, double *x, double tend, double dt, int count, int nout,
  /* new poincare map stuff */
 
   int i_nan=0; /* NaN */
-MSWTCH(xpp::session().solver_work.xpv.x,x);
+MSWTCH(s.solver_work.xpv.x,x);
 
 if(program.interactive) cwidth=get_command_width();
 
- xpp::session().integrator.last_time=*t;
+ s.integrator.last_time=*t;
  evaluate_derived();
 
- if((xpp::session().numerics.method==GEAR)&&(*start==1))*start=0;
- if(xpp::session().numerics.method==0){
+ if((s.numerics.method==GEAR)&&(*start==1))*start=0;
+ if(s.numerics.method==0){
  nit=tend;
  dt=dt/fabs(dt);
  }
@@ -1661,15 +1675,15 @@ if(program.interactive) cwidth=get_command_width();
  /* else nit=tend/fabs(dt); */
  nit=(nit+nout-1)/nout;
  if(nit==0)return(rval);
- one_flag_step(xpp::session().solver_work.xpv.x,xpp::session().solver_work.xpv.x,&iflagstart,*t,&tnew,nodes,&sss);
- MSWTCH(x,xpp::session().solver_work.xpv.x);
+ one_flag_step(s.solver_work.xpv.x,s.solver_work.xpv.x,&iflagstart,*t,&tnew,nodes,&sss);
+ MSWTCH(x,s.solver_work.xpv.x);
  extra(x,*t,xpp::model().node,xpp::model().neq); /* Note this takes care of initializing Markov variables */
-  MSWTCH(xpp::session().solver_work.xpv.x,x);
+  MSWTCH(s.solver_work.xpv.x,x);
  xv[0]=static_cast<float>(*t);
  for(ieqn=1;ieqn<=xpp::model().neq;ieqn++)xv[ieqn]=static_cast<float>(x[ieqn-1]);
- if(xpp::session().animation.options.on_the_fly)on_the_fly(1); 
+ if(s.animation.options.on_the_fly)on_the_fly(1); 
    
- if(xpp::session().numerics.poimap)
+ if(s.numerics.poimap)
  {
  oldt=*t;
  for(ieqn=0;ieqn<xpp::model().neq;ieqn++)oldx[ieqn]=x[ieqn];
@@ -1678,30 +1692,30 @@ if(program.interactive) cwidth=get_command_width();
  if(tscal==0.0)tscal=1.0;
  stor_delay(x);
  /* xppautX: the rows a cancel before the first step finds (xpp_job.h) */
- xpp_job_rows_stored(xpp::session().data_store.rows, xpp::session().data_store.rows > 0 ? xpp::session().data_store.col[0][xpp::session().data_store.rows-1] : *t);
+ xpp_job_rows_stored(s.data_store.rows, s.data_store.rows > 0 ? s.data_store.col[0][s.data_store.rows-1] : *t);
 
  while(1)
  {
 	
-           switch(xpp::session().numerics.method){
+           switch(s.numerics.method){
 	   case GEAR:
 	     {
 	     	
 	       tout=tzero+dt*(icount+1);
-	       if(fabs(dt)<fabs(xpp::session().numerics.hmin)){
-		 xpp::session().integrator.last_time=*t;
+	       if(fabs(dt)<fabs(s.numerics.hmin)){
+		 s.integrator.last_time=*t;
 		 return(1);
 	       }
 	       
-	       MSWTCH(xpp::session().solver_work.xpv.x,x);
+	       MSWTCH(s.solver_work.xpv.x,x);
 	       
-	       gear(nodes,t,tout,xpp::session().solver_work.xpv.x,xpp::session().numerics.hmin,xpp::session().numerics.hmax,xpp::session().numerics.toler,2,error,&kflag,start,xpp::session().solver_work.work.data(),xpp::session().solver_work.iwork.data()); 
+	       gear(nodes,t,tout,s.solver_work.xpv.x,s.numerics.hmin,s.numerics.hmax,s.numerics.toler,2,error,&kflag,start,s.solver_work.work.data(),s.solver_work.iwork.data()); 
 	       
-	       MSWTCH(x,xpp::session().solver_work.xpv.x);
+	       MSWTCH(x,s.solver_work.xpv.x);
 	       stor_delay(x);
-	       if(xpp::session().integrator.delay_err){
-		 xpp::session().integrator.delay_err=0;
-		 xpp::session().integrator.last_time=*t;
+	       if(s.integrator.delay_err){
+		 s.integrator.delay_err=0;
+		 s.integrator.last_time=*t;
 		 err_dae();
 		 return(1);
 		
@@ -1709,8 +1723,8 @@ if(program.interactive) cwidth=get_command_width();
 	       if(kflag<0)
 		 {
 		   ping();
-		   if(xpp::session().integrator.range_flag||xpp::session().integrator.suppress_bounds){
-		     xpp::session().integrator.last_time=*t;
+		   if(s.integrator.range_flag||s.integrator.suppress_bounds){
+		     s.integrator.last_time=*t;
 		     return(1);
 		   }
 		   switch(kflag)
@@ -1721,7 +1735,7 @@ if(program.interactive) cwidth=get_command_width();
 		     case -4: err_msg("kflag=-4: tolerance too small");break;
 		     }
 		   
-		   xpp::session().integrator.last_time=*t;
+		   s.integrator.last_time=*t;
 		   return(1);
 		 }
 	     }
@@ -1730,30 +1744,30 @@ if(program.interactive) cwidth=get_command_width();
 	   case CVODE:
 	   	
 	      tout=tzero+dt*(icount+1);
-	     if(fabs(dt)<fabs(xpp::session().numerics.hmin)){
-	       xpp::session().integrator.last_time=*t;
+	     if(fabs(dt)<fabs(s.numerics.hmin)){
+	       s.integrator.last_time=*t;
                end_cv();
 	       return(1);
 	     }
-	     MSWTCH(xpp::session().solver_work.xpv.x,x);
-	     cvode(start,xpp::session().solver_work.xpv.x,t,nodes,tout,&kflag,&xpp::session().numerics.toler,&xpp::session().numerics.atoler);
-	     MSWTCH(x,xpp::session().solver_work.xpv.x);
+	     MSWTCH(s.solver_work.xpv.x,x);
+	     cvode(start,s.solver_work.xpv.x,t,nodes,tout,&kflag,&s.numerics.toler,&s.numerics.atoler);
+	     MSWTCH(x,s.solver_work.xpv.x);
 	     stor_delay(x);
-	       if(xpp::session().integrator.delay_err){
-		 xpp::session().integrator.delay_err=0;
+	       if(s.integrator.delay_err){
+		 s.integrator.delay_err=0;
 		 err_dae();
-		 xpp::session().integrator.last_time=*t;
+		 s.integrator.last_time=*t;
 		 return(1);
 		
 	       }
 	     if(kflag<0){
 	       ping();
-	       if(xpp::session().integrator.range_flag||xpp::session().integrator.suppress_bounds){
-		 xpp::session().integrator.last_time=*t;
+	       if(s.integrator.range_flag||s.integrator.suppress_bounds){
+		 s.integrator.last_time=*t;
 		 return(1);
 	       }
 	       cvode_err_msg(kflag);
-	       xpp::session().integrator.last_time=*t;
+	       s.integrator.last_time=*t;
 	       return(1);
 	     }
 
@@ -1763,60 +1777,60 @@ if(program.interactive) cwidth=get_command_width();
 	   case DP5:
 	   case DP83:
 	      tout=tzero+dt*(icount+1);
-	     if(fabs(dt)<fabs(xpp::session().numerics.hmin)){
-	       xpp::session().integrator.last_time=*t;
+	     if(fabs(dt)<fabs(s.numerics.hmin)){
+	       s.integrator.last_time=*t;
 
 	       return(1);
 	     }
-	     MSWTCH(xpp::session().solver_work.xpv.x,x);
-	     dp(start,xpp::session().solver_work.xpv.x,t,nodes,tout,&xpp::session().numerics.toler,&xpp::session().numerics.atoler,xpp::session().numerics.method-DP5,&kflag);
-	     MSWTCH(x,xpp::session().solver_work.xpv.x);
+	     MSWTCH(s.solver_work.xpv.x,x);
+	     dp(start,s.solver_work.xpv.x,t,nodes,tout,&s.numerics.toler,&s.numerics.atoler,s.numerics.method-DP5,&kflag);
+	     MSWTCH(x,s.solver_work.xpv.x);
 	     stor_delay(x);
-	       if(xpp::session().integrator.delay_err){
-		 xpp::session().integrator.delay_err=0;
+	       if(s.integrator.delay_err){
+		 s.integrator.delay_err=0;
 		 err_dae();
-		 xpp::session().integrator.last_time=*t;
+		 s.integrator.last_time=*t;
 		 return(1);
 		
 	       }
 	     if(kflag<0){
 	       
-	       if(xpp::session().integrator.range_flag||xpp::session().integrator.suppress_bounds){
-		 xpp::session().integrator.last_time=*t;
+	       if(s.integrator.range_flag||s.integrator.suppress_bounds){
+		 s.integrator.last_time=*t;
 		 return(1);
 	       }
 	       dp_err(kflag);
-	       xpp::session().integrator.last_time=*t;
+	       s.integrator.last_time=*t;
 	       return(1);
 	     }
 
 	     break;
 	   case RB23:
 	      tout=tzero+dt*(icount+1);
-	     if(fabs(dt)<fabs(xpp::session().numerics.hmin)){
-	       xpp::session().integrator.last_time=*t;
+	     if(fabs(dt)<fabs(s.numerics.hmin)){
+	       s.integrator.last_time=*t;
 
 	       return(1);
 	     }
-	     MSWTCH(xpp::session().solver_work.xpv.x,x);
-	     rb23(xpp::session().solver_work.xpv.x,t,tout,start,nodes,xpp::session().solver_work.work.data(),&kflag);
-	     MSWTCH(x,xpp::session().solver_work.xpv.x);
+	     MSWTCH(s.solver_work.xpv.x,x);
+	     rb23(s.solver_work.xpv.x,t,tout,start,nodes,s.solver_work.work.data(),&kflag);
+	     MSWTCH(x,s.solver_work.xpv.x);
               stor_delay(x);
-	       if(xpp::session().integrator.delay_err){
-		 xpp::session().integrator.delay_err=0;
+	       if(s.integrator.delay_err){
+		 s.integrator.delay_err=0;
 		 err_dae();
-		 xpp::session().integrator.last_time=*t;
+		 s.integrator.last_time=*t;
 		 return(1);
 		
 	       }
               if(kflag<0){
 	       
-	       if(xpp::session().integrator.range_flag||xpp::session().integrator.suppress_bounds){
-		 xpp::session().integrator.last_time=*t;
+	       if(s.integrator.range_flag||s.integrator.suppress_bounds){
+		 s.integrator.last_time=*t;
 		 return(1);
 	       }
 	       err_msg("Step size too small");
-	       xpp::session().integrator.last_time=*t;
+	       s.integrator.last_time=*t;
 	       return(1);
 	     }
 
@@ -1825,26 +1839,26 @@ if(program.interactive) cwidth=get_command_width();
 	   case RKQS:
 	   case STIFF:
 	     tout=tzero+dt*(icount+1);
-	     if(fabs(dt)<fabs(xpp::session().numerics.hmin)){
-	       xpp::session().integrator.last_time=*t;
+	     if(fabs(dt)<fabs(s.numerics.hmin)){
+	       s.integrator.last_time=*t;
 	       return(1);
 	     }
-	     MSWTCH(xpp::session().solver_work.xpv.x,x);
-	     adaptive(xpp::session().solver_work.xpv.x,nodes,t,tout,xpp::session().numerics.toler,&hguess,
-		      xpp::session().numerics.hmin,xpp::session().solver_work.work.data(),&kflag,xpp::session().numerics.newt_err,xpp::session().numerics.method,start);
-	     MSWTCH(x,xpp::session().solver_work.xpv.x);
+	     MSWTCH(s.solver_work.xpv.x,x);
+	     adaptive(s.solver_work.xpv.x,nodes,t,tout,s.numerics.toler,&hguess,
+		      s.numerics.hmin,s.solver_work.work.data(),&kflag,s.numerics.newt_err,s.numerics.method,start);
+	     MSWTCH(x,s.solver_work.xpv.x);
 	     stor_delay(x);
-	       if(xpp::session().integrator.delay_err){
-		 xpp::session().integrator.delay_err=0;
+	       if(s.integrator.delay_err){
+		 s.integrator.delay_err=0;
 		 err_dae();
-		 xpp::session().integrator.last_time=*t;
+		 s.integrator.last_time=*t;
 		 return(1);
 		
 	       }
 	     if(kflag){
 	       ping();
-	       if(xpp::session().integrator.range_flag||xpp::session().integrator.suppress_bounds){
-		 xpp::session().integrator.last_time=*t;
+	       if(s.integrator.range_flag||s.integrator.suppress_bounds){
+		 s.integrator.last_time=*t;
 		 return(1);
 	       }
 	       switch(kflag){
@@ -1854,30 +1868,30 @@ if(program.interactive) cwidth=get_command_width();
 	       case 1: err_msg("stepsize is close to 0"); break;
 	       case 4: 	err_msg("exceeded MAXTRY in stiff"); break;
 	       }
-	       xpp::session().integrator.last_time=*t;
+	       s.integrator.last_time=*t;
 	       return(1);
 	     }
 
 	     break;
            default: {
 	       
-	       MSWTCH(xpp::session().solver_work.xpv.x,x);
+	       MSWTCH(s.solver_work.xpv.x,x);
 
-	     kflag=xpp::session().integrator.solver(xpp::session().solver_work.xpv.x,t,dt,nout,nodes,start,xpp::session().solver_work.work.data());
+	     kflag=s.integrator.solver(s.solver_work.xpv.x,t,dt,nout,nodes,start,s.solver_work.work.data());
 	    
-	     MSWTCH(x,xpp::session().solver_work.xpv.x);
+	     MSWTCH(x,s.solver_work.xpv.x);
 	    
 	     if(kflag<0)
 	       {
 		 ping();
-		 if(xpp::session().integrator.range_flag||xpp::session().integrator.suppress_bounds)break;
+		 if(s.integrator.range_flag||s.integrator.suppress_bounds)break;
 		 switch(kflag)
 		   {
 		   case -1: err_msg("Singular Jacobian "); break;
 		   case -2: err_msg("Too many iterates ");break;
 		   }
            
-		 xpp::session().integrator.last_time=*t;
+		 s.integrator.last_time=*t;
 		 return(1);
 	       }
 	   }
@@ -1887,16 +1901,16 @@ if(program.interactive) cwidth=get_command_width();
 
 	   extra(x,*t,xpp::model().node,xpp::model().neq);
 
-          if (xpp::session().numerics.torus == 1) {
+          if (s.numerics.torus == 1) {
 	for (ieqn = 0; ieqn < xpp::model().neq; ieqn++) {
 	        torcross[ieqn]=0;
-		if (xpp::session().itor[ieqn] == 1) {
-			if (x[ieqn] > xpp::session().numerics.tor_period) {
-				x[ieqn] -= xpp::session().numerics.tor_period;
+		if (s.itor[ieqn] == 1) {
+			if (x[ieqn] > s.numerics.tor_period) {
+				x[ieqn] -= s.numerics.tor_period;
                                 torcross[ieqn]=-1;
 			}
 			if (x[ieqn] < 0) {
-				x[ieqn] += xpp::session().numerics.tor_period;
+				x[ieqn] += s.numerics.tor_period;
                                 torcross[ieqn]=1;
 			}
 		      }
@@ -1934,9 +1948,9 @@ if(program.interactive) cwidth=get_command_width();
              break;
              }
        /* end of NaN */     
-            if(fabs(x[ieqn-1])>xpp::session().numerics.bound)
+            if(fabs(x[ieqn-1])>s.numerics.bound)
             {
-	     if(xpp::session().integrator.range_flag||xpp::session().integrator.suppress_bounds)break;
+	     if(s.integrator.range_flag||s.integrator.suppress_bounds)break;
              std::string error_message=xpp::format(" {} out of bounds at t = {} ",
              xpp::model().uvar_names[ieqn-1],*t);
  i_nan=0;
@@ -1965,36 +1979,36 @@ if(program.interactive) cwidth=get_command_width();
            {
             
              if(esc==ESCAPE) break;
-	     if(esc=='/'){rval=1;xpp::session().numerics.endsing=1;break;}
+	     if(esc=='/'){rval=1;s.numerics.endsing=1;break;}
 	    
            }
 	}        
 	if(STOP_FLAG==1){STOP_FLAG=0;break;}
-           if(xpp::session().integrator.delay_err){err_dae();rval=1;xpp::session().numerics.endsing=1;xpp::session().integrator.delay_err=0;break;}
+           if(s.integrator.delay_err){err_dae();rval=1;s.numerics.endsing=1;s.integrator.delay_err=0;break;}
            if(ieqn<(xpp::model().neq+1))break;
            tv=static_cast<float>(*t);
 	   xv[0]=tv;
- if((xpp::session().numerics.poimap==2)&&!(xpp::session().numerics.poivar==0))
+ if((s.numerics.poimap==2)&&!(s.numerics.poivar==0))
  {
   pflag=0;
-  if((oldx[xpp::session().numerics.poivar-1]<x[xpp::session().numerics.poivar-1])&&!(xpp::session().numerics.poiext<0))xpp::session().numerics.poiext=1;
-  if((oldx[xpp::session().numerics.poivar-1]>x[xpp::session().numerics.poivar-1])&&!(xpp::session().numerics.poiext>0))xpp::session().numerics.poiext=-1;
-  if(  ( !(oldx[xpp::session().numerics.poivar-1]<x[xpp::session().numerics.poivar-1]) && (xpp::session().numerics.poiext>0) )||
-       ( !(oldx[xpp::session().numerics.poivar-1]>x[xpp::session().numerics.poivar-1]) && (xpp::session().numerics.poiext<0) )
+  if((oldx[s.numerics.poivar-1]<x[s.numerics.poivar-1])&&!(s.numerics.poiext<0))s.numerics.poiext=1;
+  if((oldx[s.numerics.poivar-1]>x[s.numerics.poivar-1])&&!(s.numerics.poiext>0))s.numerics.poiext=-1;
+  if(  ( !(oldx[s.numerics.poivar-1]<x[s.numerics.poivar-1]) && (s.numerics.poiext>0) )||
+       ( !(oldx[s.numerics.poivar-1]>x[s.numerics.poivar-1]) && (s.numerics.poiext<0) )
     )
   {
-     if(xpp::session().numerics.poisgn*xpp::session().numerics.poiext>=0)
+     if(s.numerics.poisgn*s.numerics.poiext>=0)
       {
 	/*  We will interpolate to get a good local extremum   */
 	
-	xpp::session().integrator.rhs(*t,x,xprime,xpp::model().neq);
-	xpp::session().integrator.rhs(oldt,oldx,oldxprime,xpp::model().neq);
-        dxp=xprime[xpp::session().numerics.poivar-1]-oldxprime[xpp::session().numerics.poivar-1];
+	s.integrator.rhs(*t,x,xprime,xpp::model().neq);
+	s.integrator.rhs(oldt,oldx,oldxprime,xpp::model().neq);
+        dxp=xprime[s.numerics.poivar-1]-oldxprime[s.numerics.poivar-1];
         if(dxp==0.0){
 	  err_msg("Cannot zero RHS for max/min - use a variable");
 	  return(1); 
 	}
-	dint=xprime[xpp::session().numerics.poivar-1]/dxp;
+	dint=xprime[s.numerics.poivar-1]/dxp;
 
 	tv=(1-dint)**t+dint*oldt;
 	xv[0]=tv;
@@ -2002,29 +2016,29 @@ if(program.interactive) cwidth=get_command_width();
 	pflag=1;
         
       }
-      xpp::session().numerics.poiext=-xpp::session().numerics.poiext;
+      s.numerics.poiext=-s.numerics.poiext;
    }
   goto poi;
  }
 
  /*  here is code for a formula type map --  F(X,t)=0 
   */
- if(xpp::session().numerics.poimap==4) {
+ if(s.numerics.poimap==4) {
 
  }
  
- if(xpp::session().numerics.poimap==1||xpp::session().numerics.poimap==3)
+ if(s.numerics.poimap==1||s.numerics.poimap==3)
  {
-    if(xpp::session().numerics.poivar==0)
+    if(s.numerics.poivar==0)
 
      {
-     sect1=fmod(fabs(oldt),fabs(xpp::session().numerics.poipln));
-     sect=fmod(fabs(*t),fabs(xpp::session().numerics.poipln));
+     sect1=fmod(fabs(oldt),fabs(s.numerics.poipln));
+     sect=fmod(fabs(*t),fabs(s.numerics.poipln));
      if(sect<sect1)
      {
-     dint=sect/(xpp::session().numerics.poipln+sect-sect1);
-     i=static_cast<int>((fabs(*t)/fabs(xpp::session().numerics.poipln)));
-     tv=static_cast<float>(xpp::session().numerics.poipln)*i;
+     dint=sect/(s.numerics.poipln+sect-sect1);
+     i=static_cast<int>((fabs(*t)/fabs(s.numerics.poipln)));
+     tv=static_cast<float>(s.numerics.poipln)*i;
      xv[0]=tv;
      for(i=1;i<=xpp::model().neq;i++)xv[i]=static_cast<float>((dint*oldx[i-1]+(1-dint)*x[i-1]));
      pflag=1;
@@ -2035,11 +2049,11 @@ if(program.interactive) cwidth=get_command_width();
     else
 
     {
-     if(!(xpp::session().numerics.poisgn<0))
+     if(!(s.numerics.poisgn<0))
      {
-     if((oldx[xpp::session().numerics.poivar-1]<xpp::session().numerics.poipln)&&!(x[xpp::session().numerics.poivar-1]<xpp::session().numerics.poipln))
+     if((oldx[s.numerics.poivar-1]<s.numerics.poipln)&&!(x[s.numerics.poivar-1]<s.numerics.poipln))
      {
-      dint=(x[xpp::session().numerics.poivar-1]-xpp::session().numerics.poipln)/(x[xpp::session().numerics.poivar-1]-oldx[xpp::session().numerics.poivar-1]);
+      dint=(x[s.numerics.poivar-1]-s.numerics.poipln)/(x[s.numerics.poivar-1]-oldx[s.numerics.poivar-1]);
       tv=(1-dint)**t+dint*oldt;
       xv[0]=tv;
       for(i=1;i<=xpp::model().neq;i++)xv[i]=dint*oldx[i-1]+(1-dint)*x[i-1];
@@ -2049,11 +2063,11 @@ if(program.interactive) cwidth=get_command_width();
      }
      else pflag=0;
      }
-    if(!(xpp::session().numerics.poisgn>0))
+    if(!(s.numerics.poisgn>0))
      {
-       if((oldx[xpp::session().numerics.poivar-1]>xpp::session().numerics.poipln)&&!(x[xpp::session().numerics.poivar-1]>xpp::session().numerics.poipln))
+       if((oldx[s.numerics.poivar-1]>s.numerics.poipln)&&!(x[s.numerics.poivar-1]>s.numerics.poipln))
        {
-        dint=(x[xpp::session().numerics.poivar-1]-xpp::session().numerics.poipln)/(x[xpp::session().numerics.poivar-1]-oldx[xpp::session().numerics.poivar-1]);
+        dint=(x[s.numerics.poivar-1]-s.numerics.poipln)/(x[s.numerics.poivar-1]-oldx[s.numerics.poivar-1]);
         tv=(1-dint)**t+dint*oldt;
         xv[0]=tv;
         for(i=1;i<=xpp::model().neq;i++)xv[i]=dint*oldx[i-1]+(1-dint)*x[i-1];
@@ -2068,7 +2082,7 @@ poi:    for(i=0;i<xpp::model().neq;i++)oldx[i]=x[i];
  }
 
 /*	   Plotting and storing data      */
- if(xpp::session().numerics.poimap==3&&pflag==1){
+ if(s.numerics.poimap==3&&pflag==1){
    if(oldperiod==0.0){
      pflag=0; /* this is the first hit !! */
      oldperiod=*t;
@@ -2078,22 +2092,22 @@ poi:    for(i=0;i<xpp::model().neq;i++)oldx[i]=x[i];
    oldperiod=*t;
  }
      
-          if(!(fabs(*t)<xpp::session().numerics.trans)&&program.interactive&&OnTheFly)
+          if(!(fabs(*t)<s.numerics.trans)&&program.interactive&&OnTheFly)
 	  {
-	     plot_the_graphs(xv,xvold,xpp::model().node,xpp::model().neq,fabs(dt*xpp::session().numerics.njmp),torcross,0); 
+	     plot_the_graphs(xv,xvold,xpp::model().node,xpp::model().neq,fabs(dt*s.numerics.njmp),torcross,0); 
 
 	  }
 
-	   if((xpp::session().numerics.storflag==1)&&(count!=0)&&(xpp::session().data_store.rows<xpp::session().data_store.max_rows)&&!(fabs(*t)<xpp::session().numerics.trans))
+	   if((s.numerics.storflag==1)&&(count!=0)&&(s.data_store.rows<s.data_store.max_rows)&&!(fabs(*t)<s.numerics.trans))
 	   {
-           if(xpp::session().animation.options.on_the_fly)on_the_fly(0);
+           if(s.animation.options.on_the_fly)on_the_fly(0);
            for(ieqn=0;ieqn<=xpp::model().neq;ieqn++)
-		 xpp::session().data_store.col[ieqn][xpp::session().data_store.rows]=xv[ieqn];
-	    xpp::session().data_store.rows++;
+		 s.data_store.col[ieqn][s.data_store.rows]=xv[ieqn];
+	    s.data_store.rows++;
 	    row_stored(); /* xppautX: replay stops here, a front end shows the run grow */
-	    if(!(xpp::session().data_store.rows<xpp::session().data_store.max_rows))
+	    if(!(s.data_store.rows<s.data_store.max_rows))
             if(stor_full()==0)break;
-	    if((pflag==1)&&(xpp::session().numerics.sos==1))break;
+	    if((pflag==1)&&(s.numerics.sos==1))break;
 	   }
 
 out:
@@ -2103,9 +2117,9 @@ out:
 	   /* END POST INTEGRATE ANALYSIS  */
  }
  
-       xpp::session().integrator.last_time=*t;
+       s.integrator.last_time=*t;
 #ifdef CVODE_YES
-       if(xpp::session().numerics.method==CVODE)
+       if(s.numerics.method==CVODE)
 	 end_cv();
 #endif
        return(rval);
@@ -2250,7 +2264,8 @@ void plot_one_graph(float *xv,float *xvold,int node,int neq,double ddt,int *tc)
 }
 void restore(int i1, int i2)
 {
-  int ip,np=xpp::session().plot_windows.current->nvars;
+  xpp::Session &s=xpp::session();
+  int ip,np=s.plot_windows.current->nvars;
   int ZSHFT,YSHFT,XSHFT;
   int i,j,kxoff,kyoff,kzoff;
   int iiXPLT,iiYPLT,iiZPLT;
@@ -2259,27 +2274,27 @@ void restore(int i1, int i2)
   float **data;
 
   data=get_browser_data();
-  XSHFT=xpp::session().plot_windows.current->xshft;
-  YSHFT=xpp::session().plot_windows.current->yshft;
-  ZSHFT=xpp::session().plot_windows.current->zshft;
+  XSHFT=s.plot_windows.current->xshft;
+  YSHFT=s.plot_windows.current->yshft;
+  ZSHFT=s.plot_windows.current->zshft;
   if(i1<ZSHFT)i1=ZSHFT;
   if(i1<YSHFT)i1=YSHFT;
   if(i1<XSHFT)i1=XSHFT;
-  if(xpp::session().data_store.rows<2)return;
+  if(s.data_store.rows<2)return;
 
    for(ip=0;ip<np;ip++){
-     if (xpp::session().plot_file.plt_fmt_flag==SVGFMT)
+     if (s.plot_file.plt_fmt_flag==SVGFMT)
      {
-  	   xpp::print(xpp::session().plot_file.svgfile,"<g>\n");
+  	   xpp::print(s.plot_file.svgfile,"<g>\n");
      } 
      kxoff=i1-XSHFT;
      kzoff=i1-ZSHFT;
      kyoff=i1-YSHFT;
 
-    iiXPLT=xpp::session().plot_windows.current->xv[ip];
-    iiYPLT=xpp::session().plot_windows.current->yv[ip];
-    iiZPLT=xpp::session().plot_windows.current->zv[ip];
-    set_linestyle(xpp::session().plot_windows.current->color[ip]);
+    iiXPLT=s.plot_windows.current->xv[ip];
+    iiYPLT=s.plot_windows.current->yv[ip];
+    iiZPLT=s.plot_windows.current->zv[ip];
+    set_linestyle(s.plot_windows.current->color[ip]);
     oldxpl=data[iiXPLT][kxoff];
     oldypl=data[iiYPLT][kyoff];
     oldzpl=data[iiZPLT][kzoff];
@@ -2290,13 +2305,13 @@ void restore(int i1, int i2)
 	zpl=data[iiZPLT][kzoff];
       }
       
-      if(xpp::session().numerics.torus==1)
+      if(s.numerics.torus==1)
       {
-	if (fabs(oldxpl-xpl)>static_cast<float>((.5*xpp::session().numerics.tor_period)))oldxpl=xpl;
-	if (fabs(oldypl-ypl)>static_cast<float>((.5*xpp::session().numerics.tor_period)))oldypl=ypl;
-	if (fabs(oldzpl-zpl)>static_cast<float>((.5*xpp::session().numerics.tor_period)))oldzpl=zpl;
+	if (fabs(oldxpl-xpl)>static_cast<float>((.5*s.numerics.tor_period)))oldxpl=xpl;
+	if (fabs(oldypl-ypl)>static_cast<float>((.5*s.numerics.tor_period)))oldypl=ypl;
+	if (fabs(oldzpl-zpl)>static_cast<float>((.5*s.numerics.tor_period)))oldzpl=zpl;
       }
-      if(xpp::session().plot_windows.current->ColorFlag!=0&&i>i1){
+      if(s.plot_windows.current->ColorFlag!=0&&i>i1){
 	  for(j=0;j<=xpp::model().neq;j++){
 	    v1[j]=data[j][i];
 	    v2[j]=data[j][i-1];
@@ -2305,13 +2320,13 @@ void restore(int i1, int i2)
 	  comp_color(v1,v2,xpp::model().node,
 		     static_cast<float>(fabs(data[0][i]-data[0][i+1])));
 	}     /* ignored by postscript */
-      if(xpp::session().plot_windows.current->line[ip]<=0){
-	xpp::session().drawing.point_radius=-xpp::session().plot_windows.current->line[ip];
-	if(xpp::session().plot_windows.current->ThreeDFlag==0)point_abs(xpl,ypl);
+      if(s.plot_windows.current->line[ip]<=0){
+	s.drawing.point_radius=-s.plot_windows.current->line[ip];
+	if(s.plot_windows.current->ThreeDFlag==0)point_abs(xpl,ypl);
 	else point_3d(xpl,ypl,zpl);
       }
       else {
-	if(xpp::session().plot_windows.current->ThreeDFlag==0)
+	if(s.plot_windows.current->ThreeDFlag==0)
 	  line_abs(oldxpl,oldypl,xpl,ypl);
 	else
 	  line_3d(oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
@@ -2325,9 +2340,9 @@ void restore(int i1, int i2)
       kzoff++;
      
     }
-    if (xpp::session().plot_file.plt_fmt_flag==SVGFMT)
+    if (s.plot_file.plt_fmt_flag==SVGFMT)
      {
-  	   xpp::print(xpp::session().plot_file.svgfile,"</g>\n");
+  	   xpp::print(s.plot_file.svgfile,"</g>\n");
      } 
     
   }

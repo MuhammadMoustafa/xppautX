@@ -347,18 +347,19 @@ int data_to_pixel(double v, double v0, double v1, int p0, int p1)
    the command goes on exactly as for a click there (docs/protocol.md) */
 void answer_point(unsigned long win, int k, int *x, int *y)
 {
+    xpp::Session &s=xpp::session();
     static constexpr std::array<const char *, 2> px = {"x", "x2"}, py = {"y", "y2"}, dx = {"xd", "xd2"}, dy = {"yd", "yd2"};
     const char *jx = js_find(answer.c_str(), dx[k]), *jy = js_find(answer.c_str(), dy[k]);
     if (!jx || !jy) {
         *x = get_int(answer.c_str(), px[k], 0);
         *y = get_int(answer.c_str(), py[k], 0);
     } else if (win == WIN_AUTO) {
-        *x = data_to_pixel(js_num(jx, 0), xpp::session().auto_state.bifur.xmin, xpp::session().auto_state.bifur.xmax, xpp::session().auto_state.bifur.x0, xpp::session().auto_state.bifur.x0 + xpp::session().auto_state.bifur.wid);
-        *y = data_to_pixel(js_num(jy, 0), xpp::session().auto_state.bifur.ymin, xpp::session().auto_state.bifur.ymax, xpp::session().auto_state.bifur.y0 + xpp::session().auto_state.bifur.hgt, xpp::session().auto_state.bifur.y0);
+        *x = data_to_pixel(js_num(jx, 0), s.auto_state.bifur.xmin, s.auto_state.bifur.xmax, s.auto_state.bifur.x0, s.auto_state.bifur.x0 + s.auto_state.bifur.wid);
+        *y = data_to_pixel(js_num(jy, 0), s.auto_state.bifur.ymin, s.auto_state.bifur.ymax, s.auto_state.bifur.y0 + s.auto_state.bifur.hgt, s.auto_state.bifur.y0);
     } else {
         get_draw_area();
-        *x = data_to_pixel(js_num(jx, 0), xpp::session().plot_windows.current->xlo, xpp::session().plot_windows.current->xhi, xpp::session().drawing.d_left, xpp::session().drawing.d_right);
-        *y = data_to_pixel(js_num(jy, 0), xpp::session().plot_windows.current->ylo, xpp::session().plot_windows.current->yhi, xpp::session().drawing.d_bottom, xpp::session().drawing.d_top);
+        *x = data_to_pixel(js_num(jx, 0), s.plot_windows.current->xlo, s.plot_windows.current->xhi, s.drawing.d_left, s.drawing.d_right);
+        *y = data_to_pixel(js_num(jy, 0), s.plot_windows.current->ylo, s.plot_windows.current->yhi, s.drawing.d_bottom, s.drawing.d_top);
     }
 }
 

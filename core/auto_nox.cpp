@@ -528,6 +528,7 @@ static int auto_depth; /* do_auto's own follow-up runs (RestartLabel) are one ru
 
 void do_auto(int iold, int isave, int itp)
 {
+      xpp::Session &s=xpp::session();
       redraw_auto_menus();
       
     set_auto(); /* this sets up all the continuation initialization 
@@ -538,29 +539,29 @@ void do_auto(int iold, int isave, int itp)
     open_auto(iold); /* this copies the relevant files .s  to fort.3 */
     if(auto_depth++==0)auto_stop_clear(); /* xppautX: T23: why this run's branches end */
     xpp_job_begin(0); /* Abort cancels it (xpp_job.h) */
-    run_from=xpp::session().auto_state.bifur.irs>0?xpp::session().auto_state.bifur.irs:0; /* the diagram's data say where the run started */
+    run_from=s.auto_state.bifur.irs>0?s.auto_state.bifur.irs:0; /* the diagram's data say where the run started */
     stability_run_start(); /* what its first point's stability is (auto_stability.h) */
     {
         std::array<double, 8> before{}; /* AutoPar's size */
-        for (int i = 0; i < xpp::session().auto_state.npar; i++) before[i] = xpp::session().parser.constants[xpp::session().auto_state.par_index[i]];
+        for (int i = 0; i < s.auto_state.npar; i++) before[i] = s.parser.constants[s.auto_state.par_index[i]];
         go_go_auto(); /* this complets the initialization and calls the
                           main routines
                        */
         auto_restore_finite_pars(before.data()); /* leave no NaN parameter behind (QA SCI-001) */
     }
     run_from=0;
-    if(xpp_job_cancelled())xpp::session().auto_state.restart_label=0; /* xppautX: cancel: no follow-up run */
+    if(xpp_job_cancelled())s.auto_state.restart_label=0; /* xppautX: cancel: no follow-up run */
     xpp_job_end();
     /*     run_aut(Auto.nfpar,itp); THIS WILL CHANGE TO gogoauto stuff */ 
     close_auto(isave); /* this copies fort.8 to the .s file and other 
                           irrelevant stuff 
 		       */
     
-    if(xpp::session().auto_state.restart_label!=0){
-      xpp_log_auto("RestartLabel=%d itp=%d ips=%d nfpar=%d ilp=%d isw=%d isp=%d A2p=%d \n",xpp::session().auto_state.restart_label,xpp::session().auto_state.bifur.itp, xpp::session().auto_state.bifur.ips,xpp::session().auto_state.bifur.nfpar,xpp::session().auto_state.bifur.ilp,xpp::session().auto_state.bifur.isw,xpp::session().auto_state.bifur.isp,xpp::session().auto_state.two_param);
-      xpp::session().auto_state.bifur.irs=xpp::session().auto_state.restart_label;
-      xpp::session().auto_state.restart_label=0;
-      do_auto(iold,isave, xpp::session().auto_state.bifur.itp);
+    if(s.auto_state.restart_label!=0){
+      xpp_log_auto("RestartLabel=%d itp=%d ips=%d nfpar=%d ilp=%d isw=%d isp=%d A2p=%d \n",s.auto_state.restart_label,s.auto_state.bifur.itp, s.auto_state.bifur.ips,s.auto_state.bifur.nfpar,s.auto_state.bifur.ilp,s.auto_state.bifur.isw,s.auto_state.bifur.isp,s.auto_state.two_param);
+      s.auto_state.bifur.irs=s.auto_state.restart_label;
+      s.auto_state.restart_label=0;
+      do_auto(iold,isave, s.auto_state.bifur.itp);
       
     }
     auto_depth--;
@@ -570,11 +571,12 @@ void do_auto(int iold, int isave, int itp)
 
 void set_auto() /* Caution - need to include NICP here */
 {
-  xpp::session().auto_state.nuzr=xpp::session().auto_state.bifur.nper;
-  init_auto(xpp::model().node,xpp::session().auto_state.bifur.nfpar,xpp::session().auto_state.bifur.nbc,xpp::session().auto_state.bifur.ips,xpp::session().auto_state.bifur.irs,xpp::session().auto_state.bifur.ilp,xpp::session().auto_state.bifur.ntst,xpp::session().auto_state.bifur.isp,
-	    xpp::session().auto_state.bifur.isw,xpp::session().auto_state.bifur.nmx,xpp::session().auto_state.bifur.npr,xpp::session().auto_state.bifur.ds,xpp::session().auto_state.bifur.dsmin,
-	    xpp::session().auto_state.bifur.dsmax,xpp::session().auto_state.bifur.rl0,xpp::session().auto_state.bifur.rl1,xpp::session().auto_state.bifur.a0,xpp::session().auto_state.bifur.a1,xpp::session().auto_state.bifur.icp1,
-	    xpp::session().auto_state.bifur.icp2,xpp::session().auto_state.bifur.icp3,xpp::session().auto_state.bifur.icp4,xpp::session().auto_state.bifur.icp5,xpp::session().auto_state.bifur.nper,xpp::session().auto_state.bifur.epsl,xpp::session().auto_state.bifur.epsu,xpp::session().auto_state.bifur.epss,xpp::session().auto_state.bifur.ncol);
+  xpp::Session &s=xpp::session();
+  s.auto_state.nuzr=s.auto_state.bifur.nper;
+  init_auto(xpp::model().node,s.auto_state.bifur.nfpar,s.auto_state.bifur.nbc,s.auto_state.bifur.ips,s.auto_state.bifur.irs,s.auto_state.bifur.ilp,s.auto_state.bifur.ntst,s.auto_state.bifur.isp,
+	    s.auto_state.bifur.isw,s.auto_state.bifur.nmx,s.auto_state.bifur.npr,s.auto_state.bifur.ds,s.auto_state.bifur.dsmin,
+	    s.auto_state.bifur.dsmax,s.auto_state.bifur.rl0,s.auto_state.bifur.rl1,s.auto_state.bifur.a0,s.auto_state.bifur.a1,s.auto_state.bifur.icp1,
+	    s.auto_state.bifur.icp2,s.auto_state.bifur.icp3,s.auto_state.bifur.icp4,s.auto_state.bifur.icp5,s.auto_state.bifur.nper,s.auto_state.bifur.epsl,s.auto_state.bifur.epsu,s.auto_state.bifur.epss,s.auto_state.bifur.ncol);
   
 }
 int auto_name_to_index(std::string_view s)
@@ -658,6 +660,7 @@ std::string auto_screen_col(const std::string &col)
 
 void auto_per_par()
 {
+  xpp::Session &s=xpp::session();
   
   static const char *m[]={"0","1","2","3","4","5","6","7","8","9"};
   static const char *const key="0123456789";
@@ -668,14 +671,14 @@ void auto_per_par()
   char ch;
   /* "Mark values" (T21): AUTO labels (UZ) the points where a parameter or
      the period reaches one of these values */
-  ch=static_cast<char>(auto_pop_up_list("Mark values: how many?",m,key,10,12,xpp::session().auto_state.bifur.nper,10,10,no_hint,
-		       xpp::session().auto_state.bifur.hinttxt.c_str()));
+  ch=static_cast<char>(auto_pop_up_list("Mark values: how many?",m,key,10,12,s.auto_state.bifur.nper,10,10,no_hint,
+		       s.auto_state.bifur.hinttxt.c_str()));
   for(i=0;i<10;i++)
-    if(ch==key[i])xpp::session().auto_state.bifur.nper=i;
-  xpp::session().auto_state.nuzr=xpp::session().auto_state.bifur.nper;
-  if(xpp::session().auto_state.bifur.nper>0){
+    if(ch==key[i])s.auto_state.bifur.nper=i;
+  s.auto_state.nuzr=s.auto_state.bifur.nper;
+  if(s.auto_state.bifur.nper>0){
     for(i=0;i<9;i++){
-      values[i] = xpp::format("{}={:g}", par_or_period_name(xpp::session().auto_state.bifur.uzrpar[i]), xpp::session().auto_state.bifur.period[i]);
+      values[i] = xpp::format("{}={:g}", par_or_period_name(s.auto_state.bifur.uzrpar[i]), s.auto_state.bifur.period[i]);
     }
     status=do_string_box(5,2,"Mark values (UZ): parameter=value or per=value",n,values,45);
     if(status!=0)
@@ -683,14 +686,14 @@ void auto_per_par()
 	xpp::Tokens tokens(values[i]);
 	in=auto_name_to_index(tokens.next("=").value_or(std::string_view()));
 	if(in>=0){
-	  xpp::session().auto_state.bifur.uzrpar[i]=in;
-	  xpp::session().auto_state.bifur.period[i]=atof(tokens.text("@").c_str());
+	  s.auto_state.bifur.uzrpar[i]=in;
+	  s.auto_state.bifur.period[i]=atof(tokens.text("@").c_str());
 	}
       }
   }
   for(i=0;i<9;i++){
-    xpp::session().auto_state.uzr_period[i]=xpp::session().auto_state.bifur.period[i];
-    xpp::session().auto_state.uzr_par[i]=xpp::session().auto_state.bifur.uzrpar[i];
+    s.auto_state.uzr_period[i]=s.auto_state.bifur.period[i];
+    s.auto_state.uzr_par[i]=s.auto_state.bifur.uzrpar[i];
   }
   
 }
@@ -726,6 +729,7 @@ void auto_params()
 
 void auto_num_par()
 {
+  xpp::Session &s=xpp::session();
   /* grouped by what they do, which upstream's order was not: the box is 7
      rows by 4 columns, so a column is a group. Mesh and step size, then the
      ranges and tolerances, then the solver's integer knobs. */
@@ -734,56 +738,56 @@ void auto_num_par()
                     "IAD","MXBF","IID","ITMX","ITNW","NWTN","IADS","SuppBP"};
   int status;
   std::array<std::string, 22> values;
-  values[0] = xpp::format("{:d}", xpp::session().auto_state.bifur.ntst);
-  values[1] = xpp::format("{:d}", xpp::session().auto_state.bifur.nmx);
-  values[2] = xpp::format("{:d}", xpp::session().auto_state.bifur.npr);
-  values[3] = xpp::format("{:d}", xpp::session().auto_state.bifur.ncol);
-  values[4] = xpp::format("{:g}", xpp::session().auto_state.bifur.ds);
-  values[5] = xpp::format("{:g}", xpp::session().auto_state.bifur.dsmin);
-  values[6] = xpp::format("{:g}", xpp::session().auto_state.bifur.dsmax);
-  values[7] = xpp::format("{:g}", xpp::session().auto_state.bifur.rl0);
-  values[8] = xpp::format("{:g}", xpp::session().auto_state.bifur.rl1);
-  values[9] = xpp::format("{:g}", xpp::session().auto_state.bifur.a0);
-  values[10] = xpp::format("{:g}", xpp::session().auto_state.bifur.a1);
-  values[11] = xpp::format("{:g}", xpp::session().auto_state.bifur.epsl);
-  values[12] = xpp::format("{:g}", xpp::session().auto_state.bifur.epsu);
-  values[13] = xpp::format("{:g}", xpp::session().auto_state.bifur.epss);
-  values[14] = xpp::format("{:d}", xpp::session().auto_state.advanced.iad);
-  values[15] = xpp::format("{:d}", xpp::session().auto_state.advanced.mxbf);
-  values[16] = xpp::format("{:d}", xpp::session().auto_state.advanced.iid);
-  values[17] = xpp::format("{:d}", xpp::session().auto_state.advanced.itmx);
-  values[18] = xpp::format("{:d}", xpp::session().auto_state.advanced.itnw);
-  values[19] = xpp::format("{:d}", xpp::session().auto_state.advanced.nwtn);
-  values[20] = xpp::format("{:d}", xpp::session().auto_state.advanced.iads);
-  values[21] = xpp::format("{:d}", xpp::session().auto_state.suppress_bp); 
+  values[0] = xpp::format("{:d}", s.auto_state.bifur.ntst);
+  values[1] = xpp::format("{:d}", s.auto_state.bifur.nmx);
+  values[2] = xpp::format("{:d}", s.auto_state.bifur.npr);
+  values[3] = xpp::format("{:d}", s.auto_state.bifur.ncol);
+  values[4] = xpp::format("{:g}", s.auto_state.bifur.ds);
+  values[5] = xpp::format("{:g}", s.auto_state.bifur.dsmin);
+  values[6] = xpp::format("{:g}", s.auto_state.bifur.dsmax);
+  values[7] = xpp::format("{:g}", s.auto_state.bifur.rl0);
+  values[8] = xpp::format("{:g}", s.auto_state.bifur.rl1);
+  values[9] = xpp::format("{:g}", s.auto_state.bifur.a0);
+  values[10] = xpp::format("{:g}", s.auto_state.bifur.a1);
+  values[11] = xpp::format("{:g}", s.auto_state.bifur.epsl);
+  values[12] = xpp::format("{:g}", s.auto_state.bifur.epsu);
+  values[13] = xpp::format("{:g}", s.auto_state.bifur.epss);
+  values[14] = xpp::format("{:d}", s.auto_state.advanced.iad);
+  values[15] = xpp::format("{:d}", s.auto_state.advanced.mxbf);
+  values[16] = xpp::format("{:d}", s.auto_state.advanced.iid);
+  values[17] = xpp::format("{:d}", s.auto_state.advanced.itmx);
+  values[18] = xpp::format("{:d}", s.auto_state.advanced.itnw);
+  values[19] = xpp::format("{:d}", s.auto_state.advanced.nwtn);
+  values[20] = xpp::format("{:d}", s.auto_state.advanced.iads);
+  values[21] = xpp::format("{:d}", s.auto_state.suppress_bp); 
 
   static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
   status=do_string_box_of(7,4,"AutoNum",n,values,25,kinds);
   if(status!=0){
-    xpp::session().auto_state.bifur.ntst=atoi(values[0].c_str());
-    xpp::session().auto_state.bifur.nmx=atoi(values[1].c_str());
-    xpp::session().auto_state.bifur.npr=atoi(values[2].c_str());
-    xpp::session().auto_state.bifur.ncol=atoi(values[3].c_str());
-    xpp::session().auto_state.bifur.ds=atof(values[4].c_str());
-    xpp::session().auto_state.bifur.dsmin=atof(values[5].c_str());
-    xpp::session().auto_state.bifur.dsmax=atof(values[6].c_str());
-    xpp::session().auto_state.bifur.rl0=atof(values[7].c_str());
-    xpp::session().auto_state.bifur.rl1=atof(values[8].c_str());
-    xpp::session().auto_state.bifur.a0=atof(values[9].c_str());
-    xpp::session().auto_state.bifur.a1=atof(values[10].c_str());
-    xpp::session().auto_state.bifur.epsl=atof(values[11].c_str());
-    xpp::session().auto_state.bifur.epsu=atof(values[12].c_str());
-    xpp::session().auto_state.bifur.epss=atof(values[13].c_str());
-    xpp::session().auto_state.advanced.iad=atoi(values[14].c_str());
-    xpp::session().auto_state.advanced.mxbf=atoi(values[15].c_str());
-    xpp::session().auto_state.advanced.iid=atoi(values[16].c_str());
-    xpp::session().auto_state.advanced.itmx=atoi(values[17].c_str());
-    xpp::session().auto_state.advanced.itnw=atoi(values[18].c_str());
-    xpp::session().auto_state.advanced.nwtn=atoi(values[19].c_str());
-    xpp::session().auto_state.advanced.iads=atoi(values[20].c_str());
-    xpp::session().auto_state.suppress_bp=atoi(values[21].c_str());
+    s.auto_state.bifur.ntst=atoi(values[0].c_str());
+    s.auto_state.bifur.nmx=atoi(values[1].c_str());
+    s.auto_state.bifur.npr=atoi(values[2].c_str());
+    s.auto_state.bifur.ncol=atoi(values[3].c_str());
+    s.auto_state.bifur.ds=atof(values[4].c_str());
+    s.auto_state.bifur.dsmin=atof(values[5].c_str());
+    s.auto_state.bifur.dsmax=atof(values[6].c_str());
+    s.auto_state.bifur.rl0=atof(values[7].c_str());
+    s.auto_state.bifur.rl1=atof(values[8].c_str());
+    s.auto_state.bifur.a0=atof(values[9].c_str());
+    s.auto_state.bifur.a1=atof(values[10].c_str());
+    s.auto_state.bifur.epsl=atof(values[11].c_str());
+    s.auto_state.bifur.epsu=atof(values[12].c_str());
+    s.auto_state.bifur.epss=atof(values[13].c_str());
+    s.auto_state.advanced.iad=atoi(values[14].c_str());
+    s.auto_state.advanced.mxbf=atoi(values[15].c_str());
+    s.auto_state.advanced.iid=atoi(values[16].c_str());
+    s.auto_state.advanced.itmx=atoi(values[17].c_str());
+    s.auto_state.advanced.itnw=atoi(values[18].c_str());
+    s.auto_state.advanced.nwtn=atoi(values[19].c_str());
+    s.auto_state.advanced.iads=atoi(values[20].c_str());
+    s.auto_state.suppress_bp=atoi(values[21].c_str());
 
   }
 
@@ -791,6 +795,7 @@ void auto_num_par()
 
 void auto_plot_par()
 {
+  xpp::Session &s=xpp::session();
 
   static const char *m[]={"Hi","Norm","hI-lo","Period","Two par","(Z)oom in","Zoom (O)ut",
 		      "last 1 par", "last 2 par","Fit",
@@ -803,16 +808,16 @@ void auto_plot_par()
   std::array<std::string, 7> values;
   int  status,i;
   int ii1,ii2,ji1,ji2;
-  int i1=xpp::session().auto_state.bifur.var+1;
-  ch=static_cast<char>(auto_pop_up_list("Plot Type",m,key,14,10,xpp::session().auto_state.bifur.plot,10,50,
-		       aaxes_hint,xpp::session().auto_state.bifur.hinttxt.c_str()));
+  int i1=s.auto_state.bifur.var+1;
+  ch=static_cast<char>(auto_pop_up_list("Plot Type",m,key,14,10,s.auto_state.bifur.plot,10,50,
+		       aaxes_hint,s.auto_state.bifur.hinttxt.c_str()));
   if(ch==ESC) 
     return;
   for(i=0;i<5;i++){
-    if(ch==key[i])xpp::session().auto_state.bifur.plot=i;
+    if(ch==key[i])s.auto_state.bifur.plot=i;
   }
-  if(ch==key[10])xpp::session().auto_state.bifur.plot=10;
-  if(ch==key[11])xpp::session().auto_state.bifur.plot=11;
+  if(ch==key[10])s.auto_state.bifur.plot=10;
+  if(ch==key[11])s.auto_state.bifur.plot=11;
   if(ch==key[5]){
     if(auto_rubber(&ii1,&ji1,&ii2,&ji2,RUBBOX)!=0){
       auto_zoom_in(ii1,ji1,ii2,ji2);
@@ -860,44 +865,44 @@ void auto_plot_par()
     return;
   }
   values[0] = ind_to_sym(i1);
-  values[1] = xpp::model().upar_names[xpp::session().auto_state.par[xpp::session().auto_state.bifur.icp1]];
-  values[2] = xpp::model().upar_names[xpp::session().auto_state.par[xpp::session().auto_state.bifur.icp2]];
-  values[3] = xpp::format("{:g}", xpp::session().auto_state.bifur.xmin);
-  values[4] = xpp::format("{:g}", xpp::session().auto_state.bifur.ymin);
-  values[5] = xpp::format("{:g}", xpp::session().auto_state.bifur.xmax);
-  values[6] = xpp::format("{:g}", xpp::session().auto_state.bifur.ymax);
+  values[1] = xpp::model().upar_names[s.auto_state.par[s.auto_state.bifur.icp1]];
+  values[2] = xpp::model().upar_names[s.auto_state.par[s.auto_state.bifur.icp2]];
+  values[3] = xpp::format("{:g}", s.auto_state.bifur.xmin);
+  values[4] = xpp::format("{:g}", s.auto_state.bifur.ymin);
+  values[5] = xpp::format("{:g}", s.auto_state.bifur.xmax);
+  values[6] = xpp::format("{:g}", s.auto_state.bifur.ymax);
   static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
   status=do_string_box_of(7,1,"AutoPlot",n,values,31,kinds);
   if(status!=0){
     /*  get variable names  */
     find_variable(values[0].c_str(),&i);
     if(i>0)
-      xpp::session().auto_state.bifur.var=i-1;
+      s.auto_state.bifur.var=i-1;
     /*  Now check the parameters  */
     i1=find_user_name(PARAM_BOX,values[1].c_str());
     if(i1>=0){
-      for(i=0;i<xpp::session().auto_state.npar;i++){
-	if(i1==xpp::session().auto_state.par[i]){
-	  xpp::session().auto_state.bifur.icp1=i;
+      for(i=0;i<s.auto_state.npar;i++){
+	if(i1==s.auto_state.par[i]){
+	  s.auto_state.bifur.icp1=i;
 
 	}
       }
     }
      i1=find_user_name(PARAM_BOX,values[2].c_str());
     if(i1>=0){
-      for(i=0;i<xpp::session().auto_state.npar;i++){
-	if(i1==xpp::session().auto_state.par[i]){
-	  xpp::session().auto_state.bifur.icp2=i;
+      for(i=0;i<s.auto_state.npar;i++){
+	if(i1==s.auto_state.par[i]){
+	  s.auto_state.bifur.icp2=i;
 	}
       }
     }
 
-    xpp::session().auto_state.bifur.xmin=atof(values[3].c_str());
-    xpp::session().auto_state.bifur.ymin=atof(values[4].c_str());
-    xpp::session().auto_state.bifur.xmax=atof(values[5].c_str());
-    xpp::session().auto_state.bifur.ymax=atof(values[6].c_str());
-    if(xpp::session().auto_state.bifur.plot<4)keep_last_plot(1);
-    if(xpp::session().auto_state.bifur.plot==4)keep_last_plot(2);
+    s.auto_state.bifur.xmin=atof(values[3].c_str());
+    s.auto_state.bifur.ymin=atof(values[4].c_str());
+    s.auto_state.bifur.xmax=atof(values[5].c_str());
+    s.auto_state.bifur.ymax=atof(values[6].c_str());
+    if(s.auto_state.bifur.plot<4)keep_last_plot(1);
+    if(s.auto_state.bifur.plot==4)keep_last_plot(2);
     redraw_diagram();
 
 }
@@ -923,16 +928,17 @@ void auto_fit()
   
 void auto_zoom_in(int i1, int j1, int i2, int j2)
 {
+   xpp::Session &s=xpp::session();
    double x1,y1,x2,y2;
    int temp;
    if(i1>i2){temp=i1;i1=i2;i2=temp;}
    if(j2>j1){temp=j1;j1=j2;j2=temp;}
-   double dx = (xpp::session().auto_state.bifur.xmax-xpp::session().auto_state.bifur.xmin);
-   double dy = (xpp::session().auto_state.bifur.ymax-xpp::session().auto_state.bifur.ymin);
-   x1 = xpp::session().auto_state.bifur.xmin+static_cast<double>((i1-xpp::session().auto_state.bifur.x0))*(dx)/static_cast<double>(xpp::session().auto_state.bifur.wid);
-   x2 = xpp::session().auto_state.bifur.xmin+static_cast<double>((i2-xpp::session().auto_state.bifur.x0))*(dx)/static_cast<double>(xpp::session().auto_state.bifur.wid);
-   y1 = xpp::session().auto_state.bifur.ymin+static_cast<double>((xpp::session().auto_state.bifur.hgt+xpp::session().auto_state.bifur.y0-j1))*(dy)/static_cast<double>(xpp::session().auto_state.bifur.hgt);
-   y2 = xpp::session().auto_state.bifur.ymin+static_cast<double>((xpp::session().auto_state.bifur.hgt+xpp::session().auto_state.bifur.y0-j2))*(dy)/static_cast<double>(xpp::session().auto_state.bifur.hgt);
+   double dx = (s.auto_state.bifur.xmax-s.auto_state.bifur.xmin);
+   double dy = (s.auto_state.bifur.ymax-s.auto_state.bifur.ymin);
+   x1 = s.auto_state.bifur.xmin+static_cast<double>((i1-s.auto_state.bifur.x0))*(dx)/static_cast<double>(s.auto_state.bifur.wid);
+   x2 = s.auto_state.bifur.xmin+static_cast<double>((i2-s.auto_state.bifur.x0))*(dx)/static_cast<double>(s.auto_state.bifur.wid);
+   y1 = s.auto_state.bifur.ymin+static_cast<double>((s.auto_state.bifur.hgt+s.auto_state.bifur.y0-j1))*(dy)/static_cast<double>(s.auto_state.bifur.hgt);
+   y2 = s.auto_state.bifur.ymin+static_cast<double>((s.auto_state.bifur.hgt+s.auto_state.bifur.y0-j2))*(dy)/static_cast<double>(s.auto_state.bifur.hgt);
  
    if((i1==i2)||(j1==j2))
    { 
@@ -941,35 +947,36 @@ void auto_zoom_in(int i1, int j1, int i2, int j2)
 	  dx = dx/2;
 	  dy = dy/2;
 	  /*Shrink by thirds and center (track) about the point clicked*/
-	  xpp::session().auto_state.bifur.xmin=x1-dx/2;
-	  xpp::session().auto_state.bifur.xmax=x1+dx/2;
-	  xpp::session().auto_state.bifur.ymin=y1-dy/2;
-	  xpp::session().auto_state.bifur.ymax=y1+dy/2;
+	  s.auto_state.bifur.xmin=x1-dx/2;
+	  s.auto_state.bifur.xmax=x1+dx/2;
+	  s.auto_state.bifur.ymin=y1-dy/2;
+	  s.auto_state.bifur.ymax=y1+dy/2;
   }
   else
   {           
-	  xpp::session().auto_state.bifur.xmin=x1;
-	  xpp::session().auto_state.bifur.ymin=y1;
-	  xpp::session().auto_state.bifur.xmax=x2;
-	  xpp::session().auto_state.bifur.ymax=y2;     
+	  s.auto_state.bifur.xmin=x1;
+	  s.auto_state.bifur.ymin=y1;
+	  s.auto_state.bifur.xmax=x2;
+	  s.auto_state.bifur.ymax=y2;     
   }
   	
 }
 
 void auto_zoom_out(int i1, int j1, int i2, int j2)
 {
+   xpp::Session &s=xpp::session();
    double x1=0.0,y1=0.0,x2=0.0,y2=0.0;
    int temp;
-   double dx = (xpp::session().auto_state.bifur.xmax-xpp::session().auto_state.bifur.xmin);
-   double dy = (xpp::session().auto_state.bifur.ymax-xpp::session().auto_state.bifur.ymin);
+   double dx = (s.auto_state.bifur.xmax-s.auto_state.bifur.xmin);
+   double dy = (s.auto_state.bifur.ymax-s.auto_state.bifur.ymin);
    double a1,a2,b1,b2;
 
    if(i1>i2){temp=i1;i1=i2;i2=temp;}
    if(j2>j1){temp=j1;j1=j2;j2=temp;}
-   a1=static_cast<double>((i1-xpp::session().auto_state.bifur.x0))/static_cast<double>(xpp::session().auto_state.bifur.wid);
-      a2=static_cast<double>((i2-xpp::session().auto_state.bifur.x0))/static_cast<double>(xpp::session().auto_state.bifur.wid);
-      b1=static_cast<double>((xpp::session().auto_state.bifur.hgt+xpp::session().auto_state.bifur.y0-j1))/static_cast<double>(xpp::session().auto_state.bifur.hgt);
-      b2=static_cast<double>((xpp::session().auto_state.bifur.hgt+xpp::session().auto_state.bifur.y0-j2))/static_cast<double>(xpp::session().auto_state.bifur.hgt);
+   a1=static_cast<double>((i1-s.auto_state.bifur.x0))/static_cast<double>(s.auto_state.bifur.wid);
+      a2=static_cast<double>((i2-s.auto_state.bifur.x0))/static_cast<double>(s.auto_state.bifur.wid);
+      b1=static_cast<double>((s.auto_state.bifur.hgt+s.auto_state.bifur.y0-j1))/static_cast<double>(s.auto_state.bifur.hgt);
+      b2=static_cast<double>((s.auto_state.bifur.hgt+s.auto_state.bifur.y0-j2))/static_cast<double>(s.auto_state.bifur.hgt);
 
    if((i1==i2)||(j1==j2))
    { 
@@ -978,21 +985,21 @@ void auto_zoom_out(int i1, int j1, int i2, int j2)
 	  dx = dx*2;
 	  dy = dy*2;
 	  /*Shrink by thirds and center (track) about the point clicked*/
-	  xpp::session().auto_state.bifur.xmin=x1-dx/2;
-	  xpp::session().auto_state.bifur.xmax=x1+dx/2;
-	  xpp::session().auto_state.bifur.ymin=y1-dy/2;
-	  xpp::session().auto_state.bifur.ymax=y1+dy/2;
+	  s.auto_state.bifur.xmin=x1-dx/2;
+	  s.auto_state.bifur.xmax=x1+dx/2;
+	  s.auto_state.bifur.ymin=y1-dy/2;
+	  s.auto_state.bifur.ymax=y1+dy/2;
   }
   else
   {           
-    x1=(a1*xpp::session().auto_state.bifur.xmax-a2*xpp::session().auto_state.bifur.xmin)/(a1-a2);
-    x2=(xpp::session().auto_state.bifur.xmin-xpp::session().auto_state.bifur.xmax+a1*xpp::session().auto_state.bifur.xmax-a2*xpp::session().auto_state.bifur.xmin)/(a1-a2);
-    y1=(b1*xpp::session().auto_state.bifur.ymax-b2*xpp::session().auto_state.bifur.ymin)/(b1-b2);
-    y2=(xpp::session().auto_state.bifur.ymin-xpp::session().auto_state.bifur.ymax+b1*xpp::session().auto_state.bifur.ymax-b2*xpp::session().auto_state.bifur.ymin)/(b1-b2);
-	  xpp::session().auto_state.bifur.xmin=x1;
-	  xpp::session().auto_state.bifur.ymin=y1;
-	  xpp::session().auto_state.bifur.xmax=x2;
-	  xpp::session().auto_state.bifur.ymax=y2;
+    x1=(a1*s.auto_state.bifur.xmax-a2*s.auto_state.bifur.xmin)/(a1-a2);
+    x2=(s.auto_state.bifur.xmin-s.auto_state.bifur.xmax+a1*s.auto_state.bifur.xmax-a2*s.auto_state.bifur.xmin)/(a1-a2);
+    y1=(b1*s.auto_state.bifur.ymax-b2*s.auto_state.bifur.ymin)/(b1-b2);
+    y2=(s.auto_state.bifur.ymin-s.auto_state.bifur.ymax+b1*s.auto_state.bifur.ymax-b2*s.auto_state.bifur.ymin)/(b1-b2);
+	  s.auto_state.bifur.xmin=x1;
+	  s.auto_state.bifur.ymin=y1;
+	  s.auto_state.bifur.xmax=x2;
+	  s.auto_state.bifur.ymax=y2;
   }
 
 } 
@@ -1046,81 +1053,82 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
 		  int type, int flg, int lab, int npar, int icp1, int icp2, int flag2,
 		  double *evr, double *evi)
 {
+  xpp::Session &s=xpp::session();
   double x,y1,y2,par1,par2=0;
   int type1=type;
   par1=par[icp1];
-  if(icp2<xpp::session().auto_state.npar)par2=par[icp2];
+  if(icp2<s.auto_state.npar)par2=par[icp2];
   auto_xy_plot(&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a);
   if(flg==0){
-    xpp::session().auto_state.bifur.lastx=x;
-    xpp::session().auto_state.bifur.lasty=y1;
+    s.auto_state.bifur.lastx=x;
+    s.auto_state.bifur.lasty=y1;
   }
-  if(flag2==0&&xpp::session().auto_state.bifur.plot==P_P)
+  if(flag2==0&&s.auto_state.bifur.plot==P_P)
     {
   
        return;
      }
-  if(flag2>0&&xpp::session().auto_state.bifur.plot!=P_P){
+  if(flag2>0&&s.auto_state.bifur.plot!=P_P){
   
     return;
   }
 
-  if((flag2>0)&&(xpp::session().auto_state.bifur.plot==P_P))
+  if((flag2>0)&&(s.auto_state.bifur.plot==P_P))
    type1=CSEQ;
   switch(type1){
  
   case CSEQ:
-    if(xpp::session().auto_state.bifur.plot==PE_P||xpp::session().auto_state.bifur.plot==FR_P)break;
-    if(icp1!=xpp::session().auto_state.bifur.icp1)break;
-    if(flag2>0&&xpp::session().auto_state.bifur.icp2!=icp2)break;
+    if(s.auto_state.bifur.plot==PE_P||s.auto_state.bifur.plot==FR_P)break;
+    if(icp1!=s.auto_state.bifur.icp1)break;
+    if(flag2>0&&s.auto_state.bifur.icp2!=icp2)break;
 
-    if(xpp::session().plot_export.color){
+    if(s.plot_export.color){
       set_linestyle(1);
       if(flag2>0)pscolset2(flag2);
     }
     else 
       set_linestyle(8);
-    line_abs(static_cast<float>(x),static_cast<float>(y1),static_cast<float>(xpp::session().auto_state.bifur.lastx),static_cast<float>(xpp::session().auto_state.bifur.lasty));
+    line_abs(static_cast<float>(x),static_cast<float>(y1),static_cast<float>(s.auto_state.bifur.lastx),static_cast<float>(s.auto_state.bifur.lasty));
     break;
   case CUEQ:
-    if(xpp::session().auto_state.bifur.plot==PE_P||xpp::session().auto_state.bifur.plot==FR_P)break;
-    if(icp1!=xpp::session().auto_state.bifur.icp1)break;
-    if(flag2>0&&xpp::session().auto_state.bifur.icp2!=icp2)break;
-    if(xpp::session().auto_state.bifur.plot!=P_P)
-      {if(xpp::session().plot_export.color) set_linestyle(0);else set_linestyle(4);}
+    if(s.auto_state.bifur.plot==PE_P||s.auto_state.bifur.plot==FR_P)break;
+    if(icp1!=s.auto_state.bifur.icp1)break;
+    if(flag2>0&&s.auto_state.bifur.icp2!=icp2)break;
+    if(s.auto_state.bifur.plot!=P_P)
+      {if(s.plot_export.color) set_linestyle(0);else set_linestyle(4);}
     else
       {
 	pscolset2(flag2);
       
       }
-    line_abs(static_cast<float>(x),static_cast<float>(y1),static_cast<float>(xpp::session().auto_state.bifur.lastx),static_cast<float>(xpp::session().auto_state.bifur.lasty));
+    line_abs(static_cast<float>(x),static_cast<float>(y1),static_cast<float>(s.auto_state.bifur.lastx),static_cast<float>(s.auto_state.bifur.lasty));
     break;
   case UPER:
-    if(xpp::session().plot_export.color) 
+    if(s.plot_export.color) 
       set_linestyle(9); 
     else 
       set_linestyle(0);
-    if(icp1!=xpp::session().auto_state.bifur.icp1)break;
-    if(flag2>0&&xpp::session().auto_state.bifur.icp2!=icp2)break;
-    xpp::session().drawing.point_type=UPT;
+    if(icp1!=s.auto_state.bifur.icp1)break;
+    if(flag2>0&&s.auto_state.bifur.icp2!=icp2)break;
+    s.drawing.point_type=UPT;
     point_abs(static_cast<float>(x),static_cast<float>(y1));
     point_abs(static_cast<float>(x),static_cast<float>(y2));
     break;
   case SPER:
-    if(xpp::session().plot_export.color)
+    if(s.plot_export.color)
       set_linestyle(7);
     else
       set_linestyle(0);
-    if(icp1!=xpp::session().auto_state.bifur.icp1)break;
-    if(flag2>0&&xpp::session().auto_state.bifur.icp2!=icp2)break;
-    xpp::session().drawing.point_type=SPT;
+    if(icp1!=s.auto_state.bifur.icp1)break;
+    if(flag2>0&&s.auto_state.bifur.icp2!=icp2)break;
+    s.drawing.point_type=SPT;
     point_abs(static_cast<float>(x),static_cast<float>(y1));
     point_abs(static_cast<float>(x),static_cast<float>(y2)); 
     break;
   }
 
-  xpp::session().auto_state.bifur.lastx=x;
-  xpp::session().auto_state.bifur.lasty=y1;
+  s.auto_state.bifur.lastx=x;
+  s.auto_state.bifur.lasty=y1;
 }
 
 void auto_line(double x1i, double y1i, double x2i, double y2i)
@@ -1213,12 +1221,13 @@ void add_point(double *par, double per, double *uhigh, double *ulow, double *uba
 	       int type, int flg, int lab, int npar, int icp1, int icp2, int icp3, int icp4, int flag2,
 	       double *evr, double *evi)
 {
+  xpp::Session &s=xpp::session();
   double x,y1,y2,par1,par2=0;
   int ix,iy1,iy2,type1=type;
   std::string bob=xpp::format("{}",lab);
   XppDiagPoint dp;
   par1=par[icp1];
-  if(icp2<xpp::session().auto_state.npar)par2=par[icp2];
+  if(icp2<s.auto_state.npar)par2=par[icp2];
 auto_xy_plot(&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a); /* figure out who sits on axes */
   memset(&dp,0,sizeof dp);
   dp.ibr=dpt_ibr;
@@ -1235,56 +1244,56 @@ auto_xy_plot(&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a); /* figure out who sits
   dp.y1=y1;
   dp.y2=y2;
   if(flg==0){
-    xpp::session().auto_state.bifur.lastx=x;
-    xpp::session().auto_state.bifur.lasty=y1;
+    s.auto_state.bifur.lastx=x;
+    s.auto_state.bifur.lasty=y1;
   }
   ix=IXVal(x);
   iy1=IYVal(y1);
   iy2=IYVal(y2);
   autobw();
-if(flag2==0&&xpp::session().auto_state.bifur.plot==P_P) /* if the point was a 1 param run and we are in 2 param plot, skip */
+if(flag2==0&&s.auto_state.bifur.plot==P_P) /* if the point was a 1 param run and we are in 2 param plot, skip */
     {
        if(flg==0)auto_diagram(&dp); /* not drawn, but the next line starts here */
        show_stab(evr,evi,xpp::model().node,type==SPER||type==UPER);
        refreshdisplay();
        return;
      }
-if(flag2>0&&xpp::session().auto_state.bifur.plot!=P_P){ /* two parameter and not in two parameter plot, just skip it */
+if(flag2>0&&s.auto_state.bifur.plot!=P_P){ /* two parameter and not in two parameter plot, just skip it */
     if(flg==0)auto_diagram(&dp);
     show_stab(evr,evi,xpp::model().node,type==SPER||type==UPER);
     refreshdisplay();
     return;
   }
 
- if((flag2>0)&&(xpp::session().auto_state.bifur.plot==P_P))
+ if((flag2>0)&&(s.auto_state.bifur.plot==P_P))
    type1=CSEQ;
  switch(type1){
   
   case CSEQ:
-    if(xpp::session().auto_state.bifur.plot==PE_P||xpp::session().auto_state.bifur.plot==FR_P)break;
-    if(icp1!=xpp::session().auto_state.bifur.icp1)break;
-    if(flag2>0&&xpp::session().auto_state.bifur.icp2!=icp2)break;
+    if(s.auto_state.bifur.plot==PE_P||s.auto_state.bifur.plot==FR_P)break;
+    if(icp1!=s.auto_state.bifur.icp1)break;
+    if(flag2>0&&s.auto_state.bifur.icp2!=icp2)break;
     dp.draw=1;
     LineWidth(2);
     colset(type);
     if(flag2>0)colset2(flag2);
-    auto_line(x,y1,xpp::session().auto_state.bifur.lastx,xpp::session().auto_state.bifur.lasty);
+    auto_line(x,y1,s.auto_state.bifur.lastx,s.auto_state.bifur.lasty);
     autobw();
     break;
   case CUEQ:
-    if(xpp::session().auto_state.bifur.plot==PE_P||xpp::session().auto_state.bifur.plot==FR_P)break;
-    if(icp1!=xpp::session().auto_state.bifur.icp1)break;
-    if(flag2>0&&xpp::session().auto_state.bifur.icp2!=icp2)break;
+    if(s.auto_state.bifur.plot==PE_P||s.auto_state.bifur.plot==FR_P)break;
+    if(icp1!=s.auto_state.bifur.icp1)break;
+    if(flag2>0&&s.auto_state.bifur.icp2!=icp2)break;
     dp.draw=1;
     LineWidth(1);
         colset(type);
 	if(flag2>0)colset2(flag2);
-    auto_line(x,y1,xpp::session().auto_state.bifur.lastx,xpp::session().auto_state.bifur.lasty);
+    auto_line(x,y1,s.auto_state.bifur.lastx,s.auto_state.bifur.lasty);
     autobw();
     break;
   case UPER:
-    if(icp1!=xpp::session().auto_state.bifur.icp1)break;
-    if(flag2>0&&xpp::session().auto_state.bifur.icp2!=icp2)break;
+    if(icp1!=s.auto_state.bifur.icp1)break;
+    if(flag2>0&&s.auto_state.bifur.icp2!=icp2)break;
     dp.draw=3;
     LineWidth(1);
         colset(type);
@@ -1294,8 +1303,8 @@ if(flag2>0&&xpp::session().auto_state.bifur.plot!=P_P){ /* two parameter and not
     autobw();
     break;
   case SPER:
-    if(icp1!=xpp::session().auto_state.bifur.icp1)break;
-    if(flag2>0&&xpp::session().auto_state.bifur.icp2!=icp2)break;
+    if(icp1!=s.auto_state.bifur.icp1)break;
+    if(flag2>0&&s.auto_state.bifur.icp2!=icp2)break;
     dp.draw=2;
     LineWidth(1);
         colset(type);
@@ -1306,8 +1315,8 @@ if(flag2>0&&xpp::session().auto_state.bifur.plot!=P_P){ /* two parameter and not
     break;
   }
   if(lab!=0){
-    if(icp1==xpp::session().auto_state.bifur.icp1){
-      if(flag2==0||(flag2>0&&xpp::session().auto_state.bifur.icp2==icp2)){
+    if(icp1==s.auto_state.bifur.icp1){
+      if(flag2==0||(flag2>0&&s.auto_state.bifur.icp2==icp2)){
 	dp.lab=lab;
 	LineWidth(1);
         if(chk_auto_bnds(ix,iy1)){
@@ -1321,8 +1330,8 @@ if(flag2>0&&xpp::session().auto_state.bifur.plot!=P_P){ /* two parameter and not
     }
   }
 
-  xpp::session().auto_state.bifur.lastx=x;
-  xpp::session().auto_state.bifur.lasty=y1;
+  s.auto_state.bifur.lastx=x;
+  s.auto_state.bifur.lasty=y1;
   auto_diagram(&dp);
   show_stab(evr,evi,xpp::model().node,type==SPER||type==UPER);
   refreshdisplay();
@@ -1468,129 +1477,132 @@ void do_auto_win()
 
 void load_last_plot(int flg)
 {
+ xpp::Session &s=xpp::session();
  if(flg==1) {/* one parameter */
-  xpp::session().auto_state.bifur.xmin=Old1p.xmin;
-  xpp::session().auto_state.bifur.xmax=Old1p.xmax;
-  xpp::session().auto_state.bifur.ymin=Old1p.ymin;
-  xpp::session().auto_state.bifur.ymax=Old1p.ymax;
-  xpp::session().auto_state.bifur.icp1=Old1p.icp1;
-  xpp::session().auto_state.bifur.icp2=Old1p.icp2;
-  xpp::session().auto_state.bifur.plot=Old1p.plot;
- xpp::session().auto_state.bifur.var=Old1p.var;
+  s.auto_state.bifur.xmin=Old1p.xmin;
+  s.auto_state.bifur.xmax=Old1p.xmax;
+  s.auto_state.bifur.ymin=Old1p.ymin;
+  s.auto_state.bifur.ymax=Old1p.ymax;
+  s.auto_state.bifur.icp1=Old1p.icp1;
+  s.auto_state.bifur.icp2=Old1p.icp2;
+  s.auto_state.bifur.plot=Old1p.plot;
+ s.auto_state.bifur.var=Old1p.var;
 }
 if(flg==2) {/* two parameter */
-  xpp::session().auto_state.bifur.xmin=Old2p.xmin;
-  xpp::session().auto_state.bifur.xmax=Old2p.xmax;
-  xpp::session().auto_state.bifur.ymin=Old2p.ymin;
-  xpp::session().auto_state.bifur.ymax=Old2p.ymax;
-  xpp::session().auto_state.bifur.icp1=Old2p.icp1;
-  xpp::session().auto_state.bifur.icp2=Old2p.icp2;
-  xpp::session().auto_state.bifur.plot=Old2p.plot;
- xpp::session().auto_state.bifur.var=Old2p.var;
+  s.auto_state.bifur.xmin=Old2p.xmin;
+  s.auto_state.bifur.xmax=Old2p.xmax;
+  s.auto_state.bifur.ymin=Old2p.ymin;
+  s.auto_state.bifur.ymax=Old2p.ymax;
+  s.auto_state.bifur.icp1=Old2p.icp1;
+  s.auto_state.bifur.icp2=Old2p.icp2;
+  s.auto_state.bifur.plot=Old2p.plot;
+ s.auto_state.bifur.var=Old2p.var;
 }
 
 }
 void keep_last_plot(int flg)
 {
+  xpp::Session &s=xpp::session();
   if(flg==1){ /* one parameter */
-    Old1p.xmin=xpp::session().auto_state.bifur.xmin;
-    Old1p.xmax=xpp::session().auto_state.bifur.xmax;
-    Old1p.ymin=xpp::session().auto_state.bifur.ymin;
-    Old1p.ymax=xpp::session().auto_state.bifur.ymax;
-    Old1p.icp1=xpp::session().auto_state.bifur.icp1;
-    Old1p.icp2=xpp::session().auto_state.bifur.icp2;
-    Old1p.plot=xpp::session().auto_state.bifur.plot;
-    Old1p.var=xpp::session().auto_state.bifur.var;
+    Old1p.xmin=s.auto_state.bifur.xmin;
+    Old1p.xmax=s.auto_state.bifur.xmax;
+    Old1p.ymin=s.auto_state.bifur.ymin;
+    Old1p.ymax=s.auto_state.bifur.ymax;
+    Old1p.icp1=s.auto_state.bifur.icp1;
+    Old1p.icp2=s.auto_state.bifur.icp2;
+    Old1p.plot=s.auto_state.bifur.plot;
+    Old1p.var=s.auto_state.bifur.var;
   }
   if(flg==2){
-    Old2p.xmin=xpp::session().auto_state.bifur.xmin;
-    Old2p.xmax=xpp::session().auto_state.bifur.xmax;
-    Old2p.ymin=xpp::session().auto_state.bifur.ymin;
-    Old2p.ymax=xpp::session().auto_state.bifur.ymax;
-    Old2p.icp1=xpp::session().auto_state.bifur.icp1;
-    Old2p.icp2=xpp::session().auto_state.bifur.icp2;
+    Old2p.xmin=s.auto_state.bifur.xmin;
+    Old2p.xmax=s.auto_state.bifur.xmax;
+    Old2p.ymin=s.auto_state.bifur.ymin;
+    Old2p.ymax=s.auto_state.bifur.ymax;
+    Old2p.icp1=s.auto_state.bifur.icp1;
+    Old2p.icp2=s.auto_state.bifur.icp2;
     Old2p.plot=P_P;
-    Old2p.var=xpp::session().auto_state.bifur.var;
+    Old2p.var=s.auto_state.bifur.var;
   }
 }
 
 void init_auto_win()
 {
+  xpp::Session &s=xpp::session();
   int i;
   if(xpp::model().node>NAUTO)return;
   start_diagram(xpp::model().node); 
   for(i=0;i<10;i++){
-    xpp::session().auto_state.bifur.period[i]=11.+3.*i;
-    xpp::session().auto_state.bifur.uzrpar[i]=10;
-    xpp::session().auto_state.uzr_period[i]=xpp::session().auto_state.bifur.period[i];
-    xpp::session().auto_state.uzr_par[i]=10;
+    s.auto_state.bifur.period[i]=11.+3.*i;
+    s.auto_state.bifur.uzrpar[i]=10;
+    s.auto_state.uzr_period[i]=s.auto_state.bifur.period[i];
+    s.auto_state.uzr_par[i]=10;
   }
-  xpp::session().auto_state.npar=8;
-  if(xpp::model().nupar<8)xpp::session().auto_state.npar=xpp::model().nupar;
-  for(i=0;i<xpp::session().auto_state.npar;i++)xpp::session().auto_state.par[i]=i;
-  for(i=0;i<xpp::session().auto_state.npar;i++){
-    xpp::session().auto_state.par_index[i]=get_param_index(xpp::model().upar_names[xpp::session().auto_state.par[i]]);
+  s.auto_state.npar=8;
+  if(xpp::model().nupar<8)s.auto_state.npar=xpp::model().nupar;
+  for(i=0;i<s.auto_state.npar;i++)s.auto_state.par[i]=i;
+  for(i=0;i<s.auto_state.npar;i++){
+    s.auto_state.par_index[i]=get_param_index(xpp::model().upar_names[s.auto_state.par[i]]);
   }
-  xpp::session().auto_state.bifur.nper=0;
+  s.auto_state.bifur.nper=0;
   grabpt.flag=0;  /*  no point in buffer  */
-  xpp::session().auto_state.bifur.exist=0;
- xpp::session().auto_state.blrtn.torper=xpp::session().numerics.tor_period;
+  s.auto_state.bifur.exist=0;
+ s.auto_state.blrtn.torper=s.numerics.tor_period;
  create_auto_file_name();
  
 /*  Control -- done automatically   */
-  xpp::session().auto_state.bifur.irs=0;
-  xpp::session().auto_state.bifur.ips=1;
-  xpp::session().auto_state.bifur.isp=1;
-    if(xpp::session().auto_state.suppress_bp==1) xpp::session().auto_state.bifur.isp=0;
-  xpp::session().auto_state.bifur.ilp=1;
-  xpp::session().auto_state.bifur.isw=1;
-  xpp::session().auto_state.bifur.nbc=xpp::model().node;
-  xpp::session().auto_state.bifur.nfpar=1;
-  xpp::session().auto_state.homo_flag=0;
+  s.auto_state.bifur.irs=0;
+  s.auto_state.bifur.ips=1;
+  s.auto_state.bifur.isp=1;
+    if(s.auto_state.suppress_bp==1) s.auto_state.bifur.isp=0;
+  s.auto_state.bifur.ilp=1;
+  s.auto_state.bifur.isw=1;
+  s.auto_state.bifur.nbc=xpp::model().node;
+  s.auto_state.bifur.nfpar=1;
+  s.auto_state.homo_flag=0;
 /*  User controls this      */
-  xpp::session().auto_state.bifur.ncol=xpp::session().auto_state.options.ncol;
-  xpp::session().auto_state.bifur.ntst=xpp::session().auto_state.options.ntst;
-  xpp::session().auto_state.bifur.nmx=xpp::session().auto_state.options.nmx;
-  xpp::session().auto_state.bifur.npr=xpp::session().auto_state.options.npr;
-  xpp::session().auto_state.bifur.ds=xpp::session().auto_state.options.ds;
-  xpp::session().auto_state.bifur.dsmax=xpp::session().auto_state.options.dsmax;
-  xpp::session().auto_state.bifur.dsmin=xpp::session().auto_state.options.dsmin;
-  xpp::session().auto_state.bifur.rl0=xpp::session().auto_state.options.rl0;
-  xpp::session().auto_state.bifur.rl1=xpp::session().auto_state.options.rl1;
-  xpp::session().auto_state.bifur.a0=xpp::session().auto_state.options.a0;
-  xpp::session().auto_state.bifur.a1=xpp::session().auto_state.options.a1;
+  s.auto_state.bifur.ncol=s.auto_state.options.ncol;
+  s.auto_state.bifur.ntst=s.auto_state.options.ntst;
+  s.auto_state.bifur.nmx=s.auto_state.options.nmx;
+  s.auto_state.bifur.npr=s.auto_state.options.npr;
+  s.auto_state.bifur.ds=s.auto_state.options.ds;
+  s.auto_state.bifur.dsmax=s.auto_state.options.dsmax;
+  s.auto_state.bifur.dsmin=s.auto_state.options.dsmin;
+  s.auto_state.bifur.rl0=s.auto_state.options.rl0;
+  s.auto_state.bifur.rl1=s.auto_state.options.rl1;
+  s.auto_state.bifur.a0=s.auto_state.options.a0;
+  s.auto_state.bifur.a1=s.auto_state.options.a1;
   
-  xpp::session().auto_state.bifur.epsl=xpp::session().auto_state.options.epsl;
-    xpp::session().auto_state.bifur.epsu=xpp::session().auto_state.options.epsu;
-  xpp::session().auto_state.bifur.epss=xpp::session().auto_state.options.epss;
+  s.auto_state.bifur.epsl=s.auto_state.options.epsl;
+    s.auto_state.bifur.epsu=s.auto_state.options.epsu;
+  s.auto_state.bifur.epss=s.auto_state.options.epss;
 
 /* The diagram plotting stuff    */
 
-  xpp::session().auto_state.bifur.xmax=xpp::session().auto_state.options.xmax;
-  xpp::session().auto_state.bifur.xmin=xpp::session().auto_state.options.xmin;
-  xpp::session().auto_state.bifur.ymax=xpp::session().auto_state.options.ymax;
-  xpp::session().auto_state.bifur.ymin=xpp::session().auto_state.options.ymin;
-  xpp::session().auto_state.bifur.plot=HL_P;
-  xpp::session().auto_state.bifur.var=xpp::session().auto_state.options.var;
+  s.auto_state.bifur.xmax=s.auto_state.options.xmax;
+  s.auto_state.bifur.xmin=s.auto_state.options.xmin;
+  s.auto_state.bifur.ymax=s.auto_state.options.ymax;
+  s.auto_state.bifur.ymin=s.auto_state.options.ymin;
+  s.auto_state.bifur.plot=HL_P;
+  s.auto_state.bifur.var=s.auto_state.options.var;
 
 /* xpp parameters    */
   
-  xpp::session().auto_state.bifur.icp1=0;
-  xpp::session().auto_state.bifur.icp2=1;
-   xpp::session().auto_state.bifur.icp3=1;
-  xpp::session().auto_state.bifur.icp4=1;
-  xpp::session().auto_state.bifur.icp5=1;
+  s.auto_state.bifur.icp1=0;
+  s.auto_state.bifur.icp2=1;
+   s.auto_state.bifur.icp3=1;
+  s.auto_state.bifur.icp4=1;
+  s.auto_state.bifur.icp5=1;
   keep_last_plot(1);
   keep_last_plot(2);
-  xpp::session().auto_state.advanced.iad=3;
-  xpp::session().auto_state.advanced.mxbf=5;
-  xpp::session().auto_state.advanced.iid=2;
-  xpp::session().auto_state.advanced.itmx=8;
-  xpp::session().auto_state.advanced.itnw=7;
-  xpp::session().auto_state.advanced.nwtn=3;
-  xpp::session().auto_state.advanced.iads=1;
-  xpp::session().auto_state.run.nunstab=1;
-  xpp::session().auto_state.run.nstab=xpp::model().node-1;
+  s.auto_state.advanced.iad=3;
+  s.auto_state.advanced.mxbf=5;
+  s.auto_state.advanced.iid=2;
+  s.auto_state.advanced.itmx=8;
+  s.auto_state.advanced.itnw=7;
+  s.auto_state.advanced.nwtn=3;
+  s.auto_state.advanced.iads=1;
+  s.auto_state.run.nunstab=1;
+  s.auto_state.run.nstab=xpp::model().node-1;
 }
 
 int yes_reset_auto()
@@ -1972,66 +1984,70 @@ NICP=2, ISW=2 at Hopf
 
 void auto_start_diff_ss()
 {
-  xpp::session().auto_state.type_of_calc=EQ1;
-  xpp::session().auto_state.bifur.ips=1;
-  if(xpp::session().numerics.method==DISCRETE)xpp::session().auto_state.bifur.ips=-1;
-  xpp::session().auto_state.bifur.irs=0;
-  xpp::session().auto_state.bifur.itp=0;
-  xpp::session().auto_state.bifur.ilp=1;
-  xpp::session().auto_state.bifur.isw=1;
-  xpp::session().auto_state.bifur.isp=1;
-    if(xpp::session().auto_state.suppress_bp==1) xpp::session().auto_state.bifur.isp=0;
-  xpp::session().auto_state.bifur.nfpar=1;
-  xpp::session().auto_state.two_param=0;
-  do_auto(NO_OPEN_3,APPEND,xpp::session().auto_state.bifur.itp);
+  xpp::Session &s=xpp::session();
+  s.auto_state.type_of_calc=EQ1;
+  s.auto_state.bifur.ips=1;
+  if(s.numerics.method==DISCRETE)s.auto_state.bifur.ips=-1;
+  s.auto_state.bifur.irs=0;
+  s.auto_state.bifur.itp=0;
+  s.auto_state.bifur.ilp=1;
+  s.auto_state.bifur.isw=1;
+  s.auto_state.bifur.isp=1;
+    if(s.auto_state.suppress_bp==1) s.auto_state.bifur.isp=0;
+  s.auto_state.bifur.nfpar=1;
+  s.auto_state.two_param=0;
+  do_auto(NO_OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
 void auto_start_at_bvp()
 {
+  xpp::Session &s=xpp::session();
   int opn=NO_OPEN_3,cls=OVERWRITE;
  compile_bvp();
-  if(xpp::session().numerics.bvp_flag==0)
+  if(s.numerics.bvp_flag==0)
     return; 
-  xpp::session().auto_state.type_of_calc=BV1;
- xpp::session().auto_state.bifur.ips=4;
-  xpp::session().auto_state.bifur.irs=0;
-  xpp::session().auto_state.bifur.itp=0;
-  xpp::session().auto_state.bifur.ilp=1;
-  xpp::session().auto_state.bifur.isw=1;
+  s.auto_state.type_of_calc=BV1;
+ s.auto_state.bifur.ips=4;
+  s.auto_state.bifur.irs=0;
+  s.auto_state.bifur.itp=0;
+  s.auto_state.bifur.ilp=1;
+  s.auto_state.bifur.isw=1;
 
-  xpp::session().auto_state.bifur.isp=2;
-  if(xpp::session().auto_state.suppress_bp==1) xpp::session().auto_state.bifur.isp=0;
+  s.auto_state.bifur.isp=2;
+  if(s.auto_state.suppress_bp==1) s.auto_state.bifur.isp=0;
     
-  xpp::session().auto_state.bifur.nfpar=1;
-  xpp::session().auto_state.two_param=0;
-  xpp::session().auto_state.new_period_flag=2;
-  do_auto(opn,cls,xpp::session().auto_state.bifur.itp);
+  s.auto_state.bifur.nfpar=1;
+  s.auto_state.two_param=0;
+  s.auto_state.new_period_flag=2;
+  do_auto(opn,cls,s.auto_state.bifur.itp);
 }
 
 void auto_start_at_per()
 {
+  xpp::Session &s=xpp::session();
   int opn=NO_OPEN_3,cls=OVERWRITE;
   
-  xpp::session().auto_state.type_of_calc=PE1;
-  xpp::session().auto_state.bifur.ips=2;
-  xpp::session().auto_state.bifur.irs=0;
-  xpp::session().auto_state.bifur.itp=0;
-  xpp::session().auto_state.bifur.ilp=1;
-  xpp::session().auto_state.bifur.isw=1;
+  s.auto_state.type_of_calc=PE1;
+  s.auto_state.bifur.ips=2;
+  s.auto_state.bifur.irs=0;
+  s.auto_state.bifur.itp=0;
+  s.auto_state.bifur.ilp=1;
+  s.auto_state.bifur.isw=1;
 
-  xpp::session().auto_state.bifur.isp=2;
-    if(xpp::session().auto_state.suppress_bp==1) xpp::session().auto_state.bifur.isp=0;
-  xpp::session().auto_state.bifur.nfpar=1;
-  xpp::session().auto_state.two_param=0;
-  xpp::session().auto_state.new_period_flag=1;
-  do_auto(opn,cls,xpp::session().auto_state.bifur.itp);
+  s.auto_state.bifur.isp=2;
+    if(s.auto_state.suppress_bp==1) s.auto_state.bifur.isp=0;
+  s.auto_state.bifur.nfpar=1;
+  s.auto_state.two_param=0;
+  s.auto_state.new_period_flag=1;
+  do_auto(opn,cls,s.auto_state.bifur.itp);
 }
 
 void auto_new_ss()
 {
+  xpp::Session &s=xpp::session();
   int ans;
   int opn=NO_OPEN_3,cls=OVERWRITE;
-  xpp::session().auto_state.new_period_flag=0;
+  s.auto_state.new_period_flag=0;
 
   if(diagram_count()>1){
     ans=reset_auto();
@@ -2040,24 +2056,25 @@ void auto_new_ss()
        xpp::log(XPP_LOG_WARN, "Boolean response expected.\n");
     }
   }
-      xpp::session().auto_state.type_of_calc=EQ1;
-  xpp::session().auto_state.bifur.ips=1;
-  xpp::session().auto_state.bifur.irs=0;
-  xpp::session().auto_state.bifur.itp=0;
-  xpp::session().auto_state.bifur.ilp=1;
-  xpp::session().auto_state.bifur.isw=1;
-  xpp::session().auto_state.bifur.isp=1;
-      if(xpp::session().auto_state.suppress_bp==1) xpp::session().auto_state.bifur.isp=0;;
-  xpp::session().auto_state.bifur.nfpar=1;
-   xpp::session().auto_state.two_param=0;
-  do_auto(opn,cls,xpp::session().auto_state.bifur.itp);
+      s.auto_state.type_of_calc=EQ1;
+  s.auto_state.bifur.ips=1;
+  s.auto_state.bifur.irs=0;
+  s.auto_state.bifur.itp=0;
+  s.auto_state.bifur.ilp=1;
+  s.auto_state.bifur.isw=1;
+  s.auto_state.bifur.isp=1;
+      if(s.auto_state.suppress_bp==1) s.auto_state.bifur.isp=0;;
+  s.auto_state.bifur.nfpar=1;
+   s.auto_state.two_param=0;
+  do_auto(opn,cls,s.auto_state.bifur.itp);
 }
 
 void auto_new_discrete()
 {
+  xpp::Session &s=xpp::session();
   int ans;
   int opn=NO_OPEN_3,cls=OVERWRITE;
-  xpp::session().auto_state.new_period_flag=0;
+  s.auto_state.new_period_flag=0;
   if(diagram_count()>1){
     ans=reset_auto();
     if ((ans!=0) && (ans!=1))
@@ -2065,21 +2082,22 @@ void auto_new_discrete()
        xpp::log(XPP_LOG_WARN, "Boolean response expected.\n");
     }
   }
-  xpp::session().auto_state.type_of_calc=DI1;
-  xpp::session().auto_state.bifur.ips=-1;
-  xpp::session().auto_state.bifur.irs=0;
-  xpp::session().auto_state.bifur.itp=0;
-  xpp::session().auto_state.bifur.ilp=1;
-  xpp::session().auto_state.bifur.isw=1;
-  xpp::session().auto_state.bifur.isp=1;
-    if(xpp::session().auto_state.suppress_bp==1) xpp::session().auto_state.bifur.isp=0;
-  xpp::session().auto_state.bifur.nfpar=1;
-   xpp::session().auto_state.two_param=0; 
-  do_auto(opn,cls,xpp::session().auto_state.bifur.itp);
+  s.auto_state.type_of_calc=DI1;
+  s.auto_state.bifur.ips=-1;
+  s.auto_state.bifur.irs=0;
+  s.auto_state.bifur.itp=0;
+  s.auto_state.bifur.ilp=1;
+  s.auto_state.bifur.isw=1;
+  s.auto_state.bifur.isp=1;
+    if(s.auto_state.suppress_bp==1) s.auto_state.bifur.isp=0;
+  s.auto_state.bifur.nfpar=1;
+   s.auto_state.two_param=0; 
+  do_auto(opn,cls,s.auto_state.bifur.itp);
 }
  
 void auto_extend_ss()
 {
+  xpp::Session &s=xpp::session();
 
   /*Prevent crash on hopf of infinite period. here
   
@@ -2098,20 +2116,20 @@ void auto_extend_ss()
   	return;
   } 
   
-      xpp::session().auto_state.type_of_calc=EQ1;
-  xpp::session().auto_state.bifur.irs=grabpt.lab;
-  xpp::session().auto_state.bifur.itp=grabpt.itp;
-  xpp::session().auto_state.bifur.nfpar=grabpt.nfpar;
-  xpp::session().auto_state.bifur.ilp=1;
-  xpp::session().auto_state.bifur.isw=1;
-  xpp::session().auto_state.bifur.ips=1;
-  if(xpp::session().numerics.method==DISCRETE)
-    xpp::session().auto_state.bifur.ips=-1;
-  xpp::session().auto_state.bifur.isp=1;
-    if(xpp::session().auto_state.suppress_bp==1) xpp::session().auto_state.bifur.isp=0;
+      s.auto_state.type_of_calc=EQ1;
+  s.auto_state.bifur.irs=grabpt.lab;
+  s.auto_state.bifur.itp=grabpt.itp;
+  s.auto_state.bifur.nfpar=grabpt.nfpar;
+  s.auto_state.bifur.ilp=1;
+  s.auto_state.bifur.isw=1;
+  s.auto_state.bifur.ips=1;
+  if(s.numerics.method==DISCRETE)
+    s.auto_state.bifur.ips=-1;
+  s.auto_state.bifur.isp=1;
+    if(s.auto_state.suppress_bp==1) s.auto_state.bifur.isp=0;
     
-  xpp::session().auto_state.two_param=0;
-  do_auto(OPEN_3,APPEND,xpp::session().auto_state.bifur.itp);
+  s.auto_state.two_param=0;
+  do_auto(OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
 int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
@@ -2156,61 +2174,64 @@ int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
 
 void auto_extend_homoclinic()
 {
-   xpp::session().auto_state.bifur.irs=grabpt.lab;
-  xpp::session().auto_state.bifur.itp=grabpt.itp;
+   xpp::Session &s=xpp::session();
+   s.auto_state.bifur.irs=grabpt.lab;
+  s.auto_state.bifur.itp=grabpt.itp;
 
-      xpp::session().auto_state.type_of_calc=HO2;
-  xpp::session().auto_state.two_param=HO2;
-  xpp::session().auto_state.new_period_flag=1;
-  xpp::session().auto_state.bifur.ips=9;
+      s.auto_state.type_of_calc=HO2;
+  s.auto_state.two_param=HO2;
+  s.auto_state.new_period_flag=1;
+  s.auto_state.bifur.ips=9;
 
-  xpp::session().auto_state.bifur.nfpar=2;
-  xpp::session().auto_state.bifur.ilp=1;
-  xpp::session().auto_state.bifur.isw=1;
-  xpp::session().auto_state.bifur.isp=0;
-  xpp::session().auto_state.bifur.nbc=0;
+  s.auto_state.bifur.nfpar=2;
+  s.auto_state.bifur.ilp=1;
+  s.auto_state.bifur.isw=1;
+  s.auto_state.bifur.isp=0;
+  s.auto_state.bifur.nbc=0;
   
-  if(xpp::session().auto_state.homo_flag==1)
-    xpp::session().auto_state.run.iequib=1;
-  if(xpp::session().auto_state.homo_flag==2)
-    xpp::session().auto_state.run.iequib=-2;
+  if(s.auto_state.homo_flag==1)
+    s.auto_state.run.iequib=1;
+  if(s.auto_state.homo_flag==2)
+    s.auto_state.run.iequib=-2;
 
-  do_auto(OPEN_3,APPEND,xpp::session().auto_state.bifur.itp);
+  do_auto(OPEN_3,APPEND,s.auto_state.bifur.itp);
 
 }
 
 void auto_start_at_homoclinic()
 {
+  xpp::Session &s=xpp::session();
   int opn=NO_OPEN_3,cls=OVERWRITE;
   int flag;
-  xpp::session().auto_state.bifur.irs=0;
-  xpp::session().auto_state.bifur.itp=0;
-    xpp::session().auto_state.type_of_calc=HO2;
+  s.auto_state.bifur.irs=0;
+  s.auto_state.bifur.itp=0;
+    s.auto_state.type_of_calc=HO2;
 
-  xpp::session().auto_state.two_param=HO2;
-  xpp::session().auto_state.new_period_flag=1;
-  xpp::session().auto_state.bifur.ips=9;
+  s.auto_state.two_param=HO2;
+  s.auto_state.new_period_flag=1;
+  s.auto_state.bifur.ips=9;
 
-  xpp::session().auto_state.bifur.nfpar=2;
-  xpp::session().auto_state.bifur.ilp=1; /* maybe 1 someday also in extend homo, but for now, no 3 param allowed    */
-  xpp::session().auto_state.bifur.isw=1;
-  xpp::session().auto_state.bifur.isp=0;
-  xpp::session().auto_state.bifur.nbc=0;
+  s.auto_state.bifur.nfpar=2;
+  s.auto_state.bifur.ilp=1; /* maybe 1 someday also in extend homo, but for now, no 3 param allowed    */
+  s.auto_state.bifur.isw=1;
+  s.auto_state.bifur.isp=0;
+  s.auto_state.bifur.nbc=0;
   
-  if(xpp::session().auto_state.homo_flag==1){
-    xpp::session().auto_state.run.iequib=1;
+  if(s.auto_state.homo_flag==1){
+    s.auto_state.run.iequib=1;
     find_best_homo_shift(xpp::model().node);
   }
-  if(xpp::session().auto_state.homo_flag==2)
-    xpp::session().auto_state.run.iequib=-2;
-  flag=get_homo_info(xpp::session().auto_state.homo_flag,&xpp::session().auto_state.run.nunstab,&xpp::session().auto_state.run.nstab,xpp::session().auto_state.homo_l.data(),xpp::session().auto_state.homo_r.data());
-  if(flag)do_auto(opn,cls,xpp::session().auto_state.bifur.itp);
+  if(s.auto_state.homo_flag==2)
+    s.auto_state.run.iequib=-2;
+  flag=get_homo_info(s.auto_state.homo_flag,&s.auto_state.run.nunstab,&s.auto_state.run.nstab,s.auto_state.homo_l.data(),s.auto_state.homo_r.data());
+  if(flag)do_auto(opn,cls,s.auto_state.bifur.itp);
 
 }
     
 void auto_new_per() /* same for extending periodic  */
 {
-  xpp::session().auto_state.blrtn.torper=grabpt.torper;
+  xpp::Session &s=xpp::session();
+  s.auto_state.blrtn.torper=grabpt.torper;
   
   /*Prevent crash on hopf of infinite period. here
   
@@ -2228,96 +2249,101 @@ void auto_new_per() /* same for extending periodic  */
   	err_msg("Can't continue infinite period Hopf.");
   	return;
   } 	
-      xpp::session().auto_state.type_of_calc=PE1;
-  xpp::session().auto_state.bifur.irs=grabpt.lab;
-  xpp::session().auto_state.bifur.itp=grabpt.itp;
-  xpp::session().auto_state.bifur.nfpar=1;
-  xpp::session().auto_state.bifur.ilp=1;
-  xpp::session().auto_state.bifur.isw=1; /* -1 */
-  xpp::session().auto_state.bifur.isp=2;
-    if(xpp::session().auto_state.suppress_bp==1) xpp::session().auto_state.bifur.isp=0;
-  xpp::session().auto_state.bifur.ips=2;
-    xpp::session().auto_state.two_param=0;
-  do_auto(OPEN_3,APPEND,xpp::session().auto_state.bifur.itp);
+      s.auto_state.type_of_calc=PE1;
+  s.auto_state.bifur.irs=grabpt.lab;
+  s.auto_state.bifur.itp=grabpt.itp;
+  s.auto_state.bifur.nfpar=1;
+  s.auto_state.bifur.ilp=1;
+  s.auto_state.bifur.isw=1; /* -1 */
+  s.auto_state.bifur.isp=2;
+    if(s.auto_state.suppress_bp==1) s.auto_state.bifur.isp=0;
+  s.auto_state.bifur.ips=2;
+    s.auto_state.two_param=0;
+  do_auto(OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
 void auto_extend_bvp() /* extending bvp */
 {
-      xpp::session().auto_state.type_of_calc=BV1;
-  xpp::session().auto_state.bifur.irs=grabpt.lab;
-  xpp::session().auto_state.bifur.itp=grabpt.itp;
-  xpp::session().auto_state.bifur.nfpar=grabpt.nfpar;
-  xpp::session().auto_state.bifur.ilp=1;
-  xpp::session().auto_state.bifur.isw=1;
-  xpp::session().auto_state.bifur.isp=2;
-    if(xpp::session().auto_state.suppress_bp==1) xpp::session().auto_state.bifur.isp=0;
-  xpp::session().auto_state.bifur.ips=4;
-    xpp::session().auto_state.two_param=0;
-  do_auto(OPEN_3,APPEND,xpp::session().auto_state.bifur.itp);
+      xpp::Session &s=xpp::session();
+      s.auto_state.type_of_calc=BV1;
+  s.auto_state.bifur.irs=grabpt.lab;
+  s.auto_state.bifur.itp=grabpt.itp;
+  s.auto_state.bifur.nfpar=grabpt.nfpar;
+  s.auto_state.bifur.ilp=1;
+  s.auto_state.bifur.isw=1;
+  s.auto_state.bifur.isp=2;
+    if(s.auto_state.suppress_bp==1) s.auto_state.bifur.isp=0;
+  s.auto_state.bifur.ips=4;
+    s.auto_state.two_param=0;
+  do_auto(OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
 void auto_switch_per()
 {
-      xpp::session().auto_state.type_of_calc=PE1;
-  xpp::session().auto_state.blrtn.torper=grabpt.torper;
-  xpp::session().auto_state.bifur.irs=grabpt.lab;
-  xpp::session().auto_state.bifur.itp=grabpt.itp;
-  xpp::session().auto_state.bifur.nfpar=1; /*grabpt.nfpar;*/
-  xpp::session().auto_state.bifur.ilp=1;
-  xpp::session().auto_state.bifur.isw=-1;
-  xpp::session().auto_state.bifur.isp=2;
-    if(xpp::session().auto_state.suppress_bp==1) xpp::session().auto_state.bifur.isp=0;
-  xpp::session().auto_state.bifur.ips=2;
-  xpp::session().auto_state.two_param=0;
-  do_auto(OPEN_3,APPEND,xpp::session().auto_state.bifur.itp);
+      xpp::Session &s=xpp::session();
+      s.auto_state.type_of_calc=PE1;
+  s.auto_state.blrtn.torper=grabpt.torper;
+  s.auto_state.bifur.irs=grabpt.lab;
+  s.auto_state.bifur.itp=grabpt.itp;
+  s.auto_state.bifur.nfpar=1; /*grabpt.nfpar;*/
+  s.auto_state.bifur.ilp=1;
+  s.auto_state.bifur.isw=-1;
+  s.auto_state.bifur.isp=2;
+    if(s.auto_state.suppress_bp==1) s.auto_state.bifur.isp=0;
+  s.auto_state.bifur.ips=2;
+  s.auto_state.two_param=0;
+  do_auto(OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
 void auto_switch_bvp()
 {
-     xpp::session().auto_state.type_of_calc=BV1;
-  xpp::session().auto_state.bifur.irs=grabpt.lab;
-  xpp::session().auto_state.bifur.itp=grabpt.itp;
-  xpp::session().auto_state.bifur.nfpar=grabpt.nfpar;
-  xpp::session().auto_state.bifur.ilp=1;
-  xpp::session().auto_state.bifur.isw=-1;
-  xpp::session().auto_state.bifur.isp=2;
-    if(xpp::session().auto_state.suppress_bp==1) xpp::session().auto_state.bifur.isp=0;
-  xpp::session().auto_state.bifur.ips=4;
-  xpp::session().auto_state.two_param=0;
-  do_auto(OPEN_3,APPEND,xpp::session().auto_state.bifur.itp);
+     xpp::Session &s=xpp::session();
+     s.auto_state.type_of_calc=BV1;
+  s.auto_state.bifur.irs=grabpt.lab;
+  s.auto_state.bifur.itp=grabpt.itp;
+  s.auto_state.bifur.nfpar=grabpt.nfpar;
+  s.auto_state.bifur.ilp=1;
+  s.auto_state.bifur.isw=-1;
+  s.auto_state.bifur.isp=2;
+    if(s.auto_state.suppress_bp==1) s.auto_state.bifur.isp=0;
+  s.auto_state.bifur.ips=4;
+  s.auto_state.two_param=0;
+  do_auto(OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
 void auto_switch_ss()
 {
+  xpp::Session &s=xpp::session();
 
-      xpp::session().auto_state.type_of_calc=EQ1;
-  xpp::session().auto_state.bifur.irs=grabpt.lab;
-  xpp::session().auto_state.bifur.itp=grabpt.itp;
-  xpp::session().auto_state.bifur.nfpar=grabpt.nfpar;
-  xpp::session().auto_state.bifur.ilp=1;
-  xpp::session().auto_state.bifur.isw=-1;
-  xpp::session().auto_state.bifur.isp=1;
-    if(xpp::session().auto_state.suppress_bp==1) xpp::session().auto_state.bifur.isp=0;
-  xpp::session().auto_state.bifur.ips=1;
-  if(xpp::session().numerics.method==DISCRETE)
-    xpp::session().auto_state.bifur.ips=-1;
-  xpp::session().auto_state.two_param=0;
-  do_auto(OPEN_3,APPEND,xpp::session().auto_state.bifur.itp);
+      s.auto_state.type_of_calc=EQ1;
+  s.auto_state.bifur.irs=grabpt.lab;
+  s.auto_state.bifur.itp=grabpt.itp;
+  s.auto_state.bifur.nfpar=grabpt.nfpar;
+  s.auto_state.bifur.ilp=1;
+  s.auto_state.bifur.isw=-1;
+  s.auto_state.bifur.isp=1;
+    if(s.auto_state.suppress_bp==1) s.auto_state.bifur.isp=0;
+  s.auto_state.bifur.ips=1;
+  if(s.numerics.method==DISCRETE)
+    s.auto_state.bifur.ips=-1;
+  s.auto_state.two_param=0;
+  do_auto(OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
 void auto_2p_limit(int ips)
 {
+  xpp::Session &s=xpp::session();
   int ipsuse=1;
   int itp1,itp2;
-  xpp::session().auto_state.blrtn.torper=grabpt.torper;
-  xpp::session().auto_state.bifur.irs=grabpt.lab;
+  s.auto_state.blrtn.torper=grabpt.torper;
+  s.auto_state.bifur.irs=grabpt.lab;
   itp1=(grabpt.itp)%10;
   itp2=abs(grabpt.itp)/10;
-  xpp::session().auto_state.bifur.itp=grabpt.itp;
-  xpp::session().auto_state.bifur.nfpar=2;
-  xpp::session().auto_state.bifur.ilp=0; /* was 1 */
-  xpp::session().auto_state.bifur.isw=2;
-  xpp::session().auto_state.bifur.isp=0; /* was 2 */
+  s.auto_state.bifur.itp=grabpt.itp;
+  s.auto_state.bifur.nfpar=2;
+  s.auto_state.bifur.ilp=0; /* was 1 */
+  s.auto_state.bifur.isw=2;
+  s.auto_state.bifur.isp=0; /* was 2 */
   /* fix ips now */
   if(ips==4)
     ipsuse=4;
@@ -2326,17 +2352,17 @@ void auto_2p_limit(int ips)
       ipsuse=2;
   }
 
-  xpp::session().auto_state.bifur.ips=ipsuse;
-  xpp::session().auto_state.two_param=LPP2;
+  s.auto_state.bifur.ips=ipsuse;
+  s.auto_state.two_param=LPP2;
   if(ipsuse==1){
-    xpp::session().auto_state.type_of_calc=LPE2;
-    xpp::session().auto_state.two_param=LPE2;
+    s.auto_state.type_of_calc=LPE2;
+    s.auto_state.two_param=LPE2;
   }
   else{
-    xpp::session().auto_state.type_of_calc=LPP2;
-    xpp::session().auto_state.two_param=LPP2;
+    s.auto_state.type_of_calc=LPP2;
+    s.auto_state.two_param=LPP2;
   }
-  do_auto(OPEN_3,APPEND,xpp::session().auto_state.bifur.itp);
+  do_auto(OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
 namespace {
@@ -2344,17 +2370,18 @@ namespace {
    two parameters: the same periodic restart, told apart by its kind */
 void auto_2p_periodic(int kind)
 {
-  xpp::session().auto_state.blrtn.torper=grabpt.torper;
-  xpp::session().auto_state.bifur.irs=grabpt.lab;
-  xpp::session().auto_state.bifur.itp=grabpt.itp;
-  xpp::session().auto_state.bifur.nfpar=2;
-  xpp::session().auto_state.two_param=kind;
-  xpp::session().auto_state.type_of_calc=kind;
-  xpp::session().auto_state.bifur.ips=2;
-  xpp::session().auto_state.bifur.ilp=0;
-  xpp::session().auto_state.bifur.isw=2;
-  xpp::session().auto_state.bifur.isp=0;
-  do_auto(OPEN_3,APPEND,xpp::session().auto_state.bifur.itp);
+  xpp::Session &s=xpp::session();
+  s.auto_state.blrtn.torper=grabpt.torper;
+  s.auto_state.bifur.irs=grabpt.lab;
+  s.auto_state.bifur.itp=grabpt.itp;
+  s.auto_state.bifur.nfpar=2;
+  s.auto_state.two_param=kind;
+  s.auto_state.type_of_calc=kind;
+  s.auto_state.bifur.ips=2;
+  s.auto_state.bifur.ilp=0;
+  s.auto_state.bifur.isw=2;
+  s.auto_state.bifur.isp=0;
+  do_auto(OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 } // namespace
 
@@ -2370,17 +2397,18 @@ void auto_torus()
 
 void auto_2p_branch(int ips)
 {
+ xpp::Session &s=xpp::session();
  int ipsuse=1;
   int itp1,itp2; 
- xpp::session().auto_state.blrtn.torper=grabpt.torper;
-  xpp::session().auto_state.bifur.irs=grabpt.lab;
+ s.auto_state.blrtn.torper=grabpt.torper;
+  s.auto_state.bifur.irs=grabpt.lab;
   itp1=(grabpt.itp)%10;
   itp2=abs(grabpt.itp)/10;
-  xpp::session().auto_state.bifur.itp=grabpt.itp;
-  xpp::session().auto_state.bifur.nfpar=2;
-  xpp::session().auto_state.bifur.ilp=0; /* was 1 */
-  xpp::session().auto_state.bifur.isw=2;
-  xpp::session().auto_state.bifur.isp=0; /* was 2 */
+  s.auto_state.bifur.itp=grabpt.itp;
+  s.auto_state.bifur.nfpar=2;
+  s.auto_state.bifur.ilp=0; /* was 1 */
+  s.auto_state.bifur.isw=2;
+  s.auto_state.bifur.isp=0; /* was 2 */
   if(ips==4)
     ipsuse=4;
   else {
@@ -2388,30 +2416,32 @@ void auto_2p_branch(int ips)
       ipsuse=2;
   }
 
-  xpp::session().auto_state.bifur.ips=ipsuse;
-  if(xpp::session().numerics.method==DISCRETE)
-    xpp::session().auto_state.bifur.ips=-1;
-  xpp::session().auto_state.two_param=BR2;
-      xpp::session().auto_state.type_of_calc=BR2;
-  do_auto(OPEN_3,APPEND,xpp::session().auto_state.bifur.itp);
+  s.auto_state.bifur.ips=ipsuse;
+  if(s.numerics.method==DISCRETE)
+    s.auto_state.bifur.ips=-1;
+  s.auto_state.two_param=BR2;
+      s.auto_state.type_of_calc=BR2;
+  do_auto(OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
 void auto_2p_fixper()
 {
-  xpp::session().auto_state.bifur.irs=grabpt.lab;
-  xpp::session().auto_state.bifur.itp=grabpt.itp;
-  xpp::session().auto_state.bifur.nfpar=2;
-  xpp::session().auto_state.bifur.ilp=1; /* was1 */
-  xpp::session().auto_state.bifur.isw=1;
-  xpp::session().auto_state.bifur.isp=0;
-  xpp::session().auto_state.bifur.ips=2;
-  xpp::session().auto_state.two_param=FP2;
-  xpp::session().auto_state.type_of_calc=FP2;
-  do_auto(OPEN_3,APPEND,xpp::session().auto_state.bifur.itp);
+  xpp::Session &s=xpp::session();
+  s.auto_state.bifur.irs=grabpt.lab;
+  s.auto_state.bifur.itp=grabpt.itp;
+  s.auto_state.bifur.nfpar=2;
+  s.auto_state.bifur.ilp=1; /* was1 */
+  s.auto_state.bifur.isw=1;
+  s.auto_state.bifur.isp=0;
+  s.auto_state.bifur.ips=2;
+  s.auto_state.two_param=FP2;
+  s.auto_state.type_of_calc=FP2;
+  do_auto(OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
 void auto_2p_hopf()
 {
+  xpp::Session &s=xpp::session();
 
   /*Prevent crash on hopf of infinite period. here
   
@@ -2430,37 +2460,38 @@ void auto_2p_hopf()
   	return;
   } 
   
-  xpp::session().auto_state.bifur.irs=grabpt.lab;
-  xpp::session().auto_state.bifur.itp=grabpt.itp;
-  xpp::session().auto_state.bifur.nfpar=2;
-  xpp::session().auto_state.bifur.ilp=0; /* was 1 */
-  xpp::session().auto_state.bifur.isw=2;
-  xpp::session().auto_state.bifur.isp=0;
-  xpp::session().auto_state.bifur.ips=1;
-  if(xpp::session().numerics.method==DISCRETE)
-    xpp::session().auto_state.bifur.ips=-1;
-  xpp::session().auto_state.two_param=HB2;
-    xpp::session().auto_state.type_of_calc=HB2;
-  do_auto(OPEN_3,APPEND,xpp::session().auto_state.bifur.itp);
+  s.auto_state.bifur.irs=grabpt.lab;
+  s.auto_state.bifur.itp=grabpt.itp;
+  s.auto_state.bifur.nfpar=2;
+  s.auto_state.bifur.ilp=0; /* was 1 */
+  s.auto_state.bifur.isw=2;
+  s.auto_state.bifur.isp=0;
+  s.auto_state.bifur.ips=1;
+  if(s.numerics.method==DISCRETE)
+    s.auto_state.bifur.ips=-1;
+  s.auto_state.two_param=HB2;
+    s.auto_state.type_of_calc=HB2;
+  do_auto(OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
 void auto_period_double()
 {
+  xpp::Session &s=xpp::session();
 
- xpp::session().auto_state.blrtn.torper=grabpt.torper;
-  xpp::session().auto_state.bifur.ntst=2*xpp::session().auto_state.bifur.ntst;
-  xpp::session().auto_state.bifur.irs=grabpt.lab;
-  xpp::session().auto_state.bifur.nfpar=1; /* grabpt.nfpar; */
+ s.auto_state.blrtn.torper=grabpt.torper;
+  s.auto_state.bifur.ntst=2*s.auto_state.bifur.ntst;
+  s.auto_state.bifur.irs=grabpt.lab;
+  s.auto_state.bifur.nfpar=1; /* grabpt.nfpar; */
 
-  xpp::session().auto_state.bifur.itp=grabpt.itp;
-  xpp::session().auto_state.bifur.ilp=1;
-  xpp::session().auto_state.bifur.isw=-1;
-  xpp::session().auto_state.type_of_calc=PE1;
-  xpp::session().auto_state.bifur.isp=2;
-    if(xpp::session().auto_state.suppress_bp==1) xpp::session().auto_state.bifur.isp=0;
-  xpp::session().auto_state.bifur.ips=2;
-  xpp::session().auto_state.two_param=0;
-  do_auto(OPEN_3,APPEND,xpp::session().auto_state.bifur.itp);
+  s.auto_state.bifur.itp=grabpt.itp;
+  s.auto_state.bifur.ilp=1;
+  s.auto_state.bifur.isw=-1;
+  s.auto_state.type_of_calc=PE1;
+  s.auto_state.bifur.isp=2;
+    if(s.auto_state.suppress_bp==1) s.auto_state.bifur.isp=0;
+  s.auto_state.bifur.ips=2;
+  s.auto_state.two_param=0;
+  do_auto(OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
 /**********   END RUN AUTO *********************/
@@ -2476,6 +2507,7 @@ void load_auto_orbit()
 }
   void load_auto_orbitx(int ibr,int flag, int lab, double per)
 {
+  xpp::Session &s=xpp::session();
   double *x;
   int i,j,nstor;
   double u[NAUTO],t;
@@ -2483,7 +2515,7 @@ void load_auto_orbit()
   std::string string;
   int nrow,ndim,label,flg;
 
-  if((ibr>0&&(xpp::session().auto_state.bifur.ips!=4)&&(xpp::session().auto_state.bifur.ips!=3)&&(xpp::session().auto_state.bifur.ips!=9))||flag==0)return;
+  if((ibr>0&&(s.auto_state.bifur.ips!=4)&&(s.auto_state.bifur.ips!=3)&&(s.auto_state.bifur.ips!=9))||flag==0)return;
    /* either nothing grabbed or just a fixed point and that is already loaded */
   string=this_auto_file+".s";
   xpp::UniqueFile fp=xpp::open_read(string.c_str());
@@ -2501,23 +2533,23 @@ void load_auto_orbit()
     auto_err("Cant find labeled pt");
     return;
   }
-  x=&xpp::session().data_store.current[0];
+  x=&s.data_store.current[0];
   for(i=0;i<nrow;i++){
     get_a_row(u,&t,ndim,fp.get());
-    if(xpp::session().auto_state.bifur.ips!=4) 
-      xpp::session().data_store.col[0][i]=t*period;
+    if(s.auto_state.bifur.ips!=4) 
+      s.data_store.col[0][i]=t*period;
     else
-      xpp::session().data_store.col[0][i]=t;
+      s.data_store.col[0][i]=t;
 
     for(j=0;j<nstor;j++){
-      xpp::session().data_store.col[j+1][i]=u[j];
+      s.data_store.col[j+1][i]=u[j];
       x[j]=u[j];
     }
-    extra(x,static_cast<double>(xpp::session().data_store.col[0][i]),nstor,xpp::model().neq);
+    extra(x,static_cast<double>(s.data_store.col[0][i]),nstor,xpp::model().neq);
     for(j=nstor;j<xpp::model().neq;j++)
-      xpp::session().data_store.col[j+1][i]=static_cast<float>(x[j]);
+      s.data_store.col[j+1][i]=static_cast<float>(x[j]);
   }
-  xpp::session().data_store.rows=nrow;
+  s.data_store.rows=nrow;
   refresh_browser(nrow);
   /* insert auxiliary stuff here */
   if(load_all_labeled_orbits==2)clr_all_scrns();
@@ -2560,46 +2592,48 @@ int save_auto_file(FILE *fp)
  
 void save_auto_numerics(FILE *fp)
 {
+  xpp::Session &s=xpp::session();
   int i;
-  std::string line=xpp::format("{} ",xpp::session().auto_state.npar);
-  for(i=0;i<xpp::session().auto_state.npar;i++)
-    line+=xpp::format("{} ",xpp::session().auto_state.par[i]);
-  line+=xpp::format("{}\n",xpp::session().auto_state.nuzr);
+  std::string line=xpp::format("{} ",s.auto_state.npar);
+  for(i=0;i<s.auto_state.npar;i++)
+    line+=xpp::format("{} ",s.auto_state.par[i]);
+  line+=xpp::format("{}\n",s.auto_state.nuzr);
   for(i=0;i<9;i++)
-    line+=xpp::format("{:g} {}\n",xpp::session().auto_state.uzr_period[i],xpp::session().auto_state.uzr_par[i]);
-  line+=xpp::format("{} {} {} \n",xpp::session().auto_state.bifur.ntst,xpp::session().auto_state.bifur.nmx,xpp::session().auto_state.bifur.npr);
-  line+=xpp::format("{:g} {:g} {:g} \n",xpp::session().auto_state.bifur.ds,xpp::session().auto_state.bifur.dsmin,xpp::session().auto_state.bifur.dsmax);
-  line+=xpp::format("{:g} {:g} {:g} {:g}\n",xpp::session().auto_state.bifur.rl0,xpp::session().auto_state.bifur.rl1,xpp::session().auto_state.bifur.a0,xpp::session().auto_state.bifur.a1);
-  line+=xpp::format("{} {} {} {} {} {} {}\n",xpp::session().auto_state.advanced.iad,xpp::session().auto_state.advanced.mxbf,xpp::session().auto_state.advanced.iid,xpp::session().auto_state.advanced.itmx,xpp::session().auto_state.advanced.itnw,xpp::session().auto_state.advanced.nwtn,xpp::session().auto_state.advanced.iads);
+    line+=xpp::format("{:g} {}\n",s.auto_state.uzr_period[i],s.auto_state.uzr_par[i]);
+  line+=xpp::format("{} {} {} \n",s.auto_state.bifur.ntst,s.auto_state.bifur.nmx,s.auto_state.bifur.npr);
+  line+=xpp::format("{:g} {:g} {:g} \n",s.auto_state.bifur.ds,s.auto_state.bifur.dsmin,s.auto_state.bifur.dsmax);
+  line+=xpp::format("{:g} {:g} {:g} {:g}\n",s.auto_state.bifur.rl0,s.auto_state.bifur.rl1,s.auto_state.bifur.a0,s.auto_state.bifur.a1);
+  line+=xpp::format("{} {} {} {} {} {} {}\n",s.auto_state.advanced.iad,s.auto_state.advanced.mxbf,s.auto_state.advanced.iid,s.auto_state.advanced.itmx,s.auto_state.advanced.itnw,s.auto_state.advanced.nwtn,s.auto_state.advanced.iads);
   xpp::print(fp,"{}",line);
 }
 
 void load_auto_numerics(FILE *fp)
 {
+ xpp::Session &s=xpp::session();
  int i,in;
  /* The fscanf formats this replaces ended in whitespace, which fscanf
     skipped; the token reader leaves it in the stream, and every read that
     follows (load_auto_graph, load_diagram) skips it first. */
  xpp::TokenReader tr=xpp::TokenReader::attach(fp);
- if (!tr.read(xpp::session().auto_state.npar)) return;
- for(i=0;i<xpp::session().auto_state.npar;i++){
-   if (!tr.read(xpp::session().auto_state.par[i])) return;
-   in=get_param_index(xpp::model().upar_names[xpp::session().auto_state.par[i]]);
-   xpp::session().auto_state.par_index[i]=in;
+ if (!tr.read(s.auto_state.npar)) return;
+ for(i=0;i<s.auto_state.npar;i++){
+   if (!tr.read(s.auto_state.par[i])) return;
+   in=get_param_index(xpp::model().upar_names[s.auto_state.par[i]]);
+   s.auto_state.par_index[i]=in;
  }
- if (!tr.read(xpp::session().auto_state.nuzr)) return;
+ if (!tr.read(s.auto_state.nuzr)) return;
   for(i=0;i<9;i++){
-    xpp::session().auto_state.bifur.nper=xpp::session().auto_state.nuzr;
-    if (!tr.read(xpp::session().auto_state.uzr_period[i]) || !tr.read(xpp::session().auto_state.uzr_par[i])) return;
-    xpp::session().auto_state.bifur.period[i]=xpp::session().auto_state.uzr_period[i];
-    xpp::session().auto_state.bifur.uzrpar[i]=xpp::session().auto_state.uzr_par[i];
+    s.auto_state.bifur.nper=s.auto_state.nuzr;
+    if (!tr.read(s.auto_state.uzr_period[i]) || !tr.read(s.auto_state.uzr_par[i])) return;
+    s.auto_state.bifur.period[i]=s.auto_state.uzr_period[i];
+    s.auto_state.bifur.uzrpar[i]=s.auto_state.uzr_par[i];
   }
 
- if (!tr.read(xpp::session().auto_state.bifur.ntst) || !tr.read(xpp::session().auto_state.bifur.nmx) || !tr.read(xpp::session().auto_state.bifur.npr)) return;
- if (!tr.read(xpp::session().auto_state.bifur.ds) || !tr.read(xpp::session().auto_state.bifur.dsmin) || !tr.read(xpp::session().auto_state.bifur.dsmax)) return;
- if (!tr.read(xpp::session().auto_state.bifur.rl0) || !tr.read(xpp::session().auto_state.bifur.rl1) || !tr.read(xpp::session().auto_state.bifur.a0) || !tr.read(xpp::session().auto_state.bifur.a1)) return;
- if (!tr.read(xpp::session().auto_state.advanced.iad) || !tr.read(xpp::session().auto_state.advanced.mxbf) || !tr.read(xpp::session().auto_state.advanced.iid) || !tr.read(xpp::session().auto_state.advanced.itmx)
-     || !tr.read(xpp::session().auto_state.advanced.itnw) || !tr.read(xpp::session().auto_state.advanced.nwtn) || !tr.read(xpp::session().auto_state.advanced.iads)) return;
+ if (!tr.read(s.auto_state.bifur.ntst) || !tr.read(s.auto_state.bifur.nmx) || !tr.read(s.auto_state.bifur.npr)) return;
+ if (!tr.read(s.auto_state.bifur.ds) || !tr.read(s.auto_state.bifur.dsmin) || !tr.read(s.auto_state.bifur.dsmax)) return;
+ if (!tr.read(s.auto_state.bifur.rl0) || !tr.read(s.auto_state.bifur.rl1) || !tr.read(s.auto_state.bifur.a0) || !tr.read(s.auto_state.bifur.a1)) return;
+ if (!tr.read(s.auto_state.advanced.iad) || !tr.read(s.auto_state.advanced.mxbf) || !tr.read(s.auto_state.advanced.iid) || !tr.read(s.auto_state.advanced.itmx)
+     || !tr.read(s.auto_state.advanced.itnw) || !tr.read(s.auto_state.advanced.nwtn) || !tr.read(s.auto_state.advanced.iads)) return;
 }
 
 void save_auto_graph(FILE *fp)
@@ -3271,9 +3305,10 @@ void auto_update_view(float xlo,float xhi, float ylo, float yhi)
 /* the pointer moved to pixel (i,j) of the diagram: show its coordinates */
 void auto_motion_xy(int i,int j)
 {
+  xpp::Session &s=xpp::session();
   double x,y;
-    x=xpp::session().auto_state.bifur.xmin+static_cast<double>((i-xpp::session().auto_state.bifur.x0))*(xpp::session().auto_state.bifur.xmax-xpp::session().auto_state.bifur.xmin)/static_cast<double>(xpp::session().auto_state.bifur.wid);
-    y=xpp::session().auto_state.bifur.ymin+static_cast<double>((xpp::session().auto_state.bifur.y0-j+xpp::session().auto_state.bifur.hgt))*(xpp::session().auto_state.bifur.ymax-xpp::session().auto_state.bifur.ymin)/static_cast<double>(xpp::session().auto_state.bifur.hgt);
+    x=s.auto_state.bifur.xmin+static_cast<double>((i-s.auto_state.bifur.x0))*(s.auto_state.bifur.xmax-s.auto_state.bifur.xmin)/static_cast<double>(s.auto_state.bifur.wid);
+    y=s.auto_state.bifur.ymin+static_cast<double>((s.auto_state.bifur.y0-j+s.auto_state.bifur.hgt))*(s.auto_state.bifur.ymax-s.auto_state.bifur.ymin)/static_cast<double>(s.auto_state.bifur.hgt);
     auto_point_xy(x,y);
 }
 

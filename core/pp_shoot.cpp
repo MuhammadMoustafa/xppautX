@@ -134,6 +134,7 @@ void bad_shoot(int iret)
 
 void do_sh_range(double *ystart, double *yend)
 {
+ xpp::Session &s=xpp::session();
  double parlo,parhi,dpar,temp;
  int npar,i,j,ierr;
  int side,cycle,icol,color;
@@ -146,7 +147,7 @@ void do_sh_range(double *ystart, double *yend)
  dpar=(parhi-parlo)/static_cast<double>(npar);
  side=shoot_range.side;
  cycle=shoot_range.cycle;
- xpp::session().data_store.rows=0;
+ s.data_store.rows=0;
  icol=0;
  if(shoot_range.movie==1)
    reset_film();
@@ -158,27 +159,27 @@ void do_sh_range(double *ystart, double *yend)
      if(shoot_range.movie==1)
        clr_scrn();
      
-     bvshoot(ystart,yend,xpp::session().numerics.bvp_tol,xpp::session().numerics.bvp_eps,xpp::session().numerics.bvp_maxit,&ierr,xpp::model().node,0,
+     bvshoot(ystart,yend,s.numerics.bvp_tol,s.numerics.bvp_eps,s.numerics.bvp_maxit,&ierr,xpp::model().node,0,
 	     0,0,0,0.0);
      if(ierr==-5)continue;
      if(ierr<0){ 
        bad_shoot(ierr);
 
-       refresh_browser(xpp::session().data_store.rows);
+       refresh_browser(s.data_store.rows);
        swap_color(&color,1);
        return;
      }
-     xpp::session().data_store.col[0][xpp::session().data_store.rows]=temp;
-     if(side==0)for(j=0;j<xpp::model().node;j++)xpp::session().data_store.col[j+1][xpp::session().data_store.rows]=ystart[j];
-     else for(j=0;j<xpp::model().node;j++)xpp::session().data_store.col[j+1][xpp::session().data_store.rows]=yend[j];
-     xpp::session().data_store.rows++;
+     s.data_store.col[0][s.data_store.rows]=temp;
+     if(side==0)for(j=0;j<xpp::model().node;j++)s.data_store.col[j+1][s.data_store.rows]=ystart[j];
+     else for(j=0;j<xpp::model().node;j++)s.data_store.col[j+1][s.data_store.rows]=yend[j];
+     s.data_store.rows++;
      set_cycle(cycle,&icol);
      get_ic(0,ystart);
      last_shot(0);
      if(shoot_range.movie==1)xpp_ui.film_clip();
      ping();
    }
-  refresh_browser(xpp::session().data_store.rows);
+  refresh_browser(s.data_store.rows);
   auto_freeze_it();     
  swap_color(&color,1);
 
@@ -222,6 +223,7 @@ int set_up_periodic(int *ipar, int *ivar, double *sect, int *ishow)
 
 void find_bvp_com(int com)
 {
+ xpp::Session &s=xpp::session();
  int ishow=0,iret;
  int iper=0,ivar=0,ipar=0,pflag;
  double sect=0.0;
@@ -236,12 +238,12 @@ void find_bvp_com(int com)
  wipe_rep();
  data_back();
  compile_bvp();
- if(xpp::session().numerics.fft||xpp::session().numerics.hist||xpp::session().delay.flag||xpp::session().numerics.bvp_flag==0)return;
- xpp::session().numerics.storflag=0;
- xpp::session().integrator.range_flag=1;
- xpp::session().numerics.poimap=0;
- oldtrans=xpp::session().numerics.trans;
- xpp::session().numerics.trans=0.0;
+ if(s.numerics.fft||s.numerics.hist||s.delay.flag||s.numerics.bvp_flag==0)return;
+ s.numerics.storflag=0;
+ s.integrator.range_flag=1;
+ s.numerics.poimap=0;
+ oldtrans=s.numerics.trans;
+ s.numerics.trans=0.0;
  get_ic(1,ystart);
  switch(com){
  case 0:
@@ -265,10 +267,10 @@ void find_bvp_com(int com)
    break;
  }
  if(iper)
- bvshoot(ystart,yend,xpp::session().numerics.bvp_tol,xpp::session().numerics.bvp_eps,xpp::session().numerics.bvp_maxit,&iret,xpp::model().node,ishow,
+ bvshoot(ystart,yend,s.numerics.bvp_tol,s.numerics.bvp_eps,s.numerics.bvp_maxit,&iret,xpp::model().node,ishow,
 	iper,ipar,ivar,sect);
  else 
- bvshoot(ystart,yend,xpp::session().numerics.bvp_tol,xpp::session().numerics.bvp_eps,xpp::session().numerics.bvp_maxit,&iret,xpp::model().node,ishow,0,0,0,0.0 );
+ bvshoot(ystart,yend,s.numerics.bvp_tol,s.numerics.bvp_eps,s.numerics.bvp_maxit,&iret,xpp::model().node,ishow,0,0,0,0.0 );
  bad_shoot(iret);
  if(iret==1||iret==2) {
  get_ic(0,ystart);  
@@ -277,34 +279,35 @@ void find_bvp_com(int com)
    reset_graphics();
  }
  last_shot(1);
- xpp::session().numerics.inflag=1;
- refresh_browser(xpp::session().data_store.rows);
+ s.numerics.inflag=1;
+ refresh_browser(s.data_store.rows);
  auto_freeze_it();
  ping();
 }
 else 
  if(iper)set_val(xpp::model().upar_names[ipar],oldpar);
   
-bye:  xpp::session().numerics.trans=oldtrans;
+bye:  s.numerics.trans=oldtrans;
 }
 
 void last_shot(int flag)
 {
+ xpp::Session &s=xpp::session();
  int i;
  double *x;
- x=&xpp::session().data_store.current[0];
- xpp::session().integrator.my_start=1;
+ x=&s.data_store.current[0];
+ s.integrator.my_start=1;
  get_ic(2,x);
- xpp::session().numerics.storflag=flag;
- xpp::session().data_store.current_time=xpp::session().numerics.t0;
+ s.numerics.storflag=flag;
+ s.data_store.current_time=s.numerics.t0;
  if(flag){
-  xpp::session().data_store.col[0][0]=static_cast<float>(xpp::session().numerics.t0);
-  extra(x,xpp::session().numerics.t0,xpp::model().node,xpp::model().neq);
-  for(i=0;i<xpp::model().neq;i++)xpp::session().data_store.col[1+i][0]=static_cast<float>(x[i]);
-  xpp::session().data_store.rows=1;
+  s.data_store.col[0][0]=static_cast<float>(s.numerics.t0);
+  extra(x,s.numerics.t0,xpp::model().node,xpp::model().neq);
+  for(i=0;i<xpp::model().neq;i++)s.data_store.col[1+i][0]=static_cast<float>(x[i]);
+  s.data_store.rows=1;
 
 }
- integrate(&xpp::session().data_store.current_time,x,xpp::session().numerics.tend,xpp::session().numerics.delta_t,1,xpp::session().numerics.njmp,&xpp::session().integrator.my_start);
+ integrate(&s.data_store.current_time,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&s.integrator.my_start);
 }
 
 int set_up_sh_range()

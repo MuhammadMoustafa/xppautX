@@ -125,26 +125,27 @@ enum { MODE_WINDOW, MODE_BROWSER, MODE_SERVER };
 /* init_grafs() without the window: graph 0 is client window 1 */
 static void init_main_graph(void)
 {
+    xpp::Session &s=xpp::session();
     int i;
     for (i = 0; i < MAXLAB; i++) {
-        xpp::session().labels[i].use = 0;
-        xpp::session().labels[i].w = 0;
+        s.labels[i].use = 0;
+        s.labels[i].w = 0;
     }
     for (i = 0; i < MAXGROB; i++) {
-        xpp::session().grobs[i].w = 0;
-        xpp::session().grobs[i].use = 0;
+        s.grobs[i].w = 0;
+        s.grobs[i].use = 0;
     }
     init_bd();
-    for (i = 0; i < MAXFRZ; i++) xpp::session().frozen_curves.curve[i].use = 0;
-    for (i = 0; i < MAXPOP; i++) xpp::session().plot_windows.graph[i].Use = 0;
-    xpp::session().plot_windows.open[0] = 0;
+    for (i = 0; i < MAXFRZ; i++) s.frozen_curves.curve[i].use = 0;
+    for (i = 0; i < MAXPOP; i++) s.plot_windows.graph[i].Use = 0;
+    s.plot_windows.open[0] = 0;
     init_all_graph();
-    xpp::session().plot_windows.graph[0].w = 1;
-    xpp::session().plot_windows.graph[0].Use = 1;
-    xpp::session().plot_windows.graph[0].Nullrestore = 1;
-    xpp::session().plot_windows.count = 1;
-    xpp::session().plot_windows.draw_win = xpp::session().plot_windows.graph[0].w;
-    xpp::session().plot_windows.active = 0;
+    s.plot_windows.graph[0].w = 1;
+    s.plot_windows.graph[0].Use = 1;
+    s.plot_windows.graph[0].Nullrestore = 1;
+    s.plot_windows.count = 1;
+    s.plot_windows.draw_win = s.plot_windows.graph[0].w;
+    s.plot_windows.active = 0;
     get_draw_area();
 }
 

@@ -49,6 +49,7 @@ int state_dirty;
 
 void send_state(void)
 {
+    xpp::Session &s=xpp::session();
     Buf b;
     int i;
     double z;
@@ -70,16 +71,16 @@ void send_state(void)
         BUF_LIT(&b, "[");
         buf_str(&b, xpp::model().uvar_names[i]);
         BUF_LIT(&b, ",");
-        buf_num(&b, xpp::session().last_ic[i], 16);
+        buf_num(&b, s.last_ic[i], 16);
         BUF_LIT(&b, "]");
     }
     BUF_LIT(&b, "]");
     /* where the last run ended (MyData, what Initialconds/Last starts from) */
-    if (xpp::session().numerics.inflag) {
+    if (s.numerics.inflag) {
         BUF_LIT(&b, ",\"now\":[");
         for (i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) {
             if (i) BUF_LIT(&b, ",");
-            buf_num(&b, xpp::session().data_store.current[i], 16);
+            buf_num(&b, s.data_store.current[i], 16);
         }
         BUF_LIT(&b, "]");
     }
@@ -87,20 +88,20 @@ void send_state(void)
     for (i = 0; i < xpp::model().node; i++) {
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
-        buf_str(&b, xpp::session().bcs[i].name.data());
+        buf_str(&b, s.bcs[i].name.data());
         BUF_LIT(&b, ",");
-        buf_str(&b, xpp::session().bcs[i].string.data());
+        buf_str(&b, s.bcs[i].string.data());
         BUF_LIT(&b, "]");
     }
     BUF_LIT(&b, "]");
-    if (xpp::session().delay.flag) {
+    if (s.delay.flag) {
         BUF_LIT(&b, ",\"delays\":[");
         for (i = 0; i < xpp::model().node; i++) {
             if (i) BUF_LIT(&b, ",");
             BUF_LIT(&b, "[");
             buf_str(&b, xpp::model().uvar_names[i]);
             BUF_LIT(&b, ",");
-            buf_str(&b, xpp::session().delay_string[i].c_str());
+            buf_str(&b, s.delay_string[i].c_str());
             BUF_LIT(&b, "]");
         }
         BUF_LIT(&b, "]");
@@ -110,17 +111,17 @@ void send_state(void)
     get_draw_area();
     buf_format(&b, ",\"view\":{{\"win\":{:d},\"left\":{:d},\"right\":{:d},\"top\":{:d},\"bottom\":{:d},"
                "\"xlo\":{:g},\"xhi\":{:g},\"ylo\":{:g},\"yhi\":{:g},\"three\":{:d}",
-               xpp::session().plot_windows.draw_win, xpp::session().drawing.d_left, xpp::session().drawing.d_right, xpp::session().drawing.d_top, xpp::session().drawing.d_bottom, xpp::session().plot_windows.current->xlo, xpp::session().plot_windows.current->xhi,
-               xpp::session().plot_windows.current->ylo, xpp::session().plot_windows.current->yhi, xpp::session().plot_windows.current->ThreeDFlag);
+               s.plot_windows.draw_win, s.drawing.d_left, s.drawing.d_right, s.drawing.d_top, s.drawing.d_bottom, s.plot_windows.current->xlo, s.plot_windows.current->xhi,
+               s.plot_windows.current->ylo, s.plot_windows.current->yhi, s.plot_windows.current->ThreeDFlag);
     /* a 3D window's angles (view3d); only then are they set at all */
-    if (xpp::session().plot_windows.current->ThreeDFlag && isfinite(xpp::session().plot_windows.current->Theta) && isfinite(xpp::session().plot_windows.current->Phi))
-        buf_format(&b, ",\"theta\":{:g},\"phi\":{:g}", xpp::session().plot_windows.current->Theta, xpp::session().plot_windows.current->Phi);
+    if (s.plot_windows.current->ThreeDFlag && isfinite(s.plot_windows.current->Theta) && isfinite(s.plot_windows.current->Phi))
+        buf_format(&b, ",\"theta\":{:g},\"phi\":{:g}", s.plot_windows.current->Theta, s.plot_windows.current->Phi);
     BUF_LIT(&b, "}");
-    if (xpp::session().auto_state.bifur.exist)
+    if (s.auto_state.bifur.exist)
         buf_format(&b, ",\"auto\":{{\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"xmin\":{:g},\"xmax\":{:g},"
-                   "\"ymin\":{:g},\"ymax\":{:g}}}", xpp::session().auto_state.bifur.x0, xpp::session().auto_state.bifur.y0, xpp::session().auto_state.bifur.wid, xpp::session().auto_state.bifur.hgt, xpp::session().auto_state.bifur.xmin, xpp::session().auto_state.bifur.xmax,
-                   xpp::session().auto_state.bifur.ymin, xpp::session().auto_state.bifur.ymax);
-    buf_format(&b, ",\"rows\":{:d},\"menu\":{:d},\"win\":{:d}", xpp::session().browser.view.maxrow, help_menu, xpp::session().plot_windows.draw_win);
+                   "\"ymin\":{:g},\"ymax\":{:g}}}", s.auto_state.bifur.x0, s.auto_state.bifur.y0, s.auto_state.bifur.wid, s.auto_state.bifur.hgt, s.auto_state.bifur.xmin, s.auto_state.bifur.xmax,
+                   s.auto_state.bifur.ymin, s.auto_state.bifur.ymax);
+    buf_format(&b, ",\"rows\":{:d},\"menu\":{:d},\"win\":{:d}", s.browser.view.maxrow, help_menu, s.plot_windows.draw_win);
     if (xpp_session_set_file()[0]) {
         BUF_LIT(&b, ",\"session\":{\"set\":");
         buf_str(&b, xpp_session_set_file());
@@ -159,30 +160,31 @@ void buf_float(Buf *b, double z, int digits)
 
 void send_browser(void)
 {
+    xpp::Session &s=xpp::session();
     Buf b;
-    int i, j, last, maxcol = xpp::session().browser.view.maxcol;
+    int i, j, last, maxcol = s.browser.view.maxcol;
     browser_dirty = 0;
-    if (br_from > xpp::session().browser.view.maxrow - 1) br_from = xpp::session().browser.view.maxrow > 0 ? xpp::session().browser.view.maxrow - 1 : 0;
+    if (br_from > s.browser.view.maxrow - 1) br_from = s.browser.view.maxrow > 0 ? s.browser.view.maxrow - 1 : 0;
     if (br_from < 0) br_from = 0;
     if (br_col > maxcol - 1) br_col = maxcol - 1;
     if (br_col < 1) br_col = 1;
     buf_format(&b, "{{\"ev\":\"browser\",\"rows\":{:d},\"row0\":{:d},\"start\":{:d},\"end\":{:d},\"cols\":[\"T\"",
-               xpp::session().browser.view.dataflag ? xpp::session().browser.view.maxrow : 0, xpp::session().browser.view.row0, xpp::session().browser.view.istart, xpp::session().browser.view.iend);
+               s.browser.view.dataflag ? s.browser.view.maxrow : 0, s.browser.view.row0, s.browser.view.istart, s.browser.view.iend);
     for (j = 1; j < maxcol; j++) {
         BUF_LIT(&b, ",");
         buf_str(&b, xpp::model().uvar_names[j - 1]);
     }
     buf_format(&b, "],\"from\":{:d},\"col\":{:d},\"data\":[", br_from, br_col);
-    last = xpp::session().browser.view.dataflag ? br_from + br_count : br_from;
-    if (last > xpp::session().browser.view.maxrow) last = xpp::session().browser.view.maxrow;
+    last = s.browser.view.dataflag ? br_from + br_count : br_from;
+    if (last > s.browser.view.maxrow) last = s.browser.view.maxrow;
     for (i = br_from; i < last; i++) {
         if (i > br_from) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
         /* 9 significant digits read back as exactly the stored floats (as series) */
-        buf_float(&b, xpp::session().browser.view.data[0][i], 9);
+        buf_float(&b, s.browser.view.data[0][i], 9);
         for (j = br_col; j < br_col + br_ncol && j < maxcol; j++) {
             BUF_LIT(&b, ",");
-            buf_float(&b, xpp::session().browser.view.data[j][i], 9);
+            buf_float(&b, s.browser.view.data[j][i], 9);
         }
         BUF_LIT(&b, "]");
     }
@@ -216,22 +218,23 @@ void j_browser_changed(int)
 /* {"cmd":"browser","op":...,"row":selected row} */
 void browser_command(const char *line)
 {
+    xpp::Session &s=xpp::session();
     std::string o;
     int row = get_int(line, "row", -1);
     get_string(line, "op", o, 16);
-    if (row >= 0 && row < xpp::session().browser.view.maxrow) xpp::session().browser.view.row0 = row;
-    if (o == "find") data_find(&xpp::session().browser.view);
-    else if (o == "get") data_get(&xpp::session().browser.view);
-    else if (o == "replace") data_replace(&xpp::session().browser.view);
-    else if (o == "unreplace") data_unreplace(&xpp::session().browser.view);
-    else if (o == "table") data_table(&xpp::session().browser.view);
-    else if (o == "load") data_read(&xpp::session().browser.view);
-    else if (o == "write") data_write(&xpp::session().browser.view);
-    else if (o == "first") data_first(&xpp::session().browser.view);
-    else if (o == "last") data_last(&xpp::session().browser.view);
-    else if (o == "restore") data_restore(&xpp::session().browser.view);
-    else if (o == "addcol") data_add_col(&xpp::session().browser.view);
-    else if (o == "delcol") data_del_col(&xpp::session().browser.view);
+    if (row >= 0 && row < s.browser.view.maxrow) s.browser.view.row0 = row;
+    if (o == "find") data_find(&s.browser.view);
+    else if (o == "get") data_get(&s.browser.view);
+    else if (o == "replace") data_replace(&s.browser.view);
+    else if (o == "unreplace") data_unreplace(&s.browser.view);
+    else if (o == "table") data_table(&s.browser.view);
+    else if (o == "load") data_read(&s.browser.view);
+    else if (o == "write") data_write(&s.browser.view);
+    else if (o == "first") data_first(&s.browser.view);
+    else if (o == "last") data_last(&s.browser.view);
+    else if (o == "restore") data_restore(&s.browser.view);
+    else if (o == "addcol") data_add_col(&s.browser.view);
+    else if (o == "delcol") data_del_col(&s.browser.view);
     else if (o == "close") br_count = 0;
     browser_dirty = 1;
 }

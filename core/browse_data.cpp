@@ -259,6 +259,7 @@ void chk_seq(const char *f,int *seq, double *a1, double *a2)
 
 void replace_column(const char *var, char *form, float **dat, int n)
 {
+ xpp::Session &s=xpp::session();
  int com[200],i,j;
  int intflag=0;
  int dif_var=-1;
@@ -268,7 +269,7 @@ void replace_column(const char *var, char *form, float **dat, int n)
  float sum=0.0;
  if(n<2)return;
 
- dt=xpp::session().numerics.njmp*xpp::session().numerics.delta_t;
+ dt=s.numerics.njmp*s.numerics.delta_t;
 /* first check for derivative or integral symbol */
 i=0;
 while(i<static_cast<int>(strlen(form))){
@@ -305,8 +306,8 @@ if(dif_var<0)
 
  if(dif_var<0&&seq==0){
    if(add_expr(form,com,&i)){
-     xpp::session().parser.ncon=xpp::model().ncon_start;
-     xpp::session().parser.nsym=xpp::model().nsym_start;
+     s.parser.ncon=xpp::model().ncon_start;
+     s.parser.nsym=xpp::model().nsym_start;
      err_msg("Illegal formula...");
      return;
    }
@@ -316,20 +317,20 @@ if(dif_var<0)
  find_variable(var,&i);
  if(i<0){
    err_msg("No such column...");
-   xpp::session().parser.ncon=xpp::model().ncon_start;
-   xpp::session().parser.nsym=xpp::model().nsym_start;
+   s.parser.ncon=xpp::model().ncon_start;
+   s.parser.nsym=xpp::model().nsym_start;
    return;
  }
- xpp::session().browser.replaced_col=i;
+ s.browser.replaced_col=i;
 
  /* Okay the formula is cool so lets allocate and replace  */
 
  wipe_rep();
- xpp::session().browser.old_column.assign(n,0.0f);
- xpp::session().browser.replaced=1;
+ s.browser.old_column.assign(n,0.0f);
+ s.browser.replaced=1;
  for(i=0;i<n;i++)
  {
-   xpp::session().browser.old_column[i]=dat[xpp::session().browser.replaced_col][i];
+   s.browser.old_column[i]=dat[s.browser.replaced_col][i];
    if(dif_var<0)
      {
        if(seq==0)
@@ -339,14 +340,14 @@ if(dif_var<0)
 	   if(intflag)
 	     {
 	       sum+=static_cast<float>(evaluate(com));
-	       dat[xpp::session().browser.replaced_col][i]=sum*dt;
+	       dat[s.browser.replaced_col][i]=sum*dt;
 	     }
 	   else 
-	     dat[xpp::session().browser.replaced_col][i]=static_cast<float>(evaluate(com));
+	     dat[s.browser.replaced_col][i]=static_cast<float>(evaluate(com));
 	 }
        else 
 	 {
-	   dat[xpp::session().browser.replaced_col][i]=static_cast<float>(a1+i*da);
+	   dat[s.browser.replaced_col][i]=static_cast<float>(a1+i*da);
 	 }
      }
    else 
@@ -355,11 +356,11 @@ if(dif_var<0)
        if(i==(n-1))derv=(dat[dif_var][i]-old)/dt;
        if(i>0&&i<(n-1))derv=(dat[dif_var][i+1]-dat[dif_var][i])/dt;
        old=dat[dif_var][i];
-       dat[xpp::session().browser.replaced_col][i]=derv;
+       dat[s.browser.replaced_col][i]=derv;
      }
  }
- xpp::session().parser.ncon=xpp::model().ncon_start;
- xpp::session().parser.nsym=xpp::model().nsym_start;
+ s.parser.ncon=xpp::model().ncon_start;
+ s.parser.nsym=xpp::model().nsym_start;
 
 }
 

@@ -226,12 +226,13 @@ void set_active_windows()
 
 void check_windows()
 {
+ xpp::Session &s=xpp::session();
  double zip,zap;
- check_val(&xpp::session().plot_windows.current->xmin,&xpp::session().plot_windows.current->xmax,&xpp::session().plot_windows.current->xbar,&xpp::session().plot_windows.current->dx);
- check_val(&xpp::session().plot_windows.current->ymin,&xpp::session().plot_windows.current->ymax,&xpp::session().plot_windows.current->ybar,&xpp::session().plot_windows.current->dy);
- check_val(&xpp::session().plot_windows.current->zmin,&xpp::session().plot_windows.current->zmax,&xpp::session().plot_windows.current->zbar,&xpp::session().plot_windows.current->dz);
- check_val(&xpp::session().plot_windows.current->xlo,&xpp::session().plot_windows.current->xhi,&zip,&zap);
- check_val(&xpp::session().plot_windows.current->ylo,&xpp::session().plot_windows.current->yhi,&zip,&zap);
+ check_val(&s.plot_windows.current->xmin,&s.plot_windows.current->xmax,&s.plot_windows.current->xbar,&s.plot_windows.current->dx);
+ check_val(&s.plot_windows.current->ymin,&s.plot_windows.current->ymax,&s.plot_windows.current->ybar,&s.plot_windows.current->dy);
+ check_val(&s.plot_windows.current->zmin,&s.plot_windows.current->zmax,&s.plot_windows.current->zbar,&s.plot_windows.current->dz);
+ check_val(&s.plot_windows.current->xlo,&s.plot_windows.current->xhi,&zip,&zap);
+ check_val(&s.plot_windows.current->ylo,&s.plot_windows.current->yhi,&zip,&zap);
 } 
 
 void check_val(double *x1, double *x2, double *xb, double *xd)

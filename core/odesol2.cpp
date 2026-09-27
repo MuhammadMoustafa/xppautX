@@ -400,16 +400,17 @@ int out =-1;
 int rosen(double *y,double *tstart,double tfinal,
 int *istart,int n,double *work,int *ierr)
 {
+ xpp::Session &s=xpp::session();
  static double htry;
- double epsjac=xpp::session().numerics.newt_err;
+ double epsjac=s.numerics.newt_err;
  double eps=1e-15,hmin,hmax;
  double tdir=1,t0=*tstart,t=t0;
- double atol=xpp::session().numerics.atoler,rtol=xpp::session().numerics.toler;
+ double atol=s.numerics.atoler,rtol=s.numerics.toler;
  double sqrteps=sqrt(eps);
  double thresh=atol/rtol,absh,h;
  double d=1/(2.+sqrt(2.)),e32=6.+sqrt(2.),tnew;
  /*double ninf;  Is this needed?*/
- int i,n2=n*n,done=0,info,ml=xpp::session().numerics.cv_bandlower,mr=xpp::session().numerics.cv_bandupper,mt=ml+mr+1;
+ int i,n2=n*n,done=0,info,ml=s.numerics.cv_bandlower,mr=s.numerics.cv_bandupper,mt=ml+mr+1;
  int ipivot[MAXODE1],nofailed;
  double temp,err,tdel;
  double *ypnew,*k1,*k2,*k3,*f0,*f1,*f2,*dfdt,*ynew,*dfdy;
@@ -429,7 +430,7 @@ int *istart,int n,double *work,int *ierr)
  hmax=fabs(tfinal-t);
  if(*istart==1)
    htry=hmax;
- xpp::session().integrator.rhs(t0,y,f0,n);
+ s.integrator.rhs(t0,y,f0,n);
  hmin=16*eps*fabs(t);
  absh = MIN(hmax, MAX(hmin, htry));
  while(!done)
@@ -445,7 +446,7 @@ int *istart,int n,double *work,int *ierr)
      }
      get_the_jac(t,y,f0,ypnew,dfdy,n,epsjac,1.0);
      tdel = (t + tdir*MIN(sqrteps*MAX(fabs(t),fabs(t+h)),absh)) - t;
-     xpp::session().integrator.rhs(t+tdel,y,f1,n);
+     s.integrator.rhs(t+tdel,y,f1,n);
      for(i=0;i<n;i++)
        dfdt[i]=(f1[i]-f0[i])/tdel;
      while(1){ /* advance a step  */
@@ -453,7 +454,7 @@ int *istart,int n,double *work,int *ierr)
 	 dfdy[i]=-h*d*dfdy[i];
        for(i=0;i<n;i++)
 	 k1[i]=f0[i]+(h*d)*dfdt[i];
-       if(xpp::session().numerics.cv_bandflag){
+       if(s.numerics.cv_bandflag){
 	  for(i=0;i<n;i++)
 	 dfdy[i*mt+ml]+=1;
         
@@ -469,10 +470,10 @@ int *istart,int n,double *work,int *ierr)
        }
        for(i=0;i<n;i++)
 	 ynew[i]=y[i]+.5*h*k1[i];
-       xpp::session().integrator.rhs(t+.5*h,ynew,f1,n);
+       s.integrator.rhs(t+.5*h,ynew,f1,n);
        for(i=0;i<n;i++)
 	 k2[i]=f1[i]-k1[i];
-       if(xpp::session().numerics.cv_bandflag)
+       if(s.numerics.cv_bandflag)
 	 bandsol(dfdy,k2,ml,mr,n);
        else
 	 sgesl(dfdy,n,n,ipivot,k2);
@@ -481,10 +482,10 @@ int *istart,int n,double *work,int *ierr)
 	 ynew[i]=y[i]+h*k2[i];
        }
        tnew=t+h;
-       xpp::session().integrator.rhs(tnew,ynew,f2,n);
+       s.integrator.rhs(tnew,ynew,f2,n);
        for(i=0;i<n;i++)
 	 k3[i]=f2[i] - e32*(k2[i] - f1[i]) - 2*(k1[i] - f0[i]) + (h*d)*dfdt[i];
-       if(xpp::session().numerics.cv_bandflag)
+       if(s.numerics.cv_bandflag)
 	 bandsol(dfdy,k3,ml,mr,n);
        else
 	 sgesl(dfdy,n,n,ipivot,k3);

@@ -459,20 +459,21 @@ void free_stoch()
 
 void init_stoch(int len)
 {
+  xpp::Session &s=xpp::session();
   int i,j;
-  xpp::session().stochastic.n_trials=0;
-  xpp::session().stochastic.len=len;
+  s.stochastic.n_trials=0;
+  s.stochastic.len=len;
   for(i=0;i<(xpp::model().neq+1);i++){
-    xpp::session().stochastic.mean_rows[i].assign(xpp::session().stochastic.len,0.0f);
-    xpp::session().stochastic.variance_rows[i].assign(xpp::session().stochastic.len,0.0f);
-    xpp::session().stochastic.mean[i]=xpp::session().stochastic.mean_rows[i].data();
-    xpp::session().stochastic.variance[i]=xpp::session().stochastic.variance_rows[i].data();
+    s.stochastic.mean_rows[i].assign(s.stochastic.len,0.0f);
+    s.stochastic.variance_rows[i].assign(s.stochastic.len,0.0f);
+    s.stochastic.mean[i]=s.stochastic.mean_rows[i].data();
+    s.stochastic.variance[i]=s.stochastic.variance_rows[i].data();
   }
-  for(j=0;j<xpp::session().stochastic.len;j++){
-    xpp::session().stochastic.mean[0][j]=xpp::session().data_store.col[0][j];
-    xpp::session().stochastic.variance[0][j]=xpp::session().data_store.col[0][j];
+  for(j=0;j<s.stochastic.len;j++){
+    s.stochastic.mean[0][j]=s.data_store.col[0][j];
+    s.stochastic.variance[0][j]=s.data_store.col[0][j];
   }
-  xpp::session().stochastic.here=1;
+  s.stochastic.here=1;
 }
 
 void append_stoch(int first, int length)

@@ -109,11 +109,12 @@ void draw_marker(double xd, double yd, double size, int type)
 
 void draw_grob(int i)
 {
-    const float xs = xpp::session().grobs[i].xs, ys = xpp::session().grobs[i].ys, xe = xpp::session().grobs[i].xe, ye = xpp::session().grobs[i].ye;
-    set_linestyle(xpp::session().grobs[i].color);
-    if (xpp::session().grobs[i].type == POINTER) line_abs(xs, ys, xe, ye);
-    if (xpp::session().grobs[i].type == ARROW || xpp::session().grobs[i].type == POINTER) arrow_head(xs, ys, xe, ye, xpp::session().grobs[i].size);
-    if (xpp::session().grobs[i].type >= MARKER) draw_marker(xs, ys, xpp::session().grobs[i].size, xpp::session().grobs[i].type - 2);
+    xpp::Session &s=xpp::session();
+    const float xs = s.grobs[i].xs, ys = s.grobs[i].ys, xe = s.grobs[i].xe, ye = s.grobs[i].ye;
+    set_linestyle(s.grobs[i].color);
+    if (s.grobs[i].type == POINTER) line_abs(xs, ys, xe, ye);
+    if (s.grobs[i].type == ARROW || s.grobs[i].type == POINTER) arrow_head(xs, ys, xe, ye, s.grobs[i].size);
+    if (s.grobs[i].type >= MARKER) draw_marker(xs, ys, s.grobs[i].size, s.grobs[i].type - 2);
 }
 
 void arrow_head(double xsd, double ysd, double xed, double yed, double size)
@@ -174,17 +175,18 @@ void draw_label(XppWinId w)
 
 void add_grob(double xs, double ys, double xe, double ye, double size, int type, int color)
 {
+    xpp::Session &s=xpp::session();
     for (int i = 0; i < MAXGROB; i++) {
-        if (xpp::session().grobs[i].use == 0) {
-            xpp::session().grobs[i].use = 1;
-            xpp::session().grobs[i].xs = static_cast<float>(xs);
-            xpp::session().grobs[i].xe = static_cast<float>(xe);
-            xpp::session().grobs[i].ys = static_cast<float>(ys);
-            xpp::session().grobs[i].ye = static_cast<float>(ye);
-            xpp::session().grobs[i].w = xpp::session().plot_windows.draw_win;
-            xpp::session().grobs[i].size = size;
-            xpp::session().grobs[i].color = color;
-            xpp::session().grobs[i].type = type;
+        if (s.grobs[i].use == 0) {
+            s.grobs[i].use = 1;
+            s.grobs[i].xs = static_cast<float>(xs);
+            s.grobs[i].xe = static_cast<float>(xe);
+            s.grobs[i].ys = static_cast<float>(ys);
+            s.grobs[i].ye = static_cast<float>(ye);
+            s.grobs[i].w = s.plot_windows.draw_win;
+            s.grobs[i].size = size;
+            s.grobs[i].color = color;
+            s.grobs[i].type = type;
             return;
         }
     }
@@ -310,6 +312,7 @@ void add_pntarr(int type)
    object nearest to a click */
 void edit_object_com(int com)
 {
+    xpp::Session &s=xpp::session();
     char ans;
     int i, j, ilab = -1, flag, type;
     float x, y;
@@ -324,8 +327,8 @@ void edit_object_com(int com)
     /* now search all labels to find the best */
     type = 0; /* label =  0, arrows, etc =1 */
     for (i = 0; i < MAXLAB; i++) {
-        if (xpp::session().labels[i].use == 1 && xpp::session().labels[i].w == xpp::session().plot_windows.draw_win) {
-            dd = (x - xpp::session().labels[i].x) * (x - xpp::session().labels[i].x) + (y - xpp::session().labels[i].y) * (y - xpp::session().labels[i].y);
+        if (s.labels[i].use == 1 && s.labels[i].w == s.plot_windows.draw_win) {
+            dd = (x - s.labels[i].x) * (x - s.labels[i].x) + (y - s.labels[i].y) * (y - s.labels[i].y);
             if (dd < dist) {
                 ilab = i;
                 dist = dd;
@@ -333,8 +336,8 @@ void edit_object_com(int com)
         }
     }
     for (i = 0; i < MAXGROB; i++) {
-        if (xpp::session().grobs[i].use == 1 && xpp::session().grobs[i].w == xpp::session().plot_windows.draw_win) {
-            dd = (x - xpp::session().grobs[i].xs) * (x - xpp::session().grobs[i].xs) + (y - xpp::session().grobs[i].ys) * (y - xpp::session().grobs[i].ys);
+        if (s.grobs[i].use == 1 && s.grobs[i].w == s.plot_windows.draw_win) {
+            dd = (x - s.grobs[i].xs) * (x - s.grobs[i].xs) + (y - s.grobs[i].ys) * (y - s.grobs[i].ys);
             if (dd < dist) {
                 ilab = i;
                 dist = dd;
@@ -345,7 +348,7 @@ void edit_object_com(int com)
     if (ilab >= 0 && type == 0) {
         switch (com) {
         case 0:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Move {} ?", xpp::session().labels[ilab].s).c_str(), "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Move {} ?", s.labels[ilab].s).c_str(), "yn"));
             if (ans == 'y') {
                 MessageBox("Click on new position");
                 flag = GetMouseXY(&i, &j);
@@ -353,31 +356,31 @@ void edit_object_com(int com)
                 FlushDisplay();
                 if (flag) {
                     scale_to_real(i, j, &x, &y);
-                    xpp::session().labels[ilab].x = x;
-                    xpp::session().labels[ilab].y = y;
+                    s.labels[ilab].x = x;
+                    s.labels[ilab].y = y;
                     clr_scrn();
                     redraw_all();
                 }
             }
             break;
         case 1:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Change {} ?", xpp::session().labels[ilab].s).c_str(), "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Change {} ?", s.labels[ilab].s).c_str(), "yn"));
             if (ans == 'y') {
-                std::string text = xpp::session().labels[ilab].s;
+                std::string text = s.labels[ilab].s;
                 new_string("Text: ", text);
-                xpp::session().labels[ilab].s = text;
-                new_int("Size 0-4 :", &xpp::session().labels[ilab].size);
-                if (xpp::session().labels[ilab].size > 4) xpp::session().labels[ilab].size = 4;
-                if (xpp::session().labels[ilab].size < 0) xpp::session().labels[ilab].size = 0;
+                s.labels[ilab].s = text;
+                new_int("Size 0-4 :", &s.labels[ilab].size);
+                if (s.labels[ilab].size > 4) s.labels[ilab].size = 4;
+                if (s.labels[ilab].size < 0) s.labels[ilab].size = 0;
                 clr_scrn();
                 redraw_all();
             }
             break;
         case 2:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Delete {} ?", xpp::session().labels[ilab].s).c_str(), "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Delete {} ?", s.labels[ilab].s).c_str(), "yn"));
             if (ans == 'y') {
-                xpp::session().labels[ilab].w = 0;
-                xpp::session().labels[ilab].use = 0;
+                s.labels[ilab].w = 0;
+                s.labels[ilab].use = 0;
                 clr_scrn();
                 redraw_all();
             }
@@ -387,7 +390,7 @@ void edit_object_com(int com)
     if (ilab >= 0 && type == 1) {
         switch (com) {
         case 0:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Move graphic at ({:f},{:f})", static_cast<double>(xpp::session().grobs[ilab].xs), static_cast<double>(xpp::session().grobs[ilab].ys)).c_str(), "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Move graphic at ({:f},{:f})", static_cast<double>(s.grobs[ilab].xs), static_cast<double>(s.grobs[ilab].ys)).c_str(), "yn"));
             if (ans == 'y') {
                 MessageBox("Reposition");
                 flag = GetMouseXY(&i, &j);
@@ -395,30 +398,30 @@ void edit_object_com(int com)
                 FlushDisplay();
                 if (flag) {
                     scale_to_real(i, j, &x, &y);
-                    xpp::session().grobs[ilab].xe = xpp::session().grobs[ilab].xe - xpp::session().grobs[ilab].xs + x;
-                    xpp::session().grobs[ilab].ye = xpp::session().grobs[ilab].ye - xpp::session().grobs[ilab].ys + y;
-                    xpp::session().grobs[ilab].xs = x;
-                    xpp::session().grobs[ilab].ys = y;
+                    s.grobs[ilab].xe = s.grobs[ilab].xe - s.grobs[ilab].xs + x;
+                    s.grobs[ilab].ye = s.grobs[ilab].ye - s.grobs[ilab].ys + y;
+                    s.grobs[ilab].xs = x;
+                    s.grobs[ilab].ys = y;
                     clr_scrn();
                     redraw_all();
                 }
             }
             break;
         case 1:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Change graphic at ({:f},{:f})", static_cast<double>(xpp::session().grobs[ilab].xs), static_cast<double>(xpp::session().grobs[ilab].ys)).c_str(), "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Change graphic at ({:f},{:f})", static_cast<double>(s.grobs[ilab].xs), static_cast<double>(s.grobs[ilab].ys)).c_str(), "yn"));
             if (ans == 'y') {
-                if (xpp::session().grobs[ilab].type >= MARKER) select_marker_type(&xpp::session().grobs[ilab].type);
-                new_float("Size ", &xpp::session().grobs[ilab].size);
-                new_int("Color :", &xpp::session().grobs[ilab].color);
+                if (s.grobs[ilab].type >= MARKER) select_marker_type(&s.grobs[ilab].type);
+                new_float("Size ", &s.grobs[ilab].size);
+                new_int("Color :", &s.grobs[ilab].color);
                 clr_scrn();
                 redraw_all();
             }
             break;
         case 2:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Delete graphic at ({:f},{:f})", static_cast<double>(xpp::session().grobs[ilab].xs), static_cast<double>(xpp::session().grobs[ilab].ys)).c_str(), "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Delete graphic at ({:f},{:f})", static_cast<double>(s.grobs[ilab].xs), static_cast<double>(s.grobs[ilab].ys)).c_str(), "yn"));
             if (ans == 'y') {
-                xpp::session().grobs[ilab].w = 0;
-                xpp::session().grobs[ilab].use = 0;
+                s.grobs[ilab].w = 0;
+                s.grobs[ilab].use = 0;
                 clr_scrn();
                 redraw_all();
             }

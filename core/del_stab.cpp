@@ -26,6 +26,7 @@
 
 void do_delay_sing(double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo)
 {
+      xpp::Session &s=xpp::session();
       double rr[2];
 
  double colnorm=0,colmax,colsum;
@@ -35,30 +36,30 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
 
  std::vector<double> ev(2*n, 0.0);
  /* first we establish how many delays there are */
- xpp::session().delay.stab_flag=0;
+ s.delay.stab_flag=0;
  for(i=0;i<n;i++)old_x[i]=x[i];
  std::vector<double> work(kmem);
  rooter(x,err,eps,big,work.data(),ierr,maxit,n);
  if(*ierr!=0)
    {
-     xpp::session().delay.stab_flag=1;
+     s.delay.stab_flag=1;
      err_msg("Could not converge to root");
      for(i=0;i<n;i++)x[i]=old_x[i];
      return;
    }
  /* OKAY -- we have the root */
- xpp::session().delay.ndelay=0;
- xpp::session().integrator.rhs(0.0,x,y,n); /* one more evaluation to get delays */
+ s.delay.ndelay=0;
+ s.integrator.rhs(0.0,x,y,n); /* one more evaluation to get delays */
  for(i=0;i<n;i++){
-   xpp::session().delay.variable_shift[0][i]=x[i];  /* unshifted  */
-   xpp::session().delay.variable_shift[1][i]=x[i];
+   s.delay.variable_shift[0][i]=x[i];  /* unshifted  */
+   s.delay.variable_shift[1][i]=x[i];
  }
- std::vector<double> coef(static_cast<size_t>(n)*n*(xpp::session().delay.ndelay+1));
+ std::vector<double> coef(static_cast<size_t>(n)*n*(s.delay.ndelay+1));
 
  /* now we must compute a bunch of jacobians  */
  /* first the normal one   */
- xpp::session().delay.stab_flag=-1;
- xpp::session().delay.which=-1;
+ s.delay.stab_flag=-1;
+ s.delay.which=-1;
  colmax=0.0;
  
  for(i=0;i<n;i++)
@@ -67,7 +68,7 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
      for(j=0;j<n;j++)xp[j]=x[j];
      dx=eps*std::max(eps,fabs(x[i]));
      xp[i]=xp[i]+dx;
-     xpp::session().integrator.rhs(0.0,xp,yp,n);
+     s.integrator.rhs(0.0,xp,yp,n);
      for(j=0;j<n;j++){
        coef[j*n+i]=(yp[j]-y[j])/dx;
        colsum+=fabs(coef[j*n+i]);
@@ -77,17 +78,17 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
  colnorm=colmax;
  for(j=0;j<n;j++)xp[j]=x[j];
  /* now the jacobians for the delays */
- for(k=0;k<xpp::session().delay.ndelay;k++){
-   xpp::session().delay.which=k;
+ for(k=0;k<s.delay.ndelay;k++){
+   s.delay.which=k;
    colmax=0.0;
    for(i=0;i<n;i++){
      colsum=0.0;
      for(j=0;j<n;j++)
-       xpp::session().delay.variable_shift[1][j]=xpp::session().delay.variable_shift[0][j];
+       s.delay.variable_shift[1][j]=s.delay.variable_shift[0][j];
      dx=eps*std::max(eps,fabs(x[i]));
-     xpp::session().delay.variable_shift[1][i]=x[i]+dx;
-     xpp::session().integrator.rhs(0.0,x,yp,n);
-     xpp::session().delay.variable_shift[1][i]=x[i];
+     s.delay.variable_shift[1][i]=x[i]+dx;
+     s.integrator.rhs(0.0,x,yp,n);
+     s.delay.variable_shift[1][i]=x[i];
      for(j=0;j<n;j++){
        coef[j*n+i+n*n*(k+1)]=(yp[j]-y[j])/dx;
        colsum+=fabs(coef[j*n+i+n*n*(k+1)]);
@@ -96,24 +97,24 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
    }
    colnorm+=colmax;
  }
- sign=plot_args(coef.data(),xpp::session().delay.list.data(),n,xpp::session().delay.ndelay,xpp::session().delay.grid,colnorm,colnorm);
+ sign=plot_args(coef.data(),s.delay.list.data(),n,s.delay.ndelay,s.delay.grid,colnorm,colnorm);
 
- okroot=find_positive_root(coef.data(),xpp::session().delay.list.data(),n,xpp::session().delay.ndelay,colnorm,err,eps,big,maxit,rr);
+ okroot=find_positive_root(coef.data(),s.delay.list.data(),n,s.delay.ndelay,colnorm,err,eps,big,maxit,rr);
  if(okroot>0){
    ev[0]=rr[0];
    ev[1]=rr[1];
  }
  *stabinfo=static_cast<float>(fabs(sign));
  i=static_cast<int>(sign);
-if(i==0&&okroot==1&&xpp::session().delay.alpha_max>0)
+if(i==0&&okroot==1&&s.delay.alpha_max>0)
   i=2;
 
  /* no eigenvalue list: a delay equation has infinitely many; the
     counts say which way the dominant root lies */
  create_eq_box(abs(i),2,0,0,0,x,NULL,n);
  /* DING; */
- xpp::session().delay.stab_flag=1;
- if(okroot==1)*stabinfo=xpp::session().delay.alpha_max;
+ s.delay.stab_flag=1;
+ if(okroot==1)*stabinfo=s.delay.alpha_max;
 }
 
 COMPLEX cdif(COMPLEX z, COMPLEX w)

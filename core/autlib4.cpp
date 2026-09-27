@@ -66,6 +66,7 @@
 /* Subroutine */ int 
 flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *rwork, doublecomplex *ev)
 {
+    xpp::Session &s=xpp::session();
     
 
   /* System generated locals */
@@ -146,24 +147,24 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
   /*  Print the undeflated circuit pencil (C0, C1). */
 
   if (*iid > 4) {
-    xpp::print(xpp::session().auto_lib.fp9," Undeflated circuit pencil (C0, C1) \n");	
+    xpp::print(s.auto_lib.fp9," Undeflated circuit pencil (C0, C1) \n");	
 
-    xpp::print(xpp::session().auto_lib.fp9,"   C0 : \n");	
+    xpp::print(s.auto_lib.fp9,"   C0 : \n");	
 
     for (i = 0; i < *ndim; ++i) {
       for (j = 0; j < *ndim; ++j) {
-	xpp::print(xpp::session().auto_lib.fp9," {:23.16f}",ARRAY2D(c0, i, j));	
+	xpp::print(s.auto_lib.fp9," {:23.16f}",ARRAY2D(c0, i, j));	
       }
-      xpp::print(xpp::session().auto_lib.fp9,"\n");	
+      xpp::print(s.auto_lib.fp9,"\n");	
 
     }
-    xpp::print(xpp::session().auto_lib.fp9,"   C1 : \n");	
+    xpp::print(s.auto_lib.fp9,"   C1 : \n");	
 
     for (i = 0; i < *ndim; ++i) {
       for (j = 0; j < *ndim; ++j) {
-	xpp::print(xpp::session().auto_lib.fp9," {:23.16f}",ARRAY2D(c1, i, j));
+	xpp::print(s.auto_lib.fp9," {:23.16f}",ARRAY2D(c1, i, j));
       }
-      xpp::print(xpp::session().auto_lib.fp9,"\n");	
+      xpp::print(s.auto_lib.fp9,"\n");	
 
     }
   }
@@ -215,7 +216,7 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
 	  svdv.data(), ndim, svdwrk.data(), &tmp, &svdinf, &tmp_tol);
   }
   if (svdinf != 0) {
-    xpp::print(xpp::session().auto_lib.fp9," NOTE : Warning from subroutine FLOWKM SVD routine returned SVDINF = {:4}        Floquet multiplier calculations may be wrong\n",svdinf);	
+    xpp::print(s.auto_lib.fp9," NOTE : Warning from subroutine FLOWKM SVD routine returned SVDINF = {:4}        Floquet multiplier calculations may be wrong\n",svdinf);	
 
   }
 
@@ -276,23 +277,23 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
   /*  Finished the deflation process! Print the deflated circuit pencil. */
 
   if (*iid > 4) {
-    xpp::print(xpp::session().auto_lib.fp9," Deflated cicuit pencil (H2^T)*(C0, C1)*(H1) \n");	
+    xpp::print(s.auto_lib.fp9," Deflated cicuit pencil (H2^T)*(C0, C1)*(H1) \n");	
 
-    xpp::print(xpp::session().auto_lib.fp9,"   (H2^T)*C0*(H1) : \n");	
+    xpp::print(s.auto_lib.fp9,"   (H2^T)*C0*(H1) : \n");	
 
     for (i = 0; i < *ndim; ++i) {
       for (j = 0; j < *ndim; ++j) {
-	xpp::print(xpp::session().auto_lib.fp9," {:23.16f}",ARRAY2D(c0, i, j));
+	xpp::print(s.auto_lib.fp9," {:23.16f}",ARRAY2D(c0, i, j));
       }
-      xpp::print(xpp::session().auto_lib.fp9,"\n");	
+      xpp::print(s.auto_lib.fp9,"\n");	
     }
-    xpp::print(xpp::session().auto_lib.fp9,"   (H2^T)*C1*(H1) : \n");	
+    xpp::print(s.auto_lib.fp9,"   (H2^T)*C1*(H1) : \n");	
 
     for (i = 0; i < *ndim; ++i) {
       for (j = 0; j < *ndim; ++j) {
-	xpp::print(xpp::session().auto_lib.fp9," {:23.16f}",ARRAY2D(c1, i, j));
+	xpp::print(s.auto_lib.fp9," {:23.16f}",ARRAY2D(c1, i, j));
       }
-      xpp::print(xpp::session().auto_lib.fp9,"\n");	
+      xpp::print(s.auto_lib.fp9,"\n");	
 
     }
   }
@@ -333,7 +334,7 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
   qzit(*ndim, ndimm1, &c0[1], &c1[1], QZEPS1, FALSE_ , 
        qzz.data(), &qzierr);
   if (qzierr != 0) {
-    xpp::print(xpp::session().auto_lib.fp9," NOTE : Warning from subroutine FLOWKM : QZ routine returned QZIERR = {:4}        Floquet multiplier calculations may be wrong \n",qzierr);	
+    xpp::print(s.auto_lib.fp9," NOTE : Warning from subroutine FLOWKM : QZ routine returned QZIERR = {:4}        Floquet multiplier calculations may be wrong \n",qzierr);	
 
   }
 
@@ -356,7 +357,7 @@ flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *
     }
   }
   if (infev) {
-    xpp::print(xpp::session().auto_lib.fp9," NOTE : Warning from subroutine FLOWKM : Infinite Floquet multiplier represented by CMPLX( 1.0D+30, 1.0D+30 )\n");	
+    xpp::print(s.auto_lib.fp9," NOTE : Warning from subroutine FLOWKM : Infinite Floquet multiplier represented by CMPLX( 1.0D+30, 1.0D+30 )\n");	
 
   }
 

@@ -46,34 +46,35 @@ extern "C" int func(integer ndim, double *u, integer *icp, double *par, integer 
 
 extern "C" int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
 {
+  xpp::Session &s=xpp::session();
   int i;
 
   double p;
 
-  for(i=0;i<xpp::session().auto_state.npar;i++)
-    par[i] = xpp::session().parser.constants[xpp::session().auto_state.par_index[i]];
+  for(i=0;i<s.auto_state.npar;i++)
+    par[i] = s.parser.constants[s.auto_state.par_index[i]];
 
-  if(xpp::session().auto_state.new_period_flag==0){  
+  if(s.auto_state.new_period_flag==0){  
     for(i=0;i<ndim;i++)
-      u[i]=xpp::session().last_ic[i];
+      u[i]=s.last_ic[i];
     return 0;
   }
 
   get_start_period(&p);
   par[10]=p;
-  if(xpp::session().auto_state.homo_flag!=1)get_start_orbit(u,t,p,ndim);
-  if(xpp::session().auto_state.homo_flag==1){
+  if(s.auto_state.homo_flag!=1)get_start_orbit(u,t,p,ndim);
+  if(s.auto_state.homo_flag==1){
 
     get_shifted_orbit(u,t,p,ndim);
     for(i=0;i<ndim;i++){
-      par[11+i]=xpp::session().auto_state.homo_l[i];
+      par[11+i]=s.auto_state.homo_l[i];
 
     }
   }
-  if(xpp::session().auto_state.homo_flag==2){ /* heteroclinic */
+  if(s.auto_state.homo_flag==2){ /* heteroclinic */
     for(i=0;i<ndim;i++){
-      par[11+i]=xpp::session().auto_state.homo_l[i];
-      par[11+i+ndim]=xpp::session().auto_state.homo_r[i];
+      par[11+i]=s.auto_state.homo_l[i];
+      par[11+i+ndim]=s.auto_state.homo_r[i];
 
     }
 

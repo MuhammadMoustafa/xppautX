@@ -186,84 +186,85 @@ void load_eqn()
 
 void set_all_vals()
 {
+ xpp::Session &s=xpp::session();
  int i;
  
- if (xpp::session().not_already_set.TIMEPLOT){xpp::session().plot_settings.timplot=1;xpp::session().not_already_set.TIMEPLOT=0;};
- if (xpp::session().not_already_set.FOREVER){xpp::session().numerics.forever=0;xpp::session().not_already_set.FOREVER=0;};
- if (xpp::session().not_already_set.BVP_TOL){xpp::session().numerics.bvp_tol=1.e-5;xpp::session().not_already_set.BVP_TOL=0;};
- if (xpp::session().not_already_set.BVP_EPS){xpp::session().numerics.bvp_eps=1.e-5;xpp::session().not_already_set.BVP_EPS=0;};
- if (xpp::session().not_already_set.BVP_MAXIT){xpp::session().numerics.bvp_maxit=20;xpp::session().not_already_set.BVP_MAXIT=0;};
- if (xpp::session().not_already_set.BVP_FLAG){xpp::session().numerics.bvp_flag=0;xpp::session().not_already_set.BVP_FLAG=0;};
- if (xpp::session().not_already_set.NMESH){xpp::session().numerics.nmesh=40;xpp::session().not_already_set.NMESH=0;};
- if (xpp::session().not_already_set.NOUT){xpp::session().numerics.njmp=1;xpp::session().not_already_set.NOUT=0;};
- if (xpp::session().not_already_set.SOS){xpp::session().numerics.sos=0;xpp::session().not_already_set.SOS=0;};
- if (xpp::session().not_already_set.FFT){xpp::session().numerics.fft=0;xpp::session().not_already_set.FFT=0;};
- if (xpp::session().not_already_set.HIST){xpp::session().numerics.hist=0;xpp::session().not_already_set.HIST=0;};
- if (xpp::session().not_already_set.PltFmtFlag){xpp::session().plot_file.plt_fmt_flag=0;xpp::session().not_already_set.PltFmtFlag=0;};
- if (xpp::session().not_already_set.AXES){xpp::session().plot_settings.axes=0;xpp::session().not_already_set.AXES=0;};
- if (xpp::session().not_already_set.TOLER){xpp::session().numerics.toler=0.001;xpp::session().not_already_set.TOLER=0;};
- if (xpp::session().not_already_set.ATOLER){xpp::session().numerics.atoler=0.001;xpp::session().not_already_set.ATOLER=0;};
- if (xpp::session().not_already_set.MaxEulIter){xpp::session().numerics.max_eul_iter=10;xpp::session().not_already_set.MaxEulIter=0;}
- if (xpp::session().not_already_set.EulTol){xpp::session().numerics.eul_tol=1.e-7;xpp::session().not_already_set.EulTol=0;};
- if (xpp::session().not_already_set.DELAY){xpp::session().numerics.delay=0.0;xpp::session().not_already_set.DELAY=0;};
- if (xpp::session().not_already_set.DTMIN){xpp::session().numerics.hmin=1e-12;xpp::session().not_already_set.DTMIN=0;};
- if (xpp::session().not_already_set.EVEC_ITER){xpp::session().numerics.evec_iter=100;xpp::session().not_already_set.EVEC_ITER=0;};
- if (xpp::session().not_already_set.EVEC_ERR){xpp::session().numerics.evec_err=.001;xpp::session().not_already_set.EVEC_ERR=0;};
- if (xpp::session().not_already_set.NEWT_ERR){xpp::session().numerics.newt_err=.001;xpp::session().not_already_set.NEWT_ERR=0;};
- if (xpp::session().not_already_set.NULL_HERE){xpp::session().numerics.null_here=0;xpp::session().not_already_set.NULL_HERE=0;};
- xpp::session().delay.stab_flag=DFNORMAL;
- if (xpp::session().not_already_set.DTMAX){xpp::session().numerics.hmax=1.000;xpp::session().not_already_set.DTMAX=0;};
- if (xpp::session().not_already_set.POIMAP){xpp::session().numerics.poimap=0;xpp::session().not_already_set.POIMAP=0;};
- if (xpp::session().not_already_set.POIVAR){xpp::session().numerics.poivar=1;xpp::session().not_already_set.POIVAR=0;};
- if (xpp::session().not_already_set.POIEXT){xpp::session().numerics.poiext=0;xpp::session().not_already_set.POIEXT=0;};
- if (xpp::session().not_already_set.POISGN){xpp::session().numerics.poisgn=1;xpp::session().not_already_set.POISGN=0;};
- if (xpp::session().not_already_set.POIPLN){xpp::session().numerics.poipln=0.0;xpp::session().not_already_set.POIPLN=0;};
+ if (s.not_already_set.TIMEPLOT){s.plot_settings.timplot=1;s.not_already_set.TIMEPLOT=0;};
+ if (s.not_already_set.FOREVER){s.numerics.forever=0;s.not_already_set.FOREVER=0;};
+ if (s.not_already_set.BVP_TOL){s.numerics.bvp_tol=1.e-5;s.not_already_set.BVP_TOL=0;};
+ if (s.not_already_set.BVP_EPS){s.numerics.bvp_eps=1.e-5;s.not_already_set.BVP_EPS=0;};
+ if (s.not_already_set.BVP_MAXIT){s.numerics.bvp_maxit=20;s.not_already_set.BVP_MAXIT=0;};
+ if (s.not_already_set.BVP_FLAG){s.numerics.bvp_flag=0;s.not_already_set.BVP_FLAG=0;};
+ if (s.not_already_set.NMESH){s.numerics.nmesh=40;s.not_already_set.NMESH=0;};
+ if (s.not_already_set.NOUT){s.numerics.njmp=1;s.not_already_set.NOUT=0;};
+ if (s.not_already_set.SOS){s.numerics.sos=0;s.not_already_set.SOS=0;};
+ if (s.not_already_set.FFT){s.numerics.fft=0;s.not_already_set.FFT=0;};
+ if (s.not_already_set.HIST){s.numerics.hist=0;s.not_already_set.HIST=0;};
+ if (s.not_already_set.PltFmtFlag){s.plot_file.plt_fmt_flag=0;s.not_already_set.PltFmtFlag=0;};
+ if (s.not_already_set.AXES){s.plot_settings.axes=0;s.not_already_set.AXES=0;};
+ if (s.not_already_set.TOLER){s.numerics.toler=0.001;s.not_already_set.TOLER=0;};
+ if (s.not_already_set.ATOLER){s.numerics.atoler=0.001;s.not_already_set.ATOLER=0;};
+ if (s.not_already_set.MaxEulIter){s.numerics.max_eul_iter=10;s.not_already_set.MaxEulIter=0;}
+ if (s.not_already_set.EulTol){s.numerics.eul_tol=1.e-7;s.not_already_set.EulTol=0;};
+ if (s.not_already_set.DELAY){s.numerics.delay=0.0;s.not_already_set.DELAY=0;};
+ if (s.not_already_set.DTMIN){s.numerics.hmin=1e-12;s.not_already_set.DTMIN=0;};
+ if (s.not_already_set.EVEC_ITER){s.numerics.evec_iter=100;s.not_already_set.EVEC_ITER=0;};
+ if (s.not_already_set.EVEC_ERR){s.numerics.evec_err=.001;s.not_already_set.EVEC_ERR=0;};
+ if (s.not_already_set.NEWT_ERR){s.numerics.newt_err=.001;s.not_already_set.NEWT_ERR=0;};
+ if (s.not_already_set.NULL_HERE){s.numerics.null_here=0;s.not_already_set.NULL_HERE=0;};
+ s.delay.stab_flag=DFNORMAL;
+ if (s.not_already_set.DTMAX){s.numerics.hmax=1.000;s.not_already_set.DTMAX=0;};
+ if (s.not_already_set.POIMAP){s.numerics.poimap=0;s.not_already_set.POIMAP=0;};
+ if (s.not_already_set.POIVAR){s.numerics.poivar=1;s.not_already_set.POIVAR=0;};
+ if (s.not_already_set.POIEXT){s.numerics.poiext=0;s.not_already_set.POIEXT=0;};
+ if (s.not_already_set.POISGN){s.numerics.poisgn=1;s.not_already_set.POISGN=0;};
+ if (s.not_already_set.POIPLN){s.numerics.poipln=0.0;s.not_already_set.POIPLN=0;};
 
- xpp::session().data_store.rows=0;
+ s.data_store.rows=0;
 
- xpp::session().numerics.storflag=0;
+ s.numerics.storflag=0;
 
- xpp::session().numerics.inflag=0;
- xpp::session().integrator.solver=rung_kut;
- xpp::session().plot_settings.plot_3d=0;
- if (xpp::session().not_already_set.METHOD){xpp::session().numerics.method=3;xpp::session().not_already_set.METHOD=0;};
- if (xpp::session().not_already_set.XLO){xpp::session().plot_settings.my_xlo=0.0;xpp::session().plot_settings.x_3d[0]=xpp::session().plot_settings.my_xlo;xpp::session().not_already_set.XLO=0;xpp::session().not_already_set.XMIN=0;};
- if (xpp::session().not_already_set.XHI){xpp::session().plot_settings.my_xhi=20.0;xpp::session().plot_settings.x_3d[1]=xpp::session().plot_settings.my_xhi;xpp::session().not_already_set.XHI=0;xpp::session().not_already_set.XMAX=0;};
- if (xpp::session().not_already_set.YLO){xpp::session().plot_settings.my_ylo=-1;xpp::session().plot_settings.y_3d[0]=xpp::session().plot_settings.my_ylo;xpp::session().not_already_set.YLO=0;xpp::session().not_already_set.YMIN=0;};
- if (xpp::session().not_already_set.YHI){xpp::session().plot_settings.my_yhi=1;xpp::session().plot_settings.y_3d[0]=xpp::session().plot_settings.my_yhi;xpp::session().not_already_set.YHI=0;xpp::session().not_already_set.YMAX=0;};
+ s.numerics.inflag=0;
+ s.integrator.solver=rung_kut;
+ s.plot_settings.plot_3d=0;
+ if (s.not_already_set.METHOD){s.numerics.method=3;s.not_already_set.METHOD=0;};
+ if (s.not_already_set.XLO){s.plot_settings.my_xlo=0.0;s.plot_settings.x_3d[0]=s.plot_settings.my_xlo;s.not_already_set.XLO=0;s.not_already_set.XMIN=0;};
+ if (s.not_already_set.XHI){s.plot_settings.my_xhi=20.0;s.plot_settings.x_3d[1]=s.plot_settings.my_xhi;s.not_already_set.XHI=0;s.not_already_set.XMAX=0;};
+ if (s.not_already_set.YLO){s.plot_settings.my_ylo=-1;s.plot_settings.y_3d[0]=s.plot_settings.my_ylo;s.not_already_set.YLO=0;s.not_already_set.YMIN=0;};
+ if (s.not_already_set.YHI){s.plot_settings.my_yhi=1;s.plot_settings.y_3d[0]=s.plot_settings.my_yhi;s.not_already_set.YHI=0;s.not_already_set.YMAX=0;};
  
- if (xpp::session().not_already_set.BOUND){xpp::session().numerics.bound=100;xpp::session().not_already_set.BOUND=0;};
- if (xpp::session().not_already_set.MAXSTOR){xpp::session().data_store.max_rows=5000;xpp::session().not_already_set.MAXSTOR=0;};
+ if (s.not_already_set.BOUND){s.numerics.bound=100;s.not_already_set.BOUND=0;};
+ if (s.not_already_set.MAXSTOR){s.data_store.max_rows=5000;s.not_already_set.MAXSTOR=0;};
 
- if (xpp::session().not_already_set.T0){xpp::session().numerics.t0=0.0;xpp::session().not_already_set.T0=0;};
- if (xpp::session().not_already_set.TRANS){xpp::session().numerics.trans=0.0;xpp::session().not_already_set.TRANS=0;};
- if (xpp::session().not_already_set.DT){xpp::session().numerics.delta_t=.05;xpp::session().not_already_set.DT=0;};
+ if (s.not_already_set.T0){s.numerics.t0=0.0;s.not_already_set.T0=0;};
+ if (s.not_already_set.TRANS){s.numerics.trans=0.0;s.not_already_set.TRANS=0;};
+ if (s.not_already_set.DT){s.numerics.delta_t=.05;s.not_already_set.DT=0;};
  
- if (xpp::session().not_already_set.XMIN){xpp::session().plot_settings.x_3d[0]=-12;xpp::session().not_already_set.XMIN=0;xpp::session().not_already_set.XLO=0;};
- if (xpp::session().not_already_set.XMAX){xpp::session().plot_settings.x_3d[1]=12;xpp::session().not_already_set.XMAX=0;xpp::session().not_already_set.XHI=0;};
- if (xpp::session().not_already_set.YMIN){xpp::session().plot_settings.y_3d[0]=-12;xpp::session().not_already_set.YMIN=0;xpp::session().not_already_set.YLO=0;};
- if (xpp::session().not_already_set.YMAX){xpp::session().plot_settings.y_3d[1]=12;xpp::session().not_already_set.YMAX=0;xpp::session().not_already_set.YHI=0;};
- if (xpp::session().not_already_set.ZMIN){xpp::session().plot_settings.z_3d[0]=-12;xpp::session().not_already_set.ZMIN=0;};
- if (xpp::session().not_already_set.ZMAX){xpp::session().plot_settings.z_3d[1]=12;xpp::session().not_already_set.ZMAX=0;};
+ if (s.not_already_set.XMIN){s.plot_settings.x_3d[0]=-12;s.not_already_set.XMIN=0;s.not_already_set.XLO=0;};
+ if (s.not_already_set.XMAX){s.plot_settings.x_3d[1]=12;s.not_already_set.XMAX=0;s.not_already_set.XHI=0;};
+ if (s.not_already_set.YMIN){s.plot_settings.y_3d[0]=-12;s.not_already_set.YMIN=0;s.not_already_set.YLO=0;};
+ if (s.not_already_set.YMAX){s.plot_settings.y_3d[1]=12;s.not_already_set.YMAX=0;s.not_already_set.YHI=0;};
+ if (s.not_already_set.ZMIN){s.plot_settings.z_3d[0]=-12;s.not_already_set.ZMIN=0;};
+ if (s.not_already_set.ZMAX){s.plot_settings.z_3d[1]=12;s.not_already_set.ZMAX=0;};
  
- if (xpp::session().not_already_set.TEND){xpp::session().numerics.tend=20.00;xpp::session().not_already_set.TEND=0;};
- if (xpp::session().not_already_set.IXPLT){xpp::session().plot_settings.ixplt=0;xpp::session().not_already_set.IXPLT=0;}
- if (xpp::session().not_already_set.IYPLT){xpp::session().plot_settings.iyplt=1;xpp::session().not_already_set.IYPLT=0;}
- if (xpp::session().not_already_set.IZPLT){xpp::session().plot_settings.izplt=1;xpp::session().not_already_set.IZPLT=0;}
+ if (s.not_already_set.TEND){s.numerics.tend=20.00;s.not_already_set.TEND=0;};
+ if (s.not_already_set.IXPLT){s.plot_settings.ixplt=0;s.not_already_set.IXPLT=0;}
+ if (s.not_already_set.IYPLT){s.plot_settings.iyplt=1;s.not_already_set.IYPLT=0;}
+ if (s.not_already_set.IZPLT){s.plot_settings.izplt=1;s.not_already_set.IZPLT=0;}
  
- if (xpp::session().not_already_set.NPLOT){
-   if (xpp::model().neq>2){if(xpp::session().not_already_set.IZPLT){xpp::session().plot_settings.izplt=2;}}
- xpp::session().plot_settings.npltv=1;
+ if (s.not_already_set.NPLOT){
+   if (xpp::model().neq>2){if(s.not_already_set.IZPLT){s.plot_settings.izplt=2;}}
+ s.plot_settings.npltv=1;
  for(i=0;i<10;i++){
-   xpp::session().plot_settings.ix_plt[i]=xpp::session().plot_settings.ixplt;
-   xpp::session().plot_settings.iy_plt[i]=xpp::session().plot_settings.iyplt;
-   xpp::session().plot_settings.iz_plt[i]=xpp::session().plot_settings.izplt;
-   xpp::session().plot_settings.x_lo[i]=0;
-   xpp::session().plot_settings.y_lo[i]=-1;
-   xpp::session().plot_settings.x_hi[i]=20;
-   xpp::session().plot_settings.y_hi[i]=1;
+   s.plot_settings.ix_plt[i]=s.plot_settings.ixplt;
+   s.plot_settings.iy_plt[i]=s.plot_settings.iyplt;
+   s.plot_settings.iz_plt[i]=s.plot_settings.izplt;
+   s.plot_settings.x_lo[i]=0;
+   s.plot_settings.y_lo[i]=-1;
+   s.plot_settings.x_hi[i]=20;
+   s.plot_settings.y_hi[i]=1;
  }
- xpp::session().not_already_set.NPLOT=0;
+ s.not_already_set.NPLOT=0;
  }
  /* internal options go here  */
  set_internopts(NULL);
@@ -280,40 +281,40 @@ void set_all_vals()
 
 /*                           */
 
- if(xpp::session().plot_settings.izplt>xpp::model().neq)xpp::session().plot_settings.izplt=xpp::model().neq;
- if(xpp::session().plot_settings.iyplt>xpp::model().neq)xpp::session().plot_settings.iyplt=xpp::model().neq;
- if(xpp::session().plot_settings.ixplt==0||xpp::session().plot_settings.iyplt==0)
-   xpp::session().plot_settings.timplot=1;
+ if(s.plot_settings.izplt>xpp::model().neq)s.plot_settings.izplt=xpp::model().neq;
+ if(s.plot_settings.iyplt>xpp::model().neq)s.plot_settings.iyplt=xpp::model().neq;
+ if(s.plot_settings.ixplt==0||s.plot_settings.iyplt==0)
+   s.plot_settings.timplot=1;
  else 
-   xpp::session().plot_settings.timplot=0;
- if(xpp::session().plot_settings.x_3d[0]>=xpp::session().plot_settings.x_3d[1]){
-   xpp::session().plot_settings.x_3d[0]=-1;
-   xpp::session().plot_settings.x_3d[1]=1;
+   s.plot_settings.timplot=0;
+ if(s.plot_settings.x_3d[0]>=s.plot_settings.x_3d[1]){
+   s.plot_settings.x_3d[0]=-1;
+   s.plot_settings.x_3d[1]=1;
  }
-if(xpp::session().plot_settings.y_3d[0]>=xpp::session().plot_settings.y_3d[1]){
-   xpp::session().plot_settings.y_3d[0]=-1;
-   xpp::session().plot_settings.y_3d[1]=1;
+if(s.plot_settings.y_3d[0]>=s.plot_settings.y_3d[1]){
+   s.plot_settings.y_3d[0]=-1;
+   s.plot_settings.y_3d[1]=1;
  }
-if(xpp::session().plot_settings.z_3d[0]>=xpp::session().plot_settings.z_3d[1]){
-   xpp::session().plot_settings.z_3d[0]=-1;
-   xpp::session().plot_settings.z_3d[1]=1;
+if(s.plot_settings.z_3d[0]>=s.plot_settings.z_3d[1]){
+   s.plot_settings.z_3d[0]=-1;
+   s.plot_settings.z_3d[1]=1;
  }
- if(xpp::session().plot_settings.my_xlo>=xpp::session().plot_settings.my_xhi){
-   xpp::session().plot_settings.my_xlo=-2.0;
-   xpp::session().plot_settings.my_xhi=2.0;
+ if(s.plot_settings.my_xlo>=s.plot_settings.my_xhi){
+   s.plot_settings.my_xlo=-2.0;
+   s.plot_settings.my_xhi=2.0;
  }
-if(xpp::session().plot_settings.my_ylo>=xpp::session().plot_settings.my_yhi){
-   xpp::session().plot_settings.my_ylo=-2.0;
-   xpp::session().plot_settings.my_yhi=2.0;
+if(s.plot_settings.my_ylo>=s.plot_settings.my_yhi){
+   s.plot_settings.my_ylo=-2.0;
+   s.plot_settings.my_yhi=2.0;
  }
- if(xpp::session().plot_settings.axes<5){
-   xpp::session().plot_settings.x_3d[0]=xpp::session().plot_settings.my_xlo;
-   xpp::session().plot_settings.y_3d[0]=xpp::session().plot_settings.my_ylo;
-   xpp::session().plot_settings.x_3d[1]=xpp::session().plot_settings.my_xhi;
-   xpp::session().plot_settings.y_3d[1]=xpp::session().plot_settings.my_yhi;
+ if(s.plot_settings.axes<5){
+   s.plot_settings.x_3d[0]=s.plot_settings.my_xlo;
+   s.plot_settings.y_3d[0]=s.plot_settings.my_ylo;
+   s.plot_settings.x_3d[1]=s.plot_settings.my_xhi;
+   s.plot_settings.y_3d[1]=s.plot_settings.my_yhi;
  } 
- xpp::session().data_store.allocate(xpp::session().data_store.max_rows,xpp::model().neq+1);
- if(xpp::session().plot_settings.axes>=5)xpp::session().plot_settings.plot_3d=1;
+ s.data_store.allocate(s.data_store.max_rows,xpp::model().neq+1);
+ if(s.plot_settings.axes>=5)s.plot_settings.plot_3d=1;
  chk_delay(); /* check for delay allocation */
  alloc_h_stuff();
 
@@ -325,39 +326,40 @@ if(xpp::session().plot_settings.my_ylo>=xpp::session().plot_settings.my_yhi){
 
 void read_defaults(FILE *fp)
 {
+ xpp::Session &s=xpp::session();
  /* the X11 big and small fonts: read, not kept */
  std::string bob=read_line(fp);
- if (xpp::session().not_already_set.BIG_FONT_NAME && xpp::Tokens(bob).next(" "))
-	xpp::session().not_already_set.BIG_FONT_NAME=0;
+ if (s.not_already_set.BIG_FONT_NAME && xpp::Tokens(bob).next(" "))
+	s.not_already_set.BIG_FONT_NAME=0;
 
  bob=read_line(fp);
- if (xpp::session().not_already_set.SMALL_FONT_NAME && xpp::Tokens(bob).next(" "))
-	xpp::session().not_already_set.SMALL_FONT_NAME=0;
+ if (s.not_already_set.SMALL_FONT_NAME && xpp::Tokens(bob).next(" "))
+	s.not_already_set.SMALL_FONT_NAME=0;
 
- if (xpp::session().not_already_set.PaperWhite){int paper_white; fil_int(fp,&paper_white);xpp::session().not_already_set.PaperWhite=0;}; /* X11 only: read, not kept */
- if (xpp::session().not_already_set.IXPLT){fil_int(fp,&xpp::session().plot_settings.ixplt);xpp::session().not_already_set.IXPLT=0;};
- if (xpp::session().not_already_set.IYPLT){fil_int(fp,&xpp::session().plot_settings.iyplt);xpp::session().not_already_set.IYPLT=0;};
- if (xpp::session().not_already_set.IZPLT){fil_int(fp,&xpp::session().plot_settings.izplt);xpp::session().not_already_set.IZPLT=0;};
- if (xpp::session().not_already_set.AXES){fil_int(fp,&xpp::session().plot_settings.axes);xpp::session().not_already_set.PaperWhite=0;};
- if (xpp::session().not_already_set.NOUT){fil_int(fp,&xpp::session().numerics.njmp);xpp::session().not_already_set.NOUT=0;};
- if (xpp::session().not_already_set.NMESH){fil_int(fp,&xpp::session().numerics.nmesh);xpp::session().not_already_set.NMESH=0;};
- if (xpp::session().not_already_set.METHOD){fil_int(fp,&xpp::session().numerics.method);xpp::session().not_already_set.METHOD=0;};
+ if (s.not_already_set.PaperWhite){int paper_white; fil_int(fp,&paper_white);s.not_already_set.PaperWhite=0;}; /* X11 only: read, not kept */
+ if (s.not_already_set.IXPLT){fil_int(fp,&s.plot_settings.ixplt);s.not_already_set.IXPLT=0;};
+ if (s.not_already_set.IYPLT){fil_int(fp,&s.plot_settings.iyplt);s.not_already_set.IYPLT=0;};
+ if (s.not_already_set.IZPLT){fil_int(fp,&s.plot_settings.izplt);s.not_already_set.IZPLT=0;};
+ if (s.not_already_set.AXES){fil_int(fp,&s.plot_settings.axes);s.not_already_set.PaperWhite=0;};
+ if (s.not_already_set.NOUT){fil_int(fp,&s.numerics.njmp);s.not_already_set.NOUT=0;};
+ if (s.not_already_set.NMESH){fil_int(fp,&s.numerics.nmesh);s.not_already_set.NMESH=0;};
+ if (s.not_already_set.METHOD){fil_int(fp,&s.numerics.method);s.not_already_set.METHOD=0;};
 
- if (xpp::session().not_already_set.TIMEPLOT){fil_int(fp,&xpp::session().plot_settings.timplot);xpp::session().not_already_set.TIMEPLOT=0;};
- if (xpp::session().not_already_set.MAXSTOR){fil_int(fp,&xpp::session().data_store.max_rows);xpp::session().not_already_set.MAXSTOR=0;};
- if (xpp::session().not_already_set.TEND){fil_flt(fp,&xpp::session().numerics.tend);xpp::session().not_already_set.TEND=0;};
- if (xpp::session().not_already_set.DT){fil_flt(fp,&xpp::session().numerics.delta_t);xpp::session().not_already_set.DT=0;};
- if (xpp::session().not_already_set.T0){fil_flt(fp,&xpp::session().numerics.t0);xpp::session().not_already_set.T0=0;};
- if (xpp::session().not_already_set.TRANS){fil_flt(fp,&xpp::session().numerics.trans);xpp::session().not_already_set.TRANS=0;};
- if (xpp::session().not_already_set.BOUND){fil_flt(fp,&xpp::session().numerics.bound);xpp::session().not_already_set.BOUND=0;};
- if (xpp::session().not_already_set.DTMIN){fil_flt(fp,&xpp::session().numerics.hmin);xpp::session().not_already_set.DTMIN=0;};
- if (xpp::session().not_already_set.DTMAX){fil_flt(fp,&xpp::session().numerics.hmax);xpp::session().not_already_set.DTMIN=0;};
- if (xpp::session().not_already_set.TOLER){fil_flt(fp,&xpp::session().numerics.toler);xpp::session().not_already_set.TOLER=0;};
- if (xpp::session().not_already_set.DELAY){fil_flt(fp,&xpp::session().numerics.delay);xpp::session().not_already_set.DELAY=0;};
- if (xpp::session().not_already_set.XLO){fil_flt(fp,&xpp::session().plot_settings.my_xlo);xpp::session().not_already_set.XLO=0;};
- if (xpp::session().not_already_set.XHI){fil_flt(fp,&xpp::session().plot_settings.my_xhi);xpp::session().not_already_set.XHI=0;};
- if (xpp::session().not_already_set.YLO){fil_flt(fp,&xpp::session().plot_settings.my_ylo);xpp::session().not_already_set.YLO=0;};
- if (xpp::session().not_already_set.YHI){fil_flt(fp,&xpp::session().plot_settings.my_yhi);xpp::session().not_already_set.YHI=0;};
+ if (s.not_already_set.TIMEPLOT){fil_int(fp,&s.plot_settings.timplot);s.not_already_set.TIMEPLOT=0;};
+ if (s.not_already_set.MAXSTOR){fil_int(fp,&s.data_store.max_rows);s.not_already_set.MAXSTOR=0;};
+ if (s.not_already_set.TEND){fil_flt(fp,&s.numerics.tend);s.not_already_set.TEND=0;};
+ if (s.not_already_set.DT){fil_flt(fp,&s.numerics.delta_t);s.not_already_set.DT=0;};
+ if (s.not_already_set.T0){fil_flt(fp,&s.numerics.t0);s.not_already_set.T0=0;};
+ if (s.not_already_set.TRANS){fil_flt(fp,&s.numerics.trans);s.not_already_set.TRANS=0;};
+ if (s.not_already_set.BOUND){fil_flt(fp,&s.numerics.bound);s.not_already_set.BOUND=0;};
+ if (s.not_already_set.DTMIN){fil_flt(fp,&s.numerics.hmin);s.not_already_set.DTMIN=0;};
+ if (s.not_already_set.DTMAX){fil_flt(fp,&s.numerics.hmax);s.not_already_set.DTMIN=0;};
+ if (s.not_already_set.TOLER){fil_flt(fp,&s.numerics.toler);s.not_already_set.TOLER=0;};
+ if (s.not_already_set.DELAY){fil_flt(fp,&s.numerics.delay);s.not_already_set.DELAY=0;};
+ if (s.not_already_set.XLO){fil_flt(fp,&s.plot_settings.my_xlo);s.not_already_set.XLO=0;};
+ if (s.not_already_set.XHI){fil_flt(fp,&s.plot_settings.my_xhi);s.not_already_set.XHI=0;};
+ if (s.not_already_set.YLO){fil_flt(fp,&s.plot_settings.my_ylo);s.not_already_set.YLO=0;};
+ if (s.not_already_set.YHI){fil_flt(fp,&s.plot_settings.my_yhi);s.not_already_set.YHI=0;};
 
 }
 
@@ -515,6 +517,7 @@ int add_model_option(const char *s1)
 
 void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
 {
+ xpp::Session &s=xpp::session();
   int i,j,f;
  static constexpr std::string_view mkey="demragvbqsc582y";
  static constexpr std::string_view Mkey="DEMRAGVBQSC582Y";
@@ -558,110 +561,110 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
     size and paper: still accepted (old .ode and .xpprc files set them), no
     longer stored */
  if((msc("BIGFONT",s1))||(msc("BIG",s1))){
-    if ((xpp::session().not_already_set.BIG_FONT_NAME||force) || ((mask!=NULL)&&(mask->BIG_FONT_NAME==1)))
+    if ((s.not_already_set.BIG_FONT_NAME||force) || ((mask!=NULL)&&(mask->BIG_FONT_NAME==1)))
     {
-	xpp::session().not_already_set.BIG_FONT_NAME=0;
+	s.not_already_set.BIG_FONT_NAME=0;
     }
     return;
   }
   if((msc("SMALLFONT",s1))||(msc("SMALL",s1))){;
-    if ((xpp::session().not_already_set.SMALL_FONT_NAME||force) || ((mask!=NULL)&&(mask->SMALL_FONT_NAME==1)))
+    if ((s.not_already_set.SMALL_FONT_NAME||force) || ((mask!=NULL)&&(mask->SMALL_FONT_NAME==1)))
     {
-	xpp::session().not_already_set.SMALL_FONT_NAME=0;
+	s.not_already_set.SMALL_FONT_NAME=0;
     }
     return;
   }
   if(msc("FORECOLOR",s1)){
-    if ((xpp::session().not_already_set.UserBlack||force) || ((mask!=NULL)&&(mask->UserBlack==1)))
+    if ((s.not_already_set.UserBlack||force) || ((mask!=NULL)&&(mask->UserBlack==1)))
     {
-	xpp::session().not_already_set.UserBlack=0;
+	s.not_already_set.UserBlack=0;
     }
     return;
   }
   if(msc("BACKCOLOR",s1)){
-    if ((xpp::session().not_already_set.UserWhite||force) || ((mask!=NULL)&&(mask->UserWhite==1)))
+    if ((s.not_already_set.UserWhite||force) || ((mask!=NULL)&&(mask->UserWhite==1)))
     {
-	xpp::session().not_already_set.UserWhite=0;
+	s.not_already_set.UserWhite=0;
     }
     return;
   }
   if(msc("MWCOLOR",s1)){
-    if ((xpp::session().not_already_set.UserMainWinColor||force) || ((mask!=NULL)&&(mask->UserMainWinColor==1)))
+    if ((s.not_already_set.UserMainWinColor||force) || ((mask!=NULL)&&(mask->UserMainWinColor==1)))
     {
-	xpp::session().not_already_set.UserMainWinColor=0;
+	s.not_already_set.UserMainWinColor=0;
     }
     return;
   }
   if(msc("DWCOLOR",s1)){
-    if ((xpp::session().not_already_set.UserDrawWinColor||force) || ((mask!=NULL)&&(mask->UserDrawWinColor==1)))
+    if ((s.not_already_set.UserDrawWinColor||force) || ((mask!=NULL)&&(mask->UserDrawWinColor==1)))
     {
-	xpp::session().not_already_set.UserDrawWinColor=0;
+	s.not_already_set.UserDrawWinColor=0;
     }
     return;
   }
   if(msc("GRADS",s1)){
-    if ((xpp::session().not_already_set.UserGradients||force) || ((mask!=NULL)&&(mask->UserGradients==1)))
+    if ((s.not_already_set.UserGradients||force) || ((mask!=NULL)&&(mask->UserGradients==1)))
     {
 	    if(!(msc(s2,"0")||msc(s2,"1")))
 	    {
    		 xpp_log(XPP_LOG_ERROR, "GRADS option must be 0 or 1.\n");
 		 exit(-1);
 	    }
-	    xpp::session().not_already_set.UserGradients=0;
+	    s.not_already_set.UserGradients=0;
     }
     return;
   }
 
   if(msc("PLOTFMT",s1)){
-    if ((xpp::session().not_already_set.PLOTFORMAT||force) || ((mask!=NULL)&&(mask->PLOTFORMAT==1)))
+    if ((s.not_already_set.PLOTFORMAT||force) || ((mask!=NULL)&&(mask->PLOTFORMAT==1)))
     {
-    	xpp::session().plot_export.format=s2;
-	xpp::session().not_already_set.PLOTFORMAT=0;
+    	s.plot_export.format=s2;
+	s.not_already_set.PLOTFORMAT=0;
     }
     return;
   }
 
   if(msc("BACKIMAGE",s1)){
-    if ((xpp::session().not_already_set.UserBGBitmap||force) || ((mask!=NULL)&&(mask->UserBGBitmap==1)))
+    if ((s.not_already_set.UserBGBitmap||force) || ((mask!=NULL)&&(mask->UserBGBitmap==1)))
     {
-	xpp::session().not_already_set.UserBGBitmap=0;
+	s.not_already_set.UserBGBitmap=0;
     }
     return;
   }
   if(msc("WIDTH",s1)){
-    if ((xpp::session().not_already_set.UserMinWidth||force)|| ((mask!=NULL)&&(mask->UserMinWidth==1)))
+    if ((s.not_already_set.UserMinWidth||force)|| ((mask!=NULL)&&(mask->UserMinWidth==1)))
     {
-       xpp::session().not_already_set.UserMinWidth=0;
+       s.not_already_set.UserMinWidth=0;
     }
     return;
   }
   if(msc("HEIGHT",s1)){
-    if ((xpp::session().not_already_set.UserMinHeight||force) || ((mask!=NULL)&&(mask->UserMinHeight==1)))
+    if ((s.not_already_set.UserMinHeight||force) || ((mask!=NULL)&&(mask->UserMinHeight==1)))
     {
-	 xpp::session().not_already_set.UserMinHeight=0;
+	 s.not_already_set.UserMinHeight=0;
     }
     return;
   }
   if(msc("YNC",s1)){
-    if ((xpp::session().not_already_set.YNullColor||force) || ((mask!=NULL)&&(mask->YNullColor==1)))
+    if ((s.not_already_set.YNullColor||force) || ((mask!=NULL)&&(mask->YNullColor==1)))
     {
 	  i=atoi(s2);
 	  if(i>-1&&i<11)
 	  {
-	   xpp::session().nullclines.y_null_color=i;
+	   s.nullclines.y_null_color=i;
 	  }
-	   xpp::session().not_already_set.YNullColor=0;
+	   s.not_already_set.YNullColor=0;
     }
   return;
   }
 if(msc("XNC",s1)){
-    if ((xpp::session().not_already_set.XNullColor||force) || ((mask!=NULL)&&(mask->XNullColor==1)))
+    if ((s.not_already_set.XNullColor||force) || ((mask!=NULL)&&(mask->XNullColor==1)))
     {
 	    i=atoi(s2);
 	  if(i>-1&&i<11)
 	  {
-	   xpp::session().nullclines.x_null_color=i; 
-	   xpp::session().not_already_set.XNullColor=0;
+	   s.nullclines.x_null_color=i; 
+	   s.not_already_set.XNullColor=0;
 	  }
 	  
     }
@@ -670,90 +673,90 @@ if(msc("XNC",s1)){
 
 if(msc("SMC",s1)){
 
-    if ((xpp::session().not_already_set.StableManifoldColor||force) || ((mask!=NULL)&&(mask->StableManifoldColor==1)))
+    if ((s.not_already_set.StableManifoldColor||force) || ((mask!=NULL)&&(mask->StableManifoldColor==1)))
     {
   
 	  i=atoi(s2);
 	  if(i>-1&&i<11)
 	  {
-	   xpp::session().manifolds.stable_color=i;
-	   xpp::session().not_already_set.StableManifoldColor=0;
+	   s.manifolds.stable_color=i;
+	   s.not_already_set.StableManifoldColor=0;
 	  }
     }
   return;
   }
 if(msc("UMC",s1)){
-    if ((xpp::session().not_already_set.UnstableManifoldColor||force) || ((mask!=NULL)&&(mask->UnstableManifoldColor==1)))
+    if ((s.not_already_set.UnstableManifoldColor||force) || ((mask!=NULL)&&(mask->UnstableManifoldColor==1)))
     {
 	    i=atoi(s2);
 	    if(i>-1&&i<11)
 	    {
-	     xpp::session().manifolds.unstable_color=i;
-	     xpp::session().not_already_set.UnstableManifoldColor=0;
+	     s.manifolds.unstable_color=i;
+	     s.not_already_set.UnstableManifoldColor=0;
 	    }
     }
    return;
   }
 
   if(msc("LT",s1)){
-     if ((xpp::session().not_already_set.START_LINE_TYPE||force) || ((mask!=NULL)&&(mask->START_LINE_TYPE==1)))
+     if ((s.not_already_set.START_LINE_TYPE||force) || ((mask!=NULL)&&(mask->START_LINE_TYPE==1)))
      {
      	
 	    i=atoi(s2);
 	    if(i<2&&i>-6)
 	    {  
-	      xpp::session().plot_settings.start_line_type=i; 
+	      s.plot_settings.start_line_type=i; 
 	      reset_all_line_type();
-	      xpp::session().not_already_set.START_LINE_TYPE=0;
+	      s.not_already_set.START_LINE_TYPE=0;
 	      }
      }
      return;
   }
   if(msc("SEED",s1)){ 
-     if ((xpp::session().not_already_set.RandSeed||force) || ((mask!=NULL)&&(mask->RandSeed==1)))
+     if ((s.not_already_set.RandSeed||force) || ((mask!=NULL)&&(mask->RandSeed==1)))
      {
 	    i=atoi(s2);
 	    if(i>=0){
-	      xpp::session().numerics.rand_seed=i;
-	      nsrand48(xpp::session().numerics.rand_seed);  
-	      xpp::session().not_already_set.RandSeed=0;
+	      s.numerics.rand_seed=i;
+	      nsrand48(s.numerics.rand_seed);  
+	      s.not_already_set.RandSeed=0;
 	    }
      }
     return;
   }
  if(msc("BACK",s1)){
-   if ((xpp::session().not_already_set.PaperWhite||force) || ((mask!=NULL)&&(mask->PaperWhite==1)))
+   if ((s.not_already_set.PaperWhite||force) || ((mask!=NULL)&&(mask->PaperWhite==1)))
    {
-	   xpp::session().not_already_set.PaperWhite=0;
+	   s.not_already_set.PaperWhite=0;
    }
     return;
   }
  if(msc("COLORMAP",s1)){
-     if ((xpp::session().not_already_set.COLORMAP||force) || ((mask!=NULL)&&(mask->COLORMAP==1)))
+     if ((s.not_already_set.COLORMAP||force) || ((mask!=NULL)&&(mask->COLORMAP==1)))
      {
    		i=atoi(s2);
    		if(i<7)custom_color=i;
-		xpp::session().not_already_set.COLORMAP=0;
+		s.not_already_set.COLORMAP=0;
 
      }
    return;
  }
    if(msc("NPLOT",s1)){
-     if ((xpp::session().not_already_set.NPLOT||force) || ((mask!=NULL)&&(mask->NPLOT==1)))
+     if ((s.not_already_set.NPLOT||force) || ((mask!=NULL)&&(mask->NPLOT==1)))
      {
-    	xpp::session().plot_settings.npltv=atoi(s2);
-	xpp::session().not_already_set.NPLOT=0;
+    	s.plot_settings.npltv=atoi(s2);
+	s.not_already_set.NPLOT=0;
      }
     return;
   }
 
    /* can now initialize several plots */
    if(msc("SIMPLOT",s1)){
-     xpp::session().plot_windows.simul=1;
+     s.plot_windows.simul=1;
      return;
    }
    if(msc("MULTIWIN",s1)){
-     xpp::session().plot_settings.multi_win=1;
+     s.plot_settings.multi_win=1;
      return;
    }
  for(j=2;j<=8;j++){
@@ -766,707 +769,707 @@ if(msc("UMC",s1)){
       std::string yyl=xpp::format("YLO{}",j);
     if(msc(xx.c_str(),s1)){
     find_variable(s2,&i);
-    if(i>-1)xpp::session().plot_settings.ix_plt[j]=i;
+    if(i>-1)s.plot_settings.ix_plt[j]=i;
     return;
   }
    if(msc(yy.c_str(),s1)){
      find_variable(s2,&i);
-    if(i>-1)xpp::session().plot_settings.iy_plt[j]=i;
+    if(i>-1)s.plot_settings.iy_plt[j]=i;
     return;
   }
    if(msc(zz.c_str(),s1)){
      find_variable(s2,&i);
-    if(i>-1)xpp::session().plot_settings.iz_plt[j]=i;
+    if(i>-1)s.plot_settings.iz_plt[j]=i;
     return;
   }
    if(msc(xxh.c_str(),s1)){
-     xpp::session().plot_settings.x_hi[j]=atof(s2);
+     s.plot_settings.x_hi[j]=atof(s2);
      return;
    }
    if(msc(xxl.c_str(),s1)){
-     xpp::session().plot_settings.x_lo[j]=atof(s2);
+     s.plot_settings.x_lo[j]=atof(s2);
      return;
    }
 if(msc(yyh.c_str(),s1)){
-     xpp::session().plot_settings.y_hi[j]=atof(s2);
+     s.plot_settings.y_hi[j]=atof(s2);
      return;
    }
 if(msc(yyl.c_str(),s1)){
-     xpp::session().plot_settings.y_lo[j]=atof(s2);
+     s.plot_settings.y_lo[j]=atof(s2);
      return;
    }
  }
    if(msc("XP",s1)){
-     if ((xpp::session().not_already_set.XP||force) || ((mask!=NULL)&&(mask->XP==1)))
+     if ((s.not_already_set.XP||force) || ((mask!=NULL)&&(mask->XP==1)))
      {
     	find_variable(s2,&i);
-    	if(i>-1)xpp::session().plot_settings.ixplt=i;
-	xpp::session().not_already_set.XP=0;
-	xpp::session().not_already_set.IXPLT=0;
+    	if(i>-1)s.plot_settings.ixplt=i;
+	s.not_already_set.XP=0;
+	s.not_already_set.IXPLT=0;
      }
     return;
   }
    if(msc("YP",s1)){
-     if ((xpp::session().not_already_set.YP||force) || ((mask!=NULL)&&(mask->YP==1)))
+     if ((s.not_already_set.YP||force) || ((mask!=NULL)&&(mask->YP==1)))
      {
      	find_variable(s2,&i);
-    	if(i>-1)xpp::session().plot_settings.iyplt=i;
-	xpp::session().not_already_set.YP=0;
-	xpp::session().not_already_set.IYPLT=0;
+    	if(i>-1)s.plot_settings.iyplt=i;
+	s.not_already_set.YP=0;
+	s.not_already_set.IYPLT=0;
      }
     return;
   }
    if(msc("ZP",s1)){
-     if ((xpp::session().not_already_set.ZP||force) || ((mask!=NULL)&&(mask->ZP==1)))
+     if ((s.not_already_set.ZP||force) || ((mask!=NULL)&&(mask->ZP==1)))
      {
      	find_variable(s2,&i);
-    	if(i>-1)xpp::session().plot_settings.izplt=i;
+    	if(i>-1)s.plot_settings.izplt=i;
 
-     	xpp::session().not_already_set.ZP=0;
-	xpp::session().not_already_set.IZPLT=0;
+     	s.not_already_set.ZP=0;
+	s.not_already_set.IZPLT=0;
      }
     return;
   }
    if(msc("AXES",s1)){
-     if ((xpp::session().not_already_set.AXES||force) || ((mask!=NULL)&&(mask->AXES==1)))
+     if ((s.not_already_set.AXES||force) || ((mask!=NULL)&&(mask->AXES==1)))
      {
 	 if(s2[0]=='3')
 	 {
-	   xpp::session().plot_settings.axes=5;
+	   s.plot_settings.axes=5;
 	 }
 	 else 
 	 {
-	   xpp::session().plot_settings.axes=0;
+	   s.plot_settings.axes=0;
 	 } 
         
-	 xpp::session().not_already_set.AXES=0;
+	 s.not_already_set.AXES=0;
      }
     return;
   }
 
    if(msc("NJMP",s1)){
-     if ((xpp::session().not_already_set.NOUT||force) || ((mask!=NULL)&&(mask->NOUT==1)))
+     if ((s.not_already_set.NOUT||force) || ((mask!=NULL)&&(mask->NOUT==1)))
      {
-    	xpp::session().numerics.njmp=atoi(s2);
-        xpp::session().not_already_set.NOUT=0;
+    	s.numerics.njmp=atoi(s2);
+        s.not_already_set.NOUT=0;
      }
     return;
   }
   if(msc("NOUT",s1)){
-     if ((xpp::session().not_already_set.NOUT||force) || ((mask!=NULL)&&(mask->NOUT==1)))
+     if ((s.not_already_set.NOUT||force) || ((mask!=NULL)&&(mask->NOUT==1)))
      {
-      xpp::session().numerics.njmp=atoi(s2);
-      xpp::session().not_already_set.NOUT=0;
+      s.numerics.njmp=atoi(s2);
+      s.not_already_set.NOUT=0;
      }
     return;
   }
    if(msc("NMESH",s1)){
-     if ((xpp::session().not_already_set.NMESH||force) || ((mask!=NULL)&&(mask->NMESH==1)))
+     if ((s.not_already_set.NMESH||force) || ((mask!=NULL)&&(mask->NMESH==1)))
      {
-    	xpp::session().numerics.nmesh=atoi(s2);
-	xpp::session().not_already_set.NMESH=0;
+    	s.numerics.nmesh=atoi(s2);
+	s.not_already_set.NMESH=0;
      }
     return;
   }
    if(msc("METH",s1)){
-     if ((xpp::session().not_already_set.METHOD||force) || ((mask!=NULL)&&(mask->METHOD==1)))
+     if ((s.not_already_set.METHOD||force) || ((mask!=NULL)&&(mask->METHOD==1)))
      {
     for(i=0;i<15;i++)
       if(s2[0]==mkey[i]||s2[0]==Mkey[i])
-	xpp::session().numerics.method=i;
+	s.numerics.method=i;
       
-       xpp::session().not_already_set.METHOD=0;
+       s.not_already_set.METHOD=0;
      }
     return;
   }
    if(msc("VMAXPTS",s1)){
-     if ((xpp::session().not_already_set.VMAXPTS||force) || ((mask!=NULL)&&(mask->VMAXPTS==1)))
+     if ((s.not_already_set.VMAXPTS||force) || ((mask!=NULL)&&(mask->VMAXPTS==1)))
      {
-     	xpp::session().numerics.max_points=atoi(s2);
-	xpp::session().not_already_set.VMAXPTS=0;
+     	s.numerics.max_points=atoi(s2);
+	s.not_already_set.VMAXPTS=0;
      
      }
      return;
    }
    if(msc("MAXSTOR",s1)){ 
-     if ((xpp::session().not_already_set.MAXSTOR||force) || ((mask!=NULL)&&(mask->MAXSTOR==1)))
+     if ((s.not_already_set.MAXSTOR||force) || ((mask!=NULL)&&(mask->MAXSTOR==1)))
      {
-    	xpp::session().data_store.max_rows=atoi(s2);
-        xpp::session().not_already_set.MAXSTOR=0;
+    	s.data_store.max_rows=atoi(s2);
+        s.not_already_set.MAXSTOR=0;
      } 
     return;
   }
    if(msc("TOR_PER",s1)){
-     if ((xpp::session().not_already_set.TOR_PER||force) || ((mask!=NULL)&&(mask->TOR_PER==1)))
+     if ((s.not_already_set.TOR_PER||force) || ((mask!=NULL)&&(mask->TOR_PER==1)))
      {
-     	xpp::session().numerics.tor_period=atof(s2);
-     	xpp::session().numerics.torus=1;
-	xpp::session().not_already_set.TOR_PER=0;
+     	s.numerics.tor_period=atof(s2);
+     	s.numerics.torus=1;
+	s.not_already_set.TOR_PER=0;
      }
      return;
    }
    if(msc("JAC_EPS",s1)){
-     if ((xpp::session().not_already_set.JAC_EPS||force) || ((mask!=NULL)&&(mask->JAC_EPS==1)))
+     if ((s.not_already_set.JAC_EPS||force) || ((mask!=NULL)&&(mask->JAC_EPS==1)))
      {
-     	xpp::session().numerics.newt_err=atof(s2);
-        xpp::session().not_already_set.JAC_EPS=0;
+     	s.numerics.newt_err=atof(s2);
+        s.not_already_set.JAC_EPS=0;
      }
      return;
    }
    if(msc("NEWT_TOL",s1)){
-     if ((xpp::session().not_already_set.NEWT_TOL||force) || ((mask!=NULL)&&(mask->NEWT_TOL==1)))
+     if ((s.not_already_set.NEWT_TOL||force) || ((mask!=NULL)&&(mask->NEWT_TOL==1)))
      {
-     	xpp::session().numerics.evec_err=atof(s2);
-	xpp::session().not_already_set.NEWT_TOL=0;
+     	s.numerics.evec_err=atof(s2);
+	s.not_already_set.NEWT_TOL=0;
      
      }
      return;
    }
    if(msc("NEWT_ITER",s1)){
-     if ((xpp::session().not_already_set.NEWT_ITER||force) || ((mask!=NULL)&&(mask->NEWT_ITER==1)))
+     if ((s.not_already_set.NEWT_ITER||force) || ((mask!=NULL)&&(mask->NEWT_ITER==1)))
      {
-     	xpp::session().numerics.evec_iter=atoi(s2);
-	xpp::session().not_already_set.NEWT_ITER=0;
+     	s.numerics.evec_iter=atoi(s2);
+	s.not_already_set.NEWT_ITER=0;
      }
      return;
    }
   if(msc("FOLD",s1)){
-     if ((xpp::session().not_already_set.FOLD||force) || ((mask!=NULL)&&(mask->FOLD==1)))
+     if ((s.not_already_set.FOLD||force) || ((mask!=NULL)&&(mask->FOLD==1)))
      {
      find_variable(s2,&i);
      if(i>0){
-       xpp::session().itor[i-1]=1;
-      xpp::session().numerics.torus=1;
+       s.itor[i-1]=1;
+      s.numerics.torus=1;
      }
      
      }
      return;
    }
    if(msc("TOTAL",s1)){
-    if ((xpp::session().not_already_set.TEND||force) || ((mask!=NULL)&&(mask->TEND==1)))
+    if ((s.not_already_set.TEND||force) || ((mask!=NULL)&&(mask->TEND==1)))
      {
-    	xpp::session().numerics.tend=atof(s2);
-	xpp::session().not_already_set.TEND=0;
+    	s.numerics.tend=atof(s2);
+	s.not_already_set.TEND=0;
     }
     return;
   }
   if(msc("DTMIN",s1)){
-     if ((xpp::session().not_already_set.DTMIN||force) || ((mask!=NULL)&&(mask->DTMIN==1)))
+     if ((s.not_already_set.DTMIN||force) || ((mask!=NULL)&&(mask->DTMIN==1)))
      {
-    	xpp::session().numerics.hmin=atof(s2);
-         xpp::session().not_already_set.DTMIN=0;
+    	s.numerics.hmin=atof(s2);
+         s.not_already_set.DTMIN=0;
      }
     return;
   }
   if(msc("DTMAX",s1)){
-     if ((xpp::session().not_already_set.DTMAX||force) || ((mask!=NULL)&&(mask->DTMAX==1)))
+     if ((s.not_already_set.DTMAX||force) || ((mask!=NULL)&&(mask->DTMAX==1)))
      {
-    	xpp::session().numerics.hmax=atof(s2);
-	xpp::session().not_already_set.DTMAX=0;
+    	s.numerics.hmax=atof(s2);
+	s.not_already_set.DTMAX=0;
       }
     return;
   }
    if(msc("DT",s1)){
-     if ((xpp::session().not_already_set.DT||force) || ((mask!=NULL)&&(mask->DT==1)))
+     if ((s.not_already_set.DT||force) || ((mask!=NULL)&&(mask->DT==1)))
      {
-    	xpp::session().numerics.delta_t=atof(s2);
-	xpp::session().not_already_set.DT=0;
+    	s.numerics.delta_t=atof(s2);
+	s.not_already_set.DT=0;
      }
     return;
   }
    if(msc("T0",s1)){
-     if ((xpp::session().not_already_set.T0||force) || ((mask!=NULL)&&(mask->T0==1)))
+     if ((s.not_already_set.T0||force) || ((mask!=NULL)&&(mask->T0==1)))
      { 
-    	xpp::session().numerics.t0=atof(s2);
-        xpp::session().not_already_set.T0=0;
+    	s.numerics.t0=atof(s2);
+        s.not_already_set.T0=0;
      }
     return;
   }
    if(msc("TRANS",s1)){
-     if ((xpp::session().not_already_set.TRANS||force) || ((mask!=NULL)&&(mask->TRANS==1)))
+     if ((s.not_already_set.TRANS||force) || ((mask!=NULL)&&(mask->TRANS==1)))
      {
-     	xpp::session().numerics.trans=atof(s2);
-        xpp::session().not_already_set.TRANS=0;
+     	s.numerics.trans=atof(s2);
+        s.not_already_set.TRANS=0;
      }
     return;
   }
    if(msc("BOUND",s1)){
-     if ((xpp::session().not_already_set.BOUND||force) || ((mask!=NULL)&&(mask->BOUND==1)))
+     if ((s.not_already_set.BOUND||force) || ((mask!=NULL)&&(mask->BOUND==1)))
      {
-       xpp::session().numerics.bound=atof(s2);
-       xpp::session().not_already_set.BOUND=0;
+       s.numerics.bound=atof(s2);
+       s.not_already_set.BOUND=0;
      }
     return;
   }
    if(msc("ATOL",s1)){
-     if ((xpp::session().not_already_set.ATOLER||force) || ((mask!=NULL)&&(mask->ATOLER==1)))
+     if ((s.not_already_set.ATOLER||force) || ((mask!=NULL)&&(mask->ATOLER==1)))
      {
-     	xpp::session().numerics.atoler=atof(s2);
-        xpp::session().not_already_set.ATOLER=0;
+     	s.numerics.atoler=atof(s2);
+        s.not_already_set.ATOLER=0;
      }
      return;
    }
    if(msc("TOL",s1)){
-     if ((xpp::session().not_already_set.TOLER||force) || ((mask!=NULL)&&(mask->TOLER==1)))
+     if ((s.not_already_set.TOLER||force) || ((mask!=NULL)&&(mask->TOLER==1)))
      {
-	xpp::session().numerics.toler=atof(s2);
-	xpp::session().not_already_set.TOLER=0;
+	s.numerics.toler=atof(s2);
+	s.not_already_set.TOLER=0;
      }
     return;
   }
     
    if(msc("DELAY",s1)){
-     if ((xpp::session().not_already_set.DELAY||force) || ((mask!=NULL)&&(mask->DELAY==1)))
+     if ((s.not_already_set.DELAY||force) || ((mask!=NULL)&&(mask->DELAY==1)))
      {
-    	xpp::session().numerics.delay=atof(s2);
-	xpp::session().not_already_set.DELAY=0;
+    	s.numerics.delay=atof(s2);
+	s.not_already_set.DELAY=0;
      }
     return;
   }
    if(msc("BANDUP",s1)){
-     if ((xpp::session().not_already_set.BANDUP||force) || ((mask!=NULL)&&(mask->BANDUP==1)))
+     if ((s.not_already_set.BANDUP||force) || ((mask!=NULL)&&(mask->BANDUP==1)))
      {
-     	xpp::session().numerics.cv_bandflag=1;
-     	xpp::session().numerics.cv_bandupper=atoi(s2);
-     	xpp::session().not_already_set.BANDUP=0;
+     	s.numerics.cv_bandflag=1;
+     	s.numerics.cv_bandupper=atoi(s2);
+     	s.not_already_set.BANDUP=0;
      }
      return;
    }
   if(msc("BANDLO",s1)){
-     if ((xpp::session().not_already_set.BANDLO||force) || ((mask!=NULL)&&(mask->BANDLO==1)))
+     if ((s.not_already_set.BANDLO||force) || ((mask!=NULL)&&(mask->BANDLO==1)))
      {
-     	xpp::session().numerics.cv_bandflag=1;
-     	xpp::session().numerics.cv_bandlower=atoi(s2);
-     	xpp::session().not_already_set.BANDLO=0;
+     	s.numerics.cv_bandflag=1;
+     	s.numerics.cv_bandlower=atoi(s2);
+     	s.not_already_set.BANDLO=0;
      }
      return;
    }
   
   if(msc("PHI",s1)){
-     if ((xpp::session().not_already_set.PHI||force) || ((mask!=NULL)&&(mask->PHI==1)))
+     if ((s.not_already_set.PHI||force) || ((mask!=NULL)&&(mask->PHI==1)))
      {
-    	xpp::session().drawing.phi0=atof(s2);
-	xpp::session().not_already_set.PHI=0;
+    	s.drawing.phi0=atof(s2);
+	s.not_already_set.PHI=0;
      }
     return;
   }
    if(msc("THETA",s1)){
-     if ((xpp::session().not_already_set.THETA||force) || ((mask!=NULL)&&(mask->THETA==1)))
+     if ((s.not_already_set.THETA||force) || ((mask!=NULL)&&(mask->THETA==1)))
      {
-    	xpp::session().drawing.theta0=atof(s2);
-	xpp::session().not_already_set.THETA=0;
+    	s.drawing.theta0=atof(s2);
+	s.not_already_set.THETA=0;
      }
     return;
   }
    if(msc("XLO",s1)){
-     if ((xpp::session().not_already_set.XLO||force) || ((mask!=NULL)&&(mask->XLO==1)))
+     if ((s.not_already_set.XLO||force) || ((mask!=NULL)&&(mask->XLO==1)))
      {
-    	xpp::session().plot_settings.my_xlo=atof(s2);
-	xpp::session().not_already_set.XLO=0;
+    	s.plot_settings.my_xlo=atof(s2);
+	s.not_already_set.XLO=0;
      }
     return;
   }
    if(msc("YLO",s1)){
-    if ((xpp::session().not_already_set.YLO||force) || ((mask!=NULL)&&(mask->YLO==1)))
+    if ((s.not_already_set.YLO||force) || ((mask!=NULL)&&(mask->YLO==1)))
     {
-    	xpp::session().plot_settings.my_ylo=atof(s2);
-	xpp::session().not_already_set.YLO=0;
+    	s.plot_settings.my_ylo=atof(s2);
+	s.not_already_set.YLO=0;
     }
     return;
   }
   
    if(msc("XHI",s1)){
-    if ((xpp::session().not_already_set.XHI||force) || ((mask!=NULL)&&(mask->XHI==1)))
+    if ((s.not_already_set.XHI||force) || ((mask!=NULL)&&(mask->XHI==1)))
     {
-    	xpp::session().plot_settings.my_xhi=atof(s2);
-        xpp::session().not_already_set.XHI=0;
+    	s.plot_settings.my_xhi=atof(s2);
+        s.not_already_set.XHI=0;
     }
     return;
   }
    if(msc("YHI",s1)){
-     if ((xpp::session().not_already_set.YHI||force) || ((mask!=NULL)&&(mask->YHI==1)))
+     if ((s.not_already_set.YHI||force) || ((mask!=NULL)&&(mask->YHI==1)))
      {
-    	xpp::session().plot_settings.my_yhi=atof(s2);
-        xpp::session().not_already_set.YHI=0;
+    	s.plot_settings.my_yhi=atof(s2);
+        s.not_already_set.YHI=0;
      }
     return;
   }
    if(msc("XMAX",s1)){
-     if ((xpp::session().not_already_set.XMAX||force) || ((mask!=NULL)&&(mask->XMAX==1)))
+     if ((s.not_already_set.XMAX||force) || ((mask!=NULL)&&(mask->XMAX==1)))
      {
-    	xpp::session().plot_settings.x_3d[1]=atof(s2);
-	xpp::session().not_already_set.XMAX=0;
+    	s.plot_settings.x_3d[1]=atof(s2);
+	s.not_already_set.XMAX=0;
      
      }
     return;
   }
    if(msc("YMAX",s1)){
-     if ((xpp::session().not_already_set.YMAX||force) || ((mask!=NULL)&&(mask->YMAX==1)))
+     if ((s.not_already_set.YMAX||force) || ((mask!=NULL)&&(mask->YMAX==1)))
      {
-        xpp::session().plot_settings.y_3d[1]=atof(s2);
-	xpp::session().not_already_set.YMAX=0;
+        s.plot_settings.y_3d[1]=atof(s2);
+	s.not_already_set.YMAX=0;
      }
     return;
   }
    if(msc("ZMAX",s1)){
-     if ((xpp::session().not_already_set.ZMAX||force) || ((mask!=NULL)&&(mask->ZMAX==1)))
+     if ((s.not_already_set.ZMAX||force) || ((mask!=NULL)&&(mask->ZMAX==1)))
      {
-        xpp::session().plot_settings.z_3d[1]=atof(s2);
-	xpp::session().not_already_set.ZMAX=0;
+        s.plot_settings.z_3d[1]=atof(s2);
+	s.not_already_set.ZMAX=0;
      }
     return;
   }
    if(msc("XMIN",s1)){
-     if ((xpp::session().not_already_set.XMIN||force) || ((mask!=NULL)&&(mask->XMIN==1)))
+     if ((s.not_already_set.XMIN||force) || ((mask!=NULL)&&(mask->XMIN==1)))
      {
-        xpp::session().plot_settings.x_3d[0]=atof(s2);
-	xpp::session().not_already_set.XMIN=0; 
-	if ((xpp::session().not_already_set.XLO||force) || ((mask!=NULL)&&(mask->XLO==1)))
+        s.plot_settings.x_3d[0]=atof(s2);
+	s.not_already_set.XMIN=0; 
+	if ((s.not_already_set.XLO||force) || ((mask!=NULL)&&(mask->XLO==1)))
 	{
-    	   xpp::session().plot_settings.my_xlo=atof(s2);
-	   xpp::session().not_already_set.XLO=0;
+    	   s.plot_settings.my_xlo=atof(s2);
+	   s.not_already_set.XLO=0;
 	}
      }
     return;
   }
    if(msc("YMIN",s1)){
-     if ((xpp::session().not_already_set.YMIN||force) || ((mask!=NULL)&&(mask->YMIN==1)))
+     if ((s.not_already_set.YMIN||force) || ((mask!=NULL)&&(mask->YMIN==1)))
      {
-    	xpp::session().plot_settings.y_3d[0]=atof(s2);
-	xpp::session().not_already_set.YMIN=0;
-	if ((xpp::session().not_already_set.YLO||force) || ((mask!=NULL)&&(mask->YLO==1)))
+    	s.plot_settings.y_3d[0]=atof(s2);
+	s.not_already_set.YMIN=0;
+	if ((s.not_already_set.YLO||force) || ((mask!=NULL)&&(mask->YLO==1)))
 	{
-    	   xpp::session().plot_settings.my_ylo=atof(s2);
-	   xpp::session().not_already_set.YLO=0;
+    	   s.plot_settings.my_ylo=atof(s2);
+	   s.not_already_set.YLO=0;
 	}
      }
     return;
   }
  if(msc("ZMIN",s1)){
-     if ((xpp::session().not_already_set.ZMIN||force) || ((mask!=NULL)&&(mask->ZMIN==1)))
+     if ((s.not_already_set.ZMIN||force) || ((mask!=NULL)&&(mask->ZMIN==1)))
      {
-    	xpp::session().plot_settings.z_3d[0]=atof(s2);
-	xpp::session().not_already_set.ZMIN=0;
+    	s.plot_settings.z_3d[0]=atof(s2);
+	s.not_already_set.ZMIN=0;
      }
     return;
   }
 
  if(msc("POIMAP",s1)){
-     if ((xpp::session().not_already_set.POIMAP||force) || ((mask!=NULL)&&(mask->POIMAP==1)))
+     if ((s.not_already_set.POIMAP||force) || ((mask!=NULL)&&(mask->POIMAP==1)))
      {
-   	if(s2[0]=='m'||s2[0]=='M')xpp::session().numerics.poimap=2;
-   	if(s2[0]=='s'||s2[0]=='S')xpp::session().numerics.poimap=1;
-   	if(s2[0]=='p'||s2[0]=='P')xpp::session().numerics.poimap=3;
-   	xpp::session().not_already_set.POIMAP=0;
+   	if(s2[0]=='m'||s2[0]=='M')s.numerics.poimap=2;
+   	if(s2[0]=='s'||s2[0]=='S')s.numerics.poimap=1;
+   	if(s2[0]=='p'||s2[0]=='P')s.numerics.poimap=3;
+   	s.not_already_set.POIMAP=0;
    }
    return;
  }
 
  if(msc("POIVAR",s1)){
-     if ((xpp::session().not_already_set.POIVAR||force) || ((mask!=NULL)&&(mask->POIVAR==1)))
+     if ((s.not_already_set.POIVAR||force) || ((mask!=NULL)&&(mask->POIVAR==1)))
      {
     	find_variable(s2,&i);
-    	if(i>-1)xpp::session().numerics.poivar=i;
+    	if(i>-1)s.numerics.poivar=i;
 	
-	xpp::session().not_already_set.POIVAR=0;
+	s.not_already_set.POIVAR=0;
      
      }
     return;
   }
  if(msc("OUTPUT",s1)){
-     if ((xpp::session().not_already_set.OUTPUT||force) || ((mask!=NULL)&&(mask->OUTPUT==1)))
+     if ((s.not_already_set.OUTPUT||force) || ((mask!=NULL)&&(mask->OUTPUT==1)))
      {
    	batch_options.out_file=s2;
-	xpp::session().not_already_set.OUTPUT=0;
+	s.not_already_set.OUTPUT=0;
      }
    return;
  }
   
  if(msc("POISGN",s1)){
-     if ((xpp::session().not_already_set.POISGN||force) || ((mask!=NULL)&&(mask->POISGN==1)))
+     if ((s.not_already_set.POISGN||force) || ((mask!=NULL)&&(mask->POISGN==1)))
      {
-   	xpp::session().numerics.poisgn=atoi(s2);
-	xpp::session().not_already_set.POISGN=0;
+   	s.numerics.poisgn=atoi(s2);
+	s.not_already_set.POISGN=0;
      }
    return;
  }
  
  if(msc("POISTOP",s1)){
-     if ((xpp::session().not_already_set.POISTOP||force) || ((mask!=NULL)&&(mask->POISTOP==1)))
+     if ((s.not_already_set.POISTOP||force) || ((mask!=NULL)&&(mask->POISTOP==1)))
      {
-   	xpp::session().numerics.sos=atoi(s2);
-	xpp::session().not_already_set.POISTOP=0;
+   	s.numerics.sos=atoi(s2);
+	s.not_already_set.POISTOP=0;
      }
    return;
  }
  if(msc("STOCH",s1)){
-     if ((xpp::session().not_already_set.STOCH||force)|| ((mask!=NULL)&&(mask->STOCH==1)))
+     if ((s.not_already_set.STOCH||force)|| ((mask!=NULL)&&(mask->STOCH==1)))
      {
-   	xpp::session().stochastic.flag=atoi(s2);
-	xpp::session().not_already_set.STOCH=0;
+   	s.stochastic.flag=atoi(s2);
+	s.not_already_set.STOCH=0;
      }
    return;
  }
  if(msc("POIPLN",s1)){
-     if ((xpp::session().not_already_set.POIPLN||force)|| ((mask!=NULL)&&(mask->POIPLN==1)))
+     if ((s.not_already_set.POIPLN||force)|| ((mask!=NULL)&&(mask->POIPLN==1)))
      {
-   	xpp::session().numerics.poipln=atof(s2);
-	xpp::session().not_already_set.POIPLN=0;
+   	s.numerics.poipln=atof(s2);
+	s.not_already_set.POIPLN=0;
      }
    return;
  }
 
  if(msc("RANGEOVER",s1)){
-     if ((xpp::session().not_already_set.RANGEOVER||force)|| ((mask!=NULL)&&(mask->RANGEOVER==1)))
+     if ((s.not_already_set.RANGEOVER||force)|| ((mask!=NULL)&&(mask->RANGEOVER==1)))
      {
-    	xpp::session().integrator.range.item=s2;
-	xpp::session().not_already_set.RANGEOVER=0;
+    	s.integrator.range.item=s2;
+	s.not_already_set.RANGEOVER=0;
      }
 
     return;
   }
  if(msc("RANGESTEP",s1)){
-     if ((xpp::session().not_already_set.RANGESTEP||force)|| ((mask!=NULL)&&(mask->RANGESTEP==1)))
+     if ((s.not_already_set.RANGESTEP||force)|| ((mask!=NULL)&&(mask->RANGESTEP==1)))
      {
         
-   	xpp::session().integrator.range.steps=atoi(s2);
-	xpp::session().not_already_set.RANGESTEP=0;
+   	s.integrator.range.steps=atoi(s2);
+	s.not_already_set.RANGESTEP=0;
      }
    return;
  }
   
  if(msc("RANGELOW",s1)){
-     if ((xpp::session().not_already_set.RANGELOW||force)|| ((mask!=NULL)&&(mask->RANGELOW==1)))
+     if ((s.not_already_set.RANGELOW||force)|| ((mask!=NULL)&&(mask->RANGELOW==1)))
      {
-   	xpp::session().integrator.range.plow=atof(s2);
-   	xpp::session().not_already_set.RANGELOW=0;
+   	s.integrator.range.plow=atof(s2);
+   	s.not_already_set.RANGELOW=0;
      }
 
    return;
  }
 
  if(msc("RANGEHIGH",s1)){
-     if ((xpp::session().not_already_set.RANGEHIGH||force)|| ((mask!=NULL)&&(mask->RANGEHIGH==1)))
+     if ((s.not_already_set.RANGEHIGH||force)|| ((mask!=NULL)&&(mask->RANGEHIGH==1)))
      {
-   	xpp::session().integrator.range.phigh=atof(s2);
-	xpp::session().not_already_set.RANGEHIGH=0;
+   	s.integrator.range.phigh=atof(s2);
+	s.not_already_set.RANGEHIGH=0;
      }
    return;
  }
  
  if(msc("RANGERESET",s1)){
-     if ((xpp::session().not_already_set.RANGERESET||force)|| ((mask!=NULL)&&(mask->RANGERESET==1)))
+     if ((s.not_already_set.RANGERESET||force)|| ((mask!=NULL)&&(mask->RANGERESET==1)))
      {
 	 if(s2[0]=='y'||s2[0]=='Y')
 	 {
-	  xpp::session().integrator.range.reset=1;
+	  s.integrator.range.reset=1;
 	 }
 	 else
 	 {
-	  xpp::session().integrator.range.reset=0;
+	  s.integrator.range.reset=0;
 	 } 
-	  xpp::session().not_already_set.RANGERESET=0;
+	  s.not_already_set.RANGERESET=0;
      }
   	return;
    }
 
  if(msc("RANGEOLDIC",s1)){
-     if ((xpp::session().not_already_set.RANGEOLDIC||force)|| ((mask!=NULL)&&(mask->RANGEOLDIC==1)))
+     if ((s.not_already_set.RANGEOLDIC||force)|| ((mask!=NULL)&&(mask->RANGEOLDIC==1)))
      {
   	if(s2[0]=='y'||s2[0]=='Y')
 	{
-   		xpp::session().integrator.range.oldic=1;
+   		s.integrator.range.oldic=1;
    	}
 	else
 	{ 
-   		xpp::session().integrator.range.oldic=0;
+   		s.integrator.range.oldic=0;
 	}
 	
-   	xpp::session().not_already_set.RANGEOLDIC=0;
+   	s.not_already_set.RANGEOLDIC=0;
      }
       return;
  }
 
  if(msc("RANGE",s1)){
-     if ((xpp::session().not_already_set.RANGE||force)|| ((mask!=NULL)&&(mask->RANGE==1)))
+     if ((s.not_already_set.RANGE||force)|| ((mask!=NULL)&&(mask->RANGE==1)))
      {
    	batch_options.range=atoi(s2);
-	xpp::session().not_already_set.RANGE=0;
+	s.not_already_set.RANGE=0;
      }
    return;
  }
  
  if(msc("NTST",s1)){
-     if ((xpp::session().not_already_set.NTST||force)|| ((mask!=NULL)&&(mask->NTST==1)))
+     if ((s.not_already_set.NTST||force)|| ((mask!=NULL)&&(mask->NTST==1)))
      {
-   	xpp::session().auto_state.options.ntst=atoi(s2);
-	xpp::session().not_already_set.NTST=0;
+   	s.auto_state.options.ntst=atoi(s2);
+	s.not_already_set.NTST=0;
      }
    return;
  }
 if(msc("NMAX",s1)){
-   if ((xpp::session().not_already_set.NMAX||force)|| ((mask!=NULL)&&(mask->NMAX==1)))
+   if ((s.not_already_set.NMAX||force)|| ((mask!=NULL)&&(mask->NMAX==1)))
    {
-   	xpp::session().auto_state.options.nmx=atoi(s2);
-	xpp::session().not_already_set.NMAX=0;
+   	s.auto_state.options.nmx=atoi(s2);
+	s.not_already_set.NMAX=0;
    }
    return;
  }
 if(msc("NPR",s1)){
-   if ((xpp::session().not_already_set.NPR||force)|| ((mask!=NULL)&&(mask->NPR==1)))
+   if ((s.not_already_set.NPR||force)|| ((mask!=NULL)&&(mask->NPR==1)))
    {
-   	xpp::session().auto_state.options.npr=atoi(s2);
-	xpp::session().not_already_set.NPR=0;
+   	s.auto_state.options.npr=atoi(s2);
+	s.not_already_set.NPR=0;
    }
    return;
  }
  if(msc("NCOL",s1)){
-   if ((xpp::session().not_already_set.NCOL||force)|| ((mask!=NULL)&&(mask->NCOL==1)))
+   if ((s.not_already_set.NCOL||force)|| ((mask!=NULL)&&(mask->NCOL==1)))
    {
-   	xpp::session().auto_state.options.ncol=atoi(s2);
-   	xpp::session().not_already_set.NCOL=0;
+   	s.auto_state.options.ncol=atoi(s2);
+   	s.not_already_set.NCOL=0;
    }
    return;
  }
 
 if(msc("DSMIN",s1)){
-   if ((xpp::session().not_already_set.DSMIN||force)|| ((mask!=NULL)&&(mask->DSMIN==1)))
+   if ((s.not_already_set.DSMIN||force)|| ((mask!=NULL)&&(mask->DSMIN==1)))
    {
-   	xpp::session().auto_state.options.dsmin=atof(s2);
-	xpp::session().not_already_set.DSMIN=0;
+   	s.auto_state.options.dsmin=atof(s2);
+	s.not_already_set.DSMIN=0;
    }
    return;
  }
 if(msc("DSMAX",s1)){
-   if ((xpp::session().not_already_set.DSMAX||force)|| ((mask!=NULL)&&(mask->DSMAX==1)))
+   if ((s.not_already_set.DSMAX||force)|| ((mask!=NULL)&&(mask->DSMAX==1)))
    {
-   	xpp::session().auto_state.options.dsmax=atof(s2);
-   	xpp::session().not_already_set.DSMAX=0;
+   	s.auto_state.options.dsmax=atof(s2);
+   	s.not_already_set.DSMAX=0;
    }
    return;
  }
 if(msc("DS",s1)){
-    if ((xpp::session().not_already_set.DS||force)|| ((mask!=NULL)&&(mask->DS==1)))
+    if ((s.not_already_set.DS||force)|| ((mask!=NULL)&&(mask->DS==1)))
     {
-   	xpp::session().auto_state.options.ds=atof(s2);
-	xpp::session().not_already_set.DS=0;
+   	s.auto_state.options.ds=atof(s2);
+	s.not_already_set.DS=0;
     }
  
    return;
  }
 if(msc("PARMIN",s1)){
-   if ((xpp::session().not_already_set.XMAX||force)|| ((mask!=NULL)&&(mask->XMAX==1)))
+   if ((s.not_already_set.XMAX||force)|| ((mask!=NULL)&&(mask->XMAX==1)))
    {
-   	xpp::session().auto_state.options.rl0=atof(s2);
-	xpp::session().not_already_set.XMAX=0;
+   	s.auto_state.options.rl0=atof(s2);
+	s.not_already_set.XMAX=0;
    }
    return;
  }
 if(msc("PARMAX",s1)){
-    if ((xpp::session().not_already_set.PARMAX||force)|| ((mask!=NULL)&&(mask->PARMAX==1)))
+    if ((s.not_already_set.PARMAX||force)|| ((mask!=NULL)&&(mask->PARMAX==1)))
     {
-   	xpp::session().auto_state.options.rl1=atof(s2);
-	xpp::session().not_already_set.PARMAX=0;
+   	s.auto_state.options.rl1=atof(s2);
+	s.not_already_set.PARMAX=0;
     }
    return;
  }
 if(msc("NORMMIN",s1)){
-     if ((xpp::session().not_already_set.NORMMIN||force)|| ((mask!=NULL)&&(mask->NORMMIN==1)))
+     if ((s.not_already_set.NORMMIN||force)|| ((mask!=NULL)&&(mask->NORMMIN==1)))
      {
-   	xpp::session().auto_state.options.a0=atof(s2);
-	xpp::session().not_already_set.NORMMIN=0;
+   	s.auto_state.options.a0=atof(s2);
+	s.not_already_set.NORMMIN=0;
      }
    return;
  }
 if(msc("NORMMAX",s1)){
-     if ((xpp::session().not_already_set.NORMMAX||force)|| ((mask!=NULL)&&(mask->NORMMAX==1)))
+     if ((s.not_already_set.NORMMAX||force)|| ((mask!=NULL)&&(mask->NORMMAX==1)))
      {
-   	xpp::session().auto_state.options.a1=atof(s2);
-   	xpp::session().not_already_set.NORMMAX=0;
+   	s.auto_state.options.a1=atof(s2);
+   	s.not_already_set.NORMMAX=0;
      }
    return;
  }
  if(msc("EPSL",s1)){
-     if ((xpp::session().not_already_set.EPSL||force)|| ((mask!=NULL)&&(mask->EPSL==1)))
+     if ((s.not_already_set.EPSL||force)|| ((mask!=NULL)&&(mask->EPSL==1)))
      {
-   	xpp::session().auto_state.options.epsl=atof(s2);
-	xpp::session().not_already_set.EPSL=0;
+   	s.auto_state.options.epsl=atof(s2);
+	s.not_already_set.EPSL=0;
      }
    return;
  }
 
 if(msc("EPSU",s1)){
-     if ((xpp::session().not_already_set.EPSU||force)|| ((mask!=NULL)&&(mask->EPSU==1)))
+     if ((s.not_already_set.EPSU||force)|| ((mask!=NULL)&&(mask->EPSU==1)))
      {
-   	xpp::session().auto_state.options.epsu=atof(s2);
-	xpp::session().not_already_set.EPSU=0;
+   	s.auto_state.options.epsu=atof(s2);
+	s.not_already_set.EPSU=0;
      }
    return;
  }
 if(msc("EPSS",s1)){
-     if ((xpp::session().not_already_set.EPSS||force)|| ((mask!=NULL)&&(mask->EPSS==1)))
+     if ((s.not_already_set.EPSS||force)|| ((mask!=NULL)&&(mask->EPSS==1)))
      {
-   	xpp::session().auto_state.options.epss=atof(s2);
-	xpp::session().not_already_set.EPSS=0;
+   	s.auto_state.options.epss=atof(s2);
+	s.not_already_set.EPSS=0;
      }
    return;
  }
  if(msc("RUNNOW",s1)){
-     if ((xpp::session().not_already_set.RUNNOW||force)|| ((mask!=NULL)&&(mask->RUNNOW==1)))
+     if ((s.not_already_set.RUNNOW||force)|| ((mask!=NULL)&&(mask->RUNNOW==1)))
      {
-   	xpp::session().run_immediately=atoi(s2);
-	xpp::session().not_already_set.RUNNOW=0;
+   	s.run_immediately=atoi(s2);
+	s.not_already_set.RUNNOW=0;
      }
    return;
  }
 
  if(msc("SEC",s1)){
-     if ((xpp::session().not_already_set.SEC||force)|| ((mask!=NULL)&&(mask->SEC==1)))
+     if ((s.not_already_set.SEC||force)|| ((mask!=NULL)&&(mask->SEC==1)))
      {
-   	xpp::session().auto_state.stable_eq_color=atoi(s2);
-	xpp::session().not_already_set.SEC=0;
+   	s.auto_state.stable_eq_color=atoi(s2);
+	s.not_already_set.SEC=0;
      }
    return;
  }
  if(msc("UEC",s1)){
-     if ((xpp::session().not_already_set.UEC||force)|| ((mask!=NULL)&&(mask->UEC==1)))
+     if ((s.not_already_set.UEC||force)|| ((mask!=NULL)&&(mask->UEC==1)))
      {
-   	xpp::session().auto_state.unstable_eq_color=atoi(s2);
-	xpp::session().not_already_set.UEC=0;
+   	s.auto_state.unstable_eq_color=atoi(s2);
+	s.not_already_set.UEC=0;
      }
    return;
  }
  if(msc("SPC",s1)){
-     if ((xpp::session().not_already_set.SPC||force)|| ((mask!=NULL)&&(mask->SPC==1)))
+     if ((s.not_already_set.SPC||force)|| ((mask!=NULL)&&(mask->SPC==1)))
      {
-   	xpp::session().auto_state.stable_po_color=atoi(s2);
-	xpp::session().not_already_set.SPC=0;
+   	s.auto_state.stable_po_color=atoi(s2);
+	s.not_already_set.SPC=0;
      }
    return;
  }
  if(msc("UPC",s1)){
-     if ((xpp::session().not_already_set.UPC||force)|| ((mask!=NULL)&&(mask->UPC==1)))
+     if ((s.not_already_set.UPC||force)|| ((mask!=NULL)&&(mask->UPC==1)))
      {
-   	xpp::session().auto_state.unstable_po_color=atoi(s2);
-	xpp::session().not_already_set.UPC=0;
+   	s.auto_state.unstable_po_color=atoi(s2);
+	s.not_already_set.UPC=0;
      }
    return;
  }
 
  if(msc("AUTOEVAL",s1)){
-     if ((xpp::session().not_already_set.AUTOEVAL||force)|| ((mask!=NULL)&&(mask->AUTOEVAL==1)))
+     if ((s.not_already_set.AUTOEVAL||force)|| ((mask!=NULL)&&(mask->AUTOEVAL==1)))
      {
    	f=atoi(s2);
    	set_auto_eval_flags(f);
-	xpp::session().not_already_set.AUTOEVAL=0;
+	s.not_already_set.AUTOEVAL=0;
     }
    return;
  }
 if(msc("AUTOXMAX",s1)){
-     if ((xpp::session().not_already_set.AUTOXMAX||force)|| ((mask!=NULL)&&(mask->AUTOXMAX==1)))
+     if ((s.not_already_set.AUTOXMAX||force)|| ((mask!=NULL)&&(mask->AUTOXMAX==1)))
      {
- 	xpp::session().auto_state.options.xmax=atof(s2);
-	xpp::session().not_already_set.AUTOXMAX=0;
+ 	s.auto_state.options.xmax=atof(s2);
+	s.not_already_set.AUTOXMAX=0;
      }
  return;
 }
