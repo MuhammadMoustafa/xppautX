@@ -26,7 +26,6 @@
 
 #define COL_TOTAL 150
 
-int periodic = 0;
 int custom_color = 0;
 
 /* 16-bit RGB per colour index, same scale X11 uses */

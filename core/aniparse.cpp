@@ -70,7 +70,6 @@ int ani_grab_flag = 0;
 XppAniOptions ani_options;
 
 int ani_speed = 10;
-int ani_speed_inc = 2;
 
 MPEG_SAVE mpeg;
 VCR vcr;

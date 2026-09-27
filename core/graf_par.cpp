@@ -75,8 +75,8 @@ static double FreezeKeyX,FreezeKeyY;
 static int FreezeKeyFlag;
 constexpr int CurrentCurve=0;
 
-int colorline[]={0,20,21,22,23,24,25,26,27,28,29,0};
-const char *color_names[]={"WHITE","RED","REDORANGE","ORANGE","YELLOWORANGE",
+const int colorline[]={0,20,21,22,23,24,25,26,27,28,29,0};
+const char *const color_names[]={"WHITE","RED","REDORANGE","ORANGE","YELLOWORANGE",
                     "YELLOW","YELLOWGREEN","GREEN","BLUEGREEN",
 		      "BLUE","PURPLE","BLACK"};
 

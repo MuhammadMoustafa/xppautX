@@ -52,7 +52,6 @@ static double stack[200],ustack[200];
 std::array<KERNEL,MAXKER> kernel;
 int NKernel;
 int MaxPoints;
-std::array<std::vector<double>,MAXODE> Memory; /* one per variable (volterra2.c), not per kernel */
 int NTable;
 
 namespace {

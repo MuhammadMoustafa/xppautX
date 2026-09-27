@@ -22,8 +22,8 @@ extern "C" {
 #endif
 
 /* graf_par.cpp: the colours' names and each one's palette index */
-extern const char *color_names[];
-extern int colorline[];
+extern const char *const color_names[];
+extern const int colorline[];
 
 /* The frozen curves of every plot window (Graphic stuff > Freeze) */
 typedef struct {

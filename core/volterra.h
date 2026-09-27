@@ -20,10 +20,8 @@ struct KERNEL {
   std::string name,expr,kerexpr;
 };
 
-/* the kernels (NKernel of them) and the values of each variable at every
-   grid point (volterra2.cpp allocate_volterra), both parserslow2.cpp's */
+/* the kernels (NKernel of them), parserslow2.cpp's */
 extern std::array<KERNEL,MAXKER> kernel;
-extern std::array<std::vector<double>,MAXODE> Memory;
 #endif
 
 #endif

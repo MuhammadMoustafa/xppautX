@@ -602,7 +602,8 @@ void slider_rerun(void)
 
 /* ---- the equilibrium window's Import button and its label (logic from
    eig_list.c) ---- */
-extern int sparity;
+/* which of the left/right equilibria eq_import saves next */
+static int sparity=0;
 
 /* make equilibrium y (n values) the initial data; for small systems it is
    also saved alternately as the left/right equilibrium for homoclinics */

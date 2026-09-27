@@ -205,7 +205,6 @@ static void auto_restore_finite_pars(const double *before)
 }
 
 int HomoFlag=0;
-int sparity=0;
 double homo_l[100],homo_r[100];
 static double HOMO_SHIFT=0.0;
 

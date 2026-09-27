@@ -6,7 +6,6 @@ extern "C" {
 
 #define XPP_MAX_COLORS 256
 
-extern int periodic;
 extern int custom_color;
 extern unsigned short xpp_cmap_rgb[XPP_MAX_COLORS][3];
 

@@ -36,6 +36,11 @@ void j_ani_slider(void)
     send_buf(&b);
 }
 
+namespace {
+/* the step of ani fast and slow */
+constexpr int ani_speed_inc = 2;
+}
+
 /* ani fast, slow and speed: the delay between two frames of Go, ms; 0 when
    op is none of them */
 int ani_speed_op(const char *o, const char *line)

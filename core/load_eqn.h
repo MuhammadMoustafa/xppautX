@@ -236,7 +236,7 @@ extern double MY_XLO,MY_YLO,MY_XHI,MY_YHI;
 extern double BVP_EPS,BVP_TOL,EulTol;
 extern int BVP_MAXIT,BVP_FLAG,MaxEulIter;
 extern int SHOOT,PAR_FOL;
-extern int RunImmediately,xorfix,silent,got_file;
+extern int RunImmediately,got_file;
 /* the integration's settings (the nUmerics menu, @ options) and the run's
    state: the number of equations, the time span and step, tolerances,
    the Poincare section, the torus, the flags the integrator keeps */

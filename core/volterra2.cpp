@@ -34,6 +34,8 @@
 #define CONV 2
 static int CurrentPoint;
 static int KnFlag;
+/* the values of each variable at every grid point (allocate_volterra), one per variable, not per kernel */
+static std::array<std::vector<double>,MAXODE> Memory;
 
 int AutoEvaluate=0;
 

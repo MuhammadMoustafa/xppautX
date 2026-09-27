@@ -163,9 +163,7 @@ void do_comline(int argc, char **argv)
 { 
  int i,k;
 
- silent = 0;
  got_file=0;
- xorfix=1;
  setfilename.clear();
  parfilename.clear();
  icfilename.clear();
@@ -447,8 +445,7 @@ int parse_it(const char *com)
     case SILENT:
       batch_options.enabled=1;
       break;
-    case XORFX:
-      xorfix=0;
+    case XORFX: /* the X11 work-around: accepted and ignored */
       break;
     case CONVERT:
       ConvertStyle=1;

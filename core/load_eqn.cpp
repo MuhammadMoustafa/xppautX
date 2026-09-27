@@ -171,7 +171,7 @@ extern double auto_epss,auto_epsl,auto_epsu;
 extern int auto_var;
 extern double auto_xmin,auto_xmax,auto_ymin,auto_ymax;
 
- int xorfix,silent,got_file;
+ int got_file;
 
 void dump_torus(FILE *fp, int f)
 {

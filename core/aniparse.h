@@ -11,7 +11,7 @@ extern "C" {
 #endif
 
 /* aniparse.cpp: the animator (the .ani language and its frames) */
-extern int n_anicom, ani_speed, ani_speed_inc, ani_grab_flag;
+extern int n_anicom, ani_speed, ani_grab_flag;
 
 void update_ani_motion_stuff(int x, int y);
 void ani_create_mpeg(void);
