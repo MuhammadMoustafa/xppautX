@@ -135,6 +135,7 @@ issue; the card here is the one kept up to date.
 | W69 | #117 | Value edits are sent with the next computation, not on each change (maintainer, 2026-09-27): sliders, fields, Default/Reset and loaded .par/.ic stay pending in the page, sent as one set right before Go (or any computing command); Run on change and the rerun flag go | none | ready |
 | W70 | #118 | Split the expression engine (maintainer, 2026-09-27): parserslow2.cpp into files by job (symbols, compiler, evaluator, built-in functions), its stack and counts into the Model; numerics unchanged | W47c | blocked |
 | W71 | #119 | Every run has its own seed (maintainer, 2026-09-27): the seed set is the next run's (first-run noise and md5s unchanged), the next drawn from a seed stream; each run's seed logged and saved with its data; set it and Go regenerates that run exactly; -newseed logs its seed; the generator's state in the session file | none | ready |
+| W72 | #120 | Study: bit-identical results on every platform (maintainer, 2026-09-27): -ffp-contract=off and a vendored correctly rounded libm (CORE-MATH); measure the examples matching Linux per platform and the speed cost; the maintainer decides from the report | none | ready |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
