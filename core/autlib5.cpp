@@ -1634,8 +1634,6 @@ eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublerea
   }
   for (i = 0; i < *ndm; ++i) {
     vdot = 0.;
-#define GCC_2_96_FIX
-#ifdef GCC_2_96_FIX
     {
       integer tmp;
       tmp = *ndm;
@@ -1643,11 +1641,6 @@ eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublerea
 	vdot += vr[j + i * tmp] * blhme_1.vrprev[*itrans + (j * 2 + i * tmp * 2) - 1];
       }
     }
-#else
-    for (j = 0; j < *ndm; ++j) {
-      vdot += vr[j + i * (*ndm)] * blhme_1.vrprev[*itrans + (j * 2 + i * (*ndm) * 2) - 1];
-    }
-#endif
     if (vdot < 0.) {
       for (j = 0; j < *ndm; ++j) {
 	vr[j + i * (*ndm)] = -vr[j + i * (*ndm)];
@@ -1817,8 +1810,6 @@ prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *pa
     for (j = 0; j < mcond; ++j) {
       dum1[i + j * (*ndm)] = 0.;
       dum2[i + j * (*ndm)] = 0.;
-#define GCC_2_96_FIX
-#ifdef GCC_2_96_FIX
       {
 	integer tmp;
 	tmp = *ndm;
@@ -1829,14 +1820,6 @@ prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *pa
 	    * beyn_1.cprev[j + m0 + (k + ((*is - 1) + ((*itrans - 1) * 2)) * (tmp)) * (tmp)];
 	}
       }
-#else
-      for (k = 0; k < *ndm; ++k) {
-	dum1[i + j * (*ndm)] += beyn_1.cprev[i + m0 + (k + ((*is - 1) + ((*itrans - 1) * 2)) * (*ndm)) * (*ndm)] 
-	  * cnow[j + m0 + k * (*ndm)];
-	dum2[i + j * (*ndm)] += beyn_1.cprev[i + m0 + (k + ((*is - 1) + ((*itrans - 1) * 2)) * (*ndm)) * (*ndm)] 
-	  * beyn_1.cprev[j + m0 + (k + ((*is - 1) + ((*itrans - 1) * 2)) * (*ndm)) * (*ndm)];
-      }
-#endif
     }
   }
 

@@ -18,10 +18,12 @@
 #               in a header and again in a .cpp: it lives in its owner's
 #               header only (CLAUDE.md, "Single source");
 #   - ifdead:   #if 0, or #ifdef/#if defined() of a macro nothing defines
-#               (not a platform's, the compiler's or the Makefile's);
+#               (not a platform's, the compiler's or the Makefile's), or of
+#               a switch the file itself always defines above it (#define X
+#               then #ifdef X: its #else is dead);
 #   - comment:  commented-out code: a comment most of whose lines read as
 #               statements (a comment that explains stays);
-#   - header:   a core header nothing includes.
+#   - header:   a core header nothing includes, or with nothing in it.
 # Uses count across core/ and tests/, comments and string literals
 # stripped. Heuristic and line-based like tools/dupcheck.py, not a C++
 # parser: a name that is also a common word elsewhere reads as used, so
@@ -303,7 +305,33 @@ def third_party_words() -> set[str]:
     return _third_party
 
 
+def fixed_switches(sources) -> dict[str, tuple[str, int]]:
+    """Macros defined once, empty, outside any #if, and never #undef'd:
+    name -> (file, line). A later #ifdef of one in that file is always
+    taken (its #else never), which is dead code too."""
+    defs: dict[str, list] = {}
+    undef: set[str] = set()
+    for s in sources:
+        depth = 0
+        for ln, text in enumerate(s.lines, 1):
+            if re.match(r"\s*#\s*if", text):
+                depth += 1
+            elif re.match(r"\s*#\s*endif", text):
+                depth -= 1
+            m = PP_UNDEF_RE.match(text)
+            if m:
+                undef.add(m.group(1))
+            m = re.match(r"\s*#\s*define\s+(\w+)\s*$", text)
+            if m:
+                defs.setdefault(m.group(1), []).append((s.rel, ln, depth))
+            elif PP_DEFINE_RE.match(text):
+                defs.setdefault(PP_DEFINE_RE.match(text).group(1), []).append((s.rel, ln, -1))
+    return {n: (d[0][0], d[0][1]) for n, d in defs.items()
+            if len(d) == 1 and d[0][2] == 0 and n not in undef}
+
+
 def find_conditionals(sources, defined: set[str]):
+    fixed = fixed_switches(sources)
     found = []
     for s in sources:
         if not s.is_core:
@@ -317,6 +345,9 @@ def find_conditionals(sources, defined: set[str]):
                 found.append(("ifdead", s.rel, "#if 0", ln))
                 continue
             for name in IDENT_RE.findall(rest):
+                if name in fixed and fixed[name][0] == s.rel and fixed[name][1] < ln:
+                    found.append(("ifdead", s.rel, name + " (always defined)", ln))
+                    continue
                 if name in ("defined",) or name in defined or name in EXTERNAL_MACROS:
                     continue
                 if kw in ("if", "elif") and not re.search(r"defined\s*\(?\s*" + name, rest):
@@ -646,8 +677,19 @@ def find_headers(sources):
             if m:
                 included.add(Path(m.group(1)).name)
     for s in sources:
-        if s.is_core and s.is_header and s.path.name not in included:
+        if not (s.is_core and s.is_header):
+            continue
+        if s.path.name not in included:
             found.append(("header", s.rel, s.path.name, 1))
+            continue
+        # nothing in it but its guard (and extern "C" braces)
+        body = " ".join(l for l in s.lines if not l.strip().startswith("#"))
+        body = re.sub(r'extern\s*""\s*\{|\}', "", body).strip()
+        guard = next((m.group(1) for l in s.lines for m in [re.match(r"\s*#\s*ifndef\s+(\w+)", l)] if m), None)
+        defines = sum(1 for l in s.lines if PP_DEFINE_RE.match(l) and PP_DEFINE_RE.match(l).group(1) != guard)
+        includes = sum(1 for l in s.lines if re.match(r"\s*#\s*include", l))
+        if not body and not defines and not includes:
+            found.append(("header", s.rel, s.path.name + " (empty)", 1))
     return found
 
 

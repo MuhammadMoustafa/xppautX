@@ -3978,12 +3978,9 @@ ge(integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublere
       }
     }
     *det *= ARRAY2D(a, ir[ipiv], ic[jpiv]);
-#define GE_PIVOTS_DEBUG
-#ifdef GE_PIVOTS_DEBUG
     if(jj==0)  xpp::print(fp9,"\n Pivots in GE");
     if((jj%6)==0) xpp::print(fp9,"\n");
     xpp::print(fp9," {:4} {:12.3e} ",jj,f2c::abs(ARRAY2D(a, ir[ipiv], ic[jpiv])));
-#endif
     if (ipiv != jj) {
       *det = -(*det);
     }
@@ -4020,10 +4017,8 @@ ge(integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublere
     }
   }
   *det *= ARRAY2D(a, ir[n - 1], ic[n - 1]);
-#ifdef GE_PIVOTS_DEBUG
      if((jj%6)==0) xpp::print(fp9,"\n");
      xpp::print(fp9," {:4} {:12.3e} \n",n-1,ARRAY2D(a, ir[n - 1], ic[n - 1]));
-#endif
 
   if (nrhs == 0) {
     /* Since the pointers for ir and ic were adjusted we need to put the
@@ -4768,60 +4763,8 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   /* Provide initial approximation and determine next point. */
 
-#define SECANT_GUESS
-#ifdef SECANT_GUESS
   contbv(iap, rap, par, icp, funi, &rds, rlcur.data(), rlold.data(), 
 	 rldot.data(), &ntst_plus_one, ups.data(), uoldps.data(), udotps.data(), upoldp.data(), dtm.data(), thl, thu);
-#else
-  {
-    std::vector<doublereal> uolddotps((iap->ntst+1)*(iap->ndim)*(iap->ncol));
-    std::vector<doublereal> rlolddot(iap->nfpr);
-
-    for (i = 0; i < iap->nfpr; ++i) {
-      rlolddot[i] = rldot[i];
-    }
-    for (j = 0; j < iap->ntst; ++j) {
-      for (i = 0; i < iap->ncol * iap->ndim; ++i) {
-	uolddotps[j + i * (iap->ntst+1)] = udotps[j + i * (iap->ntst+1)];
-      }
-    }
-    for (i = 0; i < iap->ndim; ++i) {
-      uolddotps[ntst + i * (iap->ntst+1)] = udotps[ntst + i * (iap->ntst+1)]; 
-    }
-    
-    stdrbv(iap, rap, par, icp, funi, bcni, icni, rlcur.data(), 
-	   rlold.data(), rldot.data(), iap->ntst+1, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(), 
-	   fa.data(), fc.data(), dtm.data(), 0, p0.data(), p1.data(), thl, thu);
-	
-    {
-      doublereal dot_product = rinpr(iap,&(iap->ndim),&ntst_plus_one,udotps.data(),uolddotps.data(),dtm.data(),thu);
-      
-      for (i = 0; i < iap->nfpr; ++i) {
-	/* Computing 2nd power */
-	dot_product += thl[icp[i]] * (rldot[i] * rlolddot[i]);
-      }
-      
-      if(dot_product < 0) {
-	for (i = 0; i < iap->nfpr; ++i) {
-	  rldot[i] = -rldot[i];
-	}
-	for (j = 0; j < iap->ntst; ++j) {
-	  for (i = 0; i < iap->ndim * iap->ncol; ++i) {
-	    udotps[j + i * (iap->ntst+1)] = -udotps[j + i * (iap->ntst+1)];
-	  }
-	}
-	for (i = 0; i < iap->ndim; ++i) {
-	  udotps[ntst + i * (iap->ntst+1)] = -udotps[ntst + i * (iap->ntst+1)]; 
-	}
-      }
-    }
-  }	  
-  extrbv(iap, rap, funi, &rds, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one, ups.data(),
-	 uoldps.data(), udotps.data());
-
-  stupbv(iap, rap, par, icp, funi, rlcur.data(), rlold.data(), rldot.data(),
-	 &ntst_plus_one, ups.data(), uoldps.data(), upoldp.data());
-#endif
   
  L2:
   stepbv(iap, rap, par, icp, funi, bcni, icni, pvli, &rds, 
@@ -5904,12 +5847,9 @@ stdrbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 	ARRAY2D(udotps, j, i) = -ARRAY2D(udotps, j, i);
       }
     }
-#define BUG_FIX
-#ifdef BUG_FIX
     for (i = 0; i < ndim; ++i) {
       ARRAY2D(udotps, ntst, i) = -ARRAY2D(udotps, ntst, i); 
     }
-#endif
   }
 
   if (iap->mynode > 0) {

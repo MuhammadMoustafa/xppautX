@@ -119,9 +119,10 @@ stripped): a macro nothing expands, a type nothing names, a struct field
 nothing reads (only ever assigned counts as unread), a declaration with
 no definition, a declaration repeated in a second header or again in a
 .cpp (it lives only in the header of the file that defines it), `#if 0`
-or `#ifdef` of a macro nothing defines, commented-out code (a comment
-most of whose lines read as statements; a comment that explains stays),
-a header nothing includes. `--check` fails on anything not in the
+or `#ifdef` of a macro nothing defines (or one the file always defines
+just above), commented-out code (a comment most of whose lines read as
+statements; a comment that explains stays), a header nothing includes or
+with nothing in it. `--check` fails on anything not in the
 allowlist inside the script, each entry with its reason ("owner API" for
 xpp_mem/xpp_io/xpp_files/xpp_log/xpp_math): delete dead code rather than
 add an entry. Heuristic and line-based like dupcheck (a name that is also

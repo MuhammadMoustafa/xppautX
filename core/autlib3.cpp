@@ -3874,25 +3874,15 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 	u[k - k1] = ARRAY2D(ups, j, k);
       }
       fopt(ndm, u.data(), icp, par, 0, &fs, &dumu, &dump);
-#define TEMPORARY_STORAGE
-#ifdef TEMPORARY_STORAGE
       ARRAY2D(temporary_storage, j, k1) = fs;
-#else
-      ARRAY2D(upoldp, j, k1) = fs;
-#endif
     }
   }
   for (k = 0; k < ndm; ++k) {
     u[k] = ARRAY2D(ups, *ntsr, k);
   }
   fopt(ndm, u.data(), icp, par, 0, &fs, &dumu, &dump);
-#ifdef TEMPORARY_STORAGE
   temporary_storage[*ntsr] = fs;
   par[9] = rintg(iap, ndxloc, 1, temporary_storage.data(), dtm);
-#else
-  upoldp[*ntsr] = fs;
-  par[9] = rintg(iap, ndxloc, 1, upoldp, dtm);
-#endif
 
   /* Complement starting data */
 
