@@ -1,4 +1,5 @@
 #include "integrate.h"
+#include "storage.h"
 #include "form_ode.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
@@ -131,8 +132,6 @@ extern XAUTO xAuto;
 static int run_from;
 extern int leng[MAXODE];
 extern double TOR_PERIOD;
-extern float **storage;
-extern int storind;
 extern double constants[];
 extern int PointType;
 extern int xorfix;
@@ -205,7 +204,6 @@ extern "C" void load_browser_with_branch(int ibr, int pts, int pte);
 
 GRABPT grabpt;
 
-extern double MyData[MAXODE];
 extern DIAGRAM *bifd;
 
 extern int NBifs;
@@ -282,7 +280,6 @@ double homo_l[100],homo_r[100];
 double HOMO_SHIFT=0.0;
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 
-extern int storind;
 
 BIFUR Auto;
 ADVAUTO aauto;
@@ -1766,7 +1763,7 @@ void auto_grab()
 
 void get_start_period(double *p)
 {
- *p=storage[0][storind-1];
+ *p=data_store.col[0][data_store.rows-1];
 }
 void find_best_homo_shift(int n)
 /* this code looks for the best value
@@ -1779,14 +1776,14 @@ void find_best_homo_shift(int n)
   double dmin=10000.0;
   double d;
   double tshift=0.0;
-  for(i=0;i<storind;i++){
+  for(i=0;i<data_store.rows;i++){
     d=0.0;
     for(j=0;j<n;j++){
-      d+=fabs(storage[j+1][i]-homo_l[j]);
+      d+=fabs(data_store.col[j+1][i]-homo_l[j]);
     }
     if(d<dmin){
       dmin=d;
-      tshift=storage[0][i];
+      tshift=data_store.col[0][i];
     }
   }
   HOMO_SHIFT=tshift;
@@ -1800,14 +1797,14 @@ void get_shifted_orbit(double *u, double t, double p, int n)
   if(t>1.0)t-=1.0;
   if(t<0.0)t+=1.0;
   ts=fmod(t*p+HOMO_SHIFT,p);
-  for(i=0;i<storind;i++){
-    ip=(i+1)%storind;
-    if((ts>=storage[0][i])&&(ts<storage[0][ip])){
+  for(i=0;i<data_store.rows;i++){
+    ip=(i+1)%data_store.rows;
+    if((ts>=data_store.col[0][i])&&(ts<data_store.col[0][ip])){
       i1=i;
       i2=ip;
-      lam=ts-storage[0][i];
+      lam=ts-data_store.col[0][i];
       for(j=0;j<n;j++)
-	u[j]=(1.0-lam)*storage[j+1][i1]+lam*storage[j+1][i2];
+	u[j]=(1.0-lam)*data_store.col[j+1][i1]+lam*data_store.col[j+1][i2];
       break;
     }
   }
@@ -1818,14 +1815,14 @@ void get_start_orbit(double *u, double t, double p, int n)
   int i1,i2,j;
   if(t>1.0)t-=1.0;
   if(t<0.0)t+=1.0;
-  tnorm=t*(storind-1);
+  tnorm=t*(data_store.rows-1);
   i1=static_cast<int>(tnorm);
   i2=i1+1;
-  if(i2>=storind)i2-=storind;
+  if(i2>=data_store.rows)i2-=data_store.rows;
   lam=(tnorm-static_cast<double>(i1));
 
    for(j=0;j<n;j++)
-    u[j]=(1.0-lam)*storage[j+1][i1]+lam*storage[j+1][i2];
+    u[j]=(1.0-lam)*data_store.col[j+1][i1]+lam*data_store.col[j+1][i2];
 }
   
 void auto_start_choice()
@@ -2708,24 +2705,24 @@ void load_auto_orbit()
     auto_err("Cant find labeled pt");
     return;
   }
-  x=&MyData[0];
+  x=&data_store.current[0];
   for(i=0;i<nrow;i++){
     get_a_row(u,&t,ndim,fp.get());
     if(Auto.ips!=4) 
-      storage[0][i]=t*period;
+      data_store.col[0][i]=t*period;
     else
-      storage[0][i]=t;
+      data_store.col[0][i]=t;
       
     
     for(j=0;j<nstor;j++){
-      storage[j+1][i]=u[j];
+      data_store.col[j+1][i]=u[j];
       x[j]=u[j];
     }
-    extra(x,static_cast<double>(storage[0][i]),nstor,NEQ);
+    extra(x,static_cast<double>(data_store.col[0][i]),nstor,NEQ);
     for(j=nstor;j<NEQ;j++)
-      storage[j+1][i]=static_cast<float>(x[j]);
+      data_store.col[j+1][i]=static_cast<float>(x[j]);
   }
-  storind=nrow;
+  data_store.rows=nrow;
   refresh_browser(nrow);
   /* insert auxiliary stuff here */
   if(load_all_labeled_orbits==2)clr_all_scrns();

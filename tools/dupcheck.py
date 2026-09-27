@@ -34,10 +34,6 @@ CORE = ROOT / "core"
 # sparingly). Merge into the owning module named by the reason instead of
 # adding an entry for new code.
 ALLOW = """\
-core/histogram.cpp HIST_INFO|W32d shared data: load_eqn.cpp's comment says it "keeps its own duplicate HIST_INFO typedef and reads this field's layout directly" on purpose; still two definitions of the same struct, merge into one header
-core/load_eqn.cpp HIST_INFO|W32d shared data: see core/histogram.cpp HIST_INFO; merge into one header
-core/simplenet.cpp TABULAR|W32d shared data: tabular.cpp's comment says simplenet.cpp keeps its own duplicate TABULAR typedef and reads this field's layout directly; merge into one header
-core/tabular.cpp TABULAR|W32d shared data: see core/simplenet.cpp TABULAR; merge into one header
 
 core/aniparse.cpp draw_ani_circ|keep: per-primitive-type dispatch wrappers (circle/filled circle/rect/filled rect/ellipse/filled ellipse), same shape by design; no W32a-d card owns aniparse.cpp yet
 core/aniparse.cpp draw_ani_fcirc|keep: see core/aniparse.cpp draw_ani_circ
@@ -129,13 +125,6 @@ core/integrate.cpp *block*|keep: integrate.cpp's two similar range-stepping loop
 core/nullcline.cpp *block*|keep: nullcline.cpp's two nullcline-branch blocks (16 lines); no W32a-d card owns nullcline.cpp yet
 core/simplenet.cpp *block*|W32d shared data: simplenet.cpp's per-connectivity-type blocks (16-34 lines), the same TABULAR-driven connectivity code repeated per network type; merge with the TABULAR cleanup above
 
-core/form_ode.cpp ACTION|W32d shared data: form_ode.cpp's and json_state.cpp's identical ACTION struct, merge into one header
-core/json_state.cpp ACTION|W32d shared data: see core/form_ode.cpp ACTION
-core/integrate.cpp INTERN_SET|W32d shared data: integrate.cpp's, load_eqn.cpp's and comline.h's identical INTERN_SET struct, merge into one header
-core/load_eqn.cpp INTERN_SET|W32d shared data: see core/integrate.cpp INTERN_SET
-core/comline.h INTERN_SET|W32d shared data: see core/integrate.cpp INTERN_SET
-core/integrate.cpp XPPVEC|W32d shared data: integrate.cpp's and storage.cpp's identical XPPVEC struct, merge into one header
-core/storage.cpp XPPVEC|W32d shared data: see core/integrate.cpp XPPVEC
 
 
 """

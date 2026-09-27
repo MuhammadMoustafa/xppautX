@@ -44,7 +44,6 @@ extern int RandSeed;
 extern int NKernel,MyStart,MaxPoints;
 extern int NFlags;
 extern double STOL;
-extern double MyTime;
 extern char *info_message;
 extern const char *meth_hint[];
 extern int DelayGrid;
@@ -83,8 +82,6 @@ int cv_bandflag=0,cv_bandupper=1,cv_bandlower=1;
 
 /*   I will need access to storage  */
 
-extern float **storage;
-extern int storind;
 
 extern int NODE,NEQ; /* as well as the number of odes etc  */
 
@@ -359,7 +356,7 @@ void compute_one_period(double period,double *x,const char *name)
   double ot=TRANS,ote=TEND;
   TRANS=0;
   T0=0;
-  MyTime=0;
+  data_store.current_time=0;
   TEND=period;
   POIMAP=0; /* turn off poincare map */
   reset_browser();
@@ -551,7 +548,7 @@ void set_col_par_com(int i)
     }
     if(plot_windows.current->ColorFlag==1)
     {
-    if(storind<2)return;
+    if(data_store.rows<2)return;
     maxder=0.0;
     minder=1.e20;
   for(i=1;i<my_browser.maxrow;i++)

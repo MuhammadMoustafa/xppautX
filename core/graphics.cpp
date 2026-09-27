@@ -43,8 +43,6 @@ extern int SCALEX,SCALEY,xor_flag;
 int PS_Port=0;
 int D_FLAG;
 int PointRadius=0;
-extern float **storage;
-extern int storind;
 
 
 

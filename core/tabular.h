@@ -1,9 +1,29 @@
 
 #ifndef _tabular_h_
 #define _tabular_h_
+
+#include "xpplim.h" /* MAX_TAB, XPP_NAME_MAX */
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* a model's table: file or function values y on [xlo,xhi] step dx (x too
+   when xyvals); y is one raw block because simplenet.cpp's networks keep
+   pointers into it (weights, indices, delays) */
+typedef struct {
+  double xlo,xhi,dx;
+  double *y,*x;
+  int n,flag,interp,autoeval;
+  int xyvals;
+/* flag=0 if virgin array, flag=1 if already allocated; flag=2 for function
+   interp=0 for normal interpolation, interp=1 for 'step'
+   interp=2 for cubic spline
+   and finally, xyvals=1 if both x and y vals are needed (xyvals=0
+   is faster lookup) */
+  char filename[128],name[XPP_NAME_MAX+1];
+} TABULAR;
+
+extern TABULAR my_table[MAX_TAB];
 
 
 /* tabular.c */

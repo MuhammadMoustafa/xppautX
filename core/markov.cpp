@@ -1,4 +1,5 @@
 #include "xpp_batch.h"
+#include "storage.h"
 #include "xpp_ui.h"
 #include "markov.h"
 #include "xpp_mem.h"
@@ -39,7 +40,6 @@ extern int *my_ode[];
 extern char *ode_names[MAXODE];
 extern int NMarkov,FIX_VAR,NODE,NEQ;
 
-extern double MyData[MAXODE];
 
 extern int NLINES;
 extern char *save_eqn[1000];
@@ -57,9 +57,7 @@ typedef struct {
 MARKOV markov[MAXMARK];
 
 
-extern float **storage;
 
-extern int storind;
 /* raw xpp_malloc blocks per row, not std::vector<std::vector<float>>:
    set_browser_data (browse.h) takes a plain float** and expects these
    MAXODE pointers contiguous, so my_mean/my_variance stay this shape. */
@@ -519,7 +517,7 @@ static void stats_back(float **stats)
 {
   if(STOCH_HERE){
     new_browse_dat(stats,stoch_len);
-    storind=stoch_len;
+    data_store.rows=stoch_len;
   }
 }
 
@@ -537,7 +535,7 @@ void variance_back()
 void compute_em()
 {
   double *x;
-  x=&MyData[0];
+  x=&data_store.current[0];
   free_stoch();
   STOCH_FLAG=1;
   do_range(x,0);
@@ -572,8 +570,8 @@ void init_stoch(int len)
     }
   }
   for(j=0;j<stoch_len;j++){
-    my_mean[0][j]=storage[0][j];
-    my_variance[0][j]=storage[0][j];
+    my_mean[0][j]=data_store.col[0][j];
+    my_variance[0][j]=data_store.col[0][j];
   }
   STOCH_HERE=1;
 }
@@ -588,7 +586,7 @@ void append_stoch(int first, int length)
   if(length!=stoch_len|| !STOCH_HERE)return;
   for(i=0;i<stoch_len;i++){
       for(j=1;j<=NEQ;j++){
-	z=storage[j][i];
+	z=data_store.col[j][i];
 	my_mean[j][i]=my_mean[j][i]+z;
 	my_variance[j][i]=my_variance[j][i]+z*z;
       }

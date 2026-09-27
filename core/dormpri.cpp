@@ -1,5 +1,6 @@
 #include <stdlib.h> 
 #include "xpp_mem.h"
+#include "storage.h"
 #include "xpp_ui.h"
 #include "xpp_math.h"
 #include <math.h>
@@ -13,7 +14,6 @@
 #include "xpp_log.h"
 #include "xpp_io.h"
 
-extern double *WORK;
 
 /* fileout is a caller-supplied diagnostic stream (dormpri.h: "if you do
    not want any [messages], pass NULL"), not the core's own error/log

@@ -76,11 +76,6 @@ int *my_ode[MAXODE];
 
 int leng[MAXODE];
 
-typedef struct {
-  char *text,*action;
-  int aflag;
-} ACTION;
-
 extern int loadincludefile;
 
 char *onlylist[MAXONLY];

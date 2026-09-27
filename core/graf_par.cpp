@@ -1,4 +1,5 @@
 #include "graf_par.h"
+#include "storage.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
@@ -35,7 +36,6 @@
 #include "many_pops.h"
 
 NCLINE nclines[MAXNCLINE];
-extern int storind;
 extern int PS_FONTSIZE;
 extern int PS_Port;
 /*extern char PS_FONT[100];*/
@@ -70,7 +70,6 @@ XppPlotExport plot_export = {"", 1};
 extern int DLeft,DRight,DTop,DBottom,VTic,HTic,VChar,HChar;
 
 extern double T0,TEND;
-extern float **storage;
 
 double FreezeKeyX,FreezeKeyY;
 int FreezeKeyFlag;
@@ -379,7 +378,7 @@ void fit_window()
 {
   double Mx=-1.e25,My=-1.e25,Mz=-1.e25,mx=-Mx,my=-My,mz=-Mz;
   int i,n=plot_windows.current->nvars;
-  if(storind<2)return;
+  if(data_store.rows<2)return;
   if(plot_windows.current->ThreeDFlag){
     for(i=0;i<n;i++){
       
@@ -491,7 +490,7 @@ void xi_vs_t() /*  a short cut   */
    plot_windows.current->yv[0]=i;
    plot_windows.current->grtype=0;
    plot_windows.current->xv[0]=0;
-   if(storind>=2){
+   if(data_store.rows>=2){
       get_max(plot_windows.current->xv[0],&(plot_windows.current->xmin),&(plot_windows.current->xmax));
    pretty(&(plot_windows.current->xmin),&(plot_windows.current->xmax));
     get_max(plot_windows.current->yv[0],&(plot_windows.current->ymin),&(plot_windows.current->ymax));

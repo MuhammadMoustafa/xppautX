@@ -20,8 +20,7 @@ extern "C" {
 
 
 
- extern float **storage;
- extern int storind,MAXSTOR,INFLAG,MY_STOR,STORFLAG;
+ extern int INFLAG,STORFLAG;
 
  extern int FOREVER;
 
@@ -48,8 +47,6 @@ extern int HIST;
  extern double TEND,DELTA_T,T0,TRANS;
 
 
- extern double *WORK;
- extern int IWORK[10000]; /* storage.c */
 
  extern int TORUS,itor[MAXODE];
  extern double TOR_PERIOD;

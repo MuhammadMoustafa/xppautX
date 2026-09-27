@@ -1,5 +1,6 @@
 
 #include "do_fit.h"
+#include "storage.h"
 #include "form_ode.h"
 #include "integrate.h"
 #include "xpp_mem.h"

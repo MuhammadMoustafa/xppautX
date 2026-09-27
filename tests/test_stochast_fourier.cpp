@@ -18,6 +18,7 @@
    lives in storage[][], filled directly per the harness style of
    tests/test_lunch.c. */
 #include "xpptest.h"
+#include "storage.h"
 #include "xpp_batch.h"
 #include "browse.h"
 #include "graphics.h"
@@ -29,8 +30,6 @@
 #include <vector>
 
 extern "C" {
-extern float **storage;
-extern int storind;
 }
 
 static const double PI = 3.14159265358979323846;
@@ -51,8 +50,8 @@ int main(void)
     init_all_graph();
 
     const int N = 64;
-    storind = N;
-    for (int i = 0; i < N; i++) storage[0][i] = static_cast<float>(i);
+    data_store.rows = N;
+    for (int i = 0; i < N; i++) data_store.col[0][i] = static_cast<float>(i);
 
     /* --- Fourier series (f): a pure cosine at mode m has ct[m]=A,
        st[m]=0, and every other mode near 0 (new_four is the exact
@@ -61,7 +60,7 @@ int main(void)
         const double A = 3.0;
         const int m = 5;
         for (int i = 0; i < N; i++)
-            storage[1][i] = static_cast<float>(A * std::cos(2 * PI * m * i / N));
+            data_store.col[1][i] = static_cast<float>(A * std::cos(2 * PI * m * i / N));
         int nmodes = N / 2 - 1;
         new_four(nmodes, 1);
         CHECK(FOUR_HERE == 1);
@@ -83,7 +82,7 @@ int main(void)
         const int m = 5;
         spec_col = 1;
         for (int i = 0; i < N; i++)
-            storage[1][i] = static_cast<float>(A * std::cos(2 * PI * m * i / N) +
+            data_store.col[1][i] = static_cast<float>(A * std::cos(2 * PI * m * i / N) +
                                                 B * std::sin(2 * PI * m * i / N));
         just_fourier(1);
         CHECK(FOUR_HERE == 1);
@@ -107,10 +106,10 @@ int main(void)
         std::vector<double> x(N);
         for (int i = 0; i < N; i++) {
             x[i] = A * std::sin(2 * PI * m * i / N);
-            storage[1][i] = static_cast<float>(x[i]);
+            data_store.col[1][i] = static_cast<float>(x[i]);
         }
         for (int i = 0; i < N; i++)
-            storage[2][i] = static_cast<float>(x[((i - L) % N + N) % N]);
+            data_store.col[2][i] = static_cast<float>(x[((i - L) % N + N) % N]);
         int nbins = N;
         new_hist(nbins, 0.0, 1.0, 1, 2, "", 2);
         CHECK(HIST_HERE == 1);
@@ -136,9 +135,9 @@ int main(void)
         const double A = 2.5;
         const int win = 64, m = 5;
         const int total = 256;
-        storind = total;
+        data_store.rows = total;
         for (int i = 0; i < total; i++)
-            storage[1][i] = static_cast<float>(A * std::cos(2 * PI * m * i / win));
+            data_store.col[1][i] = static_cast<float>(A * std::cos(2 * PI * m * i / win));
         spec_col = 1;
         spec_wid = win;
         spec_win = 0; /* square */

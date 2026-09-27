@@ -5,6 +5,7 @@
 #include <array>
 #include <stdlib.h>
 #include "xpp_util.h"
+#include "storage.h"
 #include "xpp_mem.h"
 #include "parserslow.h"
 #include "browse.h"
@@ -24,7 +25,6 @@
 
 extern int *plotlist, N_plist;
 extern int NEQ;
-extern float **storage;
 
 
 /*  The one and only primitive data browser   */
@@ -138,7 +138,7 @@ void init_browser()
 {
  
  my_browser.dataflag=0;
- my_browser.data=storage;
+ my_browser.data=data_store.col;
  my_browser.maxcol=NEQ+1;
  my_browser.maxrow=0;
  my_browser.col0=1;
@@ -179,18 +179,18 @@ void  wipe_rep()
 void data_get(BROWSER *b)
 {
  int i,in=b->row0;
- set_ivar(0,static_cast<double>(storage[0][in]));
+ set_ivar(0,static_cast<double>(data_store.col[0][in]));
  for(i=0;i<NODE;i++)
  {
-  last_ic[i]=static_cast<double>(storage[i+1][in]);
+  last_ic[i]=static_cast<double>(data_store.col[i+1][in]);
   set_ivar(i+1,last_ic[i]);
  } 
  for(i=0;i<NMarkov;i++){
-   last_ic[i+NODE]=static_cast<double>(storage[i+NODE+1][in]);
+   last_ic[i+NODE]=static_cast<double>(data_store.col[i+NODE+1][in]);
    set_ivar(i+1+NODE+FIX_VAR,last_ic[i+NODE]);
  }
  for(i=NODE+NMarkov;i<NEQ;i++)
-   set_val(uvar_names[i],storage[i+1][in]);
+   set_val(uvar_names[i],data_store.col[i+1][in]);
  
 
  redraw_ics();
@@ -214,13 +214,13 @@ void get_data_xyz(float *x, float *y, float *z, int i1, int i2, int i3, int off)
 
 extern int *my_ode[];
 extern char *ode_names[MAXODE];
-extern int MAXSTOR,NEQ_MIN,NJMP,storind;
+extern int NEQ_MIN,NJMP;
 extern int NSYM,NSYM_START,NCON,NCON_START;
 extern double DELTA_T;
 
 int check_for_stor(float **data)
 {
- if(data!=storage){
+ if(data!=data_store.col){
    err_msg("Only data can be in browser");
    return(0);
  }
@@ -263,17 +263,8 @@ int add_stor_col(const char *name, const char *formula, BROWSER *b)
      err_msg("Cant allocate formula space");
      return(0);
    }
-  if((storage[NEQ+1]=static_cast<float *>(xpp_malloc(MAXSTOR * sizeof(float))))==NULL){
-    err_msg("Cant allocate space ....");
-    xpp_free(my_ode[NEQ]);
-    return(0);
-  }
-  if((ode_names[NEQ]=static_cast<char *>(xpp_malloc(80)))==NULL){
-    err_msg("Cannot allocate space ...");
-    xpp_free(my_ode[NEQ]);
-    xpp_free(storage[NEQ+1]);
-    return(0);
-  }
+  data_store.add_column(NEQ+1);
+  ode_names[NEQ]=static_cast<char *>(xpp_malloc(80));
   /* ode_names[NEQ] is a pointer, allocated 80 bytes just above. */
   xpp_strlcpy(ode_names[NEQ],formula,80);
   strupr(ode_names[NEQ]);
@@ -282,11 +273,11 @@ int add_stor_col(const char *name, const char *formula, BROWSER *b)
   XPP_STRCPY(uvar_names[NEQ],name);
   strupr(uvar_names[NEQ]);
   for(i=0;i<b->maxrow;i++)
-    storage[NEQ+1][i]=0.0;   /*  zero it all   */
+    data_store.col[NEQ+1][i]=0.0;   /*  zero it all   */
   for(i=0;i<b->maxrow;i++){
-    for(j=0;j<NODE+1;j++)set_ivar(j,static_cast<double>(storage[j][i]));
-    for(j=NODE;j<NEQ;j++)set_val(uvar_names[j],static_cast<double>(storage[j+1][i])); 
-    storage[NEQ+1][i]=static_cast<float>(evaluate(com));
+    for(j=0;j<NODE+1;j++)set_ivar(j,static_cast<double>(data_store.col[j][i]));
+    for(j=NODE;j<NEQ;j++)set_val(uvar_names[j],static_cast<double>(data_store.col[j+1][i])); 
+    data_store.col[NEQ+1][i]=static_cast<float>(evaluate(com));
   }
   add_var(uvar_names[NEQ],0.0);  /*  this could be trouble .... */
   NEQ++;
@@ -610,13 +601,13 @@ if(status==0)return;
      }
      if(!gotrow)break;
      ++len;
-     if(len>=MAXSTOR)break;
+     if(len>=data_store.max_rows)break;
     }
    xpp_token_reader_close(tr);
   }
   fp.reset();
   refresh_browser(len);
-  storind=len;
+  data_store.rows=len;
  /*  b->maxrow=len;
  xpp_ui.browser_redraw(0); */
 }

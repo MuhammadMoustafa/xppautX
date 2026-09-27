@@ -1,4 +1,5 @@
 #include "tabular.h"
+#include "storage.h"
 #include "read_dir.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
@@ -75,18 +76,6 @@ to be added later
 
 #include <math.h>
 #include <stdio.h>
-typedef struct {
-  double xlo,xhi,dx;
-  double *y,*x;
-  int n,flag,interp,autoeval;
-  int xyvals;   
-/* flag=0 if virgin array, flag=1 if already allocated; flag=2 for function
-		         interp=0 for normal interpolation, interp=1 for 'step'
-                         interp=2 for cubic spline
-    table   and finally, xyvals=1 if both x and y vals are needed (xyvals=0
-    is faster lookup )*/
-  char filename[128],name[XPP_NAME_MAX+1];
-}TABULAR;
 
 TABULAR my_table[MAX_TAB];
 
@@ -95,8 +84,6 @@ extern int NTable;
 
 extern int NCON,NSYM,NCON_START,NSYM_START;
 
-extern int MAXSTOR;
-extern float **storage;
 void set_auto_eval_flags(int f)
 {
  int i;
@@ -115,10 +102,10 @@ void view_table(int index)
   double *y=my_table[index].y;
   double xlo=my_table[index].xlo,dx=my_table[index].dx;
   len=n;
-  if(len>=MAXSTOR)len=MAXSTOR-1;
+  if(len>=data_store.max_rows)len=data_store.max_rows-1;
   for(i=0;i<len;i++){
-    storage[0][i]=xlo+i*dx;
-    storage[1][i]=y[i];
+    data_store.col[0][i]=xlo+i*dx;
+    data_store.col[1][i]=y[i];
   }
   refresh_browser(len);
 }
@@ -410,9 +397,7 @@ int load_table(const char *filename, int index)
     err_msg("xlo >= xhi ??? ");
     return(0);
   }
-  /* my_table[index].y is a shared raw block: simplenet.cpp keeps its own
-     duplicate TABULAR typedef and reads this field's layout directly, so
-     it stays xpp_malloc/xpp_realloc/xpp_free rather than std::vector. */
+  /* my_table[index].y stays a raw block: see TABULAR (tabular.h) */
   bool fresh=(my_table[index].flag==0);
   if(fresh){
    my_table[index].y=static_cast<double *>(xpp_malloc(length*sizeof(double)));

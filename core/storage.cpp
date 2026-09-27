@@ -4,10 +4,11 @@
 #include "xpp_mem.h"
 #include <stdlib.h> 
 #include <stdio.h>
+#include <array>
+#include <new>
+#include <vector>
 #include "xpplim.h"
-float **storage;
 double *WORK;
-extern int MAXSTOR,storind;
 int IWORK[10000];
 extern int NODE,NMarkov;
 extern int METHOD;
@@ -18,20 +19,14 @@ extern int METHOD;
 #define GEAR 5
 #define RB23 13
 #define SYMPLECT 14
-typedef struct 
-{
-  int nvec,node;
-  double *x;
-} XPPVEC;
-
-extern XPPVEC xpv;
+XPPVEC xpv;
 
 void init_alloc_info()
 {
   xpv.node=NODE+NMarkov;
   xpv.nvec=0; /* this is just for now */
   xpp_free(xpv.x); /* called again once the model's options are read */
-  /* xpv.x is a shared raw block (xpp_types.h XPPVEC) read across the
+  /* xpv.x is a shared raw block (storage.h XPPVEC) read across the
      numerics code by pointer; it stays xpp_malloc/xpp_free. */
   xpv.x=static_cast<double *>(xpp_malloc((xpv.nvec+xpv.node)*sizeof(double)));
   for(int i=xpv.node;i<(xpv.nvec+xpv.node);i++)
@@ -65,58 +60,49 @@ void alloc_meth()
   WORK=static_cast<double *>(xpp_malloc(sz*sizeof(double)));
 }
 
-int reallocstor(int ncol,int nrow)
-{
-  int i=0;
-  while((storage[i]=static_cast<float *>(xpp_realloc(storage[i],nrow*sizeof(float))))!=NULL){
-   i++;
-   if(i==ncol)return 1;
-   }
-   err_msg("Cannot allocate sufficient storage");
-   return 0;
+DataStore data_store;
+
+namespace {
+/* the store's memory: the columns, and the table of their addresses that
+   data_store.col points at (fixed, so a pointer to it stays valid) */
+std::vector<std::vector<float>> columns;
+std::array<float *, MAXODE + 1> column_table{};
 }
 
-void init_stor(int nrow, int ncol)
+void DataStore::allocate(int nrow, int ncol)
 {
- int i;
-WORK=NULL;
- /* storage is the shared per-column data array indexed as storage[col][row]
-    throughout browse_data.cpp and elsewhere; it stays xpp_malloc/xpp_free. */
- storage=static_cast<float **>(xpp_malloc((MAXODE+1)*sizeof(float *)));
- MAXSTOR=nrow;
- storind=0;
- if(storage!=NULL){
-   i=0;
-   while((storage[i]=static_cast<float *>(xpp_malloc(nrow*sizeof(float))))!=NULL){
-   i++;
-   if(i==ncol)return;
-   }
-
- }
-err_msg("Cannot allocate sufficient storage");
-   exit(0);
+  max_rows=nrow;
+  rows=0;
+  columns.assign(MAXODE+1,{});
+  column_table.fill(nullptr);
+  for(int c=0;c<ncol;c++){
+    columns[c].assign(nrow,0.0f);
+    column_table[c]=columns[c].data();
+  }
+  col=column_table.data();
 }
 
+bool DataStore::grow(int ncol, int nrow)
+{
+  try {
+    for(int c=0;c<ncol;c++){
+      columns[c].resize(nrow,0.0f);
+      column_table[c]=columns[c].data();
+    }
+  } catch (const std::bad_alloc &) {
+    err_msg("Cannot allocate sufficient storage");
+    return false;
+  }
+  return true;
+}
 
- 
+void DataStore::add_column(int c)
+{
+  columns[c].assign(max_rows,0.0f);
+  column_table[c]=columns[c].data();
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+void DataStore::lend_columns(float **dst, int from, int to) const
+{
+  for(int c=from;c<=to;c++)dst[c]=column_table[c];
+}

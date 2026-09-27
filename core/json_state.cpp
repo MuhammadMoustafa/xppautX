@@ -3,6 +3,7 @@
    them (set, default, slide), the data events a client subscribes to, and
    the equations, source and equilibrium windows. */
 #include "ui_json_internal.h"
+#include "storage.h"
 #include "xpp_globals.h"
 #include "xpp_util.h"
 #include "graphics.h"
@@ -10,6 +11,7 @@
 #include "browse.h"
 #include "auto_nox.h"
 #include "derived.h"
+#include "form_ode.h"
 #include "parserslow.h"
 #include "shoot.h"
 #include "arrayplot.h"
@@ -33,7 +35,7 @@
 
 /* the core's own globals and functions that have no header of their own */
 extern "C" {
-extern double last_ic[MAXODE], MyData[MAXODE];
+extern double last_ic[MAXODE];
 extern int INFLAG;
 extern BROWSER my_browser;
 extern BIFUR Auto;
@@ -41,12 +43,6 @@ extern BC_STRUCT my_bc[MAXODE];
 extern char delay_string[MAXODE][80];
 extern int DelayFlag, METHOD, EqType[];
 extern char *ode_names[];
-typedef struct {
-    char *text, *action;
-    int aflag;
-} ACTION; /* form_ode.c */
-extern ACTION comments[];
-extern int n_comments;
 extern char *save_eqn[];
 extern int NLINES;
 extern int DLeft, DRight, DTop, DBottom;
@@ -94,7 +90,7 @@ void send_state(void)
         BUF_LIT(&b, ",\"now\":[");
         for (i = 0; i < NODE + NMarkov; i++) {
             if (i) BUF_LIT(&b, ",");
-            buf_num(&b, MyData[i], 16);
+            buf_num(&b, data_store.current[i], 16);
         }
         BUF_LIT(&b, "]");
     }
@@ -394,7 +390,7 @@ void apply_set(const char *line)
             j_err_msg("No prior solution");
             return;
         }
-        get_ic(0, MyData); /* integrate.c do_init_data M_IL: last_ic = the current state */
+        get_ic(0, data_store.current); /* integrate.c do_init_data M_IL: last_ic = the current state */
         state_dirty = 1;
         return;
     }

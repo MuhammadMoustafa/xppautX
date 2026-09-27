@@ -30,7 +30,7 @@ core/axes2.cpp text 28
 core/band.cpp memory 8
 core/browse.h buffers 1
 core/browse_data.cpp buffers 2
-core/browse_data.cpp memory 8
+core/browse_data.cpp memory 4
 core/browse_data.cpp text 11
 core/comline.cpp buffers 1
 core/comline.cpp files 2
@@ -65,8 +65,9 @@ core/graf_par.h buffers 3
 core/graphics.cpp buffers 3
 core/graphics.cpp text 2
 core/grobs.cpp buffers 4
-core/histogram.cpp buffers 2
+core/histogram.cpp buffers 1
 core/histogram.cpp memory 29
+core/histogram.h buffers 1
 core/integrate.cpp buffers 2
 core/integrate.cpp memory 3
 core/integrate.cpp text 24
@@ -76,7 +77,7 @@ core/json_prompts.cpp buffers 1
 core/json_state.cpp buffers 1
 core/json_windows.cpp buffers 1
 core/kbs.h buffers 1
-core/load_eqn.cpp buffers 7
+core/load_eqn.cpp buffers 6
 core/load_eqn.cpp files 6
 core/load_eqn.cpp memory 2
 core/load_eqn.h buffers 1
@@ -116,12 +117,12 @@ core/read_dir.cpp text 1
 core/scrngif.cpp memory 12
 core/series_enc.cpp buffers 4
 core/series_enc.cpp memory 1
-core/simplenet.cpp buffers 1
-core/storage.cpp memory 7
+core/storage.cpp memory 4
 core/struct.h buffers 18
-core/tabular.cpp buffers 2
+core/tabular.cpp buffers 1
 core/tabular.cpp memory 7
 core/tabular.cpp text 4
+core/tabular.h buffers 1
 core/torus.cpp buffers 1
 core/ui_json.cpp buffers 1
 core/userbut.cpp text 1

@@ -46,8 +46,6 @@
 #include "kinescope.h"
 
 extern int DF_FLAG, NTable, POIMAP, TORUS;
-extern int Nintern_set;
-extern INTERN_SET intern_set[MAX_INTERN_SET];
 extern const char *no_hint[];
 
 

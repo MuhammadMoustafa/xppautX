@@ -50,7 +50,7 @@ extern int FIX_VAR,NFUN;
  
  extern int NJMP,NMESH,METHOD,NODE,POIMAP,POIVAR,POISGN,SOS,INFLAG,NMarkov;
  extern int NUPAR,NEQ,BVP_MAXIT,EVEC_ITER,DelayFlag,MyStart;
- extern double last_ic[MAXODE],MyData[MAXODE],MyTime,LastTime;
+ extern double last_ic[MAXODE],LastTime;
  extern double TEND,DELTA_T,T0,TRANS,BOUND,HMIN,HMAX,TOLER,ATOLER,DELAY;
  extern double POIPLN,EVEC_ERR,NEWT_ERR;
 extern double BVP_TOL,BVP_EPS;
@@ -333,7 +333,7 @@ io_int(&POIVAR,fp,f,"Poincare variable");
 io_int(&POISGN,fp,f,"Poincare sign");
 io_int(&SOS,fp,f,"Stop on Section");
 io_int(&DelayFlag,fp,f,"Delay flag");
-io_double(&MyTime,fp,f,"Current time");
+io_double(&data_store.current_time,fp,f,"Current time");
 io_double(&LastTime,fp,f,"Last Time");
 io_int(&MyStart,fp,f,"MyStart");
 io_int(&INFLAG,fp,f,"INFLAG");
@@ -441,7 +441,7 @@ void io_exprs(int f, FILE *fp)
  io_heading(f,fp,"# Old ICs");
  for(i=0;i<NODE+NMarkov;i++)io_double(&last_ic[i],fp,f,uvar_names[i]);
  io_heading(f,fp,"# Ending  ICs");
- for(i=0;i<NODE+NMarkov;i++)io_double(&MyData[i],fp,f,uvar_names[i]);
+ for(i=0;i<NODE+NMarkov;i++)io_double(&data_store.current[i],fp,f,uvar_names[i]);
  io_heading(f,fp,"# Parameters");
  for(i=0;i<NUPAR;i++){
   if(f!=READEM){

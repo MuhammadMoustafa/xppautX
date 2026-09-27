@@ -90,8 +90,8 @@ NOTE: except for the structure MyGraph, it is "x-free" so it
    the job here (xpp_job.h), and a front end may show the run growing */
 static void row_stored(void)
 {
-  xpp_job_rows_stored(storind, storage[0][storind-1]);
-  rows_stored(storind);
+  xpp_job_rows_stored(data_store.rows, data_store.col[0][data_store.rows-1]);
+  rows_stored(data_store.rows);
 }
 #define MSWTCH(u,v) memcpy(static_cast<void *>((u)),static_cast<void *>((v)),xpv.node*sizeof(double))
 
@@ -163,13 +163,6 @@ typedef struct
 
 FIXPTGUESS fixptguess;
 
-typedef struct 
-{
-  int nvec,node;
-  double *x;
-} XPPVEC;
-
-XPPVEC xpv;
 int SuppressOut=0;
 int SuppressBounds=0;
 extern int NUPAR;
@@ -180,7 +173,6 @@ extern int SCALEY,PltFmtFlag,PointRadius;
 int DelayErr;
 
 float **get_browser_data();
-double  MyData[MAXODE],MyTime;
 int MyStart;
 extern int DelayFlag,NKernel;
 int RANGE_FLAG; 
@@ -204,14 +196,6 @@ int STOP_FLAG=0;
 RangeVars range;
 
 
-typedef struct {
-  char *name;
-  char *does;
-  unsigned int use;
-} INTERN_SET;
-
-extern INTERN_SET intern_set[MAX_INTERN_SET];
-extern int Nintern_set;
 
 void save_batch_shoot();
 
@@ -366,15 +350,15 @@ void cont_integ()
   wipe_rep();
   data_back();
   if(new_float("Continue until:",&tetemp)==-1)return;
-  x=&MyData[0];
+  x=&data_store.current[0];
   tetemp=fabs(tetemp);
-  if(fabs(MyTime)>=tetemp)return;
-  dif=tetemp-fabs(MyTime);
+  if(fabs(data_store.current_time)>=tetemp)return;
+  dif=tetemp-fabs(data_store.current_time);
   /* TEND=tetemp; */
   MyStart=1;  /*  I know it is wasteful to restart, but lets be safe.... */
-  integrate(&MyTime,x,dif,DELTA_T,1,NJMP,&MyStart);
+  integrate(&data_store.current_time,x,dif,DELTA_T,1,NJMP,&MyStart);
   ping();
-  refresh_browser(storind);
+  refresh_browser(data_store.rows);
 }
   
 
@@ -659,14 +643,14 @@ void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
   }
   if(stuffbrowse) {
     reset_browser();
-    storind=0;
+    data_store.rows=0;
     m=fixptlist.n;
     for(i=0;i<m;i++){
-      storage[0][storind]=static_cast<float>(i);
-      for(j=0;j<NODE;j++)storage[j+1][storind]=static_cast<float>(fixptlist.x[i][j]);
-      storind++;
+      data_store.col[0][data_store.rows]=static_cast<float>(i);
+      for(j=0;j<NODE;j++)data_store.col[j+1][data_store.rows]=static_cast<float>(fixptlist.x[i][j]);
+      data_store.rows++;
     }
-    refresh_browser(storind);
+    refresh_browser(data_store.rows);
   }
 }
 	  
@@ -691,7 +675,7 @@ void do_eq_range(double *x)
  dpar=(parhi-parlo)/static_cast<double>(npar);
  stabcol=eq_range.col;
  mc=eq_range.mc;
- storind=0;
+ data_store.rows=0;
  DelayErr=0;
  ENDSING=0;
  PAR_FOL=1;
@@ -732,16 +716,16 @@ void do_eq_range(double *x)
         }
       }
       if(mc==0){
-      storage[0][storind]=temp;
-      for(j=0;j<NODE;j++)storage[j+1][storind]=static_cast<float>(x[j]);
-      for(j=NODE;j<NODE+NMarkov;j++)storage[j+1][storind]=0.0;
-      if(stabcol>0)storage[stabcol-1][storind]=stabinfo;
+      data_store.col[0][data_store.rows]=temp;
+      for(j=0;j<NODE;j++)data_store.col[j+1][data_store.rows]=static_cast<float>(x[j]);
+      for(j=NODE;j<NODE+NMarkov;j++)data_store.col[j+1][data_store.rows]=0.0;
+      if(stabcol>0)data_store.col[stabcol-1][data_store.rows]=stabinfo;
 
-      storind++;
+      data_store.rows++;
       row_stored();}
       if(ENDSING==1)break;
     }
-    refresh_browser(storind);
+    refresh_browser(data_store.rows);
  PAR_FOL=0;
 }
 		                    
@@ -765,7 +749,7 @@ void set_cycle(int flag, int *icol)
 int do_auto_range_go()
 {
   double *x;
-  x=&MyData[0];
+  x=&data_store.current[0];
   return(do_range(x,2));
 }
 
@@ -804,7 +788,7 @@ int do_range(double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto
  dpar=(phigh-plow)/static_cast<double>(nit);
 
  get_ic(2,x);
- storind=0;
+ data_store.rows=0;
  STORFLAG=1;
  PAUSER=0;
 nit2=0;
@@ -887,13 +871,13 @@ if(range.type==PARAM)get_val(range.item,&temp);
      snprintf(bob.data(),bob.size(),"%.230s=%.16g",parn.data(),temp);
      bottom_msg(2,bob.data());
    }
-   do_start_flags(x,&MyTime);
-if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
+   do_start_flags(x,&data_store.current_time);
+if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
   {
-    storage[0][storind]=static_cast<float>(MyTime);
-    extra(x,MyTime,NODE,NEQ);
-    for(iii=0;iii<NEQ;iii++)storage[1+iii][storind]=static_cast<float>(x[iii]);
-    storind++;
+    data_store.col[0][data_store.rows]=static_cast<float>(data_store.current_time);
+    extra(x,data_store.current_time,NODE,NEQ);
+    for(iii=0;iii<NEQ;iii++)data_store.col[1+iii][data_store.rows]=static_cast<float>(x[iii]);
+    data_store.rows++;
   }
 
  if(integrate(&t,x,TEND,DELTA_T,1,NJMP,&MyStart)==1){
@@ -902,7 +886,7 @@ if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
  }
  /*  plintf("storind = %d \n",storind);  */
  if(STOCH_FLAG)
-   append_stoch(i,storind);
+   append_stoch(i,data_store.rows);
 
 
  if(range.movie){
@@ -912,16 +896,16 @@ if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
    draw_label(plot_windows.draw_win);
    if(xpp_ui.film_clip()==0){err_msg("Out of film");break;}
  }
- refresh_browser(storind);
+ refresh_browser(data_store.rows);
  if(AdjRange==1){
    xpp_strlcpy(bob.data(),xpp::format("{}_{:g}",static_cast<const char *>(range.item),p).c_str(),bob.size());
-   data_get_mybrowser(storind-1);
-   compute_one_period(static_cast<double>(storage[0][storind-1]),last_ic,bob.data());
+   data_get_mybrowser(data_store.rows-1);
+   compute_one_period(static_cast<double>(data_store.col[0][data_store.rows-1]),last_ic,bob.data());
  }
  
  
  do_this_liaprun(i,p);  /* sends parameter and index back */
- if(storind>2)auto_freeze_it();
+ if(data_store.rows>2)auto_freeze_it();
  if(aplot_range==1)
    draw_one_array_plot(bob.data());
  
@@ -931,7 +915,7 @@ if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
        post_process_stuff();
        write_this_run(batch_options.out_file,i);
      }
-     storind=0;
+     data_store.rows=0;
    }
   }
  }
@@ -992,7 +976,7 @@ void find_equilib_com(int com)
  double *x,oldtrans;
 
 
- x=&MyData[0];
+ x=&data_store.current[0];
  if(FFT||HIST||NKernel>0)return;
 
  STORFLAG=0;
@@ -1137,14 +1121,14 @@ void batch_integrate_once()
  double *x;
  int i;
   MyStart=1;
-  x=&MyData[0];
+  x=&data_store.current[0];
   RANGE_FLAG=0;
   DelayErr=0;
-   MyTime=T0;
+   data_store.current_time=T0;
   
   STORFLAG=1;
   POIEXT=0;
-  storind=0;
+  data_store.rows=0;
   reset_browser();
   /*  plintf("batch_range=%d\n",batch_range); */
  if(batch_options.range==1||STOCH_FLAG>0){
@@ -1160,20 +1144,20 @@ void batch_integrate_once()
       /* restart initial data */
       if(do_init_delay(DELAY)==0)return;
     }
-   do_start_flags(x,&MyTime); 
-  if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
+   do_start_flags(x,&data_store.current_time); 
+  if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
     {
-      storage[0][0]=static_cast<float>(MyTime);
-      extra(x,MyTime,NODE,NEQ);
-      for(i=0;i<NEQ;i++)storage[1+i][0]=static_cast<float>(x[i]);
-      storind=1;
+      data_store.col[0][0]=static_cast<float>(data_store.current_time);
+      extra(x,data_store.current_time,NODE,NEQ);
+      for(i=0;i<NEQ;i++)data_store.col[1+i][0]=static_cast<float>(x[i]);
+      data_store.rows=1;
     }
 
-  if(integrate(&MyTime,x,TEND,DELTA_T,1,NJMP,&MyStart)!=0)
+  if(integrate(&data_store.current_time,x,TEND,DELTA_T,1,NJMP,&MyStart)!=0)
     xpp_log(XPP_LOG_WARN, " Integration not completed -- will write anyway...\n");
 
    INFLAG=1;
-  refresh_browser(storind);
+  refresh_browser(data_store.rows);
  }
  post_process_stuff();
  if(!batch_options.range || range.reset==0){
@@ -1230,7 +1214,7 @@ void do_init_data(int com)
 
   oldstart=MyStart;
   MyStart=1;
-  x=&MyData[0];
+  x=&data_store.current[0];
   RANGE_FLAG=0;
   DelayErr=0;
   reset_dae();
@@ -1244,11 +1228,11 @@ void do_init_data(int com)
 
  data_back();
   wipe_rep();
-  MyTime=T0;
+  data_store.current_time=T0;
  
   STORFLAG=1;
   POIEXT=0;
-  storind=0;
+  data_store.rows=0;
   reset_browser();
 
 
@@ -1270,7 +1254,7 @@ void do_init_data(int com)
     get_ic(0,x);
     if(com==M_IS){
       T0=LastTime;
-      MyTime=T0;
+      data_store.current_time=T0;
     }
     if(METHOD==VOLTERRA&&oldstart==0){
       ch=static_cast<char>(TwoChoice("No","Yes","Reset integrals?","ny"));
@@ -1339,7 +1323,7 @@ void do_init_data(int com)
 	    if(do_init_delay(DELAY)==0)break;
 	  }
           MyStart=1;
-          MyTime=T0;
+          data_store.current_time=T0;
 	  usual_integrate_stuff(x);
 	}
 	KillMessageBox();
@@ -1420,15 +1404,15 @@ void run_now()
  
   double *x;
  MyStart=1;
- x=&MyData[0];
+ x=&data_store.current[0];
  RANGE_FLAG=0;
  DelayErr=0;
  reset_dae();
- MyTime=T0;
+ data_store.current_time=T0;
  get_ic(2,x); 
   STORFLAG=1;
   POIEXT=0;
-  storind=0;
+  data_store.rows=0;
   reset_browser();
   usual_integrate_stuff(x);
  }
@@ -1447,22 +1431,22 @@ void usual_integrate_stuff(double *x)
 {
   int i;
 
-  do_start_flags(x,&MyTime);
-   if(fabs(MyTime)>=TRANS&&STORFLAG==1&&POIMAP==0)
+  do_start_flags(x,&data_store.current_time);
+   if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
     {
-      storage[0][0]=static_cast<float>(MyTime);
-      extra(x,MyTime,NODE,NEQ);
-      for(i=0;i<NEQ;i++)storage[1+i][0]=static_cast<float>(x[i]);
-      storind=1;
+      data_store.col[0][0]=static_cast<float>(data_store.current_time);
+      extra(x,data_store.current_time,NODE,NEQ);
+      for(i=0;i<NEQ;i++)data_store.col[1+i][0]=static_cast<float>(x[i]);
+      data_store.rows=1;
     }
  
   xpp_job_begin(0); /* Abort cancels it (xpp_job.h) */
-  integrate(&MyTime,x,TEND,DELTA_T,1,NJMP,&MyStart);
+  integrate(&data_store.current_time,x,TEND,DELTA_T,1,NJMP,&MyStart);
   xpp_job_end();
   
   ping();
   INFLAG=1;
-  refresh_browser(storind);
+  refresh_browser(data_store.rows);
   if(program.interactive){
  auto_freeze_it();
   redraw_ics();
@@ -1887,7 +1871,7 @@ if(program.interactive) cwidth=get_command_width();
  if(tscal==0.0)tscal=1.0;
  stor_delay(x);
  /* xppautX: the rows a cancel before the first step finds (xpp_job.h) */
- xpp_job_rows_stored(storind, storind > 0 ? storage[0][storind-1] : *t);
+ xpp_job_rows_stored(data_store.rows, data_store.rows > 0 ? data_store.col[0][data_store.rows-1] : *t);
 
  while(1)
  {
@@ -2340,14 +2324,14 @@ poi:    for(i=0;i<NEQ;i++)oldx[i]=x[i];
 	  }
 
 
-	   if((STORFLAG==1)&&(count!=0)&&(storind<MAXSTOR)&&!(fabs(*t)<TRANS))
+	   if((STORFLAG==1)&&(count!=0)&&(data_store.rows<data_store.max_rows)&&!(fabs(*t)<TRANS))
 	   {
            if(ani_options.on_the_fly)on_the_fly(0);
            for(ieqn=0;ieqn<=NEQ;ieqn++)
-		 storage[ieqn][storind]=xv[ieqn];
-	    storind++;
+		 data_store.col[ieqn][data_store.rows]=xv[ieqn];
+	    data_store.rows++;
 	    row_stored(); /* xppautX: replay stops here, a front end shows the run grow */
-	    if(!(storind<MAXSTOR))
+	    if(!(data_store.rows<data_store.max_rows))
             if(stor_full()==0)break;
 	    if((pflag==1)&&(SOS==1))break;
 	   }
@@ -2379,12 +2363,12 @@ void send_output(double *y,double t)
   for(i=0;i<NODE;i++)
     yy[i]=y[i];
   extra(yy,t,NODE,NEQ);
-  if((STORFLAG==1)&&(storind<MAXSTOR)){
+  if((STORFLAG==1)&&(data_store.rows<data_store.max_rows)){
     
     for(i=0;i<NEQ;i++)
-      storage[i+1][storind]=static_cast<float>(yy[i]);
-    storage[0][storind]=static_cast<float>(t);
-    storind++;
+      data_store.col[i+1][data_store.rows]=static_cast<float>(yy[i]);
+    data_store.col[0][data_store.rows]=static_cast<float>(t);
+    data_store.rows++;
     row_stored();
   }
 }
@@ -2528,7 +2512,7 @@ void restore(int i1, int i2)
   if(i1<ZSHFT)i1=ZSHFT;
   if(i1<YSHFT)i1=YSHFT;
   if(i1<XSHFT)i1=XSHFT;
-  if(storind<2)return;
+  if(data_store.rows<2)return;
 
    for(ip=0;ip<np;ip++){
      if (PltFmtFlag==SVGFMT)
@@ -2665,9 +2649,9 @@ int stor_full()
 {
 
  char ch;
- int nrow=2*MAXSTOR;
- if(reallocstor(NEQ+1,nrow)){
-   MAXSTOR=nrow;
+ int nrow=2*data_store.max_rows;
+ if(data_store.grow(NEQ+1,nrow)){
+   data_store.max_rows=nrow;
    return 1;
  }
  
@@ -2683,7 +2667,7 @@ int stor_full()
  if(ch=='y')
  {
 ov:
-  storind=0;
+  data_store.rows=0;
   return(1);
  }
   return(0);

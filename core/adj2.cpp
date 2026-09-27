@@ -1,4 +1,5 @@
 #include "adj2.h"
+#include "storage.h"
 #include "markov.h"
 #include "odesol2.h"
 #include "xpp_mem.h"
@@ -39,9 +40,7 @@
 #define READEM 1
 
 
-extern double MyData[MAXODE];
-extern float **storage;
-extern int storind,FOUR_HERE;
+extern int FOUR_HERE;
 extern int NODE,INFLAG,NEQ,NJMP,FIX_VAR,NMarkov,nvec;
 extern double TEND;
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
@@ -156,7 +155,7 @@ int create_transpose()
   my_trans.data=static_cast<float **>(xpp_malloc(sizeof(float *)*(NEQ+1)));
   for(i=0;i<=my_trans.nrow;i++)
     my_trans.data[i]=static_cast<float *>(xpp_malloc(sizeof(float)*my_trans.ncol));
-  for(i=my_trans.nrow+1;i<=NEQ;i++)my_trans.data[i]=storage[i];
+  data_store.lend_columns(my_trans.data,my_trans.nrow+1,NEQ);
   for(j=0;j<my_trans.ncol;j++)
     my_trans.data[0][j]=j+1;
 
@@ -167,9 +166,9 @@ int create_transpose()
       incol=NEQ;
     for(j=0;j<my_trans.nrow;j++){
       inrow=my_trans.row0+j*my_trans.rowskip;
-      if(inrow>storind)
-	inrow=storind;
-      my_trans.data[j+1][i]=storage[incol][inrow];
+      if(inrow>data_store.rows)
+	inrow=data_store.rows;
+      my_trans.data[j+1][i]=data_store.col[incol][inrow];
     }
   }
   
@@ -195,7 +194,7 @@ void alloc_h_stuff()
 void data_back()
 {
  FOUR_HERE=0;
- new_browse_dat(storage,storind);
+ new_browse_dat(data_store.col,data_store.rows);
 }
 
 void adj_back()
@@ -268,7 +267,7 @@ void new_h_fun(int silent)
    err_msg("Must compute adjoint first!");
    return;
  }
-  if(storind!=adj_len){
+  if(data_store.rows!=adj_len){
      err_msg("incompatible data and adjoint");
      return;
    }
@@ -287,12 +286,12 @@ void new_h_fun(int silent)
      HODD_EV=1;
      n=4;
    }
-   h_len=storind;
+   h_len=data_store.rows;
    data_back(); 
    my_h=static_cast<float **>(xpp_malloc(sizeof(float*)*(NEQ+1)));
    for(i=0;i<n;i++)my_h[i]=static_cast<float *>(xpp_malloc(sizeof(float)*h_len));
-   for(i=n;i<=NEQ;i++)my_h[i]=storage[i];
-   if(make_h(storage,my_adj,my_h,h_len,DELTA_T*NJMP,NODE,silent )){
+   data_store.lend_columns(my_h,n,NEQ);
+   if(make_h(data_store.col,my_adj,my_h,h_len,DELTA_T*NJMP,NODE,silent )){
      H_HERE=1;
      h_back();
    }
@@ -392,11 +391,11 @@ void new_adjoint()
    xpp_free(my_adj);
    ADJ_HERE=0;
  }
- adj_len=storind;
+ adj_len=data_store.rows;
  my_adj=static_cast<float **>(xpp_malloc((NEQ+1)*sizeof(float *)));
  for(i=0;i<n;i++)my_adj[i]=static_cast<float *>(xpp_malloc(sizeof(float)*adj_len));
- for(i=n;i<=NEQ;i++)my_adj[i]=storage[i];
- if(adjoint(storage,my_adj,adj_len,DELTA_T*NJMP,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,NODE )){
+ data_store.lend_columns(my_adj,n,NEQ);
+ if(adjoint(data_store.col,my_adj,adj_len,DELTA_T*NJMP,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,NODE )){
    ADJ_HERE=1;;
  adj_back();
  }
@@ -610,15 +609,15 @@ void do_liapunov()
     hrw_liapunov(&z,0,NEWT_ERR);
     return;
   }
-  x=&MyData[0];
+  x=&data_store.current[0];
   do_range(x,0); 
   /* done the range */
   for(i=0;i<LIAP_I;i++){
-    storage[0][i]=my_liap[0][i];
-    storage[1][i]=my_liap[1][i];
+    data_store.col[0][i]=my_liap[0][i];
+    data_store.col[1][i]=my_liap[1][i];
   }
-  storind=LIAP_I;
-  refresh_browser(storind);
+  data_store.rows=LIAP_I;
+  refresh_browser(data_store.rows);
   LIAP_FLAG=0;
   xpp_free(my_liap[0]);
   xpp_free(my_liap[1]);
@@ -668,7 +667,7 @@ int hrw_liapunov(double *liap,int batch,double eps)
  double sum=0.0;
  int istart=1;
  int i,j;
-  if(storind<2){
+  if(data_store.rows<2){
    if(batch==0)err_msg("You need to compute an orbit first");
    return(0);
  }
@@ -678,15 +677,15 @@ int hrw_liapunov(double *liap,int batch,double eps)
       dy[i]=0; 
    dy[0]=eps;
    
-   for(j=0;j<(storind-1);j++){
-     t0=storage[0][j];
-     t1=storage[0][j+1];
+   for(j=0;j<(data_store.rows-1);j++){
+     t0=data_store.col[0][j];
+     t1=data_store.col[0][j+1];
      istart=1;
      for(i=0;i<NODE;i++)
-       y[i]=storage[i+1][j]+dy[i];
+       y[i]=data_store.col[i+1][j]+dy[i];
      one_step_int(y,t0,t1,&istart);
      for(i=0;i<NODE;i++)
-       yp[i]=(y[i]-storage[i+1][j+1]);
+       yp[i]=(y[i]-data_store.col[i+1][j+1]);
      norm_vec(yp,&nrm,NODE);
      nrm=nrm/eps;
      if(nrm==0.0){
@@ -700,7 +699,7 @@ int hrw_liapunov(double *liap,int batch,double eps)
 	 yp[0],yp[1]); */
 
    }
-   t1=storage[0][storind-1]-storage[0][0];
+   t1=data_store.col[0][data_store.rows-1]-data_store.col[0][0];
    if(t1!=0)
      sum=sum/t1;
    *liap=sum;

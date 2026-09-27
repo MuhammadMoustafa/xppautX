@@ -207,6 +207,17 @@ void set_all_vals(void);
 void read_defaults(FILE *fp);
 void fil_flt(FILE *fpt, double *val);
 void fil_int(FILE *fpt, int *val);
+/* the model's named sets of options (@ set name {...}): does holds the
+   options, use whether the command line picked it */
+typedef struct {
+  char *name;
+  char *does;
+  unsigned int use;
+} INTERN_SET;
+
+extern INTERN_SET intern_set[MAX_INTERN_SET];
+extern int Nintern_set;
+
 void add_intern_set(const char *name, const char *does);
 void extract_action(const char *ptr);
 void extract_internset(int j);

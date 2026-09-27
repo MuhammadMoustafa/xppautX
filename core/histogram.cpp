@@ -1,4 +1,5 @@
 #include "histogram.h"
+#include "storage.h"
 #include "markov.h"
 #include "xpp_mem.h"
 
@@ -22,17 +23,7 @@
 
 
 
-extern int MAXSTOR;
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
-/* load_eqn.cpp keeps its own duplicate HIST_INFO typedef and reads
-   hist_inf's fields (including cond) by that layout, so this struct's
-   field types stay raw C types rather than std::string/std::array. */
-typedef struct {
-  int nbins,nbins2,type,col,col2,fftc;
-  double xlo,xhi;
-  double ylo,yhi;
-  char cond[80];
-} HIST_INFO;
 
 int spec_col=1,spec_wid=512,spec_win=2,spec_col2=1,spec_type=0;
 /* type =0 for PSD
@@ -50,8 +41,6 @@ HIST_INFO hist_inf = {100,100,0,1,1,0,0,1,0,1,""};
 
 extern int NCON,NSYM,NCON_START,NSYM_START;
 
-extern float **storage;
-extern int storind;
 int hist_len,four_len;
 float *my_hist[MAXODE+1];
 float *my_four[MAXODE+1];
@@ -97,8 +86,8 @@ int two_d_hist(int col1,int col2,int ndat,int n1,int n2,double xlo,double xhi,do
       my_hist[2][i+j*n1]=0.0;
     }
   for(k=0;k<ndat;k++){
-    x=(storage[col1][k]-xlo)/dx;
-    y=(storage[col2][k]-ylo)/dy;
+    x=(data_store.col[col1][k]-xlo)/dx;
+    y=(data_store.col[col2][k]-ylo)/dy;
     i=static_cast<int>(x);
     j=static_cast<int>(y);
     if((i>=0)&&(i<n1)&&(j>=0)&&(j<n2))
@@ -121,7 +110,7 @@ void new_four(int nmodes, int col)
 {
   int i;
   int length=nmodes+1;
-  float total=storage[0][storind-1]-storage[0][0];
+  float total=data_store.col[0][data_store.rows-1]-data_store.col[0][0];
   float *bob;
   if(FOUR_HERE){
    data_back();
@@ -141,13 +130,13 @@ void new_four(int nmodes, int col)
    return;
  }
  FOUR_HERE=1;
- for(i=3;i<=NEQ;i++)my_four[i]=storage[i];
+ data_store.lend_columns(my_four,3,NEQ);
 for(i=0;i<length;i++)my_four[0][i]=static_cast<float>(i)/total; 
 /* for(i=0;i<length;i++)my_four[0][i]=static_cast<float>(i); */
  /*  sft(my_browser.data[col],my_four[1],my_four[2],length,storind);
   */
  bob=get_data_col(col);
-    fft(bob,my_four[1],my_four[2],nmodes,storind);
+    fft(bob,my_four[1],my_four[2],nmodes,data_store.rows);
  four_back();
   ping();
 }
@@ -193,10 +182,10 @@ void post_process_stuff()
 int twod_hist()
 
 {
-  int length,i;
+  int length;
  length=hist_inf.nbins*hist_inf.nbins2;
-   if(length>=MAXSTOR)
-    length=MAXSTOR-1;
+   if(length>=data_store.max_rows)
+    length=data_store.max_rows-1;
 
   if(HIST_HERE){
     data_back();
@@ -218,9 +207,9 @@ int twod_hist()
     return(-1);
   }
   HIST_HERE=2;
-  for(i=3;i<=NEQ;i++)my_hist[i]=storage[i];
+  data_store.lend_columns(my_hist,3,NEQ);
   hist_len=length;
-  two_d_hist(hist_inf.col,hist_inf.col2,storind,
+  two_d_hist(hist_inf.col,hist_inf.col2,data_store.rows,
 	     hist_inf.nbins,hist_inf.nbins2,
 	     hist_inf.xlo,hist_inf.xhi,hist_inf.ylo,hist_inf.yhi);
 
@@ -236,7 +225,7 @@ int new_2d_hist()
 {
   
   
-  if((NEQ<2)||(storind<3)){
+  if((NEQ<2)||(data_store.rows<3)){
     err_msg("Need more data and at least 3 columns");
     return 0;
   }
@@ -278,8 +267,8 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
   double z,y;
   double dz;
   int length=nbins+1;
-  if(length>=MAXSTOR)
-    length=MAXSTOR-1;
+  if(length>=data_store.max_rows)
+    length=data_store.max_rows-1;
   dz=(zhi-zlo)/static_cast<double>((length-1));
   if(HIST_HERE){
     data_back();
@@ -298,7 +287,7 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
     return;
   }
   HIST_HERE=1;
-  for(i=2;i<=NEQ;i++)my_hist[i]=storage[i];
+  data_store.lend_columns(my_hist,2,NEQ);
   for(i=0;i<length;i++){
     my_hist[0][i]=static_cast<float>((zlo+dz*i));
     my_hist[1][i]=0.0;
@@ -317,18 +306,18 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
       }
     /* plintf(" cond=%d \n condition=%s \n,node=%d\n", 
        cond,condition,NODE);  */
-    for(i=0;i<storind;i++)
+    for(i=0;i<data_store.rows;i++)
       {
 	flag=1;
 	if(cond){
-	  for(j=0;j<NODE+1;j++)set_ivar(j,static_cast<double>(storage[j][i]));
+	  for(j=0;j<NODE+1;j++)set_ivar(j,static_cast<double>(data_store.col[j][i]));
 	  for(j=0;j<NMarkov;j++)
-	    set_ivar(j+NODE+1+FIX_VAR,static_cast<double>(storage[j+NODE+1][i]));
+	    set_ivar(j+NODE+1+FIX_VAR,static_cast<double>(data_store.col[j+NODE+1][i]));
 	  z=evaluate(command);
 	  if(fabs(z)>0.0)flag=1;
 	  else flag=0;
 	}
-	z=(storage[col][i]-zlo)/dz;
+	z=(data_store.col[col][i]-zlo)/dz;
 	index=static_cast<int>(z);
 	if(index>=0&&index<length&&flag==1){
 	  my_hist[1][index]+=1.0;
@@ -341,9 +330,9 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
     return;
   }
   if(which==1){
-    for(i=0;i<storind;i++){
-      for(j=0;j<storind;j++){
-	y=storage[col][i]-storage[col][j];
+    for(i=0;i<data_store.rows;i++){
+      for(j=0;j<data_store.rows;j++){
+	y=data_store.col[col][i]-data_store.col[col][j];
 	z=(y-zlo)/dz;
 	index=static_cast<int>(z);
 	if(index>=0&&index<length)
@@ -356,13 +345,13 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
   }
   if(which==2){
     /* mycor(storage[col],storage[col2],storind,zlo,zhi,nbins,my_hist[1],1); */
-    mycor2(storage[col],storage[col2],storind,nbins,my_hist[1],1);
+    mycor2(data_store.col[col],data_store.col[col2],data_store.rows,nbins,my_hist[1],1);
     hist_back();
     ping();
     return;
   }
   if(which==3){
-    fftxcorr(storage[col],storage[col2],storind,(nbins-1)/2,my_hist[1],1);
+    fftxcorr(data_store.col[col],data_store.col[col2],data_store.rows,(nbins-1)/2,my_hist[1],1);
     hist_back();
     ping();
     return;
@@ -382,20 +371,20 @@ void column_mean()
  int i;
  double sum,sum2,ss;
  double mean,sdev;
- if(storind<=1){
+ if(data_store.rows<=1){
    err_msg("Need at least 2 data points!");
    return;
  }
  if(get_col_info(&hist_inf.col,"Variable ")==0)return;
  sum=0.0;
  sum2=0.0;
- for(i=0;i<storind;i++){
-   ss=storage[hist_inf.col][i];
+ for(i=0;i<data_store.rows;i++){
+   ss=data_store.col[hist_inf.col][i];
    sum+=ss;
    sum2+=(ss*ss);
  }
- mean=sum/static_cast<double>(storind);
- sdev=sqrt(sum2/static_cast<double>(storind)-mean*mean);
+ mean=sum/static_cast<double>(data_store.rows);
+ sdev=sqrt(sum2/static_cast<double>(data_store.rows)-mean*mean);
  err_msg(xpp::format("Mean={:g} Std. Dev. = {:g} ",mean,sdev).c_str());
 }
 
@@ -417,7 +406,7 @@ void compute_power()
   double s,c;
   float *datx,*daty,ptot=0;
   compute_fourier();
-  if((NEQ<2)||(storind<=1))return;
+  if((NEQ<2)||(data_store.rows<=1))return;
   datx=get_data_col(1);
   daty=get_data_col(2);
 
@@ -595,8 +584,8 @@ int cross_spectrum(float *data,float *data2,int nr,int win,int w_type,float *pow
 
 void just_sd(int flag)
 {
- int length,i,j;
-  float total=storage[0][storind-1]-storage[0][0];
+ int length,j;
+  float total=data_store.col[0][data_store.rows-1]-data_store.col[0][0];
   spec_type=flag;
   if(HIST_HERE){
     data_back();
@@ -616,12 +605,12 @@ void just_sd(int flag)
     return;
   }
   HIST_HERE=1;
-  for(i=2;i<=NEQ;i++)my_hist[i]=storage[i];
-  for(j=0;j<hist_len;j++)my_hist[0][j]=(static_cast<float>(j)*storind/spec_wid)/total;
+  data_store.lend_columns(my_hist,2,NEQ);
+  for(j=0;j<hist_len;j++)my_hist[0][j]=(static_cast<float>(j)*data_store.rows/spec_wid)/total;
   if(spec_type==0)
-    spectrum(storage[spec_col],storind,spec_wid,spec_win,my_hist[1]);
+    spectrum(data_store.col[spec_col],data_store.rows,spec_wid,spec_win,my_hist[1]);
   else
-    cross_spectrum(storage[spec_col],storage[spec_col2],storind,spec_wid,spec_win,my_hist[1],spec_type);
+    cross_spectrum(data_store.col[spec_col],data_store.col[spec_col2],data_store.rows,spec_wid,spec_win,my_hist[1],spec_type);
   hist_back();
   ping();
 }
@@ -642,8 +631,8 @@ void just_fourier(int flag)
   int i;
   double s,c;
   float *datx,*daty;
-  int nmodes=storind/2-1;
-  if(NEQ<2||storind<=1)return;
+  int nmodes=data_store.rows/2-1;
+  if(NEQ<2||data_store.rows<=1)return;
    new_four(nmodes,spec_col);
    if(flag)
      {
@@ -669,12 +658,12 @@ void compute_fourier()
     return;
   }
   /* new_int("Number of modes ",&nmodes); */
-  if(storind<=1){
+  if(data_store.rows<=1){
     err_msg("No data!");
     return;
   }
   if(get_col_info(&spec_col,"Variable ")==1){
-    nmodes=storind/2-1;
+    nmodes=data_store.rows/2-1;
     new_four(nmodes,spec_col);
   }
 }
@@ -684,8 +673,8 @@ void compute_fourier()
 void compute_correl()
 {
   int lag;
-  float total=storage[0][storind-1]-storage[0][0],dta;
-  dta=total/static_cast<float>((storind-1));
+  float total=data_store.col[0][data_store.rows-1]-data_store.col[0][0],dta;
+  dta=total/static_cast<float>((data_store.rows-1));
   /*  new_int("(0) Xcor (1) Xspec (2) Coher ",&flag);
   if(flag>0){
     compute_cross(flag-1);
@@ -695,8 +684,8 @@ void compute_correl()
   
   new_int("Number of bins ",&hist_inf.nbins);
   new_int("(0)Direct or (1) FFT ", &hist_inf.fftc);
-  if(hist_inf.nbins>(storind/2-1))
-    hist_inf.nbins=storind/2-2;
+  if(hist_inf.nbins>(data_store.rows/2-1))
+    hist_inf.nbins=data_store.rows/2-2;
   
   hist_inf.nbins=2*(hist_inf.nbins/2)+1;
   lag=hist_inf.nbins/2;

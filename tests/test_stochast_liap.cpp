@@ -5,6 +5,7 @@
    after integrating tools/models/stoch_liap.ode (rk4, a=-0.7) the way
    xppautX -silent does. */
 #include "xpptest.h"
+#include "storage.h"
 #include "adj2.h"
 #include "browse.h"
 #include "graphics.h"
@@ -24,7 +25,7 @@ int main(void)
     init_all_graph();
     batch_integrate();
 
-    CHECK(storind > 100);
+    CHECK(data_store.rows > 100);
 
     double liap = 0;
     int ok = hrw_liapunov(&liap, 1, NEWT_ERR);

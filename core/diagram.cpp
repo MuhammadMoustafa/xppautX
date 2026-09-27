@@ -2,6 +2,7 @@
    auto_f2c.h's own min/max macros (included transitively below, through
    auto_nox.h) break if they are already defined first. */
 #include "xpp_io.h"
+#include "storage.h"
 #include "xpp_ui.h"
 #include "xpp_log.h"
 #include "diagram.h"
@@ -23,8 +24,6 @@
 extern int TypeOfCalc;
 extern ROTCHK blrtn;
 
-extern float **storage;
-extern int storind;
 #define PACK_AUTO 0
 #define PACK_LBF 1
 extern int AutoTwoParam;
@@ -332,16 +331,16 @@ extern "C" void load_browser_with_branch(int ibr,int pts,int pte)
       u0=d->u0;
 
       par1=par[icp1];
-      storage[0][j]=par1;
+      data_store.col[0][j]=par1;
       for(i=0;i<NODE;i++)
-	storage[i+1][j]=u0[i];
+	data_store.col[i+1][j]=u0[i];
       j++;
     }
     d=d->next;
     if(d==NULL)break;
         
  }
- storind=nrows;
+ data_store.rows=nrows;
  refresh_browser(nrows);
 }
 void write_init_data_file()

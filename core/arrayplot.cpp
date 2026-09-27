@@ -1,4 +1,5 @@
 #include "arrayplot.h"
+#include "storage.h"
 #include "xpp_globals.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
@@ -63,7 +64,6 @@ extern "C" {
 extern char this_file[XPP_MAX_NAME];
 extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern BROWSER my_browser;
-extern double MyData[MAXODE];
 }
 int aplot_range_count=0;
 int aplot_range;
@@ -94,7 +94,7 @@ void set_up_aplot_range(void)
    aplot_tag=atoi(values[2].c_str());
  aplot_range=1;
  aplot_range_count=0;
- x=&MyData[0];
+ x=&data_store.current[0];
  do_range(x,0);
  }
 }

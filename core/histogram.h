@@ -37,6 +37,18 @@ extern float *my_hist[];
 extern float *my_four[];
 extern int HIST_HERE, FOUR_HERE, hist_len, four_len;
 extern int spec_col, spec_wid, spec_win, spec_col2, spec_type;
+extern int post_process;
+
+/* the histogram / spectrum settings the dialogs and the model's own
+   @ options edit (load_eqn.cpp's option reader writes cond) */
+typedef struct {
+  int nbins,nbins2,type,col,col2,fftc;
+  double xlo,xhi;
+  double ylo,yhi;
+  char cond[80];
+} HIST_INFO;
+
+extern HIST_INFO hist_inf;
 
 #ifdef __cplusplus
 }

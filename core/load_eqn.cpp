@@ -33,6 +33,7 @@
 #include "userbut.h"
 #include "volterra2.h"
 #include "storage.h"
+#include "histogram.h"
 #include "tabular.h"
 
 #include <stdlib.h> 
@@ -56,15 +57,6 @@
 
 OptionsSet notAlreadySet;
 
-typedef struct {
-  int nbins,nbins2,type,col,col2,fftc;
-  double xlo,xhi;
-  double ylo,yhi;
-  char cond[80];
-} HIST_INFO;
-
-extern HIST_INFO hist_inf;
-extern int spec_col,spec_wid,spec_win,spec_col2,post_process;
 
 
 
@@ -161,12 +153,6 @@ XppSlider sliders[XPP_NSLIDERS] = {{"", 0.0, 1.0}, {"", 0.0, 1.0}, {"", 0.0, 1.0
 extern int NCBatch,DFBatch;
 extern int DF_GRID;
 
-typedef struct {
-  char *name;
-  char *does;
-  unsigned int use;
-} INTERN_SET;
-
 extern int XNullColor,YNullColor,StableManifoldColor,UnstableManifoldColor;
 int IX_PLT[10],IY_PLT[10],IZ_PLT[10],NPltV;
 int MultiWin=0;
@@ -206,7 +192,7 @@ extern int SEc,UEc,SPc,UPc;
  char this_internset[XPP_MAX_NAME];
  float oldhp_x,oldhp_y,my_pl_wid,my_pl_ht;
  int mov_ind;
- int  storind,STORFLAG,INFLAG,MAXSTOR;
+ int STORFLAG,INFLAG;
  double x_3d[2],y_3d[2],z_3d[2];
  int IXPLT,IYPLT,IZPLT;
  int AXES,TIMPLOT,PLOT_3D;
@@ -355,7 +341,7 @@ void set_all_vals()
  if (notAlreadySet.POISGN){POISGN=1;notAlreadySet.POISGN=0;};
  if (notAlreadySet.POIPLN){POIPLN=0.0;notAlreadySet.POIPLN=0;};
 
- storind=0;
+ data_store.rows=0;
  mov_ind=0;
 
 
@@ -374,7 +360,7 @@ void set_all_vals()
  if (notAlreadySet.YHI){MY_YHI=1;y_3d[0]=MY_YHI;notAlreadySet.YHI=0;notAlreadySet.YMAX=0;};
  
  if (notAlreadySet.BOUND){BOUND=100;notAlreadySet.BOUND=0;};
- if (notAlreadySet.MAXSTOR){MAXSTOR=5000;notAlreadySet.MAXSTOR=0;};
+ if (notAlreadySet.MAXSTOR){data_store.max_rows=5000;notAlreadySet.MAXSTOR=0;};
  my_pl_wid=10000. ;
  my_pl_ht=7000.  ;
 
@@ -463,7 +449,7 @@ if(MY_YLO>=MY_YHI){
    x_3d[1]=MY_XHI;
    y_3d[1]=MY_YHI;
  } 
- init_stor(MAXSTOR,NEQ+1);
+ data_store.allocate(data_store.max_rows,NEQ+1);
  if(AXES>=5)PLOT_3D=1;
  chk_delay(); /* check for delay allocation */
  alloc_h_stuff();
@@ -500,7 +486,7 @@ void read_defaults(FILE *fp)
  if (notAlreadySet.METHOD){fil_int(fp,&METHOD);notAlreadySet.METHOD=0;};
 
  if (notAlreadySet.TIMEPLOT){fil_int(fp,&TIMPLOT);notAlreadySet.TIMEPLOT=0;};
- if (notAlreadySet.MAXSTOR){fil_int(fp,&MAXSTOR);notAlreadySet.MAXSTOR=0;};
+ if (notAlreadySet.MAXSTOR){fil_int(fp,&data_store.max_rows);notAlreadySet.MAXSTOR=0;};
  if (notAlreadySet.TEND){fil_flt(fp,&TEND);notAlreadySet.TEND=0;};
  if (notAlreadySet.DT){fil_flt(fp,&DELTA_T);notAlreadySet.DT=0;};
  if (notAlreadySet.T0){fil_flt(fp,&T0);notAlreadySet.T0=0;};
@@ -1082,7 +1068,7 @@ if(msc(yyl.c_str(),s1)){
    if(msc("MAXSTOR",s1)){ 
      if ((notAlreadySet.MAXSTOR||force) || ((mask!=NULL)&&(mask->MAXSTOR==1)))
      {
-    	MAXSTOR=atoi(s2);
+    	data_store.max_rows=atoi(s2);
         notAlreadySet.MAXSTOR=0;
      } 
     return;

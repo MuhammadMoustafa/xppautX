@@ -35,7 +35,7 @@ int ShootICFlag;
 int ShootIndex;
 int ShootType[8];
 int gear_pivot[MAXODE];
-extern int storind,STORFLAG;
+extern int STORFLAG;
 
 
 char status();

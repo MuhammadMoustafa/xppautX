@@ -1,4 +1,5 @@
 #include "xpp_ui.h"
+#include "storage.h"
 #include "xpp_util.h"
 #include "xpp_math.h"
 #include "xpp_mem.h"
@@ -53,8 +54,6 @@ extern int RANGE_FLAG;
 extern int INFLAG;
 
 extern int NUPAR;
-extern int storind;
-extern float **storage;
 
 extern int *my_ode[];
 
@@ -74,7 +73,6 @@ extern int color_line[11],MyStart;
 
 extern int NKernel;
 
-extern double MyData[MAXODE],MyTime;
 namespace {
 struct {
   std::array<char, MAX_LEN_SBOX> item{};
@@ -221,7 +219,7 @@ void do_sh_range(double *ystart, double *yend)
  dpar=(parhi-parlo)/static_cast<double>(npar);
  side=shoot_range.side;
  cycle=shoot_range.cycle;
- storind=0;
+ data_store.rows=0;
  icol=0;
  if(shoot_range.movie==1)
    reset_film();
@@ -240,21 +238,21 @@ void do_sh_range(double *ystart, double *yend)
      if(ierr<0){ 
        bad_shoot(ierr);
 
-       refresh_browser(storind);
+       refresh_browser(data_store.rows);
        swap_color(&color,1);
        return;
      }
-     storage[0][storind]=temp;
-     if(side==0)for(j=0;j<NODE;j++)storage[j+1][storind]=ystart[j];
-     else for(j=0;j<NODE;j++)storage[j+1][storind]=yend[j];
-     storind++;
+     data_store.col[0][data_store.rows]=temp;
+     if(side==0)for(j=0;j<NODE;j++)data_store.col[j+1][data_store.rows]=ystart[j];
+     else for(j=0;j<NODE;j++)data_store.col[j+1][data_store.rows]=yend[j];
+     data_store.rows++;
      set_cycle(cycle,&icol);
      get_ic(0,ystart);
      last_shot(0);
      if(shoot_range.movie==1)xpp_ui.film_clip();
      ping();
    }
-  refresh_browser(storind);
+  refresh_browser(data_store.rows);
   auto_freeze_it();     
  swap_color(&color,1);
 
@@ -364,7 +362,7 @@ void find_bvp_com(int com)
  }
  last_shot(1);
  INFLAG=1;
- refresh_browser(storind);
+ refresh_browser(data_store.rows);
  auto_freeze_it();
  ping();
 }
@@ -378,19 +376,19 @@ void last_shot(int flag)
 {
  int i;
  double *x;
- x=&MyData[0];
+ x=&data_store.current[0];
  MyStart=1;
  get_ic(2,x);
  STORFLAG=flag;
- MyTime=T0;
+ data_store.current_time=T0;
  if(flag){
-  storage[0][0]=static_cast<float>(T0);
+  data_store.col[0][0]=static_cast<float>(T0);
   extra(x,T0,NODE,NEQ);
-  for(i=0;i<NEQ;i++)storage[1+i][0]=static_cast<float>(x[i]);
-  storind=1;
+  for(i=0;i<NEQ;i++)data_store.col[1+i][0]=static_cast<float>(x[i]);
+  data_store.rows=1;
 
 }
- integrate(&MyTime,x,TEND,DELTA_T,1,NJMP,&MyStart);
+ integrate(&data_store.current_time,x,TEND,DELTA_T,1,NJMP,&MyStart);
 /* if(flag){
    INFLAG=1;
    refresh_browser(storind);

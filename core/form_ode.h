@@ -57,6 +57,15 @@ int not_ker(const char *s, int i);
 int is_comment(const char *s);
 void add_comment(const char *s);
 
+/* the model's comments (the ones with an action run it when picked) */
+typedef struct {
+  char *text,*action;
+  int aflag;
+} ACTION;
+
+extern ACTION comments[];
+extern int n_comments;
+
 /* for parsing par, init with whitespace correctly */
 void advance_past_first_word(char** sptr);
 void strcpy_trim(char * dest, const char * source);

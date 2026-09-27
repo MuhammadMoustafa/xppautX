@@ -100,12 +100,10 @@ int select_intern_sets=0;
 
 
 
-extern int Nintern_set;
 int Nintern_2_use=0;
 
 
 
-extern INTERN_SET intern_set[MAX_INTERN_SET];
 
 
 
