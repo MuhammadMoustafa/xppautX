@@ -217,8 +217,6 @@ typedef struct {
 #define IMPORT  50 /* not really a network type   */
 
 namespace {
-/* a strtok token's text ("" for none) */
-std::string token(const char *s) { return s ? s : ""; }
 bool gilparse(std::string_view s, std::vector<int> &ind);
 bool parse_import(std::string_view s, std::string &soname, std::string &sofun, int *n,
                   std::string &vname, std::vector<std::string> &tname);
@@ -313,16 +311,16 @@ double network_value(double x, int i)
  
 
 namespace {
-/* add_spec_fun's arguments, read one at a time up to `sep` (get_next):
+/* add_spec_fun's arguments, read one at a time from args up to `sep`:
    each logs what is wrong with it and returns a value the caller refuses
    (<= 0 for a count, < 0 for an index) */
 
 /* a count, which must be positive */
-int next_positive_int(const char *sep)
+int next_positive_int(xpp::Tokens &args, const char *sep)
 {
-  char *str=get_next(sep);
-  int n=atoi(str);
-  if(n<=0)xpp_log(XPP_LOG_ERROR, " %s must be positive int \n",str);
+  std::string str=args.text(sep);
+  int n=atoi(str.c_str());
+  if(n<=0)xpp::log(XPP_LOG_ERROR, " {} must be positive int \n",str);
   return n;
 }
 
@@ -330,9 +328,9 @@ int next_positive_int(const char *sep)
 enum class NameKind { table, variable };
 
 /* a table's or a variable's name (into s): its index */
-int next_index(const char *net, const char *sep, std::string &s, NameKind kind)
+int next_index(xpp::Tokens &args, const char *net, const char *sep, std::string &s, NameKind kind)
 {
-  s=token(get_next(sep));
+  s=args.text(sep);
   if(kind==NameKind::table){
     int i=find_lookup(s.c_str());
     if(i<0)xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
@@ -348,14 +346,14 @@ int next_index(const char *net, const char *sep, std::string &s, NameKind kind)
 /* the last arguments root,root2,f of the networks that apply a function
    (fconv, fsparse, fmmult): f(root,root2) compiled into my_net[ind].f;
    false after an error */
-bool next_pair_function(const char *net, int ind, int &ivar, int &ivar2, std::string &fname)
+bool next_pair_function(xpp::Tokens &args, const char *net, int ind, int &ivar, int &ivar2, std::string &fname)
 {
   std::string rootname,root2name;
-  ivar=next_index(net,",",rootname,NameKind::variable);
+  ivar=next_index(args,net,",",rootname,NameKind::variable);
   if(ivar<0)return false;
-  ivar2=next_index(net,",",root2name,NameKind::variable);
+  ivar2=next_index(args,net,",",root2name,NameKind::variable);
   if(ivar2<0)return false;
-  fname=token(get_next(")"));
+  fname=args.text(")");
   int elen;
   if(add_expr(xpp::format("{}({},{})",fname,rootname,root2name).c_str(),my_net[ind].f,&elen)){
     xpp_log(XPP_LOG_ERROR, " bad function %s \n",fname.c_str());
@@ -371,7 +369,7 @@ int add_spec_fun(const char *name, char *rhs)
   int type;
   int iwgt,itau,iind,ivar,ivar2;
   int ntype,ntot,ncon,ntab;
-  char *str;
+  std::string str;
   /* tokens of the right-hand side, checked as names after the copy */
   std::string rootname,wgtname,tauname,indname,fname;
   std::string sofun,soname;
@@ -386,25 +384,27 @@ int add_spec_fun(const char *name, char *rhs)
     xpp_log(XPP_LOG_ERROR, " No such name %s ?? \n",name);
     return 0;
   }
+  /* the arguments: NAME(a,b,...) */
+  xpp::Tokens args(rhs);
   switch(type){
   case 1: /* convolution */
-    get_first(rhs,"(");
-    str=get_next(",");
+    args.next("(");
+    str=args.text(",");
     ntype=-1;
     if(str[0]=='E')ntype=CONVE;
     if(str[0]=='0'||str[0]=='Z')ntype=CONV0;
     if(str[0]=='P')ntype=CONVP;
     if(ntype==-1){
-      xpp_log(XPP_LOG_ERROR, " No such convolution type %s \n",str);
+      xpp::log(XPP_LOG_ERROR, " No such convolution type {} \n",str);
       return 0;
     }
-    ntot=next_positive_int(",");
+    ntot=next_positive_int(args,",");
     if(ntot<=0)return 0;
-    ncon=next_positive_int(",");
+    ncon=next_positive_int(args,",");
     if(ncon<=0)return 0;
-    iwgt=next_index(name,",",wgtname,NameKind::table);
+    iwgt=next_index(args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
-    ivar=next_index(name,")",rootname,NameKind::variable);
+    ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
     my_net[ind].values.assign((ntot+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
@@ -418,18 +418,18 @@ int add_spec_fun(const char *name, char *rhs)
     return 1;   
     break;
   case 2: /* sparse */
-    get_first(rhs,"(");
+    args.next("(");
     ntype=SPARSE;
-    ntot=next_positive_int(",");
+    ntot=next_positive_int(args,",");
     if(ntot<=0)return 0;
-    ncon=next_positive_int(",");
+    ncon=next_positive_int(args,",");
     if(ncon<=0)return 0;
-    iwgt=next_index(name,",",wgtname,NameKind::table);
+    iwgt=next_index(args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
 
-    iind=next_index(name,",",indname,NameKind::table);
+    iind=next_index(args,name,",",indname,NameKind::table);
     if(iind<0)return 0;
-    ivar=next_index(name,")",rootname,NameKind::variable);
+    ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
  
     my_net[ind].values.assign((ntot+1),0.0);
@@ -445,25 +445,25 @@ int add_spec_fun(const char *name, char *rhs)
     return 1;   
     break;
  case 3: /* convolution */
-    get_first(rhs,"(");
-    str=get_next(",");
+    args.next("(");
+    str=args.text(",");
     ntype=-1;
     if(str[0]=='E')ntype=FCONVE;
     if(str[0]=='0'||str[0]=='Z')ntype=FCONV0;
     if(str[0]=='P')ntype=FCONVP;
     if(ntype==-1){
-      xpp_log(XPP_LOG_ERROR, " No such convolution type %s \n",str);
+      xpp::log(XPP_LOG_ERROR, " No such convolution type {} \n",str);
       return 0;
     }
-    ntot=next_positive_int(",");
+    ntot=next_positive_int(args,",");
     if(ntot<=0)return 0;
-    ncon=next_positive_int(",");
+    ncon=next_positive_int(args,",");
     if(ncon<=0)return 0;
-    iwgt=next_index(name,",",wgtname,NameKind::table);
+    iwgt=next_index(args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
 
 
-    if(!next_pair_function(name,ind,ivar,ivar2,fname))return 0;
+    if(!next_pair_function(args,name,ind,ivar,ivar2,fname))return 0;
     my_net[ind].values.assign((ntot+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
     my_net[ind].type=ntype;
@@ -476,20 +476,20 @@ int add_spec_fun(const char *name, char *rhs)
     return 1;   
     break;
   case 4: /* sparse */
-    get_first(rhs,"(");
+    args.next("(");
     ntype=FSPARSE;
-    ntot=next_positive_int(",");
+    ntot=next_positive_int(args,",");
     if(ntot<=0)return 0;
-    ncon=next_positive_int(",");
+    ncon=next_positive_int(args,",");
     if(ncon<=0)return 0;
-    iwgt=next_index(name,",",wgtname,NameKind::table);
+    iwgt=next_index(args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
 
-    iind=next_index(name,",",indname,NameKind::table);
+    iind=next_index(args,name,",",indname,NameKind::table);
     if(iind<0)return 0;
 
 
-    if(!next_pair_function(name,ind,ivar,ivar2,fname))return 0;
+    if(!next_pair_function(args,name,ind,ivar,ivar2,fname))return 0;
 
     my_net[ind].values.assign((ntot+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
@@ -506,20 +506,20 @@ int add_spec_fun(const char *name, char *rhs)
     break;
 
   case 5: /* fft convolution */
-    get_first(rhs,"(");
-    str=get_next(",");
+    args.next("(");
+    str=args.text(",");
     ntype=-1;
     /* if(str[0]=='E')ntype=CONVE; */
     if(str[0]=='0'||str[0]=='Z')ntype=FFTCON0;
     if(str[0]=='P')ntype=FFTCONP;
     if(ntype==-1){
-      xpp_log(XPP_LOG_ERROR, " No such fft convolution type %s \n",str);
+      xpp::log(XPP_LOG_ERROR, " No such fft convolution type {} \n",str);
       return 0;
     }
-    ntot=next_positive_int(",");
+    ntot=next_positive_int(args,",");
     if(ntot<=0)return 0;
    
-    iwgt=next_index(name,",",wgtname,NameKind::table);
+    iwgt=next_index(args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
     ntab=get_lookup_len(iwgt);
     if(type==FFTCONP&&ntab<ntot){
@@ -530,7 +530,7 @@ int add_spec_fun(const char *name, char *rhs)
      xpp_log(XPP_LOG_ERROR, " In %s, weight is length %d < %d \n",name,ntab,2*ntot);
      return 0;
     }
-    ivar=next_index(name,")",rootname,NameKind::variable);
+    ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
     if(ntype==FFTCON0)
       ncon=2*ntot;
@@ -554,16 +554,16 @@ int add_spec_fun(const char *name, char *rhs)
     return 1;   
     break;
   case 6:   /* MMULT    ntot=n,ncon=m  */
-    get_first(rhs,"(");
+    args.next("(");
     ntype=MMULT;
-    ntot=next_positive_int(",");
+    ntot=next_positive_int(args,",");
     if(ntot<=0)return 0;
-    ncon=next_positive_int(",");
+    ncon=next_positive_int(args,",");
     if(ncon<=0)return 0;
-    iwgt=next_index(name,",",wgtname,NameKind::table);
+    iwgt=next_index(args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
 
-    ivar=next_index(name,")",rootname,NameKind::variable);
+    ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
  
     my_net[ind].values.assign((ncon+1),0.0);
@@ -578,16 +578,16 @@ int add_spec_fun(const char *name, char *rhs)
     return 1;   
     break;
   case 7:  /* FMMULT */
-     get_first(rhs,"(");
+    args.next("(");
     ntype=FMMULT;
-    ntot=next_positive_int(",");
+    ntot=next_positive_int(args,",");
     if(ntot<=0)return 0;
-    ncon=next_positive_int(",");
+    ncon=next_positive_int(args,",");
     if(ncon<=0)return 0;
-    iwgt=next_index(name,",",wgtname,NameKind::table);
+    iwgt=next_index(args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
 
-    if(!next_pair_function(name,ind,ivar,ivar2,fname))return 0;
+    if(!next_pair_function(args,name,ind,ivar,ivar2,fname))return 0;
     my_net[ind].values.assign((ncon+1),0.0);
     my_net[ind].weight=my_table[iwgt].y;
 
@@ -601,30 +601,30 @@ int add_spec_fun(const char *name, char *rhs)
     return 1; 
 
   case FINDEXT:
-    get_first(rhs,"(");
-    str=get_next(",");
-    ntype=atoi(str);
+    args.next("(");
+    str=args.text(",");
+    ntype=atoi(str.c_str());
     if(ntype>1||ntype<(-1)){
-      xpp_log(XPP_LOG_ERROR, "In %s,  type =-1,0,1 not %s \n",
+      xpp_log(XPP_LOG_ERROR, "In %s,  type =-1,0,1 not %d \n",
 	     name,ntype);
       return 0;
     }
-    str=get_next(",");
-    ntot=atoi(str);
+    str=args.text(",");
+    ntot=atoi(str.c_str());
     if(ntot<=0){
-      xpp_log(XPP_LOG_ERROR, "In %s,  n>0 not %s \n",
+      xpp_log(XPP_LOG_ERROR, "In %s,  n>0 not %d \n",
 	     name,ntot);
       return 0;
     }
     
-    str=get_next(",");
-    ncon=atoi(str);
+    str=args.text(",");
+    ncon=atoi(str.c_str());
     if(ncon<=0){
-      xpp_log(XPP_LOG_ERROR, "In %s,  skip>=1 not %s \n",
+      xpp_log(XPP_LOG_ERROR, "In %s,  skip>=1 not %d \n",
 	     name,ncon);
       return 0;
     }
-    ivar=next_index(name,")",rootname,NameKind::variable);
+    ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
     my_net[ind].values.assign(6,0.0);
     my_net[ind].type=FINDEXT;
@@ -640,19 +640,19 @@ int add_spec_fun(const char *name, char *rhs)
     /* interpolation array 
        z=INTERP(meth,n,root)
     */
-    get_first(rhs,"(");
-    str=get_next(",");
-    ivar=atoi(str);
+    args.next("(");
+    str=args.text(",");
+    ivar=atoi(str.c_str());
     my_net[ind].type=INTERP;
     my_net[ind].iwgt=ivar;
-    str=get_next(",");
-    ivar=atoi(str);
+    str=args.text(",");
+    ivar=atoi(str.c_str());
     if(ivar<1){
       xpp_log(XPP_LOG_ERROR, "Need more than 1 entry for interpolate\n");
       return 0;
     }
     my_net[ind].n=ivar; /* # entries in array */
-    ivar=next_index(name,")",rootname,NameKind::variable);
+    ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
     my_net[ind].root=ivar;
     xpp_log(XPP_LOG_INFO, "Added interpolator %s length %d on %s \n",name,my_net[ind].n,rootname.c_str()); 
@@ -692,20 +692,20 @@ int add_spec_fun(const char *name, char *rhs)
      return 1;
    case DEL_MUL:
 
-    get_first(rhs,"(");
+    args.next("(");
     ntype=DEL_MUL;
-    ntot=next_positive_int(",");
+    ntot=next_positive_int(args,",");
     if(ntot<=0)return 0;
-    ncon=next_positive_int(",");
+    ncon=next_positive_int(args,",");
     if(ncon<=0)return 0;
-    iwgt=next_index(name,",",wgtname,NameKind::table);
+    iwgt=next_index(args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
-    itau=next_index(name,",",tauname,NameKind::table);
+    itau=next_index(args,name,",",tauname,NameKind::table);
     if(itau<0)return 0;
 
      
 
-    ivar=next_index(name,")",rootname,NameKind::variable);
+    ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
  
     my_net[ind].values.assign((ncon+1),0.0);
@@ -723,24 +723,24 @@ int add_spec_fun(const char *name, char *rhs)
     break;
     return 0;
   case DEL_SPAR:
-   get_first(rhs,"(");
+    args.next("(");
     ntype=DEL_SPAR;
-    ntot=next_positive_int(",");
+    ntot=next_positive_int(args,",");
     if(ntot<=0)return 0;
-    ncon=next_positive_int(",");
+    ncon=next_positive_int(args,",");
     if(ncon<=0)return 0;
-    iwgt=next_index(name,",",wgtname,NameKind::table);
+    iwgt=next_index(args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
 
-    iind=next_index(name,",",indname,NameKind::table);
+    iind=next_index(args,name,",",indname,NameKind::table);
     if(iind<0)return 0;
 
 
-    itau=next_index(name,",",tauname,NameKind::table);
+    itau=next_index(args,name,",",tauname,NameKind::table);
     if(itau<0)return 0;
 
     
-    ivar=next_index(name,")",rootname,NameKind::variable);
+    ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
  
     my_net[ind].values.assign((ntot+1),0.0);
@@ -773,10 +773,10 @@ int add_spec_fun(const char *name, char *rhs)
        gcom contains list of all the fixed holding the reactions
     */ 
        
-    get_first(rhs,"(");
-    str=get_next(",");
-    ivar=atoi(str);
-    str=get_next(")");
+    args.next("(");
+    str=args.text(",");
+    ivar=atoi(str.c_str());
+    str=args.text(")");
     my_net[ind].type=GILLTYPE;
     if(ivar>0){
       xpp_log(XPP_LOG_WARN, " Tau leaping not implemented yet. Changing to 0\n");
@@ -794,30 +794,7 @@ int add_spec_fun(const char *name, char *rhs)
     xpp_log(XPP_LOG_INFO, "Added gillespie chain with %d reactions \n",ivar2);
     return 1;
 
-    /*  case 8:  
-    get_first(rhs,"(");
-    str=get_next(",");
-    ntot=atoi(str);
-    str=get_next("{");
-    i=0;
-    elen=strlen(str);
-    
-    while(1){
-      cc=str[i];
-      if(cc=='}'){junk[i]=0;
-                   break;
-      }
-      junk[i]=cc;
-      i++;
-      if(i==elen){
-	plintf("Illegal syntax for GROUP %s \n",str);
-	return 0;
-      }
-      
-    }
-    plintf("total=%d str=%s\n",ntot,junk);
-    
-    return 0; */
+
     
     
   }

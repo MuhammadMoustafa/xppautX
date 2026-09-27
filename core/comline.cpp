@@ -212,8 +212,8 @@ void do_comline(int argc, char **argv)
    }
    if(k==5){
     xpp_log(XPP_LOG_INFO, "%s",argv[i+1]);
-     snprintf(batch_options.out_file,sizeof batch_options.out_file,"%s",argv[i+1]);
-     snprintf(batch_options.user_out_file,sizeof batch_options.user_out_file,"%s",argv[i+1]);
+     XPP_FORMAT_TO_BUF(batch_options.out_file,"{}",argv[i+1]);
+     XPP_FORMAT_TO_BUF(batch_options.user_out_file,"{}",argv[i+1]);
      i++;
    }
    if(k==6){
@@ -413,14 +413,13 @@ int if_needed_load_set()
   {
     return 1;
   }
-  FILE *fp=std::fopen(setfilename.c_str(),"r");
-  if(fp==NULL)
+  xpp::UniqueFile fp=xpp::open_read(setfilename.c_str());
+  if(!fp)
   {
     xpp::log(XPP_LOG_WARN, "Couldn't load {}\n",setfilename);
     return 0;
   }
-  read_lunch(fp);
-  std::fclose(fp);
+  read_lunch(fp.get());
   return 1;
 }
 

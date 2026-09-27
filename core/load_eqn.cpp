@@ -1352,7 +1352,7 @@ if(msc(yyl.c_str(),s1)){
  if(msc("RANGEOVER",s1)){
      if ((notAlreadySet.RANGEOVER||force)|| ((mask!=NULL)&&(mask->RANGEOVER==1)))
      {
-    	snprintf(range.item,sizeof(range.item),"%s",s2);
+    	XPP_FORMAT_TO_BUF(range.item,"{}",s2);
 	notAlreadySet.RANGEOVER=0;
      }
 
@@ -1693,7 +1693,7 @@ if(msc("TUTORIAL",s1)){
  if(msc("S1",s1)){
      if ((notAlreadySet.SLIDER1||force) || ((mask!=NULL)&&(mask->SLIDER1==1)))
      {
-	snprintf(sliders[0].var,sizeof(sliders[0].var),"%s",s2);
+	XPP_FORMAT_TO_BUF(sliders[0].var,"{}",s2);
 	notAlreadySet.SLIDER1=0;
      }
     return;
@@ -1702,7 +1702,7 @@ if(msc("TUTORIAL",s1)){
 if(msc("S2",s1)){
      if ((notAlreadySet.SLIDER2||force) || ((mask!=NULL)&&(mask->SLIDER2==1)))
      {
-    	snprintf(sliders[1].var,sizeof(sliders[1].var),"%s",s2);
+    	XPP_FORMAT_TO_BUF(sliders[1].var,"{}",s2);
 	notAlreadySet.SLIDER2=0;
      }
     return;
@@ -1710,7 +1710,7 @@ if(msc("S2",s1)){
  if(msc("S3",s1)){
      if ((notAlreadySet.SLIDER3||force) || ((mask!=NULL)&&(mask->SLIDER3==1)))
      {	
-     	snprintf(sliders[2].var,sizeof(sliders[2].var),"%s",s2);
+     	XPP_FORMAT_TO_BUF(sliders[2].var,"{}",s2);
 	notAlreadySet.SLIDER3=0;
      }
     return;
@@ -1922,7 +1922,7 @@ if(msc("SLO2",s1)){
    if(msc("COLORVIA",s1))
      {
        if ((notAlreadySet.COLORVIA||force)|| ((mask!=NULL)&&(mask->COLORVIA==1)))
-       snprintf(ColorVia,sizeof(ColorVia),"%s",s2);
+       XPP_FORMAT_TO_BUF(ColorVia,"{}",s2);
        	notAlreadySet.COLORVIA=0;
        return;
      }

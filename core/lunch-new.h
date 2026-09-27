@@ -30,5 +30,9 @@ void io_string(char *s, int len, FILE *fp, int f);
 
 #ifdef __cplusplus
 }
+
+#include <string>
+/* one line of a set file into s, whole (f READEM), or s written as one */
+void io_string(std::string &s, FILE *fp, int f);
 #endif
 #endif

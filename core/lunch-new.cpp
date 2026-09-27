@@ -5,7 +5,6 @@
 #include "xpp_io.h"
 #include "lunch-new.h"
 #include "parserslow.h"
-#include "form_ode.h"
 #include "edit_rhs.h"
 #include "browse.h"
 #include "graf_par.h"
@@ -534,17 +533,25 @@ void io_double(double *z, FILE *fp, int f, const char *ss)
  xpp::print(fp,"{:.16g}  {}\n",*z,ss);
 }
 
+void io_string(std::string &s, FILE *fp, int f)
+{
+ /* One line per string, read whole whatever its length (CR/LF tolerant),
+    so the lines after it stay in step; "" at the end of the file */
+ if(f==READEM)
+   s=next_line(fp).value_or(std::string());
+ else
+   xpp::print(fp,"{}\n",s);
+}
+
 void io_string(char *s, int len, FILE *fp, int f)
 {
- /* One line per string. xpp_line_reader reads the whole line whatever its
-    length (CR/LF tolerant), so the lines after it stay in step even when
-    it is longer than s (len bytes) holds; s gets its start, safely cut
-    (xpp_strlcpy: s is the caller's, of len bytes) rather than overflowing. Files
-    written with the old 10-character names read the same. */
+ /* s (len bytes, the caller's) gets the line's start, safely cut with a
+    WARN rather than overflowing; files written with the old 10-character
+    names read the same */
  if(f==READEM){
-   std::optional<std::string> line=next_line(fp);
-   if(!line){s[0]=0;return;}
-   xpp_strlcpy(s,line->c_str(),static_cast<size_t>(len));
+   std::string line;
+   io_string(line,fp,f);
+   xpp_strlcpy(s,line.c_str(),static_cast<size_t>(len));
  }
  else
    xpp::print(fp,"{}\n",s);
