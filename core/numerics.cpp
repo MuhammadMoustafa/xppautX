@@ -428,7 +428,7 @@ void get_pmap_pars_com(int l)
  ind_to_sym(i1,n1.data());
  values[0] = n1.data();
  values[1] = xpp::format("{:.16g}", POIPLN);
- values[2] = POISGN;
+ values[2] = xpp::format("{}", POISGN);
  values[3] = yn[SOS];
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
  status=do_string_box_of(4,1,"Poincare map",n,values,45,kinds);

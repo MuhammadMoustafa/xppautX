@@ -81,9 +81,6 @@ struct {
 } shoot_range;
 }  // namespace
 
-extern char upar_names[MAXPAR][XPP_NAME_MAX+1];
-extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
-
 
 
 
@@ -161,7 +158,7 @@ reset_bvp()
 
 void init_shoot_range(const char *s)
 {
- snprintf(shoot_range.item.data(),shoot_range.item.size(),"%s",s);
+ xpp_strlcpy(shoot_range.item.data(),s,shoot_range.item.size());
  shoot_range.phigh=1.0;
  shoot_range.plow=0.0;
  shoot_range.side=0;
@@ -207,7 +204,6 @@ void do_sh_range(double *ystart, double *yend)
  double parlo,parhi,dpar,temp;
  int npar,i,j,ierr;
  int side,cycle,icol,color;
- char bob[MAX_LEN_SBOX+32];
  
 
  
@@ -227,8 +223,7 @@ void do_sh_range(double *ystart, double *yend)
    {
      temp=parlo+dpar*static_cast<double>(i);
      set_val(shoot_range.item.data(),temp);
-     snprintf(bob,sizeof(bob),"%s=%.16g",shoot_range.item.data(),temp);
-     bottom_msg(2,bob);
+     bottom_msg(2,xpp::format("{}={:.16g}",shoot_range.item.data(),temp).c_str());
      if(shoot_range.movie==1)
        clr_scrn();
      
@@ -407,11 +402,11 @@ static const char *n[]={"*2Range over","Steps","Start","End",
  int status,i;
  static  const char *yn[]={"N","Y"};
  values[0] = shoot_range.item.data();
- values[1] = shoot_range.steps;
+ values[1] = xpp::format("{}", shoot_range.steps);
  values[2] = xpp::format("{:g}", shoot_range.plow);
  values[3] = xpp::format("{:g}", shoot_range.phigh);
  values[4] = yn[shoot_range.cycle];
- values[5] = shoot_range.side;
+ values[5] = xpp::format("{}", shoot_range.side);
  values[6] = yn[shoot_range.movie];
 
  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,

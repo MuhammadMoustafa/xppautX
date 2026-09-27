@@ -3,7 +3,6 @@
 #include "storage.h"
 #include "form_ode.h"
 #include "integrate.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "xpp_io.h"
@@ -52,7 +51,7 @@ struct FITINFO {
   std::string varlist, collist;
   std::string parlist1, parlist2;
   int dim = 0, npars = 0, nvars = 0, npts = 0, maxiter = 0;
-  int icols[50], ipar[50], ivar[50];
+  std::array<int, 50> icols{}, ipar{}, ivar{};
   double tol = 0.0, eps = 0.0;
 };
 
@@ -303,28 +302,29 @@ if(METHOD==RKQS||METHOD==STIFF){
 void print_fit_info()
 {
   int i;
-  xpp_log(XPP_LOG_INFO, "dim=%d maxiter=%d npts=%d file=%s tol=%g eps=%g\n",
+  xpp::log(XPP_LOG_INFO, "dim={} maxiter={} npts={} file={} tol={:g} eps={:g}\n",
 	 fin.dim,fin.maxiter,fin.npts,fin.file.c_str(),fin.tol,fin.eps);
 
   for(i=0;i<fin.nvars;i++)
-    xpp_log(XPP_LOG_INFO, " variable %d to col %d \n",
+    xpp::log(XPP_LOG_INFO, " variable {} to col {} \n",
 	   fin.ivar[i],fin.icols[i]);
   for(i=0;i<fin.npars;i++)
-    xpp_log(XPP_LOG_INFO, " P[%d]=%d \n",i,fin.ipar[i]);
+    xpp::log(XPP_LOG_INFO, " P[{}]={} \n",i,fin.ipar[i]);
 }
 
 
 void test_fit()
 {
- double a[1000],y0[1000];
+ std::array<double, 1000> a{}, y0{};
  int nvars,npars,i,ok;
- std::string collist=fin.collist,parlist1=fin.parlist1,parlist2=fin.parlist2,varlist=fin.varlist;
  fin.nvars=0;
  fin.npars=0;
  if(get_fit_params()==0)return;
+ /* the lists as the dialog left them: the parsers cut them up in place */
+ std::string collist=fin.collist,parlist1=fin.parlist1,parlist2=fin.parlist2,varlist=fin.varlist;
 
 
- parse_collist(collist.data(),fin.icols,&nvars);
+ parse_collist(collist.data(),fin.icols.data(),&nvars);
  
  if(nvars<=0){
    err_msg("No columns...");
@@ -332,16 +332,16 @@ void test_fit()
  }
  fin.nvars=nvars;
  nvars=0;
- parse_varlist(varlist.data(), fin.ivar, &nvars);
+ parse_varlist(varlist.data(), fin.ivar.data(), &nvars);
 
  if(fin.nvars!=nvars){
    err_msg(" # columns != # fitted variables");
    return;
  }
  npars=0;
- parse_parlist(parlist1.data(),fin.ipar,&npars);
+ parse_parlist(parlist1.data(),fin.ipar.data(),&npars);
 
- parse_parlist(parlist2.data(),fin.ipar,&npars);
+ parse_parlist(parlist2.data(),fin.ipar.data(),&npars);
 
  if(npars<=0){
    err_msg(" No parameters!");
@@ -378,11 +378,11 @@ void test_fit()
   }
 
  print_fit_info();
- xpp_log(XPP_LOG_INFO, " Running the fit...\n");
+ xpp::log(XPP_LOG_INFO, " Running the fit...\n");
  ok=run_fit(fin.file.c_str(), fin.npts,fin.npars,fin.nvars,fin.maxiter,fin.dim,
          fin.eps,fin.tol,
-	 fin.ipar,fin.ivar,fin.icols,
-	 y0,a,yfit);
+	 fin.ipar.data(),fin.ivar.data(),fin.icols.data(),
+	 y0.data(),a.data(),yfit);
 
    if(ok==0)return;
 
@@ -450,7 +450,7 @@ int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, i
 
   }
   reader.close();
-  xpp_log(XPP_LOG_INFO, " Data loaded ... %f %f ...  %f %f \n",
+  xpp::log(XPP_LOG_INFO, " Data loaded ... {:f} {:f} ...  {:f} {:f} \n",
 	 y[0],y[1],y[npts*nvars-2],y[npts*nvars-1]);
 
 
@@ -476,12 +476,12 @@ int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, i
 	       ivar,ipar,covar,alpha,&chisq,&alambda,work,
 	       yderv.data(),yfit,&ochisq,ictrl,eps);
     niter++;
-    xpp_log(XPP_LOG_INFO, " step %d is %d  -- lambda= %g  chisq= %g oldchi= %g\n",
+    xpp::log(XPP_LOG_INFO, " step {} is {}  -- lambda= {:g}  chisq= {:g} oldchi= {:g}\n",
 	   niter,ok,alambda,chisq,ochisq);
-    xpp_log(XPP_LOG_INFO, " params: ");
+    xpp::log(XPP_LOG_INFO, " params: ");
     for(i=0;i<npars;i++)
-      xpp_log(XPP_LOG_INFO, " %g ",a[i]);
-    xpp_log(XPP_LOG_INFO, "\n");
+      xpp::log(XPP_LOG_INFO, " {:g} ",a[i]);
+    xpp::log(XPP_LOG_INFO, "\n");
     if((ok==0)||(niter>=maxiter))break;
     if(ochisq>chisq){
       if(((ochisq-chisq)<tol10)||(((ochisq-chisq)/MAX(1.0,chisq))<tol))
@@ -512,11 +512,11 @@ int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, i
 	       yderv.data(),yfit,&ochisq,ictrl,eps);
   err_msg(" Success! ");
   /* have the covariance matrix -- so what?   */
-  xpp_log(XPP_LOG_INFO, " covariance: \n");
+  xpp::log(XPP_LOG_INFO, " covariance: \n");
   for(i=0;i<npars;i++){
     for(j=0;j<npars;j++)
-      xpp_log(XPP_LOG_INFO, " %g ",covar[i+npars*j]);
-    xpp_log(XPP_LOG_INFO, "\n");
+      xpp::log(XPP_LOG_INFO, " {:g} ",covar[i+npars*j]);
+    xpp::log(XPP_LOG_INFO, "\n");
   }
 
   return(1);
@@ -677,12 +677,12 @@ int get_fit_params()
   values[1] = fin.varlist;
   values[2] = fin.parlist1;
   values[3] = xpp::format("{:g}", fin.tol);
-  values[4] = fin.npts;
-  values[5] = fin.dim;
+  values[4] = xpp::format("{}", fin.npts);
+  values[5] = xpp::format("{}", fin.dim);
   values[6] = fin.collist;
   values[7] = fin.parlist2;
   values[8] = xpp::format("{:g}", fin.eps);
-  values[9] = fin.maxiter;
+  values[9] = xpp::format("{}", fin.maxiter);
   static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,
                             XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER};
   status=do_string_box_of(5,2,"Fit",n,values,45,kinds);
@@ -692,11 +692,11 @@ int get_fit_params()
     fin.dim=atoi(values[5].c_str());
     fin.eps=atof(values[8].c_str());
     fin.maxiter=atoi(values[9].c_str());
-    fin.file=values[0].c_str();
-    fin.varlist=values[1].c_str();
-    fin.parlist1=values[2].c_str();
-    fin.collist=values[6].c_str();
-    fin.parlist2=values[7].c_str();
+    fin.file=values[0];
+    fin.varlist=values[1];
+    fin.parlist1=values[2];
+    fin.collist=values[6];
+    fin.parlist2=values[7];
      return(1);
   }
   return(0);

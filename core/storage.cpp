@@ -1,7 +1,7 @@
 
 #include "storage.h"
 #include "xpp_ui.h"
-#include "xpp_mem.h"
+#include "xpp_mem.h" /* xpp_out_of_memory */
 #include <stdlib.h> 
 #include <stdio.h>
 #include <array>
@@ -21,16 +21,24 @@ extern int METHOD;
 #define SYMPLECT 14
 XPPVEC xpv;
 
+namespace {
+/* the memory behind xpv.x and WORK: the solvers read both through the
+   plain pointers storage.h exports, which point into these */
+std::vector<double> state_vector;
+std::vector<double> work_space;
+}
+
 void init_alloc_info()
 {
   xpv.node=NODE+NMarkov;
   xpv.nvec=0; /* this is just for now */
-  xpp_free(xpv.x); /* called again once the model's options are read */
-  /* xpv.x is a shared raw block (storage.h XPPVEC) read across the
-     numerics code by pointer; it stays xpp_malloc/xpp_free. */
-  xpv.x=static_cast<double *>(xpp_malloc((xpv.nvec+xpv.node)*sizeof(double)));
-  for(int i=xpv.node;i<(xpv.nvec+xpv.node);i++)
-    xpv.x[i]=0.0;
+  /* called again once the model's options are read: a fresh zeroed block */
+  try {
+    state_vector.assign(xpv.nvec+xpv.node,0.0);
+  } catch (const std::bad_alloc &) {
+    xpp_out_of_memory("the state vector");
+  }
+  xpv.x=state_vector.data();
 }
 
 void alloc_meth()
@@ -53,11 +61,12 @@ void alloc_meth()
     sz=12*nn+100+nn*nn;
     break;
   }
-  if(WORK)
-    xpp_free(WORK);
-  /* WORK is the shared scratch block the ODE solvers index directly;
-     it stays xpp_malloc/xpp_free. */
-  WORK=static_cast<double *>(xpp_malloc(sz*sizeof(double)));
+  try {
+    work_space.assign(sz,0.0);
+  } catch (const std::bad_alloc &) {
+    xpp_out_of_memory("the solver's work space");
+  }
+  WORK=work_space.data();
 }
 
 DataStore data_store;
@@ -105,4 +114,23 @@ void DataStore::add_column(int c)
 void DataStore::lend_columns(float **dst, int from, int to) const
 {
   for(int c=from;c<=to;c++)dst[c]=column_table[c];
+}
+
+float **LentColumns::make(int n, int len, int last)
+{
+  try {
+    own_.assign(n,std::vector<float>(len,0.0f));
+  } catch (const std::bad_alloc &) {
+    xpp_out_of_memory("a derived data set's columns");
+  }
+  table_.fill(nullptr);
+  for(int c=0;c<n;c++)table_[c]=own_[c].data();
+  data_store.lend_columns(table_.data(),n,last);
+  return table_.data();
+}
+
+void LentColumns::release()
+{
+  own_.clear();
+  table_.fill(nullptr);
 }

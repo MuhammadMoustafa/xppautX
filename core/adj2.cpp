@@ -2,7 +2,6 @@
 #include "storage.h"
 #include "markov.h"
 #include "odesol2.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "xpp_io.h"
@@ -43,11 +42,15 @@
 extern int FOUR_HERE;
 extern int NODE,INFLAG,NEQ,NJMP,FIX_VAR,NMarkov,nvec;
 extern double TEND;
-extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
-float **my_adj;
 int adj_len;
-float **my_h;
-float *my_liap[2];
+namespace {
+/* the derived data sets this file shows in the browser (storage.h) */
+LentColumns adj_columns, h_columns, trans_columns;
+float **const my_adj=adj_columns.table();
+float **const my_h=h_columns.table();
+/* the maximal Liapunov exponent over a range: the parameter, the exponent */
+std::array<std::vector<float>, 2> my_liap;
+}
 
 
 
@@ -55,8 +58,7 @@ extern char *info_message;
 struct {
   int here,col0,ncol,colskip;
   int row0,nrow,rowskip; 
-  float **data;
-  char firstcol[XPP_NAME_MAX+1];
+  std::array<char, XPP_NAME_MAX+1> firstcol; /* lunch-new.cpp's io_string reads into it */
 } my_trans;
    
 int LIAP_FLAG=0;
@@ -66,8 +68,12 @@ double ADJ_EPS=1.e-8,ADJ_ERR=1.e-3;
 int ADJ_MAXIT=20,ADJ_HERE=0,H_HERE=0,h_len,HODD_EV=0;
 int AdjRange=0;
 extern double DELTA_T,BOUND;
-int *coup_fun[MAXODE];
-char *coup_string[MAXODE];
+namespace {
+/* each equation's coupling for the H function: its formula (io_string's
+   buffer, 80 bytes as ever) and the formula compiled */
+std::vector<std::array<int, 100>> coup_fun;
+std::vector<std::array<char, 80>> coup_string;
+}
 
 extern int *my_ode[];
 extern int NSYM,NSYM_START,NCON,NCON_START;
@@ -76,7 +82,7 @@ extern int NSYM,NSYM_START,NCON,NCON_START;
 void init_trans()
 {
   my_trans.here=0;
-  XPP_STRCPY(my_trans.firstcol,uvar_names[0]);
+  xpp_strlcpy(my_trans.firstcol.data(),uvar_names[0],my_trans.firstcol.size());
   my_trans.ncol=2;
   my_trans.nrow=1;
   my_trans.rowskip=1;
@@ -92,8 +98,8 @@ void dump_transpose_info(FILE *fp, int f)
     if(!reader.next())return;
   }
   else
-    fprintf(fp,"# Transpose variables etc\n");
-  io_string(my_trans.firstcol,sizeof(my_trans.firstcol),fp,f);
+    xpp::print(fp,"# Transpose variables etc\n");
+  io_string(my_trans.firstcol.data(),static_cast<int>(my_trans.firstcol.size()),fp,f);
   io_int(&my_trans.ncol,fp,f,"n columns");
   io_int(&my_trans.nrow,fp,f,"n rows");
   io_int(&my_trans.rowskip,fp,f,"row skip");
@@ -108,7 +114,7 @@ int do_transpose()
  int i,status;
  static const char *n[]={"*0Column 1","NCols","ColSkip","Row 1","NRows","RowSkip"};
  std::array<std::string, 6> values;
- values[0] = my_trans.firstcol;
+ values[0] = my_trans.firstcol.data();
  values[1] = xpp::format("{:d}", my_trans.ncol);
  values[2] = xpp::format("{:d}", my_trans.colskip);
  values[3] = xpp::format("{:d}", my_trans.row0);
@@ -116,8 +122,7 @@ int do_transpose()
  values[5] = xpp::format("{:d}", my_trans.rowskip);
  if(my_trans.here){
    
-   for(i=0;i<=my_trans.nrow;i++)xpp_free(my_trans.data[i]);
-   xpp_free(my_trans.data);
+   trans_columns.release();
    my_trans.here=0;
    data_back();
  }
@@ -133,7 +138,7 @@ int do_transpose()
        err_msg("No such columns");
        return 0;
      }
-   snprintf(my_trans.firstcol,sizeof(my_trans.firstcol),"%.*s",XPP_NAME_MAX,values[0].c_str());
+   xpp_strlcpy(my_trans.firstcol.data(),values[0].c_str(),my_trans.firstcol.size());
    i=atoi(values[4].c_str());
    if(i>=NEQ)i=NEQ-1;
    my_trans.nrow=i;
@@ -152,12 +157,9 @@ int create_transpose()
 {
   int i,j;
   int inrow,incol;
-  my_trans.data=static_cast<float **>(xpp_malloc(sizeof(float *)*(NEQ+1)));
-  for(i=0;i<=my_trans.nrow;i++)
-    my_trans.data[i]=static_cast<float *>(xpp_malloc(sizeof(float)*my_trans.ncol));
-  data_store.lend_columns(my_trans.data,my_trans.nrow+1,NEQ);
+  float **data=trans_columns.make(my_trans.nrow+1,my_trans.ncol,NEQ);
   for(j=0;j<my_trans.ncol;j++)
-    my_trans.data[0][j]=j+1;
+    data[0][j]=j+1;
 
   
   for(i=0;i<my_trans.ncol;i++){
@@ -168,11 +170,11 @@ int create_transpose()
       inrow=my_trans.row0+j*my_trans.rowskip;
       if(inrow>data_store.rows)
 	inrow=data_store.rows;
-      my_trans.data[j+1][i]=data_store.col[incol][inrow];
+      data[j+1][i]=data_store.col[incol][inrow];
     }
   }
   
-  new_browse_dat(my_trans.data,my_trans.ncol);
+  new_browse_dat(data,my_trans.ncol);
    my_trans.here=1;
    return 1;
 }
@@ -180,14 +182,9 @@ int create_transpose()
 
 void alloc_h_stuff()
 {
-  int i;
- for(i=0;i<NODE ;i++){
-   coup_fun[i]=static_cast<int *>(xpp_malloc(100*sizeof(int)));
-   coup_string[i]=static_cast<char *>(xpp_malloc(80));
-   /* coup_string[i] is a pointer (xpp_malloc(80) above), so XPP_STRCPY's
-      sizeof(dst) trick does not apply: pass the real allocation size. */
-   xpp_strlcpy(coup_string[i],"0",80);
- }
+ coup_fun.assign(NODE,{});
+ coup_string.assign(NODE,{});
+ for(auto &s : coup_string)s[0]='0';
 }
  
 
@@ -262,7 +259,7 @@ void adjoint_parameters()
 void new_h_fun(int silent)
 {
 
- int i,n=2;
+ int n=2;
  if(!ADJ_HERE){
    err_msg("Must compute adjoint first!");
    return;
@@ -272,13 +269,7 @@ void new_h_fun(int silent)
      return;
    }
  if(H_HERE){
-   xpp_free(my_h[0]);
-   xpp_free(my_h[1]);
-   if(HODD_EV){
-     xpp_free(my_h[2]);
-     xpp_free(my_h[3]);
-   }
-   xpp_free(my_h);
+   h_columns.release();
    H_HERE=0;
    HODD_EV=0;
  }
@@ -288,9 +279,7 @@ void new_h_fun(int silent)
    }
    h_len=data_store.rows;
    data_back(); 
-   my_h=static_cast<float **>(xpp_malloc(sizeof(float*)*(NEQ+1)));
-   for(i=0;i<n;i++)my_h[i]=static_cast<float *>(xpp_malloc(sizeof(float)*h_len));
-   data_store.lend_columns(my_h,n,NEQ);
+   h_columns.make(n,h_len,NEQ);
    if(make_h(data_store.col,my_adj,my_h,h_len,DELTA_T*NJMP,NODE,silent )){
      H_HERE=1;
      h_back();
@@ -307,9 +296,9 @@ void dump_h_stuff(FILE *fp, int f)
     if(!reader.next())return;
   }
   else
-    fprintf(fp,"# Coupling stuff for H funs\n");
+    xpp::print(fp,"# Coupling stuff for H funs\n");
  for(i=0;i<NODE ;i++)
-   io_string(coup_string[i],79,fp,f);
+   io_string(coup_string[i].data(),79,fp,f);
 
 }
 
@@ -321,14 +310,13 @@ int make_h(float **orb, float **adj, float **h, int nt, double dt, int node, int
  float sum;
  double z;
  int n0=node+1+FIX_VAR,k2,k;
- std::array<char, XPP_NAME_MAX+32> name{};
  if(silent==0){
    for(i=0;i<NODE ;i++){
-     snprintf(name.data(),name.size(),"Coupling for %.*s eqn:",XPP_NAME_MAX,uvar_names[i]);
-     std::string coupling = coup_string[i];
-     new_string_of(name.data(),coupling,XPP_FIELD_EXPRESSION);
-     xpp_strlcpy(coup_string[i],coupling.c_str(),80); /* xpp_malloc(80) above */
-     if(add_expr(coup_string[i],coup_fun[i],&j)){
+     std::string name=xpp::format("Coupling for {} eqn:",static_cast<const char *>(uvar_names[i]));
+     std::string coupling = coup_string[i].data();
+     new_string_of(name.c_str(),coupling,XPP_FIELD_EXPRESSION);
+     xpp_strlcpy(coup_string[i].data(),coupling.c_str(),coup_string[i].size());
+     if(add_expr(coup_string[i].data(),coup_fun[i].data(),&j)){
        err_msg("Illegal formula");
        goto bye;
      }
@@ -351,7 +339,7 @@ int make_h(float **orb, float **adj, float **h, int nt, double dt, int node, int
 
        for(i=0;i<node;i++){
 	
-	 z=evaluate(coup_fun[i]);
+	 z=evaluate(coup_fun[i].data());
 	
 	 sum=sum+static_cast<float>(z)*adj[i+1][k];
        }
@@ -384,17 +372,14 @@ int make_h(float **orb, float **adj, float **h, int nt, double dt, int node, int
 
 void new_adjoint()
 {
- int i,n=NODE +1;
+ int n=NODE +1;
  if(ADJ_HERE){
    data_back();
-   for(i=0;i<n;i++)xpp_free(my_adj[i]);
-   xpp_free(my_adj);
+   adj_columns.release();
    ADJ_HERE=0;
  }
  adj_len=data_store.rows;
- my_adj=static_cast<float **>(xpp_malloc((NEQ+1)*sizeof(float *)));
- for(i=0;i<n;i++)my_adj[i]=static_cast<float *>(xpp_malloc(sizeof(float)*adj_len));
- data_store.lend_columns(my_adj,n,NEQ);
+ adj_columns.make(n,adj_len,NEQ);
  if(adjoint(data_store.col,my_adj,adj_len,DELTA_T*NJMP,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,NODE )){
    ADJ_HERE=1;;
  adj_back();
@@ -484,7 +469,7 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
     fdev[i]=yold[i];
   }
 	
-  xpp_log(XPP_LOG_DEBUG, "%f %f \n",yold[0],yold[1]);
+  xpp::log(XPP_LOG_DEBUG, "{:f} {:f} \n",yold[0],yold[1]);
 
  for(l=0;l<maxit;l++){
 	for(k=0;k<nt-1;k++){
@@ -516,8 +501,8 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
         for(i=0;i<node;i++){ yold[i]=yold[i]/ytemp;
 			     fdev[i]=yold[i];
 			   }
-	xpp_log(XPP_LOG_DEBUG, "%f %f \n",yold[0],yold[1]);
-        xpp_log(XPP_LOG_DEBUG, "err=%f \n",error);
+	xpp::log(XPP_LOG_DEBUG, "{:f} {:f} \n",yold[0],yold[1]);
+        xpp::log(XPP_LOG_DEBUG, "err={:f} \n",error);
 	if(error<minerr)break; /*  exit if error small   */
  }
  /*  onelast time to compute the adjoint  */
@@ -545,7 +530,7 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
 
         	 
 	prod=prod/t;
-  xpp_log(XPP_LOG_INFO, " Multiplying the adjoint by 1/%g to normalize\n",prod);
+  xpp::log(XPP_LOG_INFO, " Multiplying the adjoint by 1/{:g} to normalize\n",prod);
   for(k=0;k<nt;k++){
      for(j=0;j<node;j++)adjnt[j+1][k]=adjnt[j+1][k]/static_cast<float>(prod);
      adjnt[0][k]=orbit[0][k];
@@ -619,15 +604,13 @@ void do_liapunov()
   data_store.rows=LIAP_I;
   refresh_browser(data_store.rows);
   LIAP_FLAG=0;
-  xpp_free(my_liap[0]);
-  xpp_free(my_liap[1]);
+  for(auto &c : my_liap)c.clear();
 }
 
 void alloc_liap(int n)
 {
   if(LIAP_FLAG==0)return;
-  my_liap[0]=static_cast<float *>(xpp_malloc(sizeof(float)*(n+1)));
-  my_liap[1]=static_cast<float *>(xpp_malloc(sizeof(float)*(n+1)));
+  for(auto &c : my_liap)c.assign(n+1,0.0f);
   LIAP_N=(n+1);
   LIAP_I=0;
 }

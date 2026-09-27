@@ -25,6 +25,9 @@ void alloc_meth(void);
 #ifdef __cplusplus
 }
 
+#include <array>
+#include <vector>
+
 /* The data store: the rows a run stores, one float column per quantity
    (column 0 the time, then the variables and auxiliaries: NEQ+1 columns
    in use), read and written as data_store.col[column][row]; and the point
@@ -56,5 +59,23 @@ struct DataStore {
 };
 
 extern DataStore data_store;
+
+/* A derived data set's columns (a histogram, the Fourier modes, the
+   adjoint, its H function, the transposed data): n columns of its own,
+   then the store's columns n..last lent after them (lend_columns), in one
+   table of column pointers the data browser shows (new_browse_dat). The
+   table's address never changes; its own columns are freed by release()
+   or the next make(). */
+class LentColumns {
+public:
+  /* n zeroed columns of len floats, the store's n..last after them; the
+     table */
+  float **make(int n, int len, int last);
+  void release();
+  float **table() noexcept { return table_.data(); }
+private:
+  std::vector<std::vector<float>> own_;
+  std::array<float *, MAXODE + 1> table_{};
+};
 #endif
 #endif

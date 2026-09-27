@@ -20,11 +20,6 @@ extern double variables[];
 extern int NVAR,NODE;
 
 
-/* int MAIN__()
-{
-	return(0);
-}
-*/
 
 void extra(double *y__y, double t, int nod, int neq)
 {
@@ -44,19 +39,6 @@ void extra(double *y__y, double t, int nod, int neq)
   y__y[i]=evaluate(my_ode[i+FIX_VAR-NMarkov]);
 }
 
-/* set_fix_rhs(t,y,neq)
-     int neq;
-     double t,*y;
-{
-  int i;
-  SETVAR(0,t);
-  for(i=0;i<neq;i++)
-    SETVAR(i+1,y[i]);
-  for(i=neq;i<neq+FIX_VAR;i++)
-    SETVAR(i+1,evaluate(my_ode[i]));
-  eval_all_nets();
-  do_in_out(); 
-  } */
 void set_fix_rhs(double t, double *y)
 {
   int i;
@@ -82,11 +64,8 @@ int my_rhs(double t, double *y, double *ydot, int neq)
 
   for(i=NODE;i<NODE+FIX_VAR;i++){
   SETVAR(i+1,evaluate(my_ode[i]));
-  /* plintf("%d %g \n",i+1,GETVAR(i+1)); */
   }
-    /*printf("WTF %g\n",evaluate(my_ode[1]));
-    */
-    eval_all_nets();
+eval_all_nets();
     
     do_daes();
 

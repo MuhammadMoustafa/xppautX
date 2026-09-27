@@ -17,7 +17,6 @@
 #include "integrate.h"
 #include "phsplan.h"
 #include "xpp_batch.h"
-#include "xpp_mem.h"
 
 #include <cmath>
 
@@ -112,19 +111,19 @@ int main(void)
 
     /* 2D histogram of ran(1) (x) against normal(2,3) (y): independent, so
        the row of bins straddling the normal's mean (y=2) should hold more
-       mass than the row in its tail. two_d_hist() writes into the shared
-       my_hist[0..2] without allocating it, so this test owns that
-       allocation (histogram.cpp's own new_2d_hist()/twod_hist() do this
-       through the file-local hist_inf, which this test cannot reach --
-       see the report). */
+       mass than the row in its tail. twod_hist() is new_2d_hist() without
+       its dialog: it reads hist_inf and bins all n stored rows. */
     const int n1 = 5, n2 = 5;
-    xpp_free(my_hist[0]); /* the stacor new_hist()'s allocation above */
-    xpp_free(my_hist[1]);
-    my_hist[0] = static_cast<float *>(xpp_malloc(sizeof(float) * n1 * n2));
-    my_hist[1] = static_cast<float *>(xpp_malloc(sizeof(float) * n1 * n2));
-    my_hist[2] = static_cast<float *>(xpp_malloc(sizeof(float) * n1 * n2));
-    HIST_HERE = 2;
-    two_d_hist(rcol, ncol, n, n1, n2, 0.0, 1.0, -10.0, 14.0);
+    hist_inf.col = rcol;
+    hist_inf.col2 = ncol;
+    hist_inf.nbins = n1;
+    hist_inf.nbins2 = n2;
+    hist_inf.xlo = 0.0;
+    hist_inf.xhi = 1.0;
+    hist_inf.ylo = -10.0;
+    hist_inf.yhi = 14.0;
+    CHECK(twod_hist() == 1);
+    CHECK(HIST_HERE == 2);
     double mid_row = 0, tail_row = 0;
     for (int i = 0; i < n1; i++) {
         mid_row += my_hist[2][i + 2 * n1];  /* y in [-1.6, 3.2): straddles mean 2 */
@@ -134,9 +133,6 @@ int main(void)
     double sum2d = 0;
     for (int k = 0; k < n1 * n2; k++) sum2d += my_hist[2][k];
     CHECK(sum2d > 0.95 && sum2d <= 1.0001); /* nearly all mass inside the box */
-    xpp_free(my_hist[0]);
-    xpp_free(my_hist[1]);
-    xpp_free(my_hist[2]);
 
     TEST_REPORT("stochast rng/histogram/stacor");
 }

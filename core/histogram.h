@@ -1,6 +1,7 @@
 #ifndef _histogram_h_
 #define _histogram_h_
 #ifdef __cplusplus
+#include <string>
 extern "C" {
 #endif
 
@@ -11,6 +12,7 @@ void four_back(void);
 void hist_back(void);
 void new_four(int nmodes, int col);
 int new_2d_hist(void);
+int twod_hist(void);
 void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *condition, int which);
 void column_mean(void);
 int get_col_info(int *col, const char *prompt);
@@ -33,25 +35,26 @@ void just_sd(int flag);
    the last histogram and Fourier transform's columns, whether one exists
    and its length, and the spectrum's settings (the model's own
    @ options set spec_*) */
-extern float *my_hist[];
-extern float *my_four[];
+extern float **my_hist;
+extern float **my_four;
 extern int HIST_HERE, FOUR_HERE, hist_len, four_len;
 extern int spec_col, spec_wid, spec_win, spec_col2, spec_type;
 extern int post_process;
 
+#ifdef __cplusplus
+}
+
 /* the histogram / spectrum settings the dialogs and the model's own
-   @ options edit (load_eqn.cpp's option reader writes cond) */
-typedef struct {
+   @ options edit (load_eqn.cpp's option reader; cond, the histogram's
+   condition, only the Histogram dialog) */
+struct HIST_INFO {
   int nbins,nbins2,type,col,col2,fftc;
   double xlo,xhi;
   double ylo,yhi;
-  char cond[80];
-} HIST_INFO;
+  std::string cond;
+};
 
 extern HIST_INFO hist_inf;
-
-#ifdef __cplusplus
-}
 #endif
 #endif
 

@@ -1,9 +1,11 @@
 #include "torus.h"
 #include "xpp_ui.h"
 #include "xpplim.h"
+#include "phsplan.h" /* uvar_names */
+
+#include <array>
 
 extern int NEQ;
-extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
 extern int TORUS;
 extern double TOR_PERIOD;
 extern int itor[MAXODE];
@@ -34,8 +36,8 @@ void do_torus_com(int c)
 void choose_torus()
 {
  int i;
- char *names[MAXODE];
+ std::array<const char *, MAXODE> names{};
  for(i=0;i<NEQ;i++)names[i]=uvar_names[i];
- xpp_ui.checklist("Fold which",names,itor,NEQ);
+ xpp_ui.checklist("Fold which",names.data(),itor,NEQ);
  for(i=0;i<NEQ;i++)if(itor[i]==1)TORUS=1;
 }

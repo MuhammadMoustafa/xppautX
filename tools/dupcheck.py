@@ -84,8 +84,6 @@ core/graphics.cpp line|keep: see core/graphics.cpp point
 core/graphics.cpp frect|keep: see core/graphics.cpp point
 core/graphics.cpp point_abs|keep: see core/graphics.cpp point
 core/graphics.cpp bead_abs|keep: see core/graphics.cpp point
-core/integrate.cpp range_item|keep: range_item/range_item2 look like a coincidental structural match (same small loop shape, different purpose); verify before merging, no W32a-d card owns integrate.cpp yet
-core/integrate.cpp range_item2|keep: see core/integrate.cpp range_item
 core/json_ani.cpp j_ani_show|same shape, not a duplicate: two-line functions each calling a different pair (flush/out, blank/axes, advance/arm, xpprc/options); nothing to merge (W32c), keep
 core/json_windows.cpp j_reset_graphics|see core/json_ani.cpp j_ani_show
 core/ui_json.cpp script_next|see core/json_ani.cpp j_ani_show
@@ -111,7 +109,6 @@ core/cvdense.cpp *block*|vendored/numerical, keep: see core/cvband.cpp *block*
 core/dormpri.cpp *block*|vendored/numerical, keep: Hairer's dop853/dopri5, two integrators of parallel structure by the original source's own design
 core/dormpri.h *block*|vendored/numerical, keep: see core/dormpri.cpp *block*
 core/eispack.cpp *block*|vendored/numerical, keep: EISPACK, translated Fortran eigenvalue routines
-core/integrate.cpp *block*|keep: integrate.cpp's two similar range-stepping loops (17 lines); no W32a-d card owns integrate.cpp yet
 core/nullcline.cpp *block*|keep: nullcline.cpp's two nullcline-branch blocks (16 lines); no W32a-d card owns nullcline.cpp yet
 
 

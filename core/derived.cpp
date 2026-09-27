@@ -1,6 +1,7 @@
 #include "derived.h"
 #include "xpp_log.h"
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -20,7 +21,7 @@ struct Derived {
   double value = 0.0;
 };
 
-Derived derived[MAXDERIVED];
+std::array<Derived, MAXDERIVED> derived;
 }  // namespace
 
 int nderived = 0;
@@ -30,13 +31,14 @@ It is called only once during the session
 */
 int compile_derived()
 {
-  int f[256], n;
+  std::array<int, 256> f;
+  int n;
   for (int i = 0; i < nderived; i++) {
-    if (add_expr(derived[i].rhs.c_str(), f, &n) == 1) {
-      xpp_log(XPP_LOG_ERROR, " Bad right-hand side for derived parameters \n");
+    if (add_expr(derived[i].rhs.c_str(), f.data(), &n) == 1) {
+      xpp::log(XPP_LOG_ERROR, " Bad right-hand side for derived parameters \n");
       return 1;
     }
-    derived[i].form.assign(f, f + n);
+    derived[i].form.assign(f.begin(), f.begin() + n);
   }
   evaluate_derived();
   return 0;
@@ -58,7 +60,7 @@ void evaluate_derived()
 int add_derived(const char *name, const char *rhs)
 {
   if (nderived >= MAXDERIVED) {
-    xpp_log(XPP_LOG_ERROR, " Too many derived constants! \n");
+    xpp::log(XPP_LOG_ERROR, " Too many derived constants! \n");
     return 1;
   }
   int i0 = nderived;
@@ -66,7 +68,7 @@ int add_derived(const char *name, const char *rhs)
   /* this is the constant to which it addresses */
   derived[i0].index = NCON;
   /* add the name to the recognized symbols */
-  xpp_log(XPP_LOG_INFO, " derived constant[%d] is %s = %s\n", NCON, name, rhs);
+  xpp::log(XPP_LOG_INFO, " derived constant[{}] is {} = {}\n", NCON, name, rhs);
   nderived++;
   return add_con(name, 0.0);
 }

@@ -4,13 +4,12 @@
 
 #include "xpplim.h" /* MAX_TAB, XPP_NAME_MAX */
 #ifdef __cplusplus
-extern "C" {
-#endif
+#include <string>
 
 /* a model's table: file or function values y on [xlo,xhi] step dx (x too
    when xyvals); y is one raw block because simplenet.cpp's networks keep
    pointers into it (weights, indices, delays) */
-typedef struct {
+struct TABULAR {
   double xlo,xhi,dx;
   double *y,*x;
   int n,flag,interp,autoeval;
@@ -20,10 +19,14 @@ typedef struct {
    interp=2 for cubic spline
    and finally, xyvals=1 if both x and y vals are needed (xyvals=0
    is faster lookup) */
-  char filename[128],name[XPP_NAME_MAX+1];
-} TABULAR;
+  std::string filename; /* the file, or a function table's formula */
+  std::string name;
+};
 
 extern TABULAR my_table[MAX_TAB];
+
+extern "C" {
+#endif
 
 
 /* tabular.c */
