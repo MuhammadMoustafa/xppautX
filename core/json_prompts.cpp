@@ -6,7 +6,6 @@
 #include "ui_json_internal.h"
 #include "xpp_inbox.h"
 #include "xpp_job.h"
-#include "xpp_globals.h"
 #include "xpp_util.h"
 #include "menus.h"
 #include "graphics.h"
@@ -14,13 +13,11 @@
 #include "read_dir.h"
 #include "auto_data.h"
 #include "auto_settings.h"
-#include "xpp_files.h"
 #include <array>
 #include <iterator>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-#include "many_pops.h"
 
 /* the core's own globals and functions that have no header of their own */
 extern "C" {

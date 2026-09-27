@@ -1,4 +1,3 @@
-#include "auto_f2c.h"
 #include "auto_c.h"
 
 namespace {

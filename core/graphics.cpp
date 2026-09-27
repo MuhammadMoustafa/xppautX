@@ -10,11 +10,8 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include "struct.h"
 #include "graf_par.h"
-#include "many_pops.h"
 #include "xpp_io.h"
-#include "colormap.h"
 #include "load_eqn.h"
 
 #define MAXPERPLOT 10

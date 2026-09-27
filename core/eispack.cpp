@@ -6,7 +6,6 @@
 /*   this also has the code for finding the Hopf normal form
  */
 
-#include "auto_f2c.h"
 #include "xpp_log.h"
 #include "auto_c.h"
 /* Table of constant values */

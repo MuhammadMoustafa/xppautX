@@ -1,7 +1,6 @@
 /* xpp_io.h first: it pulls in <optional>/<string_view>/<format>, which
    auto_f2c.h's own min/max macros (included transitively below, through
    auto_nox.h) break if they are already defined first. */
-#include "xpp_io.h"
 #include <array>
 #include <deque>
 #include <vector>
@@ -14,11 +13,8 @@
 #include "my_svg.h"
 #include "my_ps.h"
 #include "graphics.h"
-#include "auto_nox.h"
 #include <stdlib.h>
 #include <stdio.h>
-#include "autlim.h"
-#include "load_eqn.h"
 #include "browse.h"
 #include "graf_par.h"
 #include "form_ode.h"

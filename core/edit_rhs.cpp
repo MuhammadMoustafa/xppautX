@@ -1,8 +1,5 @@
 #include "edit_rhs.h"
-#include "xpp_mem.h"
 #include "xpp_ui.h"
-#include "xpp_util.h"
-#include "extra.h"
 #include "parserslow.h"
 #include "browse.h"
 
@@ -11,12 +8,8 @@
 #include <stdio.h>
 #include <math.h>
 
-#include "xpplim.h"
-#include "struct.h"
-#include "shoot.h"
 #include "load_eqn.h"
 #include "form_ode.h"
-#include "xpp_io.h"
 
 #include <algorithm>
 #include <array>

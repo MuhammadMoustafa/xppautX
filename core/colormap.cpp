@@ -2,9 +2,6 @@
    export (which need the RGB values) work without an X display. color.c
    keeps the X colormap allocation and pixel lookup. */
 #include "colormap.h"
-#include "xpp_log.h"
-#include "xpp_globals.h"
-#include "xpp_io.h"
 #include <math.h>
 #include <stdio.h>
 

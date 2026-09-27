@@ -2,12 +2,9 @@
    pictures only the client has (pixels, for frame and GIF writers), the
    kinescope, whose frames the client keeps, and the array plot window. */
 #include "ui_json_internal.h"
-#include "xpp_mem.h"
-#include "xpp_globals.h"
 #include "xpp_util.h"
 #include "graphics.h"
 #include "graf_par.h"
-#include "grobs.h"
 #include "integrate.h"
 #include "nullcline.h"
 #include "browse.h"
@@ -19,14 +16,12 @@
 #include "phase_data.h"
 #include "marks_data.h"
 #include "series_enc.h"
-#include "xpp_io.h"
 #include <array>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include <string>
 #include <vector>
-#include "many_pops.h"
 #include "kinescope.h"
 #include "load_eqn.h"
 

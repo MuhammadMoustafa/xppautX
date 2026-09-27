@@ -5,12 +5,10 @@
 #include <algorithm>
 #include <vector>
 
-#include "eig_list.h"
 #include "gear.h"
 
 #include <math.h>
 #include <stdio.h>
-#include "xpplim.h"
 #include "del_stab.h"
 #include "delay_handle.h"
 

@@ -1,6 +1,5 @@
 #include "histogram.h"
 #include "storage.h"
-#include "markov.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -8,13 +7,11 @@
 #include <string.h>
 #include <array>
 #include <vector>
-#include "xpplim.h"
 
 #include "adj2.h"
 #include "browse.h"
 
 #include "parserslow.h"
-#include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "xpp_ui.h"

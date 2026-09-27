@@ -17,7 +17,6 @@
 #include "phase_data.h"
 #include "json_number.h"
 #include "series_enc.h"
-#include "xpp_globals.h"
 #include "many_pops.h"
 #include "form_ode.h"
 

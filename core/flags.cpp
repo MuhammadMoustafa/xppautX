@@ -2,9 +2,7 @@
 #include "form_ode.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
 
 #include "cv2.h"
 #include "stiff.h"
@@ -19,7 +17,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
-#include "xpplim.h"
 #include "getvar.h"
 #include <array>
 #include <string>

@@ -1,18 +1,13 @@
 #include "xpp_batch.h"
-#include "numerics.h"
 #include "load_eqn.h"
 #include "form_ode.h"
 #include "volterra2.h"
 #include "xpp_log.h"
-#include "xpp_math.h"
 #include "delay_handle.h"
-#include "gear.h"
 #include "markov.h"
 
 #include <stdlib.h> 
-#include "xpplim.h"
 #include "getvar.h"
-#include "volterra.h"
 #include <math.h>
 #include <stdio.h>
 #include "parserslow.h"

@@ -1,5 +1,4 @@
 #include <vector>
-#include "auto_f2c.h"
 #include "auto_c.h"
 #include "xpp_job.h" /* xppautX: cancel */
 

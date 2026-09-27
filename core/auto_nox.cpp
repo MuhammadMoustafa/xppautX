@@ -1,9 +1,7 @@
 #include "integrate.h"
 #include "storage.h"
 #include "form_ode.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -14,34 +12,24 @@
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include <string.h>
-#include "parserslow.h"
 #include "autevd.h"
-#include "run_auto.h"
-#include "auto_nox.h"
 #include "auto_stop.h"
 #include "auto_stability.h"
 #include "csv_export.h"
 #include <libgen.h>
-#include "auto_f2c.h"
-#include "auto_c.h"
 #include "graf_par.h"
 
-#include "load_eqn.h"
 
-#include "read_dir.h"
 #include "pp_shoot.h"
 
 #include "read_dir.h"
 
-#include "kinescope.h"
 
 #include "parserslow.h"
 
 #include "diagram.h"
-#include "many_pops.h"
 #include "browse.h"
 
-#include "menudrive.h"
 #include <stdlib.h> 
 #include <stdio.h>
 #include <math.h>
@@ -51,8 +39,6 @@
 #include "axes2.h"
 #include "graphics.h"
 
-#include "xpplim.h"
-#include "autlim.h"
 #include "xpp_job.h"
 #include "auto_data.h"
 #include "derived.h"   /* evaluate_derived() */

@@ -1,15 +1,12 @@
 /* Headless defaults for the UI seam, plus the dispatchers that keep the
    historical function names working. See xpp_ui.h. */
 #include "xpp_ui.h"
-#include "xpp_globals.h"
 #include "xpp_job.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "many_pops.h"
 #include "xpp_util.h"
 
 

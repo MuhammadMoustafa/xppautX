@@ -1,13 +1,10 @@
 #include <array>
 #include <stdlib.h>
-#include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
 #include "auto_f2c.h" 
 #include "odesol2.h"
 #include "auto_nox.h"
-#include "autlim.h"
 #include "derived.h"
 #include "pp_shoot.h"
-#include "xAuto.h"
 #include "tabular.h"  /* redo_all_fun_tables() */
 #include "gear.h"     /* getjactrans() */
 #include "load_eqn.h"

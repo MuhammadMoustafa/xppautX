@@ -2,10 +2,8 @@
 #include "xpp_ui.h"
 #include "extra.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
 #include "read_dir.h"
 #include "parserslow.h"
-#include "load_eqn.h"
 #include <algorithm>
 #include <array>
 #include <cstdlib>

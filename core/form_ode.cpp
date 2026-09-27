@@ -8,10 +8,7 @@
 
 #include "xpp_util.h"
 #include "form_ode.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
-#include "aniparse.h"
 
 #include "parserslow.h"
 #include "markov.h"
@@ -19,14 +16,12 @@
 #include <unistd.h>
 #include "flags.h"
 
-#include "load_eqn.h"
 #include "dae_fun.h"
 #include "derived.h"
 #include "extra.h"
 #include "browse.h"
 #include "simplenet.h"
 #include "integrate.h"
-#include "newpars.h"
 #include "xpp_ui.h"
 
 #include <stdlib.h>
@@ -35,10 +30,7 @@
 #include <math.h>
 #include <ctype.h>
 
-#include "xpplim.h"
 
-#include "shoot.h"
-#include "newpars.h"
 #include "xpp_batch.h"
 #include "xpp_globals.h"
 #include "comline.h"

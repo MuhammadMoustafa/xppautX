@@ -13,10 +13,8 @@
 
 
 #include <stdio.h>
-#include "xpp_log.h"
 #include <stdlib.h>
 #include "vector.h"
-#include "llnltyps.h"
 #include "llnlmath.h" 
 
 

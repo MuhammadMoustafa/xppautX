@@ -11,10 +11,7 @@
 
 #include "my_ps.h"
 #include "my_svg.h"
-#include "xpplim.h"
-#include "struct.h"
 #include "graphics.h"
-#include "many_pops.h"
 #include "graf_par.h"
 #include "xpp_globals.h"
 #include "xpp_io.h"

@@ -2,8 +2,6 @@
 #include "storage.h"
 #include "read_dir.h"
 #include "xpp_mem.h"
-#include "xpp_log.h"
-#include "xpp_io.h"
 #include "xpp_ui.h"
 
 #include "browse.h"

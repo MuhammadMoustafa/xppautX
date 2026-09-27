@@ -1,12 +1,10 @@
 #include "graf_par.h"
 #include "storage.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
 #include <array>
 #include <string>
 #include <vector>
 #include "arrayplot.h"
-#include "xpp_globals.h"
 #include "marks_data.h"
 
 #include "integrate.h"
@@ -14,25 +12,17 @@
 #include "xpp_util.h"
 #include "menus.h"
 
-#include "menudrive.h"
 
 #include "graphics.h"
 #include <stdlib.h> 
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
-#include "xpplim.h"
-#include "struct.h"
 #include "browse.h"
-#include "mykeydef.h"
-#include "nullcline.h"
-#include "axes2.h"
 #include "my_ps.h"
 #include "my_svg.h"
 #include "load_eqn.h"
 #include <libgen.h>
-#include "xpp_io.h"
-#include "many_pops.h"
 
 /*Default is now color*/
 

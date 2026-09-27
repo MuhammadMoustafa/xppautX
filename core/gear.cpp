@@ -1,12 +1,9 @@
 #include "xpp_ui.h"
-#include "markov.h"
 #include "odesol2.h"
 #include "browse.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "gear.h"
-#include "menudrive.h"
-#include "eig_list.h"
 #include "graphics.h"
 #include "flags.h"
 #include "integrate.h"
@@ -16,8 +13,6 @@
 #include <stdio.h>
 #include <algorithm>
 #include <vector>
-#include "xpplim.h"
-#include "xpp_io.h"
 #include "xpp_globals.h"
 #include "form_ode.h"
 #include "load_eqn.h"

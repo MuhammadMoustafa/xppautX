@@ -5,7 +5,6 @@
 #include "ui_json_internal.h"
 #include "load_eqn.h"
 #include "storage.h"
-#include "xpp_globals.h"
 #include "xpp_util.h"
 #include "graphics.h"
 #include "integrate.h"
@@ -14,7 +13,6 @@
 #include "derived.h"
 #include "form_ode.h"
 #include "parserslow.h"
-#include "shoot.h"
 #include "arrayplot.h"
 #include "xpp_session.h"
 #include "plot_data.h"
@@ -28,7 +26,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-#include "many_pops.h"
 #include "menudrive.h"
 #include "delay_handle.h"
 #include <array>

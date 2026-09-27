@@ -2,11 +2,8 @@
 #include "xpp_batch.h"
 #include "simplenet.h"
 #include "form_ode.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
 
-#include "aniparse.h"
 #include "extra.h"
 #include "markov.h"
 #include "parserslow.h"
@@ -148,7 +145,6 @@ including derived parameters but XPP takes care of this so start at 0
 #define PERIODIC 2
 #define MAXW 50
 #include "delay_handle.h"
-#include "xpp_math.h"
 
 /* simple network stuff */
 

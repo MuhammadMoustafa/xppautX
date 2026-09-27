@@ -1,15 +1,12 @@
 
 #include "dae_fun.h"
-#include "gear.h"
 #include "parserslow.h"
 
 #include <stdlib.h> 
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-#include "xpplim.h"
 #include "getvar.h"
-#include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "xpp_ui.h"

@@ -6,7 +6,6 @@
 
 #include "auto_nox.h"
 #include "auto_stop.h"
-#include "xpp_io.h"
 #include "xpp_log.h"
 
 namespace {

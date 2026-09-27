@@ -16,14 +16,10 @@
 #include "parserslow.h"
 #include "browse.h"
 #include "xpp_ui.h"
-#include "xpp_globals.h"
 #include "integrate.h"
-#include "grobs.h"
 #include <cctype>
-#include "xpplim.h"
 #include <cstring>
 #include <strings.h>
-#include "xpp_io.h"
 #include "load_eqn.h"
 
 /*  The one and only primitive data browser   */

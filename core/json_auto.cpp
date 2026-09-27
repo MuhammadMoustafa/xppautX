@@ -3,14 +3,11 @@
    auto_settings.h). */
 #include "ui_json_internal.h"
 #include "xpp_job.h"
-#include "xpp_globals.h"
 #include "menus.h"
 #include "mykeydef.h"
 #include "diagram.h"
 #include "auto_data.h"
-#include "auto_nox.h"
 #include "auto_settings.h"
-#include "xpp_io.h"
 #include <array>
 #include <climits>
 #include <cmath>

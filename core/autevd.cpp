@@ -4,13 +4,8 @@
 #include <math.h>
 #include <stdio.h>
 
-#include "auto_nox.h"
 #include "diagram.h"
-#include "gear.h"
 
-#include "auto_c.h"
-#include "auto_def2.h"
-#include "autlim.h"
 #include "auto_stability.h"
 #include "xpp_job.h"
 

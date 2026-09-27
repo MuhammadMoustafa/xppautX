@@ -13,10 +13,6 @@
 #include "xpp_log.h"
 #include <stdlib.h>
 #include "cvband.h"
-#include "cvode.h"
-#include "band.h"
-#include "llnltyps.h"
-#include "vector.h"
 #include "llnlmath.h"
 
 

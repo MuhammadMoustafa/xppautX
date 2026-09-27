@@ -17,8 +17,6 @@
 #include <stdlib.h>
 #include <memory>
 #include "cvode.h"
-#include "llnltyps.h"
-#include "vector.h"
 #include "llnlmath.h"
 
 /************************************************************/

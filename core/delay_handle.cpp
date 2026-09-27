@@ -10,7 +10,6 @@
 #include <stdio.h>
 #include <math.h>
 #include <vector>
-#include "xpplim.h"
 #include "getvar.h"
 #include "form_ode.h"
 

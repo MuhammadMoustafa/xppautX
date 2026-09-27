@@ -7,7 +7,6 @@
 #include <array>
 #include <new>
 #include <vector>
-#include "xpplim.h"
 #include "form_ode.h"
 #include "load_eqn.h"
 double *WORK;

@@ -2,14 +2,9 @@
 #include <array>
 #include <memory>
 #include <vector>
-#include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
-#include "auto_f2c.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
-#include "auto_c.h"
 #include "autevd.h" /* xAuto (its own extern) */
 #include "auto_nox.h" /* auto_fort_path() */
-#include "xpp_files.h"
 
 FILE *fp3;
 FILE *fp7;

@@ -3,13 +3,9 @@
 #include "auto_nox.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
-#include "grobs.h"
 #include "xpp_globals.h"
 #include "integrate.h"
 
-#include "load_eqn.h"
-#include "my_rhs.h"
 #include "dormpri.h"
 #include "stiff.h"
 #include "cv2.h"
@@ -35,8 +31,6 @@
 
 #include "pp_shoot.h"
 #include "dae_fun.h"
-#include "load_eqn.h"
-#include "many_pops.h"
 #include "my_ps.h"
 #include "my_svg.h"
 #include "numerics.h"
@@ -44,7 +38,6 @@
 #include <stdlib.h> 
 #include "aniparse.h"
 #include "delay_handle.h"
-#include "load_eqn.h"
 
 /*    this is the main integrator routine  
       for phase-plane  
@@ -74,8 +67,6 @@ NOTE: except for the structure MyGraph, it is "x-free" so it
 #include <string>
 #include <string_view>
 #include <vector>
-#include "xpplim.h"
-#include "struct.h"
 #include "menudrive.h"
 #include "arrayplot.h"
 #include "xpp_job.h"
@@ -83,7 +74,6 @@ NOTE: except for the structure MyGraph, it is "x-free" so it
 #include "xpp_batch.h"
 #include "colormap.h"
 #include "comline.h"
-#include "form_ode.h"
 
 /* a row was just stored (storage[.][storind-1]): a replayed script may stop
    the job here (xpp_job.h), and a front end may show the run growing */

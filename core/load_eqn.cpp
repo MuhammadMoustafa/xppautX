@@ -6,22 +6,16 @@
 #include <string_view>
 #include <utility>
 #include <vector>
-#include "load_eqn.h"
 #include "my_ps.h"
 #include "nullcline.h"
-#include "form_ode.h"
 #include "colormap.h"
-#include "xpp_files.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "markov.h"
-#include "xpp_mem.h"
 #include "parserslow.h"
 
 #include "read_dir.h"
 
-#include "dae_fun.h"
-#include "derived.h"
 #include "extra.h"
 #include "browse.h"
 #include "numerics.h"
@@ -41,11 +35,8 @@
 #include <stdlib.h> 
 #include <string.h>
 #include <stdio.h>
-#include "xpplim.h"
-#include "xpp_io.h"
 #include "xpp_batch.h"
 #include "xpp_log.h"
-#include "many_pops.h"
 #include "graf_par.h"
 #include "xpp_globals.h"
 #include "delay_handle.h"

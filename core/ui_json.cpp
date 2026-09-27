@@ -18,7 +18,6 @@
 #include "xpp_http.h"
 #include "xpp_inbox.h"
 #include "xpp_job.h"
-#include "xpp_globals.h"
 #include "xpp_util.h"
 #include "menus.h"
 #include "mykeydef.h"
@@ -31,7 +30,6 @@
 #include "ani_data.h"
 #include "auto_data.h"
 #include "auto_settings.h"
-#include "xpp_files.h"
 #include <algorithm>
 #include <stdio.h>
 #include <stdlib.h>

@@ -13,11 +13,9 @@
 #include <strings.h>
 
 #include "auto_settings.h"
-#include "auto_nox.h"
 #include "browse.h"
 #include "diagram.h"
 #include "parserslow.h"
-#include "xpp_io.h"
 #include "xpp_util.h"
 #include "form_ode.h"
 

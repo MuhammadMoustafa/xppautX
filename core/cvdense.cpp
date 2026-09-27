@@ -14,10 +14,6 @@
 #include "xpp_log.h"
 #include <stdlib.h>
 #include "cvdense.h"
-#include "cvode.h"
-#include "dense.h"
-#include "llnltyps.h"
-#include "vector.h"
 #include "llnlmath.h"
 
 

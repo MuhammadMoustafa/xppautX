@@ -6,7 +6,6 @@
 #include <array>
 #include <vector>
 #include "xpp_io.h"
-#include "auto_f2c.h"
 #include "auto_c.h"
 
 

@@ -20,9 +20,6 @@
 #include "xpp_window_hint.h"
 #include "xpp_http.h"
 #include "xpp_inbox.h"
-#include "xpp_files.h"
-#include "xpp_io.h"
-#include "xpp_log.h"
 
 #include <cerrno>
 #include <cstdlib>

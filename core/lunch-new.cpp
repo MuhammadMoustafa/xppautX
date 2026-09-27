@@ -1,12 +1,10 @@
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
 #include "lunch-new.h"
 #include "parserslow.h"
 #include "edit_rhs.h"
 #include "browse.h"
-#include "graf_par.h"
 #include "volterra2.h"
 #include "storage.h"
 
@@ -17,17 +15,11 @@
 #include <math.h>
 #include "arrayplot.h"
 #include <time.h>
-#include "xpplim.h"
-#include "struct.h"
-#include "shoot.h"
 #include "load_eqn.h"
 #include "adj2.h"
 #include "integrate.h"
-#include "xpp_batch.h"
-#include "many_pops.h"
 #include "xpp_globals.h"
 #include "delay_handle.h"
-#include "form_ode.h"
 #include <algorithm>
 #include <array>
 #include <memory>

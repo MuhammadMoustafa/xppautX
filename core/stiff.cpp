@@ -1,11 +1,8 @@
 #include <stdlib.h> 
 #include <math.h>
-#include "xpplim.h"
-#include "xpp_math.h"
 #include "odesol2.h"
 #include "stiff.h"
 #include "flags.h"
-#include "gear.h"
 #include "markov.h"
 
 #define STIFF 9

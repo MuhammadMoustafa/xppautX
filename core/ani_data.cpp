@@ -12,7 +12,6 @@
 #include "json_number.h"
 #include "xpp_io.h"
 #include "colormap.h"
-#include "xpp_globals.h"
 
 namespace {
 

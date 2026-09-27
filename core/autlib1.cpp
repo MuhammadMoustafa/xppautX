@@ -1,11 +1,8 @@
 #include <array>
 #include <string>
 #include <vector>
-#include "xpp_io.h"
-#include "auto_f2c.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
-#include "auto_c.h"
 #include "autevd.h"
 #include "auto_stability.h"
 #include "xpp_ui.h" /* err_msg(), byeauto_() */

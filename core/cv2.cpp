@@ -4,18 +4,13 @@
 #include "flags.h"
 #include "my_rhs.h"
 
-#include "llnltyps.h" /* definitions of types real (set to double) and     */
                       /* integer (set to int), and the constant FALSE      */
-#include "cvode.h"    /* prototypes for CVodeMalloc, CVode, and CVodeFree, */
                       /* constants OPT_SIZE, BDF, NEWTON, SV, SUCCESS,     */
                       /* NST, NFE, NSETUPS, NNI, NCFN, NETF                */
 #include "cvdense.h"  /* prototype for CVDense, constant DENSE_NJE         */
 
-#include "vector.h"   /* definitions of type N_Vector and macro N_VIth,    */
                       /* prototypes for N_VNew, N_VFree                    */
-#include "dense.h"    /* definitions of type DenseMat, macro DENSE_ELEM    */
 #include "cvband.h"
-#include "band.h"
 #include "xpp_io.h"
 #include "load_eqn.h"
 #include "numerics.h"

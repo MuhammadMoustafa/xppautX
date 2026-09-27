@@ -2,22 +2,17 @@
    the Text,etc and Makewindow commands. Moved out of many_pops.c (X11);
    the window handling itself stays in the front end. What draw_label draws
    is also reported as data (marks_data.h). */
-#include "grobs.h"
-#include "xpp_globals.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "menus.h"
 #include "graphics.h"
 #include "browse.h"
-#include "graf_par.h"
 #include "marks_data.h"
-#include "xpp_io.h"
 #include <string>
 #include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include "many_pops.h"
 
 namespace {
 

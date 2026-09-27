@@ -9,7 +9,6 @@
 #include "dormpri.h"
 #include "flags.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
 
 /* The integrators' messages (Hairer's fileout stream, which XPP passed as
    stdout) are xpp_log WARNs: the caller's dp_err reports the failure

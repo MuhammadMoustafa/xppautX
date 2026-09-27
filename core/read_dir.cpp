@@ -3,9 +3,6 @@
 #include "read_dir.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
-#include "xpp_files.h"
-#include "load_eqn.h"
 
 #include <unistd.h>
 #include <cerrno>

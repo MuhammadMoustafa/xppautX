@@ -1,6 +1,5 @@
 #include "torus.h"
 #include "xpp_ui.h"
-#include "xpplim.h"
 #include "form_ode.h"
 #include "load_eqn.h"
 

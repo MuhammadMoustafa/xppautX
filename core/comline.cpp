@@ -1,11 +1,6 @@
-#include "xpplim.h"
-#include "form_ode.h"
-#include "xpp_mem.h"
 #include "comline.h"
-#include "load_eqn.h"
 #include "lunch-new.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
 #include <stdlib.h>
 #include <string.h>
 /* command-line stuff for xpp */

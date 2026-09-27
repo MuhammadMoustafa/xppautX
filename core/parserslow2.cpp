@@ -1,12 +1,8 @@
 #include "parserslow.h"
 #include "comline.h"
-#include "form_ode.h"
 #include "volterra2.h"
 #include "delay_handle.h"
-#include "xpp_mem.h"
 #include "xpp_log.h"
-#include "xpp_io.h"
-#include "xpp_math.h"
 
 #include <time.h>
 #include "tabular.h"
@@ -25,7 +21,6 @@
 #include <string_view>
 #include <vector>
 
-#include "xpplim.h"
 #include "getvar.h"
 
 #define DOUB_EPS 2.23E-15 

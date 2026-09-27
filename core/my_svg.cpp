@@ -8,7 +8,6 @@
 #include "xpp_ui.h"
 #include "colormap.h"
 #include "xpp_log.h"
-#include "lunch-new.h"
 #include "graphics.h"
 #include "graf_par.h"
 #include "axes2.h"
@@ -18,7 +17,6 @@
 #include <cstdlib>
 #include <string>
 #include <string_view>
-#include "xpp_io.h"
 #include "xpp_globals.h"
 
 #define RIGHT 2

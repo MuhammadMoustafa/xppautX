@@ -1,8 +1,6 @@
 #include "arrayplot.h"
 #include "storage.h"
-#include "xpp_globals.h"
 #include "xpp_ui.h"
-#include "xpp_util.h"
 #include "array_print.h"
 
 #include <array>
@@ -43,14 +41,10 @@
 
 */
 #include "lunch-new.h"
-#include "load_eqn.h"
 
-#include "xpplim.h"
 #define READEM 1
 #include "browse.h"
-#include "xpp_io.h"
 #include "integrate.h"
-#include "form_ode.h"
 
 /* the core's globals that have no header of their own */
 int aplot_range_count=0;

@@ -2,13 +2,11 @@
 #include "storage.h"
 #include "xpp_util.h"
 #include "xpp_math.h"
-#include "xpp_mem.h"
 #include "pp_shoot.h"
 
 #include "my_rhs.h"
 #include "adj2.h"
 #include "load_eqn.h"
-#include "gear.h"
 
 #include "parserslow.h"
 #include "browse.h"
@@ -22,14 +20,9 @@
 #include <array>
 #include <string>
 #include <vector>
-#include "shoot.h"
-#include "kinescope.h"
 #include <math.h>
-#include "xpplim.h"
 #include "getvar.h"
-#include "xpp_io.h"
 #include "delay_handle.h"
-#include "form_ode.h"
 
 #define ESCAPE 27
 

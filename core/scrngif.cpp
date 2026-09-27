@@ -4,9 +4,7 @@
 #include "scrngif.h"
 #include "xpp_log.h"
 
-#include "aniparse.h"
 
-#include "xpp_ui.h"
 #include <array>
 #include <cstring>
 #include <vector>

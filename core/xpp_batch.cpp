@@ -4,11 +4,8 @@
    libxppcore alone. */
 #include "xpp_batch.h"
 #include "odesol2.h"
-#include "xpp_mem.h"
 #include "xpp_globals.h"
-#include "xpp_ui.h"
 #include "colormap.h"
-#include "load_eqn.h"
 #include "comline.h"
 #include "form_ode.h"
 #include "integrate.h"
@@ -27,7 +24,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "xpp_io.h"
 #include "xpp_log.h"
 #include "graf_par.h"
 

@@ -6,8 +6,6 @@
 #include "xpp_io.h"
 #include "diagram.h"
 #include "autevd.h"
-#include "auto_nox.h"
-#include "auto_settings.h"
 #include "xpp_ui.h"
 #include "form_ode.h"
 #include <string>

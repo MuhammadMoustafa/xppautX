@@ -1,10 +1,7 @@
 #include "odesol2.h"
-#include "xpp_math.h"
-#include "gear.h"
 #include <stdlib.h> 
 #include <stdio.h>
 #include <math.h>
-#include "xpplim.h"
 #include "flags.h"
 #include "markov.h"
 #include "delay_handle.h"

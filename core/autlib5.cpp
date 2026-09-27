@@ -5,8 +5,6 @@
 
 #include <vector>
 #include "xpp_io.h"
-#include "auto_f2c.h"
-#include "auto_c.h"
 #include "autevd.h" /* xAuto (its own extern) */
 
 /* The memory for these are taken care of in main, and setubv for the

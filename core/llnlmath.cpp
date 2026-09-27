@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <math.h>
 #include "llnlmath.h"
-#include "llnltyps.h"
 
 
 #define ZERO RCONST(0.0)

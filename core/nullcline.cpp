@@ -24,13 +24,9 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
-#include "xpplim.h"
-#include "struct.h"
 #include "graphics.h"
 #include "menudrive.h"
-#include "xpp_io.h"
 #include "xpp_batch.h"
-#include "many_pops.h"
 #include "form_ode.h"
 
 #define MAX_NULL 10000
