@@ -1,5 +1,4 @@
 #include "xpp_ui.h"
-#include "phsplan.h"
 #include "xpp_util.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
@@ -27,6 +26,8 @@
 #include "xpp_batch.h"
 #include "many_pops.h"
 #include "xpp_globals.h"
+#include "delay_handle.h"
+#include "form_ode.h"
 #include <algorithm>
 #include <array>
 #include <memory>
@@ -37,17 +38,10 @@
 #define READEM 1
 #define VOLTERRA 6
 
-
-
-
-
 int set_type=0;
 
 /* delay_handle.cpp's and integrate.cpp's (no header declares them yet) */
-extern int DelayFlag,MyStart;
 extern double LastTime;
-
- 
 
 namespace {
 
@@ -176,7 +170,6 @@ void file_inf()
   w.commit();
 }
 
-
 void ps_write_pars(FILE *fp)
 {
   xpp::print(fp,"\n %% {} \n %% Parameters ...\n",this_file);
@@ -213,7 +206,6 @@ void do_info(FILE *fp)
   xpp::print(fp,"\n\n Parameters ...\n");
   put_parameters(fp,"");
 }
-
 
 int read_lunch(FILE *fp)
 {
@@ -266,14 +258,11 @@ void do_lunch(int f) /* f=1 to read and 0 to write */
   w.commit();
 }
 
-
-
 void dump_eqn(FILE *fp)
 {
   xpp::print(fp,"RHS etc ...\n");
   put_equations(fp);
 }
-
 
 void io_numerics(int f, FILE *fp)
 {
@@ -365,7 +354,6 @@ void io_parameter_file(const char *fn,int flag)
   w.commit();
 }
 
-
 void io_ic_file(const char *fn,int flag)
 {
   if(flag!=READEM) return;
@@ -388,8 +376,6 @@ void io_ic_file(const char *fn,int flag)
     err_msg(xpp::format("Found more than {} initial conditions in {}.",NODE,fn).c_str());
 }
 
-
-
 void io_parameters(int f, FILE *fp)
 {
  int i;
@@ -407,7 +393,6 @@ void io_parameters(int f, FILE *fp)
   }
   if(f==READEM) redraw_params();
  }
-
 
 /* A "# ..." heading: skipped on reading a new-style set file, written
    on writing one */
@@ -444,7 +429,6 @@ void io_exprs(int f, FILE *fp)
   }
 }
 
-
  if(f==READEM&&program.interactive){
    xpp_ui.redraw_bcs();
    redraw_ics();
@@ -452,10 +436,6 @@ void io_exprs(int f, FILE *fp)
    redraw_params();
  }
 }
-
-
-
-
 
 void io_graph(int f, FILE *fp)
 {
@@ -556,14 +536,4 @@ void io_string(char *s, int len, FILE *fp, int f)
  else
    xpp::print(fp,"{}\n",s);
 }
-
-
-    
-
-
-
-
-
-
-
 

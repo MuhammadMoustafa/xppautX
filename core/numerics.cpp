@@ -22,14 +22,14 @@
 #include "storage.h"
 #include "delay_handle.h"
 #include "graf_par.h"
-void data_back();
-void new_adjoint();
-extern int NDELAYS;
-extern int RandSeed;
 #include "struct.h"
 #include "xpp_io.h"
 #include "many_pops.h"
 #include "colormap.h"
+#include "flags.h"
+#include "form_ode.h"
+#include "load_eqn.h"
+#include "parserslow.h"
 #define VOLTERRA 6
 #define BACKEUL 7
 #define RKQS 8
@@ -41,49 +41,17 @@ extern int RandSeed;
 #define RB23 13
 #define SYMPLECT 14
 
-extern int NKernel,MyStart,MaxPoints;
-extern int NFlags;
-extern double STOL;
-extern char *info_message;
-extern const char *meth_hint[];
-extern int DelayGrid;
-extern double OmegaMax,AlphaMax;
-extern BROWSER my_browser;
-
 /*   This is numerics.c    
  *   The input is primitive and eventually, I want to make it so
 	that it uses nice windows for input. 
 	For now, I just will let it remain command driven
 */
 
-extern  double DELTA_T,TEND,T0,TRANS,
-	NULL_ERR,EVEC_ERR,NEWT_ERR;
-extern double BOUND,DELAY,TOLER,ATOLER,HMIN,HMAX;
-extern double POIPLN;
-
-extern double BVP_TOL,BVP_EPS;
-
-
-extern int NMESH,NJMP,METHOD;
-extern int EVEC_ITER;
-extern int BVP_MAXIT,BVP_NL,BVP_NR;
-
-extern int POIMAP,POIVAR,POISGN,SOS;
-
- extern int HIST,FOREVER,INFLAG;
-extern int MaxEulIter;
-extern double EulTol;
-
-extern int AutoEvaluate;
-
 int cv_bandflag=0,cv_bandupper=1,cv_bandlower=1;
 
 /*   This is the input for the various functions */
 
 /*   I will need access to storage  */
-
-
-extern int NODE,NEQ; /* as well as the number of odes etc  */
 
 void chk_volterra()
 {
@@ -101,8 +69,6 @@ void quick_num(int com)
   if(com>=0&&com<11)
     get_num_par(key[com]);
 }
-
- 
 
 void set_total(double total)
 {
@@ -129,7 +95,6 @@ void  get_num_par(char ch)
 			    FOREVER=1;
 			    TEND=-TEND;
                           }
-
 
 			flash(0);
 			break;
@@ -314,7 +279,6 @@ void  get_num_par(char ch)
 		}  /* End num switch */
 	   } 
 
-
 void chk_delay()
 {
   if(DELAY>0.0) {
@@ -326,7 +290,6 @@ void chk_delay()
 			  else 
 			    free_delay();
 }
-
 
 void set_delay()
 {
@@ -348,7 +311,6 @@ void ruelle()
    if(plot_windows.current->yshft<0)plot_windows.current->yshft=0;
    if(plot_windows.current->zshft<0)plot_windows.current->zshft=0;
 }
-
 
 void compute_one_period(double period,double *x,const char *name)
 {
@@ -396,12 +358,9 @@ void compute_one_period(double period,double *x,const char *name)
 
   reset_browser();
 
-
   TRANS=ot;
   POIMAP=opm;
   TEND=ote;
-
-
 
 }
 void get_pmap_pars_com(int l)
@@ -415,7 +374,6 @@ void get_pmap_pars_com(int l)
  int i1=POIVAR;
 
  ch=mkey[l];
-
 
  POIMAP=0;
  if(ch=='s')POIMAP=1;
@@ -445,10 +403,6 @@ void get_pmap_pars_com(int l)
 
 }
 
-
-
-
-
 void get_method()
 {
  char ch;
@@ -457,7 +411,6 @@ void get_method()
  for(i=0;i<menu_method.n;i++)
  if(ch==menu_method.keys[i])METHOD=i;
  }
-
 
 void user_set_color_par(int flag,const char *via,double lo,double hi)
 {
@@ -489,8 +442,6 @@ void user_set_color_par(int flag,const char *via,double lo,double hi)
     plot_windows.current->ColorFlag=0;
   
   }
-  
- 
 
 }
  
@@ -509,7 +460,6 @@ void set_col_par_com(int i)
       std::string name=ind_to_sym(plot_windows.current->ColorValue);
       new_string_of("Color via:",name,XPP_FIELD_NAME_IN(0));
       find_variable(name.c_str(),&ivar);
-      
 
       if(ivar>=0)
 	plot_windows.current->ColorValue=ivar;
@@ -520,8 +470,7 @@ void set_col_par_com(int i)
 	return;
       }
     }
-      
-    
+
    /*   This will be uncommented    ..... */
     ch=TwoChoice("(O)ptimize","(C)hoose","Color","oc");
  
@@ -570,8 +519,6 @@ void set_col_par_com(int i)
  }
   
 }
- 
-
 
 void do_meth()
 {
@@ -599,7 +546,4 @@ void do_meth()
   default: solver=rung_kut;
  }
 }
-
-
-
 

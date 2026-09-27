@@ -10,6 +10,7 @@
 #include "scrngif.h"
 #include "my_rhs.h"
 #include "pop_list.h" /* NODE, NMarkov */
+#include "form_ode.h"
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -19,9 +20,6 @@
 
 /* the core's own globals and functions that have no header of their own */
 extern "C" {
-extern BROWSER my_browser;
-extern MPEG_SAVE mpeg;
-extern int n_anicom, ani_speed, ani_speed_inc, ani_grab_flag;
 }
 
 namespace xpp::json {

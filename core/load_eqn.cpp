@@ -51,20 +51,16 @@
 #include "many_pops.h"
 #include "graf_par.h"
 #include "xpp_globals.h"
+#include "delay_handle.h"
 
 #define PARAM 1
 #define IC 2
-
 
 #define DFNORMAL 1
 #define MAXOPT 1000
 #define READEM 1
 
 OptionsSet notAlreadySet;
-
-
-
-
 
 namespace {
 
@@ -123,10 +119,6 @@ std::array<std::string,MAX_INTERN_SET> intern_name,intern_does;
 int RunImmediately=0;
 std::array<XppSlider,XPP_NSLIDERS> sliders;
 
-
-
-
-
 extern int StableManifoldColor,UnstableManifoldColor; /* gear.cpp's, in no header */
 int IX_PLT[10],IY_PLT[10],IZ_PLT[10],NPltV;
 int MultiWin=0;
@@ -135,8 +127,6 @@ int START_LINE_TYPE=1;
 INTERN_SET intern_set[MAX_INTERN_SET];
 int Nintern_set=0;
 
-
-extern int del_stab_flag;
 /*void set_option(char *s1,const char *s2);
 */
 
@@ -146,7 +136,6 @@ extern int del_stab_flag;
  */
 
  double last_ic[MAXODE];
-
 
 extern int SEc,UEc,SPc,UPc;
 
@@ -179,7 +168,6 @@ extern int SEc,UEc,SPc,UPc;
 
  int MaxEulIter;
 double EulTol;
-extern int cv_bandflag,cv_bandupper,cv_bandlower;
  int NMESH,NJMP,METHOD;
  int EVEC_ITER;
  int BVP_MAXIT,BVP_FLAG;
@@ -192,10 +180,7 @@ extern int cv_bandflag,cv_bandupper,cv_bandlower;
 
  int PAUSER,ENDSING,SHOOT,PAR_FOL;
 
-
 /*  custon color stuff  */
-
-
 
 /* AUTO STUFF  */
 extern int auto_ntst,auto_nmx,auto_npr,auto_ncol;
@@ -205,10 +190,7 @@ extern double auto_epss,auto_epsl,auto_epsu;
 extern int auto_var;
 extern double auto_xmin,auto_xmax,auto_ymin,auto_ymax;
 
-
  int xorfix,silent,got_file;
-
-   
 
 void dump_torus(FILE *fp, int f)
 {
@@ -226,7 +208,6 @@ void dump_torus(FILE *fp, int f)
       io_int(&itor[i],fp,f,uvar_names[i]);
   }
 }
-
 
 void load_eqn()
 {
@@ -303,9 +284,7 @@ void set_all_vals()
  data_store.rows=0;
  mov_ind=0;
 
-
  STORFLAG=0;
-
 
  INFLAG=0;
  oldhp_x=-100000.0 ;
@@ -358,11 +337,9 @@ void set_all_vals()
  }
  /* internal options go here  */
  set_internopts(NULL);
- 
 
  if(xpp::UniqueFile fp=xpp::open_read(options_file.c_str()))
   read_defaults(fp.get());
-
 
  init_range();
  init_trans();
@@ -413,10 +390,8 @@ if(MY_YLO>=MY_YHI){
  alloc_v_memory();  /* allocate stuff for volterra equations */
  alloc_meth();
  arr_ic_start(); /* take care of all predefined array ics */
- 
 
 }
-
 
 void read_defaults(FILE *fp)
 {
@@ -454,7 +429,6 @@ void read_defaults(FILE *fp)
  if (notAlreadySet.YLO){fil_flt(fp,&MY_YLO);notAlreadySet.YLO=0;};
  if (notAlreadySet.YHI){fil_flt(fp,&MY_YHI);notAlreadySet.YHI=0;};
 
- 
 }
 
 void fil_flt(FILE *fpt, double *val)
@@ -467,14 +441,10 @@ void fil_int(FILE *fpt, int *val)
  *val=atoi(read_line(fpt).c_str());
 }
 
-
-
 /* here is some new code for internal set files:
    format of the file is a long string of the form:
    { x=y, z=w, q=p , .... }
 */
-
-
 
 void add_intern_set(const char *name, const char *does)
 {
@@ -498,7 +468,6 @@ void add_intern_set(const char *name, const char *does)
 	 intern_set[j].name,intern_set[j].does);
   Nintern_set++;
 }
-
 
 void extract_action(const char *ptr)
 {
@@ -586,7 +555,6 @@ void set_internopts_xpprc_and_comline()
   interopt.clear();
 }
 
-
 void check_for_xpprc()
 {
   const char *home=getenv("HOME");
@@ -599,7 +567,6 @@ void check_for_xpprc()
   }
 }
 
-
 void stor_internopts(const char *s1)
 {
   if(interopt.size()>=MAXOPT){
@@ -608,8 +575,6 @@ void stor_internopts(const char *s1)
   }
   interopt.emplace_back(s1);
 }
-
-
 
 void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
 {
@@ -714,8 +679,6 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
     return;
   }
 
-
-
   if(msc("PLOTFMT",s1)){
     if ((notAlreadySet.PLOTFORMAT||force) || ((mask!=NULL)&&(mask->PLOTFORMAT==1)))
     {
@@ -724,8 +687,6 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
     }
     return;
   }
-
-  
 
   if(msc("BACKIMAGE",s1)){
     if ((notAlreadySet.UserBGBitmap||force) || ((mask!=NULL)&&(mask->UserBGBitmap==1)))
@@ -1338,8 +1299,6 @@ if(msc(yyl.c_str(),s1)){
      }
    return;
  }
-  
- 
 
  if(msc("RANGEOVER",s1)){
      if ((notAlreadySet.RANGEOVER||force)|| ((mask!=NULL)&&(mask->RANGEOVER==1)))
@@ -1411,8 +1370,7 @@ if(msc(yyl.c_str(),s1)){
      }
       return;
  }
- 
-   
+
  if(msc("RANGE",s1)){
      if ((notAlreadySet.RANGE||force)|| ((mask!=NULL)&&(mask->RANGE==1)))
      {
@@ -1454,7 +1412,6 @@ if(msc("NPR",s1)){
    }
    return;
  }
-
 
 if(msc("DSMIN",s1)){
    if ((notAlreadySet.DSMIN||force)|| ((mask!=NULL)&&(mask->DSMIN==1)))
@@ -1845,7 +1802,6 @@ if(msc("SLO2",s1)){
     return;
   }
 
-
  if(msc("SPECCOL",s1)){
      if ((notAlreadySet.SPECCOL||force) || ((mask!=NULL)&&(mask->SPECCOL==1)))
      {
@@ -1883,7 +1839,6 @@ if(msc("SLO2",s1)){
      }
     return;
   }
-
 
   if(msc("DFGRID",s1)){
      if ((notAlreadySet.DFGRID||force)|| ((mask!=NULL)&&(mask->DFGRID==1)))
@@ -1943,8 +1898,4 @@ if(msc("SLO2",s1)){
 xpp_log(XPP_LOG_WARN, "Option %s not recognized\n",s1);
   
 }
-
-
-
-
 

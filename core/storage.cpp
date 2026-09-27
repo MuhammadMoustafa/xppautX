@@ -8,10 +8,10 @@
 #include <new>
 #include <vector>
 #include "xpplim.h"
+#include "form_ode.h"
+#include "load_eqn.h"
 double *WORK;
 int IWORK[10000];
-extern int NODE,NMarkov;
-extern int METHOD;
 
 #define BACKEUL 7
 #define VOLTERRA 6

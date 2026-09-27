@@ -12,7 +12,6 @@
 #include "xpp_log.h"
 #include "xpp_io.h"
 
-
 /* The integrators' messages (Hairer's fileout stream, which XPP passed as
    stdout) are xpp_log WARNs: the caller's dp_err reports the failure
    itself; the stdout of --server is the protocol. */
@@ -22,8 +21,6 @@ static unsigned  nrds, *indir;
 static double    *yy1, *k1, *k2, *k3, *k4, *k5, *k6, *k7, *k8, *k9, *k10,*ysti;
 static double    *rcont1, *rcont2, *rcont3, *rcont4;
 static double    *rcont5, *rcont6, *rcont7, *rcont8;
-
-extern int NFlags;
 
 void dprhs(unsigned n, double t, double *y, double *f)
 {
@@ -83,28 +80,17 @@ int dormprin(int *istart, double *y, double *t, int n, double tout, double *tol,
   return(-1);
 }
 
-
-
-
-
-
-
-
-
-
 static double min_d (double a, double b)
 {
   return (a < b)?a:b;
 
 } /* min_d */
 
-
 static double max_d (double a, double b)
 {
   return (a > b)?a:b;
 
 } /* max_d */
-
 
 static double hinit (unsigned n, FcnEqDiff fcn, double x, double* y,
 	      double posneg, double* f0, double* f1, double* yy1, int iord,
@@ -179,7 +165,6 @@ static double hinit (unsigned n, FcnEqDiff fcn, double x, double* y,
   return xpp_sign (h, posneg);
 
 } /* hinit */
-
 
 /* core integrator */
 static int dopcor (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
@@ -867,16 +852,11 @@ int dop853
   k9 = k8+n;
   k10 = k9+n;
 
-
-  
     idid = dopcor (n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler,
 		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont);
     return idid;
-  
 
 } /* dop853 */
-
-
 
 /************    dopri5  ***************************/
 static double hinit5 (unsigned n, FcnEqDiff fcn, double x, double* y,
@@ -952,7 +932,6 @@ static double hinit5 (unsigned n, FcnEqDiff fcn, double x, double* y,
   return xpp_sign (h, posneg);
 
 } /* hinit */
-
 
 /* core integrator */
 static int dopcor5 (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
@@ -1238,8 +1217,6 @@ static int dopcor5 (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 
 } /* dopcor5 */
 
-
-
 /* front-end */
 int dopri5
  (unsigned n, FcnEqDiff fcn, double x, double* y, double xend, double* rtoler,
@@ -1316,8 +1293,6 @@ int dopri5
       indir = indir_buf.data();
     }
 
-
-
     /* control of length of icont */
     if (nrdens == n)
     {
@@ -1391,22 +1366,10 @@ int dopri5
   k6 = k5+n;
   ysti = k6+n;
 
-
     idid = dopcor5 (n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler,
 		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont);
 
     return idid;
 
-
 } /* dopri5 */
-
-
-
-
-
-
-
-
-
-
 

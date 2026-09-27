@@ -19,7 +19,6 @@
 #include <string>
 #include <vector>
 
-
 /*********************************************************
      This is code for read-in tables in XPP  
      This should probably be accessible from within the program
@@ -46,7 +45,6 @@
     x2 y2 
      ...
     xn yn
-  
 
   In the creation of the file, one can instead use the following:
   
@@ -71,7 +69,6 @@
  ...
  f(x1,ym), ..., f(xn,ym)
 
-
 to be added later
 **************************************************************/
 
@@ -79,11 +76,6 @@ to be added later
 #include <stdio.h>
 
 TABULAR my_table[MAX_TAB];
-
-extern char cur_dir[];
-extern int NTable;
-
-extern int NCON,NSYM,NCON_START,NSYM_START;
 
 namespace {
 /* table index's values y to length doubles, keeping what it holds (what
@@ -126,7 +118,6 @@ void new_lookup_com(int i)
  double xlo,xhi;
  int npts;
 
-
   index=select_table();
   if(index==-1)return;
   if(i==1){
@@ -157,8 +148,7 @@ void new_lookup_com(int i)
    }
 
 }
-    
-   
+
 double lookupxy(double x, int n, double *xv, double *yv)
 {
   double dx,dy,x1,y1,x2,y2;
@@ -228,12 +218,10 @@ double lookup(double x, int index)
   }
   if(i1<0)return(y[0]+(y[1]-y[0])*(x-xlo)/dx);
   if(i2>=n)return(y[n-1]+(y[n-1]-y[n-2])*(x-xhi)/dx);
-  
-  
+
   return(0.0);
 }
-  
- 
+
 void init_table()
 {
   int i;
@@ -279,8 +267,7 @@ int eval_fun_table(int n, double xlo, double xhi, const char *formula, double *y
   NSYM=nsym;
   return(1);
 }
- 
- 
+
 int create_fun_table(int npts, double xlo, double xhi, const char *formula, int index)
 {
   int length=npts;
@@ -309,10 +296,6 @@ int create_fun_table(int npts, double xlo, double xhi, const char *formula, int 
   }
    return(0);
 }
-
-
-
-
 
 int load_table(const char *filename, int index)
 {
@@ -414,7 +397,6 @@ int get_lookup_len(int i)
 {
   return my_table[i].n;
 }
-
 
 /*   network stuff  
      

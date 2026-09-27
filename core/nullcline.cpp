@@ -32,15 +32,9 @@
 #include "xpp_io.h"
 #include "xpp_batch.h"
 #include "many_pops.h"
-
+#include "form_ode.h"
 
 #define MAX_NULL 10000
-
-extern int SuppressBounds;
-extern int STORFLAG;
-extern double last_ic[MAXODE];
-extern int NULL_HERE;
-extern int NODE,NMarkov,FIX_VAR,NEQ;
 
 int NCSuppress=0;
 int DFSuppress=0;
@@ -512,7 +506,6 @@ void froz_cline_stuff_com(int i)
   }
 }
 
-
 void silent_dfields()
 {
   if(DFBatch==5 ||DFBatch==4){
@@ -571,7 +564,6 @@ int get_nullcline_floats(float **v,int *n,int who,int type) /* type=0,1 */
 }
 
 /*  all the nifty 2D stuff here    */
-
 
 void do_batch_nclines()
 {
@@ -726,7 +718,6 @@ void direct_field_com(int c)
    clear - delete all but the current set
    animate - replay all frozen ones (not current set )
    */
-
 
 void restore_nullclines()
 {

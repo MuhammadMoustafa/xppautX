@@ -5,7 +5,6 @@ extern "C" {
 #endif
 
 void do_movie_com(int c);
-int film_clip(void);
 
 /* The kinescope's Autoplay: how many times it runs the film, how fast */
 typedef struct {
@@ -18,5 +17,4 @@ extern XppMovieAutoPlay movie_autoplay;
 }
 #endif
 #endif
-
 

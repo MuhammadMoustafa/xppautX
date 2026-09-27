@@ -12,15 +12,16 @@
 #include <stdio.h>
 #include "xpplim.h"
 #include "del_stab.h"
+#include "delay_handle.h"
 
 #define Z(a,b) z[(a)+n*(b)]
 /* this code takes the determinant of a complex valued matrix
 */
 
-extern double variable_shift[2][MAXODE],AlphaMax,OmegaMax;
+extern double variable_shift[2][MAXODE];
 
 extern double delay_list[MAXDELAY];
-extern int NDelay,del_stab_flag,WhichDelay,DelayGrid;
+extern int NDelay,WhichDelay;
 
 /*typedef struct{
   double r,i;
@@ -128,10 +129,6 @@ if(i==0&&okroot==1&&AlphaMax>0)
  del_stab_flag=1;
  if(okroot==1)*stabinfo=AlphaMax;
 }
-
-
-
-
 
 COMPLEX cdif(COMPLEX z, COMPLEX w)
 {
@@ -449,19 +446,4 @@ int plot_args(double *coef, double *delay, int n, int m, int npts, double almax,
   }
   return sign;
 }
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

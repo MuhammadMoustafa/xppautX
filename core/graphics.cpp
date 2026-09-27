@@ -15,8 +15,7 @@
 #include "many_pops.h"
 #include "xpp_io.h"
 #include "colormap.h"
-
-
+#include "load_eqn.h"
 
 #define MAXPERPLOT 10
 #define DEGTORAD .0174532
@@ -25,25 +24,11 @@
 #define SYMSIZE .00175
 
 double THETA0=45,PHI0=45;
-extern double x_3d[2],y_3d[2],z_3d[2];
-extern int IXPLT,IYPLT,IZPLT;
-extern int AXES,TIMPLOT,PLOT_3D;
-extern int START_LINE_TYPE;
-extern double MY_XLO,MY_YLO,MY_XHI,MY_YHI;
-extern int colorline[]; 
-extern int PltFmtFlag;
-extern unsigned int GrFore,GrBack;
-extern int SCALEX,SCALEY,xor_flag;
+extern int SCALEX,SCALEY;
 
 int PS_Port=0;
 int D_FLAG;
 int PointRadius=0;
-
-
-
-extern int IX_PLT[10],IY_PLT[10],IZ_PLT[10],NPltV;
-extern double X_LO[10],Y_LO[10],X_HI[10],Y_HI[10];
-extern int MultiWin;
 
 /*  This is an improved graphics driver for XPP  
     It requires only a few commands
@@ -54,7 +39,6 @@ extern int MultiWin;
     put_text(x1,y,text)  Draws text with TextAngle, Justify
     init_device()     Sets up the default for tics, plotting area,
                       and anything else 
-                      
 
     close_device()  closes files, etc
 
@@ -66,10 +50,8 @@ extern int MultiWin;
  
     linetypes   -2  thick plain lines
                 -1  thin plain lines
-                   
-    
-*/
 
+*/
 
 int DLeft,DRight,DTop,DBottom,VTic,HTic,VChar,HChar,XDMax,YDMax;
 double XMin,YMin,XMax,YMax;
@@ -90,7 +72,6 @@ void set_scale(double x1, double y1, double x2, double y2)
   XMax=x2;
   YMax=y2;
 }
-
 
 /* SLUGGISH??? */
 
@@ -136,13 +117,11 @@ void get_draw_area_flag(int flag)
  set_normal_scale();
 }
 
-
 void change_current_linestyle(int newstyle, int *old)
 {
  *old=plot_windows.current->color[0];
   plot_windows.current->color[0]=newstyle;
 }
-     
 
 void set_normal_scale()
 {
@@ -189,7 +168,6 @@ void put_text(int x, int y, const char *str)
   else xpp_ui.draw_text(x,y,str);
 }
 
-
 void init_x11()
 {
  get_draw_area();
@@ -222,7 +200,6 @@ void init_ps()
  DTop=YDMax-1-VChar*7/2;
  DBottom=VChar*5/2+1;
 
-
     }
 
 }
@@ -248,10 +225,6 @@ void set_linestyle(int ls)
   else xpp_ui.draw_linestyle(ls);
 }
 
-  
-      
-      
-    
 void scale_dxdy(float x, float y, double *i, double *j)
 {
   float dx=(DRight-DLeft)/(XMax-XMin);
@@ -282,7 +255,6 @@ void scale_to_real(int i, int j, float *x, float *y)  /* Not needed except for X
   
  }
 
-
 void reset_all_line_type()
 {
 	int j,k;
@@ -296,7 +268,6 @@ void reset_all_line_type()
 
 }
 
-
 void init_all_graph()
 {
  int i;
@@ -306,7 +277,6 @@ void init_all_graph()
  /*set_extra_graphs();*/
  set_normal_scale();
 
- 
 }
 
 void set_extra_graphs()
@@ -374,7 +344,6 @@ void reset_graph()
     set_normal_scale();
     xpp_ui.redraw_graph();
 }
-
 
 void get_graph()
 {
@@ -470,8 +439,6 @@ void init_graph(int i)
     
   }
 
-
-
 void copy_graph(int i, int l)  /*  Graph[i]=Graph[l]  */
 {
  int j,k;
@@ -528,9 +495,6 @@ void copy_graph(int i, int l)  /*  Graph[i]=Graph[l]  */
     plot_windows.graph[i].oldyhi=plot_windows.graph[l].oldyhi;
   }
 
-
-
-
 void make_rot(double theta, double phi)
 {
  double ct=cos(DEGTORAD*theta),st=sin(DEGTORAD*theta);
@@ -555,7 +519,6 @@ void scale3d(float x, float y, float z, float *xp, float *yp, float *zp)
  *zp=(z-plot_windows.current->zbar)*plot_windows.current->dz;
 }
 
-
 int threedproj(float x2p, float y2p, float z2p, float *xp, float *yp)
 {
   float x1p,y1p,z1p,s;
@@ -576,16 +539,11 @@ int threedproj(float x2p, float y2p, float z2p, float *xp, float *yp)
   return(1);
 }
 
-
 void text3d(float x, float y, float z, const char *s)
 {
  float xp,yp;
 if(threedproj(x,y,z,&xp,&yp)) text_abs(xp,yp,s);
 }
-
-
-
-
 
 int threed_proj(float x, float y, float z, float *xp, float *yp)
 {
@@ -626,9 +584,6 @@ void line3dn(float xs1, float ys1, float zs1, float xsp1, float ysp1, float zsp1
      line_nabs(xs,ys,xsp,ysp);
  }
 
-
-
-
 void line3d(float x01, float y01, float z01, float x02, float y02, float z02)  /* unscaled version     */
 {
  float xs,ys,zs;
@@ -642,9 +597,6 @@ if(!clip3d(x01,y01,z01,x02,y02,z02,&xs1,&ys1,&zs1,&xsp1,&ysp1,&zsp1))return;
  else
      line_abs(xs,ys,xsp,ysp);
  }
-
-
-
 
 void line_3d(float x, float y, float z, float xp, float yp, float zp)
 {
@@ -707,10 +659,6 @@ void pers_line(float x, float y, float z, float xp, float yp, float zp)
  line_abs(x,y,xp,yp);
 }
 
-
-
-
-
 void rot_3dvec(float x, float y, float z, float *xp, float *yp, float *zp)
 {
  int i,j;
@@ -729,13 +677,6 @@ void rot_3dvec(float x, float y, float z, float *xp, float *yp, float *zp)
 
 }
 
-
-
-
-
-
-
-
 void point_abs(float x1, float y1)
 {
   int xp,yp;
@@ -751,9 +692,6 @@ void point_abs(float x1, float y1)
 
 void line_nabs(float x1_out, float y1_out, float x2_out, float y2_out)
 {
-  
-  
-  
 
   int xp1,yp1,xp2,yp2;
 
@@ -790,8 +728,6 @@ void frect_abs(float x1, float y1, float w, float h)
 void line_abs(float x1, float y1, float x2, float y2)
 {
   float x1_out,y1_out,x2_out,y2_out;
-
-
 
   int xp1,yp1,xp2,yp2;
   if(clip(x1,x2,y1,y2,&x1_out,&y1_out,&x2_out,&y2_out)){
@@ -861,10 +797,6 @@ void fancy_text_abs(float x, float y, const char *old, int size, int font)
 /* fancy_put_text_x11(xp,yp,text,size,font); */
     
 }
-
-
-
-
 
 int clip3d(float x1, float y1, float z1, float x2, float y2, float z2, float *x1p, float *y1p, float *z1p, float *x2p, float *y2p, float *z2p)
 {
@@ -987,7 +919,6 @@ C4:
  return(iflag);
 }
 
-
 /************************************************************ *
 *  Clipping algorithm                                         *
 *   on input,                                                 *
@@ -1068,8 +999,6 @@ C4:
   return(iflag);
 }
 
-
-
 void eq_symb(double *x, int type)
 {
 
@@ -1139,31 +1068,4 @@ void draw_symbol(float x, float y, float size, int my_symb)
    }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	
-   
-
-
-
 

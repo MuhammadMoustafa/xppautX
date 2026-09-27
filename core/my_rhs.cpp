@@ -7,19 +7,9 @@
 #include "shoot.h"
 #include "getvar.h"
 #include "simplenet.h"
+#include "form_ode.h"
 
 /* #define Set_ivar(a,b) variables[(a)]=(b) */
-
-
-
-extern BC_STRUCT my_bc[MAXODE];
-extern int FIX_VAR,NMarkov,PrimeStart;
-extern int *my_ode[];
-
-extern double variables[];
-extern int NVAR,NODE;
-
-
 
 void extra(double *y__y, double t, int nod, int neq)
 {
@@ -53,7 +43,6 @@ void set_fix_rhs(double t, double *y)
 
   do_in_out(); 
 }
-
 
 int my_rhs(double t, double *y, double *ydot, int neq)
 {
@@ -108,9 +97,7 @@ void rhs_only(double *y,double *ydot)
 void vec_rhs(double t, double *y, double *ydot, int neq)
 {
 
-
 }
-
 
 /***    
     This is the order in which quantities are evaluated
@@ -126,6 +113,4 @@ For Auxilliary stuff
 external C code is not evaluated but fixed are
 
 ***/
-
-
 

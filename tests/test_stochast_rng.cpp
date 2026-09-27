@@ -15,11 +15,9 @@
 #include "graphics.h"
 #include "histogram.h"
 #include "integrate.h"
-#include "phsplan.h"
 #include "xpp_batch.h"
 
 #include <cmath>
-
 
 namespace {
 

@@ -47,8 +47,6 @@
 #include "browse.h"
 #include "pop_list.h"
 
-
-
 #include "menudrive.h"
 #include <stdlib.h> 
 #include <stdio.h>
@@ -66,7 +64,8 @@
 #include "derived.h"   /* evaluate_derived() */
 #include "tabular.h"   /* redo_all_fun_tables() */
 #include "my_rhs.h"    /* extra() */
-
+#include "menus.h"
+#include "my_ps.h"
 
 #define PARAM_BOX 1
 
@@ -117,23 +116,11 @@ int TypeOfCalc=0;
 /* the label the running continuation started from (Auto.irs), for its
    first point: do_auto sets it, addbif takes it (auto_run_from_take) */
 static int run_from;
-extern int leng[MAXODE];
-extern double TOR_PERIOD;
-extern double constants[];
-extern int PointType;
-extern int xorfix;
-extern int NoBreakLine;
-extern const char *auto_hint[],*aaxes_hint[],*afile_hint[],*arun_hint[],*no_hint[];
-extern int BVP_FLAG;
 
 extern int fp8_is_open;
-extern FILE *fp8;
-
 
 /*extern char *strdup(const char *s);
 */
-
-extern int FLOWK;
 
 namespace {
 /* the diagram's marked stretch (the S and E keys in the Grab loop): the
@@ -182,8 +169,6 @@ int load_all_labeled_orbits=0;
 
 int SuppressBP=0;
 ROTCHK blrtn;
-  
-
 
 /* gogoauto.c and diagram.cpp declare these in no header */
 extern "C" int go_go_auto(void);
@@ -191,22 +176,14 @@ extern "C" void load_browser_with_branch(int ibr, int pts, int pte);
 
 GRABPT grabpt;
 
-
 int AutoTwoParam=0;
 int NAutoPar=8;
 int Auto_index_to_array[8];
 int AutoPar[8];
 
-
-extern unsigned int MyBackColor,MyForeColor,GrFore,GrBack;
-
-
 double outperiod[20];
 integer UzrPar[20];
 int NAutoUzr;
-
-
-extern char this_file[XPP_MAX_NAME]; /* comline.cpp's, in no header */
 
 std::string this_auto_file;
 /* AUTO's unit files under its folder (open_auto): fort.3 the restart
@@ -215,9 +192,7 @@ namespace {
 std::string fort3,fort7,fort8,fort9;
 }
 
-extern int NUPAR;
 unsigned int DONT_XORCross=0;
-
 
 double XfromAuto,YfromAuto;
 int FromAutoFlag=0;
@@ -253,14 +228,10 @@ static void auto_restore_finite_pars(const double *before)
     }
 }
 
-extern int NODE,NEQ;
-extern int METHOD;
-
 int HomoFlag=0;
 int sparity=0;
 double homo_l[100],homo_r[100];
 double HOMO_SHIFT=0.0;
-
 
 BIFUR Auto;
 ADVAUTO aauto;
@@ -318,7 +289,6 @@ void pscolset2(int flag2)
     set_linestyle(0);
   }
 
-
 }
 void colset2(int flag2)
 {
@@ -348,7 +318,6 @@ void colset2(int flag2)
   default:
     autocol(0);
   }
-
 
 }
 
@@ -462,9 +431,6 @@ void draw_bif_axes()
  auto_diagram(NULL); /* the data of the diagram starts again too */
  refreshdisplay();
 }
-   
-
-
 
 int IXVal(double x)
 {
@@ -516,7 +482,6 @@ void close_auto(int flg) /* labels compatible with A2K  */
     xpp_files_remove(fort9.c_str());
     xpp_files_remove(fort3.c_str());
 
- 
 }
 
 /* AUTO writes fort.3/7/8/9 under HOME. A HOME that is set but unusable
@@ -658,7 +623,6 @@ void do_auto(int iold, int isave, int itp)
       redraw_params();
 }
 
-
 void set_auto() /* Caution - need to include NICP here */
 {
   NAutoUzr=Auto.nper;
@@ -747,7 +711,6 @@ void auto_screen_col(const char *col,char *out)
   /* the C API of screen_col: out is autlib1.cpp's char[AUTO_COL_W+1] */
   xpp_strlcpy(out,screen_col(col).c_str(),AUTO_COL_W+1);
 }
-
 
 void auto_per_par()
 {
@@ -853,7 +816,6 @@ void auto_num_par()
   values[20] = xpp::format("{:d}", aauto.iads);
   values[21] = xpp::format("{:d}", SuppressBP); 
 
-  
   static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
@@ -882,22 +844,18 @@ void auto_num_par()
     aauto.iads=atoi(values[20].c_str());
     SuppressBP=atoi(values[21].c_str());
 
-    
   }
 
 }    
 
-
 void auto_plot_par()
 {
-
 
   static const char *m[]={"Hi","Norm","hI-lo","Period","Two par","(Z)oom in","Zoom (O)ut",
 		      "last 1 par", "last 2 par","Fit",
 		    "fRequency","Average","Default","Scroll"};
   static const char *const key="hniptzo12frads";
   char ch;
-
 
   static const char *n[]={"*1Y-axis","*2Main Parm", "*2Secnd Parm", "Xmin", "Ymin",
 		   "Xmax", "Ymax"};
@@ -1001,13 +959,9 @@ void auto_plot_par()
     if(Auto.plot<4)keep_last_plot(1);
     if(Auto.plot==4)keep_last_plot(2);
     redraw_diagram();
-    
 
-    
 }
 }
-
-
 
 void auto_default()
 {
@@ -1016,8 +970,6 @@ void auto_default()
   Auto.ymin=auto_ymin;
   Auto.ymax=auto_ymax;
 }
-
-
 
 void auto_fit()
 {
@@ -1079,7 +1031,6 @@ void auto_zoom_out(int i1, int j1, int i2, int j2)
       b1=static_cast<double>((Auto.hgt+Auto.y0-j1))/static_cast<double>(Auto.hgt);
       b2=static_cast<double>((Auto.hgt+Auto.y0-j2))/static_cast<double>(Auto.hgt);
 
-   
    if((i1==i2)||(j1==j2))
    { 
    	  if (dx < 0){dx=-dx;}
@@ -1105,10 +1056,6 @@ void auto_zoom_out(int i1, int j1, int i2, int j2)
   }
 
 } 
- 
-
-
-  
 
 void auto_xy_plot(double *x, double *y1, double *y2, double par1, double par2, double per, double *uhigh, double *ulow, double *ubar, double a)
 {
@@ -1154,9 +1101,6 @@ void auto_xy_plot(double *x, double *y1, double *y2, double par1, double par2, d
     break;
   }
 }
-
-
-
 
 void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *ubar, double a,
 		  int type, int flg, int lab, int npar, int icp1, int icp2, int flag2,
@@ -1241,9 +1185,6 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
   Auto.lasty=y1;
 }
 
-
-
-
 void auto_line(double x1i, double y1i, double x2i, double y2i)
 {
   double xmin,ymin,xmax,ymax;
@@ -1251,7 +1192,6 @@ void auto_line(double x1i, double y1i, double x2i, double y2i)
   double x1d,x2d,y1d,y2d;
   float x1_out,y1_out,x2_out,y2_out;
 
-  
   get_scale(&xmin,&ymin,&xmax,&ymax);
   set_scale(Auto.xmin,Auto.ymin,Auto.xmax,Auto.ymax);
   if(clip(x1,x2,y1,y2,&x1_out,&y1_out,&x2_out,&y2_out)){
@@ -1449,8 +1389,6 @@ if(flag2>0&&Auto.plot!=P_P){ /* two parameter and not in two parameter plot, jus
   show_stab(evr,evi,NODE,type==SPER||type==UPER);
   refreshdisplay();
 }
-  
-
 
 const char *auto_bif_sym(int itp)
 {
@@ -1478,7 +1416,6 @@ const char *auto_bif_sym(int itp)
   }
 }
 
-    
 void info_header(int flag2, int icp1, int icp2)
 {
   /* the names head 10-wide columns of new_info's numbers */
@@ -1508,7 +1445,6 @@ void new_info(int ibr, int pt, const char *ty, int lab, double *par, double norm
   /* SmallGr(); */
   refreshdisplay();
 }
-
 
 void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw)
 {
@@ -1579,10 +1515,6 @@ void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw)
       load_auto_orbitx(ibr,1,lab,per);
 
 }
-     
-   
-
-
 
 void do_auto_win()
 {
@@ -1700,7 +1632,6 @@ void init_auto_win()
     Auto.epsu=auto_epsu;
   Auto.epss=auto_epss;
 
-
 /* The diagram plotting stuff    */
 
   Auto.xmax=auto_xmax;
@@ -1710,7 +1641,6 @@ void init_auto_win()
   Auto.plot=HL_P;
   Auto.var=auto_var;
 
- 
 /* xpp parameters    */
   
   Auto.icp1=0;
@@ -1867,7 +1797,6 @@ void auto_start_choice()
   redraw_auto_menus();
 }
 
-
 void torus_choice()
 {
   static const char *m[]={"Two Param","Fixed period","Extend"};
@@ -1935,7 +1864,6 @@ void periodic_choice()
   redraw_auto_menus();
 }
 
-
 void hopf_choice()
 {
   static const char *m[]={"Periodic","Extend","New Point","Two Param"};
@@ -1966,7 +1894,6 @@ void hopf_choice()
   }
   redraw_auto_menus();
 }
-
 
 void auto_run()
 {
@@ -2015,7 +1942,6 @@ void auto_run()
   }
   if(itp1==6||itp2==6||itp1==1||itp2==1){ /* branch point  */ 
 
-    
   auto_branch_choice(grabpt.ibr,ips);
     ping();
     return; /* 
@@ -2067,7 +1993,6 @@ void auto_branch_choice(int ibr, int ips)
   ch=static_cast<char>(auto_pop_up_list("Branch Pt",m,key,4,10,0,10,10,
 		       no_hint,Auto.hinttxt.c_str()));
 
-
   if(ch=='s'){
        if(ibr<0&&ips==2)
       auto_switch_per();
@@ -2100,7 +2025,6 @@ void auto_branch_choice(int ibr, int ips)
   redraw_auto_menus();
 }
 
-
 /*  RUN AUTO HERE */
 /*  these are for setting the parameters to run for different choices    */
 
@@ -2119,8 +2043,7 @@ void auto_branch_choice(int ibr, int ips)
          2 periodic orbits
          4 BVP  (set NBC=NODE)
          9 Homoclinic
-         
-   
+
 for example   2 P continuation of HB
               IPS=1 ILP=1 NICP=2 ISP=0 ISW=2 
 BVP problem   IPS=4, NICP=1 NBC=NODE ISP=1 ISW=1 ILP=1
@@ -2128,9 +2051,6 @@ BVP problem   IPS=4, NICP=1 NBC=NODE ISP=1 ISW=1 ILP=1
 discrete dynamical system with two par of Hopf
 first IPS=-1 ISP=ISW=1  then 
 NICP=2, ISW=2 at Hopf
-
-
-
 
 */   
 
@@ -2174,7 +2094,6 @@ void auto_start_at_bvp()
   do_auto(opn,cls,Auto.itp);
 }
 
-
 void auto_start_at_per()
 {
   int opn=NO_OPEN_3,cls=OVERWRITE;
@@ -2194,8 +2113,6 @@ void auto_start_at_per()
   do_auto(opn,cls,Auto.itp);
 }
 
-
-  
 void auto_new_ss()
 {
   int ans;
@@ -2225,7 +2142,6 @@ void auto_new_ss()
    AutoTwoParam=0;
   do_auto(opn,cls,Auto.itp);
 }
-
 
 void auto_new_discrete()
 {
@@ -2332,10 +2248,6 @@ int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
   return flag;
 }
 
-
-
-
-
 void auto_extend_homoclinic()
 {
    Auto.irs=grabpt.lab;
@@ -2357,17 +2269,10 @@ void auto_extend_homoclinic()
   if(HomoFlag==2)
     xAuto.iequib=-2;
 
-  
-  
   do_auto(OPEN_3,APPEND,Auto.itp);
 
-
-  
 }
 
-
-
-    
 void auto_start_at_homoclinic()
 {
   int opn=NO_OPEN_3,cls=OVERWRITE;
@@ -2375,7 +2280,6 @@ void auto_start_at_homoclinic()
   Auto.irs=0;
   Auto.itp=0;
     TypeOfCalc=HO2;
-
 
   AutoTwoParam=HO2;
   NewPeriodFlag=1;
@@ -2396,7 +2300,6 @@ void auto_start_at_homoclinic()
   flag=get_homo_info(HomoFlag,&xAuto.nunstab,&xAuto.nstab,homo_l,homo_r);
   if(flag)do_auto(opn,cls,Auto.itp);
 
-  
 }
     
 void auto_new_per() /* same for extending periodic  */
@@ -2447,8 +2350,6 @@ void auto_extend_bvp() /* extending bvp */
     AutoTwoParam=0;
   do_auto(OPEN_3,APPEND,Auto.itp);
 }
-
-
 
 void auto_switch_per()
 {
@@ -2520,7 +2421,6 @@ void auto_2p_limit(int ips)
       ipsuse=2;
   }
 
-  
   Auto.ips=ipsuse;
   AutoTwoParam=LPP2;
   if(ipsuse==1){
@@ -2585,7 +2485,6 @@ void auto_2p_branch(int ips)
       ipsuse=2;
   }
 
-  
   Auto.ips=ipsuse;
   if(METHOD==DISCRETE)
     Auto.ips=-1;
@@ -2594,7 +2493,6 @@ void auto_2p_branch(int ips)
   do_auto(OPEN_3,APPEND,Auto.itp);
 }
 
-    
 void auto_2p_fixper()
 {
   Auto.irs=grabpt.lab;
@@ -2662,7 +2560,6 @@ void auto_period_double()
   do_auto(OPEN_3,APPEND,Auto.itp);
 }
 
-
 /**********   END RUN AUTO *********************/
 
 void auto_err(const char *s)
@@ -2709,8 +2606,7 @@ void load_auto_orbit()
       data_store.col[0][i]=t*period;
     else
       data_store.col[0][i]=t;
-      
-    
+
     for(j=0;j<nstor;j++){
       data_store.col[j+1][i]=u[j];
       x[j]=u[j];
@@ -2725,9 +2621,6 @@ void load_auto_orbit()
   if(load_all_labeled_orbits==2)clr_all_scrns();
   drw_all_scrns();
 }
-
-
-     
 
 void save_auto()
 {
@@ -2778,7 +2671,6 @@ void save_auto_numerics(FILE *fp)
   line+=xpp::format("{} {} {} {} {} {} {}\n",aauto.iad,aauto.mxbf,aauto.iid,aauto.itmx,aauto.itnw,aauto.nwtn,aauto.iads);
   xpp::print(fp,"{}",line);
 }
-
 
 void load_auto_numerics(FILE *fp)
 {
@@ -2862,7 +2754,6 @@ void make_q_file(FILE *fp)
   }
   w.commit();
 }
-  
 
 void load_auto()
 {
@@ -2931,8 +2822,6 @@ void get_a_row(double *u, double *t, int n, FILE *fp)
    for(i=0;i<n;i++)
      if (!tr.read(u[i])) return;
  }
-
-
 
 /* W26 (issue #42): a File entry beside afile_hint's 15 (menus.c), not
    inside it -- afile_hint's own 15 hints plus one more, built lazily (well
@@ -3055,26 +2944,13 @@ void auto_file()
       return;
     }
   }
-    
-
 
 }
-
-
-
-
-
-
-
-
-
-
 
 void  auto_get_info( int *n, char *pname )
 {
   int i1,i2,ibr;
   DIAGRAM *d,*dnew;
-
 
   if(diagram_mark.state==2){
     i1=abs(diagram_mark.start_point);
@@ -3168,7 +3044,6 @@ void DLINE(double a,double b,double c,double d)
 #undef LEFT
 #undef RIGHT
 #include "mykeydef.h"
-extern const char *aspecial_hint[];
 DIAGRAM *CUR_DIAGRAM;
 
 const char *query_special(const char *title)
@@ -3256,9 +3131,7 @@ void traverse_diagram()
 		/*
 		END GO END
 		*/
-		 
-      
-		
+
 		/*
 		GO HOME
 		*/
@@ -3486,8 +3359,6 @@ void MarkAuto(int x, int y)
   ALINE(x-8,y-8,x+8,y+8);
   ALINE(x+8,y-8,x-8,y+8);
   LineWidth(1);
-
-
 
 }
 

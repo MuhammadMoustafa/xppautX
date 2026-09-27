@@ -26,7 +26,6 @@
 #include <string_view>
 #include <vector>
 
-
 #include "xpplim.h"
 #include "getvar.h"
 
@@ -35,15 +34,8 @@
 double zippy;
 #define PUSH(a) zippy=(a); stack[stack_pointer++]=zippy;
 
-
-
-
-
-
-
 /* #define COM(a) my_symb[toklist[(a)]].com */
 int             ERROUT;
-extern int DelayFlag;
 int NDELAYS=0;
 /*double pow2(); */
 int RandSeed=12345678;
@@ -52,15 +44,9 @@ int RandSeed=12345678;
 # define M_PI	3.14159265358979323846264338327950288
 #endif
 
-
-extern int del_stab_flag;
-
 double CurrentIndex=0;
 int SumIndex=1;
 
-
-
-double pop(  );
 /* FIXXX */
 int stack_pointer,uptr;
 double constants[MAXPAR];
@@ -76,7 +62,6 @@ int NKernel;
 int MaxPoints;
 std::array<std::vector<double>,MAXODE> Memory; /* one per variable (volterra2.c), not per kernel */
 int NTable;
-
 
 UFUN_ARG ufun_arg[MAXUFUN];
 
@@ -194,9 +179,7 @@ static std::array<SYMBOL,MAX_SYMBS> my_symb=
    {"LGAMMA",6,COM(FUN1TYPE,25),1,10}, /* Log Gamma  #94 */
    {"BESSELIS",8,COM(FUN2TYPE,21),2,10},/* Bessel I Scaled  # 95 */
       }};
-    
-    
-    
+
 int NCON=0,NVAR=0,NFUN=0;
 int NSYM=STDSYM;
 
@@ -205,12 +188,9 @@ int NSYM=STDSYM;
 double (*fun1[50])(double);
 double (*fun2[50])(double, double);
 
-
 /*************************
   RPN COMPILER           *
 **************************/
-
-
 
 /*****************************
 *      PARSER.C              *
@@ -271,9 +251,7 @@ void init_rpn()
     nsrand48(RandSeed);
 }
 
-
  /*  FREE_UFUNS   */
-
 
 int duplicate_name(const char *junk)
 {
@@ -348,7 +326,6 @@ int add_constant(const char *junk)
  return(0);
 }
 
-
 int get_var_index(const char *name)
 {
 
@@ -363,9 +340,7 @@ int get_var_index(const char *name)
   return(-1);
 }
 
-
 /* GET_TYPE   */
-
 
 /*   ADD_CON      */
 
@@ -427,8 +402,6 @@ int add_kernel(const char *name, double mu, const char *expr)
   NKernel++;
   return(0);
 }
-  
-
 
 /*  ADD_VAR          */
 
@@ -486,7 +459,6 @@ int add_vector_name(int index,const char *name)
    
 }
 
-
 int add_net_name(int index, const char *name)
 {
   xpp_log(XPP_LOG_INFO, " Adding net %s %d \n",name,index);
@@ -499,9 +471,6 @@ int add_net_name(int index, const char *name)
   return(0);
    
 }
-
-
-
 
 /* ADD LOOKUP TABLE   */
 
@@ -540,11 +509,9 @@ int add_table_name(int index, const char *name)
    }
 /* ADD LOOKUP TABLE   */
 
-
 int add_form_table(int index, int nn, double xlo, double xhi, const char *formula)
 {
- 
- 
+
   if(create_fun_table(nn,xlo,xhi,formula,index)==0)
     {
       if(ERROUT)xpp_log(XPP_LOG_WARN, "Problem with creating table !!\n");
@@ -552,7 +519,6 @@ int add_form_table(int index, int nn, double xlo, double xhi, const char *formul
     }
     return(0);
 }
-    
 
 void set_old_arg_names(int narg)
 {
@@ -571,7 +537,6 @@ void set_ufun_arg_names(int index)
     my_symb[FIRST_ARG+i].len=static_cast<int>(my_symb[FIRST_ARG+i].name.size());
  }
 }
-
 
 /* NEW ADD_FUN for new form_ode code  */
 
@@ -599,7 +564,6 @@ void fixup_endfun(int *u, int l, int narg)
  u[l]=narg;
  u[l+1]=ENDEXP;
 }
-
 
 void set_ufun_def(int index, std::string_view def)
 {
@@ -682,10 +646,6 @@ int add_ufun(const char *junk, const char *expr, int narg)
        return(1);
 }
 
-
-
-
-
 /* is_ufun         */
 
 int is_ufun(int x)
@@ -724,7 +684,6 @@ int isker(int y)
   return (y == KERTYPE);
 }
 
-
 int is_lookup(int x)
 {
  if((x/MAXTYPE)==TABTYPE)return(1);
@@ -740,7 +699,6 @@ int find_lookup(const char *name)
   if(is_lookup(com))return(com%MAXTYPE);
   return(-1);
 }
- 
 
 /* FIND_NAME    */
 
@@ -758,7 +716,6 @@ void find_name(const char *string, int *index)
     *index=i;
    else *index=-1;
 }
-
 
 int get_param_index(const char *name)
 {
@@ -819,8 +776,6 @@ int set_val(const char *name, double value)
   return(0);
 }
 
-
-
 void set_ivar(int i, double value)
 {
  SETVAR(i,value);
@@ -829,9 +784,6 @@ void set_ivar(int i, double value)
 double get_ivar(int i)
 {       	 return(GETVAR(i));
 }
-
-
-
 
 int alg_to_rpn(int *toklist, int *command)
 {
@@ -872,7 +824,6 @@ int alg_to_rpn(int *toklist, int *command)
 		return(1);
            }
 
-          
 	 }
 
 /*        check for delshft symbol             */
@@ -895,7 +846,6 @@ int alg_to_rpn(int *toklist, int *command)
 		return(1);
            }
 
-          
 	 }
 
 	  if(newtok==SETSYM){
@@ -937,12 +887,7 @@ int alg_to_rpn(int *toklist, int *command)
 		return(1);
            }
 
-          
        	  }
-
-
-  
-           
 
  next:
           if((newtok==ENDTOK)&&(oldtok==STARTTOK))break;
@@ -1039,9 +984,6 @@ int alg_to_rpn(int *toklist, int *command)
 			     nelse++;
 			     }
 
-
-			      
-			      
              if(my_com==ENDDELAY||my_com==ENDSHIFT||my_com==ENDISHIFT){
         
 	     ncomma-=1;
@@ -1052,7 +994,6 @@ int alg_to_rpn(int *toklist, int *command)
        	      ncomma-=1;
 	     }  */
 
-   
             /*    CHECK FOR USER FUNCTION       */
             if(is_ufun(my_com))
             {
@@ -1090,9 +1031,6 @@ int alg_to_rpn(int *toklist, int *command)
 	/* pr_command(command);  */
         return(0);
     }
-
-
-
 
 void show_where(const char *string, int index)
 {
@@ -1141,7 +1079,6 @@ int pure_number(int token)
   return(0);
 }
 
-
 int gives_number(int token)
 {
   int com=my_symb[token].com;
@@ -1157,7 +1094,6 @@ int gives_number(int token)
   return(0);
 }
 
-
 int check_syntax(int oldtoken, int newtoken)  /* 1 is BAD!   */
 {
   int com2=my_symb[newtoken].com;
@@ -1165,8 +1101,6 @@ int check_syntax(int oldtoken, int newtoken)  /* 1 is BAD!   */
 /* if the first symbol or (  or binary symbol then must be unary symbol or 
    something that returns a number or another (   
 */
-
-
 
   if(unary_sym(oldtoken)||oldtoken==COMMA||oldtoken==STARTTOK
      ||oldtoken==LPAREN||binary_sym(oldtoken))
@@ -1208,13 +1142,9 @@ int check_syntax(int oldtoken, int newtoken)  /* 1 is BAD!   */
     
 }
 
-
 /******************************
 *    PARSER                   *
 ******************************/
-
-
-
 
 int make_toks(const char *dest, int *my_token)
 {
@@ -1300,7 +1230,6 @@ void tokeninfo(int tok)
         my_symb[tok].arg,my_symb[tok].pri);
 }
 
-
 int do_num(const char *source, char *num, double *value, int *ind)
 {
  int i=*ind,error=0;
@@ -1352,8 +1281,6 @@ err:
   return(error);
 }
 
-
-
 void convert(const char *source, char *dest)
 {
  char ch;
@@ -1367,8 +1294,6 @@ void convert(const char *source, char *dest)
  }
  strupr(dest);
 }
-
-
 
 void find_tok(const char *source, int *index, int *tok)
 {
@@ -1427,10 +1352,6 @@ void two_args()
  fun2[19]=xpp_bessel_y;
  fun2[20]=xpp_bessel_i;
  fun2[21]=xpp_bessel_i_scaled;
- 
-
-
-
 
 }
 
@@ -1452,8 +1373,6 @@ double z,w;
 }
  
  */
-
-
 
 /*********************************************
           FANCY DELAY HERE                   *-------------------------<<<
@@ -1515,10 +1434,6 @@ double do_delay_shift(double delay, double shift, double variable)
   }
  
   return(delay_stab_eval(delay,in));
-  
- 
- 
-
 
 }
 double do_delay(double delay, double i)
@@ -1597,9 +1512,6 @@ void one_arg()
   fun1[25]=lgamma;
 }
 
-
-
-
 double max(double x, double y)
 {
  return(((x>y)?x:y));
@@ -1640,9 +1552,7 @@ double signum(double z)
   return(0.0);
 }
 
-
 /*  logical stuff  */
-
 
 double dnot(double x)
 {
@@ -1681,12 +1591,7 @@ double dlt(double x, double y)
  return(static_cast<double>(x<y));
 }
 
-
 /*              end of logical stuff    */
-
-
-
-
 
  double evaluate(int *equat)
 {
@@ -1694,7 +1599,6 @@ double dlt(double x, double y)
   stack_pointer=0;
   return(eval_rpn(equat));
  }
-
 
  double eval_rpn(int *equat)
 {
@@ -1714,8 +1618,6 @@ double dlt(double x, double y)
        double z;
      } num;
    } encoder;
-
-
 
   while((i=*equat++)!=ENDEXP)
   {
@@ -1861,11 +1763,6 @@ bye: j=0;
 
 }
 
-
-
-
-
-
 /*  STRING STUFF  */
 void strupr(char *s)
 {
@@ -1876,7 +1773,6 @@ void strupr(char *s)
   i++;
   }
 }
-
 
 void strlwr(char *s)
 {

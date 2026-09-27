@@ -68,7 +68,6 @@
 #define SPEED 23
 
 extern "C" {
-extern double T0;
 }
 
 int ani_grab_flag = 0;

@@ -15,7 +15,6 @@
 #include "parserslow.h"
 #include "xpp_ui.h"
 
-
 #include <string>
 #include <stdlib.h>
 #include <string.h>
@@ -34,14 +33,12 @@
 #include <math.h>
 
 #include "xpplim.h"
-
+#include "form_ode.h"
+#include "histogram.h"
+#include "load_eqn.h"
 
 #define READEM 1
 
-
-extern int FOUR_HERE;
-extern int NODE,INFLAG,NEQ,NJMP,FIX_VAR,NMarkov,nvec;
-extern double TEND;
 int adj_len;
 namespace {
 /* the derived data sets this file shows in the browser (storage.h) */
@@ -52,9 +49,6 @@ float **const my_h=h_columns.table();
 std::array<std::vector<float>, 2> my_liap;
 }
 
-
-
-extern char *info_message;
 struct {
   int here,col0,ncol,colskip;
   int row0,nrow,rowskip; 
@@ -63,11 +57,9 @@ struct {
    
 int LIAP_FLAG=0;
 int LIAP_N,LIAP_I;
-extern double NEWT_ERR;
 double ADJ_EPS=1.e-8,ADJ_ERR=1.e-3;
 int ADJ_MAXIT=20,ADJ_HERE=0,H_HERE=0,h_len,HODD_EV=0;
 int AdjRange=0;
-extern double DELTA_T,BOUND;
 namespace {
 /* each equation's coupling for the H function: its formula (io_string's
    buffer, 80 bytes as ever) and the formula compiled */
@@ -75,8 +67,6 @@ std::vector<std::array<int, 100>> coup_fun;
 std::vector<std::array<char, 80>> coup_string;
 }
 
-extern int *my_ode[];
-extern int NSYM,NSYM_START,NCON,NCON_START;
 /* extern Window main_win; */
 
 void init_trans()
@@ -105,7 +95,6 @@ void dump_transpose_info(FILE *fp, int f)
   io_int(&my_trans.rowskip,fp,f,"row skip");
   io_int(&my_trans.colskip,fp,f,"col skip");
   io_int(&my_trans.row0,fp,f,"row 0");
-
 
 }
 
@@ -149,8 +138,7 @@ int do_transpose()
    return (create_transpose());
  }
  return 0; 
-     
- 
+
 }
  
 int create_transpose()
@@ -161,7 +149,6 @@ int create_transpose()
   for(j=0;j<my_trans.ncol;j++)
     data[0][j]=j+1;
 
-  
   for(i=0;i<my_trans.ncol;i++){
     incol=my_trans.col0-1+i*my_trans.colskip;
     if(incol>NEQ)
@@ -178,7 +165,6 @@ int create_transpose()
    my_trans.here=1;
    return 1;
 }
-			 
 
 void alloc_h_stuff()
 {
@@ -186,7 +172,6 @@ void alloc_h_stuff()
  coup_string.assign(NODE,{});
  for(auto &s : coup_string)s[0]='0';
 }
- 
 
 void data_back()
 {
@@ -249,7 +234,6 @@ static const char *const key="nmaohpr";
  }
 }
 
-
 void adjoint_parameters()
 {
   new_int("Maximum iterates :",&ADJ_MAXIT);
@@ -301,7 +285,6 @@ void dump_h_stuff(FILE *fp, int f)
    io_string(coup_string[i].data(),79,fp,f);
 
 }
-
 
 int make_h(float **orb, float **adj, float **h, int nt, double dt, int node, int silent)
 {
@@ -363,12 +346,6 @@ int make_h(float **orb, float **adj, float **h, int nt, double dt, int node, int
   return(rval);
 
 }
- 
-
- 
-  
- 
-
 
 void new_adjoint()
 {
@@ -388,11 +365,6 @@ void new_adjoint()
 }
 /* this computes the periodic orbit and stores it in 
    the usual place  given initial data and period */
-  
-
-
-
-
 
 /*    ADJOINT ROUTINE
  *
@@ -400,8 +372,7 @@ void new_adjoint()
       This assumes that you have already computed the periodic orbit
 	and have stored in in an array **orbit
       including time in the first column
-     
-     
+
       The righthand sides of the equations are
 	rhs(t,y,yp,n)
       and the coupling function for ``H'' functions is
@@ -495,9 +466,7 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
 	ytemp+=fabs(yold[i]);
 	
 	}
-	
-	 
-	
+
         for(i=0;i<node;i++){ yold[i]=yold[i]/ytemp;
 			     fdev[i]=yold[i];
 			   }
@@ -524,11 +493,9 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
 	  goto bye;
 	    }	 
 	/* rk_interp(jac,k,k2,yold,work,node,dt,5); */
-	
 
       }
 
-        	 
 	prod=prod/t;
   xpp::log(XPP_LOG_INFO, " Multiplying the adjoint by 1/{:g} to normalize\n",prod);
   for(k=0;k<nt;k++){
@@ -540,10 +507,7 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
  bye:
    return(rval);
  }
- 
- 
 
-	 
 int step_eul(double **jac, int k, int k2, double *yold, double *work, int node, double dt)
 {
 
@@ -570,10 +534,7 @@ if(info!=-1){
 sgesl(mat,node,node,ipvt,yold);
 return(1);
 }
-		
 
-
-		
 /* this is some code for the maximal liapunov exponent
    I assume you have computed an orbit and it is in storage
    
@@ -626,7 +587,6 @@ void do_this_liaprun(int i,double p)
  LIAP_I++;
 }
 
-
 void norm_vec(double *v, double *mu, int n)  /* returns the length of the vector and the unit vector */
 {
   int i;
@@ -640,7 +600,6 @@ void norm_vec(double *v, double *mu, int n)  /* returns the length of the vector
   *mu=sum;
   return;
 }
-
 
 int hrw_liapunov(double *liap,int batch,double eps)
 {
@@ -692,8 +651,4 @@ int hrw_liapunov(double *liap,int batch,double eps)
 
  return 1; /*  success !! */
 }
- 
-
-
-
 

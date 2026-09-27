@@ -59,7 +59,6 @@ typedef struct {
   int flag;
 } GRABPT;
 
-
 typedef struct diagram {
   int package;
   int ibr,ntot,itp,lab,calc;
@@ -89,6 +88,8 @@ extern int NAutoUzr;
 extern long UzrPar[20];
 extern double outperiod[20];
 extern int SuppressBP;
+/* a homoclinic orbit's left and right equilibria (autpp.cpp's stpnt) */
+extern double homo_l[100],homo_r[100];
 extern int AutoTwoParam;
 /* the label do_auto's follow-up run (a restart) continues from, 0 for none */
 extern int RestartLabel;
@@ -96,8 +97,6 @@ extern int RestartLabel;
 extern int TypeOfCalc;
 /* the torus period a two-parameter torus run starts from */
 extern ROTCHK blrtn;
-
-
 
 void colset(int type);
 void pscolset2(int flag2);

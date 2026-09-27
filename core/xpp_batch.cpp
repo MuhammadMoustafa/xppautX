@@ -36,11 +36,7 @@ XppBatchOptions batch_options;
 #define cstringmaj MYSTR1
 #define cstringmin MYSTR2
 
-
 /* nullcline.c / integrate.c batch helpers without a header prototype */
-void set_colorization_stuff(void);
-void silent_nullclines(void);
-void silent_dfields(void);
 
 /* ---- moved from main.c (appended by tools/move_funcs.py) --------------- */
 

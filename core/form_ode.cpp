@@ -19,8 +19,6 @@
 #include <unistd.h>
 #include "flags.h"
 
-
-
 #include "load_eqn.h"
 #include "dae_fun.h"
 #include "derived.h"
@@ -30,7 +28,6 @@
 #include "integrate.h"
 #include "newpars.h"
 #include "xpp_ui.h"
-
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -84,7 +81,6 @@ int NEQ_MIN;
 int EqType[MAXODE];
 std::array<FIXINFO,MAXODE> fixinfo;
 
-extern int NEQ;
 extern int NWiener;
 
 namespace {
@@ -790,8 +786,6 @@ int compiler(const std::string &bob, FILE *fptr)
 	NTable++;
 	xpp_log(XPP_LOG_INFO, " NTable = %d \n",NTable);
 
-
-
       }
       else
 	if(formula[0]=='@'){
@@ -861,7 +855,6 @@ int compiler(const std::string &bob, FILE *fptr)
 	  }
 	  find_ker(formula,&alt);
 
-
 	  EqType[NODE]=VFlag;
 
 	  VFlag=0;
@@ -873,7 +866,6 @@ int compiler(const std::string &bob, FILE *fptr)
 	  find_ker(formula,&alt);
 
 	}
-
 
       if(NODE>=(IN_VARS+FIX_VAR))
 	{
@@ -1037,7 +1029,6 @@ int get_eqn(FILE *fptr)
     {
       XPP_FORMAT_TO_BUF(uvar_names[i],"AUX{}",i-NODE-NMarkov+1);
     }
-
 
   for(i=0;i<NEQ;i++)
       {
@@ -1707,7 +1698,6 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
    aux_names[i]=anames[i];
  add_svar_names();
 
-
 /* NODE = nvars ; Naux = naux ; NEQ = NODE+NMarkov+Naux ; FIX_VAR = nfix; */
 
  IN_VARS=nvar;
@@ -1725,7 +1715,6 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
  nufun=0;
  nfix=0;
  nmark=0;
-
 
  for(VAR_INFO &v : model_lines)
    {
@@ -2040,11 +2029,9 @@ int parse_model(FILE *fp, const std::string &first, int nnn, bool at_end)
             break;
        }
 
-
    while(1){
       for(ns=0;ns<static_cast<int>(strings.size());ns++){
       subsk(strings[ns].c_str(),big,jj,is_array);
-
 
    done=parse_a_string(big,v);
 
@@ -2195,7 +2182,6 @@ int parse_model(FILE *fp, const std::string &first, int nnn, bool at_end)
    markov_states.clear();
    markov_states2.clear();
 
-
  }
  compile_em();
 
@@ -2320,7 +2306,6 @@ int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag)
   return 1;
 }
 
-
 /* big with its subscripts worked out for index k: [n] becomes n, [j+n]
    k+n, [j-n] k-n, [j*n] k*n ([j] only in an array line, flag nonzero) */
 void subsk(const char *big, std::string &newstr, int k, int flag)
@@ -2410,6 +2395,4 @@ void subsk(const char *big, std::string &newstr, int k, int flag)
     }
   }
 }
-
-
 

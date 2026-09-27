@@ -36,8 +36,6 @@
 
 /*Default is now color*/
 
-
-
 #define SPER 3
 #define UPER 4
 #define UEQ 2
@@ -46,8 +44,6 @@
 #define lsUEQ 1
 #define lsSPER 8
 #define lsUPER 9
-
-
 
 namespace {
 
@@ -84,20 +80,14 @@ void frz_bd(void);
 XppFrozenCurves frozen_curves;
 XppPlotExport plot_export;
 
-extern double T0,TEND;
-
 double FreezeKeyX,FreezeKeyY;
 int FreezeKeyFlag;
 int CurrentCurve=0;
-
-extern const char *no_hint[],*wind_hint[],*view_hint[],*frz_hint[];
-extern const char *graf_hint[], *cmap_hint[]; 
 
 int colorline[]={0,20,21,22,23,24,25,26,27,28,29,0};
 const char *color_names[]={"WHITE","RED","REDORANGE","ORANGE","YELLOWORANGE",
                     "YELLOW","YELLOWGREEN","GREEN","BLUEGREEN",
 		      "BLUE","PURPLE","BLACK"};
-
 
 void change_view_com(int com)
 {
@@ -119,8 +109,6 @@ void change_view_com(int com)
  redraw_the_graph();
 } 
 
- 
-
 void check_flags()
 {
   if(plot_windows.current->grtype>4)plot_windows.current->ThreeDFlag=1;
@@ -129,7 +117,6 @@ void check_flags()
      ((plot_windows.current->zv[0]==0)&&(plot_windows.current->ThreeDFlag==1)))plot_windows.current->TimeFlag=1;
   else plot_windows.current->TimeFlag=0;
 }
-  
 
 void get_2d_view(int ind)
 {
@@ -176,7 +163,6 @@ void get_2d_view(int ind)
 		     
 	      }
 }
-	      
 
 void axes_opts()
 {
@@ -207,7 +193,6 @@ void axes_opts()
  }
    
 }
-
 
 void get_3d_view(int ind)
 {
@@ -254,7 +239,6 @@ void get_3d_view(int ind)
 	      XPP_FORMAT_TO_BUF(plot_windows.current->ylabel,"{}",values[14]);
 	      XPP_FORMAT_TO_BUF(plot_windows.current->zlabel,"{}",values[15]);
 
-
 	      plot_windows.current->xmin=atof(values[3].c_str());
 	      plot_windows.current->ymin=atof(values[5].c_str());
 	      plot_windows.current->zmin=atof(values[7].c_str());
@@ -276,8 +260,6 @@ void get_3d_view(int ind)
 
 	      }
 }
-	      
-
 
 void pretty(double *x1, double *x2)  /* this was always pretty ugly */
 {
@@ -334,9 +316,7 @@ void corner_cube(double *xlo, double *xhi, double *ylo, double *yhi)
  *xhi=x2;
  *yhi=y2;
 }
- 
- 
- 
+
 void default_window()
 {
  	if(plot_windows.current->ThreeDFlag){
@@ -376,7 +356,6 @@ void default_window()
              
 }
 
-
 void fit_window()
 {
   double Mx=-1.e25,My=-1.e25,Mz=-1.e25,mx=-Mx,my=-My,mz=-Mz;
@@ -404,8 +383,7 @@ void fit_window()
     plot_windows.current->xmin=mx;
     plot_windows.current->ymin=my;
     plot_windows.current->zmin=mz;
-    
-    
+
     pretty(&(plot_windows.current->ymin),&(plot_windows.current->ymax));
     pretty(&(plot_windows.current->xmin),&(plot_windows.current->xmax));
     pretty(&(plot_windows.current->zmin),&(plot_windows.current->zmax));
@@ -431,8 +409,7 @@ void fit_window()
       
       plot_windows.current->xmin=mx;
       plot_windows.current->ymin=my;
-      
-      
+
       pretty(&(plot_windows.current->ymin),&(plot_windows.current->ymax)); 
       pretty(&(plot_windows.current->xmin),&(plot_windows.current->xmax));
       plot_windows.current->xlo=plot_windows.current->xmin;
@@ -443,12 +420,6 @@ void fit_window()
     }
   redraw_the_graph();
 }
-  
-
-
-
-
-
 
 void user_window()
 {
@@ -511,10 +482,6 @@ void xi_vs_t() /*  a short cut   */
     redraw_the_graph();
  }
 }
- 
- 
-
-
 
 void movie_rot(double start, double increment, int nclip, int angle)
 {
@@ -536,7 +503,6 @@ void movie_rot(double start, double increment, int nclip, int angle)
 
 void get_3d_par_com()
 {
-  
 
  static const char *n[]={"Persp (1=On)","ZPlane","ZView","Theta","Phi","Movie(Y/N)",
                    "Vary (theta/phi)","Start angle", "Increment",
@@ -547,7 +513,6 @@ void get_3d_par_com()
  int nclip=8,angle=0;
  double start,increment=45; 
   if(plot_windows.current->grtype<5)return;
-
 
  values[0] = xpp::format("{:d}", plot_windows.current->PerspFlag);
  values[1] = xpp::format("{:g}", plot_windows.current->ZPlane);
@@ -592,7 +557,6 @@ void get_3d_par_com()
 	     }
 	     
 }
-
 
 void update_view(float xlo,float xhi, float ylo, float yhi)
 {
@@ -644,8 +608,6 @@ void window_zoom_com(int c)
  set_normal_scale();
 }
 
-
-
 void zoom_in(int i1, int j1, int i2, int j2)
 {
  float x1,y1,x2,y2;
@@ -667,7 +629,6 @@ void zoom_in(int i1, int j1, int i2, int j2)
 
 	plot_windows.current->ylo=y1-dy/2;
 	plot_windows.current->yhi=y1+dy/2;
- 	
 
  }
  else
@@ -735,7 +696,6 @@ void zoom_out(int i1, int j1, int i2, int j2)
 	 plot_windows.current->ylo=plot_windows.current->ylo-by*muy;
 	 plot_windows.current->yhi=plot_windows.current->ylo+by;
 
-	    
 }
 	if(plot_windows.current->grtype<5){
 		      plot_windows.current->xmin=plot_windows.current->xlo;
@@ -747,9 +707,6 @@ void zoom_out(int i1, int j1, int i2, int j2)
               redraw_the_graph();
               draw_help(); 
 }
- 
-
-
 
 void graph_all(int *list, int n, int type)
 {
@@ -781,7 +738,6 @@ void graph_all(int *list, int n, int type)
   fit_window();
 
 }
-
 
 int alter_curve(const char *title, int in_it, int n)
 {
@@ -818,7 +774,6 @@ int alter_curve(const char *title, int in_it, int n)
               }
  return(0);
 }
-
 
 void edit_curve()
 {
@@ -892,7 +847,6 @@ ps_test()
 }
  
 */
-
 
 void change_cmap_com(int i)
 {
@@ -981,7 +935,6 @@ void key_frz_com(int c)
     KillMessageBox();
   }
 }
-  
 
 void delete_frz_crv(int i)
 {
@@ -995,7 +948,6 @@ void delete_frz_crv(int i)
   frozen_curves.curve[i].yv=nullptr;
   frozen_curves.curve[i].zv=nullptr;
 }
-
 
 void kill_frz()
 {
@@ -1063,7 +1015,6 @@ int create_crv(int ind)
     err_msg("All curves used");
     return(-1);
 }	
-	
 
 void edit_frz_crv(int i)
 {
@@ -1261,11 +1212,6 @@ int get_frz_index(XppWinId w)
   char ch=static_cast<char>(menu_choose(&m,0));
   return(static_cast<int>(ch-'a'));
 }
-      
-
-
-
-
 
 void export_graf_data()
 {
@@ -1315,25 +1261,4 @@ void add_a_curve_com(int c)
  redraw_the_graph();
    
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

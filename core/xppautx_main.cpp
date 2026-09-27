@@ -54,6 +54,7 @@
 #include <string.h>
 #include "many_pops.h"
 #include "axes2.h"
+#include "nullcline.h"
 
 /* AUTO's files in a directory of this session's own, removed at exit
    (issue #11); -silent runs no AUTO */
@@ -118,7 +119,6 @@ static const char *const usage_tail =
 /* what xppautX does with the session */
 enum { MODE_WINDOW, MODE_BROWSER, MODE_SERVER };
 
-void set_colorization_stuff(void);
 int SCALEX, SCALEY;
 
 /* init_grafs() without the window: graph 0 is client window 1 */

@@ -25,8 +25,6 @@ override the below definition.
 extern "C" {
 #endif
 
-
-
 /*
 Options are set accroding to an order of precedence
 
@@ -192,14 +190,11 @@ typedef struct {
   int HISTHI2;
   int HISTBINS2;
 
-
-
   } OptionsSet;
 
 /* 1 while an option may still be set: the command line and .xpprc set
    theirs first, and the ODE file's may not override them */
 extern OptionsSet notAlreadySet;
-
 
 void dump_torus(FILE *fp, int f);
 void load_eqn(void);
@@ -249,8 +244,18 @@ extern int BVP_MAXIT,BVP_FLAG,MaxEulIter;
 extern int SHOOT,PAR_FOL;
 extern int RunImmediately,xorfix,silent,got_file;
 extern char this_internset[XPP_MAX_NAME];
-
-
+/* the integration's settings (the nUmerics menu, @ options) and the run's
+   state: the number of equations, the time span and step, tolerances,
+   the Poincare section, the torus, the flags the integrator keeps */
+extern int NEQ,PLOT_3D,INFLAG,STORFLAG,FOREVER,ENDSING,PAUSER,NULL_HERE;
+extern int METHOD,NJMP,EVEC_ITER,NMESH,FFT,HIST;
+extern double HMIN,HMAX,TOLER,ATOLER,BOUND,DELAY;
+extern double NULL_ERR,EVEC_ERR,NEWT_ERR;
+extern double TEND,DELTA_T,T0,TRANS;
+extern int TORUS,itor[MAXODE];
+extern double TOR_PERIOD;
+extern int POIMAP,POISGN,POIEXT,SOS,POIVAR;
+extern double POIPLN;
 
 #ifdef __cplusplus
 }

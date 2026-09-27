@@ -26,8 +26,7 @@
 #include "browse.h"
 #include "xpp_ui.h"
 
-
-#include "phsplan.h"
+#include "load_eqn.h"
 
 /*  this is also X free ! */
  
@@ -39,11 +38,6 @@
 #define DP83 12
 #define RB23 13
 #define MAX(a,b) ((a)>(b)?(a):(b))
-extern double constants[];
-extern double last_ic[MAXODE];
-
-extern double DELAY;
-extern int DelayFlag;
 
 namespace {
 struct FITINFO {
@@ -57,7 +51,6 @@ struct FITINFO {
 
 FITINFO fin;
 }  // namespace
-
 
 void init_fit_info()
 {
@@ -200,8 +193,6 @@ if(METHOD==CVODE)
  /*printem(yderv,yfit,t0,npars,nvars,npts);  */
 }
 
-
-
 int one_step_int(double *y, double t0, double t1, int *istart)
 {
   int nit;
@@ -296,8 +287,6 @@ if(METHOD==RKQS||METHOD==STIFF){
 
   return(1);
 } 
-    
-
 
 void print_fit_info()
 {
@@ -312,7 +301,6 @@ void print_fit_info()
     xpp::log(XPP_LOG_INFO, " P[{}]={} \n",i,fin.ipar[i]);
 }
 
-
 void test_fit()
 {
  std::array<double, 1000> a{}, y0{};
@@ -322,7 +310,6 @@ void test_fit()
  if(get_fit_params()==0)return;
  /* the lists as the dialog left them: the parsers cut them up in place */
  std::string collist=fin.collist,parlist1=fin.parlist1,parlist2=fin.parlist2,varlist=fin.varlist;
-
 
  parse_collist(collist.data(),fin.icols.data(),&nvars);
  
@@ -397,8 +384,6 @@ void test_fit()
 
 }
 
-
-
 int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, int ndim, double eps, double tol, int *ipar, int *ivar, int *icols, double *y0, double *a, double *yfit)
 /* 
    filename is where the data file is -- it is of the form:
@@ -452,8 +437,6 @@ int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, i
   reader.close();
   xpp::log(XPP_LOG_INFO, " Data loaded ... {:f} {:f} ...  {:f} {:f} \n",
 	 y[0],y[1],y[npts*nvars-2],y[npts*nvars-1]);
-
-
 
   std::vector<double> work_v(static_cast<size_t>(4*npars+npars*npars));
   double *work=work_v.data();
@@ -664,8 +647,6 @@ sigma  weights on nvars
 	 */
        return(1);
      }
-     
-
 
 int get_fit_params()
 {
@@ -747,7 +728,6 @@ void parse_varlist(char *varlist, int *ivars, int *n)
 
 }
 
-
 void parse_parlist(char *parlist, int *ipars, int *n)
 {  
   char *item;
@@ -790,12 +770,4 @@ void parse_parlist(char *parlist, int *ipars, int *n)
   *n=*n+i;
 
 }
-
-
-
-
-
-
-
-
 

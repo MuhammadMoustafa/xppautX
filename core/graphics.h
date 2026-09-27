@@ -11,7 +11,6 @@ extern double XMin, YMin, XMax, YMax;
 extern int PointType, PointRadius, TextJustify, TextAngle, PS_Port;
 extern double THETA0, PHI0;
 
-
 void get_scale(double *x1, double *y1, double *x2, double *y2);
 void set_scale(double x1, double y1, double x2, double y2);
 void get_draw_area_flag(int flag);
@@ -26,15 +25,7 @@ void put_text(int x, int y, const char *str);
 void init_x11(void);
 void init_ps(void);
 void init_svg(void);
-void point_x11(int xp, int yp);
 void set_linestyle(int ls);
-void set_line_style_x11(int ls);
-void bead_x11(int x, int y);
-void rect_x11(int x, int y, int w, int h);
-void line_x11(int xp1, int yp1, int xp2, int yp2);
-void put_text_x11(int x, int y, const char *str);
-void special_put_text_x11(int x, int y, const char *str, int size);
-void fancy_put_text_x11(int x, int y, const char *str, int size, int font);
 void scale_dxdy(float x, float y, double *i, double *j);
 void scale_to_screen(float x, float y, int *i, int *j);
 void scale_to_real(int i, int j, float *x, float *y);

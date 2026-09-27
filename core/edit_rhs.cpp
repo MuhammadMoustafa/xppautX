@@ -23,11 +23,6 @@
 #include <string>
 #include <vector>
 
-extern int METHOD,NEQ,NODE,NMarkov,FIX_VAR;
-extern int NUPAR;
-extern double last_ic[MAXODE];
-extern int NFUN;
-
 namespace {
 
 /* do_edit_box's fields: the names it shows and the values it edits in

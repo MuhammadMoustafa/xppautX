@@ -48,21 +48,10 @@ void unreplace_column(void);
 void make_d_table(double xlo, double xhi, int col, const char *filename, BROWSER b);
 void find_value(int col, double val, int *row, BROWSER b);
 void find_variable(const char *s, int *col);
-void redraw_browser(BROWSER b);
 void new_browse_dat(float **new_dat, int dat_len);
 void refresh_browser(int length);
 void reset_browser(void);
-void draw_data(BROWSER b);
 void init_browser(void);
-void kill_browser(BROWSER *b);
-void make_new_browser(void);
-void make_browser(BROWSER *b, const char *wname, const char *iname, int row, int col);
-void data_up(BROWSER *b);
-void data_down(BROWSER *b);
-void data_pgup(BROWSER *b);
-void data_pgdn(BROWSER *b);
-void data_home(BROWSER *b);
-void data_end(BROWSER *b);
 void get_data_xyz(float *x, float *y, float *z, int i1, int i2, int i3, int off);
 void data_get(BROWSER *b);
 void data_replace(BROWSER *b);
@@ -71,8 +60,6 @@ void data_table(BROWSER *b);
 void data_find(BROWSER *b);
 void data_read(BROWSER *b);
 void data_write(BROWSER *b);
-void data_left(BROWSER *b);
-void data_right(BROWSER *b);
 void data_first(BROWSER *b);
 void data_last(BROWSER *b);
 void data_restore(BROWSER *b);
@@ -87,14 +74,4 @@ void data_restore(BROWSER *b);
 xpp::Writer open_writer_asking(const char *fil);
 #endif
 #endif
-
-
-
-
-
-
-
-
-
-
 

@@ -19,26 +19,17 @@
 #include "xpplim.h"
 #include "xpp_io.h"
 #include "xpp_globals.h"
+#include "form_ode.h"
+#include "load_eqn.h"
 #define DING ping()
 int UnstableManifoldColor=5;
 int StableManifoldColor=8;
 
-extern double DELTA_T;
-extern int METHOD;
-extern int ENDSING,PAR_FOL,SHOOT,PAUSER;
-
-extern int NODE;
-extern int NFlags;
 double ShootIC[8][MAXODE];
 int ShootICFlag;
 int ShootIndex;
 int ShootType[8];
 int gear_pivot[MAXODE];
-extern int STORFLAG;
-
-
-char status();
-
 
 double pertst[7][2][3]={{{2,3,1},{2,12,1}},
                         {{4.5,6,1},{12,24,1}},
@@ -47,11 +38,6 @@ double pertst[7][2][3]={{{2,3,1},{2,12,1}},
 			{{13.7,15.98,.04133},{53.33,70.08,.3157}},
 			{{17.15,1,.008267},{70.08,87.97,.07407}},
 			{{1,1,1},{87.97,1,.0139}}};
-
-
-
-
-
 
 /* main fixed point finder */ 
 void do_sing(double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo)
@@ -246,8 +232,7 @@ if(!PAR_FOL)
    if((ch=='y')||(PAR_FOL&&SHOOT))
      {
        oldt=DELTA_T;
-            
-      
+
 	 if((rp>1)&&(bpos>=0)) /* then there is a strong unstable */
 	 {
 	   xpp_log(XPP_LOG_INFO, "strong unstable %g \n",bigpos);
@@ -281,14 +266,11 @@ if(!PAR_FOL)
 	     }
 	   else
 	     err_msg("Failed to compute eigenvector");
-    
 
 	 }
      }
         DELTA_T=oldt;
  }
-
-
 
  return;
 }
@@ -326,7 +308,6 @@ int i,k,type;
     }
   }
   DELTA_T=olddt;
-
 
 }
 void shoot_this_now() /* this uses the current labeled saddle point stuff to integrate */
@@ -367,8 +348,6 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
  int pose=0,nege=0,pr=0;
  double *work,*eval,*b,*bp,*oldwork,*ework;
  double temp,old_x[MAXODE];
-
- 
 
  double real,imag;
  double bigpos=-1e10,bigneg=1e10;
@@ -461,9 +440,7 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
    if((rp+cp)!=0)eq_symb(x,0);
    else eq_symb(x,3);
  }
- 
 
- 
  /* Lets change Work back to transposed oldwork */
    for(i=0;i<n;i++)
      {
@@ -484,12 +461,10 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
      /*     for(i=0;i<n*n;i++)printf(" w=%g o=%g \n",work[i],oldwork[i]); */
      get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*pose],ierr);
 
-
      if(*ierr==0)
      {
        pr_evec(x,b,n,pr,eval[2*pose],1);
 
- 
      }
 
    }
@@ -499,25 +474,18 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
      
      get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*nege],ierr);
 
-
      if(*ierr==0)
      {
        pr_evec(x,b,n,pr,eval[2*nege],-1);
 
      }
-   
-     
+
    }
 
  }
 
-
-
-
  return;
 }
-
-
 
 void pr_evec(double *x, double *ev, int n, int pr, double eval, int type)
 {
@@ -623,10 +591,6 @@ void get_evec(double *a, double *anew, double *b, double *bp, int n, int maxit, 
      return;
   }
 
-
-
-
-
 void getjac(double *x, double *y, double *yp, double *xp, double eps, double *dermat, int n)
 {
  int i,j,k;
@@ -683,7 +647,6 @@ void getjactrans(double *x,double *y,double *yp,double *xp, double eps, double *
 
   }
 }
-
 
 void rooter(double *x, double err, double eps, double big, double *work, int *ierr, int maxit, int n)
 {
@@ -763,7 +726,6 @@ double sqr2(double z)
 {
 return(z*z);
 }
-
 
 int gear(int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
 {

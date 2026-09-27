@@ -38,7 +38,6 @@
           - 
           -                                                   MIN
      TN     ---------------------------------------                   
- 
 
     and it creates a color plot 
 
@@ -52,6 +51,7 @@
 #include "xpp_io.h"
 #include "integrate.h"
 #include "pop_list.h"
+#include "form_ode.h"
 
 /* the core's globals that have no header of their own */
 int aplot_range_count=0;
@@ -61,10 +61,6 @@ int aplot_still=1,aplot_tag=0;
 APLOT aplot;
 int plot3d_auto_redraw=0;
 FILE *ap_fp;
-
-
-
-
 
 void set_up_aplot_range(void)
 { 
@@ -124,9 +120,7 @@ void optimize_aplot(int *plist)
   xpp_ui.aplot_reset_axes();
   xpp_ui.aplot_redraw();
 }
-  
-  
-  
+
 void scale_aplot(APLOT *ap, double *zmax, double *zmin)
 {
   int i,j,ib,jb,row0=ap->nstart,col0=ap->index0;
@@ -178,7 +172,6 @@ void init_my_aplot(void)
  ap->bottom="";
  ap->type=-1;
 }
-
 
 void print_aplot(APLOT *ap)
 {
@@ -313,25 +306,4 @@ void close_aplot_files(void)
     ap_fp=nullptr;
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

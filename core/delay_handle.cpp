@@ -12,6 +12,7 @@
 #include <vector>
 #include "xpplim.h"
 #include "getvar.h"
+#include "form_ode.h"
 
 double AlphaMax=2,OmegaMax=2;
 
@@ -27,13 +28,6 @@ int DelayFlag=0;
 int NDelay,del_stab_flag,WhichDelay,DelayGrid=1000;
 double variable_shift[2][MAXODE];
 double delay_list[MAXDELAY];
-
-extern double DELTA_T,T0,DELAY;
-extern int NODE,NCON,NSYM,NSYM_START,NCON_START,NMarkov;
- 
-extern double variables[];
-extern int NVAR;
-
 
 double delay_stab_eval(double delay, int var)  /* this returns appropriate values for delay jacobian */
 {
@@ -59,13 +53,10 @@ double delay_stab_eval(double delay, int var)  /* this returns appropriate value
    return variable_shift[0][var-1];
 }
 
-
-
 int alloc_delay(double big)
 {
  int n;
 
- 
  n=static_cast<int>(big/fabs(DELTA_T))+1;
 
  MaxDelay=n;
@@ -159,7 +150,6 @@ double get_delay(int in, double tau)
   if(i3<0)i3+=MaxDelay;
   if(i0<0)i0+=MaxDelay;
 
-
   ya[1]=DelayWork[in+(nodes )*i1];
   ya[2]=DelayWork[in+(nodes )*i2];
    ya[0]=DelayWork[in+(nodes )*i0];
@@ -207,22 +197,4 @@ int do_init_delay(double big)
   set_val("t",old_t);
    return(1);
  }
-		
-	 
-	
-        
- 
- 
-  
-
- 
- 
- 
-
- 
-
-
-
-
-
 

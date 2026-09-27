@@ -10,19 +10,13 @@
 #include "xAuto.h"
 #include "tabular.h"  /* redo_all_fun_tables() */
 #include "gear.h"     /* getjactrans() */
-
-extern XAUTO xAuto;
+#include "load_eqn.h"
+#include "parserslow.h"
 
 /*    Hooks to xpp RHS     */
 
-extern double constants[],last_ic[];
-
 extern int NewPeriodFlag;
 extern int HomoFlag;
-extern double homo_l[100],homo_r[100];
-extern int METHOD,NJMP;
-
-extern double NEWT_ERR;
 
 /* AUTO calls these through auto_c.h's "problem defined functions"
    prototypes; give them C linkage so the callers (autlib3.cpp,
@@ -52,12 +46,7 @@ extern "C" int func(integer ndim, double *u, integer *icp, double *par, integer 
 
    return 0;
 
-
-
-
-
 } /* func_ */
-
 
 extern "C" int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
 {
@@ -98,12 +87,6 @@ extern "C" int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
 
 } /* stpnt_ */
 
-
-
-
-
-
-
 /* Subroutine */ extern "C" int bcnd(integer ndim, double *par, integer *icp, integer nbc, double *u0, double *u1, integer ijac, double *fb, double *dbc)
 {
  int i;
@@ -113,7 +96,6 @@ extern "C" int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
      constants[Auto_index_to_array[i]]=par[i];
  }
 
- 
  evaluate_derived();
  redo_all_fun_tables();
  do_bc(u0,0.0,u1,1.0,fb,nbc);
@@ -154,5 +136,4 @@ extern "C" int pvls (integer ndim, const doublereal *u,
 {
   return 0;
 }
-
 

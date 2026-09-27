@@ -15,7 +15,6 @@
 #include "histogram.h"
 #include "browse.h"
 
-
 #include <strings.h>
 #include <math.h>
 #include <stdio.h>
@@ -23,26 +22,12 @@
 #include "xpplim.h"
 #include "parserslow.h"
 #include "xpp_io.h"
+#include "form_ode.h"
+#include "load_eqn.h"
 #include <string>
 #include <vector>
 /* #include "browse.h" */
 
-extern int ConvertStyle;
-extern FILE *convertf;
-
-
-
-
-
-
-extern int *my_ode[];
-extern char *ode_names[MAXODE];
-extern int NMarkov,FIX_VAR,NODE,NEQ;
-
-
-extern int NLINES;
-extern char *save_eqn[1000];
-extern int RandSeed;
 typedef struct {
   std::vector<std::vector<int>> command; /* compiled transition formulas */
   std::vector<std::string> trans;
@@ -54,8 +39,6 @@ typedef struct {
 } MARKOV;
 
 MARKOV markov[MAXMARK];
-
-
 
 /* The browser (new_browse_dat, browse.h) takes the statistics as a plain
    float ** of MAXODE rows, so my_mean/my_variance stay arrays of row
@@ -69,9 +52,6 @@ int stoch_len;
 int STOCH_FLAG,STOCH_HERE,N_TRIALS;
 int Wiener[MAXPAR];
 int NWiener;
-extern double constants[];
-
-
 
 void add_wiener(int index)
 {
@@ -86,7 +66,6 @@ void set_wieners(double dt, double *x, double t)
   for(i=0;i<NWiener;i++)
     constants[Wiener[i]]=normal(0.00,1.00)/sqrt(fabs(dt));
 }
-
 
 void add_markov(int nstate, const char *name)
 {
@@ -128,7 +107,6 @@ int build_markov(const char *const *ma, const char *name)  /*   FILE *fptr; */
  */
   int istart;
 
-
  int i,j;
  int index=markov_named(name);
  int nstates=markov[index].nstates;
@@ -153,12 +131,10 @@ int build_markov(const char *const *ma, const char *name)  /*   FILE *fptr; */
  return index;
 }
 
-
 int old_build_markov(FILE *fptr, const char *name)
 {
  /*int nn;*/
   int istart;
-
 
  int i,j;
  int index=markov_named(name);
@@ -216,12 +192,6 @@ static std::string extract_expr(const char *source, int *i0)
    return dest;
 }
 
-     
-     
- 
-
-
-
 void create_markov(int nstates, double *st, int type, const char *name)
 {
   int n2=nstates*nstates;
@@ -245,7 +215,6 @@ void create_markov(int nstates, double *st, int type, const char *name)
   markov[j].name = std::string(name).substr(0, XPP_NAME_MAX);
   NMarkov++;
 
-  
 }
 
 void add_markov_entry(int index, int j, int k, const char *expr)
@@ -275,7 +244,6 @@ void add_markov_entry(int index, int j, int k, const char *expr)
   }
 }
 
- 
 void compile_all_markov()
 {
   int index,j,k,ns,l0;
@@ -311,7 +279,6 @@ int compile_markov(int index, int j, int k)
   return 1;
 }
 
-
 void update_markov(double *x, double t, double dt)
 {
   int i;
@@ -330,8 +297,6 @@ void update_markov(double *x, double t, double dt)
     set_ivar(i+NODE+FIX_VAR+1,yp[i]);
   }
 }
-  
-  
 
 double new_state(double old, int index, double dt)
 {
@@ -403,7 +368,6 @@ void make_gill_nu(double *nu,int n,int m,double *v)
   }
 }
 
-
 void one_gill_step(int meth,int nrxn,int *rxn,double *v)
 {
   double rate=0,test;
@@ -438,15 +402,10 @@ void one_gill_step(int meth,int nrxn,int *rxn,double *v)
 	*/
     break;
 
-
   }
 
 }
-    
-		     
-		     
-    
-    
+
 void do_stochast_com(int i)
 {
   static const char *const key="ncdmvhofpislaxe2";
@@ -509,7 +468,6 @@ void do_stochast_com(int i)
   }
   
 }
-  
 
 /* show the mean or the variance of the runs in the browser */
 static void stats_back(float **stats)
@@ -529,7 +487,6 @@ void variance_back()
 {
   stats_back(my_variance);
 }
-  
 
 void compute_em()
 {
@@ -554,7 +511,6 @@ void free_stoch()
     STOCH_HERE=0;
   }
 }
-  
 
 void init_stoch(int len)
 {
@@ -573,8 +529,6 @@ void init_stoch(int len)
   }
   STOCH_HERE=1;
 }
-    
-
 
 void append_stoch(int first, int length)
 {

@@ -1,14 +1,10 @@
 #include "torus.h"
 #include "xpp_ui.h"
 #include "xpplim.h"
-#include "phsplan.h" /* uvar_names */
+#include "form_ode.h"
+#include "load_eqn.h"
 
 #include <array>
-
-extern int NEQ;
-extern int TORUS;
-extern double TOR_PERIOD;
-extern int itor[MAXODE];
 
 void do_torus_com(int c)
 {

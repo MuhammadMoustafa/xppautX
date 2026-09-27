@@ -8,10 +8,8 @@
  *                                                                *
  ******************************************************************/
 
-
 #ifndef _cvode_h
 #define _cvode_h
-
 
 #include "llnltyps.h"
 #include "vector.h"
@@ -31,7 +29,6 @@ extern "C" {
  *                                                                *
  ******************************************************************/
 
- 
 /******************************************************************
  *                                                                *
  * Enumerations for input parameters to CVodeMalloc and CVode.    *
@@ -80,8 +77,7 @@ enum { FUNCTIONAL, NEWTON };   /* iter */
 enum { SS, SV };               /* itol */
 
 enum { NORMAL, ONE_STEP };     /* itask */
- 
- 
+
 /******************************************************************
  *                                                                *
  * Type : RhsFn                                                   *
@@ -103,8 +99,7 @@ enum { NORMAL, ONE_STEP };     /* itask */
 
 typedef void (*RhsFn)(integer N, real t, N_Vector y, N_Vector ydot,
                       void *f_data);
- 
- 
+
 /******************************************************************
  *                                                                *
  * Function : CVodeMalloc                                         *
@@ -177,13 +172,11 @@ typedef void (*RhsFn)(integer N, real t, N_Vector y, N_Vector ydot,
  *                                                                *
  ******************************************************************/
 
-
 void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
                   int itol, real *reltol, void *abstol, void *f_data,
                   bool optIn,   int iopt[], real ropt[],
                   void *machEnv);
- 
- 
+
 /******************************************************************
  *                                                                *
  * Function : CVode                                               *
@@ -256,17 +249,14 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
  *                                                                *
  ******************************************************************/
 
-
 int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask);
-
 
 /* CVode return values */
 
 enum { SUCCESS=0, CVODE_NO_MEM=-1, ILL_INPUT=-2, TOO_MUCH_WORK=-3,
        TOO_MUCH_ACC=-4, ERR_FAILURE=-5, CONV_FAILURE=-6,
        SETUP_FAILURE=-7, SOLVE_FAILURE=-8 };
- 
- 
+
 /******************************************************************
  *                                                                *
  * Function : CVodeDky                                            *
@@ -306,15 +296,12 @@ enum { SUCCESS=0, CVODE_NO_MEM=-1, ILL_INPUT=-2, TOO_MUCH_WORK=-3,
  *                                                                * 
  ******************************************************************/
 
-
 int CVodeDky(void *cvode_mem, real t, int k, N_Vector dky);
-
 
 /* CVodeDky return values */
 
 enum { OKAY=0, BAD_K=-1, BAD_T=-2, BAD_DKY=-3, DKY_NO_MEM=-4 };
- 
- 
+
 /******************************************************************
  *                                                                *
  * Function : CVodeFree                                           *
@@ -326,8 +313,7 @@ enum { OKAY=0, BAD_K=-1, BAD_T=-2, BAD_DKY=-3, DKY_NO_MEM=-4 };
  ******************************************************************/
 
 void CVodeFree(void *cvode_mem);
- 
- 
+
 /******************************************************************
  *                                                                *
  * Optional Inputs and Outputs                                    *
@@ -387,24 +373,24 @@ void CVodeFree(void *cvode_mem);
  * iopt[LENIW]   : size of required CVODE internal integer work   *
  *                 space, in integer words.  Optional output.     *
  *                                                                *
- * ropt[H0]      : initial step size. Optional input.             *
+ * ropt[ROPT_H0] : initial step size. Optional input.             *
  *                                                                *
- * ropt[HMAX]    : maximum absolute value of step size allowed.   *
+ * ropt[ROPT_HMAX] : maximum absolute value of step size allowed. *
  *                 Optional input. (Default is infinity).         *
  *                                                                *
- * ropt[HMIN]    : minimum absolute value of step size allowed.   *
+ * ropt[ROPT_HMIN] : minimum absolute value of step size allowed. *
  *                 Optional input. (Default is 0.0).              *
  *                                                                *
- * ropt[HU]      : step size for the last internal step.          *
+ * ropt[ROPT_HU] : step size for the last internal step.          *
  *                 Optional output.                               *
  *                                                                *
- * ropt[HCUR]    : step size to be attempted on the next internal *
+ * ropt[ROPT_HCUR] : step size to be attempted on the next internal *
  *                 step. Optional output.                         *
  *                                                                *
- * ropt[TCUR]    : current internal time reached by the solver.   *
+ * ropt[ROPT_TCUR] : current internal time reached by the solver. *
  *                 Optional output.                               *
  *                                                                *
- * ropt[TOLSF]   : a suggested factor by which the user's         *
+ * ropt[ROPT_TOLSF] : a suggested factor by which the user's      *
  *                 tolerances should be scaled when too much      *
  *                 accuracy has been requested for some internal  *
  *                 step. Optional output.                         *
@@ -414,7 +400,6 @@ void CVodeFree(void *cvode_mem);
 /* iopt, ropt array sizes */
 
 #define OPT_SIZE 40
- 
 
 /* iopt and ropt offsets                                          *
  * The constants CVODE_IOPT_SIZE and CVODE_ROPT_SIZE are equal to *
@@ -432,9 +417,8 @@ enum { MAXORD, MXSTEP, MXHNIL,
 
 /* ropt indices */
 
-enum { H0, HMAX, HMIN,
-       HU, HCUR, TCUR, TOLSF };
-
+enum { ROPT_H0, ROPT_HMAX, ROPT_HMIN,
+       ROPT_HU, ROPT_HCUR, ROPT_TCUR, ROPT_TOLSF };
 
 /* Basic CVODE constants */
 
@@ -443,7 +427,6 @@ enum { H0, HMAX, HMIN,
 #define Q_MAX        ADAMS_Q_MAX  /* max value of q for either lmm        */
 #define L_MAX        (Q_MAX+1)    /* max value of L for either lmm        */
 #define NUM_TESTS    5            /* number of error test quantities      */
-
 
 /******************************************************************
  *                                                                *
@@ -592,7 +575,6 @@ typedef struct CVodeMemRec {
 
 } *CVodeMem;
 
-
 /******************************************************************
  *                                                                *
  * Communication between cvode.c and a CVODE Linear Solver        *
@@ -647,7 +629,6 @@ typedef struct CVodeMemRec {
 #define NO_FAILURES 0   
 #define FAIL_BAD_J  1  
 #define FAIL_OTHER  2  
-
 
 /*******************************************************************
  *                                                                 *
@@ -740,7 +721,6 @@ typedef struct CVodeMemRec {
  * completed and the linear solver is no  er needed.            *
  *                                                                 *
  *******************************************************************/
-
 
 #ifdef __cplusplus
 }

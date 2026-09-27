@@ -16,6 +16,7 @@ typedef struct RangeVars {
   int rtype;
 } RangeVars;
 extern RangeVars range;
+extern int SuppressBounds,MyStart;
 
 /* the fixed-step integrator Integrate uses (numerics.c picks it) */
 extern int (*solver)(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work);

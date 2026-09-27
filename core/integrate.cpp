@@ -33,7 +33,6 @@
 #include "odesol2.h"
 #include "nullcline.h"
 
-
 #include "pp_shoot.h"
 #include "dae_fun.h"
 #include "load_eqn.h"
@@ -55,7 +54,6 @@
  
 */
 
-
 /* 
 New stuff for 9/96 -- cvode added 
  cvode(command,y,t,n,tout,kflag,atol,rtol) 
@@ -68,7 +66,6 @@ New stuff for 9/96 -- cvode added
 NOTE: except for the structure MyGraph, it is "x-free" so it
  is completely portable
 
-  
 */ 
 
 #include <stdio.h>
@@ -80,13 +77,14 @@ NOTE: except for the structure MyGraph, it is "x-free" so it
 #include <vector>
 #include "xpplim.h"
 #include "struct.h"
-#include "phsplan.h"
 #include "menudrive.h"
 #include "arrayplot.h"
 #include "xpp_job.h"
 #include "phase_data.h"
 #include "xpp_batch.h"
 #include "colormap.h"
+#include "comline.h"
+#include "form_ode.h"
 
 /* a row was just stored (storage[.][storind-1]): a replayed script may stop
    the job here (xpp_job.h), and a front end may show the run growing */
@@ -120,19 +118,12 @@ extern double ShootIC[8][MAXODE];
 extern int ShootType[8];
 extern int ShootICFlag;
 extern int ShootIndex;
-extern int dryrun;
-extern int querysets;
-extern int querypars;
-extern int queryics;
-extern int Nintern_2_use;
 extern int AdjRange;
-extern char this_internset[XPP_MAX_NAME];
 
 int MakePlotFlag=0;
 
 int OnTheFly=1;
 extern FILE *svgfile;
-
 
 struct ARRAY_IC {
   int index0,type;
@@ -163,26 +154,15 @@ FIXPTGUESS fixptguess;
 
 int SuppressOut=0;
 int SuppressBounds=0;
-extern int NUPAR;
 
-extern char *info_message,*ic_hint[],*sing_hint[];
-extern int NMarkov,STOCH_FLAG;
-extern int SCALEY,PltFmtFlag,PointRadius;
+extern int SCALEY;
 int DelayErr;
 
-float **get_browser_data();
 int MyStart;
-extern int DelayFlag,NKernel;
 int RANGE_FLAG; 
-extern int PAR_FOL,SHOOT;
-extern double default_val[MAXPAR];
-extern double last_ic[MAXODE];
 double LastTime;
 
-
-extern double DELAY;
 extern int R_COL;
-extern int colorline[11];
 int STOP_FLAG=0;
  struct {
          std::array<char, MAX_LEN_SBOX> item{};
@@ -191,8 +171,6 @@ int STOP_FLAG=0;
        } eq_range;
 
 RangeVars range;
-
-
 
 void save_batch_shoot();
 
@@ -306,7 +284,6 @@ static const char *n[]={"*2Range over","Steps","Start","End",
  values[6] = yn[eq_range.movie];
 values[7] = yn[eq_range.mc];
 
- 
  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
  status=do_string_box_of(8,1,"Range Equilibria",n,values,45,kinds);
@@ -336,7 +313,6 @@ values[7] = yn[eq_range.mc];
  return(0);
 }
 
-
 void cont_integ()
 {
   double tetemp;
@@ -357,7 +333,6 @@ void cont_integ()
   ping();
   refresh_browser(data_store.rows);
 }
-  
 
 namespace {
 /* what a range varies: item a parameter (PARAM) or else a variable (IC),
@@ -560,9 +535,6 @@ void monte_carlo()
   do_monte_carlo_search(append, 1,ishoot);
 }
 
-
-
-
 void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
 {
   int i,j,k,m,n=fixptguess.n;
@@ -638,9 +610,6 @@ void do_monte_carlo_search(int append, int stuffbrowse,int ishoot)
     refresh_browser(data_store.rows);
   }
 }
-	  
-	
-
 
 void do_eq_range(double *x)
 {
@@ -713,7 +682,6 @@ void do_eq_range(double *x)
     refresh_browser(data_store.rows);
  PAR_FOL=0;
 }
-		                    
 
 void swap_color(int *col, int rorw)
 {
@@ -728,8 +696,6 @@ void set_cycle(int flag, int *icol)
  *icol=*icol+1;
   if(*icol==10)*icol=0;
 } 
-
-
 
 int do_auto_range_go()
 {
@@ -757,7 +723,6 @@ int do_range(double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto
    
    if(set_up_range2()==0)return -1;
  }
- 
 
  MyStart=1;
  itype=range.type;
@@ -791,8 +756,7 @@ if(range.type==PARAM)get_val(range.item,&temp);
   if(range.type2==PARAM)get_val(range.item2,&temp2);
  
  }
- 
- 
+
  if(range.movie)reset_film();
  if(flag==2){
    auto_get_info(&nit,parn.data());
@@ -824,9 +788,7 @@ if(range.type==PARAM)get_val(range.item,&temp);
 	 if(do_init_delay(DELAY)==0)break;
        }
      }
-     
-     
-     
+
      if(itype==IC)x[ivar]=p;
      else {
        set_val(range.item,p);
@@ -874,7 +836,6 @@ if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
  if(STOCH_FLAG)
    append_stoch(i,data_store.rows);
 
-
  if(range.movie){
    xpp_ui.put_text(5,10,bob.c_str());
    redraw_dfield();
@@ -888,8 +849,7 @@ if(fabs(data_store.current_time)>=TRANS&&STORFLAG==1&&POIMAP==0)
    data_get_mybrowser(data_store.rows-1);
    compute_one_period(static_cast<double>(data_store.col[0][data_store.rows-1]),last_ic,bob.c_str());
  }
- 
- 
+
  do_this_liaprun(i,p);  /* sends parameter and index back */
  if(data_store.rows>2)auto_freeze_it();
  if(aplot_range==1)
@@ -925,10 +885,8 @@ plot_windows.current->color[0]=color;
    do_stats(ierr);
 
  return(ierr);
-  
- 
-}
 
+}
 
 void silent_equilibria()
 {
@@ -961,7 +919,6 @@ void find_equilib_com(int com)
  float stabinfo;
  double *x,oldtrans;
 
-
  x=&data_store.current[0];
  if(FFT||HIST||NKernel>0)return;
 
@@ -983,8 +940,7 @@ void find_equilib_com(int com)
       err_msg("Not in useable 2D plane...");
       return;
     }
-	     
-   
+
 	 /* get mouse click x,y  */
          get_ic(1,x);
 	 MessageBox("Click on guess");
@@ -1051,7 +1007,6 @@ void batch_integrate()
  
 } 
 
-
 void do_batch_dry_run()
 {
 	if (!dryrun){return;}
@@ -1094,8 +1049,6 @@ void do_batch_dry_run()
  	return;
 
 }
-
-
 
 void batch_integrate_once()
 {
@@ -1194,7 +1147,6 @@ void do_init_data(int com)
   reset_dae();
   if(FFT||HIST)return;
 
-
   if(com==M_ID){      /* dont want to wipe out everything! */
     get_new_guesses();
     return;
@@ -1208,7 +1160,6 @@ void do_init_data(int com)
   POIEXT=0;
   data_store.rows=0;
   reset_browser();
-
 
   switch(com){
   case M_IR: /* do range   */
@@ -1251,7 +1202,6 @@ void do_init_data(int com)
       err_msg("Not in useable 2D plane...");
       return;
     }
-
 
     /*  Get mouse values  */
     if(com==M_IM){
@@ -1391,14 +1341,12 @@ void run_now()
   usual_integrate_stuff(x);
  }
 
-
 void do_start_flags(double *x,double *t)
 {
  int iflagstart=1;
  double tnew=*t;
  double sss;
  one_flag_step(x,x,&iflagstart,*t,&tnew,NODE,&sss);
-
 
 }
 void usual_integrate_stuff(double *x)
@@ -1485,7 +1433,6 @@ void evaluate_ar_ic(const char *v, const char *f, int j1, int j2)
 	return;
     }
   }
-    
 
 }
 int extract_ic_data(char *big)
@@ -1595,7 +1542,6 @@ int form_ic()
   return 1;
 }
 
-
 void get_ic(int it, double *x)
 {
   int i;
@@ -1609,7 +1555,6 @@ void get_ic(int it, double *x)
     break;
    }
 }
-
 
 int ode_int(double *y, double *t, int *istart, int ishow)
 {
@@ -1730,8 +1675,6 @@ int ode_int(double *y, double *t, int *istart, int ishow)
   return(1);
 }
 
-
-
 int integrate(double *t, double *x, double tend, double dt, int count, int nout, int *start)
 {
 
@@ -1743,8 +1686,6 @@ int integrate(double *t, double *x, double tend, double dt, int count, int nout,
 
  int torcross[MAXODE];
  int nodes=xpv.node+xpv.nvec-NMarkov;
-
-
 
  int rval=0;
  double oldx[MAXODE],oldt=0,dint,dxp,sect,sect1,tout,tzero=*t;
@@ -1758,7 +1699,6 @@ int integrate(double *t, double *x, double tend, double dt, int count, int nout,
  int nit;
  int cwidth=0;
  /* new poincare map stuff */
- 
 
   int i_nan=0; /* NaN */
 MSWTCH(xpv.x,x);
@@ -1767,7 +1707,6 @@ if(program.interactive) cwidth=get_command_width();
 
  LastTime=*t;
  evaluate_derived();
-
 
  if((METHOD==GEAR)&&(*start==1))*start=0;
  if(METHOD==0){
@@ -2006,8 +1945,6 @@ if(program.interactive) cwidth=get_command_width();
 
 	   extra(x,*t,NODE,NEQ);
 
- 
-           
           if (TORUS == 1) {
 	for (ieqn = 0; ieqn < NEQ; ieqn++) {
 	        torcross[ieqn]=0;
@@ -2115,8 +2052,7 @@ if(program.interactive) cwidth=get_command_width();
         /*   This is where the progresser goes   */
 	   if(program.interactive){ plot_command(nit,icount,cwidth); 
 	   esc=my_abort();
-	
-       
+
            {
             
              if(esc==ESCAPE) break;
@@ -2151,8 +2087,7 @@ if(program.interactive) cwidth=get_command_width();
 	  return(1); 
 	}
 	dint=xprime[POIVAR-1]/dxp;
-       
-       
+
 	tv=(1-dint)**t+dint*oldt;
 	xv[0]=tv;
 	for(i=1;i<=NEQ;i++)xv[i]=dint*oldx[i-1]+(1-dint)*x[i-1];
@@ -2164,16 +2099,12 @@ if(program.interactive) cwidth=get_command_width();
   goto poi;
  }
 
-
  /*  here is code for a formula type map --  F(X,t)=0 
   */
  if(POIMAP==4) {
    
    /*  pmapf=get_map_value(x,*t);
     */
- 
-
-
 
  }
  
@@ -2231,7 +2162,6 @@ poi:    for(i=0;i<NEQ;i++)oldx[i]=x[i];
     if(pflag==0)goto out;
  }
 
-	 
 /*	   Plotting and storing data      */
  if(POIMAP==3&&pflag==1){
    if(oldperiod==0.0){
@@ -2249,7 +2179,6 @@ poi:    for(i=0;i<NEQ;i++)oldx[i]=x[i];
 
 	  }
 
-
 	   if((STORFLAG==1)&&(count!=0)&&(data_store.rows<data_store.max_rows)&&!(fabs(*t)<TRANS))
 	   {
            if(ani_options.on_the_fly)on_the_fly(0);
@@ -2261,8 +2190,6 @@ poi:    for(i=0;i<NEQ;i++)oldx[i]=x[i];
             if(stor_full()==0)break;
 	    if((pflag==1)&&(SOS==1))break;
 	   }
-	   
-
 
 out:
            icount++;
@@ -2328,8 +2255,6 @@ void send_output(double *y,double t)
        }
 }
 
-
-
 /*
  old restore is in restore.c
 
@@ -2387,7 +2312,6 @@ int ip,np=plot_windows.current->nvars;
     }
     return;
 }
-	
 
 void plot_the_graphs(float *xv,float *xvold,int node,int neq,double ddt,int *tc,int flag)
 {
@@ -2508,7 +2432,6 @@ void restore(int i1, int i2)
   }
 }
 
-
 /*  Sets the color according to the velocity or z-value */
 void comp_color(float *v1, float *v2, int n, float dt)
 {
@@ -2558,7 +2481,6 @@ i=1;
   SuppressBounds=0;
 }
 
-
 void stop_integration()
 {
  /*  set some global error here... */
@@ -2566,9 +2488,6 @@ void stop_integration()
     err_msg("Delay too large or negative");
  DelayErr=1;
 }
-
-
-
 
 int stor_full()
 {
@@ -2579,8 +2498,7 @@ int stor_full()
    data_store.max_rows=nrow;
    return 1;
  }
- 
- 
+
  if(!program.interactive){
    xpp::log(XPP_LOG_WARN, " Storage full -- increase maxstor \n");
    return(0);

@@ -11,8 +11,8 @@
 #include "graphics.h"
 #include "integrate.h"
 #include "numerics.h"
-#include "phsplan.h"
 #include "xpp_batch.h"
+#include "load_eqn.h"
 
 #include <cmath>
 

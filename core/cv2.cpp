@@ -4,7 +4,6 @@
 #include "flags.h"
 #include "my_rhs.h"
 
-
 #include "llnltyps.h" /* definitions of types real (set to double) and     */
                       /* integer (set to int), and the constant FALSE      */
 #include "cvode.h"    /* prototypes for CVodeMalloc, CVode, and CVodeFree, */
@@ -18,15 +17,14 @@
 #include "cvband.h"
 #include "band.h"
 #include "xpp_io.h"
+#include "load_eqn.h"
+#include "numerics.h"
 #include <string>
 double cv_ropt[OPT_SIZE];
   int cv_iopt[OPT_SIZE];
-extern int cv_bandflag,cv_bandupper,cv_bandlower;
 void *cvode_mem;
 N_Vector ycv;
 static void cvf(int n, double t, N_Vector y, N_Vector ydot, void *fdata);
-extern int NFlags;
-extern double TOLER,ATOLER;
 void start_cv(double *y, double t, int n, double tout, double *atol, double *rtol)
 {
  int i;
@@ -53,8 +51,7 @@ static void cvf(int n, double t, N_Vector y, N_Vector ydot, void *fdata)
   my_rhs(t,y->data,ydot->data,n);
   
 }
-     
- 
+
 void cvode_err_msg(int kflag)
 {
   std::string s;
@@ -67,7 +64,7 @@ void cvode_err_msg(int kflag)
   case -3: s = "Too much work -- try smaller DT";
     break;
   case -4: s = xpp::format("Tolerance too low-- try TOL={} ATOL={}",
-	TOLER*cv_ropt[TOLSF], ATOLER*cv_ropt[TOLSF]);
+	TOLER*cv_ropt[ROPT_TOLSF], ATOLER*cv_ropt[ROPT_TOLSF]);
     break;
   case -5: s = "Error test failure too frequent ??";
     break;
@@ -83,7 +80,6 @@ void cvode_err_msg(int kflag)
   if(!s.empty())
     err_msg(s.c_str());
 }
-    
 
 int cvode(int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
 {
@@ -128,15 +124,4 @@ int ccvode(int *command, double *y, double *t, int n, double tout, int *kflag, d
   for(i=0;i<n;i++)y[i]=ycv->data[i];
   return(0);
 }
-
-
-
-
-
-
-
-
-
-
-
 

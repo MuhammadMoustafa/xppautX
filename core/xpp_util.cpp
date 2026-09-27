@@ -41,6 +41,7 @@
 #include <string.h>
 #include <strings.h>
 #include "load_eqn.h"
+#include "auto_nox.h"
 
 #define PARAMBOX 1
 #define ICBOX 2
@@ -49,8 +50,6 @@
 #define PARAM 1
 #define IC 2
 #define REAL_SMALL 1.e-6
-
-extern BROWSER my_browser;
 
 /* ---- graph bookkeeping (was many_pops.c / main.c) ----------------------- */
 
@@ -78,7 +77,6 @@ void clr_scrn(void)
 /* new_parameter, set_default_params, clone_ode: from init_conds.c */
 #define READEM 1
 #define WRITEM 0
-
 
 /* the name of plotted variable ind: T (0) or a variable; stays valid
    while the model is loaded (uvar_names' own storage) */
@@ -169,8 +167,7 @@ int do_calc(const char *temp, double *z)
 	}
  if(has_eq(temp,val.data(),&i))
  {
- 
- 
+
   newz=calculate(&temp[i],&ok);  /*  calculate quantity  */
  
   if(ok==0)return(-1);
@@ -491,7 +488,6 @@ void   set_default_params()
 
 /* ---- the values behind the IC, parameter, BC and delay boxes and the
    parameter sliders (logic from init_conds.c; the widgets stay there) ---- */
-extern int SuppressBounds;
 
 void   set_default_ics()
 {
@@ -631,7 +627,6 @@ void slider_rerun(void)
 /* ---- the equilibrium window's Import button and its label (logic from
    eig_list.c) ---- */
 extern int sparity;
-extern double homo_l[100],homo_r[100];
 
 /* make equilibrium y (n values) the initial data; for small systems it is
    also saved alternately as the left/right equilibrium for homoclinics */
@@ -640,7 +635,6 @@ void eq_import(double *y,int n)
   int i;
   for(i=0;i<n;i++)
     last_ic[i]=y[i];
-
 
   if(n<20){
     if(sparity==0){
@@ -668,7 +662,6 @@ const char *eq_stability(int cp, int rp, int im)
 
 /* ---- a comment with an action in the ODE file was picked (logic from
    txtread.c): run its "name=value ..." settings ---- */
-void extract_action(const char *ptr); /* load_eqn.c */
 
 void do_txt_action(const char *s)
 {

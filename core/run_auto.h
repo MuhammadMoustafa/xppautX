@@ -5,10 +5,7 @@
 extern "C" {
 #endif
 
-
 /* run_auto.c */
-void run_aut(int nfpar, int itp);
-
 
 #ifdef __cplusplus
 }

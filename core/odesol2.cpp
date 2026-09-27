@@ -8,6 +8,8 @@
 #include "flags.h"
 #include "markov.h"
 #include "delay_handle.h"
+#include "load_eqn.h"
+#include "numerics.h"
 
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
@@ -20,12 +22,6 @@ double *y_s[4],*y_p[4],*ypred;
 
 double symp_b[]={7/24.,.75,-1./24};
 double symp_B[]={2/3.,-2./3.,1.0};
-
-extern int MaxEulIter;
-extern double EulTol,NEWT_ERR;
-extern int NFlags;
-extern double TOLER,ATOLER;
-extern int  cv_bandflag,cv_bandupper,cv_bandlower;
 
 namespace {
 /* nt steps of a fixed-step method, storing the delays after each: its
@@ -72,11 +68,6 @@ int symplect3(double *y, double *tim, double dt, int nt, int neq, int *istart, d
     return(0);
 }
 
- 
-
-
-
-
 /*   DISCRETE    */
 
 int discrete(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
@@ -85,7 +76,6 @@ int discrete(double *y, double *tim, double dt, int nt, int neq, int *istart, do
     [&]{ one_step_discrete(y,dt,work,neq,tim); },
     [&]{ one_flag_step_discrete(y,dt,work,neq,tim,istart); });
 }
-
 
 /* Backward Euler  */
 
@@ -170,8 +160,7 @@ int one_bak_step(double *y, double *t, double dt, int neq, double *yg, double *y
       if(iter>MaxEulIter)return(-2);
     }
 }
-	
-  
+
 void one_step_discrete(double *y, double dt, double *yp, int neq, double *t)
 {
   int j;
@@ -183,9 +172,6 @@ void one_step_discrete(double *y, double dt, double *yp, int neq, double *t)
      }
 
 }
-
-
-
 
 void one_step_symp(double *y, double h, double *f, int n, double *t)
 {
@@ -200,16 +186,10 @@ void one_step_symp(double *y, double h, double *f, int n, double *t)
   *t+=h;
 }
 
-
-
-
-
-
 void one_step_euler(double *y, double dt, double *yp, int neq, double *t)
 {
    
  int j;
-
 
    set_wieners(dt,y,*t);
    rhs(*t,y,yp,neq);
@@ -261,7 +241,6 @@ void one_step_heun(double *y, double dt, double *yval[2], int neq, double *tim)
 }
 
 /*  Euler  */
-
 
 int euler(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
@@ -448,8 +427,7 @@ int *istart,int n,double *work,int *ierr)
  dfdt=f2+n;
  ynew=dfdt+n;
  dfdy=ynew+n;
- 
- 
+
  if(t0>tfinal)tdir=-1;
  hmax=fabs(tfinal-t);
  if(*istart==1)
@@ -591,9 +569,6 @@ void get_the_jac(double t,double *y,double *yp,
     }
   }
 }
-
-
-
 
 void get_band_jac(double *a, double *y, double t, double *ypnew, double *ypold, int n, double eps, double scal)
 {

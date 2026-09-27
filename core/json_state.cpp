@@ -31,15 +31,12 @@
 #include "many_pops.h"
 #include "menudrive.h"
 #include "pop_list.h" /* NUPAR, NODE, NMarkov, NEQ, upar_names, uvar_names */
-#include "phsplan.h" /* INFLAG, METHOD */
+#include "delay_handle.h"
 #include <array>
 #include <string>
 
 /* the core's own globals and functions that have no header of their own */
 extern "C" {
-extern BROWSER my_browser;
-extern int DelayFlag;
-extern int DLeft, DRight, DTop, DBottom;
 }
 
 namespace xpp::json {

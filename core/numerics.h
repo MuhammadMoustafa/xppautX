@@ -6,18 +6,8 @@ extern "C" {
 
 /*       Numerics.h   */
 
-extern double DELTA_T,TEND,T0,TRANS,NULL_ERR,EVEC_ERR,NEWT_ERR;
-extern double BOUND,DELAY,TOLER,HMIN,HMAX;
-extern double POIPLN;
-
-extern int NMESH,NJMP,METHOD;
-extern int EVEC_ITER,FOREVER;
-
-extern int POIMAP,POIVAR,POISGN,SOS;
-
-extern int HIST;
-
-extern int XSHFT,YSHFT,ZSHFT;
+/* CVODE's banded Jacobian (the nUmerics menu's Stiff settings) */
+extern int cv_bandflag,cv_bandupper,cv_bandlower;
 
 void chk_volterra(void);
 void check_pos(int *j);

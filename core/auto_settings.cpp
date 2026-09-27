@@ -20,6 +20,7 @@
 #include "pop_list.h"
 #include "xpp_io.h"
 #include "xpp_util.h"
+#include "form_ode.h"
 
 namespace {
 
@@ -171,7 +172,6 @@ bool sent_valid;
 /* the model has settings: init_auto_win() skipped a model too big for AUTO */
 bool have_settings() { return NODE <= NAUTO; }
 
-
 bool num_ok(int i, double v, std::string &why)
 {
     if (i < 0 || i >= AUTO_NUM_N) {
@@ -206,7 +206,6 @@ bool num_ok(int i, double v, std::string &why)
     }
     return true;
 }
-
 
 bool apply(const AutoSettingsSet *s, std::string &why)
 {

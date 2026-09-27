@@ -10,8 +10,6 @@
 
 /* Derived parameter stuff !!  */
 #define MAXDERIVED 200
-extern double constants[];
-extern int NCON;
 
 namespace {
 struct Derived {

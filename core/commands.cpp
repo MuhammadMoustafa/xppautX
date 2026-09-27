@@ -44,9 +44,7 @@
 #include <unistd.h>
 #include "many_pops.h"
 #include "kinescope.h"
-
-extern int NTable, POIMAP, TORUS;
-
+#include "parserslow.h"
 
 /* Pop up m and return the index of the chosen item, -1 if none. */
 static int menu_pick(const XppMenu *m, int def)

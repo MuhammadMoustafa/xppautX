@@ -16,15 +16,12 @@
 #include "graphics.h"
 #include "integrate.h"
 #include "markov.h"
-#include "phsplan.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
 
 #include <cmath>
 
 #define PARAM 1
-
-
 
 int main(void)
 {

@@ -13,21 +13,14 @@
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "xpp_ui.h"
+#include "form_ode.h"
+#include "load_eqn.h"
 #include <string>
 #include <string_view>
 #include <vector>
 #define MAXDAE 400
 
-extern double variables[];
-extern int NVAR;
-
 extern int DelayErr;
-
-extern double EVEC_ERR,NEWT_ERR,BOUND;
-extern int EVEC_ITER;
-
-extern int NODE,FIX_VAR;
-extern int *my_ode[];
 
 /*    will have more stuff someday */
 
@@ -43,18 +36,17 @@ typedef struct {
   std::vector<int> form;
   int index;
   double value,last;
-}SOL_VAR;
+}DaeSolVar;
 
 typedef struct {
   std::string rhs;
   std::vector<int> form;
 } DAE_EQN;
 
-SOL_VAR svar[MAXDAE];
+DaeSolVar svar[MAXDAE];
 DAE_EQN aeqn[MAXDAE];
 
 int nsvar=0,naeqn=0;
-
 
 /* this adds an algebraically defined variable  and a formula
    for the first guess */
@@ -100,13 +92,12 @@ int add_aeqn(const char *rhs)
  return 0;
 }
 
-
 /* this compiles formulas to set to zero */
 int compile_svars()
 {
   int i,f[256],n;
   if(nsvar!=naeqn){
-    xpp_log(XPP_LOG_ERROR, " #SOL_VAR(%d) must equal #ALG_EQN(%d) ! \n",nsvar,naeqn);
+    xpp_log(XPP_LOG_ERROR, " #DaeSolVar(%d) must equal #ALG_EQN(%d) ! \n",nsvar,naeqn);
     return 1;
   }
   
@@ -200,8 +191,7 @@ void do_daes()
   dae_work.status=ans;
   if(ans==1||ans==2)return; /* accepts a no change error! */
   DelayErr=1;
-  
-  
+
 }
 
 /* Newton solver for algebraic stuff */
@@ -288,7 +278,6 @@ int solve_dae()
   }
 }
 
-
 /* interface shit -- different for Win95 */
  
 void get_new_guesses()
@@ -312,17 +301,4 @@ void get_new_guesses()
     svar[i].last=z;
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 

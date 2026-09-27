@@ -25,17 +25,11 @@
 #include <strings.h>
 #include "xpp_io.h"
 #include "pop_list.h"
-
-
-extern int *plotlist, N_plist;
-extern int NEQ;
-
+#include "load_eqn.h"
 
 /*  The one and only primitive data browser   */
 BROWSER my_browser;
 int REPLACE=0,R_COL=0;
-extern int NODE,NMarkov,FIX_VAR;
-extern double last_ic[MAXODE];
 
 namespace {
 /* Replace's column as it was, for Unreplace */
@@ -181,7 +175,6 @@ void data_get(BROWSER *b)
  }
  for(i=NODE+NMarkov;i<NEQ;i++)
    set_val(uvar_names[i],data_store.col[i+1][in]);
- 
 
  redraw_ics();
 }
@@ -201,12 +194,6 @@ void get_data_xyz(float *x, float *y, float *z, int i1, int i2, int i3, int off)
 }
 
 /* ---- the browser's commands (were in browse.c); the widget calls them ---- */
-
-extern int *my_ode[];
-extern char *ode_names[MAXODE];
-extern int NEQ_MIN,NJMP;
-extern int NSYM,NSYM_START,NCON,NCON_START;
-extern double DELTA_T;
 
 int check_for_stor(float **data)
 {
@@ -335,9 +322,7 @@ if(dif_var<0)
    return;
  }
 
-
 /*  first compile formula ... */
-
 
  if(dif_var<0&&seq==0){
    if(add_expr(form,com,&i)){
@@ -402,7 +387,6 @@ if(dif_var<0)
 
 void unreplace_column()
 
-
 {
  int i,n=my_browser.maxrow;
  if(!REPLACE)return;
@@ -453,8 +437,6 @@ if(status!=0){
  xpp_ui.browser_redraw(0);
 }
 
-
-
  }
 
 void data_unreplace(BROWSER *b)
@@ -500,8 +482,6 @@ void data_find(BROWSER *b)
  value[1] = "0.00";
  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_NUMBER};
  status=do_string_box_of(2,1,"Find Data",name,value,40,kinds);
- 
-  
 
  if(status==0)return;
  val=atof(value[1].c_str());
@@ -512,8 +492,6 @@ void data_find(BROWSER *b)
 	    xpp_ui.browser_redraw(0);
 	   }
 
-   
-  
 }
 
 void data_read(BROWSER *b)

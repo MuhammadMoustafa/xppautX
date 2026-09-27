@@ -18,21 +18,16 @@
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "xpp_ui.h"
-#include "phsplan.h" /* uvar_names */
-
-
-
-
+#include "form_ode.h"
+#include "load_eqn.h"
 
 int spec_col=1,spec_wid=512,spec_win=2,spec_col2=1,spec_type=0;
 /* type =0 for PSD
    type =1 for crossspectrum
    type =2 for coherence
-   
 
 */
 
-extern int *plotlist,N_plist;
 namespace {
 /* the plot list post_process_stuff sets when the model has none of its own
    (plotlist is form_ode.cpp's pointer) */
@@ -43,8 +38,6 @@ int post_process=0;
 
 HIST_INFO hist_inf = {100,100,0,1,1,0,0,1,0,1,""};
 
-extern int NCON,NSYM,NCON_START,NSYM_START;
-
 int hist_len,four_len;
 namespace {
 /* the last histogram's and Fourier transform's columns (storage.h) */
@@ -53,10 +46,6 @@ LentColumns hist_columns, four_columns;
 float **my_hist=hist_columns.table();
 float **my_four=four_columns.table();
 int HIST_HERE,FOUR_HERE;
-
-extern int NEQ,NODE,NMarkov,FIX_VAR;
-
-extern const char *no_hint[]; extern char *info_message;
 
 int two_d_hist(int col1,int col2,int ndat,int n1,int n2,double xlo,double xhi,double ylo,double yhi)
      /*
@@ -139,7 +128,6 @@ for(i=0;i<length;i++)my_four[0][i]=static_cast<float>(i)/total;
 
 void post_process_stuff()
 {
-  
 
   if(post_process==0)return;
     if(N_plist<1)plotlist=post_process_plotlist.data();
@@ -167,13 +155,7 @@ void post_process_stuff()
       return;
     }
 
-
-
-  
-
-
 }
-
 
 int twod_hist()
 
@@ -202,13 +184,11 @@ int twod_hist()
       ping();
       
   return(1);
- 
 
 }  
 int new_2d_hist()
 {
-  
-  
+
   if((NEQ<2)||(data_store.rows<3)){
     err_msg("Need more data and at least 3 columns");
     return 0;
@@ -330,15 +310,8 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
     ping();
     return;
   }
-    
 
 }
-
-    
-
-
-
-  
 
 void column_mean()
 {
@@ -407,8 +380,6 @@ void compute_power()
       size = win/2
 */
 
-
-
 int spectrum(float *data,int nr,int win,int w_type,float *pow)
 {
   /* assumes 50% overlap */
@@ -461,8 +432,6 @@ int spectrum(float *data,int nr,int win,int w_type,float *pow)
 
  return(1);
 }
-
-
 
 /*  here is what we do - I think it is what MatLab does as well 
 
@@ -533,10 +502,7 @@ int cross_spectrum(float *data,float *data2,int nr,int win,int w_type,float *pow
      pxym[i]+=(ct[i]*st2[i]-ct2[i]*st[i]);
      pxx[i]+=(ct[i]*ct[i]+st[i]*st[i]);
      pyy[i]+=(ct2[i]*ct2[i]+st2[i]*st2[i]);
-     
-     
-    
-     
+
    }
  }
  for(i=0;i<shift;i++){
@@ -629,9 +595,7 @@ void compute_fourier()
     new_four(nmodes,spec_col);
   }
 }
- 
 
- 
 void compute_correl()
 {
   int lag;
@@ -651,8 +615,7 @@ void compute_correl()
   
   hist_inf.nbins=2*(hist_inf.nbins/2)+1;
   lag=hist_inf.nbins/2;
-  
- 
+
   /* new_float("Low ",&hist_inf.xlo);
      new_float("Hi ",&hist_inf.xhi); */
   /* lets try to get the lags correct for plotting */
@@ -715,8 +678,6 @@ void compute_hist()
   new_hist(hist_inf.nbins,hist_inf.xlo,
 	   hist_inf.xhi,hist_inf.col,0,hist_inf.cond.c_str(),0);
 }
-  
-  
 
 /* experimental -- does it work */
 /* nlag should be less than length/2 */
@@ -766,8 +727,6 @@ void fftxcorr(float *data1,float *data2,int length,int nlag,float *cr,int flag)
    
 }
 
-
-
 /* the Fourier modes 0..nmodes-1 of data[0..length-1]: ct[i] and st[i]
    are twice the real and imaginary parts of the transform
    (1/length) sum_j data[j] exp(+2 pi i j k/length), ct[0] once */
@@ -788,14 +747,4 @@ void fft(float *data, float *ct, float *st, int nmodes, int length)
     st[i]=static_cast<float>((mirror?-im[k]:im[k])*2.0);
   }
 }
-
-   
-  
-
-
-
-
-
-
-
 

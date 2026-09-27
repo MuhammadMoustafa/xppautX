@@ -17,10 +17,6 @@
 #include "pop_list.h"
 #include "lunch-new.h"
 
-
-
-
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -33,6 +29,8 @@
 #include "xpplim.h"
 #include "getvar.h"
 #include "xpp_io.h"
+#include "delay_handle.h"
+#include "form_ode.h"
 
 #define ESCAPE 27
 
@@ -48,28 +46,6 @@
 
 extern int RANGE_FLAG;
 
-extern int INFLAG;
-
-extern int NUPAR;
-
-extern int *my_ode[];
-
-extern int BVP_NL,BVP_NR,BVP_N,BVP_MAXIT;
-extern int FFT,HIST,DelayFlag,STORFLAG,POIMAP;
-extern int NCON,NCON_START,NSYM,NSYM_START;
-extern int BVP_FLAG,NODE,NEQ,NJMP,NMarkov,FIX_VAR,PrimeStart;
-extern double T0,TEND,DELTA_T;
-extern double BVP_TOL;
-extern double TRANS;
-extern double BVP_EPS;
-extern double variables[];
-extern int NVAR;
-extern BC_STRUCT my_bc[MAXODE];
-
-extern int color_line[11],MyStart;
-
-extern int NKernel;
-
 namespace {
 struct {
   std::array<char, MAX_LEN_SBOX> item{};
@@ -77,10 +53,6 @@ struct {
   double plow,phigh;
 } shoot_range;
 }  // namespace
-
-
-
-
 
 /*   more general mixed boundary types   */
 
@@ -101,8 +73,6 @@ void do_bc(double *y__0, double t0, double *y__1, double t1, double *f, int n)
   for(i=0;i<n;i++)f[i]=evaluate(my_bc[i].com);
 }
 
-
-
 void compile_bvp()
 {
  int i;
@@ -122,8 +92,7 @@ void compile_bvp()
  }
  BVP_FLAG=1;
 }
- 
-  
+
 void reset_bvp()
 {
  BVP_FLAG=1;
@@ -201,9 +170,7 @@ void do_sh_range(double *ystart, double *yend)
  double parlo,parhi,dpar,temp;
  int npar,i,j,ierr;
  int side,cycle,icol,color;
- 
 
- 
  if(set_up_sh_range()==0)return;
  swap_color(&color,0);
  parhi=shoot_range.phigh;
@@ -248,11 +215,7 @@ void do_sh_range(double *ystart, double *yend)
   auto_freeze_it();     
  swap_color(&color,1);
 
-
-
 }
-
-
 
 int set_up_periodic(int *ipar, int *ivar, double *sect, int *ishow)
 {
@@ -289,12 +252,6 @@ int set_up_periodic(int *ipar, int *ivar, double *sect, int *ishow)
 	     }
   return(0);
 }
-	  
-		 
-
-
-	       
-   
 
 void find_bvp_com(int com)
 {
@@ -388,8 +345,6 @@ void last_shot(int flag)
  */
 }
 
-
-
 int set_up_sh_range()
 {
 static const char *n[]={"*2Range over","Steps","Start","End",
@@ -427,15 +382,12 @@ static const char *n[]={"*2Range over","Steps","Start","End",
    else shoot_range.movie=0;
 
    shoot_range.side=atoi(values[5].c_str());
-   
 
  return(1);
  }
 
  return(0);
 }
-
-
 
 void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *iret, int n, int ishow, int iper, int ipar, int ivar, double sect)
 {
@@ -459,14 +411,10 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
    y0[i]=y[i];
  if(iper)  get_val(upar_names[ipar],&y0[n]);
 
-
-	
-         
  /* dt=(t1-t0)/nt;  */
  while(1){
    esc=my_abort();
-	 
-       
+
            {
             
              if(esc==ESCAPE) {*iret=-5;break;}
@@ -487,8 +435,6 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
    y1[i]=y[i];
   /*  plintf("%f \n",y[i]); */
  }
-
-
 
  do_bc(y0,t0,y1,t1,f,n);
  if(iper)f[n]=y1[ivar]-sect;
@@ -512,9 +458,7 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
    *iret=-2;
    goto bye;
  }      /* Too many iterates   */
- 
 
- 
  /*   create the Jacobian matrix ...   */
  
  for(j=0;j<ntot;j++){
@@ -537,16 +481,12 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
 	goto bye;
       }
 
-     
      do_bc(y0,t0,y,t1,fdev,n);
      if(iper)fdev[n]=y[ivar]-sect;
      y0[j]=ytemp;
      for(i=0;i<ntot;i++)jac[j+i*ntot]=(fdev[i]-f[i])/dev;
  }
 
-  
-  
-	   
   sgefa(jac,ntot,ntot,ipvt,&info);
   if(info!=-1){
     *iret=-3;
@@ -572,14 +512,4 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
  bye:
    return;
 }
-
-
-
-
-
-
-
-
-
-
 

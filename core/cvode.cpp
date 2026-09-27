@@ -9,7 +9,6 @@
  *                                                                *
  ******************************************************************/
 
-
 /************************************************************/
 /******************* BEGIN Imports **************************/
 /************************************************************/
@@ -26,7 +25,6 @@
 /******************** END Imports ***************************/
 /************************************************************/
 
-
 /***************************************************************/
 /*********************** BEGIN Macros **************************/
 /***************************************************************/
@@ -38,8 +36,6 @@
 /***************************************************************/
 /************************ END Macros ***************************/
 /***************************************************************/
-
-
 
 /************************************************************/
 /************** BEGIN CVODE Private Constants ***************/
@@ -60,11 +56,9 @@
 #define MXHNIL_DEFAULT   10      /* mxhnil default value   */
 #define MXSTEP_DEFAULT   2000     /* mxstep default value   */
 
-
 /***************************************************************/
 /*************** END Default Constants *************************/
 /***************************************************************/
-
 
 /***************************************************************/
 /************ BEGIN Routine-Specific Constants *****************/
@@ -160,11 +154,9 @@
 #define TRY_AGAIN  99  /* control constant for CVnlsNewton - should be */
 		       /* distinct from CVnls return values            */
 
-
 /***************************************************************/
 /*************** END Routine-Specific Constants  ***************/
 /***************************************************************/
-
 
 /***************************************************************/
 /***************** BEGIN Error Messages ************************/
@@ -208,13 +200,12 @@
 #define MSG_BAD_OPT     CVM "optIn=TRUE, but iopt=ropt=NULL.\n\n"
 
 #define MSG_BAD_HMIN_HMAX_1 CVM "Inconsistent step size limits:\n"
-#define MSG_BAD_HMIN_HMAX_2 "ropt[HMIN]={:g} > ropt[HMAX]={:g}.\n\n"
+#define MSG_BAD_HMIN_HMAX_2 "ropt[ROPT_HMIN]={:g} > ropt[ROPT_HMAX]={:g}.\n\n"
 #define MSG_BAD_HMIN_HMAX   MSG_BAD_HMIN_HMAX_1 MSG_BAD_HMIN_HMAX_2
 
 #define MSG_MEM_FAIL    CVM "A memory request failed.\n\n"
 
 #define MSG_BAD_EWT     CVM "Some initial ewt component = 0.0 illegal.\n\n"
-
 
 /* CVode error messages */
 
@@ -288,7 +279,6 @@
 #define MSG_TOO_CLOSE_2    " integration.\n\n"
 #define MSG_TOO_CLOSE      MSG_TOO_CLOSE_1 MSG_TOO_CLOSE_2
 
-
 /* CVodeDky Error Messages */
 
 #define DKY         "CVodeDky-- "
@@ -307,11 +297,9 @@
 /****************** END Error Messages *************************/
 /***************************************************************/
 
-
 /************************************************************/
 /*************** END CVODE Private Constants ****************/
 /************************************************************/
-
 
 /**************************************************************/
 /********* BEGIN Private Helper Functions Prototypes **********/
@@ -377,16 +365,13 @@ static void CVChooseEta(CVodeMem cv_mem,real etaqm1, real etaq, real etaqp1);
 
 static int  CVHandleFailure(CVodeMem cv_mem,int kflag);
 
-
 /**************************************************************/
 /********** END Private Helper Functions Prototypes ***********/
 /**************************************************************/
 
-
 /**************************************************************/
 /**************** BEGIN Readability Constants *****************/
 /**************************************************************/
-
 
 #define uround (cv_mem->cv_uround)  
 #define zn     (cv_mem->cv_zn) 
@@ -449,16 +434,13 @@ static int  CVHandleFailure(CVodeMem cv_mem,int kflag);
 /***************** END Readability Constants ******************/
 /**************************************************************/
 
-
 /***************************************************************/
 /************* BEGIN CVODE Implementation **********************/
 /***************************************************************/
 
-
 /***************************************************************/
 /********* BEGIN Exported Functions Implementation *************/
 /***************************************************************/
-
 
 /******************** CVodeMalloc *******************************
 
@@ -549,8 +531,8 @@ if (y0==NULL) {
   roptExists = (ropt != NULL);
 
   if (optIn && roptExists) {
-    if ((ropt[HMAX] > ZERO) && (ropt[HMIN] > ropt[HMAX])) {
-      xpp::log(XPP_LOG_ERROR, MSG_BAD_HMIN_HMAX, ropt[HMIN], ropt[HMAX]);
+    if ((ropt[ROPT_HMAX] > ZERO) && (ropt[ROPT_HMIN] > ropt[ROPT_HMAX])) {
+      xpp::log(XPP_LOG_ERROR, MSG_BAD_HMIN_HMAX, ropt[ROPT_HMIN], ropt[ROPT_HMAX]);
       return(NULL);
     }
   }
@@ -637,8 +619,8 @@ tn = t0;
   hmin = HMIN_DEFAULT;
   hmax_inv = HMAX_INV_DEFAULT;
   if (optIn && roptExists) {
-    if (ropt[HMIN] > ZERO) hmin = ropt[HMIN];
-    if (ropt[HMAX] > ZERO) hmax_inv = ONE/ropt[HMAX];
+    if (ropt[ROPT_HMIN] > ZERO) hmin = ropt[ROPT_HMIN];
+    if (ropt[ROPT_HMAX] > ZERO) hmax_inv = ONE/ropt[ROPT_HMAX];
   }
 
   mxhnil = MXHNIL_DEFAULT;
@@ -648,7 +630,7 @@ tn = t0;
     if (iopt[MXSTEP] > 0) mxstep = iopt[MXSTEP];
   }
  
-  if ((!optIn) && roptExists) ropt[H0] = ZERO;
+  if ((!optIn) && roptExists) ropt[ROPT_H0] = ZERO;
  
   /* Set maxcor */
 
@@ -676,17 +658,16 @@ tn = t0;
   }
   
   if (roptExists) {
-    ropt[HU] = hu;
-    ropt[HCUR] = ZERO;
-    ropt[TCUR] = t0;
-    ropt[TOLSF] = tolsf;
+    ropt[ROPT_HU] = hu;
+    ropt[ROPT_HCUR] = ZERO;
+    ropt[ROPT_TCUR] = t0;
+    ropt[ROPT_TOLSF] = tolsf;
   }
       
   /* Problem has been successfully initialized */
 
   return(static_cast<void *>(owner.release()));
 }
-
 
 /**************************************************************/
 /************** BEGIN More Readability Constants **************/
@@ -705,7 +686,6 @@ tn = t0;
 /**************************************************************/
 /*************** END More Readability Constants ***************/
 /**************************************************************/
-
 
 /********************* CVode ****************************************
 
@@ -782,10 +762,10 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
       }
     }
 
-    /* On first call, set initial h (from H0 or CVHin) and scale zn[1] */
+    /* On first call, set initial h (from ROPT_H0 or CVHin) and scale zn[1] */
     
     h = ZERO;
-    if (ropt != NULL) h = ropt[H0];
+    if (ropt != NULL) h = ropt[ROPT_H0];
     if ( (h != ZERO) && ((tout-tn)*h < ZERO) ) {
       xpp::log(XPP_LOG_ERROR, MSG_BAD_H0, h, tout-tn);
       return(ILL_INPUT);
@@ -918,10 +898,10 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
   }
   
   if (ropt != NULL) {
-    ropt[HU] = h;
-    ropt[HCUR] = next_h;
-    ropt[TCUR] = tn;
-    ropt[TOLSF] = tolsf;
+    ropt[ROPT_HU] = h;
+    ropt[ROPT_HCUR] = next_h;
+    ropt[ROPT_TCUR] = tn;
+    ropt[ROPT_TOLSF] = tolsf;
   }
   
   return(istate);	
@@ -1019,11 +999,9 @@ void CVodeFree(void *cvode_mem)
   delete cv_mem;
 }
 
-
 /***************************************************************/
 /********** END Exported Functions Implementation **************/
 /***************************************************************/
-
 
 /*******************************************************************/
 /******** BEGIN Private Helper Functions Implementation ************/
@@ -1736,7 +1714,6 @@ static real CVAltSum(int iend, real a[], int k)
  The array tq is set to test quantities used in the convergence
  test, the error test, and the selection of h at a new order.
 
-
 *****************************************************************/
 
 static void CVSetBDF(CVodeMem cv_mem)
@@ -1960,8 +1937,7 @@ static int CVNewtonIteration(CVodeMem cv_mem)
   int m, ret;
   real del, delp=ZERO, dcon;
   N_Vector b;
-  
-  
+
   mnewt = m = 0;
 
   /* Looping point for Newton iteration */
@@ -2390,7 +2366,6 @@ static int CVHandleFailure(CVodeMem cv_mem, int kflag)
 /*******************************************************************/
 /********* END Private Helper Functions Implementation *************/
 /*******************************************************************/
-
 
 /***************************************************************/
 /************** END CVODE Implementation ***********************/

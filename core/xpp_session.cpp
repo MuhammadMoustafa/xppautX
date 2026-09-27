@@ -8,13 +8,12 @@
 #include "lunch-new.h"
 #include "diagram.h"    /* redraw_diagram; pulls in auto_nox.h */
 #include "load_eqn.h"   /* XPP_MAX_NAME */
+#include "auto_nox.h"
 #include <algorithm>
 #include <array>
 #include <cstdio>
 #include <memory>
 #include <string>
-
-extern BIFUR Auto; /* auto_nox.cpp's (no header declares it yet) */
 
 namespace {
 

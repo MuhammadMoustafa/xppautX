@@ -21,7 +21,7 @@
 #include "load_eqn.h"
 #include "browse.h"
 #include "graf_par.h"
-#include "phsplan.h"
+#include "form_ode.h"
 
 namespace {
 /* a diagram point and the arrays its DIAGRAM entry points at */
@@ -374,7 +374,6 @@ void write_init_data_file()
 
 }
 
-
 void write_pts()
 {
   DIAGRAM *d;
@@ -431,9 +430,6 @@ void svg_auto()
   export_diagram("SVG","auto.svg","*.svg",svg_init,svg_end);
 }
 
-
-
-
 void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi)
 {
   DIAGRAM *d;
@@ -470,8 +466,6 @@ void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi)
   }
 }
 
-
-
 int save_diagram(FILE *fp, int n)
 {
   int i;
@@ -496,12 +490,7 @@ int save_diagram(FILE *fp, int n)
   }
   return(1);
 }
- 
 
-
-
-
- 
 int load_diagram(FILE *fp, int node)
 {
   std::array<double,NAUTO> u0,uhi,ulo,ubar,evr,evi;
@@ -540,14 +529,4 @@ int load_diagram(FILE *fp, int node)
   }
   return(1);
 }
-  
-
-
-
-
-
-
-
-
-
 

@@ -8,8 +8,6 @@
 #include "gear.h"
 #include "markov.h"
 
-
-extern int NFlags;
 #define STIFF 9
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
@@ -140,9 +138,6 @@ int gadaptive(double *ystart, int nvar, double *xs, double x2, double eps, doubl
   *ier=3;
   return -1;
 }
-  
-  
-
 
 /*  Need work size of 2n^2+12n  */
 /*  This will integrate a maximum of htry and actually do hmin  */
@@ -235,12 +230,6 @@ int stiff(double y[], double dydx[], int n, double *x, double htry, double eps, 
 	
 }
 
-
-
-
-
-
-
 int rkqs(double *y, double *dydx, int n, double *x, double htry, double eps, double *yscal, double *hdid, double *hnext, double *work, int *ier)
 {
   int i;
@@ -276,8 +265,6 @@ int rkqs(double *y, double *dydx, int n, double *x, double htry, double eps, dou
   }
   return 0;
 }
-
-
 
 /* This takes one step of Cash-Karp RK method */
 void rkck(double *y, double *dydx, int n, double x, double h, double *yout, double *yerr, double *work)
@@ -321,12 +308,4 @@ void rkck(double *y, double *dydx, int n, double x, double h, double *yout, doub
 		yerr[i]=h*(dc1*dydx[i]+dc3*ak3[i]+
 			   dc4*ak4[i]+dc5*ak5[i]+dc6*ak6[i]);
 }
-
-
-
-
-
-
-
-
 
