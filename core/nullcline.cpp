@@ -1,42 +1,46 @@
+/* Nullclines and direction fields (Nullcline, Dir.field/flow): the current
+   pair of nullclines, the frozen ones, and the direction field's grid, drawn
+   through graphics.cpp's primitives and recorded for the front end by
+   phase_data.cpp. */
 #include "nullcline.h"
 #include "xpp_util.h"
 #include "xpp_log.h"
 #include "odesol2.h"
 #include "numerics.h"
-#include "xpp_mem.h"
 #include "my_rhs.h"
 #include "browse.h"
 #include "integrate.h"
 #include "load_eqn.h"
 #include "graf_par.h"
 #include "phase_data.h"
+#include "my_ps.h"
+#include "my_svg.h"
 
 #include "parserslow.h"
 #include "pop_list.h"
 #include "xpp_ui.h"
 
-#include <stdlib.h> 
-#include <string>
 #include <array>
-#include <string.h>
-#include <math.h>
-#include <stdio.h>
+#include <cmath>
+#include <cstdlib>
+#include <string>
+#include <vector>
 #include "xpplim.h"
 #include "struct.h"
 #include "graphics.h"
 #include "menudrive.h"
-#include <stdio.h>
 #include "xpp_io.h"
 #include "xpp_batch.h"
 #include "many_pops.h"
 
 
-#define DING ping
 #define MAX_NULL 10000
 
 extern int SuppressBounds;
-extern int PltFmtFlag;
-extern FILE *svgfile;
+extern int STORFLAG;
+extern double last_ic[MAXODE];
+extern int NULL_HERE;
+extern int NODE,NMarkov,FIX_VAR,NEQ;
 
 int NCSuppress=0;
 int DFSuppress=0;
@@ -44,52 +48,453 @@ int DFBatch=0;
 int NCBatch=0;
 
 int NullStyle=0; /* 1 is with little vertical/horizontal lines */
-extern int DRight,DLeft,DTop,DBottom;
-extern int STORFLAG;
-extern double last_ic[MAXODE];
-
-extern double DELTA_T,TEND,TRANS;
 
 int XNullColor=2,YNullColor=7;
-extern int NULL_HERE;
-int num_x_n,num_y_n,num_index,
-	null_ix,null_iy,WHICH_CRV;
-float *X_n,*Y_n,*saver,*NTop,*NBot;
-extern int NMESH,NODE,NJMP,NMarkov,FIX_VAR,NEQ;
 int DF_GRID=16,DF_FLAG=0,DF_IX=-1,DF_IY=-1;
 int DFIELD_TYPE=0;
 
 int DOING_DFIELD=0;
 
+/* load_eqn.cpp's @ colorvia= writes it through sizeof: kept an array */
 char ColorVia[XPP_NAME_MAX+1]="speed";
 double ColorViaLo=0,ColorViaHi=1;
 int ColorizeFlag=0;
 
-RANGE_INFO ncrange;  
+namespace {
 
-NCLINES *ncperm;
-int n_nstore=0;
-int ncline_cnt;
+struct Pt {
+  float x,y,z;
+};
+
+/* A frozen pair of nullclines: 4 floats (a segment) per point. */
+struct FrozenCline {
+  std::vector<float> xn,yn;
+  int nmx=0,nmy=0;
+  int n_ix=-5,n_iy=-5;
+};
+
+/* Range clines' dialog values */
+struct {
+  std::string rv;
+  int nstep=0;
+  double xlo=0,xhi=0;
+} ncrange;
+
+/* the current nullclines, as segments (4 floats each) */
+std::vector<float> x_null,y_null;
+int num_x_n,num_y_n;
+int null_ix,null_iy,WHICH_CRV;
+/* the contour's two rows of the grid, and where new segments go */
+std::vector<float> n_top,n_bot;
+std::vector<float> *saver;
+int num_index;
+
+/* the frozen nullclines; started is Freeze's first use (start_ncline) */
+std::vector<FrozenCline> frozen;
+bool frozen_started=false;
+
+/* Walks the frozen nullclines up to the first empty one (the original
+   linked list's end marker, also where one with no points stops it). */
+template <class F>
+void for_each_frozen(F &&f)
+{
+  for(FrozenCline &z:frozen){
+    if(z.nmx==0&&z.nmy==0)break;
+    f(z);
+  }
+}
 
 /* the frozen nullclines the current window shows (phase_data.h): those of
    its axes, as redraw_froz_cline draws them */
-static void note_frozen(void)
+void note_frozen()
 {
-  NCLINES *z;
   phase_data_frozen_begin();
-  for(z=ncperm;n_nstore&&z!=NULL&&(z->nmx!=0||z->nmy!=0);z=z->n)
-    if(plot_windows.current->xv[0]==z->n_ix&&plot_windows.current->yv[0]==z->n_iy&&plot_windows.current->ThreeDFlag==0)
-      phase_data_frozen(z->xn,z->nmx,z->yn,z->nmy);
+  if(!frozen_started)return;
+  for_each_frozen([](FrozenCline &z){
+    if(plot_windows.current->xv[0]==z.n_ix&&plot_windows.current->yv[0]==z.n_iy&&plot_windows.current->ThreeDFlag==0)
+      phase_data_frozen(z.xn.data(),z.nmx,z.yn.data(),z.nmy);
+  });
 }
+
+void start_ncline()
+{
+  frozen_started=true;
+  frozen.clear();
+  ncrange.xlo=0;
+  ncrange.xhi=1;
+  ncrange.nstep=10;
+  ncrange.rv=" ";
+}
+
+void clear_froz_cline()
+{
+  frozen.clear();
+}
+
+void add_froz_cline(const float *xn, int nmx, int n_ix, const float *yn, int nmy, int n_iy)
+{
+  FrozenCline z;
+  z.xn.assign(xn,xn+4*nmx);
+  z.yn.assign(yn,yn+4*nmy);
+  z.nmx=nmx;
+  z.nmy=nmy;
+  z.n_ix=n_ix;
+  z.n_iy=n_iy;
+  frozen.push_back(std::move(z));
+}
+
+void dump_clines(xpp::Writer &fp, const float *x, int nx, const float *y, int ny)  /* gnuplot format */
+{
+  fp.print("# X-nullcline\n");
+  for(int i=0;i<nx-1;i++){
+    fp.print("{:g} {:g} 1 \n",static_cast<double>(x[4*i]),static_cast<double>(x[4*i+1]));
+    fp.print("{:g} {:g} 1 \n",static_cast<double>(x[4*i+2]),static_cast<double>(x[4*i+3]));
+    fp.print("\n");
+  }
+  fp.print("\n# Y-nullcline\n");
+  for(int i=0;i<ny-1;i++){
+    fp.print("{:g} {:g} 2 \n",static_cast<double>(y[4*i]),static_cast<double>(y[4*i+1]));
+    fp.print("{:g} {:g} 2 \n",static_cast<double>(y[4*i+2]),static_cast<double>(y[4*i+3]));
+    fp.print("\n");
+  }
+}
+
+void save_frozen_clines(const std::string &fn)
+{
+  if(!frozen_started)return;
+  const char ch=static_cast<char>(TwoChoice("YES","NO","Save Frozen Clines?","yn"));
+  if(ch=='n')return;
+  int i=1;
+  for(const FrozenCline &z:frozen){
+    if(z.nmx==0&&z.nmy==0)return;
+    xpp::Writer fp(xpp::format("{}.{}",fn,i).c_str());
+    if(!fp){
+      err_msg("Cant open file!");
+      return;
+    }
+    dump_clines(fp,z.xn.data(),z.nmx,z.yn.data(),z.nmy);
+    fp.commit();
+    i++;
+  }
+}
+
+void restor_null(const float *v, int n, int d)  /* d=1 for x and 2 for y  */
+{
+  if (PltFmtFlag==SVGFMT)
+    svg_write("<g>");
+  for(int i=0;i<n;i++){
+    const int i4=4*i;
+    line_abs(v[i4],v[i4+1],v[i4+2],v[i4+3]);
+    if(NullStyle==1){
+      const float xm=.5*(v[i4]+v[i4+2]);
+      const float ym=.5*(v[i4+1]+v[i4+3]);
+      int x1,y1;
+      scale_to_screen(xm,ym,&x1,&y1);
+      switch(d){
+      case 1:
+        line(x1,y1-4,x1,y1+4);
+        break;
+      case 2:
+        line(x1-4,y1,x1+4,y1);
+        break;
+      }
+    }
+  }
+  if (PltFmtFlag==SVGFMT)
+    svg_write("</g>");
+}
+
+void redraw_froz_cline(int flag)
+{
+  const int col1=XNullColor,col2=YNullColor;
+  if(!frozen_started)return;
+  phase_data_frozen_begin();
+  for_each_frozen([&](FrozenCline &z){
+    if(plot_windows.current->xv[0]==z.n_ix&&plot_windows.current->yv[0]==z.n_iy
+       &&plot_windows.current->ThreeDFlag==0){
+      if(flag>0){
+        waitasec(flag);
+        clr_scrn();
+      }
+      set_linestyle(col1);
+      restor_null(z.xn.data(),z.nmx,1);
+      set_linestyle(col2);
+      restor_null(z.yn.data(),z.nmy,2);
+      phase_data_frozen(z.xn.data(),z.nmx,z.yn.data(),z.nmy);
+      if(flag>0)
+        FlushDisplay();
+    }
+  });
+}
+
+/* The current nullclines' storage: made once (NULL_HERE), the contour's
+   two grid rows for this mesh every time. */
+void null_storage(int course)
+{
+  if(NULL_HERE==0){
+    x_null.assign(4*MAX_NULL,0.0f);
+    y_null.assign(4*MAX_NULL,0.0f);
+    NULL_HERE=1;
+  }
+  n_top.assign(course+1,0.0f);
+  n_bot.assign(course+1,0.0f);
+}
+
+void stor_null(float x1, float y1, float x2, float y2)
+{
+  if(num_index>=MAX_NULL)return;
+  const int i=4*num_index;
+  (*saver)[i]=x1;
+  (*saver)[i+1]=y1;
+  (*saver)[i+2]=x2;
+  (*saver)[i+3]=y2;
+  num_index++;
+}
+
+float fnull(float x, float y)
+{
+  std::array<double,MAXODE> y1,ydot;
+  for(int i=0;i<NODE;i++)y1[i]=last_ic[i];
+  y1[null_ix-1]=static_cast<double>(x);
+  y1[null_iy-1]=static_cast<double>(y);
+  rhs(0.0,y1.data(),ydot.data(),NODE);
+  return(static_cast<float>(ydot[WHICH_CRV-1]));
+}
+
+int interpolate(Pt p1, Pt p2, float z, float *x, float *y)
+{
+  if(p1.z==p2.z)return(0);
+  const float scale=(z-p1.z)/(p2.z-p1.z);
+  *x=p1.x+scale*(p2.x-p1.x);
+  *y=p1.y+scale*(p2.y-p1.y);
+  return(1);
+}
+
+void quad_contour(Pt p1, Pt p2, Pt p3, Pt p4)
+{
+  std::array<float,4> x,y;
+  int count=0;
+  if(p1.z*p2.z<=0.0)
+    if(interpolate(p1,p2,0.0,&x[count],&y[count]))count++;
+  if(p2.z*p3.z<=0.0)
+    if(interpolate(p3,p2,0.0,&x[count],&y[count]))count++;
+  if(p3.z*p4.z<=0.0)
+    if(interpolate(p3,p4,0.0,&x[count],&y[count]))count++;
+  if(p1.z*p4.z<=0.0)
+    if(interpolate(p1,p4,0.0,&x[count],&y[count]))count++;
+
+  if(count==2){
+    if(!NCSuppress)line_abs(x[0],y[0],x[1],y[1]);
+    stor_null(x[0],y[0],x[1],y[1]);
+  }
+}
+
+void do_cline(int ngrid, float x1, float y1, float x2, float y2)
+{
+  const float dx=(x2-x1)/static_cast<float>(ngrid);
+  const float dy=(y2-y1)/static_cast<float>(ngrid);
+  const int nx=ngrid+1;
+  const int ny=ngrid+1;
+  std::array<Pt,4> p;
+
+  float y=y2;
+  for(int i=0;i<nx;i++){
+    const float x=x1+i*dx;
+    n_bot[i]=fnull(x,y);
+  }
+
+  for(int j=1;j<ny;j++){
+    y=y2-j*dy;
+    n_top[0]=n_bot[0];
+    n_bot[0]=fnull(x1,y);
+    for(int i=1;i<nx;i++){
+      const float x=x1+i*dx;
+      n_top[i]=n_bot[i];
+      n_bot[i]=fnull(x,y);
+      p[0].x=x-dx;
+      p[0].y=y+dy;
+      p[0].z=n_top[i-1];
+      p[1].x=x;
+      p[1].y=y+dy;
+      p[1].z=n_top[i];
+      p[3].x=x-dx;
+      p[3].y=y;
+      p[3].z=n_bot[i-1];
+      p[2].x=x;
+      p[2].y=y;
+      p[2].z=n_bot[i];
+      quad_contour(p[0],p[1],p[2],p[3]);
+    }
+  }
+}
+
+void new_nullcline(int course, float xlo, float ylo, float xhi, float yhi, std::vector<float> &stor, int *npts)
+{
+  num_index=0;
+  saver=&stor;
+  do_cline(course,xlo,ylo,xhi,yhi);
+  *npts=num_index;
+}
+
+void do_range_clines()
+{
+  static const char *n[]={"*2Range parameter","Steps","Low","High"};
+  std::array<std::string, 4> values;
+  const int col1=XNullColor,col2=YNullColor;
+  const int course=NMESH;
+  values[0] = ncrange.rv;
+  values[1] = xpp::format("{:d}", ncrange.nstep);
+  values[2] = xpp::format("{:g}", ncrange.xlo);
+  values[3] = xpp::format("{:g}", ncrange.xhi);
+  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
+  const int status=do_string_box_of(4,1,"Range Clines",n,values,45,kinds);
+  if(status==0)return;
+  ncrange.rv=values[0];
+  ncrange.nstep=std::atoi(values[1].c_str());
+  ncrange.xlo=std::atof(values[2].c_str());
+  ncrange.xhi=std::atof(values[3].c_str());
+  if(ncrange.nstep<=0)return;
+  const double dz=(ncrange.xhi-ncrange.xlo)/static_cast<double>(ncrange.nstep);
+  if(dz<=0.0)return;
+  double zold;
+  get_val(ncrange.rv.c_str(),&zold);
+
+  for(int i=NODE;i<NODE+NMarkov;i++)set_ivar(i+1+FIX_VAR,last_ic[i]);
+  const float xmin=static_cast<float>(plot_windows.current->xmin);
+  const float xmax=static_cast<float>(plot_windows.current->xmax);
+  const float y_tp=static_cast<float>(plot_windows.current->ymax);
+  const float y_bot=static_cast<float>(plot_windows.current->ymin);
+  null_ix=plot_windows.current->xv[0];
+  null_iy=plot_windows.current->yv[0];
+
+  for(int i=0;i<=ncrange.nstep;i++){
+    const double z=static_cast<double>(i)*dz+ncrange.xlo;
+    set_val(ncrange.rv.c_str(),z);
+    null_storage(course);
+
+    WHICH_CRV=null_ix;
+    set_linestyle(col1);
+    new_nullcline(course,xmin,y_bot,xmax,y_tp,x_null,&num_x_n);
+
+    WHICH_CRV=null_iy;
+    set_linestyle(col2);
+    new_nullcline(course,xmin,y_bot,xmax,y_tp,y_null,&num_y_n);
+    add_froz_cline(x_null.data(),num_x_n,null_ix,y_null.data(),num_y_n,null_iy);
+  }
+  set_val(ncrange.rv.c_str(),zold);
+  phase_data_nullclines(x_null.data(),num_x_n,y_null.data(),num_y_n,null_ix,null_iy,col1,col2);
+  note_frozen();
+}
+
+void get_max_dfield(double *y, double *ydot, double u0, double v0, double du, double dv, int n, int inx, int iny, double *mdf)
+{
+  double dxp,dyp;
+  *mdf=0.0;
+  for(int i=0;i<=n;i++){
+    y[inx]=u0+du*i;
+    for(int j=0;j<=n;j++){
+      y[iny]=v0+dv*j;
+      rhs(0.0,y,ydot,NODE);
+      extra(y,0.0,NODE,NEQ);
+      scale_dxdy(ydot[inx],ydot[iny],&dxp,&dyp);
+      const double amp=hypot(dxp,dyp);
+      if(amp>*mdf)*mdf=amp;
+    }
+  }
+}
+
+/* The direction field's grid (DF_FLAG 1 or 4: arrows, 2: colored boxes),
+   drawn and recorded for the front end; dump, when only computed
+   (DFSuppress), gets each arrow instead of the screen. */
+void dfield_grid(int grid, double u0, double v0, double du, double dv, double dz,
+                 int inx, int iny, xpp::Writer *dump)
+{
+  std::array<double,MAXODE> y,ydot;
+  std::array<float,MAXODE> v1,v2;
+  double mdf,dxp,dyp;
+  const bool suppress=dump!=nullptr;
+  get_ic(2,y.data());
+  get_max_dfield(y.data(),ydot.data(),u0,v0,du,dv,grid,inx,iny,&mdf);
+  if(!suppress&&(DF_FLAG==1||DF_FLAG==4))
+    phase_data_dfield_begin(grid+1,du,dv,DFIELD_TYPE==0,plot_windows.current->color[0]);
+  if (PltFmtFlag==SVGFMT){
+    DOING_DFIELD=1;
+    svg_write("<g>");
+  }
+  for(int i=0;i<=grid;i++){
+    y[inx]=u0+du*i;
+    for(int j=0;j<=grid;j++){
+      y[iny]=v0+dv*j;
+      rhs(0.0,y.data(),ydot.data(),NODE);
+      extra(y.data(),0.0,NODE,NEQ);
+      if(plot_windows.current->ColorFlag||DF_FLAG==2){
+        v1[0]=0.0;
+        v2[0]=0.0;
+        for(int k=0;k<NEQ;k++){
+          v1[k+1]=static_cast<float>(y[k]);
+          v2[k+1]=v1[k+1]+static_cast<float>(ydot[k]);
+        }
+        if(!suppress)comp_color(v1.data(),v2.data(),NODE,1.0);
+      }
+      if(DF_FLAG==1||DF_FLAG==4){
+        if(!suppress)phase_data_arrow(y[inx],y[iny],ydot[inx],ydot[iny]);
+        scale_dxdy(ydot[inx],ydot[iny],&dxp,&dyp);
+        if(DFIELD_TYPE==1){
+          ydot[inx]/=mdf;
+          ydot[iny]/=mdf;
+        }
+        else{
+          const double amp=hypot(dxp,dyp);
+          if(amp!=0.0){
+            ydot[inx]/=amp;
+            ydot[iny]/=amp;
+          }
+        }
+        const double xv1=y[inx]+ydot[inx]*dz;
+        const double xv2=y[iny]+ydot[iny]*dz;
+        if(!suppress){
+          bead_abs(static_cast<float>(xv1),static_cast<float>(xv2));
+          line_abs(static_cast<float>(y[inx]),static_cast<float>(y[iny]),static_cast<float>(xv1),static_cast<float>(xv2));
+        }
+        else
+          dump->print("{:g} {:g} {:g} {:g}\n",y[inx],y[iny],xv1,xv2);
+      }
+      if(DF_FLAG==2&&j>0&&i<grid)
+        frect_abs(static_cast<float>(y[inx]),static_cast<float>(y[iny]),static_cast<float>(du),static_cast<float>(dv));
+    }
+  }
+  if (PltFmtFlag==SVGFMT){
+    DOING_DFIELD=0;
+    svg_write("</g>");
+  }
+}
+
+void save_the_nullclines()
+{
+  if(NULL_HERE==0)return;
+  std::string filename="nc.dat";
+  ping();
+  if(!file_selector("Save nullclines",filename,"*.dat"))return;
+  xpp::Writer fp(filename.c_str());
+  if(!fp){
+    err_msg("Cant open file!");
+    return;
+  }
+  dump_clines(fp,x_null.data(),num_x_n,y_null.data(),num_y_n);
+  fp.commit();
+  save_frozen_clines(filename);
+}
+
+} // namespace
 
 void froz_cline_stuff_com(int i)
 {
   int delay=200;
-  if(n_nstore==0)start_ncline();
+  if(!frozen_started)start_ncline();
   switch(i){
   case 0:
     if(NULL_HERE==0)return;
-    add_froz_cline(X_n,num_x_n,null_ix,Y_n,num_y_n,null_iy);
+    add_froz_cline(x_null.data(),num_x_n,null_ix,y_null.data(),num_y_n,null_iy);
     note_frozen();
     break;
   case 1:
@@ -105,498 +510,150 @@ void froz_cline_stuff_com(int i)
     do_range_clines();
     break;
   }
- }
+}
 
 
 void silent_dfields()
 {
-  
   if(DFBatch==5 ||DFBatch==4){
     DFSuppress=1;
     init_ps();
     do_batch_dfield();
     DFSuppress=0;
   }
-}	
-		 
+}
+
 void silent_nullclines()
 {
-  FILE *fp;
   if(NCBatch!=2)return;
   NCSuppress=1;
   new_clines_com(0);
-  fp=fopen("nullclines.dat","w");
-  if(fp==NULL){
+  xpp::Writer fp("nullclines.dat");
+  if(!fp){
     xpp_log(XPP_LOG_WARN, "Cannot open nullcline file\n");
     return;
   }
-  dump_clines(fp,X_n,num_x_n,Y_n,num_y_n);
-  fclose(fp);
+  dump_clines(fp,x_null.data(),num_x_n,y_null.data(),num_y_n);
+  fp.commit();
   NCSuppress=0;
-}
-
-
-void do_range_clines()
-{
-  static const char *n[]={"*2Range parameter","Steps","Low","High"};
-  std::array<std::string, 4> values;
-  int status,i;
-  double z,dz,zold;
-  float xmin,xmax,y_tp,y_bot;
-  int col1=XNullColor,col2=YNullColor;
-  int course=NMESH;
-  /* if(PaperWhite){
-    col1=1;
-    col2=9;
-    } */
-  values[0] = ncrange.rv;
-  values[1] = xpp::format("{:d}", ncrange.nstep);
-  values[2] = xpp::format("{:g}", ncrange.xlo);
-  values[3] = xpp::format("{:g}", ncrange.xhi);
-  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
-  status=do_string_box_of(4,1,"Range Clines",n,values,45,kinds);
-  if(status!=0){
-    XPP_STRCPY(ncrange.rv,values[0].c_str());
-    ncrange.nstep=atoi(values[1].c_str());
-    ncrange.xlo=atof(values[2].c_str());
-    ncrange.xhi=atof(values[3].c_str());
-    if(ncrange.nstep<=0)return;
-    dz=(ncrange.xhi-ncrange.xlo)/static_cast<double>(ncrange.nstep);
-    if(dz<=0.0)return;
-    get_val(ncrange.rv,&zold);
-    
-    for(i=NODE;i<NODE+NMarkov;i++)set_ivar(i+1+FIX_VAR,last_ic[i]);
-    xmin=static_cast<float>(plot_windows.current->xmin);
-    xmax=static_cast<float>(plot_windows.current->xmax);
-    y_tp=static_cast<float>(plot_windows.current->ymax);
-    y_bot=static_cast<float>(plot_windows.current->ymin);
-    null_ix=plot_windows.current->xv[0];
-    null_iy=plot_windows.current->yv[0];
-    
-    
-    for(i=0;i<=ncrange.nstep;i++){
-      z=static_cast<double>(i)*dz+ncrange.xlo;
-      set_val(ncrange.rv,z);
-      if(NULL_HERE==0)
-	{
-	  if((X_n=static_cast<float *>(xpp_malloc(4*MAX_NULL*sizeof(float))))!=NULL
-	     && (Y_n=static_cast<float *>(xpp_malloc(4*MAX_NULL*sizeof(float))))!=NULL)
-	    
-	    
-	    NULL_HERE=1;
-	  NTop=static_cast<float *>(xpp_malloc((course+1)*sizeof(float)));
-	  NBot=static_cast<float *>(xpp_malloc((course+1)*sizeof(float)));
-	  if(NTop==NULL||NBot==NULL)NULL_HERE=0;
-	}
-      else {
-	xpp_free(NTop);
-	xpp_free(NBot);
-	NTop=static_cast<float *>(xpp_malloc((course+1)*sizeof(float)));
-	NBot=static_cast<float *>(xpp_malloc((course+1)*sizeof(float)));
-	if(NTop==NULL||NBot==NULL){NULL_HERE=0;
-	return;}
-      }
-      
-      WHICH_CRV=null_ix;
-      set_linestyle(col1);
-      new_nullcline(course,xmin,y_bot,xmax,y_tp,X_n,&num_x_n);
-      
-      
-      WHICH_CRV=null_iy;
-      set_linestyle(col2);
-      new_nullcline(course,xmin,y_bot,xmax,y_tp,Y_n,&num_y_n);
-      add_froz_cline(X_n,num_x_n,null_ix,Y_n,num_y_n,null_iy);
-    }
-    set_val(ncrange.rv,zold);
-    phase_data_nullclines(X_n,num_x_n,Y_n,num_y_n,null_ix,null_iy,col1,col2);
-    note_frozen();
-  }
-  
-}
-
-void start_ncline()
-{
-  n_nstore=1;
-  ncperm=(NCLINES *)xpp_malloc(sizeof(NCLINES));
-  ncperm->p=NULL;
-  ncperm->n=NULL;
-  ncperm->nmx=0;
-  ncperm->nmy=0;
-  ncperm->n_ix=-5;
-  ncperm->n_iy=-5;
-  ncrange.xlo=0;
-  ncrange.xhi=1;
-  ncrange.nstep=10;
-  XPP_SPRINTF(ncrange.rv," ");
-}
-
-void clear_froz_cline()
-{
-  NCLINES *z,*znew;
-  z=ncperm;
-  while(z->n!=NULL)
-    z=z->n;
-  /*  this is the bottom but there is nothing here that has been stored   */
-  
-  znew=z->p;
-  if(znew==NULL)return;
-  xpp_free(z);
-  z=znew;
-  /* now we are deleting everything */
-   while(z->p !=NULL){
-      znew=z->p;
-      z->n=NULL;
-      z->p=NULL;
-      xpp_free(z->xn);
-      xpp_free(z->yn);
-      xpp_free(z);
-      z=znew;
-  }
-  if(ncperm->nmx>0){
-    xpp_free(ncperm->xn);
-    ncperm->nmx=0;
-  }
-  if(ncperm->nmy>0){
-    xpp_free(ncperm->yn);
-    ncperm->nmy=0;
-  }
-  ncperm->n=NULL;
-  n_nstore=1;
-  ncline_cnt=0;
 }
 
 int get_nullcline_floats(float **v,int *n,int who,int type) /* type=0,1 */
 {
-  NCLINES *z;
-  int i;
   if(who<0){
     if(type==0){
-      *v=X_n;
+      *v=x_null.empty()?nullptr:x_null.data();
       *n=num_x_n;
     }
     else {
-      *v=Y_n;
+      *v=y_null.empty()?nullptr:y_null.data();
       *n=num_y_n;
     }
-    if(v==NULL)return 1;
     return 0;
   }
-  if(who>ncline_cnt||n_nstore==0)return 1;
-   z=ncperm;
-   for(i=0;i<who;i++)
-     z=z->n;
-   if(z==NULL)return 1;
-   if(type==0){
-      *v=z->xn;
-      *n=z->nmx;
-    }
-    else {
-      *v=z->yn;
-      *n=z->nmy;
-    }
-    if(v==NULL)return 1;
+  if(!frozen_started||who>static_cast<int>(frozen.size()))return 1;
+  if(who==static_cast<int>(frozen.size())){
+    /* the list's empty end */
+    *v=nullptr;
+    *n=0;
     return 0;
-}   
-
-void save_frozen_clines(const char *fn)
-{
-   NCLINES *z;
-   FILE *fp;
-   char fnx[256];
-   char ch;
-   int i=1;
-   if(n_nstore==0)return;
-   ch=static_cast<char>(TwoChoice("YES","NO","Save Frozen Clines?","yn"));
-   if(ch=='n')return;
-    z=ncperm;
-    while(1){
-    if(z==NULL||(z->nmx==0&&z->nmy==0))return;
-    XPP_SPRINTF(fnx,"%s.%d",fn,i);
-    fp=fopen(fnx,"w");
-    if(fp==NULL){
-      err_msg("Cant open file!");
-      return;
-    }
-    dump_clines(fp,z->xn,z->nmx,z->yn,z->nmy);
-    fclose(fp);
-    i++;
-    	z=z->n;
-	if(z==NULL)break;
-    }
-    
-  
-}
-
-void redraw_froz_cline(int flag)
-{
-  NCLINES *z;
-  int col1=XNullColor,col2=YNullColor;
-  /* if(PaperWhite){
-    col1=1;
-    col2=9;
-    } */
-  if(n_nstore==0)return;
-  phase_data_frozen_begin();
-  z=ncperm;
-  while(1){
-    if(z==NULL||(z->nmx==0&&z->nmy==0))return;
-    
-  /*  plintf(" %d %d  %d %d  %d \n",
-	   MyGraph->xv[0],z->n_ix, &MyGraph->yv[0],z->n_iy ,
-	  MyGraph->ThreeDFlag==0); */
-    if(plot_windows.current->xv[0]==z->n_ix&&plot_windows.current->yv[0]==z->n_iy
-       &&plot_windows.current->ThreeDFlag==0)
-      {
-	if(flag>0){
-	  waitasec(flag);
-	  clr_scrn();
-	}
-	set_linestyle(col1);
-	restor_null(z->xn,z->nmx,1);
-	set_linestyle(col2);
-	restor_null(z->yn,z->nmy,2);
-	phase_data_frozen(z->xn,z->nmx,z->yn,z->nmy);
-	if(flag>0)
-	  FlushDisplay();
-      }
-    	z=z->n;
-	if(z==NULL)break;
-
-    
   }
+  FrozenCline &z=frozen[who];
+  if(type==0){
+    *v=z.xn.empty()?nullptr:z.xn.data();
+    *n=z.nmx;
+  }
+  else {
+    *v=z.yn.empty()?nullptr:z.yn.data();
+    *n=z.nmy;
+  }
+  return 0;
 }
 
-void add_froz_cline(float *xn, int nmx, int n_ix, float *yn, int nmy, int n_iy)
-{
-  NCLINES *z,*znew;
-  int i;
-  z=ncperm;
-  /* move to end */
-  while(z->n!=NULL){
-    z=(z->n); 
-  }
-  z->xn=static_cast<float *>(xpp_malloc(4*nmx*sizeof(float)));
-  for(i=0;i<4*nmx;i++)
-    z->xn[i]=xn[i];
-  z->yn=static_cast<float *>(xpp_malloc(4*nmy*sizeof(float)));
-  for(i=0;i<4*nmy;i++)
-    z->yn[i]=yn[i]; 
-  z->nmx=nmx;
-  z->nmy=nmy;
-  z->n_ix=n_ix;
-  z->n_iy=n_iy;
-  z->n=(NCLINES *)xpp_malloc(sizeof(NCLINES));
-  znew=z->n;
-  znew->n=NULL;
-  znew->p=z;
-  znew->nmx=0;
-  znew->nmy=0;
-  znew->n_ix=-5;
-  znew->n_iy=-5;
-  ncline_cnt++;
-}
-
-                
-void get_max_dfield(double *y, double *ydot, double u0, double v0, double du, double dv, int n, int inx, int iny, double *mdf)
-{
-  int i,j;
-  double amp,dxp,dyp;
-  *mdf=0.0;
-  for(i=0;i<=n;i++){
-    y[inx]=u0+du*i;
-    for(j=0;j<=n;j++){
-      y[iny]=v0+dv*j;
-      rhs(0.0,y,ydot,NODE);
-      extra(y,0.0,NODE,NEQ);
-      scale_dxdy(ydot[inx],ydot[iny],&dxp,&dyp);
-      amp=hypot(dxp,dyp);
-      if(amp>*mdf)*mdf=amp;
-    }
-  }
-}
 /*  all the nifty 2D stuff here    */
 
 
 void do_batch_nclines()
 {
-
   if(!batch_options.enabled)return;
   if(!NCBatch)return;
   if(NCBatch==1){
     new_clines_com(0);
     return;
   }
-  
 }
+
 void set_colorization_stuff()
 {
   user_set_color_par(ColorizeFlag,ColorVia,ColorViaLo,ColorViaHi);
 }
+
 void do_batch_dfield()
 {
   if(!batch_options.enabled)return;
   switch(DFBatch){
-  case 0: 
+  case 0:
     return;
   case 1:
+  case 4:
     DF_FLAG=1;
     DFIELD_TYPE=1;
-    DF_IX=plot_windows.current->xv[0];
-    DF_IY=plot_windows.current->yv[0];
-    redraw_dfield();
-    return;
+    break;
   case 2:
-    DF_FLAG=1;
-    DFIELD_TYPE=0;
-    DF_IX=plot_windows.current->xv[0];
-    DF_IY=plot_windows.current->yv[0];
-    redraw_dfield();
-    return;
-  case 3:
-    DF_FLAG=2;
-    DFIELD_TYPE=0;
-    DF_IX=plot_windows.current->xv[0];
-    DF_IY=plot_windows.current->yv[0];
-    redraw_dfield();
-    return;
-
-   case 4:
-    DF_FLAG=1;
-    DFIELD_TYPE=1;
-    DF_IX=plot_windows.current->xv[0];
-    DF_IY=plot_windows.current->yv[0];
-    redraw_dfield();
-    return;
   case 5:
     DF_FLAG=1;
     DFIELD_TYPE=0;
-    DF_IX=plot_windows.current->xv[0];
-    DF_IY=plot_windows.current->yv[0];
-    redraw_dfield();
+    break;
+  case 3:
+    DF_FLAG=2;
+    DFIELD_TYPE=0;
+    break;
+  default:
     return;
   }
+  DF_IX=plot_windows.current->xv[0];
+  DF_IY=plot_windows.current->yv[0];
+  redraw_dfield();
 }
+
 void redraw_dfield()
 {
-  int i,j,k;
-  int inx=plot_windows.current->xv[0]-1;
-  int iny=plot_windows.current->yv[0]-1;
-  double y[MAXODE],ydot[MAXODE],xv1,xv2;
-  float v1[MAXODE],v2[MAXODE];
-  FILE *fp=NULL;
-
-  double amp,mdf;
-
-  double du,dv,u0,v0,dxp,dyp,dz,dup,dvp;
-
-
-  int grid=DF_GRID;
-  if(DF_FLAG==0|| 
+  const int inx=plot_windows.current->xv[0]-1;
+  const int iny=plot_windows.current->yv[0]-1;
+  const int grid=DF_GRID;
+  if(DF_FLAG==0||
      plot_windows.current->TimeFlag||plot_windows.current->xv[0]==plot_windows.current->yv[0]||plot_windows.current->ThreeDFlag
      || DF_IX!=plot_windows.current->xv[0]||DF_IY!=plot_windows.current->yv[0])
     return;
+  xpp::Writer dump;
   if(DFSuppress==1){
-    fp=fopen("dirfields.dat","w");
-    if(fp==NULL)return;
+    dump=xpp::Writer("dirfields.dat");
+    if(!dump)return;
   }
 
-  du=(plot_windows.current->xhi-plot_windows.current->xlo)/static_cast<double>(grid);
-  dv=(plot_windows.current->yhi-plot_windows.current->ylo)/static_cast<double>(grid);
-  
-  dup =static_cast<double>(DRight-DLeft)/static_cast<double>(grid);
-  dvp=static_cast<double>(DTop-DBottom)/static_cast<double>(grid);
-  /* printf("dup=%g dvp=  %g \n",dup,dvp); */
-  dz=hypot(dup,dvp)*(.25+.75*DFIELD_TYPE);
-  u0=plot_windows.current->xlo;
-  v0=plot_windows.current->ylo;
+  const double du=(plot_windows.current->xhi-plot_windows.current->xlo)/static_cast<double>(grid);
+  const double dv=(plot_windows.current->yhi-plot_windows.current->ylo)/static_cast<double>(grid);
+
+  const double dup=static_cast<double>(DRight-DLeft)/static_cast<double>(grid);
+  const double dvp=static_cast<double>(DTop-DBottom)/static_cast<double>(grid);
+  const double dz=hypot(dup,dvp)*(.25+.75*DFIELD_TYPE);
+  const double u0=plot_windows.current->xlo;
+  const double v0=plot_windows.current->ylo;
   if(!DFSuppress)set_linestyle(plot_windows.current->color[0]);
-  get_ic(2,y);
-  get_max_dfield(y,ydot,u0,v0,du,dv,grid,inx,iny,&mdf);
-  if(!DFSuppress&&(DF_FLAG==1||DF_FLAG==4))
-    phase_data_dfield_begin(grid+1,du,dv,DFIELD_TYPE==0,plot_windows.current->color[0]);
-     if (PltFmtFlag==SVGFMT)
-     {
-     	    DOING_DFIELD=1;
-  	   fprintf(svgfile,"<g>\n");
-     } 
-  for(i=0;i<=grid;i++){
-    y[inx]=u0+du*i;
-    for(j=0;j<=grid;j++){
-      y[iny]=v0+dv*j;
-      rhs(0.0,y,ydot,NODE);
-      extra(y,0.0,NODE,NEQ);
-      if(plot_windows.current->ColorFlag||DF_FLAG==2){
-	v1[0]=0.0;
-	v2[0]=0.0;
-	for(k=0;k<NEQ;k++){
-	  v1[k+1]=static_cast<float>(y[k]);
-	  v2[k+1]=v1[k+1]+static_cast<float>(ydot[k]);
-	}
-	if(!DFSuppress)comp_color(v1,v2,NODE,1.0);
-      }
-      if(DF_FLAG==1||DF_FLAG==4){
-	if(!DFSuppress)phase_data_arrow(y[inx],y[iny],ydot[inx],ydot[iny]);
-	scale_dxdy(ydot[inx],ydot[iny],&dxp,&dyp);
-	if(DFIELD_TYPE==1)
-	  {
-	    ydot[inx]/=mdf;
-	    ydot[iny]/=mdf;
-	    }
-	else{
-	  amp=hypot(dxp,dyp);
-	  if(amp!=0.0){
-	    ydot[inx]/=amp;
-	    ydot[iny]/=amp;
-	  }
-	}
-	xv1=y[inx]+ydot[inx]*dz;
-	xv2=y[iny]+ydot[iny]*dz;
-        if(!DFSuppress){
-	  bead_abs(static_cast<float>(xv1),static_cast<float>(xv2));
-	  line_abs(static_cast<float>(y[inx]),static_cast<float>(y[iny]),static_cast<float>(xv1),static_cast<float>(xv2));
-	}
-	else{
-          /*  printf("dz=%g x0=%g y0=%g\n",dz,ydot[inx],ydot[iny]); */
-
-	  fprintf(fp,"%g %g %g %g\n",y[inx],y[iny],xv1,xv2);
-	}
-      }
-      if(DF_FLAG==2&&j>0&&i<grid){
-	frect_abs(static_cast<float>(y[inx]),static_cast<float>(y[iny]),static_cast<float>(du),static_cast<float>(dv));
-      }
-    }
-  }
-  
-     if (PltFmtFlag==SVGFMT)
-     {
-     	    DOING_DFIELD=0;
-  	   fprintf(svgfile,"</g>\n");
-     } 
-     if(DFSuppress==1)
-       fclose(fp);
-     DFSuppress=0;
+  dfield_grid(grid,u0,v0,du,dv,dz,inx,iny,DFSuppress==1?&dump:nullptr);
+  if(DFSuppress==1)
+    dump.commit();
+  DFSuppress=0;
 }
 
 void direct_field_com(int c)
 {
-  
-  int i,j,start,k;
-  int inx=plot_windows.current->xv[0]-1;
-  int iny=plot_windows.current->yv[0]-1;
-  double y[MAXODE],ydot[MAXODE],xv1,xv2;
-  double dtold=DELTA_T;
-  float v1[MAXODE],v2[MAXODE];
-  
-  
-  double amp,mdf;
-  double t;
-  double du,dv,u0,v0,dxp,dyp,dz,dup,dvp;
-  double oldtrans=TRANS;
-  
-  
+  const int inx=plot_windows.current->xv[0]-1;
+  const int iny=plot_windows.current->yv[0]-1;
+  const double dtold=DELTA_T;
+  const double oldtrans=TRANS;
   int grid=DF_GRID;
-  
-  
+
   if(plot_windows.current->TimeFlag||plot_windows.current->xv[0]==plot_windows.current->yv[0]||plot_windows.current->ThreeDFlag)
     return;
 
@@ -609,17 +666,16 @@ void direct_field_com(int c)
   new_int("Grid:",&grid);
   if(grid<=1)return;
   DF_GRID=grid;
-  du=(plot_windows.current->xhi-plot_windows.current->xlo)/static_cast<double>(grid);
-  dv=(plot_windows.current->yhi-plot_windows.current->ylo)/static_cast<double>(grid);
-  
-  dup =static_cast<double>(DRight-DLeft)/static_cast<double>(grid);
-  dvp=static_cast<double>(DTop-DBottom)/static_cast<double>(grid); 
-  dz=hypot(dup,dvp)*(.25+.75*DFIELD_TYPE) ;
-  u0=plot_windows.current->xlo;
-  v0=plot_windows.current->ylo;
+  double du=(plot_windows.current->xhi-plot_windows.current->xlo)/static_cast<double>(grid);
+  double dv=(plot_windows.current->yhi-plot_windows.current->ylo)/static_cast<double>(grid);
+
+  const double dup=static_cast<double>(DRight-DLeft)/static_cast<double>(grid);
+  const double dvp=static_cast<double>(DTop-DBottom)/static_cast<double>(grid);
+  const double dz=hypot(dup,dvp)*(.25+.75*DFIELD_TYPE) ;
+  const double u0=plot_windows.current->xlo;
+  const double v0=plot_windows.current->ylo;
   set_linestyle(plot_windows.current->color[0]);
   if(c!=1){
-
     DF_FLAG=1;
     if(c==3){
       DF_FLAG=2;
@@ -628,103 +684,39 @@ void direct_field_com(int c)
     }
     DF_IX=inx+1;
     DF_IY=iny+1;
-    get_ic(2,y);
-     get_max_dfield(y,ydot,u0,v0,du,dv,grid,inx,iny,&mdf);
-     if(DF_FLAG==1)
-       phase_data_dfield_begin(grid+1,du,dv,DFIELD_TYPE==0,plot_windows.current->color[0]);
-     if (PltFmtFlag==SVGFMT)
-     {
-     	    DOING_DFIELD=1;
-  	   fprintf(svgfile,"<g>\n");
-     } 
-     
-     
-   for(i=0;i<=grid;i++){
-     y[inx]=u0+du*i;
-     for(j=0;j<=grid;j++){
-       y[iny]=v0+dv*j;
-       rhs(0.0,y,ydot,NODE);
-       extra(y,0.0,NODE,NEQ);
-       if(plot_windows.current->ColorFlag||DF_FLAG==2){
-	 v1[0]=0.0;
-         v2[0]=0.0;
-	 for(k=0;k<NEQ;k++){
-	   v1[k+1]=static_cast<float>(y[k]);
-	   v2[k+1]=v1[k+1]+static_cast<float>(ydot[k]);
-	 }
-	 comp_color(v1,v2,NODE,1.0);
-       }
-       if(DF_FLAG==1){
-	 phase_data_arrow(y[inx],y[iny],ydot[inx],ydot[iny]);
-	 scale_dxdy(ydot[inx],ydot[iny],&dxp,&dyp);
-	 if(DFIELD_TYPE==0){
-	   amp=hypot(dxp,dyp);
-	   if(amp!=0.0){
-	     ydot[inx]/=amp;
-	     ydot[iny]/=amp;
-	   }
-	 }
-	 else {
-	   ydot[inx]/=mdf;
-	   ydot[iny]/=mdf;
-	 }
-	   xv1=y[inx]+ydot[inx]*dz;
-	 xv2=y[iny]+ydot[iny]*dz;
-         bead_abs(static_cast<float>(xv1),static_cast<float>(xv2));
-	 line_abs(static_cast<float>(y[inx]),static_cast<float>(y[iny]),static_cast<float>(xv1),static_cast<float>(xv2));
-       }
-       if(DF_FLAG==2&&j>0&&i<grid){
-	 frect_abs(static_cast<float>(y[inx]),static_cast<float>(y[iny]),static_cast<float>(du),static_cast<float>(dv));
-       }
-       
-     }
-   }
-   TRANS=oldtrans; 
-     if (PltFmtFlag==SVGFMT)
-     {
-     	    DOING_DFIELD=0;
-  	   fprintf(svgfile,"</g>\n");
-     } 
-   return;
+    dfield_grid(grid,u0,v0,du,dv,dz,inx,iny,nullptr);
+    TRANS=oldtrans;
+    return;
   }
   STORFLAG=0;
 
-   SuppressBounds=1;
-   phase_data_flow_start();
-   for(k=0;k<2;k++){
-     for(i=0;i<=grid;i++)
-       for(j=0;j<=grid;j++)
-	 {
-	 get_ic(2,y);
-	 y[inx]=u0+du*i;
-	 y[iny]=v0+dv*j;
-	 t=0.0;
-	 start=1;
-	 phase_data_flow_next();
-	 /*if(integrate(&t,y,TEND,DELTA_T,1,NJMP,&start)==1){
-	   TRANS=oldtrans;
-	   DELTA_T=dtold;
-	   return;
-	   STORFLAG=1;
-	   } */
-	 integrate(&t,y,TEND,DELTA_T,1,NJMP,&start);
-	 }
-     DELTA_T=-DELTA_T;
-
-   }
-   phase_data_flow_stop();
-   SuppressBounds=0;
-   DELTA_T=dtold;
-   if (PltFmtFlag==SVGFMT)
-   {
-     	  DOING_DFIELD=0;
-  	 fprintf(svgfile,"</g>\n");
-   } 
-
+  SuppressBounds=1;
+  phase_data_flow_start();
+  std::array<double,MAXODE> y;
+  for(int k=0;k<2;k++){
+    for(int i=0;i<=grid;i++)
+      for(int j=0;j<=grid;j++){
+        get_ic(2,y.data());
+        y[inx]=u0+du*i;
+        y[iny]=v0+dv*j;
+        double t=0.0;
+        int start=1;
+        phase_data_flow_next();
+        integrate(&t,y.data(),TEND,DELTA_T,1,NJMP,&start);
+      }
+    DELTA_T=-DELTA_T;
+  }
+  phase_data_flow_stop();
+  SuppressBounds=0;
+  DELTA_T=dtold;
+  if (PltFmtFlag==SVGFMT){
+    DOING_DFIELD=0;
+    svg_write("</g>");
+  }
 }
 
-/* animated nullclines stuff   
-   added Aug 31 97 
+/* animated nullclines stuff
+   added Aug 31 97
    just redraws them
    It will allow you to either freeze a range of them
    or just one at a time
@@ -733,303 +725,75 @@ void direct_field_com(int c)
    range_freeze - compute over some range of parameters
    clear - delete all but the current set
    animate - replay all frozen ones (not current set )
-   */ 	 
-       
-       
-     
-     
-void save_the_nullclines()
-{
-  FILE *fp;
-  if(NULL_HERE==0)return;
-  std::string filename="nc.dat";
-  ping();
-  if(!file_selector("Save nullclines",filename,"*.dat"))return;
-  fp=fopen(filename.c_str(),"w");
-  if(fp==NULL){
-    err_msg("Cant open file!");
-    return;
-  }
-  dump_clines(fp,X_n,num_x_n,Y_n,num_y_n);
-  fclose(fp);
-  save_frozen_clines(filename.c_str());
-}
+   */
 
 
 void restore_nullclines()
 {
- int col1=XNullColor,col2=YNullColor;
- /* if(PaperWhite){
-   col1=1;
-   col2=9;
-   } */
- if(NULL_HERE==0)return;
- if(plot_windows.current->xv[0]==null_ix&&plot_windows.current->yv[0]==null_iy&&plot_windows.current->ThreeDFlag==0)
-   {
+  const int col1=XNullColor,col2=YNullColor;
+  if(NULL_HERE==0)return;
+  if(plot_windows.current->xv[0]==null_ix&&plot_windows.current->yv[0]==null_iy&&plot_windows.current->ThreeDFlag==0){
     set_linestyle(col1);
-    restor_null(X_n,num_x_n,1);
+    restor_null(x_null.data(),num_x_n,1);
     set_linestyle(col2);
-    restor_null(Y_n,num_y_n,2);
-    phase_data_nullclines(X_n,num_x_n,Y_n,num_y_n,null_ix,null_iy,col1,col2);
+    restor_null(y_null.data(),num_y_n,2);
+    phase_data_nullclines(x_null.data(),num_x_n,y_null.data(),num_y_n,null_ix,null_iy,col1,col2);
   }
- redraw_froz_cline(0);
+  redraw_froz_cline(0);
 }
 
-void dump_clines(FILE *fp, float *x, int nx, float *y, int ny)  /* gnuplot format */
-{
-    int i;
-    fprintf(fp,"# X-nullcline\n");
-    for(i=0;i<nx-1;i++){
-      fprintf(fp,"%g %g 1 \n",x[4*i],x[4*i+1]);
-      fprintf(fp,"%g %g 1 \n",x[4*i+2],x[4*i+3]);
-      fprintf(fp,"\n");
-    }
-    fprintf(fp,"\n# Y-nullcline\n");
-     for(i=0;i<ny-1;i++){
-      fprintf(fp,"%g %g 2 \n",y[4*i],y[4*i+1]);
-      fprintf(fp,"%g %g 2 \n",y[4*i+2],y[4*i+3]);
-      fprintf(fp,"\n");
-    }
-
-
-}
-
-void restor_null(float *v, int n, int d)  /* d=1 for x and 2 for y  */
-{
-  
-  int i,i4;
-  float xm,ym;
-  int x1,y1;
-  if (PltFmtFlag==SVGFMT)
-  {
-  	fprintf(svgfile,"<g>\n");
-  } 
-
-  for(i=0;i<n;i++)
-    {
-      i4=4*i;
-      line_abs(v[i4],v[i4+1],v[i4+2],v[i4+3]);
-      if(NullStyle==1){
-	xm=.5*(v[i4]+v[i4+2]);
-	ym=.5*(v[i4+1]+v[i4+3]);
-	scale_to_screen(xm,ym,&x1,&y1);
-	switch(d){
-	case 1: 
-	  line(x1,y1-4,x1,y1+4);
-	  
-	  break;
-	case 2:
-	  line(x1-4,y1,x1+4,y1);
-	  break;
-	    }
-      }
-    }
-    
-    if (PltFmtFlag==SVGFMT)
-    {
-  	  fprintf(svgfile,"</g>\n");
-    } 
-}
 void create_new_cline()
 {
   if(NULL_HERE)
     new_clines_com(0);
-} 
+}
 
 void new_clines_com(int c)
 {
-  int course=NMESH,i;
-  float xmin,xmax,y_tp,y_bot;
-  int col1=XNullColor,col2=YNullColor;
-  
+  const int course=NMESH;
+  const int col1=XNullColor,col2=YNullColor;
+
   if(plot_windows.current->ThreeDFlag||plot_windows.current->TimeFlag||plot_windows.current->xv[0]==plot_windows.current->yv[0])return;
 
-  if(c==1){
+  switch(c){
+  case 1:
     restore_nullclines();
     return;
-  }
-  if(c==2){
+  case 2:
     plot_windows.current->Nullrestore=1;
-   return;
-  }
-  if(c==3){
+    return;
+  case 3:
     plot_windows.current->Nullrestore=0;
     return;
-  }
-  if(c==4){
+  case 4:
     froz_cline_stuff();
     return;
-  }
-  if(c==5){
+  case 5:
     save_the_nullclines();
     return;
+  case 0:
+    break;
+  default:
+    return;
   }
-  if(c==0){
-    for(i=NODE;i<NODE+NMarkov;i++)set_ivar(i+1+FIX_VAR,last_ic[i]);
-    xmin=static_cast<float>(plot_windows.current->xmin);
-    xmax=static_cast<float>(plot_windows.current->xmax);
-    y_tp=static_cast<float>(plot_windows.current->ymax);
-    y_bot=static_cast<float>(plot_windows.current->ymin);
+  for(int i=NODE;i<NODE+NMarkov;i++)set_ivar(i+1+FIX_VAR,last_ic[i]);
+  const float xmin=static_cast<float>(plot_windows.current->xmin);
+  const float xmax=static_cast<float>(plot_windows.current->xmax);
+  const float y_tp=static_cast<float>(plot_windows.current->ymax);
+  const float y_bot=static_cast<float>(plot_windows.current->ymin);
   null_ix=plot_windows.current->xv[0];
   null_iy=plot_windows.current->yv[0];
-  if(NULL_HERE==0)
-    {
-      if((X_n=static_cast<float *>(xpp_malloc(4*MAX_NULL*sizeof(float))))!=NULL
-	 && (Y_n=static_cast<float *>(xpp_malloc(4*MAX_NULL*sizeof(float))))!=NULL)
-	
-	
-	NULL_HERE=1;
-      NTop=static_cast<float *>(xpp_malloc((course+1)*sizeof(float)));
-      NBot=static_cast<float *>(xpp_malloc((course+1)*sizeof(float)));
-      if(NTop==NULL||NBot==NULL)NULL_HERE=0;
-    }
-  else {
-    xpp_free(NTop);
-    xpp_free(NBot);
-    NTop=static_cast<float *>(xpp_malloc((course+1)*sizeof(float)));
-   NBot=static_cast<float *>(xpp_malloc((course+1)*sizeof(float)));
-   if(NTop==NULL||NBot==NULL){NULL_HERE=0;
-   return;}
-  }
-  
+  null_storage(course);
+
   WHICH_CRV=null_ix;
   if(!NCSuppress)set_linestyle(col1);
-  new_nullcline(course,xmin,y_bot,xmax,y_tp,X_n,&num_x_n);
+  new_nullcline(course,xmin,y_bot,xmax,y_tp,x_null,&num_x_n);
   ping();
-  
+
   WHICH_CRV=null_iy;
   if(!NCSuppress)set_linestyle(col2);
-  new_nullcline(course,xmin,y_bot,xmax,y_tp,Y_n,&num_y_n);
+  new_nullcline(course,xmin,y_bot,xmax,y_tp,y_null,&num_y_n);
   ping();
   if(!NCSuppress)
-    phase_data_nullclines(X_n,num_x_n,Y_n,num_y_n,null_ix,null_iy,col1,col2);
-  }
+    phase_data_nullclines(x_null.data(),num_x_n,y_null.data(),num_y_n,null_ix,null_iy,col1,col2);
 }
-
-
-void new_nullcline(int course, float xlo, float ylo, float xhi, float yhi, float *stor, int *npts)
-{
- num_index=0;
- saver=stor;
- do_cline(course,xlo,ylo,xhi,yhi);
- *npts=num_index;
-}
-
-
-
-void stor_null(float x1, float y1, float x2, float y2)
-{
- int i;
- if(num_index>=MAX_NULL)return;
- i=4*num_index;
- saver[i]=x1;
- saver[i+1]=y1;
- saver[i+2]=x2;
- saver[i+3]=y2;
- num_index++;
-} 
-
-float fnull(float x, float y)
-{
-  double y1[MAXODE],ydot[MAXODE];
-  int i;
-  for(i=0;i<NODE;i++)y1[i]=last_ic[i];
- 
-  y1[null_ix-1]=static_cast<double>(x);
-  y1[null_iy-1]=static_cast<double>(y);
-  rhs(0.0,y1,ydot,NODE);
-  /*  plintf(" %f  %f %f \n ", x,y,ydot[WHICH_CRV-1]); */
-  return(static_cast<float>(ydot[WHICH_CRV-1]));
- }
-
-
-int interpolate(Pt p1, Pt p2, float z, float *x, float *y)
-{
- float scale;
-  if(p1.z==p2.z)return(0);
-  scale=(z-p1.z)/(p2.z-p1.z);
-  *x=p1.x+scale*(p2.x-p1.x);
-  *y=p1.y+scale*(p2.y-p1.y);
-   return(1);
- }
-
-void quad_contour(Pt p1, Pt p2, Pt p3, Pt p4)
-{
- float x[4],y[4];
- int count=0;
- if(p1.z*p2.z<=0.0)
-   if(interpolate(p1,p2,0.0,&x[count],&y[count]))count++;
- if(p2.z*p3.z<=0.0)
-   if(interpolate(p3,p2,0.0,&x[count],&y[count]))count++;
- if(p3.z*p4.z<=0.0)
-   if(interpolate(p3,p4,0.0,&x[count],&y[count]))count++;
- if(p1.z*p4.z<=0.0)
-   if(interpolate(p1,p4,0.0,&x[count],&y[count]))count++;
-
-
- if(count==2){
-   if(!NCSuppress)line_abs(x[0],y[0],x[1],y[1]);
-   stor_null(x[0],y[0],x[1],y[1]);
- }
- 
-
-}
-
-
-
-
-
-void do_cline(int ngrid, float x1, float y1, float x2, float y2)
-{
- float dx=(x2-x1)/static_cast<float>(ngrid);
- float dy=(y2-y1)/static_cast<float>(ngrid);
- float x,y;
- Pt p[5];
- int i,j;
- int nx=ngrid+1;
- int ny=ngrid+1;
-
- y=y2;
- for(i=0;i<nx;i++){
-   x=x1+i*dx;
-   NBot[i]=fnull(x,y);
- }
-
- for(j=1;j<ny;j++){
-   y=y2-j*dy;
-   NTop[0]=NBot[0];
-   NBot[0]=fnull(x1,y);
-   for(i=1;i<nx;i++){
-     x=x1+i*dx;
-     NTop[i]=NBot[i];
-     NBot[i]=fnull(x,y);
-     p[0].x=x-dx;
-     p[0].y=y+dy;
-     p[0].z=NTop[i-1];
-     p[1].x=x;
-     p[1].y=y+dy;
-     p[1].z=NTop[i];
-     p[3].x=x-dx;
-     p[3].y=y;
-     p[3].z=NBot[i-1];
-     p[2].x=x;
-     p[2].y=y;
-     p[2].z=NBot[i];
- /*      Uncomment for triangle contour   
-      p[4].x=.25*(p[0].x+p[1].x+p[2].x+p[3].x);	
-     p[4].y=.25*(p[0].y+p[1].y+p[2].y+p[3].y);
-     p[4].z=.25*(p[0].z+p[1].z+p[2].z+p[3].z); 
-
-      
-     triangle_contour(p[0],p[1],p[4]);
-     triangle_contour(p[1],p[4],p[2]);
-     triangle_contour(p[4],p[3],p[2]);
-     triangle_contour(p[0],p[4],p[3]); */
- /*   Uncomment for quad contour     */
-     quad_contour(p[0],p[1],p[2],p[3]); 
-     /*     FlushDisplay(); */
-   }
- }
-
-}
-

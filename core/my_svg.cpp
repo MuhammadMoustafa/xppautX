@@ -12,6 +12,7 @@
 #include "graphics.h"
 #include "graf_par.h"
 #include "axes2.h"
+#include "nullcline.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -28,7 +29,7 @@
 /* The open export's stream while svg_init..svg_end runs, NULL otherwise
    (integrate.cpp and nullcline.cpp group their curves with <g>). */
 FILE *svgfile;
-extern int DOING_DFIELD;
+
 
 namespace {
 

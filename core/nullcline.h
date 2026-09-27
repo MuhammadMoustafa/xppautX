@@ -1,51 +1,40 @@
 #ifndef _nullcline_h_
 #define _nullcline_h_
 
+#include "xpplim.h"
 
-#include <stdio.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct {
-		float x,y,z;
-		} Pt;
+/* nullcline.cpp: nullclines and direction fields */
+extern int NCSuppress, DFSuppress, NCBatch, DFBatch, NullStyle;
+extern int XNullColor, YNullColor;
+extern int DF_GRID, DF_FLAG, DF_IX, DF_IY, DFIELD_TYPE;
+/* set while the direction field is drawn, for the SVG classes */
+extern int DOING_DFIELD;
+extern char ColorVia[XPP_NAME_MAX+1];
+extern double ColorViaLo, ColorViaHi;
+extern int ColorizeFlag;
 
-typedef struct nclines {
-                float *xn,*yn;
-                int nmx,nmy;
-                int n_ix,n_iy;
-                struct nclines *n,*p;
-}  NCLINES;
-
-
-void create_new_cline();
+void create_new_cline(void);
 void froz_cline_stuff_com(int i);
-void do_range_clines(void);
-void start_ncline(void);
-void clear_froz_cline(void);
+/* the nullclines (current, or frozen number who) as segments: 4 floats each */
 int get_nullcline_floats(float **v, int *n, int who, int type);
-void save_frozen_clines(const char *fn);
-void redraw_froz_cline(int flag);
-void add_froz_cline(float *xn, int nmx, int n_ix, float *yn, int nmy, int n_iy);
-void get_max_dfield(double *y, double *ydot, double u0, double v0, double du, double dv, int n, int inx, int iny, double *mdf);
 void redraw_dfield(void);
 void direct_field_com(int c);
-void save_the_nullclines(void);
 void restore_nullclines(void);
-void dump_clines(FILE *fp, float *x, int nx, float *y, int ny);
-void restor_null(float *v, int n, int d);
 void new_clines_com(int c);
-void new_nullcline(int course, float xlo, float ylo, float xhi, float yhi, float *stor, int *npts);
-void stor_null(float x1, float y1, float x2, float y2);
-float fnull(float x, float y);
-int interpolate(Pt p1, Pt p2, float z, float *x, float *y);
-void quad_contour(Pt p1, Pt p2, Pt p3, Pt p4);
-void do_cline(int ngrid, float x1, float y1, float x2, float y2);
-void do_batch_nclines();
-void do_batch_dfield();
+void do_batch_nclines(void);
+void do_batch_dfield(void);
+/* the -silent run's nullclines.dat and dirfields.dat */
+void silent_nullclines(void);
+void silent_dfields(void);
 
 #ifdef __cplusplus
 }
+
+/* C++ linkage: xppautx_main.cpp declares it so itself */
+void set_colorization_stuff(void);
 #endif
 #endif
