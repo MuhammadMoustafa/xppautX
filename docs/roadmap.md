@@ -136,6 +136,9 @@ issue; the card here is the one kept up to date.
 | W70 | #118 | Split the expression engine (maintainer, 2026-09-27): parserslow2.cpp into files by job (symbols, compiler, evaluator, built-in functions), its stack and counts into the Model; numerics unchanged | W47c | blocked |
 | W71 | #119 | Every run has its own seed (maintainer, 2026-09-27): the seed set is the next run's (first-run noise and md5s unchanged), the next drawn from a seed stream; each run's seed logged and saved with its data; set it and Go regenerates that run exactly; -newseed logs its seed; the generator's state in the session file | none | ready |
 | W72 | #120 | Study: bit-identical results on every platform (maintainer, 2026-09-27): -ffp-contract=off and a vendored correctly rounded libm (CORE-MATH); measure the examples matching Linux per platform and the speed cost; the maintainer decides from the report | none | ready |
+| W73 | #121 | .odex, inventory and spec (maintainer, 2026-09-27): the .ode quirks (negative signs, e, spaces around =, floating-point literals, several names or options on a line, left-to-right grouping) from the VS Code extension checked against the code; docs/odex.md, .ode without the quirks, approved before code | none | ready |
+| W74 | #122 | .odex parser and --convert (maintainer, 2026-09-27): both parsers build the same Model, one route after; the converter writes what the .ode parser understood; every example's .odex md5 equals its .ode's | W73, W70 | blocked |
+| W75 | #123 | xppautX --check (maintainer, 2026-09-27): the quirks as warnings with line and column, produced once by xppautX, JSON for the extension, shown at load; a clean .ode is silent; .ode never deprecated | W73, W63 | blocked |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
