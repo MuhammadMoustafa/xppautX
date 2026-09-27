@@ -17,6 +17,12 @@ int if_needed_load_ic(void);
 int if_needed_load_ext_options(void);
 int parse_it(const char *com);
 
+/* the command line's switches: -include (loadincludefile), the internal
+   sets it picked (Nintern_2_use), -qsets/-qpars/-qics (querysets,
+   querypars, queryics), -dryrun and -newseed */
+extern int loadincludefile,Nintern_2_use;
+extern int querysets,querypars,queryics,dryrun,newseed;
+
 
 #ifdef __cplusplus
 }

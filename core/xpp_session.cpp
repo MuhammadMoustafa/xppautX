@@ -14,8 +14,7 @@
 #include <memory>
 #include <string>
 
-extern BIFUR Auto;
-extern char this_file[XPP_MAX_NAME];
+extern BIFUR Auto; /* auto_nox.cpp's (no header declares it yet) */
 
 namespace {
 

@@ -30,10 +30,6 @@ export {x,y} {xp,yp}
 #define VAR 1
 
 
-extern "C" {
-extern double variables[], constants[];
-extern char cur_dir[XPP_MAX_NAME]; /* read_dir.cpp */
-}
 
 namespace {
 

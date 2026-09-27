@@ -1,4 +1,5 @@
 #include "flags.h"
+#include "form_ode.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "xpp_mem.h"
@@ -90,7 +91,6 @@ type =3 halt
 
 #define MAX_EVENTS 20 /*  this is the maximum number of events per flag */
 
-extern char upar_names[MAXPAR][XPP_NAME_MAX+1];
 typedef struct {
   double f0,f1;
   double tstar;
@@ -114,8 +114,6 @@ static FLAG flag[MAXFLAG];
 int NFlags=0;
 
 double STOL=1.e-10;
-extern double variables[];
-extern int NVAR;
 
 /* rest is "{name=formula;name=formula;...}" (spaces ignored): the flag's
    events, in order */

@@ -285,6 +285,38 @@ inline void keep_c_text(std::string &store, char *&entry, std::string_view text)
     entry = store.data();
 }
 
+/* strtok's tokens without writing into the text (the parser's, the
+   options' and form_ode.cpp's get_first/get_next replacement):
+   next(delims) passes over the delimiters, returns the text up to the
+   next one and passes over that one too, each call naming its own
+   delimiters as strtok's did; nullopt once nothing is left. rest() is
+   what follows the last token returned. */
+class Tokens {
+public:
+  explicit Tokens(std::string_view text):rest_(text){}
+  std::optional<std::string_view> next(std::string_view delims)
+  {
+    size_t b=rest_.find_first_not_of(delims);
+    if(b==std::string_view::npos){
+      rest_={};
+      return std::nullopt;
+    }
+    rest_.remove_prefix(b);
+    size_t e=rest_.find_first_of(delims);
+    std::string_view tok=rest_.substr(0,e);
+    rest_.remove_prefix(e==std::string_view::npos?rest_.size():e+1);
+    return tok;
+  }
+  /* the next token as text, "" when there is none */
+  std::string text(std::string_view delims)
+  {
+    return std::string{next(delims).value_or(std::string_view())};
+  }
+  std::string_view rest() const { return rest_; }
+private:
+  std::string_view rest_;
+};
+
 /* ---- JSON strings -------------------------------------------------------
    The one place that reads or writes a JSON string's content (the core's
    text is UTF-8): the protocol (json_io.cpp's events and command objects)

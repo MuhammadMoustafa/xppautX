@@ -94,6 +94,17 @@ extern int narg_fun[MAXUFUN];
 extern UFUN_ARG ufun_arg[MAXUFUN];
 extern char *ufun_def[MAXUFUN];
 
+/* the parser's counts and values (parserslow2.cpp's): the model's
+   constants (parameters and numbers) and variables as the compiled
+   programs read them, how many of each kind of symbol there are, the
+   delays, kernels, tables and user functions, and the Volterra grid's
+   length (MaxPoints); ERROUT: report parse errors; RandSeed: the random
+   numbers' seed */
+extern double constants[MAXPAR];
+extern double variables[MAXODE1];
+extern int NCON,NVAR,NFUN,NSYM,NDELAYS,NKernel,NTable,MaxPoints;
+extern int ERROUT,RandSeed;
+
 
 #define VECT_ROOT 500 
 

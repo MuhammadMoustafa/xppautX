@@ -19,7 +19,6 @@ extern "C" {
 #define DONE_THIS 1
 #define RESET_ALL 4
 
-#define MAXUFUN 50
 
 
 

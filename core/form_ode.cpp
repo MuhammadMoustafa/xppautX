@@ -88,14 +88,7 @@ int NEQ_MIN;
 int EqType[MAXODE];
 std::array<FIXINFO,MAXODE> fixinfo;
 
-extern int loadincludefile;
-extern double last_ic[];
-extern int BVP_FLAG;
-extern int ERROUT;
-extern int NTable;
-extern int NEQ,NVAR,NKernel;
-extern int NFUN;
-extern int NCON,NSYM;
+extern int NEQ;
 extern int NWiener;
 
 namespace {
@@ -578,7 +571,7 @@ int compiler(const std::string &bob, FILE *fptr)
       xpp::print(convertf,"{}\n",bob.c_str());
     return(done);
   }
-  Tokens tokens(bob);
+  xpp::Tokens tokens(bob);
   std::string command=tokens.text(" ,");
   strlwr(command.data());
   /* the "name=value"s after the command */
@@ -1742,7 +1735,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
    {
      if(v.type==COMMAND && v.lhs[0]=='I'){
       std::string big="i "+v.rhs+" \n";
-      Tokens tokens(big);
+      xpp::Tokens tokens(big);
       tokens.next(" ,");
       std::string_view values=tokens.rest();
       for(std::optional<std::string> tok;(tok=get_next2(values));)
@@ -1904,7 +1897,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
      case TABLE:
        {
        std::string big="t "+v.lhs+" "+v.rhs+" ";
-       Tokens tokens(big);
+       xpp::Tokens tokens(big);
        tokens.next(" ,");
        tokens.next(" ");
        formula=tokens.text(" \n");
@@ -2066,7 +2059,7 @@ int parse_model(FILE *fp, const std::string &first, int nnn, bool at_end)
    if(done==1){
      if(v.type==COMMAND)strupr(v.lhs.data());
      if(v.type==COMMAND && char_at(v.lhs,0)=='G' && char_at(v.lhs,1)=='R') {
-       Tokens tokens(v.rhs);
+       xpp::Tokens tokens(v.rhs);
        name=tokens.text(" ");
        std::optional<std::string_view> parts=tokens.next(" \n");
        nstates=parts?atoi_of(*parts):0;
@@ -2085,7 +2078,7 @@ int parse_model(FILE *fp, const std::string &first, int nnn, bool at_end)
    /* check for Markov to get rid of extra lines */
 
      if(v.type==COMMAND && char_at(v.lhs,0)=='M' && char_at(v.lhs,1)=='A'){
-       Tokens tokens(v.rhs);
+       xpp::Tokens tokens(v.rhs);
        name=tokens.text(" ");
        std::optional<std::string_view> count=tokens.next(" \n");
        nstates=count?atoi_of(*count):0;

@@ -94,6 +94,8 @@ int xpp_files_stream_fd(FILE *f);
 FILE *xpp_files_create_new(const char *path, int binary);
 /* 1 when path names a file or a folder */
 int xpp_files_exists(const char *path);
+/* 1 when path names a folder (a link to one included) */
+int xpp_files_is_dir(const char *path);
 /* 1 when a file can be created in dir: probed by creating one and
    removing it (a folder can exist without being writable) */
 int xpp_files_dir_writable(const char *dir);

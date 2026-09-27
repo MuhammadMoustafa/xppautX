@@ -605,6 +605,12 @@ FILE *xpp_files_create_new(const char *path, int binary)
     return fp;
 }
 
+int xpp_files_is_dir(const char *path)
+{
+    Stat st;
+    return path && stat_follow(path, &st) == 0 && S_ISDIR(st.st_mode);
+}
+
 int xpp_files_exists(const char *path)
 {
     Stat st;

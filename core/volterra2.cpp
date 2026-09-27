@@ -1,4 +1,7 @@
 #include "xpp_batch.h"
+#include "numerics.h"
+#include "load_eqn.h"
+#include "form_ode.h"
 #include "volterra2.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
@@ -36,25 +39,15 @@
 */
 
 #define CONV 2
-extern int NODE,NMarkov,FIX_VAR,PrimeStart; 
-extern int NKernel; 
-extern double T0,DELTA_T;
-extern int MaxPoints;
-extern int EqType[MAXODE];
 int CurrentPoint;
 int KnFlag;
 
 
 int AutoEvaluate=0;
 
-extern double variables[];
-extern int NVAR;
-extern int MaxEulIter;
-extern double EulTol,NEWT_ERR;
 
 
 
-extern int *my_ode[];
 
 
 

@@ -25,6 +25,23 @@ extern char *save_eqn[MAXLINES];
 extern BC_STRUCT my_bc[MAXODE];
 extern int *plotlist,N_plist;
 extern int EqType[MAXODE];
+/* the parameters' and variables' values as the model gives them, and
+   the programs' lengths */
+extern double default_val[MAXPAR];
+extern double default_ic[MAXODE];
+extern int leng[MAXODE];
+/* the model's counts: ODEs, parameters, source lines, Markov variables,
+   fixed variables, the first symbol and constant after the model's own
+   (NSYM_START, NCON_START), the boundary conditions (BVP_N, BVP_NL
+   left, BVP_NR right), the first primed symbol (PrimeStart) and NEQ as
+   the model left it (NEQ_MIN: the data browser's new columns come after) */
+extern int NODE,NUPAR,NLINES,NMarkov,FIX_VAR,NEQ_MIN;
+extern int NCON_START,NSYM_START,PrimeStart;
+extern int BVP_N,BVP_NL,BVP_NR;
+/* an old-style file being rewritten in the new syntax (-convert):
+   ConvertStyle set, convertf the new file (markov.cpp writes it too) */
+extern int ConvertStyle;
+extern FILE *convertf;
 
 int make_eqn(void);
 void strip_saveqn(void);
@@ -54,37 +71,6 @@ extern int n_comments;
 #include <optional>
 #include <string>
 #include <string_view>
-
-/* strtok's tokens (get_first/get_next) without writing into the text:
-   next(delims) passes over the delimiters, returns the text up to the
-   next one and passes over that one too, each call naming its own
-   delimiters as strtok's did; nullopt once nothing is left. rest() is
-   what follows the last token returned. */
-class Tokens {
-public:
-  explicit Tokens(std::string_view text):rest_(text){}
-  std::optional<std::string_view> next(std::string_view delims)
-  {
-    size_t b=rest_.find_first_not_of(delims);
-    if(b==std::string_view::npos){
-      rest_={};
-      return std::nullopt;
-    }
-    rest_.remove_prefix(b);
-    size_t e=rest_.find_first_of(delims);
-    std::string_view tok=rest_.substr(0,e);
-    rest_.remove_prefix(e==std::string_view::npos?rest_.size():e+1);
-    return tok;
-  }
-  /* the next token as text, "" when there is none */
-  std::string text(std::string_view delims)
-  {
-    return std::string{next(delims).value_or(std::string_view())};
-  }
-  std::string_view rest() const { return rest_; }
-private:
-  std::string_view rest_;
-};
 
 /* a fixed variable's name and formula as typed (lunch-new.cpp writes
    them): FIX_VAR of them */

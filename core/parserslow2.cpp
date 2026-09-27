@@ -1,4 +1,6 @@
 #include "parserslow.h"
+#include "comline.h"
+#include "form_ode.h"
 #include "volterra2.h"
 #include "delay_handle.h"
 #include "xpp_mem.h"
@@ -40,7 +42,6 @@ double zippy;
 
 
 
-extern int NODE;
 
 
 
@@ -60,7 +61,6 @@ int RandSeed=12345678;
 #endif
 
 
-extern int newseed;
 extern int del_stab_flag;
 
 double CurrentIndex=0;

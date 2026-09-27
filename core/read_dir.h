@@ -1,5 +1,6 @@
 #ifndef _read_dir_h_
 #define _read_dir_h_
+#include "load_eqn.h" /* XPP_MAX_NAME */
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -17,7 +18,7 @@ int change_directory(const char *path);
 /* direct: an XPP_MAX_NAME buffer */
 int get_directory(char *direct);
 /* the file selector's folder (XPP_MAX_NAME bytes, get_directory fills it) */
-extern char cur_dir[];
+extern char cur_dir[XPP_MAX_NAME];
 int wild_match(const char *string, const char *pattern);
 
 

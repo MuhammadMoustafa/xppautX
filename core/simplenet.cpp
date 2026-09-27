@@ -158,7 +158,6 @@ including derived parameters but XPP takes care of this so start at 0
 #define ZERO 1
 #define PERIODIC 2
 #define MAXW 50
-extern int NODE,NDELAYS;
 #include "delay_handle.h"
 #include "xpp_math.h"
 
@@ -225,7 +224,6 @@ bool parse_import(std::string_view s, std::string &soname, std::string &sofun, i
                   std::string &vname, std::vector<std::string> &tname);
 } // namespace
 
-extern double variables[],constants[];
 
 
 

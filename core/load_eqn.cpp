@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstdio>
 #include <string>
@@ -6,6 +7,9 @@
 #include <utility>
 #include <vector>
 #include "load_eqn.h"
+#include "form_ode.h"
+#include "colormap.h"
+#include "xpp_files.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "markov.h"
@@ -29,7 +33,6 @@
 /*#include "macdirent.h"
 */
 
-#include <dirent.h>
 #include "userbut.h"
 #include "volterra2.h"
 #include "storage.h"
@@ -67,30 +70,6 @@ namespace {
    set_internopts, each whole */
 std::vector<std::string> interopt;
 
-/* strtok's tokens (get_first/get_next) over a copy of the text, each
-   call naming its own delimiters as strtok's did */
-class Tokenizer {
-public:
-  explicit Tokenizer(std::string_view text) : text_(text) {}
-  /* the next token, or false at the end */
-  bool next(std::string_view delims, std::string_view &token)
-  {
-    size_t start = text_.find_first_not_of(delims, pos_);
-    if (start == std::string_view::npos) {
-      pos_ = text_.size();
-      return false;
-    }
-    size_t end = text_.find_first_of(delims, start);
-    if (end == std::string_view::npos) end = text_.size();
-    token = text_.substr(start, end - start);
-    pos_ = end < text_.size() ? end + 1 : end;
-    return true;
-  }
-private:
-  std::string_view text_;
-  size_t pos_ = 0;
-};
-
 /* "name=value" split at its first '='; value "" when there is none */
 void split_apart(std::string_view bob, std::string &name, std::string &value)
 {
@@ -106,16 +85,16 @@ void split_apart(std::string_view bob, std::string &name, std::string &value)
 
 /* every name=value of an option line (its first token, the @ or $,
    skipped; then tokens split at delims) to set(name, value), those with
-   an empty name or value left out */
+   an empty name or value left out; first: the delimiters of the first
+   token */
 template <class F>
-void each_option(std::string_view line, std::string_view delims, F set)
+void each_option(std::string_view line, std::string_view first, std::string_view delims, F set)
 {
-  Tokenizer tok(line);
-  std::string_view t;
-  if (!tok.next(" ,", t)) return;
+  xpp::Tokens tok(line);
+  if (!tok.next(first)) return;
   std::string name, value;
-  while (tok.next(delims, t)) {
-    split_apart(t, name, value);
+  while (std::optional<std::string_view> t = tok.next(delims)) {
+    split_apart(*t, name, value);
     if (!name.empty() && !value.empty()) set(name, value);
   }
 }
@@ -134,13 +113,8 @@ std::string read_line(FILE *fp)
   return std::string(lr.next().value_or(std::string_view()));
 }
 
-bool is_directory(const char *path)
-{
-  DIR *dir = opendir(path);
-  if (dir == nullptr) return false;
-  closedir(dir);
-  return true;
-}
+/* intern_set's names and options (the C table points into them) */
+std::array<std::string,MAX_INTERN_SET> intern_name,intern_does;
 
 } // namespace
 
@@ -161,12 +135,8 @@ int START_LINE_TYPE=1;
 INTERN_SET intern_set[MAX_INTERN_SET];
 int Nintern_set=0;
 
-extern int STOCH_FLAG;
-extern char uvar_names[MAXODE][XPP_NAME_MAX+1]; 
 
-extern int custom_color;
 extern int del_stab_flag;
-extern int MaxPoints;
 extern double THETA0,PHI0;
 /*void set_option(char *s1,const char *s2);
 */
@@ -211,7 +181,6 @@ extern int SEc,UEc,SPc,UPc;
 
  double POIPLN;
 
- extern int RandSeed;
  int MaxEulIter;
 double EulTol;
 extern int cv_bandflag,cv_bandupper,cv_bandlower;
@@ -278,7 +247,7 @@ void load_eqn()
   XPP_FORMAT_TO_BUF(delay_string[i],"0.0");
  }
  if(strcmp(this_file,"/dev/stdin")==0)std=1;
- if (got_file==1&&(std==0)&&is_directory(this_file))
+ if (got_file==1&&(std==0)&&xpp_files_is_dir(this_file))
  {
    change_directory(this_file);
    make_eqn();
@@ -286,20 +255,18 @@ void load_eqn()
  }
  if(got_file==1)
  {
-   FILE *fptr=std::fopen(this_file,"r");
-   if(fptr!=NULL)
+   xpp::UniqueFile fptr=xpp::open_read(this_file);
+   if(fptr)
    {
      if(std==1)XPP_FORMAT_TO_BUF(this_file,"console");
-     okay=get_eqn(fptr);
-     if(std==0)
-       std::fclose(fptr);
+     okay=get_eqn(fptr.get());
      if(okay==1)return;
    }
  }
  while(okay==0)
  {
    const char *start=getenv("XPPSTART");
-   if (start!=NULL && is_directory(start))
+   if (start!=NULL && xpp_files_is_dir(start))
      change_directory(start);
    okay=make_eqn();
  }
@@ -401,11 +368,8 @@ void set_all_vals()
  set_internopts(NULL);
  
 
- if(FILE *fp=std::fopen(options_file.c_str(),"r"))
- {
-  read_defaults(fp);
-  std::fclose(fp);
- }
+ if(xpp::UniqueFile fp=xpp::open_read(options_file.c_str()))
+  read_defaults(fp.get());
 
 
  init_range();
@@ -466,14 +430,11 @@ void read_defaults(FILE *fp)
 {
  /* the X11 big and small fonts: read, not kept */
  std::string bob=read_line(fp);
- Tokenizer font(bob);
- std::string_view name;
- if (notAlreadySet.BIG_FONT_NAME && font.next(" ",name))
+ if (notAlreadySet.BIG_FONT_NAME && xpp::Tokens(bob).next(" "))
 	notAlreadySet.BIG_FONT_NAME=0;
 
  bob=read_line(fp);
- Tokenizer small_font(bob);
- if (notAlreadySet.SMALL_FONT_NAME && small_font.next(" ",name))
+ if (notAlreadySet.SMALL_FONT_NAME && xpp::Tokens(bob).next(" "))
 	notAlreadySet.SMALL_FONT_NAME=0;
 
  if (notAlreadySet.PaperWhite){int paper_white; fil_int(fp,&paper_white);notAlreadySet.PaperWhite=0;}; /* X11 only: read, not kept */
@@ -539,9 +500,8 @@ void add_intern_set(const char *name, const char *does)
       continue;
     bob+=*p==','?' ':*p;
   }
-  /* INTERN_SET is C API (comline.h): xpp_strdup'd text */
-  intern_set[j].name=xpp_strdup(name);
-  intern_set[j].does=xpp_strdup(bob.c_str());
+  xpp::keep_c_text(intern_name[j],intern_set[j].name,name);
+  xpp::keep_c_text(intern_does[j],intern_set[j].does,bob);
  xpp_log(XPP_LOG_INFO, " added %s doing %s \n",
 	 intern_set[j].name,intern_set[j].does);
   Nintern_set++;
@@ -550,15 +510,9 @@ void add_intern_set(const char *name, const char *does)
 
 void extract_action(const char *ptr)
 {
-  Tokenizer tok(ptr);
-  std::string_view t;
-  if(!tok.next(" ",t))return;
-  std::string name,value;
-  while(tok.next(" ,;\n",t)){
-    split_apart(t,name,value);
-    if(!name.empty()&&!value.empty())
-      do_intern_set(name.c_str(),value.c_str());
-  }
+  each_option(ptr," "," ,;\n",[](const std::string &name,const std::string &value){
+    do_intern_set(name.c_str(),value.c_str());
+  });
 }
 
 void extract_internset(int j)
@@ -602,7 +556,7 @@ int msc(const char *s1, const char *s2)
 void set_internopts(OptionsSet *mask)
 {
   for(const std::string &opt : interopt)
-    each_option(opt," ,\n\r",[mask](const std::string &name,const std::string &value){
+    each_option(opt," ,"," ,\n\r",[mask](const std::string &name,const std::string &value){
       set_option(name.c_str(),value.c_str(),0,mask);
     });
   interopt.clear();
@@ -613,12 +567,11 @@ void set_internopts_xpprc_and_comline()
   if(interopt.empty())return;
   /* QUIET and LOGFILE first */
   for(const std::string &opt : interopt){
-    Tokenizer tok(opt);
-    std::string_view t;
-    if(!tok.next(" ,",t))continue;
+    xpp::Tokens tok(opt);
+    if(!tok.next(" ,"))continue;
     std::string name,value;
-    while(tok.next(" ,\n\r",t)){
-      split_apart(t,name,value);
+    while(std::optional<std::string_view> t=tok.next(" ,\n\r")){
+      split_apart(*t,name,value);
       name=upper_case(name);
       if(name=="QUIET"||name=="LOGFILE")
         set_option(name.c_str(),value.c_str(),0,NULL);
@@ -631,7 +584,7 @@ void set_internopts_xpprc_and_comline()
   */
   OptionsSet mask = notAlreadySet;
   for(const std::string &opt : interopt)
-    each_option(opt," ,\n\r",[&mask](const std::string &name,const std::string &value){
+    each_option(opt," ,"," ,\n\r",[&mask](const std::string &name,const std::string &value){
       set_option(name.c_str(),value.c_str(),0,&mask);
     });
 
@@ -695,7 +648,7 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
       { 		         
      	  fclose(log_settings.file);       
       } 		         
-      log_settings.file=fopen(s2,"w");     
+      log_settings.file=xpp_files_open_stream(s2,"w");     
    }
    return;
  }

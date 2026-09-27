@@ -36,9 +36,7 @@ XppBatchOptions batch_options = {0, 0, -1, 1, "", ""};
 #define cstringmaj MYSTR1
 #define cstringmin MYSTR2
 
-extern int NCBatch, DFBatch;
-extern char this_file[XPP_MAX_NAME];
-extern int METHOD;
+extern int NCBatch, DFBatch; /* nullcline.cpp's (no header declares them yet) */
 
 /* nullcline.c / integrate.c batch helpers without a header prototype */
 void set_colorization_stuff(void);

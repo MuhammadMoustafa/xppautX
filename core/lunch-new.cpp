@@ -1,4 +1,5 @@
 #include "xpp_ui.h"
+#include "phsplan.h"
 #include "xpp_util.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
@@ -36,29 +37,19 @@
 
 #define READEM 1
 #define VOLTERRA 6
-#define MAXUFUN 50
-#define PARAMBOX 1
 
 
 
 
- extern BC_STRUCT my_bc[MAXODE];
 
 int set_type=0;
 
-extern int FIX_VAR,NFUN;
- 
- extern int NJMP,NMESH,METHOD,NODE,POIMAP,POIVAR,POISGN,SOS,INFLAG,NMarkov;
- extern int NUPAR,NEQ,BVP_MAXIT,EVEC_ITER,DelayFlag,MyStart;
- extern double last_ic[MAXODE],LastTime;
- extern double TEND,DELTA_T,T0,TRANS,BOUND,HMIN,HMAX,TOLER,ATOLER,DELAY;
- extern double POIPLN,EVEC_ERR,NEWT_ERR;
-extern double BVP_TOL,BVP_EPS;
-extern int MaxPoints;
+/* delay_handle.cpp's and integrate.cpp's (no header declares them yet) */
+extern int DelayFlag,MyStart;
+extern double LastTime;
 
- extern char upar_names[MAXPAR][XPP_NAME_MAX+1],this_file[XPP_MAX_NAME],delay_string[MAXODE][80];
- extern char uvar_names[MAXODE][XPP_NAME_MAX+1]; 
- extern char *ode_names[MAXODE],*fix_names[MAXODE];
+ 
+
 namespace {
 
 /* An equation line of do_info/dump_eqn: dX/dT=..., X(n+1)=... or X=... */

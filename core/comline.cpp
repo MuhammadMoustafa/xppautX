@@ -1,4 +1,5 @@
 #include "xpplim.h"
+#include "form_ode.h"
 #include "xpp_mem.h"
 #include "comline.h"
 #include "load_eqn.h"
@@ -68,8 +69,6 @@
 
 
 extern int SuppressOut;
-extern int RunImmediately;
-extern int got_file;
 
 namespace {
 
@@ -115,12 +114,7 @@ int querysets=0;
 int querypars=0;
 int queryics=0;
 int dryrun=0;
-extern char this_file[XPP_MAX_NAME];
 extern int MakePlotFlag;
-extern int xorfix;
-extern int newseeed;
-extern int silent;
-extern int ConvertStyle;
 int noicon=1;
 int newseed=0;
 typedef struct {

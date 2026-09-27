@@ -243,6 +243,20 @@ extern XppSlider sliders[XPP_NSLIDERS];
    initial data as typed (a delay equation's history: "0.0" when it has
    none) */
 extern char this_file[XPP_MAX_NAME];
+/* load_eqn.cpp's settings that have no other owner yet: the initial data
+   the last run started from, the plot's axes and view, the boundary
+   value solver's and the backward Euler's settings, and the command
+   line's switches */
+extern double last_ic[MAXODE];
+extern int IX_PLT[10],IY_PLT[10],IZ_PLT[10],NPltV,MultiWin,START_LINE_TYPE;
+extern double X_LO[10],Y_LO[10],X_HI[10],Y_HI[10];
+extern double x_3d[2],y_3d[2],z_3d[2];
+extern int IXPLT,IYPLT,IZPLT,AXES,TIMPLOT;
+extern double MY_XLO,MY_YLO,MY_XHI,MY_YHI;
+extern double BVP_EPS,BVP_TOL,EulTol;
+extern int BVP_MAXIT,BVP_FLAG,MaxEulIter;
+extern int SHOOT,PAR_FOL;
+extern int RunImmediately,xorfix,silent,got_file;
 extern char this_internset[XPP_MAX_NAME];
 extern char delay_string[MAXODE][80];
 
