@@ -302,24 +302,29 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   field, a headless default, a dispatcher, and a `j_` function in the
   `core/json_*.cpp` file of its responsibility (declared in
   `core/ui_json_internal.h`) with its entry in ui_json.cpp's `make_json_ui`.
-- Shared state that used to live in main.c and the other X11 files
-  (removed, issue #20) is grouped into structs, each defined by the module
-  that owns it (W7c): `program` (xpp_globals.h: interactive, AUTO's
-  scratch dir, version, tutorial), `batch_options` (xpp_batch.h),
-  `log_settings` (xpp_log.h), `sliders[]` and `notAlreadySet`
-  (load_eqn.h), `plot_windows` (many_pops.h, defined in xpp_util.cpp: the
-  graphs, the active one, the Simulplot list, draw_win), `frozen_curves`
-  and `plot_export` (graf_par.h), `color_table` (colormap.h),
-  `text_metrics` (xpp_ui.h), `ani_options` (aniparse.h), `movie_autoplay`
-  (kinescope.h), `data_store` (storage.h, W32d: the stored columns, their
-  rows and the current point; histogram and Fourier results borrow columns
-  through `lend_columns`), the AUTO diagram (diagram.cpp: a container read
-  through `diagram_count`/`diagram_point`/`diagram_first`/`_next`/`_prev`). Use them through the instance (`plot_windows.current->xlo`),
-  include the owner's header, never redeclare them `extern` in a .c file.
-  The options that set the X11 window's fonts, colours and size are still
-  accepted and no longer stored. `core/xpp_util.cpp`,
-  `core/browse_data.cpp`, `core/colormap.cpp`, `core/menus.cpp` hold pure code
-  moved out of those files.
+- State is grouped into structs, each defined by the module that owns it
+  (W7c). What a run changes is a member of `xpp::Session`
+  (core/session.h, W47c): `data_store` (storage.h, W32d: the stored
+  columns, their rows and the current point; histogram and Fourier
+  results borrow columns through `lend_columns`), `plot_windows`
+  (many_pops.h: the graphs, the active one, the Simulplot list,
+  draw_win), `frozen_curves` and `plot_export` (graf_par.h), the
+  integrator's state, AUTO's (`auto_state`, `auto_lib`, and the
+  `diagram`, read through `diagram_count`/`diagram_point`/
+  `diagram_first`/`_next`/`_prev`), the browser, the kinescope, the
+  numerics and plot settings, the parser's working state, `sliders` and
+  `not_already_set`, the tables, the boundary conditions in use, and the
+  drawing, label, array plot and animator state; reach them through
+  `xpp::session()` (a function that uses the Session often takes
+  `xpp::Session &s` once). What stays process-wide is a global of its
+  owner: `program` (xpp_globals.h: interactive, version, tutorial),
+  `batch_options` (xpp_batch.h), `log_settings` (xpp_log.h),
+  `color_table` (colormap.h), `text_metrics` (xpp_ui.h), the command-line
+  flags (comline.h). Include the owner's header, never redeclare
+  anything `extern` in a .cpp. The options that set the X11 window's
+  fonts, colours and size are still accepted and no longer stored.
+  `core/xpp_util.cpp`, `core/browse_data.cpp`, `core/colormap.cpp`,
+  `core/menus.cpp` hold pure code moved out of those files.
 - Core structs that hold a window store an `XppWinId` (unsigned long); see
   `core/xpp_types.h`.
 - `core/commands.cpp` is the command layer (phase 3): `commander` (keys),
@@ -623,7 +628,7 @@ symbols. A const global or one with internal linkage does not count.
 `--update` rewrites the baseline after a drop; plain
 `tools/globalcheck.sh` builds build/obj and prints every symbol by file
 (`--builddir DIR` reads objects already built there). Linux only, like
-deadcode.sh (GNU nm's section column). At W47a: 300 (from 461); at W47b: 266.
+deadcode.sh (GNU nm's section column). At W47a: 300 (from 461); at W47b: 266; at W47c: 21.
 
 - The rule: a task that changes a core C file converts that file to .cpp
   as part of the task, whatever the change, sweeps included (logging
@@ -653,9 +658,12 @@ deadcode.sh (GNU nm's section column). At W47a: 300 (from 461); at W47b: 266.
   dialogs are that (W32c): `new_string`, `get_dialog`, `file_selector`
   fill a `std::string &`, the forms (`do_string_box`, `do_edit_box`) take
   a `std::span<std::string>`, and the `XppUi` table is C++.
-- No exception may cross into C: C++ code called from C catches what it
-  can throw (std::bad_alloc included) or uses only non-throwing code, and
-  C callbacks called from C++ are assumed not to throw.
+- No exception may cross code compiled as C (a C library, an OS or
+  webview callback): C++ called from there catches what it can throw
+  (std::bad_alloc included) or uses only non-throwing code, and C
+  callbacks called from C++ are assumed not to throw. The core itself is
+  all C++, so an exception may pass through its `extern "C"` functions:
+  `xpp::LoadFailed` does, from the parser to xpp_load_model (W47c).
 - Use C++ where it clarifies: RAII (std::vector, std::string,
   std::unique_ptr) for allocations the task touches, std::atomic,
   std::chrono, anonymous namespaces for file-local state. No behaviour
@@ -684,11 +692,14 @@ deadcode.sh (GNU nm's section column). At W47a: 300 (from 461); at W47b: 266.
   A new piece of state goes into its owner's struct, never a new global;
   what a load produces belongs to `xpp::Model` (core/model.h, from W46c),
   what a run changes to `xpp::Session`, passed as `Model&`/`Session&`
-  (W47a-d in docs/roadmap.md take the existing ~500 globals there in
-  stages). Until W47d, `xpp::model()` (inline: the right-hand side
-  reads it every step; a hot loop takes `xpp::Model &m=xpp::model()`
-  once) is the current Model, and `xpp::ModelLoad` in xpp_load_model
-  fills a fresh one, kept only when the load finishes (W47b). A value nothing writes after initialization is
+  (W47a-d in docs/roadmap.md took the ~500 globals there in stages; 21
+  process-wide ones are left). Until W47d, `xpp::model()` and
+  `xpp::session()` (inline: the right-hand side reads them every step;
+  a hot loop takes `xpp::Model &m=xpp::model()` once) are the current
+  ones. A load (`xpp::Load` in xpp_load_model, core/session.h) builds a
+  fresh Model and Session and keeps them only when it finishes: a parse
+  error's `xpp_model_failed` throws `xpp::LoadFailed`, and the Model and
+  Session before are current again, untouched (W47c). A value nothing writes after initialization is
   `const`/`constexpr`, and one file's own state has internal linkage.
   `tools/globalcheck.sh` (sourcecheck) fails a file whose external
   mutable data symbols grow past `tests/globals.baseline`.
