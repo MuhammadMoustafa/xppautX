@@ -128,7 +128,7 @@ int main()
     CHECK(xpp_files_put_begin("a.bin", 100, &put) == XPP_FILES_OK);
     CHECK(xpp_files_put_write(put, bin, 5) == XPP_FILES_OK);
     CHECK(xpp_files_put_write(put, bin + 5, 3) == XPP_FILES_OK);
-    CHECK(folder().find("a.bin") == std::string::npos); /* only the hidden part file so far */
+    CHECK(!xpp_files_exists("a.bin")); /* only the hidden temp file so far */
     CHECK(xpp_files_put_commit(put, &size, sha) == XPP_FILES_OK);
     CHECK(size == 8);
     CHECK_STR(sha, sha_of(bin, 8).c_str());
@@ -203,11 +203,71 @@ int main()
     CHECK(last_event.find("\"name\":\"c.dat\"") != std::string::npos);
     std::string names = " " + folder() + " ";
     CHECK(names.find(" x ") == std::string::npos && names.find(" d.dat ") == std::string::npos);
-    CHECK(names.find(".part") == std::string::npos);
+    CHECK(names.find(".tmp-") == std::string::npos); /* no upload left its temp file */
     /* a name no other program leaves in the temp folder, unlike "x" */
     std::FILE *up = std::fopen("../xpp-escape-probe", "rb");
     CHECK(up == nullptr);
     if (up) std::fclose(up);
+
+    /* the core's own files (W32b): copy, prepend (AUTO's "append"), move,
+       remove, whole or not at all */
+    CHECK(xpp_files_exists("a.bin"));
+    CHECK(!xpp_files_exists("none.dat"));
+    CHECK(xpp_files_exists("sub")); /* a folder too */
+    xpp_files_copy("a.bin", "b.bin");
+    CHECK(slurp("b.bin") == "new");
+    xpp_files_copy("none.dat", "b.bin"); /* an unreadable source leaves the target */
+    CHECK(slurp("b.bin") == "new");
+    xpp_files_prepend("c.dat", "b.bin");
+    CHECK(slurp("b.bin") == slurp("c.dat") + "new");
+    xpp_files_prepend("a.bin", "e.bin"); /* no target yet: a copy */
+    CHECK(slurp("e.bin") == "new");
+    xpp_files_move("e.bin", "b.bin"); /* replaces */
+    CHECK(slurp("b.bin") == "new" && !xpp_files_exists("e.bin"));
+    CHECK(xpp_files_remove("b.bin") == 0 && !xpp_files_exists("b.bin"));
+    CHECK(xpp_files_remove("b.bin") != 0);
+    CHECK(xpp_files_dir_writable("."));
+    CHECK(!xpp_files_dir_writable("no-such-folder"));
+    CHECK(!xpp_files_dir_writable(nullptr) && !xpp_files_dir_writable(""));
+    std::FILE *nf = xpp_files_create_new("n.txt", 0);
+    CHECK(nf != nullptr);
+    if (nf) std::fclose(nf);
+    CHECK(xpp_files_create_new("n.txt", 1) == nullptr); /* exists: refused */
+    CHECK(xpp_files_remove("n.txt") == 0);
+    CHECK(folder().find(".tmp-") == std::string::npos); /* no temp file left behind */
+
+    /* the scratch folder: made, emptied and removed */
+    char *scratch = xpp_files_make_temp_dir();
+    CHECK(scratch != nullptr);
+    if (scratch) {
+        CHECK(std::strstr(scratch, "xppautoX-") != nullptr);
+        CHECK(xpp_files_exists(scratch));
+        std::string inside = std::string(scratch) + "/fort.7";
+        std::FILE *f7 = xpp_files_open_stream(inside.c_str(), "w");
+        CHECK(f7 != nullptr);
+        if (f7) std::fclose(f7);
+        xpp_files_remove_temp_dir(scratch);
+        CHECK(!xpp_files_exists(scratch));
+        xpp_free(scratch);
+    }
+    xpp_files_remove_temp_dir(nullptr);
+#ifndef _WIN32
+    /* a killed run's folder is swept, a live one's is kept (issue #32) */
+    const char *old_tmpdir = std::getenv("TMPDIR");
+    std::string saved = old_tmpdir ? old_tmpdir : "";
+    CHECK(setenv("TMPDIR", dir, 1) == 0);
+    std::string dead = std::string(dir) + "/xppautoX-999999999-0";
+    std::string live = std::string(dir) + "/xppautoX-" + std::to_string(getpid()) + "-5";
+    CHECK(mkdir(dead.c_str(), 0700) == 0 && mkdir(live.c_str(), 0700) == 0);
+    std::FILE *df = std::fopen((dead + "/fort.9").c_str(), "w");
+    if (df) std::fclose(df);
+    xpp_files_cleanup_stale_temp_dirs();
+    CHECK(!xpp_files_exists(dead.c_str()));
+    CHECK(xpp_files_exists(live.c_str()));
+    CHECK(rmdir(live.c_str()) == 0);
+    if (old_tmpdir) setenv("TMPDIR", saved.c_str(), 1);
+    else unsetenv("TMPDIR");
+#endif
 
     /* clean up */
     std::remove("a.bin");

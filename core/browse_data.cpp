@@ -147,30 +147,25 @@ void init_browser()
 
 }
 
-int may_write_file(const char *fil)
+namespace {
+
+/* 1 when fil does not exist yet or may be overwritten */
+bool may_write_file(const char *fil)
 {
- FILE *fp=fopen(fil,"r");
- if(fp==NULL)return 1;
- fclose(fp);
+ if(!xpp_files_exists(fil))return true;
  return static_cast<char>(TwoChoice("Yes","No",
 		"File Exists! Overwrite?","yn"))=='y';
 }
 
-void open_write_file(FILE **fp, const char *fil, int *ok)
+} // namespace
+
+xpp::Writer open_writer_asking(const char *fil)
 {
- *ok=0;
- *fp=NULL;
- if(!may_write_file(fil))return;
-
-			*fp=fopen(fil,"w");
-			if(*fp==NULL){
-				      err_msg("Cannot open file");
-				      *ok=0;
-				     }
-		         else *ok=1;
-			 return;
-
-  }
+ if(!may_write_file(fil))return xpp::Writer();
+ xpp::Writer w(fil);
+ if(!w)err_msg("Cannot open file");
+ return w;
+}
 
 void  wipe_rep()
  {
@@ -455,10 +450,10 @@ void unreplace_column()
 
 void make_d_table(double xlo, double xhi, int col, const char *filename, BROWSER b)
 {
-  int i,npts,ok;
-  FILE *fp;
-  open_write_file(&fp,filename,&ok);
-  if(!ok)return;
+  int i,npts;
+  xpp::Writer w=open_writer_asking(filename);
+  if(!w)return;
+  FILE *fp=w.file();
     npts=b.iend-b.istart;
  
 
@@ -466,7 +461,7 @@ void make_d_table(double xlo, double xhi, int col, const char *filename, BROWSER
   fprintf(fp,"%g\n%g\n",xlo,xhi);
   for(i=0;i<npts;i++)
     fprintf(fp,"%10.10g\n",b.data[col][i+b.istart]);
-  fclose(fp);
+  w.commit();
   ping();
 }
 
@@ -568,7 +563,6 @@ void data_read(BROWSER *b)
 
  int status;
  char fil[256];
- FILE *fp;
  int k;
  int len,count=0;
  float z;
@@ -579,8 +573,8 @@ void data_read(BROWSER *b)
  */
  status=file_selector("Load data",fil,"*.dat");
 if(status==0)return;
- fp=fopen(fil,"r");
- 	if(fp==NULL){
+ xpp::UniqueFile fp=xpp::open_read(fil);
+ 	if(!fp){
 				      respond_box("Ok",
 					"Cannot open file");
 				     return;
@@ -598,7 +592,7 @@ if(status==0)return;
      This data can be plotted etc like anything else
     */
  {
-   xpp::LineReader lr = xpp::LineReader::attach(fp);
+   xpp::LineReader lr = xpp::LineReader::attach(fp.get());
    std::optional<std::string_view> line = lr.next();
    if(line){
      int white=1;
@@ -608,10 +602,10 @@ if(status==0)return;
      }
    }
  }
- rewind(fp);
+ rewind(fp.get());
  len=0;
  {
-   XppTokenReader *tr=xpp_token_reader_attach(fp);
+   XppTokenReader *tr=xpp_token_reader_attach(fp.get());
    for(;;)
    {
     int gotrow=1;
@@ -626,7 +620,7 @@ if(status==0)return;
     }
    xpp_token_reader_close(tr);
   }
-  fclose(fp);
+  fp.reset();
   refresh_browser(len);
   storind=len;
  /*  b->maxrow=len;
@@ -638,9 +632,7 @@ void data_write(BROWSER *b)
 
  int status;
  char fil[256];
- FILE *fp;
  int i,j;
- int ok;
 
  XPP_STRCPY(fil,"test.dat");
 
@@ -654,13 +646,14 @@ void data_write(BROWSER *b)
     XSetInputFocus(display,w,rev,CurrentTime); */
   status=file_selector("Write data",fil,"*.dat");
 if(status==0)return;
- open_write_file(&fp,fil,&ok);
- if(!ok)return;
+ xpp::Writer w=open_writer_asking(fil);
+ if(!w)return;
+ FILE *fp=w.file();
  for(i=b->istart;i<b->iend;i++){
 	for(j=0;j<b->maxcol;j++)fprintf(fp,"%.8g ",b->data[j][i]);
  	fprintf(fp,"\n");
         }
- fclose(fp);
+ w.commit();
 }
 
 void  data_first(BROWSER *b)

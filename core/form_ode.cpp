@@ -109,6 +109,11 @@ int NCON_START,NSYM_START;
 
 int ConvertStyle=0;
 FILE *convertf;
+namespace {
+/* an old-style file rewritten in the new syntax (ConvertStyle): convertf
+   is its FILE *, which markov.cpp's old_build_markov writes into too */
+xpp::Writer convert_writer;
+} // namespace
 extern int ERROUT;
  extern int NTable;
 int OldStyle=1;
@@ -177,18 +182,6 @@ void strip_saveqn()
 }
 
 static void save_line(const std::string &line);
-
-namespace {
-
-/* fprintf's type-checked counterpart: std::format (xpp::format) into fp */
-template <class... Args>
-void put(FILE *fp, std::format_string<Args...> fmt, Args &&...args)
-{
-  std::string text = xpp::format(fmt, std::forward<Args>(args)...);
-  std::fwrite(text.data(), 1, text.size(), fp);
-}
-
-} // namespace
 
 int disc(const char *string)
 {
@@ -311,17 +304,15 @@ int read_eqn()
 {
   std::string wild="*.ode",string;
   get_a_filename(string,wild);
-  FILE *fptr=fopen(string.c_str(),"r");
-  if(fptr==NULL)
+  xpp::UniqueFile fptr=xpp::open_read(string.c_str());
+  if(!fptr)
    {
     xpp::log(XPP_LOG_WARN, "\n Cannot open {} \n",string);
     return(0);
    }
    XPP_FORMAT_TO_BUF(this_file,"{}",string);
    clrscr();
-   int okay=get_eqn(fptr);
-   fclose(fptr);
-   return(okay);
+   return(get_eqn(fptr.get()));
  }
 
 
@@ -364,11 +355,13 @@ int get_eqn(FILE *fptr)
     xpp_log(XPP_LOG_INFO, "NEQ=%d\n",NEQ);
     if(ConvertStyle){
       std::string filename=this_file[0]==0?std::string("convert.ode"):std::string(this_file)+".new";
-      if((convertf=fopen(filename.c_str(),"w"))==NULL){
+      convert_writer=xpp::Writer(filename.c_str());
+      convertf=convert_writer.file();
+      if(convertf==NULL){
 	xpp::log(XPP_LOG_WARN, " Cannot open {} - no conversion done \n",filename);
 	ConvertStyle=0;
       }
-      put(convertf,"# converted {} \n",this_file);
+      xpp::print(convertf,"# converted {} \n",this_file);
     }
     while(done)
       {
@@ -378,8 +371,9 @@ int get_eqn(FILE *fptr)
 	done=compiler(bob,fptr);
       }
     if(ConvertStyle){
-      put(convertf,"done\n");
-      fclose(convertf);
+      xpp::print(convertf,"done\n");
+      convert_writer.commit();
+      convertf=NULL;
     }
   }
  if((NODE+NMarkov)==0){
@@ -480,7 +474,7 @@ int compiler(char *bob, FILE *fptr)
     /* printf("Storing opts from formode \n"); */
     stor_internopts(bob);
     if(ConvertStyle)
-      put(convertf,"{}\n",bob);
+      xpp::print(convertf,"{}\n",bob);
     return(done);
   }
   command=get_first(ptr," ,");
@@ -504,14 +498,14 @@ int compiler(char *bob, FILE *fptr)
     case 'w':  /*  Make a Wiener (heh heh) constants  */
       xpp_log(XPP_LOG_INFO, "Wiener constants\n");
       if(ConvertStyle)
-	put(convertf,"wiener ");
+	xpp::print(convertf,"wiener ");
       advance_past_first_word(&ptr);
       for(std::optional<std::string> tok;(tok=get_next2(&ptr));)
 	{
 	  take_apart(tok->c_str(),&value,name);
 	  xpp_log(XPP_LOG_DEBUG, "|%s|=%f ",name,value);
 	  if(ConvertStyle)
-	    put(convertf,"{}  ",name);
+	    xpp::print(convertf,"{}  ",name);
 	  if(add_con(name,value)){
 	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	    xpp_model_failed();
@@ -520,20 +514,20 @@ int compiler(char *bob, FILE *fptr)
 	 
 	}
       if(ConvertStyle)
-	put(convertf,"\n");
+	xpp::print(convertf,"\n");
       xpp_log(XPP_LOG_DEBUG, "\n");
            break;
     case 'n':    
       xpp_log(XPP_LOG_INFO, " Hidden params:\n");
       if(ConvertStyle)
-	put(convertf,"number ");
+	xpp::print(convertf,"number ");
 	
       advance_past_first_word(&ptr);
       for(std::optional<std::string> tok;(tok=get_next2(&ptr));)
 	{
 	  take_apart(tok->c_str(),&value,name);
 	  if(ConvertStyle)
-	    put(convertf,"{}={:g}  ",name,value);
+	    xpp::print(convertf,"{}={:g}  ",name,value);
           
 	  xpp_log(XPP_LOG_DEBUG, "|%s|=%f ",name,value);
 	  if(add_con(name,value)){
@@ -543,7 +537,7 @@ int compiler(char *bob, FILE *fptr)
 
 	}
        if(ConvertStyle)
-	put(convertf,"\n");
+	xpp::print(convertf,"\n");
       xpp_log(XPP_LOG_DEBUG, "\n");
       break; 
     case 'g': /* global */
@@ -561,13 +555,13 @@ int compiler(char *bob, FILE *fptr)
 	xpp_model_failed();
       }
       if(ConvertStyle){
-	put(convertf,"global {} {{{}}} {}\n",sign,condition,formula);
+	xpp::print(convertf,"global {} {{{}}} {}\n",sign,condition,formula);
       }
       break;
     case 'p':
       xpp_log(XPP_LOG_INFO, "Parameters:\n");
       if(ConvertStyle)
-	put(convertf,"par ");
+	xpp::print(convertf,"par ");
 
       advance_past_first_word(&ptr);
 
@@ -582,19 +576,19 @@ int compiler(char *bob, FILE *fptr)
 	  default_val[NUPAR]=value;
 	  XPP_FORMAT_TO_BUF(upar_names[NUPAR++],"{}",name);
 	  if(ConvertStyle)
-	    put(convertf,"{}={:g}  ",name,value);
+	    xpp::print(convertf,"{}={:g}  ",name,value);
 	  xpp_log(XPP_LOG_DEBUG, "|%s|=%f ",name,value);
 
 	}
       if(ConvertStyle)
-	put(convertf,"\n");
+	xpp::print(convertf,"\n");
       xpp_log(XPP_LOG_DEBUG, "\n");
       break;
     case 'c': my_string=get_next(" \n");
       options_file=my_string;
       xpp_log(XPP_LOG_INFO, " Loading new options file:<%s>\n",my_string);
       if(ConvertStyle)
-	put(convertf,"option {}\n",options_file.c_str());
+	xpp::print(convertf,"option {}\n",options_file.c_str());
       break;
     case 'f':iflg=0;
       xpp_log(XPP_LOG_INFO, "\nFixed variables:\n");
@@ -616,7 +610,7 @@ int compiler(char *bob, FILE *fptr)
       xpp_log(XPP_LOG_INFO, " Markov variable %s=%f has %d states \n",name,value,nstates);
       if(OldStyle)add_markov(nstates,name);
       if(ConvertStyle)
-	put(convertf,"{}(0)={:g}\n",name,value);
+	xpp::print(convertf,"{}(0)={:g}\n",name,value);
       break;
     case 'r': /* state table for Markov variables  */
       my_string=get_next("\n");
@@ -630,7 +624,7 @@ int compiler(char *bob, FILE *fptr)
       iflg=1;
       xpp_log(XPP_LOG_INFO, "\nVariables:\n");
       if(ConvertStyle)
-	put(convertf,"init ");
+	xpp::print(convertf,"init ");
     vrs:
       if(NMarkov>0&&OldStyle) {
 	xpp_log(XPP_LOG_WARN, " Error at line %d \n Must declare Markov variables after fixed and regular variables\n",NLINES);
@@ -656,7 +650,7 @@ int compiler(char *bob, FILE *fptr)
               default_ic[IN_VARS]=value;   
 	      IN_VARS++;
 	      if(ConvertStyle)
-		put(convertf,"{}={:g}  ",name,value);
+		xpp::print(convertf,"{}={:g}  ",name,value);
 	    }
 	  else {
 	    if(ConvertStyle)
@@ -669,7 +663,7 @@ int compiler(char *bob, FILE *fptr)
 	}
       xpp_log(XPP_LOG_DEBUG, " \n");
       if(iflg&&ConvertStyle)
-	put(convertf,"\n");
+	xpp::print(convertf,"\n");
       break;
     case 'b':
             my_string=get_next("\n");
@@ -681,7 +675,7 @@ int compiler(char *bob, FILE *fptr)
       xpp_strlcpy(my_bc[BVP_N].string,my_string,256);
       xpp_strlcpy(my_bc[BVP_N].name,"0=",10);
       if(ConvertStyle)
-	put(convertf,"bndry {}\n",my_bc[BVP_N].string);
+	xpp::print(convertf,"bndry {}\n",my_bc[BVP_N].string);
       
       
       
@@ -733,7 +727,7 @@ int compiler(char *bob, FILE *fptr)
 	}
 
 	if(ConvertStyle)
-	  put(convertf,"table {} % {} {:g} {:g} {}\n",
+	  xpp::print(convertf,"table {} % {} {:g} {:g} {}\n",
 		  name,nn,xlo,xhi,formula);
 	NTable++;
 	xpp_log(XPP_LOG_INFO, " NTable = %d \n",NTable);
@@ -762,7 +756,7 @@ int compiler(char *bob, FILE *fptr)
 	      xpp_model_failed();
 	    }
 	    if(ConvertStyle)
-	      put(convertf,"table {} {}\n",
+	      xpp::print(convertf,"table {} {}\n",
 		      name,formula);
 	    NTable++;
 	  }
@@ -777,13 +771,13 @@ int compiler(char *bob, FILE *fptr)
       XPP_FORMAT_TO_BUF(formula,"{}",my_string);
       xpp_log(XPP_LOG_INFO, "%s %d :\n",name,narg);
       if(ConvertStyle){
-	put(convertf,"{}(",name);
+	xpp::print(convertf,"{}(",name);
 	for(i=0;i<narg;i++){
-	  put(convertf,"arg{}",i+1);
+	  xpp::print(convertf,"arg{}",i+1);
 	  if(i<(narg-1))
-	    put(convertf,",");
+	    xpp::print(convertf,",");
 	}
-	put(convertf,")={}",formula);
+	xpp::print(convertf,")={}",formula);
       }
       if(add_ufun(name,formula,narg)){
 	xpp_log(XPP_LOG_WARN, "ERROR at line %d\n",NLINES);
@@ -808,9 +802,9 @@ int compiler(char *bob, FILE *fptr)
 	  ode_names[NODE]=xpp_strdup(formula);
 	  if(ConvertStyle){
 	    if(VFlag)
-	      put(convertf,"volt {}={}\n",uvar_names[NODE],formula);
+	      xpp::print(convertf,"volt {}={}\n",uvar_names[NODE],formula);
 	    else
-	      put(convertf,"{}'={}\n",uvar_names[NODE],formula);
+	      xpp::print(convertf,"{}'={}\n",uvar_names[NODE],formula);
 	  }
 	  find_ker(formula,&alt);
 	  
@@ -822,7 +816,7 @@ int compiler(char *bob, FILE *fptr)
       if(NODE>=IN_VARS&&NODE<(IN_VARS+FIX_VAR))
 	{
 	  if(ConvertStyle)
-	    put(convertf,"{}={}\n",fixname[NODE-IN_VARS],formula);
+	    xpp::print(convertf,"{}={}\n",fixname[NODE-IN_VARS],formula);
 	  find_ker(formula,&alt);
 	  
 	}
@@ -834,9 +828,9 @@ int compiler(char *bob, FILE *fptr)
 	  ode_names[NODE-FIX_VAR+NMarkov]=xpp_strdup(formula);
 	  if(ConvertStyle){
 	    if(i<Naux)
-	      put(convertf,"aux {}={}\n",aux_names[i],formula);
+	      xpp::print(convertf,"aux {}={}\n",aux_names[i],formula);
 	    else
-	      put(convertf,"aux aux{}={}\n",i+1,formula);
+	      xpp::print(convertf,"aux aux{}={}\n",i+1,formula);
 	  }
 	}
       xpp_log(XPP_LOG_INFO, "RHS(%d)=%s\n",NODE,formula);
@@ -863,7 +857,7 @@ int compiler(char *bob, FILE *fptr)
     default:
       if(ConvertStyle) {
 	my_string=get_next("\n");
-	put(convertf,"{} {}\n",command,my_string?my_string:"");
+	xpp::print(convertf,"{} {}\n",command,my_string?my_string:"");
       }
       break;
     }
@@ -1166,7 +1160,6 @@ static int parse_model(FILE *fp, const char *first, int nnn)
  std::string name;
  int nstates=0;
  std::string newfile;
- FILE *fnew;
  /* the line read, with its array range worked out, and one of its
     strings with its subscripts worked out (parse_a_string edits it in
     place, never longer) */
@@ -1189,16 +1182,15 @@ static int parse_model(FILE *fp, const char *first, int nnn)
 		loadincludefile=0;/*Only do this once*/
 		for (const std::string &inc : include_files)
 		{
-			fnew=fopen(inc.c_str(),"r");
-      			if(fnew==NULL){
+			xpp::UniqueFile fnew=xpp::open_read(inc.c_str());
+      			if(!fnew){
          		  xpp::log(XPP_LOG_ERROR, "Can't open include file <{}>\n",inc);
 			  exit(-1);
 			  /*continue;*/
        			} 
       			xpp::log(XPP_LOG_INFO, "Including {} \n",inc);
 			IN_INCLUDED_FILE++;
-       			do_new_parser(fnew,inc.c_str(),1);
-       			fclose(fnew);
+       			do_new_parser(fnew.get(),inc.c_str(),1);
 		}
        		/*continue;*/
 	}
@@ -1216,15 +1208,15 @@ static int parse_model(FILE *fp, const char *first, int nnn)
 	    }
     }
     if(if_include_file(old.c_str(),newfile)){
-      fnew=fopen(newfile.c_str(),"r");
-      if(fnew==NULL){
+      xpp::UniqueFile fnew=xpp::open_read(newfile.c_str());
+      if(!fnew){
          xpp::log(XPP_LOG_WARN, "Cant open include file <{}>\n",newfile);
          continue;
        }
        xpp::log(XPP_LOG_INFO, "Including {}...\n",newfile);
        IN_INCLUDED_FILE++;
-       do_new_parser(fnew,newfile.c_str(),1);
-       fclose(fnew);
+       do_new_parser(fnew.get(),newfile.c_str(),1);
+       fnew.reset();
        if (IN_INCLUDED_FILE > 0) 
        {
 	       if (feof(fp))

@@ -109,7 +109,7 @@ void j_auto_diagram(const XppDiagPoint *p)
         try {
             dg.resize(dg.empty() ? 1024 : 2 * dg.size());
         } catch (...) {
-            out_of_memory("keeping the AUTO diagram");
+            xpp_out_of_memory("keeping the AUTO diagram");
         }
     }
     dg[dg_n++] = *p;
@@ -484,7 +484,7 @@ void defer_auto_set(const char *line)
     try {
         deferred_sets.emplace_back(line);
     } catch (...) {
-        out_of_memory("keeping AUTO's settings");
+        xpp_out_of_memory("keeping AUTO's settings");
     }
 }
 
@@ -497,7 +497,7 @@ void apply_deferred_sets(void)
         }
         deferred_sets.clear();
     } catch (...) {
-        out_of_memory("applying AUTO's settings");
+        xpp_out_of_memory("applying AUTO's settings");
     }
 }
 

@@ -34,18 +34,12 @@ CORE = ROOT / "core"
 # sparingly). Merge into the owning module named by the reason instead of
 # adding an entry for new code.
 ALLOW = """\
-core/edit_rhs.cpp put|W32b xpp_files: per-file fprintf-to-xpp::format print helper, merge into one xpp_io/xpp_files helper
-core/form_ode.cpp put|W32b xpp_files: per-file fprintf-to-xpp::format print helper, merge into one xpp_io/xpp_files helper
-core/lunch-new.cpp put|W32b xpp_files: per-file fprintf-to-xpp::format print helper, merge into one xpp_io/xpp_files helper
-core/auto_print.h print|W32b xpp_files: xpp::auto_out::print is the same fprintf-to-xpp::format print helper as put() (edit_rhs.cpp/form_ode.cpp/lunch-new.cpp), merge into one xpp_io/xpp_files helper
 core/histogram.cpp HIST_INFO|W32d shared data: load_eqn.cpp's comment says it "keeps its own duplicate HIST_INFO typedef and reads this field's layout directly" on purpose; still two definitions of the same struct, merge into one header
 core/load_eqn.cpp HIST_INFO|W32d shared data: see core/histogram.cpp HIST_INFO; merge into one header
 core/simplenet.cpp TABULAR|W32d shared data: tabular.cpp's comment says simplenet.cpp keeps its own duplicate TABULAR typedef and reads this field's layout directly; merge into one header
 core/tabular.cpp TABULAR|W32d shared data: see core/simplenet.cpp TABULAR; merge into one header
 core/calc.h do_calc|W32c dialog API: declared in both calc.h and xpp_util.h, keep one declaration
 core/xpp_util.h do_calc|W32c dialog API: declared in both calc.h and xpp_util.h, keep one declaration
-core/xpp_util.cpp scratch_dir_pid|W32b xpp_files: the POSIX and Windows sides of the scratch-dir-name parser (one of the "two temp-folder implementations"), merge into one xpp_files helper
-core/xpp_win32.cpp scratch_dir_pid|W32b xpp_files: see core/xpp_util.cpp scratch_dir_pid; merge into one xpp_files helper
 
 core/aniparse.cpp draw_ani_circ|keep: per-primitive-type dispatch wrappers (circle/filled circle/rect/filled rect/ellipse/filled ellipse), same shape by design; no W32a-d card owns aniparse.cpp yet
 core/aniparse.cpp draw_ani_fcirc|keep: see core/aniparse.cpp draw_ani_circ
@@ -71,11 +65,9 @@ core/autlib3.cpp fnbl|vendored/numerical, keep: see core/autlib3.cpp fnhd
 core/autlib5.cpp fnho|vendored/numerical, keep: see core/autlib3.cpp fnhd
 core/auto_data.cpp add_str|W32d shared data: auto_data.cpp's and plot_data.cpp's identical small string-append helper, merge into one shared-data helper
 core/plot_data.cpp add_str|W32d shared data: see core/auto_data.cpp add_str
-core/auto_nox.cpp draw_ps_axes|W32b xpp_files: PS vs SVG axis-drawing pair, same print-helper shape; merge with the other PS/SVG export helpers
-core/auto_nox.cpp draw_svg_axes|W32b xpp_files: see core/auto_nox.cpp draw_ps_axes
 core/auto_nox.cpp auto_twopar_double|keep: two-parameter continuation dispatch pair (double/torus), same shape by design; no W32a-d card owns auto_nox.cpp yet
 core/auto_nox.cpp auto_torus|keep: see core/auto_nox.cpp auto_twopar_double
-core/auto_nox.cpp save_auto_file|W32b xpp_files: AUTO diagram save/load pair, file-I/O shaped; merge with the AUTO diagram list's file helpers
+core/auto_nox.cpp save_auto_file|a save/load mirror, not a copy: save_auto_file writes the four parts load_auto_file reads back in the same order (W32b looked: keep)
 core/auto_nox.cpp load_auto_file|W32b xpp_files: see core/auto_nox.cpp save_auto_file
 core/band.cpp BandAllocPiv|vendored/numerical, keep: CVODE's band/dense linear-algebra pair (BandAllocPiv/DenseAllocPiv, BandFreeMat/DenseFreeMat, bandfree/denfree), same shape by the CVODE API's own design
 core/dense.cpp DenseAllocPiv|vendored/numerical, keep: see core/band.cpp BandAllocPiv
@@ -90,8 +82,6 @@ core/conpar2.cpp time_start|vendored/numerical, keep: AUTO's parallel worker fil
 core/worker2.cpp time_start|vendored/numerical, keep: see core/conpar2.cpp time_start
 core/conpar2.cpp time_end|vendored/numerical, keep: see core/conpar2.cpp time_start
 core/worker2.cpp time_end|vendored/numerical, keep: see core/conpar2.cpp time_start
-core/diagram.cpp post_auto|W32b xpp_files: PS vs SVG diagram-export pair, same print-helper shape; merge with the other PS/SVG export helpers
-core/diagram.cpp svg_auto|W32b xpp_files: see core/diagram.cpp post_auto
 core/dormpri.cpp hinit|vendored/numerical, keep: Hairer's dop853/dopri5, two integrators of parallel structure (hinit/hinit5) by the original source's own design
 core/dormpri.cpp hinit5|vendored/numerical, keep: see core/dormpri.cpp hinit
 core/extra.cpp set_dll_library|keep: dlopen/dlsym pair for a plugin's library vs. function lookup, same shape by design; no W32a-d card owns extra.cpp yet
@@ -117,20 +107,14 @@ core/json_ani.cpp j_ani_show|W32c dialog API: json front end dispatch helpers of
 core/json_windows.cpp j_reset_graphics|W32c dialog API: see core/json_ani.cpp j_ani_show
 core/ui_json.cpp script_next|W32c dialog API: see core/json_ani.cpp j_ani_show
 core/xpp_batch.cpp do_vis_env|W32c dialog API: see core/json_ani.cpp j_ani_show
-core/json_io.cpp out_of_memory|W32b xpp_files: json_io.cpp's and xpp_files.cpp's identical out-of-memory message helper, merge into one xpp_files/xpp_io helper
-core/xpp_files.cpp out_of_memory|W32b xpp_files: see core/json_io.cpp out_of_memory
 core/json_windows.cpp j_redraw_screens|W32c dialog API: redraw/clear-all-plot-windows pair, same shape by design
 core/json_windows.cpp j_clear_screens|W32c dialog API: see core/json_windows.cpp j_redraw_screens
-core/json_windows.cpp b64_value|W32b xpp_files: json_windows.cpp's and xpp_files.cpp's identical base64-value helper, merge into one xpp_files helper
-core/xpp_files.cpp b64_value|W32b xpp_files: see core/json_windows.cpp b64_value
 core/lunch-new.cpp io_int|keep: fscanf-style int/double token readers over a plain FILE * (xpp_io.h's xpp::TokenReader is the owner going forward, per CLAUDE.md's Strings and I/O section); not yet moved, no new copy added
 core/lunch-new.cpp io_double|keep: see core/lunch-new.cpp io_int
 core/marks_data.cpp add_num|W32d shared data: marks_data.cpp's and phase_data.cpp's identical small array-append helper, merge into one shared-data helper
 core/phase_data.cpp add_num|W32d shared data: see core/marks_data.cpp add_num
 core/odesol2.cpp discrete|keep: discrete/euler are two of odesol2.cpp's per-method step dispatchers, same shape by design; no W32a-d card owns odesol2.cpp yet
 core/odesol2.cpp euler|keep: see core/odesol2.cpp discrete
-core/xpp_files.cpp xpp_files_put_abort|W32b xpp_files: xpp_files_put_abort and xpp_writer_abort both discard a temp file without touching the target path (CLAUDE.md's Strings and I/O section); merge into the one xpp_writer_abort
-core/xpp_io.cpp xpp_writer_abort|W32b xpp_files: see core/xpp_files.cpp xpp_files_put_abort
 core/xpp_io.cpp xpp_line_reader_open|keep: xpp_io.h's own two reader kinds (whole-line vs whitespace-token), open/attach pairs of the same shape by design (CLAUDE.md's Strings and I/O section); not a copy to merge
 core/xpp_io.cpp xpp_token_reader_open|keep: see core/xpp_io.cpp xpp_line_reader_open
 core/xpp_io.cpp xpp_line_reader_attach|keep: see core/xpp_io.cpp xpp_line_reader_open
@@ -148,7 +132,6 @@ core/cvdense.cpp *block*|vendored/numerical, keep: see core/cvband.cpp *block*
 core/dormpri.cpp *block*|vendored/numerical, keep: Hairer's dop853/dopri5, two integrators of parallel structure by the original source's own design
 core/dormpri.h *block*|vendored/numerical, keep: see core/dormpri.cpp *block*
 core/eispack.cpp *block*|vendored/numerical, keep: EISPACK, translated Fortran eigenvalue routines
-core/diagram.cpp *block*|W32b xpp_files: post_auto's/svg_auto's PS/SVG bodies share a 16-line block; merge with the print-helper cleanup above
 core/integrate.cpp *block*|keep: integrate.cpp's two similar range-stepping loops (17 lines); no W32a-d card owns integrate.cpp yet
 core/nullcline.cpp *block*|keep: nullcline.cpp's two nullcline-branch blocks (16 lines); no W32a-d card owns nullcline.cpp yet
 core/simplenet.cpp *block*|W32d shared data: simplenet.cpp's per-connectivity-type blocks (16-34 lines), the same TABULAR-driven connectivity code repeated per network type; merge with the TABULAR cleanup above
@@ -161,9 +144,6 @@ core/aniparse.h Comet|W32c dialog API: see core/aniparse.h ANI_COM
 core/aniparse_avi.h Comet|W32c dialog API: see core/aniparse.h ANI_COM
 core/aniparse.h MPEG_SAVE|W32c dialog API: see core/aniparse.h ANI_COM
 core/aniparse_avi.h MPEG_SAVE|W32c dialog API: see core/aniparse.h ANI_COM
-core/lunch-new.cpp FileCloser|W32b xpp_files: three copies of the same FILE* RAII closer (lunch-new.cpp, xpp_session.cpp and xpp_io.h's own); keep xpp_io.h's and use it from the other two
-core/xpp_session.cpp FileCloser|W32b xpp_files: see core/lunch-new.cpp FileCloser
-core/xpp_io.h FileCloser|W32b xpp_files: see core/lunch-new.cpp FileCloser
 core/integrate.cpp INTERN_SET|W32d shared data: integrate.cpp's, load_eqn.cpp's and comline.h's identical INTERN_SET struct, merge into one header
 core/load_eqn.cpp INTERN_SET|W32d shared data: see core/integrate.cpp INTERN_SET
 core/comline.h INTERN_SET|W32d shared data: see core/integrate.cpp INTERN_SET
@@ -195,7 +175,6 @@ core/pop_list.h *|W32c dialog API: duplicated by form_ode.h and declares a coupl
 core/graf_par.h *|W32c dialog API: duplicates xpp_util.h/xpp_ui.h; fold in
 core/txtread.h *|W32c dialog API: duplicates xpp_ui.h; fold in
 core/edit_rhs.h *|W32c dialog API: duplicates xpp_ui.h; fold in
-core/browse.h *|W32c dialog API: duplicates xpp_util.h; fold in
 core/kinescope.h *|W32c dialog API: duplicates xpp_ui.h; fold in
 core/xpp_util.h *|W32c dialog API: duplicated by calc.h/init_conds.h/main.h/graf_par.h/browse.h/many_pops.h/aniparse.h (and dead aniparse_avi.h); fold the old declarations into the owner
 

@@ -37,25 +37,9 @@ void slider_rerun(void);
 void eq_import(double *y, int n);
 const char *eq_stability(int cp, int rp, int im);
 
-/* browse_data.c */
-void open_write_file(FILE **fp, const char *fil, int *ok);
-
-/* A private scratch directory, mode 0700, under $TMPDIR/$TMP or /tmp
-   (POSIX; xpp_util.c) or the system temp path (Windows; xpp_win32.cpp).
-   Returns a malloc'd absolute path, or NULL on failure. */
-char *xpp_make_temp_dir(void);
-/* Removes every file directly under dir (no subdirectories are expected)
-   and then dir itself. Safe to call with NULL. */
-void xpp_remove_temp_dir(const char *dir);
 /* atexit hook: removes program.auto_dir (xpp_globals.h) if it is set, and
    clears it. Registered by xppautx_main.c, not the X11 front end. */
 void xpp_cleanup_auto_dir(void);
-/* issue #32: called once at start, before xpp_make_temp_dir, removes the
-   xppautoX-<pid>-N folders (xpp_make_temp_dir's own naming) left by a run
-   that was killed before it could clean up after itself; a folder whose
-   pid still names a running process is never touched. xpp_util.c (POSIX)
-   and xpp_win32.c (Windows). */
-void xpp_cleanup_stale_scratch_dirs(void);
 
 #ifdef __cplusplus
 }

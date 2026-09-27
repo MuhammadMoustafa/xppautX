@@ -38,6 +38,8 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#include "xpp_files.h" /* the files the readers and writers open */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -143,10 +145,11 @@ void xpp_token_reader_close(XppTokenReader *r);
 /* ---- writer: temp file, renamed into place only on commit --------------
    xpp_writer_open creates a hidden temp file next to `path` ("w" text
    mode, like the fopen(path,"w") this replaces, so a Windows build still
-   writes \r\n exactly as before) and logs an ERROR (xpp_log) itself,
+   writes CRLF line ends exactly as before; created exclusively, never through a
+   link: xpp_files_create_new) and logs an ERROR (xpp_log) itself,
    returning NULL, if that fails -- most callers' own "cannot open file"
    message already covers the case, this is for the rest. xpp_writer_file
-   is the FILE* to format into with ordinary fprintf, or xpp::format on
+   is the FILE* to format into with ordinary fprintf, or xpp::print on
    the C++ side; xpp_writer_printf is a convenience fprintf-alike over it.
    xpp_writer_commit closes the temp file and renames it into place
    (core/xpp_files.cpp's xpp_files_replace_file -- the one place that
@@ -157,12 +160,17 @@ void xpp_token_reader_close(XppTokenReader *r);
    frees w; abandoning a writer (never calling either) leaks the temp
    file, so C code always pairs xpp_writer_open with one of them on every
    path out of the function -- the C++ Writer wrapper below aborts
-   automatically in its destructor when not committed. */
+   automatically in its destructor when not committed.
+
+   xpp_writer_open_as picks the kind: XPP_WRITE_TEXT is xpp_writer_open;
+   XPP_WRITE_BINARY the same in binary mode ("wb"), for a byte-for-byte
+   copy whose lines end as the source's do on every platform;
+   XPP_WRITE_APPEND writes at the end of `path` itself ("a"), no temp file:
+   commit and abort both close it, and what was written stays. */
 typedef struct XppWriter XppWriter;
+enum { XPP_WRITE_TEXT = 0, XPP_WRITE_BINARY = 1, XPP_WRITE_APPEND = 2 };
 XppWriter *xpp_writer_open(const char *path);
-/* the same in binary mode ("wb"): for a byte-for-byte copy, whose lines
-   end as the source's do on every platform */
-XppWriter *xpp_writer_open_binary(const char *path);
+XppWriter *xpp_writer_open_as(const char *path, int how);
 FILE *xpp_writer_file(XppWriter *w);
 int xpp_writer_printf(XppWriter *w, const char *fmt, ...)
 #if defined(__GNUC__)
@@ -302,9 +310,15 @@ void json_encode_string(std::string &out, std::string_view s);
    in strict mode, one of those rejects. */
 bool json_decode_string(const char *v, std::string &out, size_t max, bool strict);
 
-/* A FILE * that closes itself: for a stream the core gets from an API
-   that hands out a FILE * (xpp_files_open, fdopen, ...) rather than a
-   path the readers/writer below could open. */
+/* The digit a base64 character stands for (A-Z a-z 0-9 + /), -1 for any
+   other: the page's uploads (xpp_files.cpp) and its pictures
+   (json_windows.cpp) */
+int base64_value(int c) noexcept;
+
+/* A FILE * that closes itself: the read handle, for a helper that takes
+   a plain FILE * (the .set, .auto and .ode readers), and for a stream the
+   core gets from an API that hands out a FILE * (xpp_files_open, fdopen,
+   ...). */
 struct FileCloser {
     void operator()(FILE *fp) const noexcept
     {
@@ -312,6 +326,28 @@ struct FileCloser {
     }
 };
 using UniqueFile = std::unique_ptr<FILE, FileCloser>;
+
+/* path opened for reading, text ("r") or binary ("rb"); empty (false)
+   when it cannot be. Lines and numbers are read with LineReader and
+   TokenReader below, which open their own. */
+inline UniqueFile open_read(const char *path) noexcept { return UniqueFile(xpp_files_open_stream(path, "r")); }
+inline UniqueFile open_read_binary(const char *path) noexcept
+{
+    return UniqueFile(xpp_files_open_stream(path, "rb"));
+}
+
+#ifdef XPP_IO_HAVE_STD_FORMAT
+/* fprintf's type-checked counterpart: std::format into fp, for a stream
+   that stays a FILE * (AUTO's fort.7/8/9, written while it runs, and the
+   helpers that are handed one); a Writer prints with its own print().
+   Nothing is written to a NULL fp. */
+template <class... Args>
+void print(FILE *fp, std::format_string<Args...> fmt, Args &&...args) noexcept
+{
+    const std::string s = xpp::vformat(fmt.get(), std::make_format_args(args...));
+    if (fp) std::fwrite(s.data(), 1, s.size(), fp);
+}
+#endif
 
 /* ---- RAII wrappers over the C file API above --------------------------
    Thin move-only handles: a LineReader closes (if it opened the file
@@ -411,14 +447,22 @@ private:
     XppTokenReader *r_ = nullptr;
 };
 
+/* The write handle: Writer(path) replaces path with text, binary(path)
+   with bytes, both only at commit(); append(path) adds to its end. */
 class Writer {
 public:
     Writer() = default;
-    explicit Writer(const char *path) noexcept : w_(xpp_writer_open(path)) {}
+    explicit Writer(const char *path) noexcept : w_(xpp_writer_open_as(path, XPP_WRITE_TEXT)) {}
     static Writer binary(const char *path) noexcept
     {
         Writer w;
-        w.w_ = xpp_writer_open_binary(path);
+        w.w_ = xpp_writer_open_as(path, XPP_WRITE_BINARY);
+        return w;
+    }
+    static Writer append(const char *path) noexcept
+    {
+        Writer w;
+        w.w_ = xpp_writer_open_as(path, XPP_WRITE_APPEND);
         return w;
     }
     ~Writer()
@@ -441,10 +485,9 @@ public:
     FILE *file() const noexcept { return w_ ? xpp_writer_file(w_) : nullptr; }
 #ifdef XPP_IO_HAVE_STD_FORMAT
     template <class... Args>
-    void write(std::format_string<Args...> fmt, Args &&...args)
+    void print(std::format_string<Args...> fmt, Args &&...args) noexcept
     {
-        std::string s = xpp::format(fmt, std::forward<Args>(args)...);
-        if (w_) ::fwrite(s.data(), 1, s.size(), xpp_writer_file(w_));
+        xpp::print(file(), fmt, std::forward<Args>(args)...);
     }
 #endif
     /* Renames the temp file into place; false (the original file left

@@ -202,35 +202,70 @@ void redraw_diagram()
   }
 }
 
+namespace {
+
+/* the file one of the diagram's text exports writes, asked for with
+   `name` as the default; opened only when there are points to write, so
+   an empty diagram leaves an existing file alone. Empty when cancelled,
+   or when it cannot be written (err_msg says so). */
+xpp::Writer diagram_file(const char *title, const char *name)
+{
+  char filename[XPP_MAX_NAME];
+  XPP_STRCPY(filename,name);
+  if(!file_selector(title,filename,"*.dat"))return xpp::Writer();
+  if(bifd->next==NULL)return xpp::Writer();
+  xpp::Writer w(filename);
+  if(!w)err_msg("Can't open file");
+  return w;
+}
+
+/* the diagram as a picture: PostScript or SVG, whichever begin (ps_init
+   or svg_init) opened, finished with end */
+void export_diagram(const char *title, const char *name, const char *wild,
+                    int (*begin)(const char *, int), void (*end)(void))
+{
+  char filename[XPP_MAX_NAME];
+  DIAGRAM *d;
+  int type,flag=0;
+  XPP_STRCPY(filename,name);
+  if(!file_selector(title,filename,wild))return;
+  if(!begin(filename,plot_export.color))
+    return;
+  draw_export_axes();
+  d=bifd;
+  if(d->next==NULL)return;
+  while(1){
+    type=get_bif_type(d->ibr,d->ntot,d->lab);
+    if (type < 0)
+    {
+    	xpp::log(XPP_LOG_WARN, "Unable to get bifurcation type.\n");
+    }
+    if(d->ntot==1)flag=0;
+    else flag=1;
+    add_ps_point(d->par,d->per,d->uhi,d->ulo,d->ubar,d->norm,type,flag,
+	      d->lab,d->nfpar,d->icp1,d->icp2,d->flag2,d->evr,d->evi);
+    d=d->next;
+    if(d==NULL)break;
+  }
+  end();
+  set_normal_scale();
+}
+
+} // namespace
+
 void write_info_out()
 {
-  /*char filename[256];*/
-  char filename[XPP_MAX_NAME];
   DIAGRAM *d;
   int type,i;
   /*int flag=0
   */
-  int status;
   int icp1,icp2;
   double *par;
   double par1,par2=0,*uhigh,*ulow,per;
   /*double a,*ubar,*u0;*/
-  FILE *fp;
-  XppWriter *w;
-  XPP_SPRINTF(filename,"allinfo.dat");
-  /* status=get_dialog("Write all info","Filename",filename,"Ok","Cancel",60);
-   */
-  status=file_selector("Write all info",filename,"*.dat");
-
-  if(status==0)return;
+  xpp::Writer w=diagram_file("Write all info","allinfo.dat");
+  if(!w)return;
   d=bifd;
-  if(d->next==NULL)return; /* nothing recorded: leave any existing file alone */
-  w=xpp_writer_open(filename);
-  if(w==NULL){
-    err_msg("Can't open file");
-    return;
-  }
-  fp=xpp_writer_file(w);
  while(1){
     type=get_bif_type(d->ibr,d->ntot,d->lab);
     
@@ -262,12 +297,12 @@ void write_info_out()
       for(i=0;i<NODE;i++)
         line+=xpp::format("{:g} {:g} ",d->evr[i],d->evi[i]);
       line+='\n';
-      fputs(line.c_str(),fp);
+      w.print("{}",line);
     }
     d=d->next;
     if(d==NULL)break;
   }
-  xpp_writer_commit(w);
+  w.commit();
 
 }
 
@@ -314,33 +349,17 @@ extern "C" void load_browser_with_branch(int ibr,int pts,int pte)
 }
 void write_init_data_file()
 {
-  /*char filename[256];*/
-  char filename[XPP_MAX_NAME];
   DIAGRAM *d;
   int i;
   /*int flag=0;
   */
-  int status;
   int icp1;
   double *par;
   double par1,*u0;
   /*double a,*uhigh,*ulow,*ubar;*/
-  FILE *fp;
-  XppWriter *w;
-  XPP_SPRINTF(filename,"initdata.dat");
-  /* status=get_dialog("Write all info","Filename",filename,"Ok","Cancel",60);
-   */
-  status=file_selector("Write init data file",filename,"*.dat");
-
-  if(status==0)return;
+  xpp::Writer w=diagram_file("Write init data file","initdata.dat");
+  if(!w)return;
   d=bifd;
-  if(d->next==NULL)return; /* nothing recorded: leave any existing file alone */
-  w=xpp_writer_open(filename);
-  if(w==NULL){
-    err_msg("Can't open file");
-    return;
-  }
-  fp=xpp_writer_file(w);
  while(1){
     /*if(d->ntot==1)flag=0;
     else flag=1;
@@ -370,42 +389,28 @@ void write_init_data_file()
       for(i=0;i<NODE;i++)
         line+=xpp::format("{:g} ",u0[i]);
       line+='\n';
-      fputs(line.c_str(),fp);
+      w.print("{}",line);
     }
     d=d->next;
     if(d==NULL)break;
   }
-  xpp_writer_commit(w);
+  w.commit();
 
 }
 
 
 void write_pts()
 {
-  /*char filename[256];*/
-  char filename[XPP_MAX_NAME];
   DIAGRAM *d;
   int type;
   /*int flag=0;
   */
-  int status;
   int icp1,icp2;
   double *par;
   double x,y1,y2,par1,par2=0,a,*uhigh,*ulow,*ubar,per;
-  FILE *fp;
-  XppWriter *w;
-  XPP_SPRINTF(filename,"diagram.dat");
-  status=file_selector("Write points",filename,"*.dat");
-  /* get_dialog("Write points","Filename",filename,"Ok","Cancel",60); */
-  if(status==0)return;
+  xpp::Writer w=diagram_file("Write points","diagram.dat");
+  if(!w)return;
   d=bifd;
-  if(d->next==NULL)return; /* nothing recorded: leave any existing file alone */
-  w=xpp_writer_open(filename);
-  if(w==NULL){
-    err_msg("Can't open file");
-    return;
-  }
-  fp=xpp_writer_file(w);
   while(1){
     type=get_bif_type(d->ibr,d->ntot,d->lab);
     
@@ -431,81 +436,23 @@ void write_pts()
     */
     if(check_plot_type(d->flag2,icp1,icp2)==1){
       auto_xy_plot(&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a);
-      fputs(xpp::format("{:g} {:g} {:g} {} {} {}\n",
-	      x,y1,y2,type,abs(d->ibr),d->flag2).c_str(),fp);
+      w.print("{:g} {:g} {:g} {} {} {}\n",
+	      x,y1,y2,type,abs(d->ibr),d->flag2);
     }
       d=d->next;
       if(d==NULL)break;
   }
-  xpp_writer_commit(w);
+  w.commit();
 }
 
 void post_auto()
 {
-  /*char filename[256];*/
-  char filename[XPP_MAX_NAME];
-  DIAGRAM *d;
-  int type,flag=0;
-  int status;
-  XPP_SPRINTF(filename,"auto.ps");
-  /* status=get_dialog("Postscript","Filename",filename,"Ok","Cancel",60); */
-  status=file_selector("Postscript",filename,"*.ps");
-  if(status==0)return;
-  if(!ps_init(filename,plot_export.color))
-    return;
-   draw_ps_axes();
-  d=bifd;
-  if(d->next==NULL)return;
-  while(1){
-    type=get_bif_type(d->ibr,d->ntot,d->lab);
-    if (type < 0)
-    {	
-    	xpp::log(XPP_LOG_WARN, "Unable to get bifurcation type.\n");
-    }
-    if(d->ntot==1)flag=0;
-    else flag=1;
-    add_ps_point(d->par,d->per,d->uhi,d->ulo,d->ubar,d->norm,type,flag,
-	      d->lab,d->nfpar,d->icp1,d->icp2,d->flag2,d->evr,d->evi);
-    d=d->next;
-    if(d==NULL)break;
-  }
-  ps_end();
-  set_normal_scale();
+  export_diagram("Postscript","auto.ps","*.ps",ps_init,ps_end);
 }
-
 
 void svg_auto()
 {
-  /*char filename[256];*/
-  char filename[XPP_MAX_NAME];
-  DIAGRAM *d;
-  int type,flag=0;
-  int status;
-  XPP_SPRINTF(filename,"auto.svg");
-  /* status=get_dialog("Postscript","Filename",filename,"Ok","Cancel",60); */
-  status=file_selector("SVG",filename,"*.svg");
-  if(status==0)return;
-  if(!svg_init(filename,plot_export.color))
-    return;
-   draw_svg_axes();
-  d=bifd;
-  if(d->next==NULL)return;
-  while(1){
-    type=get_bif_type(d->ibr,d->ntot,d->lab);
-    if (type < 0)
-    {	
-    	xpp::log(XPP_LOG_WARN, "Unable to get bifurcation type.\n");
-    }
-    if(d->ntot==1)flag=0;
-    else flag=1;
-    add_ps_point(d->par,d->per,d->uhi,d->ulo,d->ubar,d->norm,type,flag,
-	      d->lab,d->nfpar,d->icp1,d->icp2,d->flag2,d->evr,d->evi);
-    d=d->next;
-    if(d==NULL)break;
-  }
-  svg_end();
-  
-  set_normal_scale();
+  export_diagram("SVG","auto.svg","*.svg",svg_init,svg_end);
 }
 
 

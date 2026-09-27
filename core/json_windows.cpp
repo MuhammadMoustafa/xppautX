@@ -386,20 +386,6 @@ void j_new_colormap(int type)
    data events. Frame and GIF writers ask for it: {"kind":"pixels","win":W}
    or {"film":i} (a kinescope frame), answered with w, h and base64 RGB. */
 
-namespace {
-
-int b64_value(int c)
-{
-    if (c >= 'A' && c <= 'Z') return c - 'A';
-    if (c >= 'a' && c <= 'z') return c - 'a' + 26;
-    if (c >= '0' && c <= '9') return c - '0' + 52;
-    if (c == '+') return 62;
-    if (c == '/') return 63;
-    return -1;
-}
-
-} // namespace
-
 /* w*h*3 RGB bytes, or none when cancelled */
 std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h)
 {
@@ -418,10 +404,10 @@ std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h)
     try {
         rgb.resize(n);
     } catch (...) {
-        out_of_memory("taking a picture");
+        xpp_out_of_memory("taking a picture");
     }
     for (v++; *v && *v != '"' && k < n; v++) {
-        int d = b64_value(static_cast<unsigned char>(*v));
+        int d = xpp::base64_value(static_cast<unsigned char>(*v));
         if (d < 0) continue;
         q[nq++] = d;
         if (nq == 4) {
@@ -440,7 +426,7 @@ int write_ppm(const char *file, std::span<const unsigned char> rgb, int w, int h
 {
     xpp::Writer out = xpp::Writer::binary(file);
     if (!out) return 0;
-    out.write("P6\n{} {}\n255\n", w, h);
+    out.print("P6\n{} {}\n255\n", w, h);
     fwrite(rgb.data(), 3, static_cast<size_t>(w) * h, out.file());
     return out.commit();
 }
@@ -597,7 +583,7 @@ void send_aplot(const char *tag)
     try {
         if (nx * ny > 0) vals.resize(static_cast<size_t>(nx * ny));
     } catch (...) {
-        out_of_memory("sending an array plot");
+        xpp_out_of_memory("sending an array plot");
     }
     /* -1 (cells) / NaN (values): past the stored rows or columns (left blank) */
     BUF_LIT(&b, ",\"cells\":[");
@@ -662,8 +648,17 @@ namespace {
 void aplot_gif(const char *file, int still)
 {
     int w, h;
-    if (still == 1 || aplot_range_count == 0) {
-        if ((ap_fp = fopen(file, "wb")) == NULL) {
+    xpp::Writer one; /* a still: one GIF, in place once whole */
+    if (still == 1) {
+        one = xpp::Writer::binary(file);
+        if (!one) {
+            j_err_msg("Cannot open file ");
+            return;
+        }
+    } else if (aplot_range_count == 0) {
+        /* a range movie's frames all go into the first frame's file, a
+           stream kept open until arrayplot.cpp's close_aplot_files */
+        if ((ap_fp = xpp_files_open_stream(file, "wb")) == NULL) {
             j_err_msg("Cannot open file ");
             return;
         }
@@ -671,10 +666,10 @@ void aplot_gif(const char *file, int still)
     std::vector<unsigned char> rgb = ask_pixels(WIN_APLOT, -1, &w, &h);
     if (!rgb.empty()) {
         web_safe_colors(rgb);
-        if (still == 1) gif_stuff_ppm(rgb.data(), w, h, ap_fp, MAKE_ONE_GIF);
+        if (still == 1) gif_stuff_ppm(rgb.data(), w, h, one.file(), MAKE_ONE_GIF);
         else gif_stuff_ppm(rgb.data(), w, h, ap_fp, aplot_range_count == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
     }
-    if (still == 1) fclose(ap_fp);
+    one.commit();
 }
 
 } // namespace

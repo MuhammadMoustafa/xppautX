@@ -21,6 +21,7 @@
 
 #include "xpp_ui.h"
 #include "xpp_io.h"
+#include "xpp_mem.h"
 #include <stddef.h>
 #include <iterator>
 #include <span>
@@ -70,9 +71,8 @@ struct Buf {
     std::string s;
 };
 
-/* a failed allocation ends the program, as xpp_mem's do: no exception
-   leaves the front end's functions, which the core calls as C */
-[[noreturn]] void out_of_memory(const char *what);
+/* a failed allocation ends the program (xpp_out_of_memory, xpp_mem.h):
+   no exception leaves the front end's functions, which the core calls as C */
 
 void buf_add(Buf *b, const char *s, size_t n);
 /* std::format into a Buf (type-checked at compile time; the formatting

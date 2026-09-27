@@ -7,19 +7,13 @@
 #include <windows.h>
 #include <io.h>
 #include <fcntl.h>
-#include <direct.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include "xpp_dlfcn.h"
 #include "xpp_win32.h"
-#include "xpp_util.h"
-#include "xpp_mem.h"
-#include "xpp_io.h"
 #include <array>
-#include <charconv>
 #include <string>
-#include <string_view>
 
 static const char *dl_error;
 
@@ -68,10 +62,7 @@ int xpp_replace_file(const char *from, const char *to)
     return MoveFileExA(from, to, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) ? 0 : -1;
 }
 
-namespace {
-
-/* the temp folder, without its trailing backslash; empty when there is none */
-std::string temp_folder()
+std::string xpp_temp_folder(void)
 {
     std::array<char, MAX_PATH> base; /* GetTempPathA writes it */
     DWORD n = GetTempPathA(static_cast<DWORD>(base.size()), base.data());
@@ -80,37 +71,7 @@ std::string temp_folder()
     return std::string(base.data(), n);
 }
 
-/* name is exactly "xppautoX-<pid>-<N>" (digits): *pid */
-bool scratch_dir_pid(std::string_view name, unsigned long *pid)
-{
-    constexpr std::string_view prefix = "xppautoX-";
-    if (!name.starts_with(prefix)) return false;
-    const char *p = name.data() + prefix.size(), *end = name.data() + name.size();
-    std::from_chars_result r = std::from_chars(p, end, *pid);
-    if (r.ec != std::errc() || r.ptr == end || *r.ptr != '-') return false;
-    int idx;
-    r = std::from_chars(r.ptr + 1, end, idx);
-    return r.ec == std::errc() && r.ptr == end;
-}
-
-} // namespace
-
-/* the Windows side of xpp_util.c's AUTO scratch directory */
-char *xpp_make_temp_dir(void)
-{
-    try {
-        std::string base = temp_folder();
-        if (base.empty()) return NULL;
-        for (int i = 0; i < 1000; i++) {
-            std::string path = xpp::format("{}\\xppautoX-{}-{}", base, static_cast<unsigned long>(GetCurrentProcessId()), i);
-            if (_mkdir(path.c_str()) == 0) return xpp_strdup(path.c_str()); /* program.auto_dir: a C string */
-        }
-    } catch (...) {
-    }
-    return NULL;
-}
-
-static int scratch_pid_running(unsigned long pid)
+int xpp_process_running(unsigned long pid)
 {
     HANDLE h = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, static_cast<DWORD>(pid));
     DWORD code;
@@ -120,29 +81,6 @@ static int scratch_pid_running(unsigned long pid)
     running = !GetExitCodeProcess(h, &code) || code == STILL_ACTIVE;
     CloseHandle(h);
     return running;
-}
-
-/* issue #32: see xpp_util.c's POSIX twin for why. Windows names by the
-   same "xppautoX-<pid>-N" pattern; OpenProcess fails when pid no longer
-   names a process (or GetExitCodeProcess says it already exited). */
-void xpp_cleanup_stale_scratch_dirs(void)
-{
-    WIN32_FIND_DATAA fd;
-    try {
-        std::string base = temp_folder();
-        if (base.empty()) return;
-        HANDLE h = FindFirstFileA(xpp::format("{}\\xppautoX-*", base).c_str(), &fd);
-        if (h == INVALID_HANDLE_VALUE) return;
-        do {
-            unsigned long pid;
-            if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
-            if (!scratch_dir_pid(fd.cFileName, &pid)) continue;
-            if (scratch_pid_running(pid)) continue;
-            xpp_remove_temp_dir(xpp::format("{}\\{}", base, static_cast<const char *>(fd.cFileName)).c_str());
-        } while (FindNextFileA(h, &fd));
-        FindClose(h);
-    } catch (...) {
-    }
 }
 
 /* W13b: xppautX links -mwindows, so no console appears when Explorer or a
@@ -189,21 +127,6 @@ void xpp_win32_attach_console(void)
     if (!in) reopen("CONIN$", "r", stdin);
 }
 
-void xpp_remove_temp_dir(const char *dir)
-{
-    WIN32_FIND_DATAA fd;
-
-    if (dir == NULL) return;
-    HANDLE h = FindFirstFileA(xpp::format("{}\\*", dir).c_str(), &fd);
-    if (h != INVALID_HANDLE_VALUE) {
-        do {
-            if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0) continue;
-            DeleteFileA(xpp::format("{}\\{}", dir, static_cast<const char *>(fd.cFileName)).c_str());
-        } while (FindNextFileA(h, &fd));
-        FindClose(h);
-    }
-    RemoveDirectoryA(dir);
-}
 #else
 typedef int xpp_win32_unused;
 #endif

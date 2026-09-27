@@ -23,11 +23,6 @@ namespace {
 std::string session_set;
 std::string session_auto;
 
-struct FileCloser {
-    void operator()(FILE *fp) const noexcept { std::fclose(fp); }
-};
-using FilePtr = std::unique_ptr<FILE, FileCloser>;
-
 /* base may be empty: ask for one the way do_lunch's Write/Read set does
    (file_selector writes up to 256 bytes into its buffer), returning it
    without its .set. false on cancel. */
@@ -99,7 +94,7 @@ int xpp_session_load(const char *base_arg)
 
     std::string set_name = base + ".set";
     {
-        FilePtr fp(std::fopen(set_name.c_str(), "r"));
+        xpp::UniqueFile fp = xpp::open_read(set_name.c_str());
         if (!fp) {
             err_msg("Cannot open file");
             return 0;
@@ -110,7 +105,7 @@ int xpp_session_load(const char *base_arg)
     session_auto.clear();
 
     std::string auto_name = base + ".auto";
-    FilePtr fp(std::fopen(auto_name.c_str(), "r"));
+    xpp::UniqueFile fp = xpp::open_read(auto_name.c_str());
     if (fp) {
         if (NBifs > 1) yes_reset_auto(); /* as load_auto does, without its confirmation ask */
         if (!Auto.exist) do_auto_win(); /* the diagram needs a window to draw into */

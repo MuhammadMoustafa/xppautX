@@ -5,6 +5,7 @@
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
+#include "xpp_files.h"
 #include "xpp_ui.h"
 #include "grobs.h"
 #include "axes2.h"
@@ -32,7 +33,6 @@
 #include "numerics.h"
 #include "pop_list.h" /* NUPAR, NEQ, upar_names, uvar_names */
 #include <array>
-#include <charconv>
 #include <string>
 #include <string_view>
 #include <time.h>
@@ -400,7 +400,7 @@ void clone_ode()
       return;
     }
   ttt=time(0);
-  fp.write("# clone of {} on {}",static_cast<const char *>(this_file),ctime(&ttt));
+  fp.print("# clone of {} on {}",static_cast<const char *>(this_file),ctime(&ttt));
   for(i=0;i<NLINES;i++){
     s=save_eqn[i];
 
@@ -409,47 +409,47 @@ void clone_ode()
       y=find_char(s,"=",0,&j);
 
       if(x!=0||y!=0){
-	fp.write("# original\n# {}\n",s);
+	fp.print("# original\n# {}\n",s);
 	continue;
       }
     }
     if(strncasecmp("done",s,4)==0)continue;
-    fp.write("{}\n",s);
+    fp.print("{}\n",s);
   }
-  fp.write("# Cloned parameters etc here\n");
+  fp.print("# Cloned parameters etc here\n");
   /* now we do parameters boundary conds and ICs */
   j=0;
-  fp.write("init ");
+  fp.print("init ");
   for(i=0;i<(NODE+NMarkov);i++){
     if(j==8){
-      fp.write("\ninit ");
+      fp.print("\ninit ");
       j=0;
     }
-    fp.write("{}={:g} ",static_cast<const char *>(uvar_names[i]),last_ic[i]);
+    fp.print("{}={:g} ",static_cast<const char *>(uvar_names[i]),last_ic[i]);
     j++;
   }
-  fp.write("\n");
+  fp.print("\n");
 
   /* BDRY conds */
   if(my_bc[0].string[0]!='0'){
     for(i=0;i<NODE;i++)
-      fp.write("bdry {}\n",my_bc[i].string);
+      fp.print("bdry {}\n",my_bc[i].string);
   }
   j=0;
   if(NUPAR>0){
-    fp.write("par ");
+    fp.print("par ");
     for(i=0;i<NUPAR;i++){
       if(j==8){
-	fp.write("\npar ");
+	fp.print("\npar ");
         j=0;
       }
       get_val(upar_names[i],&z);
-      fp.write("{}={:g} ",static_cast<const char *>(upar_names[i]),z);
+      fp.print("{}={:g} ",static_cast<const char *>(upar_names[i]),z);
       j++;
     }
   }
-  fp.write("\n");
-  fp.write("done \n");
+  fp.print("\n");
+  fp.print("done \n");
   fp.commit();
 }
 
@@ -703,101 +703,12 @@ void do_txt_action(const char *s)
   reset_graph();
 }
 
-/* ---- AUTO's private scratch directory (xpp_globals.h: xpp_auto_dir) ----
-   POSIX here, Windows in xpp_win32.cpp. Named by the pid, so unique while the
-   process lives (mkdtemp needs _XOPEN_SOURCE 700; the build uses 600). */
-#ifndef _WIN32
-#include <dirent.h>
-#include <errno.h>
-#include <signal.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
-
-char *xpp_make_temp_dir(void)
-{
-  const char *base = getenv("TMPDIR");
-
-  if (base == NULL || base[0] == 0)
-    base = "/tmp";
-  for (int i = 0; i < 1000; i++) { /* a crashed run with our pid may have left one */
-    std::string path = xpp::format("{}/xppautoX-{}-{}", base, static_cast<long>(getpid()), i);
-    if (mkdir(path.c_str(), 0700) == 0)
-      return xpp_strdup(path.c_str()); /* program.auto_dir: a C string, freed by xpp_cleanup_auto_dir */
-    if (errno != EEXIST)
-      break;
-  }
-  return NULL;
-}
-
-void xpp_remove_temp_dir(const char *dir)
-{
-  DIR *d;
-  struct dirent *e;
-
-  if (dir == NULL)
-    return;
-  d = opendir(dir);
-  if (d != NULL) {
-    while ((e = readdir(d)) != NULL) {
-      if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0)
-        continue;
-      remove(xpp::format("{}/{}", dir, static_cast<const char *>(e->d_name)).c_str());
-    }
-    closedir(d);
-  }
-  rmdir(dir);
-}
-
-/* issue #32: a killed run's folder is never removed (xpp_cleanup_auto_dir
-   only runs at a normal exit), and this machine had about 1400 of them.
-   Sweep them before making this run's own: only a name matching the exact
-   "xppautoX-<pid>-N" pattern, and only when kill(pid,0) says ESRCH (no
-   such process); a live pid, or one this user has no permission to signal,
-   is left alone. */
-namespace {
-
-/* name is exactly "xppautoX-<pid>-<N>" (digits, the pid may be negative as
-   %ld reads it): *pid */
-bool scratch_dir_pid(std::string_view name, long *pid)
-{
-  constexpr std::string_view prefix = "xppautoX-";
-  if (!name.starts_with(prefix)) return false;
-  const char *p = name.data() + prefix.size(), *end = name.data() + name.size();
-  std::from_chars_result r = std::from_chars(p, end, *pid);
-  if (r.ec != std::errc() || r.ptr == end || *r.ptr != '-') return false;
-  int idx;
-  r = std::from_chars(r.ptr + 1, end, idx);
-  return r.ec == std::errc() && r.ptr == end;
-}
-
-} // namespace
-
-void xpp_cleanup_stale_scratch_dirs(void)
-{
-  const char *base = getenv("TMPDIR");
-  DIR *d;
-  struct dirent *e;
-
-  if (base == NULL || base[0] == 0) base = "/tmp";
-  d = opendir(base);
-  if (d == NULL) return;
-  while ((e = readdir(d)) != NULL) {
-    long pid;
-    if (!scratch_dir_pid(e->d_name, &pid)) continue;
-    if (kill(static_cast<pid_t>(pid), 0) == 0) continue; /* still running */
-    if (errno != ESRCH) continue;                       /* can't tell: leave it alone */
-    xpp_remove_temp_dir(xpp::format("{}/{}", base, static_cast<const char *>(e->d_name)).c_str());
-  }
-  closedir(d);
-}
-
-#endif
-
+/* ---- AUTO's private scratch directory (xpp_globals.h: program.auto_dir),
+   made by xpp_files_make_temp_dir ---- */
 void xpp_cleanup_auto_dir(void)
 {
   if (program.auto_dir != NULL) {
-    xpp_remove_temp_dir(program.auto_dir);
+    xpp_files_remove_temp_dir(program.auto_dir);
     xpp_free(program.auto_dir);
     program.auto_dir = NULL;
   }

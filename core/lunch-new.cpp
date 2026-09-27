@@ -62,19 +62,6 @@ extern int MaxPoints;
  extern char *ode_names[MAXODE],*fix_names[MAXODE];
 namespace {
 
-/* fprintf's type-checked counterpart: std::format (xpp::format) into fp */
-template <class... Args>
-void put(FILE *fp, std::format_string<Args...> fmt, Args &&...args)
-{
-  std::string s = xpp::format(fmt, std::forward<Args>(args)...);
-  std::fwrite(s.data(), 1, s.size(), fp);
-}
-
-struct FileCloser {
-  void operator()(FILE *fp) const noexcept { std::fclose(fp); }
-};
-using FilePtr = std::unique_ptr<FILE, FileCloser>;
-
 /* file_selector's dialog writes up to 256 bytes into the buffer it is
    given: ask with name as the default, name the answer on OK */
 bool choose_file(const char *title, std::string &name, const char *wild)
@@ -86,28 +73,15 @@ bool choose_file(const char *title, std::string &name, const char *wild)
   return true;
 }
 
-/* open_write_file's ask (overwrite?) and error, through a writer that
-   replaces fil only on commit */
-bool open_writer(xpp::Writer &w, const std::string &fil)
-{
-  if(!may_write_file(fil.c_str())) return false;
-  w = xpp::Writer(fil.c_str());
-  if(!w){
-    err_msg("Cannot open file");
-    return false;
-  }
-  return true;
-}
-
 /* An equation line of do_info/dump_eqn: dX/dT=..., X(n+1)=... or X=... */
 void put_equation(FILE *fp, int i)
 {
   if(i>=NODE)
-    put(fp,"{}={}\n",uvar_names[i],ode_names[i]);
+    xpp::print(fp,"{}={}\n",uvar_names[i],ode_names[i]);
   else if(METHOD>0)
-    put(fp,"d{}/dT={}\n",uvar_names[i],ode_names[i]);
+    xpp::print(fp,"d{}/dT={}\n",uvar_names[i],ode_names[i]);
   else
-    put(fp,"{}(n+1)={}\n",uvar_names[i],ode_names[i]);
+    xpp::print(fp,"{}(n+1)={}\n",uvar_names[i],ode_names[i]);
 }
 
 /* do_info/dump_eqn's equations, fixed variables and functions */
@@ -115,12 +89,12 @@ void put_equations(FILE *fp)
 {
   for(int i=0;i<NEQ;i++)put_equation(fp,i);
   if(FIX_VAR>0){
-    put(fp,"\nwhere ...\n");
+    xpp::print(fp,"\nwhere ...\n");
     for(int i=0;i<FIX_VAR;i++)
-      put(fp,"{} = {} \n",fixinfo[i].name,fixinfo[i].value);
+      xpp::print(fp,"{} = {} \n",fixinfo[i].name,fixinfo[i].value);
   }
   if(NFUN>0){
-    put(fp,"\nUser-defined functions:\n");
+    xpp::print(fp,"\nUser-defined functions:\n");
     user_fun_info(fp);
   }
 }
@@ -131,10 +105,10 @@ void put_parameters(FILE *fp, const char *prefix)
   double z;
   for(int i=0;i<NUPAR;i++){
     get_val(upar_names[i],&z);
-    put(fp,"{}{}={:.16g}   ",prefix,upar_names[i],z);
-    if(i%4==3) put(fp,"\n");
+    xpp::print(fp,"{}{}={:.16g}   ",prefix,upar_names[i],z);
+    if(i%4==3) xpp::print(fp,"\n");
   }
-  put(fp,"\n");
+  xpp::print(fp,"\n");
 }
 
 /* fn with its spaces removed, from index skip on */
@@ -217,8 +191,8 @@ void file_inf()
   std::string filename=std::string(this_file)+".pars";
   ping();
   if(!choose_file("Save info",filename,"*.pars*"))return;
-  xpp::Writer w;
-  if(!open_writer(w,filename))return;
+  xpp::Writer w=open_writer_asking(filename.c_str());
+  if(!w)return;
   redraw_params();
   do_info(w.file());
   w.commit();
@@ -227,7 +201,7 @@ void file_inf()
 
 void ps_write_pars(FILE *fp)
 {
-  put(fp,"\n %% {} \n %% Parameters ...\n",this_file);
+  xpp::print(fp,"\n %% {} \n %% Parameters ...\n",this_file);
   put_parameters(fp,"%% ");
 }
 
@@ -236,29 +210,29 @@ void do_info(FILE *fp)
   static const char *method[]={"Discrete","Euler","Mod. Euler",
 	"Runge-Kutta","Adams","Gear","Volterra","BackEul","QualRK",
          "Stiff","CVode","DoPri5","DoPri8(3)","Rosenbrock","Symplectic"};
-  put(fp,"File: {} \n\n Equations... \n",this_file);
+  xpp::print(fp,"File: {} \n\n Equations... \n",this_file);
   put_equations(fp);
 
-  put(fp,"\n\n Numerical parameters ...\n");
-  put(fp,"NJMP={}  NMESH={} METHOD={} EVEC_ITER={} \n",
+  xpp::print(fp,"\n\n Numerical parameters ...\n");
+  xpp::print(fp,"NJMP={}  NMESH={} METHOD={} EVEC_ITER={} \n",
 	 NJMP,NMESH,method[METHOD],EVEC_ITER);
-  put(fp,"BVP_EPS={:g},BVP_TOL={:g},BVP_MAXIT={} \n",
+  xpp::print(fp,"BVP_EPS={:g},BVP_TOL={:g},BVP_MAXIT={} \n",
 	 BVP_EPS,BVP_TOL,BVP_MAXIT);
-  put(fp,"DT={:g} T0={:g} TRANS={:g} TEND={:g} BOUND={:g} DELAY={:g} MaxPts={}\n",
+  xpp::print(fp,"DT={:g} T0={:g} TRANS={:g} TEND={:g} BOUND={:g} DELAY={:g} MaxPts={}\n",
 	 DELTA_T,T0,TRANS,TEND,BOUND,DELAY,MaxPoints);
-  put(fp,"EVEC_ERR={:g}, NEWT_ERR={:g} HMIN={:g} HMAX={:g} TOLER={:g} \n",
+  xpp::print(fp,"EVEC_ERR={:g}, NEWT_ERR={:g} HMIN={:g} HMAX={:g} TOLER={:g} \n",
 	 EVEC_ERR,NEWT_ERR,HMIN,HMAX,TOLER);
   const char *poivar=POIVAR==0?"T":uvar_names[POIVAR-1];
-  put(fp,"POIMAP={} POIVAR={} POIPLN={:g} POISGN={} \n",
+  xpp::print(fp,"POIMAP={} POIVAR={} POIPLN={:g} POISGN={} \n",
         POIMAP,poivar,POIPLN,POISGN);
 
-  put(fp,"\n\n Delay strings ...\n");
-  for(int i=0;i<NODE;i++)put(fp,"{}\n",delay_string[i]);
-  put(fp,"\n\n BCs ...\n");
-  for(int i=0;i<NODE;i++)put(fp,"0={}\n",my_bc[i].string);
-  put(fp,"\n\n ICs ...\n");
-  for(int i=0;i<NODE+NMarkov;i++)put(fp,"{}={:.16g}\n",uvar_names[i],last_ic[i]);
-  put(fp,"\n\n Parameters ...\n");
+  xpp::print(fp,"\n\n Delay strings ...\n");
+  for(int i=0;i<NODE;i++)xpp::print(fp,"{}\n",delay_string[i]);
+  xpp::print(fp,"\n\n BCs ...\n");
+  for(int i=0;i<NODE;i++)xpp::print(fp,"0={}\n",my_bc[i].string);
+  xpp::print(fp,"\n\n ICs ...\n");
+  for(int i=0;i<NODE+NMarkov;i++)xpp::print(fp,"{}={:.16g}\n",uvar_names[i],last_ic[i]);
+  xpp::print(fp,"\n\n Parameters ...\n");
   put_parameters(fp,"");
 }
 
@@ -274,7 +248,7 @@ void write_lunch(FILE *fp)
  time_t ttt;
 
  ttt=time(0);
- put(fp,"## Set file for {} on {}",this_file,ctime(&ttt));
+ xpp::print(fp,"## Set file for {} on {}",this_file,ctime(&ttt));
  io_int(&NEQ,fp,f,"Number of equations and auxiliaries");
  io_int(&NUPAR,fp,f,"Number of parameters");
  io_numerics(f,fp);
@@ -298,7 +272,7 @@ void do_lunch(int f) /* f=1 to read and 0 to write */
   if(f==READEM){
     ping();
     if(!choose_file("Load SET File",filename,"*.set"))return;
-    FilePtr fp(std::fopen(filename.c_str(),"r"));
+    xpp::UniqueFile fp=xpp::open_read(filename.c_str());
     if(!fp){
       err_msg("Cannot open file");
       return;
@@ -307,8 +281,8 @@ void do_lunch(int f) /* f=1 to read and 0 to write */
     return;
   }
   if(!choose_file("Save SET File",filename,"*.set"))return;
-  xpp::Writer w;
-  if(!open_writer(w,filename))return;
+  xpp::Writer w=open_writer_asking(filename.c_str());
+  if(!w)return;
   redraw_params();
   write_lunch(w.file());
   w.commit();
@@ -318,7 +292,7 @@ void do_lunch(int f) /* f=1 to read and 0 to write */
 
 void dump_eqn(FILE *fp)
 {
-  put(fp,"RHS etc ...\n");
+  xpp::print(fp,"RHS etc ...\n");
   put_equations(fp);
 }
 
@@ -334,7 +308,7 @@ if(f==READEM&&set_type==1){
   skip_heading_line(fp);
 }
 if(f!=READEM)
-  put(fp,"# Numerical stuff\n");
+  xpp::print(fp,"# Numerical stuff\n");
 io_int(&NJMP,fp,f," nout");
 io_int(&NMESH,fp,f," nullcline mesh");
 io_int(&METHOD,fp,f,method[METHOD]);
@@ -382,7 +356,7 @@ void io_parameter_file(const char *fn,int flag)
      file name */
   std::string fnx=file_name_of(fn,6);
   if(flag==READEM) {
-    FilePtr fp(std::fopen(fnx.c_str(),"r"));
+    xpp::UniqueFile fp=xpp::open_read(fnx.c_str());
     if(!fp){
       err_msg("Cannot open file");
       return;
@@ -409,7 +383,7 @@ void io_parameter_file(const char *fn,int flag)
   io_int(&NUPAR,fp,flag,"Number params");
   io_parameters(flag,fp);
   time_t ttt=time(0);
-  put(fp,"\n\nFile:{}\n{}",this_file,ctime(&ttt));
+  xpp::print(fp,"\n\nFile:{}\n{}",this_file,ctime(&ttt));
   w.commit();
 }
 
@@ -465,7 +439,7 @@ static void io_heading(int f, FILE *fp, const char *heading)
     if(set_type==1)skip_heading_line(fp);
   }
   else
-    put(fp,"{}\n",heading);
+    xpp::print(fp,"{}\n",heading);
 }
 
 void io_exprs(int f, FILE *fp)
@@ -567,7 +541,7 @@ void io_int(int *i, FILE *fp, int f, const char *ss)
    *i=atoi(bob->c_str());
  }
  else
- put(fp,"{}   {}\n",*i,ss);
+ xpp::print(fp,"{}   {}\n",*i,ss);
 }
 
 void io_double(double *z, FILE *fp, int f, const char *ss)
@@ -578,7 +552,7 @@ void io_double(double *z, FILE *fp, int f, const char *ss)
    *z=atof(bob->c_str());
  }
  else
- put(fp,"{:.16g}  {}\n",*z,ss);
+ xpp::print(fp,"{:.16g}  {}\n",*z,ss);
 }
 
 void io_string(char *s, int len, FILE *fp, int f)
@@ -594,7 +568,7 @@ void io_string(char *s, int len, FILE *fp, int f)
    xpp_strlcpy(s,line->c_str(),static_cast<size_t>(len));
  }
  else
-   put(fp,"{}\n",s);
+   xpp::print(fp,"{}\n",s);
 }
 
 

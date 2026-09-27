@@ -58,7 +58,7 @@ int ask_wait(Buf *b, int id)
         try {
             script_ask.assign(b->s, 0, SCRIPT_ASK_MAX);
         } catch (...) {
-            out_of_memory("asking");
+            xpp_out_of_memory("asking");
         }
     }
     send_buf(b);
@@ -80,7 +80,7 @@ int ask_wait(Buf *b, int id)
             try {
                 answer = line;
             } catch (...) {
-                out_of_memory("taking an answer");
+                xpp_out_of_memory("taking an answer");
             }
             /* an Abort sent before this answer no longer stops the command */
             if (ask_user) xpp_job_resume(read_line_seq());

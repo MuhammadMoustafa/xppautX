@@ -67,6 +67,16 @@ void *xpp_realloc_at(void *p, size_t n, const char *file, int line);
 char *xpp_strdup_at(const char *s, const char *file, int line);
 void xpp_free(void *p);
 
+/* C++ code whose std::string or std::vector could not allocate (it caught
+   std::bad_alloc: no exception may reach its C callers) ends the program
+   the same way: an ERROR "out of memory <what>", then exit(1) */
+#if defined(__cplusplus)
+[[noreturn]]
+#elif defined(__GNUC__)
+__attribute__((noreturn))
+#endif
+void xpp_out_of_memory(const char *what);
+
 typedef struct {
     unsigned long long allocs;   /* malloc, calloc, strdup, realloc(NULL, n) */
     unsigned long long reallocs; /* realloc of a live pointer */

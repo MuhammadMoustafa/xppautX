@@ -5,7 +5,6 @@
 
 #include <vector>
 #include "xpp_io.h" /* first: C++ headers before auto_f2c.h's min/max macros */
-#include "auto_print.h"
 #include "auto_f2c.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
@@ -1821,31 +1820,31 @@ dimrge(integer *iam, integer *kwt, logical *par, doublereal *e, doublereal *cc, 
     }
 
     if (*idb >= 3) {
-      xpp::auto_out::print(fp9," Residuals of reduced system:\n");	
+      xpp::print(fp9," Residuals of reduced system:\n");	
 	  
-      xpp::auto_out::print(fp9," ");
+      xpp::print(fp9," ");
       for (i = 0; i < ncrloc; ++i) {
-	xpp::auto_out::print(fp9,"{:11.3E}",xe[i]);	
+	xpp::print(fp9,"{:11.3E}",xe[i]);	
 	if((i+ 1)%10==0)
-	  xpp::auto_out::print(fp9,"\n ");
+	  xpp::print(fp9,"\n ");
 	    
       }
-      xpp::auto_out::print(fp9,"\n");	
+      xpp::print(fp9,"\n");	
     }
 
     if (*idb >= 4) {
 
-      xpp::auto_out::print(fp9," Reduced Jacobian matrix:\n");	
+      xpp::print(fp9," Reduced Jacobian matrix:\n");	
 	      
       for (i = 0; i < ncrloc; ++i) {
 	int total_printed = 0;
 	for (j = 0; j < ncrloc; ++j) {
 	  if((total_printed != 0)&&(total_printed % 10 == 0))
-	    xpp::auto_out::print(fp9,"\n");	
-	  xpp::auto_out::print(fp9," {:11.3E}",ARRAY2D(e, i, j));	
+	    xpp::print(fp9,"\n");	
+	  xpp::print(fp9," {:11.3E}",ARRAY2D(e, i, j));	
 	  total_printed++;
 	}
-	xpp::auto_out::print(fp9,"\n");	
+	xpp::print(fp9,"\n");	
       }
     }
 
@@ -1864,14 +1863,14 @@ dimrge(integer *iam, integer *kwt, logical *par, doublereal *e, doublereal *cc, 
 	 ncrloc, xe.data(), det);
     }
     if (*idb >= 4) {
-      xpp::auto_out::print(fp9," Solution vector:\n");	
+      xpp::print(fp9," Solution vector:\n");	
 	  
       for (i = 0; i < ncrloc; ++i) {
 	if((i!=0)&&(i%7==0))
-	  xpp::auto_out::print(fp9,"\n");	
-	xpp::auto_out::print(fp9," {:11.3E}",fcc[i]);	
+	  xpp::print(fp9,"\n");	
+	xpp::print(fp9," {:11.3E}",fcc[i]);	
       }
-      xpp::auto_out::print(fp9,"\n");	
+      xpp::print(fp9,"\n");	
     }
 
     k1 = ncrloc;
@@ -2323,58 +2322,58 @@ print1(integer *nov, integer *na, integer *nra, integer *nca, integer *ncb, inte
   c_dim1 = *nca;
   c_dim2 = *nrc;
     
-  xpp::auto_out::print(fp9,"AA , BB , FA (Full dimension) :\n");	
+  xpp::print(fp9,"AA , BB , FA (Full dimension) :\n");	
   /* should be 10.3f*/
   for (i = 0; i < *na; ++i) {
-    xpp::auto_out::print(fp9,"I={:3}\n",i + 1);
+    xpp::print(fp9,"I={:3}\n",i + 1);
     for (ir = 0; ir < *nra; ++ir) {
       int total_written = 0;
       for (ic = 0; ic < *nca; ++ic) {
 	if((total_written != 0) && (total_written%12 == 0))
-	  xpp::auto_out::print(fp9,"\n");
-	xpp::auto_out::print(fp9," {:10.3E}",ARRAY3D(a, ic, ir, i));
+	  xpp::print(fp9,"\n");
+	xpp::print(fp9," {:10.3E}",ARRAY3D(a, ic, ir, i));
 	total_written++;
       }
       for (ic = 0; ic < *ncb; ++ic) {
 	if((total_written != 0) && (total_written%12 == 0))
-	  xpp::auto_out::print(fp9,"\n");
-	xpp::auto_out::print(fp9," {:10.3E}",ARRAY3D(b, ic, ir, i));	
+	  xpp::print(fp9,"\n");
+	xpp::print(fp9," {:10.3E}",ARRAY3D(b, ic, ir, i));	
 	total_written++;
       }
       if((total_written != 0) && (total_written%12 == 0))
-	xpp::auto_out::print(fp9,"\n");
-      xpp::auto_out::print(fp9," {:10.3E}",ARRAY2D(fa, ir, i));	
-      xpp::auto_out::print(fp9,"\n");	
+	xpp::print(fp9,"\n");
+      xpp::print(fp9," {:10.3E}",ARRAY2D(fa, ir, i));	
+      xpp::print(fp9,"\n");	
     }
   }
 
-  xpp::auto_out::print(fp9,"CC (Full dimension) :\n");	
+  xpp::print(fp9,"CC (Full dimension) :\n");	
 
   for (i = 0; i < *na; ++i) {
-    xpp::auto_out::print(fp9,"I={:3}\n",i + 1);	
+    xpp::print(fp9,"I={:3}\n",i + 1);	
     for (ir = 0; ir < *nrc; ++ir) {
       int total_written = 0;
       for (ic = 0; ic < *nca; ++ic) {
 	if((total_written != 0) && (total_written%12 == 0))
-	  xpp::auto_out::print(fp9,"\n");
-	xpp::auto_out::print(fp9," {:10.3E}",ARRAY3D(c, ic, ir, i));	
+	  xpp::print(fp9,"\n");
+	xpp::print(fp9," {:10.3E}",ARRAY3D(c, ic, ir, i));	
 	total_written++;
       }
-      xpp::auto_out::print(fp9,"\n");	
+      xpp::print(fp9,"\n");	
     }
   }
 
-  xpp::auto_out::print(fp9,"DD , FC\n");	
+  xpp::print(fp9,"DD , FC\n");	
 
   for (ir = 0; ir < *nrc; ++ir) {
     int total_written = 0;
     for (ic = 0; ic < *ncb; ++ic) {
       if((total_written != 0) && (total_written%12 == 0))
-	xpp::auto_out::print(fp9,"\n");
-      xpp::auto_out::print(fp9," {:10.3E}",ARRAY2D(d, ic, ir));	
+	xpp::print(fp9,"\n");
+      xpp::print(fp9," {:10.3E}",ARRAY2D(d, ic, ir));	
       total_written++;
     }
-    xpp::auto_out::print(fp9," {:10.3E}\n",fc[ir]);	
+    xpp::print(fp9," {:10.3E}\n",fc[ir]);	
   }
 
 

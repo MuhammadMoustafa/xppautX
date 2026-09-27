@@ -189,7 +189,7 @@ void script_arm_stop(void)
     try {
         stop_at.assign(at, std::min(static_cast<size_t>(end - at), STOP_AT_MAX));
     } catch (...) {
-        out_of_memory("reading a script");
+        xpp_out_of_memory("reading a script");
     }
     stop_line = no;
     get_string(at, "what", what, 16);
@@ -436,7 +436,7 @@ void json_ui_loop(void)
         try {
             copy = line;
         } catch (...) {
-            out_of_memory("taking a command");
+            xpp_out_of_memory("taking a command");
         }
         /* an abort did its work when it arrived (classify()): it is no
            command of its own, and gets no state or idle; in a script,

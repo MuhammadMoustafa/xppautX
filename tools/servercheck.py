@@ -1624,7 +1624,7 @@ check_ani_data()
 # point, then the periodic branch from the Hopf point, as
 # examples/scripts/lecar_auto.jsonl does it.
 def auto_scratch(p):
-    """AUTO's private scratch directories of server process p (xpp_make_temp_dir)"""
+    """AUTO's private scratch directories of server process p (xpp_files_make_temp_dir)"""
     tmp = tempfile.gettempdir() if os.name == 'nt' else (os.environ.get('TMPDIR') or '/tmp')
     pre = 'xppautoX-%d-' % p.pid
     return [os.path.join(tmp, d) for d in os.listdir(tmp) if d.startswith(pre)]

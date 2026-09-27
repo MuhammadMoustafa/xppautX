@@ -1,5 +1,8 @@
 #ifndef XPP_WIN32_H
 #define XPP_WIN32_H
+#if defined(_WIN32) && defined(__cplusplus)
+#include <string>
+#endif
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -13,6 +16,9 @@ void xpp_binary_mode(int fd); /* no \r\n translation */
 int xpp_path_is_link(const char *path);
 /* rename from to to, replacing to when it exists (rename() does not); 0 on success */
 int xpp_replace_file(const char *from, const char *to);
+/* 1 while pid names a process that has not exited (xpp_files.cpp's sweep
+   of stale scratch folders) */
+int xpp_process_running(unsigned long pid);
 /* xppautX links -mwindows (a GUI-subsystem exe: no console pops up when
    Explorer or a file association starts it) so a command-line mode
    (--server, -silent, --script, --version, --help, --browser, or any log to
@@ -28,5 +34,10 @@ void xpp_win32_attach_console(void);
 
 #ifdef __cplusplus
 }
+#endif
+#if defined(_WIN32) && defined(__cplusplus)
+/* the system temp folder without its trailing backslash; empty when
+   there is none (xpp_files.cpp's scratch folders) */
+std::string xpp_temp_folder(void);
 #endif
 #endif

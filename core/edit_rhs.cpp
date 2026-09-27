@@ -77,13 +77,6 @@ private:
 /* the command add_expr compiles an expression into */
 using Command = std::array<int, 200>;
 
-template <class... Args>
-void put(FILE *fp, std::format_string<Args...> fmt, Args &&...args)
-{
-  std::string s = xpp::format(fmt, std::forward<Args>(args)...);
-  std::fwrite(s.data(), 1, s.size(), fp);
-}
-
 } // namespace
 
 void edit_rhs()
@@ -162,38 +155,33 @@ int save_as()
   file.copy(filename.data(), std::min(file.size(), filename.size() - 1));
   ping();
   if(!file_selector("Save As",filename.data(),"*.ode"))return(-1);
-  if(!may_write_file(filename.data()))return(-1);
-  xpp::Writer w(filename.data());
-  if(!w){
-    err_msg("Cannot open file");
-    return(-1);
-  }
-  FILE *fp=w.file();
+  xpp::Writer w=open_writer_asking(filename.data());
+  if(!w)return(-1);
   double z;
-  put(fp,"{}",NEQ);
+  w.print("{}",NEQ);
   for(int i=0;i<NODE;i++){
-    if(i%5==0)put(fp,"\nvariable ");
-    put(fp," {}={:.16g} ",uvar_names[i],last_ic[i]);
+    if(i%5==0)w.print("\nvariable ");
+    w.print(" {}={:.16g} ",uvar_names[i],last_ic[i]);
   }
-  put(fp,"\n");
+  w.print("\n");
   for(int i=NODE;i<NEQ;i++){
-    if((i-NODE)%5==0)put(fp,"\naux ");
-    put(fp," {} ",uvar_names[i]);
+    if((i-NODE)%5==0)w.print("\naux ");
+    w.print(" {} ",uvar_names[i]);
   }
-  put(fp,"\n");
+  w.print("\n");
   for(int i=0;i<NUPAR;i++){
-    if(i%5==0)put(fp,"\nparam  ");
+    if(i%5==0)w.print("\nparam  ");
     get_val(upar_names[i],&z);
-    put(fp," {}={:.16g}   ",upar_names[i],z);
+    w.print(" {}={:.16g}   ",upar_names[i],z);
   }
-  put(fp,"\n");
+  w.print("\n");
   for(int i=0;i<NFUN;i++)
-    put(fp,"user {} {} {}\n",ufun_names[i],narg_fun[i],ufun_def[i]);
+    w.print("user {} {} {}\n",ufun_names[i],narg_fun[i],ufun_def[i]);
   for(int i=0;i<NODE;i++)
-    put(fp,"{} {}\n",EqType[i]==1?"i":"o",ode_names[i]);
+    w.print("{} {}\n",EqType[i]==1?"i":"o",ode_names[i]);
   for(int i=NODE;i<NEQ;i++)
-    put(fp,"o {}\n",ode_names[i]);
-  for(int i=0;i<NODE;i++)put(fp,"b {} \n",my_bc[i].string);
-  put(fp,"done\n");
+    w.print("o {}\n",ode_names[i]);
+  for(int i=0;i<NODE;i++)w.print("b {} \n",my_bc[i].string);
+  w.print("done\n");
   return w.commit()?1:0;
 }

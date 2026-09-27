@@ -10,6 +10,7 @@
 
 #include <iterator>
 #include <cctype>
+#include <cerrno>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -228,7 +229,7 @@ void split_path(const std::string &path, std::string &dir, std::string &base)
 
 XppLineReader *xpp_line_reader_open(const char *path)
 {
-    xpp::UniqueFile fp(path ? std::fopen(path, "r") : nullptr);
+    xpp::UniqueFile fp(xpp_files_open_stream(path, "r"));
     if (!fp) return nullptr;
     try {
         XppLineReader *r = new XppLineReader;
@@ -266,7 +267,7 @@ void xpp_line_reader_close(XppLineReader *r) { delete r; }
 
 XppTokenReader *xpp_token_reader_open(const char *path)
 {
-    xpp::UniqueFile fp(path ? std::fopen(path, "r") : nullptr);
+    xpp::UniqueFile fp(xpp_files_open_stream(path, "r"));
     if (!fp) return nullptr;
     try {
         XppTokenReader *r = new XppTokenReader;
@@ -371,44 +372,57 @@ void xpp_token_reader_close(XppTokenReader *r) { delete r; }
 
 namespace {
 
-XppWriter *writer_open(const char *path, const char *mode)
+XppWriter *writer_open(const char *path, int how)
 {
     if (!path || !*path) {
         xpp_log(XPP_LOG_ERROR, "xpp_writer_open: no destination path given\n");
         return nullptr;
     }
     try {
+        std::unique_ptr<XppWriter> w = std::make_unique<XppWriter>();
+        w->target = path;
+        if (how == XPP_WRITE_APPEND) {
+            w->fp.reset(xpp_files_open_stream(path, "a"));
+            if (!w->fp) {
+                xpp::log(XPP_LOG_ERROR, "xpp_writer_open: cannot open {} to append to it\n", path);
+                return nullptr;
+            }
+            return w.release();
+        }
         std::string dir, base;
         split_path(path, dir, base);
-        std::string name = std::format("{}{}.{}.tmp-{}-{}", dir, dir.empty() ? "" : "/", base, writer_pid(),
-                                       writer_serial.fetch_add(1, std::memory_order_relaxed));
-        xpp::UniqueFile fp(std::fopen(name.c_str(), mode));
-        if (!fp) {
+        /* exclusive: a name some other run left behind is skipped */
+        for (int tries = 0; tries < 100 && !w->fp; tries++) {
+            w->tmp = std::format("{}{}.{}.tmp-{}-{}", dir, dir.empty() ? "" : "/", base, writer_pid(),
+                                 writer_serial.fetch_add(1, std::memory_order_relaxed));
+            w->fp.reset(xpp_files_create_new(w->tmp.c_str(), how == XPP_WRITE_BINARY));
+            if (!w->fp && errno != EEXIST) break;
+        }
+        if (!w->fp) {
             xpp::log(XPP_LOG_ERROR, "xpp_writer_open: cannot create a temp file for {}\n", path);
             return nullptr;
         }
-        try {
-            std::unique_ptr<XppWriter> w = std::make_unique<XppWriter>();
-            w->tmp = name;
-            w->target = path;
-            w->fp = std::move(fp);
-            return w.release();
-        } catch (const std::bad_alloc &) {
-            fp.reset(); /* closed before the remove: Windows cannot remove an open file */
-            std::remove(name.c_str());
-            throw;
-        }
+        return w.release();
     } catch (...) {
         xpp::log(XPP_LOG_ERROR, "out of memory opening {} for writing\n", path);
         return nullptr;
     }
 }
 
+/* the temp file closed and removed (Windows cannot remove an open file);
+   an append's own file only closed */
+void writer_discard(XppWriter *w)
+{
+    w->fp.reset();
+    if (!w->tmp.empty()) xpp_files_remove(w->tmp.c_str());
+    delete w;
+}
+
 } // namespace
 
-XppWriter *xpp_writer_open(const char *path) { return writer_open(path, "w"); }
+XppWriter *xpp_writer_open(const char *path) { return writer_open(path, XPP_WRITE_TEXT); }
 
-XppWriter *xpp_writer_open_binary(const char *path) { return writer_open(path, "wb"); }
+XppWriter *xpp_writer_open_as(const char *path, int how) { return writer_open(path, how); }
 
 FILE *xpp_writer_file(XppWriter *w) { return w ? w->fp.get() : nullptr; }
 
@@ -429,14 +443,12 @@ int xpp_writer_commit(XppWriter *w)
     int closed = std::fclose(w->fp.release()); /* its result: a write that failed at the flush */
     if (closed != 0) {
         xpp_log(XPP_LOG_ERROR, "xpp_writer_commit: write failed for %s\n", w->target.c_str());
-        std::remove(w->tmp.c_str());
-        delete w;
+        writer_discard(w);
         return -1;
     }
-    if (xpp_files_replace_file(w->tmp.c_str(), w->target.c_str()) != 0) {
+    if (!w->tmp.empty() && xpp_files_replace_file(w->tmp.c_str(), w->target.c_str()) != 0) {
         xpp_log(XPP_LOG_ERROR, "xpp_writer_commit: cannot replace %s\n", w->target.c_str());
-        std::remove(w->tmp.c_str());
-        delete w;
+        writer_discard(w);
         return -1;
     }
     delete w;
@@ -445,10 +457,7 @@ int xpp_writer_commit(XppWriter *w)
 
 void xpp_writer_abort(XppWriter *w)
 {
-    if (!w) return;
-    w->fp.reset(); /* closed before the remove: Windows cannot remove an open file */
-    std::remove(w->tmp.c_str());
-    delete w;
+    if (w) writer_discard(w);
 }
 
 namespace xpp {
@@ -659,6 +668,16 @@ bool json_decode_string(const char *v, std::string &out, size_t max, bool strict
         }
     }
     return true;
+}
+
+int base64_value(int c) noexcept
+{
+    if (c >= 'A' && c <= 'Z') return c - 'A';
+    if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+    if (c >= '0' && c <= '9') return c - '0' + 52;
+    if (c == '+') return 62;
+    if (c == '/') return 63;
+    return -1;
 }
 
 } // namespace xpp

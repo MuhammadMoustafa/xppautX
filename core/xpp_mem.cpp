@@ -194,6 +194,12 @@ void xpp_free(void *p)
     std::free(p);
 }
 
+void xpp_out_of_memory(const char *what)
+{
+    xpp_log(XPP_LOG_ERROR, "out of memory %s\n", what);
+    std::exit(1);
+}
+
 XppMemStats xpp_mem_stats(void)
 {
     XppMemStats s;

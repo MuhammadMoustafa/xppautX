@@ -20,7 +20,10 @@ typedef struct {
   int linewid;
   } DEVSCALE;
 
-FILE *my_plot_file;
+namespace {
+xpp::Writer plot_writer; /* the file being written, in place at ps_close */
+} // namespace
+FILE *my_plot_file;      /* plot_writer's FILE * */
 
 DEVSCALE ps_scale;
 
@@ -29,7 +32,8 @@ int array_print(const char *filename, const char *xtitle, const char *ytitle, co
   float xx,yy;
   xx=static_cast<float>(ndown);
   yy=static_cast<float>(nacross/ncskip);
-  my_plot_file=fopen(filename,"w");
+  plot_writer=xpp::Writer(filename);
+  my_plot_file=plot_writer.file();
   if(my_plot_file==NULL){
     return -1;
   }
@@ -181,7 +185,8 @@ void ps_close()
   fprintf(my_plot_file,"showpage\n");
   fprintf(my_plot_file,"grestore\n");
   fprintf(my_plot_file,"end\n");
-  fclose(my_plot_file);
+  plot_writer.commit();
+  my_plot_file=NULL;
 }
 
 void ps_setline(float fill, int thick)
@@ -241,25 +246,32 @@ void ps_rect(float x, float y, float wid, float len)
 	 static_cast<int>(y2),static_cast<int>(x1),static_cast<int>(y2),static_cast<int>(x1),static_cast<int>(y1));
 }
 
+namespace {
+
+/* a bar filled with the colour just set, and outlined in black when flag */
+void ps_filled_bar(float x, float y, float wid, float len, int flag)
+{
+  float x1,y1,x2,y2;
+  ps_convert(x,y,&x1,&y1);
+  ps_convert(x+wid,y+len,&x2,&y2);
+  fprintf(my_plot_file,"%d %d m \n %d %d l \n %d %d l \n %d %d l \n FS\n",
+	  static_cast<int>(x1),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y2),static_cast<int>(x1),static_cast<int>(y2));
+  if(flag){
+    fprintf(my_plot_file,"0 G\n");
+    ps_rect(x,y,wid,len);
+  }
+}
+
+} // namespace
+
 void ps_bar(float x, float y, float wid, float len, float fill, int flag)
 {
-    float x1,y1,x2,y2;
-   fprintf(my_plot_file,"%f G\n",fill);
-    ps_convert(x,y,&x1,&y1);
-    ps_convert(x+wid,y+len,&x2,&y2);
-    fprintf(my_plot_file,"%d %d m \n %d %d l \n %d %d l \n %d %d l \n FS\n",
-	    static_cast<int>(x1),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y2),static_cast<int>(x1),static_cast<int>(y2));
-    
-    if(flag){
-      fprintf(my_plot_file,"0 G\n");
-      ps_rect(x,y,wid,len);
-    }
-
- }
+  fprintf(my_plot_file,"%f G\n",fill);
+  ps_filled_bar(x,y,wid,len,flag);
+}
 
 void ps_rgb_bar(float x, float y, float wid, float len, float fill, int flag, int rgb)
 {
-    float x1,y1,x2,y2;
     float r=0.0,g=0.0,b=0.0;
     if(rgb==2){
       ps_hsb_bar(x,y,wid,len,fill,flag);
@@ -284,35 +296,14 @@ void ps_rgb_bar(float x, float y, float wid, float len, float fill, int flag, in
 	break;
       }
    fprintf(my_plot_file,"%f %f %f RGB\n",r,g,b);
-    ps_convert(x,y,&x1,&y1);
-    ps_convert(x+wid,y+len,&x2,&y2);
-/*   fprintf(my_plot_file,"%f %f m \n %f %f l \n %f %f l \n %f %f l \n FS\n",
-	   x1,y1,x2,y1,x2,y2,x1,y2); */
-  fprintf(my_plot_file,"%d %d m \n %d %d l \n %d %d l \n %d %d l \n FS\n",
-	   static_cast<int>(x1),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y2),static_cast<int>(x1),static_cast<int>(y2));
-  if(flag){
-    fprintf(my_plot_file,"0 G\n");
-    ps_rect(x,y,wid,len);
-  }
-
+   ps_filled_bar(x,y,wid,len,flag);
  }
 
 void ps_hsb_bar(float x, float y, float wid, float len, float fill, int flag)
 {
-    float x1,y1,x2,y2;
-   fprintf(my_plot_file,"%f 1.0 1.0 HSB\n",fill);
-    ps_convert(x,y,&x1,&y1);
-    ps_convert(x+wid,y+len,&x2,&y2);
-  /* fprintf(my_plot_file,"%f %f m \n %f %f l \n %f %f l \n %f %f l \n FS\n",
-	   x1,y1,x2,y1,x2,y2,x1,y2); */
-  fprintf(my_plot_file,"%d %d m \n %d %d l \n %d %d l \n %d %d l \n FS\n",
-	   static_cast<int>(x1),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y1),static_cast<int>(x2),static_cast<int>(y2),static_cast<int>(x1),static_cast<int>(y2));
-  if(flag){
-    fprintf(my_plot_file,"0 G\n");
-    ps_rect(x,y,wid,len);
-  }
-
- }
+  fprintf(my_plot_file,"%f 1.0 1.0 HSB\n",fill);
+  ps_filled_bar(x,y,wid,len,flag);
+}
 
 
 

@@ -400,7 +400,7 @@ void setautopoint()
 void get_auto_str(char *xlabel, char *ylabel)
 {
   /* xlabel/ylabel are pointers here; every caller passes a
-     char[AUTO_LABEL_LEN] (draw_ps_axes, draw_svg_axes, draw_bif_axes,
+     char[AUTO_LABEL_LEN] (draw_export_axes, draw_bif_axes,
      ui_json.cpp's dg_ax), so that is the real size. */
  xpp_snprintf(xlabel,AUTO_LABEL_LEN,"%s",upar_names[AutoPar[Auto.icp1]]);
  switch(Auto.plot){
@@ -426,15 +426,9 @@ void get_auto_str(char *xlabel, char *ylabel)
  }
 }
 
-void draw_ps_axes()
-{
- char sx[AUTO_LABEL_LEN],sy[AUTO_LABEL_LEN];
- set_scale(Auto.xmin,Auto.ymin,Auto.xmax,Auto.ymax);
- get_auto_str(sx,sy);
- Box_axis(Auto.xmin,Auto.xmax,Auto.ymin,Auto.ymax,sx,sy,0);
-}
-
-void draw_svg_axes()
+/* the diagram's axes in a PostScript or SVG export (diagram.cpp
+   export_diagram), whichever ps_init/svg_init began */
+void draw_export_axes()
 {
  char sx[AUTO_LABEL_LEN],sy[AUTO_LABEL_LEN];
  set_scale(Auto.xmin,Auto.ymin,Auto.xmax,Auto.ymax);
@@ -497,95 +491,10 @@ int chk_auto_bnds(int ix,int iy)
   if((ix>=x1)&&(ix<x2)&&(iy>=y1)&&(iy<y2))return 1;
   return 0;
 }
-/*   File manipulation stuff  */
-void renamef(const char *old, const char *new_name)
-{
- /* POSIX rename() replaces an existing destination; on Windows it fails, so
-    the old .s was silently kept and fort.8 left behind. */
- if(rename(old,new_name)==0)return;
- remove(new_name);
- if(rename(old,new_name)==0)return;
- copyf(old,new_name);   /* the source may still be open: copy, then try to drop it */
- remove(old);
-}
-
-/* the rest of from, byte for byte, into to */
-static void copy_bytes(FILE *from, FILE *to)
-{
-  std::vector<char> buf(1<<16);
-  size_t n;
-  while((n=fread(buf.data(),1,buf.size(),from))>0)
-    fwrite(buf.data(),1,n,to);
-}
-
-void copyf(const char *old, const char *new_name)
-{
- FILE *fo;
- /* Binary: these files carry AUTO's own line ends and text mode would
-    rewrite them. Both opens are checked -- on Windows fopen fails while the
-    file is still open elsewhere, and writing into a NULL FILE * left fort.3
-    empty, which AUTO then reported as "Restart label N not found". The
-    copy goes through a temp file renamed into place (xpp::Writer), so
-    new_name is either the whole copy or left as it was. */
- fo=fopen(old,"rb");
- if(fo==NULL){
-   xpp::log(XPP_LOG_WARN, "Cannot read {} \n",old);
-   return;
- }
- xpp::Writer w=xpp::Writer::binary(new_name);
- if(!w){
-   xpp::log(XPP_LOG_WARN, "Cannot write {} \n",new_name);
-   fclose(fo);
-   return;
- }
- copy_bytes(fo,w.file());
- fclose(fo);
- w.commit();
-}
-
-/* new_name becomes old's bytes followed by its own */
-void appendf(const char *old, const char *new_name)
-{
- FILE *fo,*fn;
- fo=fopen(old,"rb");
- if(fo==NULL){
-   xpp::log(XPP_LOG_WARN, "Cannot read {} \n",old);
-   return;
- }
- fn=fopen(new_name,"rb");
- if(fn==NULL){
-     fclose(fo);
-
-     copyf(old,new_name);
-     return;
- }
- /* binary, like copyf(): text mode on Windows added a '\r' to every line;
-    written beside new_name and renamed over it once whole */
- xpp::Writer w=xpp::Writer::binary(new_name);
- if(!w){
-   xpp_log_auto("Can't write %s \n",new_name);
-   fclose(fo);
-   fclose(fn);
-   return;
- }
- copy_bytes(fo,w.file());
- fclose(fo);
- copy_bytes(fn,w.file());
- fclose(fn);
- w.commit();
-}
-void deletef(const char *old)
-{
-    remove(old);
-
-}
-
-
-
 void close_auto(int flg) /* labels compatible with A2K  */
 {
   /* Close fp8 before the renames below: Windows refuses rename()/remove()
-     on a file that is still open (see renamef/deletef), which left
+     on a file that is still open (see xpp_files_move), which left
      fort.8 behind next to <model>.s with the handle leaked. Linux allows
      renaming/removing an open file, which is likely why this was never
      turned on upstream -- it was dead code there, not a deliberate
@@ -595,46 +504,29 @@ void close_auto(int flg) /* labels compatible with A2K  */
       fp8_is_open=0;
   }
   if(flg==0) {/*Overwrite*/
-    renamef(fort7,(this_auto_file+".b").c_str());
-    renamef(fort9,(this_auto_file+".d").c_str());
-    renamef(fort8,(this_auto_file+".s").c_str());
+    xpp_files_move(fort7,(this_auto_file+".b").c_str());
+    xpp_files_move(fort9,(this_auto_file+".d").c_str());
+    xpp_files_move(fort8,(this_auto_file+".s").c_str());
   }
   else {/*APPEND*/
-    appendf(fort7,(this_auto_file+".b").c_str());
-    appendf(fort9,(this_auto_file+".d").c_str());
-    appendf(fort8,(this_auto_file+".s").c_str());
+    xpp_files_prepend(fort7,(this_auto_file+".b").c_str());
+    xpp_files_prepend(fort9,(this_auto_file+".d").c_str());
+    xpp_files_prepend(fort8,(this_auto_file+".s").c_str());
   }
 
-    deletef(fort8);
+    xpp_files_remove(fort8);
 
     fp8_is_open=0;
-    deletef(fort7);
-    deletef(fort9);
-    deletef(fort3);
+    xpp_files_remove(fort7);
+    xpp_files_remove(fort9);
+    xpp_files_remove(fort3);
 
  
 }
 
 /* AUTO writes fort.3/7/8/9 under HOME. A HOME that is set but unusable
    (missing, not writable) must fall back to the model's directory like an
-   unset one, or the opens fail deep inside autlib1.c. Probe by creating a
-   scratch file: portable, and a directory can exist without being
-   writable. */
-static int dir_is_writable(const char *dir)
-{
-  FILE *fp;
-
-  if (dir == NULL || dir[0] == 0)
-    return 0;
-  std::string probe = xpp::format("{}/.xppautx_homecheck", dir);
-  fp = fopen(probe.c_str(), "w");
-  if (fp == NULL)
-    return 0;
-  fclose(fp);
-  remove(probe.c_str());
-  return 1;
-}
-
+   unset one, or the opens fail deep inside autlib1.c. */
 static char *auto_home_dir(char *dname)
 {
   char *home;
@@ -644,7 +536,7 @@ static char *auto_home_dir(char *dname)
     return program.auto_dir;
 
   home = getenv("HOME");
-  if (home == NULL || !dir_is_writable(home))
+  if (home == NULL || !xpp_files_dir_writable(home))
     home = dname;
   return home;
 }
@@ -679,7 +571,7 @@ void open_auto(int flg) /* compatible with new auto */
   is_3_there=flg;
 
   if(flg==1){
-    copyf((this_auto_file+".s").c_str(),fort3);
+    xpp_files_copy((this_auto_file+".s").c_str(),fort3);
   }
 
 }
@@ -1851,9 +1743,9 @@ int yes_reset_auto()
  FromAutoFlag=0;
     NBifs=1;
     grabpt.flag=0;
-    deletef((this_auto_file+".b").c_str());
-    deletef((this_auto_file+".d").c_str());
-    deletef((this_auto_file+".s").c_str());
+    xpp_files_remove((this_auto_file+".b").c_str());
+    xpp_files_remove((this_auto_file+".d").c_str());
+    xpp_files_remove((this_auto_file+".s").c_str());
     diagram_mark.state=0;
     return 1;
 }
@@ -2792,7 +2684,6 @@ void load_auto_orbit()
 }
   void load_auto_orbitx(int ibr,int flag, int lab, double per)
 {
-  FILE *fp;
   double *x;
   int i,j,nstor;
   double u[NAUTO],t;
@@ -2804,25 +2695,24 @@ void load_auto_orbit()
   if((ibr>0&&(Auto.ips!=4)&&(Auto.ips!=3)&&(Auto.ips!=9))||flag==0)return;
    /* either nothing grabbed or just a fixed point and that is already loaded */
   string=this_auto_file+".s";
-  fp=fopen(string.c_str(),"r");
-  if(fp==NULL){
+  xpp::UniqueFile fp=xpp::open_read(string.c_str());
+  if(!fp){
     auto_err("No such file");
     return;
   }
   label=lab;
   period=per;
-  flg=move_to_label(label,&nrow,&ndim,fp);
+  flg=move_to_label(label,&nrow,&ndim,fp.get());
   nstor=ndim;
   if(ndim>NODE)nstor=NODE;
   if(flg==0){
     xpp_log_auto("Could not find label %d in file %s \n",label,string.c_str());
     auto_err("Cant find labeled pt");
-    fclose(fp);
     return;
   }
   x=&MyData[0];
   for(i=0;i<nrow;i++){
-    get_a_row(u,&t,ndim,fp);
+    get_a_row(u,&t,ndim,fp.get());
     if(Auto.ips!=4) 
       storage[0][i]=t*period;
     else
@@ -2842,7 +2732,6 @@ void load_auto_orbit()
   /* insert auxiliary stuff here */
   if(load_all_labeled_orbits==2)clr_all_scrns();
   drw_all_scrns();
-  fclose(fp);
 }
 
 
@@ -2862,13 +2751,9 @@ void save_auto()
   */
   status=file_selector("Save Auto",filename,"*.auto");
   if(status==0)return;
-  if(!may_write_file(filename))return;
   /* written beside filename and renamed over it once whole */
-  xpp::Writer w(filename);
-  if(!w){
-    err_msg("Cannot open file");
-    return;
-  }
+  xpp::Writer w=open_writer_asking(filename);
+  if(!w)return;
   status=save_auto_file(w.file());
   if(status!=1){
     /* an empty diagram: say so, and leave no file without orbits (nor
@@ -3003,7 +2888,6 @@ void load_auto()
 {
 
   int ok;
-  FILE *fp;
   /*char filename[256];*/
   char filename[XPP_MAX_NAME];
   int status;
@@ -3016,14 +2900,13 @@ void load_auto()
  
   status=file_selector("Load Auto",filename,"*.auto");
   if(status==0)return;
-  fp=fopen(filename,"r");
-  if(fp==NULL){
+  xpp::UniqueFile fp=xpp::open_read(filename);
+  if(!fp){
     auto_err("Cannot open file");
     return;
   }
   
-  load_auto_file(fp);
-  fclose(fp);
+  load_auto_file(fp.get());
 }
 
 /* load_auto without its reset and dialog (xpp_session.c): 1 loaded,

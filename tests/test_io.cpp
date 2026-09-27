@@ -27,7 +27,7 @@
 
 namespace {
 
-/* this run's private scratch folder (xpp_make_temp_dir, the core's own,
+/* this run's private scratch folder (xpp_files_make_temp_dir, the core's own,
    so two runs never share one), removed with what is left in it at exit.
    Not std::filesystem: the test binaries link libstdc++ dynamically, and
    on Windows CI an older libstdc++-6.dll ahead on PATH lacks its symbols,
@@ -37,7 +37,7 @@ struct ScratchDir {
     bool made;
     ScratchDir()
     {
-        char *d = xpp_make_temp_dir();
+        char *d = xpp_files_make_temp_dir();
         made = d != nullptr;
         path = made ? d : ".";
         xpp_free(d);
@@ -46,7 +46,7 @@ struct ScratchDir {
        while this was being built ran after its destructor: ASan) */
     ~ScratchDir()
     {
-        if (made) xpp_remove_temp_dir(path.c_str());
+        if (made) xpp_files_remove_temp_dir(path.c_str());
     }
 };
 
@@ -432,7 +432,7 @@ int main(void)
     /* the binary writer copies line ends as they are */
     {
         TempFile tf("test_io_write.tmp");
-        XppWriter *w = xpp_writer_open_binary(tf.c_str());
+        XppWriter *w = xpp_writer_open_as(tf.c_str(), XPP_WRITE_BINARY);
         CHECK(w != NULL);
         std::fputs("a\r\nb\n", xpp_writer_file(w));
         CHECK(xpp_writer_commit(w) == 0);
@@ -497,6 +497,26 @@ int main(void)
         std::fprintf(w2.file(), "replaced\n");
         CHECK(w2.commit());
         CHECK(read_raw(tf.c_str()) == "replaced" TEXT_NL);
+
+        /* print (type-checked), append (at the end of the file itself,
+           kept even without a commit), and the read handle (W32b) */
+        xpp::Writer w3(tf.c_str());
+        w3.print("{} {:.3f}\n", "x", 1.5);
+        CHECK(w3.commit());
+        {
+            xpp::Writer a = xpp::Writer::append(tf.c_str());
+            CHECK(static_cast<bool>(a));
+            a.print("{}\n", 7);
+        }
+        xpp::Writer a2 = xpp::Writer::append(tf.c_str());
+        xpp::print(a2.file(), "end\n");
+        xpp::print(nullptr, "nowhere\n"); /* nothing written, no crash */
+        CHECK(a2.commit());
+        CHECK(read_raw(tf.c_str()) == "x 1.500" TEXT_NL "7" TEXT_NL "end" TEXT_NL);
+        xpp::UniqueFile rf = xpp::open_read(tf.c_str());
+        CHECK(rf != nullptr && std::fgetc(rf.get()) == 'x');
+        rf.reset();
+        CHECK(!xpp::open_read_binary("no-such-dir/no-such-file"));
     }
 
     /* xpp::json_encode_string/json_decode_string (card W35b): the one

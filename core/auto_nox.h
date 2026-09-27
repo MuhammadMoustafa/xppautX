@@ -82,16 +82,11 @@ void colset2(int flag2);
 /* get_auto_str writes a name, name_bar or "Frequency" into each label */
 #define AUTO_LABEL_LEN (XPP_NAME_MAX+8)
 void get_auto_str(char *xlabel, char *ylabel);
-void draw_ps_axes(void);
-void draw_svg_axes(void);
+void draw_export_axes(void);
 void draw_bif_axes(void);
 int IXVal(double x);
 int IYVal(double y);
 int chk_auto_bnds(int ix, int iy);
-void renamef(const char *old, const char *newname);
-void copyf(const char *old, const char *newname);
-void appendf(const char *old, const char *newname);
-void deletef(const char *old);
 void close_auto(int flag);
 void open_auto(int flag);
 void do_auto(int iold, int isave, int itp);

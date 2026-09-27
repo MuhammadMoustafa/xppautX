@@ -49,7 +49,9 @@ int xpp_files_open(const char *name, FILE **fp, unsigned long long *size);
 /* a write in steps: begin, write the bytes as they come (more than `cap`
    in all fails with XPP_FILES_TOO_LARGE), then commit, or abort. Commit
    and abort end the XppFilePut whatever they return; after a failed
-   write, abort. Commit gives the size and SHA-256 of what was written. */
+   write, abort. Commit gives the size and SHA-256 of what was written.
+   The write is xpp_io.h's writer (binary): the temp file beside the name
+   and its rename are the same as every other replace's. */
 typedef struct XppFilePut XppFilePut;
 int xpp_files_put_begin(const char *name, unsigned long long cap, XppFilePut **put);
 int xpp_files_put_write(XppFilePut *put, const void *data, size_t n);
@@ -66,6 +68,57 @@ const char *xpp_files_ask_mode(const char *title);
    writer (core/xpp_io.h) calls this for its own temp-then-rename commit
    instead of duplicating it. */
 int xpp_files_replace_file(const char *from, const char *to);
+
+/* ---- the core's own files, by any path (W32b) -------------------------------
+   The one place the core opens, copies, moves, deletes and probes files
+   and makes its temp folders: the calls above are the page's, limited to
+   base names in the model's folder; these are the core's (the model's
+   outputs, AUTO's fort.* and diagram files, its scratch folder).
+   tools/filecheck.sh counts every direct fopen/remove/rename/mkdir/...
+   left elsewhere. Reading and writing go through xpp_io.h's handles
+   (xpp::Writer: write, binary, append, a replace only on commit;
+   xpp::LineReader, xpp::TokenReader and xpp::open_read for reading),
+   which open their files here. */
+
+/* A stream the caller keeps open across calls and closes itself with
+   fclose (AUTO's fort.3/7/8/9 during a run, the array plot's GIF movie,
+   an input script): fopen's modes, NULL on failure. A file opened and
+   closed in one scope uses a handle of xpp_io.h instead. */
+FILE *xpp_files_open_stream(const char *path, const char *mode);
+/* Creates path for writing, failing when it exists already (a link
+   included, which is never followed): the temp files of a replace.
+   binary 0 is text mode ("w"), 1 binary ("wb"). NULL on failure. */
+FILE *xpp_files_create_new(const char *path, int binary);
+/* 1 when path names a file or a folder */
+int xpp_files_exists(const char *path);
+/* 1 when a file can be created in dir: probed by creating one and
+   removing it (a folder can exist without being writable) */
+int xpp_files_dir_writable(const char *dir);
+/* deletes the file path: 0 on success */
+int xpp_files_remove(const char *path);
+/* to becomes a byte-for-byte copy of from, written beside it and renamed
+   into place, so it is either the whole copy or left as it was; a WARN
+   when from cannot be read or to written */
+void xpp_files_copy(const char *from, const char *to);
+/* to becomes from's bytes followed by its own, the same way (AUTO's run
+   output put ahead of the diagram files it keeps: its "append"); a copy
+   when to does not exist */
+void xpp_files_prepend(const char *from, const char *to);
+/* from becomes to, replacing it; when the system refuses (Windows, a
+   source still open elsewhere) a copy, then from is removed if it can be */
+void xpp_files_move(const char *from, const char *to);
+
+/* AUTO's private scratch folder: "xppautoX-<pid>-<N>", mode 0700, under
+   $TMPDIR or /tmp (POSIX) or the system temp path (Windows). An
+   xpp_malloc'd absolute path (xpp_free it), or NULL on failure. */
+char *xpp_files_make_temp_dir(void);
+/* Removes every file directly in dir (no folders are expected there),
+   then dir itself. NULL does nothing. */
+void xpp_files_remove_temp_dir(const char *dir);
+/* issue #32: removes the scratch folders of runs that were killed before
+   they could remove their own (xpp_files_make_temp_dir's naming, whose
+   pid names no running process); called once at start */
+void xpp_files_cleanup_stale_temp_dirs(void);
 
 /* the protocol's {"cmd":"file","op":..,"name":..,"data":..}: op "list",
    "get" or "put"; name_json and data_json point at the JSON values of

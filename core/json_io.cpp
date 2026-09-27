@@ -24,12 +24,6 @@ FILE *proto;
 
 } // namespace
 
-[[noreturn]] void out_of_memory(const char *what)
-{
-    xpp_log(XPP_LOG_ERROR, "out of memory %s\n", what);
-    std::exit(1);
-}
-
 /* ---- output ------------------------------------------------------------ */
 
 void buf_add(Buf *b, const char *s, size_t n)
@@ -37,7 +31,7 @@ void buf_add(Buf *b, const char *s, size_t n)
     try {
         b->s.append(s, n);
     } catch (...) {
-        out_of_memory("building an event");
+        xpp_out_of_memory("building an event");
     }
 }
 
@@ -249,7 +243,7 @@ bool js_string(const char *v, std::string &out, size_t max)
     try {
         return xpp::json_decode_string(v, out, max, /*strict=*/false);
     } catch (...) {
-        out_of_memory("reading a command");
+        xpp_out_of_memory("reading a command");
     }
 }
 

@@ -53,7 +53,7 @@ class Server:
         threading.Thread(target=lambda: [None for _ in self.proc.stderr], daemon=True).start()
 
     def auto_dirs(self):
-        """AUTO's scratch directories of this process (xpp_make_temp_dir)"""
+        """AUTO's scratch directories of this process (xpp_files_make_temp_dir)"""
         tmp = tempfile.gettempdir() if os.name == 'nt' else (os.environ.get('TMPDIR') or '/tmp')
         pre = 'xppautoX-%d-' % self.proc.pid
         return [os.path.join(tmp, d) for d in os.listdir(tmp) if d.startswith(pre)]
