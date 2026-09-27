@@ -32,16 +32,7 @@ typedef struct  {
   int plot,var;
   int icp1,icp2,icp3,icp4,icp5;
   int nper;
-#ifdef __cplusplus
   std::string hinttxt;
-#else
-  /* tests/test_auto_cols.c compiles this header as plain C: hinttxt is a
-     std::string in every real (C++) use (auto_nox.cpp, json_auto.cpp),
-     this branch only keeps the struct parseable there; that test never
-     touches Auto/BIFUR storage itself, only auto_screen_col() and
-     AUTO_COL_W */
-  char hinttxt[256];
-#endif
   double period[MAX_AUT_PER];
   int uzrpar[MAX_AUT_PER];
   double epsl,epsu,epss;
