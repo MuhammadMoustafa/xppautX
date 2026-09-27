@@ -2712,6 +2712,7 @@ int load_auto_file(FILE *fp)
   int status;
   load_auto_numerics(fp);
   load_auto_graph(fp);
+  auto_data_forget(); /* the strip described the diagram this one replaces */
   status=load_diagram(fp,NODE);
   if(status!=1)return status;
   make_q_file(fp);

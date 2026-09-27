@@ -201,6 +201,10 @@ twice as slow, for fixing a report) and fails on
 any report (build/vg/reports; tools/valgrind.supp only for code we do not
 own). It sets `XPP_CHECK_SLOW=30`, which multiplies every wait of the
 python checks (tools/xppclient.py).
+`XPP_NO_THROTTLE=1` (core/xpp_job.h, W49) turns off `xpp_every`'s
+throttling of progress events, so a check sees every intermediate event
+on any machine instead of only on a slow one (servercheck's autoinfo
+checks run under it).
 
 Metrics: verify.sh's `C++: N / M sources` (core/*.cpp over all core
 sources). The tree builds with 0 warnings (gcc 13, MinGW gcc 13 and
