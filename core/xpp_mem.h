@@ -47,10 +47,10 @@
    its scratch memory with the C library's malloc/free inside its own
    header and hands none of it out; alloccheck reads core/ only.
 
-   CVODE (cv*.c, dense.c, band.c, llnlmath.c,
-   vector.c) and AUTO (autlib*.c, setubv2.c, ...) are ours: they allocate
-   and free their own memory and hand none of it to anyone else, so they
-   use these functions like the rest.
+   CVODE (cv*.cpp, dense, band, vector) keeps its memory in C++ records
+   with std::vector members since W33a; AUTO (autlib*.cpp, setubv2, ...)
+   is ours too and uses these functions like the rest where it still
+   allocates by hand.
 
    make asan (build/asan, AddressSanitizer + UBSan) and tools/asancheck.sh
    check that nothing leaks. */
