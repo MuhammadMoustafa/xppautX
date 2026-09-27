@@ -608,7 +608,7 @@ symbols. A const global or one with internal linkage does not count.
 `--update` rewrites the baseline after a drop; plain
 `tools/globalcheck.sh` builds build/obj and prints every symbol by file
 (`--builddir DIR` reads objects already built there). Linux only, like
-deadcode.sh (GNU nm's section column). At W47a: 300 (from 461).
+deadcode.sh (GNU nm's section column). At W47a: 300 (from 461); at W47b: 266.
 
 - The rule: a task that changes a core C file converts that file to .cpp
   as part of the task, whatever the change, sweeps included (logging
@@ -670,7 +670,10 @@ deadcode.sh (GNU nm's section column). At W47a: 300 (from 461).
   what a load produces belongs to `xpp::Model` (core/model.h, from W46c),
   what a run changes to `xpp::Session`, passed as `Model&`/`Session&`
   (W47a-d in docs/roadmap.md take the existing ~500 globals there in
-  stages). A value nothing writes after initialization is
+  stages). Until W47d, `xpp::model()` (inline: the right-hand side
+  reads it every step; a hot loop takes `xpp::Model &m=xpp::model()`
+  once) is the current Model, and `xpp::ModelLoad` in xpp_load_model
+  fills a fresh one, kept only when the load finishes (W47b). A value nothing writes after initialization is
   `const`/`constexpr`, and one file's own state has internal linkage.
   `tools/globalcheck.sh` (sourcecheck) fails a file whose external
   mutable data symbols grow past `tests/globals.baseline`.

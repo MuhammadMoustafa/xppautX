@@ -11,10 +11,13 @@
    that should write it; what a person changes while working (parameter
    values, initial conditions, the numerics settings) is the Session's
    (W47c), which the Model gives its defaults (default_val, default_ic,
-   options). Two writers remain, both W47c's to move: browse_data's added
-   column (a formula column appended as one more variable: neq, nvar,
-   uvar_names, its program) and the runtime compiler's scratch symbols
-   (ncon/nsym grow past ncon_start/nsym_start and roll back).
+   options). What still writes it after a load is W47c's to move: the
+   browser's added column (one more variable: neq, nvar, uvar_names,
+   formulas, programs), Edit's right-hand sides and functions (programs,
+   formulas, ufun_defs, ufun_programs, compiled again in place) and the
+   tables (values computed again or read again). The parser's own
+   scratch (NCON/NSYM above ncon_start/nsym_start, the constants and
+   variables it evaluates with) stays parserslow2.cpp's.
 
    The name tables hold a model's names as the parser keeps them (blanks
    removed, upper case), each at most XPP_NAME_MAX long: the parser refuses
