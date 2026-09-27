@@ -107,7 +107,7 @@ void change_view_com(int com)
  
  if(com==2){
    make_my_aplot("Array!");
-   edit_aplot(); 
+   editaplot(&aplot);
    return;
  }
  if(com==3){

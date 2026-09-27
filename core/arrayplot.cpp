@@ -5,10 +5,13 @@
 #include "xpp_util.h"
 #include "array_print.h"
 
-#include <stdlib.h> 
-#include <string>
 #include <array>
-#include <string.h>
+#include <cctype>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
+#include <string>
+#include <string_view>
 /*   routines for plotting arrays as functions of time  
 
      makes a window 
@@ -43,31 +46,19 @@
 #include "lunch-new.h"
 #include "load_eqn.h"
 
-#include <stdio.h>
-#include <math.h>
-#include <math.h>
-#ifndef WCTYPE
-#include <ctype.h>
-#else
-#include <wctype.h>
-#endif
 #include "xpplim.h"
 #define READEM 1
 #include "browse.h"
 #include "xpp_io.h"
 #include "integrate.h"
+#include "pop_list.h"
 #define FIRSTCOLOR 30
 #define FIX_MIN_SIZE 2
 
 /* the core's globals that have no header of their own */
-extern "C" {
-extern char this_file[XPP_MAX_NAME];
-extern char uvar_names[MAXODE][XPP_NAME_MAX+1];
-extern BROWSER my_browser;
-}
 int aplot_range_count=0;
 int aplot_range;
-char aplot_range_stem[256]="rangearray";
+std::string aplot_range_stem="rangearray";
 int aplot_still=1,aplot_tag=0;
 APLOT aplot;
 int plot3d_auto_redraw=0;
@@ -89,7 +80,7 @@ void set_up_aplot_range(void)
  static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
  status=do_string_box_of(3,1,"Array range saving",n,values,28,kinds);
  if(status!=0){
-   XPP_SPRINTF(aplot_range_stem,"%s",values[0].c_str());
+   aplot_range_stem=values[0];
    aplot_still=atoi(values[1].c_str());
    aplot_tag=atoi(values[2].c_str());
  aplot_range=1;
@@ -119,7 +110,7 @@ void optimize_aplot(int *plist)
   make_my_aplot("Array!");
 
   aplot.index0=i0+1;
-  XPP_STRCPY(aplot.name,uvar_names[i0]);
+  XPP_FORMAT_TO_BUF(aplot.name,"{}",uvar_names[i0]);
   aplot.nacross=ncol;
   nr=201;
   if(nrows<nr)
@@ -165,8 +156,9 @@ void scale_aplot(APLOT *ap, double *zmax, double *zmin)
  
 }
 
-void init_arrayplot(APLOT *ap)
+void init_my_aplot(void)
 {
+ APLOT *ap=&aplot;
  ap->height=400;
  ap->width=400;
  ap->zmin=0.0;
@@ -182,17 +174,11 @@ void init_arrayplot(APLOT *ap)
  ap->ncskip=1;
  ap->tstart=0.0;
  ap->tend=20.0;
- XPP_STRCPY(ap->filename,"output.ps");
- XPP_STRCPY(ap->xtitle,"index");
- XPP_STRCPY(ap->ytitle,"time");
- XPP_STRCPY(ap->bottom,"");
+ ap->filename="output.ps";
+ ap->xtitle="index";
+ ap->ytitle="time";
+ ap->bottom="";
  ap->type=-1;
-}
-
-
-void init_my_aplot(void)
-{
- init_arrayplot(&aplot);
 }
 
 
@@ -224,13 +210,13 @@ void print_aplot(APLOT *ap)
   static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_INTEGER};
   status=do_string_box_of(5,1,"Print arrayplot",n,values,40,kinds);
  if(status!=0){
-   XPP_STRCPY(ap->filename,values[0].c_str());
-   XPP_STRCPY(ap->xtitle,values[1].c_str());
-   XPP_STRCPY(ap->ytitle,values[2].c_str());
-   XPP_STRCPY(ap->bottom,values[3].c_str());
+   ap->filename=values[0];
+   ap->xtitle=values[1];
+   ap->ytitle=values[2];
+   ap->bottom=values[3];
    ap->type=atoi(values[4].c_str());
    if(ap->type<-1||ap->type>2)ap->type=-1;
-   errflag=array_print(ap->filename,ap->xtitle,ap->ytitle,ap->bottom,
+   errflag=array_print(ap->filename.c_str(),ap->xtitle.c_str(),ap->ytitle.c_str(),ap->bottom.c_str(),
 		       ap->nacross,
 		       ap->ndown,col0,row0,ap->nskip,ap->ncskip,
 		       nrows,my_browser.maxcol,
@@ -239,47 +225,43 @@ void print_aplot(APLOT *ap)
  }
 }
 
-void edit_aplot(void)
-{
-  editaplot(&aplot);
-}
-
 /* splits an array plot's first column name at its trailing digits:
    "u10" gives the root "u" and 10; a name with no digits gives itself and
-   0. sroot holds 100 chars (the one caller, json_windows.cpp). The digits
-   were copied with their terminator one byte past them, so atoi read one
-   byte never written ("u10" could give 10x; valgrind, W21). */
-void get_root(const char *s, char *sroot, int *num)
+   0. */
+std::string get_root(std::string_view s, int *num)
 {
-  size_t n=strlen(s), i=n;
-  while(i>0&&isdigit(static_cast<unsigned char>(s[i-1])))
+  size_t i=s.size();
+  while(i>0&&std::isdigit(static_cast<unsigned char>(s[i-1])))
     i--;
   *num=0;
-  if(i==0){
-    xpp_strlcpy(sroot,s,100);
-    return;
-  }
-  xpp_snprintf(sroot,100,"%.*s",static_cast<int>(i),s);
-  if(i<n)
-    *num=atoi(s+i);
+  if(i==0)
+    return std::string(s);
+  if(i<s.size())
+    *num=std::atoi(std::string(s.substr(i)).c_str());
+  return std::string(s.substr(0,i));
 }
-  
+
+/* the same into sroot, which holds 100 chars (json_windows.cpp's) */
+void get_root(const char *s, char *sroot, int *num)
+{
+  xpp_strlcpy(sroot,get_root(std::string_view(s),num).c_str(),100);
+}
+
 void dump_aplot(FILE *fp, int f)
 {
-  char bob[256];
   if(f==READEM){
-    if(fgets(bob,255,fp)==NULL)return;
+    xpp::TokenReader r=xpp::TokenReader::attach(fp);
+    if(!r.skip_line())return;
   }
   else
-    fprintf(fp,"# Array plot stuff\n");
+    xpp::print(fp,"# Array plot stuff\n");
   io_string(aplot.name,sizeof(aplot.name),fp,f);
   io_int(&aplot.nacross ,fp,f,"NCols");
-    io_int(&aplot.nstart ,fp,f,"Row 1");
+  io_int(&aplot.nstart ,fp,f,"Row 1");
   io_int(&aplot.ndown ,fp,f,"NRows");
   io_int(&aplot.nskip ,fp,f,"RowSkip");
   io_double(&aplot.zmin,fp,f,"Zmin");
-    io_double(&aplot.zmax,fp,f,"Zmax");
-
+  io_double(&aplot.zmax,fp,f,"Zmax");
 }
 
 int editaplot(APLOT *ap)
@@ -305,7 +287,7 @@ values[8] = xpp::format("{:d}", ap->ncskip);
    find_variable(values[0].c_str(),&i);
    if(i>-1){
      ap->index0=i;
-     snprintf(ap->name,sizeof(ap->name),"%.*s",XPP_NAME_MAX,values[0].c_str());
+     XPP_FORMAT_TO_BUF(ap->name,"{:.{}}",values[0],XPP_NAME_MAX);
    }
    else
      {
@@ -334,8 +316,10 @@ values[8] = xpp::format("{:d}", ap->ncskip);
 }
 void close_aplot_files(void)
 {
-  if(aplot_still==0)
-    fclose(ap_fp);
+  if(aplot_still==0){
+    xpp::UniqueFile movie(ap_fp); /* closes it */
+    ap_fp=nullptr;
+  }
 }
 
 
