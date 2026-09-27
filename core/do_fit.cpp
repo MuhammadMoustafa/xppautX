@@ -1,5 +1,6 @@
 
 #include "do_fit.h"
+#include "session.h"
 #include "storage.h"
 #include "form_ode.h"
 #include "integrate.h"
@@ -218,7 +219,7 @@ int one_step_int(double *y, double t0, double t1, int *istart)
     return 1;
   }
   if(METHOD==RB23){
-    rb23(y,&t,t1,istart,xpp::model().node,WORK,&kflag);
+    rb23(y,&t,t1,istart,xpp::model().node,xpp::session().solver_work.work.data(),&kflag);
     if(kflag<0){
        err_msg("Step size too small");
        return(0);
@@ -228,7 +229,7 @@ int one_step_int(double *y, double t0, double t1, int *istart)
   }
 if(METHOD==RKQS||METHOD==STIFF){
       adaptive(y,xpp::model().node,&t,t1,TOLER,&dt,
-		      HMIN,WORK,&kflag,NEWT_ERR,METHOD,istart);
+		      HMIN,xpp::session().solver_work.work.data(),&kflag,NEWT_ERR,METHOD,istart);
       if(kflag){
 	ping();
 	 switch(kflag){
@@ -246,7 +247,7 @@ if(METHOD==RKQS||METHOD==STIFF){
   /* cvode(command,y,t,n,tout,kflag,atol,rtol) 
  command =0 continue, 1 is start 2 finish   */
   if(METHOD==GEAR){
-    gear(xpp::model().node,&t,t1,y,HMIN,HMAX,TOLER,2,error,&kflag,istart,WORK,IWORK);
+    gear(xpp::model().node,&t,t1,y,HMIN,HMAX,TOLER,2,error,&kflag,istart,xpp::session().solver_work.work.data(),xpp::session().solver_work.iwork.data());
     if(kflag<0)
       {
 	ping();
@@ -266,18 +267,18 @@ if(METHOD==RKQS||METHOD==STIFF){
   if(METHOD==0){
     nit=fabs(t0-t1);
     dt=dt/fabs(dt);
-    kflag=solver(y,&t,dt,nit,xpp::model().node,istart,WORK);
+    kflag=xpp::session().integrator.solver(y,&t,dt,nit,xpp::model().node,istart,xpp::session().solver_work.work.data());
 
     return(1);
   }
   z=(t1-t0)/dt;
   nit=static_cast<int>(z);
-  kflag=solver(y,&t,dt,nit,xpp::model().node,istart,WORK);
+  kflag=xpp::session().integrator.solver(y,&t,dt,nit,xpp::model().node,istart,xpp::session().solver_work.work.data());
 
   if(kflag<0)return(0);
   if((dt<0&&t>t1)||(dt>0&&t<t1)){    
     dt=t1-t;
-    kflag=solver(y,&t,dt,1,xpp::model().node,istart,WORK);
+    kflag=xpp::session().integrator.solver(y,&t,dt,1,xpp::model().node,istart,xpp::session().solver_work.work.data());
     if(kflag<0)return(0);
   }
 
@@ -349,12 +350,12 @@ void test_fit()
  std::vector<double> yfit_v(static_cast<size_t>(fin.npts)*fin.nvars);
   double *yfit=yfit_v.data();
   for(i=0;i<xpp::model().node;i++)
-    y0[i]=last_ic[i];
+    y0[i]=xpp::session().last_ic[i];
   for(i=0;i<fin.npars;i++){
     if(fin.ipar[i]<0)
       a[i]=constants[-fin.ipar[i]];
     else
-      a[i]=last_ic[fin.ipar[i]];
+      a[i]=xpp::session().last_ic[fin.ipar[i]];
   }
 
  print_fit_info();
@@ -372,7 +373,7 @@ void test_fit()
    if(fin.ipar[i]<0)
      constants[-fin.ipar[i]]=a[i];
    else
-     last_ic[fin.ipar[i]]=a[i];
+     xpp::session().last_ic[fin.ipar[i]]=a[i];
  }
 
 }

@@ -218,7 +218,6 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask);
    the last run started from, the plot's axes and view, the boundary
    value solver's and the backward Euler's settings, and the command
    line's switches */
-extern double last_ic[MAXODE];
 extern int IX_PLT[10],IY_PLT[10],IZ_PLT[10],NPltV,MultiWin,START_LINE_TYPE;
 extern double X_LO[10],Y_LO[10],X_HI[10],Y_HI[10];
 extern double x_3d[2],y_3d[2],z_3d[2];
@@ -236,7 +235,7 @@ extern int METHOD,NJMP,EVEC_ITER,NMESH,FFT,HIST;
 extern double HMIN,HMAX,TOLER,ATOLER,BOUND,DELAY;
 extern double EVEC_ERR,NEWT_ERR;
 extern double TEND,DELTA_T,T0,TRANS;
-extern int TORUS,itor[MAXODE];
+extern int TORUS;
 extern double TOR_PERIOD;
 extern int POIMAP,POISGN,POIEXT,SOS,POIVAR;
 extern double POIPLN;
@@ -253,9 +252,6 @@ struct XppSlider {
     double lo = 0.0, hi = 1.0; /* its range */
 };
 extern std::array<XppSlider,XPP_NSLIDERS> sliders;
-/* each variable's initial data as typed (a delay equation's history:
-   "0.0" when it has none) */
-extern std::array<std::string,MAXODE> delay_string;
 /* the options file (the model's "options" line, else default.opt) that
    set_all_vals reads */
 extern std::string options_file;

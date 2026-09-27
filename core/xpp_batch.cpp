@@ -272,7 +272,7 @@ void xpp_load_model(int argc, char **argv, int batch)
     program.version_minor = static_cast<float>(cstringmin);
     do_meth();
     set_delay();
-    rhs = my_rhs;
+    xpp::session().integrator.rhs = my_rhs;
     init_fit_info();
     strip_saveqn();
     create_plot_list();

@@ -1,5 +1,6 @@
 #include <stdlib.h> 
 #include "storage.h"
+#include "session.h"
 #include "xpp_ui.h"
 #include "xpp_math.h"
 #include <math.h>
@@ -67,12 +68,12 @@ int dormprin(int *istart, double *y, double *t, int n, double tout, double *tol,
   switch(flag){
   case 0:
     *kflag=dopri5(n,dprhs,*t,y,tout,tol,atol,0,nullptr,0,0.0,
-           0.0,0.0,0.0,0.0,0.0,hg,0,0,1,0,NULL,0,WORK);
+           0.0,0.0,0.0,0.0,0.0,hg,0,0,1,0,NULL,0,xpp::session().solver_work.work.data());
            *t=tout;
     return 1;
   case 1:
      *kflag=dop853(n,dprhs,*t,y,tout,tol,atol,0,nullptr,0,0.0,
-           0.0,0.0,0.0,0.0,0.0,hg,0,0,1,0,NULL,0,WORK);
+           0.0,0.0,0.0,0.0,0.0,hg,0,0,1,0,NULL,0,xpp::session().solver_work.work.data());
            *t=tout;
      return 1;
   }

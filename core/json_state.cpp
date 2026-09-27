@@ -70,7 +70,7 @@ void send_state(void)
         BUF_LIT(&b, "[");
         buf_str(&b, xpp::model().uvar_names[i]);
         BUF_LIT(&b, ",");
-        buf_num(&b, last_ic[i], 16);
+        buf_num(&b, xpp::session().last_ic[i], 16);
         BUF_LIT(&b, "]");
     }
     BUF_LIT(&b, "]");
@@ -100,7 +100,7 @@ void send_state(void)
             BUF_LIT(&b, "[");
             buf_str(&b, xpp::model().uvar_names[i]);
             BUF_LIT(&b, ",");
-            buf_str(&b, delay_string[i].c_str());
+            buf_str(&b, xpp::session().delay_string[i].c_str());
             BUF_LIT(&b, "]");
         }
         BUF_LIT(&b, "]");

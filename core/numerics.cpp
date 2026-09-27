@@ -119,7 +119,7 @@ void  get_num_par(char ch)
 			    free_delay();
 		       if(xpp::model().nkernel>0){
 			 INFLAG=0;
-			 MyStart=1;
+			 xpp::session().integrator.my_start=1;
 			 alloc_kernels(1);
 		       }
 			flash(3);
@@ -513,17 +513,17 @@ void do_meth()
  if(xpp::model().nkernel>0)METHOD=VOLTERRA;
  switch(METHOD)
  {
-  case 0: solver=discrete; DELTA_T=1;break;
-  case 1: solver=euler;break;
-  case 2: solver=mod_euler;break;
-  case 3: solver=rung_kut;break;
-  case 4: solver=adams;break;
+  case 0: xpp::session().integrator.solver=discrete; DELTA_T=1;break;
+  case 1: xpp::session().integrator.solver=euler;break;
+  case 2: xpp::session().integrator.solver=mod_euler;break;
+  case 3: xpp::session().integrator.solver=rung_kut;break;
+  case 4: xpp::session().integrator.solver=adams;break;
   case 5: NJMP=1;break;
-  case 6: solver=volterra;break;
+  case 6: xpp::session().integrator.solver=volterra;break;
   case SYMPLECT: 
-       solver=symplect3;
+       xpp::session().integrator.solver=symplect3;
        break;
- case BACKEUL: solver=bak_euler;break;
+ case BACKEUL: xpp::session().integrator.solver=bak_euler;break;
  case RKQS:
  case STIFF:
  case CVODE:
@@ -531,7 +531,7 @@ void do_meth()
  case DP83:
  case RB23:
    NJMP=1; break;
-  default: solver=rung_kut;
+  default: xpp::session().integrator.solver=rung_kut;
  }
 }
 

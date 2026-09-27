@@ -408,14 +408,14 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
   for(k=0;k<nt;k++){
 	l=nt-1-k;  /* reverse the limit cycle  */
 	for(i=0;i<node;i++)yold[i]=static_cast<double>(orbit[i+1][l]);
-        rhs(0.0,yold,fold,node);
+        xpp::session().integrator.rhs(0.0,yold,fold,node);
 	for(j=0;j<node;j++){
 		ytemp=yold[j];
 		del=eps*fabs(ytemp);
 		if(del<eps)del=eps;
 		
 		yold[j]+=del;
-		rhs(0.0,yold,fdev,node);
+		xpp::session().integrator.rhs(0.0,yold,fdev,node);
 		yold[j]=ytemp;
 		for(i=0;i<node;i++)
 			jac[i+node*j][k]=(fdev[i]-fold[i])/del;
@@ -476,7 +476,7 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
         l=nt-k-1;
 	t+=dt; 
         for(i=0;i<node;i++)fdev[i]=static_cast<double>(orbit[i+1][l]);
-	rhs(0.0,fdev,yprime,node);
+	xpp::session().integrator.rhs(0.0,fdev,yprime,node);
 	for(j=0;j<node;j++){
 	adjnt[j+1][l]=static_cast<float>(yold[j]);
 	prod+=yold[j]*yprime[j]*dt;

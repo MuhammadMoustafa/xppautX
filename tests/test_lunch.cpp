@@ -7,6 +7,7 @@
    The model is loaded the way xppautX -silent loads it (xpp_batch_main),
    without integrating. make test runs this from the top of the tree. */
 #include "xpptest.h"
+#include "session.h"
 #include "lunch-new.h"
 #include "xpp_batch.h"
 #include "parserslow.h"
@@ -56,13 +57,13 @@ int main(void)
     init_all_graph();
 
     get_val("iapp", &iapp);
-    v0 = last_ic[0];
+    v0 = xpp::session().last_ic[0];
     tend = TEND;
     dt = DELTA_T;
     save(a);
 
     set_val("iapp", iapp + 1);
-    last_ic[0] = v0 + 1;
+    xpp::session().last_ic[0] = v0 + 1;
     TEND = tend * 2;
     DELTA_T = dt / 2;
 
@@ -74,7 +75,7 @@ int main(void)
 
     get_val("iapp", &x);
     CHECK(x == iapp);
-    CHECK(last_ic[0] == v0);
+    CHECK(xpp::session().last_ic[0] == v0);
     CHECK(TEND == tend);
     CHECK(DELTA_T == dt);
 

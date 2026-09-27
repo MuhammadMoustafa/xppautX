@@ -134,12 +134,9 @@ int START_LINE_TYPE=1;
     to use them. (Except eqn forming stuff)
  */
 
- double last_ic[MAXODE];
 
 extern int SEc,UEc,SPc,UPc;
 
- std::array<std::string,MAXODE> delay_string;
- int itor[MAXODE];
  int STORFLAG,INFLAG;
  double x_3d[2],y_3d[2],z_3d[2];
  int IXPLT,IYPLT,IZPLT;
@@ -196,7 +193,7 @@ void dump_torus(FILE *fp, int f)
   io_double(&TOR_PERIOD,fp,f,"Torus period");
   if(TORUS){
     for(i=0;i<xpp::model().neq;i++)
-      io_int(&itor[i],fp,f,xpp::model().uvar_names[i]);
+      io_int(&xpp::session().itor[i],fp,f,xpp::model().uvar_names[i]);
   }
 }
 
@@ -208,8 +205,8 @@ void load_eqn()
  init_ar_ic();
  for(int i=0;i<MAXODE;i++)
  {
-  itor[i]=0;
-  delay_string[i]="0.0";
+  xpp::session().itor[i]=0;
+  xpp::session().delay_string[i]="0.0";
  }
  std::string &this_file=xpp::model().this_file;
  if(this_file=="/dev/stdin")std=1;
@@ -278,7 +275,7 @@ void set_all_vals()
  STORFLAG=0;
 
  INFLAG=0;
- solver=rung_kut;
+ xpp::session().integrator.solver=rung_kut;
  PLOT_3D=0;
  if (notAlreadySet.METHOD){METHOD=3;notAlreadySet.METHOD=0;};
  if (notAlreadySet.XLO){MY_XLO=0.0;x_3d[0]=MY_XLO;notAlreadySet.XLO=0;notAlreadySet.XMIN=0;};
@@ -472,7 +469,7 @@ void do_intern_set(const char *name1, const char *value)
 
   i=find_user_name(IC,name);
   if(i>-1){
-    last_ic[i]=atof(value);
+    xpp::session().last_ic[i]=atof(value);
   }
   else {
     i=find_user_name(PARAM,name);
@@ -989,7 +986,7 @@ if(msc(yyl.c_str(),s1)){
      {
      find_variable(s2,&i);
      if(i>0){
-       itor[i-1]=1;
+       xpp::session().itor[i-1]=1;
       TORUS=1;
      }
      
@@ -1273,7 +1270,7 @@ if(msc(yyl.c_str(),s1)){
  if(msc("RANGEOVER",s1)){
      if ((notAlreadySet.RANGEOVER||force)|| ((mask!=NULL)&&(mask->RANGEOVER==1)))
      {
-    	range.item=s2;
+    	xpp::session().integrator.range.item=s2;
 	notAlreadySet.RANGEOVER=0;
      }
 
@@ -1283,7 +1280,7 @@ if(msc(yyl.c_str(),s1)){
      if ((notAlreadySet.RANGESTEP||force)|| ((mask!=NULL)&&(mask->RANGESTEP==1)))
      {
         
-   	range.steps=atoi(s2);
+   	xpp::session().integrator.range.steps=atoi(s2);
 	notAlreadySet.RANGESTEP=0;
      }
    return;
@@ -1292,7 +1289,7 @@ if(msc(yyl.c_str(),s1)){
  if(msc("RANGELOW",s1)){
      if ((notAlreadySet.RANGELOW||force)|| ((mask!=NULL)&&(mask->RANGELOW==1)))
      {
-   	range.plow=atof(s2);
+   	xpp::session().integrator.range.plow=atof(s2);
    	notAlreadySet.RANGELOW=0;
      }
 
@@ -1302,7 +1299,7 @@ if(msc(yyl.c_str(),s1)){
  if(msc("RANGEHIGH",s1)){
      if ((notAlreadySet.RANGEHIGH||force)|| ((mask!=NULL)&&(mask->RANGEHIGH==1)))
      {
-   	range.phigh=atof(s2);
+   	xpp::session().integrator.range.phigh=atof(s2);
 	notAlreadySet.RANGEHIGH=0;
      }
    return;
@@ -1313,11 +1310,11 @@ if(msc(yyl.c_str(),s1)){
      {
 	 if(s2[0]=='y'||s2[0]=='Y')
 	 {
-	  range.reset=1;
+	  xpp::session().integrator.range.reset=1;
 	 }
 	 else
 	 {
-	  range.reset=0;
+	  xpp::session().integrator.range.reset=0;
 	 } 
 	  notAlreadySet.RANGERESET=0;
      }
@@ -1329,11 +1326,11 @@ if(msc(yyl.c_str(),s1)){
      {
   	if(s2[0]=='y'||s2[0]=='Y')
 	{
-   		range.oldic=1;
+   		xpp::session().integrator.range.oldic=1;
    	}
 	else
 	{ 
-   		range.oldic=0;
+   		xpp::session().integrator.range.oldic=0;
 	}
 	
    	notAlreadySet.RANGEOLDIC=0;

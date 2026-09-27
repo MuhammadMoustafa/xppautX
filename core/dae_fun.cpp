@@ -1,5 +1,6 @@
 
 #include "dae_fun.h"
+#include "session.h"
 #include "parserslow.h"
 
 #include <stdlib.h> 
@@ -17,7 +18,6 @@
 #include <vector>
 #include "model.h"
 
-extern int DelayErr;
 
 /*    will have more stuff someday */
 
@@ -181,7 +181,7 @@ void do_daes()
   ans=solve_dae();
   dae_work.status=ans;
   if(ans==1||ans==2)return; /* accepts a no change error! */
-  DelayErr=1;
+  xpp::session().integrator.delay_err=1;
 
 }
 

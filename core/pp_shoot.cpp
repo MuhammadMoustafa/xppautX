@@ -36,7 +36,6 @@
 #define PARAM 1
 #define IC 2
 
-extern int RANGE_FLAG;
 
 namespace {
 struct {
@@ -239,7 +238,7 @@ void find_bvp_com(int com)
  compile_bvp();
  if(FFT||HIST||DelayFlag||BVP_FLAG==0)return;
  STORFLAG=0;
- RANGE_FLAG=1;
+ xpp::session().integrator.range_flag=1;
  POIMAP=0;
  oldtrans=TRANS;
  TRANS=0.0;
@@ -294,7 +293,7 @@ void last_shot(int flag)
  int i;
  double *x;
  x=&xpp::session().data_store.current[0];
- MyStart=1;
+ xpp::session().integrator.my_start=1;
  get_ic(2,x);
  STORFLAG=flag;
  xpp::session().data_store.current_time=T0;
@@ -305,7 +304,7 @@ void last_shot(int flag)
   xpp::session().data_store.rows=1;
 
 }
- integrate(&xpp::session().data_store.current_time,x,TEND,DELTA_T,1,NJMP,&MyStart);
+ integrate(&xpp::session().data_store.current_time,x,TEND,DELTA_T,1,NJMP,&xpp::session().integrator.my_start);
 }
 
 int set_up_sh_range()

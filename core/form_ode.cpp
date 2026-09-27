@@ -7,6 +7,7 @@
 #include <string_view>
 
 #include "xpp_util.h"
+#include "session.h"
 #include "form_ode.h"
 #include "model.h"
 #include "xpp_log.h"
@@ -664,7 +665,7 @@ int compiler(const std::string &bob, FILE *fptr)
 	xpp_model_failed();
       }
       xpp::model().uvar_names[IN_VARS+xpp::model().nmarkov]=name;
-      last_ic[IN_VARS+xpp::model().nmarkov]=value;
+      xpp::session().last_ic[IN_VARS+xpp::model().nmarkov]=value;
       xpp::model().default_ic[IN_VARS+xpp::model().nmarkov]=value;
       xpp::log(XPP_LOG_INFO, " Markov variable {}={:f} has {} states \n",name,value,nstates);
       if(OldStyle)add_markov(nstates,name.c_str());
@@ -702,7 +703,7 @@ int compiler(const std::string &bob, FILE *fptr)
 	  if(iflg)
 	    {
 	      xpp::model().uvar_names[IN_VARS]=name;
-	      last_ic[IN_VARS]=value;
+	      xpp::session().last_ic[IN_VARS]=value;
               xpp::model().default_ic[IN_VARS]=value;
 	      IN_VARS++;
 	      if(ConvertStyle)
@@ -1641,7 +1642,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	xpp_model_failed();
       }
       xpp::model().uvar_names[i]=vnames[i];
-      last_ic[i]=0.0;
+      xpp::session().last_ic[i]=0.0;
       xpp::model().default_ic[i]=0.0;
     }
  for(i=0;i<nfix;i++){
@@ -1656,7 +1657,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	xpp_model_failed();
       }
    xpp::model().uvar_names[i+nvar]=mnames[i];
-   last_ic[i+nvar]=0.0;
+   xpp::session().last_ic[i+nvar]=0.0;
    xpp::model().default_ic[i+nvar]=0.0;
  }
  for(i=0;i<naux;i++)
@@ -1693,7 +1694,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	   tmp=converted(take_apart(*tok,&z));
 	   in=find_the_name(vnames,IN_VARS,tmp);
 	   if(in>=0){
-	     last_ic[in]=z;
+	     xpp::session().last_ic[in]=z;
 	     xpp::model().default_ic[in]=z;
 	     set_val(tmp.c_str(),z);
 	     xpp::log(XPP_LOG_INFO, " Initial {}(0)={:g}\n",tmp,z);
@@ -1701,7 +1702,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	   else {
 	     in=find_the_name(mnames,xpp::model().nmarkov,tmp);
 	     if(in>=0){
-	       last_ic[in+IN_VARS]=z;
+	       xpp::session().last_ic[in+IN_VARS]=z;
                xpp::model().default_ic[in+IN_VARS]=z;
 	       set_val(tmp.c_str(),z);
 	       xpp::log(XPP_LOG_INFO, " Markov {}(0)={:g}\n",tmp,z);
@@ -1731,17 +1732,17 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 
        in=find_the_name(vnames,IN_VARS,tmp);
        if(in>=0){
-	 last_ic[in]=z;
+	 xpp::session().last_ic[in]=z;
          xpp::model().default_ic[in]=z;
 	 set_val(tmp.c_str(),z);
-	   delay_string[in]=v.rhs;
+	   xpp::session().delay_string[in]=v.rhs;
 
 	 xpp::log(XPP_LOG_INFO, " Initial {}(0)={}\n",tmp,v.rhs);
        }
        else {
 	 in=find_the_name(mnames,xpp::model().nmarkov,tmp);
 	 if(in>=0){
-	   last_ic[in+IN_VARS]=z;
+	   xpp::session().last_ic[in+IN_VARS]=z;
            xpp::model().default_ic[in+IN_VARS]=z;
 	   set_val(tmp.c_str(),z);
 	   xpp::log(XPP_LOG_INFO, " Markov {}(0)={:g}\n",tmp,z);

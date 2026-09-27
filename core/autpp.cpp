@@ -1,6 +1,7 @@
 #include <array>
 #include <stdlib.h>
 #include "auto_f2c.h" 
+#include "session.h"
 #include "odesol2.h"
 #include "auto_nox.h"
 #include "derived.h"
@@ -30,7 +31,7 @@ extern "C" int func(integer ndim, double *u, integer *icp, double *par, integer 
    }
    evaluate_derived();
    redo_all_fun_tables();
-   rhs(0.0,u,f,ndim);
+   xpp::session().integrator.rhs(0.0,u,f,ndim);
    if(ijac==1){
      getjactrans(u,y.data(),yp.data(),xp.data(),NEWT_ERR,dfdu,ndim);
    }
@@ -38,7 +39,7 @@ extern "C" int func(integer ndim, double *u, integer *icp, double *par, integer 
    for(i=1;i<NJMP;i++){
      for(j=0;j<ndim;j++)
        zz[j]=f[j];
-     rhs(0.0,zz.data(),f,ndim);
+     xpp::session().integrator.rhs(0.0,zz.data(),f,ndim);
    }
 
    return 0;
@@ -56,7 +57,7 @@ extern "C" int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
 
   if(NewPeriodFlag==0){  
     for(i=0;i<ndim;i++)
-      u[i]=last_ic[i];
+      u[i]=xpp::session().last_ic[i];
     return 0;
   }
 

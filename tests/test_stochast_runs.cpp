@@ -31,15 +31,15 @@ int main(void)
     init_all_graph();
 
     const int ntrials = 400;
-    range.item = "dummy";
-    range.steps = ntrials - 1;
-    range.plow = 0.0;
-    range.phigh = 0.0;
-    range.reset = 1;
-    range.oldic = 1;
-    range.cycle = 0;
-    range.movie = 0;
-    range.rtype = 0;
+    xpp::session().integrator.range.item = "dummy";
+    xpp::session().integrator.range.steps = ntrials - 1;
+    xpp::session().integrator.range.plow = 0.0;
+    xpp::session().integrator.range.phigh = 0.0;
+    xpp::session().integrator.range.reset = 1;
+    xpp::session().integrator.range.oldic = 1;
+    xpp::session().integrator.range.cycle = 0;
+    xpp::session().integrator.range.movie = 0;
+    xpp::session().integrator.range.rtype = 0;
 
     STOCH_FLAG = 1;
     int ierr = do_range(xpp::session().data_store.current, 0);

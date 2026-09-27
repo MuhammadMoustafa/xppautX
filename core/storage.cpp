@@ -11,39 +11,31 @@
 #include "form_ode.h"
 #include "load_eqn.h"
 #include "model.h"
-double *WORK;
-int IWORK[10000];
 
 #define BACKEUL 7
 #define VOLTERRA 6
 #define STIFF 9
 #define GEAR 5
 #define RB23 13
-XPPVEC xpv;
-
-namespace {
-/* the memory behind xpv.x and WORK: the solvers read both through the
-   plain pointers storage.h exports, which point into these */
-std::vector<double> state_vector;
-std::vector<double> work_space;
-}
 
 void init_alloc_info()
 {
-  xpv.node=xpp::model().node+xpp::model().nmarkov;
-  xpv.nvec=0; /* this is just for now */
+  SolverWork &w=xpp::session().solver_work;
+  w.xpv.node=xpp::model().node+xpp::model().nmarkov;
+  w.xpv.nvec=0; /* this is just for now */
   /* called again once the model's options are read: a fresh zeroed block */
   try {
-    state_vector.assign(xpv.nvec+xpv.node,0.0);
+    w.state.assign(w.xpv.nvec+w.xpv.node,0.0);
   } catch (const std::bad_alloc &) {
     xpp_out_of_memory("the state vector");
   }
-  xpv.x=state_vector.data();
+  w.xpv.x=w.state.data();
 }
 
 void alloc_meth()
 {
-  int nn=xpv.node+xpv.nvec;
+  SolverWork &w=xpp::session().solver_work;
+  int nn=w.xpv.node+w.xpv.nvec;
   int sz=30*nn;
   switch(METHOD){
   case STIFF:
@@ -62,11 +54,10 @@ void alloc_meth()
     break;
   }
   try {
-    work_space.assign(sz,0.0);
+    w.work.assign(sz,0.0);
   } catch (const std::bad_alloc &) {
     xpp_out_of_memory("the solver's work space");
   }
-  WORK=work_space.data();
 }
 
 void DataStore::allocate(int nrow, int ncol)

@@ -18,6 +18,10 @@
 #include "storage.h"
 #include "many_pops.h"
 #include "graf_par.h"
+#include "integrate.h"
+
+#include <array>
+#include <string>
 
 namespace xpp {
 
@@ -30,6 +34,20 @@ struct Session {
   XppFrozenCurves frozen_curves{};
   /* how plots are written to files (graf_par.cpp) */
   XppPlotExport plot_export;
+
+  /* the integrator's state (integrate.cpp) */
+  IntegratorState integrator;
+  /* its state vector and the solvers' scratch space (storage.cpp) */
+  SolverWork solver_work;
+  /* the initial data the next run starts from (the model's are
+     Model::default_ic) */
+  std::array<double,MAXODE> last_ic{};
+  /* each variable's initial data as typed (a delay equation's history:
+     "0.0" when it has none) */
+  std::array<std::string,MAXODE> delay_string;
+  /* each variable's torus flag: 1 when it is taken modulo the torus
+     period (the nUmerics menu's Torus) */
+  std::array<int,MAXODE> itor{};
 };
 
 /* the current Session (xpp_current.h) */

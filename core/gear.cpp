@@ -1,4 +1,5 @@
 #include "xpp_ui.h"
+#include "session.h"
 #include "odesol2.h"
 #include "browse.h"
 #include "xpp_log.h"
@@ -570,7 +571,7 @@ void getjac(double *x, double *y, double *yp, double *xp, double eps, double *de
 {
  int i,j,k;
  double r;
-   rhs(0.0,x,y,n);
+   xpp::session().integrator.rhs(0.0,x,y,n);
    if(METHOD==0)
    for(i=0;i<n;i++)y[i]=y[i]-x[i];
 
@@ -579,7 +580,7 @@ void getjac(double *x, double *y, double *yp, double *xp, double eps, double *de
     for(k=0;k<n;k++) xp[k]=x[k];
     r=eps*std::max(eps,fabs(x[i]));
     xp[i]=xp[i]+r;
-    rhs(0.0,xp,yp,n);
+    xpp::session().integrator.rhs(0.0,xp,yp,n);
     if(METHOD==0){
      for(j=0;j<n;j++)yp[j]=yp[j]-xp[j];
     }
@@ -596,13 +597,13 @@ void getjactrans(double *x,double *y,double *yp,double *xp, double eps, double *
 {
  int i,j,k;
  double r;
-   rhs(0.0,x,y,n);
+   xpp::session().integrator.rhs(0.0,x,y,n);
   for(i=0;i<n;i++)
   {
     for(k=0;k<n;k++) xp[k]=x[k];
     r=eps*std::max(eps,fabs(x[i]));
     xp[i]=xp[i]+r;
-    rhs(0.0,xp,yp,n);
+    xpp::session().integrator.rhs(0.0,xp,yp,n);
     for(j=0;j<n;j++)
     {
     dermat[j+n*i]=(yp[j]-y[j])/r;
@@ -794,7 +795,7 @@ L120:
    
     nq=1;	
 	
-        rhs(*t,ytable[0],save11,n);
+        xpp::session().integrator.rhs(*t,ytable[0],save11,n);
 
     for(i=0;i<n;i++)
     {
@@ -898,7 +899,7 @@ L330:
       error[i]=0.0;
     for(l=0;l<3;l++)
      {
-      rhs(*t,ytable[0],save11,n);
+      xpp::session().integrator.rhs(*t,ytable[0],save11,n);
       if(iweval<1)
 	{ 
 	  goto L460;
@@ -910,7 +911,7 @@ L330:
        r=eps*std::max(eps,fabs(save9[j]));
        ytable[0][j]=ytable[0][j]+r;
        d=a[0]*h/r;
-       rhs(*t,ytable[0],save12,n);
+       xpp::session().integrator.rhs(*t,ytable[0],save12,n);
        for(i=0;i<n;i++)
        dermat[n*i+j]=(save12[i]-save11[i])*d;
        ytable[0][j]=save9[j];
@@ -1083,7 +1084,7 @@ L770:
 L790:
 	
     if(nq==1)goto L850;
-    rhs(*t,ytable[0],save11,n);
+    xpp::session().integrator.rhs(*t,ytable[0],save11,n);
     r=h/hold;
     for(i=0;i<n;i++)
     {

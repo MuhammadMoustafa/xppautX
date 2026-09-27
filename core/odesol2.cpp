@@ -1,4 +1,5 @@
 #include "odesol2.h"
+#include "session.h"
 #include <stdlib.h> 
 #include <stdio.h>
 #include <math.h>
@@ -12,7 +13,6 @@
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
 
-int (*rhs)(double t, double *y, double *ydot, int neq);
 
 constexpr double coefp[]={ 6.875/3.00,-7.375/3.00,4.625/3.00,-.375},
        coefc[]={ .375,2.375/3.00,-.625/3.00,0.125/3.00 };
@@ -117,13 +117,13 @@ int one_bak_step(double *y, double *t, double dt, int neq, double *yg, double *y
   int ml=cv_bandlower,mr=cv_bandupper,mt=ml+mr+1;
   set_wieners(dt,y,*t);
   *t=*t+dt;
-  rhs(*t,y,yp2,neq);
+  xpp::session().integrator.rhs(*t,y,yp2,neq);
   for(i=0;i<neq;i++)yg[i]=y[i];
   while(1)
     {
       err1=0.0;
       err=0.0;
-      rhs(*t,yg,yp,neq);
+      xpp::session().integrator.rhs(*t,yg,yp,neq);
       for(i=0;i<neq;i++){
 	errvec[i]=yg[i]-.5*dt*(yp[i]+yp2[i])-y[i];
 	err1+=fabs(errvec[i]);
@@ -163,7 +163,7 @@ void one_step_discrete(double *y, double dt, double *yp, int neq, double *t)
 {
   int j;
    set_wieners(dt,y,*t);
-     rhs(*t,y,yp,neq);
+     xpp::session().integrator.rhs(*t,y,yp,neq);
      *t=*t+dt;
      for(j=0;j<neq;j++){y[j]=yp[j];
      }
@@ -176,7 +176,7 @@ void one_step_symp(double *y, double h, double *f, int n, double *t)
   for(s=0;s<3;s++){
     for(j=0;j<n;j+=2)
       y[j]+=(h*symp_b[s]*y[j+1]);
-    rhs(*t,y,f,n);
+    xpp::session().integrator.rhs(*t,y,f,n);
     for(j=0;j<n;j+=2)
       y[j+1]+=(h*symp_B[s]*f[j+1]);
   }
@@ -189,7 +189,7 @@ void one_step_euler(double *y, double dt, double *yp, int neq, double *t)
  int j;
 
    set_wieners(dt,y,*t);
-   rhs(*t,y,yp,neq);
+   xpp::session().integrator.rhs(*t,y,yp,neq);
    *t+=dt;
    for(j=0;j<neq;j++)y[j]=y[j]+dt*yp[j];
 }
@@ -199,27 +199,27 @@ void one_step_rk4(double *y, double dt, double *yval[3], int neq, double *tim)
  int i;
  double t=*tim,t1,t2;
  set_wieners(dt,y,t);
- rhs(t,y,yval[1],neq);
+ xpp::session().integrator.rhs(t,y,yval[1],neq);
  for(i=0;i<neq;i++)
    {
      yval[0][i]=y[i]+dt*yval[1][i]/6.00;
      yval[2][i]=y[i]+dt*yval[1][i]*0.5;
   }
   t1=t+.5*dt;
-  rhs(t1,yval[2],yval[1],neq);
+  xpp::session().integrator.rhs(t1,yval[2],yval[1],neq);
   for(i=0;i<neq;i++)
     {
       yval[0][i]=yval[0][i]+dt*yval[1][i]/3.00;
       yval[2][i]=y[i]+.5*dt*yval[1][i];
     }
- rhs(t1,yval[2],yval[1],neq);
+ xpp::session().integrator.rhs(t1,yval[2],yval[1],neq);
  for(i=0;i<neq;i++)
    {
      yval[0][i]=yval[0][i]+dt*yval[1][i]/3.000;
      yval[2][i]=y[i]+dt*yval[1][i];
    }
  t2=t+dt;
- rhs(t2,yval[2],yval[1],neq);
+ xpp::session().integrator.rhs(t2,yval[2],yval[1],neq);
  for(i=0;i<neq;i++)y[i]=yval[0][i]+dt*yval[1][i]/6.00;
  *tim=t2;
 }
@@ -229,10 +229,10 @@ void one_step_heun(double *y, double dt, double *yval[2], int neq, double *tim)
  int i;
  double t=*tim,t1;
   set_wieners(dt,y,*tim);
-  rhs(t,y,yval[0],neq);
+  xpp::session().integrator.rhs(t,y,yval[0],neq);
   for(i=0;i<neq;i++)yval[0][i]=dt*yval[0][i]+y[i];
   t1=t+dt;
-  rhs(t1,yval[0],yval[1],neq);
+  xpp::session().integrator.rhs(t1,yval[0],yval[1],neq);
   for(i=0;i<neq;i++)y[i]=.5*(y[i]+yval[0][i]+dt*yval[1][i]);
   *tim=t1;
 }
@@ -300,13 +300,13 @@ int adams(double *y, double *tim, double dt, int nstep, int neq, int *ist, doubl
 n20:
 
  x0=xst;
- rhs(x0,y,y_p[3],neq);
+ xpp::session().integrator.rhs(x0,y,y_p[3],neq);
  for(k=1;k<4;k++)
  {
   rung_kut(y,&x0,dt,1,neq,&irk,work1);
   stor_delay(y);
   for(i=0;i<neq;i++)y_s[3-k][i]=y[i];
-  rhs(x0,y,y_p[3-k],neq);
+  xpp::session().integrator.rhs(x0,y,y_p[3-k],neq);
  }
  istpst=3;
  if(istpst<=nstep) goto n400;
@@ -365,7 +365,7 @@ int abmpc(double *y, double *t, double dt, int neq)
  for(i=0;i<neq;i++)
  for(k=3;k>0;k--)y_p[k][i]=y_p[k-1][i];
  x1=x0+dt;
- rhs(x1,ypred,y_p[0],neq);
+ xpp::session().integrator.rhs(x1,ypred,y_p[0],neq);
 
  for(i=0;i<neq;i++)
  {
@@ -374,7 +374,7 @@ int abmpc(double *y, double *t, double dt, int neq)
   y[i]=y[i]+dt*ypred[i];
  }
    *t=x1;
- rhs(x1,y,y_p[0],neq);
+ xpp::session().integrator.rhs(x1,y,y_p[0],neq);
  
  return(1);
  
@@ -429,7 +429,7 @@ int *istart,int n,double *work,int *ierr)
  hmax=fabs(tfinal-t);
  if(*istart==1)
    htry=hmax;
- rhs(t0,y,f0,n);
+ xpp::session().integrator.rhs(t0,y,f0,n);
  hmin=16*eps*fabs(t);
  absh = MIN(hmax, MAX(hmin, htry));
  while(!done)
@@ -445,7 +445,7 @@ int *istart,int n,double *work,int *ierr)
      }
      get_the_jac(t,y,f0,ypnew,dfdy,n,epsjac,1.0);
      tdel = (t + tdir*MIN(sqrteps*MAX(fabs(t),fabs(t+h)),absh)) - t;
-     rhs(t+tdel,y,f1,n);
+     xpp::session().integrator.rhs(t+tdel,y,f1,n);
      for(i=0;i<n;i++)
        dfdt[i]=(f1[i]-f0[i])/tdel;
      while(1){ /* advance a step  */
@@ -469,7 +469,7 @@ int *istart,int n,double *work,int *ierr)
        }
        for(i=0;i<n;i++)
 	 ynew[i]=y[i]+.5*h*k1[i];
-       rhs(t+.5*h,ynew,f1,n);
+       xpp::session().integrator.rhs(t+.5*h,ynew,f1,n);
        for(i=0;i<n;i++)
 	 k2[i]=f1[i]-k1[i];
        if(cv_bandflag)
@@ -481,7 +481,7 @@ int *istart,int n,double *work,int *ierr)
 	 ynew[i]=y[i]+h*k2[i];
        }
        tnew=t+h;
-       rhs(tnew,ynew,f2,n);
+       xpp::session().integrator.rhs(tnew,ynew,f2,n);
        for(i=0;i<n;i++)
 	 k3[i]=f2[i] - e32*(k2[i] - f1[i]) - 2*(k1[i] - f0[i]) + (h*d)*dfdt[i];
        if(cv_bandflag)
@@ -544,7 +544,7 @@ void get_the_jac(double t,double *y,double *yp,
       dsy=scal/del;
       yold=y[i];
       y[i]=y[i]+del;
-      rhs(t,y,ypnew,neq);
+      xpp::session().integrator.rhs(t,y,ypnew,neq);
       for(j=0;j<neq;j++)
 	dfdy[j*neq+i]=dsy*(ypnew[j]-yp[j]);
       y[i]=yold;
@@ -566,7 +566,7 @@ void get_band_jac(double *a, double *y, double t, double *ypnew, double *ypold, 
     dy=eps*(eps+fabs(yhat));
     dsy=scal/dy;
     y[i] += dy;
-    rhs(t,y,ypnew,n);
+    xpp::session().integrator.rhs(t,y,ypnew,n);
     for(j=-ml;j<=mr;j++){
       k=i-j;
       if(k<0||k>n1)continue;

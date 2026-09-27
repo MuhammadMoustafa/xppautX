@@ -1,4 +1,5 @@
 #include "model.h"
+#include "session.h"
 #include "comline.h"
 #include "lunch-new.h"
 #include "xpp_log.h"
@@ -62,7 +63,6 @@
 #define VERBOSEOPT 45
 #define DEBUGOPT 46
 
-extern int SuppressOut;
 
 namespace {
 
@@ -100,7 +100,6 @@ int querysets=0;
 int querypars=0;
 int queryics=0;
 int dryrun=0;
-extern int MakePlotFlag;
 int newseed=0;
 typedef struct {
   const char *name;
@@ -297,7 +296,7 @@ void do_comline(int argc, char **argv)
      i++;
    }
    if(k==25){
-     SuppressOut=1;
+     xpp::session().integrator.suppress_out=1;
      
    }
    if(k==26){
@@ -443,7 +442,7 @@ int parse_it(const char *com)
      xpp_log(XPP_LOG_WARN, " C files are no longer part of this version. \n Sorry \n");
       break;
     case MKPLOT:
-      MakePlotFlag=1;
+      xpp::session().integrator.make_plot_flag=1;
       break;
     case SILENT:
       batch_options.enabled=1;

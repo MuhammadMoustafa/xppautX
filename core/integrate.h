@@ -7,10 +7,6 @@
 extern "C" {
 #endif
 
-extern int SuppressBounds,MyStart;
-
-/* the fixed-step integrator Integrate uses (numerics.c picks it) */
-extern int (*solver)(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work);
 void silent_equilibria(void);
 void init_ar_ic(void);
 void dump_range(FILE *fp, int f);
@@ -74,6 +70,30 @@ struct RangeVars {
   double plow, phigh, plow2, phigh2;
   int rtype;
 };
-extern RangeVars range;
+
+/* the integrator's state, a Session's (session.h) */
+struct IntegratorState {
+  /* the fixed-step integrator Integrate uses (numerics.cpp picks it) */
+  int (*solver)(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work) = nullptr;
+  /* the right-hand side the solvers step (my_rhs, or AUTO's and the
+     adjoint's own while they run) */
+  int (*rhs)(double t, double *y, double *ydot, int neq) = nullptr;
+  /* Initialconds/Range's settings */
+  RangeVars range{};
+  /* a range integration is running (pp_shoot's shooting reads it) */
+  int range_flag = 0;
+  /* the integration starts afresh (the solvers' istart) */
+  int my_start = 0;
+  /* -noout: a batch run writes no output file */
+  int suppress_out = 0;
+  /* the bounds check is off */
+  int suppress_bounds = 0;
+  /* a DAE's algebraic solve failed during the step */
+  int delay_err = 0;
+  /* -makeplot: a batch run writes its plot too */
+  int make_plot_flag = 0;
+  /* where the last integration stopped */
+  double last_time = 0;
+};
 #endif
 #endif

@@ -34,7 +34,6 @@
 static int set_type=0;
 
 /* delay_handle.cpp's and integrate.cpp's (no header declares them yet) */
-extern double LastTime;
 
 namespace {
 
@@ -134,7 +133,7 @@ int read_set(FILE *fp, bool ask)
   if(METHOD==VOLTERRA){
     io_int(&temp,fp,f," ");
     allocate_volterra(temp,1);
-    MyStart=1;
+    xpp::session().integrator.my_start=1;
   }
   chk_delay();
   io_exprs(f,fp);
@@ -191,11 +190,11 @@ void do_info(FILE *fp)
         POIMAP,poivar,POIPLN,POISGN);
 
   xpp::print(fp,"\n\n Delay strings ...\n");
-  for(int i=0;i<xpp::model().node;i++)xpp::print(fp,"{}\n",delay_string[i]);
+  for(int i=0;i<xpp::model().node;i++)xpp::print(fp,"{}\n",xpp::session().delay_string[i]);
   xpp::print(fp,"\n\n BCs ...\n");
   for(int i=0;i<xpp::model().node;i++)xpp::print(fp,"0={}\n",xpp::model().bcs[i].string.data());
   xpp::print(fp,"\n\n ICs ...\n");
-  for(int i=0;i<xpp::model().node+xpp::model().nmarkov;i++)xpp::print(fp,"{}={:.16g}\n",xpp::model().uvar_names[i],last_ic[i]);
+  for(int i=0;i<xpp::model().node+xpp::model().nmarkov;i++)xpp::print(fp,"{}={:.16g}\n",xpp::model().uvar_names[i],xpp::session().last_ic[i]);
   xpp::print(fp,"\n\n Parameters ...\n");
   put_parameters(fp,"");
 }
@@ -306,8 +305,8 @@ io_int(&POISGN,fp,f,"Poincare sign");
 io_int(&SOS,fp,f,"Stop on Section");
 io_int(&DelayFlag,fp,f,"Delay flag");
 io_double(&xpp::session().data_store.current_time,fp,f,"Current time");
-io_double(&LastTime,fp,f,"Last Time");
-io_int(&MyStart,fp,f,"MyStart");
+io_double(&xpp::session().integrator.last_time,fp,f,"Last Time");
+io_int(&xpp::session().integrator.my_start,fp,f,"xpp::session().integrator.my_start");
 io_int(&INFLAG,fp,f,"INFLAG");
 }
 void io_parameter_file(const char *fn,int flag)
@@ -357,7 +356,7 @@ void io_ic_file(const char *fn,int flag)
     return;
   }
   for(int i=0;i<xpp::model().node;i++){
-    if(!tr.read(last_ic[i])){
+    if(!tr.read(xpp::session().last_ic[i])){
       err_msg(xpp::format("Expected {} initial conditions but only found {} in {}.",
                           xpp::model().node,i,fn).c_str());
       return;
@@ -403,7 +402,7 @@ void io_exprs(int f, FILE *fp)
  int i;
  double z;
  io_heading(f,fp,"# Delays");
- for(i=0;i<xpp::model().node;i++)io_string(delay_string[i],fp,f);
+ for(i=0;i<xpp::model().node;i++)io_string(xpp::session().delay_string[i],fp,f);
  io_heading(f,fp,"# Bndry conds");
  for(i=0;i<xpp::model().node;i++){
    std::string formula=xpp::model().bcs[i].string.data();
@@ -411,7 +410,7 @@ void io_exprs(int f, FILE *fp)
    if(f==READEM)set_bc_formula(i,formula);
  }
  io_heading(f,fp,"# Old ICs");
- for(i=0;i<xpp::model().node+xpp::model().nmarkov;i++)io_double(&last_ic[i],fp,f,xpp::model().uvar_names[i]);
+ for(i=0;i<xpp::model().node+xpp::model().nmarkov;i++)io_double(&xpp::session().last_ic[i],fp,f,xpp::model().uvar_names[i]);
  io_heading(f,fp,"# Ending  ICs");
  for(i=0;i<xpp::model().node+xpp::model().nmarkov;i++)io_double(&xpp::session().data_store.current[i],fp,f,xpp::model().uvar_names[i]);
  io_heading(f,fp,"# Parameters");

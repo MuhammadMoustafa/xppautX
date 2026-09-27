@@ -170,7 +170,7 @@ int do_calc(const char *temp, double *z)
     }
     set_val(val.data(),newz);
 
-    last_ic[i]=newz;
+    xpp::session().last_ic[i]=newz;
     *z=newz;
     redraw_ics();
   }
@@ -377,7 +377,7 @@ void clone_ode()
       fp.print("\ninit ");
       j=0;
     }
-    fp.print("{}={:g} ",xpp::model().uvar_names[i],last_ic[i]);
+    fp.print("{}={:g} ",xpp::model().uvar_names[i],xpp::session().last_ic[i]);
     j++;
   }
   fp.print("\n");
@@ -467,7 +467,7 @@ void   set_default_ics()
 {
   int i;
   for(i=0;i<xpp::model().node+xpp::model().nmarkov;i++)
-    last_ic[i]=xpp::model().default_ic[i];
+    xpp::session().last_ic[i]=xpp::model().default_ic[i];
    redraw_ics();
 }
 
@@ -490,10 +490,10 @@ void man_ic()
   int done,index=0;
   double z;
   while(1){
-    z=last_ic[index];
+    z=xpp::session().last_ic[index];
     done=new_float(xpp::format("{} :",xpp::model().uvar_names[index]).c_str(),&z);
     if(done==0){
-      last_ic[index]=z;
+      xpp::session().last_ic[index]=z;
       xpp_ui.ic_box_set(index,xpp::format("{:.16g}",z).c_str());
       xpp_ui.ic_box_redraw(index);
       index++;
@@ -512,7 +512,7 @@ int box_set_value(int type,int i,const char *s,double *z)
   switch(type){
   case ICBOX:
     if(to_float(s,z)==-1)return -1;
-    last_ic[i]=*z;
+    xpp::session().last_ic[i]=*z;
     return 1;
   case PARAMBOX:
     if(to_float(s,z)==-1)return -1;
@@ -522,7 +522,7 @@ int box_set_value(int type,int i,const char *s,double *z)
     set_bc_formula(i,s);
     return 0;
   case DELAYBOX:
-    delay_string[i]=s;
+    xpp::session().delay_string[i]=s;
     return 0;
   }
   return 0;
@@ -580,20 +580,20 @@ void set_par_or_var(const char *name,int type,int index,double val)
 {
   set_val(name,val);
   if(type==ICBOX)
-    last_ic[index]=val;
+    xpp::session().last_ic[index]=val;
 }
 
 /* a slider was dragged: redraw and integrate again */
 void slider_rerun(void)
 {
-  int sp=SuppressBounds;
+  int sp=xpp::session().integrator.suppress_bounds;
   clr_all_scrns();
   redraw_dfield();
   create_new_cline();
   draw_label(xpp::session().plot_windows.draw_win);
-  SuppressBounds=1;
+  xpp::session().integrator.suppress_bounds=1;
   run_now();
-  SuppressBounds=sp;
+  xpp::session().integrator.suppress_bounds=sp;
 }
 
 /* ---- the equilibrium window's Import button and its label (logic from
@@ -607,7 +607,7 @@ void eq_import(double *y,int n)
 {
   int i;
   for(i=0;i<n;i++)
-    last_ic[i]=y[i];
+    xpp::session().last_ic[i]=y[i];
 
   if(n<20){
     if(sparity==0){

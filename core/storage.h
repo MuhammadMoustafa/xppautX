@@ -13,12 +13,6 @@ typedef struct {
   double *x;
 } XPPVEC;
 
-extern XPPVEC xpv;
-
-/* the solvers' scratch space, sized by alloc_meth for the method in use */
-extern double *WORK;
-extern int IWORK[10000];
-
 void init_alloc_info(void);
 void alloc_meth(void);
 
@@ -27,6 +21,15 @@ void alloc_meth(void);
 
 #include <array>
 #include <vector>
+
+/* the integrator's state vector and the solvers' scratch space
+   (init_alloc_info, alloc_meth), a Session's (session.h) */
+struct SolverWork {
+  XPPVEC xpv{};             /* xpv.x points at state */
+  std::vector<double> state;
+  std::vector<double> work; /* sized by alloc_meth for the method in use */
+  std::array<int, 10000> iwork{};
+};
 
 /* The data store: the rows a run stores, one float column per quantity
    (column 0 the time, then the variables and auxiliaries: NEQ+1 columns

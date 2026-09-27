@@ -1,4 +1,5 @@
 #include "delay_handle.h"
+#include "session.h"
 #include "load_eqn.h"
 #include "xpp_ui.h"
 #include "parserslow.h"
@@ -174,7 +175,7 @@ int do_init_delay(double big)
  NCON=xpp::model().ncon_start;
  NSYM=xpp::model().nsym_start;
  for(i=0;i<(xpp::model().node );i++){
-	 if(add_expr(delay_string[i].c_str(),del_form[i].data(),&len)){
+	 if(add_expr(xpp::session().delay_string[i].c_str(),del_form[i].data(),&len)){
 		err_msg("Illegal delay expression");
 		 NCON=xpp::model().ncon_start;
 		NSYM=xpp::model().nsym_start;

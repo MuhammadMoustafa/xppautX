@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "model.h"
+#include "session.h"
 #include "aniparse.h"
 #include "ani_data.h"
 #include "xpp_log.h"
@@ -922,15 +923,15 @@ void ani_frame(int task)
 void set_to_init_data(void)
 {
     int i;
-    for (i = 0; i < xpp::model().node; i++) last_ic[i] = get_ivar(i + 1);
-    for (i = xpp::model().node + xpp::model().fix_var; i < xpp::model().node + xpp::model().fix_var + xpp::model().nmarkov; i++) last_ic[i - xpp::model().fix_var] = get_ivar(i + 1);
+    for (i = 0; i < xpp::model().node; i++) xpp::session().last_ic[i] = get_ivar(i + 1);
+    for (i = xpp::model().node + xpp::model().fix_var; i < xpp::model().node + xpp::model().fix_var + xpp::model().nmarkov; i++) xpp::session().last_ic[i - xpp::model().fix_var] = get_ivar(i + 1);
     redraw_ics();
 }
 
 void set_from_init_data(void)
 {
     std::array<double, MAXODE> y;
-    for (int i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) y[i] = last_ic[i];
+    for (int i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) y[i] = xpp::session().last_ic[i];
     set_fix_rhs(T0, y.data());
 }
 

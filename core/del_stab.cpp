@@ -1,4 +1,5 @@
 #include "xpp_ui.h"
+#include "session.h"
 #include "odesol2.h"
 #include "xpp_log.h"
 #include <stdlib.h>
@@ -50,7 +51,7 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
    }
  /* OKAY -- we have the root */
  NDelay=0;
- rhs(0.0,x,y,n); /* one more evaluation to get delays */
+ xpp::session().integrator.rhs(0.0,x,y,n); /* one more evaluation to get delays */
  for(i=0;i<n;i++){
    variable_shift[0][i]=x[i];  /* unshifted  */
    variable_shift[1][i]=x[i];
@@ -69,7 +70,7 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
      for(j=0;j<n;j++)xp[j]=x[j];
      dx=eps*std::max(eps,fabs(x[i]));
      xp[i]=xp[i]+dx;
-     rhs(0.0,xp,yp,n);
+     xpp::session().integrator.rhs(0.0,xp,yp,n);
      for(j=0;j<n;j++){
        coef[j*n+i]=(yp[j]-y[j])/dx;
        colsum+=fabs(coef[j*n+i]);
@@ -88,7 +89,7 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
        variable_shift[1][j]=variable_shift[0][j];
      dx=eps*std::max(eps,fabs(x[i]));
      variable_shift[1][i]=x[i]+dx;
-     rhs(0.0,x,yp,n);
+     xpp::session().integrator.rhs(0.0,x,yp,n);
      variable_shift[1][i]=x[i];
      for(j=0;j<n;j++){
        coef[j*n+i+n*n*(k+1)]=(yp[j]-y[j])/dx;

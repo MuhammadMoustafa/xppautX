@@ -155,12 +155,12 @@ void data_get(BROWSER *b)
  set_ivar(0,static_cast<double>(xpp::session().data_store.col[0][in]));
  for(i=0;i<xpp::model().node;i++)
  {
-  last_ic[i]=static_cast<double>(xpp::session().data_store.col[i+1][in]);
-  set_ivar(i+1,last_ic[i]);
+  xpp::session().last_ic[i]=static_cast<double>(xpp::session().data_store.col[i+1][in]);
+  set_ivar(i+1,xpp::session().last_ic[i]);
  } 
  for(i=0;i<xpp::model().nmarkov;i++){
-   last_ic[i+xpp::model().node]=static_cast<double>(xpp::session().data_store.col[i+xpp::model().node+1][in]);
-   set_ivar(i+1+xpp::model().node+xpp::model().fix_var,last_ic[i+xpp::model().node]);
+   xpp::session().last_ic[i+xpp::model().node]=static_cast<double>(xpp::session().data_store.col[i+xpp::model().node+1][in]);
+   set_ivar(i+1+xpp::model().node+xpp::model().fix_var,xpp::session().last_ic[i+xpp::model().node]);
  }
  for(i=xpp::model().node+xpp::model().nmarkov;i<xpp::model().neq;i++)
    set_val(xpp::model().uvar_names[i],xpp::session().data_store.col[i+1][in]);

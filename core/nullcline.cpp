@@ -246,10 +246,10 @@ void stor_null(float x1, float y1, float x2, float y2)
 float fnull(float x, float y)
 {
   std::array<double,MAXODE> y1,ydot;
-  for(int i=0;i<xpp::model().node;i++)y1[i]=last_ic[i];
+  for(int i=0;i<xpp::model().node;i++)y1[i]=xpp::session().last_ic[i];
   y1[null_ix-1]=static_cast<double>(x);
   y1[null_iy-1]=static_cast<double>(y);
-  rhs(0.0,y1.data(),ydot.data(),xpp::model().node);
+  xpp::session().integrator.rhs(0.0,y1.data(),ydot.data(),xpp::model().node);
   return(static_cast<float>(ydot[WHICH_CRV-1]));
 }
 
@@ -351,7 +351,7 @@ void do_range_clines()
   double zold;
   get_val(ncrange.rv.c_str(),&zold);
 
-  for(int i=xpp::model().node;i<xpp::model().node+xpp::model().nmarkov;i++)set_ivar(i+1+xpp::model().fix_var,last_ic[i]);
+  for(int i=xpp::model().node;i<xpp::model().node+xpp::model().nmarkov;i++)set_ivar(i+1+xpp::model().fix_var,xpp::session().last_ic[i]);
   const float xmin=static_cast<float>(xpp::session().plot_windows.current->xmin);
   const float xmax=static_cast<float>(xpp::session().plot_windows.current->xmax);
   const float y_tp=static_cast<float>(xpp::session().plot_windows.current->ymax);
@@ -386,7 +386,7 @@ void get_max_dfield(double *y, double *ydot, double u0, double v0, double du, do
     y[inx]=u0+du*i;
     for(int j=0;j<=n;j++){
       y[iny]=v0+dv*j;
-      rhs(0.0,y,ydot,xpp::model().node);
+      xpp::session().integrator.rhs(0.0,y,ydot,xpp::model().node);
       extra(y,0.0,xpp::model().node,xpp::model().neq);
       scale_dxdy(ydot[inx],ydot[iny],&dxp,&dyp);
       const double amp=hypot(dxp,dyp);
@@ -417,7 +417,7 @@ void dfield_grid(int grid, double u0, double v0, double du, double dv, double dz
     y[inx]=u0+du*i;
     for(int j=0;j<=grid;j++){
       y[iny]=v0+dv*j;
-      rhs(0.0,y.data(),ydot.data(),xpp::model().node);
+      xpp::session().integrator.rhs(0.0,y.data(),ydot.data(),xpp::model().node);
       extra(y.data(),0.0,xpp::model().node,xpp::model().neq);
       if(xpp::session().plot_windows.current->ColorFlag||DF_FLAG==2){
         v1[0]=0.0;
@@ -680,7 +680,7 @@ void direct_field_com(int c)
   }
   STORFLAG=0;
 
-  SuppressBounds=1;
+  xpp::session().integrator.suppress_bounds=1;
   phase_data_flow_start();
   std::array<double,MAXODE> y;
   for(int k=0;k<2;k++){
@@ -697,7 +697,7 @@ void direct_field_com(int c)
     DELTA_T=-DELTA_T;
   }
   phase_data_flow_stop();
-  SuppressBounds=0;
+  xpp::session().integrator.suppress_bounds=0;
   DELTA_T=dtold;
   if (PltFmtFlag==SVGFMT){
     DOING_DFIELD=0;
@@ -765,7 +765,7 @@ void new_clines_com(int c)
   default:
     return;
   }
-  for(int i=xpp::model().node;i<xpp::model().node+xpp::model().nmarkov;i++)set_ivar(i+1+xpp::model().fix_var,last_ic[i]);
+  for(int i=xpp::model().node;i<xpp::model().node+xpp::model().nmarkov;i++)set_ivar(i+1+xpp::model().fix_var,xpp::session().last_ic[i]);
   const float xmin=static_cast<float>(xpp::session().plot_windows.current->xmin);
   const float xmax=static_cast<float>(xpp::session().plot_windows.current->xmax);
   const float y_tp=static_cast<float>(xpp::session().plot_windows.current->ymax);
