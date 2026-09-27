@@ -112,6 +112,7 @@ issue; the card here is the one kept up to date.
 | W47c | #94 | xpp::Session: everything a run changes (data_store, plot windows, integrator, AUTO, browser, kinescope), referring to its Model | W47b | blocked |
 | W47d | #95 | Model&/Session& passed instead of a current-one global; only the session list stays; ThreadSanitizer over the reader threads | W47c | blocked |
 | W48 | #96 | Retire the C-only text and memory APIs nothing calls since W46c (xpp_strlcpy/strlcat/snprintf and the XPP_* macros, xpp_malloc/calloc/strdup), tabular's raw block to a std::vector if it can be, the deadcode allowlist entries and CLAUDE.md's C-file guidance with them | W46c | ready |
+| W49 | #97 | autoinfo: after a periodic run from a grabbed HB point the strip's state turns to the HB point after the run's last event; only the next idle sends it (seen once on macos-sanitizers, hidden elsewhere by the 0.1 s throttle): reproduce, fix, make the check deterministic | none | ready |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
