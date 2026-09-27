@@ -42,7 +42,6 @@
 
 static int IN_INCLUDED_FILE=0;
 char *save_eqn[MAXLINES];
-double default_val[MAXPAR];
 
 
 int *plotlist;
@@ -51,7 +50,6 @@ int N_plist;
 ACTION comments[MAXCOMMENTS];
 int n_comments=0;
 
-double default_ic[MAXODE];
 int NLINES;
 /* the boundary conditions' count */
 static int BVP_N;
@@ -543,7 +541,7 @@ int compiler(const std::string &bob, FILE *fptr)
   int nlin,i;
   done=1;
   if(bob[0]=='@'){
-    stor_internopts(bob.c_str());
+    add_model_option(bob.c_str());
     if(ConvertStyle)
       xpp::print(convertf,"{}\n",bob.c_str());
     return(done);
@@ -637,7 +635,7 @@ int compiler(const std::string &bob, FILE *fptr)
 	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",NLINES);
 	    xpp_model_failed();
 	  }
-	  default_val[xpp::model().nupar]=value;
+	  xpp::model().default_val[xpp::model().nupar]=value;
 	  xpp::model().upar_names[xpp::model().nupar++]=name;
 	  if(ConvertStyle)
 	    xpp::print(convertf,"{}={:g}  ",name,value);
@@ -667,7 +665,7 @@ int compiler(const std::string &bob, FILE *fptr)
       }
       xpp::model().uvar_names[IN_VARS+xpp::model().nmarkov]=name;
       last_ic[IN_VARS+xpp::model().nmarkov]=value;
-      default_ic[IN_VARS+xpp::model().nmarkov]=value;
+      xpp::model().default_ic[IN_VARS+xpp::model().nmarkov]=value;
       xpp::log(XPP_LOG_INFO, " Markov variable {}={:f} has {} states \n",name,value,nstates);
       if(OldStyle)add_markov(nstates,name.c_str());
       if(ConvertStyle)
@@ -705,7 +703,7 @@ int compiler(const std::string &bob, FILE *fptr)
 	    {
 	      xpp::model().uvar_names[IN_VARS]=name;
 	      last_ic[IN_VARS]=value;
-              default_ic[IN_VARS]=value;
+              xpp::model().default_ic[IN_VARS]=value;
 	      IN_VARS++;
 	      if(ConvertStyle)
 		xpp::print(convertf,"{}={:g}  ",name,value);
@@ -1390,7 +1388,7 @@ int parse_a_string(std::string &s1, VAR_INFO &v)
     return 0;
   }
   if(char_at(s1,0)=='@') {
-    stor_internopts(s1.c_str());
+    add_model_option(s1.c_str());
     return 0;
   }
   remove_blanks(s1);
@@ -1649,7 +1647,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
       }
       xpp::model().uvar_names[i]=vnames[i];
       last_ic[i]=0.0;
-      default_ic[i]=0.0;
+      xpp::model().default_ic[i]=0.0;
     }
  for(i=0;i<nfix;i++){
    if(add_var(fnames[i].c_str(),0.0)){
@@ -1664,7 +1662,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
       }
    xpp::model().uvar_names[i+nvar]=mnames[i];
    last_ic[i+nvar]=0.0;
-   default_ic[i+nvar]=0.0;
+   xpp::model().default_ic[i+nvar]=0.0;
  }
  for(i=0;i<naux;i++)
    aux_names[i]=anames[i];
@@ -1701,7 +1699,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	   in=find_the_name(vnames,IN_VARS,tmp);
 	   if(in>=0){
 	     last_ic[in]=z;
-	     default_ic[in]=z;
+	     xpp::model().default_ic[in]=z;
 	     set_val(tmp.c_str(),z);
 	     xpp::log(XPP_LOG_INFO, " Initial {}(0)={:g}\n",tmp,z);
 	   }
@@ -1709,7 +1707,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	     in=find_the_name(mnames,xpp::model().nmarkov,tmp);
 	     if(in>=0){
 	       last_ic[in+IN_VARS]=z;
-               default_ic[in+IN_VARS]=z;
+               xpp::model().default_ic[in+IN_VARS]=z;
 	       set_val(tmp.c_str(),z);
 	       xpp::log(XPP_LOG_INFO, " Markov {}(0)={:g}\n",tmp,z);
 	     }
@@ -1739,7 +1737,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
        in=find_the_name(vnames,IN_VARS,tmp);
        if(in>=0){
 	 last_ic[in]=z;
-         default_ic[in]=z;
+         xpp::model().default_ic[in]=z;
 	 set_val(tmp.c_str(),z);
 	   delay_string[in]=v.rhs;
 
@@ -1749,7 +1747,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 	 in=find_the_name(mnames,xpp::model().nmarkov,tmp);
 	 if(in>=0){
 	   last_ic[in+IN_VARS]=z;
-           default_ic[in+IN_VARS]=z;
+           xpp::model().default_ic[in+IN_VARS]=z;
 	   set_val(tmp.c_str(),z);
 	   xpp::log(XPP_LOG_INFO, " Markov {}(0)={:g}\n",tmp,z);
 	 }

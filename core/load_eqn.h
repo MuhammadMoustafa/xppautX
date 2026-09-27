@@ -218,6 +218,9 @@ void set_internopts(OptionsSet *mask);
 void set_internopts_xpprc_and_comline(void);
 void check_for_xpprc(void);
 void stor_internopts(const char *s1);
+/* an @ line of the model (form_ode.cpp's parser) kept in xpp::Model's
+   options, which set_internopts applies */
+void add_model_option(const char *s1);
 void set_option(const char *name, const char *s2, int force, OptionsSet *mask);
 
 #define XPP_NSLIDERS 3

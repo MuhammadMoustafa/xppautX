@@ -16,9 +16,6 @@ extern "C" {
    and the columns an "only" statement keeps (plotlist) */
 extern char *save_eqn[MAXLINES];
 extern int *plotlist,N_plist;
-/* the parameters' and variables' values as the model gives them */
-extern double default_val[MAXPAR];
-extern double default_ic[MAXODE];
 /* the source's line count (the model's other counts are xpp::Model's) */
 extern int NLINES;
 /* an old-style file being rewritten in the new syntax (-convert):

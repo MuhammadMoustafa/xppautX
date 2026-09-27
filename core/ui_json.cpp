@@ -558,12 +558,12 @@ void json_ui_hello(const char *title)
     BUF_LIT(&b, "],\"defaults\":{\"pars\":[");
     for (i = 0; i < xpp::model().nupar; i++) {
         if (i) BUF_LIT(&b, ",");
-        buf_num(&b, default_val[i], 16);
+        buf_num(&b, xpp::model().default_val[i], 16);
     }
     BUF_LIT(&b, "],\"ics\":[");
     for (i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) {
         if (i) BUF_LIT(&b, ",");
-        buf_num(&b, default_ic[i], 16);
+        buf_num(&b, xpp::model().default_ic[i], 16);
     }
     BUF_LIT(&b, "]}}");
     send_buf(&b);

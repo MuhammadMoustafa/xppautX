@@ -995,7 +995,7 @@ void do_batch_dry_run()
 		w.print("#Parameters query:\n");
 		for(int i=0;i<xpp::model().nupar;i++)
 		{
-			w.print("{} {:f}\n",xpp::model().upar_names[i],default_val[i]);
+			w.print("{} {:f}\n",xpp::model().upar_names[i],xpp::model().default_val[i]);
 		}
 	}
 

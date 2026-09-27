@@ -126,6 +126,17 @@ struct Model {
   std::array<AlgebraicVariable,MAXDAE> svars;
   std::array<AlgebraicEquation,MAXDAE> aeqns;
 
+  /* ---- the model's own values and options ---- */
+  /* the parameters' values and the variables' initial conditions as the
+     model gives them (the ones in use are the Session's: constants,
+     last_ic) */
+  std::array<double,MAXPAR> default_val{};
+  std::array<double,MAXODE> default_ic{};
+  /* its @ lines, each whole, as read: load_eqn.cpp's set_internopts
+     sets the numerics and plot settings from them (their current values
+     are the Session's) */
+  std::vector<std::string> options;
+
   /* ---- delays, integral equations, Markov chains, networks ---- */
   /* the delay terms the parser compiled (delay(), a delayed network) */
   int ndelays=0;

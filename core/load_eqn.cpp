@@ -54,9 +54,25 @@ OptionsSet notAlreadySet;
 
 namespace {
 
-/* the @ option lines .xpprc and the command line stored for
-   set_internopts, each whole */
+/* the @ option lines of .xpprc, each whole, until
+   set_internopts_xpprc_and_comline applies them (the model's own are
+   xpp::Model's options) */
 std::vector<std::string> interopt;
+
+/* how many of the model's options set_internopts has applied: each call
+   applies those the parser added since the call before (xpp_load_model's,
+   after the parse, applies them all; set_all_vals' own finds none new) */
+std::size_t options_applied=0;
+
+/* s1 appended to options, unless they already hold MAXOPT */
+void store_option(std::vector<std::string> &options, const char *s1)
+{
+  if(options.size()>=MAXOPT){
+   xpp_log(XPP_LOG_WARN, "to many options set %s ignored\n",s1);
+    return;
+  }
+  options.emplace_back(s1);
+}
 
 /* "name=value" split at its first '='; value "" when there is none */
 void split_apart(std::string_view bob, std::string &name, std::string &value)
@@ -192,6 +208,7 @@ void load_eqn()
 {
  int okay=0;
  int std=0;
+ options_applied=0;
  init_ar_ic();
  for(int i=0;i<MAXODE;i++)
  {
@@ -486,11 +503,11 @@ int msc(const char *s1, const char *s2)
   
 void set_internopts(OptionsSet *mask)
 {
-  for(const std::string &opt : interopt)
-    each_option(opt," ,"," ,\n\r",[mask](const std::string &name,const std::string &value){
+  const std::vector<std::string> &options=xpp::model().options;
+  for(;options_applied<options.size();options_applied++)
+    each_option(options[options_applied]," ,"," ,\n\r",[mask](const std::string &name,const std::string &value){
       set_option(name.c_str(),value.c_str(),0,mask);
     });
-  interopt.clear();
 }
 
 void set_internopts_xpprc_and_comline()
@@ -539,11 +556,12 @@ void check_for_xpprc()
 
 void stor_internopts(const char *s1)
 {
-  if(interopt.size()>=MAXOPT){
-   xpp_log(XPP_LOG_WARN, "to many options set %s ignored\n",s1);
-    return;
-  }
-  interopt.emplace_back(s1);
+  store_option(interopt,s1);
+}
+
+void add_model_option(const char *s1)
+{
+  store_option(xpp::model().options,s1);
 }
 
 void set_option(const char *name, const char *s2, int force, OptionsSet *mask)

@@ -453,8 +453,8 @@ void   set_default_params()
  {
 
  for(int i=0;i<xpp::model().nupar;i++){
-   set_val(xpp::model().upar_names[i],default_val[i]);
-   xpp_ui.param_box_set(i,xpp::format("{:.16g}",default_val[i]).c_str());
+   set_val(xpp::model().upar_names[i],xpp::model().default_val[i]);
+   xpp_ui.param_box_set(i,xpp::format("{:.16g}",xpp::model().default_val[i]).c_str());
  }
  
  redraw_params();
@@ -469,7 +469,7 @@ void   set_default_ics()
 {
   int i;
   for(i=0;i<xpp::model().node+xpp::model().nmarkov;i++)
-    last_ic[i]=default_ic[i];
+    last_ic[i]=xpp::model().default_ic[i];
    redraw_ics();
 }
 

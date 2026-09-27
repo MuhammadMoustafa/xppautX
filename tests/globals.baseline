@@ -11,7 +11,7 @@ core/comline.cpp 8
 core/commands.cpp 2
 core/delay_handle.cpp 9
 core/flags.cpp 1
-core/form_ode.cpp 10
+core/form_ode.cpp 8
 core/gear.cpp 5
 core/gogoauto.cpp 3
 core/graf_par.cpp 2
