@@ -51,7 +51,6 @@ struct KernelState {
 std::array<KernelState,MAXKER> kstate;
 }
 
-int AutoEvaluate=0;
 
 double ker_val(int in)
 {
@@ -115,7 +114,7 @@ void re_evaluate_kernels()
   std::array<KERNEL,MAXKER> &kernels=xpp::model().kernels;
   int i,j,n=xpp::session().numerics.max_points;
 
-  if(AutoEvaluate==0)return;
+  if(xpp::session().numerics.auto_evaluate==0)return;
   for(i=0;i<xpp::model().nkernel;i++){
     if(kernels[i].flag==CONV){
       for(j=0;j<=n;j++){

@@ -236,7 +236,7 @@ void find_bvp_com(int com)
  wipe_rep();
  data_back();
  compile_bvp();
- if(xpp::session().numerics.fft||xpp::session().numerics.hist||DelayFlag||xpp::session().numerics.bvp_flag==0)return;
+ if(xpp::session().numerics.fft||xpp::session().numerics.hist||xpp::session().delay.flag||xpp::session().numerics.bvp_flag==0)return;
  xpp::session().numerics.storflag=0;
  xpp::session().integrator.range_flag=1;
  xpp::session().numerics.poimap=0;

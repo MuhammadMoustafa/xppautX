@@ -21,5 +21,17 @@ int ggear(int n, double *t, double tout, double *y, double hmin, double hmax, do
 
 #ifdef __cplusplus
 }
+
+#include <array>
+#include "xpplim.h"
+/* Sing pts' shooting (gear.cpp), a Session's (session.h): the initial
+   conditions it found along the unstable and stable manifolds (count of
+   ic, ic_flag once there are any), and the manifolds' colours (@ smc=,
+   umc=) */
+struct ManifoldShots {
+  std::array<std::array<double, MAXODE>, 8> ic{};
+  int ic_flag = 0, count = 0;
+  int stable_color = 8, unstable_color = 5;
+};
 #endif
 #endif

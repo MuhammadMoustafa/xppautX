@@ -31,18 +31,11 @@ void post_process_stuff();
 void just_fourier(int flag);
 void just_sd(int flag);
 
-/* histogram.cpp's results, read back by the data browser and the tests:
-   the last histogram and Fourier transform's columns, whether one exists
-   and its length, and the spectrum's settings (the model's own
-   @ options set spec_*) */
-extern float **my_hist;
-extern float **my_four;
-extern int HIST_HERE, FOUR_HERE, hist_len, four_len;
-extern int spec_col, spec_wid, spec_win, spec_col2;
-extern int post_process;
 
 #ifdef __cplusplus
 }
+
+#include "storage.h"
 
 /* the histogram / spectrum settings the dialogs and the model's own
    @ options edit (load_eqn.cpp's option reader; cond, the histogram's
@@ -54,7 +47,21 @@ struct HIST_INFO {
   std::string cond;
 };
 
-extern HIST_INFO hist_inf;
+/* histogram.cpp's settings and results, a Session's (session.h): the
+   histogram and spectrum settings, the last histogram and Fourier
+   transform's columns (storage.h's LentColumns: read back by the data
+   browser and the tests),
+   whether one exists and its length, and the spectrum's settings (the
+   model's own @ options set spec_*) and a batch run's post-processing */
+struct HistogramState {
+  HIST_INFO info{100,100,1,1,0,0,1,0,1,""};
+  LentColumns hist_columns, four_columns;
+  float **hist() noexcept { return hist_columns.table(); }
+  float **four() noexcept { return four_columns.table(); }
+  int hist_here=0, four_here=0, hist_len=0, four_len=0;
+  int spec_col=1, spec_wid=512, spec_win=2, spec_col2=1;
+  int post_process=0;
+};
 #endif
 #endif
 

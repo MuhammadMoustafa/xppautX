@@ -17,10 +17,7 @@
 /* this code takes the determinant of a complex valued matrix
 */
 
-extern double variable_shift[2][MAXODE];
 
-extern double delay_list[MAXDELAY];
-extern int NDelay,WhichDelay;
 
 /* The
  code here replaces the do_sing code if the equation is
@@ -38,30 +35,30 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
 
  std::vector<double> ev(2*n, 0.0);
  /* first we establish how many delays there are */
- del_stab_flag=0;
+ xpp::session().delay.stab_flag=0;
  for(i=0;i<n;i++)old_x[i]=x[i];
  std::vector<double> work(kmem);
  rooter(x,err,eps,big,work.data(),ierr,maxit,n);
  if(*ierr!=0)
    {
-     del_stab_flag=1;
+     xpp::session().delay.stab_flag=1;
      err_msg("Could not converge to root");
      for(i=0;i<n;i++)x[i]=old_x[i];
      return;
    }
  /* OKAY -- we have the root */
- NDelay=0;
+ xpp::session().delay.ndelay=0;
  xpp::session().integrator.rhs(0.0,x,y,n); /* one more evaluation to get delays */
  for(i=0;i<n;i++){
-   variable_shift[0][i]=x[i];  /* unshifted  */
-   variable_shift[1][i]=x[i];
+   xpp::session().delay.variable_shift[0][i]=x[i];  /* unshifted  */
+   xpp::session().delay.variable_shift[1][i]=x[i];
  }
- std::vector<double> coef(static_cast<size_t>(n)*n*(NDelay+1));
+ std::vector<double> coef(static_cast<size_t>(n)*n*(xpp::session().delay.ndelay+1));
 
  /* now we must compute a bunch of jacobians  */
  /* first the normal one   */
- del_stab_flag=-1;
- WhichDelay=-1;
+ xpp::session().delay.stab_flag=-1;
+ xpp::session().delay.which=-1;
  colmax=0.0;
  
  for(i=0;i<n;i++)
@@ -80,17 +77,17 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
  colnorm=colmax;
  for(j=0;j<n;j++)xp[j]=x[j];
  /* now the jacobians for the delays */
- for(k=0;k<NDelay;k++){
-   WhichDelay=k;
+ for(k=0;k<xpp::session().delay.ndelay;k++){
+   xpp::session().delay.which=k;
    colmax=0.0;
    for(i=0;i<n;i++){
      colsum=0.0;
      for(j=0;j<n;j++)
-       variable_shift[1][j]=variable_shift[0][j];
+       xpp::session().delay.variable_shift[1][j]=xpp::session().delay.variable_shift[0][j];
      dx=eps*std::max(eps,fabs(x[i]));
-     variable_shift[1][i]=x[i]+dx;
+     xpp::session().delay.variable_shift[1][i]=x[i]+dx;
      xpp::session().integrator.rhs(0.0,x,yp,n);
-     variable_shift[1][i]=x[i];
+     xpp::session().delay.variable_shift[1][i]=x[i];
      for(j=0;j<n;j++){
        coef[j*n+i+n*n*(k+1)]=(yp[j]-y[j])/dx;
        colsum+=fabs(coef[j*n+i+n*n*(k+1)]);
@@ -99,24 +96,24 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
    }
    colnorm+=colmax;
  }
- sign=plot_args(coef.data(),delay_list,n,NDelay,DelayGrid,colnorm,colnorm);
+ sign=plot_args(coef.data(),xpp::session().delay.list.data(),n,xpp::session().delay.ndelay,xpp::session().delay.grid,colnorm,colnorm);
 
- okroot=find_positive_root(coef.data(),delay_list,n,NDelay,colnorm,err,eps,big,maxit,rr);
+ okroot=find_positive_root(coef.data(),xpp::session().delay.list.data(),n,xpp::session().delay.ndelay,colnorm,err,eps,big,maxit,rr);
  if(okroot>0){
    ev[0]=rr[0];
    ev[1]=rr[1];
  }
  *stabinfo=static_cast<float>(fabs(sign));
  i=static_cast<int>(sign);
-if(i==0&&okroot==1&&AlphaMax>0)
+if(i==0&&okroot==1&&xpp::session().delay.alpha_max>0)
   i=2;
 
  /* no eigenvalue list: a delay equation has infinitely many; the
     counts say which way the dominant root lies */
  create_eq_box(abs(i),2,0,0,0,x,NULL,n);
  /* DING; */
- del_stab_flag=1;
- if(okroot==1)*stabinfo=AlphaMax;
+ xpp::session().delay.stab_flag=1;
+ if(okroot==1)*stabinfo=xpp::session().delay.alpha_max;
 }
 
 COMPLEX cdif(COMPLEX z, COMPLEX w)
@@ -238,8 +235,8 @@ int find_positive_root(double *coef, double *delay, int n, int m, double rad, do
 
   int k;
 
-    lambda.r=AlphaMax;
-    lambda.i=OmegaMax;
+    lambda.r=xpp::session().delay.alpha_max;
+    lambda.i=xpp::session().delay.omega_max;
 
    std::vector<COMPLEX> z(static_cast<size_t>(n)*n);
 
@@ -252,8 +249,8 @@ int find_positive_root(double *coef, double *delay, int n, int m, double rad, do
     r=c_abs(det);
     if(r<err){ /* within the tolerance */
       process_root(lambda.r,lambda.i);
-      AlphaMax=lambda.r;
-      OmegaMax=lambda.i;
+      xpp::session().delay.alpha_max=lambda.r;
+      xpp::session().delay.omega_max=lambda.i;
       return 1;
     }
     xl=lambda.r;
@@ -295,10 +292,10 @@ int find_positive_root(double *coef, double *delay, int n, int m, double rad, do
     if(r<err)
     { /* within the tolerance */
       process_root(lambda.r,lambda.i);
-      AlphaMax=lambda.r;
-      OmegaMax=lambda.i;
-      rr[0]=AlphaMax;
-      rr[1]=OmegaMax;
+      xpp::session().delay.alpha_max=lambda.r;
+      xpp::session().delay.omega_max=lambda.i;
+      rr[0]=xpp::session().delay.alpha_max;
+      rr[1]=xpp::session().delay.omega_max;
       return 1;
     }
     if(r>big){

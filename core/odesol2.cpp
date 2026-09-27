@@ -114,7 +114,7 @@ int one_bak_step(double *y, double *t, double dt, int neq, double *yg, double *y
   double err=0.0,err1=0.0;
   
   int iter=0,info,ipivot[MAXODE1];
-  int ml=cv_bandlower,mr=cv_bandupper,mt=ml+mr+1;
+  int ml=xpp::session().numerics.cv_bandlower,mr=xpp::session().numerics.cv_bandupper,mt=ml+mr+1;
   set_wieners(dt,y,*t);
   *t=*t+dt;
   xpp::session().integrator.rhs(*t,y,yp2,neq);
@@ -130,7 +130,7 @@ int one_bak_step(double *y, double *t, double dt, int neq, double *yg, double *y
 	ytemp[i]=yg[i];
       }
       get_the_jac(*t,yg,yp,ytemp,jac,neq,xpp::session().numerics.newt_err,-.5*dt);
-      if(cv_bandflag){
+      if(xpp::session().numerics.cv_bandflag){
 	for(i=0;i<neq;i++)
 	  jac[i*mt+ml]+=1;
 	bandfac(jac,ml,mr,neq);
@@ -409,7 +409,7 @@ int *istart,int n,double *work,int *ierr)
  double thresh=atol/rtol,absh,h;
  double d=1/(2.+sqrt(2.)),e32=6.+sqrt(2.),tnew;
  /*double ninf;  Is this needed?*/
- int i,n2=n*n,done=0,info,ml=cv_bandlower,mr=cv_bandupper,mt=ml+mr+1;
+ int i,n2=n*n,done=0,info,ml=xpp::session().numerics.cv_bandlower,mr=xpp::session().numerics.cv_bandupper,mt=ml+mr+1;
  int ipivot[MAXODE1],nofailed;
  double temp,err,tdel;
  double *ypnew,*k1,*k2,*k3,*f0,*f1,*f2,*dfdt,*ynew,*dfdy;
@@ -453,7 +453,7 @@ int *istart,int n,double *work,int *ierr)
 	 dfdy[i]=-h*d*dfdy[i];
        for(i=0;i<n;i++)
 	 k1[i]=f0[i]+(h*d)*dfdt[i];
-       if(cv_bandflag){
+       if(xpp::session().numerics.cv_bandflag){
 	  for(i=0;i<n;i++)
 	 dfdy[i*mt+ml]+=1;
         
@@ -472,7 +472,7 @@ int *istart,int n,double *work,int *ierr)
        xpp::session().integrator.rhs(t+.5*h,ynew,f1,n);
        for(i=0;i<n;i++)
 	 k2[i]=f1[i]-k1[i];
-       if(cv_bandflag)
+       if(xpp::session().numerics.cv_bandflag)
 	 bandsol(dfdy,k2,ml,mr,n);
        else
 	 sgesl(dfdy,n,n,ipivot,k2);
@@ -484,7 +484,7 @@ int *istart,int n,double *work,int *ierr)
        xpp::session().integrator.rhs(tnew,ynew,f2,n);
        for(i=0;i<n;i++)
 	 k3[i]=f2[i] - e32*(k2[i] - f1[i]) - 2*(k1[i] - f0[i]) + (h*d)*dfdt[i];
-       if(cv_bandflag)
+       if(xpp::session().numerics.cv_bandflag)
 	 bandsol(dfdy,k3,ml,mr,n);
        else
 	 sgesl(dfdy,n,n,ipivot,k3);
@@ -536,7 +536,7 @@ void get_the_jac(double t,double *y,double *yp,
 {
   int i,j;
   double yold,del,dsy;
-  if(cv_bandflag)
+  if(xpp::session().numerics.cv_bandflag)
     get_band_jac(dfdy,y,t,ypnew,yp,neq,eps,scal);
   else {
     for(i=0;i<neq;i++){
@@ -554,7 +554,7 @@ void get_the_jac(double t,double *y,double *yp,
 
 void get_band_jac(double *a, double *y, double t, double *ypnew, double *ypold, int n, double eps, double scal)
 {
-  int ml=cv_bandlower,mr=cv_bandupper;
+  int ml=xpp::session().numerics.cv_bandlower,mr=xpp::session().numerics.cv_bandupper;
   int i,j,k,n1=n-1,mt=ml+mr+1;
   double yhat;
   double dy;

@@ -103,7 +103,7 @@ void get_fit_info(double *y, double *a, double *t0, int *flag, double eps, doubl
   for(i=0;i<xpp::model().node;i++){
     yold[i]=y[i];
   }
-  if(DelayFlag){
+  if(xpp::session().delay.flag){
    /* restart initial data */
    if(do_init_delay(xpp::session().numerics.delay)==0)return;
   }
@@ -155,7 +155,7 @@ evaluate_derived();
 	  yderv[l][j]=1.0;  /* ... except for those ICs that can vary */
       }
     }
-    if(DelayFlag){
+    if(xpp::session().delay.flag){
    /* restart initial data */
    if(do_init_delay(xpp::session().numerics.delay)==0)return;
   }

@@ -30,14 +30,23 @@ void  init_stoch(int len);
 void  append_stoch(int first, int length);
 void  do_stats(int ierr);
 
-/* stocHast's many-runs state (markov.cpp): whether a Compute is running,
-   whether its mean and variance exist, the number of trials and the
-   length of each run, and the mean and variance columns */
-extern int STOCH_FLAG, STOCH_HERE, N_TRIALS, stoch_len;
-extern float *my_mean[], *my_variance[];
-
-
 #ifdef __cplusplus
 }
+
+#include <array>
+#include <vector>
+#include "xpplim.h"
+/* stocHast's many-runs state (markov.cpp), a Session's (session.h):
+   whether a Compute is running (flag), whether its mean and variance
+   exist (here), the number of trials and the length of each run, and the
+   mean and variance columns. The browser (new_browse_dat, browse.h) takes
+   the statistics as a plain float ** of MAXODE rows, so mean/variance
+   are arrays of row pointers, each into the vector of mean_rows/
+   variance_rows that owns it. */
+struct StochasticState {
+  int flag = 0, here = 0, n_trials = 0, len = 0;
+  std::array<float *, MAXODE> mean{}, variance{};
+  std::array<std::vector<float>, MAXODE> mean_rows, variance_rows;
+};
 #endif
 #endif

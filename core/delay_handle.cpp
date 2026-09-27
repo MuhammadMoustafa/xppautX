@@ -15,8 +15,6 @@
 #include "form_ode.h"
 #include "model.h"
 
-double AlphaMax=2,OmegaMax=2;
-
 namespace {
 /* the stored history, NODE values per row, MaxDelay rows (a ring,
    LatestDelay its newest row) */
@@ -24,34 +22,29 @@ std::vector<double> DelayWork;
 }
 static int LatestDelay;
 static int MaxDelay;
-int DelayFlag=0;
-
-int NDelay,del_stab_flag,WhichDelay,DelayGrid=1000;
-double variable_shift[2][MAXODE];
-double delay_list[MAXDELAY];
 
 double delay_stab_eval(double delay, int var)  /* this returns appropriate values for delay jacobian */
 {
   int i;
 
-  if(del_stab_flag==0) /* search for all delays  */
+  if(xpp::session().delay.stab_flag==0) /* search for all delays  */
     {
-      for(i=0;i<NDelay;i++){
-	if(delay==delay_list[i])
+      for(i=0;i<xpp::session().delay.ndelay;i++){
+	if(delay==xpp::session().delay.list[i])
 	  return(GETVAR(var));
       }
-      delay_list[NDelay]=delay;
-      NDelay++;
+      xpp::session().delay.list[xpp::session().delay.ndelay]=delay;
+      xpp::session().delay.ndelay++;
       return(GETVAR(var));
     }
  /*  now we must determine the value to return  */
  /*  del_stab_flag =-1 */    
-     for(i=0;i<NDelay;i++){
-       if(delay==delay_list[i])
-	if(i==WhichDelay)
-	  return variable_shift[1][var-1];
+     for(i=0;i<xpp::session().delay.ndelay;i++){
+       if(delay==xpp::session().delay.list[i])
+	if(i==xpp::session().delay.which)
+	  return xpp::session().delay.variable_shift[1][var-1];
      }
-   return variable_shift[0][var-1];
+   return xpp::session().delay.variable_shift[0][var-1];
 }
 
 int alloc_delay(double big)
@@ -62,26 +55,26 @@ int alloc_delay(double big)
 
  MaxDelay=n;
  LatestDelay=1;
- DelayFlag=0;
+ xpp::session().delay.flag=0;
  DelayWork.assign(n*(xpp::model().node ),0.0);
- DelayFlag=1;
- NDelay=0;
- WhichDelay=-1;
- del_stab_flag=1;
+ xpp::session().delay.flag=1;
+ xpp::session().delay.ndelay=0;
+ xpp::session().delay.which=-1;
+ xpp::session().delay.stab_flag=1;
  return(1);
 }
 
 void free_delay()
 {
- if(DelayFlag)DelayWork=std::vector<double>();
- DelayFlag=0;
+ if(xpp::session().delay.flag)DelayWork=std::vector<double>();
+ xpp::session().delay.flag=0;
 }
 
 void stor_delay(double *y)
 {
  int i,in;
  int nodes=xpp::model().node;
- if(DelayFlag==0)return;
+ if(xpp::session().delay.flag==0)return;
  --LatestDelay;
  if(LatestDelay<0)LatestDelay+=MaxDelay;
  in=LatestDelay*(nodes );

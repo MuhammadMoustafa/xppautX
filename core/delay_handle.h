@@ -5,10 +5,6 @@
 extern "C" {
 #endif
 
-/* delay_handle.cpp: the delay equations' settings (DelayFlag: the model
-   has delays; DelayGrid, AlphaMax, OmegaMax: the stability search's) */
-extern int DelayFlag,DelayGrid,del_stab_flag;
-extern double AlphaMax,OmegaMax;
 double delay_stab_eval(double delay, int var);
 int alloc_delay(double big);
 void free_delay(void);
@@ -19,5 +15,20 @@ int do_init_delay(double big);
 
 #ifdef __cplusplus
 }
+
+#include <array>
+#include "xpplim.h"
+/* the delay equations' state (delay_handle.cpp, del_stab.cpp), a
+   Session's (session.h): the model has delays (flag); the stability
+   search's grid and bounds (grid, alpha_max, omega_max), whether the
+   Jacobian's delayed terms are being evaluated (stab_flag) and for which
+   delay (which), the delays found (ndelay of list) and the variables'
+   shifts they read */
+struct DelayState {
+  int flag = 0, grid = 1000, stab_flag = 0, which = 0, ndelay = 0;
+  double alpha_max = 2, omega_max = 2;
+  std::array<std::array<double, MAXODE>, 2> variable_shift{};
+  std::array<double, MAXDELAY> list{};
+};
 #endif
 #endif

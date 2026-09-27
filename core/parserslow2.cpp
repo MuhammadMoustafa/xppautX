@@ -1345,8 +1345,8 @@ double do_delay_shift(double delay, double shift, double variable)
   if(in>MAXODE)
     return 0.0;
  
-  if(del_stab_flag>0){
-    if(DelayFlag&&delay>0.0)
+  if(xpp::session().delay.stab_flag>0){
+    if(xpp::session().delay.flag&&delay>0.0)
       return(get_delay(in-1,delay));
     return(xpp::session().parser.variables[in]);
   }
@@ -1361,8 +1361,8 @@ double do_delay(double delay, double i)
     /* ram - this was a little weird, since i is a double... except I think it's secretely an integer */
     variable = (static_cast<int>(i)) % MAXTYPE;
 
-  if(del_stab_flag>0){
-    if(DelayFlag&&delay>0.0) {
+  if(xpp::session().delay.stab_flag>0){
+    if(xpp::session().delay.flag&&delay>0.0) {
       return(get_delay(variable-1,delay));
     }
     return(xpp::session().parser.variables[variable]);

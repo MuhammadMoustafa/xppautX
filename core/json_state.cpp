@@ -93,7 +93,7 @@ void send_state(void)
         BUF_LIT(&b, "]");
     }
     BUF_LIT(&b, "]");
-    if (DelayFlag) {
+    if (xpp::session().delay.flag) {
         BUF_LIT(&b, ",\"delays\":[");
         for (i = 0; i < xpp::model().node; i++) {
             if (i) BUF_LIT(&b, ",");

@@ -1,4 +1,5 @@
 #include "model.h"
+#include "session.h"
 #include "flags.h"
 #include "form_ode.h"
 #include "xpp_ui.h"
@@ -105,7 +106,6 @@ struct FlagState {
 std::array<FlagState,MAXFLAG> fstate;
 }
 
-double STOL=1.e-10;
 
 /* rest is "{name=formula;name=formula;...}" (spaces ignored): the flag's
    events, in order */
@@ -304,8 +304,8 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
 
   } /* run through flags */
  
-   if(smin<STOL)smin=STOL;
-  else smin=(1+STOL)*smin;  
+   if(smin<xpp::session().numerics.stol)smin=xpp::session().numerics.stol;
+  else smin=(1+xpp::session().numerics.stol)*smin;  
   if(smin>1.0)return(0);
 
   *tnew=told+dt*smin;

@@ -5,9 +5,6 @@ extern "C" {
 #endif
 
 
-/* the global flags' crossing tolerance (the flags are xpp::Model's) */
-extern double STOL;
-
 /* flags.c */
 int add_global(const char *cond, int sign, const char *rest);
 int compile_flags(void);

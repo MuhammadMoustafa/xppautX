@@ -120,7 +120,6 @@ std::string read_line(FILE *fp)
 } // namespace
 
 
-extern int StableManifoldColor,UnstableManifoldColor; /* gear.cpp's, in no header */
 
 /*   this file has all of the phaseplane parameters defined   
      and created.  All other files should use external stuff
@@ -212,7 +211,7 @@ void set_all_vals()
  if (xpp::session().not_already_set.EVEC_ERR){xpp::session().numerics.evec_err=.001;xpp::session().not_already_set.EVEC_ERR=0;};
  if (xpp::session().not_already_set.NEWT_ERR){xpp::session().numerics.newt_err=.001;xpp::session().not_already_set.NEWT_ERR=0;};
  if (xpp::session().not_already_set.NULL_HERE){xpp::session().numerics.null_here=0;xpp::session().not_already_set.NULL_HERE=0;};
- del_stab_flag=DFNORMAL;
+ xpp::session().delay.stab_flag=DFNORMAL;
  if (xpp::session().not_already_set.DTMAX){xpp::session().numerics.hmax=1.000;xpp::session().not_already_set.DTMAX=0;};
  if (xpp::session().not_already_set.POIMAP){xpp::session().numerics.poimap=0;xpp::session().not_already_set.POIMAP=0;};
  if (xpp::session().not_already_set.POIVAR){xpp::session().numerics.poivar=1;xpp::session().not_already_set.POIVAR=0;};
@@ -649,7 +648,7 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
 	  i=atoi(s2);
 	  if(i>-1&&i<11)
 	  {
-	   YNullColor=i;
+	   xpp::session().nullclines.y_null_color=i;
 	  }
 	   xpp::session().not_already_set.YNullColor=0;
     }
@@ -661,7 +660,7 @@ if(msc("XNC",s1)){
 	    i=atoi(s2);
 	  if(i>-1&&i<11)
 	  {
-	   XNullColor=i; 
+	   xpp::session().nullclines.x_null_color=i; 
 	   xpp::session().not_already_set.XNullColor=0;
 	  }
 	  
@@ -677,7 +676,7 @@ if(msc("SMC",s1)){
 	  i=atoi(s2);
 	  if(i>-1&&i<11)
 	  {
-	   StableManifoldColor=i;
+	   xpp::session().manifolds.stable_color=i;
 	   xpp::session().not_already_set.StableManifoldColor=0;
 	  }
     }
@@ -689,7 +688,7 @@ if(msc("UMC",s1)){
 	    i=atoi(s2);
 	    if(i>-1&&i<11)
 	    {
-	     UnstableManifoldColor=i;
+	     xpp::session().manifolds.unstable_color=i;
 	     xpp::session().not_already_set.UnstableManifoldColor=0;
 	    }
     }
@@ -1027,8 +1026,8 @@ if(msc(yyl.c_str(),s1)){
    if(msc("BANDUP",s1)){
      if ((xpp::session().not_already_set.BANDUP||force) || ((mask!=NULL)&&(mask->BANDUP==1)))
      {
-     	cv_bandflag=1;
-     	cv_bandupper=atoi(s2);
+     	xpp::session().numerics.cv_bandflag=1;
+     	xpp::session().numerics.cv_bandupper=atoi(s2);
      	xpp::session().not_already_set.BANDUP=0;
      }
      return;
@@ -1036,8 +1035,8 @@ if(msc(yyl.c_str(),s1)){
   if(msc("BANDLO",s1)){
      if ((xpp::session().not_already_set.BANDLO||force) || ((mask!=NULL)&&(mask->BANDLO==1)))
      {
-     	cv_bandflag=1;
-     	cv_bandlower=atoi(s2);
+     	xpp::session().numerics.cv_bandflag=1;
+     	xpp::session().numerics.cv_bandlower=atoi(s2);
      	xpp::session().not_already_set.BANDLO=0;
      }
      return;
@@ -1203,7 +1202,7 @@ if(msc(yyl.c_str(),s1)){
  if(msc("STOCH",s1)){
      if ((xpp::session().not_already_set.STOCH||force)|| ((mask!=NULL)&&(mask->STOCH==1)))
      {
-   	STOCH_FLAG=atoi(s2);
+   	xpp::session().stochastic.flag=atoi(s2);
 	xpp::session().not_already_set.STOCH=0;
      }
    return;
@@ -1639,7 +1638,7 @@ if(msc("SLO2",s1)){
  if(msc("POSTPROCESS",s1)){
      if ((xpp::session().not_already_set.POSTPROCESS||force) || ((mask!=NULL)&&(mask->POSTPROCESS==1)))
      {
-    	post_process=atoi(s2);
+    	xpp::session().histogram.post_process=atoi(s2);
 	xpp::session().not_already_set.POSTPROCESS=0;
      }
     return;
@@ -1648,7 +1647,7 @@ if(msc("SLO2",s1)){
  if(msc("HISTLO",s1)){
      if ((xpp::session().not_already_set.HISTLO||force) || ((mask!=NULL)&&(mask->HISTLO==1)))
      {
-    	hist_inf.xlo=atof(s2);
+    	xpp::session().histogram.info.xlo=atof(s2);
 	xpp::session().not_already_set.HISTLO=0;
      }
     return;
@@ -1657,7 +1656,7 @@ if(msc("SLO2",s1)){
  if(msc("HISTHI",s1)){
      if ((xpp::session().not_already_set.HISTHI||force) || ((mask!=NULL)&&(mask->HISTHI==1)))
      {
-    	hist_inf.xhi=atof(s2);
+    	xpp::session().histogram.info.xhi=atof(s2);
 	xpp::session().not_already_set.HISTHI=0;
      }
     return;
@@ -1666,7 +1665,7 @@ if(msc("SLO2",s1)){
  if(msc("HISTBINS",s1)){
      if ((xpp::session().not_already_set.HISTBINS||force) || ((mask!=NULL)&&(mask->HISTBINS==1)))
      {
-    	hist_inf.nbins=atoi(s2);
+    	xpp::session().histogram.info.nbins=atoi(s2);
 	xpp::session().not_already_set.HISTBINS=0;
      }
     return;
@@ -1676,7 +1675,7 @@ if(msc("SLO2",s1)){
      if ((xpp::session().not_already_set.HISTCOL||force) || ((mask!=NULL)&&(mask->HISTCOL==1)))
      {
        find_variable(s2,&i);
-       if(i>(-1)) hist_inf.col=i;
+       if(i>(-1)) xpp::session().histogram.info.col=i;
 	xpp::session().not_already_set.HISTCOL=0;
      }
     return;
@@ -1685,7 +1684,7 @@ if(msc("SLO2",s1)){
  if(msc("HISTLO2",s1)){
      if ((xpp::session().not_already_set.HISTLO2||force) || ((mask!=NULL)&&(mask->HISTLO2==1)))
      {
-    	hist_inf.ylo=atof(s2);
+    	xpp::session().histogram.info.ylo=atof(s2);
 	xpp::session().not_already_set.HISTLO2=0;
      }
     return;
@@ -1694,7 +1693,7 @@ if(msc("SLO2",s1)){
  if(msc("HISTHI2",s1)){
      if ((xpp::session().not_already_set.HISTHI2||force) || ((mask!=NULL)&&(mask->HISTHI2==1)))
      {
-    	hist_inf.yhi=atof(s2);
+    	xpp::session().histogram.info.yhi=atof(s2);
 	xpp::session().not_already_set.HISTHI2=0;
      }
     return;
@@ -1703,7 +1702,7 @@ if(msc("SLO2",s1)){
  if(msc("HISTBINS2",s1)){
      if ((xpp::session().not_already_set.HISTBINS2||force) || ((mask!=NULL)&&(mask->HISTBINS2==1)))
      {
-    	hist_inf.nbins2=atoi(s2);
+    	xpp::session().histogram.info.nbins2=atoi(s2);
 	xpp::session().not_already_set.HISTBINS2=0;
      }
     return;
@@ -1713,7 +1712,7 @@ if(msc("SLO2",s1)){
      if ((xpp::session().not_already_set.HISTCOL2||force) || ((mask!=NULL)&&(mask->HISTCOL2==1)))
      {
        find_variable(s2,&i);
-       if(i>(-1)) hist_inf.col2=i;
+       if(i>(-1)) xpp::session().histogram.info.col2=i;
 	xpp::session().not_already_set.HISTCOL2=0;
      }
     return;
@@ -1723,7 +1722,7 @@ if(msc("SLO2",s1)){
      if ((xpp::session().not_already_set.SPECCOL||force) || ((mask!=NULL)&&(mask->SPECCOL==1)))
      {
        find_variable(s2,&i);
-       if(i>(-1)) spec_col=i;
+       if(i>(-1)) xpp::session().histogram.spec_col=i;
 	xpp::session().not_already_set.SPECCOL=0;
      }
     return;
@@ -1733,7 +1732,7 @@ if(msc("SLO2",s1)){
      if ((xpp::session().not_already_set.SPECCOL2||force) || ((mask!=NULL)&&(mask->SPECCOL2==1)))
      {
        find_variable(s2,&i);
-       if(i>(-1)) spec_col2=i;
+       if(i>(-1)) xpp::session().histogram.spec_col2=i;
 	xpp::session().not_already_set.SPECCOL2=0;
      }
     return;
@@ -1742,7 +1741,7 @@ if(msc("SLO2",s1)){
  if(msc("SPECWIDTH",s1)){
      if ((xpp::session().not_already_set.SPECWIDTH||force) || ((mask!=NULL)&&(mask->SPECWIDTH==1)))
      {
-       spec_wid=atoi(s2);
+       xpp::session().histogram.spec_wid=atoi(s2);
 	xpp::session().not_already_set.SPECWIDTH=0;
      }
     return;
@@ -1751,7 +1750,7 @@ if(msc("SLO2",s1)){
  if(msc("SPECWIN",s1)){
      if ((xpp::session().not_already_set.SPECWIN||force) || ((mask!=NULL)&&(mask->SPECWIN==1)))
      {
-       spec_win=atoi(s2);
+       xpp::session().histogram.spec_win=atoi(s2);
 	xpp::session().not_already_set.SPECWIN=0;
      }
     return;
@@ -1760,7 +1759,7 @@ if(msc("SLO2",s1)){
   if(msc("DFGRID",s1)){
      if ((xpp::session().not_already_set.DFGRID||force)|| ((mask!=NULL)&&(mask->DFGRID==1)))
      { 
-     	DF_GRID=atoi(s2);
+     	xpp::session().nullclines.df_grid=atoi(s2);
 	xpp::session().not_already_set.DFGRID=0;
      }
    return;
@@ -1768,7 +1767,7 @@ if(msc("SLO2",s1)){
   if(msc("DFDRAW",s1)){ 
      if ((xpp::session().not_already_set.DFBATCH||force)|| ((mask!=NULL)&&(mask->DFBATCH==1)))
      { 
-     	DFBatch=atoi(s2);
+     	xpp::session().nullclines.df_batch=atoi(s2);
 	xpp::session().not_already_set.DFBATCH=0;
      }
    return;
@@ -1776,7 +1775,7 @@ if(msc("SLO2",s1)){
    if(msc("NCDRAW",s1)){
      if ((xpp::session().not_already_set.NCBATCH||force)|| ((mask!=NULL)&&(mask->NCBATCH==1)))
      { 
-     	NCBatch=atoi(s2);
+     	xpp::session().nullclines.nc_batch=atoi(s2);
 	xpp::session().not_already_set.NCBATCH=0;
      }
    return;
@@ -1786,28 +1785,28 @@ if(msc("SLO2",s1)){
    if(msc("COLORVIA",s1))
      {
        if ((xpp::session().not_already_set.COLORVIA||force)|| ((mask!=NULL)&&(mask->COLORVIA==1)))
-       ColorVia=s2;
+       xpp::session().nullclines.color_via=s2;
        	xpp::session().not_already_set.COLORVIA=0;
        return;
      }
    if(msc("COLORIZE",s1))
      {
           if ((xpp::session().not_already_set.COLORIZE||force)|| ((mask!=NULL)&&(mask->COLORIZE==1)))
-       ColorizeFlag=atoi(s2);
+       xpp::session().nullclines.colorize_flag=atoi(s2);
           	xpp::session().not_already_set.COLORIZE=0;
           return;
      }
    if(msc("COLORLO",s1))
      {
               if ((xpp::session().not_already_set.COLORLO||force)|| ((mask!=NULL)&&(mask->COLORLO==1)))
-       ColorViaLo=atof(s2);
+       xpp::session().nullclines.color_via_lo=atof(s2);
 	             	xpp::session().not_already_set.COLORLO=0;
           return;
      }
    if(msc("COLORHI",s1))
      {
               if ((xpp::session().not_already_set.COLORHI||force)|| ((mask!=NULL)&&(mask->COLORHI==1)))
-       ColorViaHi=atof(s2);
+       xpp::session().nullclines.color_via_hi=atof(s2);
               	xpp::session().not_already_set.COLORHI=0;
        return;
      }

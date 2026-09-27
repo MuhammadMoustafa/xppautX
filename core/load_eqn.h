@@ -255,6 +255,13 @@ struct NumericsSettings {
   double tor_period = 6.2831853071795864770;
   /* the random numbers' seed */
   int rand_seed = 12345678;
+  /* CVODE's banded Jacobian (the nUmerics menu's Stiff settings) */
+  int cv_bandflag = 0, cv_bandupper = 1, cv_bandlower = 1;
+  /* the global flags' crossing tolerance */
+  double stol = 1.e-10;
+  /* recompute the tables and kernels when a parameter changes
+     (Numerics' AutoEval, @ autoeval=) */
+  int auto_evaluate = 0;
   /* a run's state: data were stored (inflag), storing is on (storflag),
      integrate without end (forever), a range stops (endsing), pauses
      between runs (pauser), shoots (shoot) or follows its parameter

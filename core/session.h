@@ -26,6 +26,11 @@
 #include "kinescope.h"
 #include "load_eqn.h"
 #include "parserslow.h"
+#include "delay_handle.h"
+#include "histogram.h"
+#include "markov.h"
+#include "nullcline.h"
+#include "gear.h"
 
 #include <array>
 #include <string>
@@ -102,6 +107,18 @@ struct Session {
 
   /* "_<name>" of the internal set a batch run last applied, "" when none */
   std::string this_internset;
+
+  /* the delay equations' state (delay_handle.cpp) */
+  DelayState delay;
+  /* the histogram and spectrum settings and results (histogram.cpp) */
+  HistogramState histogram;
+  /* stocHast's many-runs state (markov.cpp) */
+  StochasticState stochastic;
+  /* the nullclines', direction field's and orbit colouring's settings
+     (nullcline.cpp) */
+  NullclineSettings nullclines;
+  /* Sing pts' shooting (gear.cpp) */
+  ManifoldShots manifolds;
 };
 
 /* the current Session (xpp_current.h) */

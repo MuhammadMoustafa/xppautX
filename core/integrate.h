@@ -94,6 +94,8 @@ struct IntegratorState {
   int make_plot_flag = 0;
   /* where the last integration stopped */
   double last_time = 0;
+  /* the adjoint is computed over a range (adj2.cpp) */
+  int adj_range = 0;
 };
 #endif
 #endif

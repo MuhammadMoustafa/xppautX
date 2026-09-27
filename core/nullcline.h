@@ -7,14 +7,6 @@
 extern "C" {
 #endif
 
-/* nullcline.cpp: nullclines and direction fields */
-extern int NCBatch, DFBatch;
-extern int XNullColor, YNullColor;
-extern int DF_GRID, DF_FLAG;
-/* set while the direction field is drawn, for the SVG classes */
-extern int DOING_DFIELD;
-extern double ColorViaLo, ColorViaHi;
-extern int ColorizeFlag;
 
 void create_new_cline(void);
 void froz_cline_stuff_com(int i);
@@ -34,8 +26,20 @@ void silent_dfields(void);
 }
 
 #include <string>
-/* what colours an orbit by (@ colorvia=) */
-extern std::string ColorVia;
+/* nullcline.cpp's settings, a Session's (session.h): a batch run's
+   nullclines and direction field (@ ncdraw=, dfdraw=), the nullclines'
+   colours, the direction field's grid and kind (df_flag), set while it
+   is drawn (for the SVG classes), and what colours an orbit
+   (@ colorvia=, colorlo=, colorhi=, colorize=) */
+struct NullclineSettings {
+  int nc_batch = 0, df_batch = 0;
+  int x_null_color = 2, y_null_color = 7;
+  int df_grid = 16, df_flag = 0;
+  int doing_dfield = 0;
+  std::string color_via = "speed";
+  double color_via_lo = 0, color_via_hi = 1;
+  int colorize_flag = 0;
+};
 
 /* C++ linkage: xppautx_main.cpp declares it so itself */
 void set_colorization_stuff(void);

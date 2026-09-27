@@ -278,7 +278,7 @@ void run_the_commands(int com)
   if (com == M_EE) {
     clr_all_scrns();
     plot_data_picture(0); /* and blanks its picture */
-    DF_FLAG = 0;
+    xpp::session().nullclines.df_flag = 0;
     return;
   }
   if (com == M_X) {

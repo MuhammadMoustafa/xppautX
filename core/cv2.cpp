@@ -30,8 +30,8 @@ void start_cv(double *y, double t, int n, double tout, double *atol, double *rto
  for(i=0;i<n;i++)ycv->data[i]=y[i];
  cvode_mem=CVodeMalloc(n, cvf, t, ycv, BDF, NEWTON, SS, rtol, atol,
                           NULL, FALSE, cv_iopt, cv_ropt, NULL);
- if(cv_bandflag==1)
-   CVBand(cvode_mem,cv_bandupper,cv_bandlower,NULL,NULL);
+ if(xpp::session().numerics.cv_bandflag==1)
+   CVBand(cvode_mem,xpp::session().numerics.cv_bandupper,xpp::session().numerics.cv_bandlower,NULL,NULL);
  else
    CVDense(cvode_mem, NULL, NULL); 
     

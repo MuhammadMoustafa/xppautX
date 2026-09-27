@@ -312,8 +312,8 @@ int xpp_batch_main(int argc, char **argv)
     set_extra_graphs();
     set_colorization_stuff();
     batch_integrate();
-    if (NCBatch > 0) silent_nullclines();
-    if (DFBatch > 0) silent_dfields();
+    if (xpp::session().nullclines.nc_batch > 0) silent_nullclines();
+    if (xpp::session().nullclines.df_batch > 0) silent_dfields();
     silent_equilibria();
     return 0;
 }

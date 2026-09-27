@@ -303,7 +303,7 @@ io_int(&xpp::session().numerics.poimap,fp,f,pmap[xpp::session().numerics.poimap]
 io_int(&xpp::session().numerics.poivar,fp,f,"Poincare variable");
 io_int(&xpp::session().numerics.poisgn,fp,f,"Poincare sign");
 io_int(&xpp::session().numerics.sos,fp,f,"Stop on Section");
-io_int(&DelayFlag,fp,f,"Delay flag");
+io_int(&xpp::session().delay.flag,fp,f,"Delay flag");
 io_double(&xpp::session().data_store.current_time,fp,f,"Current time");
 io_double(&xpp::session().integrator.last_time,fp,f,"Last Time");
 io_int(&xpp::session().integrator.my_start,fp,f,"xpp::session().integrator.my_start");

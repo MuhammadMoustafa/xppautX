@@ -19,12 +19,7 @@
 #include "load_eqn.h"
 #include "model.h"
 #define DING ping()
-int UnstableManifoldColor=5;
-int StableManifoldColor=8;
 
-double ShootIC[8][MAXODE];
-int ShootICFlag;
-int ShootIndex;
 static int ShootType[8];
 static int gear_pivot[MAXODE];
 
@@ -55,8 +50,8 @@ void do_sing(double *x, double eps, double err, double big, int maxit, int n, in
     (std::vector) so every return path below frees it automatically. */
  std::vector<double> work_buf(kmem, 0.0);
  work=work_buf.data();
- ShootICFlag=0;
- ShootIndex=0;
+ xpp::session().manifolds.ic_flag=0;
+ xpp::session().manifolds.count=0;
  for(i=0;i<n;i++)old_x[i]=x[i];
  oldwork=work+n*n;
  eval=oldwork+n*n;
@@ -180,7 +175,7 @@ if(!xpp::session().numerics.par_fol)
      get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*pose],ierr);
      if(*ierr==0)
      {
-     change_current_linestyle(UnstableManifoldColor,&oldcol);
+     change_current_linestyle(xpp::session().manifolds.unstable_color,&oldcol);
      pr_evec(x,b,n,pr,eval[2*pose],1);
       xpp::session().numerics.delta_t=fabs(xpp::session().numerics.delta_t);
       shoot(bp,x,b,1);
@@ -197,7 +192,7 @@ if(!xpp::session().numerics.par_fol)
      get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*nege],ierr);
      if(*ierr==0)
      {
-        change_current_linestyle(StableManifoldColor,&oldcol);
+        change_current_linestyle(xpp::session().manifolds.stable_color,&oldcol);
 	pr_evec(x,b,n,pr,eval[2*nege],-1);
       xpp::session().numerics.delta_t=-fabs(xpp::session().numerics.delta_t);
       shoot(bp,x,b,1);
@@ -231,7 +226,7 @@ if(!xpp::session().numerics.par_fol)
 	   get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,bigpos,ierr);
 	   if(*ierr==0)
 	     {
-	       change_current_linestyle(UnstableManifoldColor,&oldcol);
+	       change_current_linestyle(xpp::session().manifolds.unstable_color,&oldcol);
 	       pr_evec(x,b,n,pr,bigpos,1);
 	       xpp::session().numerics.delta_t=fabs(xpp::session().numerics.delta_t);
 	       shoot(bp,x,b,1);
@@ -249,7 +244,7 @@ if(!xpp::session().numerics.par_fol)
 	   get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,bigneg,ierr);
 	   if(*ierr==0)
 	     {
-	       change_current_linestyle(StableManifoldColor,&oldcol);
+	       change_current_linestyle(xpp::session().manifolds.stable_color,&oldcol);
 	       pr_evec(x,b,n,pr,bigneg,-1);
 	       xpp::session().numerics.delta_t=-fabs(xpp::session().numerics.delta_t);
 	       shoot(bp,x,b,1);
@@ -271,12 +266,12 @@ void save_batch_shoot()
 {
 int i,k,type;
   double x[MAXODE],olddt;
-  if(ShootIndex<1)return;
+  if(xpp::session().manifolds.count<1)return;
   olddt=xpp::session().numerics.delta_t;
   xpp::session().numerics.storflag=1;
-  for(k=0;k<ShootIndex;k++){
+  for(k=0;k<xpp::session().manifolds.count;k++){
     for(i=0;i<xpp::model().node;i++)
-      x[i]=ShootIC[k][i];
+      x[i]=xpp::session().manifolds.ic[k][i];
 
     type=ShootType[k];
     if(type>0){
@@ -306,22 +301,22 @@ void shoot_this_now() /* this uses the current labeled saddle point stuff to int
 {
   int i,k,type,oldcol,dummy;
   double x[MAXODE],olddt;
-  if(ShootIndex<1)return;
+  if(xpp::session().manifolds.count<1)return;
   olddt=xpp::session().numerics.delta_t;
 
-  for(k=0;k<ShootIndex;k++){
+  for(k=0;k<xpp::session().manifolds.count;k++){
     for(i=0;i<xpp::model().node;i++)
-      x[i]=ShootIC[k][i];
+      x[i]=xpp::session().manifolds.ic[k][i];
     
     type=ShootType[k];
     if(type>0){
-       change_current_linestyle(UnstableManifoldColor,&oldcol);
+       change_current_linestyle(xpp::session().manifolds.unstable_color,&oldcol);
        xpp::session().numerics.delta_t=fabs(xpp::session().numerics.delta_t);
        shoot_easy(x);
        change_current_linestyle(oldcol,&dummy);
     }
     if(type<0){
-      change_current_linestyle(StableManifoldColor,&oldcol);
+      change_current_linestyle(xpp::session().manifolds.stable_color,&oldcol);
        xpp::session().numerics.delta_t=-fabs(xpp::session().numerics.delta_t);
        shoot_easy(x);
        change_current_linestyle(oldcol,&dummy);
@@ -350,8 +345,8 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
  std::vector<double> work_buf(kmem, 0.0);
  work=work_buf.data();
 
- ShootICFlag=0;
- ShootIndex=0;
+ xpp::session().manifolds.ic_flag=0;
+ xpp::session().manifolds.count=0;
  for(i=0;i<n;i++){old_x[i]=x[i];}
  oldwork=work+n*n;
  eval=oldwork+n*n;
@@ -477,15 +472,15 @@ void pr_evec(double *x, double *ev, int n, int pr, double eval, int type)
 
  int i;
  double d=fabs(xpp::session().numerics.delta_t)*.1;
- ShootICFlag=1;
- if(ShootIndex<7){
+ xpp::session().manifolds.ic_flag=1;
+ if(xpp::session().manifolds.count<7){
    for(i=0;i<n;i++){
-     ShootIC[ShootIndex][i]=x[i]+d*ev[i];
-     ShootType[ShootIndex]=type;
-     ShootIC[ShootIndex+1][i]=x[i]-d*ev[i];
-     ShootType[ShootIndex+1]=type;
+     xpp::session().manifolds.ic[xpp::session().manifolds.count][i]=x[i]+d*ev[i];
+     ShootType[xpp::session().manifolds.count]=type;
+     xpp::session().manifolds.ic[xpp::session().manifolds.count+1][i]=x[i]-d*ev[i];
+     ShootType[xpp::session().manifolds.count+1]=type;
    }
-   ShootIndex+=2;
+   xpp::session().manifolds.count+=2;
  }
  if(pr==0)return;
 }

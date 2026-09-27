@@ -41,14 +41,14 @@ int main(void)
     xpp::session().integrator.range.movie = 0;
     xpp::session().integrator.range.rtype = 0;
 
-    STOCH_FLAG = 1;
+    xpp::session().stochastic.flag = 1;
     int ierr = do_range(xpp::session().data_store.current, 0);
-    STOCH_FLAG = 0;
+    xpp::session().stochastic.flag = 0;
 
     CHECK(ierr != -1);
-    CHECK(N_TRIALS == ntrials);
-    CHECK(STOCH_HERE == 1);
-    CHECK(stoch_len == 11); /* total=10,dt=1: 11 rows per trial */
+    CHECK(xpp::session().stochastic.n_trials == ntrials);
+    CHECK(xpp::session().stochastic.here == 1);
+    CHECK(xpp::session().stochastic.len == 11); /* total=10,dt=1: 11 rows per trial */
 
     int ncol = -1;
     find_variable("nsamp", &ncol);
@@ -56,9 +56,9 @@ int main(void)
 
     double meantol = 4.0 / std::sqrt(static_cast<double>(ntrials));
     double vartol = 4.0 * std::sqrt(2.0 / ntrials);
-    for (int i = 0; i < stoch_len; i++) {
-        CHECK(std::fabs(my_mean[ncol][i] - 0.0) < meantol);
-        CHECK(std::fabs(my_variance[ncol][i] - 1.0) < vartol);
+    for (int i = 0; i < xpp::session().stochastic.len; i++) {
+        CHECK(std::fabs(xpp::session().stochastic.mean[ncol][i] - 0.0) < meantol);
+        CHECK(std::fabs(xpp::session().stochastic.variance[ncol][i] - 1.0) < vartol);
     }
 
     TEST_REPORT("stochast compute/mean/variance");

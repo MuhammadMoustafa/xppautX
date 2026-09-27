@@ -105,11 +105,6 @@ static void row_stored(void)
 #define DP5 11
 #define DP83 12
 #define RB23 13
-extern double ShootIC[8][MAXODE];
-extern int ShootType[8];
-extern int ShootICFlag;
-extern int ShootIndex;
-extern int AdjRange;
 
 constexpr int OnTheFly=1;
 extern FILE *svgfile;
@@ -611,7 +606,7 @@ void do_eq_range(double *x)
 	  do_monte_carlo_search(0,0,1);
         }
         else {
-        if(DelayFlag)
+        if(xpp::session().delay.flag)
 	  do_delay_sing(x,xpp::session().numerics.newt_err,xpp::session().numerics.evec_err,xpp::session().numerics.bound,xpp::session().numerics.evec_iter,
 		        xpp::model().node,&ierr,&stabinfo);
         else do_sing(x,xpp::session().numerics.newt_err,xpp::session().numerics.evec_err,xpp::session().numerics.bound,xpp::session().numerics.evec_iter,
@@ -736,7 +731,7 @@ if(xpp::session().integrator.range.type==PARAM)get_val(xpp::session().integrator
      if(oldic==1){
        get_ic(1,x);
        
-       if(DelayFlag){
+       if(xpp::session().delay.flag){
 	 /* restart initial data */
 	 if(do_init_delay(xpp::session().numerics.delay)==0)break;
        }
@@ -785,7 +780,7 @@ if(fabs(xpp::session().data_store.current_time)>=xpp::session().numerics.trans&&
    ierr=-1;
    break;
  }
- if(STOCH_FLAG)
+ if(xpp::session().stochastic.flag)
    append_stoch(i,xpp::session().data_store.rows);
 
  if(xpp::session().integrator.range.movie){
@@ -796,7 +791,7 @@ if(fabs(xpp::session().data_store.current_time)>=xpp::session().numerics.trans&&
    if(xpp_ui.film_clip()==0){err_msg("Out of film");break;}
  }
  refresh_browser(xpp::session().data_store.rows);
- if(AdjRange==1){
+ if(xpp::session().integrator.adj_range==1){
    bob=xpp::format("{}_{:g}",xpp::session().integrator.range.item,p);
    data_get_mybrowser(xpp::session().data_store.rows-1);
    compute_one_period(static_cast<double>(xpp::session().data_store.col[0][xpp::session().data_store.rows-1]),xpp::session().last_ic.data(),bob.c_str());
@@ -807,7 +802,7 @@ if(fabs(xpp::session().data_store.current_time)>=xpp::session().numerics.trans&&
  if(aplot_range==1)
    draw_one_array_plot(bob.c_str());
  
- if(res==1||STOCH_FLAG)
+ if(res==1||xpp::session().stochastic.flag)
    {
      if(batch_options.range==1){
        post_process_stuff();
@@ -831,8 +826,8 @@ xpp::session().plot_windows.current->color[0]=color;
  xpp::session().numerics.inflag=1;
  
  ping();
- AdjRange=0;
- if(STOCH_FLAG)
+ xpp::session().integrator.adj_range=0;
+ if(xpp::session().stochastic.flag)
    do_stats(ierr);
 
  return(ierr);
@@ -911,7 +906,7 @@ void find_equilib_com(int com)
         break;
  }
 
- if(DelayFlag){
+ if(xpp::session().delay.flag){
    do_delay_sing(x,xpp::session().numerics.newt_err,xpp::session().numerics.evec_err,xpp::session().numerics.bound,xpp::session().numerics.evec_iter,xpp::model().node,&ierr,&stabinfo);
    ping();
  }
@@ -1017,7 +1012,7 @@ void batch_integrate_once()
   xpp::session().numerics.poiext=0;
   xpp::session().data_store.rows=0;
   reset_browser();
- if(batch_options.range==1||STOCH_FLAG>0){
+ if(batch_options.range==1||xpp::session().stochastic.flag>0){
    reset_dae();
    xpp::session().integrator.range_flag=1;
 
@@ -1026,7 +1021,7 @@ void batch_integrate_once()
  }
  else {
    get_ic(2,x);
-    if(DelayFlag){
+    if(xpp::session().delay.flag){
       /* restart initial data */
       if(do_init_delay(xpp::session().numerics.delay)==0)return;
     }
@@ -1047,8 +1042,8 @@ void batch_integrate_once()
  }
  post_process_stuff();
  if(!batch_options.range || xpp::session().integrator.range.reset==0){
-   if(STOCH_FLAG==1)mean_back();
-   if(STOCH_FLAG==2)variance_back();
+   if(xpp::session().stochastic.flag==1)mean_back();
+   if(xpp::session().stochastic.flag==2)variance_back();
    if(!xpp::session().integrator.suppress_out){
   xpp::Writer w(batch_options.out_file.c_str());
    if(!w){
@@ -1139,7 +1134,7 @@ void do_init_data(int com)
     break;
   case M_IO:
     get_ic(1,x);
-    if(DelayFlag){
+    if(xpp::session().delay.flag){
       /* restart initial data */
       if(do_init_delay(xpp::session().numerics.delay)==0)return;
     }
@@ -1168,7 +1163,7 @@ void do_init_data(int com)
 	  xpp::session().last_ic[jm]=x[jm];
 	  KillMessageBox();
   
-	  if(DelayFlag){
+	  if(xpp::session().delay.flag){
 	    /* restart initial data */
 	    if(do_init_delay(xpp::session().numerics.delay)==0)return;
 	  }
@@ -1193,7 +1188,7 @@ void do_init_data(int com)
 	  x[jv]=static_cast<double>(ym);
 	  xpp::session().last_ic[im]=x[im];
 	  xpp::session().last_ic[jm]=x[jm];
-	  if(DelayFlag){
+	  if(xpp::session().delay.flag){
 	    /* restart initial data */
 	    if(do_init_delay(xpp::session().numerics.delay)==0)break;
 	  }
@@ -1216,16 +1211,16 @@ void do_init_data(int com)
     get_ic(2,x);
     break;
   case M_IH:
-    if(ShootICFlag==0){
+    if(xpp::session().manifolds.ic_flag==0){
       err_msg("No shooting data available");
       break;
     }
     si=1;
-    new_int(xpp::format("Which? (1-{})",ShootIndex).c_str(),&si);
+    new_int(xpp::format("Which? (1-{})",xpp::session().manifolds.count).c_str(),&si);
     si--;
-    if(si<ShootIndex&&si>=0){
+    if(si<xpp::session().manifolds.count&&si>=0){
       for(i=0;i<xpp::model().node;i++)
-	xpp::session().last_ic[i]=ShootIC[si][i];
+	xpp::session().last_ic[i]=xpp::session().manifolds.ic[si][i];
       get_ic(2,x);
     }
     else
@@ -1253,7 +1248,7 @@ void do_init_data(int com)
     xpp::session().numerics.delta_t=-fabs(xpp::session().numerics.delta_t);
       get_ic(2,x);
       set_init_guess();
-      if(DelayFlag){
+      if(xpp::session().delay.flag){
       /* restart initial data */
       if(do_init_delay(xpp::session().numerics.delay)==0)return;
     }
@@ -1265,7 +1260,7 @@ void do_init_data(int com)
     
     get_ic(2,x); 
     
-    if(DelayFlag){
+    if(xpp::session().delay.flag){
       /* restart initial data */
       if(do_init_delay(xpp::session().numerics.delay)==0)return;
     }

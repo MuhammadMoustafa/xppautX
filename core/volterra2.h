@@ -5,9 +5,6 @@ extern "C" {
 #endif
 
 
-/* re_evaluate_kernels recomputes the convolutions (Numerics' AutoEval) */
-extern int AutoEvaluate;
-
 /* volterra2.c */
 double ker_val(int in);
 void alloc_v_memory(void);

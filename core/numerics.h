@@ -6,8 +6,6 @@ extern "C" {
 
 /*       Numerics.h   */
 
-/* CVODE's banded Jacobian (the nUmerics menu's Stiff settings) */
-extern int cv_bandflag,cv_bandupper,cv_bandlower;
 
 void chk_volterra(void);
 void check_pos(int *j);

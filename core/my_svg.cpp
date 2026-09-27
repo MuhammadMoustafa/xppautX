@@ -4,6 +4,7 @@
    picture is redrawn. tests/golden/lecar.svg guards the output byte for
    byte (tools/goldencheck.py). */
 #include "my_svg.h"
+#include "session.h"
 #include "my_ps.h"
 #include "xpp_ui.h"
 #include "colormap.h"
@@ -338,13 +339,13 @@ void svg_line(int xp1, int yp1, int xp2, int yp2)
   std::string cls;
   if (DOING_AXES)
     cls = DOING_BOX_AXES ? "xppboxaxes" : "xppaxes";
-  else if (DOING_DFIELD)
+  else if (xpp::session().nullclines.doing_dfield)
     cls = "xppdfield";
   else
     cls = xpp::format("xppline{}",svg_line_type);
   const std::string style = doing_svg_color ? " style=\""+svg_stroke()+"\"/>" : " />";
   /* a direction-field arrow with its bead is a group */
-  const bool arrow = !DOING_AXES && DOING_DFIELD && do_marker;
+  const bool arrow = !DOING_AXES && xpp::session().nullclines.doing_dfield && do_marker;
   if (arrow)
     svg_writer.print("<g>\n");
   svg_writer.print("      <line class=\"{}\"  x1=\"{}\"  y1=\"{}\" x2=\"{}\"   y2=\"{}\"{}\n",cls,xp1,yp1,xp2,yp2,style);

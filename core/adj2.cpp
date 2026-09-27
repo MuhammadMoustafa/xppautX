@@ -58,7 +58,6 @@ constexpr double ADJ_EPS=1.e-8;
 double ADJ_ERR=1.e-3;
 int ADJ_MAXIT=20,ADJ_HERE=0,H_HERE=0,h_len,HODD_EV=0;
 }
-int AdjRange=0;
 namespace {
 /* each equation's coupling for the H function: its formula and the
    formula compiled */
@@ -173,7 +172,7 @@ void alloc_h_stuff()
 
 void data_back()
 {
- FOUR_HERE=0;
+ xpp::session().histogram.four_here=0;
  new_browse_dat(xpp::session().data_store.col,xpp::session().data_store.rows);
 }
 
@@ -226,7 +225,7 @@ static const char *const key="nmaohpr";
    adjoint_parameters();
    break;
  case 'r':
-   AdjRange=1;
+   xpp::session().integrator.adj_range=1;
    break;
  
  }

@@ -43,7 +43,6 @@
 	For now, I just will let it remain command driven
 */
 
-int cv_bandflag=0,cv_bandupper=1,cv_bandlower=1;
 
 /*   This is the input for the various functions */
 
@@ -146,7 +145,7 @@ void  get_num_par(char ch)
 			 new_float("Newton tolerance :",&xpp::session().numerics.evec_err);
 			 new_float("Jacobian epsilon :",&xpp::session().numerics.newt_err);
 		       if(xpp::model().nflags>0)
-			 new_float("SMIN :",&STOL);
+			 new_float("SMIN :",&xpp::session().numerics.stol);
 		       
 			flash(5);
 			break;
@@ -190,16 +189,16 @@ void  get_num_par(char ch)
 		       if(xpp::session().numerics.method==VOLTERRA){
 			 tmp=xpp::session().numerics.max_points;
 			 new_int("MaxPoints:",&tmp);
-			 new_int("AutoEval(1=yes) :",&AutoEvaluate);
+			 new_int("AutoEval(1=yes) :",&xpp::session().numerics.auto_evaluate);
 			 allocate_volterra(tmp,1);
 		       }
 			 
 		       if(xpp::session().numerics.method==CVODE||xpp::session().numerics.method==RB23)
 			 {
-			   new_int("Banded system(0/1)?",&cv_bandflag);
-			   if(cv_bandflag==1){
-			     new_int("Lower band:",&cv_bandlower);
-			     new_int("Upper band:",&cv_bandupper);
+			   new_int("Banded system(0/1)?",&xpp::session().numerics.cv_bandflag);
+			   if(xpp::session().numerics.cv_bandflag==1){
+			     new_int("Lower band:",&xpp::session().numerics.cv_bandlower);
+			     new_int("Upper band:",&xpp::session().numerics.cv_bandupper);
 			   }
 			 }
 		       if(xpp::session().numerics.method==SYMPLECT){
@@ -214,9 +213,9 @@ void  get_num_par(char ch)
 			 /* delay */
                         if(xpp::model().ndelays==0)break;
 			new_float("Maximal delay :",&xpp::session().numerics.delay);
-                        new_float("real guess :", &AlphaMax);
-			   new_float("imag guess :", &OmegaMax); 
-		        new_int("DelayGrid :",&DelayGrid);
+                        new_float("real guess :", &xpp::session().delay.alpha_max);
+			   new_float("imag guess :", &xpp::session().delay.omega_max); 
+		        new_int("DelayGrid :",&xpp::session().delay.grid);
 		        if(xpp::session().numerics.delay>0.0) {
 			  free_delay();
 			  if(alloc_delay(xpp::session().numerics.delay)){
