@@ -256,12 +256,15 @@ from):
 
 ## Open questions for the maintainer
 
-1. **NaN conditions**: `.ode`'s guarded division makes `0/0` evaluate to
-   `0` rather than produce a NaN in practice (measured in
-   docs/odex-quirks.md), so a genuine NaN condition may never arise from
-   ordinary arithmetic. Does `.odex` need an explicit rule for a NaN
-   condition (error, or treated as false), or is "inherits `.ode`'s
-   guarded numerics, so this cannot happen" the whole answer?
+1. **Division by zero and NaN** (decided, maintainer, 2026-09-27):
+   `.odex` gives real IEEE results, `1/0` is inf and `0/0` is NaN, and a
+   run stops with an error naming the equation and the time at the step
+   where a NaN or inf first enters the state. `.ode` keeps XPP's guard
+   (a zero divisor replaced by 2.23e-15, parserslow2.cpp:1619: `1/0` is
+   4.5e14, `0/0` is 0), so old models give XPP's numbers; `--check`
+   (W75) warns where a `.ode` formula divides by something that can be 0.
+   One flag per model, chosen by the file's extension; the evaluator is
+   shared. A NaN condition in `.odex` is therefore an error, never a branch.
 2. **`--convert`'s bracket policy for an unforced sign**: when `.ode`
    required parentheses only because of its no-bare-sign rule (`2*(-3)`),
    should `--convert` drop them (since `.odex` allows `2*-3`) or keep
