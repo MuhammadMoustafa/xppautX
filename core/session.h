@@ -86,6 +86,21 @@ struct Session {
   /* what each network computed last and its work space (simplenet.cpp;
      their definitions are Model::networks) */
   std::array<NetworkValues,MAXNET> networks;
+
+  /* the tables (tabular.cpp), ntable of them: a function table's values
+     are computed again when a parameter it reads changes (autoeval,
+     redo_all_fun_tables), and a file table can be read again from the
+     Numerics menu */
+  int ntable=0;
+  std::array<TABULAR,MAX_TAB> tables;
+
+  /* the boundary conditions in use, one per ODE: the Model's, copied at
+     the end of a load, then changed by a `set` or a .set
+     (set_bc_formula) and compiled when a shooting starts (pp_shoot.cpp) */
+  std::array<xpp::Model::BoundaryCondition,MAXODE> bcs;
+
+  /* "_<name>" of the internal set a batch run last applied, "" when none */
+  std::string this_internset;
 };
 
 /* the current Session (xpp_current.h) */

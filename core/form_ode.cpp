@@ -95,29 +95,35 @@ int *new_program(int i)
   return program.data();
 }
 
-/* boundary condition i is 0=string (at most 255 bytes of it) */
-void set_bc(int i, std::string_view string)
+/* a boundary condition's text becomes string, cut to its buffer */
+void put_bc_text(std::vector<char> &text, std::string_view string)
 {
-  xpp::Model::BoundaryCondition &b=xpp::model().bcs[i];
-  b.com.assign(200,0);
-  b.string.assign(256,'\0');
-  b.name.assign(10,'\0');
-  set_bc_formula(i,string);
-  std::string_view name="0=";
-  std::copy(name.begin(),name.end(),b.name.begin());
-}
-
-} // namespace
-
-void set_bc_formula(int i, std::string_view string)
-{
-  std::vector<char> &text=xpp::model().bcs[i].string;
   if(string.size()>=text.size()){
     xpp::log(XPP_LOG_WARN, "boundary condition cut to {} characters: {}\n",text.size()-1,string);
     string=string.substr(0,text.size()-1);
   }
   std::fill(text.begin(),text.end(),'\0');
   std::copy(string.begin(),string.end(),text.begin());
+}
+
+/* the model's boundary condition i is 0=string (at most 255 bytes of it) */
+void set_bc(int i, std::string_view string)
+{
+  xpp::Model::BoundaryCondition &b=xpp::model().bcs[i];
+  b.com.assign(200,0);
+  b.string.assign(256,'\0');
+  b.name.assign(10,'\0');
+  put_bc_text(b.string,string);
+  std::string_view name="0=";
+  std::copy(name.begin(),name.end(),b.name.begin());
+}
+
+} // namespace
+
+/* the Session's boundary condition i is 0=string */
+void set_bc_formula(int i, std::string_view string)
+{
+  put_bc_text(xpp::session().bcs[i].string,string);
 }
 
 namespace {
@@ -742,7 +748,7 @@ int compiler(const std::string &bob, FILE *fptr)
       }
       break;
     case 't':
-      if(xpp::model().ntable>=MAX_TAB)
+      if(xpp::session().ntable>=MAX_TAB)
 	{
 	  if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "too many tables !!\n");
 	  xpp_model_failed();
@@ -757,9 +763,9 @@ int compiler(const std::string &bob, FILE *fptr)
 	formula=tokens.text("\n");
 	xpp::log(XPP_LOG_INFO, " {} has {} pts from {:f} to {:f} = {}\n",
 	       name,nn,xlo,xhi,formula);
-	add_table_name(xpp::model().ntable,name.c_str());
+	add_table_name(xpp::session().ntable,name.c_str());
 
-	if(add_form_table(xpp::model().ntable,nn,xlo,xhi,formula.c_str())){
+	if(add_form_table(xpp::session().ntable,nn,xlo,xhi,formula.c_str())){
 	  xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	  xpp_model_failed();
 	}
@@ -767,8 +773,8 @@ int compiler(const std::string &bob, FILE *fptr)
 	if(ConvertStyle)
 	  xpp::print(convertf,"table {} % {} {:g} {:g} {}\n",
 		  name,nn,xlo,xhi,formula);
-	xpp::model().ntable++;
-	xpp_log(XPP_LOG_INFO, " NTable = %d \n",xpp::model().ntable);
+	xpp::session().ntable++;
+	xpp_log(XPP_LOG_INFO, " NTable = %d \n",xpp::session().ntable);
 
       }
       else
@@ -784,15 +790,15 @@ int compiler(const std::string &bob, FILE *fptr)
 	else
 	  {
 	    xpp::log(XPP_LOG_INFO, "Lookup table {} = {} \n",name,formula);
-            add_table_name(xpp::model().ntable,name.c_str());
-	    if(add_file_table(xpp::model().ntable,formula.c_str())){
+            add_table_name(xpp::session().ntable,name.c_str());
+	    if(add_file_table(xpp::session().ntable,formula.c_str())){
 	      xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	      xpp_model_failed();
 	    }
 	    if(ConvertStyle)
 	      xpp::print(convertf,"table {} {}\n",
 		      name,formula);
-	    xpp::model().ntable++;
+	    xpp::session().ntable++;
 	  }
       break;
 
@@ -1670,7 +1676,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
  Naux=naux;
  xpp::model().neq=nvar+xpp::model().nmarkov+Naux;
  xpp::model().fix_var=nfix;
- xpp::model().ntable=ntab;
+ xpp::session().ntable=ntab;
  xpp::model().nfun=nufun;
 
 /* Reset all this stuff so we align the indices correctly */

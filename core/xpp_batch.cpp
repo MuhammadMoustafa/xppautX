@@ -254,6 +254,8 @@ void xpp_load_model(int argc, char **argv, int batch)
     if (batch) batch_options.enabled = 1; /* headless: always batch, even without -silent */
 
     load_eqn();
+    /* the boundary conditions in use start as the model's */
+    xpp::session().bcs = xpp::model().bcs;
 
     OptionsSet mask = xpp::session().not_already_set;
     set_internopts(&mask);

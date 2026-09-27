@@ -32,7 +32,7 @@ void fft_conv(int it, int n, double *values, double *yy, double *fftr, double *f
 /* a network (a special function: conv, sparse, fftcon, gill, ...) as
    the model defines it, xpp::Model's (model.h): its kind, sizes, roots
    and compiled f(root,root2), and the tables whose values are its
-   weights, indices and delays (Model::tables' own arrays) */
+   weights, indices and delays */
 struct Network {
   int type=0,ncon=0,n=0;
   std::string name;
@@ -40,7 +40,9 @@ struct Network {
   std::array<int,20> f{};
   int iwgt=0;
   std::vector<int> gcom; /* a gillespie chain's commands */
-  double *weight=nullptr,*index=nullptr,*taud=nullptr;
+  /* the tables (Session::tables) of its weights, indices and delays, -1
+     for none */
+  int weight_table=-1,index_table=-1,taud_table=-1;
 };
 
 /* what a network computed last and its work space, a Session's

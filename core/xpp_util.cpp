@@ -260,7 +260,7 @@ void check_val(double *x1, double *x2, double *xb, double *xd)
 
 void dump_ps(int i)
 {
-  const std::string &file=xpp::model().this_file,&set=xpp::model().this_internset;
+  const std::string &file=xpp::model().this_file,&set=xpp::session().this_internset;
   const std::string &format=xpp::session().plot_export.format;
   std::string filename=i<0?xpp::format("{:.100}{:.100}.{:.10}",file,set,format)
                           :xpp::format("{:.100}{:.100}_{:04d}.{:.10}",file,set,i,format);
@@ -383,9 +383,9 @@ void clone_ode()
   fp.print("\n");
 
   /* BDRY conds */
-  if(xpp::model().bcs[0].string.data()[0]!='0'){
+  if(xpp::session().bcs[0].string.data()[0]!='0'){
     for(i=0;i<xpp::model().node;i++)
-      fp.print("bdry {}\n",xpp::model().bcs[i].string.data());
+      fp.print("bdry {}\n",xpp::session().bcs[i].string.data());
   }
   j=0;
   if(xpp::model().nupar>0){

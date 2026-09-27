@@ -11,13 +11,11 @@
    that should write it; what a person changes while working (parameter
    values, initial conditions, the numerics settings) is the Session's
    (W47c), which the Model gives its defaults (default_val, default_ic,
-   options). What still writes it after a load is W47c's to move: the
-   browser's added column (one more variable: neq, nvar, uvar_names,
-   formulas, programs), Edit's right-hand sides and functions (programs,
-   formulas, ufun_defs, ufun_programs, compiled again in place) and the
-   tables (values computed again or read again). The parser's own
-   scratch (NCON/NSYM above ncon_start/nsym_start, the constants and
-   variables it evaluates with) stays parserslow2.cpp's.
+   options, bcs). What still writes it after a load is the browser's
+   added column (one more variable: neq, nvar, uvar_names, formulas,
+   programs), which W47c left: it touches every reader of neq. The
+   tables, whose values are computed or read again while working, are
+   the Session's.
 
    The name tables hold a model's names as the parser keeps them (blanks
    removed, upper case), each at most XPP_NAME_MAX long: the parser refuses
@@ -83,7 +81,8 @@ struct Model {
     std::vector<char> string;
     std::vector<char> name;
   };
-  /* the boundary conditions, one per ODE */
+  /* the boundary conditions, one per ODE, as the model gives them (the
+     ones in use are the Session's) */
   std::array<BoundaryCondition,MAXODE> bcs;
 
   /* a fixed variable's name and formula as typed (lunch-new.cpp writes
@@ -179,13 +178,6 @@ struct Model {
   /* each user function's argument names (narg_fun[i] of them) */
   std::array<std::vector<std::string>, MAXUFUN> ufun_args;
 
-  /* ---- the tables (tabular.cpp), ntable of them ---- */
-  /* a function table's values are computed again when a parameter it
-     reads changes (autoeval, redo_all_fun_tables), and a file table can
-     be read again from the Numerics menu: the Session's to own (W47c) */
-  int ntable=0;
-  std::array<TABULAR,MAX_TAB> tables;
-
   /* ---- the networks and vectorizers (simplenet.cpp) ---- */
   int nnetwork=0,nvector=0;
   std::array<Network,MAXNET> networks;
@@ -225,8 +217,6 @@ struct Model {
   std::string options_file;
   /* the loaded file's path, as given ("console" for standard input) */
   std::string this_file;
-  /* "_<name>" of the internal set last applied, "" when none */
-  std::string this_internset;
 };
 
 /* the current Model (xpp_current.h) */

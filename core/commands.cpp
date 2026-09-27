@@ -365,7 +365,7 @@ void make_adj(void) { menu_run(&menu_adjoint, 0); }
 
 void new_lookup(void)
 {
-  if (xpp::model().ntable == 0) return;
+  if (xpp::session().ntable == 0) return;
   menu_run(&menu_lookup, 1);
 }
 

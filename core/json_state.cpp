@@ -87,9 +87,9 @@ void send_state(void)
     for (i = 0; i < xpp::model().node; i++) {
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
-        buf_str(&b, xpp::model().bcs[i].name.data());
+        buf_str(&b, xpp::session().bcs[i].name.data());
         BUF_LIT(&b, ",");
-        buf_str(&b, xpp::model().bcs[i].string.data());
+        buf_str(&b, xpp::session().bcs[i].string.data());
         BUF_LIT(&b, "]");
     }
     BUF_LIT(&b, "]");
@@ -349,7 +349,7 @@ int apply_value(const char *line)
     index = get_int(line, "index", -1);
     if (index >= n) index = -1;
     for (i = 0; index < 0 && i < n; i++) {
-        const char *bc = type == 4 ? xpp::model().bcs[i].name.data() : nullptr;
+        const char *bc = type == 4 ? xpp::session().bcs[i].name.data() : nullptr;
         if (type == 4 ? bc && xpp::equal_ignoring_case(bc, name)
                       : xpp::equal_ignoring_case(type == 1 ? xpp::model().upar_names[i] : xpp::model().uvar_names[i], name))
             index = i;

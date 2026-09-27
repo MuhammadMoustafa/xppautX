@@ -192,7 +192,7 @@ void do_info(FILE *fp)
   xpp::print(fp,"\n\n Delay strings ...\n");
   for(int i=0;i<xpp::model().node;i++)xpp::print(fp,"{}\n",xpp::session().delay_string[i]);
   xpp::print(fp,"\n\n BCs ...\n");
-  for(int i=0;i<xpp::model().node;i++)xpp::print(fp,"0={}\n",xpp::model().bcs[i].string.data());
+  for(int i=0;i<xpp::model().node;i++)xpp::print(fp,"0={}\n",xpp::session().bcs[i].string.data());
   xpp::print(fp,"\n\n ICs ...\n");
   for(int i=0;i<xpp::model().node+xpp::model().nmarkov;i++)xpp::print(fp,"{}={:.16g}\n",xpp::model().uvar_names[i],xpp::session().last_ic[i]);
   xpp::print(fp,"\n\n Parameters ...\n");
@@ -405,7 +405,7 @@ void io_exprs(int f, FILE *fp)
  for(i=0;i<xpp::model().node;i++)io_string(xpp::session().delay_string[i],fp,f);
  io_heading(f,fp,"# Bndry conds");
  for(i=0;i<xpp::model().node;i++){
-   std::string formula=xpp::model().bcs[i].string.data();
+   std::string formula=xpp::session().bcs[i].string.data();
    io_string(formula,fp,f);
    if(f==READEM)set_bc_formula(i,formula);
  }

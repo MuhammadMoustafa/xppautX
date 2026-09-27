@@ -158,6 +158,12 @@ special ydot=import(...) ran a compiled library's function: refused
 
 namespace {
 bool gilparse(std::string_view s, std::vector<int> &ind);
+
+/* table t's values, NULL for none (-1) */
+double *table_values(int t)
+{
+  return t<0 ? nullptr : xpp::session().tables[t].y;
+}
 } // namespace
 
 double net_interp(double x, int i)
@@ -333,7 +339,7 @@ int add_spec_fun(const char *name, char *rhs)
     ivar=next_index(args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
     xpp::session().networks[ind].values.assign((ntot+1),0.0);
-    xpp::model().networks[ind].weight=xpp::model().tables[iwgt].y;
+    xpp::model().networks[ind].weight_table=iwgt;
     xpp::model().networks[ind].type=ntype;
     xpp::model().networks[ind].root=ivar;
     xpp::model().networks[ind].n=ntot;
@@ -359,8 +365,8 @@ int add_spec_fun(const char *name, char *rhs)
     if(ivar<0)return 0;
  
     xpp::session().networks[ind].values.assign((ntot+1),0.0);
-    xpp::model().networks[ind].weight=xpp::model().tables[iwgt].y;
-    xpp::model().networks[ind].index=xpp::model().tables[iind].y;
+    xpp::model().networks[ind].weight_table=iwgt;
+    xpp::model().networks[ind].index_table=iind;
 
     xpp::model().networks[ind].type=ntype;
     xpp::model().networks[ind].root=ivar;
@@ -390,7 +396,7 @@ int add_spec_fun(const char *name, char *rhs)
 
     if(!next_pair_function(args,name,ind,ivar,ivar2,fname))return 0;
     xpp::session().networks[ind].values.assign((ntot+1),0.0);
-    xpp::model().networks[ind].weight=xpp::model().tables[iwgt].y;
+    xpp::model().networks[ind].weight_table=iwgt;
     xpp::model().networks[ind].type=ntype;
     xpp::model().networks[ind].root=xpp::model().networks[ind].f[0]; /* this is strange - I am adding the compiled names */
     xpp::model().networks[ind].root2=xpp::model().networks[ind].f[1];
@@ -416,8 +422,8 @@ int add_spec_fun(const char *name, char *rhs)
     if(!next_pair_function(args,name,ind,ivar,ivar2,fname))return 0;
 
     xpp::session().networks[ind].values.assign((ntot+1),0.0);
-    xpp::model().networks[ind].weight=xpp::model().tables[iwgt].y;
-    xpp::model().networks[ind].index=xpp::model().tables[iind].y;
+    xpp::model().networks[ind].weight_table=iwgt;
+    xpp::model().networks[ind].index_table=iind;
 
     xpp::model().networks[ind].type=ntype;
     xpp::model().networks[ind].root=xpp::model().networks[ind].f[0]; /* this is strange - I am adding the compiled names */
@@ -465,7 +471,7 @@ int add_spec_fun(const char *name, char *rhs)
     xpp::session().networks[ind].di.assign(ncon+2,0.0);
     xpp::model().networks[ind].iwgt=iwgt;
     xpp::session().networks[ind].values.assign((ntot+1),0.0);
-    xpp::model().networks[ind].weight=xpp::model().tables[iwgt].y;
+    xpp::model().networks[ind].weight_table=iwgt;
     xpp::model().networks[ind].type=ntype;
     xpp::model().networks[ind].root=ivar;
     xpp::model().networks[ind].n=ntot;
@@ -490,7 +496,7 @@ int add_spec_fun(const char *name, char *rhs)
     if(ivar<0)return 0;
  
     xpp::session().networks[ind].values.assign((ncon+1),0.0);
-    xpp::model().networks[ind].weight=xpp::model().tables[iwgt].y;
+    xpp::model().networks[ind].weight_table=iwgt;
 
     xpp::model().networks[ind].type=ntype;
     xpp::model().networks[ind].root=ivar;
@@ -512,7 +518,7 @@ int add_spec_fun(const char *name, char *rhs)
 
     if(!next_pair_function(args,name,ind,ivar,ivar2,fname))return 0;
     xpp::session().networks[ind].values.assign((ncon+1),0.0);
-    xpp::model().networks[ind].weight=xpp::model().tables[iwgt].y;
+    xpp::model().networks[ind].weight_table=iwgt;
 
     xpp::model().networks[ind].type=ntype;
     xpp::model().networks[ind].root=xpp::model().networks[ind].f[0]; /* this is strange - I am adding the compiled names */
@@ -601,8 +607,8 @@ int add_spec_fun(const char *name, char *rhs)
     if(ivar<0)return 0;
  
     xpp::session().networks[ind].values.assign((ncon+1),0.0);
-    xpp::model().networks[ind].weight=xpp::model().tables[iwgt].y;
-    xpp::model().networks[ind].taud=xpp::model().tables[itau].y;
+    xpp::model().networks[ind].weight_table=iwgt;
+    xpp::model().networks[ind].taud_table=itau;
 
     xpp::model().networks[ind].type=ntype;
     xpp::model().networks[ind].root=ivar;
@@ -634,9 +640,9 @@ int add_spec_fun(const char *name, char *rhs)
     if(ivar<0)return 0;
  
     xpp::session().networks[ind].values.assign((ntot+1),0.0);
-    xpp::model().networks[ind].weight=xpp::model().tables[iwgt].y;
-    xpp::model().networks[ind].index=xpp::model().tables[iind].y;
-    xpp::model().networks[ind].taud=xpp::model().tables[itau].y;
+    xpp::model().networks[ind].weight_table=iwgt;
+    xpp::model().networks[ind].index_table=iind;
+    xpp::model().networks[ind].taud_table=itau;
     xpp::model().networks[ind].type=ntype;
     xpp::model().networks[ind].root=ivar;
     xpp::model().networks[ind].n=ntot;
@@ -747,8 +753,8 @@ void evaluate_network(int ind)
    int ncon=net.ncon;
    double *w,*y,*cc,*values,*tau;
    int twon=2*n,root=net.root,root2=net.root2;
-   cc=net.index;
-   w=net.weight;
+   cc=table_values(net.index_table);
+   w=table_values(net.weight_table);
    values=nv.values.data();
    switch(net.type){
    case FINDEXT:
@@ -847,7 +853,7 @@ void evaluate_network(int ind)
     break;
 
    case DEL_MUL:
-     tau=net.taud;
+     tau=table_values(net.taud_table);
      in0=net.root;
      for(j=0;j<n;j++){
        sum=0.0;
@@ -872,7 +878,7 @@ void evaluate_network(int ind)
      }
      break;
    case DEL_SPAR:
-     tau=net.taud;
+     tau=table_values(net.taud_table);
      in0=net.root;
       for(i=0;i<n;i++){
        sum=0.0;
@@ -1020,7 +1026,7 @@ void update_all_ffts()
 */
 void update_fft(int ind)
 {
-  double *w=xpp::model().networks[ind].weight;
+  double *w=table_values(xpp::model().networks[ind].weight_table);
   double *fftr=xpp::session().networks[ind].fftr.data();
   double *ffti=xpp::session().networks[ind].ffti.data();
   int type=xpp::model().networks[ind].type;

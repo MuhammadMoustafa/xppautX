@@ -927,7 +927,7 @@ void batch_integrate()
   const std::vector<xpp::Model::InternalSet> &sets=xpp::model().intern_sets;
   
   if (sets.empty() || (batch_options.intern_sets_used==0)){
-    xpp::model().this_internset.clear();
+    xpp::session().this_internset.clear();
     do_batch_dry_run();
     batch_integrate_once();
     return;
@@ -936,7 +936,7 @@ void batch_integrate()
   for(std::size_t i=0;i<sets.size();i++)
   {
   
-  	  xpp::model().this_internset=xpp::format("_{}",sets[i].name);
+  	  xpp::session().this_internset=xpp::format("_{}",sets[i].name);
 	  if (batch_options.user_out_file.empty()) /*Use the set name for outfile name*/
 	  {
 	      batch_options.out_file=xpp::format("{}.dat",sets[i].name);
