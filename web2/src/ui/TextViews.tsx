@@ -19,7 +19,7 @@ import {useFocusBackOnClose} from './focusBack';
 import type {Session} from '../session';
 import {sixSig} from '../store/values';
 import type {SourceLine, TextTab} from '../store/text';
-import {useSession, useStore} from './context';
+import {BUSY_TITLE, useSession, useStore} from './context';
 import {FOCUSABLE} from './dialogFocus';
 
 
@@ -36,13 +36,13 @@ function EquationsView() {
   return <pre class="text-equations" tabIndex={0} aria-label="The model's equations">{lines.join('\n')}</pre>;
 }
 
-function SourceLineRow({line, session}: {line: SourceLine; session: Session}) {
+function SourceLineRow({line, session, busy}: {line: SourceLine; session: Session; busy: boolean}) {
   return (
     <div class="source-line">
       <span class="source-text">{line.text || ' '}</span>
       {line.comment?.hasAction && (
-        <button class="source-action" onClick={() => session.runAction(line.comment!.index)}
-          title="A comment action: sets the parameters it names">
+        <button class="source-action" onClick={() => session.runAction(line.comment!.index)} disabled={busy}
+          title={busy ? BUSY_TITLE : 'A comment action: sets the parameters it names'}>
           {line.comment.text.trim() || `Action ${line.comment.index + 1}`}
         </button>
       )}
@@ -52,6 +52,7 @@ function SourceLineRow({line, session}: {line: SourceLine; session: Session}) {
 
 function SourceView() {
   const session = useSession();
+  const busy = useStore(s => s.busy);
   const source = useStore(s => s.text.source);
   if (!source) return <p class="text-empty">No source yet.</p>;
   const actionCount = source.comments.filter(c => c.hasAction).length;
@@ -66,7 +67,7 @@ function SourceView() {
         {source.lines.map((line, i) => (
           <div class="source-row" key={i}>
             <span class="source-lineno" aria-hidden="true">{i + 1}</span>
-            <SourceLineRow line={line} session={session} />
+            <SourceLineRow line={line} session={session} busy={busy} />
           </div>
         ))}
       </div>
@@ -82,15 +83,16 @@ function stabilityClass(type: string): string {
 
 function EquilibriumView() {
   const session = useSession();
+  const busy = useStore(s => s.busy);
   const eq = useStore(s => s.text.equilibrium);
   return (
     <div class="text-equilibrium">
       <div class="text-tools">
-        <button onClick={() => session.findEquilibrium()}
-          title="Sing pts / Go: find the equilibrium closest to the current initial conditions">
+        <button onClick={() => session.findEquilibrium()} disabled={busy}
+          title={busy ? BUSY_TITLE : 'Sing pts / Go: find the equilibrium closest to the current initial conditions'}>
           Find equilibrium
         </button>
-        <button onClick={() => session.importEquilibrium()} disabled={!eq}
+        <button onClick={() => session.importEquilibrium()} disabled={!eq || busy}
           title="Make this equilibrium the initial conditions">
           Import
         </button>

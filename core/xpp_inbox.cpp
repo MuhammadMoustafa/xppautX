@@ -90,7 +90,7 @@ void xpp_inbox_set_classifier(int (*cls)(const char *line, unsigned long seq))
 void xpp_inbox_push(const char *line, size_t n)
 {
     Item it;
-    int q = XPP_INBOX_NORMAL;
+    int q = XPP_INBOX_NORMAL, c;
     try {
         it.line.assign(line, n);
     } catch (...) {
@@ -98,7 +98,12 @@ void xpp_inbox_push(const char *line, size_t n)
     }
     pthread_mutex_lock(&push_lock);
     it.seq = next_seq++;
-    if (classify && classify(it.line.c_str(), it.seq) == XPP_INBOX_CONTROL) q = XPP_INBOX_CONTROL;
+    c = classify ? classify(it.line.c_str(), it.seq) : XPP_INBOX_NORMAL;
+    if (c == XPP_INBOX_DROP) {
+        pthread_mutex_unlock(&push_lock);
+        return;
+    }
+    if (c == XPP_INBOX_CONTROL) q = XPP_INBOX_CONTROL;
     pthread_mutex_lock(&lock);
     try {
         queues[q].push_back(std::move(it));

@@ -22,7 +22,7 @@ import type {ComponentChildren} from 'preact';
 import {HELP} from '../help/links';
 import {EXPRESSION, FORMULA, FORMULA_HINT, fieldMessage, type FieldSpec} from '../store/fieldKinds';
 import {fieldKey, pendingText, sixSig, type ValueKind} from '../store/values';
-import {useSession, useStore} from './context';
+import {BUSY_TITLE, useSession, useStore} from './context';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
@@ -251,13 +251,15 @@ function IndexedSection({id, title, kind, entries, hint}: {
 
 function UserButtonsBlock() {
   const session = useSession();
+  const busy = useStore(s => s.busy);
   const names = useStore(s => s.hello?.userbuttons ?? []);
   if (!names.length) return null;
   return (
     <section class="value-group" aria-label="Buttons">
       <div class="value-list value-buttons">
         {names.map((name, i) => (
-          <button key={i} onClick={() => session.userButton(i)} title="A button defined in the ODE file">{name}</button>
+          <button key={i} onClick={() => session.userButton(i)} disabled={busy}
+            title={busy ? BUSY_TITLE : 'A button defined in the ODE file'}>{name}</button>
         ))}
       </div>
     </section>

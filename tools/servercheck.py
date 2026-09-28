@@ -7,7 +7,7 @@ Plays a fixed session (integrate, change a parameter, answer a menu, a
 string prompt and a form, find an equilibrium, open a second plot window)
 and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
-import argparse, base64, cmath, glob, hashlib, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, queue
+import argparse, base64, cmath, glob, hashlib, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -59,12 +59,13 @@ def check_logging():
         shutil.rmtree(run_dir, ignore_errors=True)
 
 
-def launch_server(extra_env=None, ode=None):
+def launch_server(extra_env=None, ode=None, log=None):
     """Start one xppautX --server instance in its own scratch directory and
     return (proc, run_dir, send, collect, events) -- send/collect work just
     like the module-level ones below but are bound to this instance, so a
     second, differently-configured server (e.g. a bad HOME, another model)
-    can be driven the same way without disturbing the main session."""
+    can be driven the same way without disturbing the main session. With
+    `log` (a list), the server's stderr lines are appended to it."""
     ode = ode or args.ode
     run_dir = tempfile.mkdtemp(prefix='xppserver')
     shutil.copy(ode, run_dir)
@@ -91,7 +92,8 @@ def launch_server(extra_env=None, ode=None):
                 events.put({'ev': 'bad'})
 
     threading.Thread(target=reader, daemon=True).start()
-    threading.Thread(target=lambda: [None for _ in proc.stderr], daemon=True).start()
+    threading.Thread(target=lambda: [log is not None and log.append(l.rstrip('\n')) for l in proc.stderr],
+                     daemon=True).start()
 
     def send(**cmd):
         if args.v:
@@ -2430,6 +2432,69 @@ try:
           and dict(st['pars']).get(alpha_name) == 0.2, str(st and st['pars']))
 finally:
     stop_server(p3, r3, snd3)
+
+# W68 (GitHub #116, docs/protocol.md "Commands during a command"): while a
+# computation runs, a command it does not act on is dropped with one log
+# line, never queued to run after it. lecar with Total 1e7 (2e8 steps) does not end on
+# its own before the Abort below, whatever the machine's speed; its first
+# progress event says it is under way, and its stopped that it still was
+# when the Abort came, after the lines under test.
+def check_dropped_during_run():
+    log = []
+    p, r, snd, col, _ = launch_server(log=log)
+    is_ask = lambda e: e.get('ev') == 'ask'
+    iapp = lambda st: st and dict(st['pars']).get('iapp')
+    try:
+        col(is_idle)
+        snd(cmd='key', key='u')
+        col(is_idle)
+        snd(cmd='key', key='t')
+        evs, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], ok=1, value='1e7')
+        col(is_idle)
+        snd(cmd='key', key='Escape')
+        col(is_idle)
+        snd(cmd='key', key='i')
+        evs, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='g')
+        evs, prog = col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
+        snd(cmd='key', key='u')  # nUmerics, whose Total would ask after the run if it were queued
+        snd(cmd='key', key='t')
+        snd(cmd='set', kind='par', name='iapp', value=0.3)
+        snd(cmd='browser', **{'from': 0, 'count': 1})  # only reads: answered during the run
+        evs, rows = col(lambda e: e.get('ev') == 'browser')
+        during = [e for e in evs if e.get('ev') in ('ask', 'idle')]
+        snd(cmd='abort')
+        evs, e = col(is_idle, timeout=30 * SLOW)
+        stopped = any(x.get('ev') == 'stopped' for x in evs)
+        check('W68: during a run, a browser request is answered at once and the run goes on until the Abort (stopped)',
+              prog is not None and rows is not None and not during and stopped, str([x.get('ev') for x in evs])[-200:])
+        snd(cmd='state')
+        evs2, _ = col(is_idle)
+        asks = [x for x in evs + evs2 if is_ask(x)]
+        st2 = [x for x in evs + evs2 if is_state(x)]
+        check('W68: a key and a set sent during a run are dropped: no menu or ask after it, the parameter unchanged',
+              not asks and st2 and iapp(st2[-1]) == 0.05, str(asks)[:200] + ' ' + str(st2 and iapp(st2[-1])))
+        want = ['ignored during a run: key u', 'ignored during a run: key t', 'ignored during a run: set']
+        deadline = time.monotonic() + 5 * SLOW
+        while not all(w in log for w in want) and time.monotonic() < deadline:
+            time.sleep(0.05)
+        check('W68: each dropped line is logged once ("ignored during a run: key u")',
+              all(log.count(w) == 1 for w in want), str([l for l in log if 'ignored' in l]))
+        snd(cmd='key', key='u')
+        col(is_idle)
+        snd(cmd='key', key='t')
+        evs, ask = col(lambda e: e.get('ev') in ('ask', 'idle'))
+        check('W68: after the run a key works again (nUmerics/Total asks)', ask is not None and ask['ev'] == 'ask',
+              str(ask))
+        if ask and ask['ev'] == 'ask':
+            snd(cmd='answer', id=ask['id'], ok=0)
+            col(is_idle)
+    finally:
+        stop_server(p, r, snd)
+
+
+check_dropped_during_run()
 
 send(cmd='key', key='f')
 send(cmd='key', key='q')

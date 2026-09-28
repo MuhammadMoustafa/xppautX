@@ -18,7 +18,7 @@ import {
   answerName, keepBothName, menuKeys, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type Upload,
 } from './store/files';
 import {createStore, type Store} from './store/store';
-import {initialState, noIdle, reduce, type Action, type AppState} from './store/state';
+import {initialState, noIdle, reduce, takenWhileBusy, type Action, type AppState} from './store/state';
 import {stepTarget} from './store/ani';
 import {snapshotWindow, type KinescopeFrame} from './store/kinescope';
 import {MAX_COUNT, MAX_NCOL, planRequest, tableCsv} from './store/table';
@@ -81,6 +81,12 @@ export class Session {
       and its pending trailing send, by window */
   private rotate3dLast = new Map<number, number>();
   private rotate3dTimer = new Map<number, ReturnType<typeof setTimeout>>();
+  /** the last angle a window was turned to while the core was busy, sent at its idle */
+  private rotate3dHeld = new Map<number, {theta: number; phi: number}>();
+  /** a command went out in this turn of the event loop: the rest of that one
+      action (a flushed set and its key, Escape F P, Pause and Seek) follows
+      it, even though the first made the page busy (W68, send) */
+  private actionOpen = false;
   private replayIdles = 0;
   /** a command to send when the running one has ended (the AUTO view's close while busy, A10) */
   private afterIdle: Command | null = null;
@@ -138,7 +144,11 @@ export class Session {
       } else if (this.replayAnswers.length) this.continueReplay(ev);
       else this.continueKeys(ev);
     } else if (ev.ev === 'progress') {
-      if (!this.keyIdlesAhead) this.keyWaiting = false; /* a computation: the keys typed meanwhile go out after it */
+      /* a computation: the keys typed meanwhile are discarded, like any typed during it (W68) */
+      if (!this.keyIdlesAhead) {
+        this.keyWaiting = false;
+        this.typeahead = [];
+      }
     } else if (ev.ev === 'idle') {
       if (this.idlesOwed > 0) this.idlesOwed--;
       if (this.setIdlesAhead !== null) {
@@ -161,6 +171,7 @@ export class Session {
       this.afterIdle = null;
       if (next) this.send(next);
       else this.flushAutoSettings();
+      this.flushRotate3d();
       const typed = this.keyWaiting ? undefined : this.typeahead.shift();
       if (typed !== undefined && !next && !this.planIdles) this.key(typed);
     }
@@ -171,12 +182,13 @@ export class Session {
      after AUTO opened has none, and an `add` it could not place leaves it out
      of step; `redraw` makes the core send all of it again (docs/protocol.md) */
   private checkDiagram(ev: XppEvent): void {
-    const d = this.store.getState().diagram;
+    const {diagram: d, busy} = this.store.getState();
     if (!d.open || (d.axes && !d.outOfStep)) {
       this.diagramAsked = false;
       return;
     }
-    if (this.diagramAsked || ev.ev !== 'state') return;
+    /* not while a command runs (W68: the core would drop it): at its idle */
+    if (this.diagramAsked || busy || (ev.ev !== 'state' && ev.ev !== 'idle')) return;
     this.diagramAsked = true;
     this.send({cmd: 'redraw'});
   }
@@ -204,7 +216,24 @@ export class Session {
     else this.pendingKeys = []; /* anything else is the user's to answer */
   }
 
+  /** whether an action starting now would be discarded: the core is busy,
+      and no command went out yet in this turn (W68) */
+  private blocked(): boolean {
+    return this.store.getState().busy && !this.actionOpen;
+  }
+
+  /** the one place commands go out. While the core is busy only what a
+      running computation takes goes (store/state.ts takenWhileBusy), with
+      the rest of an action that began before (actionOpen): anything else
+      is discarded here, at the source, never queued and never sent to be
+      dropped by the core with no reply (W68, docs/protocol.md "Commands
+      during a command") */
   send(cmd: Command): void {
+    if (this.blocked() && !takenWhileBusy(cmd)) return;
+    if (!this.actionOpen) {
+      this.actionOpen = true;
+      queueMicrotask(() => { this.actionOpen = false; });
+    }
     if (cmd.cmd !== 'answer' && !noIdle(cmd)) this.idlesOwed++;
     this.store.dispatch({type: 'sent', cmd});
     this.transport.send(cmd);
@@ -216,6 +245,10 @@ export class Session {
       whatever it turns out to be -- a view-only key still just sets them
       a little early, never wrongly */
   key(key: string): void {
+    if (this.blocked()) { /* W68: the pending values stay pending too */
+      this.pendingKeys = [];
+      return;
+    }
     this.flushValues();
     this.keyWaiting = true;
     this.keyIdlesAhead = this.idlesOwed;
@@ -224,9 +257,11 @@ export class Session {
 
   /** a hotkey typed on the page (ui/hotkeys.ts): it answers an open menu,
       waits behind a key whose menu has not come yet (typing I then G
-      quickly integrates), or goes out */
+      quickly integrates), or goes out. While the core is busy otherwise
+      Escape stops what runs and every other key does nothing: it is not
+      kept to go out later (W68) */
   typeKey(k: string): void {
-    const ask = this.store.getState().ask;
+    const {ask, busy, stopping} = this.store.getState();
     if (ask) {
       const i = (ask.keys ?? '').toLowerCase().indexOf(k.toLowerCase());
       if ((ask.kind === 'menu' || ask.kind === 'choice') && k.length === 1 && i >= 0) this.answer(ask, {key: ask.keys![i]});
@@ -234,6 +269,10 @@ export class Session {
     }
     if (this.keyWaiting && k !== 'Escape') {
       this.typeahead.push(k);
+      return;
+    }
+    if (busy) {
+      if (k === 'Escape' && !stopping) this.abort();
       return;
     }
     this.key(k);
@@ -301,8 +340,9 @@ export class Session {
 
   /** a window's tab picked: it is shown at once, and becomes the core's active window */
   selectWindow(win: number): void {
-    const {plots, ask} = this.store.getState();
-    if (plots.active === win || ask) return; /* a prompt is the shown window's until answered */
+    const {plots, ask, busy} = this.store.getState();
+    /* a prompt is the shown window's until answered; a run draws into the core's active one (W68) */
+    if (plots.active === win || ask || busy) return;
     this.store.dispatch({type: 'selectWindow', win});
     this.send({cmd: 'click', win});
   }
@@ -360,10 +400,19 @@ export class Session {
     const send = () => {
       this.rotate3dLast.set(win, performance.now());
       this.rotate3dTimer.delete(win);
-      this.send({cmd: 'view3d', win, theta, phi});
+      /* busy: the core would drop it (W68); the latest angle goes at the idle */
+      if (this.store.getState().busy) this.rotate3dHeld.set(win, {theta, phi});
+      else this.send({cmd: 'view3d', win, theta, phi});
     };
     if (performance.now() - last >= 100) send();
     else this.rotate3dTimer.set(win, setTimeout(send, 150));
+  }
+
+  /* at an idle: the latest angle each window was turned to while the core was busy (rotate3d) */
+  private flushRotate3d(): void {
+    if (this.store.getState().busy) return;
+    for (const [win, {theta, phi}] of this.rotate3dHeld) this.send({cmd: 'view3d', win, theta, phi});
+    this.rotate3dHeld.clear();
   }
 
   /** stops the running command; it still ends with its idle */
@@ -382,6 +431,7 @@ export class Session {
       this.store.dispatch({type: 'diagram', action: {type: 'clear'}});
       return;
     }
+    if (this.blocked()) return; /* W68 */
     if (op === 'run') {
       this.flushValues();
       this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'start', at: Date.now()}});

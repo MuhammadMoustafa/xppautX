@@ -8,6 +8,7 @@
 #include "graphics.h"
 #include "flags.h"
 #include "integrate.h"
+#include "xpp_job.h"
 
 #include <stdlib.h>
 #include <math.h>
@@ -613,6 +614,7 @@ void getjactrans(double *x,double *y,double *yp,double *xp, double eps, double *
 
 void rooter(double *x, double err, double eps, double big, double *work, int *ierr, int maxit, int n)
 {
+ xpp::Computation computing; /* what Escape stops (xpp_job.h) */
  int i,iter,ipivot[MAXODE],info;
  char ch;
  double *xp,*yp,*y,*xg,*dermat,*dely;

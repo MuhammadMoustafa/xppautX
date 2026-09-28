@@ -14,6 +14,7 @@
 #include "browse.h"
 #include "graf_par.h"
 #include "integrate.h"
+#include "xpp_job.h"
 #include "lunch-new.h"
 
 #include <stdlib.h>
@@ -356,6 +357,7 @@ static const char *n[]={"*2Range over","Steps","Start","End",
 
 void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *iret, int n, int ishow, int iper, int ipar, int ivar, double sect)
 {
+ xpp::Computation computing; /* what Escape stops (xpp_job.h) */
  double dev,error,ytemp;
 
   int ntot=n;

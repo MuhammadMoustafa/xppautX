@@ -8,7 +8,7 @@
 import {useRef} from 'preact/hooks';
 import {PLOT_KEYS_HELP} from '../plot/plotKeys';
 import type {PlotWindow} from '../store/plots';
-import {useSession, useStore} from './context';
+import {BUSY_TITLE, useSession, useStore} from './context';
 import {Plot3DView} from './Plot3DView';
 import {PlotView} from './PlotView';
 
@@ -85,6 +85,8 @@ export function Plots({dark}: {dark: boolean}) {
                 aria-selected={w.win === active}
                 aria-controls={`plot-panel-${w.win}`}
                 tabIndex={w.win === active ? 0 : -1}
+                disabled={busy && w.win !== active}
+                title={busy && w.win !== active ? BUSY_TITLE : undefined}
                 onClick={() => session.selectWindow(w.win)}>
                 <span class="plot-tab-num">{w.win}</span>
                 <span class="plot-tab-title">{tabTitle(w)}</span>

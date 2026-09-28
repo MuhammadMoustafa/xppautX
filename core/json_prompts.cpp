@@ -471,9 +471,11 @@ int j_check_abort(void)
         flush_pending();
         out_flush();
     }
-    /* only the control queue: a command sent during the computation waits
-       for it (classify()) */
+    /* only the control queue, judged by the list of what a computation
+       takes (during_run()): a line queued just before it began, a key or a
+       set, is dropped like one sent during it */
     while ((line = read_line(XPP_INBOX_CONTROL, 0)) != NULL) {
+        if (during_run(line) == XPP_INBOX_DROP) continue;
         int r = control_line(line);
         if (r != 64 && r != ANI_PAUSE) return r;
     }

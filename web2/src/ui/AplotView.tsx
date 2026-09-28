@@ -23,7 +23,7 @@ import {dragScroll, wheelScroll} from '../plot/aplotScroll';
 import type {AplotColorMap} from '../store/aplot';
 import {columnName, timeAt, valueAt} from '../store/aplot';
 import type {AplotOp} from '../session';
-import {useSession, useStore} from './context';
+import {BUSY_TITLE, useSession, useStore} from './context';
 import {FOCUSABLE} from './dialogFocus';
 
 
@@ -45,6 +45,7 @@ function fmt6(v: number): string {
 
 export function AplotView() {
   const session = useSession();
+  const busy = useStore(s => s.busy);
   const open = useStore(s => s.aplot.open);
   const windowOpen = useStore(s => s.aplot.windowOpen);
   const aplot = useStore(s => s.aplot);
@@ -172,7 +173,7 @@ export function AplotView() {
       </div>
       <div class="aplot-tools">
         {BUTTONS.map(([label2, op, hint]) => (
-          <button key={op} title={hint} onClick={() => session.aplotOp(op)}>{label2}</button>
+          <button key={op} title={busy ? BUSY_TITLE : hint} disabled={busy} onClick={() => session.aplotOp(op)}>{label2}</button>
         ))}
       </div>
       <p class="aplot-info" role="status">

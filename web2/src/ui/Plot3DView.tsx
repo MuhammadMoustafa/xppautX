@@ -138,7 +138,7 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
         onPointerCancel={endDrag}>
         <canvas ref={canvas} class="plot-canvas-3d" aria-hidden="true" />
         {!noCurves && (
-          <FitButton onClick={() => session.fitView()} title="Fit the window's axes to the data (Window/Fit)" />
+          <FitButton onClick={() => session.fitView()} disabled={busy} title="Fit the window's axes to the data (Window/Fit)" />
         )}
         {noCurves && (
           <div class="plot-empty">

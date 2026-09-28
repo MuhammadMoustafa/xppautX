@@ -231,9 +231,18 @@ runs and turns into a disabled "Stopping…" until the run's next idle
 point. A view's own close (×) means "done with it": it stops a running
 job first, then closes; **Stop** itself keeps the view and whatever
 partial result it has (an interrupted AUTO branch ending on its last
-point, ready to Grab and continue). Buttons that would queue behind the
-run (`Integrate`) are disabled while it runs, and other clicks show
-"Busy — press Stop to stop" instead of doing nothing.
+point, ready to Grab and continue).
+
+While a command runs, the status bar says what (`Running Go… Esc
+stops`), and nothing else is started until it ends: the buttons and
+menu items that would start a command are disabled (their tooltip says
+"Busy: available when the current run ends"), and every key but Escape
+does nothing — a key typed during a run is not kept to act afterwards.
+Escape is Stop. Typing ahead into menus still works: I then G typed
+quickly integrates, because the G answers the menu the I opens. The
+values panel's fields and sliders stay usable during a run: an edit
+waits, marked, and is applied with the next command that computes, never
+to the run in progress.
 
 ## Saving pictures and files
 

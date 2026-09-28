@@ -24,18 +24,21 @@ extern "C" {
 #define XPP_INBOX_CONTROL 1 /* a classifier result; next(): the control queue only */
 #define XPP_INBOX_ANY 2     /* next(): the control queue first, then the normal one */
 #define XPP_INBOX_ARRIVAL 3 /* next(): both queues, the older line first (sequence order) */
+#define XPP_INBOX_DROP 4    /* a classifier result: the line is discarded, never queued */
 
 /* One line, without its newline (it must contain none), stored as given:
    the caller strips line ends. Empty lines are kept. Thread-safe; pushes
    from several threads are serialised, so sequence order is queue order. */
 void xpp_inbox_push(const char *line, size_t n);
 
-/* cls(line, seq) returns XPP_INBOX_CONTROL or XPP_INBOX_NORMAL. It runs on
-   the pushing reader thread, before the line is queued, with no inbox lock
-   held that the core waits on (it may set atomics or signal the core), but
-   it must not touch core state or call back into the inbox. The pushing
-   thread may hold its own locks (xpp_http.cpp's) while it runs. NULL restores
-   the default: everything normal. */
+/* cls(line, seq) returns XPP_INBOX_CONTROL, XPP_INBOX_NORMAL or
+   XPP_INBOX_DROP (the line is discarded: its sequence number is used up,
+   nothing is queued). It runs on the pushing reader thread, before the
+   line is queued, with no inbox lock held that the core waits on (it may
+   set atomics, log or signal the core), but it must not touch core state
+   or call back into the inbox. The pushing thread may hold its own locks
+   (xpp_http.cpp's) while it runs. NULL restores the default: everything
+   normal. */
 void xpp_inbox_set_classifier(int (*cls)(const char *line, unsigned long seq));
 
 

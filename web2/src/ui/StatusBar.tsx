@@ -1,5 +1,7 @@
-/* The bottom line: connection, work in progress (progress, Stop, then
-   Stopping… until the run ends), the core's last message, stored rows. */
+/* The bottom line: connection, work in progress (what runs and that Escape
+   stops it, progress, Stop, then Stopping… until the run ends), the core's
+   last message, stored rows. */
+import {busyText} from '../store/state';
 import {useSession, useStore} from './context';
 
 /* the connection, when it is not simply up (AutoStatus.tsx says it too) */
@@ -13,10 +15,12 @@ export function StatusBar() {
   const exited = useStore(s => s.exited);
   const busy = useStore(s => s.busy);
   const stopping = useStore(s => s.stopping);
+  const running = useStore(s => s.running);
+  const asking = useStore(s => s.ask !== null);
   const progress = useStore(s => s.progress);
   const bottom = useStore(s => s.bottom);
   const rows = useStore(s => s.core?.rows ?? 0);
-  const status = connectionText(connected, exited) ?? (stopping ? 'Stopping…' : busy ? 'Working…' : 'Ready');
+  const status = connectionText(connected, exited) ?? (stopping ? 'Stopping…' : busy ? busyText(running, asking) : 'Ready');
   const dot = exited !== null ? 'down' : !connected ? '' : busy ? 'busy' : 'up';
   return (
     <footer class="status-bar">

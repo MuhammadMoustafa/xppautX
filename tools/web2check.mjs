@@ -2613,6 +2613,87 @@ async function busyAuto() {
   await until('!s.busy', 'integration done', 30000);
 }
 
+/* W68 (GitHub #116): while a run goes nothing new starts, discarded in the page: the
+   controls are disabled, a key but Escape does nothing and is not kept (it used to go
+   out, be dropped by the core with no reply, and hold every later key back for good),
+   a slider's edit waits; Escape stops the run, and I G integrates after it. Total 1e6:
+   the run does not end on its own before the Escape, whatever the machine's speed. */
+async function busyKeys() {
+  await desktopMetrics();
+  check('busy keys: the page connects', await until('s.hello && !s.busy', 'hello', 60000));
+  const sid = await addSlider('iapp');
+  await focusPlot();
+  await key('u');
+  await until('!s.busy && s.core.menu === 2', 'numerics menu');
+  await key('t');
+  await until("s.ask && s.ask.kind === 'string'", 'total');
+  await answerAsk({ok: 1, value: '1e6'});
+  await until('!s.busy', 'total set');
+  await key('Escape');
+  await until('!s.busy && s.core.menu === 0', 'main menu');
+  await focusPlot();
+  await key('i');
+  await until("s.ask && s.ask.kind === 'menu'", 'ic menu');
+  const n0 = await cdp.eval('__xpp.actions().length');
+  await key('g');
+  const running = await until('s.busy && !s.ask && w.series && w.series.rows > 0', 'the run under way', 30000);
+  const ui = await cdp.eval(`(() => ({
+    status: document.querySelector('[data-testid=status]').textContent,
+    menu: [...document.querySelectorAll('.menu-panel .menu-item')].every(b => b.disabled),
+    integrate: document.querySelector('.title-bar button.primary').getAttribute('aria-disabled'),
+    newWindow: [...document.querySelectorAll('.plot-window-tools button')].find(b => /New window/.test(b.textContent)).disabled,
+  }))()`);
+  check('busy keys: during a run the status says what runs and that Escape stops it, and the menu, Integrate and New window are disabled',
+    running && ui.status === 'Running Go… Esc stops' && ui.menu && ui.integrate === 'true' && ui.newWindow, JSON.stringify(ui));
+  const sent0 = await cdp.eval('__xpp.sent().length');
+  await focusPlot();
+  await key('f');
+  await key('i');
+  await key('g');
+  const typed = await cdp.eval(`__xpp.sent().slice(${sent0})`);
+  const track = await cdp.eval(`(() => { const r = document.getElementById('slider-range-${sid}').getBoundingClientRect();
+    return {x: r.left, y: r.top + r.height / 2, w: r.width}; })()`);
+  await mouse('mousePressed', track.x + track.w * 0.3, track.y, {button: 'left', clickCount: 1});
+  for (let k = 1; k <= 5; k++) await mouse('mouseMoved', track.x + track.w * (0.3 + k * 0.1), track.y, {button: 'left'});
+  await mouse('mouseReleased', track.x + track.w * 0.8, track.y, {button: 'left', clickCount: 1});
+  const dragged = await cdp.eval(`__xpp.sent().slice(${sent0})`);
+  const pending = await S(`s.values.pending.length === 1 && s.values.pending[0].name === 'iapp'
+    && document.querySelector('[data-slider="${sid}"]').classList.contains('queued')`);
+  const stillBusy = await S('s.busy');
+  check('busy keys: letters typed during a run send nothing, and a slider moved then sends nothing, its edit pending',
+    typed.length === 0 && dragged.length === 0 && pending && stillBusy, JSON.stringify({typed, dragged, pending, stillBusy}));
+  await focusPlot();
+  await key('Escape');
+  const stopped = await until(`__xpp.actions().slice(${n0}).includes('event:idle') && !s.busy`, 'the run stopped', 30000);
+  /* Stop goes straight to the transport (session.abort), so sent() has nothing: the run's `stopped` shows it */
+  const out = await cdp.eval(`__xpp.sent().slice(${sent0}).map(c => c.cmd)`);
+  const cancelled = await cdp.eval(`__xpp.actions().slice(${n0}).includes('event:stopped')`);
+  const iapp0 = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
+  check('busy keys: Escape during a run stops it (stopped) and sends nothing else; the parameter is unchanged',
+    stopped && cancelled && out.length === 0 && Math.abs(iapp0 - 0.05) < 1e-9 && (await S('s.values.pending.length')) === 1,
+    JSON.stringify({stopped, cancelled, out, iapp0}));
+  /* the wedge case: keys work after the run (Total back to 20: 401 rows), and the next
+     command that computes takes the slider's pending edit */
+  const draggedTo = await S('s.values.pending.length ? Number(s.values.pending[0].text) : null');
+  await focusPlot();
+  await key('u');
+  await until('!s.busy && s.core.menu === 2', 'numerics menu after the run');
+  await key('t');
+  await until("s.ask && s.ask.kind === 'string'", 'total after the run');
+  await answerAsk({ok: 1, value: '20'});
+  await until('!s.busy', 'total 20');
+  await key('Escape');
+  await until('!s.busy && s.core.menu === 0', 'main menu after the run');
+  const n1 = await S('s.seriesCount');
+  await focusPlot();
+  await key('i');
+  await key('g');
+  check('busy keys: after the run I then G typed at once integrate, with the slider\'s edit applied',
+    await until(`s.seriesCount > ${n1} && w.series.rows === 401 && !s.busy`, 'I G after the run', 30000)
+    && await S(`Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - ${draggedTo}) < 1e-9 && s.values.pending.length === 0`),
+    JSON.stringify(await S('[s.busy, s.ask, w.series && w.series.rows, s.values.pending]')));
+}
+
 /* ---- T21: where keys go, the theme switch, long menus in columns ---------------- */
 
 async function keysCheck() {
@@ -3877,6 +3958,7 @@ async function main() {
     if (run('auto')) await session(HEAVY_ODE, autoStopRace);
     if (run('keys')) await session(ODE, keysCheck);
     if (run('busy')) await session(LIVE, busyAuto);
+    if (run('busy')) await session(LIVE, busyKeys);
     if (run('view')) await session(ODE, viewCheck);
     if (run('three')) await session(LORENZ_ODE, threePlot);
     if (run('marks')) await session(ODE, marks);

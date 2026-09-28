@@ -705,6 +705,7 @@ int do_range(double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto
 
    if(set_up_range2()==0)return -1;
  }
+ xpp::Computation computing; /* the whole range, between its integrations too (xpp_job.h) */
 
  seed_this_run(); /* the whole sweep (Stochastic > Compute's many runs
                       included) is one computation, one seed */
@@ -1665,6 +1666,7 @@ int ode_int(double *y, double *t, int *istart, int ishow)
 int integrate(double *t, double *x, double tend, double dt, int count, int nout, int *start)
 {
   xpp::Session &s=xpp::session();
+  xpp::Computation computing; /* what Escape stops (xpp_job.h) */
 
  float xv[MAXODE+1],xvold[MAXODE+1];
  float oldperiod=0.0;

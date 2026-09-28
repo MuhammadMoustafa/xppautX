@@ -24,7 +24,7 @@ import type {Ranges} from '../plot/viewmath';
 import type {PlotWindowInfo, View} from '../protocol/types';
 import type {Session} from '../session';
 import {HOME, windowOf} from '../store/plots';
-import {useSession, useStore} from './context';
+import {BUSY_TITLE, useSession, useStore} from './context';
 
 type Axes = Pick<View, 'xlo' | 'xhi' | 'ylo' | 'yhi' | 'three'>;
 
@@ -130,9 +130,9 @@ export function PickOverlay({pick, chart}: {pick: PickState; chart: Pick<Chart, 
     toolbar. `onClick` and `title` are the caller's (the main plot and a 3D
     plot go through the core's Window/Fit; the AUTO diagram fits
     client-side); the caller renders it only while the plot has data. */
-export function FitButton({onClick, title}: {onClick: () => void; title: string}) {
+export function FitButton({onClick, title, disabled = false}: {onClick: () => void; title: string; disabled?: boolean}) {
   return (
-    <button class="plot-fit" onClick={onClick} title={title}>
+    <button class="plot-fit" onClick={onClick} title={disabled ? BUSY_TITLE : title} disabled={disabled}>
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
@@ -359,11 +359,11 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
         <div class="plot-tools">
           <button disabled={!zoomed} onClick={() => chart.current!.reset()}
             title="Back to the window's axes (double click, or 0 on the plot)">Reset view</button>
-          <button disabled={!zoomed} onClick={() => session.useThisView(win, chart.current!.ranges())}
+          <button disabled={!zoomed || busy} onClick={() => session.useThisView(win, chart.current!.ranges())}
             title="Make this zoom the window's own axes (Window/Window), for PostScript/SVG export and Restore">
             Use this view
           </button>
-          <button disabled={noCurves} onClick={() => session.fitView()}
+          <button disabled={noCurves || busy} onClick={() => session.fitView()}
             title="Fit the window's axes to the data (Window/Fit)">Fit</button>
           <button disabled={empty} onClick={() => { const u = chart.current!.png(); if (u) download('xpp-plot.png', u); }}
             title="Save the plot as a PNG picture">PNG</button>
@@ -381,7 +381,8 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
         aria-label={label}
         aria-describedby={picking ? 'pick-instruction plot-keys-help' : 'plot-keys-help'}
         onKeyDown={onKeyDown}>
-        {!noCurves && <FitButton onClick={() => session.fitView()} title="Fit the window's axes to the data (Window/Fit)" />}
+        {!noCurves && <FitButton onClick={() => session.fitView()} disabled={busy}
+          title="Fit the window's axes to the data (Window/Fit)" />}
         {picking && chart.current && <PickOverlay pick={picking} chart={chart.current} />}
         {marker && <span class="hover-dot" style={{left: `${marker.left}px`, top: `${marker.top}px`}} />}
         {empty && (

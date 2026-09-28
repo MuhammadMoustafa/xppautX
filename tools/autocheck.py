@@ -852,7 +852,7 @@ def section_session():
     shutil.rmtree(home2, ignore_errors=True)
 
 
-# ---- control: Abort, Quit and queued commands during a long integration ----
+# ---- control: Abort, Quit and dropped commands during a long integration ----
 
 def set_total(s, total):
     """nUmerics/Total"""
@@ -920,7 +920,8 @@ def section_control():
     evs, e = s.collect(is_idle, timeout=60 * SLOW)
     check('a command sent after an Abort runs in full', rows(evs) == 2001, 'rows %s' % rows(evs))
 
-    # a normal command sent during a job waits for it and is not lost
+    # a command sent during a computation is dropped, not queued behind it
+    # (W68, docs/protocol.md "Commands during a command")
     set_total(s, 400)
     open_auto(s)
     run_now(s)
@@ -929,13 +930,13 @@ def section_control():
     t = s.send(cmd='abort')
     evs, e = s.collect(is_idle, timeout=60 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
-    closed = [x for x in evs if x.get('ev') == 'window' and x.get('win') == 101 and x.get('op') == 'destroy']
     check('Abort stops an integration', e is not None and (rows(evs) or 0) < 40001, 'rows %s' % rows(evs))
     perf('abort during an integration -> idle', '%.2f s' % took)
-    check('a command sent during a job waits for its idle', not closed)
-    evs, e = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 101 and e.get('op') == 'destroy',
-                       timeout=10 * SLOW)
-    check('a command sent during a job runs after it (Close)', e is not None)
+    s.send(cmd='state')
+    more, _ = s.collect(is_idle, timeout=10 * SLOW)
+    closed = [x for x in evs + more if x.get('ev') == 'window' and x.get('win') == 101 and x.get('op') == 'destroy']
+    check('a command sent during a computation is dropped, not run after it (Close)', not closed)
+    s.send(cmd='auto', op='close')
     s.collect(is_idle)
 
     # Quit during an integration

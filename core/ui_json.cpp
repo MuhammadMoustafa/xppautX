@@ -75,38 +75,80 @@ int handle_async(const char *line)
     return 0;
 }
 
+/* What a running computation (xpp_job_computing(): an integration, a
+   range, Sing pts, a boundary value problem, an AUTO run) takes: the one
+   list (docs/protocol.md "Commands during a command"). On the reader
+   thread (classify()) and at the computation's checkpoint (j_check_abort,
+   for a line queued just before the computation began); it only parses
+   the line and logs, allocation-free (short strings).
+
+   - acted on at the computation's next check (XPP_INBOX_CONTROL): abort and
+     quit, the stop keys (Escape, and '/', which ends a range or a shooting
+     for good), and what only reads or steers a view: state, browser with
+     from, ani pause/fast/slow/speed;
+   - kept for its turn (XPP_INBOX_NORMAL): an answer (the computation's own
+     questions) and data (what this client is sent: a page that connects
+     during a run asks for it);
+   - everything else (XPP_INBOX_DROP) is discarded with one log line and
+     never queued: another key, a set (a value edit waits for the next
+     computation, W69), any other command. A client that waits for each
+     command's idle, as the page does, never sends one (docs/ui-v2.md). */
+int during_run(const char *line)
+{
+    std::string c, o; /* at most 15 bytes: no allocation on the reader thread */
+    get_string(line, "cmd", c, 16);
+    if (c == "abort" || c == "quit" || c == "state") return XPP_INBOX_CONTROL;
+    if (c == "browser" && js_find(line, "from")) return XPP_INBOX_CONTROL;
+    if (c == "answer" || c == "data") return XPP_INBOX_NORMAL;
+    if (c == "key") {
+        get_string(line, "key", o, 16);
+        int k = key_code(o.c_str());
+        if (k == ESC || k == '/') return XPP_INBOX_CONTROL;
+    } else if (get_string(line, "op", o, 16) && c == "ani"
+               && (o == "pause" || o == "fast" || o == "slow" || o == "speed")) {
+        return XPP_INBOX_CONTROL;
+    }
+    xpp_log(XPP_LOG_WARN, "ignored during a run: %s%s%s\n", c.empty() ? "(no cmd)" : c.c_str(), o.empty() ? "" : " ",
+            o.c_str());
+    return XPP_INBOX_DROP;
+}
+
 namespace {
 
 /* The input classifier (xpp_inbox.h), on the reader thread: it only parses
-   the line and touches xpp_job's atomics.
+   the line, touches xpp_job's atomics and logs a dropped line.
 
    abort and quit go to the control queue always, and cancel the running
    job (and any not yet begun that came before them) at once: the
    computation sees xpp_job_cancelled() at its next check without reading
    input. Quit then exits when the engine takes the line.
 
-   key, set, state, browser with from, and ani pause/fast/slow are
-   what a computation's checkpoint acts on (Escape stops it, a set changes
-   a parameter under it, the animation loop changes speed): they go to the
-   control queue only while a job runs, and are meant for that job; a set
-   sent then applies at once, ahead of commands queued behind the job, as
-   it always has. Sent while no job runs they stay normal: prompts take
-   control lines first and checkpoints nothing else, so a control line
-   could be taken by the next command's prompt or computation ahead of
-   commands sent before it; a normal line runs in its turn. The command
-   loop reads both queues in arrival order, so a control line no job
-   consumed also runs in its turn, as an ordinary command.
+   While a computation runs, during_run() decides: what it acts on is a
+   control line, an answer or data waits its turn, anything else is
+   dropped. Once it is stopping (cancelled by an abort or Escape), a line
+   is for after it and is classified as below: a command sent after an
+   abort runs normally.
 
-   Everything else is normal: a command sent while a job runs waits for
-   it, and runs after the job's idle. */
+   Otherwise, while a job runs (a command in its prompts, or finishing),
+   key, set, state, browser with from, and ani pause/fast/slow/speed are
+   control lines (the animation's Go acts on them between frames: Escape
+   or Pause stop it, a set changes a parameter under it); a prompt takes
+   control lines first, and the command loop reads both queues in
+   arrival order, so a control line no job consumed runs in its turn, as
+   an ordinary command. Sent while no job runs they are normal.
+
+   Everything else is normal: a command sent while a job runs, outside a
+   computation, waits for it and runs after the job's idle. */
 int classify(const char *line, unsigned long seq)
 {
     std::string c, o; /* at most 15 bytes: no allocation on the reader thread */
-    if (!get_string(line, "cmd", c, 16)) return XPP_INBOX_NORMAL;
+    if (!get_string(line, "cmd", c, 16))
+        return xpp_job_computing() && !xpp_job_stopping() ? during_run(line) : XPP_INBOX_NORMAL;
     if (c == "abort" || c == "quit") {
         xpp_job_cancel(seq);
         return XPP_INBOX_CONTROL;
     }
+    if (xpp_job_computing() && !xpp_job_stopping()) return during_run(line);
     if (!xpp_job_running()) return XPP_INBOX_NORMAL;
     if (c == "key" || c == "set" || c == "state") return XPP_INBOX_CONTROL;
     if (c == "browser" && js_find(line, "from")) return XPP_INBOX_CONTROL;

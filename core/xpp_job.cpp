@@ -1,7 +1,7 @@
 /* The cancel token of a running computation (xpp_job.h).
 
-   State the reader threads touch is two atomics (no locks): cancel_upto,
-   the highest sequence number any cancel has named, and running.
+   State the reader threads touch is three atomics (no locks): cancel_upto,
+   the highest sequence number any cancel has named, running and computing.
    Everything else belongs to the main thread. A job is cancelled when the
    number it started from is <= cancel_upto; cancel_upto only grows.
 
@@ -16,6 +16,9 @@ namespace {
 
 std::atomic<unsigned long> cancel_upto{0};
 std::atomic<bool> running{false}; /* depth > 0, for other threads */
+std::atomic<bool> computing{false}; /* compute_depth > 0, for other threads */
+int compute_depth; /* nesting of compute_begin/end */
+std::atomic<unsigned long> shared_seq{0}; /* job_seq, for other threads (xpp_job_stopping) */
 
 int depth;             /* nesting of begin/end */
 unsigned long job_seq; /* the outermost job's number */
@@ -42,6 +45,7 @@ void xpp_job_begin(unsigned long seq)
         seq++;
     }
     job_seq = seq;
+    shared_seq.store(seq, std::memory_order_relaxed);
     if (seq > last_seq) last_seq = seq;
     running.store(true, std::memory_order_release);
 }
@@ -94,6 +98,23 @@ int xpp_job_stop_armed(void) { return stop != Stop::none; }
 
 int xpp_job_running(void) { return running.load(std::memory_order_acquire); }
 
+void xpp_job_compute_begin(void)
+{
+    if (compute_depth++ == 0) computing.store(true, std::memory_order_release);
+}
+
+void xpp_job_compute_end(void)
+{
+    if (compute_depth > 0 && --compute_depth == 0) computing.store(false, std::memory_order_release);
+}
+
+int xpp_job_computing(void) { return computing.load(std::memory_order_acquire); }
+
+int xpp_job_stopping(void)
+{
+    return running.load(std::memory_order_acquire) && shared_seq.load(std::memory_order_relaxed) <= load_upto();
+}
+
 void xpp_job_cancel(unsigned long upto_seq)
 {
     unsigned long cur = load_upto();
@@ -114,6 +135,7 @@ void xpp_job_resume(unsigned long seq)
 {
     if (depth > 0 && seq > job_seq) {
         job_seq = seq;
+        shared_seq.store(seq, std::memory_order_relaxed);
         if (seq > last_seq) last_seq = seq;
     }
 }

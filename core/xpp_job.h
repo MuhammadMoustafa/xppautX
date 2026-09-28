@@ -33,6 +33,24 @@ void xpp_job_end(void);
 /* 1 while a job runs. Any thread; the protocol's classifier asks it. */
 int xpp_job_running(void);
 
+/* A computation inside the job: an integration (a range of them
+   included), Sing pts' and a boundary value problem's iterations, an AUTO
+   run -- what Escape and Abort stop. While one runs, the protocol takes
+   only what the computation itself acts on and drops everything else
+   (core/ui_json.cpp during_run(), docs/protocol.md "Commands during a
+   command"). Nested pairs are fine (a counter); main thread. C++ code
+   uses xpp::Computation (below), a scope. */
+void xpp_job_compute_begin(void);
+void xpp_job_compute_end(void);
+
+/* 1 while a computation runs. Any thread; the protocol's classifier asks it. */
+int xpp_job_computing(void);
+
+/* 1 while the running job has been cancelled and is ending: what arrives
+   now is for after it (docs/protocol.md "Commands during a command"). Any
+   thread, like xpp_job_cancelled() for the main thread. */
+int xpp_job_stopping(void);
+
 /* Cancel the running job and every job started by a line up to upto_seq.
    Any thread. */
 void xpp_job_cancel(unsigned long upto_seq);
@@ -111,5 +129,15 @@ int xpp_job_stop_armed(void);
 
 #ifdef __cplusplus
 }
+
+namespace xpp {
+/* a computation's extent (xpp_job_compute_begin/end) as a scope */
+struct Computation {
+    Computation() { xpp_job_compute_begin(); }
+    ~Computation() { xpp_job_compute_end(); }
+    Computation(const Computation &) = delete;
+    Computation &operator=(const Computation &) = delete;
+};
+} // namespace xpp
 #endif
 #endif

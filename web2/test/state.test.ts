@@ -7,7 +7,7 @@ import {plotKey} from '../src/plot/plotKeys';
 import {zoomAbout} from '../src/plot/viewmath';
 import type {SeriesEvent} from '../src/protocol/types';
 import {activeWindow} from '../src/store/plots';
-import {classifyLogText, initialState, reduce, type AppState} from '../src/store/state';
+import {busyText, classifyLogText, initialState, reduce, takenWhileBusy, type AppState} from '../src/store/state';
 
 const phase: SeriesEvent = {
   ev: 'series', win: 1, rows: 3, three: 0, xlabel: '', ylabel: '', zlabel: '',
@@ -96,6 +96,30 @@ test('errors and alerts become notifications; Abort shows Stopping until idle', 
   s = reduce(s, {type: 'aborting'});
   assert.equal(s.stopping, true);
   assert.equal(ev(s, {ev: 'idle'}).stopping, false);
+});
+
+test('W68: while busy only what a running computation takes goes out', () => {
+  for (const cmd of [{cmd: 'abort'}, {cmd: 'quit'}, {cmd: 'answer', id: 1, key: 'g'}, {cmd: 'state'},
+    {cmd: 'data', events: ['series']}, {cmd: 'browser', from: 0, count: 10}, {cmd: 'ani', op: 'pause'},
+    {cmd: 'ani', op: 'speed', ms: 20}])
+    assert.ok(takenWhileBusy(cmd), JSON.stringify(cmd));
+  for (const cmd of [{cmd: 'key', key: 'g'}, {cmd: 'key', key: 'Escape'}, {cmd: 'set', kind: 'par', name: 'a', text: '1'},
+    {cmd: 'view', win: 1}, {cmd: 'click', win: 2}, {cmd: 'redraw'}, {cmd: 'browser', op: 'get', row: 0},
+    {cmd: 'ani', op: 'seek', pos: 3}, {cmd: 'auto', op: 'run'}])
+    assert.ok(!takenWhileBusy(cmd), JSON.stringify(cmd));
+});
+
+test('W68: the status line names what runs (the menu item answered) and that Escape stops it', () => {
+  let s = reduce(initialState, {type: 'sent', cmd: {cmd: 'key', key: 'i'}});
+  assert.equal(s.running, null);
+  s = ev(s, {ev: 'ask', id: 3, kind: 'menu', items: ['(R)ange', '(L)ast', '(G)o'], keys: 'rlg'});
+  assert.equal(busyText(s.running, s.ask !== null), 'Working…');
+  s = reduce(s, {type: 'sent', cmd: {cmd: 'answer', id: 3, key: 'g'}});
+  assert.equal(s.running, 'Go');
+  assert.equal(busyText(s.running, s.ask !== null), 'Running Go… Esc stops');
+  assert.equal(busyText(null, false), 'Working… Esc stops');
+  assert.equal(reduce(ev(s, {ev: 'idle'}), {type: 'sent', cmd: {cmd: 'auto', op: 'run'}}).running, 'AUTO');
+  assert.equal(ev(s, {ev: 'idle'}).running, null);
 });
 
 test('the plot keys pan, zoom, reset and step through points', () => {

@@ -104,17 +104,40 @@ in the input.
   command sent after the `abort` runs normally. An answer to a prompt sent
   after an `abort` counts as the user's last word: the rest of that command
   is not cancelled. `quit` then exits.
-- While a job runs, `key`, `set`, `state`, `browser` with `from`, and
-  `ani` `pause`/`fast`/`slow`/`speed` are *control* lines: the computation acts on
-  them as they come (Escape stops it, a `set` changes a parameter under it,
-  `state` is answered at once). Other keys are consumed, as the
-  X11 program does. A control line the job does not get to runs after it
-  as an ordinary command.
-- Every other command sent during a job is queued and runs, in order, after
-  the job's `idle` (with its own `state` and `idle`). Nothing is dropped
-  except keys and edits sent while a prompt is open; an `auto` `set` sent
-  then is kept and applied when the command that asked ends (not in a
-  script, where the line after an ask is its answer).
+- While a *computation* runs (an integration, a range of them, Sing pts, a
+  boundary value problem, an AUTO run: what Escape stops), the server takes
+  only what the computation itself acts on, and discards everything else
+  the moment it arrives (one list, core/ui_json.cpp `during_run`):
+  - acted on at once, at the computation's next check: `abort`, `quit`,
+    the stop keys (`key` `Escape`; `/`, which ends a range or a shooting
+    for good), and what only reads or steers a view: `state`, `browser`
+    with `from`, `ani` `pause`/`fast`/`slow`/`speed`;
+  - kept for their turn: an `answer` (the computation's own questions)
+    and `data` (what this client is sent: a page that connects during a
+    run asks for it), which runs after the computation's `idle`;
+  - anything else -- another key, a `set`, any other command -- is
+    dropped with one log line (`ignored during a run: key g`), never
+    queued to run afterwards and never answered: no refusal event, no
+    `idle` of its own. A client that waits for each command's `idle`, as
+    web2 does, never sends one: it disables its controls while it is
+    busy, holds value edits until the next command that computes, and
+    sends only Escape (as `abort`); a script is read one line at a time
+    after each `idle`, so every step of it starts from idle.
+
+  Once the computation is stopping (an `abort` or Escape cancelled it), a
+  line that arrives is for after it: it is taken as below, so a command
+  sent right behind an `abort` runs normally, in its turn.
+- Outside a computation, while a job runs (a command in its prompts, the
+  animation's Go, a command finishing), `key`, `set`, `state`, `browser`
+  with `from` and `ani` `pause`/`fast`/`slow`/`speed` are *control* lines
+  (the animation's Go acts on them between frames: Escape or Pause stops
+  it, a `set` changes a parameter under it). A control line the job does
+  not get to runs after it as an ordinary command.
+- Every other command sent during a job, outside a computation, is queued
+  and runs, in order, after the job's `idle` (with its own `state` and
+  `idle`). Keys and edits sent while a prompt is open are dropped; an
+  `auto` `set` sent then is kept and applied when the command that asked
+  ends (not in a script, where the line after an ask is its answer).
 - `abort` never has an `idle` of its own, so a client can send it at any
   time without upsetting its count of commands and idles.
 - A command whose job was cancelled (by `abort`, Escape, `quit`) sends

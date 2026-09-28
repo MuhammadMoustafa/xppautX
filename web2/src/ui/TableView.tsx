@@ -20,7 +20,7 @@ import {HELP} from '../help/links';
 import {download} from '../plot/export';
 import type {BrowserOp} from '../session';
 import {rowAt} from '../store/table';
-import {useSession, useStore} from './context';
+import {BUSY_TITLE, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
 
@@ -72,6 +72,7 @@ function useRowHeight(ref: {current: HTMLElement | null}): number {
 
 export function TableView() {
   const session = useSession();
+  const busy = useStore(s => s.busy);
   const open = useStore(s => s.table.open);
   const page = useStore(s => s.table.page);
   const exporting = useStore(s => s.table.exporting);
@@ -192,7 +193,7 @@ export function TableView() {
       </div>
       <div class="table-tools">
         {BUTTONS.map(([label, op, hint]) => (
-          <button key={op} title={hint} onClick={() => session.browserOp(op)}>{label}</button>
+          <button key={op} title={busy ? BUSY_TITLE : hint} disabled={busy} onClick={() => session.browserOp(op)}>{label}</button>
         ))}
       </div>
       <p class="table-info" role="status">

@@ -467,8 +467,15 @@ Target: WCAG 2.2 AA. Rules:
   "Stopping…" until the run's `idle`. Views have no Abort buttons of their
   own (decision 2026-09-23): a view's close (×) means "done with it", and
   stops a running job first, while Stop keeps the view and its partial
-  result (an AUTO branch ending on its EP, to grab and continue). Buttons
-  that would queue behind the run (Integrate) are disabled while it runs.
+  result (an AUTO branch ending on its EP, to grab and continue). While
+  the core is busy nothing new starts, discarded at the source (W68,
+  GitHub #116): buttons that would send a command are disabled, keys but
+  Escape (which is Stop) do nothing and are not kept, and session.ts
+  sends only what a running computation takes (store/state.ts
+  `takenWhileBusy`, the core's own list: docs/protocol.md "Commands during
+  a command"); the status bar says what runs ("Running Go… Esc stops").
+  Typing ahead into a menu still works (a menu is a question, not a
+  computation), and value edits wait for the next computation (W69).
 - **A11 Notifications, not modal alerts**: errors and the core's alerts are
   toasts that do not take the focus or stop the run; errors stay until
   dismissed, information for six seconds; all of them also go to Messages.

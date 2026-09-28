@@ -60,6 +60,7 @@ extern ProtocolSession session;
 [[noreturn]] void quit_session(void); /* exit 1 after a script's error, else 0 */
 int handle_async(const char *line);   /* commands that make sense at any moment */
 int control_line(const char *line);   /* a control line taken by a checkpoint */
+int during_run(const char *line);     /* what a running computation takes (ui_json.cpp) */
 /* a script line that does not fit the dialogue: stop at once */
 [[noreturn]] void script_fail(const char *what, const char *line, const char *ask);
 void script_next(void); /* the script's next line, and an interruption after it */

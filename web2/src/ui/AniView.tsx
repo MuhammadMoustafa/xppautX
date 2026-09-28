@@ -159,17 +159,17 @@ export function AniView() {
           }} />
       </div>
       <div class="ani-controls" role="group" aria-label="Player">
-        <button onClick={() => session.aniSeek(0)} disabled={!canStep} title="First frame (Home)"
+        <button onClick={() => session.aniSeek(0)} disabled={!canStep || (busy && !playing)} title="First frame (Home)"
           aria-label="First frame">⏮</button>
-        <button onClick={() => session.aniStep(-1)} disabled={!canStep} title="One frame back (Left arrow)"
+        <button onClick={() => session.aniStep(-1)} disabled={!canStep || (busy && !playing)} title="One frame back (Left arrow)"
           aria-label="One frame back">◀</button>
         <button class="primary ani-play" onClick={playPause} disabled={!canStep || (busy && !playing)}
           title="Play or pause (Space)" aria-pressed={playing}>
           {playing ? 'Pause' : 'Play'}
         </button>
-        <button onClick={() => session.aniStep(1)} disabled={!canStep} title="One frame forward (Right arrow)"
+        <button onClick={() => session.aniStep(1)} disabled={!canStep || (busy && !playing)} title="One frame forward (Right arrow)"
           aria-label="One frame forward">▶</button>
-        <button onClick={() => session.aniSeek(last)} disabled={!canStep} title="Last frame (End)"
+        <button onClick={() => session.aniSeek(last)} disabled={!canStep || (busy && !playing)} title="Last frame (End)"
           aria-label="Last frame">⏭</button>
         <label class="ani-speed">
           <span>Delay</span>

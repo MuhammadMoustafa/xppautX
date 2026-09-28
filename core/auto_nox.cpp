@@ -543,6 +543,7 @@ void do_auto(int iold, int isave, int itp)
     run_from=s.auto_state.bifur.irs>0?s.auto_state.bifur.irs:0; /* the diagram's data say where the run started */
     stability_run_start(); /* what its first point's stability is (auto_stability.h) */
     {
+        xpp::Computation computing; /* what Abort stops (xpp_job.h) */
         std::array<double, 8> before{}; /* AutoPar's size */
         for (int i = 0; i < s.auto_state.npar; i++) before[i] = s.parser.constants[s.auto_state.par_index[i]];
         go_go_auto(); /* this complets the initialization and calls the
