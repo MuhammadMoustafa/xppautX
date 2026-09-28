@@ -17,7 +17,7 @@
 #include "auto_settings.h"
 #include "browse.h"
 #include "diagram.h"
-#include "parserslow.h"
+#include "expr.h"
 #include "xpp_util.h"
 #include "form_ode.h"
 

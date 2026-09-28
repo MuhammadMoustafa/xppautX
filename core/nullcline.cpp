@@ -17,7 +17,7 @@
 #include "my_ps.h"
 #include "my_svg.h"
 
-#include "parserslow.h"
+#include "expr.h"
 #include "xpp_ui.h"
 
 #include <array>

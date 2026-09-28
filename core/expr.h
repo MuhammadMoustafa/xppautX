@@ -1,5 +1,5 @@
-#ifndef _parserslow_h_
-#define _parserslow_h_
+#ifndef XPP_EXPR_H
+#define XPP_EXPR_H
 
 #include "volterra.h"
 #include "xpplim.h"

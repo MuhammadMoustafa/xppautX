@@ -7,7 +7,7 @@
 #include "session.h"
 #include "model.h"
 #include <string>
-#include "parserslow.h"
+#include "expr.h"
 #include "auto_nox.h"
 #include "lunch-new.h"
 #include "xpp_util.h"

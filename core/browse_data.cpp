@@ -14,7 +14,7 @@
 #include "xpp_util.h"
 #include "storage.h"
 #include "form_ode.h"
-#include "parserslow.h"
+#include "expr.h"
 #include "browse.h"
 #include "xpp_ui.h"
 #include "integrate.h"

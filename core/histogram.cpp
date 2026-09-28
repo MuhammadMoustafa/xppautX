@@ -13,7 +13,7 @@
 #include "adj2.h"
 #include "browse.h"
 
-#include "parserslow.h"
+#include "expr.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "xpp_ui.h"

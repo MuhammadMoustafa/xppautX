@@ -10,7 +10,7 @@
 #include "do_fit.h"
 #include "lunch-new.h"
 #include "integrate.h"
-#include "parserslow.h"
+#include "expr.h"
 #include "xpp_ui.h"
 
 #include <string>

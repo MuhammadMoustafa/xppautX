@@ -29,7 +29,7 @@
 #include "load_eqn.h"
 
 
-#include "parserslow.h"
+#include "expr.h"
 
 #include "diagram.h"
 #include "browse.h"

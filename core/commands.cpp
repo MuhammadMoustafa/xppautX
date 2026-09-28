@@ -43,7 +43,7 @@
 #include <unistd.h>
 #include "many_pops.h"
 #include "kinescope.h"
-#include "parserslow.h"
+#include "expr.h"
 #include "model.h"
 
 /* Pop up m and return the index of the chosen item, -1 if none. */

@@ -10,7 +10,7 @@
 #include "session.h"
 #include "lunch-new.h"
 #include "xpp_batch.h"
-#include "parserslow.h"
+#include "expr.h"
 #include "browse.h"
 #include "graphics.h"
 #include "load_eqn.h"

@@ -12,7 +12,7 @@
 #include "dormpri.h"
 #include "gear.h"
 #include "integrate.h"
-#include "parserslow.h"
+#include "expr.h"
 
 #include <stdlib.h> 
 #include <strings.h>

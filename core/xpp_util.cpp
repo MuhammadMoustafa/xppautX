@@ -9,7 +9,7 @@
 #include "axes2.h"
 #include "graphics.h"
 #include "xpp_globals.h"
-#include "parserslow.h"
+#include "expr.h"
 #include "browse.h"
 #include "graf_par.h"
 #include "integrate.h"

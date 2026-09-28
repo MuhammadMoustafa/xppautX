@@ -25,7 +25,7 @@
 #include "browse.h"
 #include "kinescope.h"
 #include "load_eqn.h"
-#include "parserslow.h"
+#include "expr.h"
 #include "delay_handle.h"
 #include "histogram.h"
 #include "markov.h"

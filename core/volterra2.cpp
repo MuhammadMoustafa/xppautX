@@ -11,7 +11,7 @@
 #include "getvar.h"
 #include <math.h>
 #include <stdio.h>
-#include "parserslow.h"
+#include "expr.h"
 #include <algorithm>
 #include <vector>
 #include "model.h"

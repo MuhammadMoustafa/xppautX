@@ -10,7 +10,7 @@
 #include "adj2.h"
 #include "load_eqn.h"
 
-#include "parserslow.h"
+#include "expr.h"
 #include "browse.h"
 #include "graf_par.h"
 #include "integrate.h"

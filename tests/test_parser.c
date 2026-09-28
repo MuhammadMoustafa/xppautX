@@ -4,7 +4,7 @@
    evaluate() runs, which is what the right-hand sides do at each step. */
 #include "xpptest.h"
 #include <math.h>
-#include "parserslow.h"
+#include "expr.h"
 
 static double calc(char *expr, int *ok)
 {

@@ -9,7 +9,7 @@
 #include "tabular.h"  /* redo_all_fun_tables() */
 #include "gear.h"     /* getjactrans() */
 #include "load_eqn.h"
-#include "parserslow.h"
+#include "expr.h"
 
 /*    Hooks to xpp RHS     */
 

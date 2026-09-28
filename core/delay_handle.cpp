@@ -2,7 +2,7 @@
 #include "session.h"
 #include "load_eqn.h"
 #include "xpp_ui.h"
-#include "parserslow.h"
+#include "expr.h"
 #include "integrate.h"
 
 #include <stdlib.h>

@@ -12,7 +12,7 @@
 #include "model.h"
 #include "xpp_log.h"
 
-#include "parserslow.h"
+#include "expr.h"
 #include "markov.h"
 #include "xpp_files.h"
 #include "load_eqn.h"

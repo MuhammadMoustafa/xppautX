@@ -14,7 +14,7 @@
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "markov.h"
-#include "parserslow.h"
+#include "expr.h"
 
 #include "xpp_files.h"
 #include "load_eqn.h"

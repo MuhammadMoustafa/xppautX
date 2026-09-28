@@ -24,7 +24,7 @@
 #include "flags.h"
 #include "form_ode.h"
 #include "load_eqn.h"
-#include "parserslow.h"
+#include "expr.h"
 #include "model.h"
 #define VOLTERRA 6
 #define BACKEUL 7

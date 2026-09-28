@@ -14,7 +14,7 @@
 #include "auto_nox.h"
 #include "derived.h"
 #include "form_ode.h"
-#include "parserslow.h"
+#include "expr.h"
 #include "arrayplot.h"
 #include "xpp_session.h"
 #include "plot_data.h"

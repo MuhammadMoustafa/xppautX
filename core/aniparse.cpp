@@ -25,7 +25,7 @@
 #include "aniparse.h"
 #include "ani_data.h"
 #include "xpp_log.h"
-#include "parserslow.h"
+#include "expr.h"
 #include "form_ode.h"
 #include "my_rhs.h"
 #include "nullcline.h"

@@ -6,7 +6,7 @@
 #include "xpp_log.h"
 
 #include "markov.h"
-#include "parserslow.h"
+#include "expr.h"
 #include "tabular.h"
 
 #include <stdio.h>

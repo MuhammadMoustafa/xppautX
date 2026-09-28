@@ -1,5 +1,5 @@
 #include "my_rhs.h"
-#include "parserslow.h"
+#include "expr.h"
 #include "dae_fun.h"
 #include <stdlib.h> 
 #include "getvar.h"
