@@ -337,6 +337,36 @@ from):
 5. **`int`** (decided, maintainer, 2026-09-27): `volterra(...)` replaces the
    integral operator, so `int` is an ordinary name in `.odex`.
 6. **Extension gap**: moot, since `.odex` does not reserve `e` (question 4).
+7. **Approximate equality** (decided, maintainer, 2026-09-28; W78): `==`
+   and `!=` stay exact. `near(a, b)` is true when |a-b| <= tol ·
+   max(1, |a|, |b|), tol being `@ neartol=` (default 1e-9) or
+   `near(a, b, tol=...)` for one call. Not `~=` (MATLAB, Lua and Octave's
+   "not equal"), not `eps` (a common parameter name) and not `atol` (the
+   integrator's tolerance: the solver must never change the model's
+   logic). `near` is reserved; `neartol` is an option name, not reserved.
+8. **Arrays** (decided, maintainer, 2026-09-28; W80): a trailing range on
+   each statement, `x[j]' = -x[j] + x[j-1]  for j in 1..n by 2`; the index
+   named explicitly (no implicit `[j]`), an index named like a declared
+   name an error; `a..b` includes both ends; `by k` a positive integer
+   step (not `a..b..k`, ambiguous, nor `step`, a likely parameter name);
+   bounds and step integer expressions of literals and `const`s, never
+   `par`; any integer expression as an index. No blocks and no logic:
+   boundaries are separate ranges or the formula's own `if`. `--convert`
+   writes arrays back as arrays.
+9. **Constants and derived quantities** (decided, maintainer, 2026-09-28;
+   W80): `const n = 20` is fixed at load (.ode's `number`). There is no
+   `!` and `par` takes numbers only: `d = expr` always means the
+   formula's current value, and when it reads only parameters, consts
+   and pure functions (not `ran`, `normal`, `poisson` or a function
+   calling one) the loader computes it only when a parameter changes (a
+   slider, an event setting a parameter, each AUTO evaluation), as
+   .ode's `!` did, so the numbers are identical. `--convert` writes `!d =
+   expr` as `d = expr` and refuses one reading t, a variable or a random
+   function. No per-run snapshot (`hold`): that was a side effect of
+   .ode's `!`, not a feature.
+10. **One Model builder** (decided, maintainer, 2026-09-28; W79): the .ode
+    and .odex readers each produce the statement list, one builder makes
+    the Model; W74's translation into .ode lines goes.
 
 ## The implementation (W74)
 
