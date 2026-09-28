@@ -39,6 +39,9 @@ int refuse_compiled_functions(const char *what);
 #include <string_view>
 #include <vector>
 
+/* get_eqn, the model's lines made already (an .odex model's: odex_load.cpp)
+   rather than read from its file */
+int get_eqn_lines(const std::vector<std::string> &lines);
 /* 1 when the model is a map: is_a_map, or file ends in .dis or .dif */
 int disc(std::string_view file);
 /* quantity i's compiled formula (Model::programs) becomes program */

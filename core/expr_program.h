@@ -14,7 +14,10 @@
      VARTYPE    push variable index (0 is t)
      FUN1TYPE   pop x, push fun1[index](x) (expr_functions.cpp's table)
      FUN2TYPE   pop y then x, push fun2[index](x,y); index 0-3 are + - * /,
-                done in place (a zero divisor becomes DOUB_EPS)
+                done in place (a zero divisor becomes ZERO_DIVISOR), and
+                IEEE_DIVIDE is / without that guard, an .odex model's
+                division (1/0 is inf, 0/0 NaN: docs/odex.md), done in
+                place too
      UFUNTYPE   user function index; the next int is its argument count n:
                 pop n arguments onto the argument stack, push the value of
                 the Model's ufun_programs[index]
@@ -95,7 +98,13 @@ constexpr int SUM_INDEX = 1;
 using Fun1 = double (*)(double);
 using Fun2 = double (*)(double, double);
 extern const std::array<Fun1, 26> fun1;
-extern const std::array<Fun2, 22> fun2;
+extern const std::array<Fun2, 23> fun2;
+
+/* the FUN2TYPE index of an .odex model's division, which the compiler
+   writes for / when the Model's ieee_division is set */
+constexpr int IEEE_DIVIDE = 22;
+/* what an .ode model's division divides by instead of 0 (XPP's guard) */
+constexpr double ZERO_DIVISOR = 2.23E-15;
 
 /* a double as two ints, its first and second halves in memory, and back
    (NUMSYM; the compiler's tokens hold them in that order, and reversing

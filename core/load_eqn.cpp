@@ -20,6 +20,7 @@
 #include "xpp_files.h"
 #include "load_eqn.h"
 #include "form_ode.h"
+#include "odex.h"
 
 #include "browse.h"
 #include "numerics.h"
@@ -45,8 +46,6 @@
 #include "xpp_globals.h"
 #include "delay_handle.h"
 
-#define PARAM 1
-#define IC 2
 
 #define DFNORMAL 1
 #define MAXOPT 1000
@@ -158,6 +157,12 @@ void load_eqn()
    xpp_files_change_dir(this_file.c_str());
    make_eqn();
    return;
+ }
+ /* an .odex model: its own parser, then the same route (odex.h) */
+ if(xpp::session().got_file==1&&std==0&&xpp::odex::is_odex(this_file))
+ {
+   okay=xpp::odex::load(this_file);
+   if(okay==1)return;
  }
  if(xpp::session().got_file==1)
  {
@@ -314,6 +319,7 @@ if(s.plot_settings.my_ylo>=s.plot_settings.my_yhi){
 
  alloc_v_memory();  /* allocate stuff for volterra equations */
  alloc_meth();
+ xpp::odex::set_initials(); /* an .odex model's initial values */
  arr_ic_start(); /* take care of all predefined array ics */
 
 }
@@ -412,12 +418,12 @@ void do_intern_set(const char *name1, const char *value)
   convert(name1,buf.data());
   const char *name=buf.c_str();
 
-  i=find_user_name(IC,name);
+  i=find_user_name(ICBOX,name);
   if(i>-1){
     xpp::session().last_ic[i]=atof(value);
   }
   else {
-    i=find_user_name(PARAM,name);
+    i=find_user_name(PARAMBOX,name);
     if(i>-1){
       set_val(name,atof(value));
     }

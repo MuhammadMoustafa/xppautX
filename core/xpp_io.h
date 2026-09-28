@@ -224,6 +224,12 @@ inline std::string upper_case(std::string s)
     if(c>='a'&&c<='z')c=static_cast<char>(c-'a'+'A');
   return s;
 }
+/* s in lower case (ASCII letters only), all of it */
+inline std::string lower_case(std::string s)
+{
+  to_lower(s.data());
+  return s;
+}
 
 /* strtok's tokens without writing into the text (the core's one
    tokenizer: the parser, the options, the .ani reader, the fit's lists):

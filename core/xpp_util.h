@@ -58,6 +58,8 @@ const std::string &ind_to_sym(int ind);
 
 /* the index of parameter (type PARAMBOX) or variable (ICBOX) oname,
    blanks ignored and case not, -1 when there is none */
+#define PARAMBOX 1
+#define ICBOX 2
 int find_user_name(int type, std::string_view oname);
 
 /* f() on the active plot window, or under Simulplot on each open one in

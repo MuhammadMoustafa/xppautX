@@ -400,6 +400,9 @@ int alg_to_rpn(int *toklist, int *command)
      if(my_symb[oldtok].pri>=my_symb[newtok].pri)
            {
             command[comptr]=my_symb[oldtok].com;
+	    /* an .odex model divides as IEEE does (docs/odex.md) */
+	    if(command[comptr]==COM(FUN2TYPE,3)&&xpp::model().ieee_division)
+	      command[comptr]=COM(FUN2TYPE,xpp::expr::IEEE_DIVIDE);
 	    if((my_symb[oldtok].arg==2)&&
 	       (my_symb[oldtok].com/MAXTYPE==FUN2TYPE))
 	      ncomma--;

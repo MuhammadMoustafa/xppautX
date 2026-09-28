@@ -105,6 +105,12 @@ double dlt(double x, double y)
  return(static_cast<double>(x<y));
 }
 
+/* an .odex model's x/y: IEEE's, a zero divisor unguarded */
+double ieee_divide(double x, double y)
+{
+ return x/y;
+}
+
 }
 
 namespace xpp::expr {
@@ -139,8 +145,8 @@ const std::array<Fun1,26> fun1={
   ::lgamma,  /* 25 */
 };
 
-/* 0-3 are + - * /, which the evaluator does itself */
-const std::array<Fun2,22> fun2={
+/* 0-3 are + - * /, which the evaluator does itself (and IEEE_DIVIDE) */
+const std::array<Fun2,23> fun2={
   nullptr, /*  0 */
   nullptr,
   nullptr,
@@ -163,6 +169,7 @@ const std::array<Fun2,22> fun2={
   ::xpp_bessel_y,
   ::xpp_bessel_i,  /* 20 */
   ::xpp_bessel_i_scaled,
+  ::ieee_divide,   /* IEEE_DIVIDE */
 };
 
 /*********************************************

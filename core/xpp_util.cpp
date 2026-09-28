@@ -36,8 +36,6 @@
 #include "load_eqn.h"
 #include "auto_nox.h"
 
-#define PARAMBOX 1
-#define ICBOX 2
 #define DELAYBOX 3
 #define BCBOX 4
 #define PARAM 1

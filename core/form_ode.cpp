@@ -148,7 +148,15 @@ void set_ode_name(int i, std::string_view text)
 }
 
 namespace {
-int do_new_parser(FILE *fp, const std::string &first, int nnn, bool at_end);
+/* where a model's lines come from: its file, or lines already made (an
+   .odex model's, odex_load.cpp) */
+struct LineSource {
+  FILE *fp=nullptr;
+  const std::vector<std::string> *lines=nullptr;
+  size_t next=0;
+};
+int do_new_parser(LineSource &src, const std::string &first, int nnn, bool at_end);
+int get_eqn_from(LineSource &src);
 }
 
 namespace {
@@ -266,9 +274,15 @@ std::optional<std::string> get_next2(std::string_view &tokens)
 /* the model's source line: fgets without its size, the line with its
    '\n' ("" at the end of the file); false once the end was met, what
    feof(fp) says after it */
-bool read_raw_line(FILE *fp, std::string &line)
+bool read_raw_line(LineSource &src, std::string &line)
 {
   line.clear();
+  if(src.lines){
+    if(src.next>=src.lines->size())return false;
+    line=(*src.lines)[src.next++]+"\n";
+    return true;
+  }
+  FILE *fp=src.fp;
   int c;
   while((c=getc(fp))!=EOF){
     line+=static_cast<char>(c);
@@ -293,13 +307,13 @@ void save_line(const std::string &line)
    next one (the text from the first backslash on is dropped); the
    line's end becomes a blank and one more blank follows it. false once
    the end of the file was met. */
-bool read_a_line(FILE *fp, std::string &s)
+bool read_a_line(LineSource &src, std::string &s)
 {
   bool more=true,in_file=true;
   s.clear();
   while(more){
     std::string temp;
-    in_file=read_raw_line(fp,temp)&&in_file;
+    in_file=read_raw_line(src,temp)&&in_file;
     save_line(temp);
     size_t hat=temp.find('\\');
     more=hat!=std::string::npos;
@@ -930,6 +944,23 @@ int disc(std::string_view s)
 
 int get_eqn(FILE *fptr)
 {
+  LineSource src;
+  src.fp=fptr;
+  return get_eqn_from(src);
+}
+
+int get_eqn_lines(const std::vector<std::string> &lines)
+{
+  LineSource src;
+  src.lines=&lines;
+  return get_eqn_from(src);
+}
+
+namespace {
+
+int get_eqn_from(LineSource &src)
+{
+  FILE *fptr=src.fp;
   std::string bob;
   int done=1,i;
   int flag;
@@ -944,15 +975,19 @@ int get_eqn(FILE *fptr)
   */
   xpp::model().options_file="default.opt";
   add_var("t",0.0);
-  bool in_file=read_raw_line(fptr,bob);
+  bool in_file=read_raw_line(src,bob);
   save_line(bob);
   i=atoi(bob.c_str());
   if(i<=0) { /* New parser ---   */
 
     OldStyle=0;
     ConvertStyle=0;
-    flag=do_new_parser(fptr,bob,0,!in_file);
+    flag=do_new_parser(src,bob,0,!in_file);
     if(flag<0) xpp_model_failed();
+  }
+  else if(fptr==nullptr){ /* lines made by odex_load: never old style */
+    xpp_log(XPP_LOG_ERROR, "An old-style model must be read from its file\n");
+    xpp_model_failed();
   }
   else{
     OldStyle=1;
@@ -971,7 +1006,7 @@ int get_eqn(FILE *fptr)
     }
     while(done)
       {
-	read_raw_line(fptr,bob);
+	read_raw_line(src,bob);
 	if(bob.empty())break;
 	save_line(bob);
 	done=compiler(bob,fptr);
@@ -1058,6 +1093,8 @@ int get_eqn(FILE *fptr)
     return(1);
 }
 
+} // namespace
+
 namespace {
 
 /* "#include file": the file's name, blanks removed, into nf */
@@ -1103,15 +1140,15 @@ void split_rhs(VAR_INFO &v, size_t name_end, size_t rest_start)
   v.rhs=rest_start<big.size()?big.substr(rest_start):std::string();
 }
 
-int parse_model(FILE *fp, const std::string &first, int nnn, bool at_end);
+int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end);
 
 /* no exception crosses into C: the only one parse_model() can throw is
    std::bad_alloc, and running out of memory ends the program, as
    xpp_malloc() does */
-int do_new_parser(FILE *fp, const std::string &first, int nnn, bool at_end)
+int do_new_parser(LineSource &src, const std::string &first, int nnn, bool at_end)
 {
   try {
-    return parse_model(fp, first, nnn, at_end);
+    return parse_model(src, first, nnn, at_end);
   } catch (const std::bad_alloc &) {
     xpp::log(XPP_LOG_ERROR, "out of memory reading {}\n", first);
     exit(1);
@@ -1909,7 +1946,7 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 
 }
 
-int parse_model(FILE *fp, const std::string &first, int nnn, bool at_end)
+int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end)
 {
  VAR_INFO v;
  std::vector<std::string> strings; /* this line, or a for loop's lines */
@@ -1927,8 +1964,8 @@ int parse_model(FILE *fp, const std::string &first, int nnn, bool at_end)
  std::vector<std::string> markov_states,markov_states2;
  int is_array=0;
  /* the next line of fp into s; at_end once the file's end was met */
- auto next_line=[fp,&at_end](std::string &s){
-   if(!read_a_line(fp,s))at_end=true;
+ auto next_line=[&src,&at_end](std::string &s){
+   if(!read_a_line(src,s))at_end=true;
  };
  if(nnn==0){model_lines.clear();}
  while(notdone){
@@ -1949,7 +1986,9 @@ int parse_model(FILE *fp, const std::string &first, int nnn, bool at_end)
        			}
       			xpp::log(XPP_LOG_INFO, "Including {} \n",inc);
 			IN_INCLUDED_FILE++;
-       			do_new_parser(fnew.get(),inc,1,false);
+			LineSource inc_src;
+			inc_src.fp=fnew.get();
+       			do_new_parser(inc_src,inc,1,false);
 		}
 	}
 
@@ -1973,7 +2012,9 @@ int parse_model(FILE *fp, const std::string &first, int nnn, bool at_end)
        }
        xpp::log(XPP_LOG_INFO, "Including {}...\n",newfile);
        IN_INCLUDED_FILE++;
-       do_new_parser(fnew.get(),newfile,1,false);
+       LineSource inc_src;
+       inc_src.fp=fnew.get();
+       do_new_parser(inc_src,newfile,1,false);
        fnew.reset();
        if (IN_INCLUDED_FILE <= 0)
              continue;

@@ -9,8 +9,6 @@
 #include "tabular.h"
 #include "volterra2.h"
 
-/* what a division by zero divides by instead */
-#define DOUB_EPS 2.23E-15
 
 namespace {
 
@@ -156,8 +154,11 @@ double eval_rpn(const int *equat, ParserState &p)
      temx=pop();temy=pop();push(temx*temy);
      break;
    case COM(FUN2TYPE,3):
-     temx=pop();if(temx==0.0)temx=DOUB_EPS;
+     temx=pop();if(temx==0.0)temx=xpp::expr::ZERO_DIVISOR;
      temy=pop();push(temy/temx);
+     break;
+   case COM(FUN2TYPE,xpp::expr::IEEE_DIVIDE):
+     temx=pop();temy=pop();push(temy/temx);
      break;
    default:
    {

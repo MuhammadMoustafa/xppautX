@@ -61,6 +61,10 @@ struct Model {
   int ncon_start=0,nsym_start=0;
   /* the first primed symbol (a variable's x') */
   int prime_start=0;
+  /* an .odex model's formulas divide as IEEE does (1/0 is inf, 0/0 NaN),
+     where an .ode's replace a zero divisor by ZERO_DIVISOR (expr_compile.cpp;
+     docs/odex.md, question 1) */
+  bool ieee_division=false;
   /* each variable's kind: 1 a Volterra integral equation (x(t)=...),
      0 an ODE or a map */
   std::array<int,MAXODE> eq_type{};
@@ -138,6 +142,13 @@ struct Model {
      last_ic) */
   std::array<double,MAXPAR> default_val{};
   std::array<double,MAXODE> default_ic{};
+  /* an .odex model's initial values: each variable (by name) and its
+     formula (.ode text), evaluated in order once the model is set up
+     (odex_load.cpp's set_initials); where its init is, for an error */
+  struct InitialValue {
+    std::string name, formula, where;
+  };
+  std::vector<InitialValue> initial_values;
   /* its @ lines, each whole, as read: load_eqn.cpp's set_internopts
      sets the numerics and plot settings from them (their current values
      are the Session's) */
