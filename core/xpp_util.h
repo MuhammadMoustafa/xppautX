@@ -52,9 +52,10 @@ void xpp_cleanup_auto_dir(void);
    one keeps its start and ends in '~' so it cannot pass for another name */
 std::string short_name(std::string_view name, int width);
 
-/* the name of plotted variable ind: T (0) or a variable (xpp::Model's
-   own, valid while the model is loaded) */
-const std::string &ind_to_sym(int ind);
+/* the name of plotted column ind: T (0), a model variable, or (W77) a
+   browser column data_add_col added; browse_column_name (browse.h) owns
+   the naming, this is just its name for a plotted column */
+std::string ind_to_sym(int ind);
 
 /* the index of parameter (type PARAMBOX) or variable (ICBOX) oname,
    blanks ignored and case not, -1 when there is none */

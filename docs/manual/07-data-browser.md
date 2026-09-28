@@ -81,7 +81,7 @@ Loads a data file into the table for graphing: its columns fill T and the column
 
 ### (A)ddcol
 
-This allows you to add an additional column to the data browser. You are prompted for the name you want to give the column and for the formula. It is thus, like an auxiliary variable with a name. Thereafter, it will be computed along with any other quantities that you have defined. It is as though you had included another auxiliary variable in your original file.
+This allows you to add an additional column to the data browser. You are prompted for the name you want to give the column and for the formula. It is computed at once from the stored data, and again every time you run the model afresh, as though it were another auxiliary variable. Unlike a real auxiliary variable, though, it is not one of your model's own quantities: you cannot use its name in another formula (an Addcol's own or one of the model's), and it is lost as soon as you reload the model (revert, or open another one).
 
 ### (D)elcol
 

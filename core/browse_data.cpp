@@ -57,10 +57,10 @@ std::string browse_column_name(int j)
   if(j==0)return "T";
   const xpp::Model &m=xpp::model();
   if(j>0&&j<=m.neq)return m.uvar_names[j-1];
-  const std::vector<std::string> &added=xpp::session().browser.added_columns;
+  const std::vector<AddedColumn> &added=xpp::session().browser.added_columns;
   if(j>m.neq){
     const std::size_t k=static_cast<std::size_t>(j-m.neq-1);
-    if(k<added.size())return added[k];
+    if(k<added.size())return added[k].name;
   }
   return "";
 }
@@ -109,9 +109,9 @@ void find_variable(std::string_view s, int *col)
     *col=*col+1;
     return;
   }
-  const std::vector<std::string> &added=xpp::session().browser.added_columns;
+  const std::vector<AddedColumn> &added=xpp::session().browser.added_columns;
   for(std::size_t k=0;k<added.size();k++){
-    if(xpp::equal_ignoring_case(added[k],s)){
+    if(xpp::equal_ignoring_case(added[k].name,s)){
       *col=xpp::model().neq+1+static_cast<int>(k);
       return;
     }
@@ -125,11 +125,17 @@ void  refresh_browser(int length)
  s.browser.view.maxrow=length;
  s.browser.view.iend=length;
  if(s.browser.view.data==s.data_store.col){
-   /* a fresh run's own data: an earlier data_add_col column was not
-      recomputed for it and the Model's own columns are unchanged, so
-      drop it rather than show it stale (docs/roadmap.md W77) */
-   s.browser.added_columns.clear();
-   s.browser.view.maxcol=xpp::model().neq+1;
+   /* a fresh run's own data, the Model's own columns unchanged: recompute
+      every added column over it (docs/manual/07-data-browser.md: it
+      stays computed "as though ... another auxiliary variable") rather
+      than dropping it (docs/roadmap.md W77) */
+   const xpp::Model &m=xpp::model();
+   for(std::size_t k=0;k<s.browser.added_columns.size();k++){
+     const int col_index=m.neq+1+static_cast<int>(k);
+     s.data_store.add_column(col_index); /* fresh max_rows zeros */
+     compute_added_column(s.browser.added_columns[k].formula,col_index,length);
+   }
+   s.browser.view.maxcol=m.neq+1+static_cast<int>(s.browser.added_columns.size());
  }
  xpp_ui.data_changed(length);
 }
@@ -245,9 +251,31 @@ void data_add_col(BROWSER *b)
   }
 }
 
-int add_stor_col(const char *name, const char *formula, BROWSER *b)
+bool compute_added_column(const std::string &formula, int col_index, int nrows)
 {
   int com[4000],i,j;
+  xpp::Session &s=xpp::session();
+  const xpp::Model &m=xpp::model();
+  if(add_expr(formula.c_str(),com,&i)){
+    err_msg("Bad Formula .... ");
+    return false;
+  }
+  for(i=0;i<nrows;i++){
+    for(j=0;j<m.node+1;j++)set_ivar(j,static_cast<double>(s.data_store.col[j][i]));
+    for(j=m.node;j<m.neq;j++)set_val(m.uvar_names[j],static_cast<double>(s.data_store.col[j+1][i]));
+    s.data_store.col[col_index][i]=static_cast<float>(evaluate(com));
+  }
+  /* add_expr may have added constants to the parser's working symbol
+     table (ParserState::ncon/nsym, session.h): roll it back to the
+     Model's own end, like a histogram condition (histogram.cpp) -- the
+     added column is not a symbol a later formula can name */
+  s.parser.ncon=m.ncon_start;
+  s.parser.nsym=m.nsym_start;
+  return true;
+}
+
+int add_stor_col(const char *name, const char *formula, BROWSER *b)
+{
   xpp::Session &s=xpp::session();
   const xpp::Model &m=xpp::model();
 
@@ -264,25 +292,11 @@ int add_stor_col(const char *name, const char *formula, BROWSER *b)
     err_msg("Too many columns");
     return(0);
   }
-  if(add_expr(formula,com,&i)){
-    err_msg("Bad Formula .... ");
-    return(0);
-  }
   s.data_store.add_column(col_index); /* max_rows zeros */
-  for(i=0;i<b->maxrow;i++){
-    for(j=0;j<m.node+1;j++)set_ivar(j,static_cast<double>(s.data_store.col[j][i]));
-    for(j=m.node;j<m.neq;j++)set_val(m.uvar_names[j],static_cast<double>(s.data_store.col[j+1][i]));
-    s.data_store.col[col_index][i]=static_cast<float>(evaluate(com));
-  }
-  /* add_expr may have added constants to the parser's working symbol
-     table (ParserState::ncon/nsym, session.h): roll it back to the
-     Model's own end, like a histogram condition (histogram.cpp) -- the
-     added column is not a symbol a later formula can name */
-  s.parser.ncon=m.ncon_start;
-  s.parser.nsym=m.nsym_start;
+  if(!compute_added_column(formula,col_index,b->maxrow))return(0);
   std::string col_name(name);
   xpp::to_upper(col_name.data());
-  s.browser.added_columns.push_back(std::move(col_name));
+  s.browser.added_columns.push_back({std::move(col_name),std::string(formula)});
   b->maxcol=m.neq+1+static_cast<int>(s.browser.added_columns.size());
   xpp_ui.browser_redraw(1);
   return(1);

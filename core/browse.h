@@ -78,7 +78,22 @@ void find_variable(std::string_view s, int *col);
    (BrowserState::added_columns below); "" past the last one */
 std::string browse_column_name(int j);
 
+/* col_index's rows 0..nrows-1: formula compiled and evaluated fresh over
+   them (add_expr's constants roll back to xpp::model()'s own end right
+   after, like a histogram condition -- the column is not a symbol a
+   later formula can name), into xpp::session().data_store.col[col_index].
+   data_add_col's own add, and a fresh run's recompute (refresh_browser)
+   of every added column, both go through this; false (and an error) on
+   a formula that no longer compiles */
+bool compute_added_column(const std::string &formula, int col_index, int nrows);
+
 #include <vector>
+/* an Add column (browse_data.cpp data_add_col): its name and formula, as
+   typed, kept to recompute it after every fresh run (below) */
+struct AddedColumn {
+  std::string name;
+  std::string formula;
+};
 /* the data browser (browse_data.cpp), a Session's (session.h) */
 struct BrowserState {
   /* the data set it shows: the stored data, or a derived set in its place */
@@ -87,11 +102,15 @@ struct BrowserState {
      its column and its values */
   int replaced=0,replaced_col=0;
   std::vector<float> old_column;
-  /* data_add_col's columns, one name per column added since the load, at
-     data_store columns xpp::model().neq+1, +2, ...: the Session's own
-     data, not the Model's (docs/roadmap.md W77 -- the Model stays as the
-     load left it; a fresh load clears this with the rest of the Session) */
-  std::vector<std::string> added_columns;
+  /* data_add_col's columns, in the order added, at data_store columns
+     xpp::model().neq+1, +2, ...: the Session's own data, not the
+     Model's (docs/roadmap.md W77 -- the Model stays as the load left
+     it). A fresh load clears this with the rest of the Session; a fresh
+     run recomputes every one of them over its own rows
+     (recompute_added_columns, refresh_browser) instead of dropping
+     them, since docs/manual/07-data-browser.md promises an added
+     column stays computed "as though ... another auxiliary variable". */
+  std::vector<AddedColumn> added_columns;
 };
 #endif
 #endif

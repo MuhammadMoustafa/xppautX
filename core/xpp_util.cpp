@@ -63,10 +63,9 @@ void clr_scrn(void)
 #define READEM 1
 #define WRITEM 0
 
-const std::string &ind_to_sym(int ind)
+std::string ind_to_sym(int ind)
 {
- static const std::string time_name="T";
- return ind==0 ? time_name : xpp::model().uvar_names[ind-1];
+ return browse_column_name(ind);
 }
 
 void  get_max(int index, double *vmin, double *vmax)

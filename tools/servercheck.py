@@ -267,7 +267,26 @@ collect(is_idle)
 
 # W77: the data browser's Add column is the Session's, not the Model's
 # (docs/roadmap.md W77, #125): it must not grow neq/nvar or add a
-# variable, so it stays invisible to everything that reads the model.
+# variable, so it stays invisible to everything that reads the model --
+# but docs/manual/07-data-browser.md promises it stays computed "as
+# though ... another auxiliary variable", so it is recomputed (not
+# dropped) after every run, and find_variable resolves it by name so it
+# can be plotted.
+def fetch_browser(nrows):
+    send(cmd='browser', **{'from': 0, 'count': nrows, 'col': 1, 'ncol': 500})
+    evs, br = collect(lambda e: e.get('ev') == 'browser')
+    collect(is_idle)
+    return br
+
+
+def near(a, b, tol=1e-5):
+    """elementwise, for a value recomputed in double precision from JSON
+    text against a value the core computed in float32: same_floats wants
+    bit-identical floats, appropriate for the same stored value read two
+    ways, not for redoing its arithmetic"""
+    return len(a) == len(b) and all(abs(x - y) < tol for x, y in zip(a, b))
+
+
 send(cmd='browser', op='addcol')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 check('addcol asks for the column name', ask is not None and ask['kind'] == 'string' and ask.get('name') == 'Name',
@@ -280,14 +299,13 @@ evs, _ = collect(is_idle)
 st = last_state(evs)
 check("addcol does not grow the model (still 2 ICs: V, W)", st is not None and len(st['ics']) == 2,
       str(st and st['ics']))
-send(cmd='browser', **{'from': 0, 'count': 1, 'col': 1, 'ncol': 500})
-evs, br = collect(lambda e: e.get('ev') == 'browser')
-collect(is_idle)
+
+br = fetch_browser(601)
 vi, wi, vwi = br['cols'].index('V'), br['cols'].index('W'), br['cols'].index('VW')
-check('the browser shows the added column, computed from the others',
-      br is not None and br['cols'][-1] == 'VW'
-      and abs(br['data'][0][vwi] - br['data'][0][vi] * br['data'][0][wi]) < 1e-5, str(br)[:200])
 orig_cols = br['cols'][:-1]
+check('the browser shows the added column, computed from the others, for every row',
+      br['cols'][-1] == 'VW' and near([row[vwi] for row in br['data']],
+                                       [row[vi] * row[wi] for row in br['data']]), str(br)[:200])
 send(cmd='browser', op='write', what='table', format='csv', name='added_col.csv')
 collect(is_idle)
 with open(os.path.join(run, 'added_col.csv')) as f:
@@ -295,6 +313,25 @@ with open(os.path.join(run, 'added_col.csv')) as f:
 check('the saved CSV has a VW column, one more than the model columns',
       csv_lines[0].split(',') == orig_cols + ['VW']
       and len(csv_lines[1].split(',')) == len(orig_cols) + 1, str(csv_lines[:2]))
+
+# plot it by name (Xi vs t: graf_par.cpp find_variable resolves it)
+send(cmd='data', events=['series'])
+collect(is_idle)
+send(cmd='key', key='x')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+send(cmd='answer', id=ask['id'], ok=1, value='VW')
+evs, _ = collect(is_idle)
+ser = [e for e in evs if e.get('ev') == 'series']
+check('Xi vs t can plot the added column by name',
+      len(ser) == 1 and [c['name'] for c in ser[0]['columns']] == ['T', 'VW'], str(ser)[:200])
+if ser:
+    plotted = values(ser[0]['columns'][1], ser[0].get('enc'))
+    expected = [f32(row[vwi]) for row in br['data']]
+    check('the plotted series is exactly the added column', same_floats(plotted, expected), '')
+
+# a re-run, with a changed parameter so V, W (and VW) differ, recomputes
+# the added column instead of dropping it
+send(cmd='set', kind='par', name='iapp', value=0.2)
 send(cmd='key', key='i')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 send(cmd='answer', id=ask['id'], key='g')
@@ -302,11 +339,14 @@ evs, _ = collect(is_idle, timeout=30 * SLOW)
 st = last_state(evs)
 check('a re-run after addcol still has 601 rows and 2 ICs (the model unchanged)',
       st is not None and st['rows'] == 601 and len(st['ics']) == 2, str(st and (st['rows'], st['ics'])))
-send(cmd='browser', **{'from': 0, 'count': 1, 'col': 1, 'ncol': 500})
-evs, br = collect(lambda e: e.get('ev') == 'browser')
+br2 = fetch_browser(601)
+check("the re-run's browser columns are the model's plus VW again, recomputed",
+      br2['cols'] == br['cols'] and near([row[vwi] for row in br2['data']],
+                                          [row[vi] * row[wi] for row in br2['data']]), str(br2)[:200])
+check('the added column actually changed after the re-run (recomputed, not stale)',
+      not same_floats([row[vwi] for row in br['data']], [row[vwi] for row in br2['data']]), '')
+send(cmd='data', events=[])
 collect(is_idle)
-check("the re-run's browser columns are the model's again (the added column is gone)",
-      br is not None and br['cols'] == orig_cols, str(br)[:200])
 
 send(cmd='data', events=['series'])
 collect(is_idle)
