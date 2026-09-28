@@ -21,6 +21,17 @@ for arg in "$@"; do
   esac
 done
 BASELINE=c281851de59ffd03b2a46428619a0c8f
+# one verify.sh at a time on this machine, whatever the checkout (W84):
+# runs side by side over WSL's /mnt/c each took 40+ minutes instead of
+# ~12, so a second run waits for the first (flock, where there is one;
+# macOS has none, and CI runs one per job anyway)
+if command -v flock >/dev/null 2>&1; then
+  exec 9>"${TMPDIR:-/tmp}/xppautx-verify.lock"
+  if ! flock -n 9; then
+    echo "verify.sh: another verify.sh is running; waiting for it"
+    flock 9
+  fi
+fi
 # make test used to build on one core (60 s on CI); run it with the
 # machine's core count instead
 if command -v nproc >/dev/null 2>&1; then

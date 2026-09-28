@@ -147,6 +147,7 @@ issue; the card here is the one kept up to date.
 | W81 | #130 | Audit the manual against the program (maintainer, 2026-09-28): every menu item, key, option and model block the manual names checked against the program; stale parts fixed or removed (chapter 15's `-m` C files, PNG export after W66); a script that loads the manual's model blocks keeps it honest | none (soft overlap W66: PNG mentions) | done |
 | W82 | #131 | Live integration plotting less smooth than before (maintainer, 2026-09-28): a perf line for a live run's frame gaps (measured, never failed), bisect 8539ca9..master, fix the cause; CI perf: 10^6 time plot draw 202 to 320 ms on Linux | none | ready |
 | W83 | #132 | The progress bar changes the layout (maintainer, 2026-09-28): progress in the status bar beside Ready, on the right, in space the bar always keeps; the status bar and plot keep their size idle, running and after | none | ready |
+| W84 | #133 | Faster review gates (maintainer, 2026-09-28): one verify.sh at a time (it takes a flock and a second run waits); the reviewer verifies a wave's merged tip once instead of every branch after each rebase; a web2-only task runs `verify.sh --no-source-checks`; verify.sh from a WSL-native copy timed against /mnt/c and adopted only if clearly faster | none | in-progress |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full

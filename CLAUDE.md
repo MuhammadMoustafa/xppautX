@@ -14,7 +14,18 @@ print the metrics). This is the gate before committing:
 Gates come in two tiers. Every task: a clean build with 0 warnings, the
 unit tests and web2's typecheck, verify.sh (always: it guards the
 numerics), and `node tools/web2check.mjs --only <the task's sections>`
-when web2 changed. Every 5 merged tasks, and before any push: the full
+when web2 changed. A task that changes only `web2/` (and its docs) runs
+`verify.sh --no-source-checks`: the source checks rebuild and relink the
+whole core and cannot see web2, and CI's `source` job runs them on every
+push. One verify.sh at a time (W84): the script takes a lock
+(`flock`, $TMPDIR/xppautx-verify.lock) and a second run waits for it,
+since runs side by side over /mnt/c slowed each to 40+ minutes. The
+reviewer does not rerun verify.sh on every branch after each rebase:
+the agent gated its branch, the reviewer merges a wave's finished
+branches one after another (rebuilding web2/dist on a conflict there,
+with web2's checks and the task's web2check sections) and runs
+verify.sh once on the merged tip; a failure is traced to its branch by
+verifying the branches alone. Every 5 merged tasks, and before any push: the full
 web2check, tools/asancheck.sh, and the Windows unit tests (`make test`
 with MinGW) and servercheck (CI also runs
 everything on each push). A new request that comes up while a task is
