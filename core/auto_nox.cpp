@@ -2982,6 +2982,7 @@ void DLINE(double a,double b,double c,double d)
 #include "mykeydef.h"
 static DIAGRAM *CUR_DIAGRAM;
 static void grab_diagram_point(const DIAGRAM *d);
+static void finish_grab();
 
 const char *query_special(const char *title)
 {
@@ -3253,16 +3254,13 @@ void traverse_diagram()
       diagram_mark.state=0;
   }
   if(done==1) grab_diagram_point(d);
-  evaluate_derived();
-  redo_all_fun_tables();
-  redraw_params();
-  redraw_ics();
+  finish_grab();
 }
 
 /* takes diagram point d exactly as traverse_diagram's Return does: grabpt,
-   the parameters, the initial condition. The caller finishes the grab
-   (evaluate_derived/redo_all_fun_tables/redraw_params/redraw_ics), since
-   auto_grab_label and auto_grab_type_index share that with traverse_diagram. */
+   the parameters, the initial condition. The caller then calls
+   finish_grab(), which traverse_diagram does whether or not a point was
+   taken. */
 static void grab_diagram_point(const DIAGRAM *d)
 {
   int i;
@@ -3286,6 +3284,24 @@ static void grab_diagram_point(const DIAGRAM *d)
   auto_set_pars_from(grabpt.par);
 }
 
+/* what follows a grab: derived values, tables and the shown values */
+static void finish_grab()
+{
+  evaluate_derived();
+  redo_all_fun_tables();
+  redraw_params();
+  redraw_ics();
+}
+
+/* the scriptable grabs' common end: 0 and nothing changed without a point */
+static int grab_and_finish(const DIAGRAM *d)
+{
+  if(d==NULL) return 0;
+  grab_diagram_point(d);
+  finish_grab();
+  return 1;
+}
+
 /* grabs the diagram point labelled lab exactly as an interactive grab
    ending with Return on it would (docs/protocol.md "Grab by point"): same
    grabpt, parameters, info strip and stability circle, and what a
@@ -3293,14 +3309,7 @@ static void grab_diagram_point(const DIAGRAM *d)
    stored point has. */
 int auto_grab_label(int lab)
 {
-  const DIAGRAM *d=diagram_of_label(lab);
-  if(d==NULL) return 0;
-  grab_diagram_point(d);
-  evaluate_derived();
-  redo_all_fun_tables();
-  redraw_params();
-  redraw_ics();
-  return 1;
+  return grab_and_finish(diagram_of_label(lab));
 }
 
 /* grabs the index'th (1-based) stored point of AUTO's type `type`
@@ -3317,13 +3326,7 @@ int auto_grab_type_index(const char *type, int index)
       if(count==index) break;
     }
   }
-  if(d==NULL) return 0;
-  grab_diagram_point(d);
-  evaluate_derived();
-  redo_all_fun_tables();
-  redraw_params();
-  redraw_ics();
-  return 1;
+  return grab_and_finish(d);
 }
 
 void MarkAuto(int x, int y)
