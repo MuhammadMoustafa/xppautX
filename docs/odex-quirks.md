@@ -10,8 +10,9 @@ one-line `.ode` that shows the quirk, the value or error xppautX gives
 today (measured with `./xppautX model.ode -silent`, reading `output.dat`;
 `y'=0; y(0)=1; aux z=EXPR; @ total=0,dt=1; done` isolates one expression:
 `aux` evaluates `EXPR` with the model's parameters in scope every step,
-where `y(0)=EXPR` was found to evaluate `EXPR` before parameters are
-assigned and silently reads 0 for a parameter — a further quirk, out of
+where a scalar `y(0)=EXPR` starts y at the number `atof` finds in
+`EXPR` (0 for a parameter; the formula is kept only as delay history,
+see the initial-conditions rows below) — a further quirk, out of
 this card's list but worth W75 catching it too), what the extension
 says (or "not flagged"), and .odex's rule. .odex's rules below restate
 the maintainer's decisions on issue #121.
@@ -179,6 +180,7 @@ about 9-10 characters.
 |---|---|---|---|---|
 | a formula in `init` | `par a=2`, `init y=a`; `init y=2*3` | the value is read with `atof` (form_ode.cpp, `take_apart`), like a numeric `@` value: `init y=a` starts y at 0, `init y=2*3` at 2, `init x[1..2]=a` both at 0 | `init-value`, **error** (0.4.1) | an initial value is an expression, evaluated after the parameters: y starts at 2 and 6 |
 | a formula in a scalar `y(0)=` | `par a=2`, `y(0)=a`; `y(0)=2*3`; `y(0)=exp(0)` | y starts at the number `atof` finds: 0, 2 and 0. The formula is kept only as y's history for delay equations (`delay_string`). Measured 2026-09-27; the cause is `atof`, not the order in which parameters are set | `initcond-formula`, **warning** (information when the model uses `delay`) (0.4.1) | parameters are set first: y starts at 2; `--convert` writes `y(0)=0` with a comment naming `a` |
+| a derived parameter reading what changes | `!d=v`, `!d=a*t`, `!d=ran(1)` | `!` formulas are evaluated only at a run's start, after a parameter change (a slider, an event setting a parameter) and at each AUTO evaluation (derived.cpp `evaluate_derived`), with whatever the symbols hold then: `!d=v` is v's value at that moment, frozen, not v; `!d=a*t` freezes t; `!d=ran(1)` is one draw per run, redrawn at every AUTO evaluation. Read from the code; every `!` in the examples reads parameters only | not flagged (reported 2026-09-28) | no `!`: `d = expr` is always current, and the loader computes a parameter-only formula only when parameters change (docs/odex.md, question 9); `--convert` refuses a `!` formula reading t, a variable or a random function |
 | division by zero | `aux z=1/0`, `aux z=0/0` | guarded: a zero divisor becomes 2.23e-15 (expr_program.h, `ZERO_DIVISOR`), so `1/0` = 4.5e14 and `0/0` = 0, silently (kept in `.ode`; `--check` warns) | `division-by-zero`, warning, for a literal `0` divisor (0.4.1) | IEEE: inf and NaN, and the run stops with an error at the first NaN or inf in the state |
 
 ## Checked, not quirks
