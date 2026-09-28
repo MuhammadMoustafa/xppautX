@@ -303,7 +303,7 @@ from):
 - A function argument hiding a global name: passed through unchanged
   (same lexical-scoping meaning in both formats).
 
-## Open questions for the maintainer
+## Questions the maintainer decided
 
 1. **Division by zero and NaN** (decided, maintainer, 2026-09-27):
    `.odex` gives real IEEE results, `1/0` is inf and `0/0` is NaN, and a
@@ -334,9 +334,6 @@ from):
    - The converted file starts with a comment listing every rename.
 4. **`e`** (decided, maintainer, 2026-09-27): not reserved in `.odex` (see
    Reserved words), so a `.ode` using `e` as a name converts unchanged.
-5. **`int`**: `.ode` treats `int` as an ordinary name outside a
-   `special` declaration's right-hand side; does `.odex` reserve `int`
-   everywhere (simpler grammar) or only inside a `special_call` (matches
-   `.ode`, avoids surprising a converted file that used `int` as a
-   variable)?
+5. **`int`** (decided, maintainer, 2026-09-27): `volterra(...)` replaces the
+   integral operator, so `int` is an ordinary name in `.odex`.
 6. **Extension gap**: moot, since `.odex` does not reserve `e` (question 4).
