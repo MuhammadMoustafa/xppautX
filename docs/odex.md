@@ -275,11 +275,10 @@ from):
    (W75) warns where a `.ode` formula divides by something that can be 0.
    One flag per model, chosen by the file's extension; the evaluator is
    shared. A NaN condition in `.odex` is therefore an error, never a branch.
-2. **`--convert`'s bracket policy for an unforced sign**: when `.ode`
-   required parentheses only because of its no-bare-sign rule (`2*(-3)`),
-   should `--convert` drop them (since `.odex` allows `2*-3`) or keep
-   them for a smaller diff against the original file? Affects how noisy
-   a converted file looks next to its `.ode` source.
+2. **`--convert`'s bracket policy** (decided, maintainer, 2026-09-27):
+   parentheses `.ode` needed only for its no-bare-sign rule (`2*(-3)`,
+   `x<(-1)`) are kept, so a converted file differs from its `.ode` only
+   where the meaning requires it.
 3. **Case-collision severity**: when a `.ode` file defines both `V` and
    `v` as if they were different names (relying on `.ode`'s case
    folding to make them one), should `--convert` refuse to convert the
