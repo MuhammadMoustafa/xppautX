@@ -7,9 +7,18 @@ Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && make -j8"
 
 Full check after any change (build xppautX, smoke-test checksum,
-print the metrics). This is the gate before committing:
+print the metrics). This is the gate: commit, then, from Git Bash in the
+checkout (the main one or a worktree),
 
-    wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/verify.sh"
+    tools/wslrun.sh tools/verify.sh
+
+and amend the commit if it fails. `tools/wslrun.sh` (W84) runs a check
+script in WSL against the checkout's HEAD from a git clone on WSL's own
+filesystem (~/.cache/xppautx-verify/<checkout folder>, build/ kept
+between runs): verify.sh read over /mnt/c took 22-25 minutes, from
+there about 6.5. It refuses a checkout with uncommitted changes, since
+only HEAD would be checked. Run in place (`wsl -e bash -lc "cd
+/mnt/c/gitRepos/xppautX && tools/verify.sh"`) it still works, slowly.
 
 Gates come in two tiers. Every task: a clean build with 0 warnings, the
 unit tests and web2's typecheck, verify.sh (always: it guards the
@@ -185,7 +194,7 @@ every example, the unit tests, servercheck, webcheck and autocheck under
 it (servercheck, webcheck and autocheck side by side, their waits doubled
 by `XPP_CHECK_SLOW=2`), and fails on any report (written to build/asan/reports):
 
-    wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && tools/asancheck.sh"
+    tools/wslrun.sh tools/asancheck.sh
 
 On Windows it runs with clang (below; `--no-leaks`: no LeakSanitizer
 there), about 9 minutes:
