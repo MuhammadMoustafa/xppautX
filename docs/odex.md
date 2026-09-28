@@ -14,6 +14,16 @@ every `.ode` quirk `.odex` removes.
 
 ## Design decisions (from issue #121)
 
+- **A `.ode` gives XPPAUT's numbers** (maintainer, 2026-09-27): every quirk
+  of the `.ode` reader stays as XPPAUT has it, so the same file gives the
+  same result in both programs; a fix goes into `.odex` only, and the
+  `.ode` gets a warning (at load and from `--check`, W75). `--convert`
+  (W74) keeps the `.ode`'s meaning, writing what XPPAUT computes (with a
+  comment where that differs from what the line seems to say). Example:
+  `y(0)=a` reads the parameter `a` as 0 in `.ode` (the initial condition is
+  computed before parameters are set); `.odex` sets parameters first;
+  `--convert` writes `y(0)=0` with a comment naming the original expression.
+
 - Branching and functions get a formal shape, marked with curly braces,
   never indentation: models travel through email, PDFs and papers, where
   indentation breaks silently. A missing `}` is a parse error at a line
