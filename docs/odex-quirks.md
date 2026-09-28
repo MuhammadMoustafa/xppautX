@@ -181,6 +181,13 @@ Measured on master (`par v=3`, `f(v)=v*2`):
 |---|---|---|---|---|
 | argument shadows a parameter of the same name | `par v=3 ... f(v)=v*2 ... aux z=f(1)` | `f(1)`=`2`: lexical scoping, the argument `v` hides the global `v` inside `f`; the global cannot be reached from inside `f` | not flagged | same meaning (lexical scoping is expected in any language); `--check` (W75) adds an info note: `argument v hides parameter v` |
 
+## Initial conditions and division
+
+| quirk | `.ode` | xppautX today | extension | .odex |
+|---|---|---|---|---|
+| a parameter in an initial condition | `par a=2`, `y(0)=a` | the run starts at y=0: the initial condition is computed before parameters are set, so `a` reads as 0 (kept in `.ode`, a warning at load) | not flagged (reported on XPP-ODE-Extension#1) | parameters are set first: y starts at 2; `--convert` writes `y(0)=0` with a comment naming `a` |
+| division by zero | `aux z=1/0`, `aux z=0/0` | guarded: a zero divisor becomes 2.23e-15 (parserslow2.cpp:1619), so `1/0` = 4.5e14 and `0/0` = 0, silently (kept in `.ode`; `--check` warns) | not flagged (reported) | IEEE: inf and NaN, and the run stops with an error at the first NaN or inf in the state |
+
 ## Left-to-right operator grouping / precedence summary
 
 Everything above at priority 6 (`*`, `/`, `&`, `not`, unary minus) and
