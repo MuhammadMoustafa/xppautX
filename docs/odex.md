@@ -178,6 +178,12 @@ Statement keywords: `par`, `init`, `aux`, `fun`, `let`, `return`, `if`,
 
 Logical/operator words: `and`, `or`, `not`, `mod`.
 
+Integral operator: `volterra` (replaces `.ode`'s `int{...}`, `int[mu]{...}`;
+decided, maintainer, 2026-09-27). Its first argument is the expression,
+and every argument after it is named (`volterra(exp(-x), of=u, mu=0.5)`):
+a rule for every built-in that takes options. The exact names are settled
+against the 11 Volterra examples before W74.
+
 Built-in functions (from `.ode`'s own reserved set, `constants.ts:31-39`,
 checked against `parserslow2.cpp`'s symbol table): `sin`, `cos`, `tan`,
 `asin`, `acos`, `atan`, `atan2`, `sinh`, `cosh`, `tanh`, `exp`, `ln`,
@@ -188,6 +194,23 @@ checked against `parserslow2.cpp`'s symbol table): `sin`, `cos`, `tan`,
 Built-in constants: `t` (time) and `pi`. `e` is not reserved (decided,
 maintainer, 2026-09-27): it stays an ordinary name, as in `.ode`, and
 e^x is written `exp(x)`.
+
+### Changes from `.ode`'s reserved words
+
+`.ode`'s reserved names (refused as a name by XPP: the built-in functions,
+`not`, `set`, `if`/`then`/`else`, `arg1`..`arg9`, `t`, `pi`) against `.odex`'s:
+
+- New in `.odex` (accepted as names in `.ode` today): the statement
+  keywords `par`, `init`, `aux`, `table`, `markov`, `wiener`, `global`,
+  `bdry`, `volt`, `special`, `done`; `fun`, `let`, `return`; `and`, `or`;
+  `volterra`.
+- Dropped in `.odex`: `arg1`..`arg9` (a function's arguments are named);
+  `int` loses its meaning (it was never refused as a name in `.ode`, and
+  `volterra` replaces the operator).
+- Unchanged: the built-in functions, `not`, `mod`, `set`, `if`/`then`/`else`,
+  `t`, `pi`. `e` is reserved in neither.
+- Every change to this list is sent to the VS Code extension
+  (MuhammadMoustafa/XPP-ODE-Extension#1) when it is made.
 
 Every reserved word is refused as a declared name with a parse error
 naming the word, the line, and the column — never the late, misleading
