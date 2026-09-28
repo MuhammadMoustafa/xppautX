@@ -222,9 +222,5 @@ comparisons beside arithmetic, and `&`/`|` beside arithmetic found:
 
 ## Open items carried from this inventory
 
-- The extension's `reservedWords` (constants.ts:95-98) does not include
-  `e`, even though it is a real, accepted (if harmless) name in `.ode`
-  today and .odex reserves it as Euler's number; this is a gap in the
-  extension worth a follow-up issue there, not in this repo.
-- `if(0/0)` and other NaN-producing conditions are measured but their
-  .odex rule is an open question (see docs/odex.md's "Open questions").
+None: `e` is not reserved in .odex, and division by zero (hence NaN
+conditions) is decided (docs/odex.md, open questions 1 and 4).
