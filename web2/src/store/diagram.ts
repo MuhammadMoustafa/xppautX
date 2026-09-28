@@ -3,7 +3,8 @@
    built from the `diagram` events exactly (a `reset` drops the points after
    `keep`, an `add` puts points `from`.. in place), the core's axes, and the
    view's own state: whether window 101 is open, whether its panel is shown,
-   the user's zoom (with undo) and the point read out. The window follows the
+   the user's zoom (no history: Reset view/Fit take it back) and the point
+   read out. The window follows the
    core: `window` create/destroy for 101, and `state.auto`, which is there
    exactly while AUTO is open (a page that connects later learns it so).
    T11b adds the `autoinfo` event (the info strip and the stability circle
@@ -153,7 +154,6 @@ export interface DiagramState {
   /** an `add` did not follow on from what is held: the data must be sent again (session.ts asks) */
   outOfStep: boolean;
   viewport: Viewport;
-  viewportHistory: Viewport[];
   hover: DiagramHover | null;
   /** the info strip and the stability circle (`autoinfo`) */
   info: AutoInfo | null;
@@ -197,11 +197,10 @@ function noPoints(): DiagramPoints {
 }
 
 const HOME: Viewport = {x: null, y: null};
-const HISTORY_KEEP = 50;
 
 export const initialDiagram: DiagramState = {
   open: false, shown: false, axes: null, points: noPoints(), labels: [], events: 0, outOfStep: false,
-  viewport: HOME, viewportHistory: [], hover: null, info: null, stab: null, stop: null, infoEvents: 0, grabbing: false, stored: null,
+  viewport: HOME, hover: null, info: null, stab: null, stop: null, infoEvents: 0, grabbing: false, stored: null,
   run: null, earlier: 0, showEarlier: false, setupSaved: null,
 };
 
@@ -211,8 +210,7 @@ export type DiagramAction =
   /** a `state` event: `auto` present while AUTO is open */
   | {type: 'core'; open: boolean}
   | {type: 'show'; shown: boolean}
-  | {type: 'viewport'; viewport: Viewport; push?: boolean}
-  | {type: 'undoViewport'}
+  | {type: 'viewport'; viewport: Viewport}
   | {type: 'hover'; hover: DiagramHover | null}
   | {type: 'info'; ev: AutoInfoEvent}
   /** the core's grab: its ask came (on), or its command ended */
@@ -277,19 +275,18 @@ function sameRanges(a: DiagramAxes | null, b: DiagramAxes): boolean {
   return !!a && a.xmin === b.xmin && a.xmax === b.xmax && a.ymin === b.ymin && a.ymax === b.ymax;
 }
 
-/** the core drew the diagram at other axes (Axes, Fit, a zoom or scroll of its
-    own): what it shows now is what the user asked for, so the view goes back
-    to it, the user's zoom one Undo away */
+/** the core drew the diagram at other axes (Axes, Fit, a zoom or scroll of
+    its own): what it shows now is what the user asked for, so the view
+    goes back to it */
 function withAxes(s: DiagramState, ev: DiagramAxes): DiagramState {
   const axes = axesOf(ev);
   const moved = s.axes && !sameRanges(s.axes, axes) && (s.viewport.x !== null || s.viewport.y !== null);
-  return moved ? setViewport({...s, axes}, HOME, true) : {...s, axes};
+  return moved ? setViewport({...s, axes}, HOME) : {...s, axes};
 }
 
-function setViewport(s: DiagramState, viewport: Viewport, push = false): DiagramState {
+function setViewport(s: DiagramState, viewport: Viewport): DiagramState {
   if (JSON.stringify(viewport) === JSON.stringify(s.viewport)) return s;
-  const viewportHistory = push ? [...s.viewportHistory, s.viewport].slice(-HISTORY_KEEP) : s.viewportHistory;
-  return {...s, viewport, viewportHistory};
+  return {...s, viewport};
 }
 
 function onEvent(s: DiagramState, ev: DiagramEvent): DiagramState {
@@ -334,10 +331,7 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
     case 'show':
       return a.shown === s.shown || !s.open ? s : {...s, shown: a.shown};
     case 'viewport':
-      return setViewport(s, a.viewport, a.push);
-    case 'undoViewport':
-      if (!s.viewportHistory.length) return s;
-      return {...s, viewport: s.viewportHistory[s.viewportHistory.length - 1], viewportHistory: s.viewportHistory.slice(0, -1)};
+      return setViewport(s, a.viewport);
     case 'hover': {
       const h = a.hover, o = s.hover;
       if (h === o || (h && o && h.point === o.point && h.low === o.low)) return s;

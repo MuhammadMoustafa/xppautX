@@ -30,7 +30,6 @@ void box_values_loaded(int type);
 void plot_checked_vars(int how, int *isck, int n);
 int find_par_or_var(const char *name, int *type, int *index);
 void set_par_or_var(const char *name, int type, int index, double val);
-void slider_rerun(void);
 void eq_import(double *y, int n);
 /* the model's user functions, as lunch-new.cpp's file info writes them */
 void user_fun_info(FILE *fp);

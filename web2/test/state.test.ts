@@ -80,14 +80,11 @@ test('the nearest point is found in screen distance', () => {
   assert.equal(nearestPoint(m.curves, [false], frame, 100, 100, 24), null);
 });
 
-test('zooms can be undone, one gesture at a time', () => {
+test('a zoom just replaces the viewport, no history (GitHub #110)', () => {
   const a = {x: {min: 0, max: 1}, y: null}, b = {x: {min: 0, max: 0.5}, y: null};
-  let s = reduce(ev(initialState, phase), {type: 'viewport', viewport: a, push: true});
-  s = reduce(s, {type: 'viewport', viewport: b, push: false}); /* the same gesture going on */
-  assert.equal(shown(s).viewportHistory.length, 1);
-  s = reduce(s, {type: 'undoViewport'});
-  assert.deepEqual(shown(s).viewport, {x: null, y: null});
-  assert.equal(reduce(s, {type: 'undoViewport'}), s);
+  let s = reduce(ev(initialState, phase), {type: 'viewport', viewport: a});
+  s = reduce(s, {type: 'viewport', viewport: b});
+  assert.deepEqual(shown(s).viewport, b);
 });
 
 test('errors and alerts become notifications; Abort shows Stopping until idle', () => {
@@ -116,13 +113,13 @@ test('the plot keys pan, zoom, reset and step through points', () => {
   assert.equal(plotKey('i', ctx), null, 'letters are XPP hotkeys');
 });
 
-test('a set that the core rejects lands on the pending value field, not only the toast (T3)', () => {
-  let s = reduce(initialState, {type: 'values', action: {type: 'edit', edit: {kind: 'par', name: 'iapp', previous: '0.05'}}});
+test('a set that the core rejects lands on the attributed value field, not only the toast (T3)', () => {
+  let s = reduce(initialState, {type: 'values', action: {type: 'flushed', field: 'par:iapp'}});
   s = ev(s, {ev: 'message', error: 'bad formula'});
   assert.equal(s.values.errors['par:iapp'], 'bad formula');
   assert.deepEqual(s.toasts.map(t => t.text), ['bad formula'], 'still a non-modal toast too (A11)');
   s = ev(s, {ev: 'idle'});
-  assert.equal(s.values.pending, null);
+  assert.equal(s.values.attributing, null);
 });
 
 test('the values panel is a sheet the store tracks for narrow screens', () => {

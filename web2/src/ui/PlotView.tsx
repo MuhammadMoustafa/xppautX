@@ -189,7 +189,6 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   const layers: (Layer | MarkLayer)[] = useMemo(() => [...phaseLayers(nullclines, dfield), ...markLayers(marks)],
     [nullclines, dfield, marks]);
   const viewport = pw?.viewport ?? HOME;
-  const canUndo = !!pw?.viewportHistory.length;
   const view = useStore(s => s.core?.view);
   const hover = useStore(s => (shown ? s.hover : null));
   const busy = useStore(s => s.busy);
@@ -210,7 +209,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
 
   useEffect(() => {
     const c = new Chart(host.current!, {
-      onViewport: (v, push) => session.store.dispatch({type: 'viewport', viewport: v, push, win}),
+      onViewport: v => session.store.dispatch({type: 'viewport', viewport: v, win}),
     });
     let detach = () => {};
     c.onArea = area => {
@@ -282,8 +281,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
     }
     if (!c || !m || !m.curves.length) return;
     const h = session.store.getState().hover, curve = h ? m.curves[h.curve] : null;
-    const key = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' ? 'Undo'
-      : e.ctrlKey || e.metaKey || e.altKey ? '' : e.key;
+    const key = e.ctrlKey || e.metaKey || e.altKey ? '' : e.key;
     const r = plotKey(key, {
       ranges: c.ranges(),
       hover: h && curve ? {curve: h.curve, index: h.row - curve.row0} : null,
@@ -292,9 +290,8 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
     if (!r) return;
     e.preventDefault();
     e.stopPropagation(); /* not an XPP hotkey */
-    if ('view' in r) c.setView(r.view, true);
+    if ('view' in r) c.setView(r.view);
     else if ('reset' in r) c.reset();
-    else if ('undo' in r) session.store.dispatch({type: 'undoViewport', win});
     else if (r.hover) setHover(session, m, r.hover.curve, r.hover.index);
     else clearHover(session);
   };
@@ -360,8 +357,6 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
           ))}
         </div>
         <div class="plot-tools">
-          <button disabled={!canUndo} onClick={() => session.store.dispatch({type: 'undoViewport', win})}
-            title="Undo the last zoom or pan (Ctrl+Z on the plot)">Undo zoom</button>
           <button disabled={!zoomed} onClick={() => chart.current!.reset()}
             title="Back to the window's axes (double click, or 0 on the plot)">Reset view</button>
           <button disabled={!zoomed} onClick={() => session.useThisView(win, chart.current!.ranges())}

@@ -267,8 +267,6 @@ kbd {
 .value-now { font: var(--text-sm) var(--mono); color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .value-now.none { opacity: 0.6; }
 .values-queued { margin: 0; padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--fg-muted); border-bottom: 1px solid var(--border); }
-.value-runs { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--text-xs); color: var(--fg-muted); min-height: var(--target); }
-.value-runs input { width: 1.1rem; height: var(--target); margin: 0; }
 .value-list { display: flex; flex-direction: column; gap: var(--space-2); }
 .value-buttons { flex-direction: row; flex-wrap: wrap; }
 .value-field {

@@ -269,9 +269,16 @@ send(cmd='slide', name='iapp', value=0.07, rerun=1)
 evs, _ = collect(is_idle, timeout=30 * SLOW)
 st = last_state(evs)
 ser = [e for e in evs if e.get('ev') == 'series' and 'op' not in e]
-check('slide sets the parameter and integrates again (a new series of 601 rows)',
-      st is not None and dict(st['pars'])['iapp'] == 0.07 and ser and ser[-1]['rows'] == 601,
+check('slide sets the parameter, no run any more (the rerun flag is gone, W69)',
+      st is not None and dict(st['pars'])['iapp'] == 0.07 and not ser,
       str(st and st['pars']) + str(ser)[:200])
+send(cmd='key', key='i')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+send(cmd='answer', id=ask['id'], key='g')
+evs, _ = collect(is_idle, timeout=30 * SLOW)
+ser = [e for e in evs if e.get('ev') == 'series' and 'op' not in e]
+check('a later Go runs with the slid value (a new series of 601 rows)',
+      ser and ser[-1]['rows'] == 601, str(ser)[:200])
 send(cmd='data', events=[])
 collect(is_idle)
 send(cmd='equations')
@@ -988,10 +995,11 @@ def check_plot_windows():
 check_plot_windows()
 
 
-# The values panel and the run history of web2 (GitHub #18): hello's
-# defaults, state's now, a batched set with rerun, the ICs from where the
-# last run ended, the state at the start of a run, the series version, and
-# the erase/redraw events of the Erase and Redraw commands only.
+# The values panel and the run history of web2 (GitHub #18, #117): hello's
+# defaults, state's now, a batched set (never a run of its own: the `rerun`
+# flag is gone from set/slide/default and ignored if sent), the ICs from
+# where the last run ended, the state at the start of a run, the series
+# version, and the erase/redraw events of the Erase and Redraw commands only.
 def check_values_protocol():
     pv, rv, sndv, colv, _ = launch_server()
 
@@ -1034,16 +1042,24 @@ def check_values_protocol():
               str(st and st.get('now')))
         v0 = ser[-1]['version'] if ser else None
 
-        # one command sets several values and runs once
+        # W69: `set`/`slide`/`default` never run anything themselves any more
+        # (the `rerun` flag is gone, and ignored if a client still sends it):
+        # the values panel holds edits pending and sends them in one `set`
+        # right before the next command that computes.
         evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': '0.1'},
                                        {'kind': 'ic', 'name': 'v', 'value': -0.2}], rerun=1)
+        st = last_state(evs)
+        check('set values[]: both set, no run (rerun is ignored, W69)',
+              st and abs(par(st, 'iapp') - 0.1) < 1e-12 and abs(ic(st, 'v') + 0.2) < 1e-12 and not full(evs),
+              str(st and st['pars'][:3]))
+        check('a rerun-free set sends no erase event', not pics(evs), str(pics(evs)))
+        evs = keys('i', {'key': 'g'})
         st, ser = last_state(evs), full(evs)
         v_col = ser[-1]['columns'][[c['col'] for c in ser[-1]['columns']].index(1)]['data'] if ser else []
-        check('set values[]: both set, then one run from them (rerun)',
-              st and abs(par(st, 'iapp') - 0.1) < 1e-12 and abs(ic(st, 'v') + 0.2) < 1e-12 and len(ser) == 1
+        check('a later Go runs with the values the set left (no rerun needed)',
+              st and abs(par(st, 'iapp') - 0.1) < 1e-12 and len(ser) == 1
               and ser[0]['rows'] == 601 and v_col and abs(v_col[0] - f32(-0.2)) < 1e-9 and ser[0]['version'] != v0,
               str(st and st['pars'][:3]) + str([(s['rows'], s.get('version')) for s in ser]))
-        check('the Erase-free rerun sends no erase event', not pics(evs), str(pics(evs)))
         evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': '%nosuch+'}], rerun=1)
         check('set values[] with a bad formula: an error, and no run',
               any(e.get('ev') == 'message' and 'error' in e for e in evs) and not full(evs), str(evs)[:300])
@@ -1064,12 +1080,19 @@ def check_values_protocol():
               str(first and first['ics']) + ' vs ' + str(prev_now))
         evs = after(cmd='default', kind='par', rerun=1)
         st = last_state(evs)
-        check('default with rerun: the model values, then a run',
-              st and par(st, 'iapp') == d['pars'][[k.lower() for k, _ in st['pars']].index('iapp')] and len(full(evs)) == 1,
+        check('default with rerun: the model values, no run (rerun is ignored, W69)',
+              st and par(st, 'iapp') == d['pars'][[k.lower() for k, _ in st['pars']].index('iapp')] and not full(evs),
               str(st and st['pars'][:3]))
+        evs = keys('i', {'key': 'g'})
+        check('a later Go runs with the default values the default command left',
+              last_state(evs) and par(last_state(evs), 'iapp') == d['pars'][[k.lower() for k, _ in st['pars']].index('iapp')]
+              and len(full(evs)) == 1, str(last_state(evs) and last_state(evs)['pars'][:3]))
 
         evs = after(cmd='slide', name='iapp', value=0.07)
-        check('a slider rerun sends no erase event', not pics(evs) and len(full(evs)) == 1, str(pics(evs)))
+        check('a slide sets the parameter, no run (the rerun flag is gone, W69)',
+              not pics(evs) and not full(evs) and abs(par(last_state(evs), 'iapp') - 0.07) < 1e-12, str(pics(evs)))
+        evs = keys('i', {'key': 'g'})
+        check('a later Go runs with the slid value, no erase event', not pics(evs) and len(full(evs)) == 1, str(pics(evs)))
         evs = keys('e')
         check('Erase: one erase event for the active window, no series', pics(evs) == [('erase', 1)] and not full(evs),
               str(pics(evs)))

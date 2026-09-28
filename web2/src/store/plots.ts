@@ -48,8 +48,6 @@ export interface PlotWindow {
   /** from `marks`: equilibria, labels, arrows, markers, frozen curves (null until sent) */
   marks: Marks | null;
   viewport: Viewport;
-  /** earlier viewports, for Undo zoom (newest last) */
-  viewportHistory: Viewport[];
   /** a 3D window's own angles (null: not seen yet, or not 3D) */
   view3d: View3d | null;
   /** earlier runs drawn under the current one, and whether Erase hid it (store/runs.ts) */
@@ -66,12 +64,10 @@ export interface PlotsState {
 
 export const initialPlots: PlotsState = {windows: [], active: 1};
 
-const HISTORY_KEEP = 50;
-
 /** a window the store has not heard anything about yet (exported for tests) */
 export function blank(win: number): PlotWindow {
   return {
-    win, info: null, series: null, nullclines: null, dfield: null, marks: null, viewport: HOME, viewportHistory: [],
+    win, info: null, series: null, nullclines: null, dfield: null, marks: null, viewport: HOME,
     view3d: null, history: emptyHistory, showRuns: true,
   };
 }
@@ -120,7 +116,7 @@ export function onSeries(p: PlotsState, ev: SeriesEvent): PlotsState {
     /* other curves: the user's zoom does not apply to them */
     const keep = sameCurves(w.series, series);
     const history = onFull(w.history, w.series, series);
-    return {...w, series, history, viewport: keep ? w.viewport : HOME, viewportHistory: keep ? w.viewportHistory : []};
+    return {...w, series, history, viewport: keep ? w.viewport : HOME};
   });
 }
 
@@ -177,29 +173,17 @@ function sameViewport(a: Viewport, b: Viewport): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-/** push: remember the viewport it replaces (the start of a gesture), for undo */
-export function setViewport(p: PlotsState, win: number, viewport: Viewport, push = false): PlotsState {
+/** no history any more (GitHub #110): a new viewport just replaces the old one */
+export function setViewport(p: PlotsState, win: number, viewport: Viewport): PlotsState {
   const w = windowOf(p, win);
   if (!w || sameViewport(viewport, w.viewport)) return p;
-  const history = push ? [...w.viewportHistory, w.viewport].slice(-HISTORY_KEEP) : w.viewportHistory;
-  return update(p, win, x => ({...x, viewport, viewportHistory: history}));
-}
-
-export function undoViewport(p: PlotsState, win: number): PlotsState {
-  const w = windowOf(p, win);
-  if (!w || !w.viewportHistory.length) return p;
-  return update(p, win, x => ({
-    ...x,
-    viewport: x.viewportHistory[x.viewportHistory.length - 1],
-    viewportHistory: x.viewportHistory.slice(0, -1),
-  }));
+  return update(p, win, x => ({...x, viewport}));
 }
 
 /** the core moved window `win`'s axes (Viewaxes, Window/Zoom, Fit, a scroll):
-    what it shows now is what the user asked for, so the plot goes back to
-    them (the zoom it had stays one Undo away) */
+    what it shows now is what the user asked for, so the plot goes back to them */
 export function coreMoved(p: PlotsState, win: number): PlotsState {
   const w = windowOf(p, win);
   if (!w || (w.viewport.x === null && w.viewport.y === null)) return p;
-  return setViewport(p, win, HOME, true);
+  return setViewport(p, win, HOME);
 }

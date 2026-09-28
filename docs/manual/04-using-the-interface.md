@@ -95,25 +95,32 @@ beside the plot (a sheet on a phone):
   last point of the latest run (read only). `Go` runs from Initial;
   `Last` (Initialconds/Last) copies Now into Initial, then runs;
   **← Use current state** copies Now into Initial without running.
-- A value takes effect when you leave the field (Tab, Enter or a click
-  elsewhere), so typing a value and clicking `Integrate` uses the value
-  you typed — there is no `Ok`/`Cancel` for the whole box, as in the X11
-  windows; `Escape` puts back the value that was there. Each changed
-  field has a reset button whose tooltip shows the ODE file's value.
+- A value becomes **pending** when you leave the field (Tab, Enter or a
+  click elsewhere), marked on the field (dashed) — it changes nothing
+  yet. Every pending edit (a field, a slider, Default, a reset, a loaded
+  `.par`/`.ic` file) is held, the latest per field, until the next
+  command that computes (`Go` and the integrate buttons, `Continue`,
+  `Sing pts`, `Nullclines`, `Dir field`, AUTO's `Run`, ...) sends them all
+  together and runs with them, so a computation always uses exactly what
+  the panel shows. There is no `Ok`/`Cancel` for the whole box, as in the
+  X11 windows; `Escape` puts back the value that was there. Each changed
+  field has a reset button whose tooltip shows the ODE file's value, and
+  there is no undo: reset (one field, or **Reset all**) is the way back.
 - A parameter or initial condition takes a number or a `%formula`,
   exactly as the X11 boxes did (see "Formulas as values", below):
   `%2*pi`; a boundary condition or delay takes an expression. Anything
   else (letters in a parameter box) is refused, not sent: see "What a box
   accepts", below.
-- **Default** puts back the values from the ODE file, as the X11
-  Parameter window's Default button did.
+- **Reset all** puts back the values from the ODE file, as the X11
+  Parameter window's Default button did, pending like any other edit.
 - **The checkboxes** next to the variables pick what **x vs t**,
   **Phase** and **Array** plot, like `xvst`, `pp` and `arry` in X11.
 - **Sliders** sit under the plot, any number of them (the X11 main
   window had three), including the ones an ODE file sets with `@ s1=...`;
   each is added or edited with a dialog (searchable variable, min, max,
   step/precision), not the small binding window upstream describes.
-  Dragging one changes the value and integrates again.
+  Dragging one changes the value, pending like any other edit: nothing
+  runs until the next command that computes.
 - **Buttons the ODE file defines** (`@ but=name:keys`) appear above the
   sliders.
 - **Boundary conditions** and **Delay initial data** are collapsed
@@ -132,11 +139,13 @@ aligned mode) is a tab, starting at the window's own axes
 without a round trip to the core: drag a box to zoom, the wheel zooms
 about the pointer, Shift+drag or the middle button pans, pinch and
 one-finger drag on touch, a double click (or `0`) goes back to the
-window's axes, `Ctrl+Z` undoes a zoom step, the nearest point is named
+window's axes, the nearest point is named
 under the mouse, on a tap, or by stepping with `[` `]` from the keyboard,
 curves can be hidden from the legend, and PNG and CSV export what is
-shown. "Use this view" makes the client's current zoom the window's axes,
-so PostScript/SVG export and Restore agree with what's on screen.
+shown. There is no zoom history: "Reset view" and the **Fit** button
+below are the way back. "Use this view" makes the client's current zoom
+the window's axes, so PostScript/SVG export and Restore agree with
+what's on screen.
 
 A **Fit** button sits in the plot's own top-right corner, over the chart
 itself, so it stays in reach after a scroll or a zoom that loses the data

@@ -6,7 +6,7 @@ import {pickModeOf, startPick, type PickState} from '../plot/pick';
 import type {AskEvent, Command, HelloEvent, StateEvent, View, XppEvent} from '../protocol/types';
 import {
   coreMoved, eraseWindow, initialPlots, onAppend, onDfield, onMarks, onNullclines, onPlots, onSeries, redrawWindow,
-  rotate3d, select, setViewport, showRuns, undoViewport, windowOf, type PlotsState,
+  rotate3d, select, setViewport, showRuns, windowOf, type PlotsState,
   type Viewport,
 } from './plots';
 import {initialAplot, reduceAplot, type AplotAction, type AplotState} from './aplot';
@@ -105,7 +105,7 @@ export interface AppState {
   theme: Theme;
   /** the command menu, a drawer on narrow screens */
   drawerOpen: boolean;
-  /** parameters, ICs, BCs, delays, sliders (T3): pending/error/undo, see store/values.ts */
+  /** parameters, ICs, BCs, delays, sliders (T3): pending edits and errors, see store/values.ts */
   values: ValuesState;
   /** the values panel, a full-screen sheet on narrow screens */
   valuesOpen: boolean;
@@ -134,10 +134,8 @@ export type Action =
   | {type: 'connection'; open: boolean}
   | {type: 'sent'; cmd: Command}
   | {type: 'aborting'}
-  /** window `win`'s zoom (the active window's without `win`); push: remember
-      the viewport it replaces (the start of a gesture), for undo */
-  | {type: 'viewport'; viewport: Viewport; push?: boolean; win?: number}
-  | {type: 'undoViewport'; win?: number}
+  /** window `win`'s zoom (the active window's without `win`) */
+  | {type: 'viewport'; viewport: Viewport; win?: number}
   /** a 3D window `win` turned to `theta`, `phi` (a drag, arrow keys, or the
       core's own echo of a `view3d` sent for it), docs/ui-v2.md T14 */
   | {type: 'rotate3d'; win: number; theta: number; phi: number}
@@ -254,8 +252,7 @@ function withPlots(state: AppState, plots: PlotsState): AppState {
 }
 
 /** the core's window moved (Viewaxes, Window/Zoom, Fit, a scroll): what it
-    shows now is what the user asked for, so the plot goes back to it (the
-    zoom it had stays one Undo away) */
+    shows now is what the user asked for, so the plot goes back to it */
 function coreViewMoved(a: View | undefined, b: View): boolean {
   return !!a && a.win === b.win && (a.xlo !== b.xlo || a.xhi !== b.xhi || a.ylo !== b.ylo || a.yhi !== b.yhi);
 }
@@ -436,9 +433,7 @@ export function reduce(state: AppState, action: Action): AppState {
     case 'aborting':
       return state.busy ? {...state, stopping: true} : state;
     case 'viewport':
-      return withPlots(state, setViewport(state.plots, action.win ?? state.plots.active, action.viewport, action.push));
-    case 'undoViewport':
-      return withPlots(state, undoViewport(state.plots, action.win ?? state.plots.active));
+      return withPlots(state, setViewport(state.plots, action.win ?? state.plots.active, action.viewport));
     case 'rotate3d':
       return withPlots(state, rotate3d(state.plots, action.win, action.theta, action.phi));
     case 'selectWindow':

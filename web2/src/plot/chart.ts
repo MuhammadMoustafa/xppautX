@@ -23,8 +23,7 @@ import type {Ranges} from './viewmath';
 import type {Range, Viewport} from '../store/state';
 
 export interface ChartCallbacks {
-  /** push: the start of a gesture, so the view before it can be undone */
-  onViewport(v: Viewport, push: boolean): void;
+  onViewport(v: Viewport): void;
 }
 
 export interface ChartInfo {
@@ -505,15 +504,15 @@ export class Chart {
   }
 
   /** a new view from a gesture */
-  setView(r: Ranges, push: boolean): void {
+  setView(r: Ranges): void {
     this.requested = r;
-    this.cb.onViewport({x: r.x, y: r.y}, push);
+    this.cb.onViewport({x: r.x, y: r.y});
   }
 
   /** back to the core's view */
   reset(): void {
     this.requested = null;
-    this.cb.onViewport({x: null, y: null}, true);
+    this.cb.onViewport({x: null, y: null});
   }
 
   /* uPlot's own drag-to-zoom (a box): it sets x, then y; one report for both */
@@ -526,7 +525,7 @@ export class Chart {
       if (!u) return;
       const x = u.scales.x, y = u.scales.y;
       if (x.min == null || x.max == null || y.min == null || y.max == null) return;
-      this.cb.onViewport({x: {min: x.min, max: x.max}, y: {min: y.min, max: y.max}}, true);
+      this.cb.onViewport({x: {min: x.min, max: x.max}, y: {min: y.min, max: y.max}});
     });
   }
 

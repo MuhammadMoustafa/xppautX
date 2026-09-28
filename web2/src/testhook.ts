@@ -25,7 +25,7 @@ export function installTestHook(session: Session): void {
   let diagramEvents: unknown[] = [];
   const dispatch = session.store.dispatch;
   session.store.dispatch = (a: Action) => {
-    actions.push(a.type === 'event' ? `event:${a.ev.ev}` : a.type === 'viewport' ? `viewport${a.push ? ':push' : ''}` : a.type);
+    actions.push(a.type === 'event' ? `event:${a.ev.ev}` : a.type);
     if (actions.length > KEEP) actions.shift();
     if (a.type === 'event' && a.ev.ev === 'diagram') {
       if (a.ev.op === 'reset' && !a.ev.keep) diagramEvents = [];

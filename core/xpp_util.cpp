@@ -574,19 +574,6 @@ void set_par_or_var(const char *name,int type,int index,double val)
     xpp::session().last_ic[index]=val;
 }
 
-/* a slider was dragged: redraw and integrate again */
-void slider_rerun(void)
-{
-  int sp=xpp::session().integrator.suppress_bounds;
-  clr_all_scrns();
-  redraw_dfield();
-  create_new_cline();
-  draw_label(xpp::session().plot_windows.draw_win);
-  xpp::session().integrator.suppress_bounds=1;
-  run_now();
-  xpp::session().integrator.suppress_bounds=sp;
-}
-
 /* ---- the equilibrium window's Import button and its label (logic from
    eig_list.c) ---- */
 /* which of the left/right equilibria eq_import saves next */

@@ -23,7 +23,7 @@ import {stepTarget} from './store/ani';
 import {snapshotWindow, type KinescopeFrame} from './store/kinescope';
 import {MAX_COUNT, MAX_NCOL, planRequest, tableCsv} from './store/table';
 import type {TextTab} from './store/text';
-import {fieldKey, setCommand, type ValueEdit, type ValueKind, type ValueSet} from './store/values';
+import {fieldKey, setCommand, type ValueSet} from './store/values';
 import {formatIcFile, formatParFile, parseValuesFile} from './store/valueFiles';
 import {formatSettings, parseSettings, setCommand as autoSetCommand, shownSettings, type AutoSettingsPatch} from './store/autoSettings';
 
@@ -39,8 +39,6 @@ type PlanStep = (ask: AskEvent) => Record<string, unknown> | null;
 
 /** the array plot window's buttons (docs/protocol.md `aplot` op; web/xpp-client.js's buildArrayPlot) */
 export type AplotOp = 'redraw' | 'edit' | 'print' | 'fit' | 'range' | 'gif' | 'close';
-
-const RUN_ON_CHANGE_KEY = 'xpp.values.runOnChange';
 
 export class Session {
   readonly store: Store<AppState, Action>;
@@ -96,12 +94,6 @@ export class Session {
   }
 
   start(): void {
-    try {
-      if (localStorage.getItem(RUN_ON_CHANGE_KEY) === '0')
-        this.store.dispatch({type: 'values', action: {type: 'runOnChange', on: false}});
-    } catch {
-      /* no storage: the default */
-    }
     this.transport.open(ev => this.receive(ev), open => this.store.dispatch({type: 'connection', open}));
   }
 
@@ -159,10 +151,7 @@ export class Session {
       const next = this.afterIdle;
       this.afterIdle = null;
       if (next) this.send(next);
-      else {
-        this.flushValues();
-        this.flushAutoSettings();
-      }
+      else this.flushAutoSettings();
       const typed = this.keyWaiting ? undefined : this.typeahead.shift();
       if (typed !== undefined && !next && !this.planIdles) this.key(typed);
     }
@@ -212,8 +201,13 @@ export class Session {
     this.transport.send(cmd);
   }
 
-  /** an XPP hotkey, as typed in the X11 main window */
+  /** an XPP hotkey, as typed in the X11 main window: every key a menu
+      sends may start a computation (Go, Continue, Sing pts, Nullclines,
+      Dir field, ...), so the pending values go first (GitHub #117),
+      whatever it turns out to be -- a view-only key still just sets them
+      a little early, never wrongly */
   key(key: string): void {
+    this.flushValues();
     this.keyWaiting = true;
     this.keyIdlesAhead = this.idlesOwed;
     this.send({cmd: 'key', key});
@@ -328,13 +322,12 @@ export class Session {
 
   /** Window/Fit: the key sequence the classic page uses ('w' opens the
       Window submenu, 'f' is Fit) sets the active window's axes to the
-      data's extent. */
-  /** Window/Fit, and the plot's own pan/zoom cleared at once (one Undo away): when the core's
-      axes were already fitted its state does not move them, so the plot would otherwise stay
-      where a scroll or zoom left it (T30) */
+      data's extent, and the plot's own pan/zoom clears at once: when the
+      core's axes were already fitted its state does not move them, so
+      the plot would otherwise stay where a scroll or zoom left it (T30) */
   fitView(): void {
     const p = this.store.getState().plots, w = windowOf(p, p.active);
-    if (w && (w.viewport.x !== null || w.viewport.y !== null)) this.store.dispatch({type: 'viewport', viewport: HOME, push: true});
+    if (w && (w.viewport.x !== null || w.viewport.y !== null)) this.store.dispatch({type: 'viewport', viewport: HOME});
     this.keys('w', 'f');
   }
 
@@ -380,7 +373,10 @@ export class Session {
       this.store.dispatch({type: 'diagram', action: {type: 'clear'}});
       return;
     }
-    if (op === 'run') this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'start', at: Date.now()}});
+    if (op === 'run') {
+      this.flushValues();
+      this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'start', at: Date.now()}});
+    }
     this.send({cmd: 'auto', op});
   }
 
@@ -530,65 +526,41 @@ export class Session {
     this.store.dispatch({type: 'diagram', action: {type: 'show', shown}});
   }
 
-  /* ---- values panel (docs/ui-v2.md T3, docs/protocol.md `set`/`slide`/`default`/`userbut`) ---- */
+  /* ---- values panel (docs/ui-v2.md T3, docs/protocol.md `set`/`slide`/`default`/`userbut`,
+     GitHub #117): every edit (a field, a slider, Default/Reset, a loaded .par/.ic) stays pending
+     in the page, the latest per field, until session.key or autoOp('run') flushes them all as one
+     `set` right before the next command that computes -- nothing is sent on a plain edit, busy or
+     idle (GitHub #110 dropped Undo with it: Reset is the way back). ---- */
 
-  /** remember an edit for Undo (A12), without sending anything: the caller sends `set` or `slide` itself */
-  recordEdit(edit: ValueEdit): void {
-    this.store.dispatch({type: 'values', action: {type: 'edit', edit}});
+  /** an edit: kept pending, not sent, until the next flush */
+  private edit(set: ValueSet): void {
+    this.store.dispatch({type: 'values', action: {type: 'edit', set}});
   }
 
-  /** whether an edit of `kind` integrates again ("Run on change": parameters and ICs) */
-  private rerunsOn(kind: ValueKind): boolean {
-    return this.store.getState().values.runOnChange && (kind === 'par' || kind === 'ic');
-  }
-
-  /** values to set, then a run when `rerun`: at once when idle, else kept
-      (the latest per field) until the running command ends, so edits
-      during a run never queue up integrations (GitHub #18) */
-  private submit(sets: ValueSet[], rerun: boolean): void {
-    if (!sets.length) return;
-    if (this.store.getState().busy) {
-      for (const set of sets) this.store.dispatch({type: 'values', action: {type: 'queue', set, rerun}});
-      return;
-    }
-    this.send(setCommand(sets, rerun)!);
-  }
-
-  /** the values edited while the command ran, in one `set`, and at most one run */
+  /** every pending edit, in one `set`, right before a command that
+      computes; attributed to the one field sent when there is exactly
+      one, for a `message` `error` to land on (A11) */
   private flushValues(): void {
-    const {queue, queueRerun} = this.store.getState().values;
-    if (!queue.length) return;
-    this.store.dispatch({type: 'values', action: {type: 'flushed'}});
-    this.send(setCommand(queue, queueRerun)!);
+    const {pending} = this.store.getState().values;
+    if (!pending.length) return;
+    const field = pending.length === 1 ? fieldKey(pending[0].kind, pending[0].index ?? pending[0].name!) : null;
+    this.store.dispatch({type: 'values', action: {type: 'flushed', field}});
+    this.send(setCommand(pending)!);
   }
 
   /** a parameter or initial condition box left with a new value */
-  setValue(kind: 'par' | 'ic', name: string, text: string, previous: string): void {
-    this.recordEdit({kind, name, previous});
-    this.submit([{kind, name, text}], this.rerunsOn(kind));
+  setValue(kind: 'par' | 'ic', name: string, text: string): void {
+    this.edit({kind, name, text});
   }
 
   /** a boundary condition or delay box (by position: docs/protocol.md, BC names all read "0=") */
-  setValueByIndex(kind: 'bc' | 'delay', index: number, text: string, previous: string): void {
-    this.recordEdit({kind, index, previous});
-    this.submit([{kind, index, text}], false);
+  setValueByIndex(kind: 'bc' | 'delay', index: number, text: string): void {
+    this.edit({kind, index, text});
   }
 
-  /** a slider moved: sent when idle (it runs again), else only its latest position, when the command ends */
+  /** a slider moved: kept pending like any other edit (GitHub #117) */
   slide(kind: 'par' | 'ic', name: string, value: number): void {
-    if (this.store.getState().busy) this.submit([{kind, name, text: String(value)}], true);
-    else this.send({cmd: 'slide', name, value, rerun: 1});
-  }
-
-  /** Ctrl+Z or the Undo button: sends `set` again with the previous text (A12) */
-  undoValue(): void {
-    const {history} = this.store.getState().values;
-    const last = history[history.length - 1];
-    if (!last) return;
-    this.store.dispatch({type: 'values', action: {type: 'undo'}});
-    const set: ValueSet = last.index !== undefined
-      ? {kind: last.kind, index: last.index, text: last.previous} : {kind: last.kind, name: last.name, text: last.previous};
-    this.submit([set], this.rerunsOn(last.kind));
+    this.edit({kind, name, text: String(value)});
   }
 
   /** the model file's value of a parameter or IC (null: not known) */
@@ -596,40 +568,25 @@ export class Session {
     return this.store.getState().values.defaults?.[fieldKey(kind, name)] ?? null;
   }
 
-  /** one field back to the model file's value (undoable, like an edit) */
-  resetValue(kind: 'par' | 'ic', name: string, previous: string): void {
+  /** one field back to the model file's value (GitHub #110: the way back, since there is no undo) */
+  resetValue(kind: 'par' | 'ic', name: string): void {
     const d = this.defaultOf(kind, name);
-    if (d !== null) this.setValue(kind, name, String(d), previous);
+    if (d !== null) this.setValue(kind, name, String(d));
   }
 
-  /** Reset all: every parameter or IC to the model file's value, in one
-      command (not itself undoable: A12) */
+  /** Reset all: every parameter or IC of `kind` back to the model file's value, pending like any edit */
   defaultValues(kind: 'par' | 'ic'): void {
     this.store.dispatch({type: 'values', action: {type: 'defaulted', kind}});
-    const st = this.store.getState();
-    if (st.busy) {
-      const list = (kind === 'par' ? st.core?.pars : st.core?.ics) ?? [];
-      const sets = list.flatMap(([name]): ValueSet[] => {
-        const d = this.defaultOf(kind, name);
-        return d === null ? [] : [{kind, name, text: String(d)}];
-      });
-      this.submit(sets, this.rerunsOn(kind));
-    } else this.send(this.rerunsOn(kind) ? {cmd: 'default', kind, rerun: 1} : {cmd: 'default', kind});
+    const list = (kind === 'par' ? this.store.getState().core?.pars : this.store.getState().core?.ics) ?? [];
+    for (const [name] of list) {
+      const d = this.defaultOf(kind, name);
+      if (d !== null) this.edit({kind, name, text: String(d)});
+    }
   }
 
   /** "Use current state": the ICs from where the last run ended (Initialconds/Last's values), no run */
   useCurrentState(): void {
     this.send({cmd: 'set', kind: 'ic', from: 'last'});
-  }
-
-  /** the panel's "Run on change", remembered per viewer */
-  setRunOnChange(on: boolean): void {
-    this.store.dispatch({type: 'values', action: {type: 'runOnChange', on}});
-    try {
-      localStorage.setItem(RUN_ON_CHANGE_KEY, on ? '1' : '0');
-    } catch {
-      /* no storage: it lasts this page */
-    }
   }
 
   /** Save of a section: XPP's parameter or IC file (store/valueFiles.ts), downloaded */
@@ -644,8 +601,8 @@ export class Session {
     return text;
   }
 
-  /** Load of a section: the file's values in one `set`, then at most one run;
-      null when done, else what is wrong with the file (also a notification) */
+  /** Load of a section: the file's values pending like any edit; null when
+      done, else what is wrong with the file (also a notification) */
   loadValues(kind: 'par' | 'ic', text: string): string | null {
     const st = this.store.getState();
     const names = ((kind === 'par' ? st.core?.pars : st.core?.ics) ?? []).map(([n]) => n);
@@ -655,7 +612,7 @@ export class Session {
       return parsed.error;
     }
     this.store.dispatch({type: 'values', action: {type: 'defaulted', kind}});
-    this.submit(parsed.values.map(([name, v]): ValueSet => ({kind, name, text: v})), this.rerunsOn(kind));
+    for (const [name, v] of parsed.values) this.edit({kind, name, text: v});
     return null;
   }
 

@@ -2,17 +2,16 @@
    what the plot shows in, what to do out.
 
    Arrow keys   pan by a tenth          + or =   zoom in    -   zoom out
-   0            back to the core's view  Ctrl+Z (Cmd+Z)  undo the last zoom or pan
-   ] and [      next / previous point    PageDown, PageUp  ten points on / back
-   Home, End    first / last point       } and {  next / previous curve
-   Escape       clear the point readout
+   0            back to the core's view  ] and [  next / previous point
+   PageDown, PageUp  ten points on / back  Home, End  first / last point
+   } and {      next / previous curve     Escape   clear the point readout
 
    While the plot has the focus these keys are its own; every other key
    is left to the XPP hotkeys. Escape goes on to XPP when there is no readout. */
 import {panBy, zoomAbout, type Ranges} from './viewmath';
 
 export const PLOT_KEYS_HELP =
-  'Arrow keys pan, plus and minus zoom, 0 resets, Control Z undoes a zoom, square brackets and Page Up or Down '
+  'Arrow keys pan, plus and minus zoom, 0 resets, square brackets and Page Up or Down '
   + 'step through the points, Home and End go to the ends, braces change the curve, Escape clears the readout.';
 
 export interface KeyContext {
@@ -25,7 +24,6 @@ export interface KeyContext {
 export type KeyResult =
   | {view: Ranges}
   | {reset: true}
-  | {undo: true}
   | {hover: {curve: number; index: number} | null}
   | null;
 
@@ -49,7 +47,6 @@ export function plotKey(key: string, ctx: KeyContext): KeyResult {
     case '+': case '=': return {view: zoomAbout(r, 0.5, 0.5, ZOOM)};
     case '-': case '_': return {view: zoomAbout(r, 0.5, 0.5, 1 / ZOOM)};
     case '0': return {reset: true};
-    case 'Undo': return {undo: true}; /* Ctrl+Z or Cmd+Z, named so by the caller */
     case 'Escape': return ctx.hover ? {hover: null} : null;
   }
   const first = ctx.hover ? null : nextCurve(ctx.counts, -1, 1);

@@ -26,7 +26,7 @@
    plots: they work during a run too, their changes pending until it ends.
    Only Run, Grab, Axes (its menu: zoom, fit, scroll ...) and File wait.
 
-   The diagram: zoom, pan, reset and undo as on the plot (plot/interactions.ts,
+   The diagram: zoom, pan and reset as on the plot (plot/interactions.ts,
    plot/plotKeys.ts), all in the client; the point under the mouse, a tap,
    or the keyboard's stepping ([ ] PageUp PageDown Home End along a curve,
    { } between curves, < > from label to label) is named in the readout:
@@ -182,7 +182,6 @@ function AutoPanel({dark}: {dark: boolean}) {
   const labels = useStore(s => s.diagram.labels);
   const axes = useStore(s => s.diagram.axes);
   const viewport = useStore(s => s.diagram.viewport);
-  const canUndo = useStore(s => s.diagram.viewportHistory.length > 0);
   const hover = useStore(s => s.diagram.hover);
   const busy = useStore(s => s.busy);
   const hints = useStore(s => (s.hello as {auto_hints?: string[]} | null)?.auto_hints);
@@ -229,7 +228,7 @@ function AutoPanel({dark}: {dark: boolean}) {
 
   useEffect(() => {
     const c = new DiagramChart(host.current!, {
-      onViewport: (viewport, push) => session.store.dispatch({type: 'diagram', action: {type: 'viewport', viewport, push}}),
+      onViewport: viewport => session.store.dispatch({type: 'diagram', action: {type: 'viewport', viewport}}),
     });
     let detach = () => {};
     c.onArea = area => {
@@ -353,14 +352,13 @@ function AutoPanel({dark}: {dark: boolean}) {
       setHover(session, {point: next, low: false});
       return;
     }
-    const key = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' ? 'Undo' : e.ctrlKey || e.metaKey ? '' : e.key;
+    const key = e.ctrlKey || e.metaKey ? '' : e.key;
     const r = plotKey(key, {ranges: c.ranges(), hover: at, counts: m.curves.map(cd => cd.xs.length)});
     if (!r) return;
     e.preventDefault();
     e.stopPropagation(); /* not an XPP hotkey */
-    if ('view' in r) c.setView(r.view, true);
+    if ('view' in r) c.setView(r.view);
     else if ('reset' in r) c.reset();
-    else if ('undo' in r) session.store.dispatch({type: 'diagram', action: {type: 'undoViewport'}});
     else if (r.hover) hoverVertex(r.hover.curve, r.hover.index);
     else setHover(session, null);
   };
@@ -490,8 +488,6 @@ function AutoPanel({dark}: {dark: boolean}) {
             )}
           </ul>
           <div class="plot-tools">
-            <button disabled={!canUndo} onClick={() => session.store.dispatch({type: 'diagram', action: {type: 'undoViewport'}})}
-              title="Undo the last zoom or pan (Ctrl+Z on the diagram)">Undo zoom</button>
             <button disabled={!zoomed} onClick={() => chart.current!.reset()}
               title="Back to AUTO's axes (double click, or 0 on the diagram)">Reset view</button>
             <button disabled={empty} onClick={() => chart.current!.fit()}

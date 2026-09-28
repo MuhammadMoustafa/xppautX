@@ -784,8 +784,25 @@ def rows(evs):
     return st[-1]['rows'] if st else None
 
 
-# a slider move integrates again at once, with no prompt on the way
-RERUN = {'cmd': 'slide', 'name': 'mu', 'value': -1, 'rerun': 1}
+# Initialconds/Go integrates at once: `set` (no run any more, W69) puts mu
+# where these checks want it, then `key i` opens the one menu on the way,
+# so the only remaining prompt is answered with `key g` (arm_run/run_now).
+def arm_run(s):
+    """set mu, then open Initialconds: the returned ask's `id` answered with
+       `key: 'g'` is the only remaining step before the integration runs,
+       so a caller that must race the engine (an Abort sent right behind
+       the command) races that one answer instead."""
+    s.send(cmd='set', kind='par', name='mu', value=-1)
+    s.collect(is_idle)
+    s.send(cmd='key', key='i')
+    evs, ask = s.collect(is_ask)
+    return ask
+
+
+def run_now(s):
+    """arm_run, then answer it at once: one full run, no other prompt"""
+    ask = arm_run(s)
+    s.send(cmd='answer', id=ask['id'], key='g')
 
 
 def section_control():
@@ -793,8 +810,10 @@ def section_control():
     s.collect(is_idle)
     set_total(s, 400)  # 40001 rows, some 10 s
 
-    # an Abort sent right behind the command, before the engine has taken it
-    s.proc.stdin.write(json.dumps(RERUN) + '\n' + json.dumps({'cmd': 'abort'}) + '\n')
+    # an Abort sent right behind the run's answer, before the engine has taken it
+    ask = arm_run(s)
+    s.proc.stdin.write(json.dumps({'cmd': 'answer', 'id': ask['id'], 'key': 'g'}) + '\n'
+                       + json.dumps({'cmd': 'abort'}) + '\n')
     s.proc.stdin.flush()
     t = time.monotonic()
     evs, e = s.collect(is_idle, timeout=60 * SLOW)
@@ -810,14 +829,14 @@ def section_control():
 
     # a command sent after an Abort is not cancelled by it
     set_total(s, 20)
-    s.send(**RERUN)
+    run_now(s)
     evs, e = s.collect(is_idle, timeout=60 * SLOW)
     check('a command sent after an Abort runs in full', rows(evs) == 2001, 'rows %s' % rows(evs))
 
     # a normal command sent during a job waits for it and is not lost
     set_total(s, 400)
     open_auto(s)
-    s.send(**RERUN)
+    run_now(s)
     s.collect(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
     s.send(cmd='auto', op='close')
     t = s.send(cmd='abort')
@@ -833,7 +852,7 @@ def section_control():
     s.collect(is_idle)
 
     # Quit during an integration
-    s.send(**RERUN)
+    run_now(s)
     s.collect(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
     t = s.send(cmd='quit')
     try:

@@ -126,7 +126,7 @@ export class DiagramChart {
   private styleKey = '';
   onArea: (area: HTMLElement) => void = () => {};
 
-  constructor(private readonly root: HTMLElement, private readonly cb: {onViewport(v: Viewport, push: boolean): void}) {}
+  constructor(private readonly root: HTMLElement, private readonly cb: {onViewport(v: Viewport): void}) {}
 
   /** draws `model`; `axes` is the core's view of the diagram, `viewport` the user's zoom */
   set(model: DiagramModel, axes: Ranges | null, viewport: Viewport, dark: boolean): void {
@@ -271,24 +271,23 @@ export class DiagramChart {
     this.requested = null; /* drawn: the scales are the view now */
   }
 
-  setView(r: Ranges, push: boolean): void {
+  setView(r: Ranges): void {
     this.requested = r;
-    this.cb.onViewport({x: r.x, y: r.y}, push);
+    this.cb.onViewport({x: r.x, y: r.y});
   }
 
   /** back to the core's view */
   reset(): void {
     this.requested = null;
-    this.cb.onViewport({x: null, y: null}, true);
+    this.cb.onViewport({x: null, y: null});
   }
 
-  /** Axes/Fit (T30): the visible curves' own extent, as a zoom (undoable,
-      pushed like any other view change). A no-op with no branches yet. */
+  /** Axes/Fit (T30): the visible curves' own extent, as a zoom. A no-op with no branches yet. */
   fit(): void {
     if (!this.model || !this.model.curves.length) return;
     const r = fitRanges(this.model);
     this.requested = r;
-    this.cb.onViewport({x: r.x, y: r.y}, true);
+    this.cb.onViewport({x: r.x, y: r.y});
   }
 
   private scaleChanged(): void {
@@ -300,7 +299,7 @@ export class DiagramChart {
       if (!u) return;
       const x = u.scales.x, y = u.scales.y;
       if (x.min == null || x.max == null || y.min == null || y.max == null) return;
-      this.cb.onViewport({x: {min: x.min, max: x.max}, y: {min: y.min, max: y.max}}, true);
+      this.cb.onViewport({x: {min: x.min, max: x.max}, y: {min: y.min, max: y.max}});
     });
   }
 

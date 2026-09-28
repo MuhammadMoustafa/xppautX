@@ -12,7 +12,7 @@ import {panBy, zoomAbout, type Ranges} from './viewmath';
 /** what the gestures need of a chart (plot/chart.ts, plot/diagramChart.ts) */
 export interface GestureChart {
   ranges(): Ranges;
-  setView(r: Ranges, push: boolean): void;
+  setView(r: Ranges): void;
   /** the point nearest to (px, py) of the plotting area, within maxDist CSS pixels */
   hit(px: number, py: number, maxDist: number): {curve: number; index: number} | null;
 }
@@ -34,7 +34,6 @@ export interface PickSink {
 }
 
 const WHEEL_STEP = 0.85;
-const WHEEL_GESTURE_MS = 400; /* wheel ticks closer than this are one gesture (one undo step) */
 const HOVER_PX = 24;
 const TAP_PX = 32; /* a finger is less precise */
 const TAP_SLOP = 8; /* movement that still counts as a tap */
@@ -76,13 +75,10 @@ export function attachGestures(chart: GestureChart, area: HTMLElement, sink: Hov
     if (e.type === 'pointerup') pick.release(frac(e));
   };
 
-  let lastWheel = -Infinity;
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
-    const p = local(e), now = performance.now();
-    chart.setView(zoomAbout(chart.ranges(), p.x / p.w, p.y / p.h, e.deltaY < 0 ? WHEEL_STEP : 1 / WHEEL_STEP),
-      now - lastWheel > WHEEL_GESTURE_MS);
-    lastWheel = now;
+    const p = local(e);
+    chart.setView(zoomAbout(chart.ranges(), p.x / p.w, p.y / p.h, e.deltaY < 0 ? WHEEL_STEP : 1 / WHEEL_STEP));
   };
 
   /* mouse pan: in the capture phase, before uPlot's drag-to-zoom sees the press */
@@ -91,11 +87,9 @@ export function attachGestures(chart: GestureChart, area: HTMLElement, sink: Hov
     e.preventDefault();
     e.stopImmediatePropagation(); /* capture listeners at the target run before uPlot's */
     const start = chart.ranges(), p0 = local(e);
-    let first = true;
     const move = (ev: MouseEvent) => {
       const p = local(ev);
-      chart.setView(panBy(start, (p.x - p0.x) / p.w, (p.y - p0.y) / p.h), first);
-      first = false;
+      chart.setView(panBy(start, (p.x - p0.x) / p.w, (p.y - p0.y) / p.h));
     };
     const up = () => {
       window.removeEventListener('mousemove', move);
@@ -119,7 +113,7 @@ export function attachGestures(chart: GestureChart, area: HTMLElement, sink: Hov
 
   /* touch: the active fingers, and the view and positions when the gesture (re)started */
   const fingers = new Map<number, {x: number; y: number}>();
-  let startView: Ranges | null = null, startPts: {x: number; y: number}[] = [], moved = false, pushed = false;
+  let startView: Ranges | null = null, startPts: {x: number; y: number}[] = [], moved = false;
   const restart = () => {
     startView = chart.ranges();
     startPts = [...fingers.values()].map(p => ({...p}));
@@ -129,10 +123,7 @@ export function attachGestures(chart: GestureChart, area: HTMLElement, sink: Hov
     e.preventDefault(); /* no emulated mouse events: uPlot would start a box */
     area.setPointerCapture?.(e.pointerId);
     fingers.set(e.pointerId, local(e));
-    if (fingers.size === 1) {
-      moved = false;
-      pushed = false;
-    }
+    if (fingers.size === 1) moved = false;
     restart();
   };
   const onPointerMove = (e: PointerEvent) => {
@@ -144,7 +135,7 @@ export function attachGestures(chart: GestureChart, area: HTMLElement, sink: Hov
       const dx = now[0].x - startPts[0].x, dy = now[0].y - startPts[0].y;
       if (!moved && Math.hypot(dx, dy) < TAP_SLOP) return;
       moved = true;
-      chart.setView(panBy(startView, dx / p.w, dy / p.h), !pushed);
+      chart.setView(panBy(startView, dx / p.w, dy / p.h));
     } else if (now.length >= 2 && startPts.length >= 2) {
       moved = true;
       const d0 = Math.hypot(startPts[0].x - startPts[1].x, startPts[0].y - startPts[1].y);
@@ -153,9 +144,8 @@ export function attachGestures(chart: GestureChart, area: HTMLElement, sink: Hov
       const m0 = {x: (startPts[0].x + startPts[1].x) / 2, y: (startPts[0].y + startPts[1].y) / 2};
       const m1 = {x: (now[0].x + now[1].x) / 2, y: (now[0].y + now[1].y) / 2};
       const zoomed = zoomAbout(startView, m0.x / p.w, m0.y / p.h, d0 / d1);
-      chart.setView(panBy(zoomed, (m1.x - m0.x) / p.w, (m1.y - m0.y) / p.h), !pushed);
+      chart.setView(panBy(zoomed, (m1.x - m0.x) / p.w, (m1.y - m0.y) / p.h));
     }
-    pushed = true;
   };
   const onPointerUp = (e: PointerEvent) => {
     if (e.pointerType !== 'touch' || !fingers.has(e.pointerId)) return;

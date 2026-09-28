@@ -1,20 +1,24 @@
 /* Parameters, initial conditions, boundary conditions and delays
-   (docs/protocol.md `set`, `slide`, `default`; docs/ui-v2.md T3): the
-   values themselves stay in AppState.core (the `state` event), sent by the
-   core. This slice is only what the page adds: which field an edit is
-   pending on (so a `message` `error` can be shown on that field, not as a
-   modal, A11/A14), the undo history (A12: session.ts's undoValue()
-   sends `set` again with the previous text), the edits made while a
-   command runs (GitHub #18: the latest per field, sent as one `set` when
-   it ends, with at most one run), the model's defaults, the sliders under
-   the plot (store/sliders.ts) and the last Save (store/valueFiles.ts).
-   Pure: no DOM, no I/O. */
+   (docs/protocol.md `set`, `slide`, `default`; docs/ui-v2.md T3,
+   GitHub #117): the values themselves stay in AppState.core (the `state`
+   event), sent by the core. This slice is only what the page adds: the
+   edits not yet sent (sliders, value fields, Default/Reset, a loaded
+   .par/.ic: the latest per field, shown as pending until session.ts sends
+   them all in one `set` right before the next command that computes, so
+   every computation uses what the panel shows -- nothing is sent on a
+   plain edit, busy or idle), which field an edit is attributed to (so a
+   `message` `error` can be shown on that field, not as a modal, A11/A14),
+   the model's defaults, the sliders under the plot (store/sliders.ts) and
+   the last Save (store/valueFiles.ts). No undo (GitHub #110): Reset (one
+   field, or every field of a section) is the way back, through the
+   model's own values. Pure: no DOM, no I/O. */
 import type {Command} from '../protocol/types';
 import {presetSliders, type SliderDef} from './sliders';
 
 export type ValueKind = 'par' | 'ic' | 'bc' | 'delay';
 
-/** a value to send: `name` for par/ic, `index` for bc/delay (docs/protocol.md `set`) */
+/** an edit not yet sent, or a value to send: `name` for par/ic, `index`
+    for bc/delay (docs/protocol.md `set`) */
 export interface ValueSet {
   kind: ValueKind;
   name?: string;
@@ -22,26 +26,14 @@ export interface ValueSet {
   text: string;
 }
 
-/** one committed edit, kept for Undo; `name` for par/ic, `index` for bc/delay (docs/protocol.md `set`) */
-export interface ValueEdit {
-  kind: ValueKind;
-  name?: string;
-  index?: number;
-  /** the field's text before this edit, to send back on Undo */
-  previous: string;
-}
-
 export interface ValuesState {
   /** field id -> the error the core sent for it, until the next edit on it or a clean idle */
   errors: Record<string, string>;
-  /** the field id the next `message` `error` is attributed to (the edit most recently sent, until its `idle`) */
-  pending: string | null;
-  /** committed edits, oldest first */
-  history: ValueEdit[];
-  /** edits made while a command runs: the latest per field, in the order last changed */
-  queue: ValueSet[];
-  /** a run follows the queued edits once they are sent */
-  queueRerun: boolean;
+  /** the field id the next `message` `error` is attributed to (the edit
+      most recently flushed, until its `idle`) */
+  attributing: string | null;
+  /** edits not yet sent: the latest per field, in the order last changed */
+  pending: ValueSet[];
   /** the model file's values by field key (hello.defaults, else the first state) */
   defaults: Record<string, number> | null;
   /** the sliders under the plot, and the id the next one gets */
@@ -49,16 +41,11 @@ export interface ValuesState {
   nextSlider: number;
   /** the text the last Save wrote (tests read it; the browser downloads it) */
   lastSaved: {kind: 'par' | 'ic'; text: string} | null;
-  /** a parameter or IC edit integrates again (the panel's "Run on change") */
-  runOnChange: boolean;
 }
 
 export const initialValues: ValuesState = {
-  errors: {}, pending: null, history: [], queue: [], queueRerun: false, defaults: null, sliders: [], nextSlider: 1,
-  lastSaved: null, runOnChange: true,
+  errors: {}, attributing: null, pending: [], defaults: null, sliders: [], nextSlider: 1, lastSaved: null,
 };
-
-const HISTORY_KEEP = 50;
 
 /** a field's identity as a store key: names fold case, as the core matches them (docs/protocol.md `set`) */
 export function fieldKey(kind: ValueKind, nameOrIndex: string | number): string {
@@ -73,20 +60,18 @@ function omit(o: Record<string, string>, key: string): Record<string, string> {
 }
 
 export type ValuesAction =
-  | {type: 'edit'; edit: ValueEdit}
-  | {type: 'undo'}
+  /** a field's edit: kept pending (not sent) until the next flush */
+  | {type: 'edit'; set: ValueSet}
   | {type: 'error'; text: string}
   /** Escape dropped a draft that carried the core's refusal for `field` (WF-001, ui/Field.tsx
       onDropError): the box goes back to what the core has, so its error is forgotten too,
       without sending anything */
   | {type: 'clearError'; field: string}
   | {type: 'settled'}
-  /** the Default button: values from the ODE file (docs/protocol.md `default`); not itself undoable (A12) */
+  /** the Default or Reset button: pending edits from the ODE file's values, not itself undoable */
   | {type: 'defaulted'; kind: ValueKind}
-  /** values to send once the running command ends; `rerun`: a run follows them */
-  | {type: 'queue'; set: ValueSet; rerun: boolean}
-  /** the queue went out (flushCommand) */
-  | {type: 'flushed'}
+  /** the pending edits went out as one `set`, attributed to `field` when exactly one was sent */
+  | {type: 'flushed'; field: string | null}
   /** the model's values: from hello.defaults, or (`ifUnset`) the first state's */
   | {type: 'defaults'; pars: [string, number][]; ics: [string, number][]; ifUnset?: boolean}
   /** the model's `@ s1=..` presets, on a (re)connection: the list starts with them when it is empty */
@@ -96,30 +81,22 @@ export type ValuesAction =
   | {type: 'addSliderWith'; def: Omit<SliderDef, 'id'>}
   | {type: 'setSlider'; id: number; patch: Partial<Omit<SliderDef, 'id'>>}
   | {type: 'removeSlider'; id: number}
-  | {type: 'saved'; kind: 'par' | 'ic'; text: string}
-  | {type: 'runOnChange'; on: boolean};
+  | {type: 'saved'; kind: 'par' | 'ic'; text: string};
 
 export function reduceValues(state: ValuesState, action: ValuesAction): ValuesState {
   switch (action.type) {
     case 'edit': {
-      const field = fieldKey(action.edit.kind, action.edit.index ?? action.edit.name!);
-      const history = [...state.history, action.edit].slice(-HISTORY_KEEP);
-      return {...state, errors: omit(state.errors, field), pending: field, history};
-    }
-    case 'undo': {
-      if (!state.history.length) return state;
-      const last = state.history[state.history.length - 1];
-      const field = fieldKey(last.kind, last.index ?? last.name!);
-      return {...state, errors: omit(state.errors, field), pending: field, history: state.history.slice(0, -1)};
+      const field = setKey(action.set);
+      return {...state, errors: omit(state.errors, field), pending: queueSet(state.pending, action.set)};
     }
     case 'error':
-      return state.pending ? {...state, errors: {...state.errors, [state.pending]: action.text}} : state;
+      return state.attributing ? {...state, errors: {...state.errors, [state.attributing]: action.text}} : state;
     case 'clearError': {
       const errors = omit(state.errors, action.field);
       return errors === state.errors ? state : {...state, errors};
     }
     case 'settled':
-      return state.pending ? {...state, pending: null} : state;
+      return state.attributing ? {...state, attributing: null} : state;
     case 'defaulted': {
       const prefix = `${action.kind}:`;
       const keys = Object.keys(state.errors).filter(k => k.startsWith(prefix));
@@ -128,10 +105,9 @@ export function reduceValues(state: ValuesState, action: ValuesAction): ValuesSt
       for (const k of keys) delete errors[k];
       return {...state, errors};
     }
-    case 'queue':
-      return {...state, queue: queueSet(state.queue, action.set), queueRerun: state.queueRerun || action.rerun};
     case 'flushed':
-      return state.queue.length || state.queueRerun ? {...state, queue: [], queueRerun: false} : state;
+      return state.pending.length || state.attributing !== action.field
+        ? {...state, pending: [], attributing: action.field} : state;
     case 'defaults': {
       if (action.ifUnset && state.defaults) return state;
       const defaults: Record<string, number> = {};
@@ -153,8 +129,6 @@ export function reduceValues(state: ValuesState, action: ValuesAction): ValuesSt
       return {...state, sliders: state.sliders.filter(s => s.id !== action.id)};
     case 'saved':
       return {...state, lastSaved: {kind: action.kind, text: action.text}};
-    case 'runOnChange':
-      return state.runOnChange === action.on ? state : {...state, runOnChange: action.on};
   }
 }
 
@@ -168,8 +142,8 @@ export function queueSet(queue: ValueSet[], s: ValueSet): ValueSet[] {
   return [...queue.filter(q => setKey(q) !== key), s];
 }
 
-/** whether field `key` has a value waiting for the running command to end */
-export function isQueued(queue: ValueSet[], key: string): boolean {
+/** whether field `key` has an edit still waiting to be sent */
+export function isPending(queue: ValueSet[], key: string): boolean {
   return queue.some(q => setKey(q) === key);
 }
 
@@ -177,11 +151,10 @@ function setMembers(s: ValueSet): Record<string, unknown> {
   return s.index !== undefined ? {kind: s.kind, index: s.index, text: s.text} : {kind: s.kind, name: s.name, text: s.text};
 }
 
-/** the one command that sends `sets` (docs/protocol.md `set`: one value, or `values`), then runs when `rerun` */
-export function setCommand(sets: ValueSet[], rerun: boolean): Command | null {
+/** the one command that sends every pending edit (docs/protocol.md `set`: one value, or `values`) */
+export function setCommand(sets: ValueSet[]): Command | null {
   if (!sets.length) return null;
-  const run = rerun ? {rerun: 1} : {};
-  return sets.length === 1 ? {cmd: 'set', ...setMembers(sets[0]), ...run} : {cmd: 'set', values: sets.map(setMembers), ...run};
+  return sets.length === 1 ? {cmd: 'set', ...setMembers(sets[0])} : {cmd: 'set', values: sets.map(setMembers)};
 }
 
 /** display precision (A14): six significant digits */

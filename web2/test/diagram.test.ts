@@ -130,17 +130,13 @@ test('Back hides the panel, AUTO stays open', () => {
   assert.equal(pointCount(s.diagram.points), 14);
 });
 
-test('zoom and undo; the core moving its axes goes back to them, the zoom one undo away', () => {
+test('zoom, no history (GitHub #110): the core moving its axes goes back to them', () => {
   const zoom = {x: {min: 0.2, max: 0.3}, y: {min: -0.3, max: 0}};
-  let s = reduce(lecar(), {type: 'diagram', action: {type: 'viewport', viewport: zoom, push: true}});
+  let s = reduce(lecar(), {type: 'diagram', action: {type: 'viewport', viewport: zoom}});
   assert.deepEqual(s.diagram.viewport, zoom);
   s = ev(s, {ev: 'diagram', op: 'axes', ...axes});
   assert.deepEqual(s.diagram.viewport, zoom, 'the same axes again (reDraw): the zoom stays');
   s = ev(s, {ev: 'diagram', op: 'axes', ...axes, xmax: 0.6});
-  assert.deepEqual(s.diagram.viewport, {x: null, y: null});
-  s = reduce(s, {type: 'diagram', action: {type: 'undoViewport'}});
-  assert.deepEqual(s.diagram.viewport, zoom);
-  s = reduce(s, {type: 'diagram', action: {type: 'undoViewport'}});
   assert.deepEqual(s.diagram.viewport, {x: null, y: null});
 });
 

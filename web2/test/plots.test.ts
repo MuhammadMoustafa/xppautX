@@ -45,16 +45,13 @@ test('plots makes one window per core window, the active one selected', () => {
 test('each window keeps its zoom when the tabs switch', () => {
   let s = twoWindows();
   s = reduce(s, {type: 'selectWindow', win: 1});
-  s = reduce(s, {type: 'viewport', viewport: zoom, push: true});
+  s = reduce(s, {type: 'viewport', viewport: zoom});
   s = reduce(s, {type: 'selectWindow', win: 2});
   assert.deepEqual(activeWindow(s.plots)?.viewport, {x: null, y: null}, 'window 2 has its own');
-  s = reduce(s, {type: 'viewport', viewport: {x: {min: 5, max: 6}, y: null}, push: true, win: 2});
+  s = reduce(s, {type: 'viewport', viewport: {x: {min: 5, max: 6}, y: null}, win: 2});
   s = reduce(s, {type: 'selectWindow', win: 1});
   assert.deepEqual(activeWindow(s.plots)?.viewport, zoom);
-  assert.equal(activeWindow(s.plots)?.viewportHistory.length, 1);
-  s = reduce(s, {type: 'undoViewport', win: 2});
-  assert.deepEqual(windowOf(s.plots, 2)?.viewport, {x: null, y: null}, 'undo by window');
-  assert.deepEqual(windowOf(s.plots, 1)?.viewport, zoom);
+  assert.deepEqual(windowOf(s.plots, 2)?.viewport, {x: {min: 5, max: 6}, y: null});
 });
 
 test('a new series for another window leaves the shown zoom and readout alone', () => {
@@ -110,7 +107,7 @@ test('a plot mode (T4) is its window\'s, and shows that window\'s tab', () => {
   assert.equal(s.pick, null, 'not the window state.view maps');
 });
 
-test('the core moving a window\'s axes resets that window\'s zoom only, undoably', () => {
+test('the core moving a window\'s axes resets that window\'s zoom only, no history (GitHub #110)', () => {
   let s = twoWindows();
   s = reduce(s, {type: 'viewport', viewport: zoom, win: 1});
   s = reduce(s, {type: 'viewport', viewport: zoom, win: 2});
@@ -119,6 +116,4 @@ test('the core moving a window\'s axes resets that window\'s zoom only, undoably
   s = ev(s, {ev: 'state', pars: [], ics: [], bcs: [], view: {...view, xhi: 2}, rows: 2, menu: 0, win: 2});
   assert.deepEqual(windowOf(s.plots, 2)?.viewport, {x: null, y: null});
   assert.deepEqual(windowOf(s.plots, 1)?.viewport, zoom);
-  s = reduce(s, {type: 'undoViewport', win: 2});
-  assert.deepEqual(windowOf(s.plots, 2)?.viewport, zoom);
 });

@@ -1,10 +1,10 @@
-/* The values slice: pending/error attribution and the undo history
-   (docs/ui-v2.md T3, store/values.ts), without a browser (npm test). */
+/* The values slice: pending edits and error attribution, no undo (GitHub
+   #110, #117; store/values.ts), without a browser (npm test). */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {fieldKey, initialValues, reduceValues, sixSig, type ValueEdit} from '../src/store/values';
+import {fieldKey, initialValues, reduceValues, sixSig, type ValueSet} from '../src/store/values';
 
-const edit = (e: Partial<ValueEdit> & Pick<ValueEdit, 'kind' | 'previous'>): ValueEdit =>
+const edit = (e: Partial<ValueSet> & Pick<ValueSet, 'kind' | 'text'>): ValueSet =>
   ({name: undefined, index: undefined, ...e});
 
 test('fieldKey folds case for names, not for indices', () => {
@@ -13,37 +13,36 @@ test('fieldKey folds case for names, not for indices', () => {
   assert.notEqual(fieldKey('par', 'v'), fieldKey('ic', 'v'), 'kind is part of the identity');
 });
 
-test('an edit is remembered for undo and marks the field pending', () => {
-  const e = edit({kind: 'par', name: 'Iapp', previous: '0.05'});
-  const s = reduceValues(initialValues, {type: 'edit', edit: e});
-  assert.deepEqual(s.history, [e]);
-  assert.equal(s.pending, 'par:iapp');
+test('an edit is kept pending and clears its own stale error', () => {
+  const e = edit({kind: 'par', name: 'Iapp', text: '0.2'});
+  const s = reduceValues(initialValues, {type: 'edit', set: e});
+  assert.deepEqual(s.pending, [e]);
   assert.deepEqual(s.errors, {});
 });
 
-test('a message:error while a field is pending becomes that field\'s error', () => {
-  let s = reduceValues(initialValues, {type: 'edit', edit: edit({kind: 'par', name: 'iapp', previous: '0.05'})});
+test('a message:error while a field is attributed becomes that field\'s error', () => {
+  let s = reduceValues(initialValues, {type: 'flushed', field: 'par:iapp'});
   s = reduceValues(s, {type: 'error', text: 'bad formula'});
   assert.equal(s.errors['par:iapp'], 'bad formula');
   /* idle (settled) stops attributing further errors to it */
   s = reduceValues(s, {type: 'settled'});
-  assert.equal(s.pending, null);
+  assert.equal(s.attributing, null);
   const s2 = reduceValues(s, {type: 'error', text: 'unrelated later error'});
-  assert.equal(s2, s, 'no field is pending: the error is not attributed anywhere');
+  assert.equal(s2, s, 'no field is attributed: the error is not attributed anywhere');
 });
 
 test('a new edit on a field clears its stale error', () => {
-  let s = reduceValues(initialValues, {type: 'edit', edit: edit({kind: 'par', name: 'iapp', previous: '0.05'})});
+  let s = reduceValues(initialValues, {type: 'flushed', field: 'par:iapp'});
   s = reduceValues(s, {type: 'error', text: 'bad formula'});
   assert.equal(s.errors['par:iapp'], 'bad formula');
-  s = reduceValues(s, {type: 'edit', edit: edit({kind: 'par', name: 'iapp', previous: '0.05'})});
+  s = reduceValues(s, {type: 'edit', set: edit({kind: 'par', name: 'iapp', text: '0.06'})});
   assert.equal(s.errors['par:iapp'], undefined);
 });
 
 test('clearError (Escape dropping a core refusal, WF-001) forgets one field\'s error and nothing else', () => {
-  let s = reduceValues(initialValues, {type: 'edit', edit: edit({kind: 'par', name: 'iapp', previous: '0.05'})});
+  let s = reduceValues(initialValues, {type: 'flushed', field: 'par:iapp'});
   s = reduceValues(s, {type: 'error', text: 'Bad formula'});
-  s = reduceValues(s, {type: 'edit', edit: edit({kind: 'ic', name: 'v', previous: '-0.2'})});
+  s = reduceValues(s, {type: 'flushed', field: 'ic:v'});
   s = reduceValues(s, {type: 'error', text: 'Bad formula'});
   assert.deepEqual(s.errors, {'par:iapp': 'Bad formula', 'ic:v': 'Bad formula'});
   s = reduceValues(s, {type: 'clearError', field: 'par:iapp'});
@@ -52,36 +51,17 @@ test('clearError (Escape dropping a core refusal, WF-001) forgets one field\'s e
   assert.equal(s2, s, 'nothing to clear: the same state');
 });
 
-test('undo pops the last edit, re-pends its field, and clears its error', () => {
-  let s = reduceValues(initialValues, {type: 'edit', edit: edit({kind: 'par', name: 'iapp', previous: '0.05'})});
-  s = reduceValues(s, {type: 'edit', edit: edit({kind: 'ic', name: 'v', previous: '-0.2'})});
-  assert.equal(s.history.length, 2);
-  s = reduceValues(s, {type: 'error', text: 'bad formula'}); /* attributed to the last edit, ic:v */
-  s = reduceValues(s, {type: 'undo'});
-  assert.deepEqual(s.history, [edit({kind: 'par', name: 'iapp', previous: '0.05'})]);
-  assert.equal(s.pending, 'ic:v');
-  assert.equal(s.errors['ic:v'], undefined);
+test('flushed with more than one field attributes to none', () => {
+  let s = reduceValues(initialValues, {type: 'edit', set: edit({kind: 'par', name: 'iapp', text: '0.2'})});
+  s = reduceValues(s, {type: 'edit', set: edit({kind: 'ic', name: 'v', text: '-0.2'})});
+  s = reduceValues(s, {type: 'flushed', field: null});
+  assert.deepEqual(s.pending, []);
+  assert.equal(s.attributing, null);
 });
 
-test('undoing bc/delay edits goes by index, not name', () => {
-  let s = reduceValues(initialValues, {type: 'edit', edit: edit({kind: 'bc', index: 0, previous: 'u(0)-u(1)'})});
-  const field = fieldKey('bc', 0);
-  assert.equal(s.pending, field);
-  s = reduceValues(s, {type: 'undo'});
-  assert.equal(s.history.length, 0);
-  assert.equal(s.pending, field);
-});
-
-test('undo on an empty history does nothing', () => {
-  assert.equal(reduceValues(initialValues, {type: 'undo'}), initialValues);
-});
-
-test('history keeps only the most recent 50 edits', () => {
-  let s = initialValues;
-  for (let i = 0; i < 55; i++) s = reduceValues(s, {type: 'edit', edit: edit({kind: 'par', name: 'p', previous: String(i)})});
-  assert.equal(s.history.length, 50);
-  assert.equal(s.history[0].previous, '5');
-  assert.equal(s.history[49].previous, '54');
+test('undoing bc/delay edits goes by index, not name (only the pending edit, no history)', () => {
+  const s = reduceValues(initialValues, {type: 'edit', set: edit({kind: 'bc', index: 0, text: 'u(0)-u(1)'})});
+  assert.deepEqual(s.pending, [edit({kind: 'bc', index: 0, text: 'u(0)-u(1)'})]);
 });
 
 test('sixSig shows six significant digits', () => {

@@ -1,27 +1,27 @@
-/* The values panel (docs/ui-v2.md T3, GitHub #18): parameters, the state
-   (each variable's initial condition beside where the last run is now),
-   boundary conditions, delay initial data, and the model's user buttons.
-   A right column from 80rem, a section under the plot from 48rem, a
-   full-screen sheet with a Back button below that (R6). The sliders are
-   under the plot (SliderStrip.tsx).
+/* The values panel (docs/ui-v2.md T3, GitHub #18, #117): parameters, the
+   state (each variable's initial condition beside where the last run is
+   now), boundary conditions, delay initial data, and the model's user
+   buttons. A right column from 80rem, a section under the plot from
+   48rem, a full-screen sheet with a Back button below that (R6). The
+   sliders are under the plot (SliderStrip.tsx).
 
-   An edit sends `set` (and a run, with "Run on change"); while a command
-   runs it waits, the latest per field, marked on the field, and goes out
-   in one `set` when it ends (session.ts submit). Ctrl+Z (while the focus is
-   inside) or the Undo button restores the previous value (A12). A rejected
-   value comes back as a `message` `error`, shown on its field (A11); a text
-   the field does not take (Field.tsx: a number or %formula, an expression
-   for BCs and delays) is marked and never sent (T31). Each
-   parameter and IC has a reset to the model file's value (its title names
-   it) and is marked when it differs; each section folds (remembered per
-   viewer), and Parameters and State save and load XPP's own files. */
+   An edit never sends anything: it stays pending, the latest per field,
+   marked on the field, until session.key or autoOp('run') flushes every
+   pending edit as one `set` right before the next command that computes
+   (GitHub #117), so every computation uses what the panel shows. A
+   rejected value comes back as a `message` `error`, shown on its field
+   (A11); a text the field does not take (Field.tsx: a number or
+   %formula, an expression for BCs and delays) is marked and never sent
+   (T31). Each parameter and IC has a reset to the model file's value
+   (its title names it) and is marked when it differs; there is no undo
+   (GitHub #110): Reset is the way back. Each section folds (remembered
+   per viewer), and Parameters and State save and load XPP's own files. */
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
 import type {ComponentChildren} from 'preact';
 import {HELP} from '../help/links';
-import type {Session} from '../session';
 import {EXPRESSION, FORMULA, FORMULA_HINT, fieldMessage, type FieldSpec} from '../store/fieldKinds';
-import {fieldKey, isQueued, sixSig, type ValueKind} from '../store/values';
+import {fieldKey, isPending, sixSig, type ValueKind} from '../store/values';
 import {useSession, useStore} from './context';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
@@ -92,21 +92,25 @@ function ValueField({kind, label, name, index, display, full, hint, spec, extra}
   const session = useSession();
   const field = fieldKey(kind, index ?? name!);
   const error = useStore(s => s.values.errors[field]);
-  /* a sent edit still awaiting the core's reply (values.pending): the field's draft stays put
-     until this clears with no error, so a formula the core refuses keeps showing it (WF-001) */
-  const settling = useStore(s => s.values.pending === field);
-  const queued = useStore(s => isQueued(s.values.queue, field));
+  /* an edit still pending (not yet sent) or just flushed and awaiting the
+     core's reply (values.attributing): the field's draft stays put until
+     both clear with no error, so a formula the core refuses keeps
+     showing it (WF-001), and a value typed but not yet flushed is never
+     overwritten by the core's own (stale) value (GitHub #117) */
+  const queued = useStore(s => isPending(s.values.pending, field));
+  const attributing = useStore(s => s.values.attributing === field);
+  const settling = queued || attributing;
   const def = useStore(s => (kind === 'par' || kind === 'ic' ? s.values.defaults?.[field] ?? null : null));
   const id = `value-${field}`.replace(/[^\w-]/g, '_');
   /* Field sends only a text it takes that differs from where this focus
-     started: a value that moved under a focused, untouched box (Undo, a
+     started: a value that moved under a focused, untouched box (a Reset, a
      slider on the same name) is not sent back as if it were an edit */
   const commit = (text: string) => {
-    if (index !== undefined) session.setValueByIndex(kind as 'bc' | 'delay', index, text, full);
-    else session.setValue(kind as 'par' | 'ic', name!, text, full);
+    if (index !== undefined) session.setValueByIndex(kind as 'bc' | 'delay', index, text);
+    else session.setValue(kind as 'par' | 'ic', name!, text);
   };
   const changed = def !== null && Number(full) !== def;
-  const title = queued ? 'Sent when the running command ends' : def !== null ? `${hint}; default: ${sixSig(def)}` : hint;
+  const title = queued ? 'Pending: sent before the next command that computes' : def !== null ? `${hint}; default: ${sixSig(def)}` : hint;
   return (
     <div class={'value-field' + (queued ? ' queued' : '') + (changed ? ' changed' : '')}>
       <label htmlFor={id} class="value-name" title={label}>{label}</label>
@@ -117,7 +121,7 @@ function ValueField({kind, label, name, index, display, full, hint, spec, extra}
       {def !== null && name !== undefined && (
         <button class="value-reset icon" title={`default: ${sixSig(def)}`} disabled={!changed}
           aria-label={`Reset ${label} to its default, ${sixSig(def)}`}
-          onClick={() => session.resetValue(kind as 'par' | 'ic', name, full)}>↺</button>
+          onClick={() => session.resetValue(kind as 'par' | 'ic', name)}>↺</button>
       )}
     </div>
   );
@@ -257,23 +261,12 @@ function UserButtonsBlock() {
   );
 }
 
-function RunOnChange({session}: {session: Session}) {
-  const on = useStore(s => s.values.runOnChange);
-  return (
-    <label class="value-runs" title="Integrate again after a parameter or initial condition changes (like a slider)">
-      <input type="checkbox" checked={on} onChange={e => session.setRunOnChange((e.target as HTMLInputElement).checked)} />
-      Run on change
-    </label>
-  );
-}
-
 /* ---- the panel: a column, a section, or a sheet, depending on the width (R6) ---- */
 
 export function ValuesPanel() {
   const session = useSession();
   const open = useStore(s => s.valuesOpen);
-  const history = useStore(s => s.values.history);
-  const queued = useStore(s => s.values.queue.length);
+  const queued = useStore(s => s.values.pending.length);
   const bcs = useStore(s => s.core?.bcs ?? []);
   const delays = useStore(s => s.core?.delays ?? []);
   const panel = useRef<HTMLElement>(null);
@@ -297,28 +290,15 @@ export function ValuesPanel() {
     return () => window.removeEventListener('keydown', onKey, true);
   }, [open]);
 
-  const last = history[history.length - 1];
-  const undoLabel = last ? `Undo: restore ${last.name ?? `${last.kind} ${(last.index ?? 0) + 1}`}` : 'Nothing to undo';
-
   return (
-    <section id="values-panel" ref={panel} class={'values-panel' + (open ? ' open' : '')} aria-label="Values"
-      onKeyDown={e => {
-        if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
-          e.preventDefault();
-          session.undoValue();
-        }
-      }}>
+    <section id="values-panel" ref={panel} class={'values-panel' + (open ? ' open' : '')} aria-label="Values">
       <div class="values-header">
         <button class="values-back" onClick={close}>Back</button>
         <h2>Values</h2>
-        <RunOnChange session={session} />
-        <button class="small" disabled={!history.length} title={undoLabel} onClick={() => session.undoValue()}>
-          Undo
-        </button>
       </div>
       {queued > 0 && (
         <p class="values-queued" role="status">
-          {queued === 1 ? '1 change waits' : `${queued} changes wait`} for the running command to end.
+          {queued === 1 ? '1 change is pending' : `${queued} changes are pending`}: sent before the next command that computes.
         </p>
       )}
       <div class="values-body">

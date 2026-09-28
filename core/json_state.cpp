@@ -377,15 +377,16 @@ int apply_value(const char *line)
 } // namespace
 
 /* {"cmd":"set", one value's members (apply_value), or "values":[{...}...]
-   to set several in one command, "rerun":1 to integrate again afterwards
-   as a slider does (only when every value was set), or "kind":"ic",
-   "from":"last" for the initial conditions from where the last run ended,
-   what Initialconds/Last starts from, without a run} */
+   to set several in one command, or "kind":"ic", "from":"last" for the
+   initial conditions from where the last run ended, what
+   Initialconds/Last starts from, without a run. Never runs anything
+   itself (W69): the page holds every edit and sends them in one `set`
+   right before the next command that computes. */
 void apply_set(const char *line)
 {
     const char *values = js_find(line, "values");
     std::string from;
-    int i, bad = 0;
+    int i;
     if (get_string(line, "from", from, 8)) {
         if (from != "last") return;
         if (!xpp::session().numerics.inflag) {
@@ -397,23 +398,24 @@ void apply_set(const char *line)
         return;
     }
     if (values)
-        for (i = 0; js_elem(values, i); i++) bad |= apply_value(js_elem(values, i));
+        for (i = 0; js_elem(values, i); i++) apply_value(js_elem(values, i));
     else
-        bad = apply_value(line);
-    if (!bad && get_num(line, "rerun", 0)) slider_rerun();
+        apply_value(line);
 }
 
-/* {"cmd":"default","kind":"par|ic","rerun":1}: the model file's values */
+/* {"cmd":"default","kind":"par|ic"}: the model file's values */
 void default_command(const char *line)
 {
     std::string kind;
     get_string(line, "kind", kind, 16);
     if (kind == "par") set_default_params();
     else set_default_ics();
-    if (get_num(line, "rerun", 0)) slider_rerun();
 }
 
-/* a parameter slider moved: {"cmd":"slide","name":...,"value":v,"rerun":1} */
+/* a parameter slider moved: {"cmd":"slide","name":...,"value":v} (W69: sets
+   only, like `set`; the page sends it as part of the next `set` before the
+   next computation, never on its own any more, but the command still just
+   sets the value for a client that does) */
 void slide_command(const char *line)
 {
     std::string name;
@@ -422,7 +424,6 @@ void slide_command(const char *line)
     if (find_par_or_var(name.c_str(), &type, &index)) {
         set_par_or_var(name.c_str(), type, index, get_num(line, "value", 0));
         state_dirty = 1;
-        if (get_num(line, "rerun", 1)) slider_rerun();
     }
 }
 

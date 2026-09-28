@@ -49,9 +49,11 @@ window's axes (Viewaxes), keeps its own zoom when the tabs switch, and
 adds, all in the client without a round trip: drag a box to zoom, the wheel
 zooms about the pointer, Shift+drag or the middle button pans, pinch and
 one-finger drag on touch, a double click (or `0`) goes back to the window's
-axes, Undo zoom (`Ctrl+Z`) steps back, the nearest point is named under the
+axes, the nearest point is named under the
 mouse, on a tap, or by stepping with `[` `]` from the keyboard, curves can be
-hidden from the legend, and PNG and CSV export what is shown.
+hidden from the legend, and PNG and CSV export what is shown. There is no
+zoom history any more (GitHub #110): Reset view and the corner Fit button
+(T30) are the way back.
 
 The AUTO view (T11a) opens when the core opens AUTO's window (File/Auto)
 and closes when the core destroys it: a full-screen sheet at every width
@@ -204,7 +206,7 @@ new page adds direct manipulation that maps onto existing commands:
 | `checklist` | checkbox list with All and None | done |
 | `alert` | a notification (toast); the ask is answered at once, so the run is not blocked | done |
 | `file` | the browser's open or save dialog (section 4, `ui/FileDialog.tsx`); the core's listing is the second tab, "In the model's folder" | done |
-| `mouse`, `rubber`, `drag` | a plot mode (`plot/pick.ts`, the store's `pick`): a crosshair (click or tap picks), a box or line (drag it), or a drag of the plot, with an instruction bar and Cancel (Done for a drag); Escape cancels; from the keyboard, arrows move the crosshair or the free corner (Shift: ten times as far), Enter picks or fixes a corner, arrows drag in a drag. Answered in data coordinates (`xd`, `yd`, `xd2`, `yd2`, docs/protocol.md), so no pixel maths; the drag's events queue while the core works. When the core's window moves (Window/Zoom, Viewaxes), the plot shows it again (the client zoom is one Undo away). Asks for windows the page does not draw yet (AUTO, 3D) say so and offer Cancel | done |
+| `mouse`, `rubber`, `drag` | a plot mode (`plot/pick.ts`, the store's `pick`): a crosshair (click or tap picks), a box or line (drag it), or a drag of the plot, with an instruction bar and Cancel (Done for a drag); Escape cancels; from the keyboard, arrows move the crosshair or the free corner (Shift: ten times as far), Enter picks or fixes a corner, arrows drag in a drag. Answered in data coordinates (`xd`, `yd`, `xd2`, `yd2`, docs/protocol.md), so no pixel maths; the drag's events queue while the core works. When the core's window moves (Window/Zoom, Viewaxes), the plot shows it again (the client zoom is simply replaced, no history: GitHub #110). Asks for windows the page does not draw yet (AUTO, 3D) say so and offer Cancel | done |
 | `grab` (AUTO) | a mode of the AUTO view: arrows, `[` `]`, Tab to the labels, Enter takes, Escape cancels, a click or tap takes the nearest point; answered by index (`point`) | done (T11b) |
 | `pixels` | answered `ok:0` by the session: web2 renders frames from data (kinescope, GIF) itself | done / T15 |
 
@@ -470,9 +472,11 @@ Target: WCAG 2.2 AA. Rules:
 - **A11 Notifications, not modal alerts**: errors and the core's alerts are
   toasts that do not take the focus or stop the run; errors stay until
   dismissed, information for six seconds; all of them also go to Messages.
-- **A12 Undo where cheap**: zoom and pan have an undo history (a gesture is
-  one step); parameter and IC edits get Undo in T3 (the previous value is
-  in the store); Default stays as XPP's reset.
+- **A12 No undo** (maintainer, 2026-09-27, decision 2, GitHub #110):
+  zoom and pan have no history any more -- Reset view and Fit are the way
+  back; parameter and IC edits have no undo either -- Reset (one field,
+  or all) to the ODE file's value is the way back, through the core's
+  defaults.
 - **A13 Empty and error states**: no data says so and offers Integrate;
   a lost connection shows "Reconnecting…"; a stopped core says so and
   points to Messages; a prompt kind not built yet says so and offers
@@ -601,7 +605,7 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 |---|---|---|---|---|
 | T1 | Scaffold: `series`, web2 build/embedding, shell, the main plot, tests | - | yes | done: this branch |
 | T2 (**done**) | Live plotting: `series` `append` during integrations (throttled), store appends in place, binary option for long runs | T1 | yes | a 20 000-row run grows on screen; servercheck: the appended rows equal the final series; a 10^6-row series renders and zooms (draw times printed as `perf:` lines, W58) |
-| T3 (**done**) | Values panel: parameters, ICs, BCs, delays, sliders (`@ s1=`), user buttons, Default, `%formula`, undo of an edit | T1 | no | web2check: edit a parameter, see `state`; move a slider, get a new series; undo restores; keyboard and 44 px targets; right column at 80 rem, sheet on a phone |
+| T3 (**done**) | Values panel: parameters, ICs, BCs, delays, sliders (`@ s1=`), user buttons, Reset, `%formula`, edits pending until the next computation (GitHub #117), no undo (GitHub #110) | T1 | no | web2check: edit a parameter, see it pending; move a slider, nothing sent; Go sends one set with the latest values, then runs; keyboard and 44 px targets; right column at 80 rem, sheet on a phone |
 | T4 (**done**) | Prompts complete: `*n` selects, checklist, mouse/rubber/drag asks as plot modes; core accepts data coordinates `xd`,`yd` | T1 | small | servercheck: an answer in data coordinates; web2check: Viewaxes form with a variable select; Window/Zoom by a box drawn on the plot, by mouse and by keyboard |
 | T5 (**done**) | Files: `/files` endpoints (list, get, put; streaming bodies), `file` asks through the browser's dialogs, the confirm on replace, "Add file…" for missing companions, `file` commands for `--server` | T4 | yes | webcheck: traversal and dot names refused, 64 MB cap, token required; web2check: Write set lands in the model's folder and is offered to the browser; Read set by upload restores parameters |
 | T6 (**done**) | Plot windows: `plots` event, series per window, tabs, Makewindow create/kill/select | T2 | yes | servercheck: two windows, each with its curves; web2check: switch tabs, each keeps its zoom |

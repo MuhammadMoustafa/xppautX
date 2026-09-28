@@ -45,7 +45,7 @@ link from a menu item or dialog to its section here.
 | web2 | Section |
 |---|---|
 | Title bar, Menu button/drawer, status bar (Working…/Stop) | [Using the interface: the page layout](04-using-the-interface.md#the-page-layout), [long-running commands](04-using-the-interface.md#long-running-commands) |
-| Plot tabs, zoom/pan/undo, "Use this view", legend, 3D rotation | [Using the interface: plots and axes](04-using-the-interface.md#plots-and-axes) |
+| Plot tabs, zoom/pan/reset/Fit, "Use this view", legend, 3D rotation | [Using the interface: plots and axes](04-using-the-interface.md#plots-and-axes) |
 | Values panel: initial conditions, parameters, checkboxes, sliders, user buttons, boundary conditions, delay data | [Using the interface: the values panel](04-using-the-interface.md#the-values-panel) |
 | Slider Add/Edit dialog | [Using the interface: the values panel](04-using-the-interface.md#the-values-panel) |
 | Data tab | [The Data Browser](07-data-browser.md) (commands below) |

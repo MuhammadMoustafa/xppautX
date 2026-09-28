@@ -1,7 +1,7 @@
 /* The AUTO diagram's axis dialog (docs/ui-v2.md T21): a click on an axis
    name opens it beside the diagram. Its minimum and maximum change the view
-   at once, in the page only (a zoom: Undo zoom and Reset view take it
-   back), so they work while AUTO runs. What the axis plots (the parameter,
+   at once, in the page only (a zoom: Reset view or Fit take it back), so
+   they work while AUTO runs. What the axis plots (the parameter,
    the y axis's plot type and its variable or second parameter) is AUTO's
    Axes setting (T22: the `autosettings` data): a change goes to the core as
    an `auto` `set` with a Fit (session.autoSettings), at any time: while a
@@ -32,7 +32,6 @@ export function AutoAxisDialog({axis, onClose}: {axis: AxisName; onClose: () => 
   /* the axes name two of AUTO's parameters (Parameter sets which) */
   const pars = settings ? settings.pars.filter((n): n is string => !!n) : [];
   const box = useRef<HTMLDivElement>(null);
-  const edited = useRef(false);
   const shown = (): Range | null => viewport[axis]
     ?? (axes ? (axis === 'x' ? {min: axes.xmin, max: axes.xmax} : {min: axes.ymin, max: axes.ymax}) : null);
   const [minText, setMin] = useState(() => (shown() ? boundText(shown()!.min) : ''));
@@ -60,9 +59,7 @@ export function AutoAxisDialog({axis, onClose}: {axis: AxisName; onClose: () => 
     const v = {...session.store.getState().diagram.viewport, [axis]: r};
     if (!v.x && axes) v.x = {min: axes.xmin, max: axes.xmax};
     if (!v.y && axes) v.y = {min: axes.ymin, max: axes.ymax};
-    /* the first change of the dialog is one Undo away, the rest are the same step */
-    session.store.dispatch({type: 'diagram', action: {type: 'viewport', viewport: v, push: !edited.current}});
-    edited.current = true;
+    session.store.dispatch({type: 'diagram', action: {type: 'viewport', viewport: v}});
   };
   const r = typedRange(minText, maxText);
   const numbers = fieldError(NUMBER, minText) === null && fieldError(NUMBER, maxText) === null; /* else each box says so */
