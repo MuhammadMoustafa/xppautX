@@ -6,7 +6,7 @@
      no macOS machine has built or run this bundle yet). The version tokens
      below are substituted by the Makefile's app target from the same
      XPPAUTX_VERSION that "xppautX --version" prints. Declares the .ode
-     document type so Finder offers xppautX to open one and double-clicking
+     and .odex document types so Finder offers xppautX to open one and double-clicking
      one starts it (a second .ode a second process, as on Windows and Linux:
      the core cannot load a second model into a running session). -->
 <dict>
@@ -52,6 +52,20 @@
                 <string>io.github.MuhammadMoustafa.xppautX.ode</string>
             </array>
         </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>xppautX model (.odex)</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>icon</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>io.github.MuhammadMoustafa.xppautX.odex</string>
+            </array>
+        </dict>
     </array>
     <key>UTExportedTypeDeclarations</key>
     <array>
@@ -69,6 +83,23 @@
                 <key>public.filename-extension</key>
                 <array>
                     <string>ode</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>io.github.MuhammadMoustafa.xppautX.odex</string>
+            <key>UTTypeDescription</key>
+            <string>xppautX model (.odex)</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.plain-text</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>odex</string>
                 </array>
             </dict>
         </dict>

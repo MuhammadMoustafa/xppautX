@@ -309,7 +309,7 @@ from):
    `.odex` gives real IEEE results, `1/0` is inf and `0/0` is NaN, and a
    run stops with an error naming the equation and the time at the step
    where a NaN or inf first enters the state. `.ode` keeps XPP's guard
-   (a zero divisor replaced by 2.23e-15, expr_eval.cpp, `DOUB_EPS`: `1/0` is
+   (a zero divisor replaced by 2.23e-15, expr_program.h, `ZERO_DIVISOR`: `1/0` is
    4.5e14, `0/0` is 0), so old models give XPP's numbers; `--check`
    (W75) warns where a `.ode` formula divides by something that can be 0.
    One flag per model, chosen by the file's extension; the evaluator is
@@ -337,3 +337,84 @@ from):
 5. **`int`** (decided, maintainer, 2026-09-27): `volterra(...)` replaces the
    integral operator, so `int` is an ordinary name in `.odex`.
 6. **Extension gap**: moot, since `.odex` does not reserve `e` (question 4).
+
+## The implementation (W74)
+
+The code: `core/odex.h` (the tree), `odex_parse.cpp` (tokenizer and
+grammar), `odex_print.cpp` (a tree back to text), `odex_load.cpp` (a
+parsed model into the Model), `odex_convert.cpp` (`--convert`). An
+`.odex` model is checked (every name declared once, read where it may be,
+called with its arguments), then written as the `.ode` reader's own
+statements, each formula with the parentheses `.ode`'s precedence needs
+to keep `.odex`'s grouping and every sign and `if` bracketed, so no
+`.ode` quirk can be reached from them; form_ode.cpp's reader builds the
+Model from those lines, the same code an `.ode` goes through. What
+differs on purpose is done around it: a parameter's value is evaluated
+in order, the initial values once the model is set up, `/` compiles to
+IEEE's division (`Model::ieee_division`), a block function becomes the
+one if/then/else expression its returns make. The integrator already
+stops a run at a NaN in the state (always) and at |x| > `bound` (an
+inf), naming the variable and the time.
+
+### Where this spec was open: the smallest reading taken
+
+- **Statements `.ode` has and this spec does not list**, kept with the
+  smallest spelling: a fixed variable `w = expr` (a named quantity
+  computed before the right-hand sides; an `aux` may repeat its name,
+  `aux ica = ica`, as `.ode` allows); a Volterra equation `u(t) = expr`
+  (with or without `volterra(...)`: `.ode`'s `volt u=...` has none in
+  fp.ode, and `junk = volterra(0, of=x)` is a fixed variable, fr.ode); a
+  derived parameter `!d = expr` (`.ode`'s `number n=100` too); the
+  algebraic `solv y = guess` and `0 = expr`; `only x, y`; a comment the
+  model shows is a string statement, `"{gk=0} text"` with its action.
+  New reserved words: `solv`, `only`, `history`; the built-ins the spec's
+  list lacks are reserved too (`lgamma`, `poisson`, `besselis`, the
+  animator's `mouse_x` ... `mouse_vy`).
+- **`history x = expr`** (new): x's values before the start, what a delay
+  reads (`.ode`'s `x(0)=formula` keeps its formula for exactly that; its
+  `init x=1` leaves the history at 0). `init` gives the initial value
+  only, evaluated once the model is set up, where `.ode` evaluates its
+  array initial values, so a random initial value draws in XPP's order.
+- **The spec's other open forms:** `table w "w.tab"` and `table w
+  expr, n=51, lo=-25, hi=25` (t the table's variable); `set name = a = 1,
+  xp = v` (each value a number or a name); `network k = conv(even, 51,
+  12, w, u0)` (arguments as written: names, numbers, `p{1-4}`);
+  `boundary expr` (0 = expr, `x'` the value at the right end: the
+  grammar's `boundary name = expr` has no meaning to give the name, so
+  it is not implemented); `sum(expr, from=lo, to=hi)` with `i'` the
+  index, as `volterra(kernel, of=u, mu=m)` names its options (`t'` the
+  variable of integration in the kernel); `event 1 x - 1, x = 0` sets a
+  variable, an aux quantity, a parameter, `out_put`, `arret` or
+  `no_interp`.
+- A list statement ends with its line: `par a=1 b=2` is an error (the
+  missing comma), never a second statement `b=2`. A parameter's value
+  reads numbers, `pi`, built-in functions and the parameters before it.
+- Not in `.odex`: `.ode`'s arrays and `%` loops (a converted file has
+  them expanded), `vector`, `group` and `options`; `x[i]` parses (the
+  grammar's postfix) and is refused as not part of `.odex` yet.
+- Until W76 and a core that keeps a name's case: names differing only by
+  case, and a name that reads as a built-in in upper case (`Sin`), are
+  refused with an error saying so; a name is at most 64 characters.
+
+### What --convert writes
+
+`xppautX --convert [--auto] model.ode` writes model.odex beside it:
+the statements in the order the reader read them (Model::statements,
+arrays expanded), each formula read back from the program it compiled
+to. A quirk of `.ode`'s precedence becomes explicit parentheses; a
+number `atof` cut, an option spaced around its `=` (dropped) or cut, a
+formula in `x(0)=` (its value, and its history in a delay model) are
+written as XPP read them, with a comment. A division by something that
+can be 0 is written as XPP computes it, `a/(if b then b else
+2.23e-15)`; a divisor that is a constant other than 0, or a sum positive
+by its form (`1+exp(-x)`), is left as it is. Names are written as their
+declarations spell them (the header lists the `.ode` lines that spelled
+one another way); a name `.odex` reserves is renamed as question 3 says
+(a question on the terminal, `--auto` for the suggestions, none asked
+with no terminal: the conversion stops and names them). What followed
+`done` becomes comments at the end. The `.odex` is then loaded and must
+compile to the `.ode`'s own programs (an `.odex` division and its guard
+read as `.ode`'s division), or `--convert` fails: exact by construction,
+and checked. `tools/odexcheck.sh` (verify.sh) converts every example
+that loads by itself and runs the `.odex`: every output.dat's md5 is its
+`.ode`'s (tests/examples.md5).

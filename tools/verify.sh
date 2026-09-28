@@ -102,6 +102,13 @@ if command -v python3 >/dev/null; then
     echo "MODE CHECK FAILED"
     exit 1
   fi
+  if sh tools/associatecheck.sh > build/associatecheck.log 2>&1; then
+    tail -1 build/associatecheck.log
+  else
+    cat build/associatecheck.log
+    echo "ASSOCIATE CHECK FAILED"
+    exit 1
+  fi
   if python3 tools/autocheck.py > build/autocheck.log 2>&1; then
     echo "auto checks ok: $(grep -c '^PASS' build/autocheck.log) checks"
   else

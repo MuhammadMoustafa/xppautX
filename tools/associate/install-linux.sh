@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install (or remove) xppautX's .ode file association for the current user:
+# Install (or remove) xppautX's .ode and .odex file associations for the current user:
 # no root needed, nothing outside $PREFIX is touched. Default $PREFIX is
 # ~/.local, the XDG per-user data location (~/.local/share/applications,
 # .../mime/packages, .../icons/hicolor); a package manager or a system-wide
@@ -10,7 +10,7 @@
 #
 # Installs tools/associate/xppautx.desktop (Exec rewritten to the resolved
 # xppautX binary), tools/associate/xppautx-ode.xml (the text/x-xpp-ode MIME
-# type for *.ode) and the hicolor PNG icons tools/make_icons.py wrote to
+# type for *.ode and text/x-xpp-odex for *.odex) and the hicolor PNG icons tools/make_icons.py wrote to
 # assets/icons/hicolor/, then refreshes the desktop and MIME databases when
 # their update tools are installed (optional: a fresh login picks them up
 # either way).
@@ -44,7 +44,7 @@ desktop_file="$apps_dir/xppautx.desktop"
 mime_file="$mime_dir/packages/xppautx-ode.xml"
 
 if [ "$action" = uninstall ]; then
-    echo "install-linux: removing xppautX's .ode association from $prefix"
+    echo "install-linux: removing xppautX's .ode and .odex associations from $prefix"
     rm -f "$desktop_file" "$mime_file"
     for size_dir in "$root"/assets/icons/hicolor/*/apps; do
         [ -d "$size_dir" ] || continue
@@ -72,7 +72,7 @@ exe=$(CDPATH= cd -- "$(dirname -- "$exe")" && pwd)/$(basename -- "$exe")
     exit 1
 }
 
-echo "install-linux: installing xppautX's .ode association into $prefix (exe: $exe)"
+echo "install-linux: installing xppautX's .ode and .odex associations into $prefix (exe: $exe)"
 mkdir -p "$apps_dir" "$mime_dir/packages"
 sed "s|^Exec=xppautX %f|Exec=$exe %f|; s|^TryExec=xppautX|TryExec=$exe|" \
     "$here/xppautx.desktop" > "$desktop_file"

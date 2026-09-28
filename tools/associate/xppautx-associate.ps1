@@ -1,22 +1,22 @@
 <#
 .SYNOPSIS
-    Register or unregister xppautX as the handler for .ode files, for the
+    Register or unregister xppautX as the handler for .ode and .odex files, for the
     current user only (HKCU\Software\Classes: no admin rights needed, and
     nothing outside this user's own registry hive is touched).
 
 .DESCRIPTION
     Register writes a ProgID, "xppautX.Model", under HKCU\Software\Classes
-    with the exe's icon and open command, and points .ode's default value at
-    it; Unregister removes both. Either way, SHChangeNotify tells Explorer
+    with the exe's icon and open command, and points the default value of
+    .ode and .odex at it; Unregister removes them. Either way, SHChangeNotify tells Explorer
     to pick up the change without a sign-out. Run it again after moving or
     renaming xppautX.exe: the command line it wrote has the old path.
 
 .PARAMETER Register
-    Associate .ode with xppautX (the default action).
+    Associate .ode and .odex with xppautX (the default action).
 
 .PARAMETER Unregister
-    Remove the association (and the ProgID, if xppautX still owns .ode's
-    default value).
+    Remove the associations (each extension only while xppautX still owns
+    its default value) and the ProgID.
 
 .PARAMETER ExePath
     Path to xppautX.exe. Defaults to xppautX.exe next to this script (the
@@ -43,6 +43,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProgId = 'xppautX.Model'
+$Extensions = @('.ode', '.odex')
 $ClassesRoot = 'HKCU:\Software\Classes'
 
 if (-not $ExePath) {
@@ -99,17 +100,19 @@ public static extern void SHChangeNotify(int wEventId, int uFlags, IntPtr dwItem
 }
 
 if ($Unregister) {
-    Write-Host "xppautx-associate: unregistering .ode ($ClassesRoot)"
-    $odeKey = "$ClassesRoot\.ode"
-    $current = $null
-    if (Test-Path -LiteralPath $odeKey) {
-        $item = Get-Item -LiteralPath $odeKey -ErrorAction SilentlyContinue
-        if ($item) { $current = $item.GetValue('') }
-    }
-    if ($current -eq $ProgId -or $WhatIf) {
-        Remove-RegKey "$ClassesRoot\.ode"
-    } else {
-        Write-Host ".ode is not registered to $ProgId (owner: '$current'); leaving it alone"
+    Write-Host "xppautx-associate: unregistering $($Extensions -join ' ') ($ClassesRoot)"
+    foreach ($ext in $Extensions) {
+        $extKey = "$ClassesRoot\$ext"
+        $current = $null
+        if (Test-Path -LiteralPath $extKey) {
+            $item = Get-Item -LiteralPath $extKey -ErrorAction SilentlyContinue
+            if ($item) { $current = $item.GetValue('') }
+        }
+        if ($current -eq $ProgId -or $WhatIf) {
+            Remove-RegKey $extKey
+        } else {
+            Write-Host "$ext is not registered to $ProgId (owner: '$current'); leaving it alone"
+        }
     }
     Remove-RegKey "$ClassesRoot\$ProgId"
     Send-AssocChanged
@@ -117,10 +120,10 @@ if ($Unregister) {
     exit 0
 }
 
-Write-Host "xppautx-associate: registering .ode -> $ProgId -> `"$ExePath`" `"%1`" ($ClassesRoot)"
+Write-Host "xppautx-associate: registering $($Extensions -join ' ') -> $ProgId -> `"$ExePath`" `"%1`" ($ClassesRoot)"
 Write-RegValue "$ClassesRoot\$ProgId" $null 'xppautX Model'
 Write-RegValue "$ClassesRoot\$ProgId\DefaultIcon" $null "`"$ExePath`",0"
 Write-RegValue "$ClassesRoot\$ProgId\shell\open\command" $null "`"$ExePath`" `"%1`""
-Write-RegValue "$ClassesRoot\.ode" $null $ProgId
+foreach ($ext in $Extensions) { Write-RegValue "$ClassesRoot\$ext" $null $ProgId }
 Send-AssocChanged
 Write-Host "done"

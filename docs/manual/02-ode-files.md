@@ -2,6 +2,33 @@
 
 **NOTE.** *Pre 1992, XPP used a different form for ODE files. I no longer document them* A command line option lets you convert old-style to new style format.
 
+**The .odex format.** xppautX also reads `.odex` models: the same
+statements without `.ode`'s quirks (docs/odex.md). The usual precedence
+(arithmetic, then comparisons, then `not`, `and`, `or`), `^` grouping
+right, a sign allowed anywhere (`2*-3`), `if a then b else if c then d
+else e` with or without parentheses, `!=`, block functions in braces,
+case-sensitive names, `# ...` and nested `/* ... */` comments, no
+`done`, every mistake an error at its line and column. A parameter's
+value and an initial value are expressions (the parameters set first),
+and `/` divides as IEEE does (`1/0` is inf; a run stops at the first
+NaN or inf). The model above as `.odex`:
+
+    # Forced Fitzhugh-Nagumo, fhn.odex
+    par a = .25, eps = .05, gamma = 1, I_0 = .25
+    par al = 0, omega = 2
+    fun f(v) = v*(1-v)*(v-a)
+    fun s(x) = al*sin(omega*x)
+    v' = f(v) - w + s(t) + I_0
+    w' = eps*(v - gamma*w)
+    @ total = 100, dt = .2, xhi = 100
+
+`xppautX --convert model.ode` writes `model.odex` from what the `.ode`
+reader understood (a quirk made explicit, a comment where XPP reads a
+line otherwise than it looks); `--convert --auto` takes the suggested
+new name of a name `.odex` reserves without asking. Both extensions
+open in xppautX from the file manager once `tools/associate/` has
+registered them.
+
 ODE files are ASCII readable files that the XPP parser reads to create machine usable code. Lines can be continued with the standard backslash character, however, the total length of any line cannot exceed 1000 characters.
 
 **Example.** I will start with a very simple example to get you up and running. The model is the periodically driven Fitzhugh-Nagumo equation:

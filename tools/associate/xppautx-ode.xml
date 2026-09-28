@@ -6,4 +6,10 @@
     <icon name="xppautx"/>
     <glob pattern="*.ode"/>
   </mime-type>
+  <mime-type type="text/x-xpp-odex">
+    <comment>xppautX model (.odex)</comment>
+    <comment xml:lang="en">xppautX model (.odex)</comment>
+    <icon name="xppautx"/>
+    <glob pattern="*.odex"/>
+  </mime-type>
 </mime-info>

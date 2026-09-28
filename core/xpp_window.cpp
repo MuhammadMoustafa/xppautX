@@ -211,7 +211,7 @@ void open_model(HWND owner)
     ZeroMemory(&ofn, sizeof ofn);
     ofn.lStructSize = sizeof ofn;
     ofn.hwndOwner = owner;
-    ofn.lpstrFilter = L"XPP models (*.ode)\0*.ode\0All files (*.*)\0*.*\0";
+    ofn.lpstrFilter = L"XPP models (*.ode, *.odex)\0*.ode;*.odex\0All files (*.*)\0*.*\0";
     ofn.lpstrFile = file;
     ofn.nMaxFile = sizeof file / sizeof file[0];
     ofn.lpstrTitle = L"Open model";
@@ -327,8 +327,9 @@ void open_model(GtkWindow *parent)
     GtkWidget *dlg = gtk_file_chooser_dialog_new("Open model", parent, GTK_FILE_CHOOSER_ACTION_OPEN, "_Cancel",
                                                  GTK_RESPONSE_CANCEL, "_Open", GTK_RESPONSE_ACCEPT, nullptr);
     GtkFileFilter *ode = gtk_file_filter_new(), *all = gtk_file_filter_new();
-    gtk_file_filter_set_name(ode, "XPP models (*.ode)");
+    gtk_file_filter_set_name(ode, "XPP models (*.ode, *.odex)");
     gtk_file_filter_add_pattern(ode, "*.ode");
+    gtk_file_filter_add_pattern(ode, "*.odex");
     gtk_file_filter_set_name(all, "All files");
     gtk_file_filter_add_pattern(all, "*");
     gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dlg), ode);
