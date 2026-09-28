@@ -23,6 +23,7 @@
 #include "browse.h"
 #include "my_ps.h"
 #include "my_svg.h"
+#include "image_format.h"
 #include "load_eqn.h"
 #include <libgen.h>
 
@@ -764,49 +765,33 @@ void new_curve()
   
  }  
 
-void create_ps()
+/* the main plot window's picture export (W53, issue #101): one entry
+   point through image_format.h's registry in place of the former
+   create_ps/create_svg pair -- each format's own extra step (PostScript's
+   parameter dialog; SVG asks nothing) is that row's ask_params, the rest
+   (file_selector, begin, restore) is shared. Same dialog, default name,
+   title and wildcard per format as before. */
+void export_plot_picture(int fmt)
 {
+ const xpp::ImageFormat &f=xpp::image_formats[fmt];
  xpp::Session &s=xpp::session();
- static const char *nn[]={"BW-0/Color-1","Land(0)/Port(1)","Axes fontsize","Font","Linewidth"};
- int status;
- std::array<std::string, 5> values;
- values[0] = xpp::format("{:d}", s.plot_export.color);
- values[1] = xpp::format("{:d}", s.drawing.ps_port);
- values[2] = xpp::format("{:d}", s.plot_file.ps_font_size);
- values[3] = xpp::format("{:.24}", s.plot_file.ps_font);
- values[4] = xpp::format("{:g}", s.plot_file.ps_lw);
- static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_NUMBER};
- status=do_string_box_of(5,1,"Postscript parameters",nn,values,25,kinds);
- if(status!=0){
-         s.plot_export.color=atoi(values[0].c_str());
-	 s.drawing.ps_port=atoi(values[1].c_str());
-	 s.plot_file.ps_font_size=atoi(values[2].c_str());
-	 s.plot_file.ps_lw=atof(values[4].c_str());
-         s.plot_file.ps_font=values[3];
-	 std::string filename=xpp::format("{:.250}.ps",xpp::model().this_file);
-	 ping();
- 
-	 if(!file_selector("Print postscript",filename,"*.ps"))return;
-	 if(ps_init(filename.c_str(),s.plot_export.color)){
-	   ps_restore(); 
-	   ping();
-	 }
+ if(f.ask_params && !f.ask_params())return;
+ std::string filename,title;
+ if(fmt==xpp::IMAGE_FORMAT_PS){
+   filename=xpp::format("{:.250}.ps",xpp::model().this_file);
+   title="Print postscript";
+ }else{
+   /* the model's name without its ".ode" */
+   filename=xpp::model().this_file;
+   filename.resize(filename.size()>=4?filename.size()-4:0);
+   filename+=xpp::format(".{}",f.extension);
+   title="Print svg";
  }
-}
-
-void create_svg()
-{
-
- /* the model's name without its ".ode" */
- std::string filename=xpp::model().this_file;
- filename.resize(filename.size()>=4?filename.size()-4:0);
- filename+=".svg";
- if(!file_selector("Print svg",filename,"*.svg"))return;
- if(svg_init(filename.c_str(),xpp::session().plot_export.color)){
-	   svg_restore(); 
-	   ping();
-	 }
- 
+ if(!file_selector(title.c_str(),filename,xpp::format("*.{}",f.extension).c_str()))return;
+ if(f.begin(filename.c_str(),s.plot_export.color)){
+   f.restore();
+   ping();
+ }
 }
 
 void change_cmap_com(int i)
@@ -1205,9 +1190,9 @@ void add_a_curve_com(int c)
    break;
  case 3: edit_curve();
    break;
- case 4: create_ps();
+ case 4: export_plot_picture(xpp::IMAGE_FORMAT_PS);
    break;
- case 5: create_svg();
+ case 5: export_plot_picture(xpp::IMAGE_FORMAT_SVG);
    break;
  case 7: axes_opts();
    break;

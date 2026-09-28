@@ -54,7 +54,9 @@ void graph_all(int *list, int n, int type);
 int alter_curve(const char *title, int in_it, int n);
 void edit_curve(void);
 void new_curve(void);
-void create_ps(void);
+/* the main plot window's picture export, in image_format.h's
+   IMAGE_FORMAT_PS or IMAGE_FORMAT_SVG (W53, issue #101) */
+void export_plot_picture(int fmt);
 void change_cmap_com(int i);
 void freeze_com(int c);
 void set_key(int x, int y);

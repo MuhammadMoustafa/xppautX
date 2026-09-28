@@ -23,6 +23,11 @@ void ps_abs(int x, int y);
 void ps_rel(int x, int y);
 void special_put_text_ps(int x, int y, const char *str, int size);
 void ps_text(int x, int y, const char *str);
+/* PostScript's own parameter dialog (BW/colour, portrait, axes font
+   size, font, linewidth), asked before the file selector in
+   graf_par.cpp's export_plot_picture (image_format.h's ask_params, W53,
+   issue #101); 0 if the user cancelled */
+int ps_ask_params(void);
 
 
 #ifdef __cplusplus

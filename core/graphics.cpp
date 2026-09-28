@@ -4,10 +4,9 @@
 #include "xpp_ui.h"
 #include "xpp_globals.h"
 #include "marks_data.h"
-#include "my_ps.h"
-#include "my_svg.h"
+#include "image_format.h"
 
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -116,39 +115,52 @@ xpp::session().drawing.x_min=xpp::session().plot_windows.current->xlo;
  xpp::session().drawing.y_max=xpp::session().plot_windows.current->yhi;
 }
 
+namespace {
+/* the picture file being drawn into, as image_format.h's registry index
+   (W53, issue #101), or -1 while drawing to the screen (SCRNFMT) */
+int active_image_format()
+{
+  switch(xpp::session().plot_file.plt_fmt_flag){
+  case PSFMT: return xpp::IMAGE_FORMAT_PS;
+  case SVGFMT: return xpp::IMAGE_FORMAT_SVG;
+  default: return -1;
+  }
+}
+} // namespace
+
 void point(int x, int y)
 {
-  if(xpp::session().plot_file.plt_fmt_flag==PSFMT)ps_point(x,y);
-  else if(xpp::session().plot_file.plt_fmt_flag==SVGFMT)svg_point(x,y);
+  int f=active_image_format();
+  if(f>=0)xpp::image_formats[f].draw_point(x,y);
   else xpp_ui.draw_point(x,y);
 }
 
 void line(int x1, int y1, int x2, int y2)
 {
-  if(xpp::session().plot_file.plt_fmt_flag==PSFMT)ps_line(x1,y1,x2,y2);
-  else if(xpp::session().plot_file.plt_fmt_flag==SVGFMT)svg_line(x1,y1,x2,y2);
+  int f=active_image_format();
+  if(f>=0)xpp::image_formats[f].draw_line(x1,y1,x2,y2);
   else xpp_ui.draw_line(x1,y1,x2,y2);
 }
 /* draw a little filled circle */
 
 void bead(int x1, int y1)
 {
- if(xpp::session().plot_file.plt_fmt_flag==PSFMT)ps_bead(x1,y1);
- else if(xpp::session().plot_file.plt_fmt_flag==SVGFMT)svg_bead(x1,y1);
- else xpp_ui.draw_bead(x1,y1);
+  int f=active_image_format();
+  if(f>=0)xpp::image_formats[f].draw_bead(x1,y1);
+  else xpp_ui.draw_bead(x1,y1);
 }
 
 void frect(int x1, int y1, int w, int h)
 {
-  if(xpp::session().plot_file.plt_fmt_flag==PSFMT)ps_frect(x1,y1,w,h);
-  else if(xpp::session().plot_file.plt_fmt_flag==SVGFMT)svg_frect(x1,y1,w,h);
+  int f=active_image_format();
+  if(f>=0)xpp::image_formats[f].draw_frect(x1,y1,w,h);
   else xpp_ui.draw_frect(x1,y1,w,h);
 }
 
 void put_text(int x, int y, const char *str)
 {
-  if(xpp::session().plot_file.plt_fmt_flag==PSFMT)ps_text(x,y,str);
-  else if(xpp::session().plot_file.plt_fmt_flag==SVGFMT)svg_text(x,y,str);
+  int f=active_image_format();
+  if(f>=0)xpp::image_formats[f].draw_text(x,y,str);
   else xpp_ui.draw_text(x,y,str);
 }
 
@@ -206,8 +218,8 @@ void init_svg()
 
 void set_linestyle(int ls)
 {
-  if(xpp::session().plot_file.plt_fmt_flag==PSFMT)ps_linetype(ls);
-  else if(xpp::session().plot_file.plt_fmt_flag==SVGFMT)svg_linetype(ls);
+  int f=active_image_format();
+  if(f>=0)xpp::image_formats[f].draw_linetype(ls);
   else xpp_ui.draw_linestyle(ls);
 }
 
@@ -777,8 +789,8 @@ void fancy_text_abs(float x, float y, const char *old, int size, int font)
   int xp,yp;
   scale_to_screen(x,y,&xp,&yp);
   const std::string text=fill_in_text(old);
-  if(xpp::session().plot_file.plt_fmt_flag==PSFMT)special_put_text_ps(xp,yp,text.c_str(),size);
-  else if(xpp::session().plot_file.plt_fmt_flag==SVGFMT)special_put_text_svg(xp,yp,text.c_str(),size);
+  int f=active_image_format();
+  if(f>=0)xpp::image_formats[f].draw_special_text(xp,yp,text.c_str(),size);
   else xpp_ui.draw_special_text(xp,yp,text.c_str(),size);
     
 }

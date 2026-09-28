@@ -16,6 +16,7 @@
 #include "nullcline.h"
 #include "my_ps.h"
 #include "my_svg.h"
+#include "image_format.h"
 #include "tabular.h"
 #include "volterra2.h"
 #include "derived.h"
@@ -266,20 +267,9 @@ void dump_ps(int i)
   std::string filename=i<0?xpp::format("{:.100}{:.100}.{:.10}",file,set,format)
                           :xpp::format("{:.100}{:.100}_{:04d}.{:.10}",file,set,i,format);
 
-   if (xpp::session().plot_export.format=="ps")
-   {
-     if(ps_init(filename.c_str(),xpp::session().plot_export.color))
-     {
-       ps_restore();
-     }
-   }
-   else if (xpp::session().plot_export.format=="svg")
-   {
-     if(svg_init(filename.c_str(),xpp::session().plot_export.color))
-     {
-       svg_restore();
-     }
-   }
+   const xpp::ImageFormat *fmt=xpp::find_image_format_by_extension(xpp::session().plot_export.format);
+   if(fmt && fmt->begin(filename.c_str(),xpp::session().plot_export.color))
+     fmt->restore();
 }
 
 void   redo_stuff()

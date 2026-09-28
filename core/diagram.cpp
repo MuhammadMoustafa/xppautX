@@ -15,6 +15,7 @@
 #include "my_svg.h"
 #include "my_ps.h"
 #include "graphics.h"
+#include "image_format.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include "browse.h"
@@ -376,14 +377,16 @@ void write_pts()
   w.commit();
 }
 
-void post_auto()
+/* the AUTO File menu's Postscript/SVG entries (W53, issue #101): one
+   function through the image_format.h registry in place of the former
+   post_auto/svg_auto pair, same "auto.ps"/"auto.svg" default name and
+   "*.ps"/"*.svg" filter as before */
+void export_auto_picture(int fmt)
 {
-  export_diagram("Postscript","auto.ps","*.ps",ps_init,ps_end);
-}
-
-void svg_auto()
-{
-  export_diagram("SVG","auto.svg","*.svg",svg_init,svg_end);
+  const xpp::ImageFormat &f=xpp::image_formats[fmt];
+  std::string name=xpp::format("auto.{}",f.extension);
+  std::string wild=xpp::format("*.{}",f.extension);
+  export_diagram(f.name,name.c_str(),wild.c_str(),f.begin,f.end);
 }
 
 void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi)

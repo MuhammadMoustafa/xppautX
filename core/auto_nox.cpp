@@ -18,6 +18,7 @@
 #include "auto_stop.h"
 #include "auto_stability.h"
 #include "csv_export.h"
+#include "image_format.h"
 #include <libgen.h>
 #include "graf_par.h"
 
@@ -2818,12 +2819,12 @@ void auto_file()
   }
   if(ch=='p'){
     xpp::session().plot_file.no_break_line=1;
-    post_auto();
+    export_auto_picture(xpp::IMAGE_FORMAT_PS);
     xpp::session().plot_file.no_break_line=0;
   }
   if(ch=='v'){
     xpp::session().plot_file.no_break_line=1;
-    svg_auto();
+    export_auto_picture(xpp::IMAGE_FORMAT_SVG);
     xpp::session().plot_file.no_break_line=0;
   }
   if(ch=='w'){

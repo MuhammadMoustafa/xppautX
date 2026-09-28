@@ -18,6 +18,7 @@
 #include "phase_data.h"
 #include "marks_data.h"
 #include "series_enc.h"
+#include "image_format.h"
 #include <array>
 #include <stdio.h>
 #include <string.h>
@@ -402,12 +403,20 @@ void web_safe_colors(std::span<unsigned char> rgb)
 
 namespace {
 
+/* a whole picture as one GIF frame (MAKE_ONE_GIF): the kinescope's still
+   export below and the array plot's aplot_gif used to write this by
+   hand, twice (W53, issue #101) */
+void write_gif_frame(FILE *out, std::vector<unsigned char> &rgb, int w, int h)
+{
+    web_safe_colors(rgb);
+    gif_stuff_ppm(rgb.data(), w, h, out, MAKE_ONE_GIF);
+}
+
 void write_gif(const char *file, std::vector<unsigned char> &rgb, int w, int h)
 {
     xpp::Writer out = xpp::Writer::binary(file);
     if (!out) return;
-    web_safe_colors(rgb);
-    gif_stuff_ppm(rgb.data(), w, h, out.file(), MAKE_ONE_GIF);
+    write_gif_frame(out.file(), rgb, w, h);
     out.commit();
 }
 
@@ -459,7 +468,8 @@ void j_movie_save(const char *basename, int fmat)
     for (int i = 0; i < xpp::session().kinescope.frames; i++) {
         std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
         if (rgb.empty()) return;
-        std::string file = xpp::format("{}_{}.{}", basename, i, fmat == 1 ? "ppm" : "gif");
+        std::string file = xpp::format("{}_{}.{}", basename, i,
+                                        fmat == 1 ? "ppm" : xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension);
         if (fmat == 1) write_ppm(file.c_str(), rgb, w, h);
         else write_gif(file.c_str(), rgb, w, h);
     }
@@ -469,7 +479,7 @@ void j_movie_make_anigif(void)
 {
     int w, h, w0 = 0, h0 = 0;
     if (xpp::session().kinescope.frames == 0) return;
-    xpp::Writer out = xpp::Writer::binary("anim.gif");
+    xpp::Writer out = xpp::Writer::binary(xpp::format("anim.{}", xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension).c_str());
     if (!out) return;
     set_global_map(1);
     for (int i = 0; i < xpp::session().kinescope.frames; i++) {
@@ -621,9 +631,11 @@ void aplot_gif(const char *file, int still)
     }
     std::vector<unsigned char> rgb = ask_pixels(WIN_APLOT, -1, &w, &h);
     if (!rgb.empty()) {
-        web_safe_colors(rgb);
-        if (still == 1) gif_stuff_ppm(rgb.data(), w, h, one.file(), MAKE_ONE_GIF);
-        else gif_stuff_ppm(rgb.data(), w, h, xpp::session().array_plot.fp, xpp::session().array_plot.range_count == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
+        if (still == 1) write_gif_frame(one.file(), rgb, w, h);
+        else {
+            web_safe_colors(rgb);
+            gif_stuff_ppm(rgb.data(), w, h, xpp::session().array_plot.fp, xpp::session().array_plot.range_count == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
+        }
     }
     one.commit();
 }
@@ -633,7 +645,8 @@ void aplot_gif(const char *file, int still)
 void j_aplot_draw_one(const char *tag)
 {
     send_aplot(xpp::session().array_plot.tag ? tag : NULL);
-    aplot_gif(xpp::format("{}.{}.gif", xpp::session().array_plot.range_stem, xpp::session().array_plot.range_count).c_str(), xpp::session().array_plot.still);
+    aplot_gif(xpp::format("{}.{}.{}", xpp::session().array_plot.range_stem, xpp::session().array_plot.range_count,
+                          xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension).c_str(), xpp::session().array_plot.still);
     xpp::session().array_plot.range_count++;
 }
 
@@ -651,8 +664,9 @@ void aplot_command(const char *line)
     else if (o == "range") set_up_aplot_range();
     else if (o == "print") print_aplot(&xpp::session().array_plot.plot);
     else if (o == "gif") {
-        std::string file = xpp::format("{}.gif", xpp::model().this_file);
-        if (file_selector("GIF plot", file, "*.gif")) aplot_gif(file.c_str(), 1);
+        const char *ext = xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension;
+        std::string file = xpp::format("{}.{}", xpp::model().this_file, ext);
+        if (file_selector("GIF plot", file, xpp::format("*.{}", ext).c_str())) aplot_gif(file.c_str(), 1);
     } else if (o == "scroll") {
         /* dragging the plot by dy pixels moves the first row, as in X11 */
         xpp::session().array_plot.plot.nstart -= get_int(line, "dy", 0);

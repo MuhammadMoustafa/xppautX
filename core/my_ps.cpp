@@ -11,6 +11,7 @@
 #include "graphics.h"
 
 #include <array>
+#include <cstdlib>
 #include <string>
 #include <string_view>
 #include "xpp_io.h"
@@ -369,4 +370,25 @@ void ps_text(int x, int y, const char *str)
   if (TextAngle != 0)
     ps_writer.print("grestore\n");
   xpp::session().plot_file.ps_lines=0;
+}
+
+int ps_ask_params()
+{
+  xpp::Session &s=xpp::session();
+  static const char *nn[]={"BW-0/Color-1","Land(0)/Port(1)","Axes fontsize","Font","Linewidth"};
+  std::array<std::string,5> values;
+  values[0]=xpp::format("{:d}",s.plot_export.color);
+  values[1]=xpp::format("{:d}",s.drawing.ps_port);
+  values[2]=xpp::format("{:d}",s.plot_file.ps_font_size);
+  values[3]=xpp::format("{:.24}",s.plot_file.ps_font);
+  values[4]=xpp::format("{:g}",s.plot_file.ps_lw);
+  static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_NUMBER};
+  if(!do_string_box_of(5,1,"Postscript parameters",nn,values,25,kinds))return 0;
+  s.plot_export.color=atoi(values[0].c_str());
+  s.drawing.ps_port=atoi(values[1].c_str());
+  s.plot_file.ps_font_size=atoi(values[2].c_str());
+  s.plot_file.ps_lw=atof(values[4].c_str());
+  s.plot_file.ps_font=values[3];
+  ping();
+  return 1;
 }

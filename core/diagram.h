@@ -37,8 +37,10 @@ void redraw_diagram(void);
 void write_info_out(void);
 void write_init_data_file(void);
 void write_pts(void);
-void post_auto(void);
-void svg_auto(void);
+/* the diagram as a picture, in image_format.h's IMAGE_FORMAT_PS or
+   IMAGE_FORMAT_SVG (W53, issue #101; GIF has no vector picture to draw
+   here) */
+void export_auto_picture(int fmt);
 void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi);
 int save_diagram(FILE *fp, int n);
 int load_diagram(FILE *fp, int node);
