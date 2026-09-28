@@ -475,7 +475,12 @@ Target: WCAG 2.2 AA. Rules:
   `takenWhileBusy`, the core's own list: docs/protocol.md "Commands during
   a command"); the status bar says what runs ("Running Go… Esc stops").
   Typing ahead into a menu still works (a menu is a question, not a
-  computation), and value edits wait for the next computation (W69).
+  computation), and value edits wait for the next computation (W69). The
+  bar itself has a fixed height, and reserves a fixed-width slot for the
+  progress bar and Stop/"Stopping…" (theme.css `.status-run`, visibility
+  toggled, never mounted/unmounted) so a run starting or ending never
+  resizes the bar or shifts the plot above it or the message/rows beside
+  it (W83, GitHub #132).
 - **A11 Notifications, not modal alerts**: errors and the core's alerts are
   toasts that do not take the focus or stop the run; errors stay until
   dismissed, information for six seconds; all of them also go to Messages.

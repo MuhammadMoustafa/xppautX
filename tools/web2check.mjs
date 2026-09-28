@@ -1446,6 +1446,14 @@ async function phone() {
   check('390x844: no sideways scroll', scroll.doc <= scroll.w && scroll.body <= scroll.w, JSON.stringify(scroll));
   const plot = await area();
   check('the plot fills the width', plot.w > 250 && plot.x + plot.w <= 390, JSON.stringify(plot));
+  /* W83: the reserved progress/Stop slot (narrower at this breakpoint, theme.css)
+     still fits with no overflow, and the bar keeps its fixed height */
+  const statusBar = await cdp.eval(`(() => { const b = document.querySelector('.status-bar').getBoundingClientRect(),
+      run = document.querySelector('.status-run').getBoundingClientRect();
+    return {barHeight: Math.round(b.height), barRight: Math.round(b.right), runRight: Math.round(run.right)}; })()`);
+  check('390x844: the status bar has a fixed height and its reserved progress/Stop slot fits with no overflow',
+    statusBar.barHeight > 0 && statusBar.barHeight < 40 && statusBar.barRight <= 391 && statusBar.runRight <= 391,
+    JSON.stringify(statusBar));
   check('the menu is a closed drawer', !(await S('s.drawerOpen'))
     && await cdp.eval(`getComputedStyle(document.querySelector('.menu-panel')).visibility === 'hidden'`));
   const coarse = await cdp.eval(`matchMedia('(pointer: coarse)').matches`);
@@ -2717,6 +2725,54 @@ async function busyKeys() {
     await until(`s.seriesCount > ${n1} && w.series.rows === 401 && !s.busy`, 'I G after the run', 30000)
     && await S(`Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - ${draggedTo}) < 1e-9 && s.values.pending.length === 0`),
     JSON.stringify(await S('[s.busy, s.ask, w.series && w.series.rows, s.values.pending]')));
+}
+
+/* W83 (GitHub #132): the status bar reserves a fixed-width slot for the
+   progress bar and Stop/Stopping… button (theme.css .status-run) so a run
+   starting or ending never resizes the bar or moves the plot beside it.
+   Total 1e6 (as busyKeys above) makes the run long enough, by construction,
+   to see progress mid-run without racing the clock. */
+async function statusBarLayout() {
+  const box = () => cdp.eval(`(() => { const r = s => { const b = s.getBoundingClientRect();
+      return {w: Math.round(b.width), h: Math.round(b.height), top: Math.round(b.top), left: Math.round(b.left)}; };
+    return {bar: r(document.querySelector('.status-bar')), plot: r(document.querySelector('.plot-host'))}; })()`);
+  await desktopMetrics();
+  check('status bar: the page connects', await until('s.hello && !s.busy', 'hello'));
+  const idle1 = await box();
+  await key('u');
+  await until('!s.busy && s.core.menu === 2', 'numerics menu');
+  await key('t');
+  await until("s.ask && s.ask.kind === 'string'", 'total');
+  await answerAsk({ok: 1, value: '1e6'});
+  await until('!s.busy', 'total set');
+  await key('Escape');
+  await until('!s.busy && s.core.menu === 0', 'main menu');
+  await focusPlot();
+  await key('i');
+  await until("s.ask && s.ask.kind === 'menu'", 'ic menu');
+  await key('g');
+  const progressShowing = await until('s.busy && s.progress', 'progress showing', 15000);
+  check('status bar: a long run reports progress', progressShowing, JSON.stringify(await S('s.progress')));
+  const running = await box();
+  const runningUi = await cdp.eval(`(() => { const p = document.querySelector('.status-bar progress'),
+      b = document.querySelector('.status-bar button.danger');
+    return {progressShown: p.classList.contains('shown') && getComputedStyle(p).visibility === 'visible',
+      stopShown: b.classList.contains('shown') && getComputedStyle(b).visibility === 'visible' && !b.disabled}; })()`);
+  check('status bar: while a run shows, the progress bar and Stop button are visible in the reserved slot',
+    runningUi.progressShown && runningUi.stopShown, JSON.stringify(runningUi));
+  await focusPlot();
+  await key('Escape');
+  await until('!s.busy', 'run stopped', 30000);
+  const idle2 = await box();
+  const idleUi = await cdp.eval(`(() => { const p = document.querySelector('.status-bar progress'),
+      b = document.querySelector('.status-bar button.danger');
+    return {progressHidden: getComputedStyle(p).visibility === 'hidden',
+      stopHidden: getComputedStyle(b).visibility === 'hidden'}; })()`);
+  check('status bar: idle again, the reserved slot goes back to hidden (visibility, not removed)',
+    idleUi.progressHidden && idleUi.stopHidden, JSON.stringify(idleUi));
+  check('status bar: idle, running and after the run have the identical bar box and plot-host box (nothing moved or resized)',
+    JSON.stringify(idle1) === JSON.stringify(running) && JSON.stringify(running) === JSON.stringify(idle2),
+    JSON.stringify({idle1, running, idle2}));
 }
 
 /* ---- T21: where keys go, the theme switch, long menus in columns ---------------- */
@@ -4030,6 +4086,7 @@ async function main() {
     if (run('keys')) await session(ODE, keysCheck);
     if (run('busy')) await session(LIVE, busyAuto);
     if (run('busy')) await session(LIVE, busyKeys);
+    if (run('busy')) await session(LIVE, statusBarLayout);
     if (run('view')) await session(ODE, viewCheck);
     if (run('three')) await session(LORENZ_ODE, threePlot);
     if (run('marks')) await session(ODE, marks);

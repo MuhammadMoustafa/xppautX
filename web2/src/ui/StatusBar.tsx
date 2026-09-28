@@ -26,17 +26,21 @@ export function StatusBar() {
     <footer class="status-bar">
       <span class={`status-dot ${dot}`} aria-hidden="true" />
       <span role="status" data-testid="status">{status}</span>
-      {progress && (
-        <progress max={progress.of} value={progress.n} aria-label="Progress">
-          {Math.round((100 * progress.n) / progress.of)}%
+      {/* W83: a fixed-width slot the bar always keeps (theme.css .status-run), so
+          the progress bar and Stop button toggling with a run never resize the
+          bar or move the message/rows beside it; visibility, not mount/unmount,
+          keeps the box. */}
+      <span class="status-run">
+        <progress class={progress ? 'shown' : ''} max={progress?.of ?? 1} value={progress?.n ?? 0}
+          aria-hidden={progress ? undefined : 'true'} aria-label="Progress">
+          {progress ? `${Math.round((100 * progress.n) / progress.of)}%` : ''}
         </progress>
-      )}
-      {busy && (
-        <button class="small danger" disabled={stopping} onClick={() => session.abort()}
+        <button class={`small danger${busy ? ' shown' : ''}`} disabled={!busy || stopping}
+          tabIndex={busy ? 0 : -1} onClick={() => session.abort()}
           title="Stop the running command (Escape does the same)">
           {stopping ? 'Stopping…' : 'Stop'}
         </button>
-      )}
+      </span>
       <span class="status-message">{bottom}</span>
       <span class="muted rows">{rows} rows</span>
     </footer>

@@ -520,19 +520,29 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
   grid-area: status;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--space-2) var(--space-3);
   padding: var(--space-1) var(--space-4);
   font-size: var(--text-xs);
   background: var(--surface);
   border-top: 1px solid var(--border);
   min-width: 0;
+  height: 2rem; /* W83: fixed, from its own line height, independent of what it shows */
 }
 .status-message { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.status-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--fg-muted); }
+.status-dot { flex: none; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--fg-muted); }
 .status-dot.up { background: var(--ok); }
 .status-dot.busy { background: var(--warn); }
 .status-dot.down { background: var(--danger); }
+/* W83: a fixed-width slot the bar always keeps for the progress bar and the
+   Stop/Stopping… button, so a run starting or ending never resizes the bar
+   or shifts the message/rows to its right; visibility (never display or
+   mount/unmount) keeps each one's box reserved while it is not shown. */
+.status-run { flex: none; display: flex; align-items: center; gap: var(--space-2); width: 10.5rem; }
+.status-run progress { width: 4.5rem; visibility: hidden; }
+.status-run progress.shown { visibility: visible; }
+.status-run button { min-height: 1.4rem; height: 1.4rem; visibility: hidden; }
+.status-run button.shown { visibility: visible; }
 
 /* ---- plot windows (tabs), plot ---- */
 .plots { flex: 1; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; min-height: 0; }
@@ -1084,6 +1094,8 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
   .workspace { padding: var(--space-2); }
   .form-grid label { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }
   .status-bar .rows { display: none; }
+  .status-run { width: 8rem; }
+  .status-run progress { width: 2.5rem; }
   /* a full-screen sheet (R6), like the command drawer above */
   .values-panel {
     position: fixed;
