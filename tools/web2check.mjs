@@ -1180,6 +1180,19 @@ async function windows() {
   await key('End');
   check('End to the last tab', await until(`s.plots.active === 2 && document.activeElement.id === 'plot-tab-2'`, 'End'));
   check('the tab key goes back to the core', await until('!s.busy && s.core.win === 2', 'core win 2'));
+  /* two tab keys in one turn of the event loop: the second always arrives
+     while the first one's click is still the core's (busy), so it is held
+     for the idle, never dropped (a slow runner lost End this way) */
+  const sentBefore = await cdp.eval('__xpp.sent().length');
+  const afterKeys = await cdp.eval(`(() => { const t = document.getElementById('plot-tab-2');
+    for (const key of ['ArrowLeft', 'End']) t.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true}));
+    const s = __xpp.state(); return [s.busy, s.plots.active]; })()`);
+  check('two tab keys at once: the first is shown and sent, the core busy with it',
+    afterKeys[0] === true && afterKeys[1] === 1, JSON.stringify(afterKeys));
+  const heldOk = await until('!s.busy && s.plots.active === 2 && s.core.win === 2', 'held tab');
+  const clicks = await cdp.eval(`__xpp.sent().slice(${sentBefore}).filter(c => c.cmd === 'click').map(c => c.win)`);
+  check('the second, sent while the first was busy, is held and applied at its idle',
+    heldOk && JSON.stringify(clicks) === '[1,2]', JSON.stringify([await S('[s.busy, s.plots.active, s.core.win]'), clicks]));
 
   /* a plot mode (T4) on the tab shown: Window/Zoom by the keyboard zooms window 2, not window 1 */
   const axes1 = await S('JSON.stringify(s.plots.windows[0].info)');

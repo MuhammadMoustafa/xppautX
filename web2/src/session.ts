@@ -82,6 +82,8 @@ export class Session {
   private rotate3dTimer = new Map<number, ReturnType<typeof setTimeout>>();
   /** the last angle a window was turned to while the core was busy, sent at its idle */
   private rotate3dHeld = new Map<number, {theta: number; phi: number}>();
+  /** the tab last picked while the core was busy, shown and sent at its idle */
+  private windowHeld: number | null = null;
   /** a command went out in this turn of the event loop: the rest of that one
       action (a flushed set and its key, Escape F P, Pause and Seek) follows
       it, even though the first made the page busy (W68, send) */
@@ -171,6 +173,7 @@ export class Session {
       if (next) this.send(next);
       else this.flushAutoSettings();
       this.flushRotate3d();
+      this.flushWindow();
       const typed = this.keyWaiting ? undefined : this.typeahead.shift();
       if (typed !== undefined && !next && !this.planIdles) this.key(typed);
     }
@@ -340,10 +343,24 @@ export class Session {
   /** a window's tab picked: it is shown at once, and becomes the core's active window */
   selectWindow(win: number): void {
     const {plots, ask, busy} = this.store.getState();
-    /* a prompt is the shown window's until answered; a run draws into the core's active one (W68) */
-    if (plots.active === win || ask || busy) return;
+    /* a prompt is the shown window's until answered */
+    if (ask) return;
+    /* a run draws into the core's active one (W68), and the command before
+       (the last tab's own click, say) may not have ended yet: the tab
+       picked last is held for the idle, never dropped */
+    if (busy) {
+      this.windowHeld = win;
+      return;
+    }
+    this.windowHeld = null;
+    if (plots.active === win) return;
     this.store.dispatch({type: 'selectWindow', win});
     this.send({cmd: 'click', win});
+  }
+
+  private flushWindow(): void {
+    if (this.windowHeld === null || this.store.getState().busy) return;
+    this.selectWindow(this.windowHeld);
   }
 
   /** Makewindow/Create: a copy of the active window, which becomes active */
