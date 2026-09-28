@@ -35,3 +35,6 @@ qa/
 
 # the journal paper draft, kept local (not part of the program)
 /paper/
+
+# logo and icon drafts, kept local until one is picked
+/assets/drafts/
