@@ -86,7 +86,9 @@ int main(void)
 
     /* a .set file line of a 1000-character name: read whole, and the next
        field is read from the next line */
-    FILE *fp = fopen("build/test_names.tmp", "w+");
+    /* an anonymous temp file: the Windows and WSL test runs of one
+       checkout may overlap, and a fixed name made them race */
+    FILE *fp = tmpfile();
     CHECK(fp != NULL);
     if (fp) {
         std::string a, b;
@@ -97,7 +99,6 @@ int main(void)
         CHECK(a == q1000);
         CHECK_STR(b.c_str(), "next");
         fclose(fp);
-        remove("build/test_names.tmp");
     }
 
     TEST_REPORT("long names");
