@@ -173,8 +173,16 @@ outrank all arithmetic.
 ## Reserved words
 
 Statement keywords: `par`, `init`, `aux`, `fun`, `let`, `return`, `if`,
-`then`, `else`, `set`, `table`, `markov`, `wiener`, `global`, `bdry`,
-`volt`, `special`, `done`.
+`then`, `else`, `set`, `table`, `markov`, `wiener`, `event`, `boundary`,
+`network`, `include`.
+
+Renamed from `.ode` (decided, maintainer, 2026-09-27): `global` is `event`,
+`bdry` is `boundary`, `special` is `network`; `volt` is gone (an equation
+whose right-hand side calls `volterra(...)` is a Volterra equation);
+`done` and `#done` are gone (the end of the file ends it; `--convert`
+moves what followed a `.ode`'s `done` into a closing comment block);
+`#include` is the statement `include "file.incx"`, include files taking
+the `.incx` extension.
 
 Logical/operator words: `and`, `or`, `not`, `mod`.
 
@@ -201,10 +209,11 @@ e^x is written `exp(x)`.
 `not`, `set`, `if`/`then`/`else`, `arg1`..`arg9`, `t`, `pi`) against `.odex`'s:
 
 - New in `.odex` (accepted as names in `.ode` today): the statement
-  keywords `par`, `init`, `aux`, `table`, `markov`, `wiener`, `global`,
-  `bdry`, `volt`, `special`, `done`; `fun`, `let`, `return`; `and`, `or`;
+  keywords `par`, `init`, `aux`, `table`, `markov`, `wiener`, `event`,
+  `boundary`, `network`, `include`; `fun`, `let`, `return`; `and`, `or`;
   `volterra`.
 - Dropped in `.odex`: `arg1`..`arg9` (a function's arguments are named);
+  `global`, `bdry`, `special` (renamed), `volt`, `done` (gone);
   `int` loses its meaning (it was never refused as a name in `.ode`, and
   `volterra` replaces the operator).
 - Unchanged: the built-in functions, `not`, `mod`, `set`, `if`/`then`/`else`,
