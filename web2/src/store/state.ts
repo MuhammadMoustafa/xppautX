@@ -343,7 +343,6 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     case 'idle':
       return {
         ...state, busy: false, stopping: false, ask: null, pick: null, box: '', progress: null,
-        values: reduceValues(state.values, {type: 'settled'}),
         ani: reduceAni(state.ani, {type: 'playing', playing: false}),
         diagram: diagramSettled(state.diagram),
         autoSettings: reduceAutoSettings(state.autoSettings, {type: 'settled'}),

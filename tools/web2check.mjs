@@ -2743,6 +2743,13 @@ async function setSliderDialogFields(fields) {
 const fieldOf = (sec, name) => `[...document.querySelectorAll('[data-section="${sec}"] .value-field')]
   .find(f => f.querySelector('.value-name').textContent.toLowerCase() === ${JSON.stringify(name.toLowerCase())})`;
 /** type `text` into a field and leave it (two round trips: Preact renders the draft before the blur reads it) */
+/** answers the open Integrate menu with Go and waits for that run's own idle: `!s.busy`
+    alone is also true between a flushed set's idle and the run starting (W58: no race) */
+async function goRun() {
+  const n = await cdp.eval('__xpp.actions().length');
+  await key('g');
+  await until(`__xpp.actions().slice(${n}).includes('event:idle') && !s.busy`, 'the run after Go', 60000);
+}
 async function editField(sec, name, text) {
   await cdp.eval(`(() => { const el = ${fieldOf(sec, name)}.querySelector('input'); el.focus();
     el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
@@ -3093,13 +3100,16 @@ async function valuesLive() {
   await focusPlot();
   await key('i');
   await until("s.ask && s.ask.kind === 'menu'", 'menu (flush pending)');
-  await key('g');
+  await goRun();
   await until(`!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.055) < 1e-9`, 'pending flushed', 60000);
   const flushSent = await cdp.eval(`__xpp.sent().slice(${sentFlush}).filter(c => c.cmd === 'set')`);
   check('values: the next Go sends the pending edit as one set with no rerun field, then runs',
     flushSent.length === 1 && flushSent[0].text === '0.055' && !('rerun' in flushSent[0]), JSON.stringify(flushSent));
 
-  /* a slider dragged while a run goes: nothing goes out during or after it, only a pending edit */
+  /* a slider dragged while a run goes: nothing goes out during or after it, only a pending edit.
+     Whether the run is still going when the drag ends depends on the machine's speed (W58), so
+     that is reported, not checked: a slider sends nothing busy or idle (GitHub #117), and the
+     outcome checked is the same either way */
   const sid = await addSlider('iapp');
   await focusPlot();
   await key('i');
@@ -3119,12 +3129,12 @@ async function valuesLive() {
   await sleep(300);
   const out = await cdp.eval(`__xpp.sent().slice(${sent1})`);
   check('values: a slider dragged during a run sends nothing during it or after it ends, only a pending edit',
-    busyThen && during === 0 && shown && out.length === 0 && (await S('s.values.pending.length')) === 1,
+    during === 0 && shown && out.length === 0 && (await S('s.values.pending.length')) === 1,
     JSON.stringify({busyThen, during, shown, out}));
   const draggedTo = await S('Number(s.values.pending[0].text)');
   await key('i');
   await until("s.ask && s.ask.kind === 'menu'", 'menu (flush slider)');
-  await key('g');
+  await goRun();
   await until(`!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - ${draggedTo}) < 1e-9`, 'slider flushed', 60000);
 
 
@@ -3186,7 +3196,7 @@ async function valuesLive() {
   await focusPlot();
   await key('i');
   await until("s.ask && s.ask.kind === 'menu'", 'menu (%0.02)');
-  await key('g');
+  await goRun();
   await until('Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.02) < 1e-12', 'iapp = %0.02', 60000);
   await until('!s.busy', 'idle after %0.02', 60000);
   const sent3 = await cdp.eval('__xpp.sent().length');
@@ -3197,7 +3207,7 @@ async function valuesLive() {
   await focusPlot();
   await key('i');
   await until("s.ask && s.ask.kind === 'menu'", 'menu (bogus formula)');
-  await key('g');
+  await goRun();
   const refused = await until(`s.values.errors['par:iapp']`, 'the core refuses %bogus_symbol_zzz', 60000);
   box = await fieldState('par', 'iapp');
   check('WF-001: a formula the core refuses keeps its draft, marked, with the core\'s message, and takes the focus back',
@@ -3221,7 +3231,7 @@ async function valuesLive() {
   await focusPlot();
   await key('i');
   await until("s.ask && s.ask.kind === 'menu'", 'menu (%0.01*6)');
-  await key('g');
+  await goRun();
   check('a %formula in a parameter box is pending, then sent as typed and the core evaluates it',
     await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.06) < 1e-12', 'iapp = %0.01*6', 60000)
     && (await cdp.eval(`__xpp.sent().slice(${sent4})`)).some(c => c.cmd === 'set' && c.text === '%0.01*6'),

@@ -53,6 +53,10 @@ export class Session {
      command's idle must not end the wait (W20: I then G typed on a busy page went out as G) */
   private idlesOwed = 0;
   private keyIdlesAhead = 0;
+  /** the idles still owed to commands sent before the last flushed `set`
+      (null: no set awaits its reply): only the set's own idle ends the
+      attribution of an error to its field, never an earlier command's */
+  private setIdlesAhead: number | null = null;
   /** a planned dialogue (T21: the axis dialog, AUTO settings save and load):
       the asks its commands open are answered by these steps in order, until
       the commands' idles */
@@ -102,6 +106,7 @@ export class Session {
     if (ev.ev === 'hello') {
       this.keyWaiting = false; /* a new connection: nothing is waiting any more */
       this.idlesOwed = this.keyIdlesAhead = 0;
+      this.settleValues();
       this.typeahead = [];
       /* the plots as data (docs/protocol.md): asked for on every (re)connection,
          which also makes the server send the windows, their series, nullclines,
@@ -136,6 +141,10 @@ export class Session {
       if (!this.keyIdlesAhead) this.keyWaiting = false; /* a computation: the keys typed meanwhile go out after it */
     } else if (ev.ev === 'idle') {
       if (this.idlesOwed > 0) this.idlesOwed--;
+      if (this.setIdlesAhead !== null) {
+        if (this.setIdlesAhead > 0) this.setIdlesAhead--;
+        else this.settleValues();
+      }
       /* an earlier command's idle: the key still waits for its own */
       const earlier = this.keyWaiting && this.keyIdlesAhead > 0;
       if (earlier) this.keyIdlesAhead--;
@@ -545,7 +554,15 @@ export class Session {
     if (!pending.length) return;
     const field = pending.length === 1 ? fieldKey(pending[0].kind, pending[0].index ?? pending[0].name!) : null;
     this.store.dispatch({type: 'values', action: {type: 'flushed', field}});
+    this.setIdlesAhead = this.idlesOwed;
     this.send(setCommand(pending)!);
+  }
+
+  /** the flushed set's own idle came (or the connection is new): its field no
+      longer takes the errors that arrive */
+  private settleValues(): void {
+    this.setIdlesAhead = null;
+    this.store.dispatch({type: 'values', action: {type: 'settled'}});
   }
 
   /** a parameter or initial condition box left with a new value */

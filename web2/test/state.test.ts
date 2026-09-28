@@ -118,7 +118,11 @@ test('a set that the core rejects lands on the attributed value field, not only 
   s = ev(s, {ev: 'message', error: 'bad formula'});
   assert.equal(s.values.errors['par:iapp'], 'bad formula');
   assert.deepEqual(s.toasts.map(t => t.text), ['bad formula'], 'still a non-modal toast too (A11)');
+  /* an idle alone does not end the attribution: an earlier command's idle may
+     arrive after the flush; the session settles it at the set's own idle */
   s = ev(s, {ev: 'idle'});
+  assert.equal(s.values.attributing, 'par:iapp');
+  s = reduce(s, {type: 'values', action: {type: 'settled'}});
   assert.equal(s.values.attributing, null);
 });
 
