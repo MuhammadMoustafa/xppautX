@@ -185,9 +185,9 @@ checked against `parserslow2.cpp`'s symbol table): `sin`, `cos`, `tan`,
 `shift`, `ishift`, `del_shft`, `sum`, `of`, `max`, `min`, `normal`,
 `besselj`, `bessely`, `besseli`, `erf`, `erfc`, `hom_bcs`.
 
-Built-in constants: `t` (time), `pi`, `e` (Euler's number — reserved in
-`.odex` even though `.ode` accepts it harmlessly as a name today; see
-docs/odex-quirks.md).
+Built-in constants: `t` (time) and `pi`. `e` is not reserved (decided,
+maintainer, 2026-09-27): it stays an ordinary name, as in `.ode`, and
+e^x is written `exp(x)`.
 
 Every reserved word is refused as a declared name with a parse error
 naming the word, the line, and the column — never the late, misleading
@@ -279,22 +279,25 @@ from):
    parentheses `.ode` needed only for its no-bare-sign rule (`2*(-3)`,
    `x<(-1)`) are kept, so a converted file differs from its `.ode` only
    where the meaning requires it.
-3. **Case-collision severity**: when a `.ode` file defines both `V` and
-   `v` as if they were different names (relying on `.ode`'s case
-   folding to make them one), should `--convert` refuse to convert the
-   file (a real ambiguity: which spelling wins in `.odex`?), or convert
-   with a renamed second name and a loud warning?
-4. **`e` as a name**: `.odex` reserves `e`; a `.ode` file that already
-   uses `e` as a parameter or variable name (legal today, see
-   docs/odex-quirks.md) needs a `--convert` rule — rename it (to what?)
-   or refuse to convert.
+3. **Spellings and renames** (decided, maintainer, 2026-09-27):
+   - A name spelled two ways in a `.ode` (`par V=1`, then `v*2`: one name,
+     since `.ode` folds case) is written with its declaration's spelling
+     everywhere; `--convert` lists the lines it rewrote. Two declarations
+     that differ only by case cannot occur: such a `.ode` does not load
+     (measured: `par V=1` and `par v=2` give 'ERROR at line N').
+   - A `.ode` name that `.odex` makes a keyword (`and`, `or`, `fun`, `let`,
+     `return`) must be renamed: `--convert` lists each one and asks for its
+     new name, one by one, with a suggestion ready (the name plus `_`, then
+     a number if taken); a dialog in the program, a prompt on the command
+     line. `--convert --auto` accepts every suggestion without asking. With
+     no one to answer and no `--auto`, it stops and names what needs a new
+     name. No `--rename` switch.
+   - The converted file starts with a comment listing every rename.
+4. **`e`** (decided, maintainer, 2026-09-27): not reserved in `.odex` (see
+   Reserved words), so a `.ode` using `e` as a name converts unchanged.
 5. **`int`**: `.ode` treats `int` as an ordinary name outside a
    `special` declaration's right-hand side; does `.odex` reserve `int`
    everywhere (simpler grammar) or only inside a `special_call` (matches
    `.ode`, avoids surprising a converted file that used `int` as a
    variable)?
-6. **Extension gap**: the VS Code extension's `reservedWords`
-   (constants.ts:95-98) omits `e`, so it never flags `e` as reserved,
-   even though `.odex` will. Is fixing that extension in scope for the
-   `.odex` work (MuhammadMoustafa/XPP-ODE-Extension#1), or a separate,
-   later issue there?
+6. **Extension gap**: moot, since `.odex` does not reserve `e` (question 4).
