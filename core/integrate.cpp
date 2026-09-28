@@ -659,6 +659,32 @@ int do_auto_range_go()
   return(do_range(x,2));
 }
 
+namespace {
+
+/* Seeds the random generator for a run about to start (Go, a do_range
+   sweep, batch_integrate_once's plain run): rand_seed is the seed shown
+   or set for the next run (docs/roadmap.md W71, "@ seed=" in
+   load_eqn.cpp, Stochastic > New seed in markov.cpp, -newseed in
+   parserslow2.cpp's init_rpn -- each of those already calls nsrand48
+   with it immediately too, unchanged, so this reapplies exactly the
+   same value and changes nothing there); apply it, log it and keep it
+   as last_seed for the protocol's state and a saved data file's
+   header/metadata, then draw a fresh rand_seed from a seed stream of
+   its own (xpp_next_seed) so an untouched field still gives fresh
+   noise next time (a first run's noise and every example md5 stay
+   exactly what they were). */
+void seed_this_run()
+{
+  xpp::Session &s=xpp::session();
+  const int seed=s.numerics.rand_seed;
+  nsrand48(seed);
+  s.numerics.last_seed=seed;
+  xpp::log(XPP_LOG_INFO,"Go: seed {}\n",seed);
+  s.numerics.rand_seed=xpp_next_seed(seed);
+}
+
+} // namespace
+
 int do_range(double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto range */
 {
   xpp::Session &s=xpp::session();
@@ -676,10 +702,12 @@ int do_range(double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto
         if(set_up_range()==0)return(-1);
  }
  if(flag==1){
-   
+
    if(set_up_range2()==0)return -1;
  }
 
+ seed_this_run(); /* the whole sweep (Stochastic > Compute's many runs
+                      included) is one computation, one seed */
  s.integrator.my_start=1;
  itype=s.integrator.range.type;
  ivar=s.integrator.range.index;
@@ -1029,12 +1057,13 @@ void batch_integrate_once()
     xpp::log(XPP_LOG_WARN, " Errors occured in range integration \n");
  }
  else {
+   seed_this_run();
    get_ic(2,x);
     if(s.delay.flag){
       /* restart initial data */
       if(do_init_delay(s.numerics.delay)==0)return;
     }
-   do_start_flags(x,&s.data_store.current_time); 
+   do_start_flags(x,&s.data_store.current_time);
   if(fabs(s.data_store.current_time)>=s.numerics.trans&&s.numerics.storflag==1&&s.numerics.poimap==0)
     {
       s.data_store.col[0][0]=static_cast<float>(s.data_store.current_time);
@@ -1310,6 +1339,7 @@ void usual_integrate_stuff(double *x)
   xpp::Session &s=xpp::session();
   int i;
 
+  seed_this_run();
   do_start_flags(x,&s.data_store.current_time);
    if(fabs(s.data_store.current_time)>=s.numerics.trans&&s.numerics.storflag==1&&s.numerics.poimap==0)
     {

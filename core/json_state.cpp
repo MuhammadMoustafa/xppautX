@@ -122,6 +122,7 @@ void send_state(void)
                    "\"ymin\":{:g},\"ymax\":{:g}}}", s.auto_state.bifur.x0, s.auto_state.bifur.y0, s.auto_state.bifur.wid, s.auto_state.bifur.hgt, s.auto_state.bifur.xmin, s.auto_state.bifur.xmax,
                    s.auto_state.bifur.ymin, s.auto_state.bifur.ymax);
     buf_format(&b, ",\"rows\":{:d},\"menu\":{:d},\"win\":{:d}", s.browser.view.maxrow, help_menu, s.plot_windows.draw_win);
+    if (s.numerics.last_seed) buf_format(&b, ",\"seed\":{:d}", *s.numerics.last_seed);
     if (xpp_session_set_file()[0]) {
         BUF_LIT(&b, ",\"session\":{\"set\":");
         buf_str(&b, xpp_session_set_file());

@@ -217,7 +217,10 @@ void init_rpn()
     /* end animator stuff */
 
     init_table();
-    if (newseed==1) xpp::session().numerics.rand_seed=time(0);
+    if (newseed==1) {
+      xpp::session().numerics.rand_seed=static_cast<int>(time(0));
+      xpp::log(XPP_LOG_INFO,"-newseed: seed {}\n",xpp::session().numerics.rand_seed);
+    }
     nsrand48(xpp::session().numerics.rand_seed);
 }
 

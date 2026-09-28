@@ -2204,6 +2204,14 @@ def check_data_formats():
               read(r, 'd.dat').replace(b'\r', b'') == want, '%d vs %d bytes' % (len(read(r, 'd.dat')), len(want)))
         rows = [[float(x) for x in l.split()] for l in want.decode().splitlines() if l.strip()]
         csv = read(r, 'd.csv').decode().splitlines() or ['']
+        # W71: a run's own seed is a "# seed N" comment line ahead of the
+        # header (every run gets one, stochastic or not: the run is what
+        # is reproducible, whether or not this model itself uses it)
+        seed_line = csv[0] if csv and csv[0].startswith('# seed ') else None
+        if seed_line is not None:
+            csv = csv[1:]
+        check('Save data as CSV: a leading "# seed N" comment names the run',
+              seed_line is not None and seed_line[7:].isdigit(), str(seed_line))
         header = csv[0].split(',')
         vals = [[float(x) for x in l.split(',')] for l in csv[1:]]
         check('Save data as CSV: a header of the column names, then every row',
@@ -2214,13 +2222,15 @@ def check_data_formats():
         check('Save data as CSV.gz is the CSV, gzipped', gzip.decompress(read(r, 'd.csv.gz')) == read(r, 'd.csv'))
         try:
             arrays = npz_arrays(os.path.join(r, 'd.npz'))
+            seed_array = arrays.pop('seed', None)
             ok = list(arrays) == header and all(
                 arrays[n][0] == (601,) and all(v == f32(x[j]) for v, x in zip(arrays[n][1], vals))
                 for j, n in enumerate(header))
+            ok = ok and seed_array is not None and seed_array[0] == (1,) and int(seed_array[1][0]) == int(seed_line[7:])
             detail = str({k: v[0] for k, v in arrays.items()})
         except Exception as ex:  # any parse failure is the check's failure
             ok, detail = False, repr(ex)
-        check('Save data as NPZ: one float64 array per column, named after it', ok, detail)
+        check('Save data as NPZ: one float64 array per column, named after it, plus a "seed" one', ok, detail)
         try:
             import numpy
         except ImportError:
@@ -2228,18 +2238,21 @@ def check_data_formats():
             print('SKIP numpy.load reads the NPZ: numpy is not installed for %s' % sys.executable)
         if numpy is not None:
             z = numpy.load(os.path.join(r, 'd.npz'))
-            check('numpy.load reads the NPZ', sorted(z.files) == sorted(header) and z['V'].dtype == numpy.float64
+            check('numpy.load reads the NPZ', sorted(z.files) == sorted(header + ['seed']) and z['V'].dtype == numpy.float64
                   and list(z['V']) == [f32(x[1]) for x in vals], str(z.files))
 
         # what the plot shows: the curve V against W, one row per point
         browser(op='write', what='plot', format='csv', name='p.csv')
         pc = read(r, 'p.csv').decode().splitlines() or ['']
+        if pc and pc[0].startswith('# seed '):
+            pc = pc[1:]
         check('Save data writes what the plot shows: curve,x,y, a row per point',
               pc[0] == 'curve,x,y' and len(pc) == 602 and pc[1].split(',')[0] == '1'
               and [float(x) for x in pc[1].split(',')[1:]] == vals[0][1:3], str(pc[:2]))
         browser(op='write', what='plot', format='npz', name='p.npz')
         try:
             arrays = npz_arrays(os.path.join(r, 'p.npz'))
+            arrays.pop('seed', None)
             ok, detail = list(arrays) == ['curve1'] and arrays['curve1'][0] == (601, 2), str(arrays.keys())
         except Exception as ex:
             ok, detail = False, repr(ex)
@@ -2297,6 +2310,61 @@ def check_data_formats():
 
 
 check_data_formats()
+
+
+def check_seed_per_run():
+    """W71 "a seed per run": examples/ode/fhn_noise.ode (wiener n) run
+    twice gives different noise, each run logging its own seed in state
+    (docs/protocol.md's state.seed); setting the numerics seed back to a
+    run's own (Numerics > stocHast > New seed) and Go reproduces that
+    run's series byte for byte."""
+    p, r, snd, col, _ = launch_server(ode='examples/ode/fhn_noise.ode')
+
+    def keys(key, *answers):
+        snd(cmd='key', key=key)
+        got, pending = [], list(answers)
+        while True:
+            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=30 * SLOW)
+            got += evs
+            if e is None or e['ev'] == 'idle':
+                return got
+            snd(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
+
+    full = lambda evs: [e for e in evs if e.get('ev') == 'series' and 'op' not in e]
+    try:
+        col(is_idle)
+        snd(cmd='data', events=['series'])
+        col(is_idle)
+
+        evs1 = keys('i', {'key': 'g'})
+        st1, ser1 = last_state(evs1), full(evs1)
+        evs2 = keys('i', {'key': 'g'})
+        st2, ser2 = last_state(evs2), full(evs2)
+        seed1 = st1.get('seed') if st1 else None
+        seed2 = st2.get('seed') if st2 else None
+        data1 = ser1[-1]['columns'] if ser1 else None
+        data2 = ser2[-1]['columns'] if ser2 else None
+        check('state: each Go logs its own seed', isinstance(seed1, int) and isinstance(seed2, int)
+              and seed1 != seed2, str((seed1, seed2)))
+        check('two Go presses give different data', data1 is not None and data1 != data2, '')
+
+        # Numerics > stocHast > New seed: set run 2's own seed for the next Go
+        keys('u')                                       # main menu: nUmerics
+        keys('h', {'key': 'n'}, {'value': str(seed2)})  # stocHast: New seed
+        keys('Escape')                                   # back to the main menu
+
+        evs4 = keys('i', {'key': 'g'})
+        st4, ser4 = last_state(evs4), full(evs4)
+        seed4 = st4.get('seed') if st4 else None
+        data4 = ser4[-1]['columns'] if ser4 else None
+        check("setting run 2's logged seed reproduces it as the next run's seed",
+              seed4 == seed2, str((seed4, seed2)))
+        check("...and its data byte for byte", data4 == data2, '')
+    finally:
+        stop_server(p, r, snd)
+
+
+check_seed_per_run()
 
 # A HOME the process cannot write to used to make AUTO exit(1) under the
 # client when it opened fort.8 there; open_auto() now falls back to the

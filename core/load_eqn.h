@@ -214,6 +214,7 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask);
 }
 
 #include <array>
+#include <optional>
 #include <string>
 /* The parameter sliders the ODE file sets up (@ s1=name, slo1=, shi1=,
    likewise 2 and 3); notAlreadySet.SLIDERn is 0 once slider n was set. */
@@ -253,8 +254,16 @@ struct NumericsSettings {
   /* the torus and its period (each variable's flag is Session::itor) */
   int torus = 0;
   double tor_period = 6.2831853071795864770;
-  /* the random numbers' seed */
+  /* the random numbers' seed: rand_seed is the NEXT run's (shown/set by
+     "@ seed=", Stochastic > New seed, -newseed; W71's "a seed per run"),
+     applied and logged when that run starts (xpp_math.cpp nsrand48); the
+     seed a run actually used is last_seed, empty before any run, for the
+     protocol's state and a saved data file's header/metadata. Once used,
+     rand_seed is redrawn from a separate seed stream seeded by it
+     (xpp_next_seed), so an untouched field still gives fresh noise next
+     time. */
   int rand_seed = 12345678;
+  std::optional<int> last_seed;
   /* CVODE's banded Jacobian (the nUmerics menu's Stiff settings) */
   int cv_bandflag = 0, cv_bandupper = 1, cv_bandlower = 1;
   /* the global flags' crossing tolerance */

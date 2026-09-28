@@ -52,11 +52,18 @@ void xpp_fft_real(size_t n, const double *in, double *re, double *im, int sign,
    pair); ndrand48 is uniform in (0,1), never 0 or 1; normal() is Gaussian
    (Marsaglia's polar method); poidev() is Poisson with mean xm (Numerical
    Recipes' algorithm). The names are the historical ones the parser and
-   the stochastic code use. */
+   the stochastic code use.
+
+   xpp_next_seed(seed) is a separate seed stream: a pure function of seed
+   (touches neither the generator above nor its spare deviate), used to
+   pick the following run's seed once a run has used this one (W71's "a
+   seed per run"), so an untouched Session still gets fresh noise every
+   run while every run's own seed stays a small loggable int. */
 void nsrand48(int seed);
 double ndrand48(void);
 double normal(double mean, double std);
 double poidev(double xm);
+int xpp_next_seed(int seed);
 
 /* ---- linear algebra ----
 
@@ -96,6 +103,22 @@ double xpp_bessel_i_scaled(double n, double x);
 
 #ifdef __cplusplus
 }
+
+#include <string>
+
+namespace xpp {
+
+/* the random generator's full state -- std::mt19937_64's state and
+   normal()'s spare deviate -- as opaque text (xpp_rand_state_save), and
+   restoring it (xpp_rand_state_load, false and leaving the generator
+   untouched if the text is not one this function wrote). Continuing a
+   session (W57's session file) after Open then draws exactly the numbers
+   it would have without stopping. */
+std::string xpp_rand_state_save();
+bool xpp_rand_state_load(const std::string &state);
+
+} // namespace xpp
+
 #endif
 
 #endif

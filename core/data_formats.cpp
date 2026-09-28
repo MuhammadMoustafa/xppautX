@@ -102,6 +102,7 @@ void append_csv_field(std::string &o, std::string_view s)
 std::string csv_text(const DataTable &t)
 {
     std::string o;
+    if (t.seed) format_append(o, "# seed {}\n", *t.seed);
     for (std::size_t j = 0; j < t.columns.size(); j++) {
         if (j) o += ',';
         append_csv_field(o, data_column_name(t, j));
@@ -158,6 +159,14 @@ bool parse_csv(std::string_view text, DataTable &t)
         text = nl == std::string_view::npos ? std::string_view() : text.substr(nl + 1);
         if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
         if (line.find_first_not_of(" \t") == std::string_view::npos) continue;
+        if (line.starts_with("# seed ")) {
+            const std::string digits(line.substr(7));
+            char *end = nullptr;
+            const long parsed = std::strtol(digits.c_str(), &end, 10);
+            if (end != digits.c_str()) t.seed = static_cast<int>(parsed);
+            continue;
+        }
+        if (line.starts_with("#")) continue; /* any other comment: ignored */
         std::vector<std::string> f = csv_fields(line);
         std::vector<float> v(f.size());
         bool numbers = true;
@@ -247,6 +256,10 @@ bool write_npz(const DataTable &t, Writer &w)
                 }
             entries.push_back({xpp::format("{}{}.npy", data_column_name(t, 0), id), npy(v, k, m)});
         }
+    }
+    if (t.seed) {
+        const double seed_value = *t.seed;
+        entries.push_back({"seed.npy", npy(std::span<const double>(&seed_value, 1), 1, 0)});
     }
     return w.write(zip::make_zip(entries));
 }
@@ -361,11 +374,21 @@ bool read_npz(const char *path, DataTable &t)
     if (!read_bytes(path, bytes)) return false;
     const std::optional<std::vector<zip::Entry>> entries = zip::read_zip(bytes);
     if (!entries) return false;
-    for (const zip::Entry &e : *entries)
+    for (const zip::Entry &e : *entries) {
+        if (e.name == "seed.npy") {
+            DataTable one;
+            if (!read_npy(e.name, e.bytes, one) || one.columns.size() != 1 || one.columns[0].empty()) {
+                t = DataTable();
+                return false;
+            }
+            t.seed = static_cast<int>(one.columns[0][0]);
+            continue;
+        }
         if (!read_npy(e.name, e.bytes, t)) {
             t = DataTable();
             return false;
         }
+    }
     /* arrays of different lengths: the shorter ones end in no value */
     std::size_t n = 0;
     for (const std::vector<float> &c : t.columns) n = std::max(n, c.size());

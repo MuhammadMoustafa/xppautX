@@ -564,7 +564,8 @@ void data_write(BROWSER *b, std::string_view what, std::string_view format, std:
    fil=std::string(plot?"curves":"data")+f->extension;
    if(!file_selector("Save data",fil,xpp::format("*{}",f->extension).c_str()))return;
  }
- const xpp::DataTable t=plot?plot_curves_table():browser_table(*b,all_columns(*b));
+ xpp::DataTable t=plot?plot_curves_table():browser_table(*b,all_columns(*b));
+ t.seed=xpp::session().numerics.last_seed;
  xpp::Writer w=open_writer_asking(fil.c_str(),f->binary);
  if(!w)return;
  if(!f->write(t,w)){

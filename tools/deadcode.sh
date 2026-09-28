@@ -34,7 +34,9 @@ ALLOW="core/xpp_io.cpp xpp_token_reader_string|owner API: xpp_io.h's fscanf-%s c
 core/xpp_io.cpp (anon)::copy_token|xpp_token_reader_string's own truncating-copy helper; test_io
 core/xpp_io.cpp xpp_writer_printf|owner API: xpp_io.h's fprintf over a writer, named in CLAUDE.md; test_io
 core/auto_settings.cpp auto_settings_num_ok|test_auto_settings' view of the field check auto_settings_apply makes
-core/auto_stop.cpp auto_stop_key|test_auto_stop's view of the keys auto_stop_last hands the protocol"
+core/auto_stop.cpp auto_stop_key|test_auto_stop's view of the keys auto_stop_last hands the protocol
+core/xpp_math.cpp xpp::xpp_rand_state_load|owner API: xpp_math.h's generator-state round trip, for W57's session file (docs/roadmap.md); test_seed_stream
+core/xpp_math.cpp xpp::xpp_rand_state_save[abi:cxx11]|owner API: xpp_math.h's generator-state round trip, for W57's session file (docs/roadmap.md); test_seed_stream"
 
 check=0
 build=1

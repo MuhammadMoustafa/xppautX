@@ -10,8 +10,11 @@
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
+#include <iomanip>
 #include <numbers>
 #include <random>
+#include <sstream>
+#include <string>
 #include <vector>
 
 /* the core is single-threaded: no thread pool */
@@ -90,6 +93,20 @@ void nsrand48(int seed)
     have_spare = false;
 }
 
+int xpp_next_seed(int seed)
+{
+    /* a generator of its own, seeded by seed and never touching the one
+       above: a pure function, so the same run seed always picks the same
+       following seed regardless of what that run itself drew */
+    std::mt19937_64 stream(static_cast<std::uint64_t>(static_cast<std::int64_t>(seed)));
+    /* stir it once so consecutive seeds (0,1,2,...) do not pick visibly
+       close following seeds (mt19937_64's own mixing needs one step); the
+       low 31 bits keep the result a non-negative int like every other
+       seed in the UI and the .ode "@ seed=" option */
+    stream.discard(1);
+    return static_cast<int>(stream() & 0x7fffffff);
+}
+
 double ndrand48(void)
 {
     /* the top 53 bits, centred in their interval: (0,1), never 0 (the
@@ -141,6 +158,31 @@ double poidev(double xm)
     }
     return em;
 }
+
+namespace xpp {
+
+std::string xpp_rand_state_save()
+{
+    std::ostringstream os;
+    os << engine << ' ' << (have_spare ? 1 : 0) << ' ' << std::setprecision(17) << spare;
+    return os.str();
+}
+
+bool xpp_rand_state_load(const std::string &state)
+{
+    std::istringstream is(state);
+    std::mt19937_64 loaded;
+    int spare_flag = 0;
+    double spare_value = 0.0;
+    is >> loaded >> spare_flag >> spare_value;
+    if (!is) return false;
+    engine = loaded;
+    have_spare = spare_flag != 0;
+    spare = spare_value;
+    return true;
+}
+
+} // namespace xpp
 
 /* ------------------------------------------------------------------ */
 /* Dense LU (LINPACK's sgefa/sgesl, row-major)                          */

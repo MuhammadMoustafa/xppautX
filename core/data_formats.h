@@ -8,6 +8,7 @@
    data dialog (browse_data.cpp data_write) lists it and the browser's
    Load picks from it by a file's extension. C++ only. */
 #include <cstddef>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -24,6 +25,11 @@ struct DataTable {
     /* column 0 numbers each row's curve (what the plot shows, one long
        table): NPZ writes one array per curve instead of one per column */
     bool curves = false;
+    /* the run's own seed (session.h numerics.last_seed, W71), when the
+       data came from one: a CSV/CSV.gz header comment line, an NPZ
+       "seed" array; empty (the common case outside a stochastic model,
+       or data never run at all) writes neither. */
+    std::optional<int> seed;
     std::size_t rows() const { return columns.empty() ? 0 : columns[0].size(); }
 };
 
