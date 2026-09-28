@@ -158,7 +158,7 @@ const char *const graf_hint[]={
 "Create a styleable svg file of current plot",
 "Options for permanently saving curve",
 "Axes label sizes and zero axes for postscript",
-"Export the numbers used in the graphs on the screen",
+"Save what the plot shows (its curves and frozen curves) as data",
 "Change colormap"
 };
 

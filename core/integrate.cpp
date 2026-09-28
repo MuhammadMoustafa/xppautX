@@ -2177,59 +2177,6 @@ void send_output(double *y,double t)
 
 */
 
-void export_data(FILE *fp)
-{
-
-int ip,np=xpp::session().plot_windows.current->nvars;
-  int ZSHFT,YSHFT,XSHFT;
-  int j,kxoff,kyoff,kzoff;
-  int iiXPLT,iiYPLT,iiZPLT;
-  int strind=get_maxrow_browser();
-  int i1=0;  
-  float **data;
-  data=get_browser_data();
-  XSHFT=xpp::session().plot_windows.current->xshft;
-  YSHFT=xpp::session().plot_windows.current->yshft;
-  ZSHFT=xpp::session().plot_windows.current->zshft;
-  if(i1<ZSHFT)i1=ZSHFT;
-  if(i1<YSHFT)i1=YSHFT;
-  if(i1<XSHFT)i1=XSHFT;
-  if(strind<2)return;
-       kxoff=i1-XSHFT;
-     kzoff=i1-ZSHFT;
-     kyoff=i1-YSHFT;
-
-    iiXPLT=xpp::session().plot_windows.current->xv[0];
-    iiYPLT=xpp::session().plot_windows.current->yv[0];
-    if(xpp::session().plot_windows.current->ThreeDFlag>0){
-
-       iiZPLT=xpp::session().plot_windows.current->zv[0];
-       for(j=i1;j<strind;j++){
-	 xpp::print(fp,"{:g} {:g} {:g} \n",
-		 data[iiXPLT][kxoff],
-		 data[iiYPLT][kyoff],
-		 data[iiZPLT][kzoff]);
-	 kxoff++;
-	 kyoff++;
-	 kzoff++;
-       }
-       return;
-    }
-    /* 2D graph so we will save y from each curve  */
-    for(j=i1;j<strind;j++){
-      xpp::print(fp,"{:g} ",data[iiXPLT][kxoff]);
-      for(ip=0;ip<np;ip++){
-	 iiYPLT=xpp::session().plot_windows.current->yv[ip];
-	 xpp::print(fp,"{:g} ",data[iiYPLT][kyoff]);
-      }
-      xpp::print(fp,"\n");
-       kxoff++;
-	 kyoff++;
-	 kzoff++;
-    }
-    return;
-}
-
 void plot_the_graphs(float *xv,float *xvold,int node,int neq,double ddt,int *tc,int flag)
 {
  for_each_shown_window(flag,[&]{plot_one_graph(xv,xvold,node,neq,ddt,tc);});

@@ -104,7 +104,7 @@ This induces a popup menu with several choices.
   - **(C)lr. BD**: clears out the current bifurcation diagram.
   - **(O)n freeze**: Toggles a flag that automatically freezes the curves as you integrate them.
 - **a(X)es opts**: This puts up a window which allows you to tell XPP where you want the axes to be drawn, whether you want them, and what fontsize to make the PostScript axes labels.
-- **exp(O)rt**: This lets you save the points that are currently plotted on the screen in XY format. Thus if you have a phaseplane on the screen, only the X and Y values are saved. This makes it compatible with porgrams like XMGR which assume X Y1 Y2 ... data. If you have several traces on the screen at once, it saves the X values of the first trace and the Y values of the first and all subsequent traces.
+- **exp(O)rt**: saves what the plot shows: this is the data browser's Save data with *What the plot shows* already chosen (see [(W)rite: Save data](07-data-browser.md#write-save-data)). It asks the format (XPP's `.dat`, CSV, compressed CSV or NumPy's `.npz`) and the file, and writes the window's curves and then its frozen curves as one table with the columns `curve`, `x`, `y` (and `z` in 3D), one row per point (in `.npz`, one array per curve). It replaces XPP's old XY export (the first curve's x followed by every curve's y on each row, in `%g`): a table with a curve column holds every curve in full, frozen curves and 3D plots included.
 - **(C)olormap**: This lets you choose a different color map from the default. There are a bunch of them; try them all and pick your favorite.
 
 ### n(U)merics

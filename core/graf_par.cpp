@@ -1161,18 +1161,11 @@ int get_frz_index(XppWinId w)
   return(static_cast<int>(ch-'a'));
 }
 
+/* Graphic stuff > exp(O)rt: Save data of what the plot shows, the format
+   asked from the data formats' registry (data_formats.h) */
 void export_graf_data()
 {
- std::string filename="curve.dat";
- ping();
- if(!file_selector("Export graph data",filename,"*.dat"))return;
- xpp::Writer fp(filename.c_str());
- if(!fp){
-    err_msg("Couldn't open file");
-    return;
-  }
- export_data(fp.file());
- fp.commit();
+ data_write(&xpp::session().browser.view,"plot","","");
 }
 
 xpp::DataTable plot_curves_table()

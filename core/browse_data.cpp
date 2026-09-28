@@ -51,11 +51,6 @@ void waitasec(int msec)
   std::this_thread::sleep_for(std::chrono::milliseconds(msec));
 }
 
-int get_maxrow_browser()
-{
-  return xpp::session().browser.view.maxrow;
-}
-
 namespace {
 
 /* the name of stored column j: T, or the variable's */

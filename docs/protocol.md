@@ -74,7 +74,8 @@ per format):
 browser's `cols`) or `plot` (the current plot window's curves, then its
 frozen curves, as one long table `curve,x,y` (and `z` in 3D), one row per
 point, the curves numbered from 1; in NPZ one (points, 2 or 3) array per
-curve, `curve1`, `curve2`, ...). `name` is the file (a name ending in a
+curve, `curve1`, `curve2`, ...). Graphic stuff > exp(O)rt (keys `g`, `o`)
+is the same Save data with `what` `plot`: it asks the format and the file. `name` is the file (a name ending in a
 format's extension also chooses that format when `format` is not given).
 What is not given is asked, in this order: `what` as a `menu` ask named
 `save_what` (keys `t`, `p`), the format as a `menu` ask named

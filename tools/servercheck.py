@@ -2222,6 +2222,21 @@ def check_data_formats():
               and gzip.decompress(read(r, 'asked.csv.gz')) == read(r, 'p.csv'),
               str([(a['kind'], a.get('name'), a.get('wild')) for a in asks]))
 
+        # Graphic stuff > exp(O)rt is the same Save data of what the plot shows
+        snd(cmd='key', key='g')
+        asks = []
+        while True:
+            _, e = col(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=20 * SLOW)
+            if e is None or is_idle(e):
+                break
+            asks.append(e)
+            reply = ({'key': 'o'} if e.get('name') == 'curves' else
+                     {'menu': {'key': 'c'}, 'file': {'file': 'export.csv'}}.get(e['kind'], {'ok': 0}))
+            snd(cmd='answer', id=e['id'], **reply)
+        check('Graphic stuff/exp(O)rt asks the format and the file and writes what the plot shows',
+              [a.get('name', a['kind']) for a in asks] == ['curves', 'save_format', 'file']
+              and read(r, 'export.csv') == read(r, 'p.csv'), str([(a['kind'], a.get('name')) for a in asks]))
+
         # Load reads each format back into the table, picked by its extension
         for name in ['d.csv', 'd.csv.gz', 'd.npz', 'd.dat']:
             snd(cmd='browser', op='first', row=300)

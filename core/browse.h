@@ -19,7 +19,6 @@ typedef struct {
 float **get_browser_data(void);
 float *get_data_col(int c);
 void waitasec(int msec);
-int get_maxrow_browser(void);
 void data_get_mybrowser(int row);
 int check_for_stor(float **data);
 void data_del_col(BROWSER *b);
