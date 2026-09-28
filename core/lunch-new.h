@@ -35,5 +35,12 @@ void io_int(int *i, FILE *fp, int f, std::string_view ss);
 void io_double(double *z, FILE *fp, int f, std::string_view ss);
 /* one line of a set file into s, whole (f READEM), or s written as one */
 void io_string(std::string &s, FILE *fp, int f);
+/* the values panel's Save/Load of .par and .ic (docs/protocol.md
+   "values"), through io_parameter_file/io_ic_file: name empty asks for
+   one like Save data does, given skips the ask */
+void save_parameter_file(std::string name);
+void save_ic_file(std::string name);
+void load_parameter_file(std::string name);
+void load_ic_file(std::string name);
 #endif
 #endif

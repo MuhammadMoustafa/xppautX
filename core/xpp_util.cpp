@@ -60,8 +60,6 @@ void clr_scrn(void)
 /* ---- moved function bodies follow (appended by tools/move_funcs.py) ---- */
 
 /* new_parameter, set_default_params, clone_ode: from init_conds.c */
-#define READEM 1
-#define WRITEM 0
 
 std::string ind_to_sym(int ind)
 {
@@ -393,15 +391,6 @@ void new_parameter()
     if(name.empty()||done==0){redo_stuff(); return;}
     if(strncasecmp(name.data(),"DEFAULT",7  )==0){
       set_default_params();
-      continue;
-    }
-
-    if(strncasecmp(name.data(),"!LOAD", 5 )==0){
-      io_parameter_file(name.data(),READEM);
-      continue;
-    }
-    if(strncasecmp(name.data(),"!SAVE", 5 )==0){
-      io_parameter_file(name.data(),WRITEM);
       continue;
     }
 

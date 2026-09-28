@@ -175,6 +175,7 @@ void action_command(const char *line);
 void apply_set(const char *line);
 void default_command(const char *line);
 void slide_command(const char *line);
+void values_command(const char *line);
 
 /* ---- json_windows.cpp ---- */
 

@@ -8,10 +8,14 @@
    every computation uses what the panel shows -- nothing is sent on a
    plain edit, busy or idle), which field an edit is attributed to (so a
    `message` `error` can be shown on that field, not as a modal, A11/A14),
-   the model's defaults, the sliders under the plot (store/sliders.ts) and
-   the last Save (store/valueFiles.ts). No undo (GitHub #110): Reset (one
-   field, or every field of a section) is the way back, through the
-   model's own values. Pure: no DOM, no I/O. */
+   the model's defaults and the sliders under the plot (store/sliders.ts).
+   Save and Load of a section's .par/.ic (store/valueFiles.ts) go through
+   the core (W66): Save is the `values` command's write, delivered like
+   any other file the core writes (session.ts's `pendingSave`); Load still
+   parses the file in the page (session.ts loadValues), its values queued
+   as pending like any edit. No undo (GitHub #110): Reset (one field, or
+   every field of a section) is the way back, through the model's own
+   values. Pure: no DOM, no I/O. */
 import type {Command} from '../protocol/types';
 import {presetSliders, type SliderDef} from './sliders';
 
@@ -39,12 +43,10 @@ export interface ValuesState {
   /** the sliders under the plot, and the id the next one gets */
   sliders: SliderDef[];
   nextSlider: number;
-  /** the text the last Save wrote (tests read it; the browser downloads it) */
-  lastSaved: {kind: 'par' | 'ic'; text: string} | null;
 }
 
 export const initialValues: ValuesState = {
-  errors: {}, attributing: null, pending: [], defaults: null, sliders: [], nextSlider: 1, lastSaved: null,
+  errors: {}, attributing: null, pending: [], defaults: null, sliders: [], nextSlider: 1,
 };
 
 /** a field's identity as a store key: names fold case, as the core matches them (docs/protocol.md `set`) */
@@ -80,8 +82,7 @@ export type ValuesAction =
   /** the Add/Edit slider dialog's OK, adding one fully formed (SliderDialog.tsx) */
   | {type: 'addSliderWith'; def: Omit<SliderDef, 'id'>}
   | {type: 'setSlider'; id: number; patch: Partial<Omit<SliderDef, 'id'>>}
-  | {type: 'removeSlider'; id: number}
-  | {type: 'saved'; kind: 'par' | 'ic'; text: string};
+  | {type: 'removeSlider'; id: number};
 
 export function reduceValues(state: ValuesState, action: ValuesAction): ValuesState {
   switch (action.type) {
@@ -127,8 +128,6 @@ export function reduceValues(state: ValuesState, action: ValuesAction): ValuesSt
       return {...state, sliders: state.sliders.map(s => (s.id === action.id ? {...s, ...action.patch} : s))};
     case 'removeSlider':
       return {...state, sliders: state.sliders.filter(s => s.id !== action.id)};
-    case 'saved':
-      return {...state, lastSaved: {kind: action.kind, text: action.text}};
   }
 }
 

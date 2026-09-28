@@ -23,6 +23,7 @@
 #include "ani_data.h"
 #include "auto_data.h"
 #include "auto_settings.h"
+#include "lunch-new.h"
 #include <strings.h>
 #include <climits>
 #include <stdio.h>
@@ -424,6 +425,33 @@ void slide_command(const char *line)
     get_string(line, "name", name);
     if (find_par_or_var(name.c_str(), &type, &index)) {
         set_par_or_var(name.c_str(), type, index, get_num(line, "value", 0));
+        state_dirty = 1;
+    }
+}
+
+/* {"cmd":"values","op":"write"|"read","kind":"par"|"ic","name":...}: the
+   values panel's Save/Load of XPP's own .par/.ic file (docs/protocol.md
+   "values"), through lunch-new.cpp's save_parameter_file/save_ic_file/
+   load_parameter_file/load_ic_file, which write/read the model's folder
+   the way `browser`'s `write` (Save data) does; `name` given skips the
+   file ask, empty asks like Save data. */
+void values_command(const char *line)
+{
+    std::string o, kind, name;
+    get_string(line, "op", o, 8);
+    get_string(line, "kind", kind, 8);
+    get_string(line, "name", name, XPP_MAX_NAME);
+    if (kind != "par" && kind != "ic") {
+        j_err_msg(xpp::format("values writes or reads par or ic, not {}", kind).c_str());
+        return;
+    }
+    if (o == "write") {
+        if (kind == "par") save_parameter_file(name);
+        else save_ic_file(name);
+        state_dirty = 1;
+    } else if (o == "read") {
+        if (kind == "par") load_parameter_file(name);
+        else load_ic_file(name);
         state_dirty = 1;
     }
 }

@@ -1,38 +1,16 @@
-/* Save and Load of the values panel's Parameters and Initial conditions
-   (GitHub #18), in XPP's own file formats so a file goes both ways:
+/* Load of the values panel's Parameters and Initial conditions
+   (GitHub #18), from XPP's own file formats (written by the core,
+   core/lunch-new.cpp io_parameter_file/io_ic_file, through the `values`
+   command: docs/protocol.md "values"; W66 moved the writing there so
+   the page writes no files):
 
-   - parameters: File/Write par's format (core/lunch-new.c
-     io_parameter_file): "N   Number params", then one "value  name" line
-     per parameter in the model's order (%.16g), then the model file and a
+   - parameters: "N   Number params", then one "value  name" line per
+     parameter in the model's order (%.16g), then the model file and a
      date; XPP reads the values by position.
-   - initial conditions: the -icfile / Initialconds/File format
-     (io_ic_file): the values alone, one per line, in the model's order.
+   - initial conditions: the -icfile / Initialconds/File format: the
+     values alone, one per line, in the model's order.
 
    Load also takes plain "name value" or "name=value" lines. Pure. */
-
-/** C's %.16g: 16 significant digits, trailing zeros dropped, e-notation outside 1e-4..1e16 */
-export function formatG16(v: number): string {
-  if (!Number.isFinite(v)) return Number.isNaN(v) ? 'nan' : v > 0 ? 'inf' : '-inf';
-  if (v === 0) return Object.is(v, -0) ? '-0' : '0';
-  const exp = Math.floor(Math.log10(Math.abs(Number(v.toPrecision(16)))));
-  if (exp < -4 || exp >= 16) {
-    const [m, e] = v.toExponential(15).split('e');
-    const mant = m.includes('.') ? m.replace(/0+$/, '').replace(/\.$/, '') : m;
-    const n = Number(e);
-    return `${mant}e${n < 0 ? '-' : '+'}${String(Math.abs(n)).padStart(2, '0')}`;
-  }
-  const f = v.toFixed(Math.max(0, 15 - exp));
-  return f.includes('.') ? f.replace(/0+$/, '').replace(/\.$/, '') : f;
-}
-
-export function formatParFile(pars: [string, number][], file: string, date: string): string {
-  const lines = [`${pars.length}   Number params`, ...pars.map(([n, v]) => `${formatG16(v)}  ${n}`)];
-  return `${lines.join('\n')}\n\n\nFile:${file}\n${date}\n`;
-}
-
-export function formatIcFile(ics: [string, number][]): string {
-  return ics.map(([, v]) => formatG16(v)).join('\n') + '\n';
-}
 
 export interface ParsedValues {
   /** [name as the model spells it, value text] */

@@ -426,6 +426,8 @@ void handle_line(const char *line, unsigned long seq)
         std::string o;
         get_string(line, "op", o, 8);
         xpp_files_command(o.c_str(), js_find(line, "name"), js_find(line, "data"), data_emit);
+    } else if (is_cmd(line, "values")) {
+        values_command(line);
     }
     apply_deferred_sets();
     aplot_update();

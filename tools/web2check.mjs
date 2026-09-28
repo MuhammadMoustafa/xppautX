@@ -3019,11 +3019,16 @@ async function runsCheck(dir) {
   check('runs: reset restores the model value', await until('!s.busy && s.core.pars.find(p => p[0] === "phi")[1] === 0.333', 'reset'));
 
   /* Save, then Load a changed copy (GitHub #117): the load stays pending,
-     nothing sent, until Go flushes it as one set, at most one run */
+     nothing sent, until Go flushes it as one set, at most one run. Save
+     (W66) is the core's own write (docs/protocol.md "values"): it lands
+     in the model's folder, the same `pendingSave`/`deliver` path as
+     Write set (T5, above) offers it as a download */
   await cdp.eval(`[...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Save').click()`);
-  const saved = await S('s.values.lastSaved && s.values.lastSaved.text');
-  check('runs: Save writes XPP\'s parameter file', /^\d+   Number params\n/.test(saved || '') && /\n0\.05  iapp\n/.test(saved || ''),
-    String(saved).slice(0, 80));
+  await until("s.files.offered && s.files.offered.name.endsWith('.par') && !s.busy", 'par saved');
+  const parName = await S('s.files.offered.name');
+  const saved = fs.readFileSync(path.join(dir, parName), 'utf8').replace(/\r\n/g, '\n');
+  check('runs: Save writes XPP\'s parameter file', /^\d+   Number params\n/.test(saved) && /\n0\.05  iapp\n/.test(saved),
+    saved.slice(0, 80));
   const parFile = path.join(dir, 'changed.par');
   fs.writeFileSync(parFile, saved.replace('\n0.05  iapp\n', '\n0.075  iapp\n'));
   const sent0 = (await cdp.eval('__xpp.sent().length'));
@@ -3042,7 +3047,9 @@ async function runsCheck(dir) {
     && (await cdp.eval(`__xpp.sent().slice(${sent0}).filter(c => c.cmd === 'set').length`)) === 1,
     JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sent0})`)));
   await cdp.eval(`[...document.querySelectorAll('[data-section="ic"] .value-tools button')].find(b => b.textContent === 'Save').click()`);
-  const icText = await S('s.values.lastSaved.text');
+  await until("s.files.offered && s.files.offered.name.endsWith('.ic') && !s.busy", 'ic saved');
+  const icName = await S('s.files.offered.name');
+  const icText = fs.readFileSync(path.join(dir, icName), 'utf8').replace(/\r\n/g, '\n');
   const icFile = path.join(dir, 'changed.ic');
   fs.writeFileSync(icFile, '-0.25\n0.1\n');
   await pickFiles('#values-load-ic', [icFile]);

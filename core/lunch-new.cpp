@@ -29,6 +29,7 @@
 #include <string_view>
 
 #define READEM 1
+#define WRITEM 0
 #define VOLTERRA 6
 
 static int set_type=0;
@@ -73,15 +74,6 @@ void put_parameters(FILE *fp, const char *prefix)
     if(i%4==3) xpp::print(fp,"\n");
   }
   xpp::print(fp,"\n");
-}
-
-/* fn with its spaces removed, from index skip on */
-std::string file_name_of(std::string_view fn, size_t skip)
-{
-  std::string name;
-  for(size_t i=skip;i<fn.size();i++)
-    if(fn[i]!=' ')name+=fn[i];
-  return name;
 }
 
 /* f==READEM&&set_type==1: skip one line (a "# ..." heading write_lunch
@@ -313,11 +305,11 @@ io_int(&s.numerics.inflag,fp,f,"INFLAG");
 }
 void io_parameter_file(const char *fn,int flag)
 {
-  /* fn is the command ("!load " and the like, 6 characters) then the
-     file name */
-  std::string fnx=file_name_of(fn,6);
+  /* fn is a plain file name; a filename an interactive caller must still
+     pick goes through save_parameter_file/load_parameter_file below,
+     which ask for it first */
   if(flag==READEM) {
-    xpp::UniqueFile fp=xpp::open_read(fnx.c_str());
+    xpp::UniqueFile fp=xpp::open_read(fn);
     if(!fp){
       err_msg("Cannot open file");
       return;
@@ -335,11 +327,8 @@ void io_parameter_file(const char *fn,int flag)
     redo_stuff();
     return;
   }
-  xpp::Writer w(fnx.c_str());
-  if(!w){
-    err_msg("Cannot open file");
-    return;
-  }
+  xpp::Writer w=open_writer_asking(fn);
+  if(!w)return;
   FILE *fp=w.file();
   io_int(&xpp::model().nupar,fp,flag,"Number params");
   io_parameters(flag,fp);
@@ -348,26 +337,77 @@ void io_parameter_file(const char *fn,int flag)
   w.commit();
 }
 
+/* the -icfile / Initialconds/File format: the values alone, one per line,
+   in the model's order (node, then the Markov chains: docs/manual
+   16-quick-reference.md); io_parameter_file's write shares its writer and
+   overwrite-ask (open_writer_asking), the read its TokenReader */
 void io_ic_file(const char *fn,int flag)
 {
-  if(flag!=READEM) return;
-  std::string fnx=file_name_of(fn,0);
-  xpp::TokenReader tr(fnx.c_str());
-  if(!tr){
-    err_msg("Cannot open file");
-    return;
-  }
-  for(int i=0;i<xpp::model().node;i++){
-    if(!tr.read(xpp::session().last_ic[i])){
-      err_msg(xpp::format("Expected {} initial conditions but only found {} in {}.",
-                          xpp::model().node,i,fn).c_str());
+  int n=xpp::model().node+xpp::model().nmarkov;
+  if(flag==READEM){
+    xpp::TokenReader tr(fn);
+    if(!tr){
+      err_msg("Cannot open file");
       return;
     }
+    for(int i=0;i<n;i++){
+      if(!tr.read(xpp::session().last_ic[i])){
+        err_msg(xpp::format("Expected {} initial conditions but only found {} in {}.",
+                            n,i,fn).c_str());
+        return;
+      }
+    }
+    /* one number more is one too many */
+    double extra;
+    if(n>0 && tr.read(extra))
+      err_msg(xpp::format("Found more than {} initial conditions in {}.",n,fn).c_str());
+    return;
   }
-  /* one number more is one too many */
-  double extra;
-  if(xpp::model().node>0 && tr.read(extra))
-    err_msg(xpp::format("Found more than {} initial conditions in {}.",xpp::model().node,fn).c_str());
+  xpp::Writer w=open_writer_asking(fn);
+  if(!w)return;
+  FILE *fp=w.file();
+  for(int i=0;i<n;i++)
+    xpp::print(fp,"{:.16g}\n",xpp::session().last_ic[i]);
+  w.commit();
+}
+
+namespace {
+
+/* the values panel's Save/Load of .par and .ic (docs/protocol.md
+   "values"), shared by the four entry points below: name empty asks for
+   one like Save data does (title/wild picking the dialog and the
+   extension), given skips the ask; io is io_parameter_file or
+   io_ic_file, flag READEM or WRITEM */
+void named_value_file(std::string name, const char *title, const char *ext,
+                       void (*io)(const char *, int), int flag)
+{
+  if(name.empty()){
+    name=xpp::model().this_file+ext;
+    if(!file_selector(title,name,xpp::format("*{}",ext).c_str()))return;
+  }
+  io(name.c_str(),flag);
+}
+
+} // namespace
+
+void save_parameter_file(std::string name)
+{
+  named_value_file(std::move(name),"Save Parameters",".par",io_parameter_file,WRITEM);
+}
+
+void save_ic_file(std::string name)
+{
+  named_value_file(std::move(name),"Save Initial Conditions",".ic",io_ic_file,WRITEM);
+}
+
+void load_parameter_file(std::string name)
+{
+  named_value_file(std::move(name),"Load Parameters",".par",io_parameter_file,READEM);
+}
+
+void load_ic_file(std::string name)
+{
+  named_value_file(std::move(name),"Load Initial Conditions",".ic",io_ic_file,READEM);
 }
 
 void io_parameters(int f, FILE *fp)

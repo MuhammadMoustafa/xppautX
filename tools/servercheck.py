@@ -252,6 +252,61 @@ evs, _ = collect(is_idle)
 st = last_state(evs)
 check('default parameters', st is not None and dict(st['pars'])['iapp'] == 0.05, str(st and st['pars']))
 
+# W66: the values panel's Save/Load of XPP's own .par/.ic file, through the
+# core (docs/protocol.md "values") -- omitting `name` asks for one, like
+# any other Save/Load; given, it skips the ask and writes into the
+# model's folder at once
+send(cmd='values', op='write', kind='par')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+check('values write with no name asks for a file', ask is not None and ask['kind'] == 'file'
+      and ask.get('mode') == 'write', str(ask))
+if ask:
+    send(cmd='answer', id=ask['id'], ok=0)
+collect(is_idle)
+
+send(cmd='values', op='write', kind='par', name='t_values.par')
+collect(is_idle)
+with open(os.path.join(run, 't_values.par')) as f:
+    par_text = f.read()
+first_line = par_text.split('\n', 1)[0]
+check('values write par: XPP\'s format, a count then "value  name" lines',
+      first_line.endswith('   Number params') and first_line.split()[0].isdigit()
+      and '0.05  iapp\n' in par_text, par_text[:80])
+
+send(cmd='values', op='write', kind='ic', name='t_values.ic')
+collect(is_idle)
+with open(os.path.join(run, 't_values.ic')) as f:
+    ic_lines = [l.strip() for l in f if l.strip()]
+check('values write ic: the values alone, one per line, in the model order',
+      ic_lines == ['-0.144', '0.03'], str(ic_lines))
+
+# change both, away from what was just written
+send(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'value': 0.09}, {'kind': 'ic', 'name': 'V', 'value': -0.4}])
+evs, _ = collect(is_idle)
+st = last_state(evs)
+check('values round trip: the values changed before reading back',
+      st is not None and dict(st['pars'])['iapp'] == 0.09 and dict(st['ics'])['V'] == -0.4,
+      str(st and (st['pars'], st['ics'])))
+
+# read them back through the existing load path (io_parameter_file/io_ic_file, READEM)
+send(cmd='values', op='read', kind='par', name='t_values.par')
+evs, _ = collect(is_idle)
+st = last_state(evs)
+check('values read par restores the written value exactly',
+      st is not None and dict(st['pars'])['iapp'] == 0.05, str(st and st['pars']))
+
+send(cmd='values', op='read', kind='ic', name='t_values.ic')
+evs, _ = collect(is_idle)
+st = last_state(evs)
+check('values read ic restores the written values exactly',
+      st is not None and dict(st['ics'])['V'] == -0.144 and dict(st['ics'])['W'] == 0.03,
+      str(st and st['ics']))
+
+send(cmd='values', op='write', kind='xyz', name='t_values.bad')
+evs, msg = collect(lambda e: e.get('ev') == 'message' and 'error' in e)
+check('values with a kind other than par/ic is refused', msg is not None, str(msg))
+collect(is_idle)
+
 send(cmd='browser', **{'from': 10, 'count': 3, 'col': 2, 'ncol': 1})
 evs, br = collect(lambda e: e.get('ev') == 'browser')
 collect(is_idle)

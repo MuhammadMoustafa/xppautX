@@ -182,7 +182,6 @@ void do_comline(int argc, char **argv)
      i++;
    } 
    if(k==4){
-     parfilename+="!load ";
      parfilename+=argv[i+1];
      i++;
      loadparfile=1;

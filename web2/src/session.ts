@@ -23,7 +23,7 @@ import {snapshotWindow} from './store/kinescope';
 import {planRequest} from './store/table';
 import type {TextTab} from './store/text';
 import {fieldKey, setCommand, type ValueSet} from './store/values';
-import {formatIcFile, formatParFile, parseValuesFile} from './store/valueFiles';
+import {parseValuesFile} from './store/valueFiles';
 import {parseSettings, setCommand as autoSetCommand, type AutoSettingsPatch} from './store/autoSettings';
 
 /** the data browser's buttons (docs/protocol.md `browser` op; web/xpp-client.js's BROWSER_BUTTONS) */
@@ -656,16 +656,17 @@ export class Session {
     this.send({cmd: 'set', kind: 'ic', from: 'last'});
   }
 
-  /** Save of a section: XPP's parameter or IC file (store/valueFiles.ts), downloaded */
-  saveValues(kind: 'par' | 'ic'): string {
-    const st = this.store.getState();
-    const list = (kind === 'par' ? st.core?.pars : st.core?.ics) ?? [];
-    const file = st.hello?.file ?? '';
+  /** Save of a section: the core writes its own .par/.ic (docs/protocol.md
+      "values"; core/lunch-new.cpp io_parameter_file/io_ic_file), then, at
+      the command's idle, the page offers it as a download -- the same
+      `pendingSave`/`deliver` path `writeDataFile` uses (W66: the page
+      itself builds no file). */
+  saveValues(kind: 'par' | 'ic'): void {
+    const file = this.store.getState().hello?.file ?? '';
     const base = file.replace(/^.*[\\/]/, '').replace(/\.[^.]*$/, '') || 'model';
-    const text = kind === 'par' ? formatParFile(list, file, new Date().toString()) : formatIcFile(list);
-    this.store.dispatch({type: 'values', action: {type: 'saved', kind, text}});
-    offerDownload(`${base}.${kind === 'par' ? 'par' : 'ic'}`, new Blob([text], {type: 'text/plain'}));
-    return text;
+    const name = `${base}.${kind}`;
+    this.pendingSave = {name, handle: null};
+    this.send({cmd: 'values', op: 'write', kind, name});
   }
 
   /** Load of a section: the file's values pending like any edit; null when
