@@ -265,6 +265,49 @@ check('browser Get sets the initial conditions from a row',
 send(cmd='browser', **{'from': 0, 'count': 0})
 collect(is_idle)
 
+# W77: the data browser's Add column is the Session's, not the Model's
+# (docs/roadmap.md W77, #125): it must not grow neq/nvar or add a
+# variable, so it stays invisible to everything that reads the model.
+send(cmd='browser', op='addcol')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+check('addcol asks for the column name', ask is not None and ask['kind'] == 'string' and ask.get('name') == 'Name',
+      str(ask))
+send(cmd='answer', id=ask['id'], ok=1, value='VW')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+check('addcol then asks for the formula', ask is not None and ask['kind'] == 'string', str(ask))
+send(cmd='answer', id=ask['id'], ok=1, value='v*w')
+evs, _ = collect(is_idle)
+st = last_state(evs)
+check("addcol does not grow the model (still 2 ICs: V, W)", st is not None and len(st['ics']) == 2,
+      str(st and st['ics']))
+send(cmd='browser', **{'from': 0, 'count': 1, 'col': 1, 'ncol': 500})
+evs, br = collect(lambda e: e.get('ev') == 'browser')
+collect(is_idle)
+vi, wi, vwi = br['cols'].index('V'), br['cols'].index('W'), br['cols'].index('VW')
+check('the browser shows the added column, computed from the others',
+      br is not None and br['cols'][-1] == 'VW'
+      and abs(br['data'][0][vwi] - br['data'][0][vi] * br['data'][0][wi]) < 1e-5, str(br)[:200])
+orig_cols = br['cols'][:-1]
+send(cmd='browser', op='write', what='table', format='csv', name='added_col.csv')
+collect(is_idle)
+with open(os.path.join(run, 'added_col.csv')) as f:
+    csv_lines = [l.strip() for l in f if l.strip() and not l.startswith('#')]
+check('the saved CSV has a VW column, one more than the model columns',
+      csv_lines[0].split(',') == orig_cols + ['VW']
+      and len(csv_lines[1].split(',')) == len(orig_cols) + 1, str(csv_lines[:2]))
+send(cmd='key', key='i')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+send(cmd='answer', id=ask['id'], key='g')
+evs, _ = collect(is_idle, timeout=30 * SLOW)
+st = last_state(evs)
+check('a re-run after addcol still has 601 rows and 2 ICs (the model unchanged)',
+      st is not None and st['rows'] == 601 and len(st['ics']) == 2, str(st and (st['rows'], st['ics'])))
+send(cmd='browser', **{'from': 0, 'count': 1, 'col': 1, 'ncol': 500})
+evs, br = collect(lambda e: e.get('ev') == 'browser')
+collect(is_idle)
+check("the re-run's browser columns are the model's again (the added column is gone)",
+      br is not None and br['cols'] == orig_cols, str(br)[:200])
+
 send(cmd='data', events=['series'])
 collect(is_idle)
 send(cmd='slide', name='iapp', value=0.07, rerun=1)

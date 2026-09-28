@@ -52,22 +52,27 @@ void waitasec(int msec)
   std::this_thread::sleep_for(std::chrono::milliseconds(msec));
 }
 
-namespace {
-
-/* the name of stored column j: T, or the variable's */
-std::string column_name(int j)
+std::string browse_column_name(int j)
 {
   if(j==0)return "T";
-  if(j>0&&j<=MAXODE)return xpp::model().uvar_names[j-1];
+  const xpp::Model &m=xpp::model();
+  if(j>0&&j<=m.neq)return m.uvar_names[j-1];
+  const std::vector<std::string> &added=xpp::session().browser.added_columns;
+  if(j>m.neq){
+    const std::size_t k=static_cast<std::size_t>(j-m.neq-1);
+    if(k<added.size())return added[k];
+  }
   return "";
 }
+
+namespace {
 
 /* the rows First..Last of b's columns cols */
 xpp::DataTable browser_table(const BROWSER &b, std::span<const int> cols)
 {
   xpp::DataTable t;
   for(int j : cols){
-    t.names.push_back(column_name(j));
+    t.names.push_back(browse_column_name(j));
     const float *c=b.data[j];
     if(b.iend>b.istart)t.columns.emplace_back(c+b.istart,c+b.iend);
     else t.columns.emplace_back();
@@ -100,14 +105,32 @@ void find_variable(std::string_view s, int *col)
     return;
    }
   *col=find_user_name(2,s);
-  if(*col>-1)*col=*col+1; 
- } 
+  if(*col>-1){
+    *col=*col+1;
+    return;
+  }
+  const std::vector<std::string> &added=xpp::session().browser.added_columns;
+  for(std::size_t k=0;k<added.size();k++){
+    if(xpp::equal_ignoring_case(added[k],s)){
+      *col=xpp::model().neq+1+static_cast<int>(k);
+      return;
+    }
+  }
+ }
 
 void  refresh_browser(int length)
 {
- xpp::session().browser.view.dataflag=1;
- xpp::session().browser.view.maxrow=length;
- xpp::session().browser.view.iend=length;
+ xpp::Session &s=xpp::session();
+ s.browser.view.dataflag=1;
+ s.browser.view.maxrow=length;
+ s.browser.view.iend=length;
+ if(s.browser.view.data==s.data_store.col){
+   /* a fresh run's own data: an earlier data_add_col column was not
+      recomputed for it and the Model's own columns are unchanged, so
+      drop it rather than show it stale (docs/roadmap.md W77) */
+   s.browser.added_columns.clear();
+   s.browser.view.maxcol=xpp::model().neq+1;
+ }
  xpp_ui.data_changed(length);
 }
 
@@ -127,6 +150,7 @@ void init_browser()
  xpp::session().browser.view.row0=0;
  xpp::session().browser.view.istart=0;
  xpp::session().browser.view.iend=0;
+ xpp::session().browser.added_columns.clear();
 
 }
 
@@ -224,38 +248,43 @@ void data_add_col(BROWSER *b)
 int add_stor_col(const char *name, const char *formula, BROWSER *b)
 {
   int com[4000],i,j;
+  xpp::Session &s=xpp::session();
+  const xpp::Model &m=xpp::model();
 
   if(strlen(name)>XPP_NAME_MAX){
     err_msg("Name too long");
+    return(0);
+  }
+  /* the added column's data_store index: right after the model's own
+     columns and every column data_add_col has added so far (the Model
+     stays as the load left it -- docs/roadmap.md W77 -- so this count
+     never advances neq) */
+  const int col_index=m.neq+1+static_cast<int>(s.browser.added_columns.size());
+  if(col_index>MAXODE){
+    err_msg("Too many columns");
     return(0);
   }
   if(add_expr(formula,com,&i)){
     err_msg("Bad Formula .... ");
     return(0);
   }
-  /* the column's program: the compiled formula and a 0 after it */
-  std::vector<int> program(com,com+i+1);
-  program.push_back(0);
-  set_program(xpp::model().neq+xpp::model().fix_var,std::move(program));
-  xpp::session().data_store.add_column(xpp::model().neq+1);
-  /* the column's name as the browser shows it: at most 79 characters of
-     the formula, upper case */
-  std::string shown=xpp::upper_case(std::string(formula).substr(0,79));
-  set_ode_name(xpp::model().neq,shown);
-  std::string &col_name=xpp::model().uvar_names[xpp::model().neq];
-  col_name=name;
-  xpp::to_upper(col_name.data());
-  for(i=0;i<b->maxrow;i++)
-    xpp::session().data_store.col[xpp::model().neq+1][i]=0.0;   /*  zero it all   */
+  s.data_store.add_column(col_index); /* max_rows zeros */
   for(i=0;i<b->maxrow;i++){
-    for(j=0;j<xpp::model().node+1;j++)set_ivar(j,static_cast<double>(xpp::session().data_store.col[j][i]));
-    for(j=xpp::model().node;j<xpp::model().neq;j++)set_val(xpp::model().uvar_names[j],static_cast<double>(xpp::session().data_store.col[j+1][i])); 
-    xpp::session().data_store.col[xpp::model().neq+1][i]=static_cast<float>(evaluate(com));
+    for(j=0;j<m.node+1;j++)set_ivar(j,static_cast<double>(s.data_store.col[j][i]));
+    for(j=m.node;j<m.neq;j++)set_val(m.uvar_names[j],static_cast<double>(s.data_store.col[j+1][i]));
+    s.data_store.col[col_index][i]=static_cast<float>(evaluate(com));
   }
-  add_var(xpp::model().uvar_names[xpp::model().neq],0.0);  /*  this could be trouble .... */
-  xpp::model().neq++;
-  b->maxcol=xpp::model().neq+1;
-  xpp_ui.browser_redraw(1);  
+  /* add_expr may have added constants to the parser's working symbol
+     table (ParserState::ncon/nsym, session.h): roll it back to the
+     Model's own end, like a histogram condition (histogram.cpp) -- the
+     added column is not a symbol a later formula can name */
+  s.parser.ncon=m.ncon_start;
+  s.parser.nsym=m.nsym_start;
+  std::string col_name(name);
+  xpp::to_upper(col_name.data());
+  s.browser.added_columns.push_back(std::move(col_name));
+  b->maxcol=m.neq+1+static_cast<int>(s.browser.added_columns.size());
+  xpp_ui.browser_redraw(1);
   return(1);
 }
 

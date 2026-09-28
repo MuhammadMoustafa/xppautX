@@ -68,9 +68,15 @@ void data_write(BROWSER *b, std::string_view what, std::string_view format, std:
    extension when empty, else .dat) into the stored columns, in order */
 void data_read(BROWSER *b, std::string_view format, std::string_view name);
 
-/* the data column of variable s: 0 for T, i+1 for variable i, -1 for
-   none (case ignored) */
+/* the data column of variable s: 0 for T, i+1 for variable i, a browser
+   column added by data_add_col (by name, case ignored, below), -1 for
+   none */
 void find_variable(std::string_view s, int *col);
+
+/* column j's name as the browser shows it: "T", a model variable's
+   (xpp::model().uvar_names), or (j>xpp::model().neq) an added column's
+   (BrowserState::added_columns below); "" past the last one */
+std::string browse_column_name(int j);
 
 #include <vector>
 /* the data browser (browse_data.cpp), a Session's (session.h) */
@@ -81,6 +87,11 @@ struct BrowserState {
      its column and its values */
   int replaced=0,replaced_col=0;
   std::vector<float> old_column;
+  /* data_add_col's columns, one name per column added since the load, at
+     data_store columns xpp::model().neq+1, +2, ...: the Session's own
+     data, not the Model's (docs/roadmap.md W77 -- the Model stays as the
+     load left it; a fresh load clears this with the rest of the Session) */
+  std::vector<std::string> added_columns;
 };
 #endif
 #endif

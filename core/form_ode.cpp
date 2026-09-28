@@ -81,11 +81,6 @@ int is_a_map=0;
 
 } // namespace
 
-void set_program(int i, std::vector<int> program)
-{
-  xpp::model().programs[i]=std::move(program);
-}
-
 namespace {
 
 /* program i: MAXEXPLEN commands, zeroed */

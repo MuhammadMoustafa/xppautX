@@ -173,7 +173,7 @@ void send_browser(void)
                s.browser.view.dataflag ? s.browser.view.maxrow : 0, s.browser.view.row0, s.browser.view.istart, s.browser.view.iend);
     for (j = 1; j < maxcol; j++) {
         BUF_LIT(&b, ",");
-        buf_str(&b, xpp::model().uvar_names[j - 1]);
+        buf_str(&b, browse_column_name(j));
     }
     buf_format(&b, "],\"from\":{:d},\"col\":{:d},\"data\":[", br_from, br_col);
     last = s.browser.view.dataflag ? br_from + br_count : br_from;

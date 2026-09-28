@@ -52,8 +52,6 @@ std::vector<OdeItem> ode_items(std::string_view rhs);
 int get_eqn_lines(const std::vector<std::string> &lines);
 /* 1 when the model is a map: is_a_map, or file ends in .dis or .dif */
 int disc(std::string_view file);
-/* quantity i's compiled formula (Model::programs) becomes program */
-void set_program(int i, std::vector<int> program);
 /* boundary condition i's formula (Model::bcs[i].string, at most 255 bytes
    of it) becomes string; set_bc makes the condition first */
 void set_bc_formula(int i, std::string_view string);
