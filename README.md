@@ -237,8 +237,8 @@ hand. Untested: no macOS machine has built or run the bundle yet.
 
 ### Windows
 
-The binaries build natively with MinGW-w64 gcc (MSYS2 UCRT64, or the gcc
-that ships with Strawberry Perl) from a bash shell:
+The binaries build natively with MinGW-w64 gcc from MSYS2's UCRT64
+environment (what the release is built with) from a bash shell:
 
 ```bash
 make -j8 xppautx

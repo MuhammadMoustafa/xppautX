@@ -83,7 +83,7 @@ xppautX never needs Node: `web2/dist` is built from `web2/src` and
 committed. After editing `web2/src`, from Git Bash:
 
     cd web2 && npm ci && npm run build && npm run check && npm test && npm run typecheck
-    PATH=/c/Strawberry/c/bin:$PATH mingw32-make -j8 xppautx BUILDDIR=build/win
+    PATH=/c/msys64/ucrt64/bin:$PATH mingw32-make -j8 xppautx BUILDDIR=build/ucrt
     node tools/web2check.mjs      # state-level browser checks against ./xppautX.exe
                                   # (--only desktop,files,live,million runs a part)
 
@@ -222,17 +222,20 @@ on any machine instead of only on a slow one (servercheck's autoinfo
 checks run under it).
 
 Metrics: verify.sh's `C++: N / M sources` (core/*.cpp over all core
-sources). The tree builds with 0 warnings (gcc 13, MinGW gcc 13 and
-MSYS2 clang 22):
+sources). The tree builds with 0 warnings (WSL gcc 15, MSYS2 UCRT64 gcc 16,
+CI's MinGW gcc 15 and MSYS2 clang 22):
 verify.sh builds with `make WERROR=1`, which makes every category ever
 reported an error; `tools/warnings.sh` counts a clean build's warnings by
 flag and file.
 
 `sudo` inside WSL needs the user's password; apt installs must be run by the user.
-The Windows-side gcc at C:\Strawberry\c\bin is MinGW-w64; use it for the
-native build, from Git Bash:
+The Windows-side gcc is MSYS2's UCRT64 (C:\msys64\ucrt64\bin, gcc 16: the
+toolchain the release is built with, on the same UCRT runtime as CI's
+windows-core; its binary needs no MSYS2 DLL). Use it for the native
+build, from Git Bash, into build/ucrt (objects of another toolchain must
+not be mixed in):
 
-    PATH=/c/Strawberry/c/bin:$PATH mingw32-make -j8 xppautx BUILDDIR=build/win
+    PATH=/c/msys64/ucrt64/bin:$PATH mingw32-make -j8 xppautx BUILDDIR=build/ucrt
     python3 tools/servercheck.py --server ./xppautX.exe
     python3 tools/webcheck.py --bin ./xppautX.exe
 
@@ -537,9 +540,9 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   `XPP_SPRINTF`/`XPP_STRCPY`/`XPP_STRCAT`, `XPP_FORMAT_TO_BUF`) was
   retired at W48, once every core file was C++ and nothing called it any
   more; the build is `-std=c++23`/`gnu++23` for `xpp::format`'s
-  `std::format` (present and warning-clean on WSL gcc 15 and MinGW
-  gcc 13.2; avoid library parts newer than gcc 13 ships, e.g.
-  `std::print`, until Windows' MinGW catches up).
+  `std::format` (present and warning-clean on WSL gcc 15, CI's MinGW
+  gcc 15 and MSYS2 UCRT64 gcc 16; avoid library parts newer than the
+  oldest of these, gcc 15, or than clang's libc++ ships).
 - New code that reads or writes a file (`core/xpp_io.h`, W11 step 3) uses
   `xpp_line_reader_open`/`_attach` for a whole line of any length (no
   fixed-buffer cut, no `while(!feof)` reading the last line twice; CR/LF

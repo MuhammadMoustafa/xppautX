@@ -19,7 +19,17 @@
 
 /* the core is single-threaded: no thread pool */
 #define POCKETFFT_NO_MULTITHREADING
+/* gcc 16 (MSYS2 UCRT64) reports multi_iter's p_i/p_o as maybe used
+   uninitialized: advance() sets them before any read, a false positive in
+   vendored code, silenced here only (clang has no such warning) */
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
 #include "../third_party/pocketfft/pocketfft_hdronly.h"
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 /* ------------------------------------------------------------------ */
 /* Fourier transform                                                   */
