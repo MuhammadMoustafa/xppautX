@@ -46,7 +46,7 @@ A client that draws sends `data` next (see "The plot as data").
 | `view` | `win`, `xlo`, `xhi`, `ylo`, `yhi` | "Use this view" (docs/ui-v2.md T9): sets window `win`'s 2D axes exactly as Window/Window would (graf_par.cpp `update_view`), so a later PostScript/SVG export, Restore and redraw all agree with them; the `plots` and `state.view` that follow the command show the new axes. Refused (`message` `error`) and nothing changed when `xlo`..`yhi` are not all finite, `xlo>=xhi`, `ylo>=yhi`, or `win` names no open window. |
 | `redraw` | | Redraw the active plot window, and the AUTO diagram when AUTO is open (for a client that reconnects). |
 | `state` | | Send `state` now. |
-| `auto` | `op`: `param`, `axes`, `numerics`, `run`, `grab`, `usr`, `clear`, `redraw`, `file`, `close`, `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `pars`, `axes`, `marks`) | The AUTO window buttons; `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); `close` destroys window 101, File/Auto opens it again. |
+| `auto` | `op`: `param`, `axes`, `numerics`, `run`, `grab` (`label`, or `type`+`index`), `usr`, `clear`, `redraw`, `file`, `close`, `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `pars`, `axes`, `marks`) | The AUTO window buttons; `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); `grab` with `label` or `type`+`index` grabs that stored point directly, with no ask ("Grab by label" below); with neither it is the interactive grab ("Grab by point" below); `close` destroys window 101, File/Auto opens it again. |
 | `session` | `op` (`save`, `load`), `name` | Save or load a session: `<name>.set` (File/Write set, File/Read set) and, when a diagram exists (save) or a `<name>.auto` file is found (load), `<name>.auto` too (AUTO File/Save diagram, File/Load diagram). Without `name`, asks for one (`ask` kind `file`, like any other Save/Load). A load opens the AUTO window first when `<name>.auto` exists and AUTO is not already open. `state.session` (below) names the files the current session was last saved to or loaded from. |
 | `aplot` | `op`: `redraw`, `edit`, `print`, `fit`, `range`, `gif`, `close`, `scroll` (`dy` pixels) | The array plot window buttons; dragging the plot scrolls through time. |
 | `rotate` | `what` (`down`, `move`, `up`), `x`, `y` | Dragging a 3D plot turns it (the active window, when `state.view.three`). |
@@ -690,6 +690,21 @@ takes in one answer. An index the data do not have (out of range) is
 ignored, and so is the key that came with it: the grab asks again. So is a
 point AUTO no longer has: after Reset diagram or a load the data are the
 old diagram until reDraw.
+
+**Grab by label.** `{"cmd":"auto","op":"grab","label":N}` grabs the
+stored point labelled `N` directly, with no ask: the same outcome as the
+interactive grab above ending with `Return` on that point (`grabpt`, the
+parameters, the info strip, the stability circle, and what a following
+Run starts from). `{"cmd":"auto","op":"grab","type":"HB","index":k}`
+grabs the `k`-th (1-based, in stored order) labelled point of that AUTO
+type instead (`auto_bif_sym`'s `BP`, `EP`, `HB`, `LP`, `MX`, `PD`, `TR`,
+`UZ`: "the 2nd HB"). A label no stored point has, or a `type`/`index` with
+no such point, is a `message` `error` and nothing changes -- the diagram,
+`grabpt` and the info strip stay as they were. `{"cmd":"auto","op":"grab"}`
+with neither field is the interactive grab, unchanged: it asks (`grab`,
+above). A script that recorded an interactive grab (W59) replays it as the
+keys it was answered with, exactly as it was driven; `grab`/`label` is for
+a script that names the point instead (W56's -silent commands).
 
 **The file ask's mode.** `mode` says whether the command opens the file
 (`read`: Read set, Load diagram, the browser's Load, Import, ...) or saves

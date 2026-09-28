@@ -334,7 +334,13 @@ You can use these special points to continue calculations with AUTO. The “Grab
 grabbing is a mode of the diagram itself (arrows, `[` `]`, Tab to the
 labelled points, Enter takes the point, Escape cancels, a click or tap
 takes the nearest point); there is no display-dependent drawing bug to
-work around.
+work around. A script (docs/protocol.md "Grab by label") can also grab a
+point directly, by its label number or by its type and position ("the
+2nd HB"), with no interactive traversal: `{"cmd":"auto","op":"grab","label":4}`
+or `{"cmd":"auto","op":"grab","type":"HB","index":2}`, same outcome as
+grabbing that point by hand and pressing Return. An unknown label, or a
+type/index with no such point, is refused (an error message) and changes
+nothing.
 
 You can traverse the diagram very quickly by tapping the `Tab` key which takes you the special points only. Type `Esc` to exit with no action or type `Return` to grab the point. If it is a regular point (i.e., not special) then the parameters and the variables will be set to the values for that point within XPP. You can then integrate the equations or look at nullclines, etc. If you grab a special point, then you can use this as a restart point for more AUTO calculations, such as fixed period, two-parameter studies, and continuations. Then, you can run AUTO again. Bifurcation diagrams are cumulative unless you reset them in the “File” menu. That is, new stuff is continually appended to the old. The only limit is machine memory.
 

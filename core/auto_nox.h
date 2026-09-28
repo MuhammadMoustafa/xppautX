@@ -176,6 +176,11 @@ int check_plot_type(int flag2,int icp1, int icp2);
 
 /* grabbing and marking points on the diagram (from auto_x11.c) */
 void traverse_diagram(void);
+/* the scriptable grabs: the same outcome as an interactive grab ending
+   with Return on that point (docs/protocol.md "Grab by point"). 1 on
+   success, 0 (nothing changed) when there is no such point. */
+int auto_grab_label(int lab);
+int auto_grab_type_index(const char *type, int index);
 /* asks which kind of special point: its symbol (auto_bif_sym's), or NULL */
 const char *query_special(const char *title);
 void MarkAuto(int x, int y);

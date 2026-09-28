@@ -4,12 +4,15 @@ travels as data, how input is read, and how quickly a long computation stops.
 
 usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [SECTION...]
 
-Sections: diagram, input, abort, control, files, csv, stability, sessions,
+Sections: diagram, grab, input, abort, control, files, csv, stability, sessions,
 session, script, replay, names, scratch (default: all; tools/verify.sh runs
 them all).
 scratch checks that a start removes an xppautoX-<pid>-N folder (xpp_util.cpp's
 AUTO scratch directory) left by a dead pid, and leaves one alone whose pid is
-still running (issue #32). files compares
+still running (issue #32). grab checks "auto" "grab" by label and by type+index
+(issue #112): a periodic run from a point grabbed that way gives the same
+diagram points as grabbing it interactively, and an unknown label or
+type/index is refused. files compares
 AUTO's saved diagram of lecar with a reference; csv checks File/eXport CSV
 (core/csv_export.cpp, W26, issue #42): the diagram and eigenvalues CSVs have
 a header of names, the right row counts, and the eigenvalues file's keys
@@ -37,7 +40,7 @@ ap.add_argument('--server', default='./xppautX')
 ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
 ap.add_argument('--list', action='store_true', help='print the sections run by default and exit')
-ap.add_argument('sections', nargs='*', default=['diagram', 'input', 'abort', 'control', 'files', 'csv', 'stability',
+ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
                                                 'sessions', 'session', 'script', 'replay', 'names', 'scratch'])
 args = ap.parse_args()
 if args.list:
@@ -233,6 +236,90 @@ def section_diagram():
     check('Axes/Fit sends the fitted axes only', diagram_ops(evs) == ['axes'] and same_axes(dg.axes, st),
           '%s axes %s state %s' % (diagram_ops(evs), dg.axes, st))
     s.close()
+
+
+# ---- grab: auto grab by label or type+index (W64, issue #112) -------------
+
+def section_grab():
+    """A periodic run from the diagram's Hopf point, grabbed by label with
+    no ask, gives the same diagram points as grabbing it interactively (by
+    its index, as clicking it does); so does grabbing it by type and index
+    ("the 1st HB"). An unknown label, or a type/index with no such point,
+    is refused and changes nothing."""
+
+    def hopf_of(s):
+        """lecar's "hopf" parameter set, a steady run from it; the Hopf
+        point's diagram index and label (None, None if it has none)"""
+        dg = Diagram().apply(hopf_steady(s))
+        r1 = len(dg.pts)
+        evs = run_any(s, 's')
+        dg.apply(evs)
+        syms = {lab: sym for e in evs if is_point(e) for r in e['runs'] for i, lab, sym in r.get('lab', [])}
+        hb = next((i for i in range(r1, len(dg.pts)) if syms.get(dg.pts[i]['lab']) == 'HB'), None)
+        return dg, (hb, dg.pts[hb]['lab']) if hb is not None else (None, None)
+
+    # interactive path: the same setup, grabbed by its diagram index (as a
+    # diagram click takes the nearest point: docs/protocol.md "Grab by
+    # point"), then its periodic branch
+    s = Server(args.server, LECAR, verbose=args.v)
+    s.collect(is_idle)
+    s.send(cmd='data', events=['autoinfo'])
+    s.collect(is_idle)
+    dg, (hb, label) = hopf_of(s)
+    check('the steady branch has a Hopf point to grab', hb is not None, '')
+    if hb is None:
+        s.close()
+        return
+    grab_point(s, hb, take=True)
+    n = len(dg.pts)
+    dg.apply(run_any(s, 'p'))
+    interactive = list(dg.pts[n:])
+    check('the periodic run from the interactive grab computes points', len(interactive) > 2,
+          '%d points' % len(interactive))
+    s.close()
+
+    # scripted path: the same setup, grabbed by label with no ask
+    s2 = Server(args.server, LECAR, verbose=args.v)
+    s2.collect(is_idle)
+    dg2, (hb2, label2) = hopf_of(s2)
+    check('the second server\'s run finds the same label', label2 == label, '%s vs %s' % (label2, label))
+    s2.send(cmd='auto', op='grab', label=label)
+    evs, _ = s2.collect(is_idle)
+    check('grab by label asks nothing', not any(is_ask(e) for e in evs), str([e.get('ev') for e in evs]))
+    n = len(dg2.pts)
+    dg2.apply(run_any(s2, 'p'))
+    scripted = list(dg2.pts[n:])
+    check('a periodic run from "auto grab label" gives the same diagram points as grabbing it interactively',
+          interactive == scripted, 'interactive %d points, scripted %d points' % (len(interactive), len(scripted)))
+
+    # an unknown label is refused; nothing changes (no diagram event, no ask)
+    s2.send(cmd='auto', op='grab', label=999999)
+    evs, _ = s2.collect(is_idle)
+    errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+    check('an unknown label is refused (a message error)', bool(errs), str(errs))
+    check('an unknown label changes nothing (no diagram event, no ask)',
+          not diagram_ops(evs) and not any(is_ask(e) for e in evs), str([e.get('ev') for e in evs]))
+    s2.close()
+
+    # by type and index: "the 1st HB" is the same point as the label grabbed
+    s3 = Server(args.server, LECAR, verbose=args.v)
+    s3.collect(is_idle)
+    dg3, _ = hopf_of(s3)
+    s3.send(cmd='auto', op='grab', type='HB', index=1)
+    evs, _ = s3.collect(is_idle)
+    check('grab by type and index asks nothing', not any(is_ask(e) for e in evs), str([e.get('ev') for e in evs]))
+    n = len(dg3.pts)
+    dg3.apply(run_any(s3, 'p'))
+    by_type = list(dg3.pts[n:])
+    check('grab by type and index (the 1st HB) gives the same diagram points as grab by label',
+          by_type == scripted, '%d points vs %d' % (len(by_type), len(scripted)))
+
+    # an out-of-range index is refused too
+    s3.send(cmd='auto', op='grab', type='HB', index=99)
+    evs, _ = s3.collect(is_idle)
+    errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+    check('an out-of-range type/index is refused too', bool(errs), str(errs))
+    s3.close()
 
 
 # ---- input: end of input, pipelined commands, no polling -------------------

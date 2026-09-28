@@ -677,6 +677,25 @@ if ask:
     check('Auto/Run after a Grab restarts from the label and the server survives',
           e is not None and proc.poll() is None, 'exit code %s' % proc.poll())
 
+    # W64 (issue #112): "auto" "grab" by label, no ask (docs/protocol.md
+    # "Grab by label"). autocheck.py's grab section is the fuller check (a
+    # periodic run from a label matches the same run from an interactive
+    # grab); here just that it grabs with no ask and an unknown label is
+    # refused, changing nothing.
+    labs = sorted({(i, lab) for e in adds for r in e['runs'] for i, lab, _sym in r.get('lab', [])})
+    target_label = labs[1][1] if len(labs) > 1 else None
+    if target_label is not None:
+        send(cmd='auto', op='grab', label=target_label)
+        evs, _ = collect(is_idle)
+        check('grab by label asks nothing', not any(e.get('ev') == 'ask' for e in evs), str([e.get('ev') for e in evs]))
+        check('the server survives a grab by label', proc.poll() is None, 'exit code %s' % proc.poll())
+    send(cmd='auto', op='grab', label=999999)
+    evs, _ = collect(is_idle)
+    errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+    check('grab by an unknown label is refused (a message error)', bool(errs), str(errs))
+    check('an unknown label changes nothing (no diagram event, no ask)',
+          not any(e.get('ev') in ('diagram', 'ask') for e in evs), str([e.get('ev') for e in evs]))
+
     # T21: an Axes change draws the diagram again in the new quantities (no
     # reDraw: a data client shows what the core sent), File/Reset diagram
     # empties it at once, and Usr period's prompts say what it does

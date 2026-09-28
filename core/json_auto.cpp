@@ -496,7 +496,23 @@ void auto_command(const char *line)
     else if (o == "axes") auto_plot_par();
     else if (o == "numerics") auto_num_par();
     else if (o == "run") auto_run();
-    else if (o == "grab") auto_grab();
+    else if (o == "grab") {
+        /* a label, or a type and index ("the 2nd HB"), grabs that stored
+           point directly, exactly as the interactive grab ending with
+           Return on it would (docs/protocol.md "Grab by label"); with
+           neither, the interactive grab starts as before. */
+        const char *jl = js_find(line, "label");
+        std::string type;
+        if (jl != NULL) {
+            int lab = static_cast<int>(js_num(jl, 0));
+            if (!auto_grab_label(lab))
+                j_err_msg(xpp::format("Grab: no point labelled {}", lab).c_str());
+        } else if (get_string(line, "type", type, 8) && js_find(line, "index") != NULL) {
+            int idx = get_int(line, "index", 0);
+            if (!auto_grab_type_index(type.c_str(), idx))
+                j_err_msg(xpp::format("Grab: no {} point number {}", type, idx).c_str());
+        } else auto_grab();
+    }
     else if (o == "usr") auto_per_par();
     else if (o == "clear") draw_bif_axes();
     else if (o == "redraw") redraw_diagram();

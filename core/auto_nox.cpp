@@ -2981,6 +2981,7 @@ void DLINE(double a,double b,double c,double d)
 #undef RIGHT
 #include "mykeydef.h"
 static DIAGRAM *CUR_DIAGRAM;
+static void grab_diagram_point(const DIAGRAM *d);
 
 const char *query_special(const char *title)
 {
@@ -2997,7 +2998,7 @@ void traverse_diagram()
 {
   DIAGRAM *d,*dnew,*dold;
   int done=0;
-  int ix,iy,i; 
+  int ix,iy;
   int lalo;
   int kp;
   int xm,ym;
@@ -3251,30 +3252,78 @@ void traverse_diagram()
     if(diagram_mark.start_branch!=diagram_mark.end_branch)
       diagram_mark.state=0;
   }
-  if(done==1){
-    grabpt.ibr=d->ibr;
-    grabpt.lab=d->lab;
-    for(i=0;i<8;i++)
-    grabpt.par[i]=d->par[i];
-    grabpt.per=d->per;
-    grabpt.torper=d->torper;
-    for(i=0;i<xpp::model().node;i++){
-      grabpt.uhi[i]=d->uhi[i];
-      grabpt.ulo[i]=d->ulo[i];
-      grabpt.u0[i]=d->u0[i];
-      grabpt.ubar[i]=d->ubar[i];
-      set_ivar(i+1,grabpt.u0[i]);
-    }
-    get_ic(0,grabpt.u0);
-    grabpt.flag=1;
-    grabpt.itp=d->itp;
-    grabpt.nfpar=d->nfpar;
-    auto_set_pars_from(grabpt.par);
-  }
+  if(done==1) grab_diagram_point(d);
   evaluate_derived();
   redo_all_fun_tables();
   redraw_params();
   redraw_ics();
+}
+
+/* takes diagram point d exactly as traverse_diagram's Return does: grabpt,
+   the parameters, the initial condition. The caller finishes the grab
+   (evaluate_derived/redo_all_fun_tables/redraw_params/redraw_ics), since
+   auto_grab_label and auto_grab_type_index share that with traverse_diagram. */
+static void grab_diagram_point(const DIAGRAM *d)
+{
+  int i;
+  grabpt.ibr=d->ibr;
+  grabpt.lab=d->lab;
+  for(i=0;i<8;i++)
+    grabpt.par[i]=d->par[i];
+  grabpt.per=d->per;
+  grabpt.torper=d->torper;
+  for(i=0;i<xpp::model().node;i++){
+    grabpt.uhi[i]=d->uhi[i];
+    grabpt.ulo[i]=d->ulo[i];
+    grabpt.u0[i]=d->u0[i];
+    grabpt.ubar[i]=d->ubar[i];
+    set_ivar(i+1,grabpt.u0[i]);
+  }
+  get_ic(0,grabpt.u0);
+  grabpt.flag=1;
+  grabpt.itp=d->itp;
+  grabpt.nfpar=d->nfpar;
+  auto_set_pars_from(grabpt.par);
+}
+
+/* grabs the diagram point labelled lab exactly as an interactive grab
+   ending with Return on it would (docs/protocol.md "Grab by point"): same
+   grabpt, parameters, info strip and stability circle, and what a
+   following Run starts from. Returns 0 and changes nothing for a label no
+   stored point has. */
+int auto_grab_label(int lab)
+{
+  const DIAGRAM *d=diagram_of_label(lab);
+  if(d==NULL) return 0;
+  grab_diagram_point(d);
+  evaluate_derived();
+  redo_all_fun_tables();
+  redraw_params();
+  redraw_ics();
+  return 1;
+}
+
+/* grabs the index'th (1-based) stored point of AUTO's type `type`
+   (auto_bif_sym's BP/EP/HB/LP/MX/PD/TR/UZ), in stored order: "the 2nd HB".
+   Returns 0 and changes nothing when there is no such point. */
+int auto_grab_type_index(const char *type, int index)
+{
+  const DIAGRAM *d;
+  int count=0;
+  if(index<1 || diagram_count()<2) return 0;
+  for(d=diagram_first();d!=NULL;d=diagram_next(d)){
+    if(d->lab!=0 && strcmp(auto_bif_sym(d->itp),type)==0){
+      count++;
+      if(count==index) break;
+    }
+  }
+  if(d==NULL) return 0;
+  grab_diagram_point(d);
+  evaluate_derived();
+  redo_all_fun_tables();
+  redraw_params();
+  redraw_ics();
+  return 1;
 }
 
 void MarkAuto(int x, int y)
