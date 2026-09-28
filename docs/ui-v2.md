@@ -135,7 +135,8 @@ bundle is ~95 KB of JS (Preact 4 KB, uPlot 50 KB), 11 KB of CSS, 48 KB of font.
   (`"enc":"f32"` in the `data` command, base64 of little-endian floats) is
   an option for very long runs, not the default; web2 asks for it.
 - **Increments for long runs.** A long integration or AUTO run sends `append`
-  parts at most ~10 times a second (like `progress` and `diagram add`), and
+  parts at most ~60 times a second (a display frame, W82; `progress` and
+  `diagram add` stay at ~10), and
   the final state at the end.
 - **Every command still ends with `state` then `idle`.** Data events come
   before them.
@@ -476,8 +477,8 @@ Target: WCAG 2.2 AA. Rules:
   a command"); the status bar says what runs ("Running Go… Esc stops").
   Typing ahead into a menu still works (a menu is a question, not a
   computation), and value edits wait for the next computation (W69). The
-  bar itself has a fixed height, and reserves a fixed-width slot for the
-  progress bar and Stop/"Stopping…" (theme.css `.status-run`, visibility
+  bar itself has a fixed height, and reserves a fixed-width slot at its
+  right end (W86, GitHub #135) for the progress bar and Stop/"Stopping…" (theme.css `.status-run`, visibility
   toggled, never mounted/unmounted) so a run starting or ending never
   resizes the bar or shifts the plot above it or the message/rows beside
   it (W83, GitHub #132).

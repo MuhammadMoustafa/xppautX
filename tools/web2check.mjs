@@ -232,6 +232,13 @@ async function desktop(want) {
   check('the page connects and asks for the plot as data', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
   check('an empty plot says so and offers Integrate',
     await cdp.eval(`!!document.querySelector('.plot-empty button')`));
+  /* W85: with no data uPlot padded the window and rounded it to "nice"
+     values (lecar's -0.25..1.2 read as about -0.4..1.4 until the first run) */
+  const emptyPlot = await P(), emptyView = await S('s.core.view');
+  check("an empty plot shows the core's window exactly, before any run (W85)",
+    emptyPlot && emptyView && [[emptyPlot.x.min, emptyView.xlo], [emptyPlot.x.max, emptyView.xhi],
+      [emptyPlot.y.min, emptyView.ylo], [emptyPlot.y.max, emptyView.yhi]].every(([a, b]) => Math.abs(a - b) < 1e-9),
+    JSON.stringify([emptyPlot && emptyPlot.x, emptyPlot && emptyPlot.y, emptyView]));
 
   /* T20: a click on the empty plot away from the Integrate button, nothing edited */
   const emptyHost = await cdp.eval(`(() => { const r = document.querySelector('.plot-host').getBoundingClientRect();
@@ -2756,10 +2763,17 @@ async function statusBarLayout() {
   const running = await box();
   const runningUi = await cdp.eval(`(() => { const p = document.querySelector('.status-bar progress'),
       b = document.querySelector('.status-bar button.danger');
+    const bar = document.querySelector('.status-bar'), slot = document.querySelector('.status-run'),
+      last = [...bar.children].filter(c => getComputedStyle(c).display !== 'none').pop();
     return {progressShown: p.classList.contains('shown') && getComputedStyle(p).visibility === 'visible',
-      stopShown: b.classList.contains('shown') && getComputedStyle(b).visibility === 'visible' && !b.disabled}; })()`);
+      stopShown: b.classList.contains('shown') && getComputedStyle(b).visibility === 'visible' && !b.disabled,
+      slotLast: last === slot,
+      slotRightGap: Math.round(bar.getBoundingClientRect().right - slot.getBoundingClientRect().right
+        - parseFloat(getComputedStyle(bar).paddingRight))}; })()`);
   check('status bar: while a run shows, the progress bar and Stop button are visible in the reserved slot',
     runningUi.progressShown && runningUi.stopShown, JSON.stringify(runningUi));
+  check('status bar: the progress bar and Stop sit at the right end of the bar, after the rows (W86)',
+    runningUi.slotLast && Math.abs(runningUi.slotRightGap) <= 1, JSON.stringify(runningUi));
   await focusPlot();
   await key('Escape');
   await until('!s.busy', 'run stopped', 30000);

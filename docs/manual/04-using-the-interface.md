@@ -58,8 +58,8 @@ below that, opened from the title bar), the plot area with its tabs, and
 a **status bar** along the bottom that shows "Working…" with a progress
 bar and one **Stop** control whenever a command is running (in any view;
 there is no per-view Abort button — see "Long-running commands" below).
-The bar keeps a fixed height and a fixed-width slot for the progress bar
-and Stop/"Stopping…", reserved whether or not a run is going, so a
+The bar keeps a fixed height and, at its right end, a fixed-width slot
+for the progress bar and Stop/"Stopping…", reserved whether or not a run is going, so a
 command starting or ending never resizes the bar or shifts the plot
 above it.
 What XPP prints appears under **Messages** at the bottom of the page as

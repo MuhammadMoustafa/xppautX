@@ -65,6 +65,9 @@ interface CurveTraces {
   complete: CurveTrace | null;
 }
 
+/** a scale's range function that keeps the range it is given (W85) */
+const asGiven: uPlot.Range.Function = (_u, min, max) => [min ?? 0, max ?? 1];
+
 function extent(arrays: Float32Array[]): Range | null {
   let min = Infinity, max = -Infinity;
   for (const a of arrays)
@@ -269,7 +272,11 @@ export class Chart {
       mode: m.mode,
       width, height,
       legend: {show: false},
-      scales: {x: {time: false, auto: false}, y: {auto: false}},
+      /* the range as given: with no data yet (before a first run) uPlot's
+         setScale passes it through the scale's range function, whose default
+         pads it and rounds it to "nice" values (the model's -110..60 read as
+         -130..80 until the run's rows came, W85) */
+      scales: {x: {time: false, auto: false, range: asGiven}, y: {auto: false, range: asGiven}},
       axes: [axis(m.xLabel), axis(m.yLabel)],
       series: [{}, ...series],
       cursor: {

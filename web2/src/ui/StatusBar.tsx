@@ -1,6 +1,6 @@
 /* The bottom line: connection, work in progress (what runs and that Escape
-   stops it, progress, Stop, then Stopping… until the run ends), the core's
-   last message, stored rows. */
+   stops it), the core's last message, stored rows, and at the right end
+   progress, Stop, then Stopping… until the run ends. */
 import {busyText} from '../store/state';
 import {useSession, useStore} from './context';
 
@@ -26,10 +26,12 @@ export function StatusBar() {
     <footer class="status-bar">
       <span class={`status-dot ${dot}`} aria-hidden="true" />
       <span role="status" data-testid="status">{status}</span>
+      <span class="status-message">{bottom}</span>
+      <span class="muted rows">{rows} rows</span>
       {/* W83: a fixed-width slot the bar always keeps (theme.css .status-run), so
           the progress bar and Stop button toggling with a run never resize the
           bar or move the message/rows beside it; visibility, not mount/unmount,
-          keeps the box. */}
+          keeps the box. At the bar's right end, after the rows (W86). */}
       <span class="status-run">
         <progress class={progress ? 'shown' : ''} max={progress?.of ?? 1} value={progress?.n ?? 0}
           aria-hidden={progress ? undefined : 'true'} aria-label="Progress">
@@ -41,8 +43,6 @@ export function StatusBar() {
           {stopping ? 'Stopping…' : 'Stop'}
         </button>
       </span>
-      <span class="status-message">{bottom}</span>
-      <span class="muted rows">{rows} rows</span>
     </footer>
   );
 }

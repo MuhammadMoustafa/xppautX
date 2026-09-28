@@ -536,7 +536,7 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
 .status-dot.down { background: var(--danger); }
 /* W83: a fixed-width slot the bar always keeps for the progress bar and the
    Stop/Stopping… button, so a run starting or ending never resizes the bar
-   or shifts the message/rows to its right; visibility (never display or
+   or shifts the message/rows beside it (at the right end, W86); visibility (never display or
    mount/unmount) keeps each one's box reserved while it is not shown. */
 .status-run { flex: none; display: flex; align-items: center; gap: var(--space-2); width: 10.5rem; }
 .status-run progress { width: 4.5rem; visibility: hidden; }

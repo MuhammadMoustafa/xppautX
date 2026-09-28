@@ -148,6 +148,8 @@ issue; the card here is the one kept up to date.
 | W82 | #131 | Live integration plotting less smooth than before (maintainer, 2026-09-28): a perf line for a live run's frame gaps (measured, never failed), bisect 8539ca9..master, fix the cause; CI perf: 10^6 time plot draw 202 to 320 ms on Linux | none | done |
 | W83 | #132 | The progress bar changes the layout (maintainer, 2026-09-28): progress in the status bar beside Ready, on the right, in space the bar always keeps; the status bar and plot keep their size idle, running and after | none | done |
 | W84 | #133 | Faster review gates (maintainer, 2026-09-28): one verify.sh at a time (it takes a flock and a second run waits); the reviewer verifies a wave's merged tip once instead of every branch after each rebase; a web2-only task runs `verify.sh --no-source-checks`; verify.sh from a WSL-native copy timed against /mnt/c (22.6 min cold, 25.3 warm) and there (about 6.5 min cold), so adopted: `tools/wslrun.sh` | none | done |
+| W85 | #134 | The plot's axes before a run are the model's (maintainer, 2026-09-28): with no data, uPlot padded and rounded the window (-110..60 read as -130..80); the chart's scales take the range as given | none | done |
+| W86 | #135 | Progress bar at the right end of the status bar (maintainer, 2026-09-28; W83 put it after Ready): the fixed slot moves to the bar's right end, nothing moves as it shows or hides | none | done |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
