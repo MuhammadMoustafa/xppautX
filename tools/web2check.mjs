@@ -3018,11 +3018,13 @@ async function runsCheck(dir) {
   await key('g');
   check('runs: reset restores the model value', await until('!s.busy && s.core.pars.find(p => p[0] === "phi")[1] === 0.333', 'reset'));
 
-  /* Save, then Load a changed copy (GitHub #117): the load stays pending,
-     nothing sent, until Go flushes it as one set, at most one run. Save
-     (W66) is the core's own write (docs/protocol.md "values"): it lands
-     in the model's folder, the same `pendingSave`/`deliver` path as
-     Write set (T5, above) offers it as a download */
+  /* Save, then Load a changed copy (W66 review, #114): both go through
+     the core (docs/protocol.md "values"). Save writes into the model's
+     folder, the same `pendingSave`/`deliver` path as Write set (T5,
+     above) offers it as a download; Load uploads the picked file with
+     the files API (session.ts loadValues, the same PUT any other upload
+     uses) and sends `values` `read` -- applied at once, like File/Read
+     set, not staged as a pending edit, so no Go is needed. */
   await cdp.eval(`[...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Save').click()`);
   await until("s.files.offered && s.files.offered.name.endsWith('.par') && !s.busy", 'par saved');
   const parName = await S('s.files.offered.name');
@@ -3031,37 +3033,37 @@ async function runsCheck(dir) {
     saved.slice(0, 80));
   const parFile = path.join(dir, 'changed.par');
   fs.writeFileSync(parFile, saved.replace('\n0.05  iapp\n', '\n0.075  iapp\n'));
-  const sent0 = (await cdp.eval('__xpp.sent().length'));
   await pickFiles('#values-load-par', [parFile]);
-  await until('s.values.pending.length === 1', 'par file pending');
-  check('runs: Load stays pending: nothing is sent, the core value is unchanged',
-    (await cdp.eval(`__xpp.sent().slice(${sent0}).length`)) === 0
-    && Math.abs((await S('s.core.pars.find(p => p[0] === "iapp")[1]')) - 0.05) < 1e-9,
-    JSON.stringify(await S('s.values.pending')));
-  await focusPlot();
-  await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'Initialconds menu (par load)');
-  await key('g');
-  check('runs: Go flushes the loaded file as one set, then the run',
-    await until('!s.busy && s.core.pars.find(p => p[0] === "iapp")[1] === 0.075', 'load flushed')
-    && (await cdp.eval(`__xpp.sent().slice(${sent0}).filter(c => c.cmd === 'set').length`)) === 1,
-    JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sent0})`)));
+  check('runs: Load applies at once, no Go needed',
+    await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.075) < 1e-9', 'par load applied'),
+    await S('s.core.pars.find(p => p[0] === "iapp")'));
+  check('runs: the loaded file was copied into the model\'s folder',
+    fs.existsSync(path.join(dir, 'changed.par')), '');
+
   await cdp.eval(`[...document.querySelectorAll('[data-section="ic"] .value-tools button')].find(b => b.textContent === 'Save').click()`);
   await until("s.files.offered && s.files.offered.name.endsWith('.ic') && !s.busy", 'ic saved');
   const icName = await S('s.files.offered.name');
   const icText = fs.readFileSync(path.join(dir, icName), 'utf8').replace(/\r\n/g, '\n');
+  check('runs: IC Save is the values alone, one per node variable (V, W: 2 lines)',
+    icText.trim().split('\n').length === 2, icText);
   const icFile = path.join(dir, 'changed.ic');
   fs.writeFileSync(icFile, '-0.25\n0.1\n');
   await pickFiles('#values-load-ic', [icFile]);
-  await until('s.values.pending.length === 2', 'ic file pending');
-  await focusPlot();
-  await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'Initialconds menu (ic load)');
-  await key('g');
-  check('runs: IC Save is the values alone; Load stays pending until Go sets them',
-    icText.trim().split('\n').length === 2
-    && await until('!s.busy && s.core.ics[0][1] === -0.25 && s.core.ics[1][1] === 0.1', 'ic load flushed'),
-    icText);
+  check('runs: IC Load applies at once too',
+    await until('!s.busy && s.core.ics[0][1] === -0.25 && s.core.ics[1][1] === 0.1', 'ic load applied'),
+    await S('s.core.ics'));
+
+  const badPar = path.join(dir, 'bad.par');
+  fs.writeFileSync(badPar, '3   Number params\n1\n2\n3\n');
+  await pickFiles('#values-load-par', [badPar]);
+  check('runs: a par file with the wrong count is refused with the core\'s own message',
+    await until("s.bottom && /Incompatible parameters/.test(s.bottom)", 'bad par message'), await S('s.bottom'));
+
+  const badIc = path.join(dir, 'bad.ic');
+  fs.writeFileSync(badIc, '-0.1\n');
+  await pickFiles('#values-load-ic', [badIc]);
+  check('runs: an ic file with too few values is refused with the core\'s own message',
+    await until("s.bottom && /Expected 2 initial conditions/.test(s.bottom)", 'bad ic message'), await S('s.bottom'));
 
   /* a slider: its default range is [0, 2v]; a drag sends nothing (GitHub
      #117), only becomes pending, and the release leaves its final value */
@@ -4103,7 +4105,7 @@ async function main() {
     if (run('million')) await session(MILLION, million);
     if (run('ani')) await session(ODE, animation);
     if (run('kinescope')) await session(ODE, kinescope);
-    if (run('runs')) await session(ODE, runsCheck);
+    if (run('runs')) await session(ODE, runsCheck, ['Incompatible parameters', 'Expected 2 initial conditions but only found 1 in bad.ic.']);
     /* WF-001: %bogus_symbol_zzz is refused on purpose, logging the core's own "Illegal formula
        .." (xpp_util.cpp) and "Bad formula" (json_state.cpp apply_value) */
     if (run('values')) await session(LIVE, valuesLive, ['Illegal formula ..', 'Bad formula']);

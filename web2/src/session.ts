@@ -23,7 +23,6 @@ import {snapshotWindow} from './store/kinescope';
 import {planRequest} from './store/table';
 import type {TextTab} from './store/text';
 import {fieldKey, setCommand, type ValueSet} from './store/values';
-import {parseValuesFile} from './store/valueFiles';
 import {parseSettings, setCommand as autoSetCommand, type AutoSettingsPatch} from './store/autoSettings';
 
 /** the data browser's buttons (docs/protocol.md `browser` op; web/xpp-client.js's BROWSER_BUTTONS) */
@@ -669,19 +668,32 @@ export class Session {
     this.send({cmd: 'values', op: 'write', kind, name});
   }
 
-  /** Load of a section: the file's values pending like any edit; null when
-      done, else what is wrong with the file (also a notification) */
-  loadValues(kind: 'par' | 'ic', text: string): string | null {
-    const st = this.store.getState();
-    const names = ((kind === 'par' ? st.core?.pars : st.core?.ics) ?? []).map(([n]) => n);
-    const parsed = parseValuesFile(text, names);
-    if (parsed.error) {
-      this.store.dispatch({type: 'toast', kind: 'error', text: parsed.error});
-      return parsed.error;
+  /** Load of a section (W66 review): the picked file goes into the
+      model's folder, the same PUT `addMissingFile` uses for an upload
+      with a known name, then the core reads it with `values` `read`
+      (io_parameter_file/io_ic_file, READEM) -- at once, like File/Read
+      set, not staged as a pending edit (the values panel has nothing
+      left to parse: the file is XPP's own par/ic format, or nothing
+      reads it). A bad file's `message` `error` (core/lunch-new.cpp
+      err_msg, e.g. "Expected N initial conditions...") becomes a
+      notification the same way any other command's does. */
+  async loadValues(kind: 'par' | 'ic', file: File): Promise<void> {
+    if (!this.files) return;
+    if (!safeName(file.name)) {
+      this.failed(`XPP cannot use a file named "${file.name}" in the model's folder. Rename it and pick it again.`);
+      return;
     }
-    this.store.dispatch({type: 'values', action: {type: 'defaulted', kind}});
-    for (const [name, v] of parsed.values) this.edit({kind, name, text: v});
-    return null;
+    if (file.size > FILE_CAP) {
+      this.failed(`${file.name} is larger than 64 MB, the most the model's folder takes from the page.`);
+      return;
+    }
+    try {
+      await this.files.put(file.name, file);
+    } catch (e) {
+      this.failed(e instanceof Error ? e.message : String(e));
+      return;
+    }
+    this.send({cmd: 'values', op: 'read', kind, name: file.name});
   }
 
   /** an `@ button` of the ODE file */

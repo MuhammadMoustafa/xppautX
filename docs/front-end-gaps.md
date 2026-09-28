@@ -71,6 +71,13 @@ Nothing. Fixes from hands-on use are tracked in docs/ui-v2.md (T19).
   until the run's `idle`. The AUTO window's × and Close, clicked while busy,
   send Abort and close once the run's `idle` arrives, instead of being
   dropped.
+- Values panel Load (W66 review, #114) reads a .par/.ic file through the
+  core (`values` `read`, core/lunch-new.cpp io_parameter_file/io_ic_file),
+  exactly the format XPPAUT itself reads. An earlier web2-only draft also
+  accepted plain "name value" / "name=value" lines, a convenience XPPAUT
+  never had; that parsing (store/valueFiles.ts parseValuesFile) is gone,
+  so a file in that shape is refused with the core's own message now,
+  same as an XPPAUT user would see.
 
 ## Not done
 

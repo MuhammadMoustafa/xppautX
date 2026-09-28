@@ -337,13 +337,15 @@ void io_parameter_file(const char *fn,int flag)
   w.commit();
 }
 
-/* the -icfile / Initialconds/File format: the values alone, one per line,
-   in the model's order (node, then the Markov chains: docs/manual
-   16-quick-reference.md); io_parameter_file's write shares its writer and
-   overwrite-ask (open_writer_asking), the read its TokenReader */
+/* the -icfile / Initialconds/File format: the values alone, one per
+   line, one per differential-equation variable, in the model's order --
+   exactly `node` of them, as XPPAUT's own io_ic_file always read (the
+   Markov chains are not in this file, in XPPAUT or here: docs/manual
+   16-quick-reference.md); io_parameter_file's write shares its writer
+   and overwrite-ask (open_writer_asking), the read its TokenReader */
 void io_ic_file(const char *fn,int flag)
 {
-  int n=xpp::model().node+xpp::model().nmarkov;
+  int n=xpp::model().node;
   if(flag==READEM){
     xpp::TokenReader tr(fn);
     if(!tr){

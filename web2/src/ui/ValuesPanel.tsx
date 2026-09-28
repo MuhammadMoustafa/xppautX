@@ -137,7 +137,8 @@ function fieldProps(value: string | number) {
   };
 }
 
-/** Save and Load of a section's values (store/valueFiles.ts) */
+/** Save and Load of a section's values, both through the core (session.ts
+    saveValues/loadValues, docs/protocol.md "values", W66 review) */
 function FileTools({kind}: {kind: 'par' | 'ic'}) {
   const session = useSession();
   const input = useRef<HTMLInputElement>(null);
@@ -149,11 +150,11 @@ function FileTools({kind}: {kind: 'par' | 'ic'}) {
         Save
       </button>
       <button class="small" onClick={() => input.current?.click()}
-        title={`Load ${what} from a saved file (XPP's, or "name value" lines)`}>Load</button>
+        title={`Load ${what} from a file in XPP's own format`}>Load</button>
       <input ref={input} id={`values-load-${kind}`} type="file" hidden
         onChange={async e => {
           const el = e.target as HTMLInputElement, file = el.files?.[0];
-          if (file) session.loadValues(kind, await file.text());
+          if (file) await session.loadValues(kind, file);
           el.value = '';
         }} />
     </>

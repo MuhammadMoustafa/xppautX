@@ -459,7 +459,7 @@ run or the files, not the X11 windows:
   | 0.050000001 | -0.36620989 | 0.087350026 |
   | 0.1 | -0.3715646 | 0.083690271 |
   | ⋮ | ⋮ | ⋮ |
-- **-icfile *filename***: loads initial conditions from the named file, one value per line mapped to the variables in file order (variables with a differential equation, Wiener and Markov variables), e.g. (`lecar.ic`, for `V`, `W`): `-0.3606` then `0.0911`.
+- **-icfile *filename***: loads initial conditions from the named file, one value per line, one per variable with a differential equation, in order (Markov states are not in the file, as in XPPAUT), e.g. (`lecar.ic`, for `V`, `W`): `-0.3606` then `0.0911`.
 - **-internset *B***: run (`1`) or not (`0`) internal sets during a batch run.
 - **-uset *setname***: names an internal set to run during a batch run (repeatable).
 - **-rset *setname***: names an internal set *not* to run during a batch run (repeatable).

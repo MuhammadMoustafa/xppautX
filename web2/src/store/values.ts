@@ -2,20 +2,21 @@
    (docs/protocol.md `set`, `slide`, `default`; docs/ui-v2.md T3,
    GitHub #117): the values themselves stay in AppState.core (the `state`
    event), sent by the core. This slice is only what the page adds: the
-   edits not yet sent (sliders, value fields, Default/Reset, a loaded
-   .par/.ic: the latest per field, shown as pending until session.ts sends
-   them all in one `set` right before the next command that computes, so
-   every computation uses what the panel shows -- nothing is sent on a
-   plain edit, busy or idle), which field an edit is attributed to (so a
+   edits not yet sent (sliders, value fields, Default/Reset: the latest
+   per field, shown as pending until session.ts sends them all in one
+   `set` right before the next command that computes, so every
+   computation uses what the panel shows -- nothing is sent on a plain
+   edit, busy or idle), which field an edit is attributed to (so a
    `message` `error` can be shown on that field, not as a modal, A11/A14),
    the model's defaults and the sliders under the plot (store/sliders.ts).
-   Save and Load of a section's .par/.ic (store/valueFiles.ts) go through
-   the core (W66): Save is the `values` command's write, delivered like
-   any other file the core writes (session.ts's `pendingSave`); Load still
-   parses the file in the page (session.ts loadValues), its values queued
-   as pending like any edit. No undo (GitHub #110): Reset (one field, or
-   every field of a section) is the way back, through the model's own
-   values. Pure: no DOM, no I/O. */
+   Save and Load of a section's .par/.ic go through the core (W66, then
+   the W66 review): both are the `values` command (session.ts
+   saveValues/loadValues), Save's write delivered like any other file the
+   core writes (session.ts's `pendingSave`), Load's read applying at
+   once, like File/Read set -- not staged here as a pending edit, since
+   the page no longer parses the file itself. No undo (GitHub #110):
+   Reset (one field, or every field of a section) is the way back,
+   through the model's own values. Pure: no DOM, no I/O. */
 import type {Command} from '../protocol/types';
 import {presetSliders, type SliderDef} from './sliders';
 

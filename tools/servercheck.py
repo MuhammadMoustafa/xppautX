@@ -1267,6 +1267,47 @@ def check_values_protocol():
 check_values_protocol()
 
 
+# W66 review: XPPAUT's -icfile/io_ic_file reads and writes exactly `node`
+# values -- one per differential-equation variable, never the Markov
+# chains -- so a Markov model's .ic file stays the file XPPAUT itself
+# reads (kepler.ode: x1, x2 are node, z is a markov chain, not in the file).
+def check_ic_file_markov():
+    pm, rm, sndm, colm, _ = launch_server(ode='examples/ode/kepler.ode')
+    ic = lambda st, n: next(v for k, v in st['ics'] if k.lower() == n)
+    try:
+        evs, _ = colm(is_idle)
+        st0 = last_state(evs)
+        # state.ics (the values panel's own list, docs/protocol.md `state`)
+        # still has all 3 -- x1, x2 and the markov chain z, which the panel
+        # does let a user edit -- unlike the .ic file below, which is
+        # exactly XPPAUT's own node-only format.
+        check('kepler.ode: state.ics has x1, x2 and the markov chain z (3)',
+              st0 is not None and len(st0['ics']) == 3
+              and [n.lower() for n, _ in st0['ics']] == ['x1', 'x2', 'z'],
+              str(st0 and st0['ics']))
+
+        sndm(cmd='values', op='write', kind='ic', name='kepler_markov.ic')
+        colm(is_idle)
+        with open(os.path.join(rm, 'kepler_markov.ic')) as f:
+            lines = [l.strip() for l in f if l.strip()]
+        check('values write ic on a markov model: exactly `node` lines (2), z excluded',
+              lines == ['0.0001', '0.0001'], str(lines))
+
+        sndm(cmd='set', kind='ic', name='x1', value=0.5)
+        colm(is_idle)
+        sndm(cmd='values', op='read', kind='ic', name='kepler_markov.ic')
+        evs, _ = colm(is_idle)
+        st = last_state(evs)
+        check('values read ic on a markov model restores the 2 node values (z untouched)',
+              st is not None and ic(st, 'x1') == 0.0001 and ic(st, 'x2') == 0.0001 and ic(st, 'z') == ic(st0, 'z'),
+              str(st and st['ics']))
+    finally:
+        stop_server(pm, rm, sndm)
+
+
+check_ic_file_markov()
+
+
 # Nullclines, direction fields and flows as data (docs/protocol.md "The
 # plot as data", docs/ui-v2.md T7), in plot coordinates.
 def check_phase_data():
