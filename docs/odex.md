@@ -192,6 +192,13 @@ moves what followed a `.ode`'s `done` into a closing comment block);
 `#include` is the statement `include "file.incx"`, include files taking
 the `.incx` extension.
 
+Kept from `.ode` (decided, maintainer, 2026-09-28): `aux` stays `aux`, a
+quantity recorded as an output column (saved, shown, plotted), where
+`d = expr` is the same computation not recorded. `watch` was considered
+and refused: it reads as a watchpoint that fires or pauses; `output`
+was the alternative, but `aux` is what every XPPAUT user, the book, the
+examples and the extension already use, and `--convert` keeps it as is.
+
 Logical/operator words: `and`, `or`, `not`, `mod`.
 
 Integral operator: `volterra` (replaces `.ode`'s `int{...}`, `int[mu]{...}`;
