@@ -220,8 +220,6 @@ on the project's [issue tracker](https://github.com/MuhammadMoustafa/xppautX/iss
   [Functional equations](08-functional-equations.md),
   [Auto interface](09-auto.md) and
   [Creating Animations](10-animations.md) — the specialized views
-- [C Files](15-generated-c-files.md) — compiling a model's right-hand
-  sides for speed
 - [Quick reference](16-quick-reference.md) — the ODE file cheat sheet,
   built-in functions and the full command-line option list
 

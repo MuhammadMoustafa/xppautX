@@ -114,10 +114,10 @@ This is so important that a section is devoted to it. See below.
 ### (F)ile
 
 This brings up a menu with several options. Type `Esc` to abort.
-- **(P)rt info**: Brings up a window with the source code for the ODE file. If you click on `Action` it brings up the active comments so you can make little tutorials.
+- **(P)rt src**: Brings up a window with the source code for the ODE file. If you click on `Action` it brings up the active comments so you can make little tutorials.
 - **(W)rite set**: This creates a file with all of the info about the current numerics, etc as well as all of the currently highlighted graphics window. It is readable by the user. It in some sense saves the current state of XPP and can be read in later.
 - **(R)ead set**: This reads a set that you have previously written. The files are very tightly connected to the current ODE file so you should not load a saved file from one equation for a different problem.
-- **(A)uto**: This brings up the AUTO window if you have installed AUTO. See below for a description of this.
+- **(A)uto**: This brings up the AUTO window. See below for a description of this.
 - **(C)alculator**: This pops up a little window. Type formulae in the command line involving your variables and the results are displayed in the popup. Click on Quit or type `Esc` to exit.
 - **(S)ave info**: This is like `(P)rt info` but saves the info to a file. It is human readable.
 - **(H)elp**: Opens this manual, at this chapter.
@@ -128,6 +128,15 @@ This brings up a menu with several options. Type `Esc` to abort.
 - 1  x(i1,j1) x(i1,j2) x(i1,j3) ...     2  x(i2,j1) x(i2,j2) x(i2,j3) ...     ...     M  x(iM,j1) x(iM,j2) x(iM,j3) ...
 - where `i2=i1+colskip, i3=i1+2*colskip, ...` and `i1` is the index corresponding to the name of the first column you provide. Similarly, `j2=j1+rowskip, ...`. As a brief example, suppose that you solve a system of equations of the form: ``` math x_j' = f(x_{j-1},x_j,x_{j+1},I_j) ``` where $`j=1,\dots,20.`$ Click on transpose and choose `x1` as the first column, `colskip=1, ncols=20` and say `row1=350, nrows=1,rowskip=1` then a new array will be produced. The first column is the index from 1 to 20 and the second is `xj(350)` where 350 is the index and not the actual value of time. By plotting the second column versus the first you get a “spatial profile.”
 - **(G)et par set**: This loads one of the parameter sets that you have defined in the ODE file.
+- **c(L)one**: Asks for a file name and writes a new ODE file next to it that
+  reproduces the current model: the source lines, with the parameters and
+  boundary conditions replaced by their current (possibly since-edited)
+  values as comments for you to fold back in.
+- **.(X)pprc**: Opens your `~/.xpprc` (`%USERPROFILE%\.xpprc` on Windows) in
+  the editor named by the `XPPEDITOR` environment variable; an error if it
+  is not set.
+- **t(U)torial**: Steps through a series of short tips ("Did you know you
+  can...") one at a time; Next for another, Done to stop.
 
 ### (P)arameters
 

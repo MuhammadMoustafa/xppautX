@@ -140,6 +140,17 @@ else
   echo "ODEX CHECK FAILED"
   exit 1
 fi
+# every whole model the manual shows still loads, and every command-line
+# option it names is real (W81)
+if command -v python3 >/dev/null; then
+  if python3 tools/manualcheck.py > build/manualcheck.log 2>&1; then
+    tail -1 build/manualcheck.log
+  else
+    cat build/manualcheck.log
+    echo "MANUAL CHECK FAILED"
+    exit 1
+  fi
+fi
 # the conversion of the core to C++ (CLAUDE.md, "C and C++")
 echo "C++: $(( $(ls core/*.cpp 2>/dev/null | wc -l) )) / $(( $(ls core/*.c core/*.cpp 2>/dev/null | wc -l) )) sources"
 # the move from C++ to safe C++ (CLAUDE.md, "C and C++"; the W29 cards)

@@ -404,13 +404,60 @@ Loads a previously saved one.
 
 This makes a hard copy of the bifurcation diagram
 
+### SVG
+
+The same hard copy of the bifurcation diagram, as an SVG file.
+
 ### Reset diagram
 
 This clears the whole thing.
 
+### Clear grab
+
+Deselects the grabbed point (as if nothing had been grabbed).
+
 ### Write pts
 
 This writes a file specified by the user which has 5 columns and describes the currently visible bifurcation diagram. The first column has the coordinates of the x-axis, the second and third columns hold the contents of the y-axis, (e.g. max and min of the orbit). The fourth column is one of 1-4 meaning stable fixed point, unstable fixed point, stable periodic, unstable periodic, respectively. The fifth column is the branch number. The main window of XPP can import files in this format and plot them
+
+### All info
+
+Writes `allinfo.dat`, one line per diagram point with its type, branch,
+label, both continuation parameters, the period and every variable's max
+and min: a more complete dump than `Write pts`.
+
+### init Data
+
+Writes `initdata.dat`: for every diagram point, the active parameter's
+value followed by that point's initial data for each variable, usable to
+seed new integrations away from the AUTO window.
+
+### Toggle redraw
+
+Turns off (or back on) redrawing the diagram as AUTO computes it, for a
+faster run when you only want the end result; a message confirms which.
+
+### auto raNge
+
+Runs AUTO again over the branch marked with `S` and `E` (Grabbing,
+below), one run per marked point; asks for confirmation first if none is
+marked.
+
+### sElect 2par pt
+
+In a two-parameter plot, marks the current mouse position as the point
+AUTO continues from next, the way clicking a diagram point does.
+
+### draw laBled
+
+Cycles a three-way toggle for drawing every labeled orbit on the phase
+plane: off, on without erasing between orbits, on erasing first; a
+message names the new state.
+
+### lOad branch
+
+Puts the branch marked with `S` and `E` into the Data Browser, one row
+per diagram point.
 
 ### Export CSV
 

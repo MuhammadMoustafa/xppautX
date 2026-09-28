@@ -34,7 +34,6 @@ dialogs straight to the sections below.
 12. [Some comments on the numerical methods](12-numerical-methods-notes.md)
 13. [Colors](13-colors.md) — the curve colour indices and their web2 palette
 14. [The options file](14-options-file.md) — `option <filename>`, the `.opt` format
-15. [C Files](15-generated-c-files.md) — `-m`: generating a C skeleton for a model's right-hand sides
 16. [Quick reference](16-quick-reference.md) — ODE file format cheat sheet, built-in functions, the full options list, command line arguments
 
 ## Menus and dialogs → sections

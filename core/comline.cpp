@@ -14,54 +14,53 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#define NCMD 47 /* add new commands as needed  */
+#define NCMD 46 /* add new commands as needed  */
 
-#define MAKEC 0
-#define XORFX 1
-#define SILENT 2 
-#define CONVERT 3
-#define NOICON 4
-#define NEWSEED 5
-#define ALLWIN 6
-#define SETFILE 7
-#define MSSTYLE 8
-#define PWHITE 9
-#define RUNNOW 10
-#define BIGF 11
-#define SMALLF 12
-#define PARFILE 13
-#define OUTFILE 14
-#define ICFILE 15
-#define FCOLOR 16
-#define BCOLOR 17
-#define BBITMAP 18
-#define GRADS 19
-#define MINWIDTH 20
-#define MINHEIGHT 21
-#define MWCOLOR 22
-#define DWCOLOR 23
-#define BELL 24
-#define ITRNSETS 25
-#define USET 26
-#define RSET 27
-#define INCLUDE 28
-#define QSETS 29
-#define QPARS 30
-#define QICS 31
-#define QUIET 32
-#define LOGFILE 33
-#define ANIFILE 34
-#define VERSION 35
-#define MKPLOT 36
-#define PLOTFMT 37
-#define NOOUT 38
-#define DFDRAW 39
-#define NCDRAW 40
-#define READSET 42
-#define WITH 43
-#define EQUIL 44
-#define VERBOSEOPT 45
-#define DEBUGOPT 46
+#define XORFX 0
+#define SILENT 1 
+#define CONVERT 2
+#define NOICON 3
+#define NEWSEED 4
+#define ALLWIN 5
+#define SETFILE 6
+#define MSSTYLE 7
+#define PWHITE 8
+#define RUNNOW 9
+#define BIGF 10
+#define SMALLF 11
+#define PARFILE 12
+#define OUTFILE 13
+#define ICFILE 14
+#define FCOLOR 15
+#define BCOLOR 16
+#define BBITMAP 17
+#define GRADS 18
+#define MINWIDTH 19
+#define MINHEIGHT 20
+#define MWCOLOR 21
+#define DWCOLOR 22
+#define BELL 23
+#define ITRNSETS 24
+#define USET 25
+#define RSET 26
+#define INCLUDE 27
+#define QSETS 28
+#define QPARS 29
+#define QICS 30
+#define QUIET 31
+#define LOGFILE 32
+#define ANIFILE 33
+#define VERSION 34
+#define MKPLOT 35
+#define PLOTFMT 36
+#define NOOUT 37
+#define DFDRAW 38
+#define NCDRAW 39
+#define READSET 41
+#define WITH 42
+#define EQUIL 43
+#define VERBOSEOPT 44
+#define DEBUGOPT 45
 
 
 namespace {
@@ -108,7 +107,6 @@ typedef struct {
 
 constexpr VOCAB my_cmd[NCMD]=
 {
-  {"-m",3},         
   {"-xorfix",7},
   {"-silent",7},
   {"-convert",8},
@@ -438,9 +436,6 @@ int parse_it(const char *com)
 
   if(j<NCMD){
     switch(j){
-    case MAKEC:
-     xpp_log(XPP_LOG_WARN, " C files are no longer part of this version. \n Sorry \n");
-      break;
     case MKPLOT:
       xpp::session().integrator.make_plot_flag=1;
       break;

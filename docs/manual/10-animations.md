@@ -68,6 +68,7 @@ Each line in the script file consists of a command or object followed by a list 
 - ****settext****: size;font;color
 - ****xnull****: x1;y1;x2;y2;color;id
 - ****ynull****: x1;y1;x2;y2;color;id
+- ****grab****: x;y;tol
 - ****end****:
 
 All commands can be abbreviated to their first three letters and case is ignored. At startup the dimension of the animation window in user coordinates is (0,0) at the bottom left and (1,1) at the top right. Thus the point (0.5,0.5) is the center no matter what the actual size of the window on the screen. **Color** is described by either a floating point number between 0 and 1 with 0 corresponding to red and 1 to violet. When described as a floating point number, it can be a formula that depends on the variables. In all the commands, the color is optional *except* **settext.** The other way of describing color is to use names which all start with the \$ symbol. The names are: **\$WHITE, \$RED, \$REDORANGE, \$ORANGE, \$YELLOWORANGE, \$YELLOW, \$YELLOWGREEN, \$GREEN, \$BLUEGREEN, \$BLUE,\$PURPLE, \$BLACK**.
@@ -105,6 +106,8 @@ The remaining ten commands all put something on the screen.
 - ****vtext x1;y1;s;z****: draws a string **s** followed by the floating point value **z** at position **(x1,y1)** with the current color and text properties. Thus, you can print out the current time or value of a variable at any given time.
 
 - ****xnull x1;y1;x2;y2;color;id****: uses the nullclines that you have already computed in your animation. You can use the static nullclines by just choosing **-1** for the **id** parameter. To use dynamic nullclines, you must compute a range of nullclines using the Nullcline Freeze Range command. The parameter **id** runs from 0 to N where N is the number of nullclines that you have computed in the range dialog. The animator converts **id** to an integer and tests whether it is in the range and then loads the appropriate nullcline. There is an example shown below. The **ynull** command is identical. The parameters **x1,y1,x2,y2** tell the animator the window in which the nullclines are defined. These should be the lower-left and upper right corners of the phaseplane where the nullclines were computed.
+
+- ****grab x;y;tol****: makes **(x,y)** a point on the screen you can drag with the mouse, matched within **tol** user coordinates. The line is followed by two more lines, each a `{lhs=rhs;...}` list of assignments: the first runs once when the grab starts (you click near the point), the second once when it ends (you release the mouse); each `rhs` is evaluated at the drag's current position. Several **grab** points can be defined; `Grab` in the animation view arms grabbing, after which a click-and-drag near any of them runs its assignments.
 
 *REMARK.* As with lines in ODE files, it is possible to create arrays of commands using the cobination of the **\[i1..i2\]** construction. Some examples are shown below.
 
