@@ -77,11 +77,15 @@ grammar:
   error naming the option and the bad text, not a silent truncation.
 - `set NAME = EXPR, ...` — a named parameter set, as `.ode`.
 - `table NAME EXPR` / `table NAME FILE` — as `.ode`.
-- `markov`, `wiener`, `global`, `bdry`, `volt`, `special` — kept, same
-  meaning as `.ode`, `.odex`-spelled arguments.
-- `done` ends the file (optional in `.odex`: end-of-file is equivalent,
-  since nothing after it was ever meaningful in `.ode` either).
-- `#` starts a line comment (as `.ode`).
+- `markov`, `wiener` kept; `event` (`.ode`'s `global`), `boundary`
+  (`bdry`), `network` (`special`) renamed, same meaning, `.odex`-spelled
+  arguments; no `volt` (an equation calling `volterra(...)` is a Volterra
+  equation); `include "file.incx"` includes a file.
+- No `done`: the end of the file ends the model (an include file too).
+- `#` starts a line comment (as `.ode`). `/* ... */` is a block comment
+  (decided, maintainer, 2026-09-27): it may span lines and nest (so a
+  region that already holds one can be commented out), and a `/*` never
+  closed is an error at the line where it opened.
 
 ## Grammar (EBNF)
 
@@ -89,8 +93,10 @@ grammar:
 model        = { statement } ;
 statement    = ode_decl | par_decl | init_decl | aux_decl
              | fun_decl | option_decl | set_decl | table_decl
-             | markov_decl | wiener_decl | global_decl | bdry_decl
-             | volt_decl | special_decl | comment | "done" ;
+             | markov_decl | wiener_decl | event_decl | boundary_decl
+             | network_decl | include_decl ;
+(* comments, '#' to the end of the line and nested '/* */' blocks, are
+   removed by the tokenizer before this grammar *)
 
 ode_decl     = name , "'" , "=" , expr ;
 par_decl     = "par" , name_init_list ;
@@ -118,10 +124,10 @@ set_decl     = "set" , name , "=" , name_init_list ;
 table_decl   = "table" , name , ( expr | filename ) ;
 markov_decl  = "markov" , name , integer , { transition_row } ;
 wiener_decl  = "wiener" , name , { "," , name } ;
-global_decl  = "global" , sign , expr , { "," , event_stmt } ;
-bdry_decl    = "bdry" , name , "=" , expr ;
-volt_decl    = "volt" , name , "=" , expr ;
-special_decl = "special" , name , "=" , special_call ;
+event_decl   = "event" , sign , expr , { "," , event_stmt } ;
+boundary_decl = "boundary" , name , "=" , expr ;
+network_decl = "network" , name , "=" , network_call ;
+include_decl = "include" , filename ;
 
 expr         = or_expr ;
 or_expr      = and_expr , { "or" , and_expr } ;
