@@ -478,6 +478,8 @@ async function values() {
   check('a slider moved by the keyboard sends nothing: it is a pending edit',
     (await S('__xpp.sent().length')) === preSlide && (await S('s.seriesCount')) === n0,
     JSON.stringify(await S('[s.values.pending, s.seriesCount]')));
+  /* the keys go to the plot: on the focused range track a letter is not a hotkey */
+  await focusPlot();
   await key('i');
   await until("s.ask && s.ask.kind === 'menu'", 'Initialconds menu (slider)');
   await key('g');
@@ -2915,8 +2917,7 @@ async function runsCheck(dir) {
   await focusPlot();
   await key('i');
   await until("s.ask && s.ask.kind === 'menu'", 'Initialconds menu (slider)');
-  await key('g');
-  await until('!s.busy', 'slider flushed');
+  await goRun();
   const final = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
   check('runs: Go flushes the slider\'s pending edit as one set, then the run',
     Math.abs(final - pendingVal) < 1e-9, JSON.stringify({final, pendingVal}));

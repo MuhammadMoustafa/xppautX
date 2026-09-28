@@ -3,7 +3,7 @@
    command that computes; the model's defaults by field. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {initialValues, isPending, queueSet, reduceValues, setCommand} from '../src/store/values';
+import {initialValues, isPending, pendingText, queueSet, reduceValues, setCommand} from '../src/store/values';
 
 test('only the latest value per field waits, in the order last changed', () => {
   let q = queueSet([], {kind: 'par', name: 'iapp', text: '0.1'});
@@ -14,6 +14,9 @@ test('only the latest value per field waits, in the order last changed', () => {
     {kind: 'bc', index: 0, text: 'v-1'}]);
   assert.ok(isPending(q, 'par:iapp'));
   assert.ok(!isPending(q, 'par:phi'));
+  /* the field shows its pending text (a dropped draft goes back to it, not to the core's value) */
+  assert.equal(pendingText(q, 'par:iapp'), '0.3');
+  assert.equal(pendingText(q, 'par:phi'), null);
 });
 
 test('the pending edits go out as one set: one value plain, several in values[]', () => {

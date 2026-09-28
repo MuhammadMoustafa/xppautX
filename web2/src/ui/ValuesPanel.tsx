@@ -21,7 +21,7 @@ import {useFocusBackOnClose} from './focusBack';
 import type {ComponentChildren} from 'preact';
 import {HELP} from '../help/links';
 import {EXPRESSION, FORMULA, FORMULA_HINT, fieldMessage, type FieldSpec} from '../store/fieldKinds';
-import {fieldKey, isPending, sixSig, type ValueKind} from '../store/values';
+import {fieldKey, pendingText, sixSig, type ValueKind} from '../store/values';
 import {useSession, useStore} from './context';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
@@ -97,7 +97,10 @@ function ValueField({kind, label, name, index, display, full, hint, spec, extra}
      both clear with no error, so a formula the core refuses keeps
      showing it (WF-001), and a value typed but not yet flushed is never
      overwritten by the core's own (stale) value (GitHub #117) */
-  const queued = useStore(s => isPending(s.values.pending, field));
+  /* a pending edit is what the field shows (a dropped draft goes back to it, not to the
+     core's older value) until it is sent and the core's own takes over */
+  const pending = useStore(s => pendingText(s.values.pending, field));
+  const queued = pending !== null;
   const attributing = useStore(s => s.values.attributing === field);
   const settling = queued || attributing;
   const def = useStore(s => (kind === 'par' || kind === 'ic' ? s.values.defaults?.[field] ?? null : null));
@@ -114,7 +117,7 @@ function ValueField({kind, label, name, index, display, full, hint, spec, extra}
   return (
     <div class={'value-field' + (queued ? ' queued' : '') + (changed ? ' changed' : '')}>
       <label htmlFor={id} class="value-name" title={label}>{label}</label>
-      <Field id={id} spec={spec} value={display} editValue={full} onCommit={commit} error={error ?? null}
+      <Field id={id} spec={spec} value={pending ?? display} editValue={pending ?? full} onCommit={commit} error={error ?? null}
         settling={settling} onDropError={() => session.store.dispatch({type: 'values', action: {type: 'clearError', field}})}
         title={title} data-queued={queued ? '1' : undefined} />
       {extra}

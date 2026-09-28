@@ -142,6 +142,11 @@ export function queueSet(queue: ValueSet[], s: ValueSet): ValueSet[] {
   return [...queue.filter(q => setKey(q) !== key), s];
 }
 
+/** the text of field `key`'s edit still waiting to be sent, or null */
+export function pendingText(queue: ValueSet[], key: string): string | null {
+  return queue.find(q => setKey(q) === key)?.text ?? null;
+}
+
 /** whether field `key` has an edit still waiting to be sent */
 export function isPending(queue: ValueSet[], key: string): boolean {
   return queue.some(q => setKey(q) === key);
