@@ -32,3 +32,6 @@ __pycache__/
 # the md5s tools/examples_check.sh --write leaves (CI uploads them)
 /examples.*.md5
 qa/
+
+# the journal paper draft, kept local (not part of the program)
+/paper/

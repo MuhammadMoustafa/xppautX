@@ -3184,8 +3184,12 @@ async function valuesLive() {
   await key('Escape');
   await sleep(80);
   let dropped = await fieldState('par', 'iapp');
-  check('T35d: Escape drops the half-typed text: the box shows the value again, unmarked',
-    dropped.invalid === null && close6(Number(dropped.value), iapp0), JSON.stringify({dropped, iapp0}));
+  /* the value it goes back to is the field's pending edit (0.05, typed above and not sent yet:
+     GitHub #117), not the core's older one */
+  const pendingIapp = await S(`(s.values.pending.find(p => p.name === 'iapp') || {}).text ?? null`);
+  check('T35d: Escape drops the half-typed text: the box shows its pending value again, unmarked',
+    dropped.invalid === null && pendingIapp === '0.05' && close6(Number(dropped.value), 0.05),
+    JSON.stringify({dropped, pendingIapp, iapp0}));
 
   /* WF-001: a %formula the box takes (its own rules say nothing against it) can still be one the
      core refuses (an unknown symbol): the box keeps showing what was sent, marked, with the
