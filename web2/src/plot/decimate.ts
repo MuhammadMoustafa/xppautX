@@ -20,9 +20,11 @@
    Points (tracePoints): one dot per cell; the grid has a margin of the
    dot's radius, so a dot just outside the area that shows is kept.
 
-   uPlot's own line builder already keeps a min and a max per pixel column
-   for a time plot (x increasing); these are for the phase plane, where x
-   goes back and forth, and for points in either mode. */
+   Time plots (ColumnTrace, x increasing): per device-pixel column the
+   first, lowest, highest and last point, as uPlot's own line builder keeps
+   them, but found a slice at a time and carried on where it stopped when
+   rows are appended, so an append of a live run costs its own rows, not all
+   of them again (W82: uPlot's builder walked every row at every draw). */
 
 /** the plotting area in canvas pixels and the data ranges it shows */
 export interface PixelFrame {
@@ -47,7 +49,7 @@ export function sameFrame(a: PixelFrame, b: PixelFrame): boolean {
 }
 
 /** the vertices of a curve worth drawing in one frame, found a slice of points at a time */
-export class LineTrace {
+export class LineTrace implements CurveTrace {
   /** the next point to look at */
   next: number;
   private readonly W: number;
@@ -195,6 +197,120 @@ export class LineTrace {
       move = false;
       n++;
     }
+    return n;
+  }
+}
+
+/** what the chart keeps of a curve for a frame: LineTrace or ColumnTrace */
+export interface CurveTrace {
+  readonly frame: PixelFrame;
+  next: number;
+  run(xs: ArrayLike<number>, ys: ArrayLike<number>, end: number, count?: number): boolean;
+  draw(xs: ArrayLike<number>, ys: ArrayLike<number>, f: PixelFrame, sink: LineSink): number;
+}
+
+/** the vertices of a time plot (x increasing) worth drawing in one frame: in
+    each device-pixel column its first, lowest, highest and last point, in
+    the order they come (the points left of the area make one column, those
+    right of it another: only their joins to the area show). Found a slice of
+    points at a time; appended rows carry on from the column still open. */
+export class ColumnTrace implements CurveTrace {
+  next: number;
+  private readonly sx: number;
+  private readonly W: number;
+  /** kept vertices: point indices, -1 before one that starts a new piece */
+  private out = new Int32Array(256);
+  private len = 0;
+  /** the open column (NaN: none), its first, lowest, highest and last point */
+  private col = NaN;
+  private first = -1;
+  private lo = -1;
+  private hi = -1;
+  private last = -1;
+  private loY = 0;
+  private hiY = 0;
+
+  constructor(readonly frame: PixelFrame, first = 0) {
+    this.next = first;
+    this.W = Math.max(1, Math.ceil(frame.width));
+    this.sx = frame.width / (frame.xmax - frame.xmin);
+  }
+
+  private keep(v: number): void {
+    if (this.len === this.out.length) {
+      const o = new Int32Array(2 * this.out.length);
+      o.set(this.out);
+      this.out = o;
+    }
+    this.out[this.len++] = v;
+  }
+
+  /** the open column's points, in order, each once */
+  private open(): number[] {
+    if (this.first < 0) return [];
+    const v = [this.first, Math.min(this.lo, this.hi), Math.max(this.lo, this.hi), this.last];
+    return v.filter((x, k) => k === 0 || x !== v[k - 1]);
+  }
+
+  /** looks at points next.. up to `end` (exclusive), at most `count` of them;
+      true when it got to `end` */
+  run(xs: ArrayLike<number>, ys: ArrayLike<number>, end: number, count = Infinity): boolean {
+    const {W, sx} = this, xmin = this.frame.xmin;
+    if (!Number.isFinite(sx)) {
+      this.next = Math.max(this.next, end);
+      return true;
+    }
+    const stop = Math.min(end, this.next + count);
+    let i = this.next;
+    for (; i < stop; i++) {
+      const x = xs[i], y = ys[i];
+      if (!(x - x === 0 && y - y === 0)) { /* NaN or infinite: a gap */
+        for (const v of this.open()) this.keep(v);
+        if (this.len && this.out[this.len - 1] >= 0) this.keep(-1);
+        this.first = -1;
+        this.col = NaN;
+        continue;
+      }
+      const cx = Math.floor((x - xmin) * sx), c = cx < 0 ? -1 : cx > W ? W + 1 : cx;
+      if (c !== this.col) {
+        for (const v of this.open()) this.keep(v);
+        this.col = c;
+        this.first = this.lo = this.hi = this.last = i;
+        this.loY = this.hiY = y;
+      } else {
+        this.last = i;
+        if (y < this.loY) {
+          this.loY = y;
+          this.lo = i;
+        } else if (y > this.hiY) {
+          this.hiY = y;
+          this.hi = i;
+        }
+      }
+    }
+    this.next = i;
+    return i >= end;
+  }
+
+  /** draws the kept vertices and the open column's of xs, ys into `sink` as
+      frame `f` places them (the frame traced for, or another); returns how many */
+  draw(xs: ArrayLike<number>, ys: ArrayLike<number>, f: PixelFrame, sink: LineSink): number {
+    const sx = f.width / (f.xmax - f.xmin), sy = f.height / (f.ymax - f.ymin);
+    const rows = Math.min(xs.length, ys.length);
+    let move = true, n = 0;
+    const put = (v: number) => {
+      if (v < 0 || v >= rows) { /* a new piece, or a row these arrays do not have (a stand-in's) */
+        move = true;
+        return;
+      }
+      const x = f.left + (xs[v] - f.xmin) * sx, y = f.top + (f.ymax - ys[v]) * sy;
+      if (move) sink.moveTo(x, y);
+      else sink.lineTo(x, y);
+      move = false;
+      n++;
+    };
+    for (let k = 0; k < this.len; k++) put(this.out[k]);
+    for (const v of this.open()) put(v);
     return n;
   }
 }

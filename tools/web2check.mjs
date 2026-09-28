@@ -31,9 +31,9 @@
    to agree). Then live plotting (tools/models/live.ode: the store
    and the plot grow while 20 001 rows are computed, and end as output.dat)
    and a run of 10^6 rows (tools/models/million.ode) that draws and zooms,
-   its draw times and long tasks (read through __xpp; W40) printed as
-   perf: lines, never pass/fail (W58: performance is for CI, not the
-   program).
+   its draw times and long tasks (read through __xpp; W40), and both runs'
+   frame pacing and series appends per second (W82), printed as perf:
+   lines, never pass/fail (W58: performance is for CI, not the program).
    Files (T5): Write set lands in the model's folder and is downloaded, Read
    set by upload restores the parameters, a same-content upload is not
    copied, a same-name one asks Replace / Keep both / Cancel, and "Add
@@ -2793,10 +2793,11 @@ async function desktopMetrics() {
 }
 
 /* what the store and the chart hold, sampled by the page at every frame
-   while an integration runs, and the samples it took */
+   while an integration runs, and the samples it took: [rows, points, busy,
+   the frame's performance.now()] each time one of the first three changes */
 const startSampling = () => cdp.eval(`(() => { const seen = window.__seen = []; window.__sampling = true;
-  const tick = () => { const s = __xpp.state(), w = ${ACTIVE}, p = __xpp.plot();
-    const r = [w.series ? w.series.rows : -1, p && p.curves[0] ? p.curves[0].points : -1, s.busy];
+  const tick = t => { const s = __xpp.state(), w = ${ACTIVE}, p = __xpp.plot();
+    const r = [w.series ? w.series.rows : -1, p && p.curves[0] ? p.curves[0].points : -1, s.busy, t];
     const l = seen[seen.length - 1];
     if (!l || l[0] !== r[0] || l[1] !== r[1] || l[2] !== r[2]) seen.push(r);
     if (window.__sampling) requestAnimationFrame(tick); };
@@ -3356,7 +3357,7 @@ async function live(want) {
   const a0 = await S('s.seriesAppends');
   await startSampling();
   const done = await integrate(20001, 60000);
-  const seen = await stopSampling();
+  const seen = await stopSampling(), idleAt = await cdp.eval('performance.now()');
   check('live: I, G integrates 20 001 rows', done, JSON.stringify(await S('w.series && w.series.rows')));
   const appends = (await S('s.seriesAppends')) - a0;
   const busy = seen.filter(([, , b]) => b);
@@ -3377,6 +3378,30 @@ async function live(want) {
   }
   check('live: the final store holds the numbers of output.dat', !bad && want.length === 20001
     && Object.values(cols).every(v => v.length === 20001), bad || `${want.length} rows`);
+  await runPacing('live run', seen, idleAt, appends);
+}
+
+/* How smoothly the plot follows a run (W82), as perf lines named `label`:
+   from the first frame the page saw the run busy (startSampling's samples)
+   to the first it saw it idle again (or `idleAt`, when the idle came after
+   the last sampled frame), the gaps between animation frames (p50, p90,
+   max), the long tasks, and the series appends the page took per second.
+   Measured, never failed (W58). */
+async function runPacing(label, seen, idleAt, appends) {
+  const start = seen.findIndex(([, , b]) => b);
+  if (start < 0) { console.log(`  ${label}: the page never saw it busy`); return; }
+  const end = seen.findIndex(([, , b], i) => i > start && !b);
+  const t0 = seen[start][3], t1 = end < 0 ? idleAt : seen[end][3];
+  const gaps = await cdp.eval(`(() => { const f = window.__xppPerf.frames.filter(t => t >= ${t0} && t <= ${t1});
+    const g = []; for (let i = 1; i < f.length; i++) g.push(f[i] - f[i - 1]); return g; })()`);
+  const long = (await longTasksSince(t0)).filter(t => t.start < t1);
+  console.log(`  ${label}: ${ms(t1 - t0)} busy, ${gaps.length} frame gaps, ${appends} appends, `
+    + `long tasks ${JSON.stringify(long.map(t => Math.round(t.duration)))}`);
+  perf(`${label} frame gap p50`, gaps.length ? ms(pct(gaps, 0.5)) : 'n/a');
+  perf(`${label} frame gap p90`, p90(gaps));
+  perf(`${label} frame gap max`, ms(Math.max(0, ...gaps)));
+  perf(`${label} long tasks`, `${long.length} (${ms(long.reduce((x, t) => x + t.duration, 0))} in all)`);
+  perf(`${label} series appends per second`, (appends / ((t1 - t0) / 1000)).toFixed(1));
 }
 
 const pct = (a, q) => a.length ? [...a].sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor(q * a.length))] : NaN;
@@ -3435,7 +3460,9 @@ async function million() {
     && await until('!!__xpp.plot()', 'the chart'));
   const t0 = Date.now(), p0 = await cdp.eval('performance.now()'), d0 = (await P()).draws;
   const a0 = await S('s.seriesAppends');
+  await startSampling();
   const done = await integrate(1000001, 300000);
+  const seen = await stopSampling(), idleAt = await cdp.eval('performance.now()');
   const secs = (Date.now() - t0) / 1000;
   check(`10^6: I, G stores 1 000 001 rows in the store (${secs.toFixed(1)} s, ${(await S('s.seriesAppends')) - a0} appends)`,
     done, JSON.stringify(await S('w.series && [w.series.rows, s.busy]')));
@@ -3454,6 +3481,7 @@ async function million() {
     p.mode === 2 && p.curves[0].points === 1000001 && p.draws - d0 > 0
     && p.vertices[0] > 100, JSON.stringify({mode: p.mode, points: p.curves[0].points, draws: p.draws - d0, vertices: p.vertices}));
   perf('10^6 phase plane draw p90', p90(frames));
+  await runPacing('10^6 run', seen, idleAt, (await S('s.seriesAppends')) - a0);
   let z = await zoomFrames();
   console.log(`  phase plane zoom: ${z.draws} draws, ${z.frameGaps.length} frame gaps, median ${ms(pct(z.frameGaps, 0.5))}, `
     + `max ${ms(Math.max(0, ...z.frameGaps))}, long tasks ${JSON.stringify(z.long.map(t => Math.round(t.duration)))}; `
@@ -3484,6 +3512,17 @@ async function million() {
   check('10^6: a wheel zoom of the time plot', z.zoomed && z.draws > 0, JSON.stringify(z));
   perf('10^6 time plot zoom draw p90', p90(z.frameGaps));
   perf('10^6 time plot zoom long task max', ms(z.long.length ? Math.max(...z.long.map(t => t.duration)) : 0));
+
+  /* the same run again, drawn against time as it comes: uPlot's own line,
+     every append a new draw of all the rows so far (W82) */
+  await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
+  const a1 = await S('s.seriesAppends');
+  await startSampling();
+  const again = await integrate(1000001, 300000);
+  const seen2 = await stopSampling(), idle2 = await cdp.eval('performance.now()');
+  check('10^6: I, G again draws the rows against time as they come', again
+    && (await P()).mode === 1, JSON.stringify(await S('w.series && [w.series.rows, s.busy]')));
+  await runPacing('10^6 time plot run', seen2, idle2, (await S('s.seriesAppends')) - a1);
 }
 
 /* ---- files (docs/ui-v2.md section 4, T5) ------------------------------------------ */

@@ -5,7 +5,7 @@
    equilibrium symbols: a circle stable, a box unstable, a triangle a
    saddle; its six markers), at a size in pixels rather than a fraction of
    the axes, so they stay readable at any zoom. Pure: no DOM. */
-import type {PixelFrame} from './decimate';
+import {traceLine, tracePoints, type PixelFrame} from './decimate';
 import {pixelMap, type PathSink} from './phase';
 import type {ArrowMark, EquilibriumMark, Marks, MarkerMark, MarkerShape} from '../store/marks';
 
@@ -101,34 +101,16 @@ export function arrowPath(a: ArrowMark, f: PixelFrame, sink: PathSink): boolean 
   return true;
 }
 
-/** a frozen curve on `f`: a polyline (line) or a dot of radius `dot` per
-    point, leaving out points on the pixel of the one before; returns the
-    points drawn */
+/** a frozen curve or an earlier run on `f`: a polyline (line) or a dot of
+    radius `dot` per point, through decimate.ts's tracers, which leave out
+    what changes no pixel (W82: an earlier run of a million rows was a path
+    of most of its points, stroked again at every frame of a live run);
+    returns the vertices or dots drawn */
 export function traceFrozen(xs: Float32Array, ys: Float32Array, line: boolean, f: PixelFrame, dot: number,
   sink: PathSink): number {
-  const m = pixelMap(f), n = Math.min(xs.length, ys.length);
-  let pen = false, drawn = 0, lx = NaN, ly = NaN;
-  for (let i = 0; i < n; i++) {
-    const x = m.x(xs[i]), y = m.y(ys[i]);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) {
-      pen = false;
-      continue;
-    }
-    const rx = Math.round(x), ry = Math.round(y);
-    if (pen && rx === lx && ry === ly && i < n - 1) continue;
-    lx = rx;
-    ly = ry;
-    drawn++;
-    if (line) {
-      if (pen) sink.lineTo(x, y);
-      else sink.moveTo(x, y);
-      pen = true;
-    } else {
-      polygon(sink, x, y, dot, 8, 0);
-      pen = true;
-    }
-  }
-  return drawn;
+  const last = Math.min(xs.length, ys.length) - 1;
+  if (line) return traceLine(xs, ys, 0, last, f, sink);
+  return tracePoints(xs, ys, 0, last, f, dot, (x, y) => polygon(sink, x, y, dot, 8, 0));
 }
 
 /** pixel sizes of XPP's text sizes 0-4 (its fonts are 8 to 24 points) */

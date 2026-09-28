@@ -620,7 +620,7 @@ that does not know the option sends JSON numbers.
 
 **Live runs.** While an integration runs (Initialconds/Go, Continue, a
 range, ...), the rows it stores go out as they come for
-the active window, at most ten times a second:
+the active window, at most about once a display frame (60 times a second):
 
 ```
 {"ev":"series","op":"append","win":1,"from":1200,"rows":2400,
@@ -647,7 +647,9 @@ their full `series`, after the active one's. A client that did not ask for
 
 The appends come from the integrator itself (`rows_stored()` in
 core/xpp_ui.h, called for every stored row; `plot_data_rows_stored` in
-core/plot_data.cpp sends at most one append per 100 ms).
+core/plot_data.cpp sends at most one append per 1/60 s, so a page that
+draws each on its next animation frame extends the curve at every frame;
+W82).
 
 ### Asks
 

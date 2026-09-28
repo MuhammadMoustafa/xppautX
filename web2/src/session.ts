@@ -403,8 +403,7 @@ export class Session {
       (projected in the client, plot/project3d.ts) redraws with no round
       trip. The core's own state (a PostScript/SVG export, `state.view`,
       any other client) is kept in step with `{"cmd":"view3d",...}`,
-      throttled to at most 10 a second while the turn continues, matching
-      plot_data's own throttle (docs/protocol.md); a trailing send 150 ms
+      throttled to at most 10 a second while the turn continues; a trailing send 150 ms
       after the last change always lands, so the settled angle reaches the
       core even with no explicit end wired in (a key held down auto-
       repeats, with no keyup between steps). */

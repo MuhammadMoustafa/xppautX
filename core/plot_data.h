@@ -44,7 +44,7 @@ void plot_data_changed(void);
 void plot_data_picture(int redraw);
 
 /* the integrator stored row nrows-1 (xpp_ui.h rows_stored): appends, at
-   most ten a second */
+   most about one a display frame (60 a second) */
 void plot_data_rows_stored(int nrows);
 
 /* the end of a command: plots, then the series of every window that changed */

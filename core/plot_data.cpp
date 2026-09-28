@@ -57,6 +57,13 @@ Sent sent[MAXPOP];
 int rows_seen;     /* storage rows when last seen: fewer next time means it started again */
 int appended = -1; /* the graph index that got appends in this command */
 
+/* the least time between two appends of a live run: about one a display
+   frame (60 Hz), so the page extends the curve at every frame it draws
+   (W82; it was 100 ms, ten a second, which the eye sees as steps). Each
+   append carries only the rows stored since the last one: more appends
+   cost the core a little more framing, not more data. */
+constexpr double append_every = 1.0 / 60;
+
 std::string plots_sent;
 bool plots_valid;
 
@@ -365,7 +372,7 @@ extern "C" void plot_data_rows_stored(int nrows)
     if (nrows <= rows_seen) /* storage started again from its first row */
         for (Sent &w : sent) w.held = 0;
     rows_seen = nrows;
-    if (!xpp_every(&last, 0.1)) return;
+    if (!xpp_every(&last, append_every)) return;
     try {
         series_append(nrows);
     } catch (...) {

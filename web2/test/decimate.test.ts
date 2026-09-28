@@ -1,7 +1,7 @@
 /* Decimation of long curves (plot/decimate.ts), without a browser. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {LineTrace, tracePoints, traceLine, type LineSink, type PixelFrame} from '../src/plot/decimate';
+import {ColumnTrace, LineTrace, tracePoints, traceLine, type LineSink, type PixelFrame} from '../src/plot/decimate';
 
 /** a sink that records the path as polylines */
 function recorder(): LineSink & {lines: [number, number][][]} {
@@ -103,4 +103,49 @@ test('kept vertices draw in another frame, and rows the arrays lack are skipped'
   const short = recorder();
   assert.equal(t.draw([10, 50], [10, 50], frame, short), 2);
   assert.deepEqual(short.lines, [[[20, 110], [60, 70]]]);
+});
+
+test('a time plot keeps the first, lowest, highest and last point of each pixel column (W82)', () => {
+  const xs: number[] = [], ys: number[] = [];
+  for (let k = 0; k < 100000; k++) { /* 1000 points a pixel column, a fast oscillation in each */
+    xs.push(k / 1000);
+    ys.push(50 + 40 * Math.sin(k / 7));
+  }
+  const t = new ColumnTrace(frame);
+  t.run(xs, ys, xs.length);
+  const r = recorder();
+  const n = t.draw(xs, ys, frame, r);
+  assert.ok(n <= 4 * 101 && n >= 3 * 100, `${n} vertices for 100 000 points in 100 columns`);
+  const flat = r.lines.flat(), top = Math.min(...flat.map(p => p[1])), bottom = Math.max(...flat.map(p => p[1]));
+  assert.ok(top < 20 + 11 && bottom > 20 + 89, 'each column still reaches its highest and lowest point');
+});
+
+test('a time plot trace carries on over appended rows: the same path as tracing them at once', () => {
+  const xs = Array.from({length: 5000}, (_, k) => k / 50), ys = xs.map(x => 50 + 30 * Math.cos(x));
+  const whole = new ColumnTrace(frame), parts = new ColumnTrace(frame);
+  whole.run(xs, ys, xs.length);
+  for (const end of [7, 1234, 1235, 4000, 5000]) parts.run(xs, ys, end);
+  const a = recorder(), b = recorder();
+  assert.equal(parts.draw(xs, ys, frame, b), whole.draw(xs, ys, frame, a));
+  assert.deepEqual(b.lines, a.lines);
+  /* before the last rows came: what was there, the open column included */
+  const early = new ColumnTrace(frame);
+  early.run(xs, ys, 1235);
+  const e = recorder();
+  early.draw(xs, ys, frame, e);
+  const end = e.lines[e.lines.length - 1];
+  assert.deepEqual(end[end.length - 1], [10 + xs[1234], 20 + 100 - ys[1234]], 'the last row stored is drawn');
+});
+
+test('a time plot trace: NaN breaks the line, points off the area each side make one column', () => {
+  const g = recorder(), t = new ColumnTrace(frame);
+  const xs = [10, 20, 30, 40, 50], ys = [10, 10, NaN, 10, 10];
+  t.run(xs, ys, 5);
+  t.draw(xs, ys, frame, g);
+  assert.equal(g.lines.length, 2);
+  const off = new ColumnTrace(frame);
+  const ox = Array.from({length: 1000}, (_, k) => -1000 + k), oy: number[] = ox.map((_, k) => (k % 2 ? 0 : 100));
+  ox.push(50); oy.push(50);
+  off.run(ox, oy, ox.length);
+  assert.ok(off.draw(ox, oy, frame, recorder()) <= 5, 'the thousand points left of the area are one column');
 });

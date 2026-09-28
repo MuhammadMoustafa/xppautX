@@ -10,7 +10,7 @@
 import uPlot from 'uplot';
 import {canvasPixels} from './canvasPixels';
 import {curveColor} from './colors';
-import {LineTrace, sameFrame, tracePoints, type PixelFrame} from './decimate';
+import {ColumnTrace, LineTrace, sameFrame, tracePoints, type CurveTrace, type PixelFrame} from './decimate';
 import type {PlotModel} from './model';
 import {nearestPoint, type Nearest} from './nearest';
 import {
@@ -53,16 +53,16 @@ const TRACE_NOW = 32768;
 const TRACE_MS = 8;
 const TRACE_STEP = 16384;
 
-/** a phase-plane curve's traces: the one for the frame drawn last, and the
+/** a line's traces: the one for the frame drawn last, and the
     last complete one, drawn in its place while the other is under way */
 interface CurveTraces {
   xs: ArrayBufferLike | null;
   ys: ArrayBufferLike | null;
   row0: number;
-  current: LineTrace | null;
+  current: CurveTrace | null;
   /** `current` has seen every row its arrays had when it last ran */
   done: boolean;
-  complete: LineTrace | null;
+  complete: CurveTrace | null;
 }
 
 function extent(arrays: Float32Array[]): Range | null {
@@ -117,6 +117,11 @@ export class Chart {
       not change, so only a new view traces it again */
   private runPaths = new WeakMap<PlotModel,
     {frame: PixelFrame; dark: boolean; drawn: number; paths: {p: Path2D; css: string; fill: boolean}[]}>();
+  /** the earlier runs drawn once into a canvas of the chart's size, for the
+      frame, theme and runs it was drawn for: every other draw (each append
+      of a live run) copies it instead of stroking the runs again (W82: a
+      run of a million rows cost the frame about a second to stroke) */
+  private runsLayer: {canvas: HTMLCanvasElement; frame: PixelFrame; dark: boolean; runs: PlotModel[]; drawn: number} | null = null;
   private layerDrawn = new Map<LayerKey | MarkKey, number>();
   /** called with the plotting area each time uPlot makes a new one */
   onArea: (area: HTMLElement) => void = () => {};
@@ -148,7 +153,9 @@ export class Chart {
   }
 
   /* path builders that leave out what changes no pixel (decimate.ts): for
-     the phase plane's lines, and for points in either mode. A line of more
+     lines (a LineTrace in the phase plane, a ColumnTrace against time), and
+     for points in either mode. An append carries a line's trace on from
+     where it stopped. A line of more
      than a slice of points (still to trace) is traced a slice per task
      (traceRest), and until that is done the last complete trace stands in,
      so no frame waits for a million points. */
@@ -169,7 +176,7 @@ export class Chart {
     }
     if (!tr.current || !sameFrame(tr.current.frame, f)) {
       if (tr.current && tr.done) tr.complete = tr.current;
-      tr.current = new LineTrace(f, Math.max(0, i0));
+      tr.current = this.model?.mode === 1 ? new ColumnTrace(f, Math.max(0, i0)) : new LineTrace(f, Math.max(0, i0));
     }
     /* at most a slice now (a small curve, the rows of an append), else all
        of it in later tasks: the frame shows the stand-in meanwhile */
@@ -251,8 +258,8 @@ export class Chart {
         s.paths = this.pointPath(c.radius);
         s.fill = color;
         s.points = {show: false, size: 2 * c.radius + 1, width: 0, fill: color};
-      } else if (m.mode === 2) {
-        s.paths = this.linePath; /* a time plot keeps uPlot's, which already keeps a min and max per pixel column */
+      } else {
+        s.paths = this.linePath; /* a time plot's too: uPlot's own walks every row at every draw (W82) */
       }
       if (m.mode === 2) s.facets = [{scale: 'x', auto: false}, {scale: 'y', auto: false}];
       return s;
@@ -366,9 +373,9 @@ export class Chart {
     ctx.restore();
   }
 
-  /** the plotting area as the clip of `ctx`, then `draw`, then as it was */
-  private clipped(u: uPlot, draw: (ctx: CanvasRenderingContext2D) => void): void {
-    const ctx = u.ctx;
+  /** the plotting area as the clip of `ctx` (the chart's own unless another
+      is given), then `draw`, then as it was */
+  private clipped(u: uPlot, draw: (ctx: CanvasRenderingContext2D) => void, ctx = u.ctx): void {
     ctx.save();
     ctx.beginPath();
     ctx.rect(u.bbox.left, u.bbox.top, u.bbox.width, u.bbox.height);
@@ -399,7 +406,25 @@ export class Chart {
   private drawRuns(u: uPlot): void {
     this.runsDrawn = 0;
     if (!this.runs.length || !this.showRuns) return;
-    const f = this.frame(u), r = uPlot.pxRatio;
+    const f = this.frame(u), {width, height} = u.ctx.canvas;
+    let layer = this.runsLayer;
+    if (!layer || layer.runs !== this.runs || layer.dark !== this.dark || layer.canvas.width !== width
+      || layer.canvas.height !== height || !sameFrame(layer.frame, f)) {
+      const canvas = layer?.canvas ?? document.createElement('canvas');
+      canvas.width = width; /* also clears it */
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      layer = this.runsLayer = {canvas, frame: f, dark: this.dark, runs: this.runs, drawn: this.strokeRuns(u, f, ctx)};
+    }
+    this.runsDrawn = layer.drawn;
+    u.ctx.drawImage(layer.canvas, 0, 0);
+  }
+
+  /** the earlier runs into `ctx`, clipped to the plotting area; the vertices drawn */
+  private strokeRuns(u: uPlot, f: PixelFrame, target: CanvasRenderingContext2D): number {
+    const r = uPlot.pxRatio;
+    let total = 0;
     this.clipped(u, ctx => {
       ctx.globalAlpha = 0.35;
       ctx.lineWidth = 1.25 * r;
@@ -415,7 +440,7 @@ export class Chart {
           cached = {frame: f, dark: this.dark, drawn, paths};
           this.runPaths.set(run, cached);
         }
-        this.runsDrawn += cached.drawn;
+        total += cached.drawn;
         for (const {p, css, fill} of cached.paths) {
           ctx.strokeStyle = css;
           ctx.stroke(p);
@@ -425,7 +450,8 @@ export class Chart {
           }
         }
       }
-    });
+    }, target);
+    return total;
   }
 
   /** frozen curves: under the curves, like curves */
@@ -600,6 +626,7 @@ export class Chart {
   destroy(): void {
     if (this.traceTimer !== null) clearTimeout(this.traceTimer);
     this.traceTimer = null;
+    this.runsLayer = null;
     this.u?.destroy();
     this.u = null;
   }

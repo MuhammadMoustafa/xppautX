@@ -142,12 +142,14 @@ test('equilibria: a circle stable, a box unstable, a triangle a saddle, about th
 
 test('a frozen curve: a line through its points, breaking at NaN; dots for points', () => {
   const r = recorder();
-  const n = traceFrozen(new Float32Array([0, 0.5, 0.5, 1]), new Float32Array([0, 1, NaN, 0]), true, FRAME, 1.5, r);
-  assert.equal(n, 3);
-  assert.deepEqual(r.ops.map(o => o[0]).join(''), 'MLM');
+  const n = traceFrozen(new Float32Array([0, 0.5, 0.5, 1, 0]), new Float32Array([0, 1, NaN, 0, 1]), true, FRAME, 1.5, r);
+  assert.equal(n, 4);
+  assert.deepEqual(r.ops.map(o => o[0]).join(''), 'MLML');
+  /* W82: a line going over the same pixels again and again (an earlier run
+     round a limit cycle) is drawn once, not once per pass */
+  const back = new Float32Array(1001).map((_, i) => i % 2), half = new Float32Array(1001).fill(0.5);
   const same = recorder();
-  assert.equal(traceFrozen(new Float32Array([0, 0.001, 0.002, 1]), new Float32Array([0, 0, 0, 0]), true, FRAME, 1.5, same), 2,
-    'points on the pixel of the one before are left out, the last one kept');
+  assert.equal(traceFrozen(back, half, true, FRAME, 1.5, same), 2, 'the passes after the first change no pixel');
   const dots = recorder();
   assert.equal(traceFrozen(new Float32Array([0, 1]), new Float32Array([0, 1]), false, FRAME, 1.5, dots), 2);
   assert.equal(dots.ops.filter(o => o[0] === 'M').length, 2);
