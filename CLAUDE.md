@@ -16,7 +16,8 @@ and amend the commit if it fails. `tools/wslrun.sh` (W84) runs a check
 script in WSL against the checkout's HEAD from a git clone on WSL's own
 filesystem (~/.cache/xppautx-verify/<checkout folder>, build/ kept
 between runs): verify.sh read over /mnt/c took 22-25 minutes, from
-there about 6.5. It refuses a checkout with uncommitted changes, since
+there 6.5-9.5 (once 22, just after WSL had started up; the cause is
+not pinned down). It refuses a checkout with uncommitted changes, since
 only HEAD would be checked. Run in place (`wsl -e bash -lc "cd
 /mnt/c/gitRepos/xppautX && tools/verify.sh"`) it still works, slowly.
 
