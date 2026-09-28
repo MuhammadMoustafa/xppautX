@@ -145,7 +145,8 @@ if_expr      = "if" , expr , "then" , expr ,
                { "else" , "if" , expr , "then" , expr } ,
                "else" , expr ;
 call         = name , "(" , [ arg_exprs ] , ")" ;
-arg_exprs    = expr , { "," , expr } ;
+arg_exprs    = expr , { "," , ( expr | name , "=" , expr ) } ;
+(* a built-in's arguments after the first are named: volterra(e, of=u, mu=0.5) *)
 
 number       = digits , [ "." , [ digits ] ] , [ exponent ]
              | "." , digits , [ exponent ] ;
