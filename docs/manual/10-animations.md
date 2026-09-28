@@ -34,9 +34,9 @@ window's six buttons, as player controls:
   X11): move to any frame or step one at a time; the delay between frames
   sets the speed (Fast/Slow in X11 are this delay).
 - **Skip**: sets the number of frames to skip while playing.
-- Saving frames: kinescope-style export (GIF/PNG made in the page from
-  the frames it already has) replaces `Mpeg` and the `anigif` option; see
-  "Saving pictures and files" in
+- Saving frames: kinescope-style export (an animated GIF written by
+  xppautX from the frames the page already has) replaces `Mpeg` and the
+  `anigif` option; see "Saving pictures and files" in
   [Using the interface](04-using-the-interface.md).
 
 At a phone width the tab is a full-screen sheet, with 44 px touch targets
@@ -278,6 +278,7 @@ the external `mpeg_encode` program on them yourself (a workflow this
 section used to walk through step by step, disk space and all). **In
 web2** there is no PPM-writing step and no external encoder: capture
 frames with the kinescope (they are data — series, marks and the
-viewport — not pixels) and export them as an animated GIF or PNG frames
-from the page itself (docs/ui-v2.md T15). See "Saving pictures and files"
-in [Using the interface](04-using-the-interface.md).
+viewport — not pixels) and export them as an animated GIF, written by
+xppautX itself from pixels the page renders (docs/ui-v2.md T15). See
+"Saving pictures and files" in
+[Using the interface](04-using-the-interface.md).

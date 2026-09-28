@@ -9,7 +9,6 @@
    not through window.__xpp. */
 import {diagramChart} from './plot/diagramChart';
 import {aniDrawInfo} from './ani/render';
-import {bytesToBase64} from './plot/gif';
 import {chartOf} from './plot/registry';
 import type {Session} from './session';
 import type {Action} from './store/state';
@@ -52,10 +51,5 @@ export function installTestHook(session: Session): void {
     ani: () => aniDrawInfo(),
     /** Stop: a client-only action, nothing to send (session.ts kinescopeStop) */
     kinescopeStop: () => session.kinescopeStop(),
-    /** the captured frames as an animated GIF (plot/gif.ts), base64; null with nothing captured */
-    kinescopeGif: () => {
-      const bytes = session.kinescopeGifBytes();
-      return bytes ? bytesToBase64(bytes) : null;
-    },
   };
 }

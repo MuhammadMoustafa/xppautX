@@ -572,11 +572,6 @@ export class Chart {
     return this.visible[curve] ?? false;
   }
 
-  /** a PNG of the plot (axes included) */
-  png(): string | null {
-    return this.u ? this.u.ctx.canvas.toDataURL('image/png') : null;
-  }
-
   /** the canvas's own pixels, RGB (no alpha): what a frame, GIF or kinescope
       writer's `pixels` ask wants (docs/protocol.md, plot/kinescopeRender.ts) */
   pixels(): {w: number; h: number; rgb: Uint8ClampedArray} | null {

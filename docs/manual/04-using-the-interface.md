@@ -141,8 +141,9 @@ about the pointer, Shift+drag or the middle button pans, pinch and
 one-finger drag on touch, a double click (or `0`) goes back to the
 window's axes, the nearest point is named
 under the mouse, on a tap, or by stepping with `[` `]` from the keyboard,
-curves can be hidden from the legend, and PNG and CSV export what is
-shown. There is no zoom history: "Reset view" and the **Fit** button
+curves can be hidden from the legend, and CSV export (written by xppautX
+itself, then offered as a download) what is shown. There is no zoom
+history: "Reset view" and the **Fit** button
 below are the way back. "Use this view" makes the client's current zoom
 the window's axes, so PostScript/SVG export and Restore agree with
 what's on screen.
@@ -272,9 +273,9 @@ browser never silently downloads anything on its own.
 Two differences from X11 worth knowing:
 
 - Pictures saved as GIF or PPM (kinescope, animation frames, array plots)
-  come from what the browser drew, not a copy of an X11 pixmap, and their
-  colours are rounded to 216 shades (the GIF format takes 256 colours,
-  and a browser smooths its lines).
+  are written by xppautX itself, but from pixels the browser drew, not a
+  copy of an X11 pixmap, and their colours are rounded to 216 shades (the
+  GIF format takes 256 colours, and a browser smooths its lines).
 - Kinescope frames live in the page as data (not bitmaps): reloading the
   page loses them.
 

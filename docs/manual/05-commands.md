@@ -81,10 +81,10 @@ This allows you to capture the active window and play it back. Another menu pops
 
 **In web2** a snapshot is data (the series, marks and viewport of the
 active plot window, docs/ui-v2.md T15), not a bitmap: reloading the
-page loses captured frames (they live in the client), and Save/Make
-anigif render the GIF or PNG in the page itself from that data, so the
-picture is only ever as good as what's on screen, not a copy of an X11
-pixmap.
+page loses captured frames (they live in the client). Make anigif still
+writes `anim.gif` itself, as in X11, asking the page for each frame's
+pixels, so the picture is only ever as good as what's on screen, not a
+copy of an X11 pixmap.
 
 ### (G)raphic stuff
 

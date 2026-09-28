@@ -344,10 +344,6 @@ export class DiagramChart {
     return {left: o.left - r.left + u.valToPos(x, 'x'), top: o.top - r.top + u.valToPos(y, 'y')};
   }
 
-  png(): string | null {
-    return this.u ? this.u.ctx.canvas.toDataURL('image/png') : null;
-  }
-
   info(): DiagramChartInfo | null {
     const u = this.u, m = this.model;
     if (!u || !m) return null;

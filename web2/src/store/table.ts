@@ -30,22 +30,16 @@ export interface TableState {
   page: BrowserEvent | null;
   /** the request in flight (or last sent), so the same block is not asked twice */
   pendingKey: string | null;
-  /** Export CSV is fetching the run block by block: the view asks for nothing meanwhile */
-  exporting: boolean;
-  /** the text of the last Export CSV (A14: tests read it through __xpp, no download needed) */
-  lastExport: string | null;
 }
 
 export const initialTable: TableState =
-  {open: false, selected: 0, page: null, pendingKey: null, exporting: false, lastExport: null};
+  {open: false, selected: 0, page: null, pendingKey: null};
 
 export type TableAction =
   | {type: 'open'; open: boolean}
   | {type: 'select'; row: number}
   | {type: 'event'; ev: BrowserEvent}
-  | {type: 'requested'; req: BrowserRequest | null}
-  | {type: 'exporting'}
-  | {type: 'exported'; csv: string};
+  | {type: 'requested'; req: BrowserRequest | null};
 
 export function reduceTable(state: TableState, action: TableAction): TableState {
   switch (action.type) {
@@ -65,10 +59,6 @@ export function reduceTable(state: TableState, action: TableAction): TableState 
     }
     case 'requested':
       return {...state, pendingKey: action.req ? JSON.stringify(action.req) : null};
-    case 'exporting':
-      return {...state, exporting: true};
-    case 'exported':
-      return {...state, exporting: false, lastExport: action.csv};
   }
 }
 
@@ -101,15 +91,4 @@ export function planRequest(page: BrowserEvent | null, visibleFrom: number, visi
 export function rowAt(page: BrowserEvent | null, row: number): (number | null)[] | null {
   if (!page || row < page.from || row >= page.from + page.data.length) return null;
   return page.data[row - page.from];
-}
-
-/** blocks of the run (in order, as session.exportTableCsv fetched them) as
-    CSV, full precision (A14): the digits the core sent, 9 significant, which
-    read back as exactly the stored single-precision numbers */
-export function tableCsv(blocks: BrowserEvent[]): string {
-  if (!blocks.length) return '';
-  const lines = [blocks[0].cols.join(',')];
-  for (const b of blocks)
-    for (const row of b.data) lines.push(row.map(v => (v === null ? 'NaN' : String(v))).join(','));
-  return lines.join('\n') + '\n';
 }

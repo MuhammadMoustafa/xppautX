@@ -19,8 +19,8 @@ function tabTitle(w: PlotWindow): string {
 }
 
 /** the Kinescope's own controls (docs/ui-v2.md T15): the core's menu
-    (Capture, Reset, Playback) plus Stop and Export GIF, which are the
-    client's own (nothing in the core to ask). Shown once there is
+    (Capture, Reset, Playback, Make Anigif/Export GIF) plus Stop, the
+    client's own (the core keeps no play position). Shown once there is
     something to play or export; Capture works from the start. */
 function KinescopeBar() {
   const session = useSession();
@@ -37,8 +37,10 @@ function KinescopeBar() {
           <button class="small" disabled={busy || playing} onClick={() => session.kinescopePlay()}
             title="Kinescope/Playback: show the captured frames (k, p)">Play</button>
           <button class="small" disabled={!playing} onClick={() => session.kinescopeStop()}>Stop</button>
-          <button class="small" disabled={playing} onClick={() => session.downloadKinescopeGif()}
-            title="An animated GIF of the captured frames, built here and downloaded">Export GIF</button>
+          <button class="small" disabled={busy || playing} onClick={() => session.downloadKinescopeGif()}
+            title="Kinescope/Make AniGif (k, m): an animated GIF of the captured frames, written by the core and downloaded">
+            Export GIF
+          </button>
           <button class="small" disabled={busy} onClick={() => session.kinescopeReset()}
             title="Kinescope/Reset: clear the captured frames (k, r)">Reset</button>
         </>

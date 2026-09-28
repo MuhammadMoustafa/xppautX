@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {
-  formatSettings, mergePatch, NUM_FIELDS, numError, pairError, pairErrors, parseSettings, pendingFields, plainName, setCommand,
+  mergePatch, NUM_FIELDS, numError, pairError, pairErrors, parseSettings, pendingFields, plainName, setCommand,
   shownSettings, type AutoSettings,
 } from '../src/store/autoSettings';
 import {initialState, reduce, type AppState} from '../src/store/state';
@@ -87,8 +87,24 @@ test("the core's rules, in the page", () => {
   assert.deepEqual(mergePatch({pars: ['a']}, {marks: [['a', 1]]}), {pars: ['a'], marks: [['a', 1]]});
 });
 
-test('the settings file: written from the data, read back as one set; version 1 files load', () => {
-  const text = formatSettings({...settings, marks: [['iapp', 0.25], ['T', 30]]});
+test('a settings file (an external tool, or one saved before W66 dropped Save settings) reads back as one set; version 1 files load', () => {
+  /* the shape Save settings used to write, built here field by field (not
+     round-tripped through it any more: docs/roadmap.md W66 -- AUTO's
+     settings live in the .auto file now) so parseSettings still has a
+     realistic file to read */
+  const numerics: Record<string, number> = {};
+  for (const f of NUM_FIELDS) numerics[f.label] = settings.numerics[f.key];
+  const text = JSON.stringify({
+    xppautX: 'auto-settings', version: 2,
+    numerics,
+    plot: settings.axes.plot,
+    axes: {
+      'Y-axis': settings.axes.var, 'Main Parm': settings.axes.par1, 'Secnd Parm': settings.axes.par2,
+      Xmin: settings.axes.xmin, Ymin: settings.axes.ymin, Xmax: settings.axes.xmax, Ymax: settings.axes.ymax,
+    },
+    pars: settings.pars,
+    marks: [['iapp', 0.25], ['T', 30]],
+  });
   const o = JSON.parse(text);
   assert.equal(o.version, 2);
   assert.equal(Object.keys(o.numerics).length, 22);

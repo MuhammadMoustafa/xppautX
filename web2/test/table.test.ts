@@ -1,9 +1,12 @@
-/* The data table slice: paging (planRequest), the reducer, and CSV export
-   (docs/ui-v2.md T10, store/table.ts), without a browser (npm test). */
+/* The data table slice: paging (planRequest) and the reducer (docs/ui-v2.md
+   T10, store/table.ts), without a browser (npm test). CSV export is the
+   core's own write (docs/roadmap.md W66: session.writeDataFile), so it is
+   not a table.ts concern any more; tools/web2check.mjs's dataTable covers
+   it end to end. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {BrowserEvent} from '../src/protocol/types';
-import {initialTable, planRequest, reduceTable, rowAt, tableCsv} from '../src/store/table';
+import {initialTable, planRequest, reduceTable, rowAt} from '../src/store/table';
 
 const page = (over: Partial<BrowserEvent> = {}): BrowserEvent => ({
   ev: 'browser', rows: 601, cols: ['T', 'V', 'W'], row0: 0, start: 0, end: 601, from: 0, col: 1,
@@ -74,26 +77,9 @@ test('select clamps to the known row count', () => {
   assert.equal(reduceTable(s, {type: 'select', row: -5}).selected, 0);
 });
 
-test('open/close and export are tracked', () => {
-  let s = reduceTable(initialTable, {type: 'open', open: true});
+test('open/close is tracked', () => {
+  const s = reduceTable(initialTable, {type: 'open', open: true});
   assert.equal(s.open, true);
   assert.equal(reduceTable(s, {type: 'open', open: true}), s, 'no change: the same state object');
-  s = reduceTable(s, {type: 'exported', csv: 'T,V\n0,1\n'});
-  assert.equal(s.lastExport, 'T,V\n0,1\n');
-});
-
-test('tableCsv is the header then the rows of every block in order, NaN for null', () => {
-  const a = page({cols: ['T', 'V'], data: [[0, -0.144], [0.05, null]]});
-  const b = page({cols: ['T', 'V'], from: 2, data: [[0.1, 0.25]]});
-  assert.equal(tableCsv([a, b]), 'T,V\n0,-0.144\n0.05,NaN\n0.1,0.25\n');
-  assert.equal(tableCsv([]), '');
-  assert.equal(tableCsv([page({cols: ['T', 'V'], data: []})]), 'T,V\n');
-});
-
-test('an export in progress is tracked until it is done', () => {
-  let s = reduceTable(initialTable, {type: 'exporting'});
-  assert.equal(s.exporting, true);
-  s = reduceTable(s, {type: 'exported', csv: 'T\n'});
-  assert.equal(s.exporting, false);
-  assert.equal(s.lastExport, 'T\n');
+  assert.equal(reduceTable(s, {type: 'open', open: false}).open, false);
 });

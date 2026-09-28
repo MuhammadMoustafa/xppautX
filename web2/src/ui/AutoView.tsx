@@ -49,7 +49,6 @@ import {
   buildDiagramModel, describePoint, fmt, grabStep, labelShape, LABEL_GLYPH, labelTypes, stepLabel, symbolHelp,
   symbolName, vertexOf, type DiagramModel,
 } from '../plot/diagramModel';
-import {download} from '../plot/export';
 import {attachGestures, type PickSink} from '../plot/interactions';
 import {pickKey, toData} from '../plot/pick';
 import {plotKey} from '../plot/plotKeys';
@@ -443,10 +442,6 @@ function AutoPanel({dark}: {dark: boolean}) {
               onClick={() => act(op)}>{text}</button>
           );
         })}
-        <button onClick={() => session.saveAutoSettings()}
-          title="Save AUTO's Numerics, parameters, axes and Mark values as a file, to set up this model again in one step">
-          Save settings
-        </button>
         <button onClick={() => settingsInput.current?.click()}
           title="Load AUTO's settings from a saved file (while AUTO runs they apply when it stops)">Load settings</button>
         <input ref={settingsInput} id="auto-settings-load" type="file" accept=".json,application/json" hidden
@@ -494,8 +489,6 @@ function AutoPanel({dark}: {dark: boolean}) {
               title="Fit the view to the branches shown (client-side; earlier branches only if Earlier branches is on)">
               Fit
             </button>
-            <button disabled={empty} onClick={() => { const u = chart.current!.png(); if (u) download('xpp-auto.png', u); }}
-              title="Save the diagram as a PNG picture">PNG</button>
           </div>
         </header>
         <div class={'plot-host auto-host' + (grabbing ? ' picking pick-grab' : pick ? ` picking pick-${pick.mode}` : '')}

@@ -274,19 +274,6 @@ export function plainName(name: string): string {
   return name.replace(/^\*\d/, '').trim();
 }
 
-export function formatSettings(s: AutoSettings): string {
-  const axes: Record<string, string | number> = {};
-  for (const [label, k] of AXES_NAMES) axes[label] = s.axes[k] ?? '';
-  return `${JSON.stringify({
-    xppautX: 'auto-settings', version: 2,
-    numerics: Object.fromEntries(NUM_FIELDS.map(f => [f.label, s.numerics[f.key]])),
-    plot: s.axes.plot,
-    axes,
-    pars: s.pars,
-    marks: s.marks,
-  }, null, 1)}\n`;
-}
-
 const isMap = (o: unknown): o is Record<string, unknown> => !!o && typeof o === 'object' && !Array.isArray(o);
 const numberOf = (v: unknown): number | null => {
   if (typeof v === 'number') return Number.isFinite(v) ? v : null;

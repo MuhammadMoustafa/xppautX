@@ -2,7 +2,19 @@
    Access pickers where the browser has them (Chrome, Edge, the VS Code
    webview), else an <input type=file> for opening and a download for
    saving. Thin: what is picked goes to the session. */
-import {download} from './plot/export';
+/** an anchor click: the browser's own "Save As" for `url` (an object URL
+    or a data URL), named `name`. The one place a download is triggered
+    (docs/roadmap.md W66: every file itself is written by the core; the
+    page only offers what the core wrote as a download or through a save
+    picker). */
+export function download(name: string, url: string): void {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
 
 /** where showSaveFilePicker put the user's file */
 export interface SaveHandle {

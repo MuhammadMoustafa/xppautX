@@ -3,8 +3,7 @@
 import {offerDownload, writeTo, type SaveHandle} from './pickers';
 import {accumulateScroll, keyScroll} from './plot/aplotScroll';
 import type {AplotColorMap} from './plot/aplotColors';
-import {download} from './plot/export';
-import {bytesToBase64, encodeGif} from './plot/gif';
+import {bytesToBase64} from './plot/gif';
 import {renderFrame} from './plot/kinescopeRender';
 import {pickAnswer, type PickState} from './plot/pick';
 import {chartOf} from './plot/registry';
@@ -12,7 +11,7 @@ import type {Ranges} from './plot/viewmath';
 import {HOME, windowOf} from './store/plots';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
-import type {AskEvent, BrowserEvent, Command, FilmEvent, XppEvent} from './protocol/types';
+import type {AskEvent, Command, FilmEvent, XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
 import {
   answerName, keepBothName, menuKeys, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type Upload,
@@ -20,12 +19,12 @@ import {
 import {createStore, type Store} from './store/store';
 import {initialState, noIdle, reduce, takenWhileBusy, type Action, type AppState} from './store/state';
 import {stepTarget} from './store/ani';
-import {snapshotWindow, type KinescopeFrame} from './store/kinescope';
-import {MAX_COUNT, MAX_NCOL, planRequest, tableCsv} from './store/table';
+import {snapshotWindow} from './store/kinescope';
+import {planRequest} from './store/table';
 import type {TextTab} from './store/text';
 import {fieldKey, setCommand, type ValueSet} from './store/values';
 import {formatIcFile, formatParFile, parseValuesFile} from './store/valueFiles';
-import {formatSettings, parseSettings, setCommand as autoSetCommand, shownSettings, type AutoSettingsPatch} from './store/autoSettings';
+import {parseSettings, setCommand as autoSetCommand, type AutoSettingsPatch} from './store/autoSettings';
 
 /** the data browser's buttons (docs/protocol.md `browser` op; web/xpp-client.js's BROWSER_BUTTONS) */
 export type BrowserOp = 'find' | 'get' | 'replace' | 'unreplace' | 'table' | 'load' | 'write' | 'first' | 'last'
@@ -515,21 +514,6 @@ export class Session {
     this.send(autoSetCommand(queued));
   }
 
-  /** AUTO's settings as a file (store/autoSettings.ts): what the forms show,
-      pending edits included; nothing goes to the core */
-  saveAutoSettings(): void {
-    const settings = shownSettings(this.store.getState().autoSettings);
-    if (!settings) return;
-    const text = formatSettings(settings);
-    this.store.dispatch({type: 'diagram', action: {type: 'setupSaved', text}});
-    offerDownload(`${this.modelBase()}-auto.json`, new Blob([text], {type: 'application/json'}));
-  }
-
-  private modelBase(): string {
-    const file = this.store.getState().hello?.file ?? '';
-    return file.replace(/^.*[\\/]/, '').replace(/\.[^.]*$/, '') || 'model';
-  }
-
   /** a saved settings file set as AUTO's settings (pending while the core
       computes); null when done, else what is wrong with the file (also a
       notification) */
@@ -733,35 +717,15 @@ export class Session {
     this.browserOp('get');
   }
 
-  /** every stored row as CSV (A14), fetched from the core block by block
-      and kept in the store (lastExport) for tests; the caller offers it as
-      a download. The view asks for nothing meanwhile (table.exporting), and
-      asks for its rows again once the export is done. */
-  async exportTableCsv(): Promise<string> {
-    const rows = this.store.getState().table.page?.rows ?? 0;
-    this.store.dispatch({type: 'table', action: {type: 'exporting'}});
-    const blocks: BrowserEvent[] = [];
-    for (let from = 0; from < rows; from += MAX_COUNT)
-      blocks.push(await this.browserBlock(from, MAX_COUNT));
-    const csv = tableCsv(blocks);
-    this.store.dispatch({type: 'table', action: {type: 'exported', csv}});
-    return csv;
-  }
-
-  /** rows [from, from+count) of every column: the core answers a request
-      with `from` at once and in order (a control line, docs/protocol.md) */
-  private browserBlock(from: number, count: number): Promise<BrowserEvent> {
-    return new Promise(resolve => {
-      const before = this.store.getState().table.page;
-      const stop = this.store.subscribe(() => {
-        const page = this.store.getState().table.page;
-        if (page && page !== before && page.from === from) {
-          stop();
-          resolve(page);
-        }
-      });
-      this.send({cmd: 'browser', from, count, col: 1, ncol: MAX_NCOL});
-    });
+  /** Save data (docs/protocol.md "Saving data"): the core itself writes
+      `what` (`table` or `plot`) as `format` into `name` in the model's
+      folder (browse_data.cpp data_write, skipping the format/name asks
+      since both are given), then, at the command's idle, the page offers
+      it as a download -- the same `pendingSave`/`deliver` path a `file`
+      ask's Write uses (W66: the page itself builds no file). */
+  writeDataFile(what: 'table' | 'plot', format: string, name: string): void {
+    this.pendingSave = {name, handle: null};
+    this.send({cmd: 'browser', op: 'write', what, format, name});
   }
 
   /* ---- animation (docs/ui-v2.md T13, docs/protocol.md `ani` and "The animation as data") ---- */
@@ -912,32 +876,15 @@ export class Session {
     else this.cancel(ask);
   }
 
-  /** every captured frame's picture, rendered the same way a `pixels` ask
-      is (plot/kinescopeRender.ts): null when there is nothing captured */
-  kinescopeFramePixels(): {w: number; h: number; rgb: Uint8ClampedArray}[] | null {
-    const dark = document.documentElement.dataset.theme === 'dark';
-    const frames = this.store.getState().kinescope.frames;
-    if (!frames.length) return null;
-    const rendered = frames.map((f: KinescopeFrame) => renderFrame(f, dark));
-    return rendered.every(p => p !== null) ? rendered as {w: number; h: number; rgb: Uint8ClampedArray}[] : null;
-  }
-
-  /** an animated GIF of the captured frames (plot/gif.ts), delay ms apart
-      (the autoplay speed set last, or the kinescope slice's default) */
-  kinescopeGifBytes(): Uint8Array | null {
-    const pixels = this.kinescopeFramePixels();
-    if (!pixels) return null;
-    return encodeGif(pixels.map(p => ({w: p.w, h: p.h, rgb: p.rgb})), this.store.getState().kinescope.delay);
-  }
-
-  /** Export GIF: built in the client, downloaded through the browser (docs/ui-v2.md
-      "GIF/PNG from the client") */
-  downloadKinescopeGif(name = 'xpp-kinescope.gif'): void {
-    const bytes = this.kinescopeGifBytes();
-    if (!bytes) return;
-    const url = URL.createObjectURL(new Blob([bytes as unknown as BlobPart], {type: 'image/gif'}));
-    download(name, url);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  /** Make Anigif (Kinescope's own menu item, k then m): the core writes
+      anim.gif itself (json_windows.cpp j_movie_make_anigif), asking
+      `pixels` with `film` for every captured frame (answerPixels above);
+      the page only offers the result as a download, at the idle that
+      follows (W66: the page built the GIF itself before this task). */
+  downloadKinescopeGif(): void {
+    if (this.store.getState().busy || !this.store.getState().kinescope.frames.length) return;
+    this.pendingSave = {name: 'anim.gif', handle: null};
+    this.kinescopeMenu('m');
   }
 
   /* ---- text views (docs/ui-v2.md T16, docs/protocol.md `equations`, `source`, ---- */

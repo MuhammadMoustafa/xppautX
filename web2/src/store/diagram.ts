@@ -172,8 +172,6 @@ export interface DiagramState {
       unless `showEarlier` (the core keeps them; new runs draw alone) */
   earlier: number;
   showEarlier: boolean;
-  /** the last Numerics and axes file saved (T21, store/autoSetup.ts), for tests */
-  setupSaved: string | null;
 }
 
 /** a Run of AUTO, as the status strip tells it; what it computed so far is
@@ -201,7 +199,7 @@ const HOME: Viewport = {x: null, y: null};
 export const initialDiagram: DiagramState = {
   open: false, shown: false, axes: null, points: noPoints(), labels: [], events: 0, outOfStep: false,
   viewport: HOME, hover: null, info: null, stab: null, stop: null, infoEvents: 0, grabbing: false, stored: null,
-  run: null, earlier: 0, showEarlier: false, setupSaved: null,
+  run: null, earlier: 0, showEarlier: false,
 };
 
 export type DiagramAction =
@@ -221,8 +219,7 @@ export type DiagramAction =
   | {type: 'runStopped'}
   /** Clear: what is drawn now becomes the earlier branches */
   | {type: 'clear'}
-  | {type: 'showEarlier'; show: boolean}
-  | {type: 'setupSaved'; text: string};
+  | {type: 'showEarlier'; show: boolean};
 
 export function pointCount(p: DiagramPoints): number {
   return p.x.length;
@@ -352,8 +349,6 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
       return {...s, earlier: pointCount(s.points), showEarlier: false, hover: null};
     case 'showEarlier':
       return a.show === s.showEarlier ? s : {...s, showEarlier: a.show};
-    case 'setupSaved':
-      return {...s, setupSaved: a.text};
   }
 }
 

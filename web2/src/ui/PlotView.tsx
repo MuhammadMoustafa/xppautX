@@ -12,7 +12,6 @@
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {Chart} from '../plot/chart';
 import {curveColor} from '../plot/colors';
-import {download, downloadCsv} from '../plot/export';
 import {attachGestures, type PickSink} from '../plot/interactions';
 import {pickInstruction, pickKey, toData, type Frac, type PickState} from '../plot/pick';
 import {buildModel, type PlotModel} from '../plot/model';
@@ -365,10 +364,8 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
           </button>
           <button disabled={noCurves || busy} onClick={() => session.fitView()}
             title="Fit the window's axes to the data (Window/Fit)">Fit</button>
-          <button disabled={empty} onClick={() => { const u = chart.current!.png(); if (u) download('xpp-plot.png', u); }}
-            title="Save the plot as a PNG picture">PNG</button>
-          <button disabled={noCurves} onClick={() => model && downloadCsv('xpp-curves.csv', model)}
-            title="Save the plotted numbers as CSV">CSV</button>
+          <button disabled={noCurves || busy} onClick={() => session.writeDataFile('plot', 'csv', 'xpp-curves.csv')}
+            title="Save the plotted numbers as CSV (written by the core, then downloaded)">CSV</button>
         </div>
       </header>
       {picking && <PickBar pick={picking} />}

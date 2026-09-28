@@ -557,7 +557,7 @@ async function values() {
 /* the data table (docs/ui-v2.md T10): open it, scroll to row 500 by
    scrolling and by keyboard, check its values against output.dat, Get,
    CSV export, and Tab reachability of every button */
-async function dataTable(want) {
+async function dataTable(want, dir) {
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
   await sleep(150);
   await cdp.eval(`document.querySelector('.table-toggle').click()`);
@@ -608,16 +608,32 @@ async function dataTable(want) {
     `(() => { const ics = s.core.ics.map(p => p[1]); return Math.abs(ics[0] - ${want[499][1]}) < 1e-6 && !s.busy; })()`,
     'Enter=Get'), JSON.stringify(await S('s.core.ics')));
 
-  /* CSV export: every stored row, fetched block by block (no download needed to check it) */
+  /* CSV export: the core writes data.csv itself (browser op write, what:
+     table, format: csv; core/browse_data.cpp data_write), then the page
+     offers it as a download (docs/roadmap.md W66) */
+  const dataCsvPath = path.join(dir, 'data.csv');
+  fs.rmSync(dataCsvPath, {force: true});
   await cdp.eval(`document.querySelector('.table-header .small').click()`);
-  check('Export CSV records the exported text', await until('!!s.table.lastExport && !s.table.exporting', 'csv'));
-  const csv = (await S('s.table.lastExport')).trim().split('\n');
+  check('Export CSV offers data.csv, written by the core',
+    await until("s.files.offered && s.files.offered.name === 'data.csv' && !s.busy", 'csv offered'));
+  for (let t0 = Date.now(); !fs.existsSync(dataCsvPath) && Date.now() - t0 < 5000;) await sleep(50);
+  let csv = fs.existsSync(dataCsvPath) ? fs.readFileSync(dataCsvPath, 'utf8').trim().split('\n') : [];
+  if (csv[0]?.startsWith('# seed ')) csv = csv.slice(1); /* the run's seed, when it used one (docs/protocol.md) */
   const r500 = csv[501] ? csv[501].split(',').map(Number) : [];
   check('the exported CSV has the header and all 601 rows, row 500 as in output.dat',
     csv.length === 602 && r500.length >= 3 && r500.every((v, k) => Math.abs(v - want[500][k]) <= 1e-7 * Math.abs(want[500][k]) + 1e-30),
     `${csv.length} lines, row 500: ${csv[501]} vs ${want[500]}`);
-  check('the table asks for its own rows again after the export',
-    await until('s.table.page && s.table.page.from <= s.table.selected && s.table.selected < s.table.page.from + s.table.page.data.length', 'refetch'));
+
+  /* the plot's own CSV export (PlotView.tsx), the same core write with
+     what: plot instead of table (docs/protocol.md "Saving data") */
+  const curvesCsvPath = path.join(dir, 'xpp-curves.csv');
+  fs.rmSync(curvesCsvPath, {force: true});
+  await cdp.eval(`document.querySelector('.plot-tools button[title^="Save the plotted numbers"]').click()`);
+  check('the plot\'s CSV button offers xpp-curves.csv, written by the core',
+    await until("s.files.offered && s.files.offered.name === 'xpp-curves.csv' && !s.busy", 'plot csv offered'));
+  for (let t0 = Date.now(); !fs.existsSync(curvesCsvPath) && Date.now() - t0 < 5000;) await sleep(50);
+  check('xpp-curves.csv is not empty',
+    fs.existsSync(curvesCsvPath) && fs.statSync(curvesCsvPath).size > 0);
 
   /* every button (and the grid) reachable by Tab */
   await cdp.eval(`document.querySelector('.skip-link').focus()`);
@@ -1874,7 +1890,7 @@ async function autoView(dir) {
   check("the diagram has the focus, so AUTO's keys work", await until(`document.activeElement.closest('.auto-host')`, 'auto focus'));
   const words = await cdp.eval(`[...document.querySelectorAll('.auto-panel button')].map(b => b.textContent.trim())`);
   check('the view has the AUTO buttons, no reDraw (the diagram is always current) and no Stop while idle (A10, T21)',
-    ['Parameter', 'Axes', 'Numerics', 'Run', 'Grab', 'Mark values…', 'Clear', 'File', 'Save settings', 'Load settings', 'Close']
+    ['Parameter', 'Axes', 'Numerics', 'Run', 'Grab', 'Mark values…', 'Clear', 'File', 'Load settings', 'Close']
       .every(w => words.includes(w)) && !words.some(w => /abort|stop|redraw/i.test(w)), JSON.stringify(words));
   check('the status strip says AUTO is idle', /^Idle/.test(await autoStatus()), await autoStatus());
   check("T24: the status strip is the AUTO window's bottom line, as the main window's status bar",
@@ -2302,28 +2318,24 @@ async function autoView(dir) {
   await cdp.eval(`document.querySelector('.auto-earlier').click()`);
   check('T21: "Earlier branches" shows them again', await until(`__xpp.diagram().curves.length === ${nCurvesAll}`, 'earlier shown'));
 
-  /* T21: Numerics and Axes saved to a file and loaded back (T22: from and into the settings data) */
-  const sentSave = await cdp.eval('__xpp.sent().length');
-  await cdp.eval(`[...document.querySelectorAll('.auto-tools button')].find(b => b.textContent === 'Save settings').click()`);
-  check('T22: Save settings writes the Numerics (22 values), the Axes (plot type and 7 values), the parameters and Mark values, asking the core nothing',
-    await until('!s.busy && s.diagram.setupSaved', 'settings saved', 20000)
-    && await DS(`(() => { const o = JSON.parse(d.setupSaved); return o.xppautX === 'auto-settings' && o.version === 2
-      && Object.keys(o.numerics).length === 22 && o.plot === 2 && Object.keys(o.axes).length === 7 && o.axes['Main Parm'] === 'iapp'
-      && o.pars[0] === 'iapp' && Array.isArray(o.marks); })()`)
-    && !(await S('s.ask')) && (await cdp.eval('__xpp.sent().length')) === sentSave,
-    JSON.stringify([await DS('d.setupSaved'), await S('[s.busy, s.ask]'), await cdp.eval('__xpp.sent().slice(-6)')]));
-  const saved = JSON.parse(await DS('d.setupSaved'));
-  /* This is only the Save/Load Settings round trip: any Nmax proves the
-     form and the core agree. The AUTO Stop race (W42, GitHub #85) is
-     tested separately, on tools/models/heavy.ode, in autoStopRace() below
-     -- a run whose settings need to defeat a timing race (fast enough to
-     still be seen running, slow enough that Stop still lands within its
-     budget) does not belong here, tangled with unrelated settings-file
-     coverage; see autoStopRace()'s own comment for why. */
-  saved.numerics.Nmax = '20000';
-  saved.plot = 1;
-  saved.axes.Xmin = '0.01';
-  saved.axes.Xmax = '0.4';
+  /* T22: Load settings, from a settings JSON the page reads (not one it
+     wrote any more: Save settings went at W66, docs/roadmap.md -- AUTO's
+     settings live in the .auto file, docs/protocol.md `session`). Only
+     the fields under test are given: parseSettings patches just what a
+     file names, so a minimal fixture proves the form and the core agree,
+     same as the old Save/Load round trip did for these fields. The AUTO
+     Stop race (W42, GitHub #85) is tested separately, on
+     tools/models/heavy.ode, in autoStopRace() below -- a run whose
+     settings need to defeat a timing race (fast enough to still be seen
+     running, slow enough that Stop still lands within its budget) does
+     not belong here, tangled with unrelated settings-file coverage; see
+     autoStopRace()'s own comment for why. */
+  const saved = {
+    xppautX: 'auto-settings', version: 2,
+    numerics: {Nmax: '20000'},
+    plot: 1,
+    axes: {Xmin: '0.01', Xmax: '0.4'},
+  };
   const setFile = path.join(dir, 'lecar-auto.json');
   fs.writeFileSync(setFile, JSON.stringify(saved));
   await pickFiles('#auto-settings-load', [setFile]);
@@ -3740,9 +3752,9 @@ async function animation() {
 }
 
 /* structure only (header, each frame's size, the trailer), not the LZW
-   pixels: web2/test/gif.test.ts already checks the encoder decodes right;
-   this just confirms what __xpp.kinescopeGif() produced is a real GIF with
-   the frames a kinescope export should have. */
+   pixels: confirms anim.gif, written by the core's own GIF writer
+   (core/json_windows.cpp j_movie_make_anigif), has the frames a
+   kinescope export should have. */
 function parseGifStructure(buf) {
   let p = 0;
   const u8 = () => buf[p++];
@@ -3778,11 +3790,11 @@ function parseGifStructure(buf) {
 }
 
 /* Kinescope (docs/ui-v2.md T15): capturing two frames of two different
-   integrations, playing them, resetting, the client's own GIF export
-   (plot/gif.ts, web2/test/gif.test.ts covers the encoder itself), and the
-   core's own Kinescope writers (Make Anigif) getting real pixels back
-   from a `pixels` ask (session.ts answerPixels) instead of the ok:0 this
-   task replaces. */
+   integrations, playing them, resetting, and the core's own Kinescope
+   GIF writer (Make Anigif, core/json_windows.cpp) getting real pixels
+   back from a `pixels` ask (session.ts answerPixels) and writing
+   anim.gif itself -- both directly (k, m) and through the page's own
+   Export GIF button (docs/roadmap.md W66: the page writes no files). */
 async function kinescope(dir) {
   await desktopMetrics();
   check('kinescope: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
@@ -3810,24 +3822,31 @@ async function kinescope(dir) {
   })()`);
   check('kinescope: the two captured frames hold different data', differ);
 
-  const gifB64 = await cdp.eval('__xpp.kinescopeGif()');
-  check('kinescope: Export GIF (client-side) produces a GIF', !!gifB64);
-  if (gifB64) {
-    const gif = parseGifStructure(Buffer.from(gifB64, 'base64'));
+  /* Export GIF (Plots.tsx): the page's own button for Kinescope's Make
+     Anigif (k, m), which core/json_windows.cpp's j_movie_make_anigif
+     writes as anim.gif itself, asking `pixels` for every captured frame
+     (W66: the page built the GIF itself before this task) */
+  const animPath = path.join(dir, 'anim.gif');
+  fs.rmSync(animPath, {force: true});
+  await cdp.eval(`document.querySelector('.kinescope-bar button[title^="Kinescope/Make AniGif"]').click()`);
+  check('kinescope: Export GIF offers anim.gif, written by the core',
+    await until("s.files.offered && s.files.offered.name === 'anim.gif' && !s.busy", 'gif offered'));
+  for (let t0 = Date.now(); !fs.existsSync(animPath) && Date.now() - t0 < 5000;) await sleep(50);
+  if (fs.existsSync(animPath)) {
+    const gif = parseGifStructure(fs.readFileSync(animPath));
     check('kinescope: the GIF has one frame per capture, all the same size',
       gif.frames.length === 2 && gif.frames.every(f => f.w === gif.w && f.h === gif.h && f.w > 0 && f.h > 0),
       JSON.stringify(gif));
-  }
+  } else check('kinescope: the GIF has one frame per capture, all the same size', false, 'anim.gif missing');
 
   check('kinescope: Playback (k, p) shows frame 1 then frame 2', await openKinescope('p')
     && await until('s.kinescope.playing && s.kinescope.shown === 0', 'showing 0')
     && await until('s.kinescope.shown === 1', 'showing 1')
     && await until('!s.kinescope.playing && !s.busy', 'play done'));
 
-  /* Make Anigif (k, m): no prompt, so a plain menu pick; core/json_windows.cpp's
-     j_movie_make_anigif asks `pixels` for every captured frame and writes
-     anim.gif in the model's folder itself */
-  const animPath = path.join(dir, 'anim.gif');
+  /* Make Anigif (k, m) directly, the raw protocol path the Export GIF
+     button above also drives: no prompt, so a plain menu pick */
+  fs.rmSync(animPath, {force: true});
   check('kinescope: Make Anigif (k, m) runs', await openKinescope('m') && await until('!s.busy', 'anigif done'));
   for (let t0 = Date.now(); !fs.existsSync(animPath) && Date.now() - t0 < 5000;) await sleep(50);
   check('kinescope: it wrote anim.gif from the pixels answer (a real GIF, not empty)',
@@ -3938,13 +3957,13 @@ async function main() {
     await installPerfObserver(cdp); /* before the first Page.navigate: draw/frame timing and long tasks, W58 */
     await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     const run = name => !opt.only || opt.only.split(',').includes(name);
-    if (run('desktop')) await session(ODE, async () => {
+    if (run('desktop')) await session(ODE, async (dir) => {
       await desktop(want);
       /* before values(): its edits and slider end up flushed by a Go
          (docs/protocol.md `set`, GitHub #117), so the stored data would no
          longer match the pristine `want` computed from the ODE file's own
          defaults */
-      await dataTable(want);
+      await dataTable(want, dir);
       await values();
       await valuesNarrowEscape();
       await keyboardOnly();
