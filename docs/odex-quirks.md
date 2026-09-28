@@ -33,7 +33,7 @@ other language — and `&`/`|` sit at `*`/`+`'s own priority.
 | comparison both sides | `aux z=1+2<3+4` | `6` (`1+(2<3)+4`, not `1`) | `comparison-precedence`, warning | `1` |
 | comparison over `/` | `aux z=1/2<1` | `~4.5e14` (`1/(2<1)`=`1/0`) | `comparison-precedence`, warning | `1` (`1/2`=0.5 `<` `1`) |
 | chained comparison | `aux z=3<2<1` | `1` (`(3<2)<1`=`0<1`, TRUE, though neither `3<2` nor `2<1` holds) | `chained-comparison`, warning | `.odex` has no chaining: `3<2<1` is a grammar error (write `(3<2)&(2<1)`) |
-| `&`/`|` beside arithmetic | `aux z=1+1&1` | `2` (`1+(1&1)`, `&` is priority 6 like `*`) | not flagged (operators weaker than a comparison are fine) | `and`/`or` are lower precedence than `+`/`-` (usual order), so `--check` still warns a `.ode` using `&`/`|` beside arithmetic since its meaning differs from `.odex`'s `and`/`or` |
+| `&`/`|` beside arithmetic | `aux z=1+1&1` | `2` (`1+(1&1)`, `&` is priority 6 like `*`) | `logical-precedence`, warning, where the grouping differs from the usual one (0.4.1) | `and`/`or` are lower precedence than `+`/`-` (usual order), so `--check` still warns a `.ode` using `&`/`|` beside arithmetic since its meaning differs from `.odex`'s `and`/`or` |
 | `&` vs `|` between themselves | `aux z=1|0&0` | `1` (`&` before `|`, as expected) | not flagged | `and` before `or`, same order |
 | unary minus over a comparison | `aux z=-1<0` | `-0` (`-(1<0)`=`-0`, **false**, though `-1` is really below `0`) | `comparison-precedence`, warning | `1` (true) |
 | unary minus over `>=` | `aux z=-1>=0` | `-1` (`-(1>=0)`=`-1`, **true**, though `-1<0`) | `comparison-precedence`, warning | `0` (false) |
@@ -114,10 +114,10 @@ priority table in `parserslow2.cpp:64-119`).
 
 | quirk | `.ode` | xppautX today | extension | .odex |
 |---|---|---|---|---|
-| `!=` | `aux z=(1!=2)` | load error: `illegal expression: 1!` — the symbol is in the operator table (priority 7, same as the other comparisons) but the tokenizer never reaches it, so there is no working not-equal in `.ode` | not specifically named (falls under generic syntax error) | `!=` is a working operator, usual comparison precedence |
-| `&&` | `aux z=1&&1` | load error (not an operator XPP recognises) | not flagged specifically | not `.odex` syntax; `and` is the word |
-| `||` | `aux z=1||1` | load error | not flagged specifically | not `.odex` syntax; `or` is the word |
-| `!` (unary not) | `aux z=!1` | load error (`not(...)` is the working spelling) | not flagged specifically | not `.odex` syntax; `not` is the word |
+| `!=` | `aux z=(1!=2)` | load error: `illegal expression: 1!` — the symbol is in the operator table (priority 7, same as the other comparisons) but the tokenizer never reaches it, so there is no working not-equal in `.ode` | `unsupported-operator`, **error**, quick fix `not(a==b)` (0.4.1) | `!=` is a working operator, usual comparison precedence |
+| `&&` | `aux z=1&&1` | load error (not an operator XPP recognises) | `unsupported-operator`, **error**, quick fix `&` (0.4.1) | not `.odex` syntax; `and` is the word |
+| `||` | `aux z=1||1` | load error | `unsupported-operator`, **error**, quick fix `|` (0.4.1) | not `.odex` syntax; `or` is the word |
+| `!` (unary not) | `aux z=!1` | load error (`not(...)` is the working spelling) | `unsupported-operator`, **error**, quick fix `not(x)` (0.4.1) | not `.odex` syntax; `not` is the word |
 
 ## if/then/else, with and without parentheses
 
@@ -129,11 +129,11 @@ untaken branch is never evaluated). The condition is true when not
 | quirk | `.ode` | xppautX today | extension | .odex |
 |---|---|---|---|---|
 | full parenthesized form | `if(1>0)then(10)else(20)` | works, `10` | (no finding: this is the only form that loads) | one-line form works with or without parens: `if 1>0 then 10 else 20` (parens optional) |
-| bare (no parens) | `if 1>0 then 10 else 20` | load error: "Illegal syntax" | flagged indirectly through `unary-sign`/precedence findings on the pieces, not the shape itself | grammar accepts this directly |
-| parenthesized condition, bare branches | `if(1>0)then 10 else 20` | load error: `illegal expression: 10EL` (space-stripping fuses `10` and `else`, see the `e` section) | as above | accepted |
-| bare condition, parenthesized `then`, unparenthesized `else` value with a sign | `if(1>0)then -10 else 20` | load error: "Illegal syntax (Ref:52 4)" | as above | accepted, sign is a legal unary minus in operand position |
-| `then` with no `else` | `if(1>0)then(10)` | load error: "If statement missing ELSE or THEN" | not flagged (the extension does not model a required-`else` rule explicitly, but `parenthesesCheckerCore.ts` would flag the file if brackets end up unbalanced from a hand fix) | `.odex` requires `else` too, but reports it as one clear parse error with line and column, not this message |
-| trailing operator applies to the whole `if` | `aux z=if(1>0)then(10)else(20)+5` | `15` (`+5` applies to the whole `if`'s result, not just the `else` branch) | not flagged: expected (an `if(...)then(...)else(...)` is one bracketed operand, like a function call) | same behaviour, since it is the only sane reading |
+| bare (no parens) | `if 1>0 then 10 else 20` | load error: "Illegal syntax" | `if-syntax`, **error** (0.4.1) | grammar accepts this directly |
+| parenthesized condition, bare branches | `if(1>0)then 10 else 20` | load error: `illegal expression: 10EL` (space-stripping fuses `10` and `else`, see the `e` section) | `if-syntax`, **error**, naming the space-stripping (0.4.1) | accepted |
+| bare condition, parenthesized `then`, unparenthesized `else` value with a sign | `if(1>0)then -10 else 20` | load error: "Illegal syntax (Ref:52 4)" | `if-syntax`, **error** (0.4.1) | accepted, sign is a legal unary minus in operand position |
+| `then` with no `else` | `if(1>0)then(10)` | load error: "If statement missing ELSE or THEN" | `if-syntax`, **error**: no else part (0.4.1) | `.odex` requires `else` too, but reports it as one clear parse error with line and column, not this message |
+| trailing operator applies to the whole `if` | `aux z=if(1>0)then(10)else(20)+5` | `15` (`+5` applies to the whole `if`'s result, not just the `else` branch) | `if-trailing-operator`, information (0.4.1) | same behaviour, since it is the only sane reading |
 | `^` on the whole `if` after unary minus | `aux z=-if(1>0)then(10)else(20)^2` | `-100`: `^` binds to the `if`'s result first (`10^2`), then the leading minus | `unary-minus-power`-style reasoning applies but the extension does not parse through `if(...)` today | same precedence rule as the bare `-x^2` case |
 | `if` with a NaN-producing condition | `aux z=if(0/0)then(1)else(2)` | takes the **else** branch (`MYIF` jumps on `temx==0.0`; a NaN compares unequal to 0.0 in IEEE terms, so it is read as "true" and does *not* jump — but `0/0` on the parser's own guarded division was measured to jump to else, see next row) | not flagged | `.odex`: a condition is any nonzero value is true, `0` is false, exactly as in `.ode`; a genuine NaN condition is not given a special rule (documented as an open question below) |
 | `0/0` in the parser | `aux z=0/0` | xppautX's parser guards division: measured result is `0`, not NaN or an error (confirms `if(0/0)` takes the else branch because the guarded `0/0` evaluates to `0`, which is falsy) | not flagged | `.odex` keeps the same guarded division (numerics unchanged); still `0/0`=`0`, no warning needed since it is not a NaN case here |
@@ -173,20 +173,33 @@ about 9-10 characters.
 | a name up to 64 chars | `par verylongparametername...=1` (<=64) | accepted in full | not flagged | accepted, no limit at all (W76 removes the 64 cap from `.ode` too) |
 | a name over 64 chars | same, >64 chars | refused at load (`name_too_long`) | not flagged specifically | accepted with no remark: no limit (a `.ode` longer than 64 gets only an info note today per the roadmap card, since a shared `.ode` may still meet classic XPPAUT's cut) |
 
-## A function argument hiding a global name
-
-Measured on master (`par v=3`, `f(v)=v*2`):
-
-| quirk | `.ode` | xppautX today | extension | .odex |
-|---|---|---|---|---|
-| argument shadows a parameter of the same name | `par v=3 ... f(v)=v*2 ... aux z=f(1)` | `f(1)`=`2`: lexical scoping, the argument `v` hides the global `v` inside `f`; the global cannot be reached from inside `f` | not flagged | same meaning (lexical scoping is expected in any language); `--check` (W75) adds an info note: `argument v hides parameter v` |
-
 ## Initial conditions and division
 
 | quirk | `.ode` | xppautX today | extension | .odex |
 |---|---|---|---|---|
-| a parameter in an initial condition | `par a=2`, `y(0)=a` | the run starts at y=0: the initial condition is computed before parameters are set, so `a` reads as 0 (kept in `.ode`, a warning at load) | not flagged (reported on XPP-ODE-Extension#1) | parameters are set first: y starts at 2; `--convert` writes `y(0)=0` with a comment naming `a` |
-| division by zero | `aux z=1/0`, `aux z=0/0` | guarded: a zero divisor becomes 2.23e-15 (parserslow2.cpp:1619), so `1/0` = 4.5e14 and `0/0` = 0, silently (kept in `.ode`; `--check` warns) | not flagged (reported) | IEEE: inf and NaN, and the run stops with an error at the first NaN or inf in the state |
+| a formula in `init` | `par a=2`, `init y=a`; `init y=2*3` | the value is read with `atof` (form_ode.cpp, `take_apart`), like a numeric `@` value: `init y=a` starts y at 0, `init y=2*3` at 2, `init x[1..2]=a` both at 0 | `init-value`, **error** (0.4.1) | an initial value is an expression, evaluated after the parameters: y starts at 2 and 6 |
+| a formula in a scalar `y(0)=` | `par a=2`, `y(0)=a`; `y(0)=2*3`; `y(0)=exp(0)` | y starts at the number `atof` finds: 0, 2 and 0. The formula is kept only as y's history for delay equations (`delay_string`). Measured 2026-09-27; the cause is `atof`, not the order in which parameters are set | `initcond-formula`, **warning** (information when the model uses `delay`) (0.4.1) | parameters are set first: y starts at 2; `--convert` writes `y(0)=0` with a comment naming `a` |
+| division by zero | `aux z=1/0`, `aux z=0/0` | guarded: a zero divisor becomes 2.23e-15 (parserslow2.cpp:1619), so `1/0` = 4.5e14 and `0/0` = 0, silently (kept in `.ode`; `--check` warns) | `division-by-zero`, warning, for a literal `0` divisor (0.4.1) | IEEE: inf and NaN, and the run stops with an error at the first NaN or inf in the state |
+
+## Checked, not quirks
+
+Candidates that were measured on xppautX and turned out to behave as a
+reader expects, or as any language would. The extension does not report
+them (decided by the maintainer 2026-09-28 for the argument case); they are
+listed so they are not investigated again.
+
+| candidate | `.ode` | xppautX today | why it is not a quirk | extension |
+|---|---|---|---|---|
+| a function argument with a global's name | `par v=3`, `f(v)=v*2`, `aux z=f(1)` | `f(1)`=`2`: inside `f`, `v` is the argument, and the global `v` cannot be reached from inside `f` (XPP has no way to name it there; pass it as another argument or rename one of them) | ordinary lexical scoping, as in C, Python or MATLAB; nothing is read differently from how it looks. Naming an argument after a state variable (`f(v)=v*(1-v)` beside `v'=`) is the usual XPP style: 81 such arguments in 29 of `examples/ode` | not reported (a hint was tried and removed as noise); rename (`F2`) already keeps the scopes apart. .odex: `--check` (W75) may still add an info note |
+| a formula in an array's initial condition | `par a=2`, `x[1..2]'=0`, `x[1..2](0)=a` | evaluated: both start at 2; `x[1..2](0)=2*3` at 6, `=[j]*2` at 2 and 4, `=ran(1)*2` at random values (measured 2026-09-27) | the array form is expanded into formulas that XPP evaluates, unlike a scalar `y(0)=` (see "Initial conditions" above) | not reported |
+| `&` after `*`, `\|` after `+` | `aux z=a*b&c`, `aux z=a+b\|c` | `(a*b)&c` and `(a+b)\|c` | same priority, grouped left, which is also the usual reading | not reported (only the groupings that differ are, `logical-precedence`) |
+| `&` before `\|` | `aux z=1\|0&0` | `1` | `&` binds tighter than `\|`, as usual | not reported |
+| operators weaker than a comparison | `aux z=1<2&3<4`, `aux z=2^2<3` | `(1<2)&(3<4)` = 1, `(2^2)<3` = 0 | the usual reading | not reported |
+| a leading minus before `^` | `aux z=-x^2` | `-(x^2)` | matches ordinary maths; `exp(-x^2)` means what it looks like | information only (`unary-minus-power`), for readers who expect `(-x)^2` |
+| the minus of an exponent | `aux z=1e-3^2` | `(1e-3)^2` = 1e-06 | `1e-3` is one number token; its `-` is not an operator | not reported |
+| a sign at the start or after `(` / `,` | `aux z=-3E-5*a`, `aux z=2*(-3)`, `aux z=max(-1,2)` | loads, as written | the only places XPP allows a sign | not reported |
+| spaces around `=` outside `@` lines | `par a = 1`, `x' = -x`, `x(0) = 1` | accepted | only `@` options and `solv` split on spaces | not reported |
+| declaration values | `par a=-3E-5` | a plain number | not an expression, so no sign rule applies | not reported |
 
 ## Left-to-right operator grouping / precedence summary
 
