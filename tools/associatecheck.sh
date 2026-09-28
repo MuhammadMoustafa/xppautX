@@ -34,7 +34,7 @@ fi
 if [ -n "$ps" ]; then
   script=tools/associate/xppautx-associate.ps1
   command -v cygpath >/dev/null 2>&1 && script=$(cygpath -w "$script")
-  out=$("$ps" -NoProfile -File "$script" -WhatIf -ExePath "$script" 2>&1)
+  out=$("$ps" -NoProfile -ExecutionPolicy Bypass -File "$script" -WhatIf -ExePath "$script" 2>&1)
   check "windows: -WhatIf would register .odex" sh -c 'printf "%s" "$1" | grep -q "Classes.\.odex.(Default) = xppautX.Model"' _ "$out"
 fi
 if [ $fail -ne 0 ]; then echo "associatecheck FAILED"; exit 1; fi
