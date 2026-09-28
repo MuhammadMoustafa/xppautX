@@ -2,7 +2,7 @@
 #ifndef _tabular_h_
 #define _tabular_h_
 
-#include "xpplim.h" /* MAX_TAB, XPP_NAME_MAX */
+#include "xpplim.h" /* MAX_TAB */
 #ifdef __cplusplus
 #include <string>
 #include <vector>

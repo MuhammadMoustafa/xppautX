@@ -116,18 +116,10 @@ void de_space(char *s)
 
 int find_user_name(int type, std::string_view oname)
 {
- std::string name; /* at most XPP_NAME_MAX: no allocation past the string's own room */
+ std::string name; /* oname without blanks, of any length */
  int i=-1;
- for(const char *p=oname.data();p!=oname.data()+oname.size();p++){
-   if(!isspace(*p)){
-     if(name.size()>=XPP_NAME_MAX)return(-1); /* longer than any name */
-     try{
-       name+=*p;
-     }catch(...){
-       return(-1); /* out of memory: no name matches */
-     }
-   }
- }
+ for(char ch : oname)
+   if(!isspace(static_cast<unsigned char>(ch)))name+=ch;
 
  for(i=0;i<xpp::model().nupar;i++)
          if((type==PARAMBOX)&&xpp::equal_ignoring_case(xpp::model().upar_names[i],name))break;
@@ -140,7 +132,7 @@ int find_user_name(int type, std::string_view oname)
 
 int do_calc(const char *temp, double *z)
 {
- std::array<char, 256> val; /* has_eq writes the name there */
+ std::string val; /* the name before ':' */
  int ok; 
  int i;
  double newz;
@@ -148,25 +140,25 @@ int do_calc(const char *temp, double *z)
 	*z=0.0;
 	return(1);
 	}
- if(has_eq(temp,val.data(),&i))
+ if(has_eq(temp,val,&i))
  {
 
   newz=calculate(&temp[i],&ok);  /*  calculate quantity  */
  
   if(ok==0)return(-1);
-  i=find_user_name(PARAM,val.data());
+  i=find_user_name(PARAM,val);
   if(i>-1){
-    set_val(val.data(),newz); /* a parameter set to value  */
+    set_val(val,newz); /* a parameter set to value  */
     *z=newz;
     redraw_params();
   }
   else {
-    i=find_user_name(IC,val.data());
+    i=find_user_name(IC,val);
     if(i<0){
       err_msg("No such name!");
       return(-1);
     }
-    set_val(val.data(),newz);
+    set_val(val,newz);
 
     xpp::session().last_ic[i]=newz;
     *z=newz;
@@ -181,14 +173,11 @@ int do_calc(const char *temp, double *z)
  return(1);
 }
 
-int has_eq(const char *z, char *w, int *where)
+int has_eq(std::string_view z, std::string &name, int *where)
 {
-  std::string_view s(z);
-  size_t i=s.find(':');
+  size_t i=z.find(':');
   if(i==std::string_view::npos)return(0);
-  if(i>255)return(0); /* w holds 256 bytes; no name is that long */
-  s.copy(w,i);
-  w[i]=0;
+  name.assign(z.substr(0,i));
   *where=static_cast<int>(i)+1;
   return(1);
  }

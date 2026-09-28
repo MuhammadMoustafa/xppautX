@@ -19,9 +19,9 @@
    the Session's.
 
    The name tables hold a model's names as the parser keeps them (blanks
-   removed, upper case), each at most XPP_NAME_MAX long: the parser refuses
-   a longer one (name_too_long), so nothing here cuts a name. A display of
-   fixed width shortens one with short_name (xpp_util.h). The tables have
+   removed, upper case), each of any length (W76): nothing here cuts a
+   name. A display of fixed width shortens one with short_name
+   (xpp_util.h). The tables have
    the parser's fixed limits as their sizes (xpplim.h): the parser writes
    an entry by its index (a variable, a Markov variable, an aux quantity
    each at its own offset), and an index past what the model uses reads

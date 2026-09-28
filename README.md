@@ -21,8 +21,8 @@ the command line:
 
 `-silent` writes an `output.dat`; `tools/verify.sh` checks it against a
 known-good checksum. Names in a model (variables, parameters, auxiliaries,
-functions and their arguments, tables) can be up to 64 characters long
-(`XPP_NAME_MAX` in `core/xpplim.h`); XPPAUT 8 cut them to about 10.
+functions and their arguments, tables) have no length limit (W76);
+XPPAUT 8 cut them to about 10.
 
 It needs nothing else (no X server, no Node), builds natively on Windows,
 and covers every feature of classic XPPAUT

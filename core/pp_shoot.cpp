@@ -198,7 +198,7 @@ int set_up_periodic(int *ipar, int *ivar, double *sect, int *ishow)
  values[3] = yn[*ishow];
  
  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(1),XPP_FIELD_NUMBER,XPP_FIELD_TEXT};
- status=do_string_box_of(4,1,"Periodic BCs",n,values,45,kinds);
+ status=do_string_box_of(4,1,"Periodic BCs",n,values,kinds);
  if(status!=0){
                i=find_user_name(PARAM,values[0].c_str());
 	       if(i>-1)
@@ -329,7 +329,7 @@ static const char *n[]={"*2Range over","Steps","Start","End",
 
  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
- status=do_string_box_of(7,1,"Range Shoot",n,values,45,kinds);
+ status=do_string_box_of(7,1,"Range Shoot",n,values,kinds);
  if(status!=0){
    shoot_range.item=values[0];
    i=find_user_name(PARAM,shoot_range.item);

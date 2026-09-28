@@ -332,7 +332,7 @@ void do_range_clines()
   values[2] = xpp::format("{:g}", ncrange.xlo);
   values[3] = xpp::format("{:g}", ncrange.xhi);
   static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
-  const int status=do_string_box_of(4,1,"Range Clines",n,values,45,kinds);
+  const int status=do_string_box_of(4,1,"Range Clines",n,values,kinds);
   if(status==0)return;
   ncrange.rv=values[0];
   ncrange.nstep=std::atoi(values[1].c_str());

@@ -115,7 +115,7 @@ int do_transpose()
  }
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
- status=do_string_box_of(6,1,"Transpose Data",n,values,33,kinds);
+ status=do_string_box_of(6,1,"Transpose Data",n,values,kinds);
  if(status!=0){
    find_variable(values[0].c_str(),&i);
    if(i>-1)

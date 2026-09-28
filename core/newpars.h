@@ -27,8 +27,6 @@
 
 #define VECTOR 28
 
-#define NAMLEN XPP_NAME_MAX
-
 #ifdef __cplusplus
 #include <string>
 #include <vector>

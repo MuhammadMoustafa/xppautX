@@ -649,7 +649,7 @@ int get_fit_params()
   values[9] = xpp::format("{}", fin.maxiter);
   static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,
                             XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER};
-  status=do_string_box_of(5,2,"Fit",n,values,45,kinds);
+  status=do_string_box_of(5,2,"Fit",n,values,kinds);
   if(status!=0){
     fin.tol=atof(values[3].c_str());
     fin.npts=atoi(values[4].c_str());

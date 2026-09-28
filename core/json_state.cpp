@@ -261,7 +261,7 @@ void plotvars_command(const char *line)
     const char *arr = js_find(line, "names");
     std::string name;
     for (i = 0; arr && js_elem(arr, i); i++) {
-        if (!js_string(js_elem(arr, i), name, NAME_IN)) continue;
+        if (!js_string(js_elem(arr, i), name)) continue;
         for (int k = 0; k < n; k++)
             if (xpp::equal_ignoring_case(xpp::model().uvar_names[k], name)) isck[k] = 1;
     }
@@ -348,8 +348,8 @@ int apply_value(const char *line)
     double z;
     int type, i, n, index = -1;
     get_string(line, "kind", kind, 16);
-    get_string(line, "name", name, NAME_IN);
-    if (!get_string(line, "text", text, 256)) text = xpp::format("{:.16g}", get_num(line, "value", 0));
+    get_string(line, "name", name);
+    if (!get_string(line, "text", text)) text = xpp::format("{:.16g}", get_num(line, "value", 0));
     if (kind == "par") type = 1;        /* PARAMBOX */
     else if (kind == "ic") type = 2;    /* ICBOX */
     else if (kind == "delay") type = 3; /* DELAYBOX */
@@ -421,7 +421,7 @@ void slide_command(const char *line)
 {
     std::string name;
     int type, index;
-    get_string(line, "name", name, NAME_IN);
+    get_string(line, "name", name);
     if (find_par_or_var(name.c_str(), &type, &index)) {
         set_par_or_var(name.c_str(), type, index, get_num(line, "value", 0));
         state_dirty = 1;

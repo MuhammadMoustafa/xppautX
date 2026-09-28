@@ -377,7 +377,7 @@ void get_pmap_pars_com(int l)
  values[2] = xpp::format("{}", s.numerics.poisgn);
  values[3] = yn[s.numerics.sos];
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
- status=do_string_box_of(4,1,"Poincare map",n,values,45,kinds);
+ status=do_string_box_of(4,1,"Poincare map",n,values,kinds);
  if(status!=0){
               find_variable(values[0].c_str(),&i1);
 	      if(i1<0) { s.numerics.poimap=0;

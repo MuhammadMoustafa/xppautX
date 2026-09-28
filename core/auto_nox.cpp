@@ -619,7 +619,7 @@ bool read_long(const char *s,long &v)
    fort.9 keep AUTO's own format, which its restart path and other people's
    scripts read. PAR(10) and friends are the period and such, not the user's
    parameters, and par_or_period_name leaves them alone. A name that does not
-   fit (names go to XPP_NAME_MAX) is shortened with a '~' (short_name) and
+   fit (a name may be any length) is shortened with a '~' (short_name) and
    still leaves a blank between it and the next heading: the column stays
    14 wide so the numbers below stay under it. */
 std::string col_centre(const std::string &s)
@@ -682,7 +682,7 @@ void auto_per_par()
     for(i=0;i<9;i++){
       values[i] = xpp::format("{}={:g}", par_or_period_name(s.auto_state.bifur.uzrpar[i]), s.auto_state.bifur.period[i]);
     }
-    status=do_string_box(5,2,"Mark values (UZ): parameter=value or per=value",n,values,45);
+    status=do_string_box(5,2,"Mark values (UZ): parameter=value or per=value",n,values);
     if(status!=0)
       for(i=0;i<9;i++){
 	xpp::Tokens tokens(values[i]);
@@ -714,7 +714,7 @@ void auto_params()
   }
   static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),
                             XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2)};
-  status=do_string_box_of(8,1,"Parameters",n,values,38,kinds);
+  status=do_string_box_of(8,1,"Parameters",n,values,kinds);
   if(status!=0){
     for(i=0;i<8;i++){
       if(i<xpp::session().auto_state.npar){
@@ -766,7 +766,7 @@ void auto_num_par()
   static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
-  status=do_string_box_of(7,4,"AutoNum",n,values,25,kinds);
+  status=do_string_box_of(7,4,"AutoNum",n,values,kinds);
   if(status!=0){
     s.auto_state.bifur.ntst=atoi(values[0].c_str());
     s.auto_state.bifur.nmx=atoi(values[1].c_str());
@@ -874,7 +874,7 @@ void auto_plot_par()
   values[5] = xpp::format("{:g}", s.auto_state.bifur.xmax);
   values[6] = xpp::format("{:g}", s.auto_state.bifur.ymax);
   static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
-  status=do_string_box_of(7,1,"AutoPlot",n,values,31,kinds);
+  status=do_string_box_of(7,1,"AutoPlot",n,values,kinds);
   if(status!=0){
     /*  get variable names  */
     find_variable(values[0].c_str(),&i);
@@ -2160,7 +2160,7 @@ int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur)
     std::vector<int> kinds(n, XPP_FIELD_NUMBER);
     kinds[0]=XPP_FIELD_INTEGER;
     kinds[xpp::model().node+1]=XPP_FIELD_INTEGER;
-    flag=do_string_box_of(n/2,2,"Homoclinic info",s.data(),v,16,kinds.data());
+    flag=do_string_box_of(n/2,2,"Homoclinic info",s.data(),v,kinds.data());
   }
   if(flag!=0){
     *nun=atoi(v[0].c_str());

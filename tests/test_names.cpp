@@ -1,8 +1,8 @@
-/* Long names: a model's names may be up to XPP_NAME_MAX characters, and the
-   places that must fit one into a fixed width shorten it visibly instead of
+/* Long names: a model's names have no length limit (W76), and the places
+   that must fit one into a fixed width shorten it visibly instead of
    overflowing or silently cutting it to another name. The whole-model side
-   (loading, the protocol, .set files, AUTO) is tools/autocheck.py's names
-   section. */
+   (loading, the protocol, the forms, CSV and .set files, AUTO) is
+   tools/autocheck.py's names section, with 200-character names. */
 #include "xpptest.h"
 #include "session.h"
 #include "model.h"
@@ -12,34 +12,20 @@
 #include "lunch-new.h"
 #include "xpp_util.h"
 #include <stdio.h>
-#include <string.h>
 
-
-static double calc(char *expr, int *ok)
+static double calc(const std::string &expr, int *ok)
 {
     int command[256], length = 0;
-    char buf[512];
-    snprintf(buf, sizeof buf, "%s", expr);
-    *ok = (add_expr(buf, command, &length) == 0);
+    *ok = (add_expr(expr.c_str(), command, &length) == 0);
     return *ok ? evaluate(command) : 0.0;
-}
-
-/* n copies of c */
-static char *rep(char *s, int c, int n)
-{
-    memset(s, c, (size_t)n);
-    s[n] = 0;
-    return s;
 }
 
 int main(void)
 {
-    char p64[XPP_NAME_MAX + 2], p65[XPP_NAME_MAX + 2], v64[XPP_NAME_MAX + 2];
-    char primed[XPP_NAME_MAX + 3], expr[400];
-    std::string out;
+    const std::string p200 = std::string(199, 'p') + "1", q1000(1000, 'q'), v200(200, 'v');
+    std::string out, name;
     double z = 0;
-    int ok;
-    FILE *fp;
+    int ok, where = 0;
 
     init_rpn();
 
@@ -49,32 +35,33 @@ int main(void)
     CHECK(add_con("stimulus_amplitude_second", 2.5) == 0);
     CHECK(get_val("stimulus_amplitude_first", &z) && z == 1.5);
     CHECK(get_val("STIMULUS_AMPLITUDE_SECOND", &z) && z == 2.5); /* any case */
-    snprintf(expr, sizeof expr, "%s", "stimulus_amplitude_second-stimulus_amplitude_first");
-    CHECK(calc(expr, &ok) == 1.0 && ok); /* calc takes a char * */
+    CHECK(calc("stimulus_amplitude_second-stimulus_amplitude_first", &ok) == 1.0 && ok);
 
-    /* XPP_NAME_MAX characters is a name, one more is refused */
-    rep(p64, 'p', XPP_NAME_MAX);
-    rep(p65, 'q', XPP_NAME_MAX + 1);
-    CHECK(add_con(p64, 3.0) == 0);
-    CHECK(get_val(p64, &z) && z == 3.0);
-    CHECK(add_con(p65, 4.0) == 1);
-    CHECK(!get_val(p65, &z));
-    /* a longer name does not find the name it starts with */
-    snprintf(expr, sizeof expr, "%sx", p64);
-    CHECK(!get_val(expr, &z));
+    /* no length limit: 200 and 1000 characters are names like any other */
+    CHECK(add_con(p200.c_str(), 3.0) == 0);
+    CHECK(get_val(p200, &z) && z == 3.0);
+    CHECK(add_con(q1000.c_str(), 4.0) == 0);
+    CHECK(get_val(q1000, &z) && z == 4.0);
+    /* a longer name does not find the name it starts with, nor a shorter */
+    CHECK(!get_val(p200 + "x", &z));
+    CHECK(!get_val(p200.substr(0, 199), &z));
+    /* a formula of long names (over 1200 characters) compiles whole */
+    CHECK(calc(q1000 + "-" + p200, &ok) == 1.0 && ok);
 
-    /* a variable of the longest length still gets its primed name X' */
-    rep(v64, 'v', XPP_NAME_MAX);
-    CHECK(add_var(v64, 0.0) == 0);
-    snprintf(primed, sizeof primed, "%s'", v64);
-    CHECK(add_var(primed, 0.0) == 0);
-    CHECK(name_too_long(v64) == 0);
-    CHECK(name_too_long(p65) == 1);
+    /* a long variable gets its primed name X' too */
+    CHECK(add_var(v200.c_str(), 0.0) == 0);
+    CHECK(add_var((v200 + "'").c_str(), 0.0) == 0);
+
+    /* "name:formula" hands back the name whole */
+    CHECK(has_eq(p200 + ":2*3", name, &where) == 1);
+    CHECK(name == p200 && where == 201);
+    CHECK(has_eq("no formula", name, &where) == 0);
 
     /* short_name: for display only, with a marker when it shortens */
     CHECK_STR(short_name("gca", 10).c_str(), "gca");
     CHECK_STR(short_name("abcdefghij", 10).c_str(), "abcdefghij");
     CHECK_STR(short_name("abcdefghijk", 10).c_str(), "abcdefghi~");
+    CHECK(short_name(q1000, 10) == std::string(9, 'q') + "~");
 
     /* AUTO's headings stay 14 wide: a long name is shortened with the marker
        and leaves a blank before the next heading */
@@ -92,17 +79,22 @@ int main(void)
     out = auto_screen_col("     U(1)     ");
     CHECK_STR(out.c_str(), "      v       "); /* a short name is centred as before */
 
-    /* a .set file line longer than a name: read whole, and the next field
-       is read from the next line */
-    fp = fopen("build/test_names.tmp", "w+");
+    /* find_user_name finds a 200-character parameter, blanks and all */
+    xpp::model().upar_names[0] = p200;
+    CHECK(find_user_name(PARAMBOX, " " + p200.substr(0, 100) + " " + p200.substr(100)) == 0);
+    CHECK(find_user_name(PARAMBOX, p200 + "x") == -1);
+
+    /* a .set file line of a 1000-character name: read whole, and the next
+       field is read from the next line */
+    FILE *fp = fopen("build/test_names.tmp", "w+");
     CHECK(fp != NULL);
     if (fp) {
         std::string a, b;
-        fprintf(fp, "%s\nnext\n", p64);
+        fprintf(fp, "%s\nnext\n", q1000.c_str());
         rewind(fp);
         io_string(a, fp, 1);
         io_string(b, fp, 1);
-        CHECK_STR(a.c_str(), p64);
+        CHECK(a == q1000);
         CHECK_STR(b.c_str(), "next");
         fclose(fp);
         remove("build/test_names.tmp");

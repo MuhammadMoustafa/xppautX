@@ -58,7 +58,7 @@ void set_up_aplot_range(void)
  values[1] = xpp::format("{:d}", xpp::session().array_plot.still);
  values[2] = xpp::format("{:d}", xpp::session().array_plot.tag);
  static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
- status=do_string_box_of(3,1,"Array range saving",n,values,28,kinds);
+ status=do_string_box_of(3,1,"Array range saving",n,values,kinds);
  if(status!=0){
    xpp::session().array_plot.range_stem=values[0];
    xpp::session().array_plot.still=atoi(values[1].c_str());
@@ -183,7 +183,7 @@ void print_aplot(APLOT *ap)
     values[3] = xpp::format("{:.24}", ap->bottom);
   values[4] = xpp::format("{:d}", ap->type);
   static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_INTEGER};
-  status=do_string_box_of(5,1,"Print arrayplot",n,values,40,kinds);
+  status=do_string_box_of(5,1,"Print arrayplot",n,values,kinds);
  if(status!=0){
    ap->filename=values[0];
    ap->xtitle=values[1];
@@ -251,12 +251,12 @@ int editaplot(APLOT *ap)
 values[8] = xpp::format("{:d}", ap->ncskip);
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
                            XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
- status=do_string_box_of(9,1,"Edit arrayplot",n,values,40,kinds);
+ status=do_string_box_of(9,1,"Edit arrayplot",n,values,kinds);
  if(status!=0){
    find_variable(values[0].c_str(),&i);
    if(i>-1){
      ap->index0=i;
-     ap->name=values[0].substr(0,XPP_NAME_MAX);
+     ap->name=values[0];
    }
    else
      {

@@ -49,7 +49,7 @@ Nothing. Fixes from hands-on use are tracked in docs/ui-v2.md (T19).
   rounded to the 216 web-safe ones (the GIF writer takes 256 colours and a
   canvas smooths lines). The X11 files are pixel copies of the window.
 - Kinescope frames live in the client: reloading the page loses them.
-- Names (up to 64 characters) are shown in full, clipped with a tooltip
+- Names (of any length, W76) are shown in full, clipped with a tooltip
   where a column is narrow. The X11 boxes show the first 9 characters and a
   `~` for a longer name; AUTO's printed column headings (14 wide in both)
   do the same at 12 characters.

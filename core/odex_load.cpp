@@ -157,8 +157,6 @@ private:
     if (reads_as_builtin(upper))
       fail(pos, xpp::format("`{}` would be read as the built-in `{}`: this version of xppautX keeps a model's "
                             "names without case", name, xpp::lower_case(upper)));
-    if (name.size() > XPP_NAME_MAX)
-      fail(pos, xpp::format("`{}` is longer than {} characters, this version's limit", name, XPP_NAME_MAX));
     decls_[name] = Decl{kind, pos, arity};
     folded_[upper] = name;
   }

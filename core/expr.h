@@ -77,12 +77,10 @@ double evaluate(const int *program);
 int add_ufun_new(int index, const char *rhs, std::span<const std::string> args);
 /* name as the symbol table keeps it: blanks removed, upper case */
 std::string converted(std::string_view name);
-/* the symbol table by name (as converted makes it): 1 (with a WARN) when
-   it is longer than XPP_NAME_MAX; a variable's, a lookup table's or a
-   parameter's index (-1 when name is not one); a parameter's or
-   variable's value got or set (1 when name is one); add_var adds a
-   variable (0 when it did) */
-int name_too_long(std::string_view name);
+/* the symbol table by name (as converted makes it, of any length): a
+   variable's, a lookup table's or a parameter's index (-1 when name is
+   not one); a parameter's or variable's value got or set (1 when name is
+   one); add_var adds a variable (0 when it did) */
 int get_var_index(std::string_view name);
 int find_lookup(std::string_view name);
 int get_param_index(std::string_view name);

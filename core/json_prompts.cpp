@@ -146,8 +146,7 @@ void buf_kinds(Buf *b, const int *kinds, int all, int n)
 
 } // namespace
 
-int j_dialog(const char *title, const char *name, std::string &value, const char *ok, const char *cancel, int max,
-             int kind)
+int j_dialog(const char *title, const char *name, std::string &value, const char *ok, const char *cancel, int kind)
 {
     Buf b;
     int id = ask_begin(&b, "string");
@@ -161,17 +160,15 @@ int j_dialog(const char *title, const char *name, std::string &value, const char
     buf_str(&b, ok);
     BUF_LIT(&b, ",\"cancel\":");
     buf_str(&b, cancel);
-    buf_format(&b, ",\"max\":{:d}", max);
     buf_kinds(&b, &kind, kind, 1);
     if (!ask_wait(&b, id)) return 0;
-    get_string(answer.c_str(), "value", value, static_cast<size_t>(max) + 1);
+    get_string(answer.c_str(), "value", value); /* whole: no dialog cuts (W76) */
     return 1;
 }
 
 int j_new_string(const char *name, std::string &value, int kind)
 {
-    /* the X11 prompt edited a 256-byte line: 255 characters */
-    return j_dialog("", name, value, "Ok", "Cancel", 255, kind);
+    return j_dialog("", name, value, "Ok", "Cancel", kind);
 }
 
 int j_yes_no_box(void)
@@ -243,41 +240,36 @@ namespace {
 
 /* string_box: a form of named fields, each of kinds[i]
    (every one `all` when kinds is NULL) */
-int form(const char *title, const char *const *names, std::span<std::string> values, int size, const int *kinds,
-         int all)
+int form(const char *title, const char *const *names, std::span<std::string> values, const int *kinds, int all)
 {
     Buf b;
     const int n = static_cast<int>(values.size());
     int id = ask_begin(&b, "form");
-    /* a field shows at most size-1 characters, as the char[size] it was */
+    /* every value whole, however long (W76) */
     std::vector<const char *> shown(values.size());
-    for (size_t i = 0; i < values.size(); i++) {
-        if (values[i].size() >= static_cast<size_t>(size)) values[i].resize(static_cast<size_t>(size) - 1);
-        shown[i] = values[i].c_str();
-    }
+    for (size_t i = 0; i < values.size(); i++) shown[i] = values[i].c_str();
     BUF_LIT(&b, ",\"title\":");
     buf_str(&b, title);
     BUF_LIT(&b, ",\"names\":");
     buf_str_array(&b, names, n);
     BUF_LIT(&b, ",\"values\":");
     buf_str_array(&b, shown.data(), n);
-    buf_format(&b, ",\"max\":{:d}", size - 1);
     buf_kinds(&b, kinds, all, n);
     if (!ask_wait(&b, id)) return 0;
     const char *arr = js_find(answer.c_str(), "values");
     for (int i = 0; i < n; i++) {
         const char *e = js_elem(arr, i);
-        if (e) js_string(e, values[i], static_cast<size_t>(size));
+        if (e) js_string(e, values[i]);
     }
     return 1;
 }
 
 } // namespace
 
-int j_string_box(int, int, const char *title, const char *const *names, std::span<std::string> values, int,
+int j_string_box(int, int, const char *title, const char *const *names, std::span<std::string> values,
                  const int *kinds)
 {
-    return form(title, names, values, MAX_LEN_SBOX, kinds, XPP_FIELD_TEXT);
+    return form(title, names, values, kinds, XPP_FIELD_TEXT);
 }
 
 /* the file selector lists the directory like the X11 one; an answer with

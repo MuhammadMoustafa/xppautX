@@ -724,12 +724,14 @@ deadcode.sh (GNU nm's section column). At W47a: 300 (from 461); at W47b: 266; at
 - Tests check data (output files, protocol events, UI state), never
   pixels: do not add screenshot comparisons.
 - A model's names (variables, parameters, aux, functions, arguments,
-  tables) go up to `XPP_NAME_MAX` (64, core/xpplim.h); arrays holding one
-  are `[XPP_NAME_MAX+1]`, dialog values `[MAX_LEN_SBOX]`. The parser
-  refuses a longer name (`name_too_long`) instead of cutting it. A display
-  of fixed width shortens with `short_name()` (xpp_util.cpp, ends in `~`);
-  the JSON front end always sends names whole. tools/models/longnames.ode
-  and autocheck's `names` section are the test.
+  tables) have no length limit (W76, which retired `XPP_NAME_MAX`,
+  `MAX_LEN_SBOX` and `name_too_long`): they are `std::string` everywhere,
+  and no dialog, form or protocol field cuts one (the `string` and `form`
+  asks carry no `max`). A display or file column of fixed width (AUTO's
+  printed headings and info strip) shortens with `short_name()`
+  (xpp_util.cpp, ends in `~`); the JSON front end always sends names
+  whole. tools/models/longnames.ode (200-character names), autocheck's
+  `names` section and tests/test_names.cpp are the test.
 - The refactoring scripts under `tools/` (guard_x11_headers.py, move_funcs.py,
   ui_seam_refactor.py, phase2_step*.py, cxx_guard_headers.py) are one-shot and already applied;
   keep them for the record, do not re-run them.

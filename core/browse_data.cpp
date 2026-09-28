@@ -243,9 +243,9 @@ void data_add_col(BROWSER *b)
   int status;
   std::string var,form;
    if(check_for_stor(b->data)==0)return;
-  status=get_dialog("Add Column","Name",var,"Ok","Cancel",XPP_NAME_MAX);
+  status=get_dialog("Add Column","Name",var,"Ok","Cancel");
   if(status!=0){
-    status=get_dialog_of("Add Column","Formula:",form,"Add it","Cancel",80,XPP_FIELD_EXPRESSION);
+    status=get_dialog_of("Add Column","Formula:",form,"Add it","Cancel",XPP_FIELD_EXPRESSION);
      if(status!=0)
       add_stor_col(var.c_str(),form.c_str(),b);
   }
@@ -279,10 +279,6 @@ int add_stor_col(const char *name, const char *formula, BROWSER *b)
   xpp::Session &s=xpp::session();
   const xpp::Model &m=xpp::model();
 
-  if(strlen(name)>XPP_NAME_MAX){
-    err_msg("Name too long");
-    return(0);
-  }
   /* the added column's data_store index: right after the model's own
      columns and every column data_add_col has added so far (the Model
      stays as the load left it -- docs/roadmap.md W77 -- so this count
@@ -468,9 +464,9 @@ void data_replace(BROWSER *b)
 {
  int status;
  std::string var=xpp::model().uvar_names[0],form=xpp::model().uvar_names[0];
-status=get_dialog_of("Replace","Variable:",var,"Ok","Cancel",XPP_NAME_MAX,XPP_FIELD_NAME_IN(0));
+status=get_dialog_of("Replace","Variable:",var,"Ok","Cancel",XPP_FIELD_NAME_IN(0));
 if(status!=0){
- status=get_dialog_of("Replace","Formula:",form,"Replace","Cancel",80,XPP_FIELD_EXPRESSION);
+ status=get_dialog_of("Replace","Formula:",form,"Replace","Cancel",XPP_FIELD_EXPRESSION);
  if(status!=0)replace_column(var.data(),form.data(),b->data,b->maxrow);
  xpp_ui.browser_redraw(0);
 }
@@ -495,9 +491,9 @@ void data_table(BROWSER *b)
  value[0] = xpp::model().uvar_names[0];
  value[1] = "0.00";
  value[2] = "1.00";
- value[3] = value[0].substr(0, XPP_NAME_MAX) + ".tab";
+ value[3] = value[0] + ".tab";
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_FILE};
- status=do_string_box_of(4,1,"Tabulate",name,value,40,kinds);
+ status=do_string_box_of(4,1,"Tabulate",name,value,kinds);
  if(status==0)return;
  xlo=atof(value[1].c_str());
  xhi=atof(value[2].c_str());
@@ -519,7 +515,7 @@ void data_find(BROWSER *b)
  value[0] = xpp::model().uvar_names[0];
  value[1] = "0.00";
  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_NUMBER};
- status=do_string_box_of(2,1,"Find Data",name,value,40,kinds);
+ status=do_string_box_of(2,1,"Find Data",name,value,kinds);
 
  if(status==0)return;
  val=atof(value[1].c_str());

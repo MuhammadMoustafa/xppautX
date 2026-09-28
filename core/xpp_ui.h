@@ -166,8 +166,8 @@ extern XppTextMetrics text_metrics;
 
 /* ---- C++: the table and the dialogs that edit text ---------------------
    The text a user types comes back in a std::string, as long as the
-   front end sends it (up to a dialog's own limit), instead of in a
-   caller's char[MAX_LEN_SBOX] (W32c). C++ only: std::string cannot cross
+   front end sends it (no dialog cuts it, W76), instead of in a
+   caller's fixed char array (W32c). C++ only: std::string cannot cross
    an extern "C" boundary, and every caller is C++. */
 
 typedef struct XppUi {
@@ -190,11 +190,11 @@ typedef struct XppUi {
     int (*checklist)(const char *title, const char *const *names, int *flags, int n);
     /* kinds: one XPP_FIELD_* per field, or NULL (all text) */
     int (*string_box)(int row, int col, const char *title, const char *const *names,
-                      std::span<std::string> values, int maxchar, const int *kinds);
+                      std::span<std::string> values, const int *kinds);
     int (*file_selector)(const char *title, std::string &file, const char *wild);
     /* one-line text entry with named buttons; returns 0 on cancel */
     int (*dialog)(const char *title, const char *name, std::string &value, const char *ok,
-                  const char *cancel, int max, int kind);
+                  const char *cancel, int kind);
     int (*get_mouse_xy)(int *x, int *y);
 
     /* menus. show_menu makes MAIN_MENU, FILE_MENU or NUM_MENU (menus.h) the
@@ -363,20 +363,19 @@ void xpp_set_ui(const XppUi *ui); /* copies; missing entries keep defaults */
    the default shown and, on OK, what was typed. 0 on cancel. */
 int new_string(const char *name, std::string &value);
 int new_string_of(const char *name, std::string &value, int kind);
-/* a form of values.size() fields named names[i] (at most maxchar shown),
-   each kinds[i] (XPP_FIELD_*; NULL all text); 0 on cancel */
+/* a form of values.size() fields named names[i], each kinds[i]
+   (XPP_FIELD_*; NULL all text), every value of any length; 0 on cancel */
 int do_string_box(int row, int col, const char *title, const char *const *names,
-                  std::span<std::string> values, int maxchar);
+                  std::span<std::string> values);
 int do_string_box_of(int row, int col, const char *title, const char *const *names,
-                     std::span<std::string> values, int maxchar, const int *kinds);
+                     std::span<std::string> values, const int *kinds);
 /* a file name (base name or path, what the user picked) matching wild;
    0 on cancel or an empty name */
 int file_selector(const char *title, std::string &file, const char *wild);
-/* one-line entry of at most max characters with named buttons; 0 on cancel */
-int get_dialog(const char *wname, const char *name, std::string &value, const char *ok, const char *cancel,
-               int max);
+/* one-line entry of any length with named buttons; 0 on cancel */
+int get_dialog(const char *wname, const char *name, std::string &value, const char *ok, const char *cancel);
 int get_dialog_of(const char *wname, const char *name, std::string &value, const char *ok,
-                  const char *cancel, int max, int kind);
+                  const char *cancel, int kind);
 
 #endif
 #endif

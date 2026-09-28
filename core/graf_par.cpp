@@ -128,7 +128,7 @@ void get_2d_view(int ind)
  values[7] = s.plot_windows.current->ylabel;
  s.plot_windows.current->ThreeDFlag=0;
  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(4,2,"2D View",n,values,31,kinds);
+ status=do_string_box_of(4,2,"2D View",n,values,kinds);
  if(status!=0){
 		/*  get variable names  */
              find_variable(values[0].c_str(),&i);
@@ -170,7 +170,7 @@ void axes_opts()
   values[6] = xpp::format("{:d}", s.plot_file.ps_font_size);
   static const int kinds[]={XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
-  status=do_string_box_of(7,1,"Axes options",n,values,25,kinds);
+  status=do_string_box_of(7,1,"Axes options",n,values,kinds);
  if(status!=0){
    s.plot_windows.current->xorg=atof(values[0].c_str());
    s.plot_windows.current->yorg=atof(values[1].c_str());
@@ -214,7 +214,7 @@ void get_3d_view(int ind)
                            XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(6,3,"3D View",n,values,31,kinds);
+ status=do_string_box_of(6,3,"3D View",n,values,kinds);
  if(status!=0){
 		/*  get variable names  */
               find_variable(values[0].c_str(),&i);
@@ -416,7 +416,7 @@ void user_window()
  values[1] = xpp::format("{:g}", s.plot_windows.current->xhi);
  values[3] = xpp::format("{:g}", s.plot_windows.current->yhi);
  static const int kinds[]={XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
- status=do_string_box_of(2,2,"Window",n,values,28,kinds);
+ status=do_string_box_of(2,2,"Window",n,values,kinds);
  if(status!=0){
              
 	      s.plot_windows.current->xlo=atof(values[0].c_str());
@@ -514,7 +514,7 @@ void get_3d_par_com()
  
  static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER};
- status=do_string_box_of(5,2,"3D Parameters",n,values,28,kinds);
+ status=do_string_box_of(5,2,"3D Parameters",n,values,kinds);
  if(status!=0){
 	      s.plot_windows.current->PerspFlag=atoi(values[0].c_str());
 	      s.plot_windows.current->ZPlane=atof(values[1].c_str());
@@ -728,7 +728,7 @@ int alter_curve(const char *title, int in_it, int n)
  values[4] = xpp::format("{:d}", s.plot_windows.current->line[in_it]);
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),
                            XPP_FIELD_NAME_IN(4),XPP_FIELD_INTEGER};
- status=do_string_box_of(5,1,title,nn,values,25,kinds);
+ status=do_string_box_of(5,1,title,nn,values,kinds);
  if(status!=0){
 		    find_variable(values[0].c_str(),&i);
  	      if(i>-1)
@@ -972,7 +972,7 @@ void edit_frz_crv(int i)
  values[1] = xpp::session().frozen_curves.curve[i].key;
  values[2] = xpp::session().frozen_curves.curve[i].name;
  static const int kinds[]={XPP_FIELD_NAME_IN(4),XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(3,1,"Edit Freeze",nn,values,25,kinds);
+ status=do_string_box_of(3,1,"Edit Freeze",nn,values,kinds);
  if(status!=0){
    xpp::session().frozen_curves.curve[i].color=atoi(values[0].c_str());
    xpp::session().frozen_curves.curve[i].key=xpp::format("{:.19}",values[1]);

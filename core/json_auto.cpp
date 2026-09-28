@@ -406,7 +406,7 @@ int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
     }
     if (pars && *pars == '[') {
         for (i = 0; (v = js_elem(pars, i)) != NULL; i++) {
-            if (i >= AUTO_SETTINGS_PARS || !js_string(v, s.pars[i], XPP_NAME_MAX + 1)) {
+            if (i >= AUTO_SETTINGS_PARS || !js_string(v, s.pars[i])) {
                 why = xpp::format("AUTO's parameters must be a list of at most {} names", AUTO_SETTINGS_PARS);
                 return 0;
             }
@@ -424,9 +424,9 @@ int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
             s.has_plot = 1;
             s.plot = static_cast<int>(z);
         }
-        get_string(axes, "var", s.var, XPP_NAME_MAX + 1);
-        get_string(axes, "par1", s.par1, XPP_NAME_MAX + 1);
-        get_string(axes, "par2", s.par2, XPP_NAME_MAX + 1);
+        get_string(axes, "var", s.var);
+        get_string(axes, "par1", s.par1);
+        get_string(axes, "par2", s.par2);
         for (i = 0; i < 4; i++) {
             if (!(v = js_find(axes, range[i]))) continue;
             if (!js_number(v, &s.range[i])) {
@@ -439,7 +439,7 @@ int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
     }
     if (marks && *marks == '[') {
         for (i = 0; (v = js_elem(marks, i)) != NULL; i++) {
-            if (i >= AUTO_SETTINGS_MARKS || *v != '[' || !js_string(js_elem(v, 0), s.mark_name[i], XPP_NAME_MAX + 1)
+            if (i >= AUTO_SETTINGS_MARKS || *v != '[' || !js_string(js_elem(v, 0), s.mark_name[i])
                 || !js_number(js_elem(v, 1), &s.mark_value[i])) {
                 why = xpp::format("Mark values must be a list of at most {} pairs [name, number]", AUTO_SETTINGS_MARKS);
                 return 0;

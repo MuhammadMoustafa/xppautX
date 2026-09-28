@@ -2,7 +2,7 @@
 #define _load_eqn_h_
 
 #include <stdio.h>
-#include "xpplim.h" /* XPP_NAME_MAX */
+#include "xpplim.h"
 
 /*
 The acutual max filename length is determined by the 

@@ -215,7 +215,7 @@ int get_marker_info(void)
     values[1] = xpp::format("{:d}", markinfo.color);
     values[2] = xpp::format("{:g}", markinfo.size);
     static const int kinds[] = {XPP_FIELD_NAME_IN(5), XPP_FIELD_NAME_IN(4), XPP_FIELD_NUMBER};
-    const int status = do_string_box_of(3, 1, "Add Marker", n, values, 25, kinds);
+    const int status = do_string_box_of(3, 1, "Add Marker", n, values, kinds);
     if (status != 0) {
         markinfo.type = std::atoi(values[0].c_str());
         markinfo.size = std::atof(values[2].c_str());
@@ -237,7 +237,7 @@ int get_markers_info(void)
     values[5] = xpp::format("{:d}", markinfo.skip);
     static const int kinds[] = {XPP_FIELD_NAME_IN(5), XPP_FIELD_NAME_IN(4), XPP_FIELD_NUMBER,
                                 XPP_FIELD_INTEGER, XPP_FIELD_INTEGER, XPP_FIELD_INTEGER};
-    const int status = do_string_box_of(6, 1, "Add Markers", n, values, 25, kinds);
+    const int status = do_string_box_of(6, 1, "Add Markers", n, values, kinds);
     if (status != 0) {
         markinfo.type = std::atoi(values[0].c_str());
         markinfo.size = std::atof(values[2].c_str());

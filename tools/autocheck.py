@@ -24,8 +24,8 @@ docs/protocol.md (issue #11): one name for the .set and .auto pair a long
 AUTO run is picked back up from; script plays
 examples/scripts/lecar_auto.jsonl through --script (docs/protocol.md
 "Scripts") and checks a broken script exits 1; names loads
-tools/models/longnames.ode (20-40 character names) and checks it computes,
-saves and continues exactly like shortnames.ode. replay interrupts an
+tools/models/longnames.ode (200-character names: no length limit, W76)
+and checks it computes, saves and continues exactly like shortnames.ode. replay interrupts an
 integration and an AUTO run over --server and checks that a script made of
 the same commands and the recorded {"cmd":"abort","at":...} stops them at
 the same point: the same data file, the same saved diagram. --report prints the
@@ -959,8 +959,24 @@ def section_control():
 
 LONG = os.path.join(here, 'models', 'longnames.ode')
 SHORT = os.path.join(here, 'models', 'shortnames.ode')
-LONG_PAR = 'applied_stimulus_current_amplitude'
-LONG_B = 'recovery_slope_parameter_b_with_forty_ch'
+
+
+def long_name(base):
+    """base padded to the 200 characters longnames.ode's names have (W76: a
+    name has no length limit); the model was written with this"""
+    words = ['of', 'the', 'model', 'with', 'a', 'name', 'two', 'hundred', 'characters', 'long']
+    s, i = base, 0
+    while len(s) < 200:
+        s += '_' + words[i % len(words)]
+        i += 1
+    s = s[:200]
+    return s[:-1] + 'z' if s.endswith('_') else s
+
+
+LONG_PAR = long_name('applied_stimulus_current_amplitude')
+LONG_B = long_name('recovery_slope_parameter_b')
+LONG_V = long_name('membrane_potential_fast_variable').upper()
+LONG_AUX = long_name('total_membrane_drive_current').upper()
 
 
 def silent_output(ode):
@@ -1004,9 +1020,9 @@ def names_diagram(ode):
 
 def section_names():
     short, long_ = silent_output(SHORT), silent_output(LONG)
-    check('names: -silent integrates the long-named model',
+    check('names: -silent integrates the model with 200-character names',
           long_ is not None and len(long_.splitlines()) == 2001, str(long_ and len(long_.splitlines())))
-    check('names: and its output.dat is the short-named model\'s', long_ is not None and long_ == short)
+    check("names: and its output.dat is the short-named model's", long_ is not None and long_ == short)
 
     home = tempfile.mkdtemp(prefix='xpphome')
     s = Server(args.server, LONG, env={'HOME': home}, verbose=args.v)
@@ -1016,27 +1032,66 @@ def section_names():
     msgs = [e for e in evs if e.get('ev') == 'message']
     check('names: the model loads with no message', st is not None and not msgs, str(msgs)[:200])
     pars = dict(st['pars']) if st else {}
-    check('names: state carries the parameters\' full names', LONG_B in pars and LONG_PAR in pars, str(pars))
-    check('names: and the variables\'', st is not None and [n for n, v in st['ics']] ==
-          ['MEMBRANE_POTENTIAL_FAST_VARIABLE', 'SLOW_RECOVERY_VARIABLE_W'], str(st and st['ics']))
-    check('names: hello lists the auxiliary by name', hello is not None and
-          'TOTAL_MEMBRANE_DRIVE_CURRENT' in hello['lists'][0], str(hello and hello['lists'][0]))
+    check("names: state carries the parameters' full 200-character names", LONG_B in pars and LONG_PAR in pars,
+          str(list(pars))[:300])
+    check("names: and the variables'", st is not None and [n for n, v in st['ics']] ==
+          [LONG_V, 'SLOW_RECOVERY_VARIABLE_W'], str(st and st['ics'])[:300])
+    check('names: hello lists the auxiliary by its full name', hello is not None and
+          LONG_AUX in hello['lists'][0], str(hello and hello['lists'][0])[:300])
 
     s.send(cmd='set', kind='par', name=LONG_B, value=0.9)
     s.collect(is_idle)
     s.send(cmd='set', kind='ic', name='slow_recovery_variable_w', value=-0.25)
     evs, _ = s.collect(is_idle)
     st = last_state(evs)
-    check('names: set a parameter by its long name', st is not None and dict(st['pars']).get(LONG_B) == 0.9,
-          str(st and st['pars']))
-    check('names: set an initial condition by its long name, in any case',
-          st is not None and dict(st['ics']).get('SLOW_RECOVERY_VARIABLE_W') == -0.25, str(st and st['ics']))
+    check('names: set a parameter by its 200-character name', st is not None and dict(st['pars']).get(LONG_B) == 0.9,
+          str(st and st['pars'])[:300])
+    check('names: set an initial condition by its name, in any case',
+          st is not None and dict(st['ics']).get('SLOW_RECOVERY_VARIABLE_W') == -0.25, str(st and st['ics'])[:300])
+    # a formula naming a long name twice (over 400 characters) is read whole
+    s.send(cmd='set', kind='par', name=LONG_PAR.upper(), text='%' + LONG_B + '-' + LONG_B.upper() + '+0.125')
+    evs, _ = s.collect(is_idle)
+    st = last_state(evs)
+    errs = [e for e in evs if e.get('ev') == 'message']
+    check('names: a formula of 400 characters sets a parameter', not errs and st is not None
+          and dict(st['pars']).get(LONG_PAR) == 0.125, '%s %s' % (errs, st and dict(st['pars']).get(LONG_PAR)))
+    s.send(cmd='set', kind='par', name=LONG_PAR, value=0)
+    s.collect(is_idle)
     # a name longer than any matches nothing, not the name it starts with
     s.send(cmd='set', kind='par', name=LONG_B + 'x' * 40, value=5)
     evs, _ = s.collect(is_idle)
     st = last_state(evs)
     check('names: a longer name sets nothing', st is not None and dict(st['pars']).get(LONG_B) == 0.9,
-          str(st and st['pars']))
+          str(st and st['pars'])[:300])
+
+    # AUTO's settings take and show the names whole (its forms too)
+    def autosettings(evs):
+        au = [e for e in evs if e.get('ev') == 'autosettings']
+        return au[-1] if au else None
+
+    up = lambda names: [n.upper() for n in names]
+    s.send(cmd='data', events=['autosettings'])
+    evs, _ = s.collect(is_idle)
+    au = autosettings(evs)
+    check("names: AUTO's parameters are the long names", au is not None
+          and up(au['pars'][:1]) == up([LONG_PAR]) and LONG_B.upper() in up(au['pars']), str(au)[:300])
+    s.send(cmd='auto', op='set', pars=[LONG_B, LONG_PAR], axes={'plot': 1, 'var': LONG_V, 'par1': LONG_B})
+    evs, _ = s.collect(is_idle)
+    au = autosettings(evs)
+    errs = [e for e in evs if e.get('ev') == 'message']
+    check('names: auto set takes 200-character names for the parameters and the axes', not errs and au is not None
+          and up(au['pars'][:2]) == up([LONG_B, LONG_PAR])
+          and au['axes']['par1'].upper() == LONG_B.upper() and au['axes']['var'].upper() == LONG_V,
+          '%s %s' % (errs, str(au)[:300]))
+    s.send(cmd='auto', op='param')
+    evs, ask = s.collect(lambda e: e.get('ev') == 'ask' or is_idle(e))
+    if ask is not None and ask.get('ev') == 'ask':
+        s.send(cmd='answer', id=ask['id'], ok=0)
+        s.collect(is_idle)
+    check('names: the Parameter form shows them whole', ask is not None and ask.get('kind') == 'form'
+          and up(ask['values'][:2]) == up([LONG_B, LONG_PAR]), str(ask)[:300])
+    s.send(cmd='auto', op='set', pars=[LONG_PAR, LONG_B], axes={'plot': 1, 'var': LONG_V, 'par1': LONG_PAR})
+    s.collect(is_idle)
 
     s.send(cmd='key', key='i')
     evs, ask = s.collect(is_ask)
@@ -1045,16 +1100,39 @@ def section_names():
     s.send(cmd='browser', **{'from': 0, 'count': 1, 'col': 1, 'ncol': 3})
     evs, br = s.collect(lambda e: e.get('ev') == 'browser')
     s.collect(is_idle)
-    check('names: the data browser heads its columns with the long names', br is not None and br['cols'] ==
-          ['T', 'MEMBRANE_POTENTIAL_FAST_VARIABLE', 'SLOW_RECOVERY_VARIABLE_W', 'TOTAL_MEMBRANE_DRIVE_CURRENT'],
-          str(br and br['cols']))
+    cols = ['T', LONG_V, 'SLOW_RECOVERY_VARIABLE_W', LONG_AUX]
+    check('names: the data browser heads its columns with the long names', br is not None and br['cols'] == cols,
+          str(br and br['cols'])[:300])
+    # a column added under a 200-character name, from a formula over 200
+    added = long_name('added_column_of_the_product')
+    s.send(cmd='browser', op='addcol')
+    evs, ask = s.collect(is_ask)
+    s.send(cmd='answer', id=ask['id'], ok=1, value=added)
+    evs, ask = s.collect(is_ask)
+    s.send(cmd='answer', id=ask['id'], ok=1, value=LONG_V.lower() + '*slow_recovery_variable_w')
+    evs, _ = s.collect(is_idle)
+    errs = [e for e in evs if e.get('ev') == 'message']
+    s.send(cmd='browser', **{'from': 0, 'count': 1, 'col': 1, 'ncol': 4})
+    evs, br = s.collect(lambda e: e.get('ev') == 'browser')
+    s.collect(is_idle)
+    row = br['data'][0] if br and br.get('data') else []
+    check('names: Add column takes a 200-character name and a long formula', not errs and br is not None
+          and br['cols'] == cols + [added.upper()] and len(row) == 5 and abs(row[4] - row[1] * row[2]) < 1e-5,
+          '%s %s' % (errs, str(br)[:300]))
+    s.send(cmd='browser', op='write', what='table', format='csv', name='ln.csv')
+    s.collect(is_idle)
+    csv_path = os.path.join(s.run, 'ln.csv')
+    lines = [l.strip() for l in open(csv_path)] if os.path.exists(csv_path) else []
+    lines = [l for l in lines if l and not l.startswith('#')]
+    check('names: Save data as CSV heads its columns with the whole names',
+          bool(lines) and lines[0].split(',') == cols + [added.upper()], str(lines[:1])[:300])
 
     # the .set file of a session keeps the values under the long names
     s.send(cmd='session', op='save', name='ln')
     s.collect(is_idle, timeout=20 * SLOW)
     set_path = os.path.join(s.run, 'ln.set')
     text = open(set_path).read() if os.path.exists(set_path) else ''
-    check('names: the .set file names the long parameter', LONG_B in text)
+    check('names: the .set file names the long parameter whole', LONG_B in text)
     s2 = Server(args.server, LONG, env={'HOME': home}, verbose=args.v)
     s2.collect(is_idle)
     for f in ('ln.set', 'ln.auto'):
@@ -1066,7 +1144,7 @@ def section_names():
     st = last_state(evs)
     check('names: a .set round trip keeps the long-named values',
           st is not None and dict(st['pars']).get(LONG_B) == 0.9 and
-          dict(st['ics']).get('SLOW_RECOVERY_VARIABLE_W') == -0.25, str(st and (st['pars'], st['ics'])))
+          dict(st['ics']).get('SLOW_RECOVERY_VARIABLE_W') == -0.25, str(st and (st['pars'], st['ics']))[:300])
     s2.close()
     shutil.rmtree(home, ignore_errors=True)
 

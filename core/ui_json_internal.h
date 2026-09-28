@@ -29,10 +29,6 @@
 #include <utility>
 #include <vector>
 
-/* a name a client sends: one byte more than any name, so a longer one is
-   cut to something no name equals */
-#define NAME_IN (XPP_NAME_MAX + 2)
-
 /* window ids the client draws into; plot windows are graph index + 1 */
 #define WIN_AUTO 101
 #define WIN_ANI 104
@@ -108,9 +104,9 @@ unsigned long read_line_seq(void); /* the sequence number of read_line()'s line 
 const char *skip_ws(const char *p);
 const char *skip_value(const char *p);
 const char *js_find(const char *obj, const char *key);
-/* the JSON string at v into out, cut to max - 1 bytes, the size of the
-   array it once went into (NAME_IN: an overlong name then equals no name);
-   false (out empty) when v is not a string */
+/* the JSON string at v into out, cut to max - 1 bytes (a short keyword's
+   bound; a name or a value is read whole); false (out empty) when v is
+   not a string */
 bool js_string(const char *v, std::string &out, size_t max = std::string::npos);
 double js_num(const char *v, double def);
 int js_number(const char *v, double *out);
@@ -138,15 +134,14 @@ void j_message_box(const char *msg);
 void j_kill_message_box(void);
 void j_title_text(const char *s);
 void j_canvas_xy(const char *s);
-int j_dialog(const char *title, const char *name, std::string &value, const char *ok, const char *cancel, int max,
-             int kind);
+int j_dialog(const char *title, const char *name, std::string &value, const char *ok, const char *cancel, int kind);
 int j_new_string(const char *name, std::string &value, int kind);
 int j_yes_no_box(void);
 int j_two_choice(const char *c1, const char *c2, const char *q, const char *key, const char *title);
 void j_respond_box(const char *button, const char *message);
 int j_checklist(const char *title, const char *const *names, int *flags, int n);
 int j_string_box(int row, int col, const char *title, const char *const *names, std::span<std::string> values,
-                 int maxchar, const int *kinds);
+                 const int *kinds);
 int j_file_selector(const char *title, std::string &file, const char *wild);
 int j_get_mouse_xy(int *x, int *y);
 int j_rubber_band(int *i1, int *j1, int *i2, int *j2, int flag);

@@ -173,9 +173,7 @@ void create_markov(int nstates, double *st, int type, const char *name)
   else {
     xpp::model().markov[j].fixed.assign(n2, 0.0);
   }
-  /* std::string::substr keeps the same XPP_NAME_MAX truncation the old
-     fixed char[XPP_NAME_MAX+1] buffer's snprintf enforced. */
-  xpp::model().markov[j].name = std::string(name).substr(0, XPP_NAME_MAX);
+  xpp::model().markov[j].name = name;
   xpp::model().nmarkov++;
 
 }

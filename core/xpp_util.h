@@ -20,7 +20,6 @@ void clr_scrn(void);
 void de_space(char *s);
 void get_max(int index, double *vmin, double *vmax);
 int do_calc(const char *temp, double *z);
-int has_eq(const char *z, char *w, int *where);
 double calculate(const char *expr, int *ok);
 void man_ic(void);
 void set_default_ics(void);
@@ -51,6 +50,11 @@ void xpp_cleanup_auto_dir(void);
 /* name, shortened for a fixed-width display of width characters: a longer
    one keeps its start and ends in '~' so it cannot pass for another name */
 std::string short_name(std::string_view name, int width);
+
+/* "name:formula" (do_calc's "set this name to that"): 1 with name the
+   text before the first ':' (of any length) and *where the formula's
+   start; 0 when z has no ':' */
+int has_eq(std::string_view z, std::string &name, int *where);
 
 /* the name of plotted column ind: T (0), a model variable, or (W77) a
    browser column data_add_col added; browse_column_name (browse.h) owns

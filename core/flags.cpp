@@ -140,10 +140,6 @@ int add_global(const char *cond, int sign, const char *rest)
       continue;
     }
     if(ch=='='){
-      if(temp.size()>XPP_NAME_MAX){
-	xpp::log(XPP_LOG_WARN, " Event variable {} is too long\n",temp);
-	return(1);
-      }
       flags[j].lhsname[nevents]=temp;
       temp.clear();
       if(nevents<MAX_EVENTS-1)

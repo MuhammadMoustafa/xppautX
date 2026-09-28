@@ -694,7 +694,7 @@ int compiler(const std::string &bob, FILE *fptr)
       name=tokens.text(" ");
       value=atof_of(tokens.text(" "));
       nstates=atoi_of(tokens.text(" \n"));
-      if(name_too_long(name)||add_var(name,value)){
+      if(add_var(name,value)){
 	xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	xpp_model_failed();
       }
@@ -730,7 +730,7 @@ int compiler(const std::string &bob, FILE *fptr)
 	      xpp_model_failed();
 	    }
 	  name=take_apart(*tok,&value);
-	  if(name_too_long(name)||add_var(name,value)){
+	  if(add_var(name,value)){
 	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	    xpp_model_failed();
 	  }
@@ -909,7 +909,6 @@ int compiler(const std::string &bob, FILE *fptr)
       for(std::optional<std::string_view> tok;(tok=tokens.next(" ,\n"));)
 	{
 	  std::string aux(*tok);
-	  if(name_too_long(aux.c_str()))xpp_model_failed();
 	  aux_names[Naux]=aux;
 	  xpp::log(XPP_LOG_DEBUG, "|{}| ",aux_names[Naux]);
 	  Naux++;
@@ -1293,9 +1292,8 @@ int strparse(const char *s1, const char *s2, int i0, int *i1)
   return(0);
 }
 
-/* the names in s1 from i0 up to its ')', each at most NAMLEN
-   characters, into args; *ie where the formula after the '=' starts.
-   0 when they are not there. */
+/* the names in s1 from i0 up to its ')' into args; *ie where the
+   formula after the '=' starts. 0 when they are not there. */
 int extract_args(const char *s1, int i0, int *ie, std::vector<std::string> &args)
 {
   int i=i0,n=strlen(s1);
@@ -1306,10 +1304,6 @@ int extract_args(const char *s1, int i0, int *ie, std::vector<std::string> &args
     if(type<0)break;
     if(static_cast<int>(args.size())>=MAXARG){
       xpp_log(XPP_LOG_ERROR, "More than %d arguments\n",MAXARG);
-      return 0;
-    }
-    if(i1-i>NAMLEN){
-      xpp_log(XPP_LOG_ERROR, "Argument name longer than %d characters\n",NAMLEN);
       return 0;
     }
     args.emplace_back(s1+i,s1+i1);
@@ -1616,7 +1610,6 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
       compiler("g "+v.rhs+" \n",fp);
     if(v.type==MAP||v.type==ODE||v.type==VEQ){
       tmp=converted(v.lhs);
-      if(name_too_long(tmp.c_str()))xpp_model_failed();
       if(find_the_name(vnames,nvar,tmp)<0){
 	vnames.push_back(tmp);
 	nvar++;
@@ -1630,7 +1623,6 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 
     if(v.type==MARKOV_VAR){
       tmp=converted(v.lhs);
-      if(name_too_long(tmp.c_str()))xpp_model_failed();
       if(find_the_name(mnames,nmark,tmp)<0){
 	mnames.push_back(tmp);
 	nmark++;
@@ -1651,7 +1643,6 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
 
     if(v.type==AUX_VAR){
       tmp=converted(v.lhs);
-      if(name_too_long(tmp.c_str()))xpp_model_failed();
       anames.push_back(tmp);
       naux++;
       xpp::log(XPP_LOG_INFO, "{} = {} \n",anames[naux-1],v.rhs);
@@ -1664,7 +1655,6 @@ void compile_em() /* Now we try to keep track of markov, fixed, etc as
       xpp::model().fixinfo[nfix].name=v.lhs;
       xpp::model().fixinfo[nfix].value=v.rhs;
       tmp=converted(v.lhs);
-      if(name_too_long(tmp.c_str()))xpp_model_failed();
       fnames.push_back(tmp);
       nfix++;
      xpp::log(XPP_LOG_INFO, "{} = {} \n",fnames[nfix-1],v.rhs);
@@ -2095,7 +2085,6 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end)
 	 xpp::log(XPP_LOG_ERROR, "Markov variable {}  must have at least 2 states \n",name);
 	 return -1;
        }
-       if(name_too_long(name.c_str()))return -1;
        add_markov(nstates,name.c_str());
        if(jj==jj1) {  /* test to see if this is the first one */
 	 markov_states.assign(nstates,std::string());

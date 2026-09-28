@@ -26,10 +26,6 @@
 /* the compiler's temporary symbol: a delay's, shift's or set's variable */
 #define LASTTOK (MAX_SYMBS-2)
 
-/* longest symbol name: a model's names, and the primed name X' that
-   form_ode.cpp adds for each variable X */
-#define MXLEN (XPP_NAME_MAX+1)
-
 namespace xpp::expr {
 
 /* the current Session's symbol table */

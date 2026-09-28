@@ -24,8 +24,7 @@ static int hl_two_choice(const char *, const char *, const char *, const char *,
 {
     return 0;
 }
-static int hl_string_box(int, int, const char *, const char *const *, std::span<std::string>, int,
-                         const int *)
+static int hl_string_box(int, int, const char *, const char *const *, std::span<std::string>, const int *)
 {
     return 0;
 }
@@ -79,7 +78,7 @@ static void hl_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
         else xpp::log(XPP_LOG_DEBUG, "  y[{}]={:.8g}\n", i, y[i]);
     }
 }
-static int hl_dialog(const char *, const char *, std::string &, const char *, const char *, int, int)
+static int hl_dialog(const char *, const char *, std::string &, const char *, const char *, int)
 {
     return 0;
 }
@@ -247,28 +246,27 @@ int TwoChoice(const char *c1, const char *c2, const char *q, const char *key)
 }
 void respond_box(const char *button, const char *message) { xpp_ui.respond_box(button, message); }
 int do_string_box(int row, int col, const char *title, const char *const *names,
-                  std::span<std::string> values, int maxchar)
+                  std::span<std::string> values)
 {
-    return xpp_ui.string_box(row, col, title, names, values, maxchar, NULL);
+    return xpp_ui.string_box(row, col, title, names, values, NULL);
 }
 int do_string_box_of(int row, int col, const char *title, const char *const *names,
-                     std::span<std::string> values, int maxchar, const int *kinds)
+                     std::span<std::string> values, const int *kinds)
 {
-    return xpp_ui.string_box(row, col, title, names, values, maxchar, kinds);
+    return xpp_ui.string_box(row, col, title, names, values, kinds);
 }
 int file_selector(const char *title, std::string &file, const char *wild)
 {
     return xpp_ui.file_selector(title, file, wild);
 }
-int get_dialog(const char *wname, const char *name, std::string &value, const char *ok, const char *cancel,
-               int max)
+int get_dialog(const char *wname, const char *name, std::string &value, const char *ok, const char *cancel)
 {
-    return xpp_ui.dialog(wname, name, value, ok, cancel, max, XPP_FIELD_TEXT);
+    return xpp_ui.dialog(wname, name, value, ok, cancel, XPP_FIELD_TEXT);
 }
 int get_dialog_of(const char *wname, const char *name, std::string &value, const char *ok,
-                  const char *cancel, int max, int kind)
+                  const char *cancel, int kind)
 {
-    return xpp_ui.dialog(wname, name, value, ok, cancel, max, kind);
+    return xpp_ui.dialog(wname, name, value, ok, cancel, kind);
 }
 int GetMouseXY(int *x, int *y) { return xpp_ui.get_mouse_xy(x, y); }
 void flash(int num) { xpp_ui.menu_flash(num); }

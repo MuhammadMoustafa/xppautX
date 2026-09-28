@@ -383,7 +383,7 @@ int ps_ask_params()
   values[3]=xpp::format("{:.24}",s.plot_file.ps_font);
   values[4]=xpp::format("{:g}",s.plot_file.ps_lw);
   static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_NUMBER};
-  if(!do_string_box_of(5,1,"Postscript parameters",nn,values,25,kinds))return 0;
+  if(!do_string_box_of(5,1,"Postscript parameters",nn,values,kinds))return 0;
   s.plot_export.color=atoi(values[0].c_str());
   s.drawing.ps_port=atoi(values[1].c_str());
   s.plot_file.ps_font_size=atoi(values[2].c_str());

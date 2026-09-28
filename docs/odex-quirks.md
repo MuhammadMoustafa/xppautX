@@ -166,13 +166,12 @@ name.
 
 ## Name length
 
-`XPP_NAME_MAX` is 64 (`core/xpplim.h`); classic XPPAUT cut names at
-about 9-10 characters.
+A name has no length limit since W76 (it was 64, `XPP_NAME_MAX`);
+classic XPPAUT cut names at about 9-10 characters.
 
 | quirk | `.ode` | xppautX today | extension | .odex |
 |---|---|---|---|---|
-| a name up to 64 chars | `par verylongparametername...=1` (<=64) | accepted in full | not flagged | accepted, no limit at all (W76 removes the 64 cap from `.ode` too) |
-| a name over 64 chars | same, >64 chars | refused at load (`name_too_long`) | not flagged specifically | accepted with no remark: no limit (a `.ode` longer than 64 gets only an info note today per the roadmap card, since a shared `.ode` may still meet classic XPPAUT's cut) |
+| a long name | `par verylongparametername...=1` (any length; tools/models/longnames.ode has 200) | accepted in full, no limit (W76; before, over 64 was refused at load) | not flagged | accepted, no limit at all |
 
 ## Initial conditions and division
 

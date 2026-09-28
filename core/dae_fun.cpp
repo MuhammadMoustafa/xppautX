@@ -43,7 +43,6 @@ int add_svar(const char *name, const char *rhs)
     xpp_log(XPP_LOG_ERROR, " Too many variables\n");
     return 1;
   }
-  if(name_too_long(name))return 1;
   xpp::model().svars[xpp::model().nsvar].name=name;
   xpp::model().svars[xpp::model().nsvar].rhs=rhs;
   xpp_log(XPP_LOG_INFO, " Added sol-var[%d] %s = %s \n",
@@ -280,7 +279,7 @@ void get_new_guesses()
   for(i=0;i<m.nsvar;i++){
     z=svar_last[i];
     const std::string name=xpp::format("Initial {}({:g}):",
-      std::string_view(m.svars[i].name).substr(0,XPP_NAME_MAX),z);
+      m.svars[i].name,z);
     new_string_of(name.c_str(),m.svars[i].rhs,XPP_FIELD_EXPRESSION);
     if(add_expr(m.svars[i].rhs.c_str(),m.svars[i].form.data(),&n)){
       err_msg("Illegal formula");

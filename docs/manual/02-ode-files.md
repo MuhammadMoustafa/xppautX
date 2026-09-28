@@ -219,7 +219,7 @@ The contents of `test.inc` will be included into the ODE file as if you had writ
 
 **NOTES:** (1) At the end of every include file you have to have the statement `#done` (2) include files can include other files.
 
-Variables are the quantities you wish to integrate in time. There are two types of variables: (i) continuous and (ii) Markov. I will first describe continuous variables. Variable names (as can all names in XPP) can have up to 64 characters each (up to 9 in XPPAUT 8 and earlier). XPP is case insensitive. Any combination of letters and numbers is valid as is the underscore, “\_”. There are 5 ways that you can tell XPP the names of the continuous variables and their right-hand sides. The following three are equivalent:
+Variables are the quantities you wish to integrate in time. There are two types of variables: (i) continuous and (ii) Markov. I will first describe continuous variables. Variable names (as can all names in XPP) can be of any length (up to 9 characters in XPPAUT 8 and earlier). XPP is case insensitive. Any combination of letters and numbers is valid as is the underscore, “\_”. There are 5 ways that you can tell XPP the names of the continuous variables and their right-hand sides. The following three are equivalent:
 
     d<name>/dt=<formula>
     <name>'=<formula>

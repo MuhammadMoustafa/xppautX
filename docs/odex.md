@@ -48,7 +48,7 @@ every `.ode` quirk `.odex` removes.
   else` compiler already produces (expr_compile.cpp, `alg_to_rpn`), so there is
   no runtime cost.
 - Names are case-sensitive (`V` and `v` are two names) with no length
-  limit (W76 removes `.ode`'s own `XPP_NAME_MAX` cap too).
+  limit (neither has `.ode` since W76).
 - Every problem is an error carrying a line and column. Nothing is
   silently dropped, cut, or ignored — the opposite of `.ode`'s `atof`
   truncation on `@` options, its spacing-sensitive `@` lines, and its
@@ -296,7 +296,7 @@ from):
   job is to preserve the `.ode`'s *meaning*, not its spelling. An
   ignored option (spaces around `=`) is dropped entirely (the default
   applies), also matching what `.ode` actually did.
-- A name over 64 characters, or two names differing only by case:
+- A long name, or two names differing only by case:
   passed through unchanged (`.odex` has no length limit, and is case-
   sensitive, so both are legal there without any rewrite) — but
   `--convert` reports a case-collision (two `.ode` names that folded to
@@ -425,7 +425,7 @@ inf), naming the variable and the time.
   grammar's postfix) and is refused as not part of `.odex` yet.
 - Until W76 and a core that keeps a name's case: names differing only by
   case, and a name that reads as a built-in in upper case (`Sin`), are
-  refused with an error saying so; a name is at most 64 characters.
+  refused with an error saying so. A name has no length limit (W76).
 
 ### What --convert writes
 

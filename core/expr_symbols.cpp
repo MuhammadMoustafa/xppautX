@@ -244,12 +244,11 @@ void convert(const char *source, char *dest)
 
 namespace {
 
-/* the next symbol of the table: name (without blanks, in upper case),
-   priority, number of arguments, what it compiles to. Returns 1 (and says
-   why) when name is empty or longer than XPP_NAME_MAX; with primed set,
-   the primed name X' of a variable X (form_ode.cpp) may be one longer.
-   The table's count (nsym) is the caller's to raise. */
-int set_symbol(std::string_view name, int primed, int pri, int arg, int com)
+/* the next symbol of the table: name (without blanks, in upper case, of
+   any length), priority, number of arguments, what it compiles to.
+   Returns 1 (and says why) when name is empty. The table's count (nsym)
+   is the caller's to raise. */
+int set_symbol(std::string_view name, int pri, int arg, int com)
 {
   std::string string=converted(name);
   int len=static_cast<int>(string.size());
@@ -257,8 +256,6 @@ int set_symbol(std::string_view name, int primed, int pri, int arg, int com)
     xpp_log(XPP_LOG_WARN, "Empty name - remove spaces\n");
     return 1;
   }
-  if(len>XPP_NAME_MAX&&!(primed&&len==MXLEN&&string[len-1]=='\''))
-    return name_too_long(name);
   ExprSymbol &s=symbols()[xpp::session().parser.nsym];
   s.name=std::move(string);
   s.len=len;
@@ -268,15 +265,6 @@ int set_symbol(std::string_view name, int primed, int pri, int arg, int com)
   return 0;
 }
 
-}
-
-/* 1 (with a message) when name, blanks removed, is longer than
-   XPP_NAME_MAX and so cannot be a symbol */
-int name_too_long(std::string_view name)
-{
-  if(converted(name).size()<=XPP_NAME_MAX)return 0;
-  xpp::log(XPP_LOG_WARN, "Name {:.40}... is longer than {} characters\n",name,XPP_NAME_MAX);
-  return 1;
 }
 
 namespace {
@@ -291,7 +279,7 @@ int add_constant(const char *junk)
   if(p.errout)xpp_log(XPP_LOG_WARN, "too many constants !!\n");
   return(1);
  }
- if(set_symbol(junk,0,10,0,COM(CONTYPE,p.ncon-1)))return 1;
+ if(set_symbol(junk,10,0,COM(CONTYPE,p.ncon-1)))return 1;
  p.nsym++;
  return(0);
 }
@@ -340,7 +328,7 @@ int add_kernel(const char *name, double mu, const char *expr)
     xpp_log(XPP_LOG_WARN, " mu must lie in [0,1.0) \n");
     return(1);
   }
-  if(set_symbol(name,0,10,0,COM(KERTYPE,m.nkernel)))return 1;
+  if(set_symbol(name,10,0,COM(KERTYPE,m.nkernel)))return 1;
   KERNEL &k=m.kernels[m.nkernel];
   k.mu=mu;
   k.flag=0;
@@ -379,7 +367,7 @@ int add_var(std::string_view junk, double value)
   if(p.errout)xpp_log(XPP_LOG_WARN, "too many variables !!\n");
   return(1);
  }
- if(set_symbol(junk,1,10,0,COM(VARTYPE,m.nvar)))return 1;
+ if(set_symbol(junk,10,0,COM(VARTYPE,m.nvar)))return 1;
  p.nsym++;
  p.variables[m.nvar]=value;
  m.nvar++;
@@ -390,7 +378,7 @@ int add_net_name(int index, const char *name, int vectorizer)
 {
   xpp_log(XPP_LOG_INFO, " Adding %s %s %d \n",vectorizer?"vectorizer":"net",name,index);
   if(duplicate_name(name)==1)return(1);
-  if(set_symbol(name,0,10,1,COM(vectorizer?VECTYPE:NETTYPE,index)))return 1;
+  if(set_symbol(name,10,1,COM(vectorizer?VECTYPE:NETTYPE,index)))return 1;
   xpp::session().parser.nsym++;
   return(0);
 }
@@ -422,7 +410,7 @@ int add_file_table(int index, const char *file)
 int add_table_name(int index, const char *name)
 {
      if(duplicate_name(name)==1)return(1);
-     if(set_symbol(name,0,10,1,COM(TABTYPE, index)))return 1;
+     if(set_symbol(name,10,1,COM(TABTYPE, index)))return 1;
      set_table_name(name,index);
      xpp::session().parser.nsym++;
      return(0);
@@ -478,7 +466,7 @@ int add_ufun_name(const char *name, int index, int narg)
   return(1);
  }
   xpp_log(XPP_LOG_INFO, " Added user fun %s \n",name);
-  if(set_symbol(name,0,10,narg,COM(UFUNTYPE, index)))return 1;
+  if(set_symbol(name,10,narg,COM(UFUNTYPE, index)))return 1;
   xpp::session().parser.nsym++;
   xpp::model().ufun_names[index]=name;
   return (0);
@@ -540,7 +528,6 @@ int add_ufun(const char *junk, const char *expr, int narg)
  int end;
 
  if(duplicate_name(junk)==1)return(1);
- if(name_too_long(junk))return(1);
  if(m.nfun>=MAXUFUN)
  {
   if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "too many functions !!\n");
@@ -552,7 +539,7 @@ int add_ufun(const char *junk, const char *expr, int narg)
 
  if(add_expr(expr,program.data(),&end)==0)
  {
-  set_symbol(junk,0,10,narg,COM(UFUNTYPE, m.nfun));
+  set_symbol(junk,10,narg,COM(UFUNTYPE, m.nfun));
   xpp::session().parser.nsym++;
   fixup_endfun(program.data(),end,narg);
   /* the definition without its last character */

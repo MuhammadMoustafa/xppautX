@@ -258,7 +258,7 @@ values[7] = yn[eq_range.mc];
 
  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(8,1,"Range Equilibria",n,values,45,kinds);
+ status=do_string_box_of(8,1,"Range Equilibria",n,values,kinds);
  if(status!=0){
    eq_range.item=values[0];
    i=find_user_name(PARAM,eq_range.item);
@@ -361,7 +361,7 @@ int set_up_range()
  values[7] = yn[s.integrator.range.movie];
  
  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(8,1,"Range Integrate",n,values,45,kinds);
+ status=do_string_box_of(8,1,"Range Integrate",n,values,kinds);
  if(status!=0){
    s.integrator.range.item=values[0];
    if(range_item()==0)return 0;
@@ -417,7 +417,7 @@ values[6] = xpp::format("{}", s.integrator.range.steps);
                            XPP_FIELD_NAME_IN(3),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,
                            XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,
                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
- status=do_string_box_of(7,2,"Double Range Integrate",n,values,45,kinds);
+ status=do_string_box_of(7,2,"Double Range Integrate",n,values,kinds);
  if(status!=0){
    s.integrator.range.item=values[0];
    

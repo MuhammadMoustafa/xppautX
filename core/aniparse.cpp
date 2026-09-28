@@ -627,10 +627,6 @@ void free_ani(void)
 
 int add_grab_task(const std::string &lhs, const std::string &rhs, AniGrab &g, int which)
 {
-    if (lhs.size() > XPP_NAME_MAX) {
-        xpp::log(XPP_LOG_WARN, "Grab event variable {} is too long\n", lhs);
-        return (-1);
-    }
     if (which != 1 && which != 2) return (-1);
     GrabTask &task = which == 1 ? g.start : g.end;
     if (which == 2 && lhs.compare(0, 6, "runnow") == 0) {
@@ -1139,7 +1135,7 @@ void ani_create_mpeg(void)
     values[1] = xpp::format("{:.24}", s.animation.mpeg.root);
     values[2] = xpp::format("{:d}", s.animation.mpeg.aviflag);
     static const int kinds[] = {XPP_FIELD_INTEGER, XPP_FIELD_FILE, XPP_FIELD_INTEGER};
-    const int status = do_string_box_of(3, 1, "Frame saving", n, values, 28, kinds);
+    const int status = do_string_box_of(3, 1, "Frame saving", n, values, kinds);
     if (status != 0) {
         s.animation.mpeg.flag = std::atoi(values[0].c_str());
         if (s.animation.mpeg.flag > 0) s.animation.mpeg.flag = 1;
@@ -1154,7 +1150,7 @@ void ani_create_mpeg(void)
 void ani_newskip(void)
 {
     std::string bob = xpp::format("{}", xpp::session().animation.vcr.inc);
-    int status = get_dialog_of("Frame skip", "Increment:", bob, "Ok", "Cancel", 20, XPP_FIELD_INTEGER);
+    int status = get_dialog_of("Frame skip", "Increment:", bob, "Ok", "Cancel", XPP_FIELD_INTEGER);
     if (status != 0) {
         xpp::session().animation.vcr.inc = std::atoi(bob.c_str());
         if (xpp::session().animation.vcr.inc <= 0) xpp::session().animation.vcr.inc = 1;

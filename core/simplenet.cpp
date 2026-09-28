@@ -210,7 +210,6 @@ void add_vectorizer_name(const char *name, const char *rhs)
     xpp_log(XPP_LOG_ERROR, "Too many vectors \n");
     xpp_model_failed();
   }
-  if(name_too_long(name))xpp_model_failed();
   xpp::model().vectors[xpp::model().nvector].name=name;
   if(add_net_name(xpp::model().nvector,name,1))
     xpp_model_failed();
@@ -701,7 +700,6 @@ void add_special_name(const char *name, char *rhs)
     if(xpp::model().nnetwork>=MAXNET){
       return;
     }
-    if(name_too_long(name))xpp_model_failed();
     xpp::model().networks[xpp::model().nnetwork].name=name;
     add_net_name(xpp::model().nnetwork,name,0);
     xpp::model().nnetwork++;
