@@ -271,6 +271,23 @@ std::optional<std::string> get_next2(std::string_view &tokens)
     return take(i,i);
 }
 
+} // namespace
+
+std::vector<OdeItem> ode_items(std::string_view rhs)
+{
+  std::vector<OdeItem> out;
+  for(std::optional<std::string> tok;(tok=get_next2(rhs));){
+    OdeItem item;
+    item.name=take_apart(*tok,&item.value);
+    size_t k=tok->find('=');
+    if(k!=std::string::npos)item.text=trimmed(std::string_view(*tok).substr(k+1));
+    out.push_back(std::move(item));
+  }
+  return out;
+}
+
+namespace {
+
 /* the model's source line: fgets without its size, the line with its
    '\n' ("" at the end of the file); false once the end was met, what
    feof(fp) says after it */
@@ -1190,10 +1207,11 @@ void add_varinfo(const VAR_INFO &v)
   }
 }
 
-/* compiled: the lines and their memory go */
-void free_varinfo()
+/* compiled: the lines go to the Model, whose statements they are */
+void keep_statements()
 {
-  std::vector<VAR_INFO>().swap(model_lines);
+  xpp::model().statements=std::move(model_lines);
+  model_lines.clear();
 }
 
 /* this code checks if the right-hand side for an initial
@@ -2198,7 +2216,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end)
  }
  compile_em();
 
- free_varinfo();
+ keep_statements();
  return 1;
 
 }

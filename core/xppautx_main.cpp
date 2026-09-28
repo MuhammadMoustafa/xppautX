@@ -51,9 +51,11 @@
 #include "xpp_files.h"
 #include "xpp_window.h"
 #include "xpp_win32.h"
+#include "odex.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "many_pops.h"
 #include "axes2.h"
 #include "nullcline.h"
@@ -114,10 +116,24 @@ static const char *const usage_tail =
     "  --no-open        browser mode, printing the address without opening a browser\n"
     "  --server         the JSON protocol on stdin and stdout (docs/protocol.md)\n"
     "  --script FILE    the protocol played from FILE, one command per line\n"
+    "  --convert        write model.odex from model.ode (docs/odex.md); asks about\n"
+    "                   names .odex reserves (--auto takes the suggested names)\n"
     "  -silent          (an xppaut option) a headless run that writes output.dat\n"
     "Options:\n"
     "  --port N         the page's port on 127.0.0.1 (default 8765; 0: any free port)\n"
     "  --verbose        the log at INFO, --debug at DEBUG (default: warnings and errors)\n";
+
+/* --convert's question about a name, asked on the terminal: nobody can
+   answer when standard input is not one (a script, CI) */
+static std::optional<std::string> ask_terminal(const std::string &question, const std::string &suggestion)
+{
+    if (!isatty(fileno(stdin))) return std::nullopt;
+    xpp::print(stderr, "{} [{}]: ", question, suggestion);
+    xpp::LineReader in = xpp::LineReader::attach(stdin);
+    std::optional<std::string_view> line = in.next();
+    if (!line) return std::nullopt;
+    return std::string(*line);
+}
 
 /* what xppautX does with the session */
 enum { MODE_WINDOW, MODE_BROWSER, MODE_SERVER };
@@ -201,7 +217,7 @@ static void run_session(void)
 
 int main(int argc, char **argv)
 {
-    int mode = MODE_WINDOW, batch = 0, port = 8765, open_browser = 1, i, k;
+    int mode = MODE_WINDOW, batch = 0, port = 8765, open_browser = 1, convert = 0, convert_auto = 0, i, k;
     char *script = NULL;
 #ifdef _WIN32
     /* xppautX links -mwindows (no console from Explorer or a file
@@ -228,6 +244,8 @@ int main(int argc, char **argv)
             script = argv[++i];
         }
         else if (strcmp(argv[i], "--no-open") == 0) open_browser = 0;
+        else if (strcmp(argv[i], "--convert") == 0) convert = 1;
+        else if (strcmp(argv[i], "--auto") == 0) convert_auto = 1;
         else if (strcmp(argv[i], "--port") == 0 && i + 1 < argc) port = atoi(argv[++i]);
         else if (xpp_log_parse_arg(argv[i])) { /* --verbose / --debug: xpp_log.h */ }
         else {
@@ -238,6 +256,14 @@ int main(int argc, char **argv)
     }
     argc = k;
     argv[argc] = NULL;
+    /* --convert [--auto] model.ode: model.odex beside it (odex.h) */
+    if (convert) {
+        if (argc != 2) {
+            xpp_log(XPP_LOG_ERROR, "usage: xppautX --convert [--auto] model.ode\n");
+            return 2;
+        }
+        return xpp::odex::convert_file(argv[1], convert_auto != 0, ask_terminal);
+    }
     if (batch) return xpp_batch_main(argc, argv);
     /* --no-open is browser mode (the VS Code extension, tools/cdp.mjs), and
        so is a build without a window */

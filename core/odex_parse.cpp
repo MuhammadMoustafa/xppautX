@@ -988,6 +988,14 @@ bool is_reserved(std::string_view word)
   return false;
 }
 
+bool is_name(std::string_view name)
+{
+  if (name.empty() || !is_letter(name[0])) return false;
+  for (char c : name)
+    if (!is_name_char(c)) return false;
+  return true;
+}
+
 Parsed parse(std::string_view text, const std::string &file)
 {
   Parsed out;

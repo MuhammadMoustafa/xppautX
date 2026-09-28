@@ -31,6 +31,7 @@
 #include "tabular.h"
 #include "simplenet.h"
 #include "xpp_current.h"
+#include "newpars.h"
 
 #include <array>
 #include <string>
@@ -209,6 +210,10 @@ struct Model {
      characters blanks at the end of the load) */
   std::vector<std::string> source;
   int nlines() const { return static_cast<int>(source.size()); }
+  /* its statements as the reader split them (form_ode.cpp's VAR_INFO,
+     arrays expanded), in order: xppautX --convert writes them
+     (odex_convert.cpp) */
+  std::vector<VAR_INFO> statements;
   /* a " comment of the model: its text, and with {name=value,...} an
      action, "$ name=value ..." (aflag 1), run when it is picked */
   struct Comment {

@@ -216,6 +216,9 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask);
 #include <array>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 /* The parameter sliders the ODE file sets up (@ s1=name, slo1=, shi1=,
    likewise 2 and 3); notAlreadySet.SLIDERn is 0 once slider n was set. */
 struct XppSlider {
@@ -294,5 +297,10 @@ struct PlotSettings {
   std::array<double,10> x_lo{}, y_lo{}, x_hi{}, y_hi{};
   int start_line_type = 1;
 };
+
+/* the name=value items of an @ line as set_internopts reads them, or
+   (set) of an internal set's "$ ..." as extract_action does: each
+   item without a name or a value left out (@ total = 1 sets nothing) */
+std::vector<std::pair<std::string, std::string>> option_items(std::string_view line, bool set);
 #endif
 #endif

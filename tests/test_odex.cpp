@@ -3,6 +3,7 @@
    an error at the right line and column for each kind of mistake. */
 #include "xpptest.h"
 #include "odex.h"
+#include "xpp_batch.h"
 
 #include <string>
 
@@ -255,6 +256,7 @@ int main(void)
   CHECK(starts(model_error("event 2 x, x=0\n"), "1:7 the event's direction is 1, -1 or 0"));
   CHECK(starts(model_error("include \"no/such/file.incx\"\n"), "1:9 cannot read the included file no/such/file.incx"));
   CHECK(xpp::odex::is_reserved("volterra") && !xpp::odex::is_reserved("e") && !xpp::odex::is_reserved("int"));
+  CHECK(xpp::odex::is_name("v_1") && !xpp::odex::is_name("1v") && !xpp::odex::is_name("_v"));
 
   /* the .ode lines a model becomes: .ode's parentheses keep .odex's
      grouping, a sign and an if always bracketed */
@@ -313,6 +315,48 @@ int main(void)
   CHECK(starts(lowered("x' = x[1]\n"), "error 1:7 indexing (x[i]) is not part of .odex yet"));
   CHECK(starts(lowered("x' = sum(i', from=0)\n"), "error 1:6 sum needs from= and to="));
   CHECK(starts(lowered("x' = 1\nset s = a = x+1\n"), "error 2:13 a set's value is a number or a name, not `x+1` (a=)"));
+
+  /* --convert: what the .ode's reader understood, its quirks explicit */
+  {
+    char arg0[] = "test_odex", model[] = "tools/models/odex_quirks.ode";
+    char *argv[] = {arg0, model, nullptr};
+    std::string text, err;
+    CHECK(xpp_load_model(2, argv, 1) == 1);
+    try {
+      text = xpp::odex::convert_model(true, xpp::odex::Ask());
+    } catch (const Error &e) {
+      err = e.text();
+    }
+    CHECK_STR(err.c_str(), "");
+    auto has = [&text](const char *line) {
+      const bool found = text.find(std::string("\n") + line + "\n") != std::string::npos;
+      if (!found) printf("  missing line: %s\n", line);
+      return found;
+    };
+    CHECK(has("# renamed: and is and_ here (.odex reserves and)"));
+    CHECK(has("par a = 2, b = 3"));
+    CHECK(has("par and_ = 1"));
+    CHECK(has("par Gk = 0.5"));
+    CHECK(has("x' = (2^3)^2+a*(3<4)-Gk"));
+    CHECK(has("y' = -x^2+(if x>0 then 1 else 2)+5"));
+    CHECK(has("z' = 1/(if x then x else 2.23e-15)+x/2+x/(1+exp(-x))+x/a+and_"));
+    CHECK(has("aux w = x and y or z"));
+    CHECK(has("# y=2*3 in the .ode: XPP reads the number at its front, 2"));
+    CHECK(has("init x = 1, y = 2"));
+    CHECK(has("event 1 x-1, y = y/(if x then x else 2.23e-15), z = 0"));
+    CHECK(has("@ total=2, dt=.1"));
+    CHECK(has("# anything here is kept as a comment"));
+    CHECK(text.find("# @ total=2*3 in the .ode: XPP reads the number at its front, 2") != std::string::npos);
+    CHECK(text.find("the .ode's lines 8") != std::string::npos); /* gk spelled Gk */
+    /* what the converted text reads back as */
+    std::string back;
+    try {
+      xpp::odex::lower(xpp::odex::parse(text, "odex_quirks.odex"));
+    } catch (const Error &e) {
+      back = e.text();
+    }
+    CHECK_STR(back.c_str(), "");
+  }
 
   TEST_REPORT("odex: grammar");
 }

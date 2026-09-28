@@ -39,6 +39,14 @@ int refuse_compiled_functions(const char *what);
 #include <string_view>
 #include <vector>
 
+/* the name=value items of a par, init, number or wiener line as the
+   reader splits them (get_next2, take_apart): each name, its value's
+   text and the number atof reads from it */
+struct OdeItem {
+  std::string name, text;
+  double value = 0;
+};
+std::vector<OdeItem> ode_items(std::string_view rhs);
 /* get_eqn, the model's lines made already (an .odex model's: odex_load.cpp)
    rather than read from its file */
 int get_eqn_lines(const std::vector<std::string> &lines);

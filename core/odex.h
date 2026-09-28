@@ -14,6 +14,8 @@
 
    The expression tree is .odex's own: an operator is the word or symbol
    .odex spells it with ("and", "mod", "!=", ...). */
+#include <functional>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -150,6 +152,8 @@ Parsed parse_file(const std::string &path);
 /* the words .odex reserves (docs/odex.md "Reserved words"): a name may
    never be one */
 bool is_reserved(std::string_view word);
+/* name is an .odex name: a letter, then letters, digits and '_' */
+bool is_name(std::string_view name);
 
 /* a parsed model checked and written as the .ode reader's lines
    (odex_load.cpp; each formula with the parentheses .ode's precedence
@@ -177,6 +181,22 @@ bool is_odex(std::string_view path);
    reads an .ode's (load_eqn.cpp): 1; a problem is logged (file, line,
    column) and the load fails (xpp_model_failed) */
 int load(const std::string &path);
+
+/* --convert's question about a name .odex reserves: the question and a
+   suggested answer; the answer ("" takes the suggestion), or nullopt
+   when nobody can answer (no terminal) */
+using Ask = std::function<std::optional<std::string>(const std::string &question, const std::string &suggestion)>;
+/* the loaded .ode model (the current Model) as .odex text, from what the
+   .ode parser understood (odex_convert.cpp); auto_answer takes every
+   suggested name. Throws Error. */
+std::string convert_model(bool auto_answer, const Ask &ask);
+/* xppautX --convert [--auto] model.ode: the model loaded, written as
+   model.odex (odex_name), which is loaded in turn and must compile to
+   the same programs (exact by construction, checked); 0 when written, 1
+   (said why) when not. ask answers the questions (no terminal: none). */
+int convert_file(const std::string &ode, bool auto_answer, const Ask &ask);
+/* model.ode's .odex: its extension made .odex */
+std::string odex_name(const std::string &ode);
 
 /* e as .odex text, with the parentheses .odex's precedence needs, and
    around a sign anywhere but at the start or after '(' or ',' (where

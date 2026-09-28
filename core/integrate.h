@@ -60,6 +60,13 @@ int do_auto_range_go();
 }
 
 #include <string>
+#include <utility>
+#include <vector>
+
+/* the model's array initial values (x[j1..j2](0)=formula, applied by
+   arr_ic_start when set_all_vals sets the model up), element by element:
+   each variable's name and formula with the index worked out */
+std::vector<std::pair<std::string, std::string>> array_initial_values();
 
 /* Initialconds/Range's settings (integrate.cpp's, read by load_eqn.cpp's
    options): the one range over item (and item2 for the double range) */

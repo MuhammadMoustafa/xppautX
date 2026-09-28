@@ -1,0 +1,16 @@
+# the .ode quirks xppautX --convert makes explicit (tests/test_odex.cpp):
+# ^ grouping left, comparisons over arithmetic, & and | at * and + , an
+# if with a trailing operator, a division by what can be 0, a name .odex
+# reserves, a name spelled two ways, a formula's value in an init
+par a=2, b=3
+par and=1
+param Gk=0.5
+x'=2^3^2 + a*3<4 - gk
+y'=-x^2 + if(x>0)then(1)else(2)+5
+z'=1/x + x/2 + x/(1+exp(-x)) + x/a + and
+aux w=x&y|z
+init x=1,y=2*3
+global 1 x-1 {y=y/x;z=0}
+@ total=2*3, dt=.1
+done
+anything here is kept as a comment

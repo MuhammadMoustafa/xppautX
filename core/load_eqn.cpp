@@ -442,6 +442,15 @@ int msc(const char *s1, const char *s2)
  return std::string_view(s2).starts_with(s1);
 }  
   
+std::vector<std::pair<std::string, std::string>> option_items(std::string_view line, bool set)
+{
+  std::vector<std::pair<std::string, std::string>> out;
+  auto keep=[&out](const std::string &name,const std::string &value){ out.emplace_back(name,value); };
+  if(set)each_option(line," "," ,;\n",keep);
+  else each_option(line," ,"," ,\n\r",keep);
+  return out;
+}
+
 void set_internopts(OptionsSet *mask)
 {
   const std::vector<std::string> &options=xpp::model().options;
