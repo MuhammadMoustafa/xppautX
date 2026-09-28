@@ -125,6 +125,14 @@ else
   echo "EXAMPLES CHECK FAILED"
   exit 1
 fi
+# every example converted to .odex and run: the same md5 (W74, docs/odex.md)
+if sh tools/odexcheck.sh > build/odexcheck.log 2>&1; then
+  tail -1 build/odexcheck.log
+else
+  tail -20 build/odexcheck.log
+  echo "ODEX CHECK FAILED"
+  exit 1
+fi
 # the conversion of the core to C++ (CLAUDE.md, "C and C++")
 echo "C++: $(( $(ls core/*.cpp 2>/dev/null | wc -l) )) / $(( $(ls core/*.c core/*.cpp 2>/dev/null | wc -l) )) sources"
 # the move from C++ to safe C++ (CLAUDE.md, "C and C++"; the W29 cards)
