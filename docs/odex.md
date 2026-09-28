@@ -20,8 +20,9 @@ every `.ode` quirk `.odex` removes.
   `.ode` gets a warning (at load and from `--check`, W75). `--convert`
   (W74) keeps the `.ode`'s meaning, writing what XPPAUT computes (with a
   comment where that differs from what the line seems to say). Example:
-  `y(0)=a` reads the parameter `a` as 0 in `.ode` (the initial condition is
-  computed before parameters are set); `.odex` sets parameters first;
+  `y(0)=a` starts y at 0 in `.ode` (a scalar initial value is read with
+  `atof`, which finds no number in `a`; measured 2026-09-27, see
+  odex-quirks.md); `.odex` evaluates it after the parameters;
   `--convert` writes `y(0)=0` with a comment naming the original expression.
 
 - Branching and functions get a formal shape, marked with curly braces,
